@@ -870,9 +870,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     }
 
     renderMap(state.map, canvas, overlay, getViewport());
-    rotateButton?.update(state.phase);
-    zoomButton?.update(state.phase);
-    quitButton?.update(state.phase);
+    const inGame = mode === Mode.GAME || mode === Mode.BANNER || mode === Mode.BALLOON_ANIM;
+    rotateButton?.update(inGame ? state.phase : null);
+    zoomButton?.update(inGame ? state.phase : null);
+    quitButton?.update(inGame ? state.phase : null);
     statusBar.update();
   }
 
