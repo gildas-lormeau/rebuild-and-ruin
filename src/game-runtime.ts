@@ -112,7 +112,7 @@ import {
 } from "./battle-ticks.ts";
 import { registerOnlineInputHandlers } from "./input.ts";
 import { registerTouchHandlers } from "./touch-input.ts";
-import { createRotateButton, createZoomButton, createQuitButton } from "./touch-ui.ts";
+import { createRotateButton, createZoomButton, createQuitButton, createStatusBar } from "./touch-ui.ts";
 import {
   pixelToTile as pixelToTileRaw,
   snapshotTerritory as snapshotTerritoryImpl,
@@ -368,6 +368,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let rotateButton: ReturnType<typeof createRotateButton> | null = null;
   let zoomButton: ReturnType<typeof createZoomButton> | null = null;
   let quitButton: ReturnType<typeof createQuitButton> | null = null;
+  const statusBar = createStatusBar({ getState: () => state });
   /** null = full map, number = zone index to zoom into */
   let cameraZone: number | null = null;
   let lastAutoZoomPhase: Phase | null = null;
@@ -858,6 +859,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rotateButton?.update(state.phase);
     zoomButton?.update(state.phase);
     quitButton?.update(state.phase);
+    statusBar.update();
   }
 
   function endGame(winner: { id: number } | null) {
