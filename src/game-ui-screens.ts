@@ -10,7 +10,7 @@ import type { GameMap } from "./map-generation.ts";
 import { generateMap } from "./map-generation.ts";
 import { PLAYER_NAMES, PLAYER_COLORS } from "./player-config.ts";
 import {
-  DIFFICULTY_LABELS, ROUNDS_OPTIONS, CANNON_HP_OPTIONS, OPTION_NAMES,
+  DIFFICULTY_LABELS, ROUNDS_OPTIONS, CANNON_HP_OPTIONS, HAPTICS_LABELS, OPTION_NAMES,
   formatKeyName, saveSettings,
   type GameSettings, type ControlsState,
 } from "./game-ui-types.ts";
@@ -47,8 +47,8 @@ export interface UIContext {
 
 /** Which option indices are visible in the current mode. */
 export function visibleOptions(ctx: UIContext): number[] {
-  if (ctx.isOnline) return [1, 2, 3, 4]; // Rounds, Cannon HP, Seed (read-only), Controls
-  return [0, 1, 2, 3, 4]; // all
+  if (ctx.isOnline) return [1, 2, 3, 4, 5]; // Rounds, Cannon HP, Haptics, Seed (read-only), Controls
+  return [0, 1, 2, 3, 4, 5]; // all
 }
 
 export function optionValue(ctx: UIContext, idx: number): string {
@@ -63,7 +63,8 @@ export function optionValue(ctx: UIContext, idx: number): string {
     return opt.label;
   }
   if (idx === 2) return CANNON_HP_OPTIONS[s.cannonHp]!.label;
-  if (idx === 3) return s.seedMode === "custom" ? (s.seed || "_") : "Random";
+  if (idx === 3) return HAPTICS_LABELS[s.haptics] ?? "All";
+  if (idx === 4) return s.seedMode === "custom" ? (s.seed || "_") : "Random";
   return "";
 }
 
@@ -82,7 +83,7 @@ export function buildOptionsUi(ctx: UIContext): void {
     const val = optionValue(ctx, i);
     const y = 80 + row * 40;
     // In online mode, Rounds and Cannon HP are always read-only (set by room host)
-    const isReadOnly = readOnly || (ctx.isOnline && (i === 1 || i === 2 || i === 3));
+    const isReadOnly = readOnly || (ctx.isOnline && (i === 1 || i === 2 || i === 4));
     oc.fillStyle = sel ? "#fff" : "#aaa";
     oc.font = sel ? "bold 20px sans-serif" : "18px sans-serif";
     const prefix = (isReadOnly && i !== 4) ? "  " : (sel ? "> " : "  ");

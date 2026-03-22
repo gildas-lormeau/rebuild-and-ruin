@@ -421,7 +421,7 @@ export function registerOnlineInputHandlers(
       const readOnly = getOptionsReturnMode() !== null;
       const seedMode = settings.seedMode;
 
-      if (!readOnly && getRealOptionIdx() === 3) {
+      if (!readOnly && getRealOptionIdx() === 4) {
         if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
           if (seedMode === "random") {
             settings.seedMode = "custom";
@@ -481,7 +481,7 @@ export function registerOnlineInputHandlers(
         e.key === "f" ||
         e.key === "h"
       ) {
-        if (getRealOptionIdx() === 4) {
+        if (getRealOptionIdx() === 5) {
           showControls();
         } else {
           closeOptions();

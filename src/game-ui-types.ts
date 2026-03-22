@@ -51,6 +51,7 @@ export interface GameSettings {
   difficulty: number;
   rounds: number;
   cannonHp: number;
+  haptics: number; // 0=off, 1=phase changes only, 2=all
   seed: string;
   seedMode: "random" | "custom";
   keyBindings: KeyBindings[];
@@ -70,12 +71,14 @@ export const CANNON_HP_OPTIONS = [
   { value: 9, label: "9 hits" },
   { value: 12, label: "12 hits" },
 ];
-export const OPTION_NAMES = ["Difficulty", "Rounds", "Cannon Kill", "Seed", "Controls"];
+export const HAPTICS_LABELS = ["Off", "Phase changes", "All"];
+export const OPTION_NAMES = ["Difficulty", "Rounds", "Cannon Kill", "Haptics", "Seed", "Controls"];
 export const SETTINGS_KEY = "castles99_settings";
 export const DEFAULT_SETTINGS: GameSettings = {
   difficulty: 1,
   rounds: 4,
   cannonHp: 0,
+  haptics: 2, // default: all
   seed: "",
   seedMode: "random",
   keyBindings: [],
@@ -112,6 +115,7 @@ export function loadSettings(): GameSettings {
         difficulty: saved.difficulty ?? DEFAULT_SETTINGS.difficulty,
         rounds: saved.rounds ?? DEFAULT_SETTINGS.rounds,
         cannonHp: saved.cannonHp ?? DEFAULT_SETTINGS.cannonHp,
+        haptics: saved.haptics ?? DEFAULT_SETTINGS.haptics,
         seed: saved.seed ?? DEFAULT_SETTINGS.seed,
         seedMode: saved.seedMode === "custom" ? "custom" : "random",
         keyBindings:
@@ -182,9 +186,13 @@ export function cycleOption(
     settings.cannonHp =
       (settings.cannonHp + dir + CANNON_HP_OPTIONS.length) %
       CANNON_HP_OPTIONS.length;
+  } else if (optionsCursor === 3) {
+    settings.haptics =
+      (settings.haptics + dir + HAPTICS_LABELS.length) %
+      HAPTICS_LABELS.length;
   }
-  // optionsCursor === 3 (Seed) — handled via direct keyboard input in options handler
-  // optionsCursor === 4 (Controls) — no left/right value, opened via confirm
+  // optionsCursor === 4 (Seed) — handled via direct keyboard input in options handler
+  // optionsCursor === 5 (Controls) — no left/right value, opened via confirm
 }
 
 // ---------------------------------------------------------------------------

@@ -113,7 +113,7 @@ import {
 import { registerOnlineInputHandlers } from "./input.ts";
 import { registerTouchHandlers } from "./touch-input.ts";
 import { createRotateButton, createZoomButton, createQuitButton, createStatusBar } from "./touch-ui.ts";
-import { hapticBattleEvents, hapticPhaseChange } from "./haptics.ts";
+import { hapticBattleEvents, hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
 import {
   pixelToTile as pixelToTileRaw,
   snapshotTerritory as snapshotTerritoryImpl,
@@ -363,6 +363,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let optionsReturnMode: Mode | null = null;
   let mode: Mode = Mode.STOPPED;
   const settings: GameSettings = loadSettings();
+  setHapticsLevel(settings.haptics);
   let optionsCursor = 0;
   const controlsState: ControlsState = createControlsState();
   let castleBuild: CastleBuildState | null = null;
@@ -552,6 +553,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       optionsReturnMode,
       state ?? null,
     );
+    setHapticsLevel(settings.haptics);
   }
 
   function renderOptions(): void {
