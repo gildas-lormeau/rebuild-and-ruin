@@ -483,6 +483,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     });
   }
 
+  let mouseJoinedSlot = -1; // track which slot mouse/trackpad has joined
+
   function lobbyClick(canvasX: number, canvasY: number): boolean {
     if (!lobby.active) return false;
     const hit = lobbyClickHitTest({
@@ -503,7 +505,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       showOptions();
       return true;
     }
+    // Mouse/trackpad can only join one slot (keyboard can join additional slots)
+    if (mouseJoinedSlot >= 0) return true;
     if (!lobby.joined[hit.slotId]) {
+      mouseJoinedSlot = hit.slotId;
       config.onLobbySlotJoined(hit.slotId);
       renderLobby();
     }
