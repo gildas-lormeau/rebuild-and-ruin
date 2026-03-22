@@ -78,6 +78,9 @@ interface TickHostBattlePhaseDeps {
   };
   onBattlePhaseEnded: () => void;
 
+  // Haptics (optional)
+  onBattleEvents?: (events: Array<ClientMessage | ServerMessage>) => void;
+
   // Networking hooks (optional, default to no-op / empty)
   remoteHumanSlots?: Set<number>;
   isHost?: boolean;
@@ -97,6 +100,8 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     collectTowerEvents,
     updateCannonballsWithEvents,
     onBattlePhaseEnded,
+    // Haptics
+    onBattleEvents,
     // Networking hooks with sensible defaults
     remoteHumanSlots = EMPTY_SET as Set<number>,
     isHost = true,
@@ -141,6 +146,12 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     battleAnim.impacts.push({ ...imp, age: 0 });
   }
   for (const evt of impactEvents) sendMessage(evt);
+
+  // Haptic feedback for battle events
+  if (onBattleEvents) {
+    const allEvents = [...towerEvents, ...impactEvents];
+    if (allEvents.length > 0) onBattleEvents(allEvents);
+  }
 
   collectCrosshairs(true, dt);
   render();

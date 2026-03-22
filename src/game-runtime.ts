@@ -113,6 +113,7 @@ import {
 import { registerOnlineInputHandlers } from "./input.ts";
 import { registerTouchHandlers } from "./touch-input.ts";
 import { createRotateButton, createZoomButton, createQuitButton, createStatusBar } from "./touch-ui.ts";
+import { hapticBattleEvents, hapticPhaseChange } from "./haptics.ts";
 import {
   pixelToTile as pixelToTileRaw,
   snapshotTerritory as snapshotTerritoryImpl,
@@ -619,6 +620,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       newBattle,
       setModeBanner: () => { mode = Mode.BANNER; },
     });
+    hapticPhaseChange();
   }
 
   function tickBanner(dt: number) {
@@ -1238,6 +1240,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       collectTowerEvents: gruntAttackTowers,
       updateCannonballsWithEvents: (gameState, delta) => updateCannonballs(gameState, delta),
       sendMessage: config.send,
+      onBattleEvents: (events) => {
+        const pid = config.getMyPlayerId();
+        const localPid = pid >= 0 ? pid : (firstHuman()?.playerId ?? -1);
+        if (localPid >= 0) hapticBattleEvents(events as any, localPid);
+      },
       onBattlePhaseEnded: () => {
         showBanner(
           "Build & Repair",
