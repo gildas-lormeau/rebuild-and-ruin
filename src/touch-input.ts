@@ -22,6 +22,8 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     isLobbyActive,
     lobbyClick,
     showLobby,
+    rematch,
+    getGameOverFocused,
     closeOptions,
     closeControls,
     getControlsState,
@@ -159,7 +161,11 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
 
     // Non-game modes: tap acts as click
     if (tap) {
-      if (mode === modeValues.STOPPED) { showLobby(); return; }
+      if (mode === modeValues.STOPPED) {
+        if (getGameOverFocused() === "rematch") rematch();
+        else showLobby();
+        return;
+      }
       if (mode === modeValues.OPTIONS) { closeOptions(); return; }
       if (mode === modeValues.CONTROLS) {
         if (!getControlsState().rebinding) closeControls();

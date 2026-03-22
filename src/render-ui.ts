@@ -195,7 +195,8 @@ export function drawGameOver(
   const gameOverData = overlay.ui.gameOver;
   const lineH = 18;
   const panelW = Math.round(W * 0.5);
-  const panelH = 40 + gameOverData.scores.length * lineH + 30;
+  const btnH = 20;
+  const panelH = 40 + gameOverData.scores.length * lineH + 20 + btnH + 16;
   const px = Math.round((W - panelW) / 2);
   const py = Math.round((H - panelH) / 2);
 
@@ -234,6 +235,33 @@ export function drawGameOver(
     }
     octx.fillText(`${entry.name}: ${entry.score}`, cx, y);
   }
+
+  // Rematch / Menu buttons
+  const btnW = Math.round((panelW - 30) / 2);
+  const btnY = py + panelH - btnH - 10;
+  const rematchX = px + 10;
+  const menuX = px + panelW - 10 - btnW;
+  const focused = gameOverData.focused;
+
+  // Rematch button
+  octx.fillStyle = focused === "rematch" ? "rgba(80,180,80,0.5)" : "rgba(80,180,80,0.2)";
+  octx.fillRect(rematchX, btnY, btnW, btnH);
+  octx.strokeStyle = focused === "rematch" ? "#afa" : "#8c8";
+  octx.lineWidth = focused === "rematch" ? 2 : 1;
+  octx.strokeRect(rematchX, btnY, btnW, btnH);
+  octx.font = FONT_BUTTON;
+  octx.fillStyle = focused === "rematch" ? "#fff" : "#ccc";
+  octx.fillText("Rematch", rematchX + btnW / 2, btnY + btnH / 2);
+
+  // Menu button
+  octx.fillStyle = focused === "menu" ? "rgba(100,100,140,0.5)" : "rgba(100,100,140,0.2)";
+  octx.fillRect(menuX, btnY, btnW, btnH);
+  octx.strokeStyle = focused === "menu" ? "#ccf" : "#99c";
+  octx.lineWidth = focused === "menu" ? 2 : 1;
+  octx.strokeRect(menuX, btnY, btnW, btnH);
+  octx.font = FONT_BUTTON;
+  octx.fillStyle = focused === "menu" ? "#fff" : "#ccc";
+  octx.fillText("Menu", menuX + btnW / 2, btnY + btnH / 2);
 }
 
 /** Draw life-lost continue/abandon dialogs (one per player). */

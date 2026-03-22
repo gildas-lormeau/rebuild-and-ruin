@@ -237,6 +237,7 @@ export interface UIOverlay {
       color: RGB;
       eliminated: boolean;
     }[];
+    focused: "rematch" | "menu";
   };
   timer?: number;
   scoreDeltas?: { playerId: number; delta: number; total: number; cx: number; cy: number }[];

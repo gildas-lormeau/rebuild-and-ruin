@@ -223,6 +223,7 @@ export interface FrameData {
   gameOver?: {
     winner: string;
     scores: { name: string; score: number; color: RGB; eliminated: boolean }[];
+    focused: "rematch" | "menu";
   };
 }
 

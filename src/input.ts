@@ -46,6 +46,9 @@ export interface RegisterOnlineInputDeps {
   lobbyKeyJoin: (key: string) => boolean;
   lobbyClick: (x: number, y: number) => boolean;
   showLobby: () => void;
+  rematch: () => void;
+  getGameOverFocused: () => "rematch" | "menu";
+  setGameOverFocused: (f: "rematch" | "menu") => void;
   showOptions: () => void;
   closeOptions: () => void;
   showControls: () => void;
@@ -111,6 +114,9 @@ export function registerOnlineInputHandlers(
     lobbyKeyJoin,
     lobbyClick,
     showLobby,
+    rematch,
+    getGameOverFocused,
+    setGameOverFocused,
     showOptions,
     closeOptions,
     showControls,
@@ -197,7 +203,8 @@ export function registerOnlineInputHandlers(
     const state = getState();
 
     if (mode === modeValues.STOPPED) {
-      showLobby();
+      if (getGameOverFocused() === "rematch") rematch();
+      else showLobby();
       return;
     }
 
@@ -306,7 +313,22 @@ export function registerOnlineInputHandlers(
     }
 
     if (mode === modeValues.STOPPED) {
-      showLobby();
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "a" || e.key === "d") {
+        setGameOverFocused(getGameOverFocused() === "rematch" ? "menu" : "rematch");
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "Enter" || e.key === " " || e.key === "n" || e.key === "f") {
+        if (getGameOverFocused() === "rematch") rematch();
+        else showLobby();
+        e.preventDefault();
+        return;
+      }
+      if (e.key === "Escape") {
+        showLobby();
+        e.preventDefault();
+        return;
+      }
       e.preventDefault();
       return;
     }

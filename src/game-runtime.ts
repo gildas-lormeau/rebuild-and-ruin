@@ -910,6 +910,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     statusBar.update();
   }
 
+  function rematch() {
+    // Reset and start a new game with the same player config
+    cameraZone = null;
+    lastAutoZoomPhase = null;
+    zoneBounds.clear();
+    scoreDeltas = [];
+    preScores = [];
+    frame = { crosshairs: [], phantoms: {} };
+    startGame();
+    mode = Mode.SELECTION;
+  }
+
   function endGame(winner: { id: number } | null) {
     config.onEndGame?.(winner, state);
     const name = winner
@@ -923,6 +935,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         color: PLAYER_COLORS[p.id % PLAYER_COLORS.length]!.wall,
         eliminated: p.eliminated,
       })),
+      focused: "rematch" as "rematch" | "menu",
     };
     render();
     mode = Mode.STOPPED;
@@ -1493,6 +1506,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       lobbyKeyJoin,
       lobbyClick,
       showLobby: config.showLobby,
+      rematch,
+      getGameOverFocused: () => frame.gameOver?.focused ?? "rematch",
+      setGameOverFocused: (f) => { if (frame.gameOver) { frame.gameOver.focused = f; render(); } },
       showOptions,
       closeOptions,
       showControls,
@@ -1549,6 +1565,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       lobbyKeyJoin: () => false,
       lobbyClick,
       showLobby: config.showLobby,
+      rematch,
+      getGameOverFocused: () => frame.gameOver?.focused ?? "rematch",
+      setGameOverFocused: (f) => { if (frame.gameOver) { frame.gameOver.focused = f; render(); } },
       showOptions,
       closeOptions,
       showControls,

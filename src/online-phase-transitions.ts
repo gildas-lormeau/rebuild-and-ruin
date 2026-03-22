@@ -60,7 +60,7 @@ export interface TransitionContext {
   // Life-lost / game over
   showLifeLostDialog: (needsReselect: number[], eliminated: number[]) => void;
   render: () => void;
-  setGameOverFrame: (payload: { winner: string; scores: { name: string; score: number; color: RGB; eliminated: boolean }[] }) => void;
+  setGameOverFrame: (payload: { winner: string; scores: { name: string; score: number; color: RGB; eliminated: boolean }[]; focused: "rematch" | "menu" }) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -203,6 +203,7 @@ export function handleGameOverTransition(msg: ServerMessage, ctx: TransitionCont
       ...s,
       color: ctx.playerColors[i % ctx.playerColors.length]!.wall,
     })),
+    focused: "rematch",
   });
   ctx.render();
   ctx.setModeStopped();

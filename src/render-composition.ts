@@ -218,6 +218,7 @@ export function buildOnlineOverlay(params: {
         color: RGB;
         eliminated: boolean;
       }[];
+      focused: "rematch" | "menu";
     };
   };
   bannerUi?: { text: string; subtitle?: string; y: number };
