@@ -173,11 +173,11 @@ async function installVibrateSpy(page: Page): Promise<void> {
     // deno-lint-ignore no-explicit-any
     (window as any).__vibrateCalls = calls;
     const orig = navigator.vibrate?.bind(navigator);
-    navigator.vibrate = (pattern: VibratePattern) => {
+    navigator.vibrate = ((pattern: VibratePattern) => {
       const ms = typeof pattern === "number" ? pattern : [...pattern][0] ?? 0;
       calls.push(ms);
       return orig ? orig(pattern) : true;
-    };
+    }) as typeof navigator.vibrate;
   });
 }
 
