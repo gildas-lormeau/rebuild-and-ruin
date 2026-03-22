@@ -760,12 +760,25 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     maxR = Math.min(GRID_ROWS - 1, maxR + 1);
     minC = Math.max(0, minC - 1);
     maxC = Math.min(GRID_COLS - 1, maxC + 1);
-    return {
-      x: minC * TILE,
-      y: minR * TILE,
-      w: (maxC - minC + 1) * TILE,
-      h: (maxR - minR + 1) * TILE,
-    };
+
+    // Pad to match canvas aspect ratio to prevent stretching
+    const targetAspect = GRID_COLS / GRID_ROWS;
+    let w = (maxC - minC + 1) * TILE;
+    let h = (maxR - minR + 1) * TILE;
+    const vpAspect = w / h;
+    if (vpAspect < targetAspect) {
+      // Too tall — widen
+      const newW = h * targetAspect;
+      const cx = (minC + maxC + 1) * TILE / 2;
+      const x = Math.max(0, Math.min(GRID_COLS * TILE - newW, cx - newW / 2));
+      return { x, y: minR * TILE, w: newW, h };
+    } else {
+      // Too wide — heighten
+      const newH = w / targetAspect;
+      const cy = (minR + maxR + 1) * TILE / 2;
+      const y = Math.max(0, Math.min(GRID_ROWS * TILE - newH, cy - newH / 2));
+      return { x: minC * TILE, y, w, h: newH };
+    }
   }
 
   function getViewport(): Viewport | null {
