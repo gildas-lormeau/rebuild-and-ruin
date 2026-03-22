@@ -26,6 +26,7 @@
 import { chromium, devices, type Page, type Browser } from "playwright";
 import { writeFileSync, mkdirSync } from "fs";
 import process from "node:process";
+import { Buffer } from "node:buffer";
 
 const SCREENSHOTS = process.argv.includes("--screenshot");
 const MOBILE = process.argv.includes("--mobile");
@@ -172,7 +173,6 @@ async function installVibrateSpy(page: Page): Promise<void> {
     // deno-lint-ignore no-explicit-any
     (window as any).__vibrateCalls = calls;
     const orig = navigator.vibrate?.bind(navigator);
-    // @ts-expect-error overload mismatch
     navigator.vibrate = (pattern: VibratePattern) => {
       const ms = typeof pattern === "number" ? pattern : [...pattern][0] ?? 0;
       calls.push(ms);
