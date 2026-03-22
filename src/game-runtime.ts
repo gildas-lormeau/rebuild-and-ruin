@@ -1079,6 +1079,17 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     mode = Mode.SELECTION;
   }
 
+  function returnToLobby(): void {
+    cameraZone = null;
+    mouseJoinedSlot = -1;
+    // Hide all DOM buttons
+    rotateButton?.update(null);
+    homeZoomButton?.update(null);
+    enemyZoomButton?.update(null);
+    quitButton?.update(null);
+    config.showLobby();
+  }
+
   function endGame(winner: { id: number } | null) {
     cameraZone = null;
     config.onEndGame?.(winner, state);
@@ -1685,7 +1696,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       isLobbyActive: () => lobby.active,
       lobbyKeyJoin,
       lobbyClick,
-      showLobby: config.showLobby,
+      showLobby: returnToLobby,
       rematch,
       getGameOverFocused: () => frame.gameOver?.focused ?? "rematch",
       setGameOverFocused: (f) => { if (frame.gameOver) { frame.gameOver.focused = f; render(); } },
@@ -1745,7 +1756,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       isLobbyActive: () => lobby.active,
       lobbyKeyJoin: () => false,
       lobbyClick,
-      showLobby: config.showLobby,
+      showLobby: returnToLobby,
       rematch,
       getGameOverFocused: () => frame.gameOver?.focused ?? "rematch",
       setGameOverFocused: (f) => { if (frame.gameOver) { frame.gameOver.focused = f; render(); } },
@@ -1822,7 +1833,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     setQuitPending: (v) => { quitPending = v; },
     setQuitTimer: (v) => { quitTimer = v; },
     setFrameAnnouncement: (msg) => { frame.announcement = msg; },
-    showLobby: () => { cameraZone = null; config.showLobby(); },
+    showLobby: returnToLobby,
     getControllers: () => controllers,
     isHuman,
     render,
