@@ -373,6 +373,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const statusBar = createStatusBar({ getState: () => state });
   /** null = full map, number = zone index to zoom into */
   let cameraZone: number | null = null;
+  /** Remembered battle zoom — persists across build/battle transitions */
+  let battleZoom: number | null = null;
+  /** Track last phase for auto-zoom on phase change */
+  let lastAutoZoomPhase: Phase | null = null;
+  /** Auto-zoom only activates after player presses a zoom button */
+  let zoomActivated = false;
   let lifeLostDialog: LifeLostDialogState | null = null;
   let frame: FrameData = { crosshairs: [], phantoms: {} };
   let battleAnim: BattleAnimState = createBattleAnimState();
@@ -535,6 +541,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       mouseJoinedSlot = hit.slotId;
       config.onLobbySlotJoined(hit.slotId);
       renderLobby();
+      // On touch devices in local mode, start immediately after joining
+      const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+      if (isTouchDevice && !config.isOnline) {
+        config.onTickLobbyExpired();
+      }
     }
     return true;
   }
@@ -833,6 +844,53 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     return result;
   }
 
+  /** Get the zone of the player's own territory. */
+  function getMyZone(): number | null {
+    let pid = config.getMyPlayerId();
+    if (pid < 0) pid = firstHuman()?.playerId ?? -1;
+    if (pid < 0) return null;
+    return state.playerZones[pid] ?? null;
+  }
+
+  /** Get the zone of the leading non-eliminated enemy. */
+  function getBestEnemyZone(): number | null {
+    let myPid = config.getMyPlayerId();
+    if (myPid < 0) myPid = firstHuman()?.playerId ?? -1;
+    let bestPid = -1, bestScore = -1;
+    for (let i = 0; i < state.players.length; i++) {
+      if (i === myPid || state.players[i]!.eliminated) continue;
+      if (state.players[i]!.score > bestScore) {
+        bestScore = state.players[i]!.score;
+        bestPid = i;
+      }
+    }
+    if (bestPid < 0) return null;
+    return state.playerZones[bestPid] ?? null;
+  }
+
+  /** Auto-zoom on phase change (touch devices only). */
+  function autoZoom(phase: Phase): void {
+    if (phase === Phase.BATTLE) {
+      // Battle: restore remembered zoom, or default to best enemy
+      if (battleZoom !== null) {
+        // Check the remembered enemy is still alive
+        const pid = state.playerZones.indexOf(battleZoom);
+        if (pid >= 0 && !state.players[pid]?.eliminated) {
+          cameraZone = battleZoom;
+        } else {
+          battleZoom = getBestEnemyZone();
+          cameraZone = battleZoom;
+        }
+      } else {
+        battleZoom = getBestEnemyZone();
+        cameraZone = battleZoom;
+      }
+    } else {
+      // Select/Build/Cannon: zoom to home
+      cameraZone = getMyZone();
+    }
+  }
+
   // Full map viewport (for lerping back to unzoomed)
   const fullMapVp: Viewport = { x: 0, y: 0, w: GRID_COLS * TILE, h: GRID_ROWS * TILE };
   /** Current interpolated viewport for smooth transitions. */
@@ -970,6 +1028,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       });
     }
 
+    // Auto-zoom on phase change (touch devices only, after first button press, not during banners)
+    if (homeZoomButton && zoomActivated && state.phase !== lastAutoZoomPhase &&
+        mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD) {
+      lastAutoZoomPhase = state.phase;
+      autoZoom(state.phase);
+    }
+
     renderMap(state.map, canvas, overlay, getViewport());
     const inGame = mode === Mode.GAME || mode === Mode.BANNER || mode === Mode.BALLOON_ANIM;
     const noBanner = mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD;
@@ -984,6 +1049,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function rematch() {
     // Reset and start a new game with the same player config
     cameraZone = null;
+    battleZoom = null;
+    lastAutoZoomPhase = null;
     cachedZoneBounds.clear();
     scoreDeltas = [];
     preScores = [];
@@ -1713,7 +1780,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       const zoomDeps = {
         getState: () => state,
         getCameraZone: () => cameraZone,
-        setCameraZone: (z: number | null) => { cameraZone = z; },
+        setCameraZone: (z: number | null) => {
+          cameraZone = z;
+          zoomActivated = true;
+          // Remember enemy zoom choice for battle persistence
+          if (state.phase === Phase.BATTLE && z !== null) battleZoom = z;
+        },
         getMyPlayerId: () => config.getMyPlayerId(),
         firstHumanPlayerId: () => firstHuman()?.playerId ?? -1,
         render,
