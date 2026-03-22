@@ -200,7 +200,7 @@ async function selectSlot(page: Page, slot: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function runLocal() {
-  const browser = await chromium.launch({ headless: false });
+  const browser = await chromium.launch({ headless: false, args: ["--window-size=1024,600"] });
   const page = await newPage(browser);
   const logs: string[] = [];
   collectLogs(page, "LOCAL", logs);
@@ -311,7 +311,7 @@ async function runLocal() {
 // ---------------------------------------------------------------------------
 
 async function runOnline() {
-  const browser = await chromium.launch({ headless: false });
+  const browser = await chromium.launch({ headless: false, args: ["--window-size=1024,600"] });
   const clientLogs: string[][] = [];
   const clientLabels: string[] = [];
   const clientPages: Page[] = [];
