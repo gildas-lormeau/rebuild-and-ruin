@@ -696,6 +696,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function firstHuman(): PlayerController | null {
+    // Prefer the player who joined via mouse/trackpad
+    if (mouseJoinedSlot >= 0) {
+      const ctrl = controllers.find(c => c.playerId === mouseJoinedSlot);
+      if (ctrl && isHuman(ctrl) && !state.players[ctrl.playerId]?.eliminated) return ctrl;
+    }
     for (const ctrl of controllers) {
       if (isHuman(ctrl) && !state.players[ctrl.playerId]?.eliminated) return ctrl;
     }
