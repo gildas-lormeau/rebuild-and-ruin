@@ -6,6 +6,7 @@
  * Requires: deno task server running on port 8001
  */
 
+import process from "node:process";
 const SERVER_URL = "ws://localhost:8001/ws/play";
 
 interface Msg { type: string; [key: string]: unknown }

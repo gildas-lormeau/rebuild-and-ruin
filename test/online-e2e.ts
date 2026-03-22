@@ -2,26 +2,29 @@
  * E2E test for both local and online play.
  *
  * Usage:
- *   npx tsx test/online-e2e.ts local      # local mode: 3 AI, no server needed
- *   npx tsx test/online-e2e.ts local 1    # local mode: 1 human + 2 AI
- *   npx tsx test/online-e2e.ts online     # online mode: 2 humans (default)
- *   npx tsx test/online-e2e.ts online 0   # online mode: 0 humans (3 AI demo)
- *   npx tsx test/online-e2e.ts online 1   # online mode: 1 human + 2 AI + watcher
+ *   npx tsx test/online-e2e.ts local             # local mode: 3 AI, no server needed
+ *   npx tsx test/online-e2e.ts local 1           # local mode: 1 human + 2 AI
+ *   npx tsx test/online-e2e.ts online            # online mode: 2 humans (default)
+ *   npx tsx test/online-e2e.ts online 0          # online mode: 0 humans (3 AI demo)
+ *   npx tsx test/online-e2e.ts online 1          # online mode: 1 human + 2 AI + watcher
  *   npx tsx test/online-e2e.ts online 3   # online mode: 3 humans + watcher
+ *   npx tsx test/online-e2e.ts online 1 https://example.deno.dev  # remote server
  *
  * Online mode requires: deno task server (port 8001) + npm run dev (port 5173)
+ *   — or pass a remote URL as the 4th argument (uses that URL for both site and server)
  * Local mode requires: npm run dev (port 5173)
  */
 
 import { chromium, type Page } from "playwright";
 import { writeFileSync, mkdirSync } from "fs";
-
-const BASE_URL = "http://localhost:5173/";
-const GAME_TIMEOUT_MS = 600_000; // 10 minutes — enough for "To The Death"
-const PLAYER_NAMES = ["Red", "Blue", "Gold"];
+import process from "node:process";
 
 const MODE = process.argv[2] === "local" ? "local" : "online";
 const NUM_HUMANS = Math.min(3, Math.max(0, Number(process.argv[3] ?? (MODE === "local" ? 0 : 2))));
+const REMOTE_URL = process.argv[4] || process.env.E2E_SERVER_URL || "";
+const BASE_URL = REMOTE_URL || "http://localhost:5173/";
+const GAME_TIMEOUT_MS = 600_000; // 10 minutes — enough for "To The Death"
+const PLAYER_NAMES = ["Red", "Blue", "Gold"];
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -25,6 +25,7 @@ import { pickPlacement } from "../src/ai-strategy.ts";
 import { placePiece, claimTerritory } from "../src/build-phase.ts";
 import type { PieceShape } from "../src/pieces.ts";
 import { Rng } from "../src/rng.ts";
+import process from "node:process";
 
 // ---------------------------------------------------------------------------
 // ASCII helpers
@@ -433,6 +434,7 @@ export function runTests(label?: string) {
         console.log(`  ✓ ${t.name}`);
         passed++;
       }
+    // deno-lint-ignore no-explicit-any
     } catch (e: any) {
       if (t.expected === "known-failure") {
         console.log(`  ~ ${t.name} (known limitation)`);
