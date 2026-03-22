@@ -166,6 +166,7 @@ async function installVibrateSpy(page: Page): Promise<void> {
   if (!MOBILE) return;
   await page.addInitScript(() => {
     const calls: number[] = [];
+    // deno-lint-ignore no-explicit-any
     (window as any).__vibrateCalls = calls;
     const orig = navigator.vibrate?.bind(navigator);
     navigator.vibrate = (pattern: number | number[]) => {
@@ -182,6 +183,7 @@ const HAPTIC_LABELS: Record<number, string> = {
 
 async function printHapticSummary(page: Page): Promise<void> {
   if (!MOBILE) return;
+  // deno-lint-ignore no-explicit-any
   const calls = await page.evaluate(() => (window as any).__vibrateCalls as number[] ?? []).catch(() => []);
   if (calls.length === 0) { console.log("\n=== HAPTICS: no vibrate calls ==="); return; }
   const counts: Record<number, number> = {};
