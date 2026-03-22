@@ -140,7 +140,7 @@ export function drawStatusBar(
 ): void {
   if (!overlay?.ui?.statusBar) return;
   const sb = overlay.ui.statusBar;
-  const barH = 12;
+  const barH = 16;
   const by = H - barH;
 
   octx.fillStyle = PANEL_BG(0.85);
@@ -149,7 +149,7 @@ export function drawStatusBar(
   octx.fillRect(0, by, W, 1);
 
   octx.save();
-  octx.font = "bold 9px monospace";
+  octx.font = "bold 10px monospace";
   octx.textBaseline = "middle";
   const cy = by + barH / 2;
 
