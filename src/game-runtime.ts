@@ -373,7 +373,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const statusBar = createStatusBar({ getState: () => state });
   /** null = full map, number = zone index to zoom into */
   let cameraZone: number | null = null;
-  let lastAutoZoomPhase: Phase | null = null;
   /** Cached zone bounding rects in tile-pixel space */
   let zoneBounds: Map<number, Viewport> = new Map();
   let lifeLostDialog: LifeLostDialogState | null = null;
@@ -858,21 +857,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     };
   }
 
-  /** Set camera to the player's zone (build/cannon) or full map (battle). */
-  function autoZoom(phase: Phase): void {
-    if (phase === Phase.BATTLE) { cameraZone = null; return; }
-    const pid = config.getMyPlayerId();
-    let targetPid = pid;
-    if (targetPid < 0) {
-      // Local mode: zoom to first human's zone
-      targetPid = firstHuman()?.playerId ?? -1;
-    }
-    if (targetPid >= 0 && state.playerZones.length > targetPid) {
-      cameraZone = state.playerZones[targetPid] ?? null;
-    } else {
-      cameraZone = null;
-    }
-  }
+
 
   // -------------------------------------------------------------------------
   // Rendering
@@ -947,12 +932,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       });
     }
 
-    // Auto-zoom on phase change (only on touch devices with zoom button)
-    if (zoomButton && state.phase !== lastAutoZoomPhase) {
-      lastAutoZoomPhase = state.phase;
-      autoZoom(state.phase);
-    }
-
     renderMap(state.map, canvas, overlay, getViewport());
     const inGame = mode === Mode.GAME || mode === Mode.BANNER || mode === Mode.BALLOON_ANIM;
     rotateButton?.update(inGame ? state.phase : null);
@@ -964,7 +943,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function rematch() {
     // Reset and start a new game with the same player config
     cameraZone = null;
-    lastAutoZoomPhase = null;
     zoneBounds.clear();
     scoreDeltas = [];
     preScores = [];
