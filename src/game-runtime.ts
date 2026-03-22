@@ -112,7 +112,7 @@ import {
 } from "./battle-ticks.ts";
 import { registerOnlineInputHandlers } from "./input.ts";
 import { registerTouchHandlers } from "./touch-input.ts";
-import { createRotateButton, createZoomButton, createQuitButton, createStatusBar } from "./touch-ui.ts";
+import { createRotateButton, createHomeZoomButton, createEnemyZoomButton, createQuitButton, createStatusBar } from "./touch-ui.ts";
 import { hapticBattleEvents, hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
 import {
   pixelToTile as pixelToTileRaw,
@@ -368,13 +368,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const controlsState: ControlsState = createControlsState();
   let castleBuild: CastleBuildState | null = null;
   let rotateButton: ReturnType<typeof createRotateButton> | null = null;
-  let zoomButton: ReturnType<typeof createZoomButton> | null = null;
+  let homeZoomButton: ReturnType<typeof createHomeZoomButton> | null = null;
+  let enemyZoomButton: ReturnType<typeof createEnemyZoomButton> | null = null;
   let quitButton: ReturnType<typeof createQuitButton> | null = null;
   const statusBar = createStatusBar({ getState: () => state });
   /** null = full map, number = zone index to zoom into */
   let cameraZone: number | null = null;
-  /** Cached zone bounding rects in tile-pixel space */
-  let zoneBounds: Map<number, Viewport> = new Map();
   let lifeLostDialog: LifeLostDialogState | null = null;
   let frame: FrameData = { crosshairs: [], phantoms: {} };
   let battleAnim: BattleAnimState = createBattleAnimState();
@@ -756,44 +755,64 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Camera / zoom
   // -------------------------------------------------------------------------
 
-  /** Compute bounding rect for a zone in tile-pixel space. */
+  /** Compute bounding rect for a player's territory in tile-pixel space.
+   *  Adapts to actual structures (walls, interior, cannons, towers). */
   function computeZoneBounds(zoneId: number): Viewport {
-    const zones = state.map.zones;
+    const pid = state.playerZones.indexOf(zoneId);
+    const player = pid >= 0 ? state.players[pid] : undefined;
     let minR = GRID_ROWS, maxR = 0, minC = GRID_COLS, maxC = 0;
-    for (let r = 0; r < GRID_ROWS; r++) {
-      for (let c = 0; c < GRID_COLS; c++) {
-        if (zones[r]![c] === zoneId) {
-          if (r < minR) minR = r;
-          if (r > maxR) maxR = r;
-          if (c < minC) minC = c;
-          if (c > maxC) maxC = c;
+
+    function expand(r: number, c: number) {
+      if (r < minR) minR = r;
+      if (r > maxR) maxR = r;
+      if (c < minC) minC = c;
+      if (c > maxC) maxC = c;
+    }
+
+    if (player && (player.walls.size > 0 || player.interior.size > 0)) {
+      // Use player's actual territory
+      for (const key of player.walls) expand(Math.floor(key / GRID_COLS), key % GRID_COLS);
+      for (const key of player.interior) expand(Math.floor(key / GRID_COLS), key % GRID_COLS);
+      for (const c of player.cannons) expand(c.row, c.col);
+      for (const t of player.ownedTowers) expand(t.row, t.col);
+      if (player.homeTower) expand(player.homeTower.row, player.homeTower.col);
+    } else {
+      // Fallback: use zone tiles (e.g. during castle select before walls exist)
+      const zones = state.map.zones;
+      for (let r = 0; r < GRID_ROWS; r++) {
+        for (let c = 0; c < GRID_COLS; c++) {
+          if (zones[r]![c] === zoneId) expand(r, c);
         }
       }
     }
-    // Add 1-tile padding
-    minR = Math.max(0, minR - 1);
-    maxR = Math.min(GRID_ROWS - 1, maxR + 1);
-    minC = Math.max(0, minC - 1);
-    maxC = Math.min(GRID_COLS - 1, maxC + 1);
 
-    // Pad to match canvas aspect ratio to prevent stretching
+    // Add padding (3 tiles for territory, 1 for zone fallback)
+    const pad = player && player.walls.size > 0 ? 3 : 1;
+    minR = Math.max(0, minR - pad);
+    maxR = Math.min(GRID_ROWS - 1, maxR + pad);
+    minC = Math.max(0, minC - pad);
+    maxC = Math.min(GRID_COLS - 1, maxC + pad);
+
+    // Pad to match map aspect ratio to prevent stretching
+    const fullW = GRID_COLS * TILE;
+    const fullH = GRID_ROWS * TILE;
     const targetAspect = GRID_COLS / GRID_ROWS;
-    let w = (maxC - minC + 1) * TILE;
-    let h = (maxR - minR + 1) * TILE;
+    const w = (maxC - minC + 1) * TILE;
+    const h = (maxR - minR + 1) * TILE;
     const vpAspect = w / h;
+    let result: Viewport;
     if (vpAspect < targetAspect) {
-      // Too tall — widen
       const newW = h * targetAspect;
       const cx = (minC + maxC + 1) * TILE / 2;
-      const x = Math.max(0, Math.min(GRID_COLS * TILE - newW, cx - newW / 2));
-      return { x, y: minR * TILE, w: newW, h };
+      const x = Math.max(0, Math.min(fullW - newW, cx - newW / 2));
+      result = { x, y: minR * TILE, w: newW, h };
     } else {
-      // Too wide — heighten
       const newH = w / targetAspect;
       const cy = (minR + maxR + 1) * TILE / 2;
-      const y = Math.max(0, Math.min(GRID_ROWS * TILE - newH, cy - newH / 2));
-      return { x: minC * TILE, y, w, h: newH };
+      const y = Math.max(0, Math.min(fullH - newH, cy - newH / 2));
+      result = { x: minC * TILE, y, w, h: newH };
     }
+    return result;
   }
 
   // Full map viewport (for lerping back to unzoomed)
@@ -808,12 +827,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     if (targetZone === null) {
       target = fullMapVp;
     } else {
-      let bounds = zoneBounds.get(targetZone);
-      if (!bounds) {
-        bounds = computeZoneBounds(targetZone);
-        zoneBounds.set(targetZone, bounds);
-      }
-      target = bounds;
+      target = computeZoneBounds(targetZone);
     }
 
     // Lerp toward target
@@ -935,7 +949,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     renderMap(state.map, canvas, overlay, getViewport());
     const inGame = mode === Mode.GAME || mode === Mode.BANNER || mode === Mode.BALLOON_ANIM;
     rotateButton?.update(inGame ? state.phase : null);
-    zoomButton?.update(inGame ? state.phase : null);
+    homeZoomButton?.update(inGame ? state.phase : null);
+    enemyZoomButton?.update(inGame ? state.phase : null);
     quitButton?.update(inGame ? state.phase : null);
     statusBar.update();
   }
@@ -943,7 +958,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function rematch() {
     // Reset and start a new game with the same player config
     cameraZone = null;
-    zoneBounds.clear();
     scoreDeltas = [];
     preScores = [];
     frame = { crosshairs: [], phantoms: {} };
@@ -1667,13 +1681,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         withFirstHuman,
         render,
       });
-      zoomButton = createZoomButton({
+      const zoomDeps = {
         getState: () => state,
         getCameraZone: () => cameraZone,
-        setCameraZone: (z) => { cameraZone = z; },
+        setCameraZone: (z: number | null) => { cameraZone = z; },
         getMyPlayerId: () => config.getMyPlayerId(),
+        firstHumanPlayerId: () => firstHuman()?.playerId ?? -1,
         render,
-      });
+      };
+      homeZoomButton = createHomeZoomButton(zoomDeps);
+      enemyZoomButton = createEnemyZoomButton(zoomDeps);
     }
   }
 

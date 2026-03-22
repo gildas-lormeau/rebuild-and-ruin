@@ -176,58 +176,139 @@ export function createStatusBar(_deps: StatusBarDeps): {
 }
 
 // ---------------------------------------------------------------------------
-// Zoom button — bottom-left, cycles: my zone → zone 1 → zone 2 → full map
+// Zoom buttons — bottom-left pair
+//   Home: toggles between my zone and full map
+//   Enemy: cycles through opponent zones
 // ---------------------------------------------------------------------------
+
+const ZOOM_BTN_CSS = `
+  position: fixed;
+  left: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  z-index: 100;
+  font-size: 24px;
+  font-weight: bold;
+  display: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  user-select: none;
+`;
 
 interface ZoomButtonDeps {
   getState: () => GameState | undefined;
   getCameraZone: () => number | null;
   setCameraZone: (zone: number | null) => void;
   getMyPlayerId: () => number;
+  firstHumanPlayerId: () => number;
   render: () => void;
 }
 
-export function createZoomButton(deps: ZoomButtonDeps): {
+/** Toggle between my zone (zoomed) and full map. */
+export function createHomeZoomButton(deps: ZoomButtonDeps): {
   update: (phase: Phase | null) => void;
 } {
   const btn = document.createElement("button");
-  btn.style.cssText = `
-    position: fixed;
+  btn.dataset.btn = "home";
+  btn.style.cssText = ZOOM_BTN_CSS + `
     bottom: 36px;
-    left: 24px;
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    z-index: 100;
     background: rgba(60, 80, 120, 0.85);
     border: 2px solid rgba(100, 140, 200, 0.7);
     color: #c0d8f0;
-    font-size: 24px;
-    font-weight: bold;
-    display: none;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-    cursor: pointer;
-    user-select: none;
   `;
   document.body.appendChild(btn);
 
-  function cycleZoom() {
+  function getMyZone(): number | null {
     const state = deps.getState();
-    if (!state) return;
-    const current = deps.getCameraZone();
-    const playerCount = state.players.length;
-    // Build zone list: player zones (0..N-1) then null (full map)
-    const zones: (number | null)[] = [];
-    for (let i = 0; i < playerCount; i++) {
-      const zone = state.playerZones[i];
-      if (zone !== undefined && !zones.includes(zone)) zones.push(zone);
-    }
-    zones.push(null); // full map
+    if (!state) return null;
+    let pid = deps.getMyPlayerId();
+    if (pid < 0) pid = deps.firstHumanPlayerId();
+    if (pid < 0) return null;
+    return state.playerZones[pid] ?? null;
+  }
 
-    const idx = current === null ? zones.length - 1 : zones.indexOf(current);
-    const next = zones[(idx + 1) % zones.length]!;
-    deps.setCameraZone(next === undefined ? null : next);
+  function toggle() {
+    const current = deps.getCameraZone();
+    const myZone = getMyZone();
+    deps.setCameraZone(current === myZone ? null : myZone);
+    updateLabel();
+    deps.render();
+  }
+
+  function updateLabel() {
+    const current = deps.getCameraZone();
+    const myZone = getMyZone();
+    if (current === myZone && myZone !== null) {
+      // Currently zoomed on my zone — show full-map icon
+      btn.textContent = "\u25A3"; // ▣ full map
+      btn.style.background = "rgba(60, 80, 120, 0.85)";
+    } else {
+      // Currently full map or enemy — show home icon with my color
+      btn.textContent = "\u2302"; // ⌂ home
+      const state = deps.getState();
+      let pid = deps.getMyPlayerId();
+      if (pid < 0) pid = deps.firstHumanPlayerId();
+      if (pid >= 0 && state && PLAYER_COLORS[pid]) {
+        const c = PLAYER_COLORS[pid]!.interiorLight;
+        btn.style.background = `rgba(${c[0]},${c[1]},${c[2]},0.85)`;
+      } else {
+        btn.style.background = "rgba(60, 80, 120, 0.85)";
+      }
+    }
+  }
+
+  btn.addEventListener("touchstart", (e) => {
+    e.preventDefault(); e.stopPropagation(); toggle();
+  }, { passive: false });
+  btn.addEventListener("click", (e) => {
+    e.preventDefault(); e.stopPropagation(); toggle();
+  });
+
+  return {
+    update(phase: Phase | null) {
+      btn.style.display = phase !== null ? "block" : "none";
+      updateLabel();
+    },
+  };
+}
+
+/** Cycle through opponent zones. */
+export function createEnemyZoomButton(deps: ZoomButtonDeps): {
+  update: (phase: Phase | null) => void;
+} {
+  const btn = document.createElement("button");
+  btn.dataset.btn = "enemy";
+  btn.style.cssText = ZOOM_BTN_CSS + `
+    bottom: 92px;
+    background: rgba(100, 50, 50, 0.85);
+    border: 2px solid rgba(180, 80, 80, 0.7);
+    color: #f0c0c0;
+  `;
+  document.body.appendChild(btn);
+
+  function getEnemyZones(): number[] {
+    const state = deps.getState();
+    if (!state) return [];
+    let myPid = deps.getMyPlayerId();
+    if (myPid < 0) myPid = deps.firstHumanPlayerId();
+    const zones: number[] = [];
+    for (let i = 0; i < state.players.length; i++) {
+      if (i === myPid || state.players[i]!.eliminated) continue;
+      const z = state.playerZones[i];
+      if (z !== undefined && !zones.includes(z)) zones.push(z);
+    }
+    return zones;
+  }
+
+  function cycle() {
+    const enemyZones = getEnemyZones();
+    if (enemyZones.length === 0) return;
+    const current = deps.getCameraZone();
+    const idx = current !== null ? enemyZones.indexOf(current) : -1;
+    const next = enemyZones[(idx + 1) % enemyZones.length]!;
+    deps.setCameraZone(next);
     updateLabel();
     deps.render();
   }
@@ -235,39 +316,31 @@ export function createZoomButton(deps: ZoomButtonDeps): {
   function updateLabel() {
     const state = deps.getState();
     const zone = deps.getCameraZone();
-    if (zone === null || !state) {
-      btn.textContent = "\u25A3"; // ▣ full map
-      btn.style.background = "rgba(60, 80, 120, 0.85)";
-      return;
-    }
-    // Find which player owns this zone
-    const pid = state.playerZones.indexOf(zone);
-    if (pid >= 0 && PLAYER_COLORS[pid]) {
-      const c = PLAYER_COLORS[pid]!.interiorLight;
-      btn.style.background = `rgba(${c[0]},${c[1]},${c[2]},0.85)`;
-      btn.textContent = "\u2922"; // ⤢ zoom
+    const enemyZones = getEnemyZones();
+    // If currently viewing an enemy zone, show that enemy's color
+    if (zone !== null && state && enemyZones.includes(zone)) {
+      const pid = state.playerZones.indexOf(zone);
+      if (pid >= 0 && PLAYER_COLORS[pid]) {
+        const c = PLAYER_COLORS[pid]!.interiorLight;
+        btn.style.background = `rgba(${c[0]},${c[1]},${c[2]},0.85)`;
+      }
+      btn.textContent = "\u2694"; // ⚔ swords
     } else {
-      btn.textContent = "\u2922";
-      btn.style.background = "rgba(60, 80, 120, 0.85)";
+      btn.textContent = "\u2694"; // ⚔ swords
+      btn.style.background = "rgba(100, 50, 50, 0.85)";
     }
   }
 
   btn.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    cycleZoom();
+    e.preventDefault(); e.stopPropagation(); cycle();
   }, { passive: false });
-
   btn.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    cycleZoom();
+    e.preventDefault(); e.stopPropagation(); cycle();
   });
 
   return {
     update(phase: Phase | null) {
-      const inGame = phase !== null;
-      btn.style.display = inGame ? "block" : "none";
+      btn.style.display = phase !== null ? "block" : "none";
       updateLabel();
     },
   };
