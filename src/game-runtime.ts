@@ -797,14 +797,50 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     }
   }
 
+  // Full map viewport (for lerping back to unzoomed)
+  const fullMapVp: Viewport = { x: 0, y: 0, w: GRID_COLS * TILE, h: GRID_ROWS * TILE };
+  /** Current interpolated viewport for smooth transitions. */
+  let currentVp: Viewport = { ...fullMapVp };
+  const ZOOM_LERP_SPEED = 6; // higher = faster transition
+
   function getViewport(): Viewport | null {
-    if (cameraZone === null) return null;
-    let bounds = zoneBounds.get(cameraZone);
-    if (!bounds) {
-      bounds = computeZoneBounds(cameraZone);
-      zoneBounds.set(cameraZone, bounds);
+    const targetZone = cameraZone;
+    let target: Viewport;
+    if (targetZone === null) {
+      target = fullMapVp;
+    } else {
+      let bounds = zoneBounds.get(targetZone);
+      if (!bounds) {
+        bounds = computeZoneBounds(targetZone);
+        zoneBounds.set(targetZone, bounds);
+      }
+      target = bounds;
     }
-    return bounds;
+
+    // Lerp toward target
+    const dt = 1 / 60; // approximate frame dt
+    const t = Math.min(1, ZOOM_LERP_SPEED * dt);
+    currentVp.x += (target.x - currentVp.x) * t;
+    currentVp.y += (target.y - currentVp.y) * t;
+    currentVp.w += (target.w - currentVp.w) * t;
+    currentVp.h += (target.h - currentVp.h) * t;
+
+    // Snap if close enough to target (avoid infinite lerp)
+    const dx = Math.abs(currentVp.x - target.x) + Math.abs(currentVp.y - target.y) +
+               Math.abs(currentVp.w - target.w) + Math.abs(currentVp.h - target.h);
+    if (dx < 0.5) {
+      currentVp.x = target.x;
+      currentVp.y = target.y;
+      currentVp.w = target.w;
+      currentVp.h = target.h;
+    }
+
+    // Return null if at full map (no zoom needed)
+    if (currentVp.x === fullMapVp.x && currentVp.y === fullMapVp.y &&
+        currentVp.w === fullMapVp.w && currentVp.h === fullMapVp.h) {
+      return null;
+    }
+    return currentVp;
   }
 
   /** Convert screen pixel to tile, accounting for zoom viewport. */
