@@ -3,7 +3,7 @@
  */
 
 import { drawSpriteCentered } from "./sprites.ts";
-import { PLAYER_COLORS } from "./player-config.ts";
+import { PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
 import { TILE } from "./map-renderer.ts";
 import type { MapData, RenderOverlay } from "./map-renderer.ts";
 
@@ -64,6 +64,21 @@ export function drawTowers(
           ? `tower_home_p${ownerId}${suffix}`
           : `tower_home_p0${suffix}`;
       drawSpriteCentered(octx, homeName, cx, cy);
+      // Player name label above home tower (battle phase only, semi-transparent)
+      if (ownerId !== undefined && inBattle) {
+        const name = PLAYER_NAMES[ownerId] ?? `P${ownerId + 1}`;
+        const c = PLAYER_COLORS[ownerId % PLAYER_COLORS.length]!.interiorLight;
+        octx.save();
+        octx.globalAlpha = 0.7;
+        octx.font = "bold 9px sans-serif";
+        octx.textAlign = "center";
+        octx.textBaseline = "bottom";
+        octx.fillStyle = `rgba(0,0,0,0.8)`;
+        octx.fillText(name, cx, cy - 17);
+        octx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        octx.fillText(name, cx - 0.5, cy - 17.5);
+        octx.restore();
+      }
     } else {
       drawSpriteCentered(octx, `tower_neutral${suffix}`, cx, cy);
     }

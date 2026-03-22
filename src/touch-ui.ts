@@ -219,8 +219,9 @@ export function createStatusBar(deps: StatusBarDeps): {
         const c = PLAYER_COLORS[i]?.interiorLight;
         const color = c ? `rgb(${c[0]},${c[1]},${c[2]})` : "#aaa";
         const cannons = p.cannons.filter(cn => cn.hp > 0).length;
-        playersHtml += `<span style="color:${color};margin:0 8px;">` +
-          `${p.score}pts ${cannons}🔫 ${"♥".repeat(p.lives)}` +
+        const lives = '<span style="color:#c44;">'+("&hearts;".repeat(p.lives))+'</span>';
+        playersHtml += `<span style="color:${color};margin:0 6px;">` +
+          `${p.score} <span style="opacity:0.6">${cannons}c</span> ${lives}` +
           `</span>`;
       }
 
@@ -250,16 +251,16 @@ export function createZoomButton(deps: ZoomButtonDeps): {
   const btn = document.createElement("button");
   btn.style.cssText = `
     position: fixed;
-    bottom: 24px;
+    bottom: 36px;
     left: 24px;
-    width: 56px;
-    height: 56px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     z-index: 100;
-    background: rgba(200, 160, 64, 0.85);
-    border: 2px solid rgba(240, 216, 112, 0.9);
-    color: #1a1a2e;
-    font-size: 20px;
+    background: rgba(60, 80, 120, 0.85);
+    border: 2px solid rgba(100, 140, 200, 0.7);
+    color: #c0d8f0;
+    font-size: 18px;
     font-weight: bold;
     display: none;
     touch-action: manipulation;
@@ -293,8 +294,8 @@ export function createZoomButton(deps: ZoomButtonDeps): {
     const state = deps.getState();
     const zone = deps.getCameraZone();
     if (zone === null || !state) {
-      btn.textContent = "🗺";
-      btn.style.background = "rgba(200, 160, 64, 0.85)";
+      btn.textContent = "\u25A3"; // ▣ full map
+      btn.style.background = "rgba(60, 80, 120, 0.85)";
       return;
     }
     // Find which player owns this zone
@@ -302,10 +303,10 @@ export function createZoomButton(deps: ZoomButtonDeps): {
     if (pid >= 0 && PLAYER_COLORS[pid]) {
       const c = PLAYER_COLORS[pid]!.interiorLight;
       btn.style.background = `rgba(${c[0]},${c[1]},${c[2]},0.85)`;
-      btn.textContent = "🔍";
+      btn.textContent = "\u2922"; // ⤢ zoom
     } else {
-      btn.textContent = "🔍";
-      btn.style.background = "rgba(200, 160, 64, 0.85)";
+      btn.textContent = "\u2922";
+      btn.style.background = "rgba(60, 80, 120, 0.85)";
     }
   }
 

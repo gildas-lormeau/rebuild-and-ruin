@@ -105,9 +105,9 @@ export function drawBanner(
     GOLD_LIGHT,
   );
   if (hasSubtitle) {
-    octx.font = "10px sans-serif";
-    octx.fillStyle = "#a08050";
-    octx.fillText(overlay.ui.banner.subtitle!, W / 2, by + bannerH * 0.7);
+    octx.font = "bold 11px sans-serif";
+    octx.fillStyle = "#c8a860";
+    octx.fillText(overlay.ui.banner.subtitle!, W / 2, by + bannerH * 0.72);
   }
   octx.restore();
 }
@@ -577,12 +577,15 @@ export function drawPlayerSelect(
       octx.strokeRect(btnX, btnY, btnW, btnH);
       octx.font = FONT_HINT;
       octx.fillStyle = flash ? "#fff" : "#aaa";
-      octx.fillText("Press button to start", cx, btnY + btnH / 2);
+      const isTouch = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+      octx.fillText(isTouch ? "Tap to join" : "Press button to start", cx, btnY + btnH / 2);
     }
 
-    octx.font = FONT_HINT;
-    octx.fillStyle = TEXT_DIM;
-    octx.fillText(p.keyHint ?? "", cx, btnY - 8);
+    if (!("ontouchstart" in (typeof window !== "undefined" ? window : {}))) {
+      octx.font = FONT_HINT;
+      octx.fillStyle = TEXT_DIM;
+      octx.fillText(p.keyHint ?? "", cx, btnY - 8);
+    }
   }
 
   const secs = Math.ceil(selectData.timer);

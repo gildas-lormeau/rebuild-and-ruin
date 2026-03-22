@@ -324,14 +324,14 @@ async function runOnline() {
       }).catch(() => ({ mode: "", phase: "", timer: 0 }));
       if (info.mode === "STOPPED") {
         console.log(`${ts()} Game over detected`);
-        await takeScreenshot(page, "game", "game-over");
+        await takeScreenshot(hostPage, "game", "game-over");
         break;
       }
       const key = `${info.mode}/${info.phase}`;
       if (key !== lastReported) {
         console.log(`${ts()} Phase: ${info.mode} / ${info.phase} (timer=${info.timer.toFixed(1)})`);
         const label = `${info.mode}-${info.phase}`.toLowerCase().replace(/[^a-z0-9]/g, "-");
-        await takeScreenshot(page, "game", label);
+        await takeScreenshot(hostPage, "game", label);
         lastReported = key;
       }
       await hostPage.waitForTimeout(500);
