@@ -1062,7 +1062,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rotateButton?.update(inGame ? state.phase : null);
     homeZoomButton?.update(showZoom ? state.phase : null);
     enemyZoomButton?.update(showZoom ? state.phase : null);
-    quitButton?.update(inGame ? state.phase : null);
+    quitButton?.update(inGame || mode === Mode.SELECTION ? state.phase : null);
     statusBar.update();
   }
 
