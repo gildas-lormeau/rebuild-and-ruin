@@ -4,6 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Rebuild & Ruin</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#c8a040">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
@@ -232,6 +236,11 @@
     window.addEventListener("resize", resizeCanvas);
     // Also run on display changes via MutationObserver
     new MutationObserver(() => resizeCanvas()).observe(canvas, { attributes: true, attributeFilter: ["style"] });
+
+    // Register service worker in production only (not on dev server)
+    if ("serviceWorker" in navigator && !location.port) {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    }
   </script>
 </body>
 </html>

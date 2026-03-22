@@ -1,0 +1,22 @@
+{
+  "name": "Rebuild & Ruin",
+  "short_name": "R&R",
+  "description": "A Rampart web remake — build castles, place cannons, destroy your opponents",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#1a1a2e",
+  "theme_color": "#c8a040",
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
