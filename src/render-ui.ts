@@ -257,6 +257,8 @@ export function drawGameOver(
   }
 
   // Rematch / Menu buttons
+  octx.textAlign = "center";
+  octx.textBaseline = "middle";
   const btnW = Math.round((panelW - 30) / 2);
   const btnY = py + panelH - btnH - 10;
   const rematchX = px + 10;
