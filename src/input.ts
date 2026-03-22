@@ -156,6 +156,19 @@ export function registerOnlineInputHandlers(
   } = deps;
 
   canvas.addEventListener("mousemove", (e) => {
+    const mode = getMode();
+    // Update cursor based on mode
+    if (mode === modeValues.LOBBY) {
+      canvas.style.cursor = "pointer";
+    } else if (mode === modeValues.STOPPED) {
+      canvas.style.cursor = "pointer";
+    } else if (mode === modeValues.GAME) {
+      const state = getState();
+      canvas.style.cursor = state?.phase === Phase.BATTLE ? "crosshair" : "default";
+    } else {
+      canvas.style.cursor = "default";
+    }
+
     const state = getState();
     if (!state || isLobbyActive()) return;
     const rect = canvas.getBoundingClientRect();
