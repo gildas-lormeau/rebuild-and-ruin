@@ -10,6 +10,7 @@
  *   npx tsx test/online-e2e.ts online 3   # online mode: 3 humans + watcher
  *   npx tsx test/online-e2e.ts online 1 https://example.deno.dev  # remote server
  *   npx tsx test/online-e2e.ts local 0 "" 5   # local, 5 battles before stopping
+ *   npx tsx test/online-e2e.ts local 0 --screenshot  # capture screenshots at phase transitions
  *
  * Online mode requires: deno task server (port 8001) + npm run dev (port 5173)
  *   — or pass a remote URL as the 4th argument (uses that URL for both site and server)
@@ -20,10 +21,12 @@ import { chromium, type Page } from "playwright";
 import { writeFileSync, mkdirSync } from "fs";
 import process from "node:process";
 
-const MODE = process.argv[2] === "local" ? "local" : "online";
-const NUM_HUMANS = Math.min(3, Math.max(0, Number(process.argv[3] ?? (MODE === "local" ? 0 : 2))));
-const SERVER_URL = process.argv[4] || process.env.E2E_SERVER_URL || "";
-const MIN_BATTLES = Math.max(1, Number(process.argv[5] ?? 2)); // stop after N battles (default 2)
+const SCREENSHOTS = process.argv.includes("--screenshot");
+const positionalArgs = process.argv.slice(2).filter(a => !a.startsWith("--"));
+const MODE = positionalArgs[0] === "local" ? "local" : "online";
+const NUM_HUMANS = Math.min(3, Math.max(0, Number(positionalArgs[1] ?? (MODE === "local" ? 0 : 2))));
+const SERVER_URL = positionalArgs[2] || process.env.E2E_SERVER_URL || "";
+const MIN_BATTLES = Math.max(1, Number(positionalArgs[3] ?? 2)); // stop after N battles (default 2)
 const BASE_URL = "http://localhost:5173/";
 const PAGE_URL = SERVER_URL ? `${BASE_URL}?server=${new URL(SERVER_URL).host}` : BASE_URL;
 const GAME_TIMEOUT_MS = 600_000; // 10 minutes — enough for "To The Death"
@@ -35,6 +38,17 @@ const PLAYER_NAMES = ["Red", "Blue", "Gold"];
 
 function ts(): string {
   return `[${(performance.now() / 1000).toFixed(1)}s]`;
+}
+
+const screenshotsTaken = new Set<string>();
+async function takeScreenshot(page: Page, prefix: string, label: string): Promise<void> {
+  if (!SCREENSHOTS) return;
+  const key = `${prefix}-${label}`;
+  if (screenshotsTaken.has(key)) return; // one per label
+  screenshotsTaken.add(key);
+  const filename = `logs/screenshot-${prefix}-${label}.png`;
+  await page.screenshot({ path: filename, fullPage: true });
+  console.log(`${ts()} Screenshot: ${filename}`);
 }
 
 function collectLogs(page: Page, prefix: string, logs: string[]): void {
@@ -127,6 +141,7 @@ async function runLocal() {
 
   // Wait for the game to start (lobby timer expires or all slots filled)
   console.log(`${ts()} Waiting for lobby timer to expire...`);
+  await takeScreenshot(page, "game", "lobby");
   await page.waitForFunction(
     () => {
       const w = window as unknown as Record<string, unknown>;
@@ -157,11 +172,14 @@ async function runLocal() {
       }).catch(() => ({ mode: "", phase: "", timer: 0 }));
       if (info.mode === "STOPPED") {
         console.log(`${ts()} Game over detected`);
+        await takeScreenshot(page, "game", "game-over");
         break;
       }
       const key = `${info.mode}/${info.phase}`;
       if (key !== lastReported) {
         console.log(`${ts()} Phase: ${info.mode} / ${info.phase} (timer=${info.timer.toFixed(1)})`);
+        const label = `${info.mode}-${info.phase}`.toLowerCase().replace(/[^a-z0-9]/g, "-");
+        await takeScreenshot(page, "game", label);
         lastReported = key;
       }
       if (info.phase === "BATTLE" && info.mode === "GAME" && !inBattle) { battleCount++; inBattle = true; }
@@ -289,11 +307,14 @@ async function runOnline() {
       }).catch(() => ({ mode: "", phase: "", timer: 0 }));
       if (info.mode === "STOPPED") {
         console.log(`${ts()} Game over detected`);
+        await takeScreenshot(page, "game", "game-over");
         break;
       }
       const key = `${info.mode}/${info.phase}`;
       if (key !== lastReported) {
         console.log(`${ts()} Phase: ${info.mode} / ${info.phase} (timer=${info.timer.toFixed(1)})`);
+        const label = `${info.mode}-${info.phase}`.toLowerCase().replace(/[^a-z0-9]/g, "-");
+        await takeScreenshot(page, "game", label);
         lastReported = key;
       }
       await hostPage.waitForTimeout(500);
