@@ -9,7 +9,7 @@
  *   npx tsx test/online-e2e.ts online 1          # online mode: 1 human + 2 AI + watcher
  *   npx tsx test/online-e2e.ts online 3   # online mode: 3 humans + watcher
  *   npx tsx test/online-e2e.ts online 1 https://example.deno.dev  # remote server
- *   npx tsx test/online-e2e.ts local 0 "" 5   # local, 5 battles before stopping
+ *   npx tsx test/online-e2e.ts local 0 "" 3   # local, 3 rounds (options: 3/5/8/12)
  *   npx tsx test/online-e2e.ts local 0 --screenshot  # capture screenshots at phase transitions
  *   npx tsx test/online-e2e.ts local 0 --mobile     # emulate mobile (Pixel 7, landscape)
  *   npx tsx test/online-e2e.ts local 0 --mobile --screenshot  # both
@@ -100,7 +100,7 @@ const positionalArgs: string[] = [];
 const MODE = positionalArgs[0] === "local" ? "local" : "online";
 const NUM_HUMANS = Math.min(3, Math.max(0, Number(positionalArgs[1] ?? (MODE === "local" ? 0 : 2))));
 const SERVER_URL = positionalArgs[2] || process.env.E2E_SERVER_URL || "";
-const MIN_BATTLES = Math.max(1, Number(positionalArgs[3] ?? 2)); // stop after N battles (default 2)
+const NUM_ROUNDS = Number(positionalArgs[3] ?? 3); // number of game rounds (default 3, options: 3/5/8/12)
 const BASE_URL = "http://localhost:5173/";
 const PAGE_URL = SERVER_URL ? `${BASE_URL}?server=${new URL(SERVER_URL).host}` : BASE_URL;
 const GAME_TIMEOUT_MS = 600_000; // 10 minutes — enough for "To The Death"
@@ -123,7 +123,9 @@ function printAssertSummary(): void {
 }
 
 function btnSelector(name: string): string {
-  if (name === "zoom") return "button[style*='left: 24px'][style*='bottom']";
+  if (name === "home") return "button[data-btn='home']";
+  if (name === "enemy") return "button[data-btn='enemy']";
+  if (name === "zoom") return "button[data-btn='home']"; // alias for home
   if (name === "rotate") return "button[style*='right: 24px'][style*='bottom']";
   if (name === "quit") return "button[style*='right: 12px'][style*='top']";
   return `button:has-text("${name}")`;
@@ -211,7 +213,7 @@ async function executeActions(page: Page, phase: string, mode: string): Promise<
 
     if (action.click) {
       const target = action.click;
-      if (target === "zoom" || target === "rotate" || target === "quit") {
+      if (target === "zoom" || target === "home" || target === "enemy" || target === "rotate" || target === "quit") {
         const btn = await page.$(btnSelector(target));
         if (btn) {
           await btn.click();
@@ -247,7 +249,21 @@ async function takeScreenshot(page: Page, prefix: string, label: string, force =
   if (screenshotsTaken.has(key)) return; // one per label
   screenshotsTaken.add(key);
   const filename = `logs/screenshot-${prefix}-${label}.png`;
-  await page.screenshot({ path: filename, fullPage: true });
+  // Capture at reduced quality/size to save LLM context
+  const buf = await page.screenshot({ type: "png", scale: "css" });
+  // Downscale via page canvas
+  const small = await page.evaluate(async (b64: string) => {
+    const img = new Image();
+    await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; img.src = "data:image/png;base64," + b64; });
+    const scale = 0.35;
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * scale);
+    c.height = Math.round(img.height * scale);
+    const ctx = c.getContext("2d")!;
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL("image/png").split(",")[1]!;
+  }, buf.toString("base64"));
+  writeFileSync(filename, Buffer.from(small, "base64"));
   console.log(`${ts()} Screenshot: ${filename}`);
 }
 
@@ -337,16 +353,21 @@ async function runLocal() {
 
   await page.goto(BASE_URL);
   // Set rounds + optional seed via localStorage
-  await page.evaluate((seed: string) => {
+  await page.evaluate(({ seed, rounds }: { seed: string; rounds: number }) => {
+    // ROUNDS_OPTIONS: [3, 5, 8, 12, 0(=∞)]
+    const roundsValues = [3, 5, 8, 12, 0];
+    let roundsIdx = roundsValues.indexOf(rounds);
+    if (roundsIdx < 0) roundsIdx = roundsValues.findIndex(v => v >= rounds && v > 0);
+    if (roundsIdx < 0) roundsIdx = 0;
     const settings = JSON.parse(localStorage.getItem("castles99_settings") || "{}");
-    settings.rounds = 0; // ROUNDS_OPTIONS[0] = { value: 3, label: "3" }
+    settings.rounds = roundsIdx;
     if (seed) {
       settings.seedMode = "custom";
       settings.seed = seed;
     }
     localStorage.setItem("castles99_settings", JSON.stringify(settings));
     document.title = "Local Play";
-  }, SEED);
+  }, { seed: SEED, rounds: NUM_ROUNDS });
   // Click "Local Play" to load main.ts and show canvas lobby
   await page.click("#btn-local");
   await page.waitForSelector("canvas[style*='display: block']", { timeout: 5000 });
@@ -377,11 +398,9 @@ async function runLocal() {
   if (NUM_HUMANS > 0) {
     allActions = [await simulateHumanPlayLoop(page, "LOCAL", GAME_TIMEOUT_MS)];
   } else {
-    // All-AI: poll until first battle ends (enough to check orbit), or game over
+    // All-AI: poll until game over
     const deadline = Date.now() + GAME_TIMEOUT_MS;
     let lastReported = "";
-    let battleCount = 0;
-    let inBattle = false;
     while (Date.now() < deadline) {
       const info = await page.evaluate(() => {
         const w = window as unknown as Record<string, unknown>;
@@ -404,13 +423,6 @@ async function runLocal() {
         lastReported = key;
         if (await executeActions(page, info.phase, info.mode)) break;
         await executeAsserts(page, info.phase, info.mode);
-      }
-      if (info.phase === "BATTLE" && info.mode === "GAME" && !inBattle) { battleCount++; inBattle = true; }
-      if (info.phase !== "BATTLE") inBattle = false;
-      // Stop after second battle ends (need 2 battles to verify crosshair reset)
-      if (battleCount >= MIN_BATTLES && info.phase === "WALL_BUILD") {
-        console.log(`${ts()} ${MIN_BATTLES} battle(s) complete — stopping early`);
-        break;
       }
       await page.waitForTimeout(500);
     }
@@ -618,6 +630,13 @@ async function simulateHumanPlayLoop(page: Page, label: string, durationMs: numb
       actions.push(`${ts()} ${label}: game over`);
       break;
     }
+
+    // Execute scripted actions/asserts on phase change
+    if (await executeActions(page, phase, mode)) {
+      actions.push(`${ts()} ${label}: action requested exit`);
+      break;
+    }
+    await executeAsserts(page, phase, mode);
 
     if (mode === "LIFE_LOST") {
       await page.keyboard.press("ArrowRight");

@@ -23,13 +23,21 @@ npx tsx test/online-e2e.ts online 1   # online, 1 human + 2 AI + watcher
 ### Positional arguments
 
 ```
-npx tsx test/online-e2e.ts <mode> <humans> <serverUrl> <minBattles>
+npx tsx test/online-e2e.ts <mode> <humans> <serverUrl> <rounds>
 ```
 
 - `mode`: `local` or `online`
 - `humans`: 0-3 (default: 0 for local, 2 for online)
 - `serverUrl`: remote server URL (online only, empty string for local)
-- `minBattles`: stop after N battles (default: 2)
+- `rounds`: number of game rounds (default: 3, options: 3/5/8/12)
+
+### IMPORTANT: Always use `timeout`
+
+Always wrap E2E commands with the `timeout` CLI command to prevent hanging:
+
+```sh
+timeout 60 npx tsx test/online-e2e.ts local 1 --mobile --headless ...
+```
 
 ### Flags
 
@@ -50,7 +58,7 @@ npx tsx test/online-e2e.ts <mode> <humans> <serverUrl> <minBattles>
 
 Parts (space-separated, all optional except trigger):
 - `phase:X` or `mode:X` — when to trigger (matches game phase or UI mode)
-- `click:zoom|rotate|quit|X,Y` — click a named button or coordinates
+- `click:home|enemy|rotate|quit|X,Y` — click a named button or coordinates
 - `screenshot:label` — save `logs/screenshot-action-<label>.png`
 - `exit` — stop the test after this action
 
@@ -64,7 +72,7 @@ Parts (space-separated, all optional except trigger):
 
 Parts:
 - `phase:X` or `mode:X` — when to check
-- `button:zoom|rotate|quit` — which button
+- `button:home|enemy|rotate|quit` — which button
 - `visible` or `hidden` — expected state
 - `text:SomeText` — check if text appears in the page
 
@@ -72,23 +80,20 @@ Parts:
 
 ```sh
 # Reproduce a bug on seed 42, screenshot the battle phase
-npx tsx test/online-e2e.ts local 0 --seed 42 --action "phase:BATTLE screenshot:bug exit"
+timeout 60 npx tsx test/online-e2e.ts local 0 --headless --seed 42 \
+  --action "phase:BATTLE screenshot:bug exit"
 
-# Verify zoom button is hidden in lobby, visible in battle
-npx tsx test/online-e2e.ts local 0 --headless --mobile \
-  --assert "phase:BATTLE button:zoom visible" "" 1
-
-# Click zoom during battle, take screenshot, exit
-npx tsx test/online-e2e.ts local 0 --mobile \
-  --action "phase:BATTLE click:zoom screenshot:zoomed exit"
+# Verify home zoom button works during cannon phase
+timeout 45 npx tsx test/online-e2e.ts local 1 --mobile --headless \
+  --action "mode:GAME click:home screenshot:zoomed exit" "" 3
 
 # Run 10 parallel headless games to catch intermittent bugs
 for i in $(seq 1 10); do
-  npx tsx test/online-e2e.ts local 0 --headless --seed $i "" 1 &
+  timeout 120 npx tsx test/online-e2e.ts local 0 --headless --seed $i "" 3 &
 done; wait
 
 # Online test with remote server
-npx tsx test/online-e2e.ts online 1 https://your-server.deno.dev
+timeout 120 npx tsx test/online-e2e.ts online 1 https://your-server.deno.dev
 ```
 
 ## Debugging process
@@ -99,7 +104,7 @@ npx tsx test/online-e2e.ts online 1 https://your-server.deno.dev
 
 3. **Write analysis script** — a `node -e` script that parses the log file and checks assertions (PASS/FAIL per player/frame). Never read raw logs by eye.
 
-4. **Run test** — use `--headless` for speed, minimal `minBattles` to reach the bug quickly. Use `--assert` for UI state checks.
+4. **Run test** — always wrap with `timeout 60` (or appropriate duration). Use `--headless` for speed, minimal rounds to reach the bug quickly. Use `--assert` for UI state checks.
 
 5. **Read script output** — it says PASS or FAIL with actual values.
 
