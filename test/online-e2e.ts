@@ -11,17 +11,20 @@
  *   npx tsx test/online-e2e.ts online 1 https://example.deno.dev  # remote server
  *   npx tsx test/online-e2e.ts local 0 "" 5   # local, 5 battles before stopping
  *   npx tsx test/online-e2e.ts local 0 --screenshot  # capture screenshots at phase transitions
+ *   npx tsx test/online-e2e.ts local 0 --mobile     # emulate mobile (Pixel 7, landscape)
+ *   npx tsx test/online-e2e.ts local 0 --mobile --screenshot  # both
  *
  * Online mode requires: deno task server (port 8001) + npm run dev (port 5173)
  *   — or pass a remote URL as the 4th argument (uses that URL for both site and server)
  * Local mode requires: npm run dev (port 5173)
  */
 
-import { chromium, type Page } from "playwright";
+import { chromium, devices, type Page, type Browser } from "playwright";
 import { writeFileSync, mkdirSync } from "fs";
 import process from "node:process";
 
 const SCREENSHOTS = process.argv.includes("--screenshot");
+const MOBILE = process.argv.includes("--mobile");
 const positionalArgs = process.argv.slice(2).filter(a => !a.startsWith("--"));
 const MODE = positionalArgs[0] === "local" ? "local" : "online";
 const NUM_HUMANS = Math.min(3, Math.max(0, Number(positionalArgs[1] ?? (MODE === "local" ? 0 : 2))));
@@ -49,6 +52,20 @@ async function takeScreenshot(page: Page, prefix: string, label: string): Promis
   const filename = `logs/screenshot-${prefix}-${label}.png`;
   await page.screenshot({ path: filename, fullPage: true });
   console.log(`${ts()} Screenshot: ${filename}`);
+}
+
+const MOBILE_DEVICE = devices["Pixel 7"];
+
+async function newPage(browser: Browser): Promise<Page> {
+  if (MOBILE) {
+    const ctx = await browser.newContext({
+      ...MOBILE_DEVICE,
+      // Force landscape
+      viewport: { width: MOBILE_DEVICE.viewport.height, height: MOBILE_DEVICE.viewport.width },
+    });
+    return ctx.newPage();
+  }
+  return browser.newPage();
 }
 
 function collectLogs(page: Page, prefix: string, logs: string[]): void {
@@ -112,7 +129,7 @@ async function selectSlot(page: Page, slot: number): Promise<void> {
 
 async function runLocal() {
   const browser = await chromium.launch({ headless: false });
-  const page = await browser.newPage();
+  const page = await newPage(browser);
   const logs: string[] = [];
   collectLogs(page, "LOCAL", logs);
 
@@ -230,7 +247,7 @@ async function runOnline() {
   console.log(`${ts()} Starting online E2E test: ${NUM_HUMANS} human${NUM_HUMANS !== 1 ? "s" : ""} + ${3 - NUM_HUMANS} AI, 3 rounds`);
 
   // --- HOST ---
-  const hostPage = await browser.newPage();
+  const hostPage = await newPage(browser);
   const hostLogs: string[] = [];
   collectLogs(hostPage, "HOST", hostLogs);
   const code = await createRoom(hostPage);
@@ -252,7 +269,7 @@ async function runOnline() {
 
   // --- ADDITIONAL HUMAN PLAYERS ---
   for (let i = 1; i < NUM_HUMANS; i++) {
-    const page = await browser.newPage();
+    const page = await newPage(browser);
     const logs: string[] = [];
     const label = `P${i}`;
     collectLogs(page, label, logs);
@@ -271,7 +288,7 @@ async function runOnline() {
   }
 
   // --- WATCHER ---
-  const watcherPage = await browser.newPage();
+  const watcherPage = await newPage(browser);
   const watcherLogs: string[] = [];
   collectLogs(watcherPage, "WATCH", watcherLogs);
   await joinRoom(watcherPage, code);
