@@ -152,7 +152,15 @@
     // Lock to landscape on mobile (best-effort, silently ignored if unsupported)
     try { screen.orientation?.lock?.("landscape").catch(() => {}); } catch {}
 
+    // Request fullscreen + wake lock on mobile (must be in a user gesture handler)
+    function tryFullscreen() {
+      if (!("ontouchstart" in window)) return; // only on touch devices
+      document.documentElement.requestFullscreen?.().catch(() => {});
+      navigator.wakeLock?.request?.("screen").catch(() => {});
+    }
+
     btnLocal.addEventListener("click", async () => {
+      tryFullscreen();
       modeSelect.style.display = "none";
       await import("/src/main.ts");
     });
@@ -173,6 +181,10 @@
       lobby.style.display = "block";
       await import("/src/online-client.ts");
     });
+
+    // Fullscreen on Create/Join confirm (needs user gesture)
+    document.getElementById("btn-create-confirm").addEventListener("click", tryFullscreen);
+    document.getElementById("btn-join-confirm").addEventListener("click", tryFullscreen);
 
     btnOnlineBack.addEventListener("click", () => {
       lobby.style.display = "none";
