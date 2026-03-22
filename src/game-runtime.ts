@@ -617,6 +617,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
     subtitle?: string,
   ) {
+    // Unzoom before banner so the full map is visible during transition
+    cameraZone = null;
     if (banner.active) {
       config.log(`showBanner "${text}" while banner "${banner.text}" is still active`);
     }
@@ -970,7 +972,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     renderMap(state.map, canvas, overlay, getViewport());
     const inGame = mode === Mode.GAME || mode === Mode.BANNER || mode === Mode.BALLOON_ANIM;
-    const showZoom = inGame || mode === Mode.SELECTION || mode === Mode.CASTLE_BUILD;
+    const noBanner = mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD;
+    const showZoom = noBanner && (mode === Mode.GAME || mode === Mode.SELECTION);
     rotateButton?.update(inGame ? state.phase : null);
     homeZoomButton?.update(showZoom ? state.phase : null);
     enemyZoomButton?.update(showZoom ? state.phase : null);
@@ -1726,7 +1729,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     setQuitPending: (v) => { quitPending = v; },
     setQuitTimer: (v) => { quitTimer = v; },
     setFrameAnnouncement: (msg) => { frame.announcement = msg; },
-    showLobby: config.showLobby,
+    showLobby: () => { cameraZone = null; config.showLobby(); },
     getControllers: () => controllers,
     isHuman,
     render,
