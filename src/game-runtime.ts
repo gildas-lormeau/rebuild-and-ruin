@@ -54,7 +54,6 @@ import {
   createTimerAccums,
   createControlsState,
   createBattleAnimState,
-  OPTION_NAMES,
   ROUNDS_OPTIONS,
   CANNON_HP_OPTIONS,
   cycleOption,
@@ -139,6 +138,7 @@ import {
   renderLobby as renderLobbyShared,
   tickLobby as tickLobbyShared,
   lobbyKeyJoin as lobbyKeyJoinShared,
+  visibleOptions,
 } from "./game-ui-screens.ts";
 import type { UIContext } from "./game-ui-screens.ts";
 import {
@@ -155,6 +155,8 @@ import type { BalloonFlight } from "./battle-system.ts";
 
 export interface RuntimeConfig {
   canvas: HTMLCanvasElement;
+  /** true for online mode. */
+  isOnline?: boolean;
   /** noop for local, ws.send for online. */
   send: (msg: any) => void;
   /** () => true for local. */
@@ -519,10 +521,19 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Options screen
   // -------------------------------------------------------------------------
 
+  /** Map cursor row to real option index. */
+  function realOptionIdx(): number {
+    return visibleOptionsForCtx()[optionsCursor] ?? optionsCursor;
+  }
+
+  function visibleOptionsForCtx(): number[] {
+    return visibleOptions(uiCtx);
+  }
+
   function changeOption(dir: number): void {
     cycleOption(
       dir,
-      optionsCursor,
+      realOptionIdx(),
       settings,
       optionsReturnMode,
       state ?? null,
@@ -1306,6 +1317,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getFrame: () => frame,
     getLobbyRemaining: () => config.getLobbyRemaining(),
     render,
+    isOnline: !!config.isOnline,
   };
 
   // -------------------------------------------------------------------------
@@ -1340,7 +1352,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       closeControls,
       getOptionsCursor: () => optionsCursor,
       setOptionsCursor: (c) => { optionsCursor = c; },
-      getOptionsCount: () => OPTION_NAMES.length,
+      getOptionsCount: () => visibleOptionsForCtx().length,
+      getRealOptionIdx: realOptionIdx,
       getOptionsReturnMode: () => optionsReturnMode,
       setOptionsReturnMode: (m) => { optionsReturnMode = m as Mode | null; },
       changeOption,
@@ -1395,7 +1408,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       closeControls,
       getOptionsCursor: () => optionsCursor,
       setOptionsCursor: (c) => { optionsCursor = c; },
-      getOptionsCount: () => OPTION_NAMES.length,
+      getOptionsCount: () => visibleOptionsForCtx().length,
+      getRealOptionIdx: realOptionIdx,
       getOptionsReturnMode: () => optionsReturnMode,
       setOptionsReturnMode: (m) => { optionsReturnMode = m as Mode | null; },
       changeOption,

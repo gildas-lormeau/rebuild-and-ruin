@@ -670,6 +670,7 @@ function handleServerMessage(msg: ServerMessage): void {
 
 const runtime: GameRuntime = createGameRuntime({
   canvas,
+  isOnline: true,
   send,
   getIsHost: () => isHost,
   getMyPlayerId: () => myPlayerId,

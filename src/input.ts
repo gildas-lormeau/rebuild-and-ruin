@@ -53,6 +53,7 @@ export interface RegisterOnlineInputDeps {
   getOptionsCursor: () => number;
   setOptionsCursor: (cursor: number) => void;
   getOptionsCount: () => number;
+  getRealOptionIdx: () => number;
   getOptionsReturnMode: () => number | null;
   setOptionsReturnMode: (mode: number | null) => void;
   changeOption: (dir: number) => void;
@@ -117,6 +118,7 @@ export function registerOnlineInputHandlers(
     getOptionsCursor,
     setOptionsCursor,
     getOptionsCount,
+    getRealOptionIdx,
     getOptionsReturnMode,
     setOptionsReturnMode,
     changeOption,
@@ -397,7 +399,7 @@ export function registerOnlineInputHandlers(
       const readOnly = getOptionsReturnMode() !== null;
       const seedMode = settings.seedMode;
 
-      if (!readOnly && getOptionsCursor() === 3) {
+      if (!readOnly && getRealOptionIdx() === 3) {
         if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
           if (seedMode === "random") {
             settings.seedMode = "custom";
@@ -436,13 +438,13 @@ export function registerOnlineInputHandlers(
         setOptionsCursor((getOptionsCursor() + 1) % getOptionsCount());
         e.preventDefault();
       } else if (
-        (!readOnly || getOptionsCursor() === 1) &&
+        (!readOnly || getRealOptionIdx() === 1) &&
         (e.key === "ArrowLeft" || e.key === "a" || e.key === "j")
       ) {
         changeOption(-1);
         e.preventDefault();
       } else if (
-        (!readOnly || getOptionsCursor() === 1) &&
+        (!readOnly || getRealOptionIdx() === 1) &&
         (e.key === "ArrowRight" || e.key === "d" || e.key === "l")
       ) {
         changeOption(1);
@@ -457,7 +459,7 @@ export function registerOnlineInputHandlers(
         e.key === "f" ||
         e.key === "h"
       ) {
-        if (getOptionsCursor() === 4) {
+        if (getRealOptionIdx() === 4) {
           showControls();
         } else {
           closeOptions();

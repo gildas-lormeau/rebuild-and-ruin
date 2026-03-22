@@ -38,11 +38,18 @@ export interface UIContext {
   getFrame: () => { announcement?: string };
   getLobbyRemaining: () => number;
   render: () => void;
+  isOnline?: boolean;
 }
 
 // ---------------------------------------------------------------------------
 // Option value display
 // ---------------------------------------------------------------------------
+
+/** Which option indices are visible in the current mode. */
+export function visibleOptions(ctx: UIContext): number[] {
+  if (ctx.isOnline) return [1, 2, 3, 4]; // Rounds, Cannon HP, Seed (read-only), Controls
+  return [0, 1, 2, 3, 4]; // all
+}
 
 export function optionValue(ctx: UIContext, idx: number): string {
   const s = ctx.settings;
@@ -68,13 +75,17 @@ export function buildOptionsUi(ctx: UIContext): void {
   const oc = ctx.canvas.getContext("2d")!;
   oc.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   const readOnly = ctx.getOptionsReturnMode() !== null;
-  for (let i = 0; i < OPTION_NAMES.length; i++) {
-    const sel = i === ctx.optionsCursor.value;
+  const visible = visibleOptions(ctx);
+  for (let row = 0; row < visible.length; row++) {
+    const i = visible[row]!;
+    const sel = row === ctx.optionsCursor.value;
     const val = optionValue(ctx, i);
-    const y = 80 + i * 40;
+    const y = 80 + row * 40;
+    // In online mode, Rounds and Cannon HP are always read-only (set by room host)
+    const isReadOnly = readOnly || (ctx.isOnline && (i === 1 || i === 2 || i === 3));
     oc.fillStyle = sel ? "#fff" : "#aaa";
     oc.font = sel ? "bold 20px sans-serif" : "18px sans-serif";
-    const prefix = (readOnly && i !== 1 && i !== 4) ? "  " : (sel ? "> " : "  ");
+    const prefix = (isReadOnly && i !== 4) ? "  " : (sel ? "> " : "  ");
     oc.fillText(`${prefix}${OPTION_NAMES[i]}: ${val}`, 40, y);
   }
 }
