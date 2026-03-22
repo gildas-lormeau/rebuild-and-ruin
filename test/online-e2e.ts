@@ -14,6 +14,9 @@
  *   npx tsx test/online-e2e.ts local 0 --mobile     # emulate mobile (Pixel 7, landscape)
  *   npx tsx test/online-e2e.ts local 0 --mobile --screenshot  # both
  *   npx tsx test/online-e2e.ts local 0 --mobile --action "phase:BATTLE click:zoom screenshot:zoomed exit"
+ *   npx tsx test/online-e2e.ts local 0 --headless          # run without browser window
+ *   npx tsx test/online-e2e.ts local 0 --seed 12345        # force specific map seed
+ *   npx tsx test/online-e2e.ts local 0 --assert "phase:BATTLE button:quit visible"  # assert UI state
  *
  * Online mode requires: deno task server (port 8001) + npm run dev (port 5173)
  *   — or pass a remote URL as the 4th argument (uses that URL for both site and server)
@@ -26,6 +29,11 @@ import process from "node:process";
 
 const SCREENSHOTS = process.argv.includes("--screenshot");
 const MOBILE = process.argv.includes("--mobile");
+const HEADLESS = process.argv.includes("--headless");
+const SEED = (() => {
+  const idx = process.argv.indexOf("--seed");
+  return idx >= 0 && process.argv[idx + 1] ? process.argv[idx + 1]! : "";
+})();
 
 // Parse --action flags: "phase:BATTLE click:zoom screenshot:label exit"
 interface TestAction {
@@ -51,7 +59,43 @@ for (let i = 2; i < process.argv.length; i++) {
   }
 }
 
-const positionalArgs = process.argv.slice(2).filter(a => !a.startsWith("--"));
+// Parse --assert flags: "phase:BATTLE button:zoom visible"
+interface TestAssert {
+  trigger: { type: "phase" | "mode"; value: string };
+  button?: string; // "zoom" | "rotate" | "quit"
+  expected?: "visible" | "hidden";
+  text?: string; // check that text appears in the page
+  done?: boolean;
+  passed?: boolean;
+}
+const ASSERTS: TestAssert[] = [];
+for (let i = 2; i < process.argv.length; i++) {
+  if (process.argv[i] === "--assert" && process.argv[i + 1]) {
+    const parts = process.argv[++i]!.split(/\s+/);
+    const assert: TestAssert = { trigger: { type: "phase", value: "" } };
+    for (const part of parts) {
+      if (part.startsWith("phase:")) assert.trigger = { type: "phase", value: part.slice(6) };
+      else if (part.startsWith("mode:")) assert.trigger = { type: "mode", value: part.slice(5) };
+      else if (part.startsWith("button:")) assert.button = part.slice(7);
+      else if (part === "visible") assert.expected = "visible";
+      else if (part === "hidden") assert.expected = "hidden";
+      else if (part.startsWith("text:")) assert.text = part.slice(5);
+    }
+    if (assert.trigger.value) ASSERTS.push(assert);
+  }
+}
+
+// Filter positional args: skip --flags and their values
+const positionalArgs: string[] = [];
+{
+  const args = process.argv.slice(2);
+  const flagsWithValue = new Set(["--action", "--assert", "--seed"]);
+  for (let i = 0; i < args.length; i++) {
+    if (flagsWithValue.has(args[i]!)) { i++; continue; } // skip flag + value
+    if (args[i]!.startsWith("--")) continue; // skip boolean flags
+    positionalArgs.push(args[i]!);
+  }
+}
 const MODE = positionalArgs[0] === "local" ? "local" : "online";
 const NUM_HUMANS = Math.min(3, Math.max(0, Number(positionalArgs[1] ?? (MODE === "local" ? 0 : 2))));
 const SERVER_URL = positionalArgs[2] || process.env.E2E_SERVER_URL || "";
@@ -69,6 +113,54 @@ function ts(): string {
   return `[${(performance.now() / 1000).toFixed(1)}s]`;
 }
 
+function printAssertSummary(): void {
+  if (ASSERTS.length === 0) return;
+  const passed = ASSERTS.filter(a => a.done && a.passed).length;
+  const failed = ASSERTS.filter(a => a.done && !a.passed).length;
+  const skipped = ASSERTS.filter(a => !a.done).length;
+  console.log(`\n=== ASSERTIONS: ${passed} passed, ${failed} failed, ${skipped} skipped ===`);
+}
+
+function btnSelector(name: string): string {
+  if (name === "zoom") return "button[style*='left: 24px'][style*='bottom']";
+  if (name === "rotate") return "button[style*='right: 24px'][style*='bottom']";
+  if (name === "quit") return "button[style*='right: 12px'][style*='top']";
+  return `button:has-text("${name}")`;
+}
+
+/** Execute pending asserts that match current phase/mode. Returns false if any assert failed. */
+async function executeAsserts(page: Page, phase: string, mode: string): Promise<boolean> {
+  let allPassed = true;
+  for (const assert of ASSERTS) {
+    if (assert.done) continue;
+    const match = assert.trigger.type === "phase"
+      ? phase === assert.trigger.value
+      : mode === assert.trigger.value;
+    if (!match) continue;
+    assert.done = true;
+
+    if (assert.button && assert.expected) {
+      const btn = await page.$(btnSelector(assert.button));
+      const isVisible = btn ? await btn.isVisible() : false;
+      const expectVisible = assert.expected === "visible";
+      assert.passed = isVisible === expectVisible;
+      const status = assert.passed ? "PASS" : "FAIL";
+      console.log(`${ts()} Assert ${status}: button:${assert.button} ${assert.expected} (actual: ${isVisible ? "visible" : "hidden"})`);
+      if (!assert.passed) allPassed = false;
+    }
+
+    if (assert.text) {
+      const content = await page.evaluate(() => document.body.innerText).catch(() => "");
+      const found = content.includes(assert.text);
+      assert.passed = found;
+      const status = found ? "PASS" : "FAIL";
+      console.log(`${ts()} Assert ${status}: text:"${assert.text}" ${found ? "found" : "not found"}`);
+      if (!found) allPassed = false;
+    }
+  }
+  return allPassed;
+}
+
 /** Execute pending actions that match current phase/mode. Returns true if an action requested exit. */
 async function executeActions(page: Page, phase: string, mode: string): Promise<boolean> {
   for (const action of ACTIONS) {
@@ -83,11 +175,7 @@ async function executeActions(page: Page, phase: string, mode: string): Promise<
     if (action.click) {
       const target = action.click;
       if (target === "zoom" || target === "rotate" || target === "quit") {
-        // Find button by position convention: zoom=bottom-left, rotate=bottom-right, quit=top-right
-        const btnSelector = target === "zoom" ? "button[style*='left: 24px'][style*='bottom']"
-          : target === "rotate" ? "button[style*='right: 24px'][style*='bottom']"
-          : "button[style*='right: 12px'][style*='top']";
-        const btn = await page.$(btnSelector);
+        const btn = await page.$(btnSelector(target));
         if (btn) {
           await btn.click();
           console.log(`${ts()} Clicked ${target} button`);
@@ -200,7 +288,7 @@ async function selectSlot(page: Page, slot: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function runLocal() {
-  const browser = await chromium.launch({ headless: false, args: ["--window-size=1024,600"] });
+  const browser = await chromium.launch({ headless: HEADLESS, args: ["--window-size=1024,600"] });
   const page = await newPage(browser);
   const logs: string[] = [];
   collectLogs(page, "LOCAL", logs);
@@ -208,13 +296,17 @@ async function runLocal() {
   console.log(`${ts()} Starting local E2E test: ${NUM_HUMANS} human${NUM_HUMANS !== 1 ? "s" : ""} + ${3 - NUM_HUMANS} AI`);
 
   await page.goto(BASE_URL);
-  // Set 3 rounds via localStorage so the game finishes in reasonable time
-  await page.evaluate(() => {
+  // Set rounds + optional seed via localStorage
+  await page.evaluate((seed: string) => {
     const settings = JSON.parse(localStorage.getItem("castles99_settings") || "{}");
     settings.rounds = 0; // ROUNDS_OPTIONS[0] = { value: 3, label: "3" }
+    if (seed) {
+      settings.seedMode = "custom";
+      settings.seed = seed;
+    }
     localStorage.setItem("castles99_settings", JSON.stringify(settings));
     document.title = "Local Play";
-  });
+  }, SEED);
   // Click "Local Play" to load main.ts and show canvas lobby
   await page.click("#btn-local");
   await page.waitForSelector("canvas[style*='display: block']", { timeout: 5000 });
@@ -271,6 +363,7 @@ async function runLocal() {
         await takeScreenshot(page, "game", label);
         lastReported = key;
         if (await executeActions(page, info.phase, info.mode)) break;
+        await executeAsserts(page, info.phase, info.mode);
       }
       if (info.phase === "BATTLE" && info.mode === "GAME" && !inBattle) { battleCount++; inBattle = true; }
       if (info.phase !== "BATTLE") inBattle = false;
@@ -302,8 +395,10 @@ async function runLocal() {
     `local-${NUM_HUMANS}h`,
   );
 
+  printAssertSummary();
   await browser.close();
   console.log(`\n${ts()} Local E2E test complete.`);
+  if (ASSERTS.some(a => a.done && !a.passed)) process.exit(1);
 }
 
 // ---------------------------------------------------------------------------
@@ -311,7 +406,7 @@ async function runLocal() {
 // ---------------------------------------------------------------------------
 
 async function runOnline() {
-  const browser = await chromium.launch({ headless: false, args: ["--window-size=1024,600"] });
+  const browser = await chromium.launch({ headless: HEADLESS, args: ["--window-size=1024,600"] });
   const clientLogs: string[][] = [];
   const clientLabels: string[] = [];
   const clientPages: Page[] = [];
@@ -407,6 +502,7 @@ async function runOnline() {
         await takeScreenshot(hostPage, "game", label);
         lastReported = key;
         if (await executeActions(hostPage, info.phase, info.mode)) break;
+        await executeAsserts(hostPage, info.phase, info.mode);
       }
       await hostPage.waitForTimeout(500);
     }
@@ -429,8 +525,10 @@ async function runOnline() {
     }
   }
 
+  printAssertSummary();
   await browser.close();
   console.log(`\n${ts()} Online E2E test complete.`);
+  if (ASSERTS.some(a => a.done && !a.passed)) process.exit(1);
 }
 
 // ---------------------------------------------------------------------------
