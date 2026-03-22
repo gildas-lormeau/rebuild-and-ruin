@@ -544,6 +544,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       // On touch devices in local mode, start immediately after joining
       const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
       if (isTouchDevice && !config.isOnline) {
+        lobby.active = false;
         config.onTickLobbyExpired();
       }
     }
@@ -895,9 +896,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const fullMapVp: Viewport = { x: 0, y: 0, w: GRID_COLS * TILE, h: GRID_ROWS * TILE };
   /** Current interpolated viewport for smooth transitions. */
   let currentVp: Viewport = { ...fullMapVp };
+  /** Last computed viewport (read-only snapshot for coordinate conversion). */
+  let lastVp: Viewport | null = null;
   const ZOOM_LERP_SPEED = 6; // higher = faster transition
 
-  function getViewport(): Viewport | null {
+  /** Advance the viewport lerp (call once per frame from render). */
+  function updateViewport(): Viewport | null {
     const targetZone = cameraZone;
     let target: Viewport;
     if (targetZone === null) {
@@ -927,9 +931,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     // Return null if at full map (no zoom needed)
     if (currentVp.x === fullMapVp.x && currentVp.y === fullMapVp.y &&
         currentVp.w === fullMapVp.w && currentVp.h === fullMapVp.h) {
-      return null;
+      lastVp = null;
+    } else {
+      lastVp = currentVp;
     }
-    return currentVp;
+    return lastVp;
+  }
+
+  /** Read-only: get current viewport for coordinate conversion (no side effects). */
+  function getViewport(): Viewport | null {
+    return lastVp;
   }
 
   /** Convert screen pixel (canvas coords) to world tile-pixel coords, accounting for zoom. */
@@ -1035,7 +1046,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       autoZoom(state.phase);
     }
 
-    renderMap(state.map, canvas, overlay, getViewport());
+    renderMap(state.map, canvas, overlay, updateViewport());
     const inGame = mode === Mode.GAME || mode === Mode.BANNER || mode === Mode.BALLOON_ANIM;
     const noBanner = mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD;
     const showZoom = noBanner && (mode === Mode.GAME || mode === Mode.SELECTION);

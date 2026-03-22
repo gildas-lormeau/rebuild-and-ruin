@@ -373,16 +373,37 @@ async function runLocal() {
   await page.waitForSelector("canvas[style*='display: block']", { timeout: 5000 });
   await page.waitForTimeout(500);
 
-  // Join human slots (keys: n=P0, f=P1, h=P2)
-  const slotKeys = ["n", "f", "h"];
-  for (let i = 0; i < NUM_HUMANS; i++) {
-    await page.keyboard.press(slotKeys[i]!);
-    console.log(`${ts()} Joined slot ${i} (${PLAYER_NAMES[i]}) as human`);
-    await page.waitForTimeout(300);
+  // Join human slots
+  if (MOBILE && NUM_HUMANS > 0) {
+    // On mobile, tap the canvas lobby slots (game starts immediately on first tap)
+    const canvas = await page.$("canvas")!;
+    const box = await canvas!.boundingBox();
+    if (box) {
+      // Lobby layout: 3 slots evenly spaced, centered vertically
+      const slotCount = 3;
+      const gap = 12 * (box.width / 1280); // scale gap to viewport
+      const rectW = (box.width - gap * (slotCount + 1)) / slotCount;
+      const rectY = box.y + box.height * 0.27;
+      const rectH = box.height * 0.5;
+      for (let i = 0; i < NUM_HUMANS; i++) {
+        const cx = box.x + gap * (i + 1) + rectW * i + rectW / 2;
+        const cy = rectY + rectH / 2;
+        await page.touchscreen.tap(cx, cy);
+        console.log(`${ts()} Tapped slot ${i} (${PLAYER_NAMES[i]}) at (${cx.toFixed(0)},${cy.toFixed(0)})`);
+        await page.waitForTimeout(300);
+      }
+    }
+  } else {
+    const slotKeys = ["n", "f", "h"];
+    for (let i = 0; i < NUM_HUMANS; i++) {
+      await page.keyboard.press(slotKeys[i]!);
+      console.log(`${ts()} Joined slot ${i} (${PLAYER_NAMES[i]}) as human`);
+      await page.waitForTimeout(300);
+    }
   }
 
-  // Wait for the game to start (lobby timer expires or all slots filled)
-  console.log(`${ts()} Waiting for lobby timer to expire...`);
+  // Wait for the game to start (lobby timer expires or immediate on mobile)
+  console.log(`${ts()} Waiting for game to start...`);
   await takeScreenshot(page, "game", "lobby");
   await page.waitForFunction(
     () => {
