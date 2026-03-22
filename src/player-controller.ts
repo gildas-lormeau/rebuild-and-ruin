@@ -1131,6 +1131,14 @@ export class AiController extends BaseController {
     this.lastFiredIdx = -1;
     this.idleInitialized = false;
 
+    // Reset crosshair to home tower so there's visible travel at battle start
+    if (state) {
+      const player = state.players[this.playerId];
+      if (player?.homeTower) {
+        this.centerOn(player.homeTower.row, player.homeTower.col);
+      }
+    }
+
     // Delegate battle planning to strategy
     this.chainTargets = null;
     this.chainIdx = 0;
