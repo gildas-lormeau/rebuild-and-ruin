@@ -1223,7 +1223,7 @@ export class AiController extends BaseController {
             this.idleRx = (5 + rng.next() * 3) * boost;
             this.idleRy = (5 + rng.next() * 3) * boost;
             this.idleSpeed =
-              (Math.PI * (1.5 + rng.next() * 0.5)) *
+              (Math.PI * (4.5 + rng.next() * 1.5)) *
               (rng.bool() ? 1 : -1);
             this.idleInitialized = true;
           }
