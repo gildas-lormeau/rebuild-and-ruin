@@ -6,7 +6,7 @@
  */
 
 import { towerAtPixel } from "./spatial.ts";
-import { SCALE } from "./map-renderer.ts";
+
 import { Phase } from "./types.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
 
@@ -87,7 +87,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
         if (!ss || ss.confirmed) return;
         const zone = state.playerZones[human.playerId] ?? 0;
         const w = screenToWorld(x, y);
-        const idx = towerAtPixel(state.map.towers, w.wx * SCALE, w.wy * SCALE);
+        const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
         if (idx !== null && idx !== ss.highlighted) {
           highlightTowerForPlayer(idx, zone, human.playerId);
         }
@@ -128,7 +128,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
         if (!ss || ss.confirmed) return;
         const zone = state.playerZones[human.playerId] ?? 0;
         const w = screenToWorld(x, y);
-        const idx = towerAtPixel(state.map.towers, w.wx * SCALE, w.wy * SCALE);
+        const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
         if (idx !== null && idx !== ss.highlighted) {
           highlightTowerForPlayer(idx, zone, human.playerId);
         }
@@ -193,7 +193,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
         if (!ss || ss.confirmed) return;
         const zone = state.playerZones[human.playerId] ?? 0;
         const w = screenToWorld(x, y);
-        const idx = towerAtPixel(state.map.towers, w.wx * SCALE, w.wy * SCALE);
+        const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
         if (idx !== null && state.map.towers[idx]?.zone === zone) {
           highlightTowerForPlayer(idx, zone, human.playerId);
           if (confirmSelectionForPlayer(human.playerId, isReselect) && isHost()) {

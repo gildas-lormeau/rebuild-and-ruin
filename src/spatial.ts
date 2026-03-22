@@ -6,7 +6,7 @@
  * build-phase.ts, and other domain-specific modules.
  */
 
-import { GRID_ROWS, GRID_COLS, TILE_SIZE, SCALE, Tile } from "./grid.ts";
+import { GRID_ROWS, GRID_COLS, TILE_SIZE, Tile } from "./grid.ts";
 import type { TilePos, PixelPos } from "./geometry-types.ts";
 import type { Tower } from "./map-generation.ts";
 import type { Cannon, BurningPit } from "./types.ts";
@@ -297,13 +297,14 @@ export function facingToCardinal(angle: number): string {
 // ---------------------------------------------------------------------------
 
 /** Find the tower index at a canvas pixel coordinate, within a tile radius. */
+/** Find tower nearest to a world coordinate (tile-pixel space). */
 export function towerAtPixel(
   towers: TilePos[],
-  canvasX: number,
-  canvasY: number,
+  worldX: number,
+  worldY: number,
 ): number | null {
-  const tileCol = Math.floor(canvasX / (TILE_SIZE * SCALE));
-  const tileRow = Math.floor(canvasY / (TILE_SIZE * SCALE));
+  const tileCol = Math.floor(worldX / TILE_SIZE);
+  const tileRow = Math.floor(worldY / TILE_SIZE);
 
   const HIT_RADIUS = 2;
   let bestIdx: number | null = null;
