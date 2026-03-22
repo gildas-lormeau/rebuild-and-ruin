@@ -29,6 +29,8 @@ interface HandleServerLifecycleDeps {
   onBuildStart: (msg: ServerMessage) => void;
   onBuildEnd: (msg: ServerMessage) => void;
   onGameOver: (msg: ServerMessage) => void;
+  setAnnouncement: (msg: string) => void;
+  playerNames: readonly string[];
 }
 
 export function handleServerLifecycleMessage(
@@ -84,11 +86,15 @@ export function handleServerLifecycleMessage(
       }
       return true;
 
-    case "player_left":
+    case "player_left": {
+      const name = deps.playerNames[msg.playerId] ?? `Player ${msg.playerId + 1}`;
       deps.lobbyJoined[msg.playerId] = false;
       deps.occupiedSlots.delete(msg.playerId);
       deps.remoteHumanSlots.delete(msg.playerId);
+      deps.setAnnouncement(`${name} disconnected`);
+      deps.log(`player_left: ${name} (pid=${msg.playerId})`);
       return true;
+    }
 
     case "room_error":
       deps.createErrorEl.textContent = msg.message;

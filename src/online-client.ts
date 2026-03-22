@@ -618,6 +618,8 @@ function handleServerMessage(msg: ServerMessage): void {
       onBuildStart: (msg) => handleBuildStartTransition(msg, transitionCtx),
       onBuildEnd: (msg) => handleBuildEndTransition(msg, transitionCtx),
       onGameOver: (msg) => handleGameOverTransition(msg, transitionCtx),
+      setAnnouncement: (text) => { runtime.getFrame().announcement = text; },
+      playerNames: PLAYER_NAMES,
     })
   ) {
     return;
