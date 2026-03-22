@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  base: process.env.GITHUB_ACTIONS ? "/rebuild-and-ruin/" : "/",
   server: {
     host: true,
     proxy: {
