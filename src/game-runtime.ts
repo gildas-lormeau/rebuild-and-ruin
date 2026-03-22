@@ -379,8 +379,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let frame: FrameData = { crosshairs: [], phantoms: {} };
   let battleAnim: BattleAnimState = createBattleAnimState();
   let banner: BannerState = createBannerState();
-  /** Score deltas to show after build phase. Cleared when banner ends. */
+  /** Score deltas to show after build phase. Fades out after a few seconds. */
   let scoreDeltas: { playerId: number; delta: number; total: number }[] = [];
+  let scoreDeltaTimer = 0;
+  const SCORE_DELTA_DISPLAY_TIME = 4; // seconds after banner ends
   let preScores: number[] = [];
   const selectionStates: Map<number, SelectionState> = new Map();
 
@@ -1012,7 +1014,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     advanceToCannonPlacePhase(state);
     startCannonPhase();
-    showBanner("Place Cannons", () => { scoreDeltas = []; mode = Mode.GAME; }, false, undefined, "Position inside fort walls");
+    showBanner("Place Cannons", () => { scoreDeltaTimer = SCORE_DELTA_DISPLAY_TIME; mode = Mode.GAME; }, false, undefined, "Position inside fort walls");
   }
 
   function tickCastleBuild(dt: number): void {
@@ -1192,6 +1194,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   function tickCannonPhase(dt: number): boolean {
+    // Fade out score deltas
+    if (scoreDeltaTimer > 0) {
+      scoreDeltaTimer -= dt;
+      if (scoreDeltaTimer <= 0) { scoreDeltas = []; scoreDeltaTimer = 0; }
+    }
     const remoteHumanSlots = config.getRemoteHumanSlots();
     return tickHostCannonPhase({
       dt,
