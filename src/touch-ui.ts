@@ -96,7 +96,7 @@ interface QuitButtonDeps {
   getQuitPending: () => boolean;
   setQuitPending: (v: boolean) => void;
   setQuitTimer: (v: number) => void;
-  setFrameAnnouncement: (msg: string) => void;
+  setQuitMessage: (msg: string) => void;
   showLobby: () => void;
   getControllers: () => PlayerController[];
   isHuman: (ctrl: PlayerController) => boolean;
@@ -135,7 +135,7 @@ export function createQuitButton(deps: QuitButtonDeps): {
     } else {
       deps.setQuitPending(true);
       deps.setQuitTimer(2);
-      deps.setFrameAnnouncement("Tap ✕ again to quit");
+      deps.setQuitMessage("Tap ✕ again to quit");
       deps.render();
     }
   }

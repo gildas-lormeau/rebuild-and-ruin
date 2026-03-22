@@ -89,7 +89,7 @@ export interface RegisterOnlineInputDeps {
   getQuitPending: () => boolean;
   setQuitPending: (value: boolean) => void;
   setQuitTimer: (seconds: number) => void;
-  setFrameAnnouncement: (text: string) => void;
+  setQuitMessage: (text: string) => void;
   render: () => void;
   sendLifeLostChoice: (
     choice: "continue" | "abandon",
@@ -151,7 +151,7 @@ export function registerOnlineInputHandlers(
     getQuitPending,
     setQuitPending,
     setQuitTimer,
-    setFrameAnnouncement,
+    setQuitMessage,
     render,
     sendLifeLostChoice,
     settings,
@@ -366,7 +366,7 @@ export function registerOnlineInputHandlers(
       } else {
         setQuitPending(true);
         setQuitTimer(2);
-        setFrameAnnouncement("Press ESC again to quit");
+        setQuitMessage("Press ESC or ✕ again to quit");
       }
       e.preventDefault();
       return;

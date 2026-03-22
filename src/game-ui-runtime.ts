@@ -235,6 +235,7 @@ export function mainLoopTick(params: {
   paused: boolean;
   quitPending: boolean;
   quitTimer: number;
+  quitMessage?: string;
   frame: { announcement?: string };
   setQuitPending: (v: boolean) => void;
   setQuitTimer: (v: number) => void;
@@ -250,7 +251,7 @@ export function mainLoopTick(params: {
       params.setQuitPending(false);
     } else {
       params.setQuitTimer(next);
-      frame.announcement = "Press ESC again to quit";
+      frame.announcement = params.quitMessage ?? "Tap again to quit";
     }
   }
 

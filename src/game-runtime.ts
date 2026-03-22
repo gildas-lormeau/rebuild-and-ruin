@@ -359,6 +359,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let paused = false;
   let quitPending = false;
   let quitTimer = 0;
+  let quitMessage = "";
   let optionsReturnMode: Mode | null = null;
   let mode: Mode = Mode.STOPPED;
   const settings: GameSettings = loadSettings();
@@ -471,6 +472,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       paused,
       quitPending,
       quitTimer,
+      quitMessage,
       frame,
       setQuitPending: (v: boolean) => { quitPending = v; },
       setQuitTimer: (v: number) => { quitTimer = v; },
@@ -1733,7 +1735,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       getQuitPending: () => quitPending,
       setQuitPending: (v) => { quitPending = v; },
       setQuitTimer: (s) => { quitTimer = s; },
-      setFrameAnnouncement: (text) => { frame.announcement = text; },
+      setQuitMessage: (msg) => { quitMessage = msg; },
       render,
       sendLifeLostChoice: (choice: "continue" | "abandon", playerId: number) => {
         config.send({ type: "life_lost_choice", choice, playerId });
@@ -1793,7 +1795,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       getQuitPending: () => quitPending,
       setQuitPending: (v) => { quitPending = v; },
       setQuitTimer: (s) => { quitTimer = s; },
-      setFrameAnnouncement: (text) => { frame.announcement = text; },
+      setQuitMessage: (msg) => { quitMessage = msg; },
       render,
       sendLifeLostChoice: (choice: "continue" | "abandon", playerId: number) => {
         config.send({ type: "life_lost_choice", choice, playerId });
@@ -1832,7 +1834,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getQuitPending: () => quitPending,
     setQuitPending: (v) => { quitPending = v; },
     setQuitTimer: (v) => { quitTimer = v; },
-    setFrameAnnouncement: (msg) => { frame.announcement = msg; },
+    setQuitMessage: (msg) => { quitMessage = msg; },
     showLobby: returnToLobby,
     getControllers: () => controllers,
     isHuman,
