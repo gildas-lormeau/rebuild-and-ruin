@@ -1,0 +1,42 @@
+/**
+ * Shared UI theme constants for all rendering modules.
+ */
+
+/** RGB color tuple. */
+export type RGB = [number, number, number];
+
+// ---------------------------------------------------------------------------
+// Panel backgrounds
+// ---------------------------------------------------------------------------
+
+/** Dark sepia panel background (0.85–0.95 alpha depending on context). */
+export const PANEL_BG = (alpha: number) => `rgba(20, 12, 8, ${alpha})`;
+
+// ---------------------------------------------------------------------------
+// Accent colors
+// ---------------------------------------------------------------------------
+
+/** Gold accent — borders, separators, timer text. */
+export const GOLD = "#c8a040";
+/** Light gold — titles, important text. */
+export const GOLD_LIGHT = "#f0d870";
+/** Gold background with variable alpha — for highlighted rows/cells. */
+export const GOLD_BG = (alpha: number) => `rgba(200, 160, 64, ${alpha})`;
+/** Text shadow color for overlay text. */
+export const SHADOW_COLOR = "rgba(0,0,0,0.6)";
+
+// ---------------------------------------------------------------------------
+// Fonts
+// ---------------------------------------------------------------------------
+
+export const FONT_ANNOUNCE = "bold 24px monospace";
+export const FONT_TITLE = "bold 20px monospace";
+export const FONT_HEADING = "bold 16px monospace";
+export const FONT_SUBTITLE = "12px monospace";
+export const FONT_BODY = "bold 14px monospace";
+export const FONT_LABEL = "bold 12px monospace";
+export const FONT_SMALL = "bold 11px monospace";
+export const FONT_BUTTON = "bold 10px monospace";
+export const FONT_HINT = "9px monospace";
+export const FONT_TIMER = "bold 14px monospace";
+export const FONT_ICON = "28px monospace";

@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Sprite Sheet Generator — Rebuild & Ruin</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #1a1a2e; color: #eee; font-family: monospace; padding: 20px; }
+    h1 { margin-bottom: 10px; font-size: 18px; }
+    p { margin-bottom: 10px; font-size: 13px; color: #aaa; }
+    canvas { border: 1px solid #555; image-rendering: pixelated; margin-bottom: 10px; }
+    button {
+      background: #16213e; color: #eee; border: 1px solid #555;
+      padding: 8px 16px; cursor: pointer; font-family: monospace; font-size: 14px;
+      margin-right: 8px;
+    }
+    button:hover { background: #0f3460; }
+    .preview { margin-top: 15px; }
+    .preview canvas { display: block; }
+    .grid-label {
+      font-size: 11px; color: #888; margin-top: 4px; margin-bottom: 10px;
+    }
+    table { border-collapse: collapse; margin-top: 15px; }
+    td { padding: 4px 12px; font-size: 12px; border: 1px solid #333; }
+    th { padding: 4px 12px; font-size: 12px; border: 1px solid #333; color: #c8a040; text-align: left; }
+  </style>
+</head>
+<body>
+  <h1>Sprite Sheet Generator</h1>
+  <p>Generates a PNG sprite atlas from the procedural drawing code. Click "Download" to save.</p>
+  <button id="btn-download">Download sprites.png</button>
+  <button id="btn-download-2x">Download sprites@2x.png</button>
+  <div class="preview">
+    <div class="grid-label">Preview (4x zoom):</div>
+    <canvas id="preview"></canvas>
+  </div>
+  <div id="legend"></div>
+
+<script>
+// ============================================================================
+// Sprite Sheet Generator
+// Reproduces the procedural drawing from map-renderer.ts as a sprite atlas.
+// ============================================================================
+
+const TILE = 16;
+
+// --- Colors (same as map-renderer.ts) ---
+const PLAYER_COLORS = [
+  { wall: [150, 110, 110], interiorLight: [170, 30, 30],  interiorDark: [50, 10, 10]  },
+  { wall: [100, 105, 140], interiorLight: [30, 50, 170],  interiorDark: [10, 15, 50]  },
+  { wall: [170, 145, 90],  interiorLight: [190, 130, 20], interiorDark: [55, 40, 10]  },
+];
+const NEUTRAL_WALL = [140, 130, 120];
+
+// --- Sprite definitions ---
+// Each sprite has a name, cell size (in tiles), and a draw function.
+// The draw function receives (ctx, x, y) where x,y = top-left pixel of the cell.
+
+const sprites = [];
+
+// Helper: add a sprite to the list
+function addSprite(name, widthTiles, heightTiles, drawFn) {
+  sprites.push({ name, w: widthTiles * TILE, h: heightTiles * TILE, drawFn });
+}
+
+// ---- Tower (neutral, unselected) ----
+addSprite("tower_neutral", 2, 2, (ctx, x, y) => {
+  const cx = x + TILE;
+  const cy = y + TILE;
+  const o = "#1a1a1a";
+  const wl = "#c8c0b8";
+  const wm = "#a8a098";
+  const rd = "#585050";
+  const bx = cx - 5;
+  const by = cy - 8;
+
+  ctx.fillStyle = wl;
+  ctx.fillRect(bx + 2, by + 4, 6, 12);
+  ctx.fillStyle = wm;
+  ctx.fillRect(bx + 2, by + 10, 6, 6);
+  ctx.fillStyle = wl;
+  ctx.fillRect(bx, by + 2, 3, 14);
+  ctx.fillStyle = wm;
+  ctx.fillRect(bx, by + 10, 3, 6);
+  ctx.fillStyle = wl;
+  ctx.fillRect(bx + 7, by + 2, 3, 14);
+  ctx.fillStyle = wm;
+  ctx.fillRect(bx + 7, by + 10, 3, 6);
+  ctx.fillStyle = wl;
+  ctx.fillRect(bx, by, 2, 2);
+  ctx.fillRect(bx + 2, by + 2, 2, 2);
+  ctx.fillRect(bx + 4, by, 2, 2);
+  ctx.fillRect(bx + 6, by + 2, 2, 2);
+  ctx.fillRect(bx + 8, by, 2, 2);
+  ctx.fillStyle = rd;
+  ctx.fillRect(bx + 3, by + 12, 4, 4);
+  ctx.fillStyle = rd;
+  ctx.fillRect(bx + 1, by + 7, 2, 3);
+  ctx.fillRect(bx + 7, by + 7, 2, 3);
+  ctx.fillStyle = o;
+  ctx.fillRect(bx, by - 2, 2, 2);
+  ctx.fillRect(bx + 4, by - 2, 2, 2);
+  ctx.fillRect(bx + 8, by - 2, 2, 2);
+  ctx.fillRect(bx + 2, by, 1, 2);
+  ctx.fillRect(bx + 3, by, 1, 2);
+  ctx.fillRect(bx + 6, by, 1, 2);
+  ctx.fillRect(bx + 7, by, 1, 2);
+  ctx.fillRect(bx - 2, by, 2, 16);
+  ctx.fillRect(bx + 10, by, 2, 16);
+  ctx.fillRect(bx, by + 16, 10, 2);
+});
+
+// ---- Tower (selected/home) — one per player color ----
+for (let pid = 0; pid < 3; pid++) {
+  const flagColor = `rgb(${PLAYER_COLORS[pid].interiorLight.join(",")})`;
+  addSprite(`tower_home_p${pid}`, 3, 3, (ctx, x, y) => {
+    const cx = x + TILE * 1.5;
+    const cy = y + TILE * 1.5;
+    const o = "#1a1a1a";
+    const wl = "#e8e0d0";
+    const wm = "#c8b8a8";
+    const rd = "#484040";
+    const flag = flagColor;
+    const bx = cx - 6;
+    const by = cy - 8;
+
+    // Left slim tower
+    ctx.fillStyle = wl; ctx.fillRect(cx - 13, by + 8, 3, 14);
+    ctx.fillStyle = wm; ctx.fillRect(cx - 13, by + 16, 3, 6);
+    ctx.fillStyle = wl; ctx.fillRect(cx - 13, by + 6, 2, 2);
+    ctx.fillStyle = rd; ctx.fillRect(cx - 12, by + 13, 1, 2);
+    ctx.fillStyle = o;
+    ctx.fillRect(cx - 15, by + 4, 2, 2);
+    ctx.fillRect(cx - 15, by + 6, 2, 16);
+    ctx.fillRect(cx - 10, by + 8, 2, 14);
+    ctx.fillRect(cx - 13, by + 22, 3, 2);
+    // Right slim tower
+    ctx.fillStyle = wl; ctx.fillRect(cx + 10, by + 8, 3, 14);
+    ctx.fillStyle = wm; ctx.fillRect(cx + 10, by + 16, 3, 6);
+    ctx.fillStyle = wl; ctx.fillRect(cx + 11, by + 6, 2, 2);
+    ctx.fillStyle = rd; ctx.fillRect(cx + 11, by + 13, 1, 2);
+    ctx.fillStyle = o;
+    ctx.fillRect(cx + 13, by + 4, 2, 2);
+    ctx.fillRect(cx + 13, by + 6, 2, 16);
+    ctx.fillRect(cx + 8, by + 8, 2, 14);
+    ctx.fillRect(cx + 10, by + 22, 3, 2);
+    // Central keep
+    ctx.fillStyle = wl; ctx.fillRect(bx + 3, by + 6, 6, 16);
+    ctx.fillStyle = wm; ctx.fillRect(bx + 3, by + 14, 6, 8);
+    ctx.fillStyle = wl; ctx.fillRect(bx, by + 4, 4, 18);
+    ctx.fillStyle = wm; ctx.fillRect(bx, by + 14, 4, 8);
+    ctx.fillStyle = wl; ctx.fillRect(bx + 8, by + 4, 4, 18);
+    ctx.fillStyle = wm; ctx.fillRect(bx + 8, by + 14, 4, 8);
+    ctx.fillStyle = wl;
+    ctx.fillRect(bx, by + 2, 2, 2);
+    ctx.fillRect(bx + 3, by + 4, 2, 2);
+    ctx.fillRect(bx + 5, by + 2, 2, 2);
+    ctx.fillRect(bx + 7, by + 4, 2, 2);
+    ctx.fillRect(bx + 10, by + 2, 2, 2);
+    // Flag
+    ctx.fillStyle = o; ctx.fillRect(bx + 6, by - 8, 1, 10);
+    ctx.fillStyle = flag; ctx.fillRect(bx + 7, by - 8, 6, 4);
+    // Door & windows
+    ctx.fillStyle = rd; ctx.fillRect(bx + 4, by + 17, 4, 5);
+    ctx.fillStyle = rd;
+    ctx.fillRect(bx + 1, by + 8, 2, 3);
+    ctx.fillRect(bx + 9, by + 8, 2, 3);
+    ctx.fillRect(bx + 1, by + 13, 2, 3);
+    ctx.fillRect(bx + 9, by + 13, 2, 3);
+    // Outline
+    ctx.fillStyle = o;
+    ctx.fillRect(bx, by, 2, 2);
+    ctx.fillRect(bx + 5, by, 2, 2);
+    ctx.fillRect(bx + 10, by, 2, 2);
+    ctx.fillRect(bx + 2, by + 2, 1, 2);
+    ctx.fillRect(bx + 3, by + 2, 1, 2);
+    ctx.fillRect(bx + 7, by + 2, 1, 2);
+    ctx.fillRect(bx + 8, by + 2, 1, 2);
+    ctx.fillRect(bx - 2, by + 2, 2, 20);
+    ctx.fillRect(bx + 12, by + 2, 2, 20);
+    ctx.fillRect(bx, by + 22, 12, 2);
+  });
+}
+
+// ---- Tower debris — one per player (with flag) + one neutral ----
+function drawDebris(ctx, x, y, flagColor) {
+  const cx = x + TILE;
+  const cy = y + TILE;
+  const bx = cx - 7;
+  const by = cy - 4;
+  const light = "#a8a098";
+  const mid = "#807870";
+  const dark = "#585050";
+  const shadow = "#3a3430";
+
+  ctx.fillStyle = light;
+  ctx.fillRect(bx, by + 8, 5, 4);
+  ctx.fillRect(bx + 8, by + 6, 4, 5);
+  ctx.fillRect(bx + 3, by + 2, 4, 3);
+  ctx.fillRect(bx + 12, by + 10, 3, 4);
+  ctx.fillStyle = mid;
+  ctx.fillRect(bx + 1, by + 12, 6, 3);
+  ctx.fillRect(bx + 6, by + 4, 3, 4);
+  ctx.fillRect(bx + 10, by + 2, 3, 3);
+  ctx.fillRect(bx + 5, by + 10, 5, 3);
+  ctx.fillStyle = dark;
+  ctx.fillRect(bx + 2, by + 6, 2, 2);
+  ctx.fillRect(bx + 7, by + 8, 3, 2);
+  ctx.fillRect(bx + 11, by + 5, 2, 2);
+  ctx.fillRect(bx + 4, by + 14, 3, 2);
+  ctx.fillRect(bx + 9, by + 13, 2, 2);
+  ctx.fillRect(bx + 13, by + 8, 2, 2);
+  ctx.fillStyle = shadow;
+  ctx.fillRect(bx, by + 12, 1, 3);
+  ctx.fillRect(bx + 5, by + 5, 1, 3);
+  ctx.fillRect(bx + 8, by + 10, 1, 3);
+  ctx.fillRect(bx + 12, by + 14, 2, 1);
+  ctx.fillStyle = light;
+  ctx.fillRect(bx, by, 3, 6);
+  ctx.fillStyle = dark;
+  ctx.fillRect(bx + 2, by + 2, 1, 4);
+  ctx.fillStyle = mid;
+  ctx.fillRect(bx + 12, by + 1, 2, 4);
+  ctx.fillStyle = dark;
+  ctx.fillRect(bx + 13, by + 3, 1, 2);
+
+  if (flagColor) {
+    const o = "#1a1a1a";
+    ctx.fillStyle = o;
+    ctx.fillRect(bx + 1, by - 3, 1, 5);
+    ctx.fillRect(bx + 2, by - 6, 1, 4);
+    ctx.fillStyle = flagColor;
+    ctx.fillRect(bx + 3, by - 6, 4, 3);
+    ctx.fillStyle = o;
+    ctx.fillRect(bx + 6, by - 4, 1, 1);
+    ctx.fillRect(bx + 5, by - 4, 1, 1);
+  }
+}
+
+addSprite("tower_debris", 2, 2, (ctx, x, y) => drawDebris(ctx, x, y, null));
+for (let pid = 0; pid < 3; pid++) {
+  const flagColor = `rgb(${PLAYER_COLORS[pid].interiorLight.join(",")})`;
+  addSprite(`tower_debris_p${pid}`, 2, 2, (ctx, x, y) => drawDebris(ctx, x, y, flagColor));
+}
+
+// ---- Cannon (normal, 2x2) — 8 facing directions ----
+function drawCannon(ctx, cx, cy, angle, isSuper) {
+  const sz = isSuper ? 3 : 2;
+  const s = TILE * sz;
+  const mid = s / 2;
+  ctx.save();
+  ctx.translate(cx + mid, cy + mid);
+  ctx.rotate(angle);
+  if (isSuper) {
+    // Super gun — 48×48 footprint, all shapes symmetric around (0,0)
+    ctx.fillStyle = "#1a1a1a"; ctx.fillRect(-14, -8, 28, 24);    // carriage
+    ctx.fillStyle = "#333";
+    ctx.fillRect(-18, -6, 5, 11);                                 // left wheel
+    ctx.fillRect(13, -6, 5, 11);                                  // right wheel
+    ctx.fillStyle = "#2a2a2a"; ctx.fillRect(-16, -2, 32, 2);     // axle
+    ctx.fillStyle = "#444"; ctx.fillRect(-4, -18, 8, 27);         // barrel
+    ctx.fillStyle = "#111"; ctx.fillRect(-1, -18, 2, 3);          // bore
+    ctx.fillStyle = "#a33";
+    ctx.fillRect(-5, -11, 10, 2);                                 // band upper
+    ctx.fillRect(-5, -5, 10, 2);                                  // band lower
+  } else {
+    // Normal cannon — 32×32 footprint, all shapes symmetric around (0,0)
+    ctx.fillStyle = "#1a1a1a"; ctx.fillRect(-10, -5, 20, 16);    // carriage
+    ctx.fillStyle = "#333";
+    ctx.fillRect(-12, -3, 4, 8);                                  // left wheel
+    ctx.fillRect(8, -3, 4, 8);                                    // right wheel
+    ctx.fillStyle = "#2a2a2a"; ctx.fillRect(-10, 0, 20, 2);      // axle
+    ctx.fillStyle = "#555"; ctx.fillRect(-2, -11, 4, 17);         // barrel
+    ctx.fillStyle = "#111"; ctx.fillRect(-1, -11, 2, 2);          // bore
+    ctx.fillStyle = "#777"; ctx.fillRect(-3, -6, 6, 2);           // band
+  }
+  ctx.restore();
+}
+
+const DIRECTIONS = [
+  { name: "n",  angle: 0 },
+  { name: "ne", angle: Math.PI * 0.25 },
+  { name: "e",  angle: Math.PI * 0.5 },
+  { name: "se", angle: Math.PI * 0.75 },
+  { name: "s",  angle: Math.PI },
+  { name: "sw", angle: Math.PI * 1.25 },
+  { name: "w",  angle: Math.PI * 1.5 },
+  { name: "nw", angle: Math.PI * 1.75 },
+];
+
+for (const dir of DIRECTIONS) {
+  addSprite(`cannon_${dir.name}`, 2, 2, (ctx, x, y) => {
+    drawCannon(ctx, x, y, dir.angle, false);
+  });
+}
+
+// ---- Super cannon (3x3) — 8 facing directions ----
+for (const dir of DIRECTIONS) {
+  addSprite(`super_${dir.name}`, 3, 3, (ctx, x, y) => {
+    drawCannon(ctx, x, y, dir.angle, true);
+  });
+}
+
+// ---- Cannon debris (2x2) — shattered metal chunks filling the tile ----
+addSprite("cannon_debris", 2, 2, (ctx, x, y) => {
+  const s = TILE * 2;
+  const mid = s / 2;
+  const m = 3; // margin
+
+  // Large chunks filling the area
+  ctx.fillStyle = "#1a1a1a";
+  ctx.save(); ctx.translate(x + mid - 1, y + mid + 2); ctx.rotate(0.25);
+  ctx.fillRect(-8, -4, 16, 8); ctx.restore();
+
+  ctx.fillStyle = "#1c1c1c";
+  ctx.save(); ctx.translate(x + mid + 4, y + mid - 4); ctx.rotate(-0.45);
+  ctx.fillRect(-6, -3, 12, 7); ctx.restore();
+
+  ctx.fillStyle = "#1a1a1a";
+  ctx.save(); ctx.translate(x + mid - 5, y + mid - 3); ctx.rotate(0.6);
+  ctx.fillRect(-4, -3, 10, 6); ctx.restore();
+
+  // Top-right chunk
+  ctx.fillStyle = "#1e1e1e";
+  ctx.save(); ctx.translate(x + s - m - 4, y + m + 4); ctx.rotate(-0.3);
+  ctx.fillRect(-4, -3, 8, 5); ctx.restore();
+
+  // Bottom-left chunk
+  ctx.fillStyle = "#1c1c1c";
+  ctx.save(); ctx.translate(x + m + 4, y + s - m - 4); ctx.rotate(0.5);
+  ctx.fillRect(-4, -2, 8, 5); ctx.restore();
+
+  // Mid-grey barrel shards on top
+  ctx.fillStyle = "#444";
+  ctx.save(); ctx.translate(x + mid, y + mid - 2); ctx.rotate(-0.35);
+  ctx.fillRect(0, 0, 7, 3); ctx.restore();
+
+  ctx.fillStyle = "#3a3a3a";
+  ctx.save(); ctx.translate(x + mid - 4, y + mid + 3); ctx.rotate(0.8);
+  ctx.fillRect(0, 0, 5, 2); ctx.restore();
+
+  // Small edge fragments
+  ctx.fillStyle = "#1a1a1a";
+  ctx.save(); ctx.translate(x + s - m - 2, y + mid + 4); ctx.rotate(-0.6);
+  ctx.fillRect(0, 0, 4, 3); ctx.restore();
+
+  ctx.fillStyle = "#1e1e1e";
+  ctx.save(); ctx.translate(x + m + 2, y + m + 3); ctx.rotate(0.4);
+  ctx.fillRect(0, 0, 5, 3); ctx.restore();
+});
+
+// ---- Super gun debris (3x3) — larger shattered pile filling the tile ----
+addSprite("super_debris", 3, 3, (ctx, x, y) => {
+  const s = TILE * 3;
+  const mid = s / 2;
+  const m = 4; // margin
+
+  // Large chunks filling the area
+  ctx.fillStyle = "#1a1a1a";
+  ctx.save(); ctx.translate(x + mid - 2, y + mid + 3); ctx.rotate(0.2);
+  ctx.fillRect(-10, -5, 20, 10); ctx.restore();
+
+  ctx.fillStyle = "#1c1c1c";
+  ctx.save(); ctx.translate(x + mid + 6, y + mid - 5); ctx.rotate(-0.4);
+  ctx.fillRect(-8, -4, 16, 9); ctx.restore();
+
+  ctx.fillStyle = "#1a1a1a";
+  ctx.save(); ctx.translate(x + mid - 7, y + mid - 4); ctx.rotate(0.55);
+  ctx.fillRect(-5, -4, 12, 8); ctx.restore();
+
+  // Top chunk
+  ctx.fillStyle = "#1e1e1e";
+  ctx.save(); ctx.translate(x + mid + 2, y + m + 5); ctx.rotate(-0.25);
+  ctx.fillRect(-6, -3, 12, 7); ctx.restore();
+
+  // Bottom chunk
+  ctx.fillStyle = "#1c1c1c";
+  ctx.save(); ctx.translate(x + mid - 3, y + s - m - 5); ctx.rotate(0.35);
+  ctx.fillRect(-7, -3, 14, 7); ctx.restore();
+
+  // Left chunk
+  ctx.fillStyle = "#1a1a1a";
+  ctx.save(); ctx.translate(x + m + 5, y + mid + 1); ctx.rotate(0.7);
+  ctx.fillRect(-4, -3, 9, 6); ctx.restore();
+
+  // Right chunk
+  ctx.fillStyle = "#1e1e1e";
+  ctx.save(); ctx.translate(x + s - m - 5, y + mid - 1); ctx.rotate(-0.5);
+  ctx.fillRect(-5, -3, 10, 6); ctx.restore();
+
+  // Barrel shards on top (mid-grey)
+  ctx.fillStyle = "#444";
+  ctx.save(); ctx.translate(x + mid - 1, y + mid - 2); ctx.rotate(0.4);
+  ctx.fillRect(0, -1, 10, 3); ctx.restore();
+
+  ctx.fillStyle = "#3a3a3a";
+  ctx.save(); ctx.translate(x + mid + 4, y + mid + 2); ctx.rotate(-0.65);
+  ctx.fillRect(0, 0, 7, 3); ctx.restore();
+
+  // Red band fragment (super gun identifier)
+  ctx.fillStyle = "#a33";
+  ctx.save(); ctx.translate(x + mid, y + mid - 1); ctx.rotate(0.4);
+  ctx.fillRect(4, -1, 2, 3); ctx.restore();
+
+  // Edge fragments
+  ctx.fillStyle = "#1a1a1a";
+  ctx.save(); ctx.translate(x + s - m - 3, y + s - m - 4); ctx.rotate(-0.6);
+  ctx.fillRect(0, 0, 5, 3); ctx.restore();
+
+  ctx.fillStyle = "#1c1c1c";
+  ctx.save(); ctx.translate(x + m + 3, y + m + 3); ctx.rotate(0.45);
+  ctx.fillRect(0, 0, 6, 3); ctx.restore();
+});
+
+// ---- Wall debris (1x1) — heavily damaged rubble filling the full tile ----
+addSprite("wall_debris", 1, 1, (ctx, x, y) => {
+  // No background — grass/cobblestone shows through gaps
+
+  // Large chunks spread evenly across the tile (no diagonal pattern)
+  // Top-left area
+  ctx.fillStyle = "#7a7468";
+  ctx.save(); ctx.translate(x + 1, y + 0); ctx.rotate(0.15);
+  ctx.fillRect(0, 0, 6, 4); ctx.restore();
+  // Top-right area
+  ctx.fillStyle = "#6a6458";
+  ctx.save(); ctx.translate(x + 9, y + 1); ctx.rotate(-0.2);
+  ctx.fillRect(0, 0, 5, 3); ctx.restore();
+  // Middle-left area
+  ctx.fillStyle = "#8a8478";
+  ctx.save(); ctx.translate(x + 0, y + 5); ctx.rotate(0.25);
+  ctx.fillRect(0, 0, 5, 4); ctx.restore();
+  // Center
+  ctx.fillStyle = "#706a5e";
+  ctx.save(); ctx.translate(x + 7, y + 5); ctx.rotate(-0.35);
+  ctx.fillRect(0, 0, 5, 3); ctx.restore();
+  // Middle-right
+  ctx.fillStyle = "#7a7468";
+  ctx.save(); ctx.translate(x + 12, y + 6); ctx.rotate(0.4);
+  ctx.fillRect(0, 0, 3, 3); ctx.restore();
+  // Bottom-left
+  ctx.fillStyle = "#6a6458";
+  ctx.save(); ctx.translate(x + 1, y + 10); ctx.rotate(-0.15);
+  ctx.fillRect(0, 0, 5, 4); ctx.restore();
+  // Bottom-center
+  ctx.fillStyle = "#8a8478";
+  ctx.save(); ctx.translate(x + 7, y + 10); ctx.rotate(0.3);
+  ctx.fillRect(0, 0, 4, 3); ctx.restore();
+  // Bottom-right
+  ctx.fillStyle = "#706a5e";
+  ctx.save(); ctx.translate(x + 12, y + 11); ctx.rotate(-0.25);
+  ctx.fillRect(0, 0, 3, 4); ctx.restore();
+
+  // Small fragments filling remaining gaps
+  ctx.fillStyle = "#5a5448";
+  ctx.fillRect(x + 6, y + 1, 2, 2);
+  ctx.fillRect(x + 14, y + 3, 2, 2);
+  ctx.fillRect(x + 5, y + 8, 2, 2);
+  ctx.fillRect(x + 0, y + 14, 3, 2);
+  ctx.fillRect(x + 11, y + 14, 2, 1);
+  ctx.fillRect(x + 13, y + 0, 2, 2);
+
+  // Dust specks
+  ctx.fillStyle = "rgba(120, 115, 100, 0.3)";
+  ctx.fillRect(x + 3, y + 4, 1, 1);
+  ctx.fillRect(x + 10, y + 9, 1, 1);
+  ctx.fillRect(x + 6, y + 13, 1, 1);
+  ctx.fillRect(x + 7, y + 7, 1, 1);
+});
+
+// ---- Balloon base (2x2) — transparent bg ----
+addSprite("balloon_base", 2, 2, (ctx, x, y) => {
+  const s = TILE * 2;
+  const mid = s / 2;
+  // No background fill — interior/cobblestone shows through
+
+  // Corner stakes (wooden pegs in the ground)
+  ctx.fillStyle = "#4a3a20";
+  ctx.fillRect(x + 2, y + 2, 2, 2);
+  ctx.fillRect(x + s - 4, y + 2, 2, 2);
+  ctx.fillRect(x + 2, y + s - 4, 2, 2);
+  ctx.fillRect(x + s - 4, y + s - 4, 2, 2);
+  // Ropes between stakes (thin lines)
+  ctx.strokeStyle = "rgba(100, 80, 50, 0.5)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x + 3, y + 3); ctx.lineTo(x + s - 3, y + 3);
+  ctx.moveTo(x + s - 3, y + 3); ctx.lineTo(x + s - 3, y + s - 3);
+  ctx.moveTo(x + s - 3, y + s - 3); ctx.lineTo(x + 3, y + s - 3);
+  ctx.moveTo(x + 3, y + s - 3); ctx.lineTo(x + 3, y + 3);
+  ctx.stroke();
+  // Center base (grey metal circle)
+  ctx.fillStyle = "#555";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#444";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid, 4, 0, Math.PI * 2);
+  ctx.fill();
+  // Center post (mooring bolt)
+  ctx.fillStyle = "#333";
+  ctx.fillRect(x + mid - 1, y + mid - 1, 2, 2);
+  // Rope coil around base
+  ctx.fillStyle = "#8a7a5a";
+  ctx.fillRect(x + mid - 3, y + mid - 1, 1, 2);
+  ctx.fillRect(x + mid + 2, y + mid - 1, 1, 2);
+  ctx.fillRect(x + mid - 1, y + mid + 2, 2, 1);
+  // Deflated balloon (red)
+  ctx.fillStyle = "#a03030";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid - 2, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#802020";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid - 2, 3, 0, Math.PI * 2);
+  ctx.fill();
+});
+
+// ---- House (1x1) — medieval cottage with peaked roof ----
+addSprite("house", 1, 1, (ctx, x, y) => {
+  // Stone/wood walls (grey-tan base)
+  ctx.fillStyle = "#8a8070";
+  ctx.fillRect(x + 3, y + 7, 10, 7);
+  // Wall shading (darker right side)
+  ctx.fillStyle = "#7a7060";
+  ctx.fillRect(x + 8, y + 7, 5, 7);
+  // Wall highlight (lighter left edge)
+  ctx.fillStyle = "#9a9080";
+  ctx.fillRect(x + 3, y + 7, 1, 7);
+
+  // Dark peaked roof (triangle shape, brown-dark)
+  ctx.fillStyle = "#4a3020";
+  ctx.fillRect(x + 7, y + 1, 2, 2);   // peak
+  ctx.fillRect(x + 5, y + 3, 6, 1);   // upper roof
+  ctx.fillRect(x + 4, y + 4, 8, 1);
+  ctx.fillRect(x + 3, y + 5, 10, 2);  // lower roof
+  // Roof highlight (left slope)
+  ctx.fillStyle = "#5a3a28";
+  ctx.fillRect(x + 5, y + 3, 3, 1);
+  ctx.fillRect(x + 4, y + 4, 3, 1);
+  ctx.fillRect(x + 3, y + 5, 3, 1);
+  // Roof shadow (right slope)
+  ctx.fillStyle = "#3a2018";
+  ctx.fillRect(x + 9, y + 4, 3, 1);
+  ctx.fillRect(x + 10, y + 5, 3, 2);
+
+  // Door (dark opening at bottom center)
+  ctx.fillStyle = "#2a1a10";
+  ctx.fillRect(x + 6, y + 10, 3, 4);
+  // Door frame
+  ctx.fillStyle = "#5a4030";
+  ctx.fillRect(x + 6, y + 10, 3, 1);
+
+  // Window (small dark square on left wall)
+  ctx.fillStyle = "#3a3530";
+  ctx.fillRect(x + 4, y + 9, 2, 2);
+  // Window frame
+  ctx.fillStyle = "#6a5a4a";
+  ctx.fillRect(x + 5, y + 9, 1, 2);
+});
+
+// ---- Grunt (1x1) — 8 facing directions ----
+function drawGrunt(ctx, cx, cy, angle) {
+  const half = TILE / 2;
+  ctx.save();
+  ctx.translate(cx + half, cy + half);
+  ctx.rotate(angle);
+  ctx.fillStyle = "#3a3a3a";
+  ctx.fillRect(-half + 1, -half + 2, 3, 12);
+  ctx.fillRect(half - 4, -half + 2, 3, 12);
+  ctx.fillStyle = "#2a2a2a";
+  ctx.fillRect(-half + 1, -half + 4, 3, 1);
+  ctx.fillRect(-half + 1, -half + 7, 3, 1);
+  ctx.fillRect(-half + 1, -half + 10, 3, 1);
+  ctx.fillRect(half - 4, -half + 4, 3, 1);
+  ctx.fillRect(half - 4, -half + 7, 3, 1);
+  ctx.fillRect(half - 4, -half + 10, 3, 1);
+  ctx.fillStyle = "#5a6a3a";
+  ctx.fillRect(-half + 4, -half + 3, 8, 11);
+  ctx.fillStyle = "#6a7a4a";
+  ctx.fillRect(-half + 5, -half + 4, 6, 4);
+  ctx.fillStyle = "#4a5a2a";
+  ctx.fillRect(-half + 5, -half + 5, 6, 6);
+  ctx.fillStyle = "#3a4a2a";
+  ctx.fillRect(-half + 7, -half, 2, 6);
+  ctx.fillStyle = "#2a3a1a";
+  ctx.fillRect(-half + 7, -half, 2, 2);
+  ctx.restore();
+}
+
+const CARDINAL_DIRECTIONS = DIRECTIONS.filter(d =>
+  ["n", "e", "s", "w"].includes(d.name)
+);
+for (const dir of CARDINAL_DIRECTIONS) {
+  addSprite(`grunt_${dir.name}`, 1, 1, (ctx, x, y) => {
+    drawGrunt(ctx, x, y, dir.angle);
+  });
+}
+
+// ---- Wall tiles (1x1) — 6 shapes per player + neutral ----
+// Shapes: h (horizontal), v (vertical), tl/tr/bl/br (corners)
+// Each wall tile has a stone base with lighter top/left bevel and darker
+// bottom/right shadow. Open sides (where the wall continues) have no border;
+// closed sides (wall ends) get a capped edge.
+
+function drawWallTile(ctx, x, y, baseColor, shape) {
+  const r = baseColor[0], g = baseColor[1], b = baseColor[2];
+  // Base fill
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.fillRect(x, y, TILE, TILE);
+
+  // Stone texture: subtle darker mortar lines
+  const dr = Math.max(0, r - 25), dg = Math.max(0, g - 25), db = Math.max(0, b - 25);
+  ctx.fillStyle = `rgb(${dr},${dg},${db})`;
+  // Horizontal mortar
+  ctx.fillRect(x, y + 5, TILE, 1);
+  ctx.fillRect(x, y + 11, TILE, 1);
+  // Vertical mortar (offset per row for brick pattern)
+  ctx.fillRect(x + 4, y, 1, 5);
+  ctx.fillRect(x + 10, y, 1, 5);
+  ctx.fillRect(x + 7, y + 6, 1, 5);
+  ctx.fillRect(x + 13, y + 6, 1, 5);
+  ctx.fillRect(x + 3, y + 12, 1, 4);
+  ctx.fillRect(x + 9, y + 12, 1, 4);
+
+  // Light bevel (top/left exposed edges) and dark shadow (bottom/right)
+  const lr = Math.min(255, r + 35), lg = Math.min(255, g + 35), lb = Math.min(255, b + 35);
+  const sr = Math.max(0, r - 40), sg = Math.max(0, g - 40), sb = Math.max(0, b - 40);
+  const light = `rgb(${lr},${lg},${lb})`;
+  const shadow = `rgb(${sr},${sg},${sb})`;
+
+  // open = side where wall continues (no cap)
+  // Top open: h, tl, tr; Top closed: v, bl, br
+  // Bottom open: h, bl, br; Bottom closed: v, tl, tr
+  // Left open: v, tl, bl; Left closed: h, tr, br
+  // Right open: v, tr, br; Right closed: h, tl, bl
+  const topOpen = ["h", "tl", "tr"].includes(shape);
+  const bottomOpen = ["h", "bl", "br"].includes(shape);
+  const leftOpen = ["v", "tl", "bl"].includes(shape);
+  const rightOpen = ["v", "tr", "br"].includes(shape);
+
+  // Top edge
+  if (!topOpen) {
+    ctx.fillStyle = light;
+    ctx.fillRect(x, y, TILE, 2);
+  }
+  // Bottom edge
+  if (!bottomOpen) {
+    ctx.fillStyle = shadow;
+    ctx.fillRect(x, y + TILE - 2, TILE, 2);
+  }
+  // Left edge
+  if (!leftOpen) {
+    ctx.fillStyle = light;
+    ctx.fillRect(x, y, 2, TILE);
+  }
+  // Right edge
+  if (!rightOpen) {
+    ctx.fillStyle = shadow;
+    ctx.fillRect(x + TILE - 2, y, 2, TILE);
+  }
+}
+
+const WALL_SHAPES = ["h", "v", "tl", "tr", "bl", "br"];
+
+for (let pid = 0; pid < 3; pid++) {
+  const c = PLAYER_COLORS[pid].wall;
+  for (const shape of WALL_SHAPES) {
+    addSprite(`wall_${shape}_p${pid}`, 1, 1, (ctx, x, y) => {
+      drawWallTile(ctx, x, y, c, shape);
+    });
+  }
+}
+for (const shape of WALL_SHAPES) {
+  addSprite(`wall_${shape}_neutral`, 1, 1, (ctx, x, y) => {
+    drawWallTile(ctx, x, y, NEUTRAL_WALL, shape);
+  });
+}
+
+// ---- Interior tiles (1x1) — light and dark per player ----
+for (let pid = 0; pid < 3; pid++) {
+  const cl = PLAYER_COLORS[pid].interiorLight;
+  const cd = PLAYER_COLORS[pid].interiorDark;
+  addSprite(`interior_light_p${pid}`, 1, 1, (ctx, x, y) => {
+    ctx.fillStyle = `rgb(${cl[0]},${cl[1]},${cl[2]})`;
+    ctx.fillRect(x, y, TILE, TILE);
+  });
+  addSprite(`interior_dark_p${pid}`, 1, 1, (ctx, x, y) => {
+    ctx.fillStyle = `rgb(${cd[0]},${cd[1]},${cd[2]})`;
+    ctx.fillRect(x, y, TILE, TILE);
+  });
+}
+
+// ---- Bonus square (1x1) ----
+addSprite("bonus_square", 1, 1, (ctx, x, y) => {
+  ctx.fillStyle = "rgb(35, 140, 25)";
+  ctx.fillRect(x, y, TILE, TILE);
+  ctx.fillStyle = "rgb(50, 170, 35)";
+  ctx.fillRect(x + 4, y + 2, 8, 2);
+  ctx.fillRect(x + 2, y + 4, 12, 8);
+  ctx.fillRect(x + 4, y + 12, 8, 2);
+});
+
+// ---- Burning pits (1x1) — 3 stages: fresh (3), cooling (2), nearly healed (1) ----
+
+// Stage 3: fresh — wide crack, bright lava, branches
+// The fissure follows the same diagonal path in all 3 stages (corner to corner).
+// Stage 3: wide crack (2-3px), bright lava, branches, heavy scorch
+// Stage 2: medium crack (1-2px), dim lava, light scorch
+// Stage 1: hairline crack (1px), no lava, faint scar
+
+// Stage 3: fresh — large round crater with bright lava
+addSprite("burning_pit_3", 1, 1, (ctx, x, y) => {
+  const mid = TILE / 2;
+  // Outer scorch ring
+  ctx.fillStyle = "rgba(30, 22, 12, 0.5)";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid, 7, 0, Math.PI * 2);
+  ctx.fill();
+  // Dark crater hole
+  ctx.fillStyle = "rgba(10, 5, 0, 0.85)";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid, 5, 0, Math.PI * 2);
+  ctx.fill();
+  // Lava glow ring
+  ctx.fillStyle = "rgba(220, 100, 10, 0.7)";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid, 4, 0, Math.PI * 2);
+  ctx.fill();
+  // Dark center
+  ctx.fillStyle = "rgba(10, 5, 0, 0.7)";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  // Hot core
+  ctx.fillStyle = "rgba(255, 180, 30, 0.6)";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+  // Radial cracks
+  ctx.fillStyle = "rgba(10, 5, 0, 0.4)";
+  ctx.fillRect(x + 2, y + mid, 3, 1);
+  ctx.fillRect(x + 11, y + mid, 3, 1);
+  ctx.fillRect(x + mid, y + 2, 1, 3);
+  ctx.fillRect(x + mid, y + 11, 1, 3);
+});
+
+// Stage 2: cooling — medium round crater, dim lava
+addSprite("burning_pit_2", 1, 1, (ctx, x, y) => {
+  const mid = TILE / 2;
+  // Scorch ring
+  ctx.fillStyle = "rgba(30, 22, 12, 0.35)";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid, 6, 0, Math.PI * 2);
+  ctx.fill();
+  // Crater
+  ctx.fillStyle = "rgba(10, 5, 0, 0.6)";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid, 4, 0, Math.PI * 2);
+  ctx.fill();
+  // Dim lava
+  ctx.fillStyle = "rgba(180, 70, 10, 0.4)";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid, 3, 0, Math.PI * 2);
+  ctx.fill();
+  // Dark center
+  ctx.fillStyle = "rgba(10, 5, 0, 0.5)";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid, 2, 0, Math.PI * 2);
+  ctx.fill();
+  // Small cracks
+  ctx.fillStyle = "rgba(10, 5, 0, 0.25)";
+  ctx.fillRect(x + 3, y + mid, 2, 1);
+  ctx.fillRect(x + 11, y + mid, 2, 1);
+});
+
+// Stage 1: nearly healed — small round scar, no lava
+addSprite("burning_pit_1", 1, 1, (ctx, x, y) => {
+  const mid = TILE / 2;
+  // Faint scorch
+  ctx.fillStyle = "rgba(30, 22, 12, 0.2)";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid, 5, 0, Math.PI * 2);
+  ctx.fill();
+  // Dark scar
+  ctx.fillStyle = "rgba(10, 5, 0, 0.4)";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid, 3, 0, Math.PI * 2);
+  ctx.fill();
+  // Residual warmth
+  ctx.fillStyle = "rgba(120, 40, 0, 0.15)";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid, 2, 0, Math.PI * 2);
+  ctx.fill();
+});
+
+// ---- Cannonball (small, fits in 1x1) ----
+addSprite("cannonball", 1, 1, (ctx, x, y) => {
+  const mid = TILE / 2;
+  ctx.fillStyle = "#111";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid, 4, 0, Math.PI * 2);
+  ctx.fill();
+});
+
+addSprite("cannonball_incendiary", 1, 1, (ctx, x, y) => {
+  const mid = TILE / 2;
+  ctx.fillStyle = "#c22";
+  ctx.beginPath();
+  ctx.arc(x + mid, y + mid, 4, 0, Math.PI * 2);
+  ctx.fill();
+});
+
+// ---- Balloon in flight ----
+addSprite("balloon_flight", 2, 2, (ctx, x, y) => {
+  const cx = x + TILE;
+  const cy = y + TILE - 4;
+  const radius = 8;
+  // Balloon envelope (red)
+  ctx.fillStyle = "#b03030";
+  ctx.beginPath();
+  ctx.ellipse(cx, cy - 1, radius, radius + 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Highlight
+  ctx.fillStyle = "rgba(220, 120, 120, 0.5)";
+  ctx.beginPath();
+  ctx.ellipse(cx - 2, cy - 4, 3, 4, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+  // Panel seams
+  ctx.strokeStyle = "#802020";
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - radius - 1);
+  ctx.lineTo(cx, cy + radius + 1);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - radius, cy);
+  ctx.lineTo(cx + radius, cy);
+  ctx.stroke();
+  // Envelope outline
+  ctx.strokeStyle = "#601818";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy - 1, radius, radius + 2, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  // Ropes
+  ctx.strokeStyle = "#6a5a3a";
+  ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  ctx.moveTo(cx - 3, cy + radius + 1);
+  ctx.lineTo(cx - 2, cy + radius + 7);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx + 3, cy + radius + 1);
+  ctx.lineTo(cx + 2, cy + radius + 7);
+  ctx.stroke();
+  // Basket
+  ctx.fillStyle = "#8b6914";
+  ctx.fillRect(cx - 3, cy + radius + 7, 6, 4);
+  ctx.fillStyle = "#a07a1a";
+  ctx.fillRect(cx - 2, cy + radius + 8, 4, 2);
+  // Basket rim
+  ctx.fillStyle = "#6a4a0a";
+  ctx.fillRect(cx - 3, cy + radius + 7, 6, 1);
+});
+
+// ---- Cobblestone floor (1x1) — per player, subtle tint ----
+function drawCobblestone(ctx, x, y, tintColor) {
+  const tr = tintColor[0], tg = tintColor[1], tb = tintColor[2];
+  // Base stone gray with subtle player tint
+  const br = Math.floor(90 + tr * 0.15);
+  const bg = Math.floor(85 + tg * 0.15);
+  const bb = Math.floor(80 + tb * 0.15);
+  ctx.fillStyle = `rgb(${br},${bg},${bb})`;
+  ctx.fillRect(x, y, TILE, TILE);
+
+  // Cobblestone pattern: very faint mortar lines
+  const mr = Math.max(0, br - 12), mg = Math.max(0, bg - 12), mb = Math.max(0, bb - 12);
+  ctx.fillStyle = `rgba(${mr},${mg},${mb},0.25)`;
+  // Horizontal mortar lines
+  ctx.fillRect(x, y + 4, TILE, 1);
+  ctx.fillRect(x, y + 10, TILE, 1);
+  // Vertical mortar (staggered)
+  ctx.fillRect(x + 5, y, 1, 4);
+  ctx.fillRect(x + 11, y, 1, 4);
+  ctx.fillRect(x + 3, y + 5, 1, 5);
+  ctx.fillRect(x + 8, y + 5, 1, 5);
+  ctx.fillRect(x + 14, y + 5, 1, 5);
+  ctx.fillRect(x + 6, y + 11, 1, 5);
+  ctx.fillRect(x + 12, y + 11, 1, 5);
+
+  // Stone highlights (very subtle lighter spots)
+  const lr = Math.min(255, br + 10), lg = Math.min(255, bg + 10), lb = Math.min(255, bb + 10);
+  ctx.fillStyle = `rgba(${lr},${lg},${lb},0.5)`;
+  ctx.fillRect(x + 1, y + 1, 3, 1);
+  ctx.fillRect(x + 7, y + 1, 3, 1);
+  ctx.fillRect(x + 4, y + 6, 2, 1);
+  ctx.fillRect(x + 10, y + 6, 3, 1);
+  ctx.fillRect(x + 1, y + 12, 4, 1);
+  ctx.fillRect(x + 8, y + 12, 3, 1);
+
+  // Stone shadows (very subtle)
+  const sr = Math.max(0, br - 10), sg = Math.max(0, bg - 10), sb = Math.max(0, bb - 10);
+  ctx.fillStyle = `rgba(${sr},${sg},${sb},0.4)`;
+  ctx.fillRect(x + 2, y + 3, 2, 1);
+  ctx.fillRect(x + 8, y + 3, 2, 1);
+  ctx.fillRect(x + 5, y + 9, 2, 1);
+  ctx.fillRect(x + 11, y + 9, 2, 1);
+  ctx.fillRect(x + 3, y + 15, 2, 1);
+  ctx.fillRect(x + 9, y + 15, 2, 1);
+
+  // Subtle dirt/moss specks
+  ctx.fillStyle = `rgba(${Math.floor(tr * 0.3)}, ${Math.floor(tg * 0.3)}, ${Math.floor(tb * 0.3)}, 0.15)`;
+  ctx.fillRect(x + 2, y + 7, 1, 1);
+  ctx.fillRect(x + 10, y + 2, 1, 1);
+  ctx.fillRect(x + 7, y + 13, 1, 1);
+}
+
+for (let pid = 0; pid < 3; pid++) {
+  const c = PLAYER_COLORS[pid].interiorLight;
+  addSprite(`cobblestone_p${pid}`, 1, 1, (ctx, x, y) => drawCobblestone(ctx, x, y, c));
+}
+
+// ---- Battle tower (neutral) — darker, weathered stone ----
+addSprite("tower_neutral_battle", 2, 2, (ctx, x, y) => {
+  const cx = x + TILE;
+  const cy = y + TILE;
+  const o = "#1a1a1a";
+  const wl = "#8a8478";
+  const wm = "#6a6458";
+  const rd = "#3a3430";
+  const bx = cx - 5;
+  const by = cy - 8;
+
+  ctx.fillStyle = wl;
+  ctx.fillRect(bx + 2, by + 4, 6, 12);
+  ctx.fillStyle = wm;
+  ctx.fillRect(bx + 2, by + 10, 6, 6);
+  ctx.fillStyle = wl;
+  ctx.fillRect(bx, by + 2, 3, 14);
+  ctx.fillStyle = wm;
+  ctx.fillRect(bx, by + 10, 3, 6);
+  ctx.fillStyle = wl;
+  ctx.fillRect(bx + 7, by + 2, 3, 14);
+  ctx.fillStyle = wm;
+  ctx.fillRect(bx + 7, by + 10, 3, 6);
+  ctx.fillStyle = wl;
+  ctx.fillRect(bx, by, 2, 2);
+  ctx.fillRect(bx + 2, by + 2, 2, 2);
+  ctx.fillRect(bx + 4, by, 2, 2);
+  ctx.fillRect(bx + 6, by + 2, 2, 2);
+  ctx.fillRect(bx + 8, by, 2, 2);
+  ctx.fillStyle = rd;
+  ctx.fillRect(bx + 3, by + 12, 4, 4);
+  ctx.fillRect(bx + 1, by + 7, 2, 3);
+  ctx.fillRect(bx + 7, by + 7, 2, 3);
+  // Weathering: darker streaks
+  ctx.fillStyle = "#5a5448";
+  ctx.fillRect(bx + 1, by + 5, 1, 4);
+  ctx.fillRect(bx + 8, by + 4, 1, 5);
+  ctx.fillRect(bx + 4, by + 6, 1, 3);
+  ctx.fillStyle = o;
+  ctx.fillRect(bx, by - 2, 2, 2);
+  ctx.fillRect(bx + 4, by - 2, 2, 2);
+  ctx.fillRect(bx + 8, by - 2, 2, 2);
+  ctx.fillRect(bx + 2, by, 1, 2);
+  ctx.fillRect(bx + 3, by, 1, 2);
+  ctx.fillRect(bx + 6, by, 1, 2);
+  ctx.fillRect(bx + 7, by, 1, 2);
+  ctx.fillRect(bx - 2, by, 2, 16);
+  ctx.fillRect(bx + 10, by, 2, 16);
+  ctx.fillRect(bx, by + 16, 10, 2);
+});
+
+// ---- Battle tower (home) — per player, darker stone with flag ----
+for (let pid = 0; pid < 3; pid++) {
+  const flagColor = `rgb(${PLAYER_COLORS[pid].interiorLight.join(",")})`;
+  addSprite(`tower_home_p${pid}_battle`, 3, 3, (ctx, x, y) => {
+    const cx = x + TILE * 1.5;
+    const cy = y + TILE * 1.5;
+    const o = "#1a1a1a";
+    const wl = "#a09888";
+    const wm = "#807868";
+    const rd = "#3a3430";
+    const flag = flagColor;
+    const bx = cx - 6;
+    const by = cy - 8;
+
+    // Left slim tower
+    ctx.fillStyle = wl; ctx.fillRect(cx - 13, by + 8, 3, 14);
+    ctx.fillStyle = wm; ctx.fillRect(cx - 13, by + 16, 3, 6);
+    ctx.fillStyle = wl; ctx.fillRect(cx - 13, by + 6, 2, 2);
+    ctx.fillStyle = rd; ctx.fillRect(cx - 12, by + 13, 1, 2);
+    ctx.fillStyle = o;
+    ctx.fillRect(cx - 15, by + 4, 2, 2);
+    ctx.fillRect(cx - 15, by + 6, 2, 16);
+    ctx.fillRect(cx - 10, by + 8, 2, 14);
+    ctx.fillRect(cx - 13, by + 22, 3, 2);
+    // Right slim tower
+    ctx.fillStyle = wl; ctx.fillRect(cx + 10, by + 8, 3, 14);
+    ctx.fillStyle = wm; ctx.fillRect(cx + 10, by + 16, 3, 6);
+    ctx.fillStyle = wl; ctx.fillRect(cx + 11, by + 6, 2, 2);
+    ctx.fillStyle = rd; ctx.fillRect(cx + 11, by + 13, 1, 2);
+    ctx.fillStyle = o;
+    ctx.fillRect(cx + 13, by + 4, 2, 2);
+    ctx.fillRect(cx + 13, by + 6, 2, 16);
+    ctx.fillRect(cx + 8, by + 8, 2, 14);
+    ctx.fillRect(cx + 10, by + 22, 3, 2);
+    // Central keep
+    ctx.fillStyle = wl; ctx.fillRect(bx + 3, by + 6, 6, 16);
+    ctx.fillStyle = wm; ctx.fillRect(bx + 3, by + 14, 6, 8);
+    ctx.fillStyle = wl; ctx.fillRect(bx, by + 4, 4, 18);
+    ctx.fillStyle = wm; ctx.fillRect(bx, by + 14, 4, 8);
+    ctx.fillStyle = wl; ctx.fillRect(bx + 8, by + 4, 4, 18);
+    ctx.fillStyle = wm; ctx.fillRect(bx + 8, by + 14, 4, 8);
+    ctx.fillStyle = wl;
+    ctx.fillRect(bx, by + 2, 2, 2);
+    ctx.fillRect(bx + 3, by + 4, 2, 2);
+    ctx.fillRect(bx + 5, by + 2, 2, 2);
+    ctx.fillRect(bx + 7, by + 4, 2, 2);
+    ctx.fillRect(bx + 10, by + 2, 2, 2);
+    // Weathering streaks
+    ctx.fillStyle = "#6a6458";
+    ctx.fillRect(bx + 1, by + 7, 1, 5);
+    ctx.fillRect(bx + 9, by + 6, 1, 6);
+    ctx.fillRect(bx + 5, by + 10, 1, 4);
+    ctx.fillRect(cx - 12, by + 10, 1, 4);
+    ctx.fillRect(cx + 11, by + 10, 1, 4);
+    // Flag
+    ctx.fillStyle = o; ctx.fillRect(bx + 6, by - 8, 1, 10);
+    ctx.fillStyle = flag; ctx.fillRect(bx + 7, by - 8, 6, 4);
+    // Door & windows
+    ctx.fillStyle = rd; ctx.fillRect(bx + 4, by + 17, 4, 5);
+    ctx.fillStyle = rd;
+    ctx.fillRect(bx + 1, by + 8, 2, 3);
+    ctx.fillRect(bx + 9, by + 8, 2, 3);
+    ctx.fillRect(bx + 1, by + 13, 2, 3);
+    ctx.fillRect(bx + 9, by + 13, 2, 3);
+    // Outline
+    ctx.fillStyle = o;
+    ctx.fillRect(bx, by, 2, 2);
+    ctx.fillRect(bx + 5, by, 2, 2);
+    ctx.fillRect(bx + 10, by, 2, 2);
+    ctx.fillRect(bx + 2, by + 2, 1, 2);
+    ctx.fillRect(bx + 3, by + 2, 1, 2);
+    ctx.fillRect(bx + 7, by + 2, 1, 2);
+    ctx.fillRect(bx + 8, by + 2, 1, 2);
+    ctx.fillRect(bx - 2, by + 2, 2, 20);
+    ctx.fillRect(bx + 12, by + 2, 2, 20);
+    ctx.fillRect(bx, by + 22, 12, 2);
+  });
+}
+
+// ---- Battle debris — darker rubble on battle grass ----
+function drawBattleDebris(ctx, x, y, flagColor) {
+  // Same as regular debris but with darker tones
+  const cx = x + TILE;
+  const cy = y + TILE;
+  const bx = cx - 7;
+  const by = cy - 4;
+  const light = "#7a7468";
+  const mid = "#5a5448";
+  const dark = "#3a3430";
+  const shadow = "#2a2420";
+
+  ctx.fillStyle = light;
+  ctx.fillRect(bx, by + 8, 5, 4);
+  ctx.fillRect(bx + 8, by + 6, 4, 5);
+  ctx.fillRect(bx + 3, by + 2, 4, 3);
+  ctx.fillRect(bx + 12, by + 10, 3, 4);
+  ctx.fillStyle = mid;
+  ctx.fillRect(bx + 1, by + 12, 6, 3);
+  ctx.fillRect(bx + 6, by + 4, 3, 4);
+  ctx.fillRect(bx + 10, by + 2, 3, 3);
+  ctx.fillRect(bx + 5, by + 10, 5, 3);
+  ctx.fillStyle = dark;
+  ctx.fillRect(bx + 2, by + 6, 2, 2);
+  ctx.fillRect(bx + 7, by + 8, 3, 2);
+  ctx.fillRect(bx + 11, by + 5, 2, 2);
+  ctx.fillRect(bx + 4, by + 14, 3, 2);
+  ctx.fillRect(bx + 9, by + 13, 2, 2);
+  ctx.fillRect(bx + 13, by + 8, 2, 2);
+  ctx.fillStyle = shadow;
+  ctx.fillRect(bx, by + 12, 1, 3);
+  ctx.fillRect(bx + 5, by + 5, 1, 3);
+  ctx.fillRect(bx + 8, by + 10, 1, 3);
+  ctx.fillRect(bx + 12, by + 14, 2, 1);
+  ctx.fillStyle = light;
+  ctx.fillRect(bx, by, 3, 6);
+  ctx.fillStyle = dark;
+  ctx.fillRect(bx + 2, by + 2, 1, 4);
+  ctx.fillStyle = mid;
+  ctx.fillRect(bx + 12, by + 1, 2, 4);
+  ctx.fillStyle = dark;
+  ctx.fillRect(bx + 13, by + 3, 1, 2);
+
+  if (flagColor) {
+    const o = "#1a1a1a";
+    ctx.fillStyle = o;
+    ctx.fillRect(bx + 1, by - 3, 1, 5);
+    ctx.fillRect(bx + 2, by - 6, 1, 4);
+    ctx.fillStyle = flagColor;
+    ctx.fillRect(bx + 3, by - 6, 4, 3);
+    ctx.fillStyle = o;
+    ctx.fillRect(bx + 6, by - 4, 1, 1);
+    ctx.fillRect(bx + 5, by - 4, 1, 1);
+  }
+}
+
+addSprite("tower_debris_battle", 2, 2, (ctx, x, y) => drawBattleDebris(ctx, x, y, null));
+for (let pid = 0; pid < 3; pid++) {
+  const flagColor = `rgb(${PLAYER_COLORS[pid].interiorLight.join(",")})`;
+  addSprite(`tower_debris_p${pid}_battle`, 2, 2, (ctx, x, y) => drawBattleDebris(ctx, x, y, flagColor));
+}
+
+// ---- Grass tiles (1x1) — textured ----
+const GRASS_DARK = [45, 140, 45];
+const GRASS_LIGHT = [51, 153, 51];
+
+function drawGrassTile(ctx, x, y, base) {
+  const r = base[0], g = base[1], b = base[2];
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.fillRect(x, y, TILE, TILE);
+  // Darker grass blades / texture
+  const dr = Math.max(0, r - 12), dg = Math.max(0, g - 12), db = Math.max(0, b - 12);
+  ctx.fillStyle = `rgb(${dr},${dg},${db})`;
+  ctx.fillRect(x + 2, y + 1, 1, 2);
+  ctx.fillRect(x + 7, y + 3, 1, 2);
+  ctx.fillRect(x + 12, y + 0, 1, 2);
+  ctx.fillRect(x + 4, y + 6, 1, 2);
+  ctx.fillRect(x + 10, y + 7, 1, 2);
+  ctx.fillRect(x + 1, y + 10, 1, 2);
+  ctx.fillRect(x + 8, y + 11, 1, 2);
+  ctx.fillRect(x + 14, y + 9, 1, 2);
+  ctx.fillRect(x + 5, y + 13, 1, 2);
+  ctx.fillRect(x + 11, y + 14, 1, 1);
+  // Lighter highlights
+  const lr = Math.min(255, r + 10), lg = Math.min(255, g + 10), lb = Math.min(255, b + 10);
+  ctx.fillStyle = `rgb(${lr},${lg},${lb})`;
+  ctx.fillRect(x + 3, y + 4, 1, 1);
+  ctx.fillRect(x + 9, y + 2, 1, 1);
+  ctx.fillRect(x + 13, y + 6, 1, 1);
+  ctx.fillRect(x + 6, y + 9, 1, 1);
+  ctx.fillRect(x + 0, y + 13, 1, 1);
+  ctx.fillRect(x + 11, y + 12, 1, 1);
+}
+
+addSprite("grass_dark", 1, 1, (ctx, x, y) => drawGrassTile(ctx, x, y, GRASS_DARK));
+addSprite("grass_light", 1, 1, (ctx, x, y) => drawGrassTile(ctx, x, y, GRASS_LIGHT));
+
+// ---- Battle grass (uniform, slightly darkened) ----
+addSprite("grass_battle", 1, 1, (ctx, x, y) => {
+  const gl = GRASS_LIGHT;
+  const r = Math.floor(gl[0] * 0.85), g = Math.floor(gl[1] * 0.85), b = Math.floor(gl[2] * 0.85);
+  drawGrassTile(ctx, x, y, [r, g, b]);
+});
+
+// ---- Water tile (1x1) — with ripple texture ----
+addSprite("water", 1, 1, (ctx, x, y) => {
+  const r = 40, g = 104, b = 176;
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.fillRect(x, y, TILE, TILE);
+  // Wave highlights
+  ctx.fillStyle = `rgb(${r + 15},${g + 15},${b + 15})`;
+  ctx.fillRect(x + 1, y + 3, 5, 1);
+  ctx.fillRect(x + 9, y + 7, 4, 1);
+  ctx.fillRect(x + 3, y + 11, 6, 1);
+  ctx.fillRect(x + 11, y + 14, 3, 1);
+  // Wave shadows
+  ctx.fillStyle = `rgb(${r - 10},${g - 10},${b - 10})`;
+  ctx.fillRect(x + 1, y + 4, 5, 1);
+  ctx.fillRect(x + 9, y + 8, 4, 1);
+  ctx.fillRect(x + 3, y + 12, 6, 1);
+  ctx.fillRect(x + 11, y + 15, 3, 1);
+  // Specular glint
+  ctx.fillStyle = `rgba(255, 255, 255, 0.12)`;
+  ctx.fillRect(x + 2, y + 2, 2, 1);
+  ctx.fillRect(x + 10, y + 6, 2, 1);
+});
+
+// ---- Bank tile (1x1) — sandy transition ----
+addSprite("bank", 1, 1, (ctx, x, y) => {
+  const r = 139, g = 58, b = 26;
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.fillRect(x, y, TILE, TILE);
+  // Sand grain texture
+  ctx.fillStyle = `rgb(${r + 15},${g + 10},${b + 8})`;
+  ctx.fillRect(x + 2, y + 1, 1, 1);
+  ctx.fillRect(x + 7, y + 4, 1, 1);
+  ctx.fillRect(x + 12, y + 2, 1, 1);
+  ctx.fillRect(x + 4, y + 8, 1, 1);
+  ctx.fillRect(x + 10, y + 10, 1, 1);
+  ctx.fillRect(x + 1, y + 12, 1, 1);
+  ctx.fillRect(x + 14, y + 7, 1, 1);
+  ctx.fillRect(x + 6, y + 14, 1, 1);
+  // Darker grains
+  ctx.fillStyle = `rgb(${r - 15},${g - 10},${b - 5})`;
+  ctx.fillRect(x + 5, y + 3, 1, 1);
+  ctx.fillRect(x + 9, y + 6, 1, 1);
+  ctx.fillRect(x + 3, y + 11, 1, 1);
+  ctx.fillRect(x + 13, y + 13, 1, 1);
+  ctx.fillRect(x + 8, y + 15, 1, 1);
+});
+
+// ============================================================================
+// Layout and rendering
+// ============================================================================
+
+// Pack sprites into rows, wrapping to stay within maxWidth
+const PADDING = 2;  // pixels between sprites
+const MAX_WIDTH = 512;
+
+function layoutSprites() {
+  const entries = [];
+  let curX = 0;
+  let curY = 0;
+  let rowHeight = 0;
+
+  for (const sprite of sprites) {
+    if (curX + sprite.w > MAX_WIDTH && curX > 0) {
+      curY += rowHeight + PADDING;
+      curX = 0;
+      rowHeight = 0;
+    }
+    entries.push({ ...sprite, x: curX, y: curY });
+    curX += sprite.w + PADDING;
+    rowHeight = Math.max(rowHeight, sprite.h);
+  }
+
+  const totalHeight = curY + rowHeight;
+  return { entries, width: MAX_WIDTH, height: totalHeight };
+}
+
+function renderAtlas(scale) {
+  const { entries, width, height } = layoutSprites();
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.imageSmoothingEnabled = false;
+
+  if (scale !== 1) {
+    ctx.scale(scale, scale);
+  }
+
+  // Transparent background (default)
+  for (const entry of entries) {
+    ctx.save();
+    // Clip to sprite bounds to prevent bleed
+    ctx.beginPath();
+    ctx.rect(entry.x, entry.y, entry.w, entry.h);
+    ctx.clip();
+    entry.drawFn(ctx, entry.x, entry.y);
+    ctx.restore();
+  }
+
+  return { canvas, entries, width, height };
+}
+
+// Generate the atlas
+const { canvas: atlas1x, entries, width, height } = renderAtlas(1);
+
+// Build legend table
+const legendDiv = document.getElementById("legend");
+let html = "<table><tr><th>#</th><th>Name</th><th>Size</th><th>X</th><th>Y</th></tr>";
+for (let i = 0; i < entries.length; i++) {
+  const e = entries[i];
+  html += `<tr><td>${i}</td><td>${e.name}</td><td>${e.w}×${e.h}</td><td>${e.x}</td><td>${e.y}</td></tr>`;
+}
+html += "</table>";
+legendDiv.innerHTML = html;
+
+// Preview at 4x zoom
+const preview = document.getElementById("preview");
+preview.width = width * 4;
+preview.height = height * 4;
+const pctx = preview.getContext("2d");
+pctx.imageSmoothingEnabled = false;
+// Draw checkerboard background to show transparency
+for (let py = 0; py < height; py += 4) {
+  for (let px = 0; px < width; px += 4) {
+    const light = ((px / 4 + py / 4) % 2 === 0);
+    pctx.fillStyle = light ? "#333" : "#2a2a2a";
+    pctx.fillRect(px * 4, py * 4, 16, 16);
+  }
+}
+pctx.drawImage(atlas1x, 0, 0, width * 4, height * 4);
+
+// Draw sprite boundaries on preview
+pctx.strokeStyle = "rgba(200, 160, 64, 0.3)";
+pctx.lineWidth = 1;
+for (const e of entries) {
+  pctx.strokeRect(e.x * 4, e.y * 4, e.w * 4, e.h * 4);
+}
+
+// Download handlers
+function downloadCanvas(canvas, filename) {
+  const link = document.createElement("a");
+  link.download = filename;
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+}
+
+document.getElementById("btn-download").addEventListener("click", () => {
+  downloadCanvas(atlas1x, "sprites.png");
+});
+
+document.getElementById("btn-download-2x").addEventListener("click", () => {
+  const { canvas: atlas2x } = renderAtlas(2);
+  downloadCanvas(atlas2x, "sprites@2x.png");
+});
+
+// Also generate and log the JSON sprite map (for use in sprites.ts)
+const spriteMap = {};
+for (const e of entries) {
+  spriteMap[e.name] = { x: e.x, y: e.y, w: e.w, h: e.h };
+}
+console.log("Sprite map JSON:");
+console.log(JSON.stringify(spriteMap, null, 2));
+</script>
+</body>
+</html>

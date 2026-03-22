@@ -1,0 +1,18 @@
+{
+  "name": "project-castles-99",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test:headless": "bun src/headless-test.ts",
+    "test:build-ai": "bun test/build-ai-1x1.test.ts && bun test/build-ai-1x2.test.ts && bun test/build-ai-1x3.test.ts && bun test/build-ai-C.test.ts && bun test/build-ai-J.test.ts && bun test/build-ai-L.test.ts && bun test/build-ai-PLUS.test.ts && bun test/build-ai-S.test.ts && bun test/build-ai-SR.test.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "playwright": "^1.58.2",
+    "typescript": "^5",
+    "vite": "^7.3.1"
+  }
+}

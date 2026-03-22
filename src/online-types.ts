@@ -1,0 +1,35 @@
+/** Shared types and utilities for online multiplayer sub-modules. */
+
+/** Move `vis` toward `(tx, ty)` at `speed` pixels/s. Mutates `vis` in place. */
+export function interpolateToward(vis: { x: number; y: number }, tx: number, ty: number, speed: number, dt: number): void {
+  const dx = tx - vis.x, dy = ty - vis.y;
+  const dist = Math.hypot(dx, dy);
+  const move = speed * dt;
+  if (dist <= move) { vis.x = tx; vis.y = ty; }
+  else { vis.x += (dx / dist) * move; vis.y += (dy / dist) * move; }
+}
+
+export type CannonPhantom = {
+  row: number;
+  col: number;
+  valid: boolean;
+  isSuper?: boolean;
+  isBalloon?: boolean;
+  playerId: number;
+  facing?: number;
+};
+
+export type PiecePhantom = {
+  offsets: [number, number][];
+  row: number;
+  col: number;
+  playerId: number;
+};
+
+export type HumanPiecePhantom = {
+  offsets: [number, number][];
+  row: number;
+  col: number;
+  valid: boolean;
+  playerId: number;
+};

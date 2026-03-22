@@ -1,0 +1,249 @@
+/**
+ * Shared board occupancy queries used by gameplay systems.
+ *
+ * These helpers centralize state-based tile checks so build, grunt, and AI
+ * logic do not each re-implement the same scans across walls, units, houses,
+ * towers, and cannons.
+ */
+
+import type { GameState, Grunt, Player } from "./types.ts";
+import {
+  DIRS_4,
+  forEachCannonTile,
+  forEachTowerTile,
+  inBounds,
+  isCannonTile,
+  isPitAt,
+  isTowerTile,
+  isWater,
+  packTile,
+} from "./spatial.ts";
+
+export function isTileOwnedByPlayer(
+  player: Pick<Player, "interior" | "walls">,
+  key: number,
+): boolean {
+  return player.interior.has(key) || player.walls.has(key);
+}
+
+export function collectAllWalls(state: GameState): Set<number> {
+  const allWalls = new Set<number>();
+  for (const player of state.players) {
+    for (const key of player.walls) allWalls.add(key);
+  }
+  return allWalls;
+}
+
+export function deleteWallFromAllPlayers(state: GameState, key: number): void {
+  for (const player of state.players) player.walls.delete(key);
+}
+
+export function collectAllInterior(state: GameState): Set<number> {
+  const allInterior = new Set<number>();
+  for (const player of state.players) {
+    for (const key of player.interior) allInterior.add(key);
+  }
+  return allInterior;
+}
+
+export function collectAllCannonTiles(
+  state: GameState,
+  options?: { excludeBalloon?: boolean },
+): Set<number> {
+  const cannonTiles = new Set<number>();
+  for (const player of state.players) {
+    for (const cannon of player.cannons) {
+      if (options?.excludeBalloon && cannon.balloon) continue;
+      forEachCannonTile(cannon, (_r, _c, key) => cannonTiles.add(key));
+    }
+  }
+  return cannonTiles;
+}
+
+export function collectOccupiedTiles(
+  state: GameState,
+  options?: {
+    includeWalls?: boolean;
+    includeInterior?: boolean;
+    includeCannons?: boolean;
+    excludeBalloonCannons?: boolean;
+    includeTowers?: boolean;
+    includeHouses?: boolean;
+    includeDeadHouses?: boolean;
+    includePits?: boolean;
+    includeBonusSquares?: boolean;
+    includeGrunts?: boolean;
+  },
+): Set<number> {
+  const occupied = new Set<number>();
+
+  if (options?.includeWalls) {
+    for (const key of collectAllWalls(state)) occupied.add(key);
+  }
+
+  if (options?.includeInterior) {
+    for (const key of collectAllInterior(state)) occupied.add(key);
+  }
+
+  if (options?.includeCannons) {
+    for (const key of collectAllCannonTiles(state, {
+      excludeBalloon: options.excludeBalloonCannons,
+    })) {
+      occupied.add(key);
+    }
+  }
+
+  if (options?.includeTowers) {
+    for (const tower of state.map.towers) {
+      forEachTowerTile(tower, (_r, _c, key) => occupied.add(key));
+    }
+  }
+
+  if (options?.includeHouses) {
+    for (const house of state.map.houses) {
+      if (!options.includeDeadHouses && !house.alive) continue;
+      occupied.add(packTile(house.row, house.col));
+    }
+  }
+
+  if (options?.includePits) {
+    for (const pit of state.burningPits)
+      occupied.add(packTile(pit.row, pit.col));
+  }
+
+  if (options?.includeBonusSquares) {
+    for (const bonus of state.bonusSquares)
+      occupied.add(packTile(bonus.row, bonus.col));
+  }
+
+  if (options?.includeGrunts) {
+    for (const grunt of state.grunts)
+      occupied.add(packTile(grunt.row, grunt.col));
+  }
+
+  return occupied;
+}
+
+export function hasWallAt(state: GameState, r: number, c: number): boolean {
+  const key = packTile(r, c);
+  return hasWallMatching(state, key, () => true);
+}
+
+export function hasEnemyWallAt(
+  state: GameState,
+  playerId: number,
+  r: number,
+  c: number,
+): boolean {
+  const key = packTile(r, c);
+  return hasWallMatching(state, key, (player) => player.id !== playerId);
+}
+
+function hasWallMatching(
+  state: GameState,
+  key: number,
+  predicate: (player: Player) => boolean,
+): boolean {
+  return state.players.some(
+    (player) => predicate(player) && player.walls.has(key),
+  );
+}
+
+export function hasInteriorAt(state: GameState, key: number): boolean {
+  return state.players.some((player) => player.interior.has(key));
+}
+
+export function hasGruntAt(
+  state: GameState,
+  r: number,
+  c: number,
+  exclude?: Grunt,
+): boolean {
+  return state.grunts.some(
+    (grunt) => grunt !== exclude && grunt.row === r && grunt.col === c,
+  );
+}
+
+export function hasAliveHouseAt(
+  state: GameState,
+  r: number,
+  c: number,
+): boolean {
+  return state.map.houses.some(
+    (house) => house.alive && house.row === r && house.col === c,
+  );
+}
+
+export function hasTowerAt(state: GameState, r: number, c: number): boolean {
+  return state.map.towers.some((tower) => isTowerTile(tower, r, c));
+}
+
+export function findLivingTowerIndexAt(
+  state: GameState,
+  r: number,
+  c: number,
+): number {
+  for (let i = 0; i < state.map.towers.length; i++) {
+    if (!state.towerAlive[i]) continue;
+    if (isTowerTile(state.map.towers[i]!, r, c)) return i;
+  }
+  return -1;
+}
+
+export function hasCannonAt(
+  state: GameState,
+  r: number,
+  c: number,
+  options?: { excludeBalloon?: boolean },
+): boolean {
+  return state.players.some((player) =>
+    player.cannons.some((cannon) => {
+      if (options?.excludeBalloon && cannon.balloon) return false;
+      return isCannonTile(cannon, r, c);
+    }),
+  );
+}
+
+export function getCardinalObstacleMask(
+  state: GameState,
+  row: number,
+  col: number,
+  options?: { excludeBalloonCannons?: boolean },
+): [boolean, boolean, boolean, boolean] {
+  const obstacles: [boolean, boolean, boolean, boolean] = [
+    false,
+    false,
+    false,
+    false,
+  ];
+  for (let di = 0; di < 4; di++) {
+    const [dr, dc] = DIRS_4[di]!;
+    const nr = row + dr;
+    const nc = col + dc;
+    if (!inBounds(nr, nc)) {
+      obstacles[di] = true;
+      continue;
+    }
+    if (isWater(state.map.tiles, nr, nc)) {
+      obstacles[di] = true;
+      continue;
+    }
+    if (hasTowerAt(state, nr, nc)) {
+      obstacles[di] = true;
+      continue;
+    }
+    if (isPitAt(state.burningPits, nr, nc)) {
+      obstacles[di] = true;
+      continue;
+    }
+    if (
+      hasCannonAt(state, nr, nc, {
+        excludeBalloon: options?.excludeBalloonCannons,
+      })
+    ) {
+      obstacles[di] = true;
+      continue;
+    }
+  }
+  return obstacles;
+}
