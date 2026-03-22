@@ -12,6 +12,7 @@ import { drawTowers } from "./render-towers.ts";
 import {
   drawAnnouncement,
   drawBanner,
+  drawScoreDeltas,
   drawGameOver,
   drawLifeLostDialog,
   drawOptionsScreen,
@@ -237,6 +238,7 @@ export interface UIOverlay {
     }[];
   };
   timer?: number;
+  scoreDeltas?: { playerId: number; delta: number; total: number; cx: number; cy: number }[];
   lifeLostDialog?: {
     entries: {
       playerId: number;
@@ -817,6 +819,7 @@ export function renderMap(
   drawHouses(octx, overlay);
   drawGrunts(octx, overlay);
   drawBattleEffects(octx, map, overlay);
+  drawScoreDeltas(octx, overlay);
   drawAnnouncement(octx, W, H, overlay);
   drawBanner(octx, W, H, overlay);
   drawGameOver(octx, W, H, overlay);

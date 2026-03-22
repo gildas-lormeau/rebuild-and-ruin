@@ -378,6 +378,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let frame: FrameData = { crosshairs: [], phantoms: {} };
   let battleAnim: BattleAnimState = createBattleAnimState();
   let banner: BannerState = createBannerState();
+  /** Score deltas to show after build phase. Cleared when banner ends. */
+  let scoreDeltas: { playerId: number; delta: number; total: number }[] = [];
+  let preScores: number[] = [];
   const selectionStates: Map<number, SelectionState> = new Map();
 
   const lobby: LobbyState = {
@@ -851,6 +854,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       getLifeLostPanelPos: (playerId) => lifeLostPanelPosShared(state, playerId),
     });
 
+    // Add score deltas to overlay (shown during "Place Cannons" banner)
+    if (scoreDeltas.length > 0 && overlay.ui) {
+      overlay.ui.scoreDeltas = scoreDeltas.map(d => {
+        const zone = state.playerZones[d.playerId] ?? 0;
+        const bounds = computeZoneBounds(zone);
+        return { ...d, cx: bounds.x + bounds.w / 2, cy: bounds.y + bounds.h / 2 };
+      });
+    }
+
     // Auto-zoom on phase change (only on touch devices with zoom button)
     if (zoomButton && state.phase !== lastAutoZoomPhase) {
       lastAutoZoomPhase = state.phase;
@@ -944,10 +956,14 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function advanceToCannonPhase(): void {
+    // Compute score deltas from the build phase
+    scoreDeltas = state.players
+      .map((p, i) => ({ playerId: i, delta: p.score - (preScores[i] ?? 0), total: p.score }))
+      .filter(d => d.delta > 0 && !state.players[d.playerId]!.eliminated);
+
     advanceToCannonPlacePhase(state);
-    // Start cannon phase + send checkpoint BEFORE banner so watchers show banner in sync.
     startCannonPhase();
-    showBanner("Place Cannons", () => { mode = Mode.GAME; }, false, undefined, "Position inside fort walls");
+    showBanner("Place Cannons", () => { scoreDeltas = []; mode = Mode.GAME; }, false, undefined, "Position inside fort walls");
   }
 
   function tickCastleBuild(dt: number): void {
@@ -1113,6 +1129,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function startBuildPhase() {
     const remoteHumanSlots = config.getRemoteHumanSlots();
     config.log(`startBuildPhase (round=${state.round})`);
+    // Snapshot scores before build phase for delta display
+    preScores = state.players.map(p => p.score);
+    scoreDeltas = [];
     initBuildPhase(state, controllers, (pid) => remoteHumanSlots.has(pid) || !!state.players[pid]?.eliminated);
     battleAnim.impacts = [];
     accum.grunt = 0;

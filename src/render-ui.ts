@@ -112,6 +112,25 @@ export function drawBanner(
   octx.restore();
 }
 
+/** Draw score deltas floating over each player's territory. */
+export function drawScoreDeltas(
+  octx: CanvasRenderingContext2D,
+  overlay?: RenderOverlay,
+): void {
+  if (!overlay?.ui?.scoreDeltas?.length) return;
+  octx.save();
+  octx.textAlign = "center";
+  octx.textBaseline = "middle";
+  for (const d of overlay.ui.scoreDeltas) {
+    // "+350" in player color with dark outline
+    octx.font = "bold 14px sans-serif";
+    drawShadowText(octx, `+${d.delta}`, d.cx, d.cy - 6, "rgba(0,0,0,0.8)", "#fff");
+    octx.font = "bold 12px sans-serif";
+    drawShadowText(octx, `${d.total}`, d.cx, d.cy + 8, "rgba(0,0,0,0.6)", GOLD_LIGHT);
+  }
+  octx.restore();
+}
+
 /** Draw the game over overlay with winner and scores. */
 export function drawGameOver(
   octx: CanvasRenderingContext2D,
