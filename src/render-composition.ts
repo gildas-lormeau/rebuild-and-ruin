@@ -218,7 +218,7 @@ export function buildOnlineOverlay(params: {
         color: RGB;
         eliminated: boolean;
         territory?: number;
-        stats?: { wallsDestroyed: number; cannonsKilled: number; shotsFired: number };
+        stats?: { wallsDestroyed: number; cannonsKilled: number };
       }[];
       focused: "rematch" | "menu";
     };

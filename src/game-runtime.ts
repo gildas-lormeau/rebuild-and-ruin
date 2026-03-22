@@ -386,12 +386,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const SCORE_DELTA_DISPLAY_TIME = 4; // seconds after banner ends
   let preScores: number[] = [];
   /** Per-player battle stats accumulated during the game. */
-  interface PlayerStats { wallsDestroyed: number; cannonsKilled: number; towersKilled: number; shotsFired: number; }
+  interface PlayerStats { wallsDestroyed: number; cannonsKilled: number; }
   let gameStats: PlayerStats[] = [];
 
   function resetGameStats() {
     gameStats = Array.from({ length: MAX_PLAYERS }, () => ({
-      wallsDestroyed: 0, cannonsKilled: 0, towersKilled: 0, shotsFired: 0,
+      wallsDestroyed: 0, cannonsKilled: 0,
     }));
   }
 
@@ -1271,8 +1271,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
             gameStats[evt.shooterId]!.wallsDestroyed++;
           } else if (evt.type === "cannon_damaged" && evt.shooterId !== undefined && evt.newHp === 0) {
             gameStats[evt.shooterId]!.cannonsKilled++;
-          } else if (evt.type === "cannon_fired" && evt.playerId !== undefined) {
-            gameStats[evt.playerId]!.shotsFired++;
           }
         }
       },

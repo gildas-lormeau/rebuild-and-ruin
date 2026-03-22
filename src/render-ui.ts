@@ -221,11 +221,10 @@ export function drawGameOver(
   // Column headers
   const tableTop = py + headerH;
   const colName = px + 10;
-  const colScore = px + panelW * 0.35;
-  const colWalls = px + panelW * 0.52;
-  const colCannons = px + panelW * 0.68;
-  const colShots = px + panelW * 0.82;
-  const colTerritory = px + panelW * 0.95;
+  const colScore = px + panelW * 0.38;
+  const colWalls = px + panelW * 0.56;
+  const colCannons = px + panelW * 0.74;
+  const colTerritory = px + panelW * 0.92;
 
   if (hasStats) {
     octx.font = "bold 7px sans-serif";
@@ -234,7 +233,6 @@ export function drawGameOver(
     octx.fillText("Score", colScore, tableTop + 8);
     octx.fillText("Walls", colWalls, tableTop + 8);
     octx.fillText("Cannons", colCannons, tableTop + 8);
-    octx.fillText("Shots", colShots, tableTop + 8);
     octx.fillText("Land", colTerritory, tableTop + 8);
   }
 
@@ -254,7 +252,6 @@ export function drawGameOver(
       octx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${alpha * 0.7})`;
       octx.fillText(`${entry.stats.wallsDestroyed}`, colWalls, y);
       octx.fillText(`${entry.stats.cannonsKilled}`, colCannons, y);
-      octx.fillText(`${entry.stats.shotsFired}`, colShots, y);
       octx.fillText(`${entry.territory ?? 0}`, colTerritory, y);
     }
   }

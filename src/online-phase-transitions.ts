@@ -60,7 +60,7 @@ export interface TransitionContext {
   // Life-lost / game over
   showLifeLostDialog: (needsReselect: number[], eliminated: number[]) => void;
   render: () => void;
-  setGameOverFrame: (payload: { winner: string; scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: { wallsDestroyed: number; cannonsKilled: number; shotsFired: number } }[]; focused: "rematch" | "menu" }) => void;
+  setGameOverFrame: (payload: { winner: string; scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: { wallsDestroyed: number; cannonsKilled: number } }[]; focused: "rematch" | "menu" }) => void;
 }
 
 // ---------------------------------------------------------------------------
