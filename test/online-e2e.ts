@@ -9,6 +9,7 @@
  *   npx tsx test/online-e2e.ts online 1          # online mode: 1 human + 2 AI + watcher
  *   npx tsx test/online-e2e.ts online 3   # online mode: 3 humans + watcher
  *   npx tsx test/online-e2e.ts online 1 https://example.deno.dev  # remote server
+ *   npx tsx test/online-e2e.ts local 0 "" 5   # local, 5 battles before stopping
  *
  * Online mode requires: deno task server (port 8001) + npm run dev (port 5173)
  *   — or pass a remote URL as the 4th argument (uses that URL for both site and server)
@@ -22,6 +23,7 @@ import process from "node:process";
 const MODE = process.argv[2] === "local" ? "local" : "online";
 const NUM_HUMANS = Math.min(3, Math.max(0, Number(process.argv[3] ?? (MODE === "local" ? 0 : 2))));
 const SERVER_URL = process.argv[4] || process.env.E2E_SERVER_URL || "";
+const MIN_BATTLES = Math.max(1, Number(process.argv[5] ?? 2)); // stop after N battles (default 2)
 const BASE_URL = "http://localhost:5173/";
 const PAGE_URL = SERVER_URL ? `${BASE_URL}?server=${new URL(SERVER_URL).host}` : BASE_URL;
 const GAME_TIMEOUT_MS = 600_000; // 10 minutes — enough for "To The Death"
@@ -142,7 +144,8 @@ async function runLocal() {
     // All-AI: poll until first battle ends (enough to check orbit), or game over
     const deadline = Date.now() + GAME_TIMEOUT_MS;
     let lastReported = "";
-    let sawBattle = false;
+    let battleCount = 0;
+    let inBattle = false;
     while (Date.now() < deadline) {
       const info = await page.evaluate(() => {
         const w = window as unknown as Record<string, unknown>;
@@ -161,10 +164,11 @@ async function runLocal() {
         console.log(`${ts()} Phase: ${info.mode} / ${info.phase} (timer=${info.timer.toFixed(1)})`);
         lastReported = key;
       }
-      if (info.phase === "BATTLE" && info.mode === "GAME") sawBattle = true;
-      // Stop after first battle ends (transition to build)
-      if (sawBattle && info.phase === "WALL_BUILD") {
-        console.log(`${ts()} First battle complete — stopping early`);
+      if (info.phase === "BATTLE" && info.mode === "GAME" && !inBattle) { battleCount++; inBattle = true; }
+      if (info.phase !== "BATTLE") inBattle = false;
+      // Stop after second battle ends (need 2 battles to verify crosshair reset)
+      if (battleCount >= MIN_BATTLES && info.phase === "WALL_BUILD") {
+        console.log(`${ts()} ${MIN_BATTLES} battle(s) complete — stopping early`);
         break;
       }
       await page.waitForTimeout(500);
