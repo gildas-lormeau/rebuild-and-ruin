@@ -213,11 +213,12 @@
     // Resize canvas to fill viewport while keeping aspect ratio
     const canvas = document.getElementById("canvas");
     const ASPECT = 40 * 16 / (28 * 16); // GRID_COLS * TILE_SIZE / (GRID_ROWS * TILE_SIZE)
+    const STATUS_BAR_H = 28;
     function resizeCanvas() {
       if (canvas.style.display === "none") return;
       const aspect = ASPECT;
       const vw = window.innerWidth;
-      const vh = window.innerHeight;
+      const vh = window.innerHeight - STATUS_BAR_H;
       let w, h;
       if (vw / vh > aspect) {
         h = vh;
