@@ -140,7 +140,7 @@ export function drawStatusBar(
 ): void {
   if (!overlay?.ui?.statusBar) return;
   const sb = overlay.ui.statusBar;
-  const barH = 16;
+  const barH = 24;
   const by = H - barH;
 
   octx.fillStyle = PANEL_BG(0.85);
@@ -149,18 +149,18 @@ export function drawStatusBar(
   octx.fillRect(0, by, W, 1);
 
   octx.save();
-  octx.font = "bold 10px monospace";
+  octx.font = "bold 13px monospace";
   octx.textBaseline = "middle";
   const cy = by + barH / 2;
 
   // Left: round + phase + timer
   octx.textAlign = "left";
   octx.fillStyle = "#a08050";
-  octx.fillText(`${sb.round}  ${sb.phase}  ${sb.timer}`, 4, cy);
+  octx.fillText(`${sb.round}  ${sb.phase}  ${sb.timer}`, 8, cy);
 
   // Right: player stats
   octx.textAlign = "right";
-  let rx = W - 4;
+  let rx = W - 8;
   for (let i = sb.players.length - 1; i >= 0; i--) {
     const p = sb.players[i]!;
     if (p.eliminated) continue;

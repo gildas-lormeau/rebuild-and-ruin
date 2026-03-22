@@ -822,7 +822,6 @@ export function renderMap(
   drawGrunts(octx, overlay);
   drawBattleEffects(octx, map, overlay);
   drawScoreDeltas(octx, overlay);
-  drawStatusBar(octx, W, H, overlay);
   drawAnnouncement(octx, W, H, overlay);
   drawBanner(octx, W, H, overlay);
   drawGameOver(octx, W, H, overlay);
@@ -838,4 +837,7 @@ export function renderMap(
   } else {
     ctx.drawImage(sceneCanvas, 0, 0, W * SCALE, H * SCALE);
   }
+
+  // Status bar drawn at display resolution for crisp text
+  drawStatusBar(ctx, cw, ch, overlay);
 }
