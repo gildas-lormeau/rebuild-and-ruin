@@ -21,8 +21,9 @@ import process from "node:process";
 
 const MODE = process.argv[2] === "local" ? "local" : "online";
 const NUM_HUMANS = Math.min(3, Math.max(0, Number(process.argv[3] ?? (MODE === "local" ? 0 : 2))));
-const REMOTE_URL = process.argv[4] || process.env.E2E_SERVER_URL || "";
-const BASE_URL = REMOTE_URL || "http://localhost:5173/";
+const SERVER_URL = process.argv[4] || process.env.E2E_SERVER_URL || "";
+const BASE_URL = "http://localhost:5173/";
+const PAGE_URL = SERVER_URL ? `${BASE_URL}?server=${new URL(SERVER_URL).host}` : BASE_URL;
 const GAME_TIMEOUT_MS = 600_000; // 10 minutes — enough for "To The Death"
 const PLAYER_NAMES = ["Red", "Blue", "Gold"];
 
@@ -46,7 +47,7 @@ function collectLogs(page: Page, prefix: string, logs: string[]): void {
 // ---------------------------------------------------------------------------
 
 async function createRoom(page: Page): Promise<string> {
-  await page.goto(BASE_URL);
+  await page.goto(PAGE_URL);
   await page.click("#btn-online");
   await page.waitForSelector("#lobby[data-ready]", { timeout: 10000 });
   await page.click("#btn-create");
@@ -68,7 +69,7 @@ async function createRoom(page: Page): Promise<string> {
 }
 
 async function joinRoom(page: Page, code: string): Promise<void> {
-  await page.goto(BASE_URL);
+  await page.goto(PAGE_URL);
   await page.click("#btn-online");
   await page.waitForSelector("#lobby[data-ready]", { timeout: 10000 });
   await page.click("#btn-join-show");
