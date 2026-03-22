@@ -1223,22 +1223,15 @@ export class AiController extends BaseController {
             this.idleRx = (5 + rng.next() * 3) * boost;
             this.idleRy = (5 + rng.next() * 3) * boost;
             this.idleSpeed =
-              (Math.PI * (2 + rng.next())) *
-              boost *
+              (Math.PI * (1.5 + rng.next() * 0.5)) *
               (rng.bool() ? 1 : -1);
             this.idleInitialized = true;
           }
-          const sp =
-            this.idleSpeed +
-            Math.sin(this.idlePhase * 0.31) * this.idleSpeed * 0.3 +
-            Math.sin(this.idlePhase * 1.7) * this.idleSpeed * 0.15;
-          this.idlePhase += sp * dt;
-          const rx = this.idleRx + Math.sin(this.idlePhase * 0.23);
-          const ry = this.idleRy + Math.sin(this.idlePhase * 0.19);
+          this.idlePhase += this.idleSpeed * dt;
           this.crosshair.x =
-            this.crosshairTarget.x + Math.cos(this.idlePhase) * rx;
+            this.crosshairTarget.x + Math.cos(this.idlePhase) * this.idleRx;
           this.crosshair.y =
-            this.crosshairTarget.y + Math.sin(this.idlePhase) * ry;
+            this.crosshairTarget.y + Math.sin(this.idlePhase) * this.idleRy;
         }
       } else {
         this.stepCrosshairToward(this.crosshairTarget.x, this.crosshairTarget.y, dt);
