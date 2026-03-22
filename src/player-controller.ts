@@ -1220,10 +1220,10 @@ export class AiController extends BaseController {
           if (!this.idleInitialized) {
             const boost = this.crosshairTarget.strategic ? 1.5 : 1;
             const rng = this.strategy.rng;
-            this.idleRx = (4 + rng.next() * 2) * boost;
-            this.idleRy = (4 + rng.next() * 2) * boost;
+            this.idleRx = (5 + rng.next() * 3) * boost;
+            this.idleRy = (5 + rng.next() * 3) * boost;
             this.idleSpeed =
-              ((Math.PI * (7 + rng.next() * 2)) / 1.5) *
+              (Math.PI * (2 + rng.next())) *
               boost *
               (rng.bool() ? 1 : -1);
             this.idleInitialized = true;
