@@ -708,10 +708,19 @@ function drawCastles(
 // Main render orchestrator
 // ---------------------------------------------------------------------------
 
+/** Viewport rect in tile-pixel coordinates (before SCALE). null = full map. */
+export interface Viewport {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export function renderMap(
   map: MapData,
   canvas: HTMLCanvasElement,
   overlay?: RenderOverlay,
+  viewport?: Viewport | null,
 ): void {
   const ctx = canvas.getContext("2d")!;
   const W = COLS * TILE;
@@ -816,7 +825,11 @@ export function renderMap(
   drawControlsScreen(octx, W, H, overlay);
   drawPlayerSelect(octx, W, H, overlay);
 
-  // Scale up to display canvas
+  // Scale up to display canvas (with optional zoom viewport)
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(sceneCanvas, 0, 0, W * SCALE, H * SCALE);
+  if (viewport) {
+    ctx.drawImage(sceneCanvas, viewport.x, viewport.y, viewport.w, viewport.h, 0, 0, cw, ch);
+  } else {
+    ctx.drawImage(sceneCanvas, 0, 0, W * SCALE, H * SCALE);
+  }
 }

@@ -8,6 +8,7 @@
 import { Phase } from "./types.ts";
 import type { GameState } from "./types.ts";
 import type { PlayerController } from "./player-controller.ts";
+import { PLAYER_COLORS } from "./player-config.ts";
 
 interface RotateButtonDeps {
   getState: () => GameState | undefined;
@@ -83,6 +84,104 @@ export function createRotateButton(deps: RotateButtonDeps): {
       } else if (phase === Phase.CANNON_PLACE) {
         btn.textContent = "\u2699"; // ⚙ mode
       }
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Zoom button — bottom-left, cycles: my zone → zone 1 → zone 2 → full map
+// ---------------------------------------------------------------------------
+
+interface ZoomButtonDeps {
+  getState: () => GameState | undefined;
+  getCameraZone: () => number | null;
+  setCameraZone: (zone: number | null) => void;
+  getMyPlayerId: () => number;
+  render: () => void;
+}
+
+export function createZoomButton(deps: ZoomButtonDeps): {
+  update: (phase: Phase | null) => void;
+} {
+  const btn = document.createElement("button");
+  btn.style.cssText = `
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    z-index: 100;
+    background: rgba(200, 160, 64, 0.85);
+    border: 2px solid rgba(240, 216, 112, 0.9);
+    color: #1a1a2e;
+    font-size: 20px;
+    font-weight: bold;
+    display: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
+    user-select: none;
+  `;
+  document.body.appendChild(btn);
+
+  function cycleZoom() {
+    const state = deps.getState();
+    if (!state) return;
+    const current = deps.getCameraZone();
+    const playerCount = state.players.length;
+    // Build zone list: player zones (0..N-1) then null (full map)
+    const zones: (number | null)[] = [];
+    for (let i = 0; i < playerCount; i++) {
+      const zone = state.playerZones[i];
+      if (zone !== undefined && !zones.includes(zone)) zones.push(zone);
+    }
+    zones.push(null); // full map
+
+    const idx = current === null ? zones.length - 1 : zones.indexOf(current);
+    const next = zones[(idx + 1) % zones.length]!;
+    deps.setCameraZone(next === undefined ? null : next);
+    updateLabel();
+    deps.render();
+  }
+
+  function updateLabel() {
+    const state = deps.getState();
+    const zone = deps.getCameraZone();
+    if (zone === null || !state) {
+      btn.textContent = "🗺";
+      btn.style.background = "rgba(200, 160, 64, 0.85)";
+      return;
+    }
+    // Find which player owns this zone
+    const pid = state.playerZones.indexOf(zone);
+    if (pid >= 0 && PLAYER_COLORS[pid]) {
+      const c = PLAYER_COLORS[pid]!.interiorLight;
+      btn.style.background = `rgba(${c[0]},${c[1]},${c[2]},0.85)`;
+      btn.textContent = "🔍";
+    } else {
+      btn.textContent = "🔍";
+      btn.style.background = "rgba(200, 160, 64, 0.85)";
+    }
+  }
+
+  btn.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    cycleZoom();
+  }, { passive: false });
+
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    cycleZoom();
+  });
+
+  return {
+    update(phase: Phase | null) {
+      const inGame = phase !== null;
+      btn.style.display = inGame ? "block" : "none";
+      updateLabel();
     },
   };
 }
