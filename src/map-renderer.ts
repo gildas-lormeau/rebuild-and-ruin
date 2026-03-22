@@ -223,7 +223,7 @@ export interface ControlsPlayer {
 /** UI overlays — banners, announcements, game over, player select. */
 export interface UIOverlay {
   announcement?: string;
-  banner?: { text: string; y: number };
+  banner?: { text: string; subtitle?: string; y: number };
   bannerOldCastles?: CastleData[];
   bannerOldBattleTerritory?: Set<number>[];
   bannerOldBattleWalls?: Set<number>[];

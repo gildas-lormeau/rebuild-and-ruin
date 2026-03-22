@@ -171,6 +171,7 @@ export type BannerShow = (
   onDone: () => void,
   reveal?: boolean,
   newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
+  subtitle?: string,
 ) => void;
 
 interface StartHostBattleLifecycleDeps {
@@ -211,7 +212,7 @@ export function startHostBattleLifecycle(
   const preWalls = state.players.map((p) => new Set(p.walls));
 
   showBanner(
-    "Battle!",
+    "Prepare for Battle",
     () => {
       if (flights.length > 0) {
         battleAnim.flights = flights.map((f) => ({ flight: f, progress: 0 }));
@@ -222,6 +223,7 @@ export function startHostBattleLifecycle(
     },
     true,
     { territory: preTerritory, walls: preWalls },
+    "Shoot at enemy walls",
   );
 
   nextPhase(state);

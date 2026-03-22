@@ -70,7 +70,8 @@ export function buildBannerUi(
   active: boolean,
   text: string,
   progress: number,
-): { text: string; y: number } | undefined {
+  subtitle?: string,
+): { text: string; subtitle?: string; y: number } | undefined {
   if (!active) return undefined;
   const h = GRID_ROWS * TILE;
   const bannerH = h * 0.15;
@@ -78,6 +79,7 @@ export function buildBannerUi(
   const endY = h + bannerH / 2;
   return {
     text,
+    subtitle,
     y: startY + progress * (endY - startY),
   };
 }
@@ -218,7 +220,7 @@ export function buildOnlineOverlay(params: {
       }[];
     };
   };
-  bannerUi?: { text: string; y: number };
+  bannerUi?: { text: string; subtitle?: string; y: number };
   lifeLostDialog: LifeLostDialogState | null;
   playerNames: ReadonlyArray<string>;
   playerColors: ReadonlyArray<{ wall: RGB }>;

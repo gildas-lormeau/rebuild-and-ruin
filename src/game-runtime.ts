@@ -600,6 +600,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     onDone: () => void,
     reveal = false,
     newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
+    subtitle?: string,
   ) {
     if (banner.active) {
       config.log(`showBanner "${text}" while banner "${banner.text}" is still active`);
@@ -609,6 +610,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       state,
       battleAnim,
       text,
+      subtitle,
       onDone,
       reveal,
       newBattle,
@@ -833,7 +835,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       collectCrosshairs(state.battleCountdown <= 0);
     }
 
-    const bannerUi = buildBannerUi(banner.active, banner.text, banner.progress);
+    const bannerUi = buildBannerUi(banner.active, banner.text, banner.progress, banner.subtitle);
 
     overlay = buildOnlineOverlay({
       previousSelection: overlay.selection,
@@ -945,7 +947,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     advanceToCannonPlacePhase(state);
     // Start cannon phase + send checkpoint BEFORE banner so watchers show banner in sync.
     startCannonPhase();
-    showBanner("Place Cannons", () => { mode = Mode.GAME; });
+    showBanner("Place Cannons", () => { mode = Mode.GAME; }, false, undefined, "Position inside fort walls");
   }
 
   function tickCastleBuild(dt: number): void {
@@ -1172,12 +1174,14 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       sendMessage: config.send,
       onBattlePhaseEnded: () => {
         showBanner(
-          "Repair!",
+          "Build & Repair",
           () => {
             startBuildPhase();
             mode = Mode.GAME;
           },
           true,
+          undefined,
+          "Surround castles, repair walls",
         );
         nextPhase(state); // BATTLE -> WALL_BUILD
         if (config.getIsHost() && config.hostNetworking) {

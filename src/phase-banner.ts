@@ -6,6 +6,7 @@ export interface BannerState {
   active: boolean;
   progress: number;
   text: string;
+  subtitle?: string;
   callback: (() => void) | null;
   oldCastles?: CastleData[];
   oldTerritory?: Set<number>[];
@@ -28,6 +29,7 @@ interface ShowBannerDeps {
   state: GameState;
   battleAnim: { territory: Set<number>[]; walls: Set<number>[] };
   text: string;
+  subtitle?: string;
   onDone: () => void;
   reveal?: boolean;
   newBattle?: { territory: Set<number>[]; walls: Set<number>[] };
@@ -74,6 +76,7 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
   banner.active = true;
   banner.progress = 0;
   banner.text = text;
+  banner.subtitle = deps.subtitle;
   banner.callback = onDone;
   setModeBanner();
 }

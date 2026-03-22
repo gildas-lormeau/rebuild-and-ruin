@@ -91,17 +91,24 @@ export function drawBanner(
   octx.fillRect(0, by, W, 2);
   octx.fillRect(0, by + bannerH - 2, W, 2);
   octx.save();
-  octx.font = FONT_TITLE;
   octx.textAlign = "center";
+  const hasSubtitle = !!overlay.ui.banner.subtitle;
+  const titleY = hasSubtitle ? by + bannerH * 0.38 : by + bannerH / 2;
+  octx.font = FONT_TITLE;
   octx.textBaseline = "middle";
   drawShadowText(
     octx,
     overlay.ui.banner.text,
     W / 2,
-    by + bannerH / 2,
+    titleY,
     SHADOW_COLOR,
     GOLD_LIGHT,
   );
+  if (hasSubtitle) {
+    octx.font = "10px sans-serif";
+    octx.fillStyle = "#a08050";
+    octx.fillText(overlay.ui.banner.subtitle!, W / 2, by + bannerH * 0.7);
+  }
   octx.restore();
 }
 
