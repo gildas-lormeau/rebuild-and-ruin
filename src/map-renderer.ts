@@ -13,6 +13,7 @@ import {
   drawAnnouncement,
   drawBanner,
   drawScoreDeltas,
+  drawStatusBar,
   drawGameOver,
   drawLifeLostDialog,
   drawOptionsScreen,
@@ -239,6 +240,7 @@ export interface UIOverlay {
   };
   timer?: number;
   scoreDeltas?: { playerId: number; delta: number; total: number; cx: number; cy: number }[];
+  statusBar?: { round: string; phase: string; timer: string; players: { score: number; cannons: number; lives: number; color: RGB; eliminated: boolean }[] };
   lifeLostDialog?: {
     entries: {
       playerId: number;
@@ -820,6 +822,7 @@ export function renderMap(
   drawGrunts(octx, overlay);
   drawBattleEffects(octx, map, overlay);
   drawScoreDeltas(octx, overlay);
+  drawStatusBar(octx, W, H, overlay);
   drawAnnouncement(octx, W, H, overlay);
   drawBanner(octx, W, H, overlay);
   drawGameOver(octx, W, H, overlay);

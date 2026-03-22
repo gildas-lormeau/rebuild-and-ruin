@@ -131,6 +131,59 @@ export function drawScoreDeltas(
   octx.restore();
 }
 
+/** Draw status bar at the bottom of the canvas. */
+export function drawStatusBar(
+  octx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  overlay?: RenderOverlay,
+): void {
+  if (!overlay?.ui?.statusBar) return;
+  const sb = overlay.ui.statusBar;
+  const barH = 14;
+  const by = H - barH;
+
+  octx.fillStyle = PANEL_BG(0.85);
+  octx.fillRect(0, by, W, barH);
+  octx.fillStyle = "rgba(200,160,64,0.3)";
+  octx.fillRect(0, by, W, 1);
+
+  octx.save();
+  octx.font = "bold 7px monospace";
+  octx.textBaseline = "middle";
+  const cy = by + barH / 2;
+
+  // Left: round + phase + timer
+  octx.textAlign = "left";
+  octx.fillStyle = "#a08050";
+  octx.fillText(`${sb.round}  ${sb.phase}  ${sb.timer}`, 4, cy);
+
+  // Right: player stats
+  octx.textAlign = "right";
+  let rx = W - 4;
+  for (let i = sb.players.length - 1; i >= 0; i--) {
+    const p = sb.players[i]!;
+    if (p.eliminated) continue;
+    const c = p.color;
+    // Lives
+    octx.fillStyle = "#c44";
+    const heartsStr = "\u2665".repeat(p.lives);
+    octx.fillText(heartsStr, rx, cy);
+    rx -= octx.measureText(heartsStr).width + 2;
+    // Cannons
+    octx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.6)`;
+    const cannonStr = `${p.cannons}c `;
+    octx.fillText(cannonStr, rx, cy);
+    rx -= octx.measureText(cannonStr).width;
+    // Score
+    octx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+    const scoreStr = `${p.score} `;
+    octx.fillText(scoreStr, rx, cy);
+    rx -= octx.measureText(scoreStr).width + 4;
+  }
+  octx.restore();
+}
+
 /** Draw the game over overlay with winner and scores. */
 export function drawGameOver(
   octx: CanvasRenderingContext2D,

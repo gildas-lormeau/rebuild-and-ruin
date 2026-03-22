@@ -867,6 +867,26 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       getLifeLostPanelPos: (playerId) => lifeLostPanelPosShared(state, playerId),
     });
 
+    // Status bar (rendered inside canvas)
+    if (overlay.ui) {
+      const phaseLabel = state.phase === Phase.CASTLE_SELECT ? "Select"
+        : state.phase === Phase.WALL_BUILD ? "Build"
+        : state.phase === Phase.CANNON_PLACE ? "Cannons"
+        : state.phase === Phase.BATTLE ? "Battle" : "";
+      overlay.ui.statusBar = {
+        round: state.battleLength === Infinity ? `R${state.round}` : `R${state.round}/${state.battleLength}`,
+        phase: phaseLabel,
+        timer: state.timer > 0 ? `${Math.ceil(state.timer)}s` : "",
+        players: state.players.map((p, i) => ({
+          score: p.score,
+          cannons: p.cannons.filter(c => c.hp > 0).length,
+          lives: p.lives,
+          color: PLAYER_COLORS[i % PLAYER_COLORS.length]!.interiorLight,
+          eliminated: p.eliminated,
+        })),
+      };
+    }
+
     // Add score deltas to overlay (shown during "Place Cannons" banner)
     if (scoreDeltas.length > 0 && overlay.ui) {
       overlay.ui.scoreDeltas = scoreDeltas.map(d => {

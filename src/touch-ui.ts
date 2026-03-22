@@ -163,74 +163,16 @@ export function createQuitButton(deps: QuitButtonDeps): {
 // Status bar — bottom, shows round, scores, timer
 // ---------------------------------------------------------------------------
 
-const PHASE_LABELS: Record<string, string> = {
-  [Phase.CASTLE_SELECT]: "Select",
-  [Phase.WALL_BUILD]: "Build",
-  [Phase.CANNON_PLACE]: "Cannons",
-  [Phase.BATTLE]: "Battle",
-};
 
 interface StatusBarDeps {
   getState: () => GameState | undefined;
 }
 
-export function createStatusBar(deps: StatusBarDeps): {
+export function createStatusBar(_deps: StatusBarDeps): {
   update: () => void;
 } {
-  const bar = document.createElement("div");
-  bar.style.cssText = `
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 28px;
-    background: rgba(26, 26, 46, 0.85);
-    border-top: 1px solid rgba(200, 160, 64, 0.4);
-    z-index: 90;
-    display: none;
-    font-family: monospace;
-    font-size: 13px;
-    color: #a08050;
-    padding: 0 12px;
-    line-height: 28px;
-    white-space: nowrap;
-    overflow: hidden;
-  `;
-  document.body.appendChild(bar);
-
-  return {
-    update() {
-      const state = deps.getState();
-      if (!state) { bar.style.display = "none"; return; }
-
-      bar.style.display = "block";
-
-      const roundStr = state.battleLength === Infinity
-        ? `R${state.round}`
-        : `R${state.round}/${state.battleLength}`;
-
-      const phase = PHASE_LABELS[state.phase] ?? "";
-      const timer = state.timer > 0 ? Math.ceil(state.timer) + "s" : "";
-
-      let playersHtml = "";
-      for (let i = 0; i < state.players.length; i++) {
-        const p = state.players[i]!;
-        if (p.eliminated) continue;
-        const c = PLAYER_COLORS[i]?.interiorLight;
-        const color = c ? `rgb(${c[0]},${c[1]},${c[2]})` : "#aaa";
-        const cannons = p.cannons.filter(cn => cn.hp > 0).length;
-        const lives = '<span style="color:#c44;">'+("&hearts;".repeat(p.lives))+'</span>';
-        playersHtml += `<span style="color:${color};margin:0 6px;">` +
-          `${p.score} <span style="opacity:0.6">${cannons}c</span> ${lives}` +
-          `</span>`;
-      }
-
-      bar.innerHTML = `<span>${roundStr}</span>` +
-        `<span style="margin:0 8px;color:#c8a040;">${phase}</span>` +
-        `<span style="color:#c8a040;">${timer}</span>` +
-        `<span style="float:right;">${playersHtml}</span>`;
-    },
-  };
+  // Status bar is now rendered inside the canvas via drawStatusBar in render-ui.ts
+  return { update() {} };
 }
 
 // ---------------------------------------------------------------------------
