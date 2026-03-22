@@ -191,6 +191,25 @@
       modeSelect.style.display = "block";
     });
 
+    // Auto-join via QR code: ?join=XXXX&server=host
+    const params = new URLSearchParams(location.search);
+    const autoJoinCode = params.get("join");
+    if (autoJoinCode) {
+      (async () => {
+        modeSelect.style.display = "none";
+        lobby.style.display = "block";
+        await import("/src/online-client.ts");
+        // Fill in join code and click join
+        const joinCodeInput = document.getElementById("join-code");
+        const btnJoinShow = document.getElementById("btn-join-show");
+        const btnJoinConfirm = document.getElementById("btn-join-confirm");
+        btnJoinShow.click();
+        joinCodeInput.value = autoJoinCode.toUpperCase();
+        // Small delay to ensure lobby UI is ready
+        setTimeout(() => { tryFullscreen(); btnJoinConfirm.click(); }, 300);
+      })();
+    }
+
     // Resize canvas to fill viewport while keeping aspect ratio
     const canvas = document.getElementById("canvas");
     const ASPECT = 40 * 16 / (28 * 16); // GRID_COLS * TILE_SIZE / (GRID_ROWS * TILE_SIZE)

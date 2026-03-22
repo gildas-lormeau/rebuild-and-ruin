@@ -40,12 +40,17 @@ export function setupWaitingRoom(deps: ShowWaitingRoomDeps): void {
   canvas.style.display = "block";
 
   roomCodeOverlay.style.display = "block";
+  const joinUrl = `${location.origin}${location.pathname}?server=${location.host}&join=${code}`;
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(joinUrl)}`;
   roomCodeOverlay.innerHTML = `
     <div style="position:fixed;top:12px;left:50%;transform:translateX(-50%);
-      background:rgba(26,26,46,0.9);padding:8px 24px;border-radius:6px;
+      background:rgba(26,26,46,0.9);padding:12px 24px;border-radius:6px;
       border:2px solid #c8a040;color:#c8a040;font-size:24px;letter-spacing:6px;
       font-weight:bold;z-index:10;text-align:center;">
       ${code}
+      <img src="${qrSrc}" alt="QR" style="display:block;margin:8px auto 0;width:120px;height:120px;
+        image-rendering:pixelated;border-radius:4px;"
+        onerror="this.style.display='none'">
     </div>
   `;
 
