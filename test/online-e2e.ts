@@ -13,6 +13,7 @@
  *   npx tsx test/online-e2e.ts local 0 --screenshot  # capture screenshots at phase transitions
  *   npx tsx test/online-e2e.ts local 0 --mobile     # emulate mobile (Pixel 7, landscape)
  *   npx tsx test/online-e2e.ts local 0 --mobile --screenshot  # both
+ *   npx tsx test/online-e2e.ts local 0 --mobile --action "phase:BATTLE click:zoom screenshot:zoomed exit"
  *
  * Online mode requires: deno task server (port 8001) + npm run dev (port 5173)
  *   — or pass a remote URL as the 4th argument (uses that URL for both site and server)
@@ -25,6 +26,31 @@ import process from "node:process";
 
 const SCREENSHOTS = process.argv.includes("--screenshot");
 const MOBILE = process.argv.includes("--mobile");
+
+// Parse --action flags: "phase:BATTLE click:zoom screenshot:label exit"
+interface TestAction {
+  trigger: { type: "phase" | "mode"; value: string };
+  click?: string; // "zoom" | "rotate" | "quit" | "X,Y"
+  screenshot?: string;
+  exit?: boolean;
+  done?: boolean;
+}
+const ACTIONS: TestAction[] = [];
+for (let i = 2; i < process.argv.length; i++) {
+  if (process.argv[i] === "--action" && process.argv[i + 1]) {
+    const parts = process.argv[++i]!.split(/\s+/);
+    const action: TestAction = { trigger: { type: "phase", value: "" } };
+    for (const part of parts) {
+      if (part.startsWith("phase:")) action.trigger = { type: "phase", value: part.slice(6) };
+      else if (part.startsWith("mode:")) action.trigger = { type: "mode", value: part.slice(5) };
+      else if (part.startsWith("click:")) action.click = part.slice(6);
+      else if (part.startsWith("screenshot:")) action.screenshot = part.slice(11);
+      else if (part === "exit") action.exit = true;
+    }
+    if (action.trigger.value) ACTIONS.push(action);
+  }
+}
+
 const positionalArgs = process.argv.slice(2).filter(a => !a.startsWith("--"));
 const MODE = positionalArgs[0] === "local" ? "local" : "online";
 const NUM_HUMANS = Math.min(3, Math.max(0, Number(positionalArgs[1] ?? (MODE === "local" ? 0 : 2))));
@@ -43,9 +69,55 @@ function ts(): string {
   return `[${(performance.now() / 1000).toFixed(1)}s]`;
 }
 
+/** Execute pending actions that match current phase/mode. Returns true if an action requested exit. */
+async function executeActions(page: Page, phase: string, mode: string): Promise<boolean> {
+  for (const action of ACTIONS) {
+    if (action.done) continue;
+    const match = action.trigger.type === "phase"
+      ? phase === action.trigger.value
+      : mode === action.trigger.value;
+    if (!match) continue;
+    action.done = true;
+    console.log(`${ts()} Action triggered: ${action.trigger.type}:${action.trigger.value}`);
+
+    if (action.click) {
+      const target = action.click;
+      if (target === "zoom" || target === "rotate" || target === "quit") {
+        // Find button by position convention: zoom=bottom-left, rotate=bottom-right, quit=top-right
+        const btnSelector = target === "zoom" ? "button[style*='left: 24px'][style*='bottom']"
+          : target === "rotate" ? "button[style*='right: 24px'][style*='bottom']"
+          : "button[style*='right: 12px'][style*='top']";
+        const btn = await page.$(btnSelector);
+        if (btn) {
+          await btn.click();
+          console.log(`${ts()} Clicked ${target} button`);
+        } else {
+          console.log(`${ts()} WARNING: ${target} button not found`);
+        }
+      } else if (target.includes(",")) {
+        const [x, y] = target.split(",").map(Number);
+        await page.mouse.click(x!, y!);
+        console.log(`${ts()} Clicked at (${x},${y})`);
+      }
+      // Brief pause for render to update
+      await page.waitForTimeout(200);
+    }
+
+    if (action.screenshot) {
+      await takeScreenshot(page, "action", action.screenshot, true);
+    }
+
+    if (action.exit) {
+      console.log(`${ts()} Action requested exit`);
+      return true;
+    }
+  }
+  return false;
+}
+
 const screenshotsTaken = new Set<string>();
-async function takeScreenshot(page: Page, prefix: string, label: string): Promise<void> {
-  if (!SCREENSHOTS) return;
+async function takeScreenshot(page: Page, prefix: string, label: string, force = false): Promise<void> {
+  if (!SCREENSHOTS && !force) return;
   const key = `${prefix}-${label}`;
   if (screenshotsTaken.has(key)) return; // one per label
   screenshotsTaken.add(key);
@@ -198,6 +270,7 @@ async function runLocal() {
         const label = `${info.mode}-${info.phase}`.toLowerCase().replace(/[^a-z0-9]/g, "-");
         await takeScreenshot(page, "game", label);
         lastReported = key;
+        if (await executeActions(page, info.phase, info.mode)) break;
       }
       if (info.phase === "BATTLE" && info.mode === "GAME" && !inBattle) { battleCount++; inBattle = true; }
       if (info.phase !== "BATTLE") inBattle = false;
@@ -333,6 +406,7 @@ async function runOnline() {
         const label = `${info.mode}-${info.phase}`.toLowerCase().replace(/[^a-z0-9]/g, "-");
         await takeScreenshot(hostPage, "game", label);
         lastReported = key;
+        if (await executeActions(hostPage, info.phase, info.mode)) break;
       }
       await hostPage.waitForTimeout(500);
     }
