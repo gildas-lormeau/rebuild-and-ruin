@@ -19,17 +19,18 @@ function drawTowerHighlight(
   const by = cy - 16 - margin;
   const w = 30 + margin * 2;
   const h = 32 + margin * 2;
-  const corner = 4;
+  const corner = 5;
+  const t = 2; // thickness — matches UI border width
 
   octx.fillStyle = color ?? "#ffcc00";
-  octx.fillRect(bx, by, corner, 1);
-  octx.fillRect(bx, by, 1, corner);
-  octx.fillRect(bx + w - corner, by, corner, 1);
-  octx.fillRect(bx + w - 1, by, 1, corner);
-  octx.fillRect(bx, by + h - 1, corner, 1);
-  octx.fillRect(bx, by + h - corner, 1, corner);
-  octx.fillRect(bx + w - corner, by + h - 1, corner, 1);
-  octx.fillRect(bx + w - 1, by + h - corner, 1, corner);
+  octx.fillRect(bx, by, corner, t);
+  octx.fillRect(bx, by, t, corner);
+  octx.fillRect(bx + w - corner, by, corner, t);
+  octx.fillRect(bx + w - t, by, t, corner);
+  octx.fillRect(bx, by + h - t, corner, t);
+  octx.fillRect(bx, by + h - corner, t, corner);
+  octx.fillRect(bx + w - corner, by + h - t, corner, t);
+  octx.fillRect(bx + w - t, by + h - corner, t, corner);
 }
 
 /** Draw towers (alive, destroyed, highlighted, selected). */
