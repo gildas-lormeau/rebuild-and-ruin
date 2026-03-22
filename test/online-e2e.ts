@@ -161,6 +161,38 @@ async function executeAsserts(page: Page, phase: string, mode: string): Promise<
   return allPassed;
 }
 
+/** Install a vibrate spy on mobile-emulated pages. */
+async function installVibrateSpy(page: Page): Promise<void> {
+  if (!MOBILE) return;
+  await page.addInitScript(() => {
+    const calls: number[] = [];
+    (window as any).__vibrateCalls = calls;
+    const orig = navigator.vibrate?.bind(navigator);
+    navigator.vibrate = (pattern: number | number[]) => {
+      calls.push(typeof pattern === "number" ? pattern : pattern[0]!);
+      return orig ? orig(pattern) : true;
+    };
+  });
+}
+
+const HAPTIC_LABELS: Record<number, string> = {
+  15: "fired", 30: "wall_hit", 40: "phase_change",
+  80: "cannon_dmg", 150: "cannon_dead", 200: "tower_kill",
+};
+
+async function printHapticSummary(page: Page): Promise<void> {
+  if (!MOBILE) return;
+  const calls = await page.evaluate(() => (window as any).__vibrateCalls as number[] ?? []).catch(() => []);
+  if (calls.length === 0) { console.log("\n=== HAPTICS: no vibrate calls ==="); return; }
+  const counts: Record<number, number> = {};
+  for (const c of calls) counts[c] = (counts[c] || 0) + 1;
+  console.log(`\n=== HAPTICS: ${calls.length} vibrate calls ===`);
+  for (const [ms, n] of Object.entries(counts).sort((a, b) => Number(a[0]) - Number(b[0]))) {
+    const label = HAPTIC_LABELS[Number(ms)] ?? "?";
+    console.log(`  ${ms}ms (${label}): ${n}x`);
+  }
+}
+
 /** Execute pending actions that match current phase/mode. Returns true if an action requested exit. */
 async function executeActions(page: Page, phase: string, mode: string): Promise<boolean> {
   for (const action of ACTIONS) {
@@ -290,6 +322,7 @@ async function selectSlot(page: Page, slot: number): Promise<void> {
 async function runLocal() {
   const browser = await chromium.launch({ headless: HEADLESS, args: ["--window-size=1024,600"] });
   const page = await newPage(browser);
+  await installVibrateSpy(page);
   const logs: string[] = [];
   collectLogs(page, "LOCAL", logs);
 
@@ -395,6 +428,7 @@ async function runLocal() {
     `local-${NUM_HUMANS}h`,
   );
 
+  await printHapticSummary(page);
   printAssertSummary();
   await browser.close();
   console.log(`\n${ts()} Local E2E test complete.`);
@@ -416,6 +450,7 @@ async function runOnline() {
 
   // --- HOST ---
   const hostPage = await newPage(browser);
+  await installVibrateSpy(hostPage);
   const hostLogs: string[] = [];
   collectLogs(hostPage, "HOST", hostLogs);
   const code = await createRoom(hostPage);
@@ -525,6 +560,7 @@ async function runOnline() {
     }
   }
 
+  await printHapticSummary(hostPage);
   printAssertSummary();
   await browser.close();
   console.log(`\n${ts()} Online E2E test complete.`);
