@@ -246,7 +246,7 @@ export abstract class BaseController implements PlayerController {
   }
 
   getCrosshair(): Crosshair {
-    return { ...this.crosshair, playerId: this.playerId };
+    return { x: Math.round(this.crosshair.x), y: Math.round(this.crosshair.y), playerId: this.playerId };
   }
 
   updateBindings(_keys: KeyBindings): void {}
