@@ -1214,7 +1214,7 @@ export class AiController extends BaseController {
           this.crosshairTarget.x - this.crosshair.x,
           this.crosshairTarget.y - this.crosshair.y,
         );
-        if (dist > 6) {
+        if (dist > 12) {
           this.stepCrosshairToward(this.crosshairTarget.x, this.crosshairTarget.y, dt);
         } else {
           if (!this.idleInitialized) {
