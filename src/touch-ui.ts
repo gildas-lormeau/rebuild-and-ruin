@@ -89,6 +89,77 @@ export function createRotateButton(deps: RotateButtonDeps): {
 }
 
 // ---------------------------------------------------------------------------
+// Quit button — top-right, always visible during game
+// ---------------------------------------------------------------------------
+
+interface QuitButtonDeps {
+  getQuitPending: () => boolean;
+  setQuitPending: (v: boolean) => void;
+  setQuitTimer: (v: number) => void;
+  setFrameAnnouncement: (msg: string) => void;
+  showLobby: () => void;
+  getControllers: () => PlayerController[];
+  isHuman: (ctrl: PlayerController) => boolean;
+  render: () => void;
+}
+
+export function createQuitButton(deps: QuitButtonDeps): {
+  update: (phase: Phase | null) => void;
+} {
+  const btn = document.createElement("button");
+  btn.style.cssText = `
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    z-index: 100;
+    background: rgba(80, 40, 40, 0.7);
+    border: 2px solid rgba(180, 80, 80, 0.7);
+    color: #cc8888;
+    font-size: 18px;
+    font-weight: bold;
+    display: none;
+    cursor: pointer;
+    user-select: none;
+    line-height: 1;
+  `;
+  btn.textContent = "✕";
+  document.body.appendChild(btn);
+
+  function handleQuit() {
+    const hasHumans = deps.getControllers().some((c) => deps.isHuman(c));
+    if (!hasHumans || deps.getQuitPending()) {
+      deps.showLobby();
+    } else {
+      deps.setQuitPending(true);
+      deps.setQuitTimer(2);
+      deps.setFrameAnnouncement("Tap ✕ again to quit");
+      deps.render();
+    }
+  }
+
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleQuit();
+  });
+
+  btn.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleQuit();
+  }, { passive: false });
+
+  return {
+    update(phase: Phase | null) {
+      btn.style.display = phase !== null ? "block" : "none";
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Zoom button — bottom-left, cycles: my zone → zone 1 → zone 2 → full map
 // ---------------------------------------------------------------------------
 

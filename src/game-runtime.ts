@@ -112,7 +112,7 @@ import {
 } from "./battle-ticks.ts";
 import { registerOnlineInputHandlers } from "./input.ts";
 import { registerTouchHandlers } from "./touch-input.ts";
-import { createRotateButton, createZoomButton } from "./touch-ui.ts";
+import { createRotateButton, createZoomButton, createQuitButton } from "./touch-ui.ts";
 import {
   pixelToTile as pixelToTileRaw,
   snapshotTerritory as snapshotTerritoryImpl,
@@ -367,6 +367,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let castleBuild: CastleBuildState | null = null;
   let rotateButton: ReturnType<typeof createRotateButton> | null = null;
   let zoomButton: ReturnType<typeof createZoomButton> | null = null;
+  let quitButton: ReturnType<typeof createQuitButton> | null = null;
   /** null = full map, number = zone index to zoom into */
   let cameraZone: number | null = null;
   let lastAutoZoomPhase: Phase | null = null;
@@ -856,6 +857,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     renderMap(state.map, canvas, overlay, getViewport());
     rotateButton?.update(state.phase);
     zoomButton?.update(state.phase);
+    quitButton?.update(state.phase);
   }
 
   function endGame(winner: { id: number } | null) {
@@ -1545,6 +1547,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       });
     }
   }
+
+  // Quit button (always, not just touch)
+  quitButton = createQuitButton({
+    getQuitPending: () => quitPending,
+    setQuitPending: (v) => { quitPending = v; },
+    setQuitTimer: (v) => { quitTimer = v; },
+    setFrameAnnouncement: (msg) => { frame.announcement = msg; },
+    showLobby: config.showLobby,
+    getControllers: () => controllers,
+    isHuman,
+    render,
+  });
 
   // -------------------------------------------------------------------------
   // Return the runtime object
