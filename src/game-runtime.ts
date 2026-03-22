@@ -799,24 +799,33 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     minC = Math.max(0, minC - pad);
     maxC = Math.min(GRID_COLS - 1, maxC + pad);
 
-    // Pad to match map aspect ratio to prevent stretching
+    // Pad to match map aspect ratio to prevent stretching,
+    // but cap so viewport never covers more than 85% of a map dimension
     const fullW = GRID_COLS * TILE;
     const fullH = GRID_ROWS * TILE;
+    const maxW = fullW * 0.85;
+    const maxH = fullH * 0.85;
     const targetAspect = GRID_COLS / GRID_ROWS;
     const w = (maxC - minC + 1) * TILE;
     const h = (maxR - minR + 1) * TILE;
     const vpAspect = w / h;
     let result: Viewport;
     if (vpAspect < targetAspect) {
-      const newW = h * targetAspect;
+      const newW = Math.min(maxW, h * targetAspect);
+      const newH = newW / targetAspect;
       const cx = (minC + maxC + 1) * TILE / 2;
-      const x = Math.max(0, Math.min(fullW - newW, cx - newW / 2));
-      result = { x, y: minR * TILE, w: newW, h };
-    } else {
-      const newH = w / targetAspect;
       const cy = (minR + maxR + 1) * TILE / 2;
+      const x = Math.max(0, Math.min(fullW - newW, cx - newW / 2));
       const y = Math.max(0, Math.min(fullH - newH, cy - newH / 2));
-      result = { x: minC * TILE, y, w, h: newH };
+      result = { x, y, w: newW, h: newH };
+    } else {
+      const newH = Math.min(maxH, w / targetAspect);
+      const newW = newH * targetAspect;
+      const cx = (minC + maxC + 1) * TILE / 2;
+      const cy = (minR + maxR + 1) * TILE / 2;
+      const x = Math.max(0, Math.min(fullW - newW, cx - newW / 2));
+      const y = Math.max(0, Math.min(fullH - newH, cy - newH / 2));
+      result = { x, y, w: newW, h: newH };
     }
     cachedZoneBounds.set(zoneId, { vp: result, wallCount: player?.walls.size ?? 0 });
     return result;
@@ -961,9 +970,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     renderMap(state.map, canvas, overlay, getViewport());
     const inGame = mode === Mode.GAME || mode === Mode.BANNER || mode === Mode.BALLOON_ANIM;
+    const showZoom = inGame || mode === Mode.SELECTION || mode === Mode.CASTLE_BUILD;
     rotateButton?.update(inGame ? state.phase : null);
-    homeZoomButton?.update(inGame ? state.phase : null);
-    enemyZoomButton?.update(inGame ? state.phase : null);
+    homeZoomButton?.update(showZoom ? state.phase : null);
+    enemyZoomButton?.update(showZoom ? state.phase : null);
     quitButton?.update(inGame ? state.phase : null);
     statusBar.update();
   }
