@@ -385,6 +385,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let scoreDeltaTimer = 0;
   const SCORE_DELTA_DISPLAY_TIME = 4; // seconds after banner ends
   let preScores: number[] = [];
+  /** Per-player battle stats accumulated during the game. */
+  interface PlayerStats { wallsDestroyed: number; cannonsKilled: number; towersKilled: number; shotsFired: number; }
+  let gameStats: PlayerStats[] = [];
+
+  function resetGameStats() {
+    gameStats = Array.from({ length: MAX_PLAYERS }, () => ({
+      wallsDestroyed: 0, cannonsKilled: 0, towersKilled: 0, shotsFired: 0,
+    }));
+  }
+
   const selectionStates: Map<number, SelectionState> = new Map();
 
   const lobby: LobbyState = {
@@ -940,6 +950,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         score: p.score,
         color: PLAYER_COLORS[p.id % PLAYER_COLORS.length]!.wall,
         eliminated: p.eliminated,
+        territory: p.interior.size,
+        stats: gameStats[p.id],
       })),
       focused: "rematch" as "rematch" | "menu",
     };
@@ -1253,6 +1265,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         const pid = config.getMyPlayerId();
         const localPid = pid >= 0 ? pid : (firstHuman()?.playerId ?? -1);
         if (localPid >= 0) hapticBattleEvents(events as any, localPid);
+        // Accumulate stats
+        for (const evt of events as Array<{ type: string; playerId?: number; shooterId?: number; hp?: number; newHp?: number }>) {
+          if (evt.type === "wall_destroyed" && evt.shooterId !== undefined) {
+            gameStats[evt.shooterId]!.wallsDestroyed++;
+          } else if (evt.type === "cannon_damaged" && evt.shooterId !== undefined && evt.newHp === 0) {
+            gameStats[evt.shooterId]!.cannonsKilled++;
+          } else if (evt.type === "cannon_fired" && evt.playerId !== undefined) {
+            gameStats[evt.playerId]!.shotsFired++;
+          }
+        }
       },
       onBattlePhaseEnded: () => {
         showBanner(
@@ -1444,6 +1466,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const cannonPlaceTimer = diff === 0 ? 20 : diff === 2 ? 12 : diff === 3 ? 10 : 15;
     const firstRoundCannons = diff === 0 ? 4 : diff === 2 ? 2 : diff === 3 ? 1 : 3;
     const roundsVal = ROUNDS_OPTIONS[settings.rounds]!.value;
+
+    resetGameStats();
 
     bootstrapGame({
       seed,

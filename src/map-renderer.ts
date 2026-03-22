@@ -236,6 +236,8 @@ export interface UIOverlay {
       score: number;
       color: RGB;
       eliminated: boolean;
+      territory?: number;
+      stats?: { wallsDestroyed: number; cannonsKilled: number; shotsFired: number };
     }[];
     focused: "rematch" | "menu";
   };

@@ -230,7 +230,7 @@ export interface FrameData {
   announcement?: string;
   gameOver?: {
     winner: string;
-    scores: { name: string; score: number; color: RGB; eliminated: boolean }[];
+    scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: { wallsDestroyed: number; cannonsKilled: number; shotsFired: number } }[];
     focused: "rematch" | "menu";
   };
 }

@@ -193,10 +193,15 @@ export function drawGameOver(
 ): void {
   if (!overlay?.ui?.gameOver) return;
   const gameOverData = overlay.ui.gameOver;
-  const lineH = 18;
-  const panelW = Math.round(W * 0.5);
+  const sorted = [...gameOverData.scores].sort((a, b) => b.score - a.score);
+  const hasStats = sorted.some(e => e.stats);
+  const rowH = 14;
+  const headerH = 36;
+  const statsH = hasStats ? 14 : 0; // column headers
+  const tableH = sorted.length * rowH + statsH;
   const btnH = 20;
-  const panelH = 40 + gameOverData.scores.length * lineH + 20 + btnH + 16;
+  const panelW = Math.round(W * 0.65);
+  const panelH = headerH + tableH + 16 + btnH + 12;
   const px = Math.round((W - panelW) / 2);
   const py = Math.round((H - panelH) / 2);
 
@@ -206,34 +211,52 @@ export function drawGameOver(
   octx.lineWidth = 2;
   octx.strokeRect(px + 1, py + 1, panelW - 2, panelH - 2);
 
-  octx.textAlign = "center";
   const cx = W / 2;
-
+  octx.textAlign = "center";
   octx.font = FONT_HEADING;
-  drawShadowText(
-    octx,
-    `${gameOverData.winner} wins!`,
-    cx,
-    py + 22,
-    SHADOW_COLOR,
-    GOLD_LIGHT,
-  );
-
+  drawShadowText(octx, `${gameOverData.winner} wins!`, cx, py + 20, SHADOW_COLOR, GOLD_LIGHT);
   octx.fillStyle = GOLD;
-  octx.fillRect(px + 10, py + 34, panelW - 20, 1);
+  octx.fillRect(px + 10, py + 32, panelW - 20, 1);
 
-  const sorted = [...gameOverData.scores].sort((a, b) => b.score - a.score);
+  // Column headers
+  const tableTop = py + headerH;
+  const colName = px + 10;
+  const colScore = px + panelW * 0.35;
+  const colWalls = px + panelW * 0.52;
+  const colCannons = px + panelW * 0.68;
+  const colShots = px + panelW * 0.82;
+  const colTerritory = px + panelW * 0.95;
+
+  if (hasStats) {
+    octx.font = "bold 7px sans-serif";
+    octx.fillStyle = "#888";
+    octx.textAlign = "right";
+    octx.fillText("Score", colScore, tableTop + 8);
+    octx.fillText("Walls", colWalls, tableTop + 8);
+    octx.fillText("Cannons", colCannons, tableTop + 8);
+    octx.fillText("Shots", colShots, tableTop + 8);
+    octx.fillText("Land", colTerritory, tableTop + 8);
+  }
+
+  // Player rows
   octx.font = FONT_LABEL;
   for (let i = 0; i < sorted.length; i++) {
     const entry = sorted[i]!;
-    const y = py + 50 + i * lineH;
+    const y = tableTop + statsH + 10 + i * rowH;
     const c = entry.color;
-    if (entry.eliminated) {
-      octx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.4)`;
-    } else {
-      octx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+    const alpha = entry.eliminated ? 0.4 : 1;
+    octx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
+    octx.textAlign = "left";
+    octx.fillText(entry.name, colName, y);
+    octx.textAlign = "right";
+    octx.fillText(`${entry.score}`, colScore, y);
+    if (entry.stats) {
+      octx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${alpha * 0.7})`;
+      octx.fillText(`${entry.stats.wallsDestroyed}`, colWalls, y);
+      octx.fillText(`${entry.stats.cannonsKilled}`, colCannons, y);
+      octx.fillText(`${entry.stats.shotsFired}`, colShots, y);
+      octx.fillText(`${entry.territory ?? 0}`, colTerritory, y);
     }
-    octx.fillText(`${entry.name}: ${entry.score}`, cx, y);
   }
 
   // Rematch / Menu buttons
