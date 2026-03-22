@@ -70,13 +70,13 @@ export function drawTowers(
         const c = PLAYER_COLORS[ownerId % PLAYER_COLORS.length]!.interiorLight;
         octx.save();
         octx.globalAlpha = 0.7;
-        octx.font = "bold 9px sans-serif";
+        octx.font = "bold 14px sans-serif";
         octx.textAlign = "center";
         octx.textBaseline = "bottom";
         octx.fillStyle = `rgba(0,0,0,0.8)`;
-        octx.fillText(name, cx, cy - 17);
+        octx.fillText(name, cx, cy - 20);
         octx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
-        octx.fillText(name, cx - 0.5, cy - 17.5);
+        octx.fillText(name, cx - 0.5, cy - 20.5);
         octx.restore();
       }
     } else {
