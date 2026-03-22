@@ -860,18 +860,17 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   /** Set camera to the player's zone (build/cannon) or full map (battle). */
   function autoZoom(phase: Phase): void {
+    if (phase === Phase.BATTLE) { cameraZone = null; return; }
     const pid = config.getMyPlayerId();
-    if (pid < 0) {
+    let targetPid = pid;
+    if (targetPid < 0) {
       // Local mode: zoom to first human's zone
-      const human = firstHuman();
-      if (human) {
-        const zone = state.playerZones[human.playerId];
-        cameraZone = (phase === Phase.BATTLE) ? null : (zone ?? null);
-      } else {
-        cameraZone = null;
-      }
+      targetPid = firstHuman()?.playerId ?? -1;
+    }
+    if (targetPid >= 0 && state.playerZones.length > targetPid) {
+      cameraZone = state.playerZones[targetPid] ?? null;
     } else {
-      cameraZone = (phase === Phase.BATTLE) ? null : (state.playerZones[pid] ?? null);
+      cameraZone = null;
     }
   }
 
