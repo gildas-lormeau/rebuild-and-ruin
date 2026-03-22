@@ -1039,6 +1039,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       });
     }
 
+    // Unzoom for UI overlays and near end of phase
+    if (cameraZone !== null) {
+      const phaseEnding = state.timer > 0 && state.timer <= 1.5 &&
+        (state.phase === Phase.WALL_BUILD || state.phase === Phase.CANNON_PLACE || state.phase === Phase.BATTLE);
+      if (phaseEnding || quitPending || lifeLostDialog || paused) {
+        cameraZone = null;
+      }
+    }
+
     // Auto-zoom on phase change (touch devices only, after first button press, not during banners)
     if (homeZoomButton && zoomActivated && state.phase !== lastAutoZoomPhase &&
         mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD) {
@@ -1071,6 +1080,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function endGame(winner: { id: number } | null) {
+    cameraZone = null;
     config.onEndGame?.(winner, state);
     const name = winner
       ? (PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`)
