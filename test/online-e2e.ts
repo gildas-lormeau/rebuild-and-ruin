@@ -30,6 +30,7 @@ import process from "node:process";
 const SCREENSHOTS = process.argv.includes("--screenshot");
 const MOBILE = process.argv.includes("--mobile");
 const HEADLESS = process.argv.includes("--headless");
+const RECORD = process.argv.includes("--record");
 const SEED = (() => {
   const idx = process.argv.indexOf("--seed");
   return idx >= 0 && process.argv[idx + 1] ? process.argv[idx + 1]! : "";
@@ -253,15 +254,17 @@ async function takeScreenshot(page: Page, prefix: string, label: string, force =
 const MOBILE_DEVICE = devices["Pixel 7"];
 
 async function newPage(browser: Browser): Promise<Page> {
+  const recordVideo = RECORD ? { dir: "logs/", size: { width: 1024, height: 600 } } : undefined;
   if (MOBILE) {
     const ctx = await browser.newContext({
       ...MOBILE_DEVICE,
-      // Force landscape
       viewport: { width: MOBILE_DEVICE.viewport.height, height: MOBILE_DEVICE.viewport.width },
+      recordVideo,
     });
     return ctx.newPage();
   }
-  return browser.newPage();
+  const ctx = await browser.newContext({ recordVideo });
+  return ctx.newPage();
 }
 
 function collectLogs(page: Page, prefix: string, logs: string[]): void {
@@ -433,7 +436,12 @@ async function runLocal() {
   );
 
   await printHapticSummary(page);
+  if (RECORD) {
+    const videoPath = await page.video()?.path();
+    if (videoPath) console.log(`${ts()} Video: ${videoPath}`);
+  }
   printAssertSummary();
+  await page.close(); // finalize video before closing browser
   await browser.close();
   console.log(`\n${ts()} Local E2E test complete.`);
   if (ASSERTS.some(a => a.done && !a.passed)) process.exit(1);
