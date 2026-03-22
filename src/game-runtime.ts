@@ -115,7 +115,6 @@ import { registerTouchHandlers } from "./touch-input.ts";
 import { createRotateButton, createHomeZoomButton, createEnemyZoomButton, createQuitButton, createStatusBar } from "./touch-ui.ts";
 import { hapticBattleEvents, hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
 import {
-  pixelToTile as pixelToTileRaw,
   snapshotTerritory as snapshotTerritoryImpl,
   lobbyClickHitTest,
   initCannonPhase,
@@ -757,9 +756,19 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   /** Compute bounding rect for a player's territory in tile-pixel space.
    *  Adapts to actual structures (walls, interior, cannons, towers). */
+  let cachedZoneBounds: Map<number, { vp: Viewport; wallCount: number }> = new Map();
+
   function computeZoneBounds(zoneId: number): Viewport {
     const pid = state.playerZones.indexOf(zoneId);
     const player = pid >= 0 ? state.players[pid] : undefined;
+
+    // Outside build phase, use cache if wall count unchanged
+    const isBuild = state.phase === Phase.WALL_BUILD;
+    if (!isBuild) {
+      const cached = cachedZoneBounds.get(zoneId);
+      if (cached && player && cached.wallCount === player.walls.size) return cached.vp;
+    }
+
     let minR = GRID_ROWS, maxR = 0, minC = GRID_COLS, maxC = 0;
 
     function expand(r: number, c: number) {
@@ -769,12 +778,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       if (c > maxC) maxC = c;
     }
 
-    if (player && (player.walls.size > 0 || player.interior.size > 0)) {
-      // Use player's actual territory
+    if (player && player.walls.size > 0) {
+      // Bounding box of all walls (enclosed or not) — adapts in real-time during build
       for (const key of player.walls) expand(Math.floor(key / GRID_COLS), key % GRID_COLS);
-      for (const key of player.interior) expand(Math.floor(key / GRID_COLS), key % GRID_COLS);
-      for (const c of player.cannons) expand(c.row, c.col);
-      for (const t of player.ownedTowers) expand(t.row, t.col);
       if (player.homeTower) expand(player.homeTower.row, player.homeTower.col);
     } else {
       // Fallback: use zone tiles (e.g. during castle select before walls exist)
@@ -786,8 +792,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       }
     }
 
-    // Add padding (3 tiles for territory, 1 for zone fallback)
-    const pad = player && player.walls.size > 0 ? 3 : 1;
+    // 4-tile padding so player can place pieces to extend walls
+    const pad = player && player.walls.size > 0 ? 4 : 1;
     minR = Math.max(0, minR - pad);
     maxR = Math.min(GRID_ROWS - 1, maxR + pad);
     minC = Math.max(0, minC - pad);
@@ -812,6 +818,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       const y = Math.max(0, Math.min(fullH - newH, cy - newH / 2));
       result = { x: minC * TILE, y, w, h: newH };
     }
+    cachedZoneBounds.set(zoneId, { vp: result, wallCount: player?.walls.size ?? 0 });
     return result;
   }
 
@@ -856,18 +863,24 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     return currentVp;
   }
 
-  /** Convert screen pixel to tile, accounting for zoom viewport. */
-  function pixelToTile(x: number, y: number): { row: number; col: number } {
+  /** Convert screen pixel (canvas coords) to world tile-pixel coords, accounting for zoom. */
+  function screenToWorld(x: number, y: number): { wx: number; wy: number } {
     const vp = getViewport();
-    if (!vp) return pixelToTileRaw(x, y);
-    // Screen coords → tile-pixel coords within viewport
     const cw = GRID_COLS * TILE * SCALE;
     const ch = GRID_ROWS * TILE * SCALE;
-    const tileX = vp.x + (x / cw) * vp.w;
-    const tileY = vp.y + (y / ch) * vp.h;
+    if (!vp) return { wx: x / SCALE, wy: y / SCALE };
     return {
-      col: Math.max(0, Math.min(GRID_COLS - 1, Math.floor(tileX / TILE))),
-      row: Math.max(0, Math.min(GRID_ROWS - 1, Math.floor(tileY / TILE))),
+      wx: vp.x + (x / cw) * vp.w,
+      wy: vp.y + (y / ch) * vp.h,
+    };
+  }
+
+  /** Convert screen pixel to tile, accounting for zoom viewport. */
+  function pixelToTile(x: number, y: number): { row: number; col: number } {
+    const { wx, wy } = screenToWorld(x, y);
+    return {
+      col: Math.max(0, Math.min(GRID_COLS - 1, Math.floor(wx / TILE))),
+      row: Math.max(0, Math.min(GRID_ROWS - 1, Math.floor(wy / TILE))),
     };
   }
 
@@ -958,6 +971,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function rematch() {
     // Reset and start a new game with the same player config
     cameraZone = null;
+    cachedZoneBounds.clear();
     scoreDeltas = [];
     preScores = [];
     frame = { crosshairs: [], phantoms: {} };
@@ -1592,6 +1606,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       isHuman,
       withFirstHuman,
       pixelToTile,
+      screenToWorld,
       maybeSendAimUpdate: config.maybeSendAimUpdate ?? (() => {}),
       tryPlaceCannonAndSend: config.tryPlaceCannonAndSend ?? ((ctrl, gs, max) => ctrl.tryPlaceCannon(gs, max)),
       tryPlacePieceAndSend: config.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
@@ -1651,6 +1666,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       isHuman,
       withFirstHuman,
       pixelToTile,
+      screenToWorld,
       maybeSendAimUpdate: config.maybeSendAimUpdate ?? (() => {}),
       tryPlaceCannonAndSend: config.tryPlaceCannonAndSend ?? ((ctrl, gs, max) => ctrl.tryPlaceCannon(gs, max)),
       tryPlacePieceAndSend: config.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),

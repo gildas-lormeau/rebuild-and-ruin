@@ -1,5 +1,5 @@
 import { towerAtPixel, findNearestTower } from "./spatial.ts";
-import { SCALE } from "./map-renderer.ts";
+
 import { Phase, Action, isMovementAction } from "./types.ts";
 import { ACTION_KEYS, MAX_PLAYERS } from "./player-config.ts";
 import type { GameState } from "./types.ts";
@@ -67,6 +67,7 @@ export interface RegisterOnlineInputDeps {
   isHuman: (ctrl: PlayerController) => boolean;
   withFirstHuman: (action: (human: PlayerController) => void) => void;
   pixelToTile: (x: number, y: number) => { row: number; col: number };
+  screenToWorld: (x: number, y: number) => { wx: number; wy: number };
   maybeSendAimUpdate: (x: number, y: number) => void;
   tryPlaceCannonAndSend: (
     ctrl: PlayerController,
@@ -135,6 +136,7 @@ export function registerOnlineInputHandlers(
     isHuman,
     withFirstHuman,
     pixelToTile,
+    screenToWorld,
     maybeSendAimUpdate,
     tryPlaceCannonAndSend,
     tryPlacePieceAndSend,
@@ -201,8 +203,9 @@ export function registerOnlineInputHandlers(
       });
     } else if (state.phase === Phase.BATTLE) {
       withFirstHuman((human) => {
-        human.setCrosshair(x / SCALE, y / SCALE);
-        maybeSendAimUpdate(x / SCALE, y / SCALE);
+        const w = screenToWorld(x, y);
+        human.setCrosshair(w.wx, w.wy);
+        maybeSendAimUpdate(w.wx, w.wy);
       });
     }
   });
@@ -284,7 +287,8 @@ export function registerOnlineInputHandlers(
       state.battleCountdown <= 0
     ) {
       withFirstHuman((human) => {
-        human.setCrosshair(x / SCALE, y / SCALE);
+        const w = screenToWorld(x, y);
+        human.setCrosshair(w.wx, w.wy);
         fireAndSend(human, state);
       });
     }

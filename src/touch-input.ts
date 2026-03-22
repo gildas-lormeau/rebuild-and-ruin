@@ -6,7 +6,7 @@
  */
 
 import { towerAtPixel } from "./spatial.ts";
-import { SCALE } from "./map-renderer.ts";
+
 import { Phase } from "./types.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
 
@@ -31,6 +31,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     lifeLostDialogClick,
     withFirstHuman,
     pixelToTile,
+    screenToWorld,
     maybeSendAimUpdate,
     tryPlaceCannonAndSend,
     tryPlacePieceAndSend,
@@ -103,8 +104,9 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
       });
     } else if (state.phase === Phase.BATTLE) {
       withFirstHuman((human) => {
-        human.setCrosshair(x / SCALE, y / SCALE);
-        maybeSendAimUpdate(x / SCALE, y / SCALE);
+        const w = screenToWorld(x, y);
+        human.setCrosshair(w.wx, w.wy);
+        maybeSendAimUpdate(w.wx, w.wy);
       });
     }
   }, { passive: false });
@@ -142,8 +144,9 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
       });
     } else if (state.phase === Phase.BATTLE) {
       withFirstHuman((human) => {
-        human.setCrosshair(x / SCALE, y / SCALE);
-        maybeSendAimUpdate(x / SCALE, y / SCALE);
+        const w = screenToWorld(x, y);
+        human.setCrosshair(w.wx, w.wy);
+        maybeSendAimUpdate(w.wx, w.wy);
       });
     }
   }, { passive: false });
@@ -221,7 +224,8 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     // Battle: always fire on touch release (tap or drag)
     if (state.phase === Phase.BATTLE && state.timer > 0 && state.battleCountdown <= 0) {
       withFirstHuman((human) => {
-        human.setCrosshair(x / SCALE, y / SCALE);
+        const w = screenToWorld(x, y);
+        human.setCrosshair(w.wx, w.wy);
         fireAndSend(human, state);
       });
     }
