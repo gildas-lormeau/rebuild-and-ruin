@@ -730,8 +730,10 @@ export function renderMap(
   const W = COLS * TILE;
   const H = ROWS * TILE;
 
+  const STATUS_BAR_H = overlay?.ui?.statusBar ? 32 : 0;
   const cw = COLS * TILE * SCALE;
-  const ch = ROWS * TILE * SCALE;
+  const gameH = ROWS * TILE * SCALE;
+  const ch = gameH + STATUS_BAR_H;
   if (canvas.width !== cw || canvas.height !== ch) {
     canvas.width = cw;
     canvas.height = ch;
@@ -830,20 +832,16 @@ export function renderMap(
   drawControlsScreen(octx, W, H, overlay);
   drawPlayerSelect(octx, W, H, overlay);
 
-  // Reserve space for status bar at the bottom
-  const statusBarH = overlay?.ui?.statusBar ? 28 : 0;
-  const sceneH = ch - statusBarH;
-
   // Scale up to display canvas (with optional zoom viewport)
   ctx.imageSmoothingEnabled = false;
   if (viewport) {
-    ctx.drawImage(sceneCanvas, viewport.x, viewport.y, viewport.w, viewport.h, 0, 0, cw, sceneH);
+    ctx.drawImage(sceneCanvas, viewport.x, viewport.y, viewport.w, viewport.h, 0, 0, cw, gameH);
   } else {
-    ctx.drawImage(sceneCanvas, 0, 0, cw, sceneH);
+    ctx.drawImage(sceneCanvas, 0, 0, cw, gameH);
   }
 
   // Status bar drawn at display resolution below the game scene
-  if (statusBarH > 0) {
+  if (STATUS_BAR_H > 0) {
     drawStatusBar(ctx, cw, ch, overlay);
   }
 }
