@@ -164,7 +164,7 @@ export function registerOnlineInputHandlers(
       canvas.style.cursor = "pointer";
     } else if (mode === modeValues.GAME) {
       const state = getState();
-      canvas.style.cursor = state?.phase === Phase.BATTLE ? "crosshair" : "default";
+      canvas.style.cursor = state?.phase === Phase.BATTLE ? "none" : "default";
     } else {
       canvas.style.cursor = "default";
     }
