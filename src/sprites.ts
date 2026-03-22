@@ -118,7 +118,9 @@ const SPRITES: Record<string, SpriteRect> = {
 let atlas: HTMLImageElement | null = null;
 
 /** Load the sprite sheet. Resolves when the image is decoded and ready. */
-export function loadAtlas(src = "/assets/sprites.png"): Promise<void> {
+// @ts-ignore — import.meta.env is Vite-specific
+const BASE = import.meta.env?.BASE_URL ?? "/";
+export function loadAtlas(src = `${BASE}assets/sprites.png`): Promise<void> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
