@@ -14,11 +14,6 @@ import { nextReadyCombined } from "./battle-system.ts";
 import { computeCannonLimitsForPhase, resetCannonFacings } from "./game-engine.ts";
 import type { PlayerController, Crosshair } from "./player-controller.ts";
 
-/** Gear button position in tile-space (top-right corner of lobby). */
-export const GEAR_X = GRID_COLS * TILE_SIZE - 32;
-export const GEAR_Y = 4;
-export const GEAR_SIZE = 28;
-
 /** Convert canvas pixel coords to tile coords, clamped to grid bounds. */
 export function pixelToTile(x: number, y: number): TilePos {
   return {

@@ -52,6 +52,8 @@ export function traitLookup<T>(level: number, values: readonly [T, T, T]): T {
 // AI strategy tuning constants
 // ---------------------------------------------------------------------------
 
+/** Interior pockets smaller than this are targeted for wall destruction / penalized in placement. */
+export const SMALL_POCKET_MAX_SIZE = 4;
 /** Chance to focus all fire on the weakest enemy for the entire battle. */
 const FOCUS_FIRE_PROBABILITY = 0.5;
 /** Minimum usable cannons required to attempt any chain attack. */

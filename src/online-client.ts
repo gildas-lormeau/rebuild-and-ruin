@@ -6,8 +6,9 @@
  * DOM lobby, watcher state, server message handling, and phase handlers.
  */
 
-import { GRID_COLS } from "./grid.ts";
-import { TILE } from "./map-renderer.ts";
+import { GRID_COLS, TILE_SIZE } from "./grid.ts";
+
+const TILE = TILE_SIZE;
 import {
   Phase,
   SELECT_TIMER,

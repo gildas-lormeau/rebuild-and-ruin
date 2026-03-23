@@ -6,8 +6,10 @@
  * mutable state and exposes getters/setters + functions for callers.
  */
 
-import { GRID_COLS, GRID_ROWS } from "./grid.ts";
-import { renderMap, TILE, SCALE } from "./map-renderer.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE, SCALE } from "./grid.ts";
+import { renderMap } from "./map-renderer.ts";
+
+const TILE = TILE_SIZE;
 import type { RenderOverlay, Viewport } from "./map-renderer.ts";
 import {
   nextPhase,
@@ -120,6 +122,7 @@ import { registerOnlineInputHandlers, type RegisterOnlineInputDeps } from "./inp
 import { registerTouchHandlers } from "./touch-input.ts";
 import { createDpad, createHomeZoomButton, createEnemyZoomButton, createQuitButton } from "./touch-ui.ts";
 import { hapticBattleEvents, hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
+import { GEAR_X, GEAR_Y, GEAR_SIZE } from "./render-theme.ts";
 import {
   snapshotTerritory as snapshotTerritoryImpl,
   lobbyClickHitTest,
@@ -129,9 +132,6 @@ import {
   processReselectionQueue,
   completeReselection,
   mainLoopTick,
-  GEAR_X,
-  GEAR_Y,
-  GEAR_SIZE,
 } from "./game-ui-runtime.ts";
 import {
   renderOptions as renderOptionsShared,

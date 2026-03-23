@@ -73,3 +73,21 @@ export const CROSSHAIR_ARM_PULSE = 3;
 export const BUTTON_FLASH_MS = 400;
 export const CURSOR_BLINK_MS = 500;
 export const REBIND_FLASH_MS = 350;
+
+// ---------------------------------------------------------------------------
+// Layout dimensions
+// ---------------------------------------------------------------------------
+
+import { IS_TOUCH_DEVICE } from "./platform.ts";
+
+// Life-lost dialog panel (used by both drawing and hit-testing)
+export const LIFE_LOST_PANEL_W = IS_TOUCH_DEVICE ? 170 : 130;
+export const LIFE_LOST_PANEL_H = IS_TOUCH_DEVICE ? 110 : 90;
+export const LIFE_LOST_BTN_W = IS_TOUCH_DEVICE ? 68 : 52;
+export const LIFE_LOST_BTN_H = IS_TOUCH_DEVICE ? 28 : 18;
+
+// Gear button position (tile-space, top-right corner)
+import { GRID_COLS, TILE_SIZE } from "./grid.ts";
+export const GEAR_X = GRID_COLS * TILE_SIZE - 32;
+export const GEAR_Y = 4;
+export const GEAR_SIZE = 28;

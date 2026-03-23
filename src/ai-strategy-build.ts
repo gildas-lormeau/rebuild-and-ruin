@@ -30,7 +30,7 @@ import {
 } from "./spatial.ts";
 import { canPlacePiece } from "./build-phase.ts";
 import { isCannonEnclosed } from "./cannon-system.ts";
-import { SMALL_POCKET_MAX_SIZE } from "./ai-strategy-battle.ts";
+import { SMALL_POCKET_MAX_SIZE } from "./ai-strategy.ts";
 import {
   hasCannonAt,
   getCardinalObstacleMask,

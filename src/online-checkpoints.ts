@@ -1,5 +1,7 @@
 import { BATTLE_TIMER } from "./types.ts";
-import { TILE } from "./map-renderer.ts";
+import { TILE_SIZE } from "./grid.ts";
+
+const TILE = TILE_SIZE;
 import { resetCannonFacings } from "./game-engine.ts";
 import {
   applyPlayersCheckpoint,

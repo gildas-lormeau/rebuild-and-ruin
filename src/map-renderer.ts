@@ -30,7 +30,9 @@ import {
 } from "./render-effects.ts";
 import { PLAYER_COLORS } from "./player-config.ts";
 
+/** @deprecated Import TILE_SIZE and SCALE from grid.ts directly. */
 export { SCALE };
+/** @deprecated Import TILE_SIZE from grid.ts directly. */
 export const TILE = TILE_SIZE;
 
 const COLS = GRID_COLS;

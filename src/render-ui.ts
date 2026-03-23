@@ -29,9 +29,12 @@ import {
   BUTTON_FLASH_MS,
   CURSOR_BLINK_MS,
   REBIND_FLASH_MS,
+  LIFE_LOST_PANEL_W as PANEL_W,
+  LIFE_LOST_PANEL_H as PANEL_H,
+  LIFE_LOST_BTN_W as BTN_W,
+  LIFE_LOST_BTN_H as BTN_H,
 } from "./render-theme.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
-import { PANEL_W, PANEL_H, BTN_W, BTN_H } from "./life-lost.ts";
 
 // Local semantic colors (not shared across files — context-specific to UI panels)
 const BTN_CONTINUE = {

@@ -27,7 +27,7 @@ import {
 } from "./spatial.ts";
 import { getCardinalObstacleMask } from "./board-occupancy.ts";
 import type { Rng } from "./rng.ts";
-import { traitLookup } from "./ai-strategy.ts";
+import { traitLookup, SMALL_POCKET_MAX_SIZE } from "./ai-strategy.ts";
 
 // ---------------------------------------------------------------------------
 // AI battle tuning constants
@@ -37,8 +37,6 @@ import { traitLookup } from "./ai-strategy.ts";
 const GRUNT_SWEEP_THRESHOLD = 15;
 /** Skip charity sweep if the enemy has more usable cannons than this. */
 const CHARITY_CANNON_THRESHOLD = 6;
-/** Interior pockets smaller than this are targeted for wall destruction (shared with ai-strategy-build). */
-export const SMALL_POCKET_MAX_SIZE = 4;
 /** Minimum number of small pockets before pocket destruction triggers. */
 const POCKET_COUNT_THRESHOLD = 5;
 /** Maximum wall tiles targeted in a single pocket destruction chain. */

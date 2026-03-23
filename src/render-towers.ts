@@ -5,8 +5,10 @@
 import { drawSpriteCentered } from "./sprites.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
 import { rgb, FONT_FLOAT_LG, TOWER_FLASH_MS } from "./render-theme.ts";
-import { TILE } from "./map-renderer.ts";
+import { TILE_SIZE } from "./grid.ts";
 import type { MapData, RenderOverlay } from "./map-renderer.ts";
+
+const TILE = TILE_SIZE;
 
 /** Draw a highlight selector around a tower position. */
 function drawTowerHighlight(

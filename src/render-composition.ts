@@ -1,6 +1,7 @@
-import { GRID_ROWS } from "./grid.ts";
-import { TILE } from "./map-renderer.ts";
+import { GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import type { CastleData, RenderOverlay } from "./map-renderer.ts";
+
+const TILE = TILE_SIZE;
 import type { LifeLostDialogState } from "./life-lost.ts";
 import type { RGB } from "./player-config.ts";
 import { Phase } from "./types.ts";

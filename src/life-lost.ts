@@ -1,7 +1,11 @@
-import { GRID_COLS, GRID_ROWS } from "./grid.ts";
-import { TILE } from "./map-renderer.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import type { GameState } from "./types.ts";
-import { IS_TOUCH_DEVICE } from "./platform.ts";
+import {
+  LIFE_LOST_PANEL_W as PANEL_W,
+  LIFE_LOST_PANEL_H as PANEL_H,
+  LIFE_LOST_BTN_W as BTN_W,
+  LIFE_LOST_BTN_H as BTN_H,
+} from "./render-theme.ts";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -130,10 +134,7 @@ export function tickLifeLostDialogRuntime(
 // UI (panel position + click handling)
 // ---------------------------------------------------------------------------
 
-export const PANEL_W = IS_TOUCH_DEVICE ? 170 : 130;
-export const PANEL_H = IS_TOUCH_DEVICE ? 110 : 90;
-export const BTN_W = IS_TOUCH_DEVICE ? 68 : 52;
-export const BTN_H = IS_TOUCH_DEVICE ? 28 : 18;
+const TILE = TILE_SIZE;
 
 export function lifeLostPanelPos(
   state: GameState,

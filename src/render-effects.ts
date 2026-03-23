@@ -3,7 +3,7 @@
  * crosshairs, phantoms, bonus squares, houses, grunts.
  */
 
-import { TILE } from "./map-renderer.ts";
+import { TILE_SIZE } from "./grid.ts";
 import {
   rgb, FONT_TIMER,
   BONUS_FLASH_MS, CROSSHAIR_READY_FREQ, CROSSHAIR_IDLE_FREQ,
@@ -15,6 +15,8 @@ import { PLAYER_COLORS } from "./player-config.ts";
 import { IMPACT_FLASH_DURATION } from "./types.ts";
 import type { RenderOverlay, MapData } from "./map-renderer.ts";
 import type { RGB } from "./render-theme.ts";
+
+const TILE = TILE_SIZE;
 
 // Crosshair colors per player
 const CROSSHAIR_COLORS: RGB[] = [
