@@ -1,4 +1,5 @@
 import { MSG } from "../server/protocol.ts";
+import { isHuman } from "./controller-factory.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { GameState } from "./types.ts";
 import { Phase } from "./types.ts";
@@ -99,6 +100,7 @@ export function confirmTowerSelection(
   onReselectConfirmed: (playerId: number) => void,
   onOverlayChanged: () => void,
   render: () => void,
+  remoteHumanSlots?: Set<number>,
 ): boolean {
   const ss = selectionStates.get(playerId);
   if (!ss || ss.confirmed) return allSelectionsConfirmed(selectionStates);
@@ -116,6 +118,22 @@ export function confirmTowerSelection(
     controllers[playerId]!.centerOn(player.homeTower.row, player.homeTower.col);
     if (isReselect) {
       onReselectConfirmed(playerId);
+    }
+  }
+
+  // When a human confirms, auto-confirm all remaining AI players so the
+  // castle construction animation starts immediately (no browsing delay).
+  // Skip remote human slots — they choose independently over the network.
+  if (isHuman(controllers[playerId]!)) {
+    for (const [aiPid, aiSs] of selectionStates) {
+      if (aiSs.confirmed || remoteHumanSlots?.has(aiPid) || isHuman(controllers[aiPid]!)) continue;
+      aiSs.confirmed = true;
+      const aiPlayer = state.players[aiPid]!;
+      if (aiPlayer.homeTower) {
+        controllers[aiPid]!.centerOn(aiPlayer.homeTower.row, aiPlayer.homeTower.col);
+        if (isReselect) onReselectConfirmed(aiPid);
+      }
+      send({ type: MSG.OPPONENT_TOWER_SELECTED, playerId: aiPid, towerIdx: aiSs.highlighted, confirmed: true });
     }
   }
 

@@ -241,13 +241,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     // Tick score delta display timer (mode-independent so it counts during banner/castle-build)
     if (rs.scoreDeltaTimer > 0) {
       rs.scoreDeltaTimer -= dt;
-      if (rs.scoreDeltaTimer <= 0) {
-        rs.scoreDeltas = [];
-        rs.scoreDeltaTimer = 0;
-        const cb = rs.scoreDeltaDone;
-        rs.scoreDeltaDone = null;
-        cb?.();
-      }
+      if (rs.scoreDeltaTimer <= 0) { rs.scoreDeltas = []; rs.scoreDeltaTimer = 0; }
     }
 
     const shouldContinue = mainLoopTick({
@@ -502,6 +496,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       },
       () => syncSelectionOverlay(),
       () => render(),
+      config.getRemoteHumanSlots(),
     );
   }
 
@@ -760,20 +755,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         };
       })
       .filter(d => d.delta > 0 && !rs.state.players[d.playerId]!.eliminated);
+    // Start timer immediately — deltas display during the banner (3s) and
+    // are guaranteed to clear before it ends (timer < BANNER_DURATION)
+    rs.scoreDeltaTimer = rs.scoreDeltas.length > 0 ? SCORE_DELTA_DISPLAY_TIME : 0;
 
-    const enterCannon = () => {
-      advanceToCannonPlacePhase(rs.state);
-      startCannonPhase();
-      showBanner(BANNER_PLACE_CANNONS, () => { rs.mode = Mode.GAME; }, false, undefined, BANNER_PLACE_CANNONS_SUB);
-    };
-
-    if (rs.scoreDeltas.length > 0) {
-      rs.scoreDeltaTimer = SCORE_DELTA_DISPLAY_TIME;
-      rs.scoreDeltaDone = enterCannon;
-      render();
-    } else {
-      enterCannon();
-    }
+    advanceToCannonPlacePhase(rs.state);
+    startCannonPhase();
+    showBanner(BANNER_PLACE_CANNONS, () => { rs.mode = Mode.GAME; }, false, undefined, BANNER_PLACE_CANNONS_SUB);
   }
 
   function tickCastleBuild(dt: number): void {
@@ -893,7 +881,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     config.log(`startBattle (round=${rs.state.round})`);
     rs.scoreDeltas = [];
     rs.scoreDeltaTimer = 0;
-    rs.scoreDeltaDone = null;
     startHostBattleLifecycle({
       state: rs.state,
       battleAnim: rs.battleAnim,
@@ -949,7 +936,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs.preScores = rs.state.players.map(p => p.score);
     rs.scoreDeltas = [];
     rs.scoreDeltaTimer = 0;
-    rs.scoreDeltaDone = null;
     initBuildPhase(rs.state, rs.controllers, (pid) => remoteHumanSlots.has(pid) || !!rs.state.players[pid]?.eliminated);
     rs.battleAnim.impacts = [];
     rs.accum.grunt = 0;
@@ -1176,7 +1162,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs.selectionStates.clear();
     rs.scoreDeltas = [];
     rs.scoreDeltaTimer = 0;
-    rs.scoreDeltaDone = null;
     rs.preScores = [];
   }
 
