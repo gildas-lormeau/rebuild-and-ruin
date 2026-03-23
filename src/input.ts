@@ -106,6 +106,50 @@ export interface RegisterOnlineInputDeps {
   };
 }
 
+/** Shared mode-tap dispatch — handles non-game UI taps (game over, options, lobby, etc.). Returns true if consumed. */
+export function dispatchModeTap(
+  x: number,
+  y: number,
+  mode: number,
+  deps: Pick<RegisterOnlineInputDeps,
+    "modeValues" | "getGameOverFocused" | "rematch" | "showLobby" |
+    "closeOptions" | "closeControls" | "getControlsState" |
+    "getLifeLostDialog" | "lifeLostDialogClick" | "isLobbyActive" | "lobbyClick">,
+): boolean {
+  const { modeValues, getGameOverFocused, rematch, showLobby, closeOptions, closeControls, getControlsState, getLifeLostDialog, lifeLostDialogClick, isLobbyActive, lobbyClick } = deps;
+  if (mode === modeValues.STOPPED) {
+    if (getGameOverFocused() === "rematch") rematch();
+    else showLobby();
+    return true;
+  }
+  if (mode === modeValues.OPTIONS) { closeOptions(); return true; }
+  if (mode === modeValues.CONTROLS) {
+    if (!getControlsState().rebinding) closeControls();
+    return true;
+  }
+  if (mode === modeValues.LIFE_LOST && getLifeLostDialog()) {
+    lifeLostDialogClick(x, y);
+    return true;
+  }
+  if (isLobbyActive()) { lobbyClick(x, y); return true; }
+  return false;
+}
+
+/** Shared battle-fire dispatch — aim and fire for the first human player. */
+export function dispatchBattleFire(
+  x: number,
+  y: number,
+  state: GameState,
+  deps: Pick<RegisterOnlineInputDeps, "withFirstHuman" | "screenToWorld" | "fireAndSend">,
+): void {
+  if (state.phase !== Phase.BATTLE || state.timer <= 0 || state.battleCountdown > 0) return;
+  deps.withFirstHuman((human) => {
+    const w = deps.screenToWorld(x, y);
+    human.setCrosshair(w.wx, w.wy);
+    deps.fireAndSend(human, state);
+  });
+}
+
 /** Shared pointer-move dispatch — updates cursor/crosshair based on current phase. */
 export function dispatchPointerMove(
   x: number,
@@ -158,7 +202,6 @@ export function registerOnlineInputHandlers(
     modeValues,
     isLobbyActive,
     lobbyKeyJoin,
-    lobbyClick,
     showLobby,
     rematch,
     getGameOverFocused,
@@ -176,7 +219,6 @@ export function registerOnlineInputHandlers(
     changeOption,
     getControlsState,
     getLifeLostDialog,
-    lifeLostDialogClick,
     getControllers,
     isHuman,
     withFirstHuman,
@@ -231,32 +273,7 @@ export function registerOnlineInputHandlers(
     const mode = getMode();
     const state = getState();
 
-    if (mode === modeValues.STOPPED) {
-      if (getGameOverFocused() === "rematch") rematch();
-      else showLobby();
-      return;
-    }
-
-    if (mode === modeValues.OPTIONS) {
-      closeOptions();
-      return;
-    }
-
-    if (mode === modeValues.CONTROLS) {
-      if (!getControlsState().rebinding) closeControls();
-      return;
-    }
-
-    if (mode === modeValues.LIFE_LOST && getLifeLostDialog()) {
-      lifeLostDialogClick(x, y);
-      return;
-    }
-
-    if (isLobbyActive()) {
-      lobbyClick(x, y);
-      return;
-    }
-
+    if (dispatchModeTap(x, y, mode, deps)) return;
     if (!state) return;
 
     if (
@@ -291,16 +308,8 @@ export function registerOnlineInputHandlers(
       withFirstHuman((human) => {
         tryPlacePieceAndSend(human, state);
       });
-    } else if (
-      state.phase === Phase.BATTLE &&
-      state.timer > 0 &&
-      state.battleCountdown <= 0
-    ) {
-      withFirstHuman((human) => {
-        const w = screenToWorld(x, y);
-        human.setCrosshair(w.wx, w.wy);
-        fireAndSend(human, state);
-      });
+    } else {
+      dispatchBattleFire(x, y, state, deps);
     }
   });
 

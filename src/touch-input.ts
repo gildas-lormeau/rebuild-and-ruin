@@ -6,7 +6,7 @@
  */
 
 import type { RegisterOnlineInputDeps } from "./input.ts";
-import { dispatchPointerMove } from "./input.ts";
+import { dispatchBattleFire, dispatchModeTap, dispatchPointerMove } from "./input.ts";
 import { towerAtPixel } from "./spatial.ts";
 import { Phase } from "./types.ts";
 
@@ -18,17 +18,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     canvas,
     getState,
     getMode,
-    modeValues,
     isLobbyActive,
-    lobbyClick,
-    showLobby,
-    rematch,
-    getGameOverFocused,
-    closeOptions,
-    closeControls,
-    getControlsState,
-    getLifeLostDialog,
-    lifeLostDialogClick,
     withFirstHuman,
     screenToWorld,
     onPinchStart,
@@ -36,7 +26,6 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     onPinchEnd,
     tryPlaceCannonAndSend,
     tryPlacePieceAndSend,
-    fireAndSend,
     getSelectionStates,
     highlightTowerForPlayer,
     confirmSelectionForPlayer,
@@ -156,23 +145,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     const tap = isTap(touch);
 
     // Non-game modes: tap acts as click
-    if (tap) {
-      if (mode === modeValues.STOPPED) {
-        if (getGameOverFocused() === "rematch") rematch();
-        else showLobby();
-        return;
-      }
-      if (mode === modeValues.OPTIONS) { closeOptions(); return; }
-      if (mode === modeValues.CONTROLS) {
-        if (!getControlsState().rebinding) closeControls();
-        return;
-      }
-      if (mode === modeValues.LIFE_LOST && getLifeLostDialog()) {
-        lifeLostDialogClick(x, y);
-        return;
-      }
-      if (isLobbyActive()) { lobbyClick(x, y); return; }
-    }
+    if (tap && dispatchModeTap(x, y, mode, deps)) return;
 
     if (!state) return;
 
@@ -212,13 +185,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     }
 
     // Battle: always fire on touch release (tap or drag)
-    if (state.phase === Phase.BATTLE && state.timer > 0 && state.battleCountdown <= 0) {
-      withFirstHuman((human) => {
-        const w = screenToWorld(x, y);
-        human.setCrosshair(w.wx, w.wy);
-        fireAndSend(human, state);
-      });
-    }
+    dispatchBattleFire(x, y, state, deps);
   }, { passive: false });
 
   // Reset pinch state if OS cancels touches (e.g. phone call, gesture conflict)

@@ -2,6 +2,7 @@
  * Map Renderer — browser-side ES module for rendering game maps on a canvas.
  */
 
+import type { GameOverOverlay, LifeLostDialogOverlay } from "./game-ui-types.ts";
 import type { PixelPos, TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import type { House, Tower } from "./map-generation.ts";
@@ -14,6 +15,7 @@ import {
   drawPhantoms,
   drawWaterAnimation,
 } from "./render-effects.ts";
+import type { RGB } from "./render-theme.ts";
 import { drawTowers } from "./render-towers.ts";
 import {
   drawAnnouncement,
@@ -29,12 +31,6 @@ import {
 import { facingToDir8, isCannonAlive, unpackTile } from "./spatial.ts";
 import { drawSprite } from "./sprites.ts";
 import type { BurningPit, Cannon, Grunt, Impact } from "./types.ts";
-
-const COLS = GRID_COLS;
-const ROWS = GRID_ROWS;
-
-import type { GameOverOverlay, LifeLostDialogOverlay } from "./game-ui-types.ts";
-import type { RGB } from "./render-theme.ts";
 
 const GRASS_DARK: RGB = [45, 140, 45];
 const GRASS_LIGHT: RGB = [51, 153, 51];
@@ -106,9 +102,9 @@ for (const w of WAVE_LO) {
 }
 
 export interface CastleData {
-  /** Wall tile positions encoded as row*COLS+col. */
+  /** Wall tile positions encoded as row*GRID_COLS+col. */
   walls: Set<number>;
-  /** Interior tile positions encoded as row*COLS+col. */
+  /** Interior tile positions encoded as row*GRID_COLS+col. */
   interior: Set<number>;
   /** Cannon positions (top-left of 2×2 or 3×3 super) with HP. */
   cannons: Cannon[];
@@ -318,7 +314,7 @@ function getTerrainCache(
 }
 
 function tileAt(map: MapData, r: number, c: number): number {
-  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return -1;
+  if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return -1;
   return map.tiles[r]![c]!;
 }
 
@@ -629,10 +625,10 @@ function drawCastles(
       octx.fillRect(px + 3, py + 12, 1, 4);
       octx.fillRect(px + 9, py + 12, 1, 4);
       // Procedural bevels only on exposed edges (no wall neighbor)
-      const hasUp = castle.walls.has((r - 1) * COLS + c);
-      const hasDown = castle.walls.has((r + 1) * COLS + c);
-      const hasLeft = castle.walls.has(r * COLS + (c - 1));
-      const hasRight = castle.walls.has(r * COLS + (c + 1));
+      const hasUp = castle.walls.has((r - 1) * GRID_COLS + c);
+      const hasDown = castle.walls.has((r + 1) * GRID_COLS + c);
+      const hasLeft = castle.walls.has(r * GRID_COLS + (c - 1));
+      const hasRight = castle.walls.has(r * GRID_COLS + (c + 1));
       if (!hasUp) {
         octx.fillStyle = lightEdge;
         octx.fillRect(px, py, TILE_SIZE, 2);
@@ -704,12 +700,12 @@ export function renderMap(
   viewport?: Viewport | null,
 ): void {
   const ctx = canvas.getContext("2d")!;
-  const W = COLS * TILE_SIZE;
-  const H = ROWS * TILE_SIZE;
+  const W = GRID_COLS * TILE_SIZE;
+  const H = GRID_ROWS * TILE_SIZE;
 
   const STATUS_BAR_H = overlay?.ui?.statusBar ? 32 : 0;
-  const cw = COLS * TILE_SIZE * SCALE;
-  const gameH = ROWS * TILE_SIZE * SCALE;
+  const cw = GRID_COLS * TILE_SIZE * SCALE;
+  const gameH = GRID_ROWS * TILE_SIZE * SCALE;
   const ch = gameH + STATUS_BAR_H;
   if (canvas.width !== cw || canvas.height !== ch) {
     canvas.width = cw;
