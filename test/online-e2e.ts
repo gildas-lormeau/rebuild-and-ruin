@@ -32,6 +32,7 @@ const SCREENSHOTS = process.argv.includes("--screenshot");
 const MOBILE = process.argv.includes("--mobile");
 const HEADLESS = process.argv.includes("--headless");
 const RECORD = process.argv.includes("--record");
+const FAST = process.argv.includes("--fast");
 const SEED = (() => {
   const idx = process.argv.indexOf("--seed");
   return idx >= 0 && process.argv[idx + 1] ? process.argv[idx + 1]! : "";
@@ -432,6 +433,15 @@ async function runLocal() {
   await page.evaluate((rounds: number) => {
     (window as unknown as Record<string, unknown>).__testBattleLength = rounds;
   }, NUM_ROUNDS);
+
+  // --fast: override requestAnimationFrame with setTimeout(1) + accelerated timestamps
+  if (FAST) {
+    await page.evaluate(() => {
+      let fakeTime = performance.now();
+      window.requestAnimationFrame = (cb: FrameRequestCallback) =>
+        setTimeout(() => { fakeTime += 100; cb(fakeTime); }, 1) as unknown as number;
+    });
+  }
 
   // Simulate human play or wait for AI-only game
   let allActions: string[][] = [];

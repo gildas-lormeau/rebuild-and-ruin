@@ -29,21 +29,14 @@ npx tsx test/online-e2e.ts <mode> <humans> <serverUrl> <rounds>
 - `mode`: `local` or `online`
 - `humans`: 0-3 (default: 0 for local, 2 for online)
 - `serverUrl`: remote server URL (online only, empty string for local)
-- `rounds`: number of game rounds (default: 3, options: 3/5/8/12)
-
-### IMPORTANT: Always use `timeout`
-
-Always wrap E2E commands with the `timeout` CLI command to prevent hanging:
-
-```sh
-timeout 60 npx tsx test/online-e2e.ts local 1 --mobile --headless ...
-```
+- `rounds`: number of game rounds (default: 3, any positive integer)
 
 ### Flags
 
 | Flag | Description |
 |------|-------------|
 | `--headless` | No browser window. Use for automated/parallel runs. |
+| `--fast` | Accelerate game time (~25x). Use with `--headless` for fast iteration. |
 | `--screenshot` | Capture PNG at every phase transition → `logs/screenshot-game-*.png` |
 | `--mobile` | Emulate Pixel 7 landscape (touch, small viewport) |
 | `--seed N` | Force map seed for reproducible bugs |
@@ -79,21 +72,24 @@ Parts:
 ### Examples
 
 ```sh
+# Quick 1-round test with accelerated game time (~25s)
+npx tsx test/online-e2e.ts local 0 --headless --fast --seed 42 "" 1
+
 # Reproduce a bug on seed 42, screenshot the battle phase
-timeout 60 npx tsx test/online-e2e.ts local 0 --headless --seed 42 \
+npx tsx test/online-e2e.ts local 0 --headless --fast --seed 42 \
   --action "phase:BATTLE screenshot:bug exit"
 
 # Verify home zoom button works during cannon phase
-timeout 45 npx tsx test/online-e2e.ts local 1 --mobile --headless \
+npx tsx test/online-e2e.ts local 1 --mobile --headless \
   --action "mode:GAME click:home screenshot:zoomed exit" "" 3
 
 # Run 10 parallel headless games to catch intermittent bugs
 for i in $(seq 1 10); do
-  timeout 120 npx tsx test/online-e2e.ts local 0 --headless --seed $i "" 3 &
+  npx tsx test/online-e2e.ts local 0 --headless --fast --seed $i "" 3 &
 done; wait
 
 # Online test with remote server
-timeout 120 npx tsx test/online-e2e.ts online 1 https://your-server.deno.dev
+npx tsx test/online-e2e.ts online 1 https://your-server.deno.dev
 ```
 
 ## Debugging process
@@ -104,7 +100,7 @@ timeout 120 npx tsx test/online-e2e.ts online 1 https://your-server.deno.dev
 
 3. **Write analysis script** — a `node -e` script that parses the log file and checks assertions (PASS/FAIL per player/frame). Never read raw logs by eye.
 
-4. **Run test** — always wrap with `timeout 60` (or appropriate duration). Use `--headless` for speed, minimal rounds to reach the bug quickly. Use `--assert` for UI state checks.
+4. **Run test** — use `--headless --fast` for speed, minimal rounds (`"" 1`) to reach the bug quickly. Use `--assert` for UI state checks. Logs are always saved to `logs/` even if the test is killed.
 
 5. **Read script output** — it says PASS or FAIL with actual values.
 
