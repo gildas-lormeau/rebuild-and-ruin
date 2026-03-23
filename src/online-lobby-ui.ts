@@ -119,24 +119,35 @@ export function setupLobbyUi({
       elements.btnJoinConfirm.click();
     };
 
+    const el = (tag: string, cls: string, text?: string) => {
+      const e = doc.createElement(tag);
+      e.className = cls;
+      if (text) e.textContent = text;
+      return e;
+    };
+
+    const setMessage = (cls: string, text: string) => {
+      roomListEl.innerHTML = "";
+      roomListEl.appendChild(el("div", cls, text));
+    };
+
     const renderRoomList = (rooms: { code: string; players: number; settings: { battleLength: number; cannonMaxHp: number }; elapsedSec: number }[]) => {
-      if (rooms.length === 0) {
-        roomListEl.innerHTML = `<div class="room-list-empty">No rooms available</div>`;
-        return;
-      }
+      if (rooms.length === 0) { setMessage("room-list-empty", "No rooms available"); return; }
       const roundsLabel = (v: number) => v > 0 ? `${v} rounds` : "To The Death";
-      roomListEl.innerHTML = `<div class="room-list-title">Available Rooms</div>` +
-        rooms.map(r => `
-          <div class="room-item" data-code="${r.code}">
-            <span class="room-code">${r.code}</span>
-            <span class="room-info">${r.players}/3 players<br>${roundsLabel(r.settings.battleLength)} · ${r.settings.cannonMaxHp} HP</span>
-          </div>
-        `).join("");
-      for (const item of roomListEl.querySelectorAll(".room-item")) {
-        item.addEventListener("click", () => {
-          const code = (item as HTMLElement).dataset.code;
-          if (code) joinViaCode(code);
-        });
+      roomListEl.innerHTML = "";
+      roomListEl.appendChild(el("div", "room-list-title", "Available Rooms"));
+      for (const r of rooms) {
+        const item = el("div", "room-item");
+        item.dataset.code = r.code;
+        item.appendChild(el("span", "room-code", r.code));
+        const info = el("span", "room-info");
+        info.append(
+          `${r.players}/3 players`, doc.createElement("br"),
+          `${roundsLabel(r.settings.battleLength)} · ${r.settings.cannonMaxHp} HP`,
+        );
+        item.appendChild(info);
+        item.addEventListener("click", () => joinViaCode(r.code));
+        roomListEl.appendChild(item);
       }
     };
 
@@ -145,7 +156,7 @@ export function setupLobbyUi({
         .then(r => r.json())
         .then(renderRoomList)
         .catch(() => {
-          roomListEl.innerHTML = `<div class="room-list-empty">Server unavailable</div>`;
+          setMessage("room-list-empty", "Server unavailable");
         });
     };
 
