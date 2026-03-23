@@ -37,7 +37,7 @@ import {
   placeCannon,
   canPlaceCannon,
   cannonSlotsUsed,
-
+  findNearestValidCannonPlacement,
 } from "./cannon-system.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import { packTile } from "./spatial.ts";
@@ -1331,7 +1331,15 @@ export class HumanController extends BaseController {
 
   cannonTick(state: GameState, _dt: number): PhantomCannon | null {
     const player = state.players[this.playerId]!;
-    const isSuper = this.cannonPlaceMode === CannonMode.SUPER;
+    const maxSlots = state.cannonLimits[this.playerId] ?? 0;
+    if (cannonSlotsUsed(player) >= maxSlots) return null;
+    // Snap-to-fit: if current position is invalid, nudge to nearest valid spot
+    if (!canPlaceCannon(player, this.cannonCursor.row, this.cannonCursor.col, this.cannonPlaceMode, state)) {
+      const snapped = findNearestValidCannonPlacement(
+        player, this.cannonCursor.row, this.cannonCursor.col, this.cannonPlaceMode, state,
+      );
+      if (snapped) { this.cannonCursor.row = snapped.row; this.cannonCursor.col = snapped.col; }
+    }
     const valid = canPlaceCannon(
       player,
       this.cannonCursor.row,
@@ -1343,7 +1351,7 @@ export class HumanController extends BaseController {
       row: this.cannonCursor.row,
       col: this.cannonCursor.col,
       valid,
-      isSuper,
+      isSuper: this.cannonPlaceMode === CannonMode.SUPER,
       isBalloon: this.cannonPlaceMode === CannonMode.BALLOON,
       playerId: this.playerId,
       facing: player.defaultFacing,

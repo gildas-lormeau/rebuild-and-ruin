@@ -88,6 +88,30 @@ export function canPlaceCannon(
   return true;
 }
 
+/**
+ * Find the nearest valid cannon placement within `maxRadius` tiles of (row, col).
+ * Returns the snapped position, or null if nothing valid is nearby.
+ */
+export function findNearestValidCannonPlacement(
+  player: Player, row: number, col: number,
+  mode: CannonMode, state: GameState, maxRadius = 2,
+): { row: number; col: number } | null {
+  let bestDist = Infinity;
+  let best: { row: number; col: number } | null = null;
+  for (let dr = -maxRadius; dr <= maxRadius; dr++) {
+    for (let dc = -maxRadius; dc <= maxRadius; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const dist = dr * dr + dc * dc;
+      if (dist >= bestDist) continue;
+      if (canPlaceCannon(player, row + dr, col + dc, mode, state)) {
+        bestDist = dist;
+        best = { row: row + dr, col: col + dc };
+      }
+    }
+  }
+  return best;
+}
+
 /** Count how many cannon slots are used by a player. Normal = 1, super = SUPER_GUN_COST, balloon = BALLOON_COST. */
 export function cannonSlotsUsed(player: Player): number {
   let slots = 0;
