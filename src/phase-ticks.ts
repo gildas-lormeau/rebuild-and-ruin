@@ -1,7 +1,7 @@
 import type { GameState } from "./types.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
-import { unpackTile } from "./spatial.ts";
+import { unpackTile, EMPTY_TILE_SET } from "./spatial.ts";
 
 import {
   cannonPhantomKey,
@@ -11,8 +11,7 @@ import {
   type HumanPiecePhantom,
 } from "./online-types.ts";
 
-/** Shared empty collections — avoids allocating throwaway objects on every frame. */
-const EMPTY_SET: ReadonlySet<number> = new Set<number>();
+/** Shared empty map — avoids allocating a throwaway Map on every frame. */
 const EMPTY_MAP: ReadonlyMap<number, string> = new Map<number, string>();
 
 // ---------------------------------------------------------------------------
@@ -102,7 +101,7 @@ interface TickHostCannonPhaseDeps {
 export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   const { dt, state, accum, frame, controllers, render, startBattle } = deps;
   // Networking defaults (no-op for local play)
-  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_SET as Set<number>;
+  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET as Set<number>;
   const isHost = deps.net?.isHost ?? true;
   const remoteCannonPhantoms = deps.net?.remoteCannonPhantoms ?? [];
   const lastSentCannonPhantom = deps.net?.lastSentCannonPhantom ?? EMPTY_MAP as Map<number, string>;
@@ -224,7 +223,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
     tickGrunts, isHuman, finalizeBuildPhase, showLifeLostDialog, afterLifeLostResolved,
   } = deps;
   // Networking defaults (no-op for local play)
-  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_SET as Set<number>;
+  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET as Set<number>;
   const isHost = deps.net?.isHost ?? true;
   const remotePiecePhantoms = deps.net?.remotePiecePhantoms ?? [];
   const lastSentPiecePhantom = deps.net?.lastSentPiecePhantom ?? EMPTY_MAP as Map<number, string>;

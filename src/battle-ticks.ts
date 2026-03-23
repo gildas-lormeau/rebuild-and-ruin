@@ -4,10 +4,8 @@ import type { TilePos } from "./geometry-types.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { GameState, Impact } from "./types.ts";
 import type { WatcherTimingState } from "./online-watcher-battle.ts";
+import { EMPTY_TILE_SET } from "./spatial.ts";
 import type { HostNetContext } from "./phase-ticks.ts";
-
-/** Shared empty set — avoids allocating a throwaway Set on every frame. */
-const EMPTY_SET: ReadonlySet<number> = new Set<number>();
 
 // ---------------------------------------------------------------------------
 // Host battle tick (countdown + main phase)
@@ -27,7 +25,7 @@ export function tickHostBattleCountdown(
   deps: TickHostBattleCountdownDeps,
 ): void {
   const { dt, state, frame, controllers, collectCrosshairs, render } = deps;
-  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_SET as Set<number>;
+  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET as Set<number>;
 
   state.battleCountdown = Math.max(0, state.battleCountdown - dt);
   for (const ctrl of controllers) {
@@ -78,7 +76,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     render, collectCrosshairs, collectTowerEvents, updateCannonballsWithEvents,
     onBattlePhaseEnded, onBattleEvents,
   } = deps;
-  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_SET as Set<number>;
+  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET as Set<number>;
   const isHost = deps.net?.isHost ?? true;
   const sendMessage = deps.net?.sendMessage;
 
@@ -257,7 +255,7 @@ interface BeginHostBattleDeps {
 
 export function beginHostBattle(deps: BeginHostBattleDeps): void {
   const { state, controllers, accum, battleCountdown, setModeGame } = deps;
-  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_SET as Set<number>;
+  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET as Set<number>;
   const isHost = deps.net?.isHost ?? true;
 
   for (const ctrl of controllers) {

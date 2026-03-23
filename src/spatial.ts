@@ -48,6 +48,9 @@ export const CORNERS_2X2 = [
 // Grid key helpers
 // ---------------------------------------------------------------------------
 
+/** Shared empty set — avoids allocating throwaway Set objects on every frame. */
+export const EMPTY_TILE_SET: ReadonlySet<number> = new Set<number>();
+
 /** Convert a packed tile key to row/column coordinates. */
 export const unpackTile = (key: number): { r: number; c: number } => ({
   r: Math.floor(key / GRID_COLS),
