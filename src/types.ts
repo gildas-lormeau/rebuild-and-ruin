@@ -289,22 +289,8 @@ export const LIFE_LOST_MAX_TIMER = 10.0;
 export const MAX_FRAME_DT = 0.1;
 
 // ---------------------------------------------------------------------------
-// Cursor / crosshair speeds
-// ---------------------------------------------------------------------------
-
-/** Battle crosshair movement speed in pixels per second. */
-export const CROSSHAIR_SPEED = 80;
-/** AI build-phase cursor speed in tiles per second. */
-export const BUILD_CURSOR_SPEED = 12;
-/** AI cannon-phase cursor speed in tiles per second. */
-export const CANNON_CURSOR_SPEED = 6;
-
-// ---------------------------------------------------------------------------
 // House placement
 // ---------------------------------------------------------------------------
-
-/** Number of houses initially placed per zone. */
-export const INITIAL_HOUSES_PER_ZONE = 10;
 /** Minimum Manhattan distance between any two houses. */
 export const HOUSE_MIN_DISTANCE = 3;
 

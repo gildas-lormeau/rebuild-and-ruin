@@ -15,10 +15,14 @@ import {
   BALLOON_SIZE,
   SUPER_GUN_COST,
   BALLOON_COST,
-  CROSSHAIR_SPEED,
-  BUILD_CURSOR_SPEED,
-  CANNON_CURSOR_SPEED,
 } from "./types.ts";
+
+/** Battle crosshair movement speed in pixels per second. */
+export const CROSSHAIR_SPEED = 80;
+/** AI build-phase cursor speed in tiles per second. */
+const BUILD_CURSOR_SPEED = 12;
+/** AI cannon-phase cursor speed in tiles per second. */
+const CANNON_CURSOR_SPEED = 6;
 import type { PieceShape, BagState } from "./pieces.ts";
 import type {
   TilePos,

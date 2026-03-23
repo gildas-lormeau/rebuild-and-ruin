@@ -16,11 +16,11 @@ import {
   BUILD_TIMER,
   BATTLE_TIMER,
   CANNON_PLACE_TIMER,
-  CROSSHAIR_SPEED,
   BATTLE_COUNTDOWN,
   BANNER_DURATION,
   CannonMode,
 } from "./types.ts";
+import { CROSSHAIR_SPEED } from "./player-controller.ts";
 import type { GameState } from "./types.ts";
 import {
   nextReadyCombined,
