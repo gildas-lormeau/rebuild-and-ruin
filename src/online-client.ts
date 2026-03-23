@@ -88,8 +88,8 @@ import {
   MAX_PLAYERS,
 } from "./player-config.ts";
 import type {
-  ClientMessage,
   ServerMessage,
+  GameMessage,
   InitMessage,
   FullStateMessage,
 } from "../server/protocol.ts";
@@ -262,7 +262,7 @@ function connect(): void {
   };
 }
 
-function send(msg: ClientMessage | ServerMessage): void {
+function send(msg: GameMessage): void {
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(msg));
   }

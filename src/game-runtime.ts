@@ -106,6 +106,7 @@ import {
 } from "./phase-ticks.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import type { WorldPos } from "./geometry-types.ts";
+import type { ServerMessage, GameMessage } from "../server/protocol.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
 import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
 import {
@@ -164,7 +165,7 @@ export interface RuntimeConfig {
   /** true for online mode. */
   isOnline?: boolean;
   /** noop for local, ws.send for online. */
-  send: (msg: any) => void;
+  send: (msg: GameMessage) => void;
   /** () => true for local. */
   getIsHost: () => boolean;
   /** () => -1 for local. */
@@ -202,9 +203,9 @@ export interface RuntimeConfig {
   hostNetworking?: {
     autoPlaceCannons: (player: GameState["players"][number], max: number, state: GameState) => void;
     serializePlayers: (state: GameState) => SerializedPlayer[];
-    buildCannonStartMessage: (state: GameState) => any;
-    buildBattleStartMessage: (state: GameState, flights: BalloonFlight[]) => any;
-    buildBuildStartMessage: (state: GameState) => any;
+    buildCannonStartMessage: (state: GameState) => ServerMessage;
+    buildBattleStartMessage: (state: GameState, flights: BalloonFlight[]) => ServerMessage;
+    buildBuildStartMessage: (state: GameState) => ServerMessage;
     remoteCannonPhantoms: () => CannonPhantom[];
     remotePiecePhantoms: () => PiecePhantom[];
     lastSentCannonPhantom: () => Map<number, string>;
@@ -804,7 +805,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   /** Compute bounding rect for a player's territory in tile-pixel space.
    *  Adapts to actual structures (walls, interior, cannons, towers). */
-  let cachedZoneBounds: Map<number, { vp: Viewport; wallCount: number }> = new Map();
+  const cachedZoneBounds: Map<number, { vp: Viewport; wallCount: number }> = new Map();
 
   /** Convert tile bounds + padding into an aspect-ratio-correct viewport. */
   function boundsToViewport(minR: number, maxR: number, minC: number, maxC: number, pad: number): Viewport {
@@ -996,7 +997,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Full map viewport (for lerping back to unzoomed)
   const fullMapVp: Viewport = { x: 0, y: 0, w: GRID_COLS * TILE, h: GRID_ROWS * TILE };
   /** Current interpolated viewport for smooth transitions. */
-  let currentVp: Viewport = { ...fullMapVp };
+  const currentVp: Viewport = { ...fullMapVp };
   /** Last computed viewport (read-only snapshot for coordinate conversion). */
   let lastVp: Viewport | null = null;
   const ZOOM_LERP_SPEED = 6; // higher = faster transition
@@ -1568,7 +1569,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       onBattleEvents: (events) => {
         const pid = config.getMyPlayerId();
         const localPid = pid >= 0 ? pid : (firstHuman()?.playerId ?? -1);
-        if (localPid >= 0) hapticBattleEvents(events as any, localPid);
+        if (localPid >= 0) hapticBattleEvents(events as Array<{ type: string; playerId?: number; hp?: number }>, localPid);
         // Accumulate stats
         for (const evt of events as Array<{ type: string; playerId?: number; shooterId?: number; hp?: number; newHp?: number }>) {
           if (evt.type === "wall_destroyed" && evt.shooterId !== undefined) {

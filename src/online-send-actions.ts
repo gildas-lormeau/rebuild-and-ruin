@@ -1,11 +1,11 @@
-import type { ClientMessage, ServerMessage } from "../server/protocol.ts";
+import type { GameMessage } from "../server/protocol.ts";
 import type { GameState } from "./types.ts";
 import type { PlayerController } from "./player-controller.ts";
 
 export function tryPlacePieceAndSend(
   ctrl: PlayerController,
   gameState: GameState,
-  send: (msg: ClientMessage | ServerMessage) => void,
+  send: (msg: GameMessage) => void,
 ): boolean {
   const piece = ctrl.getCurrentPiece();
   const row = ctrl.buildCursor.row;
@@ -27,7 +27,7 @@ export function tryPlaceCannonAndSend(
   ctrl: PlayerController,
   gameState: GameState,
   max: number,
-  send: (msg: ClientMessage | ServerMessage) => void,
+  send: (msg: GameMessage) => void,
 ): boolean {
   const row = ctrl.cannonCursor.row;
   const col = ctrl.cannonCursor.col;
@@ -48,7 +48,7 @@ export function tryPlaceCannonAndSend(
 export function fireAndSend(
   ctrl: PlayerController,
   gameState: GameState,
-  send: (msg: ClientMessage | ServerMessage) => void,
+  send: (msg: GameMessage) => void,
 ): void {
   const ballsBefore = gameState.cannonballs.length;
   ctrl.fire(gameState);

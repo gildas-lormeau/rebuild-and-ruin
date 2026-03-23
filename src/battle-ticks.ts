@@ -1,5 +1,5 @@
 import type { BalloonFlight } from "./battle-system.ts";
-import type { ClientMessage, ServerMessage } from "../server/protocol.ts";
+import type { GameMessage } from "../server/protocol.ts";
 import type { TilePos } from "./geometry-types.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { GameState, Impact } from "./types.ts";
@@ -68,23 +68,23 @@ interface TickHostBattlePhaseDeps {
   collectTowerEvents: (
     state: GameState,
     dt: number,
-  ) => Array<ClientMessage | ServerMessage>;
+  ) => Array<GameMessage>;
   updateCannonballsWithEvents: (
     state: GameState,
     dt: number,
   ) => {
     impacts: TilePos[];
-    events: Array<ClientMessage | ServerMessage>;
+    events: Array<GameMessage>;
   };
   onBattlePhaseEnded: () => void;
 
   // Haptics (optional)
-  onBattleEvents?: (events: Array<ClientMessage | ServerMessage>) => void;
+  onBattleEvents?: (events: Array<GameMessage>) => void;
 
   // Networking hooks (optional, default to no-op / empty)
   remoteHumanSlots?: Set<number>;
   isHost?: boolean;
-  sendMessage?: (msg: ClientMessage | ServerMessage) => void;
+  sendMessage?: (msg: GameMessage) => void;
 }
 
 export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {

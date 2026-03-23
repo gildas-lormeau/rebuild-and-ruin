@@ -452,3 +452,6 @@ export type ServerMessage =
   // Host migration
   | HostLeftMessage
   | FullStateMessage;
+
+/** Any message sent over the wire (client or server). */
+export type GameMessage = ClientMessage | ServerMessage;
