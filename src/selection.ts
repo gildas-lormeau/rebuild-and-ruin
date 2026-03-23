@@ -49,12 +49,14 @@ export function initTowerSelection(
 export function syncSelectionOverlay(
   overlay: RenderOverlay,
   selectionStates: Map<number, SelectionState>,
+  isLocalHuman?: (pid: number) => boolean,
 ): void {
   if (!overlay.selection) {
     overlay.selection = { highlighted: null, selected: null };
   }
   overlay.selection.highlights = [];
   for (const [pid, ss] of selectionStates) {
+    if (isLocalHuman && !isLocalHuman(pid)) continue;
     overlay.selection.highlights.push({
       towerIdx: ss.highlighted,
       playerId: pid,

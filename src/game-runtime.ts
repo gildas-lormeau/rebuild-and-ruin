@@ -718,7 +718,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function syncSelectionOverlay(): void {
-    syncSelectionOverlayImpl(overlay, selectionStates);
+    syncSelectionOverlayImpl(overlay, selectionStates, (pid) => isHuman(controllers[pid]!));
   }
 
   function highlightTowerForPlayer(idx: number, zone: number, pid: number): void {
