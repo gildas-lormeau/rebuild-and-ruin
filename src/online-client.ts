@@ -13,6 +13,7 @@ import {
   SELECT_TIMER,
   LOBBY_TIMER,
   BUILD_TIMER,
+  BATTLE_TIMER,
   CANNON_PLACE_TIMER,
   CROSSHAIR_SPEED,
   BATTLE_COUNTDOWN,
@@ -562,14 +563,15 @@ function promoteToHost(): void {
     }
   }
 
-  // Sync accumulators from watcher's wall-clock timer
+  // Sync accumulators from watcher's wall-clock timer (reset all, then set current phase)
   const accum = runtime.getAccum();
+  accum.build = 0; accum.cannon = 0; accum.battle = 0; accum.grunt = 0; accum.select = 0;
   if (state.phase === Phase.WALL_BUILD) {
     accum.build = state.buildTimer - state.timer;
   } else if (state.phase === Phase.CANNON_PLACE) {
     accum.cannon = state.cannonPlaceTimer - state.timer;
   } else if (state.phase === Phase.BATTLE) {
-    accum.battle = BUILD_TIMER - state.timer; // BATTLE_TIMER via state.buildTimer fallback
+    accum.battle = BATTLE_TIMER - state.timer;
   }
 
   // Send full state so other watchers reconcile

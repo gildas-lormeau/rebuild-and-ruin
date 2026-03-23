@@ -223,7 +223,25 @@ export function buildFullStateMessage(state: GameState): FullStateMessage {
     towerAlive: [...state.towerAlive],
     burningPits: serializeBurningPits(state),
     cannonLimits: [...state.cannonLimits],
+    playerZones: [...state.playerZones],
+    activePlayer: state.activePlayer,
     towerPendingRevive: [...state.towerPendingRevive],
+    capturedCannons: state.capturedCannons.map((cc) => {
+      const victim = state.players[cc.victimId]!;
+      const cannonIdx = victim.cannons.indexOf(cc.cannon);
+      return { victimId: cc.victimId, capturerId: cc.capturerId, cannonIdx };
+    }),
+    balloonHits: (() => {
+      const hits: { playerId: number; cannonIdx: number; count: number; capturerIds: number[] }[] = [];
+      for (const [cannon, hit] of state.balloonHits) {
+        // Find which player owns this cannon
+        for (const p of state.players) {
+          const idx = p.cannons.indexOf(cannon);
+          if (idx >= 0) { hits.push({ playerId: p.id, cannonIdx: idx, count: hit.count, capturerIds: hit.capturerIds }); break; }
+        }
+      }
+      return hits;
+    })(),
     cannonballs: state.cannonballs.map((b) => ({
       cannonIdx: b.cannonIdx,
       startX: b.startX, startY: b.startY,
@@ -245,6 +263,8 @@ export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage):
   state.battleLength = msg.battleLength;
   state.shotsFired = msg.shotsFired;
   state.cannonLimits = msg.cannonLimits;
+  state.playerZones = msg.playerZones;
+  state.activePlayer = msg.activePlayer;
   state.towerPendingRevive = new Set(msg.towerPendingRevive);
   state.towerAlive = msg.towerAlive;
   state.burningPits = msg.burningPits.map((p) => ({ row: p.row, col: p.col, roundsLeft: p.roundsLeft }));
@@ -260,19 +280,30 @@ export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage):
   applyGruntsCheckpoint(state, msg.grunts);
   applyHousesCheckpoint(state, msg.houses);
 
-  // Restore cannonballs
-  state.cannonballs = msg.cannonballs.map((b) => ({
-    cannonIdx: b.cannonIdx,
-    startX: b.startX, startY: b.startY,
-    x: b.x, y: b.y,
-    targetX: b.targetX, targetY: b.targetY,
-    speed: b.speed,
-    playerId: b.playerId,
-    scoringPlayerId: b.scoringPlayerId,
-    incendiary: b.incendiary ?? false,
-  }));
+  // Restore cannonballs (skip any with stale cannon references)
+  state.cannonballs = msg.cannonballs
+    .filter((b) => state.players[b.playerId]?.cannons[b.cannonIdx])
+    .map((b) => ({
+      cannonIdx: b.cannonIdx,
+      startX: b.startX, startY: b.startY,
+      x: b.x, y: b.y,
+      targetX: b.targetX, targetY: b.targetY,
+      speed: b.speed,
+      playerId: b.playerId,
+      scoringPlayerId: b.scoringPlayerId,
+      incendiary: b.incendiary ?? false,
+    }));
 
-  // Clear captured cannons and balloon hits (cannot be serialized faithfully)
-  state.capturedCannons = [];
+  // Restore captured cannons (reconstruct object references from indices)
+  state.capturedCannons = msg.capturedCannons.map((cc) => {
+    const victim = state.players[cc.victimId]!;
+    return { cannon: victim.cannons[cc.cannonIdx]!, victimId: cc.victimId, capturerId: cc.capturerId };
+  }).filter((cc) => cc.cannon); // skip if cannon index is stale
+
+  // Restore balloonHits (reconstruct Cannon object references as Map keys)
   state.balloonHits = new Map();
+  for (const bh of msg.balloonHits) {
+    const cannon = state.players[bh.playerId]?.cannons[bh.cannonIdx];
+    if (cannon) state.balloonHits.set(cannon, { count: bh.count, capturerIds: bh.capturerIds });
+  }
 }

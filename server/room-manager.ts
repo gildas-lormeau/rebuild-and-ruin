@@ -3,7 +3,7 @@
  */
 
 import { GameRoom } from "./game-room.ts";
-import { PLAYER_NAMES } from "../src/player-config.ts";
+import { PLAYER_NAMES, MAX_PLAYERS } from "../src/player-config.ts";
 import type { RoomSettings, ClientMessage, ServerMessage } from "./protocol.ts";
 
 const MAX_ROOMS = 50;
@@ -71,7 +71,7 @@ export class RoomManager {
   selectSlot(socket: WebSocket, slotId: number): number {
     const entry = this.socketToRoom.get(socket);
     if (!entry || entry.started) return -1;
-    if (slotId < 0 || slotId >= 3) return -1;
+    if (slotId < 0 || slotId >= MAX_PLAYERS) return -1;
 
     // Check if slot is already taken by another socket
     for (const [otherSocket, otherId] of entry.slotAssignments) {
@@ -123,12 +123,13 @@ export class RoomManager {
     if (!entry) return;
 
     const playerId = entry.slotAssignments.get(socket);
+    const wasHost = socket === entry.hostSocket;
     entry.connectedSockets.delete(socket);
     entry.slotAssignments.delete(socket);
     this.socketToRoom.delete(socket);
 
     // Host left before game start — delete the room immediately
-    if (socket === entry.hostSocket && !entry.started) {
+    if (wasHost && !entry.started) {
       if (entry.waitTimer) { clearTimeout(entry.waitTimer); entry.waitTimer = null; }
       for (const s of entry.connectedSockets) {
         this.socketToRoom.delete(s);
@@ -146,7 +147,7 @@ export class RoomManager {
       }
 
       // Host left mid-game — promote another player
-      if (socket === entry.hostSocket) {
+      if (wasHost) {
         const previousHostPlayerId = playerId ?? -1;
         let newHostSocket: WebSocket | null = null;
         let newHostPlayerId = -1;

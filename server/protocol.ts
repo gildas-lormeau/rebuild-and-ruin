@@ -251,7 +251,11 @@ export interface FullStateMessage {
   towerAlive: boolean[];
   burningPits: SerializedBurningPit[];
   cannonLimits: number[];
+  playerZones: number[];
+  activePlayer: number;
   towerPendingRevive: number[];
+  capturedCannons: { victimId: number; capturerId: number; cannonIdx: number }[];
+  balloonHits: { playerId: number; cannonIdx: number; count: number; capturerIds: number[] }[];
   cannonballs: {
     cannonIdx: number;
     startX: number; startY: number;
