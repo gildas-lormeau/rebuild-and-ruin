@@ -90,7 +90,7 @@ export class GameRoom {
   // ---------------------------------------------------------------------------
 
   // deno-lint-ignore no-explicit-any
-  handleMessage(senderSocket: WebSocket, msg: Record<string, any>): void {
+  handleMessage(senderSocket: WebSocket, msg: Record<string, any>, rawJson: string): void {
     const type = msg.type as string;
     if (!type) return;
 
@@ -149,12 +149,11 @@ export class GameRoom {
       timestamps.push(now);
     }
 
-    // --- Relay ---
-    const json = JSON.stringify(msg);
+    // --- Relay (forward raw string to avoid re-serialization) ---
     for (const socket of this.spectators) {
       if (socket === senderSocket) continue;
       if (socket.readyState === WebSocket.OPEN) {
-        socket.send(json);
+        socket.send(rawJson);
       }
     }
   }

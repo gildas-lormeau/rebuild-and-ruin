@@ -36,8 +36,9 @@ Deno.serve({ port: PORT }, (req) => {
 
     socket.onmessage = (event) => {
       try {
-        const msg = JSON.parse(event.data);
-        handleMessage(socket, msg);
+        const rawJson: string = event.data;
+        const msg = JSON.parse(rawJson);
+        handleMessage(socket, msg, rawJson);
       } catch {
         // Ignore malformed messages
       }
@@ -62,7 +63,7 @@ Deno.serve({ port: PORT }, (req) => {
 });
 
 // deno-lint-ignore no-explicit-any
-function handleMessage(socket: WebSocket, msg: Record<string, any>): void {
+function handleMessage(socket: WebSocket, msg: Record<string, any>, rawJson: string): void {
   switch (msg.type) {
     case "create_room": {
       const code = rooms.createRoom(msg.settings, socket);
@@ -122,7 +123,7 @@ function handleMessage(socket: WebSocket, msg: Record<string, any>): void {
 
     default:
       // In-game messages: route to the player's room
-      rooms.handleMessage(socket, msg);
+      rooms.handleMessage(socket, msg, rawJson);
       break;
   }
 }

@@ -106,12 +106,12 @@ export class RoomManager {
   // ---------------------------------------------------------------------------
 
   // deno-lint-ignore no-explicit-any
-  handleMessage(socket: WebSocket, msg: Record<string, any>): void {
+  handleMessage(socket: WebSocket, msg: Record<string, any>, rawJson: string): void {
     const entry = this.socketToRoom.get(socket);
     if (!entry) return;
 
     // Forward to room — exclude sender socket
-    entry.room.handleMessage(socket, msg);
+    entry.room.handleMessage(socket, msg, rawJson);
   }
 
   // ---------------------------------------------------------------------------
