@@ -390,10 +390,11 @@ export function drawLifeLostDialog(
 
 /** Compute lobby panel layout (shared by drawing and hit-testing). */
 export function computeLobbyLayout(W: number, H: number, count: number) {
-  const gap = 12;
+  const touch = IS_TOUCH_DEVICE;
+  const gap = touch ? 8 : 12;
   const rectW = Math.round((W - gap * (count + 1)) / count);
-  const rectH = Math.round(H * 0.5);
-  const rectY = Math.round(H * 0.27);
+  const rectH = Math.round(H * (touch ? 0.6 : 0.5));
+  const rectY = Math.round(H * (touch ? 0.18 : 0.27));
   return { gap, rectW, rectH, rectY };
 }
 
@@ -653,14 +654,14 @@ export function drawPlayerSelect(
     octx.strokeRect(rx + 1, rectY + 1, rectW - 2, rectH - 2);
 
     const cx = rx + rectW / 2;
-    octx.font = FONT_BODY;
+    const touch = IS_TOUCH_DEVICE;
+    octx.font = touch ? FONT_HEADING : FONT_BODY;
     octx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
-    octx.fillText(p.name, cx, rectY + 30);
-
-    const btnW = rectW - 16;
-    const btnH = 24;
-    const btnX = rx + 8;
-    const btnY = rectY + rectH - btnH - 12;
+    octx.fillText(p.name, cx, rectY + (touch ? 34 : 30));
+    const btnW = rectW - (touch ? 12 : 16);
+    const btnH = touch ? 36 : 24;
+    const btnX = rx + (touch ? 6 : 8);
+    const btnY = rectY + rectH - btnH - (touch ? 8 : 12);
 
     if (p.joined) {
       octx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.3)`;
@@ -668,7 +669,7 @@ export function drawPlayerSelect(
       octx.strokeStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
       octx.lineWidth = 1;
       octx.strokeRect(btnX, btnY, btnW, btnH);
-      octx.font = FONT_BUTTON;
+      octx.font = touch ? FONT_BODY : FONT_BUTTON;
       octx.fillStyle = "#fff";
       octx.fillText("Please wait...", cx, btnY + btnH / 2);
     } else {
@@ -679,7 +680,7 @@ export function drawPlayerSelect(
       octx.strokeStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
       octx.lineWidth = 1;
       octx.strokeRect(btnX, btnY, btnW, btnH);
-      octx.font = FONT_HINT;
+      octx.font = touch ? FONT_LABEL : FONT_HINT;
       octx.fillStyle = flash ? "#fff" : "#aaa";
       octx.fillText(IS_TOUCH_DEVICE ? "Tap to join" : "Press button to start", cx, btnY + btnH / 2);
     }
