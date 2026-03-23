@@ -931,6 +931,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       const phaseEnding = state.timer > 0 && state.timer <= 1.5 &&
         (state.phase === Phase.WALL_BUILD || state.phase === Phase.CANNON_PLACE || state.phase === Phase.BATTLE);
       if (phaseEnding || quitPending || lifeLostDialog || paused) {
+        // Save pinch to per-phase memory before clearing
+        if (pinchVp) {
+          if (state.phase === Phase.BATTLE) battlePinchVp = { ...pinchVp };
+          else buildPinchVp = { ...pinchVp };
+        }
         cameraZone = null;
         pinchVp = null;
       }
@@ -953,6 +958,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const ZOOM_LERP_SPEED = 6; // higher = faster transition
   /** Max fraction of map dimensions a zoom viewport can cover (prevents near-full-map zoom). */
   const MAX_ZOOM_VIEWPORT_RATIO = 0.85;
+  /** Pinch zoom-out beyond this fraction of full map snaps to unzoomed. */
+  const PINCH_FULL_MAP_SNAP = 0.95;
 
   /** Advance the viewport lerp (call once per frame from render). */
   function updateViewport(): Viewport | null {
@@ -1053,7 +1060,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     pinchStartVp = null;
     if (!pinchVp) return;
     // Snap to full map if near full zoom-out
-    if (pinchVp.w >= fullMapVp.w * 0.95) {
+    if (pinchVp.w >= fullMapVp.w * PINCH_FULL_MAP_SNAP) {
       pinchVp = null;
       return;
     }
@@ -1159,6 +1166,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function returnToLobby(): void {
     cameraZone = null;
     pinchVp = null;
+    buildPinchVp = null;
+    battlePinchVp = null;
     mouseJoinedSlot = -1;
     // Hide all DOM buttons
     rotateButton?.update(null);
@@ -1171,6 +1180,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function endGame(winner: { id: number } | null) {
     cameraZone = null;
     pinchVp = null;
+    buildPinchVp = null;
+    battlePinchVp = null;
     config.onEndGame?.(winner, state);
     const name = winner
       ? (PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`)

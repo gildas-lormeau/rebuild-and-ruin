@@ -142,6 +142,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
       const c0 = canvasCoords(e.touches[0]!), c1 = canvasCoords(e.touches[1]!);
       const dist = Math.hypot(c1.x - c0.x, c1.y - c0.y);
       const midX = (c0.x + c1.x) / 2, midY = (c0.y + c1.y) / 2;
+      // Inverted: scale > 1 = fingers closer = zoom out (viewport grows)
       const scale = pinchStartDist / Math.max(1, dist);
       onPinchUpdate?.(midX, midY, scale);
       return;
@@ -281,6 +282,13 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
       });
     }
   }, { passive: false });
+
+  // Reset pinch state if OS cancels touches (e.g. phone call, gesture conflict)
+  canvas.addEventListener("touchcancel", () => {
+    if (pinchActive) onPinchEnd?.();
+    pinchActive = false;
+    suppressSingleTouch = false;
+  });
 
   // Prevent long-press context menu
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
