@@ -162,6 +162,8 @@ let lobbyWaitTimer = LOBBY_TIMER; // overridden by server's waitTimerSec
 let roomSeed = 0;
 let roomBattleLength = 0;
 let roomCannonMaxHp = 3;
+let migrationAnnouncementTimer = 0;
+let migrationAnnouncementText = "";
 
 // Watcher: wall-clock timer (immune to RAF throttling when tab is backgrounded)
 const watcherTiming: WatcherTimingState = {
@@ -204,7 +206,7 @@ function logThrottled(key: string, msg: string): void {
   log(msg);
 }
 
-const DEFAULT_SERVER_HOST = "rebuild-and-ruin.gildas-lormeau.deno.net";
+import { DEFAULT_SERVER_HOST } from "./online-config.ts";
 
 /** Strip protocol prefix (http://, https://, ws://, wss://) and trailing slash from a host string. */
 function stripProtocol(host: string): string {
@@ -308,6 +310,19 @@ function showLobby(): void {
 // ---------------------------------------------------------------------------
 // Watcher tick functions (online-only)
 // ---------------------------------------------------------------------------
+
+/** Tick the migration announcement timer (called every frame, both host and watcher). */
+function tickMigrationAnnouncement(dt: number): void {
+  if (migrationAnnouncementTimer > 0) {
+    migrationAnnouncementTimer -= dt;
+    if (migrationAnnouncementTimer > 0) {
+      runtime.getFrame().announcement = migrationAnnouncementText;
+    } else {
+      migrationAnnouncementTimer = 0;
+      migrationAnnouncementText = "";
+    }
+  }
+}
 
 function tickWatcher(dt: number) {
   const state = runtime.getState();
@@ -574,6 +589,26 @@ function promoteToHost(): void {
     accum.battle = BATTLE_TIMER - state.timer;
   }
 
+  // Handle special modes: skip animations that depend on old host's state
+  const mode = runtime.getMode();
+  if (mode === Mode.CASTLE_BUILD) {
+    // Castle build animation was driven by old host — skip to cannon phase
+    runtime.setCastleBuild(null);
+    finalizeCastleConstruction(state);
+    enterCannonPlacePhase(state);
+    runtime.setMode(Mode.GAME);
+    log("Skipped castle build animation → cannon phase");
+  } else if (mode === Mode.LIFE_LOST) {
+    // Life-lost dialog resolution depends on host — auto-continue all pending
+    runtime.setLifeLostDialog(null);
+    runtime.setMode(Mode.GAME);
+    log("Cleared life-lost dialog → game mode");
+  } else if (mode === Mode.BANNER || mode === Mode.BALLOON_ANIM) {
+    // Visual transitions — skip to game mode
+    runtime.setMode(Mode.GAME);
+    log("Skipped banner/animation → game mode");
+  }
+
   // Send full state so other watchers reconcile
   send(buildFullStateMessage(state));
 
@@ -694,7 +729,10 @@ function handleServerMessage(msg: ServerMessage): void {
       onBuildStart: (msg) => handleBuildStartTransition(msg, transitionCtx),
       onBuildEnd: (msg) => handleBuildEndTransition(msg, transitionCtx),
       onGameOver: (msg) => handleGameOverTransition(msg, transitionCtx),
-      setAnnouncement: (text) => { runtime.getFrame().announcement = text; },
+      setAnnouncement: (text) => {
+        migrationAnnouncementText = text;
+        migrationAnnouncementTimer = 3;
+      },
       playerNames: PLAYER_NAMES,
       promoteToHost,
       applyFullState,
@@ -788,6 +826,7 @@ const runtime: GameRuntime = createGameRuntime({
 
   // Networking callbacks
   tickNonHost: tickWatcher,
+  everyTick: tickMigrationAnnouncement,
   onLocalCrosshairCollected: (ctrl, ch, _readyCannon) => {
     if (isHost) {
       const target = ctrl.getCrosshairTarget() ?? ch;

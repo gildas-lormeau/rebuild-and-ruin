@@ -245,7 +245,7 @@ export interface FullStateMessage {
   rngState: number;
   players: SerializedPlayer[];
   grunts: SerializedGrunt[];
-  houses: SerializedHouse[];
+  housesAlive: boolean[];
   bonusSquares: SerializedBonusSquare[];
   towerAlive: boolean[];
   burningPits: SerializedBurningPit[];

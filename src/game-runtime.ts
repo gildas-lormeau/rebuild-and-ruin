@@ -195,6 +195,8 @@ export interface RuntimeConfig {
   onLocalCrosshairCollected?: (ctrl: PlayerController, ch: { x: number; y: number }, readyCannon: boolean) => void;
   /** Optional non-host tick handler (watcher logic). */
   tickNonHost?: (dt: number) => void;
+  /** Called every frame regardless of host/non-host (e.g., timed announcements). */
+  everyTick?: (dt: number) => void;
   /** Host-only networking state for tick functions (phantom merging, checkpoints, auto-placement). */
   hostNetworking?: {
     autoPlaceCannons: (player: GameState["players"][number], max: number, state: GameState) => void;
@@ -1721,6 +1723,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       );
       config.tickNonHost?.(dt);
     }
+    config.everyTick?.(dt);
   }
 
   // -------------------------------------------------------------------------

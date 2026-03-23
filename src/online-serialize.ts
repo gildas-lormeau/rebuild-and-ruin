@@ -216,7 +216,7 @@ export function buildFullStateMessage(state: GameState): FullStateMessage {
     rngState: state.rng.getState(),
     players: serializePlayers(state),
     grunts: serializeGrunts(state),
-    houses: serializeHouses(state),
+    housesAlive: state.map.houses.map((h) => h.alive),
     bonusSquares: serializeBonusSquares(state),
     towerAlive: [...state.towerAlive],
     burningPits: serializeBurningPits(state),
@@ -276,7 +276,11 @@ export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage):
   // Reuse existing checkpoint helpers
   applyPlayersCheckpoint(state, msg.players);
   applyGruntsCheckpoint(state, msg.grunts);
-  applyHousesCheckpoint(state, msg.houses);
+
+  // Houses are map data — only alive status changes
+  for (let i = 0; i < msg.housesAlive.length && i < state.map.houses.length; i++) {
+    state.map.houses[i]!.alive = msg.housesAlive[i]!;
+  }
 
   // Restore cannonballs (skip any with stale cannon references)
   state.cannonballs = msg.cannonballs
