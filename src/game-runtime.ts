@@ -869,6 +869,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function startBattle() {
     config.log(`startBattle (round=${rs.state.round})`);
+    rs.scoreDeltas = [];
+    rs.scoreDeltaTimer = 0;
     startHostBattleLifecycle({
       state: rs.state,
       battleAnim: rs.battleAnim,
