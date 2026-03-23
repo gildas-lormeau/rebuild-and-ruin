@@ -71,9 +71,30 @@ export function setupLobbyUi({
     showLobbySection("lobby-menu", sections, doc),
   );
 
+  // Pending action replaces any previous one so rapid clicks / Create→Join
+  // sequences don't stack multiple "open" listeners on the same socket.
+  let pendingAction: (() => void) | null = null;
+
+  const scheduleOnOpen = (action: () => void) => {
+    pendingAction = action;
+    connect();
+    const socket = getSocket();
+    if (socket?.readyState === WebSocket.OPEN) {
+      pendingAction = null;
+      action();
+    } else {
+      socket?.addEventListener("open", () => {
+        if (!pendingAction) return;
+        const a = pendingAction;
+        pendingAction = null;
+        a();
+      }, { once: true });
+    }
+  };
+
   elements.btnCreateConfirm.addEventListener("click", () => {
     elements.createError.textContent = "";
-    const doCreate = () => {
+    scheduleOnOpen(() => {
       const roundsVal = Number(elements.setRounds.value);
       const battleLength = roundsVal > 0 ? roundsVal : 0;
       send({
@@ -85,12 +106,7 @@ export function setupLobbyUi({
         },
       });
       setIsHost(true);
-    };
-
-    connect();
-    const socket = getSocket();
-    if (socket?.readyState === WebSocket.OPEN) doCreate();
-    else socket?.addEventListener("open", doCreate, { once: true });
+    });
   });
 
   elements.btnJoinConfirm.addEventListener("click", () => {
@@ -100,14 +116,7 @@ export function setupLobbyUi({
       elements.joinError.textContent = "Enter a 4-letter room code";
       return;
     }
-    connect();
-    const doJoin = () => send({ type: MSG.JOIN_ROOM, code });
-    const socket = getSocket();
-    if (socket?.readyState === WebSocket.OPEN) {
-      doJoin();
-    } else {
-      socket?.addEventListener("open", doJoin, { once: true });
-    }
+    scheduleOnOpen(() => send({ type: MSG.JOIN_ROOM, code }));
   });
 
   // Room list: fetch and render available rooms, poll every 3s while menu is visible
