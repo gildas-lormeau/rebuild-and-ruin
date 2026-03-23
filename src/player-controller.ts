@@ -1220,13 +1220,16 @@ export class AiController extends BaseController {
           this.stepCrosshairToward(this.crosshairTarget.x, this.crosshairTarget.y, dt);
         } else {
           if (!this.idleInitialized) {
-            const boost = this.crosshairTarget.strategic ? 1.5 : 1;
+            const strategic = !!this.crosshairTarget.strategic;
+            const boost = strategic ? 1.2 : 1;
             const rng = this.strategy.rng;
             this.idleRx = (5 + rng.next() * 3) * boost;
             this.idleRy = (5 + rng.next() * 3) * boost;
-            this.idleSpeed =
-              (Math.PI * (4.5 + rng.next() * 1.5)) *
-              (rng.bool() ? 1 : -1);
+            // Strategic targets: faster orbit (excited) but not as extreme as original with wider radius
+            const baseSpeed = strategic
+              ? Math.PI * (5.5 + rng.next() * 1.5)
+              : Math.PI * (4.5 + rng.next() * 1.5);
+            this.idleSpeed = baseSpeed * (rng.bool() ? 1 : -1);
             this.idleInitialized = true;
           }
           this.idlePhase += this.idleSpeed * dt;
