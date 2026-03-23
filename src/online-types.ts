@@ -1,7 +1,9 @@
 /** Shared types and utilities for online multiplayer sub-modules. */
 
+import type { PixelPos } from "./geometry-types.ts";
+
 /** Move `vis` toward `(tx, ty)` at `speed` pixels/s. Mutates `vis` in place. */
-export function interpolateToward(vis: { x: number; y: number }, tx: number, ty: number, speed: number, dt: number): void {
+export function interpolateToward(vis: PixelPos, tx: number, ty: number, speed: number, dt: number): void {
   const dx = tx - vis.x, dy = ty - vis.y;
   const dist = Math.hypot(dx, dy);
   const move = speed * dt;

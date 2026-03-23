@@ -117,7 +117,7 @@ export class AiController extends BaseController {
   /** Type of chain attack: 'wall' skips destroyed enemy walls, 'pocket' skips destroyed own walls, 'grunt' always fires. */
   private chainType: ChainType = Chain.WALL;
 
-  override getCrosshairTarget(): { x: number; y: number } | null { return this.crosshairTarget; }
+  override getCrosshairTarget(): PixelPos | null { return this.crosshairTarget; }
   override getOrbitParams(): OrbitParams | null {
     return this.idleInitialized ? { rx: this.idleRx, ry: this.idleRy, speed: this.idleSpeed, phase: this.idlePhase } : null;
   }

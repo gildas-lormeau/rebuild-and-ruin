@@ -1,6 +1,7 @@
 import type { ServerMessage } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
 import type { ImpactEvent } from "./battle-system.ts";
+import type { PixelPos } from "./geometry-types.ts";
 import type { OrbitParams } from "./player-controller.ts";
 import type { SelectionState } from "./selection.ts";
 import { CannonMode, type GameState } from "./types.ts";
@@ -42,7 +43,7 @@ interface HandleServerIncrementalDeps {
   ) => void;
   applyImpactEvent: (state: GameState, event: ImpactEvent) => void;
   gridCols: number;
-  remoteCrosshairs: Map<number, { x: number; y: number }>;
+  remoteCrosshairs: Map<number, PixelPos>;
   watcherOrbitParams: Map<number, OrbitParams>;
   getRemotePiecePhantoms: () => {
     offsets: [number, number][];

@@ -1,4 +1,5 @@
 import { countdownAnnouncement } from "./battle-system.ts";
+import type { PixelPos } from "./geometry-types.ts";
 import { type CannonPhantom, cannonPhantomKey, type HumanPiecePhantom, type PiecePhantom, phantomWireMode, piecePhantomKey } from "./online-types.ts";
 import type { Crosshair, OrbitParams, PlayerController } from "./player-controller.ts";
 import type { GameState, Impact } from "./types.ts";
@@ -82,15 +83,15 @@ interface WatcherBattleDeps {
   dt: number;
   myPlayerId: number;
   myHuman: PlayerController | null;
-  remoteCrosshairs: Map<number, { x: number; y: number }>;
-  watcherCrosshairPos: Map<number, { x: number; y: number }>;
+  remoteCrosshairs: Map<number, PixelPos>;
+  watcherCrosshairPos: Map<number, PixelPos>;
   watcherIdlePhases: Map<number, number>;
   watcherOrbitParams: Map<number, OrbitParams>;
   crosshairSpeed: number;
   tileSize: number;
   logThrottled: (key: string, msg: string) => void;
   interpolateToward: (
-    vis: { x: number; y: number },
+    vis: PixelPos,
     tx: number,
     ty: number,
     speed: number,

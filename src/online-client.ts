@@ -35,6 +35,7 @@ import {
 import type { GameRuntime } from "./game-runtime.ts";
 import { createGameRuntime } from "./game-runtime.ts";
 import { Mode } from "./game-ui-types.ts";
+import type { PixelPos } from "./geometry-types.ts";
 import { GRID_COLS, TILE_SIZE } from "./grid.ts";
 import { tickGrunts } from "./grunt-system.ts";
 import type { CheckpointDeps } from "./online-checkpoints.ts";
@@ -177,9 +178,9 @@ const watcherTiming: WatcherTimingState = {
 };
 
 // Watcher state: remote crosshairs and phantoms received from host
-const remoteCrosshairs = new Map<number, { x: number; y: number }>();
+const remoteCrosshairs = new Map<number, PixelPos>();
 let remoteCannonPhantoms: CannonPhantom[] = [];
-const watcherCrosshairPos = new Map<number, { x: number; y: number }>();
+const watcherCrosshairPos = new Map<number, PixelPos>();
 const watcherIdlePhases = new Map<number, number>();
 const watcherOrbitParams = new Map<number, OrbitParams>();
 let remotePiecePhantoms: PiecePhantom[] = [];

@@ -1,5 +1,6 @@
 import type { ServerMessage } from "../server/protocol.ts";
 import { resetCannonFacings } from "./game-engine.ts";
+import type { PixelPos } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import {
   applyGruntsCheckpoint,
@@ -29,8 +30,8 @@ export interface CheckpointDeps {
   state: GameState;
   battleAnim: CheckpointBattleAnim;
   accum: CheckpointAccums;
-  remoteCrosshairs: Map<number, { x: number; y: number }>;
-  watcherCrosshairPos: Map<number, { x: number; y: number }>;
+  remoteCrosshairs: Map<number, PixelPos>;
+  watcherCrosshairPos: Map<number, PixelPos>;
   watcherOrbitParams: Map<number, OrbitParams>;
   watcherIdlePhases: Map<number, number>;
   snapshotTerritory: () => Set<number>[];

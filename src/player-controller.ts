@@ -27,7 +27,7 @@ import {
   fireSingleCaptured,
   nextReadyCombined,
 } from "./battle-system.ts";
-import type { TilePos } from "./geometry-types.ts";
+import type { PixelPos, TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import type { BagState, PieceShape } from "./pieces.ts";
 import { createBag, nextPiece } from "./pieces.ts";
@@ -114,7 +114,7 @@ export interface PlayerController {
   getCrosshair(): Crosshair;
 
   /** AI's current crosshair target (null for human — driven by mouse/keyboard). */
-  getCrosshairTarget(): { x: number; y: number } | null;
+  getCrosshairTarget(): PixelPos | null;
 
   /** AI's orbit parameters for countdown animation (null if not orbiting). */
   getOrbitParams(): OrbitParams | null;
@@ -266,7 +266,7 @@ export abstract class BaseController implements PlayerController {
   selectionTick(_dt: number, _state?: GameState): boolean { return false; }
 
   getCurrentPiece(): PieceShape | null { return this.currentPiece; }
-  getCrosshairTarget(): { x: number; y: number } | null { return null; }
+  getCrosshairTarget(): PixelPos | null { return null; }
   getOrbitParams(): OrbitParams | null { return null; }
 
   // --- Default implementations for input methods (overridden by Human) ---
