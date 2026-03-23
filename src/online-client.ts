@@ -543,7 +543,7 @@ function initFromServer(msg: InitMessage): void {
       const kb = isAi ? undefined : settings.keyBindings[0]!;
       return createController(i, isAi, kb, strategySeed);
     },
-    enterSelection: () => runtime.enterTowerSelection(),
+    enterSelection: () => runtime.selection.enter(),
   });
 }
 
@@ -605,7 +605,7 @@ function promoteToHost(): void {
     log("Skipped castle build animation → cannon phase");
   } else if (mode === Mode.LIFE_LOST) {
     // Life-lost dialog resolution depends on host — auto-continue all pending
-    runtime.setLifeLostDialog(null);
+    runtime.lifeLost.set(null);
     runtime.setMode(Mode.GAME);
     log("Cleared life-lost dialog → game mode");
   } else if (mode === Mode.BANNER || mode === Mode.BALLOON_ANIM) {
@@ -674,13 +674,13 @@ const transitionCtx: TransitionContext = {
   prepareCastleWalls,
   finalizeCastleConstruction,
   enterCannonPlacePhase,
-  getSelectionStates: () => runtime.getSelectionStates(),
+  getSelectionStates: () => runtime.selection.getStates(),
   setCastleBuildFromPlans: (plans, maxTiles, onDone) => {
     runtime.setCastleBuild({ wallPlans: plans, maxTiles, tileIdx: 0, accum: 0, onDone });
   },
   setBattleFlights: (v) => { runtime.getBattleAnim().flights = v; },
   snapshotTerritory: () => runtime.snapshotTerritory(),
-  showLifeLostDialog: (nr, el) => runtime.showLifeLostDialog(nr, el),
+  showLifeLostDialog: (nr, el) => runtime.lifeLost.show(nr, el),
   render: () => runtime.render(),
   setGameOverFrame: (p) => { runtime.getFrame().gameOver = p; },
 };
@@ -697,9 +697,9 @@ function handleServerMessage(msg: ServerMessage): void {
       log,
       isHost,
       getState: () => runtime.getState(),
-      getLifeLostDialog: () => runtime.getLifeLostDialog(),
+      getLifeLostDialog: () => runtime.lifeLost.get(),
       clearLifeLostDialog: () => {
-        runtime.setLifeLostDialog(null);
+        runtime.lifeLost.set(null);
       },
       isLifeLostMode: () => runtime.getMode() === Mode.LIFE_LOST,
       setGameMode: () => {
@@ -727,7 +727,7 @@ function handleServerMessage(msg: ServerMessage): void {
       createErrorEl: createError,
       joinErrorEl: joinError,
       initFromServer,
-      enterTowerSelection: () => runtime.enterTowerSelection(),
+      enterTowerSelection: () => runtime.selection.enter(),
       onCastleWalls: (msg) => handleCastleWallsTransition(msg, transitionCtx),
       onCannonStart: (msg) => handleCannonStartTransition(msg, transitionCtx),
       onBattleStart: (msg) => handleBattleStartTransition(msg, transitionCtx),
@@ -751,16 +751,16 @@ function handleServerMessage(msg: ServerMessage): void {
     isHost,
     getState: () => runtime.getState(),
     remoteHumanSlots,
-    selectionStates: runtime.getSelectionStates(),
-    syncSelectionOverlay: () => runtime.syncSelectionOverlay(),
+    selectionStates: runtime.selection.getStates(),
+    syncSelectionOverlay: () => runtime.selection.syncOverlay(),
     isCastleReselectPhase: () => runtime.getState().phase === Phase.CASTLE_RESELECT,
     onRemotePlayerReselected: (playerId) => {
       markPlayerReselected(runtime.getState(), playerId);
       runtime.getReselectionPids().push(playerId);
     },
-    allSelectionsConfirmed: () => runtime.allSelectionsConfirmed(),
-    finishReselection: () => runtime.finishReselection(),
-    finishSelection: () => runtime.finishSelection(),
+    allSelectionsConfirmed: () => runtime.selection.allConfirmed(),
+    finishReselection: () => runtime.selection.finishReselection(),
+    finishSelection: () => runtime.selection.finish(),
     applyPiecePlacement,
     applyCannonPlacement: (currentState, playerId, row, col, mode) => {
       applyCannonPlacement(
@@ -783,7 +783,7 @@ function handleServerMessage(msg: ServerMessage): void {
     setRemoteCannonPhantoms: (value) => {
       remoteCannonPhantoms = value;
     },
-    getLifeLostDialog: () => runtime.getLifeLostDialog(),
+    getLifeLostDialog: () => runtime.lifeLost.get(),
   });
 }
 

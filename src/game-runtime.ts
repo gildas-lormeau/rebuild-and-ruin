@@ -233,6 +233,34 @@ export interface RuntimeConfig {
 // GameRuntime return type
 // ---------------------------------------------------------------------------
 
+export interface RuntimeSelection {
+  getStates: () => Map<number, SelectionState>;
+  init: (pid: number, zone: number) => void;
+  enter: () => void;
+  syncOverlay: () => void;
+  highlight: (idx: number, zone: number, pid: number) => void;
+  confirm: (pid: number, isReselect?: boolean) => boolean;
+  allConfirmed: () => boolean;
+  tick: (dt: number) => void;
+  finish: () => void;
+  animateCastle: (onDone: () => void) => void;
+  advanceToCannonPhase: () => void;
+  tickCastleBuild: (dt: number) => void;
+  startReselection: () => void;
+  finishReselection: () => void;
+  animateReselectionCastles: (onDone: () => void) => void;
+}
+
+export interface RuntimeLifeLost {
+  get: () => LifeLostDialogState | null;
+  set: (d: LifeLostDialogState | null) => void;
+  show: (needsReselect: number[], eliminated: number[]) => void;
+  tick: (dt: number) => void;
+  afterResolved: (continuing?: number[]) => boolean;
+  panelPos: (playerId: number) => { px: number; py: number };
+  click: (canvasX: number, canvasY: number) => void;
+}
+
 export interface GameRuntime {
   // --- State getters ---
   getState: () => GameState;
@@ -242,12 +270,9 @@ export interface GameRuntime {
   setControllers: (c: PlayerController[]) => void;
   getAccum: () => TimerAccums;
   setAccum: (a: TimerAccums) => void;
-  getSelectionStates: () => Map<number, SelectionState>;
   getBattleAnim: () => BattleAnimState;
   setBattleAnim: (b: BattleAnimState) => void;
   getFrame: () => FrameData;
-  getLifeLostDialog: () => LifeLostDialogState | null;
-  setLifeLostDialog: (d: LifeLostDialogState | null) => void;
   getCastleBuild: () => CastleBuildState | null;
   setCastleBuild: (c: CastleBuildState | null) => void;
   getReselectQueue: () => number[];
@@ -274,6 +299,10 @@ export interface GameRuntime {
   getLastTime: () => number;
   setLastTime: (t: number) => void;
 
+  // --- Sub-systems ---
+  selection: RuntimeSelection;
+  lifeLost: RuntimeLifeLost;
+
   // --- Functions ---
   mainLoop: (now: number) => void;
   resetFrame: () => void;
@@ -297,13 +326,6 @@ export interface GameRuntime {
   showBanner: (text: string, onDone: () => void, reveal?: boolean, newBattle?: { territory: Set<number>[]; walls: Set<number>[] }) => void;
   tickBanner: (dt: number) => void;
 
-  initTowerSelection: (pid: number, zone: number) => void;
-  enterTowerSelection: () => void;
-  syncSelectionOverlay: () => void;
-  highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
-  confirmSelectionForPlayer: (pid: number, isReselect?: boolean) => boolean;
-  allSelectionsConfirmed: () => boolean;
-
   collectCrosshairs: (canFireNow: boolean, dt?: number) => void;
   snapshotTerritory: () => Set<number>[];
   firstHuman: () => PlayerController | null;
@@ -311,16 +333,6 @@ export interface GameRuntime {
 
   render: () => void;
   endGame: (winner: { id: number } | null) => void;
-
-  tickSelection: (dt: number) => void;
-  finishSelection: () => void;
-  animateCastleConstruction: (onDone: () => void) => void;
-  advanceToCannonPhase: () => void;
-  tickCastleBuild: (dt: number) => void;
-
-  startReselection: () => void;
-  finishReselection: () => void;
-  animateReselectionCastles: (onDone: () => void) => void;
 
   startCannonPhase: () => void;
   startBattle: () => void;
@@ -332,12 +344,6 @@ export interface GameRuntime {
   tickBattleCountdown: (dt: number) => void;
   tickBattlePhase: (dt: number) => boolean;
   tickBuildPhase: (dt: number) => boolean;
-
-  showLifeLostDialog: (needsReselect: number[], eliminated: number[]) => void;
-  tickLifeLostDialog: (dt: number) => void;
-  afterLifeLostResolved: (continuing?: number[]) => boolean;
-  lifeLostPanelPos: (playerId: number) => { px: number; py: number };
-  lifeLostDialogClick: (canvasX: number, canvasY: number) => void;
 
   tickGame: (dt: number) => void;
   resetUIState: () => void;
@@ -1588,12 +1594,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     setControllers: (c) => { controllers = c; },
     getAccum: () => accum,
     setAccum: (a) => { accum = a; },
-    getSelectionStates: () => selectionStates,
     getBattleAnim: () => battleAnim,
     setBattleAnim: (b) => { battleAnim = b; },
     getFrame: () => frame,
-    getLifeLostDialog: () => lifeLostDialog,
-    setLifeLostDialog: (d) => { lifeLostDialog = d; },
     getCastleBuild: () => castleBuild,
     setCastleBuild: (c) => { castleBuild = c; },
     getReselectQueue: () => reselectQueue,
@@ -1643,12 +1646,33 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     showBanner,
     tickBanner,
 
-    initTowerSelection,
-    enterTowerSelection,
-    syncSelectionOverlay,
-    highlightTowerForPlayer,
-    confirmSelectionForPlayer,
-    allSelectionsConfirmed,
+    selection: {
+      getStates: () => selectionStates,
+      init: initTowerSelection,
+      enter: enterTowerSelection,
+      syncOverlay: syncSelectionOverlay,
+      highlight: highlightTowerForPlayer,
+      confirm: confirmSelectionForPlayer,
+      allConfirmed: allSelectionsConfirmed,
+      tick: tickSelection,
+      finish: finishSelection,
+      animateCastle: animateCastleConstruction,
+      advanceToCannonPhase,
+      tickCastleBuild,
+      startReselection,
+      finishReselection,
+      animateReselectionCastles,
+    },
+
+    lifeLost: {
+      get: () => lifeLostDialog,
+      set: (d: LifeLostDialogState | null) => { lifeLostDialog = d; },
+      show: showLifeLostDialog,
+      tick: tickLifeLostDialog,
+      afterResolved: afterLifeLostResolved,
+      panelPos: lifeLostPanelPos,
+      click: lifeLostDialogClick,
+    },
 
     collectCrosshairs,
     snapshotTerritory,
@@ -1657,16 +1681,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     render,
     endGame,
-
-    tickSelection,
-    finishSelection,
-    animateCastleConstruction,
-    advanceToCannonPhase,
-    tickCastleBuild,
-
-    startReselection,
-    finishReselection,
-    animateReselectionCastles,
 
     startCannonPhase,
     startBattle,
@@ -1678,12 +1692,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     tickBattleCountdown,
     tickBattlePhase,
     tickBuildPhase,
-
-    showLifeLostDialog,
-    tickLifeLostDialog,
-    afterLifeLostResolved,
-    lifeLostPanelPos,
-    lifeLostDialogClick,
 
     tickGame,
     resetUIState,
