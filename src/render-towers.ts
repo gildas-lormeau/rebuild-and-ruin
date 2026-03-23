@@ -25,6 +25,7 @@ function drawTowerHighlight(
 
   // Slow flash: alpha pulses between 0.4 and 1.0 over ~1.5s cycle
   const flash = 0.7 + 0.3 * Math.sin(Date.now() / TOWER_FLASH_MS);
+  octx.save();
   octx.globalAlpha = flash;
   octx.fillStyle = color ?? "#ffcc00";
   // Top-left
@@ -39,7 +40,7 @@ function drawTowerHighlight(
   // Bottom-right
   octx.fillRect(bx + w - corner, by + h - t, corner, t);
   octx.fillRect(bx + w - t, by + h - corner, t, corner - t);
-  octx.globalAlpha = 1;
+  octx.restore();
 }
 
 /** Draw towers (alive, destroyed, highlighted, selected). */

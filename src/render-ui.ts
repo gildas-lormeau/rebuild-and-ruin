@@ -35,12 +35,12 @@ import { PANEL_W, PANEL_H, BTN_W, BTN_H } from "./life-lost.ts";
 
 // Local semantic colors (not shared across files — context-specific to UI panels)
 const BTN_CONTINUE = {
-  fill: "rgba(80,180,80,",
+  fill: (a: number) => `rgba(80,180,80,${a})`,
   stroke: "#8c8",
   strokeFocused: "#afa",
 };
 const BTN_ABANDON = {
-  fill: "rgba(180,60,60,",
+  fill: (a: number) => `rgba(180,60,60,${a})`,
   stroke: "#c66",
   strokeFocused: "#f88",
 };
@@ -359,9 +359,9 @@ export function drawLifeLostDialog(
 
       // Continue button
       const contFlash = contFocused && flashOn(BUTTON_FLASH_MS);
-      octx.fillStyle =
-        BTN_CONTINUE.fill +
-        (contFocused ? (contFlash ? "0.6)" : "0.4)") : "0.15)");
+      octx.fillStyle = BTN_CONTINUE.fill(
+        contFocused ? (contFlash ? 0.6 : 0.4) : 0.15,
+      );
       octx.fillRect(contX, btnY, btnW, btnH);
       octx.strokeStyle = contFocused
         ? BTN_CONTINUE.strokeFocused
@@ -374,8 +374,9 @@ export function drawLifeLostDialog(
 
       // Abandon button
       const abFlash = abFocused && flashOn(BUTTON_FLASH_MS);
-      octx.fillStyle =
-        BTN_ABANDON.fill + (abFocused ? (abFlash ? "0.5)" : "0.3)") : "0.1)");
+      octx.fillStyle = BTN_ABANDON.fill(
+        abFocused ? (abFlash ? 0.5 : 0.3) : 0.1,
+      );
       octx.fillRect(abX, btnY, btnW, btnH);
       octx.strokeStyle = abFocused
         ? BTN_ABANDON.strokeFocused
@@ -691,10 +692,10 @@ export function drawPlayerSelect(
       octx.strokeRect(btnX, btnY, btnW, btnH);
       octx.font = touch ? FONT_LABEL : FONT_HINT;
       octx.fillStyle = flash ? "#fff" : "#aaa";
-      octx.fillText(IS_TOUCH_DEVICE ? "Tap to join" : "Press button to start", cx, btnY + btnH / 2);
+      octx.fillText(touch ? "Tap to join" : "Press button to start", cx, btnY + btnH / 2);
     }
 
-    if (!IS_TOUCH_DEVICE) {
+    if (!touch) {
       octx.font = FONT_HINT;
       octx.fillStyle = TEXT_DIM;
       octx.fillText(p.keyHint ?? "", cx, btnY - 8);

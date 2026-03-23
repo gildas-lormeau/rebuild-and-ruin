@@ -43,22 +43,21 @@ function drawPhantomCannon(
   const s = TILE * sz;
   const mid = s / 2;
 
+  ctx.save();
   ctx.globalAlpha = valid ? 0.7 : 0.5;
 
   if (isBalloon) {
     // Balloon base preview — sprite with red tint overlay if invalid
-    ctx.globalAlpha = valid ? 0.7 : 0.5;
     drawSprite(ctx, "balloon_base", cx, cy);
     if (!valid) {
       ctx.fillStyle = "rgba(170, 34, 34, 0.4)";
       ctx.fillRect(cx, cy, s, s);
     }
-    ctx.globalAlpha = 1.0;
+    ctx.restore();
     return;
   }
 
   // Draw actual cannon sprite at alpha, tinted red if invalid
-  ctx.save();
   ctx.translate(cx + mid, cy + mid);
   ctx.rotate(facing);
   const tint = !valid;
@@ -95,7 +94,6 @@ function drawPhantomCannon(
     ctx.fillRect(-3, -6, 6, 2);
   }
   ctx.restore();
-  ctx.globalAlpha = 1.0;
 }
 
 /** Draw a single phantom piece (fill + optional outline). */
