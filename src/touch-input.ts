@@ -32,6 +32,9 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     withFirstHuman,
     pixelToTile,
     screenToWorld,
+    onPinchStart,
+    onPinchUpdate,
+    onPinchEnd,
     maybeSendAimUpdate,
     tryPlaceCannonAndSend,
     tryPlacePieceAndSend,
@@ -49,6 +52,11 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   let touchStartX = 0;
   let touchStartY = 0;
   let touchStartTime = 0;
+
+  // Pinch-to-zoom tracking
+  let pinchActive = false;
+  let pinchStartDist = 0;
+  let suppressSingleTouch = false;
 
   function canvasCoords(touch: Touch): { x: number; y: number } {
     const rect = canvas.getBoundingClientRect();
@@ -69,6 +77,19 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   // --- touchstart: record gesture start + update cursor position ---
   canvas.addEventListener("touchstart", (e) => {
     e.preventDefault();
+
+    // Two-finger pinch start
+    if (e.touches.length >= 2) {
+      const c0 = canvasCoords(e.touches[0]!), c1 = canvasCoords(e.touches[1]!);
+      pinchStartDist = Math.hypot(c1.x - c0.x, c1.y - c0.y);
+      const midX = (c0.x + c1.x) / 2, midY = (c0.y + c1.y) / 2;
+      onPinchStart?.(midX, midY);
+      pinchActive = true;
+      suppressSingleTouch = true;
+      return;
+    }
+    if (suppressSingleTouch) return;
+
     const touch = e.touches[0];
     if (!touch) return;
 
@@ -115,6 +136,18 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   // --- touchmove: update cursor/crosshair as finger drags ---
   canvas.addEventListener("touchmove", (e) => {
     e.preventDefault();
+
+    // Two-finger pinch move
+    if (pinchActive && e.touches.length >= 2) {
+      const c0 = canvasCoords(e.touches[0]!), c1 = canvasCoords(e.touches[1]!);
+      const dist = Math.hypot(c1.x - c0.x, c1.y - c0.y);
+      const midX = (c0.x + c1.x) / 2, midY = (c0.y + c1.y) / 2;
+      const scale = pinchStartDist / Math.max(1, dist);
+      onPinchUpdate?.(midX, midY, scale);
+      return;
+    }
+    if (suppressSingleTouch) return;
+
     const touch = e.touches[0];
     if (!touch) return;
 
@@ -156,6 +189,21 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   // --- touchend: tap = commit action, drag-release = fire in battle only ---
   canvas.addEventListener("touchend", (e) => {
     e.preventDefault();
+
+    // Pinch end
+    if (pinchActive) {
+      if (e.touches.length < 2) {
+        pinchActive = false;
+        onPinchEnd?.();
+        if (e.touches.length === 0) suppressSingleTouch = false;
+      }
+      return;
+    }
+    if (suppressSingleTouch) {
+      if (e.touches.length === 0) suppressSingleTouch = false;
+      return;
+    }
+
     const touch = e.changedTouches[0];
     if (!touch) return;
 

@@ -384,6 +384,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let lastAutoZoomPhase: Phase | null = null;
   /** Auto-zoom only activates after player presses a zoom button */
   let zoomActivated = false;
+  /** Free-form viewport from pinch gesture (overrides cameraZone when set) */
+  let pinchVp: Viewport | null = null;
+  /** Pinch baseline snapshot (viewport at pinch start) */
+  let pinchStartVp: Viewport | null = null;
+  let pinchStartMidX = 0;
+  let pinchStartMidY = 0;
+  /** Per-phase pinch memory */
+  let buildPinchVp: Viewport | null = null;
+  let battlePinchVp: Viewport | null = null;
+  const MIN_ZOOM_W = GRID_COLS * TILE * 0.15;
   let lifeLostDialog: LifeLostDialogState | null = null;
   let frame: FrameData = { crosshairs: [], phantoms: {} };
   let battleAnim: BattleAnimState = createBattleAnimState();
@@ -639,6 +649,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   ) {
     // Unzoom before banner so the full map is visible during transition
     cameraZone = null;
+    pinchVp = null;
     if (banner.active) {
       config.log(`showBanner "${text}" while banner "${banner.text}" is still active`);
     }
@@ -884,9 +895,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   /** Auto-zoom on phase change (touch devices only). */
   function autoZoom(phase: Phase): void {
     if (phase === Phase.BATTLE) {
-      // Battle: restore remembered zoom, or default to best enemy
-      if (battleZoom !== null) {
-        // Check the remembered enemy is still alive
+      // Save build pinch, restore battle pinch
+      if (pinchVp) buildPinchVp = { ...pinchVp };
+      pinchVp = battlePinchVp ? { ...battlePinchVp } : null;
+      if (pinchVp) {
+        cameraZone = null;
+      } else if (battleZoom !== null) {
         const pid = state.playerZones.indexOf(battleZoom);
         if (pid >= 0 && !state.players[pid]?.eliminated) {
           cameraZone = battleZoom;
@@ -899,19 +913,26 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         cameraZone = battleZoom;
       }
     } else {
-      // Select/Build/Cannon: zoom to home
-      cameraZone = getMyZone();
+      // Save battle pinch, restore build pinch
+      if (pinchVp) battlePinchVp = { ...pinchVp };
+      pinchVp = buildPinchVp ? { ...buildPinchVp } : null;
+      if (pinchVp) {
+        cameraZone = null;
+      } else {
+        cameraZone = getMyZone();
+      }
     }
   }
 
   /** Update camera zoom state (called from mainLoop, before render). */
   function tickCamera(): void {
     // Unzoom for UI overlays and near end of phase
-    if (cameraZone !== null) {
+    if (cameraZone !== null || pinchVp !== null) {
       const phaseEnding = state.timer > 0 && state.timer <= 1.5 &&
         (state.phase === Phase.WALL_BUILD || state.phase === Phase.CANNON_PLACE || state.phase === Phase.BATTLE);
       if (phaseEnding || quitPending || lifeLostDialog || paused) {
         cameraZone = null;
+        pinchVp = null;
       }
     }
 
@@ -935,12 +956,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   /** Advance the viewport lerp (call once per frame from render). */
   function updateViewport(): Viewport | null {
-    const targetZone = cameraZone;
     let target: Viewport;
-    if (targetZone === null) {
-      target = fullMapVp;
+    if (pinchVp) {
+      target = pinchVp;
+    } else if (cameraZone !== null) {
+      target = computeZoneBounds(cameraZone);
     } else {
-      target = computeZoneBounds(targetZone);
+      target = fullMapVp;
     }
 
     // Lerp toward target
@@ -985,6 +1007,62 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       wx: vp.x + (x / cw) * vp.w,
       wy: vp.y + (y / ch) * vp.h,
     };
+  }
+
+  // -------------------------------------------------------------------------
+  // Pinch-to-zoom callbacks
+  // -------------------------------------------------------------------------
+
+  function onPinchStart(midX: number, midY: number): void {
+    if (mode !== Mode.GAME && mode !== Mode.SELECTION) return;
+    pinchStartVp = { ...currentVp };
+    pinchStartMidX = midX;
+    pinchStartMidY = midY;
+  }
+
+  function onPinchUpdate(midX: number, midY: number, scale: number): void {
+    if (!pinchStartVp || (mode !== Mode.GAME && mode !== Mode.SELECTION)) return;
+    const cw = GRID_COLS * TILE * SCALE;
+    const ch = GRID_ROWS * TILE * SCALE;
+
+    // Compute new viewport size (larger scale = more zoomed out)
+    const newW = Math.max(MIN_ZOOM_W, Math.min(fullMapVp.w, pinchStartVp.w * scale));
+    const newH = newW * (fullMapVp.h / fullMapVp.w);
+
+    // World point under the initial finger midpoint
+    const anchorWx = pinchStartVp.x + (pinchStartMidX / cw) * pinchStartVp.w;
+    const anchorWy = pinchStartVp.y + (pinchStartMidY / ch) * pinchStartVp.h;
+
+    // Position viewport so anchor stays under current midpoint
+    let x = anchorWx - (midX / cw) * newW;
+    let y = anchorWy - (midY / ch) * newH;
+
+    // Clamp to map bounds
+    x = Math.max(0, Math.min(fullMapVp.w - newW, x));
+    y = Math.max(0, Math.min(fullMapVp.h - newH, y));
+
+    pinchVp = { x, y, w: newW, h: newH };
+    // Direct assignment for responsive feel (no lerp)
+    currentVp.x = x; currentVp.y = y; currentVp.w = newW; currentVp.h = newH;
+    lastVp = currentVp;
+    cameraZone = null;
+    zoomActivated = true;
+  }
+
+  function onPinchEnd(): void {
+    pinchStartVp = null;
+    if (!pinchVp) return;
+    // Snap to full map if near full zoom-out
+    if (pinchVp.w >= fullMapVp.w * 0.95) {
+      pinchVp = null;
+      return;
+    }
+    // Save to per-phase memory
+    if (state.phase === Phase.BATTLE) {
+      battlePinchVp = { ...pinchVp };
+    } else {
+      buildPinchVp = { ...pinchVp };
+    }
   }
 
   /** Convert screen pixel to tile, accounting for zoom viewport. */
@@ -1065,6 +1143,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function rematch() {
     // Reset and start a new game with the same player config
     cameraZone = null;
+    pinchVp = null;
+    buildPinchVp = null;
+    battlePinchVp = null;
     battleZoom = null;
     lastAutoZoomPhase = null;
     cachedZoneBounds.clear();
@@ -1077,6 +1158,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function returnToLobby(): void {
     cameraZone = null;
+    pinchVp = null;
     mouseJoinedSlot = -1;
     // Hide all DOM buttons
     rotateButton?.update(null);
@@ -1088,6 +1170,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function endGame(winner: { id: number } | null) {
     cameraZone = null;
+    pinchVp = null;
     config.onEndGame?.(winner, state);
     const name = winner
       ? (PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`)
@@ -1713,6 +1796,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       withFirstHuman,
       pixelToTile,
       screenToWorld,
+      onPinchStart,
+      onPinchUpdate,
+      onPinchEnd,
       maybeSendAimUpdate: config.maybeSendAimUpdate ?? (() => {}),
       tryPlaceCannonAndSend: config.tryPlaceCannonAndSend ?? ((ctrl, gs, max) => ctrl.tryPlaceCannon(gs, max)),
       tryPlacePieceAndSend: config.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
@@ -1750,8 +1836,14 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         setCameraZone: (z: number | null) => {
           cameraZone = z;
           zoomActivated = true;
-          // Remember enemy zoom choice for battle persistence
-          if (state.phase === Phase.BATTLE && z !== null) battleZoom = z;
+          // Button press clears pinch override
+          pinchVp = null;
+          if (state.phase === Phase.BATTLE) {
+            battlePinchVp = null;
+            if (z !== null) battleZoom = z;
+          } else {
+            buildPinchVp = null;
+          }
         },
         myPlayerId,
         getEnemyZones,

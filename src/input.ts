@@ -70,6 +70,9 @@ export interface RegisterOnlineInputDeps {
   withFirstHuman: (action: (human: PlayerController) => void) => void;
   pixelToTile: (x: number, y: number) => { row: number; col: number };
   screenToWorld: (x: number, y: number) => WorldPos;
+  onPinchStart?: (midX: number, midY: number) => void;
+  onPinchUpdate?: (midX: number, midY: number, scale: number) => void;
+  onPinchEnd?: () => void;
   maybeSendAimUpdate: (x: number, y: number) => void;
   tryPlaceCannonAndSend: (
     ctrl: PlayerController,
