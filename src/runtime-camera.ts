@@ -222,6 +222,18 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     if (phase === Phase.BATTLE) {
       if (pinchVp) buildPinchVp = { ...pinchVp };
       pinchVp = battlePinchVp ? { ...battlePinchVp } : null;
+      // If pinch or battleZoom points at own zone, reset — always pick enemy
+      const myZone = getMyZone();
+      if (pinchVp && myZone !== null) {
+        const zb = computeZoneBounds(myZone);
+        const cx = pinchVp.x + pinchVp.w / 2;
+        const cy = pinchVp.y + pinchVp.h / 2;
+        if (cx >= zb.x && cx <= zb.x + zb.w && cy >= zb.y && cy <= zb.y + zb.h) {
+          pinchVp = null;
+          battlePinchVp = null;
+        }
+      }
+      if (battleZoom === myZone) battleZoom = null;
       if (pinchVp) {
         cameraZone = null;
       } else if (battleZoom !== null) {
