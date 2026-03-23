@@ -1181,15 +1181,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const parsedSeed =
       rs.settings.seedMode === "custom" && rs.settings.seed
         ? parseInt(rs.settings.seed, 10)
-        : NaN;
-    const seed = isNaN(parsedSeed)
-      ? Math.floor(Math.random() * 1000000)
-      : parsedSeed;
+        : undefined;
+    const seed = parsedSeed !== undefined && !isNaN(parsedSeed)
+      ? parsedSeed
+      : Math.floor(Math.random() * 1000000);
 
     const diffParams = DIFFICULTY_PARAMS[rs.settings.difficulty] ?? DIFFICULTY_PARAMS[1]!;
     const { buildTimer, cannonPlaceTimer, firstRoundCannons } = diffParams;
     const roundsParam = typeof location !== "undefined" ? Number(new URL(location.href).searchParams.get("rounds")) : 0;
-    const roundsVal = roundsParam > 0 ? roundsParam : ROUNDS_OPTIONS[rs.settings.rounds]!.value;
+    const roundsVal = roundsParam > 0 ? roundsParam : (ROUNDS_OPTIONS[rs.settings.rounds] ?? ROUNDS_OPTIONS[0]!).value;
 
     resetGameStats();
 
@@ -1197,7 +1197,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       seed,
       maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),
       battleLength: roundsVal,
-      cannonMaxHp: CANNON_HP_OPTIONS[rs.settings.cannonHp]!.value,
+      cannonMaxHp: (CANNON_HP_OPTIONS[rs.settings.cannonHp] ?? CANNON_HP_OPTIONS[0]!).value,
       buildTimer,
       cannonPlaceTimer,
       log: config.log,
