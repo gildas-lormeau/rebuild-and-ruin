@@ -4,7 +4,7 @@
 
 import { drawSpriteCentered } from "./sprites.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
-import { FONT_FLOAT_LG } from "./render-theme.ts";
+import { rgb, FONT_FLOAT_LG } from "./render-theme.ts";
 import { TILE } from "./map-renderer.ts";
 import type { MapData, RenderOverlay } from "./map-renderer.ts";
 
@@ -86,7 +86,7 @@ export function drawTowers(
         octx.textBaseline = "bottom";
         octx.fillStyle = `rgba(0,0,0,0.8)`;
         octx.fillText(name, cx, cy - 20);
-        octx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        octx.fillStyle = rgb(c);
         octx.fillText(name, cx - 0.5, cy - 20.5);
         octx.restore();
       }
@@ -101,7 +101,7 @@ export function drawTowers(
       for (const hl of overlay.selection.highlights) {
         if (hl.towerIdx === i) {
           const c = PLAYER_COLORS[hl.playerId % PLAYER_COLORS.length]!.interiorLight;
-          drawTowerHighlight(octx, cx, cy, `rgb(${c[0]},${c[1]},${c[2]})`);
+          drawTowerHighlight(octx, cx, cy, rgb(c));
         }
       }
     }

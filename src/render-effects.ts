@@ -4,7 +4,7 @@
  */
 
 import { TILE } from "./map-renderer.ts";
-import { FONT_TIMER } from "./render-theme.ts";
+import { rgb, FONT_TIMER } from "./render-theme.ts";
 import { facingToCardinal } from "./spatial.ts";
 import { drawSprite } from "./sprites.ts";
 import { PLAYER_COLORS } from "./player-config.ts";
@@ -167,7 +167,7 @@ export function drawPhantoms(
     for (const phantom of overlay.phantoms.humanPhantoms) {
       const { offsets, row, col, valid, playerId } = phantom;
       const wall = PLAYER_COLORS[playerId % PLAYER_COLORS.length]!.wall;
-      const fill = valid ? `rgb(${wall[0]},${wall[1]},${wall[2]})` : "#aa2222";
+      const fill = valid ? rgb(wall) : "#aa2222";
       drawPiecePhantom(octx, offsets, row, col, fill, 0.55, true);
     }
   }
@@ -182,7 +182,7 @@ export function drawPhantoms(
         offsets,
         row,
         col,
-        `rgb(${wall[0]},${wall[1]},${wall[2]})`,
+        rgb(wall),
         0.6,
         true,
       );

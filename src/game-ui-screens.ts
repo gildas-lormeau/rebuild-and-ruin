@@ -55,7 +55,7 @@ export interface UIContext {
 // ---------------------------------------------------------------------------
 
 import { IS_TOUCH_DEVICE } from "./platform.ts";
-import { FONT_TITLE, FONT_HEADING, FONT_BODY } from "./render-theme.ts";
+import { rgb, FONT_TITLE, FONT_HEADING, FONT_BODY } from "./render-theme.ts";
 
 /** Which option indices are visible in the current mode. */
 
@@ -142,7 +142,7 @@ export function buildControlsUi(ctx: UIContext): void {
   for (let p = 0; p < PLAYER_NAMES.length; p++) {
     const colors = PLAYER_COLORS[p % PLAYER_COLORS.length]!;
     const sel = p === cs.playerIdx;
-    oc.fillStyle = sel ? `rgb(${colors.wall[0]},${colors.wall[1]},${colors.wall[2]})` : "#888";
+    oc.fillStyle = sel ? rgb(colors.wall) : "#888";
     oc.font = sel ? FONT_HEADING : FONT_BODY;
     oc.fillText(PLAYER_NAMES[p]!, 40 + p * 200, 40);
   }

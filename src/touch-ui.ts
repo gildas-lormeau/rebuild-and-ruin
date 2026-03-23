@@ -9,6 +9,7 @@ import { Phase, Action } from "./types.ts";
 import type { GameState } from "./types.ts";
 import type { PlayerController } from "./player-controller.ts";
 import { PLAYER_COLORS } from "./player-config.ts";
+import { rgb } from "./render-theme.ts";
 import { findNearestTower } from "./spatial.ts";
 import type { SelectionState } from "./selection.ts";
 
@@ -421,8 +422,7 @@ export function createHomeZoomButton(deps: ZoomButtonDeps): {
       const state = deps.getState();
       const pid = deps.myPlayerId();
       if (pid >= 0 && state && PLAYER_COLORS[pid]) {
-        const c = PLAYER_COLORS[pid]!.interiorLight;
-        btn.style.background = `rgba(${c[0]},${c[1]},${c[2]},0.85)`;
+        btn.style.background = rgb(PLAYER_COLORS[pid]!.interiorLight, 0.85);
       } else {
         btn.style.background = "rgba(60, 80, 120, 0.85)";
       }
@@ -479,8 +479,7 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps): {
     if (zone !== null && state && enemyZones.includes(zone)) {
       const pid = state.playerZones.indexOf(zone);
       if (pid >= 0 && PLAYER_COLORS[pid]) {
-        const c = PLAYER_COLORS[pid]!.interiorLight;
-        btn.style.background = `rgba(${c[0]},${c[1]},${c[2]},0.85)`;
+        btn.style.background = rgb(PLAYER_COLORS[pid]!.interiorLight, 0.85);
       }
       btn.textContent = "\u2694"; // ⚔ swords
     } else {

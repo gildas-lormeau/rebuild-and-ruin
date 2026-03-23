@@ -5,6 +5,11 @@
 /** RGB color tuple. */
 export type RGB = [number, number, number];
 
+/** Convert RGB tuple to CSS color string, with optional alpha. */
+export function rgb(c: RGB, alpha?: number): string {
+  if (alpha !== undefined) return `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
+  return `rgb(${c[0]},${c[1]},${c[2]})`;
+}
 
 // ---------------------------------------------------------------------------
 // Panel backgrounds

@@ -4,6 +4,7 @@
 
 import type { RenderOverlay } from "./map-renderer.ts";
 import {
+  rgb,
   PANEL_BG,
   GOLD,
   GOLD_BG,
@@ -183,12 +184,12 @@ export function drawStatusBar(
     octx.fillText(heartsStr, rx, cy);
     rx -= octx.measureText(heartsStr).width + 2;
     // Cannons
-    octx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.6)`;
+    octx.fillStyle = rgb(c, 0.6);
     const cannonStr = `${p.cannons}c `;
     octx.fillText(cannonStr, rx, cy);
     rx -= octx.measureText(cannonStr).width;
     // Score
-    octx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+    octx.fillStyle = rgb(c);
     const scoreStr = `${p.score} `;
     octx.fillText(scoreStr, rx, cy);
     rx -= octx.measureText(scoreStr).width + 4;
@@ -255,13 +256,13 @@ export function drawGameOver(
     const y = tableTop + statsH + 10 + i * rowH;
     const c = entry.color;
     const alpha = entry.eliminated ? 0.4 : 1;
-    octx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
+    octx.fillStyle = rgb(c, alpha);
     octx.textAlign = "left";
     octx.fillText(entry.name, colName, y);
     octx.textAlign = "right";
     octx.fillText(`${entry.score}`, colScore, y);
     if (entry.stats) {
-      octx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${alpha * 0.7})`;
+      octx.fillStyle = rgb(c, alpha * 0.7);
       octx.fillText(`${entry.stats.wallsDestroyed}`, colWalls, y);
       octx.fillText(`${entry.stats.cannonsKilled}`, colCannons, y);
       octx.fillText(`${entry.territory ?? 0}`, colTerritory, y);
@@ -319,7 +320,7 @@ export function drawLifeLostDialog(
     // Panel background
     octx.fillStyle = PANEL_BG(0.9);
     octx.fillRect(px, py, panelW, panelH);
-    octx.strokeStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+    octx.strokeStyle = rgb(c);
     octx.lineWidth = 2;
     octx.strokeRect(px + 1, py + 1, panelW - 2, panelH - 2);
 
@@ -327,7 +328,7 @@ export function drawLifeLostDialog(
     octx.textAlign = "center";
     octx.textBaseline = "middle";
     octx.font = FONT_BODY;
-    octx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+    octx.fillStyle = rgb(c);
     octx.fillText(entry.name, cx, py + 18);
 
     // Separator
@@ -545,7 +546,7 @@ export function drawControlsScreen(
     const c = player.color;
     const cx = tableX + labelColW + p * playerColW + playerColW / 2;
     octx.font = FONT_BODY;
-    octx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+    octx.fillStyle = rgb(c);
     octx.fillText(player.name, cx, headerY);
   }
 
@@ -599,8 +600,7 @@ export function drawControlsScreen(
       } else {
         octx.textAlign = "center";
         octx.font = FONT_LABEL;
-        const c = player.color;
-        octx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.7)`;
+        octx.fillStyle = rgb(player.color, 0.7);
         octx.fillText(player.bindings[a]!, cx, oy + rowH / 2);
       }
     }
@@ -658,16 +658,16 @@ export function drawPlayerSelect(
     const c = p.color;
     const rx = gap + i * (rectW + gap);
 
-    octx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.15)`;
+    octx.fillStyle = rgb(c, 0.15);
     octx.fillRect(rx, rectY, rectW, rectH);
-    octx.strokeStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+    octx.strokeStyle = rgb(c);
     octx.lineWidth = 2;
     octx.strokeRect(rx + 1, rectY + 1, rectW - 2, rectH - 2);
 
     const cx = rx + rectW / 2;
     const touch = IS_TOUCH_DEVICE;
     octx.font = touch ? FONT_HEADING : FONT_BODY;
-    octx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+    octx.fillStyle = rgb(c);
     octx.fillText(p.name, cx, rectY + (touch ? 34 : 30));
     const btnW = rectW - (touch ? 12 : 16);
     const btnH = touch ? 36 : 24;
@@ -675,9 +675,9 @@ export function drawPlayerSelect(
     const btnY = rectY + rectH - btnH - (touch ? 8 : 12);
 
     if (p.joined) {
-      octx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},0.3)`;
+      octx.fillStyle = rgb(c, 0.3);
       octx.fillRect(btnX, btnY, btnW, btnH);
-      octx.strokeStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+      octx.strokeStyle = rgb(c);
       octx.lineWidth = 1;
       octx.strokeRect(btnX, btnY, btnW, btnH);
       octx.font = touch ? FONT_BODY : FONT_BUTTON;
@@ -686,9 +686,9 @@ export function drawPlayerSelect(
     } else {
       const flash = flashOn(CURSOR_BLINK_MS);
       const alpha = flash ? 0.5 : 0.2;
-      octx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
+      octx.fillStyle = rgb(c, alpha);
       octx.fillRect(btnX, btnY, btnW, btnH);
-      octx.strokeStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+      octx.strokeStyle = rgb(c);
       octx.lineWidth = 1;
       octx.strokeRect(btnX, btnY, btnW, btnH);
       octx.font = touch ? FONT_LABEL : FONT_HINT;
