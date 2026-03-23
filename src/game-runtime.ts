@@ -681,11 +681,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function rematch() {
-    // Reset and start a new game with the same player config
     camera.resetCamera();
-    scoreDeltas = [];
-    preScores = [];
-    frame = { crosshairs: [], phantoms: {} };
     startGame();
     mode = Mode.SELECTION;
   }
@@ -1209,6 +1205,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     paused = false;
     quitPending = false;
     optionsReturnMode = null;
+    castleBuild = null;
+    selectionStates.clear();
+    scoreDeltas = [];
+    scoreDeltaTimer = 0;
+    preScores = [];
   }
 
   // -------------------------------------------------------------------------
