@@ -383,6 +383,16 @@ async function runLocal() {
   await page.waitForSelector("canvas[style*='display: block']", { timeout: 5000 });
   await page.waitForTimeout(500);
 
+  // --fast: override requestAnimationFrame with setTimeout(1) + accelerated timestamps
+  // Injected early so the lobby countdown also runs fast.
+  if (FAST) {
+    await page.evaluate(() => {
+      let fakeTime = performance.now();
+      window.requestAnimationFrame = (cb: FrameRequestCallback) =>
+        setTimeout(() => { fakeTime += 100; cb(fakeTime); }, 1) as unknown as number;
+    });
+  }
+
   // Join human slots
   if (MOBILE && NUM_HUMANS > 0) {
     // On mobile, tap the canvas lobby slots (game starts immediately on first tap)
@@ -423,15 +433,6 @@ async function runLocal() {
     { timeout: 90_000 },
   );
   console.log(`${ts()} Game started`);
-
-  // --fast: override requestAnimationFrame with setTimeout(1) + accelerated timestamps
-  if (FAST) {
-    await page.evaluate(() => {
-      let fakeTime = performance.now();
-      window.requestAnimationFrame = (cb: FrameRequestCallback) =>
-        setTimeout(() => { fakeTime += 100; cb(fakeTime); }, 1) as unknown as number;
-    });
-  }
 
   // Simulate human play or wait for AI-only game
   let allActions: string[][] = [];

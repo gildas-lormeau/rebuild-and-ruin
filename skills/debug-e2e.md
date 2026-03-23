@@ -36,7 +36,7 @@ npx tsx test/online-e2e.ts <mode> <humans> <serverUrl> <rounds>
 | Flag | Description |
 |------|-------------|
 | `--headless` | No browser window. Use for automated/parallel runs. |
-| `--fast` | Accelerate game time (~25x). Use with `--headless` for fast iteration. |
+| `--fast` | Accelerate game time (~25x, including lobby). A 1-round test completes in ~9s. |
 | `--screenshot` | Capture PNG at every phase transition → `logs/screenshot-game-*.png` |
 | `--mobile` | Emulate Pixel 7 landscape (touch, small viewport) |
 | `--seed N` | Force map seed for reproducible bugs |
@@ -100,7 +100,7 @@ npx tsx test/online-e2e.ts online 1 https://your-server.deno.dev
 
 3. **Write analysis script** — a `node -e` script that parses the log file and checks assertions (PASS/FAIL per player/frame). Never read raw logs by eye.
 
-4. **Run test** — use `--headless --fast` for speed, minimal rounds (`"" 1`) to reach the bug quickly. Use `--assert` for UI state checks. Logs are always saved to `logs/` even if the test is killed.
+4. **Run test** — use `--headless --fast` for speed, minimal rounds (`"" 1`) to reach the bug quickly. Use `--assert` for UI state checks. Logs are always saved to `logs/` even if the test is killed. Wrap with `timeout` only if the test might hang (e.g. debugging a stuck phase).
 
 5. **Read script output** — it says PASS or FAIL with actual values.
 
