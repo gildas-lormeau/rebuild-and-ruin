@@ -3,7 +3,7 @@
  */
 
 import { drawSpriteCentered } from "./sprites.ts";
-import { PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
+import { getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
 import { rgb, FONT_FLOAT_LG, TOWER_FLASH_MS } from "./render-theme.ts";
 import { TILE_SIZE } from "./grid.ts";
 import type { MapData, RenderOverlay } from "./map-renderer.ts";
@@ -79,7 +79,7 @@ export function drawTowers(
       // Player name label above home tower (battle phase only, semi-transparent)
       if (ownerId !== undefined && inBattle) {
         const name = PLAYER_NAMES[ownerId] ?? `P${ownerId + 1}`;
-        const c = PLAYER_COLORS[ownerId % PLAYER_COLORS.length]!.interiorLight;
+        const c = getPlayerColor(ownerId).interiorLight;
         octx.save();
         octx.globalAlpha = 0.7;
         octx.font = FONT_FLOAT_LG;
@@ -101,7 +101,7 @@ export function drawTowers(
     if (overlay?.selection?.highlights) {
       for (const hl of overlay.selection.highlights) {
         if (hl.towerIdx === i) {
-          const c = PLAYER_COLORS[hl.playerId % PLAYER_COLORS.length]!.interiorLight;
+          const c = getPlayerColor(hl.playerId).interiorLight;
           drawTowerHighlight(octx, cx, cy, rgb(c));
         }
       }

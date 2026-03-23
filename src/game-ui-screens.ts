@@ -17,7 +17,7 @@ export function lobbySkipStep(ctx: UIContext): boolean {
 }
 import type { GameMap } from "./map-generation.ts";
 import { generateMap } from "./map-generation.ts";
-import { PLAYER_NAMES, PLAYER_COLORS } from "./player-config.ts";
+import { PLAYER_NAMES, getPlayerColor } from "./player-config.ts";
 import {
   DIFFICULTY_LABELS, ROUNDS_OPTIONS, CANNON_HP_OPTIONS, HAPTICS_LABELS, DPAD_LABELS, OPTION_NAMES,
   formatKeyName, saveSettings,
@@ -32,6 +32,8 @@ import type { Mode } from "./game-ui-types.ts";
 
 export interface UIContext {
   canvas: HTMLCanvasElement;
+  /** Cached 2D rendering context for the overlay canvas. */
+  ctx2d: CanvasRenderingContext2D;
   getState: () => GameState | undefined;
   getOverlay: () => RenderOverlay;
   settings: GameSettings;
@@ -88,7 +90,7 @@ export function optionValue(ctx: UIContext, idx: number): string {
 // ---------------------------------------------------------------------------
 
 export function buildOptionsUi(ctx: UIContext): void {
-  const oc = ctx.canvas.getContext("2d")!;
+  const oc = ctx.ctx2d;
   oc.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   const readOnly = ctx.getOptionsReturnMode() !== null;
   const visible = visibleOptions(ctx);
@@ -136,11 +138,11 @@ export function closeOptions(ctx: UIContext, modeValues: { LOBBY: Mode; GAME: Mo
 // ---------------------------------------------------------------------------
 
 export function buildControlsUi(ctx: UIContext): void {
-  const oc = ctx.canvas.getContext("2d")!;
+  const oc = ctx.ctx2d;
   oc.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   const cs = ctx.controlsState;
   for (let p = 0; p < PLAYER_NAMES.length; p++) {
-    const colors = PLAYER_COLORS[p % PLAYER_COLORS.length]!;
+    const colors = getPlayerColor(p);
     const sel = p === cs.playerIdx;
     oc.fillStyle = sel ? rgb(colors.wall) : "#888";
     oc.font = sel ? FONT_HEADING : FONT_BODY;
@@ -204,7 +206,7 @@ export function renderLobby(ctx: UIContext): void {
       playerSelect: {
         players: PLAYER_NAMES.map((name, i) => ({
           name: `${name} Player`,
-          color: PLAYER_COLORS[i % PLAYER_COLORS.length]!.wall,
+          color: getPlayerColor(i).wall,
           joined: ctx.lobby.joined[i]!,
           keyHint: ctx.settings.keyBindings[i]
             ? formatKeyHint(ctx.settings.keyBindings[i])

@@ -28,7 +28,7 @@ import {
   drawBattleEffects,
   drawWaterAnimation,
 } from "./render-effects.ts";
-import { PLAYER_COLORS } from "./player-config.ts";
+import { getPlayerColor } from "./player-config.ts";
 
 /** @deprecated Import TILE_SIZE and SCALE from grid.ts directly. */
 export { SCALE };
@@ -604,7 +604,7 @@ function drawCastles(
 ): void {
   if (!overlay?.castles) return;
   for (const castle of overlay.castles) {
-    const colors = PLAYER_COLORS[castle.playerId % PLAYER_COLORS.length]!;
+    const colors = getPlayerColor(castle.playerId);
 
     // Draw interior: checkerboard normally, cobblestone during battle
     const territory = overlay.battle?.battleTerritory?.[castle.playerId];

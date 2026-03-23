@@ -11,7 +11,7 @@ import {
 } from "./render-theme.ts";
 import { facingToCardinal } from "./spatial.ts";
 import { drawSprite } from "./sprites.ts";
-import { PLAYER_COLORS } from "./player-config.ts";
+import { getPlayerColor } from "./player-config.ts";
 import { IMPACT_FLASH_DURATION } from "./types.ts";
 import type { RenderOverlay, MapData } from "./map-renderer.ts";
 import type { RGB } from "./render-theme.ts";
@@ -162,7 +162,7 @@ export function drawPhantoms(
   if (overlay?.phantoms?.humanPhantoms) {
     for (const phantom of overlay.phantoms.humanPhantoms) {
       const { offsets, row, col, valid, playerId } = phantom;
-      const wall = PLAYER_COLORS[playerId % PLAYER_COLORS.length]!.wall;
+      const wall = getPlayerColor(playerId).wall;
       const fill = valid ? rgb(wall) : "#aa2222";
       drawPiecePhantom(octx, offsets, row, col, fill, 0.55, true);
     }
@@ -172,7 +172,7 @@ export function drawPhantoms(
   if (overlay?.phantoms?.aiPhantoms) {
     for (const phantom of overlay.phantoms.aiPhantoms) {
       const { offsets, row, col, playerId } = phantom;
-      const wall = PLAYER_COLORS[playerId % PLAYER_COLORS.length]!.wall;
+      const wall = getPlayerColor(playerId).wall;
       drawPiecePhantom(
         octx,
         offsets,

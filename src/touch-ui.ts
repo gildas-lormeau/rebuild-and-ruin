@@ -23,6 +23,20 @@ const ACTION_BTN = 56;     // action/rotate button size
 const DPAD_MARGIN = 84;    // distance from screen edge (clears zoom buttons at left: 24px + 48px + gap)
 const DPAD_BOTTOM = 20;    // distance from bottom
 
+// Button colors (background, border, text)
+const COLOR_ARROW_BG = "rgba(80, 90, 110, 0.8)";
+const COLOR_ARROW_BORDER = "rgba(140, 160, 190, 0.7)";
+const COLOR_ROTATE_BG = "rgba(200, 160, 64, 0.85)";
+const COLOR_ROTATE_BORDER = "rgba(240, 216, 112, 0.9)";
+const COLOR_ACTION_BG = "rgba(60, 160, 80, 0.85)";
+const COLOR_ACTION_BORDER = "rgba(100, 220, 120, 0.9)";
+const COLOR_QUIT_BG = "rgba(80, 40, 40, 0.7)";
+const COLOR_QUIT_BORDER = "rgba(180, 80, 80, 0.7)";
+const COLOR_ZOOM_HOME_BG = "rgba(60, 80, 120, 0.85)";
+const COLOR_ZOOM_HOME_BORDER = "rgba(100, 140, 200, 0.7)";
+const COLOR_ZOOM_ENEMY_BG = "rgba(100, 50, 50, 0.85)";
+const COLOR_ZOOM_ENEMY_BORDER = "rgba(180, 80, 80, 0.7)";
+
 const BTN_BASE_CSS = `
   border-radius: 10px;
   z-index: 100;
@@ -39,8 +53,8 @@ const BTN_BASE_CSS = `
 const ARROW_CSS = BTN_BASE_CSS + `
   width: ${DPAD_BTN}px;
   height: ${DPAD_BTN}px;
-  background: rgba(80, 90, 110, 0.8);
-  border: 2px solid rgba(140, 160, 190, 0.7);
+  background: ${COLOR_ARROW_BG};
+  border: 2px solid ${COLOR_ARROW_BORDER};
   color: #c0d0e0;
   font-size: 22px;
 `;
@@ -111,8 +125,8 @@ export function createDpad(deps: DpadDeps): {
 
   const btnRotate = document.createElement("button");
   btnRotate.style.cssText = ACTION_CSS + `
-    background: rgba(200, 160, 64, 0.85);
-    border: 2px solid rgba(240, 216, 112, 0.9);
+    background: ${COLOR_ROTATE_BG};
+    border: 2px solid ${COLOR_ROTATE_BORDER};
     color: #1a1a2e;
     font-size: 26px;
   `;
@@ -123,8 +137,8 @@ export function createDpad(deps: DpadDeps): {
   btnAction.style.cssText = ACTION_CSS + `
     width: ${ACTION_BTN + 8}px;
     height: ${ACTION_BTN + 8}px;
-    background: rgba(60, 160, 80, 0.85);
-    border: 2px solid rgba(100, 220, 120, 0.9);
+    background: ${COLOR_ACTION_BG};
+    border: 2px solid ${COLOR_ACTION_BORDER};
     color: #1a1a2e;
     font-size: 26px;
   `;
@@ -300,8 +314,8 @@ export function createQuitButton(deps: QuitButtonDeps): {
     height: 40px;
     border-radius: 50%;
     z-index: 100;
-    background: rgba(80, 40, 40, 0.7);
-    border: 2px solid rgba(180, 80, 80, 0.7);
+    background: ${COLOR_QUIT_BG};
+    border: 2px solid ${COLOR_QUIT_BORDER};
     color: #cc8888;
     font-size: 22px;
     font-weight: bold;
@@ -387,8 +401,8 @@ export function createHomeZoomButton(deps: ZoomButtonDeps): {
   btn.dataset.btn = "home";
   btn.style.cssText = ZOOM_BTN_CSS + `
     bottom: ${ZOOM_BTN_BOTTOM}px;
-    background: rgba(60, 80, 120, 0.85);
-    border: 2px solid rgba(100, 140, 200, 0.7);
+    background: ${COLOR_ZOOM_HOME_BG};
+    border: 2px solid ${COLOR_ZOOM_HOME_BORDER};
     color: #c0d8f0;
   `;
   document.body.appendChild(btn);
@@ -415,7 +429,7 @@ export function createHomeZoomButton(deps: ZoomButtonDeps): {
     if (current === myZone && myZone !== null) {
       // Currently zoomed on my zone — show full-map icon
       btn.textContent = "\u25A3"; // ▣ full map
-      btn.style.background = "rgba(60, 80, 120, 0.85)";
+      btn.style.background = COLOR_ZOOM_HOME_BG;
     } else {
       // Currently full map or enemy — show home icon with my color
       btn.textContent = "\u2302"; // ⌂ home
@@ -424,7 +438,7 @@ export function createHomeZoomButton(deps: ZoomButtonDeps): {
       if (pid >= 0 && state && PLAYER_COLORS[pid]) {
         btn.style.background = rgb(PLAYER_COLORS[pid]!.interiorLight, 0.85);
       } else {
-        btn.style.background = "rgba(60, 80, 120, 0.85)";
+        btn.style.background = COLOR_ZOOM_HOME_BG;
       }
     }
   }
@@ -452,8 +466,8 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps): {
   btn.dataset.btn = "enemy";
   btn.style.cssText = ZOOM_BTN_CSS + `
     bottom: ${ZOOM_BTN_BOTTOM + ZOOM_BTN_SIZE + ZOOM_BTN_GAP}px;
-    background: rgba(100, 50, 50, 0.85);
-    border: 2px solid rgba(180, 80, 80, 0.7);
+    background: ${COLOR_ZOOM_ENEMY_BG};
+    border: 2px solid ${COLOR_ZOOM_ENEMY_BORDER};
     color: #f0c0c0;
   `;
   document.body.appendChild(btn);
@@ -484,7 +498,7 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps): {
       btn.textContent = "\u2694"; // ⚔ swords
     } else {
       btn.textContent = "\u2694"; // ⚔ swords
-      btn.style.background = "rgba(100, 50, 50, 0.85)";
+      btn.style.background = COLOR_ZOOM_ENEMY_BG;
     }
   }
 

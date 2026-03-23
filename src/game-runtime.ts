@@ -46,6 +46,7 @@ import type { PlayerController, Crosshair } from "./player-controller.ts";
 import { computeLobbyLayout } from "./render-ui.ts";
 import {
   PLAYER_COLORS,
+  getPlayerColor,
   PLAYER_KEY_BINDINGS,
   PLAYER_NAMES,
   MAX_PLAYERS,
@@ -1241,7 +1242,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       scores: state.players.map((p) => ({
         name: PLAYER_NAMES[p.id] ?? `P${p.id + 1}`,
         score: p.score,
-        color: PLAYER_COLORS[p.id % PLAYER_COLORS.length]!.wall,
+        color: getPlayerColor(p.id).wall,
         eliminated: p.eliminated,
         territory: p.interior.size,
         stats: gameStats[p.id],
@@ -1800,6 +1801,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const uiCtx: UIContext = {
     canvas,
+    ctx2d: canvas.getContext("2d")!,
     getState: () => state,
     getOverlay: () => overlay,
     settings,

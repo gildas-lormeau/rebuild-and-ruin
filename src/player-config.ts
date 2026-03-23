@@ -83,6 +83,11 @@ if (
 
 export const MAX_PLAYERS = PLAYER_NAMES.length;
 
+/** Get player color with safe modulo wrapping. */
+export function getPlayerColor(playerId: number): PlayerColor {
+  return PLAYER_COLORS[playerId % PLAYER_COLORS.length]!;
+}
+
 /** Ordered action keys for the controls screen (matches KeyBindings fields). */
 export const ACTION_KEYS: readonly (keyof KeyBindings)[] = ["up", "down", "left", "right", "confirm", "rotate"];
 export const ACTION_NAMES: readonly string[] = ["Up", "Down", "Left", "Right", "Confirm", "Rotate"];
