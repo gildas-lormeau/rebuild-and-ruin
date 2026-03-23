@@ -240,43 +240,46 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   let frameDt = 1 / 60;
 
+  /** Expose mode, phase, and targeting data for E2E test automation (dev only). */
+  function exposeTestGlobals(): void {
+    if (typeof window === "undefined") return;
+    const w = window as unknown as Record<string, unknown>;
+    w.__testMode = Mode[mode];
+    w.__testPhase = state ? Phase[state.phase] : "";
+    w.__testTimer = state ? state.timer : 0;
+    const myPid = config.getMyPlayerId();
+    if (state && myPid >= 0) {
+      const enemies: { x: number; y: number }[] = [];
+      for (const p of state.players) {
+        if (p.id === myPid || p.eliminated) continue;
+        for (const c of p.cannons) {
+          if (c.hp > 0) enemies.push({ x: (c.col + 0.5) * TILE, y: (c.row + 0.5) * TILE });
+        }
+      }
+      w.__testEnemyCannons = enemies;
+      const targets: { x: number; y: number }[] = [...enemies];
+      for (const p of state.players) {
+        if (p.id === myPid || p.eliminated) continue;
+        for (const key of p.walls) {
+          const { r, c } = unpackTile(key);
+          targets.push({ x: (c + 0.5) * TILE, y: (r + 0.5) * TILE });
+        }
+      }
+      w.__testEnemyTargets = targets;
+      const myCtrl = controllers[myPid];
+      if (myCtrl) {
+        const ch = myCtrl.getCrosshair();
+        if (ch) w.__testCrosshair = { x: ch.x, y: ch.y };
+      }
+    }
+  }
+
   function mainLoop(now: number): void {
     const dt = clampedFrameDt(now);
     frameDt = dt;
     resetFrame();
 
-    // Expose mode + phase for E2E test automation (dev only)
-    if (DEV && typeof window !== "undefined") {
-      const w = window as unknown as Record<string, unknown>;
-      w.__testMode = Mode[mode];
-      w.__testPhase = state ? Phase[state.phase] : "";
-      w.__testTimer = state ? state.timer : 0;
-      const myPid = config.getMyPlayerId();
-      if (state && myPid >= 0) {
-        const enemies: { x: number; y: number }[] = [];
-        for (const p of state.players) {
-          if (p.id === myPid || p.eliminated) continue;
-          for (const c of p.cannons) {
-            if (c.hp > 0) enemies.push({ x: (c.col + 0.5) * TILE, y: (c.row + 0.5) * TILE });
-          }
-        }
-        w.__testEnemyCannons = enemies;
-        const targets: { x: number; y: number }[] = [...enemies];
-        for (const p of state.players) {
-          if (p.id === myPid || p.eliminated) continue;
-          for (const key of p.walls) {
-            const { r, c } = unpackTile(key);
-            targets.push({ x: (c + 0.5) * TILE, y: (r + 0.5) * TILE });
-          }
-        }
-        w.__testEnemyTargets = targets;
-        const myCtrl = controllers[myPid];
-        if (myCtrl) {
-          const ch = myCtrl.getCrosshair();
-          if (ch) w.__testCrosshair = { x: ch.x, y: ch.y };
-        }
-      }
-    }
+    if (DEV) exposeTestGlobals();
 
     tickCamera(dt);
 
