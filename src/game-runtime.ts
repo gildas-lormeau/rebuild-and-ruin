@@ -392,6 +392,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let pinchStartVp: Viewport | null = null;
   let pinchStartMidX = 0;
   let pinchStartMidY = 0;
+  /** Frozen viewport during castle-build animation (covers all planned walls). */
+  let castleBuildVp: Viewport | null = null;
   /** Per-phase pinch memory */
   let buildPinchVp: Viewport | null = null;
   let battlePinchVp: Viewport | null = null;
@@ -854,6 +856,39 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     return result;
   }
 
+  /** Compute a frozen viewport that covers all planned castle walls (for steady camera during build anim). */
+  function computeCastleBuildViewport(wallPlans: { playerId: number; tiles: number[] }[]): Viewport {
+    const myPid = myPlayerId();
+    // Find the plan for the local player, fall back to first plan
+    const plan = wallPlans.find(p => p.playerId === myPid) ?? wallPlans[0];
+    if (!plan || plan.tiles.length === 0) return fullMapVp;
+    const player = state.players[plan.playerId];
+    let minR = GRID_ROWS, maxR = 0, minC = GRID_COLS, maxC = 0;
+    function expand(r: number, c: number) {
+      if (r < minR) minR = r; if (r > maxR) maxR = r;
+      if (c < minC) minC = c; if (c > maxC) maxC = c;
+    }
+    for (const key of plan.tiles) expand(Math.floor(key / GRID_COLS), key % GRID_COLS);
+    if (player?.homeTower) expand(player.homeTower.row, player.homeTower.col);
+    // Same padding + aspect ratio logic as computeZoneBounds
+    const pad = 4;
+    minR = Math.max(0, minR - pad); maxR = Math.min(GRID_ROWS - 1, maxR + pad);
+    minC = Math.max(0, minC - pad); maxC = Math.min(GRID_COLS - 1, maxC + pad);
+    const fullW = GRID_COLS * TILE, fullH = GRID_ROWS * TILE;
+    const maxW = fullW * MAX_ZOOM_VIEWPORT_RATIO, maxH = fullH * MAX_ZOOM_VIEWPORT_RATIO;
+    const targetAspect = GRID_COLS / GRID_ROWS;
+    const w = (maxC - minC + 1) * TILE, h = (maxR - minR + 1) * TILE;
+    const vpAspect = w / h;
+    const newW = vpAspect < targetAspect
+      ? Math.min(maxW, h * targetAspect)
+      : Math.min(maxW, (Math.min(maxH, w / targetAspect)) * targetAspect);
+    const newH = newW / targetAspect;
+    const cx = (minC + maxC + 1) * TILE / 2, cy = (minR + maxR + 1) * TILE / 2;
+    const x = Math.max(0, Math.min(fullW - newW, cx - newW / 2));
+    const y = Math.max(0, Math.min(fullH - newH, cy - newH / 2));
+    return { x, y, w: newW, h: newH };
+  }
+
   /** Resolve the local player's id (online pid or first human fallback). */
   function myPlayerId(): number {
     const pid = config.getMyPlayerId();
@@ -981,7 +1016,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   /** Advance the viewport lerp (call once per frame from render). */
   function updateViewport(): Viewport | null {
     let target: Viewport;
-    if (pinchVp) {
+    if (castleBuildVp && mode === Mode.CASTLE_BUILD) {
+      target = castleBuildVp;
+    } else if (pinchVp) {
       target = pinchVp;
     } else if (cameraZone !== null) {
       target = computeZoneBounds(cameraZone);
@@ -1171,6 +1208,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     pinchVp = null;
     buildPinchVp = null;
     battlePinchVp = null;
+    castleBuildVp = null;
     battleZoom = null;
     lastAutoZoomPhase = null;
     selectionZoomDelay = 0;
@@ -1276,8 +1314,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     castleBuild = createCastleBuildState(wallPlans, () => {
       finalizeCastleConstruction(state);
       enterCannonPlacePhase(state);
+      castleBuildVp = null;
       onDone();
     });
+    // Pre-compute viewport covering all planned walls so camera stays steady
+    castleBuildVp = computeCastleBuildViewport(wallPlans);
     render();
     mode = Mode.CASTLE_BUILD;
   }
@@ -1380,8 +1421,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     castleBuild = createCastleBuildState(plans, () => {
       finalizeCastleRebuild(state, plans);
+      castleBuildVp = null;
       onDone();
     });
+    castleBuildVp = computeCastleBuildViewport(plans);
     render();
     mode = Mode.CASTLE_BUILD;
   }
