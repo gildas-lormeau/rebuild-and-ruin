@@ -253,20 +253,16 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
       });
     }
 
-    // Build: tap to place
+    // Build: tap to place (cursor already set on touchstart/touchmove)
     if (tap && state.phase === Phase.WALL_BUILD) {
       withFirstHuman((human) => {
-        const { row, col } = pixelToTile(x, y);
-        human.setBuildCursor(row, col);
         tryPlacePieceAndSend(human, state);
       });
     }
 
-    // Cannon: tap to place
+    // Cannon: tap to place (cursor already set on touchstart/touchmove)
     if (tap && state.phase === Phase.CANNON_PLACE) {
       withFirstHuman((human) => {
-        const { row, col } = pixelToTile(x, y);
-        human.setCannonCursor(row, col);
         const max = state.cannonLimits[human.playerId] ?? 0;
         tryPlaceCannonAndSend(human, state, max);
         render();

@@ -276,16 +276,12 @@ export function registerOnlineInputHandlers(
       });
     } else if (state.phase === Phase.CANNON_PLACE) {
       withFirstHuman((human) => {
-        const { row, col } = pixelToTile(x, y);
-        human.setCannonCursor(row, col);
         const max = state.cannonLimits[human.playerId] ?? 0;
         tryPlaceCannonAndSend(human, state, max);
         render();
       });
     } else if (state.phase === Phase.WALL_BUILD) {
       withFirstHuman((human) => {
-        const { row, col } = pixelToTile(x, y);
-        human.setBuildCursor(row, col);
         tryPlacePieceAndSend(human, state);
       });
     } else if (

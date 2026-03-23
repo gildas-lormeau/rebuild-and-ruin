@@ -11,6 +11,8 @@ import {
   Action,
   CannonMode,
   NORMAL_CANNON_SIZE,
+  SUPER_GUN_SIZE,
+  BALLOON_SIZE,
   SUPER_GUN_COST,
   BALLOON_COST,
   CROSSHAIR_SPEED,
@@ -1281,6 +1283,8 @@ export class HumanController extends BaseController {
 
   /** Cannon placement mode. */
   private cannonPlaceMode: CannonMode = CannonMode.NORMAL;
+  /** True when cannon cursor was set by mouse/touch (snap on next tick). */
+  private cannonCursorNeedsSnap = false;
   /** Actions currently held for continuous crosshair movement. */
   private readonly heldActions = new Set<Action>();
 
@@ -1333,12 +1337,15 @@ export class HumanController extends BaseController {
     const player = state.players[this.playerId]!;
     const maxSlots = state.cannonLimits[this.playerId] ?? 0;
     if (cannonSlotsUsed(player) >= maxSlots) return null;
-    // Snap-to-fit: if current position is invalid, nudge to nearest valid spot
-    if (!canPlaceCannon(player, this.cannonCursor.row, this.cannonCursor.col, this.cannonPlaceMode, state)) {
-      const snapped = findNearestValidCannonPlacement(
-        player, this.cannonCursor.row, this.cannonCursor.col, this.cannonPlaceMode, state,
-      );
-      if (snapped) { this.cannonCursor.row = snapped.row; this.cannonCursor.col = snapped.col; }
+    // Snap-to-fit: only on mouse/touch (absolute position), not d-pad/keyboard (relative)
+    if (this.cannonCursorNeedsSnap) {
+      this.cannonCursorNeedsSnap = false;
+      if (!canPlaceCannon(player, this.cannonCursor.row, this.cannonCursor.col, this.cannonPlaceMode, state)) {
+        const snapped = findNearestValidCannonPlacement(
+          player, this.cannonCursor.row, this.cannonCursor.col, this.cannonPlaceMode, state,
+        );
+        if (snapped) { this.cannonCursor.row = snapped.row; this.cannonCursor.col = snapped.col; }
+      }
     }
     const valid = canPlaceCannon(
       player,
@@ -1358,11 +1365,27 @@ export class HumanController extends BaseController {
     };
   }
 
+  override setCannonCursor(row: number, col: number): void {
+    // Offset so the clicked tile is near the center of the cannon phantom
+    const size = this.cannonPlaceMode === CannonMode.SUPER ? SUPER_GUN_SIZE
+      : this.cannonPlaceMode === CannonMode.BALLOON ? BALLOON_SIZE
+      : NORMAL_CANNON_SIZE;
+    const offset = Math.floor(size / 2);
+    super.setCannonCursor(row - offset, col - offset);
+    this.cannonCursorNeedsSnap = true;
+  }
+
   override moveBuildCursor(direction: Action): void {
     super.moveBuildCursor(direction, this.currentPiece);
   }
 
   override setBuildCursor(row: number, col: number): void {
+    // Offset so the clicked tile aligns with the piece's pivot (visual center)
+    if (this.currentPiece) {
+      const [pr, pc] = this.currentPiece.pivot;
+      row -= pr;
+      col -= pc;
+    }
     super.setBuildCursor(row, col, this.currentPiece);
   }
 

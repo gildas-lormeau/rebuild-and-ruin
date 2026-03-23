@@ -955,26 +955,31 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       }
     }
 
-    // Auto-zoom on phase change (touch devices only, not during banners)
-    if (homeZoomButton && zoomActivated && state.phase !== lastAutoZoomPhase &&
-        mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD) {
-      if (mode === Mode.SELECTION && lastAutoZoomPhase === null) {
-        // First selection: start delay so player sees the full map briefly
-        selectionZoomDelay = 2;
-      } else {
-        autoZoom(state.phase);
-      }
-      lastAutoZoomPhase = state.phase;
+    // Selection delay: show "Select your home castle" for 2s on first selection (all platforms)
+    if (mode === Mode.SELECTION && lastAutoZoomPhase === null && selectionZoomDelay <= 0) {
+      selectionZoomDelay = 2;
     }
-
-    // Delayed zoom for selection phase (2s preview of full map, then zoom in)
     if (selectionZoomDelay > 0 && mode === Mode.SELECTION) {
       frame.announcement = "Select your home castle";
       selectionZoomDelay -= dt;
       if (selectionZoomDelay <= 0) {
         selectionZoomDelay = 0;
+        // On mobile, zoom into player zone after the delay
+        if (homeZoomButton && zoomActivated) autoZoom(state.phase);
+      }
+    }
+
+    // Auto-zoom on phase change (mobile only, not during banners)
+    if (homeZoomButton && zoomActivated && state.phase !== lastAutoZoomPhase &&
+        mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD) {
+      if (!(mode === Mode.SELECTION && lastAutoZoomPhase === null)) {
+        // Skip first selection (handled by delay above)
         autoZoom(state.phase);
       }
+      lastAutoZoomPhase = state.phase;
+    } else if (state.phase !== lastAutoZoomPhase &&
+        mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD) {
+      lastAutoZoomPhase = state.phase;
     }
   }
 
@@ -1173,7 +1178,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const noBanner = mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD;
     const showZoom = noBanner && (mode === Mode.GAME || mode === Mode.SELECTION);
     const hasHuman = firstHuman() !== null;
-    dpad?.update(hasHuman && (inGame || mode === Mode.SELECTION) ? state.phase : null);
+    dpad?.update(hasHuman && (mode === Mode.GAME || mode === Mode.SELECTION) ? state.phase : null);
     homeZoomButton?.update(showZoom ? state.phase : null);
     enemyZoomButton?.update(showZoom ? state.phase : null);
     quitButton?.update(inGame || mode === Mode.SELECTION ? state.phase : null);
