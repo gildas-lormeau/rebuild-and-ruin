@@ -663,7 +663,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       overlay.ui.statusBar = buildStatusBar(state, PLAYER_COLORS);
     }
 
-    // Add score deltas to overlay (shown during "Place Cannons" banner)
+    // Add score deltas to overlay (shown during Place Cannons banner)
     if (scoreDeltas.length > 0 && overlay.ui) {
       overlay.ui.scoreDeltas = scoreDeltas;
     }
