@@ -53,3 +53,23 @@ export const FONT_FLOAT_LG = "bold 14px sans-serif";
 export const FONT_FLOAT_MD = "bold 12px sans-serif";
 export const FONT_FLOAT_SM = "bold 11px sans-serif";
 export const FONT_FLOAT_XS = "bold 7px sans-serif";
+
+// ---------------------------------------------------------------------------
+// Animation timings (ms divisors for Date.now() or performance.now())
+// ---------------------------------------------------------------------------
+
+// In-world effect timings
+export const BONUS_FLASH_MS = 300;
+export const TOWER_FLASH_MS = 120;
+
+// Crosshair animation
+export const CROSSHAIR_READY_FREQ = 16;
+export const CROSSHAIR_IDLE_FREQ = 4;
+export const CROSSHAIR_ARM_READY = 14;
+export const CROSSHAIR_ARM_IDLE = 10;
+export const CROSSHAIR_ARM_PULSE = 3;
+
+// UI button/cursor flash
+export const BUTTON_FLASH_MS = 400;
+export const CURSOR_BLINK_MS = 500;
+export const REBIND_FLASH_MS = 350;

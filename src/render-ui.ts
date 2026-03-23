@@ -26,6 +26,9 @@ import {
   FONT_FLOAT_MD,
   FONT_FLOAT_SM,
   FONT_FLOAT_XS,
+  BUTTON_FLASH_MS,
+  CURSOR_BLINK_MS,
+  REBIND_FLASH_MS,
 } from "./render-theme.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import { PANEL_W, PANEL_H, BTN_W, BTN_H } from "./life-lost.ts";
@@ -45,11 +48,6 @@ const TEXT_DIM = "#666";
 const TEXT_MUTED = "#888";
 const TEXT_DISABLED = "#999";
 const ELIMINATED_RED = "#c44";
-
-// Flash/blink intervals (ms) for interactive UI elements
-const BUTTON_FLASH_MS = 400;
-const CURSOR_BLINK_MS = 500;
-const REBIND_FLASH_MS = 350;
 
 /** Returns true on even half of a repeating blink cycle. */
 function flashOn(intervalMs: number): boolean {

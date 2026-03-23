@@ -4,21 +4,17 @@
  */
 
 import { TILE } from "./map-renderer.ts";
-import { rgb, FONT_TIMER } from "./render-theme.ts";
+import {
+  rgb, FONT_TIMER,
+  BONUS_FLASH_MS, CROSSHAIR_READY_FREQ, CROSSHAIR_IDLE_FREQ,
+  CROSSHAIR_ARM_READY, CROSSHAIR_ARM_IDLE, CROSSHAIR_ARM_PULSE,
+} from "./render-theme.ts";
 import { facingToCardinal } from "./spatial.ts";
 import { drawSprite } from "./sprites.ts";
 import { PLAYER_COLORS } from "./player-config.ts";
 import { IMPACT_FLASH_DURATION } from "./types.ts";
 import type { RenderOverlay, MapData } from "./map-renderer.ts";
 import type { RGB } from "./render-theme.ts";
-
-// Animation timing constants
-const BONUS_FLASH_MS = 300;
-const CROSSHAIR_READY_FREQ = 16;
-const CROSSHAIR_IDLE_FREQ = 4;
-const CROSSHAIR_ARM_READY = 14;
-const CROSSHAIR_ARM_IDLE = 10;
-const CROSSHAIR_ARM_PULSE = 3;
 
 // Crosshair colors per player
 const CROSSHAIR_COLORS: RGB[] = [
