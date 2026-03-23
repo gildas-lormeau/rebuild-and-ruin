@@ -1,8 +1,9 @@
 import type { ServerMessage } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
 import type { ImpactEvent } from "./battle-system.ts";
+import type { OrbitParams } from "./player-controller.ts";
 import type { SelectionState } from "./selection.ts";
-import type { GameState } from "./types.ts";
+import { CannonMode, type GameState } from "./types.ts";
 
 interface LifeLostChoiceEntry {
   playerId: number;
@@ -42,10 +43,7 @@ interface HandleServerIncrementalDeps {
   applyImpactEvent: (state: GameState, event: ImpactEvent) => void;
   gridCols: number;
   remoteCrosshairs: Map<number, { x: number; y: number }>;
-  watcherOrbitParams: Map<
-    number,
-    { rx: number; ry: number; speed: number; phase: number }
-  >;
+  watcherOrbitParams: Map<number, OrbitParams>;
   getRemotePiecePhantoms: () => {
     offsets: [number, number][];
     row: number;
@@ -245,8 +243,8 @@ export function handleServerIncrementalMessage(
           row: msg.row,
           col: msg.col,
           valid: msg.valid,
-          isSuper: msg.mode === "super",
-          isBalloon: msg.mode === "balloon",
+          isSuper: msg.mode === CannonMode.SUPER,
+          isBalloon: msg.mode === CannonMode.BALLOON,
           playerId: msg.playerId,
           facing: msg.facing,
         });

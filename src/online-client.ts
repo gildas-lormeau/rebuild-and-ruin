@@ -19,7 +19,7 @@ import {
 } from "../server/protocol.ts";
 import { autoPlaceCannons } from "./ai-strategy.ts";
 import {
-  aimCannons,applyImpactEvent, 
+  aimCannons, applyImpactEvent,
   nextReadyCombined
 } from "./battle-system.ts";
 import { applyCannonPlacement } from "./cannon-system.ts";
@@ -84,8 +84,7 @@ import {
   PLAYER_COLORS,
   PLAYER_NAMES,
 } from "./player-config.ts";
-import type { PlayerController } from "./player-controller.ts";
-import { CROSSHAIR_SPEED } from "./player-controller.ts";
+import { CROSSHAIR_SPEED, type OrbitParams, type PlayerController } from "./player-controller.ts";
 import { loadAtlas } from "./sprites.ts";
 import type { GameState } from "./types.ts";
 import {
@@ -182,14 +181,10 @@ const remoteCrosshairs = new Map<number, { x: number; y: number }>();
 let remoteCannonPhantoms: CannonPhantom[] = [];
 const watcherCrosshairPos = new Map<number, { x: number; y: number }>();
 const watcherIdlePhases = new Map<number, number>();
-const watcherOrbitParams = new Map<
-  number,
-  { rx: number; ry: number; speed: number; phase: number }
->();
+const watcherOrbitParams = new Map<number, OrbitParams>();
 let remotePiecePhantoms: PiecePhantom[] = [];
 
 // @ts-ignore — import.meta.env is Vite-specific (not recognized by Deno LSP)
-// @ts-ignore — import.meta.env is Vite-specific
 const DEV = import.meta.env?.DEV ?? (location?.hostname === "localhost");
 
 /** Structured log for E2E test analysis (dev only). */
@@ -199,13 +194,16 @@ function log(msg: string): void {
   console.log(`[online] (mode=${modeStr} pid=${myPlayerId}) ${msg}`);
 }
 
+const LOG_THROTTLE_MS = 1000;
+const MIGRATION_ANNOUNCEMENT_DURATION = 3;
+
 /** Throttled log — logs at most once per second per key (dev only). */
 const _throttleTimestamps = new Map<string, number>();
 function logThrottled(key: string, msg: string): void {
   if (!DEV) return;
   const now = performance.now();
   const last = _throttleTimestamps.get(key) ?? 0;
-  if (now - last < 1000) return;
+  if (now - last < LOG_THROTTLE_MS) return;
   _throttleTimestamps.set(key, now);
   log(msg);
 }
@@ -235,12 +233,12 @@ function connect(): void {
   };
   ws.onclose = () => {
     if (keepaliveTimer) { clearInterval(keepaliveTimer); keepaliveTimer = null; }
-    const m = runtime.getMode();
+    const m = runtime.rs.mode;
     log(`WebSocket closed (mode=${Mode[m]} isHost=${isHost})`);
     if (!isHost && m !== Mode.STOPPED && m !== Mode.LOBBY) {
-      runtime.getFrame().announcement = "Disconnected from server";
+      runtime.rs.frame.announcement = "Disconnected from server";
       runtime.render();
-      runtime.setMode(Mode.STOPPED);
+      runtime.rs.mode = Mode.STOPPED;
     }
   };
   ws.onerror = () => {
@@ -281,8 +279,8 @@ let lobbyStartTime = 0; // performance.now() when lobby started
 // ---------------------------------------------------------------------------
 
 function showLobby(): void {
-  runtime.setMode(Mode.STOPPED);
-  runtime.getLobby().active = false;
+  runtime.rs.mode = Mode.STOPPED;
+  runtime.rs.lobby.active = false;
   canvas.style.display = "none";
   roomCodeOverlay.style.display = "none";
   lobbyEl.style.display = "block";
@@ -305,8 +303,8 @@ function tickMigrationAnnouncement(dt: number): void {
     migrationAnnouncementTimer -= dt;
     if (migrationAnnouncementTimer > 0) {
       // Don't overwrite game announcements (e.g., Ready/Aim/Fire countdown)
-      if (!runtime.getFrame().announcement) {
-        runtime.getFrame().announcement = migrationAnnouncementText;
+      if (!runtime.rs.frame.announcement) {
+        runtime.rs.frame.announcement = migrationAnnouncementText;
       }
     } else {
       migrationAnnouncementTimer = 0;
@@ -316,9 +314,9 @@ function tickMigrationAnnouncement(dt: number): void {
 }
 
 function tickWatcher(dt: number) {
-  const state = runtime.getState();
-  const frame = runtime.getFrame();
-  const accum = runtime.getAccum();
+  const state = runtime.rs.state;
+  const frame = runtime.rs.frame;
+  const accum = runtime.rs.accum;
 
   updateWatcherTimers(state, frame, watcherTiming, () => performance.now());
 
@@ -346,19 +344,19 @@ function tickWatcher(dt: number) {
 
 /** Get the local human controller, or null if eliminated/watcher. */
 function getLocalHuman(): PlayerController | null {
-  const state = runtime.getState();
+  const state = runtime.rs.state;
   if (myPlayerId < 0 || state.players[myPlayerId]?.eliminated) return null;
-  const ctrl = runtime.getControllers()[myPlayerId];
+  const ctrl = runtime.rs.controllers[myPlayerId];
   return ctrl && isHuman(ctrl) ? ctrl : null;
 }
 
 /** Non-host battle: move cannonballs, collect crosshairs, tick local human. */
 function tickWatcherBattle(dt: number, myHuman: PlayerController | null): void {
-  const state = runtime.getState();
+  const state = runtime.rs.state;
   tickWatcherBattlePhase({
     state,
-    frame: runtime.getFrame(),
-    battleAnim: runtime.getBattleAnim(),
+    frame: runtime.rs.frame,
+    battleAnim: runtime.rs.battleAnim,
     dt,
     myPlayerId,
     myHuman,
@@ -382,8 +380,8 @@ function tickWatcherCannonPhantoms(
   myHuman: PlayerController | null,
 ): void {
   tickWatcherCannonPhantomsPhase({
-    state: runtime.getState(),
-    frame: runtime.getFrame(),
+    state: runtime.rs.state,
+    frame: runtime.rs.frame,
     dt,
     myPlayerId,
     myHuman,
@@ -401,8 +399,8 @@ function tickWatcherBuildPhantoms(
   myHuman: PlayerController | null,
 ): void {
   tickWatcherBuildPhantomsPhase({
-    state: runtime.getState(),
-    frame: runtime.getFrame(),
+    state: runtime.rs.state,
+    frame: runtime.rs.frame,
     dt,
     myHuman,
     remotePiecePhantoms,
@@ -419,9 +417,9 @@ function tickWatcherBuildPhantoms(
 
 function buildCheckpointDeps(): CheckpointDeps {
   return {
-    state: runtime.getState(),
-    battleAnim: runtime.getBattleAnim(),
-    accum: runtime.getAccum(),
+    state: runtime.rs.state,
+    battleAnim: runtime.rs.battleAnim,
+    accum: runtime.rs.accum,
     remoteCrosshairs,
     watcherCrosshairPos,
     watcherOrbitParams,
@@ -454,17 +452,17 @@ function showWaitingRoom(code: string, seed: number): void {
     lobbyEl,
     canvas,
     roomCodeOverlay,
-    lobby: runtime.getLobby(),
+    lobby: runtime.rs.lobby,
     maxPlayers: MAX_PLAYERS,
     now: () => performance.now(),
     setLobbyStartTime: (timeMs: number) => {
       lobbyStartTime = timeMs;
     },
     setModeLobby: () => {
-      runtime.setMode(Mode.LOBBY);
+      runtime.rs.mode = Mode.LOBBY;
     },
     setLastTime: (timeMs: number) => {
-      runtime.setLastTime(timeMs);
+      runtime.rs.lastTime = timeMs;
     },
     requestFrame: () => {
       requestAnimationFrame(runtime.mainLoop);
@@ -478,9 +476,9 @@ function showWaitingRoom(code: string, seed: number): void {
 
 function initFromServer(msg: InitMessage): void {
   roomCodeOverlay.style.display = "none";
-  runtime.getLobby().active = false;
+  runtime.rs.lobby.active = false;
 
-  const settings = runtime.getSettings();
+  const settings = runtime.rs.settings;
 
   bootstrapGame({
     seed: msg.seed,
@@ -491,8 +489,8 @@ function initFromServer(msg: InitMessage): void {
     cannonPlaceTimer: msg.settings.cannonPlaceTimer,
     log,
     resetFrame: () => runtime.resetFrame(),
-    setState: (s) => { runtime.setState(s); },
-    setControllers: (c) => { runtime.setControllers(c); },
+    setState: (s) => { runtime.rs.state = s; },
+    setControllers: (c) => { runtime.rs.controllers = c; },
     resetUIState: () => {
       runtime.resetUIState();
       // Online-specific resets
@@ -528,8 +526,8 @@ function promoteToHost(): void {
   log("PROMOTING TO HOST");
   isHost = true;
 
-  const state = runtime.getState();
-  const controllers = runtime.getControllers();
+  const state = runtime.rs.state;
+  const controllers = runtime.rs.controllers;
 
   // Rebuild controllers: keep self as human, convert everyone else to AI
   for (let i = 0; i < controllers.length; i++) {
@@ -556,7 +554,7 @@ function promoteToHost(): void {
   }
 
   // Sync accumulators from watcher's wall-clock timer (reset all, then set current phase)
-  const accum = runtime.getAccum();
+  const accum = runtime.rs.accum;
   accum.build = 0; accum.cannon = 0; accum.battle = 0; accum.grunt = 0; accum.select = 0;
   if (state.phase === Phase.WALL_BUILD) {
     accum.build = state.buildTimer - state.timer;
@@ -567,23 +565,23 @@ function promoteToHost(): void {
   }
 
   // Handle special modes: skip animations that depend on old host's state
-  const mode = runtime.getMode();
+  const mode = runtime.rs.mode;
   if (mode === Mode.CASTLE_BUILD) {
     // Castle build animation was driven by old host — skip to cannon phase
-    runtime.setCastleBuild(null);
+    runtime.rs.castleBuild = null;
     finalizeCastleConstruction(state);
     enterCannonPlacePhase(state);
     runtime.startCannonPhase();
-    runtime.setMode(Mode.GAME);
+    runtime.rs.mode = Mode.GAME;
     log("Skipped castle build animation → cannon phase");
   } else if (mode === Mode.LIFE_LOST) {
     // Life-lost dialog resolution depends on host — auto-continue all pending
     runtime.lifeLost.set(null);
-    runtime.setMode(Mode.GAME);
+    runtime.rs.mode = Mode.GAME;
     log("Cleared life-lost dialog → game mode");
   } else if (mode === Mode.BANNER || mode === Mode.BALLOON_ANIM) {
     // Visual transitions — skip to game mode
-    runtime.setMode(Mode.GAME);
+    runtime.rs.mode = Mode.GAME;
     log("Skipped banner/animation → game mode");
   }
 
@@ -594,7 +592,7 @@ function promoteToHost(): void {
 }
 
 function applyFullState(msg: FullStateMessage): void {
-  const state = runtime.getState();
+  const state = runtime.rs.state;
   applyFullStateSnapshot(state, msg);
 
   // Reset watcher timing to current moment
@@ -615,12 +613,12 @@ function applyFullState(msg: FullStateMessage): void {
 // ---------------------------------------------------------------------------
 
 const transitionCtx: TransitionContext = {
-  getState: () => runtime.getState(),
+  getState: () => runtime.rs.state,
   getMyPlayerId: () => myPlayerId,
-  getControllers: () => runtime.getControllers(),
+  getControllers: () => runtime.rs.controllers,
   showBanner: (t, cb, r, nb) => runtime.showBanner(t, cb, r, nb),
   clearSelectionOverlay: () => {
-    const overlay = runtime.getOverlay();
+    const overlay = runtime.rs.overlay;
     if (overlay.selection) {
       overlay.selection.highlights = undefined;
       overlay.selection.highlighted = null;
@@ -632,10 +630,10 @@ const transitionCtx: TransitionContext = {
   setWatcherPhaseDuration: (v) => { watcherTiming.phaseDuration = v; },
   setWatcherCountdownStartTime: (v) => { watcherTiming.countdownStartTime = v; },
   setWatcherCountdownDuration: (v) => { watcherTiming.countdownDuration = v; },
-  setModeGame: () => { runtime.setMode(Mode.GAME); },
-  setModeCastleBuild: () => { runtime.setMode(Mode.CASTLE_BUILD); },
-  setModeBalloonAnim: () => { runtime.setMode(Mode.BALLOON_ANIM); },
-  setModeStopped: () => { runtime.setMode(Mode.STOPPED); },
+  setModeGame: () => { runtime.rs.mode = Mode.GAME; },
+  setModeCastleBuild: () => { runtime.rs.mode = Mode.CASTLE_BUILD; },
+  setModeBalloonAnim: () => { runtime.rs.mode = Mode.BALLOON_ANIM; },
+  setModeStopped: () => { runtime.rs.mode = Mode.STOPPED; },
   battleCountdown: BATTLE_COUNTDOWN,
   bannerDuration: BANNER_DURATION,
   playerColors: PLAYER_COLORS,
@@ -649,13 +647,13 @@ const transitionCtx: TransitionContext = {
   enterCannonPlacePhase,
   getSelectionStates: () => runtime.selection.getStates(),
   setCastleBuildFromPlans: (plans, maxTiles, onDone) => {
-    runtime.setCastleBuild({ wallPlans: plans, maxTiles, tileIdx: 0, accum: 0, onDone });
+    runtime.rs.castleBuild = { wallPlans: plans, maxTiles, tileIdx: 0, accum: 0, onDone };
   },
-  setBattleFlights: (v) => { runtime.getBattleAnim().flights = v; },
+  setBattleFlights: (v) => { runtime.rs.battleAnim.flights = v; },
   snapshotTerritory: () => runtime.snapshotTerritory(),
   showLifeLostDialog: (nr, el) => runtime.lifeLost.show(nr, el),
   render: () => runtime.render(),
-  setGameOverFrame: (p) => { runtime.getFrame().gameOver = p; },
+  setGameOverFrame: (p) => { runtime.rs.frame.gameOver = p; },
 };
 
 
@@ -669,14 +667,14 @@ function handleServerMessage(msg: ServerMessage): void {
     handleServerLifecycleMessage(msg, {
       log,
       isHost,
-      getState: () => runtime.getState(),
+      getState: () => runtime.rs.state,
       getLifeLostDialog: () => runtime.lifeLost.get(),
       clearLifeLostDialog: () => {
         runtime.lifeLost.set(null);
       },
-      isLifeLostMode: () => runtime.getMode() === Mode.LIFE_LOST,
+      isLifeLostMode: () => runtime.rs.mode === Mode.LIFE_LOST,
       setGameMode: () => {
-        runtime.setMode(Mode.GAME);
+        runtime.rs.mode = Mode.GAME;
       },
       setLobbyWaitTimer: (seconds) => {
         lobbyWaitTimer = seconds;
@@ -690,7 +688,7 @@ function handleServerMessage(msg: ServerMessage): void {
         lobbyStartTime = timeMs;
       },
       now: () => performance.now(),
-      lobbyJoined: runtime.getLobby().joined,
+      lobbyJoined: runtime.rs.lobby.joined,
       occupiedSlots,
       remoteHumanSlots,
       getMyPlayerId: () => myPlayerId,
@@ -709,7 +707,7 @@ function handleServerMessage(msg: ServerMessage): void {
       onGameOver: (msg) => handleGameOverTransition(msg, transitionCtx),
       setAnnouncement: (text) => {
         migrationAnnouncementText = text;
-        migrationAnnouncementTimer = 3;
+        migrationAnnouncementTimer = MIGRATION_ANNOUNCEMENT_DURATION;
       },
       playerNames: PLAYER_NAMES,
       promoteToHost,
@@ -722,14 +720,14 @@ function handleServerMessage(msg: ServerMessage): void {
   handleServerIncrementalMessage(msg, {
     log,
     isHost,
-    getState: () => runtime.getState(),
+    getState: () => runtime.rs.state,
     remoteHumanSlots,
     selectionStates: runtime.selection.getStates(),
     syncSelectionOverlay: () => runtime.selection.syncOverlay(),
-    isCastleReselectPhase: () => runtime.getState().phase === Phase.CASTLE_RESELECT,
+    isCastleReselectPhase: () => runtime.rs.state.phase === Phase.CASTLE_RESELECT,
     onRemotePlayerReselected: (playerId) => {
-      markPlayerReselected(runtime.getState(), playerId);
-      runtime.getReselectionPids().push(playerId);
+      markPlayerReselected(runtime.rs.state, playerId);
+      runtime.rs.reselectionPids.push(playerId);
     },
     allSelectionsConfirmed: () => runtime.selection.allConfirmed(),
     finishReselection: () => runtime.selection.finishReselection(),
@@ -779,7 +777,7 @@ const runtime: GameRuntime = createGameRuntime({
     send({ type: MSG.SELECT_SLOT, slotId: pid });
   },
   onCloseOptions: () => {
-    if (runtime.getOptionsReturnMode() === null) {
+    if (runtime.rs.optionsReturnMode === null) {
       lobbyStartTime = performance.now();
     }
   },
@@ -825,7 +823,7 @@ const runtime: GameRuntime = createGameRuntime({
     }
   },
   extendCrosshairs: (crosshairs, dt) => {
-    const state = runtime.getState();
+    const state = runtime.rs.state;
     logThrottled(
       "host-ch-remote",
       `collectCrosshairs: localCh=${crosshairs.length} remoteCrosshairs keys=[${[...remoteCrosshairs.keys()]}] cannons=[${state.players.map((p, i) => `P${i}:${p.cannons.length}`).join(",")}]`,

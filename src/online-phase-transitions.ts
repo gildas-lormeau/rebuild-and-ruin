@@ -7,6 +7,9 @@ import type { PlayerController } from "./player-controller.ts";
 import type { GameState } from "./types.ts";
 import { Phase } from "./types.ts";
 
+const BANNER_BATTLE_ONLINE = "Battle!";
+const BANNER_REPAIR_ONLINE = "Repair!";
+
 // ---------------------------------------------------------------------------
 // Shared context for all watcher phase transitions
 // ---------------------------------------------------------------------------
@@ -128,7 +131,7 @@ export function handleBattleStartTransition(msg: ServerMessage, ctx: TransitionC
   const battleFlights = msg.flights;
 
   ctx.showBanner(
-    "Battle!",
+    BANNER_BATTLE_ONLINE,
     () => {
       if (myPlayerId >= 0) {
         const ctrl = ctx.getControllers()[myPlayerId];
@@ -164,7 +167,7 @@ export function handleBuildStartTransition(msg: ServerMessage, ctx: TransitionCo
   const myPlayerId = ctx.getMyPlayerId();
   const buildReceivedAt = ctx.now();
   ctx.showBanner(
-    "Repair!",
+    BANNER_REPAIR_ONLINE,
     () => {
       ctx.setWatcherPhaseStartTime(buildReceivedAt + ctx.bannerDuration * 1000);
       ctx.setWatcherPhaseDuration(state.timer);

@@ -1,6 +1,7 @@
 import type { ClientMessage } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
 import { getApiUrl } from "./online-config.ts";
+import { MAX_PLAYERS } from "./player-config.ts";
 
 const ROOM_CODE_LENGTH = 4;
 const ROOM_POLL_INTERVAL_MS = 3000;
@@ -154,7 +155,7 @@ export function setupLobbyUi({
         item.appendChild(el("span", "room-code", r.code));
         const info = el("span", "room-info");
         info.append(
-          `${r.players}/3 players`, doc.createElement("br"),
+          `${r.players}/${MAX_PLAYERS} players`, doc.createElement("br"),
           `${roundsLabel(r.settings.battleLength)} · ${r.settings.cannonMaxHp} HP`,
         );
         item.appendChild(info);

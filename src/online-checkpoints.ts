@@ -6,6 +6,7 @@ import {
   applyHousesCheckpoint,
   applyPlayersCheckpoint,
 } from "./online-serialize.ts";
+import type { OrbitParams } from "./player-controller.ts";
 import type { GameState } from "./types.ts";
 import { BATTLE_TIMER } from "./types.ts";
 
@@ -30,10 +31,7 @@ export interface CheckpointDeps {
   accum: CheckpointAccums;
   remoteCrosshairs: Map<number, { x: number; y: number }>;
   watcherCrosshairPos: Map<number, { x: number; y: number }>;
-  watcherOrbitParams: Map<
-    number,
-    { rx: number; ry: number; speed: number; phase: number }
-  >;
+  watcherOrbitParams: Map<number, OrbitParams>;
   watcherIdlePhases: Map<number, number>;
   snapshotTerritory: () => Set<number>[];
 }

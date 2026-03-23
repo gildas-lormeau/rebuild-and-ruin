@@ -1,8 +1,19 @@
 import { countdownAnnouncement } from "./battle-system.ts";
-import type { CannonPhantom, HumanPiecePhantom, PiecePhantom } from "./online-types.ts";
-import type { Crosshair, PlayerController } from "./player-controller.ts";
+import { type CannonPhantom, cannonPhantomKey, type HumanPiecePhantom, type PiecePhantom, piecePhantomKey } from "./online-types.ts";
+import type { Crosshair, OrbitParams, PlayerController } from "./player-controller.ts";
 import type { GameState, Impact } from "./types.ts";
 import { BATTLE_TIMER, Phase } from "./types.ts";
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+/** Multiplier for remote crosshair interpolation speed (faster than local). */
+const REMOTE_CROSSHAIR_MULT = 2;
+/** Orbital idle wobble frequency on X axis. */
+const ORBIT_FREQ_X = 0.23;
+/** Orbital idle wobble frequency on Y axis. */
+const ORBIT_FREQ_Y = 0.19;
 
 // ---------------------------------------------------------------------------
 // Watcher timing state + timer tick
@@ -74,10 +85,7 @@ interface WatcherBattleDeps {
   remoteCrosshairs: Map<number, { x: number; y: number }>;
   watcherCrosshairPos: Map<number, { x: number; y: number }>;
   watcherIdlePhases: Map<number, number>;
-  watcherOrbitParams: Map<
-    number,
-    { rx: number; ry: number; speed: number; phase: number }
-  >;
+  watcherOrbitParams: Map<number, OrbitParams>;
   crosshairSpeed: number;
   tileSize: number;
   logThrottled: (key: string, msg: string) => void;
@@ -165,22 +173,22 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
       const op = watcherOrbitParams.get(pid);
       if (op) {
         let phase = watcherIdlePhases.get(pid) ?? op.phase;
-        const rx = op.rx + Math.sin(phase * 0.23);
-        const ry = op.ry + Math.sin(phase * 0.19);
+        const rx = op.rx + Math.sin(phase * ORBIT_FREQ_X);
+        const ry = op.ry + Math.sin(phase * ORBIT_FREQ_Y);
         phase += op.speed * dt;
         watcherIdlePhases.set(pid, phase);
         interpolateToward(
           vis,
           target.x + Math.cos(phase) * rx,
           target.y + Math.sin(phase) * ry,
-          crosshairSpeed * 2,
+          crosshairSpeed * REMOTE_CROSSHAIR_MULT,
           dt,
         );
       } else {
-        interpolateToward(vis, target.x, target.y, crosshairSpeed * 2, dt);
+        interpolateToward(vis, target.x, target.y, crosshairSpeed * REMOTE_CROSSHAIR_MULT, dt);
       }
     } else {
-      interpolateToward(vis, target.x, target.y, crosshairSpeed * 2, dt);
+      interpolateToward(vis, target.x, target.y, crosshairSpeed * REMOTE_CROSSHAIR_MULT, dt);
     }
 
     frame.crosshairs.push({
@@ -274,7 +282,7 @@ export function tickWatcherCannonPhantomsPhase(
   if (!phantom) return;
 
   frame.phantoms.aiCannonPhantoms!.push(phantom);
-  const key = `${phantom.row},${phantom.col},${phantom.isSuper},${phantom.isBalloon}`;
+  const key = cannonPhantomKey(phantom);
   if (lastSentCannonPhantom.get(myPlayerId) === key) return;
 
   lastSentCannonPhantom.set(myPlayerId, key);
@@ -336,7 +344,7 @@ export function tickWatcherBuildPhantomsPhase(
       playerId: p.playerId,
     });
 
-    const key = `${p.row},${p.col},${p.offsets.map((o) => o.join(":")).join(";")}`;
+    const key = piecePhantomKey(p);
     if (lastSentPiecePhantom.get(p.playerId) === key) continue;
 
     lastSentPiecePhantom.set(p.playerId, key);

@@ -18,6 +18,9 @@ import {
 /** Battle crosshair movement speed in pixels per second. */
 export const CROSSHAIR_SPEED = 80;
 
+/** Orbit animation parameters for AI countdown idle animation. */
+export type OrbitParams = { rx: number; ry: number; speed: number; phase: number };
+
 import type { CombinedCannonResult } from "./battle-system.ts";
 import {
   fireCannon,
@@ -114,7 +117,7 @@ export interface PlayerController {
   getCrosshairTarget(): { x: number; y: number } | null;
 
   /** AI's orbit parameters for countdown animation (null if not orbiting). */
-  getOrbitParams(): { rx: number; ry: number; speed: number; phase: number } | null;
+  getOrbitParams(): OrbitParams | null;
 
   /** Center cursors/crosshair on a tower position. */
   centerOn(row: number, col: number): void;
@@ -264,7 +267,7 @@ export abstract class BaseController implements PlayerController {
 
   getCurrentPiece(): PieceShape | null { return this.currentPiece; }
   getCrosshairTarget(): { x: number; y: number } | null { return null; }
-  getOrbitParams(): { rx: number; ry: number; speed: number; phase: number } | null { return null; }
+  getOrbitParams(): OrbitParams | null { return null; }
 
   // --- Default implementations for input methods (overridden by Human) ---
 

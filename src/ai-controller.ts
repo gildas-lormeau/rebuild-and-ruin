@@ -28,6 +28,7 @@ import { rotateCW } from "./pieces.ts";
 import {
   BaseController,
   CROSSHAIR_SPEED,
+  type OrbitParams,
   type PhantomCannon,
   type PhantomPiece,
 } from "./player-controller.ts";
@@ -117,7 +118,7 @@ export class AiController extends BaseController {
   private chainType: ChainType = Chain.WALL;
 
   override getCrosshairTarget(): { x: number; y: number } | null { return this.crosshairTarget; }
-  override getOrbitParams(): { rx: number; ry: number; speed: number; phase: number } | null {
+  override getOrbitParams(): OrbitParams | null {
     return this.idleInitialized ? { rx: this.idleRx, ry: this.idleRy, speed: this.idleSpeed, phase: this.idlePhase } : null;
   }
 
