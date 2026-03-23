@@ -35,18 +35,18 @@ const runtime = createGameRuntime({
   log: import.meta.env?.DEV ? (msg: string) => console.log(`[local] ${msg}`) : () => {},
   // @ts-ignore
   logThrottled: import.meta.env?.DEV ? (() => { const ts = new Map<string, number>(); return (key: string, msg: string) => { const now = performance.now(); if (now - (ts.get(key) ?? 0) < 1000) return; ts.set(key, now); console.log(`[local] ${msg}`); }; })() : () => {},
-  getLobbyRemaining: () => Math.max(0, LOBBY_TIMER - (runtime.getLobby().timerAccum ?? 0)),
+  getLobbyRemaining: () => Math.max(0, LOBBY_TIMER - (runtime.rs.lobby.timerAccum ?? 0)),
   showLobby,
   onLobbySlotJoined: (pid) => {
-    runtime.getLobby().joined[pid] = true;
+    runtime.rs.lobby.joined[pid] = true;
     runtime.renderLobby();
   },
   onCloseOptions: () => {
-    runtime.getLobby().timerAccum = 0; // reset countdown after settings
+    runtime.rs.lobby.timerAccum = 0; // reset countdown after settings
   },
   onTickLobbyExpired: () => {
     runtime.startGame();
-    runtime.setMode(Mode.SELECTION);
+    runtime.rs.mode = Mode.SELECTION;
   },
 });
 
@@ -55,15 +55,15 @@ const runtime = createGameRuntime({
 // ---------------------------------------------------------------------------
 
 function showLobby(): void {
-  const lobby = runtime.getLobby();
+  const lobby = runtime.rs.lobby;
   lobby.joined = new Array(MAX_PLAYERS).fill(false);
   lobby.active = true;
   lobby.timerAccum = 0;
-  runtime.setQuitPending(false);
-  runtime.setOptionsReturnMode(null);
+  runtime.rs.quitPending = false;
+  runtime.rs.optionsReturnMode = null;
   runtime.renderLobby();
-  runtime.setMode(Mode.LOBBY);
-  runtime.setLastTime(performance.now());
+  runtime.rs.mode = Mode.LOBBY;
+  runtime.rs.lastTime = performance.now();
   requestAnimationFrame(runtime.mainLoop);
 }
 

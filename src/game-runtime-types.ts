@@ -7,24 +7,13 @@
 
 import type { GameMessage, ServerMessage } from "../server/protocol.ts";
 import type { BalloonFlight } from "./battle-system.ts";
-import type { CastleBuildState } from "./castle-build.ts";
 import type { UIContext } from "./game-ui-screens.ts";
-import type {
-  BattleAnimState,
-  ControlsState,
-  FrameData,
-  GameSettings,
-  LobbyState,
-  TimerAccums,
-} from "./game-ui-types.ts";
-import { Mode } from "./game-ui-types.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
 import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
 import type { WatcherTimingState } from "./online-watcher-battle.ts";
-import type { BannerState } from "./phase-banner.ts";
 import type { Crosshair, PlayerController } from "./player-controller.ts";
-import type { RenderOverlay } from "./render-types.ts";
+import type { RuntimeState } from "./runtime-state.ts";
 import type { SelectionState } from "./selection.ts";
 import type { GameState } from "./types.ts";
 
@@ -132,42 +121,8 @@ export interface RuntimeLifeLost {
 }
 
 export interface GameRuntime {
-  // --- State getters ---
-  getState: () => GameState;
-  setState: (s: GameState) => void;
-  getOverlay: () => RenderOverlay;
-  getControllers: () => PlayerController[];
-  setControllers: (c: PlayerController[]) => void;
-  getAccum: () => TimerAccums;
-  setAccum: (a: TimerAccums) => void;
-  getBattleAnim: () => BattleAnimState;
-  setBattleAnim: (b: BattleAnimState) => void;
-  getFrame: () => FrameData;
-  getCastleBuild: () => CastleBuildState | null;
-  setCastleBuild: (c: CastleBuildState | null) => void;
-  getReselectQueue: () => number[];
-  setReselectQueue: (q: number[]) => void;
-  getReselectionPids: () => number[];
-  setReselectionPids: (p: number[]) => void;
-  getMode: () => Mode;
-  setMode: (m: Mode) => void;
-  getSettings: () => GameSettings;
-  getPaused: () => boolean;
-  setPaused: (v: boolean) => void;
-  getQuitPending: () => boolean;
-  setQuitPending: (v: boolean) => void;
-  getQuitTimer: () => number;
-  setQuitTimer: (v: number) => void;
-  getOptionsReturnMode: () => Mode | null;
-  setOptionsReturnMode: (m: Mode | null) => void;
-  getOptionsCursor: () => number;
-  setOptionsCursor: (v: number) => void;
-  getControlsState: () => ControlsState;
-  getLobby: () => LobbyState;
-  getBanner: () => BannerState;
-  setBanner: (b: BannerState) => void;
-  getLastTime: () => number;
-  setLastTime: (t: number) => void;
+  /** Mutable runtime state — direct property access replaces getter/setter pairs. */
+  rs: RuntimeState;
 
   // --- Sub-systems ---
   selection: RuntimeSelection;
