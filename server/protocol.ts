@@ -222,6 +222,49 @@ export interface GameOverMessage {
 }
 
 // ---------------------------------------------------------------------------
+// Host migration
+// ---------------------------------------------------------------------------
+
+/** Host disconnected — server tells all clients who the new host is. */
+export interface HostLeftMessage {
+  type: "host_left";
+  /** PlayerId of the promoted player, or -1 if no human available (AI fallback). */
+  newHostPlayerId: number;
+  /** PlayerId of the departed host. */
+  previousHostPlayerId: number;
+}
+
+/** Full game state snapshot sent by new host after promotion for watcher reconciliation. */
+export interface FullStateMessage {
+  type: "full_state";
+  phase: string;
+  round: number;
+  timer: number;
+  battleCountdown: number;
+  battleLength: number;
+  shotsFired: number;
+  rngState: number;
+  players: SerializedPlayer[];
+  grunts: SerializedGrunt[];
+  houses: SerializedHouse[];
+  bonusSquares: SerializedBonusSquare[];
+  towerAlive: boolean[];
+  burningPits: SerializedBurningPit[];
+  cannonLimits: number[];
+  towerPendingRevive: number[];
+  cannonballs: {
+    cannonIdx: number;
+    startX: number; startY: number;
+    x: number; y: number;
+    targetX: number; targetY: number;
+    speed: number;
+    playerId: number;
+    scoringPlayerId?: number;
+    incendiary?: boolean;
+  }[];
+}
+
+// ---------------------------------------------------------------------------
 // Server → Client: Build/Cannon events (opponent activity)
 // ---------------------------------------------------------------------------
 
@@ -402,4 +445,7 @@ export type ServerMessage =
   | GruntSpawnedMessage
   | PitCreatedMessage
   | TowerKilledMessage
-  | AimUpdateMessage;
+  | AimUpdateMessage
+  // Host migration
+  | HostLeftMessage
+  | FullStateMessage;

@@ -16,6 +16,12 @@ export class Rng {
     this.state = this.seed;
   }
 
+  /** Get internal state for serialization (host migration). */
+  getState(): number { return this.state; }
+
+  /** Restore internal state from serialization (host migration). */
+  setState(s: number): void { this.state = s; }
+
   /** Returns a float in [0, 1), like Math.random(). */
   next(): number {
     this.state |= 0;

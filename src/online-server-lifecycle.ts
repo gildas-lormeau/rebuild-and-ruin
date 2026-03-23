@@ -1,5 +1,5 @@
 import type { GameState } from "./types.ts";
-import type { ServerMessage, InitMessage } from "../server/protocol.ts";
+import type { ServerMessage, InitMessage, FullStateMessage } from "../server/protocol.ts";
 
 interface HandleServerLifecycleDeps {
   log: (msg: string) => void;
@@ -31,6 +31,8 @@ interface HandleServerLifecycleDeps {
   onGameOver: (msg: ServerMessage) => void;
   setAnnouncement: (msg: string) => void;
   playerNames: readonly string[];
+  promoteToHost: () => void;
+  applyFullState: (msg: FullStateMessage) => void;
 }
 
 export function handleServerLifecycleMessage(
@@ -131,6 +133,25 @@ export function handleServerLifecycleMessage(
 
     case "game_over":
       if (!deps.isHost) deps.onGameOver(msg);
+      return true;
+
+    case "host_left": {
+      deps.log(`host_left: new host is P${msg.newHostPlayerId} (previous: P${msg.previousHostPlayerId})`);
+      if (msg.newHostPlayerId === deps.getMyPlayerId()) {
+        deps.promoteToHost();
+        deps.setAnnouncement("You are now the host");
+      } else {
+        const name = deps.playerNames[msg.newHostPlayerId] ?? "a watcher";
+        deps.setAnnouncement(`Host migrated to ${name}`);
+      }
+      return true;
+    }
+
+    case "full_state":
+      if (!deps.isHost && deps.getState()) {
+        deps.applyFullState(msg);
+        deps.log("applied full_state from new host");
+      }
       return true;
 
     default:

@@ -144,6 +144,34 @@ export class RoomManager {
       if (playerId !== undefined && playerId >= 0) {
         this.broadcastToRoom(entry, { type: "player_left", playerId });
       }
+
+      // Host left mid-game — promote another player
+      if (socket === entry.hostSocket) {
+        const previousHostPlayerId = playerId ?? -1;
+        let newHostSocket: WebSocket | null = null;
+        let newHostPlayerId = -1;
+
+        // Prefer lowest-slotId player
+        for (const [sock, sid] of entry.slotAssignments) {
+          if (sock.readyState === WebSocket.OPEN && (newHostPlayerId < 0 || sid < newHostPlayerId)) {
+            newHostSocket = sock;
+            newHostPlayerId = sid;
+          }
+        }
+        // Fallback: any connected socket (watcher becomes relay host, all players AI)
+        if (!newHostSocket) {
+          for (const sock of entry.connectedSockets) {
+            if (sock.readyState === WebSocket.OPEN) { newHostSocket = sock; break; }
+          }
+        }
+
+        if (newHostSocket) {
+          entry.hostSocket = newHostSocket;
+          entry.room.setHost(newHostSocket);
+          this.broadcastToRoom(entry, { type: "host_left", newHostPlayerId, previousHostPlayerId });
+          console.log(`[rooms] Room ${entry.code}: host migrated to P${newHostPlayerId}`);
+        }
+      }
     }
 
     if (entry.connectedSockets.size === 0) {

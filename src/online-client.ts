@@ -31,6 +31,8 @@ import {
   buildBuildStartMessage,
   buildCannonStartMessage,
   buildBattleStartMessage,
+  buildFullStateMessage,
+  applyFullStateSnapshot,
 } from "./online-serialize.ts";
 import {
   fireAndSend as fireAndSendAction,
@@ -88,6 +90,7 @@ import type {
   ClientMessage,
   ServerMessage,
   InitMessage,
+  FullStateMessage,
 } from "../server/protocol.ts";
 import { createGameRuntime } from "./game-runtime.ts";
 import type { GameRuntime } from "./game-runtime.ts";
@@ -202,12 +205,17 @@ function logThrottled(key: string, msg: string): void {
 
 const DEFAULT_SERVER_HOST = "rebuild-and-ruin.gildas-lormeau.deno.net";
 
+/** Strip protocol prefix (http://, https://, ws://, wss://) and trailing slash from a host string. */
+function stripProtocol(host: string): string {
+  return host.replace(/^(?:https?|wss?):\/\//, "").replace(/\/+$/, "");
+}
+
 /** Get the server host — from URL param, localStorage, or Deno Deploy default. */
 function getServerHost(): string {
   const param = new URLSearchParams(location.search).get("server");
-  if (param) return param;
+  if (param) return stripProtocol(param);
   const saved = localStorage.getItem("castles99_server");
-  if (saved) return saved;
+  if (saved) return stripProtocol(saved);
   return DEFAULT_SERVER_HOST;
 }
 
@@ -520,6 +528,70 @@ function initFromServer(msg: InitMessage): void {
 }
 
 // ---------------------------------------------------------------------------
+// Host migration (promotion + full state transfer)
+// ---------------------------------------------------------------------------
+
+function promoteToHost(): void {
+  log("PROMOTING TO HOST");
+  isHost = true;
+
+  const state = runtime.getState();
+  const controllers = runtime.getControllers();
+
+  // Rebuild controllers: keep self as human, convert everyone else to AI
+  for (let i = 0; i < controllers.length; i++) {
+    if (i === myPlayerId) continue;
+    const player = state.players[i];
+    if (!player || player.eliminated) continue;
+
+    const strategySeed = state.rng.int(0, 0xffffffff);
+    controllers[i] = createController(i, true, undefined, strategySeed);
+
+    // Re-initialize the AI for the current phase
+    if (state.phase === Phase.WALL_BUILD) {
+      controllers[i]!.startBuild(state);
+    } else if (state.phase === Phase.CANNON_PLACE) {
+      const max = state.cannonLimits[i] ?? 0;
+      controllers[i]!.placeCannons(state, max);
+      if (player.homeTower) {
+        controllers[i]!.cannonCursor = { row: player.homeTower.row, col: player.homeTower.col };
+      }
+      controllers[i]!.onCannonPhaseStart(state);
+    } else if (state.phase === Phase.BATTLE) {
+      controllers[i]!.resetBattle(state);
+    }
+  }
+
+  // Sync accumulators from watcher's wall-clock timer
+  const accum = runtime.getAccum();
+  if (state.phase === Phase.WALL_BUILD) {
+    accum.build = state.buildTimer - state.timer;
+  } else if (state.phase === Phase.CANNON_PLACE) {
+    accum.cannon = state.cannonPlaceTimer - state.timer;
+  } else if (state.phase === Phase.BATTLE) {
+    accum.battle = BUILD_TIMER - state.timer; // BATTLE_TIMER via state.buildTimer fallback
+  }
+
+  // Send full state so other watchers reconcile
+  send(buildFullStateMessage(state));
+
+  log("Promotion complete, now running as host");
+}
+
+function applyFullState(msg: FullStateMessage): void {
+  const state = runtime.getState();
+  applyFullStateSnapshot(state, msg);
+
+  // Reset watcher timing to current moment
+  watcherTiming.phaseStartTime = performance.now();
+  watcherTiming.phaseDuration = state.timer;
+  if (state.battleCountdown > 0) {
+    watcherTiming.countdownStartTime = performance.now();
+    watcherTiming.countdownDuration = state.battleCountdown;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Phase transition handlers (called from handleServerMessage, non-host only)
 // ---------------------------------------------------------------------------
 
@@ -622,6 +694,8 @@ function handleServerMessage(msg: ServerMessage): void {
       onGameOver: (msg) => handleGameOverTransition(msg, transitionCtx),
       setAnnouncement: (text) => { runtime.getFrame().announcement = text; },
       playerNames: PLAYER_NAMES,
+      promoteToHost,
+      applyFullState,
     })
   ) {
     return;

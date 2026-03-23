@@ -25,7 +25,7 @@ const RATE_LIMITS: Record<string, number> = {
 const HOST_ONLY = new Set([
   "init", "select_start", "castle_walls",
   "cannon_start", "battle_start", "build_start", "build_end",
-  "game_over",
+  "game_over", "full_state",
 ]);
 
 // Phase gating: which message types are valid in which phases

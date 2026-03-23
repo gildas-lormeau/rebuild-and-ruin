@@ -4,7 +4,10 @@
  */
 
 import type { GameState } from "./types.ts";
+import { Phase } from "./types.ts";
 import type { BalloonFlight } from "./battle-system.ts";
+import { Rng } from "./rng.ts";
+import type { FullStateMessage } from "../server/protocol.ts";
 
 // ---------------------------------------------------------------------------
 // Serialize (state → JSON-safe objects for sending)
@@ -31,7 +34,7 @@ export function serializePlayers(state: GameState) {
   }));
 }
 
-function serializeGrunts(state: GameState) {
+export function serializeGrunts(state: GameState) {
   return state.grunts.map((g) => ({
     row: g.row,
     col: g.col,
@@ -39,7 +42,7 @@ function serializeGrunts(state: GameState) {
   }));
 }
 
-function serializeHouses(state: GameState) {
+export function serializeHouses(state: GameState) {
   return state.map.houses.map((h) => ({
     row: h.row,
     col: h.col,
@@ -48,7 +51,7 @@ function serializeHouses(state: GameState) {
   }));
 }
 
-function serializeBurningPits(state: GameState) {
+export function serializeBurningPits(state: GameState) {
   return state.burningPits.map((p) => ({
     row: p.row,
     col: p.col,
@@ -56,7 +59,7 @@ function serializeBurningPits(state: GameState) {
   }));
 }
 
-function serializeBonusSquares(state: GameState) {
+export function serializeBonusSquares(state: GameState) {
   return state.bonusSquares.map((b) => ({
     row: b.row,
     col: b.col,
@@ -197,4 +200,79 @@ export function buildBattleStartMessage(
           }))
         : undefined,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Full state snapshot (host migration)
+// ---------------------------------------------------------------------------
+
+export function buildFullStateMessage(state: GameState): FullStateMessage {
+  return {
+    type: "full_state",
+    phase: Phase[state.phase],
+    round: state.round,
+    timer: state.timer,
+    battleCountdown: state.battleCountdown,
+    battleLength: state.battleLength,
+    shotsFired: state.shotsFired,
+    rngState: state.rng.getState(),
+    players: serializePlayers(state),
+    grunts: serializeGrunts(state),
+    houses: serializeHouses(state),
+    bonusSquares: serializeBonusSquares(state),
+    towerAlive: [...state.towerAlive],
+    burningPits: serializeBurningPits(state),
+    cannonLimits: [...state.cannonLimits],
+    towerPendingRevive: [...state.towerPendingRevive],
+    cannonballs: state.cannonballs.map((b) => ({
+      cannonIdx: b.cannonIdx,
+      startX: b.startX, startY: b.startY,
+      x: b.x, y: b.y,
+      targetX: b.targetX, targetY: b.targetY,
+      speed: b.speed,
+      playerId: b.playerId,
+      scoringPlayerId: b.scoringPlayerId,
+      incendiary: b.incendiary || undefined,
+    })),
+  };
+}
+
+export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage): void {
+  state.phase = Phase[msg.phase as keyof typeof Phase];
+  state.round = msg.round;
+  state.timer = msg.timer;
+  state.battleCountdown = msg.battleCountdown;
+  state.battleLength = msg.battleLength;
+  state.shotsFired = msg.shotsFired;
+  state.cannonLimits = msg.cannonLimits;
+  state.towerPendingRevive = new Set(msg.towerPendingRevive);
+  state.towerAlive = msg.towerAlive;
+  state.burningPits = msg.burningPits.map((p) => ({ row: p.row, col: p.col, roundsLeft: p.roundsLeft }));
+  state.bonusSquares = msg.bonusSquares.map((b) => ({ row: b.row, col: b.col, zone: b.zone }));
+
+  // Restore RNG internal state
+  const rng = new Rng(0);
+  rng.setState(msg.rngState);
+  state.rng = rng;
+
+  // Reuse existing checkpoint helpers
+  applyPlayersCheckpoint(state, msg.players);
+  applyGruntsCheckpoint(state, msg.grunts);
+  applyHousesCheckpoint(state, msg.houses);
+
+  // Restore cannonballs
+  state.cannonballs = msg.cannonballs.map((b) => ({
+    cannonIdx: b.cannonIdx,
+    startX: b.startX, startY: b.startY,
+    x: b.x, y: b.y,
+    targetX: b.targetX, targetY: b.targetY,
+    speed: b.speed,
+    playerId: b.playerId,
+    scoringPlayerId: b.scoringPlayerId,
+    incendiary: b.incendiary ?? false,
+  }));
+
+  // Clear captured cannons and balloon hits (cannot be serialized faithfully)
+  state.capturedCannons = [];
+  state.balloonHits = new Map();
 }
