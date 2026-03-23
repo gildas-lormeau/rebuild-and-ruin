@@ -143,6 +143,7 @@ import {
   renderLobby as renderLobbyShared,
   tickLobby as tickLobbyShared,
   lobbyKeyJoin as lobbyKeyJoinShared,
+  lobbySkipStep,
   visibleOptions,
 } from "./game-ui-screens.ts";
 import type { UIContext } from "./game-ui-screens.ts";
@@ -563,7 +564,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       return true;
     }
     // Mouse/trackpad can only join one slot (keyboard can join additional slots)
-    if (mouseJoinedSlot >= 0) return true;
+    if (mouseJoinedSlot >= 0) {
+      lobbySkipStep(uiCtx);
+      return true;
+    }
     if (!lobby.joined[hit.slotId]) {
       mouseJoinedSlot = hit.slotId;
       config.onLobbySlotJoined(hit.slotId);

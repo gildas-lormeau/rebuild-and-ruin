@@ -275,6 +275,10 @@ export const IMPACT_FLASH_DURATION = 0.3;
 export const BANNER_DURATION = 2.0;
 /** Duration of the player selection lobby in seconds. */
 export const LOBBY_TIMER = 15;
+/** Lobby timer seconds below which spam-to-skip is blocked. */
+export const LOBBY_SKIP_LOCKOUT = 3;
+/** Seconds subtracted per action press during lobby skip. */
+export const LOBBY_SKIP_STEP = 1;
 /** Interval between each wall tile during castle construction animation (ms). */
 export const WALL_BUILD_INTERVAL = 160;
 /** AI auto-continue delay in the life-lost dialog (seconds). */

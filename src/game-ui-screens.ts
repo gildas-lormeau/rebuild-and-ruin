@@ -6,6 +6,15 @@
 import { renderMap } from "./map-renderer.ts";
 import type { RenderOverlay } from "./map-renderer.ts";
 import type { GameState } from "./types.ts";
+import { LOBBY_SKIP_LOCKOUT, LOBBY_SKIP_STEP } from "./types.ts";
+
+/** Speed up lobby timer by one step if allowed. Returns true if timer was advanced. */
+export function lobbySkipStep(ctx: UIContext): boolean {
+  if (ctx.lobby.timerAccum === undefined) return false;
+  if (ctx.getLobbyRemaining() <= LOBBY_SKIP_LOCKOUT) return false;
+  ctx.lobby.timerAccum += LOBBY_SKIP_STEP;
+  return true;
+}
 import type { GameMap } from "./map-generation.ts";
 import { generateMap } from "./map-generation.ts";
 import { PLAYER_NAMES, PLAYER_COLORS } from "./player-config.ts";
@@ -229,7 +238,10 @@ export function lobbyKeyJoin(
   const m = buildLobbyConfirmKeys(ctx.settings.keyBindings);
   const pid = m.get(key);
   if (pid === undefined) return false;
-  if (ctx.lobby.joined[pid]) return false;
+  if (ctx.lobby.joined[pid]) {
+    lobbySkipStep(ctx);
+    return true;
+  }
   onJoin(pid);
   return true;
 }
