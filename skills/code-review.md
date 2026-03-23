@@ -18,7 +18,7 @@ Structured multi-pass review that catches issues in dependency order so each pas
 
 ### Pass 2: Hardcoded values
 - Magic numbers (sizes, timers, thresholds, percentages)
-- Inline font strings, color strings, CSS values
+- Inline font strings, color strings, CSsorruS values
 - Repeated literals that should be named constants
 - **Why second:** named constants make duplication visible
 
@@ -52,6 +52,7 @@ npm run lint:fix          # Biome: auto-fix import sorting & unused imports
 npm run lint:unused       # Knip: dead files, unused exports & dependencies
 npm run lint:circular     # Madge: circular dependency detection
 npm run lint:duplicates   # jscpd: copy-paste / duplicate code detection
+npx tsx scripts/find-duplicate-strings.ts  # AST-based: repeated string literals
 ```
 
 Or run everything at once: `npm run lint:all`
@@ -60,6 +61,7 @@ Or run everything at once: `npm run lint:all`
 - Knip unused exports feed directly into Pass 1 (dead code)
 - jscpd clones feed directly into Pass 3 (duplicate code)
 - Madge circular deps feed into Pass 4 (misplaced logic)
+- `find-duplicate-strings.ts` findings feed into Pass 2 (hardcoded values) — extract to named constants
 
 ## How to run each pass
 
