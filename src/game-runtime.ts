@@ -382,8 +382,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let battleZoom: number | null = null;
   /** Track last phase for auto-zoom on phase change */
   let lastAutoZoomPhase: Phase | null = null;
-  /** Auto-zoom only activates after player presses a zoom button */
-  let zoomActivated = false;
+  /** Auto-zoom active — on touch devices from the start, on desktop after first zoom button press */
+  let zoomActivated = IS_TOUCH_DEVICE;
+  /** Delay before auto-zoom into player zone at selection start (seconds). */
+  let selectionZoomDelay = 0;
   /** Free-form viewport from pinch gesture (overrides cameraZone when set) */
   let pinchVp: Viewport | null = null;
   /** Pinch baseline snapshot (viewport at pinch start) */
@@ -481,7 +483,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       }
     }
 
-    tickCamera();
+    tickCamera(dt);
 
     const shouldContinue = mainLoopTick({
       dt,
@@ -925,7 +927,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   /** Update camera zoom state (called from mainLoop, before render). */
-  function tickCamera(): void {
+  function tickCamera(dt: number): void {
+    if (!state) return;
     // Unzoom for UI overlays and near end of phase
     if (cameraZone !== null || pinchVp !== null) {
       const phaseEnding = state.timer > 0 && state.timer <= 1.5 &&
@@ -941,11 +944,25 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       }
     }
 
-    // Auto-zoom on phase change (touch devices only, after first button press, not during banners)
+    // Auto-zoom on phase change (touch devices only, not during banners)
     if (homeZoomButton && zoomActivated && state.phase !== lastAutoZoomPhase &&
         mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD) {
+      if (mode === Mode.SELECTION && lastAutoZoomPhase === null) {
+        // First selection: start delay so player sees the full map briefly
+        selectionZoomDelay = 2;
+      } else {
+        autoZoom(state.phase);
+      }
       lastAutoZoomPhase = state.phase;
-      autoZoom(state.phase);
+    }
+
+    // Delayed zoom for selection phase (2s preview of full map, then zoom in)
+    if (selectionZoomDelay > 0 && mode === Mode.SELECTION) {
+      selectionZoomDelay -= dt;
+      if (selectionZoomDelay <= 0) {
+        selectionZoomDelay = 0;
+        autoZoom(state.phase);
+      }
     }
   }
 
@@ -1156,6 +1173,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     battlePinchVp = null;
     battleZoom = null;
     lastAutoZoomPhase = null;
+    selectionZoomDelay = 0;
     cachedZoneBounds.clear();
     scoreDeltas = [];
     preScores = [];
