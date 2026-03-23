@@ -795,85 +795,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
    *  Adapts to actual structures (walls, interior, cannons, towers). */
   let cachedZoneBounds: Map<number, { vp: Viewport; wallCount: number }> = new Map();
 
-  function computeZoneBounds(zoneId: number): Viewport {
-    const pid = state.playerZones.indexOf(zoneId);
-    const player = pid >= 0 ? state.players[pid] : undefined;
-
-    // Use cache if wall count unchanged (works in all phases including build)
-    const cached = cachedZoneBounds.get(zoneId);
-    if (cached && cached.wallCount === (player?.walls.size ?? 0)) return cached.vp;
-
-    let minR = GRID_ROWS, maxR = 0, minC = GRID_COLS, maxC = 0;
-
-    function expand(r: number, c: number) {
-      if (r < minR) minR = r;
-      if (r > maxR) maxR = r;
-      if (c < minC) minC = c;
-      if (c > maxC) maxC = c;
-    }
-
-    if (player && player.walls.size > 0) {
-      // Bounding box of all walls (enclosed or not) — adapts in real-time during build
-      for (const key of player.walls) expand(Math.floor(key / GRID_COLS), key % GRID_COLS);
-      if (player.homeTower) expand(player.homeTower.row, player.homeTower.col);
-    } else {
-      // Fallback: use zone tiles (e.g. during castle select before walls exist)
-      const zones = state.map.zones;
-      for (let r = 0; r < GRID_ROWS; r++) {
-        for (let c = 0; c < GRID_COLS; c++) {
-          if (zones[r]![c] === zoneId) expand(r, c);
-        }
-      }
-    }
-
-    // 4-tile padding so player can place pieces to extend walls
-    const pad = player && player.walls.size > 0 ? 4 : 1;
+  /** Convert tile bounds + padding into an aspect-ratio-correct viewport. */
+  function boundsToViewport(minR: number, maxR: number, minC: number, maxC: number, pad: number): Viewport {
     minR = Math.max(0, minR - pad);
     maxR = Math.min(GRID_ROWS - 1, maxR + pad);
     minC = Math.max(0, minC - pad);
     maxC = Math.min(GRID_COLS - 1, maxC + pad);
-
-    // Pad to match map aspect ratio to prevent stretching, cap to avoid full-map viewport
-    const fullW = GRID_COLS * TILE;
-    const fullH = GRID_ROWS * TILE;
-    const maxW = fullW * MAX_ZOOM_VIEWPORT_RATIO;
-    const maxH = fullH * MAX_ZOOM_VIEWPORT_RATIO;
-    const targetAspect = GRID_COLS / GRID_ROWS;
-    const w = (maxC - minC + 1) * TILE;
-    const h = (maxR - minR + 1) * TILE;
-    const vpAspect = w / h;
-    // Expand the smaller dimension to match map aspect ratio, cap at MAX_ZOOM_VIEWPORT_RATIO
-    const newW = vpAspect < targetAspect
-      ? Math.min(maxW, h * targetAspect)
-      : Math.min(maxW, (Math.min(maxH, w / targetAspect)) * targetAspect);
-    const newH = newW / targetAspect;
-    const cx = (minC + maxC + 1) * TILE / 2;
-    const cy = (minR + maxR + 1) * TILE / 2;
-    const x = Math.max(0, Math.min(fullW - newW, cx - newW / 2));
-    const y = Math.max(0, Math.min(fullH - newH, cy - newH / 2));
-    const result: Viewport = { x, y, w: newW, h: newH };
-    cachedZoneBounds.set(zoneId, { vp: result, wallCount: player?.walls.size ?? 0 });
-    return result;
-  }
-
-  /** Compute a frozen viewport that covers all planned castle walls (for steady camera during build anim). */
-  function computeCastleBuildViewport(wallPlans: { playerId: number; tiles: number[] }[]): Viewport {
-    const myPid = myPlayerId();
-    // Find the plan for the local player, fall back to first plan
-    const plan = wallPlans.find(p => p.playerId === myPid) ?? wallPlans[0];
-    if (!plan || plan.tiles.length === 0) return fullMapVp;
-    const player = state.players[plan.playerId];
-    let minR = GRID_ROWS, maxR = 0, minC = GRID_COLS, maxC = 0;
-    function expand(r: number, c: number) {
-      if (r < minR) minR = r; if (r > maxR) maxR = r;
-      if (c < minC) minC = c; if (c > maxC) maxC = c;
-    }
-    for (const key of plan.tiles) expand(Math.floor(key / GRID_COLS), key % GRID_COLS);
-    if (player?.homeTower) expand(player.homeTower.row, player.homeTower.col);
-    // Same padding + aspect ratio logic as computeZoneBounds
-    const pad = 4;
-    minR = Math.max(0, minR - pad); maxR = Math.min(GRID_ROWS - 1, maxR + pad);
-    minC = Math.max(0, minC - pad); maxC = Math.min(GRID_COLS - 1, maxC + pad);
     const fullW = GRID_COLS * TILE, fullH = GRID_ROWS * TILE;
     const maxW = fullW * MAX_ZOOM_VIEWPORT_RATIO, maxH = fullH * MAX_ZOOM_VIEWPORT_RATIO;
     const targetAspect = GRID_COLS / GRID_ROWS;
@@ -887,6 +814,54 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const x = Math.max(0, Math.min(fullW - newW, cx - newW / 2));
     const y = Math.max(0, Math.min(fullH - newH, cy - newH / 2));
     return { x, y, w: newW, h: newH };
+  }
+
+  function computeZoneBounds(zoneId: number): Viewport {
+    const pid = state.playerZones.indexOf(zoneId);
+    const player = pid >= 0 ? state.players[pid] : undefined;
+
+    // Use cache if wall count unchanged (works in all phases including build)
+    const cached = cachedZoneBounds.get(zoneId);
+    if (cached && cached.wallCount === (player?.walls.size ?? 0)) return cached.vp;
+
+    let minR = GRID_ROWS, maxR = 0, minC = GRID_COLS, maxC = 0;
+    function expand(r: number, c: number) {
+      if (r < minR) minR = r; if (r > maxR) maxR = r;
+      if (c < minC) minC = c; if (c > maxC) maxC = c;
+    }
+
+    if (player && player.walls.size > 0) {
+      for (const key of player.walls) expand(Math.floor(key / GRID_COLS), key % GRID_COLS);
+      if (player.homeTower) expand(player.homeTower.row, player.homeTower.col);
+    } else {
+      const zones = state.map.zones;
+      for (let r = 0; r < GRID_ROWS; r++) {
+        for (let c = 0; c < GRID_COLS; c++) {
+          if (zones[r]![c] === zoneId) expand(r, c);
+        }
+      }
+    }
+
+    const pad = player && player.walls.size > 0 ? 4 : 1;
+    const result = boundsToViewport(minR, maxR, minC, maxC, pad);
+    cachedZoneBounds.set(zoneId, { vp: result, wallCount: player?.walls.size ?? 0 });
+    return result;
+  }
+
+  /** Compute a frozen viewport that covers all planned castle walls (for steady camera during build anim). */
+  function computeCastleBuildViewport(wallPlans: { playerId: number; tiles: number[] }[]): Viewport {
+    const myPid = myPlayerId();
+    const plan = wallPlans.find(p => p.playerId === myPid) ?? wallPlans[0];
+    if (!plan || plan.tiles.length === 0) return fullMapVp;
+    const player = state.players[plan.playerId];
+    let minR = GRID_ROWS, maxR = 0, minC = GRID_COLS, maxC = 0;
+    function expand(r: number, c: number) {
+      if (r < minR) minR = r; if (r > maxR) maxR = r;
+      if (c < minC) minC = c; if (c > maxC) maxC = c;
+    }
+    for (const key of plan.tiles) expand(Math.floor(key / GRID_COLS), key % GRID_COLS);
+    if (player?.homeTower) expand(player.homeTower.row, player.homeTower.col);
+    return boundsToViewport(minR, maxR, minC, maxC, 4);
   }
 
   /** Resolve the local player's id (online pid or first human fallback). */

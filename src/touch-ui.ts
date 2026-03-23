@@ -10,6 +10,7 @@ import type { GameState } from "./types.ts";
 import type { PlayerController } from "./player-controller.ts";
 import { PLAYER_COLORS } from "./player-config.ts";
 import { findNearestTower } from "./spatial.ts";
+import type { SelectionState } from "./selection.ts";
 
 // ---------------------------------------------------------------------------
 // D-pad — directional arrows + action + rotate
@@ -48,8 +49,6 @@ const ACTION_CSS = BTN_BASE_CSS + `
   height: ${ACTION_BTN}px;
   border-radius: 50%;
 `;
-
-interface SelectionState { highlighted: number; confirmed: boolean; }
 
 interface DpadDeps {
   getState: () => GameState | undefined;
