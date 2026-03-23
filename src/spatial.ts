@@ -6,9 +6,8 @@
  * build-phase.ts, and other domain-specific modules.
  */
 
-import type { PixelPos, TilePos } from "./geometry-types.ts";
+import type { PixelPos, TilePos, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
-import type { Tower } from "./map-generation.ts";
 import type { BurningPit, Cannon } from "./types.ts";
 import {
   Action,

@@ -5,7 +5,7 @@
  * used by DefaultStrategy.
  */
 
-import { traitLookup } from "./ai-strategy.ts";
+import { traitLookup } from "./ai-constants.ts";
 import { hasTowerAt } from "./board-occupancy.ts";
 import {
   cannonSlotsUsed,

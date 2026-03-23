@@ -1,6 +1,6 @@
 import type { ClientMessage } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
-import { getApiUrl } from "./online-client.ts";
+import { getApiUrl } from "./online-config.ts";
 
 interface LobbyElements {
   lobbyMenu: HTMLElement;
@@ -151,8 +151,12 @@ export function setupLobbyUi({
 
     // Initial fetch + poll while lobby-menu is visible
     fetchRooms();
-    setInterval(() => {
+    if (roomPollTimer) clearInterval(roomPollTimer);
+    roomPollTimer = setInterval(() => {
       if (elements.lobbyMenu.classList.contains("active")) fetchRooms();
     }, 3000);
   }
 }
+
+/** Stored interval so repeated setupLobbyUi calls don't leak timers. */
+let roomPollTimer: ReturnType<typeof setInterval> | null = null;

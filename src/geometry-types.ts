@@ -28,3 +28,9 @@ export interface WorldPos {
   wx: number;
   wy: number;
 }
+
+export interface Tower extends TilePos {
+  zone: number;
+  /** Index into the GameMap.towers array (stable after generation). */
+  index: number;
+}

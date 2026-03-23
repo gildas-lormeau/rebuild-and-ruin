@@ -15,7 +15,7 @@ import {
   hasMeaningfulHomeRingGaps,
   scoreBuildTowerTarget,
 } from "./ai-castle-rect.ts";
-import { SMALL_POCKET_MAX_SIZE } from "./ai-strategy.ts";
+import { SMALL_POCKET_MAX_SIZE } from "./ai-constants.ts";
 import {
   getCardinalObstacleMask,
   hasCannonAt,

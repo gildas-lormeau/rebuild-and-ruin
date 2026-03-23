@@ -159,7 +159,7 @@ import {
   WALL_BUILD_INTERVAL,
 } from "./types.ts";
 
-export type { GameRuntime, RuntimeConfig } from "./game-runtime-types.ts";
+export type { GameRuntime } from "./game-runtime-types.ts";
 
 // ---------------------------------------------------------------------------
 // Factory

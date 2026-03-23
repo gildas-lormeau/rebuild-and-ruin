@@ -12,18 +12,7 @@
  *   - ai-strategy-battle.ts  — battle planning & target picking
  */
 
-import type { AiPlacement } from "./ai-strategy-build.ts";
-import { pickPlacementImpl } from "./ai-strategy-build.ts";
-import type { PixelPos, StrategicPixelPos, TilePos } from "./geometry-types.ts";
-import type { GameMap, Tower } from "./map-generation.ts";
-import type { PieceShape } from "./pieces.ts";
-import { Rng } from "./rng.ts";
-import { computeOutside, isTowerEnclosed, waterKeys } from "./spatial.ts";
-import type { Cannon, GameState, Player } from "./types.ts";
-import { CannonMode } from "./types.ts";
-
-export type { AiPlacement } from "./ai-strategy-build.ts";
-
+import { traitLookup } from "./ai-constants.ts";
 import {
   countUsableCannons,
   getActiveEnemies,
@@ -35,27 +24,23 @@ import {
   planWallDemolition,
   trackShotImpl,
 } from "./ai-strategy-battle.ts";
+import type { AiPlacement } from "./ai-strategy-build.ts";
+import { pickPlacementImpl } from "./ai-strategy-build.ts";
 import {
   autoPlaceCannonsImpl,
   autoSelectTowerImpl,
 } from "./ai-strategy-cannon.ts";
 import { placeCannon } from "./cannon-system.ts";
+import type { PixelPos, StrategicPixelPos, TilePos } from "./geometry-types.ts";
+import type { GameMap, Tower } from "./map-generation.ts";
+import type { PieceShape } from "./pieces.ts";
+import { Rng } from "./rng.ts";
+import { computeOutside, isTowerEnclosed, waterKeys } from "./spatial.ts";
+import type { Cannon, GameState, Player } from "./types.ts";
+import { CannonMode } from "./types.ts";
 
-// ---------------------------------------------------------------------------
-// Shared helper
-// ---------------------------------------------------------------------------
+export type { AiPlacement } from "./ai-strategy-build.ts";
 
-/** Look up a value from a 3-element table indexed by a 1-3 trait level. */
-export function traitLookup<T>(level: number, values: readonly [T, T, T]): T {
-  return values[level - 1]!;
-}
-
-// ---------------------------------------------------------------------------
-// AI strategy tuning constants
-// ---------------------------------------------------------------------------
-
-/** Interior pockets smaller than this are targeted for wall destruction / penalized in placement. */
-export const SMALL_POCKET_MAX_SIZE = 4;
 /** Chance to focus all fire on the weakest enemy for the entire battle. */
 const FOCUS_FIRE_PROBABILITY = 0.5;
 /** Minimum usable cannons required to attempt any chain attack. */

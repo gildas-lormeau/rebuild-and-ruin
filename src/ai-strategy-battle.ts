@@ -5,7 +5,7 @@
  * and chain attack logic used by DefaultStrategy.
  */
 
-import { SMALL_POCKET_MAX_SIZE, traitLookup } from "./ai-strategy.ts";
+import { SMALL_POCKET_MAX_SIZE, traitLookup } from "./ai-constants.ts";
 import { canFire } from "./battle-system.ts";
 import { getCardinalObstacleMask } from "./board-occupancy.ts";
 import type {

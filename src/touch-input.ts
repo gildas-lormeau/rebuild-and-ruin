@@ -6,8 +6,7 @@
  */
 
 import type { RegisterOnlineInputDeps } from "./input.ts";
-import { dispatchBattleFire, dispatchModeTap, dispatchPointerMove } from "./input.ts";
-import { towerAtPixel } from "./spatial.ts";
+import { dispatchBattleFire, dispatchModeTap, dispatchPointerMove, dispatchTowerSelect } from "./input.ts";
 import { Phase } from "./types.ts";
 
 const TAP_MAX_DIST = 20;  // CSS pixels
@@ -26,12 +25,6 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     onPinchEnd,
     tryPlaceCannonAndSend,
     tryPlacePieceAndSend,
-    getSelectionStates,
-    highlightTowerForPlayer,
-    confirmSelectionForPlayer,
-    finishReselection,
-    finishSelection,
-    isHost,
     render,
   } = deps;
 
@@ -151,21 +144,8 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
 
     // Selection: tap to confirm
     if (tap && (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT)) {
-      const isReselect = state.phase === Phase.CASTLE_RESELECT;
-      withFirstHuman((human) => {
-        const ss = getSelectionStates().get(human.playerId);
-        if (!ss || ss.confirmed) return;
-        const zone = state.playerZones[human.playerId] ?? 0;
-        const w = screenToWorld(x, y);
-        const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
-        if (idx !== null && state.map.towers[idx]?.zone === zone) {
-          highlightTowerForPlayer(idx, zone, human.playerId);
-          if (confirmSelectionForPlayer(human.playerId, isReselect) && isHost()) {
-            if (isReselect) finishReselection();
-            else finishSelection();
-          }
-        }
-      });
+      const w = screenToWorld(x, y);
+      dispatchTowerSelect(w.wx, w.wy, state, state.phase === Phase.CASTLE_RESELECT, deps);
     }
 
     // Build: tap to place (cursor already set on touchstart/touchmove)

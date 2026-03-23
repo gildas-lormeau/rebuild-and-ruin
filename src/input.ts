@@ -135,6 +135,32 @@ export function dispatchModeTap(
   return false;
 }
 
+/** Shared tower-selection tap — highlight and confirm a tower pick for the first human. */
+export function dispatchTowerSelect(
+  wx: number,
+  wy: number,
+  state: GameState,
+  isReselect: boolean,
+  deps: Pick<RegisterOnlineInputDeps,
+    "withFirstHuman" | "getSelectionStates" |
+    "highlightTowerForPlayer" | "confirmSelectionForPlayer" |
+    "isHost" | "finishReselection" | "finishSelection">,
+): void {
+  deps.withFirstHuman((human) => {
+    const ss = deps.getSelectionStates().get(human.playerId);
+    if (!ss || ss.confirmed) return;
+    const zone = state.playerZones[human.playerId] ?? 0;
+    const idx = towerAtPixel(state.map.towers, wx, wy);
+    if (idx !== null && state.map.towers[idx]?.zone === zone) {
+      deps.highlightTowerForPlayer(idx, zone, human.playerId);
+      if (deps.confirmSelectionForPlayer(human.playerId, isReselect) && deps.isHost()) {
+        if (isReselect) deps.finishReselection();
+        else deps.finishSelection();
+      }
+    }
+  });
+}
+
 /** Shared battle-fire dispatch — aim and fire for the first human player. */
 export function dispatchBattleFire(
   x: number,
@@ -280,24 +306,8 @@ export function registerOnlineInputHandlers(
       state.phase === Phase.CASTLE_SELECT ||
       state.phase === Phase.CASTLE_RESELECT
     ) {
-      const isReselect = state.phase === Phase.CASTLE_RESELECT;
-      withFirstHuman((human) => {
-        const ss = getSelectionStates().get(human.playerId);
-        if (!ss || ss.confirmed) return;
-        const zone = state.playerZones[human.playerId] ?? 0;
-        const tw = screenToWorld(x, y);
-        const idx = towerAtPixel(state.map.towers, tw.wx, tw.wy);
-        if (idx !== null && state.map.towers[idx]?.zone === zone) {
-          highlightTowerForPlayer(idx, zone, human.playerId);
-          if (
-            confirmSelectionForPlayer(human.playerId, isReselect) &&
-            isHost()
-          ) {
-            if (isReselect) finishReselection();
-            else finishSelection();
-          }
-        }
-      });
+      const tw = screenToWorld(x, y);
+      dispatchTowerSelect(tw.wx, tw.wy, state, state.phase === Phase.CASTLE_RESELECT, deps);
     } else if (state.phase === Phase.CANNON_PLACE) {
       withFirstHuman((human) => {
         const max = state.cannonLimits[human.playerId] ?? 0;
