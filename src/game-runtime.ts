@@ -80,7 +80,7 @@ import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
 import { hapticBattleEvents, hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
 import { type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
-import type { LifeLostDialogState } from "./life-lost.ts";
+import type { LifeLostDialogState, ResolvedChoice } from "./life-lost.ts";
 import {
   buildLifeLostDialogState,
   resolveAfterLifeLost,
@@ -1102,7 +1102,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     return lifeLostPanelPosShared(rs.state, playerId);
   }
 
-  function sendLifeLostChoice(choice: "continue" | "abandon", playerId: number) {
+  function sendLifeLostChoice(choice: ResolvedChoice, playerId: number) {
     config.send({ type: MSG.LIFE_LOST_CHOICE, choice, playerId });
   }
 

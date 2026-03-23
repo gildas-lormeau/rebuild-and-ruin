@@ -8,6 +8,8 @@
  * - Local execution on client for build/cannon (zero-latency input)
  */
 
+import type { ResolvedChoice } from "../src/life-lost.ts";
+
 // ---------------------------------------------------------------------------
 // Message type constants
 // ---------------------------------------------------------------------------
@@ -149,7 +151,7 @@ export type ClientMessage =
   // Lobby (in room)
   | { type: "select_slot"; slotId: number }
   // In-game
-  | { type: "life_lost_choice"; choice: "continue" | "abandon"; playerId?: number }
+  | { type: "life_lost_choice"; choice: ResolvedChoice; playerId?: number }
   | { type: "ping" };
 
 // ---------------------------------------------------------------------------
@@ -468,7 +470,7 @@ export interface TowerKilledMessage {
 export interface LifeLostChoiceForwardedMessage {
   type: "life_lost_choice";
   playerId: number;
-  choice: "continue" | "abandon";
+  choice: ResolvedChoice;
 }
 
 /** Crosshair position update (for spectator rendering, not validated). */

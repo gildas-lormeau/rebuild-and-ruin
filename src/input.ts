@@ -1,5 +1,6 @@
 import { applyKeyRebinding } from "./game-ui-types.ts";
 import type { WorldPos } from "./geometry-types.ts";
+import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type LifeLostChoice, type ResolvedChoice } from "./life-lost.ts";
 import type { KeyBindings } from "./player-config.ts";
 import { ACTION_KEYS, MAX_PLAYERS } from "./player-config.ts";
 import type { PlayerController } from "./player-controller.ts";
@@ -16,7 +17,7 @@ interface ControlsState {
 
 interface LifeLostDialogEntry {
   playerId: number;
-  choice: "pending" | "continue" | "abandon";
+  choice: LifeLostChoice;
   focused: number;
 }
 
@@ -96,7 +97,7 @@ export interface RegisterOnlineInputDeps {
   setQuitMessage: (text: string) => void;
   render: () => void;
   sendLifeLostChoice: (
-    choice: "continue" | "abandon",
+    choice: ResolvedChoice,
     playerId: number,
   ) => void;
   settings: {
@@ -532,7 +533,7 @@ export function registerOnlineInputHandlers(
       for (const ctrl of getControllers()) {
         if (!isHuman(ctrl)) continue;
         const entry = lifeLostDialog.entries.find(
-          (en) => en.playerId === ctrl.playerId && en.choice === "pending",
+          (en) => en.playerId === ctrl.playerId && en.choice === CHOICE_PENDING,
         );
         if (!entry) continue;
         const action = ctrl.matchKey(e.key);
@@ -540,7 +541,7 @@ export function registerOnlineInputHandlers(
           entry.focused = entry.focused === 0 ? 1 : 0;
           e.preventDefault();
         } else if (action === Action.CONFIRM) {
-          entry.choice = entry.focused === 0 ? "continue" : "abandon";
+          entry.choice = entry.focused === 0 ? CHOICE_CONTINUE : CHOICE_ABANDON;
           sendLifeLostChoice(entry.choice, entry.playerId);
           e.preventDefault();
         }

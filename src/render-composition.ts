@@ -1,6 +1,6 @@
 import type { GameOverOverlay, LifeLostDialogOverlay } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
-import type { LifeLostDialogState } from "./life-lost.ts";
+import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type LifeLostDialogState, type ResolvedChoice } from "./life-lost.ts";
 import type { RGB } from "./player-config.ts";
 import {
   LIFE_LOST_BTN_H as BTN_H,
@@ -257,7 +257,7 @@ export function handleLifeLostDialogClick(params: {
   canvasX: number;
   canvasY: number;
   firstHumanPlayerId: number;
-}): { playerId: number; choice: "continue" | "abandon" } | null {
+}): { playerId: number; choice: ResolvedChoice } | null {
   const {
     state,
     lifeLostDialog,
@@ -274,7 +274,7 @@ export function handleLifeLostDialogClick(params: {
   const y = canvasY * (tsH / canvasHeight);
 
   for (const entry of lifeLostDialog.entries) {
-    if (entry.choice !== "pending" || entry.isAi) continue;
+    if (entry.choice !== CHOICE_PENDING || entry.isAi) continue;
     if (entry.playerId !== firstHumanPlayerId) continue;
 
     const { px, py } = lifeLostPanelPos(state, entry.playerId);
@@ -283,13 +283,13 @@ export function handleLifeLostDialogClick(params: {
     const abX = px + PANEL_W / 2 + 5;
 
     if (x >= contX && x <= contX + BTN_W && y >= btnY && y <= btnY + BTN_H) {
-      entry.choice = "continue";
-      return { playerId: entry.playerId, choice: "continue" };
+      entry.choice = CHOICE_CONTINUE;
+      return { playerId: entry.playerId, choice: CHOICE_CONTINUE };
     }
 
     if (x >= abX && x <= abX + BTN_W && y >= btnY && y <= btnY + BTN_H) {
-      entry.choice = "abandon";
-      return { playerId: entry.playerId, choice: "abandon" };
+      entry.choice = CHOICE_ABANDON;
+      return { playerId: entry.playerId, choice: CHOICE_ABANDON };
     }
   }
 

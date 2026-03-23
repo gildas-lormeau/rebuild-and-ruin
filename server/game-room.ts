@@ -12,6 +12,7 @@
  */
 
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/grid.ts";
+import { CHOICE_ABANDON, CHOICE_CONTINUE } from "../src/life-lost.ts";
 import { MSG, type RoomSettings, sanitizeRoomSettings } from "./protocol.ts";
 
 // Rate limit: max messages per second per type
@@ -41,7 +42,7 @@ const MAX_CANNON_IDX = 30;
 const MAX_PIECE_TILES = 13;
 const MAX_PIXEL = (Math.max(GRID_COLS, GRID_ROWS) * TILE_SIZE) + 100;
 const VALID_CANNON_MODES = new Set(["normal", "super", "balloon"]);
-const VALID_CHOICES = new Set(["continue", "abandon"]);
+const VALID_CHOICES = new Set([CHOICE_CONTINUE, CHOICE_ABANDON]);
 
 function isInt(val: unknown, min: number, max: number): boolean {
   return typeof val === "number" && Number.isInteger(val) && val >= min && val <= max;

@@ -1,6 +1,16 @@
 import type { GameState } from "./types.ts";
 
 // ---------------------------------------------------------------------------
+// Choice constants
+// ---------------------------------------------------------------------------
+
+export const CHOICE_PENDING = "pending" as const;
+export const CHOICE_CONTINUE = "continue" as const;
+export const CHOICE_ABANDON = "abandon" as const;
+export type LifeLostChoice = typeof CHOICE_PENDING | typeof CHOICE_CONTINUE | typeof CHOICE_ABANDON;
+export type ResolvedChoice = typeof CHOICE_CONTINUE | typeof CHOICE_ABANDON;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -8,7 +18,7 @@ export interface LifeLostEntry {
   playerId: number;
   lives: number;
   isAi: boolean;
-  choice: "pending" | "continue" | "abandon";
+  choice: LifeLostChoice;
   aiTimer: number;
   focused: number;
 }
@@ -35,7 +45,7 @@ export function resolveLifeLostDialogRuntime(
   if (!lifeLostDialog) return null;
 
   for (const entry of lifeLostDialog.entries) {
-    if (entry.choice === "abandon" && entry.lives > 0) {
+    if (entry.choice === CHOICE_ABANDON && entry.lives > 0) {
       const player = state.players[entry.playerId]!;
       player.eliminated = true;
       player.lives = 0;
@@ -43,7 +53,7 @@ export function resolveLifeLostDialogRuntime(
   }
 
   const continuing = lifeLostDialog.entries
-    .filter((e) => e.choice === "continue")
+    .filter((e) => e.choice === CHOICE_CONTINUE)
     .map((e) => e.playerId);
 
   afterLifeLostResolved(continuing);
@@ -86,22 +96,22 @@ export function tickLifeLostDialogRuntime(
   lifeLostDialog.timer += dt;
 
   for (const entry of lifeLostDialog.entries) {
-    if (entry.choice !== "pending") continue;
+    if (entry.choice !== CHOICE_PENDING) continue;
     if (entry.isAi) {
       entry.aiTimer += dt;
-      if (entry.aiTimer >= lifeLostAiDelay) entry.choice = "continue";
+      if (entry.aiTimer >= lifeLostAiDelay) entry.choice = CHOICE_CONTINUE;
     }
   }
 
   if (lifeLostDialog.timer >= lifeLostMaxTimer) {
     for (const entry of lifeLostDialog.entries) {
-      if (entry.choice === "pending") entry.choice = "continue";
+      if (entry.choice === CHOICE_PENDING) entry.choice = CHOICE_CONTINUE;
     }
   }
 
   render();
 
-  if (!lifeLostDialog.entries.every((e) => e.choice !== "pending")) {
+  if (!lifeLostDialog.entries.every((e) => e.choice !== CHOICE_PENDING)) {
     return lifeLostDialog;
   }
 
@@ -112,7 +122,7 @@ export function tickLifeLostDialogRuntime(
   }
 
   for (const entry of lifeLostDialog.entries) {
-    if (entry.choice !== "abandon") continue;
+    if (entry.choice !== CHOICE_ABANDON) continue;
     const player = state.players[entry.playerId];
     if (!player) continue;
     player.eliminated = true;
@@ -156,7 +166,7 @@ export function buildLifeLostDialogState(
     isAi: isHost
       ? !isHumanController(playerId) && !remoteHumanSlots.has(playerId)
       : playerId !== myPlayerId,
-    choice: "pending" as const,
+    choice: CHOICE_PENDING,
     aiTimer: 0,
     focused: 0,
   }));
@@ -166,7 +176,7 @@ export function buildLifeLostDialogState(
       playerId,
       lives: 0,
       isAi: true,
-      choice: "abandon" as const,
+      choice: CHOICE_ABANDON,
       aiTimer: 0,
       focused: 0,
     });

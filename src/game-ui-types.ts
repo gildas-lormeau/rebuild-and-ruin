@@ -8,6 +8,7 @@ export interface PlayerStats { wallsDestroyed: number; cannonsKilled: number; }
 
 import type { BalloonFlight } from "./battle-system.ts";
 import type { GameMap } from "./geometry-types.ts";
+import type { LifeLostChoice } from "./life-lost.ts";
 import type { KeyBindings, RGB } from "./player-config.ts";
 import { ACTION_KEYS, MAX_PLAYERS, PLAYER_KEY_BINDINGS } from "./player-config.ts";
 import type { Crosshair, PhantomPiece } from "./player-controller.ts";
@@ -254,7 +255,7 @@ export interface LifeLostDialogOverlay {
     name: string;
     lives: number;
     color: RGB;
-    choice: "pending" | "continue" | "abandon";
+    choice: LifeLostChoice;
     focused: number;
     px: number;
     py: number;
