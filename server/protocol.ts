@@ -123,6 +123,21 @@ export interface RoomSettings {
   waitTimerSec: number;   // lobby wait duration before auto-start (30–120)
 }
 
+const VALID_BATTLE_LENGTHS = [0, 3, 5, 8, 12];
+const VALID_CANNON_HP = [3, 6, 9, 12];
+
+/** Clamp untrusted client settings to valid ranges. */
+export function sanitizeRoomSettings(raw: Partial<RoomSettings>): RoomSettings {
+  const bl = Number(raw.battleLength);
+  const hp = Number(raw.cannonMaxHp);
+  const wait = Number(raw.waitTimerSec);
+  return {
+    battleLength: VALID_BATTLE_LENGTHS.includes(bl) ? bl : 0,
+    cannonMaxHp: VALID_CANNON_HP.includes(hp) ? hp : 3,
+    waitTimerSec: Number.isFinite(wait) ? Math.max(30, Math.min(120, wait)) : 60,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Client → Server
 // ---------------------------------------------------------------------------

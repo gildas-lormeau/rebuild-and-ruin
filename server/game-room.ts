@@ -11,7 +11,7 @@
  * Zero game state, zero game imports.
  */
 
-import { MSG, type RoomSettings } from "./protocol.ts";
+import { MSG, type RoomSettings, sanitizeRoomSettings } from "./protocol.ts";
 
 // Rate limit: max messages per second per type
 // Rate limits are generous — AI can act very fast.
@@ -55,11 +55,7 @@ export class GameRoom {
 
   constructor(settings?: Partial<RoomSettings>, seed?: number) {
     this.seed = seed ?? Math.floor(Math.random() * 1000000);
-    this.settings = {
-      battleLength: settings?.battleLength ?? 0,
-      cannonMaxHp: settings?.cannonMaxHp ?? 3,
-      waitTimerSec: settings?.waitTimerSec ?? 60,
-    };
+    this.settings = sanitizeRoomSettings(settings ?? {});
   }
 
   // ---------------------------------------------------------------------------

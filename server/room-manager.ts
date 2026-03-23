@@ -49,7 +49,7 @@ export class RoomManager {
     room.setHost(hostSocket);
 
     // Start wait timer
-    const waitSec = Number.isFinite(settings.waitTimerSec) ? settings.waitTimerSec : 60;
+    const waitSec = room.settings.waitTimerSec;
     entry.waitTimer = setTimeout(() => {
       if (!entry.started) this.doStartGame(entry);
     }, waitSec * 1000);
