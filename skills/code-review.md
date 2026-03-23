@@ -75,6 +75,22 @@ Be pragmatic — only flag things where the fix genuinely improves
 the codebase, not theoretical purity issues.
 ```
 
+## Pass 6: Final sweep — misplaced constants & types
+
+After the 5 passes are done, run a final cross-cutting audit:
+
+1. **Launch a sub-agent** (Explore type) to grep for all `export const [A-Z_]`, `export type`, `export interface`, and `export enum` across the reviewed files
+2. For each exported symbol, check **where it's imported** — if a constant is defined in module A but only used by module B, it's misplaced
+3. Flag constants that create unnecessary coupling (e.g., rendering dimensions in game logic files, shared AI constants owned by one strategy)
+4. Flag redundant re-exports (e.g., aliasing a canonical constant from another module)
+5. **Fix, build, commit** as a single pass
+
+### What to look for specifically
+- UI layout/pixel constants in non-rendering modules
+- Re-exports that add indirection over canonical sources (prefer importing from the source)
+- Constants marked "shared with X" in comments — they should live in the common parent module
+- Types defined in a "types" file but only used by one domain
+
 ## Tips
 
 - **Scope narrowly** — review 5-10 related files per session, not the whole codebase
@@ -82,3 +98,4 @@ the codebase, not theoretical purity issues.
 - **Skip passes that don't apply** — if there's no dead code, go straight to pass 2
 - **Don't fix everything** — low-value fixes that risk regressions (e.g., deduplicating input handler dispatch) can be deferred
 - **Always run E2E after UI changes** — use `timeout 45 npx tsx test/online-e2e.ts local 1 --mobile --headless --action "mode:GAME screenshot:check exit" "" 3`
+- **After all passes, review deferred items** — present the list of issues you identified but chose not to fix, with severity, so the user can decide what else to tackle
