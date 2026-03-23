@@ -33,6 +33,7 @@ export const SHADOW_COLOR = "rgba(0,0,0,0.6)";
 export const FONT_ANNOUNCE = "bold 24px monospace";
 export const FONT_TITLE = "bold 20px monospace";
 export const FONT_HEADING = "bold 16px monospace";
+export const FONT_STATUS = "bold 15px monospace";
 export const FONT_SUBTITLE = "12px monospace";
 export const FONT_BODY = "bold 14px monospace";
 export const FONT_LABEL = "bold 12px monospace";
@@ -41,3 +42,9 @@ export const FONT_BUTTON = "bold 10px monospace";
 export const FONT_HINT = "9px monospace";
 export const FONT_TIMER = "bold 14px monospace";
 export const FONT_ICON = "28px monospace";
+
+// Sans-serif variants — used for in-world floating text (more legible at small sizes)
+export const FONT_FLOAT_LG = "bold 14px sans-serif";
+export const FONT_FLOAT_MD = "bold 12px sans-serif";
+export const FONT_FLOAT_SM = "bold 11px sans-serif";
+export const FONT_FLOAT_XS = "bold 7px sans-serif";

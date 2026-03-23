@@ -4,8 +4,11 @@
 
 import { drawSpriteCentered } from "./sprites.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
+import { FONT_FLOAT_LG } from "./render-theme.ts";
 import { TILE } from "./map-renderer.ts";
 import type { MapData, RenderOverlay } from "./map-renderer.ts";
+
+const TOWER_FLASH_MS = 120;
 
 /** Draw a highlight selector around a tower position. */
 function drawTowerHighlight(
@@ -23,7 +26,7 @@ function drawTowerHighlight(
   const t = 4; // thickness
 
   // Slow flash: alpha pulses between 0.4 and 1.0 over ~1.5s cycle
-  const flash = 0.7 + 0.3 * Math.sin(Date.now() / 120);
+  const flash = 0.7 + 0.3 * Math.sin(Date.now() / TOWER_FLASH_MS);
   octx.globalAlpha = flash;
   octx.fillStyle = color ?? "#ffcc00";
   // Top-left
@@ -78,7 +81,7 @@ export function drawTowers(
         const c = PLAYER_COLORS[ownerId % PLAYER_COLORS.length]!.interiorLight;
         octx.save();
         octx.globalAlpha = 0.7;
-        octx.font = "bold 14px sans-serif";
+        octx.font = FONT_FLOAT_LG;
         octx.textAlign = "center";
         octx.textBaseline = "bottom";
         octx.fillStyle = `rgba(0,0,0,0.8)`;

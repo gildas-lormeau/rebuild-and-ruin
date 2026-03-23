@@ -12,6 +12,7 @@ import {
   FONT_ANNOUNCE,
   FONT_TITLE,
   FONT_SUBTITLE,
+  FONT_STATUS,
   FONT_HEADING,
   FONT_BODY,
   FONT_LABEL,
@@ -20,6 +21,10 @@ import {
   FONT_HINT,
   FONT_TIMER,
   FONT_ICON,
+  FONT_FLOAT_LG,
+  FONT_FLOAT_MD,
+  FONT_FLOAT_SM,
+  FONT_FLOAT_XS,
 } from "./render-theme.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import { PANEL_W, PANEL_H, BTN_W, BTN_H } from "./life-lost.ts";
@@ -39,6 +44,11 @@ const TEXT_DIM = "#666";
 const TEXT_MUTED = "#888";
 const TEXT_DISABLED = "#999";
 const ELIMINATED_RED = "#c44";
+
+// Flash/blink intervals (ms) for interactive UI elements
+const BUTTON_FLASH_MS = 400;
+const CURSOR_BLINK_MS = 500;
+const REBIND_FLASH_MS = 350;
 
 /** Returns true on even half of a repeating blink cycle. */
 function flashOn(intervalMs: number): boolean {
@@ -107,7 +117,7 @@ export function drawBanner(
     GOLD_LIGHT,
   );
   if (hasSubtitle) {
-    octx.font = "bold 11px sans-serif";
+    octx.font = FONT_FLOAT_SM;
     octx.fillStyle = "#c8a860";
     octx.fillText(overlay.ui.banner.subtitle!, W / 2, by + bannerH * 0.72);
   }
@@ -125,9 +135,9 @@ export function drawScoreDeltas(
   octx.textBaseline = "middle";
   for (const d of overlay.ui.scoreDeltas) {
     // "+350" in player color with dark outline
-    octx.font = "bold 14px sans-serif";
+    octx.font = FONT_FLOAT_LG;
     drawShadowText(octx, `+${d.delta}`, d.cx, d.cy - 6, "rgba(0,0,0,0.8)", "#fff");
-    octx.font = "bold 12px sans-serif";
+    octx.font = FONT_FLOAT_MD;
     drawShadowText(octx, `${d.total}`, d.cx, d.cy + 8, "rgba(0,0,0,0.6)", GOLD_LIGHT);
   }
   octx.restore();
@@ -151,7 +161,7 @@ export function drawStatusBar(
   octx.fillRect(0, by, W, 1);
 
   octx.save();
-  octx.font = "bold 15px monospace";
+  octx.font = FONT_STATUS;
   octx.textBaseline = "middle";
   const cy = by + barH / 2;
 
@@ -229,7 +239,7 @@ export function drawGameOver(
   const colTerritory = px + panelW * 0.92;
 
   if (hasStats) {
-    octx.font = "bold 7px sans-serif";
+    octx.font = FONT_FLOAT_XS;
     octx.fillStyle = "#888";
     octx.textAlign = "right";
     octx.fillText("Score", colScore, tableTop + 8);
@@ -349,7 +359,7 @@ export function drawLifeLostDialog(
       const abFocused = entry.focused === 1;
 
       // Continue button
-      const contFlash = contFocused && flashOn(400);
+      const contFlash = contFocused && flashOn(BUTTON_FLASH_MS);
       octx.fillStyle =
         BTN_CONTINUE.fill +
         (contFocused ? (contFlash ? "0.6)" : "0.4)") : "0.15)");
@@ -364,7 +374,7 @@ export function drawLifeLostDialog(
       octx.fillText("Continue", contX + btnW / 2, btnY + btnH / 2);
 
       // Abandon button
-      const abFlash = abFocused && flashOn(400);
+      const abFlash = abFocused && flashOn(BUTTON_FLASH_MS);
       octx.fillStyle =
         BTN_ABANDON.fill + (abFocused ? (abFlash ? "0.5)" : "0.3)") : "0.1)");
       octx.fillRect(abX, btnY, btnW, btnH);
@@ -438,7 +448,7 @@ export function drawOptionsScreen(
 
     // Arrow indicators for selected editable row
     if (selected && opt.editable) {
-      const flash = flashOn(400);
+      const flash = flashOn(BUTTON_FLASH_MS);
       octx.font = FONT_BODY;
       octx.fillStyle = flash ? GOLD_LIGHT : GOLD;
       octx.textAlign = "left";
@@ -471,7 +481,7 @@ export function drawOptionsScreen(
       opt.value !== "Random" &&
       !opts.readOnly;
     const displayValue =
-      opt.value + (showCursor ? (flashOn(500) ? "_" : " ") : "");
+      opt.value + (showCursor ? (flashOn(CURSOR_BLINK_MS) ? "_" : " ") : "");
     octx.fillText(displayValue, px + panelW - 20, oy + optH / 2);
   }
 
@@ -564,7 +574,7 @@ export function drawControlsScreen(
       if (isSelected) {
         if (ctrl.rebinding) {
           // Flashing "Press key..." cell
-          const flash = flashOn(350);
+          const flash = flashOn(REBIND_FLASH_MS);
           octx.fillStyle = flash ? GOLD_BG(0.3) : GOLD_BG(0.1);
           octx.fillRect(cellX, oy + 1, cellW, rowH - 2);
           octx.strokeStyle = GOLD_LIGHT;
@@ -674,7 +684,7 @@ export function drawPlayerSelect(
       octx.fillStyle = "#fff";
       octx.fillText("Please wait...", cx, btnY + btnH / 2);
     } else {
-      const flash = flashOn(500);
+      const flash = flashOn(CURSOR_BLINK_MS);
       const alpha = flash ? 0.5 : 0.2;
       octx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
       octx.fillRect(btnX, btnY, btnW, btnH);

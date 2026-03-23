@@ -8,9 +8,17 @@ import { FONT_TIMER } from "./render-theme.ts";
 import { facingToCardinal } from "./spatial.ts";
 import { drawSprite } from "./sprites.ts";
 import { PLAYER_COLORS } from "./player-config.ts";
+import { IMPACT_FLASH_DURATION } from "./types.ts";
 import type { RenderOverlay, MapData } from "./map-renderer.ts";
-
 import type { RGB } from "./render-theme.ts";
+
+// Animation timing constants
+const BONUS_FLASH_MS = 300;
+const CROSSHAIR_READY_FREQ = 16;
+const CROSSHAIR_IDLE_FREQ = 4;
+const CROSSHAIR_ARM_READY = 14;
+const CROSSHAIR_ARM_IDLE = 10;
+const CROSSHAIR_ARM_PULSE = 3;
 
 // Crosshair colors per player
 const CROSSHAIR_COLORS: RGB[] = [
@@ -193,7 +201,7 @@ export function drawBonusSquares(
 ): void {
   if (!overlay?.entities?.bonusSquares || overlay.battle?.battleTerritory)
     return;
-  const flash = Math.sin(Date.now() / 300) * 0.15 + 0.85;
+  const flash = Math.sin(Date.now() / BONUS_FLASH_MS) * 0.15 + 0.85;
   for (const bs of overlay.entities.bonusSquares) {
     const bx = bs.col * TILE;
     const by = bs.row * TILE;
@@ -296,7 +304,7 @@ export function drawBattleEffects(
   // Impact flashes
   if (overlay?.battle?.impacts) {
     for (const impact of overlay.battle.impacts) {
-      const t = impact.age / 0.3; // 0→1 over IMPACT_FLASH_DURATION
+      const t = impact.age / IMPACT_FLASH_DURATION;
       if (t >= 1) continue;
       const cx = impact.col * TILE + TILE / 2;
       const cy = impact.row * TILE + TILE / 2;
@@ -457,9 +465,11 @@ export function drawBattleEffects(
         CROSSHAIR_COLORS[ch.playerId % CROSSHAIR_COLORS.length]!;
       const ready = ch.cannonReady === true;
       const alpha = ready
-        ? 0.7 + 0.3 * Math.sin(t * 16)
-        : 0.35 + 0.15 * Math.sin(t * 4);
-      const arm = ready ? 14 + Math.sin(t * 16) * 3 : 10;
+        ? 0.7 + 0.3 * Math.sin(t * CROSSHAIR_READY_FREQ)
+        : 0.35 + 0.15 * Math.sin(t * CROSSHAIR_IDLE_FREQ);
+      const arm = ready
+        ? CROSSHAIR_ARM_READY + Math.sin(t * CROSSHAIR_READY_FREQ) * CROSSHAIR_ARM_PULSE
+        : CROSSHAIR_ARM_IDLE;
       const diag = Math.round(arm * 0.7);
       const gap = ready ? 5 : 3;
 
