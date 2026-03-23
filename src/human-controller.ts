@@ -1,0 +1,314 @@
+/**
+ * HumanController — human player behavior: keyboard/mouse-driven piece
+ * placement, cannon placement, and battle crosshair movement.
+ */
+
+import { autoPlaceCannons } from "./ai-strategy.ts";
+import { aimCannons } from "./battle-system.ts";
+import { canPlacePiece, placePiece } from "./build-phase.ts";
+import {
+  cannonSlotsUsed,
+  canPlaceCannon,
+  findNearestValidCannonPlacement,
+  placeCannon,
+} from "./cannon-system.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
+import { rotateCW } from "./pieces.ts";
+import type { KeyBindings } from "./player-config.ts";
+import {
+  BaseController,
+  CROSSHAIR_SPEED,
+  type PhantomCannon,
+  type PhantomPiece,
+} from "./player-controller.ts";
+import type { GameState } from "./types.ts";
+import {
+  Action,
+  BALLOON_COST,
+  BALLOON_SIZE,
+  CannonMode,
+  NORMAL_CANNON_SIZE,
+  SUPER_GUN_COST,
+  SUPER_GUN_SIZE,
+} from "./types.ts";
+
+export class HumanController extends BaseController {
+  /** Pre-computed lowercase key → action map for fast matching. */
+  private keyMap: Map<string, Action>;
+
+  /** Cannon placement mode. */
+  private cannonPlaceMode: CannonMode = CannonMode.NORMAL;
+  /** True when cannon cursor was set by mouse/touch (snap on next tick). */
+  private cannonCursorNeedsSnap = false;
+  /** Actions currently held for continuous crosshair movement. */
+  private readonly heldActions = new Set<Action>();
+
+  constructor(playerId: number, keys: KeyBindings) {
+    super(playerId);
+    this.keyMap = new Map([
+      [keys.up.toLowerCase(), Action.UP],
+      [keys.down.toLowerCase(), Action.DOWN],
+      [keys.left.toLowerCase(), Action.LEFT],
+      [keys.right.toLowerCase(), Action.RIGHT],
+      [keys.confirm.toLowerCase(), Action.CONFIRM],
+      [keys.confirmAlt.toLowerCase(), Action.CONFIRM],
+      [keys.rotate.toLowerCase(), Action.ROTATE],
+    ]);
+  }
+
+  /** Rebuild the key map from updated bindings. */
+  override updateBindings(keys: KeyBindings): void {
+    this.keyMap = new Map([
+      [keys.up.toLowerCase(), Action.UP],
+      [keys.down.toLowerCase(), Action.DOWN],
+      [keys.left.toLowerCase(), Action.LEFT],
+      [keys.right.toLowerCase(), Action.RIGHT],
+      [keys.confirm.toLowerCase(), Action.CONFIRM],
+      [keys.confirmAlt.toLowerCase(), Action.CONFIRM],
+      [keys.rotate.toLowerCase(), Action.ROTATE],
+    ]);
+  }
+
+  selectTower(_state: GameState, _zone: number): boolean {
+    // Human needs UI interaction — return false to wait
+    return false;
+  }
+
+  reselect(_state: GameState, _zone: number): boolean {
+    return false;
+  }
+
+  placeCannons(_state: GameState, _maxSlots: number): void {
+    // Human places cannons interactively — nothing to do here
+    this.cannonPlaceMode = CannonMode.NORMAL;
+  }
+
+  isCannonPhaseDone(state: GameState, maxSlots: number): boolean {
+    const player = state.players[this.playerId]!;
+    return cannonSlotsUsed(player) >= maxSlots;
+  }
+
+  cannonTick(state: GameState, _dt: number): PhantomCannon | null {
+    const player = state.players[this.playerId]!;
+    const maxSlots = state.cannonLimits[this.playerId] ?? 0;
+    const remaining = maxSlots - cannonSlotsUsed(player);
+    if (remaining <= 0) return null;
+    // Auto-downgrade mode if it no longer fits in remaining slots
+    if (this.cannonPlaceMode === CannonMode.SUPER && remaining < SUPER_GUN_COST) {
+      this.cannonPlaceMode = CannonMode.NORMAL;
+    }
+    if (this.cannonPlaceMode === CannonMode.BALLOON && remaining < BALLOON_COST) {
+      this.cannonPlaceMode = CannonMode.NORMAL;
+    }
+    // Snap-to-fit: only on mouse/touch (absolute position), not d-pad/keyboard (relative)
+    if (this.cannonCursorNeedsSnap) {
+      this.cannonCursorNeedsSnap = false;
+      if (!canPlaceCannon(player, this.cannonCursor.row, this.cannonCursor.col, this.cannonPlaceMode, state)) {
+        const snapped = findNearestValidCannonPlacement(
+          player, this.cannonCursor.row, this.cannonCursor.col, this.cannonPlaceMode, state,
+        );
+        if (snapped) { this.cannonCursor.row = snapped.row; this.cannonCursor.col = snapped.col; }
+      }
+    }
+    const valid = canPlaceCannon(
+      player,
+      this.cannonCursor.row,
+      this.cannonCursor.col,
+      this.cannonPlaceMode,
+      state,
+    );
+    return {
+      row: this.cannonCursor.row,
+      col: this.cannonCursor.col,
+      valid,
+      isSuper: this.cannonPlaceMode === CannonMode.SUPER,
+      isBalloon: this.cannonPlaceMode === CannonMode.BALLOON,
+      playerId: this.playerId,
+      facing: player.defaultFacing,
+    };
+  }
+
+  override setCannonCursor(row: number, col: number): void {
+    // Offset so the clicked tile is near the center of the cannon phantom
+    const size = this.cannonPlaceMode === CannonMode.SUPER ? SUPER_GUN_SIZE
+      : this.cannonPlaceMode === CannonMode.BALLOON ? BALLOON_SIZE
+      : NORMAL_CANNON_SIZE;
+    const offset = Math.floor(size / 2);
+    super.setCannonCursor(row - offset, col - offset);
+    this.cannonCursorNeedsSnap = true;
+  }
+
+  override moveBuildCursor(direction: Action): void {
+    super.moveBuildCursor(direction, this.currentPiece);
+  }
+
+  override setBuildCursor(row: number, col: number): void {
+    // Offset so the clicked tile aligns with the piece's pivot (visual center)
+    if (this.currentPiece) {
+      const [pr, pc] = this.currentPiece.pivot;
+      row -= pr;
+      col -= pc;
+    }
+    super.setBuildCursor(row, col, this.currentPiece);
+  }
+
+  startBuild(state: GameState): void {
+    this.initBag(state.round, state.rng);
+    this.clampBuildCursor(this.currentPiece);
+  }
+
+  buildTick(state: GameState, _dt: number): PhantomPiece[] {
+    if (!this.currentPiece) return [];
+    const valid = canPlacePiece(
+      state,
+      this.playerId,
+      this.currentPiece,
+      this.buildCursor.row,
+      this.buildCursor.col,
+    );
+    return [
+      {
+        offsets: this.currentPiece.offsets,
+        row: this.buildCursor.row,
+        col: this.buildCursor.col,
+        valid,
+        playerId: this.playerId,
+      },
+    ];
+  }
+
+  endBuild(_state: GameState): void {
+    this.bag = null;
+    this.currentPiece = null;
+  }
+
+  battleTick(state: GameState, dt: number): void {
+    // Move crosshair based on held actions
+    if (this.heldActions.size > 0) {
+      const speed =
+        CROSSHAIR_SPEED * (this.heldActions.has(Action.ROTATE) ? 2 : 1) * dt;
+      const W = GRID_COLS * TILE_SIZE;
+      const H = GRID_ROWS * TILE_SIZE;
+      if (this.heldActions.has(Action.UP))
+        this.crosshair.y = Math.max(0, this.crosshair.y - speed);
+      if (this.heldActions.has(Action.DOWN))
+        this.crosshair.y = Math.min(H, this.crosshair.y + speed);
+      if (this.heldActions.has(Action.LEFT))
+        this.crosshair.x = Math.max(0, this.crosshair.x - speed);
+      if (this.heldActions.has(Action.RIGHT))
+        this.crosshair.x = Math.min(W, this.crosshair.x + speed);
+    }
+    aimCannons(state, this.playerId, this.crosshair.x, this.crosshair.y, dt);
+  }
+
+  /** Try to place a cannon at the current cursor position. Returns true on success. */
+  override tryPlaceCannon(state: GameState, maxSlots: number): boolean {
+    const player = state.players[this.playerId]!;
+    const mode =
+      this.cannonPlaceMode === CannonMode.NORMAL
+        ? undefined
+        : this.cannonPlaceMode;
+    return placeCannon(
+      player,
+      this.cannonCursor.row,
+      this.cannonCursor.col,
+      maxSlots,
+      mode,
+      state,
+    );
+  }
+
+  /** Try to place the current build piece at the build cursor. */
+  override tryPlacePiece(state: GameState): boolean {
+    if (!this.currentPiece || !this.bag) return false;
+    const placed = placePiece(
+      state,
+      this.playerId,
+      this.currentPiece,
+      this.buildCursor.row,
+      this.buildCursor.col,
+    );
+    if (placed) {
+      this.advanceBag();
+      this.clampBuildCursor(this.currentPiece);
+    }
+    return placed;
+  }
+
+  /** Rotate the current build piece clockwise (Tetris-style: pivot stays in place). */
+  override rotatePiece(): void {
+    if (this.currentPiece) {
+      const oldPivot = this.currentPiece.pivot;
+      this.currentPiece = rotateCW(this.currentPiece);
+      const newPivot = this.currentPiece.pivot;
+      this.buildCursor.row += oldPivot[0] - newPivot[0];
+      this.buildCursor.col += oldPivot[1] - newPivot[1];
+      this.clampBuildCursor(this.currentPiece);
+    }
+  }
+
+  /** Cycle cannon placement mode (normal -> super -> balloon -> normal). */
+  override cycleCannonMode(state: GameState, maxSlots: number): void {
+    const player = state.players[this.playerId]!;
+    const used = cannonSlotsUsed(player);
+    if (
+      this.cannonPlaceMode === CannonMode.NORMAL &&
+      used + SUPER_GUN_COST <= maxSlots
+    ) {
+      this.cannonPlaceMode = CannonMode.SUPER;
+    } else if (
+      (this.cannonPlaceMode === CannonMode.NORMAL ||
+        this.cannonPlaceMode === CannonMode.SUPER) &&
+      used + BALLOON_COST <= maxSlots
+    ) {
+      this.cannonPlaceMode = CannonMode.BALLOON;
+    } else {
+      this.cannonPlaceMode = CannonMode.NORMAL;
+    }
+  }
+
+  /** Check if a key event matches one of this controller's bindings. */
+  override matchKey(key: string): Action | null {
+    return this.keyMap.get(key.toLowerCase()) ?? null;
+  }
+
+  override handleKeyDown(action: Action): void {
+    this.heldActions.add(action);
+  }
+
+  override handleKeyUp(action: Action): void {
+    this.heldActions.delete(action);
+  }
+
+  override getCannonPlaceMode(): CannonMode {
+    return this.cannonPlaceMode;
+  }
+
+  resetBattle(): void {
+    this.lastFiredIdx = -1;
+  }
+  flushCannons(state: GameState, maxSlots: number): void {
+    if (state.round !== 1) return;
+    const player = state.players[this.playerId]!;
+    if (player.eliminated) return;
+    // Only auto-place if human placed 0 cannons
+    if (player.cannons.length === 0) {
+      autoPlaceCannons(player, maxSlots, state);
+    }
+  }
+
+  onBattleEnd(): void {
+    this.heldActions.clear();
+  }
+
+  onCannonPhaseStart(_state: GameState): void {
+    // cannon cursor is set by the game in startCannonPhase
+  }
+
+  /** Reset state for new game. */
+  override reset(): void {
+    super.reset();
+    this.cannonPlaceMode = CannonMode.NORMAL;
+    this.heldActions.clear();
+  }
+}

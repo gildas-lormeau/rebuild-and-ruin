@@ -24,6 +24,7 @@ import {
 } from "./battle-system.ts";
 import { applyPiecePlacement } from "./build-phase.ts";
 import { applyCannonPlacement } from "./cannon-system.ts";
+import { createController, isHuman } from "./controller-factory.ts";
 import { bootstrapGame, setupWaitingRoom } from "./game-bootstrap.ts";
 import {
   enterCannonPlacePhase,
@@ -84,7 +85,7 @@ import {
   PLAYER_NAMES,
 } from "./player-config.ts";
 import type { PlayerController } from "./player-controller.ts";
-import { CROSSHAIR_SPEED, createController, isHuman } from "./player-controller.ts";
+import { CROSSHAIR_SPEED } from "./player-controller.ts";
 import { loadAtlas } from "./sprites.ts";
 import type { GameState } from "./types.ts";
 import {

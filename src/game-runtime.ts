@@ -22,6 +22,7 @@ import {
   createCastleBuildState,
   tickCastleBuildAnimation,
 } from "./castle-build.ts";
+import { createController, isHuman } from "./controller-factory.ts";
 import { bootstrapGame, setupTowerSelection } from "./game-bootstrap.ts";
 import {
   advanceToCannonPlacePhase,
@@ -118,7 +119,6 @@ import {
   PLAYER_NAMES,
 } from "./player-config.ts";
 import type { PlayerController } from "./player-controller.ts";
-import { createController, isHuman } from "./player-controller.ts";
 import {
   buildBannerUi,
   buildOnlineOverlay,
