@@ -1140,6 +1140,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     return lifeLostPanelPosShared(state, playerId);
   }
 
+  function sendLifeLostChoice(choice: "continue" | "abandon", playerId: number) {
+    config.send({ type: "life_lost_choice", choice, playerId });
+  }
+
   function lifeLostDialogClick(canvasX: number, canvasY: number) {
     if (!lifeLostDialog) return;
     const mousePlayer = firstHuman();
@@ -1156,8 +1160,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     });
     if (!choice) return;
 
-    // Online: send choice to server
-    config.send({ type: "life_lost_choice", choice: choice.choice, playerId: choice.playerId });
+    sendLifeLostChoice(choice.choice, choice.playerId);
   }
 
   // -------------------------------------------------------------------------
@@ -1335,9 +1338,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       setQuitTimer: (s) => { quitTimer = s; },
       setQuitMessage: (msg) => { quitMessage = msg; },
       render,
-      sendLifeLostChoice: (choice, playerId) => {
-        config.send({ type: "life_lost_choice", choice, playerId });
-      },
+      sendLifeLostChoice,
       settings,
     };
     registerOnlineInputHandlers(inputDeps);
