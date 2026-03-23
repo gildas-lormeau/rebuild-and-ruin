@@ -646,7 +646,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function togglePause(): boolean {
-    return togglePauseShared(uiCtx, { GAME: Mode.GAME });
+    // Disable pause when other human players are connected
+    if (config.getRemoteHumanSlots().size > 0) return false;
+    return togglePauseShared(uiCtx, { GAME: Mode.GAME, SELECTION: Mode.SELECTION });
   }
 
   // -------------------------------------------------------------------------

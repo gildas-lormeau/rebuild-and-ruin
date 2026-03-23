@@ -272,7 +272,7 @@ export const BALLOON_FLIGHT_DURATION = 4.0;
 /** Duration of the impact flash effect in seconds. */
 export const IMPACT_FLASH_DURATION = 0.3;
 /** Duration of phase-transition banner sweep in seconds. */
-export const BANNER_DURATION = 2.0;
+export const BANNER_DURATION = 3.0;
 /** Duration of the player selection lobby in seconds. */
 export const LOBBY_TIMER = 15;
 /** Lobby timer seconds below which spam-to-skip is blocked. */

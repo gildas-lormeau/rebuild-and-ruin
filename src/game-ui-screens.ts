@@ -183,8 +183,9 @@ export function closeControls(ctx: UIContext, modeValues: { OPTIONS: Mode }): vo
 // Pause
 // ---------------------------------------------------------------------------
 
-export function togglePause(ctx: UIContext, modeValues: { GAME: Mode }): boolean {
-  if (ctx.getMode() !== modeValues.GAME) return false;
+export function togglePause(ctx: UIContext, modeValues: { GAME: Mode; SELECTION: Mode }): boolean {
+  const mode = ctx.getMode();
+  if (mode !== modeValues.GAME && mode !== modeValues.SELECTION) return false;
   const next = !ctx.getPaused();
   ctx.setPaused(next);
   ctx.getFrame().announcement = next ? "PAUSED" : undefined;
