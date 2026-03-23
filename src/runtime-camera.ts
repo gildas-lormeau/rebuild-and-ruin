@@ -262,16 +262,23 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Per-frame tick ---
 
+  let wasPaused = false;
+  let wasQuitPending = false;
+
   function tickCamera(dt: number): void {
     const state = deps.getState();
     if (!state) return;
     const mode = deps.getMode();
+    const mobileAuto = mobileZoomEnabled && zoomActivated;
+    const paused = deps.getPaused();
+    const quitPending = deps.getQuitPending();
 
     // Unzoom for UI overlays and near end of phase
     if (cameraZone !== null || pinchVp !== null) {
-      const phaseEnding = state.timer > 0 && state.timer <= 1.5 &&
+      const phaseEnding = !mobileAuto && state.timer > 0 && state.timer <= 1.5 &&
         (state.phase === Phase.WALL_BUILD || state.phase === Phase.CANNON_PLACE || state.phase === Phase.BATTLE);
-      if (phaseEnding || deps.getQuitPending() || deps.hasLifeLostDialog() || deps.getPaused()) {
+      const lifeLostUnzoom = deps.hasLifeLostDialog() && !mobileAuto;
+      if (phaseEnding || quitPending || lifeLostUnzoom || paused) {
         if (pinchVp) {
           if (state.phase === Phase.BATTLE) battlePinchVp = { ...pinchVp };
           else buildPinchVp = { ...pinchVp };
@@ -282,9 +289,16 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     }
 
     // On mobile with auto-zoom, zoom to player zone for life-lost dialog
-    if (mobileZoomEnabled && zoomActivated && deps.hasLifeLostDialog()) {
+    if (mobileAuto && deps.hasLifeLostDialog()) {
       cameraZone = getMyZone();
     }
+
+    // Restore zoom after pause/quit cleared (mobile only)
+    if (mobileAuto && ((wasPaused && !paused) || (wasQuitPending && !quitPending))) {
+      autoZoom(state.phase);
+    }
+    wasPaused = paused;
+    wasQuitPending = quitPending;
 
     // Selection delay: show "Select your home castle" for 2s on first selection
     if (mode === Mode.SELECTION && lastAutoZoomPhase === null && selectionZoomDelay <= 0) {
