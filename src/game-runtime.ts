@@ -1461,18 +1461,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     startHostBattleLifecycle({
       state,
       battleAnim,
-      isHost: config.getIsHost(),
       resolveBalloons,
       snapshotTerritory,
       showBanner,
       nextPhase,
-      sendBattleStart: (flights) => {
-        if (config.hostNetworking) {
-          config.send(config.hostNetworking.buildBattleStartMessage(state, flights));
-        }
-      },
       setModeBalloonAnim: () => { mode = Mode.BALLOON_ANIM; },
       beginBattle,
+      net: config.hostNetworking ? {
+        isHost: config.getIsHost(),
+        sendBattleStart: (flights) => {
+          config.send(config.hostNetworking!.buildBattleStartMessage(state, flights));
+        },
+      } : undefined,
     });
   }
 
@@ -1487,17 +1487,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function beginBattle() {
-    const remoteHumanSlots = config.getRemoteHumanSlots();
     beginHostBattle({
       state,
       controllers,
-      remoteHumanSlots,
       accum,
-      isHost: config.getIsHost(),
-      watcherTiming: config.watcherTiming,
       battleCountdown: BATTLE_COUNTDOWN,
-      now: () => performance.now(),
       setModeGame: () => { mode = Mode.GAME; },
+      net: {
+        remoteHumanSlots: config.getRemoteHumanSlots(),
+        isHost: config.getIsHost(),
+        watcherTiming: config.watcherTiming ?? { phaseStartTime: 0, phaseDuration: 0, countdownStartTime: 0, countdownDuration: 0 },
+        now: () => performance.now(),
+      },
     });
   }
 
@@ -1527,54 +1528,33 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       scoreDeltaTimer -= dt;
       if (scoreDeltaTimer <= 0) { scoreDeltas = []; scoreDeltaTimer = 0; }
     }
-    const remoteHumanSlots = config.getRemoteHumanSlots();
     return tickHostCannonPhase({
-      dt,
-      state,
-      accum,
-      frame,
-      controllers,
-      remoteHumanSlots,
-      remoteCannonPhantoms: config.hostNetworking?.remoteCannonPhantoms() ?? [],
-      lastSentCannonPhantom: config.hostNetworking?.lastSentCannonPhantom() ?? new Map(),
-      isHost: config.getIsHost(),
-      render,
-      startBattle,
-      autoPlaceCannons: config.hostNetworking?.autoPlaceCannons ?? (() => {}),
-      sendOpponentCannonPlaced: (msg) => config.send({ type: "opponent_cannon_placed", ...msg }),
-      sendOpponentCannonPhantom: (msg) => config.send({ type: "opponent_cannon_phantom", ...msg }),
+      dt, state, accum, frame, controllers, render, startBattle,
+      net: {
+        remoteHumanSlots: config.getRemoteHumanSlots(),
+        isHost: config.getIsHost(),
+        remoteCannonPhantoms: config.hostNetworking?.remoteCannonPhantoms() ?? [],
+        lastSentCannonPhantom: config.hostNetworking?.lastSentCannonPhantom() ?? new Map(),
+        autoPlaceCannons: config.hostNetworking?.autoPlaceCannons ?? (() => {}),
+        sendOpponentCannonPlaced: (msg) => config.send({ type: "opponent_cannon_placed", ...msg }),
+        sendOpponentCannonPhantom: (msg) => config.send({ type: "opponent_cannon_phantom", ...msg }),
+      },
     });
   }
 
   function tickBattleCountdown(dt: number): void {
-    const remoteHumanSlots = config.getRemoteHumanSlots();
     tickHostBattleCountdown({
-      dt,
-      state,
-      frame,
-      controllers,
-      remoteHumanSlots,
-      collectCrosshairs,
-      render,
+      dt, state, frame, controllers, collectCrosshairs, render,
+      net: { remoteHumanSlots: config.getRemoteHumanSlots() },
     });
   }
 
   function tickBattlePhase(dt: number): boolean {
-    const remoteHumanSlots = config.getRemoteHumanSlots();
     return tickHostBattlePhase({
-      dt,
-      state,
-      battleTimer: BATTLE_TIMER,
-      accum,
-      controllers,
-      remoteHumanSlots,
-      isHost: config.getIsHost(),
-      battleAnim,
-      render,
-      collectCrosshairs,
+      dt, state, battleTimer: BATTLE_TIMER, accum, controllers, battleAnim,
+      render, collectCrosshairs,
       collectTowerEvents: gruntAttackTowers,
       updateCannonballsWithEvents: updateCannonballs,
-      sendMessage: config.send,
       onBattleEvents: (events) => {
         const pid = config.getMyPlayerId();
         const localPid = pid >= 0 ? pid : (firstHuman()?.playerId ?? -1);
@@ -1604,31 +1584,29 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           config.send(config.hostNetworking.buildBuildStartMessage(state));
         }
       },
+      net: {
+        remoteHumanSlots: config.getRemoteHumanSlots(),
+        isHost: config.getIsHost(),
+        sendMessage: config.send,
+      },
     });
   }
 
   function tickBuildPhase(dt: number): boolean {
-    const remoteHumanSlots = config.getRemoteHumanSlots();
     return tickHostBuildPhase({
-      dt,
-      state,
-      accum,
-      frame,
-      controllers,
-      remoteHumanSlots,
-      remotePiecePhantoms: config.hostNetworking?.remotePiecePhantoms() ?? [],
-      lastSentPiecePhantom: config.hostNetworking?.lastSentPiecePhantom() ?? new Map(),
-      isHost: config.getIsHost(),
-      render,
-      tickGrunts,
-      isHuman,
-      finalizeBuildPhase,
-      serializePlayers: config.hostNetworking?.serializePlayers ?? (() => []),
-      showLifeLostDialog,
+      dt, state, accum, frame, controllers, render,
+      tickGrunts, isHuman, finalizeBuildPhase, showLifeLostDialog,
       afterLifeLostResolved: () => afterLifeLostResolved(),
-      sendOpponentPiecePlaced: (msg) => config.send({ type: "opponent_piece_placed", ...msg }),
-      sendOpponentPhantom: (msg) => config.send({ type: "opponent_phantom", ...msg }),
-      sendBuildEnd: (msg) => config.send({ type: "build_end", ...msg }),
+      net: {
+        remoteHumanSlots: config.getRemoteHumanSlots(),
+        isHost: config.getIsHost(),
+        remotePiecePhantoms: config.hostNetworking?.remotePiecePhantoms() ?? [],
+        lastSentPiecePhantom: config.hostNetworking?.lastSentPiecePhantom() ?? new Map(),
+        serializePlayers: config.hostNetworking?.serializePlayers ?? (() => []),
+        sendOpponentPiecePlaced: (msg) => config.send({ type: "opponent_piece_placed", ...msg }),
+        sendOpponentPhantom: (msg) => config.send({ type: "opponent_phantom", ...msg }),
+        sendBuildEnd: (msg) => config.send({ type: "build_end", ...msg }),
+      },
     });
   }
 

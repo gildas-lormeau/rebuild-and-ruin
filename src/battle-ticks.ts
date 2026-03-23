@@ -4,6 +4,7 @@ import type { TilePos } from "./geometry-types.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { GameState, Impact } from "./types.ts";
 import type { WatcherTimingState } from "./online-watcher-battle.ts";
+import type { HostNetContext } from "./phase-ticks.ts";
 
 /** Shared empty set — avoids allocating a throwaway Set on every frame. */
 const EMPTY_SET: ReadonlySet<number> = new Set<number>();
@@ -13,31 +14,20 @@ const EMPTY_SET: ReadonlySet<number> = new Set<number>();
 // ---------------------------------------------------------------------------
 
 interface TickHostBattleCountdownDeps {
-  // Core game deps (required)
   dt: number;
   state: GameState;
   frame: { announcement?: string };
   controllers: PlayerController[];
   collectCrosshairs: (canFireNow: boolean, dt: number) => void;
   render: () => void;
-
-  // Networking hooks (optional, default to empty)
-  remoteHumanSlots?: Set<number>;
+  net?: Pick<HostNetContext, "remoteHumanSlots">;
 }
 
 export function tickHostBattleCountdown(
   deps: TickHostBattleCountdownDeps,
 ): void {
-  const {
-    dt,
-    state,
-    frame,
-    controllers,
-    collectCrosshairs,
-    render,
-    // Networking hooks with sensible defaults
-    remoteHumanSlots = EMPTY_SET as Set<number>,
-  } = deps;
+  const { dt, state, frame, controllers, collectCrosshairs, render } = deps;
+  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_SET as Set<number>;
 
   state.battleCountdown = Math.max(0, state.battleCountdown - dt);
   for (const ctrl of controllers) {
@@ -52,8 +42,12 @@ export function tickHostBattleCountdown(
   render();
 }
 
+/** Networking context for the battle phase. */
+export interface BattlePhaseNet extends HostNetContext {
+  sendMessage: (msg: GameMessage) => void;
+}
+
 interface TickHostBattlePhaseDeps {
-  // Core game deps (required)
   dt: number;
   state: GameState;
   battleTimer: number;
@@ -74,36 +68,19 @@ interface TickHostBattlePhaseDeps {
     events: Array<GameMessage>;
   };
   onBattlePhaseEnded: () => void;
-
-  // Haptics (optional)
   onBattleEvents?: (events: Array<GameMessage>) => void;
-
-  // Networking hooks (optional, default to no-op / empty)
-  remoteHumanSlots?: Set<number>;
-  isHost?: boolean;
-  sendMessage?: (msg: GameMessage) => void;
+  net?: BattlePhaseNet;
 }
 
 export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   const {
-    dt,
-    state,
-    battleTimer,
-    accum,
-    controllers,
-    battleAnim,
-    render,
-    collectCrosshairs,
-    collectTowerEvents,
-    updateCannonballsWithEvents,
-    onBattlePhaseEnded,
-    // Haptics
-    onBattleEvents,
-    // Networking hooks with sensible defaults
-    remoteHumanSlots = EMPTY_SET as Set<number>,
-    isHost = true,
-    sendMessage = () => {},
+    dt, state, battleTimer, accum, controllers, battleAnim,
+    render, collectCrosshairs, collectTowerEvents, updateCannonballsWithEvents,
+    onBattlePhaseEnded, onBattleEvents,
   } = deps;
+  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_SET as Set<number>;
+  const isHost = deps.net?.isHost ?? true;
+  const sendMessage = deps.net?.sendMessage;
 
   accum.battle += dt;
   state.timer = Math.max(0, battleTimer - accum.battle);
@@ -115,7 +92,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     ctrl.battleTick(state, dt);
   }
 
-  if (isHost) {
+  if (isHost && sendMessage) {
     for (let i = ballsBefore; i < state.cannonballs.length; i++) {
       const ball = state.cannonballs[i]!;
       sendMessage({
@@ -133,7 +110,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   }
 
   const towerEvents = collectTowerEvents(state, dt);
-  if (isHost) {
+  if (isHost && sendMessage) {
     for (const evt of towerEvents) sendMessage(evt);
   }
 
@@ -142,7 +119,9 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   for (const imp of newImpacts) {
     battleAnim.impacts.push({ ...imp, age: 0 });
   }
-  for (const evt of impactEvents) sendMessage(evt);
+  if (sendMessage) {
+    for (const evt of impactEvents) sendMessage(evt);
+  }
 
   // Haptic feedback for battle events
   if (onBattleEvents) {
@@ -182,8 +161,13 @@ export type BannerShow = (
   subtitle?: string,
 ) => void;
 
+/** Networking context for starting battle. */
+interface BattleStartNet {
+  isHost: boolean;
+  sendBattleStart: (flights: BalloonFlight[]) => void;
+}
+
 interface StartHostBattleLifecycleDeps {
-  // Core game deps (required)
   state: GameState;
   battleAnim: BattleAnimState;
   resolveBalloons: (state: GameState) => BalloonFlight[];
@@ -192,28 +176,18 @@ interface StartHostBattleLifecycleDeps {
   nextPhase: (state: GameState) => void;
   setModeBalloonAnim: () => void;
   beginBattle: () => void;
-
-  // Networking hooks (optional, default to no-op)
-  isHost?: boolean;
-  sendBattleStart?: (flights: BalloonFlight[]) => void;
+  net?: BattleStartNet;
 }
 
 export function startHostBattleLifecycle(
   deps: StartHostBattleLifecycleDeps,
 ): void {
   const {
-    state,
-    battleAnim,
-    resolveBalloons,
-    snapshotTerritory,
-    showBanner,
-    nextPhase,
-    setModeBalloonAnim,
-    beginBattle,
-    // Networking hooks with sensible defaults
-    isHost = true,
-    sendBattleStart = () => {},
+    state, battleAnim, resolveBalloons, snapshotTerritory,
+    showBanner, nextPhase, setModeBalloonAnim, beginBattle,
   } = deps;
+  const isHost = deps.net?.isHost ?? true;
+  const sendBattleStart = deps.net?.sendBattleStart;
 
   const flights = resolveBalloons(state);
   const preTerritory = snapshotTerritory();
@@ -236,7 +210,7 @@ export function startHostBattleLifecycle(
 
   nextPhase(state);
   battleAnim.impacts = [];
-  if (isHost) sendBattleStart(flights);
+  if (isHost && sendBattleStart) sendBattleStart(flights);
 
   battleAnim.territory = snapshotTerritory();
   battleAnim.walls = state.players.map((p) => new Set(p.walls));
@@ -266,34 +240,25 @@ export function tickHostBalloonAnim(deps: TickHostBalloonAnimDeps): void {
   }
 }
 
+/** Networking context for beginning battle. */
+interface BattleBeginNet extends HostNetContext {
+  watcherTiming: WatcherTimingState;
+  now: () => number;
+}
+
 interface BeginHostBattleDeps {
-  // Core game deps (required)
   state: GameState;
   controllers: PlayerController[];
   accum: { battle: number };
   battleCountdown: number;
   setModeGame: () => void;
-
-  // Networking hooks (optional, default to no-op / empty)
-  remoteHumanSlots?: Set<number>;
-  isHost?: boolean;
-  watcherTiming?: WatcherTimingState;
-  now?: () => number;
+  net?: BattleBeginNet;
 }
 
 export function beginHostBattle(deps: BeginHostBattleDeps): void {
-  const {
-    state,
-    controllers,
-    accum,
-    battleCountdown,
-    setModeGame,
-    // Networking hooks with sensible defaults
-    remoteHumanSlots = EMPTY_SET as Set<number>,
-    isHost = true,
-    watcherTiming = { phaseStartTime: 0, phaseDuration: 0, countdownStartTime: 0, countdownDuration: 0 },
-    now = () => 0,
-  } = deps;
+  const { state, controllers, accum, battleCountdown, setModeGame } = deps;
+  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_SET as Set<number>;
+  const isHost = deps.net?.isHost ?? true;
 
   for (const ctrl of controllers) {
     if (remoteHumanSlots.has(ctrl.playerId)) continue;
@@ -303,7 +268,8 @@ export function beginHostBattle(deps: BeginHostBattleDeps): void {
 
   state.battleCountdown = battleCountdown;
   accum.battle = 0;
-  if (!isHost) {
+  if (!isHost && deps.net) {
+    const { watcherTiming, now } = deps.net;
     watcherTiming.countdownStartTime = now();
     watcherTiming.countdownDuration = battleCountdown;
   }

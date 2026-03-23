@@ -13,41 +13,32 @@ import type {
 const EMPTY_SET: ReadonlySet<number> = new Set<number>();
 const EMPTY_MAP: ReadonlyMap<number, string> = new Map<number, string>();
 
-interface HostFrame {
-  phantoms: {
-    aiCannonPhantoms?: CannonPhantom[];
-    aiPhantoms?: PiecePhantom[];
-    humanPhantoms?: HumanPiecePhantom[];
-  };
+// ---------------------------------------------------------------------------
+// Networking context — groups all online-only deps for tick functions
+// ---------------------------------------------------------------------------
+
+/** Base networking context shared by all phase ticks. */
+export interface HostNetContext {
+  remoteHumanSlots: Set<number>;
+  isHost: boolean;
 }
 
-interface TickHostCannonPhaseDeps {
-  // Core game deps (required)
-  dt: number;
-  state: GameState;
-  accum: { cannon: number };
-  frame: HostFrame;
-  controllers: PlayerController[];
-  render: () => void;
-  startBattle: () => void;
-
-  // Networking hooks (optional, default to no-op / empty)
-  remoteHumanSlots?: Set<number>;
-  remoteCannonPhantoms?: CannonPhantom[];
-  lastSentCannonPhantom?: Map<number, string>;
-  isHost?: boolean;
-  autoPlaceCannons?: (
+/** Networking context for the cannon placement phase. */
+export interface CannonPhaseNet extends HostNetContext {
+  remoteCannonPhantoms: CannonPhantom[];
+  lastSentCannonPhantom: Map<number, string>;
+  autoPlaceCannons: (
     player: GameState["players"][number],
     max: number,
     state: GameState,
   ) => void;
-  sendOpponentCannonPlaced?: (msg: {
+  sendOpponentCannonPlaced: (msg: {
     playerId: number;
     row: number;
     col: number;
     mode: "normal" | "super" | "balloon";
   }) => void;
-  sendOpponentCannonPhantom?: (msg: {
+  sendOpponentCannonPhantom: (msg: {
     playerId: number;
     row: number;
     col: number;
@@ -57,24 +48,65 @@ interface TickHostCannonPhaseDeps {
   }) => void;
 }
 
+/** Networking context for the wall build phase. */
+export interface BuildPhaseNet extends HostNetContext {
+  remotePiecePhantoms: PiecePhantom[];
+  lastSentPiecePhantom: Map<number, string>;
+  serializePlayers: (state: GameState) => SerializedPlayer[];
+  sendOpponentPiecePlaced: (msg: {
+    playerId: number;
+    row: number;
+    col: number;
+    offsets: [number, number][];
+  }) => void;
+  sendOpponentPhantom: (msg: {
+    playerId: number;
+    row: number;
+    col: number;
+    offsets: [number, number][];
+    valid: boolean;
+  }) => void;
+  sendBuildEnd: (msg: {
+    needsReselect: number[];
+    eliminated: number[];
+    scores: number[];
+    players: SerializedPlayer[];
+  }) => void;
+}
+
+// ---------------------------------------------------------------------------
+// Cannon placement phase tick
+// ---------------------------------------------------------------------------
+
+interface HostFrame {
+  phantoms: {
+    aiCannonPhantoms?: CannonPhantom[];
+    aiPhantoms?: PiecePhantom[];
+    humanPhantoms?: HumanPiecePhantom[];
+  };
+}
+
+interface TickHostCannonPhaseDeps {
+  dt: number;
+  state: GameState;
+  accum: { cannon: number };
+  frame: HostFrame;
+  controllers: PlayerController[];
+  render: () => void;
+  startBattle: () => void;
+  net?: CannonPhaseNet;
+}
+
 export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
-  const {
-    dt,
-    state,
-    accum,
-    frame,
-    controllers,
-    render,
-    startBattle,
-    // Networking hooks with sensible defaults
-    remoteHumanSlots = EMPTY_SET as Set<number>,
-    remoteCannonPhantoms = [],
-    lastSentCannonPhantom = EMPTY_MAP as Map<number, string>,
-    isHost = true,
-    autoPlaceCannons = () => {},
-    sendOpponentCannonPlaced = () => {},
-    sendOpponentCannonPhantom = () => {},
-  } = deps;
+  const { dt, state, accum, frame, controllers, render, startBattle } = deps;
+  // Networking defaults (no-op for local play)
+  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_SET as Set<number>;
+  const isHost = deps.net?.isHost ?? true;
+  const remoteCannonPhantoms = deps.net?.remoteCannonPhantoms ?? [];
+  const lastSentCannonPhantom = deps.net?.lastSentCannonPhantom ?? EMPTY_MAP as Map<number, string>;
+  const autoPlaceCannons = deps.net?.autoPlaceCannons;
+  const sendOpponentCannonPlaced = deps.net?.sendOpponentCannonPlaced;
+  const sendOpponentCannonPhantom = deps.net?.sendOpponentCannonPhantom;
 
   accum.cannon += dt;
   state.timer = Math.max(0, state.cannonPlaceTimer - accum.cannon);
@@ -87,7 +119,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
     const cannonsBefore = state.players[ctrl.playerId]!.cannons.length;
     const phantom = ctrl.cannonTick(state, dt);
 
-    if (isHost) {
+    if (isHost && sendOpponentCannonPlaced) {
       const cannonsAfter = state.players[ctrl.playerId]!.cannons.length;
       for (let ci = cannonsBefore; ci < cannonsAfter; ci++) {
         const c = state.players[ctrl.playerId]!.cannons[ci]!;
@@ -103,7 +135,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
     if (!phantom) continue;
 
     frame.phantoms.aiCannonPhantoms!.push(phantom);
-    if (!isHost) continue;
+    if (!isHost || !sendOpponentCannonPhantom) continue;
 
     const key = `${phantom.row},${phantom.col},${phantom.isSuper},${phantom.isBalloon}`;
     if (lastSentCannonPhantom.get(ctrl.playerId) === key) continue;
@@ -123,7 +155,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
     });
   }
 
-  if (remoteHumanSlots.size > 0 && remoteCannonPhantoms.length > 0) {
+  if (remoteCannonPhantoms.length > 0) {
     frame.phantoms.aiCannonPhantoms!.push(
       ...remoteCannonPhantoms.filter(
         (p) => !state.players[p.playerId]?.eliminated,
@@ -145,7 +177,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
 
   for (const ctrl of controllers) {
     if (remoteHumanSlots.has(ctrl.playerId)) {
-      if (state.round === 1) {
+      if (state.round === 1 && autoPlaceCannons) {
         const player = state.players[ctrl.playerId]!;
         if (!player.eliminated && player.cannons.length === 0) {
           const max = state.cannonLimits[ctrl.playerId] ?? 0;
@@ -162,8 +194,11 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   return true;
 }
 
+// ---------------------------------------------------------------------------
+// Build phase tick
+// ---------------------------------------------------------------------------
+
 interface TickHostBuildPhaseDeps {
-  // Core game deps (required)
   dt: number;
   state: GameState;
   accum: { build: number; grunt: number };
@@ -178,57 +213,23 @@ interface TickHostBuildPhaseDeps {
   };
   showLifeLostDialog: (needsReselect: number[], eliminated: number[]) => void;
   afterLifeLostResolved: () => boolean;
-
-  // Networking hooks (optional, default to no-op / empty)
-  remoteHumanSlots?: Set<number>;
-  remotePiecePhantoms?: PiecePhantom[];
-  lastSentPiecePhantom?: Map<number, string>;
-  isHost?: boolean;
-  serializePlayers?: (state: GameState) => SerializedPlayer[];
-  sendOpponentPiecePlaced?: (msg: {
-    playerId: number;
-    row: number;
-    col: number;
-    offsets: [number, number][];
-  }) => void;
-  sendOpponentPhantom?: (msg: {
-    playerId: number;
-    row: number;
-    col: number;
-    offsets: [number, number][];
-    valid: boolean;
-  }) => void;
-  sendBuildEnd?: (msg: {
-    needsReselect: number[];
-    eliminated: number[];
-    scores: number[];
-    players: SerializedPlayer[];
-  }) => void;
+  net?: BuildPhaseNet;
 }
 
 export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   const {
-    dt,
-    state,
-    accum,
-    frame,
-    controllers,
-    render,
-    tickGrunts,
-    isHuman,
-    finalizeBuildPhase,
-    showLifeLostDialog,
-    afterLifeLostResolved,
-    // Networking hooks with sensible defaults
-    remoteHumanSlots = EMPTY_SET as Set<number>,
-    remotePiecePhantoms = [],
-    lastSentPiecePhantom = EMPTY_MAP as Map<number, string>,
-    isHost = true,
-    serializePlayers = () => [],
-    sendOpponentPiecePlaced = () => {},
-    sendOpponentPhantom = () => {},
-    sendBuildEnd = () => {},
+    dt, state, accum, frame, controllers, render,
+    tickGrunts, isHuman, finalizeBuildPhase, showLifeLostDialog, afterLifeLostResolved,
   } = deps;
+  // Networking defaults (no-op for local play)
+  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_SET as Set<number>;
+  const isHost = deps.net?.isHost ?? true;
+  const remotePiecePhantoms = deps.net?.remotePiecePhantoms ?? [];
+  const lastSentPiecePhantom = deps.net?.lastSentPiecePhantom ?? EMPTY_MAP as Map<number, string>;
+  const serializePlayers = deps.net?.serializePlayers ?? (() => []);
+  const sendOpponentPiecePlaced = deps.net?.sendOpponentPiecePlaced;
+  const sendOpponentPhantom = deps.net?.sendOpponentPhantom;
+  const sendBuildEnd = deps.net?.sendBuildEnd;
 
   accum.build += dt;
   state.timer = Math.max(0, state.buildTimer - accum.build);
@@ -250,7 +251,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
 
     const phantoms = ctrl.buildTick(state, dt);
 
-    if (wallSnapshot) {
+    if (wallSnapshot && sendOpponentPiecePlaced) {
       const player = state.players[ctrl.playerId]!;
       if (player.walls.size > wallSnapshot.size) {
         const offsets: [number, number][] = [];
@@ -288,7 +289,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
         });
       }
 
-      if (!isHost) continue;
+      if (!isHost || !sendOpponentPhantom) continue;
       const key = `${p.row},${p.col},${p.offsets.map((o) => o.join(":")).join(";")}`;
       if (lastSentPiecePhantom.get(p.playerId) === key) continue;
 
@@ -303,7 +304,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
     }
   }
 
-  if (remoteHumanSlots.size > 0 && remotePiecePhantoms.length > 0) {
+  if (remotePiecePhantoms.length > 0) {
     frame.phantoms.aiPhantoms!.push(
       ...remotePiecePhantoms.filter(
         (p) => !state.players[p.playerId]?.eliminated,
@@ -321,7 +322,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   }
 
   const { needsReselect, eliminated } = finalizeBuildPhase(state);
-  if (isHost) {
+  if (isHost && sendBuildEnd) {
     sendBuildEnd({
       needsReselect,
       eliminated,
