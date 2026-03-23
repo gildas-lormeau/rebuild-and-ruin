@@ -197,7 +197,7 @@ export function buildStatusBar(state: GameState, playerColors: readonly { interi
 }
 
 // ---------------------------------------------------------------------------
-// Selection overlay (moved from selection.ts to decouple from map-renderer)
+// Selection overlay (moved from selection.ts to decouple from render-map)
 // ---------------------------------------------------------------------------
 
 export function syncSelectionOverlay(

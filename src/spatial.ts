@@ -3,7 +3,7 @@
  *
  * These are pure functions that operate on tile coordinates and grid keys.
  * Centralised here to avoid scattering utilities across types.ts,
- * build-phase.ts, and other domain-specific modules.
+ * phase-build.ts, and other domain-specific modules.
  */
 
 import type { PixelPos, TilePos, Tower } from "./geometry-types.ts";

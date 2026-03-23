@@ -1,7 +1,5 @@
 {
-  "entry": ["src/main.ts", "src/headless-test.ts", "src/headless-sim.ts", "src/online-client.ts"],
+  "entry": ["src/main.ts", "src/headless-sim.ts", "src/online-client.ts"],
   "project": ["src/**/*.ts"],
-  "ignoreDependencies": ["playwright"],
-  "ignore": ["test/**", "server/**"],
   "bun": false
 }

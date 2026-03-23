@@ -10,6 +10,7 @@ import { Mode } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import type { KeyBindings } from "./player-config.ts";
 import type { Crosshair, PlayerController } from "./player-controller.ts";
+import { GEAR_SIZE, GEAR_X, GEAR_Y } from "./render-theme.ts";
 import type { GameState, Impact, Player } from "./types.ts";
 import { Phase } from "./types.ts";
 
@@ -63,16 +64,13 @@ export function lobbyClickHitTest(params: {
   canvasW: number;
   canvasH: number;
   tileSize: number;
-  gearX: number;
-  gearY: number;
-  gearSize: number;
   slotCount: number;
   computeLayout: (tsW: number, tsH: number, count: number) =>
     { gap: number; rectW: number; rectH: number; rectY: number };
   isSlotJoined: (i: number) => boolean;
 }): { type: "gear" } | { type: "slot"; slotId: number } | null {
   const { canvasX, canvasY, canvasW, canvasH, tileSize,
-          gearX, gearY, gearSize, slotCount, computeLayout, isSlotJoined } = params;
+          slotCount, computeLayout, isSlotJoined } = params;
 
   const tsW = GRID_COLS * tileSize;
   const tsH = GRID_ROWS * tileSize;
@@ -81,10 +79,10 @@ export function lobbyClickHitTest(params: {
 
   // Gear button click (top-right corner)
   if (
-    x >= gearX &&
-    x <= gearX + gearSize &&
-    y >= gearY &&
-    y <= gearY + gearSize
+    x >= GEAR_X &&
+    x <= GEAR_X + GEAR_SIZE &&
+    y >= GEAR_Y &&
+    y <= GEAR_Y + GEAR_SIZE
   ) {
     return { type: "gear" };
   }

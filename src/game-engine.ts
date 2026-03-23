@@ -15,7 +15,7 @@
  *   - cannon-system.ts  — cannon placement & management
  *   - battle-system.ts  — firing, cannonballs, impacts, balloons
  *   - grunt-system.ts   — grunt spawning, movement, tower attacks
- *   - build-phase.ts    — piece placement, territory claiming
+ *   - phase-build.ts    — piece placement, territory claiming
  */
 
 import { collectAllWalls } from "./board-occupancy.ts";

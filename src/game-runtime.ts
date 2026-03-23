@@ -128,7 +128,6 @@ import {
   syncSelectionOverlay as syncSelectionOverlayImpl,
 } from "./render-composition.ts";
 import { renderMap } from "./render-map.ts";
-import { GEAR_SIZE, GEAR_X, GEAR_Y } from "./render-theme.ts";
 import type { RenderOverlay } from "./render-types.ts";
 import { computeLobbyLayout } from "./render-ui.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
@@ -347,9 +346,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       canvasW: GRID_COLS * TILE_SIZE * SCALE,
       canvasH: GRID_ROWS * TILE_SIZE * SCALE,
       tileSize: TILE_SIZE,
-      gearX: GEAR_X,
-      gearY: GEAR_Y,
-      gearSize: GEAR_SIZE,
       slotCount: MAX_PLAYERS,
       computeLayout: computeLobbyLayout,
       isSlotJoined: (i) => lobby.joined[i]!,
