@@ -4,7 +4,6 @@
  */
 
 import { TILE_SIZE } from "./grid.ts";
-import type { MapData, RenderOverlay } from "./map-renderer.ts";
 import { getPlayerColor } from "./player-config.ts";
 import type { RGB } from "./render-theme.ts";
 import {
@@ -12,10 +11,17 @@ import {
   CROSSHAIR_ARM_READY, CROSSHAIR_IDLE_FREQ,CROSSHAIR_READY_FREQ, FONT_TIMER,
   rgb, 
 } from "./render-theme.ts";
+import type { MapData, RenderOverlay } from "./render-types.ts";
 import { facingToCardinal } from "./spatial.ts";
 import { drawSprite } from "./sprites.ts";
 import { IMPACT_FLASH_DURATION } from "./types.ts";
 
+
+// Impact animation phases (normalized 0–1 within IMPACT_FLASH_DURATION)
+const IMPACT_CORE_END = 0.25;
+const IMPACT_RING_END = 0.6;
+const IMPACT_DEBRIS_END = 0.8;
+const IMPACT_SMOKE_START = 0.2;
 
 // Crosshair colors per player
 const CROSSHAIR_COLORS: RGB[] = [
@@ -306,8 +312,8 @@ export function drawBattleEffects(
       const seed = impact.row * 41 + impact.col * 17;
 
       // Core flash — brief bright spot, shrinks quickly
-      if (t < 0.25) {
-        const coreAlpha = (1 - t / 0.25) * 0.6;
+      if (t < IMPACT_CORE_END) {
+        const coreAlpha = (1 - t / IMPACT_CORE_END) * 0.6;
         const coreSize = TILE_SIZE * (0.6 - t * 1.2);
         octx.globalAlpha = coreAlpha;
         octx.fillStyle = "#ffe0a0";
@@ -317,9 +323,9 @@ export function drawBattleEffects(
       }
 
       // Shockwave ring — expands outward
-      if (t < 0.6) {
+      if (t < IMPACT_RING_END) {
         const ringR = TILE_SIZE * 0.5 + t * TILE_SIZE;
-        octx.globalAlpha = (1 - t / 0.6) * 0.7;
+        octx.globalAlpha = (1 - t / IMPACT_RING_END) * 0.7;
         octx.strokeStyle = "#ffcc44";
         octx.lineWidth = 2;
         octx.beginPath();
@@ -328,8 +334,8 @@ export function drawBattleEffects(
       }
 
       // Debris sparks — 5 particles flying outward
-      if (t < 0.8) {
-        const sparkAlpha = 1 - t / 0.8;
+      if (t < IMPACT_DEBRIS_END) {
+        const sparkAlpha = 1 - t / IMPACT_DEBRIS_END;
         for (let i = 0; i < 5; i++) {
           const angle = (seed + i * 1.3) % (Math.PI * 2);
           const dist = t * (TILE_SIZE * 0.8 + i * 3);
@@ -342,8 +348,8 @@ export function drawBattleEffects(
       }
 
       // Smoke — dark puff rising, lingers in second half
-      if (t > 0.2) {
-        const smokeT = (t - 0.2) / 0.8;
+      if (t > IMPACT_SMOKE_START) {
+        const smokeT = (t - IMPACT_SMOKE_START) / (1 - IMPACT_SMOKE_START);
         const smokeR = TILE_SIZE * 0.4 + smokeT * TILE_SIZE * 0.3;
         octx.globalAlpha = (1 - smokeT) * 0.35;
         octx.fillStyle = "#3a3028";

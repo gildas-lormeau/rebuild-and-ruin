@@ -3,8 +3,8 @@
  * Used by both main.ts and online-client.ts.
  */
 
-import type { RenderOverlay } from "./map-renderer.ts";
 import { renderMap } from "./map-renderer.ts";
+import type { RenderOverlay } from "./render-types.ts";
 import type { GameState } from "./types.ts";
 import { LOBBY_SKIP_LOCKOUT, LOBBY_SKIP_STEP } from "./types.ts";
 
@@ -23,7 +23,7 @@ import {CANNON_HP_OPTIONS, type ControlsState,
   formatKeyName, 
   type GameSettings, HAPTICS_LABELS, OPTION_NAMES,ROUNDS_OPTIONS, saveSettings,
 } from "./game-ui-types.ts";
-import type { GameMap } from "./map-generation.ts";
+import type { GameMap } from "./geometry-types.ts";
 import { generateMap } from "./map-generation.ts";
 import { getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
 

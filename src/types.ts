@@ -2,8 +2,7 @@
  * Core types, interfaces, and constants for the game engine.
  */
 
-import type { TilePos } from "./geometry-types.ts";
-import type { Castle, GameMap, Tower } from "./map-generation.ts";
+import type { Castle, GameMap, TilePos, Tower } from "./geometry-types.ts";
 import type { Rng } from "./rng.ts";
 
 // ---------------------------------------------------------------------------

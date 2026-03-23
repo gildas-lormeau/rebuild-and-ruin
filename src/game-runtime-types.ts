@@ -19,12 +19,12 @@ import type {
 } from "./game-ui-types.ts";
 import { Mode } from "./game-ui-types.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
-import type { RenderOverlay } from "./map-renderer.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
 import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
 import type { WatcherTimingState } from "./online-watcher-battle.ts";
 import type { BannerState } from "./phase-banner.ts";
 import type { Crosshair, PlayerController } from "./player-controller.ts";
+import type { RenderOverlay } from "./render-types.ts";
 import type { SelectionState } from "./selection.ts";
 import type { GameState } from "./types.ts";
 

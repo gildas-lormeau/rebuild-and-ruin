@@ -2,7 +2,6 @@
  * UI overlay rendering — announcement, banner, game over, player select.
  */
 
-import type { RenderOverlay } from "./map-renderer.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
   LIFE_LOST_BTN_H as BTN_H,
@@ -35,6 +34,7 @@ import {
   rgb,
   SHADOW_COLOR,
 } from "./render-theme.ts";
+import type { RenderOverlay } from "./render-types.ts";
 
 // Local semantic colors (not shared across files — context-specific to UI panels)
 const BTN_CONTINUE = {

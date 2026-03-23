@@ -11,7 +11,7 @@
 // --- Constants ---
 
 import { collectOccupiedTiles } from "./board-occupancy.ts";
-import type { PixelPos, TilePos, Tower } from "./geometry-types.ts";
+import type { Castle, GameMap, House, PixelPos, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, Tile } from "./grid.ts";
 import { Rng } from "./rng.ts";
 import { DIRS_4, forEachTowerTile, inBounds, isGrass, manhattanDistance, packTile, unpackTile } from "./spatial.ts";
@@ -113,32 +113,6 @@ function towerRectDistance(
   return dx + dy;
 }
 
-
-export type { Tower } from "./geometry-types.ts";
-
-export interface Castle {
-  /** Interior bounds (inclusive) — the checkerboard territory */
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
-  /** Tower this castle belongs to */
-  tower: Tower;
-}
-
-export interface House extends TilePos {
-  zone: number;
-  alive: boolean;
-}
-
-export interface GameMap {
-  tiles: Tile[][];
-  towers: Tower[];
-  houses: House[];
-  zones: number[][];
-  junction: PixelPos;
-  exits: PixelPos[];
-}
 
 // --- River Generation ---
 

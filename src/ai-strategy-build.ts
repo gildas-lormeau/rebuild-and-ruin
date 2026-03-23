@@ -25,9 +25,8 @@ import {
 } from "./board-occupancy.ts";
 import { canPlacePiece } from "./build-phase.ts";
 import { isCannonEnclosed } from "./cannon-system.ts";
-import type { TilePos, TileRect } from "./geometry-types.ts";
+import type { TilePos, TileRect, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, Tile } from "./grid.ts";
-import type { Tower } from "./map-generation.ts";
 import type { PieceShape } from "./pieces.ts";
 import { ALL_PIECE_SHAPES, rotateCW } from "./pieces.ts";
 import {

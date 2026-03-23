@@ -12,9 +12,8 @@ import {
   canPlaceCannon,
   placeCannon,
 } from "./cannon-system.ts";
-import type { TilePos } from "./geometry-types.ts";
+import type { GameMap, TilePos, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
-import type { GameMap, Tower } from "./map-generation.ts";
 import type { Rng } from "./rng.ts";
 import {
   DIRS_4,

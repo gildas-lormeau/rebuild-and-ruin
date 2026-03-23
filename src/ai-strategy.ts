@@ -31,8 +31,7 @@ import {
   autoSelectTowerImpl,
 } from "./ai-strategy-cannon.ts";
 import { placeCannon } from "./cannon-system.ts";
-import type { PixelPos, StrategicPixelPos, TilePos } from "./geometry-types.ts";
-import type { GameMap, Tower } from "./map-generation.ts";
+import type { GameMap, PixelPos, StrategicPixelPos, TilePos, Tower } from "./geometry-types.ts";
 import type { PieceShape } from "./pieces.ts";
 import { Rng } from "./rng.ts";
 import { computeOutside, isTowerEnclosed, waterKeys } from "./spatial.ts";

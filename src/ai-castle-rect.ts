@@ -11,9 +11,8 @@ import {
   hasGruntAt,
   hasTowerAt,
 } from "./board-occupancy.ts";
-import type { TileRect } from "./geometry-types.ts";
+import type { TileRect, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, Tile } from "./grid.ts";
-import type { Tower } from "./map-generation.ts";
 import {
   DIRS_4,
   DIRS_8,

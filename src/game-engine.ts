@@ -21,13 +21,13 @@
 import { collectAllWalls } from "./board-occupancy.ts";
 import { claimTerritory, replenishBonusSquares } from "./build-phase.ts";
 import { cannonSlotsUsed } from "./cannon-system.ts";
+import type { GameMap } from "./geometry-types.ts";
 import {
   rollGruntWallAttacks,
   spawnGruntGroupOnZone,
   spawnGruntOnZone,
   updateGruntBlockedBattles,
 } from "./grunt-system.ts";
-import type { GameMap } from "./map-generation.ts";
 import {
   applyClumsyBuilders,
   buildCastle,

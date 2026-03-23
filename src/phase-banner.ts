@@ -1,4 +1,4 @@
-import type { CastleData } from "./map-renderer.ts";
+import type { CastleData } from "./render-types.ts";
 import type { GameState } from "./types.ts";
 import { Phase } from "./types.ts";
 

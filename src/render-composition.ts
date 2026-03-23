@@ -1,7 +1,6 @@
 import type { GameOverOverlay, LifeLostDialogOverlay } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
-import type { CastleData, RenderOverlay } from "./map-renderer.ts";
 import type { RGB } from "./player-config.ts";
 import {
   LIFE_LOST_BTN_H as BTN_H,
@@ -9,11 +8,12 @@ import {
   LIFE_LOST_PANEL_H as PANEL_H,
   LIFE_LOST_PANEL_W as PANEL_W,
 } from "./render-theme.ts";
+import type { CastleData, RenderOverlay } from "./render-types.ts";
 import type { SelectionState } from "./selection.ts";
 import type { GameState, Impact } from "./types.ts";
 import { Phase } from "./types.ts";
 
-export function buildCastleOverlay(state: GameState): CastleData[] {
+function buildCastleOverlay(state: GameState): CastleData[] {
   return state.players
     .filter((p) => p.castle)
     .map((p) => ({
@@ -24,7 +24,7 @@ export function buildCastleOverlay(state: GameState): CastleData[] {
     }));
 }
 
-export function buildHomeTowersByIndex(state: GameState): Map<number, number> {
+function buildHomeTowersByIndex(state: GameState): Map<number, number> {
   const homeTowers = new Map<number, number>();
   for (const player of state.players) {
     if (player.homeTower) {
@@ -91,7 +91,7 @@ export function buildBannerUi(
   };
 }
 
-export function buildLifeLostDialogUi(
+function buildLifeLostDialogUi(
   dialog: LifeLostDialogState | null,
   playerNames: ReadonlyArray<string>,
   playerColors: ReadonlyArray<{ wall: RGB }>,
@@ -119,7 +119,7 @@ export function buildLifeLostDialogUi(
   };
 }
 
-export function buildBattleCannonballsPayload(
+function buildBattleCannonballsPayload(
   inBattle: boolean,
   cannonballs: Array<{
     x: number;
@@ -148,7 +148,7 @@ export function buildBattleCannonballsPayload(
   });
 }
 
-export function buildBattleBalloonsPayload(
+function buildBattleBalloonsPayload(
   flights: Array<{
     flight: { startX: number; startY: number; endX: number; endY: number };
     progress: number;

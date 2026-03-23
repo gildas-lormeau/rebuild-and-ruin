@@ -2,6 +2,8 @@
  * Shared lightweight geometry/data shapes used by strategy and controller code.
  */
 
+import type { Tile } from "./grid.ts";
+
 export interface TilePos {
   row: number;
   col: number;
@@ -33,4 +35,28 @@ export interface Tower extends TilePos {
   zone: number;
   /** Index into the GameMap.towers array (stable after generation). */
   index: number;
+}
+
+export interface Castle {
+  /** Interior bounds (inclusive) — the checkerboard territory */
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  /** Tower this castle belongs to */
+  tower: Tower;
+}
+
+export interface House extends TilePos {
+  zone: number;
+  alive: boolean;
+}
+
+export interface GameMap {
+  tiles: Tile[][];
+  towers: Tower[];
+  houses: House[];
+  zones: number[][];
+  junction: PixelPos;
+  exits: PixelPos[];
 }

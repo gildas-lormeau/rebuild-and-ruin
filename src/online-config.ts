@@ -1,5 +1,5 @@
 /** Default server host for online play (Deno Deploy). */
-export const DEFAULT_SERVER_HOST = "rebuild-and-ruin.gildas-lormeau.deno.net";
+const DEFAULT_SERVER_HOST = "rebuild-and-ruin.gildas-lormeau.deno.net";
 
 /** Strip protocol prefix (http://, https://, ws://, wss://) and trailing slash from a host string. */
 function stripProtocol(host: string): string {

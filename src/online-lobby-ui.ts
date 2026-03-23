@@ -2,6 +2,9 @@ import type { ClientMessage } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
 import { getApiUrl } from "./online-config.ts";
 
+const ROOM_CODE_LENGTH = 4;
+const ROOM_POLL_INTERVAL_MS = 3000;
+
 interface LobbyElements {
   lobbyMenu: HTMLElement;
   lobbyCreate: HTMLElement;
@@ -112,8 +115,8 @@ export function setupLobbyUi({
   elements.btnJoinConfirm.addEventListener("click", () => {
     elements.joinError.textContent = "";
     const code = elements.joinCodeInput.value.trim().toUpperCase();
-    if (code.length !== 4) {
-      elements.joinError.textContent = "Enter a 4-letter room code";
+    if (code.length !== ROOM_CODE_LENGTH) {
+      elements.joinError.textContent = `Enter a ${ROOM_CODE_LENGTH}-letter room code`;
       return;
     }
     scheduleOnOpen(() => send({ type: MSG.JOIN_ROOM, code }));
@@ -174,7 +177,7 @@ export function setupLobbyUi({
     if (roomPollTimer) clearInterval(roomPollTimer);
     roomPollTimer = setInterval(() => {
       if (elements.lobbyMenu.classList.contains("active")) fetchRooms();
-    }, 3000);
+    }, ROOM_POLL_INTERVAL_MS);
   }
 }
 

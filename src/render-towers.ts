@@ -3,9 +3,9 @@
  */
 
 import { TILE_SIZE } from "./grid.ts";
-import type { MapData, RenderOverlay } from "./map-renderer.ts";
 import { getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
 import { FONT_FLOAT_LG, rgb, TOWER_FLASH_MS } from "./render-theme.ts";
+import type { MapData, RenderOverlay } from "./render-types.ts";
 import { drawSpriteCentered } from "./sprites.ts";
 
 

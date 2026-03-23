@@ -18,7 +18,7 @@
  */
 
 import { GRID_ROWS, GRID_COLS, Tile } from "../src/grid.ts";
-import type { GameMap, Tower, Castle } from "../src/map-generation.ts";
+import type { Castle, GameMap, Tower } from "../src/geometry-types.ts";
 import type { GameState, Player } from "../src/types.ts";
 import { Phase } from "../src/types.ts";
 import { pickPlacement } from "../src/ai-strategy.ts";
