@@ -22,6 +22,7 @@ import {
   FONT_ICON,
 } from "./render-theme.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
+import { PANEL_W, PANEL_H, BTN_W, BTN_H } from "./life-lost.ts";
 
 // Local semantic colors (not shared across files — context-specific to UI panels)
 const BTN_CONTINUE = {
@@ -297,8 +298,8 @@ export function drawLifeLostDialog(
   if (!overlay?.ui?.lifeLostDialog) return;
   const dlg = overlay.ui.lifeLostDialog;
 
-  const panelW = 130,
-    panelH = 90;
+  const panelW = PANEL_W,
+    panelH = PANEL_H;
 
   for (const entry of dlg.entries) {
     const { px, py } = entry;
@@ -339,8 +340,8 @@ export function drawLifeLostDialog(
 
     if (entry.choice === "pending" && entry.lives > 0) {
       // Continue / Abandon buttons with focus highlight
-      const btnW = 52,
-        btnH = 18;
+      const btnW = BTN_W,
+        btnH = BTN_H;
       const btnY = py + panelH - btnH - 10;
       const contX = px + panelW / 2 - btnW - 5;
       const abX = px + panelW / 2 + 5;
