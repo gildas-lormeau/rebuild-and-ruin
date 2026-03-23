@@ -161,6 +161,11 @@ export function handleServerIncrementalMessage(
       const acceptFire =
         !deps.isHost || (state && deps.remoteHumanSlots.has(msg.playerId));
       if (acceptFire && state) {
+        const player = state.players[msg.playerId];
+        if (!player || !player.cannons[msg.cannonIdx]) {
+          deps.log(`cannon_fired: stale ref P${msg.playerId} cannon[${msg.cannonIdx}] — skipped`);
+          return true;
+        }
         state.cannonballs.push({
           cannonIdx: msg.cannonIdx,
           startX: msg.startX,
@@ -253,28 +258,24 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
-    default: {
-      const rawMsg = msg as unknown as Record<string, unknown>;
-      if (
-        rawMsg.type === MSG.LIFE_LOST_CHOICE &&
-        deps.isHost &&
-        typeof rawMsg.playerId === "number"
-      ) {
-        deps.log(
-          `life_lost_choice from P${rawMsg.playerId}: ${rawMsg.choice} (dialog=${deps.getLifeLostDialog() ? "active" : "null"})`,
+    case MSG.LIFE_LOST_CHOICE: {
+      if (!deps.isHost) return true;
+      deps.log(
+        `life_lost_choice from P${msg.playerId}: ${msg.choice} (dialog=${deps.getLifeLostDialog() ? "active" : "null"})`,
+      );
+      const dialog = deps.getLifeLostDialog();
+      if (dialog) {
+        const entry = dialog.entries.find(
+          (e) => e.playerId === msg.playerId,
         );
-        const dialog = deps.getLifeLostDialog();
-        if (dialog) {
-          const entry = dialog.entries.find(
-            (e) => e.playerId === rawMsg.playerId,
-          );
-          if (entry && entry.choice === "pending") {
-            entry.choice = rawMsg.choice as "continue" | "abandon";
-          }
+        if (entry && entry.choice === "pending") {
+          entry.choice = msg.choice;
         }
-        return true;
       }
-      return false;
+      return true;
     }
+
+    default:
+      return false;
   }
 }

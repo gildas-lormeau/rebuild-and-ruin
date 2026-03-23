@@ -1,5 +1,5 @@
 import { countdownAnnouncement } from "./battle-system.ts";
-import { type CannonPhantom, cannonPhantomKey, type HumanPiecePhantom, type PiecePhantom, piecePhantomKey } from "./online-types.ts";
+import { type CannonPhantom, cannonPhantomKey, type HumanPiecePhantom, type PiecePhantom, phantomWireMode, piecePhantomKey } from "./online-types.ts";
 import type { Crosshair, OrbitParams, PlayerController } from "./player-controller.ts";
 import type { GameState, Impact } from "./types.ts";
 import { BATTLE_TIMER, Phase } from "./types.ts";
@@ -290,7 +290,7 @@ export function tickWatcherCannonPhantomsPhase(
     playerId: myPlayerId,
     row: phantom.row,
     col: phantom.col,
-    mode: phantom.isSuper ? "super" : phantom.isBalloon ? "balloon" : "normal",
+    mode: phantomWireMode(phantom),
     valid: phantom.valid,
     facing: phantom.facing ?? 0,
   });

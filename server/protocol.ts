@@ -449,6 +449,13 @@ export interface TowerKilledMessage {
   towerIdx: number;
 }
 
+/** Life-lost choice forwarded from a non-host client to the host. */
+export interface LifeLostChoiceForwardedMessage {
+  type: "life_lost_choice";
+  playerId: number;
+  choice: "continue" | "abandon";
+}
+
 /** Crosshair position update (for spectator rendering, not validated). */
 export interface AimUpdateMessage {
   type: "aim_update";
@@ -498,6 +505,8 @@ export type ServerMessage =
   | PitCreatedMessage
   | TowerKilledMessage
   | AimUpdateMessage
+  // Forwarded client messages
+  | LifeLostChoiceForwardedMessage
   // Host migration
   | HostLeftMessage
   | FullStateMessage;

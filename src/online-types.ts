@@ -34,6 +34,11 @@ export type HumanPiecePhantom = {
   playerId: number;
 };
 
+/** Convert phantom booleans to wire protocol cannon mode string. */
+export function phantomWireMode(p: CannonPhantom): "normal" | "super" | "balloon" {
+  return p.isSuper ? "super" : p.isBalloon ? "balloon" : "normal";
+}
+
 /** Dedup key for cannon phantom network sends. Covers all fields that affect display. */
 export function cannonPhantomKey(p: CannonPhantom): string {
   return `${p.row},${p.col},${p.isSuper},${p.isBalloon}`;
