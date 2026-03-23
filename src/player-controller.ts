@@ -1336,7 +1336,15 @@ export class HumanController extends BaseController {
   cannonTick(state: GameState, _dt: number): PhantomCannon | null {
     const player = state.players[this.playerId]!;
     const maxSlots = state.cannonLimits[this.playerId] ?? 0;
-    if (cannonSlotsUsed(player) >= maxSlots) return null;
+    const remaining = maxSlots - cannonSlotsUsed(player);
+    if (remaining <= 0) return null;
+    // Auto-downgrade mode if it no longer fits in remaining slots
+    if (this.cannonPlaceMode === CannonMode.SUPER && remaining < SUPER_GUN_COST) {
+      this.cannonPlaceMode = CannonMode.NORMAL;
+    }
+    if (this.cannonPlaceMode === CannonMode.BALLOON && remaining < BALLOON_COST) {
+      this.cannonPlaceMode = CannonMode.NORMAL;
+    }
     // Snap-to-fit: only on mouse/touch (absolute position), not d-pad/keyboard (relative)
     if (this.cannonCursorNeedsSnap) {
       this.cannonCursorNeedsSnap = false;
