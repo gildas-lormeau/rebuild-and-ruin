@@ -32,6 +32,18 @@ import {
   SUPER_GUN_SIZE,
 } from "./types.ts";
 
+function buildKeyMap(keys: KeyBindings): Map<string, Action> {
+  return new Map([
+    [keys.up.toLowerCase(), Action.UP],
+    [keys.down.toLowerCase(), Action.DOWN],
+    [keys.left.toLowerCase(), Action.LEFT],
+    [keys.right.toLowerCase(), Action.RIGHT],
+    [keys.confirm.toLowerCase(), Action.CONFIRM],
+    [keys.confirmAlt.toLowerCase(), Action.CONFIRM],
+    [keys.rotate.toLowerCase(), Action.ROTATE],
+  ]);
+}
+
 export class HumanController extends BaseController {
   /** Pre-computed lowercase key → action map for fast matching. */
   private keyMap: Map<string, Action>;
@@ -45,28 +57,12 @@ export class HumanController extends BaseController {
 
   constructor(playerId: number, keys: KeyBindings) {
     super(playerId);
-    this.keyMap = new Map([
-      [keys.up.toLowerCase(), Action.UP],
-      [keys.down.toLowerCase(), Action.DOWN],
-      [keys.left.toLowerCase(), Action.LEFT],
-      [keys.right.toLowerCase(), Action.RIGHT],
-      [keys.confirm.toLowerCase(), Action.CONFIRM],
-      [keys.confirmAlt.toLowerCase(), Action.CONFIRM],
-      [keys.rotate.toLowerCase(), Action.ROTATE],
-    ]);
+    this.keyMap = buildKeyMap(keys);
   }
 
   /** Rebuild the key map from updated bindings. */
   override updateBindings(keys: KeyBindings): void {
-    this.keyMap = new Map([
-      [keys.up.toLowerCase(), Action.UP],
-      [keys.down.toLowerCase(), Action.DOWN],
-      [keys.left.toLowerCase(), Action.LEFT],
-      [keys.right.toLowerCase(), Action.RIGHT],
-      [keys.confirm.toLowerCase(), Action.CONFIRM],
-      [keys.confirmAlt.toLowerCase(), Action.CONFIRM],
-      [keys.rotate.toLowerCase(), Action.ROTATE],
-    ]);
+    this.keyMap = buildKeyMap(keys);
   }
 
   selectTower(_state: GameState, _zone: number): boolean {
