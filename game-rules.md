@@ -40,7 +40,7 @@ Each player selects one tower as their **home castle**. Towers can only be selec
 
 After all players confirm, the game auto-builds castle walls: a rectangular wall ring around the selected tower with an ideal 6×6 interior (gap of 2 tiles from tower edge on each side). The castle adapts to nearby water/edges by shrinking constrained sides and extending opposite sides to compensate.
 
-**Clumsy builders**: After auto-building, random cosmetic noise is applied - ~1/10 chance per wall tile to sprout an adjacent tile, ~1/12 chance per corner to shift inward. Completely isolated stubs (0 wall neighbors) are swept away; tiles with 1+ neighbors are kept as valid bumps.
+**Clumsy builders**: After auto-building, random cosmetic noise is applied: ~1/10 chance per wall tile to sprout an adjacent tile, ~1/12 chance per corner to shift inward. Completely isolated stubs (0 wall neighbors) are swept away; tiles with 1+ neighbors are kept as valid bumps.
 
 ---
 
@@ -229,7 +229,7 @@ Grunts move 1 tile per second during the build phase:
 
 - **Size**: 2×2 tiles.
 - **State**: Alive or dead (boolean). A grunt destroys a tower in one attack (after a 3-second timer).
-- **Immunity**: Cannonballs have no effect on towers - only grunts can destroy them.
+- **Immunity**: Cannonballs have no effect on towers; only grunts can destroy them.
 - **Ownership**: A tower is owned if all 4 tiles are inside a player's interior or walls.
 
 ### Tower Revival (Delayed)
