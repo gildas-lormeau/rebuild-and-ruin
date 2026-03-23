@@ -99,7 +99,6 @@ import {
   resolveLifeLostDialogRuntime,
   tickLifeLostDialogRuntime,
 } from "./life-lost.ts";
-import { renderMap } from "./map-renderer.ts";
 import type { BannerState } from "./phase-banner.ts";
 import {
   createBannerState,
@@ -128,6 +127,7 @@ import {
   lifeLostPanelPos as lifeLostPanelPosShared,
   syncSelectionOverlay as syncSelectionOverlayImpl,
 } from "./render-composition.ts";
+import { renderMap } from "./render-map.ts";
 import { GEAR_SIZE, GEAR_X, GEAR_Y } from "./render-theme.ts";
 import type { RenderOverlay } from "./render-types.ts";
 import { computeLobbyLayout } from "./render-ui.ts";

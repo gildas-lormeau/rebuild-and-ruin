@@ -22,7 +22,6 @@ import {
   aimCannons,applyImpactEvent, 
   nextReadyCombined
 } from "./battle-system.ts";
-import { applyPiecePlacement } from "./build-phase.ts";
 import { applyCannonPlacement } from "./cannon-system.ts";
 import { createController, isHuman } from "./controller-factory.ts";
 import { bootstrapGame, setupWaitingRoom } from "./game-bootstrap.ts";
@@ -79,6 +78,7 @@ import {
   tickWatcherCannonPhantomsPhase,
   tickWatcherTimers as updateWatcherTimers,
 } from "./online-watcher-battle.ts";
+import { applyPiecePlacement } from "./phase-build.ts";
 import {
   MAX_PLAYERS,
   PLAYER_COLORS,

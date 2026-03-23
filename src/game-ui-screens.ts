@@ -3,7 +3,7 @@
  * Used by both main.ts and online-client.ts.
  */
 
-import { renderMap } from "./map-renderer.ts";
+import { renderMap } from "./render-map.ts";
 import type { RenderOverlay } from "./render-types.ts";
 import type { GameState } from "./types.ts";
 import { LOBBY_SKIP_LOCKOUT, LOBBY_SKIP_STEP } from "./types.ts";

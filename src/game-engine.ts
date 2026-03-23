@@ -19,7 +19,6 @@
  */
 
 import { collectAllWalls } from "./board-occupancy.ts";
-import { claimTerritory, replenishBonusSquares } from "./build-phase.ts";
 import { cannonSlotsUsed } from "./cannon-system.ts";
 import type { GameMap } from "./geometry-types.ts";
 import {
@@ -37,6 +36,7 @@ import {
   startOfBuildPhaseHousekeeping,
   topZonesBySize,
 } from "./map-generation.ts";
+import { claimTerritory, replenishBonusSquares } from "./phase-build.ts";
 import type { PlayerController } from "./player-controller.ts";
 import { Rng } from "./rng.ts";
 import { countWallNeighbors, DIRS_4, isCannonAlive, packTile, snapAngle, unpackTile } from "./spatial.ts";

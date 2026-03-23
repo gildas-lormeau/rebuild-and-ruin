@@ -1,6 +1,6 @@
 /**
- * Shared render overlay types — extracted from map-renderer.ts to break
- * circular dependencies between map-renderer and render-effects/towers/ui.
+ * Shared render overlay types — extracted from render-map.ts to break
+ * circular dependencies between render-map and render-effects/towers/ui.
  */
 
 import type { GameOverOverlay, LifeLostDialogOverlay } from "./game-ui-types.ts";

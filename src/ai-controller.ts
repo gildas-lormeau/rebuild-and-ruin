@@ -12,7 +12,6 @@ import {
   aimCannons,
   nextReadyCombined,
 } from "./battle-system.ts";
-import { placePiece } from "./build-phase.ts";
 import {
   canPlaceCannon,
   placeCannon,
@@ -23,6 +22,7 @@ import type {
   TilePos,
 } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
+import { placePiece } from "./phase-build.ts";
 import type { PieceShape } from "./pieces.ts";
 import { rotateCW } from "./pieces.ts";
 import {

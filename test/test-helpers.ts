@@ -22,7 +22,7 @@ import type { Castle, GameMap, Tower } from "../src/geometry-types.ts";
 import type { GameState, Player } from "../src/types.ts";
 import { Phase } from "../src/types.ts";
 import { pickPlacement } from "../src/ai-strategy.ts";
-import { placePiece, claimTerritory } from "../src/build-phase.ts";
+import { placePiece, claimTerritory } from "../src/phase-build.ts";
 import type { PieceShape } from "../src/pieces.ts";
 import { Rng } from "../src/rng.ts";
 import process from "node:process";

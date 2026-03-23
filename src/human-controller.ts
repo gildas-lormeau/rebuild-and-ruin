@@ -5,7 +5,6 @@
 
 import { autoPlaceCannons } from "./ai-strategy.ts";
 import { aimCannons } from "./battle-system.ts";
-import { canPlacePiece, placePiece } from "./build-phase.ts";
 import {
   cannonSlotsUsed,
   canPlaceCannon,
@@ -13,6 +12,7 @@ import {
   placeCannon,
 } from "./cannon-system.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
+import { canPlacePiece, placePiece } from "./phase-build.ts";
 import { rotateCW } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
 import {

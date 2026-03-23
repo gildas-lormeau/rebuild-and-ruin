@@ -23,10 +23,10 @@ import {
   hasTowerAt,
   hasWallAt,
 } from "./board-occupancy.ts";
-import { canPlacePiece } from "./build-phase.ts";
 import { isCannonEnclosed } from "./cannon-system.ts";
 import type { TilePos, TileRect, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, Tile } from "./grid.ts";
+import { canPlacePiece } from "./phase-build.ts";
 import type { PieceShape } from "./pieces.ts";
 import { ALL_PIECE_SHAPES, rotateCW } from "./pieces.ts";
 import {
