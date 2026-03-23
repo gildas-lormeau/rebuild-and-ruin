@@ -213,13 +213,14 @@ interface TickHostBuildPhaseDeps {
   };
   showLifeLostDialog: (needsReselect: number[], eliminated: number[]) => void;
   afterLifeLostResolved: () => boolean;
+  showScoreDeltas: (onDone: () => void) => void;
   net?: BuildPhaseNet;
 }
 
 export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   const {
     dt, state, accum, frame, controllers, render,
-    tickGrunts, isHuman, finalizeBuildPhase, showLifeLostDialog, afterLifeLostResolved,
+    tickGrunts, isHuman, finalizeBuildPhase, showLifeLostDialog, afterLifeLostResolved, showScoreDeltas,
   } = deps;
   // Networking defaults (no-op for local play)
   const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET as Set<number>;
@@ -332,15 +333,18 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
     });
   }
 
-  for (const pid of [...needsReselect, ...eliminated]) {
-    if (remoteHumanSlots.has(pid)) continue;
-    controllers[pid]!.onLifeLost();
-  }
+  showScoreDeltas(() => {
+    for (const pid of [...needsReselect, ...eliminated]) {
+      if (remoteHumanSlots.has(pid)) continue;
+      controllers[pid]!.onLifeLost();
+    }
 
-  if (needsReselect.length > 0 || eliminated.length > 0) {
-    showLifeLostDialog(needsReselect, eliminated);
-    return true;
-  }
+    if (needsReselect.length > 0 || eliminated.length > 0) {
+      showLifeLostDialog(needsReselect, eliminated);
+      return;
+    }
 
-  return afterLifeLostResolved();
+    afterLifeLostResolved();
+  });
+  return true;
 }

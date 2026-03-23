@@ -9,7 +9,7 @@
  *   npx tsx test/online-e2e.ts online 1          # online mode: 1 human + 2 AI + watcher
  *   npx tsx test/online-e2e.ts online 3   # online mode: 3 humans + watcher
  *   npx tsx test/online-e2e.ts online 1 https://example.deno.dev  # remote server
- *   npx tsx test/online-e2e.ts local 0 "" 3   # local, 3 rounds (options: 3/5/8/12)
+ *   npx tsx test/online-e2e.ts local 0 "" 1   # local, 1 round (any positive integer)
  *   npx tsx test/online-e2e.ts local 0 --screenshot  # capture screenshots at phase transitions
  *   npx tsx test/online-e2e.ts local 0 --mobile     # emulate mobile (Pixel 7, landscape)
  *   npx tsx test/online-e2e.ts local 0 --mobile --screenshot  # both
@@ -101,7 +101,7 @@ const positionalArgs: string[] = [];
 const MODE = positionalArgs[0] === "local" ? "local" : "online";
 const NUM_HUMANS = Math.min(3, Math.max(0, Number(positionalArgs[1] ?? (MODE === "local" ? 0 : 2))));
 const SERVER_URL = positionalArgs[2] || process.env.E2E_SERVER_URL || "";
-const NUM_ROUNDS = Number(positionalArgs[3] ?? 3); // number of game rounds (default 3, options: 3/5/8/12)
+const NUM_ROUNDS = Number(positionalArgs[3] ?? 3); // number of game rounds (default 3, any positive integer)
 const BASE_URL = "http://localhost:5173/";
 const PAGE_URL = SERVER_URL ? `${BASE_URL}?server=${new URL(SERVER_URL).host}` : BASE_URL;
 const GAME_TIMEOUT_MS = 600_000; // 10 minutes — enough for "To The Death"
@@ -349,6 +349,20 @@ async function runLocal() {
   const logs: string[] = [];
   collectLogs(page, "LOCAL", logs);
 
+  // Flush logs on exit (e.g. when killed by `timeout`) so they're always saved
+  let logsFlushed = false;
+  const flushLogs = () => {
+    if (logsFlushed) return;
+    logsFlushed = true;
+    mkdirSync("logs", { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23);
+    const path = `logs/e2e-local-${NUM_HUMANS}h-${stamp}.log`;
+    writeFileSync(path, logs.join("\n"));
+  };
+  process.on("exit", flushLogs);
+  process.on("SIGTERM", () => { flushLogs(); process.exit(128 + 15); });
+  process.on("SIGINT", () => { flushLogs(); process.exit(128 + 2); });
+
   console.log(`${ts()} Starting local E2E test: ${NUM_HUMANS} human${NUM_HUMANS !== 1 ? "s" : ""} + ${3 - NUM_HUMANS} AI`);
 
   await page.goto(BASE_URL);
@@ -414,6 +428,11 @@ async function runLocal() {
   );
   console.log(`${ts()} Game started`);
 
+  // Override battleLength to the exact CLI value (bypasses ROUNDS_OPTIONS select)
+  await page.evaluate((rounds: number) => {
+    (window as unknown as Record<string, unknown>).__testBattleLength = rounds;
+  }, NUM_ROUNDS);
+
   // Simulate human play or wait for AI-only game
   let allActions: string[][] = [];
   if (NUM_HUMANS > 0) {
@@ -467,6 +486,7 @@ async function runLocal() {
     ["LOCAL"],
     `local-${NUM_HUMANS}h`,
   );
+  logsFlushed = true; // analyzeResults already saved the log file
 
   await printHapticSummary(page);
   if (RECORD) {

@@ -199,6 +199,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function exposeTestGlobals(): void {
     if (typeof window === "undefined") return;
     const w = window as unknown as Record<string, unknown>;
+    // Allow E2E tests to override battleLength to an arbitrary value
+    if (typeof w.__testBattleLength === "number" && rs.state && rs.state.battleLength !== w.__testBattleLength) {
+      rs.state.battleLength = w.__testBattleLength;
+    }
     w.__testMode = Mode[rs.mode];
     w.__testPhase = rs.state ? Phase[rs.state.phase] : "";
     w.__testTimer = rs.state ? rs.state.timer : 0;
@@ -743,7 +747,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs.mode = Mode.CASTLE_BUILD;
   }
 
-  function advanceToCannonPhase(): void {
+  function showBuildScoreDeltas(onDone: () => void): void {
     // Compute score deltas from the build phase (with display coordinates)
     rs.scoreDeltas = rs.state.players
       .map((p, i) => {
@@ -755,10 +759,17 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         };
       })
       .filter(d => d.delta > 0 && !rs.state.players[d.playerId]!.eliminated);
-    // Start timer immediately — deltas display during the banner (3s) and
-    // are guaranteed to clear before it ends (timer < BANNER_DURATION)
-    rs.scoreDeltaTimer = rs.scoreDeltas.length > 0 ? SCORE_DELTA_DISPLAY_TIME : 0;
 
+    if (rs.scoreDeltas.length > 0) {
+      rs.scoreDeltaTimer = SCORE_DELTA_DISPLAY_TIME;
+      // Show a brief banner so the deltas are visible; onDone fires when banner ends
+      showBanner("", () => { rs.mode = Mode.GAME; onDone(); });
+    } else {
+      onDone();
+    }
+  }
+
+  function advanceToCannonPhase(): void {
     advanceToCannonPlacePhase(rs.state);
     startCannonPhase();
     showBanner(BANNER_PLACE_CANNONS, () => { rs.mode = Mode.GAME; }, false, undefined, BANNER_PLACE_CANNONS_SUB);
@@ -1016,6 +1027,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       dt, state: rs.state, accum: rs.accum, frame: rs.frame, controllers: rs.controllers, render,
       tickGrunts, isHuman, finalizeBuildPhase, showLifeLostDialog,
       afterLifeLostResolved: () => afterLifeLostResolved(),
+      showScoreDeltas: (onDone) => showBuildScoreDeltas(onDone),
       net: {
         remoteHumanSlots: config.getRemoteHumanSlots(),
         isHost: config.getIsHost(),
