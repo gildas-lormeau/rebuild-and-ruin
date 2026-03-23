@@ -9,9 +9,10 @@
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, SCALE } from "./grid.ts";
 import { unpackTile } from "./spatial.ts";
 import { renderMap } from "./map-renderer.ts";
+import { createCameraSystem } from "./runtime-camera.ts";
 
 const TILE = TILE_SIZE;
-import type { RenderOverlay, Viewport } from "./map-renderer.ts";
+import type { RenderOverlay } from "./map-renderer.ts";
 import {
   nextPhase,
   clearPlayerState,
@@ -109,7 +110,6 @@ import {
   tickHostBuildPhase,
 } from "./phase-ticks.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
-import type { WorldPos } from "./geometry-types.ts";
 import type { ServerMessage, GameMessage } from "../server/protocol.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
 import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
@@ -382,30 +382,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let homeZoomButton: ReturnType<typeof createHomeZoomButton> | null = null;
   let enemyZoomButton: ReturnType<typeof createEnemyZoomButton> | null = null;
   let quitButton: ReturnType<typeof createQuitButton> | null = null;
-  /** null = full map, number = zone index to zoom into */
-  let cameraZone: number | null = null;
-  /** Remembered battle zoom — persists across build/battle transitions */
-  let battleZoom: number | null = null;
-  /** Track last phase for auto-zoom on phase change */
-  let lastAutoZoomPhase: Phase | null = null;
-  /** Whether mobile zoom features are enabled (d-pad, auto-zoom, castle-build viewport). */
-  let mobileZoomEnabled = false;
-  /** Auto-zoom active — set when mobile zoom buttons are created */
-  let zoomActivated = false;
-  /** Delay before auto-zoom into player zone at selection start (seconds). */
-  let selectionZoomDelay = 0;
-  /** Free-form viewport from pinch gesture (overrides cameraZone when set) */
-  let pinchVp: Viewport | null = null;
-  /** Pinch baseline snapshot (viewport at pinch start) */
-  let pinchStartVp: Viewport | null = null;
-  let pinchStartMidX = 0;
-  let pinchStartMidY = 0;
-  /** Frozen viewport during castle-build animation (covers all planned walls). */
-  let castleBuildVp: Viewport | null = null;
-  /** Per-phase pinch memory */
-  let buildPinchVp: Viewport | null = null;
-  let battlePinchVp: Viewport | null = null;
-  const MIN_ZOOM_W = GRID_COLS * TILE * 0.15;
   let lifeLostDialog: LifeLostDialogState | null = null;
   let frame: FrameData = { crosshairs: [], phantoms: {} };
   let battleAnim: BattleAnimState = createBattleAnimState();
@@ -666,8 +642,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     subtitle?: string,
   ) {
     // Unzoom before banner so the full map is visible during transition
-    cameraZone = null;
-    pinchVp = null;
+    camera.unzoomForBanner();
     if (banner.active) {
       config.log(`showBanner "${text}" while banner "${banner.text}" is still active`);
     }
@@ -802,334 +777,25 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   // -------------------------------------------------------------------------
-  // Camera / zoom
+  // Camera / zoom (delegated to runtime-camera.ts)
   // -------------------------------------------------------------------------
 
-  /** Compute bounding rect for a player's territory in tile-pixel space.
-   *  Adapts to actual structures (walls, interior, cannons, towers). */
-  const cachedZoneBounds: Map<number, { vp: Viewport; wallCount: number }> = new Map();
+  const camera = createCameraSystem({
+    getState: () => state,
+    getMode: () => mode,
+    getQuitPending: () => quitPending,
+    hasLifeLostDialog: () => lifeLostDialog !== null,
+    getPaused: () => paused,
+    getFrameDt: () => frameDt,
+    setFrameAnnouncement: (text) => { frame.announcement = text; },
+    getMyPlayerId: () => config.getMyPlayerId(),
+    getFirstHumanPlayerId: () => firstHuman()?.playerId ?? -1,
+  });
 
-  /** Convert tile bounds + padding into an aspect-ratio-correct viewport. */
-  function boundsToViewport(minR: number, maxR: number, minC: number, maxC: number, pad: number): Viewport {
-    minR = Math.max(0, minR - pad);
-    maxR = Math.min(GRID_ROWS - 1, maxR + pad);
-    minC = Math.max(0, minC - pad);
-    maxC = Math.min(GRID_COLS - 1, maxC + pad);
-    const fullW = GRID_COLS * TILE, fullH = GRID_ROWS * TILE;
-    const maxW = fullW * MAX_ZOOM_VIEWPORT_RATIO, maxH = fullH * MAX_ZOOM_VIEWPORT_RATIO;
-    const targetAspect = GRID_COLS / GRID_ROWS;
-    const w = (maxC - minC + 1) * TILE, h = (maxR - minR + 1) * TILE;
-    const vpAspect = w / h;
-    const newW = vpAspect < targetAspect
-      ? Math.min(maxW, h * targetAspect)
-      : Math.min(maxW, (Math.min(maxH, w / targetAspect)) * targetAspect);
-    const newH = newW / targetAspect;
-    const cx = (minC + maxC + 1) * TILE / 2, cy = (minR + maxR + 1) * TILE / 2;
-    const x = Math.max(0, Math.min(fullW - newW, cx - newW / 2));
-    const y = Math.max(0, Math.min(fullH - newH, cy - newH / 2));
-    return { x, y, w: newW, h: newH };
-  }
-
-  function computeZoneBounds(zoneId: number): Viewport {
-    const pid = state.playerZones.indexOf(zoneId);
-    const player = pid >= 0 ? state.players[pid] : undefined;
-
-    // Use cache if wall count unchanged (works in all phases including build)
-    const cached = cachedZoneBounds.get(zoneId);
-    if (cached && cached.wallCount === (player?.walls.size ?? 0)) return cached.vp;
-
-    let minR = GRID_ROWS, maxR = 0, minC = GRID_COLS, maxC = 0;
-    function expand(r: number, c: number) {
-      if (r < minR) minR = r; if (r > maxR) maxR = r;
-      if (c < minC) minC = c; if (c > maxC) maxC = c;
-    }
-
-    if (player && player.walls.size > 0) {
-      for (const key of player.walls) { const { r, c } = unpackTile(key); expand(r, c); }
-      if (player.homeTower) expand(player.homeTower.row, player.homeTower.col);
-    } else {
-      const zones = state.map.zones;
-      for (let r = 0; r < GRID_ROWS; r++) {
-        for (let c = 0; c < GRID_COLS; c++) {
-          if (zones[r]![c] === zoneId) expand(r, c);
-        }
-      }
-    }
-
-    const pad = player && player.walls.size > 0 ? 4 : 1;
-    const result = boundsToViewport(minR, maxR, minC, maxC, pad);
-    cachedZoneBounds.set(zoneId, { vp: result, wallCount: player?.walls.size ?? 0 });
-    return result;
-  }
-
-  /** Compute a frozen viewport that covers all planned castle walls (for steady camera during build anim). */
-  function computeCastleBuildViewport(wallPlans: { playerId: number; tiles: number[] }[]): Viewport {
-    const myPid = myPlayerId();
-    const plan = wallPlans.find(p => p.playerId === myPid) ?? wallPlans[0];
-    if (!plan || plan.tiles.length === 0) return fullMapVp;
-    const player = state.players[plan.playerId];
-    let minR = GRID_ROWS, maxR = 0, minC = GRID_COLS, maxC = 0;
-    function expand(r: number, c: number) {
-      if (r < minR) minR = r; if (r > maxR) maxR = r;
-      if (c < minC) minC = c; if (c > maxC) maxC = c;
-    }
-    for (const key of plan.tiles) { const { r, c } = unpackTile(key); expand(r, c); }
-    if (player?.homeTower) expand(player.homeTower.row, player.homeTower.col);
-    return boundsToViewport(minR, maxR, minC, maxC, 4);
-  }
-
-  /** Resolve the local player's id (online pid or first human fallback). */
-  function myPlayerId(): number {
-    const pid = config.getMyPlayerId();
-    return pid >= 0 ? pid : (firstHuman()?.playerId ?? -1);
-  }
-
-  /** Get the zone of the player's own territory. */
-  function getMyZone(): number | null {
-    const pid = myPlayerId();
-    if (pid < 0) return null;
-    return state.playerZones[pid] ?? null;
-  }
-
-  /** Get the zone of the leading non-eliminated enemy. */
-  function getBestEnemyZone(): number | null {
-    const myPid = myPlayerId();
-    let bestPid = -1, bestScore = -1;
-    for (let i = 0; i < state.players.length; i++) {
-      if (i === myPid || state.players[i]!.eliminated) continue;
-      if (state.players[i]!.score > bestScore) {
-        bestScore = state.players[i]!.score;
-        bestPid = i;
-      }
-    }
-    if (bestPid < 0) return null;
-    return state.playerZones[bestPid] ?? null;
-  }
-
-  /** Get all non-eliminated enemy zones. */
-  function getEnemyZones(): number[] {
-    const myPid = myPlayerId();
-    const zones: number[] = [];
-    for (let i = 0; i < state.players.length; i++) {
-      if (i === myPid || state.players[i]!.eliminated) continue;
-      const z = state.playerZones[i];
-      if (z !== undefined && !zones.includes(z)) zones.push(z);
-    }
-    return zones;
-  }
-
-  /** Auto-zoom on phase change (touch devices only). */
-  function autoZoom(phase: Phase): void {
-    if (phase === Phase.BATTLE) {
-      // Save build pinch, restore battle pinch
-      if (pinchVp) buildPinchVp = { ...pinchVp };
-      pinchVp = battlePinchVp ? { ...battlePinchVp } : null;
-      if (pinchVp) {
-        cameraZone = null;
-      } else if (battleZoom !== null) {
-        const pid = state.playerZones.indexOf(battleZoom);
-        if (pid >= 0 && !state.players[pid]?.eliminated) {
-          cameraZone = battleZoom;
-        } else {
-          battleZoom = getBestEnemyZone();
-          cameraZone = battleZoom;
-        }
-      } else {
-        battleZoom = getBestEnemyZone();
-        cameraZone = battleZoom;
-      }
-    } else {
-      // Save battle pinch, restore build pinch
-      if (pinchVp) battlePinchVp = { ...pinchVp };
-      pinchVp = buildPinchVp ? { ...buildPinchVp } : null;
-      if (pinchVp) {
-        cameraZone = null;
-      } else {
-        cameraZone = getMyZone();
-      }
-    }
-  }
-
-  /** Update camera zoom state (called from mainLoop, before render). */
-  function tickCamera(dt: number): void {
-    if (!state) return;
-    // Unzoom for UI overlays and near end of phase
-    if (cameraZone !== null || pinchVp !== null) {
-      const phaseEnding = state.timer > 0 && state.timer <= 1.5 &&
-        (state.phase === Phase.WALL_BUILD || state.phase === Phase.CANNON_PLACE || state.phase === Phase.BATTLE);
-      if (phaseEnding || quitPending || lifeLostDialog || paused) {
-        // Save pinch to per-phase memory before clearing
-        if (pinchVp) {
-          if (state.phase === Phase.BATTLE) battlePinchVp = { ...pinchVp };
-          else buildPinchVp = { ...pinchVp };
-        }
-        cameraZone = null;
-        pinchVp = null;
-      }
-    }
-
-    // Selection delay: show "Select your home castle" for 2s on first selection (all platforms)
-    if (mode === Mode.SELECTION && lastAutoZoomPhase === null && selectionZoomDelay <= 0) {
-      selectionZoomDelay = 2;
-    }
-    if (selectionZoomDelay > 0 && mode === Mode.SELECTION) {
-      frame.announcement = "Select your home castle";
-      selectionZoomDelay -= dt;
-      if (selectionZoomDelay <= 0) {
-        selectionZoomDelay = 0;
-        // On mobile, zoom into player zone after the delay
-        if (mobileZoomEnabled && zoomActivated) autoZoom(state.phase);
-      }
-    }
-
-    // Auto-zoom on phase change (mobile only, not during banners)
-    if (mobileZoomEnabled && zoomActivated && state.phase !== lastAutoZoomPhase &&
-        mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD) {
-      if (!(mode === Mode.SELECTION && lastAutoZoomPhase === null)) {
-        // Skip first selection (handled by delay above)
-        autoZoom(state.phase);
-      }
-      lastAutoZoomPhase = state.phase;
-    } else if (state.phase !== lastAutoZoomPhase &&
-        mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD) {
-      lastAutoZoomPhase = state.phase;
-    }
-  }
-
-  // Full map viewport (for lerping back to unzoomed)
-  const fullMapVp: Viewport = { x: 0, y: 0, w: GRID_COLS * TILE, h: GRID_ROWS * TILE };
-  /** Current interpolated viewport for smooth transitions. */
-  const currentVp: Viewport = { ...fullMapVp };
-  /** Last computed viewport (read-only snapshot for coordinate conversion). */
-  let lastVp: Viewport | null = null;
-  const ZOOM_LERP_SPEED = 6; // higher = faster transition
-  /** Max fraction of map dimensions a zoom viewport can cover (prevents near-full-map zoom). */
-  const MAX_ZOOM_VIEWPORT_RATIO = 0.85;
-  /** Pinch zoom-out beyond this fraction of full map snaps to unzoomed. */
-  const PINCH_FULL_MAP_SNAP = 0.95;
-
-  /** Advance the viewport lerp (call once per frame from render). */
-  function updateViewport(): Viewport | null {
-    let target: Viewport;
-    if (castleBuildVp && mode === Mode.CASTLE_BUILD && mobileZoomEnabled) {
-      target = castleBuildVp;
-    } else if (pinchVp) {
-      target = pinchVp;
-    } else if (cameraZone !== null) {
-      target = computeZoneBounds(cameraZone);
-    } else {
-      target = fullMapVp;
-    }
-
-    // Lerp toward target
-    const t = Math.min(1, ZOOM_LERP_SPEED * frameDt);
-    currentVp.x += (target.x - currentVp.x) * t;
-    currentVp.y += (target.y - currentVp.y) * t;
-    currentVp.w += (target.w - currentVp.w) * t;
-    currentVp.h += (target.h - currentVp.h) * t;
-
-    // Snap if close enough to target (avoid infinite lerp)
-    const dx = Math.abs(currentVp.x - target.x) + Math.abs(currentVp.y - target.y) +
-               Math.abs(currentVp.w - target.w) + Math.abs(currentVp.h - target.h);
-    if (dx < 0.5) {
-      currentVp.x = target.x;
-      currentVp.y = target.y;
-      currentVp.w = target.w;
-      currentVp.h = target.h;
-    }
-
-    // Return null if at full map (no zoom needed)
-    if (currentVp.x === fullMapVp.x && currentVp.y === fullMapVp.y &&
-        currentVp.w === fullMapVp.w && currentVp.h === fullMapVp.h) {
-      lastVp = null;
-    } else {
-      lastVp = currentVp;
-    }
-    return lastVp;
-  }
-
-  /** Read-only: get current viewport for coordinate conversion (no side effects). */
-  function getViewport(): Viewport | null {
-    return lastVp;
-  }
-
-  /** Convert screen pixel (canvas coords) to world tile-pixel coords, accounting for zoom. */
-  function screenToWorld(x: number, y: number): WorldPos {
-    const vp = getViewport();
-    const cw = GRID_COLS * TILE * SCALE;
-    const ch = GRID_ROWS * TILE * SCALE;
-    if (!vp) return { wx: x / SCALE, wy: y / SCALE };
-    return {
-      wx: vp.x + (x / cw) * vp.w,
-      wy: vp.y + (y / ch) * vp.h,
-    };
-  }
-
-  // -------------------------------------------------------------------------
-  // Pinch-to-zoom callbacks
-  // -------------------------------------------------------------------------
-
-  function onPinchStart(midX: number, midY: number): void {
-    if (mode !== Mode.GAME && mode !== Mode.SELECTION) return;
-    pinchStartVp = { ...currentVp };
-    pinchStartMidX = midX;
-    pinchStartMidY = midY;
-  }
-
-  function onPinchUpdate(midX: number, midY: number, scale: number): void {
-    if (!pinchStartVp || (mode !== Mode.GAME && mode !== Mode.SELECTION)) return;
-    const cw = GRID_COLS * TILE * SCALE;
-    const ch = GRID_ROWS * TILE * SCALE;
-
-    // Compute new viewport size (larger scale = more zoomed out)
-    const newW = Math.max(MIN_ZOOM_W, Math.min(fullMapVp.w, pinchStartVp.w * scale));
-    const newH = newW * (fullMapVp.h / fullMapVp.w);
-
-    // World point under the initial finger midpoint
-    const anchorWx = pinchStartVp.x + (pinchStartMidX / cw) * pinchStartVp.w;
-    const anchorWy = pinchStartVp.y + (pinchStartMidY / ch) * pinchStartVp.h;
-
-    // Position viewport so anchor stays under current midpoint
-    let x = anchorWx - (midX / cw) * newW;
-    let y = anchorWy - (midY / ch) * newH;
-
-    // Clamp to map bounds
-    x = Math.max(0, Math.min(fullMapVp.w - newW, x));
-    y = Math.max(0, Math.min(fullMapVp.h - newH, y));
-
-    pinchVp = { x, y, w: newW, h: newH };
-    // Direct assignment for responsive feel (no lerp)
-    currentVp.x = x; currentVp.y = y; currentVp.w = newW; currentVp.h = newH;
-    lastVp = currentVp;
-    cameraZone = null;
-    zoomActivated = true;
-  }
-
-  function onPinchEnd(): void {
-    pinchStartVp = null;
-    if (!pinchVp) return;
-    // Snap to full map if near full zoom-out
-    if (pinchVp.w >= fullMapVp.w * PINCH_FULL_MAP_SNAP) {
-      pinchVp = null;
-      return;
-    }
-    // Save to per-phase memory
-    if (state.phase === Phase.BATTLE) {
-      battlePinchVp = { ...pinchVp };
-    } else {
-      buildPinchVp = { ...pinchVp };
-    }
-  }
-
-  /** Convert screen pixel to tile, accounting for zoom viewport. */
-  function pixelToTile(x: number, y: number): { row: number; col: number } {
-    const { wx, wy } = screenToWorld(x, y);
-    return {
-      col: Math.max(0, Math.min(GRID_COLS - 1, Math.floor(wx / TILE))),
-      row: Math.max(0, Math.min(GRID_ROWS - 1, Math.floor(wy / TILE))),
-    };
-  }
-
+  // Re-export camera functions used by other parts of the runtime
+  const { tickCamera, updateViewport, screenToWorld, pixelToTile,
+    onPinchStart, onPinchUpdate, onPinchEnd,
+    myPlayerId, getEnemyZones, computeZoneBounds } = camera;
 
 
   // -------------------------------------------------------------------------
@@ -1199,15 +865,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function rematch() {
     // Reset and start a new game with the same player config
-    cameraZone = null;
-    pinchVp = null;
-    buildPinchVp = null;
-    battlePinchVp = null;
-    castleBuildVp = null;
-    battleZoom = null;
-    lastAutoZoomPhase = null;
-    selectionZoomDelay = 0;
-    cachedZoneBounds.clear();
+    camera.resetCamera();
     scoreDeltas = [];
     preScores = [];
     frame = { crosshairs: [], phantoms: {} };
@@ -1216,10 +874,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function returnToLobby(): void {
-    cameraZone = null;
-    pinchVp = null;
-    buildPinchVp = null;
-    battlePinchVp = null;
+    camera.unzoom();
     mouseJoinedSlot = -1;
     // Hide all DOM buttons
     dpad?.update(null);
@@ -1230,10 +885,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function endGame(winner: { id: number } | null) {
-    cameraZone = null;
-    pinchVp = null;
-    buildPinchVp = null;
-    battlePinchVp = null;
+    camera.unzoom();
     config.onEndGame?.(winner, state);
     const name = winner
       ? (PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`)
@@ -1317,11 +969,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     castleBuild = createCastleBuildState(wallPlans, () => {
       finalizeCastleConstruction(state);
       enterCannonPlacePhase(state);
-      castleBuildVp = null;
+      camera.clearCastleBuildViewport();
       onDone();
     });
     // Pre-compute viewport covering all planned walls so camera stays steady
-    castleBuildVp = computeCastleBuildViewport(wallPlans);
+    camera.setCastleBuildViewport(wallPlans);
     render();
     mode = Mode.CASTLE_BUILD;
   }
@@ -1424,10 +1076,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     castleBuild = createCastleBuildState(plans, () => {
       finalizeCastleRebuild(state, plans);
-      castleBuildVp = null;
+      camera.clearCastleBuildViewport();
       onDone();
     });
-    castleBuildVp = computeCastleBuildViewport(plans);
+    camera.setCastleBuildViewport(plans);
     render();
     mode = Mode.CASTLE_BUILD;
   }
@@ -1899,27 +1551,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       });
       const zoomDeps = {
         getState: () => state,
-        getCameraZone: () => cameraZone,
-        setCameraZone: (z: number | null) => {
-          cameraZone = z;
-          zoomActivated = true;
-          // Button press clears pinch override
-          pinchVp = null;
-          if (state.phase === Phase.BATTLE) {
-            battlePinchVp = null;
-            if (z !== null) battleZoom = z;
-          } else {
-            buildPinchVp = null;
-          }
-        },
+        getCameraZone: camera.getCameraZone,
+        setCameraZone: camera.setCameraZone,
         myPlayerId,
         getEnemyZones,
         render,
       };
       homeZoomButton = createHomeZoomButton(zoomDeps);
       enemyZoomButton = createEnemyZoomButton(zoomDeps);
-      mobileZoomEnabled = true;
-      zoomActivated = true;
+      camera.enableMobileZoom();
     }
   }
 
