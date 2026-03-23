@@ -117,6 +117,9 @@ function handleMessage(socket: WebSocket, msg: Record<string, any>): void {
       break;
     }
 
+    case "ping":
+      break;
+
     default:
       // In-game messages: route to the player's room
       rooms.handleMessage(socket, msg);

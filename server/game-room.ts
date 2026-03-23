@@ -35,6 +35,7 @@ const PHASE_GATES: Record<string, Set<string>> = {
   opponent_phantom: new Set(["WALL_BUILD"]),
   opponent_cannon_placed: new Set(["CANNON_PLACE"]),
   opponent_cannon_phantom: new Set(["CANNON_PLACE"]),
+  opponent_tower_selected: new Set(["SELECTION"]),
   aim_update: new Set(["BATTLE"]),
 };
 
