@@ -10,7 +10,7 @@ import type { GameMap } from "./map-generation.ts";
 import { generateMap } from "./map-generation.ts";
 import { PLAYER_NAMES, PLAYER_COLORS } from "./player-config.ts";
 import {
-  DIFFICULTY_LABELS, ROUNDS_OPTIONS, CANNON_HP_OPTIONS, HAPTICS_LABELS, OPTION_NAMES,
+  DIFFICULTY_LABELS, ROUNDS_OPTIONS, CANNON_HP_OPTIONS, HAPTICS_LABELS, DPAD_LABELS, OPTION_NAMES,
   formatKeyName, saveSettings,
   type GameSettings, type ControlsState,
 } from "./game-ui-types.ts";
@@ -51,9 +51,9 @@ import { FONT_TITLE, FONT_HEADING, FONT_BODY } from "./render-theme.ts";
 /** Which option indices are visible in the current mode. */
 
 export function visibleOptions(ctx: UIContext): number[] {
-  // 0=Difficulty, 1=Rounds, 2=Cannon HP, 3=Haptics, 4=Seed, 5=Controls
-  if (ctx.isOnline) return IS_TOUCH_DEVICE ? [1, 2, 3, 4, 5] : [1, 2, 4, 5];
-  return IS_TOUCH_DEVICE ? [0, 1, 2, 3, 4, 5] : [0, 1, 2, 4, 5];
+  // 0=Difficulty, 1=Rounds, 2=Cannon HP, 3=Haptics, 4=Seed, 5=Controls, 6=D-Pad
+  if (ctx.isOnline) return IS_TOUCH_DEVICE ? [1, 2, 3, 4, 5, 6] : [1, 2, 4, 5];
+  return IS_TOUCH_DEVICE ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 2, 4, 5];
 }
 
 export function optionValue(ctx: UIContext, idx: number): string {
@@ -70,6 +70,7 @@ export function optionValue(ctx: UIContext, idx: number): string {
   if (idx === 2) return CANNON_HP_OPTIONS[s.cannonHp]!.label;
   if (idx === 3) return HAPTICS_LABELS[s.haptics] ?? "All";
   if (idx === 4) return s.seedMode === "custom" ? (s.seed || "_") : "Random";
+  if (idx === 6) return DPAD_LABELS[s.leftHanded ? 1 : 0]!;
   return "";
 }
 

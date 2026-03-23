@@ -83,7 +83,8 @@ export const CANNON_HP_OPTIONS = [
   { value: 12, label: "12 hits" },
 ];
 export const HAPTICS_LABELS = ["Off", "Phase changes", "All"];
-export const OPTION_NAMES = ["Difficulty", "Rounds", "Cannon Kill", "Haptics", "Seed", "Controls"];
+export const DPAD_LABELS = ["Right-handed", "Left-handed"];
+export const OPTION_NAMES = ["Difficulty", "Rounds", "Cannon Kill", "Haptics", "Seed", "Controls", "D-Pad"];
 export const SETTINGS_KEY = "castles99_settings";
 export const DEFAULT_SETTINGS: GameSettings = {
   difficulty: 1,
@@ -203,6 +204,8 @@ export function cycleOption(
     settings.haptics =
       (settings.haptics + dir + HAPTICS_LABELS.length) %
       HAPTICS_LABELS.length;
+  } else if (optionsCursor === 6) {
+    settings.leftHanded = !settings.leftHanded;
   }
   // optionsCursor === 4 (Seed) — handled via direct keyboard input in options handler
   // optionsCursor === 5 (Controls) — no left/right value, opened via confirm

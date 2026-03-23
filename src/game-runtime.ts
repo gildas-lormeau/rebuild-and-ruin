@@ -595,6 +595,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       state ?? null,
     );
     setHapticsLevel(settings.haptics);
+    dpad?.setLeftHanded(settings.leftHanded);
   }
 
   function renderOptions(): void {
