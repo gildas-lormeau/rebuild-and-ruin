@@ -993,7 +993,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   /** Advance the viewport lerp (call once per frame from render). */
   function updateViewport(): Viewport | null {
     let target: Viewport;
-    if (castleBuildVp && mode === Mode.CASTLE_BUILD) {
+    if (castleBuildVp && mode === Mode.CASTLE_BUILD && homeZoomButton) {
       target = castleBuildVp;
     } else if (pinchVp) {
       target = pinchVp;
