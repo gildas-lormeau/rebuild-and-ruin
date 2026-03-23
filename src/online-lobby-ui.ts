@@ -1,4 +1,5 @@
 import type { ClientMessage } from "../server/protocol.ts";
+import { MSG } from "../server/protocol.ts";
 import { getApiUrl } from "./online-client.ts";
 
 export interface LobbyElements {
@@ -76,7 +77,7 @@ export function setupLobbyUi({
       const roundsVal = Number(elements.setRounds.value);
       const battleLength = roundsVal > 0 ? roundsVal : 0;
       send({
-        type: "create_room",
+        type: MSG.CREATE_ROOM,
         settings: {
           battleLength,
           cannonMaxHp: Number(elements.setHp.value),
@@ -100,7 +101,7 @@ export function setupLobbyUi({
       return;
     }
     connect();
-    const doJoin = () => send({ type: "join_room", code });
+    const doJoin = () => send({ type: MSG.JOIN_ROOM, code });
     const socket = getSocket();
     if (socket?.readyState === WebSocket.OPEN) {
       doJoin();

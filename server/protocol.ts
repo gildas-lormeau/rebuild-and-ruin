@@ -9,6 +9,55 @@
  */
 
 // ---------------------------------------------------------------------------
+// Message type constants
+// ---------------------------------------------------------------------------
+
+export const MSG = {
+  // Client → Server
+  CREATE_ROOM: "create_room",
+  JOIN_ROOM: "join_room",
+  SELECT_SLOT: "select_slot",
+  LIFE_LOST_CHOICE: "life_lost_choice",
+  PING: "ping",
+  // Lobby
+  ROOM_CREATED: "room_created",
+  ROOM_JOINED: "room_joined",
+  ROOM_ERROR: "room_error",
+  JOINED: "joined",
+  PLAYER_JOINED: "player_joined",
+  PLAYER_LEFT: "player_left",
+  // Checkpoints
+  INIT: "init",
+  SELECT_START: "select_start",
+  BUILD_START: "build_start",
+  CANNON_START: "cannon_start",
+  BATTLE_START: "battle_start",
+  BUILD_END: "build_end",
+  GAME_OVER: "game_over",
+  FULL_STATE: "full_state",
+  // Build/Cannon events
+  OPPONENT_PIECE_PLACED: "opponent_piece_placed",
+  OPPONENT_PHANTOM: "opponent_phantom",
+  OPPONENT_CANNON_PLACED: "opponent_cannon_placed",
+  OPPONENT_CANNON_PHANTOM: "opponent_cannon_phantom",
+  OPPONENT_TOWER_SELECTED: "opponent_tower_selected",
+  // Animation
+  CASTLE_WALLS: "castle_walls",
+  // Battle events
+  CANNON_FIRED: "cannon_fired",
+  WALL_DESTROYED: "wall_destroyed",
+  CANNON_DAMAGED: "cannon_damaged",
+  GRUNT_KILLED: "grunt_killed",
+  HOUSE_DESTROYED: "house_destroyed",
+  GRUNT_SPAWNED: "grunt_spawned",
+  PIT_CREATED: "pit_created",
+  TOWER_KILLED: "tower_killed",
+  AIM_UPDATE: "aim_update",
+  // Host migration
+  HOST_LEFT: "host_left",
+} as const;
+
+// ---------------------------------------------------------------------------
 // Serialized sub-types
 // ---------------------------------------------------------------------------
 

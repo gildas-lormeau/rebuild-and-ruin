@@ -1,5 +1,6 @@
 import type { GameState } from "./types.ts";
 import type { ServerMessage } from "../server/protocol.ts";
+import { MSG } from "../server/protocol.ts";
 import type { ImpactEvent } from "./battle-system.ts";
 import type { SelectionState } from "./selection.ts";
 
@@ -89,7 +90,7 @@ export function handleServerIncrementalMessage(
   const state = deps.getState();
 
   switch (msg.type) {
-    case "opponent_tower_selected": {
+    case MSG.OPPONENT_TOWER_SELECTED: {
       const acceptTower =
         !deps.isHost || (state && deps.remoteHumanSlots.has(msg.playerId));
       if (acceptTower && state) {
@@ -119,7 +120,7 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
-    case "opponent_piece_placed": {
+    case MSG.OPPONENT_PIECE_PLACED: {
       const acceptPiece =
         !deps.isHost || (state && deps.remoteHumanSlots.has(msg.playerId));
       if (acceptPiece && state) {
@@ -137,7 +138,7 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
-    case "opponent_cannon_placed": {
+    case MSG.OPPONENT_CANNON_PLACED: {
       const acceptCannon =
         !deps.isHost || (state && deps.remoteHumanSlots.has(msg.playerId));
       deps.log(
@@ -158,7 +159,7 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
-    case "cannon_fired": {
+    case MSG.CANNON_FIRED: {
       const acceptFire =
         !deps.isHost || (state && deps.remoteHumanSlots.has(msg.playerId));
       if (acceptFire && state) {
@@ -178,20 +179,20 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
-    case "wall_destroyed":
-    case "cannon_damaged":
-    case "house_destroyed":
-    case "grunt_killed":
-    case "grunt_spawned":
-    case "pit_created":
+    case MSG.WALL_DESTROYED:
+    case MSG.CANNON_DAMAGED:
+    case MSG.HOUSE_DESTROYED:
+    case MSG.GRUNT_KILLED:
+    case MSG.GRUNT_SPAWNED:
+    case MSG.PIT_CREATED:
       if (!deps.isHost && state) {
-        if (msg.type === "wall_destroyed") {
+        if (msg.type === MSG.WALL_DESTROYED) {
           const wallKey = msg.row * deps.gridCols + msg.col;
           const owner = state.players.find((p) => p.walls.has(wallKey));
           deps.log(
             `wall_destroyed: (${msg.row},${msg.col}) owner=P${owner?.id ?? "?"} shooter=P${msg.shooterId ?? "?"}`,
           );
-        } else if (msg.type === "cannon_damaged") {
+        } else if (msg.type === MSG.CANNON_DAMAGED) {
           deps.log(
             `cannon_damaged: P${msg.playerId} newHp=${msg.newHp} shooter=P${msg.shooterId ?? "?"}`,
           );
@@ -200,7 +201,7 @@ export function handleServerIncrementalMessage(
       }
       return true;
 
-    case "aim_update": {
+    case MSG.AIM_UPDATE: {
       const acceptAim = !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
       if (acceptAim) {
         deps.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
@@ -209,13 +210,13 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
-    case "tower_killed":
+    case MSG.TOWER_KILLED:
       if (!deps.isHost && state) {
         state.towerAlive[msg.towerIdx] = false;
       }
       return true;
 
-    case "opponent_phantom": {
+    case MSG.OPPONENT_PHANTOM: {
       const acceptPhantom =
         !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
       if (acceptPhantom) {
@@ -233,7 +234,7 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
-    case "opponent_cannon_phantom": {
+    case MSG.OPPONENT_CANNON_PHANTOM: {
       const acceptCannonPhantom =
         !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
       if (acceptCannonPhantom) {
@@ -257,7 +258,7 @@ export function handleServerIncrementalMessage(
     default: {
       const rawMsg = msg as unknown as Record<string, unknown>;
       if (
-        rawMsg.type === "life_lost_choice" &&
+        rawMsg.type === MSG.LIFE_LOST_CHOICE &&
         deps.isHost &&
         typeof rawMsg.playerId === "number"
       ) {

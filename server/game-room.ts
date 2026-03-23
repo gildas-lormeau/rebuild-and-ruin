@@ -11,32 +11,32 @@
  * Zero game state, zero game imports.
  */
 
-import type { RoomSettings } from "./protocol.ts";
+import { MSG, type RoomSettings } from "./protocol.ts";
 
 // Rate limit: max messages per second per type
 // Rate limits are generous — AI can act very fast.
 // These only block obvious abuse, not normal gameplay.
 const RATE_LIMITS: Record<string, number> = {
-  aim_update: 30,
-  life_lost_choice: 5,
+  [MSG.AIM_UPDATE]: 30,
+  [MSG.LIFE_LOST_CHOICE]: 5,
 };
 
 // Messages only the host socket can send
-const HOST_ONLY = new Set([
-  "init", "select_start", "castle_walls",
-  "cannon_start", "battle_start", "build_start", "build_end",
-  "game_over", "full_state",
+const HOST_ONLY: Set<string> = new Set([
+  MSG.INIT, MSG.SELECT_START, MSG.CASTLE_WALLS,
+  MSG.CANNON_START, MSG.BATTLE_START, MSG.BUILD_START, MSG.BUILD_END,
+  MSG.GAME_OVER, MSG.FULL_STATE,
 ]);
 
 // Phase gating: which message types are valid in which phases
 const PHASE_GATES: Record<string, Set<string>> = {
-  cannon_fired: new Set(["BATTLE"]),
-  opponent_piece_placed: new Set(["WALL_BUILD"]),
-  opponent_phantom: new Set(["WALL_BUILD"]),
-  opponent_cannon_placed: new Set(["CANNON_PLACE"]),
-  opponent_cannon_phantom: new Set(["CANNON_PLACE"]),
-  opponent_tower_selected: new Set(["SELECTION"]),
-  aim_update: new Set(["BATTLE"]),
+  [MSG.CANNON_FIRED]: new Set(["BATTLE"]),
+  [MSG.OPPONENT_PIECE_PLACED]: new Set(["WALL_BUILD"]),
+  [MSG.OPPONENT_PHANTOM]: new Set(["WALL_BUILD"]),
+  [MSG.OPPONENT_CANNON_PLACED]: new Set(["CANNON_PLACE"]),
+  [MSG.OPPONENT_CANNON_PHANTOM]: new Set(["CANNON_PLACE"]),
+  [MSG.OPPONENT_TOWER_SELECTED]: new Set(["SELECTION"]),
+  [MSG.AIM_UPDATE]: new Set(["BATTLE"]),
 };
 
 export class GameRoom {
@@ -101,11 +101,11 @@ export class GameRoom {
         return;
       }
       // Track phase from checkpoint messages
-      if (type === "cannon_start") this.phase = "CANNON_PLACE";
-      else if (type === "battle_start") this.phase = "BATTLE";
-      else if (type === "build_start") this.phase = "WALL_BUILD";
-      else if (type === "select_start") this.phase = "SELECTION";
-      else if (type === "castle_walls") this.phase = "CASTLE_BUILD";
+      if (type === MSG.CANNON_START) this.phase = "CANNON_PLACE";
+      else if (type === MSG.BATTLE_START) this.phase = "BATTLE";
+      else if (type === MSG.BUILD_START) this.phase = "WALL_BUILD";
+      else if (type === MSG.SELECT_START) this.phase = "SELECTION";
+      else if (type === MSG.CASTLE_WALLS) this.phase = "CASTLE_BUILD";
     }
 
     // --- Identity enforcement (for messages with playerId) ---

@@ -4,7 +4,7 @@
 
 import { GameRoom } from "./game-room.ts";
 import { PLAYER_NAMES, MAX_PLAYERS } from "../src/player-config.ts";
-import type { RoomSettings, ClientMessage, ServerMessage } from "./protocol.ts";
+import { MSG, type RoomSettings, type ServerMessage } from "./protocol.ts";
 
 const MAX_ROOMS = 50;
 const ROOM_CLEANUP_DELAY_MS = 60_000; // 60s after game over
@@ -143,7 +143,7 @@ export class RoomManager {
     if (entry.started) {
       entry.room.removePlayer(socket);
       if (playerId !== undefined && playerId >= 0) {
-        this.broadcastToRoom(entry, { type: "player_left", playerId });
+        this.broadcastToRoom(entry, { type: MSG.PLAYER_LEFT, playerId });
       }
 
       // Host left mid-game — promote another player
@@ -169,7 +169,7 @@ export class RoomManager {
         if (newHostSocket) {
           entry.hostSocket = newHostSocket;
           entry.room.setHost(newHostSocket);
-          this.broadcastToRoom(entry, { type: "host_left", newHostPlayerId, previousHostPlayerId });
+          this.broadcastToRoom(entry, { type: MSG.HOST_LEFT, newHostPlayerId, previousHostPlayerId });
           console.log(`[rooms] Room ${entry.code}: host migrated to P${newHostPlayerId}`);
         }
       }

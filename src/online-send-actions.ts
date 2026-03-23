@@ -1,4 +1,5 @@
 import type { GameMessage } from "../server/protocol.ts";
+import { MSG } from "../server/protocol.ts";
 import type { GameState } from "./types.ts";
 import type { PlayerController } from "./player-controller.ts";
 
@@ -13,7 +14,7 @@ export function tryPlacePieceAndSend(
   const placed = ctrl.tryPlacePiece(gameState);
   if (placed && piece) {
     send({
-      type: "opponent_piece_placed",
+      type: MSG.OPPONENT_PIECE_PLACED,
       playerId: ctrl.playerId,
       row,
       col,
@@ -35,7 +36,7 @@ export function tryPlaceCannonAndSend(
   const placed = ctrl.tryPlaceCannon(gameState, max);
   if (placed) {
     send({
-      type: "opponent_cannon_placed",
+      type: MSG.OPPONENT_CANNON_PLACED,
       playerId: ctrl.playerId,
       row,
       col,
@@ -56,7 +57,7 @@ export function fireAndSend(
   if (gameState.cannonballs.length > ballsBefore) {
     const ball = gameState.cannonballs[gameState.cannonballs.length - 1]!;
     send({
-      type: "cannon_fired",
+      type: MSG.CANNON_FIRED,
       playerId: ball.playerId,
       cannonIdx: ball.cannonIdx,
       startX: ball.startX,

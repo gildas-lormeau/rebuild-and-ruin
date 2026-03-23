@@ -1,5 +1,6 @@
 import type { GameState } from "./types.ts";
 import type { ServerMessage, InitMessage, FullStateMessage } from "../server/protocol.ts";
+import { MSG } from "../server/protocol.ts";
 
 interface HandleServerLifecycleDeps {
   log: (msg: string) => void;
@@ -43,11 +44,11 @@ export function handleServerLifecycleMessage(
   if (
     !deps.isHost &&
     deps.getLifeLostDialog() &&
-    (msg.type === "cannon_start" ||
-      msg.type === "battle_start" ||
-      msg.type === "build_start" ||
-      msg.type === "select_start" ||
-      msg.type === "castle_walls")
+    (msg.type === MSG.CANNON_START ||
+      msg.type === MSG.BATTLE_START ||
+      msg.type === MSG.BUILD_START ||
+      msg.type === MSG.SELECT_START ||
+      msg.type === MSG.CASTLE_WALLS)
   ) {
     deps.log("dismissing stale life-lost dialog (phase transition received)");
     deps.clearLifeLostDialog();
@@ -55,13 +56,13 @@ export function handleServerLifecycleMessage(
   }
 
   switch (msg.type) {
-    case "room_created":
+    case MSG.ROOM_CREATED:
       deps.setLobbyWaitTimer(msg.settings.waitTimerSec);
       deps.setRoomSettings(msg.settings.battleLength, msg.settings.cannonMaxHp);
       deps.showWaitingRoom(msg.code, msg.seed);
       return true;
 
-    case "room_joined":
+    case MSG.ROOM_JOINED:
       deps.setLobbyWaitTimer(msg.settings.waitTimerSec);
       deps.setRoomSettings(msg.settings.battleLength, msg.settings.cannonMaxHp);
       deps.showWaitingRoom(msg.code, msg.seed);
@@ -75,12 +76,12 @@ export function handleServerLifecycleMessage(
       }
       return true;
 
-    case "joined":
+    case MSG.JOINED:
       deps.setMyPlayerId(msg.playerId);
       deps.lobbyJoined[msg.playerId] = true;
       return true;
 
-    case "player_joined":
+    case MSG.PLAYER_JOINED:
       deps.lobbyJoined[msg.playerId] = true;
       deps.occupiedSlots.add(msg.playerId);
       if (msg.playerId !== deps.getMyPlayerId()) {
@@ -88,7 +89,7 @@ export function handleServerLifecycleMessage(
       }
       return true;
 
-    case "player_left": {
+    case MSG.PLAYER_LEFT: {
       const name = deps.playerNames[msg.playerId] ?? `Player ${msg.playerId + 1}`;
       deps.lobbyJoined[msg.playerId] = false;
       deps.occupiedSlots.delete(msg.playerId);
@@ -98,44 +99,44 @@ export function handleServerLifecycleMessage(
       return true;
     }
 
-    case "room_error":
+    case MSG.ROOM_ERROR:
       deps.createErrorEl.textContent = msg.message;
       deps.joinErrorEl.textContent = msg.message;
       return true;
 
-    case "init":
+    case MSG.INIT:
       deps.initFromServer(msg);
       return true;
 
-    case "select_start":
+    case MSG.SELECT_START:
       deps.enterTowerSelection();
       return true;
 
-    case "castle_walls":
+    case MSG.CASTLE_WALLS:
       if (!deps.isHost && deps.getState()) deps.onCastleWalls(msg);
       return true;
 
-    case "cannon_start":
+    case MSG.CANNON_START:
       if (!deps.isHost && deps.getState()) deps.onCannonStart(msg);
       return true;
 
-    case "battle_start":
+    case MSG.BATTLE_START:
       if (!deps.isHost && deps.getState()) deps.onBattleStart(msg);
       return true;
 
-    case "build_start":
+    case MSG.BUILD_START:
       if (!deps.isHost && deps.getState()) deps.onBuildStart(msg);
       return true;
 
-    case "build_end":
+    case MSG.BUILD_END:
       if (!deps.isHost && deps.getState()) deps.onBuildEnd(msg);
       return true;
 
-    case "game_over":
+    case MSG.GAME_OVER:
       if (!deps.isHost) deps.onGameOver(msg);
       return true;
 
-    case "host_left": {
+    case MSG.HOST_LEFT: {
       deps.log(`host_left: new host is P${msg.newHostPlayerId} (previous: P${msg.previousHostPlayerId})`);
       if (msg.newHostPlayerId === deps.getMyPlayerId()) {
         deps.promoteToHost();
@@ -147,7 +148,7 @@ export function handleServerLifecycleMessage(
       return true;
     }
 
-    case "full_state":
+    case MSG.FULL_STATE:
       if (!deps.isHost && deps.getState()) {
         deps.applyFullState(msg);
         deps.log("applied full_state from new host");

@@ -1,6 +1,7 @@
 import { countdownAnnouncement, type BalloonFlight } from "./battle-system.ts";
 import { BANNER_BATTLE, BANNER_BATTLE_SUB } from "./game-engine.ts";
 import type { GameMessage } from "../server/protocol.ts";
+import { MSG } from "../server/protocol.ts";
 import type { TilePos } from "./geometry-types.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { GameState, Impact } from "./types.ts";
@@ -95,7 +96,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     for (let i = ballsBefore; i < state.cannonballs.length; i++) {
       const ball = state.cannonballs[i]!;
       sendMessage({
-        type: "cannon_fired",
+        type: MSG.CANNON_FIRED,
         playerId: ball.playerId,
         cannonIdx: ball.cannonIdx,
         startX: ball.startX,

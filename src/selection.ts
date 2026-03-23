@@ -1,6 +1,7 @@
 import { Phase } from "./types.ts";
 import type { GameState } from "./types.ts";
 import type { PlayerController } from "./player-controller.ts";
+import { MSG } from "../server/protocol.ts";
 
 // ---------------------------------------------------------------------------
 // Selection state
@@ -73,7 +74,7 @@ export function highlightTowerSelection(
   player.ownedTowers = [tower];
 
   send({
-    type: "opponent_tower_selected",
+    type: MSG.OPPONENT_TOWER_SELECTED,
     playerId,
     towerIdx: idx,
     confirmed: false,
@@ -104,7 +105,7 @@ export function confirmTowerSelection(
   ss.confirmed = true;
 
   send({
-    type: "opponent_tower_selected",
+    type: MSG.OPPONENT_TOWER_SELECTED,
     playerId,
     towerIdx: ss.highlighted,
     confirmed: true,

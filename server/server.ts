@@ -4,6 +4,7 @@
  */
 
 import { RoomManager } from "./room-manager.ts";
+import { MSG } from "./protocol.ts";
 import { PLAYER_NAMES } from "../src/player-config.ts";
 
 const rooms = new RoomManager();
@@ -65,16 +66,16 @@ Deno.serve({ port: PORT }, (req) => {
 // deno-lint-ignore no-explicit-any
 function handleMessage(socket: WebSocket, msg: Record<string, any>, rawJson: string): void {
   switch (msg.type) {
-    case "create_room": {
+    case MSG.CREATE_ROOM: {
       const code = rooms.createRoom(msg.settings, socket);
       if (!code) {
-        send(socket, { type: "room_error", message: "Server full, try again later" });
+        send(socket, { type: MSG.ROOM_ERROR, message: "Server full, try again later" });
         return;
       }
       const entry = rooms.getEntry(socket)!;
       // No slot assigned yet — player clicks a panel to pick their color
       send(socket, {
-        type: "room_created",
+        type: MSG.ROOM_CREATED,
         code,
         settings: entry.room.settings,
         seed: entry.room.seed,
@@ -83,15 +84,15 @@ function handleMessage(socket: WebSocket, msg: Record<string, any>, rawJson: str
       break;
     }
 
-    case "join_room": {
+    case MSG.JOIN_ROOM: {
       const entry = rooms.joinRoom(msg.code, socket);
       if (!entry) {
-        send(socket, { type: "room_error", message: "Room not found or already started" });
+        send(socket, { type: MSG.ROOM_ERROR, message: "Room not found or already started" });
         return;
       }
       // No slot assigned yet — player clicks a panel to pick their color
       send(socket, {
-        type: "room_joined",
+        type: MSG.ROOM_JOINED,
         code: entry.code,
         players: rooms.getRoomPlayers(entry),
         settings: entry.room.settings,
@@ -103,22 +104,22 @@ function handleMessage(socket: WebSocket, msg: Record<string, any>, rawJson: str
       break;
     }
 
-    case "select_slot": {
+    case MSG.SELECT_SLOT: {
       const slotId = rooms.selectSlot(socket, msg.slotId);
       if (slotId < 0) break;
       const entry = rooms.getEntry(socket);
       if (!entry) break;
-      send(socket, { type: "joined", playerId: slotId });
+      send(socket, { type: MSG.JOINED, playerId: slotId });
       // Notify all in room about the updated slot assignments
       rooms.broadcastToRoom(entry, {
-        type: "player_joined",
+        type: MSG.PLAYER_JOINED,
         playerId: slotId,
         name: PLAYER_NAMES[slotId] ?? `P${slotId + 1}`,
       });
       break;
     }
 
-    case "ping":
+    case MSG.PING:
       break;
 
     default:

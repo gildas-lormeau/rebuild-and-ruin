@@ -8,6 +8,7 @@ import { Phase } from "./types.ts";
 import type { BalloonFlight } from "./battle-system.ts";
 import { Rng } from "./rng.ts";
 import type { FullStateMessage } from "../server/protocol.ts";
+import { MSG } from "../server/protocol.ts";
 
 // ---------------------------------------------------------------------------
 // Serialize (state → JSON-safe objects for sending)
@@ -146,7 +147,7 @@ export function applyHousesCheckpoint(
 
 export function buildBuildStartMessage(state: GameState) {
   return {
-    type: "build_start" as const,
+    type: MSG.BUILD_START,
     round: state.round,
     timer: state.timer,
     players: serializePlayers(state),
@@ -161,7 +162,7 @@ export function buildBuildStartMessage(state: GameState) {
 
 export function buildCannonStartMessage(state: GameState) {
   return {
-    type: "cannon_start" as const,
+    type: MSG.CANNON_START,
     timer: state.timer,
     limits: [...state.cannonLimits],
     players: serializePlayers(state),
@@ -178,7 +179,7 @@ export function buildBattleStartMessage(
   flights?: BalloonFlight[],
 ) {
   return {
-    type: "battle_start" as const,
+    type: MSG.BATTLE_START,
     players: serializePlayers(state),
     grunts: serializeGrunts(state),
     capturedCannons: state.capturedCannons.map((cc) => {
@@ -206,7 +207,7 @@ export function buildBattleStartMessage(
 
 export function buildFullStateMessage(state: GameState): FullStateMessage {
   return {
-    type: "full_state",
+    type: MSG.FULL_STATE,
     phase: Phase[state.phase],
     round: state.round,
     timer: state.timer,

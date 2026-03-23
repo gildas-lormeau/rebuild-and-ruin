@@ -88,6 +88,9 @@ import {
   PLAYER_NAMES,
   MAX_PLAYERS,
 } from "./player-config.ts";
+import {
+  MSG,
+} from "../server/protocol.ts";
 import type {
   ServerMessage,
   GameMessage,
@@ -111,7 +114,7 @@ function buildGameOverServerPayload(
       ? (playerNames[winner.id] ?? `Player ${winner.id + 1}`)
       : "Nobody",
     serverPayload: {
-      type: "game_over" as const,
+      type: MSG.GAME_OVER,
       winner: winner
         ? (playerNames[winner.id] ?? `Player ${winner.id + 1}`)
         : null,
@@ -276,7 +279,7 @@ function maybeSendAimUpdate(x: number, y: number, playerId?: number): void {
   const key = `${Math.round(x)},${Math.round(y)}`;
   if (lastSentAimTarget.get(pid) === key) return;
   lastSentAimTarget.set(pid, key);
-  send({ type: "aim_update", playerId: pid, x, y });
+  send({ type: MSG.AIM_UPDATE, playerId: pid, x, y });
 }
 
 // Send phantom only when position/piece changes
@@ -403,7 +406,7 @@ function tickWatcherCannonPhantoms(
     remoteCannonPhantoms,
     lastSentCannonPhantom,
     sendOpponentCannonPhantom: (msg) => {
-      send({ type: "opponent_cannon_phantom", ...msg });
+      send({ type: MSG.OPPONENT_CANNON_PHANTOM, ...msg });
     },
   });
 }
@@ -421,7 +424,7 @@ function tickWatcherBuildPhantoms(
     remotePiecePhantoms,
     lastSentPiecePhantom,
     sendOpponentPiecePhantom: (msg) => {
-      send({ type: "opponent_phantom", ...msg });
+      send({ type: MSG.OPPONENT_PHANTOM, ...msg });
     },
   });
 }
@@ -803,7 +806,7 @@ const runtime: GameRuntime = createGameRuntime({
   getLobbyRemaining: () => Math.max(0, lobbyWaitTimer - 1 - (performance.now() - lobbyStartTime) / 1000),
   showLobby,
   onLobbySlotJoined: (pid) => {
-    send({ type: "select_slot", slotId: pid });
+    send({ type: MSG.SELECT_SLOT, slotId: pid });
   },
   onCloseOptions: () => {
     if (runtime.getOptionsReturnMode() === null) {
@@ -814,7 +817,7 @@ const runtime: GameRuntime = createGameRuntime({
     if (!isHost) return;
     // Host: build init message and relay to other clients, then process locally
     const initMsg: InitMessage = {
-      type: "init",
+      type: MSG.INIT,
       seed: roomSeed,
       playerCount: MAX_PLAYERS,
       settings: {
@@ -826,7 +829,7 @@ const runtime: GameRuntime = createGameRuntime({
     };
     send(initMsg);
     initFromServer(initMsg);
-    send({ type: "select_start", timer: SELECT_TIMER });
+    send({ type: MSG.SELECT_START, timer: SELECT_TIMER });
   },
 
   // Networking callbacks
@@ -841,7 +844,7 @@ const runtime: GameRuntime = createGameRuntime({
         if (lastSentAimTarget.get(ctrl.playerId) !== key) {
           lastSentAimTarget.set(ctrl.playerId, key);
           send({
-            type: "aim_update",
+            type: MSG.AIM_UPDATE,
             playerId: ctrl.playerId,
             x: target.x,
             y: target.y,

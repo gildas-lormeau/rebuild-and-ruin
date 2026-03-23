@@ -158,6 +158,7 @@ import {
 import type { CastleBuildState } from "./castle-build.ts";
 
 import type { RuntimeConfig, GameRuntime } from "./game-runtime-types.ts";
+import { MSG } from "../server/protocol.ts";
 export type { RuntimeConfig, RuntimeSelection, RuntimeLifeLost, GameRuntime } from "./game-runtime-types.ts";
 
 // ---------------------------------------------------------------------------
@@ -747,7 +748,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       syncSelectionOverlay,
       sendOpponentTowerSelected: (playerId, towerIdx, confirmed) => {
         config.send({
-          type: "opponent_tower_selected",
+          type: MSG.OPPONENT_TOWER_SELECTED,
           playerId,
           towerIdx,
           confirmed,
@@ -778,7 +779,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const wallPlans = prepareCastleWalls(state);
     if (config.getIsHost()) {
       config.send({
-        type: "castle_walls",
+        type: MSG.CASTLE_WALLS,
         plans: wallPlans.map((p) => ({ playerId: p.playerId, tiles: p.tiles })),
       });
     }
@@ -855,7 +856,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       state.timer = SELECT_TIMER;
       mode = Mode.SELECTION;
       if (config.getIsHost()) {
-        config.send({ type: "select_start", timer: SELECT_TIMER });
+        config.send({ type: MSG.SELECT_START, timer: SELECT_TIMER });
       }
     } else {
       finishReselection();
@@ -880,7 +881,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     reselectionPids = [];
     if (config.getIsHost()) {
       config.send({
-        type: "castle_walls",
+        type: MSG.CASTLE_WALLS,
         plans: plans.map((p) => ({ playerId: p.playerId, tiles: p.tiles })),
       });
     }
@@ -1005,8 +1006,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         remoteCannonPhantoms: config.hostNetworking?.remoteCannonPhantoms() ?? [],
         lastSentCannonPhantom: config.hostNetworking?.lastSentCannonPhantom() ?? new Map(),
         autoPlaceCannons: config.hostNetworking?.autoPlaceCannons ?? (() => {}),
-        sendOpponentCannonPlaced: (msg) => config.send({ type: "opponent_cannon_placed", ...msg }),
-        sendOpponentCannonPhantom: (msg) => config.send({ type: "opponent_cannon_phantom", ...msg }),
+        sendOpponentCannonPlaced: (msg) => config.send({ type: MSG.OPPONENT_CANNON_PLACED, ...msg }),
+        sendOpponentCannonPhantom: (msg) => config.send({ type: MSG.OPPONENT_CANNON_PHANTOM, ...msg }),
       },
     });
   }
@@ -1030,9 +1031,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         if (localPid >= 0) hapticBattleEvents(events as Array<{ type: string; playerId?: number; hp?: number }>, localPid);
         // Accumulate stats
         for (const evt of events as Array<{ type: string; playerId?: number; shooterId?: number; hp?: number; newHp?: number }>) {
-          if (evt.type === "wall_destroyed" && evt.shooterId !== undefined) {
+          if (evt.type === MSG.WALL_DESTROYED && evt.shooterId !== undefined) {
             gameStats[evt.shooterId]!.wallsDestroyed++;
-          } else if (evt.type === "cannon_damaged" && evt.shooterId !== undefined && evt.newHp === 0) {
+          } else if (evt.type === MSG.CANNON_DAMAGED && evt.shooterId !== undefined && evt.newHp === 0) {
             gameStats[evt.shooterId]!.cannonsKilled++;
           }
         }
@@ -1072,9 +1073,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         remotePiecePhantoms: config.hostNetworking?.remotePiecePhantoms() ?? [],
         lastSentPiecePhantom: config.hostNetworking?.lastSentPiecePhantom() ?? new Map(),
         serializePlayers: config.hostNetworking?.serializePlayers ?? (() => []),
-        sendOpponentPiecePlaced: (msg) => config.send({ type: "opponent_piece_placed", ...msg }),
-        sendOpponentPhantom: (msg) => config.send({ type: "opponent_phantom", ...msg }),
-        sendBuildEnd: (msg) => config.send({ type: "build_end", ...msg }),
+        sendOpponentPiecePlaced: (msg) => config.send({ type: MSG.OPPONENT_PIECE_PLACED, ...msg }),
+        sendOpponentPhantom: (msg) => config.send({ type: MSG.OPPONENT_PHANTOM, ...msg }),
+        sendBuildEnd: (msg) => config.send({ type: MSG.BUILD_END, ...msg }),
       },
     });
   }
@@ -1145,7 +1146,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function sendLifeLostChoice(choice: "continue" | "abandon", playerId: number) {
-    config.send({ type: "life_lost_choice", choice, playerId });
+    config.send({ type: MSG.LIFE_LOST_CHOICE, choice, playerId });
   }
 
   function lifeLostDialogClick(canvasX: number, canvasY: number) {
