@@ -269,6 +269,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       }
     }
 
+    // On mobile with auto-zoom, zoom to player zone for life-lost dialog
+    if (mobileZoomEnabled && zoomActivated && deps.hasLifeLostDialog()) {
+      cameraZone = getMyZone();
+    }
+
     // Selection delay: show "Select your home castle" for 2s on first selection
     if (mode === Mode.SELECTION && lastAutoZoomPhase === null && selectionZoomDelay <= 0) {
       selectionZoomDelay = 2;
