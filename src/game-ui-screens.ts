@@ -45,7 +45,7 @@ export interface UIContext {
 // Option value display
 // ---------------------------------------------------------------------------
 
-import { IS_TOUCH_DEVICE } from "./render-theme.ts";
+import { IS_TOUCH_DEVICE } from "./platform.ts";
 
 /** Which option indices are visible in the current mode. */
 

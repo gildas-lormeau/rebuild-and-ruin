@@ -251,7 +251,7 @@ export function mainLoopTick(params: {
       params.setQuitPending(false);
     } else {
       params.setQuitTimer(next);
-      frame.announcement = params.quitMessage ?? "Tap again to quit";
+      if (params.quitMessage) frame.announcement = params.quitMessage;
     }
   }
 

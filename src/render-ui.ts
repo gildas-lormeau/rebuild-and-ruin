@@ -20,8 +20,8 @@ import {
   FONT_HINT,
   FONT_TIMER,
   FONT_ICON,
-  IS_TOUCH_DEVICE,
 } from "./render-theme.ts";
+import { IS_TOUCH_DEVICE } from "./platform.ts";
 
 // Local semantic colors (not shared across files — context-specific to UI panels)
 const BTN_CONTINUE = {

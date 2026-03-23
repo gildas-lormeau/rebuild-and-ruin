@@ -101,7 +101,7 @@ import {
   tickHostCannonPhase,
   tickHostBuildPhase,
 } from "./phase-ticks.ts";
-import { IS_TOUCH_DEVICE } from "./render-theme.ts";
+import { IS_TOUCH_DEVICE } from "./platform.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
 import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
@@ -781,12 +781,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const pid = state.playerZones.indexOf(zoneId);
     const player = pid >= 0 ? state.players[pid] : undefined;
 
-    // Outside build phase, use cache if wall count unchanged
-    const isBuild = state.phase === Phase.WALL_BUILD;
-    if (!isBuild) {
-      const cached = cachedZoneBounds.get(zoneId);
-      if (cached && player && cached.wallCount === player.walls.size) return cached.vp;
-    }
+    // Use cache if wall count unchanged (works in all phases including build)
+    const cached = cachedZoneBounds.get(zoneId);
+    if (cached && cached.wallCount === (player?.walls.size ?? 0)) return cached.vp;
 
     let minR = GRID_ROWS, maxR = 0, minC = GRID_COLS, maxC = 0;
 
@@ -818,17 +815,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     minC = Math.max(0, minC - pad);
     maxC = Math.min(GRID_COLS - 1, maxC + pad);
 
-    // Pad to match map aspect ratio to prevent stretching,
-    // but cap so viewport never covers more than 85% of a map dimension
+    // Pad to match map aspect ratio to prevent stretching, cap to avoid full-map viewport
     const fullW = GRID_COLS * TILE;
     const fullH = GRID_ROWS * TILE;
-    const maxW = fullW * 0.85;
-    const maxH = fullH * 0.85;
+    const maxW = fullW * MAX_ZOOM_VIEWPORT_RATIO;
+    const maxH = fullH * MAX_ZOOM_VIEWPORT_RATIO;
     const targetAspect = GRID_COLS / GRID_ROWS;
     const w = (maxC - minC + 1) * TILE;
     const h = (maxR - minR + 1) * TILE;
     const vpAspect = w / h;
-    // Expand the smaller dimension to match map aspect ratio, cap at 85%
+    // Expand the smaller dimension to match map aspect ratio, cap at MAX_ZOOM_VIEWPORT_RATIO
     const newW = vpAspect < targetAspect
       ? Math.min(maxW, h * targetAspect)
       : Math.min(maxW, (Math.min(maxH, w / targetAspect)) * targetAspect);
@@ -900,6 +896,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   /** Last computed viewport (read-only snapshot for coordinate conversion). */
   let lastVp: Viewport | null = null;
   const ZOOM_LERP_SPEED = 6; // higher = faster transition
+  /** Max fraction of map dimensions a zoom viewport can cover (prevents near-full-map zoom). */
+  const MAX_ZOOM_VIEWPORT_RATIO = 0.85;
 
   /** Advance the viewport lerp (call once per frame from render). */
   function updateViewport(): Viewport | null {
@@ -1733,7 +1731,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       settings,
     };
     registerOnlineInputHandlers(inputDeps);
-    registerTouchHandlers({ ...inputDeps, lobbyKeyJoin: () => false });
+    registerTouchHandlers({ ...inputDeps, lobbyKeyJoin: undefined });
 
     // Rotate button (mobile only)
     if (IS_TOUCH_DEVICE) {

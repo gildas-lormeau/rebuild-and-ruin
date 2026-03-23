@@ -44,7 +44,7 @@ export interface RegisterOnlineInputDeps {
   setMode: (mode: number) => void;
   modeValues: ModeValues;
   isLobbyActive: () => boolean;
-  lobbyKeyJoin: (key: string) => boolean;
+  lobbyKeyJoin?: (key: string) => boolean;
   lobbyClick: (x: number, y: number) => boolean;
   showLobby: () => void;
   rematch: () => void;
@@ -512,7 +512,7 @@ export function registerOnlineInputHandlers(
     }
 
     if (isLobbyActive()) {
-      if (lobbyKeyJoin(e.key)) {
+      if (lobbyKeyJoin?.(e.key)) {
         e.preventDefault();
       }
       return;
