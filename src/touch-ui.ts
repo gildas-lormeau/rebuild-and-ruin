@@ -178,6 +178,7 @@ interface ZoomButtonDeps {
   getCameraZone: () => number | null;
   setCameraZone: (zone: number | null) => void;
   myPlayerId: () => number;
+  getEnemyZones: () => number[];
   render: () => void;
 }
 
@@ -261,18 +262,7 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps): {
   `;
   document.body.appendChild(btn);
 
-  function getEnemyZones(): number[] {
-    const state = deps.getState();
-    if (!state) return [];
-    const myPid = deps.myPlayerId();
-    const zones: number[] = [];
-    for (let i = 0; i < state.players.length; i++) {
-      if (i === myPid || state.players[i]!.eliminated) continue;
-      const z = state.playerZones[i];
-      if (z !== undefined && !zones.includes(z)) zones.push(z);
-    }
-    return zones;
-  }
+  const getEnemyZones = deps.getEnemyZones;
 
   function cycle() {
     const enemyZones = getEnemyZones();

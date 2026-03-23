@@ -181,6 +181,29 @@ export function buildBattleBalloonsPayload(
   }));
 }
 
+const PHASE_LABELS = new Map<Phase, string>([
+  [Phase.CASTLE_SELECT, "Select"],
+  [Phase.CASTLE_RESELECT, "Select"],
+  [Phase.WALL_BUILD, "Build"],
+  [Phase.CANNON_PLACE, "Cannons"],
+  [Phase.BATTLE, "Battle"],
+]);
+
+export function buildStatusBar(state: GameState, playerColors: readonly { interiorLight: RGB }[]) {
+  return {
+    round: state.battleLength === Infinity ? `R${state.round}` : `R${state.round}/${state.battleLength}`,
+    phase: PHASE_LABELS.get(state.phase) ?? "",
+    timer: state.timer > 0 ? `${Math.ceil(state.timer)}s` : "",
+    players: state.players.map((p, i) => ({
+      score: p.score,
+      cannons: p.cannons.filter(c => c.hp > 0).length,
+      lives: p.lives,
+      color: playerColors[i % playerColors.length]!.interiorLight,
+      eliminated: p.eliminated,
+    })),
+  };
+}
+
 export function buildOnlineOverlay(params: {
   previousSelection: RenderOverlay["selection"];
   state: GameState;

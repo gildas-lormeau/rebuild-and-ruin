@@ -3,6 +3,10 @@
  * Used by both main.ts (local play) and online-client.ts (online play).
  */
 
+/** Per-player battle stats accumulated during a game. */
+export interface PlayerStats { wallsDestroyed: number; cannonsKilled: number; }
+
+import { ACTION_KEYS } from "./player-config.ts";
 import type { KeyBindings, RGB } from "./player-config.ts";
 import { PLAYER_KEY_BINDINGS, MAX_PLAYERS } from "./player-config.ts";
 import type { BalloonFlight } from "./battle-system.ts";
@@ -58,6 +62,12 @@ export interface GameSettings {
 }
 
 export const DIFFICULTY_LABELS = ["Easy", "Normal", "Hard", "Very Hard"];
+export const DIFFICULTY_PARAMS = [
+  { buildTimer: 30, cannonPlaceTimer: 20, firstRoundCannons: 4 }, // Easy
+  { buildTimer: 25, cannonPlaceTimer: 15, firstRoundCannons: 3 }, // Normal
+  { buildTimer: 20, cannonPlaceTimer: 12, firstRoundCannons: 2 }, // Hard
+  { buildTimer: 15, cannonPlaceTimer: 10, firstRoundCannons: 1 }, // Very Hard
+];
 export const ROUNDS_OPTIONS = [
   { value: 3, label: "3" },
   { value: 5, label: "5" },
@@ -193,6 +203,32 @@ export function cycleOption(
   }
   // optionsCursor === 4 (Seed) — handled via direct keyboard input in options handler
   // optionsCursor === 5 (Controls) — no left/right value, opened via confirm
+}
+
+// ---------------------------------------------------------------------------
+// Key rebinding
+// ---------------------------------------------------------------------------
+
+/** Apply a key rebinding with conflict resolution (swap conflicting key). */
+export function applyKeyRebinding(kb: KeyBindings, actionKey: string, newKey: string): void {
+  for (const otherAction of ACTION_KEYS) {
+    if (otherAction === actionKey) continue;
+    if (otherAction === "confirmAlt") continue;
+    if (kb[otherAction as keyof KeyBindings] === newKey) {
+      (kb as unknown as Record<string, string>)[otherAction] = kb[actionKey as keyof KeyBindings];
+      if (otherAction === "confirm") {
+        kb.confirmAlt = kb[actionKey as keyof KeyBindings];
+      }
+      break;
+    }
+    if (otherAction === "confirm" && kb.confirmAlt === newKey) {
+      kb.confirmAlt = kb[actionKey as keyof KeyBindings];
+    }
+  }
+  (kb as unknown as Record<string, string>)[actionKey] = newKey;
+  if (actionKey === "confirm") {
+    kb.confirmAlt = newKey;
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import type { GameState } from "./types.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { KeyBindings } from "./player-config.ts";
 import type { SelectionState } from "./selection.ts";
+import { applyKeyRebinding } from "./game-ui-types.ts";
 import type { WorldPos } from "./geometry-types.ts";
 
 interface ControlsState {
@@ -385,28 +386,7 @@ export function registerOnlineInputHandlers(
           const pIdx = controlsState.playerIdx;
           const aIdx = controlsState.actionIdx;
           const actionKey = ACTION_KEYS[aIdx]!;
-          const newKey = e.key;
-          const kb = settings.keyBindings[pIdx]!;
-
-          for (const otherAction of ACTION_KEYS) {
-            if (otherAction === actionKey) continue;
-            if (otherAction === "confirmAlt") continue;
-            if (kb[otherAction] === newKey) {
-              kb[otherAction] = kb[actionKey];
-              if (otherAction === "confirm") {
-                kb.confirmAlt = kb[actionKey];
-              }
-              break;
-            }
-            if (otherAction === "confirm" && kb.confirmAlt === newKey) {
-              kb.confirmAlt = kb[actionKey];
-            }
-          }
-
-          kb[actionKey] = newKey;
-          if (actionKey === "confirm") {
-            kb.confirmAlt = newKey;
-          }
+          applyKeyRebinding(settings.keyBindings[pIdx]!, actionKey, e.key);
           controlsState.rebinding = false;
         }
       } else {

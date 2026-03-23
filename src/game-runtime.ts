@@ -56,6 +56,8 @@ import {
   createBattleAnimState,
   ROUNDS_OPTIONS,
   CANNON_HP_OPTIONS,
+  DIFFICULTY_PARAMS,
+  type PlayerStats,
   cycleOption,
 } from "./game-ui-types.ts";
 import type {
@@ -77,6 +79,7 @@ import {
   buildOnlineOverlay,
   buildBannerUi,
   buildRenderSummaryMessage,
+  buildStatusBar,
 } from "./render-composition.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
 import {
@@ -386,12 +389,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let battleAnim: BattleAnimState = createBattleAnimState();
   let banner: BannerState = createBannerState();
   /** Score deltas to show after build phase. Fades out after a few seconds. */
-  let scoreDeltas: { playerId: number; delta: number; total: number }[] = [];
+  let scoreDeltas: { playerId: number; delta: number; total: number; cx: number; cy: number }[] = [];
   let scoreDeltaTimer = 0;
   const SCORE_DELTA_DISPLAY_TIME = 4; // seconds after banner ends
   let preScores: number[] = [];
-  /** Per-player battle stats accumulated during the game. */
-  interface PlayerStats { wallsDestroyed: number; cannonsKilled: number; }
   let gameStats: PlayerStats[] = [];
 
   function resetGameStats() {
@@ -469,6 +470,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         }
       }
     }
+
+    tickCamera();
 
     const shouldContinue = mainLoopTick({
       dt,
@@ -866,6 +869,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     return state.playerZones[bestPid] ?? null;
   }
 
+  /** Get all non-eliminated enemy zones. */
+  function getEnemyZones(): number[] {
+    const myPid = myPlayerId();
+    const zones: number[] = [];
+    for (let i = 0; i < state.players.length; i++) {
+      if (i === myPid || state.players[i]!.eliminated) continue;
+      const z = state.playerZones[i];
+      if (z !== undefined && !zones.includes(z)) zones.push(z);
+    }
+    return zones;
+  }
+
   /** Auto-zoom on phase change (touch devices only). */
   function autoZoom(phase: Phase): void {
     if (phase === Phase.BATTLE) {
@@ -886,6 +901,25 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     } else {
       // Select/Build/Cannon: zoom to home
       cameraZone = getMyZone();
+    }
+  }
+
+  /** Update camera zoom state (called from mainLoop, before render). */
+  function tickCamera(): void {
+    // Unzoom for UI overlays and near end of phase
+    if (cameraZone !== null) {
+      const phaseEnding = state.timer > 0 && state.timer <= 1.5 &&
+        (state.phase === Phase.WALL_BUILD || state.phase === Phase.CANNON_PLACE || state.phase === Phase.BATTLE);
+      if (phaseEnding || quitPending || lifeLostDialog || paused) {
+        cameraZone = null;
+      }
+    }
+
+    // Auto-zoom on phase change (touch devices only, after first button press, not during banners)
+    if (homeZoomButton && zoomActivated && state.phase !== lastAutoZoomPhase &&
+        mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD) {
+      lastAutoZoomPhase = state.phase;
+      autoZoom(state.phase);
     }
   }
 
@@ -1010,47 +1044,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     // Status bar (rendered inside canvas)
     if (overlay.ui) {
-      const phaseLabel = state.phase === Phase.CASTLE_SELECT ? "Select"
-        : state.phase === Phase.WALL_BUILD ? "Build"
-        : state.phase === Phase.CANNON_PLACE ? "Cannons"
-        : state.phase === Phase.BATTLE ? "Battle" : "";
-      overlay.ui.statusBar = {
-        round: state.battleLength === Infinity ? `R${state.round}` : `R${state.round}/${state.battleLength}`,
-        phase: phaseLabel,
-        timer: state.timer > 0 ? `${Math.ceil(state.timer)}s` : "",
-        players: state.players.map((p, i) => ({
-          score: p.score,
-          cannons: p.cannons.filter(c => c.hp > 0).length,
-          lives: p.lives,
-          color: PLAYER_COLORS[i % PLAYER_COLORS.length]!.interiorLight,
-          eliminated: p.eliminated,
-        })),
-      };
+      overlay.ui.statusBar = buildStatusBar(state, PLAYER_COLORS);
     }
 
     // Add score deltas to overlay (shown during "Place Cannons" banner)
     if (scoreDeltas.length > 0 && overlay.ui) {
-      overlay.ui.scoreDeltas = scoreDeltas.map(d => {
-        const zone = state.playerZones[d.playerId] ?? 0;
-        const bounds = computeZoneBounds(zone);
-        return { ...d, cx: bounds.x + bounds.w / 2, cy: bounds.y + bounds.h / 2 };
-      });
-    }
-
-    // Unzoom for UI overlays and near end of phase
-    if (cameraZone !== null) {
-      const phaseEnding = state.timer > 0 && state.timer <= 1.5 &&
-        (state.phase === Phase.WALL_BUILD || state.phase === Phase.CANNON_PLACE || state.phase === Phase.BATTLE);
-      if (phaseEnding || quitPending || lifeLostDialog || paused) {
-        cameraZone = null;
-      }
-    }
-
-    // Auto-zoom on phase change (touch devices only, after first button press, not during banners)
-    if (homeZoomButton && zoomActivated && state.phase !== lastAutoZoomPhase &&
-        mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD) {
-      lastAutoZoomPhase = state.phase;
-      autoZoom(state.phase);
+      overlay.ui.scoreDeltas = scoreDeltas;
     }
 
     renderMap(state.map, canvas, overlay, updateViewport());
@@ -1171,9 +1170,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function advanceToCannonPhase(): void {
-    // Compute score deltas from the build phase
+    // Compute score deltas from the build phase (with display coordinates)
     scoreDeltas = state.players
-      .map((p, i) => ({ playerId: i, delta: p.score - (preScores[i] ?? 0), total: p.score }))
+      .map((p, i) => {
+        const zone = state.playerZones[i] ?? 0;
+        const bounds = computeZoneBounds(zone);
+        return {
+          playerId: i, delta: p.score - (preScores[i] ?? 0), total: p.score,
+          cx: bounds.x + bounds.w / 2, cy: bounds.y + bounds.h / 2,
+        };
+      })
       .filter(d => d.delta > 0 && !state.players[d.playerId]!.eliminated);
 
     advanceToCannonPlacePhase(state);
@@ -1608,10 +1614,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       ? Math.floor(Math.random() * 1000000)
       : parsedSeed;
 
-    const diff = settings.difficulty;
-    const buildTimer = diff === 0 ? 30 : diff === 2 ? 20 : diff === 3 ? 15 : 25;
-    const cannonPlaceTimer = diff === 0 ? 20 : diff === 2 ? 12 : diff === 3 ? 10 : 15;
-    const firstRoundCannons = diff === 0 ? 4 : diff === 2 ? 2 : diff === 3 ? 1 : 3;
+    const diffParams = DIFFICULTY_PARAMS[settings.difficulty] ?? DIFFICULTY_PARAMS[1]!;
+    const { buildTimer, cannonPlaceTimer, firstRoundCannons } = diffParams;
     const roundsVal = ROUNDS_OPTIONS[settings.rounds]!.value;
 
     resetGameStats();
@@ -1750,6 +1754,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           if (state.phase === Phase.BATTLE && z !== null) battleZoom = z;
         },
         myPlayerId,
+        getEnemyZones,
         render,
       };
       homeZoomButton = createHomeZoomButton(zoomDeps);

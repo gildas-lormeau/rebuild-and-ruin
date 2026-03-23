@@ -46,6 +46,7 @@ export interface UIContext {
 // ---------------------------------------------------------------------------
 
 import { IS_TOUCH_DEVICE } from "./platform.ts";
+import { FONT_TITLE, FONT_HEADING, FONT_BODY } from "./render-theme.ts";
 
 /** Which option indices are visible in the current mode. */
 
@@ -89,7 +90,7 @@ export function buildOptionsUi(ctx: UIContext): void {
     // In online mode, Rounds and Cannon HP are always read-only (set by room host)
     const isReadOnly = readOnly || (ctx.isOnline && (i === 1 || i === 2 || i === 4));
     oc.fillStyle = sel ? "#fff" : "#aaa";
-    oc.font = sel ? "bold 20px sans-serif" : "18px sans-serif";
+    oc.font = sel ? FONT_TITLE : FONT_HEADING;
     const prefix = (isReadOnly && i !== 4) ? "  " : (sel ? "> " : "  ");
     oc.fillText(`${prefix}${OPTION_NAMES[i]}: ${val}`, 40, y);
   }
@@ -132,7 +133,7 @@ export function buildControlsUi(ctx: UIContext): void {
     const colors = PLAYER_COLORS[p % PLAYER_COLORS.length]!;
     const sel = p === cs.playerIdx;
     oc.fillStyle = sel ? `rgb(${colors.wall[0]},${colors.wall[1]},${colors.wall[2]})` : "#888";
-    oc.font = sel ? "bold 18px sans-serif" : "16px sans-serif";
+    oc.font = sel ? FONT_HEADING : FONT_BODY;
     oc.fillText(PLAYER_NAMES[p]!, 40 + p * 200, 40);
   }
   const kb = ctx.settings.keyBindings[cs.playerIdx]!;
@@ -142,7 +143,7 @@ export function buildControlsUi(ctx: UIContext): void {
     const sel = a === cs.actionIdx;
     const keyVal = kb[keys[a]!];
     oc.fillStyle = sel ? "#fff" : "#aaa";
-    oc.font = sel ? "bold 18px sans-serif" : "16px sans-serif";
+    oc.font = sel ? FONT_HEADING : FONT_BODY;
     const rebindStr = sel && cs.rebinding ? " [press key]" : "";
     oc.fillText(`  ${names[a]}: ${formatKeyName(keyVal)}${rebindStr}`, 40, 80 + a * 32);
   }
