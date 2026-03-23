@@ -38,7 +38,6 @@ export function serializeGrunts(state: GameState) {
   return state.grunts.map((g) => ({
     row: g.row,
     col: g.col,
-    facing: g.facing,
   }));
 }
 
@@ -117,12 +116,11 @@ export function applyPlayersCheckpoint(
 
 export function applyGruntsCheckpoint(
   state: GameState,
-  serialized: { row: number; col: number; facing?: number }[],
+  serialized: { row: number; col: number }[],
 ): void {
   state.grunts = serialized.map((g) => ({
     row: g.row,
     col: g.col,
-    facing: g.facing ?? 0,
     targetPlayerId: 0,
   }));
 }

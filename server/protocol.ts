@@ -24,7 +24,6 @@ export interface SerializedCannon {
 export interface SerializedGrunt {
   row: number;
   col: number;
-  facing?: number;
 }
 
 export interface SerializedPlayer {
