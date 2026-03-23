@@ -384,8 +384,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let battleZoom: number | null = null;
   /** Track last phase for auto-zoom on phase change */
   let lastAutoZoomPhase: Phase | null = null;
-  /** Auto-zoom active — on touch devices from the start, on desktop after first zoom button press */
-  let zoomActivated = IS_TOUCH_DEVICE;
+  /** Whether mobile zoom features are enabled (d-pad, auto-zoom, castle-build viewport). */
+  let mobileZoomEnabled = false;
+  /** Auto-zoom active — set when mobile zoom buttons are created */
+  let zoomActivated = false;
   /** Delay before auto-zoom into player zone at selection start (seconds). */
   let selectionZoomDelay = 0;
   /** Free-form viewport from pinch gesture (overrides cameraZone when set) */
@@ -967,12 +969,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       if (selectionZoomDelay <= 0) {
         selectionZoomDelay = 0;
         // On mobile, zoom into player zone after the delay
-        if (homeZoomButton && zoomActivated) autoZoom(state.phase);
+        if (mobileZoomEnabled && zoomActivated) autoZoom(state.phase);
       }
     }
 
     // Auto-zoom on phase change (mobile only, not during banners)
-    if (homeZoomButton && zoomActivated && state.phase !== lastAutoZoomPhase &&
+    if (mobileZoomEnabled && zoomActivated && state.phase !== lastAutoZoomPhase &&
         mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD) {
       if (!(mode === Mode.SELECTION && lastAutoZoomPhase === null)) {
         // Skip first selection (handled by delay above)
@@ -1000,7 +1002,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   /** Advance the viewport lerp (call once per frame from render). */
   function updateViewport(): Viewport | null {
     let target: Viewport;
-    if (castleBuildVp && mode === Mode.CASTLE_BUILD && homeZoomButton) {
+    if (castleBuildVp && mode === Mode.CASTLE_BUILD && mobileZoomEnabled) {
       target = castleBuildVp;
     } else if (pinchVp) {
       target = pinchVp;
@@ -1920,6 +1922,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       };
       homeZoomButton = createHomeZoomButton(zoomDeps);
       enemyZoomButton = createEnemyZoomButton(zoomDeps);
+      mobileZoomEnabled = true;
+      zoomActivated = true;
     }
   }
 
