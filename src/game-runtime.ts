@@ -166,7 +166,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let enemyZoomButton: ReturnType<typeof createEnemyZoomButton> | null = null;
   let quitButton: ReturnType<typeof createQuitButton> | null = null;
 
-  const SCORE_DELTA_DISPLAY_TIME = 4; // seconds after banner ends
+  const SCORE_DELTA_DISPLAY_TIME = 2; // seconds, ticks during banner/castle-build
 
   function resetGameStats() {
     rs.gameStats = Array.from({ length: MAX_PLAYERS }, () => ({
@@ -237,6 +237,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     if (DEV) exposeTestGlobals();
 
     tickCamera(dt);
+
+    // Tick score delta display timer (mode-independent so it counts during banner/castle-build)
+    if (rs.scoreDeltaTimer > 0) {
+      rs.scoreDeltaTimer -= dt;
+      if (rs.scoreDeltaTimer <= 0) {
+        rs.scoreDeltas = [];
+        rs.scoreDeltaTimer = 0;
+        const cb = rs.scoreDeltaDone;
+        rs.scoreDeltaDone = null;
+        cb?.();
+      }
+    }
 
     const shouldContinue = mainLoopTick({
       dt,
@@ -749,9 +761,19 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       })
       .filter(d => d.delta > 0 && !rs.state.players[d.playerId]!.eliminated);
 
-    advanceToCannonPlacePhase(rs.state);
-    startCannonPhase();
-    showBanner(BANNER_PLACE_CANNONS, () => { rs.scoreDeltaTimer = SCORE_DELTA_DISPLAY_TIME; rs.mode = Mode.GAME; }, false, undefined, BANNER_PLACE_CANNONS_SUB);
+    const enterCannon = () => {
+      advanceToCannonPlacePhase(rs.state);
+      startCannonPhase();
+      showBanner(BANNER_PLACE_CANNONS, () => { rs.mode = Mode.GAME; }, false, undefined, BANNER_PLACE_CANNONS_SUB);
+    };
+
+    if (rs.scoreDeltas.length > 0) {
+      rs.scoreDeltaTimer = SCORE_DELTA_DISPLAY_TIME;
+      rs.scoreDeltaDone = enterCannon;
+      render();
+    } else {
+      enterCannon();
+    }
   }
 
   function tickCastleBuild(dt: number): void {
@@ -871,6 +893,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     config.log(`startBattle (round=${rs.state.round})`);
     rs.scoreDeltas = [];
     rs.scoreDeltaTimer = 0;
+    rs.scoreDeltaDone = null;
     startHostBattleLifecycle({
       state: rs.state,
       battleAnim: rs.battleAnim,
@@ -925,6 +948,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     // Snapshot scores before build phase for delta display
     rs.preScores = rs.state.players.map(p => p.score);
     rs.scoreDeltas = [];
+    rs.scoreDeltaTimer = 0;
+    rs.scoreDeltaDone = null;
     initBuildPhase(rs.state, rs.controllers, (pid) => remoteHumanSlots.has(pid) || !!rs.state.players[pid]?.eliminated);
     rs.battleAnim.impacts = [];
     rs.accum.grunt = 0;
@@ -936,11 +961,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   function tickCannonPhase(dt: number): boolean {
-    // Fade out score deltas
-    if (rs.scoreDeltaTimer > 0) {
-      rs.scoreDeltaTimer -= dt;
-      if (rs.scoreDeltaTimer <= 0) { rs.scoreDeltas = []; rs.scoreDeltaTimer = 0; }
-    }
     return tickHostCannonPhase({
       dt, state: rs.state, accum: rs.accum, frame: rs.frame, controllers: rs.controllers, render, startBattle,
       net: {
@@ -1156,6 +1176,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs.selectionStates.clear();
     rs.scoreDeltas = [];
     rs.scoreDeltaTimer = 0;
+    rs.scoreDeltaDone = null;
     rs.preScores = [];
   }
 
