@@ -16,6 +16,7 @@ export interface RoomEntry {
   connectedSockets: Set<WebSocket>;       // all connected sockets
   slotAssignments: Map<WebSocket, number>; // socket → slotId (only for those who picked a slot)
   started: boolean;
+  closed: boolean;   // true when host left before game start — no new joins
   cleanupTimer: ReturnType<typeof setTimeout> | null;
   waitTimer: ReturnType<typeof setTimeout> | null;
   createdAt: number; // Date.now() when room was created
@@ -39,6 +40,7 @@ export class RoomManager {
       connectedSockets: new Set([hostSocket]),
       slotAssignments: new Map(),
       started: false,
+      closed: false,
       cleanupTimer: null,
       waitTimer: null,
       createdAt: Date.now(),
@@ -59,7 +61,7 @@ export class RoomManager {
 
   joinRoom(code: string, socket: WebSocket): RoomEntry | null {
     const entry = this.rooms.get(code.toUpperCase());
-    if (!entry || entry.started) return null;
+    if (!entry || entry.started || entry.closed) return null;
 
     entry.connectedSockets.add(socket);
     entry.room.addSpectator(socket);
@@ -127,12 +129,11 @@ export class RoomManager {
     entry.slotAssignments.delete(socket);
     this.socketToRoom.delete(socket);
 
-    // Promote next player to host if host left before game start
+    // Host left before game start — close the room (no new joins)
     if (socket === entry.hostSocket && !entry.started) {
-      const nextSocket = entry.connectedSockets.values().next().value;
-      if (nextSocket) {
-        entry.hostSocket = nextSocket;
-      }
+      entry.closed = true;
+      if (entry.waitTimer) { clearTimeout(entry.waitTimer); entry.waitTimer = null; }
+      console.log(`[rooms] Room ${entry.code} closed (host left before start)`);
     }
 
     if (entry.started) {
