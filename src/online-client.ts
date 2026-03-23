@@ -316,7 +316,10 @@ function tickMigrationAnnouncement(dt: number): void {
   if (migrationAnnouncementTimer > 0) {
     migrationAnnouncementTimer -= dt;
     if (migrationAnnouncementTimer > 0) {
-      runtime.getFrame().announcement = migrationAnnouncementText;
+      // Don't overwrite game announcements (e.g., Ready/Aim/Fire countdown)
+      if (!runtime.getFrame().announcement) {
+        runtime.getFrame().announcement = migrationAnnouncementText;
+      }
     } else {
       migrationAnnouncementTimer = 0;
       migrationAnnouncementText = "";
@@ -596,6 +599,7 @@ function promoteToHost(): void {
     runtime.setCastleBuild(null);
     finalizeCastleConstruction(state);
     enterCannonPlacePhase(state);
+    runtime.startCannonPhase();
     runtime.setMode(Mode.GAME);
     log("Skipped castle build animation → cannon phase");
   } else if (mode === Mode.LIFE_LOST) {

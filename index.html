@@ -170,11 +170,6 @@
     });
 
     const serverHostInput = document.getElementById("server-host");
-    // Load saved server host or use default (constant shared with online-client.ts)
-    const { DEFAULT_SERVER_HOST } = await import("/src/online-config.ts");
-    const savedHost = localStorage.getItem("castles99_server");
-    serverHostInput.value = savedHost || DEFAULT_SERVER_HOST;
-    if (!savedHost) localStorage.setItem("castles99_server", DEFAULT_SERVER_HOST);
     // Save on change
     serverHostInput.addEventListener("change", () => {
       const val = serverHostInput.value.trim();
@@ -183,6 +178,11 @@
     });
 
     btnOnline.addEventListener("click", async () => {
+      // Populate server input before showing lobby (import is cheap — online-client.ts loads next)
+      const { DEFAULT_SERVER_HOST } = await import("/src/online-config.ts");
+      const savedHost = localStorage.getItem("castles99_server");
+      serverHostInput.value = savedHost || DEFAULT_SERVER_HOST;
+      if (!savedHost) localStorage.setItem("castles99_server", DEFAULT_SERVER_HOST);
       modeSelect.style.display = "none";
       lobby.style.display = "block";
       await import("/src/online-client.ts");
