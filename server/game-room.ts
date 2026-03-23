@@ -47,8 +47,8 @@ export class GameRoom {
   /** Current phase, tracked from checkpoint messages. */
   private phase = "LOBBY";
 
-  /** Rate limit tracking: socket → type → timestamps. */
-  private rateLimits = new Map<WebSocket, Map<string, number[]>>();
+  /** Rate limit tracking: socket → type → { count, windowStart }. */
+  private rateLimits = new Map<WebSocket, Map<string, { count: number; windowStart: number }>>();
 
   readonly seed: number;
   readonly settings: RoomSettings;
@@ -124,7 +124,7 @@ export class GameRoom {
       return;
     }
 
-    // --- Rate limiting ---
+    // --- Rate limiting (sliding window counter) ---
     const maxPerSec = RATE_LIMITS[type];
     if (maxPerSec !== undefined) {
       if (!this.rateLimits.has(senderSocket)) {
@@ -132,21 +132,16 @@ export class GameRoom {
       }
       const socketLimits = this.rateLimits.get(senderSocket)!;
       const now = Date.now();
-      const cutoff = now - 1000;
-      let timestamps = socketLimits.get(type);
-      if (!timestamps) {
-        timestamps = [];
-        socketLimits.set(type, timestamps);
+      let bucket = socketLimits.get(type);
+      if (!bucket || now - bucket.windowStart >= 1000) {
+        bucket = { count: 0, windowStart: now };
+        socketLimits.set(type, bucket);
       }
-      // Prune old timestamps
-      while (timestamps.length > 0 && timestamps[0]! < cutoff) {
-        timestamps.shift();
-      }
-      if (timestamps.length >= maxPerSec) {
+      if (bucket.count >= maxPerSec) {
         // Silently drop — no log to avoid spam
         return;
       }
-      timestamps.push(now);
+      bucket.count++;
     }
 
     // --- Relay (forward raw string to avoid re-serialization) ---

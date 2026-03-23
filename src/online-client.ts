@@ -240,6 +240,9 @@ export function getApiUrl(path: string): string {
   return `${proto}//${host}${path}`;
 }
 
+const KEEPALIVE_MS = 30_000;
+let keepaliveTimer: ReturnType<typeof setInterval> | null = null;
+
 function connect(): void {
   if (ws && ws.readyState <= WebSocket.OPEN) return;
   ws = new WebSocket(getWsUrl());
@@ -250,7 +253,16 @@ function connect(): void {
       /* ignore malformed */
     }
   };
+  ws.onopen = () => {
+    if (keepaliveTimer) clearInterval(keepaliveTimer);
+    keepaliveTimer = setInterval(() => {
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: MSG.PING }));
+      }
+    }, KEEPALIVE_MS);
+  };
   ws.onclose = () => {
+    if (keepaliveTimer) { clearInterval(keepaliveTimer); keepaliveTimer = null; }
     const m = runtime.getMode();
     log(`WebSocket closed (mode=${Mode[m]} isHost=${isHost})`);
     if (!isHost && m !== Mode.STOPPED && m !== Mode.LOBBY) {
