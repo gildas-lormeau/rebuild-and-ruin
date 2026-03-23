@@ -366,23 +366,18 @@ async function runLocal() {
 
   console.log(`${ts()} Starting local E2E test: ${NUM_HUMANS} human${NUM_HUMANS !== 1 ? "s" : ""} + ${3 - NUM_HUMANS} AI`);
 
-  await page.goto(BASE_URL);
-  // Set rounds + optional seed via localStorage
-  await page.evaluate(({ seed, rounds }: { seed: string; rounds: number }) => {
-    // ROUNDS_OPTIONS: [3, 5, 8, 12, 0(=∞)]
-    const roundsValues = [3, 5, 8, 12, 0];
-    let roundsIdx = roundsValues.indexOf(rounds);
-    if (roundsIdx < 0) roundsIdx = roundsValues.findIndex(v => v >= rounds && v > 0);
-    if (roundsIdx < 0) roundsIdx = 0;
-    const settings = JSON.parse(localStorage.getItem("castles99_settings") || "{}");
-    settings.rounds = roundsIdx;
+  const localUrl = `${BASE_URL}?rounds=${NUM_ROUNDS}`;
+  await page.goto(localUrl);
+  // Set seed via localStorage, rounds via query parameter
+  await page.evaluate((seed: string) => {
     if (seed) {
+      const settings = JSON.parse(localStorage.getItem("castles99_settings") || "{}");
       settings.seedMode = "custom";
       settings.seed = seed;
+      localStorage.setItem("castles99_settings", JSON.stringify(settings));
     }
-    localStorage.setItem("castles99_settings", JSON.stringify(settings));
     document.title = "Local Play";
-  }, { seed: SEED, rounds: NUM_ROUNDS });
+  }, SEED);
   // Click "Local Play" to load main.ts and show canvas lobby
   await page.click("#btn-local");
   await page.waitForSelector("canvas[style*='display: block']", { timeout: 5000 });
@@ -428,11 +423,6 @@ async function runLocal() {
     { timeout: 90_000 },
   );
   console.log(`${ts()} Game started`);
-
-  // Override battleLength to the exact CLI value (bypasses ROUNDS_OPTIONS select)
-  await page.evaluate((rounds: number) => {
-    (window as unknown as Record<string, unknown>).__testBattleLength = rounds;
-  }, NUM_ROUNDS);
 
   // --fast: override requestAnimationFrame with setTimeout(1) + accelerated timestamps
   if (FAST) {

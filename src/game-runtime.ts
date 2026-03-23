@@ -199,10 +199,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function exposeTestGlobals(): void {
     if (typeof window === "undefined") return;
     const w = window as unknown as Record<string, unknown>;
-    // Allow E2E tests to override battleLength to an arbitrary value
-    if (typeof w.__testBattleLength === "number" && rs.state && rs.state.battleLength !== w.__testBattleLength) {
-      rs.state.battleLength = w.__testBattleLength;
-    }
     w.__testMode = Mode[rs.mode];
     w.__testPhase = rs.state ? Phase[rs.state.phase] : "";
     w.__testTimer = rs.state ? rs.state.timer : 0;
@@ -1192,7 +1188,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     const diffParams = DIFFICULTY_PARAMS[rs.settings.difficulty] ?? DIFFICULTY_PARAMS[1]!;
     const { buildTimer, cannonPlaceTimer, firstRoundCannons } = diffParams;
-    const roundsVal = ROUNDS_OPTIONS[rs.settings.rounds]!.value;
+    const roundsParam = typeof location !== "undefined" ? Number(new URL(location.href).searchParams.get("rounds")) : 0;
+    const roundsVal = roundsParam > 0 ? roundsParam : ROUNDS_OPTIONS[rs.settings.rounds]!.value;
 
     resetGameStats();
 
