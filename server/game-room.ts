@@ -8,9 +8,10 @@
  * - Rate limiting: caps on message frequency per player
  * - Host-only: only the host can send checkpoints and phase transitions
  *
- * Zero game state, zero game imports.
+ * Zero game state.
  */
 
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/grid.ts";
 import { MSG, type RoomSettings, sanitizeRoomSettings } from "./protocol.ts";
 
 // Rate limit: max messages per second per type
@@ -26,7 +27,67 @@ const HOST_ONLY: Set<string> = new Set([
   MSG.INIT, MSG.SELECT_START, MSG.CASTLE_WALLS,
   MSG.CANNON_START, MSG.BATTLE_START, MSG.BUILD_START, MSG.BUILD_END,
   MSG.GAME_OVER, MSG.FULL_STATE,
+  MSG.WALL_DESTROYED, MSG.CANNON_DAMAGED, MSG.HOUSE_DESTROYED,
+  MSG.GRUNT_KILLED, MSG.GRUNT_SPAWNED, MSG.PIT_CREATED, MSG.TOWER_KILLED,
 ]);
+
+// ---------------------------------------------------------------------------
+// Payload validation — reject obviously malformed values before relaying
+// ---------------------------------------------------------------------------
+
+const MAX_PLAYER_ID = 2;
+const MAX_TOWER_IDX = 30;
+const MAX_CANNON_IDX = 30;
+const MAX_PIECE_TILES = 13;
+const MAX_PIXEL = (Math.max(GRID_COLS, GRID_ROWS) * TILE_SIZE) + 100;
+const VALID_CANNON_MODES = new Set(["normal", "super", "balloon"]);
+const VALID_CHOICES = new Set(["continue", "abandon"]);
+
+function isInt(val: unknown, min: number, max: number): boolean {
+  return typeof val === "number" && Number.isInteger(val) && val >= min && val <= max;
+}
+function isFinite(val: unknown): boolean {
+  return typeof val === "number" && Number.isFinite(val);
+}
+function isFiniteRange(val: unknown, min: number, max: number): boolean {
+  return typeof val === "number" && Number.isFinite(val) && val >= min && val <= max;
+}
+
+// deno-lint-ignore no-explicit-any
+function validatePayload(msg: Record<string, any>): boolean {
+  switch (msg.type) {
+    case MSG.OPPONENT_TOWER_SELECTED:
+      return isInt(msg.playerId, 0, MAX_PLAYER_ID) && isInt(msg.towerIdx, 0, MAX_TOWER_IDX);
+    case MSG.OPPONENT_PIECE_PLACED:
+      return isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
+        isInt(msg.row, 0, GRID_ROWS - 1) && isInt(msg.col, 0, GRID_COLS - 1) &&
+        Array.isArray(msg.offsets) && msg.offsets.length >= 1 && msg.offsets.length <= MAX_PIECE_TILES &&
+        msg.offsets.every((o: unknown) => Array.isArray(o) && o.length === 2 && isInt(o[0], -4, 4) && isInt(o[1], -4, 4));
+    case MSG.OPPONENT_CANNON_PLACED:
+      return isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
+        isInt(msg.row, 0, GRID_ROWS - 1) && isInt(msg.col, 0, GRID_COLS - 1) &&
+        VALID_CANNON_MODES.has(msg.mode);
+    case MSG.CANNON_FIRED:
+      return isInt(msg.playerId, 0, MAX_PLAYER_ID) && isInt(msg.cannonIdx, 0, MAX_CANNON_IDX) &&
+        isFiniteRange(msg.startX, -MAX_PIXEL, MAX_PIXEL) && isFiniteRange(msg.startY, -MAX_PIXEL, MAX_PIXEL) &&
+        isFiniteRange(msg.targetX, -MAX_PIXEL, MAX_PIXEL) && isFiniteRange(msg.targetY, -MAX_PIXEL, MAX_PIXEL) &&
+        isFiniteRange(msg.speed, 1, 1000);
+    case MSG.LIFE_LOST_CHOICE:
+      return isInt(msg.playerId, 0, MAX_PLAYER_ID) && VALID_CHOICES.has(msg.choice);
+    case MSG.AIM_UPDATE:
+      return isInt(msg.playerId, 0, MAX_PLAYER_ID) && isFinite(msg.x) && isFinite(msg.y);
+    case MSG.OPPONENT_PHANTOM:
+      return isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
+        isInt(msg.row, 0, GRID_ROWS - 1) && isInt(msg.col, 0, GRID_COLS - 1) &&
+        Array.isArray(msg.offsets);
+    case MSG.OPPONENT_CANNON_PHANTOM:
+      return isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
+        isInt(msg.row, 0, GRID_ROWS - 1) && isInt(msg.col, 0, GRID_COLS - 1) &&
+        VALID_CANNON_MODES.has(msg.mode);
+    default:
+      return true; // no validation for unknown or host-only messages
+  }
+}
 
 // Phase gating: which message types are valid in which phases
 const PHASE_GATES: Record<string, Set<string>> = {
@@ -117,6 +178,12 @@ export class GameRoom {
     const validPhases = PHASE_GATES[type];
     if (validPhases && !validPhases.has(this.phase)) {
       console.log(`[room] REJECTED ${type} in phase ${this.phase}`);
+      return;
+    }
+
+    // --- Payload validation ---
+    if (!validatePayload(msg)) {
+      console.log(`[room] REJECTED ${type}: invalid payload`);
       return;
     }
 

@@ -2,9 +2,18 @@ import type { ServerMessage } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
 import type { ImpactEvent } from "./battle-system.ts";
 import type { PixelPos } from "./geometry-types.ts";
+import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import type { OrbitParams } from "./player-controller.ts";
 import type { SelectionState } from "./selection.ts";
 import { CannonMode, type GameState } from "./types.ts";
+
+function validPid(pid: number, state: GameState): boolean {
+  return Number.isInteger(pid) && pid >= 0 && pid < state.players.length;
+}
+function inBounds(row: number, col: number): boolean {
+  return Number.isInteger(row) && Number.isInteger(col) &&
+    row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS;
+}
 
 interface LifeLostChoiceEntry {
   playerId: number;
@@ -90,9 +99,11 @@ export function handleServerIncrementalMessage(
 
   switch (msg.type) {
     case MSG.OPPONENT_TOWER_SELECTED: {
+      if (!state || !validPid(msg.playerId, state)) return true;
+      if (msg.towerIdx < 0 || msg.towerIdx >= state.map.towers.length) return true;
       const acceptTower =
-        !deps.isHost || (state && deps.remoteHumanSlots.has(msg.playerId));
-      if (acceptTower && state) {
+        !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
+      if (acceptTower) {
         const tower = state.map.towers[msg.towerIdx];
         if (tower) {
           const player = state.players[msg.playerId]!;
@@ -120,9 +131,12 @@ export function handleServerIncrementalMessage(
     }
 
     case MSG.OPPONENT_PIECE_PLACED: {
+      if (!state || !validPid(msg.playerId, state)) return true;
+      if (!inBounds(msg.row, msg.col)) return true;
+      if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return true;
       const acceptPiece =
-        !deps.isHost || (state && deps.remoteHumanSlots.has(msg.playerId));
-      if (acceptPiece && state) {
+        !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
+      if (acceptPiece) {
         deps.log(
           `applying piece placement for P${msg.playerId} (${msg.offsets.length} tiles)`,
         );
@@ -138,12 +152,14 @@ export function handleServerIncrementalMessage(
     }
 
     case MSG.OPPONENT_CANNON_PLACED: {
+      if (!state || !validPid(msg.playerId, state)) return true;
+      if (!inBounds(msg.row, msg.col)) return true;
       const acceptCannon =
-        !deps.isHost || (state && deps.remoteHumanSlots.has(msg.playerId));
+        !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
       deps.log(
         `opponent_cannon_placed: P${msg.playerId} accept=${acceptCannon} isHost=${deps.isHost} remoteHumans=[${[...deps.remoteHumanSlots]}] hasState=${!!state}`,
       );
-      if (acceptCannon && state) {
+      if (acceptCannon) {
         deps.applyCannonPlacement(
           state,
           msg.playerId,
@@ -159,9 +175,13 @@ export function handleServerIncrementalMessage(
     }
 
     case MSG.CANNON_FIRED: {
+      if (!state || !validPid(msg.playerId, state)) return true;
+      if (!Number.isFinite(msg.speed) || msg.speed <= 0) return true;
+      if (!Number.isFinite(msg.startX) || !Number.isFinite(msg.startY) ||
+          !Number.isFinite(msg.targetX) || !Number.isFinite(msg.targetY)) return true;
       const acceptFire =
-        !deps.isHost || (state && deps.remoteHumanSlots.has(msg.playerId));
-      if (acceptFire && state) {
+        !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
+      if (acceptFire) {
         const player = state.players[msg.playerId];
         if (!player || !player.cannons[msg.cannonIdx]) {
           deps.log(`cannon_fired: stale ref P${msg.playerId} cannon[${msg.cannonIdx}] — skipped`);
@@ -190,6 +210,8 @@ export function handleServerIncrementalMessage(
     case MSG.GRUNT_SPAWNED:
     case MSG.PIT_CREATED:
       if (!deps.isHost && state) {
+        if ("row" in msg && "col" in msg && !inBounds(msg.row, msg.col)) return true;
+        if ("playerId" in msg && !validPid(msg.playerId, state)) return true;
         if (msg.type === MSG.WALL_DESTROYED) {
           const wallKey = msg.row * deps.gridCols + msg.col;
           const owner = state.players.find((p) => p.walls.has(wallKey));
@@ -206,6 +228,7 @@ export function handleServerIncrementalMessage(
       return true;
 
     case MSG.AIM_UPDATE: {
+      if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return true;
       const acceptAim = !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
       if (acceptAim) {
         deps.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
@@ -216,11 +239,14 @@ export function handleServerIncrementalMessage(
 
     case MSG.TOWER_KILLED:
       if (!deps.isHost && state) {
+        if (msg.towerIdx < 0 || msg.towerIdx >= state.towerAlive.length) return true;
         state.towerAlive[msg.towerIdx] = false;
       }
       return true;
 
     case MSG.OPPONENT_PHANTOM: {
+      if (state && !validPid(msg.playerId, state)) return true;
+      if (!inBounds(msg.row, msg.col)) return true;
       const acceptPhantom =
         !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
       if (acceptPhantom) {
@@ -239,6 +265,8 @@ export function handleServerIncrementalMessage(
     }
 
     case MSG.OPPONENT_CANNON_PHANTOM: {
+      if (state && !validPid(msg.playerId, state)) return true;
+      if (!inBounds(msg.row, msg.col)) return true;
       const acceptCannonPhantom =
         !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
       if (acceptCannonPhantom) {
@@ -261,6 +289,7 @@ export function handleServerIncrementalMessage(
 
     case MSG.LIFE_LOST_CHOICE: {
       if (!deps.isHost) return true;
+      if (msg.choice !== "continue" && msg.choice !== "abandon") return true;
       deps.log(
         `life_lost_choice from P${msg.playerId}: ${msg.choice} (dialog=${deps.getLifeLostDialog() ? "active" : "null"})`,
       );
