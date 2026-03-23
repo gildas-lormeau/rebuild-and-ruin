@@ -14,23 +14,31 @@ function drawTowerHighlight(
   cy: number,
   color?: string,
 ): void {
-  const margin = 4;
+  const margin = 4 + TILE / 2;
   const bx = cx - 15 - margin;
   const by = cy - 16 - margin;
   const w = 30 + margin * 2;
   const h = 32 + margin * 2;
-  const corner = 5;
-  const t = 2; // thickness — matches UI border width
+  const corner = 10;
+  const t = 4; // thickness
 
+  // Slow flash: alpha pulses between 0.4 and 1.0 over ~1.5s cycle
+  const flash = 0.7 + 0.3 * Math.sin(Date.now() / 120);
+  octx.globalAlpha = flash;
   octx.fillStyle = color ?? "#ffcc00";
+  // Top-left
   octx.fillRect(bx, by, corner, t);
-  octx.fillRect(bx, by, t, corner);
+  octx.fillRect(bx, by + t, t, corner - t);
+  // Top-right
   octx.fillRect(bx + w - corner, by, corner, t);
-  octx.fillRect(bx + w - t, by, t, corner);
+  octx.fillRect(bx + w - t, by + t, t, corner - t);
+  // Bottom-left
   octx.fillRect(bx, by + h - t, corner, t);
-  octx.fillRect(bx, by + h - corner, t, corner);
+  octx.fillRect(bx, by + h - corner, t, corner - t);
+  // Bottom-right
   octx.fillRect(bx + w - corner, by + h - t, corner, t);
-  octx.fillRect(bx + w - t, by + h - corner, t, corner);
+  octx.fillRect(bx + w - t, by + h - corner, t, corner - t);
+  octx.globalAlpha = 1;
 }
 
 /** Draw towers (alive, destroyed, highlighted, selected). */
@@ -89,11 +97,8 @@ export function drawTowers(
     if (overlay?.selection?.highlights) {
       for (const hl of overlay.selection.highlights) {
         if (hl.towerIdx === i) {
-          const colors = PLAYER_COLORS[hl.playerId % PLAYER_COLORS.length]!;
-          const rgb = hl.confirmed
-            ? `rgb(${colors.interiorLight[0]},${colors.interiorLight[1]},${colors.interiorLight[2]})`
-            : `rgb(${Math.min(255, colors.interiorLight[0] + 80)},${Math.min(255, colors.interiorLight[1] + 80)},${Math.min(255, colors.interiorLight[2] + 80)})`;
-          drawTowerHighlight(octx, cx, cy, rgb);
+          const c = PLAYER_COLORS[hl.playerId % PLAYER_COLORS.length]!.interiorLight;
+          drawTowerHighlight(octx, cx, cy, `rgb(${c[0]},${c[1]},${c[2]})`);
         }
       }
     }
