@@ -7,6 +7,7 @@
 
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, SCALE } from "./grid.ts";
 import { Phase } from "./types.ts";
+import { BANNER_SELECT } from "./game-engine.ts";
 import type { GameState } from "./types.ts";
 import type { Viewport } from "./map-renderer.ts";
 import type { WorldPos } from "./geometry-types.ts";
@@ -274,7 +275,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       selectionZoomDelay = 2;
     }
     if (selectionZoomDelay > 0 && mode === Mode.SELECTION) {
-      deps.setFrameAnnouncement("Select your home castle");
+      deps.setFrameAnnouncement(BANNER_SELECT);
       selectionZoomDelay -= dt;
       if (selectionZoomDelay <= 0) {
         selectionZoomDelay = 0;

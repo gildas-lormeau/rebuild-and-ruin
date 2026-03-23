@@ -1,4 +1,5 @@
 import { countdownAnnouncement, type BalloonFlight } from "./battle-system.ts";
+import { BANNER_BATTLE, BANNER_BATTLE_SUB } from "./game-engine.ts";
 import type { GameMessage } from "../server/protocol.ts";
 import type { TilePos } from "./geometry-types.ts";
 import type { PlayerController } from "./player-controller.ts";
@@ -192,7 +193,7 @@ export function startHostBattleLifecycle(
   const preWalls = state.players.map((p) => new Set(p.walls));
 
   showBanner(
-    "Prepare for Battle",
+    BANNER_BATTLE,
     () => {
       if (flights.length > 0) {
         battleAnim.flights = flights.map((f) => ({ flight: f, progress: 0 }));
@@ -203,7 +204,7 @@ export function startHostBattleLifecycle(
     },
     true,
     { territory: preTerritory, walls: preWalls },
-    "Shoot at enemy walls",
+    BANNER_BATTLE_SUB,
   );
 
   nextPhase(state);

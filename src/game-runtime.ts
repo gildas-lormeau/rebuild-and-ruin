@@ -26,6 +26,10 @@ import {
   advanceToCannonPlacePhase,
   initBuildPhase,
   prepareReselectionPlans,
+  BANNER_PLACE_CANNONS,
+  BANNER_PLACE_CANNONS_SUB,
+  BANNER_BUILD,
+  BANNER_BUILD_SUB,
 } from "./game-engine.ts";
 import {
   Phase,
@@ -805,7 +809,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     advanceToCannonPlacePhase(state);
     startCannonPhase();
-    showBanner("Place Cannons", () => { scoreDeltaTimer = SCORE_DELTA_DISPLAY_TIME; mode = Mode.GAME; }, false, undefined, "Position inside fort walls");
+    showBanner(BANNER_PLACE_CANNONS, () => { scoreDeltaTimer = SCORE_DELTA_DISPLAY_TIME; mode = Mode.GAME; }, false, undefined, BANNER_PLACE_CANNONS_SUB);
   }
 
   function tickCastleBuild(dt: number): void {
@@ -1035,14 +1039,14 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       },
       onBattlePhaseEnded: () => {
         showBanner(
-          "Build & Repair",
+          BANNER_BUILD,
           () => {
             startBuildPhase();
             mode = Mode.GAME;
           },
           true,
           undefined,
-          "Surround castles, repair walls",
+          BANNER_BUILD_SUB,
         );
         nextPhase(state); // BATTLE -> WALL_BUILD
         if (config.getIsHost() && config.hostNetworking) {

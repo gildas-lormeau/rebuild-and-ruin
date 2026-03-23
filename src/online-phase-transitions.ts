@@ -1,4 +1,5 @@
 import { Phase } from "./types.ts";
+import { BANNER_PLACE_CANNONS } from "./game-engine.ts";
 import type { GameState } from "./types.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { RGB } from "./player-config.ts";
@@ -79,7 +80,7 @@ export function handleCastleWallsTransition(msg: ServerMessage, ctx: TransitionC
     ctx.finalizeCastleConstruction(state);
     ctx.enterCannonPlacePhase(state);
     state.timer = state.cannonPlaceTimer;
-    ctx.showBanner("Place Cannons", () => {
+    ctx.showBanner(BANNER_PLACE_CANNONS, () => {
       ctx.setWatcherPhaseStartTime(ctx.now());
       ctx.setWatcherPhaseDuration(state.timer);
       ctx.setModeGame();
@@ -109,7 +110,7 @@ export function handleCannonStartTransition(msg: ServerMessage, ctx: TransitionC
   if (state.phase !== Phase.CANNON_PLACE) {
     state.phase = Phase.CANNON_PLACE;
     state.timer = state.cannonPlaceTimer;
-    ctx.showBanner("Place Cannons", () => {
+    ctx.showBanner(BANNER_PLACE_CANNONS, () => {
       ctx.setWatcherPhaseStartTime(ctx.now());
       ctx.setWatcherPhaseDuration(state.timer);
       ctx.setModeGame();
