@@ -1,7 +1,7 @@
-import { Phase } from "./types.ts";
-import type { GameState } from "./types.ts";
-import type { PlayerController } from "./player-controller.ts";
 import { MSG } from "../server/protocol.ts";
+import type { PlayerController } from "./player-controller.ts";
+import type { GameState } from "./types.ts";
+import { Phase } from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // Selection state

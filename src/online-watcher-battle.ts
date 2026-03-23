@@ -1,8 +1,8 @@
-import { BATTLE_TIMER, Phase } from "./types.ts";
-import type { GameState, Impact } from "./types.ts";
 import { countdownAnnouncement } from "./battle-system.ts";
+import type { CannonPhantom, HumanPiecePhantom, PiecePhantom } from "./online-types.ts";
 import type { Crosshair, PlayerController } from "./player-controller.ts";
-import type { CannonPhantom, PiecePhantom, HumanPiecePhantom } from "./online-types.ts";
+import type { GameState, Impact } from "./types.ts";
+import { BATTLE_TIMER, Phase } from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // Watcher timing state + timer tick

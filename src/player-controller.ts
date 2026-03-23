@@ -9,12 +9,12 @@
 import type { GameState, Player } from "./types.ts";
 import {
   Action,
+  BALLOON_COST,
+  BALLOON_SIZE,
   CannonMode,
   NORMAL_CANNON_SIZE,
-  SUPER_GUN_SIZE,
-  BALLOON_SIZE,
   SUPER_GUN_COST,
-  BALLOON_COST,
+  SUPER_GUN_SIZE,
 } from "./types.ts";
 
 /** Battle crosshair movement speed in pixels per second. */
@@ -23,36 +23,37 @@ export const CROSSHAIR_SPEED = 80;
 const BUILD_CURSOR_SPEED = 12;
 /** AI cannon-phase cursor speed in tiles per second. */
 const CANNON_CURSOR_SPEED = 6;
-import type { PieceShape, BagState } from "./pieces.ts";
-import type {
-  TilePos,
-  PixelPos,
-  StrategicPixelPos,
-} from "./geometry-types.ts";
-import type { KeyBindings } from "./player-config.ts";
-import { createBag, nextPiece, rotateCW } from "./pieces.ts";
-import { canPlacePiece, placePiece } from "./build-phase.ts";
-import {
-  fireCannon,
-  nextReadyCombined,
-  fireSingleCaptured,
-  aimCannons,
-} from "./battle-system.ts";
-import type { CombinedCannonResult } from "./battle-system.ts";
-import {
-  placeCannon,
-  canPlaceCannon,
-  cannonSlotsUsed,
-  findNearestValidCannonPlacement,
-} from "./cannon-system.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
-import { packTile } from "./spatial.ts";
+
 import type { AiStrategy, ChainType } from "./ai-strategy.ts";
 import {
+  autoPlaceCannons,
   Chain,
   DefaultStrategy,
-  autoPlaceCannons,
 } from "./ai-strategy.ts";
+import type { CombinedCannonResult } from "./battle-system.ts";
+import {
+  aimCannons,
+  fireCannon,
+  fireSingleCaptured,
+  nextReadyCombined,
+} from "./battle-system.ts";
+import { canPlacePiece, placePiece } from "./build-phase.ts";
+import {
+  cannonSlotsUsed,
+  canPlaceCannon,
+  findNearestValidCannonPlacement,
+  placeCannon,
+} from "./cannon-system.ts";
+import type {
+  PixelPos,
+  StrategicPixelPos,
+  TilePos,
+} from "./geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
+import type { BagState, PieceShape } from "./pieces.ts";
+import { createBag, nextPiece, rotateCW } from "./pieces.ts";
+import type { KeyBindings } from "./player-config.ts";
+import { packTile } from "./spatial.ts";
 
 
 

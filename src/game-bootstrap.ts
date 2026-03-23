@@ -1,9 +1,9 @@
-import { generateMap } from "./map-generation.ts";
 import { createGameFromSeed } from "./game-engine.ts";
-import { Phase, type GameState } from "./types.ts";
+import type { LobbyState } from "./game-ui-types.ts";
+import { generateMap } from "./map-generation.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { SelectionState } from "./selection.ts";
-import type { LobbyState } from "./game-ui-types.ts";
+import { type GameState, Phase } from "./types.ts";
 
 interface ShowWaitingRoomDeps {
   code: string;

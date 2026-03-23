@@ -4,17 +4,17 @@
  */
 
 import { TILE_SIZE } from "./grid.ts";
+import type { MapData, RenderOverlay } from "./map-renderer.ts";
+import { getPlayerColor } from "./player-config.ts";
+import type { RGB } from "./render-theme.ts";
 import {
-  rgb, FONT_TIMER,
-  BONUS_FLASH_MS, CROSSHAIR_READY_FREQ, CROSSHAIR_IDLE_FREQ,
-  CROSSHAIR_ARM_READY, CROSSHAIR_ARM_IDLE, CROSSHAIR_ARM_PULSE,
+  BONUS_FLASH_MS, CROSSHAIR_ARM_IDLE, CROSSHAIR_ARM_PULSE,
+  CROSSHAIR_ARM_READY, CROSSHAIR_IDLE_FREQ,CROSSHAIR_READY_FREQ, FONT_TIMER,
+  rgb, 
 } from "./render-theme.ts";
 import { facingToCardinal } from "./spatial.ts";
 import { drawSprite } from "./sprites.ts";
-import { getPlayerColor } from "./player-config.ts";
 import { IMPACT_FLASH_DURATION } from "./types.ts";
-import type { RenderOverlay, MapData } from "./map-renderer.ts";
-import type { RGB } from "./render-theme.ts";
 
 const TILE = TILE_SIZE;
 

@@ -5,30 +5,30 @@
  * used by DefaultStrategy.
  */
 
-import type { GameState, Player } from "./types.ts";
-import { SUPER_GUN_COST, BALLOON_COST, CannonMode } from "./types.ts";
-import type { TilePos } from "./geometry-types.ts";
-import type { GameMap, Tower } from "./map-generation.ts";
-import { GRID_ROWS, GRID_COLS } from "./grid.ts";
+import { traitLookup } from "./ai-strategy.ts";
+import { hasTowerAt } from "./board-occupancy.ts";
 import {
+  cannonSlotsUsed,
   canPlaceCannon,
   placeCannon,
-  cannonSlotsUsed,
 } from "./cannon-system.ts";
+import type { TilePos } from "./geometry-types.ts";
+import { GRID_COLS, GRID_ROWS } from "./grid.ts";
+import type { GameMap, Tower } from "./map-generation.ts";
+import type { Rng } from "./rng.ts";
 import {
-  towerCenter,
-  isCannonAlive,
-  isWater,
   DIRS_4,
   forEachCannonTile,
-  unpackTile,
-  packTile,
-  manhattanDistance,
   inBounds,
+  isCannonAlive,
+  isWater,
+  manhattanDistance,
+  packTile,
+  towerCenter,
+  unpackTile,
 } from "./spatial.ts";
-import type { Rng } from "./rng.ts";
-import { hasTowerAt } from "./board-occupancy.ts";
-import { traitLookup } from "./ai-strategy.ts";
+import type { GameState, Player } from "./types.ts";
+import { BALLOON_COST, CannonMode, SUPER_GUN_COST } from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // AI cannon tuning constants

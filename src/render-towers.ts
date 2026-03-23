@@ -2,11 +2,11 @@
  * Tower rendering — drawTowers layer and tower highlight overlay.
  */
 
-import { drawSpriteCentered } from "./sprites.ts";
-import { getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
-import { rgb, FONT_FLOAT_LG, TOWER_FLASH_MS } from "./render-theme.ts";
 import { TILE_SIZE } from "./grid.ts";
 import type { MapData, RenderOverlay } from "./map-renderer.ts";
+import { getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
+import { FONT_FLOAT_LG, rgb, TOWER_FLASH_MS } from "./render-theme.ts";
+import { drawSpriteCentered } from "./sprites.ts";
 
 const TILE = TILE_SIZE;
 

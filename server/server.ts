@@ -3,9 +3,9 @@
  * Serves the /ws/play WebSocket endpoint for online play with room management.
  */
 
-import { RoomManager } from "./room-manager.ts";
-import { MSG } from "./protocol.ts";
 import { PLAYER_NAMES } from "../src/player-config.ts";
+import { MSG } from "./protocol.ts";
+import { RoomManager } from "./room-manager.ts";
 
 const rooms = new RoomManager();
 

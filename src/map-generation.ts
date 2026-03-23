@@ -10,12 +10,12 @@
 
 // --- Constants ---
 
-import { GRID_COLS, GRID_ROWS, Tile } from "./grid.ts";
-import type { TilePos, PixelPos } from "./geometry-types.ts";
-import { Rng } from "./rng.ts";
-import { isPlayerActive, HOUSE_MIN_DISTANCE, type GameState } from "./types.ts";
-import { DIRS_4, packTile, unpackTile, manhattanDistance, isGrass, forEachTowerTile, inBounds } from "./spatial.ts";
 import { collectOccupiedTiles } from "./board-occupancy.ts";
+import type { PixelPos, TilePos } from "./geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, Tile } from "./grid.ts";
+import { Rng } from "./rng.ts";
+import { DIRS_4, forEachTowerTile, inBounds, isGrass, manhattanDistance, packTile, unpackTile } from "./spatial.ts";
+import { type GameState, HOUSE_MIN_DISTANCE, isPlayerActive } from "./types.ts";
 
 const SAFE_ZONE_PAD = 3; // 8×8 safe zone with corners cut (3 tiles clearance orthogonally)
 const MIN_GAP_EDGE = 2;

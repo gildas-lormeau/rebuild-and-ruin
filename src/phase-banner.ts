@@ -1,6 +1,6 @@
 import type { CastleData } from "./map-renderer.ts";
-import { Phase } from "./types.ts";
 import type { GameState } from "./types.ts";
+import { Phase } from "./types.ts";
 
 export interface BannerState {
   active: boolean;

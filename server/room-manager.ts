@@ -2,8 +2,8 @@
  * Room manager — creates, tracks, and cleans up game rooms.
  */
 
+import { MAX_PLAYERS, PLAYER_NAMES } from "../src/player-config.ts";
 import { GameRoom } from "./game-room.ts";
-import { PLAYER_NAMES, MAX_PLAYERS } from "../src/player-config.ts";
 import { MSG, type RoomSettings, type ServerMessage } from "./protocol.ts";
 
 const MAX_ROOMS = 50;

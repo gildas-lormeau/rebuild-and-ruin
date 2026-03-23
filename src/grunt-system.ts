@@ -2,30 +2,9 @@
  * Grunt system — spawning, movement, pathfinding, and tower attacks.
  */
 
-import type { GameState, Player, Grunt } from "./types.ts";
-import type { TilePos } from "./geometry-types.ts";
 import {
-  GRUNT_ATTACK_DURATION,
-  HOUSE_GRUNT_SPAWN_CHANCE,
-  GRUNT_WALL_ATTACK_CHANCE,
-  GRUNT_WALL_ATTACK_MIN_BATTLES,
-  isPlayerActive,
-} from "./types.ts";
-import {
-  DIRS_4,
-  distanceToTower,
-  manhattanDistance,
-  packTile,
-  unpackTile,
-  isGrass,
-  isWater,
-  inBounds,
-  isPitAt,
-} from "./spatial.ts";
-import { GRID_ROWS, GRID_COLS } from "./grid.ts";
-import {
-  deleteWallFromAllPlayers,
   collectOccupiedTiles,
+  deleteWallFromAllPlayers,
   findLivingTowerIndexAt,
   hasAliveHouseAt,
   hasCannonAt,
@@ -34,6 +13,27 @@ import {
   hasTowerAt,
   hasWallAt,
 } from "./board-occupancy.ts";
+import type { TilePos } from "./geometry-types.ts";
+import { GRID_COLS, GRID_ROWS } from "./grid.ts";
+import {
+  DIRS_4,
+  distanceToTower,
+  inBounds,
+  isGrass,
+  isPitAt,
+  isWater,
+  manhattanDistance,
+  packTile,
+  unpackTile,
+} from "./spatial.ts";
+import type { GameState, Grunt, Player } from "./types.ts";
+import {
+  GRUNT_ATTACK_DURATION,
+  GRUNT_WALL_ATTACK_CHANCE,
+  GRUNT_WALL_ATTACK_MIN_BATTLES,
+  HOUSE_GRUNT_SPAWN_CHANCE,
+  isPlayerActive,
+} from "./types.ts";
 
 /** Search radius for finding nearest water tile. */
 const WATER_SEARCH_RADIUS = 5;

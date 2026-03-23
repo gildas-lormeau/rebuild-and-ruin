@@ -2,24 +2,24 @@
  * Cannon placement and management — validation, slot counting, placement.
  */
 
-import type { Cannon, Player, GameState } from "./types.ts";
 import {
-  SUPER_GUN_SIZE,
-  NORMAL_CANNON_SIZE,
-  BALLOON_SIZE,
-  SUPER_GUN_COST,
-  BALLOON_COST,
-  CannonMode,
-} from "./types.ts";
-import {
-  isTowerTile,
-  isCannonTile,
-  isCannonAlive,
   forEachCannonTile,
   inBounds,
+  isCannonAlive,
+  isCannonTile,
   isPitAt,
+  isTowerTile,
   packTile,
 } from "./spatial.ts";
+import type { Cannon, GameState, Player } from "./types.ts";
+import {
+  BALLOON_COST,
+  BALLOON_SIZE,
+  CannonMode,
+  NORMAL_CANNON_SIZE,
+  SUPER_GUN_COST,
+  SUPER_GUN_SIZE,
+} from "./types.ts";
 
 function cannonSlotCost(cannon: Pick<Cannon, "super" | "balloon">): number {
   if (cannon.balloon) return BALLOON_COST;

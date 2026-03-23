@@ -6,13 +6,12 @@
 /** Per-player battle stats accumulated during a game. */
 export interface PlayerStats { wallsDestroyed: number; cannonsKilled: number; }
 
-import { ACTION_KEYS } from "./player-config.ts";
-import type { KeyBindings, RGB } from "./player-config.ts";
-import { PLAYER_KEY_BINDINGS, MAX_PLAYERS } from "./player-config.ts";
 import type { BalloonFlight } from "./battle-system.ts";
-import type { Impact } from "./types.ts";
-import type { Crosshair, PhantomPiece } from "./player-controller.ts";
 import type { GameMap } from "./map-generation.ts";
+import type { KeyBindings, RGB } from "./player-config.ts";
+import { ACTION_KEYS, MAX_PLAYERS, PLAYER_KEY_BINDINGS } from "./player-config.ts";
+import type { Crosshair, PhantomPiece } from "./player-controller.ts";
+import type { Impact } from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // Mode enum
@@ -241,6 +240,29 @@ export function applyKeyRebinding(kb: KeyBindings, actionKey: string, newKey: st
 // Shared frame / animation / lobby types
 // ---------------------------------------------------------------------------
 
+/** Game-over overlay data shared by FrameData and UIOverlay. */
+export interface GameOverOverlay {
+  winner: string;
+  scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: PlayerStats }[];
+  focused: "rematch" | "menu";
+}
+
+/** Life-lost dialog overlay data shared by UIOverlay and render-composition. */
+export interface LifeLostDialogOverlay {
+  entries: {
+    playerId: number;
+    name: string;
+    lives: number;
+    color: RGB;
+    choice: "pending" | "continue" | "abandon";
+    focused: number;
+    px: number;
+    py: number;
+  }[];
+  timer: number;
+  maxTimer: number;
+}
+
 /** Per-frame data written by tick functions, read by render(). */
 export interface FrameData {
   crosshairs: Crosshair[];
@@ -270,11 +292,7 @@ export interface FrameData {
     } | null;
   };
   announcement?: string;
-  gameOver?: {
-    winner: string;
-    scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: { wallsDestroyed: number; cannonsKilled: number } }[];
-    focused: "rematch" | "menu";
-  };
+  gameOver?: GameOverOverlay;
 }
 
 /** Battle animation state — snapshots and effects. */

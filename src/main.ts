@@ -6,11 +6,11 @@
  * lobby with direct slot joining, and the loadAtlas entry point.
  */
 
-import { LOBBY_TIMER } from "./types.ts";
-import { loadAtlas } from "./sprites.ts";
+import { createGameRuntime } from "./game-runtime.ts";
 import { Mode } from "./game-ui-types.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
-import { createGameRuntime } from "./game-runtime.ts";
+import { loadAtlas } from "./sprites.ts";
+import { LOBBY_TIMER } from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // DOM

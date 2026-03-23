@@ -2,27 +2,28 @@
  * Headless game simulation for automated bug detection.
  * Run with: bun src/headless-test.ts
  */
-import { GRID_COLS, GRID_ROWS } from "./grid.ts";
-import {
-  nextPhase,
-  resetCannonFacings,
-  finalizeBuildPhase,
-  computeCannonLimitsForPhase,
-} from "./game-engine.ts";
-import { BUILD_TIMER, BATTLE_TIMER } from "./types.ts";
-import type { GameState } from "./types.ts";
-import { updateCannonballs, resolveBalloons } from "./battle-system.ts";
-import { tickGrunts, gruntAttackTowers } from "./grunt-system.ts";
-import { isGrass, forEachTowerTile, packTile, unpackTile } from "./spatial.ts";
+
+import { resolveBalloons, updateCannonballs } from "./battle-system.ts";
 import {
   collectAllCannonTiles,
   collectAllInterior,
   collectAllWalls,
 } from "./board-occupancy.ts";
 import {
+  computeCannonLimitsForPhase,
+  finalizeBuildPhase,
+  nextPhase,
+  resetCannonFacings,
+} from "./game-engine.ts";
+import { GRID_COLS, GRID_ROWS } from "./grid.ts";
+import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
+import {
   createHeadlessRuntime,
   processHeadlessReselection,
 } from "./headless-sim.ts";
+import { forEachTowerTile, isGrass, packTile, unpackTile } from "./spatial.ts";
+import type { GameState } from "./types.ts";
+import { BATTLE_TIMER, BUILD_TIMER } from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // Validator

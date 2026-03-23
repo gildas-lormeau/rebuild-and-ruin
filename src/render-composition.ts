@@ -2,17 +2,19 @@ import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import type { CastleData, RenderOverlay } from "./map-renderer.ts";
 
 const TILE = TILE_SIZE;
+
+import type { GameOverOverlay, LifeLostDialogOverlay } from "./game-ui-types.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
-import type { SelectionState } from "./selection.ts";
-import {
-  LIFE_LOST_PANEL_W as PANEL_W,
-  LIFE_LOST_PANEL_H as PANEL_H,
-  LIFE_LOST_BTN_W as BTN_W,
-  LIFE_LOST_BTN_H as BTN_H,
-} from "./render-theme.ts";
 import type { RGB } from "./player-config.ts";
-import { Phase } from "./types.ts";
+import {
+  LIFE_LOST_BTN_H as BTN_H,
+  LIFE_LOST_BTN_W as BTN_W,
+  LIFE_LOST_PANEL_H as PANEL_H,
+  LIFE_LOST_PANEL_W as PANEL_W,
+} from "./render-theme.ts";
+import type { SelectionState } from "./selection.ts";
 import type { GameState, Impact } from "./types.ts";
+import { Phase } from "./types.ts";
 
 export function buildCastleOverlay(state: GameState): CastleData[] {
   return state.players
@@ -98,22 +100,7 @@ export function buildLifeLostDialogUi(
   playerColors: ReadonlyArray<{ wall: RGB }>,
   maxTimer: number,
   getPanelPos: (playerId: number) => { px: number; py: number },
-):
-  | {
-      entries: {
-        playerId: number;
-        name: string;
-        lives: number;
-        color: RGB;
-        choice: "pending" | "continue" | "abandon";
-        focused: number;
-        px: number;
-        py: number;
-      }[];
-      timer: number;
-      maxTimer: number;
-    }
-  | undefined {
+): LifeLostDialogOverlay | undefined {
   if (!dialog) return undefined;
 
   return {
@@ -345,18 +332,7 @@ export function buildOnlineOverlay(params: {
     }>;
     phantoms: RenderOverlay["phantoms"];
     announcement?: string;
-    gameOver?: {
-      winner: string;
-      scores: {
-        name: string;
-        score: number;
-        color: RGB;
-        eliminated: boolean;
-        territory?: number;
-        stats?: { wallsDestroyed: number; cannonsKilled: number };
-      }[];
-      focused: "rematch" | "menu";
-    };
+    gameOver?: GameOverOverlay;
   };
   bannerUi?: { text: string; subtitle?: string; y: number };
   lifeLostDialog: LifeLostDialogState | null;

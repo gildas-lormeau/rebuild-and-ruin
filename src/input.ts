@@ -1,13 +1,12 @@
-import { towerAtPixel, findNearestTower } from "./spatial.ts";
-
-import { Phase, Action, isMovementAction } from "./types.ts";
-import { ACTION_KEYS, MAX_PLAYERS } from "./player-config.ts";
-import type { GameState } from "./types.ts";
-import type { PlayerController } from "./player-controller.ts";
-import type { KeyBindings } from "./player-config.ts";
-import type { SelectionState } from "./selection.ts";
 import { applyKeyRebinding } from "./game-ui-types.ts";
 import type { WorldPos } from "./geometry-types.ts";
+import type { KeyBindings } from "./player-config.ts";
+import { ACTION_KEYS, MAX_PLAYERS } from "./player-config.ts";
+import type { PlayerController } from "./player-controller.ts";
+import type { SelectionState } from "./selection.ts";
+import { findNearestTower, towerAtPixel } from "./spatial.ts";
+import type { GameState } from "./types.ts";
+import { Action, isMovementAction, Phase } from "./types.ts";
 
 interface ControlsState {
   playerIdx: number;
@@ -107,6 +106,47 @@ export interface RegisterOnlineInputDeps {
   };
 }
 
+/** Shared pointer-move dispatch — updates cursor/crosshair based on current phase. */
+export function dispatchPointerMove(
+  x: number,
+  y: number,
+  state: GameState,
+  deps: Pick<RegisterOnlineInputDeps,
+    "withFirstHuman" | "getSelectionStates" | "screenToWorld" |
+    "highlightTowerForPlayer" | "pixelToTile" | "render" | "maybeSendAimUpdate">,
+): void {
+  const { withFirstHuman, getSelectionStates, screenToWorld, highlightTowerForPlayer, pixelToTile, render, maybeSendAimUpdate } = deps;
+  if (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT) {
+    withFirstHuman((human) => {
+      const ss = getSelectionStates().get(human.playerId);
+      if (!ss || ss.confirmed) return;
+      const zone = state.playerZones[human.playerId] ?? 0;
+      const w = screenToWorld(x, y);
+      const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
+      if (idx !== null && idx !== ss.highlighted) {
+        highlightTowerForPlayer(idx, zone, human.playerId);
+      }
+    });
+  } else if (state.phase === Phase.WALL_BUILD) {
+    withFirstHuman((human) => {
+      const { row, col } = pixelToTile(x, y);
+      human.setBuildCursor(row, col);
+    });
+  } else if (state.phase === Phase.CANNON_PLACE) {
+    withFirstHuman((human) => {
+      const { row, col } = pixelToTile(x, y);
+      human.setCannonCursor(row, col);
+      render();
+    });
+  } else if (state.phase === Phase.BATTLE) {
+    withFirstHuman((human) => {
+      const w = screenToWorld(x, y);
+      human.setCrosshair(w.wx, w.wy);
+      maybeSendAimUpdate(w.wx, w.wy);
+    });
+  }
+}
+
 export function registerOnlineInputHandlers(
   deps: RegisterOnlineInputDeps,
 ): void {
@@ -140,9 +180,7 @@ export function registerOnlineInputHandlers(
     getControllers,
     isHuman,
     withFirstHuman,
-    pixelToTile,
     screenToWorld,
-    maybeSendAimUpdate,
     tryPlaceCannonAndSend,
     tryPlacePieceAndSend,
     fireAndSend,
@@ -182,38 +220,7 @@ export function registerOnlineInputHandlers(
     const x = (e.clientX - rect.left) * (canvas.width / rect.width);
     const y = (e.clientY - rect.top) * (canvas.height / rect.height);
 
-    if (
-      state.phase === Phase.CASTLE_SELECT ||
-      state.phase === Phase.CASTLE_RESELECT
-    ) {
-      withFirstHuman((human) => {
-        const ss = getSelectionStates().get(human.playerId);
-        if (!ss || ss.confirmed) return;
-        const zone = state.playerZones[human.playerId] ?? 0;
-        const tw = screenToWorld(x, y);
-        const idx = towerAtPixel(state.map.towers, tw.wx, tw.wy);
-        if (idx !== null && idx !== ss.highlighted) {
-          highlightTowerForPlayer(idx, zone, human.playerId);
-        }
-      });
-    } else if (state.phase === Phase.CANNON_PLACE) {
-      withFirstHuman((human) => {
-        const { row, col } = pixelToTile(x, y);
-        human.setCannonCursor(row, col);
-        render();
-      });
-    } else if (state.phase === Phase.WALL_BUILD) {
-      withFirstHuman((human) => {
-        const { row, col } = pixelToTile(x, y);
-        human.setBuildCursor(row, col);
-      });
-    } else if (state.phase === Phase.BATTLE) {
-      withFirstHuman((human) => {
-        const w = screenToWorld(x, y);
-        human.setCrosshair(w.wx, w.wy);
-        maybeSendAimUpdate(w.wx, w.wy);
-      });
-    }
+    dispatchPointerMove(x, y, state, deps);
   });
 
   canvas.addEventListener("click", (e) => {

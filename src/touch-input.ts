@@ -5,10 +5,10 @@
  * Single-touch only. Gesture discrimination: tap vs drag.
  */
 
-import { towerAtPixel } from "./spatial.ts";
-
-import { Phase } from "./types.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
+import { dispatchPointerMove } from "./input.ts";
+import { towerAtPixel } from "./spatial.ts";
+import { Phase } from "./types.ts";
 
 const TAP_MAX_DIST = 20;  // CSS pixels
 const TAP_MAX_TIME = 300;  // ms
@@ -30,12 +30,10 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     getLifeLostDialog,
     lifeLostDialogClick,
     withFirstHuman,
-    pixelToTile,
     screenToWorld,
     onPinchStart,
     onPinchUpdate,
     onPinchEnd,
-    maybeSendAimUpdate,
     tryPlaceCannonAndSend,
     tryPlacePieceAndSend,
     fireAndSend,
@@ -102,35 +100,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     if (!state || isLobbyActive()) return;
 
     // Update cursor/crosshair position on touch down
-    if (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT) {
-      withFirstHuman((human) => {
-        const ss = getSelectionStates().get(human.playerId);
-        if (!ss || ss.confirmed) return;
-        const zone = state.playerZones[human.playerId] ?? 0;
-        const w = screenToWorld(x, y);
-        const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
-        if (idx !== null && idx !== ss.highlighted) {
-          highlightTowerForPlayer(idx, zone, human.playerId);
-        }
-      });
-    } else if (state.phase === Phase.WALL_BUILD) {
-      withFirstHuman((human) => {
-        const { row, col } = pixelToTile(x, y);
-        human.setBuildCursor(row, col);
-      });
-    } else if (state.phase === Phase.CANNON_PLACE) {
-      withFirstHuman((human) => {
-        const { row, col } = pixelToTile(x, y);
-        human.setCannonCursor(row, col);
-        render();
-      });
-    } else if (state.phase === Phase.BATTLE) {
-      withFirstHuman((human) => {
-        const w = screenToWorld(x, y);
-        human.setCrosshair(w.wx, w.wy);
-        maybeSendAimUpdate(w.wx, w.wy);
-      });
-    }
+    dispatchPointerMove(x, y, state, deps);
   }, { passive: false });
 
   // --- touchmove: update cursor/crosshair as finger drags ---
@@ -156,35 +126,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     const state = getState();
     if (!state || isLobbyActive()) return;
 
-    if (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT) {
-      withFirstHuman((human) => {
-        const ss = getSelectionStates().get(human.playerId);
-        if (!ss || ss.confirmed) return;
-        const zone = state.playerZones[human.playerId] ?? 0;
-        const w = screenToWorld(x, y);
-        const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
-        if (idx !== null && idx !== ss.highlighted) {
-          highlightTowerForPlayer(idx, zone, human.playerId);
-        }
-      });
-    } else if (state.phase === Phase.WALL_BUILD) {
-      withFirstHuman((human) => {
-        const { row, col } = pixelToTile(x, y);
-        human.setBuildCursor(row, col);
-      });
-    } else if (state.phase === Phase.CANNON_PLACE) {
-      withFirstHuman((human) => {
-        const { row, col } = pixelToTile(x, y);
-        human.setCannonCursor(row, col);
-        render();
-      });
-    } else if (state.phase === Phase.BATTLE) {
-      withFirstHuman((human) => {
-        const w = screenToWorld(x, y);
-        human.setCrosshair(w.wx, w.wy);
-        maybeSendAimUpdate(w.wx, w.wy);
-      });
-    }
+    dispatchPointerMove(x, y, state, deps);
   }, { passive: false });
 
   // --- touchend: tap = commit action, drag-release = fire in battle only ---

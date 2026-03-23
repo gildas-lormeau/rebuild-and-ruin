@@ -2,33 +2,33 @@
  * Map Renderer — browser-side ES module for rendering game maps on a canvas.
  */
 
-import { GRID_COLS, GRID_ROWS, TILE_SIZE, SCALE } from "./grid.ts";
-import type { TilePos, PixelPos } from "./geometry-types.ts";
-import type { Cannon, Impact, Grunt, BurningPit } from "./types.ts";
+import type { PixelPos, TilePos } from "./geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import type { House, Tower } from "./map-generation.ts";
-import { isCannonAlive, facingToDir8, unpackTile } from "./spatial.ts";
-import { drawSprite } from "./sprites.ts";
+import { getPlayerColor } from "./player-config.ts";
+import {
+  drawBattleEffects,
+  drawBonusSquares,
+  drawGrunts,
+  drawHouses,
+  drawPhantoms,
+  drawWaterAnimation,
+} from "./render-effects.ts";
 import { drawTowers } from "./render-towers.ts";
 import {
   drawAnnouncement,
   drawBanner,
-  drawScoreDeltas,
-  drawStatusBar,
+  drawControlsScreen,
   drawGameOver,
   drawLifeLostDialog,
   drawOptionsScreen,
-  drawControlsScreen,
   drawPlayerSelect,
+  drawScoreDeltas,
+  drawStatusBar,
 } from "./render-ui.ts";
-import {
-  drawPhantoms,
-  drawBonusSquares,
-  drawHouses,
-  drawGrunts,
-  drawBattleEffects,
-  drawWaterAnimation,
-} from "./render-effects.ts";
-import { getPlayerColor } from "./player-config.ts";
+import { facingToDir8, isCannonAlive, unpackTile } from "./spatial.ts";
+import { drawSprite } from "./sprites.ts";
+import type { BurningPit, Cannon, Grunt, Impact } from "./types.ts";
 
 /** @deprecated Import TILE_SIZE and SCALE from grid.ts directly. */
 export { SCALE };
@@ -38,6 +38,7 @@ export const TILE = TILE_SIZE;
 const COLS = GRID_COLS;
 const ROWS = GRID_ROWS;
 
+import type { GameOverOverlay, LifeLostDialogOverlay } from "./game-ui-types.ts";
 import type { RGB } from "./render-theme.ts";
 
 const GRASS_DARK: RGB = [45, 140, 45];
@@ -231,35 +232,11 @@ export interface UIOverlay {
   bannerOldCastles?: CastleData[];
   bannerOldBattleTerritory?: Set<number>[];
   bannerOldBattleWalls?: Set<number>[];
-  gameOver?: {
-    winner: string;
-    scores: {
-      name: string;
-      score: number;
-      color: RGB;
-      eliminated: boolean;
-      territory?: number;
-      stats?: { wallsDestroyed: number; cannonsKilled: number };
-    }[];
-    focused: "rematch" | "menu";
-  };
+  gameOver?: GameOverOverlay;
   timer?: number;
   scoreDeltas?: { playerId: number; delta: number; total: number; cx: number; cy: number }[];
   statusBar?: { round: string; phase: string; timer: string; players: { score: number; cannons: number; lives: number; color: RGB; eliminated: boolean }[] };
-  lifeLostDialog?: {
-    entries: {
-      playerId: number;
-      name: string;
-      lives: number;
-      color: RGB;
-      choice: "pending" | "continue" | "abandon";
-      focused: number;
-      px: number;
-      py: number;
-    }[];
-    timer: number;
-    maxTimer: number;
-  };
+  lifeLostDialog?: LifeLostDialogOverlay;
   optionsScreen?: {
     options: OptionEntry[];
     cursor: number;

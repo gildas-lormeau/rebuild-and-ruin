@@ -5,29 +5,29 @@
  * and chain attack logic used by DefaultStrategy.
  */
 
-import type { GameState, Cannon, Cannonball } from "./types.ts";
-import { TILE_SIZE } from "./grid.ts";
-import type {
-  TilePos,
-  PixelPos,
-  StrategicPixelPos,
-  PrioritizedTilePos,
-} from "./geometry-types.ts";
+import { SMALL_POCKET_MAX_SIZE, traitLookup } from "./ai-strategy.ts";
 import { canFire, fireCannon } from "./battle-system.ts";
+import { getCardinalObstacleMask } from "./board-occupancy.ts";
+import type {
+  PixelPos,
+  PrioritizedTilePos,
+  StrategicPixelPos,
+  TilePos,
+} from "./geometry-types.ts";
+import { TILE_SIZE } from "./grid.ts";
+import type { Rng } from "./rng.ts";
 import {
-  orderByNearest,
-  isCannonTile,
-  isCannonAlive,
   cannonSize,
   DIRS_4,
-  unpackTile,
-  packTile,
-  manhattanDistance,
   inBounds,
+  isCannonAlive,
+  isCannonTile,
+  manhattanDistance,
+  orderByNearest,
+  packTile,
+  unpackTile,
 } from "./spatial.ts";
-import { getCardinalObstacleMask } from "./board-occupancy.ts";
-import type { Rng } from "./rng.ts";
-import { traitLookup, SMALL_POCKET_MAX_SIZE } from "./ai-strategy.ts";
+import type { Cannon, Cannonball, GameState } from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // AI battle tuning constants

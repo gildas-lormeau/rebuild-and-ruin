@@ -12,32 +12,34 @@
  *   - ai-strategy-battle.ts  — battle planning & target picking
  */
 
-import type { GameState, Player, Cannon } from "./types.ts";
-import { CannonMode } from "./types.ts";
-import { computeOutside, waterKeys, isTowerEnclosed } from "./spatial.ts";
+import type { AiPlacement } from "./ai-strategy-build.ts";
+import { pickPlacementImpl } from "./ai-strategy-build.ts";
+import type { PixelPos, StrategicPixelPos, TilePos } from "./geometry-types.ts";
 import type { GameMap, Tower } from "./map-generation.ts";
 import type { PieceShape } from "./pieces.ts";
-import type { TilePos, PixelPos, StrategicPixelPos } from "./geometry-types.ts";
 import { Rng } from "./rng.ts";
-import { pickPlacementImpl } from "./ai-strategy-build.ts";
-import type { AiPlacement } from "./ai-strategy-build.ts";
+import { computeOutside, isTowerEnclosed, waterKeys } from "./spatial.ts";
+import type { Cannon, GameState, Player } from "./types.ts";
+import { CannonMode } from "./types.ts";
+
 export type { AiPlacement } from "./ai-strategy-build.ts";
-import {
-  autoSelectTowerImpl,
-  autoPlaceCannonsImpl,
-} from "./ai-strategy-cannon.ts";
-import { placeCannon } from "./cannon-system.ts";
+
 import {
   countUsableCannons,
   getActiveEnemies,
-  planGruntSweep,
-  planCharitySweep,
-  planPocketDestruction,
-  planWallDemolition,
-  planSuperAttack,
   pickTargetImpl,
+  planCharitySweep,
+  planGruntSweep,
+  planPocketDestruction,
+  planSuperAttack,
+  planWallDemolition,
   trackShotImpl,
 } from "./ai-strategy-battle.ts";
+import {
+  autoPlaceCannonsImpl,
+  autoSelectTowerImpl,
+} from "./ai-strategy-cannon.ts";
+import { placeCannon } from "./cannon-system.ts";
 
 // ---------------------------------------------------------------------------
 // Shared helper

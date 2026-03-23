@@ -1,8 +1,8 @@
-import type { GameState } from "./types.ts";
 import type { ServerMessage } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
 import type { ImpactEvent } from "./battle-system.ts";
 import type { SelectionState } from "./selection.ts";
+import type { GameState } from "./types.ts";
 
 interface LifeLostChoiceEntry {
   playerId: number;

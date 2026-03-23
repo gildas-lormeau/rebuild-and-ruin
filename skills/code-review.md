@@ -43,6 +43,24 @@ Structured multi-pass review that catches issues in dependency order so each pas
 - Fragile implicit dependencies (button position derived from magic arithmetic)
 - **Why last:** many get fixed by earlier passes; what remains is genuine
 
+## Automated tooling (run before manual passes)
+
+Before starting manual passes, run the lint toolchain to catch mechanical issues:
+
+```bash
+npm run lint:fix          # Biome: auto-fix import sorting & unused imports
+npm run lint:unused       # Knip: dead files, unused exports & dependencies
+npm run lint:circular     # Madge: circular dependency detection
+npm run lint:duplicates   # jscpd: copy-paste / duplicate code detection
+```
+
+Or run everything at once: `npm run lint:all`
+
+- Fix Biome issues first (auto-fixable), then review Knip/Madge/jscpd output
+- Knip unused exports feed directly into Pass 1 (dead code)
+- jscpd clones feed directly into Pass 3 (duplicate code)
+- Madge circular deps feed into Pass 4 (misplaced logic)
+
 ## How to run each pass
 
 1. **Launch a sub-agent** (Explore type) with:
@@ -50,7 +68,7 @@ Structured multi-pass review that catches issues in dependency order so each pas
    - The specific category for this pass
    - Instruction: "report findings only, do NOT edit"
 
-2. **Review findings** — discard false positives, confirm real issues
+2. **Review findings** — cross-reference with lint tool output, discard false positives, confirm real issues
 
 3. **Fix all issues** from the pass
 

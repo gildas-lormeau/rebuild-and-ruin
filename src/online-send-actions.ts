@@ -1,7 +1,7 @@
 import type { GameMessage } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
-import type { GameState } from "./types.ts";
 import type { PlayerController } from "./player-controller.ts";
+import type { GameState } from "./types.ts";
 
 export function tryPlacePieceAndSend(
   ctrl: PlayerController,
@@ -46,6 +46,24 @@ export function tryPlaceCannonAndSend(
   return placed;
 }
 
+export function buildCannonFiredMsg(ball: {
+  playerId: number; cannonIdx: number;
+  startX: number; startY: number; targetX: number; targetY: number;
+  speed: number; incendiary?: boolean;
+}): GameMessage {
+  return {
+    type: MSG.CANNON_FIRED,
+    playerId: ball.playerId,
+    cannonIdx: ball.cannonIdx,
+    startX: ball.startX,
+    startY: ball.startY,
+    targetX: ball.targetX,
+    targetY: ball.targetY,
+    speed: ball.speed,
+    incendiary: ball.incendiary || undefined,
+  };
+}
+
 export function fireAndSend(
   ctrl: PlayerController,
   gameState: GameState,
@@ -55,17 +73,6 @@ export function fireAndSend(
   ctrl.fire(gameState);
 
   if (gameState.cannonballs.length > ballsBefore) {
-    const ball = gameState.cannonballs[gameState.cannonballs.length - 1]!;
-    send({
-      type: MSG.CANNON_FIRED,
-      playerId: ball.playerId,
-      cannonIdx: ball.cannonIdx,
-      startX: ball.startX,
-      startY: ball.startY,
-      targetX: ball.targetX,
-      targetY: ball.targetY,
-      speed: ball.speed,
-      incendiary: ball.incendiary || undefined,
-    });
+    send(buildCannonFiredMsg(gameState.cannonballs[gameState.cannonballs.length - 1]!));
   }
 }

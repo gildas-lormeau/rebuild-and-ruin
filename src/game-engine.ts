@@ -18,43 +18,43 @@
  *   - build-phase.ts    — piece placement, territory claiming
  */
 
-import type { GameMap } from "./map-generation.ts";
-import {
-  generateMap,
-  topZonesBySize,
-  buildCastle,
-  getCastleWallTiles,
-  applyClumsyBuilders,
-  spawnHousesInZone,
-  startOfBuildPhaseHousekeeping,
-} from "./map-generation.ts";
-import type { GameState, Player } from "./types.ts";
-import {
-  Phase,
-  CANNON_MAX_HP,
-  BATTLE_TIMER,
-  BUILD_TIMER,
-  CANNON_PLACE_TIMER,
-  INTERBATTLE_GRUNT_SPAWN_CHANCE,
-  INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
-  FIRST_ROUND_CANNONS,
-  FIRST_GRUNT_SPAWN_ROUND,
-  STARTING_LIVES,
-  MAX_CANNON_LIMIT_ON_RESELECT,
-  isPlayerActive,
-} from "./types.ts";
-import { countWallNeighbors, isCannonAlive, snapAngle, packTile, unpackTile, DIRS_4 } from "./spatial.ts";
-import type { PlayerController } from "./player-controller.ts";
+import { collectAllWalls } from "./board-occupancy.ts";
 import { claimTerritory, replenishBonusSquares } from "./build-phase.ts";
 import { cannonSlotsUsed } from "./cannon-system.ts";
 import {
-  updateGruntBlockedBattles,
   rollGruntWallAttacks,
-  spawnGruntOnZone,
   spawnGruntGroupOnZone,
+  spawnGruntOnZone,
+  updateGruntBlockedBattles,
 } from "./grunt-system.ts";
+import type { GameMap } from "./map-generation.ts";
+import {
+  applyClumsyBuilders,
+  buildCastle,
+  generateMap,
+  getCastleWallTiles,
+  spawnHousesInZone,
+  startOfBuildPhaseHousekeeping,
+  topZonesBySize,
+} from "./map-generation.ts";
+import type { PlayerController } from "./player-controller.ts";
 import { Rng } from "./rng.ts";
-import { collectAllWalls } from "./board-occupancy.ts";
+import { countWallNeighbors, DIRS_4, isCannonAlive, packTile, snapAngle, unpackTile } from "./spatial.ts";
+import type { GameState, Player } from "./types.ts";
+import {
+  BATTLE_TIMER,
+  BUILD_TIMER,
+  CANNON_MAX_HP,
+  CANNON_PLACE_TIMER,
+  FIRST_GRUNT_SPAWN_ROUND,
+  FIRST_ROUND_CANNONS,
+  INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
+  INTERBATTLE_GRUNT_SPAWN_CHANCE,
+  isPlayerActive,
+  MAX_CANNON_LIMIT_ON_RESELECT,
+  Phase,
+  STARTING_LIVES,
+} from "./types.ts";
 
 function removeBonusSquaresCoveredByWalls(
   state: GameState,

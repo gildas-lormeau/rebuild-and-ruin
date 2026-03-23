@@ -2,32 +2,32 @@
  * Battle system — cannon firing, cannonball physics, impacts, and balloon capture.
  */
 
-import type { GameState, Cannon, Cannonball, CapturedCannon } from "./types.ts";
-import type { TilePos } from "./geometry-types.ts";
-import {
-  DESTROY_WALL_POINTS,
-  DESTROY_GRUNT_POINTS,
-  DESTROY_CANNON_POINTS,
-  BURNING_PIT_DURATION,
-  BALLOON_HITS_NEEDED,
-  SUPER_BALLOON_HITS_NEEDED,
-  BALL_SPEED,
-  SUPER_GUN_THREAT_WEIGHT,
-  HOUSE_GRUNT_SPAWN_CHANCE,
-} from "./types.ts";
 import { isCannonEnclosed } from "./cannon-system.ts";
-import { findGruntSpawnNear } from "./grunt-system.ts";
+import type { TilePos } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
+import { findGruntSpawnNear } from "./grunt-system.ts";
 import {
   cannonCenter,
   computeFacing45,
-  rotateToward,
+  inBounds,
   isCannonAlive,
   isCannonTile,
-  packTile,
-  inBounds,
   isPitAt,
+  packTile,
+  rotateToward,
 } from "./spatial.ts";
+import type { Cannon, Cannonball, CapturedCannon, GameState } from "./types.ts";
+import {
+  BALL_SPEED,
+  BALLOON_HITS_NEEDED,
+  BURNING_PIT_DURATION,
+  DESTROY_CANNON_POINTS,
+  DESTROY_GRUNT_POINTS,
+  DESTROY_WALL_POINTS,
+  HOUSE_GRUNT_SPAWN_CHANCE,
+  SUPER_BALLOON_HITS_NEEDED,
+  SUPER_GUN_THREAT_WEIGHT,
+} from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers

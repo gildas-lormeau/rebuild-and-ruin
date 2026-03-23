@@ -4,15 +4,15 @@
  * These are stateless utilities that take all inputs as parameters.
  */
 
-import { GRID_COLS, GRID_ROWS, TILE_SIZE, SCALE } from "./grid.ts";
-import type { TilePos } from "./geometry-types.ts";
-import type { KeyBindings } from "./player-config.ts";
-import { Phase } from "./types.ts";
-import { Mode } from "./game-ui-types.ts";
-import type { GameState, Impact, Player } from "./types.ts";
 import { nextReadyCombined } from "./battle-system.ts";
 import { computeCannonLimitsForPhase, resetCannonFacings } from "./game-engine.ts";
-import type { PlayerController, Crosshair } from "./player-controller.ts";
+import { Mode } from "./game-ui-types.ts";
+import type { TilePos } from "./geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
+import type { KeyBindings } from "./player-config.ts";
+import type { Crosshair, PlayerController } from "./player-controller.ts";
+import type { GameState, Impact, Player } from "./types.ts";
+import { Phase } from "./types.ts";
 
 /** Convert canvas pixel coords to tile coords, clamped to grid bounds. */
 export function pixelToTile(x: number, y: number): TilePos {

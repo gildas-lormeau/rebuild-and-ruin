@@ -1,15 +1,16 @@
-import { BATTLE_TIMER } from "./types.ts";
 import { TILE_SIZE } from "./grid.ts";
+import { BATTLE_TIMER } from "./types.ts";
 
 const TILE = TILE_SIZE;
+
+import type { ServerMessage } from "../server/protocol.ts";
 import { resetCannonFacings } from "./game-engine.ts";
 import {
-  applyPlayersCheckpoint,
   applyGruntsCheckpoint,
   applyHousesCheckpoint,
+  applyPlayersCheckpoint,
 } from "./online-serialize.ts";
 import type { GameState } from "./types.ts";
-import type { ServerMessage } from "../server/protocol.ts";
 
 export interface CheckpointBattleAnim {
   territory: Set<number>[];
@@ -26,7 +27,7 @@ export interface CheckpointAccums {
   grunt: number;
 }
 
-interface CheckpointDeps {
+export interface CheckpointDeps {
   state: GameState;
   battleAnim: CheckpointBattleAnim;
   accum: CheckpointAccums;

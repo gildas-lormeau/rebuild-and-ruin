@@ -3,8 +3,8 @@
  * Used by both main.ts and online-client.ts.
  */
 
-import { renderMap } from "./map-renderer.ts";
 import type { RenderOverlay } from "./map-renderer.ts";
+import { renderMap } from "./map-renderer.ts";
 import type { GameState } from "./types.ts";
 import { LOBBY_SKIP_LOCKOUT, LOBBY_SKIP_STEP } from "./types.ts";
 
@@ -15,16 +15,17 @@ export function lobbySkipStep(ctx: UIContext): boolean {
   ctx.lobby.timerAccum += LOBBY_SKIP_STEP;
   return true;
 }
+
+import { buildLobbyConfirmKeys, formatKeyHint } from "./game-ui-runtime.ts";
+import type { Mode } from "./game-ui-types.ts";
+import {CANNON_HP_OPTIONS, type ControlsState,
+  DIFFICULTY_LABELS, DPAD_LABELS, 
+  formatKeyName, 
+  type GameSettings, HAPTICS_LABELS, OPTION_NAMES,ROUNDS_OPTIONS, saveSettings,
+} from "./game-ui-types.ts";
 import type { GameMap } from "./map-generation.ts";
 import { generateMap } from "./map-generation.ts";
-import { PLAYER_NAMES, getPlayerColor } from "./player-config.ts";
-import {
-  DIFFICULTY_LABELS, ROUNDS_OPTIONS, CANNON_HP_OPTIONS, HAPTICS_LABELS, DPAD_LABELS, OPTION_NAMES,
-  formatKeyName, saveSettings,
-  type GameSettings, type ControlsState,
-} from "./game-ui-types.ts";
-import { formatKeyHint, buildLobbyConfirmKeys } from "./game-ui-runtime.ts";
-import type { Mode } from "./game-ui-types.ts";
+import { getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
 
 // ---------------------------------------------------------------------------
 // UI Context — mutable state shared by all screen functions
@@ -57,7 +58,7 @@ export interface UIContext {
 // ---------------------------------------------------------------------------
 
 import { IS_TOUCH_DEVICE } from "./platform.ts";
-import { rgb, FONT_TITLE, FONT_HEADING, FONT_BODY } from "./render-theme.ts";
+import { FONT_BODY, FONT_HEADING, FONT_TITLE, rgb } from "./render-theme.ts";
 
 /** Which option indices are visible in the current mode. */
 

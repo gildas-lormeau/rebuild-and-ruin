@@ -4,15 +4,15 @@
  * AI placement strategy lives in ai-strategy.ts.
  */
 
-import type { GameState, Player } from "./types.ts";
-import type { TilePos } from "./geometry-types.ts";
-import { BONUS_SQUARES_PER_ZONE, BONUS_SQUARE_MIN_DISTANCE, TERRITORY_POINT_TIERS, CASTLE_BONUS_TABLE, DESTROY_GRUNT_POINTS, ENCLOSED_GRUNT_RESPAWN_CHANCE, isPlayerActive } from "./types.ts";
-import { computeOutside, isGrass, forEachTowerTile, packTile, manhattanDistance, inBounds, isPitAt } from "./spatial.ts";
-import type { PieceShape } from "./pieces.ts";
-import { spawnGruntNearPosition, spawnGruntOnZone } from "./grunt-system.ts";
-import { GRID_ROWS, GRID_COLS } from "./grid.ts";
-import { topZonesBySize } from "./map-generation.ts";
 import { collectAllInterior, collectOccupiedTiles, hasCannonAt, hasGruntAt, hasTowerAt, hasWallAt, isTileOwnedByPlayer } from "./board-occupancy.ts";
+import type { TilePos } from "./geometry-types.ts";
+import { GRID_COLS, GRID_ROWS } from "./grid.ts";
+import { spawnGruntNearPosition, spawnGruntOnZone } from "./grunt-system.ts";
+import { topZonesBySize } from "./map-generation.ts";
+import type { PieceShape } from "./pieces.ts";
+import { computeOutside, forEachTowerTile, inBounds, isGrass, isPitAt, manhattanDistance, packTile } from "./spatial.ts";
+import type { GameState, Player } from "./types.ts";
+import { BONUS_SQUARE_MIN_DISTANCE, BONUS_SQUARES_PER_ZONE, CASTLE_BONUS_TABLE, DESTROY_GRUNT_POINTS, ENCLOSED_GRUNT_RESPAWN_CHANCE, isPlayerActive, TERRITORY_POINT_TIERS } from "./types.ts";
 
 /**
  * SNES rule: flashing bonus squares are a two-player feature.

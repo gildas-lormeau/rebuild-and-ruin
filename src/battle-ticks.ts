@@ -1,13 +1,13 @@
-import { countdownAnnouncement, type BalloonFlight } from "./battle-system.ts";
-import { BANNER_BATTLE, BANNER_BATTLE_SUB } from "./game-engine.ts";
 import type { GameMessage } from "../server/protocol.ts";
-import { MSG } from "../server/protocol.ts";
+import { type BalloonFlight, countdownAnnouncement } from "./battle-system.ts";
+import { BANNER_BATTLE, BANNER_BATTLE_SUB } from "./game-engine.ts";
 import type { TilePos } from "./geometry-types.ts";
-import type { PlayerController } from "./player-controller.ts";
-import type { GameState, Impact } from "./types.ts";
+import { buildCannonFiredMsg } from "./online-send-actions.ts";
 import type { WatcherTimingState } from "./online-watcher-battle.ts";
-import { EMPTY_TILE_SET } from "./spatial.ts";
 import type { HostNetContext } from "./phase-ticks.ts";
+import type { PlayerController } from "./player-controller.ts";
+import { EMPTY_TILE_SET } from "./spatial.ts";
+import type { GameState, Impact } from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // Host battle tick (countdown + main phase)
@@ -94,18 +94,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
 
   if (isHost && sendMessage) {
     for (let i = ballsBefore; i < state.cannonballs.length; i++) {
-      const ball = state.cannonballs[i]!;
-      sendMessage({
-        type: MSG.CANNON_FIRED,
-        playerId: ball.playerId,
-        cannonIdx: ball.cannonIdx,
-        startX: ball.startX,
-        startY: ball.startY,
-        targetX: ball.targetX,
-        targetY: ball.targetY,
-        speed: ball.speed,
-        incendiary: ball.incendiary || undefined,
-      });
+      sendMessage(buildCannonFiredMsg(state.cannonballs[i]!));
     }
   }
 

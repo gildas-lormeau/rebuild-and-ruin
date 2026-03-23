@@ -1,11 +1,11 @@
-import { Phase } from "./types.ts";
-import { BANNER_PLACE_CANNONS } from "./game-engine.ts";
-import type { GameState } from "./types.ts";
-import type { PlayerController } from "./player-controller.ts";
-import type { RGB } from "./player-config.ts";
 import type { ServerMessage } from "../server/protocol.ts";
-import type { SerializedPlayer } from "./online-serialize.ts";
 import type { BannerShow } from "./battle-ticks.ts";
+import { BANNER_PLACE_CANNONS } from "./game-engine.ts";
+import type { SerializedPlayer } from "./online-serialize.ts";
+import type { RGB } from "./player-config.ts";
+import type { PlayerController } from "./player-controller.ts";
+import type { GameState } from "./types.ts";
+import { Phase } from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // Shared context for all watcher phase transitions

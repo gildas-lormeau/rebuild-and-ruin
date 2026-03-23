@@ -5,28 +5,28 @@
  * on the factory closure, and to let consumers import just the types.
  */
 
-import type { GameState } from "./types.ts";
-import type { PlayerController, Crosshair } from "./player-controller.ts";
-import type { RenderOverlay } from "./map-renderer.ts";
-import type { SelectionState } from "./selection.ts";
+import type { GameMessage, ServerMessage } from "../server/protocol.ts";
+import type { BalloonFlight } from "./battle-system.ts";
+import type { CastleBuildState } from "./castle-build.ts";
+import type { UIContext } from "./game-ui-screens.ts";
+import type {
+  BattleAnimState,
+  ControlsState,
+  FrameData,
+  GameSettings,
+  LobbyState,
+  TimerAccums,
+} from "./game-ui-types.ts";
+import { Mode } from "./game-ui-types.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
+import type { RenderOverlay } from "./map-renderer.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
 import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
 import type { WatcherTimingState } from "./online-watcher-battle.ts";
-import type { BalloonFlight } from "./battle-system.ts";
-import type { GameMessage, ServerMessage } from "../server/protocol.ts";
-import type { CastleBuildState } from "./castle-build.ts";
 import type { BannerState } from "./phase-banner.ts";
-import type { UIContext } from "./game-ui-screens.ts";
-import type {
-  TimerAccums,
-  GameSettings,
-  ControlsState,
-  FrameData,
-  BattleAnimState,
-  LobbyState,
-} from "./game-ui-types.ts";
-import { Mode } from "./game-ui-types.ts";
+import type { Crosshair, PlayerController } from "./player-controller.ts";
+import type { SelectionState } from "./selection.ts";
+import type { GameState } from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // RuntimeConfig

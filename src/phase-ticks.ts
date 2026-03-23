@@ -1,15 +1,14 @@
-import type { GameState } from "./types.ts";
-import type { PlayerController } from "./player-controller.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
-import { unpackTile, EMPTY_TILE_SET } from "./spatial.ts";
-
 import {
-  cannonPhantomKey,
-  piecePhantomKey,
   type CannonPhantom,
-  type PiecePhantom,
+  cannonPhantomKey,
   type HumanPiecePhantom,
+  type PiecePhantom,
+  piecePhantomKey,
 } from "./online-types.ts";
+import type { PlayerController } from "./player-controller.ts";
+import { EMPTY_TILE_SET, unpackTile } from "./spatial.ts";
+import type { GameState } from "./types.ts";
 
 /** Shared empty map — avoids allocating a throwaway Map on every frame. */
 const EMPTY_MAP: ReadonlyMap<number, string> = new Map<number, string>();

@@ -1,6 +1,6 @@
-import type { GameState } from "./types.ts";
-import type { ServerMessage, InitMessage, FullStateMessage } from "../server/protocol.ts";
+import type { FullStateMessage, InitMessage, ServerMessage } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
+import type { GameState } from "./types.ts";
 
 interface HandleServerLifecycleDeps {
   log: (msg: string) => void;

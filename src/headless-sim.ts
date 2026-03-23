@@ -2,17 +2,17 @@
  * Shared headless simulation helpers used by headless-test and headless-build.
  */
 
-import { generateMap } from "./map-generation.ts";
 import {
   createGameState,
+  enterCastleReselectPhase,
+  markPlayerReselected,
   nextPhase,
   rebuildHomeCastle,
-  markPlayerReselected,
-  enterCastleReselectPhase,
 } from "./game-engine.ts";
-import { createController } from "./player-controller.ts";
-import type { PlayerController } from "./player-controller.ts";
+import { generateMap } from "./map-generation.ts";
 import { PLAYER_KEY_BINDINGS } from "./player-config.ts";
+import type { PlayerController } from "./player-controller.ts";
+import { createController } from "./player-controller.ts";
 import type { GameState } from "./types.ts";
 
 export interface HeadlessRuntime {

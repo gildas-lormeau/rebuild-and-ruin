@@ -6,15 +6,15 @@
  * build-phase.ts, and other domain-specific modules.
  */
 
-import { GRID_ROWS, GRID_COLS, TILE_SIZE, Tile } from "./grid.ts";
-import type { TilePos, PixelPos } from "./geometry-types.ts";
+import type { PixelPos, TilePos } from "./geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
 import type { Tower } from "./map-generation.ts";
-import type { Cannon, BurningPit } from "./types.ts";
+import type { BurningPit, Cannon } from "./types.ts";
 import {
-  SUPER_GUN_SIZE,
-  NORMAL_CANNON_SIZE,
-  BALLOON_SIZE,
   Action,
+  BALLOON_SIZE,
+  NORMAL_CANNON_SIZE,
+  SUPER_GUN_SIZE,
 } from "./types.ts";
 
 /** Cardinal directions: up, down, left, right. */

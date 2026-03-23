@@ -6,160 +6,161 @@
  * mutable state and exposes getters/setters + functions for callers.
  */
 
-import { GRID_COLS, GRID_ROWS, TILE_SIZE, SCALE } from "./grid.ts";
-import { unpackTile } from "./spatial.ts";
+import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { renderMap } from "./map-renderer.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
+import { unpackTile } from "./spatial.ts";
 
 const TILE = TILE_SIZE;
-import type { RenderOverlay } from "./map-renderer.ts";
+
+import { MSG } from "../server/protocol.ts";
+import { resolveBalloons, updateCannonballs } from "./battle-system.ts";
 import {
-  nextPhase,
-  clearPlayerState,
-  finalizeBuildPhase,
-  markPlayerReselected,
-  prepareCastleWalls,
-  enterCannonPlacePhase,
-  enterCastleReselectPhase,
-  finalizeCastleRebuild,
-  finalizeCastleConstruction,
+  beginHostBattle,
+  startHostBattleLifecycle,
+  tickHostBalloonAnim,
+  tickHostBattleCountdown,
+  tickHostBattlePhase,
+} from "./battle-ticks.ts";
+import type { CastleBuildState } from "./castle-build.ts";
+import {
+  createCastleBuildState,
+  tickCastleBuildAnimation,
+} from "./castle-build.ts";
+import { bootstrapGame, setupTowerSelection } from "./game-bootstrap.ts";
+import {
   advanceToCannonPlacePhase,
-  initBuildPhase,
-  prepareReselectionPlans,
-  BANNER_PLACE_CANNONS,
-  BANNER_PLACE_CANNONS_SUB,
   BANNER_BUILD,
   BANNER_BUILD_SUB,
+  BANNER_PLACE_CANNONS,
+  BANNER_PLACE_CANNONS_SUB,
+  clearPlayerState,
+  enterCannonPlacePhase,
+  enterCastleReselectPhase,
+  finalizeBuildPhase,
+  finalizeCastleConstruction,
+  finalizeCastleRebuild,
+  initBuildPhase,
+  markPlayerReselected,
+  nextPhase,
+  prepareCastleWalls,
+  prepareReselectionPlans,
 } from "./game-engine.ts";
+import type { GameRuntime, RuntimeConfig } from "./game-runtime-types.ts";
 import {
-  Phase,
-  BATTLE_TIMER,
-  SELECT_TIMER,
-  BATTLE_COUNTDOWN,
-  BALLOON_FLIGHT_DURATION,
-  IMPACT_FLASH_DURATION,
-  BANNER_DURATION,
-  MAX_FRAME_DT,
-  WALL_BUILD_INTERVAL,
-  LIFE_LOST_AI_DELAY,
-  LIFE_LOST_MAX_TIMER,
-} from "./types.ts";
-import type { GameState } from "./types.ts";
-import { updateCannonballs, resolveBalloons } from "./battle-system.ts";
-import { tickGrunts, gruntAttackTowers } from "./grunt-system.ts";
-import { createController, isHuman } from "./player-controller.ts";
-import type { PlayerController } from "./player-controller.ts";
-import { computeLobbyLayout } from "./render-ui.ts";
+  collectLocalCrosshairs,
+  completeReselection,
+  initCannonPhase,
+  lobbyClickHitTest,
+  mainLoopTick,
+  processReselectionQueue,
+  snapshotTerritory as snapshotTerritoryImpl,
+  tickGameCore,
+} from "./game-ui-runtime.ts";
+import type { UIContext } from "./game-ui-screens.ts";
 import {
-  PLAYER_COLORS,
-  getPlayerColor,
-  PLAYER_KEY_BINDINGS,
-  PLAYER_NAMES,
-  MAX_PLAYERS,
-} from "./player-config.ts";
-import {
-  Mode,
-  loadSettings,
-  createTimerAccums,
-  createControlsState,
-  createBattleAnimState,
-  ROUNDS_OPTIONS,
-  CANNON_HP_OPTIONS,
-  DIFFICULTY_PARAMS,
-  type PlayerStats,
-  cycleOption,
-} from "./game-ui-types.ts";
+  closeControls as closeControlsShared,
+  closeOptions as closeOptionsShared,
+  lobbyKeyJoin as lobbyKeyJoinShared,
+  lobbySkipStep,
+  renderControls as renderControlsShared,
+  renderLobby as renderLobbyShared,
+  renderOptions as renderOptionsShared,
+  showControls as showControlsShared,
+  showOptions as showOptionsShared,
+  tickLobby as tickLobbyShared,
+  togglePause as togglePauseShared,
+  visibleOptions,
+} from "./game-ui-screens.ts";
 import type {
-  TimerAccums,
-  GameSettings,
+  BattleAnimState,
   ControlsState,
   FrameData,
-  BattleAnimState,
+  GameSettings,
   LobbyState,
+  TimerAccums,
 } from "./game-ui-types.ts";
+import {
+  CANNON_HP_OPTIONS,
+  createBattleAnimState,
+  createControlsState,
+  createTimerAccums,
+  cycleOption,
+  DIFFICULTY_PARAMS,
+  loadSettings,
+  Mode,
+  type PlayerStats,
+  ROUNDS_OPTIONS,
+} from "./game-ui-types.ts";
+import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
+import { hapticBattleEvents, hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
+import { type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
+import type { LifeLostDialogState } from "./life-lost.ts";
+import {
+  buildLifeLostDialogState,
+  resolveAfterLifeLost,
+  resolveLifeLostDialogRuntime,
+  tickLifeLostDialogRuntime,
+} from "./life-lost.ts";
+import type { RenderOverlay } from "./map-renderer.ts";
+import type { BannerState } from "./phase-banner.ts";
 import {
   createBannerState,
   showBannerTransition,
   tickBannerTransition,
 } from "./phase-banner.ts";
-import { bootstrapGame, setupTowerSelection } from "./game-bootstrap.ts";
-import type { BannerState } from "./phase-banner.ts";
 import {
-  buildOnlineOverlay,
-  buildBannerUi,
-  buildRenderSummaryMessage,
-  buildStatusBar,
-  syncSelectionOverlay as syncSelectionOverlayImpl,
-  lifeLostPanelPos as lifeLostPanelPosShared,
-  handleLifeLostDialogClick as handleLifeLostDialogClickShared,
-} from "./render-composition.ts";
-import type { LifeLostDialogState } from "./life-lost.ts";
-import {
-  tickLifeLostDialogRuntime,
-  resolveLifeLostDialogRuntime,
-  buildLifeLostDialogState,
-  resolveAfterLifeLost,
-} from "./life-lost.ts";
-import {
-  allSelectionsConfirmed as allSelectionsConfirmedImpl,
-  initTowerSelection as initTowerSelectionImpl,
-  highlightTowerSelection,
-  confirmTowerSelection,
-  tickSelectionPhase,
-  finishSelectionPhase,
-} from "./selection.ts";
-import type { SelectionState } from "./selection.ts";
-import {
-  tickHostCannonPhase,
   tickHostBuildPhase,
+  tickHostCannonPhase,
 } from "./phase-ticks.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
-  startHostBattleLifecycle,
-  tickHostBalloonAnim,
-  tickHostBattleCountdown,
-  tickHostBattlePhase,
-  beginHostBattle,
-} from "./battle-ticks.ts";
-import { registerOnlineInputHandlers, type RegisterOnlineInputDeps } from "./input.ts";
+  getPlayerColor,
+  MAX_PLAYERS,
+  PLAYER_COLORS,
+  PLAYER_KEY_BINDINGS,
+  PLAYER_NAMES,
+} from "./player-config.ts";
+import type { PlayerController } from "./player-controller.ts";
+import { createController, isHuman } from "./player-controller.ts";
+import {
+  buildBannerUi,
+  buildOnlineOverlay,
+  buildRenderSummaryMessage,
+  buildStatusBar,
+  handleLifeLostDialogClick as handleLifeLostDialogClickShared,
+  lifeLostPanelPos as lifeLostPanelPosShared,
+  syncSelectionOverlay as syncSelectionOverlayImpl,
+} from "./render-composition.ts";
+import { GEAR_SIZE, GEAR_X, GEAR_Y } from "./render-theme.ts";
+import { computeLobbyLayout } from "./render-ui.ts";
+import type { SelectionState } from "./selection.ts";
+import {
+  allSelectionsConfirmed as allSelectionsConfirmedImpl,
+  confirmTowerSelection,
+  finishSelectionPhase,
+  highlightTowerSelection,
+  initTowerSelection as initTowerSelectionImpl,
+  tickSelectionPhase,
+} from "./selection.ts";
 import { registerTouchHandlers } from "./touch-input.ts";
-import { createDpad, createHomeZoomButton, createEnemyZoomButton, createQuitButton } from "./touch-ui.ts";
-import { hapticBattleEvents, hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
-import { GEAR_X, GEAR_Y, GEAR_SIZE } from "./render-theme.ts";
+import { createDpad, createEnemyZoomButton, createHomeZoomButton, createQuitButton } from "./touch-ui.ts";
+import type { GameState } from "./types.ts";
 import {
-  snapshotTerritory as snapshotTerritoryImpl,
-  lobbyClickHitTest,
-  initCannonPhase,
-  collectLocalCrosshairs,
-  tickGameCore,
-  processReselectionQueue,
-  completeReselection,
-  mainLoopTick,
-} from "./game-ui-runtime.ts";
-import {
-  renderOptions as renderOptionsShared,
-  showOptions as showOptionsShared,
-  closeOptions as closeOptionsShared,
-  renderControls as renderControlsShared,
-  showControls as showControlsShared,
-  closeControls as closeControlsShared,
-  togglePause as togglePauseShared,
-  renderLobby as renderLobbyShared,
-  tickLobby as tickLobbyShared,
-  lobbyKeyJoin as lobbyKeyJoinShared,
-  lobbySkipStep,
-  visibleOptions,
-} from "./game-ui-screens.ts";
-import type { UIContext } from "./game-ui-screens.ts";
-import {
-  createCastleBuildState,
-  tickCastleBuildAnimation,
-} from "./castle-build.ts";
-import type { CastleBuildState } from "./castle-build.ts";
+  BALLOON_FLIGHT_DURATION,
+  BANNER_DURATION,
+  BATTLE_COUNTDOWN,
+  BATTLE_TIMER,
+  IMPACT_FLASH_DURATION,
+  LIFE_LOST_AI_DELAY,
+  LIFE_LOST_MAX_TIMER,
+  MAX_FRAME_DT,
+  Phase,
+  SELECT_TIMER,
+  WALL_BUILD_INTERVAL,
+} from "./types.ts";
 
-import type { RuntimeConfig, GameRuntime } from "./game-runtime-types.ts";
-import { MSG } from "../server/protocol.ts";
-export type { RuntimeConfig, RuntimeSelection, RuntimeLifeLost, GameRuntime } from "./game-runtime-types.ts";
+export type { GameRuntime, RuntimeConfig, RuntimeLifeLost, RuntimeSelection } from "./game-runtime-types.ts";
 
 // ---------------------------------------------------------------------------
 // Factory

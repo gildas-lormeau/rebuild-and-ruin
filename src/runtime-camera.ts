@@ -5,14 +5,14 @@
  * and exposes a pure API for the runtime to call.
  */
 
-import { GRID_COLS, GRID_ROWS, TILE_SIZE, SCALE } from "./grid.ts";
-import { Phase } from "./types.ts";
 import { BANNER_SELECT } from "./game-engine.ts";
-import type { GameState } from "./types.ts";
-import type { Viewport } from "./map-renderer.ts";
-import type { WorldPos } from "./geometry-types.ts";
-import { unpackTile } from "./spatial.ts";
 import { Mode } from "./game-ui-types.ts";
+import type { WorldPos } from "./geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
+import type { Viewport } from "./map-renderer.ts";
+import { unpackTile } from "./spatial.ts";
+import type { GameState } from "./types.ts";
+import { Phase } from "./types.ts";
 
 const TILE = TILE_SIZE;
 

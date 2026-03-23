@@ -6,7 +6,6 @@
  * towers, and cannons.
  */
 
-import type { GameState, Grunt, Player } from "./types.ts";
 import {
   DIRS_4,
   forEachCannonTile,
@@ -18,6 +17,7 @@ import {
   isWater,
   packTile,
 } from "./spatial.ts";
+import type { GameState, Grunt, Player } from "./types.ts";
 
 export function isTileOwnedByPlayer(
   player: Pick<Player, "interior" | "walls">,

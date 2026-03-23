@@ -6,47 +6,47 @@
  * ai-castle-rect.ts.
  */
 
-import type { GameState } from "./types.ts";
-import type { PieceShape } from "./pieces.ts";
-import type { TilePos, TileRect } from "./geometry-types.ts";
-import { rotateCW, ALL_PIECE_SHAPES } from "./pieces.ts";
-import type { Tower } from "./map-generation.ts";
-import { GRID_ROWS, GRID_COLS, Tile } from "./grid.ts";
 import {
-  isTowerTile,
-  isCannonTile,
-  computeOutside,
-  isWater,
-  isGrass,
-  isTowerEnclosed,
-  towerReachesOutsideCardinal,
-  DIRS_4,
-  DIRS_8,
-  CORNERS_2X2,
-  unpackTile,
-  packTile,
-  isPitAt,
-  isCannonAlive,
-} from "./spatial.ts";
-import { canPlacePiece } from "./build-phase.ts";
-import { isCannonEnclosed } from "./cannon-system.ts";
-import { SMALL_POCKET_MAX_SIZE } from "./ai-strategy.ts";
-import {
-  hasCannonAt,
-  getCardinalObstacleMask,
-  hasGruntAt,
-  hasWallAt,
-  hasTowerAt,
-} from "./board-occupancy.ts";
-import {
-  filterUnfillableGaps,
-  findGapTiles,
   castleRect,
   computeFillableGaps,
+  filterUnfillableGaps,
+  findGapTiles,
+  floodPocket,
   hasMeaningfulHomeRingGaps,
   scoreBuildTowerTarget,
-  floodPocket,
 } from "./ai-castle-rect.ts";
+import { SMALL_POCKET_MAX_SIZE } from "./ai-strategy.ts";
+import {
+  getCardinalObstacleMask,
+  hasCannonAt,
+  hasGruntAt,
+  hasTowerAt,
+  hasWallAt,
+} from "./board-occupancy.ts";
+import { canPlacePiece } from "./build-phase.ts";
+import { isCannonEnclosed } from "./cannon-system.ts";
+import type { TilePos, TileRect } from "./geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, Tile } from "./grid.ts";
+import type { Tower } from "./map-generation.ts";
+import type { PieceShape } from "./pieces.ts";
+import { ALL_PIECE_SHAPES, rotateCW } from "./pieces.ts";
+import {
+  CORNERS_2X2,
+  computeOutside,
+  DIRS_4,
+  DIRS_8,
+  isCannonAlive,
+  isCannonTile,
+  isGrass,
+  isPitAt,
+  isTowerEnclosed,
+  isTowerTile,
+  isWater,
+  packTile,
+  towerReachesOutsideCardinal,
+  unpackTile,
+} from "./spatial.ts";
+import type { GameState } from "./types.ts";
 
 /** Create a memoized version of a function (Map-based cache). */
 function memoize<K, V>(fn: (key: K) => V): (key: K) => V {

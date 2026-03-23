@@ -9,96 +9,96 @@
 import { GRID_COLS, TILE_SIZE } from "./grid.ts";
 
 const TILE = TILE_SIZE;
+
+import type {
+  FullStateMessage,
+  GameMessage,
+  InitMessage,
+  ServerMessage,
+} from "../server/protocol.ts";
 import {
-  Phase,
-  SELECT_TIMER,
-  LOBBY_TIMER,
-  BUILD_TIMER,
-  BATTLE_TIMER,
-  CANNON_PLACE_TIMER,
-  BATTLE_COUNTDOWN,
-  BANNER_DURATION,
-  CannonMode,
-} from "./types.ts";
-import { CROSSHAIR_SPEED } from "./player-controller.ts";
-import type { GameState } from "./types.ts";
-import {
-  nextReadyCombined,
-  aimCannons,
-} from "./battle-system.ts";
+  MSG,
+} from "../server/protocol.ts";
 import { autoPlaceCannons } from "./ai-strategy.ts";
 import {
-  serializePlayers,
-  applyPlayersCheckpoint,
-  buildBuildStartMessage,
-  buildCannonStartMessage,
-  buildBattleStartMessage,
-  buildFullStateMessage,
-  applyFullStateSnapshot,
-} from "./online-serialize.ts";
+  aimCannons,applyImpactEvent, 
+  nextReadyCombined
+} from "./battle-system.ts";
+import { applyPiecePlacement } from "./build-phase.ts";
+import { applyCannonPlacement } from "./cannon-system.ts";
+import { bootstrapGame, setupWaitingRoom } from "./game-bootstrap.ts";
+import {
+  enterCannonPlacePhase,
+  finalizeCastleConstruction,
+  markPlayerReselected,
+  prepareCastleWalls,
+  resetZoneState,
+} from "./game-engine.ts";
+import type { GameRuntime } from "./game-runtime.ts";
+import { createGameRuntime } from "./game-runtime.ts";
+import { Mode } from "./game-ui-types.ts";
+import { tickGrunts } from "./grunt-system.ts";
+import type { CheckpointDeps } from "./online-checkpoints.ts";
+import {
+  applyBattleStartCheckpoint,
+  applyBuildStartCheckpoint,
+  applyCannonStartCheckpoint,
+} from "./online-checkpoints.ts";
+import { setupLobbyUi, showLobbySection } from "./online-lobby-ui.ts";
+import type { TransitionContext } from "./online-phase-transitions.ts";
+import {
+  handleBattleStartTransition,
+  handleBuildEndTransition,
+  handleBuildStartTransition,
+  handleCannonStartTransition,
+  handleCastleWallsTransition,
+  handleGameOverTransition,
+} from "./online-phase-transitions.ts";
 import {
   fireAndSend as fireAndSendAction,
   tryPlaceCannonAndSend as tryPlaceCannonAndSendAction,
   tryPlacePieceAndSend as tryPlacePieceAndSendAction,
 } from "./online-send-actions.ts";
-import { interpolateToward } from "./online-types.ts";
-import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
-import { tickGrunts } from "./grunt-system.ts";
-import { isHuman, createController } from "./player-controller.ts";
-import type { PlayerController } from "./player-controller.ts";
-import { showLobbySection, setupLobbyUi } from "./online-lobby-ui.ts";
-import { bootstrapGame, setupWaitingRoom } from "./game-bootstrap.ts";
-import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
+import {
+  applyFullStateSnapshot,
+  applyPlayersCheckpoint,
+  buildBattleStartMessage,
+  buildBuildStartMessage,
+  buildCannonStartMessage,
+  buildFullStateMessage,
+  serializePlayers,
+} from "./online-serialize.ts";
 import { handleServerIncrementalMessage } from "./online-server-events.ts";
-import {
-  handleCastleWallsTransition,
-  handleCannonStartTransition,
-  handleBattleStartTransition,
-  handleBuildStartTransition,
-  handleBuildEndTransition,
-  handleGameOverTransition,
-} from "./online-phase-transitions.ts";
-import type { TransitionContext } from "./online-phase-transitions.ts";
-import { Mode } from "./game-ui-types.ts";
-import { loadAtlas } from "./sprites.ts";
-import {
-  applyCannonStartCheckpoint,
-  applyBattleStartCheckpoint,
-  applyBuildStartCheckpoint,
-} from "./online-checkpoints.ts";
-import {
-  markPlayerReselected,
-  prepareCastleWalls,
-  enterCannonPlacePhase,
-  finalizeCastleConstruction,
-  resetZoneState,
-} from "./game-engine.ts";
-import { applyPiecePlacement } from "./build-phase.ts";
-import { applyCannonPlacement } from "./cannon-system.ts";
-import { applyImpactEvent } from "./battle-system.ts";
-import {
-  tickWatcherTimers as updateWatcherTimers,
-  tickWatcherBattlePhase,
-  tickWatcherCannonPhantomsPhase,
-  tickWatcherBuildPhantomsPhase,
-} from "./online-watcher-battle.ts";
+import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
+import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
+import { interpolateToward } from "./online-types.ts";
 import type { WatcherTimingState } from "./online-watcher-battle.ts";
 import {
+  tickWatcherBattlePhase,
+  tickWatcherBuildPhantomsPhase,
+  tickWatcherCannonPhantomsPhase,
+  tickWatcherTimers as updateWatcherTimers,
+} from "./online-watcher-battle.ts";
+import {
+  MAX_PLAYERS,
   PLAYER_COLORS,
   PLAYER_NAMES,
-  MAX_PLAYERS,
 } from "./player-config.ts";
+import type { PlayerController } from "./player-controller.ts";
+import { CROSSHAIR_SPEED, createController, isHuman } from "./player-controller.ts";
+import { loadAtlas } from "./sprites.ts";
+import type { GameState } from "./types.ts";
 import {
-  MSG,
-} from "../server/protocol.ts";
-import type {
-  ServerMessage,
-  GameMessage,
-  InitMessage,
-  FullStateMessage,
-} from "../server/protocol.ts";
-import { createGameRuntime } from "./game-runtime.ts";
-import type { GameRuntime } from "./game-runtime.ts";
+  BANNER_DURATION,
+  BATTLE_COUNTDOWN,
+  BATTLE_TIMER,
+  BUILD_TIMER,
+  CANNON_PLACE_TIMER,
+  CannonMode,
+  LOBBY_TIMER,
+  Phase,
+  SELECT_TIMER,
+} from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // Game over payloads
@@ -445,8 +445,8 @@ function tickWatcherBuildPhantoms(
 // Watcher: apply checkpoint data from server
 // ---------------------------------------------------------------------------
 
-function applyCannonStartData(msg: ServerMessage): void {
-  applyCannonStartCheckpoint(msg, {
+function buildCheckpointDeps(): CheckpointDeps {
+  return {
     state: runtime.getState(),
     battleAnim: runtime.getBattleAnim(),
     accum: runtime.getAccum(),
@@ -455,33 +455,19 @@ function applyCannonStartData(msg: ServerMessage): void {
     watcherOrbitParams,
     watcherIdlePhases,
     snapshotTerritory: () => runtime.snapshotTerritory(),
-  });
+  };
+}
+
+function applyCannonStartData(msg: ServerMessage): void {
+  applyCannonStartCheckpoint(msg, buildCheckpointDeps());
 }
 
 function applyBattleStartData(msg: ServerMessage): void {
-  applyBattleStartCheckpoint(msg, {
-    state: runtime.getState(),
-    battleAnim: runtime.getBattleAnim(),
-    accum: runtime.getAccum(),
-    remoteCrosshairs,
-    watcherCrosshairPos,
-    watcherOrbitParams,
-    watcherIdlePhases,
-    snapshotTerritory: () => runtime.snapshotTerritory(),
-  });
+  applyBattleStartCheckpoint(msg, buildCheckpointDeps());
 }
 
 function applyBuildStartData(msg: ServerMessage): void {
-  applyBuildStartCheckpoint(msg, {
-    state: runtime.getState(),
-    battleAnim: runtime.getBattleAnim(),
-    accum: runtime.getAccum(),
-    remoteCrosshairs,
-    watcherCrosshairPos,
-    watcherOrbitParams,
-    watcherIdlePhases,
-    snapshotTerritory: () => runtime.snapshotTerritory(),
-  });
+  applyBuildStartCheckpoint(msg, buildCheckpointDeps());
 }
 
 // ---------------------------------------------------------------------------

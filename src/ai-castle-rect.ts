@@ -5,30 +5,30 @@
  * and tower scoring used during the build phase.
  */
 
-import type { GameState, BurningPit } from "./types.ts";
-import type { TileRect } from "./geometry-types.ts";
-import type { Tower } from "./map-generation.ts";
-import { GRID_ROWS, GRID_COLS, Tile } from "./grid.ts";
-import {
-  isTowerTile,
-  isWater,
-  isGrass,
-  towerReachesOutsideCardinal,
-  DIRS_4,
-  DIRS_8,
-  DIRS_DIAG,
-  unpackTile,
-  packTile,
-  inBounds,
-  manhattanDistance,
-  isPitAt,
-} from "./spatial.ts";
 import {
   hasCannonAt,
   hasEnemyWallAt,
   hasGruntAt,
   hasTowerAt,
 } from "./board-occupancy.ts";
+import type { TileRect } from "./geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, Tile } from "./grid.ts";
+import type { Tower } from "./map-generation.ts";
+import {
+  DIRS_4,
+  DIRS_8,
+  DIRS_DIAG,
+  inBounds,
+  isGrass,
+  isPitAt,
+  isTowerTile,
+  isWater,
+  manhattanDistance,
+  packTile,
+  towerReachesOutsideCardinal,
+  unpackTile,
+} from "./spatial.ts";
+import type { BurningPit, GameState } from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // Shared helpers

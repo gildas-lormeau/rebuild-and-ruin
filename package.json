@@ -12,10 +12,20 @@
     "test:e2e:local": "npx tsx test/online-e2e.ts local 0",
     "test:e2e:local:quick": "npx tsx test/online-e2e.ts local 0 --headless '' 1",
     "test:e2e:mobile": "npx tsx test/online-e2e.ts local 0 --mobile --screenshot",
-    "test:all": "npm run test:headless && npm run test:build-ai && npm run test:e2e:local:quick"
+    "test:all": "npm run test:headless && npm run test:build-ai && npm run test:e2e:local:quick",
+    "lint": "biome check src/ server/",
+    "lint:fix": "biome check --fix --unsafe src/ server/",
+    "lint:unused": "knip",
+    "lint:circular": "madge --circular --extensions ts src/ server/",
+    "lint:duplicates": "jscpd src/ --min-lines 10",
+    "lint:all": "npm run lint && npm run lint:unused && npm run lint:circular && npm run lint:duplicates"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.4.8",
     "@types/bun": "latest",
+    "jscpd": "4.0.8",
+    "knip": "6.0.3",
+    "madge": "8.0.0",
     "playwright": "^1.58.2",
     "typescript": "^5",
     "vite": "^7.3.1"

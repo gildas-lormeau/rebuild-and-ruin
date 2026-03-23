@@ -5,13 +5,13 @@
  * Only created on touch-capable devices.
  */
 
-import { Phase, Action } from "./types.ts";
-import type { GameState } from "./types.ts";
-import type { PlayerController } from "./player-controller.ts";
 import { PLAYER_COLORS } from "./player-config.ts";
+import type { PlayerController } from "./player-controller.ts";
 import { rgb } from "./render-theme.ts";
-import { findNearestTower } from "./spatial.ts";
 import type { SelectionState } from "./selection.ts";
+import { findNearestTower } from "./spatial.ts";
+import type { GameState } from "./types.ts";
+import { Action, Phase } from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // D-pad — directional arrows + action + rotate

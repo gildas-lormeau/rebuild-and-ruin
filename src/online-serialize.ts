@@ -3,12 +3,12 @@
  * Pure functions that read/write GameState — no module-level state.
  */
 
-import type { GameState } from "./types.ts";
-import { Phase } from "./types.ts";
-import type { BalloonFlight } from "./battle-system.ts";
-import { Rng } from "./rng.ts";
 import type { FullStateMessage } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
+import type { BalloonFlight } from "./battle-system.ts";
+import { Rng } from "./rng.ts";
+import type { GameState } from "./types.ts";
+import { Phase } from "./types.ts";
 
 // ---------------------------------------------------------------------------
 // Serialize (state → JSON-safe objects for sending)
