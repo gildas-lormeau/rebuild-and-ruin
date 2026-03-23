@@ -117,7 +117,7 @@ import {
 } from "./battle-ticks.ts";
 import { registerOnlineInputHandlers, type RegisterOnlineInputDeps } from "./input.ts";
 import { registerTouchHandlers } from "./touch-input.ts";
-import { createRotateButton, createHomeZoomButton, createEnemyZoomButton, createQuitButton } from "./touch-ui.ts";
+import { createDpad, createHomeZoomButton, createEnemyZoomButton, createQuitButton } from "./touch-ui.ts";
 import { hapticBattleEvents, hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
 import {
   snapshotTerritory as snapshotTerritoryImpl,
@@ -372,7 +372,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let optionsCursor = 0;
   const controlsState: ControlsState = createControlsState();
   let castleBuild: CastleBuildState | null = null;
-  let rotateButton: ReturnType<typeof createRotateButton> | null = null;
+  let dpad: ReturnType<typeof createDpad> | null = null;
   let homeZoomButton: ReturnType<typeof createHomeZoomButton> | null = null;
   let enemyZoomButton: ReturnType<typeof createEnemyZoomButton> | null = null;
   let quitButton: ReturnType<typeof createQuitButton> | null = null;
@@ -1141,7 +1141,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const inGame = mode === Mode.GAME || mode === Mode.BANNER || mode === Mode.BALLOON_ANIM;
     const noBanner = mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD;
     const showZoom = noBanner && (mode === Mode.GAME || mode === Mode.SELECTION);
-    rotateButton?.update(inGame ? state.phase : null);
+    const hasHuman = firstHuman() !== null;
+    dpad?.update(hasHuman && (inGame || mode === Mode.SELECTION) ? state.phase : null);
     homeZoomButton?.update(showZoom ? state.phase : null);
     enemyZoomButton?.update(showZoom ? state.phase : null);
     quitButton?.update(inGame || mode === Mode.SELECTION ? state.phase : null);
@@ -1170,7 +1171,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     battlePinchVp = null;
     mouseJoinedSlot = -1;
     // Hide all DOM buttons
-    rotateButton?.update(null);
+    dpad?.update(null);
     homeZoomButton?.update(null);
     enemyZoomButton?.update(null);
     quitButton?.update(null);
@@ -1834,12 +1835,23 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     registerOnlineInputHandlers(inputDeps);
     registerTouchHandlers({ ...inputDeps, lobbyKeyJoin: undefined });
 
-    // Rotate button (mobile only)
+    // D-pad + action buttons (mobile only)
     if (IS_TOUCH_DEVICE) {
-      rotateButton = createRotateButton({
+      const placePiece = inputDeps.tryPlacePieceAndSend;
+      const placeCannon = inputDeps.tryPlaceCannonAndSend;
+      dpad = createDpad({
         getState: () => state,
         withFirstHuman,
+        tryPlacePieceAndSend: placePiece,
+        tryPlaceCannonAndSend: placeCannon,
+        getSelectionStates: () => selectionStates,
+        highlightTowerForPlayer,
+        confirmSelectionForPlayer,
+        finishSelection,
+        finishReselection,
+        isHost: config.getIsHost,
         render,
+        getLeftHanded: () => settings.leftHanded,
       });
       const zoomDeps = {
         getState: () => state,

@@ -59,6 +59,7 @@ export interface GameSettings {
   seed: string;
   seedMode: "random" | "custom";
   keyBindings: KeyBindings[];
+  leftHanded: boolean; // true = d-pad on right, action buttons on left
 }
 
 export const DIFFICULTY_LABELS = ["Easy", "Normal", "Hard", "Very Hard"];
@@ -92,6 +93,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   seed: "",
   seedMode: "random",
   keyBindings: [],
+  leftHanded: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -128,6 +130,7 @@ export function loadSettings(): GameSettings {
         haptics: saved.haptics ?? DEFAULT_SETTINGS.haptics,
         seed: saved.seed ?? DEFAULT_SETTINGS.seed,
         seedMode: saved.seedMode === "custom" ? "custom" : "random",
+        leftHanded: saved.leftHanded ?? DEFAULT_SETTINGS.leftHanded,
         keyBindings:
           Array.isArray(saved.keyBindings) && saved.keyBindings.length === MAX_PLAYERS
             ? saved.keyBindings.map(kb => ({ ...PLAYER_KEY_BINDINGS[0]!, ...kb }))
