@@ -33,6 +33,14 @@ import {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Map battleCountdown to the corresponding announcement text. */
+export function countdownAnnouncement(battleCountdown: number): string | undefined {
+  if (battleCountdown > 3) return "Ready";
+  if (battleCountdown > 1) return "Aim";
+  if (battleCountdown > 0) return "Fire!";
+  return undefined;
+}
+
 /** How many balloon hits are required to capture a cannon. */
 function balloonHitsNeeded(cannon: Cannon): number {
   return cannon.super ? SUPER_BALLOON_HITS_NEEDED : BALLOON_HITS_NEEDED;

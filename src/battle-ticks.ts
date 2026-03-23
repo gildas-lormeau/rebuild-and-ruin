@@ -1,4 +1,4 @@
-import type { BalloonFlight } from "./battle-system.ts";
+import { countdownAnnouncement, type BalloonFlight } from "./battle-system.ts";
 import type { GameMessage } from "../server/protocol.ts";
 import type { TilePos } from "./geometry-types.ts";
 import type { PlayerController } from "./player-controller.ts";
@@ -46,10 +46,7 @@ export function tickHostBattleCountdown(
     ctrl.battleTick(state, dt);
   }
 
-  if (state.battleCountdown > 3) frame.announcement = "Ready";
-  else if (state.battleCountdown > 1) frame.announcement = "Aim";
-  else if (state.battleCountdown > 0) frame.announcement = "Fire!";
-  else frame.announcement = undefined;
+  frame.announcement = countdownAnnouncement(state.battleCountdown);
 
   collectCrosshairs(false, dt);
   render();

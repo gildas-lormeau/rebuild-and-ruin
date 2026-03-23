@@ -1,5 +1,6 @@
 import { BATTLE_TIMER, Phase } from "./types.ts";
 import type { GameState, Impact } from "./types.ts";
+import { countdownAnnouncement } from "./battle-system.ts";
 import type { Crosshair, PlayerController } from "./player-controller.ts";
 import type { CannonPhantom, PiecePhantom, HumanPiecePhantom } from "./online-types.ts";
 
@@ -36,11 +37,8 @@ export function tickWatcherTimers(
     const elapsed = Math.max(0, (now() - timing.countdownStartTime) / 1000);
     state.battleCountdown = Math.max(0, timing.countdownDuration - elapsed);
 
-    if (state.battleCountdown > 3) frame.announcement = "Ready";
-    else if (state.battleCountdown > 1) frame.announcement = "Aim";
-    else if (state.battleCountdown > 0) frame.announcement = "Fire!";
-    else {
-      frame.announcement = undefined;
+    frame.announcement = countdownAnnouncement(state.battleCountdown);
+    if (!frame.announcement) {
       timing.phaseStartTime =
         timing.countdownStartTime + timing.countdownDuration * 1000;
       timing.phaseDuration = BATTLE_TIMER;
