@@ -16,7 +16,11 @@
 
 ## 5b. Mobile Build Phase — Input Parity
 Goal: equalize input quality vs desktop, not lower difficulty.
-- Snap-to-fit: cursor snaps to nearest valid placement when dragging near one
+- ~~Virtual d-pad: directional arrows + action + rotate buttons, key repeat, left/right handed option~~ Done
+- ~~Cannon snap-to-fit: cursor snaps to nearest valid placement on tap/click~~ Done
+- ~~Phantom centering: piece/cannon phantom centered on cursor instead of top-left anchored~~ Done
+- ~~Auto-zoom at selection start with "Select your home castle" overlay~~ Done
+- ~~Steady camera during castle-build animation~~ Done
 - Piece preview zoom: temporary magnified view around cursor during placement
 - Undo last piece: remove last placed piece within 1-2s (compensates for fat-finger mis-placement)
 
