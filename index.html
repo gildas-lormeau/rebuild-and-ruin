@@ -85,7 +85,7 @@
       <div class="setting-row" style="margin-bottom: 16px;">
         <span class="setting-label">Server</span>
         <input class="lobby-input" id="server-host" type="text" style="width: 200px; font-size: 13px; letter-spacing: 0;"
-          placeholder="auto (same origin)">
+          value="rebuild-and-ruin.gildas-lormeau.deno.net">
       </div>
       <button class="lobby-btn" id="btn-create">Create Room</button>
       <button class="lobby-btn secondary" id="btn-join-show">Join Room</button>
@@ -170,9 +170,10 @@
     });
 
     const serverHostInput = document.getElementById("server-host");
-    // Load saved server host
+    // Load saved server host (falls back to the default value in HTML)
     const savedHost = localStorage.getItem("castles99_server");
     if (savedHost) serverHostInput.value = savedHost;
+    else localStorage.setItem("castles99_server", serverHostInput.value);
     // Save on change
     serverHostInput.addEventListener("change", () => {
       const val = serverHostInput.value.trim();

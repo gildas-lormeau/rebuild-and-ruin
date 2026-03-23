@@ -200,13 +200,15 @@ function logThrottled(key: string, msg: string): void {
   log(msg);
 }
 
-/** Get the server host — from localStorage, URL param, or same-origin fallback. */
+const DEFAULT_SERVER_HOST = "rebuild-and-ruin.gildas-lormeau.deno.net";
+
+/** Get the server host — from URL param, localStorage, or Deno Deploy default. */
 function getServerHost(): string {
   const param = new URLSearchParams(location.search).get("server");
   if (param) return param;
   const saved = localStorage.getItem("castles99_server");
   if (saved) return saved;
-  return location.host;
+  return DEFAULT_SERVER_HOST;
 }
 
 /** Get the full WebSocket URL for the game server. */
