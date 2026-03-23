@@ -150,9 +150,6 @@ export function canPlacePiece(state: GameState, playerId: number, piece: PieceSh
   return true;
 }
 
-/**
- * Place a piece as wall tiles for a player. Returns true on success.
- */
 /** Apply piece placement to state (no validation). Used by host and watcher. */
 export function applyPiecePlacement(state: GameState, playerId: number, offsets: [number, number][], row: number, col: number): void {
   const player = state.players[playerId]!;

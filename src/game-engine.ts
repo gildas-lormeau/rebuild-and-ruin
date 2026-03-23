@@ -407,7 +407,6 @@ export function finalizeBuildPhase(
 // Private helpers
 // ---------------------------------------------------------------------------
 
-/** Auto-build castle walls around each player's selected tower (round 1). */
 /** Prepare castle walls for all players, returning ordered wall tiles per player
  *  for animated construction. Sets castle but does NOT add walls or interior. */
 export function prepareCastleWalls(state: GameState): { playerId: number; tiles: number[] }[] {

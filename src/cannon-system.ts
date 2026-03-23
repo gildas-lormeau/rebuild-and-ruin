@@ -122,10 +122,6 @@ export function cannonSlotsUsed(player: Player): number {
   return slots;
 }
 
-/**
- * Place a cannon at (row, col). Returns true if placed successfully.
- * Super guns cost SUPER_GUN_COST slots, balloons cost BALLOON_COST slots.
- */
 /** Apply cannon placement (no validation). Used by host and watcher. */
 export function applyCannonPlacement(
   player: Player,

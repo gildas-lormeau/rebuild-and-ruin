@@ -113,8 +113,6 @@ function towerRectDistance(
   return dx + dy;
 }
 
-/** @deprecated Use PixelPos from geometry-types.ts */
-export type Point = PixelPos;
 
 export interface Tower extends TilePos {
   zone: number;
@@ -142,13 +140,13 @@ export interface GameMap {
   towers: Tower[];
   houses: House[];
   zones: number[][];
-  junction: Point;
-  exits: Point[];
+  junction: PixelPos;
+  exits: PixelPos[];
 }
 
 // --- River Generation ---
 
-function pickExits(rng: Rng): Point[] {
+function pickExits(rng: Rng): PixelPos[] {
   const edges = [0, 1, 2, 3]; // top, right, bottom, left
   rng.shuffle(edges);
   const chosen = edges.slice(0, 3);
@@ -169,7 +167,7 @@ function pickExits(rng: Rng): Point[] {
   });
 }
 
-function pickJunction(rng: Rng): Point {
+function pickJunction(rng: Rng): PixelPos {
   // Keep junction roughly central so all 3 zones have enough room for towers.
   // Each zone needs at least ~10 tiles of width for 4 towers with SAFE_ZONE_PAD=3.
   return {
@@ -182,13 +180,13 @@ function pickJunction(rng: Rng): Point {
  * Interpolate a smooth path from `from` to `to` via an optional midpoint for curvature.
  * Returns a list of integer (col, row) center points.
  */
-function interpolatePath(from: Point, to: Point, rng: Rng): Point[] {
+function interpolatePath(from: PixelPos, to: PixelPos, rng: Rng): PixelPos[] {
   // Add a random midpoint for gentle curvature
   const midX = (from.x + to.x) / 2 + rng.int(-3, 3);
   const midY = (from.y + to.y) / 2 + rng.int(-2, 2);
 
   const controlPoints = [from, { x: midX, y: midY }, to];
-  const points: Point[] = [];
+  const points: PixelPos[] = [];
 
   // Walk along the quadratic bezier at small steps
   const steps = Math.max(GRID_COLS, GRID_ROWS) * 2;
@@ -246,8 +244,8 @@ function interpolatePath(from: Point, to: Point, rng: Rng): Point[] {
  */
 function paintRiver(
   tiles: Tile[][],
-  junction: Point,
-  exits: Point[],
+  junction: PixelPos,
+  exits: PixelPos[],
   rng: Rng,
 ): void {
   const setWater = (x: number, y: number) => {
@@ -585,8 +583,8 @@ function isHouseTooClose(houses: readonly House[], r: number, c: number): boolea
  */
 function generateRiverAndZones(
   tiles: Tile[][],
-  junction: Point,
-  exits: Point[],
+  junction: PixelPos,
+  exits: PixelPos[],
   rng: Rng,
 ): { zones: number[][]; regionSizes: Map<number, number> } {
   resetTilesToGrass(tiles);
@@ -603,8 +601,8 @@ export function generateMap(seed?: number): GameMap {
     new Array(GRID_COLS).fill(Tile.Grass),
   );
 
-  let junction!: Point;
-  let exits!: Point[];
+  let junction!: PixelPos;
+  let exits!: PixelPos[];
   let zones!: number[][];
   let regionSizes!: Map<number, number>;
 
