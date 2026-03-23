@@ -347,7 +347,7 @@ export function markPlayerReselected(state: GameState, playerId: number): void {
  * Compute the total cannon slot limit for a player this round.
  * `isReselected` is true for players who just chose a new castle after losing a life.
  */
-export function cannonSlotsForRound(
+function cannonSlotsForRound(
   player: Player,
   state: GameState,
 ): number {
@@ -528,7 +528,7 @@ function getAliveOwnedTowers(player: Player, state: GameState) {
  * Sweep one layer of debris wall tiles (0 or 1 orthogonal neighbor).
  * Collects all isolated tiles first, then removes them in one batch.
  */
-export function sweepIsolatedWalls(walls: Set<number>): void {
+function sweepIsolatedWalls(walls: Set<number>): void {
   const toRemove: number[] = [];
   for (const key of walls) {
     const { r, c } = unpackTile(key);

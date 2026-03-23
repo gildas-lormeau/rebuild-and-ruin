@@ -24,7 +24,7 @@ export interface HostNetContext {
 }
 
 /** Networking context for the cannon placement phase. */
-export interface CannonPhaseNet extends HostNetContext {
+interface CannonPhaseNet extends HostNetContext {
   remoteCannonPhantoms: CannonPhantom[];
   lastSentCannonPhantom: Map<number, string>;
   autoPlaceCannons: (
@@ -49,7 +49,7 @@ export interface CannonPhaseNet extends HostNetContext {
 }
 
 /** Networking context for the wall build phase. */
-export interface BuildPhaseNet extends HostNetContext {
+interface BuildPhaseNet extends HostNetContext {
   remotePiecePhantoms: PiecePhantom[];
   lastSentPiecePhantom: Map<number, string>;
   serializePlayers: (state: GameState) => SerializedPlayer[];

@@ -16,19 +16,19 @@ function vibrate(ms: number, minLevel: number): void {
 }
 
 /** Your wall was destroyed. */
-export function hapticWallHit(): void { vibrate(30, 2); }
+function hapticWallHit(): void { vibrate(30, 2); }
 
 /** Your cannon took damage. */
-export function hapticCannonDamaged(): void { vibrate(80, 2); }
+function hapticCannonDamaged(): void { vibrate(80, 2); }
 
 /** Your cannon was destroyed. */
-export function hapticCannonDestroyed(): void { vibrate(150, 2); }
+function hapticCannonDestroyed(): void { vibrate(150, 2); }
 
 /** A tower was killed by grunts. */
-export function hapticTowerKilled(): void { vibrate(200, 2); }
+function hapticTowerKilled(): void { vibrate(200, 2); }
 
 /** You fired a cannon. */
-export function hapticFired(): void { vibrate(15, 2); }
+function hapticFired(): void { vibrate(15, 2); }
 
 /** Phase transition banner. */
 export function hapticPhaseChange(): void { vibrate(40, 1); }

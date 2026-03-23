@@ -68,7 +68,7 @@ export const PIECE_C: PieceShape = {
   height: 2,
   pivot: [1, 1],
 };
-export const PIECE_Z: PieceShape = {
+const PIECE_Z: PieceShape = {
   name: "Z",
   offsets: [
     [0, 0],
@@ -105,7 +105,7 @@ export const PIECE_J: PieceShape = {
   height: 2,
   pivot: [1, 1],
 };
-export const PIECE_ZR: PieceShape = {
+const PIECE_ZR: PieceShape = {
   name: "ZR",
   offsets: [
     [0, 1],
@@ -130,7 +130,7 @@ export const PIECE_SR: PieceShape = {
   height: 2,
   pivot: [1, 1],
 };
-export const PIECE_CORNER: PieceShape = {
+const PIECE_CORNER: PieceShape = {
   name: "Corner",
   offsets: [
     [0, 0],
@@ -141,7 +141,7 @@ export const PIECE_CORNER: PieceShape = {
   height: 2,
   pivot: [0, 0],
 };
-export const PIECE_T: PieceShape = {
+const PIECE_T: PieceShape = {
   name: "T",
   offsets: [
     [0, 0],
@@ -308,15 +308,4 @@ function refillBagQueueIfNeeded(bag: BagState): void {
 export function nextPiece(bag: BagState): PieceShape {
   refillBagQueueIfNeeded(bag);
   return normalizeOrientation(bag.queue.pop()!);
-}
-
-/** Reconstruct a PieceShape from raw offsets (used for network piece placement). */
-export function pieceFromOffsets(offsets: [number, number][]): PieceShape {
-  return {
-    name: "net",
-    offsets,
-    width: offsets.length > 0 ? Math.max(...offsets.map(([, c]) => c)) + 1 : 1,
-    height: offsets.length > 0 ? Math.max(...offsets.map(([r]) => r)) + 1 : 1,
-    pivot: [0, 0],
-  };
 }

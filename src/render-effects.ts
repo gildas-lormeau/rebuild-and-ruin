@@ -16,7 +16,6 @@ import { facingToCardinal } from "./spatial.ts";
 import { drawSprite } from "./sprites.ts";
 import { IMPACT_FLASH_DURATION } from "./types.ts";
 
-const TILE = TILE_SIZE;
 
 // Crosshair colors per player
 const CROSSHAIR_COLORS: RGB[] = [
@@ -39,10 +38,10 @@ function drawPhantomCannon(
   isBalloon: boolean,
   facing = 0,
 ): void {
-  const cx = col * TILE;
-  const cy = row * TILE;
+  const cx = col * TILE_SIZE;
+  const cy = row * TILE_SIZE;
   const sz = isSuper ? 3 : 2;
-  const s = TILE * sz;
+  const s = TILE_SIZE * sz;
   const mid = s / 2;
 
   ctx.save();
@@ -112,13 +111,13 @@ function drawPiecePhantom(
   octx.globalAlpha = alpha;
   octx.fillStyle = fillColor;
   for (const [dr, dc] of offsets) {
-    octx.fillRect((col + dc) * TILE, (row + dr) * TILE, TILE, TILE);
+    octx.fillRect((col + dc) * TILE_SIZE, (row + dr) * TILE_SIZE, TILE_SIZE, TILE_SIZE);
   }
   if (outline) {
     octx.strokeStyle = "#fff";
     octx.lineWidth = 1;
     for (const [dr, dc] of offsets) {
-      octx.strokeRect((col + dc) * TILE, (row + dr) * TILE, TILE, TILE);
+      octx.strokeRect((col + dc) * TILE_SIZE, (row + dr) * TILE_SIZE, TILE_SIZE, TILE_SIZE);
     }
   }
   octx.restore();
@@ -199,8 +198,8 @@ export function drawBonusSquares(
     return;
   const flash = Math.sin(Date.now() / BONUS_FLASH_MS) * 0.15 + 0.85;
   for (const bs of overlay.entities.bonusSquares) {
-    const bx = bs.col * TILE;
-    const by = bs.row * TILE;
+    const bx = bs.col * TILE_SIZE;
+    const by = bs.row * TILE_SIZE;
     octx.globalAlpha = flash;
     drawSprite(octx, "bonus_square", bx, by);
     octx.globalAlpha = 1.0;
@@ -215,8 +214,8 @@ export function drawHouses(
   if (!overlay?.entities?.houses) return;
   for (const house of overlay.entities.houses) {
     if (!house.alive) continue;
-    const hx = house.col * TILE;
-    const hy = house.row * TILE;
+    const hx = house.col * TILE_SIZE;
+    const hy = house.row * TILE_SIZE;
     drawSprite(octx, "house", hx, hy);
   }
 }
@@ -228,8 +227,8 @@ export function drawGrunts(
 ): void {
   if (!overlay?.entities?.grunts) return;
   for (const grunt of overlay.entities.grunts) {
-    const gx = grunt.col * TILE;
-    const gy = grunt.row * TILE;
+    const gx = grunt.col * TILE_SIZE;
+    const gy = grunt.row * TILE_SIZE;
     const angle = grunt.facing ?? 0;
     const dir = facingToCardinal(angle);
     drawSprite(octx, `grunt_${dir}`, gx, gy);
@@ -262,8 +261,8 @@ export function drawWaterAnimation(
         map.tiles[r]![c + 1] !== 1
       )
         continue;
-      const px = c * TILE;
-      const py = r * TILE;
+      const px = c * TILE_SIZE;
+      const py = r * TILE_SIZE;
 
       // Three wave highlights drifting at different speeds across the tile
       for (let i = 0; i < 3; i++) {
@@ -274,8 +273,8 @@ export function drawWaterAnimation(
           i * 2.1;
         const wave = Math.sin(phase) * 0.5 + 0.5;
         const alpha = 0.06 + wave * 0.09;
-        const wy = py + 1 + Math.floor(wave * (TILE - 3));
-        const wx = px + 1 + ((i * 3) % (TILE - 4));
+        const wy = py + 1 + Math.floor(wave * (TILE_SIZE - 3));
+        const wx = px + 1 + ((i * 3) % (TILE_SIZE - 4));
         const wLen = 3 + Math.floor(wave * 4);
         octx.fillStyle = `rgba(140, 200, 255, ${alpha})`;
         octx.fillRect(wx, wy, wLen, 1);
@@ -302,14 +301,14 @@ export function drawBattleEffects(
     for (const impact of overlay.battle.impacts) {
       const t = impact.age / IMPACT_FLASH_DURATION;
       if (t >= 1) continue;
-      const cx = impact.col * TILE + TILE / 2;
-      const cy = impact.row * TILE + TILE / 2;
+      const cx = impact.col * TILE_SIZE + TILE_SIZE / 2;
+      const cy = impact.row * TILE_SIZE + TILE_SIZE / 2;
       const seed = impact.row * 41 + impact.col * 17;
 
       // Core flash — brief bright spot, shrinks quickly
       if (t < 0.25) {
         const coreAlpha = (1 - t / 0.25) * 0.6;
-        const coreSize = TILE * (0.6 - t * 1.2);
+        const coreSize = TILE_SIZE * (0.6 - t * 1.2);
         octx.globalAlpha = coreAlpha;
         octx.fillStyle = "#ffe0a0";
         octx.beginPath();
@@ -319,7 +318,7 @@ export function drawBattleEffects(
 
       // Shockwave ring — expands outward
       if (t < 0.6) {
-        const ringR = TILE * 0.5 + t * TILE;
+        const ringR = TILE_SIZE * 0.5 + t * TILE_SIZE;
         octx.globalAlpha = (1 - t / 0.6) * 0.7;
         octx.strokeStyle = "#ffcc44";
         octx.lineWidth = 2;
@@ -333,7 +332,7 @@ export function drawBattleEffects(
         const sparkAlpha = 1 - t / 0.8;
         for (let i = 0; i < 5; i++) {
           const angle = (seed + i * 1.3) % (Math.PI * 2);
-          const dist = t * (TILE * 0.8 + i * 3);
+          const dist = t * (TILE_SIZE * 0.8 + i * 3);
           const sx = cx + Math.cos(angle) * dist;
           const sy = cy + Math.sin(angle) * dist - t * 3;
           octx.globalAlpha = sparkAlpha * 0.9;
@@ -345,7 +344,7 @@ export function drawBattleEffects(
       // Smoke — dark puff rising, lingers in second half
       if (t > 0.2) {
         const smokeT = (t - 0.2) / 0.8;
-        const smokeR = TILE * 0.4 + smokeT * TILE * 0.3;
+        const smokeR = TILE_SIZE * 0.4 + smokeT * TILE_SIZE * 0.3;
         octx.globalAlpha = (1 - smokeT) * 0.35;
         octx.fillStyle = "#3a3028";
         octx.beginPath();
@@ -431,9 +430,9 @@ export function drawBattleEffects(
   // Burning pits
   if (overlay?.entities?.burningPits) {
     for (const pit of overlay.entities.burningPits) {
-      const px = pit.col * TILE;
-      const py = pit.row * TILE;
-      const mid = TILE / 2;
+      const px = pit.col * TILE_SIZE;
+      const py = pit.row * TILE_SIZE;
+      const mid = TILE_SIZE / 2;
       const flicker = Math.random() * 0.3;
       const stage = Math.max(1, Math.min(3, pit.roundsLeft));
       drawSprite(octx, `burning_pit_${stage}`, px, py);
@@ -509,8 +508,8 @@ export function drawBattleEffects(
   if (overlay?.ui?.timer != null && overlay.ui.timer >= 0) {
     const secs = Math.max(0, Math.ceil(overlay.ui.timer) - 1);
     const text = `${secs}`;
-    const jx = map.junction.x * TILE + TILE / 2;
-    const jy = map.junction.y * TILE + TILE / 2;
+    const jx = map.junction.x * TILE_SIZE + TILE_SIZE / 2;
+    const jy = map.junction.y * TILE_SIZE + TILE_SIZE / 2;
     octx.save();
     octx.font = FONT_TIMER;
     octx.textAlign = "center";

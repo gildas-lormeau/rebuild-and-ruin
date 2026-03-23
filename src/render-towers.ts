@@ -8,7 +8,6 @@ import { getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
 import { FONT_FLOAT_LG, rgb, TOWER_FLASH_MS } from "./render-theme.ts";
 import { drawSpriteCentered } from "./sprites.ts";
 
-const TILE = TILE_SIZE;
 
 /** Draw a highlight selector around a tower position. */
 function drawTowerHighlight(
@@ -17,7 +16,7 @@ function drawTowerHighlight(
   cy: number,
   color?: string,
 ): void {
-  const margin = 4 + TILE / 2;
+  const margin = 4 + TILE_SIZE / 2;
   const bx = cx - 15 - margin;
   const by = cy - 16 - margin;
   const w = 30 + margin * 2;
@@ -53,8 +52,8 @@ export function drawTowers(
 ): void {
   for (let i = 0; i < map.towers.length; i++) {
     const tower = map.towers[i]!;
-    const cx = (tower.col + 1) * TILE;
-    const cy = (tower.row + 1) * TILE;
+    const cx = (tower.col + 1) * TILE_SIZE;
+    const cy = (tower.row + 1) * TILE_SIZE;
 
     const ownerId = overlay?.entities?.homeTowers?.get(i);
     const inBattle = !!overlay?.battle?.battleTerritory;

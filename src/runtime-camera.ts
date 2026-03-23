@@ -14,13 +14,12 @@ import { unpackTile } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 import { Phase } from "./types.ts";
 
-const TILE = TILE_SIZE;
 
 // ---------------------------------------------------------------------------
 // Public interfaces
 // ---------------------------------------------------------------------------
 
-export interface CameraDeps {
+interface CameraDeps {
   getState: () => GameState | undefined;
   getMode: () => Mode;
   getQuitPending: () => boolean;
@@ -32,7 +31,7 @@ export interface CameraDeps {
   getFirstHumanPlayerId: () => number;
 }
 
-export interface CameraSystem {
+interface CameraSystem {
   // Per-frame lifecycle
   tickCamera: (dt: number) => void;
   updateViewport: () => Viewport | null;
@@ -95,10 +94,10 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   let castleBuildVp: Viewport | null = null;
   let buildPinchVp: Viewport | null = null;
   let battlePinchVp: Viewport | null = null;
-  const MIN_ZOOM_W = GRID_COLS * TILE * 0.15;
+  const MIN_ZOOM_W = GRID_COLS * TILE_SIZE * 0.15;
   const cachedZoneBounds: Map<number, { vp: Viewport; wallCount: number }> = new Map();
 
-  const fullMapVp: Viewport = { x: 0, y: 0, w: GRID_COLS * TILE, h: GRID_ROWS * TILE };
+  const fullMapVp: Viewport = { x: 0, y: 0, w: GRID_COLS * TILE_SIZE, h: GRID_ROWS * TILE_SIZE };
   const currentVp: Viewport = { ...fullMapVp };
   let lastVp: Viewport | null = null;
   const ZOOM_LERP_SPEED = 6;
@@ -154,16 +153,16 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     maxR = Math.min(GRID_ROWS - 1, maxR + pad);
     minC = Math.max(0, minC - pad);
     maxC = Math.min(GRID_COLS - 1, maxC + pad);
-    const fullW = GRID_COLS * TILE, fullH = GRID_ROWS * TILE;
+    const fullW = GRID_COLS * TILE_SIZE, fullH = GRID_ROWS * TILE_SIZE;
     const maxW = fullW * MAX_ZOOM_VIEWPORT_RATIO, maxH = fullH * MAX_ZOOM_VIEWPORT_RATIO;
     const targetAspect = GRID_COLS / GRID_ROWS;
-    const w = (maxC - minC + 1) * TILE, h = (maxR - minR + 1) * TILE;
+    const w = (maxC - minC + 1) * TILE_SIZE, h = (maxR - minR + 1) * TILE_SIZE;
     const vpAspect = w / h;
     const newW = vpAspect < targetAspect
       ? Math.min(maxW, h * targetAspect)
       : Math.min(maxW, (Math.min(maxH, w / targetAspect)) * targetAspect);
     const newH = newW / targetAspect;
-    const cx = (minC + maxC + 1) * TILE / 2, cy = (minR + maxR + 1) * TILE / 2;
+    const cx = (minC + maxC + 1) * TILE_SIZE / 2, cy = (minR + maxR + 1) * TILE_SIZE / 2;
     const x = Math.max(0, Math.min(fullW - newW, cx - newW / 2));
     const y = Math.max(0, Math.min(fullH - newH, cy - newH / 2));
     return { x, y, w: newW, h: newH };
@@ -343,8 +342,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   function screenToWorld(x: number, y: number): WorldPos {
     const vp = getViewport();
-    const cw = GRID_COLS * TILE * SCALE;
-    const ch = GRID_ROWS * TILE * SCALE;
+    const cw = GRID_COLS * TILE_SIZE * SCALE;
+    const ch = GRID_ROWS * TILE_SIZE * SCALE;
     if (!vp) return { wx: x / SCALE, wy: y / SCALE };
     return {
       wx: vp.x + (x / cw) * vp.w,
@@ -355,8 +354,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function pixelToTile(x: number, y: number): { row: number; col: number } {
     const { wx, wy } = screenToWorld(x, y);
     return {
-      col: Math.max(0, Math.min(GRID_COLS - 1, Math.floor(wx / TILE))),
-      row: Math.max(0, Math.min(GRID_ROWS - 1, Math.floor(wy / TILE))),
+      col: Math.max(0, Math.min(GRID_COLS - 1, Math.floor(wx / TILE_SIZE))),
+      row: Math.max(0, Math.min(GRID_ROWS - 1, Math.floor(wy / TILE_SIZE))),
     };
   }
 
@@ -373,8 +372,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function onPinchUpdate(midX: number, midY: number, scale: number): void {
     const mode = deps.getMode();
     if (!pinchStartVp || (mode !== Mode.GAME && mode !== Mode.SELECTION)) return;
-    const cw = GRID_COLS * TILE * SCALE;
-    const ch = GRID_ROWS * TILE * SCALE;
+    const cw = GRID_COLS * TILE_SIZE * SCALE;
+    const ch = GRID_ROWS * TILE_SIZE * SCALE;
 
     const newW = Math.max(MIN_ZOOM_W, Math.min(fullMapVp.w, pinchStartVp.w * scale));
     const newH = newW * (fullMapVp.h / fullMapVp.w);

@@ -132,11 +132,6 @@ export function loadAtlas(src = `${BASE}assets/sprites.png`): Promise<void> {
   });
 }
 
-/** True once the atlas image has finished loading. */
-export function isAtlasReady(): boolean {
-  return atlas !== null;
-}
-
 // ---------------------------------------------------------------------------
 // Drawing
 // ---------------------------------------------------------------------------
@@ -178,14 +173,4 @@ export function drawSpriteCentered(
     cx - rect.w / 2, cy - rect.h / 2, rect.w, rect.h,
   );
   return true;
-}
-
-/** Look up a sprite rect by name (for custom drawing logic). */
-export function getSpriteRect(name: string): SpriteRect | undefined {
-  return SPRITES[name];
-}
-
-/** Get the atlas image (for advanced usage). Returns null if not loaded. */
-export function getAtlas(): HTMLImageElement | null {
-  return atlas;
 }

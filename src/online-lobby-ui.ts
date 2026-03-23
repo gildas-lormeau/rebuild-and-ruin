@@ -2,7 +2,7 @@ import type { ClientMessage } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
 import { getApiUrl } from "./online-client.ts";
 
-export interface LobbyElements {
+interface LobbyElements {
   lobbyMenu: HTMLElement;
   lobbyCreate: HTMLElement;
   lobbyJoin: HTMLElement;

@@ -6,7 +6,7 @@
  */
 
 import { SMALL_POCKET_MAX_SIZE, traitLookup } from "./ai-strategy.ts";
-import { canFire, fireCannon } from "./battle-system.ts";
+import { canFire } from "./battle-system.ts";
 import { getCardinalObstacleMask } from "./board-occupancy.ts";
 import type {
   PixelPos,
@@ -486,7 +486,7 @@ export function planSuperAttack(
 }
 
 /** Random walk to find up to maxLength connected wall tiles. */
-export function findConnectedWalls(
+function findConnectedWalls(
   walls: Set<number>,
   startKey: number,
   maxLength: number,
@@ -637,42 +637,3 @@ export function trackShotImpl(
 }
 
 // ---------------------------------------------------------------------------
-// Simple AI battle (headless / fallback)
-// ---------------------------------------------------------------------------
-
-/**
- * Simple AI: pick a random enemy wall or cannon tile and fire at it.
- * Used by headless tests and as a fallback when no strategy controller is active.
- */
-export function aiBattleTick(state: GameState, playerId: number): void {
-  const player = state.players[playerId];
-  if (!player) return;
-
-  // Collect enemy targets (walls + cannons)
-  const targets: TilePos[] = [];
-  for (const other of getActiveEnemies(state, playerId)) {
-    for (const key of other.walls) {
-      const { r, c } = unpackTile(key);
-      targets.push({ row: r, col: c });
-    }
-    for (const cannon of other.cannons) {
-      if (!isCannonAlive(cannon)) continue;
-      // Don't target cannons we've captured via balloon
-      if (
-        state.capturedCannons.some(
-          (cc) => cc.cannon === cannon && cc.capturerId === playerId,
-        )
-      )
-        continue;
-      targets.push({ row: cannon.row, col: cannon.col });
-    }
-  }
-  if (targets.length === 0) return;
-
-  // For each ready cannon, fire at a random target
-  for (let i = 0; i < player.cannons.length; i++) {
-    if (!canFire(state, playerId, i)) continue;
-    const target = state.rng.pick(targets);
-    fireCannon(state, playerId, i, target.row, target.col);
-  }
-}

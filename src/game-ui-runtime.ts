@@ -7,20 +7,12 @@
 import { nextReadyCombined } from "./battle-system.ts";
 import { computeCannonLimitsForPhase, resetCannonFacings } from "./game-engine.ts";
 import { Mode } from "./game-ui-types.ts";
-import type { TilePos } from "./geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
+import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import type { KeyBindings } from "./player-config.ts";
 import type { Crosshair, PlayerController } from "./player-controller.ts";
 import type { GameState, Impact, Player } from "./types.ts";
 import { Phase } from "./types.ts";
 
-/** Convert canvas pixel coords to tile coords, clamped to grid bounds. */
-export function pixelToTile(x: number, y: number): TilePos {
-  return {
-    col: Math.max(0, Math.min(GRID_COLS - 1, Math.floor(x / (TILE_SIZE * SCALE)))),
-    row: Math.max(0, Math.min(GRID_ROWS - 1, Math.floor(y / (TILE_SIZE * SCALE)))),
-  };
-}
 
 /** Format a key binding as a short hint string (e.g. "Arrows + N (B rotate)"). */
 export function formatKeyHint(kb: KeyBindings): string {

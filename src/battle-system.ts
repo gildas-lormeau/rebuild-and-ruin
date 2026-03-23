@@ -282,7 +282,7 @@ export type ImpactEvent =
   | { type: "pit_created"; row: number; col: number; roundsLeft: number };
 
 /** Result of updateCannonballs: impact positions (for VFX) + detailed events (for network). */
-export interface CannonballUpdateResult {
+interface CannonballUpdateResult {
   impacts: TilePos[];
   events: ImpactEvent[];
 }

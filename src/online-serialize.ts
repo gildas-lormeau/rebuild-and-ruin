@@ -35,14 +35,14 @@ export function serializePlayers(state: GameState) {
   }));
 }
 
-export function serializeGrunts(state: GameState) {
+function serializeGrunts(state: GameState) {
   return state.grunts.map((g) => ({
     row: g.row,
     col: g.col,
   }));
 }
 
-export function serializeHouses(state: GameState) {
+function serializeHouses(state: GameState) {
   return state.map.houses.map((h) => ({
     row: h.row,
     col: h.col,
@@ -51,7 +51,7 @@ export function serializeHouses(state: GameState) {
   }));
 }
 
-export function serializeBurningPits(state: GameState) {
+function serializeBurningPits(state: GameState) {
   return state.burningPits.map((p) => ({
     row: p.row,
     col: p.col,
@@ -59,7 +59,7 @@ export function serializeBurningPits(state: GameState) {
   }));
 }
 
-export function serializeBonusSquares(state: GameState) {
+function serializeBonusSquares(state: GameState) {
   return state.bonusSquares.map((b) => ({
     row: b.row,
     col: b.col,

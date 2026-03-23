@@ -30,11 +30,6 @@ import { facingToDir8, isCannonAlive, unpackTile } from "./spatial.ts";
 import { drawSprite } from "./sprites.ts";
 import type { BurningPit, Cannon, Grunt, Impact } from "./types.ts";
 
-/** @deprecated Import TILE_SIZE and SCALE from grid.ts directly. */
-export { SCALE };
-/** @deprecated Import TILE_SIZE from grid.ts directly. */
-export const TILE = TILE_SIZE;
-
 const COLS = GRID_COLS;
 const ROWS = GRID_ROWS;
 
@@ -368,8 +363,8 @@ function drawTerrain(
   const distFromWater = new Float32Array(W * H);
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
-      const tr = Math.floor(py / TILE);
-      const tc = Math.floor(px / TILE);
+      const tr = Math.floor(py / TILE_SIZE);
+      const tc = Math.floor(px / TILE_SIZE);
       distFromWater[py * W + px] = tileAt(map, tr, tc) === 1 ? INF : 0;
     }
   }
@@ -412,8 +407,8 @@ function drawTerrain(
   const distFromGrass = new Float32Array(W * H);
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
-      const tr = Math.floor(py / TILE);
-      const tc = Math.floor(px / TILE);
+      const tr = Math.floor(py / TILE_SIZE);
+      const tc = Math.floor(px / TILE_SIZE);
       distFromGrass[py * W + px] = tileAt(map, tr, tc) === 0 ? INF : 0;
     }
   }
@@ -507,14 +502,14 @@ function drawTerrain(
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
       const d = dist[py * W + px]!;
-      const tr = Math.floor(py / TILE);
-      const tc = Math.floor(px / TILE);
+      const tr = Math.floor(py / TILE_SIZE);
+      const tc = Math.floor(px / TILE_SIZE);
       const idx = (py * W + px) * 4;
       const isWater = tileAt(map, tr, tc) === 1;
 
       // Local pixel coords within the tile
-      const lx = px - tc * TILE;
-      const ly = py - tr * TILE;
+      const lx = px - tc * TILE_SIZE;
+      const ly = py - tr * TILE_SIZE;
 
       // Base grass color with blade texture baked in
       const grassBase: RGB = inBattle
@@ -523,7 +518,7 @@ function drawTerrain(
           ? GRASS_DARK
           : GRASS_LIGHT;
       // Textures only in battle mode; flat colors otherwise
-      const grassTexOffset = inBattle ? GRASS_TEX[ly * TILE + lx]! : 0;
+      const grassTexOffset = inBattle ? GRASS_TEX[ly * TILE_SIZE + lx]! : 0;
       const grass: RGB =
         grassTexOffset === 0
           ? grassBase
@@ -533,7 +528,7 @@ function drawTerrain(
               Math.max(0, Math.min(255, grassBase[2] + grassTexOffset)),
             ];
 
-      const waterTexOffset = inBattle ? WATER_TEX[ly * TILE + lx]! : 0;
+      const waterTexOffset = inBattle ? WATER_TEX[ly * TILE_SIZE + lx]! : 0;
       const water: RGB =
         waterTexOffset === 0
           ? WATER_COLOR
@@ -589,7 +584,7 @@ function drawCastles(
       const cobbleName = `cobblestone_p${castle.playerId}`;
       for (const key of territory) {
         const { r, c } = unpackTile(key);
-        drawSprite(octx, cobbleName, c * TILE, r * TILE);
+        drawSprite(octx, cobbleName, c * TILE_SIZE, r * TILE_SIZE);
       }
     } else {
       for (const key of castle.interior) {
@@ -598,8 +593,8 @@ function drawCastles(
         drawSprite(
           octx,
           `interior_${isLight ? "light" : "dark"}_p${castle.playerId}`,
-          c * TILE,
-          r * TILE,
+          c * TILE_SIZE,
+          r * TILE_SIZE,
         );
       }
     }
@@ -615,18 +610,18 @@ function drawCastles(
     const shadowEdge = `rgb(${Math.max(0, wR - 40)},${Math.max(0, wG - 40)},${Math.max(0, wB - 40)})`;
     for (const key of castle.walls) {
       const { r, c } = unpackTile(key);
-      const px = c * TILE;
-      const py = r * TILE;
+      const px = c * TILE_SIZE;
+      const py = r * TILE_SIZE;
       // Base wall tile: brick texture (procedural — no baked bevels)
       octx.fillStyle = `rgb(${wR},${wG},${wB})`;
-      octx.fillRect(px, py, TILE, TILE);
+      octx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
       // Mortar lines
       const mR = Math.max(0, wR - 25),
         mG = Math.max(0, wG - 25),
         mB = Math.max(0, wB - 25);
       octx.fillStyle = `rgb(${mR},${mG},${mB})`;
-      octx.fillRect(px, py + 5, TILE, 1);
-      octx.fillRect(px, py + 11, TILE, 1);
+      octx.fillRect(px, py + 5, TILE_SIZE, 1);
+      octx.fillRect(px, py + 11, TILE_SIZE, 1);
       octx.fillRect(px + 4, py, 1, 5);
       octx.fillRect(px + 10, py, 1, 5);
       octx.fillRect(px + 7, py + 6, 1, 5);
@@ -640,19 +635,19 @@ function drawCastles(
       const hasRight = castle.walls.has(r * COLS + (c + 1));
       if (!hasUp) {
         octx.fillStyle = lightEdge;
-        octx.fillRect(px, py, TILE, 2);
+        octx.fillRect(px, py, TILE_SIZE, 2);
       }
       if (!hasDown) {
         octx.fillStyle = shadowEdge;
-        octx.fillRect(px, py + TILE - 2, TILE, 2);
+        octx.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
       }
       if (!hasLeft) {
         octx.fillStyle = lightEdge;
-        octx.fillRect(px, py, 2, TILE);
+        octx.fillRect(px, py, 2, TILE_SIZE);
       }
       if (!hasRight) {
         octx.fillStyle = shadowEdge;
-        octx.fillRect(px + TILE - 2, py, 2, TILE);
+        octx.fillRect(px + TILE_SIZE - 2, py, 2, TILE_SIZE);
       }
     }
 
@@ -662,14 +657,14 @@ function drawCastles(
       for (const key of origWalls) {
         if (castle.walls.has(key)) continue;
         const { r, c } = unpackTile(key);
-        drawSprite(octx, "wall_debris", c * TILE, r * TILE);
+        drawSprite(octx, "wall_debris", c * TILE_SIZE, r * TILE_SIZE);
       }
     }
 
     // Draw cannons
     for (const cannon of castle.cannons) {
-      const cx = cannon.col * TILE;
-      const cy = cannon.row * TILE;
+      const cx = cannon.col * TILE_SIZE;
+      const cy = cannon.row * TILE_SIZE;
       if (!isCannonAlive(cannon)) {
         drawSprite(
           octx,
@@ -709,12 +704,12 @@ export function renderMap(
   viewport?: Viewport | null,
 ): void {
   const ctx = canvas.getContext("2d")!;
-  const W = COLS * TILE;
-  const H = ROWS * TILE;
+  const W = COLS * TILE_SIZE;
+  const H = ROWS * TILE_SIZE;
 
   const STATUS_BAR_H = overlay?.ui?.statusBar ? 32 : 0;
-  const cw = COLS * TILE * SCALE;
-  const gameH = ROWS * TILE * SCALE;
+  const cw = COLS * TILE_SIZE * SCALE;
+  const gameH = ROWS * TILE_SIZE * SCALE;
   const ch = gameH + STATUS_BAR_H;
   if (canvas.width !== cw || canvas.height !== ch) {
     canvas.width = cw;

@@ -164,14 +164,14 @@ export interface AiStrategy {
 // ---------------------------------------------------------------------------
 
 /** AI personality archetype. Determines correlated base trait values. */
-export const Archetype = {
+const Archetype = {
   BUILDER: "builder",
   AGGRESSIVE: "aggressive",
   TACTICIAN: "tactician",
   CHAOTIC: "chaotic",
   BALANCED: "balanced",
 } as const;
-export type ArchetypeType = (typeof Archetype)[keyof typeof Archetype];
+type ArchetypeType = (typeof Archetype)[keyof typeof Archetype];
 
 interface ArchetypeProfile {
   buildSkill: [number, number]; // [lo, hi] for 1–5
@@ -554,21 +554,6 @@ export class DefaultStrategy implements AiStrategy {
 // ---------------------------------------------------------------------------
 // Standalone helpers (for callers without a strategy instance)
 // ---------------------------------------------------------------------------
-
-/** Auto-select a home tower for an AI player. */
-export function autoSelectTower(
-  player: Player,
-  map: GameMap,
-  zone: number,
-  rng?: Rng,
-): void {
-  const strategy = new DefaultStrategy(undefined, rng?.int(0, 0xffffffff));
-  const tower = strategy.selectTower(map, zone);
-  if (tower) {
-    player.homeTower = tower;
-    player.ownedTowers = [tower];
-  }
-}
 
 /** Auto-place cannons for an AI player at scored positions inside their castle. */
 export function autoPlaceCannons(

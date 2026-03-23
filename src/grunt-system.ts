@@ -31,7 +31,6 @@ import {
   GRUNT_ATTACK_DURATION,
   GRUNT_WALL_ATTACK_CHANCE,
   GRUNT_WALL_ATTACK_MIN_BATTLES,
-  HOUSE_GRUNT_SPAWN_CHANCE,
   isPlayerActive,
 } from "./types.ts";
 
@@ -174,17 +173,6 @@ export function spawnGruntNearPosition(
   if (state.players.every((p) => p.id === destroyerId || p.eliminated)) return;
   const pos = findGruntSpawnNear(state, posRow, posCol);
   if (pos) addGrunt(state, pos.row, pos.col, destroyerId);
-}
-
-/** 1 in 5 chance to spawn a grunt when a house is hit by a cannonball. */
-export function maybeSpawnGruntFromHouse(
-  state: GameState,
-  destroyerId: number,
-  posRow: number,
-  posCol: number,
-): void {
-  if (!state.rng.bool(HOUSE_GRUNT_SPAWN_CHANCE)) return;
-  spawnGruntNearPosition(state, destroyerId, posRow, posCol);
 }
 
 /** Spawn a single grunt immediately on the given player's zone. */
@@ -699,7 +687,7 @@ export function tickGrunts(state: GameState): boolean {
  * When the timer reaches 0, the tower is killed.
  * Called each battle tick with dt in seconds.
  */
-export interface GruntAttackEvent {
+interface GruntAttackEvent {
   type: "tower_killed";
   towerIdx: number;
 }

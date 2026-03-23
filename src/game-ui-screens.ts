@@ -68,7 +68,7 @@ export function visibleOptions(ctx: UIContext): number[] {
   return IS_TOUCH_DEVICE ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 2, 4, 5];
 }
 
-export function optionValue(ctx: UIContext, idx: number): string {
+function optionValue(ctx: UIContext, idx: number): string {
   const s = ctx.settings;
   const state = ctx.getState();
   if (idx === 0) return DIFFICULTY_LABELS[s.difficulty]!;
@@ -90,7 +90,7 @@ export function optionValue(ctx: UIContext, idx: number): string {
 // Options screen
 // ---------------------------------------------------------------------------
 
-export function buildOptionsUi(ctx: UIContext): void {
+function buildOptionsUi(ctx: UIContext): void {
   const oc = ctx.ctx2d;
   oc.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   const readOnly = ctx.getOptionsReturnMode() !== null;
@@ -138,7 +138,7 @@ export function closeOptions(ctx: UIContext, modeValues: { LOBBY: Mode; GAME: Mo
 // Controls screen
 // ---------------------------------------------------------------------------
 
-export function buildControlsUi(ctx: UIContext): void {
+function buildControlsUi(ctx: UIContext): void {
   const oc = ctx.ctx2d;
   oc.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   const cs = ctx.controlsState;

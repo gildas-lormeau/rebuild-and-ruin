@@ -6,9 +6,7 @@
  * DOM lobby, watcher state, server message handling, and phase handlers.
  */
 
-import { GRID_COLS, TILE_SIZE } from "./grid.ts";
 
-const TILE = TILE_SIZE;
 
 import type {
   FullStateMessage,
@@ -37,6 +35,7 @@ import {
 import type { GameRuntime } from "./game-runtime.ts";
 import { createGameRuntime } from "./game-runtime.ts";
 import { Mode } from "./game-ui-types.ts";
+import { GRID_COLS, TILE_SIZE } from "./grid.ts";
 import { tickGrunts } from "./grunt-system.ts";
 import type { CheckpointDeps } from "./online-checkpoints.ts";
 import {
@@ -395,7 +394,7 @@ function tickWatcherBattle(dt: number, myHuman: PlayerController | null): void {
     watcherIdlePhases,
     watcherOrbitParams,
     crosshairSpeed: CROSSHAIR_SPEED,
-    tileSize: TILE,
+    tileSize: TILE_SIZE,
     logThrottled,
     interpolateToward,
     nextReadyCombined,

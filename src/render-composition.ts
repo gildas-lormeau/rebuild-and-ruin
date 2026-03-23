@@ -1,10 +1,7 @@
-import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
-import type { CastleData, RenderOverlay } from "./map-renderer.ts";
-
-const TILE = TILE_SIZE;
-
 import type { GameOverOverlay, LifeLostDialogOverlay } from "./game-ui-types.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
+import type { CastleData, RenderOverlay } from "./map-renderer.ts";
 import type { RGB } from "./player-config.ts";
 import {
   LIFE_LOST_BTN_H as BTN_H,
@@ -83,7 +80,7 @@ export function buildBannerUi(
   subtitle?: string,
 ): { text: string; subtitle?: string; y: number } | undefined {
   if (!active) return undefined;
-  const h = GRID_ROWS * TILE;
+  const h = GRID_ROWS * TILE_SIZE;
   const bannerH = h * 0.15;
   const startY = -bannerH / 2;
   const endY = h + bannerH / 2;
@@ -232,18 +229,18 @@ export function lifeLostPanelPos(
 ): { px: number; py: number } {
   const zone = state.playerZones[playerId] ?? 0;
   const zoneTowers = state.map.towers.filter((t) => t.zone === zone);
-  const tsW = GRID_COLS * TILE;
-  const tsH = GRID_ROWS * TILE;
+  const tsW = GRID_COLS * TILE_SIZE;
+  const tsH = GRID_ROWS * TILE_SIZE;
 
   const cx =
     zoneTowers.length > 0
       ? (zoneTowers.reduce((s, t) => s + t.col, 0) / zoneTowers.length + 1) *
-        TILE
+        TILE_SIZE
       : tsW / 2;
   const cy =
     zoneTowers.length > 0
       ? (zoneTowers.reduce((s, t) => s + t.row, 0) / zoneTowers.length + 1) *
-        TILE
+        TILE_SIZE
       : tsH / 2;
 
   return {
@@ -271,8 +268,8 @@ export function handleLifeLostDialogClick(params: {
     firstHumanPlayerId,
   } = params;
 
-  const tsW = GRID_COLS * TILE;
-  const tsH = GRID_ROWS * TILE;
+  const tsW = GRID_COLS * TILE_SIZE;
+  const tsH = GRID_ROWS * TILE_SIZE;
   const x = canvasX * (tsW / canvasWidth);
   const y = canvasY * (tsH / canvasHeight);
 

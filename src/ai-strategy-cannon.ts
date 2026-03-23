@@ -126,7 +126,7 @@ export function autoSelectTowerImpl(
  * Score a cannon placement position. Lower = better.
  * Penalizes: proximity to map edges, proximity to water, wasted interior tiles.
  */
-export function scoreCannonPosition(
+function scoreCannonPosition(
   player: Player,
   row: number,
   col: number,

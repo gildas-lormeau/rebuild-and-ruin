@@ -17,7 +17,7 @@ export interface KeyBindings {
   rotate: string; // rotate piece / cycle cannon mode / accelerate crosshair
 }
 
-export interface PlayerColor {
+interface PlayerColor {
   wall: RGB;
   interiorLight: RGB;
   interiorDark: RGB;
@@ -90,4 +90,3 @@ export function getPlayerColor(playerId: number): PlayerColor {
 
 /** Ordered action keys for the controls screen (matches KeyBindings fields). */
 export const ACTION_KEYS: readonly (keyof KeyBindings)[] = ["up", "down", "left", "right", "confirm", "rotate"];
-export const ACTION_NAMES: readonly string[] = ["Up", "Down", "Left", "Right", "Confirm", "Rotate"];

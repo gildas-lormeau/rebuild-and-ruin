@@ -43,7 +43,7 @@ export function tickHostBattleCountdown(
 }
 
 /** Networking context for the battle phase. */
-export interface BattlePhaseNet extends HostNetContext {
+interface BattlePhaseNet extends HostNetContext {
   sendMessage: (msg: GameMessage) => void;
 }
 

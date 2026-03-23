@@ -1,16 +1,13 @@
-import { TILE_SIZE } from "./grid.ts";
-import { BATTLE_TIMER } from "./types.ts";
-
-const TILE = TILE_SIZE;
-
 import type { ServerMessage } from "../server/protocol.ts";
 import { resetCannonFacings } from "./game-engine.ts";
+import { TILE_SIZE } from "./grid.ts";
 import {
   applyGruntsCheckpoint,
   applyHousesCheckpoint,
   applyPlayersCheckpoint,
 } from "./online-serialize.ts";
 import type { GameState } from "./types.ts";
+import { BATTLE_TIMER } from "./types.ts";
 
 export interface CheckpointBattleAnim {
   territory: Set<number>[];
@@ -99,8 +96,8 @@ export function applyBattleStartCheckpoint(
   for (const p of deps.state.players) {
     if (p.eliminated || !p.homeTower) continue;
     deps.watcherCrosshairPos.set(p.id, {
-      x: (p.homeTower.col + 1) * TILE,
-      y: (p.homeTower.row + 1) * TILE,
+      x: (p.homeTower.col + 1) * TILE_SIZE,
+      y: (p.homeTower.row + 1) * TILE_SIZE,
     });
   }
 }

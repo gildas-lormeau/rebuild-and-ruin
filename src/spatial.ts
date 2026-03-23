@@ -388,7 +388,7 @@ export function inBounds(r: number, c: number): boolean {
 }
 
 /** True if tile is on the outer map border. */
-export function isBoundaryTile(r: number, c: number): boolean {
+function isBoundaryTile(r: number, c: number): boolean {
   return r === 0 || r === GRID_ROWS - 1 || c === 0 || c === GRID_COLS - 1;
 }
 

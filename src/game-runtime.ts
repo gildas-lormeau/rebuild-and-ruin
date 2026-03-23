@@ -6,12 +6,7 @@
  * mutable state and exposes getters/setters + functions for callers.
  */
 
-import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
-import { renderMap } from "./map-renderer.ts";
-import { createCameraSystem } from "./runtime-camera.ts";
-import { unpackTile } from "./spatial.ts";
 
-const TILE = TILE_SIZE;
 
 import { MSG } from "../server/protocol.ts";
 import { resolveBalloons, updateCannonballs } from "./battle-system.ts";
@@ -92,6 +87,7 @@ import {
   type PlayerStats,
   ROUNDS_OPTIONS,
 } from "./game-ui-types.ts";
+import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
 import { hapticBattleEvents, hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
 import { type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
@@ -103,6 +99,7 @@ import {
   tickLifeLostDialogRuntime,
 } from "./life-lost.ts";
 import type { RenderOverlay } from "./map-renderer.ts";
+import { renderMap } from "./map-renderer.ts";
 import type { BannerState } from "./phase-banner.ts";
 import {
   createBannerState,
@@ -134,6 +131,7 @@ import {
 } from "./render-composition.ts";
 import { GEAR_SIZE, GEAR_X, GEAR_Y } from "./render-theme.ts";
 import { computeLobbyLayout } from "./render-ui.ts";
+import { createCameraSystem } from "./runtime-camera.ts";
 import type { SelectionState } from "./selection.ts";
 import {
   allSelectionsConfirmed as allSelectionsConfirmedImpl,
@@ -143,6 +141,7 @@ import {
   initTowerSelection as initTowerSelectionImpl,
   tickSelectionPhase,
 } from "./selection.ts";
+import { unpackTile } from "./spatial.ts";
 import { registerTouchHandlers } from "./touch-input.ts";
 import { createDpad, createEnemyZoomButton, createHomeZoomButton, createQuitButton } from "./touch-ui.ts";
 import type { GameState } from "./types.ts";
@@ -160,7 +159,7 @@ import {
   WALL_BUILD_INTERVAL,
 } from "./types.ts";
 
-export type { GameRuntime, RuntimeConfig, RuntimeLifeLost, RuntimeSelection } from "./game-runtime-types.ts";
+export type { GameRuntime, RuntimeConfig } from "./game-runtime-types.ts";
 
 // ---------------------------------------------------------------------------
 // Factory
@@ -259,7 +258,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       for (const p of state.players) {
         if (p.id === myPid || p.eliminated) continue;
         for (const c of p.cannons) {
-          if (c.hp > 0) enemies.push({ x: (c.col + 0.5) * TILE, y: (c.row + 0.5) * TILE });
+          if (c.hp > 0) enemies.push({ x: (c.col + 0.5) * TILE_SIZE, y: (c.row + 0.5) * TILE_SIZE });
         }
       }
       w.__testEnemyCannons = enemies;
@@ -268,7 +267,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         if (p.id === myPid || p.eliminated) continue;
         for (const key of p.walls) {
           const { r, c } = unpackTile(key);
-          targets.push({ x: (c + 0.5) * TILE, y: (r + 0.5) * TILE });
+          targets.push({ x: (c + 0.5) * TILE_SIZE, y: (r + 0.5) * TILE_SIZE });
         }
       }
       w.__testEnemyTargets = targets;
@@ -345,9 +344,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const hit = lobbyClickHitTest({
       canvasX,
       canvasY,
-      canvasW: GRID_COLS * TILE * SCALE,
-      canvasH: GRID_ROWS * TILE * SCALE,
-      tileSize: TILE,
+      canvasW: GRID_COLS * TILE_SIZE * SCALE,
+      canvasH: GRID_ROWS * TILE_SIZE * SCALE,
+      tileSize: TILE_SIZE,
       gearX: GEAR_X,
       gearY: GEAR_Y,
       gearSize: GEAR_SIZE,
