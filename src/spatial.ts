@@ -296,7 +296,6 @@ export function facingToCardinal(angle: number): string {
 // Tower spatial queries
 // ---------------------------------------------------------------------------
 
-/** Find the tower index at a canvas pixel coordinate, within a tile radius. */
 /** Find tower nearest to a world coordinate (tile-pixel space). */
 export function towerAtPixel(
   towers: TilePos[],

@@ -1,6 +1,5 @@
 import { Phase } from "./types.ts";
 import type { GameState } from "./types.ts";
-import type { RenderOverlay } from "./map-renderer.ts";
 import type { PlayerController } from "./player-controller.ts";
 
 // ---------------------------------------------------------------------------
@@ -43,25 +42,6 @@ export function initTowerSelection(
   if (tower) {
     player.homeTower = tower;
     player.ownedTowers = [tower];
-  }
-}
-
-export function syncSelectionOverlay(
-  overlay: RenderOverlay,
-  selectionStates: Map<number, SelectionState>,
-  isLocalHuman?: (pid: number) => boolean,
-): void {
-  if (!overlay.selection) {
-    overlay.selection = { highlighted: null, selected: null };
-  }
-  overlay.selection.highlights = [];
-  for (const [pid, ss] of selectionStates) {
-    if (isLocalHuman && !isLocalHuman(pid)) continue;
-    overlay.selection.highlights.push({
-      towerIdx: ss.highlighted,
-      playerId: pid,
-      confirmed: ss.confirmed,
-    });
   }
 }
 
@@ -253,14 +233,14 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
 export function finishSelectionPhase(deps: {
   state: GameState;
   selectionStates: Map<number, SelectionState>;
-  overlaySelection: RenderOverlay["selection"];
+  clearOverlaySelection: () => void;
   animateCastleConstruction: (onDone: () => void) => void;
   advanceToCannonPhase: () => void;
 }): void {
   const {
     state,
     selectionStates,
-    overlaySelection,
+    clearOverlaySelection,
     animateCastleConstruction,
     advanceToCannonPhase,
   } = deps;
@@ -268,10 +248,6 @@ export function finishSelectionPhase(deps: {
   if (state.phase !== Phase.CASTLE_SELECT) return;
 
   selectionStates.clear();
-  if (overlaySelection) {
-    overlaySelection.highlights = undefined;
-    overlaySelection.highlighted = null;
-    overlaySelection.selected = null;
-  }
+  clearOverlaySelection();
   animateCastleConstruction(() => advanceToCannonPhase());
 }

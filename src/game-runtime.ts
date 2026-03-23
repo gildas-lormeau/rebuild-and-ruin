@@ -83,20 +83,20 @@ import {
   buildBannerUi,
   buildRenderSummaryMessage,
   buildStatusBar,
+  syncSelectionOverlay as syncSelectionOverlayImpl,
+  lifeLostPanelPos as lifeLostPanelPosShared,
+  handleLifeLostDialogClick as handleLifeLostDialogClickShared,
 } from "./render-composition.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
 import {
   tickLifeLostDialogRuntime,
   resolveLifeLostDialogRuntime,
-  handleLifeLostDialogClick as handleLifeLostDialogClickShared,
-  lifeLostPanelPos as lifeLostPanelPosShared,
   buildLifeLostDialogState,
   resolveAfterLifeLost,
 } from "./life-lost.ts";
 import {
   allSelectionsConfirmed as allSelectionsConfirmedImpl,
   initTowerSelection as initTowerSelectionImpl,
-  syncSelectionOverlay as syncSelectionOverlayImpl,
   highlightTowerSelection,
   confirmTowerSelection,
   tickSelectionPhase,
@@ -1287,11 +1287,19 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     });
   }
 
+  function clearOverlaySelection() {
+    if (overlay.selection) {
+      overlay.selection.highlights = undefined;
+      overlay.selection.highlighted = null;
+      overlay.selection.selected = null;
+    }
+  }
+
   function finishSelection() {
     finishSelectionPhase({
       state,
       selectionStates,
-      overlaySelection: overlay.selection,
+      clearOverlaySelection,
       animateCastleConstruction,
       advanceToCannonPhase,
     });
@@ -1387,7 +1395,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function finishReselection() {
     completeReselection({
-      state, selectionStates, overlaySelection: overlay.selection,
+      state, selectionStates, clearOverlaySelection,
       reselectQueue, reselectionPids, clearPlayerState,
       animateReselectionCastles, advanceToCannonPhase,
     });

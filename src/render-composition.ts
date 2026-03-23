@@ -1,8 +1,15 @@
-import { GRID_ROWS, TILE_SIZE } from "./grid.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import type { CastleData, RenderOverlay } from "./map-renderer.ts";
 
 const TILE = TILE_SIZE;
 import type { LifeLostDialogState } from "./life-lost.ts";
+import type { SelectionState } from "./selection.ts";
+import {
+  LIFE_LOST_PANEL_W as PANEL_W,
+  LIFE_LOST_PANEL_H as PANEL_H,
+  LIFE_LOST_BTN_W as BTN_W,
+  LIFE_LOST_BTN_H as BTN_H,
+} from "./render-theme.ts";
 import type { RGB } from "./player-config.ts";
 import { Phase } from "./types.ts";
 import type { GameState, Impact } from "./types.ts";
@@ -204,6 +211,110 @@ export function buildStatusBar(state: GameState, playerColors: readonly { interi
     })),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Selection overlay (moved from selection.ts to decouple from map-renderer)
+// ---------------------------------------------------------------------------
+
+export function syncSelectionOverlay(
+  overlay: RenderOverlay,
+  selectionStates: Map<number, SelectionState>,
+  isLocalHuman?: (pid: number) => boolean,
+): void {
+  if (!overlay.selection) {
+    overlay.selection = { highlighted: null, selected: null };
+  }
+  overlay.selection.highlights = [];
+  for (const [pid, ss] of selectionStates) {
+    if (isLocalHuman && !isLocalHuman(pid)) continue;
+    overlay.selection.highlights.push({
+      towerIdx: ss.highlighted,
+      playerId: pid,
+      confirmed: ss.confirmed,
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Life-lost panel layout (moved from life-lost.ts to decouple from render-theme)
+// ---------------------------------------------------------------------------
+
+export function lifeLostPanelPos(
+  state: GameState,
+  playerId: number,
+): { px: number; py: number } {
+  const zone = state.playerZones[playerId] ?? 0;
+  const zoneTowers = state.map.towers.filter((t) => t.zone === zone);
+  const tsW = GRID_COLS * TILE;
+  const tsH = GRID_ROWS * TILE;
+
+  const cx =
+    zoneTowers.length > 0
+      ? (zoneTowers.reduce((s, t) => s + t.col, 0) / zoneTowers.length + 1) *
+        TILE
+      : tsW / 2;
+  const cy =
+    zoneTowers.length > 0
+      ? (zoneTowers.reduce((s, t) => s + t.row, 0) / zoneTowers.length + 1) *
+        TILE
+      : tsH / 2;
+
+  return {
+    px: Math.max(2, Math.min(tsW - PANEL_W - 2, Math.round(cx - PANEL_W / 2))),
+    py: Math.max(2, Math.min(tsH - PANEL_H - 2, Math.round(cy - PANEL_H / 2))),
+  };
+}
+
+export function handleLifeLostDialogClick(params: {
+  state: GameState;
+  lifeLostDialog: LifeLostDialogState;
+  canvasWidth: number;
+  canvasHeight: number;
+  canvasX: number;
+  canvasY: number;
+  firstHumanPlayerId: number;
+}): { playerId: number; choice: "continue" | "abandon" } | null {
+  const {
+    state,
+    lifeLostDialog,
+    canvasWidth,
+    canvasHeight,
+    canvasX,
+    canvasY,
+    firstHumanPlayerId,
+  } = params;
+
+  const tsW = GRID_COLS * TILE;
+  const tsH = GRID_ROWS * TILE;
+  const x = canvasX * (tsW / canvasWidth);
+  const y = canvasY * (tsH / canvasHeight);
+
+  for (const entry of lifeLostDialog.entries) {
+    if (entry.choice !== "pending" || entry.isAi) continue;
+    if (entry.playerId !== firstHumanPlayerId) continue;
+
+    const { px, py } = lifeLostPanelPos(state, entry.playerId);
+    const btnY = py + PANEL_H - BTN_H - 10;
+    const contX = px + PANEL_W / 2 - BTN_W - 5;
+    const abX = px + PANEL_W / 2 + 5;
+
+    if (x >= contX && x <= contX + BTN_W && y >= btnY && y <= btnY + BTN_H) {
+      entry.choice = "continue";
+      return { playerId: entry.playerId, choice: "continue" };
+    }
+
+    if (x >= abX && x <= abX + BTN_W && y >= btnY && y <= btnY + BTN_H) {
+      entry.choice = "abandon";
+      return { playerId: entry.playerId, choice: "abandon" };
+    }
+  }
+
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Online overlay composition
+// ---------------------------------------------------------------------------
 
 export function buildOnlineOverlay(params: {
   previousSelection: RenderOverlay["selection"];
