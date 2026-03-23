@@ -993,6 +993,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     // Delayed zoom for selection phase (2s preview of full map, then zoom in)
     if (selectionZoomDelay > 0 && mode === Mode.SELECTION) {
+      frame.announcement = "Select your home castle";
       selectionZoomDelay -= dt;
       if (selectionZoomDelay <= 0) {
         selectionZoomDelay = 0;
