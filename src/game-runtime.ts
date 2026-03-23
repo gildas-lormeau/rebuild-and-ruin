@@ -7,6 +7,7 @@
  */
 
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, SCALE } from "./grid.ts";
+import { unpackTile } from "./spatial.ts";
 import { renderMap } from "./map-renderer.ts";
 
 const TILE = TILE_SIZE;
@@ -479,7 +480,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         for (const p of state.players) {
           if (p.id === myPid || p.eliminated) continue;
           for (const key of p.walls) {
-            const r = Math.floor(key / GRID_COLS), c = key % GRID_COLS;
+            const { r, c } = unpackTile(key);
             targets.push({ x: (c + 0.5) * TILE, y: (r + 0.5) * TILE });
           }
         }
@@ -844,7 +845,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     }
 
     if (player && player.walls.size > 0) {
-      for (const key of player.walls) expand(Math.floor(key / GRID_COLS), key % GRID_COLS);
+      for (const key of player.walls) { const { r, c } = unpackTile(key); expand(r, c); }
       if (player.homeTower) expand(player.homeTower.row, player.homeTower.col);
     } else {
       const zones = state.map.zones;
@@ -872,7 +873,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       if (r < minR) minR = r; if (r > maxR) maxR = r;
       if (c < minC) minC = c; if (c > maxC) maxC = c;
     }
-    for (const key of plan.tiles) expand(Math.floor(key / GRID_COLS), key % GRID_COLS);
+    for (const key of plan.tiles) { const { r, c } = unpackTile(key); expand(r, c); }
     if (player?.homeTower) expand(player.homeTower.row, player.homeTower.col);
     return boundsToViewport(minR, maxR, minC, maxC, 4);
   }

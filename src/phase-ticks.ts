@@ -1,12 +1,14 @@
-import { GRID_COLS } from "./grid.ts";
 import type { GameState } from "./types.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
+import { unpackTile } from "./spatial.ts";
 
-import type {
-  CannonPhantom,
-  PiecePhantom,
-  HumanPiecePhantom,
+import {
+  cannonPhantomKey,
+  piecePhantomKey,
+  type CannonPhantom,
+  type PiecePhantom,
+  type HumanPiecePhantom,
 } from "./online-types.ts";
 
 /** Shared empty collections — avoids allocating throwaway objects on every frame. */
@@ -137,7 +139,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
     frame.phantoms.aiCannonPhantoms!.push(phantom);
     if (!isHost || !sendOpponentCannonPhantom) continue;
 
-    const key = `${phantom.row},${phantom.col},${phantom.isSuper},${phantom.isBalloon}`;
+    const key = cannonPhantomKey(phantom);
     if (lastSentCannonPhantom.get(ctrl.playerId) === key) continue;
 
     lastSentCannonPhantom.set(ctrl.playerId, key);
@@ -257,7 +259,8 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
         const offsets: [number, number][] = [];
         for (const key of player.walls) {
           if (!wallSnapshot.has(key)) {
-            offsets.push([Math.floor(key / GRID_COLS), key % GRID_COLS]);
+            const { r, c } = unpackTile(key);
+            offsets.push([r, c]);
           }
         }
         if (offsets.length > 0) {
@@ -290,7 +293,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
       }
 
       if (!isHost || !sendOpponentPhantom) continue;
-      const key = `${p.row},${p.col},${p.offsets.map((o) => o.join(":")).join(";")}`;
+      const key = piecePhantomKey(p);
       if (lastSentPiecePhantom.get(p.playerId) === key) continue;
 
       lastSentPiecePhantom.set(p.playerId, key);

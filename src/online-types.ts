@@ -33,3 +33,13 @@ export type HumanPiecePhantom = {
   valid: boolean;
   playerId: number;
 };
+
+/** Dedup key for cannon phantom network sends. Covers all fields that affect display. */
+export function cannonPhantomKey(p: CannonPhantom): string {
+  return `${p.row},${p.col},${p.isSuper},${p.isBalloon}`;
+}
+
+/** Dedup key for piece phantom network sends. Covers position + shape. */
+export function piecePhantomKey(p: PiecePhantom): string {
+  return `${p.row},${p.col},${p.offsets.map((o) => o.join(":")).join(";")}`;
+}
