@@ -75,16 +75,6 @@ Be pragmatic — only flag things where the fix genuinely improves
 the codebase, not theoretical purity issues.
 ```
 
-## Pass 6: Final sweep — misplaced constants & types
-
-After the 5 passes are done, run a final cross-cutting audit:
-
-1. **Launch a sub-agent** (Explore type) to grep for all `export const [A-Z_]`, `export type`, `export interface`, and `export enum` across the reviewed files
-2. For each exported symbol, check **where it's imported** — if a constant is defined in module A but only used by module B, it's misplaced
-3. Flag constants that create unnecessary coupling (e.g., rendering dimensions in game logic files, shared AI constants owned by one strategy)
-4. Flag redundant re-exports (e.g., aliasing a canonical constant from another module)
-5. **Fix, build, commit** as a single pass
-
 ### What to look for specifically
 - UI layout/pixel constants in non-rendering modules
 - Re-exports that add indirection over canonical sources (prefer importing from the source)
