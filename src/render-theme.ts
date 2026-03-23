@@ -5,6 +5,11 @@
 /** RGB color tuple. */
 export type RGB = [number, number, number];
 
+/** Whether the device supports touch input (computed once at load time). */
+export const IS_TOUCH_DEVICE: boolean =
+  typeof window !== "undefined" &&
+  ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+
 // ---------------------------------------------------------------------------
 // Panel backgrounds
 // ---------------------------------------------------------------------------

@@ -101,6 +101,8 @@ import {
   tickHostCannonPhase,
   tickHostBuildPhase,
 } from "./phase-ticks.ts";
+import { IS_TOUCH_DEVICE } from "./render-theme.ts";
+import type { WorldPos } from "./geometry-types.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
 import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
 import {
@@ -110,9 +112,9 @@ import {
   tickHostBattlePhase,
   beginHostBattle,
 } from "./battle-ticks.ts";
-import { registerOnlineInputHandlers } from "./input.ts";
+import { registerOnlineInputHandlers, type RegisterOnlineInputDeps } from "./input.ts";
 import { registerTouchHandlers } from "./touch-input.ts";
-import { createRotateButton, createHomeZoomButton, createEnemyZoomButton, createQuitButton, createStatusBar } from "./touch-ui.ts";
+import { createRotateButton, createHomeZoomButton, createEnemyZoomButton, createQuitButton } from "./touch-ui.ts";
 import { hapticBattleEvents, hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
 import {
   snapshotTerritory as snapshotTerritoryImpl,
@@ -371,7 +373,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let homeZoomButton: ReturnType<typeof createHomeZoomButton> | null = null;
   let enemyZoomButton: ReturnType<typeof createEnemyZoomButton> | null = null;
   let quitButton: ReturnType<typeof createQuitButton> | null = null;
-  const statusBar = createStatusBar({ getState: () => state });
   /** null = full map, number = zone index to zoom into */
   let cameraZone: number | null = null;
   /** Remembered battle zoom — persists across build/battle transitions */
@@ -429,8 +430,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // @ts-ignore — import.meta.env is Vite-specific
   const DEV = import.meta.env?.DEV ?? (typeof location !== "undefined" && location?.hostname === "localhost");
 
+  let frameDt = 1 / 60;
+
   function mainLoop(now: number): void {
     const dt = clampedFrameDt(now);
+    frameDt = dt;
     resetFrame();
 
     // Expose mode + phase for E2E test automation (dev only)
@@ -544,8 +548,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       config.onLobbySlotJoined(hit.slotId);
       renderLobby();
       // On touch devices in local mode, start immediately after joining
-      const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-      if (isTouchDevice && !config.isOnline) {
+      if (IS_TOUCH_DEVICE && !config.isOnline) {
         lobby.active = false;
         config.onTickLobbyExpired();
       }
@@ -825,40 +828,36 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const w = (maxC - minC + 1) * TILE;
     const h = (maxR - minR + 1) * TILE;
     const vpAspect = w / h;
-    let result: Viewport;
-    if (vpAspect < targetAspect) {
-      const newW = Math.min(maxW, h * targetAspect);
-      const newH = newW / targetAspect;
-      const cx = (minC + maxC + 1) * TILE / 2;
-      const cy = (minR + maxR + 1) * TILE / 2;
-      const x = Math.max(0, Math.min(fullW - newW, cx - newW / 2));
-      const y = Math.max(0, Math.min(fullH - newH, cy - newH / 2));
-      result = { x, y, w: newW, h: newH };
-    } else {
-      const newH = Math.min(maxH, w / targetAspect);
-      const newW = newH * targetAspect;
-      const cx = (minC + maxC + 1) * TILE / 2;
-      const cy = (minR + maxR + 1) * TILE / 2;
-      const x = Math.max(0, Math.min(fullW - newW, cx - newW / 2));
-      const y = Math.max(0, Math.min(fullH - newH, cy - newH / 2));
-      result = { x, y, w: newW, h: newH };
-    }
+    // Expand the smaller dimension to match map aspect ratio, cap at 85%
+    const newW = vpAspect < targetAspect
+      ? Math.min(maxW, h * targetAspect)
+      : Math.min(maxW, (Math.min(maxH, w / targetAspect)) * targetAspect);
+    const newH = newW / targetAspect;
+    const cx = (minC + maxC + 1) * TILE / 2;
+    const cy = (minR + maxR + 1) * TILE / 2;
+    const x = Math.max(0, Math.min(fullW - newW, cx - newW / 2));
+    const y = Math.max(0, Math.min(fullH - newH, cy - newH / 2));
+    const result: Viewport = { x, y, w: newW, h: newH };
     cachedZoneBounds.set(zoneId, { vp: result, wallCount: player?.walls.size ?? 0 });
     return result;
   }
 
+  /** Resolve the local player's id (online pid or first human fallback). */
+  function myPlayerId(): number {
+    const pid = config.getMyPlayerId();
+    return pid >= 0 ? pid : (firstHuman()?.playerId ?? -1);
+  }
+
   /** Get the zone of the player's own territory. */
   function getMyZone(): number | null {
-    let pid = config.getMyPlayerId();
-    if (pid < 0) pid = firstHuman()?.playerId ?? -1;
+    const pid = myPlayerId();
     if (pid < 0) return null;
     return state.playerZones[pid] ?? null;
   }
 
   /** Get the zone of the leading non-eliminated enemy. */
   function getBestEnemyZone(): number | null {
-    let myPid = config.getMyPlayerId();
-    if (myPid < 0) myPid = firstHuman()?.playerId ?? -1;
+    const myPid = myPlayerId();
     let bestPid = -1, bestScore = -1;
     for (let i = 0; i < state.players.length; i++) {
       if (i === myPid || state.players[i]!.eliminated) continue;
@@ -913,8 +912,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     }
 
     // Lerp toward target
-    const dt = 1 / 60; // approximate frame dt
-    const t = Math.min(1, ZOOM_LERP_SPEED * dt);
+    const t = Math.min(1, ZOOM_LERP_SPEED * frameDt);
     currentVp.x += (target.x - currentVp.x) * t;
     currentVp.y += (target.y - currentVp.y) * t;
     currentVp.w += (target.w - currentVp.w) * t;
@@ -946,7 +944,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   /** Convert screen pixel (canvas coords) to world tile-pixel coords, accounting for zoom. */
-  function screenToWorld(x: number, y: number): { wx: number; wy: number } {
+  function screenToWorld(x: number, y: number): WorldPos {
     const vp = getViewport();
     const cw = GRID_COLS * TILE * SCALE;
     const ch = GRID_ROWS * TILE * SCALE;
@@ -1065,7 +1063,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     homeZoomButton?.update(showZoom ? state.phase : null);
     enemyZoomButton?.update(showZoom ? state.phase : null);
     quitButton?.update(inGame || mode === Mode.SELECTION ? state.phase : null);
-    statusBar.update();
   }
 
   function rematch() {
@@ -1414,7 +1411,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       render,
       collectCrosshairs,
       collectTowerEvents: gruntAttackTowers,
-      updateCannonballsWithEvents: (gameState, delta) => updateCannonballs(gameState, delta),
+      updateCannonballsWithEvents: updateCannonballs,
       sendMessage: config.send,
       onBattleEvents: (events) => {
         const pid = config.getMyPlayerId();
@@ -1512,8 +1509,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         resolveLifeLostDialogRuntime({
           lifeLostDialog: dialog,
           state,
-          afterLifeLostResolved: (continuing) =>
-            afterLifeLostResolved(continuing),
+          afterLifeLostResolved,
         }),
       onNonHostResolved: () => {
         mode = Mode.GAME;
@@ -1678,22 +1674,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   function registerInputHandlers(): void {
-    registerOnlineInputHandlers({
+    const inputDeps: RegisterOnlineInputDeps = {
       canvas,
       getState: () => state,
       getMode: () => mode,
       setMode: (m) => { mode = m as Mode; },
       modeValues: {
-        LOBBY: Mode.LOBBY,
-        OPTIONS: Mode.OPTIONS,
-        CONTROLS: Mode.CONTROLS,
-        SELECTION: Mode.SELECTION,
-        BANNER: Mode.BANNER,
-        BALLOON_ANIM: Mode.BALLOON_ANIM,
-        CASTLE_BUILD: Mode.CASTLE_BUILD,
-        LIFE_LOST: Mode.LIFE_LOST,
-        GAME: Mode.GAME,
-        STOPPED: Mode.STOPPED,
+        LOBBY: Mode.LOBBY, OPTIONS: Mode.OPTIONS, CONTROLS: Mode.CONTROLS,
+        SELECTION: Mode.SELECTION, BANNER: Mode.BANNER, BALLOON_ANIM: Mode.BALLOON_ANIM,
+        CASTLE_BUILD: Mode.CASTLE_BUILD, LIFE_LOST: Mode.LIFE_LOST,
+        GAME: Mode.GAME, STOPPED: Mode.STOPPED,
       },
       isLobbyActive: () => lobby.active,
       lobbyKeyJoin,
@@ -1737,75 +1727,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       setQuitTimer: (s) => { quitTimer = s; },
       setQuitMessage: (msg) => { quitMessage = msg; },
       render,
-      sendLifeLostChoice: (choice: "continue" | "abandon", playerId: number) => {
+      sendLifeLostChoice: (choice, playerId) => {
         config.send({ type: "life_lost_choice", choice, playerId });
       },
       settings,
-    });
-
-    // Touch input (mobile)
-    registerTouchHandlers({
-      canvas,
-      getState: () => state,
-      getMode: () => mode,
-      setMode: (m) => { mode = m as Mode; },
-      modeValues: {
-        LOBBY: Mode.LOBBY, OPTIONS: Mode.OPTIONS, CONTROLS: Mode.CONTROLS,
-        SELECTION: Mode.SELECTION, BANNER: Mode.BANNER, BALLOON_ANIM: Mode.BALLOON_ANIM,
-        CASTLE_BUILD: Mode.CASTLE_BUILD, LIFE_LOST: Mode.LIFE_LOST,
-        GAME: Mode.GAME, STOPPED: Mode.STOPPED,
-      },
-      isLobbyActive: () => lobby.active,
-      lobbyKeyJoin: () => false,
-      lobbyClick,
-      showLobby: returnToLobby,
-      rematch,
-      getGameOverFocused: () => frame.gameOver?.focused ?? "rematch",
-      setGameOverFocused: (f) => { if (frame.gameOver) { frame.gameOver.focused = f; render(); } },
-      showOptions,
-      closeOptions,
-      showControls,
-      closeControls,
-      getOptionsCursor: () => optionsCursor,
-      setOptionsCursor: (c) => { optionsCursor = c; },
-      getOptionsCount: () => visibleOptionsForCtx().length,
-      getRealOptionIdx: realOptionIdx,
-      getOptionsReturnMode: () => optionsReturnMode,
-      setOptionsReturnMode: (m) => { optionsReturnMode = m as Mode | null; },
-      changeOption,
-      getControlsState: () => controlsState,
-      getLifeLostDialog: () => lifeLostDialog,
-      lifeLostDialogClick,
-      getControllers: () => controllers,
-      isHuman,
-      withFirstHuman,
-      pixelToTile,
-      screenToWorld,
-      maybeSendAimUpdate: config.maybeSendAimUpdate ?? (() => {}),
-      tryPlaceCannonAndSend: config.tryPlaceCannonAndSend ?? ((ctrl, gs, max) => ctrl.tryPlaceCannon(gs, max)),
-      tryPlacePieceAndSend: config.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
-      fireAndSend: config.fireAndSend ?? ((ctrl, gameState) => ctrl.fire(gameState)),
-      getSelectionStates: () => selectionStates,
-      highlightTowerForPlayer,
-      confirmSelectionForPlayer,
-      finishReselection,
-      finishSelection,
-      isHost: config.getIsHost,
-      togglePause,
-      getQuitPending: () => quitPending,
-      setQuitPending: (v) => { quitPending = v; },
-      setQuitTimer: (s) => { quitTimer = s; },
-      setQuitMessage: (msg) => { quitMessage = msg; },
-      render,
-      sendLifeLostChoice: (choice: "continue" | "abandon", playerId: number) => {
-        config.send({ type: "life_lost_choice", choice, playerId });
-      },
-      settings,
-    });
+    };
+    registerOnlineInputHandlers(inputDeps);
+    registerTouchHandlers({ ...inputDeps, lobbyKeyJoin: () => false });
 
     // Rotate button (mobile only)
-    const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-    if (isTouchDevice) {
+    if (IS_TOUCH_DEVICE) {
       rotateButton = createRotateButton({
         getState: () => state,
         withFirstHuman,
@@ -1820,8 +1751,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           // Remember enemy zoom choice for battle persistence
           if (state.phase === Phase.BATTLE && z !== null) battleZoom = z;
         },
-        getMyPlayerId: () => config.getMyPlayerId(),
-        firstHumanPlayerId: () => firstHuman()?.playerId ?? -1,
+        myPlayerId,
         render,
       };
       homeZoomButton = createHomeZoomButton(zoomDeps);

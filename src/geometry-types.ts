@@ -22,3 +22,9 @@ export interface TileRect {
 export type StrategicPixelPos = PixelPos & { strategic?: boolean };
 
 export type PrioritizedTilePos = TilePos & { priority: boolean };
+
+/** World coordinate in tile-pixel space (as opposed to screen/canvas pixels). */
+export interface WorldPos {
+  wx: number;
+  wy: number;
+}

@@ -20,6 +20,7 @@ import {
   FONT_HINT,
   FONT_TIMER,
   FONT_ICON,
+  IS_TOUCH_DEVICE,
 } from "./render-theme.ts";
 
 // Local semantic colors (not shared across files — context-specific to UI panels)
@@ -680,11 +681,10 @@ export function drawPlayerSelect(
       octx.strokeRect(btnX, btnY, btnW, btnH);
       octx.font = FONT_HINT;
       octx.fillStyle = flash ? "#fff" : "#aaa";
-      const isTouch = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
-      octx.fillText(isTouch ? "Tap to join" : "Press button to start", cx, btnY + btnH / 2);
+      octx.fillText(IS_TOUCH_DEVICE ? "Tap to join" : "Press button to start", cx, btnY + btnH / 2);
     }
 
-    if (!("ontouchstart" in (typeof window !== "undefined" ? window : {}))) {
+    if (!IS_TOUCH_DEVICE) {
       octx.font = FONT_HINT;
       octx.fillStyle = TEXT_DIM;
       octx.fillText(p.keyHint ?? "", cx, btnY - 8);

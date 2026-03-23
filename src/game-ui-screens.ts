@@ -45,13 +45,14 @@ export interface UIContext {
 // Option value display
 // ---------------------------------------------------------------------------
 
+import { IS_TOUCH_DEVICE } from "./render-theme.ts";
+
 /** Which option indices are visible in the current mode. */
-const isTouch = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 
 export function visibleOptions(ctx: UIContext): number[] {
   // 0=Difficulty, 1=Rounds, 2=Cannon HP, 3=Haptics, 4=Seed, 5=Controls
-  if (ctx.isOnline) return isTouch ? [1, 2, 3, 4, 5] : [1, 2, 4, 5];
-  return isTouch ? [0, 1, 2, 3, 4, 5] : [0, 1, 2, 4, 5];
+  if (ctx.isOnline) return IS_TOUCH_DEVICE ? [1, 2, 3, 4, 5] : [1, 2, 4, 5];
+  return IS_TOUCH_DEVICE ? [0, 1, 2, 3, 4, 5] : [0, 1, 2, 4, 5];
 }
 
 export function optionValue(ctx: UIContext, idx: number): string {

@@ -6,6 +6,7 @@ import type { GameState } from "./types.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { KeyBindings } from "./player-config.ts";
 import type { SelectionState } from "./selection.ts";
+import type { WorldPos } from "./geometry-types.ts";
 
 interface ControlsState {
   playerIdx: number;
@@ -67,7 +68,7 @@ export interface RegisterOnlineInputDeps {
   isHuman: (ctrl: PlayerController) => boolean;
   withFirstHuman: (action: (human: PlayerController) => void) => void;
   pixelToTile: (x: number, y: number) => { row: number; col: number };
-  screenToWorld: (x: number, y: number) => { wx: number; wy: number };
+  screenToWorld: (x: number, y: number) => WorldPos;
   maybeSendAimUpdate: (x: number, y: number) => void;
   tryPlaceCannonAndSend: (
     ctrl: PlayerController,

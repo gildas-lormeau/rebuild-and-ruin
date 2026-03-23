@@ -42,9 +42,7 @@ export function createRotateButton(deps: RotateButtonDeps): {
   btn.textContent = "\u21BB"; // ↻ clockwise arrow
   document.body.appendChild(btn);
 
-  btn.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  function handleActivate() {
     const state = deps.getState();
     if (!state) return;
     deps.withFirstHuman((human) => {
@@ -56,23 +54,13 @@ export function createRotateButton(deps: RotateButtonDeps): {
       }
       deps.render();
     });
-  }, { passive: false });
+  }
 
-  // Also handle click for hybrid devices (mouse + touch)
+  btn.addEventListener("touchstart", (e) => {
+    e.preventDefault(); e.stopPropagation(); handleActivate();
+  }, { passive: false });
   btn.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const state = deps.getState();
-    if (!state) return;
-    deps.withFirstHuman((human) => {
-      if (state.phase === Phase.WALL_BUILD) {
-        human.rotatePiece();
-      } else if (state.phase === Phase.CANNON_PLACE) {
-        const max = state.cannonLimits[human.playerId] ?? 0;
-        human.cycleCannonMode(state, max);
-      }
-      deps.render();
-    });
+    e.preventDefault(); e.stopPropagation(); handleActivate();
   });
 
   return {
@@ -160,32 +148,20 @@ export function createQuitButton(deps: QuitButtonDeps): {
 }
 
 // ---------------------------------------------------------------------------
-// Status bar — bottom, shows round, scores, timer
-// ---------------------------------------------------------------------------
-
-
-interface StatusBarDeps {
-  getState: () => GameState | undefined;
-}
-
-export function createStatusBar(_deps: StatusBarDeps): {
-  update: () => void;
-} {
-  // Status bar is now rendered inside the canvas via drawStatusBar in render-ui.ts
-  return { update() {} };
-}
-
-// ---------------------------------------------------------------------------
 // Zoom buttons — bottom-left pair
 //   Home: toggles between my zone and full map
 //   Enemy: cycles through opponent zones
 // ---------------------------------------------------------------------------
 
+const ZOOM_BTN_SIZE = 48;
+const ZOOM_BTN_MARGIN = 24;
+const ZOOM_BTN_BOTTOM = 36;
+const ZOOM_BTN_GAP = 8;
 const ZOOM_BTN_CSS = `
   position: fixed;
-  left: 24px;
-  width: 48px;
-  height: 48px;
+  left: ${ZOOM_BTN_MARGIN}px;
+  width: ${ZOOM_BTN_SIZE}px;
+  height: ${ZOOM_BTN_SIZE}px;
   border-radius: 50%;
   z-index: 100;
   font-size: 24px;
@@ -201,8 +177,7 @@ interface ZoomButtonDeps {
   getState: () => GameState | undefined;
   getCameraZone: () => number | null;
   setCameraZone: (zone: number | null) => void;
-  getMyPlayerId: () => number;
-  firstHumanPlayerId: () => number;
+  myPlayerId: () => number;
   render: () => void;
 }
 
@@ -213,7 +188,7 @@ export function createHomeZoomButton(deps: ZoomButtonDeps): {
   const btn = document.createElement("button");
   btn.dataset.btn = "home";
   btn.style.cssText = ZOOM_BTN_CSS + `
-    bottom: 36px;
+    bottom: ${ZOOM_BTN_BOTTOM}px;
     background: rgba(60, 80, 120, 0.85);
     border: 2px solid rgba(100, 140, 200, 0.7);
     color: #c0d8f0;
@@ -223,8 +198,7 @@ export function createHomeZoomButton(deps: ZoomButtonDeps): {
   function getMyZone(): number | null {
     const state = deps.getState();
     if (!state) return null;
-    let pid = deps.getMyPlayerId();
-    if (pid < 0) pid = deps.firstHumanPlayerId();
+    const pid = deps.myPlayerId();
     if (pid < 0) return null;
     return state.playerZones[pid] ?? null;
   }
@@ -248,8 +222,7 @@ export function createHomeZoomButton(deps: ZoomButtonDeps): {
       // Currently full map or enemy — show home icon with my color
       btn.textContent = "\u2302"; // ⌂ home
       const state = deps.getState();
-      let pid = deps.getMyPlayerId();
-      if (pid < 0) pid = deps.firstHumanPlayerId();
+      const pid = deps.myPlayerId();
       if (pid >= 0 && state && PLAYER_COLORS[pid]) {
         const c = PLAYER_COLORS[pid]!.interiorLight;
         btn.style.background = `rgba(${c[0]},${c[1]},${c[2]},0.85)`;
@@ -281,7 +254,7 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps): {
   const btn = document.createElement("button");
   btn.dataset.btn = "enemy";
   btn.style.cssText = ZOOM_BTN_CSS + `
-    bottom: 92px;
+    bottom: ${ZOOM_BTN_BOTTOM + ZOOM_BTN_SIZE + ZOOM_BTN_GAP}px;
     background: rgba(100, 50, 50, 0.85);
     border: 2px solid rgba(180, 80, 80, 0.7);
     color: #f0c0c0;
@@ -291,8 +264,7 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps): {
   function getEnemyZones(): number[] {
     const state = deps.getState();
     if (!state) return [];
-    let myPid = deps.getMyPlayerId();
-    if (myPid < 0) myPid = deps.firstHumanPlayerId();
+    const myPid = deps.myPlayerId();
     const zones: number[] = [];
     for (let i = 0; i < state.players.length; i++) {
       if (i === myPid || state.players[i]!.eliminated) continue;
