@@ -1228,7 +1228,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       createControllerForSlot: (i: number, gameState: GameState) => {
         const isAi = !rs.lobby.joined[i];
         const strategySeed = isAi ? gameState.rng.int(0, MAX_UINT32) : undefined;
-        return createController(i, isAi, rs.settings.keyBindings[i]!, strategySeed);
+        return createController(i, isAi, rs.settings.keyBindings[i]!, strategySeed, rs.settings.difficulty);
       },
       enterSelection: enterTowerSelection,
     });

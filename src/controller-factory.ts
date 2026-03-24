@@ -15,9 +15,10 @@ export function createController(
   isAi: boolean,
   keys?: KeyBindings,
   strategySeed?: number,
+  difficulty?: number,
 ): PlayerController {
   return isAi
-    ? new AiController(playerId, new DefaultStrategy(undefined, strategySeed))
+    ? new AiController(playerId, new DefaultStrategy(undefined, strategySeed, difficulty))
     : new HumanController(playerId, keys!);
 }
 

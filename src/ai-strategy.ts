@@ -287,17 +287,35 @@ export class DefaultStrategy implements AiStrategy {
   private battleTactics: 1 | 2 | 3;
   private spatialAwareness: 1 | 2 | 3;
 
-  constructor(archetype?: ArchetypeType, seed?: number) {
+  /**
+   * @param archetype — force a specific archetype, or undefined to roll randomly
+   * @param seed — PRNG seed for reproducibility
+   * @param difficulty — 0=Easy, 1=Normal, 2=Hard, 3=Very Hard; clamps trait ranges
+   */
+  constructor(archetype?: ArchetypeType, seed?: number, difficulty: number = 1) {
     this.rng = new Rng(seed);
     this.archetype = archetype ?? rollArchetype(this.rng);
     const p = ARCHETYPE_PROFILES[this.archetype];
-    this.buildSkill = this.rng.int(...p.buildSkill) as 1 | 2 | 3 | 4 | 5;
-    this.spatialAwareness = this.rng.int(...p.spatialAwareness) as 1 | 2 | 3;
-    this.aggressiveness = this.rng.int(...p.aggressiveness) as 1 | 2 | 3;
-    this.defensiveness = this.rng.int(...p.defensiveness) as 1 | 2 | 3;
-    this.battleTactics = this.rng.int(...p.battleTactics) as 1 | 2 | 3;
-    this.cursorSkill = this.rng.int(...p.cursorSkill) as 1 | 2 | 3;
-    this.thinkingSpeed = this.rng.int(...p.thinkingSpeed) as 1 | 2 | 3;
+
+    // Difficulty biases trait rolls within archetype ranges:
+    //   Easy(0):      always pick lo end of range, then subtract 1 (floor 1)
+    //   Normal(1):    roll uniformly in [lo, hi] (original behavior)
+    //   Hard(2):      always pick hi end of range
+    //   Very Hard(3): always pick hi end, then add 1 (capped per trait)
+    const bias = (range: [number, number], cap: number): number => {
+      if (difficulty <= 0) return Math.max(1, range[0] - 1);
+      if (difficulty === 2) return range[1];
+      if (difficulty >= 3) return Math.min(cap, range[1] + 1);
+      return this.rng.int(...range);
+    };
+
+    this.buildSkill = bias(p.buildSkill, 5) as 1 | 2 | 3 | 4 | 5;
+    this.spatialAwareness = bias(p.spatialAwareness, 3) as 1 | 2 | 3;
+    this.aggressiveness = bias(p.aggressiveness, 3) as 1 | 2 | 3;
+    this.defensiveness = bias(p.defensiveness, 3) as 1 | 2 | 3;
+    this.battleTactics = bias(p.battleTactics, 3) as 1 | 2 | 3;
+    this.cursorSkill = bias(p.cursorSkill, 3) as 1 | 2 | 3;
+    this.thinkingSpeed = bias(p.thinkingSpeed, 3) as 1 | 2 | 3;
     this.caresAboutHouses = this.rng.bool(p.caresAboutHouses);
     this.caresAboutBonuses = this.rng.bool(p.caresAboutBonuses);
     this.bankHugging = this.rng.bool(p.bankHugging);
