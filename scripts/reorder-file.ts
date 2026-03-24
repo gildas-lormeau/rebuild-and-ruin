@@ -324,9 +324,18 @@ function reorderFile(sf: SourceFile): string {
       console.log(`  Fn order: ${sortedFns.map((f) => getName(f) ?? "?").join(" → ")}`);
   }
 
+  // Split imports from re-exports (biome wants a blank line between them)
+  const imports = buckets[Cat.Import]!.filter(
+    (s) => !s.isKind(SyntaxKind.ExportDeclaration),
+  );
+  const reExports = buckets[Cat.Import]!.filter((s) =>
+    s.isKind(SyntaxKind.ExportDeclaration),
+  );
+
   // Assemble sections
   const sections: Statement[][] = [
-    buckets[Cat.Import]!,
+    imports,
+    reExports,
     buckets[Cat.Type]!,
     sortedConsts,
     sortedFns,
