@@ -99,9 +99,18 @@ for (const w of WAVE_LO) {
 }
 
 const sceneCanvas = document.createElement("canvas");
-const sceneCtx = sceneCanvas.getContext("2d")!;
+const sceneCtx = sceneCanvas.getContext("2d", { willReadFrequently: true })!;
 const bannerSceneCanvas = document.createElement("canvas");
-const bannerSceneCtx = bannerSceneCanvas.getContext("2d")!;
+const bannerSceneCtx = bannerSceneCanvas.getContext("2d", { willReadFrequently: true })!;
+
+/** Cached main-canvas context — avoids per-frame getContext overhead on Chrome mobile. */
+let mainCtxCache: { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null = null;
+function getMainCtx(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
+  if (mainCtxCache?.canvas === canvas) return mainCtxCache.ctx;
+  const ctx = canvas.getContext("2d", { alpha: false })!;
+  mainCtxCache = { canvas, ctx };
+  return ctx;
+}
 
 let cachedBannerMap: MapData | null = null;
 let cachedBannerCastles: CastleData[] | undefined;
@@ -527,7 +536,7 @@ export function renderMap(
   overlay?: RenderOverlay,
   viewport?: Viewport | null,
 ): void {
-  const ctx = canvas.getContext("2d")!;
+  const ctx = getMainCtx(canvas);
   const W = GRID_COLS * TILE_SIZE;
   const H = GRID_ROWS * TILE_SIZE;
 
