@@ -40,10 +40,11 @@ Deno.serve({ port: PORT }, (req) => {
 
     socket.onmessage = (event) => {
       try {
-        const rawJson: string = event.data;
-        if (rawJson.length > MAX_MESSAGE_SIZE) return;
-        const msg = JSON.parse(rawJson);
-        handleMessage(socket, msg, rawJson);
+        if (typeof event.data !== "string") return;
+        if (event.data.length > MAX_MESSAGE_SIZE) return;
+        const msg = JSON.parse(event.data);
+        if (typeof msg.type !== "string") return;
+        handleMessage(socket, msg, event.data);
       } catch {
         // Ignore malformed messages
       }
@@ -89,6 +90,7 @@ function handleMessage(socket: WebSocket, msg: Record<string, any>, rawJson: str
     }
 
     case MSG.JOIN_ROOM: {
+      if (typeof msg.code !== "string") break;
       const entry = rooms.joinRoom(msg.code, socket);
       if (!entry) {
         send(socket, { type: MSG.ROOM_ERROR, message: "Room not found or already started" });

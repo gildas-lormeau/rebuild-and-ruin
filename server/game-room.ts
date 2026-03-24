@@ -81,7 +81,8 @@ function validatePayload(msg: Record<string, any>): boolean {
     case MSG.OPPONENT_PHANTOM:
       return isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
         isInt(msg.row, 0, GRID_ROWS - 1) && isInt(msg.col, 0, GRID_COLS - 1) &&
-        Array.isArray(msg.offsets);
+        Array.isArray(msg.offsets) && msg.offsets.length >= 1 && msg.offsets.length <= MAX_PIECE_TILES &&
+        msg.offsets.every((o: unknown) => Array.isArray(o) && o.length === 2 && isInt(o[0], -4, 4) && isInt(o[1], -4, 4));
     case MSG.OPPONENT_CANNON_PHANTOM:
       return isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
         isInt(msg.row, 0, GRID_ROWS - 1) && isInt(msg.col, 0, GRID_COLS - 1) &&
