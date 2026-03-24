@@ -41,20 +41,6 @@ export const CORNERS_2X2 = [
 ] as const;
 /** Shared empty set — avoids allocating throwaway Set objects on every frame. */
 export const EMPTY_TILE_SET: ReadonlySet<number> = new Set<number>();
-/** Convert a packed tile key to row/column coordinates. */
-export const unpackTile = (key: number): { r: number; c: number } => ({
-  r: Math.floor(key / GRID_COLS),
-  c: key % GRID_COLS,
-});
-/** Pack row/column coordinates into a tile key. */
-export const packTile = (r: number, c: number): number => r * GRID_COLS + c;
-/** Manhattan distance between two tile positions. */
-export const manhattanDistance = (
-  r1: number,
-  c1: number,
-  r2: number,
-  c2: number,
-): number => Math.abs(r1 - r2) + Math.abs(c1 - c2);
 
 /** Call `fn` for each tile of a 2×2 tower footprint. */
 export function forEachTowerTile(
@@ -398,6 +384,11 @@ export function computeOutside(
   return outside;
 }
 
+/** Convert a packed tile key to row/column coordinates. */
+export function unpackTile(key: number): { r: number; c: number } {
+  return { r: Math.floor(key / GRID_COLS), c: key % GRID_COLS };
+}
+
 /** True if (r,c) is within the grid bounds. */
 export function inBounds(r: number, c: number): boolean {
   return r >= 0 && r < GRID_ROWS && c >= 0 && c < GRID_COLS;
@@ -441,6 +432,11 @@ function forEachSquareTile(
   }
 }
 
+/** Pack row/column coordinates into a tile key. */
+export function packTile(r: number, c: number): number {
+  return r * GRID_COLS + c;
+}
+
 /** True if tile is on the outer map border. */
 function isBoundaryTile(r: number, c: number): boolean {
   return r === 0 || r === GRID_ROWS - 1 || c === 0 || c === GRID_COLS - 1;
@@ -465,4 +461,14 @@ function nearestItemIndex<T extends TilePos>(
     }
   }
   return bestIdx;
+}
+
+/** Manhattan distance between two tile positions. */
+export function manhattanDistance(
+  r1: number,
+  c1: number,
+  r2: number,
+  c2: number,
+): number {
+  return Math.abs(r1 - r2) + Math.abs(c1 - c2);
 }
