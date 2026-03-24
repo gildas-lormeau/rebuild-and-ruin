@@ -14,12 +14,8 @@ import { computeOutside, forEachTowerTile, inBounds, isGrass, isPitAt, manhattan
 import type { GameState, Player } from "./types.ts";
 import { BONUS_SQUARE_MIN_DISTANCE, BONUS_SQUARES_PER_ZONE, CASTLE_BONUS_TABLE, DESTROY_GRUNT_POINTS, ENCLOSED_GRUNT_RESPAWN_CHANCE, isPlayerActive, TERRITORY_POINT_TIERS } from "./types.ts";
 
-/**
- * SNES rule: flashing bonus squares are a two-player feature.
- * Keep this explicit so score behavior does not drift across variants.
- */
-function bonusSquaresEnabled(state: GameState): boolean {
-  return state.players.length === 2;
+function bonusSquaresEnabled(_state: GameState): boolean {
+  return true;
 }
 
 function territoryBonusSquarePoints(territorySize: number): number {
