@@ -1,6 +1,9 @@
 /**
  * AiController — AI player behavior: tower selection, piece placement,
  * cannon placement, and battle targeting via pluggable strategy.
+ *
+ * State machines use discriminated unions so each phase's valid fields
+ * are scoped to the active state variant — no implicit timer checks.
  */
 
 import type { AiStrategy, ChainType } from "./ai-strategy.ts";
@@ -36,6 +39,59 @@ import { packTile, towerCenter } from "./spatial.ts";
 import type { GameState, Player } from "./types.ts";
 import { CannonMode } from "./types.ts";
 
+/** Placement target with piece and position. */
+type BuildTarget = { piece: PieceShape } & TilePos;
+
+/** Rotation animation running concurrently with cursor movement. */
+type BuildRotation = { seq: PieceShape[]; idx: number; timer: number };
+
+/** Pre-battle idle orbit parameters (randomized once per countdown). */
+type IdleOrbit = { rx: number; ry: number; speed: number };
+
+type SelectionState =
+  | { step: typeof Step.IDLE }
+  | { step: typeof Step.BROWSING; queue: number[]; dwell: number; confirmDelay: number }
+  | { step: typeof Step.CONFIRMING; timer: number };
+
+type BuildState =
+  | { step: typeof Step.IDLE }
+  | { step: typeof Step.THINKING; timer: number }
+  | { step: typeof Step.MOVING; target: BuildTarget; rotation: BuildRotation }
+  | { step: typeof Step.DWELLING; target: BuildTarget; timer: number; retried: boolean }
+  | { step: typeof Step.GAVE_UP; retryTimer: number };
+
+type CannonState =
+  | { step: typeof Step.IDLE }
+  | { step: typeof Step.THINKING; timer: number }
+  | { step: typeof Step.MODE_SWITCHING; timer: number }
+  | { step: typeof Step.MOVING }
+  | { step: typeof Step.DWELLING; timer: number };
+
+type BattleState =
+  | { step: typeof Step.IDLE }
+  | { step: typeof Step.COUNTDOWN; orbit: IdleOrbit | null }
+  | { step: typeof Step.CHAIN_MOVING }
+  | { step: typeof Step.CHAIN_DWELLING; timer: number }
+  | { step: typeof Step.THINKING; timer: number }
+  | { step: typeof Step.PICKING }
+  | { step: typeof Step.MOVING }
+  | { step: typeof Step.DWELLING; timer: number };
+
+/** Shared step discriminant values for all AI state machines. */
+const Step = {
+  IDLE: "idle",
+  BROWSING: "browsing",
+  CONFIRMING: "confirming",
+  THINKING: "thinking",
+  MOVING: "moving",
+  DWELLING: "dwelling",
+  GAVE_UP: "gave_up",
+  MODE_SWITCHING: "mode_switching",
+  COUNTDOWN: "countdown",
+  CHAIN_MOVING: "chain_moving",
+  CHAIN_DWELLING: "chain_dwelling",
+  PICKING: "picking",
+} as const;
 /** AI build-phase cursor speed in tiles per second. */
 const BUILD_CURSOR_SPEED = 12;
 /** AI cannon-phase cursor speed in tiles per second. */
@@ -45,74 +101,33 @@ export class AiController extends BaseController {
   /** Pluggable AI strategy (decision-making). */
   private strategy: AiStrategy;
 
-  /** Pending placement result (piece + target position). */
-  private pendingPlace: ({ piece: PieceShape } & TilePos) | null =
-    null;
-  /** Think timer: pause before confirming tower selection. */
-  private selectThink = 0;
-  /** Queue of tower indices to "browse" before confirming. */
-  private selectBrowseQueue: number[] = [];
-  /** Dwell time on each browsed tower. */
-  private selectBrowseDwell = 0;
-  /** Dwell timer: cursor sits on target before placing. */
-  private buildDwell = 0;
-  /** Think timer: pause after placing before computing next. */
-  private buildThink = 0;
-  /** Whether we already retried this placement after a grunt blocked it. */
-  private buildRetried = false;
-  /** True when no placement is possible — stop trying for the rest of the build phase. */
-  private buildGaveUp = false;
-  /** Pre-computed rotation sequence (each entry is a piece to display, last one = final). */
-  private rotationSeq: PieceShape[] = [];
-  /** Index into rotationSeq. */
-  private rotationIdx = 0;
-  /** Timer for each rotation step. */
-  private rotationTimer = 0;
+  // --- State machines (one per game phase) ---
+  private selectionState: SelectionState = { step: Step.IDLE };
+  private buildState: BuildState = { step: Step.IDLE };
+  private cannonState: CannonState = { step: Step.IDLE };
+  private battleState: BattleState = { step: Step.IDLE };
 
-  /** Cannon placement queue (pre-computed positions to place one by one). */
-  private cannonQueue: {
-    row: number;
-    col: number;
-    mode?: CannonMode.SUPER | CannonMode.BALLOON;
-  }[] = [];
-  /** Cannon placement dwell timer. */
-  private cannonDwell = 0;
-  /** Cannon placement think timer. */
-  private cannonThink = 0;
-  /** Mode-switch dwell: pause at current position while phantom changes type. */
-  private modeSwitchDwell = 0;
-  /** The cannon mode currently shown in the phantom (tracks mode transitions). */
-  private displayedCannonMode: CannonMode.SUPER | CannonMode.BALLOON | undefined;
-  /** Max cannon slots for current phase. */
+  // --- Cannon peer fields (shared across cannon states) ---
+  private cannonQueue: { row: number; col: number; mode?: CannonMode.SUPER | CannonMode.BALLOON }[] = [];
   private cannonMaxSlots = 0;
+  private displayedCannonMode: CannonMode.SUPER | CannonMode.BALLOON | undefined;
 
-  /** Current crosshair target (pixels). strategic = wall between obstacles. */
+  // --- Battle peer fields (shared across battle states) ---
   private crosshairTarget: StrategicPixelPos | null = null;
-  /** Dwell timer: crosshair sits on target for this duration before firing. */
-  private dwellTimer = 0;
-  /** Post-fire "thinking" delay before moving to next target. */
-  private thinkTimer = 0;
-  /** Chain attack plan: sequence of tiles to rapid-fire at (walls or grunts). */
   private chainTargets: TilePos[] | null = null;
-  /** Current index into chainTargets. */
   private chainIdx = 0;
-  /** Dwell on each chain target before firing. */
-  private chainDwell = 0;
-  /** Type of chain attack: 'wall' skips destroyed enemy walls, 'pocket' skips destroyed own walls, 'grunt' always fires. */
   private chainType: ChainType = Chain.WALL;
+  /** Persistent orbit phase — accumulated across battles for natural variation. */
+  private idlePhase = 0;
 
   override getCrosshairTarget(): PixelPos | null { return this.crosshairTarget; }
   override getOrbitParams(): OrbitParams | null {
-    return this.idleInitialized ? { rx: this.idleRx, ry: this.idleRy, speed: this.idleSpeed, phase: this.idlePhase } : null;
+    if (this.battleState.step === Step.COUNTDOWN && this.battleState.orbit) {
+      const o = this.battleState.orbit;
+      return { rx: o.rx, ry: o.ry, speed: o.speed, phase: this.idlePhase };
+    }
+    return null;
   }
-
-  /** Idle circle phase for pre-battle cursor orbit. */
-  private idlePhase = 0;
-  /** Per-AI orbit shape randomized once per countdown. */
-  private idleRx = 6;
-  private idleRy = 6;
-  private idleSpeed = Math.PI * 4;
-  private idleInitialized = false;
 
   /** When true, castle rects hug the river bank (plug approach).
    *  When false (default), rects shrink at bank corners (tighter ring). */
@@ -146,18 +161,15 @@ export class AiController extends BaseController {
     return (base + this.strategy.rng.next() * spread) * this.delayScale;
   }
 
-  private clearChainPlan(): void {
-    this.chainTargets = null;
-    this.chainIdx = 0;
-    this.chainDwell = 0;
-    this.crosshairTarget = null;
-  }
-
   constructor(playerId: number, strategy?: AiStrategy) {
     super(playerId);
     this.strategy = strategy ?? new DefaultStrategy();
     this.idlePhase = this.strategy.rng.next() * Math.PI * 2;
   }
+
+  // -----------------------------------------------------------------------
+  // Selection phase
+  // -----------------------------------------------------------------------
 
   override selectTower(state: GameState, zone: number): boolean {
     const player = state.players[this.playerId]!;
@@ -172,15 +184,18 @@ export class AiController extends BaseController {
       const j = Math.floor(this.strategy.rng.next() * (i + 1));
       [others[i], others[j]] = [others[j]!, others[i]!];
     }
-    this.selectBrowseQueue = others.slice(0, browseCount).map(t => t.index);
-    if (chosenTower) this.selectBrowseQueue.push(chosenTower.index);
-    this.selectBrowseDwell = this.scaledDelay(0.8, 0.6);
+    const queue = others.slice(0, browseCount).map(t => t.index);
+    if (chosenTower) queue.push(chosenTower.index);
 
-    // Confirm delay after landing on chosen tower
-    this.selectThink = this.scaledDelay(1.0, 0.6);
+    this.selectionState = {
+      step: Step.BROWSING,
+      queue,
+      dwell: this.scaledDelay(0.8, 0.6),
+      confirmDelay: this.scaledDelay(1.0, 0.6),
+    };
 
     // Start at first tower in browse queue
-    const firstIdx = this.selectBrowseQueue[0];
+    const firstIdx = queue[0];
     const firstTower = firstIdx !== undefined ? state.map.towers[firstIdx] : chosenTower;
     if (firstTower) {
       player.homeTower = firstTower;
@@ -190,87 +205,48 @@ export class AiController extends BaseController {
   }
 
   override selectionTick(dt: number, state?: GameState): boolean {
-    this.selectBrowseDwell -= dt;
-    if (this.selectBrowseDwell <= 0 && this.selectBrowseQueue.length > 1) {
-      // Move to next tower in browse queue
-      this.selectBrowseQueue.shift();
-      this.selectBrowseDwell = this.scaledDelay(0.8, 0.6);
-      // Update player's homeTower so the highlight follows
-      if (state) {
-        const nextIdx = this.selectBrowseQueue[0];
-        const nextTower = nextIdx !== undefined ? state.map.towers[nextIdx] : undefined;
-        if (nextTower) {
-          state.players[this.playerId]!.homeTower = nextTower;
-          state.players[this.playerId]!.ownedTowers = [nextTower];
+    switch (this.selectionState.step) {
+      case Step.IDLE: return false;
+      case Step.BROWSING: {
+        const s = this.selectionState;
+        s.dwell -= dt;
+        if (s.dwell <= 0 && s.queue.length > 1) {
+          s.queue.shift();
+          s.dwell = this.scaledDelay(0.8, 0.6);
+          if (state) {
+            const nextIdx = s.queue[0];
+            const nextTower = nextIdx !== undefined ? state.map.towers[nextIdx] : undefined;
+            if (nextTower) {
+              state.players[this.playerId]!.homeTower = nextTower;
+              state.players[this.playerId]!.ownedTowers = [nextTower];
+            }
+          }
+          return false;
         }
+        if (s.queue.length <= 1) {
+          this.selectionState = { step: Step.CONFIRMING, timer: s.confirmDelay };
+        }
+        return false;
       }
-      return false;
+      case Step.CONFIRMING: {
+        this.selectionState.timer -= dt;
+        return this.selectionState.timer <= 0;
+      }
     }
-    if (this.selectBrowseQueue.length <= 1) {
-      this.selectThink -= dt;
-      return this.selectThink <= 0;
-    }
-    return false;
-  }
-
-  override onLifeLost(): void {
-    super.onLifeLost();
-    this.resetAiState();
-    this.strategy.onLifeLost();
-  }
-
-  private resetAiState(): void {
-    this.selectThink = 0;
-    this.pendingPlace = null;
-    this.buildDwell = 0;
-    this.buildThink = 0;
-    this.buildRetried = false;
-    this.buildGaveUp = false;
-    this.rotationSeq = [];
-    this.rotationIdx = 0;
-    this.rotationTimer = 0;
-    this.cannonQueue = [];
-    this.cannonDwell = 0;
-    this.cannonThink = 0;
-    this.cannonMaxSlots = 0;
-    this.crosshairTarget = null;
-    this.dwellTimer = 0;
-    this.thinkTimer = 0;
-    this.chainTargets = null;
-    this.chainIdx = 0;
-    this.chainDwell = 0;
-    this.chainType = Chain.WALL;
-    this.idleInitialized = false;
   }
 
   override reselect(state: GameState, zone: number): boolean {
     return this.selectTower(state, zone);
   }
 
-  override placeCannons(state: GameState, maxSlots: number): void {
-    const player = state.players[this.playerId]!;
-    if (player.eliminated) return;
-    this.cannonQueue = this.strategy.placeCannons(player, maxSlots, state);
-    this.cannonMaxSlots = maxSlots;
-    this.cannonDwell = 0;
-    this.modeSwitchDwell = 0;
-    this.displayedCannonMode = undefined; // start as normal cannon
-    this.cannonThink = this.scaledDelay(0.3, 0.4); // initial think delay
-  }
-
-  override isCannonPhaseDone(_state: GameState, _maxSlots: number): boolean {
-    return this.cannonQueue.length === 0 && this.cannonDwell <= 0;
-  }
+  // -----------------------------------------------------------------------
+  // Build phase
+  // -----------------------------------------------------------------------
 
   startBuild(state: GameState): void {
     const player = state.players[this.playerId]!;
     if (player.eliminated) return;
     this.initBag(state.round, state.rng);
-    this.pendingPlace = null;
-    this.buildDwell = 0;
-    this.buildThink = 0;
-    this.buildRetried = false;
-    this.buildGaveUp = false;
     // Center cursor on home tower
     if (player.homeTower) {
       const center = towerCenter(player.homeTower);
@@ -279,7 +255,13 @@ export class AiController extends BaseController {
         col: Math.round(center.col),
       };
     }
-    this.computeNextPlacement(state);
+    const target = this.computeNextPlacement(state);
+    if (target) {
+      this.buildState = { step: Step.MOVING, target, rotation: this.buildRotationFor(target) };
+    } else {
+      // Will compute on first tick
+      this.buildState = { step: Step.THINKING, timer: 0 };
+    }
   }
 
   buildTick(state: GameState, dt: number): PhantomPiece[] {
@@ -287,465 +269,241 @@ export class AiController extends BaseController {
     const player = state.players[this.playerId]!;
     if (player.eliminated) return [];
 
-    // Clamp cursor so phantom never extends beyond the grid.
-    // Use target piece dimensions when moving toward a placement (the target
-    // position was computed for the rotated piece, not the bag orientation).
-    const clampPiece = this.pendingPlace?.piece ?? this.currentPiece;
+    // Clamp cursor so phantom never extends beyond the grid
+    const clampPiece = (this.buildState.step === Step.MOVING || this.buildState.step === Step.DWELLING)
+      ? this.buildState.target.piece
+      : this.currentPiece;
     this.clampBuildCursor(clampPiece);
 
-    const thinkResult = this.buildTickThinkDelay(dt);
-    if (thinkResult) return thinkResult;
+    switch (this.buildState.step) {
+      case Step.IDLE: return [];
 
-    const gaveUpResult = this.buildTickGaveUp(dt, player, state);
-    if (gaveUpResult) return gaveUpResult;
-
-    const wasNull = !this.pendingPlace;
-    if (wasNull) {
-      this.computeNextPlacement(state);
-    }
-    if (!this.pendingPlace) {
-      if (state.timer > 2) {
-        // No placement found — retry after 1s (grunts may move and free space)
-        this.buildThink = 1.0;
-      } else {
-        // Not enough time left — give up for this phase
-        this.buildGaveUp = true;
-      }
-      return [
-        this.makePhantom(
-          this.currentPiece!,
-          Math.round(this.buildCursor.row),
-          Math.round(this.buildCursor.col),
-          false,
-        ),
-      ];
-    }
-    const pendingPlace = this.pendingPlace;
-    if (wasNull) {
-      // Build rotation sequence from bag orientation → target orientation
-      const bag = this.currentPiece!;
-      if (sameShape(bag, pendingPlace.piece)) {
-        this.rotationSeq = [];
-        this.rotationIdx = 0;
-      } else {
-        this.rotationSeq = [bag];
-        let cur = bag;
-        for (let i = 0; i < 3; i++) {
-          cur = rotateCW(cur);
-          if (sameShape(cur, pendingPlace.piece)) {
-            this.rotationSeq.push(pendingPlace.piece);
-            break;
-          }
-          this.rotationSeq.push(cur);
+      case Step.THINKING: {
+        const s = this.buildState;
+        if (s.timer > 0) {
+          s.timer -= dt;
+          return [this.phantomAtCursor()];
         }
-        this.rotationIdx = 0;
-        this.rotationTimer = 0.15 + this.strategy.rng.next() * 0.1;
+        // Timer expired — compute next placement
+        const target = this.computeNextPlacement(state);
+        if (target) {
+          this.buildState = { step: Step.MOVING, target, rotation: this.buildRotationFor(target) };
+          return this.buildTickMoving(dt);
+        }
+        if (state.timer > 2) {
+          this.buildState = { step: Step.THINKING, timer: 1.0 };
+        } else {
+          this.buildState = { step: Step.GAVE_UP, retryTimer: 1.0 };
+        }
+        return [this.phantomAtCursor()];
+      }
+
+      case Step.GAVE_UP: {
+        const s = this.buildState;
+        const home = player.homeTower ? towerCenter(player.homeTower) : this.buildCursor;
+        this.stepTileCursorToward(
+          this.buildCursor, Math.round(home.row), Math.round(home.col),
+          BUILD_CURSOR_SPEED, Infinity, dt,
+        );
+        s.retryTimer -= dt;
+        if (s.retryTimer <= 0) {
+          const target = this.computeNextPlacement(state);
+          if (target) {
+            this.buildState = { step: Step.MOVING, target, rotation: this.buildRotationFor(target) };
+          } else {
+            s.retryTimer = 1.0;
+          }
+        }
+        return [this.phantomAtCursor()];
+      }
+
+      case Step.MOVING:
+        return this.buildTickMoving(dt);
+
+      case Step.DWELLING: {
+        const s = this.buildState;
+        s.timer -= dt;
+        if (s.timer <= 0) {
+          const placed = placePiece(state, this.playerId, s.target.piece, s.target.row, s.target.col);
+          if (placed) {
+            this.advanceBag();
+            this.buildState = { step: Step.THINKING, timer: this.scaledDelay(0.3, 0.4) };
+            return [];
+          }
+          // Placement blocked (e.g. grunt moved onto target)
+          if (!s.retried) {
+            s.retried = true;
+            s.timer = 1.0;
+          } else {
+            this.buildState = { step: Step.THINKING, timer: 0.1 };
+          }
+          return [];
+        }
+        return [this.makePhantom(s.target.piece, s.target.row, s.target.col, true)];
       }
     }
-    const target = this.pendingPlace!;
+  }
 
-    this.buildTickRotation(dt);
+  /** Handle "moving toward target" state with concurrent rotation animation. */
+  private buildTickMoving(dt: number): PhantomPiece[] {
+    const s = this.buildState as Extract<BuildState, { step: typeof Step.MOVING }>;
+    const { target, rotation } = s;
 
-    const dwellResult = this.buildTickDwell(dt, target, state);
-    if (dwellResult) return dwellResult;
+    // Tick rotation animation concurrently with movement
+    if (rotation.idx < rotation.seq.length) {
+      rotation.timer -= dt;
+      if (rotation.timer <= 0) {
+        rotation.idx++;
+        if (rotation.idx < rotation.seq.length) {
+          rotation.timer = 0.12 + this.strategy.rng.next() * 0.08;
+        }
+      }
+    }
 
-    // Move cursor toward target (using final rotation)
+    // Move cursor toward target
     const arrived = this.stepTileCursorToward(
       this.buildCursor, target.row, target.col, BUILD_CURSOR_SPEED, this.boostThreshold, dt,
     );
-    if (arrived && this.rotationIdx >= this.rotationSeq.length) {
-      this.buildDwell = this.scaledDelay(0.2, 0.3);
+    if (arrived && rotation.idx >= rotation.seq.length) {
+      this.buildState = { step: Step.DWELLING, target, timer: this.scaledDelay(0.2, 0.3), retried: false };
     }
 
-    // Show phantom at current cursor position — use current rotation frame.
-    // Adjust position by pivot delta so the piece visually rotates around center.
-    const movingPiece =
-      this.rotationIdx < this.rotationSeq.length
-        ? this.rotationSeq[
-            Math.min(this.rotationIdx, this.rotationSeq.length - 1)
-          ]!
-        : target.piece;
+    // Show phantom at current cursor position — use current rotation frame
+    const movingPiece = rotation.idx < rotation.seq.length
+      ? rotation.seq[Math.min(rotation.idx, rotation.seq.length - 1)]!
+      : target.piece;
     const pivotDr = target.piece.pivot[0] - movingPiece.pivot[0];
     const pivotDc = target.piece.pivot[1] - movingPiece.pivot[1];
-    const curRow = Math.max(
-      0,
-      Math.min(
-        Math.round(this.buildCursor.row) + pivotDr,
-        GRID_ROWS - movingPiece.height,
-      ),
-    );
-    const curCol = Math.max(
-      0,
-      Math.min(
-        Math.round(this.buildCursor.col) + pivotDc,
-        GRID_COLS - movingPiece.width,
-      ),
-    );
-    return [
-      this.makePhantom(
-        movingPiece,
-        curRow,
-        curCol,
-        curRow === target.row && curCol === target.col,
-      ),
-    ];
+    const curRow = Math.max(0, Math.min(Math.round(this.buildCursor.row) + pivotDr, GRID_ROWS - movingPiece.height));
+    const curCol = Math.max(0, Math.min(Math.round(this.buildCursor.col) + pivotDc, GRID_COLS - movingPiece.width));
+    return [this.makePhantom(movingPiece, curRow, curCol, curRow === target.row && curCol === target.col)];
   }
 
-  /** Handle "post-place think delay" state. Returns phantom array if in think state, null otherwise. */
-  private buildTickThinkDelay(dt: number): PhantomPiece[] | null {
-    if (this.buildThink <= 0) return null;
-    this.buildThink -= dt;
-    return [
-      this.makePhantom(
-        this.currentPiece!,
-        Math.round(this.buildCursor.row),
-        Math.round(this.buildCursor.col),
-        false,
-      ),
-    ];
-  }
-
-  /** Handle "gave up" state — move cursor home, periodically retry. Returns phantom array if gave up, null otherwise. */
-  private buildTickGaveUp(dt: number, player: Player, state: GameState): PhantomPiece[] | null {
-    if (!this.buildGaveUp) return null;
-    const home = player.homeTower
-      ? towerCenter(player.homeTower)
-      : this.buildCursor;
-    const homeR = Math.round(home.row);
-    const homeC = Math.round(home.col);
-    this.stepTileCursorToward(
-      this.buildCursor, homeR, homeC, BUILD_CURSOR_SPEED, Infinity, dt,
-    );
-    // Periodically re-check — grunts may have moved and freed space
-    this.buildThink -= dt;
-    if (this.buildThink <= 0) {
-      this.computeNextPlacement(state);
-      if (this.pendingPlace) {
-        // Found a spot — resume normal placement flow
-        this.buildGaveUp = false;
-      } else {
-        this.buildThink = 1.0;
-      }
+  /** Build rotation animation sequence from current bag piece to target orientation. */
+  private buildRotationFor(target: BuildTarget): BuildRotation {
+    const bag = this.currentPiece!;
+    if (sameShape(bag, target.piece)) {
+      return { seq: [], idx: 0, timer: 0 };
     }
-    return [
-      this.makePhantom(
-        this.currentPiece!,
-        Math.round(this.buildCursor.row),
-        Math.round(this.buildCursor.col),
-        false,
-      ),
-    ];
-  }
-
-  /** Advance rotation animation (runs concurrently with movement). */
-  private buildTickRotation(dt: number): void {
-    if (this.rotationIdx < this.rotationSeq.length) {
-      this.rotationTimer -= dt;
-      if (this.rotationTimer <= 0) {
-        this.rotationIdx++;
-        if (this.rotationIdx < this.rotationSeq.length) {
-          this.rotationTimer = 0.12 + this.strategy.rng.next() * 0.08;
-        }
+    const seq: PieceShape[] = [bag];
+    let cur = bag;
+    for (let i = 0; i < 3; i++) {
+      cur = rotateCW(cur);
+      if (sameShape(cur, target.piece)) {
+        seq.push(target.piece);
+        break;
       }
+      seq.push(cur);
     }
-  }
-
-  /** Handle "dwell on target then place" state. Returns phantom array if dwelling, null otherwise. */
-  private buildTickDwell(dt: number, target: { piece: PieceShape } & TilePos, state: GameState): PhantomPiece[] | null {
-    if (this.buildDwell <= 0) return null;
-    this.buildDwell -= dt;
-    if (this.buildDwell <= 0) {
-      const placed = placePiece(
-        state,
-        this.playerId,
-        target.piece,
-        target.row,
-        target.col,
-      );
-      if (placed) {
-        this.advanceBag();
-        this.pendingPlace = null;
-        this.buildRetried = false;
-        this.buildThink = this.scaledDelay(0.3, 0.4);
-        return [];
-      }
-      // Placement blocked (e.g. grunt moved onto target)
-      if (!this.buildRetried) {
-        // Wait 1s then retry the same spot
-        this.buildRetried = true;
-        this.buildDwell = 1.0;
-      } else {
-        // Already retried — recompute for a different location
-        this.buildRetried = false;
-        this.pendingPlace = null;
-        this.buildThink = 0.1;
-      }
-      return [];
-    }
-    // Show phantom at target while dwelling
-    return [this.makePhantom(target.piece, target.row, target.col, true)];
+    return { seq, idx: 0, timer: 0.15 + this.strategy.rng.next() * 0.1 };
   }
 
   endBuild(state: GameState): void {
     this.bag = null;
     this.currentPiece = null;
-    this.pendingPlace = null;
-    this.buildDwell = 0;
-    this.buildThink = 0;
+    this.buildState = { step: Step.IDLE };
     this.strategy.assessBuildEnd(state, this.playerId);
   }
 
-  /** Tick cannon placement animation. Returns phantom cannon data for rendering. */
+  // -----------------------------------------------------------------------
+  // Cannon phase
+  // -----------------------------------------------------------------------
+
+  override placeCannons(state: GameState, maxSlots: number): void {
+    const player = state.players[this.playerId]!;
+    if (player.eliminated) return;
+    this.cannonQueue = this.strategy.placeCannons(player, maxSlots, state);
+    this.cannonMaxSlots = maxSlots;
+    this.displayedCannonMode = undefined;
+    this.cannonState = { step: Step.THINKING, timer: this.scaledDelay(0.3, 0.4) };
+  }
+
+  override isCannonPhaseDone(_state: GameState, _maxSlots: number): boolean {
+    return this.cannonQueue.length === 0 && this.cannonState.step === Step.IDLE;
+  }
+
   cannonTick(state: GameState, dt: number): PhantomCannon | null {
     const player = state.players[this.playerId]!;
     if (player.eliminated) return null;
 
-    // Post-place think delay
-    if (this.cannonThink > 0) {
-      this.cannonThink -= dt;
-      return null;
-    }
+    switch (this.cannonState.step) {
+      case Step.IDLE: return null;
 
-    if (this.cannonQueue.length === 0) return null;
+      case Step.THINKING: {
+        this.cannonState.timer -= dt;
+        if (this.cannonState.timer > 0) return null;
+        if (this.cannonQueue.length === 0) {
+          this.cannonState = { step: Step.IDLE };
+          return null;
+        }
+        // Check if mode switch is needed
+        const target = this.cannonQueue[0]!;
+        if (target.mode !== this.displayedCannonMode) {
+          this.displayedCannonMode = target.mode;
+          this.cannonState = {
+            step: Step.MODE_SWITCHING,
+            timer: (0.25 + this.strategy.rng.next() * 0.2) * this.delayScale,
+          };
+          return this.cannonPhantomAt(Math.round(this.cannonCursor.row), Math.round(this.cannonCursor.col), false, player);
+        }
+        this.cannonState = { step: Step.MOVING };
+        return this.cannonTickMoving(state, player, dt);
+      }
+
+      case Step.MODE_SWITCHING: {
+        this.cannonState.timer -= dt;
+        if (this.cannonState.timer <= 0) {
+          this.cannonState = { step: Step.MOVING };
+        }
+        return this.cannonPhantomAt(Math.round(this.cannonCursor.row), Math.round(this.cannonCursor.col), false, player);
+      }
+
+      case Step.MOVING:
+        return this.cannonTickMoving(state, player, dt);
+
+      case Step.DWELLING: {
+        this.cannonState.timer -= dt;
+        if (this.cannonState.timer <= 0) {
+          const target = this.cannonQueue[0]!;
+          const targetMode = target.mode ?? CannonMode.NORMAL;
+          if (canPlaceCannon(player, target.row, target.col, targetMode, state)) {
+            placeCannon(player, target.row, target.col, this.cannonMaxSlots, targetMode, state);
+          }
+          this.cannonQueue.shift();
+          this.cannonState = { step: Step.THINKING, timer: this.scaledDelay(0.3, 0.4) };
+          return null;
+        }
+        const target = this.cannonQueue[0]!;
+        return this.cannonPhantomAt(target.row, target.col, true, player);
+      }
+    }
+  }
+
+  private cannonTickMoving(state: GameState, player: Player, dt: number): PhantomCannon | null {
     const target = this.cannonQueue[0]!;
     const targetMode = target.mode ?? CannonMode.NORMAL;
-    // Mode switch: pause at current position while phantom changes type
-    if (target.mode !== this.displayedCannonMode && this.modeSwitchDwell <= 0 && this.cannonDwell <= 0) {
-      this.modeSwitchDwell = (0.25 + this.strategy.rng.next() * 0.2) * this.delayScale;
-      this.displayedCannonMode = target.mode;
-    }
-    if (this.modeSwitchDwell > 0) {
-      this.modeSwitchDwell -= dt;
-      const curRow = Math.round(this.cannonCursor.row);
-      const curCol = Math.round(this.cannonCursor.col);
-      return {
-        row: curRow,
-        col: curCol,
-        valid: false,
-        kind: targetMode,
-        playerId: this.playerId,
-        facing: player.defaultFacing,
-      };
-    }
-
-    // Dwell on target then place
-    if (this.cannonDwell > 0) {
-      this.cannonDwell -= dt;
-      if (this.cannonDwell <= 0) {
-        // Place the cannon
-        if (canPlaceCannon(player, target.row, target.col, targetMode, state)) {
-          placeCannon(
-            player,
-            target.row,
-            target.col,
-            this.cannonMaxSlots,
-            targetMode,
-            state,
-          );
-        }
-        this.cannonQueue.shift();
-        this.cannonThink = this.scaledDelay(0.3, 0.4);
-        return null;
-      }
-      // Show phantom at target while dwelling
-      return {
-        row: target.row,
-        col: target.col,
-        valid: true,
-        kind: targetMode,
-        playerId: this.playerId,
-        facing: player.defaultFacing,
-      };
-    }
-
-    // Move cursor toward target
     if (this.stepTileCursorToward(
       this.cannonCursor, target.row, target.col, CANNON_CURSOR_SPEED, this.boostThreshold, dt,
     )) {
-      this.cannonDwell = this.scaledDelay(0.2, 0.3);
+      this.cannonState = { step: Step.DWELLING, timer: this.scaledDelay(0.2, 0.3) };
     }
-
-    // Show phantom at current cursor position (moving)
     const curRow = Math.round(this.cannonCursor.row);
     const curCol = Math.round(this.cannonCursor.col);
     const atTarget = curRow === target.row && curCol === target.col;
     return {
-      row: curRow,
-      col: curCol,
+      row: curRow, col: curCol,
       valid: atTarget && canPlaceCannon(player, curRow, curCol, targetMode, state),
-      kind: targetMode,
-      playerId: this.playerId,
-      facing: player.defaultFacing,
+      kind: targetMode, playerId: this.playerId, facing: player.defaultFacing,
     };
   }
 
-  battleTick(state: GameState, dt: number): void {
-    const player = state.players[this.playerId]!;
-    if (player.eliminated) return;
-    if (!nextReadyCombined(state, this.playerId)) return;
-
-    const aimAt = this.crosshairTarget ?? this.crosshair;
-    aimCannons(state, this.playerId, aimAt.x, aimAt.y, dt);
-    if (state.battleCountdown > 0 || state.timer <= 0) {
-      // If chain attack is planned, move toward first target during countdown
-      if (
-        this.chainTargets &&
-        this.chainIdx < this.chainTargets.length &&
-        state.battleCountdown > 0
-      ) {
-        const first = this.chainTargets[this.chainIdx]!;
-        this.crosshairTarget = {
-          x: (first.col + 0.5) * TILE_SIZE,
-          y: (first.row + 0.5) * TILE_SIZE,
-        };
-      }
-      this.moveCrosshair(state, dt);
-      return;
-    }
-
-    if (this.battleTickChainAttack(state, dt)) return;
-    this.battleTickStandardFire(state, dt);
-  }
-
-  /** Handle chain attack mode — rapid fire along pre-planned targets. Returns true if it handled this tick. */
-  private battleTickChainAttack(state: GameState, dt: number): boolean {
-    if (!this.chainTargets || this.chainIdx >= this.chainTargets.length) return false;
-
-    // Dwell phase: brief pause on target before firing
-    if (this.chainDwell > 0) {
-      this.chainDwell -= dt;
-      if (this.chainDwell <= 0) {
-        const target = this.chainTargets[this.chainIdx]!;
-        // Chain attacks use whatever cannon is ready next (including captured)
-        const result = this.fireNext(state, target.row, target.col);
-        if (result) {
-          this.chainIdx++;
-          if (this.chainIdx >= this.chainTargets.length) {
-            this.clearChainPlan();
-          }
-        } else {
-          // No cannon ready — wait a bit longer
-          this.chainDwell = 0.05;
-        }
-      }
-      return true;
-    }
-    const target = this.chainTargets[this.chainIdx]!;
-    // For wall/pocket attacks, skip already-destroyed wall tiles
-    if (this.chainType === Chain.WALL || this.chainType === Chain.POCKET) {
-      const targetKey = packTile(target.row, target.col);
-      let wallExists = false;
-      if (this.chainType === Chain.POCKET) {
-        // Pocket: check own walls
-        wallExists = state.players[this.playerId]!.walls.has(targetKey);
-      } else {
-        // Wall demo: check enemy walls
-        for (const other of state.players) {
-          if (other.id !== this.playerId && other.walls.has(targetKey)) {
-            wallExists = true;
-            break;
-          }
-        }
-      }
-      if (!wallExists) {
-        this.chainIdx++;
-        if (this.chainIdx >= this.chainTargets.length) {
-          this.clearChainPlan();
-        }
-        return true;
-      }
-    }
-    // Move crosshair toward target
-    const tx = (target.col + 0.5) * TILE_SIZE;
-    const ty = (target.row + 0.5) * TILE_SIZE;
-    if (this.stepCrosshairToward(tx, ty, dt)) {
-      this.chainDwell = (0.2 + this.strategy.rng.next() * 0.1) * this.delayScale;
-    }
-    return true;
-  }
-
-  /** Handle standard target-picking, dwelling, and movement toward target. */
-  private battleTickStandardFire(state: GameState, dt: number): void {
-    // Post-fire thinking delay
-    if (this.thinkTimer > 0) {
-      this.thinkTimer -= dt;
-      return;
-    }
-
-    // Pick a target if we don't have one
-    if (!this.crosshairTarget) {
-      this.crosshairTarget = this.strategy.pickTarget(
-        state,
-        this.playerId,
-        this.crosshair,
-      );
-    }
-
-    // Dwell on target then fire — only fire when a cannon is ready
-    if (this.dwellTimer > 0 && this.crosshairTarget) {
-      this.dwellTimer -= dt;
-      if (this.dwellTimer <= 0) {
-        const ready = nextReadyCombined(
-          state,
-          this.playerId,
-          this.lastFiredIdx,
-        );
-        if (!ready) {
-          // No cannon ready yet — keep dwelling until one reloads
-          this.dwellTimer = 0.05;
-          return;
-        }
-        this.fire(state);
-        this.strategy.trackShot(state, this.playerId, this.crosshair);
-        // Random thinking delay before picking next target
-        this.thinkTimer = this.scaledDelay(0.1, 0.2);
-        // Skilled AIs pre-pick next target while "thinking" (cursor starts moving)
-        if (this.anticipatesTarget) {
-          this.crosshairTarget = this.strategy.pickTarget(
-            state,
-            this.playerId,
-            this.crosshair,
-          );
-        } else {
-          this.crosshairTarget = null;
-        }
-      }
-      return;
-    }
-
-    // Move crosshair toward target (x2 speed when far, x1 when close)
-    if (this.crosshairTarget) {
-      if (this.stepCrosshairToward(this.crosshairTarget.x, this.crosshairTarget.y, dt)) {
-        this.dwellTimer = this.scaledDelay(0.15, 0.1);
-      }
-    }
-  }
-
-  resetBattle(state?: GameState): void {
-    this.crosshairTarget = null;
-    this.dwellTimer = 0;
-    this.thinkTimer = 0;
-    this.lastFiredIdx = -1;
-    this.idleInitialized = false;
-
-    // Reset crosshair to home tower so there's visible travel at battle start
-    if (state) {
-      const player = state.players[this.playerId];
-      if (player?.homeTower) {
-        this.centerOn(player.homeTower.row, player.homeTower.col);
-      }
-    }
-
-    // Delegate battle planning to strategy
-    this.chainTargets = null;
-    this.chainIdx = 0;
-    this.chainDwell = 0;
-    this.chainType = Chain.WALL;
-    if (state) {
-      const plan = this.strategy.planBattle(state, this.playerId);
-      this.chainTargets = plan.chainTargets;
-      this.chainType = plan.chainType;
-    }
+  private cannonPhantomAt(row: number, col: number, valid: boolean, player: Player): PhantomCannon {
+    const target = this.cannonQueue[0]!;
+    const targetMode = target.mode ?? CannonMode.NORMAL;
+    return {
+      row, col, valid, kind: targetMode,
+      playerId: this.playerId, facing: player.defaultFacing,
+    };
   }
 
   flushCannons(state: GameState, maxSlots: number): void {
@@ -758,6 +516,261 @@ export class AiController extends BaseController {
       }
     }
     this.cannonQueue = [];
+    this.cannonState = { step: Step.IDLE };
+  }
+
+  // -----------------------------------------------------------------------
+  // Battle phase
+  // -----------------------------------------------------------------------
+
+  resetBattle(state?: GameState): void {
+    this.crosshairTarget = null;
+    this.lastFiredIdx = -1;
+
+    // Reset crosshair to home tower so there's visible travel at battle start
+    if (state) {
+      const player = state.players[this.playerId];
+      if (player?.homeTower) {
+        this.centerOn(player.homeTower.row, player.homeTower.col);
+      }
+    }
+
+    // Delegate battle planning to strategy
+    this.chainTargets = null;
+    this.chainIdx = 0;
+    this.chainType = Chain.WALL;
+    if (state) {
+      const plan = this.strategy.planBattle(state, this.playerId);
+      this.chainTargets = plan.chainTargets;
+      this.chainType = plan.chainType;
+    }
+
+    this.battleState = { step: Step.COUNTDOWN, orbit: null };
+  }
+
+  battleTick(state: GameState, dt: number): void {
+    const player = state.players[this.playerId]!;
+    if (player.eliminated) return;
+    if (!nextReadyCombined(state, this.playerId)) return;
+
+    const aimAt = this.crosshairTarget ?? this.crosshair;
+    aimCannons(state, this.playerId, aimAt.x, aimAt.y, dt);
+
+    // During countdown or after battle timer expires: move/orbit only
+    if (state.battleCountdown > 0 || state.timer <= 0) {
+      // Force back to countdown state if needed
+      if (this.battleState.step !== Step.COUNTDOWN) {
+        this.battleState = { step: Step.COUNTDOWN, orbit: null };
+      }
+      // If chain attack is planned, move toward first target during countdown
+      if (this.chainTargets && this.chainIdx < this.chainTargets.length && state.battleCountdown > 0) {
+        const first = this.chainTargets[this.chainIdx]!;
+        this.crosshairTarget = {
+          x: (first.col + 0.5) * TILE_SIZE,
+          y: (first.row + 0.5) * TILE_SIZE,
+        };
+      }
+      this.battleTickCountdown(state, dt);
+      return;
+    }
+
+    // Transition out of countdown on first active frame
+    if (this.battleState.step === Step.COUNTDOWN) {
+      this.battleState = this.chainTargets && this.chainIdx < this.chainTargets.length
+        ? { step: Step.CHAIN_MOVING }
+        : { step: Step.PICKING };
+    }
+
+    switch (this.battleState.step) {
+      case Step.CHAIN_MOVING:
+        this.battleTickChainMoving(state, dt);
+        break;
+      case Step.CHAIN_DWELLING:
+        this.battleTickChainDwelling(state, dt);
+        break;
+      case Step.THINKING:
+        this.battleState.timer -= dt;
+        if (this.battleState.timer <= 0) {
+          this.battleState = { step: Step.PICKING };
+        }
+        break;
+      case Step.PICKING:
+        this.crosshairTarget = this.strategy.pickTarget(state, this.playerId, this.crosshair);
+        this.battleState = { step: Step.MOVING };
+        break;
+      case Step.MOVING:
+        if (this.crosshairTarget) {
+          if (this.stepCrosshairToward(this.crosshairTarget.x, this.crosshairTarget.y, dt)) {
+            this.battleState = { step: Step.DWELLING, timer: this.scaledDelay(0.15, 0.1) };
+          }
+        } else {
+          // No target available — keep picking
+          this.battleState = { step: Step.PICKING };
+        }
+        break;
+      case Step.DWELLING:
+        this.battleTickDwelling(state, dt);
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** Countdown: move toward target then orbit. */
+  private battleTickCountdown(state: GameState, dt: number): void {
+    const player = state.players[this.playerId]!;
+    if (player.eliminated) return;
+    if (!this.crosshairTarget) {
+      this.crosshairTarget = this.strategy.pickTarget(state, this.playerId, this.crosshair);
+    }
+    if (!this.crosshairTarget) return;
+
+    const s = this.battleState as Extract<BattleState, { step: typeof Step.COUNTDOWN }>;
+
+    if (state.battleCountdown > 0) {
+      // During countdown, move to target then orbit around it
+      const dist = Math.hypot(
+        this.crosshairTarget.x - this.crosshair.x,
+        this.crosshairTarget.y - this.crosshair.y,
+      );
+      if (dist > 12) {
+        this.stepCrosshairToward(this.crosshairTarget.x, this.crosshairTarget.y, dt);
+      } else {
+        if (!s.orbit) {
+          const strategic = !!this.crosshairTarget.strategic;
+          const boost = strategic ? 1.2 : 1;
+          const rng = this.strategy.rng;
+          const baseSpeed = strategic
+            ? Math.PI * (5.5 + rng.next() * 1.5)
+            : Math.PI * (4.5 + rng.next() * 1.5);
+          s.orbit = {
+            rx: (5 + rng.next() * 3) * boost,
+            ry: (5 + rng.next() * 3) * boost,
+            speed: baseSpeed * (rng.bool() ? 1 : -1),
+          };
+        }
+        this.idlePhase += s.orbit.speed * dt;
+        this.crosshair.x = this.crosshairTarget.x + Math.cos(this.idlePhase) * s.orbit.rx;
+        this.crosshair.y = this.crosshairTarget.y + Math.sin(this.idlePhase) * s.orbit.ry;
+      }
+    } else {
+      this.stepCrosshairToward(this.crosshairTarget.x, this.crosshairTarget.y, dt);
+    }
+  }
+
+  /** Chain attack: move crosshair toward next chain target, skip destroyed walls. */
+  private battleTickChainMoving(state: GameState, dt: number): void {
+    if (!this.chainTargets || this.chainIdx >= this.chainTargets.length) {
+      this.battleState = { step: Step.PICKING };
+      return;
+    }
+    const target = this.chainTargets[this.chainIdx]!;
+    // For wall/pocket attacks, skip already-destroyed wall tiles
+    if (this.chainType === Chain.WALL || this.chainType === Chain.POCKET) {
+      const targetKey = packTile(target.row, target.col);
+      let wallExists = false;
+      if (this.chainType === Chain.POCKET) {
+        wallExists = state.players[this.playerId]!.walls.has(targetKey);
+      } else {
+        for (const other of state.players) {
+          if (other.id !== this.playerId && other.walls.has(targetKey)) {
+            wallExists = true;
+            break;
+          }
+        }
+      }
+      if (!wallExists) {
+        this.chainIdx++;
+        if (this.chainIdx >= this.chainTargets.length) {
+          this.chainTargets = null;
+          this.crosshairTarget = null;
+          this.battleState = { step: Step.PICKING };
+        }
+        return;
+      }
+    }
+    const tx = (target.col + 0.5) * TILE_SIZE;
+    const ty = (target.row + 0.5) * TILE_SIZE;
+    if (this.stepCrosshairToward(tx, ty, dt)) {
+      this.battleState = {
+        step: Step.CHAIN_DWELLING,
+        timer: (0.2 + this.strategy.rng.next() * 0.1) * this.delayScale,
+      };
+    }
+  }
+
+  /** Chain attack: dwell then fire at chain target. */
+  private battleTickChainDwelling(state: GameState, dt: number): void {
+    const s = this.battleState as Extract<BattleState, { step: typeof Step.CHAIN_DWELLING }>;
+    s.timer -= dt;
+    if (s.timer > 0) return;
+
+    if (!this.chainTargets || this.chainIdx >= this.chainTargets.length) {
+      this.battleState = { step: Step.PICKING };
+      return;
+    }
+    const target = this.chainTargets[this.chainIdx]!;
+    const result = this.fireNext(state, target.row, target.col);
+    if (result) {
+      this.chainIdx++;
+      if (this.chainIdx >= this.chainTargets.length) {
+        this.chainTargets = null;
+        this.crosshairTarget = null;
+        this.battleState = { step: Step.PICKING };
+      } else {
+        this.battleState = { step: Step.CHAIN_MOVING };
+      }
+    } else {
+      // No cannon ready — wait a bit longer
+      s.timer = 0.05;
+    }
+  }
+
+  /** Standard fire: dwell on target then fire. */
+  private battleTickDwelling(state: GameState, dt: number): void {
+    const s = this.battleState as Extract<BattleState, { step: typeof Step.DWELLING }>;
+    s.timer -= dt;
+    if (s.timer > 0) return;
+
+    const ready = nextReadyCombined(state, this.playerId, this.lastFiredIdx);
+    if (!ready) {
+      s.timer = 0.05;
+      return;
+    }
+    this.fire(state);
+    this.strategy.trackShot(state, this.playerId, this.crosshair);
+    // Random thinking delay before picking next target
+    const thinkTime = this.scaledDelay(0.1, 0.2);
+    if (this.anticipatesTarget) {
+      this.crosshairTarget = this.strategy.pickTarget(state, this.playerId, this.crosshair);
+      this.battleState = { step: Step.THINKING, timer: thinkTime };
+    } else {
+      this.crosshairTarget = null;
+      this.battleState = { step: Step.THINKING, timer: thinkTime };
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // Lifecycle
+  // -----------------------------------------------------------------------
+
+  override onLifeLost(): void {
+    super.onLifeLost();
+    this.resetAiState();
+    this.strategy.onLifeLost();
+  }
+
+  private resetAiState(): void {
+    this.selectionState = { step: Step.IDLE };
+    this.buildState = { step: Step.IDLE };
+    this.cannonState = { step: Step.IDLE };
+    this.battleState = { step: Step.IDLE };
+    this.cannonQueue = [];
+    this.cannonMaxSlots = 0;
+    this.crosshairTarget = null;
+    this.chainTargets = null;
+    this.chainIdx = 0;
+    this.chainType = Chain.WALL;
   }
 
   onBattleEnd(): void {}
@@ -768,6 +781,10 @@ export class AiController extends BaseController {
   }
 
   onCannonPhaseStart(): void {}
+
+  // -----------------------------------------------------------------------
+  // Movement helpers
+  // -----------------------------------------------------------------------
 
   /**
    * Move a tile cursor one step toward (targetRow, targetCol).
@@ -820,50 +837,17 @@ export class AiController extends BaseController {
     return false;
   }
 
-  /** Move crosshair toward target without firing (used during countdown and after timer). */
-  private moveCrosshair(state: GameState, dt: number): void {
-    const player = state.players[this.playerId]!;
-    if (player.eliminated) return;
-    if (!this.crosshairTarget) {
-      this.crosshairTarget = this.strategy.pickTarget(
-        state,
-        this.playerId,
-        this.crosshair,
-      );
-    }
-    if (this.crosshairTarget) {
-      if (state.battleCountdown > 0) {
-        // During countdown, move to target then orbit around it
-        const dist = Math.hypot(
-          this.crosshairTarget.x - this.crosshair.x,
-          this.crosshairTarget.y - this.crosshair.y,
-        );
-        if (dist > 12) {
-          this.stepCrosshairToward(this.crosshairTarget.x, this.crosshairTarget.y, dt);
-        } else {
-          if (!this.idleInitialized) {
-            const strategic = !!this.crosshairTarget.strategic;
-            const boost = strategic ? 1.2 : 1;
-            const rng = this.strategy.rng;
-            this.idleRx = (5 + rng.next() * 3) * boost;
-            this.idleRy = (5 + rng.next() * 3) * boost;
-            // Strategic targets: faster orbit (excited) but not as extreme as original with wider radius
-            const baseSpeed = strategic
-              ? Math.PI * (5.5 + rng.next() * 1.5)
-              : Math.PI * (4.5 + rng.next() * 1.5);
-            this.idleSpeed = baseSpeed * (rng.bool() ? 1 : -1);
-            this.idleInitialized = true;
-          }
-          this.idlePhase += this.idleSpeed * dt;
-          this.crosshair.x =
-            this.crosshairTarget.x + Math.cos(this.idlePhase) * this.idleRx;
-          this.crosshair.y =
-            this.crosshairTarget.y + Math.sin(this.idlePhase) * this.idleRy;
-        }
-      } else {
-        this.stepCrosshairToward(this.crosshairTarget.x, this.crosshairTarget.y, dt);
-      }
-    }
+  // -----------------------------------------------------------------------
+  // Build helpers
+  // -----------------------------------------------------------------------
+
+  private phantomAtCursor(): PhantomPiece {
+    return this.makePhantom(
+      this.currentPiece!,
+      Math.round(this.buildCursor.row),
+      Math.round(this.buildCursor.col),
+      false,
+    );
   }
 
   private makePhantom(
@@ -875,8 +859,8 @@ export class AiController extends BaseController {
     return { offsets: shape.offsets, row, col, valid, playerId: this.playerId };
   }
 
-  private computeNextPlacement(state: GameState): void {
-    if (!this.currentPiece) return;
+  private computeNextPlacement(state: GameState): BuildTarget | null {
+    if (!this.currentPiece) return null;
     const result = this.strategy.pickPlacement(
       state,
       this.playerId,
@@ -886,15 +870,7 @@ export class AiController extends BaseController {
         col: Math.round(this.buildCursor.col),
       },
     );
-    if (result) {
-      this.pendingPlace = {
-        piece: result.piece,
-        row: result.row,
-        col: result.col,
-      };
-    } else {
-      this.pendingPlace = null;
-    }
+    return result ? { piece: result.piece, row: result.row, col: result.col } : null;
   }
 }
 
