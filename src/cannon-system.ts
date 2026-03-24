@@ -10,6 +10,7 @@ import {
   isPitAt,
   isTowerTile,
   packTile,
+  unpackTile,
 } from "./spatial.ts";
 import type { Cannon, GameState, Player } from "./types.ts";
 import {
@@ -86,6 +87,15 @@ export function canPlaceCannon(
     }
   }
   return true;
+}
+
+/** Whether any valid placement exists for the given cannon mode in the player's territory. */
+export function hasAnyCannonPlacement(player: Player, mode: CannonMode, state: GameState): boolean {
+  for (const key of player.interior) {
+    const { r, c } = unpackTile(key);
+    if (canPlaceCannon(player, r, c, mode, state)) return true;
+  }
+  return false;
 }
 
 /**

@@ -9,6 +9,7 @@ import {
   cannonSlotsUsed,
   canPlaceCannon,
   findNearestValidCannonPlacement,
+  hasAnyCannonPlacement,
   placeCannon,
 } from "./cannon-system.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
@@ -89,6 +90,7 @@ export class HumanController extends BaseController {
     const maxSlots = state.cannonLimits[this.playerId] ?? 0;
     const remaining = maxSlots - cannonSlotsUsed(player);
     if (remaining <= 0) return null;
+    if (!hasAnyCannonPlacement(player, this.cannonPlaceMode, state)) return null;
     // Auto-downgrade mode if it no longer fits in remaining slots
     if (this.cannonPlaceMode === CannonMode.SUPER && remaining < SUPER_GUN_COST) {
       this.cannonPlaceMode = CannonMode.NORMAL;
