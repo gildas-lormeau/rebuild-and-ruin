@@ -32,6 +32,7 @@ interface SetupLobbyUiDeps {
 
 const ROOM_CODE_LENGTH = 4;
 const ROOM_POLL_INTERVAL_MS = 3000;
+
 /** Stored interval so repeated setupLobbyUi calls don't leak timers. */
 let roomPollTimer: ReturnType<typeof setInterval> | null = null;
 

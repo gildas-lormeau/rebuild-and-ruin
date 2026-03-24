@@ -98,13 +98,14 @@ const sceneCanvas = document.createElement("canvas");
 const sceneCtx = sceneCanvas.getContext("2d", { willReadFrequently: true })!;
 const bannerSceneCanvas = document.createElement("canvas");
 const bannerSceneCtx = bannerSceneCanvas.getContext("2d", { willReadFrequently: true })!;
+const terrainImageCache = new WeakMap<MapData, TerrainImageCache>();
+
 /** Cached main-canvas context — avoids per-frame getContext overhead on Chrome mobile. */
 let mainCtxCache: { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null = null;
 let cachedBannerMap: MapData | null = null;
 let cachedBannerCastles: CastleData[] | undefined;
 let cachedBannerTerritory: Set<number>[] | undefined;
 let cachedBannerWalls: Set<number>[] | undefined;
-const terrainImageCache = new WeakMap<MapData, TerrainImageCache>();
 
 export function renderMap(
   map: MapData,

@@ -114,17 +114,8 @@ const joinCodeInput = document.getElementById("join-code") as HTMLInputElement;
 const createError = document.getElementById("create-error")!;
 const joinError = document.getElementById("join-error")!;
 const roomCodeOverlay = document.getElementById("room-code-overlay")!;
-let ws: WebSocket | null = null;
-let myPlayerId = -1;
-let isHost = false;
-let occupiedSlots = new Set<number>();
 /** Slots occupied by remote humans (other players, not our own slot). */
 const remoteHumanSlots = new Set<number>();
-let lobbyWaitTimer = LOBBY_TIMER;
- // overridden by server's waitTimerSec
-let roomSeed = 0;
-let roomBattleLength = 0;
-let roomCannonMaxHp = 3;
 // Watcher state: timing, crosshairs, phantoms, migration announcement
 const watcher = createWatcherState();
 const DEV = IS_DEV;
@@ -132,13 +123,11 @@ const LOG_THROTTLE_MS = 1000;
 /** Throttled log — logs at most once per second per key (dev only). */
 const _throttleTimestamps = new Map<string, number>();
 const KEEPALIVE_MS = 30_000;
-let keepaliveTimer: ReturnType<typeof setInterval> | null = null;
 // Send aim_update only when the target changes (not every frame)
 const lastSentAimTarget = new Map<number, string>();
 // Send phantom only when position/piece changes
 const lastSentPiecePhantom = new Map<number, string>();
 const lastSentCannonPhantom = new Map<number, string>();
-let lobbyStartTime = 0;
 const initDomLobby = () =>
   setupLobbyUi({
     elements: {
@@ -336,6 +325,18 @@ const runtime: GameRuntime = createGameRuntime({
     if (isHost) send(payloads.serverPayload);
   },
 });
+
+let ws: WebSocket | null = null;
+let myPlayerId = -1;
+let isHost = false;
+let occupiedSlots = new Set<number>();
+let lobbyWaitTimer = LOBBY_TIMER;
+ // overridden by server's waitTimerSec
+let roomSeed = 0;
+let roomBattleLength = 0;
+let roomCannonMaxHp = 3;
+let keepaliveTimer: ReturnType<typeof setInterval> | null = null;
+let lobbyStartTime = 0;
 
 function buildGameOverServerPayload(
   winner: { id: number } | null,

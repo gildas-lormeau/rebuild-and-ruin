@@ -110,10 +110,11 @@ const SPRITES: Record<string, SpriteRect> = {
   water:                   { x: 340, y: 184, w: 16, h: 16 },
   bank:                    { x: 358, y: 184, w: 16, h: 16 },
 };
-let atlas: HTMLImageElement | null = null;
 /** Load the sprite sheet. Resolves when the image is decoded and ready. */
 // @ts-ignore — import.meta.env is Vite-specific
 const BASE = import.meta.env?.BASE_URL ?? "/";
+
+let atlas: HTMLImageElement | null = null;
 
 export function loadAtlas(src = `${BASE}assets/sprites.png`): Promise<void> {
   return new Promise((resolve, reject) => {

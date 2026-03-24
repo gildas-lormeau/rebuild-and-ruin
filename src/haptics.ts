@@ -7,6 +7,7 @@
 import { MSG } from "../server/protocol.ts";
 
 const canVibrate = typeof navigator !== "undefined" && !!navigator.vibrate;
+
 /** Current haptics level — set by the game runtime from settings. */
 let level = 2;
 
