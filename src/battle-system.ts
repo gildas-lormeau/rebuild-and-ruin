@@ -74,11 +74,14 @@ export interface BalloonFlight {
 
 /** Cannon rotation speed in radians per second. */
 const CANNON_ROTATE_SPEED = Math.PI * 3;
+/** Countdown thresholds for battle announcement phases. */
+const COUNTDOWN_READY = 3;
+const COUNTDOWN_AIM = 1;
 
 /** Map battleCountdown to the corresponding announcement text. */
 export function countdownAnnouncement(battleCountdown: number): string | undefined {
-  if (battleCountdown > 3) return "Ready";
-  if (battleCountdown > 1) return "Aim";
+  if (battleCountdown > COUNTDOWN_READY) return "Ready";
+  if (battleCountdown > COUNTDOWN_AIM) return "Aim";
   if (battleCountdown > 0) return "Fire!";
   return undefined;
 }
@@ -394,6 +397,25 @@ export function resolveBalloons(state: GameState): BalloonFlight[] {
 
   resolveBalloonCaptures(state, thisRoundTargets);
   return flights;
+}
+
+/** Clean up balloon hit tracking at the end of a battle round. */
+export function cleanupBalloonHitTrackingAfterBattle(state: GameState): void {
+  // Reset balloon hit counters for cannons that were captured (used this battle)
+  for (const cc of state.capturedCannons) {
+    state.balloonHits.delete(cc.cannon);
+  }
+
+  // Also clean up hit counters for destroyed cannons
+  for (const [cannon] of state.balloonHits) {
+    if (!isCannonAlive(cannon)) state.balloonHits.delete(cannon);
+  }
+
+  // Clear capturerIds for non-captured cannons so only the deciding
+  // battle's contributors can win (hit count persists across battles)
+  for (const [, hit] of state.balloonHits) {
+    hit.capturerIds = [];
+  }
 }
 
 function fireCapturedCannon(

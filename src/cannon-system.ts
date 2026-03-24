@@ -2,6 +2,7 @@
  * Cannon placement and management — validation, slot counting, placement.
  */
 
+import { getAliveOwnedTowers } from "./board-occupancy.ts";
 import {
   forEachCannonTile,
   inBounds,
@@ -17,10 +18,15 @@ import {
   BALLOON_COST,
   BALLOON_SIZE,
   CannonMode,
+  MAX_CANNON_LIMIT_ON_RESELECT,
   NORMAL_CANNON_SIZE,
+  STARTING_LIVES,
   SUPER_GUN_COST,
   SUPER_GUN_SIZE,
 } from "./types.ts";
+
+/** Max search radius when snapping cannon placement to a valid tile. */
+const CANNON_SNAP_RADIUS = 2;
 
 /** Check whether all tiles of a cannon are inside enclosed territory. */
 export function isCannonEnclosed(
@@ -49,7 +55,7 @@ export function hasAnyCannonPlacement(player: Player, mode: CannonMode, state: G
  */
 export function findNearestValidCannonPlacement(
   player: Player, row: number, col: number,
-  mode: CannonMode, state: GameState, maxRadius = 2,
+  mode: CannonMode, state: GameState, maxRadius = CANNON_SNAP_RADIUS,
 ): { row: number; col: number } | null {
   let bestDist = Infinity;
   let best: { row: number; col: number } | null = null;
@@ -121,16 +127,6 @@ export function canPlaceCannon(
   return true;
 }
 
-/** Count how many cannon slots are used by a player. Normal = 1, super = SUPER_GUN_COST, balloon = BALLOON_COST. */
-export function cannonSlotsUsed(player: Player): number {
-  let slots = 0;
-  for (const cannon of player.cannons) {
-    if (!isCannonAlive(cannon)) continue;
-    slots += cannonSlotCost(cannon);
-  }
-  return slots;
-}
-
 /** Apply cannon placement (no validation). Used by host and watcher. */
 export function applyCannonPlacement(
   player: Player,
@@ -149,6 +145,48 @@ export function applyCannonPlacement(
     balloon: isBalloon ? true : undefined,
     facing: player.defaultFacing,
   });
+}
+
+/** Derive the CannonMode from a placed cannon's boolean flags. */
+export function getCannonMode(cannon: Pick<Cannon, "super" | "balloon">): CannonMode {
+  if (cannon.balloon) return CannonMode.BALLOON;
+  if (cannon.super) return CannonMode.SUPER;
+  return CannonMode.NORMAL;
+}
+
+/**
+ * Compute the total cannon slot limit for a player this round.
+ */
+export function cannonSlotsForRound(
+  player: Player,
+  state: GameState,
+): number {
+  const existingSlots = cannonSlotsUsed(player);
+  let newSlots: number;
+  if (state.reselectedPlayers.has(player.id)) {
+    newSlots = Math.min(
+      state.firstRoundCannons + (STARTING_LIVES - player.lives),
+      MAX_CANNON_LIMIT_ON_RESELECT,
+    );
+  } else if (state.round === 1) {
+    newSlots = state.firstRoundCannons;
+  } else {
+    const aliveTowers = getAliveOwnedTowers(player, state);
+    const ownsHome = player.homeTower && aliveTowers.some(t => t === player.homeTower);
+    const otherCount = aliveTowers.length - (ownsHome ? 1 : 0);
+    newSlots = (ownsHome ? 2 : 0) + otherCount;
+  }
+  return existingSlots + newSlots;
+}
+
+/** Count how many cannon slots are used by a player. Normal = 1, super = SUPER_GUN_COST, balloon = BALLOON_COST. */
+export function cannonSlotsUsed(player: Player): number {
+  let slots = 0;
+  for (const cannon of player.cannons) {
+    if (!isCannonAlive(cannon)) continue;
+    slots += cannonSlotCost(cannon);
+  }
+  return slots;
 }
 
 function cannonSlotCost(cannon: Pick<Cannon, "super" | "balloon">): number {

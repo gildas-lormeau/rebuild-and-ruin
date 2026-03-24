@@ -18,9 +18,10 @@
  *   - phase-build.ts    — piece placement, territory claiming
  */
 
-import { collectAllWalls } from "./board-occupancy.ts";
-import { cannonSlotsUsed } from "./cannon-system.ts";
-import type { GameMap } from "./geometry-types.ts";
+import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
+import { collectAllWalls, getAliveOwnedTowers, sweepIsolatedWalls } from "./board-occupancy.ts";
+import { cannonSlotsForRound } from "./cannon-system.ts";
+import type { Castle, GameMap } from "./geometry-types.ts";
 import {
   rollGruntWallAttacks,
   spawnGruntGroupOnZone,
@@ -36,10 +37,10 @@ import {
   startOfBuildPhaseHousekeeping,
   topZonesBySize,
 } from "./map-generation.ts";
-import { claimTerritory, replenishBonusSquares } from "./phase-build.ts";
+import { claimTerritory, removeBonusSquaresCoveredByWalls, replenishBonusSquares } from "./phase-build.ts";
 import type { PlayerController } from "./player-controller.ts";
 import { Rng } from "./rng.ts";
-import { countWallNeighbors, DIRS_4, isCannonAlive, packTile, snapAngle, unpackTile } from "./spatial.ts";
+import { DIRS_4, packTile, snapAngle, unpackTile } from "./spatial.ts";
 import type { GameState, Player } from "./types.ts";
 import {
   BATTLE_TIMER,
@@ -51,18 +52,14 @@ import {
   INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
   INTERBATTLE_GRUNT_SPAWN_CHANCE,
   isPlayerActive,
-  MAX_CANNON_LIMIT_ON_RESELECT,
   Phase,
   STARTING_LIVES,
 } from "./types.ts";
 
-export const BANNER_PLACE_CANNONS = "Place Cannons";
-export const BANNER_PLACE_CANNONS_SUB = "Position inside fort walls";
-export const BANNER_BATTLE = "Prepare for Battle";
-export const BANNER_BATTLE_SUB = "Shoot at enemy walls";
-export const BANNER_BUILD = "Build & Repair";
-export const BANNER_BUILD_SUB = "Surround castles, repair walls";
-export const BANNER_SELECT = "Select your home castle";
+/** Grunts spawned per player on first battle when nobody fires. */
+const IDLE_FIRST_BATTLE_GRUNTS = 2;
+/** Probability of reversing castle-wall build animation direction. */
+const CASTLE_RING_REVERSE_CHANCE = 0.5;
 
 /** Create a game from a seed: generate map, pick zones, create state. */
 export function createGameFromSeed(
@@ -131,9 +128,7 @@ export function createGameState(
 /** Rebuild a player's home castle from scratch (used when continuing after losing a life). */
 export function rebuildHomeCastle(state: GameState, player: Player): void {
   if (!player.homeTower) return;
-  const homeTower = player.homeTower;
-  clearPlayerState(player);
-  player.homeTower = homeTower;
+  clearPlayerState(player, { keepHomeTower: true });
   const castle = buildCastle(
     player.homeTower,
     state.map.tiles,
@@ -257,10 +252,10 @@ export function resetCannonFacings(state: GameState): void {
     }
     let facing = 0;
     if (count > 0) {
-      ex /= count;
-      ey /= count;
-      const dx = ex - px;
-      const dy = ey - py;
+      const avgEx = ex / count;
+      const avgEy = ey / count;
+      const dx = avgEx - px;
+      const dy = avgEy - py;
       facing = snapAngle(Math.atan2(dx, -dy), Math.PI / 2); // 0 = up, snapped to 90°
     }
     player.defaultFacing = facing;
@@ -309,15 +304,6 @@ function enterBattleFromCannon(state: GameState): void {
   state.shotsFired = 0;
 }
 
-function removeBonusSquaresCoveredByWalls(
-  state: GameState,
-  walls: Set<number>,
-): void {
-  state.bonusSquares = state.bonusSquares.filter(
-    (bonusSquare) => !walls.has(packTile(bonusSquare.row, bonusSquare.col)),
-  );
-}
-
 function sweepAllPlayersWalls(state: GameState): void {
   for (const player of state.players) {
     sweepIsolatedWalls(player.walls);
@@ -332,10 +318,10 @@ function enterBuildFromBattle(state: GameState): void {
   for (const player of state.players) {
     player.cannons = player.cannons.filter((c) => !c.balloon);
   }
-  // First battle with no shots fired (nobody playing): spawn 2 grouped grunts per player
+  // First battle with no shots fired (nobody playing): spawn grouped grunts per player
   if (state.round === 1 && state.shotsFired === 0) {
     for (const player of state.players.filter(isPlayerActive)) {
-      spawnGruntGroupOnZone(state, player.id, 2);
+      spawnGruntGroupOnZone(state, player.id, IDLE_FIRST_BATTLE_GRUNTS);
     }
   }
   claimTerritory(state);
@@ -344,50 +330,6 @@ function enterBuildFromBattle(state: GameState): void {
   state.phase = Phase.WALL_BUILD;
   state.timer = state.buildTimer;
   startOfBuildPhaseHousekeeping(state);
-}
-
-function cleanupBalloonHitTrackingAfterBattle(state: GameState): void {
-  // Reset balloon hit counters for cannons that were captured (used this battle)
-  for (const cc of state.capturedCannons) {
-    state.balloonHits.delete(cc.cannon);
-  }
-
-  // Also clean up hit counters for destroyed cannons
-  for (const [cannon] of state.balloonHits) {
-    if (!isCannonAlive(cannon)) state.balloonHits.delete(cannon);
-  }
-
-  // Clear capturerIds for non-captured cannons so only the deciding
-  // battle's contributors can win (hit count persists across battles)
-  for (const [, hit] of state.balloonHits) {
-    hit.capturerIds = [];
-  }
-}
-
-/**
- * Compute the total cannon slot limit for a player this round.
- * `isReselected` is true for players who just chose a new castle after losing a life.
- */
-function cannonSlotsForRound(
-  player: Player,
-  state: GameState,
-): number {
-  const existingSlots = cannonSlotsUsed(player);
-  let newSlots: number;
-  if (state.reselectedPlayers.has(player.id)) {
-    newSlots = Math.min(
-      state.firstRoundCannons + (STARTING_LIVES - player.lives),
-      MAX_CANNON_LIMIT_ON_RESELECT,
-    );
-  } else if (state.round === 1) {
-    newSlots = state.firstRoundCannons;
-  } else {
-    const aliveTowers = getAliveOwnedTowers(player, state);
-    const ownsHome = player.homeTower && aliveTowers.some(t => t === player.homeTower);
-    const otherCount = aliveTowers.length - (ownsHome ? 1 : 0);
-    newSlots = (ownsHome ? 2 : 0) + otherCount;
-  }
-  return existingSlots + newSlots;
 }
 
 /**
@@ -419,13 +361,13 @@ function applyLifePenalties(
 }
 
 /** Clear all mutable state from a player (used when losing a life or being eliminated). */
-export function clearPlayerState(player: Player): void {
+export function clearPlayerState(player: Player, options?: { keepHomeTower?: boolean }): void {
   player.walls.clear();
   player.interior.clear();
   player.cannons = [];
   player.ownedTowers = [];
   player.castle = null;
-  player.homeTower = null;
+  if (!options?.keepHomeTower) player.homeTower = null;
 }
 
 export function resetZoneState(state: GameState, zone: number): void {
@@ -479,14 +421,27 @@ export function prepareCastleWallsForPlayer(state: GameState, playerId: number):
   for (const [r, c] of wallTiles) tempWalls.add(packTile(r, c));
   applyClumsyBuilders(tempWalls, castle, state.map.tiles, state.rng, state.map.towers);
 
-  // Order tiles: walk the clean ring in perimeter order, then interleave
-  // any extra tiles from clumsy builders right after their ring neighbor.
+  const ordered = orderCastleWallsForAnimation(castle, wallTiles, tempWalls, state.rng);
+  return { playerId: player.id, tiles: ordered };
+}
+
+/**
+ * Order castle wall tiles for the build animation.
+ * Walks the clean ring in perimeter order (CW or CCW), then interleaves
+ * any extra tiles from clumsy builders right after their ring neighbor.
+ */
+function orderCastleWallsForAnimation(
+  castle: Castle,
+  ringTiles: [number, number][],
+  finalWalls: Set<number>,
+  rng: Rng,
+): number[] {
   const { left, top, right, bottom } = castle;
   const wL = left - 1, wR = right + 1, wT = top - 1, wB = bottom + 1;
 
   // 1. Build the clean ring walk (clockwise or counterclockwise)
   const ringSet = new Set<number>();
-  for (const [r, c] of wallTiles) ringSet.add(packTile(r, c));
+  for (const [r, c] of ringTiles) ringSet.add(packTile(r, c));
 
   const ringWalk: number[] = [];
   // Top edge (left to right)
@@ -499,16 +454,16 @@ export function prepareCastleWallsForPlayer(state: GameState, playerId: number):
   for (let r = wB - 1; r > wT; r--) { const k = packTile(r, wL); if (ringSet.has(k)) ringWalk.push(k); }
 
   // Randomly reverse for counterclockwise
-  if (state.rng.bool(0.5)) ringWalk.reverse();
+  if (rng.bool(CASTLE_RING_REVERSE_CHANCE)) ringWalk.reverse();
 
-  // 2. Find extra tiles added by clumsy builders (in tempWalls but not in ringSet)
+  // 2. Find extra tiles added by clumsy builders (in finalWalls but not in ringSet)
   const extras = new Set<number>();
-  for (const k of tempWalls) {
+  for (const k of finalWalls) {
     if (!ringSet.has(k)) extras.add(k);
   }
   // Some ring tiles may have been removed by clumsy builders
   // (sweep phase removes tiles with ≤1 neighbor). Filter ring walk.
-  const activeRing = ringWalk.filter(k => tempWalls.has(k));
+  const activeRing = ringWalk.filter(k => finalWalls.has(k));
 
   // 3. Interleave: after each ring tile, insert any adjacent extras
   const ordered: number[] = [];
@@ -528,26 +483,9 @@ export function prepareCastleWallsForPlayer(state: GameState, playerId: number):
     }
   }
   // Safety: add any remaining tiles not yet placed
-  for (const k of tempWalls) {
+  for (const k of finalWalls) {
     if (!placed.has(k)) ordered.push(k);
   }
 
-  return { playerId: player.id, tiles: ordered };
-}
-
-function getAliveOwnedTowers(player: Player, state: GameState) {
-  return player.ownedTowers.filter((tower) => state.towerAlive[tower.index]!);
-}
-
-/**
- * Sweep one layer of debris wall tiles (0 or 1 orthogonal neighbor).
- * Collects all isolated tiles first, then removes them in one batch.
- */
-function sweepIsolatedWalls(walls: Set<number>): void {
-  const toRemove: number[] = [];
-  for (const key of walls) {
-    const { r, c } = unpackTile(key);
-    if (countWallNeighbors(walls, r, c) <= 1) toRemove.push(key);
-  }
-  for (const key of toRemove) walls.delete(key);
+  return ordered;
 }

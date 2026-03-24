@@ -1,8 +1,8 @@
 import { MSG, type ServerMessage } from "../server/protocol.ts";
 import type { BannerShow } from "./battle-ticks.ts";
-import { BANNER_PLACE_CANNONS } from "./game-engine.ts";
 import { FOCUS_REMATCH, type GameOverFocus } from "./game-ui-types.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
+import { BANNER_PLACE_CANNONS } from "./phase-banner.ts";
 import type { RGB } from "./player-config.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { GameState } from "./types.ts";

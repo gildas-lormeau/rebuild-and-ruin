@@ -23,10 +23,6 @@ import { createController, isHuman } from "./controller-factory.ts";
 import { bootstrapGame, setupTowerSelection } from "./game-bootstrap.ts";
 import {
   advanceToCannonPlacePhase,
-  BANNER_BUILD,
-  BANNER_BUILD_SUB,
-  BANNER_PLACE_CANNONS,
-  BANNER_PLACE_CANNONS_SUB,
   clearPlayerState,
   enterCannonPlacePhase,
   enterCastleReselectPhase,
@@ -86,6 +82,10 @@ import {
   tickLifeLostDialogRuntime,
 } from "./life-lost.ts";
 import {
+  BANNER_BUILD,
+  BANNER_BUILD_SUB,
+  BANNER_PLACE_CANNONS,
+  BANNER_PLACE_CANNONS_SUB,
   createBannerState,
   showBannerTransition,
   tickBannerTransition,

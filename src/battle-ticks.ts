@@ -1,10 +1,10 @@
 import type { GameMessage } from "../server/protocol.ts";
 import { type BalloonFlight, countdownAnnouncement } from "./battle-system.ts";
-import { BANNER_BATTLE, BANNER_BATTLE_SUB } from "./game-engine.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { buildCannonFiredMsg } from "./online-send-actions.ts";
 import type { WatcherTimingState } from "./online-watcher-battle.ts";
-import type { HostNetContext } from "./phase-ticks.ts";
+import { BANNER_BATTLE, BANNER_BATTLE_SUB } from "./phase-banner.ts";
+import { type HostNetContext, localActiveControllers } from "./phase-ticks.ts";
 import type { PlayerController } from "./player-controller.ts";
 import { EMPTY_TILE_SET } from "./spatial.ts";
 import type { GameState, Impact } from "./types.ts";
@@ -112,9 +112,7 @@ export function tickHostBattleCountdown(
   const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET;
 
   state.battleCountdown = Math.max(0, state.battleCountdown - dt);
-  for (const ctrl of controllers) {
-    if (remoteHumanSlots.has(ctrl.playerId)) continue;
-    if (state.players[ctrl.playerId]?.eliminated) continue;
+  for (const ctrl of localActiveControllers(controllers, remoteHumanSlots, state)) {
     ctrl.battleTick(state, dt);
   }
 
@@ -138,9 +136,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   state.timer = Math.max(0, battleTimer - accum.battle);
 
   const ballsBefore = state.cannonballs.length;
-  for (const ctrl of controllers) {
-    if (remoteHumanSlots.has(ctrl.playerId)) continue;
-    if (state.players[ctrl.playerId]?.eliminated) continue;
+  for (const ctrl of localActiveControllers(controllers, remoteHumanSlots, state)) {
     ctrl.battleTick(state, dt);
   }
 
@@ -241,9 +237,7 @@ export function beginHostBattle(deps: BeginHostBattleDeps): void {
   const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET;
   const isHost = deps.net?.isHost ?? true;
 
-  for (const ctrl of controllers) {
-    if (remoteHumanSlots.has(ctrl.playerId)) continue;
-    if (state.players[ctrl.playerId]?.eliminated) continue;
+  for (const ctrl of localActiveControllers(controllers, remoteHumanSlots, state)) {
     ctrl.resetBattle(state);
   }
 

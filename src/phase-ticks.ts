@@ -1,3 +1,4 @@
+import { getCannonMode } from "./cannon-system.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
 import {
   type CannonPhantom,
@@ -5,6 +6,7 @@ import {
   type HumanPiecePhantom,
   type PiecePhantom,
   phantomChanged,
+  phantomWireMode,
   piecePhantomKey,
 } from "./online-types.ts";
 import type { PlayerController } from "./player-controller.ts";
@@ -107,7 +109,6 @@ interface TickHostBuildPhaseDeps {
   net?: BuildPhaseNet;
 }
 
-/** Shared empty map — avoids allocating a throwaway Map on every frame. */
 /** Sentinel empty map — never mutated (phantomChanged short-circuits on empty maps). */
 const EMPTY_MAP = new Map<number, string>();
 
@@ -126,10 +127,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   state.timer = Math.max(0, state.cannonPlaceTimer - accum.cannon);
 
   frame.phantoms = { aiCannonPhantoms: [] };
-  for (const ctrl of controllers) {
-    if (remoteHumanSlots.has(ctrl.playerId)) continue;
-    if (state.players[ctrl.playerId]?.eliminated) continue;
-
+  for (const ctrl of localActiveControllers(controllers, remoteHumanSlots, state)) {
     const cannonsBefore = state.players[ctrl.playerId]!.cannons.length;
     const phantom = ctrl.cannonTick(state, dt);
 
@@ -141,7 +139,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
           playerId: ctrl.playerId,
           row: c.row,
           col: c.col,
-          mode: c.super ? CannonMode.SUPER : c.balloon ? CannonMode.BALLOON : CannonMode.NORMAL,
+          mode: getCannonMode(c),
         });
       }
     }
@@ -156,11 +154,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
       playerId: ctrl.playerId,
       row: phantom.row,
       col: phantom.col,
-      mode: phantom.isSuper
-        ? CannonMode.SUPER
-        : phantom.isBalloon
-          ? CannonMode.BALLOON
-          : CannonMode.NORMAL,
+      mode: phantomWireMode(phantom),
       valid: phantom.valid,
       facing: phantom.facing ?? 0,
     });
@@ -229,10 +223,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   }
 
   frame.phantoms = { aiPhantoms: [], humanPhantoms: [] };
-  for (const ctrl of controllers) {
-    if (remoteHumanSlots.has(ctrl.playerId)) continue;
-    if (state.players[ctrl.playerId]?.eliminated) continue;
-
+  for (const ctrl of localActiveControllers(controllers, remoteHumanSlots, state)) {
     const wallSnapshot =
       isHost && !isHuman(ctrl)
         ? new Set(state.players[ctrl.playerId]!.walls)
@@ -332,4 +323,15 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
     afterLifeLostResolved();
   });
   return true;
+}
+
+/** Filter controllers to only local (non-remote) players that are still alive. */
+export function localActiveControllers(
+  controllers: PlayerController[],
+  remoteHumanSlots: ReadonlySet<number>,
+  state: GameState,
+): PlayerController[] {
+  return controllers.filter(
+    ctrl => !remoteHumanSlots.has(ctrl.playerId) && !state.players[ctrl.playerId]?.eliminated,
+  );
 }

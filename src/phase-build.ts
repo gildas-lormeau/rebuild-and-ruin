@@ -100,11 +100,6 @@ export function claimTerritory(state: GameState, endOfBuildPhase = false): void 
  * never inside enclosed areas.
  */
 export function replenishBonusSquares(state: GameState): void {
-  if (!bonusSquaresEnabled(state)) {
-    if (state.bonusSquares.length > 0) state.bonusSquares = [];
-    return;
-  }
-
   const { map } = state;
   const { tiles, zones } = map;
 
@@ -160,6 +155,16 @@ export function replenishBonusSquares(state: GameState): void {
       placed++;
     }
   }
+}
+
+/** Remove bonus squares that are covered by walls. */
+export function removeBonusSquaresCoveredByWalls(
+  state: GameState,
+  walls: Set<number>,
+): void {
+  state.bonusSquares = state.bonusSquares.filter(
+    (bonusSquare) => !walls.has(packTile(bonusSquare.row, bonusSquare.col)),
+  );
 }
 
 function awardEndOfBuildPoints(
@@ -240,14 +245,14 @@ function removeEnclosedGruntsAndRespawn(
 }
 
 function clearUnenclosedPendingRevives(state: GameState): void {
+  const toRemove: number[] = [];
   for (const ti of state.towerPendingRevive) {
     const isEnclosed = state.players.some(
       p => p.ownedTowers.includes(state.map.towers[ti]!),
     );
-    if (!isEnclosed) {
-      state.towerPendingRevive.delete(ti);
-    }
+    if (!isEnclosed) toRemove.push(ti);
   }
+  for (const ti of toRemove) state.towerPendingRevive.delete(ti);
 }
 
 /**
@@ -294,7 +299,6 @@ function updateOwnedTowers(state: GameState, player: Player, endOfBuildPhase: bo
 
 /** Award bonus square points for squares enclosed by a player's territory. */
 function captureEnclosedBonusSquares(state: GameState, player: Player): void {
-  if (!bonusSquaresEnabled(state)) return;
   const territorySize = player.interior.size;
   state.bonusSquares = state.bonusSquares.filter(bs => {
     const bKey = packTile(bs.row, bs.col);
@@ -304,10 +308,6 @@ function captureEnclosedBonusSquares(state: GameState, player: Player): void {
     }
     return true;
   });
-}
-
-function bonusSquaresEnabled(_state: GameState): boolean {
-  return true;
 }
 
 function territoryBonusSquarePoints(territorySize: number): number {

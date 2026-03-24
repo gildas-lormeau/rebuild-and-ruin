@@ -7,6 +7,7 @@
  */
 
 import {
+  countWallNeighbors,
   DIRS_4,
   forEachCannonTile,
   forEachTowerTile,
@@ -16,6 +17,7 @@ import {
   isTowerTile,
   isWater,
   packTile,
+  unpackTile,
 } from "./spatial.ts";
 import type { GameState, Grunt, Player } from "./types.ts";
 
@@ -236,6 +238,24 @@ export function hasCannonAt(
       return isCannonTile(cannon, r, c);
     }),
   );
+}
+
+/** Return a player's owned towers that are still alive. */
+export function getAliveOwnedTowers(player: Player, state: GameState) {
+  return player.ownedTowers.filter((tower) => state.towerAlive[tower.index]!);
+}
+
+/**
+ * Sweep one layer of debris wall tiles (0 or 1 orthogonal neighbor).
+ * Collects all isolated tiles first, then removes them in one batch.
+ */
+export function sweepIsolatedWalls(walls: Set<number>): void {
+  const toRemove: number[] = [];
+  for (const key of walls) {
+    const { r, c } = unpackTile(key);
+    if (countWallNeighbors(walls, r, c) <= 1) toRemove.push(key);
+  }
+  for (const key of toRemove) walls.delete(key);
 }
 
 function hasWallMatching(

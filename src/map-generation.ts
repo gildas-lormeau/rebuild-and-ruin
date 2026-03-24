@@ -31,6 +31,24 @@ const GENERATION_MAX_ATTEMPTS = 5000;
 const GENERATION_FALLBACK_ATTEMPTS = 2000;
 /** Max houses when refilling a zone mid-game (lower than initial to leave room). */
 const REFILL_HOUSES_PER_ZONE = 8;
+/** Zone balance: largest/smallest must be within this ratio (strict pass). */
+const ZONE_BALANCE_RATIO = 1.15;
+/** Zone balance: relaxed ratio for fallback generation. */
+const ZONE_BALANCE_RATIO_FALLBACK = 1.35;
+/** Minimum grass rows per zone to avoid too-thin zones. */
+const MIN_ZONE_HEIGHT = 12;
+/** Clumsy builder: chance per corner to add a bump wall tile. */
+const CLUMSY_CORNER_CHANCE = 1 / 12;
+/** Clumsy builder: chance per wall tile to add an adjacent tile. */
+const CLUMSY_WALL_CHANCE = 1 / 10;
+/** Horizontal margin for river exit placement (keeps exits away from map edges). */
+const RIVER_EXIT_MARGIN_H = 10;
+/** Vertical margin for river exit placement. */
+const RIVER_EXIT_MARGIN_V = 6;
+/** Horizontal margin for river junction placement. */
+const JUNCTION_MARGIN_X = 16;
+/** Vertical margin for river junction placement. */
+const JUNCTION_MARGIN_Y = 11;
 
 export function generateMap(seed?: number): GameMap {
   const rng = new Rng(seed ?? Date.now());
@@ -55,10 +73,10 @@ export function generateMap(seed?: number): GameMap {
     if (attempts > GENERATION_MAX_ATTEMPTS) break;
 
     // Check we have exactly 3 large zones of roughly equal size
-    if (!hasThreeBalancedZones(regionSizes, 1.15)) continue;
+    if (!hasThreeBalancedZones(regionSizes, ZONE_BALANCE_RATIO)) continue;
 
-    // Reject if any zone has insufficient vertical height (< 12 grass rows)
-    if (hasAnyThinTopZone(zones, regionSizes, 12)) continue;
+    // Reject if any zone has insufficient vertical height
+    if (hasAnyThinTopZone(zones, regionSizes, MIN_ZONE_HEIGHT)) continue;
 
     // Nudge junction 1 tile toward the largest zone to balance height.
     // Find the largest zone's centroid row; if it's above/below junction,
@@ -89,7 +107,7 @@ export function generateMap(seed?: number): GameMap {
     exits = pickExits(rng);
     ({ zones, regionSizes } = generateRiverAndZones(tiles, junction, exits, rng));
 
-    if (!hasThreeBalancedZones(regionSizes, 1.35)) continue;
+    if (!hasThreeBalancedZones(regionSizes, ZONE_BALANCE_RATIO_FALLBACK)) continue;
 
     const riverDist = buildRiverDistanceGrid(tiles);
     const towers = placeTowers(zones, regionSizes, riverDist);
@@ -331,7 +349,7 @@ export function applyClumsyBuilders(
   // For each corner, ~1/12 chance (scaled) to add an extra wall tile
   // adjacent to the corner (cardinal direction inward), creating a bump.
   for (const [cr, cc] of corners) {
-    if (!rng.bool((1 / 12) * clumsyScale)) continue;
+    if (!rng.bool(CLUMSY_CORNER_CHANCE * clumsyScale)) continue;
     const key = packTile(cr, cc);
     if (!walls.has(key)) continue;
     // Pick one of the two cardinal-inward neighbors (toward interior)
@@ -347,7 +365,7 @@ export function applyClumsyBuilders(
   // For each wall tile, ~1/10 chance (scaled) to add an adjacent inner or outer tile
   const currentWalls = [...walls];
   for (const key of currentWalls) {
-    if (!rng.bool((1 / 10) * clumsyScale)) continue;
+    if (!rng.bool(CLUMSY_WALL_CHANCE * clumsyScale)) continue;
     const { r, c } = unpackTile(key);
 
     // Collect candidate neighbors (4-connected) that aren't already walls or tower
@@ -525,13 +543,13 @@ function pickExits(rng: Rng): PixelPos[] {
   return chosen.map((edge) => {
     switch (edge) {
       case 0:
-        return { x: rng.int(10, GRID_COLS - 11), y: -1 };
+        return { x: rng.int(RIVER_EXIT_MARGIN_H, GRID_COLS - RIVER_EXIT_MARGIN_H - 1), y: -1 };
       case 1:
-        return { x: GRID_COLS, y: rng.int(6, GRID_ROWS - 7) };
+        return { x: GRID_COLS, y: rng.int(RIVER_EXIT_MARGIN_V, GRID_ROWS - RIVER_EXIT_MARGIN_V - 1) };
       case 2:
-        return { x: rng.int(10, GRID_COLS - 11), y: GRID_ROWS };
+        return { x: rng.int(RIVER_EXIT_MARGIN_H, GRID_COLS - RIVER_EXIT_MARGIN_H - 1), y: GRID_ROWS };
       case 3:
-        return { x: -1, y: rng.int(6, GRID_ROWS - 7) };
+        return { x: -1, y: rng.int(RIVER_EXIT_MARGIN_V, GRID_ROWS - RIVER_EXIT_MARGIN_V - 1) };
       default:
         return { x: 0, y: 0 };
     }
@@ -542,8 +560,8 @@ function pickJunction(rng: Rng): PixelPos {
   // Keep junction roughly central so all 3 zones have enough room for towers.
   // Each zone needs at least ~10 tiles of width for 4 towers with SAFE_ZONE_PAD=3.
   return {
-    x: rng.int(16, GRID_COLS - 17),
-    y: rng.int(11, GRID_ROWS - 12),
+    x: rng.int(JUNCTION_MARGIN_X, GRID_COLS - JUNCTION_MARGIN_X - 1),
+    y: rng.int(JUNCTION_MARGIN_Y, GRID_ROWS - JUNCTION_MARGIN_Y - 1),
   };
 }
 

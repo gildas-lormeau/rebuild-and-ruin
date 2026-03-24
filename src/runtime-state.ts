@@ -82,6 +82,9 @@ export interface RuntimeState {
   mouseJoinedSlot: number;
 }
 
+/** Default frame delta time (assumes 60fps). */
+const DEFAULT_FRAME_DT = 1 / 60;
+
 export function createRuntimeState(): RuntimeState {
   return {
     state: null! as GameState,
@@ -97,7 +100,7 @@ export function createRuntimeState(): RuntimeState {
 
     accum: createTimerAccums(),
     lastTime: 0,
-    frameDt: 1 / 60,
+    frameDt: DEFAULT_FRAME_DT,
 
     battleAnim: createBattleAnimState(),
     banner: createBannerState(),

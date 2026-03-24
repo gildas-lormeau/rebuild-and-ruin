@@ -47,6 +47,10 @@ interface GruntAttackEvent {
 
 /** Search radius for finding nearest water tile. */
 const WATER_SEARCH_RADIUS = 5;
+/** Minimum Manhattan distance between spawn candidates. */
+const GRUNT_SPAWN_MIN_DISTANCE = 2;
+/** Distance threshold for detecting nearby blocking grunts. */
+const GRUNT_BLOCKED_NEARBY_DISTANCE = 2;
 
 export function spawnGruntNearPosition(
   state: GameState,
@@ -397,7 +401,7 @@ function findGruntSpawnPositions(
   for (const cand of candidates) {
     if (result.length >= count) break;
     const tooClose = result.some(
-      (r) => manhattanDistance(r.row, r.col, cand.row, cand.col) < 2,
+      (r) => manhattanDistance(r.row, r.col, cand.row, cand.col) < GRUNT_SPAWN_MIN_DISTANCE,
     );
     if (tooClose) continue;
     result.push({ row: cand.row, col: cand.col });
@@ -669,7 +673,7 @@ function hasBlockedSameTargetNearby(state: GameState, grunt: Grunt): boolean {
     )
       continue;
     // Is it close enough to be blocked by us?
-    if (manhattanDistance(grunt.row, grunt.col, other.row, other.col) <= 2)
+    if (manhattanDistance(grunt.row, grunt.col, other.row, other.col) <= GRUNT_BLOCKED_NEARBY_DISTANCE)
       return true;
   }
   return false;

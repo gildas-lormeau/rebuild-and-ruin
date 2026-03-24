@@ -1,5 +1,5 @@
 import { MSG } from "../server/protocol.ts";
-import { BANNER_SELECT } from "./game-engine.ts";
+import { BANNER_SELECT } from "./phase-banner.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { GameState } from "./types.ts";
 import { Phase } from "./types.ts";

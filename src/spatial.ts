@@ -40,7 +40,7 @@ export const CORNERS_2X2 = [
   [-1, -1],
 ] as const;
 /** Shared empty set — avoids allocating throwaway Set objects on every frame. */
-export const EMPTY_TILE_SET: ReadonlySet<number> = new Set<number>();
+export const EMPTY_TILE_SET: ReadonlySet<number> = Object.freeze(new Set<number>());
 
 /** Call `fn` for each tile of a 2×2 tower footprint. */
 export function forEachTowerTile(
