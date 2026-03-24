@@ -288,7 +288,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     const quitPending = deps.getQuitPending();
 
     // Unzoom for UI overlays and near end of phase
-    if (cameraZone !== null || pinchVp !== null) {
+    if (cameraZone !== null || pinchVp !== null || castleBuildVp !== null) {
       const phaseEnding = !mobileAuto && state.timer > 0 && state.timer <= PHASE_ENDING_THRESHOLD &&
         (state.phase === Phase.WALL_BUILD || state.phase === Phase.CANNON_PLACE || state.phase === Phase.BATTLE);
       const lifeLostUnzoom = deps.hasLifeLostDialog() && !mobileAuto;
@@ -296,6 +296,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
         savePinchForPhase(state.phase === Phase.BATTLE);
         cameraZone = null;
         pinchVp = null;
+        castleBuildVp = null;
       }
     }
 
