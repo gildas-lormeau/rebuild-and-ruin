@@ -52,7 +52,7 @@ npm run lint:fix          # Biome: auto-fix import sorting & unused imports
 npm run lint:unused       # Knip: dead files, unused exports & dependencies
 npm run lint:circular     # Madge: circular dependency detection
 npm run lint:duplicates   # jscpd: copy-paste / duplicate code detection
-npx tsx scripts/find-duplicate-literals.ts  # AST-based: repeated string & numeric literals
+npm run lint:literals     # AST-based: repeated string & numeric literals (baseline-aware)
 ```
 
 Or run everything at once: `npm run lint:all`
@@ -61,7 +61,22 @@ Or run everything at once: `npm run lint:all`
 - Knip unused exports feed directly into Pass 1 (dead code)
 - jscpd clones feed directly into Pass 3 (duplicate code)
 - Madge circular deps feed into Pass 4 (misplaced logic)
-- `find-duplicate-literals.ts` findings feed into Pass 2 (hardcoded values) — extract to named constants
+- `lint:literals` findings feed into Pass 2 (hardcoded values) — extract to named constants
+
+### Duplicate literals tool
+
+`scripts/find-duplicate-literals.ts` uses the TypeScript compiler API to find repeated string and numeric literals. It maintains a baseline (`.literals-baseline.json`) so `lint:all` only fails on NEW duplicates.
+
+```bash
+npm run lint:literals                          # Default: exit 0 if all findings are baselined
+npx tsx scripts/find-duplicate-literals.ts --all                       # Show all findings (informational, exit 0)
+npx tsx scripts/find-duplicate-literals.ts --all --files "src/game-*.ts"  # Scoped to specific files (for reviews)
+npx tsx scripts/find-duplicate-literals.ts --update-baseline           # Acknowledge current findings as known
+```
+
+- **For reviews:** use `--all --files <globs>` to scope output to the files being reviewed
+- **After fixing duplicates:** run `--update-baseline` to remove fixed entries from baseline
+- **For CI/pre-commit:** default mode (no flags) — exits 1 only for new findings not in baseline
 
 ### File reorder tool
 

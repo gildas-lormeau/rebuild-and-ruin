@@ -1,0 +1,82 @@
+[
+  {
+    "type": "number",
+    "key": "100"
+  },
+  {
+    "type": "number",
+    "key": "1000"
+  },
+  {
+    "type": "number",
+    "key": "110"
+  },
+  {
+    "type": "number",
+    "key": "16"
+  },
+  {
+    "type": "number",
+    "key": "170"
+  },
+  {
+    "type": "number",
+    "key": "18"
+  },
+  {
+    "type": "number",
+    "key": "20"
+  },
+  {
+    "type": "number",
+    "key": "25"
+  },
+  {
+    "type": "number",
+    "key": "255"
+  },
+  {
+    "type": "number",
+    "key": "28"
+  },
+  {
+    "type": "number",
+    "key": "30"
+  },
+  {
+    "type": "number",
+    "key": "32"
+  },
+  {
+    "type": "number",
+    "key": "35"
+  },
+  {
+    "type": "number",
+    "key": "40"
+  },
+  {
+    "type": "number",
+    "key": "50"
+  },
+  {
+    "type": "number",
+    "key": "60"
+  },
+  {
+    "type": "number",
+    "key": "80"
+  },
+  {
+    "type": "string",
+    "key": "confirm"
+  },
+  {
+    "type": "string",
+    "key": "lobby-menu"
+  },
+  {
+    "type": "string",
+    "key": "localhost"
+  }
+]

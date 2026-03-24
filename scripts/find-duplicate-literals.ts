@@ -5,22 +5,58 @@
  * that appear in runtime expressions (comparisons, assignments, function args).
  * Skips: const/enum definitions, imports, type annotations, exports, object keys.
  *
- * Usage: npx tsx scripts/find-duplicate-literals.ts [--threshold N]
+ * Usage:
+ *   npx tsx scripts/find-duplicate-literals.ts [options]
+ *
+ * Options:
+ *   --threshold N          Minimum occurrences to report (default: 3)
+ *   --files <globs...>     Only report findings with locations in these files
+ *   --update-baseline      Save current findings as the baseline (exits 0)
+ *   --all                  Report all findings, ignoring baseline
+ *
+ * Exit codes:
+ *   0  No new findings (or baseline updated)
+ *   1  New findings detected (not in baseline)
+ *
+ * Baseline: .literals-baseline.json — committed to repo, tracks known duplicates.
+ * Default behavior compares against baseline and only reports/fails on NEW entries.
  */
 
 import ts from "typescript";
 import { globSync } from "node:fs";
+import fs from "node:fs";
 import path from "node:path";
+
+// ---------------------------------------------------------------------------
+// CLI args
+// ---------------------------------------------------------------------------
 
 const threshold = (() => {
   const idx = process.argv.indexOf("--threshold");
   return idx >= 0 ? parseInt(process.argv[idx + 1]!, 10) || 3 : 3;
 })();
 
+const updateBaseline = process.argv.includes("--update-baseline");
+const showAll = process.argv.includes("--all");
+
+/** Parse --files: everything after --files until the next --flag or end of args. */
+const filesFilter: string[] = (() => {
+  const idx = process.argv.indexOf("--files");
+  if (idx < 0) return [];
+  const result: string[] = [];
+  for (let i = idx + 1; i < process.argv.length; i++) {
+    if (process.argv[i]!.startsWith("--")) break;
+    result.push(process.argv[i]!);
+  }
+  return result;
+})();
+
 // Files to exclude from numeric analysis (sprite data tables, test fixtures)
 const NUMERIC_EXCLUDED_FILES = new Set(["sprites.ts", "headless-test.ts"]);
 
 const root = path.resolve(import.meta.dirname!, "..");
+const BASELINE_PATH = path.join(root, ".literals-baseline.json");
+
 const files = [
   ...globSync("src/**/*.ts", { cwd: root }),
   ...globSync("server/**/*.ts", { cwd: root }),
@@ -28,6 +64,35 @@ const files = [
 
 const stringCounts = new Map<string, { count: number; locations: string[] }>();
 const numberCounts = new Map<number, { count: number; locations: string[] }>();
+
+// ---------------------------------------------------------------------------
+// Baseline
+// ---------------------------------------------------------------------------
+
+interface BaselineEntry { type: "string" | "number"; key: string }
+type Baseline = BaselineEntry[];
+
+function loadBaseline(): Set<string> {
+  try {
+    const data = JSON.parse(fs.readFileSync(BASELINE_PATH, "utf-8")) as Baseline;
+    return new Set(data.map(e => `${e.type}:${e.key}`));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveBaseline(strings: [string, unknown][], numbers: [number, unknown][]): void {
+  const entries: Baseline = [
+    ...strings.map(([k]) => ({ type: "string" as const, key: k })),
+    ...numbers.map(([k]) => ({ type: "number" as const, key: String(k) })),
+  ];
+  entries.sort((a, b) => a.type.localeCompare(b.type) || a.key.localeCompare(b.key));
+  fs.writeFileSync(BASELINE_PATH, JSON.stringify(entries, null, 2) + "\n");
+}
+
+function baselineKey(type: "string" | "number", key: string | number): string {
+  return `${type}:${key}`;
+}
 
 // ---------------------------------------------------------------------------
 // Shared skip logic (applies to both strings and numbers)
@@ -84,6 +149,33 @@ function isDefinitionContext(node: ts.Node, sourceFile: ts.SourceFile): boolean 
 
   // Skip: type annotations and interface members
   if (ts.isLiteralTypeNode(parent)) return true;
+
+  // Skip: const array literal elements (e.g., const TABLE: readonly number[] = [100, 200])
+  if (ts.isArrayLiteralExpression(parent)) {
+    const arrParent = parent.parent;
+    if (ts.isVariableDeclaration(arrParent) && arrParent.initializer === parent) {
+      const declList = arrParent.parent;
+      if (ts.isVariableDeclarationList(declList) &&
+          (declList.flags & ts.NodeFlags.Const) !== 0) {
+        return true;
+      }
+    }
+  }
+
+  // Skip: elements inside const tuple arrays (e.g., const T: readonly [number, number][] = [[100, 1000]])
+  if (ts.isArrayLiteralExpression(parent)) {
+    const outerArr = parent.parent;
+    if (ts.isArrayLiteralExpression(outerArr)) {
+      const outerParent = outerArr.parent;
+      if (ts.isVariableDeclaration(outerParent) && outerParent.initializer === outerArr) {
+        const declList = outerParent.parent;
+        if (ts.isVariableDeclarationList(declList) &&
+            (declList.flags & ts.NodeFlags.Const) !== 0) {
+          return true;
+        }
+      }
+    }
+  }
 
   return false;
 }
@@ -241,44 +333,102 @@ for (const filePath of files) {
 }
 
 // ---------------------------------------------------------------------------
-// Report
+// Filter & report
 // ---------------------------------------------------------------------------
 
+/** Check if any location matches the --files filter. */
+function matchesFileFilter(locations: string[]): boolean {
+  if (filesFilter.length === 0) return true;
+  return locations.some(loc => {
+    const file = loc.split(":")[0]!;
+    return filesFilter.some(pattern => {
+      // Support simple glob: "src/render-*.ts" or exact match "src/game-engine.ts"
+      if (pattern.includes("*")) {
+        const regex = new RegExp("^" + pattern.replace(/\*/g, ".*") + "$");
+        return regex.test(file);
+      }
+      return file === pattern;
+    });
+  });
+}
+
 const stringResults = [...stringCounts.entries()]
-  .filter(([, v]) => v.count >= threshold)
+  .filter(([, v]) => v.count >= threshold && matchesFileFilter(v.locations))
   .sort((a, b) => b[1].count - a[1].count);
 
 const numberResults = [...numberCounts.entries()]
-  .filter(([, v]) => v.count >= threshold)
+  .filter(([, v]) => v.count >= threshold && matchesFileFilter(v.locations))
   .sort((a, b) => b[1].count - a[1].count);
 
-const total = stringResults.length + numberResults.length;
-
-if (total === 0) {
-  console.log(`No duplicate literals found with ${threshold}+ occurrences.`);
+// --update-baseline: save and exit
+if (updateBaseline) {
+  saveBaseline(stringResults, numberResults);
+  const total = stringResults.length + numberResults.length;
+  console.log(`Baseline updated: ${total} entries saved to .literals-baseline.json`);
   process.exit(0);
 }
 
-if (stringResults.length > 0) {
-  console.log(`String literals appearing ${threshold}+ times:\n`);
-  for (const [text, { count, locations }] of stringResults) {
-    console.log(`  "${text}" × ${count}`);
-    for (const loc of locations) {
-      console.log(`    ${loc}`);
+// Compare against baseline (unless --all)
+const baseline = showAll ? new Set<string>() : loadBaseline();
+
+const newStrings = stringResults.filter(([k]) => !baseline.has(baselineKey("string", k)));
+const newNumbers = numberResults.filter(([k]) => !baseline.has(baselineKey("number", k)));
+const knownStrings = stringResults.filter(([k]) => baseline.has(baselineKey("string", k)));
+const knownNumbers = numberResults.filter(([k]) => baseline.has(baselineKey("number", k)));
+
+const newCount = newStrings.length + newNumbers.length;
+const knownCount = knownStrings.length + knownNumbers.length;
+
+function printFindings(
+  label: string,
+  strings: [string, { count: number; locations: string[] }][],
+  numbers: [number, { count: number; locations: string[] }][],
+): void {
+  if (strings.length > 0) {
+    console.log(`${label} string literals:\n`);
+    for (const [text, { count, locations }] of strings) {
+      console.log(`  "${text}" × ${count}`);
+      for (const loc of locations) {
+        console.log(`    ${loc}`);
+      }
+      console.log();
     }
-    console.log();
+  }
+  if (numbers.length > 0) {
+    console.log(`${label} numeric literals:\n`);
+    for (const [num, { count, locations }] of numbers) {
+      console.log(`  ${num} × ${count}`);
+      for (const loc of locations) {
+        console.log(`    ${loc}`);
+      }
+      console.log();
+    }
   }
 }
 
-if (numberResults.length > 0) {
-  console.log(`Numeric literals appearing ${threshold}+ times:\n`);
-  for (const [num, { count, locations }] of numberResults) {
-    console.log(`  ${num} × ${count}`);
-    for (const loc of locations) {
-      console.log(`    ${loc}`);
-    }
-    console.log();
+if (showAll) {
+  // --all: show everything with a flat label (no new/known distinction)
+  const allStrings = stringResults;
+  const allNumbers = numberResults;
+  const total = allStrings.length + allNumbers.length;
+  if (total > 0) {
+    printFindings(`Duplicate`, allStrings, allNumbers);
+  } else {
+    console.log(`No duplicate literals found with ${threshold}+ occurrences.`);
+  }
+} else {
+  if (newCount > 0) {
+    printFindings(`NEW duplicate`, newStrings, newNumbers);
+  }
+  if (knownCount > 0 && newCount === 0) {
+    console.log(`${knownCount} known duplicate literals (in baseline). Run with --all to see them.`);
+  } else if (knownCount > 0) {
+    console.log(`(+ ${knownCount} known duplicate literals in baseline)`);
+  }
+  if (newCount === 0 && knownCount === 0) {
+    console.log(`No duplicate literals found with ${threshold}+ occurrences.`);
   }
 }
 
-process.exit(total > 0 ? 1 : 0);
+// --all is informational (always exit 0); default exits 1 only for NEW findings
+process.exit(!showAll && newCount > 0 ? 1 : 0);
