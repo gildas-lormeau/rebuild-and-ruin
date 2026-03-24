@@ -391,7 +391,7 @@ export function buildOnlineOverlay(params: {
     phantoms: frame.phantoms,
     ui: {
       timer:
-        state.phase !== Phase.BATTLE && !banner.active
+        state.phase !== Phase.BATTLE && !banner.active && state.timer > 0
           ? state.timer
           : undefined,
       banner: bannerUi,
