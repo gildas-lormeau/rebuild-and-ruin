@@ -4,7 +4,6 @@
  */
 
 /** Per-player battle stats accumulated during a game. */
-export interface PlayerStats { wallsDestroyed: number; cannonsKilled: number; }
 
 import type { BalloonFlight } from "./battle-system.ts";
 import type { GameMap } from "./geometry-types.ts";
@@ -14,10 +13,7 @@ import { ACTION_KEYS, MAX_PLAYERS, PLAYER_KEY_BINDINGS } from "./player-config.t
 import type { Crosshair, PhantomPiece } from "./player-controller.ts";
 import type { Impact } from "./types.ts";
 
-// ---------------------------------------------------------------------------
-// Mode enum
-// ---------------------------------------------------------------------------
-
+export interface PlayerStats { wallsDestroyed: number; cannonsKilled: number; }
 export enum Mode {
   LOBBY,
   OPTIONS,
@@ -30,11 +26,6 @@ export enum Mode {
   GAME,
   STOPPED,
 }
-
-// ---------------------------------------------------------------------------
-// Timer accumulators
-// ---------------------------------------------------------------------------
-
 export interface TimerAccums {
   battle: number;
   cannon: number;
@@ -43,15 +34,6 @@ export interface TimerAccums {
   build: number;
   grunt: number;
 }
-
-export function createTimerAccums(): TimerAccums {
-  return { battle: 0, cannon: 0, select: 0, selectAnnouncement: 0, build: 0, grunt: 0 };
-}
-
-// ---------------------------------------------------------------------------
-// Game settings
-// ---------------------------------------------------------------------------
-
 export interface GameSettings {
   difficulty: number;
   rounds: number;
@@ -62,15 +44,96 @@ export interface GameSettings {
   keyBindings: KeyBindings[];
   leftHanded: boolean; // true = d-pad on right, action buttons on left
 }
-
-export const SEED_RANDOM = "random" as const;
-export const SEED_CUSTOM = "custom" as const;
 export type SeedMode = typeof SEED_RANDOM | typeof SEED_CUSTOM;
+export type GameOverFocus = typeof FOCUS_REMATCH | typeof FOCUS_MENU;
+export interface ControlsState {
+  playerIdx: number;
+  actionIdx: number;
+  rebinding: boolean;
+}
+/** Game-over overlay data shared by FrameData and UIOverlay. */
+export interface GameOverOverlay {
+  winner: string;
+  scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: PlayerStats }[];
+  focused: GameOverFocus;
+}
+/** Life-lost dialog overlay data shared by UIOverlay and render-composition. */
+export interface LifeLostDialogOverlay {
+  entries: {
+    playerId: number;
+    name: string;
+    lives: number;
+    color: RGB;
+    choice: LifeLostChoice;
+    focused: number;
+    px: number;
+    py: number;
+  }[];
+  timer: number;
+  maxTimer: number;
+}
+/** Per-frame data written by tick functions, read by render(). */
+export interface FrameData {
+  crosshairs: Crosshair[];
+  phantoms: {
+    aiPhantoms?: {
+      offsets: [number, number][];
+      row: number;
+      col: number;
+      playerId: number;
+    }[];
+    humanPhantoms?: PhantomPiece[];
+    aiCannonPhantoms?: {
+      row: number;
+      col: number;
+      valid: boolean;
+      isSuper?: boolean;
+      isBalloon?: boolean;
+      playerId: number;
+      facing?: number;
+    }[];
+    phantomPiece?: {
+      offsets: [number, number][];
+      row: number;
+      col: number;
+      valid: boolean;
+      playerId?: number;
+    } | null;
+  };
+  announcement?: string;
+  gameOver?: GameOverOverlay;
+}
+/** Battle animation state — snapshots and effects. */
+export interface BattleAnimState {
+  territory: Set<number>[];
+  walls: Set<number>[];
+  flights: { flight: BalloonFlight; progress: number }[];
+  impacts: Impact[];
+}
+/** Player selection lobby state. */
+export interface LobbyState {
+  joined: boolean[];
+  active: boolean;
+  /** Accumulator for lobby countdown timer (local play). */
+  timerAccum?: number;
+  map: GameMap | null;
+}
 
+const SETTINGS_KEY = "castles99_settings";
+export const SEED_RANDOM = "random" as const;
+const DEFAULT_SETTINGS: GameSettings = {
+  difficulty: 1,
+  rounds: 4,
+  cannonHp: 0,
+  haptics: 2, // default: all
+  seed: "",
+  seedMode: SEED_RANDOM,
+  keyBindings: [],
+  leftHanded: false,
+};
+export const SEED_CUSTOM = "custom" as const;
 export const FOCUS_REMATCH = "rematch" as const;
 export const FOCUS_MENU = "menu" as const;
-export type GameOverFocus = typeof FOCUS_REMATCH | typeof FOCUS_MENU;
-
 export const DIFFICULTY_LABELS = ["Easy", "Normal", "Hard", "Very Hard"];
 export const DIFFICULTY_PARAMS = [
   { buildTimer: 30, cannonPlaceTimer: 20, firstRoundCannons: 4 }, // Easy
@@ -94,40 +157,13 @@ export const CANNON_HP_OPTIONS = [
 export const HAPTICS_LABELS = ["Off", "Phase changes", "All"];
 export const DPAD_LABELS = ["Right-handed", "Left-handed"];
 export const OPTION_NAMES = ["Difficulty", "Rounds", "Cannon Kill", "Haptics", "Seed", "Controls", "D-Pad"];
-const SETTINGS_KEY = "castles99_settings";
-const DEFAULT_SETTINGS: GameSettings = {
-  difficulty: 1,
-  rounds: 4,
-  cannonHp: 0,
-  haptics: 2, // default: all
-  seed: "",
-  seedMode: SEED_RANDOM,
-  keyBindings: [],
-  leftHanded: false,
-};
 
-// ---------------------------------------------------------------------------
-// Controls screen state
-// ---------------------------------------------------------------------------
-
-export interface ControlsState {
-  playerIdx: number;
-  actionIdx: number;
-  rebinding: boolean;
+export function createTimerAccums(): TimerAccums {
+  return { battle: 0, cannon: 0, select: 0, selectAnnouncement: 0, build: 0, grunt: 0 };
 }
-
 export function createControlsState(): ControlsState {
   return { playerIdx: 0, actionIdx: 0, rebinding: false };
 }
-
-// ---------------------------------------------------------------------------
-// Settings persistence
-// ---------------------------------------------------------------------------
-
-function deepCopyBindings(): KeyBindings[] {
-  return PLAYER_KEY_BINDINGS.map(kb => ({ ...kb }));
-}
-
 export function loadSettings(): GameSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -150,17 +186,11 @@ export function loadSettings(): GameSettings {
   } catch { /* ignore corrupt data */ }
   return { ...DEFAULT_SETTINGS, keyBindings: deepCopyBindings() };
 }
-
 export function saveSettings(settings: GameSettings): void {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   } catch { /* storage full or unavailable */ }
 }
-
-// ---------------------------------------------------------------------------
-// Utility
-// ---------------------------------------------------------------------------
-
 export function formatKeyName(key: string): string {
   if (key === "ArrowUp") return "\u2191";
   if (key === "ArrowDown") return "\u2193";
@@ -170,11 +200,6 @@ export function formatKeyName(key: string): string {
   if (key.length === 1) return key.toUpperCase();
   return key;
 }
-
-// ---------------------------------------------------------------------------
-// cycleOption — shared between main.ts and online-client.ts
-// ---------------------------------------------------------------------------
-
 export function cycleOption(
   dir: number,
   optionsCursor: number,
@@ -219,11 +244,6 @@ export function cycleOption(
   // optionsCursor === 4 (Seed) — handled via direct keyboard input in options handler
   // optionsCursor === 5 (Controls) — no left/right value, opened via confirm
 }
-
-// ---------------------------------------------------------------------------
-// Key rebinding
-// ---------------------------------------------------------------------------
-
 /** Apply a key rebinding with conflict resolution (swap conflicting key). */
 export function applyKeyRebinding(kb: KeyBindings, actionKey: string, newKey: string): void {
   for (const otherAction of ACTION_KEYS) {
@@ -245,83 +265,9 @@ export function applyKeyRebinding(kb: KeyBindings, actionKey: string, newKey: st
     kb.confirmAlt = newKey;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Shared frame / animation / lobby types
-// ---------------------------------------------------------------------------
-
-/** Game-over overlay data shared by FrameData and UIOverlay. */
-export interface GameOverOverlay {
-  winner: string;
-  scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: PlayerStats }[];
-  focused: GameOverFocus;
-}
-
-/** Life-lost dialog overlay data shared by UIOverlay and render-composition. */
-export interface LifeLostDialogOverlay {
-  entries: {
-    playerId: number;
-    name: string;
-    lives: number;
-    color: RGB;
-    choice: LifeLostChoice;
-    focused: number;
-    px: number;
-    py: number;
-  }[];
-  timer: number;
-  maxTimer: number;
-}
-
-/** Per-frame data written by tick functions, read by render(). */
-export interface FrameData {
-  crosshairs: Crosshair[];
-  phantoms: {
-    aiPhantoms?: {
-      offsets: [number, number][];
-      row: number;
-      col: number;
-      playerId: number;
-    }[];
-    humanPhantoms?: PhantomPiece[];
-    aiCannonPhantoms?: {
-      row: number;
-      col: number;
-      valid: boolean;
-      isSuper?: boolean;
-      isBalloon?: boolean;
-      playerId: number;
-      facing?: number;
-    }[];
-    phantomPiece?: {
-      offsets: [number, number][];
-      row: number;
-      col: number;
-      valid: boolean;
-      playerId?: number;
-    } | null;
-  };
-  announcement?: string;
-  gameOver?: GameOverOverlay;
-}
-
-/** Battle animation state — snapshots and effects. */
-export interface BattleAnimState {
-  territory: Set<number>[];
-  walls: Set<number>[];
-  flights: { flight: BalloonFlight; progress: number }[];
-  impacts: Impact[];
-}
-
 export function createBattleAnimState(): BattleAnimState {
   return { territory: [], walls: [], flights: [], impacts: [] };
 }
-
-/** Player selection lobby state. */
-export interface LobbyState {
-  joined: boolean[];
-  active: boolean;
-  /** Accumulator for lobby countdown timer (local play). */
-  timerAccum?: number;
-  map: GameMap | null;
+function deepCopyBindings(): KeyBindings[] {
+  return PLAYER_KEY_BINDINGS.map(kb => ({ ...kb }));
 }

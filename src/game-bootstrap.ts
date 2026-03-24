@@ -19,6 +19,43 @@ interface ShowWaitingRoomDeps {
   setLastTime: (timeMs: number) => void;
   requestFrame: () => void;
 }
+interface EnterTowerSelectionDeps {
+  state: GameState;
+  isHost: boolean;
+  myPlayerId: number;
+  remoteHumanSlots: Set<number>;
+  controllers: PlayerController[];
+  selectionStates: Map<number, SelectionState>;
+  initTowerSelection: (playerId: number, zone: number) => void;
+  syncSelectionOverlay: () => void;
+  setOverlaySelection: () => void;
+  selectTimer: number;
+  accum: { select: number };
+  enterCastleReselectPhase: (state: GameState) => void;
+  now: () => number;
+  setModeSelection: () => void;
+  setLastTime: (timeMs: number) => void;
+  requestFrame: () => void;
+  log: (msg: string) => void;
+}
+interface InitGameDeps {
+  seed: number;
+  maxPlayers: number;
+  /** Game settings to apply after state creation. */
+  battleLength: number;
+  cannonMaxHp: number;
+  buildTimer: number;
+  cannonPlaceTimer: number;
+  log: (msg: string) => void;
+  resetFrame: () => void;
+  setState: (nextState: GameState) => void;
+  setControllers: (nextControllers: PlayerController[]) => void;
+  resetUIState: () => void;
+  /** Create a controller for slot `i`. Receives the state for RNG access. */
+  createControllerForSlot: (i: number, state: GameState) => PlayerController;
+  /** Called after state + controllers are ready. Enters tower selection. */
+  enterSelection: () => void;
+}
 
 export function setupWaitingRoom(deps: ShowWaitingRoomDeps): void {
   const {
@@ -71,27 +108,6 @@ export function setupWaitingRoom(deps: ShowWaitingRoomDeps): void {
   setLastTime(time);
   requestFrame();
 }
-
-interface EnterTowerSelectionDeps {
-  state: GameState;
-  isHost: boolean;
-  myPlayerId: number;
-  remoteHumanSlots: Set<number>;
-  controllers: PlayerController[];
-  selectionStates: Map<number, SelectionState>;
-  initTowerSelection: (playerId: number, zone: number) => void;
-  syncSelectionOverlay: () => void;
-  setOverlaySelection: () => void;
-  selectTimer: number;
-  accum: { select: number };
-  enterCastleReselectPhase: (state: GameState) => void;
-  now: () => number;
-  setModeSelection: () => void;
-  setLastTime: (timeMs: number) => void;
-  requestFrame: () => void;
-  log: (msg: string) => void;
-}
-
 export function setupTowerSelection(
   deps: EnterTowerSelectionDeps,
 ): void {
@@ -177,26 +193,6 @@ export function setupTowerSelection(
   setLastTime(now());
   requestFrame();
 }
-
-interface InitGameDeps {
-  seed: number;
-  maxPlayers: number;
-  /** Game settings to apply after state creation. */
-  battleLength: number;
-  cannonMaxHp: number;
-  buildTimer: number;
-  cannonPlaceTimer: number;
-  log: (msg: string) => void;
-  resetFrame: () => void;
-  setState: (nextState: GameState) => void;
-  setControllers: (nextControllers: PlayerController[]) => void;
-  resetUIState: () => void;
-  /** Create a controller for slot `i`. Receives the state for RNG access. */
-  createControllerForSlot: (i: number, state: GameState) => PlayerController;
-  /** Called after state + controllers are ready. Enters tower selection. */
-  enterSelection: () => void;
-}
-
 /** Shared game init — used by both local startGame and online initFromServer.
  *  Generates map from seed, creates state, creates controllers, enters selection. */
 export function bootstrapGame(deps: InitGameDeps): void {

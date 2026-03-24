@@ -4,29 +4,35 @@ import type { PlayerController } from "./player-controller.ts";
 import type { GameState } from "./types.ts";
 import { Phase } from "./types.ts";
 
-// ---------------------------------------------------------------------------
-// Selection state
-// ---------------------------------------------------------------------------
-
 export interface SelectionState {
   highlighted: number;
   confirmed: boolean;
 }
-
-export function allSelectionsConfirmed(
-  selectionStates: Map<number, SelectionState>,
-): boolean {
-  for (const [, ss] of selectionStates) {
-    if (!ss.confirmed) return false;
-  }
-  return true;
-}
-
-function zoneTowerIndices(state: GameState, zone: number): number[] {
-  return state.map.towers
-    .map((t, i) => ({ t, i }))
-    .filter(({ t }) => t.zone === zone)
-    .map(({ i }) => i);
+interface TickSelectionPhaseDeps {
+  dt: number;
+  state: GameState;
+  isHost: boolean;
+  myPlayerId: number;
+  selectTimer: number;
+  accum: { select: number; selectAnnouncement: number };
+  selectionStates: Map<number, SelectionState>;
+  remoteHumanSlots: Set<number>;
+  controllers: PlayerController[];
+  render: () => void;
+  confirmSelectionForPlayer: (playerId: number, isReselect?: boolean) => void;
+  allSelectionsConfirmed: () => boolean;
+  allBuildsComplete: () => boolean;
+  tickActiveBuilds: (dt: number) => void;
+  announcementDuration: number;
+  setFrameAnnouncement: (text: string) => void;
+  finishReselection: () => void;
+  finishSelection: () => void;
+  syncSelectionOverlay: () => void;
+  sendOpponentTowerSelected: (
+    playerId: number,
+    towerIdx: number,
+    confirmed: boolean,
+  ) => void;
 }
 
 export function initTowerSelection(
@@ -46,7 +52,6 @@ export function initTowerSelection(
     player.ownedTowers = [tower];
   }
 }
-
 export function highlightTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
@@ -84,7 +89,6 @@ export function highlightTowerSelection(
   onOverlayChanged();
   render();
 }
-
 export function confirmTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
@@ -125,38 +129,6 @@ export function confirmTowerSelection(
   render();
   return allSelectionsConfirmed(selectionStates);
 }
-
-// ---------------------------------------------------------------------------
-// Selection phase tick + finish
-// ---------------------------------------------------------------------------
-
-interface TickSelectionPhaseDeps {
-  dt: number;
-  state: GameState;
-  isHost: boolean;
-  myPlayerId: number;
-  selectTimer: number;
-  accum: { select: number; selectAnnouncement: number };
-  selectionStates: Map<number, SelectionState>;
-  remoteHumanSlots: Set<number>;
-  controllers: PlayerController[];
-  render: () => void;
-  confirmSelectionForPlayer: (playerId: number, isReselect?: boolean) => void;
-  allSelectionsConfirmed: () => boolean;
-  allBuildsComplete: () => boolean;
-  tickActiveBuilds: (dt: number) => void;
-  announcementDuration: number;
-  setFrameAnnouncement: (text: string) => void;
-  finishReselection: () => void;
-  finishSelection: () => void;
-  syncSelectionOverlay: () => void;
-  sendOpponentTowerSelected: (
-    playerId: number,
-    towerIdx: number,
-    confirmed: boolean,
-  ) => void;
-}
-
 export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
   const {
     dt,
@@ -247,7 +219,14 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     else finishSelection();
   }
 }
-
+export function allSelectionsConfirmed(
+  selectionStates: Map<number, SelectionState>,
+): boolean {
+  for (const [, ss] of selectionStates) {
+    if (!ss.confirmed) return false;
+  }
+  return true;
+}
 export function finishSelectionPhase(deps: {
   state: GameState;
   selectionStates: Map<number, SelectionState>;
@@ -261,4 +240,10 @@ export function finishSelectionPhase(deps: {
   selectionStates.clear();
   clearOverlaySelection();
   finalizeAndAdvance();
+}
+function zoneTowerIndices(state: GameState, zone: number): number[] {
+  return state.map.towers
+    .map((t, i) => ({ t, i }))
+    .filter(({ t }) => t.zone === zone)
+    .map(({ i }) => i);
 }

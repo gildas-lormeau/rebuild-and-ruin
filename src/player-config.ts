@@ -3,6 +3,7 @@
  *
  * Keep player names, colors, and bindings in one place so they cannot drift.
  */
+
 import type { RGB } from "./render-theme.ts";
 
 export type { RGB };
@@ -16,7 +17,6 @@ export interface KeyBindings {
   confirmAlt: string; // alternate confirm key
   rotate: string; // rotate piece / cycle cannon mode / accelerate crosshair
 }
-
 interface PlayerColor {
   wall: RGB;
   interiorLight: RGB;
@@ -24,7 +24,6 @@ interface PlayerColor {
 }
 
 export const PLAYER_NAMES = ["Red", "Blue", "Gold"] as const;
-
 // Player castle colors: wall and interior (checkerboard light/dark)
 export const PLAYER_COLORS: readonly PlayerColor[] = [
   {
@@ -43,7 +42,6 @@ export const PLAYER_COLORS: readonly PlayerColor[] = [
     interiorDark: [55, 40, 10],
   }, // Orange/Gold (stone-tinted)
 ];
-
 export const PLAYER_KEY_BINDINGS: readonly KeyBindings[] = [
   {
     up: "ArrowUp",
@@ -73,20 +71,17 @@ export const PLAYER_KEY_BINDINGS: readonly KeyBindings[] = [
     rotate: "u",
   },
 ];
+export const MAX_PLAYERS = PLAYER_NAMES.length;
+/** Ordered action keys for the controls screen (matches KeyBindings fields). */
+export const ACTION_KEYS: readonly (keyof KeyBindings)[] = ["up", "down", "left", "right", "confirm", "rotate"];
 
+/** Get player color with safe modulo wrapping. */
+export function getPlayerColor(playerId: number): PlayerColor {
+  return PLAYER_COLORS[playerId % PLAYER_COLORS.length]!;
+}
 if (
   PLAYER_COLORS.length !== PLAYER_NAMES.length ||
   PLAYER_KEY_BINDINGS.length !== PLAYER_NAMES.length
 ) {
   throw new Error("PLAYER_NAMES / PLAYER_COLORS / PLAYER_KEY_BINDINGS must have the same length");
 }
-
-export const MAX_PLAYERS = PLAYER_NAMES.length;
-
-/** Get player color with safe modulo wrapping. */
-export function getPlayerColor(playerId: number): PlayerColor {
-  return PLAYER_COLORS[playerId % PLAYER_COLORS.length]!;
-}
-
-/** Ordered action keys for the controls screen (matches KeyBindings fields). */
-export const ACTION_KEYS: readonly (keyof KeyBindings)[] = ["up", "down", "left", "right", "confirm", "rotate"];

@@ -110,16 +110,11 @@ const SPRITES: Record<string, SpriteRect> = {
   water:                   { x: 340, y: 184, w: 16, h: 16 },
   bank:                    { x: 358, y: 184, w: 16, h: 16 },
 };
-
-// ---------------------------------------------------------------------------
-// Atlas image
-// ---------------------------------------------------------------------------
-
 let atlas: HTMLImageElement | null = null;
-
 /** Load the sprite sheet. Resolves when the image is decoded and ready. */
 // @ts-ignore — import.meta.env is Vite-specific
 const BASE = import.meta.env?.BASE_URL ?? "/";
+
 export function loadAtlas(src = `${BASE}assets/sprites.png`): Promise<void> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -131,11 +126,6 @@ export function loadAtlas(src = `${BASE}assets/sprites.png`): Promise<void> {
     img.src = src;
   });
 }
-
-// ---------------------------------------------------------------------------
-// Drawing
-// ---------------------------------------------------------------------------
-
 /**
  * Draw a named sprite onto a canvas context at (dx, dy) in pixel coordinates.
  * Returns false if the atlas isn't loaded or the sprite name is unknown
@@ -153,7 +143,6 @@ export function drawSprite(
   ctx.drawImage(atlas, rect.x, rect.y, rect.w, rect.h, dx, dy, rect.w, rect.h);
   return true;
 }
-
 /**
  * Draw a named sprite centered on (cx, cy).
  * Useful for entities that are positioned by their center (towers, cannons).

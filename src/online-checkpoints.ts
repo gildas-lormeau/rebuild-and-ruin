@@ -17,7 +17,6 @@ export interface CheckpointBattleAnim {
   flights: { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[];
   impacts: { row: number; col: number; age: number }[];
 }
-
 export interface CheckpointAccums {
   battle: number;
   cannon: number;
@@ -25,7 +24,6 @@ export interface CheckpointAccums {
   build: number;
   grunt: number;
 }
-
 export interface CheckpointDeps {
   state: GameState;
   battleAnim: CheckpointBattleAnim;
@@ -58,7 +56,6 @@ export function applyCannonStartCheckpoint(
   deps.watcherIdlePhases.clear();
   resetCannonFacings(deps.state);
 }
-
 export function applyBattleStartCheckpoint(
   msg: ServerMessage,
   deps: CheckpointDeps,
@@ -100,7 +97,6 @@ export function applyBattleStartCheckpoint(
     });
   }
 }
-
 export function applyBuildStartCheckpoint(
   msg: ServerMessage,
   deps: CheckpointDeps,

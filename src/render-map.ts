@@ -29,6 +29,13 @@ import {
 import { facingToDir8, isCannonAlive, unpackTile } from "./spatial.ts";
 import { drawSprite } from "./sprites.ts";
 
+interface TerrainImageCache {
+  width: number;
+  height: number;
+  normal?: ImageData;
+  battle?: ImageData;
+}
+
 const GRASS_DARK: RGB = [45, 140, 45];
 const GRASS_LIGHT: RGB = [51, 153, 51];
 const GRASS_BATTLE: RGB = [
@@ -38,10 +45,8 @@ const GRASS_BATTLE: RGB = [
 ];
 const WATER_COLOR: RGB = [40, 104, 176];
 const BANK_COLOR: RGB = [139, 58, 26];
-
 // Neutral stone color used for all walls during battle phase
 const NEUTRAL_WALL: RGB = [140, 130, 120];
-
 // Grass blade texture pattern (local pixel offsets within a 16x16 tile)
 const BLADE_DARK: [number, number][] = [
   [2, 1],
@@ -88,35 +93,166 @@ const WAVE_LO: { x: number; y: number; w: number }[] = [
 ];
 // Precomputed per-pixel texture offsets (built once, reused every frame)
 const GRASS_TEX = new Int8Array(TILE_SIZE * TILE_SIZE);
+const WATER_TEX = new Int8Array(TILE_SIZE * TILE_SIZE);
+const sceneCanvas = document.createElement("canvas");
+const sceneCtx = sceneCanvas.getContext("2d", { willReadFrequently: true })!;
+const bannerSceneCanvas = document.createElement("canvas");
+const bannerSceneCtx = bannerSceneCanvas.getContext("2d", { willReadFrequently: true })!;
+/** Cached main-canvas context — avoids per-frame getContext overhead on Chrome mobile. */
+let mainCtxCache: { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null = null;
+let cachedBannerMap: MapData | null = null;
+let cachedBannerCastles: CastleData[] | undefined;
+let cachedBannerTerritory: Set<number>[] | undefined;
+let cachedBannerWalls: Set<number>[] | undefined;
+const terrainImageCache = new WeakMap<MapData, TerrainImageCache>();
+
+export function renderMap(
+  map: MapData,
+  canvas: HTMLCanvasElement,
+  overlay?: RenderOverlay,
+  viewport?: Viewport | null,
+): void {
+  const ctx = getMainCtx(canvas);
+  const W = GRID_COLS * TILE_SIZE;
+  const H = GRID_ROWS * TILE_SIZE;
+
+  const STATUS_BAR_H = overlay?.ui?.statusBar ? 32 : 0;
+  const cw = GRID_COLS * TILE_SIZE * SCALE;
+  const gameH = GRID_ROWS * TILE_SIZE * SCALE;
+  const ch = gameH + STATUS_BAR_H;
+  if (canvas.width !== cw || canvas.height !== ch) {
+    canvas.width = cw;
+    canvas.height = ch;
+    ctx.imageSmoothingEnabled = false;
+  }
+
+  ensureOffscreenSize(W, H);
+  const octx = sceneCtx;
+  octx.clearRect(0, 0, W, H);
+
+  // Draw the new (target) scene — layers that change between phases
+  drawTerrain(octx, W, H, map, overlay);
+  drawWaterAnimation(octx, map, overlay);
+  drawCastles(octx, overlay);
+  drawBonusSquares(octx, overlay);
+  drawHouses(octx, overlay);
+  drawTowers(octx, map, overlay);
+
+  // If banner is active with old data, re-draw old scene below the banner.
+  // Uses a temp canvas because putImageData in drawTerrain ignores clip regions.
+  if (overlay?.ui?.banner && overlay.ui.bannerOldCastles) {
+    const bannerH = Math.round(H * 0.15);
+    const clipY = Math.round(overlay.ui.banner.y - bannerH / 2);
+    if (clipY < H) {
+      const oldCastles = overlay.ui.bannerOldCastles;
+      const oldTerritory = overlay.ui.bannerOldBattleTerritory;
+      const oldWalls = overlay.ui.bannerOldBattleWalls;
+      const bannerCacheMiss =
+        cachedBannerMap !== map ||
+        cachedBannerCastles !== oldCastles ||
+        cachedBannerTerritory !== oldTerritory ||
+        cachedBannerWalls !== oldWalls;
+
+      if (bannerCacheMiss) {
+        const oldHouses = overlay.ui.bannerOldHouses;
+        const oldBonusSquares = overlay.ui.bannerOldBonusSquares;
+        const oldOverlay: RenderOverlay = {
+          ...overlay,
+          castles: oldCastles,
+          entities: {
+            ...overlay.entities,
+            houses: oldHouses ?? overlay.entities?.houses,
+            bonusSquares: oldBonusSquares ?? overlay.entities?.bonusSquares,
+          },
+          battle: {
+            ...overlay.battle,
+            battleTerritory: oldTerritory,
+            battleWalls: oldWalls,
+            cannonballs: undefined,
+            crosshairs: undefined,
+            impacts: undefined,
+          },
+          ui: {
+            ...overlay.ui,
+            banner: undefined,
+            announcement: undefined,
+            bannerOldCastles: undefined,
+          },
+          // Suppress phase-specific phantoms in old scene
+          phantoms: {
+            phantomPiece: null,
+            humanPhantoms: undefined,
+            aiPhantoms: undefined,
+            aiCannonPhantoms: undefined,
+          },
+        };
+        const tmpCtx = bannerSceneCtx;
+        tmpCtx.clearRect(0, 0, W, H);
+        drawTerrain(tmpCtx, W, H, map, oldOverlay);
+        drawCastles(tmpCtx, oldOverlay);
+        drawBonusSquares(tmpCtx, oldOverlay);
+        drawHouses(tmpCtx, oldOverlay);
+        drawTowers(tmpCtx, map, oldOverlay);
+        cachedBannerMap = map;
+        cachedBannerCastles = oldCastles;
+        cachedBannerTerritory = oldTerritory;
+        cachedBannerWalls = oldWalls;
+      }
+
+      octx.save();
+      octx.beginPath();
+      octx.rect(0, clipY, W, H - clipY);
+      octx.clip();
+      octx.drawImage(bannerSceneCanvas, 0, 0);
+      octx.restore();
+    }
+  } else {
+    cachedBannerMap = null;
+    cachedBannerCastles = undefined;
+    cachedBannerTerritory = undefined;
+    cachedBannerWalls = undefined;
+  }
+
+  // Layers that don't change between phases — draw once on top
+  drawPhantoms(octx, overlay);
+  drawGrunts(octx, overlay);
+  drawBattleEffects(octx, map, overlay);
+  drawScoreDeltas(octx, overlay);
+  drawAnnouncement(octx, W, H, overlay);
+  drawBanner(octx, W, H, overlay);
+  drawGameOver(octx, W, H, overlay);
+  drawLifeLostDialog(octx, W, H, overlay);
+  drawOptionsScreen(octx, W, H, overlay);
+  drawControlsScreen(octx, W, H, overlay);
+  drawPlayerSelect(octx, W, H, overlay);
+
+  // Scale up to display canvas (with optional zoom viewport)
+  ctx.imageSmoothingEnabled = false;
+  if (viewport) {
+    ctx.drawImage(sceneCanvas, viewport.x, viewport.y, viewport.w, viewport.h, 0, 0, cw, gameH);
+  } else {
+    ctx.drawImage(sceneCanvas, 0, 0, cw, gameH);
+  }
+
+  // Status bar drawn at display resolution below the game scene
+  if (STATUS_BAR_H > 0) {
+    drawStatusBar(ctx, cw, ch, overlay);
+  }
+}
 for (const [lx, ly] of BLADE_DARK) GRASS_TEX[ly * TILE_SIZE + lx] = -12;
 for (const [lx, ly] of BLADE_LIGHT) GRASS_TEX[ly * TILE_SIZE + lx] = 10;
-const WATER_TEX = new Int8Array(TILE_SIZE * TILE_SIZE);
 for (const w of WAVE_HI) {
   for (let i = 0; i < w.w; i++) WATER_TEX[w.y * TILE_SIZE + w.x + i] = 15;
 }
 for (const w of WAVE_LO) {
   for (let i = 0; i < w.w; i++) WATER_TEX[w.y * TILE_SIZE + w.x + i] = -10;
 }
-
-const sceneCanvas = document.createElement("canvas");
-const sceneCtx = sceneCanvas.getContext("2d", { willReadFrequently: true })!;
-const bannerSceneCanvas = document.createElement("canvas");
-const bannerSceneCtx = bannerSceneCanvas.getContext("2d", { willReadFrequently: true })!;
-
-/** Cached main-canvas context — avoids per-frame getContext overhead on Chrome mobile. */
-let mainCtxCache: { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null = null;
 function getMainCtx(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
   if (mainCtxCache?.canvas === canvas) return mainCtxCache.ctx;
   const ctx = canvas.getContext("2d", { alpha: false })!;
   mainCtxCache = { canvas, ctx };
   return ctx;
 }
-
-let cachedBannerMap: MapData | null = null;
-let cachedBannerCastles: CastleData[] | undefined;
-let cachedBannerTerritory: Set<number>[] | undefined;
-let cachedBannerWalls: Set<number>[] | undefined;
-
 function ensureOffscreenSize(width: number, height: number): void {
   if (sceneCanvas.width !== width || sceneCanvas.height !== height) {
     sceneCanvas.width = width;
@@ -134,52 +270,6 @@ function ensureOffscreenSize(width: number, height: number): void {
     cachedBannerWalls = undefined;
   }
 }
-
-interface TerrainImageCache {
-  width: number;
-  height: number;
-  normal?: ImageData;
-  battle?: ImageData;
-}
-
-const terrainImageCache = new WeakMap<MapData, TerrainImageCache>();
-
-function getTerrainCache(
-  map: MapData,
-  width: number,
-  height: number,
-): TerrainImageCache {
-  const existing = terrainImageCache.get(map);
-  if (existing && existing.width === width && existing.height === height) {
-    return existing;
-  }
-  const next: TerrainImageCache = { width, height };
-  terrainImageCache.set(map, next);
-  return next;
-}
-
-function tileAt(map: MapData, r: number, c: number): number {
-  if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return -1;
-  return map.tiles[r]![c]!;
-}
-
-function smoothClamp(t: number): number {
-  const c = Math.max(0, Math.min(1, t));
-  return c * c * (3 - 2 * c);
-}
-
-function lerp3(a: RGB, b: RGB, t: number): RGB {
-  return [
-    a[0] + (b[0] - a[0]) * t,
-    a[1] + (b[1] - a[1]) * t,
-    a[2] + (b[2] - a[2]) * t,
-  ];
-}
-
-// ---------------------------------------------------------------------------
-// Layer drawing functions — each renders one visual layer onto octx
-// ---------------------------------------------------------------------------
-
 /** Build SDF for water/grass boundaries, blur it, and paint terrain pixels. */
 function drawTerrain(
   octx: CanvasRenderingContext2D,
@@ -409,7 +499,34 @@ function drawTerrain(
   if (inBattle) cache.battle = imgData;
   else cache.normal = imgData;
 }
-
+function getTerrainCache(
+  map: MapData,
+  width: number,
+  height: number,
+): TerrainImageCache {
+  const existing = terrainImageCache.get(map);
+  if (existing && existing.width === width && existing.height === height) {
+    return existing;
+  }
+  const next: TerrainImageCache = { width, height };
+  terrainImageCache.set(map, next);
+  return next;
+}
+function tileAt(map: MapData, r: number, c: number): number {
+  if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return -1;
+  return map.tiles[r]![c]!;
+}
+function smoothClamp(t: number): number {
+  const c = Math.max(0, Math.min(1, t));
+  return c * c * (3 - 2 * c);
+}
+function lerp3(a: RGB, b: RGB, t: number): RGB {
+  return [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+    a[2] + (b[2] - a[2]) * t,
+  ];
+}
 /** Draw castle walls, interiors, wall debris, and cannons for all players. */
 function drawCastles(
   octx: CanvasRenderingContext2D,
@@ -523,143 +640,5 @@ function drawCastles(
         drawSprite(octx, `${prefix}_${dir}`, cx, cy);
       }
     }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Main render orchestrator
-// ---------------------------------------------------------------------------
-
-export function renderMap(
-  map: MapData,
-  canvas: HTMLCanvasElement,
-  overlay?: RenderOverlay,
-  viewport?: Viewport | null,
-): void {
-  const ctx = getMainCtx(canvas);
-  const W = GRID_COLS * TILE_SIZE;
-  const H = GRID_ROWS * TILE_SIZE;
-
-  const STATUS_BAR_H = overlay?.ui?.statusBar ? 32 : 0;
-  const cw = GRID_COLS * TILE_SIZE * SCALE;
-  const gameH = GRID_ROWS * TILE_SIZE * SCALE;
-  const ch = gameH + STATUS_BAR_H;
-  if (canvas.width !== cw || canvas.height !== ch) {
-    canvas.width = cw;
-    canvas.height = ch;
-    ctx.imageSmoothingEnabled = false;
-  }
-
-  ensureOffscreenSize(W, H);
-  const octx = sceneCtx;
-  octx.clearRect(0, 0, W, H);
-
-  // Draw the new (target) scene — layers that change between phases
-  drawTerrain(octx, W, H, map, overlay);
-  drawWaterAnimation(octx, map, overlay);
-  drawCastles(octx, overlay);
-  drawBonusSquares(octx, overlay);
-  drawHouses(octx, overlay);
-  drawTowers(octx, map, overlay);
-
-  // If banner is active with old data, re-draw old scene below the banner.
-  // Uses a temp canvas because putImageData in drawTerrain ignores clip regions.
-  if (overlay?.ui?.banner && overlay.ui.bannerOldCastles) {
-    const bannerH = Math.round(H * 0.15);
-    const clipY = Math.round(overlay.ui.banner.y - bannerH / 2);
-    if (clipY < H) {
-      const oldCastles = overlay.ui.bannerOldCastles;
-      const oldTerritory = overlay.ui.bannerOldBattleTerritory;
-      const oldWalls = overlay.ui.bannerOldBattleWalls;
-      const bannerCacheMiss =
-        cachedBannerMap !== map ||
-        cachedBannerCastles !== oldCastles ||
-        cachedBannerTerritory !== oldTerritory ||
-        cachedBannerWalls !== oldWalls;
-
-      if (bannerCacheMiss) {
-        const oldHouses = overlay.ui.bannerOldHouses;
-        const oldBonusSquares = overlay.ui.bannerOldBonusSquares;
-        const oldOverlay: RenderOverlay = {
-          ...overlay,
-          castles: oldCastles,
-          entities: {
-            ...overlay.entities,
-            houses: oldHouses ?? overlay.entities?.houses,
-            bonusSquares: oldBonusSquares ?? overlay.entities?.bonusSquares,
-          },
-          battle: {
-            ...overlay.battle,
-            battleTerritory: oldTerritory,
-            battleWalls: oldWalls,
-            cannonballs: undefined,
-            crosshairs: undefined,
-            impacts: undefined,
-          },
-          ui: {
-            ...overlay.ui,
-            banner: undefined,
-            announcement: undefined,
-            bannerOldCastles: undefined,
-          },
-          // Suppress phase-specific phantoms in old scene
-          phantoms: {
-            phantomPiece: null,
-            humanPhantoms: undefined,
-            aiPhantoms: undefined,
-            aiCannonPhantoms: undefined,
-          },
-        };
-        const tmpCtx = bannerSceneCtx;
-        tmpCtx.clearRect(0, 0, W, H);
-        drawTerrain(tmpCtx, W, H, map, oldOverlay);
-        drawCastles(tmpCtx, oldOverlay);
-        drawBonusSquares(tmpCtx, oldOverlay);
-        drawHouses(tmpCtx, oldOverlay);
-        drawTowers(tmpCtx, map, oldOverlay);
-        cachedBannerMap = map;
-        cachedBannerCastles = oldCastles;
-        cachedBannerTerritory = oldTerritory;
-        cachedBannerWalls = oldWalls;
-      }
-
-      octx.save();
-      octx.beginPath();
-      octx.rect(0, clipY, W, H - clipY);
-      octx.clip();
-      octx.drawImage(bannerSceneCanvas, 0, 0);
-      octx.restore();
-    }
-  } else {
-    cachedBannerMap = null;
-    cachedBannerCastles = undefined;
-    cachedBannerTerritory = undefined;
-    cachedBannerWalls = undefined;
-  }
-
-  // Layers that don't change between phases — draw once on top
-  drawPhantoms(octx, overlay);
-  drawGrunts(octx, overlay);
-  drawBattleEffects(octx, map, overlay);
-  drawScoreDeltas(octx, overlay);
-  drawAnnouncement(octx, W, H, overlay);
-  drawBanner(octx, W, H, overlay);
-  drawGameOver(octx, W, H, overlay);
-  drawLifeLostDialog(octx, W, H, overlay);
-  drawOptionsScreen(octx, W, H, overlay);
-  drawControlsScreen(octx, W, H, overlay);
-  drawPlayerSelect(octx, W, H, overlay);
-
-  // Scale up to display canvas (with optional zoom viewport)
-  ctx.imageSmoothingEnabled = false;
-  if (viewport) {
-    ctx.drawImage(sceneCanvas, viewport.x, viewport.y, viewport.w, viewport.h, 0, 0, cw, gameH);
-  } else {
-    ctx.drawImage(sceneCanvas, 0, 0, cw, gameH);
-  }
-
-  // Status bar drawn at display resolution below the game scene
-  if (STATUS_BAR_H > 0) {
-    drawStatusBar(ctx, cw, ch, overlay);
   }
 }

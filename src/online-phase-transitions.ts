@@ -8,13 +8,6 @@ import type { PlayerController } from "./player-controller.ts";
 import type { GameState } from "./types.ts";
 import { Phase } from "./types.ts";
 
-const BANNER_BATTLE_ONLINE = "Battle!";
-const BANNER_REPAIR_ONLINE = "Repair!";
-
-// ---------------------------------------------------------------------------
-// Shared context for all watcher phase transitions
-// ---------------------------------------------------------------------------
-
 export interface TransitionContext {
   getState: () => GameState;
   getMyPlayerId: () => number;
@@ -68,9 +61,8 @@ export interface TransitionContext {
   setGameOverFrame: (payload: { winner: string; scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: { wallsDestroyed: number; cannonsKilled: number } }[]; focused: GameOverFocus }) => void;
 }
 
-// ---------------------------------------------------------------------------
-// Transition handlers
-// ---------------------------------------------------------------------------
+const BANNER_BATTLE_ONLINE = "Battle!";
+const BANNER_REPAIR_ONLINE = "Repair!";
 
 export function handleCastleWallsTransition(msg: ServerMessage, ctx: TransitionContext): void {
   if (msg.type !== MSG.CASTLE_WALLS) return;
@@ -95,7 +87,6 @@ export function handleCastleWallsTransition(msg: ServerMessage, ctx: TransitionC
   });
   ctx.setModeCastleBuild();
 }
-
 export function handleCannonStartTransition(msg: ServerMessage, ctx: TransitionContext): void {
   if (msg.type !== MSG.CANNON_START) return;
   const state = ctx.getState();
@@ -124,7 +115,6 @@ export function handleCannonStartTransition(msg: ServerMessage, ctx: TransitionC
     });
   }
 }
-
 export function handleBattleStartTransition(msg: ServerMessage, ctx: TransitionContext): void {
   if (msg.type !== MSG.BATTLE_START) return;
   const state = ctx.getState();
@@ -164,7 +154,6 @@ export function handleBattleStartTransition(msg: ServerMessage, ctx: TransitionC
   state.phase = Phase.BATTLE;
   state.battleCountdown = ctx.battleCountdown;
 }
-
 export function handleBuildStartTransition(msg: ServerMessage, ctx: TransitionContext): void {
   if (msg.type !== MSG.BUILD_START) return;
   const state = ctx.getState();
@@ -186,7 +175,6 @@ export function handleBuildStartTransition(msg: ServerMessage, ctx: TransitionCo
     ctx.getControllers()[myPlayerId]?.startBuild(state);
   }
 }
-
 export function handleBuildEndTransition(msg: ServerMessage, ctx: TransitionContext): void {
   if (msg.type !== MSG.BUILD_END) return;
   const state = ctx.getState();
@@ -202,7 +190,6 @@ export function handleBuildEndTransition(msg: ServerMessage, ctx: TransitionCont
     ctx.showLifeLostDialog(msg.needsReselect, msg.eliminated);
   }
 }
-
 export function handleGameOverTransition(msg: ServerMessage, ctx: TransitionContext): void {
   if (msg.type !== MSG.GAME_OVER) return;
   ctx.setGameOverFrame({

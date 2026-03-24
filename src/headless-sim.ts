@@ -46,7 +46,6 @@ export function createHeadlessRuntime(seed: number): HeadlessRuntime {
 
   return { state, controllers, zones, playerCount };
 }
-
 /**
  * Build a mixed runtime where some slots are HumanController and the rest are AI.
  * Does NOT advance phases — stays at CASTLE_SELECT so the server can manage flow.
@@ -74,7 +73,6 @@ export function createMixedRuntime(
 
   return { state, controllers, zones, playerCount };
 }
-
 /**
  * Process life-loss reselection for headless controllers and advance back to CANNON_PLACE.
  * Call this only after finalizeBuildPhase.

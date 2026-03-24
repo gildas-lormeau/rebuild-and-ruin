@@ -9,8 +9,9 @@ import type { RegisterOnlineInputDeps } from "./input.ts";
 import { dispatchBattleFire, dispatchModeTap, dispatchPointerMove, dispatchTowerSelect } from "./input.ts";
 import { Phase } from "./types.ts";
 
-const TAP_MAX_DIST = 20;  // CSS pixels
-const TAP_MAX_TIME = 300;  // ms
+const TAP_MAX_DIST = 20;
+  // CSS pixels
+const TAP_MAX_TIME = 300;
 
 export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   const {

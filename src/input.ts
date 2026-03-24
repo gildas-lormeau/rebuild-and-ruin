@@ -14,17 +14,14 @@ interface ControlsState {
   actionIdx: number;
   rebinding: boolean;
 }
-
 interface LifeLostDialogEntry {
   playerId: number;
   choice: LifeLostChoice;
   focused: number;
 }
-
 interface LifeLostDialogState {
   entries: LifeLostDialogEntry[];
 }
-
 interface ModeValues {
   LOBBY: number;
   OPTIONS: number;
@@ -37,7 +34,6 @@ interface ModeValues {
   GAME: number;
   STOPPED: number;
 }
-
 export interface RegisterOnlineInputDeps {
   canvas: HTMLCanvasElement;
   getState: () => GameState | undefined;
@@ -102,113 +98,6 @@ export interface RegisterOnlineInputDeps {
     seedMode: SeedMode;
     seed: string;
   };
-}
-
-/** Shared mode-tap dispatch — handles non-game UI taps (game over, options, lobby, etc.). Returns true if consumed. */
-export function dispatchModeTap(
-  x: number,
-  y: number,
-  mode: number,
-  deps: Pick<RegisterOnlineInputDeps,
-    "modeValues" | "getGameOverFocused" | "rematch" | "showLobby" |
-    "closeOptions" | "closeControls" | "getControlsState" |
-    "getLifeLostDialog" | "lifeLostDialogClick" | "isLobbyActive" | "lobbyClick">,
-): boolean {
-  const { modeValues, getGameOverFocused, rematch, showLobby, closeOptions, closeControls, getControlsState, getLifeLostDialog, lifeLostDialogClick, isLobbyActive, lobbyClick } = deps;
-  if (mode === modeValues.STOPPED) {
-    if (getGameOverFocused() === FOCUS_REMATCH) rematch();
-    else showLobby();
-    return true;
-  }
-  if (mode === modeValues.OPTIONS) { closeOptions(); return true; }
-  if (mode === modeValues.CONTROLS) {
-    if (!getControlsState().rebinding) closeControls();
-    return true;
-  }
-  if (mode === modeValues.LIFE_LOST && getLifeLostDialog()) {
-    lifeLostDialogClick(x, y);
-    return true;
-  }
-  if (isLobbyActive()) { lobbyClick(x, y); return true; }
-  return false;
-}
-
-/** Shared tower-selection tap — highlight and confirm a tower pick for the first human. */
-export function dispatchTowerSelect(
-  wx: number,
-  wy: number,
-  state: GameState,
-  isReselect: boolean,
-  deps: Pick<RegisterOnlineInputDeps,
-    "withFirstHuman" | "getSelectionStates" |
-    "highlightTowerForPlayer" | "confirmSelectionForPlayer">,
-): void {
-  deps.withFirstHuman((human) => {
-    const ss = deps.getSelectionStates().get(human.playerId);
-    if (!ss || ss.confirmed) return;
-    const zone = state.playerZones[human.playerId] ?? 0;
-    const idx = towerAtPixel(state.map.towers, wx, wy);
-    if (idx !== null && state.map.towers[idx]?.zone === zone) {
-      deps.highlightTowerForPlayer(idx, zone, human.playerId);
-      deps.confirmSelectionForPlayer(human.playerId, isReselect);
-    }
-  });
-}
-
-/** Shared battle-fire dispatch — aim and fire for the first human player. */
-export function dispatchBattleFire(
-  x: number,
-  y: number,
-  state: GameState,
-  deps: Pick<RegisterOnlineInputDeps, "withFirstHuman" | "screenToWorld" | "fireAndSend">,
-): void {
-  if (state.phase !== Phase.BATTLE || state.timer <= 0 || state.battleCountdown > 0) return;
-  deps.withFirstHuman((human) => {
-    const w = deps.screenToWorld(x, y);
-    human.setCrosshair(w.wx, w.wy);
-    deps.fireAndSend(human, state);
-  });
-}
-
-/** Shared pointer-move dispatch — updates cursor/crosshair based on current phase. */
-export function dispatchPointerMove(
-  x: number,
-  y: number,
-  state: GameState,
-  deps: Pick<RegisterOnlineInputDeps,
-    "withFirstHuman" | "getSelectionStates" | "screenToWorld" |
-    "highlightTowerForPlayer" | "pixelToTile" | "render" | "maybeSendAimUpdate">,
-): void {
-  const { withFirstHuman, getSelectionStates, screenToWorld, highlightTowerForPlayer, pixelToTile, render, maybeSendAimUpdate } = deps;
-  if (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT) {
-    withFirstHuman((human) => {
-      const ss = getSelectionStates().get(human.playerId);
-      if (!ss || ss.confirmed) return;
-      const zone = state.playerZones[human.playerId] ?? 0;
-      const w = screenToWorld(x, y);
-      const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
-      if (idx !== null && idx !== ss.highlighted) {
-        highlightTowerForPlayer(idx, zone, human.playerId);
-      }
-    });
-  } else if (state.phase === Phase.WALL_BUILD) {
-    withFirstHuman((human) => {
-      const { row, col } = pixelToTile(x, y);
-      human.setBuildCursor(row, col);
-    });
-  } else if (state.phase === Phase.CANNON_PLACE) {
-    withFirstHuman((human) => {
-      const { row, col } = pixelToTile(x, y);
-      human.setCannonCursor(row, col);
-      render();
-    });
-  } else if (state.phase === Phase.BATTLE) {
-    withFirstHuman((human) => {
-      const w = screenToWorld(x, y);
-      human.setCrosshair(w.wx, w.wy);
-      maybeSendAimUpdate(w.wx, w.wy);
-    });
-  }
 }
 
 export function registerOnlineInputHandlers(
@@ -632,4 +521,107 @@ export function registerOnlineInputHandlers(
       ctrl.handleKeyUp(action);
     }
   });
+}
+/** Shared mode-tap dispatch — handles non-game UI taps (game over, options, lobby, etc.). Returns true if consumed. */
+export function dispatchModeTap(
+  x: number,
+  y: number,
+  mode: number,
+  deps: Pick<RegisterOnlineInputDeps,
+    "modeValues" | "getGameOverFocused" | "rematch" | "showLobby" |
+    "closeOptions" | "closeControls" | "getControlsState" |
+    "getLifeLostDialog" | "lifeLostDialogClick" | "isLobbyActive" | "lobbyClick">,
+): boolean {
+  const { modeValues, getGameOverFocused, rematch, showLobby, closeOptions, closeControls, getControlsState, getLifeLostDialog, lifeLostDialogClick, isLobbyActive, lobbyClick } = deps;
+  if (mode === modeValues.STOPPED) {
+    if (getGameOverFocused() === FOCUS_REMATCH) rematch();
+    else showLobby();
+    return true;
+  }
+  if (mode === modeValues.OPTIONS) { closeOptions(); return true; }
+  if (mode === modeValues.CONTROLS) {
+    if (!getControlsState().rebinding) closeControls();
+    return true;
+  }
+  if (mode === modeValues.LIFE_LOST && getLifeLostDialog()) {
+    lifeLostDialogClick(x, y);
+    return true;
+  }
+  if (isLobbyActive()) { lobbyClick(x, y); return true; }
+  return false;
+}
+/** Shared tower-selection tap — highlight and confirm a tower pick for the first human. */
+export function dispatchTowerSelect(
+  wx: number,
+  wy: number,
+  state: GameState,
+  isReselect: boolean,
+  deps: Pick<RegisterOnlineInputDeps,
+    "withFirstHuman" | "getSelectionStates" |
+    "highlightTowerForPlayer" | "confirmSelectionForPlayer">,
+): void {
+  deps.withFirstHuman((human) => {
+    const ss = deps.getSelectionStates().get(human.playerId);
+    if (!ss || ss.confirmed) return;
+    const zone = state.playerZones[human.playerId] ?? 0;
+    const idx = towerAtPixel(state.map.towers, wx, wy);
+    if (idx !== null && state.map.towers[idx]?.zone === zone) {
+      deps.highlightTowerForPlayer(idx, zone, human.playerId);
+      deps.confirmSelectionForPlayer(human.playerId, isReselect);
+    }
+  });
+}
+/** Shared battle-fire dispatch — aim and fire for the first human player. */
+export function dispatchBattleFire(
+  x: number,
+  y: number,
+  state: GameState,
+  deps: Pick<RegisterOnlineInputDeps, "withFirstHuman" | "screenToWorld" | "fireAndSend">,
+): void {
+  if (state.phase !== Phase.BATTLE || state.timer <= 0 || state.battleCountdown > 0) return;
+  deps.withFirstHuman((human) => {
+    const w = deps.screenToWorld(x, y);
+    human.setCrosshair(w.wx, w.wy);
+    deps.fireAndSend(human, state);
+  });
+}
+/** Shared pointer-move dispatch — updates cursor/crosshair based on current phase. */
+export function dispatchPointerMove(
+  x: number,
+  y: number,
+  state: GameState,
+  deps: Pick<RegisterOnlineInputDeps,
+    "withFirstHuman" | "getSelectionStates" | "screenToWorld" |
+    "highlightTowerForPlayer" | "pixelToTile" | "render" | "maybeSendAimUpdate">,
+): void {
+  const { withFirstHuman, getSelectionStates, screenToWorld, highlightTowerForPlayer, pixelToTile, render, maybeSendAimUpdate } = deps;
+  if (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT) {
+    withFirstHuman((human) => {
+      const ss = getSelectionStates().get(human.playerId);
+      if (!ss || ss.confirmed) return;
+      const zone = state.playerZones[human.playerId] ?? 0;
+      const w = screenToWorld(x, y);
+      const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
+      if (idx !== null && idx !== ss.highlighted) {
+        highlightTowerForPlayer(idx, zone, human.playerId);
+      }
+    });
+  } else if (state.phase === Phase.WALL_BUILD) {
+    withFirstHuman((human) => {
+      const { row, col } = pixelToTile(x, y);
+      human.setBuildCursor(row, col);
+    });
+  } else if (state.phase === Phase.CANNON_PLACE) {
+    withFirstHuman((human) => {
+      const { row, col } = pixelToTile(x, y);
+      human.setCannonCursor(row, col);
+      render();
+    });
+  } else if (state.phase === Phase.BATTLE) {
+    withFirstHuman((human) => {
+      const w = screenToWorld(x, y);
+      human.setCrosshair(w.wx, w.wy);
+      maybeSendAimUpdate(w.wx, w.wy);
+    });
+  }
 }

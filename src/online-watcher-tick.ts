@@ -39,10 +39,6 @@ import {
 import type { GameState } from "./types.ts";
 import { Phase } from "./types.ts";
 
-// ---------------------------------------------------------------------------
-// Watcher mutable state
-// ---------------------------------------------------------------------------
-
 interface WatcherState {
   timing: WatcherTimingState;
   remoteCrosshairs: Map<number, PixelPos>;
@@ -53,6 +49,21 @@ interface WatcherState {
   remotePiecePhantoms: PiecePhantom[];
   migrationTimer: number;
   migrationText: string;
+}
+export interface WatcherTickContext {
+  getState: () => GameState;
+  getFrame: () => FrameData;
+  getAccum: () => TimerAccums;
+  getBattleAnim: () => BattleAnimState;
+  getControllers: () => PlayerController[];
+  getMyPlayerId: () => number;
+  lastSentCannonPhantom: Map<number, string>;
+  lastSentPiecePhantom: Map<number, string>;
+  send: (msg: { type: string; [key: string]: unknown }) => void;
+  logThrottled: (key: string, msg: string) => void;
+  maybeSendAimUpdate: (x: number, y: number) => void;
+  render: () => void;
+  now: () => number;
 }
 
 export function createWatcherState(): WatcherState {
@@ -73,7 +84,6 @@ export function createWatcherState(): WatcherState {
     migrationText: "",
   };
 }
-
 export function resetWatcherState(ws: WatcherState): void {
   ws.remoteCrosshairs.clear();
   ws.remoteCannonPhantoms = [];
@@ -86,11 +96,6 @@ export function resetWatcherState(ws: WatcherState): void {
   ws.timing.countdownStartTime = 0;
   ws.timing.countdownDuration = 0;
 }
-
-// ---------------------------------------------------------------------------
-// Migration announcement tick
-// ---------------------------------------------------------------------------
-
 export function tickMigrationAnnouncement(
   ws: WatcherState,
   frame: { announcement?: string },
@@ -108,42 +113,6 @@ export function tickMigrationAnnouncement(
     ws.migrationText = "";
   }
 }
-
-// ---------------------------------------------------------------------------
-// Watcher tick context (built once in online-client, reused each frame)
-// ---------------------------------------------------------------------------
-
-export interface WatcherTickContext {
-  getState: () => GameState;
-  getFrame: () => FrameData;
-  getAccum: () => TimerAccums;
-  getBattleAnim: () => BattleAnimState;
-  getControllers: () => PlayerController[];
-  getMyPlayerId: () => number;
-  lastSentCannonPhantom: Map<number, string>;
-  lastSentPiecePhantom: Map<number, string>;
-  send: (msg: { type: string; [key: string]: unknown }) => void;
-  logThrottled: (key: string, msg: string) => void;
-  maybeSendAimUpdate: (x: number, y: number) => void;
-  render: () => void;
-  now: () => number;
-}
-
-// ---------------------------------------------------------------------------
-// Main watcher tick
-// ---------------------------------------------------------------------------
-
-/** Get the local human controller, or null if eliminated/watcher. */
-function getLocalHuman(
-  state: GameState,
-  controllers: PlayerController[],
-  myPlayerId: number,
-): PlayerController | null {
-  if (myPlayerId < 0 || state.players[myPlayerId]?.eliminated) return null;
-  const ctrl = controllers[myPlayerId];
-  return ctrl && isHuman(ctrl) ? ctrl : null;
-}
-
 export function tickWatcher(
   ws: WatcherState,
   dt: number,
@@ -216,11 +185,55 @@ export function tickWatcher(
 
   ctx.render();
 }
-
-// ---------------------------------------------------------------------------
-// Checkpoint helpers
-// ---------------------------------------------------------------------------
-
+export function applyCannonStartData(
+  ws: WatcherState,
+  msg: ServerMessage,
+  state: GameState,
+  battleAnim: BattleAnimState,
+  accum: TimerAccums,
+  snapshotTerritory: () => Set<number>[],
+): void {
+  applyCannonStartCheckpoint(
+    msg,
+    buildCheckpointDeps(ws, state, battleAnim, accum, snapshotTerritory),
+  );
+}
+export function applyBattleStartData(
+  ws: WatcherState,
+  msg: ServerMessage,
+  state: GameState,
+  battleAnim: BattleAnimState,
+  accum: TimerAccums,
+  snapshotTerritory: () => Set<number>[],
+): void {
+  applyBattleStartCheckpoint(
+    msg,
+    buildCheckpointDeps(ws, state, battleAnim, accum, snapshotTerritory),
+  );
+}
+export function applyBuildStartData(
+  ws: WatcherState,
+  msg: ServerMessage,
+  state: GameState,
+  battleAnim: BattleAnimState,
+  accum: TimerAccums,
+  snapshotTerritory: () => Set<number>[],
+): void {
+  applyBuildStartCheckpoint(
+    msg,
+    buildCheckpointDeps(ws, state, battleAnim, accum, snapshotTerritory),
+  );
+}
+/** Get the local human controller, or null if eliminated/watcher. */
+function getLocalHuman(
+  state: GameState,
+  controllers: PlayerController[],
+  myPlayerId: number,
+): PlayerController | null {
+  if (myPlayerId < 0 || state.players[myPlayerId]?.eliminated) return null;
+  const ctrl = controllers[myPlayerId];
+  return ctrl && isHuman(ctrl) ? ctrl : null;
+}
 function buildCheckpointDeps(
   ws: WatcherState,
   state: GameState,
@@ -238,46 +251,4 @@ function buildCheckpointDeps(
     watcherIdlePhases: ws.idlePhases,
     snapshotTerritory,
   };
-}
-
-export function applyCannonStartData(
-  ws: WatcherState,
-  msg: ServerMessage,
-  state: GameState,
-  battleAnim: BattleAnimState,
-  accum: TimerAccums,
-  snapshotTerritory: () => Set<number>[],
-): void {
-  applyCannonStartCheckpoint(
-    msg,
-    buildCheckpointDeps(ws, state, battleAnim, accum, snapshotTerritory),
-  );
-}
-
-export function applyBattleStartData(
-  ws: WatcherState,
-  msg: ServerMessage,
-  state: GameState,
-  battleAnim: BattleAnimState,
-  accum: TimerAccums,
-  snapshotTerritory: () => Set<number>[],
-): void {
-  applyBattleStartCheckpoint(
-    msg,
-    buildCheckpointDeps(ws, state, battleAnim, accum, snapshotTerritory),
-  );
-}
-
-export function applyBuildStartData(
-  ws: WatcherState,
-  msg: ServerMessage,
-  state: GameState,
-  battleAnim: BattleAnimState,
-  accum: TimerAccums,
-  snapshotTerritory: () => Set<number>[],
-): void {
-  applyBuildStartCheckpoint(
-    msg,
-    buildCheckpointDeps(ws, state, battleAnim, accum, snapshotTerritory),
-  );
 }

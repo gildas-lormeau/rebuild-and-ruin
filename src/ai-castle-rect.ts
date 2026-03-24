@@ -29,84 +29,14 @@ import {
 } from "./spatial.ts";
 import type { BurningPit, GameState } from "./types.ts";
 
-// ---------------------------------------------------------------------------
-// Shared helpers
-// ---------------------------------------------------------------------------
-
-/** Remove gaps that can't be filled (non-grass, burning pit, cannon, tower, inside interior). */
-export function filterUnfillableGaps(
-  gaps: Set<number>,
-  state: GameState,
-  interior?: Set<number>,
-): void {
-  for (const key of gaps) {
-    const { r, c } = unpackTile(key);
-    if (
-      !isGrass(state.map.tiles, r, c) ||
-      isPitAt(state.burningPits, r, c) ||
-      hasCannonAt(state, r, c) ||
-      hasTowerAt(state, r, c) ||
-      (interior && interior.has(key))
-    ) {
-      gaps.delete(key);
-    }
-  }
-}
-
-/**
- * When a ring gap is unfillable (water or burning pit), the 8-dir flood can
- * still leak through it diagonally into the rect interior.  Add "plug" gaps —
- * grass tiles just inside the rect that, once walled, seal the diagonal leak.
- */
-function addBankPlugGaps(
-  gaps: Set<number>,
-  rect: TileRect,
-  walls: Set<number>,
-  tiles: readonly (readonly Tile[])[],
-  burningPits?: BurningPit[],
-  includeWater = true,
-): void {
-  const ringTop = rect.top - 1,
-    ringBot = rect.bottom + 1;
-  const ringLeft = rect.left - 1,
-    ringRight = rect.right + 1;
-  // Find unfillable tiles on the ring (water and/or burning pits)
-  const unfillableRing: number[] = [];
-  for (let r = ringTop; r <= ringBot; r++) {
-    for (let c = ringLeft; c <= ringRight; c++) {
-      if (!inBounds(r, c)) continue;
-      // Only ring tiles (not interior)
-      if (r > ringTop && r < ringBot && c > ringLeft && c < ringRight) continue;
-      const k = packTile(r, c);
-      if (walls.has(k)) continue;
-      const onWater = includeWater && isWater(tiles, r, c);
-      const onPit = burningPits != null && isPitAt(burningPits, r, c);
-      if (onWater || onPit) {
-        unfillableRing.push(k);
-      }
-    }
-  }
-  // For each unfillable ring tile, add interior-facing grass neighbors as plug gaps
-  for (const wk of unfillableRing) {
-    const { r: wr, c: wc } = unpackTile(wk);
-    for (const [dr, dc] of DIRS_8) {
-      const nr = wr + dr,
-        nc = wc + dc;
-      // Only add tiles inside the rect (not on the ring itself)
-      if (
-        nr < rect.top ||
-        nr > rect.bottom ||
-        nc < rect.left ||
-        nc > rect.right
-      )
-        continue;
-      const nk = packTile(nr, nc);
-      if (walls.has(nk)) continue;
-      if (!isGrass(tiles, nr, nc)) continue;
-      gaps.add(nk);
-    }
-  }
-}
+// Constants used by scoreBuildTowerTarget — duplicated from ai-strategy-build.ts
+// to avoid circular imports. These are scoring weights, not game rules.
+/** Weight given to wall-ring completion progress when ranking towers to build. */
+const TOWER_PROGRESS_WEIGHT = 100;
+/** Score penalty applied to dead towers — prefer live towers but still consider dead ones. */
+const DEAD_TOWER_PENALTY = 50;
+/** Max penalty for a fully obstructed castle rect (grunts, pits, enemy walls). */
+const OBSTRUCTION_PENALTY = 60;
 
 /**
  * Compute the fillable gap set for a castle rect: find ring gaps, remove
@@ -131,67 +61,6 @@ export function computeFillableGaps(
   );
   return gaps;
 }
-
-/**
- * Count total ring tile positions for a castle rect (tiles on the 1-wide
- * perimeter just outside the rect, within map bounds).
- */
-function countRingTiles(rect: TileRect): number {
-  let count = 0;
-  for (let r = rect.top - 1; r <= rect.bottom + 1; r++) {
-    for (let c = rect.left - 1; c <= rect.right + 1; c++) {
-      if (!inBounds(r, c)) continue;
-      if (
-        r >= rect.top &&
-        r <= rect.bottom &&
-        c >= rect.left &&
-        c <= rect.right
-      )
-        continue;
-      count++;
-    }
-  }
-  return count;
-}
-
-function countCastleRectObstructions(
-  rect: TileRect,
-  state: GameState,
-  player: { id: number; walls: Set<number> },
-): { obstructions: number; area: number } {
-  let obstructions = 0;
-  const rTop = rect.top - 1;
-  const rBot = rect.bottom + 1;
-  const rLeft = rect.left - 1;
-  const rRight = rect.right + 1;
-  for (let r = rTop; r <= rBot; r++) {
-    for (let c = rLeft; c <= rRight; c++) {
-      if (!inBounds(r, c)) continue;
-      const key = packTile(r, c);
-      if (player.walls.has(key)) continue;
-      if (hasGruntAt(state, r, c)) {
-        obstructions++;
-        continue;
-      }
-      if (isPitAt(state.burningPits, r, c)) {
-        obstructions++;
-        continue;
-      }
-      if (hasEnemyWallAt(state, player.id, r, c)) {
-        obstructions++;
-        continue;
-      }
-      if (hasCannonAt(state, r, c)) {
-        obstructions++;
-        continue;
-      }
-    }
-  }
-
-  const area = (rBot - rTop + 1) * (rRight - rLeft + 1);
-  return { obstructions, area };
-}
-
 export function scoreBuildTowerTarget(
   t: Tower,
   state: GameState,
@@ -236,7 +105,6 @@ export function scoreBuildTowerTarget(
       obstructionRatio * OBSTRUCTION_PENALTY * (1 - progress),
   };
 }
-
 export function hasMeaningfulHomeRingGaps(
   homeTowerEnclosed: boolean,
   castle: TileRect & { tower: Tower },
@@ -256,7 +124,25 @@ export function hasMeaningfulHomeRingGaps(
   filterUnfillableGaps(gaps, state, interior);
   return gaps.size > 0;
 }
-
+/** Remove gaps that can't be filled (non-grass, burning pit, cannon, tower, inside interior). */
+export function filterUnfillableGaps(
+  gaps: Set<number>,
+  state: GameState,
+  interior?: Set<number>,
+): void {
+  for (const key of gaps) {
+    const { r, c } = unpackTile(key);
+    if (
+      !isGrass(state.map.tiles, r, c) ||
+      isPitAt(state.burningPits, r, c) ||
+      hasCannonAt(state, r, c) ||
+      hasTowerAt(state, r, c) ||
+      (interior && interior.has(key))
+    ) {
+      gaps.delete(key);
+    }
+  }
+}
 /**
  * BFS to find a connected pocket of interior tiles starting from `startKey`.
  * Returns the array of tile keys in the pocket.
@@ -283,11 +169,6 @@ export function floodPocket(
   }
   return pocket;
 }
-
-// ---------------------------------------------------------------------------
-// Gap detection
-// ---------------------------------------------------------------------------
-
 /**
  * Compute the set of "gap" tiles for a castle: positions on the wall ring
  * that are missing from walls, including diagonal leak plugs.
@@ -343,7 +224,6 @@ export function findGapTiles(
 
   return gaps;
 }
-
 /**
  * Compute the castle interior rectangle for a secondary tower.
  * Tries the given margin per side; shrinks sides that hit water or map edges and
@@ -502,12 +382,115 @@ export function castleRect(
     right: t.col + 1 + growthRight,
   };
 }
+/**
+ * When a ring gap is unfillable (water or burning pit), the 8-dir flood can
+ * still leak through it diagonally into the rect interior.  Add "plug" gaps —
+ * grass tiles just inside the rect that, once walled, seal the diagonal leak.
+ */
+function addBankPlugGaps(
+  gaps: Set<number>,
+  rect: TileRect,
+  walls: Set<number>,
+  tiles: readonly (readonly Tile[])[],
+  burningPits?: BurningPit[],
+  includeWater = true,
+): void {
+  const ringTop = rect.top - 1,
+    ringBot = rect.bottom + 1;
+  const ringLeft = rect.left - 1,
+    ringRight = rect.right + 1;
+  // Find unfillable tiles on the ring (water and/or burning pits)
+  const unfillableRing: number[] = [];
+  for (let r = ringTop; r <= ringBot; r++) {
+    for (let c = ringLeft; c <= ringRight; c++) {
+      if (!inBounds(r, c)) continue;
+      // Only ring tiles (not interior)
+      if (r > ringTop && r < ringBot && c > ringLeft && c < ringRight) continue;
+      const k = packTile(r, c);
+      if (walls.has(k)) continue;
+      const onWater = includeWater && isWater(tiles, r, c);
+      const onPit = burningPits != null && isPitAt(burningPits, r, c);
+      if (onWater || onPit) {
+        unfillableRing.push(k);
+      }
+    }
+  }
+  // For each unfillable ring tile, add interior-facing grass neighbors as plug gaps
+  for (const wk of unfillableRing) {
+    const { r: wr, c: wc } = unpackTile(wk);
+    for (const [dr, dc] of DIRS_8) {
+      const nr = wr + dr,
+        nc = wc + dc;
+      // Only add tiles inside the rect (not on the ring itself)
+      if (
+        nr < rect.top ||
+        nr > rect.bottom ||
+        nc < rect.left ||
+        nc > rect.right
+      )
+        continue;
+      const nk = packTile(nr, nc);
+      if (walls.has(nk)) continue;
+      if (!isGrass(tiles, nr, nc)) continue;
+      gaps.add(nk);
+    }
+  }
+}
+/**
+ * Count total ring tile positions for a castle rect (tiles on the 1-wide
+ * perimeter just outside the rect, within map bounds).
+ */
+function countRingTiles(rect: TileRect): number {
+  let count = 0;
+  for (let r = rect.top - 1; r <= rect.bottom + 1; r++) {
+    for (let c = rect.left - 1; c <= rect.right + 1; c++) {
+      if (!inBounds(r, c)) continue;
+      if (
+        r >= rect.top &&
+        r <= rect.bottom &&
+        c >= rect.left &&
+        c <= rect.right
+      )
+        continue;
+      count++;
+    }
+  }
+  return count;
+}
+function countCastleRectObstructions(
+  rect: TileRect,
+  state: GameState,
+  player: { id: number; walls: Set<number> },
+): { obstructions: number; area: number } {
+  let obstructions = 0;
+  const rTop = rect.top - 1;
+  const rBot = rect.bottom + 1;
+  const rLeft = rect.left - 1;
+  const rRight = rect.right + 1;
+  for (let r = rTop; r <= rBot; r++) {
+    for (let c = rLeft; c <= rRight; c++) {
+      if (!inBounds(r, c)) continue;
+      const key = packTile(r, c);
+      if (player.walls.has(key)) continue;
+      if (hasGruntAt(state, r, c)) {
+        obstructions++;
+        continue;
+      }
+      if (isPitAt(state.burningPits, r, c)) {
+        obstructions++;
+        continue;
+      }
+      if (hasEnemyWallAt(state, player.id, r, c)) {
+        obstructions++;
+        continue;
+      }
+      if (hasCannonAt(state, r, c)) {
+        obstructions++;
+        continue;
+      }
+    }
+  }
 
-// Constants used by scoreBuildTowerTarget — duplicated from ai-strategy-build.ts
-// to avoid circular imports. These are scoring weights, not game rules.
-/** Weight given to wall-ring completion progress when ranking towers to build. */
-const TOWER_PROGRESS_WEIGHT = 100;
-/** Score penalty applied to dead towers — prefer live towers but still consider dead ones. */
-const DEAD_TOWER_PENALTY = 50;
-/** Max penalty for a fully obstructed castle rect (grunts, pits, enemy walls). */
-const OBSTRUCTION_PENALTY = 60;
+  const area = (rBot - rTop + 1) * (rRight - rLeft + 1);
+  return { obstructions, area };
+}

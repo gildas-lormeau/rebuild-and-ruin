@@ -47,28 +47,47 @@ import {
 } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 
-/** Create a memoized version of a function (Map-based cache). */
-function memoize<K, V>(fn: (key: K) => V): (key: K) => V {
-  const cache = new Map<K, V>();
-  return (key: K): V => {
-    const cached = cache.get(key);
-    if (cached != null) return cached;
-    const computed = fn(key);
-    cache.set(key, computed);
-    return computed;
-  };
-}
-
 /** Result of a single AI placement decision. null = no valid placement. */
 export interface AiPlacement {
   piece: PieceShape;
   row: TilePos["row"];
   col: TilePos["col"];
 }
-
-// ---------------------------------------------------------------------------
-// AI build tuning constants
-// ---------------------------------------------------------------------------
+type Candidate = TilePos & {
+  rotation: PieceShape;
+  gapsFilled: number;
+  wallAdjacent: number;
+  connectedTiles: number;
+  gapAdjacent: number;
+  isolated: number;
+  housesHit: number;
+  bonusHit: number;
+};
+type Scored = {
+  candidate: Candidate;
+  score: number;
+  gapClosingFat: boolean;
+  fatWallTiles: number;
+};
+/** Shared context for the scoring loop — avoids threading 15+ params through closures. */
+type ScoringContext = {
+  state: GameState;
+  walls: Set<number>;
+  outside: Set<number>;
+  targetGaps: Set<number>;
+  castle: TileRect;
+  cursorPos: TilePos | undefined;
+  zoneTowers: Tower[];
+  ownedTowers: Tower[];
+  skill: typeof BUILD_SKILL_TABLE[number];
+  caresAboutHouses: boolean;
+  caresAboutBonuses: boolean;
+  allCastlesEnclosed: boolean;
+  homeTowerEnclosed: boolean;
+  homeWasBroken: boolean | undefined;
+  baselineOutside: number;
+  baselinePocketWaste: number;
+};
 
 /** Max gap tiles in home castle before AI skips it for other towers. */
 const HOME_GAP_REPAIR_THRESHOLD = 5;
@@ -116,7 +135,6 @@ const TOWER_PROXIMITY_RANGE = 8;
 const TOWER_PROXIMITY_FACTOR = 0.3;
 /** Bonus per gap tile that would survive the sweep (≥2 cardinal neighbors). */
 const SWEEP_SAFE_BONUS = 2;
-
 const BUILD_SKILL_TABLE = [
   /*1*/ { topCandidates: 12, fatGainPerBlock: 0, pocketScale: 0.25, fatPenaltyScale: 0.25, tinyPocketReject: false },
   /*2*/ { topCandidates: 20, fatGainPerBlock: 1, pocketScale: 0.5, fatPenaltyScale: 0.5, tinyPocketReject: false },
@@ -124,1024 +142,6 @@ const BUILD_SKILL_TABLE = [
   /*4*/ { topCandidates: 36, fatGainPerBlock: 2, pocketScale: 1.0, fatPenaltyScale: 1.0, tinyPocketReject: true },
   /*5*/ { topCandidates: 40, fatGainPerBlock: 3, pocketScale: 1.25, fatPenaltyScale: 1.25, tinyPocketReject: true },
 ] as const;
-
-// ---------------------------------------------------------------------------
-// Piece placement — ring distance helpers
-// ---------------------------------------------------------------------------
-
-function candidateRingDistanceForTower(
-  candidate: Candidate,
-  tower: Tower,
-  castleMargin: number,
-): { distance: number; tooClose: boolean } {
-  const ringTop = tower.row - castleMargin - 1;
-  const ringBot = tower.row + 1 + castleMargin + 1;
-  const ringLeft = tower.col - castleMargin - 1;
-  const ringRight = tower.col + 1 + castleMargin + 1;
-
-  let tooClose = false;
-  for (const [dr, dc] of candidate.rotation.offsets) {
-    const pr = candidate.row + dr;
-    const pc = candidate.col + dc;
-    if (
-      pr >= tower.row - castleMargin &&
-      pr <= tower.row + 1 + castleMargin &&
-      pc >= tower.col - castleMargin &&
-      pc <= tower.col + 1 + castleMargin
-    ) {
-      if (
-        pr > ringTop &&
-        pr < ringBot &&
-        pc > ringLeft &&
-        pc < ringRight
-      ) {
-        tooClose = true;
-      }
-    }
-  }
-
-  const centerR = tower.row + 0.5;
-  const centerC = tower.col + 0.5;
-  const distance =
-    Math.abs(candidate.row - centerR) +
-    Math.abs(candidate.col - centerC);
-
-  return { distance, tooClose };
-}
-
-// ---------------------------------------------------------------------------
-// Piece placement — types
-// ---------------------------------------------------------------------------
-
-type Candidate = TilePos & {
-  rotation: PieceShape;
-  gapsFilled: number;
-  wallAdjacent: number;
-  connectedTiles: number;
-  gapAdjacent: number;
-  isolated: number;
-  housesHit: number;
-  bonusHit: number;
-};
-
-type Scored = {
-  candidate: Candidate;
-  score: number;
-  gapClosingFat: boolean;
-  fatWallTiles: number;
-};
-
-/** Shared context for the scoring loop — avoids threading 15+ params through closures. */
-type ScoringContext = {
-  state: GameState;
-  walls: Set<number>;
-  outside: Set<number>;
-  targetGaps: Set<number>;
-  castle: TileRect;
-  cursorPos: TilePos | undefined;
-  zoneTowers: Tower[];
-  ownedTowers: Tower[];
-  skill: typeof BUILD_SKILL_TABLE[number];
-  caresAboutHouses: boolean;
-  caresAboutBonuses: boolean;
-  allCastlesEnclosed: boolean;
-  homeTowerEnclosed: boolean;
-  homeWasBroken: boolean | undefined;
-  baselineOutside: number;
-  baselinePocketWaste: number;
-};
-
-function candidateObstacleHits(
-  candidate: Pick<Candidate, "housesHit" | "bonusHit">,
-  caresAboutHouses: boolean,
-  caresAboutBonuses: boolean,
-): number {
-  return (caresAboutHouses ? candidate.housesHit : 0) +
-    (caresAboutBonuses ? candidate.bonusHit : 0);
-}
-
-function compareCandidatesByObstaclePreference(
-  a: Pick<Candidate, "housesHit" | "bonusHit">,
-  b: Pick<Candidate, "housesHit" | "bonusHit">,
-  caresAboutHouses: boolean,
-  caresAboutBonuses: boolean,
-): number {
-  return (
-    candidateObstacleHits(a, caresAboutHouses, caresAboutBonuses) -
-    candidateObstacleHits(b, caresAboutHouses, caresAboutBonuses)
-  );
-}
-
-function compareScoredByScoreDesc(a: Scored, b: Scored): number {
-  return b.score - a.score;
-}
-
-function ringDistanceForFallbackTowers(
-  candidate: Candidate,
-  fallbackTowers: readonly Tower[],
-  castleMargin: number,
-  ringDistanceCache: Map<Candidate, { distance: number; tooClose: boolean }>,
-): { distance: number; tooClose: boolean } {
-  const cached = ringDistanceCache.get(candidate);
-  if (cached) return cached;
-
-  let bestDistance = Infinity;
-  let tooClose = false;
-  for (const tower of fallbackTowers) {
-    const towerDistance = candidateRingDistanceForTower(candidate, tower, castleMargin);
-    if (towerDistance.tooClose) tooClose = true;
-    if (towerDistance.distance < bestDistance) bestDistance = towerDistance.distance;
-  }
-
-  const result = { distance: bestDistance, tooClose };
-  ringDistanceCache.set(candidate, result);
-  return result;
-}
-
-function compareByFallbackRingDistance(
-  a: Candidate,
-  b: Candidate,
-  fallbackTowers: readonly Tower[],
-  castleMargin: number,
-  ringDistanceCache: Map<Candidate, { distance: number; tooClose: boolean }>,
-): number {
-  return (
-    ringDistanceForFallbackTowers(a, fallbackTowers, castleMargin, ringDistanceCache).distance -
-    ringDistanceForFallbackTowers(b, fallbackTowers, castleMargin, ringDistanceCache).distance
-  );
-}
-
-function isExtensionCandidateForFallback(
-  candidate: Candidate,
-  fallbackTowers: readonly Tower[],
-  castleMargin: number,
-  ringDistanceCache: Map<Candidate, { distance: number; tooClose: boolean }>,
-  createsSmallEnclosureCached: (candidate: Candidate) => boolean,
-  isInsideOrFatCandidate: (candidate: Candidate) => boolean,
-): boolean {
-  const rd = ringDistanceForFallbackTowers(
-    candidate,
-    fallbackTowers,
-    castleMargin,
-    ringDistanceCache,
-  );
-  if (rd.tooClose) return false;
-  if (createsSmallEnclosureCached(candidate)) return false;
-  if (isInsideOrFatCandidate(candidate)) return false;
-  return true;
-}
-
-function isExtensionFallbackCandidateForFallback(
-  candidate: Candidate,
-  createsSmallEnclosureCached: (candidate: Candidate) => boolean,
-  isInsideOrFatCandidate: (candidate: Candidate) => boolean,
-): boolean {
-  return !createsSmallEnclosureCached(candidate) && !isInsideOrFatCandidate(candidate);
-}
-
-function pickTowerExtensionCandidate(
-  scored: Scored[],
-  fallbackTowers: readonly Tower[],
-  castleMargin: number,
-  ringDistanceCache: Map<Candidate, { distance: number; tooClose: boolean }>,
-  createsSmallEnclosureCached: (candidate: Candidate) => boolean,
-  isInsideOrFatCandidate: (candidate: Candidate) => boolean,
-): {
-  candidate: Candidate | null;
-  reason: 'extend' | 'extend-fallback' | 'extend-all-fat';
-} {
-  const extending = scored.filter((s) =>
-    isExtensionCandidateForFallback(
-      s.candidate,
-      fallbackTowers,
-      castleMargin,
-      ringDistanceCache,
-      createsSmallEnclosureCached,
-      isInsideOrFatCandidate,
-    )
-  );
-
-  if (extending.length > 0) {
-    extending.sort(
-      (a, b) =>
-        compareByFallbackRingDistance(
-          a.candidate,
-          b.candidate,
-          fallbackTowers,
-          castleMargin,
-          ringDistanceCache,
-        ) ||
-        b.candidate.wallAdjacent - a.candidate.wallAdjacent,
-    );
-    return { candidate: extending[0]!.candidate, reason: 'extend' };
-  }
-
-  const fallback = [...scored].filter((s) =>
-    isExtensionFallbackCandidateForFallback(
-      s.candidate,
-      createsSmallEnclosureCached,
-      isInsideOrFatCandidate,
-    )
-  );
-  fallback.sort((a, b) =>
-    compareByFallbackRingDistance(
-      a.candidate,
-      b.candidate,
-      fallbackTowers,
-      castleMargin,
-      ringDistanceCache,
-    )
-  );
-  if (fallback.length > 0) {
-    return { candidate: fallback[0]!.candidate, reason: 'extend-fallback' };
-  }
-
-  return { candidate: null, reason: 'extend-all-fat' };
-}
-
-function compareDiscardCandidatesForFallback(
-  a: Scored,
-  b: Scored,
-  caresAboutHouses: boolean,
-  caresAboutBonuses: boolean,
-  createsSmallEnclosureCached: (candidate: Candidate) => boolean,
-): number {
-  const aHit = candidateObstacleHits(a.candidate, caresAboutHouses, caresAboutBonuses);
-  const bHit = candidateObstacleHits(b.candidate, caresAboutHouses, caresAboutBonuses);
-  if (aHit !== bHit) return aHit - bHit;
-  const aEncloses = createsSmallEnclosureCached(a.candidate) ? 0 : 1;
-  const bEncloses = createsSmallEnclosureCached(b.candidate) ? 0 : 1;
-  if (aEncloses !== bEncloses) return aEncloses - bEncloses;
-  return a.fatWallTiles - b.fatWallTiles;
-}
-
-function pickDiscardCandidate(
-  scored: Scored[],
-  caresAboutHouses: boolean,
-  caresAboutBonuses: boolean,
-  createsSmallEnclosureCached: (candidate: Candidate) => boolean,
-  isInsideOrFatCandidate: (candidate: Candidate) => boolean,
-): Candidate | null {
-  const throwAway = [...scored].filter(
-    (s) => !isInsideOrFatCandidate(s.candidate),
-  );
-  if (throwAway.length === 0) return null;
-  throwAway.sort((a, b) =>
-    compareDiscardCandidatesForFallback(
-      a,
-      b,
-      caresAboutHouses,
-      caresAboutBonuses,
-      createsSmallEnclosureCached,
-    )
-  );
-  return throwAway[0]!.candidate;
-}
-
-function compareByNumericScoreDesc<T extends { score: number }>(a: T, b: T): number {
-  return b.score - a.score;
-}
-
-function candidateToPlacement(candidate: Candidate): AiPlacement {
-  return {
-    piece: candidate.rotation,
-    row: candidate.row,
-    col: candidate.col,
-  };
-}
-
-function isFatFreeCandidate(
-  walls: Set<number>,
-  candidate: { row: number; col: number; rotation?: PieceShape; piece?: PieceShape },
-): boolean {
-  return countFatBlocks(walls, candidate) === 0;
-}
-
-function computeGapBonus(gapsFilled: number, usefulGain: number): number {
-  if (gapsFilled <= 0) return 0;
-  const base = Math.max(
-    GAP_BONUS_MIN,
-    GAP_BONUS_BASE - usefulGain * GAP_BONUS_GAIN_FACTOR,
-  );
-  return base + (gapsFilled - 1) * GAP_BONUS_PER_EXTRA;
-}
-
-function computeFatWallPenalty(
-  gapClosingFat: boolean,
-  fatWallTiles: number,
-  usefulGain: number,
-  fatPenaltyScale: number,
-): number {
-  if (gapClosingFat) {
-    return Math.max(
-      FAT_WALL_PENALTY_MIN,
-      usefulGain * FAT_WALL_GAIN_FACTOR,
-    ) * fatPenaltyScale;
-  }
-  if (fatWallTiles > 0) {
-    return fatWallTiles * FAT_WALL_TILE_PENALTY * fatPenaltyScale;
-  }
-  return 0;
-}
-
-function computePocketPenalty(
-  pocketDelta: number,
-  pocketScale: number,
-): number {
-  return Math.max(0, pocketDelta) * POCKET_DELTA_PENALTY * pocketScale;
-}
-
-function computeObstacleHitPenalty(
-  candidate: Pick<Candidate, "housesHit" | "bonusHit">,
-  caresAboutHouses: boolean,
-  caresAboutBonuses: boolean,
-): number {
-  return (caresAboutHouses ? candidate.housesHit * OBSTACLE_HIT_PENALTY : 0) +
-    (caresAboutBonuses ? candidate.bonusHit * OBSTACLE_HIT_PENALTY : 0);
-}
-
-function computeTowerProximityBonus(
-  candidate: Candidate,
-  targetGaps: Set<number>,
-  zoneTowers: readonly Tower[],
-  ownedTowers: readonly Tower[],
-): number {
-  if (targetGaps.size !== 0) return 0;
-
-  let towerProximityBonus = 0;
-  for (const t of zoneTowers) {
-    if (ownedTowers.includes(t)) continue;
-    for (const [dr, dc] of candidate.rotation.offsets) {
-      const d =
-        Math.abs(candidate.row + dr - (t.row + 0.5)) +
-        Math.abs(candidate.col + dc - (t.col + 0.5));
-      towerProximityBonus = Math.max(
-        towerProximityBonus,
-        Math.max(0, TOWER_PROXIMITY_RANGE - d) * TOWER_PROXIMITY_FACTOR,
-      );
-    }
-  }
-
-  return towerProximityBonus;
-}
-
-function computeSweepSafeBonus(
-  candidate: Candidate,
-  targetGaps: Set<number>,
-  simulatedWalls: Set<number>,
-): number {
-  if (candidate.gapsFilled <= 0) return 0;
-
-  let sweepSafeBonus = 0;
-  for (const [dr, dc] of candidate.rotation.offsets) {
-    const key = packTile(candidate.row + dr, candidate.col + dc);
-    if (!targetGaps.has(key)) continue;
-    let cardinalCount = 0;
-    for (const [ar, ac] of DIRS_4) {
-      if (simulatedWalls.has(packTile(candidate.row + dr + ar, candidate.col + dc + ac))) {
-        cardinalCount++;
-      }
-    }
-    if (cardinalCount >= 2) sweepSafeBonus += SWEEP_SAFE_BONUS;
-  }
-
-  return sweepSafeBonus;
-}
-
-function computeCursorProximityBonus(
-  candidate: Candidate,
-  anyHasWallAdjacent: boolean,
-  cursorPos?: TilePos,
-): number {
-  if (anyHasWallAdjacent || candidate.gapsFilled <= 0 || !cursorPos) return 0;
-
-  let avgDistance = 0;
-  for (const [dr, dc] of candidate.rotation.offsets) {
-    avgDistance +=
-      Math.abs(candidate.row + dr - cursorPos.row) +
-      Math.abs(candidate.col + dc - cursorPos.col);
-  }
-  avgDistance /= candidate.rotation.offsets.length;
-  return Math.max(0, CURSOR_PROXIMITY_MAX - avgDistance) * CURSOR_PROXIMITY_MULTIPLIER;
-}
-
-function computeInnerObstacleBonus(
-  candidate: Candidate,
-  targetGaps: Set<number>,
-  castle: TileRect,
-  tiles: readonly (readonly Tile[])[],
-): number {
-  if (candidate.gapsFilled < 2) return 0;
-
-  let hasInnerObstacle = false;
-  for (const [dr, dc] of candidate.rotation.offsets) {
-    const pr = candidate.row + dr;
-    const pc = candidate.col + dc;
-    const key = packTile(pr, pc);
-    if (!targetGaps.has(key)) continue;
-    for (const [ar, ac] of DIRS_4) {
-      const nr = pr + ar;
-      const nc = pc + ac;
-      if (
-        nr >= castle.top &&
-        nr <= castle.bottom &&
-        nc >= castle.left &&
-        nc <= castle.right &&
-        isWater(tiles, nr, nc)
-      ) {
-        hasInnerObstacle = true;
-      }
-    }
-  }
-
-  if (!hasInnerObstacle) return 0;
-
-  let innerTiles = 0;
-  for (const [dr, dc] of candidate.rotation.offsets) {
-    const pr = candidate.row + dr;
-    const pc = candidate.col + dc;
-    if (targetGaps.has(packTile(pr, pc))) continue;
-    if (
-      pr >= castle.top &&
-      pr <= castle.bottom &&
-      pc >= castle.left &&
-      pc <= castle.right
-    ) {
-      innerTiles++;
-    }
-  }
-
-  return innerTiles * INNER_OBSTACLE_MULTIPLIER;
-}
-
-function computeDifficultyBonus(
-  state: GameState,
-  candidate: Candidate,
-): number {
-  if (candidate.rotation.offsets.length !== 1 || candidate.gapsFilled !== 1) return 0;
-
-  const pr = candidate.row + candidate.rotation.offsets[0]![0];
-  const pc = candidate.col + candidate.rotation.offsets[0]![1];
-  // Track obstacle directions: [north, south, west, east]
-  const obstacles = getCardinalObstacleMask(state, pr, pc);
-  const total = obstacles.filter(Boolean).length;
-  const hasOpposite =
-    (obstacles[0] && obstacles[1]) || (obstacles[2] && obstacles[3]);
-  if (total >= 2 && hasOpposite) return total * DIFFICULTY_MULTIPLIER;
-  if (total >= 1) return total;
-  return 0;
-}
-
-function computeWastefulClosureAdjustment(
-  candidate: Candidate,
-  targetGaps: Set<number>,
-  castle: TileRect,
-  usefulGain: number,
-  baseGapBonus: number,
-): { gapBonus: number; wastefulClosurePenalty: number } {
-  if (candidate.gapsFilled <= 0 || castle.top > castle.bottom) {
-    return { gapBonus: baseGapBonus, wastefulClosurePenalty: 0 };
-  }
-
-  let insideNonGap = 0;
-  let outsideNonGap = 0;
-  for (const [dr, dc] of candidate.rotation.offsets) {
-    const pr = candidate.row + dr;
-    const pc = candidate.col + dc;
-    if (targetGaps.has(packTile(pr, pc))) continue;
-    if (
-      pr >= castle.top &&
-      pr <= castle.bottom &&
-      pc >= castle.left &&
-      pc <= castle.right
-    ) {
-      insideNonGap++;
-    } else {
-      outsideNonGap++;
-    }
-  }
-
-  if (outsideNonGap === 0 && insideNonGap > candidate.gapsFilled) {
-    return {
-      gapBonus: 0,
-      wastefulClosurePenalty: usefulGain + insideNonGap,
-    };
-  }
-
-  return { gapBonus: baseGapBonus, wastefulClosurePenalty: 0 };
-}
-
-function shouldRejectForFatWalls(
-  rawFatBlocks: number,
-  fatGainPerBlock: number,
-  usefulGain: number,
-  fatExempt: boolean,
-): boolean {
-  return (
-    rawFatBlocks > 0 &&
-    fatGainPerBlock > 0 &&
-    usefulGain < rawFatBlocks * fatGainPerBlock &&
-    !fatExempt
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Piece placement — helpers
-// ---------------------------------------------------------------------------
-
-/** Build the added-key set and wall predicate for a candidate placement. */
-function buildCandidateWallInfo(
-  walls: Set<number>,
-  offsets: readonly (readonly [number, number])[],
-  row: number,
-  col: number,
-): { addedKeys: number[]; addedSet: Set<number>; isWall: (k: number) => boolean } {
-  const addedKeys: number[] = [];
-  for (const [dr, dc] of offsets) {
-    addedKeys.push(packTile(row + dr, col + dc));
-  }
-  const addedSet = new Set(addedKeys);
-  const isWall = (k: number) => walls.has(k) || addedSet.has(k);
-  return { addedKeys, addedSet, isWall };
-}
-
-/** Check if a tile creates any 2x2 all-wall block when added to existing walls. */
-function tileCreatesFatBlock(
-  r: number,
-  c: number,
-  isWall: (k: number) => boolean,
-): boolean {
-  for (const [cr, cc] of CORNERS_2X2) {
-    const tr = r + cr, tc = c + cc;
-    if (tr < 0 || tr + 1 >= GRID_ROWS || tc < 0 || tc + 1 >= GRID_COLS) continue;
-    if (isWall(packTile(tr, tc)) && isWall(packTile(tr, tc + 1)) &&
-        isWall(packTile(tr + 1, tc)) && isWall(packTile(tr + 1, tc + 1))) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/** Count 2×2 all-wall blocks a candidate would create (no exemptions). */
-function countFatBlocks(
-  walls: Set<number>,
-  candidate: { row: number; col: number; rotation?: PieceShape; piece?: PieceShape },
-): number {
-  const shape = candidate.rotation ?? candidate.piece;
-  if (!shape) return 0;
-  const { addedKeys, addedSet: _, isWall } = buildCandidateWallInfo(walls, shape.offsets, candidate.row, candidate.col);
-  let blocks = 0;
-  for (const key of addedKeys) {
-    const { r, c } = unpackTile(key);
-    if (tileCreatesFatBlock(r, c, isWall)) blocks++;
-  }
-  return blocks;
-}
-
-/** Build the simulated wall set for a candidate. */
-function buildSimulatedWalls(
-  walls: Set<number>,
-  candidate: Candidate,
-): Set<number> {
-  const simulatedWalls = new Set(walls);
-  for (const [dr, dc] of candidate.rotation.offsets) {
-    simulatedWalls.add(packTile(candidate.row + dr, candidate.col + dc));
-  }
-  return simulatedWalls;
-}
-
-/** Cheap fat-wall check — no Set copy, just checks if placing creates 2×2 blocks. */
-function checkFatWall(
-  walls: Set<number>,
-  candidate: Candidate,
-  _gaps: Set<number>,
-): { fatWallTiles: number; gapClosingFat: boolean } {
-  const { addedKeys, addedSet: _, isWall } = buildCandidateWallInfo(walls, candidate.rotation.offsets, candidate.row, candidate.col);
-  let fatWallTiles = 0;
-  let gapClosingFat = false;
-  for (const key of addedKeys) {
-    const { r, c } = unpackTile(key);
-    if (!tileCreatesFatBlock(r, c, isWall)) continue;
-    if (candidate.gapsFilled > 0) {
-      gapClosingFat = true;
-      continue;
-    }
-    fatWallTiles++;
-    break;
-  }
-  return { fatWallTiles, gapClosingFat };
-}
-
-/** Count wasted tiles in small pockets (< SMALL_POCKET_MAX_SIZE). */
-function countSmallPocketTiles(
-  walls: Set<number>,
-  outsideSet: Set<number>,
-): { wasted: number; smallestPocket: number } {
-  let wasted = 0;
-  let smallestPocket = Infinity;
-  const visited = new Set<number>();
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      const k = packTile(r, c);
-      if (visited.has(k) || outsideSet.has(k) || walls.has(k)) continue;
-      const pocket = floodPocket(k, visited, walls, outsideSet);
-      if (pocket.length < SMALL_POCKET_MAX_SIZE) {
-        wasted += pocket.length;
-        if (pocket.length < smallestPocket) smallestPocket = pocket.length;
-      }
-    }
-  }
-  return { wasted, smallestPocket };
-}
-
-/** Check if the current piece (in any rotation) can fill any of the given gaps. */
-function canPieceFillAnyGap(
-  state: GameState,
-  playerId: number,
-  piece: PieceShape,
-  interior: Set<number>,
-  gaps: Set<number>,
-  rect?: TileRect | null,
-): boolean {
-  // Interior excluding these gaps — gap tiles are ring holes, not forbidden interior.
-  // Also exclude the castle rect interior: the enclosure has gaps so it's NOT closed,
-  // and the AI should be free to extend pieces into it while filling those gaps.
-  const adjusted = new Set(interior);
-  for (const gk of gaps) adjusted.delete(gk);
-  if (rect) {
-    for (let r = rect.top; r <= rect.bottom; r++) {
-      for (let c = rect.left; c <= rect.right; c++) {
-        adjusted.delete(packTile(r, c));
-      }
-    }
-  }
-  let rot = piece;
-  for (let ri = 0; ri < 4; ri++) {
-    for (const gk of gaps) {
-      const { r: gr, c: gc } = unpackTile(gk);
-      for (const [dr, dc] of rot.offsets) {
-        if (canPlacePiece(state, playerId, rot, gr - dr, gc - dc, adjusted)) return true;
-      }
-    }
-    rot = rotateCW(rot);
-  }
-  return false;
-}
-
-/** Check if ANY standard piece shape (in any rotation) could fill a single gap tile. */
-function isGapFillableByAnyShape(
-  state: GameState,
-  playerId: number,
-  interior: Set<number>,
-  gapKey: number,
-  rect?: TileRect | null,
-): boolean {
-  const { r: gr, c: gc } = unpackTile(gapKey);
-  const adjusted = new Set(interior);
-  adjusted.delete(gapKey);
-  if (rect) {
-    for (let r = rect.top; r <= rect.bottom; r++) {
-      for (let c = rect.left; c <= rect.right; c++) {
-        adjusted.delete(packTile(r, c));
-      }
-    }
-  }
-  for (const shape of ALL_PIECE_SHAPES) {
-    let rot = shape;
-    for (let ri = 0; ri < 4; ri++) {
-      for (const [dr, dc] of rot.offsets) {
-        if (canPlacePiece(state, playerId, rot, gr - dr, gc - dc, adjusted)) return true;
-      }
-      rot = rotateCW(rot);
-    }
-  }
-  return false;
-}
-
-/**
- * When the current piece can't fill any gap, check if some gaps are
- * structurally unreachable by ANY piece shape.  For those, add interior plug
- * tiles (seal diagonal leaks from inside, same as water/pit plugs).
- * Returns true if the gap set was modified.
- */
-function plugUnreachableGaps(
-  gaps: Set<number>,
-  rect: TileRect | null,
-  state: GameState,
-  playerId: number,
-  player: { walls: Set<number>; interior: Set<number> },
-): boolean {
-  if (!rect || gaps.size === 0) return false;
-  const unreachable: number[] = [];
-  for (const gk of gaps) {
-    if (!isGapFillableByAnyShape(state, playerId, player.interior, gk, rect)) {
-      unreachable.push(gk);
-    }
-  }
-  if (unreachable.length === 0) return false;
-  for (const gk of unreachable) gaps.delete(gk);
-  // Add interior-facing grass neighbors as plug gaps (same diagonal-leak seal as water/pits)
-  for (const gk of unreachable) {
-    const { r: gr, c: gc } = unpackTile(gk);
-    for (const [dr, dc] of DIRS_8) {
-      const nr = gr + dr, nc = gc + dc;
-      if (nr < rect.top || nr > rect.bottom || nc < rect.left || nc > rect.right) continue;
-      const nk = packTile(nr, nc);
-      if (player.walls.has(nk)) continue;
-      if (!isGrass(state.map.tiles, nr, nc)) continue;
-      gaps.add(nk);
-    }
-  }
-  filterUnfillableGaps(gaps, state, player.interior);
-  return true;
-}
-
-function scoreCandidateGapMetrics(
-  row: number,
-  col: number,
-  offsets: ReadonlyArray<readonly [number, number]>,
-  walls: Set<number>,
-  targetGaps: Set<number>,
-): {
-  gapsFilled: number;
-  wallAdjacent: number;
-  connectedTiles: number;
-  gapAdjacent: number;
-  isolated: number;
-} {
-  let gapsFilled = 0;
-  let wallAdjacent = 0;
-  let connectedTiles = 0;
-  let gapAdjacent = 0;
-  let isolated = 0;
-
-  for (const [dr, dc] of offsets) {
-    const pr = row + dr;
-    const pc = col + dc;
-    const key = packTile(pr, pc);
-    if (targetGaps.has(key)) {
-      gapsFilled++;
-      continue;
-    }
-    let hasWallAdjacent = false;
-    let hasGapAdjacent = false;
-    for (const [ar, ac] of DIRS_4) {
-      const nk = packTile(pr + ar, pc + ac);
-      if (walls.has(nk)) {
-        wallAdjacent++;
-        hasWallAdjacent = true;
-      }
-      if (targetGaps.has(nk)) hasGapAdjacent = true;
-    }
-    if (hasWallAdjacent) connectedTiles++;
-    if (hasGapAdjacent) gapAdjacent++;
-    if (!hasWallAdjacent && !hasGapAdjacent) isolated++;
-  }
-
-  for (const [dr, dc] of offsets) {
-    const pr = row + dr;
-    const pc = col + dc;
-    if (!targetGaps.has(packTile(pr, pc))) continue;
-    let hasWallAdjacent = false;
-    for (const [ar, ac] of DIRS_4) {
-      if (walls.has(packTile(pr + ar, pc + ac))) {
-        wallAdjacent++;
-        hasWallAdjacent = true;
-      }
-    }
-    if (hasWallAdjacent) connectedTiles++;
-  }
-
-  return { gapsFilled, wallAdjacent, connectedTiles, gapAdjacent, isolated };
-}
-
-/** Enumerate all valid placements for a piece, scoring adjacency/gap metrics. */
-function enumerateCandidates(
-  state: GameState,
-  playerId: number,
-  piece: PieceShape,
-  walls: Set<number>,
-  outside: Set<number>,
-  targetGaps: Set<number>,
-  interiorExcludingGaps: Set<number>,
-): Candidate[] {
-  const candidates: Candidate[] = [];
-  let rotated = piece;
-  for (let rotation = 0; rotation < 4; rotation++) {
-    for (let r = 0; r < GRID_ROWS - rotated.height + 1; r++) {
-      for (let c = 0; c < GRID_COLS - rotated.width + 1; c++) {
-        if (!canPlacePiece(state, playerId, rotated, r, c, interiorExcludingGaps)) continue;
-
-        const {
-          gapsFilled,
-          wallAdjacent,
-          connectedTiles,
-          gapAdjacent,
-          isolated,
-        } = scoreCandidateGapMetrics(r, c, rotated.offsets, walls, targetGaps);
-
-        if (rotated.offsets.length > 1) {
-          let anyOutsideOrGap = false;
-          for (const [dr, dc] of rotated.offsets) {
-            const k = packTile(r + dr, c + dc);
-            if (outside.has(k) || targetGaps.has(k)) {
-              anyOutsideOrGap = true;
-              break;
-            }
-          }
-          if (!anyOutsideOrGap) continue;
-        }
-
-        let housesHit = 0;
-        let bonusHit = 0;
-        for (const [dr, dc] of rotated.offsets) {
-          const pr = r + dr,
-            pc = c + dc;
-          if (
-            state.map.houses.some(
-              (h) => h.alive && h.row === pr && h.col === pc,
-            )
-          )
-            housesHit++;
-          if (state.bonusSquares.some((bs) => bs.row === pr && bs.col === pc))
-            bonusHit++;
-        }
-
-        candidates.push({
-          row: r,
-          col: c,
-          rotation: rotated,
-          gapsFilled,
-          wallAdjacent,
-          connectedTiles,
-          gapAdjacent,
-          isolated,
-          housesHit,
-          bonusHit,
-        });
-      }
-    }
-    rotated = rotateCW(rotated);
-  }
-  return candidates;
-}
-
-/**
- * When the best scored placement has usefulGain <= 0, pick a fallback:
- * extend toward unenclosed towers, or discard somewhere harmless.
- * Returns null when no fallback applies (interior full / nothing useful).
- */
-function pickFallbackPlacement(
-  scored: Scored[],
-  state: GameState,
-  walls: Set<number>,
-  outside: Set<number>,
-  interior: Set<number>,
-  castle: { tower: Tower },
-  castleMargin: number,
-  homeWasBroken: boolean,
-  unenclosedTowers: Tower[],
-  caresAboutHouses: boolean,
-  caresAboutBonuses: boolean,
-): { placement: AiPlacement | null; reason: string } | null {
-  const placementResult = (
-    candidate: Candidate,
-    reason: string,
-  ): { placement: AiPlacement; reason: string } => {
-    return {
-      placement: candidateToPlacement(candidate),
-      reason,
-    };
-  };
-
-  // Count free interior tiles — if territory is full, stop building
-  let totalFree = 0;
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      const k = packTile(r, c);
-      if (!interior.has(k)) continue;
-      if (walls.has(k)) continue;
-      let blocked = false;
-      for (const t of state.map.towers) {
-        if (isTowerTile(t, r, c)) {
-          blocked = true;
-          break;
-        }
-      }
-      if (blocked) continue;
-      for (const p of state.players) {
-        for (const cannon of p.cannons) {
-          if (isCannonTile(cannon, r, c)) {
-            blocked = true;
-            break;
-          }
-        }
-        if (blocked) break;
-      }
-      if (!blocked) totalFree++;
-    }
-  }
-  if (totalFree < MIN_FREE_INTERIOR && unenclosedTowers.length === 0)
-    return { placement: null, reason: 'interior-full' };
-
-  const createsSmallEnclosure = (candidate: Candidate): boolean => {
-    const simulatedWalls = buildSimulatedWalls(walls, candidate);
-    const simulatedOutside = computeOutside(simulatedWalls);
-    const visited = new Set<number>();
-    for (let r = 0; r < GRID_ROWS; r++) {
-      for (let c = 0; c < GRID_COLS; c++) {
-        const k = packTile(r, c);
-        if (visited.has(k) || simulatedOutside.has(k) || simulatedWalls.has(k))
-          continue;
-        const pocket = floodPocket(k, visited, simulatedWalls, simulatedOutside);
-        if (pocket.length >= MIN_VIABLE_ENCLOSURE) continue;
-        let preExisting = true;
-        for (const pocketKey of pocket) {
-          if (outside.has(pocketKey)) {
-            preExisting = false;
-            break;
-          }
-        }
-        if (preExisting) continue;
-        let hasOccupant = false;
-        for (const pocketKey of pocket) {
-          const { r: pr, c: pc } = unpackTile(pocketKey);
-          for (const t of state.map.towers) {
-            if (isTowerTile(t, pr, pc)) {
-              hasOccupant = true;
-              break;
-            }
-          }
-          if (!hasOccupant && !isGrass(state.map.tiles, pr, pc))
-            hasOccupant = true;
-          if (!hasOccupant) {
-            for (const g of state.grunts) {
-              if (g.row === pr && g.col === pc) {
-                hasOccupant = true;
-                break;
-              }
-            }
-          }
-          if (hasOccupant) break;
-        }
-        if (!hasOccupant) return true;
-      }
-    }
-    return false;
-  };
-
-  const createsSmallEnclosureCached = memoize(createsSmallEnclosure);
-
-  const insideEnclosure = (candidate: Candidate): boolean => {
-    for (const [dr, dc] of candidate.rotation.offsets) {
-      const k = packTile(candidate.row + dr, candidate.col + dc);
-      for (const p of state.players) {
-        if (p.interior.has(k)) return true;
-      }
-    }
-    return false;
-  };
-
-  const fallbackTowers = homeWasBroken
-    ? unenclosedTowers.filter((t) => t !== castle.tower)
-    : unenclosedTowers;
-
-  const isInsideOrFatCandidate = (candidate: Candidate): boolean => {
-    return insideEnclosure(candidate) || !isFatFreeCandidate(walls, candidate);
-  };
-
-  if (fallbackTowers.length > 0) {
-    const ringDistanceCache = new Map<Candidate, { distance: number; tooClose: boolean }>();
-    const picked = pickTowerExtensionCandidate(
-      scored,
-      fallbackTowers,
-      castleMargin,
-      ringDistanceCache,
-      createsSmallEnclosureCached,
-      isInsideOrFatCandidate,
-    );
-    if (picked.candidate) {
-      return placementResult(picked.candidate, picked.reason);
-    }
-    return { placement: null, reason: picked.reason };
-  } else {
-    const bestDiscard = pickDiscardCandidate(
-      scored,
-      caresAboutHouses,
-      caresAboutBonuses,
-      createsSmallEnclosureCached,
-      isInsideOrFatCandidate,
-    );
-    if (bestDiscard) {
-      return placementResult(bestDiscard, 'discard');
-    }
-    return { placement: null, reason: 'discard-all-fat' };
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Piece placement — main
-// ---------------------------------------------------------------------------
 
 export function pickPlacementImpl(
   state: GameState,
@@ -1345,7 +345,6 @@ export function pickPlacementImpl(
       targetRect = { top, bottom, left, right };
     }
 
-
     if (hasManageableGaps() &&
         !canPieceFillAnyGap(state, playerId, piece, player.interior, targetGaps, targetRect)) {
       // Try plugging structurally unreachable gaps (e.g. thick walls from + pieces)
@@ -1488,7 +487,6 @@ export function pickPlacementImpl(
       fatWallTiles,
     });
   }
-
 
   if (scored.length === 0) {
     // When everything is enclosed with no gaps, don't force-place fat walls
@@ -1731,4 +729,942 @@ export function pickPlacementImpl(
     row: bestCandidate.row,
     col: bestCandidate.col,
   }, 'scored');
+}
+function compareCandidatesByObstaclePreference(
+  a: Pick<Candidate, "housesHit" | "bonusHit">,
+  b: Pick<Candidate, "housesHit" | "bonusHit">,
+  caresAboutHouses: boolean,
+  caresAboutBonuses: boolean,
+): number {
+  return (
+    candidateObstacleHits(a, caresAboutHouses, caresAboutBonuses) -
+    candidateObstacleHits(b, caresAboutHouses, caresAboutBonuses)
+  );
+}
+function compareScoredByScoreDesc(a: Scored, b: Scored): number {
+  return b.score - a.score;
+}
+function compareByNumericScoreDesc<T extends { score: number }>(a: T, b: T): number {
+  return b.score - a.score;
+}
+function computeGapBonus(gapsFilled: number, usefulGain: number): number {
+  if (gapsFilled <= 0) return 0;
+  const base = Math.max(
+    GAP_BONUS_MIN,
+    GAP_BONUS_BASE - usefulGain * GAP_BONUS_GAIN_FACTOR,
+  );
+  return base + (gapsFilled - 1) * GAP_BONUS_PER_EXTRA;
+}
+function computeFatWallPenalty(
+  gapClosingFat: boolean,
+  fatWallTiles: number,
+  usefulGain: number,
+  fatPenaltyScale: number,
+): number {
+  if (gapClosingFat) {
+    return Math.max(
+      FAT_WALL_PENALTY_MIN,
+      usefulGain * FAT_WALL_GAIN_FACTOR,
+    ) * fatPenaltyScale;
+  }
+  if (fatWallTiles > 0) {
+    return fatWallTiles * FAT_WALL_TILE_PENALTY * fatPenaltyScale;
+  }
+  return 0;
+}
+function computePocketPenalty(
+  pocketDelta: number,
+  pocketScale: number,
+): number {
+  return Math.max(0, pocketDelta) * POCKET_DELTA_PENALTY * pocketScale;
+}
+function computeObstacleHitPenalty(
+  candidate: Pick<Candidate, "housesHit" | "bonusHit">,
+  caresAboutHouses: boolean,
+  caresAboutBonuses: boolean,
+): number {
+  return (caresAboutHouses ? candidate.housesHit * OBSTACLE_HIT_PENALTY : 0) +
+    (caresAboutBonuses ? candidate.bonusHit * OBSTACLE_HIT_PENALTY : 0);
+}
+function computeTowerProximityBonus(
+  candidate: Candidate,
+  targetGaps: Set<number>,
+  zoneTowers: readonly Tower[],
+  ownedTowers: readonly Tower[],
+): number {
+  if (targetGaps.size !== 0) return 0;
+
+  let towerProximityBonus = 0;
+  for (const t of zoneTowers) {
+    if (ownedTowers.includes(t)) continue;
+    for (const [dr, dc] of candidate.rotation.offsets) {
+      const d =
+        Math.abs(candidate.row + dr - (t.row + 0.5)) +
+        Math.abs(candidate.col + dc - (t.col + 0.5));
+      towerProximityBonus = Math.max(
+        towerProximityBonus,
+        Math.max(0, TOWER_PROXIMITY_RANGE - d) * TOWER_PROXIMITY_FACTOR,
+      );
+    }
+  }
+
+  return towerProximityBonus;
+}
+function computeSweepSafeBonus(
+  candidate: Candidate,
+  targetGaps: Set<number>,
+  simulatedWalls: Set<number>,
+): number {
+  if (candidate.gapsFilled <= 0) return 0;
+
+  let sweepSafeBonus = 0;
+  for (const [dr, dc] of candidate.rotation.offsets) {
+    const key = packTile(candidate.row + dr, candidate.col + dc);
+    if (!targetGaps.has(key)) continue;
+    let cardinalCount = 0;
+    for (const [ar, ac] of DIRS_4) {
+      if (simulatedWalls.has(packTile(candidate.row + dr + ar, candidate.col + dc + ac))) {
+        cardinalCount++;
+      }
+    }
+    if (cardinalCount >= 2) sweepSafeBonus += SWEEP_SAFE_BONUS;
+  }
+
+  return sweepSafeBonus;
+}
+function computeCursorProximityBonus(
+  candidate: Candidate,
+  anyHasWallAdjacent: boolean,
+  cursorPos?: TilePos,
+): number {
+  if (anyHasWallAdjacent || candidate.gapsFilled <= 0 || !cursorPos) return 0;
+
+  let avgDistance = 0;
+  for (const [dr, dc] of candidate.rotation.offsets) {
+    avgDistance +=
+      Math.abs(candidate.row + dr - cursorPos.row) +
+      Math.abs(candidate.col + dc - cursorPos.col);
+  }
+  avgDistance /= candidate.rotation.offsets.length;
+  return Math.max(0, CURSOR_PROXIMITY_MAX - avgDistance) * CURSOR_PROXIMITY_MULTIPLIER;
+}
+function computeInnerObstacleBonus(
+  candidate: Candidate,
+  targetGaps: Set<number>,
+  castle: TileRect,
+  tiles: readonly (readonly Tile[])[],
+): number {
+  if (candidate.gapsFilled < 2) return 0;
+
+  let hasInnerObstacle = false;
+  for (const [dr, dc] of candidate.rotation.offsets) {
+    const pr = candidate.row + dr;
+    const pc = candidate.col + dc;
+    const key = packTile(pr, pc);
+    if (!targetGaps.has(key)) continue;
+    for (const [ar, ac] of DIRS_4) {
+      const nr = pr + ar;
+      const nc = pc + ac;
+      if (
+        nr >= castle.top &&
+        nr <= castle.bottom &&
+        nc >= castle.left &&
+        nc <= castle.right &&
+        isWater(tiles, nr, nc)
+      ) {
+        hasInnerObstacle = true;
+      }
+    }
+  }
+
+  if (!hasInnerObstacle) return 0;
+
+  let innerTiles = 0;
+  for (const [dr, dc] of candidate.rotation.offsets) {
+    const pr = candidate.row + dr;
+    const pc = candidate.col + dc;
+    if (targetGaps.has(packTile(pr, pc))) continue;
+    if (
+      pr >= castle.top &&
+      pr <= castle.bottom &&
+      pc >= castle.left &&
+      pc <= castle.right
+    ) {
+      innerTiles++;
+    }
+  }
+
+  return innerTiles * INNER_OBSTACLE_MULTIPLIER;
+}
+function computeDifficultyBonus(
+  state: GameState,
+  candidate: Candidate,
+): number {
+  if (candidate.rotation.offsets.length !== 1 || candidate.gapsFilled !== 1) return 0;
+
+  const pr = candidate.row + candidate.rotation.offsets[0]![0];
+  const pc = candidate.col + candidate.rotation.offsets[0]![1];
+  // Track obstacle directions: [north, south, west, east]
+  const obstacles = getCardinalObstacleMask(state, pr, pc);
+  const total = obstacles.filter(Boolean).length;
+  const hasOpposite =
+    (obstacles[0] && obstacles[1]) || (obstacles[2] && obstacles[3]);
+  if (total >= 2 && hasOpposite) return total * DIFFICULTY_MULTIPLIER;
+  if (total >= 1) return total;
+  return 0;
+}
+function computeWastefulClosureAdjustment(
+  candidate: Candidate,
+  targetGaps: Set<number>,
+  castle: TileRect,
+  usefulGain: number,
+  baseGapBonus: number,
+): { gapBonus: number; wastefulClosurePenalty: number } {
+  if (candidate.gapsFilled <= 0 || castle.top > castle.bottom) {
+    return { gapBonus: baseGapBonus, wastefulClosurePenalty: 0 };
+  }
+
+  let insideNonGap = 0;
+  let outsideNonGap = 0;
+  for (const [dr, dc] of candidate.rotation.offsets) {
+    const pr = candidate.row + dr;
+    const pc = candidate.col + dc;
+    if (targetGaps.has(packTile(pr, pc))) continue;
+    if (
+      pr >= castle.top &&
+      pr <= castle.bottom &&
+      pc >= castle.left &&
+      pc <= castle.right
+    ) {
+      insideNonGap++;
+    } else {
+      outsideNonGap++;
+    }
+  }
+
+  if (outsideNonGap === 0 && insideNonGap > candidate.gapsFilled) {
+    return {
+      gapBonus: 0,
+      wastefulClosurePenalty: usefulGain + insideNonGap,
+    };
+  }
+
+  return { gapBonus: baseGapBonus, wastefulClosurePenalty: 0 };
+}
+function shouldRejectForFatWalls(
+  rawFatBlocks: number,
+  fatGainPerBlock: number,
+  usefulGain: number,
+  fatExempt: boolean,
+): boolean {
+  return (
+    rawFatBlocks > 0 &&
+    fatGainPerBlock > 0 &&
+    usefulGain < rawFatBlocks * fatGainPerBlock &&
+    !fatExempt
+  );
+}
+/** Cheap fat-wall check — no Set copy, just checks if placing creates 2×2 blocks. */
+function checkFatWall(
+  walls: Set<number>,
+  candidate: Candidate,
+  _gaps: Set<number>,
+): { fatWallTiles: number; gapClosingFat: boolean } {
+  const { addedKeys, addedSet: _, isWall } = buildCandidateWallInfo(walls, candidate.rotation.offsets, candidate.row, candidate.col);
+  let fatWallTiles = 0;
+  let gapClosingFat = false;
+  for (const key of addedKeys) {
+    const { r, c } = unpackTile(key);
+    if (!tileCreatesFatBlock(r, c, isWall)) continue;
+    if (candidate.gapsFilled > 0) {
+      gapClosingFat = true;
+      continue;
+    }
+    fatWallTiles++;
+    break;
+  }
+  return { fatWallTiles, gapClosingFat };
+}
+/** Count wasted tiles in small pockets (< SMALL_POCKET_MAX_SIZE). */
+function countSmallPocketTiles(
+  walls: Set<number>,
+  outsideSet: Set<number>,
+): { wasted: number; smallestPocket: number } {
+  let wasted = 0;
+  let smallestPocket = Infinity;
+  const visited = new Set<number>();
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      const k = packTile(r, c);
+      if (visited.has(k) || outsideSet.has(k) || walls.has(k)) continue;
+      const pocket = floodPocket(k, visited, walls, outsideSet);
+      if (pocket.length < SMALL_POCKET_MAX_SIZE) {
+        wasted += pocket.length;
+        if (pocket.length < smallestPocket) smallestPocket = pocket.length;
+      }
+    }
+  }
+  return { wasted, smallestPocket };
+}
+/** Check if the current piece (in any rotation) can fill any of the given gaps. */
+function canPieceFillAnyGap(
+  state: GameState,
+  playerId: number,
+  piece: PieceShape,
+  interior: Set<number>,
+  gaps: Set<number>,
+  rect?: TileRect | null,
+): boolean {
+  // Interior excluding these gaps — gap tiles are ring holes, not forbidden interior.
+  // Also exclude the castle rect interior: the enclosure has gaps so it's NOT closed,
+  // and the AI should be free to extend pieces into it while filling those gaps.
+  const adjusted = new Set(interior);
+  for (const gk of gaps) adjusted.delete(gk);
+  if (rect) {
+    for (let r = rect.top; r <= rect.bottom; r++) {
+      for (let c = rect.left; c <= rect.right; c++) {
+        adjusted.delete(packTile(r, c));
+      }
+    }
+  }
+  let rot = piece;
+  for (let ri = 0; ri < 4; ri++) {
+    for (const gk of gaps) {
+      const { r: gr, c: gc } = unpackTile(gk);
+      for (const [dr, dc] of rot.offsets) {
+        if (canPlacePiece(state, playerId, rot, gr - dr, gc - dc, adjusted)) return true;
+      }
+    }
+    rot = rotateCW(rot);
+  }
+  return false;
+}
+/**
+ * When the current piece can't fill any gap, check if some gaps are
+ * structurally unreachable by ANY piece shape.  For those, add interior plug
+ * tiles (seal diagonal leaks from inside, same as water/pit plugs).
+ * Returns true if the gap set was modified.
+ */
+function plugUnreachableGaps(
+  gaps: Set<number>,
+  rect: TileRect | null,
+  state: GameState,
+  playerId: number,
+  player: { walls: Set<number>; interior: Set<number> },
+): boolean {
+  if (!rect || gaps.size === 0) return false;
+  const unreachable: number[] = [];
+  for (const gk of gaps) {
+    if (!isGapFillableByAnyShape(state, playerId, player.interior, gk, rect)) {
+      unreachable.push(gk);
+    }
+  }
+  if (unreachable.length === 0) return false;
+  for (const gk of unreachable) gaps.delete(gk);
+  // Add interior-facing grass neighbors as plug gaps (same diagonal-leak seal as water/pits)
+  for (const gk of unreachable) {
+    const { r: gr, c: gc } = unpackTile(gk);
+    for (const [dr, dc] of DIRS_8) {
+      const nr = gr + dr, nc = gc + dc;
+      if (nr < rect.top || nr > rect.bottom || nc < rect.left || nc > rect.right) continue;
+      const nk = packTile(nr, nc);
+      if (player.walls.has(nk)) continue;
+      if (!isGrass(state.map.tiles, nr, nc)) continue;
+      gaps.add(nk);
+    }
+  }
+  filterUnfillableGaps(gaps, state, player.interior);
+  return true;
+}
+/** Check if ANY standard piece shape (in any rotation) could fill a single gap tile. */
+function isGapFillableByAnyShape(
+  state: GameState,
+  playerId: number,
+  interior: Set<number>,
+  gapKey: number,
+  rect?: TileRect | null,
+): boolean {
+  const { r: gr, c: gc } = unpackTile(gapKey);
+  const adjusted = new Set(interior);
+  adjusted.delete(gapKey);
+  if (rect) {
+    for (let r = rect.top; r <= rect.bottom; r++) {
+      for (let c = rect.left; c <= rect.right; c++) {
+        adjusted.delete(packTile(r, c));
+      }
+    }
+  }
+  for (const shape of ALL_PIECE_SHAPES) {
+    let rot = shape;
+    for (let ri = 0; ri < 4; ri++) {
+      for (const [dr, dc] of rot.offsets) {
+        if (canPlacePiece(state, playerId, rot, gr - dr, gc - dc, adjusted)) return true;
+      }
+      rot = rotateCW(rot);
+    }
+  }
+  return false;
+}
+/** Enumerate all valid placements for a piece, scoring adjacency/gap metrics. */
+function enumerateCandidates(
+  state: GameState,
+  playerId: number,
+  piece: PieceShape,
+  walls: Set<number>,
+  outside: Set<number>,
+  targetGaps: Set<number>,
+  interiorExcludingGaps: Set<number>,
+): Candidate[] {
+  const candidates: Candidate[] = [];
+  let rotated = piece;
+  for (let rotation = 0; rotation < 4; rotation++) {
+    for (let r = 0; r < GRID_ROWS - rotated.height + 1; r++) {
+      for (let c = 0; c < GRID_COLS - rotated.width + 1; c++) {
+        if (!canPlacePiece(state, playerId, rotated, r, c, interiorExcludingGaps)) continue;
+
+        const {
+          gapsFilled,
+          wallAdjacent,
+          connectedTiles,
+          gapAdjacent,
+          isolated,
+        } = scoreCandidateGapMetrics(r, c, rotated.offsets, walls, targetGaps);
+
+        if (rotated.offsets.length > 1) {
+          let anyOutsideOrGap = false;
+          for (const [dr, dc] of rotated.offsets) {
+            const k = packTile(r + dr, c + dc);
+            if (outside.has(k) || targetGaps.has(k)) {
+              anyOutsideOrGap = true;
+              break;
+            }
+          }
+          if (!anyOutsideOrGap) continue;
+        }
+
+        let housesHit = 0;
+        let bonusHit = 0;
+        for (const [dr, dc] of rotated.offsets) {
+          const pr = r + dr,
+            pc = c + dc;
+          if (
+            state.map.houses.some(
+              (h) => h.alive && h.row === pr && h.col === pc,
+            )
+          )
+            housesHit++;
+          if (state.bonusSquares.some((bs) => bs.row === pr && bs.col === pc))
+            bonusHit++;
+        }
+
+        candidates.push({
+          row: r,
+          col: c,
+          rotation: rotated,
+          gapsFilled,
+          wallAdjacent,
+          connectedTiles,
+          gapAdjacent,
+          isolated,
+          housesHit,
+          bonusHit,
+        });
+      }
+    }
+    rotated = rotateCW(rotated);
+  }
+  return candidates;
+}
+function scoreCandidateGapMetrics(
+  row: number,
+  col: number,
+  offsets: ReadonlyArray<readonly [number, number]>,
+  walls: Set<number>,
+  targetGaps: Set<number>,
+): {
+  gapsFilled: number;
+  wallAdjacent: number;
+  connectedTiles: number;
+  gapAdjacent: number;
+  isolated: number;
+} {
+  let gapsFilled = 0;
+  let wallAdjacent = 0;
+  let connectedTiles = 0;
+  let gapAdjacent = 0;
+  let isolated = 0;
+
+  for (const [dr, dc] of offsets) {
+    const pr = row + dr;
+    const pc = col + dc;
+    const key = packTile(pr, pc);
+    if (targetGaps.has(key)) {
+      gapsFilled++;
+      continue;
+    }
+    let hasWallAdjacent = false;
+    let hasGapAdjacent = false;
+    for (const [ar, ac] of DIRS_4) {
+      const nk = packTile(pr + ar, pc + ac);
+      if (walls.has(nk)) {
+        wallAdjacent++;
+        hasWallAdjacent = true;
+      }
+      if (targetGaps.has(nk)) hasGapAdjacent = true;
+    }
+    if (hasWallAdjacent) connectedTiles++;
+    if (hasGapAdjacent) gapAdjacent++;
+    if (!hasWallAdjacent && !hasGapAdjacent) isolated++;
+  }
+
+  for (const [dr, dc] of offsets) {
+    const pr = row + dr;
+    const pc = col + dc;
+    if (!targetGaps.has(packTile(pr, pc))) continue;
+    let hasWallAdjacent = false;
+    for (const [ar, ac] of DIRS_4) {
+      if (walls.has(packTile(pr + ar, pc + ac))) {
+        wallAdjacent++;
+        hasWallAdjacent = true;
+      }
+    }
+    if (hasWallAdjacent) connectedTiles++;
+  }
+
+  return { gapsFilled, wallAdjacent, connectedTiles, gapAdjacent, isolated };
+}
+/**
+ * When the best scored placement has usefulGain <= 0, pick a fallback:
+ * extend toward unenclosed towers, or discard somewhere harmless.
+ * Returns null when no fallback applies (interior full / nothing useful).
+ */
+function pickFallbackPlacement(
+  scored: Scored[],
+  state: GameState,
+  walls: Set<number>,
+  outside: Set<number>,
+  interior: Set<number>,
+  castle: { tower: Tower },
+  castleMargin: number,
+  homeWasBroken: boolean,
+  unenclosedTowers: Tower[],
+  caresAboutHouses: boolean,
+  caresAboutBonuses: boolean,
+): { placement: AiPlacement | null; reason: string } | null {
+  const placementResult = (
+    candidate: Candidate,
+    reason: string,
+  ): { placement: AiPlacement; reason: string } => {
+    return {
+      placement: candidateToPlacement(candidate),
+      reason,
+    };
+  };
+
+  // Count free interior tiles — if territory is full, stop building
+  let totalFree = 0;
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      const k = packTile(r, c);
+      if (!interior.has(k)) continue;
+      if (walls.has(k)) continue;
+      let blocked = false;
+      for (const t of state.map.towers) {
+        if (isTowerTile(t, r, c)) {
+          blocked = true;
+          break;
+        }
+      }
+      if (blocked) continue;
+      for (const p of state.players) {
+        for (const cannon of p.cannons) {
+          if (isCannonTile(cannon, r, c)) {
+            blocked = true;
+            break;
+          }
+        }
+        if (blocked) break;
+      }
+      if (!blocked) totalFree++;
+    }
+  }
+  if (totalFree < MIN_FREE_INTERIOR && unenclosedTowers.length === 0)
+    return { placement: null, reason: 'interior-full' };
+
+  const createsSmallEnclosure = (candidate: Candidate): boolean => {
+    const simulatedWalls = buildSimulatedWalls(walls, candidate);
+    const simulatedOutside = computeOutside(simulatedWalls);
+    const visited = new Set<number>();
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        const k = packTile(r, c);
+        if (visited.has(k) || simulatedOutside.has(k) || simulatedWalls.has(k))
+          continue;
+        const pocket = floodPocket(k, visited, simulatedWalls, simulatedOutside);
+        if (pocket.length >= MIN_VIABLE_ENCLOSURE) continue;
+        let preExisting = true;
+        for (const pocketKey of pocket) {
+          if (outside.has(pocketKey)) {
+            preExisting = false;
+            break;
+          }
+        }
+        if (preExisting) continue;
+        let hasOccupant = false;
+        for (const pocketKey of pocket) {
+          const { r: pr, c: pc } = unpackTile(pocketKey);
+          for (const t of state.map.towers) {
+            if (isTowerTile(t, pr, pc)) {
+              hasOccupant = true;
+              break;
+            }
+          }
+          if (!hasOccupant && !isGrass(state.map.tiles, pr, pc))
+            hasOccupant = true;
+          if (!hasOccupant) {
+            for (const g of state.grunts) {
+              if (g.row === pr && g.col === pc) {
+                hasOccupant = true;
+                break;
+              }
+            }
+          }
+          if (hasOccupant) break;
+        }
+        if (!hasOccupant) return true;
+      }
+    }
+    return false;
+  };
+
+  const createsSmallEnclosureCached = memoize(createsSmallEnclosure);
+
+  const insideEnclosure = (candidate: Candidate): boolean => {
+    for (const [dr, dc] of candidate.rotation.offsets) {
+      const k = packTile(candidate.row + dr, candidate.col + dc);
+      for (const p of state.players) {
+        if (p.interior.has(k)) return true;
+      }
+    }
+    return false;
+  };
+
+  const fallbackTowers = homeWasBroken
+    ? unenclosedTowers.filter((t) => t !== castle.tower)
+    : unenclosedTowers;
+
+  const isInsideOrFatCandidate = (candidate: Candidate): boolean => {
+    return insideEnclosure(candidate) || !isFatFreeCandidate(walls, candidate);
+  };
+
+  if (fallbackTowers.length > 0) {
+    const ringDistanceCache = new Map<Candidate, { distance: number; tooClose: boolean }>();
+    const picked = pickTowerExtensionCandidate(
+      scored,
+      fallbackTowers,
+      castleMargin,
+      ringDistanceCache,
+      createsSmallEnclosureCached,
+      isInsideOrFatCandidate,
+    );
+    if (picked.candidate) {
+      return placementResult(picked.candidate, picked.reason);
+    }
+    return { placement: null, reason: picked.reason };
+  } else {
+    const bestDiscard = pickDiscardCandidate(
+      scored,
+      caresAboutHouses,
+      caresAboutBonuses,
+      createsSmallEnclosureCached,
+      isInsideOrFatCandidate,
+    );
+    if (bestDiscard) {
+      return placementResult(bestDiscard, 'discard');
+    }
+    return { placement: null, reason: 'discard-all-fat' };
+  }
+}
+/** Create a memoized version of a function (Map-based cache). */
+function memoize<K, V>(fn: (key: K) => V): (key: K) => V {
+  const cache = new Map<K, V>();
+  return (key: K): V => {
+    const cached = cache.get(key);
+    if (cached != null) return cached;
+    const computed = fn(key);
+    cache.set(key, computed);
+    return computed;
+  };
+}
+function pickTowerExtensionCandidate(
+  scored: Scored[],
+  fallbackTowers: readonly Tower[],
+  castleMargin: number,
+  ringDistanceCache: Map<Candidate, { distance: number; tooClose: boolean }>,
+  createsSmallEnclosureCached: (candidate: Candidate) => boolean,
+  isInsideOrFatCandidate: (candidate: Candidate) => boolean,
+): {
+  candidate: Candidate | null;
+  reason: 'extend' | 'extend-fallback' | 'extend-all-fat';
+} {
+  const extending = scored.filter((s) =>
+    isExtensionCandidateForFallback(
+      s.candidate,
+      fallbackTowers,
+      castleMargin,
+      ringDistanceCache,
+      createsSmallEnclosureCached,
+      isInsideOrFatCandidate,
+    )
+  );
+
+  if (extending.length > 0) {
+    extending.sort(
+      (a, b) =>
+        compareByFallbackRingDistance(
+          a.candidate,
+          b.candidate,
+          fallbackTowers,
+          castleMargin,
+          ringDistanceCache,
+        ) ||
+        b.candidate.wallAdjacent - a.candidate.wallAdjacent,
+    );
+    return { candidate: extending[0]!.candidate, reason: 'extend' };
+  }
+
+  const fallback = [...scored].filter((s) =>
+    isExtensionFallbackCandidateForFallback(
+      s.candidate,
+      createsSmallEnclosureCached,
+      isInsideOrFatCandidate,
+    )
+  );
+  fallback.sort((a, b) =>
+    compareByFallbackRingDistance(
+      a.candidate,
+      b.candidate,
+      fallbackTowers,
+      castleMargin,
+      ringDistanceCache,
+    )
+  );
+  if (fallback.length > 0) {
+    return { candidate: fallback[0]!.candidate, reason: 'extend-fallback' };
+  }
+
+  return { candidate: null, reason: 'extend-all-fat' };
+}
+function compareByFallbackRingDistance(
+  a: Candidate,
+  b: Candidate,
+  fallbackTowers: readonly Tower[],
+  castleMargin: number,
+  ringDistanceCache: Map<Candidate, { distance: number; tooClose: boolean }>,
+): number {
+  return (
+    ringDistanceForFallbackTowers(a, fallbackTowers, castleMargin, ringDistanceCache).distance -
+    ringDistanceForFallbackTowers(b, fallbackTowers, castleMargin, ringDistanceCache).distance
+  );
+}
+function isExtensionCandidateForFallback(
+  candidate: Candidate,
+  fallbackTowers: readonly Tower[],
+  castleMargin: number,
+  ringDistanceCache: Map<Candidate, { distance: number; tooClose: boolean }>,
+  createsSmallEnclosureCached: (candidate: Candidate) => boolean,
+  isInsideOrFatCandidate: (candidate: Candidate) => boolean,
+): boolean {
+  const rd = ringDistanceForFallbackTowers(
+    candidate,
+    fallbackTowers,
+    castleMargin,
+    ringDistanceCache,
+  );
+  if (rd.tooClose) return false;
+  if (createsSmallEnclosureCached(candidate)) return false;
+  if (isInsideOrFatCandidate(candidate)) return false;
+  return true;
+}
+function ringDistanceForFallbackTowers(
+  candidate: Candidate,
+  fallbackTowers: readonly Tower[],
+  castleMargin: number,
+  ringDistanceCache: Map<Candidate, { distance: number; tooClose: boolean }>,
+): { distance: number; tooClose: boolean } {
+  const cached = ringDistanceCache.get(candidate);
+  if (cached) return cached;
+
+  let bestDistance = Infinity;
+  let tooClose = false;
+  for (const tower of fallbackTowers) {
+    const towerDistance = candidateRingDistanceForTower(candidate, tower, castleMargin);
+    if (towerDistance.tooClose) tooClose = true;
+    if (towerDistance.distance < bestDistance) bestDistance = towerDistance.distance;
+  }
+
+  const result = { distance: bestDistance, tooClose };
+  ringDistanceCache.set(candidate, result);
+  return result;
+}
+function candidateRingDistanceForTower(
+  candidate: Candidate,
+  tower: Tower,
+  castleMargin: number,
+): { distance: number; tooClose: boolean } {
+  const ringTop = tower.row - castleMargin - 1;
+  const ringBot = tower.row + 1 + castleMargin + 1;
+  const ringLeft = tower.col - castleMargin - 1;
+  const ringRight = tower.col + 1 + castleMargin + 1;
+
+  let tooClose = false;
+  for (const [dr, dc] of candidate.rotation.offsets) {
+    const pr = candidate.row + dr;
+    const pc = candidate.col + dc;
+    if (
+      pr >= tower.row - castleMargin &&
+      pr <= tower.row + 1 + castleMargin &&
+      pc >= tower.col - castleMargin &&
+      pc <= tower.col + 1 + castleMargin
+    ) {
+      if (
+        pr > ringTop &&
+        pr < ringBot &&
+        pc > ringLeft &&
+        pc < ringRight
+      ) {
+        tooClose = true;
+      }
+    }
+  }
+
+  const centerR = tower.row + 0.5;
+  const centerC = tower.col + 0.5;
+  const distance =
+    Math.abs(candidate.row - centerR) +
+    Math.abs(candidate.col - centerC);
+
+  return { distance, tooClose };
+}
+function isExtensionFallbackCandidateForFallback(
+  candidate: Candidate,
+  createsSmallEnclosureCached: (candidate: Candidate) => boolean,
+  isInsideOrFatCandidate: (candidate: Candidate) => boolean,
+): boolean {
+  return !createsSmallEnclosureCached(candidate) && !isInsideOrFatCandidate(candidate);
+}
+function pickDiscardCandidate(
+  scored: Scored[],
+  caresAboutHouses: boolean,
+  caresAboutBonuses: boolean,
+  createsSmallEnclosureCached: (candidate: Candidate) => boolean,
+  isInsideOrFatCandidate: (candidate: Candidate) => boolean,
+): Candidate | null {
+  const throwAway = [...scored].filter(
+    (s) => !isInsideOrFatCandidate(s.candidate),
+  );
+  if (throwAway.length === 0) return null;
+  throwAway.sort((a, b) =>
+    compareDiscardCandidatesForFallback(
+      a,
+      b,
+      caresAboutHouses,
+      caresAboutBonuses,
+      createsSmallEnclosureCached,
+    )
+  );
+  return throwAway[0]!.candidate;
+}
+function compareDiscardCandidatesForFallback(
+  a: Scored,
+  b: Scored,
+  caresAboutHouses: boolean,
+  caresAboutBonuses: boolean,
+  createsSmallEnclosureCached: (candidate: Candidate) => boolean,
+): number {
+  const aHit = candidateObstacleHits(a.candidate, caresAboutHouses, caresAboutBonuses);
+  const bHit = candidateObstacleHits(b.candidate, caresAboutHouses, caresAboutBonuses);
+  if (aHit !== bHit) return aHit - bHit;
+  const aEncloses = createsSmallEnclosureCached(a.candidate) ? 0 : 1;
+  const bEncloses = createsSmallEnclosureCached(b.candidate) ? 0 : 1;
+  if (aEncloses !== bEncloses) return aEncloses - bEncloses;
+  return a.fatWallTiles - b.fatWallTiles;
+}
+function candidateObstacleHits(
+  candidate: Pick<Candidate, "housesHit" | "bonusHit">,
+  caresAboutHouses: boolean,
+  caresAboutBonuses: boolean,
+): number {
+  return (caresAboutHouses ? candidate.housesHit : 0) +
+    (caresAboutBonuses ? candidate.bonusHit : 0);
+}
+function candidateToPlacement(candidate: Candidate): AiPlacement {
+  return {
+    piece: candidate.rotation,
+    row: candidate.row,
+    col: candidate.col,
+  };
+}
+function isFatFreeCandidate(
+  walls: Set<number>,
+  candidate: { row: number; col: number; rotation?: PieceShape; piece?: PieceShape },
+): boolean {
+  return countFatBlocks(walls, candidate) === 0;
+}
+/** Count 2×2 all-wall blocks a candidate would create (no exemptions). */
+function countFatBlocks(
+  walls: Set<number>,
+  candidate: { row: number; col: number; rotation?: PieceShape; piece?: PieceShape },
+): number {
+  const shape = candidate.rotation ?? candidate.piece;
+  if (!shape) return 0;
+  const { addedKeys, addedSet: _, isWall } = buildCandidateWallInfo(walls, shape.offsets, candidate.row, candidate.col);
+  let blocks = 0;
+  for (const key of addedKeys) {
+    const { r, c } = unpackTile(key);
+    if (tileCreatesFatBlock(r, c, isWall)) blocks++;
+  }
+  return blocks;
+}
+/** Build the added-key set and wall predicate for a candidate placement. */
+function buildCandidateWallInfo(
+  walls: Set<number>,
+  offsets: readonly (readonly [number, number])[],
+  row: number,
+  col: number,
+): { addedKeys: number[]; addedSet: Set<number>; isWall: (k: number) => boolean } {
+  const addedKeys: number[] = [];
+  for (const [dr, dc] of offsets) {
+    addedKeys.push(packTile(row + dr, col + dc));
+  }
+  const addedSet = new Set(addedKeys);
+  const isWall = (k: number) => walls.has(k) || addedSet.has(k);
+  return { addedKeys, addedSet, isWall };
+}
+/** Check if a tile creates any 2x2 all-wall block when added to existing walls. */
+function tileCreatesFatBlock(
+  r: number,
+  c: number,
+  isWall: (k: number) => boolean,
+): boolean {
+  for (const [cr, cc] of CORNERS_2X2) {
+    const tr = r + cr, tc = c + cc;
+    if (tr < 0 || tr + 1 >= GRID_ROWS || tc < 0 || tc + 1 >= GRID_COLS) continue;
+    if (isWall(packTile(tr, tc)) && isWall(packTile(tr, tc + 1)) &&
+        isWall(packTile(tr + 1, tc)) && isWall(packTile(tr + 1, tc + 1))) {
+      return true;
+    }
+  }
+  return false;
+}
+/** Build the simulated wall set for a candidate. */
+function buildSimulatedWalls(
+  walls: Set<number>,
+  candidate: Candidate,
+): Set<number> {
+  const simulatedWalls = new Set(walls);
+  for (const [dr, dc] of candidate.rotation.offsets) {
+    simulatedWalls.add(packTile(candidate.row + dr, candidate.col + dc));
+  }
+  return simulatedWalls;
 }

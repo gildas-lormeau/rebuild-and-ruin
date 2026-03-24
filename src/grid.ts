@@ -7,13 +7,13 @@
  * third module that depends on neither.
  */
 
+export enum Tile {
+  Grass = 0,
+  Water = 1,
+}
+
 export const GRID_COLS = 40;
 export const GRID_ROWS = 28;
 export const TILE_SIZE = 16;
 /** Canvas display scale factor (pixel-art 2× upscale). */
 export const SCALE = 2;
-
-export enum Tile {
-  Grass = 0,
-  Water = 1,
-}

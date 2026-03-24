@@ -17,16 +17,6 @@ export interface BannerState {
   newTerritory?: Set<number>[];
   newWalls?: Set<number>[];
 }
-
-export function createBannerState(): BannerState {
-  return {
-    active: false,
-    progress: 0,
-    text: "",
-    callback: null,
-  };
-}
-
 interface ShowBannerDeps {
   banner: BannerState;
   state: GameState;
@@ -39,6 +29,14 @@ interface ShowBannerDeps {
   setModeBanner: () => void;
 }
 
+export function createBannerState(): BannerState {
+  return {
+    active: false,
+    progress: 0,
+    text: "",
+    callback: null,
+  };
+}
 export function showBannerTransition(deps: ShowBannerDeps): void {
   const {
     banner,
@@ -87,7 +85,6 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
   banner.callback = onDone;
   setModeBanner();
 }
-
 export function tickBannerTransition(
   banner: BannerState,
   dt: number,

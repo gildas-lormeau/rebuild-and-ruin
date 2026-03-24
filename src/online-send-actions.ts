@@ -23,7 +23,6 @@ export function tryPlacePieceAndSend(
   }
   return placed;
 }
-
 export function tryPlaceCannonAndSend(
   ctrl: PlayerController,
   gameState: GameState,
@@ -45,7 +44,18 @@ export function tryPlaceCannonAndSend(
   }
   return placed;
 }
+export function fireAndSend(
+  ctrl: PlayerController,
+  gameState: GameState,
+  send: (msg: GameMessage) => void,
+): void {
+  const ballsBefore = gameState.cannonballs.length;
+  ctrl.fire(gameState);
 
+  if (gameState.cannonballs.length > ballsBefore) {
+    send(buildCannonFiredMsg(gameState.cannonballs[gameState.cannonballs.length - 1]!));
+  }
+}
 export function buildCannonFiredMsg(ball: {
   playerId: number; cannonIdx: number;
   startX: number; startY: number; targetX: number; targetY: number;
@@ -62,17 +72,4 @@ export function buildCannonFiredMsg(ball: {
     speed: ball.speed,
     incendiary: ball.incendiary || undefined,
   };
-}
-
-export function fireAndSend(
-  ctrl: PlayerController,
-  gameState: GameState,
-  send: (msg: GameMessage) => void,
-): void {
-  const ballsBefore = gameState.cannonballs.length;
-  ctrl.fire(gameState);
-
-  if (gameState.cannonballs.length > ballsBefore) {
-    send(buildCannonFiredMsg(gameState.cannonballs[gameState.cannonballs.length - 1]!));
-  }
 }

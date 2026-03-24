@@ -16,118 +16,17 @@ import { facingToCardinal } from "./spatial.ts";
 import { drawSprite } from "./sprites.ts";
 import { IMPACT_FLASH_DURATION } from "./types.ts";
 
-
 // Impact animation phases (normalized 0–1 within IMPACT_FLASH_DURATION)
 const IMPACT_CORE_END = 0.25;
 const IMPACT_RING_END = 0.6;
 const IMPACT_DEBRIS_END = 0.8;
 const IMPACT_SMOKE_START = 0.2;
-
 // Crosshair colors per player
 const CROSSHAIR_COLORS: RGB[] = [
   [255, 50, 50], // P1 red
   [60, 130, 255], // P2 blue
   [255, 200, 30], // P3 gold
 ];
-
-// ---------------------------------------------------------------------------
-// Phantom rendering
-// ---------------------------------------------------------------------------
-
-/** Draw a semi-transparent cannon sprite as a placement phantom. */
-function drawPhantomCannon(
-  ctx: CanvasRenderingContext2D,
-  row: number,
-  col: number,
-  valid: boolean,
-  isSuper: boolean,
-  isBalloon: boolean,
-  facing = 0,
-): void {
-  const cx = col * TILE_SIZE;
-  const cy = row * TILE_SIZE;
-  const sz = isSuper ? 3 : 2;
-  const s = TILE_SIZE * sz;
-  const mid = s / 2;
-
-  ctx.save();
-  ctx.globalAlpha = valid ? 0.7 : 0.5;
-
-  if (isBalloon) {
-    // Balloon base preview — sprite with red tint overlay if invalid
-    drawSprite(ctx, "balloon_base", cx, cy);
-    if (!valid) {
-      ctx.fillStyle = "rgba(170, 34, 34, 0.4)";
-      ctx.fillRect(cx, cy, s, s);
-    }
-    ctx.restore();
-    return;
-  }
-
-  // Draw actual cannon sprite at alpha, tinted red if invalid
-  ctx.translate(cx + mid, cy + mid);
-  ctx.rotate(facing);
-  const tint = !valid;
-  if (isSuper) {
-    // Super gun phantom — symmetric around (0,0)
-    ctx.fillStyle = tint ? "#3a1111" : "#1a1a1a";
-    ctx.fillRect(-14, -8, 28, 24);
-    ctx.fillStyle = tint ? "#553333" : "#333";
-    ctx.fillRect(-18, -6, 5, 11);
-    ctx.fillRect(13, -6, 5, 11);
-    ctx.fillStyle = tint ? "#4a2222" : "#2a2a2a";
-    ctx.fillRect(-16, -2, 32, 2);
-    ctx.fillStyle = tint ? "#884444" : "#444";
-    ctx.fillRect(-4, -18, 8, 27);
-    ctx.fillStyle = tint ? "#331111" : "#111";
-    ctx.fillRect(-1, -18, 2, 3);
-    ctx.fillStyle = tint ? "#cc4444" : "#a33";
-    ctx.fillRect(-5, -11, 10, 2);
-    ctx.fillRect(-5, -5, 10, 2);
-  } else {
-    // Normal cannon phantom — symmetric around (0,0)
-    ctx.fillStyle = tint ? "#3a1111" : "#1a1a1a";
-    ctx.fillRect(-10, -5, 20, 16);
-    ctx.fillStyle = tint ? "#553333" : "#333";
-    ctx.fillRect(-12, -3, 4, 8);
-    ctx.fillRect(8, -3, 4, 8);
-    ctx.fillStyle = tint ? "#4a2222" : "#2a2a2a";
-    ctx.fillRect(-10, 0, 20, 2);
-    ctx.fillStyle = tint ? "#884444" : "#555";
-    ctx.fillRect(-2, -11, 4, 17);
-    ctx.fillStyle = tint ? "#331111" : "#111";
-    ctx.fillRect(-1, -11, 2, 2);
-    ctx.fillStyle = tint ? "#aa4444" : "#777";
-    ctx.fillRect(-3, -6, 6, 2);
-  }
-  ctx.restore();
-}
-
-/** Draw a single phantom piece (fill + optional outline). */
-function drawPiecePhantom(
-  octx: CanvasRenderingContext2D,
-  offsets: [number, number][],
-  row: number,
-  col: number,
-  fillColor: string,
-  alpha: number,
-  outline: boolean,
-): void {
-  octx.save();
-  octx.globalAlpha = alpha;
-  octx.fillStyle = fillColor;
-  for (const [dr, dc] of offsets) {
-    octx.fillRect((col + dc) * TILE_SIZE, (row + dr) * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-  }
-  if (outline) {
-    octx.strokeStyle = "#fff";
-    octx.lineWidth = 1;
-    for (const [dr, dc] of offsets) {
-      octx.strokeRect((col + dc) * TILE_SIZE, (row + dr) * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-    }
-  }
-  octx.restore();
-}
 
 /** Draw phantom piece/cannon previews (AI and human). */
 export function drawPhantoms(
@@ -190,11 +89,6 @@ export function drawPhantoms(
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Map entities
-// ---------------------------------------------------------------------------
-
 /** Draw bonus squares (flashing green diamonds). */
 export function drawBonusSquares(
   octx: CanvasRenderingContext2D,
@@ -211,7 +105,6 @@ export function drawBonusSquares(
     octx.globalAlpha = 1.0;
   }
 }
-
 /** Draw houses (settler tents/huts). */
 export function drawHouses(
   octx: CanvasRenderingContext2D,
@@ -225,7 +118,6 @@ export function drawHouses(
     drawSprite(octx, "house", hx, hy);
   }
 }
-
 /** Draw grunts (little tanks, top-down, rotated to facing). */
 export function drawGrunts(
   octx: CanvasRenderingContext2D,
@@ -240,11 +132,6 @@ export function drawGrunts(
     drawSprite(octx, `grunt_${dir}`, gx, gy);
   }
 }
-
-// ---------------------------------------------------------------------------
-// Water animation (battle phase only)
-// ---------------------------------------------------------------------------
-
 /** Draw animated wave shimmer over water tiles during battle. */
 export function drawWaterAnimation(
   octx: CanvasRenderingContext2D,
@@ -291,11 +178,6 @@ export function drawWaterAnimation(
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Battle effects
-// ---------------------------------------------------------------------------
-
 /** Draw impact flashes, cannonballs, balloons, burning pits, crosshairs, and timer. */
 export function drawBattleEffects(
   octx: CanvasRenderingContext2D,
@@ -526,4 +408,97 @@ export function drawBattleEffects(
     octx.fillText(text, jx, jy);
     octx.restore();
   }
+}
+/** Draw a semi-transparent cannon sprite as a placement phantom. */
+function drawPhantomCannon(
+  ctx: CanvasRenderingContext2D,
+  row: number,
+  col: number,
+  valid: boolean,
+  isSuper: boolean,
+  isBalloon: boolean,
+  facing = 0,
+): void {
+  const cx = col * TILE_SIZE;
+  const cy = row * TILE_SIZE;
+  const sz = isSuper ? 3 : 2;
+  const s = TILE_SIZE * sz;
+  const mid = s / 2;
+
+  ctx.save();
+  ctx.globalAlpha = valid ? 0.7 : 0.5;
+
+  if (isBalloon) {
+    // Balloon base preview — sprite with red tint overlay if invalid
+    drawSprite(ctx, "balloon_base", cx, cy);
+    if (!valid) {
+      ctx.fillStyle = "rgba(170, 34, 34, 0.4)";
+      ctx.fillRect(cx, cy, s, s);
+    }
+    ctx.restore();
+    return;
+  }
+
+  // Draw actual cannon sprite at alpha, tinted red if invalid
+  ctx.translate(cx + mid, cy + mid);
+  ctx.rotate(facing);
+  const tint = !valid;
+  if (isSuper) {
+    // Super gun phantom — symmetric around (0,0)
+    ctx.fillStyle = tint ? "#3a1111" : "#1a1a1a";
+    ctx.fillRect(-14, -8, 28, 24);
+    ctx.fillStyle = tint ? "#553333" : "#333";
+    ctx.fillRect(-18, -6, 5, 11);
+    ctx.fillRect(13, -6, 5, 11);
+    ctx.fillStyle = tint ? "#4a2222" : "#2a2a2a";
+    ctx.fillRect(-16, -2, 32, 2);
+    ctx.fillStyle = tint ? "#884444" : "#444";
+    ctx.fillRect(-4, -18, 8, 27);
+    ctx.fillStyle = tint ? "#331111" : "#111";
+    ctx.fillRect(-1, -18, 2, 3);
+    ctx.fillStyle = tint ? "#cc4444" : "#a33";
+    ctx.fillRect(-5, -11, 10, 2);
+    ctx.fillRect(-5, -5, 10, 2);
+  } else {
+    // Normal cannon phantom — symmetric around (0,0)
+    ctx.fillStyle = tint ? "#3a1111" : "#1a1a1a";
+    ctx.fillRect(-10, -5, 20, 16);
+    ctx.fillStyle = tint ? "#553333" : "#333";
+    ctx.fillRect(-12, -3, 4, 8);
+    ctx.fillRect(8, -3, 4, 8);
+    ctx.fillStyle = tint ? "#4a2222" : "#2a2a2a";
+    ctx.fillRect(-10, 0, 20, 2);
+    ctx.fillStyle = tint ? "#884444" : "#555";
+    ctx.fillRect(-2, -11, 4, 17);
+    ctx.fillStyle = tint ? "#331111" : "#111";
+    ctx.fillRect(-1, -11, 2, 2);
+    ctx.fillStyle = tint ? "#aa4444" : "#777";
+    ctx.fillRect(-3, -6, 6, 2);
+  }
+  ctx.restore();
+}
+/** Draw a single phantom piece (fill + optional outline). */
+function drawPiecePhantom(
+  octx: CanvasRenderingContext2D,
+  offsets: [number, number][],
+  row: number,
+  col: number,
+  fillColor: string,
+  alpha: number,
+  outline: boolean,
+): void {
+  octx.save();
+  octx.globalAlpha = alpha;
+  octx.fillStyle = fillColor;
+  for (const [dr, dc] of offsets) {
+    octx.fillRect((col + dc) * TILE_SIZE, (row + dr) * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+  }
+  if (outline) {
+    octx.strokeStyle = "#fff";
+    octx.lineWidth = 1;
+    for (const [dr, dc] of offsets) {
+      octx.strokeRect((col + dc) * TILE_SIZE, (row + dr) * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    }
+  }
+  octx.restore();
 }

@@ -25,41 +25,9 @@ export function isTileOwnedByPlayer(
 ): boolean {
   return player.interior.has(key) || player.walls.has(key);
 }
-
-export function collectAllWalls(state: GameState): Set<number> {
-  const allWalls = new Set<number>();
-  for (const player of state.players) {
-    for (const key of player.walls) allWalls.add(key);
-  }
-  return allWalls;
-}
-
 export function deleteWallFromAllPlayers(state: GameState, key: number): void {
   for (const player of state.players) player.walls.delete(key);
 }
-
-export function collectAllInterior(state: GameState): Set<number> {
-  const allInterior = new Set<number>();
-  for (const player of state.players) {
-    for (const key of player.interior) allInterior.add(key);
-  }
-  return allInterior;
-}
-
-export function collectAllCannonTiles(
-  state: GameState,
-  options?: { excludeBalloon?: boolean },
-): Set<number> {
-  const cannonTiles = new Set<number>();
-  for (const player of state.players) {
-    for (const cannon of player.cannons) {
-      if (options?.excludeBalloon && cannon.balloon) continue;
-      forEachCannonTile(cannon, (_r, _c, key) => cannonTiles.add(key));
-    }
-  }
-  return cannonTiles;
-}
-
 export function collectOccupiedTiles(
   state: GameState,
   options?: {
@@ -123,12 +91,37 @@ export function collectOccupiedTiles(
 
   return occupied;
 }
-
+export function collectAllWalls(state: GameState): Set<number> {
+  const allWalls = new Set<number>();
+  for (const player of state.players) {
+    for (const key of player.walls) allWalls.add(key);
+  }
+  return allWalls;
+}
+export function collectAllInterior(state: GameState): Set<number> {
+  const allInterior = new Set<number>();
+  for (const player of state.players) {
+    for (const key of player.interior) allInterior.add(key);
+  }
+  return allInterior;
+}
+export function collectAllCannonTiles(
+  state: GameState,
+  options?: { excludeBalloon?: boolean },
+): Set<number> {
+  const cannonTiles = new Set<number>();
+  for (const player of state.players) {
+    for (const cannon of player.cannons) {
+      if (options?.excludeBalloon && cannon.balloon) continue;
+      forEachCannonTile(cannon, (_r, _c, key) => cannonTiles.add(key));
+    }
+  }
+  return cannonTiles;
+}
 export function hasWallAt(state: GameState, r: number, c: number): boolean {
   const key = packTile(r, c);
   return hasWallMatching(state, key, () => true);
 }
-
 export function hasEnemyWallAt(
   state: GameState,
   playerId: number,
@@ -138,21 +131,9 @@ export function hasEnemyWallAt(
   const key = packTile(r, c);
   return hasWallMatching(state, key, (player) => player.id !== playerId);
 }
-
-function hasWallMatching(
-  state: GameState,
-  key: number,
-  predicate: (player: Player) => boolean,
-): boolean {
-  return state.players.some(
-    (player) => predicate(player) && player.walls.has(key),
-  );
-}
-
 export function hasInteriorAt(state: GameState, key: number): boolean {
   return state.players.some((player) => player.interior.has(key));
 }
-
 export function hasGruntAt(
   state: GameState,
   r: number,
@@ -163,7 +144,6 @@ export function hasGruntAt(
     (grunt) => grunt !== exclude && grunt.row === r && grunt.col === c,
   );
 }
-
 export function hasAliveHouseAt(
   state: GameState,
   r: number,
@@ -173,11 +153,6 @@ export function hasAliveHouseAt(
     (house) => house.alive && house.row === r && house.col === c,
   );
 }
-
-export function hasTowerAt(state: GameState, r: number, c: number): boolean {
-  return state.map.towers.some((tower) => isTowerTile(tower, r, c));
-}
-
 export function findLivingTowerIndexAt(
   state: GameState,
   r: number,
@@ -189,21 +164,6 @@ export function findLivingTowerIndexAt(
   }
   return -1;
 }
-
-export function hasCannonAt(
-  state: GameState,
-  r: number,
-  c: number,
-  options?: { excludeBalloon?: boolean },
-): boolean {
-  return state.players.some((player) =>
-    player.cannons.some((cannon) => {
-      if (options?.excludeBalloon && cannon.balloon) return false;
-      return isCannonTile(cannon, r, c);
-    }),
-  );
-}
-
 export function getCardinalObstacleMask(
   state: GameState,
   row: number,
@@ -246,4 +206,29 @@ export function getCardinalObstacleMask(
     }
   }
   return obstacles;
+}
+export function hasTowerAt(state: GameState, r: number, c: number): boolean {
+  return state.map.towers.some((tower) => isTowerTile(tower, r, c));
+}
+export function hasCannonAt(
+  state: GameState,
+  r: number,
+  c: number,
+  options?: { excludeBalloon?: boolean },
+): boolean {
+  return state.players.some((player) =>
+    player.cannons.some((cannon) => {
+      if (options?.excludeBalloon && cannon.balloon) return false;
+      return isCannonTile(cannon, r, c);
+    }),
+  );
+}
+function hasWallMatching(
+  state: GameState,
+  key: number,
+  predicate: (player: Player) => boolean,
+): boolean {
+  return state.players.some(
+    (player) => predicate(player) && player.walls.has(key),
+  );
 }

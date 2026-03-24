@@ -3,9 +3,6 @@ import { MSG } from "../server/protocol.ts";
 import { getApiUrl } from "./online-config.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 
-const ROOM_CODE_LENGTH = 4;
-const ROOM_POLL_INTERVAL_MS = 3000;
-
 interface LobbyElements {
   lobbyMenu: HTMLElement;
   lobbyCreate: HTMLElement;
@@ -23,7 +20,6 @@ interface LobbyElements {
   createError: HTMLElement;
   joinError: HTMLElement;
 }
-
 interface SetupLobbyUiDeps {
   elements: LobbyElements;
   connect: () => void;
@@ -33,20 +29,10 @@ interface SetupLobbyUiDeps {
   doc?: Document;
 }
 
-export function showLobbySection(
-  id: string,
-  sections: Pick<LobbyElements, "lobbyMenu" | "lobbyCreate" | "lobbyJoin">,
-  doc: Document = document,
-): void {
-  for (const el of [
-    sections.lobbyMenu,
-    sections.lobbyCreate,
-    sections.lobbyJoin,
-  ]) {
-    el.classList.remove("active");
-  }
-  doc.getElementById(id)?.classList.add("active");
-}
+const ROOM_CODE_LENGTH = 4;
+const ROOM_POLL_INTERVAL_MS = 3000;
+/** Stored interval so repeated setupLobbyUi calls don't leak timers. */
+let roomPollTimer: ReturnType<typeof setInterval> | null = null;
 
 export function setupLobbyUi({
   elements,
@@ -181,6 +167,17 @@ export function setupLobbyUi({
     }, ROOM_POLL_INTERVAL_MS);
   }
 }
-
-/** Stored interval so repeated setupLobbyUi calls don't leak timers. */
-let roomPollTimer: ReturnType<typeof setInterval> | null = null;
+export function showLobbySection(
+  id: string,
+  sections: Pick<LobbyElements, "lobbyMenu" | "lobbyCreate" | "lobbyJoin">,
+  doc: Document = document,
+): void {
+  for (const el of [
+    sections.lobbyMenu,
+    sections.lobbyCreate,
+    sections.lobbyJoin,
+  ]) {
+    el.classList.remove("active");
+  }
+  doc.getElementById(id)?.classList.add("active");
+}

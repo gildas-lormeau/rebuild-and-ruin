@@ -8,19 +8,6 @@
  * Concrete implementations: AiController (ai-controller.ts), HumanController (human-controller.ts).
  */
 
-import type { GameState } from "./types.ts";
-import {
-  Action,
-  CannonMode,
-  NORMAL_CANNON_SIZE,
-} from "./types.ts";
-
-/** Battle crosshair movement speed in pixels per second. */
-export const CROSSHAIR_SPEED = 80;
-
-/** Orbit animation parameters for AI countdown idle animation. */
-export type OrbitParams = { rx: number; ry: number; speed: number; phase: number };
-
 import type { CombinedCannonResult } from "./battle-system.ts";
 import {
   fireCannon,
@@ -32,13 +19,15 @@ import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import type { BagState, PieceShape } from "./pieces.ts";
 import { createBag, nextPiece } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
+import type { GameState } from "./types.ts";
+import {
+  Action,
+  CannonMode,
+  NORMAL_CANNON_SIZE,
+} from "./types.ts";
 
-
-
-// ---------------------------------------------------------------------------
-// Phantom data types (for rendering)
-// ---------------------------------------------------------------------------
-
+/** Orbit animation parameters for AI countdown idle animation. */
+export type OrbitParams = { rx: number; ry: number; speed: number; phase: number };
 export interface PhantomPiece {
   offsets: [number, number][];
   row: number;
@@ -46,7 +35,6 @@ export interface PhantomPiece {
   valid: boolean;
   playerId: number;
 }
-
 export interface PhantomCannon {
   row: number;
   col: number;
@@ -56,18 +44,12 @@ export interface PhantomCannon {
   playerId: number;
   facing: number;
 }
-
 export interface Crosshair {
   x: number;
   y: number;
   playerId: number;
   cannonReady?: boolean;
 }
-
-// ---------------------------------------------------------------------------
-// Interface
-// ---------------------------------------------------------------------------
-
 export interface PlayerController {
   readonly playerId: number;
 
@@ -186,12 +168,10 @@ export interface PlayerController {
   getCannonPlaceMode(): CannonMode;
 }
 
-// ---------------------------------------------------------------------------
-// Base Controller — shared fields and methods
-// ---------------------------------------------------------------------------
-
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
 const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
+/** Battle crosshair movement speed in pixels per second. */
+export const CROSSHAIR_SPEED = 80;
 
 export abstract class BaseController implements PlayerController {
   readonly playerId: number;
@@ -368,4 +348,3 @@ export abstract class BaseController implements PlayerController {
     return CannonMode.NORMAL;
   }
 }
-

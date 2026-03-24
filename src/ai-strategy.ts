@@ -40,46 +40,18 @@ import { CannonMode } from "./types.ts";
 
 export type { AiPlacement } from "./ai-strategy-build.ts";
 
-/** Chance to focus all fire on the weakest enemy for the entire battle. */
-const FOCUS_FIRE_PROBABILITY = 0.5;
-/** Minimum usable cannons required to attempt any chain attack. */
-const CHAIN_ATTACK_MIN_CANNONS = 6;
-/** Chance to help an overwhelmed enemy by sweeping grunts on their territory. */
-const CHARITY_SWEEP_PROBABILITY = 1 / 10;
-/** Chance to launch a connected-wall demolition chain attack. */
-const WALL_DEMOLITION_PROBABILITY = 1 / 3;
-/** Chance to launch a strided (every-other-tile) wall demolition attack. */
-const SUPER_ATTACK_PROBABILITY = 1 / 8;
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-/** The kind of chain attack the AI executes during battle. */
-export const Chain = {
-  WALL: "wall",
-  GRUNT: "grunt",
-  POCKET: "pocket",
-} as const;
 export type ChainType = (typeof Chain)[keyof typeof Chain];
-
 /** Result of planBattle — tells the controller what chain attack to execute. */
 export interface BattlePlan {
   chainTargets: TilePos[] | null;
   chainType: ChainType;
 }
-
 /** A single cannon placement decision. */
 export interface CannonPlacement {
   row: number;
   col: number;
   mode?: CannonMode.SUPER | CannonMode.BALLOON;
 }
-
-// ---------------------------------------------------------------------------
-// Interface
-// ---------------------------------------------------------------------------
-
 export interface AiStrategy {
   /** Seeded PRNG for reproducible AI behavior. */
   readonly rng: Rng;
@@ -142,21 +114,7 @@ export interface AiStrategy {
    *  1 = clumsy cursor, 3 = fluid aim. */
   cursorSkill: 1 | 2 | 3;
 }
-
-// ---------------------------------------------------------------------------
-// Archetypes — correlated trait profiles
-// ---------------------------------------------------------------------------
-
-/** AI personality archetype. Determines correlated base trait values. */
-const Archetype = {
-  BUILDER: "builder",
-  AGGRESSIVE: "aggressive",
-  TACTICIAN: "tactician",
-  CHAOTIC: "chaotic",
-  BALANCED: "balanced",
-} as const;
 type ArchetypeType = (typeof Archetype)[keyof typeof Archetype];
-
 interface ArchetypeProfile {
   buildSkill: [number, number]; // [lo, hi] for 1–5
   spatialAwareness: [number, number]; // [lo, hi] for 1–3
@@ -170,6 +128,24 @@ interface ArchetypeProfile {
   bankHugging: number; // probability of true
 }
 
+/** Chance to focus all fire on the weakest enemy for the entire battle. */
+const FOCUS_FIRE_PROBABILITY = 0.5;
+/** Minimum usable cannons required to attempt any chain attack. */
+const CHAIN_ATTACK_MIN_CANNONS = 6;
+/** Chance to help an overwhelmed enemy by sweeping grunts on their territory. */
+const CHARITY_SWEEP_PROBABILITY = 1 / 10;
+/** Chance to launch a connected-wall demolition chain attack. */
+const WALL_DEMOLITION_PROBABILITY = 1 / 3;
+/** Chance to launch a strided (every-other-tile) wall demolition attack. */
+const SUPER_ATTACK_PROBABILITY = 1 / 8;
+/** AI personality archetype. Determines correlated base trait values. */
+const Archetype = {
+  BUILDER: "builder",
+  AGGRESSIVE: "aggressive",
+  TACTICIAN: "tactician",
+  CHAOTIC: "chaotic",
+  BALANCED: "balanced",
+} as const;
 /**
  * Archetype trait profiles — tuned via playtesting for 3-player AI games.
  *
@@ -253,16 +229,13 @@ const ARCHETYPE_PROFILES: Record<ArchetypeType, ArchetypeProfile> = {
     bankHugging: 0.5,
   },
 };
-
 const ARCHETYPE_LIST = Object.values(Archetype);
-
-function rollArchetype(rng: Rng): ArchetypeType {
-  return rng.pick(ARCHETYPE_LIST);
-}
-
-// ---------------------------------------------------------------------------
-// DefaultStrategy
-// ---------------------------------------------------------------------------
+/** The kind of chain attack the AI executes during battle. */
+export const Chain = {
+  WALL: "wall",
+  GRUNT: "grunt",
+  POCKET: "pocket",
+} as const;
 
 export class DefaultStrategy implements AiStrategy {
   /** Shot count per cannon — tracks hits to know when to stop targeting. */
@@ -552,11 +525,6 @@ export class DefaultStrategy implements AiStrategy {
     this.shotCounts = new WeakMap();
   }
 }
-
-// ---------------------------------------------------------------------------
-// Standalone helpers (for callers without a strategy instance)
-// ---------------------------------------------------------------------------
-
 /** Auto-place cannons for an AI player at scored positions inside their castle. */
 export function autoPlaceCannons(
   player: Player,
@@ -569,7 +537,6 @@ export function autoPlaceCannons(
     placeCannon(player, p.row, p.col, count, p.mode, state);
   }
 }
-
 /** Standalone pickPlacement wrapper for headless tests / external callers. */
 export function pickPlacement(
   state: GameState,
@@ -578,4 +545,7 @@ export function pickPlacement(
   cursorPos?: TilePos,
 ): AiPlacement | null {
   return pickPlacementImpl(state, playerId, piece, cursorPos);
+}
+function rollArchetype(rng: Rng): ArchetypeType {
+  return rng.pick(ARCHETYPE_LIST);
 }

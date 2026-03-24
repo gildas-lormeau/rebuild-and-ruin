@@ -14,26 +14,13 @@ import type { SelectionState } from "./selection.ts";
 import type { GameState, Impact } from "./types.ts";
 import { Phase } from "./types.ts";
 
-function buildCastleOverlay(state: GameState): CastleData[] {
-  return state.players
-    .filter((p) => p.castle)
-    .map((p) => ({
-      walls: p.walls,
-      interior: p.interior,
-      cannons: p.cannons,
-      playerId: p.id,
-    }));
-}
-
-function buildHomeTowersByIndex(state: GameState): Map<number, number> {
-  const homeTowers = new Map<number, number>();
-  for (const player of state.players) {
-    if (player.homeTower) {
-      homeTowers.set(player.homeTower.index, player.id);
-    }
-  }
-  return homeTowers;
-}
+const PHASE_LABELS = new Map<Phase, string>([
+  [Phase.CASTLE_SELECT, "Select"],
+  [Phase.CASTLE_RESELECT, "Select"],
+  [Phase.WALL_BUILD, "Build"],
+  [Phase.CANNON_PLACE, "Cannons"],
+  [Phase.BATTLE, "Battle"],
+]);
 
 export function buildRenderSummaryMessage(params: {
   phaseName: string;
@@ -73,7 +60,6 @@ export function buildRenderSummaryMessage(params: {
 
   return `render: phase=${phaseName} ch=${crosshairs.length}[${crosshairDetail}] phantoms=${phantomCount} impacts=${impactsCount} balls=${cannonballsCount} timer=${timer.toFixed(0)}${selectionDetail}`;
 }
-
 export function buildBannerUi(
   active: boolean,
   text: string,
@@ -91,97 +77,6 @@ export function buildBannerUi(
     y: startY + progress * (endY - startY),
   };
 }
-
-function buildLifeLostDialogUi(
-  dialog: LifeLostDialogState | null,
-  playerNames: ReadonlyArray<string>,
-  playerColors: ReadonlyArray<{ wall: RGB }>,
-  maxTimer: number,
-  getPanelPos: (playerId: number) => { px: number; py: number },
-): LifeLostDialogOverlay | undefined {
-  if (!dialog) return undefined;
-
-  return {
-    entries: dialog.entries.map((e) => {
-      const { px, py } = getPanelPos(e.playerId);
-      return {
-        playerId: e.playerId,
-        name: playerNames[e.playerId] ?? `P${e.playerId + 1}`,
-        lives: e.lives,
-        color: playerColors[e.playerId % playerColors.length]!.wall,
-        choice: e.choice,
-        focused: e.focused,
-        px,
-        py,
-      };
-    }),
-    timer: dialog.timer,
-    maxTimer,
-  };
-}
-
-function buildBattleCannonballsPayload(
-  inBattle: boolean,
-  cannonballs: Array<{
-    x: number;
-    y: number;
-    startX: number;
-    startY: number;
-    targetX: number;
-    targetY: number;
-    incendiary?: boolean;
-  }>,
-):
-  | Array<{ x: number; y: number; progress: number; incendiary?: boolean }>
-  | undefined {
-  if (!inBattle) return undefined;
-
-  return cannonballs.map((b) => {
-    const totalDist = Math.hypot(b.targetX - b.startX, b.targetY - b.startY);
-    const remaining = Math.hypot(b.targetX - b.x, b.targetY - b.y);
-    const progress = totalDist > 0 ? 1 - remaining / totalDist : 1;
-    return {
-      x: b.x,
-      y: b.y,
-      progress,
-      incendiary: b.incendiary || undefined,
-    };
-  });
-}
-
-function buildBattleBalloonsPayload(
-  flights: Array<{
-    flight: { startX: number; startY: number; endX: number; endY: number };
-    progress: number;
-  }>,
-):
-  | Array<{
-      x: number;
-      y: number;
-      targetX: number;
-      targetY: number;
-      progress: number;
-    }>
-  | undefined {
-  if (flights.length === 0) return undefined;
-
-  return flights.map((b) => ({
-    x: b.flight.startX,
-    y: b.flight.startY,
-    targetX: b.flight.endX,
-    targetY: b.flight.endY,
-    progress: b.progress,
-  }));
-}
-
-const PHASE_LABELS = new Map<Phase, string>([
-  [Phase.CASTLE_SELECT, "Select"],
-  [Phase.CASTLE_RESELECT, "Select"],
-  [Phase.WALL_BUILD, "Build"],
-  [Phase.CANNON_PLACE, "Cannons"],
-  [Phase.BATTLE, "Battle"],
-]);
-
 export function buildStatusBar(state: GameState, playerColors: readonly { interiorLight: RGB }[]) {
   return {
     round: state.battleLength === Infinity ? `R${state.round}` : `R${state.round}/${state.battleLength}`,
@@ -196,11 +91,6 @@ export function buildStatusBar(state: GameState, playerColors: readonly { interi
     })),
   };
 }
-
-// ---------------------------------------------------------------------------
-// Selection overlay (moved from selection.ts to decouple from render-map)
-// ---------------------------------------------------------------------------
-
 export function syncSelectionOverlay(
   overlay: RenderOverlay,
   selectionStates: Map<number, SelectionState>,
@@ -220,37 +110,6 @@ export function syncSelectionOverlay(
     });
   }
 }
-
-// ---------------------------------------------------------------------------
-// Life-lost panel layout (moved from life-lost.ts to decouple from render-theme)
-// ---------------------------------------------------------------------------
-
-export function lifeLostPanelPos(
-  state: GameState,
-  playerId: number,
-): { px: number; py: number } {
-  const zone = state.playerZones[playerId] ?? 0;
-  const zoneTowers = state.map.towers.filter((t) => t.zone === zone);
-  const tsW = GRID_COLS * TILE_SIZE;
-  const tsH = GRID_ROWS * TILE_SIZE;
-
-  const cx =
-    zoneTowers.length > 0
-      ? (zoneTowers.reduce((s, t) => s + t.col, 0) / zoneTowers.length + 1) *
-        TILE_SIZE
-      : tsW / 2;
-  const cy =
-    zoneTowers.length > 0
-      ? (zoneTowers.reduce((s, t) => s + t.row, 0) / zoneTowers.length + 1) *
-        TILE_SIZE
-      : tsH / 2;
-
-  return {
-    px: Math.max(2, Math.min(tsW - PANEL_W - 2, Math.round(cx - PANEL_W / 2))),
-    py: Math.max(2, Math.min(tsH - PANEL_H - 2, Math.round(cy - PANEL_H / 2))),
-  };
-}
-
 export function handleLifeLostDialogClick(params: {
   state: GameState;
   lifeLostDialog: LifeLostDialogState;
@@ -289,11 +148,31 @@ export function handleLifeLostDialogClick(params: {
 
   return null;
 }
+export function lifeLostPanelPos(
+  state: GameState,
+  playerId: number,
+): { px: number; py: number } {
+  const zone = state.playerZones[playerId] ?? 0;
+  const zoneTowers = state.map.towers.filter((t) => t.zone === zone);
+  const tsW = GRID_COLS * TILE_SIZE;
+  const tsH = GRID_ROWS * TILE_SIZE;
 
-// ---------------------------------------------------------------------------
-// Online overlay composition
-// ---------------------------------------------------------------------------
+  const cx =
+    zoneTowers.length > 0
+      ? (zoneTowers.reduce((s, t) => s + t.col, 0) / zoneTowers.length + 1) *
+        TILE_SIZE
+      : tsW / 2;
+  const cy =
+    zoneTowers.length > 0
+      ? (zoneTowers.reduce((s, t) => s + t.row, 0) / zoneTowers.length + 1) *
+        TILE_SIZE
+      : tsH / 2;
 
+  return {
+    px: Math.max(2, Math.min(tsW - PANEL_W - 2, Math.round(cx - PANEL_W / 2))),
+    py: Math.max(2, Math.min(tsH - PANEL_H - 2, Math.round(cy - PANEL_H / 2))),
+  };
+}
 export function buildOnlineOverlay(params: {
   previousSelection: RenderOverlay["selection"];
   state: GameState;
@@ -398,4 +277,102 @@ export function buildOnlineOverlay(params: {
       ),
     },
   };
+}
+function buildCastleOverlay(state: GameState): CastleData[] {
+  return state.players
+    .filter((p) => p.castle)
+    .map((p) => ({
+      walls: p.walls,
+      interior: p.interior,
+      cannons: p.cannons,
+      playerId: p.id,
+    }));
+}
+function buildHomeTowersByIndex(state: GameState): Map<number, number> {
+  const homeTowers = new Map<number, number>();
+  for (const player of state.players) {
+    if (player.homeTower) {
+      homeTowers.set(player.homeTower.index, player.id);
+    }
+  }
+  return homeTowers;
+}
+function buildLifeLostDialogUi(
+  dialog: LifeLostDialogState | null,
+  playerNames: ReadonlyArray<string>,
+  playerColors: ReadonlyArray<{ wall: RGB }>,
+  maxTimer: number,
+  getPanelPos: (playerId: number) => { px: number; py: number },
+): LifeLostDialogOverlay | undefined {
+  if (!dialog) return undefined;
+
+  return {
+    entries: dialog.entries.map((e) => {
+      const { px, py } = getPanelPos(e.playerId);
+      return {
+        playerId: e.playerId,
+        name: playerNames[e.playerId] ?? `P${e.playerId + 1}`,
+        lives: e.lives,
+        color: playerColors[e.playerId % playerColors.length]!.wall,
+        choice: e.choice,
+        focused: e.focused,
+        px,
+        py,
+      };
+    }),
+    timer: dialog.timer,
+    maxTimer,
+  };
+}
+function buildBattleCannonballsPayload(
+  inBattle: boolean,
+  cannonballs: Array<{
+    x: number;
+    y: number;
+    startX: number;
+    startY: number;
+    targetX: number;
+    targetY: number;
+    incendiary?: boolean;
+  }>,
+):
+  | Array<{ x: number; y: number; progress: number; incendiary?: boolean }>
+  | undefined {
+  if (!inBattle) return undefined;
+
+  return cannonballs.map((b) => {
+    const totalDist = Math.hypot(b.targetX - b.startX, b.targetY - b.startY);
+    const remaining = Math.hypot(b.targetX - b.x, b.targetY - b.y);
+    const progress = totalDist > 0 ? 1 - remaining / totalDist : 1;
+    return {
+      x: b.x,
+      y: b.y,
+      progress,
+      incendiary: b.incendiary || undefined,
+    };
+  });
+}
+function buildBattleBalloonsPayload(
+  flights: Array<{
+    flight: { startX: number; startY: number; endX: number; endY: number };
+    progress: number;
+  }>,
+):
+  | Array<{
+      x: number;
+      y: number;
+      targetX: number;
+      targetY: number;
+      progress: number;
+    }>
+  | undefined {
+  if (flights.length === 0) return undefined;
+
+  return flights.map((b) => ({
+    x: b.flight.startX,
+    y: b.flight.startY,
+    targetX: b.flight.endX,
+    targetY: b.flight.endY,
+    progress: b.progress,
+  }));
 }

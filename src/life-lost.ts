@@ -1,19 +1,7 @@
 import type { GameState } from "./types.ts";
 
-// ---------------------------------------------------------------------------
-// Choice constants
-// ---------------------------------------------------------------------------
-
-export const CHOICE_PENDING = "pending" as const;
-export const CHOICE_CONTINUE = "continue" as const;
-export const CHOICE_ABANDON = "abandon" as const;
 export type LifeLostChoice = typeof CHOICE_PENDING | typeof CHOICE_CONTINUE | typeof CHOICE_ABANDON;
 export type ResolvedChoice = typeof CHOICE_CONTINUE | typeof CHOICE_ABANDON;
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 export interface LifeLostEntry {
   playerId: number;
   lives: number;
@@ -22,21 +10,49 @@ export interface LifeLostEntry {
   aiTimer: number;
   focused: number;
 }
-
 export interface LifeLostDialogState {
   entries: LifeLostEntry[];
   timer: number;
 }
-
-// ---------------------------------------------------------------------------
-// Runtime (resolve + tick)
-// ---------------------------------------------------------------------------
-
 interface ResolveLifeLostDialogDeps {
   lifeLostDialog: LifeLostDialogState | null;
   state: GameState;
   afterLifeLostResolved: (continuing: number[]) => boolean;
 }
+interface TickLifeLostDialogDeps {
+  dt: number;
+  lifeLostDialog: LifeLostDialogState | null;
+  lifeLostAiDelay: number;
+  lifeLostMaxTimer: number;
+  state: GameState;
+  isHost: boolean;
+  render: () => void;
+  logResolved: (dialog: LifeLostDialogState) => void;
+  resolveHostDialog: (
+    dialog: LifeLostDialogState,
+  ) => LifeLostDialogState | null;
+  onNonHostResolved: () => void;
+}
+interface BuildLifeLostDialogDeps {
+  needsReselect: number[];
+  eliminated: number[];
+  state: GameState;
+  isHost: boolean;
+  myPlayerId: number;
+  remoteHumanSlots: Set<number>;
+  isHumanController: (playerId: number) => boolean;
+}
+interface ResolveAfterLifeLostDeps {
+  state: GameState;
+  continuing: number[];
+  onEndGame: (winner: { id: number } | null) => void;
+  onStartReselection: (continuing: number[]) => void;
+  onAdvanceToCannonPhase: () => void;
+}
+
+export const CHOICE_PENDING = "pending" as const;
+export const CHOICE_CONTINUE = "continue" as const;
+export const CHOICE_ABANDON = "abandon" as const;
 
 export function resolveLifeLostDialogRuntime(
   deps: ResolveLifeLostDialogDeps,
@@ -59,22 +75,6 @@ export function resolveLifeLostDialogRuntime(
   afterLifeLostResolved(continuing);
   return null;
 }
-
-interface TickLifeLostDialogDeps {
-  dt: number;
-  lifeLostDialog: LifeLostDialogState | null;
-  lifeLostAiDelay: number;
-  lifeLostMaxTimer: number;
-  state: GameState;
-  isHost: boolean;
-  render: () => void;
-  logResolved: (dialog: LifeLostDialogState) => void;
-  resolveHostDialog: (
-    dialog: LifeLostDialogState,
-  ) => LifeLostDialogState | null;
-  onNonHostResolved: () => void;
-}
-
 export function tickLifeLostDialogRuntime(
   deps: TickLifeLostDialogDeps,
 ): LifeLostDialogState | null {
@@ -132,21 +132,6 @@ export function tickLifeLostDialogRuntime(
   onNonHostResolved();
   return null;
 }
-
-// ---------------------------------------------------------------------------
-// Coordinator (build dialog state + resolve after life lost)
-// ---------------------------------------------------------------------------
-
-interface BuildLifeLostDialogDeps {
-  needsReselect: number[];
-  eliminated: number[];
-  state: GameState;
-  isHost: boolean;
-  myPlayerId: number;
-  remoteHumanSlots: Set<number>;
-  isHumanController: (playerId: number) => boolean;
-}
-
 export function buildLifeLostDialogState(
   deps: BuildLifeLostDialogDeps,
 ): LifeLostDialogState {
@@ -184,15 +169,6 @@ export function buildLifeLostDialogState(
 
   return { entries, timer: 0 };
 }
-
-interface ResolveAfterLifeLostDeps {
-  state: GameState;
-  continuing: number[];
-  onEndGame: (winner: { id: number } | null) => void;
-  onStartReselection: (continuing: number[]) => void;
-  onAdvanceToCannonPhase: () => void;
-}
-
 export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
   const {
     state,

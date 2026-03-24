@@ -5,9 +5,91 @@ import type { Crosshair, OrbitParams, PlayerController } from "./player-controll
 import type { GameState, Impact } from "./types.ts";
 import { BATTLE_TIMER, Phase } from "./types.ts";
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
+export interface WatcherTimingState {
+  phaseStartTime: number;
+  phaseDuration: number;
+  countdownStartTime: number;
+  countdownDuration: number;
+}
+interface WatcherFrameAnnouncement {
+  announcement?: string;
+}
+interface WatcherBattleFrame {
+  crosshairs: Crosshair[];
+}
+interface WatcherBattleAnimState {
+  impacts: Impact[];
+}
+interface WatcherBattleDeps {
+  state: GameState;
+  frame: WatcherBattleFrame;
+  battleAnim: WatcherBattleAnimState;
+  dt: number;
+  myPlayerId: number;
+  myHuman: PlayerController | null;
+  remoteCrosshairs: Map<number, PixelPos>;
+  watcherCrosshairPos: Map<number, PixelPos>;
+  watcherIdlePhases: Map<number, number>;
+  watcherOrbitParams: Map<number, OrbitParams>;
+  crosshairSpeed: number;
+  tileSize: number;
+  logThrottled: (key: string, msg: string) => void;
+  interpolateToward: (
+    vis: PixelPos,
+    tx: number,
+    ty: number,
+    speed: number,
+    dt: number,
+  ) => void;
+  nextReadyCombined: (state: GameState, playerId: number) => unknown;
+  maybeSendAimUpdate: (x: number, y: number) => void;
+  aimCannons: (
+    state: GameState,
+    playerId: number,
+    x: number,
+    y: number,
+    dt: number,
+  ) => void;
+}
+interface WatcherPhantomFrame {
+  phantoms: {
+    aiCannonPhantoms?: CannonPhantom[];
+    aiPhantoms?: PiecePhantom[];
+    humanPhantoms?: HumanPiecePhantom[];
+  };
+}
+interface TickWatcherCannonPhantomsDeps {
+  state: GameState;
+  frame: WatcherPhantomFrame;
+  dt: number;
+  myPlayerId: number;
+  myHuman: PlayerController | null;
+  remoteCannonPhantoms: CannonPhantom[];
+  lastSentCannonPhantom: Map<number, string>;
+  sendOpponentCannonPhantom: (msg: {
+    playerId: number;
+    row: number;
+    col: number;
+    mode: "normal" | "super" | "balloon";
+    valid: boolean;
+    facing: number;
+  }) => void;
+}
+interface TickWatcherBuildPhantomsDeps {
+  state: GameState;
+  frame: WatcherPhantomFrame;
+  dt: number;
+  myHuman: PlayerController | null;
+  remotePiecePhantoms: PiecePhantom[];
+  lastSentPiecePhantom: Map<number, string>;
+  sendOpponentPiecePhantom: (msg: {
+    playerId: number;
+    row: number;
+    col: number;
+    offsets: [number, number][];
+    valid: boolean;
+  }) => void;
+}
 
 /** Multiplier for remote crosshair interpolation speed (faster than local). */
 const REMOTE_CROSSHAIR_MULT = 2;
@@ -15,21 +97,6 @@ const REMOTE_CROSSHAIR_MULT = 2;
 const ORBIT_FREQ_X = 0.23;
 /** Orbital idle wobble frequency on Y axis. */
 const ORBIT_FREQ_Y = 0.19;
-
-// ---------------------------------------------------------------------------
-// Watcher timing state + timer tick
-// ---------------------------------------------------------------------------
-
-export interface WatcherTimingState {
-  phaseStartTime: number;
-  phaseDuration: number;
-  countdownStartTime: number;
-  countdownDuration: number;
-}
-
-interface WatcherFrameAnnouncement {
-  announcement?: string;
-}
 
 export function tickWatcherTimers(
   state: GameState,
@@ -62,52 +129,6 @@ export function tickWatcherTimers(
   const elapsed = Math.max(0, (now() - timing.phaseStartTime) / 1000);
   state.timer = Math.max(0, timing.phaseDuration - elapsed);
 }
-
-
-// ---------------------------------------------------------------------------
-// Watcher battle phase tick
-// ---------------------------------------------------------------------------
-
-interface WatcherBattleFrame {
-  crosshairs: Crosshair[];
-}
-
-interface WatcherBattleAnimState {
-  impacts: Impact[];
-}
-
-interface WatcherBattleDeps {
-  state: GameState;
-  frame: WatcherBattleFrame;
-  battleAnim: WatcherBattleAnimState;
-  dt: number;
-  myPlayerId: number;
-  myHuman: PlayerController | null;
-  remoteCrosshairs: Map<number, PixelPos>;
-  watcherCrosshairPos: Map<number, PixelPos>;
-  watcherIdlePhases: Map<number, number>;
-  watcherOrbitParams: Map<number, OrbitParams>;
-  crosshairSpeed: number;
-  tileSize: number;
-  logThrottled: (key: string, msg: string) => void;
-  interpolateToward: (
-    vis: PixelPos,
-    tx: number,
-    ty: number,
-    speed: number,
-    dt: number,
-  ) => void;
-  nextReadyCombined: (state: GameState, playerId: number) => unknown;
-  maybeSendAimUpdate: (x: number, y: number) => void;
-  aimCannons: (
-    state: GameState,
-    playerId: number,
-    x: number,
-    y: number,
-    dt: number,
-  ) => void;
-}
-
 export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
   const {
     state,
@@ -217,37 +238,6 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
   maybeSendAimUpdate(ch.x, ch.y);
   aimCannons(state, myPlayerId, ch.x, ch.y, dt);
 }
-
-// ---------------------------------------------------------------------------
-// Watcher phantom phases (cannon + build)
-// ---------------------------------------------------------------------------
-
-interface WatcherPhantomFrame {
-  phantoms: {
-    aiCannonPhantoms?: CannonPhantom[];
-    aiPhantoms?: PiecePhantom[];
-    humanPhantoms?: HumanPiecePhantom[];
-  };
-}
-
-interface TickWatcherCannonPhantomsDeps {
-  state: GameState;
-  frame: WatcherPhantomFrame;
-  dt: number;
-  myPlayerId: number;
-  myHuman: PlayerController | null;
-  remoteCannonPhantoms: CannonPhantom[];
-  lastSentCannonPhantom: Map<number, string>;
-  sendOpponentCannonPhantom: (msg: {
-    playerId: number;
-    row: number;
-    col: number;
-    mode: "normal" | "super" | "balloon";
-    valid: boolean;
-    facing: number;
-  }) => void;
-}
-
 export function tickWatcherCannonPhantomsPhase(
   deps: TickWatcherCannonPhantomsDeps,
 ): void {
@@ -284,23 +274,6 @@ export function tickWatcherCannonPhantomsPhase(
     facing: phantom.facing ?? 0,
   });
 }
-
-interface TickWatcherBuildPhantomsDeps {
-  state: GameState;
-  frame: WatcherPhantomFrame;
-  dt: number;
-  myHuman: PlayerController | null;
-  remotePiecePhantoms: PiecePhantom[];
-  lastSentPiecePhantom: Map<number, string>;
-  sendOpponentPiecePhantom: (msg: {
-    playerId: number;
-    row: number;
-    col: number;
-    offsets: [number, number][];
-    valid: boolean;
-  }) => void;
-}
-
 export function tickWatcherBuildPhantomsPhase(
   deps: TickWatcherBuildPhantomsDeps,
 ): void {

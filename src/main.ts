@@ -12,19 +12,8 @@ import { MAX_PLAYERS } from "./player-config.ts";
 import { loadAtlas } from "./sprites.ts";
 import { LOBBY_TIMER } from "./types.ts";
 
-// ---------------------------------------------------------------------------
-// DOM
-// ---------------------------------------------------------------------------
-
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-canvas.style.display = "block";
-
-// ---------------------------------------------------------------------------
-// Runtime — local play config (no networking)
-// ---------------------------------------------------------------------------
-
 const emptySet = new Set<number>();
-
 const runtime = createGameRuntime({
   canvas,
   send: () => {},
@@ -50,10 +39,12 @@ const runtime = createGameRuntime({
   },
 });
 
-// ---------------------------------------------------------------------------
-// Local lobby — canvas-based, no room creation step
-// ---------------------------------------------------------------------------
-
+canvas.style.display = "block";
+runtime.registerInputHandlers();
+loadAtlas().then(
+  () => showLobby(),
+  () => showLobby(),
+);
 function showLobby(): void {
   const lobby = runtime.rs.lobby;
   lobby.joined = new Array(MAX_PLAYERS).fill(false);
@@ -66,14 +57,3 @@ function showLobby(): void {
   runtime.rs.lastTime = performance.now();
   requestAnimationFrame(runtime.mainLoop);
 }
-
-// ---------------------------------------------------------------------------
-// Wire up input handlers and start
-// ---------------------------------------------------------------------------
-
-runtime.registerInputHandlers();
-
-loadAtlas().then(
-  () => showLobby(),
-  () => showLobby(),
-);

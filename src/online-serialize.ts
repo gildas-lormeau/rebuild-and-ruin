@@ -10,67 +10,6 @@ import { Rng } from "./rng.ts";
 import type { GameState } from "./types.ts";
 import { Phase } from "./types.ts";
 
-// ---------------------------------------------------------------------------
-// Serialize (state → JSON-safe objects for sending)
-// ---------------------------------------------------------------------------
-
-export function serializePlayers(state: GameState) {
-  return state.players.map((p) => ({
-    id: p.id,
-    walls: [...p.walls],
-    interior: [...p.interior],
-    cannons: p.cannons.map((c) => ({
-      row: c.row,
-      col: c.col,
-      hp: c.hp,
-      super: c.super || undefined,
-      balloon: c.balloon || undefined,
-      facing: c.facing,
-    })),
-    ownedTowerIndices: p.ownedTowers.map((t) => t.index),
-    homeTowerIdx: p.homeTower?.index ?? null,
-    lives: p.lives,
-    eliminated: p.eliminated,
-    score: p.score,
-  }));
-}
-
-function serializeGrunts(state: GameState) {
-  return state.grunts.map((g) => ({
-    row: g.row,
-    col: g.col,
-  }));
-}
-
-function serializeHouses(state: GameState) {
-  return state.map.houses.map((h) => ({
-    row: h.row,
-    col: h.col,
-    zone: h.zone,
-    alive: h.alive,
-  }));
-}
-
-function serializeBurningPits(state: GameState) {
-  return state.burningPits.map((p) => ({
-    row: p.row,
-    col: p.col,
-    roundsLeft: p.roundsLeft,
-  }));
-}
-
-function serializeBonusSquares(state: GameState) {
-  return state.bonusSquares.map((b) => ({
-    row: b.row,
-    col: b.col,
-    zone: b.zone,
-  }));
-}
-
-// ---------------------------------------------------------------------------
-// Deserialize (JSON → GameState mutations)
-// ---------------------------------------------------------------------------
-
 export type SerializedPlayer = {
   id: number;
   walls: number[];
@@ -90,42 +29,6 @@ export type SerializedPlayer = {
   score: number;
 };
 
-export function applyPlayersCheckpoint(
-  state: GameState,
-  serialized: SerializedPlayer[],
-): void {
-  for (const sp of serialized) {
-    const player = state.players[sp.id]!;
-    player.walls = new Set(sp.walls);
-    player.interior = new Set(sp.interior);
-    player.cannons = sp.cannons.map((c) => ({
-      row: c.row,
-      col: c.col,
-      hp: c.hp,
-      super: c.super || undefined,
-      balloon: c.balloon || undefined,
-      facing: c.facing ?? 0,
-    }));
-    player.ownedTowers = sp.ownedTowerIndices.map((i) => state.map.towers[i]!);
-    player.homeTower =
-      sp.homeTowerIdx !== null ? state.map.towers[sp.homeTowerIdx]! : null;
-    player.lives = sp.lives;
-    player.eliminated = sp.eliminated;
-    player.score = sp.score;
-  }
-}
-
-export function applyGruntsCheckpoint(
-  state: GameState,
-  serialized: { row: number; col: number }[],
-): void {
-  state.grunts = serialized.map((g) => ({
-    row: g.row,
-    col: g.col,
-    targetPlayerId: 0,
-  }));
-}
-
 export function applyHousesCheckpoint(
   state: GameState,
   serialized: { row: number; col: number; zone: number; alive: boolean }[],
@@ -140,11 +43,6 @@ export function applyHousesCheckpoint(
     });
   }
 }
-
-// ---------------------------------------------------------------------------
-// Build checkpoint messages (state → send-ready message objects)
-// ---------------------------------------------------------------------------
-
 export function buildBuildStartMessage(state: GameState) {
   return {
     type: MSG.BUILD_START,
@@ -159,7 +57,6 @@ export function buildBuildStartMessage(state: GameState) {
     rngSeed: state.rng.seed,
   };
 }
-
 export function buildCannonStartMessage(state: GameState) {
   return {
     type: MSG.CANNON_START,
@@ -173,7 +70,6 @@ export function buildCannonStartMessage(state: GameState) {
     houses: serializeHouses(state),
   };
 }
-
 export function buildBattleStartMessage(
   state: GameState,
   flights?: BalloonFlight[],
@@ -200,11 +96,6 @@ export function buildBattleStartMessage(
         : undefined,
   };
 }
-
-// ---------------------------------------------------------------------------
-// Full state snapshot (host migration)
-// ---------------------------------------------------------------------------
-
 export function buildFullStateMessage(state: GameState): FullStateMessage {
   return {
     type: MSG.FULL_STATE,
@@ -253,7 +144,26 @@ export function buildFullStateMessage(state: GameState): FullStateMessage {
     })),
   };
 }
-
+export function serializePlayers(state: GameState) {
+  return state.players.map((p) => ({
+    id: p.id,
+    walls: [...p.walls],
+    interior: [...p.interior],
+    cannons: p.cannons.map((c) => ({
+      row: c.row,
+      col: c.col,
+      hp: c.hp,
+      super: c.super || undefined,
+      balloon: c.balloon || undefined,
+      facing: c.facing,
+    })),
+    ownedTowerIndices: p.ownedTowers.map((t) => t.index),
+    homeTowerIdx: p.homeTower?.index ?? null,
+    lives: p.lives,
+    eliminated: p.eliminated,
+    score: p.score,
+  }));
+}
 export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage): void {
   state.phase = Phase[msg.phase as keyof typeof Phase];
   state.round = msg.round;
@@ -309,4 +219,66 @@ export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage):
     const cannon = state.players[bh.playerId]?.cannons[bh.cannonIdx];
     if (cannon) state.balloonHits.set(cannon, { count: bh.count, capturerIds: bh.capturerIds });
   }
+}
+export function applyPlayersCheckpoint(
+  state: GameState,
+  serialized: SerializedPlayer[],
+): void {
+  for (const sp of serialized) {
+    const player = state.players[sp.id]!;
+    player.walls = new Set(sp.walls);
+    player.interior = new Set(sp.interior);
+    player.cannons = sp.cannons.map((c) => ({
+      row: c.row,
+      col: c.col,
+      hp: c.hp,
+      super: c.super || undefined,
+      balloon: c.balloon || undefined,
+      facing: c.facing ?? 0,
+    }));
+    player.ownedTowers = sp.ownedTowerIndices.map((i) => state.map.towers[i]!);
+    player.homeTower =
+      sp.homeTowerIdx !== null ? state.map.towers[sp.homeTowerIdx]! : null;
+    player.lives = sp.lives;
+    player.eliminated = sp.eliminated;
+    player.score = sp.score;
+  }
+}
+export function applyGruntsCheckpoint(
+  state: GameState,
+  serialized: { row: number; col: number }[],
+): void {
+  state.grunts = serialized.map((g) => ({
+    row: g.row,
+    col: g.col,
+    targetPlayerId: 0,
+  }));
+}
+function serializeGrunts(state: GameState) {
+  return state.grunts.map((g) => ({
+    row: g.row,
+    col: g.col,
+  }));
+}
+function serializeHouses(state: GameState) {
+  return state.map.houses.map((h) => ({
+    row: h.row,
+    col: h.col,
+    zone: h.zone,
+    alive: h.alive,
+  }));
+}
+function serializeBurningPits(state: GameState) {
+  return state.burningPits.map((p) => ({
+    row: p.row,
+    col: p.col,
+    roundsLeft: p.roundsLeft,
+  }));
+}
+function serializeBonusSquares(state: GameState) {
+  return state.bonusSquares.map((b) => ({
+    row: b.row,
+    col: b.col,
+    zone: b.zone,
+  }));
 }

@@ -17,7 +17,8 @@ import { Rng } from "./rng.ts";
 import { DIRS_4, forEachTowerTile, inBounds, isGrass, manhattanDistance, packTile, unpackTile } from "./spatial.ts";
 import { type GameState, HOUSE_MIN_DISTANCE, isPlayerActive } from "./types.ts";
 
-const SAFE_ZONE_PAD = 3; // 8×8 safe zone with corners cut (3 tiles clearance orthogonally)
+const SAFE_ZONE_PAD = 3;
+ // 8×8 safe zone with corners cut (3 tiles clearance orthogonally)
 const MIN_GAP_EDGE = 2;
 const MIN_GAP_TOWER = 4;
 const TOWERS_PER_ZONE = 4;
@@ -28,541 +29,8 @@ const MIN_ZONE_SIZE = 80;
 const GENERATION_MAX_ATTEMPTS = 5000;
 /** Maximum fallback generation attempts. */
 const GENERATION_FALLBACK_ATTEMPTS = 2000;
-
-function forEachOrthoNeighbor(
-  row: number,
-  col: number,
-  fn: (neighborRow: number, neighborCol: number) => void,
-): void {
-  for (const [dr, dc] of DIRS_4) {
-    fn(row + dr, col + dc);
-  }
-}
-
-function resetTilesToGrass(tiles: Tile[][]): void {
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      tiles[r]![c] = Tile.Grass;
-    }
-  }
-}
-
-function topZoneIds(regionSizes: Map<number, number>, count: number): number[] {
-  return [...regionSizes.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, count)
-    .map(([id]) => id);
-}
-
-function hasThreeBalancedZones(
-  regionSizes: Map<number, number>,
-  maxRatio: number,
-): boolean {
-  const bigZones = [...regionSizes.values()]
-    .filter((s) => s > MIN_ZONE_SIZE)
-    .sort((a, b) => b - a);
-  if (bigZones.length < 3) return false;
-  return bigZones[0]! / bigZones[2]! <= maxRatio;
-}
-
-function hasAnyThinTopZone(
-  zones: number[][],
-  regionSizes: Map<number, number>,
-  minHeight: number,
-): boolean {
-  const top3 = topZoneIds(regionSizes, 3);
-  for (const zid of top3) {
-    let minR = GRID_ROWS;
-    let maxR = 0;
-    for (let r = 0; r < GRID_ROWS; r++) {
-      for (let c = 0; c < GRID_COLS; c++) {
-        if (zones[r]![c] === zid) {
-          minR = Math.min(minR, r);
-          maxR = Math.max(maxR, r);
-        }
-      }
-    }
-    if (maxR - minR + 1 < minHeight) return true;
-  }
-  return false;
-}
-
-function zoneCentroidRow(zones: number[][], zoneId: number): number | null {
-  let sumR = 0;
-  let count = 0;
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      if (zones[r]![c] === zoneId) {
-        sumR += r;
-        count++;
-      }
-    }
-  }
-  if (count === 0) return null;
-  return sumR / count;
-}
-
-function towerRectDistance(
-  colA: number,
-  rowA: number,
-  colB: number,
-  rowB: number,
-): number {
-  const dx = Math.max(0, Math.max(colA, colB) - Math.min(colA + 1, colB + 1));
-  const dy = Math.max(0, Math.max(rowA, rowB) - Math.min(rowA + 1, rowB + 1));
-  return dx + dy;
-}
-
-
-// --- River Generation ---
-
-function pickExits(rng: Rng): PixelPos[] {
-  const edges = [0, 1, 2, 3]; // top, right, bottom, left
-  rng.shuffle(edges);
-  const chosen = edges.slice(0, 3);
-
-  return chosen.map((edge) => {
-    switch (edge) {
-      case 0:
-        return { x: rng.int(10, GRID_COLS - 11), y: -1 };
-      case 1:
-        return { x: GRID_COLS, y: rng.int(6, GRID_ROWS - 7) };
-      case 2:
-        return { x: rng.int(10, GRID_COLS - 11), y: GRID_ROWS };
-      case 3:
-        return { x: -1, y: rng.int(6, GRID_ROWS - 7) };
-      default:
-        return { x: 0, y: 0 };
-    }
-  });
-}
-
-function pickJunction(rng: Rng): PixelPos {
-  // Keep junction roughly central so all 3 zones have enough room for towers.
-  // Each zone needs at least ~10 tiles of width for 4 towers with SAFE_ZONE_PAD=3.
-  return {
-    x: rng.int(16, GRID_COLS - 17),
-    y: rng.int(11, GRID_ROWS - 12),
-  };
-}
-
-/**
- * Interpolate a smooth path from `from` to `to` via an optional midpoint for curvature.
- * Returns a list of integer (col, row) center points.
- */
-function interpolatePath(from: PixelPos, to: PixelPos, rng: Rng): PixelPos[] {
-  // Add a random midpoint for gentle curvature
-  const midX = (from.x + to.x) / 2 + rng.int(-3, 3);
-  const midY = (from.y + to.y) / 2 + rng.int(-2, 2);
-
-  const controlPoints = [from, { x: midX, y: midY }, to];
-  const points: PixelPos[] = [];
-
-  // Walk along the quadratic bezier at small steps
-  const steps = Math.max(GRID_COLS, GRID_ROWS) * 2;
-  let prevX = -999;
-  let prevY = -999;
-
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const u = 1 - t;
-    const bx =
-      u * u * controlPoints[0]!.x +
-      2 * u * t * controlPoints[1]!.x +
-      t * t * controlPoints[2]!.x;
-    const by =
-      u * u * controlPoints[0]!.y +
-      2 * u * t * controlPoints[1]!.y +
-      t * t * controlPoints[2]!.y;
-
-    const px = Math.round(bx);
-    const py = Math.round(by);
-
-    if (px === prevX && py === prevY) continue;
-
-    // Fill in any gaps (ensure 4-connected continuity)
-    if (points.length > 0) {
-      const last = points[points.length - 1]!;
-      let cx = last.x;
-      let cy = last.y;
-      while (cx !== px || cy !== py) {
-        const dx = px - cx;
-        const dy = py - cy;
-        // Move one step at a time, prefer the larger axis
-        if (Math.abs(dx) >= Math.abs(dy)) {
-          cx += dx > 0 ? 1 : -1;
-        } else {
-          cy += dy > 0 ? 1 : -1;
-        }
-        if (cx === last.x && cy === last.y) continue;
-        points.push({ x: cx, y: cy });
-      }
-    } else {
-      points.push({ x: px, y: py });
-    }
-
-    prevX = px;
-    prevY = py;
-  }
-
-  return points;
-}
-
-/**
- * Paint river onto tile grid. Each branch is 3 tiles wide (all Water).
- * Width is painted perpendicular to the path direction.
- */
-function paintRiver(
-  tiles: Tile[][],
-  junction: PixelPos,
-  exits: PixelPos[],
-  rng: Rng,
-): void {
-  const setWater = (x: number, y: number) => {
-    if (x >= 0 && x < GRID_COLS && y >= 0 && y < GRID_ROWS) {
-      tiles[y]![x] = Tile.Water;
-    }
-  };
-
-  for (const exit of exits) {
-    const path = interpolatePath(junction, exit, rng);
-
-    for (let i = 0; i < path.length; i++) {
-      const p = path[i]!;
-
-      // Determine path direction to paint perpendicular width
-      const prev = path[Math.max(0, i - 1)]!;
-      const next = path[Math.min(path.length - 1, i + 1)]!;
-      const dx = next.x - prev.x;
-      const dy = next.y - prev.y;
-
-      setWater(p.x, p.y);
-
-      if (Math.abs(dx) >= Math.abs(dy)) {
-        // Moving mostly horizontal -> paint vertical width (3 tiles)
-        setWater(p.x, p.y - 1);
-        setWater(p.x, p.y + 1);
-      } else {
-        // Moving mostly vertical -> paint horizontal width (3 tiles)
-        setWater(p.x - 1, p.y);
-        setWater(p.x + 1, p.y);
-      }
-    }
-  }
-
-  // Widen the junction area
-  for (let dy = -2; dy <= 2; dy++) {
-    for (let dx = -2; dx <= 2; dx++) {
-      if (Math.abs(dx) + Math.abs(dy) > 3) continue;
-      const nx = junction.x + dx;
-      const ny = junction.y + dy;
-      setWater(nx, ny);
-    }
-  }
-}
-
-/**
- * Smooth river edges: convert grass tiles with ≤1 grass neighbor to water.
- * Repeat until stable to remove peninsulas and jagged bits.
- */
-function smoothRiver(tiles: Tile[][]): void {
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (let r = 0; r < GRID_ROWS; r++) {
-      for (let c = 0; c < GRID_COLS; c++) {
-        if (tiles[r]![c] !== Tile.Grass) continue;
-        let grassNeighbors = 0;
-        forEachOrthoNeighbor(r, c, (nr, nc) => {
-          if (inBounds(nr, nc) && tiles[nr]![nc] === Tile.Grass) {
-            grassNeighbors++;
-          }
-        });
-        if (grassNeighbors <= 1) {
-          tiles[r]![c] = Tile.Water;
-          changed = true;
-        }
-      }
-    }
-  }
-}
-
-/**
- * Remove isolated water tiles: single-pass, convert water tiles with ≤1 water
- * orthogonal neighbor to grass (truly isolated stubs).
- */
-function removeIsolatedWater(tiles: Tile[][]): void {
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      if (tiles[r]![c] !== Tile.Water) continue;
-      let waterOrtho = 0;
-      forEachOrthoNeighbor(r, c, (nr, nc) => {
-        if (inBounds(nr, nc) && tiles[nr]![nc] === Tile.Water) {
-          waterOrtho++;
-        }
-      });
-      if (waterOrtho <= 1) {
-        tiles[r]![c] = Tile.Grass;
-      }
-    }
-  }
-}
-
-// --- Flood Fill ---
-
-function floodFillZones(tiles: Tile[][]): {
-  zones: number[][];
-  regionSizes: Map<number, number>;
-} {
-  const zones: number[][] = Array.from({ length: GRID_ROWS }, () =>
-    new Array(GRID_COLS).fill(0),
-  );
-  let regionId = 0;
-  const regionSizes = new Map<number, number>();
-
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      if (zones[r]![c] !== 0 || tiles[r]![c] !== Tile.Grass) continue;
-
-      regionId++;
-      let size = 0;
-      const queue: [number, number][] = [[r, c]];
-
-      while (queue.length > 0) {
-        const [cr, cc] = queue.pop()!;
-        if (cr < 0 || cr >= GRID_ROWS || cc < 0 || cc >= GRID_COLS) continue;
-        if (zones[cr]![cc] !== 0 || tiles[cr]![cc] !== Tile.Grass) continue;
-
-        zones[cr]![cc] = regionId;
-        size++;
-        forEachOrthoNeighbor(cr, cc, (nr, nc) => {
-          queue.push([nr, nc]);
-        });
-      }
-
-      regionSizes.set(regionId, size);
-    }
-  }
-
-  return { zones, regionSizes };
-}
-
-// --- Precompute distance-to-river grid ---
-
-function buildRiverDistanceGrid(tiles: Tile[][]): number[][] {
-  const dist: number[][] = Array.from({ length: GRID_ROWS }, () =>
-    new Array(GRID_COLS).fill(Infinity),
-  );
-  const queue: [number, number][] = [];
-
-  // Seed BFS from all river tiles
-  for (let r = 0; r < GRID_ROWS; r++) {
-    for (let c = 0; c < GRID_COLS; c++) {
-      if (tiles[r]![c] === Tile.Water) {
-        dist[r]![c] = 0;
-        queue.push([r, c]);
-      }
-    }
-  }
-
-  // BFS to compute Manhattan distance to nearest river tile
-  let head = 0;
-  while (head < queue.length) {
-    const [r, c] = queue[head++]!;
-    const d = dist[r]![c]!;
-    forEachOrthoNeighbor(r, c, (nr, nc) => {
-      if (
-        nr >= 0 &&
-        nr < GRID_ROWS &&
-        nc >= 0 &&
-        nc < GRID_COLS &&
-        dist[nr]![nc]! > d + 1
-      ) {
-        dist[nr]![nc] = d + 1;
-        queue.push([nr, nc]);
-      }
-    });
-  }
-
-  return dist;
-}
-
-// --- Tower Placement ---
-
-function isValidTowerPos(
-  col: number,
-  row: number,
-  riverDist: number[][],
-  existingTowers: Tower[],
-): boolean {
-  if (col + 1 >= GRID_COLS || row + 1 >= GRID_ROWS) return false;
-
-  // Edge gap: tower occupies [col, col+1] x [row, row+1]
-  if (col < MIN_GAP_EDGE || col + 2 > GRID_COLS - MIN_GAP_EDGE) return false;
-  if (row < MIN_GAP_EDGE || row + 2 > GRID_ROWS - MIN_GAP_EDGE) return false;
-
-  // Safe zone: 8×8 area centered on the 2×2 tower, corners cut off
-  // Distance from tower edge: dx = max(0, distance to nearest tower col)
-  //                           dy = max(0, distance to nearest tower row)
-  // Skip corners where dx + dy > SAFE_ZONE_PAD + 1
-  for (let dr = -SAFE_ZONE_PAD; dr < 2 + SAFE_ZONE_PAD; dr++) {
-    for (let dc = -SAFE_ZONE_PAD; dc < 2 + SAFE_ZONE_PAD; dc++) {
-      const dy = dr < 0 ? -dr : dr >= 2 ? dr - 1 : 0;
-      const dx = dc < 0 ? -dc : dc >= 2 ? dc - 1 : 0;
-      if (dx + dy > SAFE_ZONE_PAD + 1) continue; // cut corners
-      const r = row + dr;
-      const c = col + dc;
-      if (!inBounds(r, c)) return false;
-      if (riverDist[r]![c] === 0) return false;
-    }
-  }
-
-  // Tower gap: min empty tiles between edges (Manhattan)
-  for (const t of existingTowers) {
-    if (towerRectDistance(col, row, t.col, t.row) < MIN_GAP_TOWER) return false;
-  }
-
-  return true;
-}
-
-function placeTowers(
-  zones: number[][],
-  regionSizes: Map<number, number>,
-  riverDist: number[][],
-): Tower[] {
-  const sortedRegions = topZoneIds(regionSizes, 3);
-
-  const towers: Tower[] = [];
-
-  for (const zoneId of sortedRegions) {
-    // Collect all valid positions in this zone
-    const validPositions: [number, number][] = [];
-    for (let r = 0; r < GRID_ROWS - 1; r++) {
-      for (let c = 0; c < GRID_COLS - 1; c++) {
-        if (zones[r]![c] !== zoneId) continue;
-        if (isValidTowerPos(c, r, riverDist, towers)) {
-          validPositions.push([c, r]);
-        }
-      }
-    }
-
-    if (validPositions.length === 0) continue;
-
-    // Farthest-point sampling
-    // First tower: near centroid
-    const centroidC =
-      validPositions.reduce((s, [c]) => s + c, 0) / validPositions.length;
-    const centroidR =
-      validPositions.reduce((s, [, r]) => s + r, 0) / validPositions.length;
-
-    let bestIdx = 0;
-    let bestDist = Infinity;
-    for (let i = 0; i < validPositions.length; i++) {
-      const d =
-        Math.abs(validPositions[i]![0] - centroidC) +
-        Math.abs(validPositions[i]![1] - centroidR);
-      if (d < bestDist) {
-        bestDist = d;
-        bestIdx = i;
-      }
-    }
-
-    towers.push({
-      col: validPositions[bestIdx]![0],
-      row: validPositions[bestIdx]![1],
-      zone: zoneId,
-      index: towers.length,
-    });
-
-    // Remaining towers: farthest from existing zone towers
-    for (let t = 1; t < TOWERS_PER_ZONE; t++) {
-      let bestPos: [number, number] | null = null;
-      let bestMinDist = -1;
-
-      for (const [c, r] of validPositions) {
-        if (!isValidTowerPos(c, r, riverDist, towers)) continue;
-
-        let minDist = Infinity;
-        for (const tw of towers.filter((tw) => tw.zone === zoneId)) {
-          minDist = Math.min(minDist, towerRectDistance(c, r, tw.col, tw.row));
-        }
-
-        if (minDist > bestMinDist) {
-          bestMinDist = minDist;
-          bestPos = [c, r];
-        }
-      }
-
-      if (bestPos) {
-        towers.push({ col: bestPos[0], row: bestPos[1], zone: zoneId, index: towers.length });
-      }
-    }
-  }
-
-  return towers;
-}
-
-// --- House Placement ---
-
 /** Max houses when refilling a zone mid-game (lower than initial to leave room). */
 const REFILL_HOUSES_PER_ZONE = 8;
-
-/** Build set of all 2×2 tower tile keys. */
-function buildTowerTileSet(towers: Tower[]): Set<number> {
-  const towerTiles = new Set<number>();
-  for (const t of towers) {
-    forEachTowerTile(t, (_r, _c, key) => towerTiles.add(key));
-  }
-  return towerTiles;
-}
-
-/** Check if a position is a valid house candidate (grass, correct zone, away from water and towers). */
-function isValidHousePos(
-  tiles: Tile[][],
-  zones: number[][],
-  towerTiles: Set<number>,
-  r: number,
-  c: number,
-  zoneId: number,
-): boolean {
-  if (tiles[r]![c] !== Tile.Grass) return false;
-  if (zones[r]![c] !== zoneId) return false;
-  if (towerTiles.has(packTile(r, c))) return false;
-  // All 8 neighbors must be grass (1-tile margin from water/edge)
-  for (let dr = -1; dr <= 1; dr++)
-    for (let dc = -1; dc <= 1; dc++)
-      if (tiles[r + dr]![c + dc] !== Tile.Grass) return false;
-  // Not adjacent to a tower (1 tile gap)
-  for (let dr = -1; dr <= 1; dr++)
-    for (let dc = -1; dc <= 1; dc++)
-      if (towerTiles.has(packTile(r + dr, c + dc))) return false;
-  return true;
-}
-
-/** True if (r,c) is too close to any existing house. */
-function isHouseTooClose(houses: readonly House[], r: number, c: number): boolean {
-  return houses.some(h => manhattanDistance(h.row, h.col, r, c) < HOUSE_MIN_DISTANCE);
-}
-
-// --- Main Generation ---
-
-/**
- * Reset tiles to grass, paint the river, smooth it, remove isolated water,
- * and flood-fill zones. Used during map generation to (re-)generate the
- * river layout from a junction and exits.
- */
-function generateRiverAndZones(
-  tiles: Tile[][],
-  junction: PixelPos,
-  exits: PixelPos[],
-  rng: Rng,
-): { zones: number[][]; regionSizes: Map<number, number> } {
-  resetTilesToGrass(tiles);
-  paintRiver(tiles, junction, exits, rng);
-  smoothRiver(tiles);
-  removeIsolatedWater(tiles);
-  return floodFillZones(tiles);
-}
 
 export function generateMap(seed?: number): GameMap {
   const rng = new Rng(seed ?? Date.now());
@@ -635,120 +103,6 @@ export function generateMap(seed?: number): GameMap {
   const towers = placeTowers(zones, regionSizes, riverDist);
   return { tiles, towers, houses: [], zones, junction, exits };
 }
-
-// --- Castle Gap Helpers ---
-
-/**
- * Shrink gaps until the wall ring is valid (full ring check including corners).
- * Tries to identify the specific side causing invalidity; falls back to shrinking
- * the largest gap.
- */
-function shrinkGapsUntilValid(
-  isValid: (gL: number, gR: number, gT: number, gB: number) => boolean,
-  gL: number,
-  gR: number,
-  gT: number,
-  gB: number,
-): { gL: number; gR: number; gT: number; gB: number } {
-  let maxIter = 20;
-  while (!isValid(gL, gR, gT, gB) && maxIter-- > 0) {
-    // Find which side's wall has water and shrink it
-    let shrunk = false;
-    for (const side of ["L", "R", "T", "B"] as const) {
-      const g = side === "L" ? gL : side === "R" ? gR : side === "T" ? gT : gB;
-      if (g > 0) {
-        const tryL = side === "L" ? g - 1 : gL;
-        const tryR = side === "R" ? g - 1 : gR;
-        const tryT = side === "T" ? g - 1 : gT;
-        const tryB = side === "B" ? g - 1 : gB;
-        // Check if this side's wall column/row has issues
-        if (
-          !isValid(gL, gR, gT, gB) &&
-          isValid(tryL, tryR, tryT, tryB)
-        ) {
-          gL = tryL;
-          gR = tryR;
-          gT = tryT;
-          gB = tryB;
-          shrunk = true;
-          break;
-        }
-      }
-    }
-    if (!shrunk) {
-      // Shrink the side with the largest gap
-      const gaps = [
-        { side: "B" as const, val: gB },
-        { side: "R" as const, val: gR },
-        { side: "T" as const, val: gT },
-        { side: "L" as const, val: gL },
-      ].sort((a, b) => b.val - a.val);
-      for (const { side } of gaps) {
-        const g =
-          side === "L" ? gL : side === "R" ? gR : side === "T" ? gT : gB;
-        if (g > 0) {
-          if (side === "L") gL--;
-          else if (side === "R") gR--;
-          else if (side === "T") gT--;
-          else gB--;
-          break;
-        }
-      }
-    }
-  }
-  return { gL, gR, gT, gB };
-}
-
-/**
- * Extend gaps to reach the target budget, preferring the shorter axis first.
- * Each extension is validated against the wall ring check.
- */
-function extendGapsToTarget(
-  isValid: (gL: number, gR: number, gT: number, gB: number) => boolean,
-  budget: number,
-  gL: number,
-  gR: number,
-  gT: number,
-  gB: number,
-): { gL: number; gR: number; gT: number; gB: number } {
-  while (gL + gR + gT + gB < budget) {
-    // Try extending in priority order: opposite of constrained sides, then any direction
-    const deficit = budget - (gL + gR + gT + gB);
-    if (deficit <= 0) break;
-
-    let extended = false;
-
-    // If horizontal axis is short (gL+gR < 4), try extending horizontally
-    // If vertical axis is short (gT+gB < 4), try extending vertically
-    const hTotal = gL + gR;
-    const vTotal = gT + gB;
-
-    // Try each direction, preferring the axis that's shorter
-    const directions: ("L" | "R" | "T" | "B")[] =
-      hTotal <= vTotal ? ["R", "L", "B", "T"] : ["B", "T", "R", "L"];
-
-    for (const dir of directions) {
-      const newL = dir === "L" ? gL + 1 : gL;
-      const newR = dir === "R" ? gR + 1 : gR;
-      const newT = dir === "T" ? gT + 1 : gT;
-      const newB = dir === "B" ? gB + 1 : gB;
-      if (newL >= 0 && newR >= 0 && newT >= 0 && newB >= 0 && isValid(newL, newR, newT, newB)) {
-        gL = newL;
-        gR = newR;
-        gT = newT;
-        gB = newB;
-        extended = true;
-        break;
-      }
-    }
-
-    if (!extended) break;
-  }
-  return { gL, gR, gT, gB };
-}
-
-// --- Castle Auto-Building ---
-
 /**
  * Build the initial castle walls around a selected tower.
  *
@@ -898,7 +252,6 @@ export function buildCastle(
     tower,
   };
 }
-
 /**
  * Get all wall tile positions for a castle (1-tile ring around interior).
  * Only includes tiles that are on-map and on grass.
@@ -929,7 +282,6 @@ export function getCastleWallTiles(
 
   return wallTiles;
 }
-
 /**
  * Apply clumsy builder cosmetic noise to a wall set, then sweep isolated tiles.
  *
@@ -1025,9 +377,26 @@ export function applyClumsyBuilders(
     }
   }
 }
-
-// --- House Refilling (mid-game) ---
-
+/**
+ * Called at the start of each build phase:
+ * Refill houses in zones that have fewer than the refill cap.
+ */
+export function startOfBuildPhaseHousekeeping(state: GameState): void {
+  for (const player of state.players) {
+    if (!isPlayerActive(player)) continue;
+    const zone = player.homeTower.zone;
+    const aliveInZone = state.map.houses.filter(
+      (h) => h.zone === zone && h.alive,
+    ).length;
+    if (aliveInZone < REFILL_HOUSES_PER_ZONE) {
+      // Remove dead houses in zone first to free up positions
+      state.map.houses = state.map.houses.filter(
+        (h) => h.zone !== zone || h.alive,
+      );
+      spawnHousesInZone(state, zone);
+    }
+  }
+}
 /**
  * Spawn houses in a single zone, avoiding walls, cannons, towers, and their margins.
  * Appends new houses to state.map.houses.
@@ -1071,28 +440,6 @@ export function spawnHousesInZone(state: GameState, zoneId: number): void {
     placed++;
   }
 }
-
-/**
- * Called at the start of each build phase:
- * Refill houses in zones that have fewer than the refill cap.
- */
-export function startOfBuildPhaseHousekeeping(state: GameState): void {
-  for (const player of state.players) {
-    if (!isPlayerActive(player)) continue;
-    const zone = player.homeTower.zone;
-    const aliveInZone = state.map.houses.filter(
-      (h) => h.zone === zone && h.alive,
-    ).length;
-    if (aliveInZone < REFILL_HOUSES_PER_ZONE) {
-      // Remove dead houses in zone first to free up positions
-      state.map.houses = state.map.houses.filter(
-        (h) => h.zone !== zone || h.alive,
-      );
-      spawnHousesInZone(state, zone);
-    }
-  }
-}
-
 /**
  * Return the top N zones by grass tile count, sorted largest-first.
  * Used to identify the main player zones on the map.
@@ -1114,4 +461,609 @@ export function topZonesBySize(
     .sort((a, b) => b[1] - a[1])
     .slice(0, n)
     .map(([zone, count]) => ({ zone, count }));
+}
+function hasThreeBalancedZones(
+  regionSizes: Map<number, number>,
+  maxRatio: number,
+): boolean {
+  const bigZones = [...regionSizes.values()]
+    .filter((s) => s > MIN_ZONE_SIZE)
+    .sort((a, b) => b - a);
+  if (bigZones.length < 3) return false;
+  return bigZones[0]! / bigZones[2]! <= maxRatio;
+}
+function hasAnyThinTopZone(
+  zones: number[][],
+  regionSizes: Map<number, number>,
+  minHeight: number,
+): boolean {
+  const top3 = topZoneIds(regionSizes, 3);
+  for (const zid of top3) {
+    let minR = GRID_ROWS;
+    let maxR = 0;
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        if (zones[r]![c] === zid) {
+          minR = Math.min(minR, r);
+          maxR = Math.max(maxR, r);
+        }
+      }
+    }
+    if (maxR - minR + 1 < minHeight) return true;
+  }
+  return false;
+}
+function zoneCentroidRow(zones: number[][], zoneId: number): number | null {
+  let sumR = 0;
+  let count = 0;
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      if (zones[r]![c] === zoneId) {
+        sumR += r;
+        count++;
+      }
+    }
+  }
+  if (count === 0) return null;
+  return sumR / count;
+}
+function pickExits(rng: Rng): PixelPos[] {
+  const edges = [0, 1, 2, 3]; // top, right, bottom, left
+  rng.shuffle(edges);
+  const chosen = edges.slice(0, 3);
+
+  return chosen.map((edge) => {
+    switch (edge) {
+      case 0:
+        return { x: rng.int(10, GRID_COLS - 11), y: -1 };
+      case 1:
+        return { x: GRID_COLS, y: rng.int(6, GRID_ROWS - 7) };
+      case 2:
+        return { x: rng.int(10, GRID_COLS - 11), y: GRID_ROWS };
+      case 3:
+        return { x: -1, y: rng.int(6, GRID_ROWS - 7) };
+      default:
+        return { x: 0, y: 0 };
+    }
+  });
+}
+function pickJunction(rng: Rng): PixelPos {
+  // Keep junction roughly central so all 3 zones have enough room for towers.
+  // Each zone needs at least ~10 tiles of width for 4 towers with SAFE_ZONE_PAD=3.
+  return {
+    x: rng.int(16, GRID_COLS - 17),
+    y: rng.int(11, GRID_ROWS - 12),
+  };
+}
+function buildRiverDistanceGrid(tiles: Tile[][]): number[][] {
+  const dist: number[][] = Array.from({ length: GRID_ROWS }, () =>
+    new Array(GRID_COLS).fill(Infinity),
+  );
+  const queue: [number, number][] = [];
+
+  // Seed BFS from all river tiles
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      if (tiles[r]![c] === Tile.Water) {
+        dist[r]![c] = 0;
+        queue.push([r, c]);
+      }
+    }
+  }
+
+  // BFS to compute Manhattan distance to nearest river tile
+  let head = 0;
+  while (head < queue.length) {
+    const [r, c] = queue[head++]!;
+    const d = dist[r]![c]!;
+    forEachOrthoNeighbor(r, c, (nr, nc) => {
+      if (
+        nr >= 0 &&
+        nr < GRID_ROWS &&
+        nc >= 0 &&
+        nc < GRID_COLS &&
+        dist[nr]![nc]! > d + 1
+      ) {
+        dist[nr]![nc] = d + 1;
+        queue.push([nr, nc]);
+      }
+    });
+  }
+
+  return dist;
+}
+function placeTowers(
+  zones: number[][],
+  regionSizes: Map<number, number>,
+  riverDist: number[][],
+): Tower[] {
+  const sortedRegions = topZoneIds(regionSizes, 3);
+
+  const towers: Tower[] = [];
+
+  for (const zoneId of sortedRegions) {
+    // Collect all valid positions in this zone
+    const validPositions: [number, number][] = [];
+    for (let r = 0; r < GRID_ROWS - 1; r++) {
+      for (let c = 0; c < GRID_COLS - 1; c++) {
+        if (zones[r]![c] !== zoneId) continue;
+        if (isValidTowerPos(c, r, riverDist, towers)) {
+          validPositions.push([c, r]);
+        }
+      }
+    }
+
+    if (validPositions.length === 0) continue;
+
+    // Farthest-point sampling
+    // First tower: near centroid
+    const centroidC =
+      validPositions.reduce((s, [c]) => s + c, 0) / validPositions.length;
+    const centroidR =
+      validPositions.reduce((s, [, r]) => s + r, 0) / validPositions.length;
+
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < validPositions.length; i++) {
+      const d =
+        Math.abs(validPositions[i]![0] - centroidC) +
+        Math.abs(validPositions[i]![1] - centroidR);
+      if (d < bestDist) {
+        bestDist = d;
+        bestIdx = i;
+      }
+    }
+
+    towers.push({
+      col: validPositions[bestIdx]![0],
+      row: validPositions[bestIdx]![1],
+      zone: zoneId,
+      index: towers.length,
+    });
+
+    // Remaining towers: farthest from existing zone towers
+    for (let t = 1; t < TOWERS_PER_ZONE; t++) {
+      let bestPos: [number, number] | null = null;
+      let bestMinDist = -1;
+
+      for (const [c, r] of validPositions) {
+        if (!isValidTowerPos(c, r, riverDist, towers)) continue;
+
+        let minDist = Infinity;
+        for (const tw of towers.filter((tw) => tw.zone === zoneId)) {
+          minDist = Math.min(minDist, towerRectDistance(c, r, tw.col, tw.row));
+        }
+
+        if (minDist > bestMinDist) {
+          bestMinDist = minDist;
+          bestPos = [c, r];
+        }
+      }
+
+      if (bestPos) {
+        towers.push({ col: bestPos[0], row: bestPos[1], zone: zoneId, index: towers.length });
+      }
+    }
+  }
+
+  return towers;
+}
+function topZoneIds(regionSizes: Map<number, number>, count: number): number[] {
+  return [...regionSizes.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, count)
+    .map(([id]) => id);
+}
+function isValidTowerPos(
+  col: number,
+  row: number,
+  riverDist: number[][],
+  existingTowers: Tower[],
+): boolean {
+  if (col + 1 >= GRID_COLS || row + 1 >= GRID_ROWS) return false;
+
+  // Edge gap: tower occupies [col, col+1] x [row, row+1]
+  if (col < MIN_GAP_EDGE || col + 2 > GRID_COLS - MIN_GAP_EDGE) return false;
+  if (row < MIN_GAP_EDGE || row + 2 > GRID_ROWS - MIN_GAP_EDGE) return false;
+
+  // Safe zone: 8×8 area centered on the 2×2 tower, corners cut off
+  // Distance from tower edge: dx = max(0, distance to nearest tower col)
+  //                           dy = max(0, distance to nearest tower row)
+  // Skip corners where dx + dy > SAFE_ZONE_PAD + 1
+  for (let dr = -SAFE_ZONE_PAD; dr < 2 + SAFE_ZONE_PAD; dr++) {
+    for (let dc = -SAFE_ZONE_PAD; dc < 2 + SAFE_ZONE_PAD; dc++) {
+      const dy = dr < 0 ? -dr : dr >= 2 ? dr - 1 : 0;
+      const dx = dc < 0 ? -dc : dc >= 2 ? dc - 1 : 0;
+      if (dx + dy > SAFE_ZONE_PAD + 1) continue; // cut corners
+      const r = row + dr;
+      const c = col + dc;
+      if (!inBounds(r, c)) return false;
+      if (riverDist[r]![c] === 0) return false;
+    }
+  }
+
+  // Tower gap: min empty tiles between edges (Manhattan)
+  for (const t of existingTowers) {
+    if (towerRectDistance(col, row, t.col, t.row) < MIN_GAP_TOWER) return false;
+  }
+
+  return true;
+}
+function towerRectDistance(
+  colA: number,
+  rowA: number,
+  colB: number,
+  rowB: number,
+): number {
+  const dx = Math.max(0, Math.max(colA, colB) - Math.min(colA + 1, colB + 1));
+  const dy = Math.max(0, Math.max(rowA, rowB) - Math.min(rowA + 1, rowB + 1));
+  return dx + dy;
+}
+/** Build set of all 2×2 tower tile keys. */
+function buildTowerTileSet(towers: Tower[]): Set<number> {
+  const towerTiles = new Set<number>();
+  for (const t of towers) {
+    forEachTowerTile(t, (_r, _c, key) => towerTiles.add(key));
+  }
+  return towerTiles;
+}
+/** Check if a position is a valid house candidate (grass, correct zone, away from water and towers). */
+function isValidHousePos(
+  tiles: Tile[][],
+  zones: number[][],
+  towerTiles: Set<number>,
+  r: number,
+  c: number,
+  zoneId: number,
+): boolean {
+  if (tiles[r]![c] !== Tile.Grass) return false;
+  if (zones[r]![c] !== zoneId) return false;
+  if (towerTiles.has(packTile(r, c))) return false;
+  // All 8 neighbors must be grass (1-tile margin from water/edge)
+  for (let dr = -1; dr <= 1; dr++)
+    for (let dc = -1; dc <= 1; dc++)
+      if (tiles[r + dr]![c + dc] !== Tile.Grass) return false;
+  // Not adjacent to a tower (1 tile gap)
+  for (let dr = -1; dr <= 1; dr++)
+    for (let dc = -1; dc <= 1; dc++)
+      if (towerTiles.has(packTile(r + dr, c + dc))) return false;
+  return true;
+}
+/** True if (r,c) is too close to any existing house. */
+function isHouseTooClose(houses: readonly House[], r: number, c: number): boolean {
+  return houses.some(h => manhattanDistance(h.row, h.col, r, c) < HOUSE_MIN_DISTANCE);
+}
+/**
+ * Reset tiles to grass, paint the river, smooth it, remove isolated water,
+ * and flood-fill zones. Used during map generation to (re-)generate the
+ * river layout from a junction and exits.
+ */
+function generateRiverAndZones(
+  tiles: Tile[][],
+  junction: PixelPos,
+  exits: PixelPos[],
+  rng: Rng,
+): { zones: number[][]; regionSizes: Map<number, number> } {
+  resetTilesToGrass(tiles);
+  paintRiver(tiles, junction, exits, rng);
+  smoothRiver(tiles);
+  removeIsolatedWater(tiles);
+  return floodFillZones(tiles);
+}
+function resetTilesToGrass(tiles: Tile[][]): void {
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      tiles[r]![c] = Tile.Grass;
+    }
+  }
+}
+/**
+ * Paint river onto tile grid. Each branch is 3 tiles wide (all Water).
+ * Width is painted perpendicular to the path direction.
+ */
+function paintRiver(
+  tiles: Tile[][],
+  junction: PixelPos,
+  exits: PixelPos[],
+  rng: Rng,
+): void {
+  const setWater = (x: number, y: number) => {
+    if (x >= 0 && x < GRID_COLS && y >= 0 && y < GRID_ROWS) {
+      tiles[y]![x] = Tile.Water;
+    }
+  };
+
+  for (const exit of exits) {
+    const path = interpolatePath(junction, exit, rng);
+
+    for (let i = 0; i < path.length; i++) {
+      const p = path[i]!;
+
+      // Determine path direction to paint perpendicular width
+      const prev = path[Math.max(0, i - 1)]!;
+      const next = path[Math.min(path.length - 1, i + 1)]!;
+      const dx = next.x - prev.x;
+      const dy = next.y - prev.y;
+
+      setWater(p.x, p.y);
+
+      if (Math.abs(dx) >= Math.abs(dy)) {
+        // Moving mostly horizontal -> paint vertical width (3 tiles)
+        setWater(p.x, p.y - 1);
+        setWater(p.x, p.y + 1);
+      } else {
+        // Moving mostly vertical -> paint horizontal width (3 tiles)
+        setWater(p.x - 1, p.y);
+        setWater(p.x + 1, p.y);
+      }
+    }
+  }
+
+  // Widen the junction area
+  for (let dy = -2; dy <= 2; dy++) {
+    for (let dx = -2; dx <= 2; dx++) {
+      if (Math.abs(dx) + Math.abs(dy) > 3) continue;
+      const nx = junction.x + dx;
+      const ny = junction.y + dy;
+      setWater(nx, ny);
+    }
+  }
+}
+/**
+ * Interpolate a smooth path from `from` to `to` via an optional midpoint for curvature.
+ * Returns a list of integer (col, row) center points.
+ */
+function interpolatePath(from: PixelPos, to: PixelPos, rng: Rng): PixelPos[] {
+  // Add a random midpoint for gentle curvature
+  const midX = (from.x + to.x) / 2 + rng.int(-3, 3);
+  const midY = (from.y + to.y) / 2 + rng.int(-2, 2);
+
+  const controlPoints = [from, { x: midX, y: midY }, to];
+  const points: PixelPos[] = [];
+
+  // Walk along the quadratic bezier at small steps
+  const steps = Math.max(GRID_COLS, GRID_ROWS) * 2;
+  let prevX = -999;
+  let prevY = -999;
+
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const u = 1 - t;
+    const bx =
+      u * u * controlPoints[0]!.x +
+      2 * u * t * controlPoints[1]!.x +
+      t * t * controlPoints[2]!.x;
+    const by =
+      u * u * controlPoints[0]!.y +
+      2 * u * t * controlPoints[1]!.y +
+      t * t * controlPoints[2]!.y;
+
+    const px = Math.round(bx);
+    const py = Math.round(by);
+
+    if (px === prevX && py === prevY) continue;
+
+    // Fill in any gaps (ensure 4-connected continuity)
+    if (points.length > 0) {
+      const last = points[points.length - 1]!;
+      let cx = last.x;
+      let cy = last.y;
+      while (cx !== px || cy !== py) {
+        const dx = px - cx;
+        const dy = py - cy;
+        // Move one step at a time, prefer the larger axis
+        if (Math.abs(dx) >= Math.abs(dy)) {
+          cx += dx > 0 ? 1 : -1;
+        } else {
+          cy += dy > 0 ? 1 : -1;
+        }
+        if (cx === last.x && cy === last.y) continue;
+        points.push({ x: cx, y: cy });
+      }
+    } else {
+      points.push({ x: px, y: py });
+    }
+
+    prevX = px;
+    prevY = py;
+  }
+
+  return points;
+}
+/**
+ * Smooth river edges: convert grass tiles with ≤1 grass neighbor to water.
+ * Repeat until stable to remove peninsulas and jagged bits.
+ */
+function smoothRiver(tiles: Tile[][]): void {
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        if (tiles[r]![c] !== Tile.Grass) continue;
+        let grassNeighbors = 0;
+        forEachOrthoNeighbor(r, c, (nr, nc) => {
+          if (inBounds(nr, nc) && tiles[nr]![nc] === Tile.Grass) {
+            grassNeighbors++;
+          }
+        });
+        if (grassNeighbors <= 1) {
+          tiles[r]![c] = Tile.Water;
+          changed = true;
+        }
+      }
+    }
+  }
+}
+/**
+ * Remove isolated water tiles: single-pass, convert water tiles with ≤1 water
+ * orthogonal neighbor to grass (truly isolated stubs).
+ */
+function removeIsolatedWater(tiles: Tile[][]): void {
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      if (tiles[r]![c] !== Tile.Water) continue;
+      let waterOrtho = 0;
+      forEachOrthoNeighbor(r, c, (nr, nc) => {
+        if (inBounds(nr, nc) && tiles[nr]![nc] === Tile.Water) {
+          waterOrtho++;
+        }
+      });
+      if (waterOrtho <= 1) {
+        tiles[r]![c] = Tile.Grass;
+      }
+    }
+  }
+}
+function floodFillZones(tiles: Tile[][]): {
+  zones: number[][];
+  regionSizes: Map<number, number>;
+} {
+  const zones: number[][] = Array.from({ length: GRID_ROWS }, () =>
+    new Array(GRID_COLS).fill(0),
+  );
+  let regionId = 0;
+  const regionSizes = new Map<number, number>();
+
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      if (zones[r]![c] !== 0 || tiles[r]![c] !== Tile.Grass) continue;
+
+      regionId++;
+      let size = 0;
+      const queue: [number, number][] = [[r, c]];
+
+      while (queue.length > 0) {
+        const [cr, cc] = queue.pop()!;
+        if (cr < 0 || cr >= GRID_ROWS || cc < 0 || cc >= GRID_COLS) continue;
+        if (zones[cr]![cc] !== 0 || tiles[cr]![cc] !== Tile.Grass) continue;
+
+        zones[cr]![cc] = regionId;
+        size++;
+        forEachOrthoNeighbor(cr, cc, (nr, nc) => {
+          queue.push([nr, nc]);
+        });
+      }
+
+      regionSizes.set(regionId, size);
+    }
+  }
+
+  return { zones, regionSizes };
+}
+function forEachOrthoNeighbor(
+  row: number,
+  col: number,
+  fn: (neighborRow: number, neighborCol: number) => void,
+): void {
+  for (const [dr, dc] of DIRS_4) {
+    fn(row + dr, col + dc);
+  }
+}
+/**
+ * Shrink gaps until the wall ring is valid (full ring check including corners).
+ * Tries to identify the specific side causing invalidity; falls back to shrinking
+ * the largest gap.
+ */
+function shrinkGapsUntilValid(
+  isValid: (gL: number, gR: number, gT: number, gB: number) => boolean,
+  gL: number,
+  gR: number,
+  gT: number,
+  gB: number,
+): { gL: number; gR: number; gT: number; gB: number } {
+  let maxIter = 20;
+  while (!isValid(gL, gR, gT, gB) && maxIter-- > 0) {
+    // Find which side's wall has water and shrink it
+    let shrunk = false;
+    for (const side of ["L", "R", "T", "B"] as const) {
+      const g = side === "L" ? gL : side === "R" ? gR : side === "T" ? gT : gB;
+      if (g > 0) {
+        const tryL = side === "L" ? g - 1 : gL;
+        const tryR = side === "R" ? g - 1 : gR;
+        const tryT = side === "T" ? g - 1 : gT;
+        const tryB = side === "B" ? g - 1 : gB;
+        // Check if this side's wall column/row has issues
+        if (
+          !isValid(gL, gR, gT, gB) &&
+          isValid(tryL, tryR, tryT, tryB)
+        ) {
+          gL = tryL;
+          gR = tryR;
+          gT = tryT;
+          gB = tryB;
+          shrunk = true;
+          break;
+        }
+      }
+    }
+    if (!shrunk) {
+      // Shrink the side with the largest gap
+      const gaps = [
+        { side: "B" as const, val: gB },
+        { side: "R" as const, val: gR },
+        { side: "T" as const, val: gT },
+        { side: "L" as const, val: gL },
+      ].sort((a, b) => b.val - a.val);
+      for (const { side } of gaps) {
+        const g =
+          side === "L" ? gL : side === "R" ? gR : side === "T" ? gT : gB;
+        if (g > 0) {
+          if (side === "L") gL--;
+          else if (side === "R") gR--;
+          else if (side === "T") gT--;
+          else gB--;
+          break;
+        }
+      }
+    }
+  }
+  return { gL, gR, gT, gB };
+}
+/**
+ * Extend gaps to reach the target budget, preferring the shorter axis first.
+ * Each extension is validated against the wall ring check.
+ */
+function extendGapsToTarget(
+  isValid: (gL: number, gR: number, gT: number, gB: number) => boolean,
+  budget: number,
+  gL: number,
+  gR: number,
+  gT: number,
+  gB: number,
+): { gL: number; gR: number; gT: number; gB: number } {
+  while (gL + gR + gT + gB < budget) {
+    // Try extending in priority order: opposite of constrained sides, then any direction
+    const deficit = budget - (gL + gR + gT + gB);
+    if (deficit <= 0) break;
+
+    let extended = false;
+
+    // If horizontal axis is short (gL+gR < 4), try extending horizontally
+    // If vertical axis is short (gT+gB < 4), try extending vertically
+    const hTotal = gL + gR;
+    const vTotal = gT + gB;
+
+    // Try each direction, preferring the axis that's shorter
+    const directions: ("L" | "R" | "T" | "B")[] =
+      hTotal <= vTotal ? ["R", "L", "B", "T"] : ["B", "T", "R", "L"];
+
+    for (const dir of directions) {
+      const newL = dir === "L" ? gL + 1 : gL;
+      const newR = dir === "R" ? gR + 1 : gR;
+      const newT = dir === "T" ? gT + 1 : gT;
+      const newB = dir === "B" ? gB + 1 : gB;
+      if (newL >= 0 && newR >= 0 && newT >= 0 && newB >= 0 && isValid(newL, newR, newT, newB)) {
+        gL = newL;
+        gR = newR;
+        gT = newT;
+        gB = newB;
+        extended = true;
+        break;
+      }
+    }
+
+    if (!extended) break;
+  }
+  return { gL, gR, gT, gB };
 }

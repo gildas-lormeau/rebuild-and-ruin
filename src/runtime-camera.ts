@@ -24,11 +24,6 @@ import {
   ZOOM_LERP_SPEED,
 } from "./types.ts";
 
-
-// ---------------------------------------------------------------------------
-// Public interfaces
-// ---------------------------------------------------------------------------
-
 interface CameraDeps {
   getState: () => GameState | undefined;
   getMode: () => Mode;
@@ -40,7 +35,6 @@ interface CameraDeps {
   getMyPlayerId: () => number;
   getFirstHumanPlayerId: () => number;
 }
-
 interface CameraSystem {
   // Per-frame lifecycle
   tickCamera: (dt: number) => void;
@@ -84,10 +78,6 @@ interface CameraSystem {
   // Mobile zoom
   enableMobileZoom: () => void;
 }
-
-// ---------------------------------------------------------------------------
-// Factory
-// ---------------------------------------------------------------------------
 
 export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // --- Internal state ---

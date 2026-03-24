@@ -21,7 +21,6 @@ export function createController(
     ? new AiController(playerId, new DefaultStrategy(undefined, strategySeed, difficulty))
     : new HumanController(playerId, keys!);
 }
-
 /** Type guard for HumanController. */
 export function isHuman(ctrl: PlayerController): ctrl is HumanController {
   return ctrl instanceof HumanController;

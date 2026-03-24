@@ -33,10 +33,6 @@ import type { RenderOverlay } from "./render-types.ts";
 import type { SelectionState } from "./selection.ts";
 import type { GameState } from "./types.ts";
 
-// ---------------------------------------------------------------------------
-// RuntimeState
-// ---------------------------------------------------------------------------
-
 export interface RuntimeState {
   // Core game
   state: GameState;
@@ -85,10 +81,6 @@ export interface RuntimeState {
   // Input tracking
   mouseJoinedSlot: number;
 }
-
-// ---------------------------------------------------------------------------
-// Factory
-// ---------------------------------------------------------------------------
 
 export function createRuntimeState(): RuntimeState {
   return {

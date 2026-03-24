@@ -29,9 +29,7 @@ import {
 import type { GameState, Player } from "./types.ts";
 import { BALLOON_COST, CannonMode, SUPER_GUN_COST } from "./types.ts";
 
-// ---------------------------------------------------------------------------
-// AI cannon tuning constants
-// ---------------------------------------------------------------------------
+type CannonCandidate = { row: number; col: number; score: number };
 
 /** Chance to pick the tower closest to zone centroid vs random. */
 const CENTROID_TOWER_PROBABILITY = 2 / 3;
@@ -57,10 +55,6 @@ const SCORE_NOISE_RANGE = 2;
 const SUPER_GUN_SLOT_THRESHOLD = 8;
 /** Chance to attempt a super gun when slot threshold is met. */
 const SUPER_GUN_PROBABILITY = 1 / 3;
-
-// ---------------------------------------------------------------------------
-// Tower selection
-// ---------------------------------------------------------------------------
 
 /** Pick a home tower for the given zone. Returns the chosen tower, or null if none available. */
 export function autoSelectTowerImpl(
@@ -116,11 +110,138 @@ export function autoSelectTowerImpl(
 
   return rng.pick(zoneTowers);
 }
+export function autoPlaceCannonsImpl(
+  player: Player,
+  count: number,
+  state: GameState,
+  rng: Rng,
+  aggressiveness = 2,
+  defensiveness = 2,
+  spatialAwareness = 2,
+): void {
+  // Cannon scoring noise — controlled by spatialAwareness
+  // 1 = noisy (×5), 2 = default (×1), 3 = precise (×0.25)
+  const noiseScale = traitLookup(spatialAwareness, [5, 1, 0.25] as const);
 
-// ---------------------------------------------------------------------------
-// Cannon position scoring
-// ---------------------------------------------------------------------------
+  // Super gun placement — controlled by aggressiveness
+  // 1 = never, 2 = 1/3 chance at 8+ slots, 3 = 2/3 chance at 6+ slots
+  const superProb = traitLookup(aggressiveness, [
+    0,
+    SUPER_GUN_PROBABILITY,
+    2 / 3,
+  ] as const);
+  const superThreshold = traitLookup(aggressiveness, [
+    Infinity,
+    SUPER_GUN_SLOT_THRESHOLD,
+    6,
+  ] as const);
+  tryPlaceSuperGun(
+    player,
+    count,
+    state,
+    rng,
+    noiseScale,
+    superProb,
+    superThreshold,
+  );
 
+  // Collect and score normal 2x2 cannon candidates
+  const normalCandidates = collectCannonCandidates(
+    player,
+    CannonMode.NORMAL,
+    2,
+    state,
+    rng,
+    noiseScale,
+  );
+
+  // Place a propaganda balloon — controlled by defensiveness
+  // 1 = never, 2 = react to enemy super guns or space constraint,
+  // 3 = proactive when enemies have any live cannons
+  tryPlaceBalloon(player, count, state, defensiveness, normalCandidates);
+
+  // Fill remaining slots with normal 2x2 cannons, re-scoring after each placement
+  while (cannonSlotsUsed(player) < count) {
+    const bestPosition = findBestNormalCannonPosition(
+      player,
+      state,
+      rng,
+      noiseScale,
+    );
+    if (!bestPosition) break;
+    placeCannon(
+      player,
+      bestPosition.row,
+      bestPosition.col,
+      count,
+      undefined,
+      state,
+    );
+  }
+}
+function findBestNormalCannonPosition(
+  player: Player,
+  state: GameState,
+  rng: Rng,
+  noiseScale: number,
+): TilePos | null {
+  let bestPosition: TilePos | null = null;
+  let bestScore = Infinity;
+  for (const key of player.interior) {
+    const { r, c } = unpackTile(key);
+    if (!canPlaceCannon(player, r, c, CannonMode.NORMAL, state)) continue;
+    const score = scoreCannonPosition(player, r, c, 2, state, rng, noiseScale);
+    if (score < bestScore) {
+      bestScore = score;
+      bestPosition = { row: r, col: c };
+    }
+  }
+  return bestPosition;
+}
+function tryPlaceSuperGun(
+  player: Player,
+  count: number,
+  state: GameState,
+  rng: Rng,
+  noiseScale: number,
+  superProb: number,
+  superThreshold: number,
+): void {
+  if (count < superThreshold || !rng.bool(superProb)) return;
+  const superCandidates = collectCannonCandidates(
+    player,
+    CannonMode.SUPER,
+    3,
+    state,
+    rng,
+    noiseScale,
+  );
+  const best = superCandidates[0];
+  if (best && count - cannonSlotsUsed(player) >= SUPER_GUN_COST) {
+    placeCannon(player, best.row, best.col, count, CannonMode.SUPER, state);
+  }
+}
+function collectCannonCandidates(
+  player: Player,
+  mode: CannonMode,
+  size: number,
+  state: GameState,
+  rng: Rng,
+  noiseScale: number,
+): CannonCandidate[] {
+  const candidates: CannonCandidate[] = [];
+  for (const key of player.interior) {
+    const { r, c } = unpackTile(key);
+    if (!canPlaceCannon(player, r, c, mode, state)) continue;
+    candidates.push({
+      row: r,
+      col: c,
+      score: scoreCannonPosition(player, r, c, size, state, rng, noiseScale),
+    });
+  }
+  candidates.sort((a, b) => a.score - b.score);
+  return candidates;
+}
 /**
  * Score a cannon placement position. Lower = better.
  * Penalizes: proximity to map edges, proximity to water, wasted interior tiles.
@@ -195,7 +316,6 @@ function scoreCannonPosition(
 
   return score;
 }
-
 function scoreCannonTileLocalPenalty(
   state: GameState,
   row: number,
@@ -250,122 +370,6 @@ function scoreCannonTileLocalPenalty(
 
   return penalty;
 }
-
-type CannonCandidate = { row: number; col: number; score: number };
-
-function collectCannonCandidates(
-  player: Player,
-  mode: CannonMode,
-  size: number,
-  state: GameState,
-  rng: Rng,
-  noiseScale: number,
-): CannonCandidate[] {
-  const candidates: CannonCandidate[] = [];
-  for (const key of player.interior) {
-    const { r, c } = unpackTile(key);
-    if (!canPlaceCannon(player, r, c, mode, state)) continue;
-    candidates.push({
-      row: r,
-      col: c,
-      score: scoreCannonPosition(player, r, c, size, state, rng, noiseScale),
-    });
-  }
-  candidates.sort((a, b) => a.score - b.score);
-  return candidates;
-}
-
-function liveEnemyPlayers(state: GameState, playerId: number): Player[] {
-  return state.players.filter((p) => p.id !== playerId && !p.eliminated);
-}
-
-function enemyHasLiveCannon(enemy: Player): boolean {
-  return enemy.cannons.some((c) => isCannonAlive(c));
-}
-
-function enemyHasThreateningSuperGun(state: GameState, enemy: Player): boolean {
-  return enemy.cannons.some((c) => {
-    if (!isCannonAlive(c) || !c.super) return false;
-    if (state.capturedCannons.some((cc) => cc.cannon === c)) return false;
-    let fullyEnclosed = true;
-    forEachCannonTile(c, (_r, _c, key) => {
-      if (!enemy.interior.has(key)) fullyEnclosed = false;
-    });
-    return fullyEnclosed;
-  });
-}
-
-function shouldPlaceBalloon(
-  state: GameState,
-  player: Player,
-  defensiveness: number,
-  normalCandidateCount: number,
-): boolean {
-  if (defensiveness < 2) return false;
-
-  const enemyPlayers = liveEnemyPlayers(state, player.id);
-  const hasEnemySuperGun = enemyPlayers.some((enemy) =>
-    enemyHasThreateningSuperGun(state, enemy),
-  );
-  const hasEnemyCannons = enemyPlayers.some((enemy) =>
-    enemyHasLiveCannon(enemy),
-  );
-
-  return (
-    hasEnemySuperGun ||
-    (hasEnemyCannons && normalCandidateCount <= 1) ||
-    (defensiveness >= 3 && hasEnemyCannons)
-  );
-}
-
-function findBestNormalCannonPosition(
-  player: Player,
-  state: GameState,
-  rng: Rng,
-  noiseScale: number,
-): TilePos | null {
-  let bestPosition: TilePos | null = null;
-  let bestScore = Infinity;
-  for (const key of player.interior) {
-    const { r, c } = unpackTile(key);
-    if (!canPlaceCannon(player, r, c, CannonMode.NORMAL, state)) continue;
-    const score = scoreCannonPosition(player, r, c, 2, state, rng, noiseScale);
-    if (score < bestScore) {
-      bestScore = score;
-      bestPosition = { row: r, col: c };
-    }
-  }
-  return bestPosition;
-}
-
-// ---------------------------------------------------------------------------
-// Cannon placement
-// ---------------------------------------------------------------------------
-
-function tryPlaceSuperGun(
-  player: Player,
-  count: number,
-  state: GameState,
-  rng: Rng,
-  noiseScale: number,
-  superProb: number,
-  superThreshold: number,
-): void {
-  if (count < superThreshold || !rng.bool(superProb)) return;
-  const superCandidates = collectCannonCandidates(
-    player,
-    CannonMode.SUPER,
-    3,
-    state,
-    rng,
-    noiseScale,
-  );
-  const best = superCandidates[0];
-  if (best && count - cannonSlotsUsed(player) >= SUPER_GUN_COST) {
-    placeCannon(player, best.row, best.col, count, CannonMode.SUPER, state);
-  }
-}
-
 function tryPlaceBalloon(
   player: Player,
   count: number,
@@ -394,73 +398,42 @@ function tryPlaceBalloon(
     normalCandidates.shift();
   }
 }
-
-export function autoPlaceCannonsImpl(
-  player: Player,
-  count: number,
+function shouldPlaceBalloon(
   state: GameState,
-  rng: Rng,
-  aggressiveness = 2,
-  defensiveness = 2,
-  spatialAwareness = 2,
-): void {
-  // Cannon scoring noise — controlled by spatialAwareness
-  // 1 = noisy (×5), 2 = default (×1), 3 = precise (×0.25)
-  const noiseScale = traitLookup(spatialAwareness, [5, 1, 0.25] as const);
+  player: Player,
+  defensiveness: number,
+  normalCandidateCount: number,
+): boolean {
+  if (defensiveness < 2) return false;
 
-  // Super gun placement — controlled by aggressiveness
-  // 1 = never, 2 = 1/3 chance at 8+ slots, 3 = 2/3 chance at 6+ slots
-  const superProb = traitLookup(aggressiveness, [
-    0,
-    SUPER_GUN_PROBABILITY,
-    2 / 3,
-  ] as const);
-  const superThreshold = traitLookup(aggressiveness, [
-    Infinity,
-    SUPER_GUN_SLOT_THRESHOLD,
-    6,
-  ] as const);
-  tryPlaceSuperGun(
-    player,
-    count,
-    state,
-    rng,
-    noiseScale,
-    superProb,
-    superThreshold,
+  const enemyPlayers = liveEnemyPlayers(state, player.id);
+  const hasEnemySuperGun = enemyPlayers.some((enemy) =>
+    enemyHasThreateningSuperGun(state, enemy),
+  );
+  const hasEnemyCannons = enemyPlayers.some((enemy) =>
+    enemyHasLiveCannon(enemy),
   );
 
-  // Collect and score normal 2x2 cannon candidates
-  const normalCandidates = collectCannonCandidates(
-    player,
-    CannonMode.NORMAL,
-    2,
-    state,
-    rng,
-    noiseScale,
+  return (
+    hasEnemySuperGun ||
+    (hasEnemyCannons && normalCandidateCount <= 1) ||
+    (defensiveness >= 3 && hasEnemyCannons)
   );
-
-  // Place a propaganda balloon — controlled by defensiveness
-  // 1 = never, 2 = react to enemy super guns or space constraint,
-  // 3 = proactive when enemies have any live cannons
-  tryPlaceBalloon(player, count, state, defensiveness, normalCandidates);
-
-  // Fill remaining slots with normal 2x2 cannons, re-scoring after each placement
-  while (cannonSlotsUsed(player) < count) {
-    const bestPosition = findBestNormalCannonPosition(
-      player,
-      state,
-      rng,
-      noiseScale,
-    );
-    if (!bestPosition) break;
-    placeCannon(
-      player,
-      bestPosition.row,
-      bestPosition.col,
-      count,
-      undefined,
-      state,
-    );
-  }
+}
+function liveEnemyPlayers(state: GameState, playerId: number): Player[] {
+  return state.players.filter((p) => p.id !== playerId && !p.eliminated);
+}
+function enemyHasLiveCannon(enemy: Player): boolean {
+  return enemy.cannons.some((c) => isCannonAlive(c));
+}
+function enemyHasThreateningSuperGun(state: GameState, enemy: Player): boolean {
+  return enemy.cannons.some((c) => {
+    if (!isCannonAlive(c) || !c.super) return false;
+    if (state.capturedCannons.some((cc) => cc.cannon === c)) return false;
+    let fullyEnclosed = true;
+    forEachCannonTile(c, (_r, _c, key) => {
+      if (!enemy.interior.has(key)) fullyEnclosed = false;
+    });
+    return fullyEnclosed;
+  });
 }

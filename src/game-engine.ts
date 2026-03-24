@@ -56,44 +56,6 @@ import {
   STARTING_LIVES,
 } from "./types.ts";
 
-function removeBonusSquaresCoveredByWalls(
-  state: GameState,
-  walls: Set<number>,
-): void {
-  state.bonusSquares = state.bonusSquares.filter(
-    (bonusSquare) => !walls.has(packTile(bonusSquare.row, bonusSquare.col)),
-  );
-}
-
-
-function cleanupBalloonHitTrackingAfterBattle(state: GameState): void {
-  // Reset balloon hit counters for cannons that were captured (used this battle)
-  for (const cc of state.capturedCannons) {
-    state.balloonHits.delete(cc.cannon);
-  }
-
-  // Also clean up hit counters for destroyed cannons
-  for (const [cannon] of state.balloonHits) {
-    if (!isCannonAlive(cannon)) state.balloonHits.delete(cannon);
-  }
-
-  // Clear capturerIds for non-captured cannons so only the deciding
-  // battle's contributors can win (hit count persists across battles)
-  for (const [, hit] of state.balloonHits) {
-    hit.capturerIds = [];
-  }
-}
-
-function sweepAllPlayersWalls(state: GameState): void {
-  for (const player of state.players) {
-    sweepIsolatedWalls(player.walls);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Banner text (shared between local host and online watcher)
-// ---------------------------------------------------------------------------
-
 export const BANNER_PLACE_CANNONS = "Place Cannons";
 export const BANNER_PLACE_CANNONS_SUB = "Position inside fort walls";
 export const BANNER_BATTLE = "Prepare for Battle";
@@ -102,10 +64,18 @@ export const BANNER_BUILD = "Build & Repair";
 export const BANNER_BUILD_SUB = "Surround castles, repair walls";
 export const BANNER_SELECT = "Select your home castle";
 
-// ---------------------------------------------------------------------------
-// Factory
-// ---------------------------------------------------------------------------
-
+/** Create a game from a seed: generate map, pick zones, create state. */
+export function createGameFromSeed(
+  seed: number,
+  maxPlayers: number,
+): { map: GameMap; state: GameState; zones: number[]; playerCount: number } {
+  const map = generateMap(seed);
+  const zones = topZonesBySize(map, maxPlayers).map(({ zone }) => zone);
+  const playerCount = Math.min(zones.length, maxPlayers);
+  const state = createGameState(map, playerCount, seed);
+  state.playerZones = zones.slice();
+  return { map, state, zones, playerCount };
+}
 export function createGameState(
   map: GameMap,
   playerCount: number,
@@ -156,24 +126,6 @@ export function createGameState(
     cannonLimits: [],
   };
 }
-
-/** Create a game from a seed: generate map, pick zones, create state. */
-export function createGameFromSeed(
-  seed: number,
-  maxPlayers: number,
-): { map: GameMap; state: GameState; zones: number[]; playerCount: number } {
-  const map = generateMap(seed);
-  const zones = topZonesBySize(map, maxPlayers).map(({ zone }) => zone);
-  const playerCount = Math.min(zones.length, maxPlayers);
-  const state = createGameState(map, playerCount, seed);
-  state.playerZones = zones.slice();
-  return { map, state, zones, playerCount };
-}
-
-// ---------------------------------------------------------------------------
-// Phase transitions
-// ---------------------------------------------------------------------------
-
 /** Rebuild a player's home castle from scratch (used when continuing after losing a life). */
 export function rebuildHomeCastle(state: GameState, player: Player): void {
   if (!player.homeTower) return;
@@ -201,78 +153,45 @@ export function rebuildHomeCastle(state: GameState, player: Player): void {
   removeBonusSquaresCoveredByWalls(state, player.walls);
   claimTerritory(state);
 }
-
-function enterBuildFromSelect(state: GameState): void {
-  autoBuildCastles(state);
-  replenishBonusSquares(state);
-  state.phase = Phase.WALL_BUILD;
-  state.timer = 0;
-}
-
-function enterBuildFromReselect(state: GameState): void {
-  state.phase = Phase.WALL_BUILD;
-  state.timer = 0;
-}
-
-export function enterCannonPlacePhase(state: GameState): void {
-  state.phase = Phase.CANNON_PLACE;
-  state.timer = 0;
-}
-
 export function enterCastleReselectPhase(state: GameState): void {
   state.phase = Phase.CASTLE_RESELECT;
   state.timer = 0;
 }
-
-function enterBattleFromCannon(state: GameState): void {
-  // Decay burning pits at the start of each battle (not after — so pits
-  // created during a battle remain at full intensity through repair/cannon)
-  for (const pit of state.burningPits) pit.roundsLeft--;
-  state.burningPits = state.burningPits.filter((p) => p.roundsLeft > 0);
-
+/** Mark a player as having reselected a castle this round. */
+export function markPlayerReselected(state: GameState, playerId: number): void {
+  state.reselectedPlayers.add(playerId);
+}
+/** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
+export function computeCannonLimitsForPhase(state: GameState): void {
+  state.cannonLimits = state.players.map((player) => cannonSlotsForRound(player, state));
+  state.reselectedPlayers.clear();
+}
+/**
+ * Complete the build phase using the canonical gameplay rules.
+ * Owns wall sweeping, territory/tower revival, and the life check.
+ */
+export function finalizeBuildPhase(
+  state: GameState,
+): { needsReselect: number[]; eliminated: number[] } {
   sweepAllPlayersWalls(state);
-  claimTerritory(state);
-  // From round 2+, each player has a chance to get grunts spawned on their zone
-  if (state.round >= FIRST_GRUNT_SPAWN_ROUND) {
-    for (const player of state.players.filter(isPlayerActive)) {
-      for (let i = 0; i < INTERBATTLE_GRUNT_SPAWN_ATTEMPTS; i++) {
-        if (state.rng.bool(INTERBATTLE_GRUNT_SPAWN_CHANCE)) {
-          spawnGruntOnZone(state, player.id);
-        }
-      }
-    }
-  }
-  const allWalls = collectAllWalls(state);
-  removeBonusSquaresCoveredByWalls(state, allWalls);
-  rollGruntWallAttacks(state);
-  state.phase = Phase.BATTLE;
-  state.timer = BATTLE_TIMER;
-  state.cannonballs = [];
-  state.shotsFired = 0;
+  claimTerritory(state, true);
+  return applyLifePenalties(state);
 }
-
-function enterBuildFromBattle(state: GameState): void {
-  updateGruntBlockedBattles(state);
-  cleanupBalloonHitTrackingAfterBattle(state);
-  state.capturedCannons = [];
-  // Remove all balloon bases (they disappear after battle)
+/** Finalize castle construction — claim territory, spawn houses, replenish bonus squares. */
+export function finalizeCastleConstruction(state: GameState): void {
+  claimTerritory(state);
   for (const player of state.players) {
-    player.cannons = player.cannons.filter((c) => !c.balloon);
+    if (player.homeTower) spawnHousesInZone(state, player.homeTower.zone);
   }
-  // First battle with no shots fired (nobody playing): spawn 2 grouped grunts per player
-  if (state.round === 1 && state.shotsFired === 0) {
-    for (const player of state.players.filter(isPlayerActive)) {
-      spawnGruntGroupOnZone(state, player.id, 2);
-    }
-  }
-  claimTerritory(state);
-  state.round++;
   replenishBonusSquares(state);
-  state.phase = Phase.WALL_BUILD;
-  state.timer = state.buildTimer;
-  startOfBuildPhaseHousekeeping(state);
 }
-
+/** Advance state through nextPhase until CANNON_PLACE is reached. */
+export function advanceToCannonPlacePhase(state: GameState): void {
+  const MAX_ADVANCES = 5;
+  for (let i = 0; i < MAX_ADVANCES && state.phase !== Phase.CANNON_PLACE; i++) {
+    nextPhase(state);
+  }
+}
 export function nextPhase(state: GameState): void {
   switch (state.phase) {
     case Phase.CASTLE_SELECT:
@@ -292,21 +211,22 @@ export function nextPhase(state: GameState): void {
       break;
   }
 }
-
-// ---------------------------------------------------------------------------
-// Public helpers
-// ---------------------------------------------------------------------------
-
-/** Clear all mutable state from a player (used when losing a life or being eliminated). */
-export function clearPlayerState(player: Player): void {
-  player.walls.clear();
-  player.interior.clear();
-  player.cannons = [];
-  player.ownedTowers = [];
-  player.castle = null;
-  player.homeTower = null;
+export function enterCannonPlacePhase(state: GameState): void {
+  state.phase = Phase.CANNON_PLACE;
+  state.timer = 0;
 }
-
+/** Initialize build phase controllers — reset facings, clear accumulators. */
+export function initBuildPhase(
+  state: GameState,
+  controllers: PlayerController[],
+  skipController?: (playerId: number) => boolean,
+): void {
+  resetCannonFacings(state);
+  for (const ctrl of controllers) {
+    if (skipController?.(ctrl.playerId)) continue;
+    ctrl.startBuild(state);
+  }
+}
 /**
  * Reset cannon facings to point toward the average enemy position.
  * Call at the start of the cannon phase and after reselection.
@@ -337,12 +257,93 @@ export function resetCannonFacings(state: GameState): void {
     }
   }
 }
-
-/** Mark a player as having reselected a castle this round. */
-export function markPlayerReselected(state: GameState, playerId: number): void {
-  state.reselectedPlayers.add(playerId);
+function enterBuildFromSelect(state: GameState): void {
+  autoBuildCastles(state);
+  replenishBonusSquares(state);
+  state.phase = Phase.WALL_BUILD;
+  state.timer = 0;
 }
+function enterBuildFromReselect(state: GameState): void {
+  state.phase = Phase.WALL_BUILD;
+  state.timer = 0;
+}
+function enterBattleFromCannon(state: GameState): void {
+  // Decay burning pits at the start of each battle (not after — so pits
+  // created during a battle remain at full intensity through repair/cannon)
+  for (const pit of state.burningPits) pit.roundsLeft--;
+  state.burningPits = state.burningPits.filter((p) => p.roundsLeft > 0);
 
+  sweepAllPlayersWalls(state);
+  claimTerritory(state);
+  // From round 2+, each player has a chance to get grunts spawned on their zone
+  if (state.round >= FIRST_GRUNT_SPAWN_ROUND) {
+    for (const player of state.players.filter(isPlayerActive)) {
+      for (let i = 0; i < INTERBATTLE_GRUNT_SPAWN_ATTEMPTS; i++) {
+        if (state.rng.bool(INTERBATTLE_GRUNT_SPAWN_CHANCE)) {
+          spawnGruntOnZone(state, player.id);
+        }
+      }
+    }
+  }
+  const allWalls = collectAllWalls(state);
+  removeBonusSquaresCoveredByWalls(state, allWalls);
+  rollGruntWallAttacks(state);
+  state.phase = Phase.BATTLE;
+  state.timer = BATTLE_TIMER;
+  state.cannonballs = [];
+  state.shotsFired = 0;
+}
+function removeBonusSquaresCoveredByWalls(
+  state: GameState,
+  walls: Set<number>,
+): void {
+  state.bonusSquares = state.bonusSquares.filter(
+    (bonusSquare) => !walls.has(packTile(bonusSquare.row, bonusSquare.col)),
+  );
+}
+function sweepAllPlayersWalls(state: GameState): void {
+  for (const player of state.players) {
+    sweepIsolatedWalls(player.walls);
+  }
+}
+function enterBuildFromBattle(state: GameState): void {
+  updateGruntBlockedBattles(state);
+  cleanupBalloonHitTrackingAfterBattle(state);
+  state.capturedCannons = [];
+  // Remove all balloon bases (they disappear after battle)
+  for (const player of state.players) {
+    player.cannons = player.cannons.filter((c) => !c.balloon);
+  }
+  // First battle with no shots fired (nobody playing): spawn 2 grouped grunts per player
+  if (state.round === 1 && state.shotsFired === 0) {
+    for (const player of state.players.filter(isPlayerActive)) {
+      spawnGruntGroupOnZone(state, player.id, 2);
+    }
+  }
+  claimTerritory(state);
+  state.round++;
+  replenishBonusSquares(state);
+  state.phase = Phase.WALL_BUILD;
+  state.timer = state.buildTimer;
+  startOfBuildPhaseHousekeeping(state);
+}
+function cleanupBalloonHitTrackingAfterBattle(state: GameState): void {
+  // Reset balloon hit counters for cannons that were captured (used this battle)
+  for (const cc of state.capturedCannons) {
+    state.balloonHits.delete(cc.cannon);
+  }
+
+  // Also clean up hit counters for destroyed cannons
+  for (const [cannon] of state.balloonHits) {
+    if (!isCannonAlive(cannon)) state.balloonHits.delete(cannon);
+  }
+
+  // Clear capturerIds for non-captured cannons so only the deciding
+  // battle's contributors can win (hit count persists across battles)
+  for (const [, hit] of state.balloonHits) {
+    hit.capturerIds = [];
+  }
+}
 /**
  * Compute the total cannon slot limit for a player this round.
  * `isReselected` is true for players who just chose a new castle after losing a life.
@@ -368,13 +369,6 @@ function cannonSlotsForRound(
   }
   return existingSlots + newSlots;
 }
-
-/** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
-export function computeCannonLimitsForPhase(state: GameState): void {
-  state.cannonLimits = state.players.map((player) => cannonSlotsForRound(player, state));
-  state.reselectedPlayers.clear();
-}
-
 /**
  * Check if any player failed to enclose a tower. Decrement lives, reset their zone.
  * Returns { needsReselect, eliminated } — caller handles controller notifications.
@@ -402,23 +396,49 @@ function applyLifePenalties(
   }
   return { needsReselect, eliminated };
 }
-
-/**
- * Complete the build phase using the canonical gameplay rules.
- * Owns wall sweeping, territory/tower revival, and the life check.
- */
-export function finalizeBuildPhase(
-  state: GameState,
-): { needsReselect: number[]; eliminated: number[] } {
-  sweepAllPlayersWalls(state);
-  claimTerritory(state, true);
-  return applyLifePenalties(state);
+/** Clear all mutable state from a player (used when losing a life or being eliminated). */
+export function clearPlayerState(player: Player): void {
+  player.walls.clear();
+  player.interior.clear();
+  player.cannons = [];
+  player.ownedTowers = [];
+  player.castle = null;
+  player.homeTower = null;
 }
-
-// ---------------------------------------------------------------------------
-// Private helpers
-// ---------------------------------------------------------------------------
-
+export function resetZoneState(state: GameState, zone: number): void {
+  state.grunts = state.grunts.filter(
+    (grunt) => state.map.zones[grunt.row]?.[grunt.col] !== zone,
+  );
+  state.map.houses = state.map.houses.filter((house) => house.zone !== zone);
+  state.burningPits = state.burningPits.filter(
+    (pit) => state.map.zones[pit.row]?.[pit.col] !== zone,
+  );
+  for (let towerIndex = 0; towerIndex < state.map.towers.length; towerIndex++) {
+    if (state.map.towers[towerIndex]!.zone === zone) {
+      state.towerAlive[towerIndex] = true;
+    }
+  }
+}
+/** Build all castles instantly (used by headless tests via nextPhase). */
+function autoBuildCastles(state: GameState): void {
+  const plans = prepareCastleWalls(state);
+  for (const plan of plans) {
+    const player = state.players[plan.playerId]!;
+    for (const key of plan.tiles) player.walls.add(key);
+  }
+  claimTerritory(state);
+  for (const player of state.players) {
+    if (player.homeTower) spawnHousesInZone(state, player.homeTower.zone);
+  }
+}
+function prepareCastleWalls(state: GameState): { playerId: number; tiles: number[] }[] {
+  const result: { playerId: number; tiles: number[] }[] = [];
+  for (const player of state.players) {
+    const plan = prepareCastleWallsForPlayer(state, player.id);
+    if (plan) result.push(plan);
+  }
+  return result;
+}
 /** Prepare castle walls for all players, returning ordered wall tiles per player
  *  for animated construction. Sets castle but does NOT add walls or interior. */
 export function prepareCastleWallsForPlayer(state: GameState, playerId: number): { playerId: number; tiles: number[] } | null {
@@ -488,48 +508,9 @@ export function prepareCastleWallsForPlayer(state: GameState, playerId: number):
 
   return { playerId: player.id, tiles: ordered };
 }
-
-function prepareCastleWalls(state: GameState): { playerId: number; tiles: number[] }[] {
-  const result: { playerId: number; tiles: number[] }[] = [];
-  for (const player of state.players) {
-    const plan = prepareCastleWallsForPlayer(state, player.id);
-    if (plan) result.push(plan);
-  }
-  return result;
-}
-
-/** Build all castles instantly (used by headless tests via nextPhase). */
-function autoBuildCastles(state: GameState): void {
-  const plans = prepareCastleWalls(state);
-  for (const plan of plans) {
-    const player = state.players[plan.playerId]!;
-    for (const key of plan.tiles) player.walls.add(key);
-  }
-  claimTerritory(state);
-  for (const player of state.players) {
-    if (player.homeTower) spawnHousesInZone(state, player.homeTower.zone);
-  }
-}
-
-export function resetZoneState(state: GameState, zone: number): void {
-  state.grunts = state.grunts.filter(
-    (grunt) => state.map.zones[grunt.row]?.[grunt.col] !== zone,
-  );
-  state.map.houses = state.map.houses.filter((house) => house.zone !== zone);
-  state.burningPits = state.burningPits.filter(
-    (pit) => state.map.zones[pit.row]?.[pit.col] !== zone,
-  );
-  for (let towerIndex = 0; towerIndex < state.map.towers.length; towerIndex++) {
-    if (state.map.towers[towerIndex]!.zone === zone) {
-      state.towerAlive[towerIndex] = true;
-    }
-  }
-}
-
 function getAliveOwnedTowers(player: Player, state: GameState) {
   return player.ownedTowers.filter((tower) => state.towerAlive[tower.index]!);
 }
-
 /**
  * Sweep one layer of debris wall tiles (0 or 1 orthogonal neighbor).
  * Collects all isolated tiles first, then removes them in one batch.
@@ -541,34 +522,4 @@ function sweepIsolatedWalls(walls: Set<number>): void {
     if (countWallNeighbors(walls, r, c) <= 1) toRemove.push(key);
   }
   for (const key of toRemove) walls.delete(key);
-}
-
-/** Finalize castle construction — claim territory, spawn houses, replenish bonus squares. */
-export function finalizeCastleConstruction(state: GameState): void {
-  claimTerritory(state);
-  for (const player of state.players) {
-    if (player.homeTower) spawnHousesInZone(state, player.homeTower.zone);
-  }
-  replenishBonusSquares(state);
-}
-
-/** Advance state through nextPhase until CANNON_PLACE is reached. */
-export function advanceToCannonPlacePhase(state: GameState): void {
-  const MAX_ADVANCES = 5;
-  for (let i = 0; i < MAX_ADVANCES && state.phase !== Phase.CANNON_PLACE; i++) {
-    nextPhase(state);
-  }
-}
-
-/** Initialize build phase controllers — reset facings, clear accumulators. */
-export function initBuildPhase(
-  state: GameState,
-  controllers: PlayerController[],
-  skipController?: (playerId: number) => boolean,
-): void {
-  resetCannonFacings(state);
-  for (const ctrl of controllers) {
-    if (skipController?.(ctrl.playerId)) continue;
-    ctrl.startBuild(state);
-  }
 }

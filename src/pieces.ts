@@ -12,9 +12,82 @@ export interface PieceShape {
   /** Rotation pivot [row, col] — stays at the same grid cell when rotating. */
   pivot: [number, number];
 }
+interface PieceWeight {
+  piece: PieceShape;
+  /** Difficulty tier: 1 = simple, 2 = medium, 3 = hard. */
+  tier: number;
+  /** Weight at round 2 (first repair round). */
+  early: number;
+  /** Weight at round 8+. */
+  late: number;
+}
+export interface BagState {
+  round: number;
+  queue: PieceShape[];
+  rng: Rng;
+}
 
-// --- Piece definitions ---
-
+const PIECE_Z: PieceShape = {
+  name: "Z",
+  offsets: [
+    [0, 0],
+    [0, 1],
+    [1, 1],
+    [2, 1],
+    [2, 2],
+  ],
+  width: 3,
+  height: 3,
+  pivot: [1, 1],
+};
+const PIECE_ZR: PieceShape = {
+  name: "ZR",
+  offsets: [
+    [0, 1],
+    [0, 2],
+    [1, 1],
+    [2, 0],
+    [2, 1],
+  ],
+  width: 3,
+  height: 3,
+  pivot: [1, 1],
+};
+const PIECE_CORNER: PieceShape = {
+  name: "Corner",
+  offsets: [
+    [0, 0],
+    [0, 1],
+    [1, 0],
+  ],
+  width: 2,
+  height: 2,
+  pivot: [0, 0],
+};
+const PIECE_T: PieceShape = {
+  name: "T",
+  offsets: [
+    [0, 0],
+    [0, 1],
+    [0, 2],
+    [1, 1],
+  ],
+  width: 3,
+  height: 2,
+  pivot: [1, 1],
+};
+/**
+ * Compute the bag pool for a given round. Linearly interpolates early→late
+ * over rounds 2–8 (slower ramp than before). Pieces are grouped by difficulty
+ * tier: simple pieces come first (popped first), hard pieces last.
+ * Within each tier the order is shuffled.
+ */
+/** Round at which piece pool interpolation starts. */
+const PIECE_POOL_START_ROUND = 2;
+/** Round at which piece pool interpolation ends. */
+const PIECE_POOL_END_ROUND = 8;
+/** Chance that a simple piece gets scattered into the harder section as relief. */
+const RELIEF_CHANCE = 0.3;
 export const PIECE_1x1: PieceShape = {
   name: "1x1",
   offsets: [[0, 0]],
@@ -68,19 +141,6 @@ export const PIECE_C: PieceShape = {
   height: 2,
   pivot: [1, 1],
 };
-const PIECE_Z: PieceShape = {
-  name: "Z",
-  offsets: [
-    [0, 0],
-    [0, 1],
-    [1, 1],
-    [2, 1],
-    [2, 2],
-  ],
-  width: 3,
-  height: 3,
-  pivot: [1, 1],
-};
 export const PIECE_S: PieceShape = {
   name: "S",
   offsets: [
@@ -105,19 +165,6 @@ export const PIECE_J: PieceShape = {
   height: 2,
   pivot: [1, 1],
 };
-const PIECE_ZR: PieceShape = {
-  name: "ZR",
-  offsets: [
-    [0, 1],
-    [0, 2],
-    [1, 1],
-    [2, 0],
-    [2, 1],
-  ],
-  width: 3,
-  height: 3,
-  pivot: [1, 1],
-};
 export const PIECE_SR: PieceShape = {
   name: "SR",
   offsets: [
@@ -125,29 +172,6 @@ export const PIECE_SR: PieceShape = {
     [0, 1],
     [1, 1],
     [1, 2],
-  ],
-  width: 3,
-  height: 2,
-  pivot: [1, 1],
-};
-const PIECE_CORNER: PieceShape = {
-  name: "Corner",
-  offsets: [
-    [0, 0],
-    [0, 1],
-    [1, 0],
-  ],
-  width: 2,
-  height: 2,
-  pivot: [0, 0],
-};
-const PIECE_T: PieceShape = {
-  name: "T",
-  offsets: [
-    [0, 0],
-    [0, 1],
-    [0, 2],
-    [1, 1],
   ],
   width: 3,
   height: 2,
@@ -166,28 +190,6 @@ export const PIECE_PLUS: PieceShape = {
   height: 3,
   pivot: [1, 1],
 };
-
-/** Every distinct piece shape in the game (one canonical rotation each). */
-export const ALL_PIECE_SHAPES: readonly PieceShape[] = [
-  PIECE_1x1, PIECE_1x2, PIECE_1x3, PIECE_CORNER,
-  PIECE_T, PIECE_L, PIECE_J, PIECE_S, PIECE_SR,
-  PIECE_C, PIECE_Z, PIECE_ZR, PIECE_PLUS,
-];
-
-// --- Piece weights by round ---
-// Each piece has a base weight and a per-round adjustment.
-// Higher weight = more copies in the bag = appears more often.
-
-interface PieceWeight {
-  piece: PieceShape;
-  /** Difficulty tier: 1 = simple, 2 = medium, 3 = hard. */
-  tier: number;
-  /** Weight at round 2 (first repair round). */
-  early: number;
-  /** Weight at round 8+. */
-  late: number;
-}
-
 const PIECE_WEIGHTS: PieceWeight[] = [
   { piece: PIECE_1x1, tier: 1, early: 5, late: 1 },
   { piece: PIECE_1x2, tier: 1, early: 5, late: 1 },
@@ -203,25 +205,53 @@ const PIECE_WEIGHTS: PieceWeight[] = [
   { piece: PIECE_ZR, tier: 3, early: 0, late: 3 },
   { piece: PIECE_PLUS, tier: 3, early: 0, late: 3 },
 ];
+/** Every distinct piece shape in the game (one canonical rotation each). */
+export const ALL_PIECE_SHAPES: readonly PieceShape[] = [
+  PIECE_1x1, PIECE_1x2, PIECE_1x3, PIECE_CORNER,
+  PIECE_T, PIECE_L, PIECE_J, PIECE_S, PIECE_SR,
+  PIECE_C, PIECE_Z, PIECE_ZR, PIECE_PLUS,
+];
 
-function interpolatedCopies(pieceWeight: PieceWeight, t: number): number {
-  return Math.round(pieceWeight.early + (pieceWeight.late - pieceWeight.early) * t);
+export function createBag(round: number, rng?: Rng): BagState {
+  return { round, queue: [], rng: rng ?? new Rng() };
 }
-
-/**
- * Compute the bag pool for a given round. Linearly interpolates early→late
- * over rounds 2–8 (slower ramp than before). Pieces are grouped by difficulty
- * tier: simple pieces come first (popped first), hard pieces last.
- * Within each tier the order is shuffled.
- */
-/** Round at which piece pool interpolation starts. */
-const PIECE_POOL_START_ROUND = 2;
-/** Round at which piece pool interpolation ends. */
-const PIECE_POOL_END_ROUND = 8;
-
-/** Chance that a simple piece gets scattered into the harder section as relief. */
-const RELIEF_CHANCE = 0.3;
-
+/** Draw the next piece from the bag. Refills queue when empty. */
+export function nextPiece(bag: BagState): PieceShape {
+  refillBagQueueIfNeeded(bag);
+  return normalizeOrientation(bag.queue.pop()!);
+}
+/** Ensure the piece is oriented with its longest side horizontal. */
+function normalizeOrientation(piece: PieceShape): PieceShape {
+  if (hasPortraitOrientation(piece)) {
+    return rotateCW(piece);
+  }
+  return piece;
+}
+/** Rotate a piece 90 degrees clockwise. Pivot transforms with the offsets. */
+export function rotateCW(piece: PieceShape): PieceShape {
+  const h = piece.height;
+  const newOffsets: [number, number][] = piece.offsets.map(([dr, dc]) => [
+    dc,
+    h - 1 - dr,
+  ]);
+  return {
+    name: piece.name,
+    offsets: newOffsets,
+    width: piece.height,
+    height: piece.width,
+    pivot: [piece.pivot[1], h - 1 - piece.pivot[0]],
+  };
+}
+function hasPortraitOrientation(piece: PieceShape): boolean {
+  return piece.height > piece.width;
+}
+function refillBagQueueIfNeeded(bag: BagState): void {
+  if (bag.queue.length === 0) {
+    // piecePool returns pieces ordered: hard at front, simple at back.
+    // pop() draws from the back -> simple pieces come first.
+    bag.queue = piecePool(bag.round, bag.rng);
+  }
+}
 function piecePool(round: number, rng: Rng): PieceShape[] {
   // t goes from 0 (round 2) to 1 (round 8+)
   const t = Math.min(1, Math.max(0, (round - PIECE_POOL_START_ROUND) / (PIECE_POOL_END_ROUND - PIECE_POOL_START_ROUND)));
@@ -253,59 +283,6 @@ function piecePool(round: number, rng: Rng): PieceShape[] {
 
   return queue;
 }
-
-// --- Rotation ---
-
-/** Rotate a piece 90 degrees clockwise. Pivot transforms with the offsets. */
-export function rotateCW(piece: PieceShape): PieceShape {
-  const h = piece.height;
-  const newOffsets: [number, number][] = piece.offsets.map(([dr, dc]) => [
-    dc,
-    h - 1 - dr,
-  ]);
-  return {
-    name: piece.name,
-    offsets: newOffsets,
-    width: piece.height,
-    height: piece.width,
-    pivot: [piece.pivot[1], h - 1 - piece.pivot[0]],
-  };
-}
-
-// --- Bag system ---
-
-export interface BagState {
-  round: number;
-  queue: PieceShape[];
-  rng: Rng;
-}
-
-export function createBag(round: number, rng?: Rng): BagState {
-  return { round, queue: [], rng: rng ?? new Rng() };
-}
-
-function hasPortraitOrientation(piece: PieceShape): boolean {
-  return piece.height > piece.width;
-}
-
-/** Ensure the piece is oriented with its longest side horizontal. */
-function normalizeOrientation(piece: PieceShape): PieceShape {
-  if (hasPortraitOrientation(piece)) {
-    return rotateCW(piece);
-  }
-  return piece;
-}
-
-function refillBagQueueIfNeeded(bag: BagState): void {
-  if (bag.queue.length === 0) {
-    // piecePool returns pieces ordered: hard at front, simple at back.
-    // pop() draws from the back -> simple pieces come first.
-    bag.queue = piecePool(bag.round, bag.rng);
-  }
-}
-
-/** Draw the next piece from the bag. Refills queue when empty. */
-export function nextPiece(bag: BagState): PieceShape {
-  refillBagQueueIfNeeded(bag);
-  return normalizeOrientation(bag.queue.pop()!);
+function interpolatedCopies(pieceWeight: PieceWeight, t: number): number {
+  return Math.round(pieceWeight.early + (pieceWeight.late - pieceWeight.early) * t);
 }

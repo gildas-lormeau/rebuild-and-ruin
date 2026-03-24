@@ -14,7 +14,6 @@ import { GEAR_SIZE, GEAR_X, GEAR_Y } from "./render-theme.ts";
 import type { GameState, Impact, Player } from "./types.ts";
 import { Phase } from "./types.ts";
 
-
 /** Format a key binding as a short hint string (e.g. "Arrows + N (B rotate)"). */
 export function formatKeyHint(kb: KeyBindings): string {
   const arrows =
@@ -26,7 +25,6 @@ export function formatKeyHint(kb: KeyBindings): string {
         kb.right.toUpperCase();
   return `${arrows} + ${kb.confirm.toUpperCase()} (${kb.rotate.toUpperCase()} rotate)`;
 }
-
 /** Build a map from confirm key → player slot index for lobby joining. */
 export function buildLobbyConfirmKeys(
   keyBindings: KeyBindings[],
@@ -43,7 +41,6 @@ export function buildLobbyConfirmKeys(
   }
   return m;
 }
-
 /** Snapshot per-player territory (interior + walls) for battle rendering. */
 export function snapshotTerritory(players: Player[]): Set<number>[] {
   return players.map((p) => {
@@ -52,7 +49,6 @@ export function snapshotTerritory(players: Player[]): Set<number>[] {
     return combined;
   });
 }
-
 /**
  * Hit-test a lobby click against player panels and gear button.
  * Returns { type: "gear" } for gear click, { type: "slot", slotId }
@@ -99,8 +95,6 @@ export function lobbyClickHitTest(params: {
   }
   return null;
 }
-
-
 /** Initialize cannon phase: compute limits, reset facings, let controllers place. */
 export function initCannonPhase(params: {
   state: GameState;
@@ -134,7 +128,6 @@ export function initCannonPhase(params: {
     ctrl.onCannonPhaseStart(state);
   }
 }
-
 /** Collect crosshairs from local controllers. */
 export function collectLocalCrosshairs(params: {
   state: GameState;
@@ -174,7 +167,6 @@ export function collectLocalCrosshairs(params: {
 
   return crosshairs;
 }
-
 /** Tick game core: age impacts, dispatch to phase handlers. */
 export function tickGameCore(params: {
   dt: number;
@@ -207,11 +199,6 @@ export function tickGameCore(params: {
     tickBuildPhase(dt);
   }
 }
-
-// ---------------------------------------------------------------------------
-// Main loop core — shared quit/pause/dispatch logic
-// ---------------------------------------------------------------------------
-
 /** Run the shared main loop tick: quit countdown, pause check, mode dispatch.
  *  Returns false if the loop should NOT reschedule (Mode.STOPPED). */
 export function mainLoopTick(params: {
@@ -260,11 +247,6 @@ export function mainLoopTick(params: {
 
   return true;
 }
-
-// ---------------------------------------------------------------------------
-// Reselection helpers
-// ---------------------------------------------------------------------------
-
 /** Process the reselection queue. Returns players still needing UI interaction.
  *  `processPlayer` returns: "done" (AI picked), "pending" (needs UI), or "remote" (remote human). */
 export function processReselectionQueue(params: {
@@ -291,7 +273,6 @@ export function processReselectionQueue(params: {
   }
   return { remaining, needsUI };
 }
-
 /** Finish reselection — clear selection state, reset reselecting players, animate castles. */
 export function completeReselection(params: {
   state: GameState;
@@ -318,4 +299,3 @@ export function completeReselection(params: {
 
   params.finalizeAndAdvance();
 }
-

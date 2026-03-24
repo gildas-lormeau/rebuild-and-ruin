@@ -6,8 +6,6 @@
  * methods that operate on it. See runtime-state.ts for the state type.
  */
 
-
-
 import { MSG } from "../server/protocol.ts";
 import { resolveBalloons, updateCannonballs } from "./battle-system.ts";
 import {
@@ -150,10 +148,6 @@ import {
 
 export type { GameRuntime } from "./game-runtime-types.ts";
 
-// ---------------------------------------------------------------------------
-// Factory
-// ---------------------------------------------------------------------------
-
 export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const { canvas } = config;
 
@@ -169,7 +163,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let homeZoomButton: ReturnType<typeof createHomeZoomButton> | null = null;
   let enemyZoomButton: ReturnType<typeof createEnemyZoomButton> | null = null;
   let quitButton: ReturnType<typeof createQuitButton> | null = null;
-
 
   function resetGameStats() {
     rs.gameStats = Array.from({ length: MAX_PLAYERS }, () => ({
@@ -571,7 +564,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const { tickCamera, updateViewport, screenToWorld, pixelToTile,
     onPinchStart, onPinchUpdate, onPinchEnd,
     myPlayerId, getEnemyZones, computeZoneBounds } = camera;
-
 
   // -------------------------------------------------------------------------
   // Rendering

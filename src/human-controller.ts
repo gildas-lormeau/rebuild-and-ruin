@@ -33,18 +33,6 @@ import {
   SUPER_GUN_SIZE,
 } from "./types.ts";
 
-function buildKeyMap(keys: KeyBindings): Map<string, Action> {
-  return new Map([
-    [keys.up.toLowerCase(), Action.UP],
-    [keys.down.toLowerCase(), Action.DOWN],
-    [keys.left.toLowerCase(), Action.LEFT],
-    [keys.right.toLowerCase(), Action.RIGHT],
-    [keys.confirm.toLowerCase(), Action.CONFIRM],
-    [keys.confirmAlt.toLowerCase(), Action.CONFIRM],
-    [keys.rotate.toLowerCase(), Action.ROTATE],
-  ]);
-}
-
 export class HumanController extends BaseController {
   /** Pre-computed lowercase key → action map for fast matching. */
   private keyMap: Map<string, Action>;
@@ -309,4 +297,15 @@ export class HumanController extends BaseController {
     this.cannonPlaceMode = CannonMode.NORMAL;
     this.heldActions.clear();
   }
+}
+function buildKeyMap(keys: KeyBindings): Map<string, Action> {
+  return new Map([
+    [keys.up.toLowerCase(), Action.UP],
+    [keys.down.toLowerCase(), Action.DOWN],
+    [keys.left.toLowerCase(), Action.LEFT],
+    [keys.right.toLowerCase(), Action.RIGHT],
+    [keys.confirm.toLowerCase(), Action.CONFIRM],
+    [keys.confirmAlt.toLowerCase(), Action.CONFIRM],
+    [keys.rotate.toLowerCase(), Action.ROTATE],
+  ]);
 }

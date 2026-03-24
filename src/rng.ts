@@ -7,6 +7,7 @@
  */
 
 /** Max 32-bit unsigned integer — used for seed ranges and RNG normalization. */
+
 export const MAX_UINT32 = 0xffffffff;
 
 export class Rng {

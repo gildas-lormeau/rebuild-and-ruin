@@ -25,10 +25,6 @@ import { forEachTowerTile, isGrass, packTile, unpackTile } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 import { BATTLE_TIMER, BUILD_TIMER } from "./types.ts";
 
-// ---------------------------------------------------------------------------
-// Validator
-// ---------------------------------------------------------------------------
-
 interface Violation {
   game: number;
   round: number;
@@ -37,6 +33,128 @@ interface Violation {
   message: string;
 }
 
+const NUM_GAMES = 3;
+const violations: Violation[] = [];
+
+console.log(`Running ${NUM_GAMES} headless games...`);
+for (let i = 0; i < NUM_GAMES; i++) {
+  const seed = Math.floor(Math.random() * 1000000);
+  const result = simulateGame(i, seed, violations);
+  const status =
+    violations.length > 0 ? `⚠ ${violations.length} violations` : "OK";
+  console.log(
+    `  Game ${i + 1} (seed=${seed}): ${result.rounds} rounds, winner=${result.winner ?? "draw"} [${status}]`,
+  );
+}
+function simulateGame(
+  gameNum: number,
+  seed: number,
+  violations: Violation[],
+): { rounds: number; winner: number | null } {
+  const runtime = createHeadlessRuntime(seed);
+  const { state, controllers, playerCount } = runtime;
+
+  let tick = 0;
+  const MAX_ROUNDS = 50;
+
+  while (state.round <= MAX_ROUNDS) {
+    // CANNON_PLACE phase
+    resetCannonFacings(state);
+    computeCannonLimitsForPhase(state);
+    for (let i = 0; i < playerCount; i++) {
+      const player = state.players[i]!;
+      if (player.eliminated) continue;
+      const ctrl = controllers[i]!;
+      ctrl.placeCannons(state, state.cannonLimits[i]!);
+      ctrl.flushCannons(state, state.cannonLimits[i]!);
+    }
+
+    // Resolve propaganda balloons, then transition to BATTLE
+    resolveBalloons(state);
+    nextPhase(state); // CANNON_PLACE → BATTLE
+    for (const ctrl of controllers) ctrl.resetBattle(state);
+
+    validateGameState(state, gameNum, tick++, violations);
+
+    // Simulate battle
+    const battleDuration = BATTLE_TIMER;
+    let battleTime = 0;
+    const dt = 0.1;
+
+    while (battleTime < battleDuration || state.cannonballs.length > 0) {
+      if (battleTime < battleDuration) {
+        for (let i = 0; i < playerCount; i++) {
+          if (state.players[i]!.eliminated) continue;
+          controllers[i]!.battleTick(state, dt);
+        }
+      }
+
+      gruntAttackTowers(state, dt);
+      updateCannonballs(state, dt);
+      battleTime += dt;
+      tick++;
+
+      // Validate every 1 second of battle
+      if (Math.round(battleTime * 10) % 10 === 0) {
+        validateGameState(state, gameNum, tick, violations);
+      }
+    }
+    for (const ctrl of controllers) ctrl.onBattleEnd();
+
+    // BATTLE → WALL_BUILD
+    nextPhase(state);
+
+    validateGameState(state, gameNum, tick++, violations);
+
+    // Simulate build phase (BUILD_TIMER + 1 seconds) (26 seconds)
+    for (let i = 0; i < playerCount; i++) {
+      if (state.players[i]!.eliminated) continue;
+      controllers[i]!.startBuild(state);
+    }
+
+    const buildDuration = BUILD_TIMER + 1;
+    let buildTime = 0;
+    let gruntTickAccum = 0;
+
+    while (buildTime < buildDuration) {
+      const buildDt = 0.5; // faster steps for build phase
+      buildTime += buildDt;
+
+      // Grunt movement (1 tile/sec)
+      gruntTickAccum += buildDt;
+      if (gruntTickAccum >= 1.0) {
+        gruntTickAccum -= 1.0;
+        tickGrunts(state);
+      }
+
+      // AI placements
+      for (let i = 0; i < playerCount; i++) {
+        if (state.players[i]!.eliminated) continue;
+        controllers[i]!.buildTick(state, buildDt);
+      }
+
+      // Validate every 2 seconds of build
+      if (Math.round(buildTime * 2) % 2 === 0) {
+        validateGameState(state, gameNum, tick++, violations);
+      }
+    }
+
+    for (const ctrl of controllers) ctrl.endBuild(state);
+
+    const { needsReselect } = finalizeBuildPhase(state);
+
+    processHeadlessReselection(runtime, needsReselect);
+
+    const alive = state.players.filter((p) => !p.eliminated);
+    if (alive.length <= 1) {
+      return { rounds: state.round, winner: alive[0]?.id ?? null };
+    }
+
+    validateGameState(state, gameNum, tick++, violations);
+  }
+
+  return { rounds: state.round, winner: null };
+}
 function validateGameState(
   state: GameState,
   gameNum: number,
@@ -152,144 +270,9 @@ function validateGameState(
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Headless game simulation
-// ---------------------------------------------------------------------------
-
-function simulateGame(
-  gameNum: number,
-  seed: number,
-  violations: Violation[],
-): { rounds: number; winner: number | null } {
-  const runtime = createHeadlessRuntime(seed);
-  const { state, controllers, playerCount } = runtime;
-
-  let tick = 0;
-  const MAX_ROUNDS = 50;
-
-  while (state.round <= MAX_ROUNDS) {
-    // CANNON_PLACE phase
-    resetCannonFacings(state);
-    computeCannonLimitsForPhase(state);
-    for (let i = 0; i < playerCount; i++) {
-      const player = state.players[i]!;
-      if (player.eliminated) continue;
-      const ctrl = controllers[i]!;
-      ctrl.placeCannons(state, state.cannonLimits[i]!);
-      ctrl.flushCannons(state, state.cannonLimits[i]!);
-    }
-
-    // Resolve propaganda balloons, then transition to BATTLE
-    resolveBalloons(state);
-    nextPhase(state); // CANNON_PLACE → BATTLE
-    for (const ctrl of controllers) ctrl.resetBattle(state);
-
-    validateGameState(state, gameNum, tick++, violations);
-
-    // Simulate battle
-    const battleDuration = BATTLE_TIMER;
-    let battleTime = 0;
-    const dt = 0.1;
-
-    while (battleTime < battleDuration || state.cannonballs.length > 0) {
-      if (battleTime < battleDuration) {
-        for (let i = 0; i < playerCount; i++) {
-          if (state.players[i]!.eliminated) continue;
-          controllers[i]!.battleTick(state, dt);
-        }
-      }
-
-      gruntAttackTowers(state, dt);
-      updateCannonballs(state, dt);
-      battleTime += dt;
-      tick++;
-
-      // Validate every 1 second of battle
-      if (Math.round(battleTime * 10) % 10 === 0) {
-        validateGameState(state, gameNum, tick, violations);
-      }
-    }
-    for (const ctrl of controllers) ctrl.onBattleEnd();
-
-    // BATTLE → WALL_BUILD
-    nextPhase(state);
-
-    validateGameState(state, gameNum, tick++, violations);
-
-    // Simulate build phase (BUILD_TIMER + 1 seconds) (26 seconds)
-    for (let i = 0; i < playerCount; i++) {
-      if (state.players[i]!.eliminated) continue;
-      controllers[i]!.startBuild(state);
-    }
-
-    const buildDuration = BUILD_TIMER + 1;
-    let buildTime = 0;
-    let gruntTickAccum = 0;
-
-    while (buildTime < buildDuration) {
-      const buildDt = 0.5; // faster steps for build phase
-      buildTime += buildDt;
-
-      // Grunt movement (1 tile/sec)
-      gruntTickAccum += buildDt;
-      if (gruntTickAccum >= 1.0) {
-        gruntTickAccum -= 1.0;
-        tickGrunts(state);
-      }
-
-      // AI placements
-      for (let i = 0; i < playerCount; i++) {
-        if (state.players[i]!.eliminated) continue;
-        controllers[i]!.buildTick(state, buildDt);
-      }
-
-      // Validate every 2 seconds of build
-      if (Math.round(buildTime * 2) % 2 === 0) {
-        validateGameState(state, gameNum, tick++, violations);
-      }
-    }
-
-    for (const ctrl of controllers) ctrl.endBuild(state);
-
-    const { needsReselect } = finalizeBuildPhase(state);
-
-    processHeadlessReselection(runtime, needsReselect);
-
-    const alive = state.players.filter((p) => !p.eliminated);
-    if (alive.length <= 1) {
-      return { rounds: state.round, winner: alive[0]?.id ?? null };
-    }
-
-    validateGameState(state, gameNum, tick++, violations);
-  }
-
-  return { rounds: state.round, winner: null };
-}
-
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
-
-const NUM_GAMES = 3;
-const violations: Violation[] = [];
-
-console.log(`Running ${NUM_GAMES} headless games...`);
-
-for (let i = 0; i < NUM_GAMES; i++) {
-  const seed = Math.floor(Math.random() * 1000000);
-  const result = simulateGame(i, seed, violations);
-  const status =
-    violations.length > 0 ? `⚠ ${violations.length} violations` : "OK";
-  console.log(
-    `  Game ${i + 1} (seed=${seed}): ${result.rounds} rounds, winner=${result.winner ?? "draw"} [${status}]`,
-  );
-}
-
 console.log(`\n=== RESULTS ===`);
 console.log(`Games: ${NUM_GAMES}`);
 console.log(`Total violations: ${violations.length}`);
-
 if (violations.length > 0) {
   // Group by message
   const grouped = new Map<string, Violation[]>();

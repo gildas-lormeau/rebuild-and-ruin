@@ -28,69 +28,6 @@ import { findNearestTower } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 import { Action, Phase } from "./types.ts";
 
-// ---------------------------------------------------------------------------
-// D-pad — directional arrows + action + rotate
-// ---------------------------------------------------------------------------
-
-const DPAD_BTN = 48;       // arrow button size
-const DPAD_GAP = 2;        // gap between arrow buttons
-const ACTION_BTN = 56;     // action/rotate button size
-const DPAD_MARGIN = 84;    // distance from screen edge (clears zoom buttons at left: 24px + 48px + gap)
-const DPAD_BOTTOM = 20;    // distance from bottom
-
-// Button colors — re-aliased from render-theme for brevity in CSS templates
-const COLOR_ARROW_BG = TOUCH_ARROW_BG;
-const COLOR_ARROW_BORDER = TOUCH_ARROW_BORDER;
-const COLOR_ROTATE_BG = TOUCH_ROTATE_BG;
-const COLOR_ROTATE_BORDER = TOUCH_ROTATE_BORDER;
-const COLOR_ACTION_BG = TOUCH_ACTION_BG;
-const COLOR_ACTION_BORDER = TOUCH_ACTION_BORDER;
-const COLOR_QUIT_BG = TOUCH_QUIT_BG;
-const COLOR_QUIT_BORDER = TOUCH_QUIT_BORDER;
-const COLOR_ZOOM_HOME_BG = TOUCH_ZOOM_HOME_BG;
-const COLOR_ZOOM_HOME_BORDER = TOUCH_ZOOM_HOME_BORDER;
-const COLOR_ZOOM_ENEMY_BG = TOUCH_ZOOM_ENEMY_BG;
-const COLOR_ZOOM_ENEMY_BORDER = TOUCH_ZOOM_ENEMY_BORDER;
-
-/** Visual press feedback — scale down on press, restore on release. */
-function pressDown(btn: HTMLElement): void {
-  btn.style.transform = "scale(0.88)";
-  btn.style.opacity = "0.75";
-}
-function pressUp(btn: HTMLElement): void {
-  btn.style.transform = "";
-  btn.style.opacity = "";
-}
-
-const BTN_BASE_CSS = `
-  border-radius: 10px;
-  z-index: 100;
-  font-weight: bold;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  cursor: pointer;
-  user-select: none;
-  transition: transform 60ms, opacity 60ms;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-
-const ARROW_CSS = BTN_BASE_CSS + `
-  width: ${DPAD_BTN}px;
-  height: ${DPAD_BTN}px;
-  background: ${COLOR_ARROW_BG};
-  border: 2px solid ${COLOR_ARROW_BORDER};
-  color: #c0d0e0;
-  font-size: 22px;
-`;
-
-const ACTION_CSS = BTN_BASE_CSS + `
-  width: ${ACTION_BTN}px;
-  height: ${ACTION_BTN}px;
-  border-radius: 50%;
-`;
-
 interface DpadDeps {
   getState: () => GameState | undefined;
   withFirstHuman: (action: (human: PlayerController) => void) => void;
@@ -105,6 +42,92 @@ interface DpadDeps {
   render: () => void;
   getLeftHanded: () => boolean;
 }
+interface QuitButtonDeps {
+  getQuitPending: () => boolean;
+  setQuitPending: (v: boolean) => void;
+  setQuitTimer: (v: number) => void;
+  setQuitMessage: (msg: string) => void;
+  showLobby: () => void;
+  getControllers: () => PlayerController[];
+  isHuman: (ctrl: PlayerController) => boolean;
+  render: () => void;
+}
+interface ZoomButtonDeps {
+  getState: () => GameState | undefined;
+  getCameraZone: () => number | null;
+  setCameraZone: (zone: number | null) => void;
+  myPlayerId: () => number;
+  getEnemyZones: () => number[];
+  render: () => void;
+}
+
+const DPAD_BTN = 48;
+       // arrow button size
+const DPAD_GAP = 2;
+        // gap between arrow buttons
+const ACTION_BTN = 56;
+     // action/rotate button size
+const DPAD_MARGIN = 84;
+    // distance from screen edge (clears zoom buttons at left: 24px + 48px + gap)
+const DPAD_BOTTOM = 20;
+// Button colors — re-aliased from render-theme for brevity in CSS templates
+const COLOR_ARROW_BG = TOUCH_ARROW_BG;
+const COLOR_ARROW_BORDER = TOUCH_ARROW_BORDER;
+const COLOR_ROTATE_BG = TOUCH_ROTATE_BG;
+const COLOR_ROTATE_BORDER = TOUCH_ROTATE_BORDER;
+const COLOR_ACTION_BG = TOUCH_ACTION_BG;
+const COLOR_ACTION_BORDER = TOUCH_ACTION_BORDER;
+const COLOR_QUIT_BG = TOUCH_QUIT_BG;
+const COLOR_QUIT_BORDER = TOUCH_QUIT_BORDER;
+const COLOR_ZOOM_HOME_BG = TOUCH_ZOOM_HOME_BG;
+const COLOR_ZOOM_HOME_BORDER = TOUCH_ZOOM_HOME_BORDER;
+const COLOR_ZOOM_ENEMY_BG = TOUCH_ZOOM_ENEMY_BG;
+const COLOR_ZOOM_ENEMY_BORDER = TOUCH_ZOOM_ENEMY_BORDER;
+const BTN_BASE_CSS = `
+  border-radius: 10px;
+  z-index: 100;
+  font-weight: bold;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 60ms, opacity 60ms;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+const ARROW_CSS = BTN_BASE_CSS + `
+  width: ${DPAD_BTN}px;
+  height: ${DPAD_BTN}px;
+  background: ${COLOR_ARROW_BG};
+  border: 2px solid ${COLOR_ARROW_BORDER};
+  color: #c0d0e0;
+  font-size: 22px;
+`;
+const ACTION_CSS = BTN_BASE_CSS + `
+  width: ${ACTION_BTN}px;
+  height: ${ACTION_BTN}px;
+  border-radius: 50%;
+`;
+const ZOOM_BTN_SIZE = 48;
+const ZOOM_BTN_MARGIN = 24;
+const ZOOM_BTN_BOTTOM = 36;
+const ZOOM_BTN_GAP = 8;
+const ZOOM_BTN_CSS = `
+  position: fixed;
+  left: ${ZOOM_BTN_MARGIN}px;
+  width: ${ZOOM_BTN_SIZE}px;
+  height: ${ZOOM_BTN_SIZE}px;
+  border-radius: 50%;
+  z-index: 100;
+  font-size: 24px;
+  font-weight: bold;
+  display: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  user-select: none;
+`;
 
 export function createDpad(deps: DpadDeps): {
   update: (phase: Phase | null) => void;
@@ -325,22 +348,6 @@ export function createDpad(deps: DpadDeps): {
     },
   };
 }
-
-// ---------------------------------------------------------------------------
-// Quit button — top-right, always visible during game
-// ---------------------------------------------------------------------------
-
-interface QuitButtonDeps {
-  getQuitPending: () => boolean;
-  setQuitPending: (v: boolean) => void;
-  setQuitTimer: (v: number) => void;
-  setQuitMessage: (msg: string) => void;
-  showLobby: () => void;
-  getControllers: () => PlayerController[];
-  isHuman: (ctrl: PlayerController) => boolean;
-  render: () => void;
-}
-
 export function createQuitButton(deps: QuitButtonDeps): {
   update: (phase: Phase | null) => void;
 } {
@@ -396,42 +403,6 @@ export function createQuitButton(deps: QuitButtonDeps): {
     },
   };
 }
-
-// ---------------------------------------------------------------------------
-// Zoom buttons — bottom-left pair
-//   Home: toggles between my zone and full map
-//   Enemy: cycles through opponent zones
-// ---------------------------------------------------------------------------
-
-const ZOOM_BTN_SIZE = 48;
-const ZOOM_BTN_MARGIN = 24;
-const ZOOM_BTN_BOTTOM = 36;
-const ZOOM_BTN_GAP = 8;
-const ZOOM_BTN_CSS = `
-  position: fixed;
-  left: ${ZOOM_BTN_MARGIN}px;
-  width: ${ZOOM_BTN_SIZE}px;
-  height: ${ZOOM_BTN_SIZE}px;
-  border-radius: 50%;
-  z-index: 100;
-  font-size: 24px;
-  font-weight: bold;
-  display: none;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  cursor: pointer;
-  user-select: none;
-`;
-
-interface ZoomButtonDeps {
-  getState: () => GameState | undefined;
-  getCameraZone: () => number | null;
-  setCameraZone: (zone: number | null) => void;
-  myPlayerId: () => number;
-  getEnemyZones: () => number[];
-  render: () => void;
-}
-
 /** Toggle between my zone (zoomed) and full map. */
 export function createHomeZoomButton(deps: ZoomButtonDeps): {
   update: (phase: Phase | null) => void;
@@ -496,7 +467,6 @@ export function createHomeZoomButton(deps: ZoomButtonDeps): {
     },
   };
 }
-
 /** Cycle through opponent zones. */
 export function createEnemyZoomButton(deps: ZoomButtonDeps): {
   update: (phase: Phase | null) => void;
@@ -554,4 +524,13 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps): {
       updateLabel();
     },
   };
+}
+/** Visual press feedback — scale down on press, restore on release. */
+function pressDown(btn: HTMLElement): void {
+  btn.style.transform = "scale(0.88)";
+  btn.style.opacity = "0.75";
+}
+function pressUp(btn: HTMLElement): void {
+  btn.style.transform = "";
+  btn.style.opacity = "";
 }

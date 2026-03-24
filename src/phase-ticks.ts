@@ -12,20 +12,11 @@ import { EMPTY_TILE_SET, unpackTile } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 import { CannonMode } from "./types.ts";
 
-/** Shared empty map — avoids allocating a throwaway Map on every frame. */
-/** Sentinel empty map — never mutated (phantomChanged short-circuits on empty maps). */
-const EMPTY_MAP = new Map<number, string>();
-
-// ---------------------------------------------------------------------------
-// Networking context — groups all online-only deps for tick functions
-// ---------------------------------------------------------------------------
-
 /** Base networking context shared by all phase ticks. */
 export interface HostNetContext {
   remoteHumanSlots: ReadonlySet<number>;
   isHost: boolean;
 }
-
 /** Networking context for the cannon placement phase. */
 interface CannonPhaseNet extends HostNetContext {
   remoteCannonPhantoms: CannonPhantom[];
@@ -50,7 +41,6 @@ interface CannonPhaseNet extends HostNetContext {
     facing: number;
   }) => void;
 }
-
 /** Networking context for the wall build phase. */
 interface BuildPhaseNet extends HostNetContext {
   remotePiecePhantoms: PiecePhantom[];
@@ -76,11 +66,6 @@ interface BuildPhaseNet extends HostNetContext {
     players: SerializedPlayer[];
   }) => void;
 }
-
-// ---------------------------------------------------------------------------
-// Cannon placement phase tick
-// ---------------------------------------------------------------------------
-
 interface HostFrame {
   phantoms: {
     aiCannonPhantoms?: CannonPhantom[];
@@ -88,7 +73,6 @@ interface HostFrame {
     humanPhantoms?: HumanPiecePhantom[];
   };
 }
-
 interface TickHostCannonPhaseDeps {
   dt: number;
   state: GameState;
@@ -99,6 +83,28 @@ interface TickHostCannonPhaseDeps {
   startBattle: () => void;
   net?: CannonPhaseNet;
 }
+interface TickHostBuildPhaseDeps {
+  dt: number;
+  state: GameState;
+  accum: { build: number; grunt: number };
+  frame: HostFrame;
+  controllers: PlayerController[];
+  render: () => void;
+  tickGrunts: (state: GameState) => void;
+  isHuman: (controller: PlayerController) => boolean;
+  finalizeBuildPhase: (state: GameState) => {
+    needsReselect: number[];
+    eliminated: number[];
+  };
+  showLifeLostDialog: (needsReselect: number[], eliminated: number[]) => void;
+  afterLifeLostResolved: () => boolean;
+  showScoreDeltas: (onDone: () => void) => void;
+  net?: BuildPhaseNet;
+}
+
+/** Shared empty map — avoids allocating a throwaway Map on every frame. */
+/** Sentinel empty map — never mutated (phantomChanged short-circuits on empty maps). */
+const EMPTY_MAP = new Map<number, string>();
 
 export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   const { dt, state, accum, frame, controllers, render, startBattle } = deps;
@@ -193,30 +199,6 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   startBattle();
   return true;
 }
-
-// ---------------------------------------------------------------------------
-// Build phase tick
-// ---------------------------------------------------------------------------
-
-interface TickHostBuildPhaseDeps {
-  dt: number;
-  state: GameState;
-  accum: { build: number; grunt: number };
-  frame: HostFrame;
-  controllers: PlayerController[];
-  render: () => void;
-  tickGrunts: (state: GameState) => void;
-  isHuman: (controller: PlayerController) => boolean;
-  finalizeBuildPhase: (state: GameState) => {
-    needsReselect: number[];
-    eliminated: number[];
-  };
-  showLifeLostDialog: (needsReselect: number[], eliminated: number[]) => void;
-  afterLifeLostResolved: () => boolean;
-  showScoreDeltas: (onDone: () => void) => void;
-  net?: BuildPhaseNet;
-}
-
 export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   const {
     dt, state, accum, frame, controllers, render,

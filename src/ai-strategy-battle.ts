@@ -29,9 +29,7 @@ import {
 } from "./spatial.ts";
 import type { Cannon, Cannonball, GameState } from "./types.ts";
 
-// ---------------------------------------------------------------------------
-// AI battle tuning constants
-// ---------------------------------------------------------------------------
+type TargetCandidate = PrioritizedTilePos;
 
 /** Minimum grunts targeting a player before a grunt sweep is considered. */
 const GRUNT_SWEEP_THRESHOLD = 15;
@@ -62,236 +60,6 @@ const SWEET_SPOT_MIN_DISTANCE = 3;
 /** Width of the preferred distance band (sweet spot = min .. min + range). */
 const SWEET_SPOT_DISTANCE_RANGE = 5;
 
-// ---------------------------------------------------------------------------
-// Local helpers
-// ---------------------------------------------------------------------------
-
-/** True if a cannonball in flight is targeting (row, col). */
-function ballTargeting(
-  b: Pick<Cannonball, "targetY" | "targetX">,
-  row: number,
-  col: number,
-): boolean {
-  return (
-    Math.floor(b.targetY / TILE_SIZE) === row &&
-    Math.floor(b.targetX / TILE_SIZE) === col
-  );
-}
-
-/** True if any cannonball in flight is targeting (row, col). */
-function isTileTargetedByInFlightBall(
-  state: GameState,
-  row: number,
-  col: number,
-): boolean {
-  return state.cannonballs.some((b) => ballTargeting(b, row, col));
-}
-
-/** Return all players that are not `playerId` and not eliminated. */
-export function getActiveEnemies(state: GameState, playerId: number) {
-  return state.players.filter((p) => p.id !== playerId && !p.eliminated);
-}
-
-/** Sort targets in-place by Manhattan distance from a reference tile. */
-function sortByDistanceFrom(
-  targets: TilePos[],
-  refRow: number,
-  refCol: number,
-): void {
-  targets.sort(
-    (a, b) =>
-      manhattanDistance(a.row, a.col, refRow, refCol) -
-      manhattanDistance(b.row, b.col, refRow, refCol),
-  );
-}
-
-function pickRandomFromTop<T>(
-  items: readonly T[],
-  topCount: number,
-  rand: () => number,
-): T {
-  const count = Math.min(topCount, items.length);
-  return items[Math.floor(rand() * count)]!;
-}
-
-function jitterWithinTile(
-  row: number,
-  col: number,
-  rand: () => number,
-): PixelPos {
-  const margin = TARGET_TILE_MARGIN;
-  const low = margin;
-  const high = TILE_SIZE - margin;
-  return {
-    x: col * TILE_SIZE + low + rand() * (high - low),
-    y: row * TILE_SIZE + low + rand() * (high - low),
-  };
-}
-
-function collectStrategicWallTargets(
-  state: GameState,
-  playerId: number,
-  focusPlayerId: number | null,
-): TilePos[] {
-  const strategic: TilePos[] = [];
-  for (const other of getActiveEnemies(state, playerId)) {
-    if (focusPlayerId != null && other.id !== focusPlayerId) continue;
-    for (const key of other.walls) {
-      const { r: wallRow, c: wallCol } = unpackTile(key);
-      // Skip walls already targeted by a cannonball in flight
-      if (isTileTargetedByInFlightBall(state, wallRow, wallCol)) continue;
-      // Track obstacle directions: [north, south, west, east]
-      const obstacles = getCardinalObstacleMask(state, wallRow, wallCol, {
-        excludeBalloonCannons: true,
-      });
-      // Require 2+ obstacles with at least one opposite pair (N/S or W/E)
-      const total = obstacles.filter(Boolean).length;
-      const hasOpposite =
-        (obstacles[0] && obstacles[1]) || (obstacles[2] && obstacles[3]);
-      if (total >= 2 && hasOpposite)
-        strategic.push({ row: wallRow, col: wallCol });
-    }
-  }
-  return strategic;
-}
-
-function collectGruntBlockingWallTargets(
-  state: GameState,
-  playerId: number,
-): TilePos[] {
-  const gruntWalls: TilePos[] = [];
-  for (const grunt of state.grunts) {
-    if (grunt.targetPlayerId === playerId) continue;
-    if (grunt.targetTowerIdx == null) continue;
-    const tower = state.map.towers[grunt.targetTowerIdx];
-    if (!tower) continue;
-    const enemy = state.players[grunt.targetPlayerId];
-    if (!enemy || enemy.eliminated) continue;
-    let bestTowerRow = tower.row,
-      bestTowerCol = tower.col,
-      bestDistance = Infinity;
-    for (let tileRow = tower.row; tileRow < tower.row + 2; tileRow++) {
-      for (let tileCol = tower.col; tileCol < tower.col + 2; tileCol++) {
-        const distance = manhattanDistance(
-          tileRow,
-          tileCol,
-          grunt.row,
-          grunt.col,
-        );
-        if (distance < bestDistance) {
-          bestDistance = distance;
-          bestTowerRow = tileRow;
-          bestTowerCol = tileCol;
-        }
-      }
-    }
-    const dr = Math.sign(bestTowerRow - grunt.row);
-    const dc = Math.sign(bestTowerCol - grunt.col);
-    const dirs: [number, number][] = [];
-    if (dr !== 0) dirs.push([dr, 0]);
-    if (dc !== 0) dirs.push([0, dc]);
-    for (const [ddr, ddc] of dirs) {
-      const nr = grunt.row + ddr;
-      const nc = grunt.col + ddc;
-      const nk = packTile(nr, nc);
-      if (enemy.walls.has(nk) && !isTileTargetedByInFlightBall(state, nr, nc)) {
-        gruntWalls.push({ row: nr, col: nc });
-      }
-    }
-  }
-  return gruntWalls;
-}
-
-function isEnemyEligibleForFocus(
-  enemyId: number,
-  focusPlayerId: number | null,
-  switchTarget: boolean,
-): boolean {
-  if (focusPlayerId == null) return true;
-  if (!switchTarget) return enemyId === focusPlayerId;
-  return enemyId !== focusPlayerId;
-}
-
-type TargetCandidate = PrioritizedTilePos;
-
-function collectEnemyTargets(
-  state: GameState,
-  playerId: number,
-  focusPlayerId: number | null,
-  switchTarget: boolean,
-  shotCounts: WeakMap<Cannon, number>,
-  wallsOnly?: boolean,
-): TargetCandidate[] {
-  const targets: TargetCandidate[] = [];
-  for (const other of getActiveEnemies(state, playerId)) {
-    if (!isEnemyEligibleForFocus(other.id, focusPlayerId, switchTarget))
-      continue;
-
-    if (!wallsOnly) {
-      for (const cannon of other.cannons) {
-        if (!isCannonAlive(cannon)) continue;
-        if (cannon.balloon) continue;
-        if (
-          state.capturedCannons.some(
-            (cc) => cc.cannon === cannon && cc.capturerId === playerId,
-          )
-        ) {
-          continue;
-        }
-        // Skip if we've already fired enough shots to destroy it
-        const shots = shotCounts.get(cannon) ?? 0;
-        if (shots >= state.cannonMaxHp) continue;
-        const size = cannonSize(cannon);
-        const targetRow = cannon.row + (size - 1) / 2;
-        const targetCol = cannon.col + (size - 1) / 2;
-        targets.push({ row: targetRow, col: targetCol, priority: shots > 0 });
-      }
-    }
-
-    for (const key of other.walls) {
-      const { r: wallRow, c: wallCol } = unpackTile(key);
-      targets.push({ row: wallRow, col: wallCol, priority: false });
-    }
-  }
-
-  return targets;
-}
-
-function pickSweetSpotTarget(
-  targets: TargetCandidate[],
-  currentRow: number,
-  currentCol: number,
-  rand: () => number,
-): TargetCandidate {
-  const sweetSpot =
-    SWEET_SPOT_MIN_DISTANCE + rand() * SWEET_SPOT_DISTANCE_RANGE;
-  targets.sort((a, b) => {
-    const distanceA = Math.abs(
-      manhattanDistance(a.row, a.col, currentRow, currentCol) - sweetSpot,
-    );
-    const distanceB = Math.abs(
-      manhattanDistance(b.row, b.col, currentRow, currentCol) - sweetSpot,
-    );
-    return distanceA - distanceB;
-  });
-  return pickRandomFromTop(targets, TOP_TARGET_PICK_COUNT, rand);
-}
-
-function pickJitteredNearestTarget(
-  targets: TilePos[],
-  currentRow: number,
-  currentCol: number,
-  rand: () => number,
-): PixelPos {
-  sortByDistanceFrom(targets, currentRow, currentCol);
-  const target = pickRandomFromTop(targets, TOP_TARGET_PICK_COUNT, rand);
-  return jitterWithinTile(target.row, target.col, rand);
-}
-
-// ---------------------------------------------------------------------------
-// Battle planning
-// ---------------------------------------------------------------------------
-
 /** Count cannons that are alive and enclosed (usable for firing). */
 export function countUsableCannons(state: GameState, playerId: number): number {
   const player = state.players[playerId]!;
@@ -301,28 +69,6 @@ export function countUsableCannons(state: GameState, playerId: number): number {
   }
   return count;
 }
-
-/** Target grunts attacking a specific player, ordered by nearest neighbor from a random start. */
-function planGruntTargets(
-  state: GameState,
-  targetPlayerId: number,
-  readyCount: number,
-  rng: Rng,
-): TilePos[] | null {
-  const grunts = state.grunts.filter(
-    (g) => g.targetPlayerId === targetPlayerId,
-  );
-  if (grunts.length <= GRUNT_SWEEP_THRESHOLD) return null;
-  const positions = grunts.map((g) => ({ row: g.row, col: g.col }));
-  // Random starting point
-  const startIndex = rng.int(0, positions.length - 1);
-  [positions[0], positions[startIndex]] = [
-    positions[startIndex]!,
-    positions[0]!,
-  ];
-  return orderByNearest(positions, readyCount);
-}
-
 /** Plan a grunt sweep: chain-fire at enemy grunts on our territory. */
 export function planGruntSweep(
   state: GameState,
@@ -332,7 +78,6 @@ export function planGruntSweep(
 ): TilePos[] | null {
   return planGruntTargets(state, playerId, readyCount, rng);
 }
-
 /** Plan a charity sweep: kill grunts on an enemy's territory when they can't. */
 export function planCharitySweep(
   state: GameState,
@@ -351,20 +96,6 @@ export function planCharitySweep(
   }
   return null;
 }
-
-/** Check if a 4-tile pocket forms a 2x2 square (can fit a cannon). */
-function is2x2(keys: number[]): boolean {
-  const minRow = Math.min(...keys.map((key) => unpackTile(key).r));
-  const minCol = Math.min(...keys.map((key) => unpackTile(key).c));
-  const expected = new Set([
-    packTile(minRow, minCol),
-    packTile(minRow, minCol + 1),
-    packTile(minRow + 1, minCol),
-    packTile(minRow + 1, minCol + 1),
-  ]);
-  return keys.length === 4 && keys.every((key) => expected.has(key));
-}
-
 /** Plan pocket destruction: find small enclosures (< 2x2) and non-square 4-tile pockets, target one wall per pocket. */
 export function planPocketDestruction(
   state: GameState,
@@ -440,7 +171,19 @@ export function planPocketDestruction(
   if (targets.length > MAX_POCKET_TARGETS) targets.length = MAX_POCKET_TARGETS;
   return orderByNearest(targets);
 }
-
+/** Plan a super attack: like wall demolition but hit every other tile (stride of 2). */
+export function planSuperAttack(
+  state: GameState,
+  playerId: number,
+  readyCount: number,
+  rng: Rng,
+): TilePos[] | null {
+  const segment = planWallDemolition(state, playerId, readyCount * 2, rng);
+  if (!segment) return null;
+  // Keep every other tile
+  const strided = segment.filter((_, i) => i % 2 === 0);
+  return strided.length >= 2 ? strided : null;
+}
 /** Plan a wall demolition run: find connected enemy wall segment. */
 export function planWallDemolition(
   state: GameState,
@@ -470,54 +213,6 @@ export function planWallDemolition(
   }
   return null;
 }
-
-/** Plan a super attack: like wall demolition but hit every other tile (stride of 2). */
-export function planSuperAttack(
-  state: GameState,
-  playerId: number,
-  readyCount: number,
-  rng: Rng,
-): TilePos[] | null {
-  const segment = planWallDemolition(state, playerId, readyCount * 2, rng);
-  if (!segment) return null;
-  // Keep every other tile
-  const strided = segment.filter((_, i) => i % 2 === 0);
-  return strided.length >= 2 ? strided : null;
-}
-
-/** Random walk to find up to maxLength connected wall tiles. */
-function findConnectedWalls(
-  walls: Set<number>,
-  startKey: number,
-  maxLength: number,
-  rng: Rng,
-): number[] {
-  const visited = new Set<number>();
-  visited.add(startKey);
-  const result: number[] = [startKey];
-  let current = startKey;
-  while (result.length < maxLength) {
-    const { r, c } = unpackTile(current);
-    const neighbors: number[] = [];
-    for (const [dr, dc] of DIRS_4) {
-      const nr = r + dr;
-      const nc = c + dc;
-      if (!inBounds(nr, nc)) continue;
-      const nk = packTile(nr, nc);
-      if (!visited.has(nk) && walls.has(nk)) neighbors.push(nk);
-    }
-    if (neighbors.length === 0) break;
-    current = rng.pick(neighbors);
-    visited.add(current);
-    result.push(current);
-  }
-  return result;
-}
-
-// ---------------------------------------------------------------------------
-// Target picking
-// ---------------------------------------------------------------------------
-
 export function pickTargetImpl(
   state: GameState,
   playerId: number,
@@ -612,11 +307,6 @@ export function pickTargetImpl(
   // Jitter within the target tile (never spill into adjacent tiles)
   return jitterWithinTile(target.row, target.col, rand);
 }
-
-// ---------------------------------------------------------------------------
-// Shot tracking
-// ---------------------------------------------------------------------------
-
 export function trackShotImpl(
   state: GameState,
   playerId: number,
@@ -635,5 +325,271 @@ export function trackShotImpl(
     }
   }
 }
+function collectStrategicWallTargets(
+  state: GameState,
+  playerId: number,
+  focusPlayerId: number | null,
+): TilePos[] {
+  const strategic: TilePos[] = [];
+  for (const other of getActiveEnemies(state, playerId)) {
+    if (focusPlayerId != null && other.id !== focusPlayerId) continue;
+    for (const key of other.walls) {
+      const { r: wallRow, c: wallCol } = unpackTile(key);
+      // Skip walls already targeted by a cannonball in flight
+      if (isTileTargetedByInFlightBall(state, wallRow, wallCol)) continue;
+      // Track obstacle directions: [north, south, west, east]
+      const obstacles = getCardinalObstacleMask(state, wallRow, wallCol, {
+        excludeBalloonCannons: true,
+      });
+      // Require 2+ obstacles with at least one opposite pair (N/S or W/E)
+      const total = obstacles.filter(Boolean).length;
+      const hasOpposite =
+        (obstacles[0] && obstacles[1]) || (obstacles[2] && obstacles[3]);
+      if (total >= 2 && hasOpposite)
+        strategic.push({ row: wallRow, col: wallCol });
+    }
+  }
+  return strategic;
+}
+function collectGruntBlockingWallTargets(
+  state: GameState,
+  playerId: number,
+): TilePos[] {
+  const gruntWalls: TilePos[] = [];
+  for (const grunt of state.grunts) {
+    if (grunt.targetPlayerId === playerId) continue;
+    if (grunt.targetTowerIdx == null) continue;
+    const tower = state.map.towers[grunt.targetTowerIdx];
+    if (!tower) continue;
+    const enemy = state.players[grunt.targetPlayerId];
+    if (!enemy || enemy.eliminated) continue;
+    let bestTowerRow = tower.row,
+      bestTowerCol = tower.col,
+      bestDistance = Infinity;
+    for (let tileRow = tower.row; tileRow < tower.row + 2; tileRow++) {
+      for (let tileCol = tower.col; tileCol < tower.col + 2; tileCol++) {
+        const distance = manhattanDistance(
+          tileRow,
+          tileCol,
+          grunt.row,
+          grunt.col,
+        );
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestTowerRow = tileRow;
+          bestTowerCol = tileCol;
+        }
+      }
+    }
+    const dr = Math.sign(bestTowerRow - grunt.row);
+    const dc = Math.sign(bestTowerCol - grunt.col);
+    const dirs: [number, number][] = [];
+    if (dr !== 0) dirs.push([dr, 0]);
+    if (dc !== 0) dirs.push([0, dc]);
+    for (const [ddr, ddc] of dirs) {
+      const nr = grunt.row + ddr;
+      const nc = grunt.col + ddc;
+      const nk = packTile(nr, nc);
+      if (enemy.walls.has(nk) && !isTileTargetedByInFlightBall(state, nr, nc)) {
+        gruntWalls.push({ row: nr, col: nc });
+      }
+    }
+  }
+  return gruntWalls;
+}
+/** True if any cannonball in flight is targeting (row, col). */
+function isTileTargetedByInFlightBall(
+  state: GameState,
+  row: number,
+  col: number,
+): boolean {
+  return state.cannonballs.some((b) => ballTargeting(b, row, col));
+}
+/** True if a cannonball in flight is targeting (row, col). */
+function ballTargeting(
+  b: Pick<Cannonball, "targetY" | "targetX">,
+  row: number,
+  col: number,
+): boolean {
+  return (
+    Math.floor(b.targetY / TILE_SIZE) === row &&
+    Math.floor(b.targetX / TILE_SIZE) === col
+  );
+}
+function collectEnemyTargets(
+  state: GameState,
+  playerId: number,
+  focusPlayerId: number | null,
+  switchTarget: boolean,
+  shotCounts: WeakMap<Cannon, number>,
+  wallsOnly?: boolean,
+): TargetCandidate[] {
+  const targets: TargetCandidate[] = [];
+  for (const other of getActiveEnemies(state, playerId)) {
+    if (!isEnemyEligibleForFocus(other.id, focusPlayerId, switchTarget))
+      continue;
 
-// ---------------------------------------------------------------------------
+    if (!wallsOnly) {
+      for (const cannon of other.cannons) {
+        if (!isCannonAlive(cannon)) continue;
+        if (cannon.balloon) continue;
+        if (
+          state.capturedCannons.some(
+            (cc) => cc.cannon === cannon && cc.capturerId === playerId,
+          )
+        ) {
+          continue;
+        }
+        // Skip if we've already fired enough shots to destroy it
+        const shots = shotCounts.get(cannon) ?? 0;
+        if (shots >= state.cannonMaxHp) continue;
+        const size = cannonSize(cannon);
+        const targetRow = cannon.row + (size - 1) / 2;
+        const targetCol = cannon.col + (size - 1) / 2;
+        targets.push({ row: targetRow, col: targetCol, priority: shots > 0 });
+      }
+    }
+
+    for (const key of other.walls) {
+      const { r: wallRow, c: wallCol } = unpackTile(key);
+      targets.push({ row: wallRow, col: wallCol, priority: false });
+    }
+  }
+
+  return targets;
+}
+/** Return all players that are not `playerId` and not eliminated. */
+export function getActiveEnemies(state: GameState, playerId: number) {
+  return state.players.filter((p) => p.id !== playerId && !p.eliminated);
+}
+function isEnemyEligibleForFocus(
+  enemyId: number,
+  focusPlayerId: number | null,
+  switchTarget: boolean,
+): boolean {
+  if (focusPlayerId == null) return true;
+  if (!switchTarget) return enemyId === focusPlayerId;
+  return enemyId !== focusPlayerId;
+}
+function pickSweetSpotTarget(
+  targets: TargetCandidate[],
+  currentRow: number,
+  currentCol: number,
+  rand: () => number,
+): TargetCandidate {
+  const sweetSpot =
+    SWEET_SPOT_MIN_DISTANCE + rand() * SWEET_SPOT_DISTANCE_RANGE;
+  targets.sort((a, b) => {
+    const distanceA = Math.abs(
+      manhattanDistance(a.row, a.col, currentRow, currentCol) - sweetSpot,
+    );
+    const distanceB = Math.abs(
+      manhattanDistance(b.row, b.col, currentRow, currentCol) - sweetSpot,
+    );
+    return distanceA - distanceB;
+  });
+  return pickRandomFromTop(targets, TOP_TARGET_PICK_COUNT, rand);
+}
+function pickJitteredNearestTarget(
+  targets: TilePos[],
+  currentRow: number,
+  currentCol: number,
+  rand: () => number,
+): PixelPos {
+  sortByDistanceFrom(targets, currentRow, currentCol);
+  const target = pickRandomFromTop(targets, TOP_TARGET_PICK_COUNT, rand);
+  return jitterWithinTile(target.row, target.col, rand);
+}
+/** Sort targets in-place by Manhattan distance from a reference tile. */
+function sortByDistanceFrom(
+  targets: TilePos[],
+  refRow: number,
+  refCol: number,
+): void {
+  targets.sort(
+    (a, b) =>
+      manhattanDistance(a.row, a.col, refRow, refCol) -
+      manhattanDistance(b.row, b.col, refRow, refCol),
+  );
+}
+function pickRandomFromTop<T>(
+  items: readonly T[],
+  topCount: number,
+  rand: () => number,
+): T {
+  const count = Math.min(topCount, items.length);
+  return items[Math.floor(rand() * count)]!;
+}
+function jitterWithinTile(
+  row: number,
+  col: number,
+  rand: () => number,
+): PixelPos {
+  const margin = TARGET_TILE_MARGIN;
+  const low = margin;
+  const high = TILE_SIZE - margin;
+  return {
+    x: col * TILE_SIZE + low + rand() * (high - low),
+    y: row * TILE_SIZE + low + rand() * (high - low),
+  };
+}
+/** Target grunts attacking a specific player, ordered by nearest neighbor from a random start. */
+function planGruntTargets(
+  state: GameState,
+  targetPlayerId: number,
+  readyCount: number,
+  rng: Rng,
+): TilePos[] | null {
+  const grunts = state.grunts.filter(
+    (g) => g.targetPlayerId === targetPlayerId,
+  );
+  if (grunts.length <= GRUNT_SWEEP_THRESHOLD) return null;
+  const positions = grunts.map((g) => ({ row: g.row, col: g.col }));
+  // Random starting point
+  const startIndex = rng.int(0, positions.length - 1);
+  [positions[0], positions[startIndex]] = [
+    positions[startIndex]!,
+    positions[0]!,
+  ];
+  return orderByNearest(positions, readyCount);
+}
+/** Check if a 4-tile pocket forms a 2x2 square (can fit a cannon). */
+function is2x2(keys: number[]): boolean {
+  const minRow = Math.min(...keys.map((key) => unpackTile(key).r));
+  const minCol = Math.min(...keys.map((key) => unpackTile(key).c));
+  const expected = new Set([
+    packTile(minRow, minCol),
+    packTile(minRow, minCol + 1),
+    packTile(minRow + 1, minCol),
+    packTile(minRow + 1, minCol + 1),
+  ]);
+  return keys.length === 4 && keys.every((key) => expected.has(key));
+}
+/** Random walk to find up to maxLength connected wall tiles. */
+function findConnectedWalls(
+  walls: Set<number>,
+  startKey: number,
+  maxLength: number,
+  rng: Rng,
+): number[] {
+  const visited = new Set<number>();
+  visited.add(startKey);
+  const result: number[] = [startKey];
+  let current = startKey;
+  while (result.length < maxLength) {
+    const { r, c } = unpackTile(current);
+    const neighbors: number[] = [];
+    for (const [dr, dc] of DIRS_4) {
+      const nr = r + dr;
+      const nc = c + dc;
+      if (!inBounds(nr, nc)) continue;
+      const nk = packTile(nr, nc);
+      if (!visited.has(nk) && walls.has(nk)) neighbors.push(nk);
+    }
+    if (neighbors.length === 0) break;
+    current = rng.pick(neighbors);
+    visited.add(current);
+    result.push(current);
+  }
+  return result;
+}

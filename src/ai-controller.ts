@@ -41,22 +41,6 @@ const BUILD_CURSOR_SPEED = 12;
 /** AI cannon-phase cursor speed in tiles per second. */
 const CANNON_CURSOR_SPEED = 6;
 
-/** Normalized key for a piece shape (origin-independent). */
-function pieceKey(p: PieceShape): string {
-  const minR = Math.min(...p.offsets.map((o) => o[0]));
-  const minC = Math.min(...p.offsets.map((o) => o[1]));
-  return [...p.offsets]
-    .map(([r, c]) => [r - minR, c - minC] as [number, number])
-    .sort((a, b) => a[0] - b[0] || a[1] - b[1])
-    .map((o) => `${o[0]},${o[1]}`)
-    .join(";");
-}
-
-/** Check if two pieces have the same shape (ignoring position). */
-function sameShape(a: PieceShape, b: PieceShape): boolean {
-  return pieceKey(a) === pieceKey(b);
-}
-
 export class AiController extends BaseController {
   /** Pluggable AI strategy (decision-making). */
   private strategy: AiStrategy;
@@ -168,7 +152,6 @@ export class AiController extends BaseController {
     this.chainDwell = 0;
     this.crosshairTarget = null;
   }
-
 
   constructor(playerId: number, strategy?: AiStrategy) {
     super(playerId);
@@ -570,7 +553,6 @@ export class AiController extends BaseController {
       };
     }
 
-
     // Dwell on target then place
     if (this.cannonDwell > 0) {
       this.cannonDwell -= dt;
@@ -923,4 +905,18 @@ export class AiController extends BaseController {
       this.pendingPlace = null;
     }
   }
+}
+/** Check if two pieces have the same shape (ignoring position). */
+function sameShape(a: PieceShape, b: PieceShape): boolean {
+  return pieceKey(a) === pieceKey(b);
+}
+/** Normalized key for a piece shape (origin-independent). */
+function pieceKey(p: PieceShape): string {
+  const minR = Math.min(...p.offsets.map((o) => o[0]));
+  const minC = Math.min(...p.offsets.map((o) => o[1]));
+  return [...p.offsets]
+    .map(([r, c]) => [r - minR, c - minC] as [number, number])
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1])
+    .map((o) => `${o[0]},${o[1]}`)
+    .join(";");
 }
