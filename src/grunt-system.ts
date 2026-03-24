@@ -568,16 +568,9 @@ function adjacentLivingTowerIndex(
 function canAttemptWallAttack(state: GameState, grunt: Grunt): boolean {
   return (
     hasBlockedBattlesForWallAttack(grunt) &&
-    hasLiveTargetTower(state, grunt) &&
+    getLiveTargetTower(state, grunt) !== null &&
     hasAdjacentWall(state, grunt.row, grunt.col)
   );
-}
-
-function hasLiveTargetTower(
-  state: GameState,
-  grunt: Pick<Grunt, "targetTowerIdx">,
-): boolean {
-  return getLiveTargetTower(state, grunt) !== null;
 }
 
 function getLiveTargetTower(

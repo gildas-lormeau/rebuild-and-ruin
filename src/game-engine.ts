@@ -20,7 +20,7 @@
 
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import { collectAllWalls, getAliveOwnedTowers, sweepIsolatedWalls } from "./board-occupancy.ts";
-import { cannonSlotsForRound } from "./cannon-system.ts";
+import { cannonSlotsForRound, resetCannonFacings } from "./cannon-system.ts";
 import type { Castle, GameMap } from "./geometry-types.ts";
 import {
   rollGruntWallAttacks,
@@ -40,7 +40,7 @@ import {
 import { claimTerritory, removeBonusSquaresCoveredByWalls, replenishBonusSquares } from "./phase-build.ts";
 import type { PlayerController } from "./player-controller.ts";
 import { Rng } from "./rng.ts";
-import { DIRS_4, packTile, snapAngle, unpackTile } from "./spatial.ts";
+import { DIRS_4, packTile, unpackTile } from "./spatial.ts";
 import type { GameState, Player } from "./types.ts";
 import {
   BATTLE_TIMER,
@@ -231,37 +231,6 @@ export function initBuildPhase(
   for (const ctrl of controllers) {
     if (skipController?.(ctrl.playerId)) continue;
     ctrl.startBuild(state);
-  }
-}
-
-/**
- * Reset cannon facings to point toward the average enemy position.
- * Call at the start of the cannon phase and after reselection.
- */
-export function resetCannonFacings(state: GameState): void {
-  for (const player of state.players) {
-    if (!isPlayerActive(player)) continue;
-    const px = player.homeTower.col + 1;
-    const py = player.homeTower.row + 1;
-    let ex = 0, ey = 0, count = 0;
-    for (const other of state.players) {
-      if (other.id === player.id || !isPlayerActive(other)) continue;
-      ex += other.homeTower.col + 1;
-      ey += other.homeTower.row + 1;
-      count++;
-    }
-    let facing = 0;
-    if (count > 0) {
-      const avgEx = ex / count;
-      const avgEy = ey / count;
-      const dx = avgEx - px;
-      const dy = avgEy - py;
-      facing = snapAngle(Math.atan2(dx, -dy), Math.PI / 2); // 0 = up, snapped to 90°
-    }
-    player.defaultFacing = facing;
-    for (const cannon of player.cannons) {
-      cannon.facing = facing;
-    }
   }
 }
 

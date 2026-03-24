@@ -10,7 +10,7 @@ import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { spawnGruntNearPosition, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
 import type { PieceShape } from "./pieces.ts";
-import { computeOutside, DIRS_8, forEachTowerTile, inBounds, isGrass, isPitAt, isWater, manhattanDistance, packTile } from "./spatial.ts";
+import { computeOutside, DIRS_8, inBounds, isAtTile, isGrass, isPitAt, isWater, manhattanDistance, packTile } from "./spatial.ts";
 import type { GameState, Player } from "./types.ts";
 import { BONUS_SQUARE_MIN_DISTANCE, BONUS_SQUARES_PER_ZONE, CASTLE_BONUS_TABLE, DESTROY_GRUNT_POINTS, ENCLOSED_GRUNT_RESPAWN_CHANCE, isPlayerActive, TERRITORY_POINT_TIERS } from "./types.ts";
 
@@ -56,18 +56,20 @@ export function canPlacePiece(state: GameState, playerId: number, piece: PieceSh
 export function applyPiecePlacement(state: GameState, playerId: number, offsets: [number, number][], row: number, col: number): void {
   const player = state.players[playerId]!;
   const destroyedHousePositions: TilePos[] = [];
+  const pieceKeys = new Set(offsets.map(([dr, dc]) => packTile(row + dr, col + dc)));
   for (const [dr, dc] of offsets) {
     const pr = row + dr, pc = col + dc;
     player.walls.add(packTile(pr, pc));
-    const bsIdx = state.bonusSquares.findIndex((b) => b.row === pr && b.col === pc);
-    if (bsIdx >= 0) state.bonusSquares.splice(bsIdx, 1);
     for (const house of state.map.houses) {
-      if (house.alive && house.row === pr && house.col === pc) {
+      if (house.alive && isAtTile(house, pr, pc)) {
         house.alive = false;
         destroyedHousePositions.push({ row: pr, col: pc });
       }
     }
   }
+  state.bonusSquares = state.bonusSquares.filter(
+    (b) => !pieceKeys.has(packTile(b.row, b.col)),
+  );
   claimTerritory(state);
   replenishBonusSquares(state);
   for (const pos of destroyedHousePositions) {
@@ -219,25 +221,27 @@ function removeEnclosedGruntsAndRespawn(
   state: GameState,
   player: Player,
 ): void {
-  const enclosedGrunts: typeof state.grunts = [];
-  state.grunts = state.grunts.filter(g => {
-    const gKey = packTile(g.row, g.col);
-    if (player.interior.has(gKey)) {
-      enclosedGrunts.push(g);
-      player.score += DESTROY_GRUNT_POINTS;
-      return false;
+  const kept: typeof state.grunts = [];
+  const enclosed: typeof state.grunts = [];
+  for (const g of state.grunts) {
+    if (player.interior.has(packTile(g.row, g.col))) {
+      enclosed.push(g);
+    } else {
+      kept.push(g);
     }
-    return true;
-  });
+  }
+  if (enclosed.length === 0) return;
 
-  if (enclosedGrunts.length === 0) return;
+  state.grunts = kept;
+  player.score += enclosed.length * DESTROY_GRUNT_POINTS;
+
   const enemies = state.players.filter(p => p.id !== player.id && isPlayerActive(p));
   if (enemies.length === 0) return;
 
   // Each enclosed grunt has 50% chance to respawn, alternating between enemies
   let enemyIdx = 0;
-  for (let i = 0; i < enclosedGrunts.length; i++) {
-    if (!state.rng.bool(ENCLOSED_GRUNT_RESPAWN_CHANCE)) continue; // thrown away
+  for (let i = 0; i < enclosed.length; i++) {
+    if (!state.rng.bool(ENCLOSED_GRUNT_RESPAWN_CHANCE)) continue;
     const enemy = enemies[enemyIdx % enemies.length]!;
     spawnGruntOnZone(state, enemy.id);
     enemyIdx++;
@@ -280,11 +284,7 @@ function recomputeInterior(state: GameState, player: Player): void {
 function updateOwnedTowers(state: GameState, player: Player, endOfBuildPhase: boolean): void {
   player.ownedTowers = [];
   for (const tower of state.map.towers) {
-    let owned = true;
-    forEachTowerTile(tower, (_r, _c, key) => {
-      if (!isTileOwnedByPlayer(player, key)) owned = false;
-    });
-    if (!owned) continue;
+    if (!isTowerOwnedByPlayer(tower, player)) continue;
     player.ownedTowers.push(tower);
     if (endOfBuildPhase && !state.towerAlive[tower.index]) {
       if (state.towerPendingRevive.has(tower.index)) {
@@ -316,6 +316,15 @@ function territoryBonusSquarePoints(territorySize: number): number {
 }
 
 /** Remove grunts that landed on any player's territory during processing. */
+function isTowerOwnedByPlayer(tower: TilePos, player: Pick<Player, "interior" | "walls">): boolean {
+  for (let dr = 0; dr < 2; dr++) {
+    for (let dc = 0; dc < 2; dc++) {
+      if (!isTileOwnedByPlayer(player, packTile(tower.row + dr, tower.col + dc))) return false;
+    }
+  }
+  return true;
+}
+
 function sweepMisplacedGrunts(state: GameState): void {
   state.grunts = state.grunts.filter(g => {
     const gKey = packTile(g.row, g.col);

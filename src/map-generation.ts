@@ -197,7 +197,8 @@ export function buildCastle(
   // Find the maximum gap in a direction before the wall ring would hit water/edge.
   // Tests incrementally: gap=0,1,2,... checking if a wall at that distance is valid.
   function maxGap(side: "L" | "R" | "T" | "B"): number {
-    for (let g = 0; g <= 15; g++) {
+    const MAX_CASTLE_GAP = 15;
+    for (let g = 0; g <= MAX_CASTLE_GAP; g++) {
       // Check the wall column/row at distance g+1 from the tower edge
       const wallPos =
         side === "L"

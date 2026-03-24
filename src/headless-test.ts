@@ -9,11 +9,11 @@ import {
   collectAllInterior,
   collectAllWalls,
 } from "./board-occupancy.ts";
+import { resetCannonFacings } from "./cannon-system.ts";
 import {
   computeCannonLimitsForPhase,
   finalizeBuildPhase,
   nextPhase,
-  resetCannonFacings,
 } from "./game-engine.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";

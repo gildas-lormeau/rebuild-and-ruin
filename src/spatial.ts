@@ -16,6 +16,8 @@ import {
   SUPER_GUN_SIZE,
 } from "./types.ts";
 
+/** 45° angle step (π/4 radians) — used for 8-direction snapping. */
+const FACING_45_STEP = Math.PI / 4;
 /** Cardinal directions: up, down, left, right. */
 export const DIRS_4 = [
   [-1, 0],
@@ -41,6 +43,8 @@ export const CORNERS_2X2 = [
 ] as const;
 /** Shared empty set — avoids allocating throwaway Set objects on every frame. */
 export const EMPTY_TILE_SET: ReadonlySet<number> = Object.freeze(new Set<number>());
+/** Offset to convert a tile index to the center of that tile (0.5). */
+export const TILE_CENTER_OFFSET = 0.5;
 
 /** Call `fn` for each tile of a 2×2 tower footprint. */
 export function forEachTowerTile(
@@ -159,7 +163,7 @@ export function isCannonAlive(cannon: Pick<Cannon, "hp">): boolean {
 
 /** True if (r,c) is occupied by a burning pit. */
 export function isPitAt(pits: BurningPit[], r: number, c: number): boolean {
-  return pits.some((p) => p.row === r && p.col === c);
+  return pits.some((p) => isAtTile(p, r, c));
 }
 
 /** Count orthogonal wall neighbors of a tile key in a wall set. */
@@ -183,7 +187,7 @@ export function computeFacing45(
   tx: number,
   ty: number,
 ): number {
-  return snapAngle(Math.atan2(tx - ox, -(ty - oy)), Math.PI / 4);
+  return snapAngle(Math.atan2(tx - ox, -(ty - oy)), FACING_45_STEP);
 }
 
 /** Snap an angle (radians) to the nearest multiple of `step`. */
@@ -210,16 +214,16 @@ export function rotateToward(
 export function facingToDir8(angle: number): string {
   const a = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
   const DIRS = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
-  const idx = Math.round(a / (Math.PI * 0.25)) % 8;
+  const idx = Math.round(a / FACING_45_STEP) % 8;
   return DIRS[idx]!;
 }
 
 /** Map a facing angle (radians, 0=up) to the nearest cardinal direction name. */
 export function facingToCardinal(angle: number): string {
   const a = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-  if (a < Math.PI * 0.25 || a >= Math.PI * 1.75) return "n";
-  if (a < Math.PI * 0.75) return "e";
-  if (a < Math.PI * 1.25) return "s";
+  if (a < FACING_45_STEP || a >= 7 * FACING_45_STEP) return "n";
+  if (a < 3 * FACING_45_STEP) return "e";
+  if (a < 5 * FACING_45_STEP) return "s";
   return "w";
 }
 
@@ -394,6 +398,11 @@ export function inBounds(r: number, c: number): boolean {
   return r >= 0 && r < GRID_ROWS && c >= 0 && c < GRID_COLS;
 }
 
+/** True if an object's row/col matches the given position. */
+export function isAtTile(obj: TilePos, row: number, col: number): boolean {
+  return obj.row === row && obj.col === col;
+}
+
 function isTileInRect(
   top: number,
   left: number,
@@ -410,11 +419,12 @@ function isSquareEnclosed(
   size: number,
   outside: Set<number>,
 ): boolean {
-  let enclosed = true;
-  forEachSquareTile(top, left, size, (_r, _c, key) => {
-    if (outside.has(key)) enclosed = false;
-  });
-  return enclosed;
+  for (let dr = 0; dr < size; dr++) {
+    for (let dc = 0; dc < size; dc++) {
+      if (outside.has(packTile(top + dr, left + dc))) return false;
+    }
+  }
+  return true;
 }
 
 function forEachSquareTile(

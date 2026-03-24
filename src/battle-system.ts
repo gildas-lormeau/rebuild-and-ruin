@@ -11,11 +11,13 @@ import {
   cannonCenter,
   computeFacing45,
   inBounds,
+  isAtTile,
   isCannonAlive,
   isCannonTile,
   isPitAt,
   packTile,
   rotateToward,
+  TILE_CENTER_OFFSET,
 } from "./spatial.ts";
 import type { Cannon, Cannonball, CapturedCannon, GameState } from "./types.ts";
 import {
@@ -318,7 +320,7 @@ export function applyImpactEvent(
       break;
     case MSG.HOUSE_DESTROYED:
       for (const house of state.map.houses) {
-        if (house.alive && house.row === event.row && house.col === event.col) {
+        if (house.alive && isAtTile(house, event.row, event.col)) {
           house.alive = false;
         }
       }
@@ -333,7 +335,7 @@ export function applyImpactEvent(
     case MSG.GRUNT_KILLED: {
       const shooter = sid !== undefined ? state.players[sid] : undefined;
       state.grunts = state.grunts.filter(
-        (g) => !(g.row === event.row && g.col === event.col),
+        (g) => !isAtTile(g, event.row, event.col),
       );
       if (shooter) shooter.score += DESTROY_GRUNT_POINTS;
       break;
@@ -378,11 +380,10 @@ export function resolveBalloons(state: GameState): BalloonFlight[] {
 
   // Apply hit updates and build flight animations
   for (const { balloon, ownerId, target, victimId } of assignments) {
-    const prev = state.balloonHits.get(target);
-    const count = (prev?.count ?? 0) + 1;
-    const capturerIds = prev?.capturerIds ?? [];
-    if (!capturerIds.includes(ownerId)) capturerIds.push(ownerId);
-    state.balloonHits.set(target, { count, capturerIds });
+    const entry = state.balloonHits.get(target) ?? { count: 0, capturerIds: [] as number[] };
+    entry.count++;
+    if (!entry.capturerIds.includes(ownerId)) entry.capturerIds.push(ownerId);
+    state.balloonHits.set(target, entry);
     thisRoundTargets.set(target, { victimId });
 
     const start = cannonCenter(balloon);
@@ -425,11 +426,10 @@ function fireCapturedCannon(
   targetCol: number,
 ): boolean {
   if (!canFireCaptured(state, cc)) return false;
-  const cannonIdx = state.players[cc.victimId]!.cannons.indexOf(cc.cannon);
   launchCannonball(
     state,
     cc.cannon,
-    cannonIdx,
+    cc.cannonIdx,
     cc.victimId,
     targetRow,
     targetCol,
@@ -453,8 +453,8 @@ function launchCannonball(
   scoringPlayerId?: number,
 ): void {
   const { x: startX, y: startY } = cannonCenter(cannon);
-  const tX = (targetCol + 0.5) * TILE_SIZE;
-  const tY = (targetRow + 0.5) * TILE_SIZE;
+  const tX = (targetCol + TILE_CENTER_OFFSET) * TILE_SIZE;
+  const tY = (targetRow + TILE_CENTER_OFFSET) * TILE_SIZE;
   cannon.facing = computeFacing45(startX, startY, tX, tY);
   state.cannonballs.push({
     cannonIdx,
@@ -473,14 +473,10 @@ function launchCannonball(
 
 /** Check if a captured cannon is ready to fire (not destroyed, no ball in flight). */
 function canFireCaptured(state: GameState, cc: CapturedCannon): boolean {
-  const cannon = cc.cannon;
-  if (!isCannonAlive(cannon)) return false;
-  const victimPlayer = state.players[cc.victimId];
-  if (!victimPlayer) return false;
-  const cannonIdx = victimPlayer.cannons.indexOf(cannon);
-  if (cannonIdx < 0) return false;
+  if (!isCannonAlive(cc.cannon)) return false;
+  if (cc.cannonIdx < 0) return false;
   return !state.cannonballs.some(
-    (b) => b.playerId === cc.victimId && b.cannonIdx === cannonIdx,
+    (b) => b.playerId === cc.victimId && b.cannonIdx === cc.cannonIdx,
   );
 }
 
@@ -539,7 +535,7 @@ function computeImpact(
   // Towers are NOT damaged by cannonballs — only grunts can destroy towers.
 
   for (const house of state.map.houses) {
-    if (house.alive && house.row === row && house.col === col) {
+    if (house.alive && isAtTile(house, row, col)) {
       events.push({ type: MSG.HOUSE_DESTROYED, row, col });
       // Grunt spawn is RNG-based — compute it here so the host decides
       if (state.rng.bool(HOUSE_GRUNT_SPAWN_CHANCE)) {
@@ -558,7 +554,7 @@ function computeImpact(
   }
 
   for (const g of state.grunts) {
-    if (g.row === row && g.col === col) {
+    if (isAtTile(g, row, col)) {
       events.push({ type: MSG.GRUNT_KILLED, row: g.row, col: g.col, shooterId });
     }
   }
@@ -632,7 +628,8 @@ function resolveBalloonCaptures(
         }
       }
       const winnerId = state.rng.pick(hit.capturerIds);
-      state.capturedCannons.push({ cannon, victimId, capturerId: winnerId });
+      const cannonIdx = state.players[victimId]?.cannons.indexOf(cannon) ?? -1;
+      state.capturedCannons.push({ cannon, cannonIdx, victimId, capturerId: winnerId });
     }
   }
 }

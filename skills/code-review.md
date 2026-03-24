@@ -106,6 +106,8 @@ All `src/*.ts` files are automatically reordered by the pre-commit hook using `s
 
 6. **Proceed to next pass** — the sub-agent sees the clean state
 
+7. **After fixing all passes, present deferred items** — this step is MANDATORY, do NOT skip it or wait for the user to ask. List every finding that was identified during exploration but excluded from fixes (too low-value, too risky, or borderline). For each item, include: file, line, what's wrong, severity (high/medium/low), and why it was deferred. Ask the user which (if any) they want fixed.
+
 ## Sub-agent prompt template
 
 ```
@@ -134,4 +136,3 @@ the codebase, not theoretical purity issues.
 - **Skip passes that don't apply** — if there's no dead code, go straight to pass 2
 - **Don't fix everything** — low-value fixes that risk regressions (e.g., deduplicating input handler dispatch) can be deferred
 - **Always run E2E after UI changes** — use `timeout 45 npx tsx test/online-e2e.ts local 1 --mobile --headless --action "mode:GAME screenshot:check exit" "" 3`
-- **After all passes, review deferred items** — present the list of issues you identified but chose not to fix, with severity, so the user can decide what else to tackle

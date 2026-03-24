@@ -1,5 +1,5 @@
 import { MSG, type ServerMessage } from "../server/protocol.ts";
-import { resetCannonFacings } from "./game-engine.ts";
+import { resetCannonFacings } from "./cannon-system.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import {
@@ -78,6 +78,7 @@ export function applyBattleStartCheckpoint(
       if (victim && cc.cannonIdx >= 0 && cc.cannonIdx < victim.cannons.length) {
         deps.state.capturedCannons.push({
           cannon: victim.cannons[cc.cannonIdx]!,
+          cannonIdx: cc.cannonIdx,
           victimId: cc.victimId,
           capturerId: cc.capturerId,
         });

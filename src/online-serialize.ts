@@ -81,11 +81,9 @@ export function buildBattleStartMessage(
     type: MSG.BATTLE_START,
     players: serializePlayers(state),
     grunts: serializeGrunts(state),
-    capturedCannons: state.capturedCannons.map((cc) => {
-      const victim = state.players[cc.victimId]!;
-      const cannonIdx = victim.cannons.indexOf(cc.cannon);
-      return { victimId: cc.victimId, capturerId: cc.capturerId, cannonIdx };
-    }),
+    capturedCannons: state.capturedCannons.map((cc) => ({
+      victimId: cc.victimId, capturerId: cc.capturerId, cannonIdx: cc.cannonIdx,
+    })),
     burningPits: serializeBurningPits(state),
     towerAlive: [...state.towerAlive],
     flights:
@@ -120,11 +118,9 @@ export function buildFullStateMessage(state: GameState): FullStateMessage {
     playerZones: [...state.playerZones],
     activePlayer: state.activePlayer,
     towerPendingRevive: [...state.towerPendingRevive],
-    capturedCannons: state.capturedCannons.map((cc) => {
-      const victim = state.players[cc.victimId]!;
-      const cannonIdx = victim.cannons.indexOf(cc.cannon);
-      return { victimId: cc.victimId, capturerId: cc.capturerId, cannonIdx };
-    }),
+    capturedCannons: state.capturedCannons.map((cc) => ({
+      victimId: cc.victimId, capturerId: cc.capturerId, cannonIdx: cc.cannonIdx,
+    })),
     balloonHits: (() => {
       const hits: { playerId: number; cannonIdx: number; count: number; capturerIds: number[] }[] = [];
       for (const [cannon, hit] of state.balloonHits) {
@@ -216,7 +212,7 @@ export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage):
   // Restore captured cannons (reconstruct object references from indices)
   state.capturedCannons = msg.capturedCannons.map((cc) => {
     const victim = state.players[cc.victimId]!;
-    return { cannon: victim.cannons[cc.cannonIdx]!, victimId: cc.victimId, capturerId: cc.capturerId };
+    return { cannon: victim.cannons[cc.cannonIdx]!, cannonIdx: cc.cannonIdx, victimId: cc.victimId, capturerId: cc.capturerId };
   }).filter((cc) => cc.cannon); // skip if cannon index is stale
 
   // Restore balloonHits (reconstruct Cannon object references as Map keys)

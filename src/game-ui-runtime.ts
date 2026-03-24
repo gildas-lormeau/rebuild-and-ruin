@@ -5,7 +5,8 @@
  */
 
 import { nextReadyCombined } from "./battle-system.ts";
-import { computeCannonLimitsForPhase, resetCannonFacings } from "./game-engine.ts";
+import { resetCannonFacings } from "./cannon-system.ts";
+import { computeCannonLimitsForPhase } from "./game-engine.ts";
 import { Mode } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import type { KeyBindings } from "./player-config.ts";

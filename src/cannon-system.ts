@@ -4,13 +4,13 @@
 
 import { getAliveOwnedTowers } from "./board-occupancy.ts";
 import {
-  forEachCannonTile,
   inBounds,
   isCannonAlive,
   isCannonTile,
   isPitAt,
   isTowerTile,
   packTile,
+  snapAngle,
   unpackTile,
 } from "./spatial.ts";
 import type { Cannon, GameState, Player } from "./types.ts";
@@ -18,6 +18,7 @@ import {
   BALLOON_COST,
   BALLOON_SIZE,
   CannonMode,
+  isPlayerActive,
   MAX_CANNON_LIMIT_ON_RESELECT,
   NORMAL_CANNON_SIZE,
   STARTING_LIVES,
@@ -27,17 +28,23 @@ import {
 
 /** Max search radius when snapping cannon placement to a valid tile. */
 const CANNON_SNAP_RADIUS = 2;
+/** Slot cost for a normal cannon. */
+const NORMAL_CANNON_COST = 1;
+/** 90° angle step for cannon facing snap (4 cardinal directions). */
+const FACING_90_STEP = Math.PI / 2;
 
 /** Check whether all tiles of a cannon are inside enclosed territory. */
 export function isCannonEnclosed(
   cannon: Cannon,
   interior: Set<number>,
 ): boolean {
-  let enclosed = true;
-  forEachCannonTile(cannon, (_r, _c, key) => {
-    if (!interior.has(key)) enclosed = false;
-  });
-  return enclosed;
+  const sz = cannon.super ? SUPER_GUN_SIZE : cannon.balloon ? BALLOON_SIZE : NORMAL_CANNON_SIZE;
+  for (let dr = 0; dr < sz; dr++) {
+    for (let dc = 0; dc < sz; dc++) {
+      if (!interior.has(packTile(cannon.row + dr, cannon.col + dc))) return false;
+    }
+  }
+  return true;
 }
 
 /** Whether any valid placement exists for the given cannon mode in the player's territory. */
@@ -85,8 +92,8 @@ export function placeCannon(
   const normalizedMode = mode ?? CannonMode.NORMAL;
   const used = cannonSlotsUsed(player);
   const cost = cannonSlotCost({
-    super: normalizedMode === CannonMode.SUPER ? true : undefined,
-    balloon: normalizedMode === CannonMode.BALLOON ? true : undefined,
+    super: normalizedMode === CannonMode.SUPER || undefined,
+    balloon: normalizedMode === CannonMode.BALLOON || undefined,
   });
   if (used + cost > maxCannons) return false;
   if (!canPlaceCannon(player, row, col, normalizedMode, state)) return false;
@@ -141,8 +148,8 @@ export function applyCannonPlacement(
     row,
     col,
     hp: state.cannonMaxHp,
-    super: isSuper ? true : undefined,
-    balloon: isBalloon ? true : undefined,
+    super: isSuper || undefined,
+    balloon: isBalloon || undefined,
     facing: player.defaultFacing,
   });
 }
@@ -189,10 +196,41 @@ export function cannonSlotsUsed(player: Player): number {
   return slots;
 }
 
+/**
+ * Reset cannon facings to point toward the average enemy position.
+ * Call at the start of the cannon phase and after reselection.
+ */
+export function resetCannonFacings(state: GameState): void {
+  for (const player of state.players) {
+    if (!isPlayerActive(player)) continue;
+    const px = player.homeTower.col + 1;
+    const py = player.homeTower.row + 1;
+    let ex = 0, ey = 0, count = 0;
+    for (const other of state.players) {
+      if (other.id === player.id || !isPlayerActive(other)) continue;
+      ex += other.homeTower.col + 1;
+      ey += other.homeTower.row + 1;
+      count++;
+    }
+    let facing = 0;
+    if (count > 0) {
+      const avgEx = ex / count;
+      const avgEy = ey / count;
+      const dx = avgEx - px;
+      const dy = avgEy - py;
+      facing = snapAngle(Math.atan2(dx, -dy), FACING_90_STEP);
+    }
+    player.defaultFacing = facing;
+    for (const cannon of player.cannons) {
+      cannon.facing = facing;
+    }
+  }
+}
+
 function cannonSlotCost(cannon: Pick<Cannon, "super" | "balloon">): number {
   if (cannon.balloon) return BALLOON_COST;
   if (cannon.super) return SUPER_GUN_COST;
-  return 1;
+  return NORMAL_CANNON_COST;
 }
 
 function overlapsExistingCannon(

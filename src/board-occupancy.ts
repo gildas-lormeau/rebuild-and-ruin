@@ -12,6 +12,7 @@ import {
   forEachCannonTile,
   forEachTowerTile,
   inBounds,
+  isAtTile,
   isCannonTile,
   isPitAt,
   isTowerTile,
@@ -152,7 +153,7 @@ export function hasGruntAt(
   exclude?: Grunt,
 ): boolean {
   return state.grunts.some(
-    (grunt) => grunt !== exclude && grunt.row === r && grunt.col === c,
+    (grunt) => grunt !== exclude && isAtTile(grunt, r, c),
   );
 }
 
@@ -162,7 +163,7 @@ export function hasAliveHouseAt(
   c: number,
 ): boolean {
   return state.map.houses.some(
-    (house) => house.alive && house.row === r && house.col === c,
+    (house) => house.alive && isAtTile(house, r, c),
   );
 }
 
