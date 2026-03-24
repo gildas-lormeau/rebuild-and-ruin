@@ -1,0 +1,386 @@
+/**
+ * AI build-phase fallback — discard placement, tower extension,
+ * and ring-distance scoring when no territory gain is possible.
+ *
+ * Called by the build placement orchestrator (ai-strategy-build.ts).
+ */
+
+import { buildSimulatedWalls, candidateObstacleHits, candidateToPlacement, isFatFreeCandidate } from "./ai-build-score.ts";
+import type { AiPlacement, Candidate, Scored } from "./ai-build-types.ts";
+import { floodPocket } from "./ai-castle-rect.ts";
+import type { Tower } from "./geometry-types.ts";
+import { GRID_COLS, GRID_ROWS } from "./grid.ts";
+import {
+  computeOutside,
+  isCannonTile,
+  isGrass,
+  isTowerTile,
+  packTile,
+  unpackTile,
+} from "./spatial.ts";
+import type { GameState } from "./types.ts";
+
+const MIN_FREE_INTERIOR = 6;
+/** Enclosures with at least this many tiles are considered viable (not wasted). */
+const MIN_VIABLE_ENCLOSURE = 9;
+
+export function pickFallbackPlacement(
+  scored: Scored[],
+  state: GameState,
+  walls: Set<number>,
+  outside: Set<number>,
+  interior: Set<number>,
+  castle: { tower: Tower },
+  castleMargin: number,
+  homeWasBroken: boolean,
+  unenclosedTowers: Tower[],
+  caresAboutHouses: boolean,
+  caresAboutBonuses: boolean,
+): { placement: AiPlacement | null; reason: string } | null {
+  const placementResult = (
+    candidate: Candidate,
+    reason: string,
+  ): { placement: AiPlacement; reason: string } => {
+    return {
+      placement: candidateToPlacement(candidate),
+      reason,
+    };
+  };
+
+  // Count free interior tiles — if territory is full, stop building
+  let totalFree = 0;
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      const k = packTile(r, c);
+      if (!interior.has(k)) continue;
+      if (walls.has(k)) continue;
+      let blocked = false;
+      for (const t of state.map.towers) {
+        if (isTowerTile(t, r, c)) {
+          blocked = true;
+          break;
+        }
+      }
+      if (blocked) continue;
+      for (const p of state.players) {
+        for (const cannon of p.cannons) {
+          if (isCannonTile(cannon, r, c)) {
+            blocked = true;
+            break;
+          }
+        }
+        if (blocked) break;
+      }
+      if (!blocked) totalFree++;
+    }
+  }
+  if (totalFree < MIN_FREE_INTERIOR && unenclosedTowers.length === 0)
+    return { placement: null, reason: 'interior-full' };
+
+  const createsSmallEnclosure = (candidate: Candidate): boolean => {
+    const simulatedWalls = buildSimulatedWalls(walls, candidate);
+    const simulatedOutside = computeOutside(simulatedWalls);
+    const visited = new Set<number>();
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        const k = packTile(r, c);
+        if (visited.has(k) || simulatedOutside.has(k) || simulatedWalls.has(k))
+          continue;
+        const pocket = floodPocket(k, visited, simulatedWalls, simulatedOutside);
+        if (pocket.length >= MIN_VIABLE_ENCLOSURE) continue;
+        let preExisting = true;
+        for (const pocketKey of pocket) {
+          if (outside.has(pocketKey)) {
+            preExisting = false;
+            break;
+          }
+        }
+        if (preExisting) continue;
+        let hasOccupant = false;
+        for (const pocketKey of pocket) {
+          const { r: pr, c: pc } = unpackTile(pocketKey);
+          for (const t of state.map.towers) {
+            if (isTowerTile(t, pr, pc)) {
+              hasOccupant = true;
+              break;
+            }
+          }
+          if (!hasOccupant && !isGrass(state.map.tiles, pr, pc))
+            hasOccupant = true;
+          if (!hasOccupant) {
+            for (const g of state.grunts) {
+              if (g.row === pr && g.col === pc) {
+                hasOccupant = true;
+                break;
+              }
+            }
+          }
+          if (hasOccupant) break;
+        }
+        if (!hasOccupant) return true;
+      }
+    }
+    return false;
+  };
+
+  const createsSmallEnclosureCached = memoize(createsSmallEnclosure);
+
+  const insideEnclosure = (candidate: Candidate): boolean => {
+    for (const [dr, dc] of candidate.rotation.offsets) {
+      const k = packTile(candidate.row + dr, candidate.col + dc);
+      for (const p of state.players) {
+        if (p.interior.has(k)) return true;
+      }
+    }
+    return false;
+  };
+
+  const fallbackTowers = homeWasBroken
+    ? unenclosedTowers.filter((t) => t !== castle.tower)
+    : unenclosedTowers;
+
+  const isInsideOrFatCandidate = (candidate: Candidate): boolean => {
+    return insideEnclosure(candidate) || !isFatFreeCandidate(walls, candidate);
+  };
+
+  if (fallbackTowers.length > 0) {
+    const ringDistanceCache = new Map<Candidate, { distance: number; tooClose: boolean }>();
+    const picked = pickTowerExtensionCandidate(
+      scored,
+      fallbackTowers,
+      castleMargin,
+      ringDistanceCache,
+      createsSmallEnclosureCached,
+      isInsideOrFatCandidate,
+    );
+    if (picked.candidate) {
+      return placementResult(picked.candidate, picked.reason);
+    }
+    return { placement: null, reason: picked.reason };
+  } else {
+    const bestDiscard = pickDiscardCandidate(
+      scored,
+      caresAboutHouses,
+      caresAboutBonuses,
+      createsSmallEnclosureCached,
+      isInsideOrFatCandidate,
+    );
+    if (bestDiscard) {
+      return placementResult(bestDiscard, 'discard');
+    }
+    return { placement: null, reason: 'discard-all-fat' };
+  }
+}
+
+/** Create a memoized version of a function (Map-based cache). */
+export function memoize<K, V>(fn: (key: K) => V): (key: K) => V {
+  const cache = new Map<K, V>();
+  return (key: K): V => {
+    if (cache.has(key)) return cache.get(key)!;
+    const computed = fn(key);
+    cache.set(key, computed);
+    return computed;
+  };
+}
+
+function pickTowerExtensionCandidate(
+  scored: Scored[],
+  fallbackTowers: readonly Tower[],
+  castleMargin: number,
+  ringDistanceCache: Map<Candidate, { distance: number; tooClose: boolean }>,
+  createsSmallEnclosureCached: (candidate: Candidate) => boolean,
+  isInsideOrFatCandidate: (candidate: Candidate) => boolean,
+): {
+  candidate: Candidate | null;
+  reason: 'extend' | 'extend-fallback' | 'extend-all-fat';
+} {
+  const extending = scored.filter((s) =>
+    isExtensionCandidateForFallback(
+      s.candidate,
+      fallbackTowers,
+      castleMargin,
+      ringDistanceCache,
+      createsSmallEnclosureCached,
+      isInsideOrFatCandidate,
+    )
+  );
+
+  if (extending.length > 0) {
+    extending.sort(
+      (a, b) =>
+        compareByFallbackRingDistance(
+          a.candidate,
+          b.candidate,
+          fallbackTowers,
+          castleMargin,
+          ringDistanceCache,
+        ) ||
+        b.candidate.wallAdjacent - a.candidate.wallAdjacent,
+    );
+    return { candidate: extending[0]!.candidate, reason: 'extend' };
+  }
+
+  const fallback = [...scored].filter((s) =>
+    isExtensionFallbackCandidateForFallback(
+      s.candidate,
+      createsSmallEnclosureCached,
+      isInsideOrFatCandidate,
+    )
+  );
+  fallback.sort((a, b) =>
+    compareByFallbackRingDistance(
+      a.candidate,
+      b.candidate,
+      fallbackTowers,
+      castleMargin,
+      ringDistanceCache,
+    )
+  );
+  if (fallback.length > 0) {
+    return { candidate: fallback[0]!.candidate, reason: 'extend-fallback' };
+  }
+
+  return { candidate: null, reason: 'extend-all-fat' };
+}
+
+function compareByFallbackRingDistance(
+  a: Candidate,
+  b: Candidate,
+  fallbackTowers: readonly Tower[],
+  castleMargin: number,
+  ringDistanceCache: Map<Candidate, { distance: number; tooClose: boolean }>,
+): number {
+  return (
+    ringDistanceForFallbackTowers(a, fallbackTowers, castleMargin, ringDistanceCache).distance -
+    ringDistanceForFallbackTowers(b, fallbackTowers, castleMargin, ringDistanceCache).distance
+  );
+}
+
+function isExtensionCandidateForFallback(
+  candidate: Candidate,
+  fallbackTowers: readonly Tower[],
+  castleMargin: number,
+  ringDistanceCache: Map<Candidate, { distance: number; tooClose: boolean }>,
+  createsSmallEnclosureCached: (candidate: Candidate) => boolean,
+  isInsideOrFatCandidate: (candidate: Candidate) => boolean,
+): boolean {
+  const rd = ringDistanceForFallbackTowers(
+    candidate,
+    fallbackTowers,
+    castleMargin,
+    ringDistanceCache,
+  );
+  if (rd.tooClose) return false;
+  if (createsSmallEnclosureCached(candidate)) return false;
+  if (isInsideOrFatCandidate(candidate)) return false;
+  return true;
+}
+
+function ringDistanceForFallbackTowers(
+  candidate: Candidate,
+  fallbackTowers: readonly Tower[],
+  castleMargin: number,
+  ringDistanceCache: Map<Candidate, { distance: number; tooClose: boolean }>,
+): { distance: number; tooClose: boolean } {
+  const cached = ringDistanceCache.get(candidate);
+  if (cached) return cached;
+
+  let bestDistance = Infinity;
+  let tooClose = false;
+  for (const tower of fallbackTowers) {
+    const towerDistance = candidateRingDistanceForTower(candidate, tower, castleMargin);
+    if (towerDistance.tooClose) tooClose = true;
+    if (towerDistance.distance < bestDistance) bestDistance = towerDistance.distance;
+  }
+
+  const result = { distance: bestDistance, tooClose };
+  ringDistanceCache.set(candidate, result);
+  return result;
+}
+
+function candidateRingDistanceForTower(
+  candidate: Candidate,
+  tower: Tower,
+  castleMargin: number,
+): { distance: number; tooClose: boolean } {
+  const ringTop = tower.row - castleMargin - 1;
+  const ringBot = tower.row + 1 + castleMargin + 1;
+  const ringLeft = tower.col - castleMargin - 1;
+  const ringRight = tower.col + 1 + castleMargin + 1;
+
+  let tooClose = false;
+  for (const [dr, dc] of candidate.rotation.offsets) {
+    const pr = candidate.row + dr;
+    const pc = candidate.col + dc;
+    if (
+      pr >= tower.row - castleMargin &&
+      pr <= tower.row + 1 + castleMargin &&
+      pc >= tower.col - castleMargin &&
+      pc <= tower.col + 1 + castleMargin
+    ) {
+      if (
+        pr > ringTop &&
+        pr < ringBot &&
+        pc > ringLeft &&
+        pc < ringRight
+      ) {
+        tooClose = true;
+      }
+    }
+  }
+
+  const centerR = tower.row + 0.5;
+  const centerC = tower.col + 0.5;
+  const distance =
+    Math.abs(candidate.row - centerR) +
+    Math.abs(candidate.col - centerC);
+
+  return { distance, tooClose };
+}
+
+function isExtensionFallbackCandidateForFallback(
+  candidate: Candidate,
+  createsSmallEnclosureCached: (candidate: Candidate) => boolean,
+  isInsideOrFatCandidate: (candidate: Candidate) => boolean,
+): boolean {
+  return !createsSmallEnclosureCached(candidate) && !isInsideOrFatCandidate(candidate);
+}
+
+function pickDiscardCandidate(
+  scored: Scored[],
+  caresAboutHouses: boolean,
+  caresAboutBonuses: boolean,
+  createsSmallEnclosureCached: (candidate: Candidate) => boolean,
+  isInsideOrFatCandidate: (candidate: Candidate) => boolean,
+): Candidate | null {
+  const throwAway = [...scored].filter(
+    (s) => !isInsideOrFatCandidate(s.candidate),
+  );
+  if (throwAway.length === 0) return null;
+  throwAway.sort((a, b) =>
+    compareDiscardCandidatesForFallback(
+      a,
+      b,
+      caresAboutHouses,
+      caresAboutBonuses,
+      createsSmallEnclosureCached,
+    )
+  );
+  return throwAway[0]!.candidate;
+}
+
+function compareDiscardCandidatesForFallback(
+  a: Scored,
+  b: Scored,
+  caresAboutHouses: boolean,
+  caresAboutBonuses: boolean,
+  createsSmallEnclosureCached: (candidate: Candidate) => boolean,
+): number {
+  const aHit = candidateObstacleHits(a.candidate, caresAboutHouses, caresAboutBonuses);
+  const bHit = candidateObstacleHits(b.candidate, caresAboutHouses, caresAboutBonuses);
+  if (aHit !== bHit) return aHit - bHit;
+  const aEncloses = createsSmallEnclosureCached(a.candidate) ? 0 : 1;
+  const bEncloses = createsSmallEnclosureCached(b.candidate) ? 0 : 1;
+  if (aEncloses !== bEncloses) return aEncloses - bEncloses;
+  return Number(a.hasFatWall) - Number(b.hasFatWall);
+}
