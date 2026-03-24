@@ -21,7 +21,7 @@ import {
   canPlayerFire, nextReadyCombined
 } from "./battle-system.ts";
 import { applyCannonPlacement } from "./cannon-system.ts";
-import { createController } from "./controller-factory.ts";
+import { createController, isAiAnimatable } from "./controller-factory.ts";
 import { bootstrapGame, setupWaitingRoom } from "./game-bootstrap.ts";
 import {
   enterCannonPlacePhase,
@@ -256,9 +256,9 @@ const runtime: GameRuntime = createGameRuntime({
   everyTick: (dt) => tickMigrationAnnouncementFn(watcher, runtime.rs.frame, dt),
   onLocalCrosshairCollected: (ctrl, ch, _readyCannon) => {
     if (isHost) {
-      const target = ctrl.getCrosshairTarget() ?? ch;
+      const target = (isAiAnimatable(ctrl) ? ctrl.getCrosshairTarget() : null) ?? ch;
       if (target) {
-        const orbit = ctrl.getOrbitParams();
+        const orbit = isAiAnimatable(ctrl) ? ctrl.getOrbitParams() : null;
         const key = `${Math.round(target.x)},${Math.round(target.y)},${orbit ? "o" : ""}`;
         if (lastSentAimTarget.get(ctrl.playerId) !== key) {
           lastSentAimTarget.set(ctrl.playerId, key);

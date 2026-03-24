@@ -8,7 +8,7 @@ import { AiController } from "./ai-controller.ts";
 import { DefaultStrategy } from "./ai-strategy.ts";
 import { HumanController } from "./human-controller.ts";
 import type { KeyBindings } from "./player-config.ts";
-import type { PlayerController } from "./player-controller.ts";
+import type { AiAnimatable, InputReceiver, PlayerController } from "./player-controller.ts";
 
 export function createController(
   playerId: number,
@@ -22,7 +22,12 @@ export function createController(
     : new HumanController(playerId, keys!);
 }
 
-/** Type guard for HumanController. */
-export function isHuman(ctrl: PlayerController): ctrl is HumanController {
+/** Type guard for HumanController (InputReceiver). */
+export function isHuman(ctrl: PlayerController): ctrl is PlayerController & InputReceiver {
   return ctrl instanceof HumanController;
+}
+
+/** Type guard for AiController (AiAnimatable). */
+export function isAiAnimatable(ctrl: PlayerController): ctrl is PlayerController & AiAnimatable {
+  return ctrl instanceof AiController;
 }

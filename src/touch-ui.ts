@@ -7,7 +7,7 @@
 
 import { hapticTap } from "./haptics.ts";
 import { PLAYER_COLORS } from "./player-config.ts";
-import type { PlayerController } from "./player-controller.ts";
+import type { InputReceiver, PlayerController } from "./player-controller.ts";
 import {
   rgb,
   TOUCH_ACTION_BG,
@@ -30,9 +30,9 @@ import { Action, Phase } from "./types.ts";
 
 interface DpadDeps {
   getState: () => GameState | undefined;
-  withFirstHuman: (action: (human: PlayerController) => void) => void;
-  tryPlacePieceAndSend: (human: PlayerController, state: GameState) => void;
-  tryPlaceCannonAndSend: (human: PlayerController, state: GameState, max: number) => void;
+  withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
+  tryPlacePieceAndSend: (human: PlayerController & InputReceiver, state: GameState) => void;
+  tryPlaceCannonAndSend: (human: PlayerController & InputReceiver, state: GameState, max: number) => void;
   getSelectionStates: () => Map<number, SelectionState>;
   highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
   confirmSelectionForPlayer: (pid: number, isReselect: boolean) => boolean;

@@ -29,6 +29,7 @@ import { placePiece } from "./phase-build.ts";
 import type { PieceShape } from "./pieces.ts";
 import { rotateCW } from "./pieces.ts";
 import {
+  type AiAnimatable,
   BaseController,
   CROSSHAIR_SPEED,
   type OrbitParams,
@@ -117,7 +118,7 @@ const ROTATION_INITIAL_BASE = 0.15;
 /** Random variation added to the initial rotation delay. */
 const ROTATION_INITIAL_RANGE = 0.1;
 
-export class AiController extends BaseController {
+export class AiController extends BaseController implements AiAnimatable {
   /** Pluggable AI strategy (decision-making). */
   private strategy: AiStrategy;
 
@@ -140,8 +141,8 @@ export class AiController extends BaseController {
   /** Persistent orbit phase — accumulated across battles for natural variation. */
   private idlePhase = 0;
 
-  override getCrosshairTarget(): PixelPos | null { return this.crosshairTarget; }
-  override getOrbitParams(): OrbitParams | null {
+  getCrosshairTarget(): PixelPos | null { return this.crosshairTarget; }
+  getOrbitParams(): OrbitParams | null {
     if (this.battleState.step === Step.COUNTDOWN && this.battleState.orbit) {
       const o = this.battleState.orbit;
       return { rx: o.rx, ry: o.ry, speed: o.speed, phase: this.idlePhase };

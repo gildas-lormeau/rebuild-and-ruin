@@ -18,6 +18,7 @@ import type { KeyBindings } from "./player-config.ts";
 import {
   BaseController,
   CROSSHAIR_SPEED,
+  type InputReceiver,
   type PhantomCannon,
   type PhantomPiece,
 } from "./player-controller.ts";
@@ -32,7 +33,7 @@ import {
   SUPER_GUN_SIZE,
 } from "./types.ts";
 
-export class HumanController extends BaseController {
+export class HumanController extends BaseController implements InputReceiver {
   /** Pre-computed lowercase key → action map for fast matching. */
   private keyMap: Map<string, Action>;
 
@@ -186,7 +187,7 @@ export class HumanController extends BaseController {
   }
 
   /** Try to place a cannon at the current cursor position. Returns true on success. */
-  override tryPlaceCannon(state: GameState, maxSlots: number): boolean {
+  tryPlaceCannon(state: GameState, maxSlots: number): boolean {
     const player = state.players[this.playerId]!;
     const mode =
       this.cannonPlaceMode === CannonMode.NORMAL
@@ -203,7 +204,7 @@ export class HumanController extends BaseController {
   }
 
   /** Try to place the current build piece at the build cursor. */
-  override tryPlacePiece(state: GameState): boolean {
+  tryPlacePiece(state: GameState): boolean {
     if (!this.currentPiece || !this.bag) return false;
     const placed = placePiece(
       state,
@@ -220,7 +221,7 @@ export class HumanController extends BaseController {
   }
 
   /** Rotate the current build piece clockwise (Tetris-style: pivot stays in place). */
-  override rotatePiece(): void {
+  rotatePiece(): void {
     if (this.currentPiece) {
       const oldPivot = this.currentPiece.pivot;
       this.currentPiece = rotateCW(this.currentPiece);
@@ -232,7 +233,7 @@ export class HumanController extends BaseController {
   }
 
   /** Cycle cannon placement mode (normal -> super -> balloon -> normal). */
-  override cycleCannonMode(state: GameState, maxSlots: number): void {
+  cycleCannonMode(state: GameState, maxSlots: number): void {
     const player = state.players[this.playerId]!;
     const used = cannonSlotsUsed(player);
     if (
@@ -252,19 +253,19 @@ export class HumanController extends BaseController {
   }
 
   /** Check if a key event matches one of this controller's bindings. */
-  override matchKey(key: string): Action | null {
+  matchKey(key: string): Action | null {
     return this.keyMap.get(key.toLowerCase()) ?? null;
   }
 
-  override handleKeyDown(action: Action): void {
+  handleKeyDown(action: Action): void {
     this.heldActions.add(action);
   }
 
-  override handleKeyUp(action: Action): void {
+  handleKeyUp(action: Action): void {
     this.heldActions.delete(action);
   }
 
-  override getCannonPlaceMode(): CannonMode {
+  getCannonPlaceMode(): CannonMode {
     return this.cannonPlaceMode;
   }
 

@@ -1,10 +1,10 @@
 import type { GameMessage } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
-import type { PlayerController } from "./player-controller.ts";
+import type { InputReceiver, PlayerController } from "./player-controller.ts";
 import type { GameState } from "./types.ts";
 
 export function tryPlacePieceAndSend(
-  ctrl: PlayerController,
+  ctrl: PlayerController & InputReceiver,
   gameState: GameState,
   send: (msg: GameMessage) => void,
 ): boolean {
@@ -25,7 +25,7 @@ export function tryPlacePieceAndSend(
 }
 
 export function tryPlaceCannonAndSend(
-  ctrl: PlayerController,
+  ctrl: PlayerController & InputReceiver,
   gameState: GameState,
   max: number,
   send: (msg: GameMessage) => void,

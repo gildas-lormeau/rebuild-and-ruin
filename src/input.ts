@@ -3,7 +3,7 @@ import type { WorldPos } from "./geometry-types.ts";
 import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type LifeLostChoice, type ResolvedChoice } from "./life-lost.ts";
 import type { KeyBindings } from "./player-config.ts";
 import { ACTION_KEYS, MAX_PLAYERS } from "./player-config.ts";
-import type { PlayerController } from "./player-controller.ts";
+import type { InputReceiver, PlayerController } from "./player-controller.ts";
 import type { SelectionState } from "./selection.ts";
 import { findNearestTower, towerAtPixel } from "./spatial.ts";
 import type { GameState } from "./types.ts";
@@ -66,8 +66,8 @@ export interface RegisterOnlineInputDeps {
   getLifeLostDialog: () => LifeLostDialogState | null;
   lifeLostDialogClick: (x: number, y: number) => void;
   getControllers: () => PlayerController[];
-  isHuman: (ctrl: PlayerController) => boolean;
-  withFirstHuman: (action: (human: PlayerController) => void) => void;
+  isHuman: (ctrl: PlayerController) => ctrl is PlayerController & InputReceiver;
+  withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
   pixelToTile: (x: number, y: number) => { row: number; col: number };
   screenToWorld: (x: number, y: number) => WorldPos;
   onPinchStart?: (midX: number, midY: number) => void;
@@ -75,12 +75,12 @@ export interface RegisterOnlineInputDeps {
   onPinchEnd?: () => void;
   maybeSendAimUpdate: (x: number, y: number) => void;
   tryPlaceCannonAndSend: (
-    ctrl: PlayerController,
+    ctrl: PlayerController & InputReceiver,
     gameState: GameState,
     max: number,
   ) => boolean;
   tryPlacePieceAndSend: (
-    ctrl: PlayerController,
+    ctrl: PlayerController & InputReceiver,
     gameState: GameState,
   ) => boolean;
   fireAndSend: (ctrl: PlayerController, gameState: GameState) => void;
@@ -474,6 +474,7 @@ export function registerOnlineInputHandlers(
 
     for (const ctrl of getControllers()) {
       if (state.players[ctrl.playerId]?.eliminated) continue;
+      if (!isHuman(ctrl)) continue;
       const action = ctrl.matchKey(e.key);
       if (!action) continue;
 
@@ -520,6 +521,7 @@ export function registerOnlineInputHandlers(
 
   document.addEventListener("keyup", (e) => {
     for (const ctrl of getControllers()) {
+      if (!isHuman(ctrl)) continue;
       const action = ctrl.matchKey(e.key);
       if (!action) continue;
       ctrl.handleKeyUp(action);

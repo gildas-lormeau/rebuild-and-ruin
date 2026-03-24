@@ -12,7 +12,7 @@ import type { LifeLostDialogState } from "./life-lost.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
 import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
 import type { WatcherTimingState } from "./online-watcher-battle.ts";
-import type { Crosshair, PlayerController } from "./player-controller.ts";
+import type { Crosshair, InputReceiver, PlayerController } from "./player-controller.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { SelectionState } from "./selection.ts";
 import type { GameState } from "./types.ts";
@@ -73,9 +73,9 @@ export interface RuntimeConfig {
   /** Send aim_update for mouse movement. */
   maybeSendAimUpdate?: (x: number, y: number) => void;
   /** Try to place cannon and send to server. */
-  tryPlaceCannonAndSend?: (ctrl: PlayerController, gameState: GameState, max: number) => boolean;
+  tryPlaceCannonAndSend?: (ctrl: PlayerController & InputReceiver, gameState: GameState, max: number) => boolean;
   /** Try to place piece and send to server. */
-  tryPlacePieceAndSend?: (ctrl: PlayerController, gameState: GameState) => boolean;
+  tryPlacePieceAndSend?: (ctrl: PlayerController & InputReceiver, gameState: GameState) => boolean;
   /** Fire and send to server. */
   fireAndSend?: (ctrl: PlayerController, gameState: GameState) => void;
   /** Room code for lobby overlay. */
@@ -144,8 +144,8 @@ export interface GameRuntime {
 
   collectCrosshairs: (canFireNow: boolean, dt?: number) => void;
   snapshotTerritory: () => Set<number>[];
-  firstHuman: () => PlayerController | null;
-  withFirstHuman: (action: (human: PlayerController) => void) => void;
+  firstHuman: () => (PlayerController & InputReceiver) | null;
+  withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
 
   render: () => void;
   endGame: (winner: { id: number } | null) => void;

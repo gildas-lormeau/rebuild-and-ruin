@@ -103,7 +103,7 @@ import {
   PLAYER_KEY_BINDINGS,
   PLAYER_NAMES,
 } from "./player-config.ts";
-import type { PlayerController } from "./player-controller.ts";
+import type { InputReceiver, PlayerController } from "./player-controller.ts";
 import {
   buildBannerUi,
   buildOnlineOverlay,
@@ -526,7 +526,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     return snapshotTerritoryImpl(rs.state.players);
   }
 
-  function firstHuman(): PlayerController | null {
+  function firstHuman(): (PlayerController & InputReceiver) | null {
     // Prefer the player who joined via mouse/trackpad
     if (rs.mouseJoinedSlot >= 0) {
       const ctrl = rs.controllers.find(c => c.playerId === rs.mouseJoinedSlot);
@@ -538,7 +538,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     return null;
   }
 
-  function withFirstHuman(action: (human: PlayerController) => void): void {
+  function withFirstHuman(action: (human: PlayerController & InputReceiver) => void): void {
     const human = firstHuman();
     if (!human) return;
     action(human);

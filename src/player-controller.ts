@@ -54,6 +54,7 @@ export interface Crosshair {
   cannonReady?: boolean;
 }
 
+/** Shared interface — both AI and Human genuinely use these. */
 export interface PlayerController {
   readonly playerId: number;
 
@@ -99,12 +100,6 @@ export interface PlayerController {
   /** Current crosshair for rendering. */
   getCrosshair(): Crosshair;
 
-  /** AI's current crosshair target (null for human — driven by mouse/keyboard). */
-  getCrosshairTarget(): PixelPos | null;
-
-  /** AI's orbit parameters for countdown animation (null if not orbiting). */
-  getOrbitParams(): OrbitParams | null;
-
   /** Center cursors/crosshair on a tower position. */
   centerOn(row: number, col: number): void;
 
@@ -126,9 +121,6 @@ export interface PlayerController {
   /** Called at start of cannon phase. */
   onCannonPhaseStart(state: GameState): void;
 
-  /** Match a keyboard key to an action name. Returns null if no match. */
-  matchKey(key: string): Action | null;
-
   /** Move build cursor one tile in a direction (keyboard). Piece-aware clamping when provided. */
   moveBuildCursor(direction: Action, piece?: PieceShape | null): void;
 
@@ -144,14 +136,23 @@ export interface PlayerController {
   /** Set crosshair to absolute pixel position (mouse). */
   setCrosshair(x: number, y: number): void;
 
+  /** Get the current build piece (for sending placement data). */
+  getCurrentPiece(): PieceShape | null;
+
+  /** Fire at the current crosshair position. */
+  fire(state: GameState): void;
+}
+
+/** Human input handling — no-op in BaseController, overridden by HumanController. */
+export interface InputReceiver {
+  /** Match a keyboard key to an action name. Returns null if no match. */
+  matchKey(key: string): Action | null;
+
   /** Register a held key for continuous crosshair movement (battle). */
   handleKeyDown(action: Action): void;
 
   /** Release a held key (battle). */
   handleKeyUp(action: Action): void;
-
-  /** Get the current build piece (for sending placement data). */
-  getCurrentPiece(): PieceShape | null;
 
   /** Rotate the current build piece clockwise. */
   rotatePiece(): void;
@@ -165,11 +166,17 @@ export interface PlayerController {
   /** Cycle cannon placement mode (normal/super/balloon). */
   cycleCannonMode(state: GameState, maxSlots: number): void;
 
-  /** Fire at the current crosshair position. */
-  fire(state: GameState): void;
-
   /** Current cannon placement mode. */
   getCannonPlaceMode(): CannonMode;
+}
+
+/** AI rendering queries — returns null in BaseController, overridden by AiController. */
+export interface AiAnimatable {
+  /** AI's current crosshair target (null for human — driven by mouse/keyboard). */
+  getCrosshairTarget(): PixelPos | null;
+
+  /** AI's orbit parameters for countdown animation (null if not orbiting). */
+  getOrbitParams(): OrbitParams | null;
 }
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
@@ -251,14 +258,6 @@ export abstract class BaseController implements PlayerController {
   selectionTick(_dt: number, _state?: GameState): boolean { return false; }
 
   getCurrentPiece(): PieceShape | null { return this.currentPiece; }
-  getCrosshairTarget(): PixelPos | null { return null; }
-  getOrbitParams(): OrbitParams | null { return null; }
-
-  // --- Default implementations for input methods (overridden by Human) ---
-
-  matchKey(_key: string): Action | null {
-    return null;
-  }
 
   /** Clamp build cursor so the entire piece stays within the grid. */
   protected clampBuildCursor(piece: PieceShape | null): void {
@@ -313,17 +312,6 @@ export abstract class BaseController implements PlayerController {
     this.crosshair = { x, y };
   }
 
-  handleKeyDown(_action: Action): void {}
-  handleKeyUp(_action: Action): void {}
-  rotatePiece(): void {}
-  tryPlacePiece(_state: GameState): boolean {
-    return false;
-  }
-  tryPlaceCannon(_state: GameState, _maxSlots: number): boolean {
-    return false;
-  }
-  cycleCannonMode(_state: GameState, _maxSlots: number): void {}
-
   /** Fire one cannon (own or captured) at the current crosshair position, round-robin. */
   fire(state: GameState): void {
     if (state.timer <= 0) return;
@@ -349,7 +337,4 @@ export abstract class BaseController implements PlayerController {
     return result;
   }
 
-  getCannonPlaceMode(): CannonMode {
-    return CannonMode.NORMAL;
-  }
 }
