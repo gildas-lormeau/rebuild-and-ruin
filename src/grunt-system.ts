@@ -58,6 +58,7 @@ export function spawnGruntNearPosition(
   const pos = findGruntSpawnNear(state, posRow, posCol);
   if (pos) addGrunt(state, pos.row, pos.col, destroyerId);
 }
+
 /**
  * Spawn a grunt near a position (BFS to find nearest free tile).
  * The grunt targets the player identified by destroyerId.
@@ -93,6 +94,7 @@ export function findGruntSpawnNear(
   }
   return null;
 }
+
 /** Spawn a single grunt immediately on the given player's zone. */
 export function spawnGruntOnZone(state: GameState, playerId: number): void {
   const player = state.players[playerId];
@@ -102,6 +104,7 @@ export function spawnGruntOnZone(state: GameState, playerId: number): void {
     addGrunt(state, pos.row, pos.col, playerId);
   }
 }
+
 /** Spawn a group of grunts on a player's zone, clustered together so they naturally target the same tower. */
 export function spawnGruntGroupOnZone(
   state: GameState,
@@ -144,6 +147,7 @@ export function spawnGruntGroupOnZone(
     }
   }
 }
+
 /**
  * Tick grunt movement during battle phase. Each grunt moves 1 step toward
  * the nearest enemy tower. When blocked by another grunt, tries orthogonal
@@ -214,6 +218,7 @@ export function tickGrunts(state: GameState): boolean {
 
   return anyMoved;
 }
+
 export function gruntAttackTowers(
   state: GameState,
   dt: number,
@@ -259,6 +264,7 @@ export function gruntAttackTowers(
   }
   return events;
 }
+
 /**
  * Called at end of battle: update blockedBattles counter for each grunt.
  * A grunt is "blocked" if it has an alive target tower but is not adjacent to it.
@@ -285,6 +291,7 @@ export function updateGruntBlockedBattles(state: GameState): void {
     grunt.wallAttack = false;
   }
 }
+
 /**
  * Called at start of battle: blocked grunts (≥2 battles) with alive target
  * have 1/4 chance to attack an adjacent wall.
@@ -298,6 +305,7 @@ export function rollGruntWallAttacks(state: GameState): void {
     }
   }
 }
+
 function addGrunt(
   state: GameState,
   row: number,
@@ -306,6 +314,7 @@ function addGrunt(
 ): void {
   state.grunts.push({ row, col, targetPlayerId });
 }
+
 function enqueueUnvisitedTile(
   visited: Set<number>,
   queue: TilePos[],
@@ -318,6 +327,7 @@ function enqueueUnvisitedTile(
   visited.add(key);
   queue.push({ row, col });
 }
+
 function canUseGroupSpawnTile(
   state: GameState,
   zone: number,
@@ -335,6 +345,7 @@ function canUseGroupSpawnTile(
   if (hasInteriorAt(state, key)) return false;
   return true;
 }
+
 /** Find spawn positions for grunts in an enemy's zone, along the river bank. */
 function findGruntSpawnPositions(
   state: GameState,
@@ -394,6 +405,7 @@ function findGruntSpawnPositions(
 
   return result;
 }
+
 function minWaterDistance(state: GameState, row: number, col: number): number {
   let minWaterDist = Infinity;
   for (
@@ -416,6 +428,7 @@ function minWaterDistance(state: GameState, row: number, col: number): number {
   }
   return minWaterDist;
 }
+
 /**
  * Lock a grunt onto its nearest tower target if not already locked.
  * Mutates grunt.targetTowerIdx and grunt.targetPlayerId.
@@ -449,6 +462,7 @@ function lockGruntTarget(state: GameState, grunt: Grunt): void {
     grunt.targetPlayerId = zoneOwner.id;
   }
 }
+
 /**
  * Ranked candidate moves for a grunt.
  * 1. Forward moves (reduce distance to target), sorted closest first
@@ -497,6 +511,7 @@ function gruntCandidateMoves(state: GameState, grunt: Grunt): TilePos[] {
 
   return moves;
 }
+
 /**
  * Return the target tower position for a grunt.
  * Pure read — grunt must already be locked via lockGruntTarget.
@@ -505,6 +520,7 @@ function gruntTargetPos(state: GameState, grunt: Grunt): TilePos | null {
   const t = getGruntTargetTower(state, grunt);
   return t ? { row: t.row, col: t.col } : null;
 }
+
 function isSidewaysAxisAllowed(
   target: TilePos,
   fromRow: number,
@@ -523,6 +539,7 @@ function isSidewaysAxisAllowed(
   const axisDistZero = movingAxis === "row" ? rowDist === 0 : colDist === 0;
   return !axisAway || axisDistZero;
 }
+
 function isAdjacentToLivingTower(
   state: GameState,
   row: number,
@@ -531,6 +548,7 @@ function isAdjacentToLivingTower(
 ): boolean {
   return adjacentLivingTowerIndex(state, row, col) === towerIndex;
 }
+
 function adjacentLivingTowerIndex(
   state: GameState,
   row: number,
@@ -542,6 +560,7 @@ function adjacentLivingTowerIndex(
   }
   return -1;
 }
+
 function canAttemptWallAttack(state: GameState, grunt: Grunt): boolean {
   return (
     hasBlockedBattlesForWallAttack(grunt) &&
@@ -549,12 +568,14 @@ function canAttemptWallAttack(state: GameState, grunt: Grunt): boolean {
     hasAdjacentWall(state, grunt.row, grunt.col)
   );
 }
+
 function hasLiveTargetTower(
   state: GameState,
   grunt: Pick<Grunt, "targetTowerIdx">,
 ): boolean {
   return getLiveTargetTower(state, grunt) !== null;
 }
+
 function getLiveTargetTower(
   state: GameState,
   grunt: Pick<Grunt, "targetTowerIdx">,
@@ -564,6 +585,7 @@ function getLiveTargetTower(
   if (!state.towerAlive[grunt.targetTowerIdx]!) return null;
   return { towerIndex: grunt.targetTowerIdx, tower };
 }
+
 function getGruntTargetTower(
   state: GameState,
   grunt: Pick<Grunt, "targetTowerIdx">,
@@ -571,14 +593,17 @@ function getGruntTargetTower(
   if (grunt.targetTowerIdx === undefined) return null;
   return state.map.towers[grunt.targetTowerIdx] ?? null;
 }
+
 function hasBlockedBattlesForWallAttack(
   grunt: Pick<Grunt, "blockedBattles">,
 ): boolean {
   return (grunt.blockedBattles ?? 0) >= GRUNT_WALL_ATTACK_MIN_BATTLES;
 }
+
 function hasAdjacentWall(state: GameState, row: number, col: number): boolean {
   return adjacentWallKeys(state, row, col).length > 0;
 }
+
 function tickGruntAttackTimer(grunt: Grunt, dt: number): boolean {
   if (grunt.attackTimer === undefined) {
     grunt.attackTimer = GRUNT_ATTACK_DURATION;
@@ -590,6 +615,7 @@ function tickGruntAttackTimer(grunt: Grunt, dt: number): boolean {
   }
   return false;
 }
+
 function pickAdjacentWallKeyForAttack(
   state: GameState,
   row: number,
@@ -609,6 +635,7 @@ function pickAdjacentWallKeyForAttack(
   }
   return bestWallKey;
 }
+
 function adjacentWallKeys(
   state: GameState,
   row: number,
@@ -624,6 +651,7 @@ function adjacentWallKeys(
   }
   return walls;
 }
+
 /** Check if any non-adjacent grunt with the same target tower is nearby (within 2 tiles). */
 function hasBlockedSameTargetNearby(state: GameState, grunt: Grunt): boolean {
   if (grunt.targetTowerIdx === undefined) return false;
@@ -646,6 +674,7 @@ function hasBlockedSameTargetNearby(state: GameState, grunt: Grunt): boolean {
   }
   return false;
 }
+
 /** Find an unoccupied tile still adjacent to the target tower to slide to. */
 function findAdjacentSlideTarget(
   state: GameState,
@@ -666,6 +695,7 @@ function findAdjacentSlideTarget(
   }
   return null;
 }
+
 function isGruntPassableTile(
   state: GameState,
   row: number,
@@ -673,6 +703,7 @@ function isGruntPassableTile(
 ): boolean {
   return !isGruntBlocked(state, row, col) && !hasWallAt(state, row, col);
 }
+
 /** Check if a tile is blocked for grunt movement (impassable obstacle). */
 function isGruntBlocked(state: GameState, r: number, c: number): boolean {
   if (!inBounds(r, c)) return true;
@@ -684,6 +715,7 @@ function isGruntBlocked(state: GameState, r: number, c: number): boolean {
   if (isPitAt(state.burningPits, r, c)) return true;
   return false;
 }
+
 /** Check if a tile is adjacent to any tile of a 2x2 tower (cardinal only). */
 function isCardinalAdjacentToTower(
   state: GameState,
@@ -708,6 +740,7 @@ function isCardinalAdjacentToTower(
   }
   return false;
 }
+
 function canGruntMoveToCandidate(
   state: GameState,
   grunt: Grunt,
@@ -722,6 +755,7 @@ function canGruntMoveToCandidate(
   if (hasInteriorAt(state, packTile(row, col))) return false;
   return true;
 }
+
 function applyGruntMove(grunt: Grunt, row: number, col: number): void {
   const dr = row - grunt.row;
   const dc = col - grunt.col;

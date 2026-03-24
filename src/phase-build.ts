@@ -20,6 +20,7 @@ export function placePiece(state: GameState, playerId: number, piece: PieceShape
   applyPiecePlacement(state, playerId, piece.offsets, row, col);
   return true;
 }
+
 /**
  * Check if a piece can be placed at (row, col) for a player.
  * All piece tiles must be on grass, not on any player's walls, not on towers, cannons, grunts, or burning pits.
@@ -50,6 +51,7 @@ export function canPlacePiece(state: GameState, playerId: number, piece: PieceSh
   }
   return true;
 }
+
 /** Apply piece placement to state (no validation). Used by host and watcher. */
 export function applyPiecePlacement(state: GameState, playerId: number, offsets: [number, number][], row: number, col: number): void {
   const player = state.players[playerId]!;
@@ -72,6 +74,7 @@ export function applyPiecePlacement(state: GameState, playerId: number, offsets:
     spawnGruntNearPosition(state, playerId, pos.row, pos.col);
   }
 }
+
 export function claimTerritory(state: GameState, endOfBuildPhase = false): void {
   for (const player of state.players) {
     recomputeInterior(state, player);
@@ -90,6 +93,7 @@ export function claimTerritory(state: GameState, endOfBuildPhase = false): void 
     clearUnenclosedPendingRevives(state);
   }
 }
+
 /**
  * Replenish bonus squares to maintain BONUS_SQUARES_PER_ZONE per zone.
  * Placed on free grass tiles with 1-tile gap from borders and river,
@@ -157,6 +161,7 @@ export function replenishBonusSquares(state: GameState): void {
     }
   }
 }
+
 function awardEndOfBuildPoints(
   state: GameState,
   player: Player,
@@ -177,6 +182,7 @@ function awardEndOfBuildPoints(
     player.score += CASTLE_BONUS_TABLE[idx]!;
   }
 }
+
 function countCastleBonusUnits(state: GameState, player: Player): number {
   let castleUnits = 0;
   for (const t of player.ownedTowers) {
@@ -186,6 +192,7 @@ function countCastleBonusUnits(state: GameState, player: Player): number {
   }
   return castleUnits;
 }
+
 function destroyEnclosedHousesAndSpawnGrunts(
   state: GameState,
   player: Player,
@@ -202,6 +209,7 @@ function destroyEnclosedHousesAndSpawnGrunts(
     }
   }
 }
+
 function removeEnclosedGruntsAndRespawn(
   state: GameState,
   player: Player,
@@ -230,6 +238,7 @@ function removeEnclosedGruntsAndRespawn(
     enemyIdx++;
   }
 }
+
 function clearUnenclosedPendingRevives(state: GameState): void {
   for (const ti of state.towerPendingRevive) {
     const isEnclosed = state.players.some(
@@ -240,6 +249,7 @@ function clearUnenclosedPendingRevives(state: GameState): void {
     }
   }
 }
+
 /**
  * Claim territory via inverse flood-fill. For each player, flood from map edges
  * to find tiles NOT reachable through non-wall tiles. Unreachable grass tiles
@@ -260,6 +270,7 @@ function recomputeInterior(state: GameState, player: Player): void {
     }
   }
 }
+
 /** Find towers enclosed by a player's territory; handle revival logic at end of build phase. */
 function updateOwnedTowers(state: GameState, player: Player, endOfBuildPhase: boolean): void {
   player.ownedTowers = [];
@@ -280,6 +291,7 @@ function updateOwnedTowers(state: GameState, player: Player, endOfBuildPhase: bo
     }
   }
 }
+
 /** Award bonus square points for squares enclosed by a player's territory. */
 function captureEnclosedBonusSquares(state: GameState, player: Player): void {
   if (!bonusSquaresEnabled(state)) return;
@@ -293,13 +305,16 @@ function captureEnclosedBonusSquares(state: GameState, player: Player): void {
     return true;
   });
 }
+
 function bonusSquaresEnabled(_state: GameState): boolean {
   return true;
 }
+
 function territoryBonusSquarePoints(territorySize: number): number {
   const raw = Math.floor(10 * Math.sqrt(territorySize) / 100) * 100;
   return Math.max(100, Math.min(1000, raw));
 }
+
 /** Remove grunts that landed on any player's territory during processing. */
 function sweepMisplacedGrunts(state: GameState): void {
   state.grunts = state.grunts.filter(g => {

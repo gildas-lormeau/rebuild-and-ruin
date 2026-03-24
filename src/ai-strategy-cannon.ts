@@ -110,6 +110,7 @@ export function autoSelectTowerImpl(
 
   return rng.pick(zoneTowers);
 }
+
 export function autoPlaceCannonsImpl(
   player: Player,
   count: number,
@@ -179,6 +180,7 @@ export function autoPlaceCannonsImpl(
     );
   }
 }
+
 function findBestNormalCannonPosition(
   player: Player,
   state: GameState,
@@ -198,6 +200,7 @@ function findBestNormalCannonPosition(
   }
   return bestPosition;
 }
+
 function tryPlaceSuperGun(
   player: Player,
   count: number,
@@ -221,6 +224,7 @@ function tryPlaceSuperGun(
     placeCannon(player, best.row, best.col, count, CannonMode.SUPER, state);
   }
 }
+
 function collectCannonCandidates(
   player: Player,
   mode: CannonMode,
@@ -242,6 +246,7 @@ function collectCannonCandidates(
   candidates.sort((a, b) => a.score - b.score);
   return candidates;
 }
+
 /**
  * Score a cannon placement position. Lower = better.
  * Penalizes: proximity to map edges, proximity to water, wasted interior tiles.
@@ -316,6 +321,7 @@ function scoreCannonPosition(
 
   return score;
 }
+
 function scoreCannonTileLocalPenalty(
   state: GameState,
   row: number,
@@ -370,6 +376,7 @@ function scoreCannonTileLocalPenalty(
 
   return penalty;
 }
+
 function tryPlaceBalloon(
   player: Player,
   count: number,
@@ -398,6 +405,7 @@ function tryPlaceBalloon(
     normalCandidates.shift();
   }
 }
+
 function shouldPlaceBalloon(
   state: GameState,
   player: Player,
@@ -420,12 +428,15 @@ function shouldPlaceBalloon(
     (defensiveness >= 3 && hasEnemyCannons)
   );
 }
+
 function liveEnemyPlayers(state: GameState, playerId: number): Player[] {
   return state.players.filter((p) => p.id !== playerId && !p.eliminated);
 }
+
 function enemyHasLiveCannon(enemy: Player): boolean {
   return enemy.cannons.some((c) => isCannonAlive(c));
 }
+
 function enemyHasThreateningSuperGun(state: GameState, enemy: Player): boolean {
   return enemy.cannons.some((c) => {
     if (!isCannonAlive(c) || !c.super) return false;

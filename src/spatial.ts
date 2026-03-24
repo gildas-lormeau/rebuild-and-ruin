@@ -63,10 +63,12 @@ export function forEachTowerTile(
 ): void {
   forEachSquareTile(t.row, t.col, 2, fn);
 }
+
 /** True if (r,c) is within a 2×2 tower footprint. */
 export function isTowerTile(t: TilePos, r: number, c: number): boolean {
   return isTileInRect(t.row, t.col, 2, r, c);
 }
+
 /** Call `fn` for each tile of a cannon footprint (2×2 or 3×3 super). */
 export function forEachCannonTile(
   cannon: Pick<Cannon, "row" | "col" | "super">,
@@ -75,6 +77,7 @@ export function forEachCannonTile(
   const sz = cannon.super ? 3 : 2;
   forEachSquareTile(cannon.row, cannon.col, sz, fn);
 }
+
 /** True if (r,c) is within a cannon footprint (2×2 or 3×3 super). */
 export function isCannonTile(
   cannon: Pick<Cannon, "row" | "col" | "super">,
@@ -84,12 +87,14 @@ export function isCannonTile(
   const sz = cannon.super ? 3 : 2;
   return isTileInRect(cannon.row, cannon.col, sz, r, c);
 }
+
 /** Manhattan distance from (r,c) to nearest tile of a 2×2 tower. */
 export function distanceToTower(t: TilePos, r: number, c: number): number {
   const dr = Math.max(0, t.row - r, r - (t.row + 1));
   const dc = Math.max(0, t.col - c, c - (t.col + 1));
   return dr + dc;
 }
+
 /** Center of a cannon footprint in pixels. */
 export function cannonCenter(
   cannon: Pick<Cannon, "row" | "col" | "super" | "balloon">,
@@ -100,6 +105,7 @@ export function cannonCenter(
     y: (cannon.row + size / 2) * TILE_SIZE,
   };
 }
+
 /** Center of a 2×2 tower footprint (between the 4 tiles). */
 export function towerCenter(t: TilePos): {
   row: number;
@@ -107,10 +113,12 @@ export function towerCenter(t: TilePos): {
 } {
   return { row: t.row + 0.5, col: t.col + 0.5 };
 }
+
 /** True if all 4 tiles of a 2×2 tower are enclosed (not in the outside set). */
 export function isTowerEnclosed(t: TilePos, outside: Set<number>): boolean {
   return isSquareEnclosed(t.row, t.col, 2, outside);
 }
+
 /**
  * 4-directional BFS from a tower tile — returns true if the BFS reaches any
  * tile in `targets` without crossing `walls`.  When `targets` is omitted the
@@ -150,20 +158,24 @@ export function towerReachesOutsideCardinal(
   }
   return false;
 }
+
 /** Get the tile size of a cannon (2 for normal/balloon, 3 for super). */
 export function cannonSize(cannon: Pick<Cannon, "super" | "balloon">): number {
   if (cannon.super) return SUPER_GUN_SIZE;
   if (cannon.balloon) return BALLOON_SIZE;
   return NORMAL_CANNON_SIZE;
 }
+
 /** True if a cannon still has hit points remaining. */
 export function isCannonAlive(cannon: Pick<Cannon, "hp">): boolean {
   return cannon.hp > 0;
 }
+
 /** True if (r,c) is occupied by a burning pit. */
 export function isPitAt(pits: BurningPit[], r: number, c: number): boolean {
   return pits.some((p) => p.row === r && p.col === c);
 }
+
 /** Count orthogonal wall neighbors of a tile key in a wall set. */
 export function countWallNeighbors(
   walls: Set<number>,
@@ -177,6 +189,7 @@ export function countWallNeighbors(
   if (walls.has(packTile(r, c + 1))) n++;
   return n;
 }
+
 /** Compute the facing angle from origin to target, snapped to 45° increments. */
 export function computeFacing45(
   ox: number,
@@ -186,10 +199,12 @@ export function computeFacing45(
 ): number {
   return snapAngle(Math.atan2(tx - ox, -(ty - oy)), Math.PI / 4);
 }
+
 /** Snap an angle (radians) to the nearest multiple of `step`. */
 export function snapAngle(angle: number, step: number): number {
   return Math.round(angle / step) * step;
 }
+
 /** Smoothly rotate `current` angle toward `target` angle by at most `maxStep` radians.
  *  Both angles in radians. Takes the shortest path around the circle. */
 export function rotateToward(
@@ -204,6 +219,7 @@ export function rotateToward(
   if (Math.abs(diff) <= maxStep) return target;
   return current + Math.sign(diff) * maxStep;
 }
+
 /** Map a facing angle (radians, 0=up) to the nearest 8-direction name. */
 export function facingToDir8(angle: number): string {
   const a = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
@@ -211,6 +227,7 @@ export function facingToDir8(angle: number): string {
   const idx = Math.round(a / (Math.PI * 0.25)) % 8;
   return DIRS[idx]!;
 }
+
 /** Map a facing angle (radians, 0=up) to the nearest cardinal direction name. */
 export function facingToCardinal(angle: number): string {
   const a = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
@@ -219,6 +236,7 @@ export function facingToCardinal(angle: number): string {
   if (a < Math.PI * 1.25) return "s";
   return "w";
 }
+
 /** Find tower nearest to a world coordinate (tile-pixel space). */
 export function towerAtPixel(
   towers: TilePos[],
@@ -245,6 +263,7 @@ export function towerAtPixel(
 
   return bestIdx;
 }
+
 /** Find the nearest tower to a given tower in a direction (for spatial navigation). */
 export function findNearestTower(
   towers: { row: number; col: number; zone: number }[],
@@ -296,6 +315,7 @@ export function findNearestTower(
 
   return bestIdx;
 }
+
 /** Order items by greedy nearest-neighbor (Manhattan distance). */
 export function orderByNearest<T extends TilePos>(
   items: T[],
@@ -313,6 +333,7 @@ export function orderByNearest<T extends TilePos>(
   }
   return ordered;
 }
+
 /** True if tile at (r,c) is water. Returns false for out-of-bounds. */
 export function isWater(
   tiles: readonly (readonly Tile[])[],
@@ -321,6 +342,7 @@ export function isWater(
 ): boolean {
   return tiles[r]?.[c] === Tile.Water;
 }
+
 /** True if tile at (r,c) is grass. Returns false for out-of-bounds. */
 export function isGrass(
   tiles: readonly (readonly Tile[])[],
@@ -329,6 +351,7 @@ export function isGrass(
 ): boolean {
   return tiles[r]?.[c] === Tile.Grass;
 }
+
 /** Build a set of all water tile keys — use as extra barriers for computeOutside. */
 export function waterKeys(tiles: readonly (readonly Tile[])[]): Set<number> {
   const water = new Set<number>();
@@ -337,6 +360,7 @@ export function waterKeys(tiles: readonly (readonly Tile[])[]): Set<number> {
       if (tiles[r]![c] === Tile.Water) water.add(packTile(r, c));
   return water;
 }
+
 /** Flood-fill from map edges to find all "outside" tiles (not enclosed by walls).
  *  `extraBarriers` (e.g. water keys) are treated as impassable, like walls. */
 export function computeOutside(
@@ -373,10 +397,12 @@ export function computeOutside(
   }
   return outside;
 }
+
 /** True if (r,c) is within the grid bounds. */
 export function inBounds(r: number, c: number): boolean {
   return r >= 0 && r < GRID_ROWS && c >= 0 && c < GRID_COLS;
 }
+
 function isTileInRect(
   top: number,
   left: number,
@@ -386,6 +412,7 @@ function isTileInRect(
 ): boolean {
   return row >= top && row < top + size && col >= left && col < left + size;
 }
+
 function isSquareEnclosed(
   top: number,
   left: number,
@@ -398,6 +425,7 @@ function isSquareEnclosed(
   });
   return enclosed;
 }
+
 function forEachSquareTile(
   top: number,
   left: number,
@@ -412,10 +440,12 @@ function forEachSquareTile(
     }
   }
 }
+
 /** True if tile is on the outer map border. */
 function isBoundaryTile(r: number, c: number): boolean {
   return r === 0 || r === GRID_ROWS - 1 || c === 0 || c === GRID_COLS - 1;
 }
+
 function nearestItemIndex<T extends TilePos>(
   remaining: T[],
   target: TilePos,

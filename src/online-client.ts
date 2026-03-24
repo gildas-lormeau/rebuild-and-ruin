@@ -359,6 +359,7 @@ function buildGameOverServerPayload(
     },
   };
 }
+
 function logThrottled(key: string, msg: string): void {
   if (!DEV) return;
   const now = performance.now();
@@ -367,6 +368,7 @@ function logThrottled(key: string, msg: string): void {
   _throttleTimestamps.set(key, now);
   log(msg);
 }
+
 function connect(): void {
   if (ws && ws.readyState <= WebSocket.OPEN) return;
   ws = new WebSocket(getWsUrl());
@@ -401,6 +403,7 @@ function connect(): void {
     joinError.textContent = "Connection failed — is the server running?";
   };
 }
+
 function maybeSendAimUpdate(x: number, y: number, playerId?: number): void {
   const pid = playerId ?? myPlayerId;
   const key = `${Math.round(x)},${Math.round(y)}`;
@@ -408,6 +411,7 @@ function maybeSendAimUpdate(x: number, y: number, playerId?: number): void {
   lastSentAimTarget.set(pid, key);
   send({ type: MSG.AIM_UPDATE, playerId: pid, x, y });
 }
+
 function showLobby(): void {
   runtime.rs.mode = Mode.STOPPED;
   runtime.rs.lobby.active = false;
@@ -423,6 +427,7 @@ function showLobby(): void {
   remoteHumanSlots.clear();
   resetPhantomTrackingMaps();
 }
+
 /** Checkpoint helper: pass watcher + runtime state to checkpoint functions. */
 function checkpointArgs(msg: ServerMessage) {
   return [
@@ -431,6 +436,7 @@ function checkpointArgs(msg: ServerMessage) {
     () => runtime.snapshotTerritory(),
   ] as const;
 }
+
 function handleServerMessage(msg: ServerMessage): void {
   log(`received: ${msg.type}`);
   if (
@@ -527,6 +533,7 @@ function handleServerMessage(msg: ServerMessage): void {
     getLifeLostDialog: () => runtime.lifeLost.get(),
   });
 }
+
 function showWaitingRoom(code: string, seed: number): void {
   roomSeed = seed;
   setupWaitingRoom({
@@ -552,6 +559,7 @@ function showWaitingRoom(code: string, seed: number): void {
     },
   });
 }
+
 function initFromServer(msg: InitMessage): void {
   roomCodeOverlay.style.display = "none";
   runtime.rs.lobby.active = false;
@@ -584,11 +592,13 @@ function initFromServer(msg: InitMessage): void {
     enterSelection: () => runtime.selection.enter(),
   });
 }
+
 function resetPhantomTrackingMaps(): void {
   lastSentAimTarget.clear();
   lastSentPiecePhantom.clear();
   lastSentCannonPhantom.clear();
 }
+
 function promoteToHost(): void {
   log("PROMOTING TO HOST");
   isHost = true;
@@ -657,17 +667,20 @@ function promoteToHost(): void {
 
   log("Promotion complete, now running as host");
 }
+
 /** Structured log for E2E test analysis (dev only). */
 function log(msg: string): void {
   if (!DEV) return;
   const modeStr = isHost ? "host" : myPlayerId >= 0 ? "player" : "watcher";
   console.log(`[online] (mode=${modeStr} pid=${myPlayerId}) ${msg}`);
 }
+
 function send(msg: GameMessage): void {
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(msg));
   }
 }
+
 function applyFullState(msg: FullStateMessage): void {
   const state = runtime.rs.state;
   applyFullStateSnapshot(state, msg);
@@ -680,7 +693,9 @@ function applyFullState(msg: FullStateMessage): void {
     watcher.timing.countdownDuration = state.battleCountdown;
   }
 }
+
 runtime.registerInputHandlers();
+
 loadAtlas().then(initDomLobby, initDomLobby).then(() => {
   document.getElementById("lobby")?.setAttribute("data-ready", "1");
 });

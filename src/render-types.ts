@@ -18,11 +18,13 @@ export interface CastleData {
   /** Player index (for color). */
   playerId: number;
 }
+
 export interface MapData {
   tiles: number[][];
   towers: Tower[];
   junction: PixelPos;
 }
+
 /** Castle selection phase — tower highlighting and confirmation. */
 export interface SelectionOverlay {
   /** Tower index in map.towers to highlight (cursor hover). */
@@ -32,6 +34,7 @@ export interface SelectionOverlay {
   /** Per-player tower highlights for parallel castle selection. */
   highlights?: { towerIdx: number; playerId: number; confirmed?: boolean }[];
 }
+
 /** Map entities — present in all phases. */
 export interface EntityOverlay {
   houses?: House[];
@@ -42,6 +45,7 @@ export interface EntityOverlay {
   /** Tower index → owner player id for home towers. */
   homeTowers?: Map<number, number>;
 }
+
 /** Build/cannon phase — piece and cannon placement previews. */
 export interface PhantomOverlay {
   phantomPiece?: {
@@ -74,6 +78,7 @@ export interface PhantomOverlay {
     facing?: number;
   }[];
 }
+
 /** Battle phase — projectiles, effects, territory state. */
 export interface BattleOverlay {
   cannonballs?: {
@@ -99,18 +104,21 @@ export interface BattleOverlay {
   battleTerritory?: Set<number>[];
   battleWalls?: Set<number>[];
 }
+
 /** A single row in the options screen. */
 export interface OptionEntry {
   name: string;
   value: string;
   editable: boolean;
 }
+
 /** A player column in the controls rebinding screen. */
 export interface ControlsPlayer {
   name: string;
   color: RGB;
   bindings: string[];
 }
+
 /** UI overlays — banners, announcements, game over, player select. */
 export interface UIOverlay {
   announcement?: string;
@@ -149,6 +157,7 @@ export interface UIOverlay {
     actionNames: readonly string[];
   };
 }
+
 /** Full rendering overlay — composed from sub-interfaces. */
 export interface RenderOverlay {
   selection?: SelectionOverlay;
@@ -158,6 +167,7 @@ export interface RenderOverlay {
   battle?: BattleOverlay;
   ui?: UIOverlay;
 }
+
 /** Viewport rect in tile-pixel coordinates (before SCALE). null = full map. */
 export interface Viewport {
   x: number;

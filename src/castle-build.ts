@@ -9,6 +9,7 @@ export interface CastleWallPlan {
   playerId: number;
   tiles: number[];
 }
+
 export interface CastleBuildState {
   wallPlans: CastleWallPlan[];
   maxTiles: number;
@@ -30,6 +31,7 @@ export function createCastleBuildState(
     onDone,
   };
 }
+
 /** Advance the castle-build animation by dt seconds.
  *  Returns { next, onDone } — next is null when the animation is finished,
  *  and onDone (if present) should be invoked by the caller. */

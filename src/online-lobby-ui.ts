@@ -20,6 +20,7 @@ interface LobbyElements {
   createError: HTMLElement;
   joinError: HTMLElement;
 }
+
 interface SetupLobbyUiDeps {
   elements: LobbyElements;
   connect: () => void;
@@ -167,6 +168,7 @@ export function setupLobbyUi({
     }, ROOM_POLL_INTERVAL_MS);
   }
 }
+
 export function showLobbySection(
   id: string,
   sections: Pick<LobbyElements, "lobbyMenu" | "lobbyCreate" | "lobbyJoin">,

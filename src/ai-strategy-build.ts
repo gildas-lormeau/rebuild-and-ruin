@@ -53,6 +53,7 @@ export interface AiPlacement {
   row: TilePos["row"];
   col: TilePos["col"];
 }
+
 type Candidate = TilePos & {
   rotation: PieceShape;
   gapsFilled: number;
@@ -63,12 +64,14 @@ type Candidate = TilePos & {
   housesHit: number;
   bonusHit: number;
 };
+
 type Scored = {
   candidate: Candidate;
   score: number;
   gapClosingFat: boolean;
   fatWallTiles: number;
 };
+
 /** Shared context for the scoring loop — avoids threading 15+ params through closures. */
 type ScoringContext = {
   state: GameState;
@@ -730,6 +733,7 @@ export function pickPlacementImpl(
     col: bestCandidate.col,
   }, 'scored');
 }
+
 function compareCandidatesByObstaclePreference(
   a: Pick<Candidate, "housesHit" | "bonusHit">,
   b: Pick<Candidate, "housesHit" | "bonusHit">,
@@ -741,12 +745,15 @@ function compareCandidatesByObstaclePreference(
     candidateObstacleHits(b, caresAboutHouses, caresAboutBonuses)
   );
 }
+
 function compareScoredByScoreDesc(a: Scored, b: Scored): number {
   return b.score - a.score;
 }
+
 function compareByNumericScoreDesc<T extends { score: number }>(a: T, b: T): number {
   return b.score - a.score;
 }
+
 function computeGapBonus(gapsFilled: number, usefulGain: number): number {
   if (gapsFilled <= 0) return 0;
   const base = Math.max(
@@ -755,6 +762,7 @@ function computeGapBonus(gapsFilled: number, usefulGain: number): number {
   );
   return base + (gapsFilled - 1) * GAP_BONUS_PER_EXTRA;
 }
+
 function computeFatWallPenalty(
   gapClosingFat: boolean,
   fatWallTiles: number,
@@ -772,12 +780,14 @@ function computeFatWallPenalty(
   }
   return 0;
 }
+
 function computePocketPenalty(
   pocketDelta: number,
   pocketScale: number,
 ): number {
   return Math.max(0, pocketDelta) * POCKET_DELTA_PENALTY * pocketScale;
 }
+
 function computeObstacleHitPenalty(
   candidate: Pick<Candidate, "housesHit" | "bonusHit">,
   caresAboutHouses: boolean,
@@ -786,6 +796,7 @@ function computeObstacleHitPenalty(
   return (caresAboutHouses ? candidate.housesHit * OBSTACLE_HIT_PENALTY : 0) +
     (caresAboutBonuses ? candidate.bonusHit * OBSTACLE_HIT_PENALTY : 0);
 }
+
 function computeTowerProximityBonus(
   candidate: Candidate,
   targetGaps: Set<number>,
@@ -810,6 +821,7 @@ function computeTowerProximityBonus(
 
   return towerProximityBonus;
 }
+
 function computeSweepSafeBonus(
   candidate: Candidate,
   targetGaps: Set<number>,
@@ -832,6 +844,7 @@ function computeSweepSafeBonus(
 
   return sweepSafeBonus;
 }
+
 function computeCursorProximityBonus(
   candidate: Candidate,
   anyHasWallAdjacent: boolean,
@@ -848,6 +861,7 @@ function computeCursorProximityBonus(
   avgDistance /= candidate.rotation.offsets.length;
   return Math.max(0, CURSOR_PROXIMITY_MAX - avgDistance) * CURSOR_PROXIMITY_MULTIPLIER;
 }
+
 function computeInnerObstacleBonus(
   candidate: Candidate,
   targetGaps: Set<number>,
@@ -896,6 +910,7 @@ function computeInnerObstacleBonus(
 
   return innerTiles * INNER_OBSTACLE_MULTIPLIER;
 }
+
 function computeDifficultyBonus(
   state: GameState,
   candidate: Candidate,
@@ -913,6 +928,7 @@ function computeDifficultyBonus(
   if (total >= 1) return total;
   return 0;
 }
+
 function computeWastefulClosureAdjustment(
   candidate: Candidate,
   targetGaps: Set<number>,
@@ -951,6 +967,7 @@ function computeWastefulClosureAdjustment(
 
   return { gapBonus: baseGapBonus, wastefulClosurePenalty: 0 };
 }
+
 function shouldRejectForFatWalls(
   rawFatBlocks: number,
   fatGainPerBlock: number,
@@ -964,6 +981,7 @@ function shouldRejectForFatWalls(
     !fatExempt
   );
 }
+
 /** Cheap fat-wall check — no Set copy, just checks if placing creates 2×2 blocks. */
 function checkFatWall(
   walls: Set<number>,
@@ -985,6 +1003,7 @@ function checkFatWall(
   }
   return { fatWallTiles, gapClosingFat };
 }
+
 /** Count wasted tiles in small pockets (< SMALL_POCKET_MAX_SIZE). */
 function countSmallPocketTiles(
   walls: Set<number>,
@@ -1006,6 +1025,7 @@ function countSmallPocketTiles(
   }
   return { wasted, smallestPocket };
 }
+
 /** Check if the current piece (in any rotation) can fill any of the given gaps. */
 function canPieceFillAnyGap(
   state: GameState,
@@ -1039,6 +1059,7 @@ function canPieceFillAnyGap(
   }
   return false;
 }
+
 /**
  * When the current piece can't fill any gap, check if some gaps are
  * structurally unreachable by ANY piece shape.  For those, add interior plug
@@ -1076,6 +1097,7 @@ function plugUnreachableGaps(
   filterUnfillableGaps(gaps, state, player.interior);
   return true;
 }
+
 /** Check if ANY standard piece shape (in any rotation) could fill a single gap tile. */
 function isGapFillableByAnyShape(
   state: GameState,
@@ -1105,6 +1127,7 @@ function isGapFillableByAnyShape(
   }
   return false;
 }
+
 /** Enumerate all valid placements for a piece, scoring adjacency/gap metrics. */
 function enumerateCandidates(
   state: GameState,
@@ -1175,6 +1198,7 @@ function enumerateCandidates(
   }
   return candidates;
 }
+
 function scoreCandidateGapMetrics(
   row: number,
   col: number,
@@ -1233,6 +1257,7 @@ function scoreCandidateGapMetrics(
 
   return { gapsFilled, wallAdjacent, connectedTiles, gapAdjacent, isolated };
 }
+
 /**
  * When the best scored placement has usefulGain <= 0, pick a fallback:
  * extend toward unenclosed towers, or discard somewhere harmless.
@@ -1385,6 +1410,7 @@ function pickFallbackPlacement(
     return { placement: null, reason: 'discard-all-fat' };
   }
 }
+
 /** Create a memoized version of a function (Map-based cache). */
 function memoize<K, V>(fn: (key: K) => V): (key: K) => V {
   const cache = new Map<K, V>();
@@ -1396,6 +1422,7 @@ function memoize<K, V>(fn: (key: K) => V): (key: K) => V {
     return computed;
   };
 }
+
 function pickTowerExtensionCandidate(
   scored: Scored[],
   fallbackTowers: readonly Tower[],
@@ -1455,6 +1482,7 @@ function pickTowerExtensionCandidate(
 
   return { candidate: null, reason: 'extend-all-fat' };
 }
+
 function compareByFallbackRingDistance(
   a: Candidate,
   b: Candidate,
@@ -1467,6 +1495,7 @@ function compareByFallbackRingDistance(
     ringDistanceForFallbackTowers(b, fallbackTowers, castleMargin, ringDistanceCache).distance
   );
 }
+
 function isExtensionCandidateForFallback(
   candidate: Candidate,
   fallbackTowers: readonly Tower[],
@@ -1486,6 +1515,7 @@ function isExtensionCandidateForFallback(
   if (isInsideOrFatCandidate(candidate)) return false;
   return true;
 }
+
 function ringDistanceForFallbackTowers(
   candidate: Candidate,
   fallbackTowers: readonly Tower[],
@@ -1507,6 +1537,7 @@ function ringDistanceForFallbackTowers(
   ringDistanceCache.set(candidate, result);
   return result;
 }
+
 function candidateRingDistanceForTower(
   candidate: Candidate,
   tower: Tower,
@@ -1546,6 +1577,7 @@ function candidateRingDistanceForTower(
 
   return { distance, tooClose };
 }
+
 function isExtensionFallbackCandidateForFallback(
   candidate: Candidate,
   createsSmallEnclosureCached: (candidate: Candidate) => boolean,
@@ -1553,6 +1585,7 @@ function isExtensionFallbackCandidateForFallback(
 ): boolean {
   return !createsSmallEnclosureCached(candidate) && !isInsideOrFatCandidate(candidate);
 }
+
 function pickDiscardCandidate(
   scored: Scored[],
   caresAboutHouses: boolean,
@@ -1575,6 +1608,7 @@ function pickDiscardCandidate(
   );
   return throwAway[0]!.candidate;
 }
+
 function compareDiscardCandidatesForFallback(
   a: Scored,
   b: Scored,
@@ -1590,6 +1624,7 @@ function compareDiscardCandidatesForFallback(
   if (aEncloses !== bEncloses) return aEncloses - bEncloses;
   return a.fatWallTiles - b.fatWallTiles;
 }
+
 function candidateObstacleHits(
   candidate: Pick<Candidate, "housesHit" | "bonusHit">,
   caresAboutHouses: boolean,
@@ -1598,6 +1633,7 @@ function candidateObstacleHits(
   return (caresAboutHouses ? candidate.housesHit : 0) +
     (caresAboutBonuses ? candidate.bonusHit : 0);
 }
+
 function candidateToPlacement(candidate: Candidate): AiPlacement {
   return {
     piece: candidate.rotation,
@@ -1605,12 +1641,14 @@ function candidateToPlacement(candidate: Candidate): AiPlacement {
     col: candidate.col,
   };
 }
+
 function isFatFreeCandidate(
   walls: Set<number>,
   candidate: { row: number; col: number; rotation?: PieceShape; piece?: PieceShape },
 ): boolean {
   return countFatBlocks(walls, candidate) === 0;
 }
+
 /** Count 2×2 all-wall blocks a candidate would create (no exemptions). */
 function countFatBlocks(
   walls: Set<number>,
@@ -1626,6 +1664,7 @@ function countFatBlocks(
   }
   return blocks;
 }
+
 /** Build the added-key set and wall predicate for a candidate placement. */
 function buildCandidateWallInfo(
   walls: Set<number>,
@@ -1641,6 +1680,7 @@ function buildCandidateWallInfo(
   const isWall = (k: number) => walls.has(k) || addedSet.has(k);
   return { addedKeys, addedSet, isWall };
 }
+
 /** Check if a tile creates any 2x2 all-wall block when added to existing walls. */
 function tileCreatesFatBlock(
   r: number,
@@ -1657,6 +1697,7 @@ function tileCreatesFatBlock(
   }
   return false;
 }
+
 /** Build the simulated wall set for a candidate. */
 function buildSimulatedWalls(
   walls: Set<number>,

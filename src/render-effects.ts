@@ -89,6 +89,7 @@ export function drawPhantoms(
     }
   }
 }
+
 /** Draw bonus squares (flashing green diamonds). */
 export function drawBonusSquares(
   octx: CanvasRenderingContext2D,
@@ -105,6 +106,7 @@ export function drawBonusSquares(
     octx.globalAlpha = 1.0;
   }
 }
+
 /** Draw houses (settler tents/huts). */
 export function drawHouses(
   octx: CanvasRenderingContext2D,
@@ -118,6 +120,7 @@ export function drawHouses(
     drawSprite(octx, "house", hx, hy);
   }
 }
+
 /** Draw grunts (little tanks, top-down, rotated to facing). */
 export function drawGrunts(
   octx: CanvasRenderingContext2D,
@@ -132,6 +135,7 @@ export function drawGrunts(
     drawSprite(octx, `grunt_${dir}`, gx, gy);
   }
 }
+
 /** Draw animated wave shimmer over water tiles during battle. */
 export function drawWaterAnimation(
   octx: CanvasRenderingContext2D,
@@ -178,6 +182,7 @@ export function drawWaterAnimation(
     }
   }
 }
+
 /** Draw impact flashes, cannonballs, balloons, burning pits, crosshairs, and timer. */
 export function drawBattleEffects(
   octx: CanvasRenderingContext2D,
@@ -409,6 +414,7 @@ export function drawBattleEffects(
     octx.restore();
   }
 }
+
 /** Draw a semi-transparent cannon sprite as a placement phantom. */
 function drawPhantomCannon(
   ctx: CanvasRenderingContext2D,
@@ -477,6 +483,7 @@ function drawPhantomCannon(
   }
   ctx.restore();
 }
+
 /** Draw a single phantom piece (fill + optional outline). */
 function drawPiecePhantom(
   octx: CanvasRenderingContext2D,

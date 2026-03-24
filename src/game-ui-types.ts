@@ -14,6 +14,7 @@ import type { Crosshair, PhantomPiece } from "./player-controller.ts";
 import type { Impact } from "./types.ts";
 
 export interface PlayerStats { wallsDestroyed: number; cannonsKilled: number; }
+
 export enum Mode {
   LOBBY,
   OPTIONS,
@@ -26,6 +27,7 @@ export enum Mode {
   GAME,
   STOPPED,
 }
+
 export interface TimerAccums {
   battle: number;
   cannon: number;
@@ -34,6 +36,7 @@ export interface TimerAccums {
   build: number;
   grunt: number;
 }
+
 export interface GameSettings {
   difficulty: number;
   rounds: number;
@@ -44,19 +47,24 @@ export interface GameSettings {
   keyBindings: KeyBindings[];
   leftHanded: boolean; // true = d-pad on right, action buttons on left
 }
+
 export type SeedMode = typeof SEED_RANDOM | typeof SEED_CUSTOM;
+
 export type GameOverFocus = typeof FOCUS_REMATCH | typeof FOCUS_MENU;
+
 export interface ControlsState {
   playerIdx: number;
   actionIdx: number;
   rebinding: boolean;
 }
+
 /** Game-over overlay data shared by FrameData and UIOverlay. */
 export interface GameOverOverlay {
   winner: string;
   scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: PlayerStats }[];
   focused: GameOverFocus;
 }
+
 /** Life-lost dialog overlay data shared by UIOverlay and render-composition. */
 export interface LifeLostDialogOverlay {
   entries: {
@@ -72,6 +80,7 @@ export interface LifeLostDialogOverlay {
   timer: number;
   maxTimer: number;
 }
+
 /** Per-frame data written by tick functions, read by render(). */
 export interface FrameData {
   crosshairs: Crosshair[];
@@ -103,6 +112,7 @@ export interface FrameData {
   announcement?: string;
   gameOver?: GameOverOverlay;
 }
+
 /** Battle animation state — snapshots and effects. */
 export interface BattleAnimState {
   territory: Set<number>[];
@@ -110,6 +120,7 @@ export interface BattleAnimState {
   flights: { flight: BalloonFlight; progress: number }[];
   impacts: Impact[];
 }
+
 /** Player selection lobby state. */
 export interface LobbyState {
   joined: boolean[];
@@ -161,9 +172,11 @@ export const OPTION_NAMES = ["Difficulty", "Rounds", "Cannon Kill", "Haptics", "
 export function createTimerAccums(): TimerAccums {
   return { battle: 0, cannon: 0, select: 0, selectAnnouncement: 0, build: 0, grunt: 0 };
 }
+
 export function createControlsState(): ControlsState {
   return { playerIdx: 0, actionIdx: 0, rebinding: false };
 }
+
 export function loadSettings(): GameSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
@@ -186,11 +199,13 @@ export function loadSettings(): GameSettings {
   } catch { /* ignore corrupt data */ }
   return { ...DEFAULT_SETTINGS, keyBindings: deepCopyBindings() };
 }
+
 export function saveSettings(settings: GameSettings): void {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   } catch { /* storage full or unavailable */ }
 }
+
 export function formatKeyName(key: string): string {
   if (key === "ArrowUp") return "\u2191";
   if (key === "ArrowDown") return "\u2193";
@@ -200,6 +215,7 @@ export function formatKeyName(key: string): string {
   if (key.length === 1) return key.toUpperCase();
   return key;
 }
+
 export function cycleOption(
   dir: number,
   optionsCursor: number,
@@ -244,6 +260,7 @@ export function cycleOption(
   // optionsCursor === 4 (Seed) — handled via direct keyboard input in options handler
   // optionsCursor === 5 (Controls) — no left/right value, opened via confirm
 }
+
 /** Apply a key rebinding with conflict resolution (swap conflicting key). */
 export function applyKeyRebinding(kb: KeyBindings, actionKey: string, newKey: string): void {
   for (const otherAction of ACTION_KEYS) {
@@ -265,9 +282,11 @@ export function applyKeyRebinding(kb: KeyBindings, actionKey: string, newKey: st
     kb.confirmAlt = newKey;
   }
 }
+
 export function createBattleAnimState(): BattleAnimState {
   return { territory: [], walls: [], flights: [], impacts: [] };
 }
+
 function deepCopyBindings(): KeyBindings[] {
   return PLAYER_KEY_BINDINGS.map(kb => ({ ...kb }));
 }

@@ -906,10 +906,12 @@ export class AiController extends BaseController {
     }
   }
 }
+
 /** Check if two pieces have the same shape (ignoring position). */
 function sameShape(a: PieceShape, b: PieceShape): boolean {
   return pieceKey(a) === pieceKey(b);
 }
+
 /** Normalized key for a piece shape (origin-independent). */
 function pieceKey(p: PieceShape): string {
   const minR = Math.min(...p.offsets.map((o) => o[0]));

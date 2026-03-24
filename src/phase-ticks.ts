@@ -17,6 +17,7 @@ export interface HostNetContext {
   remoteHumanSlots: ReadonlySet<number>;
   isHost: boolean;
 }
+
 /** Networking context for the cannon placement phase. */
 interface CannonPhaseNet extends HostNetContext {
   remoteCannonPhantoms: CannonPhantom[];
@@ -41,6 +42,7 @@ interface CannonPhaseNet extends HostNetContext {
     facing: number;
   }) => void;
 }
+
 /** Networking context for the wall build phase. */
 interface BuildPhaseNet extends HostNetContext {
   remotePiecePhantoms: PiecePhantom[];
@@ -66,6 +68,7 @@ interface BuildPhaseNet extends HostNetContext {
     players: SerializedPlayer[];
   }) => void;
 }
+
 interface HostFrame {
   phantoms: {
     aiCannonPhantoms?: CannonPhantom[];
@@ -73,6 +76,7 @@ interface HostFrame {
     humanPhantoms?: HumanPiecePhantom[];
   };
 }
+
 interface TickHostCannonPhaseDeps {
   dt: number;
   state: GameState;
@@ -83,6 +87,7 @@ interface TickHostCannonPhaseDeps {
   startBattle: () => void;
   net?: CannonPhaseNet;
 }
+
 interface TickHostBuildPhaseDeps {
   dt: number;
   state: GameState;
@@ -199,6 +204,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   startBattle();
   return true;
 }
+
 export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   const {
     dt, state, accum, frame, controllers, render,

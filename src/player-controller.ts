@@ -28,6 +28,7 @@ import {
 
 /** Orbit animation parameters for AI countdown idle animation. */
 export type OrbitParams = { rx: number; ry: number; speed: number; phase: number };
+
 export interface PhantomPiece {
   offsets: [number, number][];
   row: number;
@@ -35,6 +36,7 @@ export interface PhantomPiece {
   valid: boolean;
   playerId: number;
 }
+
 export interface PhantomCannon {
   row: number;
   col: number;
@@ -44,12 +46,14 @@ export interface PhantomCannon {
   playerId: number;
   facing: number;
 }
+
 export interface Crosshair {
   x: number;
   y: number;
   playerId: number;
   cannonReady?: boolean;
 }
+
 export interface PlayerController {
   readonly playerId: number;
 

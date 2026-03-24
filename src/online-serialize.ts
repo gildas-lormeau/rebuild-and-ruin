@@ -43,6 +43,7 @@ export function applyHousesCheckpoint(
     });
   }
 }
+
 export function buildBuildStartMessage(state: GameState) {
   return {
     type: MSG.BUILD_START,
@@ -57,6 +58,7 @@ export function buildBuildStartMessage(state: GameState) {
     rngSeed: state.rng.seed,
   };
 }
+
 export function buildCannonStartMessage(state: GameState) {
   return {
     type: MSG.CANNON_START,
@@ -70,6 +72,7 @@ export function buildCannonStartMessage(state: GameState) {
     houses: serializeHouses(state),
   };
 }
+
 export function buildBattleStartMessage(
   state: GameState,
   flights?: BalloonFlight[],
@@ -96,6 +99,7 @@ export function buildBattleStartMessage(
         : undefined,
   };
 }
+
 export function buildFullStateMessage(state: GameState): FullStateMessage {
   return {
     type: MSG.FULL_STATE,
@@ -144,6 +148,7 @@ export function buildFullStateMessage(state: GameState): FullStateMessage {
     })),
   };
 }
+
 export function serializePlayers(state: GameState) {
   return state.players.map((p) => ({
     id: p.id,
@@ -164,6 +169,7 @@ export function serializePlayers(state: GameState) {
     score: p.score,
   }));
 }
+
 export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage): void {
   state.phase = Phase[msg.phase as keyof typeof Phase];
   state.round = msg.round;
@@ -220,6 +226,7 @@ export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage):
     if (cannon) state.balloonHits.set(cannon, { count: bh.count, capturerIds: bh.capturerIds });
   }
 }
+
 export function applyPlayersCheckpoint(
   state: GameState,
   serialized: SerializedPlayer[],
@@ -244,6 +251,7 @@ export function applyPlayersCheckpoint(
     player.score = sp.score;
   }
 }
+
 export function applyGruntsCheckpoint(
   state: GameState,
   serialized: { row: number; col: number }[],
@@ -254,12 +262,14 @@ export function applyGruntsCheckpoint(
     targetPlayerId: 0,
   }));
 }
+
 function serializeGrunts(state: GameState) {
   return state.grunts.map((g) => ({
     row: g.row,
     col: g.col,
   }));
 }
+
 function serializeHouses(state: GameState) {
   return state.map.houses.map((h) => ({
     row: h.row,
@@ -268,6 +278,7 @@ function serializeHouses(state: GameState) {
     alive: h.alive,
   }));
 }
+
 function serializeBurningPits(state: GameState) {
   return state.burningPits.map((p) => ({
     row: p.row,
@@ -275,6 +286,7 @@ function serializeBurningPits(state: GameState) {
     roundsLeft: p.roundsLeft,
   }));
 }
+
 function serializeBonusSquares(state: GameState) {
   return state.bonusSquares.map((b) => ({
     row: b.row,

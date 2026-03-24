@@ -61,6 +61,7 @@ export function computeFillableGaps(
   );
   return gaps;
 }
+
 export function scoreBuildTowerTarget(
   t: Tower,
   state: GameState,
@@ -105,6 +106,7 @@ export function scoreBuildTowerTarget(
       obstructionRatio * OBSTRUCTION_PENALTY * (1 - progress),
   };
 }
+
 export function hasMeaningfulHomeRingGaps(
   homeTowerEnclosed: boolean,
   castle: TileRect & { tower: Tower },
@@ -124,6 +126,7 @@ export function hasMeaningfulHomeRingGaps(
   filterUnfillableGaps(gaps, state, interior);
   return gaps.size > 0;
 }
+
 /** Remove gaps that can't be filled (non-grass, burning pit, cannon, tower, inside interior). */
 export function filterUnfillableGaps(
   gaps: Set<number>,
@@ -143,6 +146,7 @@ export function filterUnfillableGaps(
     }
   }
 }
+
 /**
  * BFS to find a connected pocket of interior tiles starting from `startKey`.
  * Returns the array of tile keys in the pocket.
@@ -169,6 +173,7 @@ export function floodPocket(
   }
   return pocket;
 }
+
 /**
  * Compute the set of "gap" tiles for a castle: positions on the wall ring
  * that are missing from walls, including diagonal leak plugs.
@@ -224,6 +229,7 @@ export function findGapTiles(
 
   return gaps;
 }
+
 /**
  * Compute the castle interior rectangle for a secondary tower.
  * Tries the given margin per side; shrinks sides that hit water or map edges and
@@ -382,6 +388,7 @@ export function castleRect(
     right: t.col + 1 + growthRight,
   };
 }
+
 /**
  * When a ring gap is unfillable (water or burning pit), the 8-dir flood can
  * still leak through it diagonally into the rect interior.  Add "plug" gaps —
@@ -436,6 +443,7 @@ function addBankPlugGaps(
     }
   }
 }
+
 /**
  * Count total ring tile positions for a castle rect (tiles on the 1-wide
  * perimeter just outside the rect, within map bounds).
@@ -457,6 +465,7 @@ function countRingTiles(rect: TileRect): number {
   }
   return count;
 }
+
 function countCastleRectObstructions(
   rect: TileRect,
   state: GameState,

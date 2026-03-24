@@ -103,6 +103,7 @@ export function generateMap(seed?: number): GameMap {
   const towers = placeTowers(zones, regionSizes, riverDist);
   return { tiles, towers, houses: [], zones, junction, exits };
 }
+
 /**
  * Build the initial castle walls around a selected tower.
  *
@@ -252,6 +253,7 @@ export function buildCastle(
     tower,
   };
 }
+
 /**
  * Get all wall tile positions for a castle (1-tile ring around interior).
  * Only includes tiles that are on-map and on grass.
@@ -282,6 +284,7 @@ export function getCastleWallTiles(
 
   return wallTiles;
 }
+
 /**
  * Apply clumsy builder cosmetic noise to a wall set, then sweep isolated tiles.
  *
@@ -377,6 +380,7 @@ export function applyClumsyBuilders(
     }
   }
 }
+
 /**
  * Called at the start of each build phase:
  * Refill houses in zones that have fewer than the refill cap.
@@ -397,6 +401,7 @@ export function startOfBuildPhaseHousekeeping(state: GameState): void {
     }
   }
 }
+
 /**
  * Spawn houses in a single zone, avoiding walls, cannons, towers, and their margins.
  * Appends new houses to state.map.houses.
@@ -440,6 +445,7 @@ export function spawnHousesInZone(state: GameState, zoneId: number): void {
     placed++;
   }
 }
+
 /**
  * Return the top N zones by grass tile count, sorted largest-first.
  * Used to identify the main player zones on the map.
@@ -462,6 +468,7 @@ export function topZonesBySize(
     .slice(0, n)
     .map(([zone, count]) => ({ zone, count }));
 }
+
 function hasThreeBalancedZones(
   regionSizes: Map<number, number>,
   maxRatio: number,
@@ -472,6 +479,7 @@ function hasThreeBalancedZones(
   if (bigZones.length < 3) return false;
   return bigZones[0]! / bigZones[2]! <= maxRatio;
 }
+
 function hasAnyThinTopZone(
   zones: number[][],
   regionSizes: Map<number, number>,
@@ -493,6 +501,7 @@ function hasAnyThinTopZone(
   }
   return false;
 }
+
 function zoneCentroidRow(zones: number[][], zoneId: number): number | null {
   let sumR = 0;
   let count = 0;
@@ -507,6 +516,7 @@ function zoneCentroidRow(zones: number[][], zoneId: number): number | null {
   if (count === 0) return null;
   return sumR / count;
 }
+
 function pickExits(rng: Rng): PixelPos[] {
   const edges = [0, 1, 2, 3]; // top, right, bottom, left
   rng.shuffle(edges);
@@ -527,6 +537,7 @@ function pickExits(rng: Rng): PixelPos[] {
     }
   });
 }
+
 function pickJunction(rng: Rng): PixelPos {
   // Keep junction roughly central so all 3 zones have enough room for towers.
   // Each zone needs at least ~10 tiles of width for 4 towers with SAFE_ZONE_PAD=3.
@@ -535,6 +546,7 @@ function pickJunction(rng: Rng): PixelPos {
     y: rng.int(11, GRID_ROWS - 12),
   };
 }
+
 function buildRiverDistanceGrid(tiles: Tile[][]): number[][] {
   const dist: number[][] = Array.from({ length: GRID_ROWS }, () =>
     new Array(GRID_COLS).fill(Infinity),
@@ -572,6 +584,7 @@ function buildRiverDistanceGrid(tiles: Tile[][]): number[][] {
 
   return dist;
 }
+
 function placeTowers(
   zones: number[][],
   regionSizes: Map<number, number>,
@@ -648,12 +661,14 @@ function placeTowers(
 
   return towers;
 }
+
 function topZoneIds(regionSizes: Map<number, number>, count: number): number[] {
   return [...regionSizes.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, count)
     .map(([id]) => id);
 }
+
 function isValidTowerPos(
   col: number,
   row: number,
@@ -689,6 +704,7 @@ function isValidTowerPos(
 
   return true;
 }
+
 function towerRectDistance(
   colA: number,
   rowA: number,
@@ -699,6 +715,7 @@ function towerRectDistance(
   const dy = Math.max(0, Math.max(rowA, rowB) - Math.min(rowA + 1, rowB + 1));
   return dx + dy;
 }
+
 /** Build set of all 2×2 tower tile keys. */
 function buildTowerTileSet(towers: Tower[]): Set<number> {
   const towerTiles = new Set<number>();
@@ -707,6 +724,7 @@ function buildTowerTileSet(towers: Tower[]): Set<number> {
   }
   return towerTiles;
 }
+
 /** Check if a position is a valid house candidate (grass, correct zone, away from water and towers). */
 function isValidHousePos(
   tiles: Tile[][],
@@ -729,10 +747,12 @@ function isValidHousePos(
       if (towerTiles.has(packTile(r + dr, c + dc))) return false;
   return true;
 }
+
 /** True if (r,c) is too close to any existing house. */
 function isHouseTooClose(houses: readonly House[], r: number, c: number): boolean {
   return houses.some(h => manhattanDistance(h.row, h.col, r, c) < HOUSE_MIN_DISTANCE);
 }
+
 /**
  * Reset tiles to grass, paint the river, smooth it, remove isolated water,
  * and flood-fill zones. Used during map generation to (re-)generate the
@@ -750,6 +770,7 @@ function generateRiverAndZones(
   removeIsolatedWater(tiles);
   return floodFillZones(tiles);
 }
+
 function resetTilesToGrass(tiles: Tile[][]): void {
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
@@ -757,6 +778,7 @@ function resetTilesToGrass(tiles: Tile[][]): void {
     }
   }
 }
+
 /**
  * Paint river onto tile grid. Each branch is 3 tiles wide (all Water).
  * Width is painted perpendicular to the path direction.
@@ -809,6 +831,7 @@ function paintRiver(
     }
   }
 }
+
 /**
  * Interpolate a smooth path from `from` to `to` via an optional midpoint for curvature.
  * Returns a list of integer (col, row) center points.
@@ -870,6 +893,7 @@ function interpolatePath(from: PixelPos, to: PixelPos, rng: Rng): PixelPos[] {
 
   return points;
 }
+
 /**
  * Smooth river edges: convert grass tiles with ≤1 grass neighbor to water.
  * Repeat until stable to remove peninsulas and jagged bits.
@@ -895,6 +919,7 @@ function smoothRiver(tiles: Tile[][]): void {
     }
   }
 }
+
 /**
  * Remove isolated water tiles: single-pass, convert water tiles with ≤1 water
  * orthogonal neighbor to grass (truly isolated stubs).
@@ -915,6 +940,7 @@ function removeIsolatedWater(tiles: Tile[][]): void {
     }
   }
 }
+
 function floodFillZones(tiles: Tile[][]): {
   zones: number[][];
   regionSizes: Map<number, number>;
@@ -951,6 +977,7 @@ function floodFillZones(tiles: Tile[][]): {
 
   return { zones, regionSizes };
 }
+
 function forEachOrthoNeighbor(
   row: number,
   col: number,
@@ -960,6 +987,7 @@ function forEachOrthoNeighbor(
     fn(row + dr, col + dc);
   }
 }
+
 /**
  * Shrink gaps until the wall ring is valid (full ring check including corners).
  * Tries to identify the specific side causing invalidity; falls back to shrinking
@@ -1020,6 +1048,7 @@ function shrinkGapsUntilValid(
   }
   return { gL, gR, gT, gB };
 }
+
 /**
  * Extend gaps to reach the target budget, preferring the shorter axis first.
  * Each extension is validated against the wall ring check.

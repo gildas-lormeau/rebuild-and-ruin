@@ -71,6 +71,7 @@ export function drawTowers(
     }
   }
 }
+
 /** Draw a highlight selector around a tower position. */
 function drawTowerHighlight(
   octx: CanvasRenderingContext2D,

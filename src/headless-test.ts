@@ -37,6 +37,7 @@ const NUM_GAMES = 3;
 const violations: Violation[] = [];
 
 console.log(`Running ${NUM_GAMES} headless games...`);
+
 for (let i = 0; i < NUM_GAMES; i++) {
   const seed = Math.floor(Math.random() * 1000000);
   const result = simulateGame(i, seed, violations);
@@ -46,6 +47,7 @@ for (let i = 0; i < NUM_GAMES; i++) {
     `  Game ${i + 1} (seed=${seed}): ${result.rounds} rounds, winner=${result.winner ?? "draw"} [${status}]`,
   );
 }
+
 function simulateGame(
   gameNum: number,
   seed: number,
@@ -155,6 +157,7 @@ function simulateGame(
 
   return { rounds: state.round, winner: null };
 }
+
 function validateGameState(
   state: GameState,
   gameNum: number,
@@ -270,9 +273,13 @@ function validateGameState(
     }
   }
 }
+
 console.log(`\n=== RESULTS ===`);
+
 console.log(`Games: ${NUM_GAMES}`);
+
 console.log(`Total violations: ${violations.length}`);
+
 if (violations.length > 0) {
   // Group by message
   const grouped = new Map<string, Violation[]>();

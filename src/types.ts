@@ -12,6 +12,7 @@ export enum Phase {
   CANNON_PLACE = "CANNON_PLACE",
   BATTLE = "BATTLE",
 }
+
 /** Input action names returned by matchKey / used in key dispatch. */
 export enum Action {
   UP = "up",
@@ -21,12 +22,14 @@ export enum Action {
   CONFIRM = "confirm",
   ROTATE = "rotate",
 }
+
 /** Cannon placement mode. */
 export enum CannonMode {
   NORMAL = "normal",
   SUPER = "super",
   BALLOON = "balloon",
 }
+
 export interface Cannon extends TilePos {
   /** Hits remaining before destruction. Persists across rounds. */
   hp: number;
@@ -37,6 +40,7 @@ export interface Cannon extends TilePos {
   /** Facing angle in radians (snapped to 45° increments). 0 = up. */
   facing?: number;
 }
+
 /** A cannon captured by a propaganda balloon — fires for the balloon owner during battle. */
 export interface CapturedCannon {
   /** The captured cannon reference. */
@@ -46,6 +50,7 @@ export interface CapturedCannon {
   /** The player who owns the balloon (capturer). */
   capturerId: number;
 }
+
 export interface Cannonball {
   /** Which cannon fired this ball (index into player.cannons). */
   cannonIdx: number;
@@ -67,17 +72,21 @@ export interface Cannonball {
   /** If true, leaves a burning pit on impact (fired from super gun). */
   incendiary?: boolean;
 }
+
 export interface Impact extends TilePos {
   /** Seconds since the impact occurred. */
   age: number;
 }
+
 export interface BurningPit extends TilePos {
   /** Battle rounds remaining before the pit expires. */
   roundsLeft: number;
 }
+
 export interface BonusSquare extends TilePos {
   zone: number;
 }
+
 export interface Player {
   id: number;
   /** The tower this player selected as home castle. */
@@ -101,6 +110,7 @@ export interface Player {
   /** Default cannon facing (radians, 0 = up) — toward enemies, set at castle creation. */
   defaultFacing: number;
 }
+
 export interface Grunt extends TilePos {
   /** Which player's territory this grunt is attacking. */
   targetPlayerId: number;
@@ -115,6 +125,7 @@ export interface Grunt extends TilePos {
   /** Facing angle in radians (snapped to 90°). 0 = up. */
   facing?: number;
 }
+
 export interface GameState {
   /** Shared seeded RNG for deterministic gameplay decisions. */
   rng: Rng;
@@ -308,6 +319,7 @@ export function isMovementAction(action: Action): boolean {
     action === Action.RIGHT
   );
 }
+
 /** True when a player can actively participate in zone-based gameplay. */
 export function isPlayerActive(
   player: Player | null | undefined,

@@ -34,6 +34,7 @@ import {
 export type CombinedCannonResult =
   | { type: "own"; combinedIdx: number; ownIdx: number }
   | { type: "captured"; combinedIdx: number; cc: CapturedCannon };
+
 /** An event emitted by applyImpact for network relay. */
 export type ImpactEvent =
   | {
@@ -54,11 +55,13 @@ export type ImpactEvent =
   | { type: typeof MSG.GRUNT_KILLED; row: number; col: number; shooterId?: number }
   | { type: typeof MSG.GRUNT_SPAWNED; row: number; col: number; targetPlayerId: number }
   | { type: typeof MSG.PIT_CREATED; row: number; col: number; roundsLeft: number };
+
 /** Result of updateCannonballs: impact positions (for VFX) + detailed events (for network). */
 interface CannonballUpdateResult {
   impacts: TilePos[];
   events: ImpactEvent[];
 }
+
 /** Flight path for a balloon animation. */
 export interface BalloonFlight {
   /** Start position in pixels (balloon base center). */
@@ -79,6 +82,7 @@ export function countdownAnnouncement(battleCountdown: number): string | undefin
   if (battleCountdown > 0) return "Fire!";
   return undefined;
 }
+
 /**
  * Fire a cannonball from a player's cannon toward a target tile (row, col).
  */
@@ -95,6 +99,7 @@ export function fireCannon(
   state.shotsFired++;
   return true;
 }
+
 /** Whether a player has a cannon ready to fire or a cannonball in flight. */
 export function canPlayerFire(state: GameState, playerId: number): boolean {
   if (nextReadyCombined(state, playerId)) return true;
@@ -102,6 +107,7 @@ export function canPlayerFire(state: GameState, playerId: number): boolean {
     (b) => b.playerId === playerId || b.scoringPlayerId === playerId,
   );
 }
+
 /**
  * Round-robin through own cannons + captured cannons (captured appended at end).
  * Returns the next ready cannon after `after` in the combined index space, or null.
@@ -135,6 +141,7 @@ export function nextReadyCombined(
   }
   return null;
 }
+
 /**
  * Check if a cannon is ready to fire (no ball currently in flight from it).
  */
@@ -162,6 +169,7 @@ export function canFire(
     (b) => b.playerId === playerId && b.cannonIdx === cannonIdx,
   );
 }
+
 /**
  * Fire a single captured cannon at a target tile. Returns true if fired.
  */
@@ -173,6 +181,7 @@ export function fireSingleCaptured(
 ): boolean {
   return fireCapturedCannon(state, cc, targetRow, targetCol);
 }
+
 /** Point all of a player's live cannons toward a crosshair position (pixels).
  *  Also aims any cannons this player has captured via propaganda balloons.
  *  When dt > 0, rotation is smooth; when dt <= 0, rotation snaps instantly. */
@@ -213,6 +222,7 @@ export function aimCannons(
     aimAt(cc.cannon);
   }
 }
+
 /**
  * Update all cannonballs. Move them toward their target. On arrival, apply damage.
  * Returns impact positions (for visual effects) and detailed events (for network relay).
@@ -259,6 +269,7 @@ export function updateCannonballs(
   state.cannonballs = remaining;
   return { impacts, events };
 }
+
 /**
  * Apply a single impact event to game state. Used by both host and watcher.
  */
@@ -326,6 +337,7 @@ export function applyImpactEvent(
     }
   }
 }
+
 /**
  * Resolve all placed propaganda balloons at the CANNON_PLACE → BATTLE transition.
  * For each balloon, find the "most dangerous" enemy cannon and capture it.
@@ -383,6 +395,7 @@ export function resolveBalloons(state: GameState): BalloonFlight[] {
   resolveBalloonCaptures(state, thisRoundTargets);
   return flights;
 }
+
 function fireCapturedCannon(
   state: GameState,
   cc: CapturedCannon,
@@ -403,6 +416,7 @@ function fireCapturedCannon(
   state.shotsFired++;
   return true;
 }
+
 /**
  * Build and push a cannonball from a cannon toward a target tile.
  * Updates cannon facing. Used by all three firing paths.
@@ -434,6 +448,7 @@ function launchCannonball(
     incendiary: cannon.super || undefined,
   });
 }
+
 /** Check if a captured cannon is ready to fire (not destroyed, no ball in flight). */
 function canFireCaptured(state: GameState, cc: CapturedCannon): boolean {
   const cannon = cc.cannon;
@@ -446,6 +461,7 @@ function canFireCaptured(state: GameState, cc: CapturedCannon): boolean {
     (b) => b.playerId === cc.victimId && b.cannonIdx === cannonIdx,
   );
 }
+
 /**
  * Compute impact events at a tile position (pure — no state mutation).
  * Returns events describing what should happen: wall destroyed, cannon damaged, etc.
@@ -527,6 +543,7 @@ function computeImpact(
 
   return events;
 }
+
 /** Collect all active balloons across all players. */
 function collectAllBalloons(
   state: GameState,
@@ -541,6 +558,7 @@ function collectAllBalloons(
   }
   return result;
 }
+
 /** Find the best enemy cannon target for a balloon owned by ownerId. */
 function findBestBalloonTarget(
   state: GameState,
@@ -571,6 +589,7 @@ function findBestBalloonTarget(
 
   return bestCannon ? { cannon: bestCannon, victimId: bestVictimId } : null;
 }
+
 /** Resolve balloon captures from accumulated hits. */
 function resolveBalloonCaptures(
   state: GameState,
@@ -595,6 +614,7 @@ function resolveBalloonCaptures(
     }
   }
 }
+
 /** How many balloon hits are required to capture a cannon. */
 function balloonHitsNeeded(cannon: Cannon): number {
   return cannon.super ? SUPER_BALLOON_HITS_NEEDED : BALLOON_HITS_NEEDED;

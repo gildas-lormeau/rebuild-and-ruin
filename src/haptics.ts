@@ -11,10 +11,13 @@ const canVibrate = typeof navigator !== "undefined" && !!navigator.vibrate;
 let level = 2;
 
 export function setHapticsLevel(l: number): void { level = l; }
+
 /** Light tap for d-pad / button presses. */
 export function hapticTap(): void { vibrate(8, 2); }
+
 /** Phase transition banner. */
 export function hapticPhaseChange(): void { vibrate(40, 1); }
+
 /** Process battle events and trigger appropriate haptics for the local player. */
 export function hapticBattleEvents(
   events: Array<{ type: string; playerId?: number; hp?: number }>,
@@ -34,16 +37,22 @@ export function hapticBattleEvents(
     }
   }
 }
+
 /** Your wall was destroyed. */
 function hapticWallHit(): void { vibrate(30, 2); }
+
 /** Your cannon took damage. */
 function hapticCannonDamaged(): void { vibrate(80, 2); }
+
 /** Your cannon was destroyed. */
 function hapticCannonDestroyed(): void { vibrate(150, 2); }
+
 /** A tower was killed by grunts. */
 function hapticTowerKilled(): void { vibrate(200, 2); }
+
 /** You fired a cannon. */
 function hapticFired(): void { vibrate(15, 2); }
+
 function vibrate(ms: number, minLevel: number): void {
   if (canVibrate && level >= minLevel) navigator.vibrate(ms);
 }

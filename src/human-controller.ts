@@ -298,6 +298,7 @@ export class HumanController extends BaseController {
     this.heldActions.clear();
   }
 }
+
 function buildKeyMap(keys: KeyBindings): Map<string, Action> {
   return new Map([
     [keys.up.toLowerCase(), Action.UP],

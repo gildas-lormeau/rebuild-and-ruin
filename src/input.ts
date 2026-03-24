@@ -14,14 +14,17 @@ interface ControlsState {
   actionIdx: number;
   rebinding: boolean;
 }
+
 interface LifeLostDialogEntry {
   playerId: number;
   choice: LifeLostChoice;
   focused: number;
 }
+
 interface LifeLostDialogState {
   entries: LifeLostDialogEntry[];
 }
+
 interface ModeValues {
   LOBBY: number;
   OPTIONS: number;
@@ -34,6 +37,7 @@ interface ModeValues {
   GAME: number;
   STOPPED: number;
 }
+
 export interface RegisterOnlineInputDeps {
   canvas: HTMLCanvasElement;
   getState: () => GameState | undefined;
@@ -522,6 +526,7 @@ export function registerOnlineInputHandlers(
     }
   });
 }
+
 /** Shared mode-tap dispatch — handles non-game UI taps (game over, options, lobby, etc.). Returns true if consumed. */
 export function dispatchModeTap(
   x: number,
@@ -550,6 +555,7 @@ export function dispatchModeTap(
   if (isLobbyActive()) { lobbyClick(x, y); return true; }
   return false;
 }
+
 /** Shared tower-selection tap — highlight and confirm a tower pick for the first human. */
 export function dispatchTowerSelect(
   wx: number,
@@ -571,6 +577,7 @@ export function dispatchTowerSelect(
     }
   });
 }
+
 /** Shared battle-fire dispatch — aim and fire for the first human player. */
 export function dispatchBattleFire(
   x: number,
@@ -585,6 +592,7 @@ export function dispatchBattleFire(
     deps.fireAndSend(human, state);
   });
 }
+
 /** Shared pointer-move dispatch — updates cursor/crosshair based on current phase. */
 export function dispatchPointerMove(
   x: number,

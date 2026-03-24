@@ -11,15 +11,19 @@ export interface WatcherTimingState {
   countdownStartTime: number;
   countdownDuration: number;
 }
+
 interface WatcherFrameAnnouncement {
   announcement?: string;
 }
+
 interface WatcherBattleFrame {
   crosshairs: Crosshair[];
 }
+
 interface WatcherBattleAnimState {
   impacts: Impact[];
 }
+
 interface WatcherBattleDeps {
   state: GameState;
   frame: WatcherBattleFrame;
@@ -51,6 +55,7 @@ interface WatcherBattleDeps {
     dt: number,
   ) => void;
 }
+
 interface WatcherPhantomFrame {
   phantoms: {
     aiCannonPhantoms?: CannonPhantom[];
@@ -58,6 +63,7 @@ interface WatcherPhantomFrame {
     humanPhantoms?: HumanPiecePhantom[];
   };
 }
+
 interface TickWatcherCannonPhantomsDeps {
   state: GameState;
   frame: WatcherPhantomFrame;
@@ -75,6 +81,7 @@ interface TickWatcherCannonPhantomsDeps {
     facing: number;
   }) => void;
 }
+
 interface TickWatcherBuildPhantomsDeps {
   state: GameState;
   frame: WatcherPhantomFrame;
@@ -129,6 +136,7 @@ export function tickWatcherTimers(
   const elapsed = Math.max(0, (now() - timing.phaseStartTime) / 1000);
   state.timer = Math.max(0, timing.phaseDuration - elapsed);
 }
+
 export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
   const {
     state,
@@ -238,6 +246,7 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
   maybeSendAimUpdate(ch.x, ch.y);
   aimCannons(state, myPlayerId, ch.x, ch.y, dt);
 }
+
 export function tickWatcherCannonPhantomsPhase(
   deps: TickWatcherCannonPhantomsDeps,
 ): void {
@@ -274,6 +283,7 @@ export function tickWatcherCannonPhantomsPhase(
     facing: phantom.facing ?? 0,
   });
 }
+
 export function tickWatcherBuildPhantomsPhase(
   deps: TickWatcherBuildPhantomsDeps,
 ): void {

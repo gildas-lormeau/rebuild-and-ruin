@@ -50,6 +50,7 @@ interface WatcherState {
   migrationTimer: number;
   migrationText: string;
 }
+
 export interface WatcherTickContext {
   getState: () => GameState;
   getFrame: () => FrameData;
@@ -84,6 +85,7 @@ export function createWatcherState(): WatcherState {
     migrationText: "",
   };
 }
+
 export function resetWatcherState(ws: WatcherState): void {
   ws.remoteCrosshairs.clear();
   ws.remoteCannonPhantoms = [];
@@ -96,6 +98,7 @@ export function resetWatcherState(ws: WatcherState): void {
   ws.timing.countdownStartTime = 0;
   ws.timing.countdownDuration = 0;
 }
+
 export function tickMigrationAnnouncement(
   ws: WatcherState,
   frame: { announcement?: string },
@@ -113,6 +116,7 @@ export function tickMigrationAnnouncement(
     ws.migrationText = "";
   }
 }
+
 export function tickWatcher(
   ws: WatcherState,
   dt: number,
@@ -185,6 +189,7 @@ export function tickWatcher(
 
   ctx.render();
 }
+
 export function applyCannonStartData(
   ws: WatcherState,
   msg: ServerMessage,
@@ -198,6 +203,7 @@ export function applyCannonStartData(
     buildCheckpointDeps(ws, state, battleAnim, accum, snapshotTerritory),
   );
 }
+
 export function applyBattleStartData(
   ws: WatcherState,
   msg: ServerMessage,
@@ -211,6 +217,7 @@ export function applyBattleStartData(
     buildCheckpointDeps(ws, state, battleAnim, accum, snapshotTerritory),
   );
 }
+
 export function applyBuildStartData(
   ws: WatcherState,
   msg: ServerMessage,
@@ -224,6 +231,7 @@ export function applyBuildStartData(
     buildCheckpointDeps(ws, state, battleAnim, accum, snapshotTerritory),
   );
 }
+
 /** Get the local human controller, or null if eliminated/watcher. */
 function getLocalHuman(
   state: GameState,
@@ -234,6 +242,7 @@ function getLocalHuman(
   const ctrl = controllers[myPlayerId];
   return ctrl && isHuman(ctrl) ? ctrl : null;
 }
+
 function buildCheckpointDeps(
   ws: WatcherState,
   state: GameState,

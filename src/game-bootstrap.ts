@@ -19,6 +19,7 @@ interface ShowWaitingRoomDeps {
   setLastTime: (timeMs: number) => void;
   requestFrame: () => void;
 }
+
 interface EnterTowerSelectionDeps {
   state: GameState;
   isHost: boolean;
@@ -38,6 +39,7 @@ interface EnterTowerSelectionDeps {
   requestFrame: () => void;
   log: (msg: string) => void;
 }
+
 interface InitGameDeps {
   seed: number;
   maxPlayers: number;
@@ -108,6 +110,7 @@ export function setupWaitingRoom(deps: ShowWaitingRoomDeps): void {
   setLastTime(time);
   requestFrame();
 }
+
 export function setupTowerSelection(
   deps: EnterTowerSelectionDeps,
 ): void {
@@ -193,6 +196,7 @@ export function setupTowerSelection(
   setLastTime(now());
   requestFrame();
 }
+
 /** Shared game init — used by both local startGame and online initFromServer.
  *  Generates map from seed, creates state, creates controllers, enters selection. */
 export function bootstrapGame(deps: InitGameDeps): void {

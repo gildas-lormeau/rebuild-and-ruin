@@ -69,6 +69,7 @@ export function drawAnnouncement(
   drawShadowText(octx, text, W / 2, H / 2, "rgba(0,0,0,0.7)", "#fff");
   octx.restore();
 }
+
 /** Draw phase transition banner sweeping across the screen. */
 export function drawBanner(
   octx: CanvasRenderingContext2D,
@@ -105,6 +106,7 @@ export function drawBanner(
   }
   octx.restore();
 }
+
 /** Draw score deltas floating over each player's territory. */
 export function drawScoreDeltas(
   octx: CanvasRenderingContext2D,
@@ -129,6 +131,7 @@ export function drawScoreDeltas(
   }
   octx.restore();
 }
+
 /** Draw status bar at the bottom of the canvas. */
 export function drawStatusBar(
   octx: CanvasRenderingContext2D,
@@ -181,6 +184,7 @@ export function drawStatusBar(
   }
   octx.restore();
 }
+
 /** Draw the game over overlay with winner and scores. */
 export function drawGameOver(
   octx: CanvasRenderingContext2D,
@@ -282,6 +286,7 @@ export function drawGameOver(
   octx.fillStyle = focused === FOCUS_MENU ? "#fff" : "#ccc";
   octx.fillText("Menu", menuX + btnW / 2, btnY + btnH / 2);
 }
+
 /** Draw life-lost continue/abandon dialogs (one per player). */
 export function drawLifeLostDialog(
   octx: CanvasRenderingContext2D,
@@ -383,6 +388,7 @@ export function drawLifeLostDialog(
     }
   }
 }
+
 /** Draw the options screen. */
 export function drawOptionsScreen(
   octx: CanvasRenderingContext2D,
@@ -480,6 +486,7 @@ export function drawOptionsScreen(
   }
   octx.fillText(hint, W / 2, H * 0.85);
 }
+
 /** Draw the controls rebinding screen. */
 export function drawControlsScreen(
   octx: CanvasRenderingContext2D,
@@ -593,6 +600,7 @@ export function drawControlsScreen(
     H * 0.88,
   );
 }
+
 /** Draw the player selection lobby screen. */
 export function drawPlayerSelect(
   octx: CanvasRenderingContext2D,
@@ -689,6 +697,7 @@ export function drawPlayerSelect(
   octx.fillStyle = TEXT_DIM;
   octx.fillText("F1", W - 30, 18);
 }
+
 /** Compute lobby panel layout (shared by drawing and hit-testing). */
 export function computeLobbyLayout(W: number, H: number, count: number) {
   const touch = IS_TOUCH_DEVICE;
@@ -698,10 +707,12 @@ export function computeLobbyLayout(W: number, H: number, count: number) {
   const rectY = Math.round(H * (touch ? 0.18 : 0.27));
   return { gap, rectW, rectH, rectY };
 }
+
 /** Returns true on even half of a repeating blink cycle. */
 function flashOn(intervalMs: number): boolean {
   return Math.floor(Date.now() / intervalMs) % 2 === 0;
 }
+
 /** Draw text with a dark shadow offset by 1px. */
 function drawShadowText(
   octx: CanvasRenderingContext2D,

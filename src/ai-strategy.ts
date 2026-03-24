@@ -41,17 +41,20 @@ import { CannonMode } from "./types.ts";
 export type { AiPlacement } from "./ai-strategy-build.ts";
 
 export type ChainType = (typeof Chain)[keyof typeof Chain];
+
 /** Result of planBattle — tells the controller what chain attack to execute. */
 export interface BattlePlan {
   chainTargets: TilePos[] | null;
   chainType: ChainType;
 }
+
 /** A single cannon placement decision. */
 export interface CannonPlacement {
   row: number;
   col: number;
   mode?: CannonMode.SUPER | CannonMode.BALLOON;
 }
+
 export interface AiStrategy {
   /** Seeded PRNG for reproducible AI behavior. */
   readonly rng: Rng;
@@ -114,7 +117,9 @@ export interface AiStrategy {
    *  1 = clumsy cursor, 3 = fluid aim. */
   cursorSkill: 1 | 2 | 3;
 }
+
 type ArchetypeType = (typeof Archetype)[keyof typeof Archetype];
+
 interface ArchetypeProfile {
   buildSkill: [number, number]; // [lo, hi] for 1–5
   spatialAwareness: [number, number]; // [lo, hi] for 1–3
@@ -525,6 +530,7 @@ export class DefaultStrategy implements AiStrategy {
     this.shotCounts = new WeakMap();
   }
 }
+
 /** Auto-place cannons for an AI player at scored positions inside their castle. */
 export function autoPlaceCannons(
   player: Player,
@@ -537,6 +543,7 @@ export function autoPlaceCannons(
     placeCannon(player, p.row, p.col, count, p.mode, state);
   }
 }
+
 /** Standalone pickPlacement wrapper for headless tests / external callers. */
 export function pickPlacement(
   state: GameState,
@@ -546,6 +553,7 @@ export function pickPlacement(
 ): AiPlacement | null {
   return pickPlacementImpl(state, playerId, piece, cursorPos);
 }
+
 function rollArchetype(rng: Rng): ArchetypeType {
   return rng.pick(ARCHETYPE_LIST);
 }

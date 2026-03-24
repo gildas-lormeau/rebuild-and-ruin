@@ -1,7 +1,9 @@
 import type { GameState } from "./types.ts";
 
 export type LifeLostChoice = typeof CHOICE_PENDING | typeof CHOICE_CONTINUE | typeof CHOICE_ABANDON;
+
 export type ResolvedChoice = typeof CHOICE_CONTINUE | typeof CHOICE_ABANDON;
+
 export interface LifeLostEntry {
   playerId: number;
   lives: number;
@@ -10,15 +12,18 @@ export interface LifeLostEntry {
   aiTimer: number;
   focused: number;
 }
+
 export interface LifeLostDialogState {
   entries: LifeLostEntry[];
   timer: number;
 }
+
 interface ResolveLifeLostDialogDeps {
   lifeLostDialog: LifeLostDialogState | null;
   state: GameState;
   afterLifeLostResolved: (continuing: number[]) => boolean;
 }
+
 interface TickLifeLostDialogDeps {
   dt: number;
   lifeLostDialog: LifeLostDialogState | null;
@@ -33,6 +38,7 @@ interface TickLifeLostDialogDeps {
   ) => LifeLostDialogState | null;
   onNonHostResolved: () => void;
 }
+
 interface BuildLifeLostDialogDeps {
   needsReselect: number[];
   eliminated: number[];
@@ -42,6 +48,7 @@ interface BuildLifeLostDialogDeps {
   remoteHumanSlots: Set<number>;
   isHumanController: (playerId: number) => boolean;
 }
+
 interface ResolveAfterLifeLostDeps {
   state: GameState;
   continuing: number[];
@@ -75,6 +82,7 @@ export function resolveLifeLostDialogRuntime(
   afterLifeLostResolved(continuing);
   return null;
 }
+
 export function tickLifeLostDialogRuntime(
   deps: TickLifeLostDialogDeps,
 ): LifeLostDialogState | null {
@@ -132,6 +140,7 @@ export function tickLifeLostDialogRuntime(
   onNonHostResolved();
   return null;
 }
+
 export function buildLifeLostDialogState(
   deps: BuildLifeLostDialogDeps,
 ): LifeLostDialogState {
@@ -169,6 +178,7 @@ export function buildLifeLostDialogState(
 
   return { entries, timer: 0 };
 }
+
 export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
   const {
     state,

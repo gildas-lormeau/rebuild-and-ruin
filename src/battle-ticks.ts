@@ -18,10 +18,12 @@ interface TickHostBattleCountdownDeps {
   render: () => void;
   net?: Pick<HostNetContext, "remoteHumanSlots">;
 }
+
 /** Networking context for the battle phase. */
 interface BattlePhaseNet extends HostNetContext {
   sendMessage: (msg: GameMessage) => void;
 }
+
 interface TickHostBattlePhaseDeps {
   dt: number;
   state: GameState;
@@ -46,12 +48,14 @@ interface TickHostBattlePhaseDeps {
   onBattleEvents?: (events: Array<GameMessage>) => void;
   net?: BattlePhaseNet;
 }
+
 interface BattleAnimState {
   territory: Set<number>[];
   walls: Set<number>[];
   flights: { flight: BalloonFlight; progress: number }[];
   impacts: Impact[];
 }
+
 export type BannerShow = (
   text: string,
   onDone: () => void,
@@ -59,11 +63,13 @@ export type BannerShow = (
   newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
   subtitle?: string,
 ) => void;
+
 /** Networking context for starting battle. */
 interface BattleStartNet {
   isHost: boolean;
   sendBattleStart: (flights: BalloonFlight[]) => void;
 }
+
 interface StartHostBattleLifecycleDeps {
   state: GameState;
   battleAnim: BattleAnimState;
@@ -75,6 +81,7 @@ interface StartHostBattleLifecycleDeps {
   beginBattle: () => void;
   net?: BattleStartNet;
 }
+
 interface TickHostBalloonAnimDeps {
   dt: number;
   balloonFlightDuration: number;
@@ -82,11 +89,13 @@ interface TickHostBalloonAnimDeps {
   render: () => void;
   beginBattle: () => void;
 }
+
 /** Networking context for beginning battle. */
 interface BattleBeginNet extends HostNetContext {
   watcherTiming: WatcherTimingState;
   now: () => number;
 }
+
 interface BeginHostBattleDeps {
   state: GameState;
   controllers: PlayerController[];
@@ -114,6 +123,7 @@ export function tickHostBattleCountdown(
   collectCrosshairs(false, dt);
   render();
 }
+
 export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   const {
     dt, state, battleTimer, accum, controllers, battleAnim,
@@ -172,6 +182,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   onBattlePhaseEnded();
   return true;
 }
+
 export function startHostBattleLifecycle(
   deps: StartHostBattleLifecycleDeps,
 ): void {
@@ -208,6 +219,7 @@ export function startHostBattleLifecycle(
   battleAnim.territory = snapshotTerritory();
   battleAnim.walls = state.players.map((p) => new Set(p.walls));
 }
+
 export function tickHostBalloonAnim(deps: TickHostBalloonAnimDeps): void {
   const { dt, balloonFlightDuration, battleAnim, render, beginBattle } = deps;
   let allDone = true;
@@ -223,6 +235,7 @@ export function tickHostBalloonAnim(deps: TickHostBalloonAnimDeps): void {
     beginBattle();
   }
 }
+
 export function beginHostBattle(deps: BeginHostBattleDeps): void {
   const { state, controllers, accum, battleCountdown, setModeGame } = deps;
   const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET;

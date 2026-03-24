@@ -8,6 +8,7 @@ export interface SelectionState {
   highlighted: number;
   confirmed: boolean;
 }
+
 interface TickSelectionPhaseDeps {
   dt: number;
   state: GameState;
@@ -52,6 +53,7 @@ export function initTowerSelection(
     player.ownedTowers = [tower];
   }
 }
+
 export function highlightTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
@@ -89,6 +91,7 @@ export function highlightTowerSelection(
   onOverlayChanged();
   render();
 }
+
 export function confirmTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
@@ -129,6 +132,7 @@ export function confirmTowerSelection(
   render();
   return allSelectionsConfirmed(selectionStates);
 }
+
 export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
   const {
     dt,
@@ -219,6 +223,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     else finishSelection();
   }
 }
+
 export function allSelectionsConfirmed(
   selectionStates: Map<number, SelectionState>,
 ): boolean {
@@ -227,6 +232,7 @@ export function allSelectionsConfirmed(
   }
   return true;
 }
+
 export function finishSelectionPhase(deps: {
   state: GameState;
   selectionStates: Map<number, SelectionState>;
@@ -241,6 +247,7 @@ export function finishSelectionPhase(deps: {
   clearOverlaySelection();
   finalizeAndAdvance();
 }
+
 function zoneTowerIndices(state: GameState, zone: number): number[] {
   return state.map.towers
     .map((t, i) => ({ t, i }))

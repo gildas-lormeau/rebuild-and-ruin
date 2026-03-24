@@ -239,20 +239,26 @@ export function renderMap(
     drawStatusBar(ctx, cw, ch, overlay);
   }
 }
+
 for (const [lx, ly] of BLADE_DARK) GRASS_TEX[ly * TILE_SIZE + lx] = -12;
+
 for (const [lx, ly] of BLADE_LIGHT) GRASS_TEX[ly * TILE_SIZE + lx] = 10;
+
 for (const w of WAVE_HI) {
   for (let i = 0; i < w.w; i++) WATER_TEX[w.y * TILE_SIZE + w.x + i] = 15;
 }
+
 for (const w of WAVE_LO) {
   for (let i = 0; i < w.w; i++) WATER_TEX[w.y * TILE_SIZE + w.x + i] = -10;
 }
+
 function getMainCtx(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
   if (mainCtxCache?.canvas === canvas) return mainCtxCache.ctx;
   const ctx = canvas.getContext("2d", { alpha: false })!;
   mainCtxCache = { canvas, ctx };
   return ctx;
 }
+
 function ensureOffscreenSize(width: number, height: number): void {
   if (sceneCanvas.width !== width || sceneCanvas.height !== height) {
     sceneCanvas.width = width;
@@ -270,6 +276,7 @@ function ensureOffscreenSize(width: number, height: number): void {
     cachedBannerWalls = undefined;
   }
 }
+
 /** Build SDF for water/grass boundaries, blur it, and paint terrain pixels. */
 function drawTerrain(
   octx: CanvasRenderingContext2D,
@@ -499,6 +506,7 @@ function drawTerrain(
   if (inBattle) cache.battle = imgData;
   else cache.normal = imgData;
 }
+
 function getTerrainCache(
   map: MapData,
   width: number,
@@ -512,14 +520,17 @@ function getTerrainCache(
   terrainImageCache.set(map, next);
   return next;
 }
+
 function tileAt(map: MapData, r: number, c: number): number {
   if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return -1;
   return map.tiles[r]![c]!;
 }
+
 function smoothClamp(t: number): number {
   const c = Math.max(0, Math.min(1, t));
   return c * c * (3 - 2 * c);
 }
+
 function lerp3(a: RGB, b: RGB, t: number): RGB {
   return [
     a[0] + (b[0] - a[0]) * t,
@@ -527,6 +538,7 @@ function lerp3(a: RGB, b: RGB, t: number): RGB {
     a[2] + (b[2] - a[2]) * t,
   ];
 }
+
 /** Draw castle walls, interiors, wall debris, and cannons for all players. */
 function drawCastles(
   octx: CanvasRenderingContext2D,

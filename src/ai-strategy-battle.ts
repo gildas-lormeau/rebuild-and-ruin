@@ -69,6 +69,7 @@ export function countUsableCannons(state: GameState, playerId: number): number {
   }
   return count;
 }
+
 /** Plan a grunt sweep: chain-fire at enemy grunts on our territory. */
 export function planGruntSweep(
   state: GameState,
@@ -78,6 +79,7 @@ export function planGruntSweep(
 ): TilePos[] | null {
   return planGruntTargets(state, playerId, readyCount, rng);
 }
+
 /** Plan a charity sweep: kill grunts on an enemy's territory when they can't. */
 export function planCharitySweep(
   state: GameState,
@@ -96,6 +98,7 @@ export function planCharitySweep(
   }
   return null;
 }
+
 /** Plan pocket destruction: find small enclosures (< 2x2) and non-square 4-tile pockets, target one wall per pocket. */
 export function planPocketDestruction(
   state: GameState,
@@ -171,6 +174,7 @@ export function planPocketDestruction(
   if (targets.length > MAX_POCKET_TARGETS) targets.length = MAX_POCKET_TARGETS;
   return orderByNearest(targets);
 }
+
 /** Plan a super attack: like wall demolition but hit every other tile (stride of 2). */
 export function planSuperAttack(
   state: GameState,
@@ -184,6 +188,7 @@ export function planSuperAttack(
   const strided = segment.filter((_, i) => i % 2 === 0);
   return strided.length >= 2 ? strided : null;
 }
+
 /** Plan a wall demolition run: find connected enemy wall segment. */
 export function planWallDemolition(
   state: GameState,
@@ -213,6 +218,7 @@ export function planWallDemolition(
   }
   return null;
 }
+
 export function pickTargetImpl(
   state: GameState,
   playerId: number,
@@ -307,6 +313,7 @@ export function pickTargetImpl(
   // Jitter within the target tile (never spill into adjacent tiles)
   return jitterWithinTile(target.row, target.col, rand);
 }
+
 export function trackShotImpl(
   state: GameState,
   playerId: number,
@@ -325,6 +332,7 @@ export function trackShotImpl(
     }
   }
 }
+
 function collectStrategicWallTargets(
   state: GameState,
   playerId: number,
@@ -351,6 +359,7 @@ function collectStrategicWallTargets(
   }
   return strategic;
 }
+
 function collectGruntBlockingWallTargets(
   state: GameState,
   playerId: number,
@@ -397,6 +406,7 @@ function collectGruntBlockingWallTargets(
   }
   return gruntWalls;
 }
+
 /** True if any cannonball in flight is targeting (row, col). */
 function isTileTargetedByInFlightBall(
   state: GameState,
@@ -405,6 +415,7 @@ function isTileTargetedByInFlightBall(
 ): boolean {
   return state.cannonballs.some((b) => ballTargeting(b, row, col));
 }
+
 /** True if a cannonball in flight is targeting (row, col). */
 function ballTargeting(
   b: Pick<Cannonball, "targetY" | "targetX">,
@@ -416,6 +427,7 @@ function ballTargeting(
     Math.floor(b.targetX / TILE_SIZE) === col
   );
 }
+
 function collectEnemyTargets(
   state: GameState,
   playerId: number,
@@ -458,10 +470,12 @@ function collectEnemyTargets(
 
   return targets;
 }
+
 /** Return all players that are not `playerId` and not eliminated. */
 export function getActiveEnemies(state: GameState, playerId: number) {
   return state.players.filter((p) => p.id !== playerId && !p.eliminated);
 }
+
 function isEnemyEligibleForFocus(
   enemyId: number,
   focusPlayerId: number | null,
@@ -471,6 +485,7 @@ function isEnemyEligibleForFocus(
   if (!switchTarget) return enemyId === focusPlayerId;
   return enemyId !== focusPlayerId;
 }
+
 function pickSweetSpotTarget(
   targets: TargetCandidate[],
   currentRow: number,
@@ -490,6 +505,7 @@ function pickSweetSpotTarget(
   });
   return pickRandomFromTop(targets, TOP_TARGET_PICK_COUNT, rand);
 }
+
 function pickJitteredNearestTarget(
   targets: TilePos[],
   currentRow: number,
@@ -500,6 +516,7 @@ function pickJitteredNearestTarget(
   const target = pickRandomFromTop(targets, TOP_TARGET_PICK_COUNT, rand);
   return jitterWithinTile(target.row, target.col, rand);
 }
+
 /** Sort targets in-place by Manhattan distance from a reference tile. */
 function sortByDistanceFrom(
   targets: TilePos[],
@@ -512,6 +529,7 @@ function sortByDistanceFrom(
       manhattanDistance(b.row, b.col, refRow, refCol),
   );
 }
+
 function pickRandomFromTop<T>(
   items: readonly T[],
   topCount: number,
@@ -520,6 +538,7 @@ function pickRandomFromTop<T>(
   const count = Math.min(topCount, items.length);
   return items[Math.floor(rand() * count)]!;
 }
+
 function jitterWithinTile(
   row: number,
   col: number,
@@ -533,6 +552,7 @@ function jitterWithinTile(
     y: row * TILE_SIZE + low + rand() * (high - low),
   };
 }
+
 /** Target grunts attacking a specific player, ordered by nearest neighbor from a random start. */
 function planGruntTargets(
   state: GameState,
@@ -553,6 +573,7 @@ function planGruntTargets(
   ];
   return orderByNearest(positions, readyCount);
 }
+
 /** Check if a 4-tile pocket forms a 2x2 square (can fit a cannon). */
 function is2x2(keys: number[]): boolean {
   const minRow = Math.min(...keys.map((key) => unpackTile(key).r));
@@ -565,6 +586,7 @@ function is2x2(keys: number[]): boolean {
   ]);
   return keys.length === 4 && keys.every((key) => expected.has(key));
 }
+
 /** Random walk to find up to maxLength connected wall tiles. */
 function findConnectedWalls(
   walls: Set<number>,

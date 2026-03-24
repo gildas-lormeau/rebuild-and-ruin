@@ -126,6 +126,7 @@ export function loadAtlas(src = `${BASE}assets/sprites.png`): Promise<void> {
     img.src = src;
   });
 }
+
 /**
  * Draw a named sprite onto a canvas context at (dx, dy) in pixel coordinates.
  * Returns false if the atlas isn't loaded or the sprite name is unknown
@@ -143,6 +144,7 @@ export function drawSprite(
   ctx.drawImage(atlas, rect.x, rect.y, rect.w, rect.h, dx, dy, rect.w, rect.h);
   return true;
 }
+
 /**
  * Draw a named sprite centered on (cx, cy).
  * Useful for entities that are positioned by their center (towers, cannons).

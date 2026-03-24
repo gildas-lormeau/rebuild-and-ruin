@@ -17,6 +17,7 @@ export interface KeyBindings {
   confirmAlt: string; // alternate confirm key
   rotate: string; // rotate piece / cycle cannon mode / accelerate crosshair
 }
+
 interface PlayerColor {
   wall: RGB;
   interiorLight: RGB;
@@ -79,6 +80,7 @@ export const ACTION_KEYS: readonly (keyof KeyBindings)[] = ["up", "down", "left"
 export function getPlayerColor(playerId: number): PlayerColor {
   return PLAYER_COLORS[playerId % PLAYER_COLORS.length]!;
 }
+
 if (
   PLAYER_COLORS.length !== PLAYER_NAMES.length ||
   PLAYER_KEY_BINDINGS.length !== PLAYER_NAMES.length

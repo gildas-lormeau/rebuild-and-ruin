@@ -12,9 +12,11 @@ interface LifeLostChoiceEntry {
   playerId: number;
   choice: LifeLostChoice;
 }
+
 interface LifeLostChoiceDialog {
   entries: LifeLostChoiceEntry[];
 }
+
 interface HandleServerIncrementalDeps {
   log: (msg: string) => void;
   isHost: boolean;
@@ -300,9 +302,11 @@ export function handleServerIncrementalMessage(
       return false;
   }
 }
+
 function validPid(pid: number, state: GameState): boolean {
   return Number.isInteger(pid) && pid >= 0 && pid < state.players.length;
 }
+
 function inBounds(row: number, col: number): boolean {
   return Number.isInteger(row) && Number.isInteger(col) &&
     row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS;

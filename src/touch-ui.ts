@@ -42,6 +42,7 @@ interface DpadDeps {
   render: () => void;
   getLeftHanded: () => boolean;
 }
+
 interface QuitButtonDeps {
   getQuitPending: () => boolean;
   setQuitPending: (v: boolean) => void;
@@ -52,6 +53,7 @@ interface QuitButtonDeps {
   isHuman: (ctrl: PlayerController) => boolean;
   render: () => void;
 }
+
 interface ZoomButtonDeps {
   getState: () => GameState | undefined;
   getCameraZone: () => number | null;
@@ -348,6 +350,7 @@ export function createDpad(deps: DpadDeps): {
     },
   };
 }
+
 export function createQuitButton(deps: QuitButtonDeps): {
   update: (phase: Phase | null) => void;
 } {
@@ -403,6 +406,7 @@ export function createQuitButton(deps: QuitButtonDeps): {
     },
   };
 }
+
 /** Toggle between my zone (zoomed) and full map. */
 export function createHomeZoomButton(deps: ZoomButtonDeps): {
   update: (phase: Phase | null) => void;
@@ -467,6 +471,7 @@ export function createHomeZoomButton(deps: ZoomButtonDeps): {
     },
   };
 }
+
 /** Cycle through opponent zones. */
 export function createEnemyZoomButton(deps: ZoomButtonDeps): {
   update: (phase: Phase | null) => void;
@@ -525,11 +530,13 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps): {
     },
   };
 }
+
 /** Visual press feedback — scale down on press, restore on release. */
 function pressDown(btn: HTMLElement): void {
   btn.style.transform = "scale(0.88)";
   btn.style.opacity = "0.75";
 }
+
 function pressUp(btn: HTMLElement): void {
   btn.style.transform = "";
   btn.style.opacity = "";

@@ -60,6 +60,7 @@ export function buildRenderSummaryMessage(params: {
 
   return `render: phase=${phaseName} ch=${crosshairs.length}[${crosshairDetail}] phantoms=${phantomCount} impacts=${impactsCount} balls=${cannonballsCount} timer=${timer.toFixed(0)}${selectionDetail}`;
 }
+
 export function buildBannerUi(
   active: boolean,
   text: string,
@@ -77,6 +78,7 @@ export function buildBannerUi(
     y: startY + progress * (endY - startY),
   };
 }
+
 export function buildStatusBar(state: GameState, playerColors: readonly { interiorLight: RGB }[]) {
   return {
     round: state.battleLength === Infinity ? `R${state.round}` : `R${state.round}/${state.battleLength}`,
@@ -91,6 +93,7 @@ export function buildStatusBar(state: GameState, playerColors: readonly { interi
     })),
   };
 }
+
 export function syncSelectionOverlay(
   overlay: RenderOverlay,
   selectionStates: Map<number, SelectionState>,
@@ -110,6 +113,7 @@ export function syncSelectionOverlay(
     });
   }
 }
+
 export function handleLifeLostDialogClick(params: {
   state: GameState;
   lifeLostDialog: LifeLostDialogState;
@@ -148,6 +152,7 @@ export function handleLifeLostDialogClick(params: {
 
   return null;
 }
+
 export function lifeLostPanelPos(
   state: GameState,
   playerId: number,
@@ -173,6 +178,7 @@ export function lifeLostPanelPos(
     py: Math.max(2, Math.min(tsH - PANEL_H - 2, Math.round(cy - PANEL_H / 2))),
   };
 }
+
 export function buildOnlineOverlay(params: {
   previousSelection: RenderOverlay["selection"];
   state: GameState;
@@ -278,6 +284,7 @@ export function buildOnlineOverlay(params: {
     },
   };
 }
+
 function buildCastleOverlay(state: GameState): CastleData[] {
   return state.players
     .filter((p) => p.castle)
@@ -288,6 +295,7 @@ function buildCastleOverlay(state: GameState): CastleData[] {
       playerId: p.id,
     }));
 }
+
 function buildHomeTowersByIndex(state: GameState): Map<number, number> {
   const homeTowers = new Map<number, number>();
   for (const player of state.players) {
@@ -297,6 +305,7 @@ function buildHomeTowersByIndex(state: GameState): Map<number, number> {
   }
   return homeTowers;
 }
+
 function buildLifeLostDialogUi(
   dialog: LifeLostDialogState | null,
   playerNames: ReadonlyArray<string>,
@@ -324,6 +333,7 @@ function buildLifeLostDialogUi(
     maxTimer,
   };
 }
+
 function buildBattleCannonballsPayload(
   inBattle: boolean,
   cannonballs: Array<{
@@ -352,6 +362,7 @@ function buildBattleCannonballsPayload(
     };
   });
 }
+
 function buildBattleBalloonsPayload(
   flights: Array<{
     flight: { startX: number; startY: number; endX: number; endY: number };

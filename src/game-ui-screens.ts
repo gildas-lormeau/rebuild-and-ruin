@@ -50,10 +50,12 @@ export function renderOptions(ctx: UIContext): void {
   renderMap(ctx.getState()?.map ?? lobbyMap, ctx.canvas, overlay);
   buildOptionsUi(ctx);
 }
+
 export function showOptions(ctx: UIContext, modeValues: { OPTIONS: Mode }): void {
   ctx.optionsCursor.value = 0;
   ctx.setMode(modeValues.OPTIONS);
 }
+
 export function closeOptions(ctx: UIContext, modeValues: { LOBBY: Mode; GAME: Mode }): void {
   const returnMode = ctx.getOptionsReturnMode();
   if (returnMode !== null) {
@@ -65,6 +67,7 @@ export function closeOptions(ctx: UIContext, modeValues: { LOBBY: Mode; GAME: Mo
     saveSettings(ctx.settings);
   }
 }
+
 export function renderControls(ctx: UIContext): void {
   const lobbyMap = ctx.lobby.map ?? generateMap(0);
   ctx.lobby.map = lobbyMap;
@@ -72,16 +75,19 @@ export function renderControls(ctx: UIContext): void {
   renderMap(ctx.getState()?.map ?? lobbyMap, ctx.canvas, overlay);
   buildControlsUi(ctx);
 }
+
 export function showControls(ctx: UIContext, modeValues: { CONTROLS: Mode }): void {
   ctx.controlsState.playerIdx = 0;
   ctx.controlsState.actionIdx = 0;
   ctx.controlsState.rebinding = false;
   ctx.setMode(modeValues.CONTROLS);
 }
+
 export function closeControls(ctx: UIContext, modeValues: { OPTIONS: Mode }): void {
   saveSettings(ctx.settings);
   ctx.setMode(modeValues.OPTIONS);
 }
+
 export function togglePause(ctx: UIContext, modeValues: { GAME: Mode; SELECTION: Mode }): boolean {
   const mode = ctx.getMode();
   if (mode !== modeValues.GAME && mode !== modeValues.SELECTION) return false;
@@ -90,6 +96,7 @@ export function togglePause(ctx: UIContext, modeValues: { GAME: Mode; SELECTION:
   ctx.getFrame().announcement = next ? "PAUSED" : undefined;
   return true;
 }
+
 /** Tick the lobby — render + check expiry. Calls `onExpired` when timer runs out or all slots are filled. */
 export function tickLobby(ctx: UIContext, onExpired: () => void): void {
   if (!ctx.lobby.active) return;
@@ -100,6 +107,7 @@ export function tickLobby(ctx: UIContext, onExpired: () => void): void {
     onExpired();
   }
 }
+
 export function renderLobby(ctx: UIContext): void {
   const remaining = Math.max(0, ctx.getLobbyRemaining());
   const lobbyOverlay: RenderOverlay = {
@@ -121,6 +129,7 @@ export function renderLobby(ctx: UIContext): void {
   if (!ctx.lobby.map) ctx.lobby.map = generateMap(0);
   renderMap(ctx.getState()?.map ?? ctx.lobby.map, ctx.canvas, lobbyOverlay);
 }
+
 /** Handle a lobby key press — resolve slot from key bindings, call `onJoin` if valid. */
 export function lobbyKeyJoin(
   ctx: UIContext,
@@ -138,6 +147,7 @@ export function lobbyKeyJoin(
   onJoin(pid);
   return true;
 }
+
 /** Speed up lobby timer by one step if allowed. Returns true if timer was advanced. */
 export function lobbySkipStep(ctx: UIContext): boolean {
   if (ctx.lobby.timerAccum === undefined) return false;
@@ -145,6 +155,7 @@ export function lobbySkipStep(ctx: UIContext): boolean {
   ctx.lobby.timerAccum += LOBBY_SKIP_STEP;
   return true;
 }
+
 function buildOptionsUi(ctx: UIContext): void {
   const oc = ctx.ctx2d;
   oc.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -163,11 +174,13 @@ function buildOptionsUi(ctx: UIContext): void {
     oc.fillText(`${prefix}${OPTION_NAMES[i]}: ${val}`, 40, y);
   }
 }
+
 export function visibleOptions(ctx: UIContext): number[] {
   // 0=Difficulty, 1=Rounds, 2=Cannon HP, 3=Haptics, 4=Seed, 5=Controls, 6=D-Pad
   if (ctx.isOnline) return IS_TOUCH_DEVICE ? [1, 2, 3, 4, 5, 6] : [1, 2, 4, 5];
   return IS_TOUCH_DEVICE ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 2, 4, 5];
 }
+
 function optionValue(ctx: UIContext, idx: number): string {
   const s = ctx.settings;
   const state = ctx.getState();
@@ -185,6 +198,7 @@ function optionValue(ctx: UIContext, idx: number): string {
   if (idx === 6) return DPAD_LABELS[s.leftHanded ? 1 : 0]!;
   return "";
 }
+
 function buildControlsUi(ctx: UIContext): void {
   const oc = ctx.ctx2d;
   oc.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);

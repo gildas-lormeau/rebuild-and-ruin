@@ -40,11 +40,14 @@ const runtime = createGameRuntime({
 });
 
 canvas.style.display = "block";
+
 runtime.registerInputHandlers();
+
 loadAtlas().then(
   () => showLobby(),
   () => showLobby(),
 );
+
 function showLobby(): void {
   const lobby = runtime.rs.lobby;
   lobby.joined = new Array(MAX_PLAYERS).fill(false);

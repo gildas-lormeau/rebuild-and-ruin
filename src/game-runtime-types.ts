@@ -83,6 +83,7 @@ export interface RuntimeConfig {
   /** Optional hook called when a game ends (before frame payload is set). */
   onEndGame?: (winner: { id: number } | null, state: GameState) => void;
 }
+
 export interface RuntimeSelection {
   getStates: () => Map<number, SelectionState>;
   init: (pid: number, zone: number) => void;
@@ -99,6 +100,7 @@ export interface RuntimeSelection {
   startReselection: () => void;
   finishReselection: () => void;
 }
+
 export interface RuntimeLifeLost {
   get: () => LifeLostDialogState | null;
   set: (d: LifeLostDialogState | null) => void;
@@ -108,6 +110,7 @@ export interface RuntimeLifeLost {
   panelPos: (playerId: number) => { px: number; py: number };
   click: (canvasX: number, canvasY: number) => void;
 }
+
 export interface GameRuntime {
   /** Mutable runtime state — direct property access replaces getter/setter pairs. */
   rs: RuntimeState;

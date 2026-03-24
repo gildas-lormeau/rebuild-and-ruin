@@ -35,6 +35,7 @@ interface CameraDeps {
   getMyPlayerId: () => number;
   getFirstHumanPlayerId: () => number;
 }
+
 interface CameraSystem {
   // Per-frame lifecycle
   tickCamera: (dt: number) => void;

@@ -33,6 +33,7 @@ export function isCannonEnclosed(
   });
   return enclosed;
 }
+
 /** Whether any valid placement exists for the given cannon mode in the player's territory. */
 export function hasAnyCannonPlacement(player: Player, mode: CannonMode, state: GameState): boolean {
   for (const key of player.interior) {
@@ -41,6 +42,7 @@ export function hasAnyCannonPlacement(player: Player, mode: CannonMode, state: G
   }
   return false;
 }
+
 /**
  * Find the nearest valid cannon placement within `maxRadius` tiles of (row, col).
  * Returns the snapped position, or null if nothing valid is nearby.
@@ -64,6 +66,7 @@ export function findNearestValidCannonPlacement(
   }
   return best;
 }
+
 /** Validate + apply cannon placement. Returns true if placed. */
 export function placeCannon(
   player: Player,
@@ -84,6 +87,7 @@ export function placeCannon(
   applyCannonPlacement(player, row, col, normalizedMode, state);
   return true;
 }
+
 /**
  * Check if a cannon can be placed at (row, col) inside the player's territory.
  * All tiles must be interior, not a wall, not a tower, not an existing cannon.
@@ -116,6 +120,7 @@ export function canPlaceCannon(
   }
   return true;
 }
+
 /** Count how many cannon slots are used by a player. Normal = 1, super = SUPER_GUN_COST, balloon = BALLOON_COST. */
 export function cannonSlotsUsed(player: Player): number {
   let slots = 0;
@@ -125,6 +130,7 @@ export function cannonSlotsUsed(player: Player): number {
   }
   return slots;
 }
+
 /** Apply cannon placement (no validation). Used by host and watcher. */
 export function applyCannonPlacement(
   player: Player,
@@ -144,11 +150,13 @@ export function applyCannonPlacement(
     facing: player.defaultFacing,
   });
 }
+
 function cannonSlotCost(cannon: Pick<Cannon, "super" | "balloon">): number {
   if (cannon.balloon) return BALLOON_COST;
   if (cannon.super) return SUPER_GUN_COST;
   return 1;
 }
+
 function overlapsExistingCannon(
   cannons: readonly Cannon[],
   row: number,
@@ -156,6 +164,7 @@ function overlapsExistingCannon(
 ): boolean {
   return cannons.some((cannon) => isCannonTile(cannon, row, col));
 }
+
 function overlapsOwnedTower(
   ownedTowers: readonly Player["ownedTowers"][number][],
   row: number,

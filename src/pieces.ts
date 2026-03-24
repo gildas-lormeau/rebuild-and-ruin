@@ -12,6 +12,7 @@ export interface PieceShape {
   /** Rotation pivot [row, col] — stays at the same grid cell when rotating. */
   pivot: [number, number];
 }
+
 interface PieceWeight {
   piece: PieceShape;
   /** Difficulty tier: 1 = simple, 2 = medium, 3 = hard. */
@@ -21,6 +22,7 @@ interface PieceWeight {
   /** Weight at round 8+. */
   late: number;
 }
+
 export interface BagState {
   round: number;
   queue: PieceShape[];
@@ -215,11 +217,13 @@ export const ALL_PIECE_SHAPES: readonly PieceShape[] = [
 export function createBag(round: number, rng?: Rng): BagState {
   return { round, queue: [], rng: rng ?? new Rng() };
 }
+
 /** Draw the next piece from the bag. Refills queue when empty. */
 export function nextPiece(bag: BagState): PieceShape {
   refillBagQueueIfNeeded(bag);
   return normalizeOrientation(bag.queue.pop()!);
 }
+
 /** Ensure the piece is oriented with its longest side horizontal. */
 function normalizeOrientation(piece: PieceShape): PieceShape {
   if (hasPortraitOrientation(piece)) {
@@ -227,6 +231,7 @@ function normalizeOrientation(piece: PieceShape): PieceShape {
   }
   return piece;
 }
+
 /** Rotate a piece 90 degrees clockwise. Pivot transforms with the offsets. */
 export function rotateCW(piece: PieceShape): PieceShape {
   const h = piece.height;
@@ -242,9 +247,11 @@ export function rotateCW(piece: PieceShape): PieceShape {
     pivot: [piece.pivot[1], h - 1 - piece.pivot[0]],
   };
 }
+
 function hasPortraitOrientation(piece: PieceShape): boolean {
   return piece.height > piece.width;
 }
+
 function refillBagQueueIfNeeded(bag: BagState): void {
   if (bag.queue.length === 0) {
     // piecePool returns pieces ordered: hard at front, simple at back.
@@ -252,6 +259,7 @@ function refillBagQueueIfNeeded(bag: BagState): void {
     bag.queue = piecePool(bag.round, bag.rng);
   }
 }
+
 function piecePool(round: number, rng: Rng): PieceShape[] {
   // t goes from 0 (round 2) to 1 (round 8+)
   const t = Math.min(1, Math.max(0, (round - PIECE_POOL_START_ROUND) / (PIECE_POOL_END_ROUND - PIECE_POOL_START_ROUND)));
@@ -283,6 +291,7 @@ function piecePool(round: number, rng: Rng): PieceShape[] {
 
   return queue;
 }
+
 function interpolatedCopies(pieceWeight: PieceWeight, t: number): number {
   return Math.round(pieceWeight.early + (pieceWeight.late - pieceWeight.early) * t);
 }
