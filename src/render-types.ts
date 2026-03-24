@@ -133,6 +133,7 @@ export interface UIOverlay {
   gameOver?: GameOverOverlay;
   timer?: number;
   scoreDeltas?: { playerId: number; delta: number; total: number; cx: number; cy: number }[];
+  scoreDeltaProgress?: number;
   statusBar?: { round: string; phase: string; timer: string; players: { score: number; cannons: number; lives: number; color: RGB; eliminated: boolean }[] };
   lifeLostDialog?: LifeLostDialogOverlay;
   optionsScreen?: {

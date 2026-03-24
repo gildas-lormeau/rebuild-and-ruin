@@ -61,7 +61,7 @@ interface CameraSystem {
 
   // Lifecycle commands
   /** Light unzoom: clear cameraZone + pinchVp only (preserves per-phase memory for autoZoom restore). */
-  unzoomForBanner: () => void;
+  lightUnzoom: () => void;
   /** Full unzoom: clear all zoom state for returnToLobby/endGame. */
   unzoom: () => void;
   /** Full reset for rematch. */
@@ -442,7 +442,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Lifecycle commands ---
 
-  function unzoomForBanner(): void {
+  function lightUnzoom(): void {
     cameraZone = null;
     pinchVp = null;
   }
@@ -508,7 +508,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     getBestEnemyZone,
     getEnemyZones,
     computeZoneBounds,
-    unzoomForBanner,
+    lightUnzoom,
     getCameraZone: () => cameraZone,
     setCameraZone,
     unzoom,

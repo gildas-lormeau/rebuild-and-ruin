@@ -133,15 +133,21 @@ export function drawScoreDeltas(
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.ui?.scoreDeltas?.length) return;
+  const progress = overlay.ui.scoreDeltaProgress ?? 1;
+  const linear = Math.min(1, progress / 0.8); // count up in first 80%, hold final value for last 20%
+  const t = linear ** 3; // ease-in cubic: slow start, fast finish
+  const fade = Math.min(1, progress / 0.15); // fade in over first 15%
   octx.save();
+  octx.globalAlpha = fade;
   octx.textAlign = "center";
   octx.textBaseline = "middle";
   for (const d of overlay.ui.scoreDeltas) {
-    // "+350" in player color with dark outline
+    const shown = Math.round(d.delta * t);
+    const total = d.total - d.delta + shown;
     octx.font = FONT_FLOAT_LG;
-    drawShadowText(octx, `+${d.delta}`, d.cx, d.cy - 6, "rgba(0,0,0,0.8)", "#fff");
+    drawShadowText(octx, `+${shown}`, d.cx, d.cy - 6, "rgba(0,0,0,0.8)", "#fff");
     octx.font = FONT_FLOAT_MD;
-    drawShadowText(octx, `${d.total}`, d.cx, d.cy + 8, "rgba(0,0,0,0.6)", GOLD_LIGHT);
+    drawShadowText(octx, `${total}`, d.cx, d.cy + 8, "rgba(0,0,0,0.6)", GOLD_LIGHT);
   }
   octx.restore();
 }
