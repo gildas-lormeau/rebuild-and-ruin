@@ -10,7 +10,7 @@ import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { spawnGruntNearPosition, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
 import type { PieceShape } from "./pieces.ts";
-import { computeOutside, forEachTowerTile, inBounds, isGrass, isPitAt, manhattanDistance, packTile } from "./spatial.ts";
+import { computeOutside, DIRS_8, forEachTowerTile, inBounds, isGrass, isPitAt, isWater, manhattanDistance, packTile } from "./spatial.ts";
 import type { GameState, Player } from "./types.ts";
 import { BONUS_SQUARE_MIN_DISTANCE, BONUS_SQUARES_PER_ZONE, CASTLE_BONUS_TABLE, DESTROY_GRUNT_POINTS, ENCLOSED_GRUNT_RESPAWN_CHANCE, isPlayerActive, TERRITORY_POINT_TIERS } from "./types.ts";
 
@@ -311,6 +311,11 @@ export function replenishBonusSquares(state: GameState): void {
         const key = packTile(r, c);
         if (occupied.has(key)) continue;
         if (enclosed.has(key)) continue;
+        // Must not be adjacent to map edge or water (unenclosable)
+        if (DIRS_8.some(([dr, dc]) => {
+          const nr = r + dr, nc = c + dc;
+          return !inBounds(nr, nc) || isWater(tiles, nr, nc);
+        })) continue;
         candidates.push([r, c]);
       }
     }

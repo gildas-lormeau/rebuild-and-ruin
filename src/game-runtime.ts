@@ -634,8 +634,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const showZoom = noBanner && (rs.mode === Mode.GAME || rs.mode === Mode.SELECTION);
     const hasHuman = firstHuman() !== null;
     dpad?.update(hasHuman && (rs.mode === Mode.GAME || rs.mode === Mode.SELECTION) ? rs.state.phase : null);
-    homeZoomButton?.update(showZoom ? rs.state.phase : null);
-    enemyZoomButton?.update(showZoom ? rs.state.phase : null);
+    homeZoomButton?.update(showZoom && hasHuman ? rs.state.phase : null);
+    enemyZoomButton?.update(showZoom && hasHuman ? rs.state.phase : null);
     quitButton?.update(inGame || rs.mode === Mode.SELECTION ? rs.state.phase : null);
   }
 
