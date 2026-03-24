@@ -32,6 +32,9 @@ function hapticTowerKilled(): void { vibrate(200, 2); }
 /** You fired a cannon. */
 function hapticFired(): void { vibrate(15, 2); }
 
+/** Light tap for d-pad / button presses. */
+export function hapticTap(): void { vibrate(8, 2); }
+
 /** Phase transition banner. */
 export function hapticPhaseChange(): void { vibrate(40, 1); }
 

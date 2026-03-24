@@ -5,6 +5,7 @@
  * Only created on touch-capable devices.
  */
 
+import { hapticTap } from "./haptics.ts";
 import { PLAYER_COLORS } from "./player-config.ts";
 import type { PlayerController } from "./player-controller.ts";
 import {
@@ -51,6 +52,16 @@ const COLOR_ZOOM_HOME_BORDER = TOUCH_ZOOM_HOME_BORDER;
 const COLOR_ZOOM_ENEMY_BG = TOUCH_ZOOM_ENEMY_BG;
 const COLOR_ZOOM_ENEMY_BORDER = TOUCH_ZOOM_ENEMY_BORDER;
 
+/** Visual press feedback — scale down on press, restore on release. */
+function pressDown(btn: HTMLElement): void {
+  btn.style.transform = "scale(0.88)";
+  btn.style.opacity = "0.75";
+}
+function pressUp(btn: HTMLElement): void {
+  btn.style.transform = "";
+  btn.style.opacity = "";
+}
+
 const BTN_BASE_CSS = `
   border-radius: 10px;
   z-index: 100;
@@ -59,6 +70,7 @@ const BTN_BASE_CSS = `
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
   user-select: none;
+  transition: transform 60ms, opacity 60ms;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -162,8 +174,8 @@ export function createDpad(deps: DpadDeps): {
   actionGroup.appendChild(btnAction);
 
   // --- Key-repeat for arrows ---
-  const REPEAT_DELAY = 200;
-  const REPEAT_RATE = 80;
+  const REPEAT_DELAY = 120;
+  const REPEAT_RATE = 50;
   let repeatTimer: ReturnType<typeof setTimeout> | null = null;
 
   function stopRepeat() {
@@ -180,6 +192,7 @@ export function createDpad(deps: DpadDeps): {
   }
 
   function fireDirection(action: Action) {
+    hapticTap();
     const state = deps.getState();
     if (!state) return;
     if (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT) {
@@ -204,12 +217,12 @@ export function createDpad(deps: DpadDeps): {
 
   function wireArrow(btn: HTMLButtonElement, action: Action) {
     btn.addEventListener("touchstart", (e) => {
-      e.preventDefault(); e.stopPropagation(); startRepeat(action);
+      e.preventDefault(); e.stopPropagation(); pressDown(btn); startRepeat(action);
     }, { passive: false });
     btn.addEventListener("touchend", (e) => {
-      e.preventDefault(); e.stopPropagation(); stopRepeat();
+      e.preventDefault(); e.stopPropagation(); pressUp(btn); stopRepeat();
     }, { passive: false });
-    btn.addEventListener("touchcancel", () => stopRepeat());
+    btn.addEventListener("touchcancel", () => { pressUp(btn); stopRepeat(); });
   }
 
   wireArrow(btnUp, Action.UP);
@@ -219,6 +232,7 @@ export function createDpad(deps: DpadDeps): {
 
   // --- Action button: confirm selection / place piece / place cannon ---
   function handleAction() {
+    hapticTap();
     const state = deps.getState();
     if (!state) return;
     if (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT) {
@@ -243,11 +257,16 @@ export function createDpad(deps: DpadDeps): {
   }
 
   btnAction.addEventListener("touchstart", (e) => {
-    e.preventDefault(); e.stopPropagation(); handleAction();
+    e.preventDefault(); e.stopPropagation(); pressDown(btnAction); handleAction();
   }, { passive: false });
+  btnAction.addEventListener("touchend", (e) => {
+    e.preventDefault(); pressUp(btnAction);
+  }, { passive: false });
+  btnAction.addEventListener("touchcancel", () => pressUp(btnAction));
 
   // --- Rotate button: rotate piece / cycle cannon mode ---
   function handleRotate() {
+    hapticTap();
     const state = deps.getState();
     if (!state) return;
     deps.withFirstHuman((human) => {
@@ -262,8 +281,12 @@ export function createDpad(deps: DpadDeps): {
   }
 
   btnRotate.addEventListener("touchstart", (e) => {
-    e.preventDefault(); e.stopPropagation(); handleRotate();
+    e.preventDefault(); e.stopPropagation(); pressDown(btnRotate); handleRotate();
   }, { passive: false });
+  btnRotate.addEventListener("touchend", (e) => {
+    e.preventDefault(); pressUp(btnRotate);
+  }, { passive: false });
+  btnRotate.addEventListener("touchcancel", () => pressUp(btnRotate));
 
   // --- Layout: position d-pad and action group based on handedness ---
   function applyLayout(leftHanded: boolean) {
