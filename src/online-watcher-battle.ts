@@ -159,10 +159,7 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     const player = state.players[pid];
     if (!player || player.eliminated) continue;
 
-    const hasAliveCannon = player.cannons.some((c) => c.hp > 0 && !c.balloon);
-    if (!hasAliveCannon && !state.cannonballs.some((b) => b.playerId === pid)) {
-      continue;
-    }
+    if (!canPlayerFire(state, pid)) continue;
 
     let vis = watcherCrosshairPos.get(pid);
     if (!vis) {
@@ -196,7 +193,7 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
       x: vis.x,
       y: vis.y,
       playerId: pid,
-      cannonReady: state.battleCountdown <= 0,
+      cannonReady: state.battleCountdown <= 0 && !!nextReadyCombined(state, pid),
     });
     aimCannons(state, pid, vis.x, vis.y, dt);
   }

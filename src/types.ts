@@ -293,6 +293,28 @@ export const SCORE_DELTA_DISPLAY_TIME = 2;
 export const MIGRATION_ANNOUNCEMENT_DURATION = 3;
 
 // ---------------------------------------------------------------------------
+// Camera / zoom
+// ---------------------------------------------------------------------------
+/** Minimum zoom width as fraction of full map width. */
+export const MIN_ZOOM_RATIO = 0.15;
+/** Zoom viewport interpolation speed (higher = faster). */
+export const ZOOM_LERP_SPEED = 6;
+/** Maximum zoomed viewport as fraction of full map (prevents over-zoom). */
+export const MAX_ZOOM_VIEWPORT_RATIO = 0.85;
+/** Pinch threshold to snap to full map (fraction of full map width). */
+export const PINCH_FULL_MAP_SNAP = 0.95;
+/** Tile padding around player walls when computing zone bounds. */
+export const ZONE_PAD_WITH_WALLS = 4;
+/** Tile padding around zone tiles when player has no walls. */
+export const ZONE_PAD_NO_WALLS = 1;
+/** Seconds before timer reaches 0 to trigger unzoom. */
+export const PHASE_ENDING_THRESHOLD = 1.5;
+/** Seconds to wait before auto-zoom on first selection. */
+export const SELECTION_ZOOM_DELAY = 2;
+/** Pixel distance threshold for viewport lerp convergence snap. */
+export const VIEWPORT_SNAP_THRESHOLD = 0.5;
+
+// ---------------------------------------------------------------------------
 // House placement
 // ---------------------------------------------------------------------------
 /** Minimum Manhattan distance between any two houses. */

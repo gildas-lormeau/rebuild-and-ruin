@@ -279,12 +279,10 @@ export function handleLifeLostDialogClick(params: {
     const abX = px + PANEL_W / 2 + 5;
 
     if (x >= contX && x <= contX + BTN_W && y >= btnY && y <= btnY + BTN_H) {
-      entry.choice = CHOICE_CONTINUE;
       return { playerId: entry.playerId, choice: CHOICE_CONTINUE };
     }
 
     if (x >= abX && x <= abX + BTN_W && y >= btnY && y <= btnY + BTN_H) {
-      entry.choice = CHOICE_ABANDON;
       return { playerId: entry.playerId, choice: CHOICE_ABANDON };
     }
   }

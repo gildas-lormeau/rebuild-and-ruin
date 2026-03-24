@@ -91,3 +91,20 @@ import { GRID_COLS, TILE_SIZE } from "./grid.ts";
 export const GEAR_X = GRID_COLS * TILE_SIZE - 32;
 export const GEAR_Y = 4;
 export const GEAR_SIZE = 28;
+
+// ---------------------------------------------------------------------------
+// Touch UI button colors
+// ---------------------------------------------------------------------------
+
+export const TOUCH_ARROW_BG = "rgba(80, 90, 110, 0.8)";
+export const TOUCH_ARROW_BORDER = "rgba(140, 160, 190, 0.7)";
+export const TOUCH_ROTATE_BG = "rgba(200, 160, 64, 0.85)";
+export const TOUCH_ROTATE_BORDER = "rgba(240, 216, 112, 0.9)";
+export const TOUCH_ACTION_BG = "rgba(60, 160, 80, 0.85)";
+export const TOUCH_ACTION_BORDER = "rgba(100, 220, 120, 0.9)";
+export const TOUCH_QUIT_BG = "rgba(80, 40, 40, 0.7)";
+export const TOUCH_QUIT_BORDER = "rgba(180, 80, 80, 0.7)";
+export const TOUCH_ZOOM_HOME_BG = "rgba(60, 80, 120, 0.85)";
+export const TOUCH_ZOOM_HOME_BORDER = "rgba(100, 140, 200, 0.7)";
+export const TOUCH_ZOOM_ENEMY_BG = "rgba(100, 50, 50, 0.85)";
+export const TOUCH_ZOOM_ENEMY_BORDER = "rgba(180, 80, 80, 0.7)";

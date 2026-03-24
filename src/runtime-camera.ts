@@ -11,7 +11,18 @@ import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import type { Viewport } from "./render-types.ts";
 import { unpackTile } from "./spatial.ts";
 import type { GameState } from "./types.ts";
-import { Phase } from "./types.ts";
+import {
+  MAX_ZOOM_VIEWPORT_RATIO,
+  MIN_ZOOM_RATIO,
+  PHASE_ENDING_THRESHOLD,
+  Phase,
+  PINCH_FULL_MAP_SNAP,
+  SELECTION_ZOOM_DELAY,
+  VIEWPORT_SNAP_THRESHOLD,
+  ZONE_PAD_NO_WALLS,
+  ZONE_PAD_WITH_WALLS,
+  ZOOM_LERP_SPEED,
+} from "./types.ts";
 
 
 // ---------------------------------------------------------------------------
@@ -93,21 +104,12 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   let castleBuildVp: Viewport | null = null;
   let buildPinchVp: Viewport | null = null;
   let battlePinchVp: Viewport | null = null;
-  const MIN_ZOOM_RATIO = 0.15;
   const MIN_ZOOM_W = GRID_COLS * TILE_SIZE * MIN_ZOOM_RATIO;
   const cachedZoneBounds: Map<number, { vp: Viewport; wallCount: number }> = new Map();
 
   const fullMapVp: Viewport = { x: 0, y: 0, w: GRID_COLS * TILE_SIZE, h: GRID_ROWS * TILE_SIZE };
   const currentVp: Viewport = { ...fullMapVp };
   let lastVp: Viewport | null = null;
-  const ZOOM_LERP_SPEED = 6;
-  const MAX_ZOOM_VIEWPORT_RATIO = 0.85;
-  const PINCH_FULL_MAP_SNAP = 0.95;
-  const ZONE_PAD_WITH_WALLS = 4;
-  const ZONE_PAD_NO_WALLS = 1;
-  const PHASE_ENDING_THRESHOLD = 1.5;    // seconds before timer reaches 0
-  const SELECTION_ZOOM_DELAY = 2;        // seconds to wait before auto-zoom on selection
-  const VIEWPORT_SNAP_THRESHOLD = 0.5;   // pixel distance for lerp convergence
 
   // --- Helpers ---
 
@@ -226,10 +228,24 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Auto-zoom ---
 
+  /** Save current pinch to the slot for the given phase (preserves it for later restore). */
+  function savePinchForPhase(isBattle: boolean): void {
+    if (!pinchVp) return;
+    if (isBattle) battlePinchVp = { ...pinchVp };
+    else buildPinchVp = { ...pinchVp };
+  }
+
+  /** Save current pinch viewport to the phase-specific slot and restore the other. */
+  function swapPinchViewport(enteringBattle: boolean): void {
+    savePinchForPhase(!enteringBattle);
+    pinchVp = (enteringBattle ? battlePinchVp : buildPinchVp)
+      ? { ...(enteringBattle ? battlePinchVp : buildPinchVp)! }
+      : null;
+  }
+
   function autoZoom(phase: Phase): void {
     if (phase === Phase.BATTLE) {
-      if (pinchVp) buildPinchVp = { ...pinchVp };
-      pinchVp = battlePinchVp ? { ...battlePinchVp } : null;
+      swapPinchViewport(true);
       // If pinch or battleZoom points at own zone, reset — always pick enemy
       const myZone = getMyZone();
       if (pinchVp && myZone !== null) {
@@ -258,8 +274,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
         cameraZone = battleZoom;
       }
     } else {
-      if (pinchVp) battlePinchVp = { ...pinchVp };
-      pinchVp = buildPinchVp ? { ...buildPinchVp } : null;
+      swapPinchViewport(false);
       if (pinchVp) {
         cameraZone = null;
       } else {
@@ -287,10 +302,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
         (state.phase === Phase.WALL_BUILD || state.phase === Phase.CANNON_PLACE || state.phase === Phase.BATTLE);
       const lifeLostUnzoom = deps.hasLifeLostDialog() && !mobileAuto;
       if (phaseEnding || quitPending || lifeLostUnzoom || paused) {
-        if (pinchVp) {
-          if (state.phase === Phase.BATTLE) battlePinchVp = { ...pinchVp };
-          else buildPinchVp = { ...pinchVp };
-        }
+        savePinchForPhase(state.phase === Phase.BATTLE);
         cameraZone = null;
         pinchVp = null;
       }

@@ -1134,6 +1134,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     });
     if (!choice) return;
 
+    // Apply the choice to the dialog entry (mutation owned by game runtime, not render-composition)
+    const entry = rs.lifeLostDialog.entries.find(e => e.playerId === choice.playerId);
+    if (entry) entry.choice = choice.choice;
     sendLifeLostChoice(choice.choice, choice.playerId);
   }
 

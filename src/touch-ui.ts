@@ -7,7 +7,21 @@
 
 import { PLAYER_COLORS } from "./player-config.ts";
 import type { PlayerController } from "./player-controller.ts";
-import { rgb } from "./render-theme.ts";
+import {
+  rgb,
+  TOUCH_ACTION_BG,
+  TOUCH_ACTION_BORDER,
+  TOUCH_ARROW_BG,
+  TOUCH_ARROW_BORDER,
+  TOUCH_QUIT_BG,
+  TOUCH_QUIT_BORDER,
+  TOUCH_ROTATE_BG,
+  TOUCH_ROTATE_BORDER,
+  TOUCH_ZOOM_ENEMY_BG,
+  TOUCH_ZOOM_ENEMY_BORDER,
+  TOUCH_ZOOM_HOME_BG,
+  TOUCH_ZOOM_HOME_BORDER,
+} from "./render-theme.ts";
 import type { SelectionState } from "./selection.ts";
 import { findNearestTower } from "./spatial.ts";
 import type { GameState } from "./types.ts";
@@ -23,19 +37,19 @@ const ACTION_BTN = 56;     // action/rotate button size
 const DPAD_MARGIN = 84;    // distance from screen edge (clears zoom buttons at left: 24px + 48px + gap)
 const DPAD_BOTTOM = 20;    // distance from bottom
 
-// Button colors (background, border, text)
-const COLOR_ARROW_BG = "rgba(80, 90, 110, 0.8)";
-const COLOR_ARROW_BORDER = "rgba(140, 160, 190, 0.7)";
-const COLOR_ROTATE_BG = "rgba(200, 160, 64, 0.85)";
-const COLOR_ROTATE_BORDER = "rgba(240, 216, 112, 0.9)";
-const COLOR_ACTION_BG = "rgba(60, 160, 80, 0.85)";
-const COLOR_ACTION_BORDER = "rgba(100, 220, 120, 0.9)";
-const COLOR_QUIT_BG = "rgba(80, 40, 40, 0.7)";
-const COLOR_QUIT_BORDER = "rgba(180, 80, 80, 0.7)";
-const COLOR_ZOOM_HOME_BG = "rgba(60, 80, 120, 0.85)";
-const COLOR_ZOOM_HOME_BORDER = "rgba(100, 140, 200, 0.7)";
-const COLOR_ZOOM_ENEMY_BG = "rgba(100, 50, 50, 0.85)";
-const COLOR_ZOOM_ENEMY_BORDER = "rgba(180, 80, 80, 0.7)";
+// Button colors — re-aliased from render-theme for brevity in CSS templates
+const COLOR_ARROW_BG = TOUCH_ARROW_BG;
+const COLOR_ARROW_BORDER = TOUCH_ARROW_BORDER;
+const COLOR_ROTATE_BG = TOUCH_ROTATE_BG;
+const COLOR_ROTATE_BORDER = TOUCH_ROTATE_BORDER;
+const COLOR_ACTION_BG = TOUCH_ACTION_BG;
+const COLOR_ACTION_BORDER = TOUCH_ACTION_BORDER;
+const COLOR_QUIT_BG = TOUCH_QUIT_BG;
+const COLOR_QUIT_BORDER = TOUCH_QUIT_BORDER;
+const COLOR_ZOOM_HOME_BG = TOUCH_ZOOM_HOME_BG;
+const COLOR_ZOOM_HOME_BORDER = TOUCH_ZOOM_HOME_BORDER;
+const COLOR_ZOOM_ENEMY_BG = TOUCH_ZOOM_ENEMY_BG;
+const COLOR_ZOOM_ENEMY_BORDER = TOUCH_ZOOM_ENEMY_BORDER;
 
 const BTN_BASE_CSS = `
   border-radius: 10px;

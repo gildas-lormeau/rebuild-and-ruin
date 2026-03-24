@@ -13,7 +13,8 @@ import type { GameState } from "./types.ts";
 import { CannonMode } from "./types.ts";
 
 /** Shared empty map — avoids allocating a throwaway Map on every frame. */
-const EMPTY_MAP: ReadonlyMap<number, string> = new Map<number, string>();
+/** Sentinel empty map — never mutated (phantomChanged short-circuits on empty maps). */
+const EMPTY_MAP = new Map<number, string>();
 
 // ---------------------------------------------------------------------------
 // Networking context — groups all online-only deps for tick functions
@@ -21,7 +22,7 @@ const EMPTY_MAP: ReadonlyMap<number, string> = new Map<number, string>();
 
 /** Base networking context shared by all phase ticks. */
 export interface HostNetContext {
-  remoteHumanSlots: Set<number>;
+  remoteHumanSlots: ReadonlySet<number>;
   isHost: boolean;
 }
 
@@ -102,10 +103,10 @@ interface TickHostCannonPhaseDeps {
 export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   const { dt, state, accum, frame, controllers, render, startBattle } = deps;
   // Networking defaults (no-op for local play)
-  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET as Set<number>;
+  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET;
   const isHost = deps.net?.isHost ?? true;
   const remoteCannonPhantoms = deps.net?.remoteCannonPhantoms ?? [];
-  const lastSentCannonPhantom = deps.net?.lastSentCannonPhantom ?? EMPTY_MAP as Map<number, string>;
+  const lastSentCannonPhantom = deps.net?.lastSentCannonPhantom ?? EMPTY_MAP;
   const autoPlaceCannons = deps.net?.autoPlaceCannons;
   const sendOpponentCannonPlaced = deps.net?.sendOpponentCannonPlaced;
   const sendOpponentCannonPhantom = deps.net?.sendOpponentCannonPhantom;
@@ -222,10 +223,10 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
     tickGrunts, isHuman, finalizeBuildPhase, showLifeLostDialog, afterLifeLostResolved, showScoreDeltas,
   } = deps;
   // Networking defaults (no-op for local play)
-  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET as Set<number>;
+  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET;
   const isHost = deps.net?.isHost ?? true;
   const remotePiecePhantoms = deps.net?.remotePiecePhantoms ?? [];
-  const lastSentPiecePhantom = deps.net?.lastSentPiecePhantom ?? EMPTY_MAP as Map<number, string>;
+  const lastSentPiecePhantom = deps.net?.lastSentPiecePhantom ?? EMPTY_MAP;
   const serializePlayers = deps.net?.serializePlayers ?? (() => []);
   const sendOpponentPiecePlaced = deps.net?.sendOpponentPiecePlaced;
   const sendOpponentPhantom = deps.net?.sendOpponentPhantom;
