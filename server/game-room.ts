@@ -19,10 +19,17 @@ import { MSG, type RoomSettings, sanitizeRoomSettings } from "./protocol.ts";
 // Rate limit: max messages per second per type
 // Rate limits are generous — AI can act very fast.
 // These only block obvious abuse, not normal gameplay.
-const RATE_LIMITS: Record<string, number> = {
-  [MSG.AIM_UPDATE]: 30,
-  [MSG.LIFE_LOST_CHOICE]: 5,
-};
+const RATE_LIMIT_PER_SEC = 100;
+const RATE_LIMITED_TYPES: Set<string> = new Set([
+  MSG.OPPONENT_PHANTOM,
+  MSG.OPPONENT_CANNON_PHANTOM,
+  MSG.AIM_UPDATE,
+  MSG.CANNON_FIRED,
+  MSG.OPPONENT_PIECE_PLACED,
+  MSG.OPPONENT_CANNON_PLACED,
+  MSG.OPPONENT_TOWER_SELECTED,
+  MSG.LIFE_LOST_CHOICE,
+]);
 
 // Messages only the host socket can send
 const HOST_ONLY: Set<string> = new Set([
@@ -191,8 +198,7 @@ export class GameRoom {
     }
 
     // --- Rate limiting (sliding window counter) ---
-    const maxPerSec = RATE_LIMITS[type];
-    if (maxPerSec !== undefined) {
+    if (RATE_LIMITED_TYPES.has(type)) {
       if (!this.rateLimits.has(senderSocket)) {
         this.rateLimits.set(senderSocket, new Map());
       }
@@ -203,7 +209,7 @@ export class GameRoom {
         bucket = { count: 0, windowStart: now };
         socketLimits.set(type, bucket);
       }
-      if (bucket.count >= maxPerSec) {
+      if (bucket.count >= RATE_LIMIT_PER_SEC) {
         // Silently drop — no log to avoid spam
         return;
       }
