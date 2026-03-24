@@ -32,6 +32,7 @@ import { Mode } from "./game-ui-types.ts";
 import { GRID_COLS } from "./grid.ts";
 import { getWsUrl } from "./online-config.ts";
 import { broadcastLocalCrosshair, extendWithRemoteCrosshairs } from "./online-host-crosshairs.ts";
+import { rebuildControllersForPhase, syncAccumulatorsFromTimer } from "./online-host-promotion.ts";
 import { setupLobbyUi, showLobbySection } from "./online-lobby-ui.ts";
 import {
   handleBattleStartTransition,
@@ -80,7 +81,6 @@ import { loadAtlas } from "./sprites.ts";
 import {
   BANNER_DURATION,
   BATTLE_COUNTDOWN,
-  BATTLE_TIMER,
   BUILD_TIMER,
   CANNON_PLACE_TIMER,
   CannonMode,
@@ -472,42 +472,40 @@ function buildIncrementalDeps() {
 function promoteToHost(): void {
   log("PROMOTING TO HOST");
   session.isHost = true;
+
+  resetNetworkingForHost();
+  rebuildControllersForPhase(runtime.rs.state, runtime.rs.controllers, session.myPlayerId);
+  syncAccumulatorsFromTimer(runtime.rs.state, runtime.rs.accum);
+  skipPendingAnimations();
+
+  send(buildFullStateMessage(runtime.rs.state, runtime.rs.battleAnim.flights));
+  log("Promotion complete, now running as host");
+}
+
+/**
+ * Clear all networking state that the host doesn't carry over from the watcher phase.
+ * When adding new online mutable state, add its reset here.
+ */
+function resetNetworkingForHost(): void {
   resetDedup();
+  // Host uses accumulators, not wall-clock timing
+  watcher.timing.phaseStartTime = 0;
+  watcher.timing.phaseDuration = 0;
+  watcher.timing.countdownStartTime = 0;
+  watcher.timing.countdownDuration = 0;
+  // Host drives crosshair orbit/idle directly via AI controllers
+  watcher.idlePhases.clear();
+  watcher.orbitParams.clear();
+  // Keep remoteCrosshairs, remoteCannonPhantoms, remotePiecePhantoms, crosshairPos
+  // — still used by the host for remote human players via extendCrosshairs
+}
 
+/**
+ * Skip any animations or dialogs that depend on the old host's state.
+ * NOTE: when adding new Mode values, check if they need handling here.
+ */
+function skipPendingAnimations(): void {
   const state = runtime.rs.state;
-  const controllers = runtime.rs.controllers;
-
-  // Rebuild controllers: keep self as human, convert everyone else to AI
-  for (let i = 0; i < controllers.length; i++) {
-    if (i === session.myPlayerId) continue;
-    const player = state.players[i];
-    if (!player || player.eliminated) continue;
-
-    const strategySeed = state.rng.int(0, MAX_UINT32);
-    controllers[i] = createController(i, true, undefined, strategySeed);
-
-    if (state.phase === Phase.WALL_BUILD) {
-      controllers[i]!.startBuild(state);
-    } else if (state.phase === Phase.CANNON_PLACE) {
-      const max = state.cannonLimits[i] ?? 0;
-      controllers[i]!.placeCannons(state, max);
-      if (player.homeTower) {
-        controllers[i]!.cannonCursor = { row: player.homeTower.row, col: player.homeTower.col };
-      }
-      controllers[i]!.onCannonPhaseStart(state);
-    } else if (state.phase === Phase.BATTLE) {
-      controllers[i]!.resetBattle(state);
-    }
-  }
-
-  // Sync accumulators from watcher's wall-clock timer
-  const accum = runtime.rs.accum;
-  accum.build = 0; accum.cannon = 0; accum.battle = 0; accum.grunt = 0; accum.select = 0;
-  if (state.phase === Phase.WALL_BUILD) accum.build = state.buildTimer - state.timer;
-  else if (state.phase === Phase.CANNON_PLACE) accum.cannon = state.cannonPlaceTimer - state.timer;
-  else if (state.phase === Phase.BATTLE) accum.battle = BATTLE_TIMER - state.timer;
-
-  // Skip animations that depend on old host's state
   const mode = runtime.rs.mode;
   if (mode === Mode.CASTLE_BUILD) {
     runtime.rs.castleBuilds = [];
@@ -524,9 +522,7 @@ function promoteToHost(): void {
     runtime.rs.mode = Mode.GAME;
     log("Skipped banner/animation → game mode");
   }
-
-  send(buildFullStateMessage(state, runtime.rs.battleAnim.flights));
-  log("Promotion complete, now running as host");
+  // GAME, LOBBY, OPTIONS, CONTROLS, SELECTION, STOPPED — no action needed
 }
 
 function log(msg: string): void {
