@@ -298,13 +298,13 @@ export class DefaultStrategy implements AiStrategy {
     const p = ARCHETYPE_PROFILES[this.archetype];
 
     // Difficulty biases trait rolls within archetype ranges:
-    //   Easy(0):      always pick lo end of range, then subtract 1 (floor 1)
-    //   Normal(1):    roll uniformly in [lo, hi] (original behavior)
-    //   Hard(2):      always pick hi end of range
-    //   Very Hard(3): always pick hi end, then add 1 (capped per trait)
+    //   Easy(0):      lo end minus 1 (floor 1) — noticeably weaker than archetype baseline
+    //   Normal(1):    always lo end of range — competent but beatable
+    //   Hard(2):      roll uniformly in [lo, hi] — original behavior, varied and strong
+    //   Very Hard(3): hi end plus 1 (capped) — exceeds archetype limits
     const bias = (range: [number, number], cap: number): number => {
       if (difficulty <= 0) return Math.max(1, range[0] - 1);
-      if (difficulty === 2) return range[1];
+      if (difficulty === 1) return range[0];
       if (difficulty >= 3) return Math.min(cap, range[1] + 1);
       return this.rng.int(...range);
     };
