@@ -166,7 +166,7 @@ From round 2 onward, at the end of cannon placement, each non-eliminated player 
 | Wall tile | Destroyed in 1 hit |
 | Cannon (normal or super) | -1 HP per hit (destroyed at 0) |
 | Tower | **Immune** to cannonballs (only grunts can destroy towers) |
-| House | Destroyed in 1 hit; 20% chance to spawn a grunt |
+| House | Destroyed in 1 hit; 50% chance to spawn a grunt |
 | Grunt | Killed in 1 hit |
 | Incendiary hit on wall | Also creates a burning pit |
 
