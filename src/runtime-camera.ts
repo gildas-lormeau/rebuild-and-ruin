@@ -329,7 +329,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function updateViewport(): Viewport | null {
     const mode = deps.getMode();
     let target: Viewport;
-    if (castleBuildVp && (mode === Mode.CASTLE_BUILD || mode === Mode.SELECTION) && mobileZoomEnabled) {
+    if (castleBuildVp && (mode === Mode.CASTLE_BUILD || mode === Mode.SELECTION) && mobileZoomEnabled && zoomActivated) {
       target = castleBuildVp;
     } else if (pinchVp) {
       target = pinchVp;
@@ -467,7 +467,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function setCameraZone(z: number | null): void {
     const state = deps.getState();
     cameraZone = z;
-    zoomActivated = true;
+    zoomActivated = z !== null;
     pinchVp = null;
     if (state && state.phase === Phase.BATTLE) {
       battlePinchVp = null;

@@ -701,7 +701,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       confirmSelectionForPlayer: (pid, isReselect) =>
         confirmSelectionForPlayer(pid, isReselect ?? false),
       allSelectionsConfirmed,
-      allBuildsComplete: () => rs.castleBuilds.length === 0,
+      allBuildsComplete: () => rs.castleBuilds.length === 0 &&
+        rs.state.players.every(p => !p.homeTower || p.interior.size > 0 || p.eliminated),
       tickActiveBuilds: tickAllCastleBuilds,
       announcementDuration: SELECT_ANNOUNCEMENT_DURATION,
       setFrameAnnouncement: (text) => { rs.frame.announcement = text; },
