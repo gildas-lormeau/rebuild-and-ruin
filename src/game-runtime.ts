@@ -646,6 +646,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function returnToLobby(): void {
+    rs.scoreDeltaOnDone = null;
     camera.unzoom();
     rs.mouseJoinedSlot = -1;
     // Hide all DOM buttons
@@ -657,6 +658,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function endGame(winner: { id: number } | null) {
+    rs.scoreDeltaOnDone = null;
     camera.unzoom();
     config.onEndGame?.(winner, rs.state);
     const name = winner
