@@ -341,6 +341,12 @@ function reorderFile(sf: SourceFile): string {
     sortedFns,
   ];
 
+  // Sections that get blank lines between each statement
+  const spacedSections = new Set([
+    buckets[Cat.Type]!,
+    sortedFns,
+  ]);
+
   const parts: string[] = [];
   if (header.text) parts.push(header.text + "\n");
 
@@ -348,10 +354,15 @@ function reorderFile(sf: SourceFile): string {
   for (const section of sections) {
     if (section.length === 0) continue;
     if (prevSection) parts.push("\n"); // blank line between sections
+    const spaced = spacedSections.has(section);
+    let first = true;
     for (const stmt of section) {
       const skip = stmt === firstStmt && header.endPos > 0 ? header.endPos : undefined;
       const text = extractOwnText(stmt, skip);
-      parts.push("\n" + text);
+      // Blank line between statements in types/consts/functions sections
+      const sep = spaced && !first ? "\n\n" : "\n";
+      parts.push(sep + text);
+      first = false;
     }
     prevSection = true;
   }
