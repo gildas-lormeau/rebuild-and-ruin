@@ -48,7 +48,6 @@ export interface TransitionContext {
   resetZoneState: (state: GameState, zone: number) => void;
 
   // Castle build
-  prepareCastleWalls: (state: GameState) => unknown;
   finalizeCastleConstruction: (state: GameState) => void;
   enterCannonPlacePhase: (state: GameState) => void;
   getSelectionStates: () => Map<number, { highlighted: number; confirmed: boolean }>;
@@ -77,7 +76,6 @@ export function handleCastleWallsTransition(msg: ServerMessage, ctx: TransitionC
   const state = ctx.getState();
   const plans = msg.plans;
   const maxTiles = Math.max(...plans.map((p) => p.tiles.length), 0);
-  ctx.prepareCastleWalls(state);
   ctx.getSelectionStates().clear();
   ctx.clearSelectionOverlay();
   ctx.setCastleBuildFromPlans(plans, maxTiles, () => {

@@ -29,7 +29,6 @@ import {
   enterCannonPlacePhase,
   finalizeCastleConstruction,
   markPlayerReselected,
-  prepareCastleWalls,
   resetZoneState,
 } from "./game-engine.ts";
 import type { GameRuntime } from "./game-runtime.ts";
@@ -495,12 +494,12 @@ const transitionCtx: TransitionContext = {
   applyBuildStartData: (msg) => applyBuildStartData(...checkpointArgs(msg)),
   applyPlayersCheckpoint,
   resetZoneState,
-  prepareCastleWalls,
   finalizeCastleConstruction,
   enterCannonPlacePhase,
   getSelectionStates: () => runtime.selection.getStates(),
   setCastleBuildFromPlans: (plans, maxTiles, onDone) => {
-    runtime.rs.castleBuilds = [{ wallPlans: plans, maxTiles, tileIdx: 0, accum: 0, onDone }];
+    runtime.rs.castleBuilds.push({ wallPlans: plans, maxTiles, tileIdx: 0, accum: 0, onDone });
+    runtime.rs.castleBuildOnDone = onDone;
   },
   setBattleFlights: (v) => { runtime.rs.battleAnim.flights = v; },
   snapshotTerritory: () => runtime.snapshotTerritory(),

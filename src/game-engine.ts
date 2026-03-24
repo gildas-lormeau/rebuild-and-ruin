@@ -489,7 +489,7 @@ export function prepareCastleWallsForPlayer(state: GameState, playerId: number):
   return { playerId: player.id, tiles: ordered };
 }
 
-export function prepareCastleWalls(state: GameState): { playerId: number; tiles: number[] }[] {
+function prepareCastleWalls(state: GameState): { playerId: number; tiles: number[] }[] {
   const result: { playerId: number; tiles: number[] }[] = [];
   for (const player of state.players) {
     const plan = prepareCastleWallsForPlayer(state, player.id);
