@@ -52,7 +52,7 @@ npm run lint:fix          # Biome: auto-fix import sorting & unused imports
 npm run lint:unused       # Knip: dead files, unused exports & dependencies
 npm run lint:circular     # Madge: circular dependency detection
 npm run lint:duplicates   # jscpd: copy-paste / duplicate code detection
-npx tsx scripts/find-duplicate-strings.ts  # AST-based: repeated string literals
+npx tsx scripts/find-duplicate-literals.ts  # AST-based: repeated string & numeric literals
 ```
 
 Or run everything at once: `npm run lint:all`
@@ -61,7 +61,7 @@ Or run everything at once: `npm run lint:all`
 - Knip unused exports feed directly into Pass 1 (dead code)
 - jscpd clones feed directly into Pass 3 (duplicate code)
 - Madge circular deps feed into Pass 4 (misplaced logic)
-- `find-duplicate-strings.ts` findings feed into Pass 2 (hardcoded values) — extract to named constants
+- `find-duplicate-literals.ts` findings feed into Pass 2 (hardcoded values) — extract to named constants
 
 ## How to run each pass
 
