@@ -65,8 +65,7 @@ interface HandleServerIncrementalDeps {
     row: number;
     col: number;
     valid: boolean;
-    isSuper?: boolean;
-    isBalloon?: boolean;
+    kind: CannonMode;
     playerId: number;
     facing?: number;
   }[];
@@ -75,8 +74,7 @@ interface HandleServerIncrementalDeps {
       row: number;
       col: number;
       valid: boolean;
-      isSuper?: boolean;
-      isBalloon?: boolean;
+      kind: CannonMode;
       playerId: number;
       facing?: number;
     }[],
@@ -270,8 +268,7 @@ export function handleServerIncrementalMessage(
           row: msg.row,
           col: msg.col,
           valid: msg.valid,
-          isSuper: msg.mode === CannonMode.SUPER,
-          isBalloon: msg.mode === CannonMode.BALLOON,
+          kind: (msg.mode ?? CannonMode.NORMAL) as CannonMode,
           playerId: msg.playerId,
           facing: msg.facing,
         });

@@ -67,8 +67,7 @@ export interface SerializedCannon {
   row: number;
   col: number;
   hp: number;
-  super?: boolean;
-  balloon?: boolean;
+  kind: string;
   facing?: number;
 }
 

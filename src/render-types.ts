@@ -7,6 +7,7 @@ import type { GameOverOverlay, LifeLostDialogOverlay } from "./game-ui-types.ts"
 import type { House, PixelPos, TilePos, Tower } from "./geometry-types.ts";
 import type { RGB } from "./render-theme.ts";
 import type { BurningPit, Cannon, Grunt, Impact } from "./types.ts";
+import { CannonMode } from "./types.ts";
 
 export interface CastleData {
   /** Wall tile positions encoded as row*GRID_COLS+col. */
@@ -72,8 +73,7 @@ export interface PhantomOverlay {
     row: number;
     col: number;
     valid: boolean;
-    isSuper?: boolean;
-    isBalloon?: boolean;
+    kind: CannonMode;
     playerId: number;
     facing?: number;
   }[];

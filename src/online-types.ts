@@ -7,8 +7,7 @@ export type CannonPhantom = {
   row: number;
   col: number;
   valid: boolean;
-  isSuper?: boolean;
-  isBalloon?: boolean;
+  kind: CannonMode;
   playerId: number;
   facing?: number;
 };
@@ -37,9 +36,9 @@ export function interpolateToward(vis: PixelPos, tx: number, ty: number, speed: 
   else { vis.x += (dx / dist) * move; vis.y += (dy / dist) * move; }
 }
 
-/** Convert phantom booleans to wire protocol cannon mode string. */
+/** Return the wire protocol cannon mode string for a phantom. */
 export function phantomWireMode(p: CannonPhantom): CannonMode {
-  return p.isSuper ? CannonMode.SUPER : p.isBalloon ? CannonMode.BALLOON : CannonMode.NORMAL;
+  return p.kind;
 }
 
 /** Check if a phantom changed since last send; updates the map if so. */
@@ -51,7 +50,7 @@ export function phantomChanged(map: Map<number, string>, playerId: number, key: 
 
 /** Dedup key for cannon phantom network sends. Covers all fields that affect display. */
 export function cannonPhantomKey(p: CannonPhantom): string {
-  return `${p.row},${p.col},${p.isSuper},${p.isBalloon}`;
+  return `${p.row},${p.col},${p.kind}`;
 }
 
 /** Dedup key for piece phantom network sends. Covers position + shape. */

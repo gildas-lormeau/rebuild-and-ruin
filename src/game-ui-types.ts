@@ -12,6 +12,7 @@ import type { KeyBindings, RGB } from "./player-config.ts";
 import { ACTION_KEYS, MAX_PLAYERS, PLAYER_KEY_BINDINGS } from "./player-config.ts";
 import type { Crosshair, PhantomPiece } from "./player-controller.ts";
 import type { Impact } from "./types.ts";
+import { CannonMode } from "./types.ts";
 
 export interface PlayerStats { wallsDestroyed: number; cannonsKilled: number; }
 
@@ -96,8 +97,7 @@ export interface FrameData {
       row: number;
       col: number;
       valid: boolean;
-      isSuper?: boolean;
-      isBalloon?: boolean;
+      kind: CannonMode;
       playerId: number;
       facing?: number;
     }[];

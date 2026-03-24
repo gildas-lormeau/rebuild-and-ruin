@@ -41,8 +41,7 @@ export interface PhantomCannon {
   row: number;
   col: number;
   valid: boolean;
-  isSuper: boolean;
-  isBalloon: boolean;
+  kind: CannonMode;
   playerId: number;
   facing: number;
 }

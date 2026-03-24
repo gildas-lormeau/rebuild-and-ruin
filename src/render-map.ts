@@ -28,6 +28,7 @@ import {
 } from "./render-ui.ts";
 import { facingToDir8, isCannonAlive, unpackTile } from "./spatial.ts";
 import { drawSprite } from "./sprites.ts";
+import { CannonMode } from "./types.ts";
 
 interface TerrainImageCache {
   width: number;
@@ -639,16 +640,16 @@ function drawCastles(
       if (!isCannonAlive(cannon)) {
         drawSprite(
           octx,
-          cannon.super ? "super_debris" : "cannon_debris",
+          cannon.kind === CannonMode.SUPER ? "super_debris" : "cannon_debris",
           cx,
           cy,
         );
         continue;
       }
-      if (cannon.balloon) {
+      if (cannon.kind === CannonMode.BALLOON) {
         drawSprite(octx, "balloon_base", cx, cy);
       } else {
-        const prefix = cannon.super ? "super" : "cannon";
+        const prefix = cannon.kind === CannonMode.SUPER ? "super" : "cannon";
         const dir = facingToDir8(cannon.facing ?? 0);
         drawSprite(octx, `${prefix}_${dir}`, cx, cy);
       }

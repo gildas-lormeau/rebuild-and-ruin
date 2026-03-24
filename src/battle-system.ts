@@ -24,6 +24,7 @@ import {
   BALL_SPEED,
   BALLOON_HITS_NEEDED,
   BURNING_PIT_DURATION,
+  CannonMode,
   DESTROY_CANNON_POINTS,
   DESTROY_GRUNT_POINTS,
   DESTROY_WALL_POINTS,
@@ -159,7 +160,7 @@ export function canFire(
   if (!player) return false;
   const cannon = player.cannons[cannonIdx];
   if (!cannon || !isCannonAlive(cannon)) return false;
-  if (cannon.balloon) return false;
+  if (cannon.kind === CannonMode.BALLOON) return false;
   // Captured cannons cannot be fired by their original owner
   if (
     state.capturedCannons.some(
@@ -467,7 +468,7 @@ function launchCannonball(
     speed: BALL_SPEED,
     playerId,
     scoringPlayerId,
-    incendiary: cannon.super || undefined,
+    incendiary: cannon.kind === CannonMode.SUPER || undefined,
   });
 }
 
@@ -510,7 +511,7 @@ function computeImpact(
 
     for (let ci = 0; ci < player.cannons.length; ci++) {
       const cannon = player.cannons[ci]!;
-      if (!isCannonAlive(cannon) || cannon.balloon) continue;
+      if (!isCannonAlive(cannon) || cannon.kind === CannonMode.BALLOON) continue;
       if (isCannonTile(cannon, row, col)) {
         events.push({
           type: MSG.CANNON_DAMAGED,
@@ -570,7 +571,7 @@ function collectAllBalloons(
   for (const player of state.players) {
     if (player.eliminated) continue;
     for (const c of player.cannons) {
-      if (c.balloon && isCannonAlive(c))
+      if (c.kind === CannonMode.BALLOON && isCannonAlive(c))
         result.push({ balloon: c, ownerId: player.id });
     }
   }
@@ -590,13 +591,13 @@ function findBestBalloonTarget(
   for (const other of state.players) {
     if (other.id === ownerId || other.eliminated) continue;
     for (const cannon of other.cannons) {
-      if (!isCannonAlive(cannon) || cannon.balloon) continue;
+      if (!isCannonAlive(cannon) || cannon.kind === CannonMode.BALLOON) continue;
       const needed = balloonHitsNeeded(cannon);
       const prevHits = state.balloonHits.get(cannon)?.count ?? 0;
       const roundHits = assignedThisRound.get(cannon) ?? 0;
       if (prevHits + roundHits >= needed) continue;
       if (!isCannonEnclosed(cannon, other.interior)) continue;
-      const score = (cannon.super ? SUPER_GUN_THREAT_WEIGHT : 0) + cannon.hp;
+      const score = (cannon.kind === CannonMode.SUPER ? SUPER_GUN_THREAT_WEIGHT : 0) + cannon.hp;
       if (score > bestScore) {
         bestScore = score;
         bestCannon = cannon;
@@ -636,5 +637,5 @@ function resolveBalloonCaptures(
 
 /** How many balloon hits are required to capture a cannon. */
 function balloonHitsNeeded(cannon: Cannon): number {
-  return cannon.super ? SUPER_BALLOON_HITS_NEEDED : BALLOON_HITS_NEEDED;
+  return cannon.kind === CannonMode.SUPER ? SUPER_BALLOON_HITS_NEEDED : BALLOON_HITS_NEEDED;
 }

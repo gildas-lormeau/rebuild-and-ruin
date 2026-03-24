@@ -12,6 +12,7 @@ import type { BurningPit, Cannon } from "./types.ts";
 import {
   Action,
   BALLOON_SIZE,
+  CannonMode,
   NORMAL_CANNON_SIZE,
   SUPER_GUN_SIZE,
 } from "./types.ts";
@@ -59,23 +60,21 @@ export function isTowerTile(t: TilePos, r: number, c: number): boolean {
   return isTileInRect(t.row, t.col, 2, r, c);
 }
 
-/** Call `fn` for each tile of a cannon footprint (2×2 or 3×3 super). */
+/** Call `fn` for each tile of a cannon footprint (size based on kind). */
 export function forEachCannonTile(
-  cannon: Pick<Cannon, "row" | "col" | "super">,
+  cannon: Pick<Cannon, "row" | "col" | "kind">,
   fn: (r: number, c: number, key: number) => void,
 ): void {
-  const sz = cannon.super ? 3 : 2;
-  forEachSquareTile(cannon.row, cannon.col, sz, fn);
+  forEachSquareTile(cannon.row, cannon.col, cannonSize(cannon), fn);
 }
 
-/** True if (r,c) is within a cannon footprint (2×2 or 3×3 super). */
+/** True if (r,c) is within a cannon footprint (size based on kind). */
 export function isCannonTile(
-  cannon: Pick<Cannon, "row" | "col" | "super">,
+  cannon: Pick<Cannon, "row" | "col" | "kind">,
   r: number,
   c: number,
 ): boolean {
-  const sz = cannon.super ? 3 : 2;
-  return isTileInRect(cannon.row, cannon.col, sz, r, c);
+  return isTileInRect(cannon.row, cannon.col, cannonSize(cannon), r, c);
 }
 
 /** Manhattan distance from (r,c) to nearest tile of a 2×2 tower. */
@@ -87,7 +86,7 @@ export function distanceToTower(t: TilePos, r: number, c: number): number {
 
 /** Center of a cannon footprint in pixels. */
 export function cannonCenter(
-  cannon: Pick<Cannon, "row" | "col" | "super" | "balloon">,
+  cannon: Pick<Cannon, "row" | "col" | "kind">,
 ): PixelPos {
   const size = cannonSize(cannon);
   return {
@@ -150,10 +149,12 @@ export function towerReachesOutsideCardinal(
 }
 
 /** Get the tile size of a cannon (2 for normal/balloon, 3 for super). */
-export function cannonSize(cannon: Pick<Cannon, "super" | "balloon">): number {
-  if (cannon.super) return SUPER_GUN_SIZE;
-  if (cannon.balloon) return BALLOON_SIZE;
-  return NORMAL_CANNON_SIZE;
+export function cannonSize(cannon: Pick<Cannon, "kind">): number {
+  switch (cannon.kind) {
+    case CannonMode.SUPER: return SUPER_GUN_SIZE;
+    case CannonMode.BALLOON: return BALLOON_SIZE;
+    default: return NORMAL_CANNON_SIZE;
+  }
 }
 
 /** True if a cannon still has hit points remaining. */

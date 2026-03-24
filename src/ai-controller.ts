@@ -530,9 +530,6 @@ export class AiController extends BaseController {
     if (this.cannonQueue.length === 0) return null;
     const target = this.cannonQueue[0]!;
     const targetMode = target.mode ?? CannonMode.NORMAL;
-    const isSuper = targetMode === CannonMode.SUPER;
-    const isBalloon = targetMode === CannonMode.BALLOON;
-
     // Mode switch: pause at current position while phantom changes type
     if (target.mode !== this.displayedCannonMode && this.modeSwitchDwell <= 0 && this.cannonDwell <= 0) {
       this.modeSwitchDwell = (0.25 + this.strategy.rng.next() * 0.2) * this.delayScale;
@@ -546,8 +543,7 @@ export class AiController extends BaseController {
         row: curRow,
         col: curCol,
         valid: false,
-        isSuper,
-        isBalloon,
+        kind: targetMode,
         playerId: this.playerId,
         facing: player.defaultFacing,
       };
@@ -577,8 +573,7 @@ export class AiController extends BaseController {
         row: target.row,
         col: target.col,
         valid: true,
-        isSuper,
-        isBalloon,
+        kind: targetMode,
         playerId: this.playerId,
         facing: player.defaultFacing,
       };
@@ -608,8 +603,7 @@ export class AiController extends BaseController {
       row: curRow,
       col: curCol,
       valid: atTarget && canPlaceCannon(player, curRow, curCol, targetMode, state),
-      isSuper,
-      isBalloon,
+      kind: targetMode,
       playerId: this.playerId,
       facing: player.defaultFacing,
     };

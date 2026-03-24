@@ -33,10 +33,8 @@ export enum CannonMode {
 export interface Cannon extends TilePos {
   /** Hits remaining before destruction. Persists across rounds. */
   hp: number;
-  /** If true, this is a 3x3 super gun that fires incendiary cannonballs. */
-  super?: boolean;
-  /** If true, this is a propaganda balloon base (2x2). */
-  balloon?: boolean;
+  /** Cannon variant: normal (2×2), super (3×3 incendiary), or balloon (2×2 propaganda). */
+  kind: CannonMode;
   /** Facing angle in radians (snapped to 45° increments). 0 = up. */
   facing?: number;
 }

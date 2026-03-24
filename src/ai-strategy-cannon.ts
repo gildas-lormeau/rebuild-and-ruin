@@ -261,7 +261,7 @@ function scoreCannonPosition(
   noiseScale = 1,
 ): number {
   let score = 0;
-  forEachCannonTile({ row, col, super: size === 3 }, (r, c) => {
+  forEachCannonTile({ row, col, kind: size === 3 ? CannonMode.SUPER : CannonMode.NORMAL }, (r, c) => {
     score += scoreCannonTileLocalPenalty(state, r, c);
   });
 
@@ -283,7 +283,7 @@ function scoreCannonPosition(
   }
 
   const cannonTiles = new Set<number>();
-  forEachCannonTile({ row, col, super: size === 3 }, (_r, _c, key) => {
+  forEachCannonTile({ row, col, kind: size === 3 ? CannonMode.SUPER : CannonMode.NORMAL }, (_r, _c, key) => {
     cannonTiles.add(key);
   });
   const occupied = new Set(cannonTiles);
@@ -439,7 +439,7 @@ function enemyHasLiveCannon(enemy: Player): boolean {
 
 function enemyHasThreateningSuperGun(state: GameState, enemy: Player): boolean {
   return enemy.cannons.some((c) => {
-    if (!isCannonAlive(c) || !c.super) return false;
+    if (!isCannonAlive(c) || c.kind !== CannonMode.SUPER) return false;
     if (state.capturedCannons.some((cc) => cc.cannon === c)) return false;
     let fullyEnclosed = true;
     forEachCannonTile(c, (_r, _c, key) => {

@@ -4,6 +4,7 @@
 
 import { getAliveOwnedTowers } from "./board-occupancy.ts";
 import {
+  cannonSize,
   inBounds,
   isCannonAlive,
   isCannonTile,
@@ -16,14 +17,11 @@ import {
 import type { Cannon, GameState, Player } from "./types.ts";
 import {
   BALLOON_COST,
-  BALLOON_SIZE,
   CannonMode,
   isPlayerActive,
   MAX_CANNON_LIMIT_ON_RESELECT,
-  NORMAL_CANNON_SIZE,
   STARTING_LIVES,
   SUPER_GUN_COST,
-  SUPER_GUN_SIZE,
 } from "./types.ts";
 
 /** Max search radius when snapping cannon placement to a valid tile. */
@@ -38,7 +36,7 @@ export function isCannonEnclosed(
   cannon: Cannon,
   interior: Set<number>,
 ): boolean {
-  const sz = cannon.super ? SUPER_GUN_SIZE : cannon.balloon ? BALLOON_SIZE : NORMAL_CANNON_SIZE;
+  const sz = cannonSize(cannon);
   for (let dr = 0; dr < sz; dr++) {
     for (let dc = 0; dc < sz; dc++) {
       if (!interior.has(packTile(cannon.row + dr, cannon.col + dc))) return false;
@@ -91,10 +89,7 @@ export function placeCannon(
 ): boolean {
   const normalizedMode = mode ?? CannonMode.NORMAL;
   const used = cannonSlotsUsed(player);
-  const cost = cannonSlotCost({
-    super: normalizedMode === CannonMode.SUPER || undefined,
-    balloon: normalizedMode === CannonMode.BALLOON || undefined,
-  });
+  const cost = cannonSlotCost({ kind: normalizedMode });
   if (used + cost > maxCannons) return false;
   if (!canPlaceCannon(player, row, col, normalizedMode, state)) return false;
   applyCannonPlacement(player, row, col, normalizedMode, state);
@@ -112,12 +107,7 @@ export function canPlaceCannon(
   mode: CannonMode,
   state: GameState,
 ): boolean {
-  const size =
-    mode === CannonMode.SUPER
-      ? SUPER_GUN_SIZE
-      : mode === CannonMode.BALLOON
-        ? BALLOON_SIZE
-        : NORMAL_CANNON_SIZE;
+  const size = cannonSize({ kind: mode });
   for (let dr = 0; dr < size; dr++) {
     for (let dc = 0; dc < size; dc++) {
       const r = row + dr;
@@ -142,23 +132,18 @@ export function applyCannonPlacement(
   mode: CannonMode | undefined,
   state: GameState,
 ): void {
-  const isSuper = mode === CannonMode.SUPER;
-  const isBalloon = mode === CannonMode.BALLOON;
   player.cannons.push({
     row,
     col,
     hp: state.cannonMaxHp,
-    super: isSuper || undefined,
-    balloon: isBalloon || undefined,
+    kind: mode ?? CannonMode.NORMAL,
     facing: player.defaultFacing,
   });
 }
 
 /** Derive the CannonMode from a placed cannon's boolean flags. */
-export function getCannonMode(cannon: Pick<Cannon, "super" | "balloon">): CannonMode {
-  if (cannon.balloon) return CannonMode.BALLOON;
-  if (cannon.super) return CannonMode.SUPER;
-  return CannonMode.NORMAL;
+export function getCannonMode(cannon: Pick<Cannon, "kind">): CannonMode {
+  return cannon.kind;
 }
 
 /**
@@ -227,10 +212,12 @@ export function resetCannonFacings(state: GameState): void {
   }
 }
 
-function cannonSlotCost(cannon: Pick<Cannon, "super" | "balloon">): number {
-  if (cannon.balloon) return BALLOON_COST;
-  if (cannon.super) return SUPER_GUN_COST;
-  return NORMAL_CANNON_COST;
+function cannonSlotCost(cannon: Pick<Cannon, "kind">): number {
+  switch (cannon.kind) {
+    case CannonMode.BALLOON: return BALLOON_COST;
+    case CannonMode.SUPER: return SUPER_GUN_COST;
+    default: return NORMAL_CANNON_COST;
+  }
 }
 
 function overlapsExistingCannon(

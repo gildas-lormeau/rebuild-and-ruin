@@ -28,6 +28,7 @@ import {
   unpackTile,
 } from "./spatial.ts";
 import type { Cannon, Cannonball, GameState } from "./types.ts";
+import { CannonMode } from "./types.ts";
 
 type TargetCandidate = PrioritizedTilePos;
 
@@ -90,7 +91,7 @@ export function planCharitySweep(
   for (const enemy of state.players) {
     if (enemy.id === playerId || enemy.eliminated) continue;
     const enemyCannons = enemy.cannons.filter(
-      (c) => isCannonAlive(c) && !c.balloon,
+      (c) => isCannonAlive(c) && c.kind !== CannonMode.BALLOON,
     ).length;
     if (enemyCannons > CHARITY_CANNON_THRESHOLD) continue;
     const targets = planGruntTargets(state, enemy.id, readyCount, rng);
@@ -324,7 +325,7 @@ export function trackShotImpl(
   const col = Math.floor(crosshair.x / TILE_SIZE);
   for (const other of getActiveEnemies(state, playerId)) {
     for (const cannon of other.cannons) {
-      if (cannon.balloon) continue;
+      if (cannon.kind === CannonMode.BALLOON) continue;
       if (isCannonTile(cannon, row, col)) {
         shotCounts.set(cannon, (shotCounts.get(cannon) ?? 0) + 1);
         return;
@@ -444,7 +445,7 @@ function collectEnemyTargets(
     if (!wallsOnly) {
       for (const cannon of other.cannons) {
         if (!isCannonAlive(cannon)) continue;
-        if (cannon.balloon) continue;
+        if (cannon.kind === CannonMode.BALLOON) continue;
         if (
           state.capturedCannons.some(
             (cc) => cc.cannon === cannon && cc.capturerId === playerId,

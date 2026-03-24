@@ -379,11 +379,7 @@ export class DefaultStrategy implements AiStrategy {
     return newCannons.map((c) => ({
       row: c.row,
       col: c.col,
-      mode: c.balloon
-        ? (CannonMode.BALLOON as const)
-        : c.super
-          ? (CannonMode.SUPER as const)
-          : undefined,
+      mode: c.kind === CannonMode.NORMAL ? undefined : c.kind,
     }));
   }
 

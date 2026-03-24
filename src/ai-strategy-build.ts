@@ -46,6 +46,7 @@ import {
   unpackTile,
 } from "./spatial.ts";
 import type { GameState } from "./types.ts";
+import { CannonMode } from "./types.ts";
 
 /** Result of a single AI placement decision. null = no valid placement. */
 export interface AiPlacement {
@@ -685,7 +686,7 @@ export function pickPlacementImpl(
       (g) => g.targetPlayerId === playerId && outside.has(packTile(g.row, g.col)),
     );
     const hasUnenclosedCannons = player.cannons.some(
-      (c) => isCannonAlive(c) && !c.balloon && !isCannonEnclosed(c, player.interior),
+      (c) => isCannonAlive(c) && c.kind !== CannonMode.BALLOON && !isCannonEnclosed(c, player.interior),
     );
     if ((!hasOutsideGrunts && !hasUnenclosedCannons) || bestScore <= 0) return logTime(null);
   }

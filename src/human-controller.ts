@@ -107,8 +107,7 @@ export class HumanController extends BaseController {
       row: this.cannonCursor.row,
       col: this.cannonCursor.col,
       valid,
-      isSuper: this.cannonPlaceMode === CannonMode.SUPER,
-      isBalloon: this.cannonPlaceMode === CannonMode.BALLOON,
+      kind: this.cannonPlaceMode,
       playerId: this.playerId,
       facing: player.defaultFacing,
     };

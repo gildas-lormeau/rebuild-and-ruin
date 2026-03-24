@@ -14,7 +14,7 @@ import {
 import type { MapData, RenderOverlay } from "./render-types.ts";
 import { facingToCardinal } from "./spatial.ts";
 import { drawSprite } from "./sprites.ts";
-import { IMPACT_FLASH_DURATION } from "./types.ts";
+import { CannonMode, IMPACT_FLASH_DURATION } from "./types.ts";
 
 // Impact animation phases (normalized 0–1 within IMPACT_FLASH_DURATION)
 const IMPACT_CORE_END = 0.25;
@@ -41,8 +41,7 @@ export function drawPhantoms(
         phantom.row,
         phantom.col,
         phantom.valid,
-        !!phantom.isSuper,
-        !!phantom.isBalloon,
+        phantom.kind,
         phantom.facing ?? 0,
       );
     }
@@ -421,20 +420,19 @@ function drawPhantomCannon(
   row: number,
   col: number,
   valid: boolean,
-  isSuper: boolean,
-  isBalloon: boolean,
+  kind: string,
   facing = 0,
 ): void {
   const cx = col * TILE_SIZE;
   const cy = row * TILE_SIZE;
-  const sz = isSuper ? 3 : 2;
+  const sz = kind === CannonMode.SUPER ? 3 : 2;
   const s = TILE_SIZE * sz;
   const mid = s / 2;
 
   ctx.save();
   ctx.globalAlpha = valid ? 0.7 : 0.5;
 
-  if (isBalloon) {
+  if (kind === CannonMode.BALLOON) {
     // Balloon base preview — sprite with red tint overlay if invalid
     drawSprite(ctx, "balloon_base", cx, cy);
     if (!valid) {
@@ -449,7 +447,7 @@ function drawPhantomCannon(
   ctx.translate(cx + mid, cy + mid);
   ctx.rotate(facing);
   const tint = !valid;
-  if (isSuper) {
+  if (kind === CannonMode.SUPER) {
     // Super gun phantom — symmetric around (0,0)
     ctx.fillStyle = tint ? "#3a1111" : "#1a1a1a";
     ctx.fillRect(-14, -8, 28, 24);

@@ -8,7 +8,7 @@ import { MSG } from "../server/protocol.ts";
 import type { BalloonFlight } from "./battle-system.ts";
 import { Rng } from "./rng.ts";
 import type { GameState } from "./types.ts";
-import { Phase } from "./types.ts";
+import { CannonMode, Phase } from "./types.ts";
 
 export type SerializedPlayer = {
   id: number;
@@ -18,8 +18,7 @@ export type SerializedPlayer = {
     row: number;
     col: number;
     hp: number;
-    super?: boolean;
-    balloon?: boolean;
+    kind: string;
     facing?: number;
   }[];
   ownedTowerIndices: number[];
@@ -154,8 +153,7 @@ export function serializePlayers(state: GameState) {
       row: c.row,
       col: c.col,
       hp: c.hp,
-      super: c.super || undefined,
-      balloon: c.balloon || undefined,
+      kind: c.kind,
       facing: c.facing,
     })),
     ownedTowerIndices: p.ownedTowers.map((t) => t.index),
@@ -235,8 +233,7 @@ export function applyPlayersCheckpoint(
       row: c.row,
       col: c.col,
       hp: c.hp,
-      super: c.super || undefined,
-      balloon: c.balloon || undefined,
+      kind: (c.kind ?? CannonMode.NORMAL) as CannonMode,
       facing: c.facing ?? 0,
     }));
     player.ownedTowers = sp.ownedTowerIndices.map((i) => state.map.towers[i]!);
