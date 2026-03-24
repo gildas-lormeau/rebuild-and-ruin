@@ -689,7 +689,7 @@ export function tickGrunts(state: GameState): boolean {
  * Called each battle tick with dt in seconds.
  */
 interface GruntAttackEvent {
-  type: "tower_killed";
+  type: typeof MSG.TOWER_KILLED;
   towerIdx: number;
 }
 

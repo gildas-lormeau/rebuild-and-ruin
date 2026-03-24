@@ -264,23 +264,23 @@ export function aimCannons(
 /** An event emitted by applyImpact for network relay. */
 export type ImpactEvent =
   | {
-      type: "wall_destroyed";
+      type: typeof MSG.WALL_DESTROYED;
       row: number;
       col: number;
       playerId: number;
       shooterId?: number;
     }
   | {
-      type: "cannon_damaged";
+      type: typeof MSG.CANNON_DAMAGED;
       playerId: number;
       cannonIdx: number;
       newHp: number;
       shooterId?: number;
     }
-  | { type: "house_destroyed"; row: number; col: number }
-  | { type: "grunt_killed"; row: number; col: number; shooterId?: number }
-  | { type: "grunt_spawned"; row: number; col: number; targetPlayerId: number }
-  | { type: "pit_created"; row: number; col: number; roundsLeft: number };
+  | { type: typeof MSG.HOUSE_DESTROYED; row: number; col: number }
+  | { type: typeof MSG.GRUNT_KILLED; row: number; col: number; shooterId?: number }
+  | { type: typeof MSG.GRUNT_SPAWNED; row: number; col: number; targetPlayerId: number }
+  | { type: typeof MSG.PIT_CREATED; row: number; col: number; roundsLeft: number };
 
 /** Result of updateCannonballs: impact positions (for VFX) + detailed events (for network). */
 interface CannonballUpdateResult {
