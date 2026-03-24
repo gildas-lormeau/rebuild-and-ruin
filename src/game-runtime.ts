@@ -629,14 +629,14 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     }
 
     renderMap(rs.state.map, canvas, rs.overlay, updateViewport());
-    const inGame = rs.mode === Mode.GAME || rs.mode === Mode.BANNER || rs.mode === Mode.BALLOON_ANIM;
     const noBanner = rs.mode !== Mode.BANNER && rs.mode !== Mode.BALLOON_ANIM && rs.mode !== Mode.CASTLE_BUILD;
     const showZoom = noBanner && (rs.mode === Mode.GAME || rs.mode === Mode.SELECTION);
     const hasHuman = firstHuman() !== null;
     dpad?.update(hasHuman && (rs.mode === Mode.GAME || rs.mode === Mode.SELECTION) ? rs.state.phase : null);
     homeZoomButton?.update(showZoom && hasHuman ? rs.state.phase : null);
     enemyZoomButton?.update(showZoom && hasHuman ? rs.state.phase : null);
-    quitButton?.update(inGame || rs.mode === Mode.SELECTION ? rs.state.phase : null);
+    const inLobby = rs.mode === Mode.LOBBY || rs.mode === Mode.OPTIONS || rs.mode === Mode.CONTROLS;
+    quitButton?.update(!inLobby ? rs.state.phase : null);
   }
 
   function rematch() {
