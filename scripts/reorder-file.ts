@@ -21,6 +21,7 @@ import {
   type SourceFile,
   type Statement,
   SyntaxKind,
+  VariableDeclarationKind,
 } from "ts-morph";
 
 // ---------------------------------------------------------------------------
@@ -44,11 +45,12 @@ if (!filePath) {
 const enum Cat {
   Import = 0,
   Type = 1,
-  Const = 2,  // all const (data + arrow fns, exported + private)
-  Fn = 3,     // function declarations only (hoisted)
+  Const = 2,  // const declarations (data + arrow fns)
+  Let = 3,    // let/var declarations (mutable state)
+  Fn = 4,     // function declarations only (hoisted)
 }
 
-const CAT_NAMES = ["Import", "Type", "Const", "Fn"];
+const CAT_NAMES = ["Import", "Type", "Const", "Let", "Fn"];
 
 // ---------------------------------------------------------------------------
 // Classification helpers
@@ -71,8 +73,11 @@ function classify(stmt: Statement): Cat {
   }
   // function declarations → hoisted bucket (callers-first)
   if (k === SyntaxKind.FunctionDeclaration) return Cat.Fn;
-  // All const (data + arrow fns) → non-hoisted bucket (deps-first)
-  if (stmt.isKind(SyntaxKind.VariableStatement)) return Cat.Const;
+  // Variable statements: const vs let/var
+  if (stmt.isKind(SyntaxKind.VariableStatement)) {
+    const declKind = stmt.getDeclarationList().getDeclarationKind();
+    return declKind === VariableDeclarationKind.Const ? Cat.Const : Cat.Let;
+  }
   return Cat.Fn; // fallback (export default, etc.)
 }
 
@@ -301,6 +306,7 @@ function reorderFile(sf: SourceFile): string {
     [Cat.Import]: [],
     [Cat.Type]: [],
     [Cat.Const]: [],
+    [Cat.Let]: [],
     [Cat.Fn]: [],
   };
   for (const s of stmts) buckets[classify(s)]!.push(s);
@@ -315,11 +321,14 @@ function reorderFile(sf: SourceFile): string {
 
   // Sort within categories
   const sortedConsts = sortDepsFirst(buckets[Cat.Const]!);
+  const sortedLets = sortDepsFirst(buckets[Cat.Let]!);
   const sortedFns = topoSortCallersFirst(buckets[Cat.Fn]!);
 
   if (debug) {
     if (sortedConsts.length > 0)
       console.log(`  Const order: ${sortedConsts.map((c) => getName(c) ?? "?").join(" → ")}`);
+    if (sortedLets.length > 0)
+      console.log(`  Let order: ${sortedLets.map((c) => getName(c) ?? "?").join(" → ")}`);
     if (sortedFns.length > 0)
       console.log(`  Fn order: ${sortedFns.map((f) => getName(f) ?? "?").join(" → ")}`);
   }
@@ -338,6 +347,7 @@ function reorderFile(sf: SourceFile): string {
     reExports,
     buckets[Cat.Type]!,
     sortedConsts,
+    sortedLets,
     sortedFns,
   ];
 
