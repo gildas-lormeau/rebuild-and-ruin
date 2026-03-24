@@ -23,7 +23,7 @@ import {
   nextReadyCombined
 } from "./battle-system.ts";
 import { applyCannonPlacement } from "./cannon-system.ts";
-import { createController, isHuman } from "./controller-factory.ts";
+import { createController } from "./controller-factory.ts";
 import { bootstrapGame, setupWaitingRoom } from "./game-bootstrap.ts";
 import {
   enterCannonPlacePhase,
@@ -35,15 +35,7 @@ import {
 import type { GameRuntime } from "./game-runtime.ts";
 import { createGameRuntime } from "./game-runtime.ts";
 import { Mode } from "./game-ui-types.ts";
-import type { PixelPos } from "./geometry-types.ts";
-import { GRID_COLS, TILE_SIZE } from "./grid.ts";
-import { tickGrunts } from "./grunt-system.ts";
-import type { CheckpointDeps } from "./online-checkpoints.ts";
-import {
-  applyBattleStartCheckpoint,
-  applyBuildStartCheckpoint,
-  applyCannonStartCheckpoint,
-} from "./online-checkpoints.ts";
+import { GRID_COLS } from "./grid.ts";
 import { setupLobbyUi, showLobbySection } from "./online-lobby-ui.ts";
 import type { TransitionContext } from "./online-phase-transitions.ts";
 import {
@@ -70,22 +62,24 @@ import {
 } from "./online-serialize.ts";
 import { handleServerIncrementalMessage } from "./online-server-events.ts";
 import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
-import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
 import { interpolateToward } from "./online-types.ts";
-import type { WatcherTimingState } from "./online-watcher-battle.ts";
+import type { WatcherTickContext } from "./online-watcher-tick.ts";
 import {
-  tickWatcherBattlePhase,
-  tickWatcherBuildPhantomsPhase,
-  tickWatcherCannonPhantomsPhase,
-  tickWatcherTimers as updateWatcherTimers,
-} from "./online-watcher-battle.ts";
+  applyBattleStartData,
+  applyBuildStartData,
+  applyCannonStartData,
+  createWatcherState,
+  resetWatcherState,
+  tickMigrationAnnouncement as tickMigrationAnnouncementFn,
+  tickWatcher as tickWatcherFn,
+} from "./online-watcher-tick.ts";
 import { applyPiecePlacement } from "./phase-build.ts";
 import {
   MAX_PLAYERS,
   PLAYER_COLORS,
   PLAYER_NAMES,
 } from "./player-config.ts";
-import { CROSSHAIR_SPEED, type OrbitParams, type PlayerController } from "./player-controller.ts";
+import { CROSSHAIR_SPEED } from "./player-controller.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { loadAtlas } from "./sprites.ts";
 import type { GameState } from "./types.ts";
@@ -167,24 +161,8 @@ let lobbyWaitTimer = LOBBY_TIMER; // overridden by server's waitTimerSec
 let roomSeed = 0;
 let roomBattleLength = 0;
 let roomCannonMaxHp = 3;
-let migrationAnnouncementTimer = 0;
-let migrationAnnouncementText = "";
-
-// Watcher: wall-clock timer (immune to RAF throttling when tab is backgrounded)
-const watcherTiming: WatcherTimingState = {
-  phaseStartTime: 0,
-  phaseDuration: 0,
-  countdownStartTime: 0,
-  countdownDuration: 0,
-};
-
-// Watcher state: remote crosshairs and phantoms received from host
-const remoteCrosshairs = new Map<number, PixelPos>();
-let remoteCannonPhantoms: CannonPhantom[] = [];
-const watcherCrosshairPos = new Map<number, PixelPos>();
-const watcherIdlePhases = new Map<number, number>();
-const watcherOrbitParams = new Map<number, OrbitParams>();
-let remotePiecePhantoms: PiecePhantom[] = [];
+// Watcher state: timing, crosshairs, phantoms, migration announcement
+const watcher = createWatcherState();
 
 // @ts-ignore — import.meta.env is Vite-specific (not recognized by Deno LSP)
 const DEV = import.meta.env?.DEV ?? (location?.hostname === "localhost");
@@ -296,150 +274,32 @@ function showLobby(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Watcher tick functions (online-only)
+// Watcher tick context (built once, reused each frame)
 // ---------------------------------------------------------------------------
 
-/** Tick the migration announcement timer (called every frame, both host and watcher). */
-function tickMigrationAnnouncement(dt: number): void {
-  if (migrationAnnouncementTimer > 0) {
-    migrationAnnouncementTimer -= dt;
-    if (migrationAnnouncementTimer > 0) {
-      // Don't overwrite game announcements (e.g., Ready/Aim/Fire countdown)
-      if (!runtime.rs.frame.announcement) {
-        runtime.rs.frame.announcement = migrationAnnouncementText;
-      }
-    } else {
-      migrationAnnouncementTimer = 0;
-      migrationAnnouncementText = "";
-    }
-  }
-}
+const watcherTickCtx: WatcherTickContext = {
+  getState: () => runtime.rs.state,
+  getFrame: () => runtime.rs.frame,
+  getAccum: () => runtime.rs.accum,
+  getBattleAnim: () => runtime.rs.battleAnim,
+  getControllers: () => runtime.rs.controllers,
+  getMyPlayerId: () => myPlayerId,
+  lastSentCannonPhantom,
+  lastSentPiecePhantom,
+  send: (msg) => send(msg as GameMessage),
+  logThrottled,
+  maybeSendAimUpdate,
+  render: () => runtime.render(),
+  now: () => performance.now(),
+};
 
-function tickWatcher(dt: number) {
-  const state = runtime.rs.state;
-  const frame = runtime.rs.frame;
-  const accum = runtime.rs.accum;
-
-  updateWatcherTimers(state, frame, watcherTiming, () => performance.now());
-
-  const myHuman = getLocalHuman();
-
-  if (state.phase === Phase.BATTLE) {
-    tickWatcherBattle(dt, myHuman);
-  } else if (state.phase === Phase.CANNON_PLACE) {
-    tickWatcherCannonPhantoms(dt, myHuman);
-  } else if (state.phase === Phase.WALL_BUILD) {
-    tickWatcherBuildPhantoms(dt, myHuman);
-  }
-
-  // Grunt movement during build phase (deterministic — runs locally)
-  if (state.phase === Phase.WALL_BUILD) {
-    accum.grunt += dt;
-    if (accum.grunt >= 1.0) {
-      accum.grunt -= 1.0;
-      tickGrunts(state);
-    }
-  }
-
-  runtime.render();
-}
-
-/** Get the local human controller, or null if eliminated/watcher. */
-function getLocalHuman(): PlayerController | null {
-  const state = runtime.rs.state;
-  if (myPlayerId < 0 || state.players[myPlayerId]?.eliminated) return null;
-  const ctrl = runtime.rs.controllers[myPlayerId];
-  return ctrl && isHuman(ctrl) ? ctrl : null;
-}
-
-/** Non-host battle: move cannonballs, collect crosshairs, tick local human. */
-function tickWatcherBattle(dt: number, myHuman: PlayerController | null): void {
-  const state = runtime.rs.state;
-  tickWatcherBattlePhase({
-    state,
-    frame: runtime.rs.frame,
-    battleAnim: runtime.rs.battleAnim,
-    dt,
-    myPlayerId,
-    myHuman,
-    remoteCrosshairs,
-    watcherCrosshairPos,
-    watcherIdlePhases,
-    watcherOrbitParams,
-    crosshairSpeed: CROSSHAIR_SPEED,
-    tileSize: TILE_SIZE,
-    logThrottled,
-    interpolateToward,
-    nextReadyCombined,
-    maybeSendAimUpdate,
-    aimCannons,
-  });
-}
-
-/** Non-host cannon phase: merge remote phantoms + tick local human. */
-function tickWatcherCannonPhantoms(
-  dt: number,
-  myHuman: PlayerController | null,
-): void {
-  tickWatcherCannonPhantomsPhase({
-    state: runtime.rs.state,
-    frame: runtime.rs.frame,
-    dt,
-    myPlayerId,
-    myHuman,
-    remoteCannonPhantoms,
-    lastSentCannonPhantom,
-    sendOpponentCannonPhantom: (msg) => {
-      send({ type: MSG.OPPONENT_CANNON_PHANTOM, ...msg });
-    },
-  });
-}
-
-/** Non-host build phase: merge remote phantoms + tick local human. */
-function tickWatcherBuildPhantoms(
-  dt: number,
-  myHuman: PlayerController | null,
-): void {
-  tickWatcherBuildPhantomsPhase({
-    state: runtime.rs.state,
-    frame: runtime.rs.frame,
-    dt,
-    myHuman,
-    remotePiecePhantoms,
-    lastSentPiecePhantom,
-    sendOpponentPiecePhantom: (msg) => {
-      send({ type: MSG.OPPONENT_PHANTOM, ...msg });
-    },
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Watcher: apply checkpoint data from server
-// ---------------------------------------------------------------------------
-
-function buildCheckpointDeps(): CheckpointDeps {
-  return {
-    state: runtime.rs.state,
-    battleAnim: runtime.rs.battleAnim,
-    accum: runtime.rs.accum,
-    remoteCrosshairs,
-    watcherCrosshairPos,
-    watcherOrbitParams,
-    watcherIdlePhases,
-    snapshotTerritory: () => runtime.snapshotTerritory(),
-  };
-}
-
-function applyCannonStartData(msg: ServerMessage): void {
-  applyCannonStartCheckpoint(msg, buildCheckpointDeps());
-}
-
-function applyBattleStartData(msg: ServerMessage): void {
-  applyBattleStartCheckpoint(msg, buildCheckpointDeps());
-}
-
-function applyBuildStartData(msg: ServerMessage): void {
-  applyBuildStartCheckpoint(msg, buildCheckpointDeps());
+/** Checkpoint helper: pass watcher + runtime state to checkpoint functions. */
+function checkpointArgs(msg: ServerMessage) {
+  return [
+    watcher, msg,
+    runtime.rs.state, runtime.rs.battleAnim, runtime.rs.accum,
+    () => runtime.snapshotTerritory(),
+  ] as const;
 }
 
 // ---------------------------------------------------------------------------
@@ -496,19 +356,10 @@ function initFromServer(msg: InitMessage): void {
     resetUIState: () => {
       runtime.resetUIState();
       // Online-specific resets
-      remoteCrosshairs.clear();
-      remoteCannonPhantoms = [];
-      remotePiecePhantoms = [];
-      watcherCrosshairPos.clear();
-      watcherIdlePhases.clear();
-      watcherOrbitParams.clear();
+      resetWatcherState(watcher);
       lastSentAimTarget.clear();
       lastSentPiecePhantom.clear();
       lastSentCannonPhantom.clear();
-      watcherTiming.phaseStartTime = 0;
-      watcherTiming.phaseDuration = 0;
-      watcherTiming.countdownStartTime = 0;
-      watcherTiming.countdownDuration = 0;
     },
     createControllerForSlot: (i, gameState) => {
       const isAi = (i !== myPlayerId);
@@ -598,11 +449,11 @@ function applyFullState(msg: FullStateMessage): void {
   applyFullStateSnapshot(state, msg);
 
   // Reset watcher timing to current moment
-  watcherTiming.phaseStartTime = performance.now();
-  watcherTiming.phaseDuration = state.timer;
+  watcher.timing.phaseStartTime = performance.now();
+  watcher.timing.phaseDuration = state.timer;
   if (state.battleCountdown > 0) {
-    watcherTiming.countdownStartTime = performance.now();
-    watcherTiming.countdownDuration = state.battleCountdown;
+    watcher.timing.countdownStartTime = performance.now();
+    watcher.timing.countdownDuration = state.battleCountdown;
   }
 }
 
@@ -628,10 +479,10 @@ const transitionCtx: TransitionContext = {
     }
   },
   now: () => performance.now(),
-  setWatcherPhaseStartTime: (v) => { watcherTiming.phaseStartTime = v; },
-  setWatcherPhaseDuration: (v) => { watcherTiming.phaseDuration = v; },
-  setWatcherCountdownStartTime: (v) => { watcherTiming.countdownStartTime = v; },
-  setWatcherCountdownDuration: (v) => { watcherTiming.countdownDuration = v; },
+  setWatcherPhaseStartTime: (v) => { watcher.timing.phaseStartTime = v; },
+  setWatcherPhaseDuration: (v) => { watcher.timing.phaseDuration = v; },
+  setWatcherCountdownStartTime: (v) => { watcher.timing.countdownStartTime = v; },
+  setWatcherCountdownDuration: (v) => { watcher.timing.countdownDuration = v; },
   setModeGame: () => { runtime.rs.mode = Mode.GAME; },
   setModeCastleBuild: () => { runtime.rs.mode = Mode.CASTLE_BUILD; },
   setModeBalloonAnim: () => { runtime.rs.mode = Mode.BALLOON_ANIM; },
@@ -639,9 +490,9 @@ const transitionCtx: TransitionContext = {
   battleCountdown: BATTLE_COUNTDOWN,
   bannerDuration: BANNER_DURATION,
   playerColors: PLAYER_COLORS,
-  applyCannonStartData,
-  applyBattleStartData,
-  applyBuildStartData,
+  applyCannonStartData: (msg) => applyCannonStartData(...checkpointArgs(msg)),
+  applyBattleStartData: (msg) => applyBattleStartData(...checkpointArgs(msg)),
+  applyBuildStartData: (msg) => applyBuildStartData(...checkpointArgs(msg)),
   applyPlayersCheckpoint,
   resetZoneState,
   prepareCastleWalls,
@@ -708,8 +559,8 @@ function handleServerMessage(msg: ServerMessage): void {
       onBuildEnd: (msg) => handleBuildEndTransition(msg, transitionCtx),
       onGameOver: (msg) => handleGameOverTransition(msg, transitionCtx),
       setAnnouncement: (text) => {
-        migrationAnnouncementText = text;
-        migrationAnnouncementTimer = MIGRATION_ANNOUNCEMENT_DURATION;
+        watcher.migrationText = text;
+        watcher.migrationTimer = MIGRATION_ANNOUNCEMENT_DURATION;
       },
       playerNames: PLAYER_NAMES,
       promoteToHost,
@@ -746,15 +597,15 @@ function handleServerMessage(msg: ServerMessage): void {
     },
     applyImpactEvent,
     gridCols: GRID_COLS,
-    remoteCrosshairs,
-    watcherOrbitParams,
-    getRemotePiecePhantoms: () => remotePiecePhantoms,
+    remoteCrosshairs: watcher.remoteCrosshairs,
+    watcherOrbitParams: watcher.orbitParams,
+    getRemotePiecePhantoms: () => watcher.remotePiecePhantoms,
     setRemotePiecePhantoms: (value) => {
-      remotePiecePhantoms = value;
+      watcher.remotePiecePhantoms = value;
     },
-    getRemoteCannonPhantoms: () => remoteCannonPhantoms,
+    getRemoteCannonPhantoms: () => watcher.remoteCannonPhantoms,
     setRemoteCannonPhantoms: (value) => {
-      remoteCannonPhantoms = value;
+      watcher.remoteCannonPhantoms = value;
     },
     getLifeLostDialog: () => runtime.lifeLost.get(),
   });
@@ -803,8 +654,8 @@ const runtime: GameRuntime = createGameRuntime({
   },
 
   // Networking callbacks
-  tickNonHost: tickWatcher,
-  everyTick: tickMigrationAnnouncement,
+  tickNonHost: (dt) => tickWatcherFn(watcher, dt, watcherTickCtx),
+  everyTick: (dt) => tickMigrationAnnouncementFn(watcher, runtime.rs.frame, dt),
   onLocalCrosshairCollected: (ctrl, ch, _readyCannon) => {
     if (isHost) {
       const target = ctrl.getCrosshairTarget() ?? ch;
@@ -828,9 +679,9 @@ const runtime: GameRuntime = createGameRuntime({
     const state = runtime.rs.state;
     logThrottled(
       "host-ch-remote",
-      `collectCrosshairs: localCh=${crosshairs.length} remoteCrosshairs keys=[${[...remoteCrosshairs.keys()]}] cannons=[${state.players.map((p, i) => `P${i}:${p.cannons.length}`).join(",")}]`,
+      `collectCrosshairs: localCh=${crosshairs.length} remoteCrosshairs keys=[${[...watcher.remoteCrosshairs.keys()]}] cannons=[${state.players.map((p, i) => `P${i}:${p.cannons.length}`).join(",")}]`,
     );
-    for (const [pid, target] of remoteCrosshairs) {
+    for (const [pid, target] of watcher.remoteCrosshairs) {
       if (!remoteHumanSlots.has(pid)) continue;
       const player = state.players[pid];
       if (!player || player.eliminated) continue;
@@ -841,10 +692,10 @@ const runtime: GameRuntime = createGameRuntime({
           (b) => b.playerId === pid || b.scoringPlayerId === pid,
         );
       if (!readyCannon && !anyReloading) continue;
-      let vis = watcherCrosshairPos.get(pid);
+      let vis = watcher.crosshairPos.get(pid);
       if (!vis) {
         vis = { x: target.x, y: target.y };
-        watcherCrosshairPos.set(pid, vis);
+        watcher.crosshairPos.set(pid, vis);
       }
       interpolateToward(vis, target.x, target.y, CROSSHAIR_SPEED * 2, dt);
       crosshairs.push({
@@ -863,12 +714,12 @@ const runtime: GameRuntime = createGameRuntime({
     buildCannonStartMessage,
     buildBattleStartMessage,
     buildBuildStartMessage,
-    remoteCannonPhantoms: () => remoteCannonPhantoms,
-    remotePiecePhantoms: () => remotePiecePhantoms,
+    remoteCannonPhantoms: () => watcher.remoteCannonPhantoms,
+    remotePiecePhantoms: () => watcher.remotePiecePhantoms,
     lastSentCannonPhantom: () => lastSentCannonPhantom,
     lastSentPiecePhantom: () => lastSentPiecePhantom,
   },
-  watcherTiming,
+  watcherTiming: watcher.timing,
   maybeSendAimUpdate,
   tryPlaceCannonAndSend: (ctrl, gs, max) => tryPlaceCannonAndSendAction(ctrl, gs, max, send),
   tryPlacePieceAndSend: (ctrl, gs) => tryPlacePieceAndSendAction(ctrl, gs, send),
