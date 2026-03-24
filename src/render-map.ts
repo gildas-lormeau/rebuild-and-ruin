@@ -550,6 +550,7 @@ export function renderMap(
   drawWaterAnimation(octx, map, overlay);
   drawCastles(octx, overlay);
   drawBonusSquares(octx, overlay);
+  drawHouses(octx, overlay);
   drawTowers(octx, map, overlay);
 
   // If banner is active with old data, re-draw old scene below the banner.
@@ -568,9 +569,16 @@ export function renderMap(
         cachedBannerWalls !== oldWalls;
 
       if (bannerCacheMiss) {
+        const oldHouses = overlay.ui.bannerOldHouses;
+        const oldBonusSquares = overlay.ui.bannerOldBonusSquares;
         const oldOverlay: RenderOverlay = {
           ...overlay,
           castles: oldCastles,
+          entities: {
+            ...overlay.entities,
+            houses: oldHouses ?? overlay.entities?.houses,
+            bonusSquares: oldBonusSquares ?? overlay.entities?.bonusSquares,
+          },
           battle: {
             ...overlay.battle,
             battleTerritory: oldTerritory,
@@ -598,6 +606,7 @@ export function renderMap(
         drawTerrain(tmpCtx, W, H, map, oldOverlay);
         drawCastles(tmpCtx, oldOverlay);
         drawBonusSquares(tmpCtx, oldOverlay);
+        drawHouses(tmpCtx, oldOverlay);
         drawTowers(tmpCtx, map, oldOverlay);
         cachedBannerMap = map;
         cachedBannerCastles = oldCastles;
@@ -621,7 +630,6 @@ export function renderMap(
 
   // Layers that don't change between phases — draw once on top
   drawPhantoms(octx, overlay);
-  drawHouses(octx, overlay);
   drawGrunts(octx, overlay);
   drawBattleEffects(octx, map, overlay);
   drawScoreDeltas(octx, overlay);

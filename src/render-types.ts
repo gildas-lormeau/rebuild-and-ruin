@@ -130,6 +130,8 @@ export interface UIOverlay {
   bannerOldCastles?: CastleData[];
   bannerOldBattleTerritory?: Set<number>[];
   bannerOldBattleWalls?: Set<number>[];
+  bannerOldHouses?: House[];
+  bannerOldBonusSquares?: TilePos[];
   gameOver?: GameOverOverlay;
   timer?: number;
   scoreDeltas?: { playerId: number; delta: number; total: number; cx: number; cy: number }[];

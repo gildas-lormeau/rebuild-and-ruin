@@ -1,6 +1,7 @@
 import type { GameOverOverlay, LifeLostDialogOverlay } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type LifeLostDialogState, type ResolvedChoice } from "./life-lost.ts";
+import type { BannerState } from "./phase-banner.ts";
 import type { RGB } from "./player-config.ts";
 import {
   LIFE_LOST_BTN_H as BTN_H,
@@ -303,14 +304,7 @@ export function handleLifeLostDialogClick(params: {
 export function buildOnlineOverlay(params: {
   previousSelection: RenderOverlay["selection"];
   state: GameState;
-  banner: {
-    active: boolean;
-    oldCastles?: CastleData[];
-    oldTerritory?: Set<number>[];
-    oldWalls?: Set<number>[];
-    newTerritory?: Set<number>[];
-    newWalls?: Set<number>[];
-  };
+  banner: Pick<BannerState, "active" | "oldCastles" | "oldTerritory" | "oldWalls" | "oldHouses" | "oldBonusSquares" | "newTerritory" | "newWalls">;
   battleAnim: {
     territory: Set<number>[];
     walls: Set<number>[];
@@ -398,6 +392,8 @@ export function buildOnlineOverlay(params: {
       bannerOldCastles: banner.active ? banner.oldCastles : undefined,
       bannerOldBattleTerritory: banner.active ? banner.oldTerritory : undefined,
       bannerOldBattleWalls: banner.active ? banner.oldWalls : undefined,
+      bannerOldHouses: banner.active ? banner.oldHouses : undefined,
+      bannerOldBonusSquares: banner.active ? banner.oldBonusSquares : undefined,
       announcement: frame.announcement,
       gameOver: frame.gameOver,
       lifeLostDialog: buildLifeLostDialogUi(

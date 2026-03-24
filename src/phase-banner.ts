@@ -1,3 +1,4 @@
+import type { House, TilePos } from "./geometry-types.ts";
 import type { CastleData } from "./render-types.ts";
 import type { GameState } from "./types.ts";
 import { Phase } from "./types.ts";
@@ -11,6 +12,8 @@ export interface BannerState {
   oldCastles?: CastleData[];
   oldTerritory?: Set<number>[];
   oldWalls?: Set<number>[];
+  oldHouses?: House[];
+  oldBonusSquares?: TilePos[];
   newTerritory?: Set<number>[];
   newWalls?: Set<number>[];
 }
@@ -65,10 +68,14 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
       state.phase === Phase.BATTLE
         ? battleAnim.walls?.map((s) => new Set(s))
         : undefined;
+    banner.oldHouses ??= state.map.houses.map((h) => ({ ...h }));
+    banner.oldBonusSquares ??= state.bonusSquares.map((b) => ({ ...b }));
   } else {
     banner.oldCastles = undefined;
     banner.oldTerritory = undefined;
     banner.oldWalls = undefined;
+    banner.oldHouses = undefined;
+    banner.oldBonusSquares = undefined;
   }
 
   banner.newTerritory = newBattle?.territory;
@@ -95,6 +102,8 @@ export function tickBannerTransition(
   banner.oldCastles = undefined;
   banner.oldTerritory = undefined;
   banner.oldWalls = undefined;
+  banner.oldHouses = undefined;
+  banner.oldBonusSquares = undefined;
   banner.newTerritory = undefined;
   banner.newWalls = undefined;
   banner.active = false;

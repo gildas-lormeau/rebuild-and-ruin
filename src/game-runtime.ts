@@ -741,6 +741,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       });
     }
     rs.castleBuild = createCastleBuildState(wallPlans, () => {
+      // Snapshot entities before finalization spawns houses + bonus squares
+      rs.banner.oldHouses = rs.state.map.houses.map((h) => ({ ...h }));
+      rs.banner.oldBonusSquares = rs.state.bonusSquares.map((b) => ({ ...b }));
       finalizeCastleConstruction(rs.state);
       enterCannonPlacePhase(rs.state);
       camera.clearCastleBuildViewport();
@@ -777,7 +780,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function advanceToCannonPhase(): void {
     advanceToCannonPlacePhase(rs.state);
     startCannonPhase();
-    showBanner(BANNER_PLACE_CANNONS, () => { rs.mode = Mode.GAME; }, false, undefined, BANNER_PLACE_CANNONS_SUB);
+    showBanner(BANNER_PLACE_CANNONS, () => { rs.mode = Mode.GAME; }, true, undefined, BANNER_PLACE_CANNONS_SUB);
   }
 
   function tickCastleBuild(dt: number): void {
@@ -859,6 +862,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     }
 
     rs.castleBuild = createCastleBuildState(plans, () => {
+      rs.banner.oldHouses = rs.state.map.houses.map((h) => ({ ...h }));
+      rs.banner.oldBonusSquares = rs.state.bonusSquares.map((b) => ({ ...b }));
       finalizeCastleRebuild(rs.state, plans);
       camera.clearCastleBuildViewport();
       onDone();
