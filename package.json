@@ -20,7 +20,9 @@
     "lint:duplicates": "jscpd src/ --min-lines 10",
     "lint:literals": "npx tsx scripts/find-duplicate-literals.ts",
     "lint:server": "deno check server/server.ts",
-    "lint:all": "npm run lint && npm run lint:unused && npm run lint:circular && npm run lint:duplicates && npm run lint:literals && npm run lint:server"
+    "lint:all": "npm run lint && npm run lint:unused && npm run lint:circular && npm run lint:duplicates && npm run lint:literals && npm run lint:server",
+    "reorder": "npx tsx scripts/reorder-file.ts",
+    "reorder:changed": "git diff --cached --name-only --diff-filter=ACM -- 'src/*.ts' | xargs -I{} npx tsx scripts/reorder-file.ts {}"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.8",
@@ -29,6 +31,7 @@
     "knip": "6.0.3",
     "madge": "8.0.0",
     "playwright": "^1.58.2",
+    "ts-morph": "^27.0.2",
     "tsx": "^4.21.0",
     "typescript": "^5",
     "vite": "^7.3.1"
