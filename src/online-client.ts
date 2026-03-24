@@ -271,6 +271,9 @@ function showLobby(): void {
   myPlayerId = -1;
   occupiedSlots = new Set();
   remoteHumanSlots.clear();
+  lastSentAimTarget.clear();
+  lastSentPiecePhantom.clear();
+  lastSentCannonPhantom.clear();
 }
 
 // ---------------------------------------------------------------------------

@@ -42,6 +42,13 @@ export function phantomWireMode(p: CannonPhantom): CannonMode {
   return p.isSuper ? CannonMode.SUPER : p.isBalloon ? CannonMode.BALLOON : CannonMode.NORMAL;
 }
 
+/** Check if a phantom changed since last send; updates the map if so. */
+export function phantomChanged(map: Map<number, string>, playerId: number, key: string): boolean {
+  if (map.get(playerId) === key) return false;
+  map.set(playerId, key);
+  return true;
+}
+
 /** Dedup key for cannon phantom network sends. Covers all fields that affect display. */
 export function cannonPhantomKey(p: CannonPhantom): string {
   return `${p.row},${p.col},${p.isSuper},${p.isBalloon}`;

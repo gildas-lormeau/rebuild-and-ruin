@@ -1,6 +1,6 @@
 import { countdownAnnouncement } from "./battle-system.ts";
 import type { PixelPos } from "./geometry-types.ts";
-import { type CannonPhantom, cannonPhantomKey, type HumanPiecePhantom, type PiecePhantom, phantomWireMode, piecePhantomKey } from "./online-types.ts";
+import { type CannonPhantom, cannonPhantomKey, type HumanPiecePhantom, type PiecePhantom, phantomChanged, phantomWireMode, piecePhantomKey } from "./online-types.ts";
 import type { Crosshair, OrbitParams, PlayerController } from "./player-controller.ts";
 import type { GameState, Impact } from "./types.ts";
 import { BATTLE_TIMER, Phase } from "./types.ts";
@@ -283,10 +283,7 @@ export function tickWatcherCannonPhantomsPhase(
   if (!phantom) return;
 
   frame.phantoms.aiCannonPhantoms!.push(phantom);
-  const key = cannonPhantomKey(phantom);
-  if (lastSentCannonPhantom.get(myPlayerId) === key) return;
-
-  lastSentCannonPhantom.set(myPlayerId, key);
+  if (!phantomChanged(lastSentCannonPhantom, myPlayerId, cannonPhantomKey(phantom))) return;
   sendOpponentCannonPhantom({
     playerId: myPlayerId,
     row: phantom.row,
@@ -345,10 +342,7 @@ export function tickWatcherBuildPhantomsPhase(
       playerId: p.playerId,
     });
 
-    const key = piecePhantomKey(p);
-    if (lastSentPiecePhantom.get(p.playerId) === key) continue;
-
-    lastSentPiecePhantom.set(p.playerId, key);
+    if (!phantomChanged(lastSentPiecePhantom, p.playerId, piecePhantomKey(p))) continue;
     sendOpponentPiecePhantom({
       playerId: p.playerId,
       row: p.row,

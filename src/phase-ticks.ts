@@ -4,6 +4,7 @@ import {
   cannonPhantomKey,
   type HumanPiecePhantom,
   type PiecePhantom,
+  phantomChanged,
   piecePhantomKey,
 } from "./online-types.ts";
 import type { PlayerController } from "./player-controller.ts";
@@ -138,10 +139,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
     frame.phantoms.aiCannonPhantoms!.push(phantom);
     if (!isHost || !sendOpponentCannonPhantom) continue;
 
-    const key = cannonPhantomKey(phantom);
-    if (lastSentCannonPhantom.get(ctrl.playerId) === key) continue;
-
-    lastSentCannonPhantom.set(ctrl.playerId, key);
+    if (!phantomChanged(lastSentCannonPhantom, ctrl.playerId, cannonPhantomKey(phantom))) continue;
     sendOpponentCannonPhantom({
       playerId: ctrl.playerId,
       row: phantom.row,
@@ -293,10 +291,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
       }
 
       if (!isHost || !sendOpponentPhantom) continue;
-      const key = piecePhantomKey(p);
-      if (lastSentPiecePhantom.get(p.playerId) === key) continue;
-
-      lastSentPiecePhantom.set(p.playerId, key);
+      if (!phantomChanged(lastSentPiecePhantom, p.playerId, piecePhantomKey(p))) continue;
       sendOpponentPhantom({
         playerId: p.playerId,
         row: p.row,
