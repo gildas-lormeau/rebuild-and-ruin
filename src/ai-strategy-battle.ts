@@ -7,7 +7,8 @@
 
 import { SMALL_POCKET_MAX_SIZE, traitLookup } from "./ai-constants.ts";
 import { canFire } from "./battle-system.ts";
-import { getCardinalObstacleMask } from "./board-occupancy.ts";
+import { getActiveEnemies, getCardinalObstacleMask } from "./board-occupancy.ts";
+import { getActiveFiringCannons } from "./cannon-system.ts";
 import type {
   PixelPos,
   PrioritizedTilePos,
@@ -20,7 +21,6 @@ import {
   cannonSize,
   DIRS_4,
   inBounds,
-  isCannonAlive,
   isCannonTile,
   manhattanDistance,
   orderByNearest,
@@ -29,6 +29,8 @@ import {
 } from "./spatial.ts";
 import type { Cannon, Cannonball, GameState } from "./types.ts";
 import { CannonMode } from "./types.ts";
+
+export { getActiveEnemies } from "./board-occupancy.ts";
 
 type TargetCandidate = PrioritizedTilePos;
 
@@ -90,10 +92,7 @@ export function planCharitySweep(
 ): TilePos[] | null {
   for (const enemy of state.players) {
     if (enemy.id === playerId || enemy.eliminated) continue;
-    const enemyCannons = enemy.cannons.filter(
-      (c) => isCannonAlive(c) && c.kind !== CannonMode.BALLOON,
-    ).length;
-    if (enemyCannons > CHARITY_CANNON_THRESHOLD) continue;
+    if (getActiveFiringCannons(enemy).length > CHARITY_CANNON_THRESHOLD) continue;
     const targets = planGruntTargets(state, enemy.id, readyCount, rng);
     if (targets) return targets;
   }
@@ -443,9 +442,7 @@ function collectEnemyTargets(
       continue;
 
     if (!wallsOnly) {
-      for (const cannon of other.cannons) {
-        if (!isCannonAlive(cannon)) continue;
-        if (cannon.kind === CannonMode.BALLOON) continue;
+      for (const cannon of getActiveFiringCannons(other)) {
         if (
           state.capturedCannons.some(
             (cc) => cc.cannon === cannon && cc.capturerId === playerId,
@@ -470,11 +467,6 @@ function collectEnemyTargets(
   }
 
   return targets;
-}
-
-/** Return all players that are not `playerId` and not eliminated. */
-export function getActiveEnemies(state: GameState, playerId: number) {
-  return state.players.filter((p) => p.id !== playerId && !p.eliminated);
 }
 
 function isEnemyEligibleForFocus(

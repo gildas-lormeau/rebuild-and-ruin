@@ -9,8 +9,8 @@
 import {
   countWallNeighbors,
   DIRS_4,
-  forEachCannonTile,
   forEachTowerTile,
+  getCannonTileSet,
   inBounds,
   isAtTile,
   isCannonTile,
@@ -122,7 +122,7 @@ export function collectAllCannonTiles(
   for (const player of state.players) {
     for (const cannon of player.cannons) {
       if (options?.excludeBalloon && cannon.kind === CannonMode.BALLOON) continue;
-      forEachCannonTile(cannon, (_r, _c, key) => cannonTiles.add(key));
+      for (const key of getCannonTileSet(cannon)) cannonTiles.add(key);
     }
   }
   return cannonTiles;
@@ -258,6 +258,11 @@ export function sweepIsolatedWalls(walls: Set<number>): void {
     if (countWallNeighbors(walls, r, c) <= 1) toRemove.push(key);
   }
   for (const key of toRemove) walls.delete(key);
+}
+
+/** Return all players that are not `playerId` and not eliminated. */
+export function getActiveEnemies(state: GameState, playerId: number) {
+  return state.players.filter((p) => p.id !== playerId && !p.eliminated);
 }
 
 function hasWallMatching(

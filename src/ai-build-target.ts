@@ -27,29 +27,8 @@ export function canPieceFillAnyGap(
   gaps: Set<number>,
   rect?: TileRect | null,
 ): boolean {
-  // Interior excluding these gaps — gap tiles are ring holes, not forbidden interior.
-  // Also exclude the castle rect interior: the enclosure has gaps so it's NOT closed,
-  // and the AI should be free to extend pieces into it while filling those gaps.
-  const adjusted = new Set(interior);
-  for (const gk of gaps) adjusted.delete(gk);
-  if (rect) {
-    for (let r = rect.top; r <= rect.bottom; r++) {
-      for (let c = rect.left; c <= rect.right; c++) {
-        adjusted.delete(packTile(r, c));
-      }
-    }
-  }
-  let rot = piece;
-  for (let ri = 0; ri < 4; ri++) {
-    for (const gk of gaps) {
-      const { r: gr, c: gc } = unpackTile(gk);
-      for (const [dr, dc] of rot.offsets) {
-        if (canPlacePiece(state, playerId, rot, gr - dr, gc - dc, adjusted)) return true;
-      }
-    }
-    rot = rotateCW(rot);
-  }
-  return false;
+  const adjusted = adjustInterior(interior, gaps, rect);
+  return canAnyRotationFillGap([piece], gaps, adjusted, state, playerId);
 }
 
 /**
@@ -98,9 +77,23 @@ function isGapFillableByAnyShape(
   gapKey: number,
   rect?: TileRect | null,
 ): boolean {
-  const { r: gr, c: gc } = unpackTile(gapKey);
+  const singleGap = new Set([gapKey]);
+  const adjusted = adjustInterior(interior, singleGap, rect);
+  return canAnyRotationFillGap(ALL_PIECE_SHAPES, singleGap, adjusted, state, playerId);
+}
+
+/**
+ * Build an adjusted interior set by removing gap tiles and castle-rect interior.
+ * Gap tiles are ring holes, not forbidden interior; the rect interior is open
+ * so the AI is free to extend pieces into it while filling gaps.
+ */
+function adjustInterior(
+  interior: Set<number>,
+  gaps: Set<number>,
+  rect?: TileRect | null,
+): Set<number> {
   const adjusted = new Set(interior);
-  adjusted.delete(gapKey);
+  for (const gk of gaps) adjusted.delete(gk);
   if (rect) {
     for (let r = rect.top; r <= rect.bottom; r++) {
       for (let c = rect.left; c <= rect.right; c++) {
@@ -108,11 +101,25 @@ function isGapFillableByAnyShape(
       }
     }
   }
-  for (const shape of ALL_PIECE_SHAPES) {
+  return adjusted;
+}
+
+/** Try all rotations of each piece against each gap anchor; return true on first fit. */
+function canAnyRotationFillGap(
+  pieces: readonly PieceShape[],
+  gaps: Set<number>,
+  adjusted: Set<number>,
+  state: GameState,
+  playerId: number,
+): boolean {
+  for (const shape of pieces) {
     let rot = shape;
     for (let ri = 0; ri < 4; ri++) {
-      for (const [dr, dc] of rot.offsets) {
-        if (canPlacePiece(state, playerId, rot, gr - dr, gc - dc, adjusted)) return true;
+      for (const gk of gaps) {
+        const { r: gr, c: gc } = unpackTile(gk);
+        for (const [dr, dc] of rot.offsets) {
+          if (canPlacePiece(state, playerId, rot, gr - dr, gc - dc, adjusted)) return true;
+        }
       }
       rot = rotateCW(rot);
     }

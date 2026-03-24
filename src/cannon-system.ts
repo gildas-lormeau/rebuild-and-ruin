@@ -208,6 +208,13 @@ export function resetCannonFacings(state: GameState): void {
   }
 }
 
+/** Return a player's alive cannons that can fire (excludes balloons and dead cannons). */
+export function getActiveFiringCannons(player: Player): Cannon[] {
+  return player.cannons.filter(
+    (c) => isCannonAlive(c) && c.kind !== CannonMode.BALLOON,
+  );
+}
+
 function cannonSlotCost(cannon: Pick<Cannon, "kind">): number {
   switch (cannon.kind) {
     case CannonMode.BALLOON: return BALLOON_COST;

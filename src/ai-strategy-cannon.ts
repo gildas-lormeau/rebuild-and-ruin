@@ -20,6 +20,7 @@ import type { Rng } from "./rng.ts";
 import {
   DIRS_4,
   forEachCannonTile,
+  getCannonTileSet,
   inBounds,
   isCannonAlive,
   isWater,
@@ -123,6 +124,8 @@ export function autoPlaceCannonsImpl(
   spatialAwareness = 2,
 ): { row: number; col: number; kind: CannonMode }[] {
   const beforeCount = player.cannons.length;
+  // Precompute tower centers once — used by all scoring calls
+  const towerCenters = player.ownedTowers.map(towerCenter);
   // Cannon scoring noise — controlled by spatialAwareness
   // 1 = noisy (×5), 2 = default (×1), 3 = precise (×0.25)
   const noiseScale = traitLookup(spatialAwareness, [5, 1, 0.25] as const);
@@ -147,6 +150,7 @@ export function autoPlaceCannonsImpl(
     noiseScale,
     superProb,
     superThreshold,
+    towerCenters,
   );
 
   // Collect and score normal 2x2 cannon candidates
@@ -157,6 +161,7 @@ export function autoPlaceCannonsImpl(
     state,
     rng,
     noiseScale,
+    towerCenters,
   );
 
   // Place a propaganda balloon — controlled by defensiveness
@@ -171,6 +176,7 @@ export function autoPlaceCannonsImpl(
       state,
       rng,
       noiseScale,
+      towerCenters,
     );
     if (!bestPosition) break;
     placeCannon(
@@ -194,13 +200,14 @@ function findBestNormalCannonPosition(
   state: GameState,
   rng: Rng,
   noiseScale: number,
+  towerCenters: TilePos[],
 ): TilePos | null {
   let bestPosition: TilePos | null = null;
   let bestScore = Infinity;
   for (const key of player.interior) {
     const { r, c } = unpackTile(key);
     if (!canPlaceCannon(player, r, c, CannonMode.NORMAL, state)) continue;
-    const score = scoreCannonPosition(player, r, c, 2, state, rng, noiseScale);
+    const score = scoreCannonPosition(player, r, c, 2, state, rng, noiseScale, towerCenters);
     if (score < bestScore) {
       bestScore = score;
       bestPosition = { row: r, col: c };
@@ -217,6 +224,7 @@ function tryPlaceSuperGun(
   noiseScale: number,
   superProb: number,
   superThreshold: number,
+  towerCenters: TilePos[],
 ): void {
   if (count < superThreshold || !rng.bool(superProb)) return;
   const superCandidates = collectCannonCandidates(
@@ -226,6 +234,7 @@ function tryPlaceSuperGun(
     state,
     rng,
     noiseScale,
+    towerCenters,
   );
   const best = superCandidates[0];
   if (best && count - cannonSlotsUsed(player) >= SUPER_GUN_COST) {
@@ -240,6 +249,7 @@ function collectCannonCandidates(
   state: GameState,
   rng: Rng,
   noiseScale: number,
+  towerCenters: TilePos[],
 ): CannonCandidate[] {
   const candidates: CannonCandidate[] = [];
   for (const key of player.interior) {
@@ -248,7 +258,7 @@ function collectCannonCandidates(
     candidates.push({
       row: r,
       col: c,
-      score: scoreCannonPosition(player, r, c, size, state, rng, noiseScale),
+      score: scoreCannonPosition(player, r, c, size, state, rng, noiseScale, towerCenters),
     });
   }
   candidates.sort((a, b) => a.score - b.score);
@@ -267,6 +277,7 @@ function scoreCannonPosition(
   state: GameState,
   rng: Rng,
   noiseScale = 1,
+  towerCenters: TilePos[] = player.ownedTowers.map(towerCenter),
 ): number {
   const cannonKind = size === 3 ? CannonMode.SUPER : CannonMode.NORMAL;
   let score = 0;
@@ -274,30 +285,21 @@ function scoreCannonPosition(
     score += scoreCannonTileLocalPenalty(state, r, c);
   });
 
-  if (player.ownedTowers.length > 0) {
+  if (towerCenters.length > 0) {
     const centerRow = row + size / 2;
     const centerCol = col + size / 2;
     let minTowerDistance = Infinity;
-    for (const t of player.ownedTowers) {
-      const center = towerCenter(t);
-      const distance = manhattanDistance(
-        centerRow,
-        centerCol,
-        center.row,
-        center.col,
-      );
+    for (const tc of towerCenters) {
+      const distance = manhattanDistance(centerRow, centerCol, tc.row, tc.col);
       if (distance < minTowerDistance) minTowerDistance = distance;
     }
     score += minTowerDistance * TOWER_DISTANCE_MULTIPLIER;
   }
 
-  const cannonTiles = new Set<number>();
-  forEachCannonTile({ row, col, kind: cannonKind }, (_r, _c, key) => {
-    cannonTiles.add(key);
-  });
+  const cannonTiles = getCannonTileSet({ row, col, kind: cannonKind });
   const occupied = new Set(cannonTiles);
   for (const cannon of player.cannons) {
-    forEachCannonTile(cannon, (_r, _c, key) => occupied.add(key));
+    for (const key of getCannonTileSet(cannon)) occupied.add(key);
   }
   const checked = new Set<number>();
   for (let dr = -1; dr <= size; dr++) {

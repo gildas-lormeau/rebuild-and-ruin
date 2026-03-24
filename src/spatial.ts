@@ -60,6 +60,15 @@ export function isTowerTile(t: TilePos, r: number, c: number): boolean {
   return isTileInRect(t.row, t.col, 2, r, c);
 }
 
+/** Return the set of packed tile keys covered by a cannon footprint. */
+export function getCannonTileSet(
+  cannon: Pick<Cannon, "row" | "col" | "kind">,
+): Set<number> {
+  const tiles = new Set<number>();
+  forEachCannonTile(cannon, (_r, _c, key) => tiles.add(key));
+  return tiles;
+}
+
 /** Call `fn` for each tile of a cannon footprint (size based on kind). */
 export function forEachCannonTile(
   cannon: Pick<Cannon, "row" | "col" | "kind">,
