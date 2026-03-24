@@ -32,6 +32,9 @@ interface HandleServerLifecycleDeps {
   onGameOver: (msg: ServerMessage) => void;
   setAnnouncement: (msg: string) => void;
   playerNames: readonly string[];
+  getHostMigrationSeq: () => number;
+  setHostMigrationSeq: (seq: number) => void;
+  bumpHostMigrationSeq: () => void;
   promoteToHost: () => void;
   applyFullState: (msg: FullStateMessage) => void;
 }
@@ -138,6 +141,7 @@ export function handleServerLifecycleMessage(
 
     case MSG.HOST_LEFT: {
       deps.log(`host_left: new host is P${msg.newHostPlayerId} (previous: P${msg.previousHostPlayerId})`);
+      deps.bumpHostMigrationSeq();
       if (msg.newHostPlayerId === deps.getMyPlayerId()) {
         deps.promoteToHost();
         deps.setAnnouncement("You are now the host");
@@ -150,6 +154,14 @@ export function handleServerLifecycleMessage(
 
     case MSG.FULL_STATE:
       if (!deps.isHost && deps.getState()) {
+        const incomingSeq = msg.migrationSeq ?? 0;
+        if (incomingSeq < deps.getHostMigrationSeq()) {
+          deps.log(`ignored stale full_state in lifecycle (seq=${incomingSeq})`);
+          return true;
+        }
+        if (incomingSeq > deps.getHostMigrationSeq()) {
+          deps.setHostMigrationSeq(incomingSeq);
+        }
         deps.applyFullState(msg);
         deps.log("applied full_state from new host");
       }

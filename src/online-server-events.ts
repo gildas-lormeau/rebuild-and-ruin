@@ -82,6 +82,12 @@ interface HandleServerIncrementalDeps {
   getLifeLostDialog: () => LifeLostChoiceDialog | null;
 }
 
+const VALID_CANNON_MODES = new Set<string>([
+  CannonMode.NORMAL,
+  CannonMode.SUPER,
+  CannonMode.BALLOON,
+]);
+
 export function handleServerIncrementalMessage(
   msg: ServerMessage,
   deps: HandleServerIncrementalDeps,
@@ -141,6 +147,7 @@ export function handleServerIncrementalMessage(
     case MSG.OPPONENT_CANNON_PLACED: {
       if (!state || !validPid(msg.playerId, state)) return true;
       if (!inBounds(msg.row, msg.col)) return true;
+      if (!VALID_CANNON_MODES.has(msg.mode)) return true;
       const accept = acceptRemote(msg.playerId, deps);
       deps.log(
         `opponent_cannon_placed: P${msg.playerId} accept=${accept} isHost=${deps.isHost} remoteHumans=[${[...deps.remoteHumanSlots]}] hasState=${!!state}`,

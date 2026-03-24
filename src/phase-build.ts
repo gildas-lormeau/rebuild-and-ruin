@@ -251,6 +251,10 @@ function removeEnclosedGruntsAndRespawn(
 function clearUnenclosedPendingRevives(state: GameState): void {
   const toRemove: number[] = [];
   for (const ti of state.towerPendingRevive) {
+    if (ti < 0 || ti >= state.map.towers.length) {
+      toRemove.push(ti);
+      continue;
+    }
     const isEnclosed = state.players.some(
       p => p.ownedTowers.includes(state.map.towers[ti]!),
     );

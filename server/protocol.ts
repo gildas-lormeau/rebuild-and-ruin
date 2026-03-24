@@ -304,6 +304,8 @@ export interface HostLeftMessage {
 /** Full game state snapshot sent by new host after promotion for watcher reconciliation. */
 export interface FullStateMessage {
   type: "full_state";
+  /** Monotonic host-migration sequence used to reject stale snapshots. */
+  migrationSeq?: number;
   phase: string;
   round: number;
   timer: number;

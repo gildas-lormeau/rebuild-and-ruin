@@ -87,10 +87,12 @@ export function buildBattleStartMessage(
 
 export function buildFullStateMessage(
   state: GameState,
+  migrationSeq: number,
   flights?: { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[],
 ): FullStateMessage {
   return {
     type: MSG.FULL_STATE,
+    migrationSeq,
     phase: Phase[state.phase],
     round: state.round,
     timer: state.timer,
@@ -159,7 +161,11 @@ export function serializePlayers(state: GameState) {
 }
 
 export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage): FullStateResult {
-  state.phase = Phase[msg.phase as keyof typeof Phase];
+  const nextPhase = Phase[msg.phase as keyof typeof Phase];
+  if (nextPhase === undefined) return {};
+  if (!Number.isFinite(msg.rngState)) return {};
+
+  state.phase = nextPhase;
   state.round = msg.round;
   state.timer = msg.timer;
   state.battleCountdown = msg.battleCountdown;
@@ -230,7 +236,9 @@ export function applyPlayersCheckpoint(
   serialized: SerializedPlayer[],
 ): void {
   for (const sp of serialized) {
-    const player = state.players[sp.id]!;
+    const player = state.players[sp.id];
+    if (!player) continue;
+
     player.walls = new Set(sp.walls);
     player.interior = new Set(sp.interior);
     player.cannons = sp.cannons.map((c) => ({
@@ -240,9 +248,15 @@ export function applyPlayersCheckpoint(
       kind: (c.kind ?? CannonMode.NORMAL) as CannonMode,
       facing: c.facing ?? 0,
     }));
-    player.ownedTowers = sp.ownedTowerIndices.map((i) => state.map.towers[i]!);
+    player.ownedTowers = sp.ownedTowerIndices
+      .filter((i) => i >= 0 && i < state.map.towers.length)
+      .map((i) => state.map.towers[i]!);
     player.homeTower =
-      sp.homeTowerIdx !== null ? state.map.towers[sp.homeTowerIdx]! : null;
+      sp.homeTowerIdx !== null &&
+      sp.homeTowerIdx >= 0 &&
+      sp.homeTowerIdx < state.map.towers.length
+        ? state.map.towers[sp.homeTowerIdx]!
+        : null;
     player.lives = sp.lives;
     player.eliminated = sp.eliminated;
     player.score = sp.score;

@@ -102,6 +102,7 @@ const session = {
   ws: null as WebSocket | null,
   myPlayerId: -1,
   isHost: false,
+  hostMigrationSeq: 0,
   occupiedSlots: new Set<number>(),
   remoteHumanSlots: new Set<number>(),
   lobbyWaitTimer: LOBBY_TIMER,
@@ -334,6 +335,7 @@ function resetSession(): void {
   session.ws?.close();
   session.ws = null;
   session.isHost = false;
+  session.hostMigrationSeq = 0;
   session.myPlayerId = -1;
   session.occupiedSlots = new Set();
   session.remoteHumanSlots.clear();
@@ -386,6 +388,13 @@ function buildLifecycleDeps() {
     setAnnouncement: (text: string) => {
       watcher.migrationText = text;
       watcher.migrationTimer = MIGRATION_ANNOUNCEMENT_DURATION;
+    },
+    getHostMigrationSeq: () => session.hostMigrationSeq,
+    setHostMigrationSeq: (seq: number) => {
+      session.hostMigrationSeq = seq;
+    },
+    bumpHostMigrationSeq: () => {
+      session.hostMigrationSeq++;
     },
     playerNames: PLAYER_NAMES,
     promoteToHost,
@@ -478,7 +487,7 @@ function promoteToHost(): void {
   syncAccumulatorsFromTimer(runtime.rs.state, runtime.rs.accum);
   skipPendingAnimations();
 
-  send(buildFullStateMessage(runtime.rs.state, runtime.rs.battleAnim.flights));
+  send(buildFullStateMessage(runtime.rs.state, session.hostMigrationSeq, runtime.rs.battleAnim.flights));
   log("Promotion complete, now running as host");
 }
 
@@ -544,6 +553,7 @@ function resetDedup(): void {
 }
 
 function applyFullState(msg: FullStateMessage): void {
+  // Stale-seq rejection is handled by the lifecycle handler in online-server-lifecycle.ts
   const state = runtime.rs.state;
   const result = applyFullStateSnapshot(state, msg);
 
