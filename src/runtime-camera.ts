@@ -93,7 +93,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   let castleBuildVp: Viewport | null = null;
   let buildPinchVp: Viewport | null = null;
   let battlePinchVp: Viewport | null = null;
-  const MIN_ZOOM_W = GRID_COLS * TILE_SIZE * 0.15;
+  const MIN_ZOOM_RATIO = 0.15;
+  const MIN_ZOOM_W = GRID_COLS * TILE_SIZE * MIN_ZOOM_RATIO;
   const cachedZoneBounds: Map<number, { vp: Viewport; wallCount: number }> = new Map();
 
   const fullMapVp: Viewport = { x: 0, y: 0, w: GRID_COLS * TILE_SIZE, h: GRID_ROWS * TILE_SIZE };
@@ -102,6 +103,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   const ZOOM_LERP_SPEED = 6;
   const MAX_ZOOM_VIEWPORT_RATIO = 0.85;
   const PINCH_FULL_MAP_SNAP = 0.95;
+  const ZONE_PAD_WITH_WALLS = 4;
+  const ZONE_PAD_NO_WALLS = 1;
+  const PHASE_ENDING_THRESHOLD = 1.5;    // seconds before timer reaches 0
+  const SELECTION_ZOOM_DELAY = 2;        // seconds to wait before auto-zoom on selection
+  const VIEWPORT_SNAP_THRESHOLD = 0.5;   // pixel distance for lerp convergence
 
   // --- Helpers ---
 
@@ -167,6 +173,17 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     return { x, y, w: newW, h: newH };
   }
 
+  interface Bounds { minR: number; maxR: number; minC: number; maxC: number }
+
+  function newBounds(): Bounds {
+    return { minR: GRID_ROWS, maxR: 0, minC: GRID_COLS, maxC: 0 };
+  }
+
+  function expandBounds(b: Bounds, r: number, c: number): void {
+    if (r < b.minR) b.minR = r; if (r > b.maxR) b.maxR = r;
+    if (c < b.minC) b.minC = c; if (c > b.maxC) b.maxC = c;
+  }
+
   function computeZoneBounds(zoneId: number): Viewport {
     const state = deps.getState()!;
     const pid = state.playerZones.indexOf(zoneId);
@@ -175,26 +192,22 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     const cached = cachedZoneBounds.get(zoneId);
     if (cached && cached.wallCount === (player?.walls.size ?? 0)) return cached.vp;
 
-    let minR = GRID_ROWS, maxR = 0, minC = GRID_COLS, maxC = 0;
-    function expand(r: number, c: number) {
-      if (r < minR) minR = r; if (r > maxR) maxR = r;
-      if (c < minC) minC = c; if (c > maxC) maxC = c;
-    }
+    const b = newBounds();
 
     if (player && player.walls.size > 0) {
-      for (const key of player.walls) { const { r, c } = unpackTile(key); expand(r, c); }
-      if (player.homeTower) expand(player.homeTower.row, player.homeTower.col);
+      for (const key of player.walls) { const { r, c } = unpackTile(key); expandBounds(b, r, c); }
+      if (player.homeTower) expandBounds(b, player.homeTower.row, player.homeTower.col);
     } else {
       const zones = state.map.zones;
       for (let r = 0; r < GRID_ROWS; r++) {
         for (let c = 0; c < GRID_COLS; c++) {
-          if (zones[r]![c] === zoneId) expand(r, c);
+          if (zones[r]![c] === zoneId) expandBounds(b, r, c);
         }
       }
     }
 
-    const pad = player && player.walls.size > 0 ? 4 : 1;
-    const result = boundsToViewport(minR, maxR, minC, maxC, pad);
+    const pad = player && player.walls.size > 0 ? ZONE_PAD_WITH_WALLS : ZONE_PAD_NO_WALLS;
+    const result = boundsToViewport(b.minR, b.maxR, b.minC, b.maxC, pad);
     cachedZoneBounds.set(zoneId, { vp: result, wallCount: player?.walls.size ?? 0 });
     return result;
   }
@@ -205,14 +218,10 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     const plan = wallPlans.find(p => p.playerId === myPid) ?? wallPlans[0];
     if (!plan || plan.tiles.length === 0) return fullMapVp;
     const player = state.players[plan.playerId];
-    let minR = GRID_ROWS, maxR = 0, minC = GRID_COLS, maxC = 0;
-    function expand(r: number, c: number) {
-      if (r < minR) minR = r; if (r > maxR) maxR = r;
-      if (c < minC) minC = c; if (c > maxC) maxC = c;
-    }
-    for (const key of plan.tiles) { const { r, c } = unpackTile(key); expand(r, c); }
-    if (player?.homeTower) expand(player.homeTower.row, player.homeTower.col);
-    return boundsToViewport(minR, maxR, minC, maxC, 4);
+    const b = newBounds();
+    for (const key of plan.tiles) { const { r, c } = unpackTile(key); expandBounds(b, r, c); }
+    if (player?.homeTower) expandBounds(b, player.homeTower.row, player.homeTower.col);
+    return boundsToViewport(b.minR, b.maxR, b.minC, b.maxC, ZONE_PAD_WITH_WALLS);
   }
 
   // --- Auto-zoom ---
@@ -274,7 +283,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
     // Unzoom for UI overlays and near end of phase
     if (cameraZone !== null || pinchVp !== null) {
-      const phaseEnding = !mobileAuto && state.timer > 0 && state.timer <= 1.5 &&
+      const phaseEnding = !mobileAuto && state.timer > 0 && state.timer <= PHASE_ENDING_THRESHOLD &&
         (state.phase === Phase.WALL_BUILD || state.phase === Phase.CANNON_PLACE || state.phase === Phase.BATTLE);
       const lifeLostUnzoom = deps.hasLifeLostDialog() && !mobileAuto;
       if (phaseEnding || quitPending || lifeLostUnzoom || paused) {
@@ -301,7 +310,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
     // Selection zoom delay: wait before auto-zooming on first selection (mobile)
     if (mode === Mode.SELECTION && lastAutoZoomPhase === null && selectionZoomDelay <= 0) {
-      selectionZoomDelay = 2;
+      selectionZoomDelay = SELECTION_ZOOM_DELAY;
     }
     if (selectionZoomDelay > 0 && mode === Mode.SELECTION) {
       selectionZoomDelay -= dt;
@@ -347,7 +356,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
     const dx = Math.abs(currentVp.x - target.x) + Math.abs(currentVp.y - target.y) +
                Math.abs(currentVp.w - target.w) + Math.abs(currentVp.h - target.h);
-    if (dx < 0.5) {
+    if (dx < VIEWPORT_SNAP_THRESHOLD) {
       currentVp.x = target.x;
       currentVp.y = target.y;
       currentVp.w = target.w;

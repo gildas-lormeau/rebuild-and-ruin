@@ -1,4 +1,4 @@
-import type { ServerMessage } from "../server/protocol.ts";
+import { MSG, type ServerMessage } from "../server/protocol.ts";
 import { resetCannonFacings } from "./game-engine.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
@@ -41,7 +41,7 @@ export function applyCannonStartCheckpoint(
   msg: ServerMessage,
   deps: CheckpointDeps,
 ): void {
-  if (msg.type !== "cannon_start") return;
+  if (msg.type !== MSG.CANNON_START) return;
   applyPlayersCheckpoint(deps.state, msg.players);
   applyGruntsCheckpoint(deps.state, msg.grunts);
   applyHousesCheckpoint(deps.state, msg.houses);
@@ -63,7 +63,7 @@ export function applyBattleStartCheckpoint(
   msg: ServerMessage,
   deps: CheckpointDeps,
 ): void {
-  if (msg.type !== "battle_start") return;
+  if (msg.type !== MSG.BATTLE_START) return;
   applyPlayersCheckpoint(deps.state, msg.players);
   applyGruntsCheckpoint(deps.state, msg.grunts);
   deps.state.burningPits = msg.burningPits;
@@ -105,7 +105,7 @@ export function applyBuildStartCheckpoint(
   msg: ServerMessage,
   deps: CheckpointDeps,
 ): void {
-  if (msg.type !== "build_start") return;
+  if (msg.type !== MSG.BUILD_START) return;
   applyPlayersCheckpoint(deps.state, msg.players);
   applyGruntsCheckpoint(deps.state, msg.grunts);
   applyHousesCheckpoint(deps.state, msg.houses);

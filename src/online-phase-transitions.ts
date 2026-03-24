@@ -1,4 +1,4 @@
-import type { ServerMessage } from "../server/protocol.ts";
+import { MSG, type ServerMessage } from "../server/protocol.ts";
 import type { BannerShow } from "./battle-ticks.ts";
 import { BANNER_PLACE_CANNONS } from "./game-engine.ts";
 import { FOCUS_REMATCH, type GameOverFocus } from "./game-ui-types.ts";
@@ -73,7 +73,7 @@ export interface TransitionContext {
 // ---------------------------------------------------------------------------
 
 export function handleCastleWallsTransition(msg: ServerMessage, ctx: TransitionContext): void {
-  if (msg.type !== "castle_walls") return;
+  if (msg.type !== MSG.CASTLE_WALLS) return;
   const state = ctx.getState();
   const plans = msg.plans;
   const maxTiles = Math.max(...plans.map((p) => p.tiles.length), 0);
@@ -97,7 +97,7 @@ export function handleCastleWallsTransition(msg: ServerMessage, ctx: TransitionC
 }
 
 export function handleCannonStartTransition(msg: ServerMessage, ctx: TransitionContext): void {
-  if (msg.type !== "cannon_start") return;
+  if (msg.type !== MSG.CANNON_START) return;
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
   ctx.clearSelectionOverlay();
@@ -126,7 +126,7 @@ export function handleCannonStartTransition(msg: ServerMessage, ctx: TransitionC
 }
 
 export function handleBattleStartTransition(msg: ServerMessage, ctx: TransitionContext): void {
-  if (msg.type !== "battle_start") return;
+  if (msg.type !== MSG.BATTLE_START) return;
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
   const battleReceivedAt = ctx.now();
@@ -166,7 +166,7 @@ export function handleBattleStartTransition(msg: ServerMessage, ctx: TransitionC
 }
 
 export function handleBuildStartTransition(msg: ServerMessage, ctx: TransitionContext): void {
-  if (msg.type !== "build_start") return;
+  if (msg.type !== MSG.BUILD_START) return;
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
   const buildReceivedAt = ctx.now();
@@ -188,7 +188,7 @@ export function handleBuildStartTransition(msg: ServerMessage, ctx: TransitionCo
 }
 
 export function handleBuildEndTransition(msg: ServerMessage, ctx: TransitionContext): void {
-  if (msg.type !== "build_end") return;
+  if (msg.type !== MSG.BUILD_END) return;
   const state = ctx.getState();
   ctx.applyPlayersCheckpoint(state, msg.players);
   for (let i = 0; i < state.players.length; i++) {
@@ -204,7 +204,7 @@ export function handleBuildEndTransition(msg: ServerMessage, ctx: TransitionCont
 }
 
 export function handleGameOverTransition(msg: ServerMessage, ctx: TransitionContext): void {
-  if (msg.type !== "game_over") return;
+  if (msg.type !== MSG.GAME_OVER) return;
   ctx.setGameOverFrame({
     winner: msg.winner ?? "Nobody",
     scores: msg.scores.map((s, i) => ({

@@ -163,8 +163,9 @@ let roomCannonMaxHp = 3;
 // Watcher state: timing, crosshairs, phantoms, migration announcement
 const watcher = createWatcherState();
 
-// @ts-ignore — import.meta.env is Vite-specific (not recognized by Deno LSP)
-const DEV = import.meta.env?.DEV ?? (location?.hostname === "localhost");
+import { IS_DEV } from "./platform.ts";
+
+const DEV = IS_DEV;
 
 /** Structured log for E2E test analysis (dev only). */
 function log(msg: string): void {

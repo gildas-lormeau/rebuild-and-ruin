@@ -97,7 +97,7 @@ import {
   tickHostBuildPhase,
   tickHostCannonPhase,
 } from "./phase-ticks.ts";
-import { IS_TOUCH_DEVICE } from "./platform.ts";
+import { IS_DEV, IS_TOUCH_DEVICE } from "./platform.ts";
 import {
   getPlayerColor,
   MAX_PLAYERS,
@@ -195,8 +195,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Main loop
   // -------------------------------------------------------------------------
 
-  // @ts-ignore — import.meta.env is Vite-specific
-  const DEV = import.meta.env?.DEV ?? (typeof location !== "undefined" && location?.hostname === "localhost");
+  const DEV = IS_DEV;
 
   /** Expose mode, phase, and targeting data for E2E test automation (dev only). */
   function exposeTestGlobals(): void {
