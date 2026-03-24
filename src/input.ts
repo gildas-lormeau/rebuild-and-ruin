@@ -104,6 +104,14 @@ export interface RegisterOnlineInputDeps {
   };
 }
 
+/** Ms window after a touchend during which synthetic click events are suppressed. */
+const TOUCH_CLICK_SUPPRESS_MS = 500;
+
+/** Timestamp of last touchend; suppresses synthetic click events on mobile. */
+let lastTouchTime = 0;
+
+export function markTouchTime(): void { lastTouchTime = performance.now(); }
+
 export function registerOnlineInputHandlers(
   deps: RegisterOnlineInputDeps,
 ): void {
@@ -176,6 +184,9 @@ export function registerOnlineInputHandlers(
   });
 
   canvas.addEventListener("click", (e) => {
+    // Suppress synthetic click fired by the browser after touchend
+    if (performance.now() - lastTouchTime < TOUCH_CLICK_SUPPRESS_MS) return;
+
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) * (canvas.width / rect.width);
     const y = (e.clientY - rect.top) * (canvas.height / rect.height);
@@ -558,7 +569,7 @@ export function dispatchModeTap(
   return false;
 }
 
-/** Shared tower-selection tap — highlight and confirm a tower pick for the first human. */
+/** Shared tower-selection tap — first tap highlights, same tower again confirms. */
 export function dispatchTowerSelect(
   wx: number,
   wy: number,
@@ -567,6 +578,7 @@ export function dispatchTowerSelect(
   deps: Pick<RegisterOnlineInputDeps,
     "withFirstHuman" | "getSelectionStates" |
     "highlightTowerForPlayer" | "confirmSelectionForPlayer">,
+  requireDoubleTap = false,
 ): void {
   deps.withFirstHuman((human) => {
     const ss = deps.getSelectionStates().get(human.playerId);
@@ -574,8 +586,15 @@ export function dispatchTowerSelect(
     const zone = state.playerZones[human.playerId] ?? 0;
     const idx = towerAtPixel(state.map.towers, wx, wy);
     if (idx !== null && state.map.towers[idx]?.zone === zone) {
-      deps.highlightTowerForPlayer(idx, zone, human.playerId);
-      deps.confirmSelectionForPlayer(human.playerId, isReselect);
+      const alreadyHighlighted = ss.highlighted === idx;
+      if (alreadyHighlighted && (!requireDoubleTap || ss.tapped)) {
+        deps.confirmSelectionForPlayer(human.playerId, isReselect);
+      } else {
+        deps.highlightTowerForPlayer(idx, zone, human.playerId);
+        // Mark tapped only when re-tapping the already-highlighted tower;
+        // switching to a different tower resets so you can browse freely.
+        ss.tapped = alreadyHighlighted;
+      }
     }
   });
 }
@@ -614,6 +633,7 @@ export function dispatchPointerMove(
       const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
       if (idx !== null && idx !== ss.highlighted) {
         highlightTowerForPlayer(idx, zone, human.playerId);
+        ss.tapped = false;
       }
     });
   } else if (state.phase === Phase.WALL_BUILD) {

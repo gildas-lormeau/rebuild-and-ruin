@@ -6,7 +6,7 @@
  */
 
 import { Mode } from "./game-ui-types.ts";
-import type { WorldPos } from "./geometry-types.ts";
+import type { TilePos, WorldPos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import type { Viewport } from "./render-types.ts";
 import { unpackTile } from "./spatial.ts";
@@ -20,6 +20,7 @@ import {
   SELECTION_ZOOM_DELAY,
   VIEWPORT_SNAP_THRESHOLD,
   ZONE_PAD_NO_WALLS,
+  ZONE_PAD_SELECTION,
   ZONE_PAD_WITH_WALLS,
   ZOOM_LERP_SPEED,
 } from "./types.ts";
@@ -73,6 +74,7 @@ interface CameraSystem {
   resetCamera: () => void;
 
   // Castle build viewport
+  setSelectionViewport: (towerRow: number, towerCol: number) => void;
   setCastleBuildViewport: (wallPlans: { playerId: number; tiles: number[] }[]) => void;
   clearCastleBuildViewport: () => void;
 
@@ -88,6 +90,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   let mobileZoomEnabled = false;
   let zoomActivated = false;
   let selectionZoomDelay = 0;
+  let pendingSelectionVp: TilePos | null = null;
   let pinchVp: Viewport | null = null;
   let pinchStartVp: Viewport | null = null;
   let pinchStartMidX = 0;
@@ -320,7 +323,17 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       selectionZoomDelay -= dt;
       if (selectionZoomDelay <= 0) {
         selectionZoomDelay = 0;
-        if (mobileZoomEnabled && zoomActivated) autoZoom(state.phase);
+        if (mobileZoomEnabled && zoomActivated) {
+          autoZoom(state.phase);
+          if (pendingSelectionVp) {
+            castleBuildVp = boundsToViewport(
+              pendingSelectionVp.row, pendingSelectionVp.row + 1,
+              pendingSelectionVp.col, pendingSelectionVp.col + 1,
+              ZONE_PAD_SELECTION,
+            );
+            pendingSelectionVp = null;
+          }
+        }
       }
     }
 
@@ -474,6 +487,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     battleZoom = null;
     lastAutoZoomPhase = null;
     selectionZoomDelay = 0;
+    pendingSelectionVp = null;
     cachedZoneBounds.clear();
   }
 
@@ -488,6 +502,18 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     } else {
       buildPinchVp = null;
     }
+  }
+
+  /** Zoom around a tower during selection (5 tiles around for context). */
+  function setSelectionViewport(towerRow: number, towerCol: number): void {
+    if (!mobileZoomEnabled || !zoomActivated) return;
+    // Block until the "Select your home castle" banner delay has elapsed
+    if (selectionZoomDelay > 0 || lastAutoZoomPhase === null) {
+      pendingSelectionVp = { row: towerRow, col: towerCol };
+      return;
+    }
+    pendingSelectionVp = null;
+    castleBuildVp = boundsToViewport(towerRow, towerRow + 1, towerCol, towerCol + 1, ZONE_PAD_SELECTION);
   }
 
   function setCastleBuildViewport(wallPlans: { playerId: number; tiles: number[] }[]): void {
@@ -524,6 +550,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     setCameraZone,
     unzoom,
     resetCamera,
+    setSelectionViewport,
     setCastleBuildViewport,
     clearCastleBuildViewport,
     enableMobileZoom,

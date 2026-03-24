@@ -432,6 +432,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     lightUnzoom: () => camera.lightUnzoom(),
     clearCastleBuildViewport: () => camera.clearCastleBuildViewport(),
     setCastleBuildViewport: (plans) => camera.setCastleBuildViewport(plans),
+    setSelectionViewport: (row, col) => camera.setSelectionViewport(row, col),
     computeZoneBounds: camera.computeZoneBounds,
     render: () => render(),
     firstHuman,

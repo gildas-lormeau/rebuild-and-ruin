@@ -380,7 +380,7 @@ async function runLocal() {
   }, SEED);
   // Click "Local Play" to load main.ts and show canvas lobby
   await page.click("#btn-local");
-  await page.waitForSelector("canvas[style*='display: block']", { timeout: 5000 });
+  await page.waitForSelector("#game-container.active", { timeout: 5000 });
   await page.waitForTimeout(500);
 
   // --fast: override requestAnimationFrame with setTimeout(1) + accelerated timestamps

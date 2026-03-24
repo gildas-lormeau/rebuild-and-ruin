@@ -6,7 +6,7 @@
  */
 
 import type { RegisterOnlineInputDeps } from "./input.ts";
-import { dispatchBattleFire, dispatchModeTap, dispatchPointerMove, dispatchTowerSelect } from "./input.ts";
+import { dispatchBattleFire, dispatchModeTap, dispatchPointerMove, dispatchTowerSelect, markTouchTime } from "./input.ts";
 import { Phase } from "./types.ts";
 
 const TAP_MAX_DIST = 20;
@@ -132,6 +132,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
 
     const touch = e.changedTouches[0];
     if (!touch) return;
+    markTouchTime();
 
     const { x, y } = canvasCoords(touch);
     const mode = getMode();
@@ -143,10 +144,10 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
 
     if (!state) return;
 
-    // Selection: tap to confirm
+    // Selection: first tap highlights, second tap on same tower confirms
     if (tap && (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT)) {
       const w = screenToWorld(x, y);
-      dispatchTowerSelect(w.wx, w.wy, state, state.phase === Phase.CASTLE_RESELECT, deps);
+      dispatchTowerSelect(w.wx, w.wy, state, state.phase === Phase.CASTLE_RESELECT, deps, true);
     }
 
     // Build: tap to place (cursor already set on touchstart/touchmove)

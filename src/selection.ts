@@ -7,6 +7,8 @@ import { Phase } from "./types.ts";
 export interface SelectionState {
   highlighted: number;
   confirmed: boolean;
+  /** True once the user has explicitly tapped a tower (enables confirm on next tap). */
+  tapped?: boolean;
 }
 
 interface TickSelectionPhaseDeps {
@@ -46,7 +48,7 @@ export function initTowerSelection(
   const towerIdx = player.homeTower
     ? state.map.towers.findIndex((t) => t === player.homeTower)
     : (zoneTowerIndices(state, zone)[0] ?? 0);
-  selectionStates.set(playerId, { highlighted: towerIdx, confirmed: false });
+  selectionStates.set(playerId, { highlighted: towerIdx, confirmed: false, tapped: true });
   const tower = state.map.towers[towerIdx];
   if (tower) {
     player.homeTower = tower;

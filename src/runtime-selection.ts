@@ -68,6 +68,7 @@ interface SelectionSystemDeps {
   lightUnzoom: () => void;
   clearCastleBuildViewport: () => void;
   setCastleBuildViewport: (plans: { playerId: number; tiles: number[] }[]) => void;
+  setSelectionViewport: (towerRow: number, towerCol: number) => void;
   computeZoneBounds: (zone: number) => { x: number; y: number; w: number; h: number };
 
   // Sibling systems / parent callbacks
@@ -103,6 +104,10 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
 
   function initTowerSelection(pid: number, zone: number): void {
     initTowerSelectionImpl(rs.state, rs.selectionStates, pid, zone);
+    if (isHuman(rs.controllers[pid]!)) {
+      const player = rs.state.players[pid];
+      if (player?.homeTower) deps.setSelectionViewport(player.homeTower.row, player.homeTower.col);
+    }
   }
 
   function enterTowerSelection(): void {
@@ -142,6 +147,9 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
       () => syncSelectionOverlay(),
       () => deps.render(),
     );
+    // Auto-zoom to the highlighted tower on mobile
+    const tower = rs.state.map.towers[idx];
+    if (tower) deps.setSelectionViewport(tower.row, tower.col);
   }
 
   function confirmSelectionForPlayer(pid: number, isReselect = false): boolean {

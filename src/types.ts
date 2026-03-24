@@ -301,6 +301,8 @@ export const PINCH_FULL_MAP_SNAP = 0.95;
 export const ZONE_PAD_WITH_WALLS = 4;
 /** Tile padding around zone tiles when player has no walls. */
 export const ZONE_PAD_NO_WALLS = 1;
+/** Tile padding around tower during selection zoom. */
+export const ZONE_PAD_SELECTION = 7;
 /** Seconds before timer reaches 0 to trigger unzoom. */
 export const PHASE_ENDING_THRESHOLD = 1.5;
 /** Seconds to wait before auto-zoom on first selection. */
