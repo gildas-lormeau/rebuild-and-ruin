@@ -74,7 +74,7 @@ npx tsx scripts/find-duplicate-literals.ts --all --files "src/game-*.ts"  # Scop
 npx tsx scripts/find-duplicate-literals.ts --update-baseline           # Acknowledge current findings as known
 ```
 
-- **For reviews:** use `--all --files <globs>` to scope output to the files being reviewed
+- **For reviews:** use `--all --files <globs>` to scope — only counts and shows occurrences *within* the specified files (a literal duplicated 20× across the codebase but only 1× in scoped files won't be reported)
 - **After fixing duplicates:** run `--update-baseline` to remove fixed entries from baseline
 - **For CI/pre-commit:** default mode (no flags) — exits 1 only for new findings not in baseline
 

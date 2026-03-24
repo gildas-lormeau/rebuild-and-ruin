@@ -336,29 +336,43 @@ for (const filePath of files) {
 // Filter & report
 // ---------------------------------------------------------------------------
 
-/** Check if any location matches the --files filter. */
-function matchesFileFilter(locations: string[]): boolean {
-  if (filesFilter.length === 0) return true;
-  return locations.some(loc => {
-    const file = loc.split(":")[0]!;
-    return filesFilter.some(pattern => {
-      // Support simple glob: "src/render-*.ts" or exact match "src/game-engine.ts"
-      if (pattern.includes("*")) {
-        const regex = new RegExp("^" + pattern.replace(/\*/g, ".*") + "$");
-        return regex.test(file);
-      }
-      return file === pattern;
-    });
+/** Check if a location matches the --files filter globs. */
+function locationMatchesFilter(loc: string): boolean {
+  const file = loc.split(":")[0]!;
+  return filesFilter.some(pattern => {
+    if (pattern.includes("*")) {
+      const regex = new RegExp("^" + pattern.replace(/\*/g, ".*") + "$");
+      return regex.test(file);
+    }
+    return file === pattern;
   });
 }
 
-const stringResults = [...stringCounts.entries()]
-  .filter(([, v]) => v.count >= threshold && matchesFileFilter(v.locations))
-  .sort((a, b) => b[1].count - a[1].count);
+/**
+ * When --files is set, filter locations to only those in the specified files
+ * and use the filtered count for threshold comparison. This way, a literal
+ * that appears 20× across the codebase but only 1× in the scoped files
+ * won't be reported (below threshold).
+ */
+function applyFileScope(
+  entries: [string | number, { count: number; locations: string[] }][],
+): [string | number, { count: number; locations: string[] }][] {
+  if (filesFilter.length === 0) return entries;
+  return entries
+    .map(([key, { locations }]) => {
+      const filtered = locations.filter(locationMatchesFilter);
+      return [key, { count: filtered.length, locations: filtered }] as [string | number, { count: number; locations: string[] }];
+    })
+    .filter(([, v]) => v.count >= threshold);
+}
 
-const numberResults = [...numberCounts.entries()]
-  .filter(([, v]) => v.count >= threshold && matchesFileFilter(v.locations))
-  .sort((a, b) => b[1].count - a[1].count);
+const stringResults = applyFileScope([...stringCounts.entries()]
+  .filter(([, v]) => v.count >= threshold))
+  .sort((a, b) => b[1].count - a[1].count) as [string, { count: number; locations: string[] }][];
+
+const numberResults = applyFileScope([...numberCounts.entries()]
+  .filter(([, v]) => v.count >= threshold))
+  .sort((a, b) => b[1].count - a[1].count) as [number, { count: number; locations: string[] }][];
 
 // --update-baseline: save and exit
 if (updateBaseline) {
