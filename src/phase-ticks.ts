@@ -1,4 +1,4 @@
-import { getCannonMode } from "./cannon-system.ts";
+import { autoPlaceCannons as autoPlaceCannonsLocal } from "./ai-strategy.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
 import {
   type CannonPhantom,
@@ -139,7 +139,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
           playerId: ctrl.playerId,
           row: c.row,
           col: c.col,
-          mode: getCannonMode(c),
+          mode: c.kind,
         });
       }
     }
@@ -193,6 +193,13 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
     }
     const max = state.cannonLimits[ctrl.playerId] ?? 0;
     ctrl.flushCannons(state, max);
+    // Round 1 safety net: auto-place if human placed 0 cannons
+    if (state.round === 1) {
+      const player = state.players[ctrl.playerId]!;
+      if (!player.eliminated && player.cannons.length === 0) {
+        autoPlaceCannonsLocal(player, max, state);
+      }
+    }
   }
 
   startBattle();

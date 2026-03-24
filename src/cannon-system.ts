@@ -12,6 +12,7 @@ import {
   isTowerTile,
   packTile,
   snapAngle,
+  towerCenter,
   unpackTile,
 } from "./spatial.ts";
 import type { Cannon, GameState, Player } from "./types.ts";
@@ -129,21 +130,16 @@ export function applyCannonPlacement(
   player: Player,
   row: number,
   col: number,
-  mode: CannonMode | undefined,
+  mode: CannonMode,
   state: GameState,
 ): void {
   player.cannons.push({
     row,
     col,
     hp: state.cannonMaxHp,
-    kind: mode ?? CannonMode.NORMAL,
+    kind: mode,
     facing: player.defaultFacing,
   });
-}
-
-/** Derive the CannonMode from a placed cannon's boolean flags. */
-export function getCannonMode(cannon: Pick<Cannon, "kind">): CannonMode {
-  return cannon.kind;
 }
 
 /**
@@ -188,21 +184,21 @@ export function cannonSlotsUsed(player: Player): number {
 export function resetCannonFacings(state: GameState): void {
   for (const player of state.players) {
     if (!isPlayerActive(player)) continue;
-    const px = player.homeTower.col + 1;
-    const py = player.homeTower.row + 1;
+    const pc = towerCenter(player.homeTower);
     let ex = 0, ey = 0, count = 0;
     for (const other of state.players) {
       if (other.id === player.id || !isPlayerActive(other)) continue;
-      ex += other.homeTower.col + 1;
-      ey += other.homeTower.row + 1;
+      const oc = towerCenter(other.homeTower);
+      ex += oc.col;
+      ey += oc.row;
       count++;
     }
     let facing = 0;
     if (count > 0) {
       const avgEx = ex / count;
       const avgEy = ey / count;
-      const dx = avgEx - px;
-      const dy = avgEy - py;
+      const dx = avgEx - pc.col;
+      const dy = avgEy - pc.row;
       facing = snapAngle(Math.atan2(dx, -dy), FACING_90_STEP);
     }
     player.defaultFacing = facing;

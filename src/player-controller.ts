@@ -19,6 +19,7 @@ import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import type { BagState, PieceShape } from "./pieces.ts";
 import { createBag, nextPiece } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
+import { towerCenter } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 import {
   Action,
@@ -209,8 +210,9 @@ export abstract class BaseController implements PlayerController {
   }
 
   centerOn(row: number, col: number): void {
-    this.buildCursor = { row: row + 1, col: col + 1 };
-    this.crosshair = { x: (col + 1) * TILE_SIZE, y: (row + 1) * TILE_SIZE };
+    const center = towerCenter({ row, col });
+    this.buildCursor = { row: Math.round(center.row), col: Math.round(center.col) };
+    this.crosshair = { x: center.col * TILE_SIZE, y: center.row * TILE_SIZE };
   }
 
   getCrosshair(): Crosshair {

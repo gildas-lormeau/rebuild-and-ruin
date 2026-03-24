@@ -3,7 +3,6 @@
  * placement, cannon placement, and battle crosshair movement.
  */
 
-import { autoPlaceCannons } from "./ai-strategy.ts";
 import { aimCannons } from "./battle-system.ts";
 import {
   cannonSlotsUsed,
@@ -272,14 +271,8 @@ export class HumanController extends BaseController {
   resetBattle(): void {
     this.lastFiredIdx = -1;
   }
-  flushCannons(state: GameState, maxSlots: number): void {
-    if (state.round !== 1) return;
-    const player = state.players[this.playerId]!;
-    if (player.eliminated) return;
-    // Only auto-place if human placed 0 cannons
-    if (player.cannons.length === 0) {
-      autoPlaceCannons(player, maxSlots, state);
-    }
+  flushCannons(_state: GameState, _maxSlots: number): void {
+    // Round-1 auto-placement for humans with 0 cannons is handled by the game engine
   }
 
   onBattleEnd(): void {

@@ -6,10 +6,12 @@
  */
 
 import { traitLookup } from "./ai-constants.ts";
+import { getActiveEnemies } from "./ai-strategy-battle.ts";
 import { hasTowerAt } from "./board-occupancy.ts";
 import {
   cannonSlotsUsed,
   canPlaceCannon,
+  isCannonEnclosed,
   placeCannon,
 } from "./cannon-system.ts";
 import type { GameMap, TilePos, Tower } from "./geometry-types.ts";
@@ -119,7 +121,8 @@ export function autoPlaceCannonsImpl(
   aggressiveness = 2,
   defensiveness = 2,
   spatialAwareness = 2,
-): void {
+): { row: number; col: number; kind: CannonMode }[] {
+  const beforeCount = player.cannons.length;
   // Cannon scoring noise — controlled by spatialAwareness
   // 1 = noisy (×5), 2 = default (×1), 3 = precise (×0.25)
   const noiseScale = traitLookup(spatialAwareness, [5, 1, 0.25] as const);
@@ -179,6 +182,11 @@ export function autoPlaceCannonsImpl(
       state,
     );
   }
+  return player.cannons.slice(beforeCount).map((c) => ({
+    row: c.row,
+    col: c.col,
+    kind: c.kind,
+  }));
 }
 
 function findBestNormalCannonPosition(
@@ -414,7 +422,7 @@ function shouldPlaceBalloon(
 ): boolean {
   if (defensiveness < 2) return false;
 
-  const enemyPlayers = liveEnemyPlayers(state, player.id);
+  const enemyPlayers = getActiveEnemies(state, player.id);
   const hasEnemySuperGun = enemyPlayers.some((enemy) =>
     enemyHasThreateningSuperGun(state, enemy),
   );
@@ -429,10 +437,6 @@ function shouldPlaceBalloon(
   );
 }
 
-function liveEnemyPlayers(state: GameState, playerId: number): Player[] {
-  return state.players.filter((p) => p.id !== playerId && !p.eliminated);
-}
-
 function enemyHasLiveCannon(enemy: Player): boolean {
   return enemy.cannons.some((c) => isCannonAlive(c));
 }
@@ -441,10 +445,6 @@ function enemyHasThreateningSuperGun(state: GameState, enemy: Player): boolean {
   return enemy.cannons.some((c) => {
     if (!isCannonAlive(c) || c.kind !== CannonMode.SUPER) return false;
     if (state.capturedCannons.some((cc) => cc.cannon === c)) return false;
-    let fullyEnclosed = true;
-    forEachCannonTile(c, (_r, _c, key) => {
-      if (!enemy.interior.has(key)) fullyEnclosed = false;
-    });
-    return fullyEnclosed;
+    return isCannonEnclosed(c, enemy.interior);
   });
 }

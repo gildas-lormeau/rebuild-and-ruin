@@ -30,7 +30,6 @@ import {
   autoPlaceCannonsImpl,
   autoSelectTowerImpl,
 } from "./ai-strategy-cannon.ts";
-import { placeCannon } from "./cannon-system.ts";
 import type { GameMap, PixelPos, StrategicPixelPos, TilePos, Tower } from "./geometry-types.ts";
 import type { PieceShape } from "./pieces.ts";
 import { MAX_UINT32, Rng } from "./rng.ts";
@@ -326,18 +325,15 @@ export class DefaultStrategy implements AiStrategy {
     piece: PieceShape,
     cursorPos?: TilePos,
   ): AiPlacement | null {
-    return pickPlacementImpl(
-      state,
-      playerId,
-      piece,
+    return pickPlacementImpl(state, playerId, piece, {
       cursorPos,
-      this._homeWasBroken,
-      this.castleMargin,
-      this.bankHugging,
-      this.caresAboutHouses,
-      this.caresAboutBonuses,
-      this.buildSkill,
-    );
+      homeWasBroken: this._homeWasBroken,
+      castleMargin: this.castleMargin,
+      bankHugging: this.bankHugging,
+      caresAboutHouses: this.caresAboutHouses,
+      caresAboutBonuses: this.caresAboutBonuses,
+      buildSkill: this.buildSkill,
+    });
   }
 
   assessBuildEnd(state: GameState, playerId: number): void {
@@ -365,8 +361,7 @@ export class DefaultStrategy implements AiStrategy {
       interior: new Set(player.interior),
       cannons: [...player.cannons],
     };
-    const beforeCount = planningPlayer.cannons.length;
-    autoPlaceCannonsImpl(
+    const placed = autoPlaceCannonsImpl(
       planningPlayer,
       count,
       state,
@@ -375,8 +370,7 @@ export class DefaultStrategy implements AiStrategy {
       this.defensiveness,
       this.spatialAwareness,
     );
-    const newCannons = planningPlayer.cannons.slice(beforeCount);
-    return newCannons.map((c) => ({
+    return placed.map((c) => ({
       row: c.row,
       col: c.col,
       mode: c.kind === CannonMode.NORMAL ? undefined : c.kind,
@@ -527,17 +521,14 @@ export class DefaultStrategy implements AiStrategy {
   }
 }
 
-/** Auto-place cannons for an AI player at scored positions inside their castle. */
+/** Auto-place cannons directly on the player at scored positions inside their castle.
+ *  Uses balanced traits (no personality variance) for deterministic fallback behavior. */
 export function autoPlaceCannons(
   player: Player,
   count: number,
   state: GameState,
 ): void {
-  const strategy = new DefaultStrategy(undefined, state.rng.int(0, MAX_UINT32));
-  const placements = strategy.placeCannons(player, count, state);
-  for (const p of placements) {
-    placeCannon(player, p.row, p.col, count, p.mode, state);
-  }
+  autoPlaceCannonsImpl(player, count, state, new Rng(state.rng.int(0, MAX_UINT32)));
 }
 
 /** Standalone pickPlacement wrapper for headless tests / external callers. */
@@ -547,7 +538,7 @@ export function pickPlacement(
   piece: PieceShape,
   cursorPos?: TilePos,
 ): AiPlacement | null {
-  return pickPlacementImpl(state, playerId, piece, cursorPos);
+  return pickPlacementImpl(state, playerId, piece, cursorPos ? { cursorPos } : undefined);
 }
 
 function rollArchetype(rng: Rng): ArchetypeType {

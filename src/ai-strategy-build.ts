@@ -18,10 +18,7 @@ import {
 import { SMALL_POCKET_MAX_SIZE } from "./ai-constants.ts";
 import {
   getCardinalObstacleMask,
-  hasCannonAt,
   hasGruntAt,
-  hasTowerAt,
-  hasWallAt,
 } from "./board-occupancy.ts";
 import { isCannonEnclosed } from "./cannon-system.ts";
 import type { TilePos, TileRect, Tower } from "./geometry-types.ts";
@@ -48,6 +45,17 @@ import {
 import type { GameState } from "./types.ts";
 import { CannonMode } from "./types.ts";
 
+/** Optional AI personality / context parameters for placement. */
+interface PlacementOptions {
+  cursorPos?: TilePos;
+  homeWasBroken?: boolean;
+  castleMargin?: number;
+  bankHugging?: boolean;
+  caresAboutHouses?: boolean;
+  caresAboutBonuses?: boolean;
+  buildSkill?: number;
+}
+
 /** Result of a single AI placement decision. null = no valid placement. */
 export interface AiPlacement {
   piece: PieceShape;
@@ -70,7 +78,8 @@ type Scored = {
   candidate: Candidate;
   score: number;
   gapClosingFat: boolean;
-  fatWallTiles: number;
+  hasFatWall: boolean;
+  fatBlocks: number;
 };
 
 /** Shared context for the scoring loop — avoids threading 15+ params through closures. */
@@ -151,14 +160,17 @@ export function pickPlacementImpl(
   state: GameState,
   playerId: number,
   piece: PieceShape,
-  cursorPos?: TilePos,
-  homeWasBroken?: boolean,
-  castleMargin = 3,
-  bankHugging = false,
-  caresAboutHouses = true,
-  caresAboutBonuses = true,
-  buildSkill = 3,
+  options?: PlacementOptions,
 ): AiPlacement | null {
+  const {
+    cursorPos,
+    homeWasBroken,
+    castleMargin = 3,
+    bankHugging = false,
+    caresAboutHouses = true,
+    caresAboutBonuses = true,
+    buildSkill = 3,
+  } = options ?? {};
   const maybePlayer = state.players[playerId];
   if (!maybePlayer || !maybePlayer.castle) return null;
   const player = maybePlayer;
@@ -230,11 +242,8 @@ export function pickPlacementImpl(
     player.interior,
   );
 
-  const logTime = (result: AiPlacement | null, _reason?: string) => result;
-
   // Step 1: determine which rectangle to build/repair
   function selectTarget(): { targetGaps: Set<number>; targetRect: TileRect | null } {
-    // console.log(`[AI P${playerId}] step1: homeEnclosed=${homeTowerEnclosed} homeHasRingGaps=${homeHasRingGaps} skipHome=${effectiveSkipHome} unenclosed=[${unenclosedTowers.map(t=>`(${t.row},${t.col})`).join(',')}]`);
 
     let targetGaps: Set<number> = new Set();
     let targetRect: TileRect | null = null;
@@ -360,7 +369,6 @@ export function pickPlacementImpl(
     }
 
     const buildTowers = effectiveSkipHome ? otherUnenclosed : unenclosedTowers;
-    // console.log(`[AI P${playerId}] step1 result: targetGaps=${targetGaps.size} buildTowers=${buildTowers.length} allEnclosed=${allCastlesEnclosed}`);
 
     if (targetGaps.size === 0 && buildTowers.length > 0) {
       const currentRow = cursorPos?.row ?? castle.tower.row;
@@ -379,7 +387,6 @@ export function pickPlacementImpl(
         )
       );
       towerScores.sort(compareByNumericScoreDesc);
-      // console.log(`[AI P${playerId}] towerScores: ${towerScores.map(({ tower: tw, score: s }) => `(${tw.row},${tw.col})=${s.toFixed(1)}`).join(' ')}`);
 
       for (const { tower: bestTower } of towerScores) {
         const rect = castleRect(
@@ -393,34 +400,15 @@ export function pickPlacementImpl(
         const gaps = computeFillableGaps(rect, player, state, bankHugging);
         // Accept if there are fillable gaps, or if the ring was already complete
         if (gaps.size > 0 || totalGaps === 0) {
-          // Diagnostic: for small gap counts, log why each gap might be unfillable
-          if (gaps.size <= 3) {
-            const playerZone = player.homeTower?.zone;
-            for (const gk of gaps) {
-              const { r: gr, c: gc } = unpackTile(gk);
-              const reasons: string[] = [];
-              if (!isGrass(state.map.tiles, gr, gc)) reasons.push('!grass');
-              if (playerZone !== undefined && state.map.zones[gr]?.[gc] !== playerZone) reasons.push(`zone=${state.map.zones[gr]?.[gc]}≠${playerZone}`);
-              if (hasWallAt(state, gr, gc)) reasons.push('wall');
-              if (hasTowerAt(state, gr, gc)) reasons.push('tower');
-              if (hasCannonAt(state, gr, gc)) reasons.push('cannon');
-              if (hasGruntAt(state, gr, gc)) reasons.push('grunt');
-              if (isPitAt(state.burningPits, gr, gc)) reasons.push('pit');
-              if (state.bonusSquares.some(b => b.row === gr && b.col === gc)) reasons.push('bonus');
-              // console.log(`[AI P${playerId}]   gap (${gr},${gc}) blockers: ${reasons.length ? reasons.join(',') : 'none'}`);
-            }
-          }
           // If the current piece can't fill this tower's gaps, try the next tower
           // but keep building toward secondary targets instead of giving up
           if (gaps.size > 0 && gaps.size <= 8 && !canPieceFillAnyGap(state, playerId, piece, player.interior, gaps, rect)) {
             // Try plugging structurally unreachable gaps before deferring
             if (!plugUnreachableGaps(gaps, rect, state, playerId, player) ||
                 !canPieceFillAnyGap(state, playerId, piece, player.interior, gaps, rect)) {
-              // console.log(`[AI P${playerId}]   deferring tower (${bestTower.row},${bestTower.col}) — piece ${piece.offsets.length}t can't fill ${gaps.size} gaps`);
               continue;
             }
           }
-          // console.log(`[AI P${playerId}] → targeting tower (${bestTower.row},${bestTower.col}) gaps=${gaps.size}`);
           targetGaps = gaps;
           targetRect = rect;
           break;
@@ -443,22 +431,18 @@ export function pickPlacementImpl(
   // enclosure where the AI should be free to extend pieces while closing the ring.
   const interiorExcludingGaps = new Set(player.interior);
   for (const gk of targetGaps) interiorExcludingGaps.delete(gk);
-  let rectExcluded = 0;
   if (targetRect) {
     for (let r = targetRect.top; r <= targetRect.bottom; r++) {
       for (let c = targetRect.left; c <= targetRect.right; c++) {
-        if (interiorExcludingGaps.delete(packTile(r, c))) rectExcluded++;
+        interiorExcludingGaps.delete(packTile(r, c));
       }
     }
-  }
-  if (rectExcluded > 0) {
-    // console.log(`[AI P${playerId}] rectExcluded=${rectExcluded} interior tiles from open castle rect (interior=${player.interior.size} → exclusion=${interiorExcludingGaps.size})`);
   }
 
   const allCandidates = enumerateCandidates(
     state, playerId, piece, player.walls, outside, targetGaps, interiorExcludingGaps,
   );
-  if (allCandidates.length === 0) return logTime(null);
+  if (allCandidates.length === 0) return null;
 
   // Step 3: pick best using territory gain
   const baselinePocketWaste = countSmallPocketTiles(
@@ -471,13 +455,14 @@ export function pickPlacementImpl(
   const noBuildTargets = noTargetGaps && unenclosedTowers.length === 0;
 
   for (const candidate of allCandidates) {
-    const { fatWallTiles, gapClosingFat } = checkFatWall(
+    const { hasFatWall, gapClosingFat } = checkFatWall(
       player.walls,
       candidate,
-      targetGaps,
     );
 
-    if (noTargetGaps && (fatWallTiles > 0 || gapClosingFat)) continue;
+    if (noTargetGaps && (hasFatWall || gapClosingFat)) continue;
+
+    const fatBlocks = countFatBlocks(player.walls, candidate);
 
     scored.push({
       candidate,
@@ -486,16 +471,17 @@ export function pickPlacementImpl(
         candidate.gapAdjacent * GAP_ADJACENT_WEIGHT +
         candidate.connectedTiles * CONNECTED_TILES_WEIGHT +
         candidate.wallAdjacent -
-        fatWallTiles * FAT_WALL_TILE_PENALTY,
+        (hasFatWall ? FAT_WALL_TILE_PENALTY : 0),
       gapClosingFat,
-      fatWallTiles,
+      hasFatWall,
+      fatBlocks,
     });
   }
 
   if (scored.length === 0) {
     // When everything is enclosed with no gaps, don't force-place fat walls
     if (noBuildTargets) {
-      return logTime(null, 'all-enclosed-no-scored');
+      return null;
     }
     const fatBlockCountFor = memoize((candidate: Candidate) => countFatBlocks(player.walls, candidate));
     const compareByFatBlockCount = (a: Candidate, b: Candidate): number =>
@@ -506,15 +492,15 @@ export function pickPlacementImpl(
       open.sort((a, b) =>
         compareCandidatesByObstaclePreference(a, b, caresAboutHouses, caresAboutBonuses)
       );
-      return logTime(candidateToPlacement(open[0]!), 'open-noFat');
+      return candidateToPlacement(open[0]!);
     }
     // Allow fat-free first, fall back to least fat
     const noFat = allCandidates.filter((c) => fatBlockCountFor(c) === 0);
     if (noFat.length > 0) {
-      return logTime(candidateToPlacement(noFat[0]!), 'noFat-fallback');
+      return candidateToPlacement(noFat[0]!);
     }
     const least = [...allCandidates].sort(compareByFatBlockCount);
-    return logTime(candidateToPlacement(least[0]!), 'least-fat-fallback');
+    return candidateToPlacement(least[0]!);
   }
 
   scored.sort(compareScoredByScoreDesc);
@@ -546,7 +532,7 @@ export function pickPlacementImpl(
     let bestScore = -Infinity;
     let evaluated = false;
 
-    for (const { candidate, gapClosingFat, fatWallTiles } of topCandidates) {
+    for (const { candidate, gapClosingFat, hasFatWall, fatBlocks: rawFatBlocks } of topCandidates) {
       const nonGapCount =
         candidate.rotation.offsets.length - candidate.gapsFilled;
       if (
@@ -563,11 +549,6 @@ export function pickPlacementImpl(
       const rawGain = ctx.baselineOutside - newOutside.size;
       const pieceTiles = candidate.rotation.offsets.length;
       const usefulGain = rawGain - pieceTiles;
-
-      const rawFatBlocks = countFatBlocks(ctx.walls, candidate);
-      if (rawFatBlocks > 0) {
-        // console.log(`[AI] fatCandidate (${candidate.row},${candidate.col}) ${pieceTiles}t gapsFilled=${candidate.gapsFilled} usefulGain=${usefulGain} fatBlocks=${rawFatBlocks} checkFat={tiles=${fatWallTiles},closing=${gapClosingFat}}`);
-      }
 
       const fatExempt = candidate.gapsFilled > 0 && !ctx.allCastlesEnclosed;
       if (shouldRejectForFatWalls(rawFatBlocks, ctx.skill.fatGainPerBlock, usefulGain, fatExempt)) continue;
@@ -615,7 +596,7 @@ export function pickPlacementImpl(
 
       const fatWallPenalty = computeFatWallPenalty(
         gapClosingFat,
-        fatWallTiles,
+        hasFatWall,
         usefulGain,
         ctx.skill.fatPenaltyScale,
       );
@@ -640,7 +621,7 @@ export function pickPlacementImpl(
       // adjacent gaps are filled and provide the needed cardinal connections.
       const sweepSafeBonus = computeSweepSafeBonus(
         candidate,
-        targetGaps,
+        ctx.targetGaps,
         simulatedWalls,
       );
 
@@ -688,7 +669,7 @@ export function pickPlacementImpl(
     const hasUnenclosedCannons = player.cannons.some(
       (c) => isCannonAlive(c) && c.kind !== CannonMode.BALLOON && !isCannonEnclosed(c, player.interior),
     );
-    if ((!hasOutsideGrunts && !hasUnenclosedCannons) || bestScore <= 0) return logTime(null);
+    if ((!hasOutsideGrunts && !hasUnenclosedCannons) || bestScore <= 0) return null;
   }
 
   // Gap-filling was the priority but territory gain was ≤ 0 — still use the
@@ -701,7 +682,7 @@ export function pickPlacementImpl(
     const gapFillerFatBlockCountFor = memoize((candidate: Candidate) => countFatBlocks(player.walls, candidate));
 
     if (gapFillerFatBlockCountFor(bestCandidate) === 0) {
-      return logTime(candidateToPlacement(bestCandidate), 'gapFiller-noGain');
+      return candidateToPlacement(bestCandidate);
     }
     // Fat wall gap-filler — find a non-fat alternative among gap fillers
     const nonFatGapFillers = topCandidates.filter(
@@ -709,12 +690,12 @@ export function pickPlacementImpl(
     );
     if (nonFatGapFillers.length > 0) {
       nonFatGapFillers.sort(compareByNumericScoreDesc);
-      return logTime(candidateToPlacement(nonFatGapFillers[0]!.candidate), 'gapFiller-noGain-noFat');
+      return candidateToPlacement(nonFatGapFillers[0]!.candidate);
     }
     // All gap fillers are fat — accept the best one anyway if the ring
     // is still open, because closing the castle outweighs the fat penalty.
     if (!allCastlesEnclosed) {
-      return logTime(candidateToPlacement(bestCandidate), 'gapFiller-fat-forced');
+      return candidateToPlacement(bestCandidate);
     }
   }
 
@@ -725,14 +706,14 @@ export function pickPlacementImpl(
       castle, castleMargin, !!homeWasBroken, unenclosedTowers,
       caresAboutHouses, caresAboutBonuses,
     );
-    if (fb) return logTime(fb.placement, fb.reason);
+    if (fb) return fb.placement;
   }
 
-  return logTime({
+  return {
     piece: bestCandidate.rotation,
     row: bestCandidate.row,
     col: bestCandidate.col,
-  }, 'scored');
+  };
 }
 
 function compareCandidatesByObstaclePreference(
@@ -766,7 +747,7 @@ function computeGapBonus(gapsFilled: number, usefulGain: number): number {
 
 function computeFatWallPenalty(
   gapClosingFat: boolean,
-  fatWallTiles: number,
+  hasFatWall: boolean,
   usefulGain: number,
   fatPenaltyScale: number,
 ): number {
@@ -776,8 +757,8 @@ function computeFatWallPenalty(
       usefulGain * FAT_WALL_GAIN_FACTOR,
     ) * fatPenaltyScale;
   }
-  if (fatWallTiles > 0) {
-    return fatWallTiles * FAT_WALL_TILE_PENALTY * fatPenaltyScale;
+  if (hasFatWall) {
+    return FAT_WALL_TILE_PENALTY * fatPenaltyScale;
   }
   return 0;
 }
@@ -987,10 +968,9 @@ function shouldRejectForFatWalls(
 function checkFatWall(
   walls: Set<number>,
   candidate: Candidate,
-  _gaps: Set<number>,
-): { fatWallTiles: number; gapClosingFat: boolean } {
+): { hasFatWall: boolean; gapClosingFat: boolean } {
   const { addedKeys, addedSet: _, isWall } = buildCandidateWallInfo(walls, candidate.rotation.offsets, candidate.row, candidate.col);
-  let fatWallTiles = 0;
+  let hasFatWall = false;
   let gapClosingFat = false;
   for (const key of addedKeys) {
     const { r, c } = unpackTile(key);
@@ -999,10 +979,10 @@ function checkFatWall(
       gapClosingFat = true;
       continue;
     }
-    fatWallTiles++;
+    hasFatWall = true;
     break;
   }
-  return { fatWallTiles, gapClosingFat };
+  return { hasFatWall, gapClosingFat };
 }
 
 /** Count wasted tiles in small pockets (< SMALL_POCKET_MAX_SIZE). */
@@ -1416,8 +1396,7 @@ function pickFallbackPlacement(
 function memoize<K, V>(fn: (key: K) => V): (key: K) => V {
   const cache = new Map<K, V>();
   return (key: K): V => {
-    const cached = cache.get(key);
-    if (cached != null) return cached;
+    if (cache.has(key)) return cache.get(key)!;
     const computed = fn(key);
     cache.set(key, computed);
     return computed;
@@ -1623,7 +1602,7 @@ function compareDiscardCandidatesForFallback(
   const aEncloses = createsSmallEnclosureCached(a.candidate) ? 0 : 1;
   const bEncloses = createsSmallEnclosureCached(b.candidate) ? 0 : 1;
   if (aEncloses !== bEncloses) return aEncloses - bEncloses;
-  return a.fatWallTiles - b.fatWallTiles;
+  return Number(a.hasFatWall) - Number(b.hasFatWall);
 }
 
 function candidateObstacleHits(
@@ -1645,7 +1624,7 @@ function candidateToPlacement(candidate: Candidate): AiPlacement {
 
 function isFatFreeCandidate(
   walls: Set<number>,
-  candidate: { row: number; col: number; rotation?: PieceShape; piece?: PieceShape },
+  candidate: Candidate,
 ): boolean {
   return countFatBlocks(walls, candidate) === 0;
 }
@@ -1653,11 +1632,9 @@ function isFatFreeCandidate(
 /** Count 2×2 all-wall blocks a candidate would create (no exemptions). */
 function countFatBlocks(
   walls: Set<number>,
-  candidate: { row: number; col: number; rotation?: PieceShape; piece?: PieceShape },
+  candidate: Candidate,
 ): number {
-  const shape = candidate.rotation ?? candidate.piece;
-  if (!shape) return 0;
-  const { addedKeys, addedSet: _, isWall } = buildCandidateWallInfo(walls, shape.offsets, candidate.row, candidate.col);
+  const { addedKeys, addedSet: _, isWall } = buildCandidateWallInfo(walls, candidate.rotation.offsets, candidate.row, candidate.col);
   let blocks = 0;
   for (const key of addedKeys) {
     const { r, c } = unpackTile(key);

@@ -577,8 +577,9 @@ function planGruntTargets(
 
 /** Check if a 4-tile pocket forms a 2x2 square (can fit a cannon). */
 function is2x2(keys: number[]): boolean {
-  const minRow = Math.min(...keys.map((key) => unpackTile(key).r));
-  const minCol = Math.min(...keys.map((key) => unpackTile(key).c));
+  const tiles = keys.map((key) => unpackTile(key));
+  const minRow = Math.min(...tiles.map((t) => t.r));
+  const minCol = Math.min(...tiles.map((t) => t.c));
   const expected = new Set([
     packTile(minRow, minCol),
     packTile(minRow, minCol + 1),

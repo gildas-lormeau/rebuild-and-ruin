@@ -32,7 +32,7 @@ import {
   type PhantomCannon,
   type PhantomPiece,
 } from "./player-controller.ts";
-import { packTile } from "./spatial.ts";
+import { packTile, towerCenter } from "./spatial.ts";
 import type { GameState, Player } from "./types.ts";
 import { CannonMode } from "./types.ts";
 
@@ -273,9 +273,10 @@ export class AiController extends BaseController {
     this.buildGaveUp = false;
     // Center cursor on home tower
     if (player.homeTower) {
+      const center = towerCenter(player.homeTower);
       this.buildCursor = {
-        row: player.homeTower.row + 1,
-        col: player.homeTower.col + 1,
+        row: Math.round(center.row),
+        col: Math.round(center.col),
       };
     }
     this.computeNextPlacement(state);
@@ -349,22 +350,11 @@ export class AiController extends BaseController {
     if (dwellResult) return dwellResult;
 
     // Move cursor toward target (using final rotation)
-    const dr = target.row - this.buildCursor.row;
-    const dc = target.col - this.buildCursor.col;
-    const dist = Math.sqrt(dr * dr + dc * dc);
-    const speed = BUILD_CURSOR_SPEED * (dist > this.boostThreshold ? 2 : 1);
-    const step = speed * dt;
-
-    if (dist <= step) {
-      this.buildCursor.row = target.row;
-      this.buildCursor.col = target.col;
-      // Only start dwell once rotation is also complete
-      if (this.rotationIdx >= this.rotationSeq.length) {
-        this.buildDwell = this.scaledDelay(0.2, 0.3);
-      }
-    } else {
-      this.buildCursor.row += (dr / dist) * step;
-      this.buildCursor.col += (dc / dist) * step;
+    const arrived = this.stepTileCursorToward(
+      this.buildCursor, target.row, target.col, BUILD_CURSOR_SPEED, this.boostThreshold, dt,
+    );
+    if (arrived && this.rotationIdx >= this.rotationSeq.length) {
+      this.buildDwell = this.scaledDelay(0.2, 0.3);
     }
 
     // Show phantom at current cursor position — use current rotation frame.
@@ -418,25 +408,14 @@ export class AiController extends BaseController {
   /** Handle "gave up" state — move cursor home, periodically retry. Returns phantom array if gave up, null otherwise. */
   private buildTickGaveUp(dt: number, player: Player, state: GameState): PhantomPiece[] | null {
     if (!this.buildGaveUp) return null;
-    const homeR = player.homeTower
-      ? player.homeTower.row + 1
-      : this.buildCursor.row;
-    const homeC = player.homeTower
-      ? player.homeTower.col + 1
-      : this.buildCursor.col;
-    const dr = homeR - this.buildCursor.row;
-    const dc = homeC - this.buildCursor.col;
-    const dist = Math.sqrt(dr * dr + dc * dc);
-    if (dist > 0.5) {
-      const speed = 12 * dt;
-      if (dist <= speed) {
-        this.buildCursor.row = homeR;
-        this.buildCursor.col = homeC;
-      } else {
-        this.buildCursor.row += (dr / dist) * speed;
-        this.buildCursor.col += (dc / dist) * speed;
-      }
-    }
+    const home = player.homeTower
+      ? towerCenter(player.homeTower)
+      : this.buildCursor;
+    const homeR = Math.round(home.row);
+    const homeC = Math.round(home.col);
+    this.stepTileCursorToward(
+      this.buildCursor, homeR, homeC, BUILD_CURSOR_SPEED, Infinity, dt,
+    );
     // Periodically re-check — grunts may have moved and freed space
     this.buildThink -= dt;
     if (this.buildThink <= 0) {
@@ -580,19 +559,10 @@ export class AiController extends BaseController {
     }
 
     // Move cursor toward target
-    const dr = target.row - this.cannonCursor.row;
-    const dc = target.col - this.cannonCursor.col;
-    const dist = Math.sqrt(dr * dr + dc * dc);
-    const speed = CANNON_CURSOR_SPEED * (dist > this.boostThreshold ? 2 : 1);
-    const step = speed * dt;
-
-    if (dist <= step) {
-      this.cannonCursor.row = target.row;
-      this.cannonCursor.col = target.col;
+    if (this.stepTileCursorToward(
+      this.cannonCursor, target.row, target.col, CANNON_CURSOR_SPEED, this.boostThreshold, dt,
+    )) {
       this.cannonDwell = this.scaledDelay(0.2, 0.3);
-    } else {
-      this.cannonCursor.row += (dr / dist) * step;
-      this.cannonCursor.col += (dc / dist) * step;
     }
 
     // Show phantom at current cursor position (moving)
@@ -798,6 +768,33 @@ export class AiController extends BaseController {
   }
 
   onCannonPhaseStart(): void {}
+
+  /**
+   * Move a tile cursor one step toward (targetRow, targetCol).
+   * Returns true if it reached the target this frame.
+   */
+  private stepTileCursorToward(
+    cursor: TilePos,
+    targetRow: number,
+    targetCol: number,
+    baseSpeed: number,
+    boostThreshold: number,
+    dt: number,
+  ): boolean {
+    const dr = targetRow - cursor.row;
+    const dc = targetCol - cursor.col;
+    const dist = Math.sqrt(dr * dr + dc * dc);
+    const speed = baseSpeed * (dist > boostThreshold ? 2 : 1);
+    const step = speed * dt;
+    if (dist <= step) {
+      cursor.row = targetRow;
+      cursor.col = targetCol;
+      return true;
+    }
+    cursor.row += (dr / dist) * step;
+    cursor.col += (dc / dist) * step;
+    return false;
+  }
 
   /**
    * Move crosshair one step toward (tx, ty) at battle speed.
