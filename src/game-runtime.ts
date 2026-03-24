@@ -499,7 +499,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     }
 
     renderMap(rs.state.map, canvas, rs.overlay, updateViewport());
-    drawLoupe(canvas, getSceneCanvas());
+    if (rs.mode === Mode.GAME) drawLoupe(canvas, getSceneCanvas());
     const hasHuman = firstHuman() !== null;
     const inGame = rs.mode === Mode.GAME || rs.mode === Mode.SELECTION;
     dpad?.update(hasHuman && inGame ? rs.state.phase : null);
