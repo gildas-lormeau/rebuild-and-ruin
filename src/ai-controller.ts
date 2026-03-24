@@ -267,15 +267,7 @@ export class AiController extends BaseController implements AiAnimatable {
   startBuild(state: GameState): void {
     const player = state.players[this.playerId]!;
     if (player.eliminated) return;
-    this.initBag(state.round, state.rng);
-    // Center cursor on home tower
-    if (player.homeTower) {
-      const center = towerCenter(player.homeTower);
-      this.buildCursor = {
-        row: Math.round(center.row),
-        col: Math.round(center.col),
-      };
-    }
+    this.initBuildPhase(state);
     const target = this.computeNextPlacement(state);
     if (target) {
       this.buildState = { step: Step.MOVING, target, rotation: this.buildRotationFor(target) };
@@ -419,9 +411,8 @@ export class AiController extends BaseController implements AiAnimatable {
     return { seq, idx: 0, timer: ROTATION_INITIAL_BASE + this.strategy.rng.next() * ROTATION_INITIAL_RANGE };
   }
 
-  endBuild(state: GameState): void {
-    this.bag = null;
-    this.currentPiece = null;
+  override endBuild(state: GameState): void {
+    super.endBuild(state);
     this.buildState = { step: Step.IDLE };
     this.strategy.assessBuildEnd(state, this.playerId);
   }
@@ -544,17 +535,9 @@ export class AiController extends BaseController implements AiAnimatable {
   // Battle phase
   // -----------------------------------------------------------------------
 
-  resetBattle(state?: GameState): void {
+  override resetBattle(state?: GameState): void {
+    super.resetBattle(state);
     this.crosshairTarget = null;
-    this.lastFiredIdx = -1;
-
-    // Reset crosshair to home tower so there's visible travel at battle start
-    if (state) {
-      const player = state.players[this.playerId];
-      if (player?.homeTower) {
-        this.centerOn(player.homeTower.row, player.homeTower.col);
-      }
-    }
 
     // Delegate battle planning to strategy
     this.chainTargets = null;

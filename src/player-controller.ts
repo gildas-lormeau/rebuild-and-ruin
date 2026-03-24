@@ -232,11 +232,38 @@ export abstract class BaseController implements PlayerController {
   abstract placeCannons(state: GameState, maxSlots: number): void;
   abstract isCannonPhaseDone(state: GameState, maxSlots: number): boolean;
   abstract cannonTick(state: GameState, dt: number): PhantomCannon | null;
+  /** Shared build-phase init: bag + cursor on home tower. */
+  protected initBuildPhase(state: GameState): void {
+    this.initBag(state.round, state.rng);
+    const player = state.players[this.playerId]!;
+    if (player.homeTower) {
+      const center = towerCenter(player.homeTower);
+      this.buildCursor = { row: Math.round(center.row), col: Math.round(center.col) };
+    }
+    this.clampBuildCursor(this.currentPiece);
+  }
+
   abstract startBuild(state: GameState): void;
   abstract buildTick(state: GameState, dt: number): PhantomPiece[];
-  abstract endBuild(state: GameState): void;
+
+  /** End build phase: clear bag/piece. Subclasses should call super. */
+  endBuild(_state: GameState): void {
+    this.bag = null;
+    this.currentPiece = null;
+  }
+
   abstract battleTick(state: GameState, dt: number): void;
-  abstract resetBattle(state?: GameState): void;
+
+  /** Reset battle state. Subclasses should call super. */
+  resetBattle(state?: GameState): void {
+    this.lastFiredIdx = -1;
+    if (state) {
+      const player = state.players[this.playerId];
+      if (player?.homeTower) {
+        this.centerOn(player.homeTower.row, player.homeTower.col);
+      }
+    }
+  }
   abstract flushCannons(state: GameState, maxSlots: number): void;
   abstract onBattleEnd(): void;
   onLifeLost(): void {

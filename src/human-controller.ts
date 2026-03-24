@@ -138,8 +138,7 @@ export class HumanController extends BaseController implements InputReceiver {
   }
 
   startBuild(state: GameState): void {
-    this.initBag(state.round, state.rng);
-    this.clampBuildCursor(this.currentPiece);
+    this.initBuildPhase(state);
   }
 
   buildTick(state: GameState, _dt: number): PhantomPiece[] {
@@ -160,11 +159,6 @@ export class HumanController extends BaseController implements InputReceiver {
         playerId: this.playerId,
       },
     ];
-  }
-
-  endBuild(_state: GameState): void {
-    this.bag = null;
-    this.currentPiece = null;
   }
 
   battleTick(state: GameState, dt: number): void {
@@ -269,9 +263,6 @@ export class HumanController extends BaseController implements InputReceiver {
     return this.cannonPlaceMode;
   }
 
-  resetBattle(): void {
-    this.lastFiredIdx = -1;
-  }
   flushCannons(_state: GameState, _maxSlots: number): void {
     // Round-1 auto-placement for humans with 0 cannons is handled by the game engine
   }
