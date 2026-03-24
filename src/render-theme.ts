@@ -71,6 +71,18 @@ export const TOUCH_ZOOM_HOME_BG = "rgba(60, 80, 120, 0.85)";
 export const TOUCH_ZOOM_HOME_BORDER = "rgba(100, 140, 200, 0.7)";
 export const TOUCH_ZOOM_ENEMY_BG = "rgba(100, 50, 50, 0.85)";
 export const TOUCH_ZOOM_ENEMY_BORDER = "rgba(180, 80, 80, 0.7)";
+/** Loupe (magnifying glass) diameter in canvas pixels. */
+export const LOUPE_DIAMETER = 520;
+/** Loupe offset from finger in canvas pixels (used for the main axis). */
+export const LOUPE_OFFSET = 300;
+/** Loupe magnification factor relative to the scene canvas. */
+export const LOUPE_ZOOM = 4;
+/** Loupe border width in canvas pixels. */
+export const LOUPE_BORDER_WIDTH = 3;
+/** Loupe outer border color. */
+export const LOUPE_BORDER_COLOR = "rgba(40, 30, 20, 0.9)";
+/** Loupe inner accent ring color. */
+export const LOUPE_ACCENT_COLOR = "rgba(200, 160, 64, 0.6)";
 
 /** Convert RGB tuple to CSS color string, with optional alpha. */
 export function rgb(c: RGB, alpha?: number): string {

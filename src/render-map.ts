@@ -108,6 +108,9 @@ let cachedBannerCastles: CastleData[] | undefined;
 let cachedBannerTerritory: Set<number>[] | undefined;
 let cachedBannerWalls: Set<number>[] | undefined;
 
+/** Expose the offscreen scene canvas for post-processing (loupe, etc.). */
+export function getSceneCanvas(): HTMLCanvasElement { return sceneCanvas; }
+
 export function renderMap(
   map: MapData,
   canvas: HTMLCanvasElement,

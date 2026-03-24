@@ -43,6 +43,7 @@ import {
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
 import { type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
+import { drawLoupe } from "./loupe.ts";
 import {
   createBannerState,
   showBannerTransition,
@@ -63,7 +64,7 @@ import {
   buildRenderSummaryMessage,
   buildStatusBar,
 } from "./render-composition.ts";
-import { renderMap } from "./render-map.ts";
+import { getSceneCanvas, renderMap } from "./render-map.ts";
 import { computeLobbyLayout } from "./render-ui.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
@@ -498,6 +499,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     }
 
     renderMap(rs.state.map, canvas, rs.overlay, updateViewport());
+    drawLoupe(canvas, getSceneCanvas());
     const hasHuman = firstHuman() !== null;
     const inGame = rs.mode === Mode.GAME || rs.mode === Mode.SELECTION;
     dpad?.update(hasHuman && inGame ? rs.state.phase : null);
