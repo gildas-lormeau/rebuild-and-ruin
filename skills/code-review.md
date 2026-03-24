@@ -63,6 +63,17 @@ Or run everything at once: `npm run lint:all`
 - Madge circular deps feed into Pass 4 (misplaced logic)
 - `find-duplicate-literals.ts` findings feed into Pass 2 (hardcoded values) — extract to named constants
 
+### File reorder tool
+
+All `src/*.ts` files are automatically reordered by the pre-commit hook using `scripts/reorder-file.ts` (ts-morph AST tool). The enforced order is:
+
+1. Imports (then re-exports, separated by blank line)
+2. Types / interfaces / enums
+3. `const` declarations — data and arrow functions, dependency-sorted (non-exported before exported)
+4. `function` declarations — topologically sorted callers-first (hoisted, so order is for readability)
+
+**Do not manually reorder top-level statements** — the hook handles it. When writing new code, place declarations anywhere; the tool will sort them on commit. Run manually with `npm run reorder -- <path>` or `npm run reorder:changed` for staged files.
+
 ## How to run each pass
 
 1. **Launch a sub-agent** (Explore type) with:
