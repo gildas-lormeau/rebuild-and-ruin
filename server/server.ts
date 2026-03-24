@@ -9,6 +9,9 @@ import { RoomManager } from "./room-manager.ts";
 
 const rooms = new RoomManager();
 
+/** Reject messages larger than 64 KB (full_state worst case is ~30 KB). */
+const MAX_MESSAGE_SIZE = 65_536;
+
 const PORT = parseInt(Deno.env.get("PORT") ?? "8001");
 
 Deno.serve({ port: PORT }, (req) => {
@@ -38,6 +41,7 @@ Deno.serve({ port: PORT }, (req) => {
     socket.onmessage = (event) => {
       try {
         const rawJson: string = event.data;
+        if (rawJson.length > MAX_MESSAGE_SIZE) return;
         const msg = JSON.parse(rawJson);
         handleMessage(socket, msg, rawJson);
       } catch {
