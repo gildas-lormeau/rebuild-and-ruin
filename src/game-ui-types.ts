@@ -57,10 +57,18 @@ export interface GameSettings {
   cannonHp: number;
   haptics: number; // 0=off, 1=phase changes only, 2=all
   seed: string;
-  seedMode: "random" | "custom";
+  seedMode: SeedMode;
   keyBindings: KeyBindings[];
   leftHanded: boolean; // true = d-pad on right, action buttons on left
 }
+
+export const SEED_RANDOM = "random" as const;
+export const SEED_CUSTOM = "custom" as const;
+export type SeedMode = typeof SEED_RANDOM | typeof SEED_CUSTOM;
+
+export const FOCUS_REMATCH = "rematch" as const;
+export const FOCUS_MENU = "menu" as const;
+export type GameOverFocus = typeof FOCUS_REMATCH | typeof FOCUS_MENU;
 
 export const DIFFICULTY_LABELS = ["Easy", "Normal", "Hard", "Very Hard"];
 export const DIFFICULTY_PARAMS = [
@@ -92,7 +100,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   cannonHp: 0,
   haptics: 2, // default: all
   seed: "",
-  seedMode: "random",
+  seedMode: SEED_RANDOM,
   keyBindings: [],
   leftHanded: false,
 };
@@ -130,7 +138,7 @@ export function loadSettings(): GameSettings {
         cannonHp: saved.cannonHp ?? DEFAULT_SETTINGS.cannonHp,
         haptics: saved.haptics ?? DEFAULT_SETTINGS.haptics,
         seed: saved.seed ?? DEFAULT_SETTINGS.seed,
-        seedMode: saved.seedMode === "custom" ? "custom" : "random",
+        seedMode: saved.seedMode === SEED_CUSTOM ? SEED_CUSTOM : SEED_RANDOM,
         leftHanded: saved.leftHanded ?? DEFAULT_SETTINGS.leftHanded,
         keyBindings:
           Array.isArray(saved.keyBindings) && saved.keyBindings.length === MAX_PLAYERS
@@ -245,7 +253,7 @@ export function applyKeyRebinding(kb: KeyBindings, actionKey: string, newKey: st
 export interface GameOverOverlay {
   winner: string;
   scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: PlayerStats }[];
-  focused: "rematch" | "menu";
+  focused: GameOverFocus;
 }
 
 /** Life-lost dialog overlay data shared by UIOverlay and render-composition. */

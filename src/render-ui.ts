@@ -2,6 +2,7 @@
  * UI overlay rendering — announcement, banner, game over, player select.
  */
 
+import { FOCUS_MENU, FOCUS_REMATCH } from "./game-ui-types.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
   LIFE_LOST_BTN_H as BTN_H,
@@ -280,23 +281,23 @@ export function drawGameOver(
   const focused = gameOverData.focused;
 
   // Rematch button
-  octx.fillStyle = focused === "rematch" ? "rgba(80,180,80,0.5)" : "rgba(80,180,80,0.2)";
+  octx.fillStyle = focused === FOCUS_REMATCH ? "rgba(80,180,80,0.5)" : "rgba(80,180,80,0.2)";
   octx.fillRect(rematchX, btnY, btnW, btnH);
-  octx.strokeStyle = focused === "rematch" ? "#afa" : "#8c8";
-  octx.lineWidth = focused === "rematch" ? 2 : 1;
+  octx.strokeStyle = focused === FOCUS_REMATCH ? "#afa" : "#8c8";
+  octx.lineWidth = focused === FOCUS_REMATCH ? 2 : 1;
   octx.strokeRect(rematchX, btnY, btnW, btnH);
   octx.font = FONT_BUTTON;
-  octx.fillStyle = focused === "rematch" ? "#fff" : "#ccc";
+  octx.fillStyle = focused === FOCUS_REMATCH ? "#fff" : "#ccc";
   octx.fillText("Rematch", rematchX + btnW / 2, btnY + btnH / 2);
 
   // Menu button
-  octx.fillStyle = focused === "menu" ? "rgba(100,100,140,0.5)" : "rgba(100,100,140,0.2)";
+  octx.fillStyle = focused === FOCUS_MENU ? "rgba(100,100,140,0.5)" : "rgba(100,100,140,0.2)";
   octx.fillRect(menuX, btnY, btnW, btnH);
-  octx.strokeStyle = focused === "menu" ? "#ccf" : "#99c";
-  octx.lineWidth = focused === "menu" ? 2 : 1;
+  octx.strokeStyle = focused === FOCUS_MENU ? "#ccf" : "#99c";
+  octx.lineWidth = focused === FOCUS_MENU ? 2 : 1;
   octx.strokeRect(menuX, btnY, btnW, btnH);
   octx.font = FONT_BUTTON;
-  octx.fillStyle = focused === "menu" ? "#fff" : "#ccc";
+  octx.fillStyle = focused === FOCUS_MENU ? "#fff" : "#ccc";
   octx.fillText("Menu", menuX + btnW / 2, btnY + btnH / 2);
 }
 

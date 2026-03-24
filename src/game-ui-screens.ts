@@ -19,9 +19,10 @@ export function lobbySkipStep(ctx: UIContext): boolean {
 import { buildLobbyConfirmKeys, formatKeyHint } from "./game-ui-runtime.ts";
 import type { Mode } from "./game-ui-types.ts";
 import {CANNON_HP_OPTIONS, type ControlsState,
-  DIFFICULTY_LABELS, DPAD_LABELS, 
-  formatKeyName, 
-  type GameSettings, HAPTICS_LABELS, OPTION_NAMES,ROUNDS_OPTIONS, saveSettings,
+  DIFFICULTY_LABELS, DPAD_LABELS,
+  formatKeyName,
+  type GameSettings, HAPTICS_LABELS, OPTION_NAMES,ROUNDS_OPTIONS, 
+  SEED_CUSTOM,saveSettings,
 } from "./game-ui-types.ts";
 import type { GameMap } from "./geometry-types.ts";
 import { generateMap } from "./map-generation.ts";
@@ -81,7 +82,7 @@ function optionValue(ctx: UIContext, idx: number): string {
   }
   if (idx === 2) return CANNON_HP_OPTIONS[s.cannonHp]!.label;
   if (idx === 3) return HAPTICS_LABELS[s.haptics] ?? "All";
-  if (idx === 4) return s.seedMode === "custom" ? (s.seed || "_") : "Random";
+  if (idx === 4) return s.seedMode === SEED_CUSTOM ? (s.seed || "_") : "Random";
   if (idx === 6) return DPAD_LABELS[s.leftHanded ? 1 : 0]!;
   return "";
 }

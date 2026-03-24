@@ -33,7 +33,7 @@ import {
 import { placeCannon } from "./cannon-system.ts";
 import type { GameMap, PixelPos, StrategicPixelPos, TilePos, Tower } from "./geometry-types.ts";
 import type { PieceShape } from "./pieces.ts";
-import { Rng } from "./rng.ts";
+import { MAX_UINT32, Rng } from "./rng.ts";
 import { computeOutside, isTowerEnclosed, waterKeys } from "./spatial.ts";
 import type { Cannon, GameState, Player } from "./types.ts";
 import { CannonMode } from "./types.ts";
@@ -545,7 +545,7 @@ export function autoPlaceCannons(
   count: number,
   state: GameState,
 ): void {
-  const strategy = new DefaultStrategy(undefined, state.rng.int(0, 0xffffffff));
+  const strategy = new DefaultStrategy(undefined, state.rng.int(0, MAX_UINT32));
   const placements = strategy.placeCannons(player, count, state);
   for (const p of placements) {
     placeCannon(player, p.row, p.col, count, p.mode, state);

@@ -1,4 +1,4 @@
-import { applyKeyRebinding } from "./game-ui-types.ts";
+import { applyKeyRebinding, FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus, SEED_CUSTOM, SEED_RANDOM, type SeedMode } from "./game-ui-types.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type LifeLostChoice, type ResolvedChoice } from "./life-lost.ts";
 import type { KeyBindings } from "./player-config.ts";
@@ -49,8 +49,8 @@ export interface RegisterOnlineInputDeps {
   lobbyClick: (x: number, y: number) => boolean;
   showLobby: () => void;
   rematch: () => void;
-  getGameOverFocused: () => "rematch" | "menu";
-  setGameOverFocused: (f: "rematch" | "menu") => void;
+  getGameOverFocused: () => GameOverFocus;
+  setGameOverFocused: (f: GameOverFocus) => void;
   showOptions: () => void;
   closeOptions: () => void;
   showControls: () => void;
@@ -102,7 +102,7 @@ export interface RegisterOnlineInputDeps {
   ) => void;
   settings: {
     keyBindings: KeyBindings[];
-    seedMode: "random" | "custom";
+    seedMode: SeedMode;
     seed: string;
   };
 }
@@ -119,7 +119,7 @@ export function dispatchModeTap(
 ): boolean {
   const { modeValues, getGameOverFocused, rematch, showLobby, closeOptions, closeControls, getControlsState, getLifeLostDialog, lifeLostDialogClick, isLobbyActive, lobbyClick } = deps;
   if (mode === modeValues.STOPPED) {
-    if (getGameOverFocused() === "rematch") rematch();
+    if (getGameOverFocused() === FOCUS_REMATCH) rematch();
     else showLobby();
     return true;
   }
@@ -361,12 +361,12 @@ export function registerOnlineInputHandlers(
 
     if (mode === modeValues.STOPPED) {
       if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "a" || e.key === "d") {
-        setGameOverFocused(getGameOverFocused() === "rematch" ? "menu" : "rematch");
+        setGameOverFocused(getGameOverFocused() === FOCUS_REMATCH ? FOCUS_MENU : FOCUS_REMATCH);
         e.preventDefault();
         return;
       }
       if (e.key === "Enter" || e.key === " " || e.key === "n" || e.key === "f") {
-        if (getGameOverFocused() === "rematch") rematch();
+        if (getGameOverFocused() === FOCUS_REMATCH) rematch();
         else showLobby();
         e.preventDefault();
         return;
@@ -449,17 +449,17 @@ export function registerOnlineInputHandlers(
 
       if (!readOnly && getRealOptionIdx() === 4) {
         if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-          if (seedMode === "random") {
-            settings.seedMode = "custom";
+          if (seedMode === SEED_RANDOM) {
+            settings.seedMode = SEED_CUSTOM;
             settings.seed = "";
           } else {
-            settings.seedMode = "random";
+            settings.seedMode = SEED_RANDOM;
             settings.seed = "";
           }
           e.preventDefault();
           return;
         }
-        if (seedMode === "custom") {
+        if (seedMode === SEED_CUSTOM) {
           const currentSeed = settings.seed;
           if (e.key >= "0" && e.key <= "9" && currentSeed.length < 9) {
             settings.seed = currentSeed + e.key;

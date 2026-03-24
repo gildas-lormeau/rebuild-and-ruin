@@ -9,6 +9,7 @@ import {
 import type { PlayerController } from "./player-controller.ts";
 import { EMPTY_TILE_SET, unpackTile } from "./spatial.ts";
 import type { GameState } from "./types.ts";
+import { CannonMode } from "./types.ts";
 
 /** Shared empty map — avoids allocating a throwaway Map on every frame. */
 const EMPTY_MAP: ReadonlyMap<number, string> = new Map<number, string>();
@@ -36,13 +37,13 @@ interface CannonPhaseNet extends HostNetContext {
     playerId: number;
     row: number;
     col: number;
-    mode: "normal" | "super" | "balloon";
+    mode: CannonMode;
   }) => void;
   sendOpponentCannonPhantom: (msg: {
     playerId: number;
     row: number;
     col: number;
-    mode: "normal" | "super" | "balloon";
+    mode: CannonMode;
     valid: boolean;
     facing: number;
   }) => void;
@@ -127,7 +128,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
           playerId: ctrl.playerId,
           row: c.row,
           col: c.col,
-          mode: c.super ? "super" : c.balloon ? "balloon" : "normal",
+          mode: c.super ? CannonMode.SUPER : c.balloon ? CannonMode.BALLOON : CannonMode.NORMAL,
         });
       }
     }
@@ -146,10 +147,10 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
       row: phantom.row,
       col: phantom.col,
       mode: phantom.isSuper
-        ? "super"
+        ? CannonMode.SUPER
         : phantom.isBalloon
-          ? "balloon"
-          : "normal",
+          ? CannonMode.BALLOON
+          : CannonMode.NORMAL,
       valid: phantom.valid,
       facing: phantom.facing ?? 0,
     });

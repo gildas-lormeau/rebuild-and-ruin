@@ -86,6 +86,7 @@ import {
   PLAYER_NAMES,
 } from "./player-config.ts";
 import { CROSSHAIR_SPEED, type OrbitParams, type PlayerController } from "./player-controller.ts";
+import { MAX_UINT32 } from "./rng.ts";
 import { loadAtlas } from "./sprites.ts";
 import type { GameState } from "./types.ts";
 import {
@@ -511,7 +512,7 @@ function initFromServer(msg: InitMessage): void {
     },
     createControllerForSlot: (i, gameState) => {
       const isAi = (i !== myPlayerId);
-      const strategySeed = isAi ? gameState.rng.int(0, 0xffffffff) : undefined;
+      const strategySeed = isAi ? gameState.rng.int(0, MAX_UINT32) : undefined;
       const kb = isAi ? undefined : settings.keyBindings[0]!;
       return createController(i, isAi, kb, strategySeed);
     },
@@ -536,7 +537,7 @@ function promoteToHost(): void {
     const player = state.players[i];
     if (!player || player.eliminated) continue;
 
-    const strategySeed = state.rng.int(0, 0xffffffff);
+    const strategySeed = state.rng.int(0, MAX_UINT32);
     controllers[i] = createController(i, true, undefined, strategySeed);
 
     // Re-initialize the AI for the current phase

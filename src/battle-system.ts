@@ -2,6 +2,7 @@
  * Battle system — cannon firing, cannonball physics, impacts, and balloon capture.
  */
 
+import { MSG } from "../server/protocol.ts";
 import { isCannonEnclosed } from "./cannon-system.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
@@ -354,7 +355,7 @@ function computeImpact(
     if (player.walls.has(key)) {
       hitWall = true;
       events.push({
-        type: "wall_destroyed",
+        type: MSG.WALL_DESTROYED,
         row,
         col,
         playerId: player.id,
@@ -367,7 +368,7 @@ function computeImpact(
       if (!isCannonAlive(cannon) || cannon.balloon) continue;
       if (isCannonTile(cannon, row, col)) {
         events.push({
-          type: "cannon_damaged",
+          type: MSG.CANNON_DAMAGED,
           playerId: player.id,
           cannonIdx: ci,
           newHp: cannon.hp - 1,
@@ -379,7 +380,7 @@ function computeImpact(
 
   if (incendiary && hitWall && !isPitAt(state.burningPits, row, col)) {
     events.push({
-      type: "pit_created",
+      type: MSG.PIT_CREATED,
       row,
       col,
       roundsLeft: BURNING_PIT_DURATION,
@@ -390,14 +391,14 @@ function computeImpact(
 
   for (const house of state.map.houses) {
     if (house.alive && house.row === row && house.col === col) {
-      events.push({ type: "house_destroyed", row, col });
+      events.push({ type: MSG.HOUSE_DESTROYED, row, col });
       // Grunt spawn is RNG-based — compute it here so the host decides
       if (state.rng.bool(HOUSE_GRUNT_SPAWN_CHANCE)) {
         // Find spawn position near the destroyed house
         const spawnPos = findGruntSpawnNear(state, row, col);
         if (spawnPos) {
           events.push({
-            type: "grunt_spawned",
+            type: MSG.GRUNT_SPAWNED,
             row: spawnPos.row,
             col: spawnPos.col,
             targetPlayerId: shooterId,
@@ -409,7 +410,7 @@ function computeImpact(
 
   for (const g of state.grunts) {
     if (g.row === row && g.col === col) {
-      events.push({ type: "grunt_killed", row: g.row, col: g.col, shooterId });
+      events.push({ type: MSG.GRUNT_KILLED, row: g.row, col: g.col, shooterId });
     }
   }
 
@@ -430,7 +431,7 @@ export function applyImpactEvent(
       ? event.shooterId
       : shooterId;
   switch (event.type) {
-    case "wall_destroyed": {
+    case MSG.WALL_DESTROYED: {
       const player = state.players[event.playerId];
       if (player) {
         player.walls.delete(packTile(event.row, event.col));
@@ -440,7 +441,7 @@ export function applyImpactEvent(
       }
       break;
     }
-    case "cannon_damaged": {
+    case MSG.CANNON_DAMAGED: {
       const cannon = state.players[event.playerId]?.cannons[event.cannonIdx];
       if (cannon) {
         cannon.hp = event.newHp;
@@ -452,28 +453,28 @@ export function applyImpactEvent(
       }
       break;
     }
-    case "pit_created":
+    case MSG.PIT_CREATED:
       state.burningPits.push({
         row: event.row,
         col: event.col,
         roundsLeft: event.roundsLeft,
       });
       break;
-    case "house_destroyed":
+    case MSG.HOUSE_DESTROYED:
       for (const house of state.map.houses) {
         if (house.alive && house.row === event.row && house.col === event.col) {
           house.alive = false;
         }
       }
       break;
-    case "grunt_spawned":
+    case MSG.GRUNT_SPAWNED:
       state.grunts.push({
         row: event.row,
         col: event.col,
         targetPlayerId: event.targetPlayerId,
       });
       break;
-    case "grunt_killed": {
+    case MSG.GRUNT_KILLED: {
       const shooter = sid !== undefined ? state.players[sid] : undefined;
       state.grunts = state.grunts.filter(
         (g) => !(g.row === event.row && g.col === event.col),

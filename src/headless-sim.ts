@@ -13,6 +13,7 @@ import {
 import { generateMap } from "./map-generation.ts";
 import { PLAYER_KEY_BINDINGS } from "./player-config.ts";
 import type { PlayerController } from "./player-controller.ts";
+import { MAX_UINT32 } from "./rng.ts";
 import type { GameState } from "./types.ts";
 
 export interface HeadlessRuntime {
@@ -31,7 +32,7 @@ export function createHeadlessRuntime(seed: number): HeadlessRuntime {
   const state = createGameState(map, playerCount, seed);
   state.playerZones = zones;
   const controllers = Array.from({ length: playerCount }, (_, i) =>
-    createController(i, true, undefined, state.rng.int(0, 0xffffffff)),
+    createController(i, true, undefined, state.rng.int(0, MAX_UINT32)),
   );
 
   // Auto-select towers for all players.
@@ -68,7 +69,7 @@ export function createMixedRuntime(
     if (humanSet.has(i)) {
       return createController(i, false, PLAYER_KEY_BINDINGS[0]);
     }
-    return createController(i, true, undefined, state.rng.int(0, 0xffffffff));
+    return createController(i, true, undefined, state.rng.int(0, MAX_UINT32));
   });
 
   return { state, controllers, zones, playerCount };

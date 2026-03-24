@@ -2,6 +2,7 @@
  * Grunt system — spawning, movement, pathfinding, and tower attacks.
  */
 
+import { MSG } from "../server/protocol.ts";
 import {
   collectOccupiedTiles,
   deleteWallFromAllPlayers,
@@ -728,7 +729,7 @@ export function gruntAttackTowers(
     if (adjacentTowerIndex >= 0) {
       if (tickGruntAttackTimer(grunt, dt)) {
         state.towerAlive[adjacentTowerIndex] = false;
-        events.push({ type: "tower_killed", towerIdx: adjacentTowerIndex });
+        events.push({ type: MSG.TOWER_KILLED, towerIdx: adjacentTowerIndex });
       }
     } else {
       // Reset timer if no longer adjacent to a tower

@@ -4,6 +4,8 @@
  * Respects the haptics setting: 0=off, 1=phase changes only, 2=all.
  */
 
+import { MSG } from "../server/protocol.ts";
+
 const canVibrate = typeof navigator !== "undefined" && !!navigator.vibrate;
 
 /** Current haptics level — set by the game runtime from settings. */
@@ -40,14 +42,14 @@ export function hapticBattleEvents(
 ): void {
   if (!canVibrate || level < 2) return;
   for (const evt of events) {
-    if (evt.type === "wall_destroyed" && evt.playerId === myPlayerId) {
+    if (evt.type === MSG.WALL_DESTROYED && evt.playerId === myPlayerId) {
       hapticWallHit();
-    } else if (evt.type === "cannon_damaged" && evt.playerId === myPlayerId) {
+    } else if (evt.type === MSG.CANNON_DAMAGED && evt.playerId === myPlayerId) {
       if (evt.hp === 0) hapticCannonDestroyed();
       else hapticCannonDamaged();
-    } else if (evt.type === "tower_killed") {
+    } else if (evt.type === MSG.TOWER_KILLED) {
       hapticTowerKilled();
-    } else if (evt.type === "cannon_fired" && evt.playerId === myPlayerId) {
+    } else if (evt.type === MSG.CANNON_FIRED && evt.playerId === myPlayerId) {
       hapticFired();
     }
   }

@@ -1,6 +1,7 @@
 /** Shared types and utilities for online multiplayer sub-modules. */
 
 import type { PixelPos } from "./geometry-types.ts";
+import { CannonMode } from "./types.ts";
 
 /** Move `vis` toward `(tx, ty)` at `speed` pixels/s. Mutates `vis` in place. */
 export function interpolateToward(vis: PixelPos, tx: number, ty: number, speed: number, dt: number): void {
@@ -37,8 +38,8 @@ export type HumanPiecePhantom = {
 };
 
 /** Convert phantom booleans to wire protocol cannon mode string. */
-export function phantomWireMode(p: CannonPhantom): "normal" | "super" | "balloon" {
-  return p.isSuper ? "super" : p.isBalloon ? "balloon" : "normal";
+export function phantomWireMode(p: CannonPhantom): CannonMode {
+  return p.isSuper ? CannonMode.SUPER : p.isBalloon ? CannonMode.BALLOON : CannonMode.NORMAL;
 }
 
 /** Dedup key for cannon phantom network sends. Covers all fields that affect display. */

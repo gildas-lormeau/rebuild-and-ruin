@@ -1,6 +1,7 @@
 import type { ServerMessage } from "../server/protocol.ts";
 import type { BannerShow } from "./battle-ticks.ts";
 import { BANNER_PLACE_CANNONS } from "./game-engine.ts";
+import { FOCUS_REMATCH, type GameOverFocus } from "./game-ui-types.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
 import type { RGB } from "./player-config.ts";
 import type { PlayerController } from "./player-controller.ts";
@@ -64,7 +65,7 @@ export interface TransitionContext {
   // Life-lost / game over
   showLifeLostDialog: (needsReselect: number[], eliminated: number[]) => void;
   render: () => void;
-  setGameOverFrame: (payload: { winner: string; scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: { wallsDestroyed: number; cannonsKilled: number } }[]; focused: "rematch" | "menu" }) => void;
+  setGameOverFrame: (payload: { winner: string; scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: { wallsDestroyed: number; cannonsKilled: number } }[]; focused: GameOverFocus }) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -207,7 +208,7 @@ export function handleGameOverTransition(msg: ServerMessage, ctx: TransitionCont
       ...s,
       color: ctx.playerColors[i % ctx.playerColors.length]!.wall,
     })),
-    focused: "rematch",
+    focused: FOCUS_REMATCH,
   });
   ctx.render();
   ctx.setModeStopped();

@@ -73,8 +73,10 @@ import {
   createTimerAccums,
   cycleOption,
   DIFFICULTY_PARAMS,
+  FOCUS_REMATCH,
   Mode,
   ROUNDS_OPTIONS,
+  SEED_CUSTOM,
 } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
@@ -116,6 +118,7 @@ import {
 } from "./render-composition.ts";
 import { renderMap } from "./render-map.ts";
 import { computeLobbyLayout } from "./render-ui.ts";
+import { MAX_UINT32 } from "./rng.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { createRuntimeState } from "./runtime-state.ts";
 import {
@@ -665,7 +668,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         territory: p.interior.size,
         stats: rs.gameStats[p.id],
       })),
-      focused: "rematch" as "rematch" | "menu",
+      focused: FOCUS_REMATCH,
     };
     render();
     rs.mode = Mode.STOPPED;
@@ -1179,7 +1182,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function startGame() {
     const parsedSeed =
-      rs.settings.seedMode === "custom" && rs.settings.seed
+      rs.settings.seedMode === SEED_CUSTOM && rs.settings.seed
         ? parseInt(rs.settings.seed, 10)
         : undefined;
     const seed = parsedSeed !== undefined && !isNaN(parsedSeed)
@@ -1210,7 +1213,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       resetUIState,
       createControllerForSlot: (i: number, gameState: GameState) => {
         const isAi = !rs.lobby.joined[i];
-        const strategySeed = isAi ? gameState.rng.int(0, 0xffffffff) : undefined;
+        const strategySeed = isAi ? gameState.rng.int(0, MAX_UINT32) : undefined;
         return createController(i, isAi, rs.settings.keyBindings[i]!, strategySeed);
       },
       enterSelection: enterTowerSelection,
@@ -1266,7 +1269,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       lobbyClick,
       showLobby: returnToLobby,
       rematch,
-      getGameOverFocused: () => rs.frame.gameOver?.focused ?? "rematch",
+      getGameOverFocused: () => rs.frame.gameOver?.focused ?? FOCUS_REMATCH,
       setGameOverFocused: (f) => { if (rs.frame.gameOver) { rs.frame.gameOver.focused = f; render(); } },
       showOptions,
       closeOptions,

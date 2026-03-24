@@ -6,6 +6,9 @@
  * so games can be replayed by logging seeds.
  */
 
+/** Max 32-bit unsigned integer — used for seed ranges and RNG normalization. */
+export const MAX_UINT32 = 0xffffffff;
+
 export class Rng {
   private state: number;
   /** The seed this Rng was created with. Log it to reproduce a game. */
