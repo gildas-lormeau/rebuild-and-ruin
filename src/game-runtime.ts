@@ -749,8 +749,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     if (config.getIsHost()) {
       config.send({ type: MSG.CASTLE_WALLS, plans: [plan] });
     }
+    const human = firstHuman();
     rs.castleBuilds.push(createCastleBuildState([plan], () => {}));
-    camera.setCastleBuildViewport([...rs.castleBuilds.flatMap(b => b.wallPlans)]);
+    // Only zoom to the human player's castle build
+    if (human && playerId === human.playerId) {
+      camera.setCastleBuildViewport([plan]);
+    }
   }
 
   function tickAllCastleBuilds(dt: number): void {
