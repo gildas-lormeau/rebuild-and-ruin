@@ -20,7 +20,7 @@ import {
 import { autoPlaceCannons } from "./ai-strategy.ts";
 import {
   aimCannons, applyImpactEvent,
-  nextReadyCombined
+  canPlayerFire, nextReadyCombined
 } from "./battle-system.ts";
 import { applyCannonPlacement } from "./cannon-system.ts";
 import { createController } from "./controller-factory.ts";
@@ -90,6 +90,7 @@ import {
   CANNON_PLACE_TIMER,
   CannonMode,
   LOBBY_TIMER,
+  MIGRATION_ANNOUNCEMENT_DURATION,
   Phase,
   SELECT_TIMER,
 } from "./types.ts";
@@ -175,7 +176,6 @@ function log(msg: string): void {
 }
 
 const LOG_THROTTLE_MS = 1000;
-const MIGRATION_ANNOUNCEMENT_DURATION = 3;
 
 /** Throttled log — logs at most once per second per key (dev only). */
 const _throttleTimestamps = new Map<string, number>();
@@ -248,6 +248,12 @@ function maybeSendAimUpdate(x: number, y: number, playerId?: number): void {
 const lastSentPiecePhantom = new Map<number, string>();
 const lastSentCannonPhantom = new Map<number, string>();
 
+function resetPhantomTrackingMaps(): void {
+  lastSentAimTarget.clear();
+  lastSentPiecePhantom.clear();
+  lastSentCannonPhantom.clear();
+}
+
 // ---------------------------------------------------------------------------
 // Lobby start time tracking
 // ---------------------------------------------------------------------------
@@ -271,9 +277,7 @@ function showLobby(): void {
   myPlayerId = -1;
   occupiedSlots = new Set();
   remoteHumanSlots.clear();
-  lastSentAimTarget.clear();
-  lastSentPiecePhantom.clear();
-  lastSentCannonPhantom.clear();
+  resetPhantomTrackingMaps();
 }
 
 // ---------------------------------------------------------------------------
@@ -360,9 +364,7 @@ function initFromServer(msg: InitMessage): void {
       runtime.resetUIState();
       // Online-specific resets
       resetWatcherState(watcher);
-      lastSentAimTarget.clear();
-      lastSentPiecePhantom.clear();
-      lastSentCannonPhantom.clear();
+      resetPhantomTrackingMaps();
     },
     createControllerForSlot: (i, gameState) => {
       const isAi = (i !== myPlayerId);
@@ -689,13 +691,8 @@ const runtime: GameRuntime = createGameRuntime({
       if (!remoteHumanSlots.has(pid)) continue;
       const player = state.players[pid];
       if (!player || player.eliminated) continue;
+      if (!canPlayerFire(state, pid)) continue;
       const readyCannon = nextReadyCombined(state, pid);
-      const anyReloading =
-        !readyCannon &&
-        state.cannonballs.some(
-          (b) => b.playerId === pid || b.scoringPlayerId === pid,
-        );
-      if (!readyCannon && !anyReloading) continue;
       let vis = watcher.crosshairPos.get(pid);
       if (!vis) {
         vis = { x: target.x, y: target.y };

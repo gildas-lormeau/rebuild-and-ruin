@@ -142,6 +142,7 @@ import {
   LIFE_LOST_MAX_TIMER,
   MAX_FRAME_DT,
   Phase,
+  SCORE_DELTA_DISPLAY_TIME,
   SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,
   WALL_BUILD_INTERVAL,
@@ -169,7 +170,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let enemyZoomButton: ReturnType<typeof createEnemyZoomButton> | null = null;
   let quitButton: ReturnType<typeof createQuitButton> | null = null;
 
-  const SCORE_DELTA_DISPLAY_TIME = 2; // seconds, ticks during banner/castle-build
 
   function resetGameStats() {
     rs.gameStats = Array.from({ length: MAX_PLAYERS }, () => ({

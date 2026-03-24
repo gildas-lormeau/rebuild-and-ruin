@@ -102,6 +102,7 @@ export function confirmTowerSelection(
   render: () => void,
 ): boolean {
   const ss = selectionStates.get(playerId);
+  // Idempotent: ignore if player not in selection or already confirmed
   if (!ss || ss.confirmed) return allSelectionsConfirmed(selectionStates);
   ss.confirmed = true;
 

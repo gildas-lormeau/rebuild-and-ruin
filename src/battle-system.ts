@@ -201,6 +201,14 @@ export function nextReadyCombined(
   return null;
 }
 
+/** Whether a player has a cannon ready to fire or a cannonball in flight. */
+export function canPlayerFire(state: GameState, playerId: number): boolean {
+  if (nextReadyCombined(state, playerId)) return true;
+  return state.cannonballs.some(
+    (b) => b.playerId === playerId || b.scoringPlayerId === playerId,
+  );
+}
+
 /**
  * Fire a single captured cannon at a target tile. Returns true if fired.
  */

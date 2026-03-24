@@ -287,6 +287,10 @@ export const LIFE_LOST_AI_DELAY = 2.0;
 export const LIFE_LOST_MAX_TIMER = 10.0;
 /** Maximum frame delta time in seconds (caps large frame gaps). */
 export const MAX_FRAME_DT = 0.1;
+/** Duration to display score-delta popups (seconds). */
+export const SCORE_DELTA_DISPLAY_TIME = 2;
+/** Duration of host-migration announcement overlay (seconds). */
+export const MIGRATION_ANNOUNCEMENT_DURATION = 3;
 
 // ---------------------------------------------------------------------------
 // House placement

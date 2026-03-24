@@ -1,4 +1,4 @@
-import { countdownAnnouncement } from "./battle-system.ts";
+import { canPlayerFire, countdownAnnouncement } from "./battle-system.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { type CannonPhantom, cannonPhantomKey, type HumanPiecePhantom, type PiecePhantom, phantomChanged, phantomWireMode, piecePhantomKey } from "./online-types.ts";
 import type { Crosshair, OrbitParams, PlayerController } from "./player-controller.ts";
@@ -207,14 +207,8 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
   const ch = myHuman.getCrosshair();
   if (!ch) return;
 
-  const readyCannon = nextReadyCombined(state, myPlayerId);
-  const anyReloading =
-    !readyCannon &&
-    state.cannonballs.some(
-      (b) => b.playerId === myPlayerId || b.scoringPlayerId === myPlayerId,
-    );
-
-  if (readyCannon || anyReloading) {
+  if (canPlayerFire(state, myPlayerId)) {
+    const readyCannon = nextReadyCombined(state, myPlayerId);
     frame.crosshairs.push({
       x: ch.x,
       y: ch.y,

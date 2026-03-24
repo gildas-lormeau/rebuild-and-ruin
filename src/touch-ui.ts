@@ -117,10 +117,12 @@ export function createDpad(deps: DpadDeps): {
 
   // --- Action buttons (place + rotate) ---
   // Action buttons are vertically centered against the d-pad grid height
-  const actionGroupHeight = ACTION_BTN + 12 + (ACTION_BTN + 8); // rotate + gap + action
+  const ACTION_GAP = 12;       // gap between rotate and action buttons
+  const ACTION_BORDER = 8;     // border+padding allowance for action button
+  const actionGroupHeight = ACTION_BTN + ACTION_GAP + (ACTION_BTN + ACTION_BORDER);
   const actionBottom = Math.max(0, (gridSize - actionGroupHeight) / 2);
   const actionGroup = document.createElement("div");
-  actionGroup.style.cssText = `position: absolute; bottom: ${actionBottom}px; display: flex; flex-direction: column; gap: 12px; align-items: center; pointer-events: auto;`;
+  actionGroup.style.cssText = `position: absolute; bottom: ${actionBottom}px; display: flex; flex-direction: column; gap: ${ACTION_GAP}px; align-items: center; pointer-events: auto;`;
   container.appendChild(actionGroup);
 
   const btnRotate = document.createElement("button");
