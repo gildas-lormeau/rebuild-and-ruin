@@ -6,43 +6,13 @@
  * methods that operate on it. See runtime-state.ts for the state type.
  */
 
-import { MSG } from "../server/protocol.ts";
-import { resolveBalloons, updateCannonballs } from "./battle-system.ts";
-import {
-  beginHostBattle,
-  startHostBattleLifecycle,
-  tickHostBalloonAnim,
-  tickHostBattleCountdown,
-  tickHostBattlePhase,
-} from "./battle-ticks.ts";
-import {
-  createCastleBuildState,
-  tickCastleBuildAnimation,
-} from "./castle-build.ts";
 import { createController, isHuman } from "./controller-factory.ts";
-import { bootstrapGame, setupTowerSelection } from "./game-bootstrap.ts";
-import {
-  advanceToCannonPlacePhase,
-  clearPlayerState,
-  enterCannonPlacePhase,
-  enterCastleReselectPhase,
-  finalizeBuildPhase,
-  finalizeCastleConstruction,
-  initBuildPhase,
-  markPlayerReselected,
-  nextPhase,
-  prepareCastleWallsForPlayer,
-} from "./game-engine.ts";
+import { bootstrapGame } from "./game-bootstrap.ts";
 import type { GameRuntime, RuntimeConfig } from "./game-runtime-types.ts";
 import {
-  collectLocalCrosshairs,
-  completeReselection,
-  initCannonPhase,
   lobbyClickHitTest,
   mainLoopTick,
-  processReselectionQueue,
   snapshotTerritory as snapshotTerritoryImpl,
-  tickGameCore,
 } from "./game-ui-runtime.ts";
 import type { UIContext } from "./game-ui-screens.ts";
 import {
@@ -71,30 +41,13 @@ import {
   SEED_CUSTOM,
 } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
-import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
-import { hapticBattleEvents, hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
+import { hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
 import { type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
-import type { LifeLostDialogState, ResolvedChoice } from "./life-lost.ts";
 import {
-  buildLifeLostDialogState,
-  resolveAfterLifeLost,
-  resolveLifeLostDialogRuntime,
-  tickLifeLostDialogRuntime,
-} from "./life-lost.ts";
-import {
-  BANNER_BUILD,
-  BANNER_BUILD_SUB,
-  BANNER_PLACE_CANNONS,
-  BANNER_PLACE_CANNONS_SUB,
   createBannerState,
   showBannerTransition,
   tickBannerTransition,
 } from "./phase-banner.ts";
-import { claimTerritory } from "./phase-build.ts";
-import {
-  tickHostBuildPhase,
-  tickHostCannonPhase,
-} from "./phase-ticks.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "./platform.ts";
 import {
   getPlayerColor,
@@ -109,41 +62,27 @@ import {
   buildOnlineOverlay,
   buildRenderSummaryMessage,
   buildStatusBar,
-  handleLifeLostDialogClick as handleLifeLostDialogClickShared,
-  lifeLostPanelPos as lifeLostPanelPosShared,
-  syncSelectionOverlay as syncSelectionOverlayImpl,
 } from "./render-composition.ts";
 import { renderMap } from "./render-map.ts";
 import { computeLobbyLayout } from "./render-ui.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
+import type { LifeLostSystem } from "./runtime-life-lost.ts";
+import { createLifeLostSystem } from "./runtime-life-lost.ts";
+import type { PhaseTicksSystem } from "./runtime-phase-ticks.ts";
+import { createPhaseTicksSystem } from "./runtime-phase-ticks.ts";
+import type { SelectionSystem } from "./runtime-selection.ts";
+import { createSelectionSystem } from "./runtime-selection.ts";
 import { createRuntimeState } from "./runtime-state.ts";
-import {
-  allSelectionsConfirmed as allSelectionsConfirmedImpl,
-  confirmTowerSelection,
-  finishSelectionPhase,
-  highlightTowerSelection,
-  initTowerSelection as initTowerSelectionImpl,
-  tickSelectionPhase,
-} from "./selection.ts";
 import { unpackTile } from "./spatial.ts";
 import { registerTouchHandlers } from "./touch-input.ts";
 import { createDpad, createEnemyZoomButton, createHomeZoomButton, createQuitButton } from "./touch-ui.ts";
 import type { GameState } from "./types.ts";
 import {
-  BALLOON_FLIGHT_DURATION,
   BANNER_DURATION,
-  BATTLE_COUNTDOWN,
-  BATTLE_TIMER,
-  IMPACT_FLASH_DURATION,
-  LIFE_LOST_AI_DELAY,
-  LIFE_LOST_MAX_TIMER,
   MAX_FRAME_DT,
   Phase,
   SCORE_DELTA_DISPLAY_TIME,
-  SELECT_ANNOUNCEMENT_DURATION,
-  SELECT_TIMER,
-  WALL_BUILD_INTERVAL,
 } from "./types.ts";
 
 export type { GameRuntime } from "./game-runtime-types.ts";
@@ -257,12 +196,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         [Mode.LOBBY]: tickLobby,
         [Mode.OPTIONS]: () => renderOptions(),
         [Mode.CONTROLS]: () => renderControls(),
-        [Mode.SELECTION]: tickSelection,
+        [Mode.SELECTION]: (dt: number) => selection.tick(dt),
         [Mode.BANNER]: tickBanner,
-        [Mode.BALLOON_ANIM]: tickBalloonAnim,
-        [Mode.CASTLE_BUILD]: tickCastleBuild,
-        [Mode.LIFE_LOST]: tickLifeLostDialog,
-        [Mode.GAME]: tickGame,
+        [Mode.BALLOON_ANIM]: (dt: number) => phaseTicks.tickBalloonAnim(dt),
+        [Mode.CASTLE_BUILD]: (dt: number) => selection.tickCastleBuild(dt),
+        [Mode.LIFE_LOST]: (dt: number) => lifeLost.tick(dt),
+        [Mode.GAME]: (dt: number) => phaseTicks.tickGame(dt),
       },
     });
 
@@ -431,96 +370,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   // -------------------------------------------------------------------------
-  // Tower selection helpers
+  // Territory / human helpers
   // -------------------------------------------------------------------------
-
-  function initTowerSelection(pid: number, zone: number): void {
-    initTowerSelectionImpl(rs.state, rs.selectionStates, pid, zone);
-  }
-
-  function enterTowerSelection(): void {
-    setupTowerSelection({
-      state: rs.state,
-      isHost: config.getIsHost(),
-      myPlayerId: config.getMyPlayerId(),
-      remoteHumanSlots: config.getRemoteHumanSlots(),
-      controllers: rs.controllers,
-      selectionStates: rs.selectionStates,
-      initTowerSelection,
-      syncSelectionOverlay,
-      setOverlaySelection: () => { rs.overlay = { selection: { highlighted: null, selected: null } }; },
-      selectTimer: SELECT_TIMER,
-      accum: rs.accum,
-      enterCastleReselectPhase,
-      now: () => performance.now(),
-      setModeSelection: () => { rs.mode = Mode.SELECTION; },
-      setLastTime: (t) => { rs.lastTime = t; },
-      requestFrame: () => {
-        // Only schedule if the loop isn't already running (e.g., online mode starting from DOM lobby)
-        if (rs.mode === Mode.STOPPED) requestAnimationFrame(mainLoop);
-      },
-      log: config.log,
-    });
-  }
-
-  function syncSelectionOverlay(): void {
-    syncSelectionOverlayImpl(rs.overlay, rs.selectionStates, (pid) => isHuman(rs.controllers[pid]!));
-  }
-
-  function highlightTowerForPlayer(idx: number, zone: number, pid: number): void {
-    highlightTowerSelection(
-      rs.state,
-      rs.selectionStates,
-      idx,
-      zone,
-      pid,
-      config.send,
-      () => syncSelectionOverlay(),
-      () => render(),
-    );
-  }
-
-  function confirmSelectionForPlayer(pid: number, isReselect = false): boolean {
-    const allDone = confirmTowerSelection(
-      rs.state,
-      rs.selectionStates,
-      rs.controllers,
-      pid,
-      isReselect,
-      config.send,
-      (reselectPid) => {
-        markPlayerReselected(rs.state, reselectPid);
-        rs.reselectionPids.push(reselectPid);
-      },
-      () => syncSelectionOverlay(),
-      () => render(),
-    );
-    startPlayerCastleBuild(pid);
-    return allDone;
-  }
-
-  function allSelectionsConfirmed(): boolean {
-    return allSelectionsConfirmedImpl(rs.selectionStates);
-  }
-
-  // -------------------------------------------------------------------------
-  // Crosshairs / territory / human helpers
-  // -------------------------------------------------------------------------
-
-  function collectCrosshairs(canFireNow: boolean, dt = 0): void {
-    const remoteHumanSlots = config.getRemoteHumanSlots();
-    rs.frame.crosshairs = collectLocalCrosshairs({
-      state: rs.state,
-      controllers: rs.controllers,
-      canFireNow,
-      skipController: (pid) => remoteHumanSlots.has(pid),
-      onCrosshairCollected: config.onLocalCrosshairCollected,
-    });
-    // Let caller extend crosshairs (e.g., add remote human crosshairs)
-    if (config.extendCrosshairs) {
-      rs.frame.crosshairs = config.extendCrosshairs(rs.frame.crosshairs, dt);
-    }
-  }
 
   function snapshotTerritory(): Set<number>[] {
     return snapshotTerritoryImpl(rs.state.players);
@@ -563,7 +414,31 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Re-export camera functions used by other parts of the runtime
   const { tickCamera, updateViewport, screenToWorld, pixelToTile,
     onPinchStart, onPinchUpdate, onPinchEnd,
-    myPlayerId, getEnemyZones, computeZoneBounds } = camera;
+    myPlayerId, getEnemyZones } = camera;
+
+  // -------------------------------------------------------------------------
+  // Selection sub-system (delegated to runtime-selection.ts)
+  // -------------------------------------------------------------------------
+
+  const selection: SelectionSystem = createSelectionSystem({
+    rs,
+    getIsHost: config.getIsHost,
+    getMyPlayerId: config.getMyPlayerId,
+    getRemoteHumanSlots: config.getRemoteHumanSlots,
+    send: config.send,
+    log: config.log,
+    lightUnzoom: () => camera.lightUnzoom(),
+    clearCastleBuildViewport: () => camera.clearCastleBuildViewport(),
+    setCastleBuildViewport: (plans) => camera.setCastleBuildViewport(plans),
+    computeZoneBounds: camera.computeZoneBounds,
+    render: () => render(),
+    firstHuman,
+    startCannonPhase: () => phaseTicks.startCannonPhase(),
+    showBanner,
+    requestFrame: () => {
+      if (rs.mode === Mode.STOPPED) requestAnimationFrame(mainLoop);
+    },
+  });
 
   // -------------------------------------------------------------------------
   // Rendering
@@ -590,7 +465,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     // Refresh crosshairs from controller state when paused
     if (rs.state.phase === Phase.BATTLE && rs.paused) {
-      collectCrosshairs(rs.state.battleCountdown <= 0);
+      phaseTicks.collectCrosshairs(rs.state.battleCountdown <= 0);
     }
 
     const bannerUi = buildBannerUi(rs.banner.active, rs.banner.text, rs.banner.progress, rs.banner.subtitle);
@@ -605,8 +480,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       lifeLostDialog: rs.lifeLostDialog,
       playerNames: PLAYER_NAMES,
       playerColors: PLAYER_COLORS,
-      lifeLostMaxTimer: LIFE_LOST_MAX_TIMER,
-      getLifeLostPanelPos: (playerId) => lifeLostPanelPosShared(rs.state, playerId),
+      getLifeLostPanelPos: (playerId) => lifeLost.panelPos(playerId),
     });
 
     // Status bar (rendered inside canvas)
@@ -673,491 +547,48 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   // -------------------------------------------------------------------------
-  // Castle selection tick + finish
+  // Life-lost sub-system (delegated to runtime-life-lost.ts)
   // -------------------------------------------------------------------------
 
-  function tickSelection(dt: number) {
-    const remoteHumanSlots = config.getRemoteHumanSlots();
-    tickSelectionPhase({
-      dt,
-      state: rs.state,
-      isHost: config.getIsHost(),
-      myPlayerId: config.getMyPlayerId(),
-      selectTimer: SELECT_TIMER,
-      accum: rs.accum,
-      selectionStates: rs.selectionStates,
-      remoteHumanSlots,
-      controllers: rs.controllers,
-      render,
-      confirmSelectionForPlayer: (pid, isReselect) =>
-        confirmSelectionForPlayer(pid, isReselect ?? false),
-      allSelectionsConfirmed,
-      allBuildsComplete: () => rs.castleBuilds.length === 0 &&
-        rs.state.players.every(p => !p.homeTower || p.interior.size > 0 || p.eliminated),
-      tickActiveBuilds: tickAllCastleBuilds,
-      announcementDuration: SELECT_ANNOUNCEMENT_DURATION,
-      setFrameAnnouncement: (text) => { rs.frame.announcement = text; },
-      finishReselection,
-      finishSelection,
-      syncSelectionOverlay,
-      sendOpponentTowerSelected: (playerId, towerIdx, confirmed) => {
-        config.send({
-          type: MSG.OPPONENT_TOWER_SELECTED,
-          playerId,
-          towerIdx,
-          confirmed,
-        });
-      },
-    });
-  }
-
-  function clearOverlaySelection() {
-    if (rs.overlay.selection) {
-      rs.overlay.selection.highlights = undefined;
-      rs.overlay.selection.highlighted = null;
-      rs.overlay.selection.selected = null;
-    }
-  }
-
-  function finishSelection() {
-    finishSelectionPhase({
-      state: rs.state,
-      selectionStates: rs.selectionStates,
-      clearOverlaySelection,
-      finalizeAndAdvance: () => {
-        rs.banner.oldHouses = rs.state.map.houses.map((h) => ({ ...h }));
-        rs.banner.oldBonusSquares = rs.state.bonusSquares.map((b) => ({ ...b }));
-        finalizeCastleConstruction(rs.state);
-        enterCannonPlacePhase(rs.state);
-        camera.clearCastleBuildViewport();
-        advanceToCannonPhase();
-      },
-    });
-  }
-
-  function startPlayerCastleBuild(playerId: number): void {
-    if (!config.getIsHost()) return; // non-host builds via castle_walls message
-    const plan = prepareCastleWallsForPlayer(rs.state, playerId);
-    if (!plan) return;
-    config.send({ type: MSG.CASTLE_WALLS, plans: [plan] });
-    const human = firstHuman();
-    rs.castleBuilds.push(createCastleBuildState([plan], () => {}));
-    // Only zoom to the human player's castle build
-    if (human && playerId === human.playerId) {
-      camera.setCastleBuildViewport([plan]);
-    }
-  }
-
-  function tickAllCastleBuilds(dt: number): void {
-    let anyPlaced = false;
-    for (let i = rs.castleBuilds.length - 1; i >= 0; i--) {
-      const result = tickCastleBuildAnimation({
-        castleBuild: rs.castleBuilds[i]!, dt, wallBuildIntervalMs: WALL_BUILD_INTERVAL, state: rs.state, render: () => {},
-        onWallsPlaced: () => { anyPlaced = true; },
-      });
-      if (!result.next) {
-        rs.castleBuilds.splice(i, 1);
-      } else {
-        rs.castleBuilds[i] = result.next;
-      }
-    }
-    if (anyPlaced) claimTerritory(rs.state);
-  }
-
-  function showBuildScoreDeltas(onDone: () => void): void {
-    // Compute score deltas from the build phase (with display coordinates)
-    rs.scoreDeltas = rs.state.players
-      .map((p, i) => {
-        const zone = rs.state.playerZones[i] ?? 0;
-        const bounds = computeZoneBounds(zone);
-        return {
-          playerId: i, delta: p.score - (rs.preScores[i] ?? 0), total: p.score,
-          cx: bounds.x + bounds.w / 2, cy: bounds.y + bounds.h / 2,
-        };
-      })
-      .filter(d => d.delta > 0 && !rs.state.players[d.playerId]!.eliminated);
-
-    if (rs.scoreDeltas.length > 0) {
-      camera.lightUnzoom();
-      rs.scoreDeltaTimer = SCORE_DELTA_DISPLAY_TIME;
-      rs.scoreDeltaOnDone = onDone;
-    } else {
-      onDone();
-    }
-  }
-
-  function advanceToCannonPhase(): void {
-    advanceToCannonPlacePhase(rs.state);
-    startCannonPhase();
-    showBanner(BANNER_PLACE_CANNONS, () => { rs.mode = Mode.GAME; }, true, undefined, BANNER_PLACE_CANNONS_SUB);
-  }
-
-  function tickCastleBuild(dt: number): void {
-    tickAllCastleBuilds(dt);
-    render();
-    if (rs.castleBuilds.length === 0) {
-      camera.clearCastleBuildViewport();
-      if (rs.castleBuildOnDone) {
-        const cb = rs.castleBuildOnDone;
-        rs.castleBuildOnDone = null;
-        cb();
-      }
-    }
-  }
+  const lifeLost: LifeLostSystem = createLifeLostSystem({
+    rs,
+    getIsHost: config.getIsHost,
+    getMyPlayerId: config.getMyPlayerId,
+    getRemoteHumanSlots: config.getRemoteHumanSlots,
+    send: config.send,
+    log: config.log,
+    render: () => render(),
+    firstHuman,
+    endGame,
+    startReselection: () => selection.startReselection(),
+    advanceToCannonPhase: () => selection.advanceToCannonPhase(),
+  });
 
   // -------------------------------------------------------------------------
-  // Reselection
+  // Phase ticks sub-system (delegated to runtime-phase-ticks.ts)
   // -------------------------------------------------------------------------
 
-  function startReselection() {
-    const remoteHumanSlots = config.getRemoteHumanSlots();
-    enterCastleReselectPhase(rs.state);
-    rs.selectionStates.clear();
-    rs.reselectionPids = [];
-
-    const { remaining, needsUI } = processReselectionQueue({
-      reselectQueue: rs.reselectQueue,
-      state: rs.state,
-      controllers: rs.controllers,
-      initTowerSelection,
-      processPlayer: (pid, ctrl, zone) => {
-        if (remoteHumanSlots.has(pid)) return "pending" as const;
-        const done = ctrl.reselect(rs.state, zone);
-        return done ? "done" as const : "pending" as const;
-      },
-      onDone: (pid, ctrl) => {
-        const player = rs.state.players[pid]!;
-        if (player.homeTower) ctrl.centerOn(player.homeTower.row, player.homeTower.col);
-        markPlayerReselected(rs.state, pid);
-        rs.reselectionPids.push(pid);
-      },
-    });
-    rs.reselectQueue = remaining.length > 0 ? remaining : [];
-
-    if (needsUI) {
-      syncSelectionOverlay();
-      rs.accum.select = 0;
-      rs.state.timer = SELECT_TIMER;
-      rs.mode = Mode.SELECTION;
-      if (config.getIsHost()) {
-        config.send({ type: MSG.SELECT_START, timer: SELECT_TIMER });
-      }
-    } else {
-      finishReselection();
-    }
-  }
-
-  function finishReselection() {
-    completeReselection({
-      state: rs.state, selectionStates: rs.selectionStates, clearOverlaySelection,
-      reselectQueue: rs.reselectQueue, reselectionPids: rs.reselectionPids, clearPlayerState,
-      finalizeAndAdvance: () => {
-        rs.banner.oldHouses = rs.state.map.houses.map((h) => ({ ...h }));
-        rs.banner.oldBonusSquares = rs.state.bonusSquares.map((b) => ({ ...b }));
-        finalizeCastleConstruction(rs.state);
-        enterCannonPlacePhase(rs.state);
-        camera.clearCastleBuildViewport();
-        advanceToCannonPhase();
-      },
-    });
-  }
-
-  // -------------------------------------------------------------------------
-  // Cannon phase
-  // -------------------------------------------------------------------------
-
-  function startCannonPhase() {
-    const remoteHumanSlots = config.getRemoteHumanSlots();
-    config.log(`startCannonPhase (round=${rs.state.round})`);
-    initCannonPhase({
-      state: rs.state,
-      controllers: rs.controllers,
-      skipController: (pid) => remoteHumanSlots.has(pid),
-    });
-
-    rs.accum.cannon = 0;
-    rs.state.timer = rs.state.cannonPlaceTimer;
-    if (config.getIsHost() && config.hostNetworking) {
-      config.send(config.hostNetworking.buildCannonStartMessage(rs.state));
-    }
-    render();
-  }
-
-  // -------------------------------------------------------------------------
-  // Battle
-  // -------------------------------------------------------------------------
-
-  function startBattle() {
-    config.log(`startBattle (round=${rs.state.round})`);
-    rs.scoreDeltas = [];
-    rs.scoreDeltaTimer = 0;
-    rs.scoreDeltaOnDone = null;
-    startHostBattleLifecycle({
-      state: rs.state,
-      battleAnim: rs.battleAnim,
-      resolveBalloons,
-      snapshotTerritory,
-      showBanner,
-      nextPhase,
-      setModeBalloonAnim: () => { rs.mode = Mode.BALLOON_ANIM; },
-      beginBattle,
-      net: config.hostNetworking ? {
-        isHost: config.getIsHost(),
-        sendBattleStart: (flights) => {
-          config.send(config.hostNetworking!.buildBattleStartMessage(rs.state, flights));
-        },
-      } : undefined,
-    });
-  }
-
-  function tickBalloonAnim(dt: number) {
-    tickHostBalloonAnim({
-      dt,
-      balloonFlightDuration: BALLOON_FLIGHT_DURATION,
-      battleAnim: rs.battleAnim,
-      render,
-      beginBattle,
-    });
-  }
-
-  function beginBattle() {
-    beginHostBattle({
-      state: rs.state,
-      controllers: rs.controllers,
-      accum: rs.accum,
-      battleCountdown: BATTLE_COUNTDOWN,
-      setModeGame: () => { rs.mode = Mode.GAME; },
-      net: {
-        remoteHumanSlots: config.getRemoteHumanSlots(),
-        isHost: config.getIsHost(),
-        watcherTiming: config.watcherTiming ?? { phaseStartTime: 0, phaseDuration: 0, countdownStartTime: 0, countdownDuration: 0 },
-        now: () => performance.now(),
-      },
-    });
-  }
-
-  // -------------------------------------------------------------------------
-  // Build phase
-  // -------------------------------------------------------------------------
-
-  function startBuildPhase() {
-    const remoteHumanSlots = config.getRemoteHumanSlots();
-    config.log(`startBuildPhase (round=${rs.state.round})`);
-    // Snapshot scores before build phase for delta display
-    rs.preScores = rs.state.players.map(p => p.score);
-    rs.scoreDeltas = [];
-    rs.scoreDeltaTimer = 0;
-    rs.scoreDeltaOnDone = null;
-    initBuildPhase(rs.state, rs.controllers, (pid) => remoteHumanSlots.has(pid) || !!rs.state.players[pid]?.eliminated);
-    rs.battleAnim.impacts = [];
-    rs.accum.grunt = 0;
-    rs.accum.build = 0;
-  }
-
-  // -------------------------------------------------------------------------
-  // Game loop — tick functions
-  // -------------------------------------------------------------------------
-
-  function tickCannonPhase(dt: number): boolean {
-    return tickHostCannonPhase({
-      dt, state: rs.state, accum: rs.accum, frame: rs.frame, controllers: rs.controllers, render, startBattle,
-      net: {
-        remoteHumanSlots: config.getRemoteHumanSlots(),
-        isHost: config.getIsHost(),
-        remoteCannonPhantoms: config.hostNetworking?.remoteCannonPhantoms() ?? [],
-        lastSentCannonPhantom: config.hostNetworking?.lastSentCannonPhantom() ?? new Map(),
-        autoPlaceCannons: config.hostNetworking?.autoPlaceCannons ?? (() => {}),
-        sendOpponentCannonPlaced: (msg) => config.send({ type: MSG.OPPONENT_CANNON_PLACED, ...msg }),
-        sendOpponentCannonPhantom: (msg) => config.send({ type: MSG.OPPONENT_CANNON_PHANTOM, ...msg }),
-      },
-    });
-  }
-
-  function tickBattleCountdown(dt: number): void {
-    tickHostBattleCountdown({
-      dt, state: rs.state, frame: rs.frame, controllers: rs.controllers, collectCrosshairs, render,
-      net: { remoteHumanSlots: config.getRemoteHumanSlots() },
-    });
-  }
-
-  function tickBattlePhase(dt: number): boolean {
-    return tickHostBattlePhase({
-      dt, state: rs.state, battleTimer: BATTLE_TIMER, accum: rs.accum, controllers: rs.controllers, battleAnim: rs.battleAnim,
-      render, collectCrosshairs,
-      collectTowerEvents: gruntAttackTowers,
-      updateCannonballsWithEvents: updateCannonballs,
-      onBattleEvents: (events) => {
-        const pid = config.getMyPlayerId();
-        const localPid = pid >= 0 ? pid : (firstHuman()?.playerId ?? -1);
-        if (localPid >= 0) hapticBattleEvents(events as Array<{ type: string; playerId?: number; hp?: number }>, localPid);
-        // Accumulate stats
-        for (const evt of events as Array<{ type: string; playerId?: number; shooterId?: number; hp?: number; newHp?: number }>) {
-          if (evt.type === MSG.WALL_DESTROYED && evt.shooterId !== undefined) {
-            rs.gameStats[evt.shooterId]!.wallsDestroyed++;
-          } else if (evt.type === MSG.CANNON_DAMAGED && evt.shooterId !== undefined && evt.newHp === 0) {
-            rs.gameStats[evt.shooterId]!.cannonsKilled++;
-          }
-        }
-      },
-      onBattlePhaseEnded: () => {
-        showBanner(
-          BANNER_BUILD,
-          () => {
-            startBuildPhase();
-            rs.mode = Mode.GAME;
-          },
-          true,
-          undefined,
-          BANNER_BUILD_SUB,
-        );
-        nextPhase(rs.state); // BATTLE -> WALL_BUILD
-        if (config.getIsHost() && config.hostNetworking) {
-          config.send(config.hostNetworking.buildBuildStartMessage(rs.state));
-        }
-      },
-      net: {
-        remoteHumanSlots: config.getRemoteHumanSlots(),
-        isHost: config.getIsHost(),
-        sendMessage: config.send,
-      },
-    });
-  }
-
-  function tickBuildPhase(dt: number): boolean {
-    if (rs.scoreDeltaOnDone) { render(); return false; }
-    return tickHostBuildPhase({
-      dt, state: rs.state, accum: rs.accum, frame: rs.frame, controllers: rs.controllers, render,
-      tickGrunts, isHuman, finalizeBuildPhase, showLifeLostDialog,
-      afterLifeLostResolved: () => afterLifeLostResolved(),
-      showScoreDeltas: (onDone) => showBuildScoreDeltas(onDone),
-      net: {
-        remoteHumanSlots: config.getRemoteHumanSlots(),
-        isHost: config.getIsHost(),
-        remotePiecePhantoms: config.hostNetworking?.remotePiecePhantoms() ?? [],
-        lastSentPiecePhantom: config.hostNetworking?.lastSentPiecePhantom() ?? new Map(),
-        serializePlayers: config.hostNetworking?.serializePlayers ?? (() => []),
-        sendOpponentPiecePlaced: (msg) => config.send({ type: MSG.OPPONENT_PIECE_PLACED, ...msg }),
-        sendOpponentPhantom: (msg) => config.send({ type: MSG.OPPONENT_PHANTOM, ...msg }),
-        sendBuildEnd: (msg) => config.send({ type: MSG.BUILD_END, ...msg }),
-      },
-    });
-  }
-
-  // -------------------------------------------------------------------------
-  // Life-lost dialog
-  // -------------------------------------------------------------------------
-
-  function showLifeLostDialog(needsReselect: number[], eliminated: number[]) {
-    const remoteHumanSlots = config.getRemoteHumanSlots();
-    config.log(
-      `showLifeLostDialog: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
-    );
-    rs.lifeLostDialog = buildLifeLostDialogState({
-      needsReselect,
-      eliminated,
-      state: rs.state,
-      isHost: config.getIsHost(),
-      myPlayerId: config.getMyPlayerId(),
-      remoteHumanSlots,
-      isHumanController: (playerId) => isHuman(rs.controllers[playerId]!),
-    });
-    rs.mode = Mode.LIFE_LOST;
-  }
-
-  function tickLifeLostDialog(dt: number) {
-    rs.lifeLostDialog = tickLifeLostDialogRuntime({
-      dt,
-      lifeLostDialog: rs.lifeLostDialog,
-      lifeLostAiDelay: LIFE_LOST_AI_DELAY,
-      lifeLostMaxTimer: LIFE_LOST_MAX_TIMER,
-      state: rs.state,
-      isHost: config.getIsHost(),
-      render,
-      logResolved: (dialog) => {
-        config.log(
-          `lifeLostDialog resolved: ${dialog.entries.map((e) => `P${e.playerId}=${e.choice}(ai=${e.isAi})`).join(", ")} timer=${dialog.timer.toFixed(1)}s`,
-        );
-      },
-      resolveHostDialog: (dialog) =>
-        resolveLifeLostDialogRuntime({
-          lifeLostDialog: dialog,
-          state: rs.state,
-          afterLifeLostResolved,
-        }),
-      onNonHostResolved: () => {
-        rs.mode = Mode.GAME;
-      },
-    });
-  }
-
-  function afterLifeLostResolved(continuing: number[] = []): boolean {
-    return resolveAfterLifeLost({
-      state: rs.state,
-      continuing,
-      onEndGame: endGame,
-      onStartReselection: (players) => {
-        rs.reselectQueue = players;
-        startReselection();
-        rs.mode = Mode.SELECTION;
-      },
-      onAdvanceToCannonPhase: advanceToCannonPhase,
-    });
-  }
-
-  function lifeLostPanelPos(playerId: number): { px: number; py: number } {
-    return lifeLostPanelPosShared(rs.state, playerId);
-  }
-
-  function sendLifeLostChoice(choice: ResolvedChoice, playerId: number) {
-    config.send({ type: MSG.LIFE_LOST_CHOICE, choice, playerId });
-  }
-
-  function lifeLostDialogClick(canvasX: number, canvasY: number) {
-    if (!rs.lifeLostDialog) return;
-    const mousePlayer = firstHuman();
-    if (!mousePlayer) return;
-
-    const choice = handleLifeLostDialogClickShared({
-      state: rs.state,
-      lifeLostDialog: rs.lifeLostDialog,
-      canvasX,
-      canvasY,
-      firstHumanPlayerId: mousePlayer.playerId,
-    });
-    if (!choice) return;
-
-    // Apply the choice to the dialog entry (mutation owned by game runtime, not render-composition)
-    const entry = rs.lifeLostDialog.entries.find(e => e.playerId === choice.playerId);
-    if (entry) entry.choice = choice.choice;
-    sendLifeLostChoice(choice.choice, choice.playerId);
-  }
-
-  // -------------------------------------------------------------------------
-  // tickGame
-  // -------------------------------------------------------------------------
-
-  function tickGame(dt: number) {
-    if (config.getIsHost()) {
-      tickGameCore({
-        dt,
-        state: rs.state,
-        battleAnim: rs.battleAnim,
-        impactFlashDuration: IMPACT_FLASH_DURATION,
-        tickCannonPhase,
-        tickBattleCountdown,
-        tickBattlePhase,
-        tickBuildPhase,
-      });
-    } else {
-      // Non-host: still age impacts, then delegate to config callback
-      for (const imp of rs.battleAnim.impacts) imp.age += dt;
-      rs.battleAnim.impacts = rs.battleAnim.impacts.filter(
-        (imp) => imp.age < IMPACT_FLASH_DURATION,
-      );
-      config.tickNonHost?.(dt);
-    }
-    config.everyTick?.(dt);
-  }
+  const phaseTicks: PhaseTicksSystem = createPhaseTicksSystem({
+    rs,
+    getIsHost: config.getIsHost,
+    getMyPlayerId: config.getMyPlayerId,
+    getRemoteHumanSlots: config.getRemoteHumanSlots,
+    send: config.send,
+    log: config.log,
+    hostNetworking: config.hostNetworking,
+    watcherTiming: config.watcherTiming,
+    extendCrosshairs: config.extendCrosshairs,
+    onLocalCrosshairCollected: config.onLocalCrosshairCollected,
+    tickNonHost: config.tickNonHost,
+    everyTick: config.everyTick,
+    render: () => render(),
+    firstHuman,
+    showBanner,
+    showLifeLostDialog: lifeLost.show,
+    afterLifeLostResolved: () => lifeLost.afterResolved(),
+    showScoreDeltas: (onDone) => selection.showBuildScoreDeltas(onDone),
+    snapshotTerritory,
+  });
 
   // -------------------------------------------------------------------------
   // resetUIState
@@ -1222,7 +653,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         const strategySeed = isAi ? gameState.rng.int(0, MAX_UINT32) : undefined;
         return createController(i, isAi, rs.settings.keyBindings[i]!, strategySeed, rs.settings.difficulty);
       },
-      enterSelection: enterTowerSelection,
+      enterSelection: () => selection.enter(),
     });
   }
 
@@ -1290,7 +721,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       changeOption,
       getControlsState: () => rs.controlsState,
       getLifeLostDialog: () => rs.lifeLostDialog,
-      lifeLostDialogClick,
+      lifeLostDialogClick: lifeLost.click,
       getControllers: () => rs.controllers,
       isHuman,
       withFirstHuman,
@@ -1304,15 +735,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       tryPlacePieceAndSend: config.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
       fireAndSend: config.fireAndSend ?? ((ctrl, gameState) => ctrl.fire(gameState)),
       getSelectionStates: () => rs.selectionStates,
-      highlightTowerForPlayer,
-      confirmSelectionForPlayer,
+      highlightTowerForPlayer: selection.highlight,
+      confirmSelectionForPlayer: selection.confirm,
       togglePause,
       getQuitPending: () => rs.quitPending,
       setQuitPending: (v) => { rs.quitPending = v; },
       setQuitTimer: (s) => { rs.quitTimer = s; },
       setQuitMessage: (msg) => { rs.quitMessage = msg; },
       render,
-      sendLifeLostChoice,
+      sendLifeLostChoice: lifeLost.sendLifeLostChoice,
       settings: rs.settings,
     };
     registerOnlineInputHandlers(inputDeps);
@@ -1328,10 +759,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         tryPlacePieceAndSend: placePiece,
         tryPlaceCannonAndSend: placeCannon,
         getSelectionStates: () => rs.selectionStates,
-        highlightTowerForPlayer,
-        confirmSelectionForPlayer,
-        finishSelection,
-        finishReselection,
+        highlightTowerForPlayer: selection.highlight,
+        confirmSelectionForPlayer: selection.confirm,
+        finishSelection: () => selection.finish(),
+        finishReselection: () => selection.finishReselection(),
         isHost: config.getIsHost,
         render,
         getLeftHanded: () => rs.settings.leftHanded,
@@ -1392,7 +823,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     showBanner,
     tickBanner,
 
-    collectCrosshairs,
+    collectCrosshairs: phaseTicks.collectCrosshairs,
     snapshotTerritory,
     firstHuman,
     withFirstHuman,
@@ -1400,18 +831,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render,
     endGame,
 
-    startCannonPhase,
-    startBattle,
-    tickBalloonAnim,
-    beginBattle,
-    startBuildPhase,
+    startCannonPhase: phaseTicks.startCannonPhase,
+    startBattle: phaseTicks.startBattle,
+    tickBalloonAnim: phaseTicks.tickBalloonAnim,
+    beginBattle: phaseTicks.beginBattle,
+    startBuildPhase: phaseTicks.startBuildPhase,
 
-    tickCannonPhase,
-    tickBattleCountdown,
-    tickBattlePhase,
-    tickBuildPhase,
+    tickCannonPhase: phaseTicks.tickCannonPhase,
+    tickBattleCountdown: phaseTicks.tickBattleCountdown,
+    tickBattlePhase: phaseTicks.tickBattlePhase,
+    tickBuildPhase: phaseTicks.tickBuildPhase,
 
-    tickGame,
+    tickGame: phaseTicks.tickGame,
     resetUIState,
     startGame,
 
@@ -1419,31 +850,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     registerInputHandlers,
 
     // Sub-systems
-    selection: {
-      getStates: () => rs.selectionStates,
-      init: initTowerSelection,
-      enter: enterTowerSelection,
-      syncOverlay: syncSelectionOverlay,
-      highlight: highlightTowerForPlayer,
-      confirm: confirmSelectionForPlayer,
-      allConfirmed: allSelectionsConfirmed,
-      tick: tickSelection,
-      finish: finishSelection,
-      advanceToCannonPhase,
-      tickCastleBuild,
-      setCastleBuildViewport: (plans: { playerId: number; tiles: number[] }[]) => camera.setCastleBuildViewport(plans),
-      startReselection,
-      finishReselection,
-    },
-
-    lifeLost: {
-      get: () => rs.lifeLostDialog,
-      set: (d: LifeLostDialogState | null) => { rs.lifeLostDialog = d; },
-      show: showLifeLostDialog,
-      tick: tickLifeLostDialog,
-      afterResolved: afterLifeLostResolved,
-      panelPos: lifeLostPanelPos,
-      click: lifeLostDialogClick,
-    },
+    selection,
+    lifeLost,
   };
 }

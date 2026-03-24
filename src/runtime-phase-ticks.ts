@@ -1,0 +1,336 @@
+/**
+ * Phase tick wrappers — thin glue between config/rs and the imported
+ * tick functions from battle-ticks.ts, phase-ticks.ts, etc.
+ *
+ * Extracted from game-runtime.ts.
+ */
+
+import type { GameMessage } from "../server/protocol.ts";
+import { MSG } from "../server/protocol.ts";
+import type { BalloonFlight } from "./battle-system.ts";
+import { resolveBalloons, updateCannonballs } from "./battle-system.ts";
+import {
+  beginHostBattle,
+  startHostBattleLifecycle,
+  tickHostBalloonAnim,
+  tickHostBattleCountdown,
+  tickHostBattlePhase,
+} from "./battle-ticks.ts";
+import { isHuman } from "./controller-factory.ts";
+import {
+  finalizeBuildPhase,
+  initBuildPhase,
+  nextPhase,
+} from "./game-engine.ts";
+import type { GameRuntime } from "./game-runtime-types.ts";
+import {
+  collectLocalCrosshairs,
+  initCannonPhase,
+  tickGameCore,
+} from "./game-ui-runtime.ts";
+import { Mode } from "./game-ui-types.ts";
+import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
+import { hapticBattleEvents } from "./haptics.ts";
+import type { SerializedPlayer } from "./online-serialize.ts";
+import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
+import type { WatcherTimingState } from "./online-watcher-battle.ts";
+import {
+  BANNER_BUILD,
+  BANNER_BUILD_SUB,
+} from "./phase-banner.ts";
+import {
+  tickHostBuildPhase,
+  tickHostCannonPhase,
+} from "./phase-ticks.ts";
+import type { Crosshair, InputReceiver, PlayerController } from "./player-controller.ts";
+import type { RuntimeState } from "./runtime-state.ts";
+import type { GameState } from "./types.ts";
+import {
+  BALLOON_FLIGHT_DURATION,
+  BATTLE_COUNTDOWN,
+  BATTLE_TIMER,
+  IMPACT_FLASH_DURATION,
+} from "./types.ts";
+
+interface PhaseTicksDeps {
+  rs: RuntimeState;
+
+  // Config / networking
+  getIsHost: () => boolean;
+  getMyPlayerId: () => number;
+  getRemoteHumanSlots: () => Set<number>;
+  send: (msg: GameMessage) => void;
+  log: (msg: string) => void;
+  hostNetworking?: {
+    autoPlaceCannons: (player: GameState["players"][number], max: number, state: GameState) => void;
+    serializePlayers: (state: GameState) => SerializedPlayer[];
+    buildCannonStartMessage: (state: GameState) => GameMessage;
+    buildBattleStartMessage: (state: GameState, flights: BalloonFlight[]) => GameMessage;
+    buildBuildStartMessage: (state: GameState) => GameMessage;
+    remoteCannonPhantoms: () => CannonPhantom[];
+    remotePiecePhantoms: () => PiecePhantom[];
+    lastSentCannonPhantom: () => Map<number, string>;
+    lastSentPiecePhantom: () => Map<number, string>;
+  };
+  watcherTiming?: WatcherTimingState;
+  extendCrosshairs?: (crosshairs: Crosshair[], dt: number) => Crosshair[];
+  onLocalCrosshairCollected?: (ctrl: PlayerController, ch: { x: number; y: number }, readyCannon: boolean) => void;
+  tickNonHost?: (dt: number) => void;
+  everyTick?: (dt: number) => void;
+
+  // Sibling systems / parent callbacks
+  render: () => void;
+  firstHuman: () => (PlayerController & InputReceiver) | null;
+  showBanner: (text: string, onDone: () => void, reveal?: boolean, newBattle?: { territory: Set<number>[]; walls: Set<number>[] }, subtitle?: string) => void;
+  showLifeLostDialog: (needsReselect: number[], eliminated: number[]) => void;
+  afterLifeLostResolved: () => boolean;
+  showScoreDeltas: (onDone: () => void) => void;
+  snapshotTerritory: () => Set<number>[];
+}
+
+export type PhaseTicksSystem = Pick<GameRuntime,
+  | "startCannonPhase" | "startBattle" | "tickBalloonAnim" | "beginBattle" | "startBuildPhase"
+  | "tickCannonPhase" | "tickBattleCountdown" | "tickBattlePhase" | "tickBuildPhase"
+  | "tickGame" | "collectCrosshairs"
+>;
+
+export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
+  const { rs } = deps;
+
+  // -------------------------------------------------------------------------
+  // Crosshairs
+  // -------------------------------------------------------------------------
+
+  function collectCrosshairs(canFireNow: boolean, dt = 0): void {
+    const remoteHumanSlots = deps.getRemoteHumanSlots();
+    rs.frame.crosshairs = collectLocalCrosshairs({
+      state: rs.state,
+      controllers: rs.controllers,
+      canFireNow,
+      skipController: (pid) => remoteHumanSlots.has(pid),
+      onCrosshairCollected: deps.onLocalCrosshairCollected,
+    });
+    if (deps.extendCrosshairs) {
+      rs.frame.crosshairs = deps.extendCrosshairs(rs.frame.crosshairs, dt);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Cannon phase
+  // -------------------------------------------------------------------------
+
+  function startCannonPhase() {
+    const remoteHumanSlots = deps.getRemoteHumanSlots();
+    deps.log(`startCannonPhase (round=${rs.state.round})`);
+    initCannonPhase({
+      state: rs.state,
+      controllers: rs.controllers,
+      skipController: (pid) => remoteHumanSlots.has(pid),
+    });
+
+    rs.accum.cannon = 0;
+    rs.state.timer = rs.state.cannonPlaceTimer;
+    if (deps.getIsHost() && deps.hostNetworking) {
+      deps.send(deps.hostNetworking.buildCannonStartMessage(rs.state));
+    }
+    deps.render();
+  }
+
+  // -------------------------------------------------------------------------
+  // Battle
+  // -------------------------------------------------------------------------
+
+  function startBattle() {
+    deps.log(`startBattle (round=${rs.state.round})`);
+    rs.scoreDeltas = [];
+    rs.scoreDeltaTimer = 0;
+    rs.scoreDeltaOnDone = null;
+    startHostBattleLifecycle({
+      state: rs.state,
+      battleAnim: rs.battleAnim,
+      resolveBalloons,
+      snapshotTerritory: deps.snapshotTerritory,
+      showBanner: deps.showBanner,
+      nextPhase,
+      setModeBalloonAnim: () => { rs.mode = Mode.BALLOON_ANIM; },
+      beginBattle,
+      net: deps.hostNetworking ? {
+        isHost: deps.getIsHost(),
+        sendBattleStart: (flights) => {
+          deps.send(deps.hostNetworking!.buildBattleStartMessage(rs.state, flights));
+        },
+      } : undefined,
+    });
+  }
+
+  function tickBalloonAnim(dt: number) {
+    tickHostBalloonAnim({
+      dt,
+      balloonFlightDuration: BALLOON_FLIGHT_DURATION,
+      battleAnim: rs.battleAnim,
+      render: deps.render,
+      beginBattle,
+    });
+  }
+
+  function beginBattle() {
+    beginHostBattle({
+      state: rs.state,
+      controllers: rs.controllers,
+      accum: rs.accum,
+      battleCountdown: BATTLE_COUNTDOWN,
+      setModeGame: () => { rs.mode = Mode.GAME; },
+      net: {
+        remoteHumanSlots: deps.getRemoteHumanSlots(),
+        isHost: deps.getIsHost(),
+        watcherTiming: deps.watcherTiming ?? { phaseStartTime: 0, phaseDuration: 0, countdownStartTime: 0, countdownDuration: 0 },
+        now: () => performance.now(),
+      },
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Build phase
+  // -------------------------------------------------------------------------
+
+  function startBuildPhase() {
+    const remoteHumanSlots = deps.getRemoteHumanSlots();
+    deps.log(`startBuildPhase (round=${rs.state.round})`);
+    rs.preScores = rs.state.players.map(p => p.score);
+    rs.scoreDeltas = [];
+    rs.scoreDeltaTimer = 0;
+    rs.scoreDeltaOnDone = null;
+    initBuildPhase(rs.state, rs.controllers, (pid) => remoteHumanSlots.has(pid) || !!rs.state.players[pid]?.eliminated);
+    rs.battleAnim.impacts = [];
+    rs.accum.grunt = 0;
+    rs.accum.build = 0;
+  }
+
+  // -------------------------------------------------------------------------
+  // Tick wrappers
+  // -------------------------------------------------------------------------
+
+  function tickCannonPhase(dt: number): boolean {
+    return tickHostCannonPhase({
+      dt, state: rs.state, accum: rs.accum, frame: rs.frame, controllers: rs.controllers, render: deps.render, startBattle,
+      net: {
+        remoteHumanSlots: deps.getRemoteHumanSlots(),
+        isHost: deps.getIsHost(),
+        remoteCannonPhantoms: deps.hostNetworking?.remoteCannonPhantoms() ?? [],
+        lastSentCannonPhantom: deps.hostNetworking?.lastSentCannonPhantom() ?? new Map(),
+        autoPlaceCannons: deps.hostNetworking?.autoPlaceCannons ?? (() => {}),
+        sendOpponentCannonPlaced: (msg) => deps.send({ type: MSG.OPPONENT_CANNON_PLACED, ...msg }),
+        sendOpponentCannonPhantom: (msg) => deps.send({ type: MSG.OPPONENT_CANNON_PHANTOM, ...msg }),
+      },
+    });
+  }
+
+  function tickBattleCountdown(dt: number): void {
+    tickHostBattleCountdown({
+      dt, state: rs.state, frame: rs.frame, controllers: rs.controllers, collectCrosshairs, render: deps.render,
+      net: { remoteHumanSlots: deps.getRemoteHumanSlots() },
+    });
+  }
+
+  function tickBattlePhase(dt: number): boolean {
+    return tickHostBattlePhase({
+      dt, state: rs.state, battleTimer: BATTLE_TIMER, accum: rs.accum, controllers: rs.controllers, battleAnim: rs.battleAnim,
+      render: deps.render, collectCrosshairs,
+      collectTowerEvents: gruntAttackTowers,
+      updateCannonballsWithEvents: updateCannonballs,
+      onBattleEvents: (events) => {
+        const pid = deps.getMyPlayerId();
+        const localPid = pid >= 0 ? pid : (deps.firstHuman()?.playerId ?? -1);
+        if (localPid >= 0) hapticBattleEvents(events as Array<{ type: string; playerId?: number; hp?: number }>, localPid);
+        for (const evt of events as Array<{ type: string; playerId?: number; shooterId?: number; hp?: number; newHp?: number }>) {
+          if (evt.type === MSG.WALL_DESTROYED && evt.shooterId !== undefined) {
+            rs.gameStats[evt.shooterId]!.wallsDestroyed++;
+          } else if (evt.type === MSG.CANNON_DAMAGED && evt.shooterId !== undefined && evt.newHp === 0) {
+            rs.gameStats[evt.shooterId]!.cannonsKilled++;
+          }
+        }
+      },
+      onBattlePhaseEnded: () => {
+        deps.showBanner(
+          BANNER_BUILD,
+          () => {
+            startBuildPhase();
+            rs.mode = Mode.GAME;
+          },
+          true,
+          undefined,
+          BANNER_BUILD_SUB,
+        );
+        nextPhase(rs.state);
+        if (deps.getIsHost() && deps.hostNetworking) {
+          deps.send(deps.hostNetworking.buildBuildStartMessage(rs.state));
+        }
+      },
+      net: {
+        remoteHumanSlots: deps.getRemoteHumanSlots(),
+        isHost: deps.getIsHost(),
+        sendMessage: deps.send,
+      },
+    });
+  }
+
+  function tickBuildPhase(dt: number): boolean {
+    if (rs.scoreDeltaOnDone) { deps.render(); return false; }
+    return tickHostBuildPhase({
+      dt, state: rs.state, accum: rs.accum, frame: rs.frame, controllers: rs.controllers, render: deps.render,
+      tickGrunts, isHuman, finalizeBuildPhase, showLifeLostDialog: deps.showLifeLostDialog,
+      afterLifeLostResolved: deps.afterLifeLostResolved,
+      showScoreDeltas: deps.showScoreDeltas,
+      net: {
+        remoteHumanSlots: deps.getRemoteHumanSlots(),
+        isHost: deps.getIsHost(),
+        remotePiecePhantoms: deps.hostNetworking?.remotePiecePhantoms() ?? [],
+        lastSentPiecePhantom: deps.hostNetworking?.lastSentPiecePhantom() ?? new Map(),
+        serializePlayers: deps.hostNetworking?.serializePlayers ?? (() => []),
+        sendOpponentPiecePlaced: (msg) => deps.send({ type: MSG.OPPONENT_PIECE_PLACED, ...msg }),
+        sendOpponentPhantom: (msg) => deps.send({ type: MSG.OPPONENT_PHANTOM, ...msg }),
+        sendBuildEnd: (msg) => deps.send({ type: MSG.BUILD_END, ...msg }),
+      },
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // tickGame — dispatches to the correct phase tick
+  // -------------------------------------------------------------------------
+
+  function tickGame(dt: number) {
+    if (deps.getIsHost()) {
+      tickGameCore({
+        dt,
+        state: rs.state,
+        battleAnim: rs.battleAnim,
+        impactFlashDuration: IMPACT_FLASH_DURATION,
+        tickCannonPhase,
+        tickBattleCountdown,
+        tickBattlePhase,
+        tickBuildPhase,
+      });
+    } else {
+      for (const imp of rs.battleAnim.impacts) imp.age += dt;
+      rs.battleAnim.impacts = rs.battleAnim.impacts.filter(
+        (imp) => imp.age < IMPACT_FLASH_DURATION,
+      );
+      deps.tickNonHost?.(dt);
+    }
+    deps.everyTick?.(dt);
+  }
+
+  return {
+    startCannonPhase,
+    startBattle,
+    tickBalloonAnim,
+    beginBattle,
+    startBuildPhase,
+    tickCannonPhase,
+    tickBattleCountdown,
+    tickBattlePhase,
+    tickBuildPhase,
+    tickGame,
+    collectCrosshairs,
+  };
+}

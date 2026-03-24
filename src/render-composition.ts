@@ -12,7 +12,7 @@ import {
 import type { CastleData, RenderOverlay } from "./render-types.ts";
 import type { SelectionState } from "./selection.ts";
 import type { GameState, Impact } from "./types.ts";
-import { Phase } from "./types.ts";
+import { LIFE_LOST_MAX_TIMER, Phase } from "./types.ts";
 
 const PHASE_LABELS = new Map<Phase, string>([
   [Phase.CASTLE_SELECT, "Select"],
@@ -207,7 +207,6 @@ export function buildOnlineOverlay(params: {
   lifeLostDialog: LifeLostDialogState | null;
   playerNames: ReadonlyArray<string>;
   playerColors: ReadonlyArray<{ wall: RGB }>;
-  lifeLostMaxTimer: number;
   getLifeLostPanelPos: (playerId: number) => { px: number; py: number };
 }): RenderOverlay {
   const {
@@ -220,7 +219,6 @@ export function buildOnlineOverlay(params: {
     lifeLostDialog,
     playerNames,
     playerColors,
-    lifeLostMaxTimer,
     getLifeLostPanelPos,
   } = params;
 
@@ -278,7 +276,7 @@ export function buildOnlineOverlay(params: {
         lifeLostDialog,
         playerNames,
         playerColors,
-        lifeLostMaxTimer,
+        LIFE_LOST_MAX_TIMER,
         getLifeLostPanelPos,
       ),
     },
