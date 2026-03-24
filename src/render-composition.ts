@@ -1,5 +1,5 @@
 import type { GameOverOverlay, LifeLostDialogOverlay } from "./game-ui-types.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
+import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type LifeLostDialogState, type ResolvedChoice } from "./life-lost.ts";
 import type { BannerState } from "./phase-banner.ts";
 import type { RGB } from "./player-config.ts";
@@ -253,8 +253,6 @@ export function lifeLostPanelPos(
 export function handleLifeLostDialogClick(params: {
   state: GameState;
   lifeLostDialog: LifeLostDialogState;
-  canvasWidth: number;
-  canvasHeight: number;
   canvasX: number;
   canvasY: number;
   firstHumanPlayerId: number;
@@ -262,17 +260,13 @@ export function handleLifeLostDialogClick(params: {
   const {
     state,
     lifeLostDialog,
-    canvasWidth,
-    canvasHeight,
     canvasX,
     canvasY,
     firstHumanPlayerId,
   } = params;
 
-  const tsW = GRID_COLS * TILE_SIZE;
-  const tsH = GRID_ROWS * TILE_SIZE;
-  const x = canvasX * (tsW / canvasWidth);
-  const y = canvasY * (tsH / canvasHeight);
+  const x = canvasX / SCALE;
+  const y = canvasY / SCALE;
 
   for (const entry of lifeLostDialog.entries) {
     if (entry.choice !== CHOICE_PENDING || entry.isAi) continue;

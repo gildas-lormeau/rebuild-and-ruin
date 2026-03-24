@@ -1131,8 +1131,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const choice = handleLifeLostDialogClickShared({
       state: rs.state,
       lifeLostDialog: rs.lifeLostDialog,
-      canvasWidth: canvas.width,
-      canvasHeight: canvas.height,
       canvasX,
       canvasY,
       firstHumanPlayerId: mousePlayer.playerId,
