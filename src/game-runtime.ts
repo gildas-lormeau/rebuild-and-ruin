@@ -745,11 +745,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function startPlayerCastleBuild(playerId: number): void {
+    if (!config.getIsHost()) return; // non-host builds via castle_walls message
     const plan = prepareCastleWallsForPlayer(rs.state, playerId);
     if (!plan) return;
-    if (config.getIsHost()) {
-      config.send({ type: MSG.CASTLE_WALLS, plans: [plan] });
-    }
+    config.send({ type: MSG.CASTLE_WALLS, plans: [plan] });
     const human = firstHuman();
     rs.castleBuilds.push(createCastleBuildState([plan], () => {}));
     // Only zoom to the human player's castle build
@@ -806,7 +805,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     tickAllCastleBuilds(dt);
     render();
     if (rs.castleBuilds.length === 0) {
-      // All reselection builds done — fire the pending onDone
+      camera.clearCastleBuildViewport();
       if (rs.castleBuildOnDone) {
         const cb = rs.castleBuildOnDone;
         rs.castleBuildOnDone = null;
@@ -1438,6 +1437,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       finish: finishSelection,
       advanceToCannonPhase,
       tickCastleBuild,
+      setCastleBuildViewport: (plans: { playerId: number; tiles: number[] }[]) => camera.setCastleBuildViewport(plans),
       startReselection,
       finishReselection,
     },

@@ -501,6 +501,7 @@ const transitionCtx: TransitionContext = {
     runtime.rs.castleBuilds.push({ wallPlans: plans, maxTiles, tileIdx: 0, accum: 0, onDone });
     runtime.rs.castleBuildOnDone = onDone;
   },
+  setCastleBuildViewport: (plans) => runtime.selection.setCastleBuildViewport(plans),
   setBattleFlights: (v) => { runtime.rs.battleAnim.flights = v; },
   snapshotTerritory: () => runtime.snapshotTerritory(),
   showLifeLostDialog: (nr, el) => runtime.lifeLost.show(nr, el),

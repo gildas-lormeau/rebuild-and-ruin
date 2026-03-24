@@ -56,6 +56,7 @@ export interface TransitionContext {
     maxTiles: number,
     onDone: () => void,
   ) => void;
+  setCastleBuildViewport: (plans: { playerId: number; tiles: number[] }[]) => void;
 
   // Battle flights
   setBattleFlights: (value: { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[]) => void;
@@ -78,6 +79,10 @@ export function handleCastleWallsTransition(msg: ServerMessage, ctx: TransitionC
   const maxTiles = Math.max(...plans.map((p) => p.tiles.length), 0);
   ctx.getSelectionStates().clear();
   ctx.clearSelectionOverlay();
+  // Zoom to the local player's castle on mobile
+  const myPlan = plans.find(p => p.playerId === ctx.getMyPlayerId());
+  if (myPlan) ctx.setCastleBuildViewport([myPlan]);
+
   ctx.setCastleBuildFromPlans(plans, maxTiles, () => {
     ctx.finalizeCastleConstruction(state);
     ctx.enterCannonPlacePhase(state);

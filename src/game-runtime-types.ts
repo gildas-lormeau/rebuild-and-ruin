@@ -104,6 +104,7 @@ export interface RuntimeSelection {
   finish: () => void;
   advanceToCannonPhase: () => void;
   tickCastleBuild: (dt: number) => void;
+  setCastleBuildViewport: (plans: { playerId: number; tiles: number[] }[]) => void;
   startReselection: () => void;
   finishReselection: () => void;
 }
