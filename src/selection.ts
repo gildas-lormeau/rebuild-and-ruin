@@ -1,5 +1,5 @@
 import { MSG } from "../server/protocol.ts";
-import { isHuman } from "./controller-factory.ts";
+import { BANNER_SELECT } from "./game-engine.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { GameState } from "./types.ts";
 import { Phase } from "./types.ts";
@@ -100,7 +100,6 @@ export function confirmTowerSelection(
   onReselectConfirmed: (playerId: number) => void,
   onOverlayChanged: () => void,
   render: () => void,
-  remoteHumanSlots?: Set<number>,
 ): boolean {
   const ss = selectionStates.get(playerId);
   if (!ss || ss.confirmed) return allSelectionsConfirmed(selectionStates);
@@ -121,22 +120,6 @@ export function confirmTowerSelection(
     }
   }
 
-  // When a human confirms, auto-confirm all remaining AI players so the
-  // castle construction animation starts immediately (no browsing delay).
-  // Skip remote human slots — they choose independently over the network.
-  if (isHuman(controllers[playerId]!)) {
-    for (const [aiPid, aiSs] of selectionStates) {
-      if (aiSs.confirmed || remoteHumanSlots?.has(aiPid) || isHuman(controllers[aiPid]!)) continue;
-      aiSs.confirmed = true;
-      const aiPlayer = state.players[aiPid]!;
-      if (aiPlayer.homeTower) {
-        controllers[aiPid]!.centerOn(aiPlayer.homeTower.row, aiPlayer.homeTower.col);
-        if (isReselect) onReselectConfirmed(aiPid);
-      }
-      send({ type: MSG.OPPONENT_TOWER_SELECTED, playerId: aiPid, towerIdx: aiSs.highlighted, confirmed: true });
-    }
-  }
-
   onOverlayChanged();
   render();
   return allSelectionsConfirmed(selectionStates);
@@ -152,13 +135,17 @@ interface TickSelectionPhaseDeps {
   isHost: boolean;
   myPlayerId: number;
   selectTimer: number;
-  accum: { select: number };
+  accum: { select: number; selectAnnouncement: number };
   selectionStates: Map<number, SelectionState>;
   remoteHumanSlots: Set<number>;
   controllers: PlayerController[];
   render: () => void;
   confirmSelectionForPlayer: (playerId: number, isReselect?: boolean) => void;
   allSelectionsConfirmed: () => boolean;
+  allBuildsComplete: () => boolean;
+  tickActiveBuilds: (dt: number) => void;
+  announcementDuration: number;
+  setFrameAnnouncement: (text: string) => void;
   finishReselection: () => void;
   finishSelection: () => void;
   syncSelectionOverlay: () => void;
@@ -183,6 +170,10 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     render,
     confirmSelectionForPlayer,
     allSelectionsConfirmed,
+    allBuildsComplete,
+    tickActiveBuilds,
+    announcementDuration,
+    setFrameAnnouncement,
     finishReselection,
     finishSelection,
     syncSelectionOverlay,
@@ -192,16 +183,22 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
   const phase = state.phase;
   if (phase !== Phase.CASTLE_SELECT && phase !== Phase.CASTLE_RESELECT) return;
 
-  accum.select += dt;
-  state.timer = Math.max(0, selectTimer - accum.select);
-
+  // Show announcement before timer starts (first selection only)
+  if (accum.selectAnnouncement < announcementDuration) {
+    accum.selectAnnouncement += dt;
+    setFrameAnnouncement(BANNER_SELECT);
+    state.timer = 0;
+  } else {
+    accum.select += dt;
+    state.timer = Math.max(0, selectTimer - accum.select);
+  }
   if (!isHost && myPlayerId < 0) {
     render();
     return;
   }
 
   if (!isHost && myPlayerId >= 0) {
-    if (state.timer <= 0) {
+    if (accum.select >= selectTimer) {
       const ss = selectionStates.get(myPlayerId);
       if (ss && !ss.confirmed) {
         confirmSelectionForPlayer(myPlayerId, phase === Phase.CASTLE_RESELECT);
@@ -219,12 +216,6 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     const towerBefore = state.players[pid]!.homeTower;
     if (controllers[pid]!.selectionTick(dt, state)) {
       confirmSelectionForPlayer(pid, isReselect);
-      if (allSelectionsConfirmed()) {
-        render();
-        if (isReselect) finishReselection();
-        else finishSelection();
-        return;
-      }
       continue;
     }
 
@@ -238,12 +229,19 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     }
   }
 
+  // Tick active castle builds during selection
+  tickActiveBuilds(dt);
+
   render();
 
-  if (state.timer <= 0) {
-    for (const [pid] of selectionStates) {
+  if (accum.select >= selectTimer) {
+    for (const [pid, ss] of selectionStates) {
+      if (ss.confirmed) continue;
       confirmSelectionForPlayer(pid, isReselect);
     }
+  }
+
+  if (allSelectionsConfirmed() && allBuildsComplete()) {
     if (isReselect) finishReselection();
     else finishSelection();
   }
@@ -253,20 +251,13 @@ export function finishSelectionPhase(deps: {
   state: GameState;
   selectionStates: Map<number, SelectionState>;
   clearOverlaySelection: () => void;
-  animateCastleConstruction: (onDone: () => void) => void;
-  advanceToCannonPhase: () => void;
+  finalizeAndAdvance: () => void;
 }): void {
-  const {
-    state,
-    selectionStates,
-    clearOverlaySelection,
-    animateCastleConstruction,
-    advanceToCannonPhase,
-  } = deps;
+  const { state, selectionStates, clearOverlaySelection, finalizeAndAdvance } = deps;
 
   if (state.phase !== Phase.CASTLE_SELECT) return;
 
   selectionStates.clear();
   clearOverlaySelection();
-  animateCastleConstruction(() => advanceToCannonPhase());
+  finalizeAndAdvance();
 }

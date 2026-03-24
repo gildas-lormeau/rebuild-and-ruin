@@ -47,7 +47,8 @@ export interface RuntimeState {
   reselectQueue: number[];
   reselectionPids: number[];
   selectionStates: Map<number, SelectionState>;
-  castleBuild: CastleBuildState | null;
+  castleBuilds: CastleBuildState[];
+  castleBuildOnDone: (() => void) | null;
   lifeLostDialog: LifeLostDialogState | null;
 
   // Timers / accumulators
@@ -98,7 +99,8 @@ export function createRuntimeState(): RuntimeState {
     reselectQueue: [],
     reselectionPids: [],
     selectionStates: new Map(),
-    castleBuild: null,
+    castleBuilds: [],
+    castleBuildOnDone: null,
     lifeLostDialog: null,
 
     accum: createTimerAccums(),

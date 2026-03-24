@@ -49,12 +49,14 @@ export function tickCastleBuildAnimation(params: {
   wallBuildIntervalMs: number;
   state: GameState;
   render: () => void;
+  onWallsPlaced?: () => void;
 }): { next: CastleBuildState | null; onDone?: () => void } {
-  const { castleBuild, dt, wallBuildIntervalMs, state, render } = params;
+  const { castleBuild, dt, wallBuildIntervalMs, state, render, onWallsPlaced } = params;
   if (!castleBuild) return { next: null };
 
   castleBuild.accum += dt * 1000;
 
+  let placed = false;
   while (
     castleBuild.accum >= wallBuildIntervalMs &&
     castleBuild.tileIdx < castleBuild.maxTiles
@@ -64,15 +66,13 @@ export function tickCastleBuildAnimation(params: {
       if (castleBuild.tileIdx < plan.tiles.length) {
         const key = plan.tiles[castleBuild.tileIdx]!;
         state.players[plan.playerId]!.walls.add(key);
+        placed = true;
       }
     }
     castleBuild.tileIdx++;
   }
 
-  const totalTime = (castleBuild.maxTiles * wallBuildIntervalMs) / 1000;
-  const elapsed = (castleBuild.tileIdx * wallBuildIntervalMs) / 1000;
-  state.timer = Math.max(0, totalTime - elapsed);
-
+  if (placed) onWallsPlaced?.();
   render();
 
   if (castleBuild.tileIdx < castleBuild.maxTiles) {

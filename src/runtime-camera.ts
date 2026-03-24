@@ -5,7 +5,6 @@
  * and exposes a pure API for the runtime to call.
  */
 
-import { BANNER_SELECT } from "./game-engine.ts";
 import { Mode } from "./game-ui-types.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
@@ -300,12 +299,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     wasPaused = paused;
     wasQuitPending = quitPending;
 
-    // Selection delay: show "Select your home castle" for 2s on first selection
+    // Selection zoom delay: wait before auto-zooming on first selection (mobile)
     if (mode === Mode.SELECTION && lastAutoZoomPhase === null && selectionZoomDelay <= 0) {
       selectionZoomDelay = 2;
     }
     if (selectionZoomDelay > 0 && mode === Mode.SELECTION) {
-      deps.setFrameAnnouncement(BANNER_SELECT);
       selectionZoomDelay -= dt;
       if (selectionZoomDelay <= 0) {
         selectionZoomDelay = 0;
@@ -331,7 +329,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function updateViewport(): Viewport | null {
     const mode = deps.getMode();
     let target: Viewport;
-    if (castleBuildVp && mode === Mode.CASTLE_BUILD && mobileZoomEnabled) {
+    if (castleBuildVp && (mode === Mode.CASTLE_BUILD || mode === Mode.SELECTION) && mobileZoomEnabled) {
       target = castleBuildVp;
     } else if (pinchVp) {
       target = pinchVp;

@@ -300,8 +300,7 @@ export function completeReselection(params: {
   reselectQueue: { length: number };
   reselectionPids: number[];
   clearPlayerState: (player: Player) => void;
-  animateReselectionCastles: (onDone: () => void) => void;
-  advanceToCannonPhase: () => void;
+  finalizeAndAdvance: () => void;
 }): void {
   const { state, selectionStates, clearOverlaySelection, reselectionPids, clearPlayerState } = params;
   selectionStates.clear();
@@ -317,6 +316,6 @@ export function completeReselection(params: {
     player.homeTower = homeTower;
   }
 
-  params.animateReselectionCastles(() => params.advanceToCannonPhase());
+  params.finalizeAndAdvance();
 }
 

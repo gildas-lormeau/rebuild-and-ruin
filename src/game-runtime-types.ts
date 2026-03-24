@@ -102,12 +102,10 @@ export interface RuntimeSelection {
   allConfirmed: () => boolean;
   tick: (dt: number) => void;
   finish: () => void;
-  animateCastle: (onDone: () => void) => void;
   advanceToCannonPhase: () => void;
   tickCastleBuild: (dt: number) => void;
   startReselection: () => void;
   finishReselection: () => void;
-  animateReselectionCastles: (onDone: () => void) => void;
 }
 
 export interface RuntimeLifeLost {

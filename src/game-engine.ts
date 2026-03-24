@@ -421,73 +421,79 @@ export function finalizeBuildPhase(
 
 /** Prepare castle walls for all players, returning ordered wall tiles per player
  *  for animated construction. Sets castle but does NOT add walls or interior. */
+export function prepareCastleWallsForPlayer(state: GameState, playerId: number): { playerId: number; tiles: number[] } | null {
+  const player = state.players[playerId];
+  if (!player?.homeTower) return null;
+  const castle = buildCastle(player.homeTower, state.map.tiles, state.map.towers);
+  player.castle = castle;
+
+  // Get wall tiles and apply clumsy builders to a temp set
+  const wallTiles = getCastleWallTiles(castle, state.map.tiles);
+  const tempWalls = new Set<number>();
+  for (const [r, c] of wallTiles) tempWalls.add(packTile(r, c));
+  applyClumsyBuilders(tempWalls, castle, state.map.tiles, state.rng, state.map.towers);
+
+  // Order tiles: walk the clean ring in perimeter order, then interleave
+  // any extra tiles from clumsy builders right after their ring neighbor.
+  const { left, top, right, bottom } = castle;
+  const wL = left - 1, wR = right + 1, wT = top - 1, wB = bottom + 1;
+
+  // 1. Build the clean ring walk (clockwise or counterclockwise)
+  const ringSet = new Set<number>();
+  for (const [r, c] of wallTiles) ringSet.add(packTile(r, c));
+
+  const ringWalk: number[] = [];
+  // Top edge (left to right)
+  for (let c = wL; c <= wR; c++) { const k = packTile(wT, c); if (ringSet.has(k)) ringWalk.push(k); }
+  // Right edge (top+1 to bottom)
+  for (let r = wT + 1; r <= wB; r++) { const k = packTile(r, wR); if (ringSet.has(k)) ringWalk.push(k); }
+  // Bottom edge (right-1 to left)
+  for (let c = wR - 1; c >= wL; c--) { const k = packTile(wB, c); if (ringSet.has(k)) ringWalk.push(k); }
+  // Left edge (bottom-1 to top+1)
+  for (let r = wB - 1; r > wT; r--) { const k = packTile(r, wL); if (ringSet.has(k)) ringWalk.push(k); }
+
+  // Randomly reverse for counterclockwise
+  if (state.rng.bool(0.5)) ringWalk.reverse();
+
+  // 2. Find extra tiles added by clumsy builders (in tempWalls but not in ringSet)
+  const extras = new Set<number>();
+  for (const k of tempWalls) {
+    if (!ringSet.has(k)) extras.add(k);
+  }
+  // Some ring tiles may have been removed by clumsy builders
+  // (sweep phase removes tiles with ≤1 neighbor). Filter ring walk.
+  const activeRing = ringWalk.filter(k => tempWalls.has(k));
+
+  // 3. Interleave: after each ring tile, insert any adjacent extras
+  const ordered: number[] = [];
+  const placed = new Set<number>();
+  for (const k of activeRing) {
+    if (placed.has(k)) continue;
+    ordered.push(k);
+    placed.add(k);
+    // Insert any extras adjacent to this ring tile
+    const { r, c } = unpackTile(k);
+    for (const [dr, dc] of DIRS_4) {
+      const nk = packTile(r + dr, c + dc);
+      if (extras.has(nk) && !placed.has(nk)) {
+        ordered.push(nk);
+        placed.add(nk);
+      }
+    }
+  }
+  // Safety: add any remaining tiles not yet placed
+  for (const k of tempWalls) {
+    if (!placed.has(k)) ordered.push(k);
+  }
+
+  return { playerId: player.id, tiles: ordered };
+}
+
 export function prepareCastleWalls(state: GameState): { playerId: number; tiles: number[] }[] {
   const result: { playerId: number; tiles: number[] }[] = [];
   for (const player of state.players) {
-    if (!player.homeTower) continue;
-    const castle = buildCastle(player.homeTower, state.map.tiles, state.map.towers);
-    player.castle = castle;
-
-    // Get wall tiles and apply clumsy builders to a temp set
-    const wallTiles = getCastleWallTiles(castle, state.map.tiles);
-    const tempWalls = new Set<number>();
-    for (const [r, c] of wallTiles) tempWalls.add(packTile(r, c));
-    applyClumsyBuilders(tempWalls, castle, state.map.tiles, state.rng, state.map.towers);
-
-    // Order tiles: walk the clean ring in perimeter order, then interleave
-    // any extra tiles from clumsy builders right after their ring neighbor.
-    const { left, top, right, bottom } = castle;
-    const wL = left - 1, wR = right + 1, wT = top - 1, wB = bottom + 1;
-
-    // 1. Build the clean ring walk (clockwise or counterclockwise)
-    const ringSet = new Set<number>();
-    for (const [r, c] of wallTiles) ringSet.add(packTile(r, c));
-
-    const ringWalk: number[] = [];
-    // Top edge (left to right)
-    for (let c = wL; c <= wR; c++) { const k = packTile(wT, c); if (ringSet.has(k)) ringWalk.push(k); }
-    // Right edge (top+1 to bottom)
-    for (let r = wT + 1; r <= wB; r++) { const k = packTile(r, wR); if (ringSet.has(k)) ringWalk.push(k); }
-    // Bottom edge (right-1 to left)
-    for (let c = wR - 1; c >= wL; c--) { const k = packTile(wB, c); if (ringSet.has(k)) ringWalk.push(k); }
-    // Left edge (bottom-1 to top+1)
-    for (let r = wB - 1; r > wT; r--) { const k = packTile(r, wL); if (ringSet.has(k)) ringWalk.push(k); }
-
-    // Randomly reverse for counterclockwise
-    if (state.rng.bool(0.5)) ringWalk.reverse();
-
-    // 2. Find extra tiles added by clumsy builders (in tempWalls but not in ringSet)
-    const extras = new Set<number>();
-    for (const k of tempWalls) {
-      if (!ringSet.has(k)) extras.add(k);
-    }
-    // Some ring tiles may have been removed by clumsy builders
-    // (sweep phase removes tiles with ≤1 neighbor). Filter ring walk.
-    const activeRing = ringWalk.filter(k => tempWalls.has(k));
-
-    // 3. Interleave: after each ring tile, insert any adjacent extras
-    const ordered: number[] = [];
-    const placed = new Set<number>();
-    for (const k of activeRing) {
-      if (placed.has(k)) continue;
-      ordered.push(k);
-      placed.add(k);
-      // Insert any extras adjacent to this ring tile
-      const { r, c } = unpackTile(k);
-      for (const [dr, dc] of DIRS_4) {
-        const nk = packTile(r + dr, c + dc);
-        if (extras.has(nk) && !placed.has(nk)) {
-          ordered.push(nk);
-          placed.add(nk);
-        }
-      }
-    }
-    // Safety: add any remaining tiles not yet placed
-    for (const k of tempWalls) {
-      if (!placed.has(k)) ordered.push(k);
-    }
-
-    result.push({ playerId: player.id, tiles: ordered });
+    const plan = prepareCastleWallsForPlayer(state, player.id);
+    if (plan) result.push(plan);
   }
   return result;
 }
@@ -546,24 +552,6 @@ export function finalizeCastleConstruction(state: GameState): void {
   replenishBonusSquares(state);
 }
 
-/** Finalize castle rebuild after wall animation completes.
- *  Destroys houses under new walls, then runs finalizeCastleConstruction. */
-export function finalizeCastleRebuild(
-  state: GameState,
-  plans: { playerId: number; tiles: number[] }[],
-): void {
-  for (const plan of plans) {
-    const player = state.players[plan.playerId]!;
-    for (const house of state.map.houses) {
-      if (!house.alive) continue;
-      if (player.walls.has(packTile(house.row, house.col))) {
-        house.alive = false;
-      }
-    }
-  }
-  finalizeCastleConstruction(state);
-}
-
 /** Advance state through nextPhase until CANNON_PLACE is reached. */
 export function advanceToCannonPlacePhase(state: GameState): void {
   const MAX_ADVANCES = 5;
@@ -583,14 +571,4 @@ export function initBuildPhase(
     if (skipController?.(ctrl.playerId)) continue;
     ctrl.startBuild(state);
   }
-}
-
-/** Prepare reselection castle plans — filter prepareCastleWalls to reselecting players only. */
-export function prepareReselectionPlans(
-  state: GameState,
-  reselectionPids: number[],
-): { playerId: number; tiles: number[] }[] {
-  const pids = new Set(reselectionPids);
-  const allPlans = prepareCastleWalls(state);
-  return allPlans.filter(p => pids.has(p.playerId));
 }

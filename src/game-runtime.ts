@@ -34,12 +34,10 @@ import {
   enterCastleReselectPhase,
   finalizeBuildPhase,
   finalizeCastleConstruction,
-  finalizeCastleRebuild,
   initBuildPhase,
   markPlayerReselected,
   nextPhase,
-  prepareCastleWalls,
-  prepareReselectionPlans,
+  prepareCastleWallsForPlayer,
 } from "./game-engine.ts";
 import type { GameRuntime, RuntimeConfig } from "./game-runtime-types.ts";
 import {
@@ -94,6 +92,7 @@ import {
   showBannerTransition,
   tickBannerTransition,
 } from "./phase-banner.ts";
+import { claimTerritory } from "./phase-build.ts";
 import {
   tickHostBuildPhase,
   tickHostCannonPhase,
@@ -143,6 +142,7 @@ import {
   LIFE_LOST_MAX_TIMER,
   MAX_FRAME_DT,
   Phase,
+  SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,
   WALL_BUILD_INTERVAL,
 } from "./types.ts";
@@ -489,7 +489,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function confirmSelectionForPlayer(pid: number, isReselect = false): boolean {
-    return confirmTowerSelection(
+    const allDone = confirmTowerSelection(
       rs.state,
       rs.selectionStates,
       rs.controllers,
@@ -502,8 +502,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       },
       () => syncSelectionOverlay(),
       () => render(),
-      config.getRemoteHumanSlots(),
     );
+    startPlayerCastleBuild(pid);
+    return allDone;
   }
 
   function allSelectionsConfirmed(): boolean {
@@ -700,6 +701,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       confirmSelectionForPlayer: (pid, isReselect) =>
         confirmSelectionForPlayer(pid, isReselect ?? false),
       allSelectionsConfirmed,
+      allBuildsComplete: () => rs.castleBuilds.length === 0,
+      tickActiveBuilds: tickAllCastleBuilds,
+      announcementDuration: SELECT_ANNOUNCEMENT_DURATION,
+      setFrameAnnouncement: (text) => { rs.frame.announcement = text; },
       finishReselection,
       finishSelection,
       syncSelectionOverlay,
@@ -727,32 +732,41 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       state: rs.state,
       selectionStates: rs.selectionStates,
       clearOverlaySelection,
-      animateCastleConstruction,
-      advanceToCannonPhase,
+      finalizeAndAdvance: () => {
+        rs.banner.oldHouses = rs.state.map.houses.map((h) => ({ ...h }));
+        rs.banner.oldBonusSquares = rs.state.bonusSquares.map((b) => ({ ...b }));
+        finalizeCastleConstruction(rs.state);
+        enterCannonPlacePhase(rs.state);
+        camera.clearCastleBuildViewport();
+        advanceToCannonPhase();
+      },
     });
   }
 
-  function animateCastleConstruction(onDone: () => void): void {
-    const wallPlans = prepareCastleWalls(rs.state);
+  function startPlayerCastleBuild(playerId: number): void {
+    const plan = prepareCastleWallsForPlayer(rs.state, playerId);
+    if (!plan) return;
     if (config.getIsHost()) {
-      config.send({
-        type: MSG.CASTLE_WALLS,
-        plans: wallPlans.map((p) => ({ playerId: p.playerId, tiles: p.tiles })),
-      });
+      config.send({ type: MSG.CASTLE_WALLS, plans: [plan] });
     }
-    rs.castleBuild = createCastleBuildState(wallPlans, () => {
-      // Snapshot entities before finalization spawns houses + bonus squares
-      rs.banner.oldHouses = rs.state.map.houses.map((h) => ({ ...h }));
-      rs.banner.oldBonusSquares = rs.state.bonusSquares.map((b) => ({ ...b }));
-      finalizeCastleConstruction(rs.state);
-      enterCannonPlacePhase(rs.state);
-      camera.clearCastleBuildViewport();
-      onDone();
-    });
-    // Pre-compute viewport covering all planned walls so camera stays steady
-    camera.setCastleBuildViewport(wallPlans);
-    render();
-    rs.mode = Mode.CASTLE_BUILD;
+    rs.castleBuilds.push(createCastleBuildState([plan], () => {}));
+    camera.setCastleBuildViewport([...rs.castleBuilds.flatMap(b => b.wallPlans)]);
+  }
+
+  function tickAllCastleBuilds(dt: number): void {
+    let anyPlaced = false;
+    for (let i = rs.castleBuilds.length - 1; i >= 0; i--) {
+      const result = tickCastleBuildAnimation({
+        castleBuild: rs.castleBuilds[i]!, dt, wallBuildIntervalMs: WALL_BUILD_INTERVAL, state: rs.state, render: () => {},
+        onWallsPlaced: () => { anyPlaced = true; },
+      });
+      if (!result.next) {
+        rs.castleBuilds.splice(i, 1);
+      } else {
+        rs.castleBuilds[i] = result.next;
+      }
+    }
+    if (anyPlaced) claimTerritory(rs.state);
   }
 
   function showBuildScoreDeltas(onDone: () => void): void {
@@ -784,11 +798,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function tickCastleBuild(dt: number): void {
-    const result = tickCastleBuildAnimation({
-      castleBuild: rs.castleBuild, dt, wallBuildIntervalMs: WALL_BUILD_INTERVAL, state: rs.state, render,
-    });
-    rs.castleBuild = result.next;
-    if (result.onDone) result.onDone();
+    tickAllCastleBuilds(dt);
+    render();
+    if (rs.castleBuilds.length === 0) {
+      // All reselection builds done — fire the pending onDone
+      if (rs.castleBuildOnDone) {
+        const cb = rs.castleBuildOnDone;
+        rs.castleBuildOnDone = null;
+        cb();
+      }
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -837,40 +856,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     completeReselection({
       state: rs.state, selectionStates: rs.selectionStates, clearOverlaySelection,
       reselectQueue: rs.reselectQueue, reselectionPids: rs.reselectionPids, clearPlayerState,
-      animateReselectionCastles, advanceToCannonPhase,
+      finalizeAndAdvance: () => {
+        rs.banner.oldHouses = rs.state.map.houses.map((h) => ({ ...h }));
+        rs.banner.oldBonusSquares = rs.state.bonusSquares.map((b) => ({ ...b }));
+        finalizeCastleConstruction(rs.state);
+        enterCannonPlacePhase(rs.state);
+        camera.clearCastleBuildViewport();
+        advanceToCannonPhase();
+      },
     });
-  }
-
-  function animateReselectionCastles(onDone: () => void): void {
-    if (rs.reselectionPids.length === 0) {
-      onDone();
-      return;
-    }
-
-    const plans = prepareReselectionPlans(rs.state, rs.reselectionPids);
-    rs.reselectionPids = [];
-    if (config.getIsHost()) {
-      config.send({
-        type: MSG.CASTLE_WALLS,
-        plans: plans.map((p) => ({ playerId: p.playerId, tiles: p.tiles })),
-      });
-    }
-
-    if (plans.length === 0) {
-      onDone();
-      return;
-    }
-
-    rs.castleBuild = createCastleBuildState(plans, () => {
-      rs.banner.oldHouses = rs.state.map.houses.map((h) => ({ ...h }));
-      rs.banner.oldBonusSquares = rs.state.bonusSquares.map((b) => ({ ...b }));
-      finalizeCastleRebuild(rs.state, plans);
-      camera.clearCastleBuildViewport();
-      onDone();
-    });
-    camera.setCastleBuildViewport(plans);
-    render();
-    rs.mode = Mode.CASTLE_BUILD;
   }
 
   // -------------------------------------------------------------------------
@@ -1181,7 +1175,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs.paused = false;
     rs.quitPending = false;
     rs.optionsReturnMode = null;
-    rs.castleBuild = null;
+    rs.castleBuilds = [];
+    rs.castleBuildOnDone = null;
     rs.selectionStates.clear();
     rs.scoreDeltas = [];
     rs.scoreDeltaTimer = 0;
@@ -1313,9 +1308,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       getSelectionStates: () => rs.selectionStates,
       highlightTowerForPlayer,
       confirmSelectionForPlayer,
-      finishReselection,
-      finishSelection,
-      isHost: config.getIsHost,
       togglePause,
       getQuitPending: () => rs.quitPending,
       setQuitPending: (v) => { rs.quitPending = v; },
@@ -1439,12 +1431,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       allConfirmed: allSelectionsConfirmed,
       tick: tickSelection,
       finish: finishSelection,
-      animateCastle: animateCastleConstruction,
       advanceToCannonPhase,
       tickCastleBuild,
       startReselection,
       finishReselection,
-      animateReselectionCastles,
     },
 
     lifeLost: {

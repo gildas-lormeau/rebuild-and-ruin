@@ -39,12 +39,13 @@ export interface TimerAccums {
   battle: number;
   cannon: number;
   select: number;
+  selectAnnouncement: number;
   build: number;
   grunt: number;
 }
 
 export function createTimerAccums(): TimerAccums {
-  return { battle: 0, cannon: 0, select: 0, build: 0, grunt: 0 };
+  return { battle: 0, cannon: 0, select: 0, selectAnnouncement: 0, build: 0, grunt: 0 };
 }
 
 // ---------------------------------------------------------------------------

@@ -211,11 +211,12 @@ export function syncSelectionOverlay(
   }
   overlay.selection.highlights = [];
   for (const [pid, ss] of selectionStates) {
+    if (ss.confirmed) continue;
     if (isLocalHuman && !isLocalHuman(pid)) continue;
     overlay.selection.highlights.push({
       towerIdx: ss.highlighted,
       playerId: pid,
-      confirmed: ss.confirmed,
+      confirmed: false,
     });
   }
 }

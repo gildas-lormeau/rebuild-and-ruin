@@ -229,6 +229,7 @@ export const BUILD_TIMER = 25;
 export const CANNON_PLACE_TIMER = 15;
 /** Duration of the castle selection phase in seconds. */
 export const SELECT_TIMER = 10;
+export const SELECT_ANNOUNCEMENT_DURATION = 2;
 /** Duration of the pre-battle countdown in seconds (Ready 3s + Aim 2s + Fire! 1s). */
 export const BATTLE_COUNTDOWN = 6;
 /** Seconds for a grunt to destroy an adjacent tower or wall. */

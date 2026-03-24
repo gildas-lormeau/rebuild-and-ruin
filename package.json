@@ -19,7 +19,8 @@
     "lint:circular": "madge --circular --extensions ts src/ server/",
     "lint:duplicates": "jscpd src/ --min-lines 10",
     "lint:literals": "npx tsx scripts/find-duplicate-literals.ts",
-    "lint:all": "npm run lint && npm run lint:unused && npm run lint:circular && npm run lint:duplicates && npm run lint:literals"
+    "lint:server": "deno check server/server.ts",
+    "lint:all": "npm run lint && npm run lint:unused && npm run lint:circular && npm run lint:duplicates && npm run lint:literals && npm run lint:server"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.8",

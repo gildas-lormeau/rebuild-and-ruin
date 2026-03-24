@@ -87,9 +87,6 @@ export interface RegisterOnlineInputDeps {
   getSelectionStates: () => Map<number, SelectionState>;
   highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
   confirmSelectionForPlayer: (pid: number, isReselect?: boolean) => boolean;
-  finishReselection: () => void;
-  finishSelection: () => void;
-  isHost: () => boolean;
   togglePause: () => boolean;
   getQuitPending: () => boolean;
   setQuitPending: (value: boolean) => void;
@@ -144,8 +141,7 @@ export function dispatchTowerSelect(
   isReselect: boolean,
   deps: Pick<RegisterOnlineInputDeps,
     "withFirstHuman" | "getSelectionStates" |
-    "highlightTowerForPlayer" | "confirmSelectionForPlayer" |
-    "isHost" | "finishReselection" | "finishSelection">,
+    "highlightTowerForPlayer" | "confirmSelectionForPlayer">,
 ): void {
   deps.withFirstHuman((human) => {
     const ss = deps.getSelectionStates().get(human.playerId);
@@ -154,10 +150,7 @@ export function dispatchTowerSelect(
     const idx = towerAtPixel(state.map.towers, wx, wy);
     if (idx !== null && state.map.towers[idx]?.zone === zone) {
       deps.highlightTowerForPlayer(idx, zone, human.playerId);
-      if (deps.confirmSelectionForPlayer(human.playerId, isReselect) && deps.isHost()) {
-        if (isReselect) deps.finishReselection();
-        else deps.finishSelection();
-      }
+      deps.confirmSelectionForPlayer(human.playerId, isReselect);
     }
   });
 }
@@ -256,9 +249,6 @@ export function registerOnlineInputHandlers(
     getSelectionStates,
     highlightTowerForPlayer,
     confirmSelectionForPlayer,
-    finishReselection,
-    finishSelection,
-    isHost,
     togglePause,
     getQuitPending,
     setQuitPending,
@@ -582,12 +572,7 @@ export function registerOnlineInputHandlers(
           highlightTowerForPlayer(next, zone, ctrl.playerId);
           e.preventDefault();
         } else if (action === Action.CONFIRM) {
-          if (confirmSelectionForPlayer(ctrl.playerId, isReselect)) {
-            if (isHost()) {
-              if (isReselect) finishReselection();
-              else finishSelection();
-            }
-          }
+          confirmSelectionForPlayer(ctrl.playerId, isReselect);
           e.preventDefault();
         }
       }

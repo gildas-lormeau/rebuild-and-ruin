@@ -421,7 +421,7 @@ function promoteToHost(): void {
   const mode = runtime.rs.mode;
   if (mode === Mode.CASTLE_BUILD) {
     // Castle build animation was driven by old host — skip to cannon phase
-    runtime.rs.castleBuild = null;
+    runtime.rs.castleBuilds = [];
     finalizeCastleConstruction(state);
     enterCannonPlacePhase(state);
     runtime.startCannonPhase();
@@ -500,7 +500,7 @@ const transitionCtx: TransitionContext = {
   enterCannonPlacePhase,
   getSelectionStates: () => runtime.selection.getStates(),
   setCastleBuildFromPlans: (plans, maxTiles, onDone) => {
-    runtime.rs.castleBuild = { wallPlans: plans, maxTiles, tileIdx: 0, accum: 0, onDone };
+    runtime.rs.castleBuilds = [{ wallPlans: plans, maxTiles, tileIdx: 0, accum: 0, onDone }];
   },
   setBattleFlights: (v) => { runtime.rs.battleAnim.flights = v; },
   snapshotTerritory: () => runtime.snapshotTerritory(),
