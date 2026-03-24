@@ -78,11 +78,16 @@ const GAP_FILLED_WEIGHT = 100;
 const GAP_ADJACENT_WEIGHT = 20;
 /** Score weight per tile connected to existing walls. */
 const CONNECTED_TILES_WEIGHT = 10;
-/** Starting bonus for gap-filling placements before useful-gain reduction. */
-/** Enclosures with at least this many tiles are considered viable (not wasted). */
-/** Max Manhattan distance from an unowned tower that receives a proximity bonus. */
-/** Score bonus per tile of proximity to an unowned zone tower (guides expansion). */
-/** Bonus per gap tile that would survive the sweep (≥2 cardinal neighbors). */
+/** Max gap tiles the AI considers manageable for a single build turn. */
+const MANAGEABLE_GAP_LIMIT = 8;
+/** How far the castle rect can expand to route around blocked tiles.
+ *  Indexed by interior utilization: >60% → 2, >30% → 3, >10% → 4, else 5. */
+const EXPANSION_TIERS: readonly { minFreeRatio: number; maxExpand: number }[] = [
+  { minFreeRatio: 0.6, maxExpand: 2 },
+  { minFreeRatio: 0.3, maxExpand: 3 },
+  { minFreeRatio: 0.1, maxExpand: 4 },
+];
+const EXPANSION_DEFAULT_MAX = 5;
 const BUILD_SKILL_TABLE = [
   /*1*/ { topCandidates: 12, fatGainPerBlock: 0, pocketScale: 0.25, fatPenaltyScale: 0.25, tinyPocketReject: false },
   /*2*/ { topCandidates: 20, fatGainPerBlock: 1, pocketScale: 0.5, fatPenaltyScale: 0.5, tinyPocketReject: false },
@@ -183,7 +188,7 @@ export function pickPlacementImpl(
     let targetGaps: Set<number> = new Set();
     let targetRect: TileRect | null = null;
     const hasManageableGaps = (): boolean =>
-      targetGaps.size > 0 && targetGaps.size <= 8;
+      targetGaps.size > 0 && targetGaps.size <= MANAGEABLE_GAP_LIMIT;
 
     if (
       !effectiveSkipHome &&
@@ -229,7 +234,7 @@ export function pickPlacementImpl(
       const freeRatio =
         totalInterior > 0 ? 1 - occupiedInterior / totalInterior : 1;
       const MAX_EXPAND =
-        freeRatio > 0.6 ? 2 : freeRatio > 0.3 ? 3 : freeRatio > 0.1 ? 4 : 5;
+        EXPANSION_TIERS.find((t) => freeRatio > t.minFreeRatio)?.maxExpand ?? EXPANSION_DEFAULT_MAX;
 
       for (let attempt = 0; attempt < MAX_EXPAND; attempt++) {
         const gaps = findGapTiles({ top, bottom, left, right }, player.walls);
@@ -356,7 +361,7 @@ export function pickPlacementImpl(
 
   const { targetGaps, targetRect } = selectTarget();
   const hasManageableGaps = (): boolean =>
-    targetGaps.size > 0 && targetGaps.size <= 8;
+    targetGaps.size > 0 && targetGaps.size <= MANAGEABLE_GAP_LIMIT;
 
   // Step 2: score candidates
   const baselineOutside = outside.size;

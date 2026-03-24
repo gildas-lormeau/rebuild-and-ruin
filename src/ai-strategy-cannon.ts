@@ -268,8 +268,9 @@ function scoreCannonPosition(
   rng: Rng,
   noiseScale = 1,
 ): number {
+  const cannonKind = size === 3 ? CannonMode.SUPER : CannonMode.NORMAL;
   let score = 0;
-  forEachCannonTile({ row, col, kind: size === 3 ? CannonMode.SUPER : CannonMode.NORMAL }, (r, c) => {
+  forEachCannonTile({ row, col, kind: cannonKind }, (r, c) => {
     score += scoreCannonTileLocalPenalty(state, r, c);
   });
 
@@ -291,7 +292,7 @@ function scoreCannonPosition(
   }
 
   const cannonTiles = new Set<number>();
-  forEachCannonTile({ row, col, kind: size === 3 ? CannonMode.SUPER : CannonMode.NORMAL }, (_r, _c, key) => {
+  forEachCannonTile({ row, col, kind: cannonKind }, (_r, _c, key) => {
     cannonTiles.add(key);
   });
   const occupied = new Set(cannonTiles);

@@ -103,6 +103,11 @@ export function towerCenter(t: TilePos): {
   return { row: t.row + 0.5, col: t.col + 0.5 };
 }
 
+/** Pixel position at the center of the tile at (row, col). */
+export function tileCenterPx(row: number, col: number): PixelPos {
+  return { x: (col + 0.5) * TILE_SIZE, y: (row + 0.5) * TILE_SIZE };
+}
+
 /** True if all 4 tiles of a 2×2 tower are enclosed (not in the outside set). */
 export function isTowerEnclosed(t: TilePos, outside: Set<number>): boolean {
   return isSquareEnclosed(t.row, t.col, 2, outside);

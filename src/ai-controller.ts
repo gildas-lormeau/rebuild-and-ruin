@@ -24,7 +24,7 @@ import type {
   StrategicPixelPos,
   TilePos,
 } from "./geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
+import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { placePiece } from "./phase-build.ts";
 import type { PieceShape } from "./pieces.ts";
 import { rotateCW } from "./pieces.ts";
@@ -35,7 +35,7 @@ import {
   type PhantomCannon,
   type PhantomPiece,
 } from "./player-controller.ts";
-import { packTile, towerCenter } from "./spatial.ts";
+import { packTile, tileCenterPx, towerCenter } from "./spatial.ts";
 import type { GameState, Player } from "./types.ts";
 import { CannonMode } from "./types.ts";
 
@@ -96,6 +96,26 @@ const Step = {
 const BUILD_CURSOR_SPEED = 12;
 /** AI cannon-phase cursor speed in tiles per second. */
 const CANNON_CURSOR_SPEED = 6;
+/** Pixel distance at which countdown orbit engages (stop approaching, start circling). */
+const ORBIT_ENGAGEMENT_DISTANCE = 12;
+/** Base orbit angular speed (rad/s) when targeting a strategic tile. */
+const ORBIT_SPEED_STRATEGIC_BASE = 5.5;
+/** Base orbit angular speed (rad/s) for default targets. */
+const ORBIT_SPEED_DEFAULT_BASE = 4.5;
+/** Random variation added to orbit angular speed. */
+const ORBIT_SPEED_RANGE = 1.5;
+/** Base orbit ellipse radius (pixels). */
+const ORBIT_RADIUS_BASE = 5;
+/** Random variation added to orbit radius. */
+const ORBIT_RADIUS_RANGE = 3;
+/** Base delay (seconds) per rotation animation frame. */
+const ROTATION_FRAME_BASE = 0.12;
+/** Random variation added to each rotation frame delay. */
+const ROTATION_FRAME_RANGE = 0.08;
+/** Base delay (seconds) before the first rotation frame starts. */
+const ROTATION_INITIAL_BASE = 0.15;
+/** Random variation added to the initial rotation delay. */
+const ROTATION_INITIAL_RANGE = 0.1;
 
 export class AiController extends BaseController {
   /** Pluggable AI strategy (decision-making). */
@@ -355,7 +375,7 @@ export class AiController extends BaseController {
       if (rotation.timer <= 0) {
         rotation.idx++;
         if (rotation.idx < rotation.seq.length) {
-          rotation.timer = 0.12 + this.strategy.rng.next() * 0.08;
+          rotation.timer = ROTATION_FRAME_BASE + this.strategy.rng.next() * ROTATION_FRAME_RANGE;
         }
       }
     }
@@ -395,7 +415,7 @@ export class AiController extends BaseController {
       }
       seq.push(cur);
     }
-    return { seq, idx: 0, timer: 0.15 + this.strategy.rng.next() * 0.1 };
+    return { seq, idx: 0, timer: ROTATION_INITIAL_BASE + this.strategy.rng.next() * ROTATION_INITIAL_RANGE };
   }
 
   endBuild(state: GameState): void {
@@ -565,10 +585,7 @@ export class AiController extends BaseController {
       // If chain attack is planned, move toward first target during countdown
       if (this.chainTargets && this.chainIdx < this.chainTargets.length && state.battleCountdown > 0) {
         const first = this.chainTargets[this.chainIdx]!;
-        this.crosshairTarget = {
-          x: (first.col + 0.5) * TILE_SIZE,
-          y: (first.row + 0.5) * TILE_SIZE,
-        };
+        this.crosshairTarget = tileCenterPx(first.row, first.col);
       }
       this.battleTickCountdown(state, dt);
       return;
@@ -633,19 +650,18 @@ export class AiController extends BaseController {
         this.crosshairTarget.x - this.crosshair.x,
         this.crosshairTarget.y - this.crosshair.y,
       );
-      if (dist > 12) {
+      if (dist > ORBIT_ENGAGEMENT_DISTANCE) {
         this.stepCrosshairToward(this.crosshairTarget.x, this.crosshairTarget.y, dt);
       } else {
         if (!s.orbit) {
           const strategic = !!this.crosshairTarget.strategic;
           const boost = strategic ? 1.2 : 1;
           const rng = this.strategy.rng;
-          const baseSpeed = strategic
-            ? Math.PI * (5.5 + rng.next() * 1.5)
-            : Math.PI * (4.5 + rng.next() * 1.5);
+          const speedBase = strategic ? ORBIT_SPEED_STRATEGIC_BASE : ORBIT_SPEED_DEFAULT_BASE;
+          const baseSpeed = Math.PI * (speedBase + rng.next() * ORBIT_SPEED_RANGE);
           s.orbit = {
-            rx: (5 + rng.next() * 3) * boost,
-            ry: (5 + rng.next() * 3) * boost,
+            rx: (ORBIT_RADIUS_BASE + rng.next() * ORBIT_RADIUS_RANGE) * boost,
+            ry: (ORBIT_RADIUS_BASE + rng.next() * ORBIT_RADIUS_RANGE) * boost,
             speed: baseSpeed * (rng.bool() ? 1 : -1),
           };
         }
@@ -689,9 +705,8 @@ export class AiController extends BaseController {
         return;
       }
     }
-    const tx = (target.col + 0.5) * TILE_SIZE;
-    const ty = (target.row + 0.5) * TILE_SIZE;
-    if (this.stepCrosshairToward(tx, ty, dt)) {
+    const center = tileCenterPx(target.row, target.col);
+    if (this.stepCrosshairToward(center.x, center.y, dt)) {
       this.battleState = {
         step: Step.CHAIN_DWELLING,
         timer: (0.2 + this.strategy.rng.next() * 0.1) * this.delayScale,
@@ -786,10 +801,7 @@ export class AiController extends BaseController {
   // Movement helpers
   // -----------------------------------------------------------------------
 
-  /**
-   * Move a tile cursor one step toward (targetRow, targetCol).
-   * Returns true if it reached the target this frame.
-   */
+  /** Move a tile cursor one step toward (targetRow, targetCol). */
   private stepTileCursorToward(
     cursor: TilePos,
     targetRow: number,
@@ -800,23 +812,14 @@ export class AiController extends BaseController {
   ): boolean {
     const dr = targetRow - cursor.row;
     const dc = targetCol - cursor.col;
-    const dist = Math.sqrt(dr * dr + dc * dc);
-    const speed = baseSpeed * (dist > boostThreshold ? 2 : 1);
-    const step = speed * dt;
-    if (dist <= step) {
-      cursor.row = targetRow;
-      cursor.col = targetCol;
-      return true;
-    }
-    cursor.row += (dr / dist) * step;
-    cursor.col += (dc / dist) * step;
+    const f = moveStepFraction(Math.sqrt(dr * dr + dc * dc), baseSpeed, boostThreshold, dt);
+    if (f >= 1) { cursor.row = targetRow; cursor.col = targetCol; return true; }
+    cursor.row += dr * f;
+    cursor.col += dc * f;
     return false;
   }
 
-  /**
-   * Move crosshair one step toward (tx, ty) at battle speed.
-   * Returns true if it reached the target this frame.
-   */
+  /** Move crosshair one step toward (tx, ty) at battle speed. */
   private stepCrosshairToward(
     tx: PixelPos["x"],
     ty: PixelPos["y"],
@@ -824,16 +827,10 @@ export class AiController extends BaseController {
   ): boolean {
     const dx = tx - this.crosshair.x;
     const dy = ty - this.crosshair.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const speed = CROSSHAIR_SPEED * (dist > this.battleBoostDist ? 2 : 1);
-    const step = speed * dt;
-    if (dist <= step) {
-      this.crosshair.x = tx;
-      this.crosshair.y = ty;
-      return true;
-    }
-    this.crosshair.x += (dx / dist) * step;
-    this.crosshair.y += (dy / dist) * step;
+    const f = moveStepFraction(Math.sqrt(dx * dx + dy * dy), CROSSHAIR_SPEED, this.battleBoostDist, dt);
+    if (f >= 1) { this.crosshair.x = tx; this.crosshair.y = ty; return true; }
+    this.crosshair.x += dx * f;
+    this.crosshair.y += dy * f;
     return false;
   }
 
@@ -872,6 +869,13 @@ export class AiController extends BaseController {
     );
     return result ? { piece: result.piece, row: result.row, col: result.col } : null;
   }
+}
+
+/** Compute interpolation fraction for one movement step. Returns 1 if arrived. */
+function moveStepFraction(dist: number, baseSpeed: number, boostThreshold: number, dt: number): number {
+  if (dist <= 0) return 1;
+  const step = baseSpeed * (dist > boostThreshold ? 2 : 1) * dt;
+  return step >= dist ? 1 : step / dist;
 }
 
 /** Check if two pieces have the same shape (ignoring position). */
