@@ -16,12 +16,9 @@ import {
   MSG,
 } from "../server/protocol.ts";
 import { autoPlaceCannons } from "./ai-strategy.ts";
-import {
-  aimCannons, applyImpactEvent,
-  canPlayerFire, nextReadyCombined
-} from "./battle-system.ts";
+import { applyImpactEvent } from "./battle-system.ts";
 import { applyCannonPlacement } from "./cannon-system.ts";
-import { createController, isAiAnimatable } from "./controller-factory.ts";
+import { createController } from "./controller-factory.ts";
 import { bootstrapGame, setupWaitingRoom } from "./game-bootstrap.ts";
 import {
   enterCannonPlacePhase,
@@ -34,8 +31,8 @@ import { createGameRuntime } from "./game-runtime.ts";
 import { Mode } from "./game-ui-types.ts";
 import { GRID_COLS } from "./grid.ts";
 import { getWsUrl } from "./online-config.ts";
+import { broadcastLocalCrosshair, extendWithRemoteCrosshairs } from "./online-host-crosshairs.ts";
 import { setupLobbyUi, showLobbySection } from "./online-lobby-ui.ts";
-import type { TransitionContext } from "./online-phase-transitions.ts";
 import {
   handleBattleStartTransition,
   handleBuildEndTransition,
@@ -56,11 +53,11 @@ import {
   buildBuildStartMessage,
   buildCannonStartMessage,
   buildFullStateMessage,
+  buildGameOverPayload,
   serializePlayers,
 } from "./online-serialize.ts";
 import { handleServerIncrementalMessage } from "./online-server-events.ts";
 import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
-import { interpolateToward } from "./online-types.ts";
 import type { WatcherTickContext } from "./online-watcher-tick.ts";
 import {
   applyBattleStartData,
@@ -78,10 +75,8 @@ import {
   PLAYER_COLORS,
   PLAYER_NAMES,
 } from "./player-config.ts";
-import { CROSSHAIR_SPEED } from "./player-controller.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { loadAtlas } from "./sprites.ts";
-import type { GameState } from "./types.ts";
 import {
   BANNER_DURATION,
   BATTLE_COUNTDOWN,
@@ -96,63 +91,60 @@ import {
 } from "./types.ts";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-// DOM lobby elements (from index.html)
 const lobbyEl = document.getElementById("lobby")!;
 const lobbyMenu = document.getElementById("lobby-menu")!;
 const lobbyCreate = document.getElementById("lobby-create")!;
 const lobbyJoin = document.getElementById("lobby-join")!;
-const btnCreate = document.getElementById("btn-create")!;
-const btnJoinShow = document.getElementById("btn-join-show")!;
-const btnCreateConfirm = document.getElementById("btn-create-confirm")!;
-const btnJoinConfirm = document.getElementById("btn-join-confirm")!;
-const btnCreateBack = document.getElementById("btn-create-back")!;
-const btnJoinBack = document.getElementById("btn-join-back")!;
-const setRounds = document.getElementById("set-rounds") as HTMLSelectElement;
-const setHp = document.getElementById("set-hp") as HTMLSelectElement;
-const setWait = document.getElementById("set-wait") as HTMLSelectElement;
-const joinCodeInput = document.getElementById("join-code") as HTMLInputElement;
 const createError = document.getElementById("create-error")!;
 const joinError = document.getElementById("join-error")!;
 const roomCodeOverlay = document.getElementById("room-code-overlay")!;
-/** Slots occupied by remote humans (other players, not our own slot). */
-const remoteHumanSlots = new Set<number>();
-// Watcher state: timing, crosshairs, phantoms, migration announcement
+const session = {
+  ws: null as WebSocket | null,
+  myPlayerId: -1,
+  isHost: false,
+  occupiedSlots: new Set<number>(),
+  remoteHumanSlots: new Set<number>(),
+  lobbyWaitTimer: LOBBY_TIMER,
+  roomSeed: 0,
+  roomBattleLength: 0,
+  roomCannonMaxHp: 3,
+  keepaliveTimer: null as ReturnType<typeof setInterval> | null,
+  lobbyStartTime: 0,
+};
+/** Network dedup maps — cleared on reset and host promotion. */
+const dedup = {
+  aimTarget: new Map<number, string>(),
+  piecePhantom: new Map<number, string>(),
+  cannonPhantom: new Map<number, string>(),
+};
 const watcher = createWatcherState();
 const DEV = IS_DEV;
 const LOG_THROTTLE_MS = 1000;
-/** Throttled log — logs at most once per second per key (dev only). */
 const _throttleTimestamps = new Map<string, number>();
 const KEEPALIVE_MS = 30_000;
-// Send aim_update only when the target changes (not every frame)
-const lastSentAimTarget = new Map<number, string>();
-// Send phantom only when position/piece changes
-const lastSentPiecePhantom = new Map<number, string>();
-const lastSentCannonPhantom = new Map<number, string>();
 const initDomLobby = () =>
   setupLobbyUi({
     elements: {
       lobbyMenu,
       lobbyCreate,
       lobbyJoin,
-      btnCreate,
-      btnJoinShow,
-      btnCreateConfirm,
-      btnJoinConfirm,
-      btnCreateBack,
-      btnJoinBack,
-      setRounds,
-      setHp,
-      setWait,
-      joinCodeInput,
+      btnCreate: document.getElementById("btn-create")!,
+      btnJoinShow: document.getElementById("btn-join-show")!,
+      btnCreateConfirm: document.getElementById("btn-create-confirm")!,
+      btnJoinConfirm: document.getElementById("btn-join-confirm")!,
+      btnCreateBack: document.getElementById("btn-create-back")!,
+      btnJoinBack: document.getElementById("btn-join-back")!,
+      setRounds: document.getElementById("set-rounds") as HTMLSelectElement,
+      setHp: document.getElementById("set-hp") as HTMLSelectElement,
+      setWait: document.getElementById("set-wait") as HTMLSelectElement,
+      joinCodeInput: document.getElementById("join-code") as HTMLInputElement,
       createError,
       joinError,
     },
     connect,
     send,
-    getSocket: () => ws,
-    setIsHost: (value) => {
-      isHost = value;
-    },
+    getSocket: () => session.ws,
+    setIsHost: (value) => { session.isHost = value; },
   });
 const watcherTickCtx: WatcherTickContext = {
   getState: () => runtime.rs.state,
@@ -160,20 +152,20 @@ const watcherTickCtx: WatcherTickContext = {
   getAccum: () => runtime.rs.accum,
   getBattleAnim: () => runtime.rs.battleAnim,
   getControllers: () => runtime.rs.controllers,
-  getMyPlayerId: () => myPlayerId,
-  lastSentCannonPhantom,
-  lastSentPiecePhantom,
+  getMyPlayerId: () => session.myPlayerId,
+  lastSentCannonPhantom: dedup.cannonPhantom,
+  lastSentPiecePhantom: dedup.piecePhantom,
   send: (msg) => send(msg as GameMessage),
   logThrottled,
   maybeSendAimUpdate,
   render: () => runtime.render(),
   now: () => performance.now(),
 };
-const transitionCtx: TransitionContext = {
+const transitionCtx = {
   getState: () => runtime.rs.state,
-  getMyPlayerId: () => myPlayerId,
+  getMyPlayerId: () => session.myPlayerId,
   getControllers: () => runtime.rs.controllers,
-  showBanner: (t, cb, r, nb) => runtime.showBanner(t, cb, r, nb),
+  showBanner: (t: string, cb: () => void, r?: boolean, nb?: { territory: Set<number>[]; walls: Set<number>[] }) => runtime.showBanner(t, cb, r, nb),
   clearSelectionOverlay: () => {
     const overlay = runtime.rs.overlay;
     if (overlay.selection) {
@@ -183,65 +175,58 @@ const transitionCtx: TransitionContext = {
     }
   },
   now: () => performance.now(),
-  setWatcherPhaseStartTime: (v) => { watcher.timing.phaseStartTime = v; },
-  setWatcherPhaseDuration: (v) => { watcher.timing.phaseDuration = v; },
-  setWatcherCountdownStartTime: (v) => { watcher.timing.countdownStartTime = v; },
-  setWatcherCountdownDuration: (v) => { watcher.timing.countdownDuration = v; },
-  setModeGame: () => { runtime.rs.mode = Mode.GAME; },
-  setModeCastleBuild: () => { runtime.rs.mode = Mode.CASTLE_BUILD; },
-  setModeBalloonAnim: () => { runtime.rs.mode = Mode.BALLOON_ANIM; },
-  setModeStopped: () => { runtime.rs.mode = Mode.STOPPED; },
+  watcherTiming: watcher.timing,
+  setMode: (mode: Mode) => { runtime.rs.mode = mode; },
   battleCountdown: BATTLE_COUNTDOWN,
   bannerDuration: BANNER_DURATION,
   playerColors: PLAYER_COLORS,
-  applyCannonStartData: (msg) => applyCannonStartData(...checkpointArgs(msg)),
-  applyBattleStartData: (msg) => applyBattleStartData(...checkpointArgs(msg)),
-  applyBuildStartData: (msg) => applyBuildStartData(...checkpointArgs(msg)),
+  applyCannonStartData: (msg: ServerMessage) => applyCannonStartData(...checkpointArgs(msg)),
+  applyBattleStartData: (msg: ServerMessage) => applyBattleStartData(...checkpointArgs(msg)),
+  applyBuildStartData: (msg: ServerMessage) => applyBuildStartData(...checkpointArgs(msg)),
   applyPlayersCheckpoint,
   resetZoneState,
   finalizeCastleConstruction,
   enterCannonPlacePhase,
   getSelectionStates: () => runtime.selection.getStates(),
-  setCastleBuildFromPlans: (plans, maxTiles, onDone) => {
+  setCastleBuildFromPlans: (plans: { playerId: number; tiles: number[] }[], maxTiles: number, onDone: () => void) => {
     runtime.rs.castleBuilds.push({ wallPlans: plans, maxTiles, tileIdx: 0, accum: 0, onDone });
     runtime.rs.castleBuildOnDone = onDone;
   },
-  setCastleBuildViewport: (plans) => runtime.selection.setCastleBuildViewport(plans),
-  setBattleFlights: (v) => { runtime.rs.battleAnim.flights = v; },
+  setCastleBuildViewport: (plans: { playerId: number; tiles: number[] }[]) => runtime.selection.setCastleBuildViewport(plans),
+  setBattleFlights: (v: { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[]) => { runtime.rs.battleAnim.flights = v; },
   snapshotTerritory: () => runtime.snapshotTerritory(),
-  showLifeLostDialog: (nr, el) => runtime.lifeLost.show(nr, el),
+  showLifeLostDialog: (nr: number[], el: number[]) => runtime.lifeLost.show(nr, el),
   render: () => runtime.render(),
-  setGameOverFrame: (p) => { runtime.rs.frame.gameOver = p; },
+  setGameOverFrame: (p: NonNullable<typeof runtime.rs.frame.gameOver>) => { runtime.rs.frame.gameOver = p; },
 };
 const runtime: GameRuntime = createGameRuntime({
   canvas,
   isOnline: true,
   send,
-  getIsHost: () => isHost,
-  getMyPlayerId: () => myPlayerId,
-  getRemoteHumanSlots: () => remoteHumanSlots,
+  getIsHost: () => session.isHost,
+  getMyPlayerId: () => session.myPlayerId,
+  getRemoteHumanSlots: () => session.remoteHumanSlots,
   log,
   logThrottled,
-  getLobbyRemaining: () => Math.max(0, lobbyWaitTimer - 1 - (performance.now() - lobbyStartTime) / 1000),
+  getLobbyRemaining: () => Math.max(0, session.lobbyWaitTimer - 1 - (performance.now() - session.lobbyStartTime) / 1000),
   showLobby,
   onLobbySlotJoined: (pid) => {
     send({ type: MSG.SELECT_SLOT, slotId: pid });
   },
   onCloseOptions: () => {
     if (runtime.rs.optionsReturnMode === null) {
-      lobbyStartTime = performance.now();
+      session.lobbyStartTime = performance.now();
     }
   },
   onTickLobbyExpired: () => {
-    if (!isHost) return;
-    // Host: build init message and relay to other clients, then process locally
+    if (!session.isHost) return;
     const initMsg: InitMessage = {
       type: MSG.INIT,
-      seed: roomSeed,
+      seed: session.roomSeed,
       playerCount: MAX_PLAYERS,
       settings: {
-        battleLength: roomBattleLength,
-        cannonMaxHp: roomCannonMaxHp,
+        battleLength: session.roomBattleLength,
+        cannonMaxHp: session.roomCannonMaxHp,
         buildTimer: BUILD_TIMER,
         cannonPlaceTimer: CANNON_PLACE_TIMER,
       },
@@ -254,53 +239,16 @@ const runtime: GameRuntime = createGameRuntime({
   // Networking callbacks
   tickNonHost: (dt) => tickWatcherFn(watcher, dt, watcherTickCtx),
   everyTick: (dt) => tickMigrationAnnouncementFn(watcher, runtime.rs.frame, dt),
-  onLocalCrosshairCollected: (ctrl, ch, _readyCannon) => {
-    if (isHost) {
-      const target = (isAiAnimatable(ctrl) ? ctrl.getCrosshairTarget() : null) ?? ch;
-      if (target) {
-        const orbit = isAiAnimatable(ctrl) ? ctrl.getOrbitParams() : null;
-        const key = `${Math.round(target.x)},${Math.round(target.y)},${orbit ? "o" : ""}`;
-        if (lastSentAimTarget.get(ctrl.playerId) !== key) {
-          lastSentAimTarget.set(ctrl.playerId, key);
-          send({
-            type: MSG.AIM_UPDATE,
-            playerId: ctrl.playerId,
-            x: target.x,
-            y: target.y,
-            orbit: orbit ?? undefined,
-          });
-        }
-      }
-    }
+  onLocalCrosshairCollected: (ctrl, ch) => {
+    if (session.isHost) broadcastLocalCrosshair(ctrl, ch, { lastSentAimTarget: dedup.aimTarget, send });
   },
-  extendCrosshairs: (crosshairs, dt) => {
-    const state = runtime.rs.state;
-    logThrottled(
-      "host-ch-remote",
-      `collectCrosshairs: localCh=${crosshairs.length} remoteCrosshairs keys=[${[...watcher.remoteCrosshairs.keys()]}] cannons=[${state.players.map((p, i) => `P${i}:${p.cannons.length}`).join(",")}]`,
-    );
-    for (const [pid, target] of watcher.remoteCrosshairs) {
-      if (!remoteHumanSlots.has(pid)) continue;
-      const player = state.players[pid];
-      if (!player || player.eliminated) continue;
-      if (!canPlayerFire(state, pid)) continue;
-      const readyCannon = nextReadyCombined(state, pid);
-      let vis = watcher.crosshairPos.get(pid);
-      if (!vis) {
-        vis = { x: target.x, y: target.y };
-        watcher.crosshairPos.set(pid, vis);
-      }
-      interpolateToward(vis, target.x, target.y, CROSSHAIR_SPEED * 2, dt);
-      crosshairs.push({
-        x: vis.x,
-        y: vis.y,
-        playerId: pid,
-        cannonReady: !!readyCannon,
-      });
-      aimCannons(state, pid, vis.x, vis.y, dt);
-    }
-    return crosshairs;
-  },
+  extendCrosshairs: (crosshairs, dt) =>
+    extendWithRemoteCrosshairs(crosshairs, runtime.rs.state, dt, {
+      remoteCrosshairs: watcher.remoteCrosshairs,
+      crosshairPos: watcher.crosshairPos,
+      remoteHumanSlots: session.remoteHumanSlots,
+      logThrottled,
+    }),
   hostNetworking: {
     autoPlaceCannons,
     serializePlayers,
@@ -309,8 +257,8 @@ const runtime: GameRuntime = createGameRuntime({
     buildBuildStartMessage,
     remoteCannonPhantoms: () => watcher.remoteCannonPhantoms,
     remotePiecePhantoms: () => watcher.remotePiecePhantoms,
-    lastSentCannonPhantom: () => lastSentCannonPhantom,
-    lastSentPiecePhantom: () => lastSentPiecePhantom,
+    lastSentCannonPhantom: () => dedup.cannonPhantom,
+    lastSentPiecePhantom: () => dedup.piecePhantom,
   },
   watcherTiming: watcher.timing,
   maybeSendAimUpdate,
@@ -318,48 +266,11 @@ const runtime: GameRuntime = createGameRuntime({
   tryPlacePieceAndSend: (ctrl, gs) => tryPlacePieceAndSendAction(ctrl, gs, send),
   fireAndSend: (ctrl, gs) => fireAndSendAction(ctrl, gs, send),
   onEndGame: (winner, gameState) => {
-    const payloads = buildGameOverServerPayload(winner, gameState, PLAYER_NAMES);
-    log(
-      `endGame winner=${payloads.winnerName} round=${gameState.round} battleLength=${gameState.battleLength}`,
-    );
-    if (isHost) send(payloads.serverPayload);
+    const payloads = buildGameOverPayload(winner, gameState, PLAYER_NAMES);
+    log(`endGame winner=${payloads.winnerName} round=${gameState.round} battleLength=${gameState.battleLength}`);
+    if (session.isHost) send(payloads.serverPayload);
   },
 });
-
-let ws: WebSocket | null = null;
-let myPlayerId = -1;
-let isHost = false;
-let occupiedSlots = new Set<number>();
-let lobbyWaitTimer = LOBBY_TIMER;
- // overridden by server's waitTimerSec
-let roomSeed = 0;
-let roomBattleLength = 0;
-let roomCannonMaxHp = 3;
-let keepaliveTimer: ReturnType<typeof setInterval> | null = null;
-let lobbyStartTime = 0;
-
-function buildGameOverServerPayload(
-  winner: { id: number } | null,
-  state: GameState,
-  playerNames: ReadonlyArray<string>,
-) {
-  return {
-    winnerName: winner
-      ? (playerNames[winner.id] ?? `Player ${winner.id + 1}`)
-      : "Nobody",
-    serverPayload: {
-      type: MSG.GAME_OVER,
-      winner: winner
-        ? (playerNames[winner.id] ?? `Player ${winner.id + 1}`)
-        : null,
-      scores: state.players.map((p) => ({
-        name: playerNames[p.id] ?? `P${p.id + 1}`,
-        score: p.score,
-        eliminated: p.eliminated,
-      })),
-    },
-  };
-}
 
 function logThrottled(key: string, msg: string): void {
   if (!DEV) return;
@@ -371,34 +282,30 @@ function logThrottled(key: string, msg: string): void {
 }
 
 function connect(): void {
-  if (ws && ws.readyState <= WebSocket.OPEN) return;
-  ws = new WebSocket(getWsUrl());
-  ws.onmessage = (e) => {
-    try {
-      handleServerMessage(JSON.parse(e.data) as ServerMessage);
-    } catch {
-      /* ignore malformed */
-    }
+  if (session.ws && session.ws.readyState <= WebSocket.OPEN) return;
+  session.ws = new WebSocket(getWsUrl());
+  session.ws.onmessage = (e) => {
+    try { handleServerMessage(JSON.parse(e.data) as ServerMessage); } catch { /* ignore malformed */ }
   };
-  ws.onopen = () => {
-    if (keepaliveTimer) clearInterval(keepaliveTimer);
-    keepaliveTimer = setInterval(() => {
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: MSG.PING }));
+  session.ws.onopen = () => {
+    if (session.keepaliveTimer) clearInterval(session.keepaliveTimer);
+    session.keepaliveTimer = setInterval(() => {
+      if (session.ws?.readyState === WebSocket.OPEN) {
+        session.ws.send(JSON.stringify({ type: MSG.PING }));
       }
     }, KEEPALIVE_MS);
   };
-  ws.onclose = () => {
-    if (keepaliveTimer) { clearInterval(keepaliveTimer); keepaliveTimer = null; }
+  session.ws.onclose = () => {
+    if (session.keepaliveTimer) { clearInterval(session.keepaliveTimer); session.keepaliveTimer = null; }
     const m = runtime.rs.mode;
-    log(`WebSocket closed (mode=${Mode[m]} isHost=${isHost})`);
-    if (!isHost && m !== Mode.STOPPED && m !== Mode.LOBBY) {
+    log(`WebSocket closed (mode=${Mode[m]} isHost=${session.isHost})`);
+    if (!session.isHost && m !== Mode.STOPPED && m !== Mode.LOBBY) {
       runtime.rs.frame.announcement = "Disconnected from server";
       runtime.render();
       runtime.rs.mode = Mode.STOPPED;
     }
   };
-  ws.onerror = () => {
+  session.ws.onerror = () => {
     console.error("[online] WebSocket connection failed");
     createError.textContent = "Connection failed — is the server running?";
     joinError.textContent = "Connection failed — is the server running?";
@@ -406,10 +313,10 @@ function connect(): void {
 }
 
 function maybeSendAimUpdate(x: number, y: number, playerId?: number): void {
-  const pid = playerId ?? myPlayerId;
+  const pid = playerId ?? session.myPlayerId;
   const key = `${Math.round(x)},${Math.round(y)}`;
-  if (lastSentAimTarget.get(pid) === key) return;
-  lastSentAimTarget.set(pid, key);
+  if (dedup.aimTarget.get(pid) === key) return;
+  dedup.aimTarget.set(pid, key);
   send({ type: MSG.AIM_UPDATE, playerId: pid, x, y });
 }
 
@@ -420,16 +327,19 @@ function showLobby(): void {
   roomCodeOverlay.style.display = "none";
   lobbyEl.style.display = "block";
   showLobbySection("lobby-menu", { lobbyMenu, lobbyCreate, lobbyJoin });
-  ws?.close();
-  ws = null;
-  isHost = false;
-  myPlayerId = -1;
-  occupiedSlots = new Set();
-  remoteHumanSlots.clear();
-  resetPhantomTrackingMaps();
+  resetSession();
 }
 
-/** Checkpoint helper: pass watcher + runtime state to checkpoint functions. */
+function resetSession(): void {
+  session.ws?.close();
+  session.ws = null;
+  session.isHost = false;
+  session.myPlayerId = -1;
+  session.occupiedSlots = new Set();
+  session.remoteHumanSlots.clear();
+  resetDedup();
+}
+
 function checkpointArgs(msg: ServerMessage) {
   return [
     watcher, msg,
@@ -440,133 +350,67 @@ function checkpointArgs(msg: ServerMessage) {
 
 function handleServerMessage(msg: ServerMessage): void {
   log(`received: ${msg.type}`);
-  if (
-    handleServerLifecycleMessage(msg, {
-      log,
-      isHost,
-      getState: () => runtime.rs.state,
-      getLifeLostDialog: () => runtime.lifeLost.get(),
-      clearLifeLostDialog: () => {
-        runtime.lifeLost.set(null);
-      },
-      isLifeLostMode: () => runtime.rs.mode === Mode.LIFE_LOST,
-      setGameMode: () => {
-        runtime.rs.mode = Mode.GAME;
-      },
-      setLobbyWaitTimer: (seconds) => {
-        lobbyWaitTimer = seconds;
-      },
-      setRoomSettings: (battleLength, cannonMaxHp) => {
-        roomBattleLength = battleLength;
-        roomCannonMaxHp = cannonMaxHp;
-      },
-      showWaitingRoom,
-      setLobbyStartTime: (timeMs) => {
-        lobbyStartTime = timeMs;
-      },
-      now: () => performance.now(),
-      lobbyJoined: runtime.rs.lobby.joined,
-      occupiedSlots,
-      remoteHumanSlots,
-      getMyPlayerId: () => myPlayerId,
-      setMyPlayerId: (playerId) => {
-        myPlayerId = playerId;
-      },
-      createErrorEl: createError,
-      joinErrorEl: joinError,
-      initFromServer,
-      enterTowerSelection: () => runtime.selection.enter(),
-      onCastleWalls: (msg) => handleCastleWallsTransition(msg, transitionCtx),
-      onCannonStart: (msg) => handleCannonStartTransition(msg, transitionCtx),
-      onBattleStart: (msg) => handleBattleStartTransition(msg, transitionCtx),
-      onBuildStart: (msg) => handleBuildStartTransition(msg, transitionCtx),
-      onBuildEnd: (msg) => handleBuildEndTransition(msg, transitionCtx),
-      onGameOver: (msg) => handleGameOverTransition(msg, transitionCtx),
-      setAnnouncement: (text) => {
-        watcher.migrationText = text;
-        watcher.migrationTimer = MIGRATION_ANNOUNCEMENT_DURATION;
-      },
-      playerNames: PLAYER_NAMES,
-      promoteToHost,
-      applyFullState,
-    })
-  ) {
-    return;
-  }
+  if (handleServerLifecycleMessage(msg, buildLifecycleDeps())) return;
+  handleServerIncrementalMessage(msg, buildIncrementalDeps());
+}
 
-  handleServerIncrementalMessage(msg, {
+function buildLifecycleDeps() {
+  return {
     log,
-    isHost,
+    isHost: session.isHost,
     getState: () => runtime.rs.state,
-    remoteHumanSlots,
-    selectionStates: runtime.selection.getStates(),
-    syncSelectionOverlay: () => runtime.selection.syncOverlay(),
-    isCastleReselectPhase: () => runtime.rs.state.phase === Phase.CASTLE_RESELECT,
-    onRemotePlayerReselected: (playerId) => {
-      markPlayerReselected(runtime.rs.state, playerId);
-      runtime.rs.reselectionPids.push(playerId);
-    },
-    allSelectionsConfirmed: () => runtime.selection.allConfirmed(),
-    finishReselection: () => runtime.selection.finishReselection(),
-    finishSelection: () => runtime.selection.finish(),
-    applyPiecePlacement,
-    applyCannonPlacement: (currentState, playerId, row, col, mode) => {
-      applyCannonPlacement(
-        currentState.players[playerId]!,
-        row,
-        col,
-        mode as CannonMode,
-        currentState,
-      );
-    },
-    applyImpactEvent,
-    gridCols: GRID_COLS,
-    remoteCrosshairs: watcher.remoteCrosshairs,
-    watcherOrbitParams: watcher.orbitParams,
-    getRemotePiecePhantoms: () => watcher.remotePiecePhantoms,
-    setRemotePiecePhantoms: (value) => {
-      watcher.remotePiecePhantoms = value;
-    },
-    getRemoteCannonPhantoms: () => watcher.remoteCannonPhantoms,
-    setRemoteCannonPhantoms: (value) => {
-      watcher.remoteCannonPhantoms = value;
-    },
     getLifeLostDialog: () => runtime.lifeLost.get(),
-  });
+    clearLifeLostDialog: () => { runtime.lifeLost.set(null); },
+    isLifeLostMode: () => runtime.rs.mode === Mode.LIFE_LOST,
+    setGameMode: () => { runtime.rs.mode = Mode.GAME; },
+    setLobbyWaitTimer: (s: number) => { session.lobbyWaitTimer = s; },
+    setRoomSettings: (bl: number, hp: number) => { session.roomBattleLength = bl; session.roomCannonMaxHp = hp; },
+    showWaitingRoom,
+    setLobbyStartTime: (t: number) => { session.lobbyStartTime = t; },
+    now: () => performance.now(),
+    lobbyJoined: runtime.rs.lobby.joined,
+    occupiedSlots: session.occupiedSlots,
+    remoteHumanSlots: session.remoteHumanSlots,
+    getMyPlayerId: () => session.myPlayerId,
+    setMyPlayerId: (pid: number) => { session.myPlayerId = pid; },
+    createErrorEl: createError,
+    joinErrorEl: joinError,
+    initFromServer,
+    enterTowerSelection: () => runtime.selection.enter(),
+    onCastleWalls: (msg: ServerMessage) => handleCastleWallsTransition(msg, transitionCtx),
+    onCannonStart: (msg: ServerMessage) => handleCannonStartTransition(msg, transitionCtx),
+    onBattleStart: (msg: ServerMessage) => handleBattleStartTransition(msg, transitionCtx),
+    onBuildStart: (msg: ServerMessage) => handleBuildStartTransition(msg, transitionCtx),
+    onBuildEnd: (msg: ServerMessage) => handleBuildEndTransition(msg, transitionCtx),
+    onGameOver: (msg: ServerMessage) => handleGameOverTransition(msg, transitionCtx),
+    setAnnouncement: (text: string) => {
+      watcher.migrationText = text;
+      watcher.migrationTimer = MIGRATION_ANNOUNCEMENT_DURATION;
+    },
+    playerNames: PLAYER_NAMES,
+    promoteToHost,
+    applyFullState,
+  };
 }
 
 function showWaitingRoom(code: string, seed: number): void {
-  roomSeed = seed;
+  session.roomSeed = seed;
   setupWaitingRoom({
-    code,
-    seed,
-    lobbyEl,
-    canvas,
-    roomCodeOverlay,
+    code, seed, lobbyEl, canvas, roomCodeOverlay,
     lobby: runtime.rs.lobby,
     maxPlayers: MAX_PLAYERS,
     now: () => performance.now(),
-    setLobbyStartTime: (timeMs: number) => {
-      lobbyStartTime = timeMs;
-    },
-    setModeLobby: () => {
-      runtime.rs.mode = Mode.LOBBY;
-    },
-    setLastTime: (timeMs: number) => {
-      runtime.rs.lastTime = timeMs;
-    },
-    requestFrame: () => {
-      requestAnimationFrame(runtime.mainLoop);
-    },
+    setLobbyStartTime: (t: number) => { session.lobbyStartTime = t; },
+    setModeLobby: () => { runtime.rs.mode = Mode.LOBBY; },
+    setLastTime: (t: number) => { runtime.rs.lastTime = t; },
+    requestFrame: () => { requestAnimationFrame(runtime.mainLoop); },
   });
 }
 
 function initFromServer(msg: InitMessage): void {
   roomCodeOverlay.style.display = "none";
   runtime.rs.lobby.active = false;
-
   const settings = runtime.rs.settings;
-
   bootstrapGame({
     seed: msg.seed,
     maxPlayers: msg.playerCount,
@@ -580,12 +424,11 @@ function initFromServer(msg: InitMessage): void {
     setControllers: (c) => { runtime.rs.controllers = c; },
     resetUIState: () => {
       runtime.resetUIState();
-      // Online-specific resets
       resetWatcherState(watcher);
-      resetPhantomTrackingMaps();
+      resetDedup();
     },
     createControllerForSlot: (i, gameState) => {
-      const isAi = (i !== myPlayerId);
+      const isAi = (i !== session.myPlayerId);
       const strategySeed = isAi ? gameState.rng.int(0, MAX_UINT32) : undefined;
       const kb = isAi ? undefined : settings.keyBindings[0]!;
       return createController(i, isAi, kb, strategySeed);
@@ -594,24 +437,55 @@ function initFromServer(msg: InitMessage): void {
   });
 }
 
+function buildIncrementalDeps() {
+  return {
+    log,
+    isHost: session.isHost,
+    getState: () => runtime.rs.state,
+    remoteHumanSlots: session.remoteHumanSlots,
+    selectionStates: runtime.selection.getStates(),
+    syncSelectionOverlay: () => runtime.selection.syncOverlay(),
+    isCastleReselectPhase: () => runtime.rs.state.phase === Phase.CASTLE_RESELECT,
+    onRemotePlayerReselected: (playerId: number) => {
+      markPlayerReselected(runtime.rs.state, playerId);
+      runtime.rs.reselectionPids.push(playerId);
+    },
+    allSelectionsConfirmed: () => runtime.selection.allConfirmed(),
+    finishReselection: () => runtime.selection.finishReselection(),
+    finishSelection: () => runtime.selection.finish(),
+    applyPiecePlacement,
+    applyCannonPlacement: (state: import("./types.ts").GameState, playerId: number, row: number, col: number, mode: string) => {
+      applyCannonPlacement(state.players[playerId]!, row, col, mode as CannonMode, state);
+    },
+    applyImpactEvent,
+    gridCols: GRID_COLS,
+    remoteCrosshairs: watcher.remoteCrosshairs,
+    watcherOrbitParams: watcher.orbitParams,
+    getRemotePiecePhantoms: () => watcher.remotePiecePhantoms,
+    setRemotePiecePhantoms: (value: typeof watcher.remotePiecePhantoms) => { watcher.remotePiecePhantoms = value; },
+    getRemoteCannonPhantoms: () => watcher.remoteCannonPhantoms,
+    setRemoteCannonPhantoms: (value: typeof watcher.remoteCannonPhantoms) => { watcher.remoteCannonPhantoms = value; },
+    getLifeLostDialog: () => runtime.lifeLost.get(),
+  };
+}
+
 function promoteToHost(): void {
   log("PROMOTING TO HOST");
-  isHost = true;
-  resetPhantomTrackingMaps();
+  session.isHost = true;
+  resetDedup();
 
   const state = runtime.rs.state;
   const controllers = runtime.rs.controllers;
 
   // Rebuild controllers: keep self as human, convert everyone else to AI
   for (let i = 0; i < controllers.length; i++) {
-    if (i === myPlayerId) continue;
+    if (i === session.myPlayerId) continue;
     const player = state.players[i];
     if (!player || player.eliminated) continue;
 
     const strategySeed = state.rng.int(0, MAX_UINT32);
     controllers[i] = createController(i, true, undefined, strategySeed);
 
-    // Re-initialize the AI for the current phase
     if (state.phase === Phase.WALL_BUILD) {
       controllers[i]!.startBuild(state);
     } else if (state.phase === Phase.CANNON_PLACE) {
@@ -626,21 +500,16 @@ function promoteToHost(): void {
     }
   }
 
-  // Sync accumulators from watcher's wall-clock timer (reset all, then set current phase)
+  // Sync accumulators from watcher's wall-clock timer
   const accum = runtime.rs.accum;
   accum.build = 0; accum.cannon = 0; accum.battle = 0; accum.grunt = 0; accum.select = 0;
-  if (state.phase === Phase.WALL_BUILD) {
-    accum.build = state.buildTimer - state.timer;
-  } else if (state.phase === Phase.CANNON_PLACE) {
-    accum.cannon = state.cannonPlaceTimer - state.timer;
-  } else if (state.phase === Phase.BATTLE) {
-    accum.battle = BATTLE_TIMER - state.timer;
-  }
+  if (state.phase === Phase.WALL_BUILD) accum.build = state.buildTimer - state.timer;
+  else if (state.phase === Phase.CANNON_PLACE) accum.cannon = state.cannonPlaceTimer - state.timer;
+  else if (state.phase === Phase.BATTLE) accum.battle = BATTLE_TIMER - state.timer;
 
-  // Handle special modes: skip animations that depend on old host's state
+  // Skip animations that depend on old host's state
   const mode = runtime.rs.mode;
   if (mode === Mode.CASTLE_BUILD) {
-    // Castle build animation was driven by old host — skip to cannon phase
     runtime.rs.castleBuilds = [];
     finalizeCastleConstruction(state);
     enterCannonPlacePhase(state);
@@ -648,51 +517,44 @@ function promoteToHost(): void {
     runtime.rs.mode = Mode.GAME;
     log("Skipped castle build animation → cannon phase");
   } else if (mode === Mode.LIFE_LOST) {
-    // Life-lost dialog resolution depends on host — auto-continue all pending
     runtime.lifeLost.set(null);
     runtime.rs.mode = Mode.GAME;
     log("Cleared life-lost dialog → game mode");
   } else if (mode === Mode.BANNER || mode === Mode.BALLOON_ANIM) {
-    // Visual transitions — skip to game mode
     runtime.rs.mode = Mode.GAME;
     log("Skipped banner/animation → game mode");
   }
 
-  // Send full state so other watchers reconcile
   send(buildFullStateMessage(state, runtime.rs.battleAnim.flights));
-
   log("Promotion complete, now running as host");
 }
 
-function resetPhantomTrackingMaps(): void {
-  lastSentAimTarget.clear();
-  lastSentPiecePhantom.clear();
-  lastSentCannonPhantom.clear();
-}
-
-/** Structured log for E2E test analysis (dev only). */
 function log(msg: string): void {
   if (!DEV) return;
-  const modeStr = isHost ? "host" : myPlayerId >= 0 ? "player" : "watcher";
-  console.log(`[online] (mode=${modeStr} pid=${myPlayerId}) ${msg}`);
+  const modeStr = session.isHost ? "host" : session.myPlayerId >= 0 ? "player" : "watcher";
+  console.log(`[online] (mode=${modeStr} pid=${session.myPlayerId}) ${msg}`);
 }
 
 function send(msg: GameMessage): void {
-  if (ws?.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(msg));
+  if (session.ws?.readyState === WebSocket.OPEN) {
+    session.ws.send(JSON.stringify(msg));
   }
+}
+
+function resetDedup(): void {
+  dedup.aimTarget.clear();
+  dedup.piecePhantom.clear();
+  dedup.cannonPhantom.clear();
 }
 
 function applyFullState(msg: FullStateMessage): void {
   const state = runtime.rs.state;
   const result = applyFullStateSnapshot(state, msg);
 
-  // Restore in-flight balloon animations if present
   if (result.balloonFlights) {
     runtime.rs.battleAnim.flights = result.balloonFlights;
   }
 
-  // Reset watcher timing to current moment
   watcher.timing.phaseStartTime = performance.now();
   watcher.timing.phaseDuration = state.timer;
   if (state.battleCountdown > 0) {

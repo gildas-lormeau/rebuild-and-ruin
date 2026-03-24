@@ -260,6 +260,26 @@ export function applyGruntsCheckpoint(
   }));
 }
 
+export function buildGameOverPayload(
+  winner: { id: number } | null,
+  state: GameState,
+  playerNames: ReadonlyArray<string>,
+) {
+  const winnerName = winner ? (playerNames[winner.id] ?? `Player ${winner.id + 1}`) : "Nobody";
+  return {
+    winnerName,
+    serverPayload: {
+      type: MSG.GAME_OVER,
+      winner: winner ? winnerName : null,
+      scores: state.players.map((p) => ({
+        name: playerNames[p.id] ?? `P${p.id + 1}`,
+        score: p.score,
+        eliminated: p.eliminated,
+      })),
+    },
+  };
+}
+
 function serializeGrunts(state: GameState) {
   return state.grunts.map((g) => ({
     row: g.row,

@@ -1,15 +1,16 @@
 import { MSG, type ServerMessage } from "../server/protocol.ts";
 import type { BannerShow } from "./battle-ticks.ts";
-import { FOCUS_REMATCH, type GameOverFocus } from "./game-ui-types.ts";
+import { FOCUS_REMATCH, type GameOverFocus, Mode } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
+import type { WatcherTimingState } from "./online-watcher-battle.ts";
 import { BANNER_PLACE_CANNONS } from "./phase-banner.ts";
 import type { RGB } from "./player-config.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { GameState } from "./types.ts";
 import { Phase } from "./types.ts";
 
-export interface TransitionContext {
+interface TransitionContext {
   getState: () => GameState;
   getMyPlayerId: () => number;
   getControllers: () => PlayerController[];
@@ -17,17 +18,10 @@ export interface TransitionContext {
   clearSelectionOverlay: () => void;
   now: () => number;
 
-  // Watcher timing
-  setWatcherPhaseStartTime: (value: number) => void;
-  setWatcherPhaseDuration: (value: number) => void;
-  setWatcherCountdownStartTime: (value: number) => void;
-  setWatcherCountdownDuration: (value: number) => void;
-
-  // Mode setters
-  setModeGame: () => void;
-  setModeCastleBuild: () => void;
-  setModeBalloonAnim: () => void;
-  setModeStopped: () => void;
+  /** Mutable watcher timing — written directly by transition handlers. */
+  watcherTiming: WatcherTimingState;
+  /** Set the runtime mode (GAME, CASTLE_BUILD, BALLOON_ANIM, STOPPED). */
+  setMode: (mode: Mode) => void;
 
   // Constants
   battleCountdown: number;
@@ -85,12 +79,12 @@ export function handleCastleWallsTransition(msg: ServerMessage, ctx: TransitionC
     ctx.enterCannonPlacePhase(state);
     state.timer = state.cannonPlaceTimer;
     ctx.showBanner(BANNER_PLACE_CANNONS, () => {
-      ctx.setWatcherPhaseStartTime(ctx.now());
-      ctx.setWatcherPhaseDuration(state.timer);
-      ctx.setModeGame();
+      ctx.watcherTiming.phaseStartTime = ctx.now();
+      ctx.watcherTiming.phaseDuration = state.timer;
+      ctx.setMode(Mode.GAME);
     });
   });
-  ctx.setModeCastleBuild();
+  ctx.setMode(Mode.CASTLE_BUILD);
 }
 
 export function handleCannonStartTransition(msg: ServerMessage, ctx: TransitionContext): void {
@@ -115,9 +109,9 @@ export function handleCannonStartTransition(msg: ServerMessage, ctx: TransitionC
     state.phase = Phase.CANNON_PLACE;
     state.timer = state.cannonPlaceTimer;
     ctx.showBanner(BANNER_PLACE_CANNONS, () => {
-      ctx.setWatcherPhaseStartTime(ctx.now());
-      ctx.setWatcherPhaseDuration(state.timer);
-      ctx.setModeGame();
+      ctx.watcherTiming.phaseStartTime = ctx.now();
+      ctx.watcherTiming.phaseDuration = state.timer;
+      ctx.setMode(Mode.GAME);
     });
   }
 }
@@ -145,12 +139,12 @@ export function handleBattleStartTransition(msg: ServerMessage, ctx: TransitionC
             progress: 0,
           })),
         );
-        ctx.setModeBalloonAnim();
+        ctx.setMode(Mode.BALLOON_ANIM);
       } else {
         state.battleCountdown = ctx.battleCountdown;
-        ctx.setWatcherCountdownStartTime(battleReceivedAt + ctx.bannerDuration * 1000);
-        ctx.setWatcherCountdownDuration(ctx.battleCountdown);
-        ctx.setModeGame();
+        ctx.watcherTiming.countdownStartTime = battleReceivedAt + ctx.bannerDuration * 1000;
+        ctx.watcherTiming.countdownDuration = ctx.battleCountdown;
+        ctx.setMode(Mode.GAME);
       }
     },
     true,
@@ -170,9 +164,9 @@ export function handleBuildStartTransition(msg: ServerMessage, ctx: TransitionCo
   ctx.showBanner(
     BANNER_REPAIR_ONLINE,
     () => {
-      ctx.setWatcherPhaseStartTime(buildReceivedAt + ctx.bannerDuration * 1000);
-      ctx.setWatcherPhaseDuration(state.timer);
-      ctx.setModeGame();
+      ctx.watcherTiming.phaseStartTime = buildReceivedAt + ctx.bannerDuration * 1000;
+      ctx.watcherTiming.phaseDuration = state.timer;
+      ctx.setMode(Mode.GAME);
     },
     true,
   );
@@ -211,5 +205,5 @@ export function handleGameOverTransition(msg: ServerMessage, ctx: TransitionCont
     focused: FOCUS_REMATCH,
   });
   ctx.render();
-  ctx.setModeStopped();
+  ctx.setMode(Mode.STOPPED);
 }
