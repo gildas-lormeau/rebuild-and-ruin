@@ -1,6 +1,7 @@
 import { MSG, type ServerMessage } from "../server/protocol.ts";
 import type { BannerShow } from "./battle-ticks.ts";
 import { FOCUS_REMATCH, type GameOverFocus } from "./game-ui-types.ts";
+import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
 import { BANNER_PLACE_CANNONS } from "./phase-banner.ts";
 import type { RGB } from "./player-config.ts";
@@ -61,13 +62,17 @@ export interface TransitionContext {
   setGameOverFrame: (payload: { winner: string; scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: { wallsDestroyed: number; cannonsKilled: number } }[]; focused: GameOverFocus }) => void;
 }
 
+const MAX_TILE_KEY = GRID_ROWS * GRID_COLS;
 const BANNER_BATTLE_ONLINE = "Battle!";
 const BANNER_REPAIR_ONLINE = "Repair!";
 
 export function handleCastleWallsTransition(msg: ServerMessage, ctx: TransitionContext): void {
   if (msg.type !== MSG.CASTLE_WALLS) return;
   const state = ctx.getState();
-  const plans = msg.plans;
+  const plans = msg.plans.map((p) => ({
+    ...p,
+    tiles: p.tiles.filter((t) => t >= 0 && t < MAX_TILE_KEY),
+  }));
   const maxTiles = Math.max(...plans.map((p) => p.tiles.length), 0);
   ctx.getSelectionStates().clear();
   ctx.clearSelectionOverlay();

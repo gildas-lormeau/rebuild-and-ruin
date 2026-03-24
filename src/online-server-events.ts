@@ -92,9 +92,7 @@ export function handleServerIncrementalMessage(
     case MSG.OPPONENT_TOWER_SELECTED: {
       if (!state || !validPid(msg.playerId, state)) return true;
       if (msg.towerIdx < 0 || msg.towerIdx >= state.map.towers.length) return true;
-      const acceptTower =
-        !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
-      if (acceptTower) {
+      if (acceptRemote(msg.playerId, deps)) {
         const tower = state.map.towers[msg.towerIdx];
         if (tower) {
           const player = state.players[msg.playerId]!;
@@ -125,9 +123,7 @@ export function handleServerIncrementalMessage(
       if (!state || !validPid(msg.playerId, state)) return true;
       if (!inBounds(msg.row, msg.col)) return true;
       if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return true;
-      const acceptPiece =
-        !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
-      if (acceptPiece) {
+      if (acceptRemote(msg.playerId, deps)) {
         deps.log(
           `applying piece placement for P${msg.playerId} (${msg.offsets.length} tiles)`,
         );
@@ -145,12 +141,11 @@ export function handleServerIncrementalMessage(
     case MSG.OPPONENT_CANNON_PLACED: {
       if (!state || !validPid(msg.playerId, state)) return true;
       if (!inBounds(msg.row, msg.col)) return true;
-      const acceptCannon =
-        !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
+      const accept = acceptRemote(msg.playerId, deps);
       deps.log(
-        `opponent_cannon_placed: P${msg.playerId} accept=${acceptCannon} isHost=${deps.isHost} remoteHumans=[${[...deps.remoteHumanSlots]}] hasState=${!!state}`,
+        `opponent_cannon_placed: P${msg.playerId} accept=${accept} isHost=${deps.isHost} remoteHumans=[${[...deps.remoteHumanSlots]}] hasState=${!!state}`,
       );
-      if (acceptCannon) {
+      if (accept) {
         deps.applyCannonPlacement(
           state,
           msg.playerId,
@@ -170,9 +165,7 @@ export function handleServerIncrementalMessage(
       if (!Number.isFinite(msg.speed) || msg.speed <= 0) return true;
       if (!Number.isFinite(msg.startX) || !Number.isFinite(msg.startY) ||
           !Number.isFinite(msg.targetX) || !Number.isFinite(msg.targetY)) return true;
-      const acceptFire =
-        !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
-      if (acceptFire) {
+      if (acceptRemote(msg.playerId, deps)) {
         const player = state.players[msg.playerId];
         if (!player || !player.cannons[msg.cannonIdx]) {
           deps.log(`cannon_fired: stale ref P${msg.playerId} cannon[${msg.cannonIdx}] — skipped`);
@@ -220,8 +213,7 @@ export function handleServerIncrementalMessage(
 
     case MSG.AIM_UPDATE: {
       if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return true;
-      const acceptAim = !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
-      if (acceptAim) {
+      if (acceptRemote(msg.playerId, deps)) {
         deps.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
         if (msg.orbit) deps.watcherOrbitParams.set(msg.playerId, msg.orbit);
       }
@@ -238,9 +230,7 @@ export function handleServerIncrementalMessage(
     case MSG.OPPONENT_PHANTOM: {
       if (state && !validPid(msg.playerId, state)) return true;
       if (!inBounds(msg.row, msg.col)) return true;
-      const acceptPhantom =
-        !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
-      if (acceptPhantom) {
+      if (acceptRemote(msg.playerId, deps)) {
         const next = deps
           .getRemotePiecePhantoms()
           .filter((p) => p.playerId !== msg.playerId);
@@ -258,9 +248,7 @@ export function handleServerIncrementalMessage(
     case MSG.OPPONENT_CANNON_PHANTOM: {
       if (state && !validPid(msg.playerId, state)) return true;
       if (!inBounds(msg.row, msg.col)) return true;
-      const acceptCannonPhantom =
-        !deps.isHost || deps.remoteHumanSlots.has(msg.playerId);
-      if (acceptCannonPhantom) {
+      if (acceptRemote(msg.playerId, deps)) {
         const next = deps
           .getRemoteCannonPhantoms()
           .filter((p) => p.playerId !== msg.playerId);
@@ -298,6 +286,11 @@ export function handleServerIncrementalMessage(
     default:
       return false;
   }
+}
+
+/** Watchers accept all remote messages; hosts only accept from remote humans. */
+function acceptRemote(pid: number, deps: Pick<HandleServerIncrementalDeps, "isHost" | "remoteHumanSlots">): boolean {
+  return !deps.isHost || deps.remoteHumanSlots.has(pid);
 }
 
 function validPid(pid: number, state: GameState): boolean {

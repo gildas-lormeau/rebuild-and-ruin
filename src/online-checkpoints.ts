@@ -50,12 +50,8 @@ export function applyCannonStartCheckpoint(
   deps.state.burningPits = msg.burningPits;
   deps.state.cannonLimits = msg.limits;
   deps.state.timer = msg.timer;
-  deps.state.cannonballs = [];
-  deps.battleAnim.impacts = [];
-  deps.remoteCrosshairs.clear();
-  deps.watcherCrosshairPos.clear();
-  deps.watcherOrbitParams.clear();
-  deps.watcherIdlePhases.clear();
+  resetBattleState(deps);
+  resetWatcherCrosshairs(deps);
   resetCannonFacings(deps.state);
 }
 
@@ -86,13 +82,9 @@ export function applyBattleStartCheckpoint(
     }
   }
 
-  deps.battleAnim.impacts = [];
-  deps.state.cannonballs = [];
+  resetBattleState(deps);
   deps.state.timer = BATTLE_TIMER;
-  deps.remoteCrosshairs.clear();
-  deps.watcherCrosshairPos.clear();
-  deps.watcherOrbitParams.clear();
-  deps.watcherIdlePhases.clear();
+  resetWatcherCrosshairs(deps);
   for (const p of deps.state.players) {
     if (p.eliminated || !p.homeTower) continue;
     deps.watcherCrosshairPos.set(p.id, {
@@ -115,8 +107,21 @@ export function applyBuildStartCheckpoint(
   deps.state.burningPits = msg.burningPits;
   deps.state.round = msg.round;
   deps.state.timer = msg.timer;
-  deps.state.cannonballs = [];
-  deps.battleAnim.impacts = [];
+  resetBattleState(deps);
   deps.accum.grunt = 0;
   resetCannonFacings(deps.state);
+}
+
+/** Clear in-flight cannonballs and visual impacts. */
+function resetBattleState(deps: CheckpointDeps): void {
+  deps.state.cannonballs = [];
+  deps.battleAnim.impacts = [];
+}
+
+/** Clear all watcher crosshair/orbit tracking maps. */
+function resetWatcherCrosshairs(deps: CheckpointDeps): void {
+  deps.remoteCrosshairs.clear();
+  deps.watcherCrosshairPos.clear();
+  deps.watcherOrbitParams.clear();
+  deps.watcherIdlePhases.clear();
 }

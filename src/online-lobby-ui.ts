@@ -167,6 +167,11 @@ export function setupLobbyUi({
     roomPollTimer = setInterval(() => {
       if (elements.lobbyMenu.classList.contains("active")) fetchRooms();
     }, ROOM_POLL_INTERVAL_MS);
+
+    // Stop polling on page unload to avoid leaked timers
+    addEventListener("pagehide", () => {
+      if (roomPollTimer) { clearInterval(roomPollTimer); roomPollTimer = null; }
+    }, { once: true });
   }
 }
 

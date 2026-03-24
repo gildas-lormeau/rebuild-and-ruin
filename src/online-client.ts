@@ -594,15 +594,10 @@ function initFromServer(msg: InitMessage): void {
   });
 }
 
-function resetPhantomTrackingMaps(): void {
-  lastSentAimTarget.clear();
-  lastSentPiecePhantom.clear();
-  lastSentCannonPhantom.clear();
-}
-
 function promoteToHost(): void {
   log("PROMOTING TO HOST");
   isHost = true;
+  resetPhantomTrackingMaps();
 
   const state = runtime.rs.state;
   const controllers = runtime.rs.controllers;
@@ -664,9 +659,15 @@ function promoteToHost(): void {
   }
 
   // Send full state so other watchers reconcile
-  send(buildFullStateMessage(state));
+  send(buildFullStateMessage(state, runtime.rs.battleAnim.flights));
 
   log("Promotion complete, now running as host");
+}
+
+function resetPhantomTrackingMaps(): void {
+  lastSentAimTarget.clear();
+  lastSentPiecePhantom.clear();
+  lastSentCannonPhantom.clear();
 }
 
 /** Structured log for E2E test analysis (dev only). */
@@ -684,7 +685,12 @@ function send(msg: GameMessage): void {
 
 function applyFullState(msg: FullStateMessage): void {
   const state = runtime.rs.state;
-  applyFullStateSnapshot(state, msg);
+  const result = applyFullStateSnapshot(state, msg);
+
+  // Restore in-flight balloon animations if present
+  if (result.balloonFlights) {
+    runtime.rs.battleAnim.flights = result.balloonFlights;
+  }
 
   // Reset watcher timing to current moment
   watcher.timing.phaseStartTime = performance.now();

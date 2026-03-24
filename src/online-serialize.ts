@@ -3,30 +3,18 @@
  * Pure functions that read/write GameState — no module-level state.
  */
 
-import type { FullStateMessage } from "../server/protocol.ts";
+import type { FullStateMessage, SerializedPlayer } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
 import type { BalloonFlight } from "./battle-system.ts";
 import { Rng } from "./rng.ts";
 import type { GameState } from "./types.ts";
 import { CannonMode, Phase } from "./types.ts";
 
-export type SerializedPlayer = {
-  id: number;
-  walls: number[];
-  interior: number[];
-  cannons: {
-    row: number;
-    col: number;
-    hp: number;
-    kind: string;
-    facing?: number;
-  }[];
-  ownedTowerIndices: number[];
-  homeTowerIdx: number | null;
-  lives: number;
-  eliminated: boolean;
-  score: number;
-};
+export type { SerializedPlayer } from "../server/protocol.ts";
+
+interface FullStateResult {
+  balloonFlights?: { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[];
+}
 
 export function applyHousesCheckpoint(
   state: GameState,
@@ -97,7 +85,10 @@ export function buildBattleStartMessage(
   };
 }
 
-export function buildFullStateMessage(state: GameState): FullStateMessage {
+export function buildFullStateMessage(
+  state: GameState,
+  flights?: { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[],
+): FullStateMessage {
   return {
     type: MSG.FULL_STATE,
     phase: Phase[state.phase],
@@ -141,6 +132,9 @@ export function buildFullStateMessage(state: GameState): FullStateMessage {
       scoringPlayerId: b.scoringPlayerId,
       incendiary: b.incendiary || undefined,
     })),
+    balloonFlights: flights && flights.length > 0
+      ? flights.map((f) => ({ ...f.flight, progress: f.progress }))
+      : undefined,
   };
 }
 
@@ -164,7 +158,7 @@ export function serializePlayers(state: GameState) {
   }));
 }
 
-export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage): void {
+export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage): FullStateResult {
   state.phase = Phase[msg.phase as keyof typeof Phase];
   state.round = msg.round;
   state.timer = msg.timer;
@@ -208,10 +202,13 @@ export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage):
     }));
 
   // Restore captured cannons (reconstruct object references from indices)
-  state.capturedCannons = msg.capturedCannons.map((cc) => {
-    const victim = state.players[cc.victimId]!;
-    return { cannon: victim.cannons[cc.cannonIdx]!, cannonIdx: cc.cannonIdx, victimId: cc.victimId, capturerId: cc.capturerId };
-  }).filter((cc) => cc.cannon); // skip if cannon index is stale
+  state.capturedCannons = msg.capturedCannons
+    .filter((cc) => cc.victimId >= 0 && cc.victimId < state.players.length)
+    .map((cc) => {
+      const victim = state.players[cc.victimId]!;
+      const cannon = victim.cannons[cc.cannonIdx];
+      return cannon ? { cannon, cannonIdx: cc.cannonIdx, victimId: cc.victimId, capturerId: cc.capturerId } : null;
+    }).filter((cc) => cc !== null);
 
   // Restore balloonHits (reconstruct Cannon object references as Map keys)
   state.balloonHits = new Map();
@@ -219,6 +216,13 @@ export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage):
     const cannon = state.players[bh.playerId]?.cannons[bh.cannonIdx];
     if (cannon) state.balloonHits.set(cannon, { count: bh.count, capturerIds: bh.capturerIds });
   }
+
+  return {
+    balloonFlights: msg.balloonFlights?.map((f) => ({
+      flight: { startX: f.startX, startY: f.startY, endX: f.endX, endY: f.endY },
+      progress: f.progress,
+    })),
+  };
 }
 
 export function applyPlayersCheckpoint(

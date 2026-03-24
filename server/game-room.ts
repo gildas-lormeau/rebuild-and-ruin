@@ -20,6 +20,7 @@ import { MSG, type RoomSettings, sanitizeRoomSettings } from "./protocol.ts";
 // Rate limits are generous — AI can act very fast.
 // These only block obvious abuse, not normal gameplay.
 const RATE_LIMIT_PER_SEC = 100;
+const RATE_LIMIT_WINDOW_MS = 1000;
 const RATE_LIMITED_TYPES: Set<string> = new Set([
   MSG.OPPONENT_PHANTOM,
   MSG.OPPONENT_CANNON_PHANTOM,
@@ -178,7 +179,11 @@ export class GameRoom {
     // --- Identity enforcement (for messages with playerId) ---
     if ("playerId" in msg && !HOST_ONLY.has(type)) {
       const senderPid = this.players.get(senderSocket);
-      if (senderPid !== undefined && msg.playerId !== senderPid) {
+      if (senderPid === undefined) {
+        console.log(`[room] REJECTED ${type}: sender not registered`);
+        return;
+      }
+      if (msg.playerId !== senderPid) {
         console.log(`[room] REJECTED ${type}: P${senderPid} spoofing P${msg.playerId}`);
         return;
       }
@@ -205,7 +210,7 @@ export class GameRoom {
       const socketLimits = this.rateLimits.get(senderSocket)!;
       const now = Date.now();
       let bucket = socketLimits.get(type);
-      if (!bucket || now - bucket.windowStart >= 1000) {
+      if (!bucket || now - bucket.windowStart >= RATE_LIMIT_WINDOW_MS) {
         bucket = { count: 0, windowStart: now };
         socketLimits.set(type, bucket);
       }
