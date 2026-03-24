@@ -1,5 +1,5 @@
 import { createGameFromSeed } from "./game-engine.ts";
-import type { LobbyState } from "./game-ui-types.ts";
+import { GAME_CONTAINER_ACTIVE, type LobbyState } from "./game-ui-types.ts";
 import { generateMap } from "./map-generation.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { SelectionState } from "./selection.ts";
@@ -76,7 +76,7 @@ export function setupWaitingRoom(deps: ShowWaitingRoomDeps): void {
   } = deps;
 
   lobbyEl.style.display = "none";
-  canvas.style.display = "block";
+  canvas.parentElement!.classList.add(GAME_CONTAINER_ACTIVE);
 
   roomCodeOverlay.style.display = "block";
   roomCodeOverlay.innerHTML = "";

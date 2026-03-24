@@ -28,7 +28,7 @@ import {
 } from "./game-engine.ts";
 import type { GameRuntime } from "./game-runtime.ts";
 import { createGameRuntime } from "./game-runtime.ts";
-import { Mode } from "./game-ui-types.ts";
+import { GAME_CONTAINER_ACTIVE, Mode } from "./game-ui-types.ts";
 import { GRID_COLS } from "./grid.ts";
 import { getWsUrl } from "./online-config.ts";
 import { broadcastLocalCrosshair, extendWithRemoteCrosshairs } from "./online-host-crosshairs.ts";
@@ -324,7 +324,7 @@ function maybeSendAimUpdate(x: number, y: number, playerId?: number): void {
 function showLobby(): void {
   runtime.rs.mode = Mode.STOPPED;
   runtime.rs.lobby.active = false;
-  canvas.style.display = "none";
+  canvas.parentElement!.classList.remove(GAME_CONTAINER_ACTIVE);
   roomCodeOverlay.style.display = "none";
   lobbyEl.style.display = "block";
   showLobbySection("lobby-menu", { lobbyMenu, lobbyCreate, lobbyJoin });

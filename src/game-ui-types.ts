@@ -131,6 +131,8 @@ export interface LobbyState {
 }
 
 const SETTINGS_KEY = "castles99_settings";
+/** CSS class toggled on #game-container to show/hide it. */
+export const GAME_CONTAINER_ACTIVE = "active";
 export const SEED_RANDOM = "random" as const;
 const DEFAULT_SETTINGS: GameSettings = {
   difficulty: 1,

@@ -12,7 +12,60 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 100%; height: 100%; overflow: hidden; }
     body { background: #1a1a2e; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: sans-serif; color: #e0d0b0; }
-    canvas { image-rendering: pixelated; display: none; touch-action: none; }
+    /* Game container: CSS grid handles canvas + touch panels layout */
+    #game-container {
+      display: none; /* shown when game starts */
+      width: 100vw;
+      height: 100vh;
+      background: #1a1a2e;
+      grid-template-columns: auto 1fr auto;
+      grid-template-rows: 100%;
+    }
+    #game-container.active { display: grid; }
+
+    #game-container canvas {
+      grid-column: 2;
+      place-self: center;
+      aspect-ratio: 40 / 28;
+      max-width: 100%;
+      max-height: 100%;
+      image-rendering: pixelated;
+      touch-action: none;
+    }
+
+    .touch-panel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5vh 5vmin;
+      background: #1a1a2e;
+      height: 100%;
+      font-size: min(20px, 3.2vmin);
+    }
+    .touch-panel .disabled { opacity: 0.3; pointer-events: none; }
+    .touch-panel .disabled button { pointer-events: none; }
+
+    /* Portrait: panels form a bottom row */
+    @media (orientation: portrait) {
+      #game-container.has-touch-panels {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 1fr auto;
+      }
+      #game-container.has-touch-panels canvas {
+        grid-column: 1 / -1;
+      }
+      #game-container.has-touch-panels .touch-panel {
+        height: auto;
+        width: 100%;
+        flex-direction: row;
+      }
+    }
+
+    /* Left-handed: swap panel sides */
+    #game-container.left-handed .touch-panel:first-of-type { order: 3; }
+    #game-container.left-handed .touch-panel:last-of-type { order: -1; }
+    #game-container.left-handed canvas { order: 1; }
 
     /* Mode selector */
     #mode-select { text-align: center; }
@@ -144,7 +197,9 @@
   </div>
 
   <div id="room-code-overlay"></div>
-  <canvas id="canvas"></canvas>
+  <div id="game-container">
+    <canvas id="canvas"></canvas>
+  </div>
 
   <script type="module">
     const modeSelect = document.getElementById("mode-select");
@@ -159,6 +214,7 @@
     // Request fullscreen + wake lock on mobile (must be in a user gesture handler)
     function tryFullscreen() {
       if (!("ontouchstart" in window)) return; // only on touch devices
+      if (location.port) return; // skip in dev mode (Vite dev server)
       document.documentElement.requestFullscreen?.().catch(() => {});
       navigator.wakeLock?.request?.("screen").catch(() => {});
     }
@@ -215,29 +271,6 @@
         setTimeout(() => { tryFullscreen(); btnJoinConfirm.click(); }, 300);
       })();
     }
-
-    // Resize canvas to fill viewport while keeping aspect ratio
-    const canvas = document.getElementById("canvas");
-    const ASPECT = 40 * 16 / (28 * 16); // GRID_COLS * TILE_SIZE / (GRID_ROWS * TILE_SIZE)
-    function resizeCanvas() {
-      if (canvas.style.display === "none") return;
-      const aspect = ASPECT;
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      let w, h;
-      if (vw / vh > aspect) {
-        h = vh;
-        w = h * aspect;
-      } else {
-        w = vw;
-        h = w / aspect;
-      }
-      canvas.style.width = w + "px";
-      canvas.style.height = h + "px";
-    }
-    window.addEventListener("resize", resizeCanvas);
-    // Also run on display changes via MutationObserver
-    new MutationObserver(() => resizeCanvas()).observe(canvas, { attributes: true, attributeFilter: ["style"] });
 
     // Register service worker in production only (not on dev server)
     if ("serviceWorker" in navigator && !location.port) {

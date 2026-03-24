@@ -7,7 +7,7 @@
  */
 
 import { createGameRuntime } from "./game-runtime.ts";
-import { Mode } from "./game-ui-types.ts";
+import { GAME_CONTAINER_ACTIVE, Mode } from "./game-ui-types.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 import { loadAtlas } from "./sprites.ts";
 import { LOBBY_TIMER } from "./types.ts";
@@ -39,7 +39,7 @@ const runtime = createGameRuntime({
   },
 });
 
-canvas.style.display = "block";
+canvas.parentElement!.classList.add(GAME_CONTAINER_ACTIVE);
 
 runtime.registerInputHandlers();
 

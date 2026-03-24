@@ -76,7 +76,7 @@ import { createSelectionSystem } from "./runtime-selection.ts";
 import { createRuntimeState } from "./runtime-state.ts";
 import { unpackTile } from "./spatial.ts";
 import { registerTouchHandlers } from "./touch-input.ts";
-import { createDpad, createEnemyZoomButton, createHomeZoomButton, createQuitButton } from "./touch-ui.ts";
+import { createDpad, createEnemyZoomButton, createHomeZoomButton, createQuitButton, createTouchPanels } from "./touch-ui.ts";
 import type { GameState } from "./types.ts";
 import {
   BANNER_DURATION,
@@ -89,6 +89,7 @@ export type { GameRuntime } from "./game-runtime-types.ts";
 
 export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const { canvas } = config;
+  const gameContainer = canvas.parentElement as HTMLElement;
 
   // -------------------------------------------------------------------------
   // Mutable state (shared bag — see runtime-state.ts)
@@ -223,11 +224,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     });
   }
 
+  function onLobbyJoin(pid: number): void {
+    config.onLobbySlotJoined(pid);
+    renderLobby();
+    // On touch devices in local mode, start immediately after joining
+    if (IS_TOUCH_DEVICE && !config.isOnline) {
+      rs.lobby.active = false;
+      config.onTickLobbyExpired();
+    }
+  }
+
   function lobbyKeyJoin(key: string): boolean {
-    return lobbyKeyJoinShared(uiCtx, key, (pid) => {
-      config.onLobbySlotJoined(pid);
-      renderLobby();
-    });
+    return lobbyKeyJoinShared(uiCtx, key, onLobbyJoin);
   }
 
   function lobbyClick(canvasX: number, canvasY: number): boolean {
@@ -254,13 +262,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     }
     if (!rs.lobby.joined[hit.slotId]) {
       rs.mouseJoinedSlot = hit.slotId;
-      config.onLobbySlotJoined(hit.slotId);
-      renderLobby();
-      // On touch devices in local mode, start immediately after joining
-      if (IS_TOUCH_DEVICE && !config.isOnline) {
-        rs.lobby.active = false;
-        config.onTickLobbyExpired();
-      }
+      onLobbyJoin(hit.slotId);
     }
     return true;
   }
@@ -495,12 +497,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     }
 
     renderMap(rs.state.map, canvas, rs.overlay, updateViewport());
-    const noBanner = rs.mode !== Mode.BANNER && rs.mode !== Mode.BALLOON_ANIM && rs.mode !== Mode.CASTLE_BUILD;
-    const showZoom = noBanner && (rs.mode === Mode.GAME || rs.mode === Mode.SELECTION);
     const hasHuman = firstHuman() !== null;
-    dpad?.update(hasHuman && (rs.mode === Mode.GAME || rs.mode === Mode.SELECTION) ? rs.state.phase : null);
-    homeZoomButton?.update(showZoom && hasHuman ? rs.state.phase : null);
-    enemyZoomButton?.update(showZoom && hasHuman ? rs.state.phase : null);
+    const inGame = rs.mode === Mode.GAME || rs.mode === Mode.SELECTION;
+    dpad?.update(hasHuman && inGame ? rs.state.phase : null);
+    homeZoomButton?.update();
+    enemyZoomButton?.update();
     const inLobby = rs.mode === Mode.LOBBY || rs.mode === Mode.OPTIONS || rs.mode === Mode.CONTROLS;
     quitButton?.update(!inLobby ? rs.state.phase : null);
   }
@@ -515,10 +516,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs.scoreDeltaOnDone = null;
     camera.unzoom();
     rs.mouseJoinedSlot = -1;
-    // Hide all DOM buttons
-    dpad?.update(null);
-    homeZoomButton?.update(null);
-    enemyZoomButton?.update(null);
+    dpad?.update(null); // hide d-pad buttons, panels stay visible
     quitButton?.update(null);
     config.showLobby();
   }
@@ -751,6 +749,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     // D-pad + action buttons (mobile only)
     if (IS_TOUCH_DEVICE) {
+      const panels = createTouchPanels(gameContainer);
       const placePiece = inputDeps.tryPlacePieceAndSend;
       const placeCannon = inputDeps.tryPlaceCannonAndSend;
       dpad = createDpad({
@@ -761,12 +760,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         getSelectionStates: () => rs.selectionStates,
         highlightTowerForPlayer: selection.highlight,
         confirmSelectionForPlayer: selection.confirm,
-        finishSelection: () => selection.finish(),
-        finishReselection: () => selection.finishReselection(),
         isHost: config.getIsHost,
+        lobbyAction: () => lobbyKeyJoin(rs.settings.keyBindings[0]!.confirm),
         render,
         getLeftHanded: () => rs.settings.leftHanded,
-      });
+      }, panels);
+      dpad.update(null); // initial state: d-pad + rotate disabled
       const zoomDeps = {
         getState: () => rs.state,
         getCameraZone: camera.getCameraZone,
@@ -775,23 +774,37 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         getEnemyZones,
         render,
       };
-      homeZoomButton = createHomeZoomButton(zoomDeps);
-      enemyZoomButton = createEnemyZoomButton(zoomDeps);
+      // Zoom buttons at top-left, quit at top-right
+      homeZoomButton = createHomeZoomButton(zoomDeps, panels.leftTop);
+      enemyZoomButton = createEnemyZoomButton(zoomDeps, panels.leftTop);
+      const quitDeps = {
+        getQuitPending: () => rs.quitPending,
+        setQuitPending: (v: boolean) => { rs.quitPending = v; },
+        setQuitTimer: (v: number) => { rs.quitTimer = v; },
+        setQuitMessage: (msg: string) => { rs.quitMessage = msg; },
+        showLobby: returnToLobby,
+        getControllers: () => rs.controllers,
+        isHuman,
+        render,
+      };
+      quitButton = createQuitButton(quitDeps, panels.rightTop);
       camera.enableMobileZoom();
     }
   }
 
-  // Quit button (always, not just touch)
-  quitButton = createQuitButton({
-    getQuitPending: () => rs.quitPending,
-    setQuitPending: (v) => { rs.quitPending = v; },
-    setQuitTimer: (v) => { rs.quitTimer = v; },
-    setQuitMessage: (msg) => { rs.quitMessage = msg; },
-    showLobby: returnToLobby,
-    getControllers: () => rs.controllers,
-    isHuman,
-    render,
-  });
+  // Desktop fallback: standalone quit button (touch devices already have it in-panel)
+  if (!quitButton) {
+    quitButton = createQuitButton({
+      getQuitPending: () => rs.quitPending,
+      setQuitPending: (v) => { rs.quitPending = v; },
+      setQuitTimer: (v) => { rs.quitTimer = v; },
+      setQuitMessage: (msg) => { rs.quitMessage = msg; },
+      showLobby: returnToLobby,
+      getControllers: () => rs.controllers,
+      isHuman,
+      render,
+    });
+  }
 
   // -------------------------------------------------------------------------
   // Return the runtime object

@@ -1,8 +1,11 @@
 /**
- * Touch UI elements — on-screen buttons for mobile.
+ * Touch UI — pocket-console layout for mobile.
  *
- * D-pad (build/cannon phases), zoom buttons, quit button.
- * Only created on touch-capable devices.
+ * Two opaque side panels (landscape) or a bottom panel (portrait) hold all
+ * touch controls.  The game canvas fills the remaining space without overlap.
+ *
+ * Left panel : d-pad + zoom/quit
+ * Right panel: rotate + confirm (action)
  */
 
 import { hapticTap } from "./haptics.ts";
@@ -36,9 +39,9 @@ interface DpadDeps {
   getSelectionStates: () => Map<number, SelectionState>;
   highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
   confirmSelectionForPlayer: (pid: number, isReselect: boolean) => boolean;
-  finishSelection: () => void;
-  finishReselection: () => void;
   isHost: () => boolean;
+  /** Join P1 in lobby (or skip if already joined). */
+  lobbyAction: () => void;
   render: () => void;
   getLeftHanded: () => boolean;
 }
@@ -63,31 +66,30 @@ interface ZoomButtonDeps {
   render: () => void;
 }
 
-const DPAD_BTN = 48;
-       // arrow button size
-const DPAD_GAP = 2;
-        // gap between arrow buttons
-const ACTION_BTN = 56;
-     // action/rotate button size
-const DPAD_MARGIN = 84;
-    // distance from screen edge (clears zoom buttons at left: 24px + 48px + gap)
-const DPAD_BOTTOM = 20;
-// Button colors — re-aliased from render-theme for brevity in CSS templates
-const COLOR_ARROW_BG = TOUCH_ARROW_BG;
-const COLOR_ARROW_BORDER = TOUCH_ARROW_BORDER;
-const COLOR_ROTATE_BG = TOUCH_ROTATE_BG;
-const COLOR_ROTATE_BORDER = TOUCH_ROTATE_BORDER;
-const COLOR_ACTION_BG = TOUCH_ACTION_BG;
-const COLOR_ACTION_BORDER = TOUCH_ACTION_BORDER;
-const COLOR_QUIT_BG = TOUCH_QUIT_BG;
-const COLOR_QUIT_BORDER = TOUCH_QUIT_BORDER;
-const COLOR_ZOOM_HOME_BG = TOUCH_ZOOM_HOME_BG;
-const COLOR_ZOOM_HOME_BORDER = TOUCH_ZOOM_HOME_BORDER;
-const COLOR_ZOOM_ENEMY_BG = TOUCH_ZOOM_ENEMY_BG;
-const COLOR_ZOOM_ENEMY_BORDER = TOUCH_ZOOM_ENEMY_BORDER;
+/**
+ * Create the two side panels as children of #game-container.
+ * Layout is handled entirely by CSS grid + media queries in index.html.
+ */
+interface TouchPanels {
+  left: HTMLDivElement;
+  right: HTMLDivElement;
+  leftTop: HTMLDivElement;
+  leftBottom: HTMLDivElement;
+  rightTop: HTMLDivElement;
+  rightBottom: HTMLDivElement;
+}
+
+// Button sizing — one base unit, everything proportional.
+// Three constraints: absolute cap, viewport-relative, and panel-relative
+const PANEL_CLASS = "touch-panel";
+// vmin keeps buttons usable on both landscape and portrait.
+const BTN_UNIT = "min(48px, 7.5vmin)";
+const BTN_GAP = "5vmin";
+const DPAD_GAP_CSS = "0.3vmin";
+const GRID_SIZE_CSS = `calc(${BTN_UNIT} * 3 + ${DPAD_GAP_CSS} * 2)`;
+const ACTION_LG_CSS = `calc(${BTN_UNIT} + 1.2vmin)`;
 const BTN_BASE_CSS = `
-  border-radius: 10px;
-  z-index: 100;
+  border-radius: 1.5vmin;
   font-weight: bold;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -99,64 +101,71 @@ const BTN_BASE_CSS = `
   justify-content: center;
 `;
 const ARROW_CSS = BTN_BASE_CSS + `
-  width: ${DPAD_BTN}px;
-  height: ${DPAD_BTN}px;
-  background: ${COLOR_ARROW_BG};
-  border: 2px solid ${COLOR_ARROW_BORDER};
+  width: ${BTN_UNIT};
+  height: ${BTN_UNIT};
+  border-radius: 1vmin;
+  background: ${TOUCH_ARROW_BG};
+  border: 2px solid ${TOUCH_ARROW_BORDER};
   color: #c0d0e0;
-  font-size: 22px;
 `;
-const ACTION_CSS = BTN_BASE_CSS + `
-  width: ${ACTION_BTN}px;
-  height: ${ACTION_BTN}px;
+const ROUND_BTN_CSS = BTN_BASE_CSS + `
+  width: ${BTN_UNIT};
+  height: ${BTN_UNIT};
   border-radius: 50%;
-`;
-const ZOOM_BTN_SIZE = 48;
-const ZOOM_BTN_MARGIN = 24;
-const ZOOM_BTN_BOTTOM = 36;
-const ZOOM_BTN_GAP = 8;
-const ZOOM_BTN_CSS = `
-  position: fixed;
-  left: ${ZOOM_BTN_MARGIN}px;
-  width: ${ZOOM_BTN_SIZE}px;
-  height: ${ZOOM_BTN_SIZE}px;
-  border-radius: 50%;
-  z-index: 100;
-  font-size: 24px;
-  font-weight: bold;
-  display: none;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  cursor: pointer;
-  user-select: none;
 `;
 
-export function createDpad(deps: DpadDeps): {
+export function createTouchPanels(container: HTMLElement): TouchPanels {
+  const lp = document.createElement("div");
+  lp.className = PANEL_CLASS;
+  lp.style.gap = BTN_GAP;
+  container.prepend(lp);
+
+  const rp = document.createElement("div");
+  rp.className = PANEL_CLASS;
+  rp.style.gap = BTN_GAP;
+  container.append(rp);
+
+  container.classList.add("has-touch-panels");
+
+  // Each panel has top + bottom sections for space-between layout
+  const sectionCSS = `display: flex; flex-direction: column; align-items: center; gap: ${BTN_GAP};`;
+  function addSections(p: HTMLDivElement) {
+    const top = document.createElement("div");
+    top.style.cssText = sectionCSS;
+    const bottom = document.createElement("div");
+    bottom.style.cssText = sectionCSS;
+    p.appendChild(top);
+    p.appendChild(bottom);
+    return { top, bottom };
+  }
+
+  const leftSections = addSections(lp);
+  const rightSections = addSections(rp);
+
+  return {
+    left: lp, right: rp,
+    leftTop: leftSections.top, leftBottom: leftSections.bottom,
+    rightTop: rightSections.top, rightBottom: rightSections.bottom,
+  };
+}
+
+export function createDpad(deps: DpadDeps, panel: TouchPanels): {
   update: (phase: Phase | null) => void;
   setLeftHanded: (lh: boolean) => void;
 } {
-  const container = document.createElement("div");
-  container.style.cssText = `position: fixed; bottom: ${DPAD_BOTTOM}px; left: 0; right: 0; z-index: 100; display: none; pointer-events: none;`;
-  document.body.appendChild(container);
-
   // --- D-pad arrows (grid layout) ---
   const dpadGrid = document.createElement("div");
-  const gridSize = DPAD_BTN * 3 + DPAD_GAP * 2;
   dpadGrid.style.cssText = `
-    position: absolute; bottom: 0;
-    width: ${gridSize}px; height: ${gridSize}px;
+    width: ${GRID_SIZE_CSS}; height: ${GRID_SIZE_CSS};
     display: grid;
-    grid-template-columns: repeat(3, ${DPAD_BTN}px);
-    grid-template-rows: repeat(3, ${DPAD_BTN}px);
-    gap: ${DPAD_GAP}px;
-    pointer-events: auto;
+    grid-template-columns: repeat(3, ${BTN_UNIT});
+    grid-template-rows: repeat(3, ${BTN_UNIT});
+    gap: ${DPAD_GAP_CSS};
   `;
-  container.appendChild(dpadGrid);
 
-  function makeArrow(label: string, gridCol: number, gridRow: number): HTMLButtonElement {
+  function makeArrow(_label: string, gridCol: number, gridRow: number): HTMLButtonElement {
     const btn = document.createElement("button");
     btn.style.cssText = ARROW_CSS + `grid-column: ${gridCol}; grid-row: ${gridRow};`;
-    btn.textContent = label;
     dpadGrid.appendChild(btn);
     return btn;
   }
@@ -167,36 +176,35 @@ export function createDpad(deps: DpadDeps): {
   const btnDown  = makeArrow("\u25BC", 2, 3); // ▼
 
   // --- Action buttons (place + rotate) ---
-  // Action buttons are vertically centered against the d-pad grid height
-  const ACTION_GAP = 12;       // gap between rotate and action buttons
-  const ACTION_BORDER = 8;     // border+padding allowance for action button
-  const actionGroupHeight = ACTION_BTN + ACTION_GAP + (ACTION_BTN + ACTION_BORDER);
-  const actionBottom = Math.max(0, (gridSize - actionGroupHeight) / 2);
   const actionGroup = document.createElement("div");
-  actionGroup.style.cssText = `position: absolute; bottom: ${actionBottom}px; display: flex; flex-direction: column; gap: ${ACTION_GAP}px; align-items: center; pointer-events: auto;`;
-  container.appendChild(actionGroup);
+  actionGroup.style.cssText = `
+    display: flex; flex-direction: column; gap: ${BTN_GAP};
+    align-items: center; justify-content: center;
+  `;
 
   const btnRotate = document.createElement("button");
-  btnRotate.style.cssText = ACTION_CSS + `
-    background: ${COLOR_ROTATE_BG};
-    border: 2px solid ${COLOR_ROTATE_BORDER};
+  btnRotate.style.cssText = ROUND_BTN_CSS + `
+    width: ${ACTION_LG_CSS};
+    height: ${ACTION_LG_CSS};
+    background: ${TOUCH_ROTATE_BG};
+    border: 2px solid ${TOUCH_ROTATE_BORDER};
     color: #1a1a2e;
-    font-size: 26px;
   `;
-  btnRotate.textContent = "\u21BB"; // ↻
   actionGroup.appendChild(btnRotate);
 
   const btnAction = document.createElement("button");
-  btnAction.style.cssText = ACTION_CSS + `
-    width: ${ACTION_BTN + 8}px;
-    height: ${ACTION_BTN + 8}px;
-    background: ${COLOR_ACTION_BG};
-    border: 2px solid ${COLOR_ACTION_BORDER};
+  btnAction.style.cssText = ROUND_BTN_CSS + `
+    width: ${ACTION_LG_CSS};
+    height: ${ACTION_LG_CSS};
+    background: ${TOUCH_ACTION_BG};
+    border: 2px solid ${TOUCH_ACTION_BORDER};
     color: #1a1a2e;
-    font-size: 26px;
   `;
-  btnAction.textContent = "\u2714"; // ✔
   actionGroup.appendChild(btnAction);
+
+  // Initial placement: d-pad bottom-left, action buttons bottom-right
+  panel.leftBottom.appendChild(dpadGrid);
+  panel.rightBottom.appendChild(actionGroup);
 
   // --- Key-repeat for arrows ---
   const REPEAT_DELAY = 120;
@@ -259,14 +267,14 @@ export function createDpad(deps: DpadDeps): {
   function handleAction() {
     hapticTap();
     const state = deps.getState();
-    if (!state) return;
+    if (!state) {
+      deps.lobbyAction();
+      return;
+    }
     if (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT) {
       const isReselect = state.phase === Phase.CASTLE_RESELECT;
       deps.withFirstHuman((human) => {
-        if (deps.confirmSelectionForPlayer(human.playerId, isReselect) && deps.isHost()) {
-          if (isReselect) deps.finishReselection();
-          else deps.finishSelection();
-        }
+        deps.confirmSelectionForPlayer(human.playerId, isReselect);
       });
     } else {
       deps.withFirstHuman((human) => {
@@ -313,37 +321,23 @@ export function createDpad(deps: DpadDeps): {
   }, { passive: false });
   btnRotate.addEventListener("touchcancel", () => pressUp(btnRotate));
 
-  // --- Layout: position d-pad and action group based on handedness ---
+  // --- Layout: swap panels based on handedness (CSS order swap) ---
+  const container = panel.left.parentElement!;
+
   function applyLayout(leftHanded: boolean) {
-    if (leftHanded) {
-      // D-pad right, actions left
-      dpadGrid.style.right = `${DPAD_MARGIN}px`; dpadGrid.style.left = "";
-      actionGroup.style.left = `${DPAD_MARGIN}px`; actionGroup.style.right = "";
-    } else {
-      // D-pad left, actions right
-      dpadGrid.style.left = `${DPAD_MARGIN}px`; dpadGrid.style.right = "";
-      actionGroup.style.right = `${DPAD_MARGIN}px`; actionGroup.style.left = "";
-    }
+    container.classList.toggle("left-handed", leftHanded);
   }
 
   applyLayout(deps.getLeftHanded());
 
   return {
     update(phase: Phase | null) {
-      const isSelection = phase === Phase.CASTLE_SELECT || phase === Phase.CASTLE_RESELECT;
-      const visible = isSelection || phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE;
-      container.style.display = visible ? "block" : "none";
       stopRepeat();
-      if (isSelection) {
-        btnRotate.style.display = "none";
-      } else {
-        btnRotate.style.display = "flex";
-        if (phase === Phase.WALL_BUILD) {
-          btnRotate.textContent = "\u21BB"; // ↻ rotate
-        } else if (phase === Phase.CANNON_PLACE) {
-          btnRotate.textContent = "\u2699"; // ⚙ mode
-        }
-      }
+      const dpadActive = phase === Phase.CASTLE_SELECT || phase === Phase.CASTLE_RESELECT
+        || phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE;
+      const rotateActive = phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE;
+      dpadGrid.classList.toggle("disabled", !dpadActive);
+      btnRotate.classList.toggle("disabled", !rotateActive);
     },
     setLeftHanded(lh: boolean) {
       applyLayout(lh);
@@ -351,30 +345,24 @@ export function createDpad(deps: DpadDeps): {
   };
 }
 
-export function createQuitButton(deps: QuitButtonDeps): {
-  update: (phase: Phase | null) => void;
+export function createQuitButton(deps: QuitButtonDeps, container?: HTMLElement): {
+  update: (phase?: Phase | null) => void;
 } {
   const btn = document.createElement("button");
-  btn.style.cssText = `
-    position: fixed;
-    top: 12px;
-    right: 12px;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    z-index: 100;
-    background: ${COLOR_QUIT_BG};
-    border: 2px solid ${COLOR_QUIT_BORDER};
+  btn.style.cssText = ROUND_BTN_CSS + `
+    width: ${ACTION_LG_CSS};
+    height: ${ACTION_LG_CSS};
+    background: ${TOUCH_QUIT_BG};
+    border: 2px solid ${TOUCH_QUIT_BORDER};
     color: #cc8888;
-    font-size: 22px;
-    font-weight: bold;
-    display: none;
-    cursor: pointer;
-    user-select: none;
-    line-height: 1;
   `;
-  btn.textContent = "✕";
-  document.body.appendChild(btn);
+  if (container) {
+    container.appendChild(btn);
+  } else {
+    // Desktop fallback: fixed position
+    btn.style.cssText += "position: fixed; top: 12px; right: 12px; z-index: 100; display: none;";
+    document.body.appendChild(btn);
+  }
 
   function handleQuit() {
     const hasHumans = deps.getControllers().some((c) => deps.isHuman(c));
@@ -401,25 +389,19 @@ export function createQuitButton(deps: QuitButtonDeps): {
   }, { passive: false });
 
   return {
-    update(phase: Phase | null) {
-      btn.style.display = phase !== null ? "block" : "none";
+    update(phase?: Phase | null) {
+      btn.style.display = phase !== null ? "flex" : "none";
     },
   };
 }
 
 /** Toggle between my zone (zoomed) and full map. */
-export function createHomeZoomButton(deps: ZoomButtonDeps): {
-  update: (phase: Phase | null) => void;
+export function createHomeZoomButton(deps: ZoomButtonDeps, container: HTMLElement): {
+  update: () => void;
 } {
-  const btn = document.createElement("button");
+  const btn = createZoomBtn(TOUCH_ZOOM_HOME_BG, TOUCH_ZOOM_HOME_BORDER, "#c0d8f0");
   btn.dataset.btn = "home";
-  btn.style.cssText = ZOOM_BTN_CSS + `
-    bottom: ${ZOOM_BTN_BOTTOM}px;
-    background: ${COLOR_ZOOM_HOME_BG};
-    border: 2px solid ${COLOR_ZOOM_HOME_BORDER};
-    color: #c0d8f0;
-  `;
-  document.body.appendChild(btn);
+  container.appendChild(btn);
 
   function getMyZone(): number | null {
     const state = deps.getState();
@@ -441,18 +423,14 @@ export function createHomeZoomButton(deps: ZoomButtonDeps): {
     const current = deps.getCameraZone();
     const myZone = getMyZone();
     if (current === myZone && myZone !== null) {
-      // Currently zoomed on my zone — show full-map icon
-      btn.textContent = "\u25A3"; // ▣ full map
-      btn.style.background = COLOR_ZOOM_HOME_BG;
+      btn.style.background = TOUCH_ZOOM_HOME_BG;
     } else {
-      // Currently full map or enemy — show home icon with my color
-      btn.textContent = "\u2302"; // ⌂ home
       const state = deps.getState();
       const pid = deps.myPlayerId();
       if (pid >= 0 && state && PLAYER_COLORS[pid]) {
         btn.style.background = rgb(PLAYER_COLORS[pid]!.interiorLight, 0.85);
       } else {
-        btn.style.background = COLOR_ZOOM_HOME_BG;
+        btn.style.background = TOUCH_ZOOM_HOME_BG;
       }
     }
   }
@@ -465,26 +443,19 @@ export function createHomeZoomButton(deps: ZoomButtonDeps): {
   });
 
   return {
-    update(phase: Phase | null) {
-      btn.style.display = phase !== null ? "block" : "none";
+    update() {
       updateLabel();
     },
   };
 }
 
 /** Cycle through opponent zones. */
-export function createEnemyZoomButton(deps: ZoomButtonDeps): {
-  update: (phase: Phase | null) => void;
+export function createEnemyZoomButton(deps: ZoomButtonDeps, container: HTMLElement): {
+  update: () => void;
 } {
-  const btn = document.createElement("button");
+  const btn = createZoomBtn(TOUCH_ZOOM_ENEMY_BG, TOUCH_ZOOM_ENEMY_BORDER, "#f0c0c0");
   btn.dataset.btn = "enemy";
-  btn.style.cssText = ZOOM_BTN_CSS + `
-    bottom: ${ZOOM_BTN_BOTTOM + ZOOM_BTN_SIZE + ZOOM_BTN_GAP}px;
-    background: ${COLOR_ZOOM_ENEMY_BG};
-    border: 2px solid ${COLOR_ZOOM_ENEMY_BORDER};
-    color: #f0c0c0;
-  `;
-  document.body.appendChild(btn);
+  container.appendChild(btn);
 
   const getEnemyZones = deps.getEnemyZones;
 
@@ -503,16 +474,13 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps): {
     const state = deps.getState();
     const zone = deps.getCameraZone();
     const enemyZones = getEnemyZones();
-    // If currently viewing an enemy zone, show that enemy's color
     if (zone !== null && state && enemyZones.includes(zone)) {
       const pid = state.playerZones.indexOf(zone);
       if (pid >= 0 && PLAYER_COLORS[pid]) {
         btn.style.background = rgb(PLAYER_COLORS[pid]!.interiorLight, 0.85);
       }
-      btn.textContent = "\u2694"; // ⚔ swords
     } else {
-      btn.textContent = "\u2694"; // ⚔ swords
-      btn.style.background = COLOR_ZOOM_ENEMY_BG;
+      btn.style.background = TOUCH_ZOOM_ENEMY_BG;
     }
   }
 
@@ -524,11 +492,22 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps): {
   });
 
   return {
-    update(phase: Phase | null) {
-      btn.style.display = phase !== null ? "block" : "none";
+    update() {
       updateLabel();
     },
   };
+}
+
+function createZoomBtn(bgColor: string, borderColor: string, textColor: string): HTMLButtonElement {
+  const btn = document.createElement("button");
+  btn.style.cssText = ROUND_BTN_CSS + `
+    width: ${ACTION_LG_CSS};
+    height: ${ACTION_LG_CSS};
+    background: ${bgColor};
+    border: 2px solid ${borderColor};
+    color: ${textColor};
+  `;
+  return btn;
 }
 
 /** Visual press feedback — scale down on press, restore on release. */
