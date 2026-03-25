@@ -133,12 +133,12 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
   }
 
   /** Battle: hold-to-move via handleKeyDown/handleKeyUp (mirrors keyboard). */
-  function battleArrowDown(action: Action) {
+  function battleKeyDown(action: Action) {
     hapticTap();
     deps.withFirstHuman((human) => human.handleKeyDown(action));
   }
 
-  function battleArrowUp(action: Action) {
+  function battleKeyUp(action: Action) {
     deps.withFirstHuman((human) => human.handleKeyUp(action));
   }
 
@@ -149,15 +149,15 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
   function wireArrow(btn: HTMLButtonElement, action: Action) {
     btn.addEventListener("touchstart", (e) => {
       e.preventDefault(); e.stopPropagation(); pressDown(btn);
-      if (isBattle()) battleArrowDown(action); else startRepeat(action);
+      if (isBattle()) battleKeyDown(action); else startRepeat(action);
     }, { passive: false });
     btn.addEventListener("touchend", (e) => {
       e.preventDefault(); e.stopPropagation(); pressUp(btn);
-      if (isBattle()) battleArrowUp(action); else stopRepeat();
+      if (isBattle()) battleKeyUp(action); else stopRepeat();
     }, { passive: false });
     btn.addEventListener("touchcancel", () => {
       pressUp(btn);
-      if (isBattle()) battleArrowUp(action); else stopRepeat();
+      if (isBattle()) battleKeyUp(action); else stopRepeat();
     });
   }
 
@@ -236,15 +236,15 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
   for (const btn of btnsRotate) {
     btn.addEventListener("touchstart", (e) => {
       e.preventDefault(); e.stopPropagation(); pressDown(btn);
-      if (isBattle()) battleArrowDown(Action.ROTATE); else handleRotate();
+      if (isBattle()) battleKeyDown(Action.ROTATE); else handleRotate();
     }, { passive: false });
     btn.addEventListener("touchend", (e) => {
       e.preventDefault(); pressUp(btn);
-      if (isBattle()) battleArrowUp(Action.ROTATE);
+      if (isBattle()) battleKeyUp(Action.ROTATE);
     }, { passive: false });
     btn.addEventListener("touchcancel", () => {
       pressUp(btn);
-      if (isBattle()) battleArrowUp(Action.ROTATE);
+      if (isBattle()) battleKeyUp(Action.ROTATE);
     });
   }
 

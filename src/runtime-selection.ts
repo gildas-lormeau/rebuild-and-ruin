@@ -354,6 +354,7 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
     if (needsUI) {
       syncSelectionOverlay();
       rs.accum.select = 0;
+      rs.accum.selectAnnouncement = 0;
       rs.state.timer = SELECT_TIMER;
       rs.mode = Mode.SELECTION;
       if (deps.getIsHost()) {

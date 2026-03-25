@@ -659,7 +659,7 @@ export function dispatchPointerMove(
       const zone = state.playerZones[human.playerId] ?? 0;
       const w = screenToWorld(x, y);
       const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
-      if (idx !== null && idx !== ss.highlighted) {
+      if (idx !== null && idx !== ss.highlighted && state.map.towers[idx]?.zone === zone) {
         highlightTowerForPlayer(idx, zone, human.playerId);
         ss.tapped = false;
       }

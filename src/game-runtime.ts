@@ -270,6 +270,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     return true;
   }
 
+  function isSelectionReady(): boolean {
+    return rs.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION;
+  }
+
   /** Place the human crosshair on the best enemy castle (matches auto-zoom target). */
   function aimAtEnemyCastle(): void {
     if (!rs.state) return;
@@ -426,7 +430,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     setFrameAnnouncement: (text) => { rs.frame.announcement = text; },
     getMyPlayerId: () => config.getMyPlayerId(),
     getFirstHumanPlayerId: () => firstHuman()?.playerId ?? -1,
-    isSelectionAnnouncementDone: () => rs.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION,
+    isSelectionAnnouncementDone: isSelectionReady,
   });
 
   // Re-export camera functions used by other parts of the runtime
@@ -782,7 +786,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       getSelectionStates: () => rs.selectionStates,
       highlightTowerForPlayer: selection.highlight,
       confirmSelectionForPlayer: selection.confirm,
-      isSelectionReady: () => rs.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION,
+      isSelectionReady,
       togglePause,
       getQuitPending: () => rs.quitPending,
       setQuitPending: (v) => { rs.quitPending = v; },
@@ -813,7 +817,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         lobbyAction: () => lobbyKeyJoin(rs.settings.keyBindings[0]!.confirm),
         render,
         getLeftHanded: () => rs.settings.leftHanded,
-        isSelectionReady: () => rs.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION,
+        isSelectionReady,
         options: {
           isActive: () => rs.mode === Mode.OPTIONS,
           navigate: (dir) => {
