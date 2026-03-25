@@ -426,6 +426,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     setFrameAnnouncement: (text) => { rs.frame.announcement = text; },
     getMyPlayerId: () => config.getMyPlayerId(),
     getFirstHumanPlayerId: () => firstHuman()?.playerId ?? -1,
+    isSelectionAnnouncementDone: () => rs.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION,
   });
 
   // Re-export camera functions used by other parts of the runtime

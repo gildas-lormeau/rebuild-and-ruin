@@ -17,7 +17,6 @@ import {
   PHASE_ENDING_THRESHOLD,
   Phase,
   PINCH_FULL_MAP_SNAP,
-  SELECT_ANNOUNCEMENT_DURATION,
   VIEWPORT_SNAP_THRESHOLD,
   ZONE_PAD_NO_WALLS,
   ZONE_PAD_SELECTION,
@@ -35,6 +34,7 @@ interface CameraDeps {
   setFrameAnnouncement: (text: string) => void;
   getMyPlayerId: () => number;
   getFirstHumanPlayerId: () => number;
+  isSelectionAnnouncementDone: () => boolean;
 }
 
 interface CameraSystem {
@@ -89,7 +89,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   let lastAutoZoomPhase: Phase | null = null;
   let mobileZoomEnabled = false;
   let zoomActivated = false;
-  let selectionZoomDelay = 0;
+  let selectionZoomApplied = false;
   let pendingSelectionVp: TilePos | null = null;
   let pinchVp: Viewport | null = null;
   let pinchStartVp: Viewport | null = null;
@@ -310,24 +310,18 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     wasPaused = paused;
     wasQuitPending = quitPending;
 
-    // Selection zoom delay: wait before auto-zooming on first selection (mobile)
-    if (mode === Mode.SELECTION && lastAutoZoomPhase === null && selectionZoomDelay <= 0) {
-      selectionZoomDelay = SELECT_ANNOUNCEMENT_DURATION;
-    }
-    if (selectionZoomDelay > 0 && mode === Mode.SELECTION) {
-      selectionZoomDelay -= dt;
-      if (selectionZoomDelay <= 0) {
-        selectionZoomDelay = 0;
-        if (mobileZoomEnabled && zoomActivated) {
-          autoZoom(state.phase);
-          if (pendingSelectionVp) {
-            castleBuildVp = boundsToViewport(
-              pendingSelectionVp.row, pendingSelectionVp.row + 1,
-              pendingSelectionVp.col, pendingSelectionVp.col + 1,
-              ZONE_PAD_SELECTION,
-            );
-            pendingSelectionVp = null;
-          }
+    // Selection zoom: wait for announcement to finish before auto-zooming
+    if (mode === Mode.SELECTION && !selectionZoomApplied && deps.isSelectionAnnouncementDone()) {
+      selectionZoomApplied = true;
+      if (mobileZoomEnabled && zoomActivated) {
+        autoZoom(state.phase);
+        if (pendingSelectionVp) {
+          castleBuildVp = boundsToViewport(
+            pendingSelectionVp.row, pendingSelectionVp.row + 1,
+            pendingSelectionVp.col, pendingSelectionVp.col + 1,
+            ZONE_PAD_SELECTION,
+          );
+          pendingSelectionVp = null;
         }
       }
     }
@@ -481,7 +475,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     castleBuildVp = null;
     battleZoom = null;
     lastAutoZoomPhase = null;
-    selectionZoomDelay = 0;
+    selectionZoomApplied = false;
     pendingSelectionVp = null;
     cachedZoneBounds.clear();
     // Snap viewport to full map so there's no lerp animation on game start
@@ -508,7 +502,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function setSelectionViewport(towerRow: number, towerCol: number): void {
     if (!mobileZoomEnabled || !zoomActivated) return;
     // Block until the "Select your home castle" banner delay has elapsed
-    if (selectionZoomDelay > 0 || lastAutoZoomPhase === null) {
+    if (!selectionZoomApplied || lastAutoZoomPhase === null) {
       pendingSelectionVp = { row: towerRow, col: towerCol };
       return;
     }
