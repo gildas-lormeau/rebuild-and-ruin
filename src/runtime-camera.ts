@@ -489,6 +489,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     selectionZoomDelay = 0;
     pendingSelectionVp = null;
     cachedZoneBounds.clear();
+    // Snap viewport to full map so there's no lerp animation on game start
+    currentVp.x = fullMapVp.x;
+    currentVp.y = fullMapVp.y;
+    currentVp.w = fullMapVp.w;
+    currentVp.h = fullMapVp.h;
   }
 
   function setCameraZone(z: number | null): void {

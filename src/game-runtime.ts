@@ -637,6 +637,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs.scoreDeltaTimer = 0;
     rs.scoreDeltaOnDone = null;
     rs.preScores = [];
+    camera.resetCamera();
   }
 
   // -------------------------------------------------------------------------
