@@ -146,11 +146,11 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
       () => syncSelectionOverlay(),
       () => deps.render(),
     );
-    // Auto-zoom to the highlighted tower on mobile (human player only)
+    // Auto-zoom to the highlighted tower on mobile (human player only, own zone)
     const human = deps.firstHuman();
     if (human && pid === human.playerId) {
       const tower = rs.state.map.towers[idx];
-      if (tower) deps.setSelectionViewport(tower.row, tower.col);
+      if (tower && tower.zone === zone) deps.setSelectionViewport(tower.row, tower.col);
     }
   }
 

@@ -22,6 +22,7 @@ interface DpadDeps {
   withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
   tryPlacePieceAndSend: (human: PlayerController & InputReceiver, state: GameState) => void;
   tryPlaceCannonAndSend: (human: PlayerController & InputReceiver, state: GameState, max: number) => void;
+  fireAndSend: (human: PlayerController & InputReceiver, state: GameState) => void;
   getSelectionStates: () => Map<number, SelectionState>;
   highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
   confirmSelectionForPlayer: (pid: number, isReselect: boolean) => boolean;
@@ -128,14 +129,33 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
     deps.render();
   }
 
+  /** Battle: hold-to-move via handleKeyDown/handleKeyUp (mirrors keyboard). */
+  function battleArrowDown(action: Action) {
+    hapticTap();
+    deps.withFirstHuman((human) => human.handleKeyDown(action));
+  }
+
+  function battleArrowUp(action: Action) {
+    deps.withFirstHuman((human) => human.handleKeyUp(action));
+  }
+
+  function isBattle(): boolean {
+    return deps.getState()?.phase === Phase.BATTLE;
+  }
+
   function wireArrow(btn: HTMLButtonElement, action: Action) {
     btn.addEventListener("touchstart", (e) => {
-      e.preventDefault(); e.stopPropagation(); pressDown(btn); startRepeat(action);
+      e.preventDefault(); e.stopPropagation(); pressDown(btn);
+      if (isBattle()) battleArrowDown(action); else startRepeat(action);
     }, { passive: false });
     btn.addEventListener("touchend", (e) => {
-      e.preventDefault(); e.stopPropagation(); pressUp(btn); stopRepeat();
+      e.preventDefault(); e.stopPropagation(); pressUp(btn);
+      if (isBattle()) battleArrowUp(action); else stopRepeat();
     }, { passive: false });
-    btn.addEventListener("touchcancel", () => { pressUp(btn); stopRepeat(); });
+    btn.addEventListener("touchcancel", () => {
+      pressUp(btn);
+      if (isBattle()) battleArrowUp(action); else stopRepeat();
+    });
   }
 
   for (const btn of btnsUp) wireArrow(btn, Action.UP);
@@ -161,6 +181,10 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
       deps.withFirstHuman((human) => {
         deps.confirmSelectionForPlayer(human.playerId, isReselect);
       });
+    } else if (state.phase === Phase.BATTLE) {
+      if (state.battleCountdown <= 0) {
+        deps.withFirstHuman((human) => deps.fireAndSend(human, state));
+      }
     } else {
       deps.withFirstHuman((human) => {
         if (state.phase === Phase.WALL_BUILD) {
@@ -184,7 +208,7 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
     btn.addEventListener("touchcancel", () => pressUp(btn));
   }
 
-  // --- Rotate button: rotate piece / cycle cannon mode ---
+  // --- Rotate button: rotate piece / cycle cannon mode / speed up crosshair ---
   function handleRotate() {
     hapticTap();
     if (deps.options?.isActive()) {
@@ -207,12 +231,17 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
 
   for (const btn of btnsRotate) {
     btn.addEventListener("touchstart", (e) => {
-      e.preventDefault(); e.stopPropagation(); pressDown(btn); handleRotate();
+      e.preventDefault(); e.stopPropagation(); pressDown(btn);
+      if (isBattle()) battleArrowDown(Action.ROTATE); else handleRotate();
     }, { passive: false });
     btn.addEventListener("touchend", (e) => {
       e.preventDefault(); pressUp(btn);
+      if (isBattle()) battleArrowUp(Action.ROTATE);
     }, { passive: false });
-    btn.addEventListener("touchcancel", () => pressUp(btn));
+    btn.addEventListener("touchcancel", () => {
+      pressUp(btn);
+      if (isBattle()) battleArrowUp(Action.ROTATE);
+    });
   }
 
   // --- Layout: left-handed toggle ---

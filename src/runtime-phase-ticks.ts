@@ -86,6 +86,8 @@ interface PhaseTicksDeps {
   afterLifeLostResolved: () => boolean;
   showScoreDeltas: (onDone: () => void) => void;
   snapshotTerritory: () => Set<number>[];
+  /** Called after beginBattle completes (crosshair override, etc.). */
+  onBeginBattle?: () => void;
 }
 
 export type PhaseTicksSystem = Pick<GameRuntime,
@@ -186,6 +188,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         now: () => performance.now(),
       },
     });
+    deps.onBeginBattle?.();
   }
 
   // -------------------------------------------------------------------------

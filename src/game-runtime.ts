@@ -75,7 +75,7 @@ import { createPhaseTicksSystem } from "./runtime-phase-ticks.ts";
 import type { SelectionSystem } from "./runtime-selection.ts";
 import { createSelectionSystem } from "./runtime-selection.ts";
 import { createRuntimeState } from "./runtime-state.ts";
-import { tileCenterPx, unpackTile } from "./spatial.ts";
+import { towerCenter, unpackTile } from "./spatial.ts";
 import { registerTouchHandlers } from "./touch-input.ts";
 import { createDpad, createEnemyZoomButton, createHomeZoomButton, createQuitButton } from "./touch-ui.ts";
 import type { GameState } from "./types.ts";
@@ -105,8 +105,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let enemyZoomButton: ReturnType<typeof createEnemyZoomButton> | null = null;
   let quitButton: ReturnType<typeof createQuitButton> | null = null;
   let loupeHandle: LoupeHandle | null = null;
-  /** Set true on first crosshair move during battle — switches loupe from castle view to crosshair. */
-  let battleAimStarted = false;
 
   function resetGameStats() {
     rs.gameStats = Array.from({ length: MAX_PLAYERS }, () => ({
@@ -269,6 +267,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       onLobbyJoin(hit.slotId);
     }
     return true;
+  }
+
+  /** Place the human crosshair on the best enemy castle (matches auto-zoom target). */
+  function aimAtEnemyCastle(): void {
+    if (!rs.state) return;
+    const zone = camera.getBestEnemyZone();
+    if (zone === null) return;
+    const pid = rs.state.playerZones.indexOf(zone);
+    const tower = pid >= 0 ? rs.state.players[pid]?.homeTower : null;
+    if (!tower) return;
+    const c = towerCenter(tower);
+    firstHuman()?.setCrosshair(c.col * TILE_SIZE, c.row * TILE_SIZE);
   }
 
   // -------------------------------------------------------------------------
@@ -511,21 +521,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       const human = firstHuman();
       let wx = 0;
       let wy = 0;
-      if (phase !== Phase.BATTLE) battleAimStarted = false;
       if (human && phase === Phase.BATTLE) {
-        // Before the player aims, show the auto-zoomed zone's castle
-        const zoomedZone = !battleAimStarted ? camera.getCameraZone() : null;
-        const zonePid = zoomedZone !== null ? rs.state.playerZones.indexOf(zoomedZone) : -1;
-        const zoneTower = zonePid >= 0 ? rs.state.players[zonePid]?.homeTower : null;
-        if (zoneTower) {
-          const c = tileCenterPx(zoneTower.row + 1, zoneTower.col + 1);
-          wx = c.x;
-          wy = c.y;
-        } else {
-          const ch = human.getCrosshair();
-          wx = ch.x;
-          wy = ch.y;
-        }
+        const ch = human.getCrosshair();
+        wx = ch.x;
+        wy = ch.y;
       } else if (human) {
         const cursor = phase === Phase.WALL_BUILD ? human.buildCursor : human.cannonCursor;
         const piece = phase === Phase.WALL_BUILD ? human.getCurrentPiece() : null;
@@ -630,6 +629,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     afterLifeLostResolved: () => lifeLost.afterResolved(),
     showScoreDeltas: (onDone) => selection.showBuildScoreDeltas(onDone),
     snapshotTerritory,
+    onBeginBattle: IS_TOUCH_DEVICE ? aimAtEnemyCastle : undefined,
   });
 
   // -------------------------------------------------------------------------
@@ -773,10 +773,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       onPinchStart,
       onPinchUpdate,
       onPinchEnd,
-      maybeSendAimUpdate: (x, y) => { battleAimStarted = true; (config.maybeSendAimUpdate ?? (() => {}))(x, y); },
+      maybeSendAimUpdate: config.maybeSendAimUpdate ?? (() => {}),
       tryPlaceCannonAndSend: config.tryPlaceCannonAndSend ?? ((ctrl, gs, max) => ctrl.tryPlaceCannon(gs, max)),
       tryPlacePieceAndSend: config.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
-      fireAndSend: (ctrl, gameState) => { battleAimStarted = true; (config.fireAndSend ?? ((c, s) => c.fire(s)))(ctrl, gameState); },
+      fireAndSend: config.fireAndSend ?? ((ctrl, gameState) => ctrl.fire(gameState)),
       getSelectionStates: () => rs.selectionStates,
       highlightTowerForPlayer: selection.highlight,
       confirmSelectionForPlayer: selection.confirm,
@@ -802,6 +802,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         withFirstHuman,
         tryPlacePieceAndSend: placePiece,
         tryPlaceCannonAndSend: placeCannon,
+        fireAndSend: inputDeps.fireAndSend,
         getSelectionStates: () => rs.selectionStates,
         highlightTowerForPlayer: selection.highlight,
         confirmSelectionForPlayer: selection.confirm,
