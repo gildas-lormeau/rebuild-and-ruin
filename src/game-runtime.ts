@@ -7,6 +7,7 @@
  */
 
 import { createController, isHuman } from "./controller-factory.ts";
+import { computeFrameContext } from "./frame-context.ts";
 import { bootstrapGame } from "./game-bootstrap.ts";
 import type { GameRuntime, RuntimeConfig } from "./game-runtime-types.ts";
 import {
@@ -171,6 +172,20 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const dt = clampedFrameDt(now);
     rs.frameDt = dt;
     resetFrame();
+
+    rs.ctx = computeFrameContext({
+      mode: rs.mode,
+      phase: rs.state?.phase ?? Phase.CASTLE_SELECT,
+      timer: rs.state?.timer ?? 0,
+      paused: rs.paused,
+      quitPending: rs.quitPending,
+      hasLifeLostDialog: rs.lifeLostDialog !== null,
+      isSelectionReady: isSelectionReady(),
+      myPlayerId: config.getMyPlayerId(),
+      firstHumanPlayerId: firstHuman()?.playerId ?? -1,
+      isHost: config.getIsHost(),
+      mobileAutoZoom: camera.isMobileAutoZoom(),
+    });
 
     if (DEV) exposeTestGlobals();
 
@@ -422,15 +437,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const camera = createCameraSystem({
     getState: () => rs.state,
-    getMode: () => rs.mode,
-    getQuitPending: () => rs.quitPending,
-    hasLifeLostDialog: () => rs.lifeLostDialog !== null,
-    getPaused: () => rs.paused,
+    getCtx: () => rs.ctx,
     getFrameDt: () => rs.frameDt,
     setFrameAnnouncement: (text) => { rs.frame.announcement = text; },
-    getMyPlayerId: () => config.getMyPlayerId(),
-    getFirstHumanPlayerId: () => firstHuman()?.playerId ?? -1,
-    isSelectionAnnouncementDone: isSelectionReady,
   });
 
   // Re-export camera functions used by other parts of the runtime

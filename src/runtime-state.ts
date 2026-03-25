@@ -8,6 +8,7 @@
  */
 
 import type { CastleBuildState } from "./castle-build.ts";
+import type { FrameContext } from "./frame-context.ts";
 import type {
   BattleAnimState,
   ControlsState,
@@ -55,6 +56,7 @@ export interface RuntimeState {
   // Grouped sub-state
   battleAnim: BattleAnimState;
   banner: BannerState;
+  ctx: FrameContext;
   frame: FrameData;
   lobby: LobbyState;
 
@@ -104,6 +106,7 @@ export function createRuntimeState(): RuntimeState {
 
     battleAnim: createBattleAnimState(),
     banner: createBannerState(),
+    ctx: null! as FrameContext, // computed at top of every mainLoop frame
     frame: { crosshairs: [], phantoms: {} },
     lobby: {
       joined: new Array(MAX_PLAYERS).fill(false),

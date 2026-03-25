@@ -5,6 +5,7 @@
  * and exposes a pure API for the runtime to call.
  */
 
+import type { FrameContext } from "./frame-context.ts";
 import { Mode } from "./game-ui-types.ts";
 import type { TilePos, WorldPos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
@@ -14,7 +15,6 @@ import type { GameState } from "./types.ts";
 import {
   MAX_ZOOM_VIEWPORT_RATIO,
   MIN_ZOOM_RATIO,
-  PHASE_ENDING_THRESHOLD,
   Phase,
   PINCH_FULL_MAP_SNAP,
   VIEWPORT_SNAP_THRESHOLD,
@@ -26,15 +26,9 @@ import {
 
 interface CameraDeps {
   getState: () => GameState | undefined;
-  getMode: () => Mode;
-  getQuitPending: () => boolean;
-  hasLifeLostDialog: () => boolean;
-  getPaused: () => boolean;
+  getCtx: () => FrameContext;
   getFrameDt: () => number;
   setFrameAnnouncement: (text: string) => void;
-  getMyPlayerId: () => number;
-  getFirstHumanPlayerId: () => number;
-  isSelectionAnnouncementDone: () => boolean;
 }
 
 interface CameraSystem {
@@ -80,6 +74,7 @@ interface CameraSystem {
 
   // Mobile zoom
   enableMobileZoom: () => void;
+  isMobileAutoZoom: () => boolean;
 }
 
 export function createCameraSystem(deps: CameraDeps): CameraSystem {
@@ -108,8 +103,9 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // --- Helpers ---
 
   function myPlayerId(): number {
-    const pid = deps.getMyPlayerId();
-    return pid >= 0 ? pid : deps.getFirstHumanPlayerId();
+    const ctx = deps.getCtx();
+    const pid = ctx.myPlayerId;
+    return pid >= 0 ? pid : ctx.firstHumanPlayerId;
   }
 
   function getMyZone(): number | null {
@@ -287,17 +283,12 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function tickCamera(dt: number): void {
     const state = deps.getState();
     if (!state) return;
-    const mode = deps.getMode();
+    const ctx = deps.getCtx();
     const mobileAuto = mobileZoomEnabled && zoomActivated;
-    const paused = deps.getPaused();
-    const quitPending = deps.getQuitPending();
 
     // Unzoom for UI overlays and near end of phase
     if (cameraZone !== null || pinchVp !== null || castleBuildVp !== null) {
-      const phaseEnding = !mobileAuto && state.timer > 0 && state.timer <= PHASE_ENDING_THRESHOLD &&
-        (state.phase === Phase.WALL_BUILD || state.phase === Phase.CANNON_PLACE || state.phase === Phase.BATTLE);
-      const lifeLostUnzoom = deps.hasLifeLostDialog();
-      if (phaseEnding || quitPending || lifeLostUnzoom || paused) {
+      if (ctx.shouldUnzoom) {
         savePinchForPhase(state.phase === Phase.BATTLE);
         cameraZone = null;
         pinchVp = null;
@@ -306,16 +297,16 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     }
 
     // Restore zoom after pause/quit cleared (mobile only)
-    if (mobileAuto && ((wasPaused && !paused) || (wasQuitPending && !quitPending))) {
+    if (mobileAuto && ((wasPaused && !ctx.paused) || (wasQuitPending && !ctx.quitPending))) {
       autoZoom(state.phase);
     }
-    wasPaused = paused;
-    wasQuitPending = quitPending;
+    wasPaused = ctx.paused;
+    wasQuitPending = ctx.quitPending;
 
     // Selection zoom: wait for announcement to finish before auto-zooming
-    if (mode === Mode.SELECTION && !selectionZoomApplied && deps.isSelectionAnnouncementDone()) {
+    if (ctx.mode === Mode.SELECTION && !selectionZoomApplied && ctx.isSelectionReady) {
       selectionZoomApplied = true;
-      if (mobileZoomEnabled && zoomActivated) {
+      if (mobileAuto) {
         autoZoom(state.phase);
         if (pendingSelectionVp) {
           castleBuildVp = boundsToViewport(
@@ -329,14 +320,14 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     }
 
     // Auto-zoom on phase change (mobile only, not during banners)
-    if (mobileZoomEnabled && zoomActivated && state.phase !== lastAutoZoomPhase &&
-        mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD) {
-      if (!(mode === Mode.SELECTION && lastAutoZoomPhase === null)) {
+    if (mobileAuto && state.phase !== lastAutoZoomPhase &&
+        ctx.mode !== Mode.BANNER && ctx.mode !== Mode.BALLOON_ANIM && ctx.mode !== Mode.CASTLE_BUILD) {
+      if (!(ctx.mode === Mode.SELECTION && lastAutoZoomPhase === null)) {
         autoZoom(state.phase);
       }
       lastAutoZoomPhase = state.phase;
     } else if (state.phase !== lastAutoZoomPhase &&
-        mode !== Mode.BANNER && mode !== Mode.BALLOON_ANIM && mode !== Mode.CASTLE_BUILD) {
+        ctx.mode !== Mode.BANNER && ctx.mode !== Mode.BALLOON_ANIM && ctx.mode !== Mode.CASTLE_BUILD) {
       lastAutoZoomPhase = state.phase;
     }
   }
@@ -344,7 +335,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // --- Viewport lerp ---
 
   function updateViewport(): Viewport | null {
-    const mode = deps.getMode();
+    const { mode } = deps.getCtx();
     let target: Viewport;
     if (castleBuildVp && (mode === Mode.CASTLE_BUILD || mode === Mode.SELECTION) && mobileZoomEnabled && zoomActivated) {
       target = castleBuildVp;
@@ -408,7 +399,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // --- Pinch-to-zoom ---
 
   function onPinchStart(midX: number, midY: number): void {
-    const mode = deps.getMode();
+    const { mode } = deps.getCtx();
     if (mode !== Mode.GAME && mode !== Mode.SELECTION) return;
     pinchStartVp = { ...currentVp };
     pinchStartMidX = midX;
@@ -416,7 +407,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
 
   function onPinchUpdate(midX: number, midY: number, scale: number): void {
-    const mode = deps.getMode();
+    const { mode } = deps.getCtx();
     if (!pinchStartVp || (mode !== Mode.GAME && mode !== Mode.SELECTION)) return;
     const cw = GRID_COLS * TILE_SIZE * SCALE;
     const ch = GRID_ROWS * TILE_SIZE * SCALE;
@@ -550,5 +541,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     setCastleBuildViewport,
     clearCastleBuildViewport,
     enableMobileZoom,
+    isMobileAutoZoom: () => mobileZoomEnabled && zoomActivated,
   };
 }
