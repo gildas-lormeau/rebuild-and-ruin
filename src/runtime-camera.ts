@@ -238,6 +238,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
 
   function autoZoom(phase: Phase): void {
+    // No auto-zoom when spectating (no human player)
+    if (myPlayerId() < 0) return;
     if (phase === Phase.BATTLE) {
       swapPinchViewport(true);
       // If pinch or battleZoom points at own zone, reset — always pick enemy
