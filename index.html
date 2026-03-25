@@ -269,8 +269,14 @@
       modeSelect.style.display = "block";
     });
 
-    // Auto-join via QR code: ?join=XXXX&server=host
     const params = new URLSearchParams(location.search);
+
+    // Input recorder: ?record-inputs activates DOM event capture
+    if (params.has("record-inputs")) {
+      import("/src/input-recorder.ts").then(m => m.initRecorder());
+    }
+
+    // Auto-join via QR code: ?join=XXXX&server=host
     const autoJoinCode = params.get("join");
     if (autoJoinCode) {
       (async () => {

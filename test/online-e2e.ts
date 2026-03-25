@@ -17,6 +17,15 @@
  *   npx tsx test/online-e2e.ts local 0 --headless          # run without browser window
  *   npx tsx test/online-e2e.ts local 0 --seed 12345        # force specific map seed
  *   npx tsx test/online-e2e.ts local 0 --assert "phase:BATTLE button:quit visible"  # assert UI state
+ *   npx tsx test/online-e2e.ts local --replay recordings/bug-repro.json  # replay Chrome DevTools recording
+ *   npx tsx test/online-e2e.ts local --replay recordings/bug-repro.json --screenshot --headless
+ *
+ * Chrome DevTools Recorder:
+ *   1. Open DevTools → Recorder panel → Start recording
+ *   2. Perform the actions you want to replay
+ *   3. Stop recording → Export as JSON
+ *   4. Save to recordings/ folder
+ *   5. Replay with --replay <path>
  *
  * Online mode requires: deno task server (port 8001) + npm run dev (port 5173)
  *   — or pass a remote URL as the 4th argument (uses that URL for both site and server)
@@ -24,7 +33,7 @@
  */
 
 import { chromium, devices, type Page, type Browser } from "playwright";
-import { writeFileSync, mkdirSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import process from "node:process";
 import { Buffer } from "node:buffer";
 
@@ -35,6 +44,10 @@ const RECORD = process.argv.includes("--record");
 const FAST = process.argv.includes("--fast");
 const SEED = (() => {
   const idx = process.argv.indexOf("--seed");
+  return idx >= 0 && process.argv[idx + 1] ? process.argv[idx + 1]! : "";
+})();
+const REPLAY = (() => {
+  const idx = process.argv.indexOf("--replay");
   return idx >= 0 && process.argv[idx + 1] ? process.argv[idx + 1]! : "";
 })();
 
@@ -92,7 +105,7 @@ for (let i = 2; i < process.argv.length; i++) {
 const positionalArgs: string[] = [];
 {
   const args = process.argv.slice(2);
-  const flagsWithValue = new Set(["--action", "--assert", "--seed"]);
+  const flagsWithValue = new Set(["--action", "--assert", "--seed", "--replay"]);
   for (let i = 0; i < args.length; i++) {
     if (flagsWithValue.has(args[i]!)) { i++; continue; } // skip flag + value
     if (args[i]!.startsWith("--")) continue; // skip boolean flags
@@ -292,6 +305,246 @@ function collectLogs(page: Page, prefix: string, logs: string[]): void {
 }
 
 // ---------------------------------------------------------------------------
+// Chrome DevTools Recorder replay
+// ---------------------------------------------------------------------------
+
+interface RecorderStep {
+  type: string;
+  url?: string;
+  selectors?: string[][];
+  offsetX?: number;
+  offsetY?: number;
+  button?: string;
+  value?: string;
+  key?: string;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  deviceScaleFactor?: number;
+  isMobile?: boolean;
+  hasTouch?: boolean;
+  isLandscape?: boolean;
+  expression?: string;
+  operator?: string;
+  timeout?: number;
+  duration?: number;
+  assertedEvents?: unknown[];
+}
+
+interface Recording {
+  title: string;
+  steps: RecorderStep[];
+}
+
+function pickSelector(selectors: string[][]): string {
+  // Chrome DevTools Recorder provides multiple selector strategies per step.
+  // Prefer aria > CSS > xpath. Each entry is an array of selector parts
+  // (for shadow DOM piercing); we join with ` >> ` for Playwright.
+  for (const chain of selectors) {
+    const sel = chain.join(" >> ");
+    // Skip xpath selectors — Playwright handles them differently
+    if (!sel.startsWith("xpath/")) return sel;
+  }
+  return selectors[0]!.join(" >> ");
+}
+
+async function replayRecording(page: Page, recording: Recording): Promise<void> {
+  console.log(`${ts()} Replaying "${recording.title}" (${recording.steps.length} steps)`);
+  for (let i = 0; i < recording.steps.length; i++) {
+    const step = recording.steps[i]!;
+    const stepTimeout = step.timeout ?? 5000;
+    console.log(`${ts()} Step ${i + 1}/${recording.steps.length}: ${step.type}${step.key ? ` key=${step.key}` : ""}${step.selectors ? ` sel=${pickSelector(step.selectors)}` : ""}${step.url ? ` url=${step.url}` : ""}`);
+
+    switch (step.type) {
+      case "setViewport":
+        await page.setViewportSize({
+          width: step.width ?? 1280,
+          height: step.height ?? 720,
+        });
+        break;
+
+      case "navigate":
+        await page.goto(step.url!, { timeout: stepTimeout, waitUntil: "load" });
+        break;
+
+      case "click": {
+        const sel = pickSelector(step.selectors!);
+        const opts: { timeout: number; button?: "left" | "right" | "middle"; position?: { x: number; y: number } } = { timeout: stepTimeout };
+        if (step.button === "right") opts.button = "right";
+        else if (step.button === "middle") opts.button = "middle";
+        if (step.offsetX !== undefined && step.offsetY !== undefined) {
+          opts.position = { x: step.offsetX, y: step.offsetY };
+        }
+        await page.click(sel, opts);
+        break;
+      }
+
+      case "doubleClick": {
+        const sel = pickSelector(step.selectors!);
+        await page.dblclick(sel, { timeout: stepTimeout });
+        break;
+      }
+
+      case "hover": {
+        const sel = pickSelector(step.selectors!);
+        await page.hover(sel, { timeout: stepTimeout });
+        break;
+      }
+
+      case "change": {
+        const sel = pickSelector(step.selectors!);
+        await page.fill(sel, step.value ?? "");
+        break;
+      }
+
+      case "keyDown":
+        await page.keyboard.down(step.key!);
+        break;
+
+      case "keyUp":
+        await page.keyboard.up(step.key!);
+        break;
+
+      case "scroll":
+        if (step.selectors) {
+          const sel = pickSelector(step.selectors);
+          await page.$eval(sel, (el, { x, y }) => el.scrollBy(x, y), { x: step.x ?? 0, y: step.y ?? 0 });
+        } else {
+          await page.evaluate(({ x, y }) => window.scrollBy(x, y), { x: step.x ?? 0, y: step.y ?? 0 });
+        }
+        break;
+
+      case "waitForElement": {
+        const sel = pickSelector(step.selectors!);
+        const state = step.operator === "disappear" ? "hidden" as const : "visible" as const;
+        await page.waitForSelector(sel, { timeout: stepTimeout, state });
+        break;
+      }
+
+      case "waitForExpression":
+        await page.waitForFunction(step.expression!, { timeout: stepTimeout });
+        break;
+
+      case "close":
+        await page.close();
+        return;
+
+      default:
+        console.log(`${ts()}   (skipped unknown step type: ${step.type})`);
+    }
+  }
+  console.log(`${ts()} Replay complete`);
+}
+
+// ---------------------------------------------------------------------------
+// Input-recorder replay (custom format from ?record-inputs)
+// ---------------------------------------------------------------------------
+
+interface InputTouchPoint { id: number; x: number; y: number }
+
+interface InputStep {
+  type: string;
+  x?: number;
+  y?: number;
+  t: number;
+  button?: number;
+  key?: string;
+  code?: string;
+  touches?: InputTouchPoint[];
+  changedTouches?: InputTouchPoint[];
+}
+
+interface InputRecording {
+  format: "input-recorder";
+  title: string;
+  url: string;
+  viewport: { width: number; height: number; dpr: number };
+  steps: InputStep[];
+}
+
+function isInputRecording(rec: unknown): rec is InputRecording {
+  return (rec as InputRecording)?.format === "input-recorder";
+}
+
+async function replayInputRecording(page: Page, recording: InputRecording): Promise<void> {
+  const { steps, viewport } = recording;
+  console.log(`${ts()} Replaying input recording "${recording.title}" (${steps.length} steps)`);
+
+  // Navigate to the recorded URL
+  const url = recording.url.includes("localhost") ? recording.url : `${BASE_URL}${new URL(recording.url).search}`;
+  await page.goto(url, { timeout: 15000, waitUntil: "load" });
+
+  // Compute coordinate scaling if viewport differs
+  const currentVp = page.viewportSize() ?? { width: viewport.width, height: viewport.height };
+  const scaleX = currentVp.width / viewport.width;
+  const scaleY = currentVp.height / viewport.height;
+  if (Math.abs(scaleX - 1) > 0.01 || Math.abs(scaleY - 1) > 0.01) {
+    console.log(`${ts()} Viewport scaling: ${viewport.width}x${viewport.height} → ${currentVp.width}x${currentVp.height} (${scaleX.toFixed(2)}x${scaleY.toFixed(2)})`);
+  }
+
+  let prevT = 0;
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i]!;
+
+    // Wait for the time delta between steps
+    const delay = Math.max(0, step.t - prevT);
+    if (delay > 10) await page.waitForTimeout(Math.min(delay, 5000));
+    prevT = step.t;
+
+    const sx = (step.x ?? 0) * scaleX;
+    const sy = (step.y ?? 0) * scaleY;
+
+    switch (step.type) {
+      case "tap":
+        await page.touchscreen.tap(sx, sy);
+        break;
+
+      case "click":
+        await page.mouse.click(sx, sy, { button: step.button === 2 ? "right" : "left" });
+        break;
+
+      case "mousemove":
+        await page.mouse.move(sx, sy);
+        break;
+
+      case "touchstart":
+      case "touchmove":
+      case "touchend": {
+        // Single-touch: use Playwright touchscreen API for tap-like gestures
+        const pts = step.touches ?? step.changedTouches ?? [];
+        if (pts.length === 1) {
+          const px = pts[0]!.x * scaleX;
+          const py = pts[0]!.y * scaleY;
+          if (step.type === "touchstart") {
+            await page.touchscreen.tap(px, py);
+          }
+          // touchmove/touchend: no simple Playwright API for drag — skip
+        } else if (pts.length > 1) {
+          // Multi-touch not supported by Playwright touchscreen API
+          if (i === 0 || steps[i - 1]?.type !== step.type) {
+            console.log(`${ts()}   (skipping multi-touch ${step.type}: ${pts.length} points)`);
+          }
+        }
+        break;
+      }
+
+      case "keydown":
+        await page.keyboard.down(step.key!);
+        break;
+
+      case "keyup":
+        await page.keyboard.up(step.key!);
+        break;
+
+      default:
+        break;
+    }
+  }
+  console.log(`${ts()} Input replay complete`);
+}
+
+// ---------------------------------------------------------------------------
 // Online helpers
 // ---------------------------------------------------------------------------
 
@@ -365,6 +618,31 @@ async function runLocal() {
   process.on("SIGINT", () => { flushLogs(); process.exit(128 + 2); });
 
   console.log(`${ts()} Starting local E2E test: ${NUM_HUMANS} human${NUM_HUMANS !== 1 ? "s" : ""} + ${3 - NUM_HUMANS} AI`);
+
+  // --replay: replay a recorded JSON (Chrome DevTools or input-recorder format)
+  if (REPLAY) {
+    const raw = JSON.parse(readFileSync(REPLAY, "utf8"));
+    if (isInputRecording(raw)) {
+      if (MOBILE) {
+        await page.setViewportSize({ width: raw.viewport.width, height: raw.viewport.height });
+      }
+      await replayInputRecording(page, raw);
+    } else {
+      await replayRecording(page, raw as Recording);
+    }
+    console.log(`${ts()} Waiting 3s after replay for logs to settle...`);
+    await page.waitForTimeout(3000);
+
+    analyzeResults([], [logs], [], ["LOCAL"], `replay`);
+    logsFlushed = true;
+    await printHapticSummary(page);
+    printAssertSummary();
+    await page.close();
+    await browser.close();
+    console.log(`\n${ts()} Replay E2E test complete.`);
+    if (ASSERTS.some(a => a.done && !a.passed)) process.exit(1);
+    return;
+  }
 
   const localUrl = `${BASE_URL}?rounds=${NUM_ROUNDS}`;
   await page.goto(localUrl);

@@ -1,5 +1,5 @@
 {
-  "entry": ["src/main.ts", "src/headless-sim.ts", "src/online-client.ts", "test/**/*.ts", "scripts/**/*.ts"],
+  "entry": ["src/main.ts", "src/headless-sim.ts", "src/online-client.ts", "src/input-recorder.ts", "test/**/*.ts", "scripts/**/*.ts"],
   "project": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],
   "bun": false
 }
