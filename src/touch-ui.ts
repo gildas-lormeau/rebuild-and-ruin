@@ -1,31 +1,17 @@
 /**
- * Touch UI — pocket-console layout for mobile.
+ * Touch UI — wires event handlers to the static touch controls in index.html.
  *
- * Two opaque side panels (landscape) or a bottom panel (portrait) hold all
- * touch controls.  The game canvas fills the remaining space without overlap.
+ * Layout is handled entirely by CSS (landscape panels / portrait bars).
+ * This module only queries existing DOM elements and attaches behavior.
  *
- * Left panel : d-pad + zoom/quit
- * Right panel: rotate + confirm (action)
+ * Left panel : loupe + d-pad
+ * Right panel: quit + zoom + rotate + confirm
  */
 
 import { hapticTap } from "./haptics.ts";
 import { PLAYER_COLORS } from "./player-config.ts";
 import type { InputReceiver, PlayerController } from "./player-controller.ts";
-import {
-  rgb,
-  TOUCH_ACTION_BG,
-  TOUCH_ACTION_BORDER,
-  TOUCH_ARROW_BG,
-  TOUCH_ARROW_BORDER,
-  TOUCH_QUIT_BG,
-  TOUCH_QUIT_BORDER,
-  TOUCH_ROTATE_BG,
-  TOUCH_ROTATE_BORDER,
-  TOUCH_ZOOM_ENEMY_BG,
-  TOUCH_ZOOM_ENEMY_BORDER,
-  TOUCH_ZOOM_HOME_BG,
-  TOUCH_ZOOM_HOME_BORDER,
-} from "./render-theme.ts";
+import { rgb, TOUCH_ZOOM_ENEMY_BG, TOUCH_ZOOM_HOME_BG } from "./render-theme.ts";
 import type { SelectionState } from "./selection.ts";
 import { findNearestTower } from "./spatial.ts";
 import type { GameState } from "./types.ts";
@@ -67,151 +53,22 @@ interface ZoomButtonDeps {
 }
 
 /**
- * Create the two side panels as children of #game-container.
- * Layout is handled entirely by CSS grid + media queries in index.html.
+ * Wire touch controls inside the game container.
+ * Finds all d-pad, action, and rotate buttons (both landscape and portrait copies)
+ * and attaches event handlers.
  */
-interface TouchPanels {
-  left: HTMLDivElement;
-  right: HTMLDivElement;
-  leftTop: HTMLDivElement;
-  leftBottom: HTMLDivElement;
-  rightTop: HTMLDivElement;
-  rightBottom: HTMLDivElement;
-}
-
-// Button sizing — one base unit, everything proportional.
-// Three constraints: absolute cap, viewport-relative, and panel-relative
-const PANEL_CLASS = "touch-panel";
-// vmin keeps buttons usable on both landscape and portrait.
-const BTN_UNIT = "min(48px, 7.5vmin)";
-const BTN_GAP = "5vmin";
-const DPAD_GAP_CSS = "0.3vmin";
-const GRID_SIZE_CSS = `calc(${BTN_UNIT} * 3 + ${DPAD_GAP_CSS} * 2)`;
-const ACTION_LG_CSS = `calc(${BTN_UNIT} + 1.2vmin)`;
-const BTN_BASE_CSS = `
-  border-radius: 1.5vmin;
-  font-weight: bold;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  cursor: pointer;
-  user-select: none;
-  transition: transform 60ms, opacity 60ms;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-`;
-const ARROW_CSS = BTN_BASE_CSS + `
-  width: ${BTN_UNIT};
-  height: ${BTN_UNIT};
-  border-radius: 1vmin;
-  background: ${TOUCH_ARROW_BG};
-  border: 2px solid ${TOUCH_ARROW_BORDER};
-  color: #c0d0e0;
-`;
-const ROUND_BTN_CSS = BTN_BASE_CSS + `
-  width: ${BTN_UNIT};
-  height: ${BTN_UNIT};
-  border-radius: 50%;
-`;
-
-export function createTouchPanels(container: HTMLElement): TouchPanels {
-  const lp = document.createElement("div");
-  lp.className = PANEL_CLASS;
-  container.prepend(lp);
-
-  const rp = document.createElement("div");
-  rp.className = PANEL_CLASS;
-  container.append(rp);
-
-  container.classList.add("has-touch-panels");
-
-  // Each panel has top + bottom sections for space-between layout
-  function addLeftSection(p: HTMLDivElement) {
-    const top = document.createElement("div");
-    top.style.cssText = `display: flex; flex-direction: column; align-items: center; padding: 2dvh 2vmin; gap: ${BTN_GAP};`;
-    const bottom = document.createElement("div");
-    bottom.style.cssText = `display: flex; flex-direction: column; align-items: center; padding: 5dvh 5vmin; gap: ${BTN_GAP};`;
-    p.appendChild(top);
-    p.appendChild(bottom);
-    return { top, bottom };
-  }
-
-  function addRightSection(p: HTMLDivElement) {
-    const top = document.createElement("div");
-    top.style.cssText = `display: flex; flex-direction: column; align-items: center; padding: 5dvh 5vmin; gap: 3vmin;`;
-    const bottom = document.createElement("div");
-    bottom.style.cssText = `display: flex; flex-direction: column; align-items: center; padding: 5dvh 5vmin; gap: ${BTN_GAP};`;
-    p.appendChild(top);
-    p.appendChild(bottom);
-    return { top, bottom };
-  }
-
-  const leftSections = addLeftSection(lp);
-  const rightSections = addRightSection(rp);
-
-  return {
-    left: lp, right: rp,
-    leftTop: leftSections.top, leftBottom: leftSections.bottom,
-    rightTop: rightSections.top, rightBottom: rightSections.bottom,
-  };
-}
-
-export function createDpad(deps: DpadDeps, panel: TouchPanels): {
+export function createDpad(deps: DpadDeps, container: HTMLElement): {
   update: (phase: Phase | null) => void;
   setLeftHanded: (lh: boolean) => void;
 } {
-  // --- D-pad arrows (grid layout) ---
-  const dpadGrid = document.createElement("div");
-  dpadGrid.style.cssText = `
-    width: ${GRID_SIZE_CSS}; height: ${GRID_SIZE_CSS};
-    display: grid;
-    grid-template-columns: repeat(3, ${BTN_UNIT});
-    grid-template-rows: repeat(3, ${BTN_UNIT});
-    gap: ${DPAD_GAP_CSS};
-  `;
-
-  function makeArrow(_label: string, gridCol: number, gridRow: number): HTMLButtonElement {
-    const btn = document.createElement("button");
-    btn.style.cssText = ARROW_CSS + `grid-column: ${gridCol}; grid-row: ${gridRow};`;
-    dpadGrid.appendChild(btn);
-    return btn;
-  }
-
-  const btnUp    = makeArrow("\u25B2", 2, 1); // ▲
-  const btnLeft  = makeArrow("\u25C0", 1, 2); // ◀
-  const btnRight = makeArrow("\u25B6", 3, 2); // ▶
-  const btnDown  = makeArrow("\u25BC", 2, 3); // ▼
-
-  // --- Action buttons (place + rotate) ---
-  const actionGroup = document.createElement("div");
-  actionGroup.style.cssText = `
-    display: flex; flex-direction: column; gap: ${BTN_GAP};
-    align-items: center; justify-content: center;
-  `;
-
-  const btnRotate = document.createElement("button");
-  btnRotate.style.cssText = ROUND_BTN_CSS + `
-    width: ${ACTION_LG_CSS};
-    height: ${ACTION_LG_CSS};
-    background: ${TOUCH_ROTATE_BG};
-    border: 2px solid ${TOUCH_ROTATE_BORDER};
-    color: #1a1a2e;
-  `;
-  actionGroup.appendChild(btnRotate);
-
-  const btnAction = document.createElement("button");
-  btnAction.style.cssText = ROUND_BTN_CSS + `
-    width: ${ACTION_LG_CSS};
-    height: ${ACTION_LG_CSS};
-    background: ${TOUCH_ACTION_BG};
-    border: 2px solid ${TOUCH_ACTION_BORDER};
-    color: #1a1a2e;
-  `;
-  actionGroup.appendChild(btnAction);
-
-  // Initial placement: d-pad bottom-left, action buttons bottom-right
-  panel.leftBottom.appendChild(dpadGrid);
-  panel.rightBottom.appendChild(actionGroup);
+  // Query all duplicated elements (landscape + portrait)
+  const dpads = Array.from(container.querySelectorAll<HTMLElement>(".dpad"));
+  const btnsUp = queryAll(container, "up");
+  const btnsDown = queryAll(container, "down");
+  const btnsLeft = queryAll(container, "left");
+  const btnsRight = queryAll(container, "right");
+  const btnsAction = queryAll(container, "confirm");
+  const btnsRotate = queryAll(container, "rotate");
 
   // --- Key-repeat for arrows ---
   const REPEAT_DELAY = 120;
@@ -266,10 +123,10 @@ export function createDpad(deps: DpadDeps, panel: TouchPanels): {
     btn.addEventListener("touchcancel", () => { pressUp(btn); stopRepeat(); });
   }
 
-  wireArrow(btnUp, Action.UP);
-  wireArrow(btnDown, Action.DOWN);
-  wireArrow(btnLeft, Action.LEFT);
-  wireArrow(btnRight, Action.RIGHT);
+  for (const btn of btnsUp) wireArrow(btn, Action.UP);
+  for (const btn of btnsDown) wireArrow(btn, Action.DOWN);
+  for (const btn of btnsLeft) wireArrow(btn, Action.LEFT);
+  for (const btn of btnsRight) wireArrow(btn, Action.RIGHT);
 
   // --- Action button: confirm selection / place piece / place cannon ---
   function handleAction() {
@@ -297,13 +154,15 @@ export function createDpad(deps: DpadDeps, panel: TouchPanels): {
     deps.render();
   }
 
-  btnAction.addEventListener("touchstart", (e) => {
-    e.preventDefault(); e.stopPropagation(); pressDown(btnAction); handleAction();
-  }, { passive: false });
-  btnAction.addEventListener("touchend", (e) => {
-    e.preventDefault(); pressUp(btnAction);
-  }, { passive: false });
-  btnAction.addEventListener("touchcancel", () => pressUp(btnAction));
+  for (const btn of btnsAction) {
+    btn.addEventListener("touchstart", (e) => {
+      e.preventDefault(); e.stopPropagation(); pressDown(btn); handleAction();
+    }, { passive: false });
+    btn.addEventListener("touchend", (e) => {
+      e.preventDefault(); pressUp(btn);
+    }, { passive: false });
+    btn.addEventListener("touchcancel", () => pressUp(btn));
+  }
 
   // --- Rotate button: rotate piece / cycle cannon mode ---
   function handleRotate() {
@@ -321,58 +180,37 @@ export function createDpad(deps: DpadDeps, panel: TouchPanels): {
     deps.render();
   }
 
-  btnRotate.addEventListener("touchstart", (e) => {
-    e.preventDefault(); e.stopPropagation(); pressDown(btnRotate); handleRotate();
-  }, { passive: false });
-  btnRotate.addEventListener("touchend", (e) => {
-    e.preventDefault(); pressUp(btnRotate);
-  }, { passive: false });
-  btnRotate.addEventListener("touchcancel", () => pressUp(btnRotate));
-
-  // --- Layout: swap panels based on handedness (CSS order swap) ---
-  const container = panel.left.parentElement!;
-
-  function applyLayout(leftHanded: boolean) {
-    container.classList.toggle("left-handed", leftHanded);
+  for (const btn of btnsRotate) {
+    btn.addEventListener("touchstart", (e) => {
+      e.preventDefault(); e.stopPropagation(); pressDown(btn); handleRotate();
+    }, { passive: false });
+    btn.addEventListener("touchend", (e) => {
+      e.preventDefault(); pressUp(btn);
+    }, { passive: false });
+    btn.addEventListener("touchcancel", () => pressUp(btn));
   }
 
-  applyLayout(deps.getLeftHanded());
+  // --- Layout: left-handed toggle ---
+  container.classList.toggle("left-handed", deps.getLeftHanded());
 
   return {
     update(phase: Phase | null) {
       stopRepeat();
       lastPhase = phase;
-      const dpadActive = phase === Phase.CASTLE_SELECT || phase === Phase.CASTLE_RESELECT
-        || phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE;
-      const rotateActive = phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE;
-      dpadGrid.classList.toggle("disabled", !dpadActive);
-      btnRotate.classList.toggle("disabled", !rotateActive);
+      const inGame = phase !== null;
+      for (const dpad of dpads) dpad.classList.toggle("disabled", !inGame);
+      for (const btn of btnsRotate) btn.classList.toggle("disabled", !inGame);
     },
     setLeftHanded(lh: boolean) {
-      applyLayout(lh);
+      container.classList.toggle("left-handed", lh);
     },
   };
 }
 
-export function createQuitButton(deps: QuitButtonDeps, container?: HTMLElement): {
+export function createQuitButton(deps: QuitButtonDeps, container: HTMLElement): {
   update: (phase?: Phase | null) => void;
 } {
-  const btn = document.createElement("button");
-  btn.style.cssText = ROUND_BTN_CSS + `
-    width: ${ACTION_LG_CSS};
-    height: ${ACTION_LG_CSS};
-    background: ${TOUCH_QUIT_BG};
-    border: 2px solid ${TOUCH_QUIT_BORDER};
-    color: #cc8888;
-  `;
-  if (container) {
-    btn.style.display = "none";
-    container.appendChild(btn);
-  } else {
-    // Desktop fallback: fixed position
-    btn.style.cssText += "position: fixed; top: 12px; right: 12px; z-index: 100; display: none;";
-    document.body.appendChild(btn);
-  }
+  const buttons = queryAll(container, "quit");
 
   function handleQuit() {
     const hasHumans = deps.getControllers().some((c) => deps.isHuman(c));
@@ -381,37 +219,33 @@ export function createQuitButton(deps: QuitButtonDeps, container?: HTMLElement):
     } else {
       deps.setQuitPending(true);
       deps.setQuitTimer(2);
-      deps.setQuitMessage("Tap ✕ again to quit");
+      deps.setQuitMessage("Tap \u2715 again to quit");
       deps.render();
     }
   }
 
-  btn.addEventListener("click", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleQuit();
-  });
-
-  btn.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleQuit();
-  }, { passive: false });
+  for (const btn of buttons) {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation(); handleQuit();
+    });
+    btn.addEventListener("touchstart", (e) => {
+      e.preventDefault(); e.stopPropagation(); handleQuit();
+    }, { passive: false });
+  }
 
   return {
     update(phase?: Phase | null) {
-      btn.style.display = phase !== null ? "flex" : "none";
+      const hidden = phase === null || phase === undefined;
+      for (const btn of buttons) btn.classList.toggle("hidden", hidden);
     },
   };
 }
 
 /** Toggle between my zone (zoomed) and full map. */
 export function createHomeZoomButton(deps: ZoomButtonDeps, container: HTMLElement): {
-  update: (visible?: boolean) => void;
+  update: (active?: boolean) => void;
 } {
-  const btn = createZoomBtn(TOUCH_ZOOM_HOME_BG, TOUCH_ZOOM_HOME_BORDER, "#c0d8f0");
-  btn.dataset.btn = "home";
-  container.appendChild(btn);
+  const buttons = queryAll(container, "zoom-home");
 
   function getMyZone(): number | null {
     const state = deps.getState();
@@ -432,42 +266,43 @@ export function createHomeZoomButton(deps: ZoomButtonDeps, container: HTMLElemen
   function updateLabel() {
     const current = deps.getCameraZone();
     const myZone = getMyZone();
+    let bg: string;
     if (current === myZone && myZone !== null) {
-      btn.style.background = TOUCH_ZOOM_HOME_BG;
+      bg = TOUCH_ZOOM_HOME_BG;
     } else {
       const state = deps.getState();
       const pid = deps.myPlayerId();
       if (pid >= 0 && state && PLAYER_COLORS[pid]) {
-        btn.style.background = rgb(PLAYER_COLORS[pid]!.interiorLight, 0.85);
+        bg = rgb(PLAYER_COLORS[pid]!.interiorLight, 0.85);
       } else {
-        btn.style.background = TOUCH_ZOOM_HOME_BG;
+        bg = TOUCH_ZOOM_HOME_BG;
       }
     }
+    for (const btn of buttons) btn.style.background = bg;
   }
 
-  btn.addEventListener("touchstart", (e) => {
-    e.preventDefault(); e.stopPropagation(); toggle();
-  }, { passive: false });
-  btn.addEventListener("click", (e) => {
-    e.preventDefault(); e.stopPropagation(); toggle();
-  });
+  for (const btn of buttons) {
+    btn.addEventListener("touchstart", (e) => {
+      e.preventDefault(); e.stopPropagation(); toggle();
+    }, { passive: false });
+    btn.addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation(); toggle();
+    });
+  }
 
   return {
-    update(visible = true) {
-      btn.style.display = visible ? "flex" : "none";
-      if (visible) updateLabel();
+    update(active = true) {
+      for (const btn of buttons) btn.classList.toggle("disabled", !active);
+      if (active) updateLabel();
     },
   };
 }
 
 /** Cycle through opponent zones. */
 export function createEnemyZoomButton(deps: ZoomButtonDeps, container: HTMLElement): {
-  update: (visible?: boolean) => void;
+  update: (active?: boolean) => void;
 } {
-  const btn = createZoomBtn(TOUCH_ZOOM_ENEMY_BG, TOUCH_ZOOM_ENEMY_BORDER, "#f0c0c0");
-  btn.dataset.btn = "enemy";
-  container.appendChild(btn);
-
+  const buttons = queryAll(container, "zoom-enemy");
   const getEnemyZones = deps.getEnemyZones;
 
   function cycle() {
@@ -485,50 +320,43 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps, container: HTMLEleme
     const state = deps.getState();
     const zone = deps.getCameraZone();
     const enemyZones = getEnemyZones();
+    let bg: string;
     if (zone !== null && state && enemyZones.includes(zone)) {
       const pid = state.playerZones.indexOf(zone);
       if (pid >= 0 && PLAYER_COLORS[pid]) {
-        btn.style.background = rgb(PLAYER_COLORS[pid]!.interiorLight, 0.85);
+        bg = rgb(PLAYER_COLORS[pid]!.interiorLight, 0.85);
+      } else {
+        bg = TOUCH_ZOOM_ENEMY_BG;
       }
     } else {
-      btn.style.background = TOUCH_ZOOM_ENEMY_BG;
+      bg = TOUCH_ZOOM_ENEMY_BG;
     }
+    for (const btn of buttons) btn.style.background = bg;
   }
 
-  btn.addEventListener("touchstart", (e) => {
-    e.preventDefault(); e.stopPropagation(); cycle();
-  }, { passive: false });
-  btn.addEventListener("click", (e) => {
-    e.preventDefault(); e.stopPropagation(); cycle();
-  });
+  for (const btn of buttons) {
+    btn.addEventListener("touchstart", (e) => {
+      e.preventDefault(); e.stopPropagation(); cycle();
+    }, { passive: false });
+    btn.addEventListener("click", (e) => {
+      e.preventDefault(); e.stopPropagation(); cycle();
+    });
+  }
 
   return {
-    update(visible = true) {
-      btn.style.display = visible ? "flex" : "none";
-      if (visible) updateLabel();
+    update(active = true) {
+      for (const btn of buttons) btn.classList.toggle("disabled", !active);
+      if (active) updateLabel();
     },
   };
 }
 
-function createZoomBtn(bgColor: string, borderColor: string, textColor: string): HTMLButtonElement {
-  const btn = document.createElement("button");
-  btn.style.cssText = ROUND_BTN_CSS + `
-    width: ${ACTION_LG_CSS};
-    height: ${ACTION_LG_CSS};
-    background: ${bgColor};
-    border: 2px solid ${borderColor};
-    color: ${textColor};
-  `;
-  return btn;
+/** Query all elements matching a data-action within a container. */
+function queryAll(container: HTMLElement, action: string): HTMLButtonElement[] {
+  return Array.from(container.querySelectorAll<HTMLButtonElement>(`[data-action="${action}"]`));
 }
 
-/** Visual press feedback — scale down on press, restore on release. */
-function pressDown(btn: HTMLElement): void {
-  btn.style.transform = "scale(0.88)";
-  btn.style.opacity = "0.75";
-}
+/** Visual press feedback via CSS class. */
+function pressDown(btn: HTMLElement): void { btn.classList.add("pressed"); }
 
-function pressUp(btn: HTMLElement): void {
-  btn.style.transform = "";
-  btn.style.opacity = "";
-}
+function pressUp(btn: HTMLElement): void { btn.classList.remove("pressed"); }

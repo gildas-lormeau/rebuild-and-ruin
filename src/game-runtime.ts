@@ -77,7 +77,7 @@ import { createSelectionSystem } from "./runtime-selection.ts";
 import { createRuntimeState } from "./runtime-state.ts";
 import { unpackTile } from "./spatial.ts";
 import { registerTouchHandlers } from "./touch-input.ts";
-import { createDpad, createEnemyZoomButton, createHomeZoomButton, createQuitButton, createTouchPanels } from "./touch-ui.ts";
+import { createDpad, createEnemyZoomButton, createHomeZoomButton, createQuitButton } from "./touch-ui.ts";
 import type { GameState } from "./types.ts";
 import {
   BANNER_DURATION,
@@ -543,9 +543,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs.scoreDeltaOnDone = null;
     camera.unzoom();
     rs.mouseJoinedSlot = -1;
-    dpad?.update(null); // hide d-pad buttons, panels stay visible
-    quitButton?.update(null);
-    loupeHandle?.update(false, 0, 0, getSceneCanvas());
+    dpad?.update(null); // disable d-pad + rotate
+    quitButton?.update(null); // hide quit
+    homeZoomButton?.update(false); // disable zoom buttons
+    enemyZoomButton?.update(false);
+    loupeHandle?.update(false, 0, 0, getSceneCanvas()); // hide loupe before lobby takes over rendering
     config.showLobby();
   }
 
@@ -776,9 +778,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     registerOnlineInputHandlers(inputDeps);
     registerTouchHandlers({ ...inputDeps, lobbyKeyJoin: undefined });
 
-    // D-pad + action buttons (mobile only)
+    // Touch controls: wire static DOM elements from index.html
     if (IS_TOUCH_DEVICE) {
-      const panels = createTouchPanels(gameContainer);
+      gameContainer.classList.add("has-touch-panels");
       const placePiece = inputDeps.tryPlacePieceAndSend;
       const placeCannon = inputDeps.tryPlaceCannonAndSend;
       dpad = createDpad({
@@ -793,7 +795,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         lobbyAction: () => lobbyKeyJoin(rs.settings.keyBindings[0]!.confirm),
         render,
         getLeftHanded: () => rs.settings.leftHanded,
-      }, panels);
+      }, gameContainer);
       dpad.update(null); // initial state: d-pad + rotate disabled
       const zoomDeps = {
         getState: () => rs.state,
@@ -803,9 +805,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         getEnemyZones,
         render,
       };
-      // Loupe at top-left, zoom buttons at top-right (above quit)
-      loupeHandle = createLoupe(panels.leftTop);
-      const quitDeps = {
+      loupeHandle = createLoupe(gameContainer);
+      quitButton = createQuitButton({
         getQuitPending: () => rs.quitPending,
         setQuitPending: (v: boolean) => { rs.quitPending = v; },
         setQuitTimer: (v: number) => { rs.quitTimer = v; },
@@ -814,29 +815,14 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         getControllers: () => rs.controllers,
         isHuman,
         render,
-      };
-      quitButton = createQuitButton(quitDeps, panels.rightTop);
-      const zoomGroup = document.createElement("div");
-      zoomGroup.style.cssText = "display: flex; flex-direction: column; align-items: center; gap: 4vmin; margin-bottom: 3vmin;";
-      panels.rightBottom.prepend(zoomGroup);
-      homeZoomButton = createHomeZoomButton(zoomDeps, zoomGroup);
-      enemyZoomButton = createEnemyZoomButton(zoomDeps, zoomGroup);
+      }, gameContainer);
+      quitButton.update(null); // initial state: hidden
+      homeZoomButton = createHomeZoomButton(zoomDeps, gameContainer);
+      enemyZoomButton = createEnemyZoomButton(zoomDeps, gameContainer);
+      homeZoomButton.update(false); // initial state: disabled
+      enemyZoomButton.update(false);
       camera.enableMobileZoom();
     }
-  }
-
-  // Desktop fallback: standalone quit button (touch devices already have it in-panel)
-  if (!quitButton) {
-    quitButton = createQuitButton({
-      getQuitPending: () => rs.quitPending,
-      setQuitPending: (v) => { rs.quitPending = v; },
-      setQuitTimer: (v) => { rs.quitTimer = v; },
-      setQuitMessage: (msg) => { rs.quitMessage = msg; },
-      showLobby: returnToLobby,
-      getControllers: () => rs.controllers,
-      isHuman,
-      render,
-    });
   }
 
   // -------------------------------------------------------------------------

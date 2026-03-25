@@ -4,6 +4,9 @@
  * Medieval arrow-slit style window, rendered into a dedicated HTML canvas
  * placed in the left touch panel above the d-pad. Shows a magnified view
  * of the area around the cursor during WALL_BUILD and CANNON_PLACE phases.
+ *
+ * The loupe canvases are static in index.html (one landscape, one portrait).
+ * This module finds them and draws to whichever is currently visible.
  */
 
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
@@ -23,22 +26,30 @@ export interface LoupeHandle {
 }
 
 /**
- * Create the loupe canvas element and insert it into a container.
- * The canvas auto-sizes to fill the container width with a ~6:5 aspect ratio.
+ * Find all loupe canvases within a container and return a handle
+ * that draws to whichever is currently visible (has non-zero dimensions).
  */
 export function createLoupe(container: HTMLElement): LoupeHandle {
-  const canvas = document.createElement("canvas");
-  canvas.style.cssText = "width: 100%; aspect-ratio: 5 / 6; border-radius: 4px; display: none;";
-  container.appendChild(canvas);
+  const canvases = Array.from(container.querySelectorAll<HTMLCanvasElement>("canvas.loupe"));
 
   let lastVisible = false;
 
   function update(visible: boolean, worldX: number, worldY: number, sceneCanvas: HTMLCanvasElement): void {
     if (!visible) {
-      if (lastVisible) { canvas.style.display = "none"; lastVisible = false; }
+      if (lastVisible) {
+        for (const c of canvases) c.classList.add("hidden");
+        lastVisible = false;
+      }
       return;
     }
-    if (!lastVisible) { canvas.style.display = "block"; lastVisible = true; }
+    if (!lastVisible) {
+      for (const c of canvases) c.classList.remove("hidden");
+      lastVisible = true;
+    }
+
+    // Draw to whichever canvas is currently visible (landscape or portrait)
+    const canvas = canvases.find(c => c.clientWidth > 0 && c.clientHeight > 0);
+    if (!canvas) return;
 
     const cssW = canvas.clientWidth;
     const cssH = canvas.clientHeight;
