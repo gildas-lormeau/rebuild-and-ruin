@@ -515,8 +515,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         wy = ch.y;
       } else if (human) {
         const cursor = phase === Phase.WALL_BUILD ? human.buildCursor : human.cannonCursor;
-        wx = (cursor.col + 0.5) * TILE_SIZE;
-        wy = (cursor.row + 0.5) * TILE_SIZE;
+        const piece = phase === Phase.WALL_BUILD ? human.getCurrentPiece() : null;
+        const pivotR = piece ? piece.pivot[0] : 0;
+        const pivotC = piece ? piece.pivot[1] : 0;
+        wx = (cursor.col + pivotC + 0.5) * TILE_SIZE;
+        wy = (cursor.row + pivotR + 0.5) * TILE_SIZE;
       }
       loupeHandle.update(loupeVisible && human !== null, wx, wy, getSceneCanvas());
     }
