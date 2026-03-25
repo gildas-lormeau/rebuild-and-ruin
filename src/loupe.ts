@@ -1,121 +1,164 @@
 /**
- * Loupe (magnifying glass) overlay for precision placement on touch devices.
+ * Loupe overlay for precision placement on touch devices.
  *
- * Shows a circular magnified view of the area around the cursor during
- * WALL_BUILD and CANNON_PLACE phases, offset from the finger so the
- * piece/cannon is visible.
- *
- * Landscape: loupe to the left or right of the finger.
- * Portrait: loupe above or below the finger.
+ * Medieval arrow-slit style window, rendered into a dedicated HTML canvas
+ * placed in the left touch panel above the d-pad. Shows a magnified view
+ * of the area around the cursor during WALL_BUILD and CANNON_PLACE phases.
  */
 
-import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import {
-  LOUPE_ACCENT_COLOR,
-  LOUPE_BORDER_COLOR,
   LOUPE_BORDER_WIDTH,
-  LOUPE_DIAMETER,
-  LOUPE_OFFSET,
+  LOUPE_RADIUS,
+  LOUPE_RIVET_COLOR,
+  LOUPE_RIVET_RADIUS,
+  LOUPE_STONE_COLOR,
+  LOUPE_STONE_LIGHT,
   LOUPE_ZOOM,
 } from "./render-theme.ts";
 
-interface LoupeState {
-  visible: boolean;
-  /** Screen-space touch position (canvas display pixels). */
-  screenX: number;
-  screenY: number;
-  /** World-space cursor position (tile pixels on sceneCanvas). */
-  worldX: number;
-  worldY: number;
+export interface LoupeHandle {
+  /** Update the loupe content — call from render(). */
+  update: (visible: boolean, worldX: number, worldY: number, sceneCanvas: HTMLCanvasElement) => void;
 }
 
-const state: LoupeState = { visible: false, screenX: 0, screenY: 0, worldX: 0, worldY: 0 };
+/**
+ * Create the loupe canvas element and insert it into a container.
+ * The canvas auto-sizes to fill the container width with a ~6:5 aspect ratio.
+ */
+export function createLoupe(container: HTMLElement): LoupeHandle {
+  const canvas = document.createElement("canvas");
+  canvas.style.cssText = "width: 100%; aspect-ratio: 5 / 6; border-radius: 4px; display: none;";
+  container.appendChild(canvas);
 
-export function showLoupe(screenX: number, screenY: number, worldX: number, worldY: number): void {
-  state.visible = true;
-  state.screenX = screenX;
-  state.screenY = screenY;
-  state.worldX = worldX;
-  state.worldY = worldY;
-}
+  let lastVisible = false;
 
-export function hideLoupe(): void {
-  state.visible = false;
-}
-
-export function drawLoupe(canvas: HTMLCanvasElement, sceneCanvas: HTMLCanvasElement): void {
-  if (!state.visible) return;
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-
-  const radius = LOUPE_DIAMETER / 2;
-  const sceneW = GRID_COLS * TILE_SIZE;
-  const sceneH = GRID_ROWS * TILE_SIZE;
-  const canvasGameH = GRID_ROWS * TILE_SIZE * SCALE;
-  const landscape = canvas.width >= canvasGameH;
-
-  // --- Position based on orientation ---
-  let centerX: number;
-  let centerY: number;
-
-  if (landscape) {
-    // Landscape: offset horizontally, auto-flip left/right
-    centerY = Math.max(radius, Math.min(canvasGameH - radius, state.screenY));
-    centerX = state.screenX + LOUPE_OFFSET;
-    if (centerX + radius > canvas.width) {
-      centerX = state.screenX - LOUPE_OFFSET;
+  function update(visible: boolean, worldX: number, worldY: number, sceneCanvas: HTMLCanvasElement): void {
+    if (!visible) {
+      if (lastVisible) { canvas.style.display = "none"; lastVisible = false; }
+      return;
     }
-    centerX = Math.max(radius, Math.min(canvas.width - radius, centerX));
-  } else {
-    // Portrait: offset vertically, auto-flip up/down
-    centerX = Math.max(radius, Math.min(canvas.width - radius, state.screenX));
-    centerY = state.screenY - LOUPE_OFFSET;
-    if (centerY - radius < 0) {
-      centerY = state.screenY + LOUPE_OFFSET;
+    if (!lastVisible) { canvas.style.display = "block"; lastVisible = true; }
+
+    const cssW = canvas.clientWidth;
+    const cssH = canvas.clientHeight;
+    if (cssW <= 0 || cssH <= 0) return;
+    const dpr = window.devicePixelRatio || 1;
+    const pw = Math.round(cssW * dpr);
+    const ph = Math.round(cssH * dpr);
+    if (canvas.width !== pw || canvas.height !== ph) {
+      canvas.width = pw;
+      canvas.height = ph;
     }
-    centerY = Math.max(radius, Math.min(canvasGameH - radius, centerY));
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const w = pw;
+    const h = ph;
+    const bw = Math.round(LOUPE_BORDER_WIDTH * dpr);
+    const r = Math.round(LOUPE_RADIUS * dpr);
+
+    // Inner viewport
+    const ix = bw;
+    const iy = bw;
+    const iw = w - bw * 2;
+    const ih = h - bw * 2;
+    const ir = Math.max(0, r - bw);
+
+    // Source rect on sceneCanvas (tile-pixel space)
+    const sceneW = GRID_COLS * TILE_SIZE;
+    const sceneH = GRID_ROWS * TILE_SIZE;
+    const srcW = iw / (dpr * LOUPE_ZOOM);
+    const srcH = ih / (dpr * LOUPE_ZOOM);
+    let srcX = worldX - srcW / 2;
+    let srcY = worldY - srcH / 2;
+    srcX = Math.max(0, Math.min(sceneW - srcW, srcX));
+    srcY = Math.max(0, Math.min(sceneH - srcH, srcY));
+
+    // Clear
+    ctx.clearRect(0, 0, w, h);
+
+    // Stone border
+    roundedRect(ctx, 0, 0, w, h, r);
+    ctx.fillStyle = LOUPE_STONE_COLOR;
+    ctx.fill();
+
+    // Clip inner viewport and draw magnified scene
+    ctx.save();
+    roundedRect(ctx, ix, iy, iw, ih, ir);
+    ctx.clip();
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(sceneCanvas, srcX, srcY, srcW, srcH, ix, iy, iw, ih);
+    ctx.restore();
+
+    // Inner border highlight
+    roundedRect(ctx, ix, iy, iw, ih, ir);
+    ctx.lineWidth = 1.5 * dpr;
+    ctx.strokeStyle = LOUPE_STONE_LIGHT;
+    ctx.stroke();
+
+    // Outer border
+    roundedRect(ctx, 0, 0, w, h, r);
+    ctx.lineWidth = 2 * dpr;
+    ctx.strokeStyle = LOUPE_STONE_LIGHT;
+    ctx.stroke();
+
+    // Corner rivets
+    const rivetR = Math.round(LOUPE_RIVET_RADIUS * dpr);
+    const rivetInset = bw + rivetR + Math.round(2 * dpr);
+    const rivets = [
+      [rivetInset, rivetInset],
+      [w - rivetInset, rivetInset],
+      [rivetInset, h - rivetInset],
+      [w - rivetInset, h - rivetInset],
+    ];
+    for (const [rx, ry] of rivets) {
+      ctx.beginPath();
+      ctx.arc(rx!, ry!, rivetR, 0, Math.PI * 2);
+      ctx.fillStyle = LOUPE_RIVET_COLOR;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(rx! - dpr, ry! - dpr, rivetR * 0.5, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255, 240, 180, 0.6)";
+      ctx.fill();
+    }
+
+    // Crosshair
+    const cx = ix + iw / 2;
+    const cy = iy + ih / 2;
+    const crossLen = Math.round(8 * dpr);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+    ctx.lineWidth = dpr;
+    ctx.beginPath();
+    ctx.moveTo(cx - crossLen, cy);
+    ctx.lineTo(cx + crossLen, cy);
+    ctx.moveTo(cx, cy - crossLen);
+    ctx.lineTo(cx, cy + crossLen);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, 2 * dpr, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+    ctx.fill();
   }
 
-  // --- Source rect on sceneCanvas (tile-pixel space) ---
-  const srcSize = LOUPE_DIAMETER / (SCALE * LOUPE_ZOOM);
-  let srcX = state.worldX - srcSize / 2;
-  let srcY = state.worldY - srcSize / 2;
+  return { update };
+}
 
-  // Clamp source to scene bounds
-  srcX = Math.max(0, Math.min(sceneW - srcSize, srcX));
-  srcY = Math.max(0, Math.min(sceneH - srcSize, srcY));
-
-  // --- Draw magnified area clipped to circle ---
-  ctx.save();
+/** Draw a rounded rectangle path (no stroke/fill). */
+function roundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number,
+): void {
   ctx.beginPath();
-  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-  ctx.clip();
-
-  ctx.drawImage(
-    sceneCanvas,
-    srcX, srcY, srcSize, srcSize,
-    centerX - radius, centerY - radius, LOUPE_DIAMETER, LOUPE_DIAMETER,
-  );
-
-  ctx.restore();
-
-  // --- Border rings ---
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-  ctx.lineWidth = LOUPE_BORDER_WIDTH;
-  ctx.strokeStyle = LOUPE_BORDER_COLOR;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, radius - LOUPE_BORDER_WIDTH, 0, Math.PI * 2);
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = LOUPE_ACCENT_COLOR;
-  ctx.stroke();
-
-  // --- Crosshair dot at center ---
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, 2, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-  ctx.fill();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
 }

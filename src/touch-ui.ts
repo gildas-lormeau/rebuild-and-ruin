@@ -117,30 +117,40 @@ const ROUND_BTN_CSS = BTN_BASE_CSS + `
 export function createTouchPanels(container: HTMLElement): TouchPanels {
   const lp = document.createElement("div");
   lp.className = PANEL_CLASS;
-  lp.style.gap = BTN_GAP;
   container.prepend(lp);
 
   const rp = document.createElement("div");
   rp.className = PANEL_CLASS;
-  rp.style.gap = BTN_GAP;
   container.append(rp);
 
   container.classList.add("has-touch-panels");
 
   // Each panel has top + bottom sections for space-between layout
-  const sectionCSS = `display: flex; flex-direction: column; align-items: center; gap: ${BTN_GAP};`;
-  function addSections(p: HTMLDivElement) {
+  function addLeftSection(p: HTMLDivElement) {
     const top = document.createElement("div");
-    top.style.cssText = sectionCSS;
+    top.style.cssText = `display: flex; flex-direction: column; align-items: center; padding: 2dvh 2vmin; gap: ${BTN_GAP}; align-self: start;`;
     const bottom = document.createElement("div");
-    bottom.style.cssText = sectionCSS;
+    bottom.style.cssText = `display: flex; flex-direction: column; align-items: center; padding: 5dvh 5vmin; gap: ${BTN_GAP}; align-self: start;`;
     p.appendChild(top);
     p.appendChild(bottom);
     return { top, bottom };
   }
 
-  const leftSections = addSections(lp);
-  const rightSections = addSections(rp);
+  function addRightSection(p: HTMLDivElement) {
+    const top = document.createElement("div");
+    top.style.cssText = `display: flex; flex-direction: column; align-items: center; padding: 5dvh 5vmin; gap: ${BTN_GAP}; align-self: end;`;
+    const bottom = document.createElement("div");
+    bottom.style.cssText = `display: flex; flex-direction: column; align-items: center; padding: 5dvh 5vmin; gap: ${BTN_GAP}; align-self: end;`;
+    p.appendChild(top);
+    p.appendChild(bottom);
+    return { top, bottom };
+  }
+
+  const leftSections = addLeftSection(lp);
+  const rightSections = addRightSection(rp);
+
+  // Left panel: no gap on panel (loupe flush), min-height: 0 on top section
+  leftSections.top.style.minHeight = "0";
 
   return {
     left: lp, right: rp,

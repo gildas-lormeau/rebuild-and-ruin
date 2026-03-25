@@ -7,7 +7,6 @@
 
 import type { RegisterOnlineInputDeps } from "./input.ts";
 import { dispatchBattleFire, dispatchModeTap, dispatchPointerMove, dispatchTowerSelect, markTouchTime } from "./input.ts";
-import { hideLoupe, showLoupe } from "./loupe.ts";
 import { Phase } from "./types.ts";
 
 const TAP_MAX_DIST = 20;
@@ -85,12 +84,6 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
 
     // Update cursor/crosshair position on touch down
     dispatchPointerMove(x, y, state, deps);
-
-    // Show loupe for precision placement
-    if (state.phase === Phase.WALL_BUILD || state.phase === Phase.CANNON_PLACE) {
-      const w = screenToWorld(x, y);
-      showLoupe(x, y, w.wx, w.wy);
-    }
   }, { passive: false });
 
   // --- touchmove: update cursor/crosshair as finger drags ---
@@ -117,12 +110,6 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     if (!state || isLobbyActive()) return;
 
     dispatchPointerMove(x, y, state, deps);
-
-    // Update loupe position
-    if (state.phase === Phase.WALL_BUILD || state.phase === Phase.CANNON_PLACE) {
-      const w = screenToWorld(x, y);
-      showLoupe(x, y, w.wx, w.wy);
-    }
   }, { passive: false });
 
   // --- touchend: tap = commit action, drag-release = fire in battle only ---
@@ -146,7 +133,6 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     const touch = e.changedTouches[0];
     if (!touch) return;
     markTouchTime();
-    hideLoupe();
 
     const { x, y } = canvasCoords(touch);
     const mode = getMode();
@@ -189,7 +175,6 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     if (pinchActive) onPinchEnd?.();
     pinchActive = false;
     suppressSingleTouch = false;
-    hideLoupe();
   });
 
   // Prevent long-press context menu

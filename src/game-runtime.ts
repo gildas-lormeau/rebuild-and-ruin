@@ -43,7 +43,7 @@ import {
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
 import { type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
-import { drawLoupe } from "./loupe.ts";
+import { createLoupe, type LoupeHandle } from "./loupe.ts";
 import {
   createBannerState,
   showBannerTransition,
@@ -104,6 +104,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let homeZoomButton: ReturnType<typeof createHomeZoomButton> | null = null;
   let enemyZoomButton: ReturnType<typeof createEnemyZoomButton> | null = null;
   let quitButton: ReturnType<typeof createQuitButton> | null = null;
+  let loupeHandle: LoupeHandle | null = null;
 
   function resetGameStats() {
     rs.gameStats = Array.from({ length: MAX_PLAYERS }, () => ({
@@ -499,7 +500,27 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     }
 
     renderMap(rs.state.map, canvas, rs.overlay, updateViewport());
-    if (rs.mode === Mode.GAME) drawLoupe(canvas, getSceneCanvas());
+
+    // Update loupe for precision placement / aiming on touch
+    if (loupeHandle) {
+      const phase = rs.state.phase;
+      const loupeVisible = rs.mode === Mode.GAME &&
+        (phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE || phase === Phase.BATTLE);
+      const human = firstHuman();
+      let wx = 0;
+      let wy = 0;
+      if (human && phase === Phase.BATTLE) {
+        const ch = human.getCrosshair();
+        wx = ch.x;
+        wy = ch.y;
+      } else if (human) {
+        const cursor = phase === Phase.WALL_BUILD ? human.buildCursor : human.cannonCursor;
+        wx = (cursor.col + 0.5) * TILE_SIZE;
+        wy = (cursor.row + 0.5) * TILE_SIZE;
+      }
+      loupeHandle.update(loupeVisible && human !== null, wx, wy, getSceneCanvas());
+    }
+
     const hasHuman = firstHuman() !== null;
     const inGame = rs.mode === Mode.GAME || rs.mode === Mode.SELECTION;
     dpad?.update(hasHuman && inGame ? rs.state.phase : null);
@@ -777,9 +798,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         getEnemyZones,
         render,
       };
-      // Zoom buttons at top-left, quit at top-right
-      homeZoomButton = createHomeZoomButton(zoomDeps, panels.leftTop);
-      enemyZoomButton = createEnemyZoomButton(zoomDeps, panels.leftTop);
+      // Loupe at top-left, zoom buttons at top-right (above quit)
+      loupeHandle = createLoupe(panels.leftTop);
+      homeZoomButton = createHomeZoomButton(zoomDeps, panels.rightTop);
+      enemyZoomButton = createEnemyZoomButton(zoomDeps, panels.rightTop);
       const quitDeps = {
         getQuitPending: () => rs.quitPending,
         setQuitPending: (v: boolean) => { rs.quitPending = v; },
