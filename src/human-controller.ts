@@ -187,7 +187,7 @@ export class HumanController extends BaseController implements InputReceiver {
       this.cannonPlaceMode === CannonMode.NORMAL
         ? undefined
         : this.cannonPlaceMode;
-    return placeCannon(
+    const placed = placeCannon(
       player,
       this.cannonCursor.row,
       this.cannonCursor.col,
@@ -195,6 +195,8 @@ export class HumanController extends BaseController implements InputReceiver {
       mode,
       state,
     );
+    if (placed) this.cannonCursorNeedsSnap = false;
+    return placed;
   }
 
   /** Try to place the current build piece at the build cursor. */
