@@ -146,9 +146,12 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
       () => syncSelectionOverlay(),
       () => deps.render(),
     );
-    // Auto-zoom to the highlighted tower on mobile
-    const tower = rs.state.map.towers[idx];
-    if (tower) deps.setSelectionViewport(tower.row, tower.col);
+    // Auto-zoom to the highlighted tower on mobile (human player only)
+    const human = deps.firstHuman();
+    if (human && pid === human.playerId) {
+      const tower = rs.state.map.towers[idx];
+      if (tower) deps.setSelectionViewport(tower.row, tower.col);
+    }
   }
 
   function confirmSelectionForPlayer(pid: number, isReselect = false): boolean {

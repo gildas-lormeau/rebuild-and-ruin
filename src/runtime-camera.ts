@@ -294,18 +294,13 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     if (cameraZone !== null || pinchVp !== null || castleBuildVp !== null) {
       const phaseEnding = !mobileAuto && state.timer > 0 && state.timer <= PHASE_ENDING_THRESHOLD &&
         (state.phase === Phase.WALL_BUILD || state.phase === Phase.CANNON_PLACE || state.phase === Phase.BATTLE);
-      const lifeLostUnzoom = deps.hasLifeLostDialog() && !mobileAuto;
+      const lifeLostUnzoom = deps.hasLifeLostDialog();
       if (phaseEnding || quitPending || lifeLostUnzoom || paused) {
         savePinchForPhase(state.phase === Phase.BATTLE);
         cameraZone = null;
         pinchVp = null;
         castleBuildVp = null;
       }
-    }
-
-    // On mobile with auto-zoom, zoom to player zone for life-lost dialog
-    if (mobileAuto && deps.hasLifeLostDialog()) {
-      cameraZone = getMyZone();
     }
 
     // Restore zoom after pause/quit cleared (mobile only)
