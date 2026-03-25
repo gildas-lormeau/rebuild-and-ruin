@@ -255,8 +255,9 @@
         flex-direction: column;
       }
 
-      .has-touch-panels.left-handed {
-        flex-direction: column-reverse;
+      .has-touch-panels.left-handed > .portrait-top,
+      .has-touch-panels.left-handed > .portrait-bottom {
+        flex-direction: row-reverse;
       }
 
       #game-container canvas:not(.loupe) {

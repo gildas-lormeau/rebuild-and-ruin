@@ -30,6 +30,13 @@ interface DpadDeps {
   lobbyAction: () => void;
   render: () => void;
   getLeftHanded: () => boolean;
+  /** Options screen navigation (optional — only wired on touch). */
+  options?: {
+    isActive: () => boolean;
+    navigate: (dir: -1 | 1) => void;
+    changeValue: (dir: -1 | 1) => void;
+    confirm: () => void;
+  };
 }
 
 interface QuitButtonDeps {
@@ -91,6 +98,14 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
 
   function fireDirection(action: Action) {
     hapticTap();
+    if (deps.options?.isActive()) {
+      if (action === Action.UP) deps.options.navigate(-1);
+      else if (action === Action.DOWN) deps.options.navigate(1);
+      else if (action === Action.LEFT) deps.options.changeValue(-1);
+      else if (action === Action.RIGHT) deps.options.changeValue(1);
+      deps.render();
+      return;
+    }
     const state = deps.getState();
     if (!state) return;
     if (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT) {
@@ -131,6 +146,11 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
   // --- Action button: confirm selection / place piece / place cannon ---
   function handleAction() {
     hapticTap();
+    if (deps.options?.isActive()) {
+      deps.options.confirm();
+      deps.render();
+      return;
+    }
     const state = deps.getState();
     if (!state || !lastPhase) {
       deps.lobbyAction();
@@ -167,6 +187,11 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
   // --- Rotate button: rotate piece / cycle cannon mode ---
   function handleRotate() {
     hapticTap();
+    if (deps.options?.isActive()) {
+      deps.options.changeValue(1);
+      deps.render();
+      return;
+    }
     const state = deps.getState();
     if (!state) return;
     deps.withFirstHuman((human) => {

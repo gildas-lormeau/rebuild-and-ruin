@@ -539,7 +539,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     const hasHuman = firstHuman() !== null;
     const inGame = rs.mode === Mode.GAME || rs.mode === Mode.SELECTION;
-    dpad?.update(hasHuman && inGame ? rs.state.phase : null);
+    const controlsActive = inGame ? hasHuman : rs.mode === Mode.OPTIONS;
+    dpad?.update(controlsActive ? (rs.state?.phase ?? Phase.WALL_BUILD) : null);
     homeZoomButton?.update(hasHuman);
     enemyZoomButton?.update(hasHuman);
     const inLobby = rs.mode === Mode.LOBBY || rs.mode === Mode.OPTIONS || rs.mode === Mode.CONTROLS;
@@ -808,6 +809,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         lobbyAction: () => lobbyKeyJoin(rs.settings.keyBindings[0]!.confirm),
         render,
         getLeftHanded: () => rs.settings.leftHanded,
+        options: {
+          isActive: () => rs.mode === Mode.OPTIONS,
+          navigate: (dir) => {
+            const count = visibleOptionsForCtx().length;
+            rs.optionsCursor = (rs.optionsCursor + dir + count) % count;
+          },
+          changeValue: (dir) => changeOption(dir),
+          confirm: () => {
+            if (realOptionIdx() === 5) showControls();
+            else closeOptions();
+          },
+        },
       }, gameContainer);
       dpad.update(null); // initial state: d-pad + rotate disabled
       const zoomDeps = {
