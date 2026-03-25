@@ -527,8 +527,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const hasHuman = firstHuman() !== null;
     const inGame = rs.mode === Mode.GAME || rs.mode === Mode.SELECTION;
     dpad?.update(hasHuman && inGame ? rs.state.phase : null);
-    homeZoomButton?.update();
-    enemyZoomButton?.update();
+    homeZoomButton?.update(hasHuman);
+    enemyZoomButton?.update(hasHuman);
     const inLobby = rs.mode === Mode.LOBBY || rs.mode === Mode.OPTIONS || rs.mode === Mode.CONTROLS;
     quitButton?.update(!inLobby ? rs.state.phase : null);
   }
@@ -804,8 +804,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       };
       // Loupe at top-left, zoom buttons at top-right (above quit)
       loupeHandle = createLoupe(panels.leftTop);
-      homeZoomButton = createHomeZoomButton(zoomDeps, panels.rightTop);
-      enemyZoomButton = createEnemyZoomButton(zoomDeps, panels.rightTop);
       const quitDeps = {
         getQuitPending: () => rs.quitPending,
         setQuitPending: (v: boolean) => { rs.quitPending = v; },
@@ -817,6 +815,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         render,
       };
       quitButton = createQuitButton(quitDeps, panels.rightTop);
+      const zoomGroup = document.createElement("div");
+      zoomGroup.style.cssText = "display: flex; flex-direction: column; align-items: center; gap: 4vmin; margin-bottom: 3vmin;";
+      panels.rightBottom.prepend(zoomGroup);
+      homeZoomButton = createHomeZoomButton(zoomDeps, zoomGroup);
+      enemyZoomButton = createEnemyZoomButton(zoomDeps, zoomGroup);
       camera.enableMobileZoom();
     }
   }

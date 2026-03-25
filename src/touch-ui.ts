@@ -128,9 +128,9 @@ export function createTouchPanels(container: HTMLElement): TouchPanels {
   // Each panel has top + bottom sections for space-between layout
   function addLeftSection(p: HTMLDivElement) {
     const top = document.createElement("div");
-    top.style.cssText = `display: flex; flex-direction: column; align-items: center; padding: 2dvh 2vmin; gap: ${BTN_GAP}; align-self: start;`;
+    top.style.cssText = `display: flex; flex-direction: column; align-items: center; padding: 2dvh 2vmin; gap: ${BTN_GAP};`;
     const bottom = document.createElement("div");
-    bottom.style.cssText = `display: flex; flex-direction: column; align-items: center; padding: 5dvh 5vmin; gap: ${BTN_GAP}; align-self: start;`;
+    bottom.style.cssText = `display: flex; flex-direction: column; align-items: center; padding: 5dvh 5vmin; gap: ${BTN_GAP};`;
     p.appendChild(top);
     p.appendChild(bottom);
     return { top, bottom };
@@ -138,9 +138,9 @@ export function createTouchPanels(container: HTMLElement): TouchPanels {
 
   function addRightSection(p: HTMLDivElement) {
     const top = document.createElement("div");
-    top.style.cssText = `display: flex; flex-direction: column; align-items: center; padding: 5dvh 5vmin; gap: ${BTN_GAP}; align-self: end;`;
+    top.style.cssText = `display: flex; flex-direction: column; align-items: center; padding: 5dvh 5vmin; gap: 3vmin;`;
     const bottom = document.createElement("div");
-    bottom.style.cssText = `display: flex; flex-direction: column; align-items: center; padding: 5dvh 5vmin; gap: ${BTN_GAP}; align-self: end;`;
+    bottom.style.cssText = `display: flex; flex-direction: column; align-items: center; padding: 5dvh 5vmin; gap: ${BTN_GAP};`;
     p.appendChild(top);
     p.appendChild(bottom);
     return { top, bottom };
@@ -148,9 +148,6 @@ export function createTouchPanels(container: HTMLElement): TouchPanels {
 
   const leftSections = addLeftSection(lp);
   const rightSections = addRightSection(rp);
-
-  // Left panel: no gap on panel (loupe flush), min-height: 0 on top section
-  leftSections.top.style.minHeight = "0";
 
   return {
     left: lp, right: rp,
@@ -367,6 +364,7 @@ export function createQuitButton(deps: QuitButtonDeps, container?: HTMLElement):
     color: #cc8888;
   `;
   if (container) {
+    btn.style.display = "none";
     container.appendChild(btn);
   } else {
     // Desktop fallback: fixed position
@@ -407,7 +405,7 @@ export function createQuitButton(deps: QuitButtonDeps, container?: HTMLElement):
 
 /** Toggle between my zone (zoomed) and full map. */
 export function createHomeZoomButton(deps: ZoomButtonDeps, container: HTMLElement): {
-  update: () => void;
+  update: (visible?: boolean) => void;
 } {
   const btn = createZoomBtn(TOUCH_ZOOM_HOME_BG, TOUCH_ZOOM_HOME_BORDER, "#c0d8f0");
   btn.dataset.btn = "home";
@@ -453,15 +451,16 @@ export function createHomeZoomButton(deps: ZoomButtonDeps, container: HTMLElemen
   });
 
   return {
-    update() {
-      updateLabel();
+    update(visible = true) {
+      btn.style.display = visible ? "flex" : "none";
+      if (visible) updateLabel();
     },
   };
 }
 
 /** Cycle through opponent zones. */
 export function createEnemyZoomButton(deps: ZoomButtonDeps, container: HTMLElement): {
-  update: () => void;
+  update: (visible?: boolean) => void;
 } {
   const btn = createZoomBtn(TOUCH_ZOOM_ENEMY_BG, TOUCH_ZOOM_ENEMY_BORDER, "#f0c0c0");
   btn.dataset.btn = "enemy";
@@ -502,8 +501,9 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps, container: HTMLEleme
   });
 
   return {
-    update() {
-      updateLabel();
+    update(visible = true) {
+      btn.style.display = visible ? "flex" : "none";
+      if (visible) updateLabel();
     },
   };
 }
