@@ -176,9 +176,7 @@ export function registerOnlineInputHandlers(
 
     const state = getState();
     if (!state || isLobbyActive()) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    const { x, y } = clientToCanvas(e.clientX, e.clientY, canvas);
 
     dispatchPointerMove(x, y, state, deps);
   });
@@ -187,9 +185,7 @@ export function registerOnlineInputHandlers(
     // Suppress synthetic click fired by the browser after touchend
     if (performance.now() - lastTouchTime < TOUCH_CLICK_SUPPRESS_MS) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    const { x, y } = clientToCanvas(e.clientX, e.clientY, canvas);
 
     const mode = getMode();
     const state = getState();
@@ -538,6 +534,32 @@ export function registerOnlineInputHandlers(
       ctrl.handleKeyUp(action);
     }
   });
+}
+
+/**
+ * Convert a client-space coordinate to canvas backing-store coordinates,
+ * accounting for object-fit:contain letterboxing.
+ */
+export function clientToCanvas(clientX: number, clientY: number, canvas: HTMLCanvasElement): { x: number; y: number } {
+  const rect = canvas.getBoundingClientRect();
+  const canvasRatio = canvas.width / canvas.height;
+  const rectRatio = rect.width / rect.height;
+  let contentW: number, contentH: number, offsetX: number, offsetY: number;
+  if (rectRatio > canvasRatio) {
+    contentH = rect.height;
+    contentW = rect.height * canvasRatio;
+    offsetX = (rect.width - contentW) / 2;
+    offsetY = 0;
+  } else {
+    contentW = rect.width;
+    contentH = rect.width / canvasRatio;
+    offsetX = 0;
+    offsetY = (rect.height - contentH) / 2;
+  }
+  return {
+    x: ((clientX - rect.left - offsetX) / contentW) * canvas.width,
+    y: ((clientY - rect.top - offsetY) / contentH) * canvas.height,
+  };
 }
 
 /** Shared mode-tap dispatch — handles non-game UI taps (game over, options, lobby, etc.). Returns true if consumed. */

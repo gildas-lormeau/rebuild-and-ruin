@@ -6,7 +6,7 @@
  */
 
 import type { RegisterOnlineInputDeps } from "./input.ts";
-import { dispatchBattleFire, dispatchModeTap, dispatchPointerMove, dispatchTowerSelect, markTouchTime } from "./input.ts";
+import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPointerMove, dispatchTowerSelect, markTouchTime } from "./input.ts";
 import { Phase } from "./types.ts";
 
 const TAP_MAX_DIST = 20;
@@ -40,11 +40,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   let suppressSingleTouch = false;
 
   function canvasCoords(touch: Touch): { x: number; y: number } {
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: (touch.clientX - rect.left) * (canvas.width / rect.width),
-      y: (touch.clientY - rect.top) * (canvas.height / rect.height),
-    };
+    return clientToCanvas(touch.clientX, touch.clientY, canvas);
   }
 
   function isTap(touch: Touch): boolean {
