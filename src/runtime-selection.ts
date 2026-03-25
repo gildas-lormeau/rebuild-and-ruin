@@ -132,7 +132,9 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
   }
 
   function syncSelectionOverlay(): void {
-    syncSelectionOverlayImpl(rs.overlay, rs.selectionStates, (pid) => isHuman(rs.controllers[pid]!));
+    const announcementDone = rs.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION;
+    syncSelectionOverlayImpl(rs.overlay, rs.selectionStates, (pid) =>
+      isHuman(rs.controllers[pid]!) && announcementDone);
   }
 
   function highlightTowerForPlayer(idx: number, zone: number, pid: number): void {

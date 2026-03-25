@@ -84,6 +84,7 @@ import {
   MAX_FRAME_DT,
   Phase,
   SCORE_DELTA_DISPLAY_TIME,
+  SELECT_ANNOUNCEMENT_DURATION,
 } from "./types.ts";
 
 export type { GameRuntime } from "./game-runtime-types.ts";
@@ -780,6 +781,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       getSelectionStates: () => rs.selectionStates,
       highlightTowerForPlayer: selection.highlight,
       confirmSelectionForPlayer: selection.confirm,
+      isSelectionReady: () => rs.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION,
       togglePause,
       getQuitPending: () => rs.quitPending,
       setQuitPending: (v) => { rs.quitPending = v; },
@@ -810,6 +812,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         lobbyAction: () => lobbyKeyJoin(rs.settings.keyBindings[0]!.confirm),
         render,
         getLeftHanded: () => rs.settings.leftHanded,
+        isSelectionReady: () => rs.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION,
         options: {
           isActive: () => rs.mode === Mode.OPTIONS,
           navigate: (dir) => {

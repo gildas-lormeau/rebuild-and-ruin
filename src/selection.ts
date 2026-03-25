@@ -187,6 +187,9 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     return;
   }
 
+  // Block all selection (AI + human) until the announcement finishes
+  if (accum.selectAnnouncement < announcementDuration) { render(); return; }
+
   const isReselect = phase === Phase.CASTLE_RESELECT;
   for (const [pid, ss] of selectionStates) {
     if (ss.confirmed) continue;

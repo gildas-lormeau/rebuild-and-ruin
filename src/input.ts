@@ -87,6 +87,8 @@ export interface RegisterOnlineInputDeps {
   getSelectionStates: () => Map<number, SelectionState>;
   highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
   confirmSelectionForPlayer: (pid: number, isReselect?: boolean) => boolean;
+  /** True after the "Select your home castle" announcement has finished. */
+  isSelectionReady?: () => boolean;
   togglePause: () => boolean;
   getQuitPending: () => boolean;
   setQuitPending: (value: boolean) => void;
@@ -150,6 +152,7 @@ export function registerOnlineInputHandlers(
     getSelectionStates,
     highlightTowerForPlayer,
     confirmSelectionForPlayer,
+    isSelectionReady,
     togglePause,
     getQuitPending,
     setQuitPending,
@@ -450,6 +453,7 @@ export function registerOnlineInputHandlers(
       state.phase === Phase.CASTLE_SELECT ||
       state.phase === Phase.CASTLE_RESELECT
     ) {
+      if (isSelectionReady && !isSelectionReady()) return;
       const isReselect = state.phase === Phase.CASTLE_RESELECT;
       for (const ctrl of getControllers()) {
         if (!isHuman(ctrl)) continue;
@@ -599,9 +603,10 @@ export function dispatchTowerSelect(
   isReselect: boolean,
   deps: Pick<RegisterOnlineInputDeps,
     "withFirstHuman" | "getSelectionStates" |
-    "highlightTowerForPlayer" | "confirmSelectionForPlayer">,
+    "highlightTowerForPlayer" | "confirmSelectionForPlayer" | "isSelectionReady">,
   requireDoubleTap = false,
 ): void {
+  if (deps.isSelectionReady && !deps.isSelectionReady()) return;
   deps.withFirstHuman((human) => {
     const ss = deps.getSelectionStates().get(human.playerId);
     if (!ss || ss.confirmed) return;
@@ -643,10 +648,11 @@ export function dispatchPointerMove(
   state: GameState,
   deps: Pick<RegisterOnlineInputDeps,
     "withFirstHuman" | "getSelectionStates" | "screenToWorld" |
-    "highlightTowerForPlayer" | "pixelToTile" | "render" | "maybeSendAimUpdate">,
+    "highlightTowerForPlayer" | "pixelToTile" | "render" | "maybeSendAimUpdate" | "isSelectionReady">,
 ): void {
   const { withFirstHuman, getSelectionStates, screenToWorld, highlightTowerForPlayer, pixelToTile, render, maybeSendAimUpdate } = deps;
   if (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT) {
+    if (deps.isSelectionReady && !deps.isSelectionReady()) return;
     withFirstHuman((human) => {
       const ss = getSelectionStates().get(human.playerId);
       if (!ss || ss.confirmed) return;

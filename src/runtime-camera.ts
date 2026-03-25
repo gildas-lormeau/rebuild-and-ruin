@@ -17,7 +17,7 @@ import {
   PHASE_ENDING_THRESHOLD,
   Phase,
   PINCH_FULL_MAP_SNAP,
-  SELECTION_ZOOM_DELAY,
+  SELECT_ANNOUNCEMENT_DURATION,
   VIEWPORT_SNAP_THRESHOLD,
   ZONE_PAD_NO_WALLS,
   ZONE_PAD_SELECTION,
@@ -312,7 +312,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
     // Selection zoom delay: wait before auto-zooming on first selection (mobile)
     if (mode === Mode.SELECTION && lastAutoZoomPhase === null && selectionZoomDelay <= 0) {
-      selectionZoomDelay = SELECTION_ZOOM_DELAY;
+      selectionZoomDelay = SELECT_ANNOUNCEMENT_DURATION;
     }
     if (selectionZoomDelay > 0 && mode === Mode.SELECTION) {
       selectionZoomDelay -= dt;

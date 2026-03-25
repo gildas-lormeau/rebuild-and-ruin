@@ -232,7 +232,7 @@ export const BUILD_TIMER = 25;
 export const CANNON_PLACE_TIMER = 15;
 /** Duration of the castle selection phase in seconds. */
 export const SELECT_TIMER = 10;
-export const SELECT_ANNOUNCEMENT_DURATION = 2;
+export const SELECT_ANNOUNCEMENT_DURATION = 1;
 /** Duration of the pre-battle countdown in seconds (Ready 3s + Aim 2s + Fire! 1s). */
 export const BATTLE_COUNTDOWN = 6;
 /** Seconds for a grunt to destroy an adjacent tower or wall. */
@@ -305,8 +305,6 @@ export const ZONE_PAD_NO_WALLS = 1;
 export const ZONE_PAD_SELECTION = 7;
 /** Seconds before timer reaches 0 to trigger unzoom. */
 export const PHASE_ENDING_THRESHOLD = 1.5;
-/** Seconds to wait before auto-zoom on first selection. */
-export const SELECTION_ZOOM_DELAY = 2;
 /** Pixel distance threshold for viewport lerp convergence snap. */
 export const VIEWPORT_SNAP_THRESHOLD = 0.5;
 /** Minimum Manhattan distance between any two houses. */

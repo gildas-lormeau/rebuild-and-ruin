@@ -31,6 +31,8 @@ interface DpadDeps {
   lobbyAction: () => void;
   render: () => void;
   getLeftHanded: () => boolean;
+  /** True after the "Select your home castle" announcement has finished. */
+  isSelectionReady?: () => boolean;
   /** Options screen navigation (optional — only wired on touch). */
   options?: {
     isActive: () => boolean;
@@ -109,7 +111,8 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
     }
     const state = deps.getState();
     if (!state) return;
-    if (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT) {
+    if ((state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT)
+      && (!deps.isSelectionReady || deps.isSelectionReady())) {
       deps.withFirstHuman((human) => {
         const ss = deps.getSelectionStates().get(human.playerId);
         if (!ss || ss.confirmed) return;
@@ -176,7 +179,8 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
       deps.lobbyAction();
       return;
     }
-    if (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT) {
+    if ((state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT)
+      && (!deps.isSelectionReady || deps.isSelectionReady())) {
       const isReselect = state.phase === Phase.CASTLE_RESELECT;
       deps.withFirstHuman((human) => {
         deps.confirmSelectionForPlayer(human.playerId, isReselect);
