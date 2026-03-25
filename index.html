@@ -177,7 +177,7 @@
        .panel-top / .panel-bottom add extra padding for interactive elements
        so they reach --safe-padding from the viewport edge. */
     .landscape {
-      display: flex;
+      display: none;
       flex-direction: column;
       justify-content: space-between;
       flex-shrink: 0;
@@ -195,6 +195,10 @@
         flex-direction: column;
         gap: var(--safe-padding);
       }
+    }
+
+    .has-touch-panels > .landscape {
+      display: flex;
     }
 
     .landscape.panel-left {
@@ -239,19 +243,19 @@
     }
 
     @media (orientation: portrait) {
-      .landscape {
+      .has-touch-panels > .landscape {
         display: none;
       }
 
-      .portrait {
+      .has-touch-panels > .portrait {
         display: flex;
       }
 
-      #game-container {
+      .has-touch-panels {
         flex-direction: column;
       }
 
-      .left-handed {
+      .has-touch-panels.left-handed {
         flex-direction: column-reverse;
       }
 
