@@ -255,18 +255,27 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
 
   function tickAllCastleBuilds(dt: number): void {
     let anyPlaced = false;
+    const humanPid = deps.firstHuman()?.playerId ?? -1;
+    let humanBuildDone = false;
     for (let i = rs.castleBuilds.length - 1; i >= 0; i--) {
+      const build = rs.castleBuilds[i]!;
       const result = tickCastleBuildAnimation({
-        castleBuild: rs.castleBuilds[i]!, dt, wallBuildIntervalMs: WALL_BUILD_INTERVAL, state: rs.state, render: () => {},
+        castleBuild: build, dt, wallBuildIntervalMs: WALL_BUILD_INTERVAL, state: rs.state, render: () => {},
         onWallsPlaced: () => { anyPlaced = true; },
       });
       if (!result.next) {
+        if (build.wallPlans.some(p => p.playerId === humanPid)) humanBuildDone = true;
         rs.castleBuilds.splice(i, 1);
       } else {
         rs.castleBuilds[i] = result.next;
       }
     }
     if (anyPlaced) claimTerritory(rs.state);
+    // Unzoom once human player's castle build animation finishes
+    if (humanBuildDone) {
+      deps.clearCastleBuildViewport();
+      deps.lightUnzoom();
+    }
   }
 
   function showBuildScoreDeltas(onDone: () => void): void {
@@ -301,7 +310,6 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
     tickAllCastleBuilds(dt);
     deps.render();
     if (rs.castleBuilds.length === 0) {
-      deps.clearCastleBuildViewport();
       if (rs.castleBuildOnDone) {
         const cb = rs.castleBuildOnDone;
         rs.castleBuildOnDone = null;
