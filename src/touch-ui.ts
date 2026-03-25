@@ -217,6 +217,7 @@ export function createDpad(deps: DpadDeps, panel: TouchPanels): {
   const REPEAT_DELAY = 120;
   const REPEAT_RATE = 50;
   let repeatTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastPhase: Phase | null = null;
 
   function stopRepeat() {
     if (repeatTimer !== null) { clearTimeout(repeatTimer); repeatTimer = null; }
@@ -274,7 +275,7 @@ export function createDpad(deps: DpadDeps, panel: TouchPanels): {
   function handleAction() {
     hapticTap();
     const state = deps.getState();
-    if (!state) {
+    if (!state || !lastPhase) {
       deps.lobbyAction();
       return;
     }
@@ -340,6 +341,7 @@ export function createDpad(deps: DpadDeps, panel: TouchPanels): {
   return {
     update(phase: Phase | null) {
       stopRepeat();
+      lastPhase = phase;
       const dpadActive = phase === Phase.CASTLE_SELECT || phase === Phase.CASTLE_RESELECT
         || phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE;
       const rotateActive = phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE;
