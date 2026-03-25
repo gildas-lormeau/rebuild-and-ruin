@@ -411,7 +411,7 @@ async function replayRecording(page: Page, recording: Recording): Promise<void> 
           const sel = pickSelector(step.selectors);
           await page.$eval(sel, (el, { x, y }) => el.scrollBy(x, y), { x: step.x ?? 0, y: step.y ?? 0 });
         } else {
-          await page.evaluate(({ x, y }) => window.scrollBy(x, y), { x: step.x ?? 0, y: step.y ?? 0 });
+          await page.evaluate(({ x, y }) => scrollBy(x, y), { x: step.x ?? 0, y: step.y ?? 0 });
         }
         break;
 
@@ -667,7 +667,7 @@ async function runLocal() {
   if (FAST) {
     await page.evaluate(() => {
       let fakeTime = performance.now();
-      window.requestAnimationFrame = (cb: FrameRequestCallback) =>
+      globalThis.requestAnimationFrame = (cb: FrameRequestCallback) =>
         setTimeout(() => { fakeTime += 100; cb(fakeTime); }, 1) as unknown as number;
     });
   }
