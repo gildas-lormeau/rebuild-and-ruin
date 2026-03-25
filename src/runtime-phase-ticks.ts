@@ -133,7 +133,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     if (deps.getIsHost() && deps.hostNetworking) {
       deps.send(deps.hostNetworking.buildCannonStartMessage(rs.state));
     }
-    deps.render();
   }
 
   // -------------------------------------------------------------------------
