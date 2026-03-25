@@ -28,9 +28,6 @@ import { LIFE_LOST_AI_DELAY, LIFE_LOST_MAX_TIMER } from "./types.ts";
 interface LifeLostSystemDeps {
   rs: RuntimeState;
 
-  getIsHost: () => boolean;
-  getMyPlayerId: () => number;
-  getRemoteHumanSlots: () => Set<number>;
   send: (msg: GameMessage) => void;
   log: (msg: string) => void;
 
@@ -50,7 +47,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   const { rs } = deps;
 
   function showLifeLostDialog(needsReselect: number[], eliminated: number[]) {
-    const remoteHumanSlots = deps.getRemoteHumanSlots();
+    const remoteHumanSlots = rs.ctx.remoteHumanSlots;
     deps.log(
       `showLifeLostDialog: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
     );
@@ -58,8 +55,8 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       needsReselect,
       eliminated,
       state: rs.state,
-      isHost: deps.getIsHost(),
-      myPlayerId: deps.getMyPlayerId(),
+      isHost: rs.ctx.isHost,
+      myPlayerId: rs.ctx.myPlayerId,
       remoteHumanSlots,
       isHumanController: (playerId) => isHuman(rs.controllers[playerId]!),
     });
@@ -73,7 +70,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       lifeLostAiDelay: LIFE_LOST_AI_DELAY,
       lifeLostMaxTimer: LIFE_LOST_MAX_TIMER,
       state: rs.state,
-      isHost: deps.getIsHost(),
+      isHost: rs.ctx.isHost,
       render: deps.render,
       logResolved: (dialog) => {
         deps.log(

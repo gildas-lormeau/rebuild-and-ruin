@@ -19,7 +19,7 @@ interface TickSelectionPhaseDeps {
   selectTimer: number;
   accum: { select: number; selectAnnouncement: number };
   selectionStates: Map<number, SelectionState>;
-  remoteHumanSlots: Set<number>;
+  remoteHumanSlots: ReadonlySet<number>;
   controllers: PlayerController[];
   render: () => void;
   confirmSelectionForPlayer: (playerId: number, isReselect?: boolean) => void;

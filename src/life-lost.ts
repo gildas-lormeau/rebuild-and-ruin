@@ -45,7 +45,7 @@ interface BuildLifeLostDialogDeps {
   state: GameState;
   isHost: boolean;
   myPlayerId: number;
-  remoteHumanSlots: Set<number>;
+  remoteHumanSlots: ReadonlySet<number>;
   isHumanController: (playerId: number) => boolean;
 }
 

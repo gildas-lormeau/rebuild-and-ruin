@@ -24,7 +24,7 @@ interface EnterTowerSelectionDeps {
   state: GameState;
   isHost: boolean;
   myPlayerId: number;
-  remoteHumanSlots: Set<number>;
+  remoteHumanSlots: ReadonlySet<number>;
   controllers: PlayerController[];
   selectionStates: Map<number, SelectionState>;
   initTowerSelection: (playerId: number, zone: number) => void;

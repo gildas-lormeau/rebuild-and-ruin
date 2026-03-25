@@ -56,9 +56,6 @@ interface PhaseTicksDeps {
   rs: RuntimeState;
 
   // Config / networking
-  getIsHost: () => boolean;
-  getMyPlayerId: () => number;
-  getRemoteHumanSlots: () => Set<number>;
   send: (msg: GameMessage) => void;
   log: (msg: string) => void;
   hostNetworking?: {
@@ -104,7 +101,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function collectCrosshairs(canFireNow: boolean, dt = 0): void {
-    const remoteHumanSlots = deps.getRemoteHumanSlots();
+    const remoteHumanSlots = rs.ctx.remoteHumanSlots;
     rs.frame.crosshairs = collectLocalCrosshairs({
       state: rs.state,
       controllers: rs.controllers,
@@ -122,7 +119,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function startCannonPhase() {
-    const remoteHumanSlots = deps.getRemoteHumanSlots();
+    const remoteHumanSlots = rs.ctx.remoteHumanSlots;
     deps.log(`startCannonPhase (round=${rs.state.round})`);
     initCannonPhase({
       state: rs.state,
@@ -132,7 +129,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     rs.accum.cannon = 0;
     rs.state.timer = rs.state.cannonPlaceTimer;
-    if (deps.getIsHost() && deps.hostNetworking) {
+    if (rs.ctx.isHost && deps.hostNetworking) {
       deps.send(deps.hostNetworking.buildCannonStartMessage(rs.state));
     }
   }
@@ -156,7 +153,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       setModeBalloonAnim: () => { rs.mode = Mode.BALLOON_ANIM; },
       beginBattle,
       net: deps.hostNetworking ? {
-        isHost: deps.getIsHost(),
+        isHost: rs.ctx.isHost,
         sendBattleStart: (flights) => {
           deps.send(deps.hostNetworking!.buildBattleStartMessage(rs.state, flights));
         },
@@ -182,8 +179,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       battleCountdown: BATTLE_COUNTDOWN,
       setModeGame: () => { rs.mode = Mode.GAME; },
       net: {
-        remoteHumanSlots: deps.getRemoteHumanSlots(),
-        isHost: deps.getIsHost(),
+        remoteHumanSlots: rs.ctx.remoteHumanSlots,
+        isHost: rs.ctx.isHost,
         watcherTiming: deps.watcherTiming ?? { phaseStartTime: 0, phaseDuration: 0, countdownStartTime: 0, countdownDuration: 0 },
         now: () => performance.now(),
       },
@@ -196,7 +193,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function startBuildPhase() {
-    const remoteHumanSlots = deps.getRemoteHumanSlots();
+    const remoteHumanSlots = rs.ctx.remoteHumanSlots;
     deps.log(`startBuildPhase (round=${rs.state.round})`);
     rs.preScores = rs.state.players.map(p => p.score);
     rs.scoreDeltas = [];
@@ -216,8 +213,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     return tickHostCannonPhase({
       dt, state: rs.state, accum: rs.accum, frame: rs.frame, controllers: rs.controllers, render: deps.render, startBattle,
       net: {
-        remoteHumanSlots: deps.getRemoteHumanSlots(),
-        isHost: deps.getIsHost(),
+        remoteHumanSlots: rs.ctx.remoteHumanSlots,
+        isHost: rs.ctx.isHost,
         remoteCannonPhantoms: deps.hostNetworking?.remoteCannonPhantoms() ?? [],
         lastSentCannonPhantom: deps.hostNetworking?.lastSentCannonPhantom() ?? new Map(),
         autoPlaceCannons: deps.hostNetworking?.autoPlaceCannons ?? (() => {}),
@@ -230,7 +227,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   function tickBattleCountdown(dt: number): void {
     tickHostBattleCountdown({
       dt, state: rs.state, frame: rs.frame, controllers: rs.controllers, collectCrosshairs, render: deps.render,
-      net: { remoteHumanSlots: deps.getRemoteHumanSlots() },
+      net: { remoteHumanSlots: rs.ctx.remoteHumanSlots },
     });
   }
 
@@ -241,7 +238,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       collectTowerEvents: gruntAttackTowers,
       updateCannonballsWithEvents: updateCannonballs,
       onBattleEvents: (events) => {
-        const pid = deps.getMyPlayerId();
+        const pid = rs.ctx.myPlayerId;
         const localPid = pid >= 0 ? pid : (deps.firstHuman()?.playerId ?? -1);
         if (localPid >= 0) hapticBattleEvents(events as Array<{ type: string; playerId?: number; hp?: number }>, localPid);
         for (const evt of events as Array<{ type: string; playerId?: number; shooterId?: number; hp?: number; newHp?: number }>) {
@@ -264,13 +261,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           BANNER_BUILD_SUB,
         );
         nextPhase(rs.state);
-        if (deps.getIsHost() && deps.hostNetworking) {
+        if (rs.ctx.isHost && deps.hostNetworking) {
           deps.send(deps.hostNetworking.buildBuildStartMessage(rs.state));
         }
       },
       net: {
-        remoteHumanSlots: deps.getRemoteHumanSlots(),
-        isHost: deps.getIsHost(),
+        remoteHumanSlots: rs.ctx.remoteHumanSlots,
+        isHost: rs.ctx.isHost,
         sendMessage: deps.send,
       },
     });
@@ -284,8 +281,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       afterLifeLostResolved: deps.afterLifeLostResolved,
       showScoreDeltas: deps.showScoreDeltas,
       net: {
-        remoteHumanSlots: deps.getRemoteHumanSlots(),
-        isHost: deps.getIsHost(),
+        remoteHumanSlots: rs.ctx.remoteHumanSlots,
+        isHost: rs.ctx.isHost,
         remotePiecePhantoms: deps.hostNetworking?.remotePiecePhantoms() ?? [],
         lastSentPiecePhantom: deps.hostNetworking?.lastSentPiecePhantom() ?? new Map(),
         serializePlayers: deps.hostNetworking?.serializePlayers ?? (() => []),
@@ -301,7 +298,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function tickGame(dt: number) {
-    if (deps.getIsHost()) {
+    if (rs.ctx.isHost) {
       tickGameCore({
         dt,
         state: rs.state,

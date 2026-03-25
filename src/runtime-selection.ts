@@ -57,9 +57,6 @@ interface SelectionSystemDeps {
   rs: RuntimeState;
 
   // Config / networking
-  getIsHost: () => boolean;
-  getMyPlayerId: () => number;
-  getRemoteHumanSlots: () => Set<number>;
   send: (msg: GameMessage) => void;
   log: (msg: string) => void;
 
@@ -112,9 +109,9 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
   function enterTowerSelection(): void {
     setupTowerSelection({
       state: rs.state,
-      isHost: deps.getIsHost(),
-      myPlayerId: deps.getMyPlayerId(),
-      remoteHumanSlots: deps.getRemoteHumanSlots(),
+      isHost: rs.ctx.isHost,
+      myPlayerId: rs.ctx.myPlayerId,
+      remoteHumanSlots: rs.ctx.remoteHumanSlots,
       controllers: rs.controllers,
       selectionStates: rs.selectionStates,
       initTowerSelection,
@@ -184,12 +181,12 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
   // -------------------------------------------------------------------------
 
   function tickSelection(dt: number) {
-    const remoteHumanSlots = deps.getRemoteHumanSlots();
+    const remoteHumanSlots = rs.ctx.remoteHumanSlots;
     tickSelectionPhase({
       dt,
       state: rs.state,
-      isHost: deps.getIsHost(),
-      myPlayerId: deps.getMyPlayerId(),
+      isHost: rs.ctx.isHost,
+      myPlayerId: rs.ctx.myPlayerId,
       selectTimer: SELECT_TIMER,
       accum: rs.accum,
       selectionStates: rs.selectionStates,
@@ -245,7 +242,7 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
   }
 
   function startPlayerCastleBuild(playerId: number): void {
-    if (!deps.getIsHost()) return; // non-host builds via castle_walls message
+    if (!rs.ctx.isHost) return; // non-host builds via castle_walls message
     const plan = prepareCastleWallsForPlayer(rs.state, playerId);
     if (!plan) return;
     deps.send({ type: MSG.CASTLE_WALLS, plans: [plan] });
@@ -327,7 +324,7 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
   // -------------------------------------------------------------------------
 
   function startReselection() {
-    const remoteHumanSlots = deps.getRemoteHumanSlots();
+    const remoteHumanSlots = rs.ctx.remoteHumanSlots;
     enterCastleReselectPhase(rs.state);
     rs.selectionStates.clear();
     rs.reselectionPids = [];
@@ -357,7 +354,7 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
       rs.accum.selectAnnouncement = 0;
       rs.state.timer = SELECT_TIMER;
       rs.mode = Mode.SELECTION;
-      if (deps.getIsHost()) {
+      if (rs.ctx.isHost) {
         deps.send({ type: MSG.SELECT_START, timer: SELECT_TIMER });
       }
     } else {

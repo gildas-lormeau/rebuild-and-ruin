@@ -184,6 +184,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       myPlayerId: config.getMyPlayerId(),
       firstHumanPlayerId: firstHuman()?.playerId ?? -1,
       isHost: config.getIsHost(),
+      remoteHumanSlots: config.getRemoteHumanSlots(),
       mobileAutoZoom: camera.isMobileAutoZoom(),
     });
 
@@ -453,9 +454,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const selection: SelectionSystem = createSelectionSystem({
     rs,
-    getIsHost: config.getIsHost,
-    getMyPlayerId: config.getMyPlayerId,
-    getRemoteHumanSlots: config.getRemoteHumanSlots,
     send: config.send,
     log: config.log,
     lightUnzoom: () => camera.lightUnzoom(),
@@ -608,9 +606,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const lifeLost: LifeLostSystem = createLifeLostSystem({
     rs,
-    getIsHost: config.getIsHost,
-    getMyPlayerId: config.getMyPlayerId,
-    getRemoteHumanSlots: config.getRemoteHumanSlots,
     send: config.send,
     log: config.log,
     render: () => render(),
@@ -626,9 +621,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const phaseTicks: PhaseTicksSystem = createPhaseTicksSystem({
     rs,
-    getIsHost: config.getIsHost,
-    getMyPlayerId: config.getMyPlayerId,
-    getRemoteHumanSlots: config.getRemoteHumanSlots,
     send: config.send,
     log: config.log,
     hostNetworking: config.hostNetworking,

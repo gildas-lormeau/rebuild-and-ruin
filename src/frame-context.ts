@@ -16,6 +16,7 @@ export interface FrameContext {
   readonly myPlayerId: number;
   readonly firstHumanPlayerId: number;
   readonly isHost: boolean;
+  readonly remoteHumanSlots: ReadonlySet<number>;
 
   // Mode / Phase
   readonly mode: Mode;
@@ -47,12 +48,13 @@ interface FrameContextInputs {
   myPlayerId: number;
   firstHumanPlayerId: number;
   isHost: boolean;
+  remoteHumanSlots: ReadonlySet<number>;
   mobileAutoZoom: boolean;
 }
 
 export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
   const { mode, phase, timer, paused, quitPending, hasLifeLostDialog,
-    isSelectionReady, myPlayerId, firstHumanPlayerId, isHost, mobileAutoZoom } = inputs;
+    isSelectionReady, myPlayerId, firstHumanPlayerId, isHost, remoteHumanSlots, mobileAutoZoom } = inputs;
 
   const uiBlocking = paused || quitPending || hasLifeLostDialog;
 
@@ -66,6 +68,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     myPlayerId,
     firstHumanPlayerId,
     isHost,
+    remoteHumanSlots,
     mode,
     phase,
     paused,
