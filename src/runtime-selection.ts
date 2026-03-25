@@ -16,7 +16,6 @@ import { isHuman } from "./controller-factory.ts";
 import { setupTowerSelection } from "./game-bootstrap.ts";
 import {
   advanceToCannonPlacePhase,
-  clearPlayerState,
   enterCannonPlacePhase,
   enterCastleReselectPhase,
   finalizeCastleConstruction,
@@ -363,7 +362,7 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
   function finishReselection() {
     completeReselection({
       state: rs.state, selectionStates: rs.selectionStates, clearOverlaySelection,
-      reselectQueue: rs.reselectQueue, reselectionPids: rs.reselectionPids, clearPlayerState,
+      reselectQueue: rs.reselectQueue, reselectionPids: rs.reselectionPids,
       finalizeAndAdvance,
     });
   }

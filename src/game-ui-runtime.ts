@@ -6,7 +6,7 @@
 
 import { nextReadyCombined } from "./battle-system.ts";
 import { resetCannonFacings } from "./cannon-system.ts";
-import { computeCannonLimitsForPhase } from "./game-engine.ts";
+import { computeCannonLimitsForPhase, rebuildHomeCastle } from "./game-engine.ts";
 import { Mode } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import type { KeyBindings } from "./player-config.ts";
@@ -290,10 +290,9 @@ export function completeReselection(params: {
   clearOverlaySelection: () => void;
   reselectQueue: { length: number };
   reselectionPids: number[];
-  clearPlayerState: (player: Player) => void;
   finalizeAndAdvance: () => void;
 }): void {
-  const { state, selectionStates, clearOverlaySelection, reselectionPids, clearPlayerState } = params;
+  const { state, selectionStates, clearOverlaySelection, reselectionPids } = params;
   selectionStates.clear();
   clearOverlaySelection();
   (params.reselectQueue as number[]).length = 0;
@@ -301,10 +300,8 @@ export function completeReselection(params: {
   const pids = new Set(reselectionPids);
   for (const pid of pids) {
     const player = state.players[pid]!;
-    const homeTower = player.homeTower;
-    if (!homeTower) continue;
-    clearPlayerState(player);
-    player.homeTower = homeTower;
+    if (!player.homeTower) continue;
+    rebuildHomeCastle(state, player);
   }
 
   params.finalizeAndAdvance();

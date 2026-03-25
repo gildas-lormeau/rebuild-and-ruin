@@ -330,16 +330,6 @@ function applyLifePenalties(
   return { needsReselect, eliminated };
 }
 
-/** Clear all mutable state from a player (used when losing a life or being eliminated). */
-export function clearPlayerState(player: Player, options?: { keepHomeTower?: boolean }): void {
-  player.walls.clear();
-  player.interior.clear();
-  player.cannons = [];
-  player.ownedTowers = [];
-  player.castle = null;
-  if (!options?.keepHomeTower) player.homeTower = null;
-}
-
 export function resetZoneState(state: GameState, zone: number): void {
   state.grunts = state.grunts.filter(
     (grunt) => state.map.zones[grunt.row]?.[grunt.col] !== zone,
@@ -353,6 +343,16 @@ export function resetZoneState(state: GameState, zone: number): void {
       state.towerAlive[towerIndex] = true;
     }
   }
+}
+
+/** Clear all mutable state from a player (used when losing a life or being eliminated). */
+function clearPlayerState(player: Player, options?: { keepHomeTower?: boolean }): void {
+  player.walls.clear();
+  player.interior.clear();
+  player.cannons = [];
+  player.ownedTowers = [];
+  player.castle = null;
+  if (!options?.keepHomeTower) player.homeTower = null;
 }
 
 /** Build all castles instantly (used by headless tests via nextPhase). */

@@ -542,6 +542,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs.mouseJoinedSlot = -1;
     dpad?.update(null); // hide d-pad buttons, panels stay visible
     quitButton?.update(null);
+    loupeHandle?.update(false, 0, 0, getSceneCanvas());
     config.showLobby();
   }
 
