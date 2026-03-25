@@ -8,7 +8,6 @@
  */
 
 import { Mode } from "./game-ui-types.ts";
-import { IS_TOUCH_DEVICE } from "./platform.ts";
 import { PHASE_ENDING_THRESHOLD, Phase } from "./types.ts";
 
 export interface FrameContext {
@@ -59,7 +58,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
   const uiBlocking = paused || quitPending || hasLifeLostDialog;
 
   const timedPhase = phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE || phase === Phase.BATTLE;
-  const phaseEnding = !mobileAutoZoom && !IS_TOUCH_DEVICE && timer > 0 &&
+  const phaseEnding = !mobileAutoZoom && timer > 0 &&
     timer <= PHASE_ENDING_THRESHOLD && timedPhase;
 
   const shouldUnzoom = uiBlocking || phaseEnding;
