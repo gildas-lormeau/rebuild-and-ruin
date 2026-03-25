@@ -660,6 +660,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs.scoreDeltaTimer = 0;
     rs.scoreDeltaOnDone = null;
     rs.preScores = [];
+    resetGameStats();
     camera.resetCamera();
   }
 
@@ -680,8 +681,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const { buildTimer, cannonPlaceTimer, firstRoundCannons } = diffParams;
     const roundsParam = typeof location !== "undefined" ? Number(new URL(location.href).searchParams.get("rounds")) : 0;
     const roundsVal = roundsParam > 0 ? roundsParam : (ROUNDS_OPTIONS[rs.settings.rounds] ?? ROUNDS_OPTIONS[0]!).value;
-
-    resetGameStats();
 
     bootstrapGame({
       seed,

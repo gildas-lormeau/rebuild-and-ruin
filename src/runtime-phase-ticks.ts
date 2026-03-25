@@ -242,10 +242,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         const localPid = pid >= 0 ? pid : (deps.firstHuman()?.playerId ?? -1);
         if (localPid >= 0) hapticBattleEvents(events as Array<{ type: string; playerId?: number; hp?: number }>, localPid);
         for (const evt of events as Array<{ type: string; playerId?: number; shooterId?: number; hp?: number; newHp?: number }>) {
-          if (evt.type === MSG.WALL_DESTROYED && evt.shooterId !== undefined) {
-            rs.gameStats[evt.shooterId]!.wallsDestroyed++;
-          } else if (evt.type === MSG.CANNON_DAMAGED && evt.shooterId !== undefined && evt.newHp === 0) {
-            rs.gameStats[evt.shooterId]!.cannonsKilled++;
+          const stats = evt.shooterId !== undefined ? rs.gameStats[evt.shooterId] : undefined;
+          if (!stats) continue;
+          if (evt.type === MSG.WALL_DESTROYED) {
+            stats.wallsDestroyed++;
+          } else if (evt.type === MSG.CANNON_DAMAGED && evt.newHp === 0) {
+            stats.cannonsKilled++;
           }
         }
       },
