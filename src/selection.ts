@@ -188,7 +188,14 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
   }
 
   // Block all selection (AI + human) until the announcement finishes
-  if (accum.selectAnnouncement < announcementDuration) { render(); return; }
+  if (accum.selectAnnouncement < announcementDuration) {
+    render();
+    return;
+  }
+  // First frame after announcement: sync overlay so human cursor appears immediately
+  if (accum.selectAnnouncement - dt < announcementDuration) {
+    syncSelectionOverlay();
+  }
 
   const isReselect = phase === Phase.CASTLE_RESELECT;
   for (const [pid, ss] of selectionStates) {

@@ -640,6 +640,7 @@ async function runLocal() {
     await page.close();
     await browser.close();
     console.log(`\n${ts()} Replay E2E test complete.`);
+    printDebugReminder();
     if (ASSERTS.some(a => a.done && !a.passed)) process.exit(1);
     return;
   }
@@ -776,6 +777,7 @@ async function runLocal() {
   await page.close(); // finalize video before closing browser
   await browser.close();
   console.log(`\n${ts()} Local E2E test complete.`);
+  printDebugReminder();
   if (ASSERTS.some(a => a.done && !a.passed)) process.exit(1);
 }
 
@@ -908,7 +910,17 @@ async function runOnline() {
   printAssertSummary();
   await browser.close();
   console.log(`\n${ts()} Online E2E test complete.`);
+  printDebugReminder();
   if (ASSERTS.some(a => a.done && !a.passed)) process.exit(1);
+}
+
+function printDebugReminder(): void {
+  console.log(`
+[AGENT] If debugging, follow this loop until the bug is PROVEN fixed:
+  1. Read the log output above — analyze with a script, not by eye
+  2. If the bug is confirmed fixed → remove debug logs → npm run build → done
+  3. If NOT fixed → update logs or fix code → re-run this exact test → go to 1
+  Do NOT remove debug logs until step 2 passes.`);
 }
 
 // ---------------------------------------------------------------------------
