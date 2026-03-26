@@ -7,6 +7,7 @@ import { getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
 import { drawSpriteCentered } from "./render-sprites.ts";
 import { FONT_FLOAT_LG, rgb, SHADOW_COLOR_DENSE, TOWER_FLASH_MS } from "./render-theme.ts";
 import type { MapData, RenderOverlay } from "./render-types.ts";
+import { towerCenterPx } from "./spatial.ts";
 
 /** Draw towers (alive, destroyed, highlighted, selected). */
 export function drawTowers(
@@ -17,8 +18,7 @@ export function drawTowers(
 ): void {
   for (let i = 0; i < map.towers.length; i++) {
     const tower = map.towers[i]!;
-    const cx = (tower.col + 1) * TILE_SIZE;
-    const cy = (tower.row + 1) * TILE_SIZE;
+    const { x: cx, y: cy } = towerCenterPx(tower);
 
     const ownerId = overlay?.entities?.homeTowers?.get(i);
     const inBattle = !!overlay?.battle?.battleTerritory;

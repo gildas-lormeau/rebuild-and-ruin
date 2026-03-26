@@ -30,6 +30,7 @@ import {
   processReselectionQueue,
 } from "./game-ui-runtime.ts";
 import { Mode } from "./game-ui-types.ts";
+import { TILE_SIZE } from "./grid.ts";
 import {
   BANNER_PLACE_CANNONS,
   BANNER_PLACE_CANNONS_SUB,
@@ -46,7 +47,7 @@ import {
   initTowerSelection as initTowerSelectionImpl,
   tickSelectionPhase,
 } from "./selection.ts";
-import { tileCenterPx, towerCenter } from "./spatial.ts";
+import { towerCenterPx } from "./spatial.ts";
 import {
   SCORE_DELTA_DISPLAY_TIME,
   SELECT_ANNOUNCEMENT_DURATION,
@@ -286,11 +287,10 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
     rs.scoreDeltas = rs.state.players
       .map((p, i) => {
         const ht = p.homeTower;
-        const tc = ht ? towerCenter(ht) : null;
-        const px = tc ? tileCenterPx(tc.row - 1, tc.col) : { x: 0, y: 0 };
+        const px = ht ? towerCenterPx(ht) : { x: 0, y: 0 };
         return {
           playerId: i, delta: p.score - (rs.preScores[i] ?? 0), total: p.score,
-          cx: px.x, cy: px.y,
+          cx: px.x, cy: px.y - TILE_SIZE, // just above the tower
         };
       })
       .filter(d => d.delta > 0 && !rs.state.players[d.playerId]!.eliminated);

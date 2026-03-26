@@ -2,12 +2,12 @@ import { MSG, type ServerMessage } from "../server/protocol.ts";
 import { resetCannonFacings } from "./cannon-system.ts";
 import type { OrbitParams } from "./controller-types.ts";
 import type { PixelPos } from "./geometry-types.ts";
-import { TILE_SIZE } from "./grid.ts";
 import {
   applyGruntsCheckpoint,
   applyHousesCheckpoint,
   applyPlayersCheckpoint,
 } from "./online-serialize.ts";
+import { towerCenterPx } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 import { BATTLE_TIMER } from "./types.ts";
 
@@ -87,10 +87,7 @@ export function applyBattleStartCheckpoint(
   resetWatcherCrosshairs(deps);
   for (const p of deps.state.players) {
     if (p.eliminated || !p.homeTower) continue;
-    deps.watcherCrosshairPos.set(p.id, {
-      x: (p.homeTower.col + 1) * TILE_SIZE,
-      y: (p.homeTower.row + 1) * TILE_SIZE,
-    });
+    deps.watcherCrosshairPos.set(p.id, towerCenterPx(p.homeTower));
   }
 }
 

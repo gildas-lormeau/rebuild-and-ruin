@@ -82,7 +82,7 @@ import { createPhaseTicksSystem } from "./runtime-phase-ticks.ts";
 import type { SelectionSystem } from "./runtime-selection.ts";
 import { createSelectionSystem } from "./runtime-selection.ts";
 import { createRuntimeState } from "./runtime-state.ts";
-import { towerCenter, unpackTile } from "./spatial.ts";
+import { towerCenterPx, unpackTile } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 import {
   BANNER_DURATION,
@@ -366,11 +366,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const pid = rs.state.playerZones.indexOf(zone);
     const tower = pid >= 0 ? rs.state.players[pid]?.homeTower : null;
     if (!tower) return;
-    const c = towerCenter(tower);
-    const x = c.col * TILE_SIZE;
-    const y = c.row * TILE_SIZE;
-    human.setCrosshair(x, y);
-    lastBattleCrosshair = { x, y };
+    const px = towerCenterPx(tower);
+    human.setCrosshair(px.x, px.y);
+    lastBattleCrosshair = { x: px.x, y: px.y };
   }
 
   // -------------------------------------------------------------------------
@@ -1080,8 +1078,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           const pid = rs.state.playerZones.indexOf(zone);
           const tower = pid >= 0 ? rs.state.players[pid]?.homeTower : null;
           if (!tower) return;
-          const c = towerCenter(tower);
-          human.setCrosshair(c.col * TILE_SIZE, c.row * TILE_SIZE);
+          const px = towerCenterPx(tower);
+          human.setCrosshair(px.x, px.y);
         },
       };
       loupeHandle = createLoupe(gameContainer);

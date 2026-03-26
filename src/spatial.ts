@@ -112,6 +112,11 @@ export function towerCenter(t: TilePos): {
   return { row: t.row + 0.5, col: t.col + 0.5 };
 }
 
+/** Pixel center of a 2×2 tower footprint. */
+export function towerCenterPx(t: TilePos): PixelPos {
+  return { x: (t.col + 1) * TILE_SIZE, y: (t.row + 1) * TILE_SIZE };
+}
+
 /** Pixel position at the center of the tile at (row, col). */
 export function tileCenterPx(row: number, col: number): PixelPos {
   return { x: (col + 0.5) * TILE_SIZE, y: (row + 0.5) * TILE_SIZE };
