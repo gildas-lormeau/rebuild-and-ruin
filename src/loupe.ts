@@ -12,8 +12,11 @@
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import {
   LOUPE_BORDER_WIDTH,
+  LOUPE_CROSSHAIR_COLOR,
+  LOUPE_CROSSHAIR_DOT,
   LOUPE_RADIUS,
   LOUPE_RIVET_COLOR,
+  LOUPE_RIVET_HIGHLIGHT,
   LOUPE_RIVET_RADIUS,
   LOUPE_STONE_COLOR,
   LOUPE_STONE_LIGHT,
@@ -131,7 +134,7 @@ export function createLoupe(container: HTMLElement): LoupeHandle {
       ctx.fill();
       ctx.beginPath();
       ctx.arc(rx! - dpr, ry! - dpr, rivetR * 0.5, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(255, 240, 180, 0.6)";
+      ctx.fillStyle = LOUPE_RIVET_HIGHLIGHT;
       ctx.fill();
     }
 
@@ -139,7 +142,7 @@ export function createLoupe(container: HTMLElement): LoupeHandle {
     const cx = ix + iw / 2;
     const cy = iy + ih / 2;
     const crossLen = Math.round(8 * dpr);
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+    ctx.strokeStyle = LOUPE_CROSSHAIR_COLOR;
     ctx.lineWidth = dpr;
     ctx.beginPath();
     ctx.moveTo(cx - crossLen, cy);
@@ -149,7 +152,7 @@ export function createLoupe(container: HTMLElement): LoupeHandle {
     ctx.stroke();
     ctx.beginPath();
     ctx.arc(cx, cy, 2 * dpr, 0, Math.PI * 2);
-    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+    ctx.fillStyle = LOUPE_CROSSHAIR_DOT;
     ctx.fill();
   }
 

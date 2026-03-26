@@ -96,10 +96,11 @@ export function drawPhantoms(
 export function drawBonusSquares(
   octx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
+  now?: number,
 ): void {
   if (!overlay?.entities?.bonusSquares || overlay.battle?.battleTerritory)
     return;
-  const flash = Math.sin(Date.now() / BONUS_FLASH_MS) * 0.15 + 0.85;
+  const flash = Math.sin((now ?? Date.now()) / BONUS_FLASH_MS) * 0.15 + 0.85;
   for (const bs of overlay.entities.bonusSquares) {
     const bx = bs.col * TILE_SIZE;
     const by = bs.row * TILE_SIZE;

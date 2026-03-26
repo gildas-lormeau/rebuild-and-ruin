@@ -4,7 +4,7 @@
 
 import { TILE_SIZE } from "./grid.ts";
 import { getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
-import { FONT_FLOAT_LG, rgb, TOWER_FLASH_MS } from "./render-theme.ts";
+import { FONT_FLOAT_LG, rgb, SHADOW_COLOR_DENSE, TOWER_FLASH_MS } from "./render-theme.ts";
 import type { MapData, RenderOverlay } from "./render-types.ts";
 import { drawSpriteCentered } from "./sprites.ts";
 
@@ -13,6 +13,7 @@ export function drawTowers(
   octx: CanvasRenderingContext2D,
   map: MapData,
   overlay?: RenderOverlay,
+  now?: number,
 ): void {
   for (let i = 0; i < map.towers.length; i++) {
     const tower = map.towers[i]!;
@@ -48,7 +49,7 @@ export function drawTowers(
         octx.font = FONT_FLOAT_LG;
         octx.textAlign = "center";
         octx.textBaseline = "bottom";
-        octx.fillStyle = `rgba(0,0,0,0.8)`;
+        octx.fillStyle = SHADOW_COLOR_DENSE;
         octx.fillText(name, cx, cy - 20);
         octx.fillStyle = rgb(c);
         octx.fillText(name, cx - 0.5, cy - 20.5);
@@ -59,13 +60,13 @@ export function drawTowers(
     }
 
     if (overlay?.selection?.highlighted === i) {
-      drawTowerHighlight(octx, cx, cy);
+      drawTowerHighlight(octx, cx, cy, undefined, now);
     }
     if (overlay?.selection?.highlights) {
       for (const hl of overlay.selection.highlights) {
         if (hl.towerIdx === i) {
           const c = getPlayerColor(hl.playerId).interiorLight;
-          drawTowerHighlight(octx, cx, cy, rgb(c));
+          drawTowerHighlight(octx, cx, cy, rgb(c), now);
         }
       }
     }
@@ -78,6 +79,7 @@ function drawTowerHighlight(
   cx: number,
   cy: number,
   color?: string,
+  now?: number,
 ): void {
   const margin = 4 + TILE_SIZE / 2;
   const bx = cx - 15 - margin;
@@ -88,7 +90,7 @@ function drawTowerHighlight(
   const t = 4; // thickness
 
   // Slow flash: alpha pulses between 0.4 and 1.0 over ~1.5s cycle
-  const flash = 0.7 + 0.3 * Math.sin(Date.now() / TOWER_FLASH_MS);
+  const flash = 0.7 + 0.3 * Math.sin((now ?? Date.now()) / TOWER_FLASH_MS);
   octx.save();
   octx.globalAlpha = flash;
   octx.fillStyle = color ?? "#ffcc00";

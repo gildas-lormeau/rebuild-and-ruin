@@ -117,6 +117,7 @@ export function renderMap(
   overlay?: RenderOverlay,
   viewport?: Viewport | null,
 ): void {
+  const now = Date.now();
   const ctx = getMainCtx(canvas);
   const W = GRID_COLS * TILE_SIZE;
   const H = GRID_ROWS * TILE_SIZE;
@@ -139,9 +140,9 @@ export function renderMap(
   drawTerrain(octx, W, H, map, overlay);
   drawWaterAnimation(octx, map, overlay);
   drawCastles(octx, overlay);
-  drawBonusSquares(octx, overlay);
+  drawBonusSquares(octx, overlay, now);
   drawHouses(octx, overlay);
-  drawTowers(octx, map, overlay);
+  drawTowers(octx, map, overlay, now);
 
   // If banner is active with old data, re-draw old scene below the banner.
   // Uses a temp canvas because putImageData in drawTerrain ignores clip regions.
@@ -195,9 +196,9 @@ export function renderMap(
         tmpCtx.clearRect(0, 0, W, H);
         drawTerrain(tmpCtx, W, H, map, oldOverlay);
         drawCastles(tmpCtx, oldOverlay);
-        drawBonusSquares(tmpCtx, oldOverlay);
+        drawBonusSquares(tmpCtx, oldOverlay, now);
         drawHouses(tmpCtx, oldOverlay);
-        drawTowers(tmpCtx, map, oldOverlay);
+        drawTowers(tmpCtx, map, oldOverlay, now);
         cachedBannerMap = map;
         cachedBannerCastles = oldCastles;
         cachedBannerTerritory = oldTerritory;
@@ -226,12 +227,12 @@ export function renderMap(
   drawAnnouncement(octx, W, H, overlay);
   drawBanner(octx, W, H, overlay);
   drawGameOver(octx, W, H, overlay);
-  drawLifeLostDialog(octx, W, H, overlay);
+  drawLifeLostDialog(octx, W, H, overlay, now);
 
   // Full-screen modal screens (opaque — drawn last, on top of everything)
-  drawPlayerSelect(octx, W, H, overlay);
-  drawOptionsScreen(octx, W, H, overlay);
-  drawControlsScreen(octx, W, H, overlay);
+  drawPlayerSelect(octx, W, H, overlay, now);
+  drawOptionsScreen(octx, W, H, overlay, now);
+  drawControlsScreen(octx, W, H, overlay, now);
 
   // Scale up to display canvas (with optional zoom viewport)
   ctx.imageSmoothingEnabled = false;

@@ -86,6 +86,16 @@ export const LOUPE_STONE_COLOR = "rgba(50, 40, 30, 0.92)";
 export const LOUPE_STONE_LIGHT = "rgba(90, 75, 55, 0.8)";
 /** Loupe rivet color. */
 export const LOUPE_RIVET_COLOR = "#c8a040";
+/** Loupe rivet highlight (subtle gold shine). */
+export const LOUPE_RIVET_HIGHLIGHT = "rgba(255, 240, 180, 0.6)";
+/** Loupe crosshair stroke color. */
+export const LOUPE_CROSSHAIR_COLOR = "rgba(255, 255, 255, 0.5)";
+/** Loupe crosshair center dot color. */
+export const LOUPE_CROSSHAIR_DOT = "rgba(255, 255, 255, 0.7)";
+/** Muted gold for status bar round/phase/timer text. */
+export const STATUS_TEXT_COLOR = "#a08050";
+/** Red heart color for lives display in status bar. */
+export const LIVES_HEART_COLOR = "#c44";
 
 /** Convert RGB tuple to CSS color string, with optional alpha. */
 export function rgb(c: RGB, alpha?: number): string {

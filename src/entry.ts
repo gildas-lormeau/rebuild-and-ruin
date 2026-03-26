@@ -6,7 +6,9 @@
  */
 
 import "./style.css";
+import { IS_TOUCH_DEVICE } from "./platform.ts";
 
+const AUTO_JOIN_DELAY_MS = 300;
 const DEFAULT_SERVER = "rebuild-and-ruin.gildas-lormeau.deno.net";
 const SERVER_STORAGE_KEY = "castles99_server";
 const modeSelect = document.getElementById("mode-select")!;
@@ -66,13 +68,13 @@ if (autoJoinCode) {
     const btnJoinConfirm = document.getElementById("btn-join-confirm")!;
     btnJoinShow.click();
     joinCodeInput.value = autoJoinCode.toUpperCase();
-    setTimeout(() => { tryFullscreen(); btnJoinConfirm.click(); }, 300);
+    setTimeout(() => { tryFullscreen(); btnJoinConfirm.click(); }, AUTO_JOIN_DELAY_MS);
   })();
 }
 
 /** Request fullscreen + wake lock on mobile (must be called from a user gesture handler). */
 function tryFullscreen(): void {
-  if (!("ontouchstart" in window)) return;
+  if (!IS_TOUCH_DEVICE) return;
   if (location.port) return; // skip in dev mode
   document.documentElement.requestFullscreen?.().catch(() => {});
   navigator.wakeLock?.request?.("screen").catch(() => {});

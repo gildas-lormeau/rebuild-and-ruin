@@ -31,6 +31,7 @@ import {
   GOLD_BG,
   GOLD_LIGHT,
   GOLD_SUBTITLE,
+  LIVES_HEART_COLOR,
   PANEL_BG,
   LIFE_LOST_PANEL_H as PANEL_H,
   LIFE_LOST_PANEL_W as PANEL_W,
@@ -39,6 +40,7 @@ import {
   SHADOW_COLOR,
   SHADOW_COLOR_DENSE,
   SHADOW_COLOR_HEAVY,
+  STATUS_TEXT_COLOR,
   STATUSBAR_HEIGHT,
 } from "./render-theme.ts";
 import type { RenderOverlay } from "./render-types.ts";
@@ -168,7 +170,7 @@ export function drawStatusBar(
 
   // Left: round + phase + timer
   octx.textAlign = "left";
-  octx.fillStyle = "#a08050";
+  octx.fillStyle = STATUS_TEXT_COLOR;
   octx.fillText(`${sb.round}  ${sb.phase}  ${sb.timer}`, 8, cy);
 
   // Right: player stats
@@ -179,7 +181,7 @@ export function drawStatusBar(
     if (p.eliminated) continue;
     const c = p.color;
     // Lives
-    octx.fillStyle = "#c44";
+    octx.fillStyle = LIVES_HEART_COLOR;
     const heartsStr = "\u2665".repeat(p.lives);
     octx.fillText(heartsStr, rx, cy);
     rx -= octx.measureText(heartsStr).width + 2;
@@ -215,11 +217,7 @@ export function drawGameOver(
   const px = Math.round((W - panelW) / 2);
   const py = Math.round((H - panelH) / 2);
 
-  octx.fillStyle = PANEL_BG(0.9);
-  octx.fillRect(px, py, panelW, panelH);
-  octx.strokeStyle = GOLD;
-  octx.lineWidth = 2;
-  octx.strokeRect(px + 1, py + 1, panelW - 2, panelH - 2);
+  drawPanel(octx, px, py, panelW, panelH, PANEL_BG(0.9), GOLD);
 
   const cx = W / 2;
   octx.textAlign = "center";
@@ -296,6 +294,7 @@ export function drawLifeLostDialog(
   _W: number,
   _H: number,
   overlay?: RenderOverlay,
+  now?: number,
 ): void {
   if (!overlay?.ui?.lifeLostDialog) return;
   const dlg = overlay.ui.lifeLostDialog;
@@ -309,11 +308,7 @@ export function drawLifeLostDialog(
     const cx = px + panelW / 2;
 
     // Panel background
-    octx.fillStyle = PANEL_BG(0.9);
-    octx.fillRect(px, py, panelW, panelH);
-    octx.strokeStyle = rgb(c);
-    octx.lineWidth = 2;
-    octx.strokeRect(px + 1, py + 1, panelW - 2, panelH - 2);
+    drawPanel(octx, px, py, panelW, panelH, PANEL_BG(0.9), rgb(c));
 
     // Player name
     octx.textAlign = "center";
@@ -351,7 +346,8 @@ export function drawLifeLostDialog(
       const abFocused = entry.focused === 1;
 
       // Continue button
-      const contFlash = contFocused && flashOn(BUTTON_FLASH_MS);
+      const t = now ?? Date.now();
+      const contFlash = contFocused && flashOn(BUTTON_FLASH_MS, t);
       drawButton(octx, contX, btnY, btnW, btnH,
         BTN_CONTINUE.fill(contFocused ? (contFlash ? 0.6 : 0.4) : 0.15),
         contFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
@@ -359,7 +355,7 @@ export function drawLifeLostDialog(
         contFocused ? "#fff" : TEXT_DISABLED, "Continue");
 
       // Abandon button
-      const abFlash = abFocused && flashOn(BUTTON_FLASH_MS);
+      const abFlash = abFocused && flashOn(BUTTON_FLASH_MS, t);
       drawButton(octx, abX, btnY, btnW, btnH,
         BTN_ABANDON.fill(abFocused ? (abFlash ? 0.5 : 0.3) : 0.1),
         abFocused ? BTN_ABANDON.strokeFocused : BTN_ABANDON.stroke,
@@ -385,6 +381,7 @@ export function drawPlayerSelect(
   W: number,
   H: number,
   overlay?: RenderOverlay,
+  now?: number,
 ): void {
   if (!overlay?.ui?.playerSelect) return;
   const selectData = overlay.ui.playerSelect;
@@ -411,11 +408,7 @@ export function drawPlayerSelect(
     const c = p.color;
     const rx = gap + i * (rectW + gap);
 
-    octx.fillStyle = rgb(c, 0.15);
-    octx.fillRect(rx, rectY, rectW, rectH);
-    octx.strokeStyle = rgb(c);
-    octx.lineWidth = 2;
-    octx.strokeRect(rx + 1, rectY + 1, rectW - 2, rectH - 2);
+    drawPanel(octx, rx, rectY, rectW, rectH, rgb(c, 0.15), rgb(c));
 
     const cx = rx + rectW / 2;
     const touch = IS_TOUCH_DEVICE;
@@ -432,7 +425,7 @@ export function drawPlayerSelect(
         rgb(c, 0.3), rgb(c), 1,
         touch ? FONT_BODY : FONT_BUTTON, "#fff", "Please wait...");
     } else {
-      const flash = flashOn(CURSOR_BLINK_MS);
+      const flash = flashOn(CURSOR_BLINK_MS, now ?? Date.now());
       drawButton(octx, btnX, btnY, btnW, btnH,
         rgb(c, flash ? 0.5 : 0.2), rgb(c), 1,
         touch ? FONT_LABEL : FONT_HINT,
@@ -469,6 +462,7 @@ export function drawOptionsScreen(
   W: number,
   H: number,
   overlay?: RenderOverlay,
+  now?: number,
 ): void {
   if (!overlay?.ui?.optionsScreen) return;
   const opts = overlay.ui.optionsScreen;
@@ -497,7 +491,8 @@ export function drawOptionsScreen(
 
     // Arrow indicators for selected editable row
     if (selected && opt.editable) {
-      const flash = flashOn(BUTTON_FLASH_MS);
+      const t = now ?? Date.now();
+      const flash = flashOn(BUTTON_FLASH_MS, t);
       octx.font = FONT_BODY;
       octx.fillStyle = flash ? GOLD_LIGHT : GOLD;
       octx.textAlign = "left";
@@ -530,7 +525,7 @@ export function drawOptionsScreen(
       opt.value !== "Random" &&
       !opts.readOnly;
     const displayValue =
-      opt.value + (showCursor ? (flashOn(CURSOR_BLINK_MS) ? "_" : " ") : "");
+      opt.value + (showCursor ? (flashOn(CURSOR_BLINK_MS, now ?? Date.now()) ? "_" : " ") : "");
     octx.fillText(displayValue, px + panelW - 20, oy + optH / 2);
   }
 
@@ -562,6 +557,7 @@ export function drawControlsScreen(
   W: number,
   H: number,
   overlay?: RenderOverlay,
+  now?: number,
 ): void {
   if (!overlay?.ui?.controlsScreen) return;
   const ctrl = overlay.ui.controlsScreen;
@@ -617,7 +613,7 @@ export function drawControlsScreen(
       if (isSelected) {
         if (ctrl.rebinding) {
           // Flashing "Press key..." cell
-          const flash = flashOn(REBIND_FLASH_MS);
+          const flash = flashOn(REBIND_FLASH_MS, now ?? Date.now());
           octx.fillStyle = flash ? GOLD_BG(0.3) : GOLD_BG(0.1);
           octx.fillRect(cellX, oy + 1, cellW, rowH - 2);
           octx.strokeStyle = GOLD_LIGHT;
@@ -675,8 +671,21 @@ export function computeLobbyLayout(W: number, H: number, count: number) {
 }
 
 /** Returns true on even half of a repeating blink cycle. */
-function flashOn(intervalMs: number): boolean {
-  return Math.floor(Date.now() / intervalMs) % 2 === 0;
+function flashOn(intervalMs: number, now: number): boolean {
+  return Math.floor(now / intervalMs) % 2 === 0;
+}
+
+/** Draw a panel: filled rect + inset border stroke. */
+function drawPanel(
+  octx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  fill: string, stroke: string,
+): void {
+  octx.fillStyle = fill;
+  octx.fillRect(x, y, w, h);
+  octx.strokeStyle = stroke;
+  octx.lineWidth = 2;
+  octx.strokeRect(x + 1, y + 1, w - 2, h - 2);
 }
 
 /** Draw a styled button: filled rect + border + centered label. */
