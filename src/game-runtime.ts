@@ -12,6 +12,7 @@ import { computeFrameContext } from "./frame-context.ts";
 import { bootstrapGame } from "./game-bootstrap.ts";
 import type { GameRuntime, RuntimeConfig } from "./game-runtime-types.ts";
 import {
+  type LobbyHit,
   lobbyClickHitTest,
   mainLoopTick,
   snapshotTerritory as snapshotTerritoryImpl,
@@ -299,7 +300,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function lobbyClick(canvasX: number, canvasY: number): boolean {
     if (!rs.lobby.active) return false;
-    const hit = lobbyClickHitTest({
+    const hit: LobbyHit | null = lobbyClickHitTest({
       canvasX,
       canvasY,
       canvasW: CANVAS_W,

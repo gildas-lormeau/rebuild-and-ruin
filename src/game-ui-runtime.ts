@@ -15,6 +15,9 @@ import { GEAR_SIZE, GEAR_X, GEAR_Y } from "./render-theme.ts";
 import type { GameState, Impact, Player } from "./types.ts";
 import { Phase } from "./types.ts";
 
+/** Result of a lobby click hit-test. */
+export type LobbyHit = { type: "gear" } | { type: "slot"; slotId: number };
+
 /** Format a key binding as a short hint string (e.g. "Arrows + N (B rotate)"). */
 export function formatKeyHint(kb: KeyBindings): string {
   const arrows =
@@ -63,7 +66,7 @@ export function lobbyClickHitTest(params: {
   slotCount: number;
   computeLayout: (tsW: number, tsH: number, count: number) =>
     { gap: number; rectW: number; rectH: number; rectY: number };
-}): { type: "gear" } | { type: "slot"; slotId: number } | null {
+}): LobbyHit | null {
   const { canvasX, canvasY, canvasW, canvasH, tileSize,
           slotCount, computeLayout } = params;
 
