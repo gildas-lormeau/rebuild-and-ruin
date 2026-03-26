@@ -95,6 +95,31 @@ import {
 
 export type { GameRuntime } from "./game-runtime-types.ts";
 
+type TouchBtnRule = boolean | "human";
+
+interface TouchButtonState {
+  dpad: TouchBtnRule;
+  confirm: TouchBtnRule;
+  rotate: TouchBtnRule;
+  placementValidity: TouchBtnRule;
+  zoom: TouchBtnRule;
+  quit: boolean;
+}
+
+const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
+  //                       dpad     confirm  rotate   validity zoom     quit
+  [Mode.LOBBY]:        { dpad: false,   confirm: true,    rotate: false,   placementValidity: false,   zoom: false,   quit: false },
+  [Mode.OPTIONS]:      { dpad: true,    confirm: true,    rotate: true,    placementValidity: false,   zoom: false,   quit: false },
+  [Mode.CONTROLS]:     { dpad: false,   confirm: false,   rotate: false,   placementValidity: false,   zoom: false,   quit: false },
+  [Mode.SELECTION]:    { dpad: "human", confirm: "human", rotate: false,   placementValidity: false,   zoom: "human", quit: true  },
+  [Mode.BANNER]:       { dpad: false,   confirm: false,   rotate: false,   placementValidity: false,   zoom: "human", quit: true  },
+  [Mode.BALLOON_ANIM]: { dpad: false,   confirm: false,   rotate: false,   placementValidity: false,   zoom: "human", quit: true  },
+  [Mode.CASTLE_BUILD]: { dpad: false,   confirm: false,   rotate: false,   placementValidity: false,   zoom: "human", quit: true  },
+  [Mode.LIFE_LOST]:    { dpad: "human", confirm: "human", rotate: false,   placementValidity: false,   zoom: "human", quit: true  },
+  [Mode.GAME]:         { dpad: "human", confirm: "human", rotate: "human", placementValidity: "human", zoom: "human", quit: true  },
+  [Mode.STOPPED]:      { dpad: "human", confirm: "human", rotate: false,   placementValidity: false,   zoom: false,   quit: false },
+};
+
 export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const { canvas } = config;
   const gameContainer = canvas.parentElement as HTMLElement;
@@ -571,19 +596,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     }
 
     const hasHuman = firstHuman() !== null;
-    const inGame = rs.mode === Mode.GAME || rs.mode === Mode.SELECTION;
-    const dialogNav = hasHuman && (rs.mode === Mode.LIFE_LOST || rs.mode === Mode.STOPPED);
-    const controlsActive = inGame ? hasHuman : (rs.mode === Mode.OPTIONS || dialogNav);
-    dpad?.update(
-      controlsActive ? (rs.state?.phase ?? Phase.WALL_BUILD) : null,
-      dialogNav, // disable rotate in dialog navigation modes
-    );
-    // Confirm button: active in game (placement validity), options, lobby, and dialogs
+    const bs = TOUCH_BUTTON_STATES[rs.mode];
+    const on = (rule: TouchBtnRule) => rule === true || (rule === "human" && hasHuman);
+
+    // D-pad, rotate, confirm
+    dpad?.update(on(bs.dpad) ? (rs.state?.phase ?? Phase.WALL_BUILD) : null, !on(bs.rotate));
     if (dpad) {
-      const confirmActive = controlsActive || rs.mode === Mode.LOBBY;
-      if (!confirmActive) {
+      if (!on(bs.confirm)) {
         dpad.setConfirmValid(false);
-      } else if (rs.state && isPlacementPhase(rs.state.phase) && inGame) {
+      } else if (rs.state && isPlacementPhase(rs.state.phase) && on(bs.placementValidity)) {
         const human = firstHuman();
         const barValid = rs.state.phase === Phase.WALL_BUILD
           ? rs.frame.phantoms.humanPhantoms?.[0]?.valid ?? true
@@ -593,11 +614,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         dpad.setConfirmValid(true);
       }
     }
-    const inLobby = rs.mode === Mode.LOBBY || rs.mode === Mode.OPTIONS || rs.mode === Mode.CONTROLS;
-    const zoomEnabled = hasHuman && !inLobby && rs.mode !== Mode.STOPPED;
-    homeZoomButton?.update(zoomEnabled);
-    enemyZoomButton?.update(zoomEnabled);
-    quitButton?.update(!inLobby && rs.mode !== Mode.STOPPED ? rs.state.phase : null);
+
+    // Zoom, quit
+    homeZoomButton?.update(on(bs.zoom));
+    enemyZoomButton?.update(on(bs.zoom));
+    quitButton?.update(bs.quit ? rs.state.phase : null);
     updateFloatingActions();
   }
 
