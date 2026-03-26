@@ -61,10 +61,6 @@
   },
   {
     "type": "number",
-    "key": "60"
-  },
-  {
-    "type": "number",
     "key": "80"
   },
   {
@@ -77,6 +73,6 @@
   },
   {
     "type": "string",
-    "key": "localhost"
+    "key": "pending"
   }
 ]

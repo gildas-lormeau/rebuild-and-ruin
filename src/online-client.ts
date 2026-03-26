@@ -92,12 +92,25 @@ import {
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const lobbyEl = document.getElementById("lobby")!;
-const lobbyMenu = document.getElementById("lobby-menu")!;
-const lobbyCreate = document.getElementById("lobby-create")!;
-const lobbyJoin = document.getElementById("lobby-join")!;
-const createError = document.getElementById("create-error")!;
-const joinError = document.getElementById("join-error")!;
 const roomCodeOverlay = document.getElementById("room-code-overlay")!;
+// Lobby DOM elements — queried once, shared with setupLobbyUi
+const lobbyElements = {
+  lobbyMenu: document.getElementById("lobby-menu")!,
+  lobbyCreate: document.getElementById("lobby-create")!,
+  lobbyJoin: document.getElementById("lobby-join")!,
+  btnCreate: document.getElementById("btn-create")!,
+  btnJoinShow: document.getElementById("btn-join-show")!,
+  btnCreateConfirm: document.getElementById("btn-create-confirm")!,
+  btnJoinConfirm: document.getElementById("btn-join-confirm")!,
+  btnCreateBack: document.getElementById("btn-create-back")!,
+  btnJoinBack: document.getElementById("btn-join-back")!,
+  setRounds: document.getElementById("set-rounds") as HTMLSelectElement,
+  setHp: document.getElementById("set-hp") as HTMLSelectElement,
+  setWait: document.getElementById("set-wait") as HTMLSelectElement,
+  joinCodeInput: document.getElementById("join-code") as HTMLInputElement,
+  createError: document.getElementById("create-error")!,
+  joinError: document.getElementById("join-error")!,
+};
 const session = {
   ws: null as WebSocket | null,
   myPlayerId: -1,
@@ -126,23 +139,7 @@ const _throttleTimestamps = new Map<string, number>();
 const KEEPALIVE_MS = 30_000;
 const initDomLobby = () =>
   setupLobbyUi({
-    elements: {
-      lobbyMenu,
-      lobbyCreate,
-      lobbyJoin,
-      btnCreate: document.getElementById("btn-create")!,
-      btnJoinShow: document.getElementById("btn-join-show")!,
-      btnCreateConfirm: document.getElementById("btn-create-confirm")!,
-      btnJoinConfirm: document.getElementById("btn-join-confirm")!,
-      btnCreateBack: document.getElementById("btn-create-back")!,
-      btnJoinBack: document.getElementById("btn-join-back")!,
-      setRounds: document.getElementById("set-rounds") as HTMLSelectElement,
-      setHp: document.getElementById("set-hp") as HTMLSelectElement,
-      setWait: document.getElementById("set-wait") as HTMLSelectElement,
-      joinCodeInput: document.getElementById("join-code") as HTMLInputElement,
-      createError,
-      joinError,
-    },
+    elements: lobbyElements,
     connect,
     send,
     getSocket: () => session.ws,
@@ -325,8 +322,8 @@ function connect(): void {
   };
   session.ws.onerror = () => {
     console.error("[online] WebSocket connection failed");
-    createError.textContent = "Connection failed — is the server running?";
-    joinError.textContent = "Connection failed — is the server running?";
+    lobbyElements.createError.textContent = "Connection failed — is the server running?";
+    lobbyElements.joinError.textContent = "Connection failed — is the server running?";
   };
 }
 
@@ -344,7 +341,7 @@ function showLobby(): void {
   canvas.parentElement!.classList.remove(GAME_CONTAINER_ACTIVE);
   roomCodeOverlay.style.display = "none";
   lobbyEl.style.display = "block";
-  showLobbySection("lobby-menu", { lobbyMenu, lobbyCreate, lobbyJoin });
+  showLobbySection("lobby-menu", lobbyElements);
   resetSession();
 }
 
@@ -356,6 +353,7 @@ function resetSession(): void {
   session.myPlayerId = -1;
   session.occupiedSlots = new Set();
   session.remoteHumanSlots.clear();
+  runtime.rs.settings.seed = "";
   resetDedup();
 }
 
@@ -392,8 +390,8 @@ function buildLifecycleDeps() {
     remoteHumanSlots: session.remoteHumanSlots,
     getMyPlayerId: () => session.myPlayerId,
     setMyPlayerId: (pid: number) => { session.myPlayerId = pid; },
-    createErrorEl: createError,
-    joinErrorEl: joinError,
+    createErrorEl: lobbyElements.createError,
+    joinErrorEl: lobbyElements.joinError,
     initFromServer,
     enterTowerSelection: () => runtime.selection.enter(),
     onCastleWalls: (msg: ServerMessage) => handleCastleWallsTransition(msg, transitionCtx),
@@ -421,6 +419,7 @@ function buildLifecycleDeps() {
 
 function showWaitingRoom(code: string, seed: number): void {
   session.roomSeed = seed;
+  runtime.rs.settings.seed = String(seed);
   setupWaitingRoom({
     code, seed, lobbyEl, canvas, roomCodeOverlay,
     lobby: runtime.rs.lobby,

@@ -323,6 +323,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       rs.settings,
       rs.optionsReturnMode,
       rs.state ?? null,
+      config.isOnline,
     );
     setHapticsLevel(rs.settings.haptics);
     dpad?.setLeftHanded(rs.settings.leftHanded);
@@ -787,7 +788,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const uiCtx: UIContext = {
     canvas,
-    ctx2d: canvas.getContext("2d")!,
     getState: () => rs.state,
     getOverlay: () => rs.overlay,
     settings: rs.settings,
@@ -872,6 +872,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       setDirectTouchActive: (v) => { rs.directTouchActive = v; },
       isDirectTouchActive: () => rs.directTouchActive,
       settings: rs.settings,
+      isOnline: config.isOnline,
     };
     registerOnlineInputHandlers(inputDeps);
     registerTouchHandlers({ ...inputDeps, lobbyKeyJoin: undefined });

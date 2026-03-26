@@ -389,6 +389,99 @@ export function drawLifeLostDialog(
   }
 }
 
+/** Draw the player selection lobby screen. */
+export function drawPlayerSelect(
+  octx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  overlay?: RenderOverlay,
+): void {
+  if (!overlay?.ui?.playerSelect) return;
+  const selectData = overlay.ui.playerSelect;
+  beginModalScreen(octx, W, H);
+
+  octx.font = FONT_TITLE;
+  octx.fillStyle = GOLD_LIGHT;
+  octx.fillText("Rebuild & Ruin", W / 2, H * 0.1);
+  octx.font = FONT_SUBTITLE;
+  octx.fillStyle = TEXT_MUTED;
+  octx.fillText("A Rampart Tribute", W / 2, H * 0.1 + 20);
+
+  if (selectData.roomCode) {
+    octx.font = FONT_TIMER;
+    octx.fillStyle = GOLD;
+    octx.fillText(`Room: ${selectData.roomCode}`, W / 2, H * 0.1 + 42);
+  }
+
+  const count = selectData.players.length;
+  const { gap, rectW, rectH, rectY } = computeLobbyLayout(W, H, count);
+
+  for (let i = 0; i < count; i++) {
+    const p = selectData.players[i]!;
+    const c = p.color;
+    const rx = gap + i * (rectW + gap);
+
+    octx.fillStyle = rgb(c, 0.15);
+    octx.fillRect(rx, rectY, rectW, rectH);
+    octx.strokeStyle = rgb(c);
+    octx.lineWidth = 2;
+    octx.strokeRect(rx + 1, rectY + 1, rectW - 2, rectH - 2);
+
+    const cx = rx + rectW / 2;
+    const touch = IS_TOUCH_DEVICE;
+    octx.font = touch ? FONT_HEADING : FONT_BODY;
+    octx.fillStyle = rgb(c);
+    octx.fillText(p.name, cx, rectY + (touch ? 34 : 30));
+    const btnW = rectW - (touch ? 12 : 16);
+    const btnH = touch ? 36 : 24;
+    const btnX = rx + (touch ? 6 : 8);
+    const btnY = rectY + rectH - btnH - (touch ? 8 : 12);
+
+    if (p.joined) {
+      octx.fillStyle = rgb(c, 0.3);
+      octx.fillRect(btnX, btnY, btnW, btnH);
+      octx.strokeStyle = rgb(c);
+      octx.lineWidth = 1;
+      octx.strokeRect(btnX, btnY, btnW, btnH);
+      octx.font = touch ? FONT_BODY : FONT_BUTTON;
+      octx.fillStyle = "#fff";
+      octx.fillText("Please wait...", cx, btnY + btnH / 2);
+    } else {
+      const flash = flashOn(CURSOR_BLINK_MS);
+      const alpha = flash ? 0.5 : 0.2;
+      octx.fillStyle = rgb(c, alpha);
+      octx.fillRect(btnX, btnY, btnW, btnH);
+      octx.strokeStyle = rgb(c);
+      octx.lineWidth = 1;
+      octx.strokeRect(btnX, btnY, btnW, btnH);
+      octx.font = touch ? FONT_LABEL : FONT_HINT;
+      octx.fillStyle = flash ? "#fff" : "#aaa";
+      octx.fillText(touch ? "Tap to join" : "Press button to start", cx, btnY + btnH / 2);
+    }
+
+    if (!touch) {
+      octx.font = FONT_HINT;
+      octx.fillStyle = TEXT_DIM;
+      octx.fillText(p.keyHint ?? "", cx, btnY - 8);
+    }
+  }
+
+  const secs = Math.ceil(selectData.timer);
+  octx.font = FONT_TIMER;
+  octx.fillStyle = GOLD;
+  octx.fillText(`Starting in ${secs}s`, W / 2, H * 0.88);
+
+  // Gear button + F1 hint (top-right corner)
+  octx.textAlign = "right";
+  octx.textBaseline = "middle";
+  octx.font = FONT_ICON;
+  octx.fillStyle = TEXT_MUTED;
+  octx.fillText("\u2699", W - 6, 18);
+  octx.font = FONT_HINT;
+  octx.fillStyle = TEXT_DIM;
+  octx.fillText("F1", W - 30, 18);
+}
+
 /** Draw the options screen. */
 export function drawOptionsScreen(
   octx: CanvasRenderingContext2D,
@@ -398,12 +491,7 @@ export function drawOptionsScreen(
 ): void {
   if (!overlay?.ui?.optionsScreen) return;
   const opts = overlay.ui.optionsScreen;
-
-  octx.fillStyle = PANEL_BG(0.95);
-  octx.fillRect(0, 0, W, H);
-
-  octx.textAlign = "center";
-  octx.textBaseline = "middle";
+  beginModalScreen(octx, W, H);
 
   octx.font = FONT_TITLE;
   octx.fillStyle = GOLD_LIGHT;
@@ -496,14 +584,8 @@ export function drawControlsScreen(
 ): void {
   if (!overlay?.ui?.controlsScreen) return;
   const ctrl = overlay.ui.controlsScreen;
+  beginModalScreen(octx, W, H);
 
-  octx.fillStyle = PANEL_BG(0.95);
-  octx.fillRect(0, 0, W, H);
-
-  octx.textAlign = "center";
-  octx.textBaseline = "middle";
-
-  // Title
   octx.font = FONT_TITLE;
   octx.fillStyle = GOLD_LIGHT;
   octx.fillText("CONTROLS", W / 2, H * 0.1);
@@ -601,103 +683,6 @@ export function drawControlsScreen(
   );
 }
 
-/** Draw the player selection lobby screen. */
-export function drawPlayerSelect(
-  octx: CanvasRenderingContext2D,
-  W: number,
-  H: number,
-  overlay?: RenderOverlay,
-): void {
-  if (!overlay?.ui?.playerSelect) return;
-  const selectData = overlay.ui.playerSelect;
-  octx.fillStyle = PANEL_BG(0.95);
-  octx.fillRect(0, 0, W, H);
-
-  octx.textAlign = "center";
-  octx.textBaseline = "middle";
-
-  octx.font = FONT_TITLE;
-  octx.fillStyle = GOLD_LIGHT;
-  octx.fillText("Rebuild & Ruin", W / 2, H * 0.1);
-  octx.font = FONT_SUBTITLE;
-  octx.fillStyle = TEXT_MUTED;
-  octx.fillText("A Rampart Tribute", W / 2, H * 0.1 + 20);
-
-  if (selectData.roomCode) {
-    octx.font = FONT_TIMER;
-    octx.fillStyle = GOLD;
-    octx.fillText(`Room: ${selectData.roomCode}`, W / 2, H * 0.1 + 42);
-  }
-
-  const count = selectData.players.length;
-  const { gap, rectW, rectH, rectY } = computeLobbyLayout(W, H, count);
-
-  for (let i = 0; i < count; i++) {
-    const p = selectData.players[i]!;
-    const c = p.color;
-    const rx = gap + i * (rectW + gap);
-
-    octx.fillStyle = rgb(c, 0.15);
-    octx.fillRect(rx, rectY, rectW, rectH);
-    octx.strokeStyle = rgb(c);
-    octx.lineWidth = 2;
-    octx.strokeRect(rx + 1, rectY + 1, rectW - 2, rectH - 2);
-
-    const cx = rx + rectW / 2;
-    const touch = IS_TOUCH_DEVICE;
-    octx.font = touch ? FONT_HEADING : FONT_BODY;
-    octx.fillStyle = rgb(c);
-    octx.fillText(p.name, cx, rectY + (touch ? 34 : 30));
-    const btnW = rectW - (touch ? 12 : 16);
-    const btnH = touch ? 36 : 24;
-    const btnX = rx + (touch ? 6 : 8);
-    const btnY = rectY + rectH - btnH - (touch ? 8 : 12);
-
-    if (p.joined) {
-      octx.fillStyle = rgb(c, 0.3);
-      octx.fillRect(btnX, btnY, btnW, btnH);
-      octx.strokeStyle = rgb(c);
-      octx.lineWidth = 1;
-      octx.strokeRect(btnX, btnY, btnW, btnH);
-      octx.font = touch ? FONT_BODY : FONT_BUTTON;
-      octx.fillStyle = "#fff";
-      octx.fillText("Please wait...", cx, btnY + btnH / 2);
-    } else {
-      const flash = flashOn(CURSOR_BLINK_MS);
-      const alpha = flash ? 0.5 : 0.2;
-      octx.fillStyle = rgb(c, alpha);
-      octx.fillRect(btnX, btnY, btnW, btnH);
-      octx.strokeStyle = rgb(c);
-      octx.lineWidth = 1;
-      octx.strokeRect(btnX, btnY, btnW, btnH);
-      octx.font = touch ? FONT_LABEL : FONT_HINT;
-      octx.fillStyle = flash ? "#fff" : "#aaa";
-      octx.fillText(touch ? "Tap to join" : "Press button to start", cx, btnY + btnH / 2);
-    }
-
-    if (!touch) {
-      octx.font = FONT_HINT;
-      octx.fillStyle = TEXT_DIM;
-      octx.fillText(p.keyHint ?? "", cx, btnY - 8);
-    }
-  }
-
-  const secs = Math.ceil(selectData.timer);
-  octx.font = FONT_TIMER;
-  octx.fillStyle = GOLD;
-  octx.fillText(`Starting in ${secs}s`, W / 2, H * 0.88);
-
-  // Gear button + F1 hint (top-right corner)
-  octx.textAlign = "right";
-  octx.textBaseline = "middle";
-  octx.font = FONT_ICON;
-  octx.fillStyle = TEXT_MUTED;
-  octx.fillText("\u2699", W - 6, 18);
-  octx.font = FONT_HINT;
-  octx.fillStyle = TEXT_DIM;
-  octx.fillText("F1", W - 30, 18);
-}
-
 /** Compute lobby panel layout (shared by drawing and hit-testing). */
 export function computeLobbyLayout(W: number, H: number, count: number) {
   const touch = IS_TOUCH_DEVICE;
@@ -711,6 +696,14 @@ export function computeLobbyLayout(W: number, H: number, count: number) {
 /** Returns true on even half of a repeating blink cycle. */
 function flashOn(intervalMs: number): boolean {
   return Math.floor(Date.now() / intervalMs) % 2 === 0;
+}
+
+/** Fill a full-screen opaque panel and set up centered text drawing. */
+function beginModalScreen(octx: CanvasRenderingContext2D, W: number, H: number): void {
+  octx.fillStyle = PANEL_BG(0.95);
+  octx.fillRect(0, 0, W, H);
+  octx.textAlign = "center";
+  octx.textBaseline = "middle";
 }
 
 /** Draw text with a dark shadow offset by 1px. */

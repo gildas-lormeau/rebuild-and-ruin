@@ -5,26 +5,25 @@
 
 import { buildLobbyConfirmKeys, formatKeyHint } from "./game-ui-runtime.ts";
 import type { Mode } from "./game-ui-types.ts";
-import {CANNON_HP_OPTIONS, type ControlsState,
+import {
+  CANNON_HP_OPTIONS, type ControlsState,
   DIFFICULTY_LABELS, DPAD_LABELS,
   formatKeyName,
-  type GameSettings, HAPTICS_LABELS, OPTION_NAMES,ROUNDS_OPTIONS, 
-  SEED_CUSTOM,saveSettings,
+  type GameSettings, HAPTICS_LABELS, OPTION_NAMES, ROUNDS_OPTIONS,
+  SEED_CUSTOM, saveSettings,
 } from "./game-ui-types.ts";
 import type { GameMap } from "./geometry-types.ts";
 import { generateMap } from "./map-generation.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
-import { getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
+import type { KeyBindings } from "./player-config.ts";
+import { ACTION_KEYS, getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
 import { renderMap } from "./render-map.ts";
-import { FONT_BODY, FONT_HEADING, FONT_TITLE, rgb } from "./render-theme.ts";
-import type { RenderOverlay } from "./render-types.ts";
+import type { OptionEntry, RenderOverlay } from "./render-types.ts";
 import type { GameState } from "./types.ts";
 import { LOBBY_SKIP_LOCKOUT, LOBBY_SKIP_STEP } from "./types.ts";
 
 export interface UIContext {
   canvas: HTMLCanvasElement;
-  /** Cached 2D rendering context for the overlay canvas. */
-  ctx2d: CanvasRenderingContext2D;
   getState: () => GameState | undefined;
   getOverlay: () => RenderOverlay;
   settings: GameSettings;
@@ -43,12 +42,33 @@ export interface UIContext {
   isOnline?: boolean;
 }
 
+const CONTROL_ACTION_NAMES: readonly string[] = ["Up", "Down", "Left", "Right", "Confirm", "Rotate"];
+
 export function renderOptions(ctx: UIContext): void {
   const lobbyMap = ctx.lobby.map ?? generateMap(0);
   ctx.lobby.map = lobbyMap;
-  const overlay: RenderOverlay = { selection: { highlighted: null, selected: null } };
+  const readOnly = ctx.getOptionsReturnMode() !== null;
+  const visible = visibleOptions(ctx);
+  const options: OptionEntry[] = visible.map((i) => {
+    // Seed is typed, Controls is opened via confirm — neither uses left/right cycling
+    if (i === 4 || i === 5) return { name: OPTION_NAMES[i]!, value: optionValue(ctx, i), editable: false };
+    // Online: Rounds, Cannon HP, Seed are locked by room host
+    if (ctx.isOnline && (i === 1 || i === 2)) return { name: OPTION_NAMES[i]!, value: optionValue(ctx, i), editable: false };
+    // In-game: Difficulty and Cannon HP are locked (only Rounds, Haptics, D-Pad remain editable)
+    if (readOnly && (i === 0 || i === 2)) return { name: OPTION_NAMES[i]!, value: optionValue(ctx, i), editable: false };
+    return { name: OPTION_NAMES[i]!, value: optionValue(ctx, i), editable: true };
+  });
+  const overlay: RenderOverlay = {
+    selection: { highlighted: null, selected: null },
+    ui: {
+      optionsScreen: {
+        options,
+        cursor: ctx.optionsCursor.value,
+        readOnly,
+      },
+    },
+  };
   renderMap(ctx.getState()?.map ?? lobbyMap, ctx.canvas, overlay);
-  buildOptionsUi(ctx);
 }
 
 export function showOptions(ctx: UIContext, modeValues: { OPTIONS: Mode }): void {
@@ -71,9 +91,28 @@ export function closeOptions(ctx: UIContext, modeValues: { LOBBY: Mode; GAME: Mo
 export function renderControls(ctx: UIContext): void {
   const lobbyMap = ctx.lobby.map ?? generateMap(0);
   ctx.lobby.map = lobbyMap;
-  const overlay: RenderOverlay = { selection: { highlighted: null, selected: null } };
+  const cs = ctx.controlsState;
+  const players = PLAYER_NAMES.map((name, p) => {
+    const kb = ctx.settings.keyBindings[p]!;
+    return {
+      name: name!,
+      color: getPlayerColor(p).wall,
+      bindings: ACTION_KEYS.map(key => formatKeyName(kb[key as keyof KeyBindings])),
+    };
+  });
+  const overlay: RenderOverlay = {
+    selection: { highlighted: null, selected: null },
+    ui: {
+      controlsScreen: {
+        players,
+        playerIdx: cs.playerIdx,
+        actionIdx: cs.actionIdx,
+        rebinding: cs.rebinding,
+        actionNames: CONTROL_ACTION_NAMES,
+      },
+    },
+  };
   renderMap(ctx.getState()?.map ?? lobbyMap, ctx.canvas, overlay);
-  buildControlsUi(ctx);
 }
 
 export function showControls(ctx: UIContext, modeValues: { CONTROLS: Mode }): void {
@@ -156,25 +195,6 @@ export function lobbySkipStep(ctx: UIContext): boolean {
   return true;
 }
 
-function buildOptionsUi(ctx: UIContext): void {
-  const oc = ctx.ctx2d;
-  oc.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  const readOnly = ctx.getOptionsReturnMode() !== null;
-  const visible = visibleOptions(ctx);
-  for (let row = 0; row < visible.length; row++) {
-    const i = visible[row]!;
-    const sel = row === ctx.optionsCursor.value;
-    const val = optionValue(ctx, i);
-    const y = 80 + row * 40;
-    // In online mode, Rounds and Cannon HP are always read-only (set by room host)
-    const isReadOnly = readOnly || (ctx.isOnline && (i === 1 || i === 2 || i === 4));
-    oc.fillStyle = sel ? "#fff" : "#aaa";
-    oc.font = sel ? FONT_TITLE : FONT_HEADING;
-    const prefix = (isReadOnly && i !== 4) ? "  " : (sel ? "> " : "  ");
-    oc.fillText(`${prefix}${OPTION_NAMES[i]}: ${val}`, 40, y);
-  }
-}
-
 export function visibleOptions(ctx: UIContext): number[] {
   // 0=Difficulty, 1=Rounds, 2=Cannon HP, 3=Haptics, 4=Seed, 5=Controls, 6=D-Pad
   if (ctx.isOnline) return IS_TOUCH_DEVICE ? [1, 2, 3, 4, 5, 6] : [1, 2, 4, 5];
@@ -194,31 +214,10 @@ function optionValue(ctx: UIContext, idx: number): string {
   }
   if (idx === 2) return CANNON_HP_OPTIONS[s.cannonHp]!.label;
   if (idx === 3) return HAPTICS_LABELS[s.haptics] ?? "All";
-  if (idx === 4) return s.seedMode === SEED_CUSTOM ? (s.seed || "_") : "Random";
+  if (idx === 4) {
+    if (ctx.isOnline) return s.seed || "—";
+    return s.seedMode === SEED_CUSTOM ? (s.seed || "_") : "Random";
+  }
   if (idx === 6) return DPAD_LABELS[s.leftHanded ? 1 : 0]!;
   return "";
-}
-
-function buildControlsUi(ctx: UIContext): void {
-  const oc = ctx.ctx2d;
-  oc.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  const cs = ctx.controlsState;
-  for (let p = 0; p < PLAYER_NAMES.length; p++) {
-    const colors = getPlayerColor(p);
-    const sel = p === cs.playerIdx;
-    oc.fillStyle = sel ? rgb(colors.wall) : "#888";
-    oc.font = sel ? FONT_HEADING : FONT_BODY;
-    oc.fillText(PLAYER_NAMES[p]!, 40 + p * 200, 40);
-  }
-  const kb = ctx.settings.keyBindings[cs.playerIdx]!;
-  const keys = ["up", "down", "left", "right", "confirm", "rotate"] as const;
-  const names = ["Up", "Down", "Left", "Right", "Confirm", "Rotate"];
-  for (let a = 0; a < keys.length; a++) {
-    const sel = a === cs.actionIdx;
-    const keyVal = kb[keys[a]!];
-    oc.fillStyle = sel ? "#fff" : "#aaa";
-    oc.font = sel ? FONT_HEADING : FONT_BODY;
-    const rebindStr = sel && cs.rebinding ? " [press key]" : "";
-    oc.fillText(`  ${names[a]}: ${formatKeyName(keyVal)}${rebindStr}`, 40, 80 + a * 32);
-  }
 }

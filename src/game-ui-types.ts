@@ -224,12 +224,15 @@ export function cycleOption(
   settings: GameSettings,
   optionsReturnMode: unknown,
   state: { round: number; battleLength: number } | null,
+  isOnline?: boolean,
 ): void {
   if (optionsCursor === 0) {
+    if (optionsReturnMode !== null) return; // locked in-game
     settings.difficulty =
       (settings.difficulty + dir + DIFFICULTY_LABELS.length) %
       DIFFICULTY_LABELS.length;
   } else if (optionsCursor === 1) {
+    if (isOnline) return; // set by room host
     let next =
       (settings.rounds + dir + ROUNDS_OPTIONS.length) % ROUNDS_OPTIONS.length;
     // In-game: only allow values >= current round (so players can shorten, not extend past current)
@@ -249,6 +252,7 @@ export function cycleOption(
       state.battleLength = val > 0 ? val : Infinity;
     }
   } else if (optionsCursor === 2) {
+    if (optionsReturnMode !== null || isOnline) return; // locked in-game and online
     settings.cannonHp =
       (settings.cannonHp + dir + CANNON_HP_OPTIONS.length) %
       CANNON_HP_OPTIONS.length;

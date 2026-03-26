@@ -89,6 +89,7 @@ export interface RegisterOnlineInputDeps {
   confirmSelectionForPlayer: (pid: number, isReselect?: boolean) => boolean;
   /** True after the "Select your home castle" announcement has finished. */
   isSelectionReady?: () => boolean;
+  isOnline?: boolean;
   togglePause: () => boolean;
   getQuitPending: () => boolean;
   setQuitPending: (value: boolean) => void;
@@ -344,7 +345,7 @@ export function registerOnlineInputHandlers(
       const readOnly = getOptionsReturnMode() !== null;
       const seedMode = settings.seedMode;
 
-      if (!readOnly && getRealOptionIdx() === 4) {
+      if (!readOnly && !deps.isOnline && getRealOptionIdx() === 4) {
         if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
           if (seedMode === SEED_RANDOM) {
             settings.seedMode = SEED_CUSTOM;
@@ -383,14 +384,12 @@ export function registerOnlineInputHandlers(
         setOptionsCursor((getOptionsCursor() + 1) % getOptionsCount());
         e.preventDefault();
       } else if (
-        (!readOnly || getRealOptionIdx() === 1) &&
-        (e.key === "ArrowLeft" || e.key === "a" || e.key === "j")
+        e.key === "ArrowLeft" || e.key === "a" || e.key === "j"
       ) {
         changeOption(-1);
         e.preventDefault();
       } else if (
-        (!readOnly || getRealOptionIdx() === 1) &&
-        (e.key === "ArrowRight" || e.key === "d" || e.key === "l")
+        e.key === "ArrowRight" || e.key === "d" || e.key === "l"
       ) {
         changeOption(1);
         e.preventDefault();

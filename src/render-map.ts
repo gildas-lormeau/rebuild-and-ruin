@@ -227,9 +227,11 @@ export function renderMap(
   drawBanner(octx, W, H, overlay);
   drawGameOver(octx, W, H, overlay);
   drawLifeLostDialog(octx, W, H, overlay);
+
+  // Full-screen modal screens (opaque — drawn last, on top of everything)
+  drawPlayerSelect(octx, W, H, overlay);
   drawOptionsScreen(octx, W, H, overlay);
   drawControlsScreen(octx, W, H, overlay);
-  drawPlayerSelect(octx, W, H, overlay);
 
   // Scale up to display canvas (with optional zoom viewport)
   ctx.imageSmoothingEnabled = false;
