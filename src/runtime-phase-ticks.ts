@@ -83,6 +83,8 @@ interface PhaseTicksDeps {
   afterLifeLostResolved: () => boolean;
   showScoreDeltas: (onDone: () => void) => void;
   snapshotTerritory: () => Set<number>[];
+  /** Save human crosshair at end of battle so it can be restored next battle. */
+  saveBattleCrosshair?: () => void;
   /** Called after beginBattle completes (crosshair override, etc.). */
   onBeginBattle?: () => void;
 }
@@ -252,6 +254,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         }
       },
       onBattlePhaseEnded: () => {
+        deps.saveBattleCrosshair?.();
         deps.showBanner(
           BANNER_BUILD,
           () => {

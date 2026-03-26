@@ -29,6 +29,7 @@ interface CameraDeps {
   getCtx: () => FrameContext;
   getFrameDt: () => number;
   setFrameAnnouncement: (text: string) => void;
+  getFirstHumanCrosshair?: () => { x: number; y: number } | null;
 }
 
 interface CameraSystem {
@@ -80,7 +81,6 @@ interface CameraSystem {
 export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // --- Internal state ---
   let cameraZone: number | null = null;
-  let battleZoom: number | null = null;
   let lastAutoZoomPhase: Phase | null = null;
   let mobileZoomEnabled = false;
   let zoomActivated = false;
@@ -233,12 +233,30 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       : null;
   }
 
+  /** Derive map zone from a world-pixel position. */
+  function zoneAtPixel(x: number, y: number): number | null {
+    const state = deps.getState();
+    if (!state) return null;
+    const row = Math.floor(y / TILE_SIZE);
+    const col = Math.floor(x / TILE_SIZE);
+    return state.map.zones[row]?.[col] ?? null;
+  }
+
+  /** Derive camera zone from the human crosshair position (enemy zones only). */
+  function crosshairZone(): number | null {
+    const ch = deps.getFirstHumanCrosshair?.();
+    if (!ch) return null;
+    const zone = zoneAtPixel(ch.x, ch.y);
+    if (zone === null || zone === getMyZone()) return null;
+    return zone;
+  }
+
   function autoZoom(phase: Phase): void {
     // No auto-zoom when spectating (no human player)
     if (myPlayerId() < 0) return;
     if (phase === Phase.BATTLE) {
       swapPinchViewport(true);
-      // If pinch or battleZoom points at own zone, reset — always pick enemy
+      // If pinch points at own zone, reset — always pick enemy
       const myZone = getMyZone();
       if (pinchVp && myZone !== null) {
         const zb = computeZoneBounds(myZone);
@@ -249,21 +267,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
           battlePinchVp = null;
         }
       }
-      if (battleZoom === myZone) battleZoom = null;
       if (pinchVp) {
         cameraZone = null;
-      } else if (battleZoom !== null) {
-        const state = deps.getState()!;
-        const pid = state.playerZones.indexOf(battleZoom);
-        if (pid >= 0 && !state.players[pid]?.eliminated) {
-          cameraZone = battleZoom;
-        } else {
-          battleZoom = getBestEnemyZone();
-          cameraZone = battleZoom;
-        }
       } else {
-        battleZoom = getBestEnemyZone();
-        cameraZone = battleZoom;
+        // Camera follows crosshair zone; fall back to best enemy
+        cameraZone = crosshairZone() ?? getBestEnemyZone();
       }
     } else {
       swapPinchViewport(false);
@@ -329,6 +337,14 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     } else if (state.phase !== lastAutoZoomPhase &&
         ctx.mode !== Mode.BANNER && ctx.mode !== Mode.BALLOON_ANIM && ctx.mode !== Mode.CASTLE_BUILD) {
       lastAutoZoomPhase = state.phase;
+    }
+
+    // Camera follows crosshair during battle (mobile auto-zoom only)
+    if (mobileAuto && state.phase === Phase.BATTLE && !pinchVp && !ctx.shouldUnzoom) {
+      const zone = crosshairZone();
+      if (zone !== null && zone !== cameraZone) {
+        cameraZone = zone;
+      }
     }
   }
 
@@ -466,7 +482,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     buildPinchVp = null;
     battlePinchVp = null;
     castleBuildVp = null;
-    battleZoom = null;
     lastAutoZoomPhase = null;
     selectionZoomApplied = false;
     pendingSelectionVp = null;
@@ -485,7 +500,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     pinchVp = null;
     if (state && state.phase === Phase.BATTLE) {
       battlePinchVp = null;
-      if (z !== null) battleZoom = z;
     } else {
       buildPinchVp = null;
     }

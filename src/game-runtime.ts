@@ -329,16 +329,48 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     return rs.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION;
   }
 
-  /** Place the human crosshair on the best enemy castle (matches auto-zoom target). */
+  /** Crosshair position from the previous battle (null = first battle). */
+  let lastBattleCrosshair: { x: number; y: number } | null = null;
+
+  /**
+   * Position the human crosshair at the start of battle (touch devices).
+   * - First battle: aim at best enemy's home tower.
+   * - Subsequent battles: restore last position (unless that opponent died).
+   * - Without auto-zoom: don't move the cursor (first tap positions it).
+   */
   function aimAtEnemyCastle(): void {
     if (!rs.state) return;
+    const human = firstHuman();
+    if (!human) return;
+
+    if (!camera.isMobileAutoZoom()) return;
+
+    // Subsequent battle: restore last position if targeted opponent is alive
+    if (lastBattleCrosshair) {
+      const row = Math.floor(lastBattleCrosshair.y / TILE_SIZE);
+      const col = Math.floor(lastBattleCrosshair.x / TILE_SIZE);
+      const zone = rs.state.map.zones[row]?.[col];
+      if (zone !== undefined) {
+        const pid = rs.state.playerZones.indexOf(zone);
+        if (pid >= 0 && pid !== camera.myPlayerId() && !rs.state.players[pid]?.eliminated) {
+          human.setCrosshair(lastBattleCrosshair.x, lastBattleCrosshair.y);
+          return;
+        }
+      }
+      // Targeted opponent died or invalid — fall through to best enemy
+    }
+
+    // First battle or opponent died: aim at best enemy's home tower
     const zone = camera.getBestEnemyZone();
     if (zone === null) return;
     const pid = rs.state.playerZones.indexOf(zone);
     const tower = pid >= 0 ? rs.state.players[pid]?.homeTower : null;
     if (!tower) return;
     const c = towerCenter(tower);
-    firstHuman()?.setCrosshair(c.col * TILE_SIZE, c.row * TILE_SIZE);
+    const x = c.col * TILE_SIZE;
+    const y = c.row * TILE_SIZE;
+    human.setCrosshair(x, y);
+    lastBattleCrosshair = { x, y };
   }
 
   // -------------------------------------------------------------------------
@@ -488,6 +520,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getCtx: () => rs.ctx,
     getFrameDt: () => rs.frameDt,
     setFrameAnnouncement: (text) => { rs.frame.announcement = text; },
+    getFirstHumanCrosshair: () => {
+      const h = firstHuman();
+      if (!h) return null;
+      const ch = h.getCrosshair();
+      return { x: ch.x, y: ch.y };
+    },
   });
 
   // Re-export camera functions used by other parts of the runtime
@@ -507,7 +545,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     clearCastleBuildViewport: () => camera.clearCastleBuildViewport(),
     setCastleBuildViewport: (plans) => camera.setCastleBuildViewport(plans),
     setSelectionViewport: (row, col) => camera.setSelectionViewport(row, col),
-    computeZoneBounds: camera.computeZoneBounds,
     render: () => render(),
     firstHuman,
     startCannonPhase: () => phaseTicks.startCannonPhase(),
@@ -794,6 +831,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     afterLifeLostResolved: () => lifeLost.afterResolved(),
     showScoreDeltas: (onDone) => selection.showBuildScoreDeltas(onDone),
     snapshotTerritory,
+    saveBattleCrosshair: IS_TOUCH_DEVICE ? () => {
+      const human = firstHuman();
+      if (human) {
+        const ch = human.getCrosshair();
+        lastBattleCrosshair = { x: ch.x, y: ch.y };
+      }
+    } : undefined,
     onBeginBattle: IS_TOUCH_DEVICE ? aimAtEnemyCastle : undefined,
   });
 
@@ -819,6 +863,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs.scoreDeltaOnDone = null;
     rs.directTouchActive = false;
     rs.preScores = [];
+    lastBattleCrosshair = null;
     resetGameStats();
     camera.resetCamera();
   }
@@ -1028,6 +1073,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         setCameraZone: camera.setCameraZone,
         myPlayerId,
         getEnemyZones,
+        aimAtZone: (zone: number) => {
+          if (!rs.state) return;
+          const human = firstHuman();
+          if (!human) return;
+          const pid = rs.state.playerZones.indexOf(zone);
+          const tower = pid >= 0 ? rs.state.players[pid]?.homeTower : null;
+          if (!tower) return;
+          const c = towerCenter(tower);
+          human.setCrosshair(c.col * TILE_SIZE, c.row * TILE_SIZE);
+        },
       };
       loupeHandle = createLoupe(gameContainer);
       quitButton = createQuitButton({

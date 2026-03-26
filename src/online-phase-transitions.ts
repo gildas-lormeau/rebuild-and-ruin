@@ -52,7 +52,7 @@ interface TransitionContext {
   snapshotTerritory: () => Set<number>[];
 
   // Battle
-  /** Position crosshair on best enemy castle (mobile auto-zoom). */
+  /** Position battle crosshair (first battle: best enemy; subsequent: restore last position). */
   aimAtEnemyCastle?: () => void;
 
   // Life-lost / game over

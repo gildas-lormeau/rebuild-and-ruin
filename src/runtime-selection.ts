@@ -46,6 +46,7 @@ import {
   initTowerSelection as initTowerSelectionImpl,
   tickSelectionPhase,
 } from "./selection.ts";
+import { tileCenterPx, towerCenter } from "./spatial.ts";
 import {
   SCORE_DELTA_DISPLAY_TIME,
   SELECT_ANNOUNCEMENT_DURATION,
@@ -65,7 +66,6 @@ interface SelectionSystemDeps {
   clearCastleBuildViewport: () => void;
   setCastleBuildViewport: (plans: { playerId: number; tiles: number[] }[]) => void;
   setSelectionViewport: (towerRow: number, towerCol: number) => void;
-  computeZoneBounds: (zone: number) => { x: number; y: number; w: number; h: number };
 
   // Sibling systems / parent callbacks
   render: () => void;
@@ -285,11 +285,12 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
     // Compute score deltas from the build phase (with display coordinates)
     rs.scoreDeltas = rs.state.players
       .map((p, i) => {
-        const zone = rs.state.playerZones[i] ?? 0;
-        const bounds = deps.computeZoneBounds(zone);
+        const ht = p.homeTower;
+        const tc = ht ? towerCenter(ht) : null;
+        const px = tc ? tileCenterPx(tc.row - 1, tc.col) : { x: 0, y: 0 };
         return {
           playerId: i, delta: p.score - (rs.preScores[i] ?? 0), total: p.score,
-          cx: bounds.x + bounds.w / 2, cy: bounds.y + bounds.h / 2,
+          cx: px.x, cy: px.y,
         };
       })
       .filter(d => d.delta > 0 && !rs.state.players[d.playerId]!.eliminated);

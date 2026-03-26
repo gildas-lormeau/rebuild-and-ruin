@@ -74,6 +74,8 @@ interface ZoomButtonDeps {
   setCameraZone: (zone: number | null) => void;
   myPlayerId: () => number;
   getEnemyZones: () => number[];
+  /** Move the human crosshair to a zone's home tower (battle auto-zoom). */
+  aimAtZone?: (zone: number) => void;
 }
 
 interface RotateDeps {
@@ -351,7 +353,18 @@ export function createHomeZoomButton(deps: ZoomButtonDeps, container: HTMLElemen
   function toggle() {
     const current = deps.getCameraZone();
     const myZone = getMyZone();
-    deps.setCameraZone(current === myZone ? null : myZone);
+    if (current === null) {
+      // Unzoomed → zoom to own zone + move cursor home
+      deps.aimAtZone?.(myZone!);
+      deps.setCameraZone(myZone);
+    } else if (current === myZone) {
+      // On own zone → unzoom
+      deps.setCameraZone(null);
+    } else {
+      // On enemy zone → move cursor to own home tower (camera follows)
+      deps.aimAtZone?.(myZone!);
+      deps.setCameraZone(myZone);
+    }
     updateLabel();
   }
 
@@ -393,6 +406,7 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps, container: HTMLEleme
     const current = deps.getCameraZone();
     const idx = current !== null ? enemyZones.indexOf(current) : -1;
     const next = enemyZones[(idx + 1) % enemyZones.length]!;
+    deps.aimAtZone?.(next);
     deps.setCameraZone(next);
     updateLabel();
   }
