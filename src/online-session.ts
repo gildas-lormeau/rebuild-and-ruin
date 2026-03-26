@@ -81,6 +81,7 @@ export function resetSessionState(session: OnlineSession): void {
   session.myPlayerId = -1;
   session.occupiedSlots = new Set();
   session.remoteHumanSlots.clear();
+  session.earlyLifeLostChoices.clear();
 }
 
 export function sendAimUpdate(

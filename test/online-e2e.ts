@@ -119,6 +119,8 @@ const NUM_ROUNDS = Number(positionalArgs[3] ?? 3); // number of game rounds (def
 const BASE_URL = "http://localhost:5173/";
 const PAGE_URL = SERVER_URL ? `${BASE_URL}?server=${new URL(SERVER_URL).host}` : BASE_URL;
 const GAME_TIMEOUT_MS = 600_000; // 10 minutes — enough for "To The Death"
+const ONLINE_ROUND_OPTIONS = new Set([3, 5, 8, 12]);
+const ONLINE_SELECTED_ROUNDS = ONLINE_ROUND_OPTIONS.has(NUM_ROUNDS) ? String(NUM_ROUNDS) : "3";
 const PLAYER_NAMES = ["Red", "Blue", "Gold"];
 
 // ---------------------------------------------------------------------------
@@ -551,14 +553,12 @@ async function replayInputRecording(page: Page, recording: InputRecording): Prom
 async function createRoom(page: Page): Promise<string> {
   await page.goto(PAGE_URL);
   await page.click("#btn-online");
-  await page.waitForSelector("#lobby[data-ready]", { timeout: 10000 });
-  await page.click("#btn-create");
-  await page.waitForSelector("#lobby-create.active");
+  await page.waitForSelector("#page-online[data-ready]", { timeout: 10000 });
   await page.selectOption("#set-wait", "10");
-  await page.selectOption("#set-rounds", "3");
+  await page.selectOption("#set-rounds", ONLINE_SELECTED_ROUNDS);
   await page.click("#btn-create-confirm");
   await page.waitForFunction(
-    () => document.getElementById("lobby")?.style.display === "none",
+    () => document.getElementById("page-online")?.hidden === true,
     { timeout: 10000 },
   );
   await page.waitForTimeout(300);
@@ -573,13 +573,11 @@ async function createRoom(page: Page): Promise<string> {
 async function joinRoom(page: Page, code: string): Promise<void> {
   await page.goto(PAGE_URL);
   await page.click("#btn-online");
-  await page.waitForSelector("#lobby[data-ready]", { timeout: 10000 });
-  await page.click("#btn-join-show");
-  await page.waitForSelector("#lobby-join.active");
+  await page.waitForSelector("#page-online[data-ready]", { timeout: 10000 });
   await page.fill("#join-code", code);
   await page.click("#btn-join-confirm");
   await page.waitForFunction(
-    () => document.getElementById("lobby")?.style.display === "none",
+    () => document.getElementById("page-online")?.hidden === true,
     { timeout: 10000 },
   );
 }
@@ -792,7 +790,7 @@ async function runOnline() {
   const clientPages: Page[] = [];
   const humanPages: Page[] = [];
 
-  console.log(`${ts()} Starting online E2E test: ${NUM_HUMANS} human${NUM_HUMANS !== 1 ? "s" : ""} + ${3 - NUM_HUMANS} AI, 3 rounds`);
+  console.log(`${ts()} Starting online E2E test: ${NUM_HUMANS} human${NUM_HUMANS !== 1 ? "s" : ""} + ${3 - NUM_HUMANS} AI, ${ONLINE_SELECTED_ROUNDS} rounds`);
 
   // --- HOST ---
   const hostPage = await newPage(browser);

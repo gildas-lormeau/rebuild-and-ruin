@@ -74,6 +74,12 @@ export interface SerializedCannon {
 export interface SerializedGrunt {
   row: number;
   col: number;
+  targetPlayerId: number;
+  targetTowerIdx?: number;
+  attackTimer?: number;
+  blockedBattles?: number;
+  wallAttack?: boolean;
+  facing?: number;
 }
 
 export interface SerializedPlayer {
@@ -176,6 +182,7 @@ export interface InitMessage {
 export interface JoinedMessage {
   type: "joined";
   playerId: number;
+  previousPlayerId?: number;
 }
 
 
@@ -208,6 +215,7 @@ export interface PlayerJoinedMessage {
   type: "player_joined";
   playerId: number;
   name: string;
+  previousPlayerId?: number;
 }
 
 /** A player left the room. */

@@ -43,6 +43,22 @@ export function handleServerLifecycleMessage(
   msg: ServerMessage,
   deps: HandleServerLifecycleDeps,
 ): boolean {
+  const clearLobbySlot = (playerId: number) => {
+    deps.lobbyJoined[playerId] = false;
+    deps.occupiedSlots.delete(playerId);
+    deps.remoteHumanSlots.delete(playerId);
+  };
+
+  const occupyLobbySlot = (playerId: number) => {
+    deps.lobbyJoined[playerId] = true;
+    deps.occupiedSlots.add(playerId);
+    if (playerId !== deps.getMyPlayerId()) {
+      deps.remoteHumanSlots.add(playerId);
+    } else {
+      deps.remoteHumanSlots.delete(playerId);
+    }
+  };
+
   // Dismiss stale life-lost dialog when a phase transition arrives from host.
   if (
     !deps.isHost &&
@@ -80,16 +96,23 @@ export function handleServerLifecycleMessage(
       return true;
 
     case MSG.JOINED:
+      if (msg.previousPlayerId !== undefined && msg.previousPlayerId !== msg.playerId) {
+        clearLobbySlot(msg.previousPlayerId);
+      } else {
+        const currentPlayerId = deps.getMyPlayerId();
+        if (currentPlayerId >= 0 && currentPlayerId !== msg.playerId) {
+          clearLobbySlot(currentPlayerId);
+        }
+      }
       deps.setMyPlayerId(msg.playerId);
-      deps.lobbyJoined[msg.playerId] = true;
+      occupyLobbySlot(msg.playerId);
       return true;
 
     case MSG.PLAYER_JOINED:
-      deps.lobbyJoined[msg.playerId] = true;
-      deps.occupiedSlots.add(msg.playerId);
-      if (msg.playerId !== deps.getMyPlayerId()) {
-        deps.remoteHumanSlots.add(msg.playerId);
+      if (msg.previousPlayerId !== undefined && msg.previousPlayerId !== msg.playerId) {
+        clearLobbySlot(msg.previousPlayerId);
       }
+      occupyLobbySlot(msg.playerId);
       return true;
 
     case MSG.PLAYER_LEFT: {

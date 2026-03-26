@@ -111,16 +111,25 @@ function handleMessage(socket: WebSocket, msg: Record<string, any>, rawJson: str
     }
 
     case MSG.SELECT_SLOT: {
-      const slotId = rooms.selectSlot(socket, msg.slotId);
-      if (slotId < 0) break;
+      const selection = rooms.selectSlot(socket, msg.slotId);
+      if (!selection) break;
       const entry = rooms.getEntry(socket);
       if (!entry) break;
-      send(socket, { type: MSG.JOINED, playerId: slotId });
+      const previousPlayerId =
+        selection.previousSlotId !== null && selection.previousSlotId !== selection.slotId
+          ? selection.previousSlotId
+          : undefined;
+      send(socket, {
+        type: MSG.JOINED,
+        playerId: selection.slotId,
+        previousPlayerId,
+      });
       // Notify all in room about the updated slot assignments
       rooms.broadcastToRoom(entry, {
         type: MSG.PLAYER_JOINED,
-        playerId: slotId,
-        name: PLAYER_NAMES[slotId] ?? `P${slotId + 1}`,
+        playerId: selection.slotId,
+        name: PLAYER_NAMES[selection.slotId] ?? `P${selection.slotId + 1}`,
+        previousPlayerId,
       });
       break;
     }

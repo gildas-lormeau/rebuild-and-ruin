@@ -21,6 +21,11 @@ export interface RoomEntry {
   createdAt: number; // Date.now() when room was created
 }
 
+interface SlotSelectionResult {
+  slotId: number;
+  previousSlotId: number | null;
+}
+
 export class RoomManager {
   private rooms = new Map<string, RoomEntry>();
   private socketToRoom = new Map<WebSocket, RoomEntry>();
@@ -30,6 +35,7 @@ export class RoomManager {
   // ---------------------------------------------------------------------------
 
   createRoom(settings: RoomSettings, hostSocket: WebSocket): string | null {
+    this.detachExistingSocket(hostSocket);
     if (this.rooms.size >= MAX_ROOMS) return null;
 
     const code = this.generateCode();
@@ -58,6 +64,7 @@ export class RoomManager {
   }
 
   joinRoom(code: string, socket: WebSocket): RoomEntry | null {
+    this.detachExistingSocket(socket);
     const entry = this.rooms.get(code.toUpperCase());
     if (!entry || entry.started) return null;
 
@@ -68,16 +75,17 @@ export class RoomManager {
   }
 
   /** Player selects a slot (color). Returns the slotId or -1 if taken. */
-  selectSlot(socket: WebSocket, slotId: number): number {
+  selectSlot(socket: WebSocket, slotId: number): SlotSelectionResult | null {
     const entry = this.socketToRoom.get(socket);
-    if (!entry || entry.started) return -1;
-    if (slotId < 0 || slotId >= MAX_PLAYERS) return -1;
+    if (!entry || entry.started) return null;
+    if (slotId < 0 || slotId >= MAX_PLAYERS) return null;
 
     // Check if slot is already taken by another socket
     for (const [otherSocket, otherId] of entry.slotAssignments) {
-      if (otherId === slotId && otherSocket !== socket) return -1;
+      if (otherId === slotId && otherSocket !== socket) return null;
     }
 
+    const previousSlotId = entry.slotAssignments.get(socket) ?? null;
     // Release previous slot if this socket had one
     entry.slotAssignments.delete(socket);
     // Assign new slot
@@ -86,7 +94,7 @@ export class RoomManager {
     // Register with game room
     entry.room.registerPlayer(socket, slotId);
 
-    return slotId;
+    return { slotId, previousSlotId };
   }
 
   /** Mark room as started: stop wait timer, add spectators. Game init is driven by host client. */
@@ -254,6 +262,12 @@ export class RoomManager {
       }
     } while (this.rooms.has(code));
     return code;
+  }
+
+  private detachExistingSocket(socket: WebSocket): void {
+    if (this.socketToRoom.has(socket)) {
+      this.removeSocket(socket);
+    }
   }
 
   private scheduleCleanup(entry: RoomEntry): void {

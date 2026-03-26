@@ -3,7 +3,7 @@
  * Pure functions that read/write GameState — no module-level state.
  */
 
-import type { FullStateMessage, SerializedPlayer } from "../server/protocol.ts";
+import type { FullStateMessage, SerializedGrunt, SerializedPlayer } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
 import { buildCastle } from "./map-generation.ts";
 import { Rng } from "./rng.ts";
@@ -267,13 +267,9 @@ export function applyPlayersCheckpoint(
 
 export function applyGruntsCheckpoint(
   state: GameState,
-  serialized: { row: number; col: number }[],
+  serialized: SerializedGrunt[],
 ): void {
-  state.grunts = serialized.map((g) => ({
-    row: g.row,
-    col: g.col,
-    targetPlayerId: 0,
-  }));
+  state.grunts = serialized.map(deserializeGrunt);
 }
 
 export function buildGameOverPayload(
@@ -297,10 +293,36 @@ export function buildGameOverPayload(
 }
 
 function serializeGrunts(state: GameState) {
-  return state.grunts.map((g) => ({
+  return state.grunts.map(serializeGrunt);
+}
+
+function deserializeGrunt(g: SerializedGrunt): GameState["grunts"][number] {
+  return serializeGrunt(g);
+}
+
+function serializeGrunt(
+  g: Pick<
+    GameState["grunts"][number],
+    | "row"
+    | "col"
+    | "targetPlayerId"
+    | "targetTowerIdx"
+    | "attackTimer"
+    | "blockedBattles"
+    | "wallAttack"
+    | "facing"
+  >,
+): SerializedGrunt {
+  return {
     row: g.row,
     col: g.col,
-  }));
+    targetPlayerId: g.targetPlayerId,
+    targetTowerIdx: g.targetTowerIdx,
+    attackTimer: g.attackTimer,
+    blockedBattles: g.blockedBattles,
+    wallAttack: g.wallAttack,
+    facing: g.facing,
+  };
 }
 
 function serializeHouses(state: GameState) {
