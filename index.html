@@ -12,10 +12,11 @@
   <style>
     :root {
       --color-bg: #1a1a2e;
-      --btn-size: min(48px, 7.5vmin);
+      --btn-size: min(84px, 13.125vmin);
+      --dpad-btn-size: min(72px, 11.25vmin);
       --gap: 2vmin;
       --safe-padding: calc(var(--gap) * 2);
-      --panel-size: clamp(calc(var(--btn-size) * 3 + var(--safe-padding) * 2), 20vw, 200px);
+      --panel-size: clamp(calc(var(--dpad-btn-size) * 3 + var(--safe-padding) * 2), 20vw, 300px);
     }
 
     * {
@@ -56,7 +57,7 @@
       border: 2px solid #666;
       background: #3a3a5e;
       color: #ccc;
-      font-size: min(14px, 2.2vmin);
+      font-size: min(24px, 3.85vmin);
       font-weight: bold;
       display: grid;
       place-items: center;
@@ -93,15 +94,15 @@
     /* D-pad */
     nav {
       display: grid;
-      grid-template: repeat(3, var(--btn-size)) / repeat(3, var(--btn-size));
-      gap: 0;
+      grid-template: repeat(3, var(--dpad-btn-size)) / repeat(3, var(--dpad-btn-size));
+      gap: 1vmin;
 
       button {
         border-radius: 1vmin;
         background: #3a4a5e;
         border: 2px solid #5a6a7e;
         color: #c0d0e0;
-        font-size: min(16px, 2.5vmin);
+        font-size: min(24px, 3.75vmin);
         font-weight: bold;
         display: grid;
         place-items: center;
@@ -244,7 +245,7 @@
 
     .landscape .loupe {
       /* Available height = container block size - dpad height - panel-bottom padding - panel gap */
-      --dpad-h: calc(var(--btn-size) * 3);
+      --dpad-h: calc(var(--dpad-btn-size) * 3);
       --bottom-pad: var(--gap);
       --available-h: calc(100cqb - var(--dpad-h) - var(--bottom-pad) - var(--gap));
       --loupe-w: min(100cqi, calc(var(--available-h) * 5 / 6));

@@ -464,23 +464,21 @@ export function createFloatingActions(
     btn.addEventListener("touchcancel", () => pressUp(btn));
   }
 
-  const BTN_CSS = 48;
-  const OFFSET_Y = BTN_CSS + 12;
-  const SIDE_OFFSET_X = BTN_CSS + 12;
-
   return {
     update(visible, x, y, nearTop, leftHanded) {
       el.classList.toggle("visible", visible);
       if (!visible) return;
+      const h = el.offsetHeight;
+      const gap = h * 0.25;
       let left: number;
       let top: number;
       if (nearTop) {
         const sign = leftHanded ? 1 : -1;
-        left = x + sign * SIDE_OFFSET_X;
+        left = x + sign * (h + gap);
         top = y;
       } else {
         left = x;
-        top = y - OFFSET_Y;
+        top = y - h - gap;
       }
       el.style.left = `${Math.round(Math.max(0, left))}px`;
       el.style.top = `${Math.round(Math.max(0, top))}px`;
