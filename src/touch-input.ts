@@ -26,7 +26,6 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     onPinchEnd,
     tryPlaceCannonAndSend,
     tryPlacePieceAndSend,
-    render,
   } = deps;
 
   // Gesture tracking
@@ -163,7 +162,6 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
       withFirstHuman((human) => {
         const max = state.cannonLimits[human.playerId] ?? 0;
         tryPlaceCannonAndSend(human, state, max);
-        render();
       });
     }
 

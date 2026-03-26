@@ -95,7 +95,6 @@ export interface RegisterOnlineInputDeps {
   setQuitPending: (value: boolean) => void;
   setQuitTimer: (seconds: number) => void;
   setQuitMessage: (text: string) => void;
-  render: () => void;
   sendLifeLostChoice: (
     choice: ResolvedChoice,
     playerId: number,
@@ -163,7 +162,6 @@ export function registerOnlineInputHandlers(
     setQuitPending,
     setQuitTimer,
     setQuitMessage,
-    render,
     sendLifeLostChoice,
     settings,
   } = deps;
@@ -211,7 +209,6 @@ export function registerOnlineInputHandlers(
       withFirstHuman((human) => {
         const max = state.cannonLimits[human.playerId] ?? 0;
         tryPlaceCannonAndSend(human, state, max);
-        render();
       });
     } else if (state.phase === Phase.WALL_BUILD) {
       withFirstHuman((human) => {
@@ -498,16 +495,13 @@ export function registerOnlineInputHandlers(
 
         if (isMovementAction(action)) {
           ctrl.moveCannonCursor(action);
-          render();
           e.preventDefault();
         } else if (action === Action.ROTATE) {
           ctrl.cycleCannonMode(state, state.cannonLimits[player.id] ?? 0);
-          render();
           e.preventDefault();
         } else if (action === Action.CONFIRM) {
           const max = state.cannonLimits[player.id] ?? 0;
           tryPlaceCannonAndSend(ctrl, state, max);
-          render();
           e.preventDefault();
         }
       } else if (state.phase === Phase.WALL_BUILD) {
@@ -651,9 +645,9 @@ export function dispatchPointerMove(
   state: GameState,
   deps: Pick<RegisterOnlineInputDeps,
     "withFirstHuman" | "getSelectionStates" | "screenToWorld" |
-    "highlightTowerForPlayer" | "pixelToTile" | "render" | "maybeSendAimUpdate" | "isSelectionReady">,
+    "highlightTowerForPlayer" | "pixelToTile" | "maybeSendAimUpdate" | "isSelectionReady">,
 ): void {
-  const { withFirstHuman, getSelectionStates, screenToWorld, highlightTowerForPlayer, pixelToTile, render, maybeSendAimUpdate } = deps;
+  const { withFirstHuman, getSelectionStates, screenToWorld, highlightTowerForPlayer, pixelToTile, maybeSendAimUpdate } = deps;
   if (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT) {
     if (deps.isSelectionReady && !deps.isSelectionReady()) return;
     withFirstHuman((human) => {
@@ -676,7 +670,6 @@ export function dispatchPointerMove(
     withFirstHuman((human) => {
       const { row, col } = pixelToTile(x, y);
       human.setCannonCursor(row, col);
-      render();
     });
   } else if (state.phase === Phase.BATTLE) {
     withFirstHuman((human) => {

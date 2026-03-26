@@ -29,7 +29,6 @@ interface DpadDeps {
   isHost: () => boolean;
   /** Join P1 in lobby (or skip if already joined). */
   lobbyAction: () => void;
-  render: () => void;
   getLeftHanded: () => boolean;
   /** Clear the direct-touch-active flag (hides floating buttons). */
   clearDirectTouch?: () => void;
@@ -52,7 +51,6 @@ interface QuitButtonDeps {
   showLobby: () => void;
   getControllers: () => PlayerController[];
   isHuman: (ctrl: PlayerController) => boolean;
-  render: () => void;
 }
 
 interface ZoomButtonDeps {
@@ -61,7 +59,6 @@ interface ZoomButtonDeps {
   setCameraZone: (zone: number | null) => void;
   myPlayerId: () => number;
   getEnemyZones: () => number[];
-  render: () => void;
 }
 
 interface RotateDeps {
@@ -74,7 +71,6 @@ interface FloatingActionsDeps {
   withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
   tryPlacePieceAndSend: (human: PlayerController & InputReceiver, state: GameState) => void;
   tryPlaceCannonAndSend: (human: PlayerController & InputReceiver, state: GameState, max: number) => void;
-  render: () => void;
   /** Forward a drag touch to the canvas pointer-move logic. */
   onDrag?: (clientX: number, clientY: number) => void;
 }
@@ -131,7 +127,6 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
       else if (action === Action.DOWN) deps.options.navigate(1);
       else if (action === Action.LEFT) deps.options.changeValue(-1);
       else if (action === Action.RIGHT) deps.options.changeValue(1);
-      deps.render();
       return;
     }
     const state = deps.getState();
@@ -154,7 +149,6 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
         }
       });
     }
-    deps.render();
   }
 
   /** Battle: hold-to-move via handleKeyDown/handleKeyUp (mirrors keyboard). */
@@ -197,7 +191,6 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
     hapticTap();
     if (deps.options?.isActive()) {
       deps.options.confirm();
-      deps.render();
       return;
     }
     const state = deps.getState();
@@ -216,16 +209,8 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
         deps.withFirstHuman((human) => deps.fireAndSend(human, state));
       }
     } else {
-      deps.withFirstHuman((human) => {
-        if (state.phase === Phase.WALL_BUILD) {
-          deps.tryPlacePieceAndSend(human, state);
-        } else if (state.phase === Phase.CANNON_PLACE) {
-          const max = state.cannonLimits[human.playerId] ?? 0;
-          deps.tryPlaceCannonAndSend(human, state, max);
-        }
-      });
+      dispatchPlacement(deps, state);
     }
-    deps.render();
   }
 
   for (const btn of btnsAction) {
@@ -243,11 +228,9 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
     hapticTap();
     if (deps.options?.isActive()) {
       deps.options.changeValue(1);
-      deps.render();
       return;
     }
     dispatchRotate(deps);
-    deps.render();
   }
 
   for (const btn of btnsRotate) {
@@ -298,7 +281,6 @@ export function createQuitButton(deps: QuitButtonDeps, container: HTMLElement): 
       deps.setQuitPending(true);
       deps.setQuitTimer(2);
       deps.setQuitMessage("Tap \u2715 again to quit");
-      deps.render();
     }
   }
 
@@ -338,7 +320,6 @@ export function createHomeZoomButton(deps: ZoomButtonDeps, container: HTMLElemen
     const myZone = getMyZone();
     deps.setCameraZone(current === myZone ? null : myZone);
     updateLabel();
-    deps.render();
   }
 
   function updateLabel() {
@@ -381,7 +362,6 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps, container: HTMLEleme
     const next = enemyZones[(idx + 1) % enemyZones.length]!;
     deps.setCameraZone(next);
     updateLabel();
-    deps.render();
   }
 
   function updateLabel() {
@@ -424,22 +404,13 @@ export function createFloatingActions(
   function handleRotate() {
     hapticTap();
     dispatchRotate(deps);
-    deps.render();
   }
 
   function handleConfirm() {
     hapticTap();
     const state = deps.getState();
     if (!state) return;
-    deps.withFirstHuman((human) => {
-      if (state.phase === Phase.WALL_BUILD) {
-        deps.tryPlacePieceAndSend(human, state);
-      } else if (state.phase === Phase.CANNON_PLACE) {
-        const max = state.cannonLimits[human.playerId] ?? 0;
-        deps.tryPlaceCannonAndSend(human, state, max);
-      }
-    });
-    deps.render();
+    dispatchPlacement(deps, state);
   }
 
   const TAP_THRESHOLD = 10; // pixels — beyond this the gesture is a drag
@@ -513,6 +484,18 @@ function dispatchRotate(deps: RotateDeps): void {
     } else if (state.phase === Phase.CANNON_PLACE) {
       const max = state.cannonLimits[human.playerId] ?? 0;
       human.cycleCannonMode(state, max);
+    }
+  });
+}
+
+/** Place a piece or cannon for the first human player. */
+function dispatchPlacement(deps: Pick<DpadDeps, "withFirstHuman" | "tryPlacePieceAndSend" | "tryPlaceCannonAndSend">, state: GameState): void {
+  deps.withFirstHuman((human) => {
+    if (state.phase === Phase.WALL_BUILD) {
+      deps.tryPlacePieceAndSend(human, state);
+    } else if (state.phase === Phase.CANNON_PLACE) {
+      const max = state.cannonLimits[human.playerId] ?? 0;
+      deps.tryPlaceCannonAndSend(human, state, max);
     }
   });
 }

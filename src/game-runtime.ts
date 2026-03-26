@@ -895,7 +895,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       setQuitPending: (v) => { rs.quitPending = v; },
       setQuitTimer: (s) => { rs.quitTimer = s; },
       setQuitMessage: (msg) => { rs.quitMessage = msg; },
-      render,
       sendLifeLostChoice: lifeLost.sendLifeLostChoice,
       setDirectTouchActive: (v) => { rs.directTouchActive = v; },
       isDirectTouchActive: () => rs.directTouchActive,
@@ -921,7 +920,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         confirmSelectionForPlayer: selection.confirm,
         isHost: config.getIsHost,
         lobbyAction: () => lobbyKeyJoin(rs.settings.keyBindings[0]!.confirm),
-        render,
         getLeftHanded: () => rs.settings.leftHanded,
         clearDirectTouch: () => { rs.directTouchActive = false; },
         isSelectionReady,
@@ -945,7 +943,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         setCameraZone: camera.setCameraZone,
         myPlayerId,
         getEnemyZones,
-        render,
       };
       loupeHandle = createLoupe(gameContainer);
       quitButton = createQuitButton({
@@ -956,7 +953,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         showLobby: returnToLobby,
         getControllers: () => rs.controllers,
         isHuman,
-        render,
       }, gameContainer);
       quitButton.update(null); // initial state: hidden
       homeZoomButton = createHomeZoomButton(zoomDeps, gameContainer);
@@ -973,7 +969,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           withFirstHuman,
           tryPlacePieceAndSend: inputDeps.tryPlacePieceAndSend,
           tryPlaceCannonAndSend: inputDeps.tryPlaceCannonAndSend,
-          render,
           onDrag: (clientX, clientY) => {
             const state = rs.state;
             if (!state) return;
