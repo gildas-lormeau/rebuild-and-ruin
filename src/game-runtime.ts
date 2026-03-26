@@ -37,6 +37,7 @@ import {
   createTimerAccums,
   cycleOption,
   DIFFICULTY_PARAMS,
+  FOCUS_MENU,
   FOCUS_REMATCH,
   Mode,
   ROUNDS_OPTIONS,
@@ -68,7 +69,7 @@ import {
   buildStatusBar,
 } from "./render-composition.ts";
 import { getSceneCanvas, renderMap } from "./render-map.ts";
-import { computeLobbyLayout } from "./render-ui.ts";
+import { computeLobbyLayout, gameOverButtonHitTest } from "./render-ui.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import type { LifeLostSystem } from "./runtime-life-lost.ts";
@@ -572,12 +573,14 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const inGame = rs.mode === Mode.GAME || rs.mode === Mode.SELECTION;
     const controlsActive = inGame ? hasHuman : rs.mode === Mode.OPTIONS;
     dpad?.update(controlsActive ? (rs.state?.phase ?? Phase.WALL_BUILD) : null);
-    // Disable confirm button when placement is invalid (build/cannon phases only)
-    if (dpad && rs.state) {
-      const phase = rs.state.phase;
-      if (isPlacementPhase(phase)) {
+    // Confirm button: active in game (placement validity), options, and lobby; disabled otherwise
+    if (dpad) {
+      const confirmActive = controlsActive || rs.mode === Mode.LOBBY;
+      if (!confirmActive) {
+        dpad.setConfirmValid(false);
+      } else if (rs.state && isPlacementPhase(rs.state.phase) && inGame) {
         const human = firstHuman();
-        const barValid = phase === Phase.WALL_BUILD
+        const barValid = rs.state.phase === Phase.WALL_BUILD
           ? rs.frame.phantoms.humanPhantoms?.[0]?.valid ?? true
           : rs.frame.phantoms.aiCannonPhantoms?.find(p => p.playerId === human?.playerId)?.valid ?? true;
         dpad.setConfirmValid(barValid);
@@ -585,10 +588,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         dpad.setConfirmValid(true);
       }
     }
-    homeZoomButton?.update(hasHuman);
-    enemyZoomButton?.update(hasHuman);
     const inLobby = rs.mode === Mode.LOBBY || rs.mode === Mode.OPTIONS || rs.mode === Mode.CONTROLS;
-    quitButton?.update(!inLobby ? rs.state.phase : null);
+    const zoomEnabled = hasHuman && !inLobby && rs.mode !== Mode.STOPPED;
+    homeZoomButton?.update(zoomEnabled);
+    enemyZoomButton?.update(zoomEnabled);
+    quitButton?.update(!inLobby && rs.mode !== Mode.STOPPED ? rs.state.phase : null);
     updateFloatingActions();
   }
 
@@ -673,6 +677,21 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     camera.resetCamera();
     startGame();
     rs.mode = Mode.SELECTION;
+  }
+
+  function gameOverClick(canvasX: number, canvasY: number): void {
+    const gameOver = rs.frame.gameOver;
+    if (!gameOver) return;
+    const W = GRID_COLS * TILE_SIZE;
+    const H = GRID_ROWS * TILE_SIZE;
+    const hit = gameOverButtonHitTest(canvasX / SCALE, canvasY / SCALE, W, H, gameOver);
+    if (hit === FOCUS_REMATCH) rematch();
+    else if (hit === FOCUS_MENU) returnToLobby();
+    else {
+      // Tap outside buttons — use current focus
+      if (gameOver.focused === FOCUS_REMATCH) rematch();
+      else returnToLobby();
+    }
   }
 
   function returnToLobby(): void {
@@ -862,6 +881,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       rematch,
       getGameOverFocused: () => rs.frame.gameOver?.focused ?? FOCUS_REMATCH,
       setGameOverFocused: (f) => { if (rs.frame.gameOver) { rs.frame.gameOver.focused = f; render(); } },
+      gameOverClick,
       showOptions,
       closeOptions,
       showControls,

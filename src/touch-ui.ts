@@ -262,7 +262,8 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
       lastPhase = phase;
       const inGame = phase !== null;
       for (const dpad of dpads) dpad.classList.toggle("disabled", !inGame);
-      for (const btn of btnsRotate) btn.classList.toggle("disabled", !inGame);
+      const rotateActive = inGame && !isSelectionPhase(phase!);
+      for (const btn of btnsRotate) btn.classList.toggle("disabled", !rotateActive);
     },
     setLeftHanded(lh: boolean) {
       container.classList.toggle("left-handed", lh);

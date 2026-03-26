@@ -2,7 +2,7 @@
  * UI overlay rendering — announcement, banner, game over, player select.
  */
 
-import { FOCUS_MENU, FOCUS_REMATCH } from "./game-ui-types.ts";
+import { FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus, type GameOverOverlay } from "./game-ui-types.ts";
 import { CHOICE_CONTINUE, CHOICE_PENDING } from "./life-lost.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
@@ -286,6 +286,36 @@ export function drawGameOver(
     menuFocused ? "#ccf" : "#99c",
     menuFocused ? 2 : 1, FONT_BUTTON,
     menuFocused ? "#fff" : "#ccc", "Menu");
+}
+
+/** Hit-test the game-over Rematch / Menu buttons. Coordinates in tile-pixel space. */
+export function gameOverButtonHitTest(
+  tileX: number,
+  tileY: number,
+  W: number,
+  H: number,
+  gameOver: GameOverOverlay,
+): GameOverFocus | null {
+  const sorted = [...gameOver.scores].sort((a, b) => b.score - a.score);
+  const hasStats = sorted.some(e => e.stats);
+  const statsH = hasStats ? GAMEOVER_ROW_H : 0;
+  const tableH = sorted.length * GAMEOVER_ROW_H + statsH;
+  const panelW = Math.round(W * GAMEOVER_PANEL_W_RATIO);
+  const panelH = GAMEOVER_HEADER_H + tableH + 16 + GAMEOVER_BTN_H + 12;
+  const px = Math.round((W - panelW) / 2);
+  const py = Math.round((H - panelH) / 2);
+  const btnW = Math.round((panelW - 30) / 2);
+  const btnY = py + panelH - GAMEOVER_BTN_H - 10;
+  const rematchX = px + 10;
+  const menuX = px + panelW - 10 - btnW;
+
+  if (tileX >= rematchX && tileX <= rematchX + btnW && tileY >= btnY && tileY <= btnY + GAMEOVER_BTN_H) {
+    return FOCUS_REMATCH;
+  }
+  if (tileX >= menuX && tileX <= menuX + btnW && tileY >= btnY && tileY <= btnY + GAMEOVER_BTN_H) {
+    return FOCUS_MENU;
+  }
+  return null;
 }
 
 /** Draw life-lost continue/abandon dialogs (one per player). */

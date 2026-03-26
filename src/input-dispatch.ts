@@ -6,8 +6,6 @@
  * and touch UI controls (touch-ui.ts).
  */
 
-import type { GameOverFocus } from "./game-ui-types.ts";
-import { FOCUS_REMATCH } from "./game-ui-types.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import type { LifeLostChoice } from "./life-lost.ts";
 import type { InputReceiver, PlayerController } from "./player-controller.ts";
@@ -93,9 +91,7 @@ export function dispatchModeTap(
   mode: number,
   deps: {
     modeValues: ModeValues;
-    getGameOverFocused: () => GameOverFocus;
-    rematch: () => void;
-    showLobby: () => void;
+    gameOverClick: (x: number, y: number) => void;
     closeOptions: () => void;
     closeControls: () => void;
     getControlsState: () => ControlsState;
@@ -105,10 +101,9 @@ export function dispatchModeTap(
     lobbyClick: (x: number, y: number) => boolean;
   },
 ): boolean {
-  const { modeValues, getGameOverFocused, rematch, showLobby, closeOptions, closeControls, getControlsState, getLifeLostDialog, lifeLostDialogClick, isLobbyActive, lobbyClick } = deps;
+  const { modeValues, gameOverClick, closeOptions, closeControls, getControlsState, getLifeLostDialog, lifeLostDialogClick, isLobbyActive, lobbyClick } = deps;
   if (mode === modeValues.STOPPED) {
-    if (getGameOverFocused() === FOCUS_REMATCH) rematch();
-    else showLobby();
+    gameOverClick(x, y);
     return true;
   }
   if (mode === modeValues.OPTIONS) { closeOptions(); return true; }

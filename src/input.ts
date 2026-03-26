@@ -24,6 +24,7 @@ export interface RegisterOnlineInputDeps {
   rematch: () => void;
   getGameOverFocused: () => GameOverFocus;
   setGameOverFocused: (f: GameOverFocus) => void;
+  gameOverClick: (x: number, y: number) => void;
   showOptions: () => void;
   closeOptions: () => void;
   showControls: () => void;
