@@ -6,8 +6,8 @@
  */
 
 import type { RegisterOnlineInputDeps } from "./input.ts";
-import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, markTouchTime } from "./input.ts";
-import { Phase } from "./types.ts";
+import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, isGameInteractionMode, markTouchTime } from "./input.ts";
+import { isPlacementPhase, isSelectionPhase, Phase } from "./types.ts";
 
 const TAP_MAX_DIST = 20;
   // CSS pixels
@@ -75,7 +75,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     if (!state || isLobbyActive()) return;
 
     // Activate floating buttons when touching the canvas during placement phases
-    if (state.phase === Phase.WALL_BUILD || state.phase === Phase.CANNON_PLACE) {
+    if (isPlacementPhase(state.phase)) {
       deps.setDirectTouchActive?.(true);
     }
 
@@ -139,10 +139,10 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     // Non-game modes: tap acts as click
     if (tap && dispatchModeTap(x, y, mode, deps)) return;
 
-    if (!state || (mode !== deps.modeValues.GAME && mode !== deps.modeValues.SELECTION)) return;
+    if (!state || !isGameInteractionMode(mode, deps.modeValues)) return;
 
     // Selection: first tap highlights, second tap on same tower confirms
-    if (tap && (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT)) {
+    if (tap && isSelectionPhase(state.phase)) {
       const w = screenToWorld(x, y);
       dispatchTowerSelect(w.wx, w.wy, state, state.phase === Phase.CASTLE_RESELECT, deps, true);
     }

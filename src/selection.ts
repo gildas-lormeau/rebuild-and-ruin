@@ -2,7 +2,7 @@ import { MSG } from "../server/protocol.ts";
 import { BANNER_SELECT } from "./phase-banner.ts";
 import type { PlayerController } from "./player-controller.ts";
 import type { GameState } from "./types.ts";
-import { Phase } from "./types.ts";
+import { isSelectionPhase, Phase } from "./types.ts";
 
 export interface SelectionState {
   highlighted: number;
@@ -159,8 +159,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     sendOpponentTowerSelected,
   } = deps;
 
-  const phase = state.phase;
-  if (phase !== Phase.CASTLE_SELECT && phase !== Phase.CASTLE_RESELECT) return;
+  if (!isSelectionPhase(state.phase)) return;
 
   // Show announcement before timer starts (first selection only)
   if (accum.selectAnnouncement < announcementDuration) {
@@ -180,7 +179,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     if (accum.select >= selectTimer) {
       const ss = selectionStates.get(myPlayerId);
       if (ss && !ss.confirmed) {
-        confirmSelectionForPlayer(myPlayerId, phase === Phase.CASTLE_RESELECT);
+        confirmSelectionForPlayer(myPlayerId, state.phase === Phase.CASTLE_RESELECT);
       }
     }
     render();
@@ -197,7 +196,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     syncSelectionOverlay();
   }
 
-  const isReselect = phase === Phase.CASTLE_RESELECT;
+  const isReselect = state.phase === Phase.CASTLE_RESELECT;
   for (const [pid, ss] of selectionStates) {
     if (ss.confirmed) continue;
     if (remoteHumanSlots.has(pid)) continue;

@@ -310,6 +310,16 @@ export const VIEWPORT_SNAP_THRESHOLD = 0.5;
 /** Minimum Manhattan distance between any two houses. */
 export const HOUSE_MIN_DISTANCE = 3;
 
+/** True if the phase is castle selection (initial or reselect). */
+export function isSelectionPhase(phase: Phase): boolean {
+  return phase === Phase.CASTLE_SELECT || phase === Phase.CASTLE_RESELECT;
+}
+
+/** True if the phase is a placement phase (walls or cannons). */
+export function isPlacementPhase(phase: Phase): boolean {
+  return phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE;
+}
+
 /** True if the action is a directional movement. */
 export function isMovementAction(action: Action): boolean {
   return (

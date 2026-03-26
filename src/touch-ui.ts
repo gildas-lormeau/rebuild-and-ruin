@@ -9,17 +9,19 @@
  */
 
 import { hapticTap } from "./haptics.ts";
-import { dispatchPlacement } from "./input.ts";
+import { dispatchPlacement, isGameInteractionMode } from "./input.ts";
 import { ACTION_CONFIRM, PLAYER_COLORS } from "./player-config.ts";
 import type { InputReceiver, PlayerController } from "./player-controller.ts";
 import { rgb, TOUCH_ZOOM_ENEMY_BG, TOUCH_ZOOM_HOME_BG, ZOOM_BUTTON_ALPHA } from "./render-theme.ts";
 import type { SelectionState } from "./selection.ts";
 import { findNearestTower } from "./spatial.ts";
 import type { GameState } from "./types.ts";
-import { Action, Phase } from "./types.ts";
+import { Action, isSelectionPhase, Phase } from "./types.ts";
 
 interface DpadDeps {
   getState: () => GameState | undefined;
+  getMode: () => number;
+  modeValues: { GAME: number; SELECTION: number };
   withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
   tryPlacePieceAndSend: (human: PlayerController & InputReceiver, state: GameState) => void;
   tryPlaceCannonAndSend: (human: PlayerController & InputReceiver, state: GameState, max: number) => void;
@@ -131,8 +133,8 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
       return;
     }
     const state = deps.getState();
-    if (!state) return;
-    if ((state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT)
+    if (!state || !isGameInteractionMode(deps.getMode(), deps.modeValues)) return;
+    if (isSelectionPhase(state.phase)
       && (!deps.isSelectionReady || deps.isSelectionReady())) {
       deps.withFirstHuman((human) => {
         const ss = deps.getSelectionStates().get(human.playerId);
@@ -199,7 +201,8 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
       deps.lobbyAction();
       return;
     }
-    if ((state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT)
+    if (!isGameInteractionMode(deps.getMode(), deps.modeValues)) return;
+    if (isSelectionPhase(state.phase)
       && (!deps.isSelectionReady || deps.isSelectionReady())) {
       const isReselect = state.phase === Phase.CASTLE_RESELECT;
       deps.withFirstHuman((human) => {
@@ -231,6 +234,7 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
       deps.options.changeValue(1);
       return;
     }
+    if (!isGameInteractionMode(deps.getMode(), deps.modeValues)) return;
     dispatchRotate(deps);
   }
 

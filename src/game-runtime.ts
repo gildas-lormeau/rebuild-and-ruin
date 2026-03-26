@@ -83,6 +83,7 @@ import { createDpad, createEnemyZoomButton, createFloatingActions, createHomeZoo
 import type { GameState } from "./types.ts";
 import {
   BANNER_DURATION,
+  isPlacementPhase,
   MAX_FRAME_DT,
   Phase,
   SCORE_DELTA_DISPLAY_TIME,
@@ -547,7 +548,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     if (loupeHandle) {
       const phase = rs.state.phase;
       const loupeVisible = rs.mode === Mode.GAME &&
-        (phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE || phase === Phase.BATTLE);
+        (isPlacementPhase(phase) || phase === Phase.BATTLE);
       const human = firstHuman();
       let wx = 0;
       let wy = 0;
@@ -573,7 +574,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     // Disable confirm button when placement is invalid (build/cannon phases only)
     if (dpad && rs.state) {
       const phase = rs.state.phase;
-      if (phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE) {
+      if (isPlacementPhase(phase)) {
         const human = firstHuman();
         const barValid = phase === Phase.WALL_BUILD
           ? rs.frame.phantoms.humanPhantoms?.[0]?.valid ?? true
@@ -600,7 +601,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       : (rs.frame.phantoms.aiCannonPhantoms?.some(p => p.playerId === human?.playerId) ?? false);
     const visible = rs.directTouchActive && human !== null &&
       rs.mode === Mode.GAME &&
-      (phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE) &&
+      isPlacementPhase(phase) &&
       hasPhantom;
     if (!visible) {
       floatingActions.update(false, 0, 0, false, false);
@@ -911,6 +912,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       const placeCannon = inputDeps.tryPlaceCannonAndSend;
       dpad = createDpad({
         getState: () => rs.state,
+        getMode: () => rs.mode,
+        modeValues: { GAME: Mode.GAME, SELECTION: Mode.SELECTION },
         withFirstHuman,
         tryPlacePieceAndSend: placePiece,
         tryPlaceCannonAndSend: placeCannon,

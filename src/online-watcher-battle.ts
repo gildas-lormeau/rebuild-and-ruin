@@ -3,7 +3,7 @@ import type { PixelPos } from "./geometry-types.ts";
 import { type CannonPhantom, cannonPhantomKey, type HumanPiecePhantom, type PiecePhantom, phantomChanged, phantomWireMode, piecePhantomKey } from "./online-types.ts";
 import type { Crosshair, OrbitParams, PlayerController } from "./player-controller.ts";
 import type { GameState, Impact } from "./types.ts";
-import { BATTLE_TIMER, Phase } from "./types.ts";
+import { BATTLE_TIMER, isPlacementPhase, Phase } from "./types.ts";
 
 export interface WatcherTimingState {
   phaseStartTime: number;
@@ -111,7 +111,7 @@ export function tickWatcherTimers(
   timing: WatcherTimingState,
   now: () => number,
 ): void {
-  if (state.phase === Phase.CANNON_PLACE || state.phase === Phase.WALL_BUILD) {
+  if (isPlacementPhase(state.phase)) {
     const elapsed = Math.max(0, (now() - timing.phaseStartTime) / 1000);
     state.timer = Math.max(0, timing.phaseDuration - elapsed);
     return;

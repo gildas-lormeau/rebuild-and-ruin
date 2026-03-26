@@ -7,7 +7,7 @@ import type { InputReceiver, PlayerController } from "./player-controller.ts";
 import type { SelectionState } from "./selection.ts";
 import { findNearestTower, towerAtPixel } from "./spatial.ts";
 import type { GameState } from "./types.ts";
-import { Action, isMovementAction, Phase } from "./types.ts";
+import { Action, isMovementAction, isPlacementPhase, isSelectionPhase, Phase } from "./types.ts";
 
 interface ControlsState {
   playerIdx: number;
@@ -196,15 +196,12 @@ export function registerOnlineInputHandlers(
     const state = getState();
 
     if (dispatchModeTap(x, y, mode, deps)) return;
-    if (!state || (mode !== modeValues.GAME && mode !== modeValues.SELECTION)) return;
+    if (!state || !isGameInteractionMode(mode, modeValues)) return;
 
-    if (
-      state.phase === Phase.CASTLE_SELECT ||
-      state.phase === Phase.CASTLE_RESELECT
-    ) {
+    if (isSelectionPhase(state.phase)) {
       const tw = screenToWorld(x, y);
       dispatchTowerSelect(tw.wx, tw.wy, state, state.phase === Phase.CASTLE_RESELECT, deps);
-    } else if (state.phase === Phase.CANNON_PLACE || state.phase === Phase.WALL_BUILD) {
+    } else if (isPlacementPhase(state.phase)) {
       dispatchPlacement(state, deps);
     } else {
       dispatchBattleFire(x, y, state, deps);
@@ -441,10 +438,7 @@ export function registerOnlineInputHandlers(
       }
     }
 
-    if (
-      state.phase === Phase.CASTLE_SELECT ||
-      state.phase === Phase.CASTLE_RESELECT
-    ) {
+    if (isSelectionPhase(state.phase)) {
       if (isSelectionReady && !isSelectionReady()) return;
       const isReselect = state.phase === Phase.CASTLE_RESELECT;
       for (const ctrl of getControllers()) {
@@ -529,6 +523,11 @@ export function registerOnlineInputHandlers(
       ctrl.handleKeyUp(action);
     }
   });
+}
+
+/** Whether the current mode allows gameplay interaction (tower selection or active game). */
+export function isGameInteractionMode(mode: number, mv: { GAME: number; SELECTION: number }): boolean {
+  return mode === mv.GAME || mode === mv.SELECTION;
 }
 
 /**
@@ -661,7 +660,7 @@ export function dispatchPointerMove(
     "highlightTowerForPlayer" | "pixelToTile" | "maybeSendAimUpdate" | "isSelectionReady">,
 ): void {
   const { withFirstHuman, getSelectionStates, screenToWorld, highlightTowerForPlayer, pixelToTile, maybeSendAimUpdate } = deps;
-  if (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT) {
+  if (isSelectionPhase(state.phase)) {
     if (deps.isSelectionReady && !deps.isSelectionReady()) return;
     withFirstHuman((human) => {
       const ss = getSelectionStates().get(human.playerId);
