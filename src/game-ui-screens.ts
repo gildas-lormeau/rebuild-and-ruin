@@ -4,7 +4,7 @@
  */
 
 import { buildLobbyConfirmKeys, formatKeyHint } from "./game-ui-runtime.ts";
-import type { Mode, OptionEntry } from "./game-ui-types.ts";
+import type { LobbyState, Mode, OptionEntry } from "./game-ui-types.ts";
 import {
   CANNON_HP_OPTIONS, type ControlsState,
   DIFFICULTY_LABELS, DPAD_LABELS,
@@ -34,7 +34,7 @@ export interface UIContext {
   controlsState: ControlsState;
   getOptionsReturnMode: () => Mode | null;
   setOptionsReturnMode: (m: Mode | null) => void;
-  lobby: { joined: boolean[]; active: boolean; map: GameMap | null; timerAccum?: number };
+  lobby: LobbyState;
   getFrame: () => { announcement?: string };
   getLobbyRemaining: () => number;
   isOnline?: boolean;
@@ -43,8 +43,7 @@ export interface UIContext {
 const CONTROL_ACTION_NAMES: readonly string[] = ["Up", "Down", "Left", "Right", "Confirm", "Rotate"];
 
 export function buildOptionsOverlay(ctx: UIContext): { map: GameMap; overlay: RenderOverlay } {
-  const lobbyMap = ctx.lobby.map ?? generateMap(0);
-  ctx.lobby.map = lobbyMap;
+  const lobbyMap = ctx.lobby.map ?? generateMap(ctx.lobby.seed);
   const readOnly = ctx.getOptionsReturnMode() !== null;
   const visible = visibleOptions(ctx);
   const options: OptionEntry[] = visible.map((i) => {
@@ -87,8 +86,7 @@ export function closeOptions(ctx: UIContext, modeValues: { LOBBY: Mode; GAME: Mo
 }
 
 export function buildControlsOverlay(ctx: UIContext): { map: GameMap; overlay: RenderOverlay } {
-  const lobbyMap = ctx.lobby.map ?? generateMap(0);
-  ctx.lobby.map = lobbyMap;
+  const lobbyMap = ctx.lobby.map ?? generateMap(ctx.lobby.seed);
   const cs = ctx.controlsState;
   const players = PLAYER_NAMES.map((name, p) => {
     const kb = ctx.settings.keyBindings[p]!;
@@ -162,7 +160,7 @@ export function buildLobbyOverlay(ctx: UIContext): { map: GameMap; overlay: Rend
       },
     },
   };
-  if (!ctx.lobby.map) ctx.lobby.map = generateMap(0);
+  if (!ctx.lobby.map) ctx.lobby.map = generateMap(ctx.lobby.seed);
   return { map: ctx.getState()?.map ?? ctx.lobby.map, overlay };
 }
 

@@ -141,6 +141,8 @@ export interface LobbyState {
   active: boolean;
   /** Accumulator for lobby countdown timer (local play). */
   timerAccum?: number;
+  /** Pre-computed seed for the next game (also used for lobby map preview). */
+  seed: number;
   map: GameMap | null;
 }
 
@@ -184,6 +186,15 @@ export const CANNON_HP_OPTIONS = [
 export const HAPTICS_LABELS = ["Off", "Phase changes", "All"];
 export const DPAD_LABELS = ["Right-handed", "Left-handed"];
 export const OPTION_NAMES = ["Difficulty", "Rounds", "Cannon Kill", "Haptics", "Seed", "Controls", "D-Pad"];
+
+/** Compute the game seed from current settings (custom seed or random). */
+export function computeGameSeed(settings: GameSettings): number {
+  if (settings.seedMode === SEED_CUSTOM && settings.seed) {
+    const parsed = parseInt(settings.seed, 10);
+    if (!isNaN(parsed)) return parsed;
+  }
+  return Math.floor(Math.random() * 1000000);
+}
 
 export function createTimerAccums(): TimerAccums {
   return { battle: 0, cannon: 0, select: 0, selectAnnouncement: 0, build: 0, grunt: 0 };

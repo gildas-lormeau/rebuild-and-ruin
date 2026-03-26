@@ -53,6 +53,7 @@ function showLobby(): void {
   lobby.joined = new Array(MAX_PLAYERS).fill(false);
   lobby.active = true;
   lobby.timerAccum = 0;
+  lobby.map = null; // force fresh seed + map preview
   runtime.rs.quitPending = false;
   runtime.rs.optionsReturnMode = null;
   runtime.renderLobby();

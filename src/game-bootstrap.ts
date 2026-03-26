@@ -101,6 +101,7 @@ export function setupWaitingRoom(deps: ShowWaitingRoomDeps): void {
   wrapper.appendChild(qr);
   roomCodeOverlay.appendChild(wrapper);
 
+  lobby.seed = seed;
   lobby.map = generateMap(seed);
   lobby.joined = new Array(maxPlayers).fill(false);
   lobby.active = true;

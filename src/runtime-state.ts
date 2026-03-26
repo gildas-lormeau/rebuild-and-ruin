@@ -114,6 +114,7 @@ export function createRuntimeState(): RuntimeState {
       joined: new Array(MAX_PLAYERS).fill(false),
       active: false,
       timerAccum: 0,
+      seed: 0,
       map: null,
     },
 

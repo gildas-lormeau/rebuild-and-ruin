@@ -32,6 +32,7 @@ import {
 } from "./game-ui-screens.ts";
 import {
   CANNON_HP_OPTIONS,
+  computeGameSeed,
   createBattleAnimState,
   createTimerAccums,
   cycleOption,
@@ -39,12 +40,12 @@ import {
   FOCUS_REMATCH,
   Mode,
   ROUNDS_OPTIONS,
-  SEED_CUSTOM,
 } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
 import { clientToCanvas, dispatchPointerMove, type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
 import { createLoupe, type LoupeHandle } from "./loupe.ts";
+import { generateMap } from "./map-generation.ts";
 import {
   createBannerState,
   showBannerTransition,
@@ -233,7 +234,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Lobby
   // -------------------------------------------------------------------------
 
+  function refreshLobbySeed(): void {
+    rs.lobby.seed = computeGameSeed(rs.settings);
+    rs.lobby.map = generateMap(rs.lobby.seed);
+  }
+
   function renderLobby(): void {
+    if (!rs.lobby.map) refreshLobbySeed();
     const { map, overlay } = buildLobbyOverlay(uiCtx);
     renderMap(map, canvas, overlay);
   }
@@ -346,6 +353,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     if (wasInGame) {
       rs.lastTime = performance.now(); // avoid huge dt on first frame back
     } else {
+      refreshLobbySeed(); // regenerate map preview with (possibly changed) seed
       dpad?.update(null); // back to lobby — disable d-pad
     }
     config.onCloseOptions?.();
@@ -772,13 +780,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   function startGame() {
-    const parsedSeed =
-      rs.settings.seedMode === SEED_CUSTOM && rs.settings.seed
-        ? parseInt(rs.settings.seed, 10)
-        : undefined;
-    const seed = parsedSeed !== undefined && !isNaN(parsedSeed)
-      ? parsedSeed
-      : Math.floor(Math.random() * 1000000);
+    const seed = rs.lobby.seed;
 
     const diffParams = DIFFICULTY_PARAMS[rs.settings.difficulty] ?? DIFFICULTY_PARAMS[1]!;
     const { buildTimer, cannonPlaceTimer, firstRoundCannons } = diffParams;
