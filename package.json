@@ -23,6 +23,8 @@
     "lint:server": "deno check server/server.ts",
     "lint:layers": "npx tsx scripts/generate-import-layers.ts --check --server",
     "lint:all": "npm run lint && npm run lint:unused && npm run lint:circular && npm run lint:duplicates && npm run lint:literals && npm run lint:layers && npm run lint:server",
+    "export-index": "npx tsx scripts/generate-export-index.ts --server",
+    "export-search": "npx tsx scripts/generate-export-index.ts --search",
     "reorder": "npx tsx scripts/reorder-file.ts",
     "reorder:changed": "git diff --cached --name-only --diff-filter=ACM -- 'src/*.ts' | xargs -I{} npx tsx scripts/reorder-file.ts {}"
   },
