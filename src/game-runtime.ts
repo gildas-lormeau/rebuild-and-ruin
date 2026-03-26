@@ -46,6 +46,7 @@ import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
 import { type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
 import { clientToCanvas, dispatchPointerMove } from "./input-dispatch.ts";
+import { registerTouchHandlers } from "./input-touch.ts";
 import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING } from "./life-lost.ts";
 import { createLoupe, type LoupeHandle } from "./loupe.ts";
 import { generateMap } from "./map-generation.ts";
@@ -81,7 +82,6 @@ import type { SelectionSystem } from "./runtime-selection.ts";
 import { createSelectionSystem } from "./runtime-selection.ts";
 import { createRuntimeState } from "./runtime-state.ts";
 import { towerCenter, unpackTile } from "./spatial.ts";
-import { registerTouchHandlers } from "./touch-input.ts";
 import { createDpad, createEnemyZoomButton, createFloatingActions, createHomeZoomButton, createQuitButton } from "./touch-ui.ts";
 import type { GameState } from "./types.ts";
 import {

@@ -2,7 +2,7 @@
  * Shared input dispatch helpers.
  *
  * Pure functions that translate pointer/tap events into game actions.
- * Used by mouse input (input.ts), touch input (touch-input.ts),
+ * Used by mouse input (input.ts), touch input (input-touch.ts),
  * and touch UI controls (touch-ui.ts).
  */
 
