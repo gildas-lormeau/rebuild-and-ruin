@@ -939,7 +939,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       dpad = createDpad({
         getState: () => rs.state,
         getMode: () => rs.mode,
-        modeValues: { GAME: Mode.GAME, SELECTION: Mode.SELECTION },
+        modeValues: { GAME: Mode.GAME, SELECTION: Mode.SELECTION, LOBBY: Mode.LOBBY },
         withFirstHuman,
         tryPlacePieceAndSend: placePiece,
         tryPlaceCannonAndSend: placeCannon,

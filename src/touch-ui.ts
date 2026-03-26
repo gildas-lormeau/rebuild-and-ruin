@@ -21,7 +21,7 @@ import { Action, isSelectionPhase, Phase } from "./types.ts";
 interface DpadDeps {
   getState: () => GameState | undefined;
   getMode: () => number;
-  modeValues: { GAME: number; SELECTION: number };
+  modeValues: { GAME: number; SELECTION: number; LOBBY: number };
   withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
   tryPlacePieceAndSend: (human: PlayerController & InputReceiver, state: GameState) => void;
   tryPlaceCannonAndSend: (human: PlayerController & InputReceiver, state: GameState, max: number) => void;
@@ -120,7 +120,6 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
   const REPEAT_DELAY = 120;
   const REPEAT_RATE = 50;
   let repeatTimer: ReturnType<typeof setTimeout> | null = null;
-  let lastPhase: Phase | null = null;
 
   function stopRepeat() {
     if (repeatTimer !== null) { clearTimeout(repeatTimer); repeatTimer = null; }
@@ -224,12 +223,13 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
       deps.gameOver.confirm();
       return;
     }
-    const state = deps.getState();
-    if (!state || !lastPhase) {
+    const mode = deps.getMode();
+    if (mode === deps.modeValues.LOBBY) {
       deps.lobbyAction();
       return;
     }
-    if (!isGameInteractionMode(deps.getMode(), deps.modeValues)) return;
+    const state = deps.getState();
+    if (!state || !isGameInteractionMode(mode, deps.modeValues)) return;
     if (isSelectionPhase(state.phase)
       && (!deps.isSelectionReady || deps.isSelectionReady())) {
       const isReselect = state.phase === Phase.CASTLE_RESELECT;
@@ -287,7 +287,6 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
   return {
     update(phase: Phase | null, disableRotate?: boolean) {
       stopRepeat();
-      lastPhase = phase;
       const inGame = phase !== null;
       for (const dpad of dpads) dpad.classList.toggle("disabled", !inGame);
       const rotateActive = inGame && !isSelectionPhase(phase!) && !disableRotate;
