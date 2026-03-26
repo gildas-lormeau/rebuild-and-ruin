@@ -121,13 +121,11 @@ export interface SerializedTower {
 export interface RoomSettings {
   battleLength: number;   // 3, 5, 8, 12, or Infinity
   cannonMaxHp: number;    // 3, 6, 9, or 12
-  waitTimerSec: number;   // lobby wait duration before auto-start (30–120)
+  waitTimerSec: number;   // lobby wait duration before auto-start (seconds)
 }
 
 const VALID_BATTLE_LENGTHS = [0, 3, 5, 8, 12];
 const VALID_CANNON_HP = [3, 6, 9, 12];
-const MIN_WAIT_TIMER_SEC = 2;
-const MAX_WAIT_TIMER_SEC = 120;
 const DEFAULT_WAIT_TIMER_SEC = 60;
 
 /** Clamp untrusted client settings to valid ranges. */
@@ -138,7 +136,7 @@ export function sanitizeRoomSettings(raw: Partial<RoomSettings>): RoomSettings {
   return {
     battleLength: VALID_BATTLE_LENGTHS.includes(bl) ? bl : 0,
     cannonMaxHp: VALID_CANNON_HP.includes(hp) ? hp : 3,
-    waitTimerSec: Number.isFinite(wait) ? Math.max(MIN_WAIT_TIMER_SEC, Math.min(MAX_WAIT_TIMER_SEC, wait)) : DEFAULT_WAIT_TIMER_SEC,
+    waitTimerSec: Number.isFinite(wait) && wait >= 0 ? wait : DEFAULT_WAIT_TIMER_SEC,
   };
 }
 
