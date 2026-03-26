@@ -197,7 +197,7 @@ export function registerOnlineInputHandlers(
     const state = getState();
 
     if (dispatchModeTap(x, y, mode, deps)) return;
-    if (!state) return;
+    if (!state || (mode !== modeValues.GAME && mode !== modeValues.SELECTION)) return;
 
     if (
       state.phase === Phase.CASTLE_SELECT ||
@@ -482,6 +482,8 @@ export function registerOnlineInputHandlers(
       }
       return;
     }
+
+    if (mode !== modeValues.GAME) return;
 
     for (const ctrl of getControllers()) {
       if (state.players[ctrl.playerId]?.eliminated) continue;

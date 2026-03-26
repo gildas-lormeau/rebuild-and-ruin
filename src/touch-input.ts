@@ -142,7 +142,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     // Non-game modes: tap acts as click
     if (tap && dispatchModeTap(x, y, mode, deps)) return;
 
-    if (!state) return;
+    if (!state || (mode !== deps.modeValues.GAME && mode !== deps.modeValues.SELECTION)) return;
 
     // Selection: first tap highlights, second tap on same tower confirms
     if (tap && (state.phase === Phase.CASTLE_SELECT || state.phase === Phase.CASTLE_RESELECT)) {
