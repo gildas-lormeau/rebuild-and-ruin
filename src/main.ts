@@ -38,15 +38,22 @@ const runtime = createGameRuntime({
     runtime.rs.mode = Mode.SELECTION;
   },
 });
+const atlasReady = loadAtlas().catch(() => {});
+
+/** Enter the local lobby. Waits for sprite atlas on first call. */
+export function enterLocalLobby(): void {
+  canvas.parentElement!.classList.add(GAME_CONTAINER_ACTIVE);
+  atlasReady.then(() => showLobby());
+}
 
 canvas.parentElement!.classList.add(GAME_CONTAINER_ACTIVE);
 
 runtime.registerInputHandlers();
 
-loadAtlas().then(
-  () => showLobby(),
-  () => showLobby(),
-);
+// Stop the game loop when the router navigates away (back button)
+document.addEventListener("game-exit", () => {
+  runtime.rs.mode = Mode.STOPPED;
+});
 
 function showLobby(): void {
   const lobby = runtime.rs.lobby;

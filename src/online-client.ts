@@ -35,7 +35,7 @@ import { CHOICE_PENDING } from "./life-lost.ts";
 import { getWsUrl } from "./online-config.ts";
 import { broadcastLocalCrosshair, extendWithRemoteCrosshairs } from "./online-host-crosshairs.ts";
 import { rebuildControllersForPhase, syncAccumulatorsFromTimer } from "./online-host-promotion.ts";
-import { SECTION_LOBBY_MENU, setupLobbyUi, showLobbySection } from "./online-lobby-ui.ts";
+import { setupLobbyUi } from "./online-lobby-ui.ts";
 import {
   handleBattleStartTransition,
   handleBuildEndTransition,
@@ -80,6 +80,7 @@ import {
 } from "./player-config.ts";
 import { loadAtlas } from "./render-sprites.ts";
 import { MAX_UINT32 } from "./rng.ts";
+import { navigateTo } from "./router.ts";
 import {
   BANNER_DURATION,
   BATTLE_COUNTDOWN,
@@ -92,19 +93,12 @@ import {
 } from "./types.ts";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
-const lobbyEl = document.getElementById("lobby")!;
+const pageOnline = document.getElementById("page-online")!;
 const roomCodeOverlay = document.getElementById("room-code-overlay")!;
 // Lobby DOM elements — queried once, shared with setupLobbyUi
 const lobbyElements = {
-  lobbyMenu: document.getElementById("lobby-menu")!,
-  lobbyCreate: document.getElementById("lobby-create")!,
-  lobbyJoin: document.getElementById("lobby-join")!,
-  btnCreate: document.getElementById("btn-create")!,
-  btnJoinShow: document.getElementById("btn-join-show")!,
   btnCreateConfirm: document.getElementById("btn-create-confirm")!,
   btnJoinConfirm: document.getElementById("btn-join-confirm")!,
-  btnCreateBack: document.getElementById("btn-create-back")!,
-  btnJoinBack: document.getElementById("btn-join-back")!,
   setRounds: document.getElementById("set-rounds") as HTMLSelectElement,
   setHp: document.getElementById("set-hp") as HTMLSelectElement,
   setWait: document.getElementById("set-wait") as HTMLSelectElement,
@@ -126,6 +120,7 @@ const initDomLobby = () =>
     send,
     getSocket: () => session.ws,
     setIsHost: (value) => { session.isHost = value; },
+    isVisible: () => !pageOnline.hidden,
   });
 const watcherTickCtx: WatcherTickContext = {
   getState: () => runtime.rs.state,
@@ -307,15 +302,8 @@ function showLobby(): void {
   runtime.rs.lobby.active = false;
   canvas.parentElement!.classList.remove(GAME_CONTAINER_ACTIVE);
   roomCodeOverlay.style.display = "none";
-  lobbyEl.style.display = "block";
-  showLobbySection(SECTION_LOBBY_MENU, lobbyElements);
+  navigateTo("/online");
   resetSession();
-}
-
-function resetSession(): void {
-  resetSessionState(session);
-  runtime.rs.settings.seed = "";
-  resetDedup();
 }
 
 function checkpointArgs(msg: ServerMessage) {
@@ -382,7 +370,7 @@ function showWaitingRoom(code: string, seed: number): void {
   session.roomSeed = seed;
   runtime.rs.settings.seed = String(seed);
   setupWaitingRoom({
-    code, seed, lobbyEl, canvas, roomCodeOverlay,
+    code, seed, lobbyEl: pageOnline, canvas, roomCodeOverlay,
     lobby: runtime.rs.lobby,
     maxPlayers: MAX_PLAYERS,
     now: () => performance.now(),
@@ -527,10 +515,6 @@ function send(msg: GameMessage): void {
   sendMessage(session, msg);
 }
 
-function resetDedup(): void {
-  resetDedupMaps(dedup);
-}
-
 function applyFullState(msg: FullStateMessage): void {
   // Stale-seq rejection is handled by the lifecycle handler in online-server-lifecycle.ts
   const state = runtime.rs.state;
@@ -550,6 +534,24 @@ function applyFullState(msg: FullStateMessage): void {
 
 runtime.registerInputHandlers();
 
+// Clean up when the router navigates away from the game (back button)
+document.addEventListener("game-exit", () => {
+  runtime.rs.mode = Mode.STOPPED;
+  runtime.rs.lobby.active = false;
+  roomCodeOverlay.style.display = "none";
+  resetSession();
+});
+
+function resetSession(): void {
+  resetSessionState(session);
+  runtime.rs.settings.seed = "";
+  resetDedup();
+}
+
+function resetDedup(): void {
+  resetDedupMaps(dedup);
+}
+
 loadAtlas().then(initDomLobby, initDomLobby).then(() => {
-  document.getElementById("lobby")?.setAttribute("data-ready", "1");
+  pageOnline.setAttribute("data-ready", "1");
 });

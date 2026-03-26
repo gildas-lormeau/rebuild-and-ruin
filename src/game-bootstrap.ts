@@ -75,7 +75,7 @@ export function setupWaitingRoom(deps: ShowWaitingRoomDeps): void {
     requestFrame,
   } = deps;
 
-  lobbyEl.style.display = "none";
+  lobbyEl.hidden = true;
   canvas.parentElement!.classList.add(GAME_CONTAINER_ACTIVE);
 
   roomCodeOverlay.style.display = "block";

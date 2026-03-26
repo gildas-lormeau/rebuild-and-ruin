@@ -1,5 +1,16 @@
 :root {
   --color-bg: #1a1a2e;
+  --color-surface: #222244;
+  --color-input: #2a2a4e;
+  --color-border: #444;
+  --color-gold: #c8a040;
+  --color-gold-hover: #f0d870;
+  --color-muted: #a08050;
+  --color-dim: #666;
+  --color-text: #e0d0b0;
+  --color-error: #e05050;
+  --radius: 8px;
+  --page-gap: 16px;
   --btn-size: min(84px, 13.125vmin);
   --dpad-btn-size: min(72px, 11.25vmin);
   --gap: 2vmin;
@@ -22,9 +33,6 @@ body {
 
 body {
   background: var(--color-bg);
-  display: flex;
-  justify-content: center;
-  align-items: center;
   min-height: 100dvh;
   font-family: sans-serif;
   color: #e0d0b0;
@@ -80,7 +88,7 @@ body {
 }
 
 /* D-pad */
-nav {
+nav.dpad {
   display: grid;
   grid-template: repeat(3, var(--dpad-btn-size)) / repeat(3, var(--dpad-btn-size));
   gap: 1vmin;
@@ -339,58 +347,253 @@ nav {
   }
 }
 
-/* ===== Mode selector ===== */
-#mode-select { text-align: center; }
-#mode-select h1 { font-size: 28px; color: #c8a040; margin-bottom: 8px; }
-#mode-select h2 { font-size: 14px; color: #a08050; margin-bottom: 24px; font-weight: normal; }
-
-/* ===== Lobby overlay ===== */
-#lobby { max-width: 400px; width: 100%; padding: 32px; text-align: center; display: none; }
-#lobby h1 { font-size: 28px; color: #c8a040; margin-bottom: 8px; }
-#lobby h2 { font-size: 14px; color: #a08050; margin-bottom: 24px; font-weight: normal; }
-
-.lobby-section { display: none; }
-.lobby-section.active { display: block; }
-
-.lobby-btn {
-  display: inline-block; padding: 10px 24px; margin: 6px;
-  background: #c8a040; color: #1a1a2e; border: none; border-radius: 4px;
-  font-size: 15px; font-weight: bold; cursor: pointer;
+/* ===== Pages ===== */
+.page {
+  display: flex;
+  height: 100dvh;
+  overflow-y: auto;
+  padding: calc(var(--page-gap) * 1.5);
 }
-.lobby-btn:hover { background: #f0d870; }
-.lobby-btn:disabled { background: #666; cursor: default; }
-.lobby-btn.secondary { background: #3a3a5e; color: #c8a040; }
+
+.page[hidden] { display: none; }
+
+.page-content {
+  margin: auto;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+}
+
+.page-content--wide {
+  max-width: 720px;
+  text-align: left;
+  margin: calc(var(--page-gap) * 1.5) auto;
+}
+
+.page h1 {
+  font-size: min(28px, 5vw);
+  color: var(--color-gold);
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--color-muted);
+  margin-bottom: calc(var(--page-gap) * 1.5);
+  font-weight: normal;
+}
+
+/* Home */
+.home-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--page-gap);
+  align-items: center;
+}
+
+.home-actions .lobby-btn {
+  width: 100%;
+  max-width: 280px;
+  margin: 0;
+}
+
+/* Page header (online) */
+.page-header {
+  margin-bottom: calc(var(--page-gap) * 1.5);
+
+  .subtitle { margin-bottom: 0; }
+}
+
+/* Server bar */
+.server-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--page-gap);
+  margin-bottom: var(--page-gap);
+  padding: 12px var(--page-gap);
+  background: var(--color-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.server-bar label {
+  font-size: 14px;
+  color: var(--color-muted);
+  flex-shrink: 0;
+}
+
+.server-bar .lobby-input {
+  flex: 1;
+  width: auto;
+  margin: 0;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 14px;
+  border-color: var(--color-border);
+}
+
+/* Lobby grid (create + join cards) */
+.lobby-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--page-gap);
+  margin-bottom: var(--page-gap);
+}
+
+@media (max-width: 600px) {
+  .lobby-grid { grid-template-columns: 1fr; }
+}
+
+.lobby-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: calc(var(--page-gap) * 1.25);
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s;
+}
+
+.lobby-card:hover {
+  border-color: color-mix(in srgb, var(--color-gold) 40%, transparent);
+}
+
+.lobby-card h2 {
+  font-size: 15px;
+  color: var(--color-gold);
+  margin-bottom: var(--page-gap);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.card-body .lobby-btn {
+  margin-top: auto;
+  width: 100%;
+}
+
+.card-body .setting-row { margin: 0; }
+
+.card-hint {
+  font-size: 13px;
+  color: var(--color-dim);
+}
+
+.card-body--join {
+  text-align: center;
+}
+
+.room-code-input {
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 6px;
+  font-size: min(22px, 4.5vw);
+  padding: 14px var(--page-gap);
+}
+
+.room-code-input::placeholder {
+  letter-spacing: 4px;
+  font-size: 16px;
+}
+
+/* Rooms section */
+.rooms-section {
+  padding-bottom: calc(var(--page-gap) * 1.5);
+}
+
+.rooms-section h2 {
+  font-size: 13px;
+  color: var(--color-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+/* ===== Shared lobby components ===== */
+.lobby-btn {
+  display: inline-block;
+  padding: 10px 24px;
+  margin: 6px;
+  background: var(--color-gold);
+  color: var(--color-bg);
+  border: none;
+  border-radius: var(--radius);
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.lobby-btn:hover { background: var(--color-gold-hover); }
+.lobby-btn:disabled { background: var(--color-dim); cursor: default; }
+.lobby-btn.secondary { background: #3a3a5e; color: var(--color-gold); }
 .lobby-btn.secondary:hover { background: #4a4a7e; }
 
 .lobby-input {
-  padding: 10px 16px; margin: 6px; width: 140px;
-  background: #2a2a4e; color: #e0d0b0; border: 2px solid #c8a040; border-radius: 4px;
-  font-size: 18px; text-align: center; text-transform: uppercase; letter-spacing: 4px;
-}
-.lobby-input::placeholder { color: #666; letter-spacing: 2px; font-size: 14px; }
-
-.lobby-select {
-  padding: 8px 12px; margin: 4px;
-  background: #2a2a4e; color: #e0d0b0; border: 1px solid #555; border-radius: 4px;
+  padding: 10px var(--page-gap);
+  background: var(--color-input);
+  color: var(--color-text);
+  border: 2px solid var(--color-gold);
+  border-radius: var(--radius);
   font-size: 14px;
 }
 
-.setting-row { display: flex; justify-content: space-between; align-items: center; margin: 8px 0; }
-.setting-row.server-row { margin-bottom: 16px; }
-.setting-label { font-size: 14px; color: #a08050; }
-.server-input { width: 200px; font-size: 13px; letter-spacing: 0; }
-.room-list { margin-top: 20px; }
-.lobby-actions { margin-top: 16px; }
+.lobby-input::placeholder { color: var(--color-dim); font-size: 13px; }
 
-.error-msg { color: #e05050; font-size: 14px; margin: 8px 0; min-height: 20px; }
+.lobby-select {
+  padding: 8px 12px;
+  margin: 4px;
+  background: var(--color-input);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-size: 14px;
+}
+
+.setting-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.setting-label { font-size: 14px; color: var(--color-muted); }
+.room-list { margin-top: 8px; }
+
+.error-msg {
+  display: block;
+  color: var(--color-error);
+  font-size: 14px;
+  margin: 8px 0;
+  min-height: 20px;
+}
 
 .room-item {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 12px; margin: 4px 0; background: #2a2a4e; border: 1px solid #444;
-  border-radius: 4px; cursor: pointer; transition: border-color 0.15s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  margin: 4px 0;
+  background: var(--color-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
 }
-.room-item:hover { border-color: #c8a040; }
-.room-code { font-size: 18px; letter-spacing: 4px; color: #c8a040; font-weight: bold; }
-.room-info { font-size: 12px; color: #a08050; text-align: right; }
-.room-list-title { font-size: 13px; color: #666; margin-bottom: 6px; }
-.room-list-empty { font-size: 13px; color: #555; font-style: italic; }
+
+.room-item:hover {
+  border-color: var(--color-gold);
+  background: color-mix(in srgb, var(--color-surface) 80%, var(--color-gold));
+}
+
+.room-code { font-size: 18px; letter-spacing: 4px; color: var(--color-gold); font-weight: bold; }
+.room-info { font-size: 12px; color: var(--color-muted); text-align: right; }
+.room-list-title { font-size: 13px; color: var(--color-dim); margin-bottom: 6px; }
+.room-list-empty { font-size: 13px; color: var(--color-border); font-style: italic; }

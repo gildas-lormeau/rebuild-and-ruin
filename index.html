@@ -12,80 +12,90 @@
 </head>
 
 <body>
-  <!-- Mode selector (shown on load) -->
-  <div id="mode-select">
-    <h1>Rebuild &amp; Ruin</h1>
-    <h2>A Rampart Remake</h2>
-    <button class="lobby-btn" id="btn-local">Local Play</button>
-    <button class="lobby-btn secondary" id="btn-online">Play Online</button>
-  </div>
-
-  <!-- Online lobby (hidden until "Play Online" is clicked) -->
-  <div id="lobby">
-    <h1>Rebuild &amp; Ruin</h1>
-    <h2>Online Multiplayer</h2>
-
-    <div id="lobby-menu" class="lobby-section active">
-      <div class="setting-row server-row">
-        <span class="setting-label">Server</span>
-        <input class="lobby-input server-input" id="server-host" type="text"
-          placeholder="server host">
-      </div>
-      <button class="lobby-btn" id="btn-create">Create Room</button>
-      <button class="lobby-btn secondary" id="btn-join-show">Join Room</button>
-      <button class="lobby-btn secondary" id="btn-online-back">Back</button>
-      <div id="room-list" class="room-list"></div>
+  <!-- Page: Home -->
+  <main id="page-home" class="page" data-route="/">
+    <div class="page-content">
+      <header>
+        <h1>Rebuild &amp; Ruin</h1>
+        <p class="subtitle">A Rampart Remake</p>
+      </header>
+      <nav class="home-actions" aria-label="Play modes">
+        <button type="button" class="lobby-btn" id="btn-local">Local Play</button>
+        <button type="button" class="lobby-btn secondary" id="btn-online">Play Online</button>
+      </nav>
     </div>
+  </main>
 
-    <div id="lobby-create" class="lobby-section">
-      <h2>Room Settings</h2>
-      <div class="setting-row">
-        <span class="setting-label">Battle Length</span>
-        <select class="lobby-select" id="set-rounds">
-          <option value="3">3 rounds</option>
-          <option value="5">5 rounds</option>
-          <option value="8" selected>8 rounds</option>
-          <option value="12">12 rounds</option>
-          <option value="Infinity">To The Death</option>
-        </select>
-      </div>
-      <div class="setting-row">
-        <span class="setting-label">Cannon Durability</span>
-        <select class="lobby-select" id="set-hp">
-          <option value="3" selected>3 HP</option>
-          <option value="6">6 HP</option>
-          <option value="9">9 HP</option>
-          <option value="12">12 HP</option>
-        </select>
-      </div>
-      <div class="setting-row">
-        <span class="setting-label">Wait for Players</span>
-        <select class="lobby-select" id="set-wait">
-          <option value="2">2 seconds</option>
-          <option value="10">10 seconds</option>
-          <option value="30">30 seconds</option>
-          <option value="60" selected>1 minute</option>
-          <option value="90">1.5 minutes</option>
-          <option value="120">2 minutes</option>
-        </select>
-      </div>
-      <div class="lobby-actions">
-        <button class="lobby-btn" id="btn-create-confirm">Create</button>
-        <button class="lobby-btn secondary" id="btn-create-back">Back</button>
-      </div>
-      <div class="error-msg" id="create-error"></div>
-    </div>
+  <!-- Page: Online Lobby -->
+  <main id="page-online" class="page" data-route="/online" hidden>
+    <div class="page-content page-content--wide">
+      <header class="page-header">
+        <h1>Play Online</h1>
+        <p class="subtitle">Create or join a multiplayer room</p>
+      </header>
 
-    <div id="lobby-join" class="lobby-section">
-      <h2>Enter Room Code</h2>
-      <input class="lobby-input" id="join-code" type="text" maxlength="4" placeholder="ABCD">
-      <div class="lobby-actions">
-        <button class="lobby-btn" id="btn-join-confirm">Join</button>
-        <button class="lobby-btn secondary" id="btn-join-back">Back</button>
+      <div class="server-bar">
+        <label for="server-host">Server</label>
+        <input class="lobby-input" id="server-host" type="text" placeholder="server host">
       </div>
-      <div class="error-msg" id="join-error"></div>
+
+      <div class="lobby-grid">
+        <section class="lobby-card" aria-label="Create a room">
+          <h2>Create Room</h2>
+          <div class="card-body">
+            <div class="setting-row">
+              <label for="set-rounds" class="setting-label">Battle Length</label>
+              <select class="lobby-select" id="set-rounds">
+                <option value="3">3 rounds</option>
+                <option value="5">5 rounds</option>
+                <option value="8" selected>8 rounds</option>
+                <option value="12">12 rounds</option>
+                <option value="Infinity">To The Death</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label for="set-hp" class="setting-label">Cannon Durability</label>
+              <select class="lobby-select" id="set-hp">
+                <option value="3" selected>3 HP</option>
+                <option value="6">6 HP</option>
+                <option value="9">9 HP</option>
+                <option value="12">12 HP</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <label for="set-wait" class="setting-label">Wait for Players</label>
+              <select class="lobby-select" id="set-wait">
+                <option value="2">2 seconds</option>
+                <option value="10">10 seconds</option>
+                <option value="30">30 seconds</option>
+                <option value="60" selected>1 minute</option>
+                <option value="90">1.5 minutes</option>
+                <option value="120">2 minutes</option>
+              </select>
+            </div>
+            <button type="button" class="lobby-btn" id="btn-create-confirm">Create Room</button>
+            <output class="error-msg" id="create-error"></output>
+          </div>
+        </section>
+
+        <section class="lobby-card" aria-label="Join a room">
+          <h2>Join Room</h2>
+          <div class="card-body card-body--join">
+            <p class="card-hint">Enter a 4-letter room code</p>
+            <input class="lobby-input room-code-input" id="join-code" type="text"
+              maxlength="4" placeholder="ABCD" autocomplete="off" spellcheck="false">
+            <button type="button" class="lobby-btn" id="btn-join-confirm">Join Room</button>
+            <output class="error-msg" id="join-error"></output>
+          </div>
+        </section>
+      </div>
+
+      <section class="rooms-section" aria-label="Available rooms">
+        <h2>Available Rooms</h2>
+        <div id="room-list" class="room-list"></div>
+      </section>
     </div>
-  </div>
+  </main>
 
   <div id="room-code-overlay"></div>
   <div id="game-container">

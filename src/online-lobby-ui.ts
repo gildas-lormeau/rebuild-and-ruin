@@ -4,15 +4,8 @@ import { getApiUrl } from "./online-config.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 
 interface LobbyElements {
-  lobbyMenu: HTMLElement;
-  lobbyCreate: HTMLElement;
-  lobbyJoin: HTMLElement;
-  btnCreate: HTMLElement;
-  btnJoinShow: HTMLElement;
   btnCreateConfirm: HTMLElement;
   btnJoinConfirm: HTMLElement;
-  btnCreateBack: HTMLElement;
-  btnJoinBack: HTMLElement;
   setRounds: HTMLSelectElement;
   setHp: HTMLSelectElement;
   setWait: HTMLSelectElement;
@@ -27,14 +20,14 @@ interface SetupLobbyUiDeps {
   send: (msg: ClientMessage) => void;
   getSocket: () => WebSocket | null;
   setIsHost: (value: boolean) => void;
+  isVisible?: () => boolean;
   doc?: Document;
 }
 
-const SECTION_LOBBY_CREATE = "lobby-create";
-const SECTION_LOBBY_JOIN = "lobby-join";
 const ROOM_CODE_LENGTH = 4;
 const ROOM_POLL_INTERVAL_MS = 3000;
-export const SECTION_LOBBY_MENU = "lobby-menu";
+const SECS_PER_MIN = 60;
+const SECS_PER_HOUR = 3600;
 
 /** Stored interval so repeated setupLobbyUi calls don't leak timers. */
 let roomPollTimer: ReturnType<typeof setInterval> | null = null;
@@ -45,27 +38,9 @@ export function setupLobbyUi({
   send,
   getSocket,
   setIsHost,
+  isVisible = () => true,
   doc = document,
 }: SetupLobbyUiDeps): void {
-  const sections = {
-    lobbyMenu: elements.lobbyMenu,
-    lobbyCreate: elements.lobbyCreate,
-    lobbyJoin: elements.lobbyJoin,
-  };
-
-  elements.btnCreate.addEventListener("click", () =>
-    showLobbySection(SECTION_LOBBY_CREATE, sections, doc),
-  );
-  elements.btnJoinShow.addEventListener("click", () =>
-    showLobbySection(SECTION_LOBBY_JOIN, sections, doc),
-  );
-  elements.btnCreateBack.addEventListener("click", () =>
-    showLobbySection(SECTION_LOBBY_MENU, sections, doc),
-  );
-  elements.btnJoinBack.addEventListener("click", () =>
-    showLobbySection(SECTION_LOBBY_MENU, sections, doc),
-  );
-
   // Pending action replaces any previous one so rapid clicks / Create→Join
   // sequences don't stack multiple "open" listeners on the same socket.
   let pendingAction: (() => void) | null = null;
@@ -114,12 +89,11 @@ export function setupLobbyUi({
     scheduleOnOpen(() => send({ type: MSG.JOIN_ROOM, code }));
   });
 
-  // Room list: fetch and render available rooms, poll every 3s while menu is visible
+  // Room list: fetch and render available rooms, poll every 3s while visible
   const roomListEl = doc.getElementById("room-list");
   if (roomListEl) {
     const joinViaCode = (code: string) => {
       elements.joinCodeInput.value = code;
-      showLobbySection("lobby-join", sections, doc);
       elements.btnJoinConfirm.click();
     };
 
@@ -138,11 +112,8 @@ export function setupLobbyUi({
     const renderRoomList = (rooms: { code: string; players: number; settings: { battleLength: number; cannonMaxHp: number }; elapsedSec: number }[]) => {
       if (rooms.length === 0) { setMessage("room-list-empty", "No rooms available"); return; }
       const roundsLabel = (v: number) => v > 0 ? `${v} rounds` : "To The Death";
-      const SECS_PER_MIN = 60;
-      const SECS_PER_HOUR = 3600;
       const ageLabel = (sec: number) => sec < SECS_PER_MIN ? "just now" : sec < SECS_PER_HOUR ? `${Math.floor(sec / SECS_PER_MIN)}m ago` : `${Math.floor(sec / SECS_PER_HOUR)}h ago`;
       roomListEl.innerHTML = "";
-      roomListEl.appendChild(el("div", "room-list-title", "Available Rooms"));
       for (const r of rooms) {
         const item = el("div", "room-item");
         item.dataset.code = r.code;
@@ -167,11 +138,11 @@ export function setupLobbyUi({
         });
     };
 
-    // Initial fetch + poll while lobby-menu is visible
+    // Initial fetch + poll while page is visible
     fetchRooms();
     if (roomPollTimer) clearInterval(roomPollTimer);
     roomPollTimer = setInterval(() => {
-      if (elements.lobbyMenu.classList.contains("active")) fetchRooms();
+      if (isVisible()) fetchRooms();
     }, ROOM_POLL_INTERVAL_MS);
 
     // Stop polling on page unload to avoid leaked timers
@@ -179,19 +150,4 @@ export function setupLobbyUi({
       if (roomPollTimer) { clearInterval(roomPollTimer); roomPollTimer = null; }
     }, { once: true });
   }
-}
-
-export function showLobbySection(
-  id: string,
-  sections: Pick<LobbyElements, "lobbyMenu" | "lobbyCreate" | "lobbyJoin">,
-  doc: Document = document,
-): void {
-  for (const el of [
-    sections.lobbyMenu,
-    sections.lobbyCreate,
-    sections.lobbyJoin,
-  ]) {
-    el.classList.remove("active");
-  }
-  doc.getElementById(id)?.classList.add("active");
 }

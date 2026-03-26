@@ -1,34 +1,62 @@
 /**
- * Application entry point — mode selection, fullscreen, auto-join, service worker.
+ * Application entry point — SPA router, fullscreen, auto-join, service worker.
  *
- * Extracted from the inline <script> in index.html so it benefits from
- * TypeScript checking and the lint pipeline.
+ * Hash-based routing (`#/`, `#/online`) with native back button support.
  */
 
 import "./style.css";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
+import { getRoute, initRouter, navigateTo } from "./router.ts";
 
 const AUTO_JOIN_DELAY_MS = 300;
 const DEFAULT_SERVER = "rebuild-and-ruin.gildas-lormeau.deno.net";
 const SERVER_STORAGE_KEY = "castles99_server";
-const modeSelect = document.getElementById("mode-select")!;
+const ROUTE_ONLINE = "/online";
+const ROUTE_PLAY = "/play";
 const btnLocal = document.getElementById("btn-local")!;
 const btnOnline = document.getElementById("btn-online")!;
-const btnOnlineBack = document.getElementById("btn-online-back")!;
-const lobby = document.getElementById("lobby")!;
 const serverHostInput = document.getElementById("server-host") as HTMLInputElement;
 const params = new URLSearchParams(location.search);
-// Auto-join via QR code: ?join=XXXX&server=host
 const autoJoinCode = params.get("join");
+
+// Load the right module whenever the route is active
+let lastAppliedRoute = "";
 
 // Lock to landscape on mobile (best-effort, silently ignored if unsupported)
 try { (screen.orientation as unknown as { lock?: (o: string) => Promise<void> })?.lock?.("landscape").catch(() => {}); } catch { /* unsupported */ }
 
-btnLocal.addEventListener("click", async () => {
+// --- Router setup ---
+initRouter();
+
+onRouteChange();
+
+window.addEventListener("hashchange", onRouteChange);
+
+window.addEventListener("popstate", onRouteChange);
+
+// --- Navigation handlers ---
+btnLocal.addEventListener("click", () => {
   tryFullscreen();
-  modeSelect.style.display = "none";
-  await import("./main.ts");
+  navigateTo("/play");
+  onRouteChange();
 });
+
+btnOnline.addEventListener("click", () => {
+  navigateTo(ROUTE_ONLINE);
+  onRouteChange();
+});
+
+function onRouteChange(): void {
+  const route = getRoute();
+  if (route === lastAppliedRoute) return;
+  lastAppliedRoute = route;
+  if (route === ROUTE_ONLINE) {
+    serverHostInput.value = localStorage.getItem(SERVER_STORAGE_KEY) || DEFAULT_SERVER;
+    import("./online-client.ts");
+  } else if (route === ROUTE_PLAY) {
+    import("./main.ts").then(m => m.enterLocalLobby());
+  }
+}
 
 // Persist server host
 serverHostInput.addEventListener("change", () => {
@@ -37,39 +65,25 @@ serverHostInput.addEventListener("change", () => {
   else localStorage.removeItem(SERVER_STORAGE_KEY);
 });
 
-btnOnline.addEventListener("click", async () => {
-  serverHostInput.value = localStorage.getItem(SERVER_STORAGE_KEY) || DEFAULT_SERVER;
-  modeSelect.style.display = "none";
-  lobby.style.display = "block";
-  await import("./online-client.ts");
-});
-
 // Fullscreen on Create/Join confirm (needs user gesture)
 document.getElementById("btn-create-confirm")!.addEventListener("click", tryFullscreen);
 
 document.getElementById("btn-join-confirm")!.addEventListener("click", tryFullscreen);
 
-btnOnlineBack.addEventListener("click", () => {
-  lobby.style.display = "none";
-  modeSelect.style.display = "block";
-});
-
-if (params.has("record-inputs")) {
-  import("./input-recorder.ts").then(m => m.initRecorder());
-}
-
+// --- Auto-join via QR code: ?join=XXXX&server=host ---
 if (autoJoinCode) {
   (async () => {
-    modeSelect.style.display = "none";
-    lobby.style.display = "block";
+    navigateTo(ROUTE_ONLINE, true);
     await import("./online-client.ts");
     const joinCodeInput = document.getElementById("join-code") as HTMLInputElement;
-    const btnJoinShow = document.getElementById("btn-join-show")!;
     const btnJoinConfirm = document.getElementById("btn-join-confirm")!;
-    btnJoinShow.click();
     joinCodeInput.value = autoJoinCode.toUpperCase();
     setTimeout(() => { tryFullscreen(); btnJoinConfirm.click(); }, AUTO_JOIN_DELAY_MS);
   })();
+}
+
+if (params.has("record-inputs")) {
+  import("./input-recorder.ts").then(m => m.initRecorder());
 }
 
 /** Request fullscreen + wake lock on mobile (must be called from a user gesture handler). */
