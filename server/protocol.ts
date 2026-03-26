@@ -119,7 +119,7 @@ export interface SerializedTower {
 // ---------------------------------------------------------------------------
 
 export interface RoomSettings {
-  battleLength: number;   // 3, 5, 8, 12, or Infinity
+  battleLength: number;   // 0 (unlimited), 3, 5, 8, or 12
   cannonMaxHp: number;    // 3, 6, 9, or 12
   waitTimerSec: number;   // lobby wait duration before auto-start (seconds)
 }

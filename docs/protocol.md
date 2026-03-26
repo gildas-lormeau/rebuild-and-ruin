@@ -49,7 +49,7 @@ Client                          Server                          Host
 
 | Message | Fields | Description |
 |---------|--------|-------------|
-| `create_room` | `settings` | Create a new room with battle length, cannon HP, wait timer |
+| `create_room` | `settings` | Create a new room with battle length (0=unlimited, 3, 5, 8, 12), cannon HP, wait timer |
 | `join_room` | `code` | Join an existing room by 4-letter code |
 | `select_slot` | `slotId` | Pick a player slot (0-2) |
 | `life_lost_choice` | `choice`, `playerId?` | Continue or abandon after losing a life |
@@ -83,7 +83,7 @@ These are sent by the host and relayed to all other clients. They carry full sta
 
 ### Host → All (Incremental Events)
 
-Streamed during gameplay phases.
+Streamed during gameplay phases. Battle impact events (`wall_destroyed` through `tower_killed`) are **host-only** — only the host can send them.
 
 | Message | Phase | Description |
 |---------|-------|-------------|
@@ -93,14 +93,15 @@ Streamed during gameplay phases.
 | `opponent_cannon_phantom` | CANNON_PLACE | Ghost cannon position |
 | `opponent_tower_selected` | SELECTION | Player browsing/confirming tower |
 | `cannon_fired` | BATTLE | A cannon fired a cannonball |
-| `wall_destroyed` | BATTLE | A wall tile was destroyed |
-| `cannon_damaged` | BATTLE | A cannon took damage |
-| `grunt_killed` | BATTLE | A grunt was killed |
-| `house_destroyed` | BATTLE | A house was destroyed |
-| `grunt_spawned` | BATTLE | A grunt was spawned |
-| `pit_created` | BATTLE | Burning pit from incendiary shot |
-| `tower_killed` | BATTLE | A tower was destroyed by grunts |
+| `wall_destroyed` | BATTLE | A wall tile was destroyed (host-only) |
+| `cannon_damaged` | BATTLE | A cannon took damage (host-only) |
+| `grunt_killed` | BATTLE | A grunt was killed (host-only) |
+| `house_destroyed` | BATTLE | A house was destroyed (host-only) |
+| `grunt_spawned` | BATTLE | A grunt was spawned (host-only) |
+| `pit_created` | BATTLE | Burning pit from incendiary shot (host-only) |
+| `tower_killed` | BATTLE | A tower was destroyed by grunts (host-only) |
 | `aim_update` | BATTLE | Crosshair position + orbit params |
+| `life_lost_choice` | Any | Forwarded from non-host client to all (playerId + choice) |
 
 ## Game Phases
 
@@ -120,16 +121,17 @@ When the host disconnects mid-game, the server promotes another player (lowest s
 | Message | Sender | Description |
 |---------|--------|-------------|
 | `host_left` | Server → All | `newHostPlayerId`, `previousHostPlayerId`. `-1` if no human available (AI fallback). |
-| `full_state` | New Host → All | Comprehensive snapshot sent after promotion for watcher reconciliation. Includes `phase`, `round`, `timer`, `players[]`, `grunts[]`, `cannonballs[]`, `balloonHits[]`, RNG state, and all checkpoint arrays. |
+| `full_state` | New Host → All | Comprehensive snapshot sent after promotion for watcher reconciliation. Includes `migrationSeq?`, `phase`, `round`, `timer`, `battleCountdown`, `battleLength`, `shotsFired`, `rngState`, `players[]`, `grunts[]`, `housesAlive[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `cannonLimits[]`, `playerZones[]`, `activePlayer`, `towerPendingRevive[]`, `capturedCannons[]`, `balloonHits[]`, `cannonballs[]`, `balloonFlights[]?`. |
 
 ## Anti-Cheat (Server-Side)
 
 The relay server validates without running game logic:
 
-- **Host-only enforcement**: only the host socket can send checkpoints (`init`, `cannon_start`, `battle_start`, etc.)
-- **Identity**: players can only send messages with their own `playerId`
-- **Phase gating**: `cannon_fired` rejected outside BATTLE, `opponent_piece_placed` rejected outside WALL_BUILD, etc.
-- **Rate limiting**: `aim_update` capped at 30/s, `life_lost_choice` at 5/s
+- **Host-only enforcement**: only the host socket can send checkpoints (`init`, `cannon_start`, `battle_start`, `build_start`, `build_end`, `game_over`, `full_state`, `select_start`, `castle_walls`) and battle impact events (`wall_destroyed`, `cannon_damaged`, `house_destroyed`, `grunt_killed`, `grunt_spawned`, `pit_created`, `tower_killed`)
+- **Identity**: players can only send messages with their own `playerId` (host exempt — sends on behalf of AI players)
+- **Phase gating**: `cannon_fired` rejected outside BATTLE, `opponent_piece_placed` rejected outside WALL_BUILD, `opponent_cannon_placed` rejected outside CANNON_PLACE, `opponent_tower_selected` rejected outside SELECTION, etc.
+- **Rate limiting**: cosmetic messages (`opponent_phantom`, `opponent_cannon_phantom`, `aim_update`) capped at 100/s per type. Game-state messages (`piece_placed`, `cannon_placed`, `fired`, `life_lost_choice`) are **not** rate-limited — they are low-frequency and must never be silently dropped
+- **Payload validation**: bounds-checking on `playerId`, grid coordinates, pixel coordinates, cannon modes, piece offsets, and choice values
 
 ## Bandwidth
 
