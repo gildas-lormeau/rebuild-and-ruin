@@ -3,10 +3,23 @@
  *
  * Pages are `<main class="page" data-route="/path">` elements.
  * Only the page matching the current hash is visible.
+ *
+ * Route handlers registered via `onRoute()` are called when a route
+ * activates — deduped so repeat navigations to the same route are ignored.
  */
 
-/** Navigate to a hash route, optionally replacing the current history entry. */
+type RouteHandler = () => void;
 
+const handlers = new Map<string, RouteHandler>();
+
+let currentRoute = "";
+
+/** Register a handler that runs when `path` becomes the active route. */
+export function onRoute(path: string, handler: RouteHandler): void {
+  handlers.set(path, handler);
+}
+
+/** Navigate to a hash route, optionally replacing the current history entry. */
 export function navigateTo(path: string, replace = false): void {
   const url = `#${path}`;
   if (replace) history.replaceState(null, "", url);
@@ -22,25 +35,19 @@ export function initRouter(): void {
 }
 
 /** Show the page matching the current hash, hide all others.
- *  Also hides the game container when a page route is matched. */
+ *  Calls the registered route handler when the route changes. */
 function applyRoute(): void {
   const route = getRoute();
-  let matched = false;
   for (const el of document.querySelectorAll<HTMLElement>(".page")) {
-    const show = el.dataset.route === route;
-    el.hidden = !show;
-    if (show) matched = true;
+    el.hidden = el.dataset.route !== route;
   }
-  if (matched) {
-    const gc = document.getElementById("game-container");
-    if (gc?.classList.contains("active")) {
-      gc.classList.remove("active");
-      document.dispatchEvent(new Event("game-exit"));
-    }
+  if (route !== currentRoute) {
+    currentRoute = route;
+    handlers.get(route)?.();
   }
 }
 
 /** Read the current route from `location.hash`. Defaults to `"/"`. */
-export function getRoute(): string {
+function getRoute(): string {
   return location.hash.replace(/^#/, "") || "/";
 }

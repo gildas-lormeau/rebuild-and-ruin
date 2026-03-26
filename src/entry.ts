@@ -1,62 +1,55 @@
 /**
  * Application entry point — SPA router, fullscreen, auto-join, service worker.
  *
- * Hash-based routing (`#/`, `#/online`) with native back button support.
+ * Hash-based routing (`#/`, `#/online`, `#/play`) with native back button support.
+ * Route handlers load game modules on demand; game-exit cleanup runs when
+ * the router navigates away from an active game.
  */
 
 import "./style.css";
+import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./game-ui-types.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
-import { getRoute, initRouter, navigateTo } from "./router.ts";
+import { initRouter, navigateTo, onRoute } from "./router.ts";
 
 const AUTO_JOIN_DELAY_MS = 300;
 const DEFAULT_SERVER = "rebuild-and-ruin.gildas-lormeau.deno.net";
 const SERVER_STORAGE_KEY = "castles99_server";
 const ROUTE_ONLINE = "/online";
 const ROUTE_PLAY = "/play";
-const btnLocal = document.getElementById("btn-local")!;
-const btnOnline = document.getElementById("btn-online")!;
+const gameContainer = document.getElementById("game-container")!;
 const serverHostInput = document.getElementById("server-host") as HTMLInputElement;
 const params = new URLSearchParams(location.search);
 const autoJoinCode = params.get("join");
 
-// Load the right module whenever the route is active
-let lastAppliedRoute = "";
-
 // Lock to landscape on mobile (best-effort, silently ignored if unsupported)
 try { (screen.orientation as unknown as { lock?: (o: string) => Promise<void> })?.lock?.("landscape").catch(() => {}); } catch { /* unsupported */ }
 
-// --- Router setup ---
+// --- Route handlers ---
+onRoute(ROUTE_ONLINE, () => {
+  exitGameIfActive();
+  serverHostInput.value = localStorage.getItem(SERVER_STORAGE_KEY) || DEFAULT_SERVER;
+  import("./online-client.ts");
+});
+
+onRoute(ROUTE_PLAY, () => {
+  import("./main.ts").then(m => m.enterLocalLobby());
+});
+
+onRoute("/", () => {
+  exitGameIfActive();
+});
+
 initRouter();
 
-onRouteChange();
-
-window.addEventListener("hashchange", onRouteChange);
-
-window.addEventListener("popstate", onRouteChange);
-
 // --- Navigation handlers ---
-btnLocal.addEventListener("click", () => {
+document.getElementById("btn-local")!.addEventListener("click", () => {
   tryFullscreen();
-  navigateTo("/play");
-  onRouteChange();
+  navigateTo(ROUTE_PLAY);
 });
 
-btnOnline.addEventListener("click", () => {
+document.getElementById("btn-online")!.addEventListener("click", () => {
   navigateTo(ROUTE_ONLINE);
-  onRouteChange();
 });
-
-function onRouteChange(): void {
-  const route = getRoute();
-  if (route === lastAppliedRoute) return;
-  lastAppliedRoute = route;
-  if (route === ROUTE_ONLINE) {
-    serverHostInput.value = localStorage.getItem(SERVER_STORAGE_KEY) || DEFAULT_SERVER;
-    import("./online-client.ts");
-  } else if (route === ROUTE_PLAY) {
-    import("./main.ts").then(m => m.enterLocalLobby());
-  }
-}
 
 // Persist server host
 serverHostInput.addEventListener("change", () => {
@@ -84,6 +77,14 @@ if (autoJoinCode) {
 
 if (params.has("record-inputs")) {
   import("./input-recorder.ts").then(m => m.initRecorder());
+}
+
+/** Hide the game container and notify game modules to clean up. */
+function exitGameIfActive(): void {
+  if (gameContainer.classList.contains(GAME_CONTAINER_ACTIVE)) {
+    gameContainer.classList.remove(GAME_CONTAINER_ACTIVE);
+    document.dispatchEvent(new Event(GAME_EXIT_EVENT));
+  }
 }
 
 /** Request fullscreen + wake lock on mobile (must be called from a user gesture handler). */

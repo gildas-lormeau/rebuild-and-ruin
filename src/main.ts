@@ -7,7 +7,7 @@
  */
 
 import { createGameRuntime } from "./game-runtime.ts";
-import { GAME_CONTAINER_ACTIVE, Mode } from "./game-ui-types.ts";
+import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT, Mode } from "./game-ui-types.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 import { loadAtlas } from "./render-sprites.ts";
 import { LOBBY_TIMER } from "./types.ts";
@@ -46,12 +46,9 @@ export function enterLocalLobby(): void {
   atlasReady.then(() => showLobby());
 }
 
-canvas.parentElement!.classList.add(GAME_CONTAINER_ACTIVE);
-
 runtime.registerInputHandlers();
 
-// Stop the game loop when the router navigates away (back button)
-document.addEventListener("game-exit", () => {
+document.addEventListener(GAME_EXIT_EVENT, () => {
   runtime.rs.mode = Mode.STOPPED;
 });
 

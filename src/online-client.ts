@@ -29,7 +29,7 @@ import {
 } from "./game-engine.ts";
 import type { GameRuntime } from "./game-runtime.ts";
 import { createGameRuntime } from "./game-runtime.ts";
-import { GAME_CONTAINER_ACTIVE, Mode } from "./game-ui-types.ts";
+import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT, Mode } from "./game-ui-types.ts";
 import { GRID_COLS } from "./grid.ts";
 import { CHOICE_PENDING } from "./life-lost.ts";
 import { getWsUrl } from "./online-config.ts";
@@ -535,7 +535,7 @@ function applyFullState(msg: FullStateMessage): void {
 runtime.registerInputHandlers();
 
 // Clean up when the router navigates away from the game (back button)
-document.addEventListener("game-exit", () => {
+document.addEventListener(GAME_EXIT_EVENT, () => {
   runtime.rs.mode = Mode.STOPPED;
   runtime.rs.lobby.active = false;
   roomCodeOverlay.style.display = "none";

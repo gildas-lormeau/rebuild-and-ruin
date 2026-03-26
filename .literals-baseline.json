@@ -86,9 +86,5 @@
   {
     "type": "number",
     "key": "90"
-  },
-  {
-    "type": "string",
-    "key": "human"
   }
 ]

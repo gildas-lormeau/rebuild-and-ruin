@@ -95,7 +95,7 @@ import {
 
 export type { GameRuntime } from "./game-runtime-types.ts";
 
-type TouchBtnRule = boolean | "human";
+type TouchBtnRule = boolean | typeof HUMAN;
 
 interface TouchButtonState {
   dpad: TouchBtnRule;
@@ -106,18 +106,19 @@ interface TouchButtonState {
   quit: boolean;
 }
 
+const HUMAN = "human" as const;
 const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
   //                       dpad     confirm  rotate   validity zoom     quit
   [Mode.LOBBY]:        { dpad: false,   confirm: true,    rotate: false,   placementValidity: false,   zoom: false,   quit: false },
   [Mode.OPTIONS]:      { dpad: true,    confirm: true,    rotate: true,    placementValidity: false,   zoom: false,   quit: false },
   [Mode.CONTROLS]:     { dpad: false,   confirm: false,   rotate: false,   placementValidity: false,   zoom: false,   quit: false },
-  [Mode.SELECTION]:    { dpad: "human", confirm: "human", rotate: false,   placementValidity: false,   zoom: "human", quit: true  },
-  [Mode.BANNER]:       { dpad: false,   confirm: false,   rotate: false,   placementValidity: false,   zoom: "human", quit: true  },
-  [Mode.BALLOON_ANIM]: { dpad: false,   confirm: false,   rotate: false,   placementValidity: false,   zoom: "human", quit: true  },
-  [Mode.CASTLE_BUILD]: { dpad: false,   confirm: false,   rotate: false,   placementValidity: false,   zoom: "human", quit: true  },
-  [Mode.LIFE_LOST]:    { dpad: "human", confirm: "human", rotate: false,   placementValidity: false,   zoom: "human", quit: true  },
-  [Mode.GAME]:         { dpad: "human", confirm: "human", rotate: "human", placementValidity: "human", zoom: "human", quit: true  },
-  [Mode.STOPPED]:      { dpad: "human", confirm: "human", rotate: false,   placementValidity: false,   zoom: false,   quit: false },
+  [Mode.SELECTION]:    { dpad: HUMAN, confirm: HUMAN, rotate: false, placementValidity: false, zoom: HUMAN, quit: true  },
+  [Mode.BANNER]:       { dpad: false,  confirm: false, rotate: false, placementValidity: false, zoom: HUMAN, quit: true  },
+  [Mode.BALLOON_ANIM]: { dpad: false,  confirm: false, rotate: false, placementValidity: false, zoom: HUMAN, quit: true  },
+  [Mode.CASTLE_BUILD]: { dpad: false,  confirm: false, rotate: false, placementValidity: false, zoom: HUMAN, quit: true  },
+  [Mode.LIFE_LOST]:    { dpad: HUMAN, confirm: HUMAN, rotate: false, placementValidity: false, zoom: HUMAN, quit: true  },
+  [Mode.GAME]:         { dpad: HUMAN, confirm: HUMAN, rotate: HUMAN, placementValidity: HUMAN, zoom: HUMAN, quit: true  },
+  [Mode.STOPPED]:      { dpad: HUMAN, confirm: HUMAN, rotate: false, placementValidity: false, zoom: false,  quit: false },
 };
 
 export function createGameRuntime(config: RuntimeConfig): GameRuntime {
@@ -597,7 +598,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     const hasHuman = firstHuman() !== null;
     const bs = TOUCH_BUTTON_STATES[rs.mode];
-    const on = (rule: TouchBtnRule) => rule === true || (rule === "human" && hasHuman);
+    const on = (rule: TouchBtnRule) => rule === true || (rule === HUMAN && hasHuman);
 
     // D-pad, rotate, confirm
     dpad?.update(on(bs.dpad) ? (rs.state?.phase ?? Phase.WALL_BUILD) : null, !on(bs.rotate));
