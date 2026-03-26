@@ -127,6 +127,20 @@ export class HumanController extends BaseController implements InputReceiver {
     super.moveBuildCursor(direction, this.currentPiece);
   }
 
+  override moveCannonCursor(direction: Action): void {
+    const size = this.cannonPlaceMode === CannonMode.SUPER ? SUPER_GUN_SIZE
+      : this.cannonPlaceMode === CannonMode.BALLOON ? BALLOON_SIZE
+      : NORMAL_CANNON_SIZE;
+    if (direction === Action.UP)
+      this.cannonCursor.row = Math.max(0, this.cannonCursor.row - 1);
+    else if (direction === Action.DOWN)
+      this.cannonCursor.row = Math.min(GRID_ROWS - size, this.cannonCursor.row + 1);
+    else if (direction === Action.LEFT)
+      this.cannonCursor.col = Math.max(0, this.cannonCursor.col - 1);
+    else if (direction === Action.RIGHT)
+      this.cannonCursor.col = Math.min(GRID_COLS - size, this.cannonCursor.col + 1);
+  }
+
   override setBuildCursor(row: number, col: number): void {
     // Offset so the clicked tile aligns with the piece's pivot (visual center)
     if (this.currentPiece) {
@@ -246,6 +260,12 @@ export class HumanController extends BaseController implements InputReceiver {
     } else {
       this.cannonPlaceMode = CannonMode.NORMAL;
     }
+    // Re-clamp cursor so the new cannon size stays within the grid
+    const size = this.cannonPlaceMode === CannonMode.SUPER ? SUPER_GUN_SIZE
+      : this.cannonPlaceMode === CannonMode.BALLOON ? BALLOON_SIZE
+      : NORMAL_CANNON_SIZE;
+    this.cannonCursor.row = Math.min(this.cannonCursor.row, GRID_ROWS - size);
+    this.cannonCursor.col = Math.min(this.cannonCursor.col, GRID_COLS - size);
   }
 
   /** Check if a key event matches one of this controller's bindings. */
@@ -271,6 +291,13 @@ export class HumanController extends BaseController implements InputReceiver {
 
   onBattleEnd(): void {
     this.heldActions.clear();
+  }
+
+  override onLifeLost(): void {
+    super.onLifeLost();
+    this.cannonPlaceMode = CannonMode.NORMAL;
+    this.heldActions.clear();
+    this.cannonCursorNeedsSnap = false;
   }
 
   onCannonPhaseStart(_state: GameState): void {

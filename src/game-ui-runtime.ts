@@ -153,7 +153,6 @@ export function collectLocalCrosshairs(params: {
     // Hide crosshair only when nothing can fire and nothing is reloading
     if (!readyCannon && !anyReloading) continue;
     const ch = ctrl.getCrosshair();
-    if (!ch) continue;
     crosshairs.push({
       x: ch.x,
       y: ch.y,

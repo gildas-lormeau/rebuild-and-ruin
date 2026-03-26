@@ -231,7 +231,6 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
 
   myHuman.battleTick(state, dt);
   const ch = myHuman.getCrosshair();
-  if (!ch) return;
 
   if (canPlayerFire(state, myPlayerId)) {
     const readyCannon = nextReadyCombined(state, myPlayerId);

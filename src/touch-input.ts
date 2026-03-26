@@ -7,7 +7,8 @@
 
 import type { RegisterOnlineInputDeps } from "./input.ts";
 import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, isGameInteractionMode, markTouchTime } from "./input.ts";
-import { isPlacementPhase, isSelectionPhase, Phase } from "./types.ts";
+import type { InputReceiver, PlayerController } from "./player-controller.ts";
+import { BALLOON_SIZE, CannonMode, isPlacementPhase, isSelectionPhase, NORMAL_CANNON_SIZE, Phase, SUPER_GUN_SIZE } from "./types.ts";
 
 const TAP_MAX_DIST = 20;
   // CSS pixels
@@ -29,6 +30,8 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   let touchStartX = 0;
   let touchStartY = 0;
   let touchStartTime = 0;
+  /** Set when touchstart lands directly on the current phantom (tap confirms placement). */
+  let phantomTapped = false;
 
   // Pinch-to-zoom tracking
   let pinchActive = false;
@@ -50,6 +53,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   // --- touchstart: record gesture start + update cursor position ---
   canvas.addEventListener("touchstart", (e) => {
     e.preventDefault();
+    phantomTapped = false;
 
     // Two-finger pinch start
     if (e.touches.length >= 2) {
@@ -73,6 +77,20 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     const { x, y } = canvasCoords(touch);
     const state = getState();
     if (!state || isLobbyActive()) return;
+
+    // Tap-on-phantom: if the touch lands directly on the current phantom,
+    // skip cursor movement so the tap can confirm placement at touchend.
+    if (isPlacementPhase(state.phase) && isGameInteractionMode(getMode(), deps.modeValues)) {
+      const tile = deps.pixelToTile(x, y);
+      let hit = false;
+      deps.withFirstHuman((human) => {
+        hit = isOnPhantom(human, state.phase, tile.row, tile.col);
+      });
+      if (hit) {
+        phantomTapped = true;
+        return;
+      }
+    }
 
     // Activate floating buttons when touching the canvas during placement phases
     if (isPlacementPhase(state.phase)) {
@@ -147,8 +165,8 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
       dispatchTowerSelect(w.wx, w.wy, state, state.phase === Phase.CASTLE_RESELECT, deps, true);
     }
 
-    // Build / Cannon: tap to place (skip when floating buttons handle placement)
-    if (tap && !deps.isDirectTouchActive?.()) {
+    // Build / Cannon: tap on phantom places directly; otherwise tap-to-place when no floating buttons
+    if (tap && (phantomTapped || !deps.isDirectTouchActive?.())) {
       dispatchPlacement(state, deps);
     }
 
@@ -165,4 +183,30 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
 
   // Prevent long-press context menu
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+}
+
+/** Check whether a tile position overlaps the current piece/cannon phantom. */
+function isOnPhantom(
+  human: PlayerController & InputReceiver,
+  phase: Phase,
+  row: number,
+  col: number,
+): boolean {
+  if (phase === Phase.WALL_BUILD) {
+    const piece = human.getCurrentPiece();
+    if (!piece) return false;
+    const cr = human.buildCursor.row;
+    const cc = human.buildCursor.col;
+    return piece.offsets.some(([dr, dc]) => cr + dr === row && cc + dc === col);
+  }
+  if (phase === Phase.CANNON_PLACE) {
+    const mode = human.getCannonPlaceMode();
+    const size = mode === CannonMode.SUPER ? SUPER_GUN_SIZE
+      : mode === CannonMode.BALLOON ? BALLOON_SIZE
+      : NORMAL_CANNON_SIZE;
+    const cr = human.cannonCursor.row;
+    const cc = human.cannonCursor.col;
+    return row >= cr && row < cr + size && col >= cc && col < cc + size;
+  }
+  return false;
 }
