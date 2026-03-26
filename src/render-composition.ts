@@ -138,9 +138,7 @@ export function handleLifeLostDialogClick(params: {
     if (entry.playerId !== firstHumanPlayerId) continue;
 
     const { px, py } = lifeLostPanelPos(state, entry.playerId);
-    const btnY = py + PANEL_H - BTN_H - 10;
-    const contX = px + PANEL_W / 2 - BTN_W - 5;
-    const abX = px + PANEL_W / 2 + 5;
+    const { btnY, contX, abX } = lifeLostButtonLayout(px, py);
 
     if (x >= contX && x <= contX + BTN_W && y >= btnY && y <= btnY + BTN_H) {
       return { playerId: entry.playerId, choice: CHOICE_CONTINUE };
@@ -152,6 +150,18 @@ export function handleLifeLostDialogClick(params: {
   }
 
   return null;
+}
+
+export function lifeLostButtonLayout(px: number, py: number): {
+  btnY: number;
+  contX: number;
+  abX: number;
+} {
+  return {
+    btnY: py + PANEL_H - BTN_H - 10,
+    contX: px + PANEL_W / 2 - BTN_W - 5,
+    abX: px + PANEL_W / 2 + 5,
+  };
 }
 
 export function lifeLostPanelPos(

@@ -14,6 +14,7 @@ import { Mode } from "./game-ui-types.ts";
 import type { LifeLostDialogState, ResolvedChoice } from "./life-lost.ts";
 import {
   buildLifeLostDialogState,
+  CHOICE_ABANDON,
   resolveAfterLifeLost,
   resolveLifeLostDialogRuntime,
   tickLifeLostDialogRuntime,
@@ -46,6 +47,16 @@ export type LifeLostSystem = RuntimeLifeLost & {
 export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   const { rs } = deps;
 
+  function eliminateAbandoned(dialog: LifeLostDialogState): void {
+    for (const entry of dialog.entries) {
+      if (entry.choice !== CHOICE_ABANDON) continue;
+      const player = rs.state.players[entry.playerId];
+      if (!player) continue;
+      player.eliminated = true;
+      player.lives = 0;
+    }
+  }
+
   function showLifeLostDialog(needsReselect: number[], eliminated: number[]) {
     const remoteHumanSlots = rs.ctx.remoteHumanSlots;
     deps.log(
@@ -69,7 +80,6 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       lifeLostDialog: rs.lifeLostDialog,
       lifeLostAiDelay: LIFE_LOST_AI_DELAY,
       lifeLostMaxTimer: LIFE_LOST_MAX_TIMER,
-      state: rs.state,
       isHost: rs.ctx.isHost,
       render: deps.render,
       logResolved: (dialog) => {
@@ -77,13 +87,15 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
           `lifeLostDialog resolved: ${dialog.entries.map((e) => `P${e.playerId}=${e.choice}(ai=${e.isAi})`).join(", ")} timer=${dialog.timer.toFixed(1)}s`,
         );
       },
-      resolveHostDialog: (dialog) =>
-        resolveLifeLostDialogRuntime({
+      resolveHostDialog: (dialog) => {
+        eliminateAbandoned(dialog);
+        return resolveLifeLostDialogRuntime({
           lifeLostDialog: dialog,
-          state: rs.state,
           afterLifeLostResolved,
-        }),
-      onNonHostResolved: () => {
+        });
+      },
+      onNonHostResolved: (dialog) => {
+        eliminateAbandoned(dialog);
         rs.mode = Mode.GAME;
       },
     });

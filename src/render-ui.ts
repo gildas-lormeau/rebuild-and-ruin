@@ -5,6 +5,7 @@
 import { FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus, type GameOverOverlay } from "./game-ui-types.ts";
 import { CHOICE_CONTINUE, CHOICE_PENDING } from "./life-lost.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
+import { lifeLostButtonLayout } from "./render-composition.ts";
 import {
   BANNER_HEIGHT_RATIO,
   LIFE_LOST_BTN_H as BTN_H,
@@ -44,6 +45,17 @@ import {
   STATUSBAR_HEIGHT,
 } from "./render-theme.ts";
 import type { RenderOverlay } from "./render-types.ts";
+
+interface GameOverLayout {
+  panelW: number;
+  panelH: number;
+  px: number;
+  py: number;
+  btnW: number;
+  btnY: number;
+  rematchX: number;
+  menuX: number;
+}
 
 // Game over panel layout
 const GAMEOVER_ROW_H = 14;
@@ -211,11 +223,8 @@ export function drawGameOver(
   const sorted = [...gameOverData.scores].sort((a, b) => b.score - a.score);
   const hasStats = sorted.some(e => e.stats);
   const statsH = hasStats ? GAMEOVER_ROW_H : 0;
-  const tableH = sorted.length * GAMEOVER_ROW_H + statsH;
-  const panelW = Math.round(W * GAMEOVER_PANEL_W_RATIO);
-  const panelH = GAMEOVER_HEADER_H + tableH + 16 + GAMEOVER_BTN_H + 12;
-  const px = Math.round((W - panelW) / 2);
-  const py = Math.round((H - panelH) / 2);
+  const lo = gameOverLayout(W, H, gameOverData.scores);
+  const { panelW, panelH, px, py, btnW, btnY, rematchX, menuX } = lo;
 
   drawPanel(octx, px, py, panelW, panelH, PANEL_BG(0.9), GOLD);
 
@@ -267,10 +276,6 @@ export function drawGameOver(
   // Rematch / Menu buttons
   octx.textAlign = "center";
   octx.textBaseline = "middle";
-  const btnW = Math.round((panelW - 30) / 2);
-  const btnY = py + panelH - GAMEOVER_BTN_H - 10;
-  const rematchX = px + 10;
-  const menuX = px + panelW - 10 - btnW;
   const focused = gameOverData.focused;
 
   const rematchFocused = focused === FOCUS_REMATCH;
@@ -296,18 +301,7 @@ export function gameOverButtonHitTest(
   H: number,
   gameOver: GameOverOverlay,
 ): GameOverFocus | null {
-  const sorted = [...gameOver.scores].sort((a, b) => b.score - a.score);
-  const hasStats = sorted.some(e => e.stats);
-  const statsH = hasStats ? GAMEOVER_ROW_H : 0;
-  const tableH = sorted.length * GAMEOVER_ROW_H + statsH;
-  const panelW = Math.round(W * GAMEOVER_PANEL_W_RATIO);
-  const panelH = GAMEOVER_HEADER_H + tableH + 16 + GAMEOVER_BTN_H + 12;
-  const px = Math.round((W - panelW) / 2);
-  const py = Math.round((H - panelH) / 2);
-  const btnW = Math.round((panelW - 30) / 2);
-  const btnY = py + panelH - GAMEOVER_BTN_H - 10;
-  const rematchX = px + 10;
-  const menuX = px + panelW - 10 - btnW;
+  const { btnW, btnY, rematchX, menuX } = gameOverLayout(W, H, gameOver.scores);
 
   if (tileX >= rematchX && tileX <= rematchX + btnW && tileY >= btnY && tileY <= btnY + GAMEOVER_BTN_H) {
     return FOCUS_REMATCH;
@@ -329,16 +323,13 @@ export function drawLifeLostDialog(
   if (!overlay?.ui?.lifeLostDialog) return;
   const dlg = overlay.ui.lifeLostDialog;
 
-  const panelW = PANEL_W,
-    panelH = PANEL_H;
-
   for (const entry of dlg.entries) {
     const { px, py } = entry;
     const c = entry.color;
-    const cx = px + panelW / 2;
+    const cx = px + PANEL_W / 2;
 
     // Panel background
-    drawPanel(octx, px, py, panelW, panelH, PANEL_BG(0.9), rgb(c));
+    drawPanel(octx, px, py, PANEL_W, PANEL_H, PANEL_BG(0.9), rgb(c));
 
     // Player name
     octx.textAlign = "center";
@@ -349,7 +340,7 @@ export function drawLifeLostDialog(
 
     // Separator
     octx.fillStyle = GOLD;
-    octx.fillRect(px + 10, py + 28, panelW - 20, 1);
+    octx.fillRect(px + 10, py + 28, PANEL_W - 20, 1);
 
     // Lives remaining
     octx.font = FONT_SMALL;
@@ -369,9 +360,7 @@ export function drawLifeLostDialog(
       // Continue / Abandon buttons with focus highlight
       const btnW = BTN_W,
         btnH = BTN_H;
-      const btnY = py + panelH - btnH - 10;
-      const contX = px + panelW / 2 - btnW - 5;
-      const abX = px + panelW / 2 + 5;
+      const { btnY, contX, abX } = lifeLostButtonLayout(px, py);
       const contFocused = entry.focused === 0;
       const abFocused = entry.focused === 1;
 
@@ -399,7 +388,7 @@ export function drawLifeLostDialog(
       octx.fillText(
         entry.choice === CHOICE_CONTINUE ? "Continuing..." : "Abandoned",
         cx,
-        py + panelH - 18,
+        py + PANEL_H - 18,
       );
     }
   }
@@ -698,6 +687,24 @@ export function computeLobbyLayout(W: number, H: number, count: number) {
   const rectH = Math.round(H * (touch ? 0.6 : 0.5));
   const rectY = Math.round(H * (touch ? 0.18 : 0.27));
   return { gap, rectW, rectH, rectY };
+}
+
+function gameOverLayout(W: number, H: number, scores: GameOverOverlay["scores"]): GameOverLayout {
+  const sorted = [...scores].sort((a, b) => b.score - a.score);
+  const hasStats = sorted.some(e => e.stats);
+  const statsH = hasStats ? GAMEOVER_ROW_H : 0;
+  const tableH = sorted.length * GAMEOVER_ROW_H + statsH;
+  const panelW = Math.round(W * GAMEOVER_PANEL_W_RATIO);
+  const panelH = GAMEOVER_HEADER_H + tableH + 16 + GAMEOVER_BTN_H + 12;
+  const px = Math.round((W - panelW) / 2);
+  const py = Math.round((H - panelH) / 2);
+  const btnW = Math.round((panelW - 30) / 2);
+  return {
+    panelW, panelH, px, py, btnW,
+    btnY: py + panelH - GAMEOVER_BTN_H - 10,
+    rematchX: px + 10,
+    menuX: px + panelW - 10 - btnW,
+  };
 }
 
 /** Returns true on even half of a repeating blink cycle. */

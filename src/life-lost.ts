@@ -20,7 +20,6 @@ export interface LifeLostDialogState {
 
 interface ResolveLifeLostDialogDeps {
   lifeLostDialog: LifeLostDialogState | null;
-  state: GameState;
   afterLifeLostResolved: (continuing: number[]) => boolean;
 }
 
@@ -29,14 +28,13 @@ interface TickLifeLostDialogDeps {
   lifeLostDialog: LifeLostDialogState | null;
   lifeLostAiDelay: number;
   lifeLostMaxTimer: number;
-  state: GameState;
   isHost: boolean;
   render: () => void;
   logResolved: (dialog: LifeLostDialogState) => void;
   resolveHostDialog: (
     dialog: LifeLostDialogState,
   ) => LifeLostDialogState | null;
-  onNonHostResolved: () => void;
+  onNonHostResolved: (dialog: LifeLostDialogState) => void;
 }
 
 interface BuildLifeLostDialogDeps {
@@ -64,16 +62,8 @@ export const CHOICE_ABANDON = "abandon" as const;
 export function resolveLifeLostDialogRuntime(
   deps: ResolveLifeLostDialogDeps,
 ): LifeLostDialogState | null {
-  const { lifeLostDialog, state, afterLifeLostResolved } = deps;
+  const { lifeLostDialog, afterLifeLostResolved } = deps;
   if (!lifeLostDialog) return null;
-
-  for (const entry of lifeLostDialog.entries) {
-    if (entry.choice === CHOICE_ABANDON && entry.lives > 0) {
-      const player = state.players[entry.playerId]!;
-      player.eliminated = true;
-      player.lives = 0;
-    }
-  }
 
   const continuing = lifeLostDialog.entries
     .filter((e) => e.choice === CHOICE_CONTINUE)
@@ -91,7 +81,6 @@ export function tickLifeLostDialogRuntime(
     lifeLostDialog,
     lifeLostAiDelay,
     lifeLostMaxTimer,
-    state,
     isHost,
     render,
     logResolved,
@@ -129,15 +118,7 @@ export function tickLifeLostDialogRuntime(
     return resolveHostDialog(lifeLostDialog);
   }
 
-  for (const entry of lifeLostDialog.entries) {
-    if (entry.choice !== CHOICE_ABANDON) continue;
-    const player = state.players[entry.playerId];
-    if (!player) continue;
-    player.eliminated = true;
-    player.lives = 0;
-  }
-
-  onNonHostResolved();
+  onNonHostResolved(lifeLostDialog);
   return null;
 }
 

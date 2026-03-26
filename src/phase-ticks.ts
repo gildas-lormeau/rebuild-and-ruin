@@ -24,7 +24,7 @@ export interface HostNetContext {
 interface CannonPhaseNet extends HostNetContext {
   remoteCannonPhantoms: CannonPhantom[];
   lastSentCannonPhantom: Map<number, string>;
-  autoPlaceCannons: (
+  autoPlaceCannons?: (
     player: GameState["players"][number],
     max: number,
     state: GameState,
@@ -49,7 +49,7 @@ interface CannonPhaseNet extends HostNetContext {
 interface BuildPhaseNet extends HostNetContext {
   remotePiecePhantoms: PiecePhantom[];
   lastSentPiecePhantom: Map<number, string>;
-  serializePlayers: (state: GameState) => SerializedPlayer[];
+  serializePlayers?: (state: GameState) => SerializedPlayer[];
   sendOpponentPiecePlaced: (msg: {
     playerId: number;
     row: number;
