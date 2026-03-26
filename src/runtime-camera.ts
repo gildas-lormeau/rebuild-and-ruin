@@ -40,6 +40,7 @@ interface CameraSystem {
   // Coordinate conversion
   getViewport: () => Viewport | null;
   screenToWorld: (x: number, y: number) => WorldPos;
+  worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
   pixelToTile: (x: number, y: number) => { row: number; col: number };
 
   // Pinch gesture handlers
@@ -393,14 +394,25 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Coordinate conversion ---
 
+  const canvasW = GRID_COLS * TILE_SIZE * SCALE;
+  const canvasH = GRID_ROWS * TILE_SIZE * SCALE;
+
   function screenToWorld(x: number, y: number): WorldPos {
     const vp = getViewport();
-    const cw = GRID_COLS * TILE_SIZE * SCALE;
-    const ch = GRID_ROWS * TILE_SIZE * SCALE;
     if (!vp) return { wx: x / SCALE, wy: y / SCALE };
     return {
-      wx: vp.x + (x / cw) * vp.w,
-      wy: vp.y + (y / ch) * vp.h,
+      wx: vp.x + (x / canvasW) * vp.w,
+      wy: vp.y + (y / canvasH) * vp.h,
+    };
+  }
+
+  /** Inverse of screenToWorld: world-pixel → canvas backing-store pixel. */
+  function worldToScreen(wx: number, wy: number): { sx: number; sy: number } {
+    const vp = getViewport();
+    if (!vp) return { sx: wx * SCALE, sy: wy * SCALE };
+    return {
+      sx: ((wx - vp.x) / vp.w) * canvasW,
+      sy: ((wy - vp.y) / vp.h) * canvasH,
     };
   }
 
@@ -537,6 +549,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     updateViewport,
     getViewport,
     screenToWorld,
+    worldToScreen,
     pixelToTile,
     onPinchStart,
     onPinchUpdate,

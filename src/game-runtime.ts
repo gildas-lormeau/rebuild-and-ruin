@@ -691,18 +691,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     }
 
     // World-pixel → canvas backing-store pixel
-    const vp = camera.getViewport();
-    const cw = GRID_COLS * TILE_SIZE * SCALE;
-    const gameH = GRID_ROWS * TILE_SIZE * SCALE;
-    let sx: number;
-    let sy: number;
-    if (vp) {
-      sx = ((wx - vp.x) / vp.w) * cw;
-      sy = ((wy - vp.y) / vp.h) * gameH;
-    } else {
-      sx = wx * SCALE;
-      sy = wy * SCALE;
-    }
+    const { sx, sy } = camera.worldToScreen(wx, wy);
 
     // Canvas backing-store → CSS pixels relative to game container
     const rect = canvas.getBoundingClientRect();
