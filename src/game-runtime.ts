@@ -78,7 +78,7 @@ import { createSelectionSystem } from "./runtime-selection.ts";
 import { createRuntimeState } from "./runtime-state.ts";
 import { towerCenter, unpackTile } from "./spatial.ts";
 import { registerTouchHandlers } from "./touch-input.ts";
-import { createDpad, createEnemyZoomButton, createHomeZoomButton, createQuitButton } from "./touch-ui.ts";
+import { createDpad, createEnemyZoomButton, createFloatingActions, createHomeZoomButton, createQuitButton } from "./touch-ui.ts";
 import type { GameState } from "./types.ts";
 import {
   BANNER_DURATION,
@@ -103,6 +103,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   // DOM-only locals (not shared with consumers)
   let dpad: ReturnType<typeof createDpad> | null = null;
+  let floatingActions: ReturnType<typeof createFloatingActions> | null = null;
   let homeZoomButton: ReturnType<typeof createHomeZoomButton> | null = null;
   let enemyZoomButton: ReturnType<typeof createEnemyZoomButton> | null = null;
   let quitButton: ReturnType<typeof createQuitButton> | null = null;
@@ -557,6 +558,79 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     enemyZoomButton?.update(hasHuman);
     const inLobby = rs.mode === Mode.LOBBY || rs.mode === Mode.OPTIONS || rs.mode === Mode.CONTROLS;
     quitButton?.update(!inLobby ? rs.state.phase : null);
+    updateFloatingActions();
+  }
+
+  /** Position and show/hide the floating Rotate+Confirm buttons over the canvas. */
+  function updateFloatingActions(): void {
+    if (!floatingActions) return;
+    const phase = rs.state?.phase;
+    const human = firstHuman();
+    const hasPhantom = phase === Phase.WALL_BUILD
+      ? (rs.frame.phantoms.humanPhantoms?.length ?? 0) > 0
+      : (rs.frame.phantoms.aiCannonPhantoms?.some(p => p.playerId === human?.playerId) ?? false);
+    const visible = rs.directTouchActive && human !== null &&
+      rs.mode === Mode.GAME &&
+      (phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE) &&
+      hasPhantom;
+    if (!visible) {
+      floatingActions.update(false, 0, 0, false, false);
+      return;
+    }
+
+    // Phantom center in world-pixel (tile-pixel) coordinates
+    let wx: number;
+    let wy: number;
+    if (phase === Phase.WALL_BUILD) {
+      const cursor = human.buildCursor;
+      const piece = human.getCurrentPiece();
+      const pc = piece ? piece.pivot[1] : 0;
+      wx = (cursor.col + pc + 0.5) * TILE_SIZE;
+      wy = cursor.row * TILE_SIZE;
+    } else {
+      const cursor = human.cannonCursor;
+      wx = (cursor.col + 1) * TILE_SIZE;
+      wy = cursor.row * TILE_SIZE;
+    }
+
+    // World-pixel → canvas backing-store pixel
+    const vp = camera.getViewport();
+    const cw = GRID_COLS * TILE_SIZE * SCALE;
+    const gameH = GRID_ROWS * TILE_SIZE * SCALE;
+    let sx: number;
+    let sy: number;
+    if (vp) {
+      sx = ((wx - vp.x) / vp.w) * cw;
+      sy = ((wy - vp.y) / vp.h) * gameH;
+    } else {
+      sx = wx * SCALE;
+      sy = wy * SCALE;
+    }
+
+    // Canvas backing-store → CSS pixels relative to game container
+    const rect = canvas.getBoundingClientRect();
+    const containerRect = gameContainer.getBoundingClientRect();
+    const canvasRatio = canvas.width / canvas.height;
+    const rectRatio = rect.width / rect.height;
+    let contentW: number;
+    let contentH: number;
+    let offsetX: number;
+    let offsetY: number;
+    if (rectRatio > canvasRatio) {
+      contentH = rect.height;
+      contentW = rect.height * canvasRatio;
+      offsetX = (rect.width - contentW) / 2;
+      offsetY = 0;
+    } else {
+      contentW = rect.width;
+      contentH = rect.width / canvasRatio;
+      offsetX = 0;
+      offsetY = (rect.height - contentH) / 2;
+    }
+    const cssX = (sx / canvas.width) * contentW + offsetX + (rect.left - containerRect.left);
+    const cssY = (sy / canvas.height) * contentH + offsetY + (rect.top - containerRect.top);
+    const nearTop = cssY < contentH * 0.15;
+    floatingActions.update(true, cssX, cssY, nearTop, rs.settings.leftHanded);
   }
 
   function rematch() {
@@ -659,6 +733,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs.scoreDeltas = [];
     rs.scoreDeltaTimer = 0;
     rs.scoreDeltaOnDone = null;
+    rs.directTouchActive = false;
     rs.preScores = [];
     resetGameStats();
     camera.resetCamera();
@@ -794,6 +869,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       setQuitMessage: (msg) => { rs.quitMessage = msg; },
       render,
       sendLifeLostChoice: lifeLost.sendLifeLostChoice,
+      setDirectTouchActive: (v) => { rs.directTouchActive = v; },
+      isDirectTouchActive: () => rs.directTouchActive,
       settings: rs.settings,
     };
     registerOnlineInputHandlers(inputDeps);
@@ -817,6 +894,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         lobbyAction: () => lobbyKeyJoin(rs.settings.keyBindings[0]!.confirm),
         render,
         getLeftHanded: () => rs.settings.leftHanded,
+        clearDirectTouch: () => { rs.directTouchActive = false; },
         isSelectionReady,
         options: {
           isActive: () => rs.mode === Mode.OPTIONS,
@@ -857,6 +935,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       homeZoomButton.update(false); // initial state: disabled
       enemyZoomButton.update(false);
       camera.enableMobileZoom();
+
+      // Floating contextual buttons for direct-touch placement
+      const floatingEl = gameContainer.querySelector<HTMLElement>("#floating-actions");
+      if (floatingEl) {
+        floatingActions = createFloatingActions({
+          getState: () => rs.state,
+          withFirstHuman,
+          tryPlacePieceAndSend: inputDeps.tryPlacePieceAndSend,
+          tryPlaceCannonAndSend: inputDeps.tryPlaceCannonAndSend,
+          render,
+        }, floatingEl);
+      }
     }
   }
 

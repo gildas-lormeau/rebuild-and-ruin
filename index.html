@@ -63,12 +63,14 @@
       flex-shrink: 0;
     }
 
-    [data-action="confirm"] {
+    [data-action="confirm"],
+    [data-action="float-confirm"] {
       background: #4a7a4a;
       border-color: #6a9a6a;
     }
 
-    [data-action="rotate"] {
+    [data-action="rotate"],
+    [data-action="float-rotate"] {
       background: #7a7a3a;
       border-color: #9a9a5a;
     }
@@ -146,8 +148,29 @@
     .disabled button { pointer-events: none; }
     .hidden { visibility: hidden; }
 
+    /* ===== Floating contextual buttons (direct-touch placement) ===== */
+    .floating-actions {
+      position: absolute;
+      display: flex;
+      gap: var(--gap);
+      z-index: 10;
+      pointer-events: none;
+      opacity: 0;
+      transform: translateX(-50%);
+      transition: opacity 0.12s ease-out;
+    }
+
+    .floating-actions.visible {
+      opacity: 1;
+    }
+
+    .floating-actions.visible .btn-round {
+      pointer-events: auto;
+    }
+
     /* ===== Game container ===== */
     #game-container {
+      position: relative;
       display: none;
       width: 100vw;
       height: 100dvh;
@@ -469,6 +492,12 @@
 
     <!-- Canvas (shared) -->
     <canvas id="canvas"></canvas>
+
+    <!-- Floating buttons for direct-touch placement (hidden by default) -->
+    <div class="floating-actions" id="floating-actions">
+      <button class="btn-round" data-action="float-rotate" aria-label="Rotate">&#x21bb;</button>
+      <button class="btn-round" data-action="float-confirm" aria-label="Place">&#x2713;</button>
+    </div>
 
     <!-- Landscape: right panel -->
     <aside class="landscape panel-right">

@@ -78,6 +78,11 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     const state = getState();
     if (!state || isLobbyActive()) return;
 
+    // Activate floating buttons when touching the canvas during placement phases
+    if (state.phase === Phase.WALL_BUILD || state.phase === Phase.CANNON_PLACE) {
+      deps.setDirectTouchActive?.(true);
+    }
+
     // Update cursor/crosshair position on touch down
     dispatchPointerMove(x, y, state, deps);
   }, { passive: false });
@@ -146,15 +151,15 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
       dispatchTowerSelect(w.wx, w.wy, state, state.phase === Phase.CASTLE_RESELECT, deps, true);
     }
 
-    // Build: tap to place (cursor already set on touchstart/touchmove)
-    if (tap && state.phase === Phase.WALL_BUILD) {
+    // Build: tap to place (skip when floating buttons handle placement)
+    if (tap && state.phase === Phase.WALL_BUILD && !deps.isDirectTouchActive?.()) {
       withFirstHuman((human) => {
         tryPlacePieceAndSend(human, state);
       });
     }
 
-    // Cannon: tap to place (cursor already set on touchstart/touchmove)
-    if (tap && state.phase === Phase.CANNON_PLACE) {
+    // Cannon: tap to place (skip when floating buttons handle placement)
+    if (tap && state.phase === Phase.CANNON_PLACE && !deps.isDirectTouchActive?.()) {
       withFirstHuman((human) => {
         const max = state.cannonLimits[human.playerId] ?? 0;
         tryPlaceCannonAndSend(human, state, max);

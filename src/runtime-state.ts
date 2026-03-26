@@ -82,6 +82,8 @@ export interface RuntimeState {
 
   // Input tracking
   mouseJoinedSlot: number;
+  /** True when the player is using direct touch on the canvas (not d-pad). */
+  directTouchActive: boolean;
 }
 
 /** Default frame delta time (assumes 60fps). */
@@ -133,5 +135,6 @@ export function createRuntimeState(): RuntimeState {
     gameStats: [],
 
     mouseJoinedSlot: -1,
+    directTouchActive: false,
   };
 }

@@ -99,6 +99,10 @@ export interface RegisterOnlineInputDeps {
     choice: ResolvedChoice,
     playerId: number,
   ) => void;
+  /** Mark direct-touch-active state (shows floating buttons near phantom). */
+  setDirectTouchActive?: (active: boolean) => void;
+  /** True when floating buttons are active — suppresses canvas tap-to-place. */
+  isDirectTouchActive?: () => boolean;
   settings: {
     keyBindings: KeyBindings[];
     seedMode: SeedMode;

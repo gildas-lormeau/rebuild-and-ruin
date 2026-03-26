@@ -31,6 +31,8 @@ interface DpadDeps {
   lobbyAction: () => void;
   render: () => void;
   getLeftHanded: () => boolean;
+  /** Clear the direct-touch-active flag (hides floating buttons). */
+  clearDirectTouch?: () => void;
   /** True after the "Select your home castle" announcement has finished. */
   isSelectionReady?: () => boolean;
   /** Options screen navigation (optional — only wired on touch). */
@@ -60,6 +62,24 @@ interface ZoomButtonDeps {
   myPlayerId: () => number;
   getEnemyZones: () => number[];
   render: () => void;
+}
+
+interface RotateDeps {
+  getState: () => GameState | undefined;
+  withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
+}
+
+interface FloatingActionsDeps {
+  getState: () => GameState | undefined;
+  withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
+  tryPlacePieceAndSend: (human: PlayerController & InputReceiver, state: GameState) => void;
+  tryPlaceCannonAndSend: (human: PlayerController & InputReceiver, state: GameState, max: number) => void;
+  render: () => void;
+}
+
+interface FloatingActionsHandle {
+  /** Reposition + show/hide based on current phantom screen coords. */
+  update: (visible: boolean, x: number, y: number, nearTop: boolean, leftHanded: boolean) => void;
 }
 
 /**
@@ -149,6 +169,7 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
   function wireArrow(btn: HTMLButtonElement, action: Action) {
     btn.addEventListener("touchstart", (e) => {
       e.preventDefault(); e.stopPropagation(); pressDown(btn);
+      deps.clearDirectTouch?.();
       if (isBattle()) battleKeyDown(action); else startRepeat(action);
     }, { passive: false });
     btn.addEventListener("touchend", (e) => {
@@ -220,16 +241,7 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
       deps.render();
       return;
     }
-    const state = deps.getState();
-    if (!state) return;
-    deps.withFirstHuman((human) => {
-      if (state.phase === Phase.WALL_BUILD) {
-        human.rotatePiece();
-      } else if (state.phase === Phase.CANNON_PLACE) {
-        const max = state.cannonLimits[human.playerId] ?? 0;
-        human.cycleCannonMode(state, max);
-      }
-    });
+    dispatchRotate(deps);
     deps.render();
   }
 
@@ -407,6 +419,87 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps, container: HTMLEleme
       if (active) updateLabel();
     },
   };
+}
+
+/**
+ * Wire the floating Rotate + Confirm buttons that appear near the phantom
+ * when the player uses direct touch on the canvas map.
+ */
+export function createFloatingActions(
+  deps: FloatingActionsDeps,
+  el: HTMLElement,
+): FloatingActionsHandle {
+  const btnRotate = el.querySelector<HTMLButtonElement>('[data-action="float-rotate"]')!;
+  const btnConfirm = el.querySelector<HTMLButtonElement>('[data-action="float-confirm"]')!;
+
+  function handleRotate() {
+    hapticTap();
+    dispatchRotate(deps);
+    deps.render();
+  }
+
+  function handleConfirm() {
+    hapticTap();
+    const state = deps.getState();
+    if (!state) return;
+    deps.withFirstHuman((human) => {
+      if (state.phase === Phase.WALL_BUILD) {
+        deps.tryPlacePieceAndSend(human, state);
+      } else if (state.phase === Phase.CANNON_PLACE) {
+        const max = state.cannonLimits[human.playerId] ?? 0;
+        deps.tryPlaceCannonAndSend(human, state, max);
+      }
+    });
+    deps.render();
+  }
+
+  for (const [btn, handler] of [[btnRotate, handleRotate], [btnConfirm, handleConfirm]] as const) {
+    btn.addEventListener("touchstart", (e) => {
+      e.preventDefault(); e.stopPropagation(); pressDown(btn);
+      handler();
+    }, { passive: false });
+    btn.addEventListener("touchend", (e) => {
+      e.preventDefault(); pressUp(btn);
+    }, { passive: false });
+    btn.addEventListener("touchcancel", () => pressUp(btn));
+  }
+
+  const BTN_CSS = 48;
+  const OFFSET_Y = BTN_CSS + 12;
+  const SIDE_OFFSET_X = BTN_CSS + 12;
+
+  return {
+    update(visible, x, y, nearTop, leftHanded) {
+      el.classList.toggle("visible", visible);
+      if (!visible) return;
+      let left: number;
+      let top: number;
+      if (nearTop) {
+        const sign = leftHanded ? 1 : -1;
+        left = x + sign * SIDE_OFFSET_X;
+        top = y;
+      } else {
+        left = x;
+        top = y - OFFSET_Y;
+      }
+      el.style.left = `${Math.round(Math.max(0, left))}px`;
+      el.style.top = `${Math.round(Math.max(0, top))}px`;
+    },
+  };
+}
+
+/** Rotate piece or cycle cannon mode for the first human player. */
+function dispatchRotate(deps: RotateDeps): void {
+  const state = deps.getState();
+  if (!state) return;
+  deps.withFirstHuman((human) => {
+    if (state.phase === Phase.WALL_BUILD) {
+      human.rotatePiece();
+    } else if (state.phase === Phase.CANNON_PLACE) {
+      const max = state.cannonLimits[human.playerId] ?? 0;
+      human.cycleCannonMode(state, max);
+    }
+  });
 }
 
 /** Query all elements matching a data-action within a container. */
