@@ -16,7 +16,7 @@
       --dpad-btn-size: min(72px, 11.25vmin);
       --gap: 2vmin;
       --safe-padding: calc(var(--gap) * 2);
-      --panel-size: clamp(calc(var(--dpad-btn-size) * 3 + var(--safe-padding) * 2), 20vw, 300px);
+      --panel-size: clamp(calc(var(--dpad-btn-size) * 3 + var(--safe-padding) * 3 - var(--gap)), 20vw, 360px);
     }
 
     * {
@@ -228,12 +228,11 @@
     .landscape.panel-left {
       align-items: start;
       width: var(--panel-size);
-      padding: var(--gap);
+      padding: var(--safe-padding);
       container-type: size;
 
       .panel-bottom {
-        padding-block-end: var(--gap);
-        padding-inline-start: var(--gap);
+        padding-inline-end: var(--safe-padding);
       }
     }
 
@@ -246,8 +245,8 @@
     .landscape .loupe {
       /* Available height = container block size - dpad height - panel-bottom padding - panel gap */
       --dpad-h: calc(var(--dpad-btn-size) * 3);
-      --bottom-pad: var(--gap);
-      --available-h: calc(100cqb - var(--dpad-h) - var(--bottom-pad) - var(--gap));
+      --bottom-pad: var(--safe-padding);
+      --available-h: calc(100cqb - var(--dpad-h) - var(--bottom-pad) - var(--safe-padding));
       --loupe-w: min(100cqi, calc(var(--available-h) * 5 / 6));
       width: var(--loupe-w);
       height: calc(var(--loupe-w) * 6 / 5);
@@ -267,6 +266,15 @@
     }
 
     @media (orientation: portrait) {
+      :root {
+        --btn-size: min(72px, 11.25vmin);
+        --dpad-btn-size: min(72px, 11.25vmin);
+      }
+
+      .portrait-bottom .btn-round {
+        flex-shrink: 1;
+      }
+
       .has-touch-panels > .landscape {
         display: none;
       }
@@ -315,7 +323,7 @@
         justify-content: space-between;
         align-items: center;
         padding: var(--safe-padding);
-        gap: var(--gap);
+        gap: var(--safe-padding);
         flex-shrink: 0;
 
         .zoom-group {
