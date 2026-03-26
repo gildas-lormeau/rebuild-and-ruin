@@ -7,8 +7,8 @@
 
 import type { Crosshair, PhantomPiece } from "./controller-interfaces.ts";
 import type { GameMap } from "./geometry-types.ts";
-import type { KeyBindings } from "./player-config.ts";
-import { ACTION_KEYS, MAX_PLAYERS, PLAYER_KEY_BINDINGS } from "./player-config.ts";
+import type { KeyBindings, SeedMode } from "./player-config.ts";
+import { MAX_PLAYERS, PLAYER_KEY_BINDINGS, SEED_CUSTOM, SEED_RANDOM } from "./player-config.ts";
 import type { GameOverOverlay } from "./render-types.ts";
 import type { BalloonFlight, Impact } from "./types.ts";
 import { CannonMode } from "./types.ts";
@@ -45,8 +45,6 @@ export interface GameSettings {
   keyBindings: KeyBindings[];
   leftHanded: boolean; // true = d-pad on right, action buttons on left
 }
-
-export type SeedMode = typeof SEED_RANDOM | typeof SEED_CUSTOM;
 
 export interface ControlsState {
   playerIdx: number;
@@ -105,11 +103,6 @@ export interface LobbyState {
 }
 
 const SETTINGS_KEY = "castles99_settings";
-/** CSS class toggled on #game-container to show/hide it. */
-export const GAME_CONTAINER_ACTIVE = "active";
-/** Custom event dispatched when the router navigates away from the game. */
-export const GAME_EXIT_EVENT = "game-exit";
-export const SEED_RANDOM = "random" as const;
 const DEFAULT_SETTINGS: GameSettings = {
   difficulty: 1,
   rounds: 4,
@@ -120,7 +113,10 @@ const DEFAULT_SETTINGS: GameSettings = {
   keyBindings: [],
   leftHanded: false,
 };
-export const SEED_CUSTOM = "custom" as const;
+/** CSS class toggled on #game-container to show/hide it. */
+export const GAME_CONTAINER_ACTIVE = "active";
+/** Custom event dispatched when the router navigates away from the game. */
+export const GAME_EXIT_EVENT = "game-exit";
 export const DIFFICULTY_LABELS = ["Easy", "Normal", "Hard", "Very Hard"];
 export const DIFFICULTY_PARAMS = [
   { buildTimer: 30, cannonPlaceTimer: 20, firstRoundCannons: 4 }, // Easy
@@ -248,18 +244,6 @@ export function cycleOption(
   }
   // optionsCursor === 4 (Seed) — handled via direct keyboard input in options handler
   // optionsCursor === 5 (Controls) — no left/right value, opened via confirm
-}
-
-/** Apply a key rebinding with conflict resolution (swap conflicting key). */
-export function applyKeyRebinding(kb: KeyBindings, actionKey: string, newKey: string): void {
-  for (const otherAction of ACTION_KEYS) {
-    if (otherAction === actionKey) continue;
-    if (kb[otherAction as keyof KeyBindings] === newKey) {
-      (kb as unknown as Record<string, string>)[otherAction] = kb[actionKey as keyof KeyBindings];
-      break;
-    }
-  }
-  (kb as unknown as Record<string, string>)[actionKey] = newKey;
 }
 
 export function createBattleAnimState(): BattleAnimState {

@@ -10,13 +10,13 @@ import {
   DIFFICULTY_LABELS, DPAD_LABELS,
   formatKeyName,
   type GameSettings, HAPTICS_LABELS, OPTION_NAMES, ROUNDS_OPTIONS,
-  SEED_CUSTOM, saveSettings,
+  saveSettings,
 } from "./game-ui-types.ts";
 import type { GameMap } from "./geometry-types.ts";
 import { generateMap } from "./map-generation.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import type { KeyBindings } from "./player-config.ts";
-import { ACTION_KEYS, getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
+import { ACTION_KEYS, getPlayerColor, PLAYER_NAMES, SEED_CUSTOM } from "./player-config.ts";
 import type { OptionEntry, RenderOverlay } from "./render-types.ts";
 import type { GameState } from "./types.ts";
 import { LOBBY_SKIP_LOCKOUT, LOBBY_SKIP_STEP } from "./types.ts";

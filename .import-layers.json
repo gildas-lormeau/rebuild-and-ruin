@@ -22,7 +22,8 @@
       "src/spatial.ts",
       "src/life-lost.ts",
       "src/castle-build.ts",
-      "src/board-occupancy.ts"
+      "src/board-occupancy.ts",
+      "server/protocol.ts"
     ]
   },
   {
@@ -71,12 +72,8 @@
     ]
   },
   {
-    "name": "UI & render",
+    "name": "render",
     "files": [
-      "src/game-ui-types.ts",
-      "src/game-ui-runtime.ts",
-      "src/game-ui-screens.ts",
-      "src/frame-context.ts",
       "src/render-theme.ts",
       "src/render-sprites.ts",
       "src/render-types.ts",
@@ -86,6 +83,15 @@
       "src/render-composition.ts",
       "src/render-ui.ts",
       "src/render-map.ts"
+    ]
+  },
+  {
+    "name": "game UI",
+    "files": [
+      "src/game-ui-types.ts",
+      "src/game-ui-runtime.ts",
+      "src/game-ui-screens.ts",
+      "src/frame-context.ts"
     ]
   },
   {
@@ -136,6 +142,14 @@
       "src/game-runtime-types.ts",
       "src/game-bootstrap.ts",
       "src/game-runtime.ts"
+    ]
+  },
+  {
+    "name": "server",
+    "files": [
+      "server/game-room.ts",
+      "server/room-manager.ts",
+      "server/server.ts"
     ]
   },
   {

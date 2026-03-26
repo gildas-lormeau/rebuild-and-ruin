@@ -23,6 +23,8 @@ interface PlayerColor {
   interiorDark: RGB;
 }
 
+export type SeedMode = typeof SEED_RANDOM | typeof SEED_CUSTOM;
+
 export const PLAYER_NAMES = ["Red", "Blue", "Gold"] as const;
 // Player castle colors: wall and interior (checkerboard light/dark)
 export const PLAYER_COLORS: readonly PlayerColor[] = [
@@ -72,10 +74,24 @@ export const MAX_PLAYERS = PLAYER_NAMES.length;
 /** Ordered action keys for the controls screen (matches KeyBindings fields). */
 export const ACTION_CONFIRM = "confirm" as const;
 export const ACTION_KEYS: readonly (keyof KeyBindings)[] = ["up", "down", "left", "right", ACTION_CONFIRM, "rotate"];
+export const SEED_RANDOM = "random" as const;
+export const SEED_CUSTOM = "custom" as const;
 
 /** Get player color with safe modulo wrapping. */
 export function getPlayerColor(playerId: number): PlayerColor {
   return PLAYER_COLORS[playerId % PLAYER_COLORS.length]!;
+}
+
+/** Apply a key rebinding with conflict resolution (swap conflicting key). */
+export function applyKeyRebinding(kb: KeyBindings, actionKey: string, newKey: string): void {
+  for (const otherAction of ACTION_KEYS) {
+    if (otherAction === actionKey) continue;
+    if (kb[otherAction as keyof KeyBindings] === newKey) {
+      (kb as unknown as Record<string, string>)[otherAction] = kb[actionKey as keyof KeyBindings];
+      break;
+    }
+  }
+  (kb as unknown as Record<string, string>)[actionKey] = newKey;
 }
 
 if (
