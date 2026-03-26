@@ -9,7 +9,7 @@
  */
 
 import { hapticTap } from "./haptics.ts";
-import { PLAYER_COLORS } from "./player-config.ts";
+import { ACTION_CONFIRM, PLAYER_COLORS } from "./player-config.ts";
 import type { InputReceiver, PlayerController } from "./player-controller.ts";
 import { rgb, TOUCH_ZOOM_ENEMY_BG, TOUCH_ZOOM_HOME_BG } from "./render-theme.ts";
 import type { SelectionState } from "./selection.ts";
@@ -102,7 +102,7 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
   const btnsDown = queryAll(container, "down");
   const btnsLeft = queryAll(container, "left");
   const btnsRight = queryAll(container, "right");
-  const btnsAction = queryAll(container, "confirm");
+  const btnsAction = queryAll(container, ACTION_CONFIRM);
   const btnsRotate = queryAll(container, "rotate");
 
   // --- Key-repeat for arrows ---

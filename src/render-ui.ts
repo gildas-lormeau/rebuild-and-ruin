@@ -3,6 +3,7 @@
  */
 
 import { FOCUS_MENU, FOCUS_REMATCH } from "./game-ui-types.ts";
+import { CHOICE_CONTINUE, CHOICE_PENDING } from "./life-lost.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
   LIFE_LOST_BTN_H as BTN_H,
@@ -337,7 +338,7 @@ export function drawLifeLostDialog(
       octx.fillText("Eliminated", cx, py + 40);
     }
 
-    if (entry.choice === "pending" && entry.lives > 0) {
+    if (entry.choice === CHOICE_PENDING && entry.lives > 0) {
       // Continue / Abandon buttons with focus highlight
       const btnW = BTN_W,
         btnH = BTN_H;
@@ -379,9 +380,9 @@ export function drawLifeLostDialog(
       // Resolved state
       octx.font = FONT_LABEL;
       octx.fillStyle =
-        entry.choice === "continue" ? BTN_CONTINUE.stroke : BTN_ABANDON.stroke;
+        entry.choice === CHOICE_CONTINUE ? BTN_CONTINUE.stroke : BTN_ABANDON.stroke;
       octx.fillText(
-        entry.choice === "continue" ? "Continuing..." : "Abandoned",
+        entry.choice === CHOICE_CONTINUE ? "Continuing..." : "Abandoned",
         cx,
         py + panelH - 18,
       );

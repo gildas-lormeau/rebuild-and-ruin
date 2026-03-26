@@ -36,10 +36,6 @@ export function buildLobbyConfirmKeys(
     const kb = keyBindings[i]!;
     m.set(kb.confirm, i);
     m.set(kb.confirm.toUpperCase(), i);
-    if (kb.confirmAlt && kb.confirmAlt !== kb.confirm) {
-      m.set(kb.confirmAlt, i);
-      m.set(kb.confirmAlt.toUpperCase(), i);
-    }
   }
   return m;
 }

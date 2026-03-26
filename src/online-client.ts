@@ -30,10 +30,11 @@ import type { GameRuntime } from "./game-runtime.ts";
 import { createGameRuntime } from "./game-runtime.ts";
 import { GAME_CONTAINER_ACTIVE, Mode } from "./game-ui-types.ts";
 import { GRID_COLS } from "./grid.ts";
+import { CHOICE_PENDING } from "./life-lost.ts";
 import { getWsUrl } from "./online-config.ts";
 import { broadcastLocalCrosshair, extendWithRemoteCrosshairs } from "./online-host-crosshairs.ts";
 import { rebuildControllersForPhase, syncAccumulatorsFromTimer } from "./online-host-promotion.ts";
-import { setupLobbyUi, showLobbySection } from "./online-lobby-ui.ts";
+import { SECTION_LOBBY_MENU, setupLobbyUi, showLobbySection } from "./online-lobby-ui.ts";
 import {
   handleBattleStartTransition,
   handleBuildEndTransition,
@@ -201,7 +202,7 @@ const transitionCtx = {
     if (dialog) {
       for (const [pid, choice] of session.earlyLifeLostChoices) {
         const entry = dialog.entries.find(e => e.playerId === pid);
-        if (entry && entry.choice === "pending") entry.choice = choice;
+        if (entry && entry.choice === CHOICE_PENDING) entry.choice = choice;
       }
     }
     session.earlyLifeLostChoices.clear();
@@ -341,7 +342,7 @@ function showLobby(): void {
   canvas.parentElement!.classList.remove(GAME_CONTAINER_ACTIVE);
   roomCodeOverlay.style.display = "none";
   lobbyEl.style.display = "block";
-  showLobbySection("lobby-menu", lobbyElements);
+  showLobbySection(SECTION_LOBBY_MENU, lobbyElements);
   resetSession();
 }
 

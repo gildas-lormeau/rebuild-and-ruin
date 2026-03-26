@@ -58,21 +58,5 @@
   {
     "type": "number",
     "key": "50"
-  },
-  {
-    "type": "number",
-    "key": "80"
-  },
-  {
-    "type": "string",
-    "key": "confirm"
-  },
-  {
-    "type": "string",
-    "key": "lobby-menu"
-  },
-  {
-    "type": "string",
-    "key": "pending"
   }
 ]

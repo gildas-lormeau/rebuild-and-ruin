@@ -3,7 +3,7 @@ import { MSG } from "../server/protocol.ts";
 import type { ImpactEvent } from "./battle-system.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
-import { CHOICE_ABANDON, CHOICE_CONTINUE, type LifeLostChoice } from "./life-lost.ts";
+import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type LifeLostChoice } from "./life-lost.ts";
 import type { OrbitParams } from "./player-controller.ts";
 import type { SelectionState } from "./selection.ts";
 import { CannonMode, type GameState } from "./types.ts";
@@ -273,7 +273,7 @@ export function handleServerIncrementalMessage(
         const entry = dialog.entries.find(
           (e) => e.playerId === msg.playerId,
         );
-        if (entry && entry.choice === "pending") {
+        if (entry && entry.choice === CHOICE_PENDING) {
           entry.choice = msg.choice;
         }
       } else {

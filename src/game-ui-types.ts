@@ -271,22 +271,12 @@ export function cycleOption(
 export function applyKeyRebinding(kb: KeyBindings, actionKey: string, newKey: string): void {
   for (const otherAction of ACTION_KEYS) {
     if (otherAction === actionKey) continue;
-    if (otherAction === "confirmAlt") continue;
     if (kb[otherAction as keyof KeyBindings] === newKey) {
       (kb as unknown as Record<string, string>)[otherAction] = kb[actionKey as keyof KeyBindings];
-      if (otherAction === "confirm") {
-        kb.confirmAlt = kb[actionKey as keyof KeyBindings];
-      }
       break;
-    }
-    if (otherAction === "confirm" && kb.confirmAlt === newKey) {
-      kb.confirmAlt = kb[actionKey as keyof KeyBindings];
     }
   }
   (kb as unknown as Record<string, string>)[actionKey] = newKey;
-  if (actionKey === "confirm") {
-    kb.confirmAlt = newKey;
-  }
 }
 
 export function createBattleAnimState(): BattleAnimState {

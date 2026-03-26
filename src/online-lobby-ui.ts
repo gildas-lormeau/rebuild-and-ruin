@@ -30,8 +30,11 @@ interface SetupLobbyUiDeps {
   doc?: Document;
 }
 
+const SECTION_LOBBY_CREATE = "lobby-create";
+const SECTION_LOBBY_JOIN = "lobby-join";
 const ROOM_CODE_LENGTH = 4;
 const ROOM_POLL_INTERVAL_MS = 3000;
+export const SECTION_LOBBY_MENU = "lobby-menu";
 
 /** Stored interval so repeated setupLobbyUi calls don't leak timers. */
 let roomPollTimer: ReturnType<typeof setInterval> | null = null;
@@ -51,16 +54,16 @@ export function setupLobbyUi({
   };
 
   elements.btnCreate.addEventListener("click", () =>
-    showLobbySection("lobby-create", sections, doc),
+    showLobbySection(SECTION_LOBBY_CREATE, sections, doc),
   );
   elements.btnJoinShow.addEventListener("click", () =>
-    showLobbySection("lobby-join", sections, doc),
+    showLobbySection(SECTION_LOBBY_JOIN, sections, doc),
   );
   elements.btnCreateBack.addEventListener("click", () =>
-    showLobbySection("lobby-menu", sections, doc),
+    showLobbySection(SECTION_LOBBY_MENU, sections, doc),
   );
   elements.btnJoinBack.addEventListener("click", () =>
-    showLobbySection("lobby-menu", sections, doc),
+    showLobbySection(SECTION_LOBBY_MENU, sections, doc),
   );
 
   // Pending action replaces any previous one so rapid clicks / Create→Join

@@ -14,7 +14,6 @@ export interface KeyBindings {
   left: string;
   right: string;
   confirm: string; // place / fire / select
-  confirmAlt: string; // alternate confirm key
   rotate: string; // rotate piece / cycle cannon mode / accelerate crosshair
 }
 
@@ -50,7 +49,6 @@ export const PLAYER_KEY_BINDINGS: readonly KeyBindings[] = [
     left: "ArrowLeft",
     right: "ArrowRight",
     confirm: "n",
-    confirmAlt: " ",
     rotate: "b",
   },
   {
@@ -59,7 +57,6 @@ export const PLAYER_KEY_BINDINGS: readonly KeyBindings[] = [
     left: "a",
     right: "d",
     confirm: "f",
-    confirmAlt: "f",
     rotate: "e",
   },
   {
@@ -68,13 +65,13 @@ export const PLAYER_KEY_BINDINGS: readonly KeyBindings[] = [
     left: "j",
     right: "l",
     confirm: "h",
-    confirmAlt: "h",
     rotate: "u",
   },
 ];
 export const MAX_PLAYERS = PLAYER_NAMES.length;
 /** Ordered action keys for the controls screen (matches KeyBindings fields). */
-export const ACTION_KEYS: readonly (keyof KeyBindings)[] = ["up", "down", "left", "right", "confirm", "rotate"];
+export const ACTION_CONFIRM = "confirm" as const;
+export const ACTION_KEYS: readonly (keyof KeyBindings)[] = ["up", "down", "left", "right", ACTION_CONFIRM, "rotate"];
 
 /** Get player color with safe modulo wrapping. */
 export function getPlayerColor(playerId: number): PlayerColor {

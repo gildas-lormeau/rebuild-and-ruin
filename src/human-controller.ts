@@ -292,7 +292,6 @@ function buildKeyMap(keys: KeyBindings): Map<string, Action> {
     [keys.left.toLowerCase(), Action.LEFT],
     [keys.right.toLowerCase(), Action.RIGHT],
     [keys.confirm.toLowerCase(), Action.CONFIRM],
-    [keys.confirmAlt.toLowerCase(), Action.CONFIRM],
     [keys.rotate.toLowerCase(), Action.ROTATE],
   ]);
 }
