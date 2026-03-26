@@ -46,6 +46,7 @@ import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
 import { type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
 import { clientToCanvas, dispatchPointerMove } from "./input-dispatch.ts";
+import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING } from "./life-lost.ts";
 import { createLoupe, type LoupeHandle } from "./loupe.ts";
 import { generateMap } from "./map-generation.ts";
 import {
@@ -571,9 +572,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     const hasHuman = firstHuman() !== null;
     const inGame = rs.mode === Mode.GAME || rs.mode === Mode.SELECTION;
-    const controlsActive = inGame ? hasHuman : rs.mode === Mode.OPTIONS;
-    dpad?.update(controlsActive ? (rs.state?.phase ?? Phase.WALL_BUILD) : null);
-    // Confirm button: active in game (placement validity), options, and lobby; disabled otherwise
+    const dialogNav = hasHuman && (rs.mode === Mode.LIFE_LOST || rs.mode === Mode.STOPPED);
+    const controlsActive = inGame ? hasHuman : (rs.mode === Mode.OPTIONS || dialogNav);
+    dpad?.update(
+      controlsActive ? (rs.state?.phase ?? Phase.WALL_BUILD) : null,
+      dialogNav, // disable rotate in dialog navigation modes
+    );
+    // Confirm button: active in game (placement validity), options, lobby, and dialogs
     if (dpad) {
       const confirmActive = controlsActive || rs.mode === Mode.LOBBY;
       if (!confirmActive) {
@@ -957,6 +962,40 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           confirm: () => {
             if (realOptionIdx() === 5) showControls();
             else closeOptions();
+          },
+        },
+        lifeLost: {
+          isActive: () => rs.mode === Mode.LIFE_LOST && rs.lifeLostDialog !== null,
+          toggleFocus: () => {
+            const human = firstHuman();
+            if (!human || !rs.lifeLostDialog) return;
+            const entry = rs.lifeLostDialog.entries.find(
+              (e) => e.playerId === human.playerId && e.choice === CHOICE_PENDING,
+            );
+            if (entry) entry.focused = entry.focused === 0 ? 1 : 0;
+          },
+          confirm: () => {
+            const human = firstHuman();
+            if (!human || !rs.lifeLostDialog) return;
+            const entry = rs.lifeLostDialog.entries.find(
+              (e) => e.playerId === human.playerId && e.choice === CHOICE_PENDING,
+            );
+            if (!entry) return;
+            entry.choice = entry.focused === 0 ? CHOICE_CONTINUE : CHOICE_ABANDON;
+            lifeLost.sendLifeLostChoice(entry.choice, entry.playerId);
+          },
+        },
+        gameOver: {
+          isActive: () => rs.mode === Mode.STOPPED && rs.frame.gameOver !== undefined,
+          toggleFocus: () => {
+            if (!rs.frame.gameOver) return;
+            rs.frame.gameOver.focused = rs.frame.gameOver.focused === FOCUS_REMATCH ? FOCUS_MENU : FOCUS_REMATCH;
+            render();
+          },
+          confirm: () => {
+            if (!rs.frame.gameOver) return;
+            if (rs.frame.gameOver.focused === FOCUS_REMATCH) rematch();
+            else returnToLobby();
           },
         },
       }, gameContainer);

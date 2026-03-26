@@ -44,6 +44,18 @@ interface DpadDeps {
     changeValue: (dir: -1 | 1) => void;
     confirm: () => void;
   };
+  /** Life-lost dialog navigation (optional — only wired on touch). */
+  lifeLost?: {
+    isActive: () => boolean;
+    toggleFocus: () => void;
+    confirm: () => void;
+  };
+  /** Game-over screen navigation (optional — only wired on touch). */
+  gameOver?: {
+    isActive: () => boolean;
+    toggleFocus: () => void;
+    confirm: () => void;
+  };
 }
 
 interface QuitButtonDeps {
@@ -91,7 +103,7 @@ interface FloatingActionsHandle {
  * and attaches event handlers.
  */
 export function createDpad(deps: DpadDeps, container: HTMLElement): {
-  update: (phase: Phase | null) => void;
+  update: (phase: Phase | null, disableRotate?: boolean) => void;
   setLeftHanded: (lh: boolean) => void;
   setConfirmValid: (valid: boolean) => void;
 } {
@@ -130,6 +142,14 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
       else if (action === Action.DOWN) deps.options.navigate(1);
       else if (action === Action.LEFT) deps.options.changeValue(-1);
       else if (action === Action.RIGHT) deps.options.changeValue(1);
+      return;
+    }
+    if (deps.lifeLost?.isActive()) {
+      if (action === Action.LEFT || action === Action.RIGHT) deps.lifeLost.toggleFocus();
+      return;
+    }
+    if (deps.gameOver?.isActive()) {
+      if (action === Action.LEFT || action === Action.RIGHT) deps.gameOver.toggleFocus();
       return;
     }
     const state = deps.getState();
@@ -196,6 +216,14 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
       deps.options.confirm();
       return;
     }
+    if (deps.lifeLost?.isActive()) {
+      deps.lifeLost.confirm();
+      return;
+    }
+    if (deps.gameOver?.isActive()) {
+      deps.gameOver.confirm();
+      return;
+    }
     const state = deps.getState();
     if (!state || !lastPhase) {
       deps.lobbyAction();
@@ -257,12 +285,12 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
   container.classList.toggle("left-handed", deps.getLeftHanded());
 
   return {
-    update(phase: Phase | null) {
+    update(phase: Phase | null, disableRotate?: boolean) {
       stopRepeat();
       lastPhase = phase;
       const inGame = phase !== null;
       for (const dpad of dpads) dpad.classList.toggle("disabled", !inGame);
-      const rotateActive = inGame && !isSelectionPhase(phase!);
+      const rotateActive = inGame && !isSelectionPhase(phase!) && !disableRotate;
       for (const btn of btnsRotate) btn.classList.toggle("disabled", !rotateActive);
     },
     setLeftHanded(lh: boolean) {
