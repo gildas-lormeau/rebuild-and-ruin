@@ -12,6 +12,7 @@
 
 import { chromium, type Browser, type Page } from "playwright";
 import { writeFileSync, mkdirSync } from "fs";
+import process from "node:process";
 
 const ALL = process.argv.includes("--all");
 
@@ -110,7 +111,7 @@ const CSS_PROPS = [
   "container-type", "overflow", "order",
 ];
 
-async function dumpBoxes(page: Page): Promise<DumpResult> {
+function dumpBoxes(page: Page): Promise<DumpResult> {
   return page.evaluate((props: string[]) => {
     const selectors = [
       "#game-container",
@@ -145,7 +146,7 @@ async function dumpBoxes(page: Page): Promise<DumpResult> {
         });
       }
     }
-    return { viewport: { w: window.innerWidth, h: window.innerHeight }, boxes: results };
+    return { viewport: { w: innerWidth, h: innerHeight }, boxes: results };
   }, CSS_PROPS);
 }
 

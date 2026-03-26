@@ -6,7 +6,7 @@
  * and touch UI controls (touch-ui.ts).
  */
 
-import type { InputReceiver, PlayerController } from "./controller-types.ts";
+import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import type { LifeLostChoice } from "./life-lost.ts";
 import type { SelectionState } from "./selection.ts";

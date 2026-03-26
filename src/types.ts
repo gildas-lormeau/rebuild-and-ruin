@@ -40,6 +40,17 @@ export interface Cannon extends TilePos {
 }
 
 /** A cannon captured by a propaganda balloon — fires for the balloon owner during battle. */
+export interface CastleData {
+  /** Wall tile positions encoded as row*GRID_COLS+col. */
+  walls: Set<number>;
+  /** Interior tile positions encoded as row*GRID_COLS+col. */
+  interior: Set<number>;
+  /** Cannon positions (top-left of 2×2 or 3×3 super) with HP. */
+  cannons: Cannon[];
+  /** Player index (for color). */
+  playerId: number;
+}
+
 export interface CapturedCannon {
   /** The captured cannon reference. */
   cannon: Cannon;
@@ -49,6 +60,21 @@ export interface CapturedCannon {
   victimId: number;
   /** The player who owns the balloon (capturer). */
   capturerId: number;
+}
+
+/** Result from nextReadyCombined — either an own cannon or a captured one. */
+export type CombinedCannonResult =
+  | { type: "own"; combinedIdx: number; ownIdx: number }
+  | { type: "captured"; combinedIdx: number; cc: CapturedCannon };
+
+/** Flight path for a balloon animation. */
+export interface BalloonFlight {
+  /** Start position in pixels (balloon base center). */
+  startX: number;
+  startY: number;
+  /** Target position in pixels (captured cannon center). */
+  endX: number;
+  endY: number;
 }
 
 export interface Cannonball {

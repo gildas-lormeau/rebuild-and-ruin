@@ -7,7 +7,7 @@
  */
 
 import { createController, isHuman } from "./controller-factory.ts";
-import type { InputReceiver, PlayerController } from "./controller-types.ts";
+import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
 import { computeFrameContext } from "./frame-context.ts";
 import { bootstrapGame } from "./game-bootstrap.ts";
 import type { GameRuntime, RuntimeConfig } from "./game-runtime-types.ts";
@@ -39,8 +39,6 @@ import {
   createTimerAccums,
   cycleOption,
   DIFFICULTY_PARAMS,
-  FOCUS_MENU,
-  FOCUS_REMATCH,
   Mode,
   ROUNDS_OPTIONS,
 } from "./game-ui-types.ts";
@@ -70,10 +68,12 @@ import {
   buildOnlineOverlay,
   buildRenderSummaryMessage,
   buildStatusBar,
+  computeLobbyLayout,
+  gameOverButtonHitTest,
 } from "./render-composition.ts";
 import { createLoupe, type LoupeHandle } from "./render-loupe.ts";
 import { getSceneCanvas, renderMap } from "./render-map.ts";
-import { computeLobbyLayout, gameOverButtonHitTest } from "./render-ui.ts";
+import { FOCUS_MENU, FOCUS_REMATCH } from "./render-types.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import type { LifeLostSystem } from "./runtime-life-lost.ts";

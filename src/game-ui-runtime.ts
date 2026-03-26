@@ -6,7 +6,7 @@
 
 import { nextReadyCombined } from "./battle-system.ts";
 import { resetCannonFacings } from "./cannon-system.ts";
-import type { Crosshair, PlayerController } from "./controller-types.ts";
+import type { Crosshair, PlayerController } from "./controller-interfaces.ts";
 import { computeCannonLimitsForPhase, rebuildHomeCastle } from "./game-engine.ts";
 import { Mode } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";

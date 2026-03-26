@@ -1,7 +1,7 @@
 import { MSG, type ServerMessage } from "../server/protocol.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import { resetCannonFacings } from "./cannon-system.ts";
-import type { OrbitParams } from "./controller-types.ts";
+import type { OrbitParams } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import {
   applyGruntsCheckpoint,

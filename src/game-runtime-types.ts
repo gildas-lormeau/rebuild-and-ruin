@@ -5,17 +5,14 @@
  * on the factory closure, and to let consumers import just the types.
  */
 
-import type { GameMessage, ServerMessage } from "../server/protocol.ts";
-import type { BalloonFlight } from "./battle-system.ts";
-import type { Crosshair, InputReceiver, PlayerController } from "./controller-types.ts";
+import type { GameMessage, SerializedPlayer, ServerMessage } from "../server/protocol.ts";
+import type { Crosshair, InputReceiver, PlayerController } from "./controller-interfaces.ts";
 import type { UIContext } from "./game-ui-screens.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
-import type { SerializedPlayer } from "./online-serialize.ts";
-import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
-import type { WatcherTimingState } from "./online-watcher-battle.ts";
+import type { CannonPhantom, PiecePhantom, WatcherTimingState } from "./online-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { SelectionState } from "./selection.ts";
-import type { GameState } from "./types.ts";
+import type { BalloonFlight, GameState } from "./types.ts";
 
 export interface RuntimeConfig {
   canvas: HTMLCanvasElement;

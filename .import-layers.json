@@ -1,0 +1,141 @@
+[
+  {
+    "name": "leaf utilities",
+    "files": [
+      "src/grid.ts",
+      "src/platform.ts",
+      "src/rng.ts",
+      "src/router.ts"
+    ]
+  },
+  {
+    "name": "geometry & pieces",
+    "files": [
+      "src/geometry-types.ts",
+      "src/pieces.ts"
+    ]
+  },
+  {
+    "name": "core types",
+    "files": [
+      "src/types.ts",
+      "src/spatial.ts",
+      "src/life-lost.ts",
+      "src/castle-build.ts",
+      "src/board-occupancy.ts"
+    ]
+  },
+  {
+    "name": "config & interfaces",
+    "files": [
+      "src/player-config.ts",
+      "src/controller-interfaces.ts",
+      "src/tick-context.ts"
+    ]
+  },
+  {
+    "name": "game systems",
+    "files": [
+      "src/cannon-system.ts",
+      "src/grunt-system.ts",
+      "src/battle-system.ts",
+      "src/build-system.ts",
+      "src/map-generation.ts",
+      "src/game-engine.ts",
+      "src/phase-banner.ts"
+    ]
+  },
+  {
+    "name": "AI & controllers",
+    "files": [
+      "src/ai-constants.ts",
+      "src/ai-build-types.ts",
+      "src/ai-castle-rect.ts",
+      "src/ai-build-score.ts",
+      "src/ai-build-fallback.ts",
+      "src/ai-build-target.ts",
+      "src/ai-strategy-battle.ts",
+      "src/ai-strategy-build.ts",
+      "src/ai-strategy-cannon.ts",
+      "src/ai-strategy.ts",
+      "src/ai-controller.ts",
+      "src/controller-types.ts",
+      "src/controller-human.ts",
+      "src/controller-factory.ts",
+      "src/selection.ts"
+    ]
+  },
+  {
+    "name": "UI & render",
+    "files": [
+      "src/game-ui-types.ts",
+      "src/game-ui-runtime.ts",
+      "src/game-ui-screens.ts",
+      "src/frame-context.ts",
+      "src/render-theme.ts",
+      "src/render-sprites.ts",
+      "src/render-types.ts",
+      "src/render-loupe.ts",
+      "src/render-effects.ts",
+      "src/render-towers.ts",
+      "src/render-composition.ts",
+      "src/render-ui.ts",
+      "src/render-map.ts"
+    ]
+  },
+  {
+    "name": "input",
+    "files": [
+      "src/input-haptics.ts",
+      "src/input-recorder.ts",
+      "src/input-dispatch.ts",
+      "src/input-touch-ui.ts",
+      "src/input-touch.ts",
+      "src/input.ts"
+    ]
+  },
+  {
+    "name": "online",
+    "files": [
+      "src/online-config.ts",
+      "src/online-types.ts",
+      "src/online-lobby-ui.ts",
+      "src/online-server-lifecycle.ts",
+      "src/online-session.ts",
+      "src/online-serialize.ts",
+      "src/online-send-actions.ts",
+      "src/online-checkpoints.ts",
+      "src/online-watcher-battle.ts",
+      "src/online-watcher-tick.ts",
+      "src/online-phase-transitions.ts",
+      "src/online-server-events.ts",
+      "src/online-host-crosshairs.ts",
+      "src/online-host-promotion.ts"
+    ]
+  },
+  {
+    "name": "runtime",
+    "files": [
+      "src/runtime-state.ts",
+      "src/runtime-camera.ts",
+      "src/runtime-life-lost.ts",
+      "src/runtime-phase-ticks.ts",
+      "src/runtime-selection.ts",
+      "src/phase-ticks.ts",
+      "src/battle-ticks.ts",
+      "src/game-runtime-types.ts",
+      "src/game-bootstrap.ts",
+      "src/game-runtime.ts"
+    ]
+  },
+  {
+    "name": "entry points",
+    "files": [
+      "src/entry.ts",
+      "src/main.ts",
+      "src/online-client.ts",
+      "src/headless-sim.ts",
+      "src/headless-test.ts"
+    ]
+  }
+]

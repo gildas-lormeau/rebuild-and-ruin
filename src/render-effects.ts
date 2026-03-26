@@ -9,11 +9,10 @@ import { drawSprite } from "./render-sprites.ts";
 import type { RGB } from "./render-theme.ts";
 import {
   BONUS_FLASH_MS, CROSSHAIR_ARM_IDLE, CROSSHAIR_ARM_PULSE,
-  CROSSHAIR_ARM_READY, CROSSHAIR_IDLE_FREQ,CROSSHAIR_READY_FREQ, FONT_TIMER,
-  rgb, SHADOW_COLOR,setCenterText, 
+  CROSSHAIR_ARM_READY, CROSSHAIR_IDLE_FREQ,CROSSHAIR_READY_FREQ, drawShadowText, FONT_TIMER,
+  rgb, SHADOW_COLOR,setCenterText,
 } from "./render-theme.ts";
 import type { MapData, RenderOverlay } from "./render-types.ts";
-import { drawShadowText } from "./render-ui.ts";
 import { facingToCardinal } from "./spatial.ts";
 import { CannonMode, IMPACT_FLASH_DURATION } from "./types.ts";
 

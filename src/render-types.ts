@@ -3,21 +3,53 @@
  * circular dependencies between render-map and render-effects/towers/ui.
  */
 
-import type { ControlsPlayer, GameOverOverlay, LifeLostDialogOverlay, OptionEntry } from "./game-ui-types.ts";
 import type { House, PixelPos, TilePos, Tower } from "./geometry-types.ts";
+import type { LifeLostChoice } from "./life-lost.ts";
 import type { RGB } from "./render-theme.ts";
-import type { BurningPit, Cannon, Grunt, Impact } from "./types.ts";
+import type { BurningPit, CastleData, Grunt, Impact } from "./types.ts";
 import { CannonMode } from "./types.ts";
 
-export interface CastleData {
-  /** Wall tile positions encoded as row*GRID_COLS+col. */
-  walls: Set<number>;
-  /** Interior tile positions encoded as row*GRID_COLS+col. */
-  interior: Set<number>;
-  /** Cannon positions (top-left of 2×2 or 3×3 super) with HP. */
-  cannons: Cannon[];
-  /** Player index (for color). */
-  playerId: number;
+export type { CastleData } from "./types.ts";
+
+/** A single row in the options screen. */
+export interface OptionEntry {
+  name: string;
+  value: string;
+  editable: boolean;
+}
+
+/** A player column in the controls rebinding screen. */
+export interface ControlsPlayer {
+  name: string;
+  color: RGB;
+  bindings: string[];
+}
+
+export interface PlayerStats { wallsDestroyed: number; cannonsKilled: number; }
+
+export type GameOverFocus = "rematch" | "menu";
+
+/** Game-over overlay data shared by FrameData and UIOverlay. */
+export interface GameOverOverlay {
+  winner: string;
+  scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: PlayerStats }[];
+  focused: GameOverFocus;
+}
+
+/** Life-lost dialog overlay data shared by UIOverlay and render-composition. */
+export interface LifeLostDialogOverlay {
+  entries: {
+    playerId: number;
+    name: string;
+    lives: number;
+    color: RGB;
+    choice: LifeLostChoice;
+    focused: number;
+    px: number;
+    py: number;
+  }[];
+  timer: number;
+  maxTimer: number;
 }
 
 export interface MapData {
@@ -161,3 +193,6 @@ export interface Viewport {
   w: number;
   h: number;
 }
+
+export const FOCUS_REMATCH: GameOverFocus = "rematch";
+export const FOCUS_MENU: GameOverFocus = "menu";

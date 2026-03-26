@@ -14,7 +14,7 @@ import {
   tickCastleBuildAnimation,
 } from "./castle-build.ts";
 import { isHuman } from "./controller-factory.ts";
-import type { InputReceiver, PlayerController } from "./controller-types.ts";
+import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
 import { setupTowerSelection } from "./game-bootstrap.ts";
 import {
   advanceToCannonPlacePhase,

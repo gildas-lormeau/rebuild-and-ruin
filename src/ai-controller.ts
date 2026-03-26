@@ -22,12 +22,12 @@ import {
 } from "./cannon-system.ts";
 import {
   type AiAnimatable,
-  BaseController,
   CROSSHAIR_SPEED,
   type OrbitParams,
   type PhantomCannon,
   type PhantomPiece,
-} from "./controller-types.ts";
+} from "./controller-interfaces.ts";
+import { BaseController } from "./controller-types.ts";
 import type {
   PixelPos,
   StrategicPixelPos,

@@ -21,7 +21,7 @@ import {
   rotateToward,
   TILE_CENTER_OFFSET,
 } from "./spatial.ts";
-import type { Cannon, Cannonball, CapturedCannon, GameState } from "./types.ts";
+import type { BalloonFlight, Cannon, Cannonball, CapturedCannon, CombinedCannonResult, GameState } from "./types.ts";
 import {
   BALL_SPEED,
   BALLOON_HITS_NEEDED,
@@ -34,11 +34,6 @@ import {
   SUPER_BALLOON_HITS_NEEDED,
   SUPER_GUN_THREAT_WEIGHT,
 } from "./types.ts";
-
-/** Result from nextReadyCombined — either an own cannon or a captured one. */
-export type CombinedCannonResult =
-  | { type: "own"; combinedIdx: number; ownIdx: number }
-  | { type: "captured"; combinedIdx: number; cc: CapturedCannon };
 
 /** An event emitted by applyImpact for network relay. */
 export type ImpactEvent =
@@ -65,16 +60,6 @@ export type ImpactEvent =
 interface CannonballUpdateResult {
   impacts: TilePos[];
   events: ImpactEvent[];
-}
-
-/** Flight path for a balloon animation. */
-export interface BalloonFlight {
-  /** Start position in pixels (balloon base center). */
-  startX: number;
-  startY: number;
-  /** Target position in pixels (captured cannon center). */
-  endX: number;
-  endY: number;
 }
 
 /** Cannon rotation speed in radians per second. */

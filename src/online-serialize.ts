@@ -5,13 +5,10 @@
 
 import type { FullStateMessage, SerializedPlayer } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
-import type { BalloonFlight } from "./battle-system.ts";
 import { buildCastle } from "./map-generation.ts";
 import { Rng } from "./rng.ts";
-import type { GameState } from "./types.ts";
+import type { BalloonFlight, GameState } from "./types.ts";
 import { CannonMode, Phase } from "./types.ts";
-
-export type { SerializedPlayer } from "../server/protocol.ts";
 
 interface FullStateResult {
   balloonFlights?: { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[];

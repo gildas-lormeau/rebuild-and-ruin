@@ -5,30 +5,13 @@
 
 /** Per-player battle stats accumulated during a game. */
 
-import type { BalloonFlight } from "./battle-system.ts";
-import type { Crosshair, PhantomPiece } from "./controller-types.ts";
+import type { Crosshair, PhantomPiece } from "./controller-interfaces.ts";
 import type { GameMap } from "./geometry-types.ts";
-import type { LifeLostChoice } from "./life-lost.ts";
-import type { KeyBindings, RGB } from "./player-config.ts";
+import type { KeyBindings } from "./player-config.ts";
 import { ACTION_KEYS, MAX_PLAYERS, PLAYER_KEY_BINDINGS } from "./player-config.ts";
-import type { Impact } from "./types.ts";
+import type { GameOverOverlay } from "./render-types.ts";
+import type { BalloonFlight, Impact } from "./types.ts";
 import { CannonMode } from "./types.ts";
-
-export interface PlayerStats { wallsDestroyed: number; cannonsKilled: number; }
-
-/** A single row in the options screen. */
-export interface OptionEntry {
-  name: string;
-  value: string;
-  editable: boolean;
-}
-
-/** A player column in the controls rebinding screen. */
-export interface ControlsPlayer {
-  name: string;
-  color: RGB;
-  bindings: string[];
-}
 
 export enum Mode {
   LOBBY,
@@ -65,35 +48,10 @@ export interface GameSettings {
 
 export type SeedMode = typeof SEED_RANDOM | typeof SEED_CUSTOM;
 
-export type GameOverFocus = typeof FOCUS_REMATCH | typeof FOCUS_MENU;
-
 export interface ControlsState {
   playerIdx: number;
   actionIdx: number;
   rebinding: boolean;
-}
-
-/** Game-over overlay data shared by FrameData and UIOverlay. */
-export interface GameOverOverlay {
-  winner: string;
-  scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: PlayerStats }[];
-  focused: GameOverFocus;
-}
-
-/** Life-lost dialog overlay data shared by UIOverlay and render-composition. */
-export interface LifeLostDialogOverlay {
-  entries: {
-    playerId: number;
-    name: string;
-    lives: number;
-    color: RGB;
-    choice: LifeLostChoice;
-    focused: number;
-    px: number;
-    py: number;
-  }[];
-  timer: number;
-  maxTimer: number;
 }
 
 /** Per-frame data written by tick functions, read by render(). */
@@ -163,8 +121,6 @@ const DEFAULT_SETTINGS: GameSettings = {
   leftHanded: false,
 };
 export const SEED_CUSTOM = "custom" as const;
-export const FOCUS_REMATCH = "rematch" as const;
-export const FOCUS_MENU = "menu" as const;
 export const DIFFICULTY_LABELS = ["Easy", "Normal", "Hard", "Very Hard"];
 export const DIFFICULTY_PARAMS = [
   { buildTimer: 30, cannonPlaceTimer: 20, firstRoundCannons: 4 }, // Easy

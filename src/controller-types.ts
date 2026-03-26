@@ -1,188 +1,29 @@
 /**
- * PlayerController — abstracts AI vs Human behavior behind a common interface.
+ * BaseController — abstract base class implementing shared controller logic.
  *
- * The game loop calls the same methods on every controller. AI controllers
- * act immediately or on tick timers; Human controllers set up UI state and
- * react to mouse/keyboard events forwarded from main.ts.
- *
- * Concrete implementations: AiController (ai-controller.ts), HumanController (human-controller.ts).
+ * Pure interfaces live in controller-interfaces.ts. This file contains the
+ * implementation that depends on battle-system, pieces, spatial, etc.
  */
 
-import type { CombinedCannonResult } from "./battle-system.ts";
 import {
   fireCannon,
   fireSingleCaptured,
   nextReadyCombined,
 } from "./battle-system.ts";
-import type { PixelPos, TilePos } from "./geometry-types.ts";
+import type { Crosshair, PhantomCannon, PhantomPiece, PlayerController } from "./controller-interfaces.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import type { BagState, PieceShape } from "./pieces.ts";
 import { createBag, nextPiece } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
 import { pxToTile, towerCenter } from "./spatial.ts";
-import type { GameState } from "./types.ts";
+import type { CombinedCannonResult, GameState } from "./types.ts";
 import {
   Action,
-  CannonMode,
   NORMAL_CANNON_SIZE,
 } from "./types.ts";
 
-/** Orbit animation parameters for AI countdown idle animation. */
-export type OrbitParams = { rx: number; ry: number; speed: number; phase: number };
-
-export interface PhantomPiece {
-  offsets: [number, number][];
-  row: number;
-  col: number;
-  valid: boolean;
-  playerId: number;
-}
-
-export interface PhantomCannon {
-  row: number;
-  col: number;
-  valid: boolean;
-  kind: CannonMode;
-  playerId: number;
-  facing: number;
-}
-
-export interface Crosshair {
-  x: number;
-  y: number;
-  playerId: number;
-  cannonReady?: boolean;
-}
-
-/** Shared interface — both AI and Human genuinely use these. */
-export interface PlayerController {
-  readonly playerId: number;
-
-  /** Build cursor position. */
-  buildCursor: TilePos;
-
-  /** Cannon cursor position (set by the game at cannon phase start). */
-  cannonCursor: TilePos;
-
-  /** Update key bindings (no-op for AI). */
-  updateBindings(keys: KeyBindings): void;
-
-  /** Pick a tower. Returns false — use selectionTick to advance. */
-  selectTower(state: GameState, zone: number): boolean;
-
-  /** Pick a tower for reselection. Returns false — use selectionTick to advance. */
-  reselect(state: GameState, zone: number): boolean;
-
-  /** Tick during selection phase. Returns true when the player has confirmed. */
-  selectionTick(dt: number, state?: GameState): boolean;
-
-  /** Place cannons. AI places all immediately. Human sets up UI. */
-  placeCannons(state: GameState, maxSlots: number): void;
-
-  /** Whether the player has placed all their cannons. */
-  isCannonPhaseDone(state: GameState, maxSlots: number): boolean;
-
-  /** Called each frame during cannon phase. Returns phantom cannon for rendering. */
-  cannonTick(state: GameState, dt: number): PhantomCannon | null;
-
-  /** Called once at the start of the build phase. */
-  startBuild(state: GameState): void;
-
-  /** Called each frame during the build phase. Returns phantom pieces to display. */
-  buildTick(state: GameState, dt: number): PhantomPiece[];
-
-  /** Called at the end of the build phase. */
-  endBuild(state: GameState): void;
-
-  /** Called each frame during battle. Uses state.battleCountdown and state.timer to decide behavior. */
-  battleTick(state: GameState, dt: number): void;
-
-  /** Current crosshair for rendering. */
-  getCrosshair(): Crosshair;
-
-  /** Center cursors/crosshair on a tower position. */
-  centerOn(row: number, col: number): void;
-
-  /** Reset battle state (accumulators, targets). Called at battle start. */
-  resetBattle(state?: GameState): void;
-
-  /** Flush any remaining auto-placement queue (cannon timer expired). */
-  flushCannons(state: GameState, maxSlots: number): void;
-
-  /** Clean up at end of battle. */
-  onBattleEnd(): void;
-
-  /** Reset stale state after losing a life (before reselection). */
-  onLifeLost(): void;
-
-  /** Reset all state for a new game. */
-  reset(): void;
-
-  /** Called at start of cannon phase. */
-  onCannonPhaseStart(state: GameState): void;
-
-  /** Move build cursor one tile in a direction (keyboard). Piece-aware clamping when provided. */
-  moveBuildCursor(direction: Action, piece?: PieceShape | null): void;
-
-  /** Move cannon cursor one tile in a direction (keyboard). */
-  moveCannonCursor(direction: Action): void;
-
-  /** Set build cursor to absolute position (mouse). Piece-aware clamping when provided. */
-  setBuildCursor(row: number, col: number, piece?: PieceShape | null): void;
-
-  /** Set cannon cursor to absolute position (mouse). */
-  setCannonCursor(row: number, col: number): void;
-
-  /** Set crosshair to absolute pixel position (mouse). */
-  setCrosshair(x: number, y: number): void;
-
-  /** Get the current build piece (for sending placement data). */
-  getCurrentPiece(): PieceShape | null;
-
-  /** Fire at the current crosshair position. */
-  fire(state: GameState): void;
-}
-
-/** Human input handling — no-op in BaseController, overridden by HumanController. */
-export interface InputReceiver {
-  /** Match a keyboard key to an action name. Returns null if no match. */
-  matchKey(key: string): Action | null;
-
-  /** Register a held key for continuous crosshair movement (battle). */
-  handleKeyDown(action: Action): void;
-
-  /** Release a held key (battle). */
-  handleKeyUp(action: Action): void;
-
-  /** Rotate the current build piece clockwise. */
-  rotatePiece(): void;
-
-  /** Try to place the current build piece at the cursor. */
-  tryPlacePiece(state: GameState): boolean;
-
-  /** Try to place a cannon at the cursor. */
-  tryPlaceCannon(state: GameState, maxSlots: number): boolean;
-
-  /** Cycle cannon placement mode (normal/super/balloon). */
-  cycleCannonMode(state: GameState, maxSlots: number): void;
-
-  /** Current cannon placement mode. */
-  getCannonPlaceMode(): CannonMode;
-}
-
-/** AI rendering queries — returns null in BaseController, overridden by AiController. */
-export interface AiAnimatable {
-  /** AI's current crosshair target (null for human — driven by mouse/keyboard). */
-  getCrosshairTarget(): PixelPos | null;
-
-  /** AI's orbit parameters for countdown animation (null if not orbiting). */
-  getOrbitParams(): OrbitParams | null;
-}
-
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
 const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
-/** Battle crosshair movement speed in pixels per second. */
-export const CROSSHAIR_SPEED = 80;
 
 export abstract class BaseController implements PlayerController {
   readonly playerId: number;

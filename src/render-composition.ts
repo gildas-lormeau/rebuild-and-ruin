@@ -1,7 +1,7 @@
-import type { GameOverOverlay, LifeLostDialogOverlay } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type LifeLostDialogState, type ResolvedChoice } from "./life-lost.ts";
 import type { BannerState } from "./phase-banner.ts";
+import { IS_TOUCH_DEVICE } from "./platform.ts";
 import type { RGB } from "./player-config.ts";
 import {
   BANNER_HEIGHT_RATIO,
@@ -10,10 +10,21 @@ import {
   LIFE_LOST_PANEL_H as PANEL_H,
   LIFE_LOST_PANEL_W as PANEL_W,
 } from "./render-theme.ts";
-import type { CastleData, RenderOverlay } from "./render-types.ts";
+import { type CastleData, FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus, type GameOverOverlay, type LifeLostDialogOverlay, type RenderOverlay } from "./render-types.ts";
 import type { SelectionState } from "./selection.ts";
 import type { GameState, Impact } from "./types.ts";
 import { LIFE_LOST_MAX_TIMER, Phase } from "./types.ts";
+
+interface GameOverLayout {
+  panelW: number;
+  panelH: number;
+  px: number;
+  py: number;
+  btnW: number;
+  btnY: number;
+  rematchX: number;
+  menuX: number;
+}
 
 const PHASE_LABELS = new Map<Phase, string>([
   [Phase.CASTLE_SELECT, "Select"],
@@ -22,6 +33,11 @@ const PHASE_LABELS = new Map<Phase, string>([
   [Phase.CANNON_PLACE, "Cannons"],
   [Phase.BATTLE, "Battle"],
 ]);
+const GAMEOVER_PANEL_W_RATIO = 0.65;
+export const GAMEOVER_ROW_H = 14;
+export const GAMEOVER_HEADER_H = 36;
+export const GAMEOVER_BTN_H = 20;
+export const GAMEOVER_COL_RATIOS = [0.38, 0.56, 0.74, 0.92] as const;
 
 export function buildRenderSummaryMessage(params: {
   phaseName: string;
@@ -292,6 +308,53 @@ export function buildOnlineOverlay(params: {
       ),
     },
   };
+}
+
+/** Hit-test the game-over Rematch / Menu buttons. Coordinates in tile-pixel space. */
+export function gameOverButtonHitTest(
+  tileX: number,
+  tileY: number,
+  W: number,
+  H: number,
+  gameOver: GameOverOverlay,
+): GameOverFocus | null {
+  const { btnW, btnY, rematchX, menuX } = gameOverLayout(W, H, gameOver.scores);
+
+  if (tileX >= rematchX && tileX <= rematchX + btnW && tileY >= btnY && tileY <= btnY + GAMEOVER_BTN_H) {
+    return FOCUS_REMATCH;
+  }
+  if (tileX >= menuX && tileX <= menuX + btnW && tileY >= btnY && tileY <= btnY + GAMEOVER_BTN_H) {
+    return FOCUS_MENU;
+  }
+  return null;
+}
+
+export function gameOverLayout(W: number, H: number, scores: GameOverOverlay["scores"]): GameOverLayout {
+  const sorted = [...scores].sort((a, b) => b.score - a.score);
+  const hasStats = sorted.some(e => e.stats);
+  const statsH = hasStats ? GAMEOVER_ROW_H : 0;
+  const tableH = sorted.length * GAMEOVER_ROW_H + statsH;
+  const panelW = Math.round(W * GAMEOVER_PANEL_W_RATIO);
+  const panelH = GAMEOVER_HEADER_H + tableH + 16 + GAMEOVER_BTN_H + 12;
+  const px = Math.round((W - panelW) / 2);
+  const py = Math.round((H - panelH) / 2);
+  const btnW = Math.round((panelW - 30) / 2);
+  return {
+    panelW, panelH, px, py, btnW,
+    btnY: py + panelH - GAMEOVER_BTN_H - 10,
+    rematchX: px + 10,
+    menuX: px + panelW - 10 - btnW,
+  };
+}
+
+/** Compute lobby panel layout (shared by drawing and hit-testing). */
+export function computeLobbyLayout(W: number, H: number, count: number) {
+  const touch = IS_TOUCH_DEVICE;
+  const gap = touch ? 8 : 12;
+  const rectW = Math.round((W - gap * (count + 1)) / count);
+  const rectH = Math.round(H * (touch ? 0.6 : 0.5));
+  const rectY = Math.round(H * (touch ? 0.18 : 0.27));
+  return { gap, rectW, rectH, rectY };
 }
 
 function buildCastleOverlay(state: GameState): CastleData[] {

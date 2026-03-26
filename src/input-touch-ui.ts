@@ -8,7 +8,7 @@
  * Right panel: quit + zoom + rotate + confirm
  */
 
-import type { InputReceiver, PlayerController } from "./controller-types.ts";
+import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
 import { dispatchPlacement, isGameInteractionMode } from "./input-dispatch.ts";
 import { hapticTap } from "./input-haptics.ts";
 import { ACTION_CONFIRM, PLAYER_COLORS } from "./player-config.ts";

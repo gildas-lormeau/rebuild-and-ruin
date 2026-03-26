@@ -3,7 +3,7 @@
  */
 
 import { createController } from "./controller-factory.ts";
-import type { PlayerController } from "./controller-types.ts";
+import type { PlayerController } from "./controller-interfaces.ts";
 import {
   createGameState,
   enterCastleReselectPhase,

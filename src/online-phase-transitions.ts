@@ -1,14 +1,13 @@
-import { MSG, type ServerMessage } from "../server/protocol.ts";
-import type { BannerShow } from "./battle-ticks.ts";
+import { MSG, type SerializedPlayer, type ServerMessage } from "../server/protocol.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
-import type { PlayerController } from "./controller-types.ts";
-import { FOCUS_REMATCH, type GameOverFocus, Mode } from "./game-ui-types.ts";
+import type { PlayerController } from "./controller-interfaces.ts";
+import { Mode } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { buildCastle } from "./map-generation.ts";
-import type { SerializedPlayer } from "./online-serialize.ts";
-import type { WatcherTimingState } from "./online-watcher-battle.ts";
-import { BANNER_PLACE_CANNONS } from "./phase-banner.ts";
+import type { WatcherTimingState } from "./online-types.ts";
+import { BANNER_PLACE_CANNONS, type BannerShow } from "./phase-banner.ts";
 import type { RGB } from "./player-config.ts";
+import { FOCUS_REMATCH, type GameOverFocus } from "./render-types.ts";
 import type { GameState } from "./types.ts";
 import { Phase } from "./types.ts";
 

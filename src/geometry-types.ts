@@ -4,6 +4,9 @@
 
 import type { Tile } from "./grid.ts";
 
+/** RGB color tuple. */
+export type RGB = [number, number, number];
+
 export interface TilePos {
   row: number;
   col: number;

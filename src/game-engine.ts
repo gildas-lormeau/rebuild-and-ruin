@@ -22,7 +22,7 @@ import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import { collectAllWalls, getAliveOwnedTowers, sweepIsolatedWalls } from "./board-occupancy.ts";
 import { claimTerritory, removeBonusSquaresCoveredByWalls, replenishBonusSquares } from "./build-system.ts";
 import { cannonSlotsForRound, resetCannonFacings } from "./cannon-system.ts";
-import type { PlayerController } from "./controller-types.ts";
+import type { PlayerController } from "./controller-interfaces.ts";
 import type { Castle, GameMap } from "./geometry-types.ts";
 import {
   rollGruntWallAttacks,

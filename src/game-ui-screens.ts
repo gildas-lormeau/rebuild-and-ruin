@@ -4,7 +4,7 @@
  */
 
 import { buildLobbyConfirmKeys, formatKeyHint } from "./game-ui-runtime.ts";
-import type { LobbyState, Mode, OptionEntry } from "./game-ui-types.ts";
+import type { LobbyState, Mode } from "./game-ui-types.ts";
 import {
   CANNON_HP_OPTIONS, type ControlsState,
   DIFFICULTY_LABELS, DPAD_LABELS,
@@ -17,7 +17,7 @@ import { generateMap } from "./map-generation.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import type { KeyBindings } from "./player-config.ts";
 import { ACTION_KEYS, getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
-import type { RenderOverlay } from "./render-types.ts";
+import type { OptionEntry, RenderOverlay } from "./render-types.ts";
 import type { GameState } from "./types.ts";
 import { LOBBY_SKIP_LOCKOUT, LOBBY_SKIP_STEP } from "./types.ts";
 

@@ -1,13 +1,13 @@
 import type { GameMessage } from "../server/protocol.ts";
-import { type BalloonFlight, countdownAnnouncement } from "./battle-system.ts";
+import { countdownAnnouncement } from "./battle-system.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
-import type { PlayerController } from "./controller-types.ts";
+import type { PlayerController } from "./controller-interfaces.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { buildCannonFiredMsg } from "./online-send-actions.ts";
-import type { WatcherTimingState } from "./online-watcher-battle.ts";
-import { BANNER_BATTLE, BANNER_BATTLE_SUB } from "./phase-banner.ts";
-import { getRemoteSlots, type HostNetContext, localActiveControllers } from "./phase-ticks.ts";
-import type { GameState, Impact } from "./types.ts";
+import type { WatcherTimingState } from "./online-types.ts";
+import { BANNER_BATTLE, BANNER_BATTLE_SUB, type BannerShow } from "./phase-banner.ts";
+import { getRemoteSlots, type HostNetContext, localActiveControllers } from "./tick-context.ts";
+import type { BalloonFlight, GameState, Impact } from "./types.ts";
 
 interface TickHostBattleCountdownDeps {
   dt: number;
@@ -55,14 +55,6 @@ interface BattleAnimState {
   flights: { flight: BalloonFlight; progress: number }[];
   impacts: Impact[];
 }
-
-export type BannerShow = (
-  text: string,
-  onDone: () => void,
-  reveal?: boolean,
-  newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
-  subtitle?: string,
-) => void;
 
 /** Networking context for starting battle. */
 interface BattleStartNet {

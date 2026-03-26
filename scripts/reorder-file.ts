@@ -23,6 +23,7 @@ import {
   SyntaxKind,
   VariableDeclarationKind,
 } from "ts-morph";
+import process from "node:process";
 
 // ---------------------------------------------------------------------------
 // CLI

@@ -1,16 +1,9 @@
 import { canPlayerFire, countdownAnnouncement } from "./battle-system.ts";
-import type { Crosshair, OrbitParams, PlayerController } from "./controller-types.ts";
+import type { Crosshair, OrbitParams, PlayerController } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
-import { type CannonPhantom, cannonPhantomKey, type HumanPiecePhantom, type PiecePhantom, phantomChanged, phantomWireMode, piecePhantomKey } from "./online-types.ts";
+import { type CannonPhantom, cannonPhantomKey, type HumanPiecePhantom, type PiecePhantom, phantomChanged, phantomWireMode, piecePhantomKey, type WatcherTimingState } from "./online-types.ts";
 import type { GameState, Impact } from "./types.ts";
 import { BATTLE_TIMER, isPlacementPhase, Phase } from "./types.ts";
-
-export interface WatcherTimingState {
-  phaseStartTime: number;
-  phaseDuration: number;
-  countdownStartTime: number;
-  countdownDuration: number;
-}
 
 interface WatcherFrameAnnouncement {
   announcement?: string;

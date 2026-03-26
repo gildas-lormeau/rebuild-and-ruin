@@ -1,6 +1,6 @@
+import type { SerializedPlayer } from "../server/protocol.ts";
 import { autoPlaceCannons as autoPlaceCannonsLocal } from "./ai-strategy.ts";
-import type { PlayerController } from "./controller-types.ts";
-import type { SerializedPlayer } from "./online-serialize.ts";
+import type { PlayerController } from "./controller-interfaces.ts";
 import {
   type CannonPhantom,
   cannonPhantomKey,
@@ -10,15 +10,11 @@ import {
   phantomWireMode,
   piecePhantomKey,
 } from "./online-types.ts";
-import { EMPTY_TILE_SET, unpackTile } from "./spatial.ts";
+import { unpackTile } from "./spatial.ts";
+import type { HostNetContext } from "./tick-context.ts";
+import { getRemoteSlots, localActiveControllers } from "./tick-context.ts";
 import type { GameState } from "./types.ts";
 import { CannonMode } from "./types.ts";
-
-/** Base networking context shared by all phase ticks. */
-export interface HostNetContext {
-  remoteHumanSlots: ReadonlySet<number>;
-  isHost: boolean;
-}
 
 /** Networking context for the cannon placement phase. */
 interface CannonPhaseNet extends HostNetContext {
@@ -330,20 +326,4 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
     afterLifeLostResolved();
   });
   return true;
-}
-
-/** Extract remote human slots from optional net context, defaulting to empty for local play. */
-export function getRemoteSlots(net?: Pick<HostNetContext, "remoteHumanSlots">): ReadonlySet<number> {
-  return net?.remoteHumanSlots ?? EMPTY_TILE_SET;
-}
-
-/** Filter controllers to only local (non-remote) players that are still alive. */
-export function localActiveControllers(
-  controllers: PlayerController[],
-  remoteHumanSlots: ReadonlySet<number>,
-  state: GameState,
-): PlayerController[] {
-  return controllers.filter(
-    ctrl => !remoteHumanSlots.has(ctrl.playerId) && !state.players[ctrl.playerId]?.eliminated,
-  );
 }

@@ -7,7 +7,7 @@
 import { AiController } from "./ai-controller.ts";
 import { DefaultStrategy } from "./ai-strategy.ts";
 import { HumanController } from "./controller-human.ts";
-import type { AiAnimatable, InputReceiver, PlayerController } from "./controller-types.ts";
+import type { AiAnimatable, InputReceiver, PlayerController } from "./controller-interfaces.ts";
 import type { KeyBindings } from "./player-config.ts";
 
 export function createController(

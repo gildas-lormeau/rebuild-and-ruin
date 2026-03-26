@@ -1,6 +1,6 @@
 import type { GameMessage } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
-import type { InputReceiver, PlayerController } from "./controller-types.ts";
+import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
 import type { GameState } from "./types.ts";
 
 export function tryPlacePieceAndSend(

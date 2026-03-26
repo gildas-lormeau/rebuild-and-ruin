@@ -1,6 +1,5 @@
 import type { House, TilePos } from "./geometry-types.ts";
-import type { CastleData } from "./render-types.ts";
-import type { GameState } from "./types.ts";
+import type { CastleData, GameState } from "./types.ts";
 import { Phase } from "./types.ts";
 
 export interface BannerState {
@@ -29,6 +28,14 @@ interface ShowBannerDeps {
   newBattle?: { territory: Set<number>[]; walls: Set<number>[] };
   setModeBanner: () => void;
 }
+
+export type BannerShow = (
+  text: string,
+  onDone: () => void,
+  reveal?: boolean,
+  newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
+  subtitle?: string,
+) => void;
 
 export const BANNER_PLACE_CANNONS = "Place Cannons";
 export const BANNER_PLACE_CANNONS_SUB = "Position inside fort walls";

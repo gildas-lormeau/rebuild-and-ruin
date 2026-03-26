@@ -1,7 +1,7 @@
 import type { ServerMessage } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
 import type { ImpactEvent } from "./battle-system.ts";
-import type { OrbitParams } from "./controller-types.ts";
+import type { OrbitParams } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type LifeLostChoice } from "./life-lost.ts";

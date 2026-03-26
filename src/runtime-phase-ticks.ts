@@ -5,9 +5,8 @@
  * Extracted from game-runtime.ts.
  */
 
-import type { GameMessage } from "../server/protocol.ts";
+import type { GameMessage, SerializedPlayer } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
-import type { BalloonFlight } from "./battle-system.ts";
 import { resolveBalloons, updateCannonballs } from "./battle-system.ts";
 import {
   beginHostBattle,
@@ -17,7 +16,7 @@ import {
   tickHostBattlePhase,
 } from "./battle-ticks.ts";
 import { isHuman } from "./controller-factory.ts";
-import type { Crosshair, InputReceiver, PlayerController } from "./controller-types.ts";
+import type { Crosshair, InputReceiver, PlayerController } from "./controller-interfaces.ts";
 import {
   finalizeBuildPhase,
   initBuildPhase,
@@ -32,9 +31,7 @@ import {
 import { Mode } from "./game-ui-types.ts";
 import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
 import { hapticBattleEvents } from "./input-haptics.ts";
-import type { SerializedPlayer } from "./online-serialize.ts";
-import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
-import type { WatcherTimingState } from "./online-watcher-battle.ts";
+import type { CannonPhantom, PiecePhantom, WatcherTimingState } from "./online-types.ts";
 import {
   BANNER_BUILD,
   BANNER_BUILD_SUB,
@@ -44,7 +41,7 @@ import {
   tickHostCannonPhase,
 } from "./phase-ticks.ts";
 import type { RuntimeState } from "./runtime-state.ts";
-import type { GameState } from "./types.ts";
+import type { BalloonFlight, GameState } from "./types.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,

@@ -2,14 +2,13 @@
  * Shared UI theme constants for all rendering modules.
  */
 
-/** RGB color tuple. */
-
 // Gear button position (tile-space, top-right corner)
 
+import type { RGB } from "./geometry-types.ts";
 import { GRID_COLS, TILE_SIZE } from "./grid.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 
-export type RGB = [number, number, number];
+export type { RGB } from "./geometry-types.ts";
 
 /** Dark sepia panel background (0.85–0.95 alpha depending on context). */
 export const PANEL_BG = (alpha: number) => `rgba(20, 12, 8, ${alpha})`;
@@ -112,4 +111,19 @@ export function flashOn(intervalMs: number, now: number): boolean {
 export function setCenterText(ctx: CanvasRenderingContext2D): void {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
+}
+
+/** Draw text with a dark shadow offset by 1px. */
+export function drawShadowText(
+  octx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  shadowColor: string,
+  textColor: string,
+): void {
+  octx.fillStyle = shadowColor;
+  octx.fillText(text, x + 1, y + 1);
+  octx.fillStyle = textColor;
+  octx.fillText(text, x, y);
 }

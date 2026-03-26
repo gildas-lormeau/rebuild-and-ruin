@@ -27,6 +27,13 @@ export type HumanPiecePhantom = {
   playerId: number;
 };
 
+export interface WatcherTimingState {
+  phaseStartTime: number;
+  phaseDuration: number;
+  countdownStartTime: number;
+  countdownDuration: number;
+}
+
 /** Move `vis` toward `(tx, ty)` at `speed` pixels/s. Mutates `vis` in place. */
 export function interpolateToward(vis: PixelPos, tx: number, ty: number, speed: number, dt: number): void {
   const dx = tx - vis.x, dy = ty - vis.y;

@@ -26,6 +26,7 @@ import ts from "typescript";
 import { globSync } from "node:fs";
 import fs from "node:fs";
 import path from "node:path";
+import process from "node:process";
 
 // ---------------------------------------------------------------------------
 // CLI args

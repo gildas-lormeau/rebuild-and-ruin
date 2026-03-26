@@ -13,12 +13,12 @@ import {
   placeCannon,
 } from "./cannon-system.ts";
 import {
-  BaseController,
   CROSSHAIR_SPEED,
   type InputReceiver,
   type PhantomCannon,
   type PhantomPiece,
-} from "./controller-types.ts";
+} from "./controller-interfaces.ts";
+import { BaseController } from "./controller-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import { rotateCW } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";

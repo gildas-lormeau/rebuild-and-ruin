@@ -16,7 +16,7 @@ import {
   CROSSHAIR_SPEED,
   type OrbitParams,
   type PlayerController,
-} from "./controller-types.ts";
+} from "./controller-interfaces.ts";
 import type { BattleAnimState, FrameData, TimerAccums } from "./game-ui-types.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
@@ -27,9 +27,8 @@ import {
   applyBuildStartCheckpoint,
   applyCannonStartCheckpoint,
 } from "./online-checkpoints.ts";
-import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
+import type { CannonPhantom, PiecePhantom, WatcherTimingState } from "./online-types.ts";
 import { interpolateToward } from "./online-types.ts";
-import type { WatcherTimingState } from "./online-watcher-battle.ts";
 import {
   tickWatcherBattlePhase,
   tickWatcherBuildPhantomsPhase,

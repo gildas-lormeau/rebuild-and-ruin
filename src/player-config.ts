@@ -4,7 +4,7 @@
  * Keep player names, colors, and bindings in one place so they cannot drift.
  */
 
-import type { RGB } from "./render-theme.ts";
+import type { RGB } from "./geometry-types.ts";
 
 export type { RGB };
 
