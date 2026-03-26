@@ -8,7 +8,7 @@
 import type { FrameContext } from "./frame-context.ts";
 import { Mode } from "./game-ui-types.ts";
 import type { TilePos, WorldPos } from "./geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
+import { CANVAS_H, CANVAS_W, GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import type { Viewport } from "./render-types.ts";
 import { unpackTile } from "./spatial.ts";
 import type { GameState } from "./types.ts";
@@ -394,15 +394,12 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Coordinate conversion ---
 
-  const canvasW = GRID_COLS * TILE_SIZE * SCALE;
-  const canvasH = GRID_ROWS * TILE_SIZE * SCALE;
-
   function screenToWorld(x: number, y: number): WorldPos {
     const vp = getViewport();
     if (!vp) return { wx: x / SCALE, wy: y / SCALE };
     return {
-      wx: vp.x + (x / canvasW) * vp.w,
-      wy: vp.y + (y / canvasH) * vp.h,
+      wx: vp.x + (x / CANVAS_W) * vp.w,
+      wy: vp.y + (y / CANVAS_H) * vp.h,
     };
   }
 
@@ -411,8 +408,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     const vp = getViewport();
     if (!vp) return { sx: wx * SCALE, sy: wy * SCALE };
     return {
-      sx: ((wx - vp.x) / vp.w) * canvasW,
-      sy: ((wy - vp.y) / vp.h) * canvasH,
+      sx: ((wx - vp.x) / vp.w) * CANVAS_W,
+      sy: ((wy - vp.y) / vp.h) * CANVAS_H,
     };
   }
 
@@ -437,17 +434,14 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function onPinchUpdate(midX: number, midY: number, scale: number): void {
     const { mode } = deps.getCtx();
     if (!pinchStartVp || (mode !== Mode.GAME && mode !== Mode.SELECTION)) return;
-    const cw = GRID_COLS * TILE_SIZE * SCALE;
-    const ch = GRID_ROWS * TILE_SIZE * SCALE;
-
     const newW = Math.max(MIN_ZOOM_W, Math.min(fullMapVp.w, pinchStartVp.w * scale));
     const newH = newW * (fullMapVp.h / fullMapVp.w);
 
-    const anchorWx = pinchStartVp.x + (pinchStartMidX / cw) * pinchStartVp.w;
-    const anchorWy = pinchStartVp.y + (pinchStartMidY / ch) * pinchStartVp.h;
+    const anchorWx = pinchStartVp.x + (pinchStartMidX / CANVAS_W) * pinchStartVp.w;
+    const anchorWy = pinchStartVp.y + (pinchStartMidY / CANVAS_H) * pinchStartVp.h;
 
-    let x = anchorWx - (midX / cw) * newW;
-    let y = anchorWy - (midY / ch) * newH;
+    let x = anchorWx - (midX / CANVAS_W) * newW;
+    let y = anchorWy - (midY / CANVAS_H) * newH;
 
     x = Math.max(0, Math.min(fullMapVp.w - newW, x));
     y = Math.max(0, Math.min(fullMapVp.h - newH, y));

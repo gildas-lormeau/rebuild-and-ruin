@@ -17,3 +17,6 @@ export const GRID_ROWS = 28;
 export const TILE_SIZE = 16;
 /** Canvas display scale factor (pixel-art 2× upscale). */
 export const SCALE = 2;
+/** Full canvas backing-store dimensions (pixels). */
+export const CANVAS_W = GRID_COLS * TILE_SIZE * SCALE;
+export const CANVAS_H = GRID_ROWS * TILE_SIZE * SCALE;

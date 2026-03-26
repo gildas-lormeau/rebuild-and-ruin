@@ -2,7 +2,7 @@
  * Map Renderer — browser-side ES module for rendering game maps on a canvas.
  */
 
-import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
+import { CANVAS_H, CANVAS_W, GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import { getPlayerColor } from "./player-config.ts";
 import {
   drawBattleEffects,
@@ -123,8 +123,8 @@ export function renderMap(
   const H = GRID_ROWS * TILE_SIZE;
 
   const STATUS_BAR_H = overlay?.ui?.statusBar ? STATUSBAR_HEIGHT : 0;
-  const cw = GRID_COLS * TILE_SIZE * SCALE;
-  const gameH = GRID_ROWS * TILE_SIZE * SCALE;
+  const cw = CANVAS_W;
+  const gameH = CANVAS_H;
   const ch = gameH + STATUS_BAR_H;
   if (canvas.width !== cw || canvas.height !== ch) {
     canvas.width = cw;

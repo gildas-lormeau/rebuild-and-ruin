@@ -43,7 +43,7 @@ import {
   Mode,
   ROUNDS_OPTIONS,
 } from "./game-ui-types.ts";
-import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
+import { CANVAS_H, CANVAS_W, GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
 import { clientToCanvas, dispatchPointerMove } from "./input-dispatch.ts";
 import { hapticPhaseChange, setHapticsLevel } from "./input-haptics.ts";
@@ -302,8 +302,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const hit = lobbyClickHitTest({
       canvasX,
       canvasY,
-      canvasW: GRID_COLS * TILE_SIZE * SCALE,
-      canvasH: GRID_ROWS * TILE_SIZE * SCALE,
+      canvasW: CANVAS_W,
+      canvasH: CANVAS_H,
       tileSize: TILE_SIZE,
       slotCount: MAX_PLAYERS,
       computeLayout: computeLobbyLayout,
