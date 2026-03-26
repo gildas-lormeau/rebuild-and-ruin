@@ -1,5 +1,6 @@
 import { MSG, type ServerMessage } from "../server/protocol.ts";
 import type { BannerShow } from "./battle-ticks.ts";
+import { snapshotAllWalls } from "./board-occupancy.ts";
 import type { PlayerController } from "./controller-types.ts";
 import { FOCUS_REMATCH, type GameOverFocus, Mode } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
@@ -129,7 +130,7 @@ export function handleBattleStartTransition(msg: ServerMessage, ctx: TransitionC
   const myPlayerId = ctx.getMyPlayerId();
   const battleReceivedAt = ctx.now();
   const preBattleTerritory = ctx.snapshotTerritory();
-  const preBattleWalls = state.players.map((p) => new Set(p.walls));
+  const preBattleWalls = snapshotAllWalls(state);
   const battleFlights = msg.flights;
 
   ctx.showBanner(

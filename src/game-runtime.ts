@@ -83,7 +83,7 @@ import { createPhaseTicksSystem } from "./runtime-phase-ticks.ts";
 import type { SelectionSystem } from "./runtime-selection.ts";
 import { createSelectionSystem } from "./runtime-selection.ts";
 import { createRuntimeState } from "./runtime-state.ts";
-import { towerCenterPx, unpackTile } from "./spatial.ts";
+import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 import {
   BANNER_DURATION,
@@ -348,8 +348,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     // Subsequent battle: restore last position if targeted opponent is alive
     if (lastBattleCrosshair) {
-      const row = Math.floor(lastBattleCrosshair.y / TILE_SIZE);
-      const col = Math.floor(lastBattleCrosshair.x / TILE_SIZE);
+      const row = pxToTile(lastBattleCrosshair.y);
+      const col = pxToTile(lastBattleCrosshair.x);
       const zone = rs.state.map.zones[row]?.[col];
       if (zone !== undefined) {
         const pid = rs.state.playerZones.indexOf(zone);

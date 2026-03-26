@@ -22,15 +22,13 @@ import {
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import { rotateCW } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
+import { cannonSize } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 import {
   Action,
   BALLOON_COST,
-  BALLOON_SIZE,
   CannonMode,
-  NORMAL_CANNON_SIZE,
   SUPER_GUN_COST,
-  SUPER_GUN_SIZE,
 } from "./types.ts";
 
 export class HumanController extends BaseController implements InputReceiver {
@@ -115,10 +113,8 @@ export class HumanController extends BaseController implements InputReceiver {
 
   override setCannonCursor(row: number, col: number): void {
     // Offset so the clicked tile is near the center of the cannon phantom
-    const size = this.cannonPlaceMode === CannonMode.SUPER ? SUPER_GUN_SIZE
-      : this.cannonPlaceMode === CannonMode.BALLOON ? BALLOON_SIZE
-      : NORMAL_CANNON_SIZE;
-    const offset = Math.floor(size / 2);
+    const sz = cannonSize({ kind: this.cannonPlaceMode });
+    const offset = Math.floor(sz / 2);
     super.setCannonCursor(row - offset, col - offset);
     this.cannonCursorNeedsSnap = true;
   }
@@ -128,17 +124,15 @@ export class HumanController extends BaseController implements InputReceiver {
   }
 
   override moveCannonCursor(direction: Action): void {
-    const size = this.cannonPlaceMode === CannonMode.SUPER ? SUPER_GUN_SIZE
-      : this.cannonPlaceMode === CannonMode.BALLOON ? BALLOON_SIZE
-      : NORMAL_CANNON_SIZE;
+    const sz = cannonSize({ kind: this.cannonPlaceMode });
     if (direction === Action.UP)
       this.cannonCursor.row = Math.max(0, this.cannonCursor.row - 1);
     else if (direction === Action.DOWN)
-      this.cannonCursor.row = Math.min(GRID_ROWS - size, this.cannonCursor.row + 1);
+      this.cannonCursor.row = Math.min(GRID_ROWS - sz, this.cannonCursor.row + 1);
     else if (direction === Action.LEFT)
       this.cannonCursor.col = Math.max(0, this.cannonCursor.col - 1);
     else if (direction === Action.RIGHT)
-      this.cannonCursor.col = Math.min(GRID_COLS - size, this.cannonCursor.col + 1);
+      this.cannonCursor.col = Math.min(GRID_COLS - sz, this.cannonCursor.col + 1);
   }
 
   override setBuildCursor(row: number, col: number): void {
@@ -261,11 +255,9 @@ export class HumanController extends BaseController implements InputReceiver {
       this.cannonPlaceMode = CannonMode.NORMAL;
     }
     // Re-clamp cursor so the new cannon size stays within the grid
-    const size = this.cannonPlaceMode === CannonMode.SUPER ? SUPER_GUN_SIZE
-      : this.cannonPlaceMode === CannonMode.BALLOON ? BALLOON_SIZE
-      : NORMAL_CANNON_SIZE;
-    this.cannonCursor.row = Math.min(this.cannonCursor.row, GRID_ROWS - size);
-    this.cannonCursor.col = Math.min(this.cannonCursor.col, GRID_COLS - size);
+    const sz = cannonSize({ kind: this.cannonPlaceMode });
+    this.cannonCursor.row = Math.min(this.cannonCursor.row, GRID_ROWS - sz);
+    this.cannonCursor.col = Math.min(this.cannonCursor.col, GRID_COLS - sz);
   }
 
   /** Check if a key event matches one of this controller's bindings. */

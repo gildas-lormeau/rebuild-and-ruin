@@ -1,4 +1,5 @@
 import { MSG, type ServerMessage } from "../server/protocol.ts";
+import { snapshotAllWalls } from "./board-occupancy.ts";
 import { resetCannonFacings } from "./cannon-system.ts";
 import type { OrbitParams } from "./controller-types.ts";
 import type { PixelPos } from "./geometry-types.ts";
@@ -65,7 +66,7 @@ export function applyBattleStartCheckpoint(
   deps.state.burningPits = msg.burningPits;
   deps.state.towerAlive = msg.towerAlive;
   deps.battleAnim.territory = deps.snapshotTerritory();
-  deps.battleAnim.walls = deps.state.players.map((p) => new Set(p.walls));
+  deps.battleAnim.walls = snapshotAllWalls(deps.state);
 
   deps.state.capturedCannons = [];
   if (msg.capturedCannons) {

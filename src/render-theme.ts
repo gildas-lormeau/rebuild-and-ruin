@@ -102,3 +102,14 @@ export function rgb(c: RGB, alpha?: number): string {
   if (alpha !== undefined) return `rgba(${c[0]},${c[1]},${c[2]},${alpha})`;
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
+
+/** Returns true on even half of a repeating blink cycle. */
+export function flashOn(intervalMs: number, now: number): boolean {
+  return Math.floor(now / intervalMs) % 2 === 0;
+}
+
+/** Set text alignment to centered (both horizontal and vertical). */
+export function setCenterText(ctx: CanvasRenderingContext2D): void {
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+}

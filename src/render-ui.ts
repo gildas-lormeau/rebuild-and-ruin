@@ -28,6 +28,7 @@ import {
   FONT_SUBTITLE,
   FONT_TIMER,
   FONT_TITLE,
+  flashOn,
   GOLD,
   GOLD_BG,
   GOLD_LIGHT,
@@ -43,6 +44,7 @@ import {
   SHADOW_COLOR_HEAVY,
   STATUS_TEXT_COLOR,
   STATUSBAR_HEIGHT,
+  setCenterText,
 } from "./render-theme.ts";
 import type { RenderOverlay } from "./render-types.ts";
 
@@ -90,8 +92,7 @@ export function drawAnnouncement(
   const text = overlay.ui.announcement;
   octx.save();
   octx.font = FONT_ANNOUNCE;
-  octx.textAlign = "center";
-  octx.textBaseline = "middle";
+  setCenterText(octx);
   drawShadowText(octx, text, W / 2, H / 2, SHADOW_COLOR_HEAVY, "#fff");
   octx.restore();
 }
@@ -145,8 +146,7 @@ export function drawScoreDeltas(
   const fade = Math.min(1, progress / 0.15); // fade in over first 15%
   octx.save();
   octx.globalAlpha = fade;
-  octx.textAlign = "center";
-  octx.textBaseline = "middle";
+  setCenterText(octx);
   for (const d of overlay.ui.scoreDeltas) {
     const shown = Math.round(d.delta * t);
     const total = d.total - d.delta + shown;
@@ -274,8 +274,7 @@ export function drawGameOver(
   }
 
   // Rematch / Menu buttons
-  octx.textAlign = "center";
-  octx.textBaseline = "middle";
+  setCenterText(octx);
   const focused = gameOverData.focused;
 
   const rematchFocused = focused === FOCUS_REMATCH;
@@ -332,8 +331,7 @@ export function drawLifeLostDialog(
     drawPanel(octx, px, py, PANEL_W, PANEL_H, PANEL_BG(0.9), rgb(c));
 
     // Player name
-    octx.textAlign = "center";
-    octx.textBaseline = "middle";
+    setCenterText(octx);
     octx.font = FONT_BODY;
     octx.fillStyle = rgb(c);
     octx.fillText(entry.name, cx, py + 18);
@@ -689,6 +687,21 @@ export function computeLobbyLayout(W: number, H: number, count: number) {
   return { gap, rectW, rectH, rectY };
 }
 
+/** Draw text with a dark shadow offset by 1px. */
+export function drawShadowText(
+  octx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  shadowColor: string,
+  textColor: string,
+): void {
+  octx.fillStyle = shadowColor;
+  octx.fillText(text, x + 1, y + 1);
+  octx.fillStyle = textColor;
+  octx.fillText(text, x, y);
+}
+
 function gameOverLayout(W: number, H: number, scores: GameOverOverlay["scores"]): GameOverLayout {
   const sorted = [...scores].sort((a, b) => b.score - a.score);
   const hasStats = sorted.some(e => e.stats);
@@ -705,11 +718,6 @@ function gameOverLayout(W: number, H: number, scores: GameOverOverlay["scores"])
     rematchX: px + 10,
     menuX: px + panelW - 10 - btnW,
   };
-}
-
-/** Returns true on even half of a repeating blink cycle. */
-function flashOn(intervalMs: number, now: number): boolean {
-  return Math.floor(now / intervalMs) % 2 === 0;
 }
 
 /** Draw a panel: filled rect + inset border stroke. */
@@ -746,21 +754,5 @@ function drawButton(
 function beginModalScreen(octx: CanvasRenderingContext2D, W: number, H: number): void {
   octx.fillStyle = PANEL_BG(0.95);
   octx.fillRect(0, 0, W, H);
-  octx.textAlign = "center";
-  octx.textBaseline = "middle";
-}
-
-/** Draw text with a dark shadow offset by 1px. */
-function drawShadowText(
-  octx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  shadowColor: string,
-  textColor: string,
-): void {
-  octx.fillStyle = shadowColor;
-  octx.fillText(text, x + 1, y + 1);
-  octx.fillStyle = textColor;
-  octx.fillText(text, x, y);
+  setCenterText(octx);
 }

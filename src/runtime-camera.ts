@@ -10,7 +10,7 @@ import { Mode } from "./game-ui-types.ts";
 import type { TilePos, WorldPos } from "./geometry-types.ts";
 import { CANVAS_H, CANVAS_W, GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import type { Viewport } from "./render-types.ts";
-import { unpackTile } from "./spatial.ts";
+import { pxToTile, unpackTile } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 import {
   MAX_ZOOM_VIEWPORT_RATIO,
@@ -238,8 +238,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function zoneAtPixel(x: number, y: number): number | null {
     const state = deps.getState();
     if (!state) return null;
-    const row = Math.floor(y / TILE_SIZE);
-    const col = Math.floor(x / TILE_SIZE);
+    const row = pxToTile(y);
+    const col = pxToTile(x);
     return state.map.zones[row]?.[col] ?? null;
   }
 
@@ -416,8 +416,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function pixelToTile(x: number, y: number): { row: number; col: number } {
     const { wx, wy } = screenToWorld(x, y);
     return {
-      col: Math.max(0, Math.min(GRID_COLS - 1, Math.floor(wx / TILE_SIZE))),
-      row: Math.max(0, Math.min(GRID_ROWS - 1, Math.floor(wy / TILE_SIZE))),
+      col: Math.max(0, Math.min(GRID_COLS - 1, pxToTile(wx))),
+      row: Math.max(0, Math.min(GRID_ROWS - 1, pxToTile(wy))),
     };
   }
 

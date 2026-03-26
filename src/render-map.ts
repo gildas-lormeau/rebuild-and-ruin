@@ -27,7 +27,7 @@ import {
   drawScoreDeltas,
   drawStatusBar,
 } from "./render-ui.ts";
-import { facingToDir8, isCannonAlive, unpackTile } from "./spatial.ts";
+import { facingToDir8, isCannonAlive, pxToTile, unpackTile } from "./spatial.ts";
 import { CannonMode } from "./types.ts";
 
 interface TerrainImageCache {
@@ -309,8 +309,8 @@ function drawTerrain(
   const distFromWater = new Float32Array(W * H);
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
-      const tr = Math.floor(py / TILE_SIZE);
-      const tc = Math.floor(px / TILE_SIZE);
+      const tr = pxToTile(py);
+      const tc = pxToTile(px);
       distFromWater[py * W + px] = tileAt(map, tr, tc) === 1 ? INF : 0;
     }
   }
@@ -353,8 +353,8 @@ function drawTerrain(
   const distFromGrass = new Float32Array(W * H);
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
-      const tr = Math.floor(py / TILE_SIZE);
-      const tc = Math.floor(px / TILE_SIZE);
+      const tr = pxToTile(py);
+      const tc = pxToTile(px);
       distFromGrass[py * W + px] = tileAt(map, tr, tc) === 0 ? INF : 0;
     }
   }
@@ -448,8 +448,8 @@ function drawTerrain(
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
       const d = dist[py * W + px]!;
-      const tr = Math.floor(py / TILE_SIZE);
-      const tc = Math.floor(px / TILE_SIZE);
+      const tr = pxToTile(py);
+      const tc = pxToTile(px);
       const idx = (py * W + px) * 4;
       const isWater = tileAt(map, tr, tc) === 1;
 

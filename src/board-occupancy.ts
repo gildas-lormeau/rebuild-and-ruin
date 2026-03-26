@@ -98,6 +98,11 @@ export function collectOccupiedTiles(
   return occupied;
 }
 
+/** Snapshot each player's wall set (independent copies). */
+export function snapshotAllWalls(state: GameState): Set<number>[] {
+  return state.players.map((p) => new Set(p.walls));
+}
+
 export function collectAllWalls(state: GameState): Set<number> {
   const allWalls = new Set<number>();
   for (const player of state.players) {

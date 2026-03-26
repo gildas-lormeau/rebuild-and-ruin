@@ -5,6 +5,7 @@
 import { getAliveOwnedTowers } from "./board-occupancy.ts";
 import {
   cannonSize,
+  FACING_90_STEP,
   inBounds,
   isCannonAlive,
   isCannonTile,
@@ -29,8 +30,6 @@ import {
 const CANNON_SNAP_RADIUS = 2;
 /** Slot cost for a normal cannon. */
 const NORMAL_CANNON_COST = 1;
-/** 90° angle step for cannon facing snap (4 cardinal directions). */
-const FACING_90_STEP = Math.PI / 2;
 
 /** Check whether all tiles of a cannon are inside enclosed territory. */
 export function isCannonEnclosed(

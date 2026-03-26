@@ -19,7 +19,7 @@ import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import type { BagState, PieceShape } from "./pieces.ts";
 import { createBag, nextPiece } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
-import { towerCenter } from "./spatial.ts";
+import { pxToTile, towerCenter } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 import {
   Action,
@@ -342,8 +342,8 @@ export abstract class BaseController implements PlayerController {
   /** Fire one cannon (own or captured) at the current crosshair position, round-robin. */
   fire(state: GameState): void {
     if (state.timer <= 0) return;
-    const targetRow = Math.floor(this.crosshair.y / TILE_SIZE);
-    const targetCol = Math.floor(this.crosshair.x / TILE_SIZE);
+    const targetRow = pxToTile(this.crosshair.y);
+    const targetCol = pxToTile(this.crosshair.x);
     this.fireNext(state, targetRow, targetCol);
   }
 

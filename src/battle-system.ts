@@ -17,6 +17,7 @@ import {
   isCannonTile,
   isPitAt,
   packTile,
+  pxToTile,
   rotateToward,
   TILE_CENTER_OFFSET,
 } from "./spatial.ts";
@@ -250,8 +251,8 @@ export function updateCannonballs(
 
     if (dist <= move) {
       // Ball has arrived — compute and apply impact
-      const impactRow = Math.floor(ball.targetY / TILE_SIZE);
-      const impactCol = Math.floor(ball.targetX / TILE_SIZE);
+      const impactRow = pxToTile(ball.targetY);
+      const impactCol = pxToTile(ball.targetX);
       const shooterId = ball.scoringPlayerId ?? ball.playerId;
       const impactEvents = computeImpact(
         state,

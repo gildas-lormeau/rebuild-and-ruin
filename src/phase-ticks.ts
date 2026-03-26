@@ -115,7 +115,7 @@ const EMPTY_MAP = new Map<number, string>();
 export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   const { dt, state, accum, frame, controllers, render, startBattle } = deps;
   // Networking defaults (no-op for local play)
-  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET;
+  const remoteHumanSlots = getRemoteSlots(deps.net);
   const isHost = deps.net?.isHost ?? true;
   const remoteCannonPhantoms = deps.net?.remoteCannonPhantoms ?? [];
   const lastSentCannonPhantom = deps.net?.lastSentCannonPhantom ?? EMPTY_MAP;
@@ -212,7 +212,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
     tickGrunts, isHuman, finalizeBuildPhase, showLifeLostDialog, afterLifeLostResolved, showScoreDeltas,
   } = deps;
   // Networking defaults (no-op for local play)
-  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET;
+  const remoteHumanSlots = getRemoteSlots(deps.net);
   const isHost = deps.net?.isHost ?? true;
   const remotePiecePhantoms = deps.net?.remotePiecePhantoms ?? [];
   const lastSentPiecePhantom = deps.net?.lastSentPiecePhantom ?? EMPTY_MAP;
@@ -330,6 +330,11 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
     afterLifeLostResolved();
   });
   return true;
+}
+
+/** Extract remote human slots from optional net context, defaulting to empty for local play. */
+export function getRemoteSlots(net?: Pick<HostNetContext, "remoteHumanSlots">): ReadonlySet<number> {
+  return net?.remoteHumanSlots ?? EMPTY_TILE_SET;
 }
 
 /** Filter controllers to only local (non-remote) players that are still alive. */

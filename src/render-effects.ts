@@ -10,9 +10,10 @@ import type { RGB } from "./render-theme.ts";
 import {
   BONUS_FLASH_MS, CROSSHAIR_ARM_IDLE, CROSSHAIR_ARM_PULSE,
   CROSSHAIR_ARM_READY, CROSSHAIR_IDLE_FREQ,CROSSHAIR_READY_FREQ, FONT_TIMER,
-  rgb, SHADOW_COLOR,
+  rgb, SHADOW_COLOR,setCenterText, 
 } from "./render-theme.ts";
 import type { MapData, RenderOverlay } from "./render-types.ts";
+import { drawShadowText } from "./render-ui.ts";
 import { facingToCardinal } from "./spatial.ts";
 import { CannonMode, IMPACT_FLASH_DURATION } from "./types.ts";
 
@@ -101,13 +102,14 @@ export function drawBonusSquares(
   if (!overlay?.entities?.bonusSquares || overlay.battle?.battleTerritory)
     return;
   const flash = Math.sin((now ?? Date.now()) / BONUS_FLASH_MS) * 0.15 + 0.85;
+  octx.save();
+  octx.globalAlpha = flash;
   for (const bs of overlay.entities.bonusSquares) {
     const bx = bs.col * TILE_SIZE;
     const by = bs.row * TILE_SIZE;
-    octx.globalAlpha = flash;
     drawSprite(octx, "bonus_square", bx, by);
-    octx.globalAlpha = 1.0;
   }
+  octx.restore();
 }
 
 /** Draw houses (settler tents/huts). */
@@ -197,6 +199,7 @@ export function drawBattleEffects(
     for (const impact of overlay.battle.impacts) {
       const t = impact.age / IMPACT_FLASH_DURATION;
       if (t >= 1) continue;
+      octx.save();
       const cx = impact.col * TILE_SIZE + TILE_SIZE / 2;
       const cy = impact.row * TILE_SIZE + TILE_SIZE / 2;
       const seed = impact.row * SEED_ROW + impact.col * SEED_COL;
@@ -248,7 +251,7 @@ export function drawBattleEffects(
         octx.fill();
       }
 
-      octx.globalAlpha = 1.0;
+      octx.restore();
     }
   }
 
@@ -355,15 +358,7 @@ export function drawBattleEffects(
       const cy = Math.round(ch.y) + 0.5;
       const [cr, cg, cb] =
         CROSSHAIR_COLORS[ch.playerId % CROSSHAIR_COLORS.length]!;
-      const ready = ch.cannonReady === true;
-      const alpha = ready
-        ? 0.7 + 0.3 * Math.sin(t * CROSSHAIR_READY_FREQ)
-        : 0.35 + 0.15 * Math.sin(t * CROSSHAIR_IDLE_FREQ);
-      const arm = ready
-        ? CROSSHAIR_ARM_READY + Math.sin(t * CROSSHAIR_READY_FREQ) * CROSSHAIR_ARM_PULSE
-        : CROSSHAIR_ARM_IDLE;
-      const diag = Math.round(arm * 0.7);
-      const gap = ready ? 5 : 3;
+      const { alpha, arm, diag, gap } = crosshairGeometry(ch.cannonReady === true, t);
 
       const drawArm = (
         x1: number,
@@ -409,14 +404,23 @@ export function drawBattleEffects(
     const jy = map.junction.y * TILE_SIZE + TILE_SIZE / 2;
     octx.save();
     octx.font = FONT_TIMER;
-    octx.textAlign = "center";
-    octx.textBaseline = "middle";
-    octx.fillStyle = SHADOW_COLOR;
-    octx.fillText(text, jx + 1, jy + 1);
-    octx.fillStyle = "#fff";
-    octx.fillText(text, jx, jy);
+    setCenterText(octx);
+    drawShadowText(octx, text, jx, jy, SHADOW_COLOR, "#fff");
     octx.restore();
   }
+}
+
+/** Compute animated crosshair dimensions from ready state and time. */
+function crosshairGeometry(ready: boolean, t: number): { alpha: number; arm: number; diag: number; gap: number } {
+  const alpha = ready
+    ? 0.7 + 0.3 * Math.sin(t * CROSSHAIR_READY_FREQ)
+    : 0.35 + 0.15 * Math.sin(t * CROSSHAIR_IDLE_FREQ);
+  const arm = ready
+    ? CROSSHAIR_ARM_READY + Math.sin(t * CROSSHAIR_READY_FREQ) * CROSSHAIR_ARM_PULSE
+    : CROSSHAIR_ARM_IDLE;
+  const diag = Math.round(arm * 0.7);
+  const gap = ready ? 5 : 3;
+  return { alpha, arm, diag, gap };
 }
 
 /** Draw a semi-transparent cannon sprite as a placement phantom. */

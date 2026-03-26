@@ -1,12 +1,12 @@
 import type { GameMessage } from "../server/protocol.ts";
 import { type BalloonFlight, countdownAnnouncement } from "./battle-system.ts";
+import { snapshotAllWalls } from "./board-occupancy.ts";
 import type { PlayerController } from "./controller-types.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { buildCannonFiredMsg } from "./online-send-actions.ts";
 import type { WatcherTimingState } from "./online-watcher-battle.ts";
 import { BANNER_BATTLE, BANNER_BATTLE_SUB } from "./phase-banner.ts";
-import { type HostNetContext, localActiveControllers } from "./phase-ticks.ts";
-import { EMPTY_TILE_SET } from "./spatial.ts";
+import { getRemoteSlots, type HostNetContext, localActiveControllers } from "./phase-ticks.ts";
 import type { GameState, Impact } from "./types.ts";
 
 interface TickHostBattleCountdownDeps {
@@ -109,7 +109,7 @@ export function tickHostBattleCountdown(
   deps: TickHostBattleCountdownDeps,
 ): void {
   const { dt, state, frame, controllers, collectCrosshairs, render } = deps;
-  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET;
+  const remoteHumanSlots = getRemoteSlots(deps.net);
 
   state.battleCountdown = Math.max(0, state.battleCountdown - dt);
   for (const ctrl of localActiveControllers(controllers, remoteHumanSlots, state)) {
@@ -128,7 +128,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     render, collectCrosshairs, collectTowerEvents, updateCannonballsWithEvents,
     onBattlePhaseEnded, onBattleEvents,
   } = deps;
-  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET;
+  const remoteHumanSlots = getRemoteSlots(deps.net);
   const isHost = deps.net?.isHost ?? true;
   const sendMessage = deps.net?.sendMessage;
 
@@ -191,7 +191,7 @@ export function startHostBattleLifecycle(
 
   const flights = resolveBalloons(state);
   const preTerritory = snapshotTerritory();
-  const preWalls = state.players.map((p) => new Set(p.walls));
+  const preWalls = snapshotAllWalls(state);
 
   showBanner(
     BANNER_BATTLE,
@@ -213,7 +213,7 @@ export function startHostBattleLifecycle(
   if (isHost && sendBattleStart) sendBattleStart(flights);
 
   battleAnim.territory = snapshotTerritory();
-  battleAnim.walls = state.players.map((p) => new Set(p.walls));
+  battleAnim.walls = snapshotAllWalls(state);
 }
 
 export function tickHostBalloonAnim(deps: TickHostBalloonAnimDeps): void {
@@ -234,7 +234,7 @@ export function tickHostBalloonAnim(deps: TickHostBalloonAnimDeps): void {
 
 export function beginHostBattle(deps: BeginHostBattleDeps): void {
   const { state, controllers, accum, battleCountdown, setModeGame } = deps;
-  const remoteHumanSlots = deps.net?.remoteHumanSlots ?? EMPTY_TILE_SET;
+  const remoteHumanSlots = getRemoteSlots(deps.net);
   const isHost = deps.net?.isHost ?? true;
 
   for (const ctrl of localActiveControllers(controllers, remoteHumanSlots, state)) {

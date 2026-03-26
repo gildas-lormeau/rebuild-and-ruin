@@ -25,6 +25,7 @@ import {
   manhattanDistance,
   orderByNearest,
   packTile,
+  pxToTile,
   unpackTile,
 } from "./spatial.ts";
 import type { Cannon, Cannonball, GameState } from "./types.ts";
@@ -320,8 +321,8 @@ export function trackShotImpl(
   crosshair: PixelPos,
   shotCounts: WeakMap<Cannon, number>,
 ): void {
-  const row = Math.floor(crosshair.y / TILE_SIZE);
-  const col = Math.floor(crosshair.x / TILE_SIZE);
+  const row = pxToTile(crosshair.y);
+  const col = pxToTile(crosshair.x);
   for (const other of getActiveEnemies(state, playerId)) {
     for (const cannon of other.cannons) {
       if (cannon.kind === CannonMode.BALLOON) continue;
@@ -423,8 +424,8 @@ function ballTargeting(
   col: number,
 ): boolean {
   return (
-    Math.floor(b.targetY / TILE_SIZE) === row &&
-    Math.floor(b.targetX / TILE_SIZE) === col
+    pxToTile(b.targetY) === row &&
+    pxToTile(b.targetX) === col
   );
 }
 

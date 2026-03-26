@@ -19,6 +19,8 @@ import {
 
 /** 45° angle step (π/4 radians) — used for 8-direction snapping. */
 const FACING_45_STEP = Math.PI / 4;
+/** 90° angle step (π/2 radians) — used for 4-direction snapping. */
+export const FACING_90_STEP = Math.PI / 2;
 /** Cardinal directions: up, down, left, right. */
 export const DIRS_4 = [
   [-1, 0],
@@ -253,8 +255,8 @@ export function towerAtPixel(
   worldX: number,
   worldY: number,
 ): number | null {
-  const tileCol = Math.floor(worldX / TILE_SIZE);
-  const tileRow = Math.floor(worldY / TILE_SIZE);
+  const tileCol = pxToTile(worldX);
+  const tileRow = pxToTile(worldY);
 
   const HIT_RADIUS = 2;
   let bestIdx: number | null = null;
@@ -272,6 +274,11 @@ export function towerAtPixel(
   }
 
   return bestIdx;
+}
+
+/** Convert a world-pixel coordinate to a tile index (floor division by TILE_SIZE). */
+export function pxToTile(px: number): number {
+  return Math.floor(px / TILE_SIZE);
 }
 
 /** Find the nearest tower to a given tower in a direction (for spatial navigation). */
