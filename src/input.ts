@@ -148,7 +148,6 @@ export function registerOnlineInputHandlers(
     getLifeLostDialog,
     getControllers,
     isHuman,
-    withFirstHuman,
     screenToWorld,
     tryPlaceCannonAndSend,
     tryPlacePieceAndSend,
@@ -205,15 +204,8 @@ export function registerOnlineInputHandlers(
     ) {
       const tw = screenToWorld(x, y);
       dispatchTowerSelect(tw.wx, tw.wy, state, state.phase === Phase.CASTLE_RESELECT, deps);
-    } else if (state.phase === Phase.CANNON_PLACE) {
-      withFirstHuman((human) => {
-        const max = state.cannonLimits[human.playerId] ?? 0;
-        tryPlaceCannonAndSend(human, state, max);
-      });
-    } else if (state.phase === Phase.WALL_BUILD) {
-      withFirstHuman((human) => {
-        tryPlacePieceAndSend(human, state);
-      });
+    } else if (state.phase === Phase.CANNON_PLACE || state.phase === Phase.WALL_BUILD) {
+      dispatchPlacement(state, deps);
     } else {
       dispatchBattleFire(x, y, state, deps);
     }
@@ -621,6 +613,25 @@ export function dispatchTowerSelect(
         // switching to a different tower resets so you can browse freely.
         ss.tapped = alreadyHighlighted;
       }
+    }
+  });
+}
+
+/** Shared placement dispatch — place piece or cannon for the first human player. */
+export function dispatchPlacement(
+  state: GameState,
+  deps: {
+    withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
+    tryPlacePieceAndSend: (human: PlayerController & InputReceiver, state: GameState) => void;
+    tryPlaceCannonAndSend: (human: PlayerController & InputReceiver, state: GameState, max: number) => void;
+  },
+): void {
+  deps.withFirstHuman((human) => {
+    if (state.phase === Phase.WALL_BUILD) {
+      deps.tryPlacePieceAndSend(human, state);
+    } else if (state.phase === Phase.CANNON_PLACE) {
+      const max = state.cannonLimits[human.playerId] ?? 0;
+      deps.tryPlaceCannonAndSend(human, state, max);
     }
   });
 }

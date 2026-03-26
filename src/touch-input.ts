@@ -6,7 +6,7 @@
  */
 
 import type { RegisterOnlineInputDeps } from "./input.ts";
-import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPointerMove, dispatchTowerSelect, markTouchTime } from "./input.ts";
+import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, markTouchTime } from "./input.ts";
 import { Phase } from "./types.ts";
 
 const TAP_MAX_DIST = 20;
@@ -19,13 +19,10 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     getState,
     getMode,
     isLobbyActive,
-    withFirstHuman,
     screenToWorld,
     onPinchStart,
     onPinchUpdate,
     onPinchEnd,
-    tryPlaceCannonAndSend,
-    tryPlacePieceAndSend,
   } = deps;
 
   // Gesture tracking
@@ -150,19 +147,9 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
       dispatchTowerSelect(w.wx, w.wy, state, state.phase === Phase.CASTLE_RESELECT, deps, true);
     }
 
-    // Build: tap to place (skip when floating buttons handle placement)
-    if (tap && state.phase === Phase.WALL_BUILD && !deps.isDirectTouchActive?.()) {
-      withFirstHuman((human) => {
-        tryPlacePieceAndSend(human, state);
-      });
-    }
-
-    // Cannon: tap to place (skip when floating buttons handle placement)
-    if (tap && state.phase === Phase.CANNON_PLACE && !deps.isDirectTouchActive?.()) {
-      withFirstHuman((human) => {
-        const max = state.cannonLimits[human.playerId] ?? 0;
-        tryPlaceCannonAndSend(human, state, max);
-      });
+    // Build / Cannon: tap to place (skip when floating buttons handle placement)
+    if (tap && !deps.isDirectTouchActive?.()) {
+      dispatchPlacement(state, deps);
     }
 
     // Battle: always fire on touch release (tap or drag)

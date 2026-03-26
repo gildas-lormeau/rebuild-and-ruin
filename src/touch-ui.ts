@@ -9,6 +9,7 @@
  */
 
 import { hapticTap } from "./haptics.ts";
+import { dispatchPlacement } from "./input.ts";
 import { ACTION_CONFIRM, PLAYER_COLORS } from "./player-config.ts";
 import type { InputReceiver, PlayerController } from "./player-controller.ts";
 import { rgb, TOUCH_ZOOM_ENEMY_BG, TOUCH_ZOOM_HOME_BG, ZOOM_BUTTON_ALPHA } from "./render-theme.ts";
@@ -209,7 +210,7 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
         deps.withFirstHuman((human) => deps.fireAndSend(human, state));
       }
     } else {
-      dispatchPlacement(deps, state);
+      dispatchPlacement(state, deps);
     }
   }
 
@@ -410,7 +411,7 @@ export function createFloatingActions(
     hapticTap();
     const state = deps.getState();
     if (!state) return;
-    dispatchPlacement(deps, state);
+    dispatchPlacement(state, deps);
   }
 
   const TAP_THRESHOLD = 10; // pixels — beyond this the gesture is a drag
@@ -484,18 +485,6 @@ function dispatchRotate(deps: RotateDeps): void {
     } else if (state.phase === Phase.CANNON_PLACE) {
       const max = state.cannonLimits[human.playerId] ?? 0;
       human.cycleCannonMode(state, max);
-    }
-  });
-}
-
-/** Place a piece or cannon for the first human player. */
-function dispatchPlacement(deps: Pick<DpadDeps, "withFirstHuman" | "tryPlacePieceAndSend" | "tryPlaceCannonAndSend">, state: GameState): void {
-  deps.withFirstHuman((human) => {
-    if (state.phase === Phase.WALL_BUILD) {
-      deps.tryPlacePieceAndSend(human, state);
-    } else if (state.phase === Phase.CANNON_PLACE) {
-      const max = state.cannonLimits[human.playerId] ?? 0;
-      deps.tryPlaceCannonAndSend(human, state, max);
     }
   });
 }

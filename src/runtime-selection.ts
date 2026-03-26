@@ -154,6 +154,8 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
   }
 
   function confirmSelectionForPlayer(pid: number, isReselect = false): boolean {
+    const ss = rs.selectionStates.get(pid);
+    const alreadyConfirmed = ss?.confirmed ?? true;
     const allDone = confirmTowerSelection(
       rs.state,
       rs.selectionStates,
@@ -168,7 +170,7 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
       () => syncSelectionOverlay(),
       () => deps.render(),
     );
-    startPlayerCastleBuild(pid);
+    if (!alreadyConfirmed) startPlayerCastleBuild(pid);
     return allDone;
   }
 
