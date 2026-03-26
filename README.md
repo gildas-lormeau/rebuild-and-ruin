@@ -2,6 +2,10 @@
 
 A web-based multiplayer remake of Rampart (1990). Build castles, place cannons, and destroy your opponents in tournament-style rounds.
 
+## Play
+
+Play the game online at **[gildas-lormeau.github.io/rebuild-and-ruin](https://gildas-lormeau.github.io/rebuild-and-ruin/)**
+
 ## Build
 
 ```
