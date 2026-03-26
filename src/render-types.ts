@@ -3,7 +3,7 @@
  * circular dependencies between render-map and render-effects/towers/ui.
  */
 
-import type { GameOverOverlay, LifeLostDialogOverlay } from "./game-ui-types.ts";
+import type { ControlsPlayer, GameOverOverlay, LifeLostDialogOverlay, OptionEntry } from "./game-ui-types.ts";
 import type { House, PixelPos, TilePos, Tower } from "./geometry-types.ts";
 import type { RGB } from "./render-theme.ts";
 import type { BurningPit, Cannon, Grunt, Impact } from "./types.ts";
@@ -103,20 +103,6 @@ export interface BattleOverlay {
   }[];
   battleTerritory?: Set<number>[];
   battleWalls?: Set<number>[];
-}
-
-/** A single row in the options screen. */
-export interface OptionEntry {
-  name: string;
-  value: string;
-  editable: boolean;
-}
-
-/** A player column in the controls rebinding screen. */
-export interface ControlsPlayer {
-  name: string;
-  color: RGB;
-  bindings: string[];
 }
 
 /** UI overlays — banners, announcements, game over, player select. */

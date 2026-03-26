@@ -16,6 +16,20 @@ import { CannonMode } from "./types.ts";
 
 export interface PlayerStats { wallsDestroyed: number; cannonsKilled: number; }
 
+/** A single row in the options screen. */
+export interface OptionEntry {
+  name: string;
+  value: string;
+  editable: boolean;
+}
+
+/** A player column in the controls rebinding screen. */
+export interface ControlsPlayer {
+  name: string;
+  color: RGB;
+  bindings: string[];
+}
+
 export enum Mode {
   LOBBY,
   OPTIONS,

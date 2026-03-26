@@ -4,7 +4,7 @@
  */
 
 import { buildLobbyConfirmKeys, formatKeyHint } from "./game-ui-runtime.ts";
-import type { Mode } from "./game-ui-types.ts";
+import type { Mode, OptionEntry } from "./game-ui-types.ts";
 import {
   CANNON_HP_OPTIONS, type ControlsState,
   DIFFICULTY_LABELS, DPAD_LABELS,
@@ -17,8 +17,7 @@ import { generateMap } from "./map-generation.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import type { KeyBindings } from "./player-config.ts";
 import { ACTION_KEYS, getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
-import { renderMap } from "./render-map.ts";
-import type { OptionEntry, RenderOverlay } from "./render-types.ts";
+import type { RenderOverlay } from "./render-types.ts";
 import type { GameState } from "./types.ts";
 import { LOBBY_SKIP_LOCKOUT, LOBBY_SKIP_STEP } from "./types.ts";
 
@@ -38,13 +37,12 @@ export interface UIContext {
   lobby: { joined: boolean[]; active: boolean; map: GameMap | null; timerAccum?: number };
   getFrame: () => { announcement?: string };
   getLobbyRemaining: () => number;
-  render: () => void;
   isOnline?: boolean;
 }
 
 const CONTROL_ACTION_NAMES: readonly string[] = ["Up", "Down", "Left", "Right", "Confirm", "Rotate"];
 
-export function renderOptions(ctx: UIContext): void {
+export function buildOptionsOverlay(ctx: UIContext): { map: GameMap; overlay: RenderOverlay } {
   const lobbyMap = ctx.lobby.map ?? generateMap(0);
   ctx.lobby.map = lobbyMap;
   const readOnly = ctx.getOptionsReturnMode() !== null;
@@ -68,7 +66,7 @@ export function renderOptions(ctx: UIContext): void {
       },
     },
   };
-  renderMap(ctx.getState()?.map ?? lobbyMap, ctx.canvas, overlay);
+  return { map: ctx.getState()?.map ?? lobbyMap, overlay };
 }
 
 export function showOptions(ctx: UIContext, modeValues: { OPTIONS: Mode }): void {
@@ -88,7 +86,7 @@ export function closeOptions(ctx: UIContext, modeValues: { LOBBY: Mode; GAME: Mo
   }
 }
 
-export function renderControls(ctx: UIContext): void {
+export function buildControlsOverlay(ctx: UIContext): { map: GameMap; overlay: RenderOverlay } {
   const lobbyMap = ctx.lobby.map ?? generateMap(0);
   ctx.lobby.map = lobbyMap;
   const cs = ctx.controlsState;
@@ -112,7 +110,7 @@ export function renderControls(ctx: UIContext): void {
       },
     },
   };
-  renderMap(ctx.getState()?.map ?? lobbyMap, ctx.canvas, overlay);
+  return { map: ctx.getState()?.map ?? lobbyMap, overlay };
 }
 
 export function showControls(ctx: UIContext, modeValues: { CONTROLS: Mode }): void {
@@ -136,10 +134,9 @@ export function togglePause(ctx: UIContext, modeValues: { GAME: Mode; SELECTION:
   return true;
 }
 
-/** Tick the lobby — render + check expiry. Calls `onExpired` when timer runs out or all slots are filled. */
+/** Tick the lobby — check expiry. Calls `onExpired` when timer runs out or all slots are filled. */
 export function tickLobby(ctx: UIContext, onExpired: () => void): void {
   if (!ctx.lobby.active) return;
-  renderLobby(ctx);
   const allJoined = ctx.lobby.joined.every(Boolean);
   if (ctx.getLobbyRemaining() <= 0 || allJoined) {
     ctx.lobby.active = false;
@@ -147,9 +144,9 @@ export function tickLobby(ctx: UIContext, onExpired: () => void): void {
   }
 }
 
-export function renderLobby(ctx: UIContext): void {
+export function buildLobbyOverlay(ctx: UIContext): { map: GameMap; overlay: RenderOverlay } {
   const remaining = Math.max(0, ctx.getLobbyRemaining());
-  const lobbyOverlay: RenderOverlay = {
+  const overlay: RenderOverlay = {
     selection: { highlighted: null, selected: null },
     ui: {
       playerSelect: {
@@ -166,7 +163,7 @@ export function renderLobby(ctx: UIContext): void {
     },
   };
   if (!ctx.lobby.map) ctx.lobby.map = generateMap(0);
-  renderMap(ctx.getState()?.map ?? ctx.lobby.map, ctx.canvas, lobbyOverlay);
+  return { map: ctx.getState()?.map ?? ctx.lobby.map, overlay };
 }
 
 /** Handle a lobby key press — resolve slot from key bindings, call `onJoin` if valid. */

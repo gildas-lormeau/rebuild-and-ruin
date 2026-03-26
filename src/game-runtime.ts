@@ -17,13 +17,13 @@ import {
 } from "./game-ui-runtime.ts";
 import type { UIContext } from "./game-ui-screens.ts";
 import {
+  buildControlsOverlay,
+  buildLobbyOverlay,
+  buildOptionsOverlay,
   closeControls as closeControlsShared,
   closeOptions as closeOptionsShared,
   lobbyKeyJoin as lobbyKeyJoinShared,
   lobbySkipStep,
-  renderControls as renderControlsShared,
-  renderLobby as renderLobbyShared,
-  renderOptions as renderOptionsShared,
   showControls as showControlsShared,
   showOptions as showOptionsShared,
   tickLobby as tickLobbyShared,
@@ -234,11 +234,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   function renderLobby(): void {
-    renderLobbyShared(uiCtx);
+    const { map, overlay } = buildLobbyOverlay(uiCtx);
+    renderMap(map, canvas, overlay);
   }
 
   function tickLobby(dt: number): void {
     rs.lobby.timerAccum = (rs.lobby.timerAccum ?? 0) + dt;
+    renderLobby();
     tickLobbyShared(uiCtx, () => {
       config.onTickLobbyExpired();
     });
@@ -268,7 +270,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       tileSize: TILE_SIZE,
       slotCount: MAX_PLAYERS,
       computeLayout: computeLobbyLayout,
-      isSlotJoined: (i) => rs.lobby.joined[i]!,
     });
     if (!hit) return false;
     if (hit.type === "gear") {
@@ -330,7 +331,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function renderOptions(): void {
-    renderOptionsShared(uiCtx);
+    const { map, overlay } = buildOptionsOverlay(uiCtx);
+    renderMap(map, canvas, overlay);
   }
 
   function showOptions(): void {
@@ -354,7 +356,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   function renderControls(): void {
-    renderControlsShared(uiCtx);
+    const { map, overlay } = buildControlsOverlay(uiCtx);
+    renderMap(map, canvas, overlay);
   }
 
   function showControls(): void {
@@ -829,7 +832,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     lobby: rs.lobby,
     getFrame: () => rs.frame,
     getLobbyRemaining: () => config.getLobbyRemaining(),
-    render,
     isOnline: !!config.isOnline,
   };
 

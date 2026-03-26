@@ -53,6 +53,7 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
     state,
     battleAnim,
     text,
+    subtitle,
     onDone,
     reveal = false,
     newBattle,
@@ -91,7 +92,7 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
   banner.active = true;
   banner.progress = 0;
   banner.text = text;
-  banner.subtitle = deps.subtitle;
+  banner.subtitle = subtitle;
   banner.callback = onDone;
   setModeBanner();
 }

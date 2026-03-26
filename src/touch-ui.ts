@@ -11,7 +11,7 @@
 import { hapticTap } from "./haptics.ts";
 import { ACTION_CONFIRM, PLAYER_COLORS } from "./player-config.ts";
 import type { InputReceiver, PlayerController } from "./player-controller.ts";
-import { rgb, TOUCH_ZOOM_ENEMY_BG, TOUCH_ZOOM_HOME_BG } from "./render-theme.ts";
+import { rgb, TOUCH_ZOOM_ENEMY_BG, TOUCH_ZOOM_HOME_BG, ZOOM_BUTTON_ALPHA } from "./render-theme.ts";
 import type { SelectionState } from "./selection.ts";
 import { findNearestTower } from "./spatial.ts";
 import type { GameState } from "./types.ts";
@@ -344,18 +344,8 @@ export function createHomeZoomButton(deps: ZoomButtonDeps, container: HTMLElemen
   function updateLabel() {
     const current = deps.getCameraZone();
     const myZone = getMyZone();
-    let bg: string;
-    if (current === myZone && myZone !== null) {
-      bg = TOUCH_ZOOM_HOME_BG;
-    } else {
-      const state = deps.getState();
-      const pid = deps.myPlayerId();
-      if (pid >= 0 && state && PLAYER_COLORS[pid]) {
-        bg = rgb(PLAYER_COLORS[pid]!.interiorLight, 0.85);
-      } else {
-        bg = TOUCH_ZOOM_HOME_BG;
-      }
-    }
+    const isHome = current === myZone && myZone !== null;
+    const bg = zoomButtonBg(isHome ? -1 : deps.myPlayerId(), TOUCH_ZOOM_HOME_BG);
     for (const btn of buttons) btn.style.background = bg;
   }
 
@@ -395,20 +385,11 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps, container: HTMLEleme
   }
 
   function updateLabel() {
-    const state = deps.getState();
     const zone = deps.getCameraZone();
-    const enemyZones = getEnemyZones();
-    let bg: string;
-    if (zone !== null && state && enemyZones.includes(zone)) {
-      const pid = state.playerZones.indexOf(zone);
-      if (pid >= 0 && PLAYER_COLORS[pid]) {
-        bg = rgb(PLAYER_COLORS[pid]!.interiorLight, 0.85);
-      } else {
-        bg = TOUCH_ZOOM_ENEMY_BG;
-      }
-    } else {
-      bg = TOUCH_ZOOM_ENEMY_BG;
-    }
+    const state = deps.getState();
+    const pid = zone !== null && state ? state.playerZones.indexOf(zone) : -1;
+    const isActive = zone !== null && getEnemyZones().includes(zone);
+    const bg = zoomButtonBg(isActive ? pid : -1, TOUCH_ZOOM_ENEMY_BG);
     for (const btn of buttons) btn.style.background = bg;
   }
 
@@ -512,6 +493,14 @@ export function createFloatingActions(
       btnConfirm.classList.toggle("disabled", !valid);
     },
   };
+}
+
+/** Resolve the background color for a zoom button: player color if pid is valid, fallback otherwise. */
+function zoomButtonBg(pid: number, fallbackBg: string): string {
+  if (pid >= 0 && PLAYER_COLORS[pid]) {
+    return rgb(PLAYER_COLORS[pid]!.interiorLight, ZOOM_BUTTON_ALPHA);
+  }
+  return fallbackBg;
 }
 
 /** Rotate piece or cycle cannon mode for the first human player. */

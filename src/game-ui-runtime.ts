@@ -63,10 +63,9 @@ export function lobbyClickHitTest(params: {
   slotCount: number;
   computeLayout: (tsW: number, tsH: number, count: number) =>
     { gap: number; rectW: number; rectH: number; rectY: number };
-  isSlotJoined: (i: number) => boolean;
 }): { type: "gear" } | { type: "slot"; slotId: number } | null {
   const { canvasX, canvasY, canvasW, canvasH, tileSize,
-          slotCount, computeLayout, isSlotJoined } = params;
+          slotCount, computeLayout } = params;
 
   const tsW = GRID_COLS * tileSize;
   const tsH = GRID_ROWS * tileSize;
@@ -87,10 +86,7 @@ export function lobbyClickHitTest(params: {
   for (let i = 0; i < slotCount; i++) {
     const rx = gap + i * (rectW + gap);
     if (x >= rx && x <= rx + rectW && y >= rectY && y <= rectY + rectH) {
-      if (!isSlotJoined(i)) {
-        return { type: "slot", slotId: i };
-      }
-      return { type: "slot", slotId: i }; // Already joined, still consumed
+      return { type: "slot", slotId: i };
     }
   }
   return null;
@@ -239,7 +235,7 @@ export function mainLoopTick(params: {
     mode !== Mode.CONTROLS &&
     mode !== Mode.STOPPED
   ) {
-    if (!frame.announcement) frame.announcement = "Paused";
+    if (!frame.announcement) frame.announcement = "PAUSED";
     params.render();
     return true;
   }

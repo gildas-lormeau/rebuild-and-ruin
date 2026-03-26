@@ -6,6 +6,7 @@ import { FOCUS_MENU, FOCUS_REMATCH } from "./game-ui-types.ts";
 import { CHOICE_CONTINUE, CHOICE_PENDING } from "./life-lost.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
+  BANNER_HEIGHT_RATIO,
   LIFE_LOST_BTN_H as BTN_H,
   LIFE_LOST_BTN_W as BTN_W,
   BUTTON_FLASH_MS,
@@ -29,15 +30,25 @@ import {
   GOLD,
   GOLD_BG,
   GOLD_LIGHT,
+  GOLD_SUBTITLE,
   PANEL_BG,
   LIFE_LOST_PANEL_H as PANEL_H,
   LIFE_LOST_PANEL_W as PANEL_W,
   REBIND_FLASH_MS,
   rgb,
   SHADOW_COLOR,
+  SHADOW_COLOR_DENSE,
+  SHADOW_COLOR_HEAVY,
+  STATUSBAR_HEIGHT,
 } from "./render-theme.ts";
 import type { RenderOverlay } from "./render-types.ts";
 
+// Game over panel layout
+const GAMEOVER_ROW_H = 14;
+const GAMEOVER_HEADER_H = 36;
+const GAMEOVER_BTN_H = 20;
+const GAMEOVER_PANEL_W_RATIO = 0.65;
+const GAMEOVER_COL_RATIOS = [0.38, 0.56, 0.74, 0.92] as const;
 // Local semantic colors (not shared across files — context-specific to UI panels)
 const BTN_CONTINUE = {
   fill: (a: number) => `rgba(80,180,80,${a})`,
@@ -67,7 +78,7 @@ export function drawAnnouncement(
   octx.font = FONT_ANNOUNCE;
   octx.textAlign = "center";
   octx.textBaseline = "middle";
-  drawShadowText(octx, text, W / 2, H / 2, "rgba(0,0,0,0.7)", "#fff");
+  drawShadowText(octx, text, W / 2, H / 2, SHADOW_COLOR_HEAVY, "#fff");
   octx.restore();
 }
 
@@ -79,7 +90,7 @@ export function drawBanner(
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.ui?.banner) return;
-  const bannerH = Math.round(H * 0.15);
+  const bannerH = Math.round(H * BANNER_HEIGHT_RATIO);
   const by = Math.round(overlay.ui.banner.y - bannerH / 2);
   octx.fillStyle = PANEL_BG(0.85);
   octx.fillRect(0, by, W, bannerH);
@@ -102,7 +113,7 @@ export function drawBanner(
   );
   if (hasSubtitle) {
     octx.font = FONT_FLOAT_SM;
-    octx.fillStyle = "#c8a860";
+    octx.fillStyle = GOLD_SUBTITLE;
     octx.fillText(overlay.ui.banner.subtitle!, W / 2, by + bannerH * 0.72);
   }
   octx.restore();
@@ -126,9 +137,9 @@ export function drawScoreDeltas(
     const shown = Math.round(d.delta * t);
     const total = d.total - d.delta + shown;
     octx.font = FONT_FLOAT_LG;
-    drawShadowText(octx, `+${shown}`, d.cx, d.cy - 6, "rgba(0,0,0,0.8)", "#fff");
+    drawShadowText(octx, `+${shown}`, d.cx, d.cy - 6, SHADOW_COLOR_DENSE, "#fff");
     octx.font = FONT_FLOAT_MD;
-    drawShadowText(octx, `${total}`, d.cx, d.cy + 8, "rgba(0,0,0,0.6)", GOLD_LIGHT);
+    drawShadowText(octx, `${total}`, d.cx, d.cy + 8, SHADOW_COLOR, GOLD_LIGHT);
   }
   octx.restore();
 }
@@ -142,12 +153,12 @@ export function drawStatusBar(
 ): void {
   if (!overlay?.ui?.statusBar) return;
   const sb = overlay.ui.statusBar;
-  const barH = 32;
+  const barH = STATUSBAR_HEIGHT;
   const by = H - barH;
 
   octx.fillStyle = PANEL_BG(0.95);
   octx.fillRect(0, by, W, barH);
-  octx.fillStyle = "rgba(200,160,64,0.4)";
+  octx.fillStyle = GOLD_BG(0.4);
   octx.fillRect(0, by, W, 1);
 
   octx.save();
@@ -197,13 +208,10 @@ export function drawGameOver(
   const gameOverData = overlay.ui.gameOver;
   const sorted = [...gameOverData.scores].sort((a, b) => b.score - a.score);
   const hasStats = sorted.some(e => e.stats);
-  const rowH = 14;
-  const headerH = 36;
-  const statsH = hasStats ? 14 : 0; // column headers
-  const tableH = sorted.length * rowH + statsH;
-  const btnH = 20;
-  const panelW = Math.round(W * 0.65);
-  const panelH = headerH + tableH + 16 + btnH + 12;
+  const statsH = hasStats ? GAMEOVER_ROW_H : 0;
+  const tableH = sorted.length * GAMEOVER_ROW_H + statsH;
+  const panelW = Math.round(W * GAMEOVER_PANEL_W_RATIO);
+  const panelH = GAMEOVER_HEADER_H + tableH + 16 + GAMEOVER_BTN_H + 12;
   const px = Math.round((W - panelW) / 2);
   const py = Math.round((H - panelH) / 2);
 
@@ -221,12 +229,12 @@ export function drawGameOver(
   octx.fillRect(px + 10, py + 32, panelW - 20, 1);
 
   // Column headers
-  const tableTop = py + headerH;
+  const tableTop = py + GAMEOVER_HEADER_H;
   const colName = px + 10;
-  const colScore = px + panelW * 0.38;
-  const colWalls = px + panelW * 0.56;
-  const colCannons = px + panelW * 0.74;
-  const colTerritory = px + panelW * 0.92;
+  const colScore = px + panelW * GAMEOVER_COL_RATIOS[0];
+  const colWalls = px + panelW * GAMEOVER_COL_RATIOS[1];
+  const colCannons = px + panelW * GAMEOVER_COL_RATIOS[2];
+  const colTerritory = px + panelW * GAMEOVER_COL_RATIOS[3];
 
   if (hasStats) {
     octx.font = FONT_FLOAT_XS;
@@ -242,7 +250,7 @@ export function drawGameOver(
   octx.font = FONT_LABEL;
   for (let i = 0; i < sorted.length; i++) {
     const entry = sorted[i]!;
-    const y = tableTop + statsH + 10 + i * rowH;
+    const y = tableTop + statsH + 10 + i * GAMEOVER_ROW_H;
     const c = entry.color;
     const alpha = entry.eliminated ? 0.4 : 1;
     octx.fillStyle = rgb(c, alpha);
@@ -262,30 +270,24 @@ export function drawGameOver(
   octx.textAlign = "center";
   octx.textBaseline = "middle";
   const btnW = Math.round((panelW - 30) / 2);
-  const btnY = py + panelH - btnH - 10;
+  const btnY = py + panelH - GAMEOVER_BTN_H - 10;
   const rematchX = px + 10;
   const menuX = px + panelW - 10 - btnW;
   const focused = gameOverData.focused;
 
-  // Rematch button
-  octx.fillStyle = focused === FOCUS_REMATCH ? "rgba(80,180,80,0.5)" : "rgba(80,180,80,0.2)";
-  octx.fillRect(rematchX, btnY, btnW, btnH);
-  octx.strokeStyle = focused === FOCUS_REMATCH ? "#afa" : "#8c8";
-  octx.lineWidth = focused === FOCUS_REMATCH ? 2 : 1;
-  octx.strokeRect(rematchX, btnY, btnW, btnH);
-  octx.font = FONT_BUTTON;
-  octx.fillStyle = focused === FOCUS_REMATCH ? "#fff" : "#ccc";
-  octx.fillText("Rematch", rematchX + btnW / 2, btnY + btnH / 2);
+  const rematchFocused = focused === FOCUS_REMATCH;
+  drawButton(octx, rematchX, btnY, btnW, GAMEOVER_BTN_H,
+    BTN_CONTINUE.fill(rematchFocused ? 0.5 : 0.2),
+    rematchFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
+    rematchFocused ? 2 : 1, FONT_BUTTON,
+    rematchFocused ? "#fff" : "#ccc", "Rematch");
 
-  // Menu button
-  octx.fillStyle = focused === FOCUS_MENU ? "rgba(100,100,140,0.5)" : "rgba(100,100,140,0.2)";
-  octx.fillRect(menuX, btnY, btnW, btnH);
-  octx.strokeStyle = focused === FOCUS_MENU ? "#ccf" : "#99c";
-  octx.lineWidth = focused === FOCUS_MENU ? 2 : 1;
-  octx.strokeRect(menuX, btnY, btnW, btnH);
-  octx.font = FONT_BUTTON;
-  octx.fillStyle = focused === FOCUS_MENU ? "#fff" : "#ccc";
-  octx.fillText("Menu", menuX + btnW / 2, btnY + btnH / 2);
+  const menuFocused = focused === FOCUS_MENU;
+  drawButton(octx, menuX, btnY, btnW, GAMEOVER_BTN_H,
+    BTN_ABANDON.fill(menuFocused ? 0.5 : 0.2),
+    menuFocused ? "#ccf" : "#99c",
+    menuFocused ? 2 : 1, FONT_BUTTON,
+    menuFocused ? "#fff" : "#ccc", "Menu");
 }
 
 /** Draw life-lost continue/abandon dialogs (one per player). */
@@ -350,32 +352,19 @@ export function drawLifeLostDialog(
 
       // Continue button
       const contFlash = contFocused && flashOn(BUTTON_FLASH_MS);
-      octx.fillStyle = BTN_CONTINUE.fill(
-        contFocused ? (contFlash ? 0.6 : 0.4) : 0.15,
-      );
-      octx.fillRect(contX, btnY, btnW, btnH);
-      octx.strokeStyle = contFocused
-        ? BTN_CONTINUE.strokeFocused
-        : BTN_CONTINUE.stroke;
-      octx.lineWidth = contFocused ? 2 : 1;
-      octx.strokeRect(contX, btnY, btnW, btnH);
-      octx.font = FONT_BUTTON;
-      octx.fillStyle = contFocused ? "#fff" : TEXT_DISABLED;
-      octx.fillText("Continue", contX + btnW / 2, btnY + btnH / 2);
+      drawButton(octx, contX, btnY, btnW, btnH,
+        BTN_CONTINUE.fill(contFocused ? (contFlash ? 0.6 : 0.4) : 0.15),
+        contFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
+        contFocused ? 2 : 1, FONT_BUTTON,
+        contFocused ? "#fff" : TEXT_DISABLED, "Continue");
 
       // Abandon button
       const abFlash = abFocused && flashOn(BUTTON_FLASH_MS);
-      octx.fillStyle = BTN_ABANDON.fill(
-        abFocused ? (abFlash ? 0.5 : 0.3) : 0.1,
-      );
-      octx.fillRect(abX, btnY, btnW, btnH);
-      octx.strokeStyle = abFocused
-        ? BTN_ABANDON.strokeFocused
-        : BTN_ABANDON.stroke;
-      octx.lineWidth = abFocused ? 2 : 1;
-      octx.strokeRect(abX, btnY, btnW, btnH);
-      octx.fillStyle = abFocused ? "#fff" : "#777";
-      octx.fillText("Abandon", abX + btnW / 2, btnY + btnH / 2);
+      drawButton(octx, abX, btnY, btnW, btnH,
+        BTN_ABANDON.fill(abFocused ? (abFlash ? 0.5 : 0.3) : 0.1),
+        abFocused ? BTN_ABANDON.strokeFocused : BTN_ABANDON.stroke,
+        abFocused ? 2 : 1, FONT_BUTTON,
+        abFocused ? "#fff" : "#777", "Abandon");
     } else {
       // Resolved state
       octx.font = FONT_LABEL;
@@ -439,25 +428,16 @@ export function drawPlayerSelect(
     const btnY = rectY + rectH - btnH - (touch ? 8 : 12);
 
     if (p.joined) {
-      octx.fillStyle = rgb(c, 0.3);
-      octx.fillRect(btnX, btnY, btnW, btnH);
-      octx.strokeStyle = rgb(c);
-      octx.lineWidth = 1;
-      octx.strokeRect(btnX, btnY, btnW, btnH);
-      octx.font = touch ? FONT_BODY : FONT_BUTTON;
-      octx.fillStyle = "#fff";
-      octx.fillText("Please wait...", cx, btnY + btnH / 2);
+      drawButton(octx, btnX, btnY, btnW, btnH,
+        rgb(c, 0.3), rgb(c), 1,
+        touch ? FONT_BODY : FONT_BUTTON, "#fff", "Please wait...");
     } else {
       const flash = flashOn(CURSOR_BLINK_MS);
-      const alpha = flash ? 0.5 : 0.2;
-      octx.fillStyle = rgb(c, alpha);
-      octx.fillRect(btnX, btnY, btnW, btnH);
-      octx.strokeStyle = rgb(c);
-      octx.lineWidth = 1;
-      octx.strokeRect(btnX, btnY, btnW, btnH);
-      octx.font = touch ? FONT_LABEL : FONT_HINT;
-      octx.fillStyle = flash ? "#fff" : "#aaa";
-      octx.fillText(touch ? "Tap to join" : "Press button to start", cx, btnY + btnH / 2);
+      drawButton(octx, btnX, btnY, btnW, btnH,
+        rgb(c, flash ? 0.5 : 0.2), rgb(c), 1,
+        touch ? FONT_LABEL : FONT_HINT,
+        flash ? "#fff" : "#aaa",
+        touch ? "Tap to join" : "Press button to start");
     }
 
     if (!touch) {
@@ -697,6 +677,23 @@ export function computeLobbyLayout(W: number, H: number, count: number) {
 /** Returns true on even half of a repeating blink cycle. */
 function flashOn(intervalMs: number): boolean {
   return Math.floor(Date.now() / intervalMs) % 2 === 0;
+}
+
+/** Draw a styled button: filled rect + border + centered label. */
+function drawButton(
+  octx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  fill: string, stroke: string, lineWidth: number,
+  font: string, textColor: string, label: string,
+): void {
+  octx.fillStyle = fill;
+  octx.fillRect(x, y, w, h);
+  octx.strokeStyle = stroke;
+  octx.lineWidth = lineWidth;
+  octx.strokeRect(x, y, w, h);
+  octx.font = font;
+  octx.fillStyle = textColor;
+  octx.fillText(label, x + w / 2, y + h / 2);
 }
 
 /** Fill a full-screen opaque panel and set up centered text drawing. */

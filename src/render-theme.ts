@@ -21,6 +21,12 @@ export const GOLD_LIGHT = "#f0d870";
 export const GOLD_BG = (alpha: number) => `rgba(200, 160, 64, ${alpha})`;
 /** Text shadow color for overlay text. */
 export const SHADOW_COLOR = "rgba(0,0,0,0.6)";
+/** Heavier shadow for centered announcements over the game area. */
+export const SHADOW_COLOR_HEAVY = "rgba(0,0,0,0.7)";
+/** Heaviest shadow for small floating text that needs maximum contrast. */
+export const SHADOW_COLOR_DENSE = "rgba(0,0,0,0.8)";
+/** Muted gold for banner subtitles. */
+export const GOLD_SUBTITLE = "#c8a860";
 export const FONT_ANNOUNCE = "bold 24px monospace";
 export const FONT_TITLE = "bold 20px monospace";
 export const FONT_HEADING = "bold 16px monospace";
@@ -38,6 +44,9 @@ export const FONT_FLOAT_LG = "bold 14px sans-serif";
 export const FONT_FLOAT_MD = "bold 12px sans-serif";
 export const FONT_FLOAT_SM = "bold 11px sans-serif";
 export const FONT_FLOAT_XS = "bold 7px sans-serif";
+// Layout constants shared across render modules
+export const BANNER_HEIGHT_RATIO = 0.15;
+export const STATUSBAR_HEIGHT = 32;
 // In-world effect timings
 export const BONUS_FLASH_MS = 300;
 export const TOWER_FLASH_MS = 120;
@@ -59,9 +68,10 @@ export const LIFE_LOST_BTN_H = IS_TOUCH_DEVICE ? 28 : 18;
 export const GEAR_X = GRID_COLS * TILE_SIZE - 32;
 export const GEAR_Y = 4;
 export const GEAR_SIZE = 28;
-// Button colors still referenced by JS for dynamic zoom-button tinting
-export const TOUCH_ZOOM_HOME_BG = "rgba(60, 80, 120, 0.85)";
-export const TOUCH_ZOOM_ENEMY_BG = "rgba(100, 50, 50, 0.85)";
+// Zoom button tinting
+export const ZOOM_BUTTON_ALPHA = 0.85;
+export const TOUCH_ZOOM_HOME_BG = `rgba(60, 80, 120, ${ZOOM_BUTTON_ALPHA})`;
+export const TOUCH_ZOOM_ENEMY_BG = `rgba(100, 50, 50, ${ZOOM_BUTTON_ALPHA})`;
 /** Loupe corner radius in CSS pixels (scaled by DPR internally). */
 export const LOUPE_RADIUS = 12;
 /** Loupe magnification factor relative to the scene canvas. */

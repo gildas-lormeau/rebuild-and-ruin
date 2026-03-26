@@ -138,6 +138,9 @@ export function setupLobbyUi({
     const renderRoomList = (rooms: { code: string; players: number; settings: { battleLength: number; cannonMaxHp: number }; elapsedSec: number }[]) => {
       if (rooms.length === 0) { setMessage("room-list-empty", "No rooms available"); return; }
       const roundsLabel = (v: number) => v > 0 ? `${v} rounds` : "To The Death";
+      const SECS_PER_MIN = 60;
+      const SECS_PER_HOUR = 3600;
+      const ageLabel = (sec: number) => sec < SECS_PER_MIN ? "just now" : sec < SECS_PER_HOUR ? `${Math.floor(sec / SECS_PER_MIN)}m ago` : `${Math.floor(sec / SECS_PER_HOUR)}h ago`;
       roomListEl.innerHTML = "";
       roomListEl.appendChild(el("div", "room-list-title", "Available Rooms"));
       for (const r of rooms) {
@@ -146,7 +149,7 @@ export function setupLobbyUi({
         item.appendChild(el("span", "room-code", r.code));
         const info = el("span", "room-info");
         info.append(
-          `${r.players}/${MAX_PLAYERS} players`, doc.createElement("br"),
+          `${r.players}/${MAX_PLAYERS} players · ${ageLabel(r.elapsedSec)}`, doc.createElement("br"),
           `${roundsLabel(r.settings.battleLength)} · ${r.settings.cannonMaxHp} HP`,
         );
         item.appendChild(info);

@@ -4,6 +4,7 @@ import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type LifeLostDialogSta
 import type { BannerState } from "./phase-banner.ts";
 import type { RGB } from "./player-config.ts";
 import {
+  BANNER_HEIGHT_RATIO,
   LIFE_LOST_BTN_H as BTN_H,
   LIFE_LOST_BTN_W as BTN_W,
   LIFE_LOST_PANEL_H as PANEL_H,
@@ -69,7 +70,7 @@ export function buildBannerUi(
 ): { text: string; subtitle?: string; y: number } | undefined {
   if (!active) return undefined;
   const h = GRID_ROWS * TILE_SIZE;
-  const bannerH = h * 0.15;
+  const bannerH = h * BANNER_HEIGHT_RATIO;
   const startY = -bannerH / 2;
   const endY = h + bannerH / 2;
   return {
@@ -356,7 +357,7 @@ function buildBattleCannonballsPayload(
       x: b.x,
       y: b.y,
       progress,
-      incendiary: b.incendiary || undefined,
+      incendiary: b.incendiary,
     };
   });
 }

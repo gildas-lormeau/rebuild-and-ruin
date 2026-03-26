@@ -9,13 +9,16 @@ import type { RGB } from "./render-theme.ts";
 import {
   BONUS_FLASH_MS, CROSSHAIR_ARM_IDLE, CROSSHAIR_ARM_PULSE,
   CROSSHAIR_ARM_READY, CROSSHAIR_IDLE_FREQ,CROSSHAIR_READY_FREQ, FONT_TIMER,
-  rgb, 
+  rgb, SHADOW_COLOR,
 } from "./render-theme.ts";
 import type { MapData, RenderOverlay } from "./render-types.ts";
 import { facingToCardinal } from "./spatial.ts";
 import { drawSprite } from "./sprites.ts";
 import { CannonMode, IMPACT_FLASH_DURATION } from "./types.ts";
 
+// Spatial hash multipliers for per-tile visual noise
+const SEED_ROW = 41;
+const SEED_COL = 17;
 // Impact animation phases (normalized 0–1 within IMPACT_FLASH_DURATION)
 const IMPACT_CORE_END = 0.25;
 const IMPACT_RING_END = 0.6;
@@ -195,7 +198,7 @@ export function drawBattleEffects(
       if (t >= 1) continue;
       const cx = impact.col * TILE_SIZE + TILE_SIZE / 2;
       const cy = impact.row * TILE_SIZE + TILE_SIZE / 2;
-      const seed = impact.row * 41 + impact.col * 17;
+      const seed = impact.row * SEED_ROW + impact.col * SEED_COL;
 
       // Core flash — brief bright spot, shrinks quickly
       if (t < IMPACT_CORE_END) {
@@ -321,11 +324,12 @@ export function drawBattleEffects(
 
   // Burning pits
   if (overlay?.entities?.burningPits) {
+    const t = performance.now() / 1000;
     for (const pit of overlay.entities.burningPits) {
       const px = pit.col * TILE_SIZE;
       const py = pit.row * TILE_SIZE;
       const mid = TILE_SIZE / 2;
-      const flicker = Math.random() * 0.3;
+      const flicker = (Math.sin(t * 8 + pit.row * SEED_ROW + pit.col * SEED_COL) + 1) * 0.15;
       const stage = Math.max(1, Math.min(3, pit.roundsLeft));
       drawSprite(octx, `burning_pit_${stage}`, px, py);
       // Animated lava flicker (round glow, stronger for fresh pits)
@@ -406,7 +410,7 @@ export function drawBattleEffects(
     octx.font = FONT_TIMER;
     octx.textAlign = "center";
     octx.textBaseline = "middle";
-    octx.fillStyle = "rgba(0,0,0,0.6)";
+    octx.fillStyle = SHADOW_COLOR;
     octx.fillText(text, jx + 1, jy + 1);
     octx.fillStyle = "#fff";
     octx.fillText(text, jx, jy);

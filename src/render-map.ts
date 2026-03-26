@@ -12,7 +12,7 @@ import {
   drawPhantoms,
   drawWaterAnimation,
 } from "./render-effects.ts";
-import type { RGB } from "./render-theme.ts";
+import { BANNER_HEIGHT_RATIO, type RGB, STATUSBAR_HEIGHT } from "./render-theme.ts";
 import { drawTowers } from "./render-towers.ts";
 import type { CastleData, MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import {
@@ -121,7 +121,7 @@ export function renderMap(
   const W = GRID_COLS * TILE_SIZE;
   const H = GRID_ROWS * TILE_SIZE;
 
-  const STATUS_BAR_H = overlay?.ui?.statusBar ? 32 : 0;
+  const STATUS_BAR_H = overlay?.ui?.statusBar ? STATUSBAR_HEIGHT : 0;
   const cw = GRID_COLS * TILE_SIZE * SCALE;
   const gameH = GRID_ROWS * TILE_SIZE * SCALE;
   const ch = gameH + STATUS_BAR_H;
@@ -146,7 +146,7 @@ export function renderMap(
   // If banner is active with old data, re-draw old scene below the banner.
   // Uses a temp canvas because putImageData in drawTerrain ignores clip regions.
   if (overlay?.ui?.banner && overlay.ui.bannerOldCastles) {
-    const bannerH = Math.round(H * 0.15);
+    const bannerH = Math.round(H * BANNER_HEIGHT_RATIO);
     const clipY = Math.round(overlay.ui.banner.y - bannerH / 2);
     if (clipY < H) {
       const oldCastles = overlay.ui.bannerOldCastles;
