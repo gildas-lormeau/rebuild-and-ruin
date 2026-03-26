@@ -987,6 +987,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     render,
     endGame,
+    aimAtEnemyCastle,
 
     startCannonPhase: phaseTicks.startCannonPhase,
     startBattle: phaseTicks.startBattle,

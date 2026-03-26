@@ -51,6 +51,10 @@ interface TransitionContext {
   setBattleFlights: (value: { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[]) => void;
   snapshotTerritory: () => Set<number>[];
 
+  // Battle
+  /** Position crosshair on best enemy castle (mobile auto-zoom). */
+  aimAtEnemyCastle?: () => void;
+
   // Life-lost / game over
   showLifeLostDialog: (needsReselect: number[], eliminated: number[]) => void;
   /** Show score delta animation, calling onDone when complete (or immediately if no deltas). */
@@ -135,6 +139,7 @@ export function handleBattleStartTransition(msg: ServerMessage, ctx: TransitionC
         const ctrl = ctx.getControllers()[myPlayerId];
         if (ctrl) ctrl.resetBattle(state);
       }
+      ctx.aimAtEnemyCastle?.();
       if (battleFlights && battleFlights.length > 0) {
         ctx.setBattleFlights(
           battleFlights.map((f) => ({

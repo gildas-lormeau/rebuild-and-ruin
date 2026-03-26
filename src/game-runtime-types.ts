@@ -150,6 +150,7 @@ export interface GameRuntime {
 
   render: () => void;
   endGame: (winner: { id: number } | null) => void;
+  aimAtEnemyCastle: () => void;
 
   startCannonPhase: () => void;
   startBattle: () => void;

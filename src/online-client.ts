@@ -213,6 +213,7 @@ const transitionCtx = {
     runtime.rs.preScores = preScores;
     runtime.selection.showBuildScoreDeltas(onDone);
   },
+  aimAtEnemyCastle: () => runtime.aimAtEnemyCastle(),
   render: () => runtime.render(),
   setGameOverFrame: (p: NonNullable<typeof runtime.rs.frame.gameOver>) => { runtime.rs.frame.gameOver = p; },
 };
