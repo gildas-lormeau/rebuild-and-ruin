@@ -1,42 +1,15 @@
 import { applyKeyRebinding, FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus, SEED_CUSTOM, SEED_RANDOM, type SeedMode } from "./game-ui-types.ts";
 import type { WorldPos } from "./geometry-types.ts";
-import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type LifeLostChoice, type ResolvedChoice } from "./life-lost.ts";
+import type { ControlsState, LifeLostDialogState, ModeValues } from "./input-dispatch.ts";
+import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, isGameInteractionMode, isTouchSuppressed } from "./input-dispatch.ts";
+import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type ResolvedChoice } from "./life-lost.ts";
 import type { KeyBindings } from "./player-config.ts";
 import { ACTION_KEYS, MAX_PLAYERS } from "./player-config.ts";
 import type { InputReceiver, PlayerController } from "./player-controller.ts";
 import type { SelectionState } from "./selection.ts";
-import { findNearestTower, towerAtPixel } from "./spatial.ts";
+import { findNearestTower } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 import { Action, isMovementAction, isPlacementPhase, isSelectionPhase, Phase } from "./types.ts";
-
-interface ControlsState {
-  playerIdx: number;
-  actionIdx: number;
-  rebinding: boolean;
-}
-
-interface LifeLostDialogEntry {
-  playerId: number;
-  choice: LifeLostChoice;
-  focused: number;
-}
-
-interface LifeLostDialogState {
-  entries: LifeLostDialogEntry[];
-}
-
-interface ModeValues {
-  LOBBY: number;
-  OPTIONS: number;
-  CONTROLS: number;
-  SELECTION: number;
-  BANNER: number;
-  BALLOON_ANIM: number;
-  CASTLE_BUILD: number;
-  LIFE_LOST: number;
-  GAME: number;
-  STOPPED: number;
-}
 
 export interface RegisterOnlineInputDeps {
   canvas: HTMLCanvasElement;
@@ -110,14 +83,6 @@ export interface RegisterOnlineInputDeps {
   };
 }
 
-/** Ms window after a touchend during which synthetic click events are suppressed. */
-const TOUCH_CLICK_SUPPRESS_MS = 500;
-
-/** Timestamp of last touchend; suppresses synthetic click events on mobile. */
-let lastTouchTime = 0;
-
-export function markTouchTime(): void { lastTouchTime = performance.now(); }
-
 export function registerOnlineInputHandlers(
   deps: RegisterOnlineInputDeps,
 ): void {
@@ -125,52 +90,16 @@ export function registerOnlineInputHandlers(
     canvas,
     getState,
     getMode,
-    setMode,
     modeValues,
     isLobbyActive,
     lobbyKeyJoin,
-    showLobby,
-    rematch,
-    getGameOverFocused,
-    setGameOverFocused,
-    showOptions,
-    closeOptions,
-    showControls,
-    closeControls,
-    getOptionsCursor,
-    setOptionsCursor,
-    getOptionsCount,
-    getRealOptionIdx,
-    getOptionsReturnMode,
-    setOptionsReturnMode,
-    changeOption,
-    getControlsState,
-    getLifeLostDialog,
-    getControllers,
-    isHuman,
-    screenToWorld,
-    tryPlaceCannonAndSend,
-    tryPlacePieceAndSend,
-    fireAndSend,
-    getSelectionStates,
-    highlightTowerForPlayer,
-    confirmSelectionForPlayer,
-    isSelectionReady,
     togglePause,
-    getQuitPending,
-    setQuitPending,
-    setQuitTimer,
-    setQuitMessage,
-    sendLifeLostChoice,
-    settings,
+    screenToWorld,
   } = deps;
 
   canvas.addEventListener("mousemove", (e) => {
     const mode = getMode();
-    // Update cursor based on mode
-    if (mode === modeValues.LOBBY) {
-      canvas.style.cursor = "pointer";
-    } else if (mode === modeValues.STOPPED) {
+    if (mode === modeValues.LOBBY || mode === modeValues.STOPPED) {
       canvas.style.cursor = "pointer";
     } else if (mode === modeValues.GAME) {
       const state = getState();
@@ -182,16 +111,12 @@ export function registerOnlineInputHandlers(
     const state = getState();
     if (!state || isLobbyActive()) return;
     const { x, y } = clientToCanvas(e.clientX, e.clientY, canvas);
-
     dispatchPointerMove(x, y, state, deps);
   });
 
   canvas.addEventListener("click", (e) => {
-    // Suppress synthetic click fired by the browser after touchend
-    if (performance.now() - lastTouchTime < TOUCH_CLICK_SUPPRESS_MS) return;
-
+    if (isTouchSuppressed()) return;
     const { x, y } = clientToCanvas(e.clientX, e.clientY, canvas);
-
     const mode = getMode();
     const state = getState();
 
@@ -209,315 +134,28 @@ export function registerOnlineInputHandlers(
   });
 
   document.addEventListener("keydown", (e) => {
-    if (
-      e.target instanceof HTMLInputElement ||
-      e.target instanceof HTMLSelectElement
-    ) {
-      return;
-    }
-
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
     const mode = getMode();
 
-    if (e.key === "F1") {
-      if (mode === modeValues.LOBBY) {
-        showOptions();
-        e.preventDefault();
-      } else if (mode === modeValues.OPTIONS) {
-        closeOptions();
-        e.preventDefault();
-      } else if (mode === modeValues.CONTROLS) {
-        closeControls();
-        e.preventDefault();
-      } else if (
-        mode === modeValues.SELECTION ||
-        mode === modeValues.BANNER ||
-        mode === modeValues.BALLOON_ANIM ||
-        mode === modeValues.CASTLE_BUILD ||
-        mode === modeValues.LIFE_LOST ||
-        mode === modeValues.GAME
-      ) {
-        setOptionsReturnMode(mode);
-        setMode(modeValues.OPTIONS);
-        e.preventDefault();
-      }
-      return;
-    }
-
-    if (mode === modeValues.STOPPED) {
-      if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "a" || e.key === "d") {
-        setGameOverFocused(getGameOverFocused() === FOCUS_REMATCH ? FOCUS_MENU : FOCUS_REMATCH);
-        e.preventDefault();
-        return;
-      }
-      if (e.key === "Enter" || e.key === " " || e.key === "n" || e.key === "f") {
-        if (getGameOverFocused() === FOCUS_REMATCH) rematch();
-        else showLobby();
-        e.preventDefault();
-        return;
-      }
-      if (e.key === "Escape") {
-        showLobby();
-        e.preventDefault();
-        return;
-      }
-      e.preventDefault();
-      return;
-    }
-
-    if (
-      e.key === "Escape" &&
-      mode !== modeValues.LOBBY &&
-      mode !== modeValues.OPTIONS &&
-      mode !== modeValues.CONTROLS
-    ) {
-      const hasHumans = getControllers().some((c) => isHuman(c));
-      if (!hasHumans) {
-        showLobby();
-      } else if (getQuitPending()) {
-        showLobby();
-      } else {
-        setQuitPending(true);
-        setQuitTimer(2);
-        setQuitMessage("Press ESC or ✕ again to quit");
-      }
-      e.preventDefault();
-      return;
-    }
-
-    if (mode === modeValues.CONTROLS) {
-      const controlsState = getControlsState();
-      if (controlsState.rebinding) {
-        e.preventDefault();
-        if (e.key === "Escape") {
-          controlsState.rebinding = false;
-        } else if (e.key === "p" || e.key === "P" || e.key === "F1") {
-          // Reserved keys.
-        } else {
-          const pIdx = controlsState.playerIdx;
-          const aIdx = controlsState.actionIdx;
-          const actionKey = ACTION_KEYS[aIdx]!;
-          applyKeyRebinding(settings.keyBindings[pIdx]!, actionKey, e.key);
-          controlsState.rebinding = false;
-        }
-      } else {
-        if (e.key === "ArrowUp") {
-          controlsState.actionIdx =
-            (controlsState.actionIdx - 1 + ACTION_KEYS.length) %
-            ACTION_KEYS.length;
-          e.preventDefault();
-        } else if (e.key === "ArrowDown") {
-          controlsState.actionIdx =
-            (controlsState.actionIdx + 1) % ACTION_KEYS.length;
-          e.preventDefault();
-        } else if (e.key === "ArrowLeft") {
-          controlsState.playerIdx =
-            (controlsState.playerIdx - 1 + MAX_PLAYERS) % MAX_PLAYERS;
-          e.preventDefault();
-        } else if (e.key === "ArrowRight") {
-          controlsState.playerIdx = (controlsState.playerIdx + 1) % MAX_PLAYERS;
-          e.preventDefault();
-        } else if (e.key === "Enter" || e.key === " ") {
-          controlsState.rebinding = true;
-          e.preventDefault();
-        } else if (e.key === "Escape") {
-          closeControls();
-          e.preventDefault();
-        }
-      }
-      return;
-    }
-
-    if (mode === modeValues.OPTIONS) {
-      const readOnly = getOptionsReturnMode() !== null;
-      const seedMode = settings.seedMode;
-
-      if (!readOnly && !deps.isOnline && getRealOptionIdx() === 4) {
-        if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
-          if (seedMode === SEED_RANDOM) {
-            settings.seedMode = SEED_CUSTOM;
-            settings.seed = "";
-          } else {
-            settings.seedMode = SEED_RANDOM;
-            settings.seed = "";
-          }
-          e.preventDefault();
-          return;
-        }
-        if (seedMode === SEED_CUSTOM) {
-          const currentSeed = settings.seed;
-          if (e.key >= "0" && e.key <= "9" && currentSeed.length < 9) {
-            settings.seed = currentSeed + e.key;
-            e.preventDefault();
-            return;
-          } else if (e.key === "Backspace") {
-            settings.seed = currentSeed.slice(0, -1);
-            e.preventDefault();
-            return;
-          } else if (e.key === "Delete") {
-            settings.seed = "";
-            e.preventDefault();
-            return;
-          }
-        }
-      }
-
-      if (e.key === "ArrowUp" || e.key === "w" || e.key === "i") {
-        setOptionsCursor(
-          (getOptionsCursor() - 1 + getOptionsCount()) % getOptionsCount(),
-        );
-        e.preventDefault();
-      } else if (e.key === "ArrowDown" || e.key === "s" || e.key === "k") {
-        setOptionsCursor((getOptionsCursor() + 1) % getOptionsCount());
-        e.preventDefault();
-      } else if (
-        e.key === "ArrowLeft" || e.key === "a" || e.key === "j"
-      ) {
-        changeOption(-1);
-        e.preventDefault();
-      } else if (
-        e.key === "ArrowRight" || e.key === "d" || e.key === "l"
-      ) {
-        changeOption(1);
-        e.preventDefault();
-      } else if (e.key === "Escape") {
-        closeOptions();
-        e.preventDefault();
-      } else if (
-        e.key === "Enter" ||
-        e.key === " " ||
-        e.key === "n" ||
-        e.key === "f" ||
-        e.key === "h"
-      ) {
-        if (getRealOptionIdx() === 5) {
-          showControls();
-        } else {
-          closeOptions();
-        }
-        e.preventDefault();
-      }
-      return;
-    }
-
-    if (isLobbyActive()) {
-      if (lobbyKeyJoin?.(e.key)) {
-        e.preventDefault();
-      }
-      return;
-    }
+    if (handleKeyF1(e, mode, deps)) return;
+    if (mode === modeValues.STOPPED) { handleKeyStopped(e, deps); return; }
+    if (handleKeyEscape(e, mode, deps)) return;
+    if (mode === modeValues.CONTROLS) { handleKeyControls(e, deps); return; }
+    if (mode === modeValues.OPTIONS) { handleKeyOptions(e, deps); return; }
+    if (isLobbyActive()) { if (lobbyKeyJoin?.(e.key)) e.preventDefault(); return; }
 
     const state = getState();
     if (!state) return;
-
-    if (mode === modeValues.LIFE_LOST && getLifeLostDialog()) {
-      const lifeLostDialog = getLifeLostDialog();
-      if (!lifeLostDialog) return;
-      for (const ctrl of getControllers()) {
-        if (!isHuman(ctrl)) continue;
-        const entry = lifeLostDialog.entries.find(
-          (en) => en.playerId === ctrl.playerId && en.choice === CHOICE_PENDING,
-        );
-        if (!entry) continue;
-        const action = ctrl.matchKey(e.key);
-        if (action === Action.LEFT || action === Action.RIGHT) {
-          entry.focused = entry.focused === 0 ? 1 : 0;
-          e.preventDefault();
-        } else if (action === Action.CONFIRM) {
-          entry.choice = entry.focused === 0 ? CHOICE_CONTINUE : CHOICE_ABANDON;
-          sendLifeLostChoice(entry.choice, entry.playerId);
-          e.preventDefault();
-        }
-      }
-      return;
-    }
-
-    if (e.key === "p" || e.key === "P") {
-      if (togglePause()) {
-        e.preventDefault();
-        return;
-      }
-    }
-
-    if (isSelectionPhase(state.phase)) {
-      if (isSelectionReady && !isSelectionReady()) return;
-      const isReselect = state.phase === Phase.CASTLE_RESELECT;
-      for (const ctrl of getControllers()) {
-        if (!isHuman(ctrl)) continue;
-        const ss = getSelectionStates().get(ctrl.playerId);
-        if (!ss || ss.confirmed) continue;
-
-        const action = ctrl.matchKey(e.key);
-        if (!action) continue;
-
-        const zone = state.playerZones[ctrl.playerId] ?? 0;
-        const current = ss.highlighted;
-
-        if (isMovementAction(action)) {
-          const next = findNearestTower(
-            state.map.towers,
-            current,
-            action,
-            zone,
-          );
-          highlightTowerForPlayer(next, zone, ctrl.playerId);
-          e.preventDefault();
-        } else if (action === Action.CONFIRM) {
-          confirmSelectionForPlayer(ctrl.playerId, isReselect);
-          e.preventDefault();
-        }
-      }
-      return;
-    }
-
+    if (mode === modeValues.LIFE_LOST && deps.getLifeLostDialog()) { handleKeyLifeLost(e, state, deps); return; }
+    if ((e.key === "p" || e.key === "P") && togglePause()) { e.preventDefault(); return; }
+    if (isSelectionPhase(state.phase)) { handleKeySelection(e, state, deps); return; }
     if (mode !== modeValues.GAME) return;
-
-    for (const ctrl of getControllers()) {
-      if (state.players[ctrl.playerId]?.eliminated) continue;
-      if (!isHuman(ctrl)) continue;
-      const action = ctrl.matchKey(e.key);
-      if (!action) continue;
-
-      if (state.phase === Phase.CANNON_PLACE) {
-        const player = state.players[ctrl.playerId]!;
-        if (!player.castle) continue;
-
-        if (isMovementAction(action)) {
-          ctrl.moveCannonCursor(action);
-          e.preventDefault();
-        } else if (action === Action.ROTATE) {
-          ctrl.cycleCannonMode(state, state.cannonLimits[player.id] ?? 0);
-          e.preventDefault();
-        } else if (action === Action.CONFIRM) {
-          const max = state.cannonLimits[player.id] ?? 0;
-          tryPlaceCannonAndSend(ctrl, state, max);
-          e.preventDefault();
-        }
-      } else if (state.phase === Phase.WALL_BUILD) {
-        if (isMovementAction(action)) {
-          ctrl.moveBuildCursor(action);
-          e.preventDefault();
-        } else if (action === Action.ROTATE) {
-          ctrl.rotatePiece();
-          e.preventDefault();
-        } else if (action === Action.CONFIRM) {
-          tryPlacePieceAndSend(ctrl, state);
-          e.preventDefault();
-        }
-      } else if (state.phase === Phase.BATTLE) {
-        if (isMovementAction(action) || action === Action.ROTATE) {
-          ctrl.handleKeyDown(action);
-          e.preventDefault();
-        } else if (action === Action.CONFIRM && state.battleCountdown <= 0) {
-          fireAndSend(ctrl, state);
-          e.preventDefault();
-        }
-      }
-    }
+    handleKeyGame(e, state, deps);
   });
 
   document.addEventListener("keyup", (e) => {
-    for (const ctrl of getControllers()) {
-      if (!isHuman(ctrl)) continue;
+    for (const ctrl of deps.getControllers()) {
+      if (!deps.isHuman(ctrl)) continue;
       const action = ctrl.matchKey(e.key);
       if (!action) continue;
       ctrl.handleKeyUp(action);
@@ -525,169 +163,249 @@ export function registerOnlineInputHandlers(
   });
 }
 
-/** Whether the current mode allows gameplay interaction (tower selection or active game). */
-export function isGameInteractionMode(mode: number, mv: { GAME: number; SELECTION: number }): boolean {
-  return mode === mv.GAME || mode === mv.SELECTION;
-}
-
-/**
- * Convert a client-space coordinate to canvas backing-store coordinates,
- * accounting for object-fit:contain letterboxing.
- */
-export function clientToCanvas(clientX: number, clientY: number, canvas: HTMLCanvasElement): { x: number; y: number } {
-  const rect = canvas.getBoundingClientRect();
-  const canvasRatio = canvas.width / canvas.height;
-  const rectRatio = rect.width / rect.height;
-  let contentW: number, contentH: number, offsetX: number, offsetY: number;
-  if (rectRatio > canvasRatio) {
-    contentH = rect.height;
-    contentW = rect.height * canvasRatio;
-    offsetX = (rect.width - contentW) / 2;
-    offsetY = 0;
+function handleKeyF1(e: KeyboardEvent, mode: number, deps: RegisterOnlineInputDeps): boolean {
+  if (e.key !== "F1") return false;
+  const { modeValues, showOptions, closeOptions, closeControls, setOptionsReturnMode, setMode } = deps;
+  if (mode === modeValues.LOBBY) {
+    showOptions();
+  } else if (mode === modeValues.OPTIONS) {
+    closeOptions();
+  } else if (mode === modeValues.CONTROLS) {
+    closeControls();
+  } else if (
+    mode === modeValues.SELECTION || mode === modeValues.BANNER ||
+    mode === modeValues.BALLOON_ANIM || mode === modeValues.CASTLE_BUILD ||
+    mode === modeValues.LIFE_LOST || mode === modeValues.GAME
+  ) {
+    setOptionsReturnMode(mode);
+    setMode(modeValues.OPTIONS);
   } else {
-    contentW = rect.width;
-    contentH = rect.width / canvasRatio;
-    offsetX = 0;
-    offsetY = (rect.height - contentH) / 2;
+    // Unlisted modes (e.g. STOPPED): consume F1 without action or preventDefault
+    return true;
   }
-  return {
-    x: ((clientX - rect.left - offsetX) / contentW) * canvas.width,
-    y: ((clientY - rect.top - offsetY) / contentH) * canvas.height,
-  };
+  e.preventDefault();
+  return true;
 }
 
-/** Shared mode-tap dispatch — handles non-game UI taps (game over, options, lobby, etc.). Returns true if consumed. */
-export function dispatchModeTap(
-  x: number,
-  y: number,
-  mode: number,
-  deps: Pick<RegisterOnlineInputDeps,
-    "modeValues" | "getGameOverFocused" | "rematch" | "showLobby" |
-    "closeOptions" | "closeControls" | "getControlsState" |
-    "getLifeLostDialog" | "lifeLostDialogClick" | "isLobbyActive" | "lobbyClick">,
-): boolean {
-  const { modeValues, getGameOverFocused, rematch, showLobby, closeOptions, closeControls, getControlsState, getLifeLostDialog, lifeLostDialogClick, isLobbyActive, lobbyClick } = deps;
-  if (mode === modeValues.STOPPED) {
+function handleKeyStopped(e: KeyboardEvent, deps: RegisterOnlineInputDeps): void {
+  const { getGameOverFocused, setGameOverFocused, rematch, showLobby } = deps;
+  if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "a" || e.key === "d") {
+    setGameOverFocused(getGameOverFocused() === FOCUS_REMATCH ? FOCUS_MENU : FOCUS_REMATCH);
+  } else if (e.key === "Enter" || e.key === " " || e.key === "n" || e.key === "f") {
     if (getGameOverFocused() === FOCUS_REMATCH) rematch();
     else showLobby();
-    return true;
+  } else if (e.key === "Escape") {
+    showLobby();
   }
-  if (mode === modeValues.OPTIONS) { closeOptions(); return true; }
-  if (mode === modeValues.CONTROLS) {
-    if (!getControlsState().rebinding) closeControls();
-    return true;
-  }
-  if (mode === modeValues.LIFE_LOST && getLifeLostDialog()) {
-    lifeLostDialogClick(x, y);
-    return true;
-  }
-  if (isLobbyActive()) { lobbyClick(x, y); return true; }
-  return false;
+  e.preventDefault();
 }
 
-/** Shared tower-selection tap — first tap highlights, same tower again confirms. */
-export function dispatchTowerSelect(
-  wx: number,
-  wy: number,
-  state: GameState,
-  isReselect: boolean,
-  deps: Pick<RegisterOnlineInputDeps,
-    "withFirstHuman" | "getSelectionStates" |
-    "highlightTowerForPlayer" | "confirmSelectionForPlayer" | "isSelectionReady">,
-  requireDoubleTap = false,
-): void {
-  if (deps.isSelectionReady && !deps.isSelectionReady()) return;
-  deps.withFirstHuman((human) => {
-    const ss = deps.getSelectionStates().get(human.playerId);
-    if (!ss || ss.confirmed) return;
-    const zone = state.playerZones[human.playerId] ?? 0;
-    const idx = towerAtPixel(state.map.towers, wx, wy);
-    if (idx !== null && state.map.towers[idx]?.zone === zone) {
-      const alreadyHighlighted = ss.highlighted === idx;
-      if (alreadyHighlighted && (!requireDoubleTap || ss.tapped)) {
-        deps.confirmSelectionForPlayer(human.playerId, isReselect);
+function handleKeyEscape(e: KeyboardEvent, mode: number, deps: RegisterOnlineInputDeps): boolean {
+  if (e.key !== "Escape") return false;
+  const { modeValues, showLobby, getControllers, isHuman, getQuitPending, setQuitPending, setQuitTimer, setQuitMessage } = deps;
+  if (mode === modeValues.LOBBY || mode === modeValues.OPTIONS || mode === modeValues.CONTROLS) return false;
+  const hasHumans = getControllers().some((c) => isHuman(c));
+  if (!hasHumans) {
+    showLobby();
+  } else if (getQuitPending()) {
+    showLobby();
+  } else {
+    setQuitPending(true);
+    setQuitTimer(2);
+    setQuitMessage("Press ESC or ✕ again to quit");
+  }
+  e.preventDefault();
+  return true;
+}
+
+function handleKeyControls(e: KeyboardEvent, deps: RegisterOnlineInputDeps): void {
+  const { getControlsState, closeControls, settings } = deps;
+  const controlsState = getControlsState();
+  if (controlsState.rebinding) {
+    e.preventDefault();
+    if (e.key === "Escape") {
+      controlsState.rebinding = false;
+    } else if (e.key === "p" || e.key === "P" || e.key === "F1") {
+      // Reserved keys.
+    } else {
+      const pIdx = controlsState.playerIdx;
+      const aIdx = controlsState.actionIdx;
+      const actionKey = ACTION_KEYS[aIdx]!;
+      applyKeyRebinding(settings.keyBindings[pIdx]!, actionKey, e.key);
+      controlsState.rebinding = false;
+    }
+  } else {
+    if (e.key === "ArrowUp") {
+      controlsState.actionIdx = (controlsState.actionIdx - 1 + ACTION_KEYS.length) % ACTION_KEYS.length;
+      e.preventDefault();
+    } else if (e.key === "ArrowDown") {
+      controlsState.actionIdx = (controlsState.actionIdx + 1) % ACTION_KEYS.length;
+      e.preventDefault();
+    } else if (e.key === "ArrowLeft") {
+      controlsState.playerIdx = (controlsState.playerIdx - 1 + MAX_PLAYERS) % MAX_PLAYERS;
+      e.preventDefault();
+    } else if (e.key === "ArrowRight") {
+      controlsState.playerIdx = (controlsState.playerIdx + 1) % MAX_PLAYERS;
+      e.preventDefault();
+    } else if (e.key === "Enter" || e.key === " ") {
+      controlsState.rebinding = true;
+      e.preventDefault();
+    } else if (e.key === "Escape") {
+      closeControls();
+      e.preventDefault();
+    }
+  }
+}
+
+function handleKeyOptions(e: KeyboardEvent, deps: RegisterOnlineInputDeps): void {
+  const {
+    getOptionsCursor, setOptionsCursor, getOptionsCount, getRealOptionIdx,
+    getOptionsReturnMode, changeOption, closeOptions, showControls, settings,
+  } = deps;
+  const readOnly = getOptionsReturnMode() !== null;
+  const seedMode = settings.seedMode;
+
+  if (!readOnly && !deps.isOnline && getRealOptionIdx() === 4) {
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      if (seedMode === SEED_RANDOM) {
+        settings.seedMode = SEED_CUSTOM;
+        settings.seed = "";
       } else {
-        deps.highlightTowerForPlayer(idx, zone, human.playerId);
-        // Mark tapped only when re-tapping the already-highlighted tower;
-        // switching to a different tower resets so you can browse freely.
-        ss.tapped = alreadyHighlighted;
+        settings.seedMode = SEED_RANDOM;
+        settings.seed = "";
+      }
+      e.preventDefault();
+      return;
+    }
+    if (seedMode === SEED_CUSTOM) {
+      const currentSeed = settings.seed;
+      if (e.key >= "0" && e.key <= "9" && currentSeed.length < 9) {
+        settings.seed = currentSeed + e.key;
+        e.preventDefault();
+        return;
+      } else if (e.key === "Backspace") {
+        settings.seed = currentSeed.slice(0, -1);
+        e.preventDefault();
+        return;
+      } else if (e.key === "Delete") {
+        settings.seed = "";
+        e.preventDefault();
+        return;
       }
     }
-  });
+  }
+
+  if (e.key === "ArrowUp" || e.key === "w" || e.key === "i") {
+    setOptionsCursor((getOptionsCursor() - 1 + getOptionsCount()) % getOptionsCount());
+    e.preventDefault();
+  } else if (e.key === "ArrowDown" || e.key === "s" || e.key === "k") {
+    setOptionsCursor((getOptionsCursor() + 1) % getOptionsCount());
+    e.preventDefault();
+  } else if (e.key === "ArrowLeft" || e.key === "a" || e.key === "j") {
+    changeOption(-1);
+    e.preventDefault();
+  } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "l") {
+    changeOption(1);
+    e.preventDefault();
+  } else if (e.key === "Escape") {
+    closeOptions();
+    e.preventDefault();
+  } else if (e.key === "Enter" || e.key === " " || e.key === "n" || e.key === "f" || e.key === "h") {
+    if (getRealOptionIdx() === 5) showControls();
+    else closeOptions();
+    e.preventDefault();
+  }
 }
 
-/** Shared placement dispatch — place piece or cannon for the first human player. */
-export function dispatchPlacement(
-  state: GameState,
-  deps: {
-    withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
-    tryPlacePieceAndSend: (human: PlayerController & InputReceiver, state: GameState) => void;
-    tryPlaceCannonAndSend: (human: PlayerController & InputReceiver, state: GameState, max: number) => void;
-  },
-): void {
-  deps.withFirstHuman((human) => {
-    if (state.phase === Phase.WALL_BUILD) {
-      deps.tryPlacePieceAndSend(human, state);
-    } else if (state.phase === Phase.CANNON_PLACE) {
-      const max = state.cannonLimits[human.playerId] ?? 0;
-      deps.tryPlaceCannonAndSend(human, state, max);
+function handleKeyLifeLost(e: KeyboardEvent, state: GameState, deps: RegisterOnlineInputDeps): void {
+  const { getLifeLostDialog, getControllers, isHuman, sendLifeLostChoice } = deps;
+  const lifeLostDialog = getLifeLostDialog();
+  if (!lifeLostDialog) return;
+  for (const ctrl of getControllers()) {
+    if (!isHuman(ctrl)) continue;
+    const entry = lifeLostDialog.entries.find(
+      (en) => en.playerId === ctrl.playerId && en.choice === CHOICE_PENDING,
+    );
+    if (!entry) continue;
+    const action = ctrl.matchKey(e.key);
+    if (action === Action.LEFT || action === Action.RIGHT) {
+      entry.focused = entry.focused === 0 ? 1 : 0;
+      e.preventDefault();
+    } else if (action === Action.CONFIRM) {
+      entry.choice = entry.focused === 0 ? CHOICE_CONTINUE : CHOICE_ABANDON;
+      sendLifeLostChoice(entry.choice, entry.playerId);
+      e.preventDefault();
     }
-  });
+  }
 }
 
-/** Shared battle-fire dispatch — aim and fire for the first human player. */
-export function dispatchBattleFire(
-  x: number,
-  y: number,
-  state: GameState,
-  deps: Pick<RegisterOnlineInputDeps, "withFirstHuman" | "screenToWorld" | "fireAndSend">,
-): void {
-  if (state.phase !== Phase.BATTLE || state.timer <= 0 || state.battleCountdown > 0) return;
-  deps.withFirstHuman((human) => {
-    const w = deps.screenToWorld(x, y);
-    human.setCrosshair(w.wx, w.wy);
-    deps.fireAndSend(human, state);
-  });
+function handleKeySelection(e: KeyboardEvent, state: GameState, deps: RegisterOnlineInputDeps): void {
+  const { isSelectionReady, getControllers, isHuman, getSelectionStates, highlightTowerForPlayer, confirmSelectionForPlayer } = deps;
+  if (isSelectionReady && !isSelectionReady()) return;
+  const isReselect = state.phase === Phase.CASTLE_RESELECT;
+  for (const ctrl of getControllers()) {
+    if (!isHuman(ctrl)) continue;
+    const ss = getSelectionStates().get(ctrl.playerId);
+    if (!ss || ss.confirmed) continue;
+
+    const action = ctrl.matchKey(e.key);
+    if (!action) continue;
+
+    const zone = state.playerZones[ctrl.playerId] ?? 0;
+    const current = ss.highlighted;
+
+    if (isMovementAction(action)) {
+      const next = findNearestTower(state.map.towers, current, action, zone);
+      highlightTowerForPlayer(next, zone, ctrl.playerId);
+      e.preventDefault();
+    } else if (action === Action.CONFIRM) {
+      confirmSelectionForPlayer(ctrl.playerId, isReselect);
+      e.preventDefault();
+    }
+  }
 }
 
-/** Shared pointer-move dispatch — updates cursor/crosshair based on current phase. */
-export function dispatchPointerMove(
-  x: number,
-  y: number,
-  state: GameState,
-  deps: Pick<RegisterOnlineInputDeps,
-    "withFirstHuman" | "getSelectionStates" | "screenToWorld" |
-    "highlightTowerForPlayer" | "pixelToTile" | "maybeSendAimUpdate" | "isSelectionReady">,
-): void {
-  const { withFirstHuman, getSelectionStates, screenToWorld, highlightTowerForPlayer, pixelToTile, maybeSendAimUpdate } = deps;
-  if (isSelectionPhase(state.phase)) {
-    if (deps.isSelectionReady && !deps.isSelectionReady()) return;
-    withFirstHuman((human) => {
-      const ss = getSelectionStates().get(human.playerId);
-      if (!ss || ss.confirmed) return;
-      const zone = state.playerZones[human.playerId] ?? 0;
-      const w = screenToWorld(x, y);
-      const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
-      if (idx !== null && idx !== ss.highlighted && state.map.towers[idx]?.zone === zone) {
-        highlightTowerForPlayer(idx, zone, human.playerId);
-        ss.tapped = false;
+function handleKeyGame(e: KeyboardEvent, state: GameState, deps: RegisterOnlineInputDeps): void {
+  const { getControllers, isHuman, tryPlaceCannonAndSend, tryPlacePieceAndSend, fireAndSend } = deps;
+  for (const ctrl of getControllers()) {
+    if (state.players[ctrl.playerId]?.eliminated) continue;
+    if (!isHuman(ctrl)) continue;
+    const action = ctrl.matchKey(e.key);
+    if (!action) continue;
+
+    if (state.phase === Phase.CANNON_PLACE) {
+      const player = state.players[ctrl.playerId]!;
+      if (!player.castle) continue;
+      if (isMovementAction(action)) {
+        ctrl.moveCannonCursor(action);
+        e.preventDefault();
+      } else if (action === Action.ROTATE) {
+        ctrl.cycleCannonMode(state, state.cannonLimits[player.id] ?? 0);
+        e.preventDefault();
+      } else if (action === Action.CONFIRM) {
+        const max = state.cannonLimits[player.id] ?? 0;
+        tryPlaceCannonAndSend(ctrl, state, max);
+        e.preventDefault();
       }
-    });
-  } else if (state.phase === Phase.WALL_BUILD) {
-    withFirstHuman((human) => {
-      const { row, col } = pixelToTile(x, y);
-      human.setBuildCursor(row, col);
-    });
-  } else if (state.phase === Phase.CANNON_PLACE) {
-    withFirstHuman((human) => {
-      const { row, col } = pixelToTile(x, y);
-      human.setCannonCursor(row, col);
-    });
-  } else if (state.phase === Phase.BATTLE) {
-    withFirstHuman((human) => {
-      const w = screenToWorld(x, y);
-      human.setCrosshair(w.wx, w.wy);
-      maybeSendAimUpdate(w.wx, w.wy);
-    });
+    } else if (state.phase === Phase.WALL_BUILD) {
+      if (isMovementAction(action)) {
+        ctrl.moveBuildCursor(action);
+        e.preventDefault();
+      } else if (action === Action.ROTATE) {
+        ctrl.rotatePiece();
+        e.preventDefault();
+      } else if (action === Action.CONFIRM) {
+        tryPlacePieceAndSend(ctrl, state);
+        e.preventDefault();
+      }
+    } else if (state.phase === Phase.BATTLE) {
+      if (isMovementAction(action) || action === Action.ROTATE) {
+        ctrl.handleKeyDown(action);
+        e.preventDefault();
+      } else if (action === Action.CONFIRM && state.battleCountdown <= 0) {
+        fireAndSend(ctrl, state);
+        e.preventDefault();
+      }
+    }
   }
 }

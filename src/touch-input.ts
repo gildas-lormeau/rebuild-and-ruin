@@ -6,7 +6,7 @@
  */
 
 import type { RegisterOnlineInputDeps } from "./input.ts";
-import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, isGameInteractionMode, markTouchTime } from "./input.ts";
+import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, isGameInteractionMode, markTouchTime } from "./input-dispatch.ts";
 import type { InputReceiver, PlayerController } from "./player-controller.ts";
 import { BALLOON_SIZE, CannonMode, isPlacementPhase, isSelectionPhase, NORMAL_CANNON_SIZE, Phase, SUPER_GUN_SIZE } from "./types.ts";
 

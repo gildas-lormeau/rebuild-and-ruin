@@ -9,7 +9,7 @@
  */
 
 import { hapticTap } from "./haptics.ts";
-import { dispatchPlacement, isGameInteractionMode } from "./input.ts";
+import { dispatchPlacement, isGameInteractionMode } from "./input-dispatch.ts";
 import { ACTION_CONFIRM, PLAYER_COLORS } from "./player-config.ts";
 import type { InputReceiver, PlayerController } from "./player-controller.ts";
 import { rgb, TOUCH_ZOOM_ENEMY_BG, TOUCH_ZOOM_HOME_BG, ZOOM_BUTTON_ALPHA } from "./render-theme.ts";

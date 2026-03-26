@@ -43,7 +43,8 @@ import {
 } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
-import { clientToCanvas, dispatchPointerMove, type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
+import { type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
+import { clientToCanvas, dispatchPointerMove } from "./input-dispatch.ts";
 import { createLoupe, type LoupeHandle } from "./loupe.ts";
 import { generateMap } from "./map-generation.ts";
 import {

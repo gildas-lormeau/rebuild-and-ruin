@@ -60,6 +60,7 @@ import {
 } from "./online-serialize.ts";
 import { handleServerIncrementalMessage } from "./online-server-events.ts";
 import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
+import { connectWebSocket, createDedupMaps, createSession, type DedupMaps, type OnlineSession, resetDedupMaps, resetSessionState, sendAimUpdate, sendMessage } from "./online-session.ts";
 import type { WatcherTickContext } from "./online-watcher-tick.ts";
 import {
   applyBattleStartData,
@@ -85,7 +86,6 @@ import {
   BUILD_TIMER,
   CANNON_PLACE_TIMER,
   CannonMode,
-  LOBBY_TIMER,
   MIGRATION_ANNOUNCEMENT_DURATION,
   Phase,
   SELECT_TIMER,
@@ -112,32 +112,13 @@ const lobbyElements = {
   createError: document.getElementById("create-error")!,
   joinError: document.getElementById("join-error")!,
 };
-const session = {
-  ws: null as WebSocket | null,
-  myPlayerId: -1,
-  isHost: false,
-  hostMigrationSeq: 0,
-  occupiedSlots: new Set<number>(),
-  remoteHumanSlots: new Set<number>(),
-  lobbyWaitTimer: LOBBY_TIMER,
-  roomSeed: 0,
-  roomBattleLength: 0,
-  roomCannonMaxHp: 3,
-  keepaliveTimer: null as ReturnType<typeof setInterval> | null,
-  lobbyStartTime: 0,
-  earlyLifeLostChoices: new Map<number, import("./life-lost.ts").LifeLostChoice>(),
-};
+const session: OnlineSession = createSession();
 /** Network dedup maps — cleared on reset and host promotion. */
-const dedup = {
-  aimTarget: new Map<number, string>(),
-  piecePhantom: new Map<number, string>(),
-  cannonPhantom: new Map<number, string>(),
-};
+const dedup: DedupMaps = createDedupMaps();
 const watcher = createWatcherState();
 const DEV = IS_DEV;
 const LOG_THROTTLE_MS = 1000;
 const _throttleTimestamps = new Map<string, number>();
-const KEEPALIVE_MS = 30_000;
 const initDomLobby = () =>
   setupLobbyUi({
     elements: lobbyElements,
@@ -298,42 +279,27 @@ function logThrottled(key: string, msg: string): void {
 }
 
 function connect(): void {
-  if (session.ws && session.ws.readyState <= WebSocket.OPEN) return;
-  session.ws = new WebSocket(getWsUrl());
-  session.ws.onmessage = (e) => {
-    try { handleServerMessage(JSON.parse(e.data) as ServerMessage); } catch { /* ignore malformed */ }
-  };
-  session.ws.onopen = () => {
-    if (session.keepaliveTimer) clearInterval(session.keepaliveTimer);
-    session.keepaliveTimer = setInterval(() => {
-      if (session.ws?.readyState === WebSocket.OPEN) {
-        session.ws.send(JSON.stringify({ type: MSG.PING }));
+  connectWebSocket(session, getWsUrl(), {
+    onMessage: handleServerMessage,
+    onClose: () => {
+      const m = runtime.rs.mode;
+      log(`WebSocket closed (mode=${Mode[m]} isHost=${session.isHost})`);
+      if (!session.isHost && m !== Mode.STOPPED && m !== Mode.LOBBY) {
+        runtime.rs.frame.announcement = "Disconnected from server";
+        runtime.render();
+        runtime.rs.mode = Mode.STOPPED;
       }
-    }, KEEPALIVE_MS);
-  };
-  session.ws.onclose = () => {
-    if (session.keepaliveTimer) { clearInterval(session.keepaliveTimer); session.keepaliveTimer = null; }
-    const m = runtime.rs.mode;
-    log(`WebSocket closed (mode=${Mode[m]} isHost=${session.isHost})`);
-    if (!session.isHost && m !== Mode.STOPPED && m !== Mode.LOBBY) {
-      runtime.rs.frame.announcement = "Disconnected from server";
-      runtime.render();
-      runtime.rs.mode = Mode.STOPPED;
-    }
-  };
-  session.ws.onerror = () => {
-    console.error("[online] WebSocket connection failed");
-    lobbyElements.createError.textContent = "Connection failed — is the server running?";
-    lobbyElements.joinError.textContent = "Connection failed — is the server running?";
-  };
+    },
+    onError: () => {
+      console.error("[online] WebSocket connection failed");
+      lobbyElements.createError.textContent = "Connection failed — is the server running?";
+      lobbyElements.joinError.textContent = "Connection failed — is the server running?";
+    },
+  });
 }
 
 function maybeSendAimUpdate(x: number, y: number, playerId?: number): void {
-  const pid = playerId ?? session.myPlayerId;
-  const key = `${Math.round(x)},${Math.round(y)}`;
-  if (dedup.aimTarget.get(pid) === key) return;
-  dedup.aimTarget.set(pid, key);
-  send({ type: MSG.AIM_UPDATE, playerId: pid, x, y });
+  sendAimUpdate(session, dedup, x, y, playerId);
 }
 
 function showLobby(): void {
@@ -347,13 +313,7 @@ function showLobby(): void {
 }
 
 function resetSession(): void {
-  session.ws?.close();
-  session.ws = null;
-  session.isHost = false;
-  session.hostMigrationSeq = 0;
-  session.myPlayerId = -1;
-  session.occupiedSlots = new Set();
-  session.remoteHumanSlots.clear();
+  resetSessionState(session);
   runtime.rs.settings.seed = "";
   resetDedup();
 }
@@ -564,15 +524,11 @@ function log(msg: string): void {
 }
 
 function send(msg: GameMessage): void {
-  if (session.ws?.readyState === WebSocket.OPEN) {
-    session.ws.send(JSON.stringify(msg));
-  }
+  sendMessage(session, msg);
 }
 
 function resetDedup(): void {
-  dedup.aimTarget.clear();
-  dedup.piecePhantom.clear();
-  dedup.cannonPhantom.clear();
+  resetDedupMaps(dedup);
 }
 
 function applyFullState(msg: FullStateMessage): void {
