@@ -54,20 +54,29 @@ The layer map file. Committed to the repo. An array of named groups — position
 
 **Rule: imports must flow downward.** A file in group N can import from any group 0..N. Importing from group N+1 or higher is a violation.
 
-**Current architecture (11 groups, 0 violations):**
+**Current architecture (15 groups, 0 violations, 88 files incl. server):**
 
 ```
- 0  leaf utilities       grid, platform, rng, router
- 1  geometry & pieces    geometry-types, pieces
- 2  core types           types, spatial, life-lost, castle-build, board-occupancy
- 3  config & interfaces  player-config, controller-interfaces, tick-context
- 4  game systems         cannon/grunt/battle/build-system, map-generation, game-engine, phase-banner
- 5  AI & controllers     all ai-*, controller-types, controller-human, controller-factory, selection
- 6  UI & render          game-ui-*, frame-context, all render-*
- 7  input                all input-*
- 8  online               all online-*
- 9  runtime              all runtime-*, phase-ticks, battle-ticks, game-runtime-types, game-bootstrap, game-runtime
-10  entry points         entry, main, online-client, headless-*
+ 0  leaf utilities        grid, platform, rng, router
+ 1  geometry & pieces     geometry-types, pieces
+ 2  core types            types, spatial, life-lost, castle-build, board-occupancy, server/protocol
+ 3  config & interfaces   player-config, controller-interfaces, tick-context
+ 4  game systems          cannon/grunt/battle/build-system, map-generation, game-engine, phase-banner
+ 5  AI strategy           ai-constants, ai-build-*, ai-strategy-*, ai-castle-rect
+ 6  controllers           ai-controller, controller-types, controller-human, controller-factory, selection
+ 7  render                render-theme, render-sprites, render-types, render-loupe, render-effects,
+                          render-towers, render-composition, render-ui, render-map
+ 8  game UI               game-ui-types, game-ui-runtime, game-ui-screens, frame-context
+ 9  input                 all input-*
+10  online types & config online-config, online-types, online-lobby-ui, online-server-lifecycle,
+                          online-session, online-serialize
+11  online logic          online-send-actions, online-checkpoints, online-watcher-*, online-phase-transitions,
+                          online-server-events, online-host-*
+12  runtime               runtime-state, runtime-camera, runtime-life-lost, runtime-phase-ticks,
+                          runtime-selection, phase-ticks, battle-ticks, game-runtime-types,
+                          game-bootstrap, game-runtime
+13  server                game-room, room-manager, server
+14  entry points          entry, main, online-client, headless-sim, headless-test
 ```
 
 When a new file is added but not yet in `.import-layers.json`, `--check` warns and treats it as layer 0 (maximally strict). Regenerate to pick up new files, then move them to the right group.
