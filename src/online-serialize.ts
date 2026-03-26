@@ -6,6 +6,7 @@
 import type { FullStateMessage, SerializedPlayer } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
 import type { BalloonFlight } from "./battle-system.ts";
+import { buildCastle } from "./map-generation.ts";
 import { Rng } from "./rng.ts";
 import type { GameState } from "./types.ts";
 import { CannonMode, Phase } from "./types.ts";
@@ -260,6 +261,10 @@ export function applyPlayersCheckpoint(
     player.lives = sp.lives;
     player.eliminated = sp.eliminated;
     player.score = sp.score;
+    // Rebuild castle geometry from home tower (deterministic from map)
+    player.castle = player.homeTower
+      ? buildCastle(player.homeTower, state.map.tiles, state.map.towers)
+      : null;
   }
 }
 

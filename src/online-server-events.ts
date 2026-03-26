@@ -26,6 +26,7 @@ interface HandleServerIncrementalDeps {
   syncSelectionOverlay: () => void;
   isCastleReselectPhase: () => boolean;
   onRemotePlayerReselected: (playerId: number) => void;
+  confirmSelectionForPlayer: (playerId: number, isReselect: boolean) => void;
   allSelectionsConfirmed: () => boolean;
   finishReselection: () => void;
   finishSelection: () => void;
@@ -80,6 +81,7 @@ interface HandleServerIncrementalDeps {
     }[],
   ) => void;
   getLifeLostDialog: () => LifeLostChoiceDialog | null;
+  queueEarlyLifeLostChoice: (playerId: number, choice: LifeLostChoice) => void;
 }
 
 const VALID_CANNON_MODES = new Set<string>([
@@ -107,17 +109,12 @@ export function handleServerIncrementalMessage(
           const ss = deps.selectionStates.get(msg.playerId);
           if (ss && !ss.confirmed) {
             ss.highlighted = msg.towerIdx;
-            if (msg.confirmed) ss.confirmed = true;
             deps.syncSelectionOverlay();
-            if (deps.isHost) {
+            if (msg.confirmed && deps.isHost) {
               const isReselect = deps.isCastleReselectPhase();
-              if (isReselect) {
-                deps.onRemotePlayerReselected(msg.playerId);
-              }
-              if (deps.allSelectionsConfirmed()) {
-                if (isReselect) deps.finishReselection();
-                else deps.finishSelection();
-              }
+              deps.confirmSelectionForPlayer(msg.playerId, isReselect);
+            } else if (msg.confirmed) {
+              ss.confirmed = true;
             }
           }
         }
@@ -148,20 +145,13 @@ export function handleServerIncrementalMessage(
       if (!state || !validPid(msg.playerId, state)) return true;
       if (!inBounds(msg.row, msg.col)) return true;
       if (!VALID_CANNON_MODES.has(msg.mode)) return true;
-      const accept = acceptRemote(msg.playerId, deps);
-      deps.log(
-        `opponent_cannon_placed: P${msg.playerId} accept=${accept} isHost=${deps.isHost} remoteHumans=[${[...deps.remoteHumanSlots]}] hasState=${!!state}`,
-      );
-      if (accept) {
+      if (acceptRemote(msg.playerId, deps)) {
         deps.applyCannonPlacement(
           state,
           msg.playerId,
           msg.row,
           msg.col,
           msg.mode,
-        );
-        deps.log(
-          `  -> P${msg.playerId} now has ${state.players[msg.playerId]!.cannons.length} cannons`,
         );
       }
       return true;
@@ -286,6 +276,9 @@ export function handleServerIncrementalMessage(
         if (entry && entry.choice === "pending") {
           entry.choice = msg.choice;
         }
+      } else {
+        // Dialog not yet created — queue choice for when it appears
+        deps.queueEarlyLifeLostChoice(msg.playerId, msg.choice);
       }
       return true;
     }

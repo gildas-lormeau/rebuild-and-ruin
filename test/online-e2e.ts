@@ -847,6 +847,25 @@ async function runOnline() {
   clientLogs.push(watcherLogs);
   clientLabels.push("WATCHER");
 
+  // Flush logs on exit (e.g. when killed by `timeout`) so they're always saved
+  let logsFlushed = false;
+  const flushLogs = () => {
+    if (logsFlushed) return;
+    logsFlushed = true;
+    mkdirSync("logs", { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23);
+    const path = `logs/e2e-online-${NUM_HUMANS}h-${stamp}.log`;
+    const rawLogs = clientLabels.flatMap((label, i) => [
+      `\n=== RAW ${label} LOGS ===`,
+      ...clientLogs[i]!,
+    ]);
+    writeFileSync(path, rawLogs.join("\n"));
+    console.log(`\nLogs flushed to ${path}`);
+  };
+  process.on("exit", flushLogs);
+  process.on("SIGTERM", () => { flushLogs(); process.exit(128 + 15); });
+  process.on("SIGINT", () => { flushLogs(); process.exit(128 + 2); });
+
   // --- SIMULATION ---
   console.log(`${ts()} Starting simulation (${humanPages.length} human loops)`);
 
@@ -948,8 +967,11 @@ async function simulateHumanPlayLoop(page: Page, label: string, durationMs: numb
       };
     }).catch(() => ({ mode: "unknown", phase: "" }));
 
-    if (mode === "LOBBY" && iteration > 50) {
-      actions.push(`${ts()} ${label}: game ended (lobby visible)`);
+    if (iteration % 20 === 0) {
+      console.log(`${ts()} ${label}: iteration ${iteration} (mode=${mode} phase=${phase})`);
+    }
+    if (mode === "LOBBY" && Date.now() - start > 60_000) {
+      actions.push(`${ts()} ${label}: game ended (lobby visible after 60s)`);
       break;
     }
 

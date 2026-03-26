@@ -16,20 +16,18 @@ import { CHOICE_ABANDON, CHOICE_CONTINUE } from "../src/life-lost.ts";
 import { CannonMode } from "../src/types.ts";
 import { MSG, type RoomSettings, sanitizeRoomSettings } from "./protocol.ts";
 
-// Rate limit: max messages per second per type
-// Rate limits are generous — AI can act very fast.
-// These only block obvious abuse, not normal gameplay.
+// Rate limit: max messages per second per type (cosmetic/display only).
+// Game-state messages (piece_placed, cannon_placed, fired, tower_selected,
+// life_lost_choice) are NOT rate-limited — they are low-frequency and must
+// never be silently dropped. The host sends actions for all AI players
+// through a single socket, so a shared per-type bucket would starve AI
+// messages when humans act fast.
 const RATE_LIMIT_PER_SEC = 100;
 const RATE_LIMIT_WINDOW_MS = 1000;
 const RATE_LIMITED_TYPES: Set<string> = new Set([
   MSG.OPPONENT_PHANTOM,
   MSG.OPPONENT_CANNON_PHANTOM,
   MSG.AIM_UPDATE,
-  MSG.CANNON_FIRED,
-  MSG.OPPONENT_PIECE_PLACED,
-  MSG.OPPONENT_CANNON_PLACED,
-  MSG.OPPONENT_TOWER_SELECTED,
-  MSG.LIFE_LOST_CHOICE,
 ]);
 
 // Messages only the host socket can send
@@ -48,7 +46,7 @@ const HOST_ONLY: Set<string> = new Set([
 const MAX_PLAYER_ID = 2;
 const MAX_TOWER_IDX = 30;
 const MAX_CANNON_IDX = 30;
-const MAX_PIECE_TILES = 13;
+const MAX_PIECE_TILES = 50;
 const MAX_PIXEL = (Math.max(GRID_COLS, GRID_ROWS) * TILE_SIZE) + 100;
 const VALID_CANNON_MODES = new Set([CannonMode.NORMAL, CannonMode.SUPER, CannonMode.BALLOON]);
 const VALID_CHOICES = new Set([CHOICE_CONTINUE, CHOICE_ABANDON]);
@@ -69,10 +67,12 @@ function validatePayload(msg: Record<string, any>): boolean {
     case MSG.OPPONENT_TOWER_SELECTED:
       return isInt(msg.playerId, 0, MAX_PLAYER_ID) && isInt(msg.towerIdx, 0, MAX_TOWER_IDX);
     case MSG.OPPONENT_PIECE_PLACED:
+      // Offsets can be piece-relative (humans: [-4,4]) or absolute grid coords (AI host: [0,GRID_*-1])
       return isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
         isInt(msg.row, 0, GRID_ROWS - 1) && isInt(msg.col, 0, GRID_COLS - 1) &&
         Array.isArray(msg.offsets) && msg.offsets.length >= 1 && msg.offsets.length <= MAX_PIECE_TILES &&
-        msg.offsets.every((o: unknown) => Array.isArray(o) && o.length === 2 && isInt(o[0], -4, 4) && isInt(o[1], -4, 4));
+        msg.offsets.every((o: unknown) => Array.isArray(o) && o.length === 2 &&
+          isInt(o[0], -(GRID_ROWS - 1), GRID_ROWS - 1) && isInt(o[1], -(GRID_COLS - 1), GRID_COLS - 1));
     case MSG.OPPONENT_CANNON_PLACED:
       return isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
         isInt(msg.row, 0, GRID_ROWS - 1) && isInt(msg.col, 0, GRID_COLS - 1) &&
@@ -164,11 +164,7 @@ export class GameRoom {
 
     // --- Host-only messages ---
     if (HOST_ONLY.has(type)) {
-      if (senderSocket !== this.hostSocket) {
-        console.log(`[room] REJECTED ${type} from non-host`);
-        return;
-      }
-      // Track phase from checkpoint messages
+      if (senderSocket !== this.hostSocket) return;
       if (type === MSG.CANNON_START) this.phase = "CANNON_PLACE";
       else if (type === MSG.BATTLE_START) this.phase = "BATTLE";
       else if (type === MSG.BUILD_START) this.phase = "WALL_BUILD";
@@ -177,30 +173,19 @@ export class GameRoom {
     }
 
     // --- Identity enforcement (for messages with playerId) ---
-    if ("playerId" in msg && !HOST_ONLY.has(type)) {
+    // Host is exempt: it sends actions on behalf of AI players.
+    if ("playerId" in msg && !HOST_ONLY.has(type) && senderSocket !== this.hostSocket) {
       const senderPid = this.players.get(senderSocket);
-      if (senderPid === undefined) {
-        console.log(`[room] REJECTED ${type}: sender not registered`);
-        return;
-      }
-      if (msg.playerId !== senderPid) {
-        console.log(`[room] REJECTED ${type}: P${senderPid} spoofing P${msg.playerId}`);
-        return;
-      }
+      if (senderPid === undefined) return;
+      if (msg.playerId !== senderPid) return;
     }
 
     // --- Phase gating ---
     const validPhases = PHASE_GATES[type];
-    if (validPhases && !validPhases.has(this.phase)) {
-      console.log(`[room] REJECTED ${type} in phase ${this.phase}`);
-      return;
-    }
+    if (validPhases && !validPhases.has(this.phase)) return;
 
     // --- Payload validation ---
-    if (!validatePayload(msg)) {
-      console.log(`[room] REJECTED ${type}: invalid payload`);
-      return;
-    }
+    if (!validatePayload(msg)) return;
 
     // --- Rate limiting (sliding window counter) ---
     if (RATE_LIMITED_TYPES.has(type)) {
@@ -214,10 +199,7 @@ export class GameRoom {
         bucket = { count: 0, windowStart: now };
         socketLimits.set(type, bucket);
       }
-      if (bucket.count >= RATE_LIMIT_PER_SEC) {
-        // Silently drop — no log to avoid spam
-        return;
-      }
+      if (bucket.count >= RATE_LIMIT_PER_SEC) return;
       bucket.count++;
     }
 

@@ -2,6 +2,7 @@ import { MSG, type ServerMessage } from "../server/protocol.ts";
 import type { BannerShow } from "./battle-ticks.ts";
 import { FOCUS_REMATCH, type GameOverFocus, Mode } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
+import { buildCastle } from "./map-generation.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
 import type { WatcherTimingState } from "./online-watcher-battle.ts";
 import { BANNER_PLACE_CANNONS } from "./phase-banner.ts";
@@ -52,6 +53,8 @@ interface TransitionContext {
 
   // Life-lost / game over
   showLifeLostDialog: (needsReselect: number[], eliminated: number[]) => void;
+  /** Show score delta animation, calling onDone when complete (or immediately if no deltas). */
+  showScoreDeltas: (preScores: number[], onDone: () => void) => void;
   render: () => void;
   setGameOverFrame: (payload: { winner: string; scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: { wallsDestroyed: number; cannonsKilled: number } }[]; focused: GameOverFocus }) => void;
 }
@@ -68,6 +71,13 @@ export function handleCastleWallsTransition(msg: ServerMessage, ctx: TransitionC
     tiles: p.tiles.filter((t) => t >= 0 && t < MAX_TILE_KEY),
   }));
   const maxTiles = Math.max(...plans.map((p) => p.tiles.length), 0);
+  // Set player.castle so walls render during the build animation
+  for (const plan of plans) {
+    const player = state.players[plan.playerId];
+    if (player?.homeTower && !player.castle) {
+      player.castle = buildCastle(player.homeTower, state.map.tiles, state.map.towers);
+    }
+  }
   ctx.getSelectionStates().clear();
   ctx.clearSelectionOverlay();
   // Zoom to the local player's castle on mobile
@@ -75,14 +85,7 @@ export function handleCastleWallsTransition(msg: ServerMessage, ctx: TransitionC
   if (myPlan) ctx.setCastleBuildViewport([myPlan]);
 
   ctx.setCastleBuildFromPlans(plans, maxTiles, () => {
-    ctx.finalizeCastleConstruction(state);
-    ctx.enterCannonPlacePhase(state);
-    state.timer = state.cannonPlaceTimer;
-    ctx.showBanner(BANNER_PLACE_CANNONS, () => {
-      ctx.watcherTiming.phaseStartTime = ctx.now();
-      ctx.watcherTiming.phaseDuration = state.timer;
-      ctx.setMode(Mode.GAME);
-    });
+    // No phase transition — cannon_start checkpoint drives it and reconciles state.
   });
   ctx.setMode(Mode.CASTLE_BUILD);
 }
@@ -181,6 +184,8 @@ export function handleBuildStartTransition(msg: ServerMessage, ctx: TransitionCo
 export function handleBuildEndTransition(msg: ServerMessage, ctx: TransitionContext): void {
   if (msg.type !== MSG.BUILD_END) return;
   const state = ctx.getState();
+  // Capture pre-scores before checkpoint overwrites them (needed for score delta animation)
+  const preScores = state.players.map(p => p.score);
   ctx.applyPlayersCheckpoint(state, msg.players);
   for (let i = 0; i < state.players.length; i++) {
     state.players[i]!.score = msg.scores[i] ?? state.players[i]!.score;
@@ -189,9 +194,13 @@ export function handleBuildEndTransition(msg: ServerMessage, ctx: TransitionCont
     const zone = state.playerZones[pid];
     if (zone !== undefined) ctx.resetZoneState(state, zone);
   }
-  if (msg.needsReselect.length > 0 || msg.eliminated.length > 0) {
-    ctx.showLifeLostDialog(msg.needsReselect, msg.eliminated);
-  }
+  // Show score deltas first (matches host timing), then life-lost dialog.
+  // Without this delay, non-host sends life_lost_choice before host creates its dialog.
+  ctx.showScoreDeltas(preScores, () => {
+    if (msg.needsReselect.length > 0 || msg.eliminated.length > 0) {
+      ctx.showLifeLostDialog(msg.needsReselect, msg.eliminated);
+    }
+  });
 }
 
 export function handleGameOverTransition(msg: ServerMessage, ctx: TransitionContext): void {

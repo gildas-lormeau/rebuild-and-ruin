@@ -317,6 +317,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         (imp) => imp.age < IMPACT_FLASH_DURATION,
       );
       deps.tickNonHost?.(dt);
+      deps.render();
     }
     deps.everyTick?.(dt);
   }

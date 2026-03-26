@@ -126,7 +126,7 @@ export interface RoomSettings {
 
 const VALID_BATTLE_LENGTHS = [0, 3, 5, 8, 12];
 const VALID_CANNON_HP = [3, 6, 9, 12];
-const MIN_WAIT_TIMER_SEC = 30;
+const MIN_WAIT_TIMER_SEC = 2;
 const MAX_WAIT_TIMER_SEC = 120;
 const DEFAULT_WAIT_TIMER_SEC = 60;
 

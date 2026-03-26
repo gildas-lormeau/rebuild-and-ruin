@@ -99,6 +99,7 @@ export interface RuntimeSelection {
   setCastleBuildViewport: (plans: { playerId: number; tiles: number[] }[]) => void;
   startReselection: () => void;
   finishReselection: () => void;
+  showBuildScoreDeltas: (onDone: () => void) => void;
 }
 
 export interface RuntimeLifeLost {

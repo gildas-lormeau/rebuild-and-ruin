@@ -109,8 +109,6 @@ export class RoomManager {
   handleMessage(socket: WebSocket, msg: Record<string, any>, rawJson: string): void {
     const entry = this.socketToRoom.get(socket);
     if (!entry) return;
-
-    // Forward to room — exclude sender socket
     entry.room.handleMessage(socket, msg, rawJson);
   }
 

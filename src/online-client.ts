@@ -111,6 +111,7 @@ const session = {
   roomCannonMaxHp: 3,
   keepaliveTimer: null as ReturnType<typeof setInterval> | null,
   lobbyStartTime: 0,
+  earlyLifeLostChoices: new Map<number, import("./life-lost.ts").LifeLostChoice>(),
 };
 /** Network dedup maps — cleared on reset and host promotion. */
 const dedup = {
@@ -196,7 +197,22 @@ const transitionCtx = {
   setCastleBuildViewport: (plans: { playerId: number; tiles: number[] }[]) => runtime.selection.setCastleBuildViewport(plans),
   setBattleFlights: (v: { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[]) => { runtime.rs.battleAnim.flights = v; },
   snapshotTerritory: () => runtime.snapshotTerritory(),
-  showLifeLostDialog: (nr: number[], el: number[]) => runtime.lifeLost.show(nr, el),
+  showLifeLostDialog: (nr: number[], el: number[]) => {
+    runtime.lifeLost.show(nr, el);
+    // Apply any choices that arrived before the dialog was created
+    const dialog = runtime.lifeLost.get();
+    if (dialog) {
+      for (const [pid, choice] of session.earlyLifeLostChoices) {
+        const entry = dialog.entries.find(e => e.playerId === pid);
+        if (entry && entry.choice === "pending") entry.choice = choice;
+      }
+    }
+    session.earlyLifeLostChoices.clear();
+  },
+  showScoreDeltas: (preScores: number[], onDone: () => void) => {
+    runtime.rs.preScores = preScores;
+    runtime.selection.showBuildScoreDeltas(onDone);
+  },
   render: () => runtime.render(),
   setGameOverFrame: (p: NonNullable<typeof runtime.rs.frame.gameOver>) => { runtime.rs.frame.gameOver = p; },
 };
@@ -459,6 +475,9 @@ function buildIncrementalDeps() {
       markPlayerReselected(runtime.rs.state, playerId);
       runtime.rs.reselectionPids.push(playerId);
     },
+    confirmSelectionForPlayer: (playerId: number, isReselect: boolean) => {
+      runtime.selection.confirm(playerId, isReselect);
+    },
     allSelectionsConfirmed: () => runtime.selection.allConfirmed(),
     finishReselection: () => runtime.selection.finishReselection(),
     finishSelection: () => runtime.selection.finish(),
@@ -475,6 +494,9 @@ function buildIncrementalDeps() {
     getRemoteCannonPhantoms: () => watcher.remoteCannonPhantoms,
     setRemoteCannonPhantoms: (value: typeof watcher.remoteCannonPhantoms) => { watcher.remoteCannonPhantoms = value; },
     getLifeLostDialog: () => runtime.lifeLost.get(),
+    queueEarlyLifeLostChoice: (playerId: number, choice: import("./life-lost.ts").LifeLostChoice) => {
+      session.earlyLifeLostChoices.set(playerId, choice);
+    },
   };
 }
 
