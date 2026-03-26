@@ -8,11 +8,13 @@
 
 import type { GameMessage } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
+import { claimTerritory } from "./build-system.ts";
 import {
   createCastleBuildState,
   tickCastleBuildAnimation,
 } from "./castle-build.ts";
 import { isHuman } from "./controller-factory.ts";
+import type { InputReceiver, PlayerController } from "./controller-types.ts";
 import { setupTowerSelection } from "./game-bootstrap.ts";
 import {
   advanceToCannonPlacePhase,
@@ -32,8 +34,6 @@ import {
   BANNER_PLACE_CANNONS,
   BANNER_PLACE_CANNONS_SUB,
 } from "./phase-banner.ts";
-import { claimTerritory } from "./phase-build.ts";
-import type { InputReceiver, PlayerController } from "./player-controller.ts";
 import {
   syncSelectionOverlay as syncSelectionOverlayImpl,
 } from "./render-composition.ts";

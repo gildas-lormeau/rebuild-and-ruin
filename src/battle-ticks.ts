@@ -1,11 +1,11 @@
 import type { GameMessage } from "../server/protocol.ts";
 import { type BalloonFlight, countdownAnnouncement } from "./battle-system.ts";
+import type { PlayerController } from "./controller-types.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { buildCannonFiredMsg } from "./online-send-actions.ts";
 import type { WatcherTimingState } from "./online-watcher-battle.ts";
 import { BANNER_BATTLE, BANNER_BATTLE_SUB } from "./phase-banner.ts";
 import { type HostNetContext, localActiveControllers } from "./phase-ticks.ts";
-import type { PlayerController } from "./player-controller.ts";
 import { EMPTY_TILE_SET } from "./spatial.ts";
 import type { GameState, Impact } from "./types.ts";
 

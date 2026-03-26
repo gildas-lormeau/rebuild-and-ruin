@@ -17,6 +17,7 @@ import {
   tickHostBattlePhase,
 } from "./battle-ticks.ts";
 import { isHuman } from "./controller-factory.ts";
+import type { Crosshair, InputReceiver, PlayerController } from "./controller-types.ts";
 import {
   finalizeBuildPhase,
   initBuildPhase,
@@ -30,7 +31,7 @@ import {
 } from "./game-ui-runtime.ts";
 import { Mode } from "./game-ui-types.ts";
 import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
-import { hapticBattleEvents } from "./haptics.ts";
+import { hapticBattleEvents } from "./input-haptics.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
 import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
 import type { WatcherTimingState } from "./online-watcher-battle.ts";
@@ -42,7 +43,6 @@ import {
   tickHostBuildPhase,
   tickHostCannonPhase,
 } from "./phase-ticks.ts";
-import type { Crosshair, InputReceiver, PlayerController } from "./player-controller.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { GameState } from "./types.ts";
 import {

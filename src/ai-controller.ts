@@ -15,19 +15,11 @@ import {
   aimCannons,
   nextReadyCombined,
 } from "./battle-system.ts";
+import { placePiece } from "./build-system.ts";
 import {
   canPlaceCannon,
   placeCannon,
 } from "./cannon-system.ts";
-import type {
-  PixelPos,
-  StrategicPixelPos,
-  TilePos,
-} from "./geometry-types.ts";
-import { GRID_COLS, GRID_ROWS } from "./grid.ts";
-import { placePiece } from "./phase-build.ts";
-import type { PieceShape } from "./pieces.ts";
-import { rotateCW } from "./pieces.ts";
 import {
   type AiAnimatable,
   BaseController,
@@ -35,7 +27,15 @@ import {
   type OrbitParams,
   type PhantomCannon,
   type PhantomPiece,
-} from "./player-controller.ts";
+} from "./controller-types.ts";
+import type {
+  PixelPos,
+  StrategicPixelPos,
+  TilePos,
+} from "./geometry-types.ts";
+import { GRID_COLS, GRID_ROWS } from "./grid.ts";
+import type { PieceShape } from "./pieces.ts";
+import { rotateCW } from "./pieces.ts";
 import { packTile, tileCenterPx, towerCenter } from "./spatial.ts";
 import type { GameState, Player } from "./types.ts";
 import { CannonMode } from "./types.ts";

@@ -5,6 +5,7 @@
 
 import { TILE_SIZE } from "./grid.ts";
 import { getPlayerColor } from "./player-config.ts";
+import { drawSprite } from "./render-sprites.ts";
 import type { RGB } from "./render-theme.ts";
 import {
   BONUS_FLASH_MS, CROSSHAIR_ARM_IDLE, CROSSHAIR_ARM_PULSE,
@@ -13,7 +14,6 @@ import {
 } from "./render-theme.ts";
 import type { MapData, RenderOverlay } from "./render-types.ts";
 import { facingToCardinal } from "./spatial.ts";
-import { drawSprite } from "./sprites.ts";
 import { CannonMode, IMPACT_FLASH_DURATION } from "./types.ts";
 
 // Spatial hash multipliers for per-tile visual noise

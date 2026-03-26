@@ -5,9 +5,9 @@
  * Single-touch only. Gesture discrimination: tap vs drag.
  */
 
+import type { InputReceiver, PlayerController } from "./controller-types.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
 import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, isGameInteractionMode, markTouchTime } from "./input-dispatch.ts";
-import type { InputReceiver, PlayerController } from "./player-controller.ts";
 import { BALLOON_SIZE, CannonMode, isPlacementPhase, isSelectionPhase, NORMAL_CANNON_SIZE, Phase, SUPER_GUN_SIZE } from "./types.ts";
 
 const TAP_MAX_DIST = 20;

@@ -4,6 +4,7 @@
  */
 
 import { aimCannons } from "./battle-system.ts";
+import { canPlacePiece, placePiece } from "./build-system.ts";
 import {
   cannonSlotsUsed,
   canPlaceCannon,
@@ -11,17 +12,16 @@ import {
   hasAnyCannonPlacement,
   placeCannon,
 } from "./cannon-system.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
-import { canPlacePiece, placePiece } from "./phase-build.ts";
-import { rotateCW } from "./pieces.ts";
-import type { KeyBindings } from "./player-config.ts";
 import {
   BaseController,
   CROSSHAIR_SPEED,
   type InputReceiver,
   type PhantomCannon,
   type PhantomPiece,
-} from "./player-controller.ts";
+} from "./controller-types.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
+import { rotateCW } from "./pieces.ts";
+import type { KeyBindings } from "./player-config.ts";
 import type { GameState } from "./types.ts";
 import {
   Action,

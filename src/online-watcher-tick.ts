@@ -12,6 +12,11 @@ import {
   nextReadyCombined,
 } from "./battle-system.ts";
 import { isHuman } from "./controller-factory.ts";
+import {
+  CROSSHAIR_SPEED,
+  type OrbitParams,
+  type PlayerController,
+} from "./controller-types.ts";
 import type { BattleAnimState, FrameData, TimerAccums } from "./game-ui-types.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
@@ -31,11 +36,6 @@ import {
   tickWatcherCannonPhantomsPhase,
   tickWatcherTimers,
 } from "./online-watcher-battle.ts";
-import {
-  CROSSHAIR_SPEED,
-  type OrbitParams,
-  type PlayerController,
-} from "./player-controller.ts";
 import type { GameState } from "./types.ts";
 import { Phase } from "./types.ts";
 

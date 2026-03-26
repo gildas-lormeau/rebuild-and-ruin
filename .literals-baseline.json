@@ -13,6 +13,10 @@
   },
   {
     "type": "number",
+    "key": "150"
+  },
+  {
+    "type": "number",
     "key": "16"
   },
   {
@@ -25,11 +29,19 @@
   },
   {
     "type": "number",
+    "key": "184"
+  },
+  {
+    "type": "number",
     "key": "20"
   },
   {
     "type": "number",
     "key": "25"
+  },
+  {
+    "type": "number",
+    "key": "252"
   },
   {
     "type": "number",
@@ -49,7 +61,15 @@
   },
   {
     "type": "number",
+    "key": "34"
+  },
+  {
+    "type": "number",
     "key": "35"
+  },
+  {
+    "type": "number",
+    "key": "36"
   },
   {
     "type": "number",
@@ -57,6 +77,18 @@
   },
   {
     "type": "number",
+    "key": "48"
+  },
+  {
+    "type": "number",
     "key": "50"
+  },
+  {
+    "type": "number",
+    "key": "90"
+  },
+  {
+    "type": "string",
+    "key": "human"
   }
 ]

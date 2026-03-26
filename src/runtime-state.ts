@@ -8,6 +8,7 @@
  */
 
 import type { CastleBuildState } from "./castle-build.ts";
+import type { PlayerController } from "./controller-types.ts";
 import type { FrameContext } from "./frame-context.ts";
 import type {
   BattleAnimState,
@@ -29,7 +30,6 @@ import type { LifeLostDialogState } from "./life-lost.ts";
 import type { BannerState } from "./phase-banner.ts";
 import { createBannerState } from "./phase-banner.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
-import type { PlayerController } from "./player-controller.ts";
 import type { RenderOverlay } from "./render-types.ts";
 import type { SelectionState } from "./selection.ts";
 import type { GameState } from "./types.ts";

@@ -6,11 +6,11 @@
 
 import { nextReadyCombined } from "./battle-system.ts";
 import { resetCannonFacings } from "./cannon-system.ts";
+import type { Crosshair, PlayerController } from "./controller-types.ts";
 import { computeCannonLimitsForPhase, rebuildHomeCastle } from "./game-engine.ts";
 import { Mode } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import type { KeyBindings } from "./player-config.ts";
-import type { Crosshair, PlayerController } from "./player-controller.ts";
 import { GEAR_SIZE, GEAR_X, GEAR_Y } from "./render-theme.ts";
 import type { GameState, Impact, Player } from "./types.ts";
 import { Phase } from "./types.ts";

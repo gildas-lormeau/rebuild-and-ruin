@@ -1,4 +1,5 @@
 import { autoPlaceCannons as autoPlaceCannonsLocal } from "./ai-strategy.ts";
+import type { PlayerController } from "./controller-types.ts";
 import type { SerializedPlayer } from "./online-serialize.ts";
 import {
   type CannonPhantom,
@@ -9,7 +10,6 @@ import {
   phantomWireMode,
   piecePhantomKey,
 } from "./online-types.ts";
-import type { PlayerController } from "./player-controller.ts";
 import { EMPTY_TILE_SET, unpackTile } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 import { CannonMode } from "./types.ts";

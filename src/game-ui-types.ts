@@ -6,11 +6,11 @@
 /** Per-player battle stats accumulated during a game. */
 
 import type { BalloonFlight } from "./battle-system.ts";
+import type { Crosshair, PhantomPiece } from "./controller-types.ts";
 import type { GameMap } from "./geometry-types.ts";
 import type { LifeLostChoice } from "./life-lost.ts";
 import type { KeyBindings, RGB } from "./player-config.ts";
 import { ACTION_KEYS, MAX_PLAYERS, PLAYER_KEY_BINDINGS } from "./player-config.ts";
-import type { Crosshair, PhantomPiece } from "./player-controller.ts";
 import type { Impact } from "./types.ts";
 import { CannonMode } from "./types.ts";
 

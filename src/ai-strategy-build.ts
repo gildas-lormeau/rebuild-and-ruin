@@ -44,10 +44,10 @@ import {
 } from "./ai-castle-rect.ts";
 import { SMALL_POCKET_MAX_SIZE } from "./ai-constants.ts";
 import { hasGruntAt } from "./board-occupancy.ts";
+import { canPlacePiece } from "./build-system.ts";
 import { isCannonEnclosed } from "./cannon-system.ts";
 import type { TileRect } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
-import { canPlacePiece } from "./phase-build.ts";
 import type { PieceShape } from "./pieces.ts";
 import { rotateCW } from "./pieces.ts";
 import {

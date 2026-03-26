@@ -20,7 +20,9 @@
 
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import { collectAllWalls, getAliveOwnedTowers, sweepIsolatedWalls } from "./board-occupancy.ts";
+import { claimTerritory, removeBonusSquaresCoveredByWalls, replenishBonusSquares } from "./build-system.ts";
 import { cannonSlotsForRound, resetCannonFacings } from "./cannon-system.ts";
+import type { PlayerController } from "./controller-types.ts";
 import type { Castle, GameMap } from "./geometry-types.ts";
 import {
   rollGruntWallAttacks,
@@ -37,8 +39,6 @@ import {
   startOfBuildPhaseHousekeeping,
   topZonesBySize,
 } from "./map-generation.ts";
-import { claimTerritory, removeBonusSquaresCoveredByWalls, replenishBonusSquares } from "./phase-build.ts";
-import type { PlayerController } from "./player-controller.ts";
 import { Rng } from "./rng.ts";
 import { DIRS_4, packTile, unpackTile } from "./spatial.ts";
 import type { GameState, Player } from "./types.ts";

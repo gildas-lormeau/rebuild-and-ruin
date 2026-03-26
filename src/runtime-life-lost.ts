@@ -8,6 +8,7 @@
 import type { GameMessage } from "../server/protocol.ts";
 import { MSG } from "../server/protocol.ts";
 import { isHuman } from "./controller-factory.ts";
+import type { InputReceiver, PlayerController } from "./controller-types.ts";
 import type { RuntimeLifeLost } from "./game-runtime-types.ts";
 import { Mode } from "./game-ui-types.ts";
 import type { LifeLostDialogState, ResolvedChoice } from "./life-lost.ts";
@@ -17,7 +18,6 @@ import {
   resolveLifeLostDialogRuntime,
   tickLifeLostDialogRuntime,
 } from "./life-lost.ts";
-import type { InputReceiver, PlayerController } from "./player-controller.ts";
 import {
   handleLifeLostDialogClick as handleLifeLostDialogClickShared,
   lifeLostPanelPos as lifeLostPanelPosShared,

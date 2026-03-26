@@ -13,10 +13,10 @@ import {
   nextReadyCombined,
 } from "./battle-system.ts";
 import { isAiAnimatable } from "./controller-factory.ts";
+import type { Crosshair, PlayerController } from "./controller-types.ts";
+import { CROSSHAIR_SPEED } from "./controller-types.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { interpolateToward } from "./online-types.ts";
-import type { Crosshair, PlayerController } from "./player-controller.ts";
-import { CROSSHAIR_SPEED } from "./player-controller.ts";
 import type { GameState } from "./types.ts";
 
 interface BroadcastDeps {

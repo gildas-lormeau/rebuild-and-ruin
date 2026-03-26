@@ -8,10 +8,10 @@
  * Right panel: quit + zoom + rotate + confirm
  */
 
-import { hapticTap } from "./haptics.ts";
+import type { InputReceiver, PlayerController } from "./controller-types.ts";
 import { dispatchPlacement, isGameInteractionMode } from "./input-dispatch.ts";
+import { hapticTap } from "./input-haptics.ts";
 import { ACTION_CONFIRM, PLAYER_COLORS } from "./player-config.ts";
-import type { InputReceiver, PlayerController } from "./player-controller.ts";
 import { rgb, TOUCH_ZOOM_ENEMY_BG, TOUCH_ZOOM_HOME_BG, ZOOM_BUTTON_ALPHA } from "./render-theme.ts";
 import type { SelectionState } from "./selection.ts";
 import { findNearestTower } from "./spatial.ts";

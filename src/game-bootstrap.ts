@@ -1,7 +1,7 @@
+import type { PlayerController } from "./controller-types.ts";
 import { createGameFromSeed } from "./game-engine.ts";
 import { GAME_CONTAINER_ACTIVE, type LobbyState } from "./game-ui-types.ts";
 import { generateMap } from "./map-generation.ts";
-import type { PlayerController } from "./player-controller.ts";
 import type { SelectionState } from "./selection.ts";
 import { type GameState, Phase } from "./types.ts";
 

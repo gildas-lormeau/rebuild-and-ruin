@@ -3,6 +3,7 @@
  */
 
 import { createController } from "./controller-factory.ts";
+import type { PlayerController } from "./controller-types.ts";
 import {
   createGameState,
   enterCastleReselectPhase,
@@ -12,7 +13,6 @@ import {
 } from "./game-engine.ts";
 import { generateMap } from "./map-generation.ts";
 import { PLAYER_KEY_BINDINGS } from "./player-config.ts";
-import type { PlayerController } from "./player-controller.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import type { GameState } from "./types.ts";
 

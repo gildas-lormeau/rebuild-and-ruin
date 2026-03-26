@@ -12,6 +12,7 @@ import {
   drawPhantoms,
   drawWaterAnimation,
 } from "./render-effects.ts";
+import { drawSprite } from "./render-sprites.ts";
 import { BANNER_HEIGHT_RATIO, type RGB, STATUSBAR_HEIGHT } from "./render-theme.ts";
 import { drawTowers } from "./render-towers.ts";
 import type { CastleData, MapData, RenderOverlay, Viewport } from "./render-types.ts";
@@ -27,7 +28,6 @@ import {
   drawStatusBar,
 } from "./render-ui.ts";
 import { facingToDir8, isCannonAlive, unpackTile } from "./spatial.ts";
-import { drawSprite } from "./sprites.ts";
 import { CannonMode } from "./types.ts";
 
 interface TerrainImageCache {

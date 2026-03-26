@@ -1,5 +1,6 @@
 import { MSG, type ServerMessage } from "../server/protocol.ts";
 import { resetCannonFacings } from "./cannon-system.ts";
+import type { OrbitParams } from "./controller-types.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import {
@@ -7,7 +8,6 @@ import {
   applyHousesCheckpoint,
   applyPlayersCheckpoint,
 } from "./online-serialize.ts";
-import type { OrbitParams } from "./player-controller.ts";
 import type { GameState } from "./types.ts";
 import { BATTLE_TIMER } from "./types.ts";
 

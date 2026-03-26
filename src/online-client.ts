@@ -17,6 +17,7 @@ import {
 } from "../server/protocol.ts";
 import { autoPlaceCannons } from "./ai-strategy.ts";
 import { applyImpactEvent } from "./battle-system.ts";
+import { applyPiecePlacement } from "./build-system.ts";
 import { applyCannonPlacement } from "./cannon-system.ts";
 import { createController } from "./controller-factory.ts";
 import { bootstrapGame, setupWaitingRoom } from "./game-bootstrap.ts";
@@ -71,15 +72,14 @@ import {
   tickMigrationAnnouncement as tickMigrationAnnouncementFn,
   tickWatcher as tickWatcherFn,
 } from "./online-watcher-tick.ts";
-import { applyPiecePlacement } from "./phase-build.ts";
 import { IS_DEV } from "./platform.ts";
 import {
   MAX_PLAYERS,
   PLAYER_COLORS,
   PLAYER_NAMES,
 } from "./player-config.ts";
+import { loadAtlas } from "./render-sprites.ts";
 import { MAX_UINT32 } from "./rng.ts";
-import { loadAtlas } from "./sprites.ts";
 import {
   BANNER_DURATION,
   BATTLE_COUNTDOWN,

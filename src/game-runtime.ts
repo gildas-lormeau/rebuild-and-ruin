@@ -7,6 +7,7 @@
  */
 
 import { createController, isHuman } from "./controller-factory.ts";
+import type { InputReceiver, PlayerController } from "./controller-types.ts";
 import { computeFrameContext } from "./frame-context.ts";
 import { bootstrapGame } from "./game-bootstrap.ts";
 import type { GameRuntime, RuntimeConfig } from "./game-runtime-types.ts";
@@ -43,12 +44,12 @@ import {
   ROUNDS_OPTIONS,
 } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
-import { hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
 import { type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
 import { clientToCanvas, dispatchPointerMove } from "./input-dispatch.ts";
+import { hapticPhaseChange, setHapticsLevel } from "./input-haptics.ts";
 import { registerTouchHandlers } from "./input-touch.ts";
+import { createDpad, createEnemyZoomButton, createFloatingActions, createHomeZoomButton, createQuitButton } from "./input-touch-ui.ts";
 import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING } from "./life-lost.ts";
-import { createLoupe, type LoupeHandle } from "./loupe.ts";
 import { generateMap } from "./map-generation.ts";
 import {
   createBannerState,
@@ -63,13 +64,13 @@ import {
   PLAYER_KEY_BINDINGS,
   PLAYER_NAMES,
 } from "./player-config.ts";
-import type { InputReceiver, PlayerController } from "./player-controller.ts";
 import {
   buildBannerUi,
   buildOnlineOverlay,
   buildRenderSummaryMessage,
   buildStatusBar,
 } from "./render-composition.ts";
+import { createLoupe, type LoupeHandle } from "./render-loupe.ts";
 import { getSceneCanvas, renderMap } from "./render-map.ts";
 import { computeLobbyLayout, gameOverButtonHitTest } from "./render-ui.ts";
 import { MAX_UINT32 } from "./rng.ts";
@@ -82,7 +83,6 @@ import type { SelectionSystem } from "./runtime-selection.ts";
 import { createSelectionSystem } from "./runtime-selection.ts";
 import { createRuntimeState } from "./runtime-state.ts";
 import { towerCenter, unpackTile } from "./spatial.ts";
-import { createDpad, createEnemyZoomButton, createFloatingActions, createHomeZoomButton, createQuitButton } from "./touch-ui.ts";
 import type { GameState } from "./types.ts";
 import {
   BANNER_DURATION,
