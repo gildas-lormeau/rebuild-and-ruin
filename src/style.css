@@ -176,7 +176,7 @@ nav {
     object-fit: contain;
     image-rendering: pixelated;
     touch-action: none;
-    background: #2a2a4e;
+    background: var(--color-bg);
   }
 }
 
@@ -186,6 +186,10 @@ nav {
 
 .left-handed {
   flex-direction: row-reverse;
+}
+
+.left-handed .landscape.panel-left {
+  align-items: end;
 }
 
 /* ===== Landscape layout ===== */
