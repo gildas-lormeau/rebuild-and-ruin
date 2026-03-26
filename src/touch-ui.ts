@@ -75,11 +75,15 @@ interface FloatingActionsDeps {
   tryPlacePieceAndSend: (human: PlayerController & InputReceiver, state: GameState) => void;
   tryPlaceCannonAndSend: (human: PlayerController & InputReceiver, state: GameState, max: number) => void;
   render: () => void;
+  /** Forward a drag touch to the canvas pointer-move logic. */
+  onDrag?: (clientX: number, clientY: number) => void;
 }
 
 interface FloatingActionsHandle {
   /** Reposition + show/hide based on current phantom screen coords. */
   update: (visible: boolean, x: number, y: number, nearTop: boolean, leftHanded: boolean) => void;
+  /** Toggle the confirm button's disabled look based on placement validity. */
+  setConfirmValid: (valid: boolean) => void;
 }
 
 /**
@@ -90,6 +94,7 @@ interface FloatingActionsHandle {
 export function createDpad(deps: DpadDeps, container: HTMLElement): {
   update: (phase: Phase | null) => void;
   setLeftHanded: (lh: boolean) => void;
+  setConfirmValid: (valid: boolean) => void;
 } {
   // Query all duplicated elements (landscape + portrait)
   const dpads = Array.from(container.querySelectorAll<HTMLElement>(".dpad"));
@@ -274,6 +279,9 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
     setLeftHanded(lh: boolean) {
       container.classList.toggle("left-handed", lh);
     },
+    setConfirmValid(valid: boolean) {
+      for (const btn of btnsAction) btn.classList.toggle("disabled", !valid);
+    },
   };
 }
 
@@ -453,15 +461,32 @@ export function createFloatingActions(
     deps.render();
   }
 
+  const TAP_THRESHOLD = 10; // pixels — beyond this the gesture is a drag
   for (const [btn, handler] of [[btnRotate, handleRotate], [btnConfirm, handleConfirm]] as const) {
+    let startX = 0;
+    let startY = 0;
+    let dragged = false;
     btn.addEventListener("touchstart", (e) => {
       e.preventDefault(); e.stopPropagation(); pressDown(btn);
-      handler();
+      const t = e.touches[0];
+      if (t) { startX = t.clientX; startY = t.clientY; }
+      dragged = false;
+    }, { passive: false });
+    btn.addEventListener("touchmove", (e) => {
+      e.preventDefault();
+      const t = e.touches[0];
+      if (!t) return;
+      if (!dragged && Math.hypot(t.clientX - startX, t.clientY - startY) > TAP_THRESHOLD) {
+        dragged = true;
+        pressUp(btn);
+      }
+      if (dragged) deps.onDrag?.(t.clientX, t.clientY);
     }, { passive: false });
     btn.addEventListener("touchend", (e) => {
       e.preventDefault(); pressUp(btn);
+      if (!dragged) handler();
     }, { passive: false });
-    btn.addEventListener("touchcancel", () => pressUp(btn));
+    btn.addEventListener("touchcancel", () => { pressUp(btn); dragged = false; });
   }
 
   return {
@@ -482,6 +507,9 @@ export function createFloatingActions(
       }
       el.style.left = `${Math.round(Math.max(0, left))}px`;
       el.style.top = `${Math.round(Math.max(0, top))}px`;
+    },
+    setConfirmValid(valid) {
+      btnConfirm.classList.toggle("disabled", !valid);
     },
   };
 }

@@ -43,7 +43,7 @@ import {
 } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { hapticPhaseChange, setHapticsLevel } from "./haptics.ts";
-import { type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
+import { clientToCanvas, dispatchPointerMove, type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
 import { createLoupe, type LoupeHandle } from "./loupe.ts";
 import {
   createBannerState,
@@ -335,6 +335,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function showOptions(): void {
     showOptionsShared(uiCtx, { OPTIONS: Mode.OPTIONS });
+    dpad?.update(Phase.WALL_BUILD); // enable d-pad for options navigation
   }
 
   function closeOptions(): void {
@@ -342,6 +343,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     closeOptionsShared(uiCtx, { LOBBY: Mode.LOBBY, GAME: Mode.GAME });
     if (wasInGame) {
       rs.lastTime = performance.now(); // avoid huge dt on first frame back
+    } else {
+      dpad?.update(null); // back to lobby — disable d-pad
     }
     config.onCloseOptions?.();
   }
@@ -356,6 +359,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function showControls(): void {
     showControlsShared(uiCtx, { CONTROLS: Mode.CONTROLS });
+    dpad?.update(Phase.WALL_BUILD); // enable d-pad for controls navigation
   }
 
   function closeControls(): void {
@@ -555,6 +559,19 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const inGame = rs.mode === Mode.GAME || rs.mode === Mode.SELECTION;
     const controlsActive = inGame ? hasHuman : rs.mode === Mode.OPTIONS;
     dpad?.update(controlsActive ? (rs.state?.phase ?? Phase.WALL_BUILD) : null);
+    // Disable confirm button when placement is invalid (build/cannon phases only)
+    if (dpad && rs.state) {
+      const phase = rs.state.phase;
+      if (phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE) {
+        const human = firstHuman();
+        const barValid = phase === Phase.WALL_BUILD
+          ? rs.frame.phantoms.humanPhantoms?.[0]?.valid ?? true
+          : rs.frame.phantoms.aiCannonPhantoms?.find(p => p.playerId === human?.playerId)?.valid ?? true;
+        dpad.setConfirmValid(barValid);
+      } else {
+        dpad.setConfirmValid(true);
+      }
+    }
     homeZoomButton?.update(hasHuman);
     enemyZoomButton?.update(hasHuman);
     const inLobby = rs.mode === Mode.LOBBY || rs.mode === Mode.OPTIONS || rs.mode === Mode.CONTROLS;
@@ -631,7 +648,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const cssX = (sx / canvas.width) * contentW + offsetX + (rect.left - containerRect.left);
     const cssY = (sy / canvas.height) * contentH + offsetY + (rect.top - containerRect.top);
     const nearTop = cssY < contentH * 0.15;
+    // Check placement validity from phantom data
+    const phantomValid = phase === Phase.WALL_BUILD
+      ? rs.frame.phantoms.humanPhantoms?.[0]?.valid ?? false
+      : rs.frame.phantoms.aiCannonPhantoms?.find(p => p.playerId === human.playerId)?.valid ?? false;
     floatingActions.update(true, cssX, cssY, nearTop, rs.settings.leftHanded);
+    floatingActions.setConfirmValid(phantomValid);
   }
 
   function rematch() {
@@ -644,6 +666,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs.scoreDeltaOnDone = null;
     camera.unzoom();
     rs.mouseJoinedSlot = -1;
+    rs.directTouchActive = false;
+    floatingActions?.update(false, 0, 0, false, false);
     dpad?.update(null); // disable d-pad + rotate
     quitButton?.update(null); // hide quit
     homeZoomButton?.update(false); // disable zoom buttons
@@ -946,6 +970,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           tryPlacePieceAndSend: inputDeps.tryPlacePieceAndSend,
           tryPlaceCannonAndSend: inputDeps.tryPlaceCannonAndSend,
           render,
+          onDrag: (clientX, clientY) => {
+            const state = rs.state;
+            if (!state) return;
+            const { x, y } = clientToCanvas(clientX, clientY, canvas);
+            dispatchPointerMove(x, y, state, inputDeps);
+          },
         }, floatingEl);
       }
     }

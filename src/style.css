@@ -157,6 +157,11 @@ nav {
   pointer-events: auto;
 }
 
+.floating-actions .btn-round.disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 /* ===== Game container ===== */
 #game-container {
   position: relative;
