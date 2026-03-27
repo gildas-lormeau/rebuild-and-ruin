@@ -1,0 +1,12 @@
+{
+  "mutableArrayParams": [
+    "src/ai-strategy-cannon.ts:normalCandidates",
+    "src/grunt-system.ts:queue",
+    "src/headless-test.ts:violations",
+    "src/online-host-crosshairs.ts:crosshairs",
+    "src/online-host-promotion.ts:controllers",
+    "src/rng.ts:arr",
+    "src/game-runtime-types.ts:crosshairs",
+    "src/runtime-phase-ticks.ts:crosshairs"
+  ]
+}
