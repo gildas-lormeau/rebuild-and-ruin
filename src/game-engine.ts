@@ -335,6 +335,7 @@ export function resetZoneState(state: GameState, zone: number): void {
     (grunt) => state.map.zones[grunt.row]?.[grunt.col] !== zone,
   );
   state.map.houses = state.map.houses.filter((house) => house.zone !== zone);
+  state.bonusSquares = state.bonusSquares.filter((bs) => bs.zone !== zone);
   state.burningPits = state.burningPits.filter(
     (pit) => state.map.zones[pit.row]?.[pit.col] !== zone,
   );
