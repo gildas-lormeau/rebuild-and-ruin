@@ -140,7 +140,7 @@ export interface GameRuntime {
   showBanner: (text: string, onDone: () => void, reveal?: boolean, newBattle?: { territory: Set<number>[]; walls: Set<number>[] }) => void;
   tickBanner: (dt: number) => void;
 
-  collectCrosshairs: (canFireNow: boolean, dt?: number) => void;
+  syncCrosshairs: (canFireNow: boolean, dt?: number) => void;
   snapshotTerritory: () => Set<number>[];
   firstHuman: () => (PlayerController & InputReceiver) | null;
   withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;

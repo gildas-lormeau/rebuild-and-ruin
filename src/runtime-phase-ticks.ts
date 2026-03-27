@@ -88,7 +88,7 @@ interface PhaseTicksDeps {
 export type PhaseTicksSystem = Pick<GameRuntime,
   | "startCannonPhase" | "startBattle" | "tickBalloonAnim" | "beginBattle" | "startBuildPhase"
   | "tickCannonPhase" | "tickBattleCountdown" | "tickBattlePhase" | "tickBuildPhase"
-  | "tickGame" | "collectCrosshairs"
+  | "tickGame" | "syncCrosshairs"
 >;
 
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
@@ -98,7 +98,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // Crosshairs
   // -------------------------------------------------------------------------
 
-  function collectCrosshairs(canFireNow: boolean, dt = 0): void {
+  function syncCrosshairs(canFireNow: boolean, dt = 0): void {
     const remoteHumanSlots = rs.ctx.remoteHumanSlots;
     rs.frame.crosshairs = collectLocalCrosshairs({
       state: rs.state,
@@ -224,7 +224,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   function tickBattleCountdown(dt: number): void {
     tickHostBattleCountdown({
-      dt, state: rs.state, frame: rs.frame, controllers: rs.controllers, collectCrosshairs, render: deps.render,
+      dt, state: rs.state, frame: rs.frame, controllers: rs.controllers, syncCrosshairs, render: deps.render,
       net: { remoteHumanSlots: rs.ctx.remoteHumanSlots },
     });
   }
@@ -232,7 +232,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   function tickBattlePhase(dt: number): boolean {
     return tickHostBattlePhase({
       dt, state: rs.state, battleTimer: BATTLE_TIMER, accum: rs.accum, controllers: rs.controllers, battleAnim: rs.battleAnim,
-      render: deps.render, collectCrosshairs,
+      render: deps.render, syncCrosshairs,
       collectTowerEvents: gruntAttackTowers,
       tickCannonballsWithEvents: tickCannonballs,
       onBattleEvents: (events) => {
@@ -332,6 +332,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     tickBattlePhase,
     tickBuildPhase,
     tickGame,
-    collectCrosshairs,
+    syncCrosshairs,
   };
 }

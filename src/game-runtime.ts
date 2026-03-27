@@ -577,7 +577,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     // Refresh crosshairs from controller state when paused
     if (rs.state.phase === Phase.BATTLE && rs.paused) {
-      phaseTicks.collectCrosshairs(rs.state.battleCountdown <= 0);
+      phaseTicks.syncCrosshairs(rs.state.battleCountdown <= 0);
     }
 
     const bannerUi = buildBannerUi(rs.banner.active, rs.banner.text, rs.banner.progress, rs.banner.subtitle);
@@ -1124,7 +1124,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     showBanner,
     tickBanner,
 
-    collectCrosshairs: phaseTicks.collectCrosshairs,
+    syncCrosshairs: phaseTicks.syncCrosshairs,
     snapshotTerritory,
     firstHuman,
     withFirstHuman,

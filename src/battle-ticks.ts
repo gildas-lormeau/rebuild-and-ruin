@@ -14,7 +14,7 @@ interface TickHostBattleCountdownDeps {
   state: GameState;
   frame: { announcement?: string };
   controllers: PlayerController[];
-  collectCrosshairs: (canFireNow: boolean, dt: number) => void;
+  syncCrosshairs: (canFireNow: boolean, dt: number) => void;
   render: () => void;
   net?: Pick<HostNetContext, "remoteHumanSlots">;
 }
@@ -32,7 +32,7 @@ interface TickHostBattlePhaseDeps {
   controllers: PlayerController[];
   battleAnim: { impacts: Impact[] };
   render: () => void;
-  collectCrosshairs: (canFireNow: boolean, dt: number) => void;
+  syncCrosshairs: (canFireNow: boolean, dt: number) => void;
   collectTowerEvents: (
     state: GameState,
     dt: number,
@@ -100,7 +100,7 @@ interface BeginHostBattleDeps {
 export function tickHostBattleCountdown(
   deps: TickHostBattleCountdownDeps,
 ): void {
-  const { dt, state, frame, controllers, collectCrosshairs, render } = deps;
+  const { dt, state, frame, controllers, syncCrosshairs, render } = deps;
   const remoteHumanSlots = getRemoteSlots(deps.net);
 
   state.battleCountdown = Math.max(0, state.battleCountdown - dt);
@@ -110,14 +110,14 @@ export function tickHostBattleCountdown(
 
   frame.announcement = countdownAnnouncement(state.battleCountdown);
 
-  collectCrosshairs(false, dt);
+  syncCrosshairs(false, dt);
   render();
 }
 
 export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   const {
     dt, state, battleTimer, accum, controllers, battleAnim,
-    render, collectCrosshairs, collectTowerEvents, tickCannonballsWithEvents,
+    render, syncCrosshairs, collectTowerEvents, tickCannonballsWithEvents,
     onBattlePhaseEnded, onBattleEvents,
   } = deps;
   const remoteHumanSlots = getRemoteSlots(deps.net);
@@ -158,7 +158,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     if (allEvents.length > 0) onBattleEvents(allEvents);
   }
 
-  collectCrosshairs(true, dt);
+  syncCrosshairs(true, dt);
   render();
 
   if (state.timer > 0 || state.cannonballs.length > 0) return false;

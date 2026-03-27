@@ -219,16 +219,12 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Auto-zoom ---
 
-  /** Save current pinch to the slot for the given phase (preserves it for later restore). */
-  function savePinchForPhase(isBattle: boolean): void {
-    if (!pinchVp) return;
-    if (isBattle) battlePinchVp = { ...pinchVp };
-    else buildPinchVp = { ...pinchVp };
-  }
+  function savePinchForBattle(): void { if (pinchVp) battlePinchVp = { ...pinchVp }; }
+  function savePinchForBuild(): void { if (pinchVp) buildPinchVp = { ...pinchVp }; }
 
   /** Save current pinch viewport to the phase-specific slot and restore the other. */
   function swapPinchViewport(enteringBattle: boolean): void {
-    savePinchForPhase(!enteringBattle);
+    if (enteringBattle) savePinchForBuild(); else savePinchForBattle();
     const candidate = enteringBattle ? battlePinchVp : buildPinchVp;
     pinchVp = candidate ? { ...candidate } : null;
   }
@@ -296,7 +292,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
     // Unzoom for UI overlays and near end of phase
     if (ctx.shouldUnzoom && (cameraZone !== null || pinchVp !== null || castleBuildVp !== null)) {
-      savePinchForPhase(state.phase === Phase.BATTLE);
+      if (state.phase === Phase.BATTLE) savePinchForBattle(); else savePinchForBuild();
       cameraZone = null;
       pinchVp = null;
       castleBuildVp = null;
