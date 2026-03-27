@@ -119,7 +119,7 @@ const NUM_ROUNDS = Number(positionalArgs[3] ?? 3); // number of game rounds (def
 const BASE_URL = "http://localhost:5173/";
 const PAGE_URL = SERVER_URL ? `${BASE_URL}?server=${new URL(SERVER_URL).host}` : BASE_URL;
 const GAME_TIMEOUT_MS = 600_000; // 10 minutes — enough for "To The Death"
-const ONLINE_ROUND_OPTIONS = new Set([3, 5, 8, 12]);
+const ONLINE_ROUND_OPTIONS = new Set([1, 3, 5, 8, 12]);
 const ONLINE_SELECTED_ROUNDS = ONLINE_ROUND_OPTIONS.has(NUM_ROUNDS) ? String(NUM_ROUNDS) : "3";
 const PLAYER_NAMES = ["Red", "Blue", "Gold"];
 

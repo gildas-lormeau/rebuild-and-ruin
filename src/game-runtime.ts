@@ -220,8 +220,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       mobileAutoZoom: camera.isMobileAutoZoom(),
     });
 
-    if (DEV) exposeTestGlobals();
-
     tickCamera();
 
     // Tick score delta display timer (mode-independent so it counts during banner/castle-build)
@@ -257,6 +255,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       },
     });
 
+    if (DEV) exposeTestGlobals();
     if (shouldContinue) requestAnimationFrame(mainLoop);
   }
 
