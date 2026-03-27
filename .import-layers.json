@@ -27,7 +27,7 @@
     ]
   },
   {
-    "name": "config & interfaces",
+    "name": "shared types & config",
     "files": [
       "src/player-config.ts",
       "src/controller-interfaces.ts",
@@ -37,7 +37,7 @@
     ]
   },
   {
-    "name": "game systems",
+    "name": "game systems & selection",
     "files": [
       "src/cannon-system.ts",
       "src/grunt-system.ts",
@@ -45,7 +45,8 @@
       "src/build-system.ts",
       "src/map-generation.ts",
       "src/game-engine.ts",
-      "src/phase-banner.ts"
+      "src/phase-banner.ts",
+      "src/selection.ts"
     ]
   },
   {
@@ -69,8 +70,7 @@
       "src/ai-controller.ts",
       "src/controller-types.ts",
       "src/controller-human.ts",
-      "src/controller-factory.ts",
-      "src/selection.ts"
+      "src/controller-factory.ts"
     ]
   },
   {
