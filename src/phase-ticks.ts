@@ -1,5 +1,4 @@
 import type { SerializedPlayer } from "../server/protocol.ts";
-import { autoPlaceCannons as autoPlaceCannonsLocal } from "./ai-strategy.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import {
   type CannonPhantom,
@@ -18,11 +17,6 @@ import { CannonMode, type GameState } from "./types.ts";
 interface CannonPhaseNet extends HostNetContext {
   remoteCannonPhantoms: readonly CannonPhantom[];
   lastSentCannonPhantom: Map<number, string>;
-  autoPlaceCannons?: (
-    player: GameState["players"][number],
-    max: number,
-    state: GameState,
-  ) => void;
   sendOpponentCannonPlaced: (msg: {
     playerId: number;
     row: number;
@@ -113,7 +107,6 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   const isHost = deps.net?.isHost ?? true;
   const remoteCannonPhantoms = deps.net?.remoteCannonPhantoms ?? [];
   const lastSentCannonPhantom = deps.net?.lastSentCannonPhantom ?? EMPTY_MAP;
-  const autoPlaceCannons = deps.net?.autoPlaceCannons;
   const sendOpponentCannonPlaced = deps.net?.sendOpponentCannonPlaced;
   const sendOpponentCannonPhantom = deps.net?.sendOpponentCannonPhantom;
 
@@ -175,25 +168,13 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   if (state.timer > 0 && !allDone) return false;
 
   for (const ctrl of controllers) {
+    const max = state.cannonLimits[ctrl.playerId] ?? 0;
     if (remoteHumanSlots.has(ctrl.playerId)) {
-      if (state.round === 1 && autoPlaceCannons) {
-        const player = state.players[ctrl.playerId]!;
-        if (!player.eliminated && player.cannons.length === 0) {
-          const max = state.cannonLimits[ctrl.playerId] ?? 0;
-          autoPlaceCannons(player, max, state);
-        }
-      }
+      ctrl.initCannons(state, max);
       continue;
     }
-    const max = state.cannonLimits[ctrl.playerId] ?? 0;
     ctrl.flushCannons(state, max);
-    // Round 1 safety net: auto-place if human placed 0 cannons
-    if (state.round === 1) {
-      const player = state.players[ctrl.playerId]!;
-      if (!player.eliminated && player.cannons.length === 0) {
-        autoPlaceCannonsLocal(player, max, state);
-      }
-    }
+    ctrl.initCannons(state, max);
   }
 
   startBattle();

@@ -93,6 +93,9 @@ export interface PlayerController {
   /** Flush any remaining auto-placement queue (cannon timer expired). */
   flushCannons(state: GameState, maxSlots: number): void;
 
+  /** Round-1 safety net: auto-place cannons if none were manually placed. No-op on round 2+. */
+  initCannons(state: GameState, maxSlots: number): void;
+
   /** Clean up at end of battle. */
   onBattleEnd(): void;
 

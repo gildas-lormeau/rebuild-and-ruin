@@ -5,6 +5,7 @@
  * implementation that depends on battle-system, pieces, spatial, etc.
  */
 
+import { autoPlaceCannons } from "./ai-strategy.ts";
 import {
   fireCannon,
   fireSingleCaptured,
@@ -106,6 +107,13 @@ export abstract class BaseController implements PlayerController {
     }
   }
   abstract flushCannons(state: GameState, maxSlots: number): void;
+
+  initCannons(state: GameState, maxSlots: number): void {
+    if (state.round !== 1) return;
+    const player = state.players[this.playerId];
+    if (!player || player.eliminated || player.cannons.length > 0) return;
+    autoPlaceCannons(player, maxSlots, state);
+  }
   abstract onBattleEnd(): void;
   onLifeLost(): void {
     this.lastFiredIdx = -1;
