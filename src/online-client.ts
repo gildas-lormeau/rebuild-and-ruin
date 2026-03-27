@@ -123,6 +123,10 @@ const initDomLobby = () =>
   });
 const MAX_RECONNECT_ATTEMPTS = 3;
 const RECONNECT_BASE_DELAY_MS = 1000;
+export const lobbyReady = loadAtlas().then(initDomLobby, initDomLobby).then((lobby) => {
+  pageOnline.setAttribute("data-ready", "1");
+  return lobby;
+});
 const watcherTickCtx: WatcherTickContext = {
   getState: () => runtime.rs.state,
   getFrame: () => runtime.rs.frame,
@@ -576,7 +580,3 @@ function clearReconnect(): void {
 function resetDedup(): void {
   resetDedupMaps(dedup);
 }
-
-loadAtlas().then(initDomLobby, initDomLobby).then(() => {
-  pageOnline.setAttribute("data-ready", "1");
-});

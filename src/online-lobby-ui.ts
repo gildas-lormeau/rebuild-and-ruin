@@ -39,7 +39,7 @@ export function initLobbyUi({
   setIsHost,
   isVisible = () => true,
   doc = document,
-}: InitLobbyUiDeps): void {
+}: InitLobbyUiDeps): { joinRoom: (code: string) => void } {
   // Pending action replaces any previous one so rapid clicks / Create→Join
   // sequences don't stack multiple "open" listeners on the same socket.
   let pendingAction: (() => void) | null = null;
@@ -78,14 +78,17 @@ export function initLobbyUi({
     });
   });
 
-  elements.btnJoinConfirm.addEventListener("click", () => {
+  const doJoin = (code: string) => {
     elements.joinError.textContent = "";
-    const code = elements.joinCodeInput.value.trim().toUpperCase();
     if (code.length !== ROOM_CODE_LENGTH) {
       elements.joinError.textContent = `Enter a ${ROOM_CODE_LENGTH}-letter room code`;
       return;
     }
     scheduleOnOpen(() => send({ type: MSG.JOIN_ROOM, code }));
+  };
+
+  elements.btnJoinConfirm.addEventListener("click", () => {
+    doJoin(elements.joinCodeInput.value.trim().toUpperCase());
   });
 
   // Room list: fetch and render available rooms, poll every 3s while visible
@@ -93,7 +96,7 @@ export function initLobbyUi({
   if (roomListEl) {
     const joinViaCode = (code: string) => {
       elements.joinCodeInput.value = code;
-      elements.btnJoinConfirm.click();
+      doJoin(code.toUpperCase());
     };
 
     const el = (tag: string, cls: string, text?: string) => {
@@ -149,4 +152,5 @@ export function initLobbyUi({
       if (roomPollTimer) { clearInterval(roomPollTimer); roomPollTimer = null; }
     }, { once: true });
   }
+  return { joinRoom: doJoin };
 }

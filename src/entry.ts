@@ -11,7 +11,6 @@ import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./game-ui-types.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import { initRouter, navigateTo, onRoute } from "./router.ts";
 
-const AUTO_JOIN_DELAY_MS = 300;
 const DEFAULT_SERVER = "rebuild-and-ruin.gildas-lormeau.deno.net";
 const SERVER_STORAGE_KEY = "castles99_server";
 const ROUTE_ONLINE = "/online";
@@ -65,13 +64,12 @@ document.getElementById("btn-join-confirm")!.addEventListener("click", tryFullsc
 
 // --- Auto-join via QR code: ?join=XXXX&server=host ---
 if (autoJoinCode) {
+  tryFullscreen(); // call synchronously — QR tap navigation preserves user activation
   (async () => {
     navigateTo(ROUTE_ONLINE, true);
-    await import("./online-client.ts");
-    const joinCodeInput = document.getElementById("join-code") as HTMLInputElement;
-    const btnJoinConfirm = document.getElementById("btn-join-confirm")!;
-    joinCodeInput.value = autoJoinCode.toUpperCase();
-    setTimeout(() => { tryFullscreen(); btnJoinConfirm.click(); }, AUTO_JOIN_DELAY_MS);
+    const { lobbyReady } = await import("./online-client.ts");
+    const { joinRoom } = await lobbyReady;
+    joinRoom(autoJoinCode.toUpperCase());
   })();
 }
 
