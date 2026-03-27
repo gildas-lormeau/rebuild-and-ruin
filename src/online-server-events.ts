@@ -4,9 +4,8 @@ import type { OrbitParams } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { LifeLostChoice } from "./life-lost.ts";
 import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
-import type { SelectionState } from "./selection.ts";
 import { inBoundsStrict } from "./spatial.ts";
-import { CannonMode, type GameState } from "./types.ts";
+import { CannonMode, type GameState, type SelectionState } from "./types.ts";
 
 interface LifeLostChoiceEntry {
   playerId: number;

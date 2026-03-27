@@ -4,9 +4,8 @@ import type { WorldPos } from "./geometry-types.ts";
 import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, isGameInteractionMode, isTouchSuppressed, type ModeValues } from "./input-dispatch.ts";
 import { LifeLostChoice, type LifeLostDialogState, type ResolvedChoice } from "./life-lost.ts";
 import { ACTION_KEYS, applyKeyRebinding, type KeyBindings, MAX_PLAYERS, SEED_CUSTOM, SEED_RANDOM, type SeedMode } from "./player-config.ts";
-import type { SelectionState } from "./selection.ts";
 import { findNearestTower } from "./spatial.ts";
-import { Action, FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus, type GameState, isMovementAction, isPlacementPhase, isReselectPhase, isSelectionPhase, Phase } from "./types.ts";
+import { Action, FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus, type GameState, isMovementAction, isPlacementPhase, isReselectPhase, isSelectionPhase, Phase, type SelectionState } from "./types.ts";
 
 export interface RegisterOnlineInputDeps {
   canvas: HTMLCanvasElement;

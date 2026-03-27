@@ -23,13 +23,13 @@ import type { LifeLostDialogState } from "./life-lost.ts";
 import { type BannerState, createBannerState } from "./phase-banner.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 import type { FrameData, PlayerStats, RenderOverlay } from "./render-types.ts";
-import type { SelectionState } from "./selection.ts";
 import {
   type BattleAnimState,
   createBattleAnimState,
   createTimerAccums,
   type GameState,
   Mode,
+  type SelectionState,
   type TimerAccums,
 } from "./types.ts";
 

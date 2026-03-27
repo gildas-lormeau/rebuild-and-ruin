@@ -11,8 +11,7 @@ import type { UIContext } from "./game-ui-screens.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
 import type { CannonPhantom, PiecePhantom, WatcherTimingState } from "./online-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
-import type { SelectionState } from "./selection.ts";
-import type { BalloonFlight, GameState } from "./types.ts";
+import type { BalloonFlight, GameState, SelectionState } from "./types.ts";
 
 export interface RuntimeConfig {
   canvas: HTMLCanvasElement;

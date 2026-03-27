@@ -1,14 +1,7 @@
 import { MSG } from "../server/protocol.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import { BANNER_SELECT } from "./phase-banner.ts";
-import { type GameState, isReselectPhase, isSelectionPhase, Phase } from "./types.ts";
-
-export interface SelectionState {
-  highlighted: number;
-  confirmed: boolean;
-  /** True once the user has explicitly tapped a tower (enables confirm on next tap). */
-  tapped?: boolean;
-}
+import { type GameState, isReselectPhase, isSelectionPhase, Phase, type SelectionState } from "./types.ts";
 
 interface TickSelectionPhaseDeps {
   dt: number;

@@ -3,8 +3,7 @@ import { createGameFromSeed } from "./game-engine.ts";
 import { GAME_CONTAINER_ACTIVE, type LobbyState } from "./game-ui-types.ts";
 import { generateMap } from "./map-generation.ts";
 import { GOLD, PANEL_BG } from "./render-theme.ts";
-import type { SelectionState } from "./selection.ts";
-import { type GameState, isReselectPhase, Phase } from "./types.ts";
+import { type GameState, isReselectPhase, Phase, type SelectionState } from "./types.ts";
 
 interface InitWaitingRoomDeps {
   code: string;

@@ -236,6 +236,14 @@ export interface BattleAnimState {
   impacts: Impact[];
 }
 
+/** Per-player state during castle selection (highlighted tower, confirm status). */
+export interface SelectionState {
+  highlighted: number;
+  confirmed: boolean;
+  /** True once the user has explicitly tapped a tower (enables confirm on next tap). */
+  tapped?: boolean;
+}
+
 /** Default hits needed to destroy a cannon. */
 export const CANNON_MAX_HP = 3;
 /** How many cannon slots a super gun costs. */

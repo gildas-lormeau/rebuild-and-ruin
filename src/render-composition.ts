@@ -15,8 +15,7 @@ import {
   LIFE_LOST_PANEL_W as PANEL_W,
 } from "./render-theme.ts";
 import { type GameOverOverlay, type LifeLostDialogOverlay, type RenderOverlay } from "./render-types.ts";
-import type { SelectionState } from "./selection.ts";
-import { type CastleData, FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus, type GameState, type Impact, LIFE_LOST_MAX_TIMER, Phase } from "./types.ts";
+import { type CastleData, FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus, type GameState, type Impact, LIFE_LOST_MAX_TIMER, Phase, type SelectionState } from "./types.ts";
 
 /** Result of a lobby click hit-test. */
 export type LobbyHit = { type: "gear" } | { type: "slot"; slotId: number };
