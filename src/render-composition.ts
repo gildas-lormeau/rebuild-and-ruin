@@ -33,6 +33,9 @@ const PHASE_LABELS = new Map<Phase, string>([
   [Phase.BATTLE, "Battle"],
 ]);
 const GAMEOVER_PANEL_W_RATIO = 0.65;
+export const GEAR_X = GRID_COLS * TILE_SIZE - 32;
+export const GEAR_Y = 4;
+export const GEAR_SIZE = 28;
 export const GAMEOVER_ROW_H = 14;
 export const GAMEOVER_HEADER_H = 36;
 export const GAMEOVER_BTN_H = 20;

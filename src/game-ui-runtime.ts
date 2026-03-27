@@ -11,7 +11,7 @@ import { computeCannonLimitsForPhase, rebuildHomeCastle } from "./game-engine.ts
 import { Mode } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import type { KeyBindings } from "./player-config.ts";
-import { GEAR_SIZE, GEAR_X, GEAR_Y } from "./render-theme.ts";
+import { GEAR_SIZE, GEAR_X, GEAR_Y } from "./render-composition.ts";
 import { type GameState, type Impact, Phase, type Player } from "./types.ts";
 
 /** Result of a lobby click hit-test. */

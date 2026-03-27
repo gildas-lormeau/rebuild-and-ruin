@@ -2,10 +2,7 @@
  * Shared UI theme constants for all rendering modules.
  */
 
-// Gear button position (tile-space, top-right corner)
-
 import type { RGB } from "./geometry-types.ts";
-import { GRID_COLS, TILE_SIZE } from "./grid.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 
 /** Dark sepia panel background (0.85–0.95 alpha depending on context). */
@@ -62,9 +59,6 @@ export const LIFE_LOST_PANEL_W = IS_TOUCH_DEVICE ? 170 : 130;
 export const LIFE_LOST_PANEL_H = IS_TOUCH_DEVICE ? 110 : 90;
 export const LIFE_LOST_BTN_W = IS_TOUCH_DEVICE ? 68 : 52;
 export const LIFE_LOST_BTN_H = IS_TOUCH_DEVICE ? 28 : 18;
-export const GEAR_X = GRID_COLS * TILE_SIZE - 32;
-export const GEAR_Y = 4;
-export const GEAR_SIZE = 28;
 // Zoom button tinting
 export const ZOOM_BUTTON_ALPHA = 0.85;
 export const TOUCH_ZOOM_HOME_BG = `rgba(60, 80, 120, ${ZOOM_BUTTON_ALPHA})`;
