@@ -1,6 +1,5 @@
 {
   "mutableArrayParams": [
-    "src/ai-strategy-cannon.ts:normalCandidates",
     "src/grunt-system.ts:queue",
     "src/headless-test.ts:violations",
     "src/online-host-crosshairs.ts:crosshairs",

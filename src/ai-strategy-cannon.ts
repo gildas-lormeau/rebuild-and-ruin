@@ -391,7 +391,7 @@ function tryPlaceBalloon(
   count: number,
   state: GameState,
   defensiveness: number,
-  normalCandidates: CannonCandidate[],
+  normalCandidates: readonly CannonCandidate[],
 ): void {
   const slotsLeft = count - cannonSlotsUsed(player);
   if (
@@ -400,8 +400,7 @@ function tryPlaceBalloon(
     return;
   if (slotsLeft < BALLOON_COST) return;
   const position = normalCandidates[0];
-  if (
-    position &&
+  if (position) {
     placeCannon(
       player,
       position.row,
@@ -409,9 +408,7 @@ function tryPlaceBalloon(
       count,
       CannonMode.BALLOON,
       state,
-    )
-  ) {
-    normalCandidates.shift();
+    );
   }
 }
 
