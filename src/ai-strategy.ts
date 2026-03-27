@@ -170,7 +170,7 @@ const Archetype = {
  */
 const ARCHETYPE_PROFILES: Record<ArchetypeType, ArchetypeProfile> = {
   [Archetype.BUILDER]: {
-    buildSkill: [4, 5],
+    buildSkill: [3, 4],
     spatialAwareness: [2, 3],
     aggressiveness: [1, 1],
     defensiveness: [2, 3],
@@ -182,7 +182,7 @@ const ARCHETYPE_PROFILES: Record<ArchetypeType, ArchetypeProfile> = {
     bankHugging: 0.2,
   },
   [Archetype.AGGRESSIVE]: {
-    buildSkill: [2, 3],
+    buildSkill: [1, 2],
     spatialAwareness: [2, 3],
     aggressiveness: [3, 3],
     defensiveness: [1, 1],
@@ -194,7 +194,7 @@ const ARCHETYPE_PROFILES: Record<ArchetypeType, ArchetypeProfile> = {
     bankHugging: 0.8,
   },
   [Archetype.TACTICIAN]: {
-    buildSkill: [3, 4],
+    buildSkill: [2, 3],
     spatialAwareness: [3, 3],
     aggressiveness: [2, 2],
     defensiveness: [2, 2],
@@ -206,7 +206,7 @@ const ARCHETYPE_PROFILES: Record<ArchetypeType, ArchetypeProfile> = {
     bankHugging: 0.5,
   },
   [Archetype.CHAOTIC]: {
-    buildSkill: [1, 2],
+    buildSkill: [1, 1],
     spatialAwareness: [1, 1],
     aggressiveness: [2, 3],
     defensiveness: [1, 2],
@@ -218,7 +218,7 @@ const ARCHETYPE_PROFILES: Record<ArchetypeType, ArchetypeProfile> = {
     bankHugging: 0.8,
   },
   [Archetype.BALANCED]: {
-    buildSkill: [3, 3],
+    buildSkill: [2, 2],
     spatialAwareness: [2, 2],
     aggressiveness: [2, 2],
     defensiveness: [2, 2],
