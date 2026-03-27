@@ -32,7 +32,8 @@
       "src/player-config.ts",
       "src/controller-interfaces.ts",
       "src/tick-context.ts",
-      "src/render-theme.ts"
+      "src/render-theme.ts",
+      "src/render-types.ts"
     ]
   },
   {
@@ -87,7 +88,6 @@
     "name": "render",
     "files": [
       "src/render-sprites.ts",
-      "src/render-types.ts",
       "src/render-loupe.ts",
       "src/render-effects.ts",
       "src/render-towers.ts",
