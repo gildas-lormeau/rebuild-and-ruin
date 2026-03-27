@@ -3,8 +3,8 @@
  */
 
 import { MSG } from "../server/protocol.ts";
-import { getActiveEnemies } from "./board-occupancy.ts";
-import { getActiveFiringCannons, isCannonEnclosed } from "./cannon-system.ts";
+import { filterActiveEnemies } from "./board-occupancy.ts";
+import { filterActiveFiringCannons, isCannonEnclosed } from "./cannon-system.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { findGruntSpawnNear } from "./grunt-system.ts";
@@ -575,8 +575,8 @@ function findBestBalloonTarget(
   let bestVictimId = -1;
   let bestScore = -1;
 
-  for (const other of getActiveEnemies(state, ownerId)) {
-    for (const cannon of getActiveFiringCannons(other)) {
+  for (const other of filterActiveEnemies(state, ownerId)) {
+    for (const cannon of filterActiveFiringCannons(other)) {
       const needed = balloonHitsNeeded(cannon);
       const prevHits = state.balloonHits.get(cannon)?.count ?? 0;
       const roundHits = assignedThisRound.get(cannon) ?? 0;

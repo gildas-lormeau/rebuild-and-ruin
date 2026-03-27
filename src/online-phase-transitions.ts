@@ -3,7 +3,7 @@ import { snapshotAllWalls } from "./board-occupancy.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import type { RGB } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
-import { buildCastle } from "./map-generation.ts";
+import { createCastle } from "./map-generation.ts";
 import type { WatcherTimingState } from "./online-types.ts";
 import { BANNER_PLACE_CANNONS, type BannerShow } from "./phase-banner.ts";
 import { FOCUS_REMATCH, type GameOverFocus, type GameState, Mode, Phase } from "./types.ts";
@@ -76,7 +76,7 @@ export function handleCastleWallsTransition(msg: ServerMessage, ctx: TransitionC
   for (const plan of plans) {
     const player = state.players[plan.playerId];
     if (player?.homeTower && !player.castle) {
-      player.castle = buildCastle(player.homeTower, state.map.tiles, state.map.towers);
+      player.castle = createCastle(player.homeTower, state.map.tiles, state.map.towers);
     }
   }
   ctx.getSelectionStates().clear();

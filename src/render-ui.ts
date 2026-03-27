@@ -6,6 +6,7 @@ import { LifeLostChoice } from "./life-lost.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import { computeLobbyLayout, GAMEOVER_BTN_H, GAMEOVER_COL_RATIOS, GAMEOVER_HEADER_H, GAMEOVER_ROW_H, gameOverLayout, lifeLostButtonLayout } from "./render-composition.ts";
 import {
+  applyCenterText,
   BANNER_HEIGHT_RATIO,
   LIFE_LOST_BTN_H as BTN_H,
   LIFE_LOST_BTN_W as BTN_W,
@@ -44,7 +45,6 @@ import {
   SHADOW_COLOR_HEAVY,
   STATUS_TEXT_COLOR,
   STATUSBAR_HEIGHT,
-  setCenterText,
   TEXT_WHITE,
 } from "./render-theme.ts";
 import { type RenderOverlay } from "./render-types.ts";
@@ -77,7 +77,7 @@ export function drawAnnouncement(
   const text = overlay.ui.announcement;
   octx.save();
   octx.font = FONT_ANNOUNCE;
-  setCenterText(octx);
+  applyCenterText(octx);
   drawShadowText(octx, text, W / 2, H / 2, SHADOW_COLOR_HEAVY, TEXT_WHITE);
   octx.restore();
 }
@@ -131,7 +131,7 @@ export function drawScoreDeltas(
   const fade = Math.min(1, progress / 0.15); // fade in over first 15%
   octx.save();
   octx.globalAlpha = fade;
-  setCenterText(octx);
+  applyCenterText(octx);
   for (const d of overlay.ui.scoreDeltas) {
     const shown = Math.round(d.delta * t);
     const total = d.total - d.delta + shown;
@@ -259,7 +259,7 @@ export function drawGameOver(
   }
 
   // Rematch / Menu buttons
-  setCenterText(octx);
+  applyCenterText(octx);
   const focused = gameOverData.focused;
 
   const rematchFocused = focused === FOCUS_REMATCH;
@@ -297,7 +297,7 @@ export function drawLifeLostDialog(
     drawPanel(octx, px, py, PANEL_W, PANEL_H, PANEL_BG(0.9), rgb(c));
 
     // Player name
-    setCenterText(octx);
+    applyCenterText(octx);
     octx.font = FONT_BODY;
     octx.fillStyle = rgb(c);
     octx.fillText(entry.name, cx, py + 18);
@@ -677,5 +677,5 @@ function drawButton(
 function beginModalScreen(octx: CanvasRenderingContext2D, W: number, H: number): void {
   octx.fillStyle = PANEL_BG(0.95);
   octx.fillRect(0, 0, W, H);
-  setCenterText(octx);
+  applyCenterText(octx);
 }

@@ -4,7 +4,7 @@
  */
 
 import { type FullStateMessage, MSG, type SerializedGrunt, type SerializedPlayer } from "../server/protocol.ts";
-import { buildCastle } from "./map-generation.ts";
+import { createCastle } from "./map-generation.ts";
 import { Rng } from "./rng.ts";
 import { type BalloonFlight, CannonMode, type GameState, Phase } from "./types.ts";
 
@@ -261,7 +261,7 @@ export function applyPlayersCheckpoint(
     player.score = sp.score;
     // Rebuild castle geometry from home tower (deterministic from map)
     player.castle = player.homeTower
-      ? buildCastle(player.homeTower, state.map.tiles, state.map.towers)
+      ? createCastle(player.homeTower, state.map.tiles, state.map.towers)
       : null;
   }
 }

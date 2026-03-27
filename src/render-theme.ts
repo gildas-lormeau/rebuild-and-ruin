@@ -107,7 +107,7 @@ export function flashOn(intervalMs: number, now: number): boolean {
 }
 
 /** Set text alignment to centered (both horizontal and vertical). */
-export function setCenterText(ctx: CanvasRenderingContext2D): void {
+export function applyCenterText(ctx: CanvasRenderingContext2D): void {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 }

@@ -7,10 +7,10 @@ import type { RGB } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { getPlayerColor } from "./player-config.ts";
 import { drawSprite } from "./render-sprites.ts";
-import {
+import {applyCenterText, 
   BONUS_FLASH_MS, CROSSHAIR_ARM_IDLE, CROSSHAIR_ARM_PULSE,
   CROSSHAIR_ARM_READY, CROSSHAIR_IDLE_FREQ,CROSSHAIR_READY_FREQ, drawShadowText, FONT_TIMER,
-  rgb, SHADOW_COLOR,setCenterText, TEXT_WHITE,
+  rgb, SHADOW_COLOR,TEXT_WHITE,
 } from "./render-theme.ts";
 import type { MapData, RenderOverlay } from "./render-types.ts";
 import { facingToCardinal } from "./spatial.ts";
@@ -405,7 +405,7 @@ export function drawBattleEffects(
     const jy = map.junction.y * TILE_SIZE + TILE_SIZE / 2;
     octx.save();
     octx.font = FONT_TIMER;
-    setCenterText(octx);
+    applyCenterText(octx);
     drawShadowText(octx, text, jx, jy, SHADOW_COLOR, TEXT_WHITE);
     octx.restore();
   }

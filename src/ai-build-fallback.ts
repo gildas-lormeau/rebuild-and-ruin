@@ -5,7 +5,7 @@
  * Called by the build placement orchestrator (ai-strategy-build.ts).
  */
 
-import { buildSimulatedWalls, candidateObstacleHits, candidateToPlacement, isFatFreeCandidate } from "./ai-build-score.ts";
+import { candidateObstacleHits, candidateToPlacement, createSimulatedWalls, isFatFreeCandidate } from "./ai-build-score.ts";
 import type { AiPlacement, Candidate, Scored } from "./ai-build-types.ts";
 import { floodPocket } from "./ai-castle-rect.ts";
 import type { Tower } from "./geometry-types.ts";
@@ -78,7 +78,7 @@ export function pickFallbackPlacement(
     return { placement: null, reason: 'interior-full' };
 
   const createsSmallEnclosure = (candidate: Candidate): boolean => {
-    const simulatedWalls = buildSimulatedWalls(walls, candidate);
+    const simulatedWalls = createSimulatedWalls(walls, candidate);
     const simulatedOutside = computeOutside(simulatedWalls);
     const visited = new Set<number>();
     for (let r = 0; r < GRID_ROWS; r++) {

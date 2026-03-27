@@ -135,7 +135,7 @@ export function generateMap(seed?: number): GameMap {
  *   area ≈ 36 (enough for tower + 6 cannons of 2×2)
  * - The gap sum (gL+gR+gT+gB) stays at 8 for a standard castle
  */
-export function buildCastle(
+export function createCastle(
   tower: Tower,
   tiles: readonly Tile[][],
   allTowers?: readonly Tower[],

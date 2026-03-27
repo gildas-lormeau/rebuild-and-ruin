@@ -3,7 +3,7 @@
  * Used by both main.ts and online-client.ts.
  */
 
-import { buildLobbyConfirmKeys, formatKeyHint } from "./game-ui-runtime.ts";
+import { createLobbyConfirmKeys, formatKeyHint } from "./game-ui-runtime.ts";
 import { formatKeyName, saveSettings } from "./game-ui-settings.ts";
 import type { LobbyState } from "./game-ui-types.ts";
 import {
@@ -172,7 +172,7 @@ export function lobbyKeyJoin(
   onJoin: (pid: number) => void,
 ): boolean {
   if (!ctx.lobby.active) return false;
-  const m = buildLobbyConfirmKeys(ctx.settings.keyBindings);
+  const m = createLobbyConfirmKeys(ctx.settings.keyBindings);
   const pid = m.get(key);
   if (pid === undefined) return false;
   if (ctx.lobby.joined[pid]) {

@@ -24,7 +24,7 @@ export function formatKeyHint(kb: KeyBindings): string {
 }
 
 /** Build a map from confirm key → player slot index for lobby joining. */
-export function buildLobbyConfirmKeys(
+export function createLobbyConfirmKeys(
   keyBindings: readonly KeyBindings[],
 ): Map<string, number> {
   const m = new Map<string, number>();

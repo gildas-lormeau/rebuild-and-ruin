@@ -7,8 +7,8 @@
 
 import { SMALL_POCKET_MAX_SIZE, traitLookup } from "./ai-constants.ts";
 import { canFire } from "./battle-system.ts";
-import { getActiveEnemies, getCardinalObstacleMask } from "./board-occupancy.ts";
-import { getActiveFiringCannons } from "./cannon-system.ts";
+import { filterActiveEnemies, getCardinalObstacleMask } from "./board-occupancy.ts";
+import { filterActiveFiringCannons } from "./cannon-system.ts";
 import type {
   PixelPos,
   PrioritizedTilePos,
@@ -90,7 +90,7 @@ export function planCharitySweep(
 ): TilePos[] | null {
   for (const enemy of state.players) {
     if (enemy.id === playerId || enemy.eliminated) continue;
-    if (getActiveFiringCannons(enemy).length > CHARITY_CANNON_THRESHOLD) continue;
+    if (filterActiveFiringCannons(enemy).length > CHARITY_CANNON_THRESHOLD) continue;
     const targets = planGruntTargets(state, enemy.id, readyCount, rng);
     if (targets) return targets;
   }
@@ -194,7 +194,7 @@ export function planWallDemolition(
   readyCount: number,
   rng: Rng,
 ): TilePos[] | null {
-  const enemies = getActiveEnemies(state, playerId);
+  const enemies = filterActiveEnemies(state, playerId);
   rng.shuffle(enemies);
   for (const enemy of enemies) {
     if (enemy.walls.size < MIN_WALL_SEGMENT_LENGTH) continue;
@@ -320,7 +320,7 @@ export function trackShot(
 ): void {
   const row = pxToTile(crosshair.y);
   const col = pxToTile(crosshair.x);
-  for (const other of getActiveEnemies(state, playerId)) {
+  for (const other of filterActiveEnemies(state, playerId)) {
     for (const cannon of other.cannons) {
       if (cannon.kind === CannonMode.BALLOON) continue;
       if (isCannonTile(cannon, row, col)) {
@@ -337,7 +337,7 @@ function collectStrategicWallTargets(
   focusPlayerId: number | null,
 ): TilePos[] {
   const strategic: TilePos[] = [];
-  for (const other of getActiveEnemies(state, playerId)) {
+  for (const other of filterActiveEnemies(state, playerId)) {
     if (focusPlayerId != null && other.id !== focusPlayerId) continue;
     for (const key of other.walls) {
       const { r: wallRow, c: wallCol } = unpackTile(key);
@@ -435,12 +435,12 @@ function collectEnemyTargets(
   wallsOnly?: boolean,
 ): TargetCandidate[] {
   const targets: TargetCandidate[] = [];
-  for (const other of getActiveEnemies(state, playerId)) {
+  for (const other of filterActiveEnemies(state, playerId)) {
     if (!isEnemyEligibleForFocus(other.id, focusPlayerId, switchTarget))
       continue;
 
     if (!wallsOnly) {
-      for (const cannon of getActiveFiringCannons(other)) {
+      for (const cannon of filterActiveFiringCannons(other)) {
         if (
           state.capturedCannons.some(
             (cc) => cc.cannon === cannon && cc.capturerId === playerId,

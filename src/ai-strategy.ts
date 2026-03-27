@@ -29,7 +29,7 @@ import {
   autoPlaceCannons,
   autoSelectTower,
 } from "./ai-strategy-cannon.ts";
-import { getActiveEnemies } from "./board-occupancy.ts";
+import { filterActiveEnemies } from "./board-occupancy.ts";
 import type { GameMap, PixelPos, StrategicPixelPos, TilePos, Tower } from "./geometry-types.ts";
 import type { PieceShape } from "./pieces.ts";
 import { MAX_UINT32, Rng } from "./rng.ts";
@@ -386,7 +386,7 @@ export class DefaultStrategy implements AiStrategy {
       0.8,
     ]);
     if (this.rng.bool(focusProb)) {
-      const enemies = getActiveEnemies(state, playerId);
+      const enemies = filterActiveEnemies(state, playerId);
       if (enemies.length > 0) {
         enemies.sort(
           (a, b) =>

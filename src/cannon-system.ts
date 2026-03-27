@@ -2,7 +2,7 @@
  * Cannon placement and management — validation, slot counting, placement.
  */
 
-import { getAliveOwnedTowers } from "./board-occupancy.ts";
+import { filterAliveOwnedTowers } from "./board-occupancy.ts";
 import {
   cannonSize,
   FACING_90_STEP,
@@ -158,7 +158,7 @@ export function cannonSlotsForRound(
   } else if (state.round === 1) {
     newSlots = state.firstRoundCannons;
   } else {
-    const aliveTowers = getAliveOwnedTowers(player, state);
+    const aliveTowers = filterAliveOwnedTowers(player, state);
     const ownsHome = player.homeTower && aliveTowers.some(t => t === player.homeTower);
     const otherCount = aliveTowers.length - (ownsHome ? 1 : 0);
     newSlots = (ownsHome ? 2 : 0) + otherCount;
@@ -208,7 +208,7 @@ export function resetCannonFacings(state: GameState): void {
 }
 
 /** Return a player's alive cannons that can fire (excludes balloons and dead cannons). */
-export function getActiveFiringCannons(player: Player): Cannon[] {
+export function filterActiveFiringCannons(player: Player): Cannon[] {
   return player.cannons.filter(
     (c) => isCannonAlive(c) && c.kind !== CannonMode.BALLOON,
   );

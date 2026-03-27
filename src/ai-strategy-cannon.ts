@@ -6,7 +6,7 @@
  */
 
 import { traitLookup } from "./ai-constants.ts";
-import { getActiveEnemies, hasTowerAt } from "./board-occupancy.ts";
+import { filterActiveEnemies, hasTowerAt } from "./board-occupancy.ts";
 import {
   cannonSlotsUsed,
   canPlaceCannon,
@@ -420,7 +420,7 @@ function shouldPlaceBalloon(
 ): boolean {
   if (defensiveness < 2) return false;
 
-  const enemyPlayers = getActiveEnemies(state, player.id);
+  const enemyPlayers = filterActiveEnemies(state, player.id);
   const hasEnemySuperGun = enemyPlayers.some((enemy) =>
     enemyHasThreateningSuperGun(state, enemy),
   );

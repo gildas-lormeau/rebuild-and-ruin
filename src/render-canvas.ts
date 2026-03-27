@@ -7,7 +7,7 @@
 
 import { clientToCanvas, computeLetterboxLayout } from "./canvas-layout.ts";
 import { createLoupe } from "./render-loupe.ts";
-import { drawMap, getSceneCanvas } from "./render-map.ts";
+import { drawMap, sceneCanvas } from "./render-map.ts";
 import type { RendererInterface } from "./render-types.ts";
 
 export function createCanvasRenderer(canvas: HTMLCanvasElement): RendererInterface {
@@ -26,6 +26,6 @@ export function createCanvasRenderer(canvas: HTMLCanvasElement): RendererInterfa
     },
     eventTarget: canvas,
     container,
-    createLoupe: (c) => createLoupe(c, getSceneCanvas),
+    createLoupe: (c) => createLoupe(c, sceneCanvas),
   };
 }

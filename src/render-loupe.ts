@@ -32,17 +32,17 @@ interface LoupeHandle {
  * Find all loupe canvases within a container and return a handle
  * that draws to whichever is currently visible (has non-zero dimensions).
  *
- * @param getSceneCanvas - Returns the offscreen scene canvas to magnify.
+ * @param sceneCanvas - Returns the offscreen scene canvas to magnify.
  *   Passed as a getter so it can be resolved lazily (the canvas may not
  *   exist at createLoupe call time).
  */
-export function createLoupe(container: HTMLElement, getSceneCanvas: () => HTMLCanvasElement): LoupeHandle {
+export function createLoupe(container: HTMLElement, sceneCanvas: () => HTMLCanvasElement): LoupeHandle {
   const canvases = Array.from(container.querySelectorAll<HTMLCanvasElement>("canvas.loupe"));
 
   let lastVisible = false;
 
   function update(visible: boolean, worldX: number, worldY: number): void {
-    const sceneCanvas = getSceneCanvas();
+    const scene = sceneCanvas();
     if (!visible) {
       if (lastVisible) {
         for (const c of canvases) c.classList.add("hidden");
@@ -108,7 +108,7 @@ export function createLoupe(container: HTMLElement, getSceneCanvas: () => HTMLCa
     roundedRect(ctx, ix, iy, iw, ih, ir);
     ctx.clip();
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(sceneCanvas, srcX, srcY, srcW, srcH, ix, iy, iw, ih);
+    ctx.drawImage(scene, srcX, srcY, srcW, srcH, ix, iy, iw, ih);
     ctx.restore();
 
     // Inner border highlight

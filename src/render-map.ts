@@ -96,8 +96,8 @@ const WAVE_LO: { x: number; y: number; w: number }[] = [
 // Precomputed per-pixel texture offsets (built once, reused every frame)
 const GRASS_TEX = new Int8Array(TILE_SIZE * TILE_SIZE);
 const WATER_TEX = new Int8Array(TILE_SIZE * TILE_SIZE);
-const sceneCanvas = document.createElement("canvas");
-const sceneCtx = sceneCanvas.getContext("2d", { willReadFrequently: true })!;
+const offscreenScene = document.createElement("canvas");
+const sceneCtx = offscreenScene.getContext("2d", { willReadFrequently: true })!;
 const bannerSceneCanvas = document.createElement("canvas");
 const bannerSceneCtx = bannerSceneCanvas.getContext("2d", { willReadFrequently: true })!;
 const terrainImageCache = new WeakMap<MapData, TerrainImageCache>();
@@ -110,7 +110,7 @@ let cachedBannerTerritory: Set<number>[] | undefined;
 let cachedBannerWalls: Set<number>[] | undefined;
 
 /** Expose the offscreen scene canvas for post-processing (loupe, etc.). */
-export function getSceneCanvas(): HTMLCanvasElement { return sceneCanvas; }
+export function sceneCanvas(): HTMLCanvasElement { return offscreenScene; }
 
 export function drawMap(
   map: MapData,
@@ -235,9 +235,9 @@ export function drawMap(
   // Scale up to display canvas (with optional zoom viewport)
   ctx.imageSmoothingEnabled = false;
   if (viewport) {
-    ctx.drawImage(sceneCanvas, viewport.x, viewport.y, viewport.w, viewport.h, 0, 0, cw, gameH);
+    ctx.drawImage(offscreenScene, viewport.x, viewport.y, viewport.w, viewport.h, 0, 0, cw, gameH);
   } else {
-    ctx.drawImage(sceneCanvas, 0, 0, cw, gameH);
+    ctx.drawImage(offscreenScene, 0, 0, cw, gameH);
   }
 
   // Status bar drawn at display resolution below the game scene
@@ -266,9 +266,9 @@ function getMainCtx(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
 }
 
 function ensureOffscreenSize(width: number, height: number): void {
-  if (sceneCanvas.width !== width || sceneCanvas.height !== height) {
-    sceneCanvas.width = width;
-    sceneCanvas.height = height;
+  if (offscreenScene.width !== width || offscreenScene.height !== height) {
+    offscreenScene.width = width;
+    offscreenScene.height = height;
   }
   if (
     bannerSceneCanvas.width !== width ||

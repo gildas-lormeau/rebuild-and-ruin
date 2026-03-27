@@ -353,7 +353,7 @@ export function checkFatWall(
 }
 
 /** Build the simulated wall set for a candidate. */
-export function buildSimulatedWalls(
+export function createSimulatedWalls(
   walls: Set<number>,
   candidate: Candidate,
 ): Set<number> {

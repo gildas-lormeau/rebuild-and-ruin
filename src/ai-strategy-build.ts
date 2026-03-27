@@ -11,8 +11,7 @@
  */
 
 import { memoize, pickFallbackPlacement } from "./ai-build-fallback.ts";
-import {
-  buildSimulatedWalls,candidateToPlacement, 
+import {candidateToPlacement, 
   checkFatWall,
   compareByNumericScoreDesc,
   compareCandidatesByObstaclePreference,
@@ -29,6 +28,7 @@ import {
   computeWastefulClosureAdjustment,
   countFatBlocks,
   countSmallPocketTiles,
+  createSimulatedWalls,
   FAT_WALL_TILE_PENALTY,
   shouldRejectForFatWalls
 } from "./ai-build-score.ts";
@@ -481,7 +481,7 @@ export function pickPlacement(
       )
         continue;
 
-      const simulatedWalls = buildSimulatedWalls(ctx.walls, candidate);
+      const simulatedWalls = createSimulatedWalls(ctx.walls, candidate);
       const newOutside = computeOutside(simulatedWalls);
       const rawGain = ctx.baselineOutside - newOutside.size;
       const pieceTiles = candidate.rotation.offsets.length;

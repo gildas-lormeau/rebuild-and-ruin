@@ -247,7 +247,7 @@ export function hasCannonAt(
 }
 
 /** Return a player's owned towers that are still alive. */
-export function getAliveOwnedTowers(player: Player, state: GameState) {
+export function filterAliveOwnedTowers(player: Player, state: GameState) {
   return player.ownedTowers.filter((tower) => state.towerAlive[tower.index]!);
 }
 
@@ -265,7 +265,7 @@ export function sweepIsolatedWalls(walls: Set<number>): void {
 }
 
 /** Return all players that are not `playerId` and not eliminated. */
-export function getActiveEnemies(state: GameState, playerId: number) {
+export function filterActiveEnemies(state: GameState, playerId: number) {
   return state.players.filter((p) => p.id !== playerId && !p.eliminated);
 }
 

@@ -19,7 +19,7 @@
  */
 
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
-import { collectAllWalls, getAliveOwnedTowers, sweepIsolatedWalls } from "./board-occupancy.ts";
+import { collectAllWalls, filterAliveOwnedTowers, sweepIsolatedWalls } from "./board-occupancy.ts";
 import { claimTerritory, removeBonusSquaresCoveredByWalls, replenishBonusSquares } from "./build-system.ts";
 import { cannonSlotsForRound, resetCannonFacings } from "./cannon-system.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
@@ -32,7 +32,7 @@ import {
 } from "./grunt-system.ts";
 import {
   applyClumsyBuilders,
-  buildCastle,
+  createCastle,
   generateMap,
   getCastleWallTiles,
   spawnHousesInZone,
@@ -130,7 +130,7 @@ export function createGameState(
 export function rebuildHomeCastle(state: GameState, player: Player): void {
   if (!player.homeTower) return;
   clearPlayerState(player, { keepHomeTower: true });
-  const castle = buildCastle(
+  const castle = createCastle(
     player.homeTower,
     state.map.tiles,
     state.map.towers,
@@ -313,7 +313,7 @@ function applyLifePenalties(
   const eliminated: number[] = [];
   for (const player of state.players) {
     if (player.eliminated) continue;
-    const hasAliveTower = getAliveOwnedTowers(player, state).length > 0;
+    const hasAliveTower = filterAliveOwnedTowers(player, state).length > 0;
     if (!hasAliveTower) {
       player.lives--;
       const zone = state.playerZones[player.id];
@@ -383,7 +383,7 @@ function prepareCastleWalls(state: GameState): { playerId: number; tiles: number
 export function prepareCastleWallsForPlayer(state: GameState, playerId: number): { playerId: number; tiles: number[] } | null {
   const player = state.players[playerId];
   if (!player?.homeTower) return null;
-  const castle = buildCastle(player.homeTower, state.map.tiles, state.map.towers);
+  const castle = createCastle(player.homeTower, state.map.tiles, state.map.towers);
   player.castle = castle;
 
   // Get wall tiles and apply clumsy builders to a temp set
