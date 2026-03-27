@@ -10,10 +10,11 @@ import { isHuman } from "./controller-factory.ts";
 import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
 import type { RuntimeLifeLost } from "./game-runtime-types.ts";
 import { Mode } from "./game-ui-types.ts";
-import type { LifeLostDialogState, ResolvedChoice } from "./life-lost.ts";
 import {
   buildLifeLostDialogState,
-  CHOICE_ABANDON,
+  LifeLostChoice,
+  type LifeLostDialogState,
+  type ResolvedChoice,
   resolveAfterLifeLost,
   resolveLifeLostDialogRuntime,
   tickLifeLostDialogRuntime,
@@ -48,7 +49,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
   function eliminateAbandoned(dialog: LifeLostDialogState): void {
     for (const entry of dialog.entries) {
-      if (entry.choice !== CHOICE_ABANDON) continue;
+      if (entry.choice !== LifeLostChoice.ABANDON) continue;
       const player = rs.state.players[entry.playerId];
       if (!player) continue;
       player.eliminated = true;

@@ -7,7 +7,7 @@
 import { collectAllInterior, collectOccupiedTiles, hasCannonAt, hasGruntAt, hasTowerAt, hasWallAt, isTileOwnedByPlayer } from "./board-occupancy.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
-import { spawnGruntNearPosition, spawnGruntOnZone } from "./grunt-system.ts";
+import { spawnGruntNearPos, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
 import type { PieceShape } from "./pieces.ts";
 import { computeOutside, DIRS_8, inBounds, isAtTile, isGrass, isPitAt, isWater, manhattanDistance, packTile } from "./spatial.ts";
@@ -72,7 +72,7 @@ export function applyPiecePlacement(state: GameState, playerId: number, offsets:
   claimTerritory(state);
   replenishBonusSquares(state);
   for (const pos of destroyedHousePositions) {
-    spawnGruntNearPosition(state, playerId, pos.row, pos.col);
+    spawnGruntNearPos(state, playerId, pos.row, pos.col);
   }
 }
 

@@ -48,7 +48,7 @@ import { clientToCanvas, dispatchPointerMove } from "./input-dispatch.ts";
 import { hapticPhaseChange, setHapticsLevel } from "./input-haptics.ts";
 import { registerTouchHandlers } from "./input-touch.ts";
 import { createDpad, createEnemyZoomButton, createFloatingActions, createHomeZoomButton, createQuitButton } from "./input-touch-ui.ts";
-import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING } from "./life-lost.ts";
+import { LifeLostChoice } from "./life-lost.ts";
 import { generateMap } from "./map-generation.ts";
 import {
   createBannerState,
@@ -72,7 +72,7 @@ import {
   gameOverButtonHitTest,
 } from "./render-composition.ts";
 import { createLoupe, type LoupeHandle } from "./render-loupe.ts";
-import { getSceneCanvas, renderMap } from "./render-map.ts";
+import { drawMap, getSceneCanvas } from "./render-map.ts";
 import { FOCUS_MENU, FOCUS_REMATCH } from "./render-types.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
@@ -272,7 +272,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function renderLobby(): void {
     if (!rs.lobby.map) refreshLobbySeed();
     const { map, overlay } = buildLobbyOverlay(uiCtx);
-    renderMap(map, canvas, overlay);
+    drawMap(map, canvas, overlay);
   }
 
   function tickLobby(dt: number): void {
@@ -399,7 +399,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function renderOptions(): void {
     const { map, overlay } = buildOptionsOverlay(uiCtx);
-    renderMap(map, canvas, overlay);
+    drawMap(map, canvas, overlay);
   }
 
   function showOptions(): void {
@@ -425,7 +425,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function renderControls(): void {
     const { map, overlay } = buildControlsOverlay(uiCtx);
-    renderMap(map, canvas, overlay);
+    drawMap(map, canvas, overlay);
   }
 
   function showControls(): void {
@@ -606,7 +606,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       rs.overlay.ui.scoreDeltaProgress = 1 - rs.scoreDeltaTimer / SCORE_DELTA_DISPLAY_TIME;
     }
 
-    renderMap(rs.state.map, canvas, rs.overlay, updateViewport());
+    drawMap(rs.state.map, canvas, rs.overlay, updateViewport());
 
     // Update loupe for precision placement / aiming on touch
     if (loupeHandle) {
@@ -1027,7 +1027,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
             const human = firstHuman();
             if (!human || !rs.lifeLostDialog) return;
             const entry = rs.lifeLostDialog.entries.find(
-              (e) => e.playerId === human.playerId && e.choice === CHOICE_PENDING,
+              (e) => e.playerId === human.playerId && e.choice === LifeLostChoice.PENDING,
             );
             if (entry) entry.focused = entry.focused === 0 ? 1 : 0;
           },
@@ -1035,10 +1035,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
             const human = firstHuman();
             if (!human || !rs.lifeLostDialog) return;
             const entry = rs.lifeLostDialog.entries.find(
-              (e) => e.playerId === human.playerId && e.choice === CHOICE_PENDING,
+              (e) => e.playerId === human.playerId && e.choice === LifeLostChoice.PENDING,
             );
             if (!entry) return;
-            entry.choice = entry.focused === 0 ? CHOICE_CONTINUE : CHOICE_ABANDON;
+            entry.choice = entry.focused === 0 ? LifeLostChoice.CONTINUE : LifeLostChoice.ABANDON;
             lifeLost.sendLifeLostChoice(entry.choice, entry.playerId);
           },
         },

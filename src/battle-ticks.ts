@@ -37,7 +37,7 @@ interface TickHostBattlePhaseDeps {
     state: GameState,
     dt: number,
   ) => Array<GameMessage>;
-  updateCannonballsWithEvents: (
+  tickCannonballsWithEvents: (
     state: GameState,
     dt: number,
   ) => {
@@ -117,7 +117,7 @@ export function tickHostBattleCountdown(
 export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   const {
     dt, state, battleTimer, accum, controllers, battleAnim,
-    render, collectCrosshairs, collectTowerEvents, updateCannonballsWithEvents,
+    render, collectCrosshairs, collectTowerEvents, tickCannonballsWithEvents,
     onBattlePhaseEnded, onBattleEvents,
   } = deps;
   const remoteHumanSlots = getRemoteSlots(deps.net);
@@ -144,7 +144,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   }
 
   const { impacts: newImpacts, events: impactEvents } =
-    updateCannonballsWithEvents(state, dt);
+    tickCannonballsWithEvents(state, dt);
   for (const imp of newImpacts) {
     battleAnim.impacts.push({ ...imp, age: 0 });
   }

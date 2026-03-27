@@ -2,7 +2,7 @@
  * UI overlay rendering — announcement, banner, game over, player select.
  */
 
-import { CHOICE_CONTINUE, CHOICE_PENDING } from "./life-lost.ts";
+import { LifeLostChoice } from "./life-lost.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import { computeLobbyLayout, GAMEOVER_BTN_H, GAMEOVER_COL_RATIOS, GAMEOVER_HEADER_H, GAMEOVER_ROW_H, gameOverLayout, lifeLostButtonLayout } from "./render-composition.ts";
 import {
@@ -318,7 +318,7 @@ export function drawLifeLostDialog(
       octx.fillText("Eliminated", cx, py + 40);
     }
 
-    if (entry.choice === CHOICE_PENDING && entry.lives > 0) {
+    if (entry.choice === LifeLostChoice.PENDING && entry.lives > 0) {
       // Continue / Abandon buttons with focus highlight
       const btnW = BTN_W,
         btnH = BTN_H;
@@ -346,9 +346,9 @@ export function drawLifeLostDialog(
       // Resolved state
       octx.font = FONT_LABEL;
       octx.fillStyle =
-        entry.choice === CHOICE_CONTINUE ? BTN_CONTINUE.stroke : BTN_ABANDON.stroke;
+        entry.choice === LifeLostChoice.CONTINUE ? BTN_CONTINUE.stroke : BTN_ABANDON.stroke;
       octx.fillText(
-        entry.choice === CHOICE_CONTINUE ? "Continuing..." : "Abandoned",
+        entry.choice === LifeLostChoice.CONTINUE ? "Continuing..." : "Abandoned",
         cx,
         py + PANEL_H - 18,
       );

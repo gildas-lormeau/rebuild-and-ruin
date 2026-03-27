@@ -13,7 +13,7 @@ interface LobbyElements {
   joinError: HTMLElement;
 }
 
-interface SetupLobbyUiDeps {
+interface InitLobbyUiDeps {
   elements: LobbyElements;
   connect: () => void;
   send: (msg: ClientMessage) => void;
@@ -28,10 +28,10 @@ const ROOM_POLL_INTERVAL_MS = 3000;
 const SECS_PER_MIN = 60;
 const SECS_PER_HOUR = 3600;
 
-/** Stored interval so repeated setupLobbyUi calls don't leak timers. */
+/** Stored interval so repeated initLobbyUi calls don't leak timers. */
 let roomPollTimer: ReturnType<typeof setInterval> | null = null;
 
-export function setupLobbyUi({
+export function initLobbyUi({
   elements,
   connect,
   send,
@@ -39,7 +39,7 @@ export function setupLobbyUi({
   setIsHost,
   isVisible = () => true,
   doc = document,
-}: SetupLobbyUiDeps): void {
+}: InitLobbyUiDeps): void {
   // Pending action replaces any previous one so rapid clicks / Create→Join
   // sequences don't stack multiple "open" listeners on the same socket.
   let pendingAction: (() => void) | null = null;

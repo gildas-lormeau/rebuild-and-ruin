@@ -112,7 +112,7 @@ let cachedBannerWalls: Set<number>[] | undefined;
 /** Expose the offscreen scene canvas for post-processing (loupe, etc.). */
 export function getSceneCanvas(): HTMLCanvasElement { return sceneCanvas; }
 
-export function renderMap(
+export function drawMap(
   map: MapData,
   canvas: HTMLCanvasElement,
   overlay?: RenderOverlay,

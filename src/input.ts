@@ -2,7 +2,7 @@ import type { InputReceiver, PlayerController } from "./controller-interfaces.ts
 import type { ControlsState } from "./game-ui-types.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, isGameInteractionMode, isTouchSuppressed, type ModeValues } from "./input-dispatch.ts";
-import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type LifeLostDialogState, type ResolvedChoice } from "./life-lost.ts";
+import { LifeLostChoice, type LifeLostDialogState, type ResolvedChoice } from "./life-lost.ts";
 import { ACTION_KEYS, applyKeyRebinding, type KeyBindings, MAX_PLAYERS, SEED_CUSTOM, SEED_RANDOM, type SeedMode } from "./player-config.ts";
 import { FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus } from "./render-types.ts";
 import type { SelectionState } from "./selection.ts";
@@ -323,7 +323,7 @@ function handleKeyLifeLost(e: KeyboardEvent, deps: RegisterOnlineInputDeps): voi
   for (const ctrl of getControllers()) {
     if (!isHuman(ctrl)) continue;
     const entry = lifeLostDialog.entries.find(
-      (en) => en.playerId === ctrl.playerId && en.choice === CHOICE_PENDING,
+      (en) => en.playerId === ctrl.playerId && en.choice === LifeLostChoice.PENDING,
     );
     if (!entry) continue;
     const action = ctrl.matchKey(e.key);
@@ -331,7 +331,7 @@ function handleKeyLifeLost(e: KeyboardEvent, deps: RegisterOnlineInputDeps): voi
       entry.focused = entry.focused === 0 ? 1 : 0;
       e.preventDefault();
     } else if (action === Action.CONFIRM) {
-      entry.choice = entry.focused === 0 ? CHOICE_CONTINUE : CHOICE_ABANDON;
+      entry.choice = entry.focused === 0 ? LifeLostChoice.CONTINUE : LifeLostChoice.ABANDON;
       sendLifeLostChoice(entry.choice, entry.playerId);
       e.preventDefault();
     }

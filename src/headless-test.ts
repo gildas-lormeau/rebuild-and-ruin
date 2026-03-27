@@ -3,7 +3,7 @@
  * Run with: bun src/headless-test.ts
  */
 
-import { resolveBalloons, updateCannonballs } from "./battle-system.ts";
+import { resolveBalloons, tickCannonballs } from "./battle-system.ts";
 import {
   collectAllCannonTiles,
   collectAllInterior,
@@ -91,7 +91,7 @@ function simulateGame(
       }
 
       gruntAttackTowers(state, dt);
-      updateCannonballs(state, dt);
+      tickCannonballs(state, dt);
       battleTime += dt;
       tick++;
 

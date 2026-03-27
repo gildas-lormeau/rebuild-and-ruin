@@ -1,8 +1,6 @@
 import type { GameState } from "./types.ts";
 
-export type LifeLostChoice = typeof CHOICE_PENDING | typeof CHOICE_CONTINUE | typeof CHOICE_ABANDON;
-
-export type ResolvedChoice = typeof CHOICE_CONTINUE | typeof CHOICE_ABANDON;
+export type ResolvedChoice = LifeLostChoice.CONTINUE | LifeLostChoice.ABANDON;
 
 export interface LifeLostEntry {
   playerId: number;
@@ -55,9 +53,11 @@ interface ResolveAfterLifeLostDeps {
   onAdvanceToCannonPhase: () => void;
 }
 
-export const CHOICE_PENDING = "pending" as const;
-export const CHOICE_CONTINUE = "continue" as const;
-export const CHOICE_ABANDON = "abandon" as const;
+export enum LifeLostChoice {
+  PENDING = "pending",
+  CONTINUE = "continue",
+  ABANDON = "abandon",
+}
 
 export function resolveLifeLostDialogRuntime(
   deps: ResolveLifeLostDialogDeps,
@@ -66,7 +66,7 @@ export function resolveLifeLostDialogRuntime(
   if (!lifeLostDialog) return null;
 
   const continuing = lifeLostDialog.entries
-    .filter((e) => e.choice === CHOICE_CONTINUE)
+    .filter((e) => e.choice === LifeLostChoice.CONTINUE)
     .map((e) => e.playerId);
 
   afterLifeLostResolved(continuing);
@@ -93,22 +93,22 @@ export function tickLifeLostDialogRuntime(
   lifeLostDialog.timer += dt;
 
   for (const entry of lifeLostDialog.entries) {
-    if (entry.choice !== CHOICE_PENDING) continue;
+    if (entry.choice !== LifeLostChoice.PENDING) continue;
     if (entry.isAi) {
       entry.aiTimer += dt;
-      if (entry.aiTimer >= lifeLostAiDelay) entry.choice = CHOICE_CONTINUE;
+      if (entry.aiTimer >= lifeLostAiDelay) entry.choice = LifeLostChoice.CONTINUE;
     }
   }
 
   if (lifeLostDialog.timer >= lifeLostMaxTimer) {
     for (const entry of lifeLostDialog.entries) {
-      if (entry.choice === CHOICE_PENDING) entry.choice = CHOICE_CONTINUE;
+      if (entry.choice === LifeLostChoice.PENDING) entry.choice = LifeLostChoice.CONTINUE;
     }
   }
 
   render();
 
-  if (!lifeLostDialog.entries.every((e) => e.choice !== CHOICE_PENDING)) {
+  if (!lifeLostDialog.entries.every((e) => e.choice !== LifeLostChoice.PENDING)) {
     return lifeLostDialog;
   }
 
@@ -141,7 +141,7 @@ export function buildLifeLostDialogState(
     isAi: isHost
       ? !isHumanController(playerId) && !remoteHumanSlots.has(playerId)
       : playerId !== myPlayerId,
-    choice: CHOICE_PENDING,
+    choice: LifeLostChoice.PENDING,
     aiTimer: 0,
     focused: 0,
   }));
@@ -151,7 +151,7 @@ export function buildLifeLostDialogState(
       playerId,
       lives: 0,
       isAi: true,
-      choice: CHOICE_ABANDON,
+      choice: LifeLostChoice.ABANDON,
       aiTimer: 0,
       focused: 0,
     });

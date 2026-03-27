@@ -56,7 +56,7 @@ export type ImpactEvent =
   | { type: typeof MSG.GRUNT_SPAWNED; row: number; col: number; targetPlayerId: number }
   | { type: typeof MSG.PIT_CREATED; row: number; col: number; roundsLeft: number };
 
-/** Result of updateCannonballs: impact positions (for VFX) + detailed events (for network). */
+/** Result of tickCannonballs: impact positions (for VFX) + detailed events (for network). */
 interface CannonballUpdateResult {
   impacts: TilePos[];
   events: ImpactEvent[];
@@ -220,7 +220,7 @@ export function aimCannons(
  * Update all cannonballs. Move them toward their target. On arrival, apply damage.
  * Returns impact positions (for visual effects) and detailed events (for network relay).
  */
-export function updateCannonballs(
+export function tickCannonballs(
   state: GameState,
   dt: number,
 ): CannonballUpdateResult {

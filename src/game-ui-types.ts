@@ -5,7 +5,7 @@
 
 /** Per-player battle stats accumulated during a game. */
 
-import type { Crosshair, PhantomPiece } from "./controller-interfaces.ts";
+import type { Crosshair, LocalPiecePhantom } from "./controller-interfaces.ts";
 import type { GameMap } from "./geometry-types.ts";
 import { type KeyBindings, MAX_PLAYERS, PLAYER_KEY_BINDINGS, SEED_CUSTOM, SEED_RANDOM, type SeedMode } from "./player-config.ts";
 import type { GameOverOverlay } from "./render-types.ts";
@@ -60,7 +60,7 @@ export interface FrameData {
       col: number;
       playerId: number;
     }[];
-    humanPhantoms?: PhantomPiece[];
+    humanPhantoms?: LocalPiecePhantom[];
     aiCannonPhantoms?: {
       row: number;
       col: number;

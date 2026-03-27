@@ -10,7 +10,7 @@ import { floodPocket } from "./ai-castle-rect.ts";
 import { SMALL_POCKET_MAX_SIZE } from "./ai-constants.ts";
 import { getCardinalObstacleMask } from "./board-occupancy.ts";
 import type { TilePos, TileRect, Tower } from "./geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, Tile } from "./grid.ts";
+import { GRID_COLS, GRID_ROWS, type Tile } from "./grid.ts";
 import {
   CORNERS_2X2,
   DIRS_4,
@@ -258,7 +258,7 @@ export function computeWastefulClosureAdjustment(
   return { gapBonus: baseGapBonus, wastefulClosurePenalty: 0 };
 }
 
-export function shouldRejectForFatWalls(
+export function rejectForFatWalls(
   rawFatBlocks: number,
   fatGainPerBlock: number,
   usefulGain: number,

@@ -23,9 +23,9 @@ import {
 import {
   type AiAnimatable,
   CROSSHAIR_SPEED,
+  type LocalCannonPhantom,
+  type LocalPiecePhantom,
   type OrbitParams,
-  type PhantomCannon,
-  type PhantomPiece,
 } from "./controller-interfaces.ts";
 import { BaseController } from "./controller-types.ts";
 import type {
@@ -275,7 +275,7 @@ export class AiController extends BaseController implements AiAnimatable {
     }
   }
 
-  buildTick(state: GameState, dt: number): PhantomPiece[] {
+  buildTick(state: GameState, dt: number): LocalPiecePhantom[] {
     if (!this.currentPiece) return [];
     const player = state.players[this.playerId]!;
     if (player.eliminated) return [];
@@ -356,7 +356,7 @@ export class AiController extends BaseController implements AiAnimatable {
   }
 
   /** Handle "moving toward target" state with concurrent rotation animation. */
-  private buildTickMoving(dt: number): PhantomPiece[] {
+  private buildTickMoving(dt: number): LocalPiecePhantom[] {
     const s = this.buildState as Extract<BuildState, { step: typeof Step.MOVING }>;
     const { target, rotation } = s;
 
@@ -432,7 +432,7 @@ export class AiController extends BaseController implements AiAnimatable {
     return this.cannonQueue.length === 0 && this.cannonState.step === Step.IDLE;
   }
 
-  cannonTick(state: GameState, dt: number): PhantomCannon | null {
+  cannonTick(state: GameState, dt: number): LocalCannonPhantom | null {
     const player = state.players[this.playerId]!;
     if (player.eliminated) return null;
 
@@ -489,7 +489,7 @@ export class AiController extends BaseController implements AiAnimatable {
     }
   }
 
-  private cannonTickMoving(state: GameState, player: Player, dt: number): PhantomCannon | null {
+  private cannonTickMoving(state: GameState, player: Player, dt: number): LocalCannonPhantom | null {
     const target = this.cannonQueue[0]!;
     const targetMode = target.mode ?? CannonMode.NORMAL;
     if (this.stepTileCursorToward(
@@ -507,7 +507,7 @@ export class AiController extends BaseController implements AiAnimatable {
     };
   }
 
-  private cannonPhantomAt(row: number, col: number, valid: boolean, player: Player): PhantomCannon {
+  private cannonPhantomAt(row: number, col: number, valid: boolean, player: Player): LocalCannonPhantom {
     const target = this.cannonQueue[0]!;
     const targetMode = target.mode ?? CannonMode.NORMAL;
     return {
@@ -820,7 +820,7 @@ export class AiController extends BaseController implements AiAnimatable {
   // Build helpers
   // -----------------------------------------------------------------------
 
-  private phantomAtCursor(): PhantomPiece {
+  private phantomAtCursor(): LocalPiecePhantom {
     return this.makePhantom(
       this.currentPiece!,
       Math.round(this.buildCursor.row),
@@ -834,7 +834,7 @@ export class AiController extends BaseController implements AiAnimatable {
     row: number,
     col: number,
     valid: boolean,
-  ): PhantomPiece {
+  ): LocalPiecePhantom {
     return { offsets: shape.offsets, row, col, valid, playerId: this.playerId };
   }
 

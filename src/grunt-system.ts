@@ -5,7 +5,6 @@
 import { MSG } from "../server/protocol.ts";
 import {
   collectOccupiedTiles,
-  deleteWallFromAllPlayers,
   findLivingTowerIndexAt,
   hasAliveHouseAt,
   hasCannonAt,
@@ -13,6 +12,7 @@ import {
   hasInteriorAt,
   hasTowerAt,
   hasWallAt,
+  removeWallFromAllPlayers,
 } from "./board-occupancy.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
@@ -52,7 +52,7 @@ const GRUNT_SPAWN_MIN_DISTANCE = 2;
 /** Distance threshold for detecting nearby blocking grunts. */
 const GRUNT_BLOCKED_NEARBY_DISTANCE = 2;
 
-export function spawnGruntNearPosition(
+export function spawnGruntNearPos(
   state: GameState,
   destroyerId: number,
   posRow: number,
@@ -241,7 +241,7 @@ export function gruntAttackTowers(
       if (bestWallKey >= 0) {
         if (tickGruntAttackTimer(grunt, dt)) {
           // Destroy wall but stay in place
-          deleteWallFromAllPlayers(state, bestWallKey);
+          removeWallFromAllPlayers(state, bestWallKey);
           grunt.wallAttack = false;
         }
         continue;

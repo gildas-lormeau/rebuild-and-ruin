@@ -29,7 +29,7 @@ export function isTileOwnedByPlayer(
   return player.interior.has(key) || player.walls.has(key);
 }
 
-export function deleteWallFromAllPlayers(state: GameState, key: number): void {
+export function removeWallFromAllPlayers(state: GameState, key: number): void {
   for (const player of state.players) player.walls.delete(key);
 }
 

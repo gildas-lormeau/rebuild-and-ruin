@@ -10,7 +10,7 @@ import {
   fireSingleCaptured,
   nextReadyCombined,
 } from "./battle-system.ts";
-import type { Crosshair, PhantomCannon, PhantomPiece, PlayerController } from "./controller-interfaces.ts";
+import type { Crosshair, LocalCannonPhantom, LocalPiecePhantom, PlayerController } from "./controller-interfaces.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import { type BagState, createBag, nextPiece, type PieceShape } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
@@ -71,7 +71,7 @@ export abstract class BaseController implements PlayerController {
   abstract reselect(state: GameState, zone: number): boolean;
   abstract placeCannons(state: GameState, maxSlots: number): void;
   abstract isCannonPhaseDone(state: GameState, maxSlots: number): boolean;
-  abstract cannonTick(state: GameState, dt: number): PhantomCannon | null;
+  abstract cannonTick(state: GameState, dt: number): LocalCannonPhantom | null;
   /** Shared build-phase init: bag + cursor on home tower. */
   protected initBuildPhase(state: GameState): void {
     this.initBag(state.round, state.rng);
@@ -84,7 +84,7 @@ export abstract class BaseController implements PlayerController {
   }
 
   abstract startBuild(state: GameState): void;
-  abstract buildTick(state: GameState, dt: number): PhantomPiece[];
+  abstract buildTick(state: GameState, dt: number): LocalPiecePhantom[];
 
   /** End build phase: clear bag/piece. Subclasses should call super. */
   endBuild(_state: GameState): void {

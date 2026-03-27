@@ -15,8 +15,8 @@ import {
 import {
   CROSSHAIR_SPEED,
   type InputReceiver,
-  type PhantomCannon,
-  type PhantomPiece,
+  type LocalCannonPhantom,
+  type LocalPiecePhantom,
 } from "./controller-interfaces.ts";
 import { BaseController } from "./controller-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
@@ -71,7 +71,7 @@ export class HumanController extends BaseController implements InputReceiver {
     return cannonSlotsUsed(player) >= maxSlots;
   }
 
-  cannonTick(state: GameState, _dt: number): PhantomCannon | null {
+  cannonTick(state: GameState, _dt: number): LocalCannonPhantom | null {
     const player = state.players[this.playerId]!;
     const maxSlots = state.cannonLimits[this.playerId] ?? 0;
     const remaining = maxSlots - cannonSlotsUsed(player);
@@ -149,7 +149,7 @@ export class HumanController extends BaseController implements InputReceiver {
     this.initBuildPhase(state);
   }
 
-  buildTick(state: GameState, _dt: number): PhantomPiece[] {
+  buildTick(state: GameState, _dt: number): LocalPiecePhantom[] {
     if (!this.currentPiece) return [];
     const valid = canPlacePiece(
       state,

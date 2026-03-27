@@ -6,7 +6,7 @@ import { GOLD, PANEL_BG } from "./render-theme.ts";
 import type { SelectionState } from "./selection.ts";
 import { type GameState, Phase } from "./types.ts";
 
-interface ShowWaitingRoomDeps {
+interface InitWaitingRoomDeps {
   code: string;
   seed: number;
   lobbyEl: HTMLElement;
@@ -21,7 +21,7 @@ interface ShowWaitingRoomDeps {
   requestFrame: () => void;
 }
 
-interface EnterTowerSelectionDeps {
+interface InitTowerSelectionDeps {
   state: GameState;
   isHost: boolean;
   myPlayerId: number;
@@ -60,7 +60,7 @@ interface InitGameDeps {
   enterSelection: () => void;
 }
 
-export function setupWaitingRoom(deps: ShowWaitingRoomDeps): void {
+export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
   const {
     code,
     seed,
@@ -113,8 +113,8 @@ export function setupWaitingRoom(deps: ShowWaitingRoomDeps): void {
   requestFrame();
 }
 
-export function setupTowerSelection(
-  deps: EnterTowerSelectionDeps,
+export function initTowerSelection(
+  deps: InitTowerSelectionDeps,
 ): void {
   const {
     state,

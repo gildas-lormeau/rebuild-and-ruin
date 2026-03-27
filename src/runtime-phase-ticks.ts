@@ -6,7 +6,7 @@
  */
 
 import { type GameMessage, MSG, type SerializedPlayer } from "../server/protocol.ts";
-import { resolveBalloons, updateCannonballs } from "./battle-system.ts";
+import { resolveBalloons, tickCannonballs } from "./battle-system.ts";
 import {
   beginHostBattle,
   startHostBattleLifecycle,
@@ -234,7 +234,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       dt, state: rs.state, battleTimer: BATTLE_TIMER, accum: rs.accum, controllers: rs.controllers, battleAnim: rs.battleAnim,
       render: deps.render, collectCrosshairs,
       collectTowerEvents: gruntAttackTowers,
-      updateCannonballsWithEvents: updateCannonballs,
+      tickCannonballsWithEvents: tickCannonballs,
       onBattleEvents: (events) => {
         const pid = rs.ctx.myPlayerId;
         const localPid = pid >= 0 ? pid : (deps.firstHuman()?.playerId ?? -1);

@@ -13,7 +13,7 @@ import { Action, CannonMode, type GameState } from "./types.ts";
 /** Orbit animation parameters for AI countdown idle animation. */
 export type OrbitParams = { rx: number; ry: number; speed: number; phase: number };
 
-export interface PhantomPiece {
+export interface LocalPiecePhantom {
   offsets: [number, number][];
   row: number;
   col: number;
@@ -21,7 +21,7 @@ export interface PhantomPiece {
   playerId: number;
 }
 
-export interface PhantomCannon {
+export interface LocalCannonPhantom {
   row: number;
   col: number;
   valid: boolean;
@@ -66,13 +66,13 @@ export interface PlayerController {
   isCannonPhaseDone(state: GameState, maxSlots: number): boolean;
 
   /** Called each frame during cannon phase. Returns phantom cannon for rendering. */
-  cannonTick(state: GameState, dt: number): PhantomCannon | null;
+  cannonTick(state: GameState, dt: number): LocalCannonPhantom | null;
 
   /** Called once at the start of the build phase. */
   startBuild(state: GameState): void;
 
   /** Called each frame during the build phase. Returns phantom pieces to display. */
-  buildTick(state: GameState, dt: number): PhantomPiece[];
+  buildTick(state: GameState, dt: number): LocalPiecePhantom[];
 
   /** Called at the end of the build phase. */
   endBuild(state: GameState): void;

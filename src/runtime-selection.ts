@@ -14,7 +14,7 @@ import {
 } from "./castle-build.ts";
 import { isHuman } from "./controller-factory.ts";
 import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
-import { setupTowerSelection } from "./game-bootstrap.ts";
+import { initTowerSelection } from "./game-bootstrap.ts";
 import {
   advanceToCannonPlacePhase,
   enterCannonPlacePhase,
@@ -98,7 +98,7 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
   // Tower selection helpers
   // -------------------------------------------------------------------------
 
-  function initTowerSelection(pid: number, zone: number): void {
+  function initPlayerTowerSelection(pid: number, zone: number): void {
     initTowerSelectionImpl(rs.state, rs.selectionStates, pid, zone);
     if (isHuman(rs.controllers[pid]!)) {
       const player = rs.state.players[pid];
@@ -107,14 +107,14 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
   }
 
   function enterTowerSelection(): void {
-    setupTowerSelection({
+    initTowerSelection({
       state: rs.state,
       isHost: rs.ctx.isHost,
       myPlayerId: rs.ctx.myPlayerId,
       remoteHumanSlots: rs.ctx.remoteHumanSlots,
       controllers: rs.controllers,
       selectionStates: rs.selectionStates,
-      initTowerSelection,
+      initTowerSelection: initPlayerTowerSelection,
       syncSelectionOverlay,
       setOverlaySelection: () => { rs.overlay = { selection: { highlighted: null, selected: null } }; },
       selectTimer: SELECT_TIMER,
@@ -335,7 +335,7 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
       reselectQueue: rs.reselectQueue,
       state: rs.state,
       controllers: rs.controllers,
-      initTowerSelection,
+      initTowerSelection: initPlayerTowerSelection,
       processPlayer: (pid, ctrl, zone) => {
         if (remoteHumanSlots.has(pid)) return "pending" as const;
         const done = ctrl.reselect(rs.state, zone);
@@ -377,7 +377,7 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
 
   return {
     getStates: () => rs.selectionStates,
-    init: initTowerSelection,
+    init: initPlayerTowerSelection,
     enter: enterTowerSelection,
     syncOverlay: syncSelectionOverlay,
     highlight: highlightTowerForPlayer,

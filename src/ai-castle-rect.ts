@@ -12,7 +12,7 @@ import {
   hasTowerAt,
 } from "./board-occupancy.ts";
 import type { TileRect, Tower } from "./geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, Tile } from "./grid.ts";
+import { GRID_COLS, GRID_ROWS, type Tile } from "./grid.ts";
 import {
   DIRS_4,
   DIRS_8,

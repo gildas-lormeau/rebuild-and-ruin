@@ -1,6 +1,6 @@
 import type { RGB } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
-import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type LifeLostDialogState, type ResolvedChoice } from "./life-lost.ts";
+import { LifeLostChoice, type LifeLostDialogState, type ResolvedChoice } from "./life-lost.ts";
 import type { BannerState } from "./phase-banner.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
@@ -149,18 +149,18 @@ export function handleLifeLostDialogClick(params: {
   const y = canvasY / SCALE;
 
   for (const entry of lifeLostDialog.entries) {
-    if (entry.choice !== CHOICE_PENDING || entry.isAi) continue;
+    if (entry.choice !== LifeLostChoice.PENDING || entry.isAi) continue;
     if (entry.playerId !== firstHumanPlayerId) continue;
 
     const { px, py } = lifeLostPanelPos(state, entry.playerId);
     const { btnY, contX, abX } = lifeLostButtonLayout(px, py);
 
     if (x >= contX && x <= contX + BTN_W && y >= btnY && y <= btnY + BTN_H) {
-      return { playerId: entry.playerId, choice: CHOICE_CONTINUE };
+      return { playerId: entry.playerId, choice: LifeLostChoice.CONTINUE };
     }
 
     if (x >= abX && x <= abX + BTN_W && y >= btnY && y <= btnY + BTN_H) {
-      return { playerId: entry.playerId, choice: CHOICE_ABANDON };
+      return { playerId: entry.playerId, choice: LifeLostChoice.ABANDON };
     }
   }
 

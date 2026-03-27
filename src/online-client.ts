@@ -20,7 +20,7 @@ import { applyImpactEvent } from "./battle-system.ts";
 import { applyPiecePlacement } from "./build-system.ts";
 import { applyCannonPlacement } from "./cannon-system.ts";
 import { createController } from "./controller-factory.ts";
-import { bootstrapGame, setupWaitingRoom } from "./game-bootstrap.ts";
+import { bootstrapGame, initWaitingRoom } from "./game-bootstrap.ts";
 import {
   enterCannonPlacePhase,
   finalizeCastleConstruction,
@@ -30,11 +30,11 @@ import {
 import { createGameRuntime, type GameRuntime } from "./game-runtime.ts";
 import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT, Mode } from "./game-ui-types.ts";
 import { GRID_COLS } from "./grid.ts";
-import { CHOICE_PENDING } from "./life-lost.ts";
+import { LifeLostChoice } from "./life-lost.ts";
 import { getWsUrl } from "./online-config.ts";
 import { broadcastLocalCrosshair, extendWithRemoteCrosshairs } from "./online-host-crosshairs.ts";
 import { rebuildControllersForPhase, syncAccumulatorsFromTimer } from "./online-host-promotion.ts";
-import { setupLobbyUi } from "./online-lobby-ui.ts";
+import { initLobbyUi } from "./online-lobby-ui.ts";
 import {
   handleBattleStartTransition,
   handleBuildEndTransition,
@@ -94,7 +94,7 @@ import {
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const pageOnline = document.getElementById("page-online")!;
 const roomCodeOverlay = document.getElementById("room-code-overlay")!;
-// Lobby DOM elements — queried once, shared with setupLobbyUi
+// Lobby DOM elements — queried once, shared with initLobbyUi
 const lobbyElements = {
   btnCreateConfirm: document.getElementById("btn-create-confirm")!,
   btnJoinConfirm: document.getElementById("btn-join-confirm")!,
@@ -113,7 +113,7 @@ const DEV = IS_DEV;
 const LOG_THROTTLE_MS = 1000;
 const _throttleTimestamps = new Map<string, number>();
 const initDomLobby = () =>
-  setupLobbyUi({
+  initLobbyUi({
     elements: lobbyElements,
     connect,
     send,
@@ -179,7 +179,7 @@ const transitionCtx = {
     if (dialog) {
       for (const [pid, choice] of session.earlyLifeLostChoices) {
         const entry = dialog.entries.find(e => e.playerId === pid);
-        if (entry && entry.choice === CHOICE_PENDING) entry.choice = choice;
+        if (entry && entry.choice === LifeLostChoice.PENDING) entry.choice = choice;
       }
     }
     session.earlyLifeLostChoices.clear();
@@ -388,7 +388,7 @@ function buildLifecycleDeps() {
 function showWaitingRoom(code: string, seed: number): void {
   session.roomSeed = seed;
   runtime.rs.settings.seed = String(seed);
-  setupWaitingRoom({
+  initWaitingRoom({
     code, seed, lobbyEl: pageOnline, canvas, roomCodeOverlay,
     lobby: runtime.rs.lobby,
     maxPlayers: MAX_PLAYERS,
@@ -462,7 +462,7 @@ function buildIncrementalDeps() {
     getRemoteCannonPhantoms: () => watcher.remoteCannonPhantoms,
     setRemoteCannonPhantoms: (value: typeof watcher.remoteCannonPhantoms) => { watcher.remoteCannonPhantoms = value; },
     getLifeLostDialog: () => runtime.lifeLost.get(),
-    queueEarlyLifeLostChoice: (playerId: number, choice: import("./life-lost.ts").LifeLostChoice) => {
+    queueEarlyLifeLostChoice: (playerId: number, choice: LifeLostChoice) => {
       session.earlyLifeLostChoices.set(playerId, choice);
     },
   };
