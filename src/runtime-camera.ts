@@ -229,9 +229,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   /** Save current pinch viewport to the phase-specific slot and restore the other. */
   function swapPinchViewport(enteringBattle: boolean): void {
     savePinchForPhase(!enteringBattle);
-    pinchVp = (enteringBattle ? battlePinchVp : buildPinchVp)
-      ? { ...(enteringBattle ? battlePinchVp : buildPinchVp)! }
-      : null;
+    const candidate = enteringBattle ? battlePinchVp : buildPinchVp;
+    pinchVp = candidate ? { ...candidate } : null;
   }
 
   /** Derive map zone from a world-pixel position. */
