@@ -59,6 +59,13 @@ export enum LifeLostChoice {
   ABANDON = "abandon",
 }
 
+/** Parse an untrusted value into a resolved LifeLostChoice, or null if invalid. */
+export function parseLifeLostChoice(raw: unknown): ResolvedChoice | null {
+  if (raw === LifeLostChoice.CONTINUE) return LifeLostChoice.CONTINUE;
+  if (raw === LifeLostChoice.ABANDON) return LifeLostChoice.ABANDON;
+  return null;
+}
+
 export function resolveLifeLostDialogRuntime(
   deps: ResolveLifeLostDialogDeps,
 ): LifeLostDialogState | null {

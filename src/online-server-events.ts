@@ -2,7 +2,7 @@ import { MSG, type ServerMessage } from "../server/protocol.ts";
 import type { ImpactEvent } from "./battle-system.ts";
 import type { OrbitParams } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
-import { LifeLostChoice } from "./life-lost.ts";
+import { LifeLostChoice, parseLifeLostChoice } from "./life-lost.ts";
 import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
 import { inBoundsStrict } from "./spatial.ts";
 import { CannonMode, type GameState, type SelectionState } from "./types.ts";
@@ -252,17 +252,19 @@ export function handleServerIncrementalMessage(
       deps.log(
         `life_lost_choice from P${msg.playerId}: ${msg.choice} (dialog=${deps.getLifeLostDialog() ? "active" : "null"})`,
       );
+      const validated = parseLifeLostChoice(msg.choice);
+      if (validated === null) return true;
       const dialog = deps.getLifeLostDialog();
       if (dialog) {
         const entry = dialog.entries.find(
           (e) => e.playerId === msg.playerId,
         );
         if (entry && entry.choice === LifeLostChoice.PENDING) {
-          entry.choice = msg.choice;
+          entry.choice = validated;
         }
       } else {
         // Dialog not yet created — queue choice for when it appears
-        deps.queueEarlyLifeLostChoice(msg.playerId, msg.choice);
+        deps.queueEarlyLifeLostChoice(msg.playerId, validated);
       }
       return true;
     }

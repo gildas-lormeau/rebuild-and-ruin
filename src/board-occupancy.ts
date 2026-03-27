@@ -14,13 +14,14 @@ import {
   hasPitAt,
   inBounds,
   isAtTile,
+  isBalloonCannon,
   isCannonTile,
   isTowerTile,
   isWater,
   packTile,
   unpackTile,
 } from "./spatial.ts";
-import { CannonMode, type GameState, type Grunt, type Player } from "./types.ts";
+import type { GameState, Grunt, Player } from "./types.ts";
 
 export function isTileOwnedByPlayer(
   player: Pick<Player, "interior" | "walls">,
@@ -125,7 +126,7 @@ export function collectAllCannonTiles(
   const cannonTiles = new Set<number>();
   for (const player of state.players) {
     for (const cannon of player.cannons) {
-      if (options?.excludeBalloon && cannon.kind === CannonMode.BALLOON) continue;
+      if (options?.excludeBalloon && isBalloonCannon(cannon)) continue;
       for (const key of computeCannonTileSet(cannon)) cannonTiles.add(key);
     }
   }
@@ -240,7 +241,7 @@ export function hasCannonAt(
 ): boolean {
   return state.players.some((player) =>
     player.cannons.some((cannon) => {
-      if (options?.excludeBalloon && cannon.kind === CannonMode.BALLOON) return false;
+      if (options?.excludeBalloon && isBalloonCannon(cannon)) return false;
       return isCannonTile(cannon, r, c);
     }),
   );

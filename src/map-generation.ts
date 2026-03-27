@@ -12,7 +12,7 @@
 
 import { collectOccupiedTiles } from "./board-occupancy.ts";
 import type { Castle, GameMap, House, PixelPos, Tower } from "./geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, Tile } from "./grid.ts";
+import { GRID_COLS, GRID_ROWS, TILE_GRASS, TILE_WATER, type Tile } from "./grid.ts";
 import { Rng } from "./rng.ts";
 import { DIRS_4, forEachTowerTile, inBounds, isGrass, manhattanDistance, packTile, unpackTile } from "./spatial.ts";
 import { type GameState, HOUSE_MIN_DISTANCE, isPlayerActive } from "./types.ts";
@@ -55,7 +55,7 @@ export function generateMap(seed?: number): GameMap {
   const rng = new Rng(seed ?? Date.now());
 
   const tiles: Tile[][] = Array.from({ length: GRID_ROWS }, () =>
-    new Array(GRID_COLS).fill(Tile.Grass),
+    new Array(GRID_COLS).fill(TILE_GRASS),
   );
 
   let junction!: PixelPos;
@@ -181,7 +181,7 @@ export function createCastle(
         // Off-map = blocked
         if (!inBounds(r, c)) return false;
         // Water = blocked
-        if (tiles[r]![c] === Tile.Water) return false;
+        if (tiles[r]![c] === TILE_WATER) return false;
         // Other tower = blocked (wall ring and interior must not overlap another tower)
         if (otherTowerTiles.has(packTile(r, c))) return false;
       }
@@ -213,8 +213,8 @@ export function createCastle(
       if (side === "L" || side === "R") {
         if (wallPos < 0 || wallPos >= GRID_COLS) return g;
         if (
-          tiles[tr]![wallPos] === Tile.Water ||
-          tiles[tr + 1]![wallPos] === Tile.Water
+          tiles[tr]![wallPos] === TILE_WATER ||
+          tiles[tr + 1]![wallPos] === TILE_WATER
         )
           return g;
         // Check for other towers
@@ -226,8 +226,8 @@ export function createCastle(
       } else {
         if (wallPos < 0 || wallPos >= GRID_ROWS) return g;
         if (
-          tiles[wallPos]![tc] === Tile.Water ||
-          tiles[wallPos]![tc + 1] === Tile.Water
+          tiles[wallPos]![tc] === TILE_WATER ||
+          tiles[wallPos]![tc + 1] === TILE_WATER
         )
           return g;
         if (
@@ -297,7 +297,7 @@ export function computeCastleWallTiles(
       // Is this on the wall ring (not interior)?
       if (r >= top && r <= bottom && c >= left && c <= right) continue;
       // Only place walls on grass
-      if (tiles[r]![c] !== Tile.Grass) continue;
+      if (tiles[r]![c] !== TILE_GRASS) continue;
       wallTiles.push([r, c]);
     }
   }
@@ -477,7 +477,7 @@ export function topZonesBySize(
   const counts = new Map<number, number>();
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
-      if (map.tiles[r]![c] === Tile.Grass) {
+      if (map.tiles[r]![c] === TILE_GRASS) {
         const z = map.zones[r]![c]!;
         counts.set(z, (counts.get(z) ?? 0) + 1);
       }
@@ -576,7 +576,7 @@ function buildRiverDistanceGrid(tiles: readonly Tile[][]): number[][] {
   // Seed BFS from all river tiles
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
-      if (tiles[r]![c] === Tile.Water) {
+      if (tiles[r]![c] === TILE_WATER) {
         dist[r]![c] = 0;
         queue.push([r, c]);
       }
@@ -754,13 +754,13 @@ function isValidHousePos(
   c: number,
   zoneId: number,
 ): boolean {
-  if (tiles[r]![c] !== Tile.Grass) return false;
+  if (tiles[r]![c] !== TILE_GRASS) return false;
   if (zones[r]![c] !== zoneId) return false;
   if (towerTiles.has(packTile(r, c))) return false;
   // All 8 neighbors must be grass (1-tile margin from water/edge)
   for (let dr = -1; dr <= 1; dr++)
     for (let dc = -1; dc <= 1; dc++)
-      if (tiles[r + dr]![c + dc] !== Tile.Grass) return false;
+      if (tiles[r + dr]![c + dc] !== TILE_GRASS) return false;
   // Not adjacent to a tower (1 tile gap)
   for (let dr = -1; dr <= 1; dr++)
     for (let dc = -1; dc <= 1; dc++)
@@ -794,7 +794,7 @@ function generateRiverAndZones(
 function resetTilesToGrass(tiles: readonly Tile[][]): void {
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
-      tiles[r]![c] = Tile.Grass;
+      tiles[r]![c] = TILE_GRASS;
     }
   }
 }
@@ -811,7 +811,7 @@ function paintRiver(
 ): void {
   const setWater = (x: number, y: number) => {
     if (x >= 0 && x < GRID_COLS && y >= 0 && y < GRID_ROWS) {
-      tiles[y]![x] = Tile.Water;
+      tiles[y]![x] = TILE_WATER;
     }
   };
 
@@ -924,15 +924,15 @@ function smoothRiver(tiles: readonly Tile[][]): void {
     changed = false;
     for (let r = 0; r < GRID_ROWS; r++) {
       for (let c = 0; c < GRID_COLS; c++) {
-        if (tiles[r]![c] !== Tile.Grass) continue;
+        if (tiles[r]![c] !== TILE_GRASS) continue;
         let grassNeighbors = 0;
         forEachOrthoNeighbor(r, c, (nr, nc) => {
-          if (inBounds(nr, nc) && tiles[nr]![nc] === Tile.Grass) {
+          if (inBounds(nr, nc) && tiles[nr]![nc] === TILE_GRASS) {
             grassNeighbors++;
           }
         });
         if (grassNeighbors <= 1) {
-          tiles[r]![c] = Tile.Water;
+          tiles[r]![c] = TILE_WATER;
           changed = true;
         }
       }
@@ -947,15 +947,15 @@ function smoothRiver(tiles: readonly Tile[][]): void {
 function removeIsolatedWater(tiles: readonly Tile[][]): void {
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
-      if (tiles[r]![c] !== Tile.Water) continue;
+      if (tiles[r]![c] !== TILE_WATER) continue;
       let waterOrtho = 0;
       forEachOrthoNeighbor(r, c, (nr, nc) => {
-        if (inBounds(nr, nc) && tiles[nr]![nc] === Tile.Water) {
+        if (inBounds(nr, nc) && tiles[nr]![nc] === TILE_WATER) {
           waterOrtho++;
         }
       });
       if (waterOrtho <= 1) {
-        tiles[r]![c] = Tile.Grass;
+        tiles[r]![c] = TILE_GRASS;
       }
     }
   }
@@ -973,7 +973,7 @@ function floodFillZones(tiles: readonly Tile[][]): {
 
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
-      if (zones[r]![c] !== 0 || tiles[r]![c] !== Tile.Grass) continue;
+      if (zones[r]![c] !== 0 || tiles[r]![c] !== TILE_GRASS) continue;
 
       regionId++;
       let size = 0;
@@ -982,7 +982,7 @@ function floodFillZones(tiles: readonly Tile[][]): {
       while (queue.length > 0) {
         const [cr, cc] = queue.pop()!;
         if (cr < 0 || cr >= GRID_ROWS || cc < 0 || cc >= GRID_COLS) continue;
-        if (zones[cr]![cc] !== 0 || tiles[cr]![cc] !== Tile.Grass) continue;
+        if (zones[cr]![cc] !== 0 || tiles[cr]![cc] !== TILE_GRASS) continue;
 
         zones[cr]![cc] = regionId;
         size++;

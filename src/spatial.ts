@@ -183,6 +183,16 @@ export function isCannonAlive(cannon: Pick<Cannon, "hp">): boolean {
   return cannon.hp > 0;
 }
 
+/** True if a cannon is a balloon (propaganda balloon). */
+export function isBalloonCannon(cannon: { kind: string }): boolean {
+  return cannon.kind === CannonMode.BALLOON;
+}
+
+/** True if a cannon is a super gun. */
+export function isSuperCannon(cannon: { kind: string }): boolean {
+  return cannon.kind === CannonMode.SUPER;
+}
+
 /** True if (r,c) is occupied by a burning pit. */
 export function hasPitAt(pits: readonly BurningPit[], r: number, c: number): boolean {
   return pits.some((p) => isAtTile(p, r, c));

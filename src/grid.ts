@@ -12,6 +12,8 @@ export enum Tile {
   Water = 1,
 }
 
+export const TILE_GRASS = Tile.Grass;
+export const TILE_WATER = Tile.Water;
 export const GRID_COLS = 40;
 export const GRID_ROWS = 28;
 export const TILE_SIZE = 16;

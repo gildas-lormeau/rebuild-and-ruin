@@ -53,6 +53,7 @@ import {
   computeOutside,
   DIRS_4,
   hasPitAt,
+  isBalloonCannon,
   isCannonAlive,
   isCannonTile,
   isGrass,
@@ -62,7 +63,7 @@ import {
   towerReachesOutsideCardinal,
   unpackTile,
 } from "./spatial.ts";
-import { CannonMode, type GameState } from "./types.ts";
+import type { GameState } from "./types.ts";
 
 /** Max gap tiles in home castle before AI skips it for other towers. */
 const HOME_GAP_REPAIR_THRESHOLD = 5;
@@ -604,7 +605,7 @@ export function pickPlacement(
       (g) => g.targetPlayerId === playerId && outside.has(packTile(g.row, g.col)),
     );
     const hasUnenclosedCannons = player.cannons.some(
-      (c) => isCannonAlive(c) && c.kind !== CannonMode.BALLOON && !isCannonEnclosed(c, player.interior),
+      (c) => isCannonAlive(c) && !isBalloonCannon(c) && !isCannonEnclosed(c, player.interior),
     );
     if ((!hasOutsideGrunts && !hasUnenclosedCannons) || bestScore <= 0) return null;
   }

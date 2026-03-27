@@ -21,6 +21,7 @@ import {
   cannonSize,
   DIRS_4,
   inBounds,
+  isBalloonCannon,
   isCannonTile,
   manhattanDistance,
   orderByNearest,
@@ -28,7 +29,7 @@ import {
   pxToTile,
   unpackTile,
 } from "./spatial.ts";
-import { type Cannon, type Cannonball, CannonMode, type GameState } from "./types.ts";
+import { type Cannon, type Cannonball, type GameState } from "./types.ts";
 
 type TargetCandidate = PrioritizedTilePos;
 
@@ -322,7 +323,7 @@ export function trackShot(
   const col = pxToTile(crosshair.x);
   for (const other of filterActiveEnemies(state, playerId)) {
     for (const cannon of other.cannons) {
-      if (cannon.kind === CannonMode.BALLOON) continue;
+      if (isBalloonCannon(cannon)) continue;
       if (isCannonTile(cannon, row, col)) {
         shotCounts.set(cannon, (shotCounts.get(cannon) ?? 0) + 1);
         return;

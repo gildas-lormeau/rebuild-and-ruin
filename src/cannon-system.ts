@@ -8,6 +8,7 @@ import {
   FACING_90_STEP,
   hasPitAt,
   inBounds,
+  isBalloonCannon,
   isCannonAlive,
   isCannonTile,
   isTowerTile,
@@ -210,7 +211,7 @@ export function resetCannonFacings(state: GameState): void {
 /** Return a player's alive cannons that can fire (excludes balloons and dead cannons). */
 export function filterActiveFiringCannons(player: Player): Cannon[] {
   return player.cannons.filter(
-    (c) => isCannonAlive(c) && c.kind !== CannonMode.BALLOON,
+    (c) => isCannonAlive(c) && !isBalloonCannon(c),
   );
 }
 
