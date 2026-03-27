@@ -9,13 +9,8 @@ import { resetCannonFacings } from "./cannon-system.ts";
 import type { Crosshair, PlayerController } from "./controller-interfaces.ts";
 import { computeCannonLimitsForPhase, rebuildHomeCastle } from "./game-engine.ts";
 import { Mode } from "./game-ui-types.ts";
-import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import type { KeyBindings } from "./player-config.ts";
-import { GEAR_SIZE, GEAR_X, GEAR_Y } from "./render-composition.ts";
 import { type GameState, type Impact, Phase, type Player } from "./types.ts";
-
-/** Result of a lobby click hit-test. */
-export type LobbyHit = { type: "gear" } | { type: "slot"; slotId: number };
 
 /** Format a key binding as a short hint string (e.g. "Arrows + N (B rotate)"). */
 export function formatKeyHint(kb: KeyBindings): string {
@@ -49,49 +44,6 @@ export function snapshotTerritory(players: Player[]): Set<number>[] {
     for (const key of p.walls) combined.add(key);
     return combined;
   });
-}
-
-/**
- * Hit-test a lobby click against player panels and gear button.
- * Returns { type: "gear" } for gear click, { type: "slot", slotId }
- * for a player slot click, or null if nothing was hit.
- */
-export function lobbyClickHitTest(params: {
-  canvasX: number;
-  canvasY: number;
-  canvasW: number;
-  canvasH: number;
-  tileSize: number;
-  slotCount: number;
-  computeLayout: (tsW: number, tsH: number, count: number) =>
-    { gap: number; rectW: number; rectH: number; rectY: number };
-}): LobbyHit | null {
-  const { canvasX, canvasY, canvasW, canvasH, tileSize,
-          slotCount, computeLayout } = params;
-
-  const tsW = GRID_COLS * tileSize;
-  const tsH = GRID_ROWS * tileSize;
-  const x = canvasX * (tsW / canvasW);
-  const y = canvasY * (tsH / canvasH);
-
-  // Gear button click (top-right corner)
-  if (
-    x >= GEAR_X &&
-    x <= GEAR_X + GEAR_SIZE &&
-    y >= GEAR_Y &&
-    y <= GEAR_Y + GEAR_SIZE
-  ) {
-    return { type: "gear" };
-  }
-
-  const { gap, rectW, rectH, rectY } = computeLayout(tsW, tsH, slotCount);
-  for (let i = 0; i < slotCount; i++) {
-    const rx = gap + i * (rectW + gap);
-    if (x >= rx && x <= rx + rectW && y >= rectY && y <= rectY + rectH) {
-      return { type: "slot", slotId: i };
-    }
-  }
-  return null;
 }
 
 /** Initialize cannon phase: compute limits, reset facings, let controllers place. */

@@ -59,6 +59,11 @@ export const LIFE_LOST_PANEL_W = IS_TOUCH_DEVICE ? 170 : 130;
 export const LIFE_LOST_PANEL_H = IS_TOUCH_DEVICE ? 110 : 90;
 export const LIFE_LOST_BTN_W = IS_TOUCH_DEVICE ? 68 : 52;
 export const LIFE_LOST_BTN_H = IS_TOUCH_DEVICE ? 28 : 18;
+// Lobby panel layout (height and vertical position as fractions of canvas height)
+export const LOBBY_RECT_H_RATIO = 0.5;
+export const LOBBY_RECT_H_RATIO_TOUCH = 0.6;
+export const LOBBY_RECT_Y_RATIO = 0.27;
+export const LOBBY_RECT_Y_RATIO_TOUCH = 0.18;
 // Zoom button tinting
 export const ZOOM_BUTTON_ALPHA = 0.85;
 export const TOUCH_ZOOM_HOME_BG = `rgba(60, 80, 120, ${ZOOM_BUTTON_ALPHA})`;

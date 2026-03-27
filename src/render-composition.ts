@@ -7,12 +7,19 @@ import {
   BANNER_HEIGHT_RATIO,
   LIFE_LOST_BTN_H as BTN_H,
   LIFE_LOST_BTN_W as BTN_W,
+  LOBBY_RECT_H_RATIO,
+  LOBBY_RECT_H_RATIO_TOUCH,
+  LOBBY_RECT_Y_RATIO,
+  LOBBY_RECT_Y_RATIO_TOUCH,
   LIFE_LOST_PANEL_H as PANEL_H,
   LIFE_LOST_PANEL_W as PANEL_W,
 } from "./render-theme.ts";
 import { FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus, type GameOverOverlay, type LifeLostDialogOverlay, type RenderOverlay } from "./render-types.ts";
 import type { SelectionState } from "./selection.ts";
 import { type CastleData, type GameState, type Impact, LIFE_LOST_MAX_TIMER, Phase } from "./types.ts";
+
+/** Result of a lobby click hit-test. */
+export type LobbyHit = { type: "gear" } | { type: "slot"; slotId: number };
 
 interface GameOverLayout {
   panelW: number;
@@ -33,9 +40,9 @@ const PHASE_LABELS = new Map<Phase, string>([
   [Phase.BATTLE, "Battle"],
 ]);
 const GAMEOVER_PANEL_W_RATIO = 0.65;
-export const GEAR_X = GRID_COLS * TILE_SIZE - 32;
-export const GEAR_Y = 4;
-export const GEAR_SIZE = 28;
+const GEAR_X = GRID_COLS * TILE_SIZE - 32;
+const GEAR_Y = 4;
+const GEAR_SIZE = 28;
 export const GAMEOVER_ROW_H = 14;
 export const GAMEOVER_HEADER_H = 36;
 export const GAMEOVER_BTN_H = 20;
@@ -349,13 +356,55 @@ export function gameOverLayout(W: number, H: number, scores: GameOverOverlay["sc
   };
 }
 
+/**
+ * Hit-test a lobby click against player panels and gear button.
+ * Returns { type: "gear" } for gear click, { type: "slot", slotId }
+ * for a player slot click, or null if nothing was hit.
+ */
+export function lobbyClickHitTest(params: {
+  canvasX: number;
+  canvasY: number;
+  canvasW: number;
+  canvasH: number;
+  tileSize: number;
+  slotCount: number;
+  computeLayout: (tsW: number, tsH: number, count: number) =>
+    { gap: number; rectW: number; rectH: number; rectY: number };
+}): LobbyHit | null {
+  const { canvasX, canvasY, canvasW, canvasH, tileSize,
+          slotCount, computeLayout } = params;
+
+  const tsW = GRID_COLS * tileSize;
+  const tsH = GRID_ROWS * tileSize;
+  const x = canvasX * (tsW / canvasW);
+  const y = canvasY * (tsH / canvasH);
+
+  if (
+    x >= GEAR_X &&
+    x <= GEAR_X + GEAR_SIZE &&
+    y >= GEAR_Y &&
+    y <= GEAR_Y + GEAR_SIZE
+  ) {
+    return { type: "gear" };
+  }
+
+  const { gap, rectW, rectH, rectY } = computeLayout(tsW, tsH, slotCount);
+  for (let i = 0; i < slotCount; i++) {
+    const rx = gap + i * (rectW + gap);
+    if (x >= rx && x <= rx + rectW && y >= rectY && y <= rectY + rectH) {
+      return { type: "slot", slotId: i };
+    }
+  }
+  return null;
+}
+
 /** Compute lobby panel layout (shared by drawing and hit-testing). */
 export function computeLobbyLayout(W: number, H: number, count: number) {
   const touch = IS_TOUCH_DEVICE;
   const gap = touch ? 8 : 12;
   const rectW = Math.round((W - gap * (count + 1)) / count);
-  const rectH = Math.round(H * (touch ? 0.6 : 0.5));
-  const rectY = Math.round(H * (touch ? 0.18 : 0.27));
+  const rectH = Math.round(H * (touch ? LOBBY_RECT_H_RATIO_TOUCH : LOBBY_RECT_H_RATIO));
+  const rectY = Math.round(H * (touch ? LOBBY_RECT_Y_RATIO_TOUCH : LOBBY_RECT_Y_RATIO));
   return { gap, rectW, rectH, rectY };
 }
 

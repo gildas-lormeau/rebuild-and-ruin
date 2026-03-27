@@ -12,8 +12,6 @@ import { computeFrameContext } from "./frame-context.ts";
 import { bootstrapGame } from "./game-bootstrap.ts";
 import type { GameRuntime, RuntimeConfig } from "./game-runtime-types.ts";
 import {
-  type LobbyHit,
-  lobbyClickHitTest,
   mainLoopTick,
   snapshotTerritory as snapshotTerritoryImpl,
 } from "./game-ui-runtime.ts";
@@ -70,6 +68,8 @@ import {
   buildStatusBar,
   computeLobbyLayout,
   gameOverButtonHitTest,
+  type LobbyHit,
+  lobbyClickHitTest,
 } from "./render-composition.ts";
 import { createLoupe, type LoupeHandle } from "./render-loupe.ts";
 import { drawMap, getSceneCanvas } from "./render-map.ts";

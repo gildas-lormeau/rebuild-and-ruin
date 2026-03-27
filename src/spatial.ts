@@ -224,17 +224,16 @@ export function rotateToward(
   target: number,
   maxStep: number,
 ): number {
-  let diff = target - current;
-  // Normalize to [-PI, PI]
-  while (diff > Math.PI) diff -= Math.PI * 2;
-  while (diff < -Math.PI) diff += Math.PI * 2;
+  // Normalize difference to [-PI, PI]
+  const raw = (target - current) % (Math.PI * 2);
+  const diff = raw > Math.PI ? raw - Math.PI * 2 : raw < -Math.PI ? raw + Math.PI * 2 : raw;
   if (Math.abs(diff) <= maxStep) return target;
   return current + Math.sign(diff) * maxStep;
 }
 
 /** Map a facing angle (radians, 0=up) to the nearest 8-direction name. */
 export function facingToDir8(angle: number): string {
-  const a = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const a = toPositiveAngle(angle);
   const DIRS = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
   const idx = Math.round(a / FACING_45_STEP) % 8;
   return DIRS[idx]!;
@@ -242,7 +241,7 @@ export function facingToDir8(angle: number): string {
 
 /** Map a facing angle (radians, 0=up) to the nearest cardinal direction name. */
 export function facingToCardinal(angle: number): string {
-  const a = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const a = toPositiveAngle(angle);
   if (a < FACING_45_STEP || a >= 7 * FACING_45_STEP) return "n";
   if (a < 3 * FACING_45_STEP) return "e";
   if (a < 5 * FACING_45_STEP) return "s";
@@ -483,6 +482,11 @@ export function packTile(r: number, c: number): number {
 /** True if tile is on the outer map border. */
 function isBoundaryTile(r: number, c: number): boolean {
   return r === 0 || r === GRID_ROWS - 1 || c === 0 || c === GRID_COLS - 1;
+}
+
+/** Normalize an angle (radians) to the range [0, 2π). */
+function toPositiveAngle(angle: number): number {
+  return ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 }
 
 function nearestItemIndex<T extends TilePos>(

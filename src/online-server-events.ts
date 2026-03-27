@@ -3,6 +3,7 @@ import type { ImpactEvent } from "./battle-system.ts";
 import type { OrbitParams } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { LifeLostChoice } from "./life-lost.ts";
+import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
 import type { SelectionState } from "./selection.ts";
 import { inBoundsStrict } from "./spatial.ts";
 import { CannonMode, type GameState } from "./types.ts";
@@ -47,38 +48,10 @@ interface HandleServerIncrementalDeps {
   gridCols: number;
   remoteCrosshairs: Map<number, PixelPos>;
   watcherOrbitParams: Map<number, OrbitParams>;
-  getRemotePiecePhantoms: () => {
-    offsets: [number, number][];
-    row: number;
-    col: number;
-    playerId: number;
-  }[];
-  setRemotePiecePhantoms: (
-    value: {
-      offsets: [number, number][];
-      row: number;
-      col: number;
-      playerId: number;
-    }[],
-  ) => void;
-  getRemoteCannonPhantoms: () => {
-    row: number;
-    col: number;
-    valid: boolean;
-    kind: CannonMode;
-    playerId: number;
-    facing?: number;
-  }[];
-  setRemoteCannonPhantoms: (
-    value: {
-      row: number;
-      col: number;
-      valid: boolean;
-      kind: CannonMode;
-      playerId: number;
-      facing?: number;
-    }[],
-  ) => void;
+  getRemotePiecePhantoms: () => PiecePhantom[];
+  setRemotePiecePhantoms: (value: PiecePhantom[]) => void;
+  getRemoteCannonPhantoms: () => CannonPhantom[];
+  setRemoteCannonPhantoms: (value: CannonPhantom[]) => void;
   getLifeLostDialog: () => LifeLostChoiceDialog | null;
   queueEarlyLifeLostChoice: (playerId: number, choice: LifeLostChoice) => void;
 }
@@ -226,16 +199,12 @@ export function handleServerIncrementalMessage(
       if (state && !validPid(msg.playerId, state)) return true;
       if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (acceptRemote(msg.playerId, deps)) {
-        const next = deps
-          .getRemotePiecePhantoms()
-          .filter((p) => p.playerId !== msg.playerId);
-        next.push({
+        setPhantom(deps.getRemotePiecePhantoms(), msg.playerId, {
           offsets: msg.offsets,
           row: msg.row,
           col: msg.col,
           playerId: msg.playerId,
-        });
-        deps.setRemotePiecePhantoms(next);
+        }, deps.setRemotePiecePhantoms);
       }
       return true;
     }
@@ -244,18 +213,14 @@ export function handleServerIncrementalMessage(
       if (state && !validPid(msg.playerId, state)) return true;
       if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (acceptRemote(msg.playerId, deps)) {
-        const next = deps
-          .getRemoteCannonPhantoms()
-          .filter((p) => p.playerId !== msg.playerId);
-        next.push({
+        setPhantom(deps.getRemoteCannonPhantoms(), msg.playerId, {
           row: msg.row,
           col: msg.col,
           valid: msg.valid,
           kind: (msg.mode ?? CannonMode.NORMAL) as CannonMode,
           playerId: msg.playerId,
           facing: msg.facing,
-        });
-        deps.setRemoteCannonPhantoms(next);
+        }, deps.setRemoteCannonPhantoms);
       }
       return true;
     }
@@ -293,4 +258,16 @@ function acceptRemote(pid: number, deps: Pick<HandleServerIncrementalDeps, "isHo
 
 function validPid(pid: number, state: GameState): boolean {
   return Number.isInteger(pid) && pid >= 0 && pid < state.players.length;
+}
+
+/** Replace or append a phantom entry for `playerId` in an array, then persist via `set`. */
+function setPhantom<T extends { playerId: number }>(
+  current: T[],
+  playerId: number,
+  next: T,
+  set: (value: T[]) => void,
+): void {
+  const updated = current.filter((p) => p.playerId !== playerId);
+  updated.push(next);
+  set(updated);
 }
