@@ -1,16 +1,16 @@
 /**
  * Local play entry point.
  *
- * All game logic lives in game-runtime.ts (shared with online-client.ts).
+ * All game logic lives in runtime.ts (shared with online-client.ts).
  * This file only provides the local-specific config: no networking, canvas
  * lobby with direct slot joining, and the loadAtlas entry point.
  */
 
-import { createGameRuntime } from "./game-runtime.ts";
 import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./game-ui-types.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
+import { createCanvasRenderer } from "./render-canvas.ts";
 import { loadAtlas } from "./render-sprites.ts";
-import { createCanvasRenderer } from "./renderer-canvas.ts";
+import { createGameRuntime } from "./runtime.ts";
 import { LOBBY_TIMER, Mode } from "./types.ts";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;

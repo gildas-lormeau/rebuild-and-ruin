@@ -93,7 +93,7 @@ If an entry point calls `createX(...)` from a low layer with inline logic:
 // Before: entry-point imports createController from L6
 createControllerForSlot: (i, gs) => createController(i, isAi, kb, seed)
 
-// After: extract makeXFactory() into a mid-layer module (e.g., game-bootstrap.ts)
+// After: extract makeXFactory() into a mid-layer module (e.g., runtime-bootstrap.ts)
 // Entry point imports makeXFactory from L12, not createController from L6
 createControllerForSlot: makeXFactory(myId, keyBinding)
 ```
@@ -124,7 +124,7 @@ Rename groups in `.import-layers.json` to match reality. **Naming is the analysi
 |---|---|
 | `render` → `selection` (L7→L6) | Moved `SelectionState` from `selection.ts` to `types.ts` |
 | `online-client` → `ai-strategy` (L14→L5) | Hoisted `autoPlaceCannons` import into `runtime-phase-ticks.ts` |
-| `online-client` → `controller-factory` (L14→L6) | Extracted `makeOnlineControllerSlotFactory` into `game-bootstrap.ts` |
+| `online-client` → `controller-factory` (L14→L6) | Extracted `makeOnlineControllerSlotFactory` into `runtime-bootstrap.ts` |
 | `input` → `render` (was L9→L7, now L7→L8) | Moved `render-theme.ts` to L3 (no canvas deps); moved `ControlsState` to `types.ts`; reordered input before render |
 | `online-logic` → `render` (L11→L8) | Reclassified `render-types.ts` to L3 (only imports L1–L3) |
 | `selection.ts` misplaced in "controllers" | Moved to "game systems" — it's phase logic, not a controller impl |

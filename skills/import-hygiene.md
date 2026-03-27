@@ -45,7 +45,7 @@ Reads `.import-layers.json`, then for every import in the source, checks whether
 ✘ 2 layer violation(s) found:
 
   src/render-types.ts [core types & systems] → src/game-ui-types.ts [game UI] (type-only)
-  src/host-battle-ticks.ts [runtime] → src/online-send-actions.ts [online logic]
+  src/runtime-host-battle-ticks.ts [runtime] → src/online-send-actions.ts [online logic]
 ```
 
 ### `.import-layers.json`
@@ -65,18 +65,18 @@ The layer map file. Committed to the repo. An array of named groups — position
  4  game systems & selection    cannon/grunt/battle/build-system, map-generation, game-engine,
                                 phase-banner, selection
  5  AI strategy                 ai-constants, ai-build-*, ai-strategy-*, ai-castle-rect
- 6  controllers                 ai-controller, controller-types, controller-human, controller-factory
+ 6  controllers                 controller-ai, controller-types, controller-human, controller-factory
  7  input                       all input-*
  8  render                      render-sprites, render-loupe, render-effects, render-towers,
-                                render-composition, render-ui, render-map, renderer-canvas  ← canvas-using files
- 9  game UI                     game-ui-types, game-ui-runtime, game-ui-screens, frame-context
+                                render-composition, render-ui, render-map, render-canvas  ← canvas-using files
+ 9  game UI                     game-ui-types, game-ui-runtime, game-ui-screens, game-ui-frame
 10  online types & config       online-config, online-types, online-lobby-ui, online-server-lifecycle,
                                 online-session, online-serialize
 11  online logic                online-send-actions, online-checkpoints, online-watcher-*, online-phase-transitions,
                                 online-server-events, online-host-*
 12  runtime                     runtime-state, runtime-camera, runtime-life-lost, runtime-phase-ticks,
-                                runtime-selection, host-phase-ticks, host-battle-ticks, game-runtime-types,
-                                game-bootstrap, game-runtime, runtime-headless
+                                runtime-selection, runtime-host-phase-ticks, runtime-host-battle-ticks,
+                                runtime-types, runtime-bootstrap, runtime, runtime-headless
 13  server                      game-room, room-manager, server
 14  entry points                entry, main, online-client, headless-test
 ```
@@ -129,7 +129,7 @@ For each violation, trace the import and classify:
 |---|---|---|
 | Type in wrong file | `render-types → game-ui-types` for `GameOverOverlay` | Move the type to the lower file |
 | Function in wrong file | `render-effects → render-ui` for `drawShadowText` | Move the function to the lower file |
-| Peer dependency on shared utils | `host-battle-ticks → host-phase-ticks` for `localActiveControllers` | Extract to a new shared module (e.g., `tick-context.ts`) |
+| Peer dependency on shared utils | `runtime-host-battle-ticks → runtime-host-phase-ticks` for `localActiveControllers` | Extract to a new shared module (e.g., `tick-context.ts`) |
 | Import through middleman | `phase-ticks → online-serialize` for `SerializedPlayer` | Re-path to canonical source (`server/protocol.ts`) |
 | Dead re-export | `export type { X } from "..."` with no consumers | Remove (run `knip` to find) |
 | Interface mixed with impl | `controller-types.ts` has both interfaces and class | Split into `*-interfaces.ts` (pure types) + implementation file |

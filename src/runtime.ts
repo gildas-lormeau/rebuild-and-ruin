@@ -8,9 +8,7 @@
 
 import { createController } from "./controller-factory.ts";
 import { type InputReceiver, isHuman, type PlayerController } from "./controller-interfaces.ts";
-import { computeFrameContext } from "./frame-context.ts";
-import { bootstrapGame } from "./game-bootstrap.ts";
-import type { GameRuntime, RuntimeConfig } from "./game-runtime-types.ts";
+import { computeFrameContext } from "./game-ui-frame.ts";
 import {
   mainLoopTick,
   snapshotTerritory as snapshotTerritoryImpl,
@@ -70,11 +68,13 @@ import {
 } from "./render-composition.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import { MAX_UINT32 } from "./rng.ts";
+import { bootstrapGame } from "./runtime-bootstrap.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { createLifeLostSystem, type LifeLostSystem } from "./runtime-life-lost.ts";
 import { createPhaseTicksSystem, type PhaseTicksSystem } from "./runtime-phase-ticks.ts";
 import { createSelectionSystem, type SelectionSystem } from "./runtime-selection.ts";
 import { createRuntimeState } from "./runtime-state.ts";
+import type { GameRuntime, RuntimeConfig } from "./runtime-types.ts";
 import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
 import {
   BANNER_DURATION,
@@ -91,7 +91,7 @@ import {
   SELECT_ANNOUNCEMENT_DURATION,
 } from "./types.ts";
 
-export type { GameRuntime } from "./game-runtime-types.ts";
+export type { GameRuntime } from "./runtime-types.ts";
 
 type TouchBtnRule = boolean | typeof HUMAN;
 

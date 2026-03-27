@@ -1,13 +1,12 @@
 /**
  * Life-lost dialog sub-system factory.
  *
- * Extracted from game-runtime.ts. Follows the same factory-with-deps
+ * Extracted from runtime.ts. Follows the same factory-with-deps
  * pattern as runtime-camera.ts and runtime-selection.ts.
  */
 
 import { type GameMessage, MSG } from "../server/protocol.ts";
 import { type InputReceiver, isHuman, type PlayerController } from "./controller-interfaces.ts";
-import type { RuntimeLifeLost } from "./game-runtime-types.ts";
 import {
   buildLifeLostDialogState,
   LifeLostChoice,
@@ -22,6 +21,7 @@ import {
   lifeLostPanelPos as lifeLostPanelPosShared,
 } from "./render-composition.ts";
 import type { RuntimeState } from "./runtime-state.ts";
+import type { RuntimeLifeLost } from "./runtime-types.ts";
 import { LIFE_LOST_AI_DELAY, LIFE_LOST_MAX_TIMER, Mode } from "./types.ts";
 
 interface LifeLostSystemDeps {

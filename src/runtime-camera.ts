@@ -1,11 +1,11 @@
 /**
- * Camera / zoom system — extracted from game-runtime.ts.
+ * Camera / zoom system — extracted from runtime.ts.
  *
  * Owns all viewport state (zone bounds, pinch zoom, auto-zoom, lerp)
  * and exposes a pure API for the runtime to call.
  */
 
-import type { FrameContext } from "./frame-context.ts";
+import type { FrameContext } from "./game-ui-frame.ts";
 import type { TilePos, WorldPos } from "./geometry-types.ts";
 import { CANVAS_H, CANVAS_W, GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import type { Viewport } from "./render-types.ts";

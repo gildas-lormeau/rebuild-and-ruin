@@ -9,7 +9,7 @@
 
 import type { CastleBuildState } from "./castle-build.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
-import type { FrameContext } from "./frame-context.ts";
+import type { FrameContext } from "./game-ui-frame.ts";
 import type {
   ControlsState,
   GameSettings,

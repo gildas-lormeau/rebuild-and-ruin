@@ -1,7 +1,7 @@
 /**
  * Public interfaces for the game runtime factory.
  *
- * Separated from game-runtime.ts to keep the implementation file focused
+ * Separated from runtime.ts to keep the implementation file focused
  * on the factory closure, and to let consumers import just the types.
  */
 

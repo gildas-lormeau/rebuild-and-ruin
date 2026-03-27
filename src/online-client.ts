@@ -1,7 +1,7 @@
 /**
  * Online play entry point.
  *
- * All shared game logic lives in game-runtime.ts via createGameRuntime().
+ * All shared game logic lives in runtime.ts via createGameRuntime().
  * This file only provides the online-specific wiring: WebSocket networking,
  * DOM lobby, watcher state, server message handling, and phase handlers.
  */
@@ -19,14 +19,12 @@ import { applyImpactEvent } from "./battle-system.ts";
 import { applyPiecePlacement, canPlacePieceOffsets } from "./build-system.ts";
 import { applyCannonPlacement, cannonSlotCost, cannonSlotsUsed, canPlaceCannon } from "./cannon-system.ts";
 import { createController } from "./controller-factory.ts";
-import { bootstrapGame, initWaitingRoom, makeOnlineControllerSlotFactory } from "./game-bootstrap.ts";
 import {
   enterCannonPlacePhase,
   finalizeCastleConstruction,
   markPlayerReselected,
   resetZoneState,
 } from "./game-engine.ts";
-import { createGameRuntime, type GameRuntime } from "./game-runtime.ts";
 import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./game-ui-types.ts";
 import { GRID_COLS } from "./grid.ts";
 import { LifeLostChoice } from "./life-lost.ts";
@@ -76,9 +74,11 @@ import {
   PLAYER_COLORS,
   PLAYER_NAMES,
 } from "./player-config.ts";
+import { createCanvasRenderer } from "./render-canvas.ts";
 import { loadAtlas } from "./render-sprites.ts";
-import { createCanvasRenderer } from "./renderer-canvas.ts";
 import { navigateTo } from "./router.ts";
+import { createGameRuntime, type GameRuntime } from "./runtime.ts";
+import { bootstrapGame, initWaitingRoom, makeOnlineControllerSlotFactory } from "./runtime-bootstrap.ts";
 import {
   BANNER_DURATION,
   BATTLE_COUNTDOWN,

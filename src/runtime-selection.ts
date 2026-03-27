@@ -2,7 +2,7 @@
  * Selection sub-system factory — owns tower selection, castle building,
  * reselection, and the advance-to-cannon-phase transition.
  *
- * Extracted from game-runtime.ts to reduce its size.  Follows the same
+ * Extracted from runtime.ts to reduce its size.  Follows the same
  * factory-with-deps pattern as runtime-camera.ts.
  */
 
@@ -13,7 +13,6 @@ import {
   tickCastleBuildAnimation,
 } from "./castle-build.ts";
 import { type InputReceiver, isHuman, type PlayerController } from "./controller-interfaces.ts";
-import { initTowerSelection } from "./game-bootstrap.ts";
 import {
   advanceToCannonPlacePhase,
   enterCannonPlacePhase,
@@ -22,7 +21,6 @@ import {
   markPlayerReselected,
   prepareCastleWallsForPlayer,
 } from "./game-engine.ts";
-import type { RuntimeSelection } from "./game-runtime-types.ts";
 import {
   completeReselection,
   processReselectionQueue,
@@ -35,7 +33,9 @@ import {
 import {
   syncSelectionOverlay as syncSelectionOverlayImpl,
 } from "./render-composition.ts";
+import { initTowerSelection } from "./runtime-bootstrap.ts";
 import type { RuntimeState } from "./runtime-state.ts";
+import type { RuntimeSelection } from "./runtime-types.ts";
 import {
   allSelectionsConfirmed as allSelectionsConfirmedImpl,
   confirmTowerSelection,

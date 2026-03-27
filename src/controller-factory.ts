@@ -4,8 +4,8 @@
  * (base class ↔ concrete subclass).
  */
 
-import { AiController } from "./ai-controller.ts";
 import { DefaultStrategy } from "./ai-strategy.ts";
+import { AiController } from "./controller-ai.ts";
 import { HumanController } from "./controller-human.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import type { KeyBindings } from "./player-config.ts";

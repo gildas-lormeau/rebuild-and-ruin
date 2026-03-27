@@ -68,7 +68,7 @@
   {
     "name": "controllers",
     "files": [
-      "src/ai-controller.ts",
+      "src/controller-ai.ts",
       "src/controller-types.ts",
       "src/controller-human.ts",
       "src/controller-factory.ts"
@@ -95,7 +95,7 @@
       "src/render-composition.ts",
       "src/render-ui.ts",
       "src/render-map.ts",
-      "src/renderer-canvas.ts"
+      "src/render-canvas.ts"
     ]
   },
   {
@@ -104,7 +104,7 @@
       "src/game-ui-types.ts",
       "src/game-ui-runtime.ts",
       "src/game-ui-screens.ts",
-      "src/frame-context.ts"
+      "src/game-ui-frame.ts"
     ]
   },
   {
@@ -139,11 +139,11 @@
       "src/runtime-life-lost.ts",
       "src/runtime-phase-ticks.ts",
       "src/runtime-selection.ts",
-      "src/host-phase-ticks.ts",
-      "src/host-battle-ticks.ts",
-      "src/game-runtime-types.ts",
-      "src/game-bootstrap.ts",
-      "src/game-runtime.ts",
+      "src/runtime-host-phase-ticks.ts",
+      "src/runtime-host-battle-ticks.ts",
+      "src/runtime-types.ts",
+      "src/runtime-bootstrap.ts",
+      "src/runtime.ts",
       "src/runtime-headless.ts"
     ]
   },

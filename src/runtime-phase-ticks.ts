@@ -1,8 +1,8 @@
 /**
  * Phase tick wrappers — thin glue between config/rs and the imported
- * tick functions from host-battle-ticks.ts, host-phase-ticks.ts, etc.
+ * tick functions from runtime-host-battle-ticks.ts, runtime-host-phase-ticks.ts, etc.
  *
- * Extracted from game-runtime.ts.
+ * Extracted from runtime.ts.
  */
 
 import { type GameMessage, MSG, type SerializedPlayer } from "../server/protocol.ts";
@@ -13,31 +13,31 @@ import {
   initBuildPhase,
   nextPhase,
 } from "./game-engine.ts";
-import type { GameRuntime } from "./game-runtime-types.ts";
 import {
   collectLocalCrosshairs,
   initCannonPhase,
   tickGameCore,
 } from "./game-ui-runtime.ts";
 import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
-import {
-  beginHostBattle,
-  startHostBattleLifecycle,
-  tickHostBalloonAnim,
-  tickHostBattleCountdown,
-  tickHostBattlePhase,
-} from "./host-battle-ticks.ts";
-import {
-  tickHostBuildPhase,
-  tickHostCannonPhase,
-} from "./host-phase-ticks.ts";
 import { hapticBattleEvents } from "./input-haptics.ts";
 import type { CannonPhantom, PiecePhantom, WatcherTimingState } from "./online-types.ts";
 import {
   BANNER_BUILD,
   BANNER_BUILD_SUB,
 } from "./phase-banner.ts";
+import {
+  beginHostBattle,
+  startHostBattleLifecycle,
+  tickHostBalloonAnim,
+  tickHostBattleCountdown,
+  tickHostBattlePhase,
+} from "./runtime-host-battle-ticks.ts";
+import {
+  tickHostBuildPhase,
+  tickHostCannonPhase,
+} from "./runtime-host-phase-ticks.ts";
 import type { RuntimeState } from "./runtime-state.ts";
+import type { GameRuntime } from "./runtime-types.ts";
 import type { BalloonFlight, GameState } from "./types.ts";
 import {
   BALLOON_FLIGHT_DURATION,
