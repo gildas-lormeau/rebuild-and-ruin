@@ -23,21 +23,26 @@ import {
   LOUPE_ZOOM,
 } from "./render-theme.ts";
 
-export interface LoupeHandle {
+interface LoupeHandle {
   /** Update the loupe content — call from render(). */
-  update: (visible: boolean, worldX: number, worldY: number, sceneCanvas: HTMLCanvasElement) => void;
+  update: (visible: boolean, worldX: number, worldY: number) => void;
 }
 
 /**
  * Find all loupe canvases within a container and return a handle
  * that draws to whichever is currently visible (has non-zero dimensions).
+ *
+ * @param getSceneCanvas - Returns the offscreen scene canvas to magnify.
+ *   Passed as a getter so it can be resolved lazily (the canvas may not
+ *   exist at createLoupe call time).
  */
-export function createLoupe(container: HTMLElement): LoupeHandle {
+export function createLoupe(container: HTMLElement, getSceneCanvas: () => HTMLCanvasElement): LoupeHandle {
   const canvases = Array.from(container.querySelectorAll<HTMLCanvasElement>("canvas.loupe"));
 
   let lastVisible = false;
 
-  function update(visible: boolean, worldX: number, worldY: number, sceneCanvas: HTMLCanvasElement): void {
+  function update(visible: boolean, worldX: number, worldY: number): void {
+    const sceneCanvas = getSceneCanvas();
     if (!visible) {
       if (lastVisible) {
         for (const c of canvases) c.classList.add("hidden");

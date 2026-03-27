@@ -76,6 +76,7 @@ import {
   PLAYER_NAMES,
 } from "./player-config.ts";
 import { loadAtlas } from "./render-sprites.ts";
+import { createCanvasRenderer } from "./renderer-canvas.ts";
 import { navigateTo } from "./router.ts";
 import {
   BANNER_DURATION,
@@ -90,6 +91,7 @@ import {
 } from "./types.ts";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+const renderer = createCanvasRenderer(canvas);
 const pageOnline = document.getElementById("page-online")!;
 const roomCodeOverlay = document.getElementById("room-code-overlay")!;
 // Lobby DOM elements — queried once, shared with initLobbyUi
@@ -195,7 +197,7 @@ const transitionCtx = {
   setGameOverFrame: (p: NonNullable<typeof runtime.rs.frame.gameOver>) => { runtime.rs.frame.gameOver = p; },
 };
 const runtime: GameRuntime = createGameRuntime({
-  canvas,
+  renderer,
   isOnline: true,
   send,
   getIsHost: () => session.isHost,
@@ -320,7 +322,7 @@ function maybeSendAimUpdate(x: number, y: number, playerId?: number): void {
 function showLobby(): void {
   runtime.rs.mode = Mode.STOPPED;
   runtime.rs.lobby.active = false;
-  canvas.parentElement!.classList.remove(GAME_CONTAINER_ACTIVE);
+  renderer.container.classList.remove(GAME_CONTAINER_ACTIVE);
   roomCodeOverlay.style.display = "none";
   navigateTo("/online");
   resetSession();
@@ -390,7 +392,7 @@ function showWaitingRoom(code: string, seed: number): void {
   session.roomSeed = seed;
   runtime.rs.settings.seed = String(seed);
   initWaitingRoom({
-    code, seed, lobbyEl: pageOnline, canvas, roomCodeOverlay,
+    code, seed, lobbyEl: pageOnline, container: renderer.container, roomCodeOverlay,
     lobby: runtime.rs.lobby,
     maxPlayers: MAX_PLAYERS,
     now: () => performance.now(),

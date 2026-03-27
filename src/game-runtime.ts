@@ -39,7 +39,7 @@ import {
 } from "./game-ui-types.ts";
 import { CANVAS_H, CANVAS_W, GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
-import { clientToCanvas, computeLetterboxLayout, dispatchPointerMove } from "./input-dispatch.ts";
+import { dispatchPointerMove } from "./input-dispatch.ts";
 import { hapticPhaseChange, setHapticsLevel } from "./input-haptics.ts";
 import { registerTouchHandlers } from "./input-touch.ts";
 import { createDpad, createEnemyZoomButton, createFloatingActions, createHomeZoomButton, createQuitButton } from "./input-touch-ui.ts";
@@ -68,8 +68,6 @@ import {
   type LobbyHit,
   lobbyClickHitTest,
 } from "./render-composition.ts";
-import { createLoupe, type LoupeHandle } from "./render-loupe.ts";
-import { drawMap, getSceneCanvas } from "./render-map.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
@@ -122,8 +120,8 @@ const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
 };
 
 export function createGameRuntime(config: RuntimeConfig): GameRuntime {
-  const { canvas } = config;
-  const gameContainer = canvas.parentElement as HTMLElement;
+  const { renderer } = config;
+  const { container: gameContainer } = renderer;
 
   // -------------------------------------------------------------------------
   // Mutable state (shared bag — see runtime-state.ts)
@@ -138,7 +136,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let homeZoomButton: ReturnType<typeof createHomeZoomButton> | null = null;
   let enemyZoomButton: ReturnType<typeof createEnemyZoomButton> | null = null;
   let quitButton: ReturnType<typeof createQuitButton> | null = null;
-  let loupeHandle: LoupeHandle | null = null;
+  let loupeHandle: ReturnType<NonNullable<typeof renderer.createLoupe>> | null = null;
 
   function resetGameStats() {
     rs.gameStats = Array.from({ length: MAX_PLAYERS }, () => ({
@@ -266,11 +264,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   function renderFrame(map: MapData, overlay: RenderOverlay | undefined, viewport?: Viewport | null): void {
-    if (config.render) {
-      config.render(map, overlay, viewport);
-    } else {
-      drawMap(map, canvas, overlay, viewport);
-    }
+    renderer.drawFrame(map, overlay, viewport);
   }
 
   // -------------------------------------------------------------------------
@@ -641,7 +635,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         wx = (cursor.col + pivotC + 0.5) * TILE_SIZE;
         wy = (cursor.row + pivotR + 0.5) * TILE_SIZE;
       }
-      loupeHandle.update(loupeVisible && human !== null, wx, wy, getSceneCanvas());
+      loupeHandle.update(loupeVisible && human !== null, wx, wy);
     }
 
     const hasHuman = firstHuman() !== null;
@@ -703,16 +697,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       wy = cursor.row * TILE_SIZE;
     }
 
-    // World-pixel → canvas backing-store pixel
+    // World-pixel → screen-pixel (camera), then → CSS relative to container
     const { sx, sy } = camera.worldToScreen(wx, wy);
-
-    // Canvas backing-store → CSS pixels relative to game container
-    const rect = canvas.getBoundingClientRect();
-    const containerRect = gameContainer.getBoundingClientRect();
-    const { contentW, contentH, offsetX, offsetY } = computeLetterboxLayout(canvas, rect);
-    const cssX = (sx / canvas.width) * contentW + offsetX + (rect.left - containerRect.left);
-    const cssY = (sy / canvas.height) * contentH + offsetY + (rect.top - containerRect.top);
-    const nearTop = cssY < contentH * 0.15;
+    const { x: cssX, y: cssY } = renderer.screenToContainerCSS(sx, sy);
+    const nearTop = cssY < gameContainer.clientHeight * 0.15;
     // Check placement validity from phantom data
     const phantomValid = phase === Phase.WALL_BUILD
       ? rs.frame.phantoms.humanPhantoms?.[0]?.valid ?? false
@@ -755,7 +743,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     quitButton?.update(null); // hide quit
     homeZoomButton?.update(false); // disable zoom buttons
     enemyZoomButton?.update(false);
-    loupeHandle?.update(false, 0, 0, getSceneCanvas()); // hide loupe before lobby takes over rendering
+    loupeHandle?.update(false, 0, 0); // hide loupe before lobby takes over rendering
     config.showLobby();
   }
 
@@ -896,7 +884,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   const uiCtx: UIContext = {
-    canvas,
     getState: () => rs.state,
     getOverlay: () => rs.overlay,
     settings: rs.settings,
@@ -923,7 +910,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function registerInputHandlers(): void {
     const inputDeps: RegisterOnlineInputDeps = {
-      canvas,
+      renderer,
       getState: () => rs.state,
       getMode: () => rs.mode,
       setMode: (m) => { rs.mode = m as Mode; },
@@ -1071,7 +1058,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           human.setCrosshair(px.x, px.y);
         },
       };
-      loupeHandle = createLoupe(gameContainer);
+      loupeHandle = renderer.createLoupe?.(gameContainer) ?? null;
       quitButton = createQuitButton({
         getQuitPending: () => rs.quitPending,
         setQuitPending: (v: boolean) => { rs.quitPending = v; },
@@ -1099,7 +1086,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           onDrag: (clientX, clientY) => {
             const state = rs.state;
             if (!state) return;
-            const { x, y } = clientToCanvas(clientX, clientY, canvas);
+            const { x, y } = renderer.clientToSurface(clientX, clientY);
             dispatchPointerMove(x, y, state, inputDeps);
           },
         }, floatingEl);

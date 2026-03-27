@@ -20,7 +20,6 @@ import type { OptionEntry, RenderOverlay } from "./render-types.ts";
 import { type GameState, LOBBY_SKIP_LOCKOUT, LOBBY_SKIP_STEP, type Mode } from "./types.ts";
 
 export interface UIContext {
-  canvas: HTMLCanvasElement;
   getState: () => GameState | undefined;
   getOverlay: () => RenderOverlay;
   settings: GameSettings;

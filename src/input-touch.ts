@@ -7,7 +7,7 @@
 
 import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
-import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, isGameInteractionMode, markTouchTime } from "./input-dispatch.ts";
+import { dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, isGameInteractionMode, markTouchTime } from "./input-dispatch.ts";
 import { cannonSize } from "./spatial.ts";
 import { isPlacementPhase, isReselectPhase, isSelectionPhase, Phase } from "./types.ts";
 
@@ -17,7 +17,7 @@ const TAP_MAX_TIME = 300;
 
 export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   const {
-    canvas,
+    renderer,
     getState,
     getMode,
     isLobbyActive,
@@ -40,7 +40,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   let suppressSingleTouch = false;
 
   function canvasCoords(touch: Touch): { x: number; y: number } {
-    return clientToCanvas(touch.clientX, touch.clientY, canvas);
+    return renderer.clientToSurface(touch.clientX, touch.clientY);
   }
 
   function isTap(touch: Touch): boolean {
@@ -52,7 +52,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   }
 
   // --- touchstart: record gesture start + update cursor position ---
-  canvas.addEventListener("touchstart", (e) => {
+  renderer.eventTarget.addEventListener("touchstart", (e) => {
     e.preventDefault();
     phantomTapped = false;
 
@@ -103,7 +103,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   }, { passive: false });
 
   // --- touchmove: update cursor/crosshair as finger drags ---
-  canvas.addEventListener("touchmove", (e) => {
+  renderer.eventTarget.addEventListener("touchmove", (e) => {
     e.preventDefault();
 
     // Two-finger pinch move
@@ -129,7 +129,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   }, { passive: false });
 
   // --- touchend: tap = commit action, drag-release = fire in battle only ---
-  canvas.addEventListener("touchend", (e) => {
+  renderer.eventTarget.addEventListener("touchend", (e) => {
     e.preventDefault();
 
     // Pinch end
@@ -176,14 +176,14 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   }, { passive: false });
 
   // Reset pinch state if OS cancels touches (e.g. phone call, gesture conflict)
-  canvas.addEventListener("touchcancel", () => {
+  renderer.eventTarget.addEventListener("touchcancel", () => {
     if (pinchActive) onPinchEnd?.();
     pinchActive = false;
     suppressSingleTouch = false;
   });
 
   // Prevent long-press context menu
-  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+  renderer.eventTarget.addEventListener("contextmenu", (e) => e.preventDefault());
 }
 
 /** Check whether a tile position overlaps the current piece/cannon phantom. */

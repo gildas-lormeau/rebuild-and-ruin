@@ -1,13 +1,14 @@
 import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
 import type { WorldPos } from "./geometry-types.ts";
-import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, isGameInteractionMode, isTouchSuppressed, type ModeValues } from "./input-dispatch.ts";
+import { dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, isGameInteractionMode, isTouchSuppressed, type ModeValues } from "./input-dispatch.ts";
 import { LifeLostChoice, type LifeLostDialogState, type ResolvedChoice } from "./life-lost.ts";
 import { ACTION_KEYS, applyKeyRebinding, type KeyBindings, MAX_PLAYERS, SEED_CUSTOM, SEED_RANDOM, type SeedMode } from "./player-config.ts";
+import type { RendererInterface } from "./render-types.ts";
 import { findNearestTower } from "./spatial.ts";
 import { Action, type ControlsState, FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus, type GameState, isMovementAction, isPlacementPhase, isReselectPhase, isSelectionPhase, Phase, type SelectionState } from "./types.ts";
 
 export interface RegisterOnlineInputDeps {
-  canvas: HTMLCanvasElement;
+  renderer: RendererInterface;
   getState: () => GameState | undefined;
   getMode: () => number;
   setMode: (mode: number) => void;
@@ -83,7 +84,7 @@ export function registerOnlineInputHandlers(
   deps: RegisterOnlineInputDeps,
 ): void {
   const {
-    canvas,
+    renderer,
     getState,
     getMode,
     modeValues,
@@ -93,26 +94,26 @@ export function registerOnlineInputHandlers(
     screenToWorld,
   } = deps;
 
-  canvas.addEventListener("mousemove", (e) => {
+  renderer.eventTarget.addEventListener("mousemove", (e) => {
     const mode = getMode();
     if (mode === modeValues.LOBBY || mode === modeValues.STOPPED) {
-      canvas.style.cursor = "pointer";
+      renderer.eventTarget.style.cursor = "pointer";
     } else if (mode === modeValues.GAME) {
       const state = getState();
-      canvas.style.cursor = state?.phase === Phase.BATTLE ? "none" : "default";
+      renderer.eventTarget.style.cursor = state?.phase === Phase.BATTLE ? "none" : "default";
     } else {
-      canvas.style.cursor = "default";
+      renderer.eventTarget.style.cursor = "default";
     }
 
     const state = getState();
     if (!state || isLobbyActive()) return;
-    const { x, y } = clientToCanvas(e.clientX, e.clientY, canvas);
+    const { x, y } = renderer.clientToSurface(e.clientX, e.clientY);
     dispatchPointerMove(x, y, state, deps);
   });
 
-  canvas.addEventListener("click", (e) => {
+  renderer.eventTarget.addEventListener("click", (e) => {
     if (isTouchSuppressed()) return;
-    const { x, y } = clientToCanvas(e.clientX, e.clientY, canvas);
+    const { x, y } = renderer.clientToSurface((e as MouseEvent).clientX, (e as MouseEvent).clientY);
     const mode = getMode();
     const state = getState();
 

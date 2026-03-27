@@ -219,3 +219,28 @@ export interface Viewport {
   w: number;
   h: number;
 }
+
+/**
+ * Renderer abstraction — decouples game-runtime from Canvas 2D specifics.
+ * Implement this interface to swap in a WebGL / 3D renderer.
+ */
+export interface RendererInterface {
+  /** Draw one frame using whatever rendering backend is active. */
+  drawFrame(map: MapData, overlay: RenderOverlay | undefined, viewport?: Viewport | null): void;
+  /** Convert pointer event client coordinates to surface (world-pixel) coordinates. */
+  clientToSurface(clientX: number, clientY: number): { x: number; y: number };
+  /**
+   * Convert screen-pixel coordinates (post-camera) to CSS coordinates relative to
+   * the container element. Used to position floating action buttons over the surface.
+   */
+  screenToContainerCSS(sx: number, sy: number): { x: number; y: number };
+  /** The element that receives pointer/touch events and cursor-style changes. */
+  eventTarget: HTMLElement;
+  /** Container element — parent of the surface, holds touch panels and overlays. */
+  container: HTMLElement;
+  /**
+   * Optional loupe factory for touch devices.
+   * Omit if the renderer handles magnification natively.
+   */
+  createLoupe?: (container: HTMLElement) => { update(visible: boolean, worldX: number, worldY: number): void };
+}

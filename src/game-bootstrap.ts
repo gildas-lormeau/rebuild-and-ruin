@@ -12,7 +12,7 @@ interface InitWaitingRoomDeps {
   code: string;
   seed: number;
   lobbyEl: HTMLElement;
-  canvas: HTMLCanvasElement;
+  container: HTMLElement;
   roomCodeOverlay: HTMLElement;
   lobby: LobbyState;
   maxPlayers: number;
@@ -67,7 +67,7 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
     code,
     seed,
     lobbyEl,
-    canvas,
+    container,
     roomCodeOverlay,
     lobby,
     maxPlayers,
@@ -79,7 +79,7 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
   } = deps;
 
   lobbyEl.hidden = true;
-  canvas.parentElement!.classList.add(GAME_CONTAINER_ACTIVE);
+  container.classList.add(GAME_CONTAINER_ACTIVE);
 
   roomCodeOverlay.style.display = "block";
   roomCodeOverlay.innerHTML = "";

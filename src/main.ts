@@ -10,12 +10,14 @@ import { createGameRuntime } from "./game-runtime.ts";
 import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./game-ui-types.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 import { loadAtlas } from "./render-sprites.ts";
+import { createCanvasRenderer } from "./renderer-canvas.ts";
 import { LOBBY_TIMER, Mode } from "./types.ts";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+const renderer = createCanvasRenderer(canvas);
 const emptySet = new Set<number>();
 const runtime = createGameRuntime({
-  canvas,
+  renderer,
   send: () => {},
   getIsHost: () => true,
   getMyPlayerId: () => -1,
@@ -42,7 +44,7 @@ const atlasReady = loadAtlas().catch((e) => { console.warn("[local] sprite atlas
 
 /** Enter the local lobby. Waits for sprite atlas on first call. */
 export function enterLocalLobby(): void {
-  canvas.parentElement!.classList.add(GAME_CONTAINER_ACTIVE);
+  renderer.container.classList.add(GAME_CONTAINER_ACTIVE);
   void atlasReady.then(() => showLobby());
 }
 

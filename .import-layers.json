@@ -93,7 +93,8 @@
       "src/render-towers.ts",
       "src/render-composition.ts",
       "src/render-ui.ts",
-      "src/render-map.ts"
+      "src/render-map.ts",
+      "src/renderer-canvas.ts"
     ]
   },
   {
