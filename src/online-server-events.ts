@@ -44,6 +44,20 @@ interface HandleServerIncrementalDeps {
     col: number,
     mode: string,
   ) => void;
+  canApplyPiecePlacement: (
+    state: GameState,
+    playerId: number,
+    offsets: readonly [number, number][],
+    row: number,
+    col: number,
+  ) => boolean;
+  canApplyCannonPlacement: (
+    state: GameState,
+    playerId: number,
+    row: number,
+    col: number,
+    mode: string,
+  ) => boolean;
   applyImpactEvent: (state: GameState, event: ImpactEvent) => void;
   gridCols: number;
   remoteCrosshairs: Map<number, PixelPos>;
@@ -74,7 +88,8 @@ export function handleServerIncrementalMessage(
       if (msg.towerIdx < 0 || msg.towerIdx >= state.map.towers.length) return true;
       if (acceptRemote(msg.playerId, deps)) {
         const tower = state.map.towers[msg.towerIdx];
-        if (tower) {
+        const expectedZone: number | undefined = state.playerZones[msg.playerId];
+        if (tower && expectedZone !== undefined && tower.zone === expectedZone) {
           const player = state.players[msg.playerId]!;
           player.homeTower = tower;
           player.ownedTowers = [tower];
@@ -98,6 +113,10 @@ export function handleServerIncrementalMessage(
       if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return true;
       if (acceptRemote(msg.playerId, deps)) {
+        if (deps.isHost && !deps.canApplyPiecePlacement(state, msg.playerId, msg.offsets, msg.row, msg.col)) {
+          deps.log(`piece_placed: rejected invalid placement for P${msg.playerId}`);
+          return true;
+        }
         deps.log(
           `applying piece placement for P${msg.playerId} (${msg.offsets.length} tiles)`,
         );
@@ -117,6 +136,10 @@ export function handleServerIncrementalMessage(
       if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (!VALID_CANNON_MODES.has(msg.mode)) return true;
       if (acceptRemote(msg.playerId, deps)) {
+        if (deps.isHost && !deps.canApplyCannonPlacement(state, msg.playerId, msg.row, msg.col, msg.mode)) {
+          deps.log(`cannon_placed: rejected invalid placement for P${msg.playerId}`);
+          return true;
+        }
         deps.applyCannonPlacement(
           state,
           msg.playerId,

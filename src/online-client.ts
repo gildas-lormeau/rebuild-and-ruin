@@ -17,8 +17,8 @@ import {
 } from "../server/protocol.ts";
 import { autoPlaceCannons } from "./ai-strategy.ts";
 import { applyImpactEvent } from "./battle-system.ts";
-import { applyPiecePlacement } from "./build-system.ts";
-import { applyCannonPlacement } from "./cannon-system.ts";
+import { applyPiecePlacement, canPlacePieceOffsets } from "./build-system.ts";
+import { applyCannonPlacement, cannonSlotCost, cannonSlotsUsed, canPlaceCannon } from "./cannon-system.ts";
 import { createController } from "./controller-factory.ts";
 import { bootstrapGame, initWaitingRoom } from "./game-bootstrap.ts";
 import {
@@ -454,8 +454,18 @@ function buildIncrementalDeps() {
     finishReselection: () => runtime.selection.finishReselection(),
     finishSelection: () => runtime.selection.finish(),
     applyPiecePlacement,
+    canApplyPiecePlacement: (state: import("./types.ts").GameState, playerId: number, offsets: readonly [number, number][], row: number, col: number) =>
+      canPlacePieceOffsets(state, playerId, offsets, row, col),
     applyCannonPlacement: (state: import("./types.ts").GameState, playerId: number, row: number, col: number, mode: string) => {
       applyCannonPlacement(state.players[playerId]!, row, col, mode as CannonMode, state);
+    },
+    canApplyCannonPlacement: (state: import("./types.ts").GameState, playerId: number, row: number, col: number, mode: string) => {
+      const player = state.players[playerId];
+      if (!player) return false;
+      const maxCannons = state.cannonLimits[playerId] ?? 0;
+      const normalizedMode = mode as CannonMode;
+      if (cannonSlotsUsed(player) + cannonSlotCost({ kind: normalizedMode }) > maxCannons) return false;
+      return canPlaceCannon(player, row, col, normalizedMode, state);
     },
     applyImpactEvent,
     gridCols: GRID_COLS,

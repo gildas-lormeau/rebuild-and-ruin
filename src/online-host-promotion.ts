@@ -10,8 +10,10 @@
 import { createController } from "./controller-factory.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import type { TimerAccums } from "./game-ui-types.ts";
-import { MAX_UINT32 } from "./rng.ts";
 import { BATTLE_TIMER, type GameState, Phase } from "./types.ts";
+
+const SEED_ROUND_MULTIPLIER = 1000003;
+const SEED_SLOT_MULTIPLIER = 0x9e3779b9;
 
 /**
  * Replace non-self controllers with fresh AI and initialize them for
@@ -27,7 +29,7 @@ export function rebuildControllersForPhase(
     const player = state.players[i];
     if (!player || player.eliminated) continue;
 
-    const strategySeed = state.rng.int(0, MAX_UINT32);
+    const strategySeed = (state.rng.seed + state.round * SEED_ROUND_MULTIPLIER + i * SEED_SLOT_MULTIPLIER) >>> 0;
     controllers[i] = createController(i, true, undefined, strategySeed);
 
     // Initialize AI for the current phase

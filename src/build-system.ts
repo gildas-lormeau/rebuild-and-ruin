@@ -25,8 +25,13 @@ export function placePiece(state: GameState, playerId: number, piece: PieceShape
  * All piece tiles must be on grass, not on any player's walls, not on towers, cannons, grunts, or burning pits.
  */
 export function canPlacePiece(state: GameState, playerId: number, piece: PieceShape, row: number, col: number, excludeInterior?: Set<number>): boolean {
+  return canPlacePieceOffsets(state, playerId, piece.offsets, row, col, excludeInterior);
+}
+
+/** Same as canPlacePiece but accepts raw offsets — used when no PieceShape is available (e.g. network validation). */
+export function canPlacePieceOffsets(state: GameState, playerId: number, offsets: readonly [number, number][], row: number, col: number, excludeInterior?: Set<number>): boolean {
   const playerZone = state.players[playerId]?.homeTower?.zone;
-  for (const [dr, dc] of piece.offsets) {
+  for (const [dr, dc] of offsets) {
     const r = row + dr;
     const c = col + dc;
     if (!inBounds(r, c)) return false;

@@ -214,7 +214,7 @@ export function getActiveFiringCannons(player: Player): Cannon[] {
   );
 }
 
-function cannonSlotCost(cannon: Pick<Cannon, "kind">): number {
+export function cannonSlotCost(cannon: Pick<Cannon, "kind">): number {
   switch (cannon.kind) {
     case CannonMode.BALLOON: return BALLOON_COST;
     case CannonMode.SUPER: return SUPER_GUN_COST;
