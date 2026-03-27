@@ -5,14 +5,14 @@ const DEFAULT_SERVER_HOST = "rebuild-and-ruin.gildas-lormeau.deno.net";
 const LOCAL_HOST_PATTERN = /^(?:localhost|127\.|192\.|10\.|0\.0\.0\.0)/;
 
 /** Get the full WebSocket URL for the game server. */
-export function getWsUrl(): string {
+export function computeWsUrl(): string {
   const host = getServerHost();
   const proto = LOCAL_HOST_PATTERN.test(host) ? "ws:" : "wss:";
   return `${proto}//${host}/ws/play`;
 }
 
 /** Get the HTTP base URL for the game server API. */
-export function getApiUrl(path: string): string {
+export function computeApiUrl(path: string): string {
   const host = getServerHost();
   const proto = LOCAL_HOST_PATTERN.test(host) ? "http:" : "https:";
   return `${proto}//${host}${path}`;

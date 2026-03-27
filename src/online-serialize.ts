@@ -27,7 +27,7 @@ export function applyHousesCheckpoint(
   }
 }
 
-export function buildBuildStartMessage(state: GameState) {
+export function createBuildStartMessage(state: GameState) {
   return {
     type: MSG.BUILD_START,
     round: state.round,
@@ -42,7 +42,7 @@ export function buildBuildStartMessage(state: GameState) {
   };
 }
 
-export function buildCannonStartMessage(state: GameState) {
+export function createCannonStartMessage(state: GameState) {
   return {
     type: MSG.CANNON_START,
     timer: state.timer,
@@ -56,7 +56,7 @@ export function buildCannonStartMessage(state: GameState) {
   };
 }
 
-export function buildBattleStartMessage(
+export function createBattleStartMessage(
   state: GameState,
   flights?: readonly BalloonFlight[],
 ) {
@@ -81,7 +81,7 @@ export function buildBattleStartMessage(
   };
 }
 
-export function buildFullStateMessage(
+export function createFullStateMessage(
   state: GameState,
   migrationSeq: number,
   flights?: readonly { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[],
@@ -273,7 +273,7 @@ export function applyGruntsCheckpoint(
   state.grunts = serialized.map(deserializeGrunt);
 }
 
-export function buildGameOverPayload(
+export function createGameOverPayload(
   winner: { id: number } | null,
   state: GameState,
   playerNames: ReadonlyArray<string>,

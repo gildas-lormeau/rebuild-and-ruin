@@ -12,7 +12,7 @@ import { countdownAnnouncement } from "./battle-system.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import type { TilePos } from "./geometry-types.ts";
-import { buildCannonFiredMsg } from "./online-send-actions.ts";
+import { createCannonFiredMsg } from "./online-send-actions.ts";
 import type { WatcherTimingState } from "./online-types.ts";
 import { BANNER_BATTLE, BANNER_BATTLE_SUB, type BannerShow } from "./phase-banner.ts";
 import { getRemoteSlots, type HostNetContext, localActiveControllers } from "./tick-context.ts";
@@ -136,7 +136,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
 
   if (isHost && sendMessage) {
     for (let i = ballsBefore; i < state.cannonballs.length; i++) {
-      sendMessage(buildCannonFiredMsg(state.cannonballs[i]!));
+      sendMessage(createCannonFiredMsg(state.cannonballs[i]!));
     }
   }
 

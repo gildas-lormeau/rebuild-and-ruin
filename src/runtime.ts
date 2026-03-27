@@ -15,11 +15,11 @@ import {
 } from "./game-ui-runtime.ts";
 import type { UIContext } from "./game-ui-screens.ts";
 import {
-  buildControlsOverlay,
-  buildLobbyOverlay,
-  buildOptionsOverlay,
   closeControls as closeControlsShared,
   closeOptions as closeOptionsShared,
+  createControlsOverlay,
+  createLobbyOverlay,
+  createOptionsOverlay,
   lobbyKeyJoin as lobbyKeyJoinShared,
   lobbySkipStep,
   showControls as showControlsShared,
@@ -56,11 +56,11 @@ import {
   PLAYER_NAMES,
 } from "./player-config.ts";
 import {
-  buildBannerUi,
-  buildOnlineOverlay,
-  buildRenderSummaryMessage,
-  buildStatusBar,
   computeLobbyLayout,
+  createBannerUi,
+  createOnlineOverlay,
+  createRenderSummaryMessage,
+  createStatusBar,
   gameOverButtonHitTest,
   type LobbyHit,
   lobbyClickHitTest,
@@ -277,7 +277,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function renderLobby(): void {
     if (!rs.lobby.map) refreshLobbySeed();
-    const { map, overlay } = buildLobbyOverlay(uiCtx);
+    const { map, overlay } = createLobbyOverlay(uiCtx);
     renderFrame(map, overlay);
   }
 
@@ -404,7 +404,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function renderOptions(): void {
-    const { map, overlay } = buildOptionsOverlay(uiCtx);
+    const { map, overlay } = createOptionsOverlay(uiCtx);
     renderFrame(map, overlay);
   }
 
@@ -430,7 +430,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   function renderControls(): void {
-    const { map, overlay } = buildControlsOverlay(uiCtx);
+    const { map, overlay } = createControlsOverlay(uiCtx);
     renderFrame(map, overlay);
   }
 
@@ -568,7 +568,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const selH = rs.overlay.selection?.highlights;
     config.logThrottled(
       "render-summary",
-      buildRenderSummaryMessage({
+      createRenderSummaryMessage({
         phaseName: Phase[rs.state.phase],
         timer: rs.state.timer,
         crosshairs: chList,
@@ -586,9 +586,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       phaseTicks.syncCrosshairs(rs.state.battleCountdown <= 0);
     }
 
-    const bannerUi = buildBannerUi(rs.banner.active, rs.banner.text, rs.banner.progress, rs.banner.subtitle);
+    const bannerUi = createBannerUi(rs.banner.active, rs.banner.text, rs.banner.progress, rs.banner.subtitle);
 
-    rs.overlay = buildOnlineOverlay({
+    rs.overlay = createOnlineOverlay({
       previousSelection: rs.overlay.selection,
       state: rs.state,
       banner: rs.banner,
@@ -603,7 +603,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     // Status bar (rendered inside canvas)
     if (rs.overlay.ui) {
-      rs.overlay.ui.statusBar = buildStatusBar(rs.state, PLAYER_COLORS);
+      rs.overlay.ui.statusBar = createStatusBar(rs.state, PLAYER_COLORS);
     }
 
     // Add score deltas to overlay (shown briefly before Place Cannons banner)

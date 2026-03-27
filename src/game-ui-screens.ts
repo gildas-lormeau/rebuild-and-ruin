@@ -43,7 +43,7 @@ export interface UIContext {
 
 const CONTROL_ACTION_NAMES: readonly string[] = ["Up", "Down", "Left", "Right", "Confirm", "Rotate"];
 
-export function buildOptionsOverlay(ctx: UIContext): { map: GameMap; overlay: RenderOverlay } {
+export function createOptionsOverlay(ctx: UIContext): { map: GameMap; overlay: RenderOverlay } {
   const lobbyMap = ctx.lobby.map ?? generateMap(ctx.lobby.seed);
   const readOnly = ctx.getOptionsReturnMode() !== null;
   const visible = visibleOptions(ctx);
@@ -86,7 +86,7 @@ export function closeOptions(ctx: UIContext, modeValues: { LOBBY: Mode; GAME: Mo
   }
 }
 
-export function buildControlsOverlay(ctx: UIContext): { map: GameMap; overlay: RenderOverlay } {
+export function createControlsOverlay(ctx: UIContext): { map: GameMap; overlay: RenderOverlay } {
   const lobbyMap = ctx.lobby.map ?? generateMap(ctx.lobby.seed);
   const cs = ctx.controlsState;
   const players = PLAYER_NAMES.map((name, p) => {
@@ -143,7 +143,7 @@ export function tickLobby(ctx: UIContext, onExpired: () => void): void {
   }
 }
 
-export function buildLobbyOverlay(ctx: UIContext): { map: GameMap; overlay: RenderOverlay } {
+export function createLobbyOverlay(ctx: UIContext): { map: GameMap; overlay: RenderOverlay } {
   const remaining = Math.max(0, ctx.getLobbyRemaining());
   const overlay: RenderOverlay = {
     selection: { highlighted: null, selected: null },

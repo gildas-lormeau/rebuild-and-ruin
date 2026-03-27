@@ -28,7 +28,7 @@ import {
 import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./game-ui-types.ts";
 import { GRID_COLS } from "./grid.ts";
 import { LifeLostChoice } from "./life-lost.ts";
-import { getWsUrl } from "./online-config.ts";
+import { computeWsUrl } from "./online-config.ts";
 import { broadcastLocalCrosshair, extendWithRemoteCrosshairs } from "./online-host-crosshairs.ts";
 import { rebuildControllersForPhase, syncAccumulatorsFromTimer } from "./online-host-promotion.ts";
 import { initLobbyUi } from "./online-lobby-ui.ts";
@@ -48,11 +48,11 @@ import {
 import {
   applyFullStateSnapshot,
   applyPlayersCheckpoint,
-  buildBattleStartMessage,
-  buildBuildStartMessage,
-  buildCannonStartMessage,
-  buildFullStateMessage,
-  buildGameOverPayload,
+  createBattleStartMessage,
+  createBuildStartMessage,
+  createCannonStartMessage,
+  createFullStateMessage,
+  createGameOverPayload,
   serializePlayers,
 } from "./online-serialize.ts";
 import { handleServerIncrementalMessage } from "./online-server-events.ts";
@@ -249,9 +249,9 @@ const runtime: GameRuntime = createGameRuntime({
     }),
   hostNetworking: {
     serializePlayers,
-    buildCannonStartMessage,
-    buildBattleStartMessage,
-    buildBuildStartMessage,
+    createCannonStartMessage,
+    createBattleStartMessage,
+    createBuildStartMessage,
     remoteCannonPhantoms: () => watcher.remoteCannonPhantoms,
     remotePiecePhantoms: () => watcher.remotePiecePhantoms,
     lastSentCannonPhantom: () => dedup.cannonPhantom,
@@ -263,7 +263,7 @@ const runtime: GameRuntime = createGameRuntime({
   tryPlacePieceAndSend: (ctrl, gs) => tryPlacePieceAndSendAction(ctrl, gs, send),
   fireAndSend: (ctrl, gs) => fireAndSendAction(ctrl, gs, send),
   onEndGame: (winner, gameState) => {
-    const payloads = buildGameOverPayload(winner, gameState, PLAYER_NAMES);
+    const payloads = createGameOverPayload(winner, gameState, PLAYER_NAMES);
     log(`endGame winner=${payloads.winnerName} round=${gameState.round} battleLength=${gameState.battleLength}`);
     if (session.isHost) send(payloads.serverPayload);
   },
@@ -282,7 +282,7 @@ function logThrottled(key: string, msg: string): void {
 }
 
 function connect(): void {
-  connectWebSocket(session, getWsUrl(), {
+  connectWebSocket(session, computeWsUrl(), {
     onMessage: (msg) => {
       if (reconnectAttempt > 0) {
         log(`reconnected after ${reconnectAttempt} attempt(s)`);
@@ -486,7 +486,7 @@ function promoteToHost(): void {
   syncAccumulatorsFromTimer(runtime.rs.state, runtime.rs.accum);
   skipPendingAnimations();
 
-  send(buildFullStateMessage(runtime.rs.state, session.hostMigrationSeq, runtime.rs.battleAnim.flights));
+  send(createFullStateMessage(runtime.rs.state, session.hostMigrationSeq, runtime.rs.battleAnim.flights));
   log("Promotion complete, now running as host");
 }
 

@@ -47,7 +47,7 @@ export const GAMEOVER_HEADER_H = 36;
 export const GAMEOVER_BTN_H = 20;
 export const GAMEOVER_COL_RATIOS = [0.38, 0.56, 0.74, 0.92] as const;
 
-export function buildRenderSummaryMessage(params: {
+export function createRenderSummaryMessage(params: {
   phaseName: string;
   timer: number;
   crosshairs: Array<{ x: number; y: number; playerId: number }>;
@@ -86,7 +86,7 @@ export function buildRenderSummaryMessage(params: {
   return `render: phase=${phaseName} ch=${crosshairs.length}[${crosshairDetail}] phantoms=${phantomCount} impacts=${impactsCount} balls=${cannonballsCount} timer=${timer.toFixed(0)}${selectionDetail}`;
 }
 
-export function buildBannerUi(
+export function createBannerUi(
   active: boolean,
   text: string,
   progress: number,
@@ -104,7 +104,7 @@ export function buildBannerUi(
   };
 }
 
-export function buildStatusBar(state: GameState, playerColors: readonly { interiorLight: RGB }[]) {
+export function createStatusBar(state: GameState, playerColors: readonly { interiorLight: RGB }[]) {
   return {
     round: state.battleLength === Infinity ? `R${state.round}` : `R${state.round}/${state.battleLength}`,
     phase: PHASE_LABELS.get(state.phase) ?? "",
@@ -214,7 +214,7 @@ export function lifeLostPanelPos(
   };
 }
 
-export function buildOnlineOverlay(params: {
+export function createOnlineOverlay(params: {
   previousSelection: RenderOverlay["selection"];
   state: GameState;
   banner: Pick<BannerState, "active" | "oldCastles" | "oldTerritory" | "oldWalls" | "oldHouses" | "oldBonusSquares" | "newTerritory" | "newWalls">;

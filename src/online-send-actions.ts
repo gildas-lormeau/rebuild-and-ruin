@@ -54,11 +54,11 @@ export function fireAndSend(
   ctrl.fire(gameState);
 
   if (gameState.cannonballs.length > ballsBefore) {
-    send(buildCannonFiredMsg(gameState.cannonballs[gameState.cannonballs.length - 1]!));
+    send(createCannonFiredMsg(gameState.cannonballs[gameState.cannonballs.length - 1]!));
   }
 }
 
-export function buildCannonFiredMsg(ball: {
+export function createCannonFiredMsg(ball: {
   playerId: number; cannonIdx: number;
   startX: number; startY: number; targetX: number; targetY: number;
   speed: number; incendiary?: boolean;

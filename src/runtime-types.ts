@@ -56,9 +56,9 @@ export interface RuntimeConfig {
   /** Host-only networking state for tick functions (phantom merging, checkpoints). */
   hostNetworking?: {
     serializePlayers: (state: GameState) => SerializedPlayer[];
-    buildCannonStartMessage: (state: GameState) => ServerMessage;
-    buildBattleStartMessage: (state: GameState, flights: readonly BalloonFlight[]) => ServerMessage;
-    buildBuildStartMessage: (state: GameState) => ServerMessage;
+    createCannonStartMessage: (state: GameState) => ServerMessage;
+    createBattleStartMessage: (state: GameState, flights: readonly BalloonFlight[]) => ServerMessage;
+    createBuildStartMessage: (state: GameState) => ServerMessage;
     remoteCannonPhantoms: () => readonly CannonPhantom[];
     remotePiecePhantoms: () => readonly PiecePhantom[];
     lastSentCannonPhantom: () => Map<number, string>;

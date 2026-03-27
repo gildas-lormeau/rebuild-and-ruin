@@ -1,5 +1,5 @@
 import { type ClientMessage, MSG } from "../server/protocol.ts";
-import { getApiUrl } from "./online-config.ts";
+import { computeApiUrl } from "./online-config.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 
 interface LobbyElements {
@@ -132,7 +132,7 @@ export function initLobbyUi({
     };
 
     const fetchRooms = () => {
-      fetch(getApiUrl("/api/rooms"))
+      fetch(computeApiUrl("/api/rooms"))
         .then(r => r.json())
         .then(renderRoomList)
         .catch(() => {

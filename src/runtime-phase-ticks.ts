@@ -55,9 +55,9 @@ interface PhaseTicksDeps {
   log: (msg: string) => void;
   hostNetworking?: {
     serializePlayers: (state: GameState) => SerializedPlayer[];
-    buildCannonStartMessage: (state: GameState) => GameMessage;
-    buildBattleStartMessage: (state: GameState, flights: readonly BalloonFlight[]) => GameMessage;
-    buildBuildStartMessage: (state: GameState) => GameMessage;
+    createCannonStartMessage: (state: GameState) => GameMessage;
+    createBattleStartMessage: (state: GameState, flights: readonly BalloonFlight[]) => GameMessage;
+    createBuildStartMessage: (state: GameState) => GameMessage;
     remoteCannonPhantoms: () => readonly CannonPhantom[];
     remotePiecePhantoms: () => readonly PiecePhantom[];
     lastSentCannonPhantom: () => Map<number, string>;
@@ -126,7 +126,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     rs.accum.cannon = 0;
     rs.state.timer = rs.state.cannonPlaceTimer;
     if (rs.ctx.isHost && deps.hostNetworking) {
-      deps.send(deps.hostNetworking.buildCannonStartMessage(rs.state));
+      deps.send(deps.hostNetworking.createCannonStartMessage(rs.state));
     }
   }
 
@@ -151,7 +151,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       net: deps.hostNetworking ? {
         isHost: rs.ctx.isHost,
         sendBattleStart: (flights) => {
-          deps.send(deps.hostNetworking!.buildBattleStartMessage(rs.state, flights));
+          deps.send(deps.hostNetworking!.createBattleStartMessage(rs.state, flights));
         },
       } : undefined,
     });
@@ -260,7 +260,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         );
         nextPhase(rs.state);
         if (rs.ctx.isHost && deps.hostNetworking) {
-          deps.send(deps.hostNetworking.buildBuildStartMessage(rs.state));
+          deps.send(deps.hostNetworking.createBuildStartMessage(rs.state));
         }
       },
       net: {
