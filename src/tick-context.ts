@@ -22,7 +22,7 @@ export function getRemoteSlots(net?: Pick<HostNetContext, "remoteHumanSlots">): 
 
 /** Filter controllers to only local (non-remote) players that are still alive. */
 export function localActiveControllers(
-  controllers: PlayerController[],
+  controllers: readonly PlayerController[],
   remoteHumanSlots: ReadonlySet<number>,
   state: GameState,
 ): PlayerController[] {

@@ -33,7 +33,7 @@ interface HandleServerIncrementalDeps {
   applyPiecePlacement: (
     state: GameState,
     playerId: number,
-    offsets: [number, number][],
+    offsets: readonly [number, number][],
     row: number,
     col: number,
   ) => void;
@@ -48,10 +48,10 @@ interface HandleServerIncrementalDeps {
   gridCols: number;
   remoteCrosshairs: Map<number, PixelPos>;
   watcherOrbitParams: Map<number, OrbitParams>;
-  getRemotePiecePhantoms: () => PiecePhantom[];
-  setRemotePiecePhantoms: (value: PiecePhantom[]) => void;
-  getRemoteCannonPhantoms: () => CannonPhantom[];
-  setRemoteCannonPhantoms: (value: CannonPhantom[]) => void;
+  getRemotePiecePhantoms: () => readonly PiecePhantom[];
+  setRemotePiecePhantoms: (value: readonly PiecePhantom[]) => void;
+  getRemoteCannonPhantoms: () => readonly CannonPhantom[];
+  setRemoteCannonPhantoms: (value: readonly CannonPhantom[]) => void;
   getLifeLostDialog: () => LifeLostChoiceDialog | null;
   queueEarlyLifeLostChoice: (playerId: number, choice: LifeLostChoice) => void;
 }
@@ -262,10 +262,10 @@ function validPid(pid: number, state: GameState): boolean {
 
 /** Replace or append a phantom entry for `playerId` in an array, then persist via `set`. */
 function setPhantom<T extends { playerId: number }>(
-  current: T[],
+  current: readonly T[],
   playerId: number,
   next: T,
-  set: (value: T[]) => void,
+  set: (value: readonly T[]) => void,
 ): void {
   const updated = current.filter((p) => p.playerId !== playerId);
   updated.push(next);

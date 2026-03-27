@@ -18,7 +18,7 @@ export interface LifeLostDialogState {
 
 interface ResolveLifeLostDialogDeps {
   lifeLostDialog: LifeLostDialogState | null;
-  afterLifeLostResolved: (continuing: number[]) => boolean;
+  afterLifeLostResolved: (continuing: readonly number[]) => boolean;
 }
 
 interface TickLifeLostDialogDeps {
@@ -36,8 +36,8 @@ interface TickLifeLostDialogDeps {
 }
 
 interface BuildLifeLostDialogDeps {
-  needsReselect: number[];
-  eliminated: number[];
+  needsReselect: readonly number[];
+  eliminated: readonly number[];
   state: GameState;
   isHost: boolean;
   myPlayerId: number;
@@ -47,9 +47,9 @@ interface BuildLifeLostDialogDeps {
 
 interface ResolveAfterLifeLostDeps {
   state: GameState;
-  continuing: number[];
+  continuing: readonly number[];
   onEndGame: (winner: { id: number } | null) => void;
-  onStartReselection: (continuing: number[]) => void;
+  onStartReselection: (continuing: readonly number[]) => void;
   onAdvanceToCannonPhase: () => void;
 }
 

@@ -867,7 +867,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         s.firstRoundCannons = firstRoundCannons;
         rs.state = s;
       },
-      setControllers: (c: PlayerController[]) => { rs.controllers = c; },
+      setControllers: (c: readonly PlayerController[]) => { rs.controllers = [...c]; },
       resetUIState,
       createControllerForSlot: (i: number, gameState: GameState) => {
         const isAi = !rs.lobby.joined[i];

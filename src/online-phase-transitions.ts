@@ -32,7 +32,7 @@ interface TransitionContext {
   applyCannonStartData: (msg: ServerMessage) => void;
   applyBattleStartData: (msg: ServerMessage) => void;
   applyBuildStartData: (msg: ServerMessage) => void;
-  applyPlayersCheckpoint: (state: GameState, players: SerializedPlayer[]) => void;
+  applyPlayersCheckpoint: (state: GameState, players: readonly SerializedPlayer[]) => void;
   resetZoneState: (state: GameState, zone: number) => void;
 
   // Castle build
@@ -40,14 +40,14 @@ interface TransitionContext {
   enterCannonPlacePhase: (state: GameState) => void;
   getSelectionStates: () => Map<number, { highlighted: number; confirmed: boolean }>;
   setCastleBuildFromPlans: (
-    plans: { playerId: number; tiles: number[] }[],
+    plans: readonly { playerId: number; tiles: number[] }[],
     maxTiles: number,
     onDone: () => void,
   ) => void;
-  setCastleBuildViewport: (plans: { playerId: number; tiles: number[] }[]) => void;
+  setCastleBuildViewport: (plans: readonly { playerId: number; tiles: number[] }[]) => void;
 
   // Battle flights
-  setBattleFlights: (value: { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[]) => void;
+  setBattleFlights: (value: readonly { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[]) => void;
   snapshotTerritory: () => Set<number>[];
 
   // Battle
@@ -55,9 +55,9 @@ interface TransitionContext {
   aimAtEnemyCastle?: () => void;
 
   // Life-lost / game over
-  showLifeLostDialog: (needsReselect: number[], eliminated: number[]) => void;
+  showLifeLostDialog: (needsReselect: readonly number[], eliminated: readonly number[]) => void;
   /** Show score delta animation, calling onDone when complete (or immediately if no deltas). */
-  showScoreDeltas: (preScores: number[], onDone: () => void) => void;
+  showScoreDeltas: (preScores: readonly number[], onDone: () => void) => void;
   render: () => void;
   setGameOverFrame: (payload: { winner: string; scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: { wallsDestroyed: number; cannonsKilled: number } }[]; focused: GameOverFocus }) => void;
 }

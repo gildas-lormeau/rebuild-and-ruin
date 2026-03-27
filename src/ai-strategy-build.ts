@@ -460,7 +460,7 @@ export function pickPlacementImpl(
     }
   }
 
-  function scoreCandidates(topCandidates: Scored[], ctx: ScoringContext): { bestCandidate: Candidate; bestScore: number; evaluated: boolean } {
+  function scoreCandidates(topCandidates: readonly Scored[], ctx: ScoringContext): { bestCandidate: Candidate; bestScore: number; evaluated: boolean } {
     const anyHasWallAdjacent = topCandidates.some(
       (s) => s.candidate.wallAdjacent > 0 || s.candidate.connectedTiles > 0,
     );

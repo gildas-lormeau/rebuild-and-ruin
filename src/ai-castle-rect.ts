@@ -239,7 +239,7 @@ export function findGapTiles(
 export function castleRect(
   t: Tower,
   tiles: readonly (readonly Tile[])[],
-  towers: Tower[],
+  towers: readonly Tower[],
   margin: number,
   shrinkCorners = true,
 ): TileRect {
@@ -399,7 +399,7 @@ function addBankPlugGaps(
   rect: TileRect,
   walls: Set<number>,
   tiles: readonly (readonly Tile[])[],
-  burningPits?: BurningPit[],
+  burningPits?: readonly BurningPit[],
   includeWater = true,
 ): void {
   const ringTop = rect.top - 1,

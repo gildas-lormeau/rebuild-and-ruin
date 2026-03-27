@@ -169,14 +169,14 @@ const transitionCtx = {
   finalizeCastleConstruction,
   enterCannonPlacePhase,
   getSelectionStates: () => runtime.selection.getStates(),
-  setCastleBuildFromPlans: (plans: { playerId: number; tiles: number[] }[], maxTiles: number, onDone: () => void) => {
+  setCastleBuildFromPlans: (plans: readonly { playerId: number; tiles: number[] }[], maxTiles: number, onDone: () => void) => {
     runtime.rs.castleBuilds.push({ wallPlans: plans, maxTiles, tileIdx: 0, accum: 0, onDone });
     runtime.rs.castleBuildOnDone = onDone;
   },
-  setCastleBuildViewport: (plans: { playerId: number; tiles: number[] }[]) => runtime.selection.setCastleBuildViewport(plans),
-  setBattleFlights: (v: { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[]) => { runtime.rs.battleAnim.flights = v; },
+  setCastleBuildViewport: (plans: readonly { playerId: number; tiles: number[] }[]) => runtime.selection.setCastleBuildViewport(plans),
+  setBattleFlights: (v: readonly { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[]) => { runtime.rs.battleAnim.flights = v; },
   snapshotTerritory: () => runtime.snapshotTerritory(),
-  showLifeLostDialog: (nr: number[], el: number[]) => {
+  showLifeLostDialog: (nr: readonly number[], el: readonly number[]) => {
     runtime.lifeLost.show(nr, el);
     // Apply any choices that arrived before the dialog was created
     const dialog = runtime.lifeLost.get();
@@ -188,7 +188,7 @@ const transitionCtx = {
     }
     session.earlyLifeLostChoices.clear();
   },
-  showScoreDeltas: (preScores: number[], onDone: () => void) => {
+  showScoreDeltas: (preScores: readonly number[], onDone: () => void) => {
     runtime.rs.preScores = preScores;
     runtime.selection.showBuildScoreDeltas(onDone);
   },
@@ -418,7 +418,7 @@ function initFromServer(msg: InitMessage): void {
     log,
     resetFrame: () => runtime.resetFrame(),
     setState: (s) => { runtime.rs.state = s; },
-    setControllers: (c) => { runtime.rs.controllers = c; },
+    setControllers: (c) => { runtime.rs.controllers = [...c]; },
     resetUIState: () => {
       runtime.resetUIState();
       resetWatcherState(watcher);

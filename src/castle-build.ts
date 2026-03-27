@@ -11,7 +11,7 @@ export interface CastleWallPlan {
 }
 
 export interface CastleBuildState {
-  wallPlans: CastleWallPlan[];
+  wallPlans: readonly CastleWallPlan[];
   maxTiles: number;
   tileIdx: number;
   accum: number;
@@ -20,7 +20,7 @@ export interface CastleBuildState {
 
 /** Create the initial animation state for a castle-build sequence. */
 export function createCastleBuildState(
-  wallPlans: CastleWallPlan[],
+  wallPlans: readonly CastleWallPlan[],
   onDone: () => void,
 ): CastleBuildState {
   return {

@@ -495,7 +495,7 @@ function drawPhantomCannon(
 /** Draw a single phantom piece (fill + optional outline). */
 function drawPiecePhantom(
   octx: CanvasRenderingContext2D,
-  offsets: [number, number][],
+  offsets: readonly [number, number][],
   row: number,
   col: number,
   fillColor: string,

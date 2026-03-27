@@ -25,7 +25,7 @@ const MIN_FREE_INTERIOR = 6;
 const MIN_VIABLE_ENCLOSURE = 9;
 
 export function pickFallbackPlacement(
-  scored: Scored[],
+  scored: readonly Scored[],
   state: GameState,
   walls: Set<number>,
   outside: Set<number>,
@@ -33,7 +33,7 @@ export function pickFallbackPlacement(
   castle: { tower: Tower },
   castleMargin: number,
   homeWasBroken: boolean,
-  unenclosedTowers: Tower[],
+  unenclosedTowers: readonly Tower[],
   caresAboutHouses: boolean,
   caresAboutBonuses: boolean,
 ): { placement: AiPlacement | null; reason: string } | null {
@@ -184,7 +184,7 @@ export function memoize<K, V>(fn: (key: K) => V): (key: K) => V {
 }
 
 function pickTowerExtensionCandidate(
-  scored: Scored[],
+  scored: readonly Scored[],
   fallbackTowers: readonly Tower[],
   castleMargin: number,
   ringDistanceCache: Map<Candidate, { distance: number; tooClose: boolean }>,
@@ -347,7 +347,7 @@ function isExtensionFallbackCandidateForFallback(
 }
 
 function pickDiscardCandidate(
-  scored: Scored[],
+  scored: readonly Scored[],
   caresAboutHouses: boolean,
   caresAboutBonuses: boolean,
   createsSmallEnclosureCached: (candidate: Candidate) => boolean,

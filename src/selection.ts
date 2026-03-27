@@ -96,7 +96,7 @@ export function highlightTowerSelection(
 export function confirmTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
-  controllers: PlayerController[],
+  controllers: readonly PlayerController[],
   playerId: number,
   isReselect: boolean,
   send: (msg: {

@@ -222,7 +222,7 @@ export function buildOnlineOverlay(params: {
   battleAnim: {
     territory: Set<number>[];
     walls: Set<number>[];
-    flights: Array<{
+    flights: ReadonlyArray<{
       flight: { startX: number; startY: number; endX: number; endY: number };
       progress: number;
     }>;
@@ -459,15 +459,15 @@ function buildLifeLostDialogUi(
 
 function buildBattleCannonballsPayload(
   inBattle: boolean,
-  cannonballs: Array<{
-    x: number;
-    y: number;
-    startX: number;
-    startY: number;
-    targetX: number;
-    targetY: number;
-    incendiary?: boolean;
-  }>,
+  cannonballs: ReadonlyArray<{
+            x: number;
+            y: number;
+            startX: number;
+            startY: number;
+            targetX: number;
+            targetY: number;
+            incendiary?: boolean;
+          }>,
 ):
   | Array<{ x: number; y: number; progress: number; incendiary?: boolean }>
   | undefined {
@@ -487,10 +487,10 @@ function buildBattleCannonballsPayload(
 }
 
 function buildBattleBalloonsPayload(
-  flights: Array<{
-    flight: { startX: number; startY: number; endX: number; endY: number };
-    progress: number;
-  }>,
+  flights: ReadonlyArray<{
+            flight: { startX: number; startY: number; endX: number; endY: number };
+            progress: number;
+          }>,
 ):
   | Array<{
       x: number;

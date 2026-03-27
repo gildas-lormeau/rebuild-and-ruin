@@ -85,7 +85,7 @@ export interface FrameData {
 export interface BattleAnimState {
   territory: Set<number>[];
   walls: Set<number>[];
-  flights: { flight: BalloonFlight; progress: number }[];
+  flights: readonly { flight: BalloonFlight; progress: number }[];
   impacts: Impact[];
 }
 

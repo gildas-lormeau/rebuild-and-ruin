@@ -16,7 +16,7 @@ import { CannonMode, type GameState } from "./types.ts";
 
 /** Networking context for the cannon placement phase. */
 interface CannonPhaseNet extends HostNetContext {
-  remoteCannonPhantoms: CannonPhantom[];
+  remoteCannonPhantoms: readonly CannonPhantom[];
   lastSentCannonPhantom: Map<number, string>;
   autoPlaceCannons?: (
     player: GameState["players"][number],
@@ -41,7 +41,7 @@ interface CannonPhaseNet extends HostNetContext {
 
 /** Networking context for the wall build phase. */
 interface BuildPhaseNet extends HostNetContext {
-  remotePiecePhantoms: PiecePhantom[];
+  remotePiecePhantoms: readonly PiecePhantom[];
   lastSentPiecePhantom: Map<number, string>;
   serializePlayers?: (state: GameState) => SerializedPlayer[];
   sendOpponentPiecePlaced: (msg: {
@@ -97,7 +97,7 @@ interface TickHostBuildPhaseDeps {
     needsReselect: number[];
     eliminated: number[];
   };
-  showLifeLostDialog: (needsReselect: number[], eliminated: number[]) => void;
+  showLifeLostDialog: (needsReselect: readonly number[], eliminated: readonly number[]) => void;
   afterLifeLostResolved: () => boolean;
   showScoreDeltas: (onDone: () => void) => void;
   net?: BuildPhaseNet;

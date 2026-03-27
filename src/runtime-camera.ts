@@ -71,7 +71,7 @@ interface CameraSystem {
 
   // Castle build viewport
   setSelectionViewport: (towerRow: number, towerCol: number) => void;
-  setCastleBuildViewport: (wallPlans: { playerId: number; tiles: number[] }[]) => void;
+  setCastleBuildViewport: (wallPlans: readonly { playerId: number; tiles: number[] }[]) => void;
   clearCastleBuildViewport: () => void;
 
   // Mobile zoom
@@ -205,7 +205,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     return result;
   }
 
-  function computeCastleBuildViewport(wallPlans: { playerId: number; tiles: number[] }[]): Viewport {
+  function computeCastleBuildViewport(wallPlans: readonly { playerId: number; tiles: number[] }[]): Viewport {
     const state = deps.getState()!;
     const myPid = myPlayerId();
     const plan = wallPlans.find(p => p.playerId === myPid) ?? wallPlans[0];
@@ -513,7 +513,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     castleBuildVp = boundsToViewport(towerRow, towerRow + 1, towerCol, towerCol + 1, ZONE_PAD_SELECTION);
   }
 
-  function setCastleBuildViewport(wallPlans: { playerId: number; tiles: number[] }[]): void {
+  function setCastleBuildViewport(wallPlans: readonly { playerId: number; tiles: number[] }[]): void {
     castleBuildVp = computeCastleBuildViewport(wallPlans);
   }
 

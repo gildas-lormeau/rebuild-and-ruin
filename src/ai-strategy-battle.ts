@@ -478,14 +478,14 @@ function isEnemyEligibleForFocus(
 }
 
 function pickSweetSpotTarget(
-  targets: TargetCandidate[],
+  targets: readonly TargetCandidate[],
   currentRow: number,
   currentCol: number,
   rand: () => number,
 ): TargetCandidate {
   const sweetSpot =
     SWEET_SPOT_MIN_DISTANCE + rand() * SWEET_SPOT_DISTANCE_RANGE;
-  targets.sort((a, b) => {
+  const sorted = [...targets].sort((a, b) => {
     const distanceA = Math.abs(
       manhattanDistance(a.row, a.col, currentRow, currentCol) - sweetSpot,
     );
@@ -494,27 +494,27 @@ function pickSweetSpotTarget(
     );
     return distanceA - distanceB;
   });
-  return pickRandomFromTop(targets, TOP_TARGET_PICK_COUNT, rand);
+  return pickRandomFromTop(sorted, TOP_TARGET_PICK_COUNT, rand);
 }
 
 function pickJitteredNearestTarget(
-  targets: TilePos[],
+  targets: readonly TilePos[],
   currentRow: number,
   currentCol: number,
   rand: () => number,
 ): PixelPos {
-  sortByDistanceFrom(targets, currentRow, currentCol);
-  const target = pickRandomFromTop(targets, TOP_TARGET_PICK_COUNT, rand);
+  const sorted = sortByDistanceFrom(targets, currentRow, currentCol);
+  const target = pickRandomFromTop(sorted, TOP_TARGET_PICK_COUNT, rand);
   return jitterWithinTile(target.row, target.col, rand);
 }
 
-/** Sort targets in-place by Manhattan distance from a reference tile. */
+/** Sort targets by Manhattan distance from a reference tile, returning a new array. */
 function sortByDistanceFrom(
-  targets: TilePos[],
+  targets: readonly TilePos[],
   refRow: number,
   refCol: number,
-): void {
-  targets.sort(
+): TilePos[] {
+  return [...targets].sort(
     (a, b) =>
       manhattanDistance(a.row, a.col, refRow, refCol) -
       manhattanDistance(b.row, b.col, refRow, refCol),
@@ -566,7 +566,7 @@ function planGruntTargets(
 }
 
 /** Check if a 4-tile pocket forms a 2x2 square (can fit a cannon). */
-function is2x2(keys: number[]): boolean {
+function is2x2(keys: readonly number[]): boolean {
   const tiles = keys.map((key) => unpackTile(key));
   const minRow = Math.min(...tiles.map((t) => t.r));
   const minCol = Math.min(...tiles.map((t) => t.c));

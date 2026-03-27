@@ -111,7 +111,7 @@ export function initLobbyUi({
       roomListEl.appendChild(el("div", cls, text));
     };
 
-    const renderRoomList = (rooms: { code: string; players: number; settings: { battleLength: number; cannonMaxHp: number }; elapsedSec: number }[]) => {
+    const renderRoomList = (rooms: readonly { code: string; players: number; settings: { battleLength: number; cannonMaxHp: number }; elapsedSec: number }[]) => {
       if (rooms.length === 0) { setMessage("room-list-empty", "No rooms available"); return; }
       const roundsLabel = (v: number) => v > 0 ? `${v} rounds` : "To The Death";
       const ageLabel = (sec: number) => sec < SECS_PER_MIN ? "just now" : sec < SECS_PER_HOUR ? `${Math.floor(sec / SECS_PER_MIN)}m ago` : `${Math.floor(sec / SECS_PER_HOUR)}h ago`;

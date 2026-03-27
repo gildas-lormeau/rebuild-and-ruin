@@ -45,21 +45,21 @@ interface TickHostBattlePhaseDeps {
     events: Array<GameMessage>;
   };
   onBattlePhaseEnded: () => void;
-  onBattleEvents?: (events: Array<GameMessage>) => void;
+  onBattleEvents?: (events: ReadonlyArray<GameMessage>) => void;
   net?: BattlePhaseNet;
 }
 
 interface BattleAnimState {
   territory: Set<number>[];
   walls: Set<number>[];
-  flights: { flight: BalloonFlight; progress: number }[];
+  flights: readonly { flight: BalloonFlight; progress: number }[];
   impacts: Impact[];
 }
 
 /** Networking context for starting battle. */
 interface BattleStartNet {
   isHost: boolean;
-  sendBattleStart: (flights: BalloonFlight[]) => void;
+  sendBattleStart: (flights: readonly BalloonFlight[]) => void;
 }
 
 interface StartHostBattleLifecycleDeps {

@@ -184,7 +184,7 @@ export function isCannonAlive(cannon: Pick<Cannon, "hp">): boolean {
 }
 
 /** True if (r,c) is occupied by a burning pit. */
-export function isPitAt(pits: BurningPit[], r: number, c: number): boolean {
+export function isPitAt(pits: readonly BurningPit[], r: number, c: number): boolean {
   return pits.some((p) => isAtTile(p, r, c));
 }
 
@@ -250,7 +250,7 @@ export function facingToCardinal(angle: number): string {
 
 /** Find tower nearest to a world coordinate (tile-pixel space). */
 export function towerAtPixel(
-  towers: TilePos[],
+  towers: readonly TilePos[],
   worldX: number,
   worldY: number,
 ): number | null {
@@ -282,7 +282,7 @@ export function pxToTile(px: number): number {
 
 /** Find the nearest tower to a given tower in a direction (for spatial navigation). */
 export function findNearestTower(
-  towers: { row: number; col: number; zone: number }[],
+  towers: readonly { row: number; col: number; zone: number }[],
   currentIdx: number,
   direction: Action,
   zone?: number,
@@ -334,7 +334,7 @@ export function findNearestTower(
 
 /** Order items by greedy nearest-neighbor (Manhattan distance). */
 export function orderByNearest<T extends TilePos>(
-  items: T[],
+  items: readonly T[],
   maxCount?: number,
 ): T[] {
   if (items.length <= 1) return [...items];
@@ -490,7 +490,7 @@ function toPositiveAngle(angle: number): number {
 }
 
 function nearestItemIndex<T extends TilePos>(
-  remaining: T[],
+  remaining: readonly T[],
   target: TilePos,
 ): number {
   let bestIdx = 0;

@@ -137,8 +137,8 @@ export function generateMap(seed?: number): GameMap {
  */
 export function buildCastle(
   tower: Tower,
-  tiles: Tile[][],
-  allTowers?: Tower[],
+  tiles: readonly Tile[][],
+  allTowers?: readonly Tower[],
 ): Castle {
   const tc = tower.col;
   const tr = tower.row;
@@ -279,7 +279,7 @@ export function buildCastle(
  */
 export function getCastleWallTiles(
   castle: Castle,
-  tiles: Tile[][],
+  tiles: readonly Tile[][],
 ): [number, number][] {
   const { left, right, top, bottom } = castle;
   const wallTiles: [number, number][] = [];
@@ -315,9 +315,9 @@ export function getCastleWallTiles(
 export function applyClumsyBuilders(
   walls: Set<number>,
   castle: Castle,
-  tiles: Tile[][],
+  tiles: readonly Tile[][],
   rng: Rng,
-  allTowers?: Tower[],
+  allTowers?: readonly Tower[],
 ): void {
   const { left, right, top, bottom } = castle;
   const wL = left - 1;
@@ -500,7 +500,7 @@ function hasThreeBalancedZones(
 }
 
 function hasAnyThinTopZone(
-  zones: number[][],
+  zones: readonly number[][],
   regionSizes: Map<number, number>,
   minHeight: number,
 ): boolean {
@@ -521,7 +521,7 @@ function hasAnyThinTopZone(
   return false;
 }
 
-function zoneCentroidRow(zones: number[][], zoneId: number): number | null {
+function zoneCentroidRow(zones: readonly number[][], zoneId: number): number | null {
   let sumR = 0;
   let count = 0;
   for (let r = 0; r < GRID_ROWS; r++) {
@@ -566,7 +566,7 @@ function pickJunction(rng: Rng): PixelPos {
   };
 }
 
-function buildRiverDistanceGrid(tiles: Tile[][]): number[][] {
+function buildRiverDistanceGrid(tiles: readonly Tile[][]): number[][] {
   const dist: number[][] = Array.from({ length: GRID_ROWS }, () =>
     new Array(GRID_COLS).fill(Infinity),
   );
@@ -605,9 +605,9 @@ function buildRiverDistanceGrid(tiles: Tile[][]): number[][] {
 }
 
 function placeTowers(
-  zones: number[][],
+  zones: readonly number[][],
   regionSizes: Map<number, number>,
-  riverDist: number[][],
+  riverDist: readonly number[][],
 ): Tower[] {
   const sortedRegions = topZoneIds(regionSizes, 3);
 
@@ -691,8 +691,8 @@ function topZoneIds(regionSizes: Map<number, number>, count: number): number[] {
 function isValidTowerPos(
   col: number,
   row: number,
-  riverDist: number[][],
-  existingTowers: Tower[],
+  riverDist: readonly number[][],
+  existingTowers: readonly Tower[],
 ): boolean {
   if (col + 1 >= GRID_COLS || row + 1 >= GRID_ROWS) return false;
 
@@ -736,7 +736,7 @@ function towerRectDistance(
 }
 
 /** Build set of all 2×2 tower tile keys. */
-function buildTowerTileSet(towers: Tower[]): Set<number> {
+function buildTowerTileSet(towers: readonly Tower[]): Set<number> {
   const towerTiles = new Set<number>();
   for (const t of towers) {
     forEachTowerTile(t, (_r, _c, key) => towerTiles.add(key));
@@ -746,8 +746,8 @@ function buildTowerTileSet(towers: Tower[]): Set<number> {
 
 /** Check if a position is a valid house candidate (grass, correct zone, away from water and towers). */
 function isValidHousePos(
-  tiles: Tile[][],
-  zones: number[][],
+  tiles: readonly Tile[][],
+  zones: readonly number[][],
   towerTiles: Set<number>,
   r: number,
   c: number,
@@ -778,9 +778,9 @@ function isHouseTooClose(houses: readonly House[], r: number, c: number): boolea
  * river layout from a junction and exits.
  */
 function generateRiverAndZones(
-  tiles: Tile[][],
+  tiles: readonly Tile[][],
   junction: PixelPos,
-  exits: PixelPos[],
+  exits: readonly PixelPos[],
   rng: Rng,
 ): { zones: number[][]; regionSizes: Map<number, number> } {
   resetTilesToGrass(tiles);
@@ -790,7 +790,7 @@ function generateRiverAndZones(
   return floodFillZones(tiles);
 }
 
-function resetTilesToGrass(tiles: Tile[][]): void {
+function resetTilesToGrass(tiles: readonly Tile[][]): void {
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       tiles[r]![c] = Tile.Grass;
@@ -803,9 +803,9 @@ function resetTilesToGrass(tiles: Tile[][]): void {
  * Width is painted perpendicular to the path direction.
  */
 function paintRiver(
-  tiles: Tile[][],
+  tiles: readonly Tile[][],
   junction: PixelPos,
-  exits: PixelPos[],
+  exits: readonly PixelPos[],
   rng: Rng,
 ): void {
   const setWater = (x: number, y: number) => {
@@ -917,7 +917,7 @@ function interpolatePath(from: PixelPos, to: PixelPos, rng: Rng): PixelPos[] {
  * Smooth river edges: convert grass tiles with ≤1 grass neighbor to water.
  * Repeat until stable to remove peninsulas and jagged bits.
  */
-function smoothRiver(tiles: Tile[][]): void {
+function smoothRiver(tiles: readonly Tile[][]): void {
   let changed = true;
   while (changed) {
     changed = false;
@@ -943,7 +943,7 @@ function smoothRiver(tiles: Tile[][]): void {
  * Remove isolated water tiles: single-pass, convert water tiles with ≤1 water
  * orthogonal neighbor to grass (truly isolated stubs).
  */
-function removeIsolatedWater(tiles: Tile[][]): void {
+function removeIsolatedWater(tiles: readonly Tile[][]): void {
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       if (tiles[r]![c] !== Tile.Water) continue;
@@ -960,7 +960,7 @@ function removeIsolatedWater(tiles: Tile[][]): void {
   }
 }
 
-function floodFillZones(tiles: Tile[][]): {
+function floodFillZones(tiles: readonly Tile[][]): {
   zones: number[][];
   regionSizes: Map<number, number>;
 } {

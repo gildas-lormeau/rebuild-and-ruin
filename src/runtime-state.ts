@@ -75,7 +75,7 @@ export interface RuntimeState {
   scoreDeltas: { playerId: number; delta: number; total: number; cx: number; cy: number }[];
   scoreDeltaTimer: number;
   scoreDeltaOnDone: (() => void) | null;
-  preScores: number[];
+  preScores: readonly number[];
   gameStats: PlayerStats[];
 
   // Input tracking

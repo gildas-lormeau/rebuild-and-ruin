@@ -57,7 +57,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     }
   }
 
-  function showLifeLostDialog(needsReselect: number[], eliminated: number[]) {
+  function showLifeLostDialog(needsReselect: readonly number[], eliminated: readonly number[]) {
     const remoteHumanSlots = rs.ctx.remoteHumanSlots;
     deps.log(
       `showLifeLostDialog: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
@@ -101,13 +101,13 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     });
   }
 
-  function afterLifeLostResolved(continuing: number[] = []): boolean {
+  function afterLifeLostResolved(continuing: readonly number[] = []): boolean {
     return resolveAfterLifeLost({
       state: rs.state,
       continuing,
       onEndGame: deps.endGame,
       onStartReselection: (players) => {
-        rs.reselectQueue = players;
+        rs.reselectQueue = [...players];
         deps.startReselection();
         rs.mode = Mode.SELECTION;
       },

@@ -64,7 +64,7 @@ interface SelectionSystemDeps {
   // Camera
   lightUnzoom: () => void;
   clearCastleBuildViewport: () => void;
-  setCastleBuildViewport: (plans: { playerId: number; tiles: number[] }[]) => void;
+  setCastleBuildViewport: (plans: readonly { playerId: number; tiles: number[] }[]) => void;
   setSelectionViewport: (towerRow: number, towerCol: number) => void;
 
   // Sibling systems / parent callbacks
@@ -387,7 +387,7 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
     finish: finishSelection,
     advanceToCannonPhase,
     tickCastleBuild,
-    setCastleBuildViewport: (plans: { playerId: number; tiles: number[] }[]) => deps.setCastleBuildViewport(plans),
+    setCastleBuildViewport: (plans: readonly { playerId: number; tiles: number[] }[]) => deps.setCastleBuildViewport(plans),
     startReselection,
     finishReselection,
     showBuildScoreDeltas,

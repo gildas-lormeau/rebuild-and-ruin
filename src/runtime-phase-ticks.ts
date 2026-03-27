@@ -58,10 +58,10 @@ interface PhaseTicksDeps {
     autoPlaceCannons: (player: GameState["players"][number], max: number, state: GameState) => void;
     serializePlayers: (state: GameState) => SerializedPlayer[];
     buildCannonStartMessage: (state: GameState) => GameMessage;
-    buildBattleStartMessage: (state: GameState, flights: BalloonFlight[]) => GameMessage;
+    buildBattleStartMessage: (state: GameState, flights: readonly BalloonFlight[]) => GameMessage;
     buildBuildStartMessage: (state: GameState) => GameMessage;
-    remoteCannonPhantoms: () => CannonPhantom[];
-    remotePiecePhantoms: () => PiecePhantom[];
+    remoteCannonPhantoms: () => readonly CannonPhantom[];
+    remotePiecePhantoms: () => readonly PiecePhantom[];
     lastSentCannonPhantom: () => Map<number, string>;
     lastSentPiecePhantom: () => Map<number, string>;
   };
@@ -75,7 +75,7 @@ interface PhaseTicksDeps {
   render: () => void;
   firstHuman: () => (PlayerController & InputReceiver) | null;
   showBanner: (text: string, onDone: () => void, reveal?: boolean, newBattle?: { territory: Set<number>[]; walls: Set<number>[] }, subtitle?: string) => void;
-  showLifeLostDialog: (needsReselect: number[], eliminated: number[]) => void;
+  showLifeLostDialog: (needsReselect: readonly number[], eliminated: readonly number[]) => void;
   afterLifeLostResolved: () => boolean;
   showScoreDeltas: (onDone: () => void) => void;
   snapshotTerritory: () => Set<number>[];

@@ -20,7 +20,7 @@ export function hapticPhaseChange(): void { vibrate(40, 1); }
 
 /** Process battle events and trigger appropriate haptics for the local player. */
 export function hapticBattleEvents(
-  events: Array<{ type: string; playerId?: number; hp?: number }>,
+  events: ReadonlyArray<{ type: string; playerId?: number; hp?: number }>,
   myPlayerId: number,
 ): void {
   if (!CAN_VIBRATE || level < 2) return;

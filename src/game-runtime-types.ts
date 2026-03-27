@@ -58,10 +58,10 @@ export interface RuntimeConfig {
     autoPlaceCannons: (player: GameState["players"][number], max: number, state: GameState) => void;
     serializePlayers: (state: GameState) => SerializedPlayer[];
     buildCannonStartMessage: (state: GameState) => ServerMessage;
-    buildBattleStartMessage: (state: GameState, flights: BalloonFlight[]) => ServerMessage;
+    buildBattleStartMessage: (state: GameState, flights: readonly BalloonFlight[]) => ServerMessage;
     buildBuildStartMessage: (state: GameState) => ServerMessage;
-    remoteCannonPhantoms: () => CannonPhantom[];
-    remotePiecePhantoms: () => PiecePhantom[];
+    remoteCannonPhantoms: () => readonly CannonPhantom[];
+    remotePiecePhantoms: () => readonly PiecePhantom[];
     lastSentCannonPhantom: () => Map<number, string>;
     lastSentPiecePhantom: () => Map<number, string>;
   };
@@ -93,7 +93,7 @@ export interface RuntimeSelection {
   finish: () => void;
   advanceToCannonPhase: () => void;
   tickCastleBuild: (dt: number) => void;
-  setCastleBuildViewport: (plans: { playerId: number; tiles: number[] }[]) => void;
+  setCastleBuildViewport: (plans: readonly { playerId: number; tiles: number[] }[]) => void;
   startReselection: () => void;
   finishReselection: () => void;
   showBuildScoreDeltas: (onDone: () => void) => void;
@@ -102,9 +102,9 @@ export interface RuntimeSelection {
 export interface RuntimeLifeLost {
   get: () => LifeLostDialogState | null;
   set: (d: LifeLostDialogState | null) => void;
-  show: (needsReselect: number[], eliminated: number[]) => void;
+  show: (needsReselect: readonly number[], eliminated: readonly number[]) => void;
   tick: (dt: number) => void;
-  afterResolved: (continuing?: number[]) => boolean;
+  afterResolved: (continuing?: readonly number[]) => boolean;
   panelPos: (playerId: number) => { px: number; py: number };
   click: (canvasX: number, canvasY: number) => void;
 }

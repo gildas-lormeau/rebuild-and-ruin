@@ -26,7 +26,7 @@ export function formatKeyHint(kb: KeyBindings): string {
 
 /** Build a map from confirm key → player slot index for lobby joining. */
 export function buildLobbyConfirmKeys(
-  keyBindings: KeyBindings[],
+  keyBindings: readonly KeyBindings[],
 ): Map<string, number> {
   const m = new Map<string, number>();
   for (let i = 0; i < keyBindings.length; i++) {
@@ -38,7 +38,7 @@ export function buildLobbyConfirmKeys(
 }
 
 /** Snapshot per-player territory (interior + walls) for battle rendering. */
-export function snapshotTerritory(players: Player[]): Set<number>[] {
+export function snapshotTerritory(players: readonly Player[]): Set<number>[] {
   return players.map((p) => {
     const combined = new Set(p.interior);
     for (const key of p.walls) combined.add(key);

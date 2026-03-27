@@ -52,7 +52,7 @@ interface InitGameDeps {
   log: (msg: string) => void;
   resetFrame: () => void;
   setState: (nextState: GameState) => void;
-  setControllers: (nextControllers: PlayerController[]) => void;
+  setControllers: (nextControllers: readonly PlayerController[]) => void;
   resetUIState: () => void;
   /** Create a controller for slot `i`. Receives the state for RNG access. */
   createControllerForSlot: (i: number, state: GameState) => PlayerController;

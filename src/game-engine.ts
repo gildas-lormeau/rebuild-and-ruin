@@ -225,7 +225,7 @@ export function enterCannonPlacePhase(state: GameState): void {
 /** Initialize build phase controllers — reset facings, clear accumulators. */
 export function initBuildPhase(
   state: GameState,
-  controllers: PlayerController[],
+  controllers: readonly PlayerController[],
   skipController?: (playerId: number) => boolean,
 ): void {
   resetCannonFacings(state);
@@ -403,7 +403,7 @@ export function prepareCastleWallsForPlayer(state: GameState, playerId: number):
  */
 function orderCastleWallsForAnimation(
   castle: Castle,
-  ringTiles: [number, number][],
+  ringTiles: readonly [number, number][],
   finalWalls: Set<number>,
   rng: Rng,
 ): number[] {

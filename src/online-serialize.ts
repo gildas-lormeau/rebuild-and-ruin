@@ -14,7 +14,7 @@ interface FullStateResult {
 
 export function applyHousesCheckpoint(
   state: GameState,
-  serialized: { row: number; col: number; zone: number; alive: boolean }[],
+  serialized: readonly { row: number; col: number; zone: number; alive: boolean }[],
 ): void {
   state.map.houses.length = 0;
   for (const h of serialized) {
@@ -58,7 +58,7 @@ export function buildCannonStartMessage(state: GameState) {
 
 export function buildBattleStartMessage(
   state: GameState,
-  flights?: BalloonFlight[],
+  flights?: readonly BalloonFlight[],
 ) {
   return {
     type: MSG.BATTLE_START,
@@ -84,7 +84,7 @@ export function buildBattleStartMessage(
 export function buildFullStateMessage(
   state: GameState,
   migrationSeq: number,
-  flights?: { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[],
+  flights?: readonly { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[],
 ): FullStateMessage {
   return {
     type: MSG.FULL_STATE,
@@ -232,7 +232,7 @@ export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage):
 
 export function applyPlayersCheckpoint(
   state: GameState,
-  serialized: SerializedPlayer[],
+  serialized: readonly SerializedPlayer[],
 ): void {
   for (const sp of serialized) {
     const player = state.players[sp.id];
@@ -268,7 +268,7 @@ export function applyPlayersCheckpoint(
 
 export function applyGruntsCheckpoint(
   state: GameState,
-  serialized: SerializedGrunt[],
+  serialized: readonly SerializedGrunt[],
 ): void {
   state.grunts = serialized.map(deserializeGrunt);
 }

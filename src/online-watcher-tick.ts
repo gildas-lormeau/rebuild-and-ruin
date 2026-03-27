@@ -38,11 +38,11 @@ import { type GameState, Phase } from "./types.ts";
 interface WatcherState {
   timing: WatcherTimingState;
   remoteCrosshairs: Map<number, PixelPos>;
-  remoteCannonPhantoms: CannonPhantom[];
+  remoteCannonPhantoms: readonly CannonPhantom[];
   crosshairPos: Map<number, PixelPos>;
   idlePhases: Map<number, number>;
   orbitParams: Map<number, OrbitParams>;
-  remotePiecePhantoms: PiecePhantom[];
+  remotePiecePhantoms: readonly PiecePhantom[];
   migrationTimer: number;
   migrationText: string;
 }
@@ -231,7 +231,7 @@ export function applyBuildStartData(
 /** Get the local human controller, or null if eliminated/watcher. */
 function getLocalHuman(
   state: GameState,
-  controllers: PlayerController[],
+  controllers: readonly PlayerController[],
   myPlayerId: number,
 ): PlayerController | null {
   if (myPlayerId < 0 || state.players[myPlayerId]?.eliminated) return null;

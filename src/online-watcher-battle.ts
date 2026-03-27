@@ -62,7 +62,7 @@ interface TickWatcherCannonPhantomsDeps {
   dt: number;
   myPlayerId: number;
   myHuman: PlayerController | null;
-  remoteCannonPhantoms: CannonPhantom[];
+  remoteCannonPhantoms: readonly CannonPhantom[];
   lastSentCannonPhantom: Map<number, string>;
   sendOpponentCannonPhantom: (msg: {
     playerId: number;
@@ -79,7 +79,7 @@ interface TickWatcherBuildPhantomsDeps {
   frame: WatcherPhantomFrame;
   dt: number;
   myHuman: PlayerController | null;
-  remotePiecePhantoms: PiecePhantom[];
+  remotePiecePhantoms: readonly PiecePhantom[];
   lastSentPiecePhantom: Map<number, string>;
   sendOpponentPiecePhantom: (msg: {
     playerId: number;

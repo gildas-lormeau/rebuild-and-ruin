@@ -198,7 +198,7 @@ function findBestNormalCannonPosition(
   state: GameState,
   rng: Rng,
   noiseScale: number,
-  towerCenters: TilePos[],
+  towerCenters: readonly TilePos[],
 ): TilePos | null {
   let bestPosition: TilePos | null = null;
   let bestScore = Infinity;
@@ -222,7 +222,7 @@ function tryPlaceSuperGun(
   noiseScale: number,
   superProb: number,
   superThreshold: number,
-  towerCenters: TilePos[],
+  towerCenters: readonly TilePos[],
 ): void {
   if (count < superThreshold || !rng.bool(superProb)) return;
   const superCandidates = collectCannonCandidates(
@@ -247,7 +247,7 @@ function collectCannonCandidates(
   state: GameState,
   rng: Rng,
   noiseScale: number,
-  towerCenters: TilePos[],
+  towerCenters: readonly TilePos[],
 ): CannonCandidate[] {
   const candidates: CannonCandidate[] = [];
   for (const key of player.interior) {
@@ -275,7 +275,7 @@ function scoreCannonPosition(
   state: GameState,
   rng: Rng,
   noiseScale = 1,
-  towerCenters: TilePos[] = player.ownedTowers.map(towerCenter),
+  towerCenters: readonly TilePos[] = player.ownedTowers.map(towerCenter),
 ): number {
   const cannonKind = size === 3 ? CannonMode.SUPER : CannonMode.NORMAL;
   let score = 0;

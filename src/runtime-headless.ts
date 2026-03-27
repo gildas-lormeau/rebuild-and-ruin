@@ -55,7 +55,7 @@ export function createHeadlessRuntime(seed: number): HeadlessRuntime {
  */
 export function createMixedRuntime(
   seed: number,
-  humanSlots: number[],
+  humanSlots: readonly number[],
 ): HeadlessRuntime {
   const map = generateMap(seed);
   const zones = [...new Set(map.towers.map((t) => t.zone))].slice(0, 3);
@@ -81,7 +81,7 @@ export function createMixedRuntime(
  */
 export function processHeadlessReselection(
   runtime: HeadlessRuntime,
-  needsReselect: number[],
+  needsReselect: readonly number[],
 ): void {
   const { state, controllers, zones } = runtime;
 
