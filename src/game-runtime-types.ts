@@ -10,6 +10,7 @@ import type { Crosshair, InputReceiver, PlayerController } from "./controller-in
 import type { UIContext } from "./game-ui-screens.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
 import type { CannonPhantom, PiecePhantom, WatcherTimingState } from "./online-types.ts";
+import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { BalloonFlight, GameState, SelectionState } from "./types.ts";
 
@@ -77,6 +78,11 @@ export interface RuntimeConfig {
   roomCode?: string;
   /** Optional hook called when a game ends (before frame payload is set). */
   onEndGame?: (winner: { id: number } | null, state: GameState) => void;
+  /**
+   * Optional renderer callback. When provided, called instead of the built-in Canvas 2D drawMap.
+   * Use this to wire in a WebGL / 3D renderer without touching game logic.
+   */
+  render?: (map: MapData, overlay: RenderOverlay | undefined, viewport?: Viewport | null) => void;
 }
 
 export interface RuntimeSelection {

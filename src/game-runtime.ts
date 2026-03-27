@@ -70,6 +70,7 @@ import {
 } from "./render-composition.ts";
 import { createLoupe, type LoupeHandle } from "./render-loupe.ts";
 import { drawMap, getSceneCanvas } from "./render-map.ts";
+import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { createLifeLostSystem, type LifeLostSystem } from "./runtime-life-lost.ts";
@@ -261,6 +262,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   // -------------------------------------------------------------------------
+  // Rendering helpers
+  // -------------------------------------------------------------------------
+
+  function renderFrame(map: MapData, overlay: RenderOverlay | undefined, viewport?: Viewport | null): void {
+    if (config.render) {
+      config.render(map, overlay, viewport);
+    } else {
+      drawMap(map, canvas, overlay, viewport);
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Lobby
   // -------------------------------------------------------------------------
 
@@ -272,7 +285,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function renderLobby(): void {
     if (!rs.lobby.map) refreshLobbySeed();
     const { map, overlay } = buildLobbyOverlay(uiCtx);
-    drawMap(map, canvas, overlay);
+    renderFrame(map, overlay);
   }
 
   function tickLobby(dt: number): void {
@@ -399,7 +412,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function renderOptions(): void {
     const { map, overlay } = buildOptionsOverlay(uiCtx);
-    drawMap(map, canvas, overlay);
+    renderFrame(map, overlay);
   }
 
   function showOptions(): void {
@@ -425,7 +438,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function renderControls(): void {
     const { map, overlay } = buildControlsOverlay(uiCtx);
-    drawMap(map, canvas, overlay);
+    renderFrame(map, overlay);
   }
 
   function showControls(): void {
@@ -606,7 +619,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       rs.overlay.ui.scoreDeltaProgress = 1 - rs.scoreDeltaTimer / SCORE_DELTA_DISPLAY_TIME;
     }
 
-    drawMap(rs.state.map, canvas, rs.overlay, updateViewport());
+    renderFrame(rs.state.map, rs.overlay, updateViewport());
 
     // Update loupe for precision placement / aiming on touch
     if (loupeHandle) {
