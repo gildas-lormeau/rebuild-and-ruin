@@ -40,6 +40,7 @@ export interface Crosshair {
 /** Shared interface — both AI and Human genuinely use these. */
 export interface PlayerController {
   readonly playerId: number;
+  readonly kind: "human" | "ai";
 
   /** Build cursor position. */
   buildCursor: TilePos;
@@ -164,3 +165,13 @@ export interface AiAnimatable {
 
 /** Battle crosshair movement speed in pixels per second. */
 export const CROSSHAIR_SPEED = 80;
+
+/** Type guard — true when ctrl is a HumanController (implements InputReceiver). */
+export function isHuman(ctrl: PlayerController): ctrl is PlayerController & InputReceiver {
+  return ctrl.kind === "human";
+}
+
+/** Type guard — true when ctrl is an AiController (implements AiAnimatable). */
+export function isAiAnimatable(ctrl: PlayerController): ctrl is PlayerController & AiAnimatable {
+  return ctrl.kind === "ai";
+}

@@ -18,6 +18,7 @@ import {
 import { applyImpactEvent } from "./battle-system.ts";
 import { applyPiecePlacement, canPlacePieceOffsets } from "./build-system.ts";
 import { applyCannonPlacement, cannonSlotCost, cannonSlotsUsed, canPlaceCannon } from "./cannon-system.ts";
+import { createController } from "./controller-factory.ts";
 import { bootstrapGame, initWaitingRoom, makeOnlineControllerSlotFactory } from "./game-bootstrap.ts";
 import {
   enterCannonPlacePhase,
@@ -481,7 +482,7 @@ function promoteToHost(): void {
   session.isHost = true;
 
   resetNetworkingForHost();
-  rebuildControllersForPhase(runtime.rs.state, runtime.rs.controllers, session.myPlayerId);
+  rebuildControllersForPhase(runtime.rs.state, runtime.rs.controllers, session.myPlayerId, (id, seed) => createController(id, true, undefined, seed));
   syncAccumulatorsFromTimer(runtime.rs.state, runtime.rs.accum);
   skipPendingAnimations();
 

@@ -6,8 +6,8 @@
  * methods that operate on it. See runtime-state.ts for the state type.
  */
 
-import { createController, isHuman } from "./controller-factory.ts";
-import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
+import { createController } from "./controller-factory.ts";
+import { type InputReceiver, isHuman, type PlayerController } from "./controller-interfaces.ts";
 import { computeFrameContext } from "./frame-context.ts";
 import { bootstrapGame } from "./game-bootstrap.ts";
 import type { GameRuntime, RuntimeConfig } from "./game-runtime-types.ts";

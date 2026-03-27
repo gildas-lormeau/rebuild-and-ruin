@@ -15,8 +15,7 @@ import {
   tickHostBattleCountdown,
   tickHostBattlePhase,
 } from "./battle-ticks.ts";
-import { isHuman } from "./controller-factory.ts";
-import type { Crosshair, InputReceiver, PlayerController } from "./controller-interfaces.ts";
+import { type Crosshair, type InputReceiver, isHuman, type PlayerController } from "./controller-interfaces.ts";
 import {
   finalizeBuildPhase,
   initBuildPhase,

@@ -32,6 +32,7 @@ import {
 } from "./types.ts";
 
 export class HumanController extends BaseController implements InputReceiver {
+  override readonly kind = "human" as const;
   /** Pre-computed lowercase key → action map for fast matching. */
   private keyMap: Map<string, Action>;
 

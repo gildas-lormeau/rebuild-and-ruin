@@ -7,7 +7,6 @@
  * skipPendingAnimations().
  */
 
-import { createController } from "./controller-factory.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import { BATTLE_TIMER, type GameState, Phase, type TimerAccums } from "./types.ts";
 
@@ -22,6 +21,7 @@ export function rebuildControllersForPhase(
   state: GameState,
   controllers: PlayerController[],
   myPlayerId: number,
+  createAiController: (id: number, seed: number) => PlayerController,
 ): void {
   for (let i = 0; i < controllers.length; i++) {
     if (i === myPlayerId) continue;
@@ -29,7 +29,7 @@ export function rebuildControllersForPhase(
     if (!player || player.eliminated) continue;
 
     const strategySeed = (state.rng.seed + state.round * SEED_ROUND_MULTIPLIER + i * SEED_SLOT_MULTIPLIER) >>> 0;
-    controllers[i] = createController(i, true, undefined, strategySeed);
+    controllers[i] = createAiController(i, strategySeed);
 
     // Initialize AI for the current phase
     if (state.phase === Phase.WALL_BUILD) {

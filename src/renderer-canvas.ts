@@ -5,7 +5,7 @@
  * neither entry point needs to import individual render utilities.
  */
 
-import { clientToCanvas, computeLetterboxLayout } from "./input-dispatch.ts";
+import { clientToCanvas, computeLetterboxLayout } from "./canvas-layout.ts";
 import { createLoupe } from "./render-loupe.ts";
 import { drawMap, getSceneCanvas } from "./render-map.ts";
 import type { RendererInterface } from "./render-types.ts";

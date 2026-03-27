@@ -6,8 +6,7 @@
  */
 
 import { type GameMessage, MSG } from "../server/protocol.ts";
-import { isHuman } from "./controller-factory.ts";
-import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
+import { type InputReceiver, isHuman, type PlayerController } from "./controller-interfaces.ts";
 import type { RuntimeLifeLost } from "./game-runtime-types.ts";
 import {
   buildLifeLostDialogState,

@@ -11,8 +11,7 @@ import {
   canPlayerFire,
   nextReadyCombined,
 } from "./battle-system.ts";
-import { isAiAnimatable } from "./controller-factory.ts";
-import { CROSSHAIR_SPEED, type Crosshair, type PlayerController } from "./controller-interfaces.ts";
+import { CROSSHAIR_SPEED, type Crosshair, isAiAnimatable, type PlayerController } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { interpolateToward } from "./online-types.ts";
 import type { GameState } from "./types.ts";

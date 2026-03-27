@@ -2,6 +2,7 @@
   {
     "name": "leaf utilities",
     "files": [
+      "src/canvas-layout.ts",
       "src/grid.ts",
       "src/platform.ts",
       "src/rng.ts",

@@ -10,9 +10,9 @@ import {
   aimCannons,
   nextReadyCombined,
 } from "./battle-system.ts";
-import { isHuman } from "./controller-factory.ts";
 import {
   CROSSHAIR_SPEED,
+  isHuman,
   type OrbitParams,
   type PlayerController,
 } from "./controller-interfaces.ts";

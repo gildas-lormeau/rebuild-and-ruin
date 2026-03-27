@@ -26,6 +26,7 @@ const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
 
 export abstract class BaseController implements PlayerController {
   readonly playerId: number;
+  readonly kind: "human" | "ai" = "ai";
   buildCursor = { row: DEFAULT_CURSOR_ROW, col: DEFAULT_CURSOR_COL };
   cannonCursor = { row: DEFAULT_CURSOR_ROW, col: DEFAULT_CURSOR_COL };
   crosshair = {

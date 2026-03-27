@@ -7,7 +7,7 @@
 import { AiController } from "./ai-controller.ts";
 import { DefaultStrategy } from "./ai-strategy.ts";
 import { HumanController } from "./controller-human.ts";
-import type { AiAnimatable, InputReceiver, PlayerController } from "./controller-interfaces.ts";
+import type { PlayerController } from "./controller-interfaces.ts";
 import type { KeyBindings } from "./player-config.ts";
 
 export function createController(
@@ -20,14 +20,4 @@ export function createController(
   return isAi
     ? new AiController(playerId, new DefaultStrategy(undefined, strategySeed, difficulty))
     : new HumanController(playerId, keys!);
-}
-
-/** Type guard for HumanController (InputReceiver). */
-export function isHuman(ctrl: PlayerController): ctrl is PlayerController & InputReceiver {
-  return ctrl instanceof HumanController;
-}
-
-/** Type guard for AiController (AiAnimatable). */
-export function isAiAnimatable(ctrl: PlayerController): ctrl is PlayerController & AiAnimatable {
-  return ctrl instanceof AiController;
 }
