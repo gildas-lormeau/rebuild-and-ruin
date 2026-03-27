@@ -74,9 +74,9 @@ The layer map file. Committed to the repo. An array of named groups — position
                           online-server-events, online-host-*
 12  runtime               runtime-state, runtime-camera, runtime-life-lost, runtime-phase-ticks,
                           runtime-selection, phase-ticks, battle-ticks, game-runtime-types,
-                          game-bootstrap, game-runtime
+                          game-bootstrap, game-runtime, headless-sim
 13  server                game-room, room-manager, server
-14  entry points          entry, main, online-client, headless-sim, headless-test
+14  entry points          entry, main, online-client, headless-test
 ```
 
 When a new file is added but not yet in `.import-layers.json`, `--check` warns and treats it as layer 0 (maximally strict). Regenerate to pick up new files, then move them to the right group.
@@ -148,8 +148,8 @@ For each violation, trace the import and classify:
 ```bash
 npx tsc --noEmit                                       # type-check browser code
 deno check server/server.ts                            # type-check server code
-npm run lint:all                                       # biome + knip + madge + jscpd + literals
-npx tsx scripts/generate-import-layers.ts --check      # layer linter
+npm run lint:all                                       # biome + knip + madge + jscpd + literals + layers + imports
+npx tsx scripts/audit-imports.ts --check               # re-exports, duplicate names, layer misuse
 timeout 60 bun src/headless-test.ts                    # headless game test
 ```
 
