@@ -12,8 +12,7 @@ import {
 } from "./battle-system.ts";
 import type { Crosshair, PhantomCannon, PhantomPiece, PlayerController } from "./controller-interfaces.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
-import type { BagState, PieceShape } from "./pieces.ts";
-import { createBag, nextPiece } from "./pieces.ts";
+import { type BagState, createBag, nextPiece, type PieceShape } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
 import { pxToTile, towerCenter } from "./spatial.ts";
 import type { CombinedCannonResult, GameState } from "./types.ts";

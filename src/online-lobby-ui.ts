@@ -1,5 +1,4 @@
-import type { ClientMessage } from "../server/protocol.ts";
-import { MSG } from "../server/protocol.ts";
+import { type ClientMessage, MSG } from "../server/protocol.ts";
 import { getApiUrl } from "./online-config.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 

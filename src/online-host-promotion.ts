@@ -11,8 +11,7 @@ import { createController } from "./controller-factory.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import type { TimerAccums } from "./game-ui-types.ts";
 import { MAX_UINT32 } from "./rng.ts";
-import type { GameState } from "./types.ts";
-import { BATTLE_TIMER, Phase } from "./types.ts";
+import { BATTLE_TIMER, type GameState, Phase } from "./types.ts";
 
 /**
  * Replace non-self controllers with fresh AI and initialize them for

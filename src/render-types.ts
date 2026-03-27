@@ -3,13 +3,9 @@
  * circular dependencies between render-map and render-effects/towers/ui.
  */
 
-import type { House, PixelPos, TilePos, Tower } from "./geometry-types.ts";
+import type { House, PixelPos, RGB, TilePos, Tower } from "./geometry-types.ts";
 import type { LifeLostChoice } from "./life-lost.ts";
-import type { RGB } from "./render-theme.ts";
-import type { BurningPit, CastleData, Grunt, Impact } from "./types.ts";
-import { CannonMode } from "./types.ts";
-
-export type { CastleData } from "./types.ts";
+import { type BurningPit, CannonMode, type CastleData, type Grunt, type Impact } from "./types.ts";
 
 /** A single row in the options screen. */
 export interface OptionEntry {

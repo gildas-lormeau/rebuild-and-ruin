@@ -11,8 +11,7 @@ import { spawnGruntNearPosition, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
 import type { PieceShape } from "./pieces.ts";
 import { computeOutside, DIRS_8, inBounds, isAtTile, isGrass, isPitAt, isWater, manhattanDistance, packTile } from "./spatial.ts";
-import type { GameState, Player } from "./types.ts";
-import { BONUS_SQUARE_MIN_DISTANCE, BONUS_SQUARES_PER_ZONE, CASTLE_BONUS_TABLE, DESTROY_GRUNT_POINTS, ENCLOSED_GRUNT_RESPAWN_CHANCE, isPlayerActive, TERRITORY_POINT_TIERS } from "./types.ts";
+import { BONUS_SQUARE_MIN_DISTANCE, BONUS_SQUARES_PER_ZONE, CASTLE_BONUS_TABLE, DESTROY_GRUNT_POINTS, ENCLOSED_GRUNT_RESPAWN_CHANCE, type GameState, isPlayerActive, type Player, TERRITORY_POINT_TIERS } from "./types.ts";
 
 /** Validate + apply piece placement. Returns true if placed. */
 export function placePiece(state: GameState, playerId: number, piece: PieceShape, row: number, col: number): boolean {

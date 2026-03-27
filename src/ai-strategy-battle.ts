@@ -28,10 +28,7 @@ import {
   pxToTile,
   unpackTile,
 } from "./spatial.ts";
-import type { Cannon, Cannonball, GameState } from "./types.ts";
-import { CannonMode } from "./types.ts";
-
-export { getActiveEnemies } from "./board-occupancy.ts";
+import { type Cannon, type Cannonball, CannonMode, type GameState } from "./types.ts";
 
 type TargetCandidate = PrioritizedTilePos;
 

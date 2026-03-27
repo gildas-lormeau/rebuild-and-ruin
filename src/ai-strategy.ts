@@ -12,10 +12,10 @@
  *   - ai-strategy-battle.ts  — battle planning & target picking
  */
 
+import type { AiPlacement } from "./ai-build-types.ts";
 import { traitLookup } from "./ai-constants.ts";
 import {
   countUsableCannons,
-  getActiveEnemies,
   pickTargetImpl,
   planCharitySweep,
   planGruntSweep,
@@ -24,20 +24,17 @@ import {
   planWallDemolition,
   trackShotImpl,
 } from "./ai-strategy-battle.ts";
-import type { AiPlacement } from "./ai-strategy-build.ts";
 import { pickPlacementImpl } from "./ai-strategy-build.ts";
 import {
   autoPlaceCannonsImpl,
   autoSelectTowerImpl,
 } from "./ai-strategy-cannon.ts";
+import { getActiveEnemies } from "./board-occupancy.ts";
 import type { GameMap, PixelPos, StrategicPixelPos, TilePos, Tower } from "./geometry-types.ts";
 import type { PieceShape } from "./pieces.ts";
 import { MAX_UINT32, Rng } from "./rng.ts";
 import { computeOutside, isTowerEnclosed, waterKeys } from "./spatial.ts";
-import type { Cannon, GameState, Player } from "./types.ts";
-import { CannonMode } from "./types.ts";
-
-export type { AiPlacement } from "./ai-strategy-build.ts";
+import { type Cannon, CannonMode, type GameState, type Player } from "./types.ts";
 
 export type ChainType = (typeof Chain)[keyof typeof Chain];
 

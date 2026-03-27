@@ -1,8 +1,8 @@
+import type { RGB } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type LifeLostDialogState, type ResolvedChoice } from "./life-lost.ts";
 import type { BannerState } from "./phase-banner.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
-import type { RGB } from "./player-config.ts";
 import {
   BANNER_HEIGHT_RATIO,
   LIFE_LOST_BTN_H as BTN_H,
@@ -10,10 +10,9 @@ import {
   LIFE_LOST_PANEL_H as PANEL_H,
   LIFE_LOST_PANEL_W as PANEL_W,
 } from "./render-theme.ts";
-import { type CastleData, FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus, type GameOverOverlay, type LifeLostDialogOverlay, type RenderOverlay } from "./render-types.ts";
+import { FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus, type GameOverOverlay, type LifeLostDialogOverlay, type RenderOverlay } from "./render-types.ts";
 import type { SelectionState } from "./selection.ts";
-import type { GameState, Impact } from "./types.ts";
-import { LIFE_LOST_MAX_TIMER, Phase } from "./types.ts";
+import { type CastleData, type GameState, type Impact, LIFE_LOST_MAX_TIMER, Phase } from "./types.ts";
 
 interface GameOverLayout {
   panelW: number;

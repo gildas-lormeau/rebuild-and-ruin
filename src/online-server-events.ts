@@ -1,5 +1,4 @@
-import type { ServerMessage } from "../server/protocol.ts";
-import { MSG } from "../server/protocol.ts";
+import { MSG, type ServerMessage } from "../server/protocol.ts";
 import type { ImpactEvent } from "./battle-system.ts";
 import type { OrbitParams } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";

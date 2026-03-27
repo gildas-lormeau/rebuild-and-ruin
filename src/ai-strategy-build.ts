@@ -48,8 +48,7 @@ import { canPlacePiece } from "./build-system.ts";
 import { isCannonEnclosed } from "./cannon-system.ts";
 import type { TileRect } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
-import type { PieceShape } from "./pieces.ts";
-import { rotateCW } from "./pieces.ts";
+import { type PieceShape, rotateCW } from "./pieces.ts";
 import {
   computeOutside,
   DIRS_4,
@@ -63,10 +62,7 @@ import {
   towerReachesOutsideCardinal,
   unpackTile,
 } from "./spatial.ts";
-import type { GameState } from "./types.ts";
-import { CannonMode } from "./types.ts";
-
-export type { AiPlacement } from "./ai-build-types.ts";
+import { CannonMode, type GameState } from "./types.ts";
 
 /** Max gap tiles in home castle before AI skips it for other towers. */
 const HOME_GAP_REPAIR_THRESHOLD = 5;

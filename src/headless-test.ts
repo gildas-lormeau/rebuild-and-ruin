@@ -22,8 +22,7 @@ import {
   processHeadlessReselection,
 } from "./headless-sim.ts";
 import { forEachTowerTile, isGrass, packTile, unpackTile } from "./spatial.ts";
-import type { GameState } from "./types.ts";
-import { BATTLE_TIMER, BUILD_TIMER } from "./types.ts";
+import { BATTLE_TIMER, BUILD_TIMER, type GameState } from "./types.ts";
 
 interface Violation {
   game: number;

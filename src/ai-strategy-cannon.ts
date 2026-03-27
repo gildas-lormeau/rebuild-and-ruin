@@ -6,8 +6,7 @@
  */
 
 import { traitLookup } from "./ai-constants.ts";
-import { getActiveEnemies } from "./ai-strategy-battle.ts";
-import { hasTowerAt } from "./board-occupancy.ts";
+import { getActiveEnemies, hasTowerAt } from "./board-occupancy.ts";
 import {
   cannonSlotsUsed,
   canPlaceCannon,
@@ -29,8 +28,7 @@ import {
   towerCenter,
   unpackTile,
 } from "./spatial.ts";
-import type { GameState, Player } from "./types.ts";
-import { BALLOON_COST, CannonMode, SUPER_GUN_COST } from "./types.ts";
+import { BALLOON_COST, CannonMode, type GameState, type Player, SUPER_GUN_COST } from "./types.ts";
 
 type CannonCandidate = { row: number; col: number; score: number };
 

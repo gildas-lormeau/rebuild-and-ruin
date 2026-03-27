@@ -6,8 +6,6 @@
 
 import type { RGB } from "./geometry-types.ts";
 
-export type { RGB };
-
 export interface KeyBindings {
   up: string;
   down: string;

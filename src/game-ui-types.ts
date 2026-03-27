@@ -7,11 +7,9 @@
 
 import type { Crosshair, PhantomPiece } from "./controller-interfaces.ts";
 import type { GameMap } from "./geometry-types.ts";
-import type { KeyBindings, SeedMode } from "./player-config.ts";
-import { MAX_PLAYERS, PLAYER_KEY_BINDINGS, SEED_CUSTOM, SEED_RANDOM } from "./player-config.ts";
+import { type KeyBindings, MAX_PLAYERS, PLAYER_KEY_BINDINGS, SEED_CUSTOM, SEED_RANDOM, type SeedMode } from "./player-config.ts";
 import type { GameOverOverlay } from "./render-types.ts";
-import type { BalloonFlight, Impact } from "./types.ts";
-import { CannonMode } from "./types.ts";
+import { type BalloonFlight, CannonMode, type Impact } from "./types.ts";
 
 export enum Mode {
   LOBBY,

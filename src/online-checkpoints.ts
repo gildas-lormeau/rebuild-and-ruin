@@ -9,8 +9,7 @@ import {
   applyPlayersCheckpoint,
 } from "./online-serialize.ts";
 import { towerCenterPx } from "./spatial.ts";
-import type { GameState } from "./types.ts";
-import { BATTLE_TIMER } from "./types.ts";
+import { BATTLE_TIMER, type GameState } from "./types.ts";
 
 export interface CheckpointBattleAnim {
   territory: Set<number>[];

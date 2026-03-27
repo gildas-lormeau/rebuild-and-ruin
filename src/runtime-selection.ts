@@ -6,8 +6,7 @@
  * factory-with-deps pattern as runtime-camera.ts.
  */
 
-import type { GameMessage } from "../server/protocol.ts";
-import { MSG } from "../server/protocol.ts";
+import { type GameMessage, MSG } from "../server/protocol.ts";
 import { claimTerritory } from "./build-system.ts";
 import {
   createCastleBuildState,

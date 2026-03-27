@@ -27,8 +27,7 @@ import {
   markPlayerReselected,
   resetZoneState,
 } from "./game-engine.ts";
-import type { GameRuntime } from "./game-runtime.ts";
-import { createGameRuntime } from "./game-runtime.ts";
+import { createGameRuntime, type GameRuntime } from "./game-runtime.ts";
 import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT, Mode } from "./game-ui-types.ts";
 import { GRID_COLS } from "./grid.ts";
 import { CHOICE_PENDING } from "./life-lost.ts";

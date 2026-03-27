@@ -11,10 +11,8 @@ import {
   piecePhantomKey,
 } from "./online-types.ts";
 import { unpackTile } from "./spatial.ts";
-import type { HostNetContext } from "./tick-context.ts";
-import { getRemoteSlots, localActiveControllers } from "./tick-context.ts";
-import type { GameState } from "./types.ts";
-import { CannonMode } from "./types.ts";
+import { getRemoteSlots, type HostNetContext, localActiveControllers } from "./tick-context.ts";
+import { CannonMode, type GameState } from "./types.ts";
 
 /** Networking context for the cannon placement phase. */
 interface CannonPhaseNet extends HostNetContext {

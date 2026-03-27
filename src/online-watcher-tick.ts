@@ -5,8 +5,7 @@
  * functions that online-client.ts wires into the game runtime.
  */
 
-import type { ServerMessage } from "../server/protocol.ts";
-import { MSG } from "../server/protocol.ts";
+import { MSG, type ServerMessage } from "../server/protocol.ts";
 import {
   aimCannons,
   nextReadyCombined,
@@ -27,16 +26,14 @@ import {
   applyBuildStartCheckpoint,
   applyCannonStartCheckpoint,
 } from "./online-checkpoints.ts";
-import type { CannonPhantom, PiecePhantom, WatcherTimingState } from "./online-types.ts";
-import { interpolateToward } from "./online-types.ts";
+import { type CannonPhantom, interpolateToward, type PiecePhantom, type WatcherTimingState } from "./online-types.ts";
 import {
   tickWatcherBattlePhase,
   tickWatcherBuildPhantomsPhase,
   tickWatcherCannonPhantomsPhase,
   tickWatcherTimers,
 } from "./online-watcher-battle.ts";
-import type { GameState } from "./types.ts";
-import { Phase } from "./types.ts";
+import { type GameState, Phase } from "./types.ts";
 
 interface WatcherState {
   timing: WatcherTimingState;

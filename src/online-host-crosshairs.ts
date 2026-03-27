@@ -5,16 +5,14 @@
  * Extracted from online-client.ts to keep that file focused on wiring.
  */
 
-import type { GameMessage } from "../server/protocol.ts";
-import { MSG } from "../server/protocol.ts";
+import { type GameMessage, MSG } from "../server/protocol.ts";
 import {
   aimCannons,
   canPlayerFire,
   nextReadyCombined,
 } from "./battle-system.ts";
 import { isAiAnimatable } from "./controller-factory.ts";
-import type { Crosshair, PlayerController } from "./controller-interfaces.ts";
-import { CROSSHAIR_SPEED } from "./controller-interfaces.ts";
+import { CROSSHAIR_SPEED, type Crosshair, type PlayerController } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { interpolateToward } from "./online-types.ts";
 import type { GameState } from "./types.ts";

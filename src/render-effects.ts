@@ -3,10 +3,10 @@
  * crosshairs, phantoms, bonus squares, houses, grunts.
  */
 
+import type { RGB } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { getPlayerColor } from "./player-config.ts";
 import { drawSprite } from "./render-sprites.ts";
-import type { RGB } from "./render-theme.ts";
 import {
   BONUS_FLASH_MS, CROSSHAIR_ARM_IDLE, CROSSHAIR_ARM_PULSE,
   CROSSHAIR_ARM_READY, CROSSHAIR_IDLE_FREQ,CROSSHAIR_READY_FREQ, drawShadowText, FONT_TIMER,

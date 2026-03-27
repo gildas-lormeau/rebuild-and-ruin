@@ -1,6 +1,5 @@
 import type { House, TilePos } from "./geometry-types.ts";
-import type { CastleData, GameState } from "./types.ts";
-import { Phase } from "./types.ts";
+import { type CastleData, type GameState, Phase } from "./types.ts";
 
 export interface BannerState {
   active: boolean;

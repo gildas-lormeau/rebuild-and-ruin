@@ -12,8 +12,7 @@ import { Mode } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import type { KeyBindings } from "./player-config.ts";
 import { GEAR_SIZE, GEAR_X, GEAR_Y } from "./render-theme.ts";
-import type { GameState, Impact, Player } from "./types.ts";
-import { Phase } from "./types.ts";
+import { type GameState, type Impact, Phase, type Player } from "./types.ts";
 
 /** Result of a lobby click hit-test. */
 export type LobbyHit = { type: "gear" } | { type: "slot"; slotId: number };

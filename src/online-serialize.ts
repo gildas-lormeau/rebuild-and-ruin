@@ -3,12 +3,10 @@
  * Pure functions that read/write GameState — no module-level state.
  */
 
-import type { FullStateMessage, SerializedGrunt, SerializedPlayer } from "../server/protocol.ts";
-import { MSG } from "../server/protocol.ts";
+import { type FullStateMessage, MSG, type SerializedGrunt, type SerializedPlayer } from "../server/protocol.ts";
 import { buildCastle } from "./map-generation.ts";
 import { Rng } from "./rng.ts";
-import type { BalloonFlight, GameState } from "./types.ts";
-import { CannonMode, Phase } from "./types.ts";
+import { type BalloonFlight, CannonMode, type GameState, Phase } from "./types.ts";
 
 interface FullStateResult {
   balloonFlights?: { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[];

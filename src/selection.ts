@@ -1,8 +1,7 @@
 import { MSG } from "../server/protocol.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import { BANNER_SELECT } from "./phase-banner.ts";
-import type { GameState } from "./types.ts";
-import { isSelectionPhase, Phase } from "./types.ts";
+import { type GameState, isSelectionPhase, Phase } from "./types.ts";
 
 export interface SelectionState {
   highlighted: number;

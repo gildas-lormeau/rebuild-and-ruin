@@ -8,8 +8,7 @@
 import type { PixelPos, TilePos } from "./geometry-types.ts";
 import type { PieceShape } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
-import type { GameState } from "./types.ts";
-import { Action, CannonMode } from "./types.ts";
+import { Action, CannonMode, type GameState } from "./types.ts";
 
 /** Orbit animation parameters for AI countdown idle animation. */
 export type OrbitParams = { rx: number; ry: number; speed: number; phase: number };

@@ -5,8 +5,7 @@
  * Extracted from game-runtime.ts.
  */
 
-import type { GameMessage, SerializedPlayer } from "../server/protocol.ts";
-import { MSG } from "../server/protocol.ts";
+import { type GameMessage, MSG, type SerializedPlayer } from "../server/protocol.ts";
 import { resolveBalloons, updateCannonballs } from "./battle-system.ts";
 import {
   beginHostBattle,

@@ -15,8 +15,7 @@ import { ACTION_CONFIRM, PLAYER_COLORS } from "./player-config.ts";
 import { rgb, TOUCH_ZOOM_ENEMY_BG, TOUCH_ZOOM_HOME_BG, ZOOM_BUTTON_ALPHA } from "./render-theme.ts";
 import type { SelectionState } from "./selection.ts";
 import { findNearestTower } from "./spatial.ts";
-import type { GameState } from "./types.ts";
-import { Action, isSelectionPhase, Phase } from "./types.ts";
+import { Action, type GameState, isSelectionPhase, Phase } from "./types.ts";
 
 interface DpadDeps {
   getState: () => GameState | undefined;

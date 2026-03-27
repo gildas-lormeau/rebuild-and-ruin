@@ -15,11 +15,9 @@ import {
 import type { GameMap } from "./geometry-types.ts";
 import { generateMap } from "./map-generation.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
-import type { KeyBindings } from "./player-config.ts";
-import { ACTION_KEYS, getPlayerColor, PLAYER_NAMES, SEED_CUSTOM } from "./player-config.ts";
+import { ACTION_KEYS, getPlayerColor, type KeyBindings, PLAYER_NAMES, SEED_CUSTOM } from "./player-config.ts";
 import type { OptionEntry, RenderOverlay } from "./render-types.ts";
-import type { GameState } from "./types.ts";
-import { LOBBY_SKIP_LOCKOUT, LOBBY_SKIP_STEP } from "./types.ts";
+import { type GameState, LOBBY_SKIP_LOCKOUT, LOBBY_SKIP_STEP } from "./types.ts";
 
 export interface UIContext {
   canvas: HTMLCanvasElement;

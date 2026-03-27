@@ -26,8 +26,7 @@ import {
   Mode,
 } from "./game-ui-types.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
-import type { BannerState } from "./phase-banner.ts";
-import { createBannerState } from "./phase-banner.ts";
+import { type BannerState, createBannerState } from "./phase-banner.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 import type { PlayerStats, RenderOverlay } from "./render-types.ts";
 import type { SelectionState } from "./selection.ts";

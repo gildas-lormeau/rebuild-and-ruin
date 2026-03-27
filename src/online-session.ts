@@ -6,8 +6,7 @@
  * typed state and reusable networking plumbing.
  */
 
-import type { GameMessage, ServerMessage } from "../server/protocol.ts";
-import { MSG } from "../server/protocol.ts";
+import { type GameMessage, MSG, type ServerMessage } from "../server/protocol.ts";
 import type { LifeLostChoice } from "./life-lost.ts";
 import { LOBBY_TIMER } from "./types.ts";
 

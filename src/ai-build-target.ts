@@ -9,8 +9,7 @@
 import { filterUnfillableGaps } from "./ai-castle-rect.ts";
 import { canPlacePiece } from "./build-system.ts";
 import type { TileRect } from "./geometry-types.ts";
-import type { PieceShape } from "./pieces.ts";
-import { ALL_PIECE_SHAPES, rotateCW } from "./pieces.ts";
+import { ALL_PIECE_SHAPES, type PieceShape, rotateCW } from "./pieces.ts";
 import {
   DIRS_8,
   isGrass,

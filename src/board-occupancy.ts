@@ -20,8 +20,7 @@ import {
   packTile,
   unpackTile,
 } from "./spatial.ts";
-import type { Grunt, Player } from "./types.ts";
-import { CannonMode, type GameState } from "./types.ts";
+import { CannonMode, type GameState, type Grunt, type Player } from "./types.ts";
 
 export function isTileOwnedByPlayer(
   player: Pick<Player, "interior" | "walls">,

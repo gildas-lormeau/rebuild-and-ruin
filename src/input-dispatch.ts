@@ -12,8 +12,7 @@ import type { WorldPos } from "./geometry-types.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
 import type { SelectionState } from "./selection.ts";
 import { towerAtPixel } from "./spatial.ts";
-import type { GameState } from "./types.ts";
-import { isSelectionPhase, Phase } from "./types.ts";
+import { type GameState, isSelectionPhase, Phase } from "./types.ts";
 
 export interface ModeValues {
   LOBBY: number;

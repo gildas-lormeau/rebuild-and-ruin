@@ -2,6 +2,7 @@
  * Map Renderer — browser-side ES module for rendering game maps on a canvas.
  */
 
+import type { RGB } from "./geometry-types.ts";
 import { CANVAS_H, CANVAS_W, GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import { getPlayerColor } from "./player-config.ts";
 import {
@@ -13,9 +14,9 @@ import {
   drawWaterAnimation,
 } from "./render-effects.ts";
 import { drawSprite } from "./render-sprites.ts";
-import { BANNER_HEIGHT_RATIO, type RGB, STATUSBAR_HEIGHT } from "./render-theme.ts";
+import { BANNER_HEIGHT_RATIO, STATUSBAR_HEIGHT } from "./render-theme.ts";
 import { drawTowers } from "./render-towers.ts";
-import type { CastleData, MapData, RenderOverlay, Viewport } from "./render-types.ts";
+import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import {
   drawAnnouncement,
   drawBanner,
@@ -28,7 +29,7 @@ import {
   drawStatusBar,
 } from "./render-ui.ts";
 import { facingToDir8, isCannonAlive, pxToTile, unpackTile } from "./spatial.ts";
-import { CannonMode } from "./types.ts";
+import { CannonMode, type CastleData } from "./types.ts";
 
 interface TerrainImageCache {
   width: number;

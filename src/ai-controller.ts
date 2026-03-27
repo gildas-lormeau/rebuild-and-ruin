@@ -34,11 +34,9 @@ import type {
   TilePos,
 } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
-import type { PieceShape } from "./pieces.ts";
-import { rotateCW } from "./pieces.ts";
+import { type PieceShape, rotateCW } from "./pieces.ts";
 import { packTile, tileCenterPx, towerCenter } from "./spatial.ts";
-import type { GameState, Player } from "./types.ts";
-import { CannonMode } from "./types.ts";
+import { CannonMode, type GameState, type Player } from "./types.ts";
 
 /** Placement target with piece and position. */
 type BuildTarget = { piece: PieceShape } & TilePos;
