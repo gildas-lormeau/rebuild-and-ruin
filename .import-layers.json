@@ -17,7 +17,7 @@
     ]
   },
   {
-    "name": "core types",
+    "name": "core types & systems",
     "files": [
       "src/types.ts",
       "src/spatial.ts",
@@ -28,7 +28,7 @@
     ]
   },
   {
-    "name": "shared types & config",
+    "name": "shared interfaces & theme",
     "files": [
       "src/player-config.ts",
       "src/controller-interfaces.ts",
