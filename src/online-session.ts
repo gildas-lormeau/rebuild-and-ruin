@@ -115,7 +115,11 @@ export function connectWebSocket(
   if (session.ws && session.ws.readyState <= WebSocket.OPEN) return;
   session.ws = new WebSocket(wsUrl);
   session.ws.onmessage = (e) => {
-    try { handlers.onMessage(JSON.parse(e.data as string) as ServerMessage); } catch { /* ignore malformed */ }
+    try {
+      handlers.onMessage(JSON.parse(e.data as string) as ServerMessage);
+    } catch (err) {
+      console.warn("[ws] malformed message:", err);
+    }
   };
   session.ws.onopen = () => {
     if (session.keepaliveTimer) clearInterval(session.keepaliveTimer);

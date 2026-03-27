@@ -322,7 +322,7 @@ export function countFatBlocks(
   walls: Set<number>,
   candidate: Candidate,
 ): number {
-  const { addedKeys, addedSet: _, isWall } = buildCandidateWallInfo(walls, candidate.rotation.offsets, candidate.row, candidate.col);
+  const { addedKeys, isWall } = buildCandidateWallInfo(walls, candidate.rotation.offsets, candidate.row, candidate.col);
   let blocks = 0;
   for (const key of addedKeys) {
     const { r, c } = unpackTile(key);
@@ -336,7 +336,7 @@ export function checkFatWall(
   walls: Set<number>,
   candidate: Candidate,
 ): { hasFatWall: boolean; gapClosingFat: boolean } {
-  const { addedKeys, addedSet: _, isWall } = buildCandidateWallInfo(walls, candidate.rotation.offsets, candidate.row, candidate.col);
+  const { addedKeys, isWall } = buildCandidateWallInfo(walls, candidate.rotation.offsets, candidate.row, candidate.col);
   let hasFatWall = false;
   let gapClosingFat = false;
   for (const key of addedKeys) {
@@ -370,14 +370,14 @@ function buildCandidateWallInfo(
   offsets: readonly (readonly [number, number])[],
   row: number,
   col: number,
-): { addedKeys: number[]; addedSet: Set<number>; isWall: (k: number) => boolean } {
+): { addedKeys: number[]; isWall: (k: number) => boolean } {
   const addedKeys: number[] = [];
   for (const [dr, dc] of offsets) {
     addedKeys.push(packTile(row + dr, col + dc));
   }
   const addedSet = new Set(addedKeys);
   const isWall = (k: number) => walls.has(k) || addedSet.has(k);
-  return { addedKeys, addedSet, isWall };
+  return { addedKeys, isWall };
 }
 
 /** Check if a tile creates any 2x2 all-wall block when added to existing walls. */

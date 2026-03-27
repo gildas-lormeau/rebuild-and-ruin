@@ -128,7 +128,7 @@ export function buildFullStateMessage(
       speed: b.speed,
       playerId: b.playerId,
       scoringPlayerId: b.scoringPlayerId,
-      incendiary: b.incendiary || undefined,
+      incendiary: b.incendiary ? true : undefined,
     })),
     balloonFlights: flights && flights.length > 0
       ? flights.map((f) => ({ ...f.flight, progress: f.progress }))
@@ -190,8 +190,11 @@ export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage):
   }
 
   // Restore cannonballs (skip any with stale cannon references)
-  state.cannonballs = msg.cannonballs
-    .filter((b) => state.players[b.playerId]?.cannons[b.cannonIdx])
+  const validBalls = msg.cannonballs.filter((b) => state.players[b.playerId]?.cannons[b.cannonIdx]);
+  if (validBalls.length < msg.cannonballs.length) {
+    console.warn(`[checkpoint] dropped ${msg.cannonballs.length - validBalls.length} cannonballs with stale refs`);
+  }
+  state.cannonballs = validBalls
     .map((b) => ({
       cannonIdx: b.cannonIdx,
       startX: b.startX, startY: b.startY,

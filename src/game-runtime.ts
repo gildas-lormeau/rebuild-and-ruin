@@ -169,7 +169,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   /** Expose mode, phase, and targeting data for E2E test automation (dev only). */
   function exposeTestGlobals(): void {
     if (typeof window === "undefined") return;
-    const w = window as unknown as Record<string, unknown>;
+    const w = globalThis as unknown as Record<string, unknown>;
     w.__testMode = Mode[rs.mode];
     w.__testPhase = rs.state ? Phase[rs.state.phase] : "";
     w.__testTimer = rs.state ? rs.state.timer : 0;

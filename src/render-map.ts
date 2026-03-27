@@ -214,10 +214,7 @@ export function renderMap(
       octx.restore();
     }
   } else {
-    cachedBannerMap = null;
-    cachedBannerCastles = undefined;
-    cachedBannerTerritory = undefined;
-    cachedBannerWalls = undefined;
+    clearBannerCache();
   }
 
   // Layers that don't change between phases — draw once on top
@@ -279,11 +276,15 @@ function ensureOffscreenSize(width: number, height: number): void {
   ) {
     bannerSceneCanvas.width = width;
     bannerSceneCanvas.height = height;
-    cachedBannerMap = null;
-    cachedBannerCastles = undefined;
-    cachedBannerTerritory = undefined;
-    cachedBannerWalls = undefined;
+    clearBannerCache();
   }
+}
+
+function clearBannerCache(): void {
+  cachedBannerMap = null;
+  cachedBannerCastles = undefined;
+  cachedBannerTerritory = undefined;
+  cachedBannerWalls = undefined;
 }
 
 /** Build SDF for water/grass boundaries, blur it, and paint terrain pixels. */

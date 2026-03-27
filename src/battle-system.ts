@@ -455,7 +455,7 @@ function launchCannonball(
     speed: BALL_SPEED,
     playerId,
     scoringPlayerId,
-    incendiary: cannon.kind === CannonMode.SUPER || undefined,
+    incendiary: cannon.kind === CannonMode.SUPER ? true : undefined,
   });
 }
 

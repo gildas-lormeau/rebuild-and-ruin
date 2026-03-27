@@ -121,6 +121,8 @@ const initDomLobby = () =>
     setIsHost: (value) => { session.isHost = value; },
     isVisible: () => !pageOnline.hidden,
   });
+const MAX_RECONNECT_ATTEMPTS = 3;
+const RECONNECT_BASE_DELAY_MS = 1000;
 const watcherTickCtx: WatcherTickContext = {
   getState: () => runtime.rs.state,
   getFrame: () => runtime.rs.frame,
@@ -263,6 +265,9 @@ const runtime: GameRuntime = createGameRuntime({
   },
 });
 
+let reconnectAttempt = 0;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
 function logThrottled(key: string, msg: string): void {
   if (!DEV) return;
   const now = performance.now();
@@ -274,11 +279,26 @@ function logThrottled(key: string, msg: string): void {
 
 function connect(): void {
   connectWebSocket(session, getWsUrl(), {
-    onMessage: handleServerMessage,
+    onMessage: (msg) => {
+      if (reconnectAttempt > 0) {
+        log(`reconnected after ${reconnectAttempt} attempt(s)`);
+        clearReconnect();
+      }
+      handleServerMessage(msg);
+    },
     onClose: () => {
       const m = runtime.rs.mode;
       log(`WebSocket closed (mode=${Mode[m]} isHost=${session.isHost})`);
-      if (!session.isHost && m !== Mode.STOPPED && m !== Mode.LOBBY) {
+      if (session.isHost || m === Mode.STOPPED || m === Mode.LOBBY) return;
+      if (reconnectAttempt < MAX_RECONNECT_ATTEMPTS) {
+        reconnectAttempt++;
+        const delay = RECONNECT_BASE_DELAY_MS * (1 << (reconnectAttempt - 1));
+        runtime.rs.frame.announcement = "Reconnecting\u2026";
+        runtime.render();
+        log(`reconnect attempt ${reconnectAttempt}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`);
+        reconnectTimer = setTimeout(() => { reconnectTimer = null; connect(); }, delay);
+      } else {
+        clearReconnect();
         runtime.rs.frame.announcement = "Disconnected from server";
         runtime.render();
         runtime.rs.mode = Mode.STOPPED;
@@ -286,8 +306,8 @@ function connect(): void {
     },
     onError: () => {
       console.error("[online] WebSocket connection failed");
-      lobbyElements.createError.textContent = "Connection failed — is the server running?";
-      lobbyElements.joinError.textContent = "Connection failed — is the server running?";
+      lobbyElements.createError.textContent = "Connection failed \u2014 is the server running?";
+      lobbyElements.joinError.textContent = "Connection failed \u2014 is the server running?";
     },
   });
 }
@@ -542,9 +562,15 @@ document.addEventListener(GAME_EXIT_EVENT, () => {
 });
 
 function resetSession(): void {
+  clearReconnect();
   resetSessionState(session);
   runtime.rs.settings.seed = "";
   resetDedup();
+}
+
+function clearReconnect(): void {
+  reconnectAttempt = 0;
+  if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
 }
 
 function resetDedup(): void {

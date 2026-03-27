@@ -2,6 +2,7 @@ import type { PlayerController } from "./controller-interfaces.ts";
 import { createGameFromSeed } from "./game-engine.ts";
 import { GAME_CONTAINER_ACTIVE, type LobbyState } from "./game-ui-types.ts";
 import { generateMap } from "./map-generation.ts";
+import { GOLD, PANEL_BG } from "./render-theme.ts";
 import type { SelectionState } from "./selection.ts";
 import { type GameState, Phase } from "./types.ts";
 
@@ -85,8 +86,8 @@ export function setupWaitingRoom(deps: ShowWaitingRoomDeps): void {
   const wrapper = document.createElement("div");
   Object.assign(wrapper.style, {
     position: "fixed", top: "12px", left: "50%", transform: "translateX(-50%)",
-    background: "rgba(26,26,46,0.9)", padding: "12px 24px", borderRadius: "6px",
-    border: "2px solid #c8a040", color: "#c8a040", fontSize: "24px", letterSpacing: "6px",
+    background: PANEL_BG(0.9), padding: "12px 24px", borderRadius: "6px",
+    border: `2px solid ${GOLD}`, color: GOLD, fontSize: "24px", letterSpacing: "6px",
     fontWeight: "bold", zIndex: "10", textAlign: "center",
   });
   wrapper.textContent = code;

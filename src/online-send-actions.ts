@@ -72,6 +72,6 @@ export function buildCannonFiredMsg(ball: {
     targetX: ball.targetX,
     targetY: ball.targetY,
     speed: ball.speed,
-    incendiary: ball.incendiary || undefined,
+    incendiary: ball.incendiary ? true : undefined,
   };
 }

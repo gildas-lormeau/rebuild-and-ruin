@@ -38,7 +38,7 @@ const runtime = createGameRuntime({
     runtime.rs.mode = Mode.SELECTION;
   },
 });
-const atlasReady = loadAtlas().catch(() => {});
+const atlasReady = loadAtlas().catch((e) => { console.warn("[local] sprite atlas failed to load:", e); });
 
 /** Enter the local lobby. Waits for sprite atlas on first call. */
 export function enterLocalLobby(): void {

@@ -338,7 +338,7 @@ export function pickPlacementImpl(
         if (gaps.size > 0 || totalGaps === 0) {
           // If the current piece can't fill this tower's gaps, try the next tower
           // but keep building toward secondary targets instead of giving up
-          if (gaps.size > 0 && gaps.size <= 8 && !canPieceFillAnyGap(state, playerId, piece, player.interior, gaps, rect)) {
+          if (gaps.size > 0 && gaps.size <= MANAGEABLE_GAP_LIMIT && !canPieceFillAnyGap(state, playerId, piece, player.interior, gaps, rect)) {
             // Try plugging structurally unreachable gaps before deferring
             if (!plugUnreachableGaps(gaps, rect, state, playerId, player) ||
                 !canPieceFillAnyGap(state, playerId, piece, player.interior, gaps, rect)) {
@@ -414,12 +414,13 @@ export function pickPlacementImpl(
     });
   }
 
+  const fatBlockCountFor = memoize((candidate: Candidate) => countFatBlocks(player.walls, candidate));
+
   if (scored.length === 0) {
     // When everything is enclosed with no gaps, don't force-place fat walls
     if (noBuildTargets) {
       return null;
     }
-    const fatBlockCountFor = memoize((candidate: Candidate) => countFatBlocks(player.walls, candidate));
     const compareByFatBlockCount = (a: Candidate, b: Candidate): number =>
       fatBlockCountFor(a) - fatBlockCountFor(b);
 
@@ -615,14 +616,12 @@ export function pickPlacementImpl(
   // Reject fat walls even here — a gap-fill that creates 2×2 blocks without
   // enclosing territory is wasteful.
   if (bestScore <= 0 && restrictedToGapFillers && bestCandidateEvaluated) {
-    const gapFillerFatBlockCountFor = memoize((candidate: Candidate) => countFatBlocks(player.walls, candidate));
-
-    if (gapFillerFatBlockCountFor(bestCandidate) === 0) {
+    if (fatBlockCountFor(bestCandidate) === 0) {
       return candidateToPlacement(bestCandidate);
     }
     // Fat wall gap-filler — find a non-fat alternative among gap fillers
     const nonFatGapFillers = topCandidates.filter(
-      (s) => s.candidate.gapsFilled > 0 && gapFillerFatBlockCountFor(s.candidate) === 0,
+      (s) => s.candidate.gapsFilled > 0 && fatBlockCountFor(s.candidate) === 0,
     );
     if (nonFatGapFillers.length > 0) {
       nonFatGapFillers.sort(compareByNumericScoreDesc);
