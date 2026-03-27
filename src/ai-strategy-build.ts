@@ -30,7 +30,7 @@ import {
   countFatBlocks,
   countSmallPocketTiles,
   FAT_WALL_TILE_PENALTY,
-  rejectForFatWalls
+  shouldRejectForFatWalls
 } from "./ai-build-score.ts";
 import { canPieceFillAnyGap, plugUnreachableGaps } from "./ai-build-target.ts";
 import type { AiPlacement, Candidate, PlacementOptions, Scored, ScoringContext } from "./ai-build-types.ts";
@@ -488,7 +488,7 @@ export function pickPlacementImpl(
       const usefulGain = rawGain - pieceTiles;
 
       const fatExempt = candidate.gapsFilled > 0 && !ctx.allCastlesEnclosed;
-      if (rejectForFatWalls(rawFatBlocks, ctx.skill.fatGainPerBlock, usefulGain, fatExempt)) continue;
+      if (shouldRejectForFatWalls(rawFatBlocks, ctx.skill.fatGainPerBlock, usefulGain, fatExempt)) continue;
 
       const pocketInfo = countSmallPocketTiles(simulatedWalls, newOutside);
       const pocketDelta = pocketInfo.wasted - ctx.baselinePocketWaste;

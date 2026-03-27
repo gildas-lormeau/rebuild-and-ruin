@@ -258,7 +258,7 @@ export function computeWastefulClosureAdjustment(
   return { gapBonus: baseGapBonus, wastefulClosurePenalty: 0 };
 }
 
-export function rejectForFatWalls(
+export function shouldRejectForFatWalls(
   rawFatBlocks: number,
   fatGainPerBlock: number,
   usefulGain: number,
