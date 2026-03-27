@@ -2,9 +2,9 @@ import { MSG, type ServerMessage } from "../server/protocol.ts";
 import type { ImpactEvent } from "./battle-system.ts";
 import type { OrbitParams } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
-import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { LifeLostChoice } from "./life-lost.ts";
 import type { SelectionState } from "./selection.ts";
+import { inBoundsStrict } from "./spatial.ts";
 import { CannonMode, type GameState } from "./types.ts";
 
 interface LifeLostChoiceEntry {
@@ -122,7 +122,7 @@ export function handleServerIncrementalMessage(
 
     case MSG.OPPONENT_PIECE_PLACED: {
       if (!state || !validPid(msg.playerId, state)) return true;
-      if (!inBounds(msg.row, msg.col)) return true;
+      if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return true;
       if (acceptRemote(msg.playerId, deps)) {
         deps.log(
@@ -141,7 +141,7 @@ export function handleServerIncrementalMessage(
 
     case MSG.OPPONENT_CANNON_PLACED: {
       if (!state || !validPid(msg.playerId, state)) return true;
-      if (!inBounds(msg.row, msg.col)) return true;
+      if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (!VALID_CANNON_MODES.has(msg.mode)) return true;
       if (acceptRemote(msg.playerId, deps)) {
         deps.applyCannonPlacement(
@@ -189,7 +189,7 @@ export function handleServerIncrementalMessage(
     case MSG.GRUNT_SPAWNED:
     case MSG.PIT_CREATED:
       if (!deps.isHost && state) {
-        if ("row" in msg && "col" in msg && !inBounds(msg.row, msg.col)) return true;
+        if ("row" in msg && "col" in msg && !inBoundsStrict(msg.row, msg.col)) return true;
         if ("playerId" in msg && !validPid(msg.playerId, state)) return true;
         if (msg.type === MSG.WALL_DESTROYED) {
           const wallKey = msg.row * deps.gridCols + msg.col;
@@ -224,7 +224,7 @@ export function handleServerIncrementalMessage(
 
     case MSG.OPPONENT_PHANTOM: {
       if (state && !validPid(msg.playerId, state)) return true;
-      if (!inBounds(msg.row, msg.col)) return true;
+      if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (acceptRemote(msg.playerId, deps)) {
         const next = deps
           .getRemotePiecePhantoms()
@@ -242,7 +242,7 @@ export function handleServerIncrementalMessage(
 
     case MSG.OPPONENT_CANNON_PHANTOM: {
       if (state && !validPid(msg.playerId, state)) return true;
-      if (!inBounds(msg.row, msg.col)) return true;
+      if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (acceptRemote(msg.playerId, deps)) {
         const next = deps
           .getRemoteCannonPhantoms()
@@ -293,9 +293,4 @@ function acceptRemote(pid: number, deps: Pick<HandleServerIncrementalDeps, "isHo
 
 function validPid(pid: number, state: GameState): boolean {
   return Number.isInteger(pid) && pid >= 0 && pid < state.players.length;
-}
-
-function inBounds(row: number, col: number): boolean {
-  return Number.isInteger(row) && Number.isInteger(col) &&
-    row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS;
 }

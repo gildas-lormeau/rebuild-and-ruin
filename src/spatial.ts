@@ -420,6 +420,11 @@ export function unpackTile(key: number): { r: number; c: number } {
   return { r: Math.floor(key / GRID_COLS), c: key % GRID_COLS };
 }
 
+/** True if (r,c) is within bounds and both values are integers (for validating untrusted input). */
+export function inBoundsStrict(r: number, c: number): boolean {
+  return Number.isInteger(r) && Number.isInteger(c) && inBounds(r, c);
+}
+
 /** True if (r,c) is within the grid bounds. */
 export function inBounds(r: number, c: number): boolean {
   return r >= 0 && r < GRID_ROWS && c >= 0 && c < GRID_COLS;
