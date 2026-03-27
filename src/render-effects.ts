@@ -10,12 +10,14 @@ import { drawSprite } from "./render-sprites.ts";
 import {
   BONUS_FLASH_MS, CROSSHAIR_ARM_IDLE, CROSSHAIR_ARM_PULSE,
   CROSSHAIR_ARM_READY, CROSSHAIR_IDLE_FREQ,CROSSHAIR_READY_FREQ, drawShadowText, FONT_TIMER,
-  rgb, SHADOW_COLOR,setCenterText,
+  rgb, SHADOW_COLOR,setCenterText, TEXT_WHITE,
 } from "./render-theme.ts";
 import type { MapData, RenderOverlay } from "./render-types.ts";
 import { facingToCardinal } from "./spatial.ts";
 import { CannonMode, IMPACT_FLASH_DURATION } from "./types.ts";
 
+// Phantom invalid-placement color (red overlay for blocked positions)
+const PHANTOM_INVALID_COLOR = "#aa2222";
 // Spatial hash multipliers for per-tile visual noise
 const SEED_ROW = 41;
 const SEED_COL = 17;
@@ -58,7 +60,7 @@ export function drawPhantoms(
       offsets,
       row,
       col,
-      valid ? "#c8c0b8" : "#aa2222",
+      valid ? "#c8c0b8" : PHANTOM_INVALID_COLOR,
       0.5,
       false,
     );
@@ -69,7 +71,7 @@ export function drawPhantoms(
     for (const phantom of overlay.phantoms.humanPhantoms) {
       const { offsets, row, col, valid, playerId } = phantom;
       const wall = getPlayerColor(playerId).wall;
-      const fill = valid ? rgb(wall) : "#aa2222";
+      const fill = valid ? rgb(wall) : PHANTOM_INVALID_COLOR;
       drawPiecePhantom(octx, offsets, row, col, fill, 0.55, true);
     }
   }
@@ -404,7 +406,7 @@ export function drawBattleEffects(
     octx.save();
     octx.font = FONT_TIMER;
     setCenterText(octx);
-    drawShadowText(octx, text, jx, jy, SHADOW_COLOR, "#fff");
+    drawShadowText(octx, text, jx, jy, SHADOW_COLOR, TEXT_WHITE);
     octx.restore();
   }
 }
@@ -507,7 +509,7 @@ function drawPiecePhantom(
     octx.fillRect((col + dc) * TILE_SIZE, (row + dr) * TILE_SIZE, TILE_SIZE, TILE_SIZE);
   }
   if (outline) {
-    octx.strokeStyle = "#fff";
+    octx.strokeStyle = TEXT_WHITE;
     octx.lineWidth = 1;
     for (const [dr, dc] of offsets) {
       octx.strokeRect((col + dc) * TILE_SIZE, (row + dr) * TILE_SIZE, TILE_SIZE, TILE_SIZE);

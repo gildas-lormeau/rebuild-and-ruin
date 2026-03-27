@@ -45,6 +45,7 @@ import {
   STATUS_TEXT_COLOR,
   STATUSBAR_HEIGHT,
   setCenterText,
+  TEXT_WHITE,
 } from "./render-theme.ts";
 import { FOCUS_MENU, FOCUS_REMATCH, type RenderOverlay } from "./render-types.ts";
 
@@ -76,7 +77,7 @@ export function drawAnnouncement(
   octx.save();
   octx.font = FONT_ANNOUNCE;
   setCenterText(octx);
-  drawShadowText(octx, text, W / 2, H / 2, SHADOW_COLOR_HEAVY, "#fff");
+  drawShadowText(octx, text, W / 2, H / 2, SHADOW_COLOR_HEAVY, TEXT_WHITE);
   octx.restore();
 }
 
@@ -134,7 +135,7 @@ export function drawScoreDeltas(
     const shown = Math.round(d.delta * t);
     const total = d.total - d.delta + shown;
     octx.font = FONT_FLOAT_LG;
-    drawShadowText(octx, `+${shown}`, d.cx, d.cy - 6, SHADOW_COLOR_DENSE, "#fff");
+    drawShadowText(octx, `+${shown}`, d.cx, d.cy - 6, SHADOW_COLOR_DENSE, TEXT_WHITE);
     octx.font = FONT_FLOAT_MD;
     drawShadowText(octx, `${total}`, d.cx, d.cy + 8, SHADOW_COLOR, GOLD_LIGHT);
   }
@@ -265,14 +266,14 @@ export function drawGameOver(
     BTN_CONTINUE.fill(rematchFocused ? 0.5 : 0.2),
     rematchFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
     rematchFocused ? 2 : 1, FONT_BUTTON,
-    rematchFocused ? "#fff" : "#ccc", "Rematch");
+    rematchFocused ? TEXT_WHITE : "#ccc", "Rematch");
 
   const menuFocused = focused === FOCUS_MENU;
   drawButton(octx, menuX, btnY, btnW, GAMEOVER_BTN_H,
     BTN_ABANDON.fill(menuFocused ? 0.5 : 0.2),
     menuFocused ? "#ccf" : "#99c",
     menuFocused ? 2 : 1, FONT_BUTTON,
-    menuFocused ? "#fff" : "#ccc", "Menu");
+    menuFocused ? TEXT_WHITE : "#ccc", "Menu");
 }
 
 /** Draw life-lost continue/abandon dialogs (one per player). */
@@ -333,7 +334,7 @@ export function drawLifeLostDialog(
         BTN_CONTINUE.fill(contFocused ? (contFlash ? 0.6 : 0.4) : 0.15),
         contFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
         contFocused ? 2 : 1, FONT_BUTTON,
-        contFocused ? "#fff" : TEXT_DISABLED, "Continue");
+        contFocused ? TEXT_WHITE : TEXT_DISABLED, "Continue");
 
       // Abandon button
       const abFlash = abFocused && flashOn(BUTTON_FLASH_MS, t);
@@ -341,7 +342,7 @@ export function drawLifeLostDialog(
         BTN_ABANDON.fill(abFocused ? (abFlash ? 0.5 : 0.3) : 0.1),
         abFocused ? BTN_ABANDON.strokeFocused : BTN_ABANDON.stroke,
         abFocused ? 2 : 1, FONT_BUTTON,
-        abFocused ? "#fff" : "#777", "Abandon");
+        abFocused ? TEXT_WHITE : "#777", "Abandon");
     } else {
       // Resolved state
       octx.font = FONT_LABEL;
@@ -404,13 +405,13 @@ export function drawPlayerSelect(
     if (p.joined) {
       drawButton(octx, btnX, btnY, btnW, btnH,
         rgb(c, 0.3), rgb(c), 1,
-        touch ? FONT_BODY : FONT_BUTTON, "#fff", "Please wait...");
+        touch ? FONT_BODY : FONT_BUTTON, TEXT_WHITE, "Please wait...");
     } else {
       const flash = flashOn(CURSOR_BLINK_MS, now ?? Date.now());
       drawButton(octx, btnX, btnY, btnW, btnH,
         rgb(c, flash ? 0.5 : 0.2), rgb(c), 1,
         touch ? FONT_LABEL : FONT_HINT,
-        flash ? "#fff" : "#aaa",
+        flash ? TEXT_WHITE : "#aaa",
         touch ? "Tap to join" : "Press button to start");
     }
 
@@ -487,7 +488,7 @@ export function drawOptionsScreen(
     octx.font = selected ? FONT_BODY : FONT_LABEL;
     octx.fillStyle = selected
       ? opt.editable
-        ? "#fff"
+        ? TEXT_WHITE
         : TEXT_DISABLED
       : TEXT_MUTED;
     octx.fillText(opt.name, px + 20, oy + optH / 2);
@@ -613,7 +614,7 @@ export function drawControlsScreen(
           octx.strokeRect(cellX, oy + 1, cellW, rowH - 2);
           octx.textAlign = "center";
           octx.font = FONT_BODY;
-          octx.fillStyle = "#fff";
+          octx.fillStyle = TEXT_WHITE;
           octx.fillText(player.bindings[a]!, cx, oy + rowH / 2);
         }
       } else {

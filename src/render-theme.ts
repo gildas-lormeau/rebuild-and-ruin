@@ -89,6 +89,8 @@ export const LOUPE_RIVET_HIGHLIGHT = "rgba(255, 240, 180, 0.6)";
 export const LOUPE_CROSSHAIR_COLOR = "rgba(255, 255, 255, 0.5)";
 /** Loupe crosshair center dot color. */
 export const LOUPE_CROSSHAIR_DOT = "rgba(255, 255, 255, 0.7)";
+/** Pure white — used for focused button text and primary overlay labels. */
+export const TEXT_WHITE = "#fff";
 /** Muted gold for status bar round/phase/timer text. */
 export const STATUS_TEXT_COLOR = "#a08050";
 /** Red heart color for lives display in status bar. */
