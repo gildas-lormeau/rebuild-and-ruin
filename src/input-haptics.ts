@@ -5,8 +5,7 @@
  */
 
 import { MSG } from "../server/protocol.ts";
-
-const canVibrate = typeof navigator !== "undefined" && !!navigator.vibrate;
+import { CAN_VIBRATE } from "./platform.ts";
 
 /** Current haptics level — set by the game runtime from settings. */
 let level = 2;
@@ -24,7 +23,7 @@ export function hapticBattleEvents(
   events: Array<{ type: string; playerId?: number; hp?: number }>,
   myPlayerId: number,
 ): void {
-  if (!canVibrate || level < 2) return;
+  if (!CAN_VIBRATE || level < 2) return;
   for (const evt of events) {
     if (evt.type === MSG.WALL_DESTROYED && evt.playerId === myPlayerId) {
       hapticWallHit();
@@ -55,5 +54,5 @@ function hapticTowerKilled(): void { vibrate(200, 2); }
 function hapticFired(): void { vibrate(15, 2); }
 
 function vibrate(ms: number, minLevel: number): void {
-  if (canVibrate && level >= minLevel) navigator.vibrate(ms);
+  if (CAN_VIBRATE && level >= minLevel) navigator.vibrate(ms);
 }
