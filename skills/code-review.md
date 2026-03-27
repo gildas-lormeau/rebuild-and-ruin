@@ -35,6 +35,7 @@ Structured multi-pass review that catches issues in dependency order so each pas
 - Input handlers doing too much (business logic instead of delegation)
 - Constants/helpers in the wrong module (increasing coupling)
 - **Why fourth:** clearest when duplicates are merged and code is minimal
+- **See also:** `/import-hygiene` skill for layer-violation audits (`.import-layers.json`)
 
 ### Pass 5: Workarounds & questionable patterns
 - Device detection scattered in logic instead of using a shared constant
