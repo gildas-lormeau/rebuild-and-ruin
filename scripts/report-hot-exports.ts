@@ -39,6 +39,7 @@ const topN = topIdx >= 0 ? Number(args[topIdx + 1]) : Infinity;
 const kindsIdx = args.indexOf("--kinds");
 const kindsArg = kindsIdx >= 0 ? args[kindsIdx + 1] : "function,const,enum";
 const includeKinds = new Set(kindsArg!.split(",").map(k => k.trim()));
+const summaryOnly = args.includes("--summary");
 
 // ---------------------------------------------------------------------------
 // Load project
@@ -160,8 +161,10 @@ console.log("─".repeat(90));
 
 for (const { info, count, importedBy } of shown) {
   console.log(`${info.name.padEnd(36)} ${info.kind.padEnd(10)} ${String(count).padStart(4)}   ${info.file}:${info.line}`);
-  for (const f of importedBy) {
-    console.log(`${"".padEnd(49)} ↳ ${f}`);
+  if (!summaryOnly) {
+    for (const f of importedBy) {
+      console.log(`${"".padEnd(49)} ↳ ${f}`);
+    }
   }
 }
 
