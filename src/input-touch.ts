@@ -9,7 +9,7 @@ import type { InputReceiver, PlayerController } from "./controller-interfaces.ts
 import type { RegisterOnlineInputDeps } from "./input.ts";
 import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, isGameInteractionMode, markTouchTime } from "./input-dispatch.ts";
 import { cannonSize } from "./spatial.ts";
-import { isPlacementPhase, isSelectionPhase, Phase } from "./types.ts";
+import { isPlacementPhase, isReselectPhase, isSelectionPhase, Phase } from "./types.ts";
 
 const TAP_MAX_DIST = 20;
   // CSS pixels
@@ -163,7 +163,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     // Selection: first tap highlights, second tap on same tower confirms
     if (tap && isSelectionPhase(state.phase)) {
       const w = screenToWorld(x, y);
-      dispatchTowerSelect(w.wx, w.wy, state, state.phase === Phase.CASTLE_RESELECT, deps, true);
+      dispatchTowerSelect(w.wx, w.wy, state, isReselectPhase(state.phase), deps, true);
     }
 
     // Build / Cannon: tap on phantom places directly; otherwise tap-to-place when no floating buttons

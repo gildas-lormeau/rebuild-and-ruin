@@ -7,7 +7,7 @@ import { ACTION_KEYS, applyKeyRebinding, type KeyBindings, MAX_PLAYERS, SEED_CUS
 import { FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus } from "./render-types.ts";
 import type { SelectionState } from "./selection.ts";
 import { findNearestTower } from "./spatial.ts";
-import { Action, type GameState, isMovementAction, isPlacementPhase, isSelectionPhase, Phase } from "./types.ts";
+import { Action, type GameState, isMovementAction, isPlacementPhase, isReselectPhase, isSelectionPhase, Phase } from "./types.ts";
 
 export interface RegisterOnlineInputDeps {
   canvas: HTMLCanvasElement;
@@ -124,7 +124,7 @@ export function registerOnlineInputHandlers(
 
     if (isSelectionPhase(state.phase)) {
       const tw = screenToWorld(x, y);
-      dispatchTowerSelect(tw.wx, tw.wy, state, state.phase === Phase.CASTLE_RESELECT, deps);
+      dispatchTowerSelect(tw.wx, tw.wy, state, isReselectPhase(state.phase), deps);
     } else if (isPlacementPhase(state.phase)) {
       dispatchPlacement(state, deps);
     } else {
@@ -341,7 +341,7 @@ function handleKeyLifeLost(e: KeyboardEvent, deps: RegisterOnlineInputDeps): voi
 function handleKeySelection(e: KeyboardEvent, state: GameState, deps: RegisterOnlineInputDeps): void {
   const { isSelectionReady, getControllers, isHuman, getSelectionStates, highlightTowerForPlayer, confirmSelectionForPlayer } = deps;
   if (isSelectionReady && !isSelectionReady()) return;
-  const isReselect = state.phase === Phase.CASTLE_RESELECT;
+  const isReselect = isReselectPhase(state.phase);
   for (const ctrl of getControllers()) {
     if (!isHuman(ctrl)) continue;
     const ss = getSelectionStates().get(ctrl.playerId);

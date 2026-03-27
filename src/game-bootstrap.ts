@@ -4,7 +4,7 @@ import { GAME_CONTAINER_ACTIVE, type LobbyState } from "./game-ui-types.ts";
 import { generateMap } from "./map-generation.ts";
 import { GOLD, PANEL_BG } from "./render-theme.ts";
 import type { SelectionState } from "./selection.ts";
-import { type GameState, Phase } from "./types.ts";
+import { type GameState, isReselectPhase, Phase } from "./types.ts";
 
 interface InitWaitingRoomDeps {
   code: string;
@@ -156,8 +156,8 @@ export function initTowerSelection(
   }
 
   if (!isHost && myPlayerId >= 0) {
-    const isReselect = state.phase !== Phase.CASTLE_SELECT;
-    if (isReselect && state.phase !== Phase.CASTLE_RESELECT) {
+    const needsCastleReselect = state.phase !== Phase.CASTLE_SELECT;
+    if (needsCastleReselect && !isReselectPhase(state.phase)) {
       enterCastleReselectPhase(state);
     }
     selectionStates.clear();

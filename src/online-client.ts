@@ -86,8 +86,8 @@ import {
   BUILD_TIMER,
   CANNON_PLACE_TIMER,
   CannonMode,
+  isReselectPhase,
   MIGRATION_ANNOUNCEMENT_DURATION,
-  Phase,
   SELECT_TIMER,
 } from "./types.ts";
 
@@ -438,7 +438,7 @@ function buildIncrementalDeps() {
     remoteHumanSlots: session.remoteHumanSlots,
     selectionStates: runtime.selection.getStates(),
     syncSelectionOverlay: () => runtime.selection.syncOverlay(),
-    isCastleReselectPhase: () => runtime.rs.state.phase === Phase.CASTLE_RESELECT,
+    isCastleReselectPhase: () => isReselectPhase(runtime.rs.state.phase),
     onRemotePlayerReselected: (playerId: number) => {
       markPlayerReselected(runtime.rs.state, playerId);
       runtime.rs.reselectionPids.push(playerId);

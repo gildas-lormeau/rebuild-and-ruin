@@ -341,6 +341,11 @@ export function isSelectionPhase(phase: Phase): boolean {
   return phase === Phase.CASTLE_SELECT || phase === Phase.CASTLE_RESELECT;
 }
 
+/** True if the phase is castle reselection specifically (not initial selection). */
+export function isReselectPhase(phase: Phase): boolean {
+  return phase === Phase.CASTLE_RESELECT;
+}
+
 /** True if the phase is a placement phase (walls or cannons). */
 export function isPlacementPhase(phase: Phase): boolean {
   return phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE;

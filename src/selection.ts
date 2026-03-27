@@ -1,7 +1,7 @@
 import { MSG } from "../server/protocol.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import { BANNER_SELECT } from "./phase-banner.ts";
-import { type GameState, isSelectionPhase, Phase } from "./types.ts";
+import { type GameState, isReselectPhase, isSelectionPhase, Phase } from "./types.ts";
 
 export interface SelectionState {
   highlighted: number;
@@ -178,7 +178,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     if (accum.select >= selectTimer) {
       const ss = selectionStates.get(myPlayerId);
       if (ss && !ss.confirmed) {
-        confirmSelectionForPlayer(myPlayerId, state.phase === Phase.CASTLE_RESELECT);
+        confirmSelectionForPlayer(myPlayerId, isReselectPhase(state.phase));
       }
     }
     render();
@@ -195,7 +195,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     syncSelectionOverlay();
   }
 
-  const isReselect = state.phase === Phase.CASTLE_RESELECT;
+  const isReselect = isReselectPhase(state.phase);
   for (const [pid, ss] of selectionStates) {
     if (ss.confirmed) continue;
     if (remoteHumanSlots.has(pid)) continue;

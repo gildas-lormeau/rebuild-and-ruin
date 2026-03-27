@@ -15,7 +15,7 @@ import { ACTION_CONFIRM, PLAYER_COLORS } from "./player-config.ts";
 import { rgb, TOUCH_ZOOM_ENEMY_BG, TOUCH_ZOOM_HOME_BG, ZOOM_BUTTON_ALPHA } from "./render-theme.ts";
 import type { SelectionState } from "./selection.ts";
 import { findNearestTower } from "./spatial.ts";
-import { Action, type GameState, isSelectionPhase, Phase } from "./types.ts";
+import { Action, type GameState, isReselectPhase, isSelectionPhase, Phase } from "./types.ts";
 
 interface DpadDeps {
   getState: () => GameState | undefined;
@@ -233,9 +233,8 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
     if (!state || !isGameInteractionMode(mode, deps.modeValues)) return;
     if (isSelectionPhase(state.phase)
       && (!deps.isSelectionReady || deps.isSelectionReady())) {
-      const isReselect = state.phase === Phase.CASTLE_RESELECT;
       deps.withFirstHuman((human) => {
-        deps.confirmSelectionForPlayer(human.playerId, isReselect);
+        deps.confirmSelectionForPlayer(human.playerId, isReselectPhase(state.phase));
       });
     } else if (state.phase === Phase.BATTLE) {
       if (state.battleCountdown <= 0) {

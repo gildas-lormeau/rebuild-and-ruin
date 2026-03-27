@@ -110,8 +110,7 @@ export function handleServerIncrementalMessage(
             ss.highlighted = msg.towerIdx;
             deps.syncSelectionOverlay();
             if (msg.confirmed && deps.isHost) {
-              const isReselect = deps.isCastleReselectPhase();
-              deps.confirmSelectionForPlayer(msg.playerId, isReselect);
+              deps.confirmSelectionForPlayer(msg.playerId, deps.isCastleReselectPhase());
             } else if (msg.confirmed) {
               ss.confirmed = true;
             }
