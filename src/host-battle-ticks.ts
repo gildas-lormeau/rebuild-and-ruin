@@ -1,3 +1,12 @@
+/**
+ * Host-side tick functions for the battle phase.
+ *
+ * Contains the pure tick logic (tickHostBattleCountdown, tickHostBattlePhase,
+ * startHostBattleLifecycle, tickHostBalloonAnim, beginHostBattle) consumed by
+ * runtime-phase-ticks.ts. Networking deps are optional so the same functions
+ * serve both local and online play.
+ */
+
 import type { GameMessage } from "../server/protocol.ts";
 import { countdownAnnouncement } from "./battle-system.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";

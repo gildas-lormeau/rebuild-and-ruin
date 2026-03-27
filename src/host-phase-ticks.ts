@@ -1,3 +1,11 @@
+/**
+ * Host-side tick functions for the cannon placement and wall build phases.
+ *
+ * Contains the pure tick logic (tickHostCannonPhase, tickHostBuildPhase)
+ * consumed by runtime-phase-ticks.ts. Networking deps are optional so the
+ * same functions serve both local and online play.
+ */
+
 import type { SerializedPlayer } from "../server/protocol.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import {
