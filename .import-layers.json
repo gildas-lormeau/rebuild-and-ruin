@@ -31,7 +31,8 @@
     "files": [
       "src/player-config.ts",
       "src/controller-interfaces.ts",
-      "src/tick-context.ts"
+      "src/tick-context.ts",
+      "src/render-theme.ts"
     ]
   },
   {
@@ -72,9 +73,19 @@
     ]
   },
   {
+    "name": "input",
+    "files": [
+      "src/input-haptics.ts",
+      "src/input-recorder.ts",
+      "src/input-dispatch.ts",
+      "src/input-touch-ui.ts",
+      "src/input-touch.ts",
+      "src/input.ts"
+    ]
+  },
+  {
     "name": "render",
     "files": [
-      "src/render-theme.ts",
       "src/render-sprites.ts",
       "src/render-types.ts",
       "src/render-loupe.ts",
@@ -92,17 +103,6 @@
       "src/game-ui-runtime.ts",
       "src/game-ui-screens.ts",
       "src/frame-context.ts"
-    ]
-  },
-  {
-    "name": "input",
-    "files": [
-      "src/input-haptics.ts",
-      "src/input-recorder.ts",
-      "src/input-dispatch.ts",
-      "src/input-touch-ui.ts",
-      "src/input-touch.ts",
-      "src/input.ts"
     ]
   },
   {

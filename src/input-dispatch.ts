@@ -7,11 +7,10 @@
  */
 
 import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
-import type { ControlsState } from "./game-ui-types.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
 import { towerAtPixel } from "./spatial.ts";
-import { type GameState, isSelectionPhase, Phase, type SelectionState } from "./types.ts";
+import { type ControlsState, type GameState, isSelectionPhase, Phase, type SelectionState } from "./types.ts";
 
 export interface ModeValues {
   LOBBY: number;

@@ -236,6 +236,13 @@ export interface BattleAnimState {
   impacts: Impact[];
 }
 
+/** Mutable state for the controls-rebinding screen. */
+export interface ControlsState {
+  playerIdx: number;
+  actionIdx: number;
+  rebinding: boolean;
+}
+
 /** Per-player state during castle selection (highlighted tower, confirm status). */
 export interface SelectionState {
   highlighted: number;
@@ -404,6 +411,10 @@ export function isMovementAction(action: Action): boolean {
     action === Action.LEFT ||
     action === Action.RIGHT
   );
+}
+
+export function createControlsState(): ControlsState {
+  return { playerIdx: 0, actionIdx: 0, rebinding: false };
 }
 
 export function createTimerAccums(): TimerAccums {

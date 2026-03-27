@@ -8,6 +8,9 @@
 import type { GameMap } from "./geometry-types.ts";
 import { type KeyBindings, MAX_PLAYERS, PLAYER_KEY_BINDINGS, SEED_CUSTOM, SEED_RANDOM, type SeedMode } from "./player-config.ts";
 
+export type { ControlsState } from "./types.ts";
+export { createControlsState } from "./types.ts";
+
 export interface GameSettings {
   difficulty: number;
   rounds: number;
@@ -17,12 +20,6 @@ export interface GameSettings {
   seedMode: SeedMode;
   keyBindings: KeyBindings[];
   leftHanded: boolean; // true = d-pad on right, action buttons on left
-}
-
-export interface ControlsState {
-  playerIdx: number;
-  actionIdx: number;
-  rebinding: boolean;
 }
 
 /** Player selection lobby state. */
@@ -82,10 +79,6 @@ export function computeGameSeed(settings: GameSettings): number {
     if (!isNaN(parsed)) return parsed;
   }
   return Math.floor(Math.random() * 1000000);
-}
-
-export function createControlsState(): ControlsState {
-  return { playerIdx: 0, actionIdx: 0, rebinding: false };
 }
 
 export function loadSettings(): GameSettings {
