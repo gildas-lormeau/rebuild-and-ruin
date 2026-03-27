@@ -14,8 +14,6 @@ import type { RendererInterface } from "./render-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { BalloonFlight, GameState, SelectionState } from "./types.ts";
 
-export type { RendererInterface } from "./render-types.ts";
-
 export interface RuntimeConfig {
   renderer: RendererInterface;
   /** true for online mode. */

@@ -113,7 +113,7 @@ export function registerOnlineInputHandlers(
 
   renderer.eventTarget.addEventListener("click", (e) => {
     if (isTouchSuppressed()) return;
-    const { x, y } = renderer.clientToSurface((e as MouseEvent).clientX, (e as MouseEvent).clientY);
+    const { x, y } = renderer.clientToSurface(e.clientX, e.clientY);
     const mode = getMode();
     const state = getState();
 
