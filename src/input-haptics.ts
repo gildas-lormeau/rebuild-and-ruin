@@ -7,6 +7,8 @@
 import { MSG } from "../server/protocol.ts";
 import { CAN_VIBRATE } from "./platform.ts";
 
+const HAPTIC_CANNON_DESTROYED_MS = 150;
+
 /** Current haptics level — set by the game runtime from settings. */
 let level = 2;
 
@@ -45,7 +47,7 @@ function hapticWallHit(): void { vibrate(30, 2); }
 function hapticCannonDamaged(): void { vibrate(80, 2); }
 
 /** Your cannon was destroyed. */
-function hapticCannonDestroyed(): void { vibrate(150, 2); }
+function hapticCannonDestroyed(): void { vibrate(HAPTIC_CANNON_DESTROYED_MS, 2); }
 
 /** A tower was killed by grunts. */
 function hapticTowerKilled(): void { vibrate(200, 2); }
