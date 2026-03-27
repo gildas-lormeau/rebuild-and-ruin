@@ -39,7 +39,6 @@ export function broadcastLocalCrosshair(
   deps: BroadcastDeps,
 ): void {
   const target = (isAiAnimatable(ctrl) ? ctrl.getCrosshairTarget() : null) ?? ch;
-  if (!target) return;
   const orbit = isAiAnimatable(ctrl) ? ctrl.getOrbitParams() : null;
   const key = `${Math.round(target.x)},${Math.round(target.y)},${orbit ? "o" : ""}`;
   if (deps.lastSentAimTarget.get(ctrl.playerId) === key) return;

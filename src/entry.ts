@@ -27,11 +27,11 @@ try { (screen.orientation as unknown as { lock?: (o: string) => Promise<void> })
 onRoute(ROUTE_ONLINE, () => {
   exitGameIfActive();
   serverHostInput.value = localStorage.getItem(SERVER_STORAGE_KEY) || DEFAULT_SERVER;
-  import("./online-client.ts");
+  void import("./online-client.ts");
 });
 
 onRoute(ROUTE_PLAY, () => {
-  import("./main.ts").then(m => m.enterLocalLobby());
+  void import("./main.ts").then(m => m.enterLocalLobby());
 });
 
 onRoute("/", () => {
@@ -65,7 +65,7 @@ document.getElementById("btn-join-confirm")!.addEventListener("click", tryFullsc
 // --- Auto-join via QR code: ?join=XXXX&server=host ---
 if (autoJoinCode) {
   tryFullscreen(); // call synchronously — QR tap navigation preserves user activation
-  (async () => {
+  void (async () => {
     navigateTo(ROUTE_ONLINE, true);
     const { lobbyReady } = await import("./online-client.ts");
     const { joinRoom } = await lobbyReady;
@@ -74,7 +74,7 @@ if (autoJoinCode) {
 }
 
 if (params.has("record-inputs")) {
-  import("./input-recorder.ts").then(m => m.initRecorder());
+  void import("./input-recorder.ts").then(m => m.initRecorder());
 }
 
 /** Hide the game container and notify game modules to clean up. */

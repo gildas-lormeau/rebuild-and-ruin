@@ -227,7 +227,6 @@ export function handleServerIncrementalMessage(
 
     case MSG.LIFE_LOST_CHOICE: {
       if (!deps.isHost) return true;
-      if (msg.choice !== LifeLostChoice.CONTINUE && msg.choice !== LifeLostChoice.ABANDON) return true;
       deps.log(
         `life_lost_choice from P${msg.playerId}: ${msg.choice} (dialog=${deps.getLifeLostDialog() ? "active" : "null"})`,
       );

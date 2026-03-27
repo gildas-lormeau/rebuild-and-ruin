@@ -43,7 +43,7 @@ const atlasReady = loadAtlas().catch((e) => { console.warn("[local] sprite atlas
 /** Enter the local lobby. Waits for sprite atlas on first call. */
 export function enterLocalLobby(): void {
   canvas.parentElement!.classList.add(GAME_CONTAINER_ACTIVE);
-  atlasReady.then(() => showLobby());
+  void atlasReady.then(() => showLobby());
 }
 
 runtime.registerInputHandlers();
