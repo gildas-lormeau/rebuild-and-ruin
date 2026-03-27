@@ -8,7 +8,8 @@
 import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
 import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, isGameInteractionMode, markTouchTime } from "./input-dispatch.ts";
-import { BALLOON_SIZE, CannonMode, isPlacementPhase, isSelectionPhase, NORMAL_CANNON_SIZE, Phase, SUPER_GUN_SIZE } from "./types.ts";
+import { cannonSize } from "./spatial.ts";
+import { isPlacementPhase, isSelectionPhase, Phase } from "./types.ts";
 
 const TAP_MAX_DIST = 20;
   // CSS pixels
@@ -201,9 +202,7 @@ function isOnPhantom(
   }
   if (phase === Phase.CANNON_PLACE) {
     const mode = human.getCannonPlaceMode();
-    const size = mode === CannonMode.SUPER ? SUPER_GUN_SIZE
-      : mode === CannonMode.BALLOON ? BALLOON_SIZE
-      : NORMAL_CANNON_SIZE;
+    const size = cannonSize({ kind: mode });
     const cr = human.cannonCursor.row;
     const cc = human.cannonCursor.col;
     return row >= cr && row < cr + size && col >= cc && col < cc + size;
