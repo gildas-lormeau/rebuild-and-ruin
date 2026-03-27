@@ -20,7 +20,7 @@ import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
 import {
   createHeadlessRuntime,
   processHeadlessReselection,
-} from "./headless-sim.ts";
+} from "./runtime-headless.ts";
 import { forEachTowerTile, isGrass, packTile, unpackTile } from "./spatial.ts";
 import { BATTLE_TIMER, BUILD_TIMER, type GameState } from "./types.ts";
 

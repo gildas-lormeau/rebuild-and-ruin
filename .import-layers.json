@@ -142,7 +142,7 @@
       "src/game-runtime-types.ts",
       "src/game-bootstrap.ts",
       "src/game-runtime.ts",
-      "src/headless-sim.ts"
+      "src/runtime-headless.ts"
     ]
   },
   {

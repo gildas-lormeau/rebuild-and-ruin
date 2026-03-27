@@ -74,7 +74,7 @@ The layer map file. Committed to the repo. An array of named groups — position
                           online-server-events, online-host-*
 12  runtime               runtime-state, runtime-camera, runtime-life-lost, runtime-phase-ticks,
                           runtime-selection, phase-ticks, battle-ticks, game-runtime-types,
-                          game-bootstrap, game-runtime, headless-sim
+                          game-bootstrap, game-runtime, runtime-headless
 13  server                game-room, room-manager, server
 14  entry points          entry, main, online-client, headless-test
 ```
