@@ -44,7 +44,7 @@ import {
 } from "./game-ui-types.ts";
 import { CANVAS_H, CANVAS_W, GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
-import { clientToCanvas, dispatchPointerMove } from "./input-dispatch.ts";
+import { clientToCanvas, computeLetterboxLayout, dispatchPointerMove } from "./input-dispatch.ts";
 import { hapticPhaseChange, setHapticsLevel } from "./input-haptics.ts";
 import { registerTouchHandlers } from "./input-touch.ts";
 import { createDpad, createEnemyZoomButton, createFloatingActions, createHomeZoomButton, createQuitButton } from "./input-touch-ui.ts";
@@ -696,23 +696,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     // Canvas backing-store → CSS pixels relative to game container
     const rect = canvas.getBoundingClientRect();
     const containerRect = gameContainer.getBoundingClientRect();
-    const canvasRatio = canvas.width / canvas.height;
-    const rectRatio = rect.width / rect.height;
-    let contentW: number;
-    let contentH: number;
-    let offsetX: number;
-    let offsetY: number;
-    if (rectRatio > canvasRatio) {
-      contentH = rect.height;
-      contentW = rect.height * canvasRatio;
-      offsetX = (rect.width - contentW) / 2;
-      offsetY = 0;
-    } else {
-      contentW = rect.width;
-      contentH = rect.width / canvasRatio;
-      offsetX = 0;
-      offsetY = (rect.height - contentH) / 2;
-    }
+    const { contentW, contentH, offsetX, offsetY } = computeLetterboxLayout(canvas, rect);
     const cssX = (sx / canvas.width) * contentW + offsetX + (rect.left - containerRect.left);
     const cssY = (sy / canvas.height) * contentH + offsetY + (rect.top - containerRect.top);
     const nearTop = cssY < contentH * 0.15;
