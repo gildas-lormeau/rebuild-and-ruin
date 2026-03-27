@@ -8,9 +8,8 @@ import { nextReadyCombined } from "./battle-system.ts";
 import { resetCannonFacings } from "./cannon-system.ts";
 import type { Crosshair, PlayerController } from "./controller-interfaces.ts";
 import { computeCannonLimitsForPhase, rebuildHomeCastle } from "./game-engine.ts";
-import { Mode } from "./game-ui-types.ts";
 import type { KeyBindings } from "./player-config.ts";
-import { type GameState, type Impact, Phase, type Player } from "./types.ts";
+import { type GameState, type Impact, Mode, Phase, type Player } from "./types.ts";
 
 /** Format a key binding as a short hint string (e.g. "Arrows + N (B rotate)"). */
 export function formatKeyHint(kb: KeyBindings): string {

@@ -7,7 +7,7 @@ import { buildCannonFiredMsg } from "./online-send-actions.ts";
 import type { WatcherTimingState } from "./online-types.ts";
 import { BANNER_BATTLE, BANNER_BATTLE_SUB, type BannerShow } from "./phase-banner.ts";
 import { getRemoteSlots, type HostNetContext, localActiveControllers } from "./tick-context.ts";
-import type { BalloonFlight, GameState, Impact } from "./types.ts";
+import type { BalloonFlight, BattleAnimState, GameState, Impact } from "./types.ts";
 
 interface TickHostBattleCountdownDeps {
   dt: number;
@@ -47,13 +47,6 @@ interface TickHostBattlePhaseDeps {
   onBattlePhaseEnded: () => void;
   onBattleEvents?: (events: ReadonlyArray<GameMessage>) => void;
   net?: BattlePhaseNet;
-}
-
-interface BattleAnimState {
-  territory: Set<number>[];
-  walls: Set<number>[];
-  flights: readonly { flight: BalloonFlight; progress: number }[];
-  impacts: Impact[];
 }
 
 /** Networking context for starting battle. */

@@ -33,11 +33,8 @@ import {
 import {
   CANNON_HP_OPTIONS,
   computeGameSeed,
-  createBattleAnimState,
-  createTimerAccums,
   cycleOption,
   DIFFICULTY_PARAMS,
-  Mode,
   ROUNDS_OPTIONS,
 } from "./game-ui-types.ts";
 import { CANVAS_H, CANVAS_W, GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
@@ -73,7 +70,6 @@ import {
 } from "./render-composition.ts";
 import { createLoupe, type LoupeHandle } from "./render-loupe.ts";
 import { drawMap, getSceneCanvas } from "./render-map.ts";
-import { FOCUS_MENU, FOCUS_REMATCH } from "./render-types.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { createLifeLostSystem, type LifeLostSystem } from "./runtime-life-lost.ts";
@@ -81,11 +77,16 @@ import { createPhaseTicksSystem, type PhaseTicksSystem } from "./runtime-phase-t
 import { createSelectionSystem, type SelectionSystem } from "./runtime-selection.ts";
 import { createRuntimeState } from "./runtime-state.ts";
 import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
-import type { GameState } from "./types.ts";
 import {
   BANNER_DURATION,
+  createBattleAnimState,
+  createTimerAccums,
+  FOCUS_MENU,
+  FOCUS_REMATCH,
+  type GameState,
   isPlacementPhase,
   MAX_FRAME_DT,
+  Mode,
   Phase,
   SCORE_DELTA_DISPLAY_TIME,
   SELECT_ANNOUNCEMENT_DURATION,

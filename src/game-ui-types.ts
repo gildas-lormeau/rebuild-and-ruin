@@ -5,33 +5,8 @@
 
 /** Per-player battle stats accumulated during a game. */
 
-import type { Crosshair, LocalPiecePhantom } from "./controller-interfaces.ts";
 import type { GameMap } from "./geometry-types.ts";
 import { type KeyBindings, MAX_PLAYERS, PLAYER_KEY_BINDINGS, SEED_CUSTOM, SEED_RANDOM, type SeedMode } from "./player-config.ts";
-import type { GameOverOverlay } from "./render-types.ts";
-import { type BalloonFlight, CannonMode, type Impact } from "./types.ts";
-
-export enum Mode {
-  LOBBY,
-  OPTIONS,
-  CONTROLS,
-  SELECTION,
-  BANNER,
-  BALLOON_ANIM,
-  CASTLE_BUILD,
-  LIFE_LOST,
-  GAME,
-  STOPPED,
-}
-
-export interface TimerAccums {
-  battle: number;
-  cannon: number;
-  select: number;
-  selectAnnouncement: number;
-  build: number;
-  grunt: number;
-}
 
 export interface GameSettings {
   difficulty: number;
@@ -48,45 +23,6 @@ export interface ControlsState {
   playerIdx: number;
   actionIdx: number;
   rebinding: boolean;
-}
-
-/** Per-frame data written by tick functions, read by render(). */
-export interface FrameData {
-  crosshairs: Crosshair[];
-  phantoms: {
-    aiPhantoms?: {
-      offsets: [number, number][];
-      row: number;
-      col: number;
-      playerId: number;
-    }[];
-    humanPhantoms?: LocalPiecePhantom[];
-    aiCannonPhantoms?: {
-      row: number;
-      col: number;
-      valid: boolean;
-      kind: CannonMode;
-      playerId: number;
-      facing?: number;
-    }[];
-    phantomPiece?: {
-      offsets: [number, number][];
-      row: number;
-      col: number;
-      valid: boolean;
-      playerId?: number;
-    } | null;
-  };
-  announcement?: string;
-  gameOver?: GameOverOverlay;
-}
-
-/** Battle animation state — snapshots and effects. */
-export interface BattleAnimState {
-  territory: Set<number>[];
-  walls: Set<number>[];
-  flights: readonly { flight: BalloonFlight; progress: number }[];
-  impacts: Impact[];
 }
 
 /** Player selection lobby state. */
@@ -146,10 +82,6 @@ export function computeGameSeed(settings: GameSettings): number {
     if (!isNaN(parsed)) return parsed;
   }
   return Math.floor(Math.random() * 1000000);
-}
-
-export function createTimerAccums(): TimerAccums {
-  return { battle: 0, cannon: 0, select: 0, selectAnnouncement: 0, build: 0, grunt: 0 };
 }
 
 export function createControlsState(): ControlsState {
@@ -242,10 +174,6 @@ export function cycleOption(
   }
   // optionsCursor === 4 (Seed) — handled via direct keyboard input in options handler
   // optionsCursor === 5 (Controls) — no left/right value, opened via confirm
-}
-
-export function createBattleAnimState(): BattleAnimState {
-  return { territory: [], walls: [], flights: [], impacts: [] };
 }
 
 function deepCopyBindings(): KeyBindings[] {

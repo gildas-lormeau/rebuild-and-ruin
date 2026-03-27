@@ -6,15 +6,15 @@
  */
 
 import type { FrameContext } from "./frame-context.ts";
-import { Mode } from "./game-ui-types.ts";
 import type { TilePos, WorldPos } from "./geometry-types.ts";
 import { CANVAS_H, CANVAS_W, GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import type { Viewport } from "./render-types.ts";
 import { pxToTile, unpackTile } from "./spatial.ts";
-import type { GameState } from "./types.ts";
 import {
+  type GameState,
   MAX_ZOOM_VIEWPORT_RATIO,
   MIN_ZOOM_RATIO,
+  Mode,
   Phase,
   PINCH_FULL_MAP_SNAP,
   VIEWPORT_SNAP_THRESHOLD,

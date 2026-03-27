@@ -7,8 +7,7 @@
  * `shouldUnzoom` / `inputBlocked` picks it up automatically.
  */
 
-import { Mode } from "./game-ui-types.ts";
-import { isPlacementPhase, PHASE_ENDING_THRESHOLD, Phase } from "./types.ts";
+import { isPlacementPhase, Mode, PHASE_ENDING_THRESHOLD, Phase } from "./types.ts";
 
 export interface FrameContext {
   // Identity

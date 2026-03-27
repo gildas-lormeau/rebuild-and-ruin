@@ -1,14 +1,12 @@
 import { MSG, type SerializedPlayer, type ServerMessage } from "../server/protocol.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
-import { Mode } from "./game-ui-types.ts";
 import type { RGB } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { buildCastle } from "./map-generation.ts";
 import type { WatcherTimingState } from "./online-types.ts";
 import { BANNER_PLACE_CANNONS, type BannerShow } from "./phase-banner.ts";
-import { FOCUS_REMATCH, type GameOverFocus } from "./render-types.ts";
-import { type GameState, Phase } from "./types.ts";
+import { FOCUS_REMATCH, type GameOverFocus, type GameState, Mode, Phase } from "./types.ts";
 
 interface TransitionContext {
   getState: () => GameState;

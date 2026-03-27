@@ -7,10 +7,10 @@
  */
 
 import { createGameRuntime } from "./game-runtime.ts";
-import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT, Mode } from "./game-ui-types.ts";
+import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./game-ui-types.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 import { loadAtlas } from "./render-sprites.ts";
-import { LOBBY_TIMER } from "./types.ts";
+import { LOBBY_TIMER, Mode } from "./types.ts";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const emptySet = new Set<number>();

@@ -28,7 +28,6 @@ import {
   completeReselection,
   processReselectionQueue,
 } from "./game-ui-runtime.ts";
-import { Mode } from "./game-ui-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import {
   BANNER_PLACE_CANNONS,
@@ -48,6 +47,7 @@ import {
 } from "./selection.ts";
 import { towerCenterPx } from "./spatial.ts";
 import {
+  Mode,
   SCORE_DELTA_DISPLAY_TIME,
   SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,

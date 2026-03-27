@@ -28,7 +28,7 @@ import {
   resetZoneState,
 } from "./game-engine.ts";
 import { createGameRuntime, type GameRuntime } from "./game-runtime.ts";
-import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT, Mode } from "./game-ui-types.ts";
+import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./game-ui-types.ts";
 import { GRID_COLS } from "./grid.ts";
 import { LifeLostChoice } from "./life-lost.ts";
 import { getWsUrl } from "./online-config.ts";
@@ -88,6 +88,7 @@ import {
   CannonMode,
   isReselectPhase,
   MIGRATION_ANNOUNCEMENT_DURATION,
+  Mode,
   SELECT_TIMER,
 } from "./types.ts";
 

@@ -16,7 +16,6 @@ import {
   type OrbitParams,
   type PlayerController,
 } from "./controller-interfaces.ts";
-import type { BattleAnimState, FrameData, TimerAccums } from "./game-ui-types.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { tickGrunts } from "./grunt-system.ts";
@@ -33,7 +32,8 @@ import {
   tickWatcherCannonPhantomsPhase,
   tickWatcherTimers,
 } from "./online-watcher-battle.ts";
-import { type GameState, Phase } from "./types.ts";
+import type { FrameData } from "./render-types.ts";
+import { type BattleAnimState, type GameState, Phase, type TimerAccums } from "./types.ts";
 
 interface WatcherState {
   timing: WatcherTimingState;

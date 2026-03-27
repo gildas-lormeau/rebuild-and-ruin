@@ -11,26 +11,27 @@ import type { CastleBuildState } from "./castle-build.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import type { FrameContext } from "./frame-context.ts";
 import type {
-  BattleAnimState,
   ControlsState,
-  FrameData,
   GameSettings,
   LobbyState,
-  TimerAccums,
 } from "./game-ui-types.ts";
 import {
-  createBattleAnimState,
   createControlsState,
-  createTimerAccums,
   loadSettings,
-  Mode,
 } from "./game-ui-types.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
 import { type BannerState, createBannerState } from "./phase-banner.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
-import type { PlayerStats, RenderOverlay } from "./render-types.ts";
+import type { FrameData, PlayerStats, RenderOverlay } from "./render-types.ts";
 import type { SelectionState } from "./selection.ts";
-import type { GameState } from "./types.ts";
+import {
+  type BattleAnimState,
+  createBattleAnimState,
+  createTimerAccums,
+  type GameState,
+  Mode,
+  type TimerAccums,
+} from "./types.ts";
 
 export interface RuntimeState {
   // Core game

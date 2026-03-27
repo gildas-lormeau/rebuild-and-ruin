@@ -3,9 +3,10 @@
  * circular dependencies between render-map and render-effects/towers/ui.
  */
 
+import type { Crosshair, LocalPiecePhantom } from "./controller-interfaces.ts";
 import type { House, PixelPos, RGB, TilePos, Tower } from "./geometry-types.ts";
 import type { LifeLostChoice } from "./life-lost.ts";
-import { type BurningPit, CannonMode, type CastleData, type Grunt, type Impact } from "./types.ts";
+import { type BurningPit, CannonMode, type CastleData, type GameOverFocus, type Grunt, type Impact } from "./types.ts";
 
 /** A single row in the options screen. */
 export interface OptionEntry {
@@ -23,13 +24,42 @@ export interface ControlsPlayer {
 
 export interface PlayerStats { wallsDestroyed: number; cannonsKilled: number; }
 
-export type GameOverFocus = "rematch" | "menu";
-
 /** Game-over overlay data shared by FrameData and UIOverlay. */
 export interface GameOverOverlay {
   winner: string;
   scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: PlayerStats }[];
   focused: GameOverFocus;
+}
+
+/** Per-frame data written by tick functions, read by render(). */
+export interface FrameData {
+  crosshairs: Crosshair[];
+  phantoms: {
+    aiPhantoms?: {
+      offsets: [number, number][];
+      row: number;
+      col: number;
+      playerId: number;
+    }[];
+    humanPhantoms?: LocalPiecePhantom[];
+    aiCannonPhantoms?: {
+      row: number;
+      col: number;
+      valid: boolean;
+      kind: CannonMode;
+      playerId: number;
+      facing?: number;
+    }[];
+    phantomPiece?: {
+      offsets: [number, number][];
+      row: number;
+      col: number;
+      valid: boolean;
+      playerId?: number;
+    } | null;
+  };
+  announcement?: string;
+  gameOver?: GameOverOverlay;
 }
 
 /** Life-lost dialog overlay data shared by UIOverlay and render-composition. */
@@ -189,6 +219,3 @@ export interface Viewport {
   w: number;
   h: number;
 }
-
-export const FOCUS_REMATCH: GameOverFocus = "rematch";
-export const FOCUS_MENU: GameOverFocus = "menu";

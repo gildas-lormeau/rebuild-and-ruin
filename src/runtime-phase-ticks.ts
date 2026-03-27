@@ -27,7 +27,6 @@ import {
   initCannonPhase,
   tickGameCore,
 } from "./game-ui-runtime.ts";
-import { Mode } from "./game-ui-types.ts";
 import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
 import { hapticBattleEvents } from "./input-haptics.ts";
 import type { CannonPhantom, PiecePhantom, WatcherTimingState } from "./online-types.ts";
@@ -46,6 +45,7 @@ import {
   BATTLE_COUNTDOWN,
   BATTLE_TIMER,
   IMPACT_FLASH_DURATION,
+  Mode,
 } from "./types.ts";
 
 interface PhaseTicksDeps {

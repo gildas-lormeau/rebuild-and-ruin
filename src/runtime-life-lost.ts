@@ -9,7 +9,6 @@ import { type GameMessage, MSG } from "../server/protocol.ts";
 import { isHuman } from "./controller-factory.ts";
 import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
 import type { RuntimeLifeLost } from "./game-runtime-types.ts";
-import { Mode } from "./game-ui-types.ts";
 import {
   buildLifeLostDialogState,
   LifeLostChoice,
@@ -24,7 +23,7 @@ import {
   lifeLostPanelPos as lifeLostPanelPosShared,
 } from "./render-composition.ts";
 import type { RuntimeState } from "./runtime-state.ts";
-import { LIFE_LOST_AI_DELAY, LIFE_LOST_MAX_TIMER } from "./types.ts";
+import { LIFE_LOST_AI_DELAY, LIFE_LOST_MAX_TIMER, Mode } from "./types.ts";
 
 interface LifeLostSystemDeps {
   rs: RuntimeState;

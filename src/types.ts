@@ -30,6 +30,23 @@ export enum CannonMode {
   BALLOON = "balloon",
 }
 
+/** Top-level UI mode — controls which screen/phase main loop renders. */
+export enum Mode {
+  LOBBY,
+  OPTIONS,
+  CONTROLS,
+  SELECTION,
+  BANNER,
+  BALLOON_ANIM,
+  CASTLE_BUILD,
+  LIFE_LOST,
+  GAME,
+  STOPPED,
+}
+
+/** Game-over focus state — which button is highlighted on the game-over screen. */
+export type GameOverFocus = "rematch" | "menu";
+
 export interface Cannon extends TilePos {
   /** Hits remaining before destruction. Persists across rounds. */
   hp: number;
@@ -201,6 +218,24 @@ export interface GameState {
   cannonLimits: number[];
 }
 
+/** Phase timer accumulators — tracks elapsed time per phase for host tick logic. */
+export interface TimerAccums {
+  battle: number;
+  cannon: number;
+  select: number;
+  selectAnnouncement: number;
+  build: number;
+  grunt: number;
+}
+
+/** Battle animation state — territory/wall snapshots and in-flight effects. */
+export interface BattleAnimState {
+  territory: Set<number>[];
+  walls: Set<number>[];
+  flights: readonly { flight: BalloonFlight; progress: number }[];
+  impacts: Impact[];
+}
+
 /** Default hits needed to destroy a cannon. */
 export const CANNON_MAX_HP = 3;
 /** How many cannon slots a super gun costs. */
@@ -335,6 +370,8 @@ export const PHASE_ENDING_THRESHOLD = 1.5;
 export const VIEWPORT_SNAP_THRESHOLD = 0.5;
 /** Minimum Manhattan distance between any two houses. */
 export const HOUSE_MIN_DISTANCE = 3;
+export const FOCUS_REMATCH: GameOverFocus = "rematch";
+export const FOCUS_MENU: GameOverFocus = "menu";
 
 /** True if the phase is castle selection (initial or reselect). */
 export function isSelectionPhase(phase: Phase): boolean {
@@ -359,6 +396,14 @@ export function isMovementAction(action: Action): boolean {
     action === Action.LEFT ||
     action === Action.RIGHT
   );
+}
+
+export function createTimerAccums(): TimerAccums {
+  return { battle: 0, cannon: 0, select: 0, selectAnnouncement: 0, build: 0, grunt: 0 };
+}
+
+export function createBattleAnimState(): BattleAnimState {
+  return { territory: [], walls: [], flights: [], impacts: [] };
 }
 
 /** True when a player can actively participate in zone-based gameplay. */
