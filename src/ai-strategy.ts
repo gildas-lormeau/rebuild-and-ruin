@@ -24,9 +24,9 @@ import {
   planWallDemolition,
   trackShot,
 } from "./ai-strategy-battle.ts";
-import { pickPlacement as pickPlacementCore } from "./ai-strategy-build.ts";
+import { pickPlacement } from "./ai-strategy-build.ts";
 import {
-  autoPlaceCannons as autoPlaceCannonsCore,
+  autoPlaceCannons,
   autoSelectTower,
 } from "./ai-strategy-cannon.ts";
 import { getActiveEnemies } from "./board-occupancy.ts";
@@ -322,7 +322,7 @@ export class DefaultStrategy implements AiStrategy {
     piece: PieceShape,
     cursorPos?: TilePos,
   ): AiPlacement | null {
-    return pickPlacementCore(state, playerId, piece, {
+    return pickPlacement(state, playerId, piece, {
       cursorPos,
       homeWasBroken: this._homeWasBroken,
       castleMargin: this.castleMargin,
@@ -358,7 +358,7 @@ export class DefaultStrategy implements AiStrategy {
       interior: new Set(player.interior),
       cannons: [...player.cannons],
     };
-    const placed = autoPlaceCannonsCore(
+    const placed = autoPlaceCannons(
       planningPlayer,
       count,
       state,
@@ -520,22 +520,22 @@ export class DefaultStrategy implements AiStrategy {
 
 /** Auto-place cannons directly on the player at scored positions inside their castle.
  *  Uses balanced traits (no personality variance) for deterministic fallback behavior. */
-export function autoPlaceCannons(
+export function autoPlaceCannonsBalanced(
   player: Player,
   count: number,
   state: GameState,
 ): void {
-  autoPlaceCannonsCore(player, count, state, new Rng(state.rng.int(0, MAX_UINT32)));
+  autoPlaceCannons(player, count, state, new Rng(state.rng.int(0, MAX_UINT32)));
 }
 
 /** Standalone pickPlacement wrapper for headless tests / external callers. */
-export function pickPlacement(
+export function pickPlacementStandalone(
   state: GameState,
   playerId: number,
   piece: PieceShape,
   cursorPos?: TilePos,
 ): AiPlacement | null {
-  return pickPlacementCore(state, playerId, piece, cursorPos ? { cursorPos } : undefined);
+  return pickPlacement(state, playerId, piece, cursorPos ? { cursorPos } : undefined);
 }
 
 function rollArchetype(rng: Rng): ArchetypeType {

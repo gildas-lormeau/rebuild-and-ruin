@@ -5,7 +5,7 @@
  * implementation that depends on battle-system, pieces, spatial, etc.
  */
 
-import { autoPlaceCannons } from "./ai-strategy.ts";
+import { autoPlaceCannonsBalanced } from "./ai-strategy.ts";
 import {
   fireCannon,
   fireSingleCaptured,
@@ -112,7 +112,7 @@ export abstract class BaseController implements PlayerController {
     if (state.round !== 1) return;
     const player = state.players[this.playerId];
     if (!player || player.eliminated || player.cannons.length > 0) return;
-    autoPlaceCannons(player, maxSlots, state);
+    autoPlaceCannonsBalanced(player, maxSlots, state);
   }
   abstract onBattleEnd(): void;
   onLifeLost(): void {

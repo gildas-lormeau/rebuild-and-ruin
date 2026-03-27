@@ -35,7 +35,7 @@ interface TickLifeLostDialogDeps {
   onNonHostResolved: (dialog: LifeLostDialogState) => void;
 }
 
-interface BuildLifeLostDialogDeps {
+interface CreateLifeLostDialogDeps {
   needsReselect: readonly number[];
   eliminated: readonly number[];
   state: GameState;
@@ -123,7 +123,7 @@ export function tickLifeLostDialogRuntime(
 }
 
 export function createLifeLostDialogState(
-  deps: BuildLifeLostDialogDeps,
+  deps: CreateLifeLostDialogDeps,
 ): LifeLostDialogState {
   const {
     needsReselect,
