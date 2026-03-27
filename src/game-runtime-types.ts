@@ -52,9 +52,8 @@ export interface RuntimeConfig {
   tickNonHost?: (dt: number) => void;
   /** Called every frame regardless of host/non-host (e.g., timed announcements). */
   everyTick?: (dt: number) => void;
-  /** Host-only networking state for tick functions (phantom merging, checkpoints, auto-placement). */
+  /** Host-only networking state for tick functions (phantom merging, checkpoints). */
   hostNetworking?: {
-    autoPlaceCannons: (player: GameState["players"][number], max: number, state: GameState) => void;
     serializePlayers: (state: GameState) => SerializedPlayer[];
     buildCannonStartMessage: (state: GameState) => ServerMessage;
     buildBattleStartMessage: (state: GameState, flights: readonly BalloonFlight[]) => ServerMessage;

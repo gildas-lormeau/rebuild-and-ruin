@@ -1,8 +1,11 @@
+import { createController } from "./controller-factory.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import { createGameFromSeed } from "./game-engine.ts";
 import { GAME_CONTAINER_ACTIVE, type LobbyState } from "./game-ui-types.ts";
 import { generateMap } from "./map-generation.ts";
+import type { KeyBindings } from "./player-config.ts";
 import { GOLD, PANEL_BG } from "./render-theme.ts";
+import { MAX_UINT32 } from "./rng.ts";
 import { type GameState, isReselectPhase, Phase, type SelectionState } from "./types.ts";
 
 interface InitWaitingRoomDeps {
@@ -196,6 +199,19 @@ export function initTowerSelection(
   setModeSelection();
   setLastTime(now());
   requestFrame();
+}
+
+/** Returns a createControllerForSlot factory for online play.
+ *  The local player (myPlayerId) gets a human controller; all others get AI. */
+export function makeOnlineControllerSlotFactory(
+  myPlayerId: number,
+  localKeyBinding: KeyBindings,
+): (i: number, gameState: GameState) => PlayerController {
+  return (i, gameState) => {
+    const isAi = i !== myPlayerId;
+    const strategySeed = isAi ? gameState.rng.int(0, MAX_UINT32) : undefined;
+    return createController(i, isAi, isAi ? undefined : localKeyBinding, strategySeed);
+  };
 }
 
 /** Shared game init — used by both local startGame and online initFromServer.

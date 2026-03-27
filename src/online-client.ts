@@ -15,12 +15,10 @@ import type {
 import {
   MSG,
 } from "../server/protocol.ts";
-import { autoPlaceCannons } from "./ai-strategy.ts";
 import { applyImpactEvent } from "./battle-system.ts";
 import { applyPiecePlacement, canPlacePieceOffsets } from "./build-system.ts";
 import { applyCannonPlacement, cannonSlotCost, cannonSlotsUsed, canPlaceCannon } from "./cannon-system.ts";
-import { createController } from "./controller-factory.ts";
-import { bootstrapGame, initWaitingRoom } from "./game-bootstrap.ts";
+import { bootstrapGame, initWaitingRoom, makeOnlineControllerSlotFactory } from "./game-bootstrap.ts";
 import {
   enterCannonPlacePhase,
   finalizeCastleConstruction,
@@ -78,7 +76,6 @@ import {
   PLAYER_NAMES,
 } from "./player-config.ts";
 import { loadAtlas } from "./render-sprites.ts";
-import { MAX_UINT32 } from "./rng.ts";
 import { navigateTo } from "./router.ts";
 import {
   BANNER_DURATION,
@@ -248,7 +245,6 @@ const runtime: GameRuntime = createGameRuntime({
       logThrottled,
     }),
   hostNetworking: {
-    autoPlaceCannons,
     serializePlayers,
     buildCannonStartMessage,
     buildBattleStartMessage,
@@ -425,12 +421,7 @@ function initFromServer(msg: InitMessage): void {
       resetWatcherState(watcher);
       resetDedup();
     },
-    createControllerForSlot: (i, gameState) => {
-      const isAi = (i !== session.myPlayerId);
-      const strategySeed = isAi ? gameState.rng.int(0, MAX_UINT32) : undefined;
-      const kb = isAi ? undefined : settings.keyBindings[0]!;
-      return createController(i, isAi, kb, strategySeed);
-    },
+    createControllerForSlot: makeOnlineControllerSlotFactory(session.myPlayerId, settings.keyBindings[0]!),
     enterSelection: () => runtime.selection.enter(),
   });
 }

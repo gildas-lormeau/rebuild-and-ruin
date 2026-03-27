@@ -6,6 +6,7 @@
  */
 
 import { type GameMessage, MSG, type SerializedPlayer } from "../server/protocol.ts";
+import { autoPlaceCannons } from "./ai-strategy.ts";
 import { resolveBalloons, tickCannonballs } from "./battle-system.ts";
 import {
   beginHostBattle,
@@ -55,7 +56,6 @@ interface PhaseTicksDeps {
   send: (msg: GameMessage) => void;
   log: (msg: string) => void;
   hostNetworking?: {
-    autoPlaceCannons: (player: GameState["players"][number], max: number, state: GameState) => void;
     serializePlayers: (state: GameState) => SerializedPlayer[];
     buildCannonStartMessage: (state: GameState) => GameMessage;
     buildBattleStartMessage: (state: GameState, flights: readonly BalloonFlight[]) => GameMessage;
@@ -215,7 +215,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         isHost: rs.ctx.isHost,
         remoteCannonPhantoms: deps.hostNetworking?.remoteCannonPhantoms() ?? [],
         lastSentCannonPhantom: deps.hostNetworking?.lastSentCannonPhantom() ?? new Map(),
-        autoPlaceCannons: deps.hostNetworking?.autoPlaceCannons,
+        autoPlaceCannons,
         sendOpponentCannonPlaced: (msg) => deps.send({ type: MSG.OPPONENT_CANNON_PLACED, ...msg }),
         sendOpponentCannonPhantom: (msg) => deps.send({ type: MSG.OPPONENT_CANNON_PHANTOM, ...msg }),
       },
