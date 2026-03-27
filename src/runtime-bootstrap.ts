@@ -203,7 +203,7 @@ export function initTowerSelection(
 
 /** Returns a createControllerForSlot factory for online play.
  *  The local player (myPlayerId) gets a human controller; all others get AI. */
-export function makeOnlineControllerSlotFactory(
+export function createOnlineControllerSlotFactory(
   myPlayerId: number,
   localKeyBinding: KeyBindings,
 ): (i: number, gameState: GameState) => PlayerController {

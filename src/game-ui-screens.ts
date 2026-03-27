@@ -4,13 +4,17 @@
  */
 
 import { buildLobbyConfirmKeys, formatKeyHint } from "./game-ui-runtime.ts";
+import { formatKeyName, saveSettings } from "./game-ui-settings.ts";
 import type { LobbyState } from "./game-ui-types.ts";
 import {
-  CANNON_HP_OPTIONS, type ControlsState,
-  DIFFICULTY_LABELS, DPAD_LABELS,
-  formatKeyName,
-  type GameSettings, HAPTICS_LABELS, OPTION_NAMES, ROUNDS_OPTIONS,
-  saveSettings,
+  CANNON_HP_OPTIONS,
+  type ControlsState,
+  DIFFICULTY_LABELS,
+  DPAD_LABELS,
+  type GameSettings,
+  HAPTICS_LABELS,
+  OPTION_NAMES,
+  ROUNDS_OPTIONS,
 } from "./game-ui-types.ts";
 import type { GameMap } from "./geometry-types.ts";
 import { generateMap } from "./map-generation.ts";

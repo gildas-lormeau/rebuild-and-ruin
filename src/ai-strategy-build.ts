@@ -52,10 +52,10 @@ import { type PieceShape, rotateCW } from "./pieces.ts";
 import {
   computeOutside,
   DIRS_4,
+  hasPitAt,
   isCannonAlive,
   isCannonTile,
   isGrass,
-  isPitAt,
   isTowerEnclosed,
   isTowerTile,
   packTile,
@@ -92,7 +92,7 @@ const BUILD_SKILL_TABLE = [
   /*5*/ { topCandidates: 40, fatGainPerBlock: 3, pocketScale: 1.25, fatPenaltyScale: 1.25, tinyPocketReject: true },
 ] as const;
 
-export function pickPlacementImpl(
+export function pickPlacement(
   state: GameState,
   playerId: number,
   piece: PieceShape,
@@ -247,7 +247,7 @@ export function pickPlacementImpl(
           if (!isGrass(state.map.tiles, r, c)) continue;
           const blocked =
             hasGruntAt(state, r, c) ||
-            isPitAt(state.burningPits, r, c);
+            hasPitAt(state.burningPits, r, c);
           if (!blocked) continue;
 
           if (

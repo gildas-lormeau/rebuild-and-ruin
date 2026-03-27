@@ -19,9 +19,9 @@ import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import {
   DIRS_4,
   distanceToTower,
+  hasPitAt,
   inBounds,
   isGrass,
-  isPitAt,
   isWater,
   manhattanDistance,
   packTile,
@@ -709,7 +709,7 @@ function isGruntBlocked(state: GameState, r: number, c: number): boolean {
   if (hasAliveHouseAt(state, r, c)) return true;
   if (hasTowerAt(state, r, c)) return true;
   // Burning pits block
-  if (isPitAt(state.burningPits, r, c)) return true;
+  if (hasPitAt(state.burningPits, r, c)) return true;
   return false;
 }
 

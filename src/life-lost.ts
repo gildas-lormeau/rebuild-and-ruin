@@ -122,7 +122,7 @@ export function tickLifeLostDialogRuntime(
   return null;
 }
 
-export function buildLifeLostDialogState(
+export function createLifeLostDialogState(
   deps: BuildLifeLostDialogDeps,
 ): LifeLostDialogState {
   const {

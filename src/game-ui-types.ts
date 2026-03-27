@@ -6,7 +6,7 @@
 /** Per-player battle stats accumulated during a game. */
 
 import type { GameMap } from "./geometry-types.ts";
-import { type KeyBindings, MAX_PLAYERS, PLAYER_KEY_BINDINGS, SEED_CUSTOM, SEED_RANDOM, type SeedMode } from "./player-config.ts";
+import { type KeyBindings, type SeedMode } from "./player-config.ts";
 
 export type { ControlsState } from "./types.ts";
 export { createControlsState } from "./types.ts";
@@ -33,17 +33,6 @@ export interface LobbyState {
   map: GameMap | null;
 }
 
-const SETTINGS_KEY = "castles99_settings";
-const DEFAULT_SETTINGS: GameSettings = {
-  difficulty: 1,
-  rounds: 4,
-  cannonHp: 0,
-  haptics: 2, // default: all
-  seed: "",
-  seedMode: SEED_RANDOM,
-  keyBindings: [],
-  leftHanded: false,
-};
 /** CSS class toggled on #game-container to show/hide it. */
 export const GAME_CONTAINER_ACTIVE = "active";
 /** Custom event dispatched when the router navigates away from the game. */
@@ -71,104 +60,3 @@ export const CANNON_HP_OPTIONS = [
 export const HAPTICS_LABELS = ["Off", "Phase changes", "All"];
 export const DPAD_LABELS = ["Right-handed", "Left-handed"];
 export const OPTION_NAMES = ["Difficulty", "Rounds", "Cannon Kill", "Haptics", "Seed", "Controls", "D-Pad"];
-
-/** Compute the game seed from current settings (custom seed or random). */
-export function computeGameSeed(settings: GameSettings): number {
-  if (settings.seedMode === SEED_CUSTOM && settings.seed) {
-    const parsed = parseInt(settings.seed, 10);
-    if (!isNaN(parsed)) return parsed;
-  }
-  return Math.floor(Math.random() * 1000000);
-}
-
-export function loadSettings(): GameSettings {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) {
-      const saved = JSON.parse(raw) as Partial<GameSettings>;
-      return {
-        difficulty: saved.difficulty ?? DEFAULT_SETTINGS.difficulty,
-        rounds: saved.rounds ?? DEFAULT_SETTINGS.rounds,
-        cannonHp: saved.cannonHp ?? DEFAULT_SETTINGS.cannonHp,
-        haptics: saved.haptics ?? DEFAULT_SETTINGS.haptics,
-        seed: saved.seed ?? DEFAULT_SETTINGS.seed,
-        seedMode: saved.seedMode === SEED_CUSTOM ? SEED_CUSTOM : SEED_RANDOM,
-        leftHanded: saved.leftHanded ?? DEFAULT_SETTINGS.leftHanded,
-        keyBindings:
-          Array.isArray(saved.keyBindings) && saved.keyBindings.length === MAX_PLAYERS
-            ? saved.keyBindings.map(kb => ({ ...PLAYER_KEY_BINDINGS[0]!, ...kb }))
-            : deepCopyBindings(),
-      };
-    }
-  } catch { /* ignore corrupt data */ }
-  return { ...DEFAULT_SETTINGS, keyBindings: deepCopyBindings() };
-}
-
-export function saveSettings(settings: GameSettings): void {
-  try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  } catch { /* storage full or unavailable */ }
-}
-
-export function formatKeyName(key: string): string {
-  if (key === "ArrowUp") return "\u2191";
-  if (key === "ArrowDown") return "\u2193";
-  if (key === "ArrowLeft") return "\u2190";
-  if (key === "ArrowRight") return "\u2192";
-  if (key === " ") return "Space";
-  if (key.length === 1) return key.toUpperCase();
-  return key;
-}
-
-export function cycleOption(
-  dir: number,
-  optionsCursor: number,
-  settings: GameSettings,
-  optionsReturnMode: unknown,
-  state: { round: number; battleLength: number } | null,
-  isOnline?: boolean,
-): void {
-  if (optionsCursor === 0) {
-    if (optionsReturnMode !== null) return; // locked in-game
-    settings.difficulty =
-      (settings.difficulty + dir + DIFFICULTY_LABELS.length) %
-      DIFFICULTY_LABELS.length;
-  } else if (optionsCursor === 1) {
-    if (isOnline) return; // set by room host
-    let next =
-      (settings.rounds + dir + ROUNDS_OPTIONS.length) % ROUNDS_OPTIONS.length;
-    // In-game: only allow values >= current round (so players can shorten, not extend past current)
-    if (optionsReturnMode !== null && state) {
-      const minRound = state.round;
-      // Skip options whose value is > 0 (not "To The Death") and < current round
-      for (let attempts = 0; attempts < ROUNDS_OPTIONS.length; attempts++) {
-        const val = ROUNDS_OPTIONS[next]!.value;
-        if (val === 0 || val >= minRound) break; // 0 = "To The Death" is always valid
-        next = (next + dir + ROUNDS_OPTIONS.length) % ROUNDS_OPTIONS.length;
-      }
-    }
-    settings.rounds = next;
-    // Apply immediately to the live game
-    if (optionsReturnMode !== null && state) {
-      const val = ROUNDS_OPTIONS[settings.rounds]!.value;
-      state.battleLength = val > 0 ? val : Infinity;
-    }
-  } else if (optionsCursor === 2) {
-    if (optionsReturnMode !== null || isOnline) return; // locked in-game and online
-    settings.cannonHp =
-      (settings.cannonHp + dir + CANNON_HP_OPTIONS.length) %
-      CANNON_HP_OPTIONS.length;
-  } else if (optionsCursor === 3) {
-    settings.haptics =
-      (settings.haptics + dir + HAPTICS_LABELS.length) %
-      HAPTICS_LABELS.length;
-  } else if (optionsCursor === 6) {
-    settings.leftHanded = !settings.leftHanded;
-  }
-  // optionsCursor === 4 (Seed) — handled via direct keyboard input in options handler
-  // optionsCursor === 5 (Controls) — no left/right value, opened via confirm
-}
-
-function deepCopyBindings(): KeyBindings[] {
-  return PLAYER_KEY_BINDINGS.map(kb => ({ ...kb }));
-}

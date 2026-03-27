@@ -17,9 +17,9 @@ import {
   DIRS_4,
   DIRS_8,
   DIRS_DIAG,
+  hasPitAt,
   inBounds,
   isGrass,
-  isPitAt,
   isTowerTile,
   isWater,
   manhattanDistance,
@@ -137,7 +137,7 @@ export function filterUnfillableGaps(
     const { r, c } = unpackTile(key);
     if (
       !isGrass(state.map.tiles, r, c) ||
-      isPitAt(state.burningPits, r, c) ||
+      hasPitAt(state.burningPits, r, c) ||
       hasCannonAt(state, r, c) ||
       hasTowerAt(state, r, c) ||
       (interior && interior.has(key))
@@ -416,7 +416,7 @@ function addBankPlugGaps(
       const k = packTile(r, c);
       if (walls.has(k)) continue;
       const onWater = includeWater && isWater(tiles, r, c);
-      const onPit = burningPits != null && isPitAt(burningPits, r, c);
+      const onPit = burningPits != null && hasPitAt(burningPits, r, c);
       if (onWater || onPit) {
         unfillableRing.push(k);
       }
@@ -485,7 +485,7 @@ function countCastleRectObstructions(
         obstructions++;
         continue;
       }
-      if (isPitAt(state.burningPits, r, c)) {
+      if (hasPitAt(state.burningPits, r, c)) {
         obstructions++;
         continue;
       }

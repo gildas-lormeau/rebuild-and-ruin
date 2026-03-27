@@ -78,7 +78,7 @@ import { createCanvasRenderer } from "./render-canvas.ts";
 import { loadAtlas } from "./render-sprites.ts";
 import { navigateTo } from "./router.ts";
 import { createGameRuntime, type GameRuntime } from "./runtime.ts";
-import { bootstrapGame, initWaitingRoom, makeOnlineControllerSlotFactory } from "./runtime-bootstrap.ts";
+import { bootstrapGame, createOnlineControllerSlotFactory, initWaitingRoom } from "./runtime-bootstrap.ts";
 import {
   BANNER_DURATION,
   BATTLE_COUNTDOWN,
@@ -424,7 +424,7 @@ function initFromServer(msg: InitMessage): void {
       resetWatcherState(watcher);
       resetDedup();
     },
-    createControllerForSlot: makeOnlineControllerSlotFactory(session.myPlayerId, settings.keyBindings[0]!),
+    createControllerForSlot: createOnlineControllerSlotFactory(session.myPlayerId, settings.keyBindings[0]!),
     enterSelection: () => runtime.selection.enter(),
   });
 }

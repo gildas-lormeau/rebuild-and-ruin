@@ -58,7 +58,7 @@ const SUPER_GUN_SLOT_THRESHOLD = 8;
 const SUPER_GUN_PROBABILITY = 1 / 3;
 
 /** Pick a home tower for the given zone. Returns the chosen tower, or null if none available. */
-export function autoSelectTowerImpl(
+export function autoSelectTower(
   map: GameMap,
   zone: number,
   rng: Rng,
@@ -112,7 +112,7 @@ export function autoSelectTowerImpl(
   return rng.pick(zoneTowers);
 }
 
-export function autoPlaceCannonsImpl(
+export function autoPlaceCannons(
   player: Player,
   count: number,
   state: GameState,

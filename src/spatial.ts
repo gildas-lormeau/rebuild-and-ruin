@@ -184,7 +184,7 @@ export function isCannonAlive(cannon: Pick<Cannon, "hp">): boolean {
 }
 
 /** True if (r,c) is occupied by a burning pit. */
-export function isPitAt(pits: readonly BurningPit[], r: number, c: number): boolean {
+export function hasPitAt(pits: readonly BurningPit[], r: number, c: number): boolean {
   return pits.some((p) => isAtTile(p, r, c));
 }
 

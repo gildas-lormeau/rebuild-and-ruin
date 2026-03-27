@@ -10,7 +10,7 @@ import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { spawnGruntNearPos, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
 import type { PieceShape } from "./pieces.ts";
-import { computeOutside, DIRS_8, inBounds, isAtTile, isGrass, isPitAt, isWater, manhattanDistance, packTile } from "./spatial.ts";
+import { computeOutside, DIRS_8, hasPitAt, inBounds, isAtTile, isGrass, isWater, manhattanDistance, packTile } from "./spatial.ts";
 import { BONUS_SQUARE_MIN_DISTANCE, BONUS_SQUARES_PER_ZONE, CASTLE_BONUS_TABLE, DESTROY_GRUNT_POINTS, ENCLOSED_GRUNT_RESPAWN_CHANCE, type GameState, isPlayerActive, type Player, TERRITORY_POINT_TIERS } from "./types.ts";
 
 /** Validate + apply piece placement. Returns true if placed. */
@@ -49,7 +49,7 @@ export function canPlacePieceOffsets(state: GameState, playerId: number, offsets
     if (hasGruntAt(state, r, c)) return false;
 
     // Check burning pits
-    if (isPitAt(state.burningPits, r, c)) return false;
+    if (hasPitAt(state.burningPits, r, c)) return false;
 
     // Bonus squares CAN be covered (you lose the bonus) — no block here
   }

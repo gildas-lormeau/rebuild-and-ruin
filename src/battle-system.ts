@@ -11,11 +11,11 @@ import { findGruntSpawnNear } from "./grunt-system.ts";
 import {
   cannonCenter,
   computeFacing45,
+  hasPitAt,
   inBounds,
   isAtTile,
   isCannonAlive,
   isCannonTile,
-  isPitAt,
   packTile,
   pxToTile,
   rotateToward,
@@ -511,7 +511,7 @@ function computeImpact(
     }
   }
 
-  if (incendiary && hitWall && !isPitAt(state.burningPits, row, col)) {
+  if (incendiary && hitWall && !hasPitAt(state.burningPits, row, col)) {
     events.push({
       type: MSG.PIT_CREATED,
       row,

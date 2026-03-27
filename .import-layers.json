@@ -104,7 +104,8 @@
       "src/game-ui-types.ts",
       "src/game-ui-runtime.ts",
       "src/game-ui-screens.ts",
-      "src/game-ui-frame.ts"
+      "src/game-ui-frame.ts",
+      "src/game-ui-settings.ts"
     ]
   },
   {

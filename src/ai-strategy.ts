@@ -16,18 +16,18 @@ import type { AiPlacement } from "./ai-build-types.ts";
 import { traitLookup } from "./ai-constants.ts";
 import {
   countUsableCannons,
-  pickTargetImpl,
+  pickTarget,
   planCharitySweep,
   planGruntSweep,
   planPocketDestruction,
   planSuperAttack,
   planWallDemolition,
-  trackShotImpl,
+  trackShot,
 } from "./ai-strategy-battle.ts";
-import { pickPlacementImpl } from "./ai-strategy-build.ts";
+import { pickPlacement as pickPlacementCore } from "./ai-strategy-build.ts";
 import {
-  autoPlaceCannonsImpl,
-  autoSelectTowerImpl,
+  autoPlaceCannons as autoPlaceCannonsCore,
+  autoSelectTower,
 } from "./ai-strategy-cannon.ts";
 import { getActiveEnemies } from "./board-occupancy.ts";
 import type { GameMap, PixelPos, StrategicPixelPos, TilePos, Tower } from "./geometry-types.ts";
@@ -309,7 +309,7 @@ export class DefaultStrategy implements AiStrategy {
   // -----------------------------------------------------------------------
 
   selectTower(map: GameMap, zone: number): Tower | null {
-    return autoSelectTowerImpl(map, zone, this.rng, this.spatialAwareness);
+    return autoSelectTower(map, zone, this.rng, this.spatialAwareness);
   }
 
   // -----------------------------------------------------------------------
@@ -322,7 +322,7 @@ export class DefaultStrategy implements AiStrategy {
     piece: PieceShape,
     cursorPos?: TilePos,
   ): AiPlacement | null {
-    return pickPlacementImpl(state, playerId, piece, {
+    return pickPlacementCore(state, playerId, piece, {
       cursorPos,
       homeWasBroken: this._homeWasBroken,
       castleMargin: this.castleMargin,
@@ -358,7 +358,7 @@ export class DefaultStrategy implements AiStrategy {
       interior: new Set(player.interior),
       cannons: [...player.cannons],
     };
-    const placed = autoPlaceCannonsImpl(
+    const placed = autoPlaceCannonsCore(
       planningPlayer,
       count,
       state,
@@ -491,7 +491,7 @@ export class DefaultStrategy implements AiStrategy {
     crosshair: PixelPos,
     wallsOnly?: boolean,
   ): StrategicPixelPos | null {
-    return pickTargetImpl(
+    return pickTarget(
       state,
       playerId,
       crosshair,
@@ -504,7 +504,7 @@ export class DefaultStrategy implements AiStrategy {
   }
 
   trackShot(state: GameState, playerId: number, crosshair: PixelPos): void {
-    trackShotImpl(state, playerId, crosshair, this.shotCounts);
+    trackShot(state, playerId, crosshair, this.shotCounts);
   }
 
   onLifeLost(): void {
@@ -525,7 +525,7 @@ export function autoPlaceCannons(
   count: number,
   state: GameState,
 ): void {
-  autoPlaceCannonsImpl(player, count, state, new Rng(state.rng.int(0, MAX_UINT32)));
+  autoPlaceCannonsCore(player, count, state, new Rng(state.rng.int(0, MAX_UINT32)));
 }
 
 /** Standalone pickPlacement wrapper for headless tests / external callers. */
@@ -535,7 +535,7 @@ export function pickPlacement(
   piece: PieceShape,
   cursorPos?: TilePos,
 ): AiPlacement | null {
-  return pickPlacementImpl(state, playerId, piece, cursorPos ? { cursorPos } : undefined);
+  return pickPlacementCore(state, playerId, piece, cursorPos ? { cursorPos } : undefined);
 }
 
 function rollArchetype(rng: Rng): ArchetypeType {

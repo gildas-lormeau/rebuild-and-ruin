@@ -153,7 +153,7 @@ export function tickGameCore(params: {
 
 /** Run the shared main loop tick: quit countdown, pause check, mode dispatch.
  *  Returns false if the loop should NOT reschedule (Mode.STOPPED). */
-export function mainLoopTick(params: {
+export function tickMainLoop(params: {
   dt: number;
   mode: Mode;
   paused: boolean;

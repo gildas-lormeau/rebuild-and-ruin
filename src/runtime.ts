@@ -10,8 +10,8 @@ import { createController } from "./controller-factory.ts";
 import { type InputReceiver, isHuman, type PlayerController } from "./controller-interfaces.ts";
 import { computeFrameContext } from "./game-ui-frame.ts";
 import {
-  mainLoopTick,
   snapshotTerritory as snapshotTerritoryImpl,
+  tickMainLoop,
 } from "./game-ui-runtime.ts";
 import type { UIContext } from "./game-ui-screens.ts";
 import {
@@ -28,10 +28,9 @@ import {
   togglePause as togglePauseShared,
   visibleOptions,
 } from "./game-ui-screens.ts";
+import { computeGameSeed, cycleOption } from "./game-ui-settings.ts";
 import {
   CANNON_HP_OPTIONS,
-  computeGameSeed,
-  cycleOption,
   DIFFICULTY_PARAMS,
   ROUNDS_OPTIONS,
 } from "./game-ui-types.ts";
@@ -231,7 +230,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       }
     }
 
-    const shouldContinue = mainLoopTick({
+    const shouldContinue = tickMainLoop({
       dt,
       mode: rs.mode,
       paused: rs.paused,

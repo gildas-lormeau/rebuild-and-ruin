@@ -11,10 +11,10 @@ import {
   DIRS_4,
   forEachTowerTile,
   getCannonTileSet,
+  hasPitAt,
   inBounds,
   isAtTile,
   isCannonTile,
-  isPitAt,
   isTowerTile,
   isWater,
   packTile,
@@ -212,7 +212,7 @@ export function getCardinalObstacleMask(
       obstacles[di] = true;
       continue;
     }
-    if (isPitAt(state.burningPits, nr, nc)) {
+    if (hasPitAt(state.burningPits, nr, nc)) {
       obstacles[di] = true;
       continue;
     }

@@ -6,10 +6,10 @@ import { getAliveOwnedTowers } from "./board-occupancy.ts";
 import {
   cannonSize,
   FACING_90_STEP,
+  hasPitAt,
   inBounds,
   isCannonAlive,
   isCannonTile,
-  isPitAt,
   isTowerTile,
   packTile,
   snapAngle,
@@ -118,7 +118,7 @@ export function canPlaceCannon(
       if (player.walls.has(key)) return false;
       if (overlapsOwnedTower(player.ownedTowers, r, c)) return false;
       if (overlapsExistingCannon(player.cannons, r, c)) return false;
-      if (isPitAt(state.burningPits, r, c)) return false;
+      if (hasPitAt(state.burningPits, r, c)) return false;
     }
   }
   return true;

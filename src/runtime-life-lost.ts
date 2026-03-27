@@ -8,7 +8,7 @@
 import { type GameMessage, MSG } from "../server/protocol.ts";
 import { type InputReceiver, isHuman, type PlayerController } from "./controller-interfaces.ts";
 import {
-  buildLifeLostDialogState,
+  createLifeLostDialogState,
   LifeLostChoice,
   type LifeLostDialogState,
   type ResolvedChoice,
@@ -60,7 +60,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     deps.log(
       `showLifeLostDialog: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
     );
-    rs.lifeLostDialog = buildLifeLostDialogState({
+    rs.lifeLostDialog = createLifeLostDialogState({
       needsReselect,
       eliminated,
       state: rs.state,

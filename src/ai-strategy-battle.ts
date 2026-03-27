@@ -217,7 +217,7 @@ export function planWallDemolition(
   return null;
 }
 
-export function pickTargetImpl(
+export function pickTarget(
   state: GameState,
   playerId: number,
   crosshair: PixelPos,
@@ -312,7 +312,7 @@ export function pickTargetImpl(
   return jitterWithinTile(target.row, target.col, rand);
 }
 
-export function trackShotImpl(
+export function trackShot(
   state: GameState,
   playerId: number,
   crosshair: PixelPos,
