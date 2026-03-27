@@ -124,7 +124,7 @@ Rename groups in `.import-layers.json` to match reality. **Naming is the analysi
 |---|---|
 | `render` → `selection` (L7→L6) | Moved `SelectionState` from `selection.ts` to `types.ts` |
 | `online-client` → `ai-strategy` (L14→L5) | Hoisted `autoPlaceCannons` import into `runtime-phase-ticks.ts` |
-| `online-client` → `controller-factory` (L14→L6) | Extracted `makeOnlineControllerSlotFactory` into `runtime-bootstrap.ts` |
+| `online-client` → `controller-factory` (L14→L6) | Extracted `createOnlineControllerSlotFactory` into `runtime-bootstrap.ts` |
 | `input` → `render` (was L9→L7, now L7→L8) | Moved `render-theme.ts` to L3 (no canvas deps); moved `ControlsState` to `types.ts`; reordered input before render |
 | `online-logic` → `render` (L11→L8) | Reclassified `render-types.ts` to L3 (only imports L1–L3) |
 | `selection.ts` misplaced in "controllers" | Moved to "game systems" — it's phase logic, not a controller impl |
