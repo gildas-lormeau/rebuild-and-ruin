@@ -296,13 +296,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     const mobileAuto = mobileZoomEnabled && zoomActivated;
 
     // Unzoom for UI overlays and near end of phase
-    if (cameraZone !== null || pinchVp !== null || castleBuildVp !== null) {
-      if (ctx.shouldUnzoom) {
-        savePinchForPhase(state.phase === Phase.BATTLE);
-        cameraZone = null;
-        pinchVp = null;
-        castleBuildVp = null;
-      }
+    if (ctx.shouldUnzoom && (cameraZone !== null || pinchVp !== null || castleBuildVp !== null)) {
+      savePinchForPhase(state.phase === Phase.BATTLE);
+      cameraZone = null;
+      pinchVp = null;
+      castleBuildVp = null;
     }
 
     // Restore zoom after pause/quit cleared (mobile only)
@@ -329,19 +327,16 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     }
 
     // Auto-zoom on phase change (mobile only, not during banners)
-    if (mobileAuto && state.phase !== lastAutoZoomPhase &&
-        ctx.mode !== Mode.BANNER && ctx.mode !== Mode.BALLOON_ANIM && ctx.mode !== Mode.CASTLE_BUILD) {
-      if (!(ctx.mode === Mode.SELECTION && lastAutoZoomPhase === null)) {
+    const notTransition = ctx.mode !== Mode.BANNER && ctx.mode !== Mode.BALLOON_ANIM && ctx.mode !== Mode.CASTLE_BUILD;
+    if (state.phase !== lastAutoZoomPhase && notTransition) {
+      if (mobileAuto && !(ctx.mode === Mode.SELECTION && lastAutoZoomPhase === null)) {
         autoZoom(state.phase);
       }
-      lastAutoZoomPhase = state.phase;
-    } else if (state.phase !== lastAutoZoomPhase &&
-        ctx.mode !== Mode.BANNER && ctx.mode !== Mode.BALLOON_ANIM && ctx.mode !== Mode.CASTLE_BUILD) {
       lastAutoZoomPhase = state.phase;
     }
 
     // Camera follows crosshair during battle (mobile auto-zoom only)
-    if (mobileAuto && state.phase === Phase.BATTLE && !pinchVp && !ctx.shouldUnzoom) {
+    if (mobileAuto && state.phase === Phase.BATTLE && !pinchVp && !ctx.shouldUnzoom && notTransition) {
       const zone = crosshairZone();
       if (zone !== null && zone !== cameraZone) {
         cameraZone = zone;
