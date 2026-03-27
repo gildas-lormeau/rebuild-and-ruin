@@ -49,6 +49,7 @@ const RIVER_EXIT_MARGIN_V = 6;
 const JUNCTION_MARGIN_X = 16;
 /** Vertical margin for river junction placement. */
 const JUNCTION_MARGIN_Y = 11;
+const CASTLE_SHRINK_MAX_ITER = 20;
 
 export function generateMap(seed?: number): GameMap {
   const rng = new Rng(seed ?? Date.now());
@@ -1019,7 +1020,7 @@ function shrinkGapsUntilValid(
   gT: number,
   gB: number,
 ): { gL: number; gR: number; gT: number; gB: number } {
-  let maxIter = 20;
+  let maxIter = CASTLE_SHRINK_MAX_ITER;
   while (!isValid(gL, gR, gT, gB) && maxIter-- > 0) {
     // Find which side's wall has water and shrink it
     let shrunk = false;
