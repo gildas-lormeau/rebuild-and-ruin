@@ -149,7 +149,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   function resetFrame(): void {
+    const { gameOver } = rs.frame;
     rs.frame = { crosshairs: [], phantoms: {} };
+    if (gameOver) rs.frame.gameOver = gameOver;
   }
 
   function clampedFrameDt(now: number): number {
@@ -724,8 +726,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function rematch() {
     camera.resetCamera();
+    rs.frame.gameOver = undefined;
     startGame();
     rs.mode = Mode.SELECTION;
+    rs.lastTime = performance.now();
+    requestAnimationFrame(mainLoop);
   }
 
   function gameOverClick(canvasX: number, canvasY: number): void {
