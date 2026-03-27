@@ -145,7 +145,7 @@ export function registerOnlineInputHandlers(
 
     const state = getState();
     if (!state) return;
-    if (mode === modeValues.LIFE_LOST && deps.getLifeLostDialog()) { handleKeyLifeLost(e, state, deps); return; }
+    if (mode === modeValues.LIFE_LOST && deps.getLifeLostDialog()) { handleKeyLifeLost(e, deps); return; }
     if ((e.key === "p" || e.key === "P") && togglePause()) { e.preventDefault(); return; }
     if (isSelectionPhase(state.phase)) { handleKeySelection(e, state, deps); return; }
     if (mode !== modeValues.GAME) return;
@@ -316,7 +316,7 @@ function handleKeyOptions(e: KeyboardEvent, deps: RegisterOnlineInputDeps): void
   }
 }
 
-function handleKeyLifeLost(e: KeyboardEvent, state: GameState, deps: RegisterOnlineInputDeps): void {
+function handleKeyLifeLost(e: KeyboardEvent, deps: RegisterOnlineInputDeps): void {
   const { getLifeLostDialog, getControllers, isHuman, sendLifeLostChoice } = deps;
   const lifeLostDialog = getLifeLostDialog();
   if (!lifeLostDialog) return;

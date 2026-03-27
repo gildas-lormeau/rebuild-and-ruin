@@ -34,7 +34,7 @@ interface CameraDeps {
 
 interface CameraSystem {
   // Per-frame lifecycle
-  tickCamera: (dt: number) => void;
+  tickCamera: () => void;
   updateViewport: () => Viewport | null;
 
   // Coordinate conversion
@@ -289,7 +289,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   let wasPaused = false;
   let wasQuitPending = false;
 
-  function tickCamera(dt: number): void {
+  function tickCamera(): void {
     const state = deps.getState();
     if (!state) return;
     const ctx = deps.getCtx();

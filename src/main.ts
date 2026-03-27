@@ -22,7 +22,7 @@ const runtime = createGameRuntime({
   getRemoteHumanSlots: () => emptySet,
   // @ts-ignore — import.meta.env is Vite-specific
   log: import.meta.env?.DEV ? (msg: string) => console.log(`[local] ${msg}`) : () => {},
-  // @ts-ignore
+  // @ts-ignore — import.meta.env is Vite-specific
   logThrottled: import.meta.env?.DEV ? (() => { const ts = new Map<string, number>(); return (key: string, msg: string) => { const now = performance.now(); if (now - (ts.get(key) ?? 0) < 1000) return; ts.set(key, now); console.log(`[local] ${msg}`); }; })() : () => {},
   getLobbyRemaining: () => Math.max(0, LOBBY_TIMER - (runtime.rs.lobby.timerAccum ?? 0)),
   showLobby,

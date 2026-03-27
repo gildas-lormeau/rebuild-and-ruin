@@ -57,7 +57,7 @@ export function createLoupe(container: HTMLElement): LoupeHandle {
     const cssW = canvas.clientWidth;
     const cssH = canvas.clientHeight;
     if (cssW <= 0 || cssH <= 0) return;
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = devicePixelRatio || 1;
     const pw = Math.round(cssW * dpr);
     const ph = Math.round(cssH * dpr);
     if (canvas.width !== pw || canvas.height !== ph) {

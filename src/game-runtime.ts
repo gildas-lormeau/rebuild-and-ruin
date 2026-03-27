@@ -222,7 +222,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     if (DEV) exposeTestGlobals();
 
-    tickCamera(dt);
+    tickCamera();
 
     // Tick score delta display timer (mode-independent so it counts during banner/castle-build)
     if (rs.scoreDeltaTimer > 0) {

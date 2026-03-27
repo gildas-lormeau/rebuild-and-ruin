@@ -118,7 +118,7 @@ export function initRecorder(): void {
       format: "input-recorder",
       title: `recording-${new Date().toISOString().slice(0, 19).replace(/[:.]/g, "-")}`,
       url: location.href,
-      viewport: { width: window.innerWidth, height: window.innerHeight, dpr: devicePixelRatio },
+      viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
       userAgent: navigator.userAgent,
       startedAt: new Date().toISOString(),
       steps,

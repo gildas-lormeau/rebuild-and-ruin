@@ -29,8 +29,8 @@ export function navigateTo(path: string, replace = false): void {
 
 /** Attach popstate + hashchange listeners and apply the initial route. */
 export function initRouter(): void {
-  window.addEventListener("popstate", applyRoute);
-  window.addEventListener("hashchange", applyRoute);
+  addEventListener("popstate", applyRoute);
+  addEventListener("hashchange", applyRoute);
   applyRoute();
 }
 
