@@ -17,9 +17,9 @@ import type { GameMap, TilePos, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import type { Rng } from "./rng.ts";
 import {
+  computeCannonTileSet,
   DIRS_4,
   forEachCannonTile,
-  getCannonTileSet,
   inBounds,
   isCannonAlive,
   isWater,
@@ -294,10 +294,10 @@ function scoreCannonPosition(
     score += minTowerDistance * TOWER_DISTANCE_MULTIPLIER;
   }
 
-  const cannonTiles = getCannonTileSet({ row, col, kind: cannonKind });
+  const cannonTiles = computeCannonTileSet({ row, col, kind: cannonKind });
   const occupied = new Set(cannonTiles);
   for (const cannon of player.cannons) {
-    for (const key of getCannonTileSet(cannon)) occupied.add(key);
+    for (const key of computeCannonTileSet(cannon)) occupied.add(key);
   }
   const checked = new Set<number>();
   for (let dr = -1; dr <= size; dr++) {

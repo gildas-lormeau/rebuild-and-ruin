@@ -277,7 +277,7 @@ export function createCastle(
  * Get all wall tile positions for a castle (1-tile ring around interior).
  * Only includes tiles that are on-map and on grass.
  */
-export function getCastleWallTiles(
+export function computeCastleWallTiles(
   castle: Castle,
   tiles: readonly Tile[][],
 ): [number, number][] {

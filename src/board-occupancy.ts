@@ -7,10 +7,10 @@
  */
 
 import {
+  computeCannonTileSet,
   countWallNeighbors,
   DIRS_4,
   forEachTowerTile,
-  getCannonTileSet,
   hasPitAt,
   inBounds,
   isAtTile,
@@ -126,7 +126,7 @@ export function collectAllCannonTiles(
   for (const player of state.players) {
     for (const cannon of player.cannons) {
       if (options?.excludeBalloon && cannon.kind === CannonMode.BALLOON) continue;
-      for (const key of getCannonTileSet(cannon)) cannonTiles.add(key);
+      for (const key of computeCannonTileSet(cannon)) cannonTiles.add(key);
     }
   }
   return cannonTiles;
@@ -184,7 +184,7 @@ export function findLivingTowerIndexAt(
   return -1;
 }
 
-export function getCardinalObstacleMask(
+export function computeCardinalObstacleMask(
   state: GameState,
   row: number,
   col: number,

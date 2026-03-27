@@ -63,7 +63,7 @@ export function isTowerTile(t: TilePos, r: number, c: number): boolean {
 }
 
 /** Return the set of packed tile keys covered by a cannon footprint. */
-export function getCannonTileSet(
+export function computeCannonTileSet(
   cannon: Pick<Cannon, "row" | "col" | "kind">,
 ): Set<number> {
   const tiles = new Set<number>();

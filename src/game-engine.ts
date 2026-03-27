@@ -32,9 +32,9 @@ import {
 } from "./grunt-system.ts";
 import {
   applyClumsyBuilders,
+  computeCastleWallTiles,
   createCastle,
   generateMap,
-  getCastleWallTiles,
   spawnHousesInZone,
   startOfBuildPhaseHousekeeping,
   topZonesBySize,
@@ -136,7 +136,7 @@ export function rebuildHomeCastle(state: GameState, player: Player): void {
     state.map.towers,
   );
   player.castle = castle;
-  const wallTiles = getCastleWallTiles(castle, state.map.tiles);
+  const wallTiles = computeCastleWallTiles(castle, state.map.tiles);
   for (const [r, c] of wallTiles) {
     player.walls.add(packTile(r, c));
   }
@@ -387,7 +387,7 @@ export function prepareCastleWallsForPlayer(state: GameState, playerId: number):
   player.castle = castle;
 
   // Get wall tiles and apply clumsy builders to a temp set
-  const wallTiles = getCastleWallTiles(castle, state.map.tiles);
+  const wallTiles = computeCastleWallTiles(castle, state.map.tiles);
   const tempWalls = new Set<number>();
   for (const [r, c] of wallTiles) tempWalls.add(packTile(r, c));
   applyClumsyBuilders(tempWalls, castle, state.map.tiles, state.rng, state.map.towers);

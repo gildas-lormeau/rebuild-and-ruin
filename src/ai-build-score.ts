@@ -8,7 +8,7 @@
 import type { AiPlacement, Candidate, Scored } from "./ai-build-types.ts";
 import { floodPocket } from "./ai-castle-rect.ts";
 import { SMALL_POCKET_MAX_SIZE } from "./ai-constants.ts";
-import { getCardinalObstacleMask } from "./board-occupancy.ts";
+import { computeCardinalObstacleMask } from "./board-occupancy.ts";
 import type { TilePos, TileRect, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type Tile } from "./grid.ts";
 import {
@@ -226,7 +226,7 @@ export function computeDifficultyBonus(
   const pr = candidate.row + candidate.rotation.offsets[0]![0];
   const pc = candidate.col + candidate.rotation.offsets[0]![1];
   // Track obstacle directions: [north, south, west, east]
-  const obstacles = getCardinalObstacleMask(state, pr, pc);
+  const obstacles = computeCardinalObstacleMask(state, pr, pc);
   const total = obstacles.filter(Boolean).length;
   const hasOpposite =
     (obstacles[0] && obstacles[1]) || (obstacles[2] && obstacles[3]);

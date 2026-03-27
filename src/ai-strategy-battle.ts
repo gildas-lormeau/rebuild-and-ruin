@@ -7,7 +7,7 @@
 
 import { SMALL_POCKET_MAX_SIZE, traitLookup } from "./ai-constants.ts";
 import { canFire } from "./battle-system.ts";
-import { filterActiveEnemies, getCardinalObstacleMask } from "./board-occupancy.ts";
+import { computeCardinalObstacleMask, filterActiveEnemies } from "./board-occupancy.ts";
 import { filterActiveFiringCannons } from "./cannon-system.ts";
 import type {
   PixelPos,
@@ -344,7 +344,7 @@ function collectStrategicWallTargets(
       // Skip walls already targeted by a cannonball in flight
       if (isTileTargetedByInFlightBall(state, wallRow, wallCol)) continue;
       // Track obstacle directions: [north, south, west, east]
-      const obstacles = getCardinalObstacleMask(state, wallRow, wallCol, {
+      const obstacles = computeCardinalObstacleMask(state, wallRow, wallCol, {
         excludeBalloonCannons: true,
       });
       // Require 2+ obstacles with at least one opposite pair (N/S or W/E)
