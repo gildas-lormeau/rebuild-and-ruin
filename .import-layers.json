@@ -122,6 +122,7 @@
   {
     "name": "online logic",
     "files": [
+      "src/online-full-state-recovery.ts",
       "src/online-send-actions.ts",
       "src/online-checkpoints.ts",
       "src/online-watcher-battle.ts",

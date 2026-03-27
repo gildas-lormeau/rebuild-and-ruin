@@ -29,6 +29,7 @@ import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./game-ui-types.ts";
 import { GRID_COLS } from "./grid.ts";
 import { LifeLostChoice } from "./life-lost.ts";
 import { computeWsUrl } from "./online-config.ts";
+import { applyFullStateUiRecovery } from "./online-full-state-recovery.ts";
 import { broadcastLocalCrosshair, extendWithRemoteCrosshairs } from "./online-host-crosshairs.ts";
 import { rebuildControllersForPhase, syncAccumulatorsFromTimer } from "./online-host-promotion.ts";
 import { initLobbyUi } from "./online-lobby-ui.ts";
@@ -548,9 +549,27 @@ function applyFullState(msg: FullStateMessage): void {
   const state = runtime.rs.state;
   const result = applyFullStateSnapshot(state, msg);
 
-  if (result.balloonFlights) {
-    runtime.rs.battleAnim.flights = result.balloonFlights;
-  }
+  applyFullStateUiRecovery(
+    {
+      setMode: (mode) => {
+        runtime.rs.mode = mode;
+      },
+      clearCastleBuilds: () => {
+        runtime.rs.castleBuilds = [];
+      },
+      clearLifeLostDialog: () => {
+        runtime.lifeLost.set(null);
+      },
+      clearAnnouncement: () => {
+        runtime.rs.frame.announcement = undefined;
+      },
+      setBattleFlights: (flights) => {
+        runtime.rs.battleAnim.flights = flights;
+      },
+    },
+    state.phase,
+    result.balloonFlights,
+  );
 
   watcher.timing.phaseStartTime = performance.now();
   watcher.timing.phaseDuration = state.timer;

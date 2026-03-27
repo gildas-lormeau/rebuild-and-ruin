@@ -1,147 +1,191 @@
-/**
- * Headless test for online relay: connects two WebSocket clients,
- * creates a room, joins, starts the game, and verifies message flow.
- *
- * Run: bun test/online-relay.test.ts
- * Requires: deno task server running on port 8001
- */
+import { expect, test } from "bun:test";
 
-import process from "node:process";
+import { MSG } from "../server/protocol.ts";
+
 const SERVER_URL = "ws://localhost:8001/ws/play";
 
-interface Msg { type: string; [key: string]: unknown }
+interface Msg {
+  type: string;
+  [key: string]: unknown;
+}
 
-function connectClient(name: string): Promise<{ ws: WebSocket; messages: Msg[]; waitFor: (type: string, timeout?: number) => Promise<Msg> }> {
+interface Waiter {
+  predicate: (msg: Msg) => boolean;
+  resolve: (msg: Msg) => void;
+  reject: (error: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
+}
+
+interface ClientHandle {
+  ws: WebSocket;
+  messages: Msg[];
+  waitFor: (predicate: ((msg: Msg) => boolean) | string, timeout?: number) => Promise<Msg>;
+}
+
+function matches(predicate: ((msg: Msg) => boolean) | string, msg: Msg): boolean {
+  return typeof predicate === "string" ? msg.type === predicate : predicate(msg);
+}
+
+function connectClient(name: string): Promise<ClientHandle> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(SERVER_URL);
     const messages: Msg[] = [];
+    const waiters: Waiter[] = [];
+
+    const settleWaiters = (msg: Msg) => {
+      for (let i = waiters.length - 1; i >= 0; i--) {
+        const waiter = waiters[i]!;
+        if (!waiter.predicate(msg)) continue;
+        clearTimeout(waiter.timer);
+        waiters.splice(i, 1);
+        waiter.resolve(msg);
+      }
+    };
 
     ws.onopen = () => {
-      console.log(`[${name}] connected`);
-      resolve({ ws, messages, waitFor });
+      resolve({
+        ws,
+        messages,
+        waitFor: (predicate, timeout = 5000) => {
+          const existing = messages.find((msg) => matches(predicate, msg));
+          if (existing) return Promise.resolve(existing);
+          return new Promise((res, rej) => {
+            const timer = setTimeout(() => {
+              rej(new Error(`[${name}] timeout waiting for message`));
+            }, timeout);
+            waiters.push({
+              predicate: (msg) => matches(predicate, msg),
+              resolve: res,
+              reject: rej,
+              timer,
+            });
+          });
+        },
+      });
     };
     ws.onerror = () => reject(new Error(`[${name}] connection failed — is the server running?`));
-    ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data) as Msg;
+    ws.onmessage = (event) => {
+      const msg = JSON.parse(event.data) as Msg;
       messages.push(msg);
+      settleWaiters(msg);
     };
-
-    function waitFor(type: string, timeout = 5000): Promise<Msg> {
-      return new Promise((res, rej) => {
-        // Check already received
-        const existing = messages.find(m => m.type === type);
-        if (existing) { res(existing); return; }
-
-        const timer = setTimeout(() => {
-          rej(new Error(`[${name}] timeout waiting for "${type}" (received: ${messages.map(m => m.type).join(", ")})`));
-        }, timeout);
-
-        const originalOnMessage = ws.onmessage;
-        ws.onmessage = (e) => {
-          const msg = JSON.parse(e.data) as Msg;
-          messages.push(msg);
-          if (msg.type === type) {
-            clearTimeout(timer);
-            ws.onmessage = originalOnMessage;
-            res(msg);
-          }
-        };
-      });
-    }
+    ws.onclose = () => {
+      for (const waiter of waiters.splice(0)) {
+        clearTimeout(waiter.timer);
+        waiter.reject(new Error(`[${name}] socket closed while waiting for message`));
+      }
+    };
   });
 }
 
-function send(ws: WebSocket, msg: Msg) {
+function send(ws: WebSocket, msg: Msg): void {
   ws.send(JSON.stringify(msg));
 }
 
-async function runTest() {
-  console.log("=== Online Relay Test ===\n");
-
-  // Connect two clients
-  const host = await connectClient("HOST");
-  const watcher = await connectClient("WATCHER");
-
-  // 1. Host creates a room
-  send(host.ws, { type: "create_room", settings: { battleLength: 3, cannonMaxHp: 3, waitTimerSec: 60 } });
-  const roomCreated = await host.waitFor("room_created");
-  const code = roomCreated.code as string;
-  console.log(`[HOST] room created: ${code}`);
-
-  // 2. Host selects slot 0
-  send(host.ws, { type: "select_slot", slotId: 0 });
-  const joined = await host.waitFor("joined");
-  console.log(`[HOST] joined as player ${joined.playerId}`);
-
-  // 3. Watcher joins the room
-  send(watcher.ws, { type: "join_room", code });
-  const roomJoined = await watcher.waitFor("room_joined");
-  console.log(`[WATCHER] joined room ${(roomJoined as Msg).code}`);
-
-  // 4. Host starts the game
-  send(host.ws, { type: "start_game" });
-
-  // 5. Both should receive init
-  const hostInit = await host.waitFor("init");
-  console.log(`[HOST] received init (seed=${hostInit.seed}, yourPlayerId=${hostInit.yourPlayerId})`);
-
-  const watcherInit = await watcher.waitFor("init");
-  console.log(`[WATCHER] received init (seed=${watcherInit.seed}, yourPlayerId=${watcherInit.yourPlayerId})`);
-
-  // 6. Both should receive select_start
-  const hostSelect = await host.waitFor("select_start");
-  console.log(`[HOST] received select_start (timer=${hostSelect.timer})`);
-
-  const watcherSelect = await watcher.waitFor("select_start");
-  console.log(`[WATCHER] received select_start (timer=${watcherSelect.timer})`);
-
-  // 7. Host sends a tower_selected (as ServerMessage — opponent_tower_selected)
-  send(host.ws, { type: "opponent_tower_selected", playerId: 0, towerIdx: 0 });
-  send(host.ws, { type: "opponent_tower_selected", playerId: 1, towerIdx: 4 });
-  send(host.ws, { type: "opponent_tower_selected", playerId: 2, towerIdx: 8 });
-
-  // 8. Watcher should receive those relayed
-  const t1 = await watcher.waitFor("opponent_tower_selected");
-  console.log(`[WATCHER] received opponent_tower_selected (playerId=${t1.playerId}, towerIdx=${t1.towerIdx})`);
-
-  // 9. Host sends castle_walls
-  send(host.ws, { type: "castle_walls", plans: [
-    { playerId: 0, tiles: [100, 101, 102] },
-    { playerId: 1, tiles: [200, 201, 202] },
-    { playerId: 2, tiles: [300, 301, 302] },
-  ]});
-  const walls = await watcher.waitFor("castle_walls");
-  console.log(`[WATCHER] received castle_walls (${(walls.plans as unknown[]).length} plans)`);
-
-  // 10. Host sends cannon_start checkpoint
-  send(host.ws, { type: "cannon_start", timer: 15, limits: [3, 3, 3], players: [], grunts: [], bonusSquares: [], towerAlive: [], burningPits: [], houses: [] });
-  const cs = await watcher.waitFor("cannon_start");
-  console.log(`[WATCHER] received cannon_start (timer=${cs.timer})`);
-
-  // 11. Host sends a cannon_fired during battle
-  send(host.ws, { type: "cannon_fired", playerId: 0, cannonIdx: 0, startX: 100, startY: 100, targetX: 300, targetY: 200, speed: 150 });
-  const cf = await watcher.waitFor("cannon_fired");
-  console.log(`[WATCHER] received cannon_fired (playerId=${cf.playerId}, speed=${cf.speed})`);
-
-  // 12. Host sends wall_destroyed
-  send(host.ws, { type: "wall_destroyed", row: 5, col: 10, playerId: 1 });
-  const wd = await watcher.waitFor("wall_destroyed");
-  console.log(`[WATCHER] received wall_destroyed (row=${wd.row}, col=${wd.col})`);
-
-  // 13. Host sends game_over
-  send(host.ws, { type: "game_over", winner: "Red", scores: [{ name: "Red", score: 5000, eliminated: false }] });
-  const go = await watcher.waitFor("game_over");
-  console.log(`[WATCHER] received game_over (winner=${go.winner})`);
-
-  console.log("\n=== ALL TESTS PASSED ===");
-
-  host.ws.close();
-  watcher.ws.close();
-  process.exit(0);
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-runTest().catch(err => {
-  console.error("\n=== TEST FAILED ===");
-  console.error(err.message);
-  process.exit(1);
-});
+test("relay matches current lobby, checkpoint, and migration protocol", async () => {
+  const host = await connectClient("HOST");
+  const player = await connectClient("PLAYER");
+  const watcher = await connectClient("WATCHER");
+
+  try {
+    send(host.ws, {
+      type: MSG.CREATE_ROOM,
+      settings: { battleLength: 3, cannonMaxHp: 3, waitTimerSec: 1 },
+    });
+    const roomCreated = await host.waitFor(MSG.ROOM_CREATED);
+    const code = roomCreated.code as string;
+    expect(typeof code).toBe("string");
+
+    send(host.ws, { type: MSG.SELECT_SLOT, slotId: 0 });
+    const hostJoined = await host.waitFor(MSG.JOINED);
+    expect(hostJoined.playerId).toBe(0);
+
+    send(player.ws, { type: MSG.JOIN_ROOM, code });
+    const playerRoomJoined = await player.waitFor(MSG.ROOM_JOINED);
+    expect(playerRoomJoined.code).toBe(code);
+
+    send(player.ws, { type: MSG.SELECT_SLOT, slotId: 1 });
+    const playerJoined = await player.waitFor(MSG.JOINED);
+    expect(playerJoined.playerId).toBe(1);
+    const hostSawPlayer = await host.waitFor(
+      (msg) => msg.type === MSG.PLAYER_JOINED && msg.playerId === 1,
+    );
+    expect(hostSawPlayer.playerId).toBe(1);
+
+    send(watcher.ws, { type: MSG.JOIN_ROOM, code });
+    const watcherRoomJoined = await watcher.waitFor(MSG.ROOM_JOINED);
+    expect(watcherRoomJoined.code).toBe(code);
+
+    await sleep(1100);
+
+    send(host.ws, {
+      type: MSG.INIT,
+      seed: 123,
+      playerCount: 3,
+      settings: {
+        battleLength: 3,
+        cannonMaxHp: 3,
+        buildTimer: 25,
+        cannonPlaceTimer: 15,
+      },
+    });
+    const playerInit = await player.waitFor(MSG.INIT);
+    const watcherInit = await watcher.waitFor(MSG.INIT);
+    expect(playerInit.seed).toBe(123);
+    expect(watcherInit.seed).toBe(123);
+
+    send(host.ws, { type: MSG.SELECT_START, timer: 10 });
+    const playerSelect = await player.waitFor(MSG.SELECT_START);
+    const watcherSelect = await watcher.waitFor(MSG.SELECT_START);
+    expect(playerSelect.timer).toBe(10);
+    expect(watcherSelect.timer).toBe(10);
+
+    send(player.ws, { type: MSG.OPPONENT_TOWER_SELECTED, playerId: 1, towerIdx: 4, confirmed: false });
+    const watcherTower = await watcher.waitFor(
+      (msg) => msg.type === MSG.OPPONENT_TOWER_SELECTED && msg.playerId === 1,
+    );
+    expect(watcherTower.towerIdx).toBe(4);
+
+    send(host.ws, {
+      type: MSG.CASTLE_WALLS,
+      plans: [
+        { playerId: 0, tiles: [100, 101, 102] },
+        { playerId: 1, tiles: [200, 201, 202] },
+        { playerId: 2, tiles: [300, 301, 302] },
+      ],
+    });
+    const castleWalls = await watcher.waitFor(MSG.CASTLE_WALLS);
+    expect((castleWalls.plans as unknown[]).length).toBe(3);
+
+    send(host.ws, {
+      type: MSG.CANNON_START,
+      timer: 15,
+      limits: [3, 3, 3],
+      players: [],
+      grunts: [],
+      bonusSquares: [],
+      towerAlive: [],
+      burningPits: [],
+      houses: [],
+    });
+    const cannonStart = await watcher.waitFor(MSG.CANNON_START);
+    expect(cannonStart.timer).toBe(15);
+
+    host.ws.close();
+
+    const playerHostLeft = await player.waitFor(MSG.HOST_LEFT);
+    const watcherHostLeft = await watcher.waitFor(MSG.HOST_LEFT);
+    expect(playerHostLeft.newHostPlayerId).toBe(1);
+    expect(playerHostLeft.previousHostPlayerId).toBe(0);
+    expect(watcherHostLeft.newHostPlayerId).toBe(1);
+  } finally {
+    if (host.ws.readyState === WebSocket.OPEN) host.ws.close();
+    if (player.ws.readyState === WebSocket.OPEN) player.ws.close();
+    if (watcher.ws.readyState === WebSocket.OPEN) watcher.ws.close();
+    await sleep(25);
+  }
+}, 15000);

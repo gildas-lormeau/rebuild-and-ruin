@@ -420,11 +420,12 @@ export function assert(condition: boolean, message: string) {
 
 export function runTests(label?: string) {
   if (label) console.log(`${label}\n`);
+  const suite = tests.splice(0, tests.length);
   let passed = 0;
   let failed = 0;
   let knownFailures = 0;
   let unexpectedPasses = 0;
-  for (const t of tests) {
+  for (const t of suite) {
     try {
       t.fn();
       if (t.expected === "known-failure") {
