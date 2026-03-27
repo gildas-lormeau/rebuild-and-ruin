@@ -1,8 +1,9 @@
 import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
+import type { ControlsState } from "./game-ui-types.ts";
 import type { WorldPos } from "./geometry-types.ts";
-import type { ControlsState, LifeLostDialogState, ModeValues } from "./input-dispatch.ts";
+import type { ModeValues } from "./input-dispatch.ts";
 import { clientToCanvas, dispatchBattleFire, dispatchModeTap, dispatchPlacement, dispatchPointerMove, dispatchTowerSelect, isGameInteractionMode, isTouchSuppressed } from "./input-dispatch.ts";
-import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type ResolvedChoice } from "./life-lost.ts";
+import { CHOICE_ABANDON, CHOICE_CONTINUE, CHOICE_PENDING, type LifeLostDialogState, type ResolvedChoice } from "./life-lost.ts";
 import type { KeyBindings, SeedMode } from "./player-config.ts";
 import { ACTION_KEYS, applyKeyRebinding, MAX_PLAYERS, SEED_CUSTOM, SEED_RANDOM } from "./player-config.ts";
 import { FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus } from "./render-types.ts";

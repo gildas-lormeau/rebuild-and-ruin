@@ -7,8 +7,9 @@
  */
 
 import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
+import type { ControlsState } from "./game-ui-types.ts";
 import type { WorldPos } from "./geometry-types.ts";
-import type { LifeLostChoice } from "./life-lost.ts";
+import type { LifeLostDialogState } from "./life-lost.ts";
 import type { SelectionState } from "./selection.ts";
 import { towerAtPixel } from "./spatial.ts";
 import type { GameState } from "./types.ts";
@@ -25,22 +26,6 @@ export interface ModeValues {
   LIFE_LOST: number;
   GAME: number;
   STOPPED: number;
-}
-
-export interface ControlsState {
-  playerIdx: number;
-  actionIdx: number;
-  rebinding: boolean;
-}
-
-export interface LifeLostDialogEntry {
-  playerId: number;
-  choice: LifeLostChoice;
-  focused: number;
-}
-
-export interface LifeLostDialogState {
-  entries: LifeLostDialogEntry[];
 }
 
 const TOUCH_CLICK_SUPPRESS_MS = 500;

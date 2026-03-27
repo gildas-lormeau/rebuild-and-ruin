@@ -141,7 +141,8 @@
       "src/battle-ticks.ts",
       "src/game-runtime-types.ts",
       "src/game-bootstrap.ts",
-      "src/game-runtime.ts"
+      "src/game-runtime.ts",
+      "src/headless-sim.ts"
     ]
   },
   {
@@ -158,7 +159,6 @@
       "src/entry.ts",
       "src/main.ts",
       "src/online-client.ts",
-      "src/headless-sim.ts",
       "src/headless-test.ts"
     ]
   }
