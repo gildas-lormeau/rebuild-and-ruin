@@ -15,6 +15,7 @@
 
 import { existsSync, readdirSync, readFileSync } from "fs";
 import { join } from "path";
+import process from "node:process";
 
 interface LayerGroup {
   name: string;

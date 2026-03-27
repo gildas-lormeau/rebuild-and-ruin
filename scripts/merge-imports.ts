@@ -18,6 +18,7 @@
 
 import { readdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
+import process from "node:process";
 
 interface ParsedImport {
   line: number;

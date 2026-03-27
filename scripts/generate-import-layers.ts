@@ -29,6 +29,7 @@
 import { Project } from "ts-morph";
 import fs from "node:fs";
 import path from "node:path";
+import process from "node:process";
 
 // ---------------------------------------------------------------------------
 // CLI
@@ -252,7 +253,7 @@ const pad = String(maxLayer).length;
 
 // If a layer file already exists, preserve group names for layers that
 // still exist at the same index
-let existingNames = new Map<number, string>();
+const existingNames = new Map<number, string>();
 if (fs.existsSync(LAYER_FILE)) {
   try {
     const existing: LayerGroup[] = JSON.parse(fs.readFileSync(LAYER_FILE, "utf-8"));
