@@ -63,4 +63,10 @@ for (const file of project.getSourceFiles()) {
 }
 
 console.log(`\nTotal parameters made readonly: ${changed}`);
-console.log("Now run: npx tsc --noEmit 2>&1 | grep error to find genuine mutations.");
+if (changed > 0) {
+  console.error(
+    "New array parameters were made readonly. Run `tsc --noEmit` to find genuine mutations,\n" +
+    "then add them to .readonly-params-baseline.json and re-stage.",
+  );
+  process.exit(1);
+}
