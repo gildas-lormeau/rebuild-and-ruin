@@ -256,7 +256,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     });
 
     if (DEV) exposeTestGlobals();
-    if (shouldContinue) requestAnimationFrame(mainLoop);
+    if (shouldContinue && rs.mode !== Mode.STOPPED) requestAnimationFrame(mainLoop);
   }
 
   // -------------------------------------------------------------------------
