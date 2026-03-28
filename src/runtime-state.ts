@@ -88,6 +88,13 @@ export interface RuntimeState {
 
 /** Default frame delta time (assumes 60fps). */
 const DEFAULT_FRAME_DT = 1 / 60;
+/**
+ * Create a typed sentinel that throws a descriptive error on any property
+ * access.  Replaces `null! as T` — same zero-cost for valid code paths,
+ * but produces a clear "not yet initialized" error instead of a cryptic
+ * "Cannot read properties of null" when accessed before assignment.
+ */
+const SENTINEL = Symbol("uninitialized");
 
 export function createRuntimeState(): RuntimeState {
   return {
@@ -140,18 +147,24 @@ export function createRuntimeState(): RuntimeState {
   };
 }
 
-/**
- * Create a typed sentinel that throws a descriptive error on any property
- * access.  Replaces `null! as T` — same zero-cost for valid code paths,
- * but produces a clear "not yet initialized" error instead of a cryptic
- * "Cannot read properties of null" when accessed before assignment.
- */
+/** Returns `rs.state` if initialized, `undefined` otherwise. */
+export function safeState(rs: RuntimeState): GameState | undefined {
+  return isStateReady(rs) ? rs.state : undefined;
+}
+
+/** Returns true when `rs.state` has been assigned a real GameState. */
+export function isStateReady(rs: RuntimeState): boolean {
+  return !(rs.state as unknown as Record<symbol, unknown>)[SENTINEL];
+}
+
 function uninitializedSentinel<T extends object>(name: string): T {
-  return new Proxy<T>(Object.create(null), {
+  const proxy = new Proxy<T>(Object.create(null), {
     get(_, prop) {
+      if (prop === SENTINEL) return true;
       throw new Error(
         `rs.${name} accessed before initialization (property: ${String(prop)})`,
       );
     },
   });
+  return proxy;
 }

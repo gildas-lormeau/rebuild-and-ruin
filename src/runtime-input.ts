@@ -29,7 +29,7 @@ import {
 } from "./input-touch-ui.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import type { RendererInterface } from "./render-types.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import { type RuntimeState, safeState } from "./runtime-state.ts";
 import type { CameraSystem } from "./runtime-types.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import { towerCenterPx } from "./spatial.ts";
@@ -186,7 +186,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
   function register(): void {
     const inputDeps: RegisterOnlineInputDeps = {
       renderer,
-      getState: () => rs.state,
+      getState: () => safeState(rs),
       getMode: () => rs.mode,
       setMode: (m) => {
         rs.mode = m as Mode;
@@ -288,7 +288,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       const placeCannon = inputDeps.tryPlaceCannonAndSend;
       touch.dpad = createDpad(
         {
-          getState: () => rs.state,
+          getState: () => safeState(rs),
           getMode: () => rs.mode,
           modeValues: {
             GAME: Mode.GAME,
@@ -358,7 +358,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       );
       touch.dpad.update(null); // initial state: d-pad + rotate disabled
       const zoomDeps = {
-        getState: () => rs.state,
+        getState: () => safeState(rs),
         getCameraZone: camera.getCameraZone,
         setCameraZone: camera.setCameraZone,
         myPlayerId: camera.myPlayerId,
@@ -406,7 +406,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       if (floatingEl) {
         touch.floatingActions = createFloatingActions(
           {
-            getState: () => rs.state,
+            getState: () => safeState(rs),
             withFirstHuman,
             tryPlacePieceAndSend: inputDeps.tryPlacePieceAndSend,
             tryPlaceCannonAndSend: inputDeps.tryPlaceCannonAndSend,

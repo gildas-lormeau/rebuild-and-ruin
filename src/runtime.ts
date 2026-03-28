@@ -55,7 +55,11 @@ import {
   createSelectionSystem,
   type SelectionSystem,
 } from "./runtime-selection.ts";
-import { createRuntimeState } from "./runtime-state.ts";
+import {
+  createRuntimeState,
+  isStateReady,
+  safeState,
+} from "./runtime-state.ts";
 import { updateTouchControls } from "./runtime-touch-ui.ts";
 import type { GameRuntime, RuntimeConfig } from "./runtime-types.ts";
 import { createSoundSystem } from "./sound-system.ts";
@@ -120,10 +124,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     if (typeof window === "undefined") return;
     const w = globalThis as unknown as Record<string, unknown>;
     w.__testMode = Mode[rs.mode];
-    w.__testPhase = rs.state ? Phase[rs.state.phase] : "";
-    w.__testTimer = rs.state ? rs.state.timer : 0;
+    w.__testPhase = isStateReady(rs) ? Phase[rs.state.phase] : "";
+    w.__testTimer = isStateReady(rs) ? rs.state.timer : 0;
     const myPid = config.getMyPlayerId();
-    if (rs.state && myPid >= 0) {
+    if (isStateReady(rs) && myPid >= 0) {
       const enemies: { x: number; y: number }[] = [];
       for (const p of rs.state.players) {
         if (p.id === myPid || p.eliminated) continue;
@@ -160,8 +164,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     rs.ctx = computeFrameContext({
       mode: rs.mode,
-      phase: rs.state?.phase ?? Phase.CASTLE_SELECT,
-      timer: rs.state?.timer ?? 0,
+      phase: isStateReady(rs) ? rs.state.phase : Phase.CASTLE_SELECT,
+      timer: isStateReady(rs) ? rs.state.timer : 0,
       paused: rs.paused,
       quitPending: rs.quitPending,
       hasLifeLostDialog: rs.lifeLostDialog !== null,
@@ -315,7 +319,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   const camera = createCameraSystem({
-    getState: () => rs.state,
+    getState: () => safeState(rs),
     getCtx: () => rs.ctx,
     getFrameDt: () => rs.frameDt,
     setFrameAnnouncement: (text) => {
@@ -510,7 +514,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   const uiCtx: UIContext = {
-    getState: () => rs.state,
+    getState: () => safeState(rs),
     getOverlay: () => rs.overlay,
     settings: rs.settings,
     getMode: () => rs.mode,
