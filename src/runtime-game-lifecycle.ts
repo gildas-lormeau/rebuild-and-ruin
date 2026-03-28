@@ -204,6 +204,7 @@ export function createGameLifecycle(
   function returnToLobby(): void {
     rs.scoreDeltaOnDone = null;
     camera.unzoom();
+    rs.frame.gameOver = undefined;
     rs.mouseJoinedSlot = -1;
     rs.directTouchActive = false;
     deps.resetTouchForLobby();
