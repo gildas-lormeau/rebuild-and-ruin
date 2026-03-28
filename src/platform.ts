@@ -8,8 +8,10 @@ export const IS_TOUCH_DEVICE: boolean =
   typeof window !== "undefined" &&
   ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 /** Whether the device supports the Vibration API. */
-export const CAN_VIBRATE: boolean = typeof navigator !== "undefined" && !!navigator.vibrate;
+export const CAN_VIBRATE: boolean =
+  typeof navigator !== "undefined" && !!navigator.vibrate;
 /** Whether running in dev mode (Vite dev server or localhost). */
 export const IS_DEV: boolean =
   // @ts-ignore — import.meta.env is Vite-specific (not recognized by Deno LSP)
-  !!(import.meta.env?.DEV) || (typeof location !== "undefined" && location?.hostname === "localhost");
+  !!import.meta.env?.DEV ||
+  (typeof location !== "undefined" && location?.hostname === "localhost");

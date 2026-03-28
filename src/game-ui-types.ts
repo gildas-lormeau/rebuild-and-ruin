@@ -59,4 +59,12 @@ export const CANNON_HP_OPTIONS = [
 ];
 export const HAPTICS_LABELS = ["Off", "Phase changes", "All"];
 export const DPAD_LABELS = ["Right-handed", "Left-handed"];
-export const OPTION_NAMES = ["Difficulty", "Rounds", "Cannon Kill", "Haptics", "Seed", "Controls", "D-Pad"];
+export const OPTION_NAMES = [
+  "Difficulty",
+  "Rounds",
+  "Cannon Kill",
+  "Haptics",
+  "Seed",
+  "Controls",
+  "D-Pad",
+];

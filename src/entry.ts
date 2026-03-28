@@ -16,22 +16,31 @@ const SERVER_STORAGE_KEY = "castles99_server";
 const ROUTE_ONLINE = "/online";
 const ROUTE_PLAY = "/play";
 const gameContainer = document.getElementById("game-container")!;
-const serverHostInput = document.getElementById("server-host") as HTMLInputElement;
+const serverHostInput = document.getElementById(
+  "server-host",
+) as HTMLInputElement;
 const params = new URLSearchParams(location.search);
 const autoJoinCode = params.get("join");
 
 // Lock to landscape on mobile (best-effort, silently ignored if unsupported)
-try { (screen.orientation as unknown as { lock?: (o: string) => Promise<void> })?.lock?.("landscape").catch(() => {}); } catch { /* unsupported */ }
+try {
+  (screen.orientation as unknown as { lock?: (o: string) => Promise<void> })
+    ?.lock?.("landscape")
+    .catch(() => {});
+} catch {
+  /* unsupported */
+}
 
 // --- Route handlers ---
 onRoute(ROUTE_ONLINE, () => {
   exitGameIfActive();
-  serverHostInput.value = localStorage.getItem(SERVER_STORAGE_KEY) || DEFAULT_SERVER;
+  serverHostInput.value =
+    localStorage.getItem(SERVER_STORAGE_KEY) || DEFAULT_SERVER;
   void import("./online-client.ts");
 });
 
 onRoute(ROUTE_PLAY, () => {
-  void import("./main.ts").then(m => m.enterLocalLobby());
+  void import("./main.ts").then((m) => m.enterLocalLobby());
 });
 
 onRoute("/", () => {
@@ -58,9 +67,13 @@ serverHostInput.addEventListener("change", () => {
 });
 
 // Fullscreen on Create/Join confirm (needs user gesture)
-document.getElementById("btn-create-confirm")!.addEventListener("click", tryFullscreen);
+document
+  .getElementById("btn-create-confirm")!
+  .addEventListener("click", tryFullscreen);
 
-document.getElementById("btn-join-confirm")!.addEventListener("click", tryFullscreen);
+document
+  .getElementById("btn-join-confirm")!
+  .addEventListener("click", tryFullscreen);
 
 // --- Auto-join via QR code: ?join=XXXX&server=host ---
 if (autoJoinCode) {
@@ -74,7 +87,7 @@ if (autoJoinCode) {
 }
 
 if (params.has("record-inputs")) {
-  void import("./input-recorder.ts").then(m => m.initRecorder());
+  void import("./input-recorder.ts").then((m) => m.initRecorder());
 }
 
 /** Hide the game container and notify game modules to clean up. */

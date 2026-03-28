@@ -6,7 +6,12 @@ import { generateMap } from "./map-generation.ts";
 import type { KeyBindings } from "./player-config.ts";
 import { GOLD, PANEL_BG } from "./render-theme.ts";
 import { MAX_UINT32 } from "./rng.ts";
-import { type GameState, isReselectPhase, Phase, type SelectionState } from "./types.ts";
+import {
+  type GameState,
+  isReselectPhase,
+  Phase,
+  type SelectionState,
+} from "./types.ts";
 
 interface InitWaitingRoomDeps {
   code: string;
@@ -87,20 +92,36 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(joinUrl)}`;
   const wrapper = document.createElement("div");
   Object.assign(wrapper.style, {
-    position: "fixed", top: "12px", left: "50%", transform: "translateX(-50%)",
-    background: PANEL_BG(0.9), padding: "12px 24px", borderRadius: "6px",
-    border: `2px solid ${GOLD}`, color: GOLD, fontSize: "24px", letterSpacing: "6px",
-    fontWeight: "bold", zIndex: "10", textAlign: "center",
+    position: "fixed",
+    top: "12px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    background: PANEL_BG(0.9),
+    padding: "12px 24px",
+    borderRadius: "6px",
+    border: `2px solid ${GOLD}`,
+    color: GOLD,
+    fontSize: "24px",
+    letterSpacing: "6px",
+    fontWeight: "bold",
+    zIndex: "10",
+    textAlign: "center",
   });
   wrapper.textContent = code;
   const qr = document.createElement("img");
   qr.src = qrSrc;
   qr.alt = "QR";
   Object.assign(qr.style, {
-    display: "block", margin: "8px auto 0", width: "120px", height: "120px",
-    imageRendering: "pixelated", borderRadius: "4px",
+    display: "block",
+    margin: "8px auto 0",
+    width: "120px",
+    height: "120px",
+    imageRendering: "pixelated",
+    borderRadius: "4px",
   });
-  qr.addEventListener("error", () => { qr.style.display = "none"; });
+  qr.addEventListener("error", () => {
+    qr.style.display = "none";
+  });
   wrapper.appendChild(qr);
   roomCodeOverlay.appendChild(wrapper);
 
@@ -115,9 +136,7 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
   requestFrame();
 }
 
-export function initTowerSelection(
-  deps: InitTowerSelectionDeps,
-): void {
+export function initTowerSelection(deps: InitTowerSelectionDeps): void {
   const {
     state,
     isHost,
@@ -210,7 +229,12 @@ export function createOnlineControllerSlotFactory(
   return (i, gameState) => {
     const isAi = i !== myPlayerId;
     const strategySeed = isAi ? gameState.rng.int(0, MAX_UINT32) : undefined;
-    return createController(i, isAi, isAi ? undefined : localKeyBinding, strategySeed);
+    return createController(
+      i,
+      isAi,
+      isAi ? undefined : localKeyBinding,
+      strategySeed,
+    );
   };
 }
 
@@ -226,7 +250,9 @@ export function bootstrapGame(deps: InitGameDeps): void {
   state.buildTimer = deps.buildTimer;
   state.cannonPlaceTimer = deps.cannonPlaceTimer;
 
-  deps.log(`initGame: ${playerCount} players, seed=${deps.seed}, battleLength=${state.battleLength}`);
+  deps.log(
+    `initGame: ${playerCount} players, seed=${deps.seed}, battleLength=${state.battleLength}`,
+  );
 
   const nextControllers: PlayerController[] = [];
   for (let i = 0; i < playerCount; i++) {

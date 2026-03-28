@@ -52,12 +52,16 @@ export function initLobbyUi({
       pendingAction = null;
       action();
     } else {
-      socket?.addEventListener("open", () => {
-        if (!pendingAction) return;
-        const a = pendingAction;
-        pendingAction = null;
-        a();
-      }, { once: true });
+      socket?.addEventListener(
+        "open",
+        () => {
+          if (!pendingAction) return;
+          const a = pendingAction;
+          pendingAction = null;
+          a();
+        },
+        { once: true },
+      );
     }
   };
 
@@ -111,10 +115,26 @@ export function initLobbyUi({
       roomListEl.appendChild(el("div", cls, text));
     };
 
-    const renderRoomList = (rooms: readonly { code: string; players: number; settings: { battleLength: number; cannonMaxHp: number }; elapsedSec: number }[]) => {
-      if (rooms.length === 0) { setMessage("room-list-empty", "No rooms available"); return; }
-      const roundsLabel = (v: number) => v > 0 ? `${v} rounds` : "To The Death";
-      const ageLabel = (sec: number) => sec < SECS_PER_MIN ? "just now" : sec < SECS_PER_HOUR ? `${Math.floor(sec / SECS_PER_MIN)}m ago` : `${Math.floor(sec / SECS_PER_HOUR)}h ago`;
+    const renderRoomList = (
+      rooms: readonly {
+        code: string;
+        players: number;
+        settings: { battleLength: number; cannonMaxHp: number };
+        elapsedSec: number;
+      }[],
+    ) => {
+      if (rooms.length === 0) {
+        setMessage("room-list-empty", "No rooms available");
+        return;
+      }
+      const roundsLabel = (v: number) =>
+        v > 0 ? `${v} rounds` : "To The Death";
+      const ageLabel = (sec: number) =>
+        sec < SECS_PER_MIN
+          ? "just now"
+          : sec < SECS_PER_HOUR
+            ? `${Math.floor(sec / SECS_PER_MIN)}m ago`
+            : `${Math.floor(sec / SECS_PER_HOUR)}h ago`;
       roomListEl.innerHTML = "";
       for (const r of rooms) {
         const item = el("div", "room-item");
@@ -122,7 +142,8 @@ export function initLobbyUi({
         item.appendChild(el("span", "room-code", r.code));
         const info = el("span", "room-info");
         info.append(
-          `${r.players}/${MAX_PLAYERS} players · ${ageLabel(r.elapsedSec)}`, doc.createElement("br"),
+          `${r.players}/${MAX_PLAYERS} players · ${ageLabel(r.elapsedSec)}`,
+          doc.createElement("br"),
           `${roundsLabel(r.settings.battleLength)} · ${r.settings.cannonMaxHp} HP`,
         );
         item.appendChild(info);
@@ -133,7 +154,7 @@ export function initLobbyUi({
 
     const fetchRooms = () => {
       fetch(computeApiUrl("/api/rooms"))
-        .then(r => r.json())
+        .then((r) => r.json())
         .then(renderRoomList)
         .catch(() => {
           setMessage("room-list-empty", "Server unavailable");
@@ -148,9 +169,16 @@ export function initLobbyUi({
     }, ROOM_POLL_INTERVAL_MS);
 
     // Stop polling on page unload to avoid leaked timers
-    addEventListener("pagehide", () => {
-      if (roomPollTimer) { clearInterval(roomPollTimer); roomPollTimer = null; }
-    }, { once: true });
+    addEventListener(
+      "pagehide",
+      () => {
+        if (roomPollTimer) {
+          clearInterval(roomPollTimer);
+          roomPollTimer = null;
+        }
+      },
+      { once: true },
+    );
   }
   return { joinRoom: doJoin };
 }

@@ -71,7 +71,13 @@ export interface RuntimeState {
   controlsState: ControlsState;
 
   // Score display
-  scoreDeltas: { playerId: number; delta: number; total: number; cx: number; cy: number }[];
+  scoreDeltas: {
+    playerId: number;
+    delta: number;
+    total: number;
+    cx: number;
+    cy: number;
+  }[];
   scoreDeltaTimer: number;
   scoreDeltaOnDone: (() => void) | null;
   preScores: readonly number[];

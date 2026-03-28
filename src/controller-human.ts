@@ -80,7 +80,8 @@ export class HumanController extends BaseController implements InputReceiver {
     const maxSlots = state.cannonLimits[this.playerId] ?? 0;
     const remaining = maxSlots - cannonSlotsUsed(player);
     if (remaining <= 0) return null;
-    if (!hasAnyCannonPlacement(player, this.cannonPlaceMode, state)) return null;
+    if (!hasAnyCannonPlacement(player, this.cannonPlaceMode, state))
+      return null;
     // Auto-downgrade mode if it no longer fits in remaining slots
     if (isSuperMode(this.cannonPlaceMode) && remaining < SUPER_GUN_COST) {
       this.cannonPlaceMode = CannonMode.NORMAL;
@@ -91,11 +92,26 @@ export class HumanController extends BaseController implements InputReceiver {
     // Snap-to-fit: only on mouse/touch (absolute position), not d-pad/keyboard (relative)
     if (this.cannonCursorNeedsSnap) {
       this.cannonCursorNeedsSnap = false;
-      if (!canPlaceCannon(player, this.cannonCursor.row, this.cannonCursor.col, this.cannonPlaceMode, state)) {
+      if (
+        !canPlaceCannon(
+          player,
+          this.cannonCursor.row,
+          this.cannonCursor.col,
+          this.cannonPlaceMode,
+          state,
+        )
+      ) {
         const snapped = findNearestValidCannonPlacement(
-          player, this.cannonCursor.row, this.cannonCursor.col, this.cannonPlaceMode, state,
+          player,
+          this.cannonCursor.row,
+          this.cannonCursor.col,
+          this.cannonPlaceMode,
+          state,
         );
-        if (snapped) { this.cannonCursor.row = snapped.row; this.cannonCursor.col = snapped.col; }
+        if (snapped) {
+          this.cannonCursor.row = snapped.row;
+          this.cannonCursor.col = snapped.col;
+        }
       }
     }
     const valid = canPlaceCannon(
@@ -132,11 +148,17 @@ export class HumanController extends BaseController implements InputReceiver {
     if (direction === Action.UP)
       this.cannonCursor.row = Math.max(0, this.cannonCursor.row - 1);
     else if (direction === Action.DOWN)
-      this.cannonCursor.row = Math.min(GRID_ROWS - sz, this.cannonCursor.row + 1);
+      this.cannonCursor.row = Math.min(
+        GRID_ROWS - sz,
+        this.cannonCursor.row + 1,
+      );
     else if (direction === Action.LEFT)
       this.cannonCursor.col = Math.max(0, this.cannonCursor.col - 1);
     else if (direction === Action.RIGHT)
-      this.cannonCursor.col = Math.min(GRID_COLS - sz, this.cannonCursor.col + 1);
+      this.cannonCursor.col = Math.min(
+        GRID_COLS - sz,
+        this.cannonCursor.col + 1,
+      );
   }
 
   override setBuildCursor(row: number, col: number): void {
@@ -195,10 +217,9 @@ export class HumanController extends BaseController implements InputReceiver {
   /** Try to place a cannon at the current cursor position. Returns true on success. */
   tryPlaceCannon(state: GameState, maxSlots: number): boolean {
     const player = state.players[this.playerId]!;
-    const mode =
-      isNormalMode(this.cannonPlaceMode)
-        ? undefined
-        : this.cannonPlaceMode;
+    const mode = isNormalMode(this.cannonPlaceMode)
+      ? undefined
+      : this.cannonPlaceMode;
     const placed = placeCannon(
       player,
       this.cannonCursor.row,

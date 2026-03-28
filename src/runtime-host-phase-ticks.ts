@@ -18,7 +18,11 @@ import {
   piecePhantomKey,
 } from "./online-types.ts";
 import { unpackTile } from "./spatial.ts";
-import { getRemoteSlots, type HostNetContext, localActiveControllers } from "./tick-context.ts";
+import {
+  getRemoteSlots,
+  type HostNetContext,
+  localActiveControllers,
+} from "./tick-context.ts";
 import { CannonMode, type GameState } from "./types.ts";
 
 /** Networking context for the cannon placement phase. */
@@ -99,7 +103,10 @@ interface TickHostBuildPhaseDeps {
     needsReselect: number[];
     eliminated: number[];
   };
-  showLifeLostDialog: (needsReselect: readonly number[], eliminated: readonly number[]) => void;
+  showLifeLostDialog: (
+    needsReselect: readonly number[],
+    eliminated: readonly number[],
+  ) => void;
   afterLifeLostResolved: () => boolean;
   showScoreDeltas: (onDone: () => void) => void;
   net?: BuildPhaseNet;
@@ -122,7 +129,11 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   state.timer = Math.max(0, state.cannonPlaceTimer - accum.cannon);
 
   frame.phantoms = { aiCannonPhantoms: [] };
-  for (const ctrl of localActiveControllers(controllers, remoteHumanSlots, state)) {
+  for (const ctrl of localActiveControllers(
+    controllers,
+    remoteHumanSlots,
+    state,
+  )) {
     const cannonsBefore = state.players[ctrl.playerId]!.cannons.length;
     const phantom = ctrl.cannonTick(state, dt);
 
@@ -144,7 +155,14 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
     frame.phantoms.aiCannonPhantoms!.push(phantom);
     if (!isHost || !sendOpponentCannonPhantom) continue;
 
-    if (!phantomChanged(lastSentCannonPhantom, ctrl.playerId, cannonPhantomKey(phantom))) continue;
+    if (
+      !phantomChanged(
+        lastSentCannonPhantom,
+        ctrl.playerId,
+        cannonPhantomKey(phantom),
+      )
+    )
+      continue;
     sendOpponentCannonPhantom({
       playerId: ctrl.playerId,
       row: phantom.row,
@@ -191,8 +209,18 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
 
 export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   const {
-    dt, state, accum, frame, controllers, render,
-    tickGrunts, isHuman, finalizeBuildPhase, showLifeLostDialog, afterLifeLostResolved, showScoreDeltas,
+    dt,
+    state,
+    accum,
+    frame,
+    controllers,
+    render,
+    tickGrunts,
+    isHuman,
+    finalizeBuildPhase,
+    showLifeLostDialog,
+    afterLifeLostResolved,
+    showScoreDeltas,
   } = deps;
   // Networking defaults (no-op for local play)
   const remoteHumanSlots = getRemoteSlots(deps.net);
@@ -213,7 +241,11 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   }
 
   frame.phantoms = { aiPhantoms: [], humanPhantoms: [] };
-  for (const ctrl of localActiveControllers(controllers, remoteHumanSlots, state)) {
+  for (const ctrl of localActiveControllers(
+    controllers,
+    remoteHumanSlots,
+    state,
+  )) {
     const wallSnapshot =
       isHost && !isHuman(ctrl)
         ? new Set(state.players[ctrl.playerId]!.walls)
@@ -261,7 +293,8 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
       }
 
       if (!isHost || !sendOpponentPhantom) continue;
-      if (!phantomChanged(lastSentPiecePhantom, p.playerId, piecePhantomKey(p))) continue;
+      if (!phantomChanged(lastSentPiecePhantom, p.playerId, piecePhantomKey(p)))
+        continue;
       sendOpponentPhantom({
         playerId: p.playerId,
         row: p.row,

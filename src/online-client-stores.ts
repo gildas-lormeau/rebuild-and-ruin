@@ -48,7 +48,11 @@ export function logThrottled(key: string, msg: string): void {
 // ── Utilities ───────────────────────────────────────────────────────
 export function log(msg: string): void {
   if (!DEV) return;
-  const modeStr = session.isHost ? "host" : session.myPlayerId >= 0 ? "player" : "watcher";
+  const modeStr = session.isHost
+    ? "host"
+    : session.myPlayerId >= 0
+      ? "player"
+      : "watcher";
   console.log(`[online] (mode=${modeStr} pid=${session.myPlayerId}) ${msg}`);
 }
 
@@ -56,7 +60,11 @@ export function send(msg: GameMessage): void {
   sendMessage(session, msg);
 }
 
-export function maybeSendAimUpdate(x: number, y: number, playerId?: number): void {
+export function maybeSendAimUpdate(
+  x: number,
+  y: number,
+  playerId?: number,
+): void {
   sendAimUpdate(session, dedup, x, y, playerId);
 }
 
@@ -66,5 +74,8 @@ export function resetDedup(): void {
 
 export function clearReconnect(): void {
   reconnect.attempt = 0;
-  if (reconnect.timer) { clearTimeout(reconnect.timer); reconnect.timer = null; }
+  if (reconnect.timer) {
+    clearTimeout(reconnect.timer);
+    reconnect.timer = null;
+  }
 }

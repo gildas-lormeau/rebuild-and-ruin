@@ -71,7 +71,14 @@ export const PLAYER_KEY_BINDINGS: readonly KeyBindings[] = [
 export const MAX_PLAYERS = PLAYER_NAMES.length;
 /** Ordered action keys for the controls screen (matches KeyBindings fields). */
 export const ACTION_CONFIRM = "confirm" as const;
-export const ACTION_KEYS: readonly (keyof KeyBindings)[] = ["up", "down", "left", "right", ACTION_CONFIRM, "rotate"];
+export const ACTION_KEYS: readonly (keyof KeyBindings)[] = [
+  "up",
+  "down",
+  "left",
+  "right",
+  ACTION_CONFIRM,
+  "rotate",
+];
 export const SEED_RANDOM = "random" as const;
 export const SEED_CUSTOM = "custom" as const;
 
@@ -81,11 +88,16 @@ export function getPlayerColor(playerId: number): PlayerColor {
 }
 
 /** Apply a key rebinding with conflict resolution (swap conflicting key). */
-export function applyKeyRebinding(kb: KeyBindings, actionKey: string, newKey: string): void {
+export function applyKeyRebinding(
+  kb: KeyBindings,
+  actionKey: string,
+  newKey: string,
+): void {
   for (const otherAction of ACTION_KEYS) {
     if (otherAction === actionKey) continue;
     if (kb[otherAction as keyof KeyBindings] === newKey) {
-      (kb as unknown as Record<string, string>)[otherAction] = kb[actionKey as keyof KeyBindings];
+      (kb as unknown as Record<string, string>)[otherAction] =
+        kb[actionKey as keyof KeyBindings];
       break;
     }
   }
@@ -96,5 +108,7 @@ if (
   PLAYER_COLORS.length !== PLAYER_NAMES.length ||
   PLAYER_KEY_BINDINGS.length !== PLAYER_NAMES.length
 ) {
-  throw new Error("PLAYER_NAMES / PLAYER_COLORS / PLAYER_KEY_BINDINGS must have the same length");
+  throw new Error(
+    "PLAYER_NAMES / PLAYER_COLORS / PLAYER_KEY_BINDINGS must have the same length",
+  );
 }

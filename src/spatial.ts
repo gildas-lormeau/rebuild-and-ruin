@@ -47,7 +47,9 @@ export const CORNERS_2X2 = [
   [-1, -1],
 ] as const;
 /** Shared empty set — avoids allocating throwaway Set objects on every frame. */
-export const EMPTY_TILE_SET: ReadonlySet<number> = Object.freeze(new Set<number>());
+export const EMPTY_TILE_SET: ReadonlySet<number> = Object.freeze(
+  new Set<number>(),
+);
 /** Offset to convert a tile index to the center of that tile (0.5). */
 export const TILE_CENTER_OFFSET = 0.5;
 
@@ -184,17 +186,25 @@ export function isCannonAlive(cannon: Pick<Cannon, "hp">): boolean {
 }
 
 /** True if a cannon is a balloon (propaganda balloon). */
-export function isBalloonCannon(cannon: { kind: CannonMode }): cannon is { kind: CannonMode.BALLOON } {
+export function isBalloonCannon(cannon: {
+  kind: CannonMode;
+}): cannon is { kind: CannonMode.BALLOON } {
   return isBalloonMode(cannon.kind);
 }
 
 /** True if a cannon is a super gun. */
-export function isSuperCannon(cannon: { kind: CannonMode }): cannon is { kind: CannonMode.SUPER } {
+export function isSuperCannon(cannon: {
+  kind: CannonMode;
+}): cannon is { kind: CannonMode.SUPER } {
   return isSuperMode(cannon.kind);
 }
 
 /** True if (r,c) is occupied by a burning pit. */
-export function hasPitAt(pits: readonly BurningPit[], r: number, c: number): boolean {
+export function hasPitAt(
+  pits: readonly BurningPit[],
+  r: number,
+  c: number,
+): boolean {
   return pits.some((p) => isAtTile(p, r, c));
 }
 
@@ -236,7 +246,12 @@ export function rotateToward(
 ): number {
   // Normalize difference to [-PI, PI]
   const raw = (target - current) % (Math.PI * 2);
-  const diff = raw > Math.PI ? raw - Math.PI * 2 : raw < -Math.PI ? raw + Math.PI * 2 : raw;
+  const diff =
+    raw > Math.PI
+      ? raw - Math.PI * 2
+      : raw < -Math.PI
+        ? raw + Math.PI * 2
+        : raw;
   if (Math.abs(diff) <= maxStep) return target;
   return current + Math.sign(diff) * maxStep;
 }
@@ -431,8 +446,14 @@ export function unpackTile(key: number): { r: number; c: number } {
 
 /** True if (r,c) is within bounds and both values are integers (for validating untrusted input). */
 export function inBoundsStrict(r: number, c: number): boolean {
-  return Number.isInteger(r) && Number.isInteger(c) &&
-    r >= 0 && r < GRID_ROWS && c >= 0 && c < GRID_COLS;
+  return (
+    Number.isInteger(r) &&
+    Number.isInteger(c) &&
+    r >= 0 &&
+    r < GRID_ROWS &&
+    c >= 0 &&
+    c < GRID_COLS
+  );
 }
 
 /** True if (r,c) is within the grid bounds. */

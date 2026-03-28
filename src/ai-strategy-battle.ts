@@ -7,7 +7,10 @@
 
 import { SMALL_POCKET_MAX_SIZE, traitLookup } from "./ai-constants.ts";
 import { canFire } from "./battle-system.ts";
-import { computeCardinalObstacleMask, filterActiveEnemies } from "./board-occupancy.ts";
+import {
+  computeCardinalObstacleMask,
+  filterActiveEnemies,
+} from "./board-occupancy.ts";
 import { filterActiveFiringCannons } from "./cannon-system.ts";
 import type {
   PixelPos,
@@ -91,7 +94,8 @@ export function planCharitySweep(
 ): TilePos[] | null {
   for (const enemy of state.players) {
     if (enemy.id === playerId || enemy.eliminated) continue;
-    if (filterActiveFiringCannons(enemy).length > CHARITY_CANNON_THRESHOLD) continue;
+    if (filterActiveFiringCannons(enemy).length > CHARITY_CANNON_THRESHOLD)
+      continue;
     const targets = planGruntTargets(state, enemy.id, readyCount, rng);
     if (targets) return targets;
   }
@@ -421,10 +425,7 @@ function ballTargeting(
   row: number,
   col: number,
 ): boolean {
-  return (
-    pxToTile(b.targetY) === row &&
-    pxToTile(b.targetX) === col
-  );
+  return pxToTile(b.targetY) === row && pxToTile(b.targetX) === col;
 }
 
 function collectEnemyTargets(

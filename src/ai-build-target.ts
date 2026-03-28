@@ -10,12 +10,7 @@ import { filterUnfillableGaps } from "./ai-castle-rect.ts";
 import { canPlacePiece } from "./build-system.ts";
 import type { TileRect } from "./geometry-types.ts";
 import { ALL_PIECE_SHAPES, type PieceShape, rotateCW } from "./pieces.ts";
-import {
-  DIRS_8,
-  isGrass,
-  packTile,
-  unpackTile,
-} from "./spatial.ts";
+import { DIRS_8, isGrass, packTile, unpackTile } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 
 export function canPieceFillAnyGap(
@@ -56,8 +51,15 @@ export function plugUnreachableGaps(
   for (const gk of unreachable) {
     const { r: gr, c: gc } = unpackTile(gk);
     for (const [dr, dc] of DIRS_8) {
-      const nr = gr + dr, nc = gc + dc;
-      if (nr < rect.top || nr > rect.bottom || nc < rect.left || nc > rect.right) continue;
+      const nr = gr + dr,
+        nc = gc + dc;
+      if (
+        nr < rect.top ||
+        nr > rect.bottom ||
+        nc < rect.left ||
+        nc > rect.right
+      )
+        continue;
       const nk = packTile(nr, nc);
       if (player.walls.has(nk)) continue;
       if (!isGrass(state.map.tiles, nr, nc)) continue;
@@ -78,7 +80,13 @@ function isGapFillableByAnyShape(
 ): boolean {
   const singleGap = new Set([gapKey]);
   const adjusted = adjustInterior(interior, singleGap, rect);
-  return canAnyRotationFillGap(ALL_PIECE_SHAPES, singleGap, adjusted, state, playerId);
+  return canAnyRotationFillGap(
+    ALL_PIECE_SHAPES,
+    singleGap,
+    adjusted,
+    state,
+    playerId,
+  );
 }
 
 /**
@@ -117,7 +125,8 @@ function canAnyRotationFillGap(
       for (const gk of gaps) {
         const { r: gr, c: gc } = unpackTile(gk);
         for (const [dr, dc] of rot.offsets) {
-          if (canPlacePiece(state, playerId, rot, gr - dr, gc - dc, adjusted)) return true;
+          if (canPlacePiece(state, playerId, rot, gr - dr, gc - dc, adjusted))
+            return true;
         }
       }
       rot = rotateCW(rot);

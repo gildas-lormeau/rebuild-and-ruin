@@ -43,7 +43,8 @@ export function tickCastleBuildAnimation(params: {
   render: () => void;
   onWallsPlaced?: () => void;
 }): { next: CastleBuildState | null; onDone?: () => void } {
-  const { castleBuild, dt, wallBuildIntervalMs, state, render, onWallsPlaced } = params;
+  const { castleBuild, dt, wallBuildIntervalMs, state, render, onWallsPlaced } =
+    params;
   if (!castleBuild) return { next: null };
 
   castleBuild.accum += dt * 1000;

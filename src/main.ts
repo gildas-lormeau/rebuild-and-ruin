@@ -23,10 +23,23 @@ const runtime = createGameRuntime({
   getMyPlayerId: () => -1,
   getRemoteHumanSlots: () => emptySet,
   // @ts-ignore — import.meta.env is Vite-specific
-  log: import.meta.env?.DEV ? (msg: string) => console.log(`[local] ${msg}`) : () => {},
+  log: import.meta.env?.DEV
+    ? (msg: string) => console.log(`[local] ${msg}`)
+    : () => {},
   // @ts-ignore — import.meta.env is Vite-specific
-  logThrottled: import.meta.env?.DEV ? (() => { const ts = new Map<string, number>(); return (key: string, msg: string) => { const now = performance.now(); if (now - (ts.get(key) ?? 0) < 1000) return; ts.set(key, now); console.log(`[local] ${msg}`); }; })() : () => {},
-  getLobbyRemaining: () => Math.max(0, LOBBY_TIMER - (runtime.rs.lobby.timerAccum ?? 0)),
+  logThrottled: import.meta.env?.DEV
+    ? (() => {
+        const ts = new Map<string, number>();
+        return (key: string, msg: string) => {
+          const now = performance.now();
+          if (now - (ts.get(key) ?? 0) < 1000) return;
+          ts.set(key, now);
+          console.log(`[local] ${msg}`);
+        };
+      })()
+    : () => {},
+  getLobbyRemaining: () =>
+    Math.max(0, LOBBY_TIMER - (runtime.rs.lobby.timerAccum ?? 0)),
   showLobby,
   onLobbySlotJoined: (pid) => {
     runtime.rs.lobby.joined[pid] = true;
@@ -40,7 +53,9 @@ const runtime = createGameRuntime({
     runtime.rs.mode = Mode.SELECTION;
   },
 });
-const atlasReady = loadAtlas().catch((e) => { console.warn("[local] sprite atlas failed to load:", e); });
+const atlasReady = loadAtlas().catch((e) => {
+  console.warn("[local] sprite atlas failed to load:", e);
+});
 
 /** Enter the local lobby. Waits for sprite atlas on first call. */
 export function enterLocalLobby(): void {

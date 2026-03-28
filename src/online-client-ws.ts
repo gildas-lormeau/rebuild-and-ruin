@@ -4,7 +4,14 @@
 
 import { handleServerMessage } from "./online-client-deps.ts";
 import { runtime } from "./online-client-runtime.ts";
-import { clearReconnect, log, MAX_RECONNECT_ATTEMPTS, RECONNECT_BASE_DELAY_MS, reconnect, session } from "./online-client-stores.ts";
+import {
+  clearReconnect,
+  log,
+  MAX_RECONNECT_ATTEMPTS,
+  RECONNECT_BASE_DELAY_MS,
+  reconnect,
+  session,
+} from "./online-client-stores.ts";
 import { computeWsUrl } from "./online-config.ts";
 import { connectWebSocket } from "./online-session.ts";
 import { Mode } from "./types.ts";
@@ -31,8 +38,13 @@ export function connect(onConnectError?: () => void): void {
         const delay = RECONNECT_BASE_DELAY_MS * (1 << (reconnect.attempt - 1));
         runtime.rs.frame.announcement = "Reconnecting\u2026";
         runtime.render();
-        log(`reconnect attempt ${reconnect.attempt}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`);
-        reconnect.timer = setTimeout(() => { reconnect.timer = null; connect(); }, delay);
+        log(
+          `reconnect attempt ${reconnect.attempt}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`,
+        );
+        reconnect.timer = setTimeout(() => {
+          reconnect.timer = null;
+          connect();
+        }, delay);
       } else {
         clearReconnect();
         runtime.rs.frame.announcement = "Disconnected from server";

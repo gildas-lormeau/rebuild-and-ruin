@@ -53,19 +53,27 @@ export function loadSettings(): GameSettings {
         seedMode: saved.seedMode === SEED_CUSTOM ? SEED_CUSTOM : SEED_RANDOM,
         leftHanded: saved.leftHanded ?? DEFAULT_SETTINGS.leftHanded,
         keyBindings:
-          Array.isArray(saved.keyBindings) && saved.keyBindings.length === MAX_PLAYERS
-            ? saved.keyBindings.map(kb => ({ ...PLAYER_KEY_BINDINGS[0]!, ...kb }))
+          Array.isArray(saved.keyBindings) &&
+          saved.keyBindings.length === MAX_PLAYERS
+            ? saved.keyBindings.map((kb) => ({
+                ...PLAYER_KEY_BINDINGS[0]!,
+                ...kb,
+              }))
             : deepCopyBindings(),
       };
     }
-  } catch { /* ignore corrupt data */ }
+  } catch {
+    /* ignore corrupt data */
+  }
   return { ...DEFAULT_SETTINGS, keyBindings: deepCopyBindings() };
 }
 
 export function saveSettings(settings: GameSettings): void {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  } catch { /* storage full or unavailable */ }
+  } catch {
+    /* storage full or unavailable */
+  }
 }
 
 export function formatKeyName(key: string): string {
@@ -118,8 +126,7 @@ export function cycleOption(
       CANNON_HP_OPTIONS.length;
   } else if (optionsCursor === 3) {
     settings.haptics =
-      (settings.haptics + dir + HAPTICS_LABELS.length) %
-      HAPTICS_LABELS.length;
+      (settings.haptics + dir + HAPTICS_LABELS.length) % HAPTICS_LABELS.length;
   } else if (optionsCursor === 6) {
     settings.leftHanded = !settings.leftHanded;
   }
@@ -128,5 +135,5 @@ export function cycleOption(
 }
 
 function deepCopyBindings(): KeyBindings[] {
-  return PLAYER_KEY_BINDINGS.map(kb => ({ ...kb }));
+  return PLAYER_KEY_BINDINGS.map((kb) => ({ ...kb }));
 }

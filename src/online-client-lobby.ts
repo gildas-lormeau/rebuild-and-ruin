@@ -24,17 +24,22 @@ const lobbyElements = {
 const initDomLobby = () =>
   initLobbyUi({
     elements: lobbyElements,
-    connect: () => connect(() => {
-      const msg = "Connection failed \u2014 is the server running?";
-      lobbyElements.createError.textContent = msg;
-      lobbyElements.joinError.textContent = msg;
-    }),
+    connect: () =>
+      connect(() => {
+        const msg = "Connection failed \u2014 is the server running?";
+        lobbyElements.createError.textContent = msg;
+        lobbyElements.joinError.textContent = msg;
+      }),
     send,
     getSocket: () => session.ws,
-    setIsHost: (value) => { session.isHost = value; },
+    setIsHost: (value) => {
+      session.isHost = value;
+    },
     isVisible: () => !pageOnline.hidden,
   });
-export const lobbyReady = loadAtlas().then(initDomLobby, initDomLobby).then((lobby) => {
-  pageOnline.setAttribute("data-ready", "1");
-  return lobby;
-});
+export const lobbyReady = loadAtlas()
+  .then(initDomLobby, initDomLobby)
+  .then((lobby) => {
+    pageOnline.setAttribute("data-ready", "1");
+    return lobby;
+  });

@@ -29,7 +29,13 @@ import {
   towerCenter,
   unpackTile,
 } from "./spatial.ts";
-import { BALLOON_COST, CannonMode, type GameState, type Player, SUPER_GUN_COST } from "./types.ts";
+import {
+  BALLOON_COST,
+  CannonMode,
+  type GameState,
+  type Player,
+  SUPER_GUN_COST,
+} from "./types.ts";
 
 type CannonCandidate = { row: number; col: number; score: number };
 
@@ -206,7 +212,16 @@ function findBestNormalCannonPosition(
   for (const key of player.interior) {
     const { r, c } = unpackTile(key);
     if (!canPlaceCannon(player, r, c, CannonMode.NORMAL, state)) continue;
-    const score = scoreCannonPosition(player, r, c, 2, state, rng, noiseScale, towerCenters);
+    const score = scoreCannonPosition(
+      player,
+      r,
+      c,
+      2,
+      state,
+      rng,
+      noiseScale,
+      towerCenters,
+    );
     if (score < bestScore) {
       bestScore = score;
       bestPosition = { row: r, col: c };
@@ -257,7 +272,16 @@ function collectCannonCandidates(
     candidates.push({
       row: r,
       col: c,
-      score: scoreCannonPosition(player, r, c, size, state, rng, noiseScale, towerCenters),
+      score: scoreCannonPosition(
+        player,
+        r,
+        c,
+        size,
+        state,
+        rng,
+        noiseScale,
+        towerCenters,
+      ),
     });
   }
   candidates.sort((a, b) => a.score - b.score);

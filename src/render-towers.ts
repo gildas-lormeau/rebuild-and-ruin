@@ -5,7 +5,12 @@
 import { TILE_SIZE } from "./grid.ts";
 import { getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
 import { drawSpriteCentered } from "./render-sprites.ts";
-import { FONT_FLOAT_LG, rgb, SHADOW_COLOR_DENSE, TOWER_FLASH_MS } from "./render-theme.ts";
+import {
+  FONT_FLOAT_LG,
+  rgb,
+  SHADOW_COLOR_DENSE,
+  TOWER_FLASH_MS,
+} from "./render-theme.ts";
 import type { MapData, RenderOverlay } from "./render-types.ts";
 import { towerCenterPx } from "./spatial.ts";
 

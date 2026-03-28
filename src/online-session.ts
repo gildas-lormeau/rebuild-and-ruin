@@ -6,7 +6,11 @@
  * typed state and reusable networking plumbing.
  */
 
-import { type GameMessage, MSG, type ServerMessage } from "../server/protocol.ts";
+import {
+  type GameMessage,
+  MSG,
+  type ServerMessage,
+} from "../server/protocol.ts";
 import type { LifeLostChoice } from "./life-lost.ts";
 import { LOBBY_TIMER } from "./types.ts";
 
@@ -130,7 +134,10 @@ export function connectWebSocket(
     }, KEEPALIVE_MS);
   };
   session.ws.onclose = () => {
-    if (session.keepaliveTimer) { clearInterval(session.keepaliveTimer); session.keepaliveTimer = null; }
+    if (session.keepaliveTimer) {
+      clearInterval(session.keepaliveTimer);
+      session.keepaliveTimer = null;
+    }
     handlers.onClose();
   };
   session.ws.onerror = () => {

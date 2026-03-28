@@ -6,20 +6,15 @@
  * are scoped to the active state variant — no implicit timer checks.
  */
 
-import type { AiStrategy, ChainType } from "./ai-strategy.ts";
 import {
+  type AiStrategy,
   Chain,
+  type ChainType,
   DefaultStrategy,
 } from "./ai-strategy.ts";
-import {
-  aimCannons,
-  nextReadyCombined,
-} from "./battle-system.ts";
+import { aimCannons, nextReadyCombined } from "./battle-system.ts";
 import { placePiece } from "./build-system.ts";
-import {
-  canPlaceCannon,
-  placeCannon,
-} from "./cannon-system.ts";
+import { canPlaceCannon, placeCannon } from "./cannon-system.ts";
 import {
   type AiAnimatable,
   CROSSHAIR_SPEED,
@@ -28,11 +23,7 @@ import {
   type OrbitParams,
 } from "./controller-interfaces.ts";
 import { BaseController } from "./controller-types.ts";
-import type {
-  PixelPos,
-  StrategicPixelPos,
-  TilePos,
-} from "./geometry-types.ts";
+import type { PixelPos, StrategicPixelPos, TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { type PieceShape, rotateCW } from "./pieces.ts";
 import { packTile, tileCenterPx, towerCenter } from "./spatial.ts";
@@ -49,14 +40,24 @@ type IdleOrbit = { rx: number; ry: number; speed: number };
 
 type SelectionState =
   | { step: typeof Step.IDLE }
-  | { step: typeof Step.BROWSING; queue: number[]; dwell: number; confirmDelay: number }
+  | {
+      step: typeof Step.BROWSING;
+      queue: number[];
+      dwell: number;
+      confirmDelay: number;
+    }
   | { step: typeof Step.CONFIRMING; timer: number };
 
 type BuildState =
   | { step: typeof Step.IDLE }
   | { step: typeof Step.THINKING; timer: number }
   | { step: typeof Step.MOVING; target: BuildTarget; rotation: BuildRotation }
-  | { step: typeof Step.DWELLING; target: BuildTarget; timer: number; retried: boolean }
+  | {
+      step: typeof Step.DWELLING;
+      target: BuildTarget;
+      timer: number;
+      retried: boolean;
+    }
   | { step: typeof Step.GAVE_UP; retryTimer: number };
 
 type CannonState =
@@ -127,9 +128,16 @@ export class AiController extends BaseController implements AiAnimatable {
   private battleState: BattleState = { step: Step.IDLE };
 
   // --- Cannon peer fields (shared across cannon states) ---
-  private cannonQueue: { row: number; col: number; mode?: CannonMode.SUPER | CannonMode.BALLOON }[] = [];
+  private cannonQueue: {
+    row: number;
+    col: number;
+    mode?: CannonMode.SUPER | CannonMode.BALLOON;
+  }[] = [];
   private cannonMaxSlots = 0;
-  private displayedCannonMode: CannonMode.SUPER | CannonMode.BALLOON | undefined;
+  private displayedCannonMode:
+    | CannonMode.SUPER
+    | CannonMode.BALLOON
+    | undefined;
 
   // --- Battle peer fields (shared across battle states) ---
   private crosshairTarget: StrategicPixelPos | null = null;
@@ -139,7 +147,9 @@ export class AiController extends BaseController implements AiAnimatable {
   /** Persistent orbit phase — accumulated across battles for natural variation. */
   private idlePhase = 0;
 
-  getCrosshairTarget(): PixelPos | null { return this.crosshairTarget; }
+  getCrosshairTarget(): PixelPos | null {
+    return this.crosshairTarget;
+  }
   getOrbitParams(): OrbitParams | null {
     if (this.battleState.step === Step.COUNTDOWN && this.battleState.orbit) {
       const o = this.battleState.orbit;
@@ -150,8 +160,12 @@ export class AiController extends BaseController implements AiAnimatable {
 
   /** When true, castle rects hug the river bank (plug approach).
    *  When false (default), rects shrink at bank corners (tighter ring). */
-  get bankHugging(): boolean { return this.strategy.bankHugging; }
-  set bankHugging(v: boolean) { this.strategy.bankHugging = v; }
+  get bankHugging(): boolean {
+    return this.strategy.bankHugging;
+  }
+  set bankHugging(v: boolean) {
+    this.strategy.bankHugging = v;
+  }
 
   /** Delay multiplier derived from thinkingSpeed: 1=slow(1.4×), 2=normal(1×), 3=fast(0.65×). */
   private get delayScale(): number {
@@ -195,15 +209,18 @@ export class AiController extends BaseController implements AiAnimatable {
     const chosenTower = this.strategy.selectTower(state.map, zone);
 
     // Build browse queue: visit 1-3 random zone towers before the chosen one
-    const zoneTowers = state.map.towers.filter(t => t.zone === zone);
-    const others = zoneTowers.filter(t => t !== chosenTower);
-    const browseCount = Math.min(others.length, 1 + Math.floor(this.strategy.rng.next() * 3));
+    const zoneTowers = state.map.towers.filter((t) => t.zone === zone);
+    const others = zoneTowers.filter((t) => t !== chosenTower);
+    const browseCount = Math.min(
+      others.length,
+      1 + Math.floor(this.strategy.rng.next() * 3),
+    );
     // Shuffle and take browseCount
     for (let i = others.length - 1; i > 0; i--) {
       const j = Math.floor(this.strategy.rng.next() * (i + 1));
       [others[i], others[j]] = [others[j]!, others[i]!];
     }
-    const queue = others.slice(0, browseCount).map(t => t.index);
+    const queue = others.slice(0, browseCount).map((t) => t.index);
     if (chosenTower) queue.push(chosenTower.index);
 
     this.selectionState = {
@@ -215,7 +232,8 @@ export class AiController extends BaseController implements AiAnimatable {
 
     // Start at first tower in browse queue
     const firstIdx = queue[0];
-    const firstTower = firstIdx !== undefined ? state.map.towers[firstIdx] : chosenTower;
+    const firstTower =
+      firstIdx !== undefined ? state.map.towers[firstIdx] : chosenTower;
     if (firstTower) {
       player.homeTower = firstTower;
       player.ownedTowers = [firstTower];
@@ -225,7 +243,8 @@ export class AiController extends BaseController implements AiAnimatable {
 
   override selectionTick(dt: number, state?: GameState): boolean {
     switch (this.selectionState.step) {
-      case Step.IDLE: return false;
+      case Step.IDLE:
+        return false;
       case Step.BROWSING: {
         const s = this.selectionState;
         s.dwell -= dt;
@@ -234,7 +253,8 @@ export class AiController extends BaseController implements AiAnimatable {
           s.dwell = this.scaledDelay(0.8, 0.6);
           if (state) {
             const nextIdx = s.queue[0];
-            const nextTower = nextIdx !== undefined ? state.map.towers[nextIdx] : undefined;
+            const nextTower =
+              nextIdx !== undefined ? state.map.towers[nextIdx] : undefined;
             if (nextTower) {
               state.players[this.playerId]!.homeTower = nextTower;
               state.players[this.playerId]!.ownedTowers = [nextTower];
@@ -243,7 +263,10 @@ export class AiController extends BaseController implements AiAnimatable {
           return false;
         }
         if (s.queue.length <= 1) {
-          this.selectionState = { step: Step.CONFIRMING, timer: s.confirmDelay };
+          this.selectionState = {
+            step: Step.CONFIRMING,
+            timer: s.confirmDelay,
+          };
         }
         return false;
       }
@@ -268,7 +291,11 @@ export class AiController extends BaseController implements AiAnimatable {
     this.initBuildPhase(state);
     const target = this.computeNextPlacement(state);
     if (target) {
-      this.buildState = { step: Step.MOVING, target, rotation: this.buildRotationFor(target) };
+      this.buildState = {
+        step: Step.MOVING,
+        target,
+        rotation: this.buildRotationFor(target),
+      };
     } else {
       // Will compute on first tick
       this.buildState = { step: Step.THINKING, timer: 0 };
@@ -281,13 +308,16 @@ export class AiController extends BaseController implements AiAnimatable {
     if (player.eliminated) return [];
 
     // Clamp cursor so phantom never extends beyond the grid
-    const clampPiece = (this.buildState.step === Step.MOVING || this.buildState.step === Step.DWELLING)
-      ? this.buildState.target.piece
-      : this.currentPiece;
+    const clampPiece =
+      this.buildState.step === Step.MOVING ||
+      this.buildState.step === Step.DWELLING
+        ? this.buildState.target.piece
+        : this.currentPiece;
     this.clampBuildCursor(clampPiece);
 
     switch (this.buildState.step) {
-      case Step.IDLE: return [];
+      case Step.IDLE:
+        return [];
 
       case Step.THINKING: {
         const s = this.buildState;
@@ -298,7 +328,11 @@ export class AiController extends BaseController implements AiAnimatable {
         // Timer expired — compute next placement
         const target = this.computeNextPlacement(state);
         if (target) {
-          this.buildState = { step: Step.MOVING, target, rotation: this.buildRotationFor(target) };
+          this.buildState = {
+            step: Step.MOVING,
+            target,
+            rotation: this.buildRotationFor(target),
+          };
           return this.buildTickMoving(dt);
         }
         if (state.timer > 2) {
@@ -311,16 +345,26 @@ export class AiController extends BaseController implements AiAnimatable {
 
       case Step.GAVE_UP: {
         const s = this.buildState;
-        const home = player.homeTower ? towerCenter(player.homeTower) : this.buildCursor;
+        const home = player.homeTower
+          ? towerCenter(player.homeTower)
+          : this.buildCursor;
         this.stepTileCursorToward(
-          this.buildCursor, Math.round(home.row), Math.round(home.col),
-          BUILD_CURSOR_SPEED, Infinity, dt,
+          this.buildCursor,
+          Math.round(home.row),
+          Math.round(home.col),
+          BUILD_CURSOR_SPEED,
+          Infinity,
+          dt,
         );
         s.retryTimer -= dt;
         if (s.retryTimer <= 0) {
           const target = this.computeNextPlacement(state);
           if (target) {
-            this.buildState = { step: Step.MOVING, target, rotation: this.buildRotationFor(target) };
+            this.buildState = {
+              step: Step.MOVING,
+              target,
+              rotation: this.buildRotationFor(target),
+            };
           } else {
             s.retryTimer = 1.0;
           }
@@ -335,10 +379,19 @@ export class AiController extends BaseController implements AiAnimatable {
         const s = this.buildState;
         s.timer -= dt;
         if (s.timer <= 0) {
-          const placed = placePiece(state, this.playerId, s.target.piece, s.target.row, s.target.col);
+          const placed = placePiece(
+            state,
+            this.playerId,
+            s.target.piece,
+            s.target.row,
+            s.target.col,
+          );
           if (placed) {
             this.advanceBag();
-            this.buildState = { step: Step.THINKING, timer: this.scaledDelay(0.3, 0.4) };
+            this.buildState = {
+              step: Step.THINKING,
+              timer: this.scaledDelay(0.3, 0.4),
+            };
             return [];
           }
           // Placement blocked (e.g. grunt moved onto target)
@@ -350,14 +403,19 @@ export class AiController extends BaseController implements AiAnimatable {
           }
           return [];
         }
-        return [this.makePhantom(s.target.piece, s.target.row, s.target.col, true)];
+        return [
+          this.makePhantom(s.target.piece, s.target.row, s.target.col, true),
+        ];
       }
     }
   }
 
   /** Handle "moving toward target" state with concurrent rotation animation. */
   private buildTickMoving(dt: number): LocalPiecePhantom[] {
-    const s = this.buildState as Extract<BuildState, { step: typeof Step.MOVING }>;
+    const s = this.buildState as Extract<
+      BuildState,
+      { step: typeof Step.MOVING }
+    >;
     const { target, rotation } = s;
 
     // Tick rotation animation concurrently with movement
@@ -366,28 +424,60 @@ export class AiController extends BaseController implements AiAnimatable {
       if (rotation.timer <= 0) {
         rotation.idx++;
         if (rotation.idx < rotation.seq.length) {
-          rotation.timer = ROTATION_FRAME_BASE + this.strategy.rng.next() * ROTATION_FRAME_RANGE;
+          rotation.timer =
+            ROTATION_FRAME_BASE +
+            this.strategy.rng.next() * ROTATION_FRAME_RANGE;
         }
       }
     }
 
     // Move cursor toward target
     const arrived = this.stepTileCursorToward(
-      this.buildCursor, target.row, target.col, BUILD_CURSOR_SPEED, this.boostThreshold, dt,
+      this.buildCursor,
+      target.row,
+      target.col,
+      BUILD_CURSOR_SPEED,
+      this.boostThreshold,
+      dt,
     );
     if (arrived && rotation.idx >= rotation.seq.length) {
-      this.buildState = { step: Step.DWELLING, target, timer: this.scaledDelay(0.2, 0.3), retried: false };
+      this.buildState = {
+        step: Step.DWELLING,
+        target,
+        timer: this.scaledDelay(0.2, 0.3),
+        retried: false,
+      };
     }
 
     // Show phantom at current cursor position — use current rotation frame
-    const movingPiece = rotation.idx < rotation.seq.length
-      ? rotation.seq[Math.min(rotation.idx, rotation.seq.length - 1)]!
-      : target.piece;
+    const movingPiece =
+      rotation.idx < rotation.seq.length
+        ? rotation.seq[Math.min(rotation.idx, rotation.seq.length - 1)]!
+        : target.piece;
     const pivotDr = target.piece.pivot[0] - movingPiece.pivot[0];
     const pivotDc = target.piece.pivot[1] - movingPiece.pivot[1];
-    const curRow = Math.max(0, Math.min(Math.round(this.buildCursor.row) + pivotDr, GRID_ROWS - movingPiece.height));
-    const curCol = Math.max(0, Math.min(Math.round(this.buildCursor.col) + pivotDc, GRID_COLS - movingPiece.width));
-    return [this.makePhantom(movingPiece, curRow, curCol, curRow === target.row && curCol === target.col)];
+    const curRow = Math.max(
+      0,
+      Math.min(
+        Math.round(this.buildCursor.row) + pivotDr,
+        GRID_ROWS - movingPiece.height,
+      ),
+    );
+    const curCol = Math.max(
+      0,
+      Math.min(
+        Math.round(this.buildCursor.col) + pivotDc,
+        GRID_COLS - movingPiece.width,
+      ),
+    );
+    return [
+      this.makePhantom(
+        movingPiece,
+        curRow,
+        curCol,
+        curRow === target.row && curCol === target.col,
+      ),
+    ];
   }
 
   /** Build rotation animation sequence from current bag piece to target orientation. */
@@ -406,7 +496,13 @@ export class AiController extends BaseController implements AiAnimatable {
       }
       seq.push(cur);
     }
-    return { seq, idx: 0, timer: ROTATION_INITIAL_BASE + this.strategy.rng.next() * ROTATION_INITIAL_RANGE };
+    return {
+      seq,
+      idx: 0,
+      timer:
+        ROTATION_INITIAL_BASE +
+        this.strategy.rng.next() * ROTATION_INITIAL_RANGE,
+    };
   }
 
   override endBuild(state: GameState): void {
@@ -425,7 +521,10 @@ export class AiController extends BaseController implements AiAnimatable {
     this.cannonQueue = this.strategy.placeCannons(player, maxSlots, state);
     this.cannonMaxSlots = maxSlots;
     this.displayedCannonMode = undefined;
-    this.cannonState = { step: Step.THINKING, timer: this.scaledDelay(0.3, 0.4) };
+    this.cannonState = {
+      step: Step.THINKING,
+      timer: this.scaledDelay(0.3, 0.4),
+    };
   }
 
   override isCannonPhaseDone(_state: GameState, _maxSlots: number): boolean {
@@ -437,7 +536,8 @@ export class AiController extends BaseController implements AiAnimatable {
     if (player.eliminated) return null;
 
     switch (this.cannonState.step) {
-      case Step.IDLE: return null;
+      case Step.IDLE:
+        return null;
 
       case Step.THINKING: {
         this.cannonState.timer -= dt;
@@ -454,7 +554,12 @@ export class AiController extends BaseController implements AiAnimatable {
             step: Step.MODE_SWITCHING,
             timer: (0.25 + this.strategy.rng.next() * 0.2) * this.delayScale,
           };
-          return this.cannonPhantomAt(Math.round(this.cannonCursor.row), Math.round(this.cannonCursor.col), false, player);
+          return this.cannonPhantomAt(
+            Math.round(this.cannonCursor.row),
+            Math.round(this.cannonCursor.col),
+            false,
+            player,
+          );
         }
         this.cannonState = { step: Step.MOVING };
         return this.cannonTickMoving(state, player, dt);
@@ -465,7 +570,12 @@ export class AiController extends BaseController implements AiAnimatable {
         if (this.cannonState.timer <= 0) {
           this.cannonState = { step: Step.MOVING };
         }
-        return this.cannonPhantomAt(Math.round(this.cannonCursor.row), Math.round(this.cannonCursor.col), false, player);
+        return this.cannonPhantomAt(
+          Math.round(this.cannonCursor.row),
+          Math.round(this.cannonCursor.col),
+          false,
+          player,
+        );
       }
 
       case Step.MOVING:
@@ -476,11 +586,23 @@ export class AiController extends BaseController implements AiAnimatable {
         if (this.cannonState.timer <= 0) {
           const target = this.cannonQueue[0]!;
           const targetMode = target.mode ?? CannonMode.NORMAL;
-          if (canPlaceCannon(player, target.row, target.col, targetMode, state)) {
-            placeCannon(player, target.row, target.col, this.cannonMaxSlots, targetMode, state);
+          if (
+            canPlaceCannon(player, target.row, target.col, targetMode, state)
+          ) {
+            placeCannon(
+              player,
+              target.row,
+              target.col,
+              this.cannonMaxSlots,
+              targetMode,
+              state,
+            );
           }
           this.cannonQueue.shift();
-          this.cannonState = { step: Step.THINKING, timer: this.scaledDelay(0.3, 0.4) };
+          this.cannonState = {
+            step: Step.THINKING,
+            timer: this.scaledDelay(0.3, 0.4),
+          };
           return null;
         }
         const target = this.cannonQueue[0]!;
@@ -489,30 +611,57 @@ export class AiController extends BaseController implements AiAnimatable {
     }
   }
 
-  private cannonTickMoving(state: GameState, player: Player, dt: number): LocalCannonPhantom | null {
+  private cannonTickMoving(
+    state: GameState,
+    player: Player,
+    dt: number,
+  ): LocalCannonPhantom | null {
     const target = this.cannonQueue[0]!;
     const targetMode = target.mode ?? CannonMode.NORMAL;
-    if (this.stepTileCursorToward(
-      this.cannonCursor, target.row, target.col, CANNON_CURSOR_SPEED, this.boostThreshold, dt,
-    )) {
-      this.cannonState = { step: Step.DWELLING, timer: this.scaledDelay(0.2, 0.3) };
+    if (
+      this.stepTileCursorToward(
+        this.cannonCursor,
+        target.row,
+        target.col,
+        CANNON_CURSOR_SPEED,
+        this.boostThreshold,
+        dt,
+      )
+    ) {
+      this.cannonState = {
+        step: Step.DWELLING,
+        timer: this.scaledDelay(0.2, 0.3),
+      };
     }
     const curRow = Math.round(this.cannonCursor.row);
     const curCol = Math.round(this.cannonCursor.col);
     const atTarget = curRow === target.row && curCol === target.col;
     return {
-      row: curRow, col: curCol,
-      valid: atTarget && canPlaceCannon(player, curRow, curCol, targetMode, state),
-      kind: targetMode, playerId: this.playerId, facing: player.defaultFacing,
+      row: curRow,
+      col: curCol,
+      valid:
+        atTarget && canPlaceCannon(player, curRow, curCol, targetMode, state),
+      kind: targetMode,
+      playerId: this.playerId,
+      facing: player.defaultFacing,
     };
   }
 
-  private cannonPhantomAt(row: number, col: number, valid: boolean, player: Player): LocalCannonPhantom {
+  private cannonPhantomAt(
+    row: number,
+    col: number,
+    valid: boolean,
+    player: Player,
+  ): LocalCannonPhantom {
     const target = this.cannonQueue[0]!;
     const targetMode = target.mode ?? CannonMode.NORMAL;
     return {
-      row, col, valid, kind: targetMode,
-      playerId: this.playerId, facing: player.defaultFacing,
+      row,
+      col,
+      valid,
+      kind: targetMode,
+      playerId: this.playerId,
+      facing: player.defaultFacing,
     };
   }
 
@@ -565,7 +714,11 @@ export class AiController extends BaseController implements AiAnimatable {
         this.battleState = { step: Step.COUNTDOWN, orbit: null };
       }
       // If chain attack is planned, move toward first target during countdown
-      if (this.chainTargets && this.chainIdx < this.chainTargets.length && state.battleCountdown > 0) {
+      if (
+        this.chainTargets &&
+        this.chainIdx < this.chainTargets.length &&
+        state.battleCountdown > 0
+      ) {
         const first = this.chainTargets[this.chainIdx]!;
         this.crosshairTarget = tileCenterPx(first.row, first.col);
       }
@@ -575,9 +728,10 @@ export class AiController extends BaseController implements AiAnimatable {
 
     // Transition out of countdown on first active frame
     if (this.battleState.step === Step.COUNTDOWN) {
-      this.battleState = this.chainTargets && this.chainIdx < this.chainTargets.length
-        ? { step: Step.CHAIN_MOVING }
-        : { step: Step.PICKING };
+      this.battleState =
+        this.chainTargets && this.chainIdx < this.chainTargets.length
+          ? { step: Step.CHAIN_MOVING }
+          : { step: Step.PICKING };
     }
 
     switch (this.battleState.step) {
@@ -594,13 +748,26 @@ export class AiController extends BaseController implements AiAnimatable {
         }
         break;
       case Step.PICKING:
-        this.crosshairTarget = this.strategy.pickTarget(state, this.playerId, this.crosshair);
+        this.crosshairTarget = this.strategy.pickTarget(
+          state,
+          this.playerId,
+          this.crosshair,
+        );
         this.battleState = { step: Step.MOVING };
         break;
       case Step.MOVING:
         if (this.crosshairTarget) {
-          if (this.stepCrosshairToward(this.crosshairTarget.x, this.crosshairTarget.y, dt)) {
-            this.battleState = { step: Step.DWELLING, timer: this.scaledDelay(0.15, 0.1) };
+          if (
+            this.stepCrosshairToward(
+              this.crosshairTarget.x,
+              this.crosshairTarget.y,
+              dt,
+            )
+          ) {
+            this.battleState = {
+              step: Step.DWELLING,
+              timer: this.scaledDelay(0.15, 0.1),
+            };
           }
         } else {
           // No target available — keep picking
@@ -620,11 +787,18 @@ export class AiController extends BaseController implements AiAnimatable {
     const player = state.players[this.playerId]!;
     if (player.eliminated) return;
     if (!this.crosshairTarget) {
-      this.crosshairTarget = this.strategy.pickTarget(state, this.playerId, this.crosshair);
+      this.crosshairTarget = this.strategy.pickTarget(
+        state,
+        this.playerId,
+        this.crosshair,
+      );
     }
     if (!this.crosshairTarget) return;
 
-    const s = this.battleState as Extract<BattleState, { step: typeof Step.COUNTDOWN }>;
+    const s = this.battleState as Extract<
+      BattleState,
+      { step: typeof Step.COUNTDOWN }
+    >;
 
     if (state.battleCountdown > 0) {
       // During countdown, move to target then orbit around it
@@ -633,14 +807,21 @@ export class AiController extends BaseController implements AiAnimatable {
         this.crosshairTarget.y - this.crosshair.y,
       );
       if (dist > ORBIT_ENGAGEMENT_DISTANCE) {
-        this.stepCrosshairToward(this.crosshairTarget.x, this.crosshairTarget.y, dt);
+        this.stepCrosshairToward(
+          this.crosshairTarget.x,
+          this.crosshairTarget.y,
+          dt,
+        );
       } else {
         if (!s.orbit) {
           const strategic = !!this.crosshairTarget.strategic;
           const boost = strategic ? 1.2 : 1;
           const rng = this.strategy.rng;
-          const speedBase = strategic ? ORBIT_SPEED_STRATEGIC_BASE : ORBIT_SPEED_DEFAULT_BASE;
-          const baseSpeed = Math.PI * (speedBase + rng.next() * ORBIT_SPEED_RANGE);
+          const speedBase = strategic
+            ? ORBIT_SPEED_STRATEGIC_BASE
+            : ORBIT_SPEED_DEFAULT_BASE;
+          const baseSpeed =
+            Math.PI * (speedBase + rng.next() * ORBIT_SPEED_RANGE);
           s.orbit = {
             rx: (ORBIT_RADIUS_BASE + rng.next() * ORBIT_RADIUS_RANGE) * boost,
             ry: (ORBIT_RADIUS_BASE + rng.next() * ORBIT_RADIUS_RANGE) * boost,
@@ -648,11 +829,17 @@ export class AiController extends BaseController implements AiAnimatable {
           };
         }
         this.idlePhase += s.orbit.speed * dt;
-        this.crosshair.x = this.crosshairTarget.x + Math.cos(this.idlePhase) * s.orbit.rx;
-        this.crosshair.y = this.crosshairTarget.y + Math.sin(this.idlePhase) * s.orbit.ry;
+        this.crosshair.x =
+          this.crosshairTarget.x + Math.cos(this.idlePhase) * s.orbit.rx;
+        this.crosshair.y =
+          this.crosshairTarget.y + Math.sin(this.idlePhase) * s.orbit.ry;
       }
     } else {
-      this.stepCrosshairToward(this.crosshairTarget.x, this.crosshairTarget.y, dt);
+      this.stepCrosshairToward(
+        this.crosshairTarget.x,
+        this.crosshairTarget.y,
+        dt,
+      );
     }
   }
 
@@ -698,7 +885,10 @@ export class AiController extends BaseController implements AiAnimatable {
 
   /** Chain attack: dwell then fire at chain target. */
   private battleTickChainDwelling(state: GameState, dt: number): void {
-    const s = this.battleState as Extract<BattleState, { step: typeof Step.CHAIN_DWELLING }>;
+    const s = this.battleState as Extract<
+      BattleState,
+      { step: typeof Step.CHAIN_DWELLING }
+    >;
     s.timer -= dt;
     if (s.timer > 0) return;
 
@@ -725,7 +915,10 @@ export class AiController extends BaseController implements AiAnimatable {
 
   /** Standard fire: dwell on target then fire. */
   private battleTickDwelling(state: GameState, dt: number): void {
-    const s = this.battleState as Extract<BattleState, { step: typeof Step.DWELLING }>;
+    const s = this.battleState as Extract<
+      BattleState,
+      { step: typeof Step.DWELLING }
+    >;
     s.timer -= dt;
     if (s.timer > 0) return;
 
@@ -739,7 +932,11 @@ export class AiController extends BaseController implements AiAnimatable {
     // Random thinking delay before picking next target
     const thinkTime = this.scaledDelay(0.1, 0.2);
     if (this.anticipatesTarget) {
-      this.crosshairTarget = this.strategy.pickTarget(state, this.playerId, this.crosshair);
+      this.crosshairTarget = this.strategy.pickTarget(
+        state,
+        this.playerId,
+        this.crosshair,
+      );
       this.battleState = { step: Step.THINKING, timer: thinkTime };
     } else {
       this.crosshairTarget = null;
@@ -794,8 +991,17 @@ export class AiController extends BaseController implements AiAnimatable {
   ): boolean {
     const dr = targetRow - cursor.row;
     const dc = targetCol - cursor.col;
-    const f = moveStepFraction(Math.sqrt(dr * dr + dc * dc), baseSpeed, boostThreshold, dt);
-    if (f >= 1) { cursor.row = targetRow; cursor.col = targetCol; return true; }
+    const f = moveStepFraction(
+      Math.sqrt(dr * dr + dc * dc),
+      baseSpeed,
+      boostThreshold,
+      dt,
+    );
+    if (f >= 1) {
+      cursor.row = targetRow;
+      cursor.col = targetCol;
+      return true;
+    }
     cursor.row += dr * f;
     cursor.col += dc * f;
     return false;
@@ -809,8 +1015,17 @@ export class AiController extends BaseController implements AiAnimatable {
   ): boolean {
     const dx = tx - this.crosshair.x;
     const dy = ty - this.crosshair.y;
-    const f = moveStepFraction(Math.sqrt(dx * dx + dy * dy), CROSSHAIR_SPEED, this.battleBoostDist, dt);
-    if (f >= 1) { this.crosshair.x = tx; this.crosshair.y = ty; return true; }
+    const f = moveStepFraction(
+      Math.sqrt(dx * dx + dy * dy),
+      CROSSHAIR_SPEED,
+      this.battleBoostDist,
+      dt,
+    );
+    if (f >= 1) {
+      this.crosshair.x = tx;
+      this.crosshair.y = ty;
+      return true;
+    }
     this.crosshair.x += dx * f;
     this.crosshair.y += dy * f;
     return false;
@@ -849,12 +1064,19 @@ export class AiController extends BaseController implements AiAnimatable {
         col: Math.round(this.buildCursor.col),
       },
     );
-    return result ? { piece: result.piece, row: result.row, col: result.col } : null;
+    return result
+      ? { piece: result.piece, row: result.row, col: result.col }
+      : null;
   }
 }
 
 /** Compute interpolation fraction for one movement step. Returns 1 if arrived. */
-function moveStepFraction(dist: number, baseSpeed: number, boostThreshold: number, dt: number): number {
+function moveStepFraction(
+  dist: number,
+  baseSpeed: number,
+  boostThreshold: number,
+  dt: number,
+): number {
   if (dist <= 0) return 1;
   const step = baseSpeed * (dist > boostThreshold ? 2 : 1) * dt;
   return step >= dist ? 1 : step / dist;

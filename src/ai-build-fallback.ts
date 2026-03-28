@@ -5,7 +5,12 @@
  * Called by the build placement orchestrator (ai-strategy-build.ts).
  */
 
-import { candidateObstacleHits, candidateToPlacement, createSimulatedWalls, isFatFreeCandidate } from "./ai-build-score.ts";
+import {
+  candidateObstacleHits,
+  candidateToPlacement,
+  createSimulatedWalls,
+  isFatFreeCandidate,
+} from "./ai-build-score.ts";
 import type { AiPlacement, Candidate, Scored } from "./ai-build-types.ts";
 import { floodPocket } from "./ai-castle-rect.ts";
 import type { Tower } from "./geometry-types.ts";
@@ -75,7 +80,7 @@ export function pickFallbackPlacement(
     }
   }
   if (totalFree < MIN_FREE_INTERIOR && unenclosedTowers.length === 0)
-    return { placement: null, reason: 'interior-full' };
+    return { placement: null, reason: "interior-full" };
 
   const createsSmallEnclosure = (candidate: Candidate): boolean => {
     const simulatedWalls = createSimulatedWalls(walls, candidate);
@@ -86,7 +91,12 @@ export function pickFallbackPlacement(
         const k = packTile(r, c);
         if (visited.has(k) || simulatedOutside.has(k) || simulatedWalls.has(k))
           continue;
-        const pocket = floodPocket(k, visited, simulatedWalls, simulatedOutside);
+        const pocket = floodPocket(
+          k,
+          visited,
+          simulatedWalls,
+          simulatedOutside,
+        );
         if (pocket.length >= MIN_VIABLE_ENCLOSURE) continue;
         let preExisting = true;
         for (const pocketKey of pocket) {
@@ -144,7 +154,10 @@ export function pickFallbackPlacement(
   };
 
   if (fallbackTowers.length > 0) {
-    const ringDistanceCache = new Map<Candidate, { distance: number; tooClose: boolean }>();
+    const ringDistanceCache = new Map<
+      Candidate,
+      { distance: number; tooClose: boolean }
+    >();
     const picked = pickTowerExtensionCandidate(
       scored,
       fallbackTowers,
@@ -166,9 +179,9 @@ export function pickFallbackPlacement(
       isInsideOrFatCandidate,
     );
     if (bestDiscard) {
-      return placementResult(bestDiscard, 'discard');
+      return placementResult(bestDiscard, "discard");
     }
-    return { placement: null, reason: 'discard-all-fat' };
+    return { placement: null, reason: "discard-all-fat" };
   }
 }
 
@@ -192,7 +205,7 @@ function pickTowerExtensionCandidate(
   isInsideOrFatCandidate: (candidate: Candidate) => boolean,
 ): {
   candidate: Candidate | null;
-  reason: 'extend' | 'extend-fallback' | 'extend-all-fat';
+  reason: "extend" | "extend-fallback" | "extend-all-fat";
 } {
   const extending = scored.filter((s) =>
     isExtensionCandidateForFallback(
@@ -202,7 +215,7 @@ function pickTowerExtensionCandidate(
       ringDistanceCache,
       createsSmallEnclosureCached,
       isInsideOrFatCandidate,
-    )
+    ),
   );
 
   if (extending.length > 0) {
@@ -214,10 +227,9 @@ function pickTowerExtensionCandidate(
           fallbackTowers,
           castleMargin,
           ringDistanceCache,
-        ) ||
-        b.candidate.wallAdjacent - a.candidate.wallAdjacent,
+        ) || b.candidate.wallAdjacent - a.candidate.wallAdjacent,
     );
-    return { candidate: extending[0]!.candidate, reason: 'extend' };
+    return { candidate: extending[0]!.candidate, reason: "extend" };
   }
 
   const fallback = [...scored].filter((s) =>
@@ -225,7 +237,7 @@ function pickTowerExtensionCandidate(
       s.candidate,
       createsSmallEnclosureCached,
       isInsideOrFatCandidate,
-    )
+    ),
   );
   fallback.sort((a, b) =>
     compareByFallbackRingDistance(
@@ -234,13 +246,13 @@ function pickTowerExtensionCandidate(
       fallbackTowers,
       castleMargin,
       ringDistanceCache,
-    )
+    ),
   );
   if (fallback.length > 0) {
-    return { candidate: fallback[0]!.candidate, reason: 'extend-fallback' };
+    return { candidate: fallback[0]!.candidate, reason: "extend-fallback" };
   }
 
-  return { candidate: null, reason: 'extend-all-fat' };
+  return { candidate: null, reason: "extend-all-fat" };
 }
 
 function compareByFallbackRingDistance(
@@ -251,8 +263,18 @@ function compareByFallbackRingDistance(
   ringDistanceCache: Map<Candidate, { distance: number; tooClose: boolean }>,
 ): number {
   return (
-    ringDistanceForFallbackTowers(a, fallbackTowers, castleMargin, ringDistanceCache).distance -
-    ringDistanceForFallbackTowers(b, fallbackTowers, castleMargin, ringDistanceCache).distance
+    ringDistanceForFallbackTowers(
+      a,
+      fallbackTowers,
+      castleMargin,
+      ringDistanceCache,
+    ).distance -
+    ringDistanceForFallbackTowers(
+      b,
+      fallbackTowers,
+      castleMargin,
+      ringDistanceCache,
+    ).distance
   );
 }
 
@@ -288,9 +310,14 @@ function ringDistanceForFallbackTowers(
   let bestDistance = Infinity;
   let tooClose = false;
   for (const tower of fallbackTowers) {
-    const towerDistance = candidateRingDistanceForTower(candidate, tower, castleMargin);
+    const towerDistance = candidateRingDistanceForTower(
+      candidate,
+      tower,
+      castleMargin,
+    );
     if (towerDistance.tooClose) tooClose = true;
-    if (towerDistance.distance < bestDistance) bestDistance = towerDistance.distance;
+    if (towerDistance.distance < bestDistance)
+      bestDistance = towerDistance.distance;
   }
 
   const result = { distance: bestDistance, tooClose };
@@ -318,12 +345,7 @@ function candidateRingDistanceForTower(
       pc >= tower.col - castleMargin &&
       pc <= tower.col + 1 + castleMargin
     ) {
-      if (
-        pr > ringTop &&
-        pr < ringBot &&
-        pc > ringLeft &&
-        pc < ringRight
-      ) {
+      if (pr > ringTop && pr < ringBot && pc > ringLeft && pc < ringRight) {
         tooClose = true;
       }
     }
@@ -332,8 +354,7 @@ function candidateRingDistanceForTower(
   const centerR = tower.row + 0.5;
   const centerC = tower.col + 0.5;
   const distance =
-    Math.abs(candidate.row - centerR) +
-    Math.abs(candidate.col - centerC);
+    Math.abs(candidate.row - centerR) + Math.abs(candidate.col - centerC);
 
   return { distance, tooClose };
 }
@@ -343,7 +364,10 @@ function isExtensionFallbackCandidateForFallback(
   createsSmallEnclosureCached: (candidate: Candidate) => boolean,
   isInsideOrFatCandidate: (candidate: Candidate) => boolean,
 ): boolean {
-  return !createsSmallEnclosureCached(candidate) && !isInsideOrFatCandidate(candidate);
+  return (
+    !createsSmallEnclosureCached(candidate) &&
+    !isInsideOrFatCandidate(candidate)
+  );
 }
 
 function pickDiscardCandidate(
@@ -364,7 +388,7 @@ function pickDiscardCandidate(
       caresAboutHouses,
       caresAboutBonuses,
       createsSmallEnclosureCached,
-    )
+    ),
   );
   return throwAway[0]!.candidate;
 }
@@ -376,8 +400,16 @@ function compareDiscardCandidatesForFallback(
   caresAboutBonuses: boolean,
   createsSmallEnclosureCached: (candidate: Candidate) => boolean,
 ): number {
-  const aHit = candidateObstacleHits(a.candidate, caresAboutHouses, caresAboutBonuses);
-  const bHit = candidateObstacleHits(b.candidate, caresAboutHouses, caresAboutBonuses);
+  const aHit = candidateObstacleHits(
+    a.candidate,
+    caresAboutHouses,
+    caresAboutBonuses,
+  );
+  const bHit = candidateObstacleHits(
+    b.candidate,
+    caresAboutHouses,
+    caresAboutBonuses,
+  );
   if (aHit !== bHit) return aHit - bHit;
   const aEncloses = createsSmallEnclosureCached(a.candidate) ? 0 : 1;
   const bEncloses = createsSmallEnclosureCached(b.candidate) ? 0 : 1;

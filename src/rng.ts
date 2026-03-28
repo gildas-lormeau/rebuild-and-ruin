@@ -21,10 +21,14 @@ export class Rng {
   }
 
   /** Get internal state for serialization (host migration). */
-  getState(): number { return this.state; }
+  getState(): number {
+    return this.state;
+  }
 
   /** Restore internal state from serialization (host migration). */
-  setState(s: number): void { this.state = s; }
+  setState(s: number): void {
+    this.state = s;
+  }
 
   /** Returns a float in [0, 1), like Math.random(). */
   next(): number {

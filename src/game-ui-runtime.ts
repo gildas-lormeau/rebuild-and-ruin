@@ -7,9 +7,18 @@
 import { nextReadyCombined } from "./battle-system.ts";
 import { resetCannonFacings } from "./cannon-system.ts";
 import type { Crosshair, PlayerController } from "./controller-interfaces.ts";
-import { computeCannonLimitsForPhase, rebuildHomeCastle } from "./game-engine.ts";
+import {
+  computeCannonLimitsForPhase,
+  rebuildHomeCastle,
+} from "./game-engine.ts";
 import type { KeyBindings } from "./player-config.ts";
-import { type GameState, type Impact, Mode, Phase, type Player } from "./types.ts";
+import {
+  type GameState,
+  type Impact,
+  Mode,
+  Phase,
+  type Player,
+} from "./types.ts";
 
 /** Format a key binding as a short hint string (e.g. "Arrows + N (B rotate)"). */
 export function formatKeyHint(kb: KeyBindings): string {
@@ -85,9 +94,19 @@ export function collectLocalCrosshairs(params: {
   controllers: PlayerController[];
   canFireNow: boolean;
   skipController?: (playerId: number) => boolean;
-  onCrosshairCollected?: (ctrl: PlayerController, ch: { x: number; y: number }, readyCannon: boolean) => void;
+  onCrosshairCollected?: (
+    ctrl: PlayerController,
+    ch: { x: number; y: number },
+    readyCannon: boolean,
+  ) => void;
 }): Crosshair[] {
-  const { state, controllers, canFireNow, skipController, onCrosshairCollected } = params;
+  const {
+    state,
+    controllers,
+    canFireNow,
+    skipController,
+    onCrosshairCollected,
+  } = params;
   const crosshairs: Crosshair[] = [];
 
   for (const ctrl of controllers) {
@@ -129,8 +148,16 @@ export function tickGameCore(params: {
   tickBattlePhase: (dt: number) => void;
   tickBuildPhase: (dt: number) => void;
 }): void {
-  const { dt, state, battleAnim, impactFlashDuration,
-    tickCannonPhase, tickBattleCountdown, tickBattlePhase, tickBuildPhase } = params;
+  const {
+    dt,
+    state,
+    battleAnim,
+    impactFlashDuration,
+    tickCannonPhase,
+    tickBattleCountdown,
+    tickBattlePhase,
+    tickBuildPhase,
+  } = params;
 
   // Age and filter impact flashes regardless of phase
   for (const imp of battleAnim.impacts) imp.age += dt;
@@ -207,7 +234,11 @@ export function processReselectionQueue(params: {
   state: GameState;
   controllers: PlayerController[];
   initTowerSelection: (pid: number, zone: number) => void;
-  processPlayer: (pid: number, ctrl: PlayerController, zone: number) => "done" | "pending";
+  processPlayer: (
+    pid: number,
+    ctrl: PlayerController,
+    zone: number,
+  ) => "done" | "pending";
   onDone: (pid: number, ctrl: PlayerController) => void;
 }): { remaining: number[]; needsUI: boolean } {
   const remaining: number[] = [];
@@ -236,7 +267,8 @@ export function completeReselection(params: {
   reselectionPids: number[];
   finalizeAndAdvance: () => void;
 }): void {
-  const { state, selectionStates, clearOverlaySelection, reselectionPids } = params;
+  const { state, selectionStates, clearOverlaySelection, reselectionPids } =
+    params;
   selectionStates.clear();
   clearOverlaySelection();
   (params.reselectQueue as number[]).length = 0;

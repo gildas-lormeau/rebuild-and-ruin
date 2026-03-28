@@ -7,14 +7,28 @@ import type { RGB } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { getPlayerColor } from "./player-config.ts";
 import { drawSprite } from "./render-sprites.ts";
-import {applyCenterText, 
-  BONUS_FLASH_MS, CROSSHAIR_ARM_IDLE, CROSSHAIR_ARM_PULSE,
-  CROSSHAIR_ARM_READY, CROSSHAIR_IDLE_FREQ,CROSSHAIR_READY_FREQ, drawShadowText, FONT_TIMER,
-  rgb, SHADOW_COLOR,TEXT_WHITE,
+import {
+  applyCenterText,
+  BONUS_FLASH_MS,
+  CROSSHAIR_ARM_IDLE,
+  CROSSHAIR_ARM_PULSE,
+  CROSSHAIR_ARM_READY,
+  CROSSHAIR_IDLE_FREQ,
+  CROSSHAIR_READY_FREQ,
+  drawShadowText,
+  FONT_TIMER,
+  rgb,
+  SHADOW_COLOR,
+  TEXT_WHITE,
 } from "./render-theme.ts";
 import type { MapData, RenderOverlay } from "./render-types.ts";
 import { facingToCardinal } from "./spatial.ts";
-import { type CannonMode, IMPACT_FLASH_DURATION, isBalloonMode, isSuperMode } from "./types.ts";
+import {
+  type CannonMode,
+  IMPACT_FLASH_DURATION,
+  isBalloonMode,
+  isSuperMode,
+} from "./types.ts";
 
 // Phantom invalid-placement color (red overlay for blocked positions)
 const PHANTOM_INVALID_COLOR = "#aa2222";
@@ -81,15 +95,7 @@ export function drawPhantoms(
     for (const phantom of overlay.phantoms.aiPhantoms) {
       const { offsets, row, col, playerId } = phantom;
       const wall = getPlayerColor(playerId).wall;
-      drawPiecePhantom(
-        octx,
-        offsets,
-        row,
-        col,
-        rgb(wall),
-        0.6,
-        true,
-      );
+      drawPiecePhantom(octx, offsets, row, col, rgb(wall), 0.6, true);
     }
   }
 }
@@ -334,7 +340,8 @@ export function drawBattleEffects(
       const px = pit.col * TILE_SIZE;
       const py = pit.row * TILE_SIZE;
       const mid = TILE_SIZE / 2;
-      const flicker = (Math.sin(t * 8 + pit.row * SEED_ROW + pit.col * SEED_COL) + 1) * 0.15;
+      const flicker =
+        (Math.sin(t * 8 + pit.row * SEED_ROW + pit.col * SEED_COL) + 1) * 0.15;
       const stage = Math.max(1, Math.min(3, pit.roundsLeft));
       drawSprite(octx, `burning_pit_${stage}`, px, py);
       // Animated lava flicker (round glow, stronger for fresh pits)
@@ -359,7 +366,10 @@ export function drawBattleEffects(
       const cy = Math.round(ch.y) + 0.5;
       const [cr, cg, cb] =
         CROSSHAIR_COLORS[ch.playerId % CROSSHAIR_COLORS.length]!;
-      const { alpha, arm, diag, gap } = crosshairGeometry(ch.cannonReady === true, t);
+      const { alpha, arm, diag, gap } = crosshairGeometry(
+        ch.cannonReady === true,
+        t,
+      );
 
       const drawArm = (
         x1: number,
@@ -412,12 +422,16 @@ export function drawBattleEffects(
 }
 
 /** Compute animated crosshair dimensions from ready state and time. */
-function crosshairGeometry(ready: boolean, t: number): { alpha: number; arm: number; diag: number; gap: number } {
+function crosshairGeometry(
+  ready: boolean,
+  t: number,
+): { alpha: number; arm: number; diag: number; gap: number } {
   const alpha = ready
     ? 0.7 + 0.3 * Math.sin(t * CROSSHAIR_READY_FREQ)
     : 0.35 + 0.15 * Math.sin(t * CROSSHAIR_IDLE_FREQ);
   const arm = ready
-    ? CROSSHAIR_ARM_READY + Math.sin(t * CROSSHAIR_READY_FREQ) * CROSSHAIR_ARM_PULSE
+    ? CROSSHAIR_ARM_READY +
+      Math.sin(t * CROSSHAIR_READY_FREQ) * CROSSHAIR_ARM_PULSE
     : CROSSHAIR_ARM_IDLE;
   const diag = Math.round(arm * 0.7);
   const gap = ready ? 5 : 3;
@@ -506,13 +520,23 @@ function drawPiecePhantom(
   octx.globalAlpha = alpha;
   octx.fillStyle = fillColor;
   for (const [dr, dc] of offsets) {
-    octx.fillRect((col + dc) * TILE_SIZE, (row + dr) * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    octx.fillRect(
+      (col + dc) * TILE_SIZE,
+      (row + dr) * TILE_SIZE,
+      TILE_SIZE,
+      TILE_SIZE,
+    );
   }
   if (outline) {
     octx.strokeStyle = TEXT_WHITE;
     octx.lineWidth = 1;
     for (const [dr, dc] of offsets) {
-      octx.strokeRect((col + dc) * TILE_SIZE, (row + dr) * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+      octx.strokeRect(
+        (col + dc) * TILE_SIZE,
+        (row + dr) * TILE_SIZE,
+        TILE_SIZE,
+        TILE_SIZE,
+      );
     }
   }
   octx.restore();

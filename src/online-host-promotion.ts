@@ -4,7 +4,12 @@
  */
 
 import type { PlayerController } from "./controller-interfaces.ts";
-import { BATTLE_TIMER, type GameState, Phase, type TimerAccums } from "./types.ts";
+import {
+  BATTLE_TIMER,
+  type GameState,
+  Phase,
+  type TimerAccums,
+} from "./types.ts";
 
 const SEED_ROUND_MULTIPLIER = 1000003;
 const SEED_SLOT_MULTIPLIER = 0x9e3779b9;
@@ -24,7 +29,11 @@ export function rebuildControllersForPhase(
     const player = state.players[i];
     if (!player || player.eliminated) continue;
 
-    const strategySeed = (state.rng.seed + state.round * SEED_ROUND_MULTIPLIER + i * SEED_SLOT_MULTIPLIER) >>> 0;
+    const strategySeed =
+      (state.rng.seed +
+        state.round * SEED_ROUND_MULTIPLIER +
+        i * SEED_SLOT_MULTIPLIER) >>>
+      0;
     controllers[i] = createAiController(i, strategySeed);
 
     // Initialize AI for the current phase
@@ -34,7 +43,10 @@ export function rebuildControllersForPhase(
       const max = state.cannonLimits[i] ?? 0;
       controllers[i]!.placeCannons(state, max);
       if (player.homeTower) {
-        controllers[i]!.cannonCursor = { row: player.homeTower.row, col: player.homeTower.col };
+        controllers[i]!.cannonCursor = {
+          row: player.homeTower.row,
+          col: player.homeTower.col,
+        };
       }
       controllers[i]!.onCannonPhaseStart(state);
     } else if (state.phase === Phase.BATTLE) {
@@ -50,7 +62,10 @@ export function rebuildControllersForPhase(
  * wall-clock subtraction (timer = max - elapsed). This converts
  * the watcher's remaining timer into the equivalent accumulator value.
  */
-export function syncAccumulatorsFromTimer(state: GameState, accum: TimerAccums): void {
+export function syncAccumulatorsFromTimer(
+  state: GameState,
+  accum: TimerAccums,
+): void {
   accum.build = 0;
   accum.cannon = 0;
   accum.battle = 0;

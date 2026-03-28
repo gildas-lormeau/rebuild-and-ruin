@@ -11,14 +11,25 @@ import {
   fireSingleCaptured,
   nextReadyCombined,
 } from "./battle-system.ts";
-import type { Crosshair, LocalCannonPhantom, LocalPiecePhantom, PlayerController } from "./controller-interfaces.ts";
+import type {
+  Crosshair,
+  LocalCannonPhantom,
+  LocalPiecePhantom,
+  PlayerController,
+} from "./controller-interfaces.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
-import { type BagState, createBag, nextPiece, type PieceShape } from "./pieces.ts";
+import {
+  type BagState,
+  createBag,
+  nextPiece,
+  type PieceShape,
+} from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
 import { pxToTile, towerCenter } from "./spatial.ts";
-import type { CombinedCannonResult, GameState } from "./types.ts";
 import {
   Action,
+  type CombinedCannonResult,
+  type GameState,
   NORMAL_CANNON_SIZE,
 } from "./types.ts";
 
@@ -60,7 +71,10 @@ export abstract class BaseController implements PlayerController {
 
   centerOn(row: number, col: number): void {
     const center = towerCenter({ row, col });
-    this.buildCursor = { row: Math.round(center.row), col: Math.round(center.col) };
+    this.buildCursor = {
+      row: Math.round(center.row),
+      col: Math.round(center.col),
+    };
     this.crosshair = { x: center.col * TILE_SIZE, y: center.row * TILE_SIZE };
   }
 
@@ -80,7 +94,10 @@ export abstract class BaseController implements PlayerController {
     const player = state.players[this.playerId]!;
     if (player.homeTower) {
       const center = towerCenter(player.homeTower);
-      this.buildCursor = { row: Math.round(center.row), col: Math.round(center.col) };
+      this.buildCursor = {
+        row: Math.round(center.row),
+        col: Math.round(center.col),
+      };
     }
     this.clampBuildCursor(this.currentPiece);
   }
@@ -123,7 +140,10 @@ export abstract class BaseController implements PlayerController {
   reset(): void {
     this.buildCursor = { row: DEFAULT_CURSOR_ROW, col: DEFAULT_CURSOR_COL };
     this.cannonCursor = { row: DEFAULT_CURSOR_ROW, col: DEFAULT_CURSOR_COL };
-    this.crosshair = { x: DEFAULT_CURSOR_COL * TILE_SIZE, y: DEFAULT_CURSOR_ROW * TILE_SIZE };
+    this.crosshair = {
+      x: DEFAULT_CURSOR_COL * TILE_SIZE,
+      y: DEFAULT_CURSOR_ROW * TILE_SIZE,
+    };
     this.lastFiredIdx = -1;
     this.bag = null;
     this.currentPiece = null;
@@ -131,9 +151,13 @@ export abstract class BaseController implements PlayerController {
   abstract onCannonPhaseStart(state: GameState): void;
 
   /** Human never auto-confirms — driven by UI. */
-  selectionTick(_dt: number, _state?: GameState): boolean { return false; }
+  selectionTick(_dt: number, _state?: GameState): boolean {
+    return false;
+  }
 
-  getCurrentPiece(): PieceShape | null { return this.currentPiece; }
+  getCurrentPiece(): PieceShape | null {
+    return this.currentPiece;
+  }
 
   /** Clamp build cursor so the entire piece stays within the grid. */
   protected clampBuildCursor(piece: PieceShape | null): void {
@@ -212,5 +236,4 @@ export abstract class BaseController implements PlayerController {
     }
     return result;
   }
-
 }

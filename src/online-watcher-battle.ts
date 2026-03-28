@@ -1,8 +1,28 @@
 import { canPlayerFire, countdownAnnouncement } from "./battle-system.ts";
-import type { Crosshair, OrbitParams, PlayerController } from "./controller-interfaces.ts";
+import type {
+  Crosshair,
+  OrbitParams,
+  PlayerController,
+} from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
-import { type CannonPhantom, cannonPhantomKey, type HumanPiecePhantom, type PiecePhantom, phantomChanged, phantomWireMode, piecePhantomKey, type WatcherTimingState } from "./online-types.ts";
-import { BATTLE_TIMER, type CannonMode, type GameState, type Impact, isPlacementPhase, Phase } from "./types.ts";
+import {
+  type CannonPhantom,
+  cannonPhantomKey,
+  type HumanPiecePhantom,
+  type PiecePhantom,
+  phantomChanged,
+  phantomWireMode,
+  piecePhantomKey,
+  type WatcherTimingState,
+} from "./online-types.ts";
+import {
+  BATTLE_TIMER,
+  type CannonMode,
+  type GameState,
+  type Impact,
+  isPlacementPhase,
+  Phase,
+} from "./types.ts";
 
 interface WatcherFrameAnnouncement {
   announcement?: string;
@@ -204,17 +224,30 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
           dt,
         );
       } else {
-        interpolateToward(vis, target.x, target.y, crosshairSpeed * REMOTE_CROSSHAIR_MULT, dt);
+        interpolateToward(
+          vis,
+          target.x,
+          target.y,
+          crosshairSpeed * REMOTE_CROSSHAIR_MULT,
+          dt,
+        );
       }
     } else {
-      interpolateToward(vis, target.x, target.y, crosshairSpeed * REMOTE_CROSSHAIR_MULT, dt);
+      interpolateToward(
+        vis,
+        target.x,
+        target.y,
+        crosshairSpeed * REMOTE_CROSSHAIR_MULT,
+        dt,
+      );
     }
 
     frame.crosshairs.push({
       x: vis.x,
       y: vis.y,
       playerId: pid,
-      cannonReady: state.battleCountdown <= 0 && !!nextReadyCombined(state, pid),
+      cannonReady:
+        state.battleCountdown <= 0 && !!nextReadyCombined(state, pid),
     });
     aimCannons(state, pid, vis.x, vis.y, dt);
   }
@@ -264,7 +297,14 @@ export function tickWatcherCannonPhantomsPhase(
   if (!phantom) return;
 
   frame.phantoms.aiCannonPhantoms!.push(phantom);
-  if (!phantomChanged(lastSentCannonPhantom, myPlayerId, cannonPhantomKey(phantom))) return;
+  if (
+    !phantomChanged(
+      lastSentCannonPhantom,
+      myPlayerId,
+      cannonPhantomKey(phantom),
+    )
+  )
+    return;
   sendOpponentCannonPhantom({
     playerId: myPlayerId,
     row: phantom.row,
@@ -307,7 +347,8 @@ export function tickWatcherBuildPhantomsPhase(
       playerId: p.playerId,
     });
 
-    if (!phantomChanged(lastSentPiecePhantom, p.playerId, piecePhantomKey(p))) continue;
+    if (!phantomChanged(lastSentPiecePhantom, p.playerId, piecePhantomKey(p)))
+      continue;
     sendOpponentPiecePhantom({
       playerId: p.playerId,
       row: p.row,

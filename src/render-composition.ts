@@ -1,6 +1,10 @@
 import type { RGB } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
-import { LifeLostChoice, type LifeLostDialogState, type ResolvedChoice } from "./life-lost.ts";
+import {
+  LifeLostChoice,
+  type LifeLostDialogState,
+  type ResolvedChoice,
+} from "./life-lost.ts";
 import type { BannerState } from "./phase-banner.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
@@ -14,8 +18,22 @@ import {
   LIFE_LOST_PANEL_H as PANEL_H,
   LIFE_LOST_PANEL_W as PANEL_W,
 } from "./render-theme.ts";
-import { type GameOverOverlay, type LifeLostDialogOverlay, type RenderOverlay } from "./render-types.ts";
-import { type CastleData, FOCUS_MENU, FOCUS_REMATCH, type GameOverFocus, type GameState, type Impact, LIFE_LOST_MAX_TIMER, Phase, type SelectionState } from "./types.ts";
+import {
+  type GameOverOverlay,
+  type LifeLostDialogOverlay,
+  type RenderOverlay,
+} from "./render-types.ts";
+import {
+  type CastleData,
+  FOCUS_MENU,
+  FOCUS_REMATCH,
+  type GameOverFocus,
+  type GameState,
+  type Impact,
+  LIFE_LOST_MAX_TIMER,
+  Phase,
+  type SelectionState,
+} from "./types.ts";
 
 /** Result of a lobby click hit-test. */
 export type LobbyHit = { type: "gear" } | { type: "slot"; slotId: number };
@@ -104,14 +122,20 @@ export function createBannerUi(
   };
 }
 
-export function createStatusBar(state: GameState, playerColors: readonly { interiorLight: RGB }[]) {
+export function createStatusBar(
+  state: GameState,
+  playerColors: readonly { interiorLight: RGB }[],
+) {
   return {
-    round: state.battleLength === Infinity ? `R${state.round}` : `R${state.round}/${state.battleLength}`,
+    round:
+      state.battleLength === Infinity
+        ? `R${state.round}`
+        : `R${state.round}/${state.battleLength}`,
     phase: PHASE_LABELS.get(state.phase) ?? "",
     timer: state.timer > 0 ? `${Math.ceil(state.timer)}s` : "",
     players: state.players.map((p, i) => ({
       score: p.score,
-      cannons: p.cannons.filter(c => c.hp > 0).length,
+      cannons: p.cannons.filter((c) => c.hp > 0).length,
       lives: p.lives,
       color: playerColors[i % playerColors.length]!.interiorLight,
       eliminated: p.eliminated,
@@ -146,13 +170,8 @@ export function handleLifeLostDialogClick(params: {
   canvasY: number;
   firstHumanPlayerId: number;
 }): { playerId: number; choice: ResolvedChoice } | null {
-  const {
-    state,
-    lifeLostDialog,
-    canvasX,
-    canvasY,
-    firstHumanPlayerId,
-  } = params;
+  const { state, lifeLostDialog, canvasX, canvasY, firstHumanPlayerId } =
+    params;
 
   const x = canvasX / SCALE;
   const y = canvasY / SCALE;
@@ -176,7 +195,10 @@ export function handleLifeLostDialogClick(params: {
   return null;
 }
 
-export function lifeLostButtonLayout(px: number, py: number): {
+export function lifeLostButtonLayout(
+  px: number,
+  py: number,
+): {
   btnY: number;
   contX: number;
   abX: number;
@@ -217,7 +239,17 @@ export function lifeLostPanelPos(
 export function createOnlineOverlay(params: {
   previousSelection: RenderOverlay["selection"];
   state: GameState;
-  banner: Pick<BannerState, "active" | "oldCastles" | "oldTerritory" | "oldWalls" | "oldHouses" | "oldBonusSquares" | "newTerritory" | "newWalls">;
+  banner: Pick<
+    BannerState,
+    | "active"
+    | "oldCastles"
+    | "oldTerritory"
+    | "oldWalls"
+    | "oldHouses"
+    | "oldBonusSquares"
+    | "newTerritory"
+    | "newWalls"
+  >;
   battleAnim: {
     territory: Set<number>[];
     walls: Set<number>[];
@@ -328,18 +360,32 @@ export function gameOverButtonHitTest(
 ): GameOverFocus | null {
   const { btnW, btnY, rematchX, menuX } = gameOverLayout(W, H, gameOver.scores);
 
-  if (tileX >= rematchX && tileX <= rematchX + btnW && tileY >= btnY && tileY <= btnY + GAMEOVER_BTN_H) {
+  if (
+    tileX >= rematchX &&
+    tileX <= rematchX + btnW &&
+    tileY >= btnY &&
+    tileY <= btnY + GAMEOVER_BTN_H
+  ) {
     return FOCUS_REMATCH;
   }
-  if (tileX >= menuX && tileX <= menuX + btnW && tileY >= btnY && tileY <= btnY + GAMEOVER_BTN_H) {
+  if (
+    tileX >= menuX &&
+    tileX <= menuX + btnW &&
+    tileY >= btnY &&
+    tileY <= btnY + GAMEOVER_BTN_H
+  ) {
     return FOCUS_MENU;
   }
   return null;
 }
 
-export function gameOverLayout(W: number, H: number, scores: GameOverOverlay["scores"]): GameOverLayout {
+export function gameOverLayout(
+  W: number,
+  H: number,
+  scores: GameOverOverlay["scores"],
+): GameOverLayout {
   const sorted = [...scores].sort((a, b) => b.score - a.score);
-  const hasStats = sorted.some(e => e.stats);
+  const hasStats = sorted.some((e) => e.stats);
   const statsH = hasStats ? GAMEOVER_ROW_H : 0;
   const tableH = sorted.length * GAMEOVER_ROW_H + statsH;
   const panelW = Math.round(W * GAMEOVER_PANEL_W_RATIO);
@@ -348,7 +394,11 @@ export function gameOverLayout(W: number, H: number, scores: GameOverOverlay["sc
   const py = Math.round((H - panelH) / 2);
   const btnW = Math.round((panelW - 30) / 2);
   return {
-    panelW, panelH, px, py, btnW,
+    panelW,
+    panelH,
+    px,
+    py,
+    btnW,
     btnY: py + panelH - GAMEOVER_BTN_H - 10,
     rematchX: px + 10,
     menuX: px + panelW - 10 - btnW,
@@ -367,11 +417,21 @@ export function lobbyClickHitTest(params: {
   canvasH: number;
   tileSize: number;
   slotCount: number;
-  computeLayout: (tsW: number, tsH: number, count: number) =>
-    { gap: number; rectW: number; rectH: number; rectY: number };
+  computeLayout: (
+    tsW: number,
+    tsH: number,
+    count: number,
+  ) => { gap: number; rectW: number; rectH: number; rectY: number };
 }): LobbyHit | null {
-  const { canvasX, canvasY, canvasW, canvasH, tileSize,
-          slotCount, computeLayout } = params;
+  const {
+    canvasX,
+    canvasY,
+    canvasW,
+    canvasH,
+    tileSize,
+    slotCount,
+    computeLayout,
+  } = params;
 
   const tsW = GRID_COLS * tileSize;
   const tsH = GRID_ROWS * tileSize;
@@ -402,8 +462,12 @@ export function computeLobbyLayout(W: number, H: number, count: number) {
   const touch = IS_TOUCH_DEVICE;
   const gap = touch ? 8 : 12;
   const rectW = Math.round((W - gap * (count + 1)) / count);
-  const rectH = Math.round(H * (touch ? LOBBY_RECT_H_RATIO_TOUCH : LOBBY_RECT_H_RATIO));
-  const rectY = Math.round(H * (touch ? LOBBY_RECT_Y_RATIO_TOUCH : LOBBY_RECT_Y_RATIO));
+  const rectH = Math.round(
+    H * (touch ? LOBBY_RECT_H_RATIO_TOUCH : LOBBY_RECT_H_RATIO),
+  );
+  const rectY = Math.round(
+    H * (touch ? LOBBY_RECT_Y_RATIO_TOUCH : LOBBY_RECT_Y_RATIO),
+  );
   return { gap, rectW, rectH, rectY };
 }
 
@@ -459,14 +523,14 @@ function buildLifeLostDialogUi(
 function buildBattleCannonballsPayload(
   inBattle: boolean,
   cannonballs: ReadonlyArray<{
-            x: number;
-            y: number;
-            startX: number;
-            startY: number;
-            targetX: number;
-            targetY: number;
-            incendiary?: boolean;
-          }>,
+    x: number;
+    y: number;
+    startX: number;
+    startY: number;
+    targetX: number;
+    targetY: number;
+    incendiary?: boolean;
+  }>,
 ):
   | Array<{ x: number; y: number; progress: number; incendiary?: boolean }>
   | undefined {
@@ -487,9 +551,9 @@ function buildBattleCannonballsPayload(
 
 function buildBattleBalloonsPayload(
   flights: ReadonlyArray<{
-            flight: { startX: number; startY: number; endX: number; endY: number };
-            progress: number;
-          }>,
+    flight: { startX: number; startY: number; endX: number; endY: number };
+    progress: number;
+  }>,
 ):
   | Array<{
       x: number;

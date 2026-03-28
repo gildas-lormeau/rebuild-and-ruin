@@ -7,7 +7,12 @@
  * `shouldUnzoom` / `inputBlocked` picks it up automatically.
  */
 
-import { isPlacementPhase, Mode, PHASE_ENDING_THRESHOLD, Phase } from "./types.ts";
+import {
+  isPlacementPhase,
+  Mode,
+  PHASE_ENDING_THRESHOLD,
+  Phase,
+} from "./types.ts";
 
 export interface FrameContext {
   // Identity
@@ -51,14 +56,29 @@ interface FrameContextInputs {
 }
 
 export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
-  const { mode, phase, timer, paused, quitPending, hasLifeLostDialog,
-    isSelectionReady, myPlayerId, firstHumanPlayerId, isHost, remoteHumanSlots, mobileAutoZoom } = inputs;
+  const {
+    mode,
+    phase,
+    timer,
+    paused,
+    quitPending,
+    hasLifeLostDialog,
+    isSelectionReady,
+    myPlayerId,
+    firstHumanPlayerId,
+    isHost,
+    remoteHumanSlots,
+    mobileAutoZoom,
+  } = inputs;
 
   const uiBlocking = paused || quitPending || hasLifeLostDialog;
 
   const timedPhase = isPlacementPhase(phase) || phase === Phase.BATTLE;
-  const phaseEnding = !mobileAutoZoom && timer > 0 &&
-    timer <= PHASE_ENDING_THRESHOLD && timedPhase;
+  const phaseEnding =
+    !mobileAutoZoom &&
+    timer > 0 &&
+    timer <= PHASE_ENDING_THRESHOLD &&
+    timedPhase;
 
   const shouldUnzoom = uiBlocking || phaseEnding;
 

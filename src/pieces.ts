@@ -209,9 +209,19 @@ const PIECE_WEIGHTS: PieceWeight[] = [
 ];
 /** Every distinct piece shape in the game (one canonical rotation each). */
 export const ALL_PIECE_SHAPES: readonly PieceShape[] = [
-  PIECE_1x1, PIECE_1x2, PIECE_1x3, PIECE_CORNER,
-  PIECE_T, PIECE_L, PIECE_J, PIECE_S, PIECE_SR,
-  PIECE_C, PIECE_Z, PIECE_ZR, PIECE_PLUS,
+  PIECE_1x1,
+  PIECE_1x2,
+  PIECE_1x3,
+  PIECE_CORNER,
+  PIECE_T,
+  PIECE_L,
+  PIECE_J,
+  PIECE_S,
+  PIECE_SR,
+  PIECE_C,
+  PIECE_Z,
+  PIECE_ZR,
+  PIECE_PLUS,
 ];
 
 export function createBag(round: number, rng?: Rng): BagState {
@@ -262,7 +272,14 @@ function refillBagQueueIfNeeded(bag: BagState): void {
 
 function piecePool(round: number, rng: Rng): PieceShape[] {
   // t goes from 0 (round 2) to 1 (round 8+)
-  const t = Math.min(1, Math.max(0, (round - PIECE_POOL_START_ROUND) / (PIECE_POOL_END_ROUND - PIECE_POOL_START_ROUND)));
+  const t = Math.min(
+    1,
+    Math.max(
+      0,
+      (round - PIECE_POOL_START_ROUND) /
+        (PIECE_POOL_END_ROUND - PIECE_POOL_START_ROUND),
+    ),
+  );
   // Build one bucket per tier
   const buckets: PieceShape[][] = [[], [], []]; // tier 1, 2, 3
   for (const pw of PIECE_WEIGHTS) {
@@ -293,5 +310,7 @@ function piecePool(round: number, rng: Rng): PieceShape[] {
 }
 
 function interpolatedCopies(pieceWeight: PieceWeight, t: number): number {
-  return Math.round(pieceWeight.early + (pieceWeight.late - pieceWeight.early) * t);
+  return Math.round(
+    pieceWeight.early + (pieceWeight.late - pieceWeight.early) * t,
+  );
 }

@@ -28,7 +28,14 @@ import {
   drawScoreDeltas,
   drawStatusBar,
 } from "./render-ui.ts";
-import { facingToDir8, isBalloonCannon, isCannonAlive, isSuperCannon, pxToTile, unpackTile } from "./spatial.ts";
+import {
+  facingToDir8,
+  isBalloonCannon,
+  isCannonAlive,
+  isSuperCannon,
+  pxToTile,
+  unpackTile,
+} from "./spatial.ts";
 import type { CastleData } from "./types.ts";
 
 interface TerrainImageCache {
@@ -99,18 +106,25 @@ const WATER_TEX = new Int8Array(TILE_SIZE * TILE_SIZE);
 const offscreenScene = document.createElement("canvas");
 const sceneCtx = offscreenScene.getContext("2d", { willReadFrequently: true })!;
 const bannerSceneCanvas = document.createElement("canvas");
-const bannerSceneCtx = bannerSceneCanvas.getContext("2d", { willReadFrequently: true })!;
+const bannerSceneCtx = bannerSceneCanvas.getContext("2d", {
+  willReadFrequently: true,
+})!;
 const terrainImageCache = new WeakMap<MapData, TerrainImageCache>();
 
 /** Cached main-canvas context — avoids per-frame getContext overhead on Chrome mobile. */
-let mainCtxCache: { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } | null = null;
+let mainCtxCache: {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+} | null = null;
 let cachedBannerMap: MapData | null = null;
 let cachedBannerCastles: CastleData[] | undefined;
 let cachedBannerTerritory: Set<number>[] | undefined;
 let cachedBannerWalls: Set<number>[] | undefined;
 
 /** Expose the offscreen scene canvas for post-processing (loupe, etc.). */
-export function sceneCanvas(): HTMLCanvasElement { return offscreenScene; }
+export function sceneCanvas(): HTMLCanvasElement {
+  return offscreenScene;
+}
 
 export function drawMap(
   map: MapData,
@@ -235,7 +249,17 @@ export function drawMap(
   // Scale up to display canvas (with optional zoom viewport)
   ctx.imageSmoothingEnabled = false;
   if (viewport) {
-    ctx.drawImage(offscreenScene, viewport.x, viewport.y, viewport.w, viewport.h, 0, 0, cw, gameH);
+    ctx.drawImage(
+      offscreenScene,
+      viewport.x,
+      viewport.y,
+      viewport.w,
+      viewport.h,
+      0,
+      0,
+      cw,
+      gameH,
+    );
   } else {
     ctx.drawImage(offscreenScene, 0, 0, cw, gameH);
   }

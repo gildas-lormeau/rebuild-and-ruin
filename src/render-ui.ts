@@ -4,7 +4,15 @@
 
 import { LifeLostChoice } from "./life-lost.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
-import { computeLobbyLayout, GAMEOVER_BTN_H, GAMEOVER_COL_RATIOS, GAMEOVER_HEADER_H, GAMEOVER_ROW_H, gameOverLayout, lifeLostButtonLayout } from "./render-composition.ts";
+import {
+  computeLobbyLayout,
+  GAMEOVER_BTN_H,
+  GAMEOVER_COL_RATIOS,
+  GAMEOVER_HEADER_H,
+  GAMEOVER_ROW_H,
+  gameOverLayout,
+  lifeLostButtonLayout,
+} from "./render-composition.ts";
 import {
   applyCenterText,
   BANNER_HEIGHT_RATIO,
@@ -136,7 +144,14 @@ export function drawScoreDeltas(
     const shown = Math.round(d.delta * t);
     const total = d.total - d.delta + shown;
     octx.font = FONT_FLOAT_LG;
-    drawShadowText(octx, `+${shown}`, d.cx, d.cy - 6, SHADOW_COLOR_DENSE, TEXT_WHITE);
+    drawShadowText(
+      octx,
+      `+${shown}`,
+      d.cx,
+      d.cy - 6,
+      SHADOW_COLOR_DENSE,
+      TEXT_WHITE,
+    );
     octx.font = FONT_FLOAT_MD;
     drawShadowText(octx, `${total}`, d.cx, d.cy + 8, SHADOW_COLOR, GOLD_LIGHT);
   }
@@ -206,7 +221,7 @@ export function drawGameOver(
   if (!overlay?.ui?.gameOver) return;
   const gameOverData = overlay.ui.gameOver;
   const sorted = [...gameOverData.scores].sort((a, b) => b.score - a.score);
-  const hasStats = sorted.some(e => e.stats);
+  const hasStats = sorted.some((e) => e.stats);
   const statsH = hasStats ? GAMEOVER_ROW_H : 0;
   const lo = gameOverLayout(W, H, gameOverData.scores);
   const { panelW, panelH, px, py, btnW, btnY, rematchX, menuX } = lo;
@@ -216,7 +231,14 @@ export function drawGameOver(
   const cx = W / 2;
   octx.textAlign = "center";
   octx.font = FONT_HEADING;
-  drawShadowText(octx, `${gameOverData.winner} wins!`, cx, py + 20, SHADOW_COLOR, GOLD_LIGHT);
+  drawShadowText(
+    octx,
+    `${gameOverData.winner} wins!`,
+    cx,
+    py + 20,
+    SHADOW_COLOR,
+    GOLD_LIGHT,
+  );
   octx.fillStyle = GOLD;
   octx.fillRect(px + 10, py + 32, panelW - 20, 1);
 
@@ -263,18 +285,34 @@ export function drawGameOver(
   const focused = gameOverData.focused;
 
   const rematchFocused = focused === FOCUS_REMATCH;
-  drawButton(octx, rematchX, btnY, btnW, GAMEOVER_BTN_H,
+  drawButton(
+    octx,
+    rematchX,
+    btnY,
+    btnW,
+    GAMEOVER_BTN_H,
     BTN_CONTINUE.fill(rematchFocused ? 0.5 : 0.2),
     rematchFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
-    rematchFocused ? 2 : 1, FONT_BUTTON,
-    rematchFocused ? TEXT_WHITE : "#ccc", "Rematch");
+    rematchFocused ? 2 : 1,
+    FONT_BUTTON,
+    rematchFocused ? TEXT_WHITE : "#ccc",
+    "Rematch",
+  );
 
   const menuFocused = focused === FOCUS_MENU;
-  drawButton(octx, menuX, btnY, btnW, GAMEOVER_BTN_H,
+  drawButton(
+    octx,
+    menuX,
+    btnY,
+    btnW,
+    GAMEOVER_BTN_H,
     BTN_ABANDON.fill(menuFocused ? 0.5 : 0.2),
     menuFocused ? "#ccf" : "#99c",
-    menuFocused ? 2 : 1, FONT_BUTTON,
-    menuFocused ? TEXT_WHITE : "#ccc", "Menu");
+    menuFocused ? 2 : 1,
+    FONT_BUTTON,
+    menuFocused ? TEXT_WHITE : "#ccc",
+    "Menu",
+  );
 }
 
 /** Draw life-lost continue/abandon dialogs (one per player). */
@@ -331,26 +369,46 @@ export function drawLifeLostDialog(
       // Continue button
       const t = now ?? Date.now();
       const contFlash = contFocused && flashOn(BUTTON_FLASH_MS, t);
-      drawButton(octx, contX, btnY, btnW, btnH,
+      drawButton(
+        octx,
+        contX,
+        btnY,
+        btnW,
+        btnH,
         BTN_CONTINUE.fill(contFocused ? (contFlash ? 0.6 : 0.4) : 0.15),
         contFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
-        contFocused ? 2 : 1, FONT_BUTTON,
-        contFocused ? TEXT_WHITE : TEXT_DISABLED, "Continue");
+        contFocused ? 2 : 1,
+        FONT_BUTTON,
+        contFocused ? TEXT_WHITE : TEXT_DISABLED,
+        "Continue",
+      );
 
       // Abandon button
       const abFlash = abFocused && flashOn(BUTTON_FLASH_MS, t);
-      drawButton(octx, abX, btnY, btnW, btnH,
+      drawButton(
+        octx,
+        abX,
+        btnY,
+        btnW,
+        btnH,
         BTN_ABANDON.fill(abFocused ? (abFlash ? 0.5 : 0.3) : 0.1),
         abFocused ? BTN_ABANDON.strokeFocused : BTN_ABANDON.stroke,
-        abFocused ? 2 : 1, FONT_BUTTON,
-        abFocused ? TEXT_WHITE : "#777", "Abandon");
+        abFocused ? 2 : 1,
+        FONT_BUTTON,
+        abFocused ? TEXT_WHITE : "#777",
+        "Abandon",
+      );
     } else {
       // Resolved state
       octx.font = FONT_LABEL;
       octx.fillStyle =
-        entry.choice === LifeLostChoice.CONTINUE ? BTN_CONTINUE.stroke : BTN_ABANDON.stroke;
+        entry.choice === LifeLostChoice.CONTINUE
+          ? BTN_CONTINUE.stroke
+          : BTN_ABANDON.stroke;
       octx.fillText(
-        entry.choice === LifeLostChoice.CONTINUE ? "Continuing..." : "Abandoned",
+        entry.choice === LifeLostChoice.CONTINUE
+          ? "Continuing..."
+          : "Abandoned",
         cx,
         py + PANEL_H - 18,
       );
@@ -404,16 +462,34 @@ export function drawPlayerSelect(
     const btnY = rectY + rectH - btnH - (touch ? 8 : 12);
 
     if (p.joined) {
-      drawButton(octx, btnX, btnY, btnW, btnH,
-        rgb(c, 0.3), rgb(c), 1,
-        touch ? FONT_BODY : FONT_BUTTON, TEXT_WHITE, "Please wait...");
+      drawButton(
+        octx,
+        btnX,
+        btnY,
+        btnW,
+        btnH,
+        rgb(c, 0.3),
+        rgb(c),
+        1,
+        touch ? FONT_BODY : FONT_BUTTON,
+        TEXT_WHITE,
+        "Please wait...",
+      );
     } else {
       const flash = flashOn(CURSOR_BLINK_MS, now ?? Date.now());
-      drawButton(octx, btnX, btnY, btnW, btnH,
-        rgb(c, flash ? 0.5 : 0.2), rgb(c), 1,
+      drawButton(
+        octx,
+        btnX,
+        btnY,
+        btnW,
+        btnH,
+        rgb(c, flash ? 0.5 : 0.2),
+        rgb(c),
+        1,
         touch ? FONT_LABEL : FONT_HINT,
         flash ? TEXT_WHITE : "#aaa",
-        touch ? "Tap to join" : "Press button to start");
+        touch ? "Tap to join" : "Press button to start",
+      );
     }
 
     if (!touch) {
@@ -508,7 +584,12 @@ export function drawOptionsScreen(
       opt.value !== "Random" &&
       !opts.readOnly;
     const displayValue =
-      opt.value + (showCursor ? (flashOn(CURSOR_BLINK_MS, now ?? Date.now()) ? "_" : " ") : "");
+      opt.value +
+      (showCursor
+        ? flashOn(CURSOR_BLINK_MS, now ?? Date.now())
+          ? "_"
+          : " "
+        : "");
     octx.fillText(displayValue, px + panelW - 20, oy + optH / 2);
   }
 
@@ -646,8 +727,12 @@ export function drawControlsScreen(
 /** Draw a panel: filled rect + inset border stroke. */
 function drawPanel(
   octx: CanvasRenderingContext2D,
-  x: number, y: number, w: number, h: number,
-  fill: string, stroke: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  fill: string,
+  stroke: string,
 ): void {
   octx.fillStyle = fill;
   octx.fillRect(x, y, w, h);
@@ -659,9 +744,16 @@ function drawPanel(
 /** Draw a styled button: filled rect + border + centered label. */
 function drawButton(
   octx: CanvasRenderingContext2D,
-  x: number, y: number, w: number, h: number,
-  fill: string, stroke: string, lineWidth: number,
-  font: string, textColor: string, label: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  fill: string,
+  stroke: string,
+  lineWidth: number,
+  font: string,
+  textColor: string,
+  label: string,
 ): void {
   octx.fillStyle = fill;
   octx.fillRect(x, y, w, h);
@@ -674,7 +766,11 @@ function drawButton(
 }
 
 /** Fill a full-screen opaque panel and set up centered text drawing. */
-function beginModalScreen(octx: CanvasRenderingContext2D, W: number, H: number): void {
+function beginModalScreen(
+  octx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+): void {
   octx.fillStyle = PANEL_BG(0.95);
   octx.fillRect(0, 0, W, H);
   applyCenterText(octx);

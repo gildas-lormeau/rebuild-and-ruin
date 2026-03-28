@@ -11,7 +11,12 @@ import type { KeyBindings } from "./player-config.ts";
 import { Action, CannonMode, type GameState } from "./types.ts";
 
 /** Orbit animation parameters for AI countdown idle animation. */
-export type OrbitParams = { rx: number; ry: number; speed: number; phase: number };
+export type OrbitParams = {
+  rx: number;
+  ry: number;
+  speed: number;
+  phase: number;
+};
 
 export interface LocalPiecePhantom {
   offsets: [number, number][];
@@ -170,11 +175,15 @@ export interface AiAnimatable {
 export const CROSSHAIR_SPEED = 80;
 
 /** Type guard — true when ctrl is a HumanController (implements InputReceiver). */
-export function isHuman(ctrl: PlayerController): ctrl is PlayerController & InputReceiver {
+export function isHuman(
+  ctrl: PlayerController,
+): ctrl is PlayerController & InputReceiver {
   return ctrl.kind === "human";
 }
 
 /** Type guard — true when ctrl is an AiController (implements AiAnimatable). */
-export function isAiAnimatable(ctrl: PlayerController): ctrl is PlayerController & AiAnimatable {
+export function isAiAnimatable(
+  ctrl: PlayerController,
+): ctrl is PlayerController & AiAnimatable {
   return ctrl.kind === "ai";
 }

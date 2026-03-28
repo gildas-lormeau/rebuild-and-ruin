@@ -5,11 +5,23 @@
  * on the factory closure, and to let consumers import just the types.
  */
 
-import type { GameMessage, SerializedPlayer, ServerMessage } from "../server/protocol.ts";
-import type { Crosshair, InputReceiver, PlayerController } from "./controller-interfaces.ts";
+import type {
+  GameMessage,
+  SerializedPlayer,
+  ServerMessage,
+} from "../server/protocol.ts";
+import type {
+  Crosshair,
+  InputReceiver,
+  PlayerController,
+} from "./controller-interfaces.ts";
 import type { UIContext } from "./game-ui-screens.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
-import type { CannonPhantom, PiecePhantom, WatcherTimingState } from "./online-types.ts";
+import type {
+  CannonPhantom,
+  PiecePhantom,
+  WatcherTimingState,
+} from "./online-types.ts";
 import type { RendererInterface } from "./render-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { BalloonFlight, GameState, SelectionState } from "./types.ts";
@@ -48,7 +60,11 @@ export interface RuntimeConfig {
   /** Called after local crosshairs are collected; returns extended list (e.g., adds remote human crosshairs). */
   extendCrosshairs?: (crosshairs: Crosshair[], dt: number) => Crosshair[];
   /** Called per controller during crosshair collection (e.g., sends aim_update to watchers). */
-  onLocalCrosshairCollected?: (ctrl: PlayerController, ch: { x: number; y: number }, readyCannon: boolean) => void;
+  onLocalCrosshairCollected?: (
+    ctrl: PlayerController,
+    ch: { x: number; y: number },
+    readyCannon: boolean,
+  ) => void;
   /** Optional non-host tick handler (watcher logic). */
   tickNonHost?: (dt: number) => void;
   /** Called every frame regardless of host/non-host (e.g., timed announcements). */
@@ -57,7 +73,10 @@ export interface RuntimeConfig {
   hostNetworking?: {
     serializePlayers: (state: GameState) => SerializedPlayer[];
     createCannonStartMessage: (state: GameState) => ServerMessage;
-    createBattleStartMessage: (state: GameState, flights: readonly BalloonFlight[]) => ServerMessage;
+    createBattleStartMessage: (
+      state: GameState,
+      flights: readonly BalloonFlight[],
+    ) => ServerMessage;
     createBuildStartMessage: (state: GameState) => ServerMessage;
     remoteCannonPhantoms: () => readonly CannonPhantom[];
     remotePiecePhantoms: () => readonly PiecePhantom[];
@@ -69,9 +88,16 @@ export interface RuntimeConfig {
   /** Send aim_update for mouse movement. */
   maybeSendAimUpdate?: (x: number, y: number) => void;
   /** Try to place cannon and send to server. */
-  tryPlaceCannonAndSend?: (ctrl: PlayerController & InputReceiver, gameState: GameState, max: number) => boolean;
+  tryPlaceCannonAndSend?: (
+    ctrl: PlayerController & InputReceiver,
+    gameState: GameState,
+    max: number,
+  ) => boolean;
   /** Try to place piece and send to server. */
-  tryPlacePieceAndSend?: (ctrl: PlayerController & InputReceiver, gameState: GameState) => boolean;
+  tryPlacePieceAndSend?: (
+    ctrl: PlayerController & InputReceiver,
+    gameState: GameState,
+  ) => boolean;
   /** Fire and send to server. */
   fireAndSend?: (ctrl: PlayerController, gameState: GameState) => void;
   /** Room code for lobby overlay. */
@@ -92,7 +118,9 @@ export interface RuntimeSelection {
   finish: () => void;
   advanceToCannonPhase: () => void;
   tickCastleBuild: (dt: number) => void;
-  setCastleBuildViewport: (plans: readonly { playerId: number; tiles: number[] }[]) => void;
+  setCastleBuildViewport: (
+    plans: readonly { playerId: number; tiles: number[] }[],
+  ) => void;
   startReselection: () => void;
   finishReselection: () => void;
   showBuildScoreDeltas: (onDone: () => void) => void;
@@ -101,7 +129,10 @@ export interface RuntimeSelection {
 export interface RuntimeLifeLost {
   get: () => LifeLostDialogState | null;
   set: (d: LifeLostDialogState | null) => void;
-  show: (needsReselect: readonly number[], eliminated: readonly number[]) => void;
+  show: (
+    needsReselect: readonly number[],
+    eliminated: readonly number[],
+  ) => void;
   tick: (dt: number) => void;
   afterResolved: (continuing?: readonly number[]) => boolean;
   panelPos: (playerId: number) => { px: number; py: number };
@@ -136,13 +167,20 @@ export interface GameRuntime {
   closeControls: () => void;
   togglePause: () => boolean;
 
-  showBanner: (text: string, onDone: () => void, reveal?: boolean, newBattle?: { territory: Set<number>[]; walls: Set<number>[] }) => void;
+  showBanner: (
+    text: string,
+    onDone: () => void,
+    reveal?: boolean,
+    newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
+  ) => void;
   tickBanner: (dt: number) => void;
 
   syncCrosshairs: (canFireNow: boolean, dt?: number) => void;
   snapshotTerritory: () => Set<number>[];
   firstHuman: () => (PlayerController & InputReceiver) | null;
-  withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
+  withFirstHuman: (
+    action: (human: PlayerController & InputReceiver) => void,
+  ) => void;
 
   render: () => void;
   endGame: (winner: { id: number } | null) => void;

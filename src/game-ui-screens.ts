@@ -19,9 +19,20 @@ import {
 import type { GameMap } from "./geometry-types.ts";
 import { generateMap } from "./map-generation.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
-import { ACTION_KEYS, getPlayerColor, type KeyBindings, PLAYER_NAMES, SEED_CUSTOM } from "./player-config.ts";
+import {
+  ACTION_KEYS,
+  getPlayerColor,
+  type KeyBindings,
+  PLAYER_NAMES,
+  SEED_CUSTOM,
+} from "./player-config.ts";
 import type { OptionEntry, RenderOverlay } from "./render-types.ts";
-import { type GameState, LOBBY_SKIP_LOCKOUT, LOBBY_SKIP_STEP, type Mode } from "./types.ts";
+import {
+  type GameState,
+  LOBBY_SKIP_LOCKOUT,
+  LOBBY_SKIP_STEP,
+  type Mode,
+} from "./types.ts";
 
 export interface UIContext {
   getState: () => GameState | undefined;
@@ -41,20 +52,49 @@ export interface UIContext {
   isOnline?: boolean;
 }
 
-const CONTROL_ACTION_NAMES: readonly string[] = ["Up", "Down", "Left", "Right", "Confirm", "Rotate"];
+const CONTROL_ACTION_NAMES: readonly string[] = [
+  "Up",
+  "Down",
+  "Left",
+  "Right",
+  "Confirm",
+  "Rotate",
+];
 
-export function createOptionsOverlay(ctx: UIContext): { map: GameMap; overlay: RenderOverlay } {
+export function createOptionsOverlay(ctx: UIContext): {
+  map: GameMap;
+  overlay: RenderOverlay;
+} {
   const lobbyMap = ctx.lobby.map ?? generateMap(ctx.lobby.seed);
   const readOnly = ctx.getOptionsReturnMode() !== null;
   const visible = visibleOptions(ctx);
   const options: OptionEntry[] = visible.map((i) => {
     // Seed is typed, Controls is opened via confirm — neither uses left/right cycling
-    if (i === 4 || i === 5) return { name: OPTION_NAMES[i]!, value: optionValue(ctx, i), editable: false };
+    if (i === 4 || i === 5)
+      return {
+        name: OPTION_NAMES[i]!,
+        value: optionValue(ctx, i),
+        editable: false,
+      };
     // Online: Rounds, Cannon HP, Seed are locked by room host
-    if (ctx.isOnline && (i === 1 || i === 2)) return { name: OPTION_NAMES[i]!, value: optionValue(ctx, i), editable: false };
+    if (ctx.isOnline && (i === 1 || i === 2))
+      return {
+        name: OPTION_NAMES[i]!,
+        value: optionValue(ctx, i),
+        editable: false,
+      };
     // In-game: Difficulty and Cannon HP are locked (only Rounds, Haptics, D-Pad remain editable)
-    if (readOnly && (i === 0 || i === 2)) return { name: OPTION_NAMES[i]!, value: optionValue(ctx, i), editable: false };
-    return { name: OPTION_NAMES[i]!, value: optionValue(ctx, i), editable: true };
+    if (readOnly && (i === 0 || i === 2))
+      return {
+        name: OPTION_NAMES[i]!,
+        value: optionValue(ctx, i),
+        editable: false,
+      };
+    return {
+      name: OPTION_NAMES[i]!,
+      value: optionValue(ctx, i),
+      editable: true,
+    };
   });
   const overlay: RenderOverlay = {
     selection: { highlighted: null, selected: null },
@@ -69,12 +109,18 @@ export function createOptionsOverlay(ctx: UIContext): { map: GameMap; overlay: R
   return { map: ctx.getState()?.map ?? lobbyMap, overlay };
 }
 
-export function showOptions(ctx: UIContext, modeValues: { OPTIONS: Mode }): void {
+export function showOptions(
+  ctx: UIContext,
+  modeValues: { OPTIONS: Mode },
+): void {
   ctx.optionsCursor.value = 0;
   ctx.setMode(modeValues.OPTIONS);
 }
 
-export function closeOptions(ctx: UIContext, modeValues: { LOBBY: Mode; GAME: Mode }): void {
+export function closeOptions(
+  ctx: UIContext,
+  modeValues: { LOBBY: Mode; GAME: Mode },
+): void {
   const returnMode = ctx.getOptionsReturnMode();
   if (returnMode !== null) {
     // Returning to game — read-only view, don't save settings
@@ -86,7 +132,10 @@ export function closeOptions(ctx: UIContext, modeValues: { LOBBY: Mode; GAME: Mo
   }
 }
 
-export function createControlsOverlay(ctx: UIContext): { map: GameMap; overlay: RenderOverlay } {
+export function createControlsOverlay(ctx: UIContext): {
+  map: GameMap;
+  overlay: RenderOverlay;
+} {
   const lobbyMap = ctx.lobby.map ?? generateMap(ctx.lobby.seed);
   const cs = ctx.controlsState;
   const players = PLAYER_NAMES.map((name, p) => {
@@ -94,7 +143,9 @@ export function createControlsOverlay(ctx: UIContext): { map: GameMap; overlay: 
     return {
       name: name!,
       color: getPlayerColor(p).wall,
-      bindings: ACTION_KEYS.map(key => formatKeyName(kb[key as keyof KeyBindings])),
+      bindings: ACTION_KEYS.map((key) =>
+        formatKeyName(kb[key as keyof KeyBindings]),
+      ),
     };
   });
   const overlay: RenderOverlay = {
@@ -112,19 +163,28 @@ export function createControlsOverlay(ctx: UIContext): { map: GameMap; overlay: 
   return { map: ctx.getState()?.map ?? lobbyMap, overlay };
 }
 
-export function showControls(ctx: UIContext, modeValues: { CONTROLS: Mode }): void {
+export function showControls(
+  ctx: UIContext,
+  modeValues: { CONTROLS: Mode },
+): void {
   ctx.controlsState.playerIdx = 0;
   ctx.controlsState.actionIdx = 0;
   ctx.controlsState.rebinding = false;
   ctx.setMode(modeValues.CONTROLS);
 }
 
-export function closeControls(ctx: UIContext, modeValues: { OPTIONS: Mode }): void {
+export function closeControls(
+  ctx: UIContext,
+  modeValues: { OPTIONS: Mode },
+): void {
   saveSettings(ctx.settings);
   ctx.setMode(modeValues.OPTIONS);
 }
 
-export function togglePause(ctx: UIContext, modeValues: { GAME: Mode; SELECTION: Mode }): boolean {
+export function togglePause(
+  ctx: UIContext,
+  modeValues: { GAME: Mode; SELECTION: Mode },
+): boolean {
   const mode = ctx.getMode();
   if (mode !== modeValues.GAME && mode !== modeValues.SELECTION) return false;
   const next = !ctx.getPaused();
@@ -143,7 +203,10 @@ export function tickLobby(ctx: UIContext, onExpired: () => void): void {
   }
 }
 
-export function createLobbyOverlay(ctx: UIContext): { map: GameMap; overlay: RenderOverlay } {
+export function createLobbyOverlay(ctx: UIContext): {
+  map: GameMap;
+  overlay: RenderOverlay;
+} {
   const remaining = Math.max(0, ctx.getLobbyRemaining());
   const overlay: RenderOverlay = {
     selection: { highlighted: null, selected: null },
@@ -212,7 +275,7 @@ function optionValue(ctx: UIContext, idx: number): string {
   if (idx === 3) return HAPTICS_LABELS[s.haptics] ?? "All";
   if (idx === 4) {
     if (ctx.isOnline) return s.seed || "—";
-    return s.seedMode === SEED_CUSTOM ? (s.seed || "_") : "Random";
+    return s.seedMode === SEED_CUSTOM ? s.seed || "_" : "Random";
   }
   if (idx === 6) return DPAD_LABELS[s.leftHanded ? 1 : 0]!;
   return "";

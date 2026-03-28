@@ -55,7 +55,13 @@ export type ScoringContext = {
   cursorPos: TilePos | undefined;
   zoneTowers: Tower[];
   ownedTowers: Tower[];
-  skill: { topCandidates: number; fatGainPerBlock: number; pocketScale: number; fatPenaltyScale: number; tinyPocketReject: boolean };
+  skill: {
+    topCandidates: number;
+    fatGainPerBlock: number;
+    pocketScale: number;
+    fatPenaltyScale: number;
+    tinyPocketReject: boolean;
+  };
   caresAboutHouses: boolean;
   caresAboutBonuses: boolean;
   allCastlesEnclosed: boolean;

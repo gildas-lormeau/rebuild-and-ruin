@@ -103,19 +103,23 @@ export function tickLifeLostDialogRuntime(
     if (entry.choice !== LifeLostChoice.PENDING) continue;
     if (entry.isAi) {
       entry.aiTimer += dt;
-      if (entry.aiTimer >= lifeLostAiDelay) entry.choice = LifeLostChoice.CONTINUE;
+      if (entry.aiTimer >= lifeLostAiDelay)
+        entry.choice = LifeLostChoice.CONTINUE;
     }
   }
 
   if (lifeLostDialog.timer >= lifeLostMaxTimer) {
     for (const entry of lifeLostDialog.entries) {
-      if (entry.choice === LifeLostChoice.PENDING) entry.choice = LifeLostChoice.CONTINUE;
+      if (entry.choice === LifeLostChoice.PENDING)
+        entry.choice = LifeLostChoice.CONTINUE;
     }
   }
 
   render();
 
-  if (!lifeLostDialog.entries.every((e) => e.choice !== LifeLostChoice.PENDING)) {
+  if (
+    !lifeLostDialog.entries.every((e) => e.choice !== LifeLostChoice.PENDING)
+  ) {
     return lifeLostDialog;
   }
 

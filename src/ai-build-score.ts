@@ -69,11 +69,17 @@ export function compareScoredByScoreDesc(a: Scored, b: Scored): number {
   return b.score - a.score;
 }
 
-export function compareByNumericScoreDesc<T extends { score: number }>(a: T, b: T): number {
+export function compareByNumericScoreDesc<T extends { score: number }>(
+  a: T,
+  b: T,
+): number {
   return b.score - a.score;
 }
 
-export function computeGapBonus(gapsFilled: number, usefulGain: number): number {
+export function computeGapBonus(
+  gapsFilled: number,
+  usefulGain: number,
+): number {
   if (gapsFilled <= 0) return 0;
   const base = Math.max(
     GAP_BONUS_MIN,
@@ -89,10 +95,10 @@ export function computeFatWallPenalty(
   fatPenaltyScale: number,
 ): number {
   if (gapClosingFat) {
-    return Math.max(
-      FAT_WALL_PENALTY_MIN,
-      usefulGain * FAT_WALL_GAIN_FACTOR,
-    ) * fatPenaltyScale;
+    return (
+      Math.max(FAT_WALL_PENALTY_MIN, usefulGain * FAT_WALL_GAIN_FACTOR) *
+      fatPenaltyScale
+    );
   }
   if (hasFatWall) {
     return FAT_WALL_TILE_PENALTY * fatPenaltyScale;
@@ -112,8 +118,10 @@ export function computeObstacleHitPenalty(
   caresAboutHouses: boolean,
   caresAboutBonuses: boolean,
 ): number {
-  return (caresAboutHouses ? candidate.housesHit * OBSTACLE_HIT_PENALTY : 0) +
-    (caresAboutBonuses ? candidate.bonusHit * OBSTACLE_HIT_PENALTY : 0);
+  return (
+    (caresAboutHouses ? candidate.housesHit * OBSTACLE_HIT_PENALTY : 0) +
+    (caresAboutBonuses ? candidate.bonusHit * OBSTACLE_HIT_PENALTY : 0)
+  );
 }
 
 export function computeTowerProximityBonus(
@@ -154,7 +162,11 @@ export function computeSweepSafeBonus(
     if (!targetGaps.has(key)) continue;
     let cardinalCount = 0;
     for (const [ar, ac] of DIRS_4) {
-      if (simulatedWalls.has(packTile(candidate.row + dr + ar, candidate.col + dc + ac))) {
+      if (
+        simulatedWalls.has(
+          packTile(candidate.row + dr + ar, candidate.col + dc + ac),
+        )
+      ) {
         cardinalCount++;
       }
     }
@@ -178,7 +190,10 @@ export function computeCursorProximityBonus(
       Math.abs(candidate.col + dc - cursorPos.col);
   }
   avgDistance /= candidate.rotation.offsets.length;
-  return Math.max(0, CURSOR_PROXIMITY_MAX - avgDistance) * CURSOR_PROXIMITY_MULTIPLIER;
+  return (
+    Math.max(0, CURSOR_PROXIMITY_MAX - avgDistance) *
+    CURSOR_PROXIMITY_MULTIPLIER
+  );
 }
 
 export function computeInnerObstacleBonus(
@@ -212,7 +227,11 @@ export function computeInnerObstacleBonus(
 
   if (!hasInnerObstacle) return 0;
 
-  const { inside: innerTiles } = countNonGapTilesInCastle(candidate, targetGaps, castle);
+  const { inside: innerTiles } = countNonGapTilesInCastle(
+    candidate,
+    targetGaps,
+    castle,
+  );
 
   return innerTiles * INNER_OBSTACLE_MULTIPLIER;
 }
@@ -221,7 +240,8 @@ export function computeDifficultyBonus(
   state: GameState,
   candidate: Candidate,
 ): number {
-  if (candidate.rotation.offsets.length !== 1 || candidate.gapsFilled !== 1) return 0;
+  if (candidate.rotation.offsets.length !== 1 || candidate.gapsFilled !== 1)
+    return 0;
 
   const pr = candidate.row + candidate.rotation.offsets[0]![0];
   const pc = candidate.col + candidate.rotation.offsets[0]![1];
@@ -246,7 +266,8 @@ export function computeWastefulClosureAdjustment(
     return { gapBonus: baseGapBonus, wastefulClosurePenalty: 0 };
   }
 
-  const { inside: insideNonGap, outside: outsideNonGap } = countNonGapTilesInCastle(candidate, targetGaps, castle);
+  const { inside: insideNonGap, outside: outsideNonGap } =
+    countNonGapTilesInCastle(candidate, targetGaps, castle);
 
   if (outsideNonGap === 0 && insideNonGap > candidate.gapsFilled) {
     return {
@@ -298,8 +319,10 @@ export function candidateObstacleHits(
   caresAboutHouses: boolean,
   caresAboutBonuses: boolean,
 ): number {
-  return (caresAboutHouses ? candidate.housesHit : 0) +
-    (caresAboutBonuses ? candidate.bonusHit : 0);
+  return (
+    (caresAboutHouses ? candidate.housesHit : 0) +
+    (caresAboutBonuses ? candidate.bonusHit : 0)
+  );
 }
 
 export function candidateToPlacement(candidate: Candidate): AiPlacement {
@@ -322,7 +345,12 @@ export function countFatBlocks(
   walls: Set<number>,
   candidate: Candidate,
 ): number {
-  const { addedKeys, isWall } = buildCandidateWallInfo(walls, candidate.rotation.offsets, candidate.row, candidate.col);
+  const { addedKeys, isWall } = buildCandidateWallInfo(
+    walls,
+    candidate.rotation.offsets,
+    candidate.row,
+    candidate.col,
+  );
   let blocks = 0;
   for (const key of addedKeys) {
     const { r, c } = unpackTile(key);
@@ -336,7 +364,12 @@ export function checkFatWall(
   walls: Set<number>,
   candidate: Candidate,
 ): { hasFatWall: boolean; gapClosingFat: boolean } {
-  const { addedKeys, isWall } = buildCandidateWallInfo(walls, candidate.rotation.offsets, candidate.row, candidate.col);
+  const { addedKeys, isWall } = buildCandidateWallInfo(
+    walls,
+    candidate.rotation.offsets,
+    candidate.row,
+    candidate.col,
+  );
   let hasFatWall = false;
   let gapClosingFat = false;
   for (const key of addedKeys) {
@@ -387,10 +420,16 @@ function tileCreatesFatBlock(
   isWall: (k: number) => boolean,
 ): boolean {
   for (const [cr, cc] of CORNERS_2X2) {
-    const tr = r + cr, tc = c + cc;
-    if (tr < 0 || tr + 1 >= GRID_ROWS || tc < 0 || tc + 1 >= GRID_COLS) continue;
-    if (isWall(packTile(tr, tc)) && isWall(packTile(tr, tc + 1)) &&
-        isWall(packTile(tr + 1, tc)) && isWall(packTile(tr + 1, tc + 1))) {
+    const tr = r + cr,
+      tc = c + cc;
+    if (tr < 0 || tr + 1 >= GRID_ROWS || tc < 0 || tc + 1 >= GRID_COLS)
+      continue;
+    if (
+      isWall(packTile(tr, tc)) &&
+      isWall(packTile(tr, tc + 1)) &&
+      isWall(packTile(tr + 1, tc)) &&
+      isWall(packTile(tr + 1, tc + 1))
+    ) {
       return true;
     }
   }

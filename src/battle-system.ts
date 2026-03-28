@@ -4,7 +4,10 @@
 
 import { MSG } from "../server/protocol.ts";
 import { filterActiveEnemies } from "./board-occupancy.ts";
-import { filterActiveFiringCannons, isCannonEnclosed } from "./cannon-system.ts";
+import {
+  filterActiveFiringCannons,
+  isCannonEnclosed,
+} from "./cannon-system.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { findGruntSpawnNear } from "./grunt-system.ts";
@@ -23,7 +26,14 @@ import {
   rotateToward,
   TILE_CENTER_OFFSET,
 } from "./spatial.ts";
-import type { BalloonFlight, Cannon, Cannonball, CapturedCannon, CombinedCannonResult, GameState } from "./types.ts";
+import type {
+  BalloonFlight,
+  Cannon,
+  Cannonball,
+  CapturedCannon,
+  CombinedCannonResult,
+  GameState,
+} from "./types.ts";
 import {
   BALL_SPEED,
   BALLOON_HITS_NEEDED,
@@ -53,9 +63,24 @@ export type ImpactEvent =
       shooterId?: number;
     }
   | { type: typeof MSG.HOUSE_DESTROYED; row: number; col: number }
-  | { type: typeof MSG.GRUNT_KILLED; row: number; col: number; shooterId?: number }
-  | { type: typeof MSG.GRUNT_SPAWNED; row: number; col: number; targetPlayerId: number }
-  | { type: typeof MSG.PIT_CREATED; row: number; col: number; roundsLeft: number };
+  | {
+      type: typeof MSG.GRUNT_KILLED;
+      row: number;
+      col: number;
+      shooterId?: number;
+    }
+  | {
+      type: typeof MSG.GRUNT_SPAWNED;
+      row: number;
+      col: number;
+      targetPlayerId: number;
+    }
+  | {
+      type: typeof MSG.PIT_CREATED;
+      row: number;
+      col: number;
+      roundsLeft: number;
+    };
 
 /** Result of tickCannonballs: impact positions (for VFX) + detailed events (for network). */
 interface CannonballUpdateResult {
@@ -70,7 +95,9 @@ const COUNTDOWN_READY = 3;
 const COUNTDOWN_AIM = 1;
 
 /** Map battleCountdown to the corresponding announcement text. */
-export function countdownAnnouncement(battleCountdown: number): string | undefined {
+export function countdownAnnouncement(
+  battleCountdown: number,
+): string | undefined {
   if (battleCountdown > COUNTDOWN_READY) return "Ready";
   if (battleCountdown > COUNTDOWN_AIM) return "Aim";
   if (battleCountdown > 0) return "Fire!";
@@ -369,7 +396,10 @@ export function resolveBalloons(state: GameState): BalloonFlight[] {
 
   // Apply hit updates and build flight animations
   for (const { balloon, ownerId, target, victimId } of assignments) {
-    const entry = state.balloonHits.get(target) ?? { count: 0, capturerIds: [] as number[] };
+    const entry = state.balloonHits.get(target) ?? {
+      count: 0,
+      capturerIds: [] as number[],
+    };
     entry.count++;
     if (!entry.capturerIds.includes(ownerId)) entry.capturerIds.push(ownerId);
     state.balloonHits.set(target, entry);
@@ -544,7 +574,12 @@ function computeImpact(
 
   for (const g of state.grunts) {
     if (isAtTile(g, row, col)) {
-      events.push({ type: MSG.GRUNT_KILLED, row: g.row, col: g.col, shooterId });
+      events.push({
+        type: MSG.GRUNT_KILLED,
+        row: g.row,
+        col: g.col,
+        shooterId,
+      });
     }
   }
 
@@ -583,7 +618,8 @@ function findBestBalloonTarget(
       const roundHits = assignedThisRound.get(cannon) ?? 0;
       if (prevHits + roundHits >= needed) continue;
       if (!isCannonEnclosed(cannon, other.interior)) continue;
-      const score = (isSuperCannon(cannon) ? SUPER_GUN_THREAT_WEIGHT : 0) + cannon.hp;
+      const score =
+        (isSuperCannon(cannon) ? SUPER_GUN_THREAT_WEIGHT : 0) + cannon.hp;
       if (score > bestScore) {
         bestScore = score;
         bestCannon = cannon;
@@ -616,12 +652,19 @@ function resolveBalloonCaptures(
       }
       const winnerId = state.rng.pick(hit.capturerIds);
       const cannonIdx = state.players[victimId]?.cannons.indexOf(cannon) ?? -1;
-      state.capturedCannons.push({ cannon, cannonIdx, victimId, capturerId: winnerId });
+      state.capturedCannons.push({
+        cannon,
+        cannonIdx,
+        victimId,
+        capturerId: winnerId,
+      });
     }
   }
 }
 
 /** How many balloon hits are required to capture a cannon. */
 function balloonHitsNeeded(cannon: Cannon): number {
-  return isSuperCannon(cannon) ? SUPER_BALLOON_HITS_NEEDED : BALLOON_HITS_NEEDED;
+  return isSuperCannon(cannon)
+    ? SUPER_BALLOON_HITS_NEEDED
+    : BALLOON_HITS_NEEDED;
 }

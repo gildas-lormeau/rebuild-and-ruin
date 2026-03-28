@@ -6,10 +6,7 @@
  */
 
 import { MSG, type ServerMessage } from "../server/protocol.ts";
-import {
-  aimCannons,
-  nextReadyCombined,
-} from "./battle-system.ts";
+import { aimCannons, nextReadyCombined } from "./battle-system.ts";
 import {
   CROSSHAIR_SPEED,
   isHuman,
@@ -25,7 +22,12 @@ import {
   applyBuildStartCheckpoint,
   applyCannonStartCheckpoint,
 } from "./online-checkpoints.ts";
-import { type CannonPhantom, interpolateToward, type PiecePhantom, type WatcherTimingState } from "./online-types.ts";
+import {
+  type CannonPhantom,
+  interpolateToward,
+  type PiecePhantom,
+  type WatcherTimingState,
+} from "./online-types.ts";
 import {
   tickWatcherBattlePhase,
   tickWatcherBuildPhantomsPhase,
@@ -33,7 +35,12 @@ import {
   tickWatcherTimers,
 } from "./online-watcher-battle.ts";
 import type { FrameData } from "./render-types.ts";
-import { type BattleAnimState, type GameState, Phase, type TimerAccums } from "./types.ts";
+import {
+  type BattleAnimState,
+  type GameState,
+  Phase,
+  type TimerAccums,
+} from "./types.ts";
 
 interface WatcherState {
   timing: WatcherTimingState;

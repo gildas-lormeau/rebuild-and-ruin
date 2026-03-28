@@ -36,8 +36,13 @@ interface LoupeHandle {
  *   Passed as a getter so it can be resolved lazily (the canvas may not
  *   exist at createLoupe call time).
  */
-export function createLoupe(container: HTMLElement, sceneCanvas: () => HTMLCanvasElement): LoupeHandle {
-  const canvases = Array.from(container.querySelectorAll<HTMLCanvasElement>("canvas.loupe"));
+export function createLoupe(
+  container: HTMLElement,
+  sceneCanvas: () => HTMLCanvasElement,
+): LoupeHandle {
+  const canvases = Array.from(
+    container.querySelectorAll<HTMLCanvasElement>("canvas.loupe"),
+  );
 
   let lastVisible = false;
 
@@ -56,7 +61,9 @@ export function createLoupe(container: HTMLElement, sceneCanvas: () => HTMLCanva
     }
 
     // Draw to whichever canvas is currently visible (landscape or portrait)
-    const canvas = canvases.find(c => c.clientWidth > 0 && c.clientHeight > 0);
+    const canvas = canvases.find(
+      (c) => c.clientWidth > 0 && c.clientHeight > 0,
+    );
     if (!canvas) return;
 
     const cssW = canvas.clientWidth;
@@ -167,7 +174,11 @@ export function createLoupe(container: HTMLElement, sceneCanvas: () => HTMLCanva
 /** Draw a rounded rectangle path (no stroke/fill). */
 function roundedRect(
   ctx: CanvasRenderingContext2D,
-  x: number, y: number, w: number, h: number, r: number,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
 ): void {
   ctx.beginPath();
   ctx.moveTo(x + r, y);

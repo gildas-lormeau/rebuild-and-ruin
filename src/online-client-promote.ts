@@ -12,8 +12,17 @@ import {
   finalizeCastleConstruction,
 } from "./game-engine.ts";
 import { runtime } from "./online-client-runtime.ts";
-import { log, resetDedup, send, session, watcher } from "./online-client-stores.ts";
-import { rebuildControllersForPhase, syncAccumulatorsFromTimer } from "./online-host-promotion.ts";
+import {
+  log,
+  resetDedup,
+  send,
+  session,
+  watcher,
+} from "./online-client-stores.ts";
+import {
+  rebuildControllersForPhase,
+  syncAccumulatorsFromTimer,
+} from "./online-host-promotion.ts";
 import { createFullStateMessage } from "./online-serialize.ts";
 import { resetWatcherForHost } from "./online-watcher-tick.ts";
 import { Mode } from "./types.ts";
@@ -23,11 +32,22 @@ export function promoteToHost(): void {
   session.isHost = true;
 
   resetNetworkingForHost();
-  rebuildControllersForPhase(runtime.rs.state, runtime.rs.controllers, session.myPlayerId, (id, seed) => createController(id, true, undefined, seed));
+  rebuildControllersForPhase(
+    runtime.rs.state,
+    runtime.rs.controllers,
+    session.myPlayerId,
+    (id, seed) => createController(id, true, undefined, seed),
+  );
   syncAccumulatorsFromTimer(runtime.rs.state, runtime.rs.accum);
   skipPendingAnimations();
 
-  send(createFullStateMessage(runtime.rs.state, session.hostMigrationSeq, runtime.rs.battleAnim.flights));
+  send(
+    createFullStateMessage(
+      runtime.rs.state,
+      session.hostMigrationSeq,
+      runtime.rs.battleAnim.flights,
+    ),
+  );
   log("Promotion complete, now running as host");
 }
 

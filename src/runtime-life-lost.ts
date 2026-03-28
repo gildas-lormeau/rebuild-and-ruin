@@ -6,7 +6,11 @@
  */
 
 import { type GameMessage, MSG } from "../server/protocol.ts";
-import { type InputReceiver, isHuman, type PlayerController } from "./controller-interfaces.ts";
+import {
+  type InputReceiver,
+  isHuman,
+  type PlayerController,
+} from "./controller-interfaces.ts";
 import {
   createLifeLostDialogState,
   LifeLostChoice,
@@ -55,7 +59,10 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     }
   }
 
-  function showLifeLostDialog(needsReselect: readonly number[], eliminated: readonly number[]) {
+  function showLifeLostDialog(
+    needsReselect: readonly number[],
+    eliminated: readonly number[],
+  ) {
     const remoteHumanSlots = rs.ctx.remoteHumanSlots;
     deps.log(
       `showLifeLostDialog: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
@@ -136,14 +143,18 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     if (!choice) return;
 
     // Apply the choice to the dialog entry (mutation owned by game runtime, not render-composition)
-    const entry = rs.lifeLostDialog.entries.find(e => e.playerId === choice.playerId);
+    const entry = rs.lifeLostDialog.entries.find(
+      (e) => e.playerId === choice.playerId,
+    );
     if (entry) entry.choice = choice.choice;
     sendLifeLostChoice(choice.choice, choice.playerId);
   }
 
   return {
     get: () => rs.lifeLostDialog,
-    set: (d: LifeLostDialogState | null) => { rs.lifeLostDialog = d; },
+    set: (d: LifeLostDialogState | null) => {
+      rs.lifeLostDialog = d;
+    },
     show: showLifeLostDialog,
     tick: tickLifeLostDialog,
     afterResolved: afterLifeLostResolved,

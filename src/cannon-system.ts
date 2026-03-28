@@ -42,14 +42,19 @@ export function isCannonEnclosed(
   const sz = cannonSize(cannon.kind);
   for (let dr = 0; dr < sz; dr++) {
     for (let dc = 0; dc < sz; dc++) {
-      if (!interior.has(packTile(cannon.row + dr, cannon.col + dc))) return false;
+      if (!interior.has(packTile(cannon.row + dr, cannon.col + dc)))
+        return false;
     }
   }
   return true;
 }
 
 /** Whether any valid placement exists for the given cannon mode in the player's territory. */
-export function hasAnyCannonPlacement(player: Player, mode: CannonMode, state: GameState): boolean {
+export function hasAnyCannonPlacement(
+  player: Player,
+  mode: CannonMode,
+  state: GameState,
+): boolean {
   for (const key of player.interior) {
     const { r, c } = unpackTile(key);
     if (canPlaceCannon(player, r, c, mode, state)) return true;
@@ -62,8 +67,12 @@ export function hasAnyCannonPlacement(player: Player, mode: CannonMode, state: G
  * Returns the snapped position, or null if nothing valid is nearby.
  */
 export function findNearestValidCannonPlacement(
-  player: Player, row: number, col: number,
-  mode: CannonMode, state: GameState, maxRadius = CANNON_SNAP_RADIUS,
+  player: Player,
+  row: number,
+  col: number,
+  mode: CannonMode,
+  state: GameState,
+  maxRadius = CANNON_SNAP_RADIUS,
 ): { row: number; col: number } | null {
   let bestDist = Infinity;
   let best: { row: number; col: number } | null = null;
@@ -147,10 +156,7 @@ export function applyCannonPlacement(
 /**
  * Compute the total cannon slot limit for a player this round.
  */
-export function cannonSlotsForRound(
-  player: Player,
-  state: GameState,
-): number {
+export function cannonSlotsForRound(player: Player, state: GameState): number {
   const existingSlots = cannonSlotsUsed(player);
   let newSlots: number;
   if (state.reselectedPlayers.has(player.id)) {
@@ -162,7 +168,8 @@ export function cannonSlotsForRound(
     newSlots = state.firstRoundCannons;
   } else {
     const aliveTowers = filterAliveOwnedTowers(player, state);
-    const ownsHome = player.homeTower && aliveTowers.some(t => t === player.homeTower);
+    const ownsHome =
+      player.homeTower && aliveTowers.some((t) => t === player.homeTower);
     const otherCount = aliveTowers.length - (ownsHome ? 1 : 0);
     newSlots = (ownsHome ? 2 : 0) + otherCount;
   }
@@ -187,7 +194,9 @@ export function resetCannonFacings(state: GameState): void {
   for (const player of state.players) {
     if (!isPlayerActive(player)) continue;
     const pc = towerCenter(player.homeTower);
-    let ex = 0, ey = 0, count = 0;
+    let ex = 0,
+      ey = 0,
+      count = 0;
     for (const other of state.players) {
       if (other.id === player.id || !isPlayerActive(other)) continue;
       const oc = towerCenter(other.homeTower);
@@ -212,9 +221,7 @@ export function resetCannonFacings(state: GameState): void {
 
 /** Return a player's alive cannons that can fire (excludes balloons and dead cannons). */
 export function filterActiveFiringCannons(player: Player): Cannon[] {
-  return player.cannons.filter(
-    (c) => isCannonAlive(c) && !isBalloonCannon(c),
-  );
+  return player.cannons.filter((c) => isCannonAlive(c) && !isBalloonCannon(c));
 }
 
 export function cannonSlotCost(mode: CannonMode): number {

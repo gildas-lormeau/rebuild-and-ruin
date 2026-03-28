@@ -11,7 +11,12 @@ import {
   canPlayerFire,
   nextReadyCombined,
 } from "./battle-system.ts";
-import { CROSSHAIR_SPEED, type Crosshair, isAiAnimatable, type PlayerController } from "./controller-interfaces.ts";
+import {
+  CROSSHAIR_SPEED,
+  type Crosshair,
+  isAiAnimatable,
+  type PlayerController,
+} from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { interpolateToward } from "./online-types.ts";
 import type { GameState } from "./types.ts";
@@ -37,7 +42,8 @@ export function broadcastLocalCrosshair(
   ch: { x: number; y: number },
   deps: BroadcastDeps,
 ): void {
-  const target = (isAiAnimatable(ctrl) ? ctrl.getCrosshairTarget() : null) ?? ch;
+  const target =
+    (isAiAnimatable(ctrl) ? ctrl.getCrosshairTarget() : null) ?? ch;
   const orbit = isAiAnimatable(ctrl) ? ctrl.getOrbitParams() : null;
   const key = `${Math.round(target.x)},${Math.round(target.y)},${orbit ? "o" : ""}`;
   if (deps.lastSentAimTarget.get(ctrl.playerId) === key) return;
@@ -73,7 +79,13 @@ export function extendWithRemoteCrosshairs(
       vis = { x: target.x, y: target.y };
       deps.crosshairPos.set(pid, vis);
     }
-    interpolateToward(vis, target.x, target.y, CROSSHAIR_SPEED * REMOTE_CROSSHAIR_MULT, dt);
+    interpolateToward(
+      vis,
+      target.x,
+      target.y,
+      CROSSHAIR_SPEED * REMOTE_CROSSHAIR_MULT,
+      dt,
+    );
     crosshairs.push({
       x: vis.x,
       y: vis.y,

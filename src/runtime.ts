@@ -7,7 +7,11 @@
  */
 
 import { createController } from "./controller-factory.ts";
-import { type InputReceiver, isHuman, type PlayerController } from "./controller-interfaces.ts";
+import {
+  type InputReceiver,
+  isHuman,
+  type PlayerController,
+} from "./controller-interfaces.ts";
 import { computeFrameContext } from "./game-ui-frame.ts";
 import {
   snapshotTerritory as snapshotTerritoryImpl,
@@ -34,12 +38,28 @@ import {
   DIFFICULTY_PARAMS,
   ROUNDS_OPTIONS,
 } from "./game-ui-types.ts";
-import { CANVAS_H, CANVAS_W, GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
-import { type RegisterOnlineInputDeps, registerOnlineInputHandlers } from "./input.ts";
+import {
+  CANVAS_H,
+  CANVAS_W,
+  GRID_COLS,
+  GRID_ROWS,
+  SCALE,
+  TILE_SIZE,
+} from "./grid.ts";
+import {
+  type RegisterOnlineInputDeps,
+  registerOnlineInputHandlers,
+} from "./input.ts";
 import { dispatchPointerMove } from "./input-dispatch.ts";
 import { hapticPhaseChange, setHapticsLevel } from "./input-haptics.ts";
 import { registerTouchHandlers } from "./input-touch.ts";
-import { createDpad, createEnemyZoomButton, createFloatingActions, createHomeZoomButton, createQuitButton } from "./input-touch-ui.ts";
+import {
+  createDpad,
+  createEnemyZoomButton,
+  createFloatingActions,
+  createHomeZoomButton,
+  createQuitButton,
+} from "./input-touch-ui.ts";
 import { LifeLostChoice } from "./life-lost.ts";
 import { generateMap } from "./map-generation.ts";
 import {
@@ -69,9 +89,18 @@ import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { bootstrapGame } from "./runtime-bootstrap.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
-import { createLifeLostSystem, type LifeLostSystem } from "./runtime-life-lost.ts";
-import { createPhaseTicksSystem, type PhaseTicksSystem } from "./runtime-phase-ticks.ts";
-import { createSelectionSystem, type SelectionSystem } from "./runtime-selection.ts";
+import {
+  createLifeLostSystem,
+  type LifeLostSystem,
+} from "./runtime-life-lost.ts";
+import {
+  createPhaseTicksSystem,
+  type PhaseTicksSystem,
+} from "./runtime-phase-ticks.ts";
+import {
+  createSelectionSystem,
+  type SelectionSystem,
+} from "./runtime-selection.ts";
 import { createRuntimeState } from "./runtime-state.ts";
 import type { GameRuntime, RuntimeConfig } from "./runtime-types.ts";
 import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
@@ -106,16 +135,86 @@ interface TouchButtonState {
 const HUMAN = "human" as const;
 const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
   //                       dpad     confirm  rotate   validity zoom     quit
-  [Mode.LOBBY]:        { dpad: false,   confirm: true,    rotate: false,   placementValidity: false,   zoom: false,   quit: false },
-  [Mode.OPTIONS]:      { dpad: true,    confirm: true,    rotate: true,    placementValidity: false,   zoom: false,   quit: false },
-  [Mode.CONTROLS]:     { dpad: false,   confirm: false,   rotate: false,   placementValidity: false,   zoom: false,   quit: false },
-  [Mode.SELECTION]:    { dpad: HUMAN, confirm: HUMAN, rotate: false, placementValidity: false, zoom: HUMAN, quit: true  },
-  [Mode.BANNER]:       { dpad: false,  confirm: false, rotate: false, placementValidity: false, zoom: HUMAN, quit: true  },
-  [Mode.BALLOON_ANIM]: { dpad: false,  confirm: false, rotate: false, placementValidity: false, zoom: HUMAN, quit: true  },
-  [Mode.CASTLE_BUILD]: { dpad: false,  confirm: false, rotate: false, placementValidity: false, zoom: HUMAN, quit: true  },
-  [Mode.LIFE_LOST]:    { dpad: HUMAN, confirm: HUMAN, rotate: false, placementValidity: false, zoom: HUMAN, quit: true  },
-  [Mode.GAME]:         { dpad: HUMAN, confirm: HUMAN, rotate: HUMAN, placementValidity: HUMAN, zoom: HUMAN, quit: true  },
-  [Mode.STOPPED]:      { dpad: HUMAN, confirm: HUMAN, rotate: false, placementValidity: false, zoom: false,  quit: false },
+  [Mode.LOBBY]: {
+    dpad: false,
+    confirm: true,
+    rotate: false,
+    placementValidity: false,
+    zoom: false,
+    quit: false,
+  },
+  [Mode.OPTIONS]: {
+    dpad: true,
+    confirm: true,
+    rotate: true,
+    placementValidity: false,
+    zoom: false,
+    quit: false,
+  },
+  [Mode.CONTROLS]: {
+    dpad: false,
+    confirm: false,
+    rotate: false,
+    placementValidity: false,
+    zoom: false,
+    quit: false,
+  },
+  [Mode.SELECTION]: {
+    dpad: HUMAN,
+    confirm: HUMAN,
+    rotate: false,
+    placementValidity: false,
+    zoom: HUMAN,
+    quit: true,
+  },
+  [Mode.BANNER]: {
+    dpad: false,
+    confirm: false,
+    rotate: false,
+    placementValidity: false,
+    zoom: HUMAN,
+    quit: true,
+  },
+  [Mode.BALLOON_ANIM]: {
+    dpad: false,
+    confirm: false,
+    rotate: false,
+    placementValidity: false,
+    zoom: HUMAN,
+    quit: true,
+  },
+  [Mode.CASTLE_BUILD]: {
+    dpad: false,
+    confirm: false,
+    rotate: false,
+    placementValidity: false,
+    zoom: HUMAN,
+    quit: true,
+  },
+  [Mode.LIFE_LOST]: {
+    dpad: HUMAN,
+    confirm: HUMAN,
+    rotate: false,
+    placementValidity: false,
+    zoom: HUMAN,
+    quit: true,
+  },
+  [Mode.GAME]: {
+    dpad: HUMAN,
+    confirm: HUMAN,
+    rotate: HUMAN,
+    placementValidity: HUMAN,
+    zoom: HUMAN,
+    quit: true,
+  },
+  [Mode.STOPPED]: {
+    dpad: HUMAN,
+    confirm: HUMAN,
+    rotate: false,
+    placementValidity: false,
+    zoom: false,
+    quit: false,
+  },
 };
 
 export function createGameRuntime(config: RuntimeConfig): GameRuntime {
@@ -135,11 +234,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   let homeZoomButton: ReturnType<typeof createHomeZoomButton> | null = null;
   let enemyZoomButton: ReturnType<typeof createEnemyZoomButton> | null = null;
   let quitButton: ReturnType<typeof createQuitButton> | null = null;
-  let loupeHandle: ReturnType<NonNullable<typeof renderer.createLoupe>> | null = null;
+  let loupeHandle: ReturnType<NonNullable<typeof renderer.createLoupe>> | null =
+    null;
 
   function resetGameStats() {
     rs.gameStats = Array.from({ length: MAX_PLAYERS }, () => ({
-      wallsDestroyed: 0, cannonsKilled: 0,
+      wallsDestroyed: 0,
+      cannonsKilled: 0,
     }));
   }
 
@@ -178,7 +279,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       for (const p of rs.state.players) {
         if (p.id === myPid || p.eliminated) continue;
         for (const c of p.cannons) {
-          if (c.hp > 0) enemies.push({ x: (c.col + 0.5) * TILE_SIZE, y: (c.row + 0.5) * TILE_SIZE });
+          if (c.hp > 0)
+            enemies.push({
+              x: (c.col + 0.5) * TILE_SIZE,
+              y: (c.row + 0.5) * TILE_SIZE,
+            });
         }
       }
       w.__testEnemyCannons = enemies;
@@ -225,8 +330,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     if (rs.scoreDeltaTimer > 0) {
       rs.scoreDeltaTimer -= dt;
       if (rs.scoreDeltaTimer <= 0) {
-        rs.scoreDeltas = []; rs.scoreDeltaTimer = 0;
-        const cb = rs.scoreDeltaOnDone; rs.scoreDeltaOnDone = null; cb?.();
+        rs.scoreDeltas = [];
+        rs.scoreDeltaTimer = 0;
+        const cb = rs.scoreDeltaOnDone;
+        rs.scoreDeltaOnDone = null;
+        cb?.();
       }
     }
 
@@ -238,8 +346,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       quitTimer: rs.quitTimer,
       quitMessage: rs.quitMessage,
       frame: rs.frame,
-      setQuitPending: (v: boolean) => { rs.quitPending = v; },
-      setQuitTimer: (v: number) => { rs.quitTimer = v; },
+      setQuitPending: (v: boolean) => {
+        rs.quitPending = v;
+      },
+      setQuitTimer: (v: number) => {
+        rs.quitTimer = v;
+      },
       render,
       ticks: {
         [Mode.LOBBY]: tickLobby,
@@ -255,14 +367,19 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     });
 
     if (DEV) exposeTestGlobals();
-    if (shouldContinue && rs.mode !== Mode.STOPPED) requestAnimationFrame(mainLoop);
+    if (shouldContinue && rs.mode !== Mode.STOPPED)
+      requestAnimationFrame(mainLoop);
   }
 
   // -------------------------------------------------------------------------
   // Rendering helpers
   // -------------------------------------------------------------------------
 
-  function renderFrame(map: MapData, overlay: RenderOverlay | undefined, viewport?: Viewport | null): void {
+  function renderFrame(
+    map: MapData,
+    overlay: RenderOverlay | undefined,
+    viewport?: Viewport | null,
+  ): void {
     renderer.drawFrame(map, overlay, viewport);
   }
 
@@ -358,7 +475,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       const zone = rs.state.map.zones[row]?.[col];
       if (zone !== undefined) {
         const pid = rs.state.playerZones.indexOf(zone);
-        if (pid >= 0 && pid !== camera.myPlayerId() && !rs.state.players[pid]?.eliminated) {
+        if (
+          pid >= 0 &&
+          pid !== camera.myPlayerId() &&
+          !rs.state.players[pid]?.eliminated
+        ) {
           human.setCrosshair(lastBattleCrosshair.x, lastBattleCrosshair.y);
           return;
         }
@@ -452,7 +573,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function togglePause(): boolean {
     // Disable pause when other human players are connected
     if (config.getRemoteHumanSlots().size > 0) return false;
-    return togglePauseShared(uiCtx, { GAME: Mode.GAME, SELECTION: Mode.SELECTION });
+    return togglePauseShared(uiCtx, {
+      GAME: Mode.GAME,
+      SELECTION: Mode.SELECTION,
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -469,7 +593,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     // Unzoom before banner so the full map is visible during transition
     camera.lightUnzoom();
     if (rs.banner.active) {
-      config.log(`showBanner "${text}" while banner "${rs.banner.text}" is still active`);
+      config.log(
+        `showBanner "${text}" while banner "${rs.banner.text}" is still active`,
+      );
     }
     showBannerTransition({
       banner: rs.banner,
@@ -480,7 +606,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       onDone,
       reveal,
       newBattle,
-      setModeBanner: () => { rs.mode = Mode.BANNER; },
+      setModeBanner: () => {
+        rs.mode = Mode.BANNER;
+      },
     });
     hapticPhaseChange();
   }
@@ -500,16 +628,22 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function firstHuman(): (PlayerController & InputReceiver) | null {
     // Prefer the player who joined via mouse/trackpad
     if (rs.mouseJoinedSlot >= 0) {
-      const ctrl = rs.controllers.find(c => c.playerId === rs.mouseJoinedSlot);
-      if (ctrl && isHuman(ctrl) && !rs.state.players[ctrl.playerId]?.eliminated) return ctrl;
+      const ctrl = rs.controllers.find(
+        (c) => c.playerId === rs.mouseJoinedSlot,
+      );
+      if (ctrl && isHuman(ctrl) && !rs.state.players[ctrl.playerId]?.eliminated)
+        return ctrl;
     }
     for (const ctrl of rs.controllers) {
-      if (isHuman(ctrl) && !rs.state.players[ctrl.playerId]?.eliminated) return ctrl;
+      if (isHuman(ctrl) && !rs.state.players[ctrl.playerId]?.eliminated)
+        return ctrl;
     }
     return null;
   }
 
-  function withFirstHuman(action: (human: PlayerController & InputReceiver) => void): void {
+  function withFirstHuman(
+    action: (human: PlayerController & InputReceiver) => void,
+  ): void {
     const human = firstHuman();
     if (!human) return;
     action(human);
@@ -523,7 +657,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getState: () => rs.state,
     getCtx: () => rs.ctx,
     getFrameDt: () => rs.frameDt,
-    setFrameAnnouncement: (text) => { rs.frame.announcement = text; },
+    setFrameAnnouncement: (text) => {
+      rs.frame.announcement = text;
+    },
     getFirstHumanCrosshair: () => {
       const h = firstHuman();
       if (!h) return null;
@@ -533,9 +669,17 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
 
   // Re-export camera functions used by other parts of the runtime
-  const { tickCamera, updateViewport, screenToWorld, pixelToTile,
-    onPinchStart, onPinchUpdate, onPinchEnd,
-    myPlayerId, getEnemyZones } = camera;
+  const {
+    tickCamera,
+    updateViewport,
+    screenToWorld,
+    pixelToTile,
+    onPinchStart,
+    onPinchUpdate,
+    onPinchEnd,
+    myPlayerId,
+    getEnemyZones,
+  } = camera;
 
   // -------------------------------------------------------------------------
   // Selection sub-system (delegated to runtime-selection.ts)
@@ -586,7 +730,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       phaseTicks.syncCrosshairs(rs.state.battleCountdown <= 0);
     }
 
-    const bannerUi = createBannerUi(rs.banner.active, rs.banner.text, rs.banner.progress, rs.banner.subtitle);
+    const bannerUi = createBannerUi(
+      rs.banner.active,
+      rs.banner.text,
+      rs.banner.progress,
+      rs.banner.subtitle,
+    );
 
     rs.overlay = createOnlineOverlay({
       previousSelection: rs.overlay.selection,
@@ -609,7 +758,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     // Add score deltas to overlay (shown briefly before Place Cannons banner)
     if (rs.scoreDeltas.length > 0 && rs.overlay.ui) {
       rs.overlay.ui.scoreDeltas = rs.scoreDeltas;
-      rs.overlay.ui.scoreDeltaProgress = 1 - rs.scoreDeltaTimer / SCORE_DELTA_DISPLAY_TIME;
+      rs.overlay.ui.scoreDeltaProgress =
+        1 - rs.scoreDeltaTimer / SCORE_DELTA_DISPLAY_TIME;
     }
 
     renderFrame(rs.state.map, rs.overlay, updateViewport());
@@ -617,7 +767,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     // Update loupe for precision placement / aiming on touch
     if (loupeHandle) {
       const phase = rs.state.phase;
-      const loupeVisible = rs.mode === Mode.GAME &&
+      const loupeVisible =
+        rs.mode === Mode.GAME &&
         (isPlacementPhase(phase) || phase === Phase.BATTLE);
       const human = firstHuman();
       let wx = 0;
@@ -627,8 +778,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         wx = ch.x;
         wy = ch.y;
       } else if (human) {
-        const cursor = phase === Phase.WALL_BUILD ? human.buildCursor : human.cannonCursor;
-        const piece = phase === Phase.WALL_BUILD ? human.getCurrentPiece() : null;
+        const cursor =
+          phase === Phase.WALL_BUILD ? human.buildCursor : human.cannonCursor;
+        const piece =
+          phase === Phase.WALL_BUILD ? human.getCurrentPiece() : null;
         const pivotR = piece ? piece.pivot[0] : 0;
         const pivotC = piece ? piece.pivot[1] : 0;
         wx = (cursor.col + pivotC + 0.5) * TILE_SIZE;
@@ -639,15 +792,25 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     const hasHuman = firstHuman() !== null;
     const bs = TOUCH_BUTTON_STATES[rs.mode];
-    const on = (rule: TouchBtnRule) => rule === true || (rule === HUMAN && hasHuman);
+    const on = (rule: TouchBtnRule) =>
+      rule === true || (rule === HUMAN && hasHuman);
 
     // D-pad, rotate, confirm
-    dpad?.update(on(bs.dpad) ? (rs.state?.phase ?? Phase.WALL_BUILD) : null, !on(bs.rotate));
+    dpad?.update(
+      on(bs.dpad) ? (rs.state?.phase ?? Phase.WALL_BUILD) : null,
+      !on(bs.rotate),
+    );
     if (dpad) {
       if (!on(bs.confirm)) {
         dpad.setConfirmValid(false);
-      } else if (rs.state && isPlacementPhase(rs.state.phase) && on(bs.placementValidity)) {
-        dpad.setConfirmValid(humanPhantomValid(rs.state.phase, firstHuman()) ?? true);
+      } else if (
+        rs.state &&
+        isPlacementPhase(rs.state.phase) &&
+        on(bs.placementValidity)
+      ) {
+        dpad.setConfirmValid(
+          humanPhantomValid(rs.state.phase, firstHuman()) ?? true,
+        );
       } else {
         dpad.setConfirmValid(true);
       }
@@ -661,12 +824,17 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   /** Phantom validity for the first human in the current placement phase. */
-  function humanPhantomValid(phase: Phase, human: PlayerController | null): boolean | undefined {
+  function humanPhantomValid(
+    phase: Phase,
+    human: PlayerController | null,
+  ): boolean | undefined {
     if (!human) return undefined;
     if (phase === Phase.WALL_BUILD) {
       return rs.frame.phantoms.humanPhantoms?.[0]?.valid;
     }
-    return rs.frame.phantoms.aiCannonPhantoms?.find(p => p.playerId === human.playerId)?.valid;
+    return rs.frame.phantoms.aiCannonPhantoms?.find(
+      (p) => p.playerId === human.playerId,
+    )?.valid;
   }
 
   /** Position and show/hide the floating Rotate+Confirm buttons over the canvas. */
@@ -675,7 +843,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const phase = rs.state?.phase;
     const human = firstHuman();
     const hasPhantom = humanPhantomValid(phase, human) !== undefined;
-    const visible = rs.directTouchActive && human !== null &&
+    const visible =
+      rs.directTouchActive &&
+      human !== null &&
       rs.mode === Mode.GAME &&
       isPlacementPhase(phase) &&
       hasPhantom;
@@ -721,7 +891,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     if (!gameOver) return;
     const W = GRID_COLS * TILE_SIZE;
     const H = GRID_ROWS * TILE_SIZE;
-    const hit = gameOverButtonHitTest(canvasX / SCALE, canvasY / SCALE, W, H, gameOver);
+    const hit = gameOverButtonHitTest(
+      canvasX / SCALE,
+      canvasY / SCALE,
+      W,
+      H,
+      gameOver,
+    );
     if (hit === FOCUS_REMATCH) rematch();
     else if (hit === FOCUS_MENU) returnToLobby();
     else {
@@ -804,13 +980,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     afterLifeLostResolved: () => lifeLost.afterResolved(),
     showScoreDeltas: (onDone) => selection.showBuildScoreDeltas(onDone),
     snapshotTerritory,
-    saveBattleCrosshair: IS_TOUCH_DEVICE ? () => {
-      const human = firstHuman();
-      if (human) {
-        const ch = human.getCrosshair();
-        lastBattleCrosshair = { x: ch.x, y: ch.y };
-      }
-    } : undefined,
+    saveBattleCrosshair: IS_TOUCH_DEVICE
+      ? () => {
+          const human = firstHuman();
+          if (human) {
+            const ch = human.getCrosshair();
+            lastBattleCrosshair = { x: ch.x, y: ch.y };
+          }
+        }
+      : undefined,
     onBeginBattle: IS_TOUCH_DEVICE ? aimAtEnemyCastle : undefined,
   });
 
@@ -848,16 +1026,25 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function startGame() {
     const seed = rs.lobby.seed;
 
-    const diffParams = DIFFICULTY_PARAMS[rs.settings.difficulty] ?? DIFFICULTY_PARAMS[1]!;
+    const diffParams =
+      DIFFICULTY_PARAMS[rs.settings.difficulty] ?? DIFFICULTY_PARAMS[1]!;
     const { buildTimer, cannonPlaceTimer, firstRoundCannons } = diffParams;
-    const roundsParam = typeof location !== "undefined" ? Number(new URL(location.href).searchParams.get("rounds")) : 0;
-    const roundsVal = roundsParam > 0 ? roundsParam : (ROUNDS_OPTIONS[rs.settings.rounds] ?? ROUNDS_OPTIONS[0]!).value;
+    const roundsParam =
+      typeof location !== "undefined"
+        ? Number(new URL(location.href).searchParams.get("rounds"))
+        : 0;
+    const roundsVal =
+      roundsParam > 0
+        ? roundsParam
+        : (ROUNDS_OPTIONS[rs.settings.rounds] ?? ROUNDS_OPTIONS[0]!).value;
 
     bootstrapGame({
       seed,
       maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),
       battleLength: roundsVal,
-      cannonMaxHp: (CANNON_HP_OPTIONS[rs.settings.cannonHp] ?? CANNON_HP_OPTIONS[0]!).value,
+      cannonMaxHp: (
+        CANNON_HP_OPTIONS[rs.settings.cannonHp] ?? CANNON_HP_OPTIONS[0]!
+      ).value,
       buildTimer,
       cannonPlaceTimer,
       log: config.log,
@@ -866,12 +1053,22 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         s.firstRoundCannons = firstRoundCannons;
         rs.state = s;
       },
-      setControllers: (c: readonly PlayerController[]) => { rs.controllers = [...c]; },
+      setControllers: (c: readonly PlayerController[]) => {
+        rs.controllers = [...c];
+      },
       resetUIState,
       createControllerForSlot: (i: number, gameState: GameState) => {
         const isAi = !rs.lobby.joined[i];
-        const strategySeed = isAi ? gameState.rng.int(0, MAX_UINT32) : undefined;
-        return createController(i, isAi, rs.settings.keyBindings[i]!, strategySeed, rs.settings.difficulty);
+        const strategySeed = isAi
+          ? gameState.rng.int(0, MAX_UINT32)
+          : undefined;
+        return createController(
+          i,
+          isAi,
+          rs.settings.keyBindings[i]!,
+          strategySeed,
+          rs.settings.difficulty,
+        );
       },
       enterSelection: () => selection.enter(),
     });
@@ -886,16 +1083,26 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getOverlay: () => rs.overlay,
     settings: rs.settings,
     getMode: () => rs.mode,
-    setMode: (m) => { rs.mode = m; },
+    setMode: (m) => {
+      rs.mode = m;
+    },
     getPaused: () => rs.paused,
-    setPaused: (v) => { rs.paused = v; },
+    setPaused: (v) => {
+      rs.paused = v;
+    },
     optionsCursor: {
-      get value() { return rs.optionsCursor; },
-      set value(v) { rs.optionsCursor = v; },
+      get value() {
+        return rs.optionsCursor;
+      },
+      set value(v) {
+        rs.optionsCursor = v;
+      },
     },
     controlsState: rs.controlsState,
     getOptionsReturnMode: () => rs.optionsReturnMode,
-    setOptionsReturnMode: (m) => { rs.optionsReturnMode = m; },
+    setOptionsReturnMode: (m) => {
+      rs.optionsReturnMode = m;
+    },
     lobby: rs.lobby,
     getFrame: () => rs.frame,
     getLobbyRemaining: () => config.getLobbyRemaining(),
@@ -911,12 +1118,20 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       renderer,
       getState: () => rs.state,
       getMode: () => rs.mode,
-      setMode: (m) => { rs.mode = m as Mode; },
+      setMode: (m) => {
+        rs.mode = m as Mode;
+      },
       modeValues: {
-        LOBBY: Mode.LOBBY, OPTIONS: Mode.OPTIONS, CONTROLS: Mode.CONTROLS,
-        SELECTION: Mode.SELECTION, BANNER: Mode.BANNER, BALLOON_ANIM: Mode.BALLOON_ANIM,
-        CASTLE_BUILD: Mode.CASTLE_BUILD, LIFE_LOST: Mode.LIFE_LOST,
-        GAME: Mode.GAME, STOPPED: Mode.STOPPED,
+        LOBBY: Mode.LOBBY,
+        OPTIONS: Mode.OPTIONS,
+        CONTROLS: Mode.CONTROLS,
+        SELECTION: Mode.SELECTION,
+        BANNER: Mode.BANNER,
+        BALLOON_ANIM: Mode.BALLOON_ANIM,
+        CASTLE_BUILD: Mode.CASTLE_BUILD,
+        LIFE_LOST: Mode.LIFE_LOST,
+        GAME: Mode.GAME,
+        STOPPED: Mode.STOPPED,
       },
       isLobbyActive: () => rs.lobby.active,
       lobbyKeyJoin,
@@ -924,18 +1139,27 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       showLobby: returnToLobby,
       rematch,
       getGameOverFocused: () => rs.frame.gameOver?.focused ?? FOCUS_REMATCH,
-      setGameOverFocused: (f) => { if (rs.frame.gameOver) { rs.frame.gameOver.focused = f; render(); } },
+      setGameOverFocused: (f) => {
+        if (rs.frame.gameOver) {
+          rs.frame.gameOver.focused = f;
+          render();
+        }
+      },
       gameOverClick,
       showOptions,
       closeOptions,
       showControls,
       closeControls,
       getOptionsCursor: () => rs.optionsCursor,
-      setOptionsCursor: (c) => { rs.optionsCursor = c; },
+      setOptionsCursor: (c) => {
+        rs.optionsCursor = c;
+      },
       getOptionsCount: () => visibleOptionsForCtx().length,
       getRealOptionIdx: realOptionIdx,
       getOptionsReturnMode: () => rs.optionsReturnMode,
-      setOptionsReturnMode: (m) => { rs.optionsReturnMode = m as Mode | null; },
+      setOptionsReturnMode: (m) => {
+        rs.optionsReturnMode = m as Mode | null;
+      },
       changeOption,
       getControlsState: () => rs.controlsState,
       getLifeLostDialog: () => rs.lifeLostDialog,
@@ -949,20 +1173,32 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       onPinchUpdate,
       onPinchEnd,
       maybeSendAimUpdate: config.maybeSendAimUpdate ?? (() => {}),
-      tryPlaceCannonAndSend: config.tryPlaceCannonAndSend ?? ((ctrl, gs, max) => ctrl.tryPlaceCannon(gs, max)),
-      tryPlacePieceAndSend: config.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
-      fireAndSend: config.fireAndSend ?? ((ctrl, gameState) => ctrl.fire(gameState)),
+      tryPlaceCannonAndSend:
+        config.tryPlaceCannonAndSend ??
+        ((ctrl, gs, max) => ctrl.tryPlaceCannon(gs, max)),
+      tryPlacePieceAndSend:
+        config.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
+      fireAndSend:
+        config.fireAndSend ?? ((ctrl, gameState) => ctrl.fire(gameState)),
       getSelectionStates: () => rs.selectionStates,
       highlightTowerForPlayer: selection.highlight,
       confirmSelectionForPlayer: selection.confirm,
       isSelectionReady,
       togglePause,
       getQuitPending: () => rs.quitPending,
-      setQuitPending: (v) => { rs.quitPending = v; },
-      setQuitTimer: (s) => { rs.quitTimer = s; },
-      setQuitMessage: (msg) => { rs.quitMessage = msg; },
+      setQuitPending: (v) => {
+        rs.quitPending = v;
+      },
+      setQuitTimer: (s) => {
+        rs.quitTimer = s;
+      },
+      setQuitMessage: (msg) => {
+        rs.quitMessage = msg;
+      },
       sendLifeLostChoice: lifeLost.sendLifeLostChoice,
-      setDirectTouchActive: (v) => { rs.directTouchActive = v; },
+      setDirectTouchActive: (v) => {
+        rs.directTouchActive = v;
+      },
       isDirectTouchActive: () => rs.directTouchActive,
       settings: rs.settings,
       isOnline: config.isOnline,
@@ -975,69 +1211,90 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       gameContainer.classList.add("has-touch-panels");
       const placePiece = inputDeps.tryPlacePieceAndSend;
       const placeCannon = inputDeps.tryPlaceCannonAndSend;
-      dpad = createDpad({
-        getState: () => rs.state,
-        getMode: () => rs.mode,
-        modeValues: { GAME: Mode.GAME, SELECTION: Mode.SELECTION, LOBBY: Mode.LOBBY },
-        withFirstHuman,
-        tryPlacePieceAndSend: placePiece,
-        tryPlaceCannonAndSend: placeCannon,
-        fireAndSend: inputDeps.fireAndSend,
-        getSelectionStates: () => rs.selectionStates,
-        highlightTowerForPlayer: selection.highlight,
-        confirmSelectionForPlayer: selection.confirm,
-        isHost: config.getIsHost,
-        lobbyAction: () => lobbyKeyJoin(rs.settings.keyBindings[0]!.confirm),
-        getLeftHanded: () => rs.settings.leftHanded,
-        clearDirectTouch: () => { rs.directTouchActive = false; },
-        isSelectionReady,
-        options: {
-          isActive: () => rs.mode === Mode.OPTIONS,
-          navigate: (dir) => {
-            const count = visibleOptionsForCtx().length;
-            rs.optionsCursor = (rs.optionsCursor + dir + count) % count;
+      dpad = createDpad(
+        {
+          getState: () => rs.state,
+          getMode: () => rs.mode,
+          modeValues: {
+            GAME: Mode.GAME,
+            SELECTION: Mode.SELECTION,
+            LOBBY: Mode.LOBBY,
           },
-          changeValue: (dir) => changeOption(dir),
-          confirm: () => {
-            if (realOptionIdx() === 5) showControls();
-            else closeOptions();
+          withFirstHuman,
+          tryPlacePieceAndSend: placePiece,
+          tryPlaceCannonAndSend: placeCannon,
+          fireAndSend: inputDeps.fireAndSend,
+          getSelectionStates: () => rs.selectionStates,
+          highlightTowerForPlayer: selection.highlight,
+          confirmSelectionForPlayer: selection.confirm,
+          isHost: config.getIsHost,
+          lobbyAction: () => lobbyKeyJoin(rs.settings.keyBindings[0]!.confirm),
+          getLeftHanded: () => rs.settings.leftHanded,
+          clearDirectTouch: () => {
+            rs.directTouchActive = false;
+          },
+          isSelectionReady,
+          options: {
+            isActive: () => rs.mode === Mode.OPTIONS,
+            navigate: (dir) => {
+              const count = visibleOptionsForCtx().length;
+              rs.optionsCursor = (rs.optionsCursor + dir + count) % count;
+            },
+            changeValue: (dir) => changeOption(dir),
+            confirm: () => {
+              if (realOptionIdx() === 5) showControls();
+              else closeOptions();
+            },
+          },
+          lifeLost: {
+            isActive: () =>
+              rs.mode === Mode.LIFE_LOST && rs.lifeLostDialog !== null,
+            toggleFocus: () => {
+              const human = firstHuman();
+              if (!human || !rs.lifeLostDialog) return;
+              const entry = rs.lifeLostDialog.entries.find(
+                (e) =>
+                  e.playerId === human.playerId &&
+                  e.choice === LifeLostChoice.PENDING,
+              );
+              if (entry) entry.focused = entry.focused === 0 ? 1 : 0;
+            },
+            confirm: () => {
+              const human = firstHuman();
+              if (!human || !rs.lifeLostDialog) return;
+              const entry = rs.lifeLostDialog.entries.find(
+                (e) =>
+                  e.playerId === human.playerId &&
+                  e.choice === LifeLostChoice.PENDING,
+              );
+              if (!entry) return;
+              entry.choice =
+                entry.focused === 0
+                  ? LifeLostChoice.CONTINUE
+                  : LifeLostChoice.ABANDON;
+              lifeLost.sendLifeLostChoice(entry.choice, entry.playerId);
+            },
+          },
+          gameOver: {
+            isActive: () =>
+              rs.mode === Mode.STOPPED && rs.frame.gameOver !== undefined,
+            toggleFocus: () => {
+              if (!rs.frame.gameOver) return;
+              rs.frame.gameOver.focused =
+                rs.frame.gameOver.focused === FOCUS_REMATCH
+                  ? FOCUS_MENU
+                  : FOCUS_REMATCH;
+              render();
+            },
+            confirm: () => {
+              if (!rs.frame.gameOver) return;
+              if (rs.frame.gameOver.focused === FOCUS_REMATCH) rematch();
+              else returnToLobby();
+            },
           },
         },
-        lifeLost: {
-          isActive: () => rs.mode === Mode.LIFE_LOST && rs.lifeLostDialog !== null,
-          toggleFocus: () => {
-            const human = firstHuman();
-            if (!human || !rs.lifeLostDialog) return;
-            const entry = rs.lifeLostDialog.entries.find(
-              (e) => e.playerId === human.playerId && e.choice === LifeLostChoice.PENDING,
-            );
-            if (entry) entry.focused = entry.focused === 0 ? 1 : 0;
-          },
-          confirm: () => {
-            const human = firstHuman();
-            if (!human || !rs.lifeLostDialog) return;
-            const entry = rs.lifeLostDialog.entries.find(
-              (e) => e.playerId === human.playerId && e.choice === LifeLostChoice.PENDING,
-            );
-            if (!entry) return;
-            entry.choice = entry.focused === 0 ? LifeLostChoice.CONTINUE : LifeLostChoice.ABANDON;
-            lifeLost.sendLifeLostChoice(entry.choice, entry.playerId);
-          },
-        },
-        gameOver: {
-          isActive: () => rs.mode === Mode.STOPPED && rs.frame.gameOver !== undefined,
-          toggleFocus: () => {
-            if (!rs.frame.gameOver) return;
-            rs.frame.gameOver.focused = rs.frame.gameOver.focused === FOCUS_REMATCH ? FOCUS_MENU : FOCUS_REMATCH;
-            render();
-          },
-          confirm: () => {
-            if (!rs.frame.gameOver) return;
-            if (rs.frame.gameOver.focused === FOCUS_REMATCH) rematch();
-            else returnToLobby();
-          },
-        },
-      }, gameContainer);
+        gameContainer,
+      );
       dpad.update(null); // initial state: d-pad + rotate disabled
       const zoomDeps = {
         getState: () => rs.state,
@@ -1057,15 +1314,24 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         },
       };
       loupeHandle = renderer.createLoupe?.(gameContainer) ?? null;
-      quitButton = createQuitButton({
-        getQuitPending: () => rs.quitPending,
-        setQuitPending: (v: boolean) => { rs.quitPending = v; },
-        setQuitTimer: (v: number) => { rs.quitTimer = v; },
-        setQuitMessage: (msg: string) => { rs.quitMessage = msg; },
-        showLobby: returnToLobby,
-        getControllers: () => rs.controllers,
-        isHuman,
-      }, gameContainer);
+      quitButton = createQuitButton(
+        {
+          getQuitPending: () => rs.quitPending,
+          setQuitPending: (v: boolean) => {
+            rs.quitPending = v;
+          },
+          setQuitTimer: (v: number) => {
+            rs.quitTimer = v;
+          },
+          setQuitMessage: (msg: string) => {
+            rs.quitMessage = msg;
+          },
+          showLobby: returnToLobby,
+          getControllers: () => rs.controllers,
+          isHuman,
+        },
+        gameContainer,
+      );
       quitButton.update(null); // initial state: hidden
       homeZoomButton = createHomeZoomButton(zoomDeps, gameContainer);
       enemyZoomButton = createEnemyZoomButton(zoomDeps, gameContainer);
@@ -1074,20 +1340,24 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       camera.enableMobileZoom();
 
       // Floating contextual buttons for direct-touch placement
-      const floatingEl = gameContainer.querySelector<HTMLElement>("#floating-actions");
+      const floatingEl =
+        gameContainer.querySelector<HTMLElement>("#floating-actions");
       if (floatingEl) {
-        floatingActions = createFloatingActions({
-          getState: () => rs.state,
-          withFirstHuman,
-          tryPlacePieceAndSend: inputDeps.tryPlacePieceAndSend,
-          tryPlaceCannonAndSend: inputDeps.tryPlaceCannonAndSend,
-          onDrag: (clientX, clientY) => {
-            const state = rs.state;
-            if (!state) return;
-            const { x, y } = renderer.clientToSurface(clientX, clientY);
-            dispatchPointerMove(x, y, state, inputDeps);
+        floatingActions = createFloatingActions(
+          {
+            getState: () => rs.state,
+            withFirstHuman,
+            tryPlacePieceAndSend: inputDeps.tryPlacePieceAndSend,
+            tryPlaceCannonAndSend: inputDeps.tryPlaceCannonAndSend,
+            onDrag: (clientX, clientY) => {
+              const state = rs.state;
+              if (!state) return;
+              const { x, y } = renderer.clientToSurface(clientX, clientY);
+              dispatchPointerMove(x, y, state, inputDeps);
+            },
           },
-        }, floatingEl);
+          floatingEl,
+        );
       }
     }
   }

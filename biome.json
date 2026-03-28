@@ -9,18 +9,10 @@
     "includes": ["src/**", "server/**"]
   },
   "formatter": {
-    "enabled": false,
+    "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2
   },
-  "overrides": [
-    {
-      "includes": ["server/**"],
-      "formatter": {
-        "enabled": true
-      }
-    }
-  ],
   "linter": {
     "enabled": true,
     "rules": {

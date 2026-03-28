@@ -11,14 +11,34 @@
 // --- Constants ---
 
 import { collectOccupiedTiles } from "./board-occupancy.ts";
-import type { Castle, GameMap, House, PixelPos, Tower } from "./geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, TILE_GRASS, TILE_WATER, type Tile } from "./grid.ts";
+import type {
+  Castle,
+  GameMap,
+  House,
+  PixelPos,
+  Tower,
+} from "./geometry-types.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  TILE_GRASS,
+  TILE_WATER,
+  type Tile,
+} from "./grid.ts";
 import { Rng } from "./rng.ts";
-import { DIRS_4, forEachTowerTile, inBounds, isGrass, manhattanDistance, packTile, unpackTile } from "./spatial.ts";
+import {
+  DIRS_4,
+  forEachTowerTile,
+  inBounds,
+  isGrass,
+  manhattanDistance,
+  packTile,
+  unpackTile,
+} from "./spatial.ts";
 import { type GameState, HOUSE_MIN_DISTANCE, isPlayerActive } from "./types.ts";
 
 const SAFE_ZONE_PAD = 3;
- // 8×8 safe zone with corners cut (3 tiles clearance orthogonally)
+// 8×8 safe zone with corners cut (3 tiles clearance orthogonally)
 const MIN_GAP_EDGE = 2;
 const MIN_GAP_TOWER = 4;
 const TOWERS_PER_ZONE = 4;
@@ -68,7 +88,12 @@ export function generateMap(seed?: number): GameMap {
   do {
     junction = pickJunction(rng);
     exits = pickExits(rng);
-    ({ zones, regionSizes } = generateRiverAndZones(tiles, junction, exits, rng));
+    ({ zones, regionSizes } = generateRiverAndZones(
+      tiles,
+      junction,
+      exits,
+      rng,
+    ));
 
     attempts++;
     if (attempts > GENERATION_MAX_ATTEMPTS) break;
@@ -90,7 +115,12 @@ export function generateMap(seed?: number): GameMap {
       const newY = junction.y + nudge;
       if (newY >= 8 && newY <= GRID_ROWS - 9) {
         junction.y = newY;
-        ({ zones, regionSizes } = generateRiverAndZones(tiles, junction, exits, rng));
+        ({ zones, regionSizes } = generateRiverAndZones(
+          tiles,
+          junction,
+          exits,
+          rng,
+        ));
       }
     }
 
@@ -106,9 +136,15 @@ export function generateMap(seed?: number): GameMap {
   for (let fallback = 0; fallback < GENERATION_FALLBACK_ATTEMPTS; fallback++) {
     junction = pickJunction(rng);
     exits = pickExits(rng);
-    ({ zones, regionSizes } = generateRiverAndZones(tiles, junction, exits, rng));
+    ({ zones, regionSizes } = generateRiverAndZones(
+      tiles,
+      junction,
+      exits,
+      rng,
+    ));
 
-    if (!hasThreeBalancedZones(regionSizes, ZONE_BALANCE_RATIO_FALLBACK)) continue;
+    if (!hasThreeBalancedZones(regionSizes, ZONE_BALANCE_RATIO_FALLBACK))
+      continue;
 
     const riverDist = buildRiverDistanceGrid(tiles);
     const towers = placeTowers(zones, regionSizes, riverDist);
@@ -254,11 +290,24 @@ export function createCastle(
   const initialT = Math.min(IDEAL_GAP, quickMax.T);
   const initialB = Math.min(IDEAL_GAP, quickMax.B);
 
-  const shrunk = shrinkGapsUntilValid(isWallRingValid, initialL, initialR, initialT, initialB);
+  const shrunk = shrinkGapsUntilValid(
+    isWallRingValid,
+    initialL,
+    initialR,
+    initialT,
+    initialB,
+  );
   let { gL, gR, gT, gB } = shrunk;
 
   // Phase 3: Compensate — extend opposite sides to reach GAP_BUDGET
-  const extended = extendGapsToTarget(isWallRingValid, GAP_BUDGET, gL, gR, gT, gB);
+  const extended = extendGapsToTarget(
+    isWallRingValid,
+    GAP_BUDGET,
+    gL,
+    gR,
+    gT,
+    gB,
+  );
   gL = extended.gL;
   gR = extended.gR;
   gT = extended.gT;
@@ -357,9 +406,17 @@ export function applyClumsyBuilders(
     // Pick one of the two cardinal-inward neighbors (toward interior)
     const dr = cr === wT ? 1 : -1;
     const dc = cc === wL ? 1 : -1;
-    const candidates: [number, number][] = [[cr + dr, cc], [cr, cc + dc]];
+    const candidates: [number, number][] = [
+      [cr + dr, cc],
+      [cr, cc + dc],
+    ];
     const [nr, nc] = rng.pick(candidates);
-    if (inBounds(nr, nc) && !isTower(nr, nc) && !walls.has(packTile(nr, nc)) && isGrass(tiles, nr, nc)) {
+    if (
+      inBounds(nr, nc) &&
+      !isTower(nr, nc) &&
+      !walls.has(packTile(nr, nc)) &&
+      isGrass(tiles, nr, nc)
+    ) {
       walls.add(packTile(nr, nc));
     }
   }
@@ -522,7 +579,10 @@ function hasAnyThinTopZone(
   return false;
 }
 
-function zoneCentroidRow(zones: readonly number[][], zoneId: number): number | null {
+function zoneCentroidRow(
+  zones: readonly number[][],
+  zoneId: number,
+): number | null {
   let sumR = 0;
   let count = 0;
   for (let r = 0; r < GRID_ROWS; r++) {
@@ -545,13 +605,25 @@ function pickExits(rng: Rng): PixelPos[] {
   return chosen.map((edge) => {
     switch (edge) {
       case 0:
-        return { x: rng.int(RIVER_EXIT_MARGIN_H, GRID_COLS - RIVER_EXIT_MARGIN_H - 1), y: -1 };
+        return {
+          x: rng.int(RIVER_EXIT_MARGIN_H, GRID_COLS - RIVER_EXIT_MARGIN_H - 1),
+          y: -1,
+        };
       case 1:
-        return { x: GRID_COLS, y: rng.int(RIVER_EXIT_MARGIN_V, GRID_ROWS - RIVER_EXIT_MARGIN_V - 1) };
+        return {
+          x: GRID_COLS,
+          y: rng.int(RIVER_EXIT_MARGIN_V, GRID_ROWS - RIVER_EXIT_MARGIN_V - 1),
+        };
       case 2:
-        return { x: rng.int(RIVER_EXIT_MARGIN_H, GRID_COLS - RIVER_EXIT_MARGIN_H - 1), y: GRID_ROWS };
+        return {
+          x: rng.int(RIVER_EXIT_MARGIN_H, GRID_COLS - RIVER_EXIT_MARGIN_H - 1),
+          y: GRID_ROWS,
+        };
       case 3:
-        return { x: -1, y: rng.int(RIVER_EXIT_MARGIN_V, GRID_ROWS - RIVER_EXIT_MARGIN_V - 1) };
+        return {
+          x: -1,
+          y: rng.int(RIVER_EXIT_MARGIN_V, GRID_ROWS - RIVER_EXIT_MARGIN_V - 1),
+        };
       default:
         return { x: 0, y: 0 };
     }
@@ -674,7 +746,12 @@ function placeTowers(
       }
 
       if (bestPos) {
-        towers.push({ col: bestPos[0], row: bestPos[1], zone: zoneId, index: towers.length });
+        towers.push({
+          col: bestPos[0],
+          row: bestPos[1],
+          zone: zoneId,
+          index: towers.length,
+        });
       }
     }
   }
@@ -769,8 +846,14 @@ function isValidHousePos(
 }
 
 /** True if (r,c) is too close to any existing house. */
-function isHouseTooClose(houses: readonly House[], r: number, c: number): boolean {
-  return houses.some(h => manhattanDistance(h.row, h.col, r, c) < HOUSE_MIN_DISTANCE);
+function isHouseTooClose(
+  houses: readonly House[],
+  r: number,
+  c: number,
+): boolean {
+  return houses.some(
+    (h) => manhattanDistance(h.row, h.col, r, c) < HOUSE_MIN_DISTANCE,
+  );
 }
 
 /**
@@ -1032,10 +1115,7 @@ function shrinkGapsUntilValid(
         const tryT = side === "T" ? g - 1 : gT;
         const tryB = side === "B" ? g - 1 : gB;
         // Check if this side's wall column/row has issues
-        if (
-          !isValid(gL, gR, gT, gB) &&
-          isValid(tryL, tryR, tryT, tryB)
-        ) {
+        if (!isValid(gL, gR, gT, gB) && isValid(tryL, tryR, tryT, tryB)) {
           gL = tryL;
           gR = tryR;
           gT = tryT;
@@ -1102,7 +1182,13 @@ function extendGapsToTarget(
       const newR = dir === "R" ? gR + 1 : gR;
       const newT = dir === "T" ? gT + 1 : gT;
       const newB = dir === "B" ? gB + 1 : gB;
-      if (newL >= 0 && newR >= 0 && newT >= 0 && newB >= 0 && isValid(newL, newR, newT, newB)) {
+      if (
+        newL >= 0 &&
+        newR >= 0 &&
+        newT >= 0 &&
+        newB >= 0 &&
+        isValid(newL, newR, newT, newB)
+      ) {
         gL = newL;
         gR = newR;
         gT = newT;

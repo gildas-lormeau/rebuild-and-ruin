@@ -3,14 +3,27 @@
  * Pure functions that read/write GameState — no module-level state.
  */
 
-import { type FullStateMessage, MSG, type SerializedGrunt, type SerializedPlayer } from "../server/protocol.ts";
+import {
+  type FullStateMessage,
+  MSG,
+  type SerializedGrunt,
+  type SerializedPlayer,
+} from "../server/protocol.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "./grid.ts";
 import { createCastle } from "./map-generation.ts";
 import { Rng } from "./rng.ts";
-import { type BalloonFlight, CannonMode, type GameState, Phase } from "./types.ts";
+import {
+  type BalloonFlight,
+  CannonMode,
+  type GameState,
+  Phase,
+} from "./types.ts";
 
 interface FullStateResult {
-  balloonFlights?: { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[];
+  balloonFlights?: {
+    flight: { startX: number; startY: number; endX: number; endY: number };
+    progress: number;
+  }[];
 }
 
 /** Returned when validation fails — no state was mutated. */
@@ -18,7 +31,12 @@ type FullStateApplyResult = FullStateResult | null;
 
 export function applyHousesCheckpoint(
   state: GameState,
-  serialized: readonly { row: number; col: number; zone: number; alive: boolean }[],
+  serialized: readonly {
+    row: number;
+    col: number;
+    zone: number;
+    alive: boolean;
+  }[],
 ): void {
   state.map.houses.length = 0;
   for (const h of serialized) {
@@ -69,7 +87,9 @@ export function createBattleStartMessage(
     players: serializePlayers(state),
     grunts: serializeGrunts(state),
     capturedCannons: state.capturedCannons.map((cc) => ({
-      victimId: cc.victimId, capturerId: cc.capturerId, cannonIdx: cc.cannonIdx,
+      victimId: cc.victimId,
+      capturerId: cc.capturerId,
+      cannonIdx: cc.cannonIdx,
     })),
     burningPits: serializeBurningPits(state),
     towerAlive: [...state.towerAlive],
@@ -88,7 +108,10 @@ export function createBattleStartMessage(
 export function createFullStateMessage(
   state: GameState,
   migrationSeq: number,
-  flights?: readonly { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[],
+  flights?: readonly {
+    flight: { startX: number; startY: number; endX: number; endY: number };
+    progress: number;
+  }[],
 ): FullStateMessage {
   return {
     type: MSG.FULL_STATE,
@@ -111,32 +134,51 @@ export function createFullStateMessage(
     activePlayer: state.activePlayer,
     towerPendingRevive: [...state.towerPendingRevive],
     capturedCannons: state.capturedCannons.map((cc) => ({
-      victimId: cc.victimId, capturerId: cc.capturerId, cannonIdx: cc.cannonIdx,
+      victimId: cc.victimId,
+      capturerId: cc.capturerId,
+      cannonIdx: cc.cannonIdx,
     })),
     balloonHits: (() => {
-      const hits: { playerId: number; cannonIdx: number; count: number; capturerIds: number[] }[] = [];
+      const hits: {
+        playerId: number;
+        cannonIdx: number;
+        count: number;
+        capturerIds: number[];
+      }[] = [];
       for (const [cannon, hit] of state.balloonHits) {
         // Find which player owns this cannon
         for (const p of state.players) {
           const idx = p.cannons.indexOf(cannon);
-          if (idx >= 0) { hits.push({ playerId: p.id, cannonIdx: idx, count: hit.count, capturerIds: hit.capturerIds }); break; }
+          if (idx >= 0) {
+            hits.push({
+              playerId: p.id,
+              cannonIdx: idx,
+              count: hit.count,
+              capturerIds: hit.capturerIds,
+            });
+            break;
+          }
         }
       }
       return hits;
     })(),
     cannonballs: state.cannonballs.map((b) => ({
       cannonIdx: b.cannonIdx,
-      startX: b.startX, startY: b.startY,
-      x: b.x, y: b.y,
-      targetX: b.targetX, targetY: b.targetY,
+      startX: b.startX,
+      startY: b.startY,
+      x: b.x,
+      y: b.y,
+      targetX: b.targetX,
+      targetY: b.targetY,
       speed: b.speed,
       playerId: b.playerId,
       scoringPlayerId: b.scoringPlayerId,
       incendiary: b.incendiary ? true : undefined,
     })),
-    balloonFlights: flights && flights.length > 0
-      ? flights.map((f) => ({ ...f.flight, progress: f.progress }))
-      : undefined,
+    balloonFlights:
+      flights && flights.length > 0
+        ? flights.map((f) => ({ ...f.flight, progress: f.progress }))
+        : undefined,
   };
 }
 
@@ -160,7 +202,10 @@ export function serializePlayers(state: GameState) {
   }));
 }
 
-export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage): FullStateApplyResult {
+export function applyFullStateSnapshot(
+  state: GameState,
+  msg: FullStateMessage,
+): FullStateApplyResult {
   const error = validateFullState(state, msg);
   if (error) {
     console.error(`[checkpoint] validation failed: ${error}`);
@@ -179,8 +224,16 @@ export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage):
   state.activePlayer = msg.activePlayer;
   state.towerPendingRevive = new Set(msg.towerPendingRevive);
   state.towerAlive = msg.towerAlive;
-  state.burningPits = msg.burningPits.map((p) => ({ row: p.row, col: p.col, roundsLeft: p.roundsLeft }));
-  state.bonusSquares = msg.bonusSquares.map((b) => ({ row: b.row, col: b.col, zone: b.zone }));
+  state.burningPits = msg.burningPits.map((p) => ({
+    row: p.row,
+    col: p.col,
+    roundsLeft: p.roundsLeft,
+  }));
+  state.bonusSquares = msg.bonusSquares.map((b) => ({
+    row: b.row,
+    col: b.col,
+    zone: b.zone,
+  }));
 
   // Restore RNG internal state
   const rng = new Rng(0);
@@ -192,26 +245,36 @@ export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage):
   applyGruntsCheckpoint(state, msg.grunts);
 
   // Houses are map data — only alive status changes
-  for (let i = 0; i < msg.housesAlive.length && i < state.map.houses.length; i++) {
+  for (
+    let i = 0;
+    i < msg.housesAlive.length && i < state.map.houses.length;
+    i++
+  ) {
     state.map.houses[i]!.alive = msg.housesAlive[i]!;
   }
 
   // Restore cannonballs (skip any with stale cannon references)
-  const validBalls = msg.cannonballs.filter((b) => state.players[b.playerId]?.cannons[b.cannonIdx]);
+  const validBalls = msg.cannonballs.filter(
+    (b) => state.players[b.playerId]?.cannons[b.cannonIdx],
+  );
   if (validBalls.length < msg.cannonballs.length) {
-    console.warn(`[checkpoint] dropped ${msg.cannonballs.length - validBalls.length} cannonballs with stale refs`);
+    console.warn(
+      `[checkpoint] dropped ${msg.cannonballs.length - validBalls.length} cannonballs with stale refs`,
+    );
   }
-  state.cannonballs = validBalls
-    .map((b) => ({
-      cannonIdx: b.cannonIdx,
-      startX: b.startX, startY: b.startY,
-      x: b.x, y: b.y,
-      targetX: b.targetX, targetY: b.targetY,
-      speed: b.speed,
-      playerId: b.playerId,
-      scoringPlayerId: b.scoringPlayerId,
-      incendiary: b.incendiary ?? false,
-    }));
+  state.cannonballs = validBalls.map((b) => ({
+    cannonIdx: b.cannonIdx,
+    startX: b.startX,
+    startY: b.startY,
+    x: b.x,
+    y: b.y,
+    targetX: b.targetX,
+    targetY: b.targetY,
+    speed: b.speed,
+    playerId: b.playerId,
+    scoringPlayerId: b.scoringPlayerId,
+    incendiary: b.incendiary ?? false,
+  }));
 
   // Restore captured cannons (reconstruct object references from indices)
   state.capturedCannons = msg.capturedCannons
@@ -219,19 +282,36 @@ export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage):
     .map((cc) => {
       const victim = state.players[cc.victimId]!;
       const cannon = victim.cannons[cc.cannonIdx];
-      return cannon ? { cannon, cannonIdx: cc.cannonIdx, victimId: cc.victimId, capturerId: cc.capturerId } : null;
-    }).filter((cc) => cc !== null);
+      return cannon
+        ? {
+            cannon,
+            cannonIdx: cc.cannonIdx,
+            victimId: cc.victimId,
+            capturerId: cc.capturerId,
+          }
+        : null;
+    })
+    .filter((cc) => cc !== null);
 
   // Restore balloonHits (reconstruct Cannon object references as Map keys)
   state.balloonHits = new Map();
   for (const bh of msg.balloonHits) {
     const cannon = state.players[bh.playerId]?.cannons[bh.cannonIdx];
-    if (cannon) state.balloonHits.set(cannon, { count: bh.count, capturerIds: bh.capturerIds });
+    if (cannon)
+      state.balloonHits.set(cannon, {
+        count: bh.count,
+        capturerIds: bh.capturerIds,
+      });
   }
 
   return {
     balloonFlights: msg.balloonFlights?.map((f) => ({
-      flight: { startX: f.startX, startY: f.startY, endX: f.endX, endY: f.endY },
+      flight: {
+        startX: f.startX,
+        startY: f.startY,
+        endX: f.endX,
+        endY: f.endY,
+      },
       progress: f.progress,
     })),
   };
@@ -285,7 +365,9 @@ export function createGameOverPayload(
   state: GameState,
   playerNames: ReadonlyArray<string>,
 ) {
-  const winnerName = winner ? (playerNames[winner.id] ?? `Player ${winner.id + 1}`) : "Nobody";
+  const winnerName = winner
+    ? (playerNames[winner.id] ?? `Player ${winner.id + 1}`)
+    : "Nobody";
   return {
     winnerName,
     serverPayload: {
@@ -304,42 +386,60 @@ export function createGameOverPayload(
  * Structural validation — rejects the message before any state mutation
  * if it contains out-of-bounds indices or mismatched array lengths.
  */
-function validateFullState(state: GameState, msg: FullStateMessage): string | null {
-  if (Phase[msg.phase as keyof typeof Phase] === undefined) return `invalid phase "${msg.phase}"`;
+function validateFullState(
+  state: GameState,
+  msg: FullStateMessage,
+): string | null {
+  if (Phase[msg.phase as keyof typeof Phase] === undefined)
+    return `invalid phase "${msg.phase}"`;
   if (!Number.isFinite(msg.rngState)) return "non-finite rngState";
 
   const pc = state.players.length;
   const tc = state.map.towers.length;
 
-  if (msg.players.length !== pc) return `players length ${msg.players.length} != ${pc}`;
-  if (msg.cannonLimits.length !== pc) return `cannonLimits length ${msg.cannonLimits.length} != ${pc}`;
-  if (msg.playerZones.length !== pc) return `playerZones length ${msg.playerZones.length} != ${pc}`;
-  if (msg.towerAlive.length !== tc) return `towerAlive length ${msg.towerAlive.length} != ${tc}`;
+  if (msg.players.length !== pc)
+    return `players length ${msg.players.length} != ${pc}`;
+  if (msg.cannonLimits.length !== pc)
+    return `cannonLimits length ${msg.cannonLimits.length} != ${pc}`;
+  if (msg.playerZones.length !== pc)
+    return `playerZones length ${msg.playerZones.length} != ${pc}`;
+  if (msg.towerAlive.length !== tc)
+    return `towerAlive length ${msg.towerAlive.length} != ${tc}`;
 
   for (const sp of msg.players) {
     if (sp.id < 0 || sp.id >= pc) return `player id ${sp.id} out of bounds`;
-    if (sp.walls.some((t) => t < 0 || t >= TILE_COUNT)) return `player ${sp.id} wall tile out of bounds`;
-    if (sp.interior.some((t) => t < 0 || t >= TILE_COUNT)) return `player ${sp.id} interior tile out of bounds`;
+    if (sp.walls.some((t) => t < 0 || t >= TILE_COUNT))
+      return `player ${sp.id} wall tile out of bounds`;
+    if (sp.interior.some((t) => t < 0 || t >= TILE_COUNT))
+      return `player ${sp.id} interior tile out of bounds`;
     for (const c of sp.cannons) {
-      if (c.row < 0 || c.row >= GRID_ROWS || c.col < 0 || c.col >= GRID_COLS) return `player ${sp.id} cannon at ${c.row},${c.col} out of bounds`;
+      if (c.row < 0 || c.row >= GRID_ROWS || c.col < 0 || c.col >= GRID_COLS)
+        return `player ${sp.id} cannon at ${c.row},${c.col} out of bounds`;
     }
     for (const ti of sp.ownedTowerIndices) {
-      if (ti < 0 || ti >= tc) return `player ${sp.id} tower index ${ti} out of bounds`;
+      if (ti < 0 || ti >= tc)
+        return `player ${sp.id} tower index ${ti} out of bounds`;
     }
-    if (sp.homeTowerIdx !== null && (sp.homeTowerIdx < 0 || sp.homeTowerIdx >= tc)) {
+    if (
+      sp.homeTowerIdx !== null &&
+      (sp.homeTowerIdx < 0 || sp.homeTowerIdx >= tc)
+    ) {
       return `player ${sp.id} homeTowerIdx ${sp.homeTowerIdx} out of bounds`;
     }
   }
 
   for (const g of msg.grunts) {
-    if (g.row < 0 || g.row >= GRID_ROWS || g.col < 0 || g.col >= GRID_COLS) return `grunt at ${g.row},${g.col} out of bounds`;
+    if (g.row < 0 || g.row >= GRID_ROWS || g.col < 0 || g.col >= GRID_COLS)
+      return `grunt at ${g.row},${g.col} out of bounds`;
   }
 
   for (const ti of msg.towerPendingRevive) {
-    if (ti < 0 || ti >= tc) return `towerPendingRevive index ${ti} out of bounds`;
+    if (ti < 0 || ti >= tc)
+      return `towerPendingRevive index ${ti} out of bounds`;
   }
 
-  if (msg.activePlayer < -1 || msg.activePlayer >= pc) return `activePlayer ${msg.activePlayer} out of bounds`;
+  if (msg.activePlayer < -1 || msg.activePlayer >= pc)
+    return `activePlayer ${msg.activePlayer} out of bounds`;
 
   return null;
 }

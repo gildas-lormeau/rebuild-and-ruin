@@ -16,7 +16,9 @@ export interface HostNetContext {
 }
 
 /** Extract remote human slots from optional net context, defaulting to empty for local play. */
-export function getRemoteSlots(net?: Pick<HostNetContext, "remoteHumanSlots">): ReadonlySet<number> {
+export function getRemoteSlots(
+  net?: Pick<HostNetContext, "remoteHumanSlots">,
+): ReadonlySet<number> {
   return net?.remoteHumanSlots ?? EMPTY_TILE_SET;
 }
 
@@ -27,6 +29,8 @@ export function localActiveControllers(
   state: GameState,
 ): PlayerController[] {
   return controllers.filter(
-    ctrl => !remoteHumanSlots.has(ctrl.playerId) && !state.players[ctrl.playerId]?.eliminated,
+    (ctrl) =>
+      !remoteHumanSlots.has(ctrl.playerId) &&
+      !state.players[ctrl.playerId]?.eliminated,
   );
 }

@@ -1,5 +1,8 @@
 import { type GameMessage, MSG } from "../server/protocol.ts";
-import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
+import type {
+  InputReceiver,
+  PlayerController,
+} from "./controller-interfaces.ts";
 import type { GameState } from "./types.ts";
 
 export function tryPlacePieceAndSend(
@@ -54,14 +57,23 @@ export function fireAndSend(
   ctrl.fire(gameState);
 
   if (gameState.cannonballs.length > ballsBefore) {
-    send(createCannonFiredMsg(gameState.cannonballs[gameState.cannonballs.length - 1]!));
+    send(
+      createCannonFiredMsg(
+        gameState.cannonballs[gameState.cannonballs.length - 1]!,
+      ),
+    );
   }
 }
 
 export function createCannonFiredMsg(ball: {
-  playerId: number; cannonIdx: number;
-  startX: number; startY: number; targetX: number; targetY: number;
-  speed: number; incendiary?: boolean;
+  playerId: number;
+  cannonIdx: number;
+  startX: number;
+  startY: number;
+  targetX: number;
+  targetY: number;
+  speed: number;
+  incendiary?: boolean;
 }): GameMessage {
   return {
     type: MSG.CANNON_FIRED,

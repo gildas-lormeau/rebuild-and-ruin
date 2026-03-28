@@ -433,7 +433,14 @@ export function createControlsState(): ControlsState {
 }
 
 export function createTimerAccums(): TimerAccums {
-  return { battle: 0, cannon: 0, select: 0, selectAnnouncement: 0, build: 0, grunt: 0 };
+  return {
+    battle: 0,
+    cannon: 0,
+    select: 0,
+    selectAnnouncement: 0,
+    build: 0,
+    grunt: 0,
+  };
 }
 
 export function createBattleAnimState(): BattleAnimState {

@@ -1,4 +1,8 @@
-import { MSG, type SerializedPlayer, type ServerMessage } from "../server/protocol.ts";
+import {
+  MSG,
+  type SerializedPlayer,
+  type ServerMessage,
+} from "../server/protocol.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import type { RGB } from "./geometry-types.ts";
@@ -6,7 +10,13 @@ import { TILE_COUNT } from "./grid.ts";
 import { createCastle } from "./map-generation.ts";
 import type { WatcherTimingState } from "./online-types.ts";
 import { BANNER_PLACE_CANNONS, type BannerShow } from "./phase-banner.ts";
-import { FOCUS_REMATCH, type GameOverFocus, type GameState, Mode, Phase } from "./types.ts";
+import {
+  FOCUS_REMATCH,
+  type GameOverFocus,
+  type GameState,
+  Mode,
+  Phase,
+} from "./types.ts";
 
 interface TransitionContext {
   getState: () => GameState;
@@ -30,22 +40,35 @@ interface TransitionContext {
   applyCannonStartData: (msg: ServerMessage) => void;
   applyBattleStartData: (msg: ServerMessage) => void;
   applyBuildStartData: (msg: ServerMessage) => void;
-  applyPlayersCheckpoint: (state: GameState, players: readonly SerializedPlayer[]) => void;
+  applyPlayersCheckpoint: (
+    state: GameState,
+    players: readonly SerializedPlayer[],
+  ) => void;
   resetZoneState: (state: GameState, zone: number) => void;
 
   // Castle build
   finalizeCastleConstruction: (state: GameState) => void;
   enterCannonPlacePhase: (state: GameState) => void;
-  getSelectionStates: () => Map<number, { highlighted: number; confirmed: boolean }>;
+  getSelectionStates: () => Map<
+    number,
+    { highlighted: number; confirmed: boolean }
+  >;
   setCastleBuildFromPlans: (
     plans: readonly { playerId: number; tiles: number[] }[],
     maxTiles: number,
     onDone: () => void,
   ) => void;
-  setCastleBuildViewport: (plans: readonly { playerId: number; tiles: number[] }[]) => void;
+  setCastleBuildViewport: (
+    plans: readonly { playerId: number; tiles: number[] }[],
+  ) => void;
 
   // Battle flights
-  setBattleFlights: (value: readonly { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[]) => void;
+  setBattleFlights: (
+    value: readonly {
+      flight: { startX: number; startY: number; endX: number; endY: number };
+      progress: number;
+    }[],
+  ) => void;
   snapshotTerritory: () => Set<number>[];
 
   // Battle
@@ -53,17 +76,34 @@ interface TransitionContext {
   aimAtEnemyCastle?: () => void;
 
   // Life-lost / game over
-  showLifeLostDialog: (needsReselect: readonly number[], eliminated: readonly number[]) => void;
+  showLifeLostDialog: (
+    needsReselect: readonly number[],
+    eliminated: readonly number[],
+  ) => void;
   /** Show score delta animation, calling onDone when complete (or immediately if no deltas). */
   showScoreDeltas: (preScores: readonly number[], onDone: () => void) => void;
   render: () => void;
-  setGameOverFrame: (payload: { winner: string; scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: { wallsDestroyed: number; cannonsKilled: number } }[]; focused: GameOverFocus }) => void;
+  setGameOverFrame: (payload: {
+    winner: string;
+    scores: {
+      name: string;
+      score: number;
+      color: RGB;
+      eliminated: boolean;
+      territory?: number;
+      stats?: { wallsDestroyed: number; cannonsKilled: number };
+    }[];
+    focused: GameOverFocus;
+  }) => void;
 }
 
 const BANNER_BATTLE_ONLINE = "Battle!";
 const BANNER_REPAIR_ONLINE = "Repair!";
 
-export function handleCastleWallsTransition(msg: ServerMessage, ctx: TransitionContext): void {
+export function handleCastleWallsTransition(
+  msg: ServerMessage,
+  ctx: TransitionContext,
+): void {
   if (msg.type !== MSG.CASTLE_WALLS) return;
   const state = ctx.getState();
   const plans = msg.plans.map((p) => ({
@@ -75,13 +115,17 @@ export function handleCastleWallsTransition(msg: ServerMessage, ctx: TransitionC
   for (const plan of plans) {
     const player = state.players[plan.playerId];
     if (player?.homeTower && !player.castle) {
-      player.castle = createCastle(player.homeTower, state.map.tiles, state.map.towers);
+      player.castle = createCastle(
+        player.homeTower,
+        state.map.tiles,
+        state.map.towers,
+      );
     }
   }
   ctx.getSelectionStates().clear();
   ctx.clearSelectionOverlay();
   // Zoom to the local player's castle on mobile
-  const myPlan = plans.find(p => p.playerId === ctx.getMyPlayerId());
+  const myPlan = plans.find((p) => p.playerId === ctx.getMyPlayerId());
   if (myPlan) ctx.setCastleBuildViewport([myPlan]);
 
   ctx.setCastleBuildFromPlans(plans, maxTiles, () => {
@@ -90,7 +134,10 @@ export function handleCastleWallsTransition(msg: ServerMessage, ctx: TransitionC
   ctx.setMode(Mode.CASTLE_BUILD);
 }
 
-export function handleCannonStartTransition(msg: ServerMessage, ctx: TransitionContext): void {
+export function handleCannonStartTransition(
+  msg: ServerMessage,
+  ctx: TransitionContext,
+): void {
   if (msg.type !== MSG.CANNON_START) return;
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
@@ -104,7 +151,10 @@ export function handleCannonStartTransition(msg: ServerMessage, ctx: TransitionC
       ctrl.placeCannons(state, max);
     }
     if (ctrl && player?.homeTower) {
-      ctrl.cannonCursor = { row: player.homeTower.row, col: player.homeTower.col };
+      ctrl.cannonCursor = {
+        row: player.homeTower.row,
+        col: player.homeTower.col,
+      };
     }
     ctrl?.onCannonPhaseStart(state);
   }
@@ -119,7 +169,10 @@ export function handleCannonStartTransition(msg: ServerMessage, ctx: TransitionC
   }
 }
 
-export function handleBattleStartTransition(msg: ServerMessage, ctx: TransitionContext): void {
+export function handleBattleStartTransition(
+  msg: ServerMessage,
+  ctx: TransitionContext,
+): void {
   if (msg.type !== MSG.BATTLE_START) return;
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
@@ -139,14 +192,20 @@ export function handleBattleStartTransition(msg: ServerMessage, ctx: TransitionC
       if (battleFlights && battleFlights.length > 0) {
         ctx.setBattleFlights(
           battleFlights.map((f) => ({
-            flight: { startX: f.startX, startY: f.startY, endX: f.endX, endY: f.endY },
+            flight: {
+              startX: f.startX,
+              startY: f.startY,
+              endX: f.endX,
+              endY: f.endY,
+            },
             progress: 0,
           })),
         );
         ctx.setMode(Mode.BALLOON_ANIM);
       } else {
         state.battleCountdown = ctx.battleCountdown;
-        ctx.watcherTiming.countdownStartTime = battleReceivedAt + ctx.bannerDuration * 1000;
+        ctx.watcherTiming.countdownStartTime =
+          battleReceivedAt + ctx.bannerDuration * 1000;
         ctx.watcherTiming.countdownDuration = ctx.battleCountdown;
         ctx.setMode(Mode.GAME);
       }
@@ -160,7 +219,10 @@ export function handleBattleStartTransition(msg: ServerMessage, ctx: TransitionC
   state.battleCountdown = ctx.battleCountdown;
 }
 
-export function handleBuildStartTransition(msg: ServerMessage, ctx: TransitionContext): void {
+export function handleBuildStartTransition(
+  msg: ServerMessage,
+  ctx: TransitionContext,
+): void {
   if (msg.type !== MSG.BUILD_START) return;
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
@@ -168,7 +230,8 @@ export function handleBuildStartTransition(msg: ServerMessage, ctx: TransitionCo
   ctx.showBanner(
     BANNER_REPAIR_ONLINE,
     () => {
-      ctx.watcherTiming.phaseStartTime = buildReceivedAt + ctx.bannerDuration * 1000;
+      ctx.watcherTiming.phaseStartTime =
+        buildReceivedAt + ctx.bannerDuration * 1000;
       ctx.watcherTiming.phaseDuration = state.timer;
       ctx.setMode(Mode.GAME);
     },
@@ -182,11 +245,14 @@ export function handleBuildStartTransition(msg: ServerMessage, ctx: TransitionCo
   }
 }
 
-export function handleBuildEndTransition(msg: ServerMessage, ctx: TransitionContext): void {
+export function handleBuildEndTransition(
+  msg: ServerMessage,
+  ctx: TransitionContext,
+): void {
   if (msg.type !== MSG.BUILD_END) return;
   const state = ctx.getState();
   // Capture pre-scores before checkpoint overwrites them (needed for score delta animation)
-  const preScores = state.players.map(p => p.score);
+  const preScores = state.players.map((p) => p.score);
   ctx.applyPlayersCheckpoint(state, msg.players);
   for (let i = 0; i < state.players.length; i++) {
     state.players[i]!.score = msg.scores[i] ?? state.players[i]!.score;
@@ -204,7 +270,10 @@ export function handleBuildEndTransition(msg: ServerMessage, ctx: TransitionCont
   });
 }
 
-export function handleGameOverTransition(msg: ServerMessage, ctx: TransitionContext): void {
+export function handleGameOverTransition(
+  msg: ServerMessage,
+  ctx: TransitionContext,
+): void {
   if (msg.type !== MSG.GAME_OVER) return;
   ctx.setGameOverFrame({
     winner: msg.winner ?? "Nobody",

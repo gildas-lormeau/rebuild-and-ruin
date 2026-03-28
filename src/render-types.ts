@@ -6,7 +6,14 @@
 import type { Crosshair, LocalPiecePhantom } from "./controller-interfaces.ts";
 import type { House, PixelPos, RGB, TilePos, Tower } from "./geometry-types.ts";
 import type { LifeLostChoice } from "./life-lost.ts";
-import { type BurningPit, CannonMode, type CastleData, type GameOverFocus, type Grunt, type Impact } from "./types.ts";
+import {
+  type BurningPit,
+  CannonMode,
+  type CastleData,
+  type GameOverFocus,
+  type Grunt,
+  type Impact,
+} from "./types.ts";
 
 /** A single row in the options screen. */
 export interface OptionEntry {
@@ -22,12 +29,22 @@ export interface ControlsPlayer {
   bindings: string[];
 }
 
-export interface PlayerStats { wallsDestroyed: number; cannonsKilled: number; }
+export interface PlayerStats {
+  wallsDestroyed: number;
+  cannonsKilled: number;
+}
 
 /** Game-over overlay data shared by FrameData and UIOverlay. */
 export interface GameOverOverlay {
   winner: string;
-  scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: PlayerStats }[];
+  scores: {
+    name: string;
+    score: number;
+    color: RGB;
+    eliminated: boolean;
+    territory?: number;
+    stats?: PlayerStats;
+  }[];
   focused: GameOverFocus;
 }
 
@@ -174,9 +191,26 @@ export interface UIOverlay {
   bannerOldBonusSquares?: TilePos[];
   gameOver?: GameOverOverlay;
   timer?: number;
-  scoreDeltas?: { playerId: number; delta: number; total: number; cx: number; cy: number }[];
+  scoreDeltas?: {
+    playerId: number;
+    delta: number;
+    total: number;
+    cx: number;
+    cy: number;
+  }[];
   scoreDeltaProgress?: number;
-  statusBar?: { round: string; phase: string; timer: string; players: { score: number; cannons: number; lives: number; color: RGB; eliminated: boolean }[] };
+  statusBar?: {
+    round: string;
+    phase: string;
+    timer: string;
+    players: {
+      score: number;
+      cannons: number;
+      lives: number;
+      color: RGB;
+      eliminated: boolean;
+    }[];
+  };
   lifeLostDialog?: LifeLostDialogOverlay;
   optionsScreen?: {
     options: OptionEntry[];
@@ -226,7 +260,11 @@ export interface Viewport {
  */
 export interface RendererInterface {
   /** Draw one frame using whatever rendering backend is active. */
-  drawFrame(map: MapData, overlay: RenderOverlay | undefined, viewport?: Viewport | null): void;
+  drawFrame(
+    map: MapData,
+    overlay: RenderOverlay | undefined,
+    viewport?: Viewport | null,
+  ): void;
   /** Convert pointer event client coordinates to surface (world-pixel) coordinates. */
   clientToSurface(clientX: number, clientY: number): { x: number; y: number };
   /**
@@ -242,5 +280,7 @@ export interface RendererInterface {
    * Optional loupe factory for touch devices.
    * Omit if the renderer handles magnification natively.
    */
-  createLoupe?: (container: HTMLElement) => { update(visible: boolean, worldX: number, worldY: number): void };
+  createLoupe?: (container: HTMLElement) => {
+    update(visible: boolean, worldX: number, worldY: number): void;
+  };
 }

@@ -14,9 +14,22 @@ import type { PlayerController } from "./controller-interfaces.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { createCannonFiredMsg } from "./online-send-actions.ts";
 import type { WatcherTimingState } from "./online-types.ts";
-import { BANNER_BATTLE, BANNER_BATTLE_SUB, type BannerShow } from "./phase-banner.ts";
-import { getRemoteSlots, type HostNetContext, localActiveControllers } from "./tick-context.ts";
-import type { BalloonFlight, BattleAnimState, GameState, Impact } from "./types.ts";
+import {
+  BANNER_BATTLE,
+  BANNER_BATTLE_SUB,
+  type BannerShow,
+} from "./phase-banner.ts";
+import {
+  getRemoteSlots,
+  type HostNetContext,
+  localActiveControllers,
+} from "./tick-context.ts";
+import type {
+  BalloonFlight,
+  BattleAnimState,
+  GameState,
+  Impact,
+} from "./types.ts";
 
 interface TickHostBattleCountdownDeps {
   dt: number;
@@ -42,10 +55,7 @@ interface TickHostBattlePhaseDeps {
   battleAnim: { impacts: Impact[] };
   render: () => void;
   syncCrosshairs: (canFireNow: boolean, dt: number) => void;
-  collectTowerEvents: (
-    state: GameState,
-    dt: number,
-  ) => Array<GameMessage>;
+  collectTowerEvents: (state: GameState, dt: number) => Array<GameMessage>;
   tickCannonballsWithEvents: (
     state: GameState,
     dt: number,
@@ -106,7 +116,11 @@ export function tickHostBattleCountdown(
   const remoteHumanSlots = getRemoteSlots(deps.net);
 
   state.battleCountdown = Math.max(0, state.battleCountdown - dt);
-  for (const ctrl of localActiveControllers(controllers, remoteHumanSlots, state)) {
+  for (const ctrl of localActiveControllers(
+    controllers,
+    remoteHumanSlots,
+    state,
+  )) {
     ctrl.battleTick(state, dt);
   }
 
@@ -118,9 +132,18 @@ export function tickHostBattleCountdown(
 
 export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   const {
-    dt, state, battleTimer, accum, controllers, battleAnim,
-    render, syncCrosshairs, collectTowerEvents, tickCannonballsWithEvents,
-    onBattlePhaseEnded, onBattleEvents,
+    dt,
+    state,
+    battleTimer,
+    accum,
+    controllers,
+    battleAnim,
+    render,
+    syncCrosshairs,
+    collectTowerEvents,
+    tickCannonballsWithEvents,
+    onBattlePhaseEnded,
+    onBattleEvents,
   } = deps;
   const remoteHumanSlots = getRemoteSlots(deps.net);
   const isHost = deps.net?.isHost ?? true;
@@ -130,7 +153,11 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   state.timer = Math.max(0, battleTimer - accum.battle);
 
   const ballsBefore = state.cannonballs.length;
-  for (const ctrl of localActiveControllers(controllers, remoteHumanSlots, state)) {
+  for (const ctrl of localActiveControllers(
+    controllers,
+    remoteHumanSlots,
+    state,
+  )) {
     ctrl.battleTick(state, dt);
   }
 
@@ -177,8 +204,14 @@ export function startHostBattleLifecycle(
   deps: StartHostBattleLifecycleDeps,
 ): void {
   const {
-    state, battleAnim, resolveBalloons, snapshotTerritory,
-    showBanner, nextPhase, setModeBalloonAnim, beginBattle,
+    state,
+    battleAnim,
+    resolveBalloons,
+    snapshotTerritory,
+    showBanner,
+    nextPhase,
+    setModeBalloonAnim,
+    beginBattle,
   } = deps;
   const isHost = deps.net?.isHost ?? true;
   const sendBattleStart = deps.net?.sendBattleStart;
@@ -231,7 +264,11 @@ export function beginHostBattle(deps: BeginHostBattleDeps): void {
   const remoteHumanSlots = getRemoteSlots(deps.net);
   const isHost = deps.net?.isHost ?? true;
 
-  for (const ctrl of localActiveControllers(controllers, remoteHumanSlots, state)) {
+  for (const ctrl of localActiveControllers(
+    controllers,
+    remoteHumanSlots,
+    state,
+  )) {
     ctrl.resetBattle(state);
   }
 

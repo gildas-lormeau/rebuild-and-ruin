@@ -1,7 +1,13 @@
 import { MSG } from "../server/protocol.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import { BANNER_SELECT } from "./phase-banner.ts";
-import { type GameState, isReselectPhase, isSelectionPhase, Phase, type SelectionState } from "./types.ts";
+import {
+  type GameState,
+  isReselectPhase,
+  isSelectionPhase,
+  Phase,
+  type SelectionState,
+} from "./types.ts";
 
 interface TickSelectionPhaseDeps {
   dt: number;
@@ -40,7 +46,11 @@ export function initTowerSelection(
   const towerIdx = player.homeTower
     ? state.map.towers.findIndex((t) => t === player.homeTower)
     : (zoneTowerIndices(state, zone)[0] ?? 0);
-  selectionStates.set(playerId, { highlighted: towerIdx, confirmed: false, tapped: true });
+  selectionStates.set(playerId, {
+    highlighted: towerIdx,
+    confirmed: false,
+    tapped: true,
+  });
   const tower = state.map.towers[towerIdx];
   if (tower) {
     player.homeTower = tower;
@@ -242,7 +252,8 @@ export function finishSelectionPhase(deps: {
   clearOverlaySelection: () => void;
   finalizeAndAdvance: () => void;
 }): void {
-  const { state, selectionStates, clearOverlaySelection, finalizeAndAdvance } = deps;
+  const { state, selectionStates, clearOverlaySelection, finalizeAndAdvance } =
+    deps;
 
   if (state.phase !== Phase.CASTLE_SELECT) return;
 

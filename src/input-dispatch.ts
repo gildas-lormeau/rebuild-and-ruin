@@ -6,11 +6,20 @@
  * and touch UI controls (touch-ui.ts).
  */
 
-import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
+import type {
+  InputReceiver,
+  PlayerController,
+} from "./controller-interfaces.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
 import { towerAtPixel } from "./spatial.ts";
-import { type ControlsState, type GameState, isSelectionPhase, Phase, type SelectionState } from "./types.ts";
+import {
+  type ControlsState,
+  type GameState,
+  isSelectionPhase,
+  Phase,
+  type SelectionState,
+} from "./types.ts";
 
 export interface ModeValues {
   LOBBY: number;
@@ -30,13 +39,20 @@ const TOUCH_CLICK_SUPPRESS_MS = 500;
 /** Timestamp of last touchend; suppresses synthetic click events on mobile. */
 let lastTouchTime = 0;
 
-export function markTouchTime(): void { lastTouchTime = performance.now(); }
+export function markTouchTime(): void {
+  lastTouchTime = performance.now();
+}
 
 /** Whether a recent touch should suppress the current synthetic click. */
-export function isTouchSuppressed(): boolean { return performance.now() - lastTouchTime < TOUCH_CLICK_SUPPRESS_MS; }
+export function isTouchSuppressed(): boolean {
+  return performance.now() - lastTouchTime < TOUCH_CLICK_SUPPRESS_MS;
+}
 
 /** Whether the current mode allows gameplay interaction (tower selection or active game). */
-export function isGameInteractionMode(mode: number, mv: { GAME: number; SELECTION: number }): boolean {
+export function isGameInteractionMode(
+  mode: number,
+  mv: { GAME: number; SELECTION: number },
+): boolean {
   return mode === mv.GAME || mode === mv.SELECTION;
 }
 
@@ -57,12 +73,25 @@ export function dispatchModeTap(
     lobbyClick: (x: number, y: number) => boolean;
   },
 ): boolean {
-  const { modeValues, gameOverClick, closeOptions, closeControls, getControlsState, getLifeLostDialog, lifeLostDialogClick, isLobbyActive, lobbyClick } = deps;
+  const {
+    modeValues,
+    gameOverClick,
+    closeOptions,
+    closeControls,
+    getControlsState,
+    getLifeLostDialog,
+    lifeLostDialogClick,
+    isLobbyActive,
+    lobbyClick,
+  } = deps;
   if (mode === modeValues.STOPPED) {
     gameOverClick(x, y);
     return true;
   }
-  if (mode === modeValues.OPTIONS) { closeOptions(); return true; }
+  if (mode === modeValues.OPTIONS) {
+    closeOptions();
+    return true;
+  }
   if (mode === modeValues.CONTROLS) {
     if (!getControlsState().rebinding) closeControls();
     return true;
@@ -71,7 +100,10 @@ export function dispatchModeTap(
     lifeLostDialogClick(x, y);
     return true;
   }
-  if (isLobbyActive()) { lobbyClick(x, y); return true; }
+  if (isLobbyActive()) {
+    lobbyClick(x, y);
+    return true;
+  }
   return false;
 }
 
@@ -82,7 +114,9 @@ export function dispatchTowerSelect(
   state: GameState,
   isReselect: boolean,
   deps: {
-    withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
+    withFirstHuman: (
+      action: (human: PlayerController & InputReceiver) => void,
+    ) => void;
     getSelectionStates: () => Map<number, SelectionState>;
     highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
     confirmSelectionForPlayer: (pid: number, isReselect?: boolean) => boolean;
@@ -114,9 +148,18 @@ export function dispatchTowerSelect(
 export function dispatchPlacement(
   state: GameState,
   deps: {
-    withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
-    tryPlacePieceAndSend: (human: PlayerController & InputReceiver, state: GameState) => void;
-    tryPlaceCannonAndSend: (human: PlayerController & InputReceiver, state: GameState, max: number) => void;
+    withFirstHuman: (
+      action: (human: PlayerController & InputReceiver) => void,
+    ) => void;
+    tryPlacePieceAndSend: (
+      human: PlayerController & InputReceiver,
+      state: GameState,
+    ) => void;
+    tryPlaceCannonAndSend: (
+      human: PlayerController & InputReceiver,
+      state: GameState,
+      max: number,
+    ) => void;
   },
 ): void {
   deps.withFirstHuman((human) => {
@@ -135,12 +178,19 @@ export function dispatchBattleFire(
   y: number,
   state: GameState,
   deps: {
-    withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
+    withFirstHuman: (
+      action: (human: PlayerController & InputReceiver) => void,
+    ) => void;
     screenToWorld: (x: number, y: number) => WorldPos;
     fireAndSend: (ctrl: PlayerController, gameState: GameState) => void;
   },
 ): void {
-  if (state.phase !== Phase.BATTLE || state.timer <= 0 || state.battleCountdown > 0) return;
+  if (
+    state.phase !== Phase.BATTLE ||
+    state.timer <= 0 ||
+    state.battleCountdown > 0
+  )
+    return;
   deps.withFirstHuman((human) => {
     const w = deps.screenToWorld(x, y);
     human.setCrosshair(w.wx, w.wy);
@@ -154,7 +204,9 @@ export function dispatchPointerMove(
   y: number,
   state: GameState,
   deps: {
-    withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
+    withFirstHuman: (
+      action: (human: PlayerController & InputReceiver) => void,
+    ) => void;
     getSelectionStates: () => Map<number, SelectionState>;
     screenToWorld: (x: number, y: number) => WorldPos;
     highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
@@ -163,7 +215,14 @@ export function dispatchPointerMove(
     isSelectionReady?: () => boolean;
   },
 ): void {
-  const { withFirstHuman, getSelectionStates, screenToWorld, highlightTowerForPlayer, pixelToTile, maybeSendAimUpdate } = deps;
+  const {
+    withFirstHuman,
+    getSelectionStates,
+    screenToWorld,
+    highlightTowerForPlayer,
+    pixelToTile,
+    maybeSendAimUpdate,
+  } = deps;
   if (isSelectionPhase(state.phase)) {
     if (deps.isSelectionReady && !deps.isSelectionReady()) return;
     withFirstHuman((human) => {
@@ -172,7 +231,11 @@ export function dispatchPointerMove(
       const zone = state.playerZones[human.playerId] ?? 0;
       const w = screenToWorld(x, y);
       const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
-      if (idx !== null && idx !== ss.highlighted && state.map.towers[idx]?.zone === zone) {
+      if (
+        idx !== null &&
+        idx !== ss.highlighted &&
+        state.map.towers[idx]?.zone === zone
+      ) {
         highlightTowerForPlayer(idx, zone, human.playerId);
         ss.tapped = false;
       }

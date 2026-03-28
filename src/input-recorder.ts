@@ -10,7 +10,11 @@
 // Types
 // ---------------------------------------------------------------------------
 
-interface TouchPoint { id: number; x: number; y: number }
+interface TouchPoint {
+  id: number;
+  x: number;
+  y: number;
+}
 
 type InputStep =
   | { type: "tap"; x: number; y: number; t: number }
@@ -56,13 +60,19 @@ export function initRecorder(): void {
   const startTime = performance.now();
   let lastMousemoveT = 0;
 
-  function t(): number { return performance.now() - startTime; }
+  function t(): number {
+    return performance.now() - startTime;
+  }
 
   function touchPoints(list: TouchList): TouchPoint[] {
     const pts: TouchPoint[] = [];
     for (let i = 0; i < list.length; i++) {
       const touch = list[i]!;
-      pts.push({ id: touch.identifier, x: Math.round(touch.clientX), y: Math.round(touch.clientY) });
+      pts.push({
+        id: touch.identifier,
+        x: Math.round(touch.clientX),
+        y: Math.round(touch.clientY),
+      });
     }
     return pts;
   }
@@ -75,16 +85,31 @@ export function initRecorder(): void {
     steps.push({ type: "touchmove", touches: touchPoints(e.touches), t: t() });
   };
   const onTouchEnd = (e: TouchEvent) => {
-    steps.push({ type: "touchend", changedTouches: touchPoints(e.changedTouches), t: t() });
+    steps.push({
+      type: "touchend",
+      changedTouches: touchPoints(e.changedTouches),
+      t: t(),
+    });
   };
   const onClick = (e: MouseEvent) => {
-    steps.push({ type: "click", x: Math.round(e.clientX), y: Math.round(e.clientY), t: t(), button: e.button || undefined });
+    steps.push({
+      type: "click",
+      x: Math.round(e.clientX),
+      y: Math.round(e.clientY),
+      t: t(),
+      button: e.button || undefined,
+    });
   };
   const onMouseMove = (e: MouseEvent) => {
     const now = t();
     if (now - lastMousemoveT < MOUSEMOVE_THROTTLE_MS) return;
     lastMousemoveT = now;
-    steps.push({ type: "mousemove", x: Math.round(e.clientX), y: Math.round(e.clientY), t: now });
+    steps.push({
+      type: "mousemove",
+      x: Math.round(e.clientX),
+      y: Math.round(e.clientY),
+      t: now,
+    });
   };
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.repeat) return;
@@ -118,7 +143,11 @@ export function initRecorder(): void {
       format: "input-recorder",
       title: `recording-${new Date().toISOString().slice(0, 19).replace(/[:.]/g, "-")}`,
       url: location.href,
-      viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
+      viewport: {
+        width: innerWidth,
+        height: innerHeight,
+        dpr: devicePixelRatio,
+      },
       userAgent: navigator.userAgent,
       startedAt: new Date().toISOString(),
       steps,
@@ -143,7 +172,8 @@ export function initRecorder(): void {
 
   // --- Overlay UI ---
   const style = document.createElement("style");
-  style.textContent = "@keyframes rec-blink { 0%,100% { opacity: 1 } 50% { opacity: 0.3 } }";
+  style.textContent =
+    "@keyframes rec-blink { 0%,100% { opacity: 1 } 50% { opacity: 0.3 } }";
   document.head.appendChild(style);
 
   const overlay = document.createElement("div");
@@ -165,9 +195,13 @@ export function initRecorder(): void {
     e.preventDefault();
     stopRecording();
   });
-  stopBtn.addEventListener("touchstart", (e) => {
-    e.stopPropagation();
-  }, { passive: false });
+  stopBtn.addEventListener(
+    "touchstart",
+    (e) => {
+      e.stopPropagation();
+    },
+    { passive: false },
+  );
   overlay.appendChild(stopBtn);
 
   document.body.appendChild(overlay);

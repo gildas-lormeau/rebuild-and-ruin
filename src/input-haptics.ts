@@ -13,13 +13,19 @@ const HAPTIC_CANNON_DESTROYED_MS = 150;
 /** Current haptics level — set by the game runtime from settings. */
 let level = 2;
 
-export function setHapticsLevel(l: number): void { level = l; }
+export function setHapticsLevel(l: number): void {
+  level = l;
+}
 
 /** Light tap for d-pad / button presses. */
-export function hapticTap(): void { vibrate(8, 2); }
+export function hapticTap(): void {
+  vibrate(8, 2);
+}
 
 /** Phase transition banner. */
-export function hapticPhaseChange(): void { vibrate(40, 1); }
+export function hapticPhaseChange(): void {
+  vibrate(40, 1);
+}
 
 /** Process battle events and trigger appropriate haptics for the local player. */
 export function hapticBattleEvents(
@@ -42,19 +48,29 @@ export function hapticBattleEvents(
 }
 
 /** Your wall was destroyed. */
-function hapticWallHit(): void { vibrate(HAPTIC_WALL_HIT_MS, 2); }
+function hapticWallHit(): void {
+  vibrate(HAPTIC_WALL_HIT_MS, 2);
+}
 
 /** Your cannon took damage. */
-function hapticCannonDamaged(): void { vibrate(80, 2); }
+function hapticCannonDamaged(): void {
+  vibrate(80, 2);
+}
 
 /** Your cannon was destroyed. */
-function hapticCannonDestroyed(): void { vibrate(HAPTIC_CANNON_DESTROYED_MS, 2); }
+function hapticCannonDestroyed(): void {
+  vibrate(HAPTIC_CANNON_DESTROYED_MS, 2);
+}
 
 /** A tower was killed by grunts. */
-function hapticTowerKilled(): void { vibrate(200, 2); }
+function hapticTowerKilled(): void {
+  vibrate(200, 2);
+}
 
 /** You fired a cannon. */
-function hapticFired(): void { vibrate(15, 2); }
+function hapticFired(): void {
+  vibrate(15, 2);
+}
 
 function vibrate(ms: number, minLevel: number): void {
   if (CAN_VIBRATE && level >= minLevel) navigator.vibrate(ms);

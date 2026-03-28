@@ -1,4 +1,9 @@
-import { type FullStateMessage, type InitMessage, MSG, type ServerMessage } from "../server/protocol.ts";
+import {
+  type FullStateMessage,
+  type InitMessage,
+  MSG,
+  type ServerMessage,
+} from "../server/protocol.ts";
 import type { GameState } from "./types.ts";
 
 interface HandleServerLifecycleDeps {
@@ -95,7 +100,10 @@ export function handleServerLifecycleMessage(
       return true;
 
     case MSG.JOINED:
-      if (msg.previousPlayerId !== undefined && msg.previousPlayerId !== msg.playerId) {
+      if (
+        msg.previousPlayerId !== undefined &&
+        msg.previousPlayerId !== msg.playerId
+      ) {
         clearLobbySlot(msg.previousPlayerId);
       } else {
         const currentPlayerId = deps.getMyPlayerId();
@@ -108,14 +116,18 @@ export function handleServerLifecycleMessage(
       return true;
 
     case MSG.PLAYER_JOINED:
-      if (msg.previousPlayerId !== undefined && msg.previousPlayerId !== msg.playerId) {
+      if (
+        msg.previousPlayerId !== undefined &&
+        msg.previousPlayerId !== msg.playerId
+      ) {
         clearLobbySlot(msg.previousPlayerId);
       }
       occupyLobbySlot(msg.playerId);
       return true;
 
     case MSG.PLAYER_LEFT: {
-      const name = deps.playerNames[msg.playerId] ?? `Player ${msg.playerId + 1}`;
+      const name =
+        deps.playerNames[msg.playerId] ?? `Player ${msg.playerId + 1}`;
       deps.lobbyJoined[msg.playerId] = false;
       deps.occupiedSlots.delete(msg.playerId);
       deps.remoteHumanSlots.delete(msg.playerId);
@@ -162,7 +174,9 @@ export function handleServerLifecycleMessage(
       return true;
 
     case MSG.HOST_LEFT: {
-      deps.log(`host_left: new host is P${msg.newHostPlayerId} (previous: P${msg.previousHostPlayerId})`);
+      deps.log(
+        `host_left: new host is P${msg.newHostPlayerId} (previous: P${msg.previousHostPlayerId})`,
+      );
       deps.bumpHostMigrationSeq();
       if (msg.newHostPlayerId === deps.getMyPlayerId()) {
         deps.promoteToHost();
@@ -178,7 +192,9 @@ export function handleServerLifecycleMessage(
       if (!deps.isHost && deps.getState()) {
         const incomingSeq = msg.migrationSeq ?? 0;
         if (incomingSeq < deps.getHostMigrationSeq()) {
-          deps.log(`ignored stale full_state in lifecycle (seq=${incomingSeq})`);
+          deps.log(
+            `ignored stale full_state in lifecycle (seq=${incomingSeq})`,
+          );
           return true;
         }
         if (incomingSeq > deps.getHostMigrationSeq()) {

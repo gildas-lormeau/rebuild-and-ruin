@@ -84,11 +84,17 @@ export function handleServerIncrementalMessage(
   switch (msg.type) {
     case MSG.OPPONENT_TOWER_SELECTED: {
       if (!state || !validPid(msg.playerId, state)) return true;
-      if (msg.towerIdx < 0 || msg.towerIdx >= state.map.towers.length) return true;
+      if (msg.towerIdx < 0 || msg.towerIdx >= state.map.towers.length)
+        return true;
       if (acceptRemote(msg.playerId, deps)) {
         const tower = state.map.towers[msg.towerIdx];
-        const expectedZone: number | undefined = state.playerZones[msg.playerId];
-        if (tower && expectedZone !== undefined && tower.zone === expectedZone) {
+        const expectedZone: number | undefined =
+          state.playerZones[msg.playerId];
+        if (
+          tower &&
+          expectedZone !== undefined &&
+          tower.zone === expectedZone
+        ) {
           const player = state.players[msg.playerId]!;
           player.homeTower = tower;
           player.ownedTowers = [tower];
@@ -97,7 +103,10 @@ export function handleServerIncrementalMessage(
             ss.highlighted = msg.towerIdx;
             deps.syncSelectionOverlay();
             if (msg.confirmed && deps.isHost) {
-              deps.confirmSelectionForPlayer(msg.playerId, deps.isCastleReselectPhase());
+              deps.confirmSelectionForPlayer(
+                msg.playerId,
+                deps.isCastleReselectPhase(),
+              );
             } else if (msg.confirmed) {
               ss.confirmed = true;
             }
@@ -112,8 +121,19 @@ export function handleServerIncrementalMessage(
       if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return true;
       if (acceptRemote(msg.playerId, deps)) {
-        if (deps.isHost && !deps.canApplyPiecePlacement(state, msg.playerId, msg.offsets, msg.row, msg.col)) {
-          deps.log(`piece_placed: rejected invalid placement for P${msg.playerId}`);
+        if (
+          deps.isHost &&
+          !deps.canApplyPiecePlacement(
+            state,
+            msg.playerId,
+            msg.offsets,
+            msg.row,
+            msg.col,
+          )
+        ) {
+          deps.log(
+            `piece_placed: rejected invalid placement for P${msg.playerId}`,
+          );
           return true;
         }
         deps.log(
@@ -135,8 +155,19 @@ export function handleServerIncrementalMessage(
       if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (!VALID_CANNON_MODES.has(msg.mode)) return true;
       if (acceptRemote(msg.playerId, deps)) {
-        if (deps.isHost && !deps.canApplyCannonPlacement(state, msg.playerId, msg.row, msg.col, msg.mode)) {
-          deps.log(`cannon_placed: rejected invalid placement for P${msg.playerId}`);
+        if (
+          deps.isHost &&
+          !deps.canApplyCannonPlacement(
+            state,
+            msg.playerId,
+            msg.row,
+            msg.col,
+            msg.mode,
+          )
+        ) {
+          deps.log(
+            `cannon_placed: rejected invalid placement for P${msg.playerId}`,
+          );
           return true;
         }
         deps.applyCannonPlacement(
@@ -153,12 +184,19 @@ export function handleServerIncrementalMessage(
     case MSG.CANNON_FIRED: {
       if (!state || !validPid(msg.playerId, state)) return true;
       if (!Number.isFinite(msg.speed) || msg.speed <= 0) return true;
-      if (!Number.isFinite(msg.startX) || !Number.isFinite(msg.startY) ||
-          !Number.isFinite(msg.targetX) || !Number.isFinite(msg.targetY)) return true;
+      if (
+        !Number.isFinite(msg.startX) ||
+        !Number.isFinite(msg.startY) ||
+        !Number.isFinite(msg.targetX) ||
+        !Number.isFinite(msg.targetY)
+      )
+        return true;
       if (acceptRemote(msg.playerId, deps)) {
         const player = state.players[msg.playerId];
         if (!player || !player.cannons[msg.cannonIdx]) {
-          deps.log(`cannon_fired: stale ref P${msg.playerId} cannon[${msg.cannonIdx}] — skipped`);
+          deps.log(
+            `cannon_fired: stale ref P${msg.playerId} cannon[${msg.cannonIdx}] — skipped`,
+          );
           return true;
         }
         state.cannonballs.push({
@@ -184,7 +222,8 @@ export function handleServerIncrementalMessage(
     case MSG.GRUNT_SPAWNED:
     case MSG.PIT_CREATED:
       if (!deps.isHost && state) {
-        if ("row" in msg && "col" in msg && !inBoundsStrict(msg.row, msg.col)) return true;
+        if ("row" in msg && "col" in msg && !inBoundsStrict(msg.row, msg.col))
+          return true;
         if ("playerId" in msg && !validPid(msg.playerId, state)) return true;
         if (msg.type === MSG.WALL_DESTROYED) {
           const wallKey = msg.row * deps.gridCols + msg.col;
@@ -212,7 +251,8 @@ export function handleServerIncrementalMessage(
 
     case MSG.TOWER_KILLED:
       if (!deps.isHost && state) {
-        if (msg.towerIdx < 0 || msg.towerIdx >= state.towerAlive.length) return true;
+        if (msg.towerIdx < 0 || msg.towerIdx >= state.towerAlive.length)
+          return true;
         state.towerAlive[msg.towerIdx] = false;
       }
       return true;
@@ -221,12 +261,17 @@ export function handleServerIncrementalMessage(
       if (state && !validPid(msg.playerId, state)) return true;
       if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (acceptRemote(msg.playerId, deps)) {
-        setPhantom(deps.getRemotePiecePhantoms(), msg.playerId, {
-          offsets: msg.offsets,
-          row: msg.row,
-          col: msg.col,
-          playerId: msg.playerId,
-        }, deps.setRemotePiecePhantoms);
+        setPhantom(
+          deps.getRemotePiecePhantoms(),
+          msg.playerId,
+          {
+            offsets: msg.offsets,
+            row: msg.row,
+            col: msg.col,
+            playerId: msg.playerId,
+          },
+          deps.setRemotePiecePhantoms,
+        );
       }
       return true;
     }
@@ -235,14 +280,19 @@ export function handleServerIncrementalMessage(
       if (state && !validPid(msg.playerId, state)) return true;
       if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (acceptRemote(msg.playerId, deps)) {
-        setPhantom(deps.getRemoteCannonPhantoms(), msg.playerId, {
-          row: msg.row,
-          col: msg.col,
-          valid: msg.valid,
-          kind: (msg.mode ?? CannonMode.NORMAL) as CannonMode,
-          playerId: msg.playerId,
-          facing: msg.facing,
-        }, deps.setRemoteCannonPhantoms);
+        setPhantom(
+          deps.getRemoteCannonPhantoms(),
+          msg.playerId,
+          {
+            row: msg.row,
+            col: msg.col,
+            valid: msg.valid,
+            kind: (msg.mode ?? CannonMode.NORMAL) as CannonMode,
+            playerId: msg.playerId,
+            facing: msg.facing,
+          },
+          deps.setRemoteCannonPhantoms,
+        );
       }
       return true;
     }
@@ -256,9 +306,7 @@ export function handleServerIncrementalMessage(
       if (validated === null) return true;
       const dialog = deps.getLifeLostDialog();
       if (dialog) {
-        const entry = dialog.entries.find(
-          (e) => e.playerId === msg.playerId,
-        );
+        const entry = dialog.entries.find((e) => e.playerId === msg.playerId);
         if (entry && entry.choice === LifeLostChoice.PENDING) {
           entry.choice = validated;
         }
@@ -275,7 +323,10 @@ export function handleServerIncrementalMessage(
 }
 
 /** Watchers accept all remote messages; hosts only accept from remote humans. */
-function acceptRemote(pid: number, deps: Pick<HandleServerIncrementalDeps, "isHost" | "remoteHumanSlots">): boolean {
+function acceptRemote(
+  pid: number,
+  deps: Pick<HandleServerIncrementalDeps, "isHost" | "remoteHumanSlots">,
+): boolean {
   return !deps.isHost || deps.remoteHumanSlots.has(pid);
 }
 

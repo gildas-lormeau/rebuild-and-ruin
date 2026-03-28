@@ -168,9 +168,7 @@ export function hasAliveHouseAt(
   r: number,
   c: number,
 ): boolean {
-  return state.map.houses.some(
-    (house) => house.alive && isAtTile(house, r, c),
-  );
+  return state.map.houses.some((house) => house.alive && isAtTile(house, r, c));
 }
 
 export function findLivingTowerIndexAt(

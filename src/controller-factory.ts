@@ -18,6 +18,9 @@ export function createController(
   difficulty?: number,
 ): PlayerController {
   return isAi
-    ? new AiController(playerId, new DefaultStrategy(undefined, strategySeed, difficulty))
+    ? new AiController(
+        playerId,
+        new DefaultStrategy(undefined, strategySeed, difficulty),
+      )
     : new HumanController(playerId, keys!);
 }

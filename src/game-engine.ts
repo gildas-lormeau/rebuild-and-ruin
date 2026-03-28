@@ -19,8 +19,16 @@
  */
 
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
-import { collectAllWalls, filterAliveOwnedTowers, sweepIsolatedWalls } from "./board-occupancy.ts";
-import { claimTerritory, removeBonusSquaresCoveredByWalls, replenishBonusSquares } from "./build-system.ts";
+import {
+  collectAllWalls,
+  filterAliveOwnedTowers,
+  sweepIsolatedWalls,
+} from "./board-occupancy.ts";
+import {
+  claimTerritory,
+  removeBonusSquaresCoveredByWalls,
+  replenishBonusSquares,
+} from "./build-system.ts";
 import { cannonSlotsForRound, resetCannonFacings } from "./cannon-system.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import type { Castle, GameMap } from "./geometry-types.ts";
@@ -163,7 +171,9 @@ export function markPlayerReselected(state: GameState, playerId: number): void {
 
 /** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
 export function computeCannonLimitsForPhase(state: GameState): void {
-  state.cannonLimits = state.players.map((player) => cannonSlotsForRound(player, state));
+  state.cannonLimits = state.players.map((player) =>
+    cannonSlotsForRound(player, state),
+  );
   state.reselectedPlayers.clear();
 }
 
@@ -171,9 +181,10 @@ export function computeCannonLimitsForPhase(state: GameState): void {
  * Complete the build phase using the canonical gameplay rules.
  * Owns wall sweeping, territory/tower revival, and the life check.
  */
-export function finalizeBuildPhase(
-  state: GameState,
-): { needsReselect: number[]; eliminated: number[] } {
+export function finalizeBuildPhase(state: GameState): {
+  needsReselect: number[];
+  eliminated: number[];
+} {
   sweepAllPlayersWalls(state);
   claimTerritory(state, true);
   return applyLifePenalties(state);
@@ -305,9 +316,10 @@ function enterBuildFromBattle(state: GameState): void {
  * Check if any player failed to enclose a tower. Decrement lives, reset their zone.
  * Returns { needsReselect, eliminated } — caller handles controller notifications.
  */
-function applyLifePenalties(
-  state: GameState,
-): { needsReselect: number[]; eliminated: number[] } {
+function applyLifePenalties(state: GameState): {
+  needsReselect: number[];
+  eliminated: number[];
+} {
   const needsReselect: number[] = [];
   const eliminated: number[] = [];
   for (const player of state.players) {
@@ -346,7 +358,10 @@ export function resetZoneState(state: GameState, zone: number): void {
 }
 
 /** Clear all mutable state from a player (used when losing a life or being eliminated). */
-function clearPlayerState(player: Player, options?: { keepHomeTower?: boolean }): void {
+function clearPlayerState(
+  player: Player,
+  options?: { keepHomeTower?: boolean },
+): void {
   player.walls.clear();
   player.interior.clear();
   player.cannons = [];
@@ -368,7 +383,9 @@ function autoBuildCastles(state: GameState): void {
   }
 }
 
-function prepareCastleWalls(state: GameState): { playerId: number; tiles: number[] }[] {
+function prepareCastleWalls(
+  state: GameState,
+): { playerId: number; tiles: number[] }[] {
   const result: { playerId: number; tiles: number[] }[] = [];
   for (const player of state.players) {
     const plan = prepareCastleWallsForPlayer(state, player.id);
@@ -379,19 +396,37 @@ function prepareCastleWalls(state: GameState): { playerId: number; tiles: number
 
 /** Prepare castle walls for all players, returning ordered wall tiles per player
  *  for animated construction. Sets castle but does NOT add walls or interior. */
-export function prepareCastleWallsForPlayer(state: GameState, playerId: number): { playerId: number; tiles: number[] } | null {
+export function prepareCastleWallsForPlayer(
+  state: GameState,
+  playerId: number,
+): { playerId: number; tiles: number[] } | null {
   const player = state.players[playerId];
   if (!player?.homeTower) return null;
-  const castle = createCastle(player.homeTower, state.map.tiles, state.map.towers);
+  const castle = createCastle(
+    player.homeTower,
+    state.map.tiles,
+    state.map.towers,
+  );
   player.castle = castle;
 
   // Get wall tiles and apply clumsy builders to a temp set
   const wallTiles = computeCastleWallTiles(castle, state.map.tiles);
   const tempWalls = new Set<number>();
   for (const [r, c] of wallTiles) tempWalls.add(packTile(r, c));
-  applyClumsyBuilders(tempWalls, castle, state.map.tiles, state.rng, state.map.towers);
+  applyClumsyBuilders(
+    tempWalls,
+    castle,
+    state.map.tiles,
+    state.rng,
+    state.map.towers,
+  );
 
-  const ordered = orderCastleWallsForAnimation(castle, wallTiles, tempWalls, state.rng);
+  const ordered = orderCastleWallsForAnimation(
+    castle,
+    wallTiles,
+    tempWalls,
+    state.rng,
+  );
   return { playerId: player.id, tiles: ordered };
 }
 
@@ -407,7 +442,10 @@ function orderCastleWallsForAnimation(
   rng: Rng,
 ): number[] {
   const { left, top, right, bottom } = castle;
-  const wL = left - 1, wR = right + 1, wT = top - 1, wB = bottom + 1;
+  const wL = left - 1,
+    wR = right + 1,
+    wT = top - 1,
+    wB = bottom + 1;
 
   // 1. Build the clean ring walk (clockwise or counterclockwise)
   const ringSet = new Set<number>();
@@ -415,13 +453,25 @@ function orderCastleWallsForAnimation(
 
   const ringWalk: number[] = [];
   // Top edge (left to right)
-  for (let c = wL; c <= wR; c++) { const k = packTile(wT, c); if (ringSet.has(k)) ringWalk.push(k); }
+  for (let c = wL; c <= wR; c++) {
+    const k = packTile(wT, c);
+    if (ringSet.has(k)) ringWalk.push(k);
+  }
   // Right edge (top+1 to bottom)
-  for (let r = wT + 1; r <= wB; r++) { const k = packTile(r, wR); if (ringSet.has(k)) ringWalk.push(k); }
+  for (let r = wT + 1; r <= wB; r++) {
+    const k = packTile(r, wR);
+    if (ringSet.has(k)) ringWalk.push(k);
+  }
   // Bottom edge (right-1 to left)
-  for (let c = wR - 1; c >= wL; c--) { const k = packTile(wB, c); if (ringSet.has(k)) ringWalk.push(k); }
+  for (let c = wR - 1; c >= wL; c--) {
+    const k = packTile(wB, c);
+    if (ringSet.has(k)) ringWalk.push(k);
+  }
   // Left edge (bottom-1 to top+1)
-  for (let r = wB - 1; r > wT; r--) { const k = packTile(r, wL); if (ringSet.has(k)) ringWalk.push(k); }
+  for (let r = wB - 1; r > wT; r--) {
+    const k = packTile(r, wL);
+    if (ringSet.has(k)) ringWalk.push(k);
+  }
 
   // Randomly reverse for counterclockwise
   if (rng.bool(CASTLE_RING_REVERSE_CHANCE)) ringWalk.reverse();
@@ -433,7 +483,7 @@ function orderCastleWallsForAnimation(
   }
   // Some ring tiles may have been removed by clumsy builders
   // (sweep phase removes tiles with ≤1 neighbor). Filter ring walk.
-  const activeRing = ringWalk.filter(k => finalWalls.has(k));
+  const activeRing = ringWalk.filter((k) => finalWalls.has(k));
 
   // 3. Interleave: after each ring tile, insert any adjacent extras
   const ordered: number[] = [];

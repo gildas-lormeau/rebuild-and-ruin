@@ -14,7 +14,10 @@ import { BATTLE_TIMER, type GameState } from "./types.ts";
 export interface CheckpointBattleAnim {
   territory: Set<number>[];
   walls: Set<number>[];
-  flights: readonly { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[];
+  flights: readonly {
+    flight: { startX: number; startY: number; endX: number; endY: number };
+    progress: number;
+  }[];
   impacts: { row: number; col: number; age: number }[];
 }
 

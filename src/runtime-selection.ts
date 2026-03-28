@@ -12,7 +12,11 @@ import {
   createCastleBuildState,
   tickCastleBuildAnimation,
 } from "./castle-build.ts";
-import { type InputReceiver, isHuman, type PlayerController } from "./controller-interfaces.ts";
+import {
+  type InputReceiver,
+  isHuman,
+  type PlayerController,
+} from "./controller-interfaces.ts";
 import {
   advanceToCannonPlacePhase,
   enterCannonPlacePhase,
@@ -30,9 +34,7 @@ import {
   BANNER_PLACE_CANNONS,
   BANNER_PLACE_CANNONS_SUB,
 } from "./phase-banner.ts";
-import {
-  syncSelectionOverlay as syncSelectionOverlayImpl,
-} from "./render-composition.ts";
+import { syncSelectionOverlay as syncSelectionOverlayImpl } from "./render-composition.ts";
 import { initTowerSelection } from "./runtime-bootstrap.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { RuntimeSelection } from "./runtime-types.ts";
@@ -63,7 +65,9 @@ interface SelectionSystemDeps {
   // Camera
   lightUnzoom: () => void;
   clearCastleBuildViewport: () => void;
-  setCastleBuildViewport: (plans: readonly { playerId: number; tiles: number[] }[]) => void;
+  setCastleBuildViewport: (
+    plans: readonly { playerId: number; tiles: number[] }[],
+  ) => void;
   setSelectionViewport: (towerRow: number, towerCol: number) => void;
 
   // Sibling systems / parent callbacks
@@ -90,7 +94,9 @@ export type SelectionSystem = RuntimeSelection & {
   showBuildScoreDeltas: (onDone: () => void) => void;
 };
 
-export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSystem {
+export function createSelectionSystem(
+  deps: SelectionSystemDeps,
+): SelectionSystem {
   const { rs } = deps;
 
   // -------------------------------------------------------------------------
@@ -101,7 +107,8 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
     initTowerSelectionImpl(rs.state, rs.selectionStates, pid, zone);
     if (isHuman(rs.controllers[pid]!)) {
       const player = rs.state.players[pid];
-      if (player?.homeTower) deps.setSelectionViewport(player.homeTower.row, player.homeTower.col);
+      if (player?.homeTower)
+        deps.setSelectionViewport(player.homeTower.row, player.homeTower.col);
     }
   }
 
@@ -115,25 +122,39 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
       selectionStates: rs.selectionStates,
       initTowerSelection: initPlayerTowerSelection,
       syncSelectionOverlay,
-      setOverlaySelection: () => { rs.overlay = { selection: { highlighted: null, selected: null } }; },
+      setOverlaySelection: () => {
+        rs.overlay = { selection: { highlighted: null, selected: null } };
+      },
       selectTimer: SELECT_TIMER,
       accum: rs.accum,
       enterCastleReselectPhase,
       now: () => performance.now(),
-      setModeSelection: () => { rs.mode = Mode.SELECTION; },
-      setLastTime: (t) => { rs.lastTime = t; },
+      setModeSelection: () => {
+        rs.mode = Mode.SELECTION;
+      },
+      setLastTime: (t) => {
+        rs.lastTime = t;
+      },
       requestFrame: deps.requestFrame,
       log: deps.log,
     });
   }
 
   function syncSelectionOverlay(): void {
-    const announcementDone = rs.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION;
-    syncSelectionOverlayImpl(rs.overlay, rs.selectionStates, (pid) =>
-      isHuman(rs.controllers[pid]!) && announcementDone);
+    const announcementDone =
+      rs.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION;
+    syncSelectionOverlayImpl(
+      rs.overlay,
+      rs.selectionStates,
+      (pid) => isHuman(rs.controllers[pid]!) && announcementDone,
+    );
   }
 
-  function highlightTowerForPlayer(idx: number, zone: number, pid: number): void {
+  function highlightTowerForPlayer(
+    idx: number,
+    zone: number,
+    pid: number,
+  ): void {
     highlightTowerSelection(
       rs.state,
       rs.selectionStates,
@@ -148,7 +169,8 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
     const human = deps.firstHuman();
     if (human && pid === human.playerId) {
       const tower = rs.state.map.towers[idx];
-      if (tower && tower.zone === zone) deps.setSelectionViewport(tower.row, tower.col);
+      if (tower && tower.zone === zone)
+        deps.setSelectionViewport(tower.row, tower.col);
     }
   }
 
@@ -197,11 +219,16 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
       confirmSelectionForPlayer: (pid, isReselect) =>
         confirmSelectionForPlayer(pid, isReselect ?? false),
       allSelectionsConfirmed,
-      allBuildsComplete: () => rs.castleBuilds.length === 0 &&
-        rs.state.players.every(p => !p.homeTower || p.interior.size > 0 || p.eliminated),
+      allBuildsComplete: () =>
+        rs.castleBuilds.length === 0 &&
+        rs.state.players.every(
+          (p) => !p.homeTower || p.interior.size > 0 || p.eliminated,
+        ),
       tickActiveBuilds: tickAllCastleBuilds,
       announcementDuration: SELECT_ANNOUNCEMENT_DURATION,
-      setFrameAnnouncement: (text) => { rs.frame.announcement = text; },
+      setFrameAnnouncement: (text) => {
+        rs.frame.announcement = text;
+      },
       finishReselection,
       finishSelection,
       syncSelectionOverlay,
@@ -262,11 +289,18 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
     for (let i = rs.castleBuilds.length - 1; i >= 0; i--) {
       const build = rs.castleBuilds[i]!;
       const result = tickCastleBuildAnimation({
-        castleBuild: build, dt, wallBuildIntervalMs: WALL_BUILD_INTERVAL, state: rs.state, render: () => {},
-        onWallsPlaced: () => { anyPlaced = true; },
+        castleBuild: build,
+        dt,
+        wallBuildIntervalMs: WALL_BUILD_INTERVAL,
+        state: rs.state,
+        render: () => {},
+        onWallsPlaced: () => {
+          anyPlaced = true;
+        },
       });
       if (!result.next) {
-        if (build.wallPlans.some(p => p.playerId === humanPid)) humanBuildDone = true;
+        if (build.wallPlans.some((p) => p.playerId === humanPid))
+          humanBuildDone = true;
         rs.castleBuilds.splice(i, 1);
       } else {
         rs.castleBuilds[i] = result.next;
@@ -287,11 +321,14 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
         const ht = p.homeTower;
         const px = ht ? towerCenterPx(ht) : { x: 0, y: 0 };
         return {
-          playerId: i, delta: p.score - (rs.preScores[i] ?? 0), total: p.score,
-          cx: px.x, cy: px.y - TILE_SIZE, // just above the tower
+          playerId: i,
+          delta: p.score - (rs.preScores[i] ?? 0),
+          total: p.score,
+          cx: px.x,
+          cy: px.y - TILE_SIZE, // just above the tower
         };
       })
-      .filter(d => d.delta > 0 && !rs.state.players[d.playerId]!.eliminated);
+      .filter((d) => d.delta > 0 && !rs.state.players[d.playerId]!.eliminated);
 
     if (rs.scoreDeltas.length > 0) {
       deps.lightUnzoom();
@@ -305,7 +342,15 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
   function advanceToCannonPhase(): void {
     advanceToCannonPlacePhase(rs.state);
     deps.startCannonPhase();
-    deps.showBanner(BANNER_PLACE_CANNONS, () => { rs.mode = Mode.GAME; }, true, undefined, BANNER_PLACE_CANNONS_SUB);
+    deps.showBanner(
+      BANNER_PLACE_CANNONS,
+      () => {
+        rs.mode = Mode.GAME;
+      },
+      true,
+      undefined,
+      BANNER_PLACE_CANNONS_SUB,
+    );
   }
 
   function tickCastleBuild(dt: number): void {
@@ -338,11 +383,12 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
       processPlayer: (pid, ctrl, zone) => {
         if (remoteHumanSlots.has(pid)) return "pending" as const;
         const done = ctrl.reselect(rs.state, zone);
-        return done ? "done" as const : "pending" as const;
+        return done ? ("done" as const) : ("pending" as const);
       },
       onDone: (pid, ctrl) => {
         const player = rs.state.players[pid]!;
-        if (player.homeTower) ctrl.centerOn(player.homeTower.row, player.homeTower.col);
+        if (player.homeTower)
+          ctrl.centerOn(player.homeTower.row, player.homeTower.col);
         markPlayerReselected(rs.state, pid);
         rs.reselectionPids.push(pid);
       },
@@ -364,8 +410,11 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
 
   function finishReselection() {
     completeReselection({
-      state: rs.state, selectionStates: rs.selectionStates, clearOverlaySelection,
-      reselectQueue: rs.reselectQueue, reselectionPids: rs.reselectionPids,
+      state: rs.state,
+      selectionStates: rs.selectionStates,
+      clearOverlaySelection,
+      reselectQueue: rs.reselectQueue,
+      reselectionPids: rs.reselectionPids,
       finalizeAndAdvance,
     });
   }
@@ -386,7 +435,9 @@ export function createSelectionSystem(deps: SelectionSystemDeps): SelectionSyste
     finish: finishSelection,
     advanceToCannonPhase,
     tickCastleBuild,
-    setCastleBuildViewport: (plans: readonly { playerId: number; tiles: number[] }[]) => deps.setCastleBuildViewport(plans),
+    setCastleBuildViewport: (
+      plans: readonly { playerId: number; tiles: number[] }[],
+    ) => deps.setCastleBuildViewport(plans),
     startReselection,
     finishReselection,
     showBuildScoreDeltas,

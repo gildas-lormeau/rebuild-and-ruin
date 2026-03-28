@@ -8,22 +8,49 @@
  * Right panel: quit + zoom + rotate + confirm
  */
 
-import type { InputReceiver, PlayerController } from "./controller-interfaces.ts";
+import type {
+  InputReceiver,
+  PlayerController,
+} from "./controller-interfaces.ts";
 import { dispatchPlacement, isGameInteractionMode } from "./input-dispatch.ts";
 import { hapticTap } from "./input-haptics.ts";
 import { ACTION_CONFIRM, PLAYER_COLORS } from "./player-config.ts";
-import { rgb, TOUCH_ZOOM_ENEMY_BG, TOUCH_ZOOM_HOME_BG, ZOOM_BUTTON_ALPHA } from "./render-theme.ts";
+import {
+  rgb,
+  TOUCH_ZOOM_ENEMY_BG,
+  TOUCH_ZOOM_HOME_BG,
+  ZOOM_BUTTON_ALPHA,
+} from "./render-theme.ts";
 import { findNearestTower } from "./spatial.ts";
-import { Action, type GameState, isReselectPhase, isSelectionPhase, Phase, type SelectionState } from "./types.ts";
+import {
+  Action,
+  type GameState,
+  isReselectPhase,
+  isSelectionPhase,
+  Phase,
+  type SelectionState,
+} from "./types.ts";
 
 interface DpadDeps {
   getState: () => GameState | undefined;
   getMode: () => number;
   modeValues: { GAME: number; SELECTION: number; LOBBY: number };
-  withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
-  tryPlacePieceAndSend: (human: PlayerController & InputReceiver, state: GameState) => void;
-  tryPlaceCannonAndSend: (human: PlayerController & InputReceiver, state: GameState, max: number) => void;
-  fireAndSend: (human: PlayerController & InputReceiver, state: GameState) => void;
+  withFirstHuman: (
+    action: (human: PlayerController & InputReceiver) => void,
+  ) => void;
+  tryPlacePieceAndSend: (
+    human: PlayerController & InputReceiver,
+    state: GameState,
+  ) => void;
+  tryPlaceCannonAndSend: (
+    human: PlayerController & InputReceiver,
+    state: GameState,
+    max: number,
+  ) => void;
+  fireAndSend: (
+    human: PlayerController & InputReceiver,
+    state: GameState,
+  ) => void;
   getSelectionStates: () => Map<number, SelectionState>;
   highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
   confirmSelectionForPlayer: (pid: number, isReselect: boolean) => boolean;
@@ -78,21 +105,38 @@ interface ZoomButtonDeps {
 
 interface RotateDeps {
   getState: () => GameState | undefined;
-  withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
+  withFirstHuman: (
+    action: (human: PlayerController & InputReceiver) => void,
+  ) => void;
 }
 
 interface FloatingActionsDeps {
   getState: () => GameState | undefined;
-  withFirstHuman: (action: (human: PlayerController & InputReceiver) => void) => void;
-  tryPlacePieceAndSend: (human: PlayerController & InputReceiver, state: GameState) => void;
-  tryPlaceCannonAndSend: (human: PlayerController & InputReceiver, state: GameState, max: number) => void;
+  withFirstHuman: (
+    action: (human: PlayerController & InputReceiver) => void,
+  ) => void;
+  tryPlacePieceAndSend: (
+    human: PlayerController & InputReceiver,
+    state: GameState,
+  ) => void;
+  tryPlaceCannonAndSend: (
+    human: PlayerController & InputReceiver,
+    state: GameState,
+    max: number,
+  ) => void;
   /** Forward a drag touch to the canvas pointer-move logic. */
   onDrag?: (clientX: number, clientY: number) => void;
 }
 
 interface FloatingActionsHandle {
   /** Reposition + show/hide based on current phantom screen coords. */
-  update: (visible: boolean, x: number, y: number, nearTop: boolean, leftHanded: boolean) => void;
+  update: (
+    visible: boolean,
+    x: number,
+    y: number,
+    nearTop: boolean,
+    leftHanded: boolean,
+  ) => void;
   /** Toggle the confirm button's disabled look based on placement validity. */
   setConfirmValid: (valid: boolean) => void;
 }
@@ -102,7 +146,10 @@ interface FloatingActionsHandle {
  * Finds all d-pad, action, and rotate buttons (both landscape and portrait copies)
  * and attaches event handlers.
  */
-export function createDpad(deps: DpadDeps, container: HTMLElement): {
+export function createDpad(
+  deps: DpadDeps,
+  container: HTMLElement,
+): {
   update: (phase: Phase | null, disableRotate?: boolean) => void;
   setLeftHanded: (lh: boolean) => void;
   setConfirmValid: (valid: boolean) => void;
@@ -122,7 +169,10 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
   let repeatTimer: ReturnType<typeof setTimeout> | null = null;
 
   function stopRepeat() {
-    if (repeatTimer !== null) { clearTimeout(repeatTimer); repeatTimer = null; }
+    if (repeatTimer !== null) {
+      clearTimeout(repeatTimer);
+      repeatTimer = null;
+    }
   }
 
   function startRepeat(action: Action) {
@@ -144,22 +194,32 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
       return;
     }
     if (deps.lifeLost?.isActive()) {
-      if (action === Action.LEFT || action === Action.RIGHT) deps.lifeLost.toggleFocus();
+      if (action === Action.LEFT || action === Action.RIGHT)
+        deps.lifeLost.toggleFocus();
       return;
     }
     if (deps.gameOver?.isActive()) {
-      if (action === Action.LEFT || action === Action.RIGHT) deps.gameOver.toggleFocus();
+      if (action === Action.LEFT || action === Action.RIGHT)
+        deps.gameOver.toggleFocus();
       return;
     }
     const state = deps.getState();
-    if (!state || !isGameInteractionMode(deps.getMode(), deps.modeValues)) return;
-    if (isSelectionPhase(state.phase)
-      && (!deps.isSelectionReady || deps.isSelectionReady())) {
+    if (!state || !isGameInteractionMode(deps.getMode(), deps.modeValues))
+      return;
+    if (
+      isSelectionPhase(state.phase) &&
+      (!deps.isSelectionReady || deps.isSelectionReady())
+    ) {
       deps.withFirstHuman((human) => {
         const ss = deps.getSelectionStates().get(human.playerId);
         if (!ss || ss.confirmed) return;
         const zone = state.playerZones[human.playerId] ?? 0;
-        const next = findNearestTower(state.map.towers, ss.highlighted, action, zone);
+        const next = findNearestTower(
+          state.map.towers,
+          ss.highlighted,
+          action,
+          zone,
+        );
         deps.highlightTowerForPlayer(next, zone, human.playerId);
       });
     } else {
@@ -188,18 +248,33 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
   }
 
   function wireArrow(btn: HTMLButtonElement, action: Action) {
-    btn.addEventListener("touchstart", (e) => {
-      e.preventDefault(); e.stopPropagation(); pressDown(btn);
-      deps.clearDirectTouch?.();
-      if (isBattle()) battleKeyDown(action); else startRepeat(action);
-    }, { passive: false });
-    btn.addEventListener("touchend", (e) => {
-      e.preventDefault(); e.stopPropagation(); pressUp(btn);
-      if (isBattle()) battleKeyUp(action); else stopRepeat();
-    }, { passive: false });
+    btn.addEventListener(
+      "touchstart",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        pressDown(btn);
+        deps.clearDirectTouch?.();
+        if (isBattle()) battleKeyDown(action);
+        else startRepeat(action);
+      },
+      { passive: false },
+    );
+    btn.addEventListener(
+      "touchend",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        pressUp(btn);
+        if (isBattle()) battleKeyUp(action);
+        else stopRepeat();
+      },
+      { passive: false },
+    );
     btn.addEventListener("touchcancel", () => {
       pressUp(btn);
-      if (isBattle()) battleKeyUp(action); else stopRepeat();
+      if (isBattle()) battleKeyUp(action);
+      else stopRepeat();
     });
   }
 
@@ -230,10 +305,15 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
     }
     const state = deps.getState();
     if (!state || !isGameInteractionMode(mode, deps.modeValues)) return;
-    if (isSelectionPhase(state.phase)
-      && (!deps.isSelectionReady || deps.isSelectionReady())) {
+    if (
+      isSelectionPhase(state.phase) &&
+      (!deps.isSelectionReady || deps.isSelectionReady())
+    ) {
       deps.withFirstHuman((human) => {
-        deps.confirmSelectionForPlayer(human.playerId, isReselectPhase(state.phase));
+        deps.confirmSelectionForPlayer(
+          human.playerId,
+          isReselectPhase(state.phase),
+        );
       });
     } else if (state.phase === Phase.BATTLE) {
       if (state.battleCountdown <= 0) {
@@ -245,12 +325,24 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
   }
 
   for (const btn of btnsAction) {
-    btn.addEventListener("touchstart", (e) => {
-      e.preventDefault(); e.stopPropagation(); pressDown(btn); handleAction();
-    }, { passive: false });
-    btn.addEventListener("touchend", (e) => {
-      e.preventDefault(); pressUp(btn);
-    }, { passive: false });
+    btn.addEventListener(
+      "touchstart",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        pressDown(btn);
+        handleAction();
+      },
+      { passive: false },
+    );
+    btn.addEventListener(
+      "touchend",
+      (e) => {
+        e.preventDefault();
+        pressUp(btn);
+      },
+      { passive: false },
+    );
     btn.addEventListener("touchcancel", () => pressUp(btn));
   }
 
@@ -266,14 +358,26 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
   }
 
   for (const btn of btnsRotate) {
-    btn.addEventListener("touchstart", (e) => {
-      e.preventDefault(); e.stopPropagation(); pressDown(btn);
-      if (isBattle()) battleKeyDown(Action.ROTATE); else handleRotate();
-    }, { passive: false });
-    btn.addEventListener("touchend", (e) => {
-      e.preventDefault(); pressUp(btn);
-      if (isBattle()) battleKeyUp(Action.ROTATE);
-    }, { passive: false });
+    btn.addEventListener(
+      "touchstart",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        pressDown(btn);
+        if (isBattle()) battleKeyDown(Action.ROTATE);
+        else handleRotate();
+      },
+      { passive: false },
+    );
+    btn.addEventListener(
+      "touchend",
+      (e) => {
+        e.preventDefault();
+        pressUp(btn);
+        if (isBattle()) battleKeyUp(Action.ROTATE);
+      },
+      { passive: false },
+    );
     btn.addEventListener("touchcancel", () => {
       pressUp(btn);
       if (isBattle()) battleKeyUp(Action.ROTATE);
@@ -288,8 +392,10 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
       stopRepeat();
       const inGame = phase !== null;
       for (const dpad of dpads) dpad.classList.toggle("disabled", !inGame);
-      const rotateActive = inGame && !isSelectionPhase(phase!) && !disableRotate;
-      for (const btn of btnsRotate) btn.classList.toggle("disabled", !rotateActive);
+      const rotateActive =
+        inGame && !isSelectionPhase(phase!) && !disableRotate;
+      for (const btn of btnsRotate)
+        btn.classList.toggle("disabled", !rotateActive);
     },
     setLeftHanded(lh: boolean) {
       container.classList.toggle("left-handed", lh);
@@ -300,7 +406,10 @@ export function createDpad(deps: DpadDeps, container: HTMLElement): {
   };
 }
 
-export function createQuitButton(deps: QuitButtonDeps, container: HTMLElement): {
+export function createQuitButton(
+  deps: QuitButtonDeps,
+  container: HTMLElement,
+): {
   update: (phase?: Phase | null) => void;
 } {
   const buttons = queryAll(container, "quit");
@@ -318,11 +427,19 @@ export function createQuitButton(deps: QuitButtonDeps, container: HTMLElement): 
 
   for (const btn of buttons) {
     btn.addEventListener("click", (e) => {
-      e.preventDefault(); e.stopPropagation(); handleQuit();
+      e.preventDefault();
+      e.stopPropagation();
+      handleQuit();
     });
-    btn.addEventListener("touchstart", (e) => {
-      e.preventDefault(); e.stopPropagation(); handleQuit();
-    }, { passive: false });
+    btn.addEventListener(
+      "touchstart",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleQuit();
+      },
+      { passive: false },
+    );
   }
 
   return {
@@ -334,7 +451,10 @@ export function createQuitButton(deps: QuitButtonDeps, container: HTMLElement): 
 }
 
 /** Toggle between my zone (zoomed) and full map. */
-export function createHomeZoomButton(deps: ZoomButtonDeps, container: HTMLElement): {
+export function createHomeZoomButton(
+  deps: ZoomButtonDeps,
+  container: HTMLElement,
+): {
   update: (active?: boolean) => void;
 } {
   const buttons = queryAll(container, "zoom-home");
@@ -369,16 +489,27 @@ export function createHomeZoomButton(deps: ZoomButtonDeps, container: HTMLElemen
     const current = deps.getCameraZone();
     const myZone = getMyZone();
     const isHome = current === myZone && myZone !== null;
-    const bg = zoomButtonBg(isHome ? -1 : deps.myPlayerId(), TOUCH_ZOOM_HOME_BG);
+    const bg = zoomButtonBg(
+      isHome ? -1 : deps.myPlayerId(),
+      TOUCH_ZOOM_HOME_BG,
+    );
     for (const btn of buttons) btn.style.background = bg;
   }
 
   for (const btn of buttons) {
-    btn.addEventListener("touchstart", (e) => {
-      e.preventDefault(); e.stopPropagation(); toggle();
-    }, { passive: false });
+    btn.addEventListener(
+      "touchstart",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggle();
+      },
+      { passive: false },
+    );
     btn.addEventListener("click", (e) => {
-      e.preventDefault(); e.stopPropagation(); toggle();
+      e.preventDefault();
+      e.stopPropagation();
+      toggle();
     });
   }
 
@@ -391,7 +522,10 @@ export function createHomeZoomButton(deps: ZoomButtonDeps, container: HTMLElemen
 }
 
 /** Cycle through opponent zones. */
-export function createEnemyZoomButton(deps: ZoomButtonDeps, container: HTMLElement): {
+export function createEnemyZoomButton(
+  deps: ZoomButtonDeps,
+  container: HTMLElement,
+): {
   update: (active?: boolean) => void;
 } {
   const buttons = queryAll(container, "zoom-enemy");
@@ -418,11 +552,19 @@ export function createEnemyZoomButton(deps: ZoomButtonDeps, container: HTMLEleme
   }
 
   for (const btn of buttons) {
-    btn.addEventListener("touchstart", (e) => {
-      e.preventDefault(); e.stopPropagation(); cycle();
-    }, { passive: false });
+    btn.addEventListener(
+      "touchstart",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        cycle();
+      },
+      { passive: false },
+    );
     btn.addEventListener("click", (e) => {
-      e.preventDefault(); e.stopPropagation(); cycle();
+      e.preventDefault();
+      e.stopPropagation();
+      cycle();
     });
   }
 
@@ -442,8 +584,12 @@ export function createFloatingActions(
   deps: FloatingActionsDeps,
   el: HTMLElement,
 ): FloatingActionsHandle {
-  const btnRotate = el.querySelector<HTMLButtonElement>('[data-action="float-rotate"]')!;
-  const btnConfirm = el.querySelector<HTMLButtonElement>('[data-action="float-confirm"]')!;
+  const btnRotate = el.querySelector<HTMLButtonElement>(
+    '[data-action="float-rotate"]',
+  )!;
+  const btnConfirm = el.querySelector<HTMLButtonElement>(
+    '[data-action="float-confirm"]',
+  )!;
 
   function handleRotate() {
     hapticTap();
@@ -458,31 +604,58 @@ export function createFloatingActions(
   }
 
   const TAP_THRESHOLD = 10; // pixels — beyond this the gesture is a drag
-  for (const [btn, handler] of [[btnRotate, handleRotate], [btnConfirm, handleConfirm]] as const) {
+  for (const [btn, handler] of [
+    [btnRotate, handleRotate],
+    [btnConfirm, handleConfirm],
+  ] as const) {
     let startX = 0;
     let startY = 0;
     let dragged = false;
-    btn.addEventListener("touchstart", (e) => {
-      e.preventDefault(); e.stopPropagation(); pressDown(btn);
-      const t = e.touches[0];
-      if (t) { startX = t.clientX; startY = t.clientY; }
-      dragged = false;
-    }, { passive: false });
-    btn.addEventListener("touchmove", (e) => {
-      e.preventDefault();
-      const t = e.touches[0];
-      if (!t) return;
-      if (!dragged && Math.hypot(t.clientX - startX, t.clientY - startY) > TAP_THRESHOLD) {
-        dragged = true;
+    btn.addEventListener(
+      "touchstart",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        pressDown(btn);
+        const t = e.touches[0];
+        if (t) {
+          startX = t.clientX;
+          startY = t.clientY;
+        }
+        dragged = false;
+      },
+      { passive: false },
+    );
+    btn.addEventListener(
+      "touchmove",
+      (e) => {
+        e.preventDefault();
+        const t = e.touches[0];
+        if (!t) return;
+        if (
+          !dragged &&
+          Math.hypot(t.clientX - startX, t.clientY - startY) > TAP_THRESHOLD
+        ) {
+          dragged = true;
+          pressUp(btn);
+        }
+        if (dragged) deps.onDrag?.(t.clientX, t.clientY);
+      },
+      { passive: false },
+    );
+    btn.addEventListener(
+      "touchend",
+      (e) => {
+        e.preventDefault();
         pressUp(btn);
-      }
-      if (dragged) deps.onDrag?.(t.clientX, t.clientY);
-    }, { passive: false });
-    btn.addEventListener("touchend", (e) => {
-      e.preventDefault(); pressUp(btn);
-      if (!dragged) handler();
-    }, { passive: false });
-    btn.addEventListener("touchcancel", () => { pressUp(btn); dragged = false; });
+        if (!dragged) handler();
+      },
+      { passive: false },
+    );
+    btn.addEventListener("touchcancel", () => {
+      pressUp(btn);
+      dragged = false;
+    });
   }
 
   return {
@@ -534,10 +707,16 @@ function dispatchRotate(deps: RotateDeps): void {
 
 /** Query all elements matching a data-action within a container. */
 function queryAll(container: HTMLElement, action: string): HTMLButtonElement[] {
-  return Array.from(container.querySelectorAll<HTMLButtonElement>(`[data-action="${action}"]`));
+  return Array.from(
+    container.querySelectorAll<HTMLButtonElement>(`[data-action="${action}"]`),
+  );
 }
 
 /** Visual press feedback via CSS class. */
-function pressDown(btn: HTMLElement): void { btn.classList.add("pressed"); }
+function pressDown(btn: HTMLElement): void {
+  btn.classList.add("pressed");
+}
 
-function pressUp(btn: HTMLElement): void { btn.classList.remove("pressed"); }
+function pressUp(btn: HTMLElement): void {
+  btn.classList.remove("pressed");
+}
