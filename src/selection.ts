@@ -1,4 +1,4 @@
-import { MSG } from "../server/protocol.ts";
+import { MESSAGE } from "../server/protocol.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import { selectPlayerTower } from "./game-engine.ts";
 import { BANNER_SELECT } from "./phase-banner.ts";
@@ -83,7 +83,7 @@ export function highlightTowerSelection(
   selectPlayerTower(player, tower);
 
   send({
-    type: MSG.OPPONENT_TOWER_SELECTED,
+    type: MESSAGE.OPPONENT_TOWER_SELECTED,
     playerId,
     towerIdx: idx,
     confirmed: false,
@@ -115,7 +115,7 @@ export function confirmTowerSelection(
   ss.confirmed = true;
 
   send({
-    type: MSG.OPPONENT_TOWER_SELECTED,
+    type: MESSAGE.OPPONENT_TOWER_SELECTED,
     playerId,
     towerIdx: ss.highlighted,
     confirmed: true,

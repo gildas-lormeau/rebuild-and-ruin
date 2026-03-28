@@ -3,7 +3,7 @@
  * tick functions from runtime-host-battle-ticks.ts, runtime-host-phase-ticks.ts, etc.
  */
 
-import { MSG } from "../server/protocol.ts";
+import { MESSAGE } from "../server/protocol.ts";
 import { resolveBalloons, tickCannonballs } from "./battle-system.ts";
 import {
   type InputReceiver,
@@ -249,9 +249,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         lastSentCannonPhantom:
           deps.hostNetworking?.lastSentCannonPhantom() ?? new Map(),
         sendOpponentCannonPlaced: (msg) =>
-          deps.send({ type: MSG.OPPONENT_CANNON_PLACED, ...msg }),
+          deps.send({ type: MESSAGE.OPPONENT_CANNON_PLACED, ...msg }),
         sendOpponentCannonPhantom: (msg) =>
-          deps.send({ type: MSG.OPPONENT_CANNON_PHANTOM, ...msg }),
+          deps.send({ type: MESSAGE.OPPONENT_CANNON_PHANTOM, ...msg }),
       },
     });
   }
@@ -302,9 +302,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
               ? rs.gameStats[evt.shooterId]
               : undefined;
           if (!stats) continue;
-          if (evt.type === MSG.WALL_DESTROYED) {
+          if (evt.type === MESSAGE.WALL_DESTROYED) {
             stats.wallsDestroyed++;
-          } else if (evt.type === MSG.CANNON_DAMAGED && evt.newHp === 0) {
+          } else if (evt.type === MESSAGE.CANNON_DAMAGED && evt.newHp === 0) {
             stats.cannonsKilled++;
           }
         }
@@ -364,10 +364,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           deps.hostNetworking?.lastSentPiecePhantom() ?? new Map(),
         serializePlayers: deps.hostNetworking?.serializePlayers,
         sendOpponentPiecePlaced: (msg) =>
-          deps.send({ type: MSG.OPPONENT_PIECE_PLACED, ...msg }),
+          deps.send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...msg }),
         sendOpponentPhantom: (msg) =>
-          deps.send({ type: MSG.OPPONENT_PHANTOM, ...msg }),
-        sendBuildEnd: (msg) => deps.send({ type: MSG.BUILD_END, ...msg }),
+          deps.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg }),
+        sendBuildEnd: (msg) => deps.send({ type: MESSAGE.BUILD_END, ...msg }),
       },
     });
   }

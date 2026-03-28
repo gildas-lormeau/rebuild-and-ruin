@@ -1,7 +1,7 @@
 import {
   type FullStateMessage,
   type InitMessage,
-  MSG,
+  MESSAGE,
   type ServerMessage,
 } from "../server/protocol.ts";
 import type { GameState } from "./types.ts";
@@ -67,11 +67,11 @@ export function handleServerLifecycleMessage(
   if (
     !deps.isHost &&
     deps.getLifeLostDialog() &&
-    (msg.type === MSG.CANNON_START ||
-      msg.type === MSG.BATTLE_START ||
-      msg.type === MSG.BUILD_START ||
-      msg.type === MSG.SELECT_START ||
-      msg.type === MSG.CASTLE_WALLS)
+    (msg.type === MESSAGE.CANNON_START ||
+      msg.type === MESSAGE.BATTLE_START ||
+      msg.type === MESSAGE.BUILD_START ||
+      msg.type === MESSAGE.SELECT_START ||
+      msg.type === MESSAGE.CASTLE_WALLS)
   ) {
     deps.log("dismissing stale life-lost dialog (phase transition received)");
     deps.clearLifeLostDialog();
@@ -79,13 +79,13 @@ export function handleServerLifecycleMessage(
   }
 
   switch (msg.type) {
-    case MSG.ROOM_CREATED:
+    case MESSAGE.ROOM_CREATED:
       deps.setLobbyWaitTimer(msg.settings.waitTimerSec);
       deps.setRoomSettings(msg.settings.battleLength, msg.settings.cannonMaxHp);
       deps.showWaitingRoom(msg.code, msg.seed);
       return true;
 
-    case MSG.ROOM_JOINED:
+    case MESSAGE.ROOM_JOINED:
       deps.setLobbyWaitTimer(msg.settings.waitTimerSec);
       deps.setRoomSettings(msg.settings.battleLength, msg.settings.cannonMaxHp);
       deps.showWaitingRoom(msg.code, msg.seed);
@@ -99,7 +99,7 @@ export function handleServerLifecycleMessage(
       }
       return true;
 
-    case MSG.JOINED:
+    case MESSAGE.JOINED:
       if (
         msg.previousPlayerId !== undefined &&
         msg.previousPlayerId !== msg.playerId
@@ -115,7 +115,7 @@ export function handleServerLifecycleMessage(
       occupyLobbySlot(msg.playerId);
       return true;
 
-    case MSG.PLAYER_JOINED:
+    case MESSAGE.PLAYER_JOINED:
       if (
         msg.previousPlayerId !== undefined &&
         msg.previousPlayerId !== msg.playerId
@@ -125,7 +125,7 @@ export function handleServerLifecycleMessage(
       occupyLobbySlot(msg.playerId);
       return true;
 
-    case MSG.PLAYER_LEFT: {
+    case MESSAGE.PLAYER_LEFT: {
       const name =
         deps.playerNames[msg.playerId] ?? `Player ${msg.playerId + 1}`;
       deps.lobbyJoined[msg.playerId] = false;
@@ -136,44 +136,44 @@ export function handleServerLifecycleMessage(
       return true;
     }
 
-    case MSG.ROOM_ERROR:
+    case MESSAGE.ROOM_ERROR:
       deps.createErrorEl.textContent = msg.message;
       deps.joinErrorEl.textContent = msg.message;
       return true;
 
-    case MSG.INIT:
+    case MESSAGE.INIT:
       deps.initFromServer(msg);
       return true;
 
-    case MSG.SELECT_START:
+    case MESSAGE.SELECT_START:
       deps.enterTowerSelection();
       return true;
 
-    case MSG.CASTLE_WALLS:
+    case MESSAGE.CASTLE_WALLS:
       if (!deps.isHost && deps.getState()) deps.onCastleWalls(msg);
       return true;
 
-    case MSG.CANNON_START:
+    case MESSAGE.CANNON_START:
       if (!deps.isHost && deps.getState()) deps.onCannonStart(msg);
       return true;
 
-    case MSG.BATTLE_START:
+    case MESSAGE.BATTLE_START:
       if (!deps.isHost && deps.getState()) deps.onBattleStart(msg);
       return true;
 
-    case MSG.BUILD_START:
+    case MESSAGE.BUILD_START:
       if (!deps.isHost && deps.getState()) deps.onBuildStart(msg);
       return true;
 
-    case MSG.BUILD_END:
+    case MESSAGE.BUILD_END:
       if (!deps.isHost && deps.getState()) deps.onBuildEnd(msg);
       return true;
 
-    case MSG.GAME_OVER:
+    case MESSAGE.GAME_OVER:
       if (!deps.isHost) deps.onGameOver(msg);
       return true;
 
-    case MSG.HOST_LEFT: {
+    case MESSAGE.HOST_LEFT: {
       deps.log(
         `host_left: new host is P${msg.newHostPlayerId} (previous: P${msg.previousHostPlayerId})`,
       );
@@ -188,7 +188,7 @@ export function handleServerLifecycleMessage(
       return true;
     }
 
-    case MSG.FULL_STATE:
+    case MESSAGE.FULL_STATE:
       if (!deps.isHost && deps.getState()) {
         const incomingSeq = msg.migrationSeq ?? 0;
         if (incomingSeq < deps.getHostMigrationSeq()) {

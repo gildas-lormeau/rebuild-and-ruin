@@ -14,7 +14,7 @@ import type { CannonMode, ResolvedChoice } from "../src/types.ts";
 // Message type constants
 // ---------------------------------------------------------------------------
 
-export const MSG = {
+export const MESSAGE = {
   // Client → Server
   CREATE_ROOM: "create_room",
   JOIN_ROOM: "join_room",

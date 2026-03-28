@@ -2,7 +2,7 @@
  * Battle system — cannon firing, cannonball physics, impacts, and balloon capture.
  */
 
-import { MSG } from "../server/protocol.ts";
+import { MESSAGE } from "../server/protocol.ts";
 import { filterActiveEnemies } from "./board-occupancy.ts";
 import {
   filterActiveFiringCannons,
@@ -49,34 +49,34 @@ import {
 /** An event emitted by applyImpact for network relay. */
 export type ImpactEvent =
   | {
-      type: typeof MSG.WALL_DESTROYED;
+      type: typeof MESSAGE.WALL_DESTROYED;
       row: number;
       col: number;
       playerId: number;
       shooterId?: number;
     }
   | {
-      type: typeof MSG.CANNON_DAMAGED;
+      type: typeof MESSAGE.CANNON_DAMAGED;
       playerId: number;
       cannonIdx: number;
       newHp: number;
       shooterId?: number;
     }
-  | { type: typeof MSG.HOUSE_DESTROYED; row: number; col: number }
+  | { type: typeof MESSAGE.HOUSE_DESTROYED; row: number; col: number }
   | {
-      type: typeof MSG.GRUNT_KILLED;
+      type: typeof MESSAGE.GRUNT_KILLED;
       row: number;
       col: number;
       shooterId?: number;
     }
   | {
-      type: typeof MSG.GRUNT_SPAWNED;
+      type: typeof MESSAGE.GRUNT_SPAWNED;
       row: number;
       col: number;
       targetPlayerId: number;
     }
   | {
-      type: typeof MSG.PIT_CREATED;
+      type: typeof MESSAGE.PIT_CREATED;
       row: number;
       col: number;
       roundsLeft: number;
@@ -305,7 +305,7 @@ export function applyImpactEvent(
       ? event.shooterId
       : shooterId;
   switch (event.type) {
-    case MSG.WALL_DESTROYED: {
+    case MESSAGE.WALL_DESTROYED: {
       const player = state.players[event.playerId];
       if (player) {
         player.walls.delete(packTile(event.row, event.col));
@@ -315,7 +315,7 @@ export function applyImpactEvent(
       }
       break;
     }
-    case MSG.CANNON_DAMAGED: {
+    case MESSAGE.CANNON_DAMAGED: {
       const cannon = state.players[event.playerId]?.cannons[event.cannonIdx];
       if (cannon) {
         cannon.hp = event.newHp;
@@ -327,28 +327,28 @@ export function applyImpactEvent(
       }
       break;
     }
-    case MSG.PIT_CREATED:
+    case MESSAGE.PIT_CREATED:
       state.burningPits.push({
         row: event.row,
         col: event.col,
         roundsLeft: event.roundsLeft,
       });
       break;
-    case MSG.HOUSE_DESTROYED:
+    case MESSAGE.HOUSE_DESTROYED:
       for (const house of state.map.houses) {
         if (house.alive && isAtTile(house, event.row, event.col)) {
           house.alive = false;
         }
       }
       break;
-    case MSG.GRUNT_SPAWNED:
+    case MESSAGE.GRUNT_SPAWNED:
       state.grunts.push({
         row: event.row,
         col: event.col,
         targetPlayerId: event.targetPlayerId,
       });
       break;
-    case MSG.GRUNT_KILLED: {
+    case MESSAGE.GRUNT_KILLED: {
       const shooter = sid !== undefined ? state.players[sid] : undefined;
       state.grunts = state.grunts.filter(
         (g) => !isAtTile(g, event.row, event.col),
@@ -519,7 +519,7 @@ function computeImpact(
     if (player.walls.has(key)) {
       hitWall = true;
       events.push({
-        type: MSG.WALL_DESTROYED,
+        type: MESSAGE.WALL_DESTROYED,
         row,
         col,
         playerId: player.id,
@@ -532,7 +532,7 @@ function computeImpact(
       if (!isCannonAlive(cannon) || isBalloonCannon(cannon)) continue;
       if (isCannonTile(cannon, row, col)) {
         events.push({
-          type: MSG.CANNON_DAMAGED,
+          type: MESSAGE.CANNON_DAMAGED,
           playerId: player.id,
           cannonIdx: ci,
           newHp: cannon.hp - 1,
@@ -544,7 +544,7 @@ function computeImpact(
 
   if (incendiary && hitWall && !hasPitAt(state.burningPits, row, col)) {
     events.push({
-      type: MSG.PIT_CREATED,
+      type: MESSAGE.PIT_CREATED,
       row,
       col,
       roundsLeft: BURNING_PIT_DURATION,
@@ -555,14 +555,14 @@ function computeImpact(
 
   for (const house of state.map.houses) {
     if (house.alive && isAtTile(house, row, col)) {
-      events.push({ type: MSG.HOUSE_DESTROYED, row, col });
+      events.push({ type: MESSAGE.HOUSE_DESTROYED, row, col });
       // Grunt spawn is RNG-based — compute it here so the host decides
       if (state.rng.bool(HOUSE_GRUNT_SPAWN_CHANCE)) {
         // Find spawn position near the destroyed house
         const spawnPos = findGruntSpawnNear(state, row, col);
         if (spawnPos) {
           events.push({
-            type: MSG.GRUNT_SPAWNED,
+            type: MESSAGE.GRUNT_SPAWNED,
             row: spawnPos.row,
             col: spawnPos.col,
             targetPlayerId: shooterId,
@@ -575,7 +575,7 @@ function computeImpact(
   for (const g of state.grunts) {
     if (isAtTile(g, row, col)) {
       events.push({
-        type: MSG.GRUNT_KILLED,
+        type: MESSAGE.GRUNT_KILLED,
         row: g.row,
         col: g.col,
         shooterId,

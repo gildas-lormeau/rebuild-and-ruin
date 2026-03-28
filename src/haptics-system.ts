@@ -6,7 +6,7 @@
  * Follows the factory-with-deps pattern used by sound, camera, selection, etc.
  */
 
-import { MSG } from "../server/protocol.ts";
+import { MESSAGE } from "../server/protocol.ts";
 import { CAN_VIBRATE } from "./platform.ts";
 
 export interface HapticsSystem {
@@ -50,17 +50,20 @@ export function createHapticsSystem(): HapticsSystem {
   ): void {
     if (!CAN_VIBRATE || level < 2) return;
     for (const evt of events) {
-      if (evt.type === MSG.WALL_DESTROYED && evt.playerId === myPlayerId) {
+      if (evt.type === MESSAGE.WALL_DESTROYED && evt.playerId === myPlayerId) {
         vibrate(HAPTIC_WALL_HIT_MS, 2);
       } else if (
-        evt.type === MSG.CANNON_DAMAGED &&
+        evt.type === MESSAGE.CANNON_DAMAGED &&
         evt.playerId === myPlayerId
       ) {
         if (evt.hp === 0) vibrate(HAPTIC_CANNON_DESTROYED_MS, 2);
         else vibrate(80, 2);
-      } else if (evt.type === MSG.TOWER_KILLED) {
+      } else if (evt.type === MESSAGE.TOWER_KILLED) {
         vibrate(200, 2);
-      } else if (evt.type === MSG.CANNON_FIRED && evt.playerId === myPlayerId) {
+      } else if (
+        evt.type === MESSAGE.CANNON_FIRED &&
+        evt.playerId === myPlayerId
+      ) {
         vibrate(15, 2);
       }
     }

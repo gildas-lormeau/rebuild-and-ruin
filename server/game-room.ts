@@ -13,7 +13,11 @@
 
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/grid.ts";
 import { CANNON_MODES, LifeLostChoice, Phase } from "../src/types.ts";
-import { MSG, type RoomSettings, sanitizeRoomSettings } from "./protocol.ts";
+import {
+  MESSAGE,
+  type RoomSettings,
+  sanitizeRoomSettings,
+} from "./protocol.ts";
 
 // Rate limit: max messages per second per type (cosmetic/display only).
 // Game-state messages (piece_placed, cannon_placed, fired, tower_selected,
@@ -24,29 +28,29 @@ import { MSG, type RoomSettings, sanitizeRoomSettings } from "./protocol.ts";
 const RATE_LIMIT_PER_SEC = 100;
 const RATE_LIMIT_WINDOW_MS = 1000;
 const RATE_LIMITED_TYPES: Set<string> = new Set([
-  MSG.OPPONENT_PHANTOM,
-  MSG.OPPONENT_CANNON_PHANTOM,
-  MSG.AIM_UPDATE,
+  MESSAGE.OPPONENT_PHANTOM,
+  MESSAGE.OPPONENT_CANNON_PHANTOM,
+  MESSAGE.AIM_UPDATE,
 ]);
 
 // Messages only the host socket can send
 const HOST_ONLY: Set<string> = new Set([
-  MSG.INIT,
-  MSG.SELECT_START,
-  MSG.CASTLE_WALLS,
-  MSG.CANNON_START,
-  MSG.BATTLE_START,
-  MSG.BUILD_START,
-  MSG.BUILD_END,
-  MSG.GAME_OVER,
-  MSG.FULL_STATE,
-  MSG.WALL_DESTROYED,
-  MSG.CANNON_DAMAGED,
-  MSG.HOUSE_DESTROYED,
-  MSG.GRUNT_KILLED,
-  MSG.GRUNT_SPAWNED,
-  MSG.PIT_CREATED,
-  MSG.TOWER_KILLED,
+  MESSAGE.INIT,
+  MESSAGE.SELECT_START,
+  MESSAGE.CASTLE_WALLS,
+  MESSAGE.CANNON_START,
+  MESSAGE.BATTLE_START,
+  MESSAGE.BUILD_START,
+  MESSAGE.BUILD_END,
+  MESSAGE.GAME_OVER,
+  MESSAGE.FULL_STATE,
+  MESSAGE.WALL_DESTROYED,
+  MESSAGE.CANNON_DAMAGED,
+  MESSAGE.HOUSE_DESTROYED,
+  MESSAGE.GRUNT_KILLED,
+  MESSAGE.GRUNT_SPAWNED,
+  MESSAGE.PIT_CREATED,
+  MESSAGE.TOWER_KILLED,
 ]);
 
 // ---------------------------------------------------------------------------
@@ -80,12 +84,12 @@ function isFiniteRange(val: unknown, min: number, max: number): boolean {
 // deno-lint-ignore no-explicit-any
 function validatePayload(msg: Record<string, any>): boolean {
   switch (msg.type) {
-    case MSG.OPPONENT_TOWER_SELECTED:
+    case MESSAGE.OPPONENT_TOWER_SELECTED:
       return (
         isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
         isInt(msg.towerIdx, 0, MAX_TOWER_IDX)
       );
-    case MSG.OPPONENT_PIECE_PLACED:
+    case MESSAGE.OPPONENT_PIECE_PLACED:
       // Offsets can be piece-relative (humans: [-4,4]) or absolute grid coords (AI host: [0,GRID_*-1])
       return (
         isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
@@ -102,14 +106,14 @@ function validatePayload(msg: Record<string, any>): boolean {
             isInt(o[1], -(GRID_COLS - 1), GRID_COLS - 1),
         )
       );
-    case MSG.OPPONENT_CANNON_PLACED:
+    case MESSAGE.OPPONENT_CANNON_PLACED:
       return (
         isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
         isInt(msg.row, 0, GRID_ROWS - 1) &&
         isInt(msg.col, 0, GRID_COLS - 1) &&
         CANNON_MODES.has(msg.mode)
       );
-    case MSG.CANNON_FIRED:
+    case MESSAGE.CANNON_FIRED:
       return (
         isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
         isInt(msg.cannonIdx, 0, MAX_CANNON_IDX) &&
@@ -119,17 +123,17 @@ function validatePayload(msg: Record<string, any>): boolean {
         isFiniteRange(msg.targetY, -MAX_PIXEL, MAX_PIXEL) &&
         isFiniteRange(msg.speed, 1, 1000)
       );
-    case MSG.LIFE_LOST_CHOICE:
+    case MESSAGE.LIFE_LOST_CHOICE:
       return (
         isInt(msg.playerId, 0, MAX_PLAYER_ID) && VALID_CHOICES.has(msg.choice)
       );
-    case MSG.AIM_UPDATE:
+    case MESSAGE.AIM_UPDATE:
       return (
         isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
         isFinite(msg.x) &&
         isFinite(msg.y)
       );
-    case MSG.OPPONENT_PHANTOM:
+    case MESSAGE.OPPONENT_PHANTOM:
       return (
         isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
         isInt(msg.row, 0, GRID_ROWS - 1) &&
@@ -145,7 +149,7 @@ function validatePayload(msg: Record<string, any>): boolean {
             isInt(o[1], -4, 4),
         )
       );
-    case MSG.OPPONENT_CANNON_PHANTOM:
+    case MESSAGE.OPPONENT_CANNON_PHANTOM:
       return (
         isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
         isInt(msg.row, 0, GRID_ROWS - 1) &&
@@ -159,13 +163,13 @@ function validatePayload(msg: Record<string, any>): boolean {
 
 // Phase gating: which message types are valid in which phases
 const PHASE_GATES: Record<string, Set<string>> = {
-  [MSG.CANNON_FIRED]: new Set([Phase.BATTLE]),
-  [MSG.OPPONENT_PIECE_PLACED]: new Set([Phase.WALL_BUILD]),
-  [MSG.OPPONENT_PHANTOM]: new Set([Phase.WALL_BUILD]),
-  [MSG.OPPONENT_CANNON_PLACED]: new Set([Phase.CANNON_PLACE]),
-  [MSG.OPPONENT_CANNON_PHANTOM]: new Set([Phase.CANNON_PLACE]),
-  [MSG.OPPONENT_TOWER_SELECTED]: new Set([Phase.CASTLE_SELECT]),
-  [MSG.AIM_UPDATE]: new Set([Phase.BATTLE]),
+  [MESSAGE.CANNON_FIRED]: new Set([Phase.BATTLE]),
+  [MESSAGE.OPPONENT_PIECE_PLACED]: new Set([Phase.WALL_BUILD]),
+  [MESSAGE.OPPONENT_PHANTOM]: new Set([Phase.WALL_BUILD]),
+  [MESSAGE.OPPONENT_CANNON_PLACED]: new Set([Phase.CANNON_PLACE]),
+  [MESSAGE.OPPONENT_CANNON_PHANTOM]: new Set([Phase.CANNON_PLACE]),
+  [MESSAGE.OPPONENT_TOWER_SELECTED]: new Set([Phase.CASTLE_SELECT]),
+  [MESSAGE.AIM_UPDATE]: new Set([Phase.BATTLE]),
 };
 
 export class GameRoom {
@@ -229,11 +233,11 @@ export class GameRoom {
     // --- Host-only messages ---
     if (HOST_ONLY.has(type)) {
       if (senderSocket !== this.hostSocket) return;
-      if (type === MSG.CANNON_START) this.phase = Phase.CANNON_PLACE;
-      else if (type === MSG.BATTLE_START) this.phase = Phase.BATTLE;
-      else if (type === MSG.BUILD_START) this.phase = Phase.WALL_BUILD;
-      else if (type === MSG.SELECT_START) this.phase = Phase.CASTLE_SELECT;
-      else if (type === MSG.CASTLE_WALLS) this.phase = "CASTLE_BUILD";
+      if (type === MESSAGE.CANNON_START) this.phase = Phase.CANNON_PLACE;
+      else if (type === MESSAGE.BATTLE_START) this.phase = Phase.BATTLE;
+      else if (type === MESSAGE.BUILD_START) this.phase = Phase.WALL_BUILD;
+      else if (type === MESSAGE.SELECT_START) this.phase = Phase.CASTLE_SELECT;
+      else if (type === MESSAGE.CASTLE_WALLS) this.phase = "CASTLE_BUILD";
     }
 
     // --- Identity enforcement (for messages with playerId) ---

@@ -1,5 +1,5 @@
 import {
-  MSG,
+  MESSAGE,
   type SerializedPlayer,
   type ServerMessage,
 } from "../server/protocol.ts";
@@ -106,7 +106,7 @@ export function handleCastleWallsTransition(
   msg: ServerMessage,
   ctx: TransitionContext,
 ): void {
-  if (msg.type !== MSG.CASTLE_WALLS) return;
+  if (msg.type !== MESSAGE.CASTLE_WALLS) return;
   const state = ctx.getState();
   const plans = msg.plans.map((p) => ({
     ...p,
@@ -140,7 +140,7 @@ export function handleCannonStartTransition(
   msg: ServerMessage,
   ctx: TransitionContext,
 ): void {
-  if (msg.type !== MSG.CANNON_START) return;
+  if (msg.type !== MESSAGE.CANNON_START) return;
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
   ctx.clearSelectionOverlay();
@@ -175,7 +175,7 @@ export function handleBattleStartTransition(
   msg: ServerMessage,
   ctx: TransitionContext,
 ): void {
-  if (msg.type !== MSG.BATTLE_START) return;
+  if (msg.type !== MESSAGE.BATTLE_START) return;
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
   const battleReceivedAt = ctx.now();
@@ -225,7 +225,7 @@ export function handleBuildStartTransition(
   msg: ServerMessage,
   ctx: TransitionContext,
 ): void {
-  if (msg.type !== MSG.BUILD_START) return;
+  if (msg.type !== MESSAGE.BUILD_START) return;
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
   const buildReceivedAt = ctx.now();
@@ -251,7 +251,7 @@ export function handleBuildEndTransition(
   msg: ServerMessage,
   ctx: TransitionContext,
 ): void {
-  if (msg.type !== MSG.BUILD_END) return;
+  if (msg.type !== MESSAGE.BUILD_END) return;
   const state = ctx.getState();
   // Capture pre-scores before checkpoint overwrites them (needed for score delta animation)
   const preScores = state.players.map((p) => p.score);
@@ -276,7 +276,7 @@ export function handleGameOverTransition(
   msg: ServerMessage,
   ctx: TransitionContext,
 ): void {
-  if (msg.type !== MSG.GAME_OVER) return;
+  if (msg.type !== MESSAGE.GAME_OVER) return;
   ctx.setGameOverFrame({
     winner: msg.winner ?? NO_WINNER_NAME,
     scores: msg.scores.map((s, i) => ({

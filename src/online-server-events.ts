@@ -1,4 +1,4 @@
-import { MSG, type ServerMessage } from "../server/protocol.ts";
+import { MESSAGE, type ServerMessage } from "../server/protocol.ts";
 import type { ImpactEvent } from "./battle-system.ts";
 import type { OrbitParams } from "./controller-interfaces.ts";
 import { selectPlayerTower } from "./game-engine.ts";
@@ -87,7 +87,7 @@ export function handleServerIncrementalMessage(
   const state = deps.getState();
 
   switch (msg.type) {
-    case MSG.OPPONENT_TOWER_SELECTED: {
+    case MESSAGE.OPPONENT_TOWER_SELECTED: {
       if (!state || !validPid(msg.playerId, state)) return true;
       if (msg.towerIdx < 0 || msg.towerIdx >= state.map.towers.length)
         return true;
@@ -120,7 +120,7 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
-    case MSG.OPPONENT_PIECE_PLACED: {
+    case MESSAGE.OPPONENT_PIECE_PLACED: {
       if (!state || !validPid(msg.playerId, state)) return true;
       if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return true;
@@ -158,7 +158,7 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
-    case MSG.OPPONENT_CANNON_PLACED: {
+    case MESSAGE.OPPONENT_CANNON_PLACED: {
       if (!state || !validPid(msg.playerId, state)) return true;
       if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (!CANNON_MODES.has(msg.mode)) return true;
@@ -189,7 +189,7 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
-    case MSG.CANNON_FIRED: {
+    case MESSAGE.CANNON_FIRED: {
       if (!state || !validPid(msg.playerId, state)) return true;
       if (!Number.isFinite(msg.speed) || msg.speed <= 0) return true;
       if (
@@ -223,23 +223,23 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
-    case MSG.WALL_DESTROYED:
-    case MSG.CANNON_DAMAGED:
-    case MSG.HOUSE_DESTROYED:
-    case MSG.GRUNT_KILLED:
-    case MSG.GRUNT_SPAWNED:
-    case MSG.PIT_CREATED:
+    case MESSAGE.WALL_DESTROYED:
+    case MESSAGE.CANNON_DAMAGED:
+    case MESSAGE.HOUSE_DESTROYED:
+    case MESSAGE.GRUNT_KILLED:
+    case MESSAGE.GRUNT_SPAWNED:
+    case MESSAGE.PIT_CREATED:
       if (!deps.isHost && state) {
         if ("row" in msg && "col" in msg && !inBoundsStrict(msg.row, msg.col))
           return true;
         if ("playerId" in msg && !validPid(msg.playerId, state)) return true;
-        if (msg.type === MSG.WALL_DESTROYED) {
+        if (msg.type === MESSAGE.WALL_DESTROYED) {
           const wallKey = msg.row * deps.gridCols + msg.col;
           const owner = state.players.find((p) => p.walls.has(wallKey));
           deps.log(
             `wall_destroyed: (${msg.row},${msg.col}) owner=P${owner?.id ?? "?"} shooter=P${msg.shooterId ?? "?"}`,
           );
-        } else if (msg.type === MSG.CANNON_DAMAGED) {
+        } else if (msg.type === MESSAGE.CANNON_DAMAGED) {
           deps.log(
             `cannon_damaged: P${msg.playerId} newHp=${msg.newHp} shooter=P${msg.shooterId ?? "?"}`,
           );
@@ -248,7 +248,7 @@ export function handleServerIncrementalMessage(
       }
       return true;
 
-    case MSG.AIM_UPDATE: {
+    case MESSAGE.AIM_UPDATE: {
       if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return true;
       if (acceptRemote(msg.playerId, deps)) {
         deps.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
@@ -257,7 +257,7 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
-    case MSG.TOWER_KILLED:
+    case MESSAGE.TOWER_KILLED:
       if (!deps.isHost && state) {
         if (msg.towerIdx < 0 || msg.towerIdx >= state.towerAlive.length)
           return true;
@@ -265,7 +265,7 @@ export function handleServerIncrementalMessage(
       }
       return true;
 
-    case MSG.OPPONENT_PHANTOM: {
+    case MESSAGE.OPPONENT_PHANTOM: {
       if (state && !validPid(msg.playerId, state)) return true;
       if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (acceptRemote(msg.playerId, deps)) {
@@ -284,7 +284,7 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
-    case MSG.OPPONENT_CANNON_PHANTOM: {
+    case MESSAGE.OPPONENT_CANNON_PHANTOM: {
       if (state && !validPid(msg.playerId, state)) return true;
       if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (acceptRemote(msg.playerId, deps)) {
@@ -305,7 +305,7 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
-    case MSG.LIFE_LOST_CHOICE: {
+    case MESSAGE.LIFE_LOST_CHOICE: {
       if (!deps.isHost) return true;
       deps.log(
         `life_lost_choice from P${msg.playerId}: ${msg.choice} (dialog=${deps.getLifeLostDialog() ? "active" : "null"})`,

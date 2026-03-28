@@ -4,7 +4,7 @@
  */
 
 import { PLAYER_NAMES } from "../src/player-config.ts";
-import { MSG } from "./protocol.ts";
+import { MESSAGE } from "./protocol.ts";
 import { RoomManager } from "./room-manager.ts";
 
 const rooms = new RoomManager();
@@ -81,11 +81,11 @@ function handleMessage(
   rawJson: string,
 ): void {
   switch (msg.type) {
-    case MSG.CREATE_ROOM: {
+    case MESSAGE.CREATE_ROOM: {
       const code = rooms.createRoom(msg.settings, socket);
       if (!code) {
         send(socket, {
-          type: MSG.ROOM_ERROR,
+          type: MESSAGE.ROOM_ERROR,
           message: "Server full, try again later",
         });
         return;
@@ -93,7 +93,7 @@ function handleMessage(
       const entry = rooms.getEntry(socket)!;
       // No slot assigned yet — player clicks a panel to pick their color
       send(socket, {
-        type: MSG.ROOM_CREATED,
+        type: MESSAGE.ROOM_CREATED,
         code,
         settings: entry.room.settings,
         seed: entry.room.seed,
@@ -102,19 +102,19 @@ function handleMessage(
       break;
     }
 
-    case MSG.JOIN_ROOM: {
+    case MESSAGE.JOIN_ROOM: {
       if (typeof msg.code !== "string") break;
       const entry = rooms.joinRoom(msg.code, socket);
       if (!entry) {
         send(socket, {
-          type: MSG.ROOM_ERROR,
+          type: MESSAGE.ROOM_ERROR,
           message: "Room not found or already started",
         });
         return;
       }
       // No slot assigned yet — player clicks a panel to pick their color
       send(socket, {
-        type: MSG.ROOM_JOINED,
+        type: MESSAGE.ROOM_JOINED,
         code: entry.code,
         players: rooms.getRoomPlayers(entry),
         settings: entry.room.settings,
@@ -126,7 +126,7 @@ function handleMessage(
       break;
     }
 
-    case MSG.SELECT_SLOT: {
+    case MESSAGE.SELECT_SLOT: {
       const selection = rooms.selectSlot(socket, msg.slotId);
       if (!selection) break;
       const entry = rooms.getEntry(socket);
@@ -137,13 +137,13 @@ function handleMessage(
           ? selection.previousSlotId
           : undefined;
       send(socket, {
-        type: MSG.JOINED,
+        type: MESSAGE.JOINED,
         playerId: selection.slotId,
         previousPlayerId,
       });
       // Notify all in room about the updated slot assignments
       rooms.broadcastToRoom(entry, {
-        type: MSG.PLAYER_JOINED,
+        type: MESSAGE.PLAYER_JOINED,
         playerId: selection.slotId,
         name: PLAYER_NAMES[selection.slotId] ?? `P${selection.slotId + 1}`,
         previousPlayerId,
@@ -151,7 +151,7 @@ function handleMessage(
       break;
     }
 
-    case MSG.PING:
+    case MESSAGE.PING:
       break;
 
     default:

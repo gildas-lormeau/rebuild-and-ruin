@@ -1,4 +1,4 @@
-import { type GameMessage, MSG } from "../server/protocol.ts";
+import { type GameMessage, MESSAGE } from "../server/protocol.ts";
 import type {
   InputReceiver,
   PlayerController,
@@ -16,7 +16,7 @@ export function tryPlacePieceAndSend(
   const placed = ctrl.tryPlacePiece(gameState);
   if (placed && piece) {
     send({
-      type: MSG.OPPONENT_PIECE_PLACED,
+      type: MESSAGE.OPPONENT_PIECE_PLACED,
       playerId: ctrl.playerId,
       row,
       col,
@@ -38,7 +38,7 @@ export function tryPlaceCannonAndSend(
   const placed = ctrl.tryPlaceCannon(gameState, max);
   if (placed) {
     send({
-      type: MSG.OPPONENT_CANNON_PLACED,
+      type: MESSAGE.OPPONENT_CANNON_PLACED,
       playerId: ctrl.playerId,
       row,
       col,
@@ -76,7 +76,7 @@ export function createCannonFiredMsg(ball: {
   incendiary?: boolean;
 }): GameMessage {
   return {
-    type: MSG.CANNON_FIRED,
+    type: MESSAGE.CANNON_FIRED,
     playerId: ball.playerId,
     cannonIdx: ball.cannonIdx,
     startX: ball.startX,

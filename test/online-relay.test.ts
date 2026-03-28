@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 
-import { MSG } from "../server/protocol.ts";
+import { MESSAGE } from "../server/protocol.ts";
 
 const SERVER_URL = "ws://localhost:8001/ws/play";
 
@@ -93,37 +93,37 @@ test("relay matches current lobby, checkpoint, and migration protocol", async ()
 
   try {
     send(host.ws, {
-      type: MSG.CREATE_ROOM,
+      type: MESSAGE.CREATE_ROOM,
       settings: { battleLength: 3, cannonMaxHp: 3, waitTimerSec: 1 },
     });
-    const roomCreated = await host.waitFor(MSG.ROOM_CREATED);
+    const roomCreated = await host.waitFor(MESSAGE.ROOM_CREATED);
     const code = roomCreated.code as string;
     expect(typeof code).toBe("string");
 
-    send(host.ws, { type: MSG.SELECT_SLOT, slotId: 0 });
-    const hostJoined = await host.waitFor(MSG.JOINED);
+    send(host.ws, { type: MESSAGE.SELECT_SLOT, slotId: 0 });
+    const hostJoined = await host.waitFor(MESSAGE.JOINED);
     expect(hostJoined.playerId).toBe(0);
 
-    send(player.ws, { type: MSG.JOIN_ROOM, code });
-    const playerRoomJoined = await player.waitFor(MSG.ROOM_JOINED);
+    send(player.ws, { type: MESSAGE.JOIN_ROOM, code });
+    const playerRoomJoined = await player.waitFor(MESSAGE.ROOM_JOINED);
     expect(playerRoomJoined.code).toBe(code);
 
-    send(player.ws, { type: MSG.SELECT_SLOT, slotId: 1 });
-    const playerJoined = await player.waitFor(MSG.JOINED);
+    send(player.ws, { type: MESSAGE.SELECT_SLOT, slotId: 1 });
+    const playerJoined = await player.waitFor(MESSAGE.JOINED);
     expect(playerJoined.playerId).toBe(1);
     const hostSawPlayer = await host.waitFor(
-      (msg) => msg.type === MSG.PLAYER_JOINED && msg.playerId === 1,
+      (msg) => msg.type === MESSAGE.PLAYER_JOINED && msg.playerId === 1,
     );
     expect(hostSawPlayer.playerId).toBe(1);
 
-    send(watcher.ws, { type: MSG.JOIN_ROOM, code });
-    const watcherRoomJoined = await watcher.waitFor(MSG.ROOM_JOINED);
+    send(watcher.ws, { type: MESSAGE.JOIN_ROOM, code });
+    const watcherRoomJoined = await watcher.waitFor(MESSAGE.ROOM_JOINED);
     expect(watcherRoomJoined.code).toBe(code);
 
     await sleep(1100);
 
     send(host.ws, {
-      type: MSG.INIT,
+      type: MESSAGE.INIT,
       seed: 123,
       playerCount: 3,
       settings: {
@@ -133,36 +133,36 @@ test("relay matches current lobby, checkpoint, and migration protocol", async ()
         cannonPlaceTimer: 15,
       },
     });
-    const playerInit = await player.waitFor(MSG.INIT);
-    const watcherInit = await watcher.waitFor(MSG.INIT);
+    const playerInit = await player.waitFor(MESSAGE.INIT);
+    const watcherInit = await watcher.waitFor(MESSAGE.INIT);
     expect(playerInit.seed).toBe(123);
     expect(watcherInit.seed).toBe(123);
 
-    send(host.ws, { type: MSG.SELECT_START, timer: 10 });
-    const playerSelect = await player.waitFor(MSG.SELECT_START);
-    const watcherSelect = await watcher.waitFor(MSG.SELECT_START);
+    send(host.ws, { type: MESSAGE.SELECT_START, timer: 10 });
+    const playerSelect = await player.waitFor(MESSAGE.SELECT_START);
+    const watcherSelect = await watcher.waitFor(MESSAGE.SELECT_START);
     expect(playerSelect.timer).toBe(10);
     expect(watcherSelect.timer).toBe(10);
 
-    send(player.ws, { type: MSG.OPPONENT_TOWER_SELECTED, playerId: 1, towerIdx: 4, confirmed: false });
+    send(player.ws, { type: MESSAGE.OPPONENT_TOWER_SELECTED, playerId: 1, towerIdx: 4, confirmed: false });
     const watcherTower = await watcher.waitFor(
-      (msg) => msg.type === MSG.OPPONENT_TOWER_SELECTED && msg.playerId === 1,
+      (msg) => msg.type === MESSAGE.OPPONENT_TOWER_SELECTED && msg.playerId === 1,
     );
     expect(watcherTower.towerIdx).toBe(4);
 
     send(host.ws, {
-      type: MSG.CASTLE_WALLS,
+      type: MESSAGE.CASTLE_WALLS,
       plans: [
         { playerId: 0, tiles: [100, 101, 102] },
         { playerId: 1, tiles: [200, 201, 202] },
         { playerId: 2, tiles: [300, 301, 302] },
       ],
     });
-    const castleWalls = await watcher.waitFor(MSG.CASTLE_WALLS);
+    const castleWalls = await watcher.waitFor(MESSAGE.CASTLE_WALLS);
     expect((castleWalls.plans as unknown[]).length).toBe(3);
 
     send(host.ws, {
-      type: MSG.CANNON_START,
+      type: MESSAGE.CANNON_START,
       timer: 15,
       limits: [3, 3, 3],
       players: [],
@@ -172,13 +172,13 @@ test("relay matches current lobby, checkpoint, and migration protocol", async ()
       burningPits: [],
       houses: [],
     });
-    const cannonStart = await watcher.waitFor(MSG.CANNON_START);
+    const cannonStart = await watcher.waitFor(MESSAGE.CANNON_START);
     expect(cannonStart.timer).toBe(15);
 
     host.ws.close();
 
-    const playerHostLeft = await player.waitFor(MSG.HOST_LEFT);
-    const watcherHostLeft = await watcher.waitFor(MSG.HOST_LEFT);
+    const playerHostLeft = await player.waitFor(MESSAGE.HOST_LEFT);
+    const watcherHostLeft = await watcher.waitFor(MESSAGE.HOST_LEFT);
     expect(playerHostLeft.newHostPlayerId).toBe(1);
     expect(playerHostLeft.previousHostPlayerId).toBe(0);
     expect(watcherHostLeft.newHostPlayerId).toBe(1);

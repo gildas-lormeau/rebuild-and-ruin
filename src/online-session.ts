@@ -8,7 +8,7 @@
 
 import {
   type GameMessage,
-  MSG,
+  MESSAGE,
   type ServerMessage,
 } from "../server/protocol.ts";
 import { type LifeLostChoice, LOBBY_TIMER } from "./types.ts";
@@ -97,7 +97,7 @@ export function sendAimUpdate(
   const key = `${Math.round(x)},${Math.round(y)}`;
   if (dedup.aimTarget.get(pid) === key) return;
   dedup.aimTarget.set(pid, key);
-  sendMessage(session, { type: MSG.AIM_UPDATE, playerId: pid, x, y });
+  sendMessage(session, { type: MESSAGE.AIM_UPDATE, playerId: pid, x, y });
 }
 
 export function sendMessage(session: OnlineSession, msg: GameMessage): void {
@@ -128,7 +128,7 @@ export function connectWebSocket(
     if (session.keepaliveTimer) clearInterval(session.keepaliveTimer);
     session.keepaliveTimer = setInterval(() => {
       if (session.ws?.readyState === WebSocket.OPEN) {
-        session.ws.send(JSON.stringify({ type: MSG.PING }));
+        session.ws.send(JSON.stringify({ type: MESSAGE.PING }));
       }
     }, KEEPALIVE_MS);
   };

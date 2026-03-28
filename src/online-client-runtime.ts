@@ -11,7 +11,7 @@ import type {
   InitMessage,
   ServerMessage,
 } from "../server/protocol.ts";
-import { MSG } from "../server/protocol.ts";
+import { MESSAGE } from "../server/protocol.ts";
 import {
   enterCannonPlacePhase,
   finalizeCastleConstruction,
@@ -206,7 +206,7 @@ export const runtime: GameRuntime = createGameRuntime({
     ),
   showLobby,
   onLobbySlotJoined: (pid) => {
-    send({ type: MSG.SELECT_SLOT, slotId: pid });
+    send({ type: MESSAGE.SELECT_SLOT, slotId: pid });
   },
   onCloseOptions: () => {
     if (runtime.rs.optionsReturnMode === null) {
@@ -216,7 +216,7 @@ export const runtime: GameRuntime = createGameRuntime({
   onTickLobbyExpired: () => {
     if (!session.isHost) return;
     const initMsg: InitMessage = {
-      type: MSG.INIT,
+      type: MESSAGE.INIT,
       seed: session.roomSeed,
       playerCount: MAX_PLAYERS,
       settings: {
@@ -228,7 +228,7 @@ export const runtime: GameRuntime = createGameRuntime({
     };
     send(initMsg);
     initFromServer(initMsg);
-    send({ type: MSG.SELECT_START, timer: SELECT_TIMER });
+    send({ type: MESSAGE.SELECT_START, timer: SELECT_TIMER });
   },
 
   // Networking callbacks

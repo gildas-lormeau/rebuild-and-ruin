@@ -1,4 +1,4 @@
-import { MSG, type ServerMessage } from "../server/protocol.ts";
+import { MESSAGE, type ServerMessage } from "../server/protocol.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import { resetCannonFacings } from "./cannon-system.ts";
 import type { OrbitParams } from "./controller-interfaces.ts";
@@ -44,7 +44,7 @@ export function applyCannonStartCheckpoint(
   msg: ServerMessage,
   deps: CheckpointDeps,
 ): void {
-  if (msg.type !== MSG.CANNON_START) return;
+  if (msg.type !== MESSAGE.CANNON_START) return;
   applyPlayersCheckpoint(deps.state, msg.players);
   applyGruntsCheckpoint(deps.state, msg.grunts);
   applyHousesCheckpoint(deps.state, msg.houses);
@@ -62,7 +62,7 @@ export function applyBattleStartCheckpoint(
   msg: ServerMessage,
   deps: CheckpointDeps,
 ): void {
-  if (msg.type !== MSG.BATTLE_START) return;
+  if (msg.type !== MESSAGE.BATTLE_START) return;
   applyPlayersCheckpoint(deps.state, msg.players);
   applyGruntsCheckpoint(deps.state, msg.grunts);
   deps.state.burningPits = msg.burningPits;
@@ -98,7 +98,7 @@ export function applyBuildStartCheckpoint(
   msg: ServerMessage,
   deps: CheckpointDeps,
 ): void {
-  if (msg.type !== MSG.BUILD_START) return;
+  if (msg.type !== MESSAGE.BUILD_START) return;
   applyPlayersCheckpoint(deps.state, msg.players);
   applyGruntsCheckpoint(deps.state, msg.grunts);
   applyHousesCheckpoint(deps.state, msg.houses);

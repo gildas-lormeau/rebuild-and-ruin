@@ -5,14 +5,14 @@
  *   bun test/online-migration-seq.test.ts
  */
 
-import { MSG, type FullStateMessage, type ServerMessage } from "../server/protocol.ts";
+import { MESSAGE, type FullStateMessage, type ServerMessage } from "../server/protocol.ts";
 import type { GameState } from "../src/types.ts";
 import { handleServerLifecycleMessage } from "../src/online-server-lifecycle.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
 
 function makeFullState(migrationSeq: number): FullStateMessage {
   return {
-    type: MSG.FULL_STATE,
+    type: MESSAGE.FULL_STATE,
     migrationSeq,
     phase: "BATTLE",
     round: 3,
@@ -87,7 +87,7 @@ test("lifecycle drops stale full_state after host migration", () => {
   // Migration event moves sequence from 0 -> 1.
   handleServerLifecycleMessage(
     {
-      type: MSG.HOST_LEFT,
+      type: MESSAGE.HOST_LEFT,
       newHostPlayerId: 1,
       previousHostPlayerId: 0,
     } as ServerMessage,

@@ -5,7 +5,7 @@
  * functions that online-client.ts wires into the game runtime.
  */
 
-import { MSG, type ServerMessage } from "../server/protocol.ts";
+import { MESSAGE, type ServerMessage } from "../server/protocol.ts";
 import { aimCannons, nextReadyCombined } from "./battle-system.ts";
 import {
   CROSSHAIR_SPEED,
@@ -180,7 +180,7 @@ export function tickWatcher(
       remoteCannonPhantoms: ws.remoteCannonPhantoms,
       lastSentCannonPhantom: ctx.lastSentCannonPhantom,
       sendOpponentCannonPhantom: (msg) => {
-        ctx.send({ type: MSG.OPPONENT_CANNON_PHANTOM, ...msg });
+        ctx.send({ type: MESSAGE.OPPONENT_CANNON_PHANTOM, ...msg });
       },
     });
   } else if (state.phase === Phase.WALL_BUILD) {
@@ -192,7 +192,7 @@ export function tickWatcher(
       remotePiecePhantoms: ws.remotePiecePhantoms,
       lastSentPiecePhantom: ctx.lastSentPiecePhantom,
       sendOpponentPiecePhantom: (msg) => {
-        ctx.send({ type: MSG.OPPONENT_PHANTOM, ...msg });
+        ctx.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg });
       },
     });
   }

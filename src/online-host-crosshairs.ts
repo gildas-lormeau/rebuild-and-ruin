@@ -5,7 +5,7 @@
  * Extracted from online-client.ts to keep that file focused on wiring.
  */
 
-import { type GameMessage, MSG } from "../server/protocol.ts";
+import { type GameMessage, MESSAGE } from "../server/protocol.ts";
 import {
   aimCannons,
   canPlayerFire,
@@ -49,7 +49,7 @@ export function broadcastLocalCrosshair(
   if (deps.lastSentAimTarget.get(ctrl.playerId) === key) return;
   deps.lastSentAimTarget.set(ctrl.playerId, key);
   deps.send({
-    type: MSG.AIM_UPDATE,
+    type: MESSAGE.AIM_UPDATE,
     playerId: ctrl.playerId,
     x: target.x,
     y: target.y,

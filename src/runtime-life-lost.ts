@@ -5,7 +5,7 @@
  * pattern as runtime-camera.ts and runtime-selection.ts.
  */
 
-import { type GameMessage, MSG } from "../server/protocol.ts";
+import { type GameMessage, MESSAGE } from "../server/protocol.ts";
 import {
   type InputReceiver,
   isHuman,
@@ -133,7 +133,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   }
 
   function sendLifeLostChoice(choice: ResolvedChoice, playerId: number) {
-    deps.send({ type: MSG.LIFE_LOST_CHOICE, choice, playerId });
+    deps.send({ type: MESSAGE.LIFE_LOST_CHOICE, choice, playerId });
   }
 
   function findPendingEntry(playerId: number) {

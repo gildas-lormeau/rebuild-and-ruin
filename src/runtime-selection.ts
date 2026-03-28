@@ -6,7 +6,7 @@
  * factory-with-deps pattern as runtime-camera.ts.
  */
 
-import { type GameMessage, MSG } from "../server/protocol.ts";
+import { type GameMessage, MESSAGE } from "../server/protocol.ts";
 import { claimTerritory } from "./build-system.ts";
 import {
   createCastleBuildState,
@@ -240,7 +240,7 @@ export function createSelectionSystem(
       syncSelectionOverlay,
       sendOpponentTowerSelected: (playerId, towerIdx, confirmed) => {
         deps.send({
-          type: MSG.OPPONENT_TOWER_SELECTED,
+          type: MESSAGE.OPPONENT_TOWER_SELECTED,
           playerId,
           towerIdx,
           confirmed,
@@ -279,7 +279,7 @@ export function createSelectionSystem(
     if (!rs.ctx.isHost) return; // non-host builds via castle_walls message
     const plan = prepareCastleWallsForPlayer(rs.state, playerId);
     if (!plan) return;
-    deps.send({ type: MSG.CASTLE_WALLS, plans: [plan] });
+    deps.send({ type: MESSAGE.CASTLE_WALLS, plans: [plan] });
     const human = deps.firstHuman();
     rs.castleBuilds.push(createCastleBuildState([plan], () => {}));
     // Only zoom to the human player's castle build
@@ -409,7 +409,7 @@ export function createSelectionSystem(
       rs.mode = Mode.SELECTION;
       deps.sound.drumsStart();
       if (rs.ctx.isHost) {
-        deps.send({ type: MSG.SELECT_START, timer: SELECT_TIMER });
+        deps.send({ type: MESSAGE.SELECT_START, timer: SELECT_TIMER });
       }
     } else {
       finishReselection();

@@ -5,7 +5,7 @@
 
 import {
   type FullStateMessage,
-  MSG,
+  MESSAGE,
   type SerializedGrunt,
   type SerializedPlayer,
 } from "../server/protocol.ts";
@@ -49,7 +49,7 @@ export function applyHousesCheckpoint(
 
 export function createBuildStartMessage(state: GameState) {
   return {
-    type: MSG.BUILD_START,
+    type: MESSAGE.BUILD_START,
     round: state.round,
     timer: state.timer,
     players: serializePlayers(state),
@@ -64,7 +64,7 @@ export function createBuildStartMessage(state: GameState) {
 
 export function createCannonStartMessage(state: GameState) {
   return {
-    type: MSG.CANNON_START,
+    type: MESSAGE.CANNON_START,
     timer: state.timer,
     limits: [...state.cannonLimits],
     players: serializePlayers(state),
@@ -81,7 +81,7 @@ export function createBattleStartMessage(
   flights?: readonly BalloonFlight[],
 ) {
   return {
-    type: MSG.BATTLE_START,
+    type: MESSAGE.BATTLE_START,
     players: serializePlayers(state),
     grunts: serializeGrunts(state),
     capturedCannons: state.capturedCannons.map((cc) => ({
@@ -112,7 +112,7 @@ export function createFullStateMessage(
   }[],
 ): FullStateMessage {
   return {
-    type: MSG.FULL_STATE,
+    type: MESSAGE.FULL_STATE,
     migrationSeq,
     phase: Phase[state.phase],
     round: state.round,
@@ -369,7 +369,7 @@ export function createGameOverPayload(
   return {
     winnerName,
     serverPayload: {
-      type: MSG.GAME_OVER,
+      type: MESSAGE.GAME_OVER,
       winner: winner ? winnerName : null,
       scores: state.players.map((p) => ({
         name: playerNames[p.id] ?? `P${p.id + 1}`,

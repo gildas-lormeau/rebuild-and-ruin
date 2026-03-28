@@ -1,4 +1,4 @@
-import { type ClientMessage, MSG } from "../server/protocol.ts";
+import { type ClientMessage, MESSAGE } from "../server/protocol.ts";
 import { computeApiUrl } from "./online-config.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 
@@ -71,7 +71,7 @@ export function initLobbyUi({
       const roundsVal = Number(elements.setRounds.value);
       const battleLength = roundsVal > 0 ? roundsVal : 0;
       send({
-        type: MSG.CREATE_ROOM,
+        type: MESSAGE.CREATE_ROOM,
         settings: {
           battleLength,
           cannonMaxHp: Number(elements.setHp.value),
@@ -88,7 +88,7 @@ export function initLobbyUi({
       elements.joinError.textContent = `Enter a ${ROOM_CODE_LENGTH}-letter room code`;
       return;
     }
-    scheduleOnOpen(() => send({ type: MSG.JOIN_ROOM, code }));
+    scheduleOnOpen(() => send({ type: MESSAGE.JOIN_ROOM, code }));
   };
 
   elements.btnJoinConfirm.addEventListener("click", () => {
