@@ -45,6 +45,7 @@ onRoute(ROUTE_ONLINE, () => {
 });
 
 onRoute(ROUTE_PLAY, () => {
+  tryFullscreen(); // covers direct navigation (bookmark) — silently fails without user gesture
   void import("./main.ts").then((m) => m.enterLocalLobby());
 });
 
