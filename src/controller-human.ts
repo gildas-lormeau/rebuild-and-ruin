@@ -224,7 +224,7 @@ export class HumanController extends BaseController implements InputReceiver {
       this.cannonPlaceMode,
       state,
     );
-    if (placed) this.cannonCursorNeedsSnap = false;
+    if (placed) this.cannonCursorNeedsSnap = true;
     return placed;
   }
 
