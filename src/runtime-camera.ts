@@ -16,7 +16,7 @@ import {
 } from "./grid.ts";
 import type { Viewport } from "./render-types.ts";
 import type { CameraSystem } from "./runtime-types.ts";
-import { pxToTile, unpackTile } from "./spatial.ts";
+import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
 import type { FrameContext } from "./types.ts";
 import {
   type GameState,
@@ -38,6 +38,8 @@ interface CameraDeps {
   getFrameDt: () => number;
   setFrameAnnouncement: (text: string) => void;
   getFirstHumanCrosshair?: () => { x: number; y: number } | null;
+  /** Set the first human's crosshair position (for battle targeting). */
+  setFirstHumanCrosshair?: (x: number, y: number) => void;
 }
 
 export function createCameraSystem(deps: CameraDeps): CameraSystem {
@@ -597,6 +599,65 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     zoomActivated = true;
   }
 
+  // --- Touch battle targeting ---
+
+  /** Crosshair position from the previous battle (null = first battle). */
+  let lastBattleCrosshair: { x: number; y: number } | null = null;
+
+  /**
+   * Position the human crosshair at the start of battle (touch devices).
+   * - First battle: aim at best enemy's home tower.
+   * - Subsequent battles: restore last position (unless that opponent died).
+   * - Without auto-zoom: don't move the cursor (first tap positions it).
+   */
+  function aimAtEnemyCastle(): void {
+    const state = deps.getState();
+    if (!state) return;
+    if (!deps.setFirstHumanCrosshair) return;
+    if (!(mobileZoomEnabled && zoomActivated)) return;
+
+    // Subsequent battle: restore last position if targeted opponent is alive
+    if (lastBattleCrosshair) {
+      const row = pxToTile(lastBattleCrosshair.y);
+      const col = pxToTile(lastBattleCrosshair.x);
+      const zone = state.map.zones[row]?.[col];
+      if (zone !== undefined) {
+        const pid = state.playerZones.indexOf(zone);
+        if (
+          pid >= 0 &&
+          pid !== myPlayerId() &&
+          !state.players[pid]?.eliminated
+        ) {
+          deps.setFirstHumanCrosshair(
+            lastBattleCrosshair.x,
+            lastBattleCrosshair.y,
+          );
+          return;
+        }
+      }
+      // Targeted opponent died or invalid — fall through to best enemy
+    }
+
+    // First battle or opponent died: aim at best enemy's home tower
+    const zone = getBestEnemyZone();
+    if (zone === null) return;
+    const pid = state.playerZones.indexOf(zone);
+    const tower = pid >= 0 ? state.players[pid]?.homeTower : null;
+    if (!tower) return;
+    const px = towerCenterPx(tower);
+    deps.setFirstHumanCrosshair(px.x, px.y);
+    lastBattleCrosshair = { x: px.x, y: px.y };
+  }
+
+  function saveBattleCrosshair(): void {
+    const ch = deps.getFirstHumanCrosshair?.();
+    if (ch) lastBattleCrosshair = { x: ch.x, y: ch.y };
+  }
+
+  function resetBattleCrosshair(): void {
+    lastBattleCrosshair = null;
+  }
+
   // --- Return public API ---
 
   return {
@@ -624,5 +685,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     clearCastleBuildViewport,
     enableMobileZoom,
     isMobileAutoZoom: () => mobileZoomEnabled && zoomActivated,
+    aimAtEnemyCastle,
+    saveBattleCrosshair,
+    resetBattleCrosshair,
   };
 }

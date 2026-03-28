@@ -49,7 +49,7 @@ import { createRuntimeState } from "./runtime-state.ts";
 import { updateTouchControls } from "./runtime-touch-ui.ts";
 import type { GameRuntime, RuntimeConfig } from "./runtime-types.ts";
 import { createSoundSystem } from "./sound-system.ts";
-import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
+import { unpackTile } from "./spatial.ts";
 import {
   BANNER_DURATION,
   computeFrameContext,
@@ -231,56 +231,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   // -------------------------------------------------------------------------
-  // Touch battle targeting (aimAtEnemyCastle)
-  // -------------------------------------------------------------------------
-
-  /** Crosshair position from the previous battle (null = first battle). */
-  let lastBattleCrosshair: { x: number; y: number } | null = null;
-
-  /**
-   * Position the human crosshair at the start of battle (touch devices).
-   * - First battle: aim at best enemy's home tower.
-   * - Subsequent battles: restore last position (unless that opponent died).
-   * - Without auto-zoom: don't move the cursor (first tap positions it).
-   */
-  function aimAtEnemyCastle(): void {
-    if (!rs.state) return;
-    const human = firstHuman();
-    if (!human) return;
-
-    if (!camera.isMobileAutoZoom()) return;
-
-    // Subsequent battle: restore last position if targeted opponent is alive
-    if (lastBattleCrosshair) {
-      const row = pxToTile(lastBattleCrosshair.y);
-      const col = pxToTile(lastBattleCrosshair.x);
-      const zone = rs.state.map.zones[row]?.[col];
-      if (zone !== undefined) {
-        const pid = rs.state.playerZones.indexOf(zone);
-        if (
-          pid >= 0 &&
-          pid !== camera.myPlayerId() &&
-          !rs.state.players[pid]?.eliminated
-        ) {
-          human.setCrosshair(lastBattleCrosshair.x, lastBattleCrosshair.y);
-          return;
-        }
-      }
-      // Targeted opponent died or invalid — fall through to best enemy
-    }
-
-    // First battle or opponent died: aim at best enemy's home tower
-    const zone = camera.getBestEnemyZone();
-    if (zone === null) return;
-    const pid = rs.state.playerZones.indexOf(zone);
-    const tower = pid >= 0 ? rs.state.players[pid]?.homeTower : null;
-    if (!tower) return;
-    const px = towerCenterPx(tower);
-    human.setCrosshair(px.x, px.y);
-    lastBattleCrosshair = { x: px.x, y: px.y };
-  }
-
-  // -------------------------------------------------------------------------
   // Banner
   // -------------------------------------------------------------------------
 
@@ -370,6 +320,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       if (!h) return null;
       const ch = h.getCrosshair();
       return { x: ch.x, y: ch.y };
+    },
+    setFirstHumanCrosshair: (x, y) => {
+      const h = firstHuman();
+      if (h) h.setCrosshair(x, y);
     },
   });
 
@@ -499,9 +453,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       input.touch.enemyZoomButton?.update(false);
       input.touch.loupeHandle?.update(false, 0, 0);
     },
-    resetBattleCrosshair: () => {
-      lastBattleCrosshair = null;
-    },
+    resetBattleCrosshair: camera.resetBattleCrosshair,
   });
 
   // -------------------------------------------------------------------------
@@ -540,15 +492,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     selection,
     snapshotTerritory,
     saveBattleCrosshair: IS_TOUCH_DEVICE
-      ? () => {
-          const human = firstHuman();
-          if (human) {
-            const ch = human.getCrosshair();
-            lastBattleCrosshair = { x: ch.x, y: ch.y };
-          }
-        }
+      ? camera.saveBattleCrosshair
       : undefined,
-    onBeginBattle: IS_TOUCH_DEVICE ? aimAtEnemyCastle : undefined,
+    onBeginBattle: IS_TOUCH_DEVICE ? camera.aimAtEnemyCastle : undefined,
     sound,
     haptics,
   });
@@ -671,6 +617,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     registerInputHandlers: input.register,
     showBanner,
     snapshotTerritory,
-    aimAtEnemyCastle,
+    aimAtEnemyCastle: camera.aimAtEnemyCastle,
   };
 }

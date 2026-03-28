@@ -159,6 +159,14 @@ export interface CameraSystem {
   // Mobile zoom
   enableMobileZoom: () => void;
   isMobileAutoZoom: () => boolean;
+
+  // Touch battle targeting
+  /** Aim at enemy castle at battle start (touch devices). */
+  aimAtEnemyCastle: () => void;
+  /** Save human crosshair position for restoration next battle. */
+  saveBattleCrosshair: () => void;
+  /** Clear saved crosshair (called on resetUIState). */
+  resetBattleCrosshair: () => void;
 }
 
 export interface RuntimeSelection {
