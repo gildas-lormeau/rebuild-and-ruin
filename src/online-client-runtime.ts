@@ -18,7 +18,6 @@ import {
   resetZoneState,
 } from "./game-engine.ts";
 import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./game-ui-types.ts";
-import { LifeLostChoice } from "./life-lost.ts";
 import {
   clearReconnect,
   dedup,
@@ -73,6 +72,7 @@ import {
   BATTLE_COUNTDOWN,
   BUILD_TIMER,
   CANNON_PLACE_TIMER,
+  LifeLostChoice,
   Mode,
   SELECT_TIMER,
 } from "./types.ts";

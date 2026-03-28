@@ -12,13 +12,9 @@ import {
 import { setPhase } from "./game-engine.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "./grid.ts";
 import { createCastle } from "./map-generation.ts";
+import { toCannonMode } from "./online-types.ts";
 import { Rng } from "./rng.ts";
-import {
-  type BalloonFlight,
-  type GameState,
-  Phase,
-  toCannonMode,
-} from "./types.ts";
+import { type BalloonFlight, type GameState, Phase } from "./types.ts";
 
 interface FullStateResult {
   balloonFlights?: {

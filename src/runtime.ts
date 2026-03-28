@@ -38,7 +38,6 @@ import {
   createHomeZoomButton,
   createQuitButton,
 } from "./input-touch-ui.ts";
-import { LifeLostChoice } from "./life-lost.ts";
 import {
   createBannerState,
   showBannerTransition,
@@ -89,6 +88,7 @@ import {
   FOCUS_MENU,
   FOCUS_REMATCH,
   type GameState,
+  LifeLostChoice,
   MAX_FRAME_DT,
   Mode,
   Phase,

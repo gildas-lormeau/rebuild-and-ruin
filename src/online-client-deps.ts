@@ -16,7 +16,6 @@ import {
 } from "./cannon-system.ts";
 import { markPlayerReselected } from "./game-engine.ts";
 import { GRID_COLS } from "./grid.ts";
-import { LifeLostChoice } from "./life-lost.ts";
 import { promoteToHost } from "./online-client-promote.ts";
 import {
   applyFullState,
@@ -36,13 +35,14 @@ import {
 } from "./online-phase-transitions.ts";
 import { handleServerIncrementalMessage } from "./online-server-events.ts";
 import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
+import { toCannonMode } from "./online-types.ts";
 import { PLAYER_NAMES } from "./player-config.ts";
 import {
   type GameState,
   isReselectPhase,
+  LifeLostChoice,
   MIGRATION_ANNOUNCEMENT_DURATION,
   Mode,
-  toCannonMode,
 } from "./types.ts";
 
 export function handleServerMessage(msg: ServerMessage): void {

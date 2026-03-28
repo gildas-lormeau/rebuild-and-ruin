@@ -1,10 +1,5 @@
 import type { RGB } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
-import {
-  LifeLostChoice,
-  type LifeLostDialogState,
-  type ResolvedChoice,
-} from "./life-lost.ts";
 import type { BannerState } from "./phase-banner.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
@@ -31,7 +26,10 @@ import {
   type GameState,
   type Impact,
   LIFE_LOST_MAX_TIMER,
+  LifeLostChoice,
+  type LifeLostDialogState,
   Phase,
+  type ResolvedChoice,
   type SelectionState,
 } from "./types.ts";
 

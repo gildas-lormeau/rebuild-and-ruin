@@ -14,11 +14,6 @@ import {
   type ModeValues,
 } from "./input-dispatch.ts";
 import {
-  LifeLostChoice,
-  type LifeLostDialogState,
-  type ResolvedChoice,
-} from "./life-lost.ts";
-import {
   ACTION_KEYS,
   applyKeyRebinding,
   type KeyBindings,
@@ -40,7 +35,10 @@ import {
   isPlacementPhase,
   isReselectPhase,
   isSelectionPhase,
+  LifeLostChoice,
+  type LifeLostDialogState,
   Phase,
+  type ResolvedChoice,
   type SelectionState,
 } from "./types.ts";
 

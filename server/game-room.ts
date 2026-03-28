@@ -12,8 +12,7 @@
  */
 
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/grid.ts";
-import { LifeLostChoice } from "../src/life-lost.ts";
-import { CANNON_MODES } from "../src/types.ts";
+import { CANNON_MODES, LifeLostChoice } from "../src/types.ts";
 import { MSG, type RoomSettings, sanitizeRoomSettings } from "./protocol.ts";
 
 // Rate limit: max messages per second per type (cosmetic/display only).

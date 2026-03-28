@@ -3,14 +3,18 @@ import type { ImpactEvent } from "./battle-system.ts";
 import type { OrbitParams } from "./controller-interfaces.ts";
 import { selectPlayerTower } from "./game-engine.ts";
 import type { PixelPos } from "./geometry-types.ts";
-import { LifeLostChoice, parseLifeLostChoice } from "./life-lost.ts";
-import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
+import {
+  type CannonPhantom,
+  type PiecePhantom,
+  toCannonMode,
+} from "./online-types.ts";
 import { inBoundsStrict } from "./spatial.ts";
 import {
   CANNON_MODES,
   type GameState,
+  LifeLostChoice,
+  type ResolvedChoice,
   type SelectionState,
-  toCannonMode,
 } from "./types.ts";
 
 interface LifeLostChoiceEntry {
@@ -324,6 +328,13 @@ export function handleServerIncrementalMessage(
     default:
       return false;
   }
+}
+
+/** Parse an untrusted value into a resolved LifeLostChoice, or null if invalid. */
+function parseLifeLostChoice(raw: unknown): ResolvedChoice | null {
+  if (raw === LifeLostChoice.CONTINUE) return LifeLostChoice.CONTINUE;
+  if (raw === LifeLostChoice.ABANDON) return LifeLostChoice.ABANDON;
+  return null;
 }
 
 /** Watchers accept all remote messages; hosts only accept from remote humans. */

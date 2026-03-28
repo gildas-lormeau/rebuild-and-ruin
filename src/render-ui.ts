@@ -2,7 +2,6 @@
  * UI overlay rendering — announcement, banner, game over, player select.
  */
 
-import { LifeLostChoice } from "./life-lost.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
   computeLobbyLayout,
@@ -56,7 +55,7 @@ import {
   TEXT_WHITE,
 } from "./render-theme.ts";
 import { type RenderOverlay } from "./render-types.ts";
-import { FOCUS_MENU, FOCUS_REMATCH } from "./types.ts";
+import { FOCUS_MENU, FOCUS_REMATCH, LifeLostChoice } from "./types.ts";
 
 // Local semantic colors (not shared across files — context-specific to UI panels)
 const BTN_CONTINUE = {

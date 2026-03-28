@@ -13,9 +13,6 @@ import {
 } from "./controller-interfaces.ts";
 import {
   createLifeLostDialogState,
-  LifeLostChoice,
-  type LifeLostDialogState,
-  type ResolvedChoice,
   resolveAfterLifeLost,
   resolveLifeLostDialogRuntime,
   tickLifeLostDialogRuntime,
@@ -26,7 +23,14 @@ import {
 } from "./render-composition.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { RuntimeLifeLost } from "./runtime-types.ts";
-import { LIFE_LOST_AI_DELAY, LIFE_LOST_MAX_TIMER, Mode } from "./types.ts";
+import {
+  LIFE_LOST_AI_DELAY,
+  LIFE_LOST_MAX_TIMER,
+  LifeLostChoice,
+  type LifeLostDialogState,
+  Mode,
+  type ResolvedChoice,
+} from "./types.ts";
 
 interface LifeLostSystemDeps {
   rs: RuntimeState;

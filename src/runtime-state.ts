@@ -17,7 +17,6 @@ import type {
   LobbyState,
 } from "./game-ui-types.ts";
 import { createControlsState } from "./game-ui-types.ts";
-import type { LifeLostDialogState } from "./life-lost.ts";
 import { type BannerState, createBannerState } from "./phase-banner.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 import type { FrameData, PlayerStats, RenderOverlay } from "./render-types.ts";
@@ -26,6 +25,7 @@ import {
   createBattleAnimState,
   createTimerAccums,
   type GameState,
+  type LifeLostDialogState,
   Mode,
   type SelectionState,
   type TimerAccums,

@@ -8,8 +8,7 @@
  * - Local execution on client for build/cannon (zero-latency input)
  */
 
-import type { ResolvedChoice } from "../src/life-lost.ts";
-import type { CannonMode } from "../src/types.ts";
+import type { CannonMode, ResolvedChoice } from "../src/types.ts";
 
 // ---------------------------------------------------------------------------
 // Message type constants

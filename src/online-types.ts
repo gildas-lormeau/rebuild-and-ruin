@@ -1,7 +1,7 @@
 /** Shared types and utilities for online multiplayer sub-modules. */
 
 import type { PixelPos } from "./geometry-types.ts";
-import { CannonMode } from "./types.ts";
+import { CANNON_MODES, CannonMode } from "./types.ts";
 
 export type CannonPhantom = {
   row: number;
@@ -32,6 +32,13 @@ export interface WatcherTimingState {
   phaseDuration: number;
   countdownStartTime: number;
   countdownDuration: number;
+}
+
+/** Parse a string as a CannonMode, defaulting to NORMAL if invalid. */
+export function toCannonMode(value: string | undefined): CannonMode {
+  if (value && (CANNON_MODES as ReadonlySet<string>).has(value))
+    return value as CannonMode;
+  return CannonMode.NORMAL;
 }
 
 /** Move `vis` toward `(tx, ty)` at `speed` pixels/s. Mutates `vis` in place. */

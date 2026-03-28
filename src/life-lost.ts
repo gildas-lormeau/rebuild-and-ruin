@@ -1,20 +1,9 @@
-import type { GameState } from "./types.ts";
-
-export type ResolvedChoice = LifeLostChoice.CONTINUE | LifeLostChoice.ABANDON;
-
-export interface LifeLostEntry {
-  playerId: number;
-  lives: number;
-  isAi: boolean;
-  choice: LifeLostChoice;
-  aiTimer: number;
-  focused: number;
-}
-
-export interface LifeLostDialogState {
-  entries: LifeLostEntry[];
-  timer: number;
-}
+import {
+  type GameState,
+  LifeLostChoice,
+  type LifeLostDialogState,
+  type LifeLostEntry,
+} from "./types.ts";
 
 interface ResolveLifeLostDialogDeps {
   lifeLostDialog: LifeLostDialogState | null;
@@ -51,19 +40,6 @@ interface ResolveAfterLifeLostDeps {
   onEndGame: (winner: { id: number } | null) => void;
   onStartReselection: (continuing: readonly number[]) => void;
   onAdvanceToCannonPhase: () => void;
-}
-
-export enum LifeLostChoice {
-  PENDING = "pending",
-  CONTINUE = "continue",
-  ABANDON = "abandon",
-}
-
-/** Parse an untrusted value into a resolved LifeLostChoice, or null if invalid. */
-export function parseLifeLostChoice(raw: unknown): ResolvedChoice | null {
-  if (raw === LifeLostChoice.CONTINUE) return LifeLostChoice.CONTINUE;
-  if (raw === LifeLostChoice.ABANDON) return LifeLostChoice.ABANDON;
-  return null;
 }
 
 export function resolveLifeLostDialogRuntime(

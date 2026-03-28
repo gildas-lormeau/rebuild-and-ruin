@@ -251,6 +251,29 @@ export interface SelectionState {
   tapped?: boolean;
 }
 
+/** Life-lost types. */
+export enum LifeLostChoice {
+  PENDING = "pending",
+  CONTINUE = "continue",
+  ABANDON = "abandon",
+}
+
+export type ResolvedChoice = LifeLostChoice.CONTINUE | LifeLostChoice.ABANDON;
+
+export interface LifeLostEntry {
+  playerId: number;
+  lives: number;
+  isAi: boolean;
+  choice: LifeLostChoice;
+  aiTimer: number;
+  focused: number;
+}
+
+export interface LifeLostDialogState {
+  entries: LifeLostEntry[];
+  timer: number;
+}
+
 /** Default hits needed to destroy a cannon. */
 export const CANNON_MAX_HP = 3;
 /** How many cannon slots a super gun costs. */
@@ -392,13 +415,6 @@ export const CANNON_MODES: ReadonlySet<CannonMode> = new Set([
   CannonMode.SUPER,
   CannonMode.BALLOON,
 ]);
-
-/** Parse a string as a CannonMode, defaulting to NORMAL if invalid. */
-export function toCannonMode(value: string | undefined): CannonMode {
-  if (value && (CANNON_MODES as ReadonlySet<string>).has(value))
-    return value as CannonMode;
-  return CannonMode.NORMAL;
-}
 
 /** True if the cannon mode is normal. */
 export function isNormalMode(mode: CannonMode): mode is CannonMode.NORMAL {

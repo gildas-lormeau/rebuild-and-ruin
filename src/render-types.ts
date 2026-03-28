@@ -5,7 +5,6 @@
 
 import type { Crosshair, LocalPiecePhantom } from "./controller-interfaces.ts";
 import type { House, PixelPos, RGB, TilePos, Tower } from "./geometry-types.ts";
-import type { LifeLostChoice } from "./life-lost.ts";
 import {
   type BurningPit,
   CannonMode,
@@ -13,6 +12,7 @@ import {
   type GameOverFocus,
   type Grunt,
   type Impact,
+  type LifeLostChoice,
 } from "./types.ts";
 
 /** A single row in the options screen. */

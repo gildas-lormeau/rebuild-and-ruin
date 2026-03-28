@@ -18,7 +18,6 @@ import type {
 import type { UIContext } from "./game-ui-screens.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
-import type { LifeLostDialogState } from "./life-lost.ts";
 import type {
   CannonPhantom,
   PiecePhantom,
@@ -27,7 +26,12 @@ import type {
 import type { RendererInterface, Viewport } from "./render-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { SoundSystem } from "./sound-system.ts";
-import type { BalloonFlight, GameState, SelectionState } from "./types.ts";
+import type {
+  BalloonFlight,
+  GameState,
+  LifeLostDialogState,
+  SelectionState,
+} from "./types.ts";
 
 export interface RuntimeConfig {
   renderer: RendererInterface;
