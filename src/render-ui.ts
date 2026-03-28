@@ -60,6 +60,14 @@ import {
 import { type RenderOverlay } from "./render-types.ts";
 import { FOCUS_MENU, FOCUS_REMATCH, LifeLostChoice } from "./types.ts";
 
+interface ButtonStyle {
+  fill: string;
+  stroke: string;
+  lineWidth: number;
+  font: string;
+  textColor: string;
+}
+
 // Local semantic colors (not shared across files — context-specific to UI panels)
 const BTN_CONTINUE = {
   fill: (a: number) => `rgba(80,180,80,${a})`,
@@ -320,11 +328,13 @@ export function drawGameOver(
     btnY,
     btnW,
     GAMEOVER_BTN_H,
-    BTN_CONTINUE.fill(rematchFocused ? OP_FOCUS : OP_IDLE),
-    rematchFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
-    rematchFocused ? 2 : 1,
-    FONT_BUTTON,
-    rematchFocused ? TEXT_WHITE : TEXT_LIGHT,
+    {
+      fill: BTN_CONTINUE.fill(rematchFocused ? OP_FOCUS : OP_IDLE),
+      stroke: rematchFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
+      lineWidth: rematchFocused ? 2 : 1,
+      font: FONT_BUTTON,
+      textColor: rematchFocused ? TEXT_WHITE : TEXT_LIGHT,
+    },
     "Rematch",
   );
 
@@ -335,11 +345,13 @@ export function drawGameOver(
     btnY,
     btnW,
     GAMEOVER_BTN_H,
-    BTN_ABANDON.fill(menuFocused ? OP_FOCUS : OP_IDLE),
-    menuFocused ? BTN_MENU.strokeFocused : BTN_MENU.stroke,
-    menuFocused ? 2 : 1,
-    FONT_BUTTON,
-    menuFocused ? TEXT_WHITE : TEXT_LIGHT,
+    {
+      fill: BTN_ABANDON.fill(menuFocused ? OP_FOCUS : OP_IDLE),
+      stroke: menuFocused ? BTN_MENU.strokeFocused : BTN_MENU.stroke,
+      lineWidth: menuFocused ? 2 : 1,
+      font: FONT_BUTTON,
+      textColor: menuFocused ? TEXT_WHITE : TEXT_LIGHT,
+    },
     "Menu",
   );
 }
@@ -405,13 +417,17 @@ export function drawLifeLostDialog(
         btnY,
         btnW,
         btnH,
-        BTN_CONTINUE.fill(
-          contFocused ? (contFlash ? OP_VIVID : OP_ACCENT) : OP_SUBTLE,
-        ),
-        contFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
-        contFocused ? 2 : 1,
-        FONT_BUTTON,
-        contFocused ? TEXT_WHITE : TEXT_DISABLED,
+        {
+          fill: BTN_CONTINUE.fill(
+            contFocused ? (contFlash ? OP_VIVID : OP_ACCENT) : OP_SUBTLE,
+          ),
+          stroke: contFocused
+            ? BTN_CONTINUE.strokeFocused
+            : BTN_CONTINUE.stroke,
+          lineWidth: contFocused ? 2 : 1,
+          font: FONT_BUTTON,
+          textColor: contFocused ? TEXT_WHITE : TEXT_DISABLED,
+        },
         "Continue",
       );
 
@@ -423,13 +439,15 @@ export function drawLifeLostDialog(
         btnY,
         btnW,
         btnH,
-        BTN_ABANDON.fill(
-          abFocused ? (abFlash ? OP_FOCUS : OP_ACTIVE) : OP_GHOST,
-        ),
-        abFocused ? BTN_ABANDON.strokeFocused : BTN_ABANDON.stroke,
-        abFocused ? 2 : 1,
-        FONT_BUTTON,
-        abFocused ? TEXT_WHITE : TEXT_FAINT,
+        {
+          fill: BTN_ABANDON.fill(
+            abFocused ? (abFlash ? OP_FOCUS : OP_ACTIVE) : OP_GHOST,
+          ),
+          stroke: abFocused ? BTN_ABANDON.strokeFocused : BTN_ABANDON.stroke,
+          lineWidth: abFocused ? 2 : 1,
+          font: FONT_BUTTON,
+          textColor: abFocused ? TEXT_WHITE : TEXT_FAINT,
+        },
         "Abandon",
       );
     } else {
@@ -502,11 +520,13 @@ export function drawPlayerSelect(
         btnY,
         btnW,
         btnH,
-        rgb(c, OP_ACTIVE),
-        rgb(c),
-        1,
-        touch ? FONT_BODY : FONT_BUTTON,
-        TEXT_WHITE,
+        {
+          fill: rgb(c, OP_ACTIVE),
+          stroke: rgb(c),
+          lineWidth: 1,
+          font: touch ? FONT_BODY : FONT_BUTTON,
+          textColor: TEXT_WHITE,
+        },
         "Please wait...",
       );
     } else {
@@ -517,11 +537,13 @@ export function drawPlayerSelect(
         btnY,
         btnW,
         btnH,
-        rgb(c, flash ? OP_FOCUS : OP_IDLE),
-        rgb(c),
-        1,
-        touch ? FONT_LABEL : FONT_HINT,
-        flash ? TEXT_WHITE : TEXT_SOFT,
+        {
+          fill: rgb(c, flash ? OP_FOCUS : OP_IDLE),
+          stroke: rgb(c),
+          lineWidth: 1,
+          font: touch ? FONT_LABEL : FONT_HINT,
+          textColor: flash ? TEXT_WHITE : TEXT_SOFT,
+        },
         touch ? "Tap to join" : "Press button to start",
       );
     }
@@ -782,20 +804,16 @@ function drawButton(
   y: number,
   w: number,
   h: number,
-  fill: string,
-  stroke: string,
-  lineWidth: number,
-  font: string,
-  textColor: string,
+  style: ButtonStyle,
   label: string,
 ): void {
-  octx.fillStyle = fill;
+  octx.fillStyle = style.fill;
   octx.fillRect(x, y, w, h);
-  octx.strokeStyle = stroke;
-  octx.lineWidth = lineWidth;
+  octx.strokeStyle = style.stroke;
+  octx.lineWidth = style.lineWidth;
   octx.strokeRect(x, y, w, h);
-  octx.font = font;
-  octx.fillStyle = textColor;
+  octx.font = style.font;
+  octx.fillStyle = style.textColor;
   octx.fillText(label, x + w / 2, y + h / 2);
 }
 

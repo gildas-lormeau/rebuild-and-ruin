@@ -45,6 +45,19 @@ export type Scored = {
   fatBlocks: number;
 };
 
+/** Shared context for fallback placement decisions — avoids threading 9 params. */
+export interface FallbackContext {
+  walls: Set<number>;
+  outside: Set<number>;
+  interior: Set<number>;
+  castle: { tower: Tower };
+  castleMargin: number;
+  homeWasBroken: boolean;
+  unenclosedTowers: readonly Tower[];
+  caresAboutHouses: boolean;
+  caresAboutBonuses: boolean;
+}
+
 /** Shared context for the scoring loop — avoids threading 15+ params through closures. */
 export type ScoringContext = {
   state: import("./types.ts").GameState;

@@ -11,7 +11,12 @@ import {
   createSimulatedWalls,
   isFatFreeCandidate,
 } from "./ai-build-score.ts";
-import type { AiPlacement, Candidate, Scored } from "./ai-build-types.ts";
+import type {
+  AiPlacement,
+  Candidate,
+  FallbackContext,
+  Scored,
+} from "./ai-build-types.ts";
 import { floodPocket } from "./ai-castle-rect.ts";
 import type { Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
@@ -32,16 +37,19 @@ const MIN_VIABLE_ENCLOSURE = 9;
 export function pickFallbackPlacement(
   scored: readonly Scored[],
   state: GameState,
-  walls: Set<number>,
-  outside: Set<number>,
-  interior: Set<number>,
-  castle: { tower: Tower },
-  castleMargin: number,
-  homeWasBroken: boolean,
-  unenclosedTowers: readonly Tower[],
-  caresAboutHouses: boolean,
-  caresAboutBonuses: boolean,
+  ctx: FallbackContext,
 ): { placement: AiPlacement | null; reason: string } | null {
+  const {
+    walls,
+    outside,
+    interior,
+    castle,
+    castleMargin,
+    homeWasBroken,
+    unenclosedTowers,
+    caresAboutHouses,
+    caresAboutBonuses,
+  } = ctx;
   const placementResult = (
     candidate: Candidate,
     reason: string,

@@ -776,19 +776,17 @@ export function pickPlacement(
 
   // If no territory gain: discard or build toward unenclosed towers
   if (bestScore <= 0) {
-    const fb = pickFallbackPlacement(
-      scored,
-      state,
-      player.walls,
+    const fb = pickFallbackPlacement(scored, state, {
+      walls: player.walls,
       outside,
-      player.interior,
+      interior: player.interior,
       castle,
       castleMargin,
-      !!homeWasBroken,
+      homeWasBroken: !!homeWasBroken,
       unenclosedTowers,
       caresAboutHouses,
       caresAboutBonuses,
-    );
+    });
     if (fb) return fb.placement;
   }
 
