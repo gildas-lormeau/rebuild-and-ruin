@@ -25,6 +25,7 @@ interface TransitionContext {
   getMyPlayerId: () => number;
   getControllers: () => PlayerController[];
   showBanner: BannerShow;
+  banner: { newTerritory?: Set<number>[]; newWalls?: Set<number>[] };
   clearSelectionOverlay: () => void;
   now: () => number;
 
@@ -179,8 +180,6 @@ export function handleBattleStartTransition(
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
   const battleReceivedAt = ctx.now();
-  const preBattleTerritory = ctx.snapshotTerritory();
-  const preBattleWalls = snapshotAllWalls(state);
   const battleFlights = msg.flights;
 
   ctx.showBanner(
@@ -213,11 +212,15 @@ export function handleBattleStartTransition(
       }
     },
     true,
-    { territory: preBattleTerritory, walls: preBattleWalls },
   );
 
   ctx.applyBattleStartData(msg);
   setPhase(state, Phase.BATTLE);
+
+  // Set post-checkpoint walls/territory so the banner's new scene shows
+  // clean grass instead of debris for swept walls.
+  ctx.banner.newTerritory = ctx.snapshotTerritory();
+  ctx.banner.newWalls = snapshotAllWalls(state);
   state.battleCountdown = ctx.battleCountdown;
 }
 

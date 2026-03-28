@@ -95,6 +95,9 @@ export const transitionCtx = {
     r?: boolean,
     nb?: { territory: Set<number>[]; walls: Set<number>[] },
   ) => runtime.showBanner(t, cb, r, nb),
+  get banner() {
+    return runtime.rs.banner;
+  },
   clearSelectionOverlay: () => {
     const overlay = runtime.rs.overlay;
     if (overlay.selection) {

@@ -150,6 +150,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     startHostBattleLifecycle({
       state: rs.state,
       battleAnim: rs.battleAnim,
+      banner: rs.banner,
       resolveBalloons,
       snapshotTerritory: deps.snapshotTerritory,
       showBanner: deps.showBanner,

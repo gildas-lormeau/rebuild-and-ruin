@@ -77,6 +77,7 @@ interface BattleStartNet {
 interface StartHostBattleLifecycleDeps {
   state: GameState;
   battleAnim: BattleAnimState;
+  banner: { newTerritory?: Set<number>[]; newWalls?: Set<number>[] };
   resolveBalloons: (state: GameState) => BalloonFlight[];
   snapshotTerritory: () => Set<number>[];
   showBanner: BannerShow;
@@ -217,8 +218,6 @@ export function startHostBattleLifecycle(
   const sendBattleStart = deps.net?.sendBattleStart;
 
   const flights = resolveBalloons(state);
-  const preTerritory = snapshotTerritory();
-  const preWalls = snapshotAllWalls(state);
 
   showBanner(
     BANNER_BATTLE,
@@ -231,7 +230,7 @@ export function startHostBattleLifecycle(
       }
     },
     true,
-    { territory: preTerritory, walls: preWalls },
+    undefined,
     BANNER_BATTLE_SUB,
   );
 
@@ -239,8 +238,14 @@ export function startHostBattleLifecycle(
   battleAnim.impacts = [];
   if (isHost && sendBattleStart) sendBattleStart(flights);
 
-  battleAnim.territory = snapshotTerritory();
-  battleAnim.walls = snapshotAllWalls(state);
+  // Snapshot post-sweep walls/territory for the banner's new scene,
+  // so swept walls appear as clean grass instead of debris during the sweep.
+  const postTerritory = snapshotTerritory();
+  const postWalls = snapshotAllWalls(state);
+  battleAnim.territory = postTerritory;
+  battleAnim.walls = postWalls;
+  deps.banner.newTerritory = postTerritory;
+  deps.banner.newWalls = postWalls;
 }
 
 export function tickHostBalloonAnim(deps: TickHostBalloonAnimDeps): void {
