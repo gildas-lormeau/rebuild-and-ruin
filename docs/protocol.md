@@ -35,7 +35,7 @@ Client                          Server                          Host
   │                                │                              │
   │  Slot selection:               │                              │
   │                                │<── select_slot(slotId) ──────│
-  │<──────────── player_joined ────│──── joined(playerId) ───────>│
+  │<──────────── player_joined ────│──── joined + player_joined ─>│
   │                                │                              │
   │  Lobby timer expires:          │                              │
   ├─ init ────────────────────────>│──────────────────────────────>│
@@ -61,8 +61,8 @@ Client                          Server                          Host
 |---------|--------|-------------|
 | `room_created` | `code`, `settings`, `seed` | Room created successfully |
 | `room_joined` | `code`, `players[]`, `settings`, `hostId`, `seed`, `elapsedSec` | Sent to joining client with current room state |
-| `joined` | `playerId` | Slot assigned after `select_slot` |
-| `player_joined` | `playerId`, `name` | Broadcast to all when a player selects a slot |
+| `joined` | `playerId`, `previousPlayerId?` | Slot assigned after `select_slot` (includes previous slot if switching) |
+| `player_joined` | `playerId`, `name`, `previousPlayerId?` | Broadcast to all when a player selects a slot (includes previous slot if switching) |
 | `player_left` | `playerId` | Broadcast to all when a player disconnects |
 | `room_error` | `message` | Room not found, full, or other error |
 
@@ -72,7 +72,7 @@ These are sent by the host and relayed to all other clients. They carry full sta
 
 | Message | When | Key Data |
 |---------|------|----------|
-| `init` | Game start | `seed`, `playerCount`, `settings` |
+| `init` | Game start | `seed`, `playerCount`, `settings` (`battleLength`, `cannonMaxHp`, `buildTimer`, `cannonPlaceTimer`) |
 | `select_start` | Tower selection begins | `timer` |
 | `castle_walls` | Castle construction animation | `plans[]` (playerId + ordered wall tiles) |
 | `cannon_start` | Cannon placement begins | `timer`, `limits[]`, `players[]`, `grunts[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `houses[]` |
@@ -130,7 +130,7 @@ The relay server validates without running game logic:
 - **Host-only enforcement**: only the host socket can send checkpoints (`init`, `cannon_start`, `battle_start`, `build_start`, `build_end`, `game_over`, `full_state`, `select_start`, `castle_walls`) and battle impact events (`wall_destroyed`, `cannon_damaged`, `house_destroyed`, `grunt_killed`, `grunt_spawned`, `pit_created`, `tower_killed`)
 - **Identity**: players can only send messages with their own `playerId` (host exempt — sends on behalf of AI players)
 - **Phase gating**: `cannon_fired` rejected outside BATTLE, `opponent_piece_placed` rejected outside WALL_BUILD, `opponent_cannon_placed` rejected outside CANNON_PLACE, `opponent_tower_selected` rejected outside SELECTION, etc.
-- **Rate limiting**: cosmetic messages (`opponent_phantom`, `opponent_cannon_phantom`, `aim_update`) capped at 100/s per type. Game-state messages (`piece_placed`, `cannon_placed`, `fired`, `life_lost_choice`) are **not** rate-limited — they are low-frequency and must never be silently dropped
+- **Rate limiting**: cosmetic messages (`opponent_phantom`, `opponent_cannon_phantom`, `aim_update`) capped at 100/s per type. Game-state messages (`opponent_piece_placed`, `opponent_cannon_placed`, `cannon_fired`, `opponent_tower_selected`, `life_lost_choice`) are **not** rate-limited — they are low-frequency and must never be silently dropped
 - **Payload validation**: bounds-checking on `playerId`, grid coordinates, pixel coordinates, cannon modes, piece offsets, and choice values
 
 ## Bandwidth

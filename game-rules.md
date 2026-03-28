@@ -10,7 +10,7 @@ A multiplayer Rampart remake for the web. Up to 3 players compete on a battlefie
 - **Terrain**: Grass (buildable) and Water (impassable).
 - **River**: A Y-shaped river divides the map into **3 zones** of roughly equal size. Generated via Bezier curves from a central junction to 3 map edges; 3 tiles wide.
 - **Towers**: 12 total (4 per zone), each occupying 2×2 tiles. Placed via farthest-point sampling with minimum 4-tile gap between towers and a safe zone around each.
-- **Houses**: 10 per zone initially, 1×1 tiles. Placed on grass with a 1-tile margin from water and towers, minimum 3-tile Manhattan distance between houses. Houses are spawned after castle construction (visible from the cannon phase onward). Zones are refilled to 8 houses at the start of each build phase when below that count.
+- **Houses**: 8 per zone initially, 1×1 tiles. Placed on grass with a 1-tile margin from water and towers, minimum 3-tile Manhattan distance between houses. Houses are spawned after castle construction (visible from the cannon phase onward). Zones are refilled to 8 houses at the start of each build phase when below that count.
 - **Bonus squares**: 3 per zone, placed on open (non-enclosed) grass with a 1-tile gap from borders/river and minimum 3-tile Manhattan distance from each other. Replenished after any are captured.
 
 ---
@@ -86,7 +86,7 @@ After each piece placement, territory is recalculated:
 
 ### Grunts Enclosed by Walls
 
-Grunts caught inside enclosed territory are killed (awards 16 points). Each has a **50% chance** to respawn on a random enemy's zone.
+Grunts caught inside enclosed territory are killed (awards 16 points). Each has a **50% chance** to respawn, distributed evenly across enemy zones (round-robin).
 
 ### End of Build Phase
 
@@ -112,7 +112,7 @@ Players place cannons inside their enclosed territory (interior tiles only).
 |------|------|-----------|-----|---------|
 | Normal cannon | 2×2 | 1 | Configurable (default 3) | Standard cannonball |
 | Super gun | 3×3 | 4 | Configurable (default 3) | Fires incendiary cannonballs |
-| Propaganda balloon | 2×2 | 3 | Configurable (default 3) | Captures enemy cannon |
+| Propaganda balloon | 2×2 | 3 | Immune (removed after battle) | Captures enemy cannon |
 
 ### Cannon Slot Allowance
 
@@ -366,7 +366,7 @@ One player hosts the game; others join with a room code.
 2. Configure settings:
    - **Rounds**: 3, 5, 8, 12, or "To The Death" (infinite).
    - **Cannon HP**: 3, 6, 9, or 12.
-   - **Lobby wait timer**: 30–120 seconds before auto-start.
+   - **Lobby wait timer**: 0–120 seconds before auto-start (default 60).
 3. A **4-letter room code** is generated and displayed on screen, along with a QR code for quick mobile joining.
 4. Share the code with other players.
 
