@@ -9,7 +9,7 @@
  */
 
 import { fireCannon, resolveBalloons, tickCannonballs } from "../src/battle-system.ts";
-import { placePiece } from "../src/build-system.ts";
+import { claimTerritory, placePiece } from "../src/build-system.ts";
 import { placeCannon, resetCannonFacings } from "../src/cannon-system.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/grid.ts";
 import type { PlayerController } from "../src/controller-interfaces.ts";
@@ -94,6 +94,8 @@ export interface Scenario {
   setLives(playerId: number, lives: number): void;
   clearWalls(playerId: number): void;
   eliminatePlayer(playerId: number): void;
+  destroyWalls(playerId: number, count: number): number;
+  destroyCannon(playerId: number, cannonIdx: number): void;
 
   // Tile finders
   findGrassTile(playerId: number): { row: number; col: number } | null;
@@ -261,6 +263,23 @@ export function createScenario(seed = 42): Scenario {
     }
     parts.push(`round:${state.round}`);
     return parts.join(" | ");
+  }
+
+  function doDestroyWalls(playerId: number, count: number): number {
+    const player = state.players[playerId]!;
+    let removed = 0;
+    for (const key of player.walls) {
+      if (removed >= count) break;
+      player.walls.delete(key);
+      removed++;
+    }
+    claimTerritory(state);
+    return removed;
+  }
+
+  function doDestroyCannon(playerId: number, cannonIdx: number): void {
+    const cannon = state.players[playerId]?.cannons[cannonIdx];
+    if (cannon) cannon.hp = 0;
   }
 
   function doPlaceCannonAt(
@@ -551,6 +570,8 @@ export function createScenario(seed = 42): Scenario {
     clearWalls,
     describe,
     eliminatePlayer: doEliminatePlayer,
+    destroyWalls: doDestroyWalls,
+    destroyCannon: doDestroyCannon,
     findGrassTile: doFindGrassTile,
     findInteriorTile: doFindInteriorTile,
     findEnemyWallTile: doFindEnemyWallTile,

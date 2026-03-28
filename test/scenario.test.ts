@@ -503,7 +503,35 @@ test("describe() returns a compact state summary", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 15. Tile finders return valid results
+// 15. Damage helpers
+// ---------------------------------------------------------------------------
+
+test("destroyWalls removes walls and reclaims territory", () => {
+  const s = createScenario();
+  const player = s.state.players[0]!;
+  const wallsBefore = player.walls.size;
+  assert(wallsBefore > 0, "Player should have walls");
+
+  const removed = s.destroyWalls(0, 5);
+  assert(removed > 0, "Should remove at least one wall");
+  assert(player.walls.size === wallsBefore - removed, "Wall count should decrease");
+});
+
+test("destroyCannon sets cannon HP to 0", () => {
+  const s = createScenario();
+  s.runCannon();
+  const player = s.state.players[0]!;
+  const aliveBefore = player.cannons.filter((c) => c.hp > 0).length;
+  assert(aliveBefore > 0, "Should have alive cannons");
+
+  s.destroyCannon(0, 0);
+  assert(player.cannons[0]!.hp === 0, "Cannon HP should be 0");
+  const aliveAfter = player.cannons.filter((c) => c.hp > 0).length;
+  assert(aliveAfter === aliveBefore - 1, "One fewer alive cannon");
+});
+
+// ---------------------------------------------------------------------------
+// 16. Tile finders return valid results
 // ---------------------------------------------------------------------------
 
 test("tile finders return valid positions", () => {

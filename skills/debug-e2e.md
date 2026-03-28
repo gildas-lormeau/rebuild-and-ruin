@@ -52,6 +52,8 @@ test("describe the bug being tested", () => {
   s.setLives(1, 2);                // set player 1 to 2 lives
   s.clearWalls(1);                  // remove all walls for player 1
   s.eliminatePlayer(2);             // force-eliminate player 2
+  s.destroyWalls(1, 5);             // remove 5 walls + reclaim territory
+  s.destroyCannon(1, 0);            // kill cannon at index 0 (hp=0)
 
   // Phase control
   s.advanceTo(Phase.BATTLE);        // advance to specific phase
