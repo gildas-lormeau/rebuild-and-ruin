@@ -165,7 +165,7 @@ export function rebuildHomeCastle(state: GameState, player: Player): void {
 }
 
 export function enterCastleReselectPhase(state: GameState): void {
-  state.phase = Phase.CASTLE_RESELECT;
+  setPhase(state, Phase.CASTLE_RESELECT);
   state.timer = 0;
 }
 
@@ -231,7 +231,7 @@ export function nextPhase(state: GameState): void {
 }
 
 export function enterCannonPlacePhase(state: GameState): void {
-  state.phase = Phase.CANNON_PLACE;
+  setPhase(state, Phase.CANNON_PLACE);
   state.timer = 0;
 }
 
@@ -298,12 +298,12 @@ export function initBuildPhase(
 function enterBuildFromSelect(state: GameState): void {
   autoBuildCastles(state);
   replenishBonusSquares(state);
-  state.phase = Phase.WALL_BUILD;
+  setPhase(state, Phase.WALL_BUILD);
   state.timer = 0;
 }
 
 function enterBuildFromReselect(state: GameState): void {
-  state.phase = Phase.WALL_BUILD;
+  setPhase(state, Phase.WALL_BUILD);
   state.timer = 0;
 }
 
@@ -328,7 +328,7 @@ function enterBattleFromCannon(state: GameState): void {
   const allWalls = collectAllWalls(state);
   removeBonusSquaresCoveredByWalls(state, allWalls);
   rollGruntWallAttacks(state);
-  state.phase = Phase.BATTLE;
+  setPhase(state, Phase.BATTLE);
   state.timer = BATTLE_TIMER;
   state.cannonballs = [];
   state.shotsFired = 0;
@@ -357,9 +357,18 @@ function enterBuildFromBattle(state: GameState): void {
   claimTerritory(state);
   state.round++;
   replenishBonusSquares(state);
-  state.phase = Phase.WALL_BUILD;
+  setPhase(state, Phase.WALL_BUILD);
   state.timer = state.buildTimer;
   startOfBuildPhaseHousekeeping(state);
+}
+
+/**
+ * Centralized phase setter — every phase mutation flows through here,
+ * making the phase state machine traceable from a single call-site.
+ * Online mode uses this to reconcile client phase with server checkpoints.
+ */
+export function setPhase(state: GameState, phase: Phase): void {
+  state.phase = phase;
 }
 
 /**

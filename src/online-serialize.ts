@@ -9,6 +9,7 @@ import {
   type SerializedGrunt,
   type SerializedPlayer,
 } from "../server/protocol.ts";
+import { setPhase } from "./game-engine.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "./grid.ts";
 import { createCastle } from "./map-generation.ts";
 import { Rng } from "./rng.ts";
@@ -213,7 +214,7 @@ export function applyFullStateSnapshot(
   }
 
   const nextPhase = Phase[msg.phase as keyof typeof Phase]!;
-  state.phase = nextPhase;
+  setPhase(state, nextPhase);
   state.round = msg.round;
   state.timer = msg.timer;
   state.battleCountdown = msg.battleCountdown;

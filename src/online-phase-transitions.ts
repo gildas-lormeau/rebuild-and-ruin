@@ -5,6 +5,7 @@ import {
 } from "../server/protocol.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
+import { setPhase } from "./game-engine.ts";
 import type { RGB } from "./geometry-types.ts";
 import { TILE_COUNT } from "./grid.ts";
 import { createCastle } from "./map-generation.ts";
@@ -159,7 +160,7 @@ export function handleCannonStartTransition(
     ctrl?.onCannonPhaseStart(state);
   }
   if (state.phase !== Phase.CANNON_PLACE) {
-    state.phase = Phase.CANNON_PLACE;
+    setPhase(state, Phase.CANNON_PLACE);
     state.timer = state.cannonPlaceTimer;
     ctx.showBanner(BANNER_PLACE_CANNONS, () => {
       ctx.watcherTiming.phaseStartTime = ctx.now();
@@ -215,7 +216,7 @@ export function handleBattleStartTransition(
   );
 
   ctx.applyBattleStartData(msg);
-  state.phase = Phase.BATTLE;
+  setPhase(state, Phase.BATTLE);
   state.battleCountdown = ctx.battleCountdown;
 }
 
@@ -239,7 +240,7 @@ export function handleBuildStartTransition(
   );
 
   ctx.applyBuildStartData(msg);
-  state.phase = Phase.WALL_BUILD;
+  setPhase(state, Phase.WALL_BUILD);
   if (myPlayerId >= 0) {
     ctx.getControllers()[myPlayerId]?.startBuild(state);
   }
