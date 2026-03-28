@@ -91,7 +91,7 @@ const DEFAULT_FRAME_DT = 1 / 60;
 
 export function createRuntimeState(): RuntimeState {
   return {
-    state: null! as GameState,
+    state: uninitializedSentinel<GameState>("state"),
     overlay: { selection: { highlighted: null, selected: null } },
     controllers: [],
 
@@ -108,7 +108,7 @@ export function createRuntimeState(): RuntimeState {
 
     battleAnim: createBattleAnimState(),
     banner: createBannerState(),
-    ctx: null! as FrameContext, // computed at top of every mainLoop frame
+    ctx: uninitializedSentinel<FrameContext>("ctx"),
     frame: { crosshairs: [], phantoms: {} },
     lobby: {
       joined: new Array(MAX_PLAYERS).fill(false),
@@ -138,4 +138,20 @@ export function createRuntimeState(): RuntimeState {
     mouseJoinedSlot: -1,
     directTouchActive: false,
   };
+}
+
+/**
+ * Create a typed sentinel that throws a descriptive error on any property
+ * access.  Replaces `null! as T` — same zero-cost for valid code paths,
+ * but produces a clear "not yet initialized" error instead of a cryptic
+ * "Cannot read properties of null" when accessed before assignment.
+ */
+function uninitializedSentinel<T extends object>(name: string): T {
+  return new Proxy<T>(Object.create(null), {
+    get(_, prop) {
+      throw new Error(
+        `rs.${name} accessed before initialization (property: ${String(prop)})`,
+      );
+    },
+  });
 }
