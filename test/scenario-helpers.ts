@@ -31,9 +31,20 @@ import {
   tickLifeLostDialogRuntime,
 } from "../src/life-lost.ts";
 import {
+  applyBattleStartCheckpoint,
+  applyBuildStartCheckpoint,
+  applyCannonStartCheckpoint,
+  type CheckpointDeps,
+} from "../src/online-checkpoints.ts";
+import type { TransitionContext } from "../src/online-phase-transitions.ts";
+import { serializePlayers } from "../src/online-serialize.ts";
+import type { WatcherTimingState } from "../src/online-types.ts";
+import {
   type BannerState,
   createBannerState,
+  showBannerTransition,
 } from "../src/phase-banner.ts";
+import { PLAYER_COLORS } from "../src/player-config.ts";
 import { createCameraSystem } from "../src/runtime-camera.ts";
 import {
   createHeadlessRuntime,
@@ -96,6 +107,13 @@ export interface Scenario {
     dialog: LifeLostDialogState,
     dt: number,
   ): LifeLostDialogState | null;
+
+  // Online transition testing
+  createTransitionContext(overrides?: Partial<TransitionTestDeps>): TransitionContext;
+}
+
+export interface TransitionTestDeps {
+  myPlayerId: number;
 }
 
 export interface CameraTestDeps {
@@ -346,6 +364,78 @@ export function createScenario(seed = 42): Scenario {
     });
   }
 
+  function doCreateTransitionContext(
+    overrides: Partial<TransitionTestDeps> = {},
+  ): TransitionContext {
+    const myPlayerId = overrides.myPlayerId ?? 0;
+    const banner = createBannerState();
+    const battleAnim = createBattleAnimState();
+    const watcherTiming: WatcherTimingState = {
+      phaseStartTime: 0,
+      phaseDuration: 0,
+      countdownStartTime: 0,
+      countdownDuration: 0,
+    };
+    const checkpointDeps: CheckpointDeps = {
+      state,
+      battleAnim,
+      accum: { battle: 0, cannon: 0, select: 0, build: 0, grunt: 0 },
+      remoteCrosshairs: new Map(),
+      watcherCrosshairPos: new Map(),
+      watcherOrbitParams: new Map(),
+      watcherIdlePhases: new Map(),
+      snapshotTerritory: () =>
+        state.players.map((p) => new Set(p.interior)),
+    };
+
+    return {
+      getState: () => state,
+      getMyPlayerId: () => myPlayerId,
+      getControllers: () => controllers,
+      showBanner: (text, onDone, reveal, newBattle) => {
+        showBannerTransition({
+          banner,
+          state,
+          battleAnim,
+          text,
+          onDone,
+          reveal,
+          newBattle,
+          setModeBanner: () => {},
+        });
+      },
+      banner,
+      clearSelectionOverlay: () => {},
+      now: () => performance.now(),
+      watcherTiming,
+      setMode: () => {},
+      battleCountdown: 3,
+      bannerDuration: 3,
+      playerColors: PLAYER_COLORS,
+      applyCannonStartData: (msg) =>
+        applyCannonStartCheckpoint(msg, checkpointDeps),
+      applyBattleStartData: (msg) =>
+        applyBattleStartCheckpoint(msg, checkpointDeps),
+      applyBuildStartData: (msg) =>
+        applyBuildStartCheckpoint(msg, checkpointDeps),
+      applyPlayersCheckpoint: (s, players) =>
+        serializePlayers(s),
+      resetZoneState: () => {},
+      finalizeCastleConstruction: () => {},
+      enterCannonPlacePhase: () => {},
+      getSelectionStates: () => new Map(),
+      setCastleBuildFromPlans: () => {},
+      setCastleBuildViewport: () => {},
+      setBattleFlights: () => {},
+      snapshotTerritory: () =>
+        state.players.map((p) => new Set(p.interior)),
+      showLifeLostDialog: () => {},
+      showScoreDeltas: (_pre, onDone) => onDone(),
+      render: () => {},
+      setGameOverFrame: () => {},
+    };
+  }
+
   return {
     state,
     controllers,
@@ -368,6 +458,7 @@ export function createScenario(seed = 42): Scenario {
     createBattleAnim: createBattleAnimState,
     createLifeLostDialog: doCreateLifeLostDialog,
     tickLifeLostDialog: doTickLifeLostDialog,
+    createTransitionContext: doCreateTransitionContext,
   };
 }
 

@@ -5,7 +5,15 @@
 
 import { snapshotAllWalls, sweepIsolatedWalls } from "../src/board-occupancy.ts";
 import { GRID_COLS } from "../src/grid.ts";
-import { showBannerTransition } from "../src/phase-banner.ts";
+import {
+  handleBattleStartTransition,
+  handleCannonStartTransition,
+} from "../src/online-phase-transitions.ts";
+import {
+  createBattleStartMessage,
+  createCannonStartMessage,
+} from "../src/online-serialize.ts";
+import { type BannerState, showBannerTransition } from "../src/phase-banner.ts";
 import { type LifeLostDialogState, LifeLostChoice, Mode, Phase } from "../src/types.ts";
 import {
   assertCameraZone,
@@ -391,6 +399,86 @@ test("fireAt launches a cannonball at the target", () => {
   const fired = s.fireAt(0, aliveCannon, 20, 20);
   assert(fired, "fireAt should succeed for alive cannon");
   assert(s.state.shotsFired === shotsBefore + 1, "shotsFired should increase");
+});
+
+// ---------------------------------------------------------------------------
+// 12. Online transition: cannon start stashes pre-sweep walls
+// ---------------------------------------------------------------------------
+
+test("online handleCannonStartTransition stashes pre-checkpoint walls on banner", () => {
+  const s = createScenario();
+
+  // Play a round to get into a realistic state, then advance to CANNON_PLACE
+  s.runCannon();
+  s.runBattle();
+  s.runBuild();
+  s.finalizeBuild();
+
+  // Serialize the current (post-sweep) state as the server would send it
+  const msg = createCannonStartMessage(s.state);
+
+  // Now add an isolated wall that the checkpoint will remove
+  // (simulates the watcher having stale pre-sweep state)
+  const player = s.state.players[0]!;
+  let isolatedKey = -1;
+  for (let r = 10; r < 30; r++) {
+    for (let c = 10; c < 30; c++) {
+      const key = r * GRID_COLS + c;
+      if (!player.walls.has(key) && !player.interior.has(key)) {
+        isolatedKey = key;
+        break;
+      }
+    }
+    if (isolatedKey >= 0) break;
+  }
+  assert(isolatedKey >= 0, "Should find tile for isolated wall");
+  player.walls.add(isolatedKey);
+
+  // Reset phase so the transition handler runs its banner logic
+  s.state.phase = Phase.WALL_BUILD;
+
+  const ctx = s.createTransitionContext();
+  handleCannonStartTransition(msg, ctx);
+
+  // The banner should have pendingOldWalls consumed into oldCastles
+  // containing the pre-checkpoint walls (including isolated wall)
+  const banner = ctx.banner as BannerState;
+  const oldWalls = banner.oldCastles?.find((c) => c.playerId === 0)?.walls;
+  assert(
+    oldWalls?.has(isolatedKey) ?? false,
+    "Banner old scene should include pre-checkpoint wall for progressive reveal",
+  );
+
+  // The live state should NOT have the isolated wall (checkpoint replaced it)
+  assert(
+    !player.walls.has(isolatedKey),
+    "Live state should have post-checkpoint walls (isolated wall gone)",
+  );
+});
+
+// ---------------------------------------------------------------------------
+// 13. Online transition: battle start sets banner.newWalls post-checkpoint
+// ---------------------------------------------------------------------------
+
+test("online handleBattleStartTransition sets banner.newWalls after checkpoint", () => {
+  const s = createScenario();
+
+  // Advance to cannon phase and serialize battle start message
+  s.runCannon();
+  const msg = createBattleStartMessage(s.state, []);
+
+  const ctx = s.createTransitionContext();
+  handleBattleStartTransition(msg, ctx);
+
+  // banner.newWalls should be set (post-checkpoint walls)
+  assert(
+    ctx.banner.newWalls !== undefined,
+    "banner.newWalls should be set after battle start transition",
+  );
+  assert(
+    ctx.banner.newTerritory !== undefined,
+    "banner.newTerritory should be set after battle start transition",
+  );
 });
 
 // ---------------------------------------------------------------------------
