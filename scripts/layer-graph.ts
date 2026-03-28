@@ -16,7 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
-const ROOT = path.resolve(import.meta.dirname, "..");
+const ROOT = path.resolve(import.meta.dirname ?? ".", "..");
 const includeServer = process.argv.includes("--server");
 
 // ---------------------------------------------------------------------------
