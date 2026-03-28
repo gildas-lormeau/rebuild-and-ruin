@@ -340,6 +340,10 @@ export function applyFullState(msg: FullStateMessage): void {
       setMode: (mode) => {
         runtime.rs.mode = mode;
       },
+      onModeSet: (mode) => {
+        if (mode === Mode.SELECTION) runtime.sound.drumsStart();
+        else runtime.sound.drumsStop();
+      },
       clearCastleBuilds: () => {
         runtime.rs.castleBuilds = [];
       },

@@ -7,6 +7,7 @@
     "src/rng.ts:arr",
 
     "src/runtime-phase-ticks.ts:crosshairs",
-    "src/runtime-types.ts:crosshairs"
+    "src/runtime-types.ts:crosshairs",
+    "src/sound-system.ts:nodes"
   ]
 }

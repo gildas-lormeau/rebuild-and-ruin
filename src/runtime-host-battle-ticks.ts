@@ -161,10 +161,11 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     ctrl.battleTick(state, dt);
   }
 
-  if (isHost && sendMessage) {
-    for (let i = ballsBefore; i < state.cannonballs.length; i++) {
-      sendMessage(createCannonFiredMsg(state.cannonballs[i]!));
-    }
+  const fireEvents: GameMessage[] = [];
+  for (let i = ballsBefore; i < state.cannonballs.length; i++) {
+    const msg = createCannonFiredMsg(state.cannonballs[i]!);
+    fireEvents.push(msg);
+    if (isHost && sendMessage) sendMessage(msg);
   }
 
   const towerEvents = collectTowerEvents(state, dt);
@@ -181,9 +182,8 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     for (const evt of impactEvents) sendMessage(evt);
   }
 
-  // Haptic feedback for battle events
   if (onBattleEvents) {
-    const allEvents = [...towerEvents, ...impactEvents];
+    const allEvents = [...fireEvents, ...towerEvents, ...impactEvents];
     if (allEvents.length > 0) onBattleEvents(allEvents);
   }
 

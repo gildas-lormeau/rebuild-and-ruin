@@ -25,7 +25,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   rounds: 4,
   cannonHp: 0,
   haptics: 2, // default: all
-  sound: 2, // default: all
+  sound: 0, // default: off (experimental)
   seed: "",
   seedMode: SEED_RANDOM,
   keyBindings: [],

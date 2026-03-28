@@ -28,7 +28,6 @@ import {
   type SeedMode,
 } from "./player-config.ts";
 import type { RendererInterface } from "./render-types.ts";
-import { soundPieceRotated } from "./sound-system.ts";
 import { findNearestTower } from "./spatial.ts";
 import {
   Action,
@@ -94,6 +93,7 @@ export interface RegisterOnlineInputDeps {
     gameState: GameState,
   ) => boolean;
   fireAndSend: (ctrl: PlayerController, gameState: GameState) => void;
+  onPieceRotated?: () => void;
   getSelectionStates: () => Map<number, SelectionState>;
   highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
   confirmSelectionForPlayer: (pid: number, isReselect?: boolean) => boolean;
@@ -557,7 +557,7 @@ function handleKeyGame(
         e.preventDefault();
       } else if (action === Action.ROTATE) {
         ctrl.rotatePiece();
-        soundPieceRotated();
+        deps.onPieceRotated?.();
         e.preventDefault();
       } else if (action === Action.CONFIRM) {
         tryPlacePieceAndSend(ctrl, state);

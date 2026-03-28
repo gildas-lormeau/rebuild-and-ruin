@@ -109,6 +109,7 @@ interface TickHostBuildPhaseDeps {
   ) => void;
   afterLifeLostResolved: () => boolean;
   showScoreDeltas: (onDone: () => void) => void;
+  onFirstEnclosure?: (playerId: number) => void;
   net?: BuildPhaseNet;
 }
 
@@ -250,6 +251,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
       isHost && !isHuman(ctrl)
         ? new Set(state.players[ctrl.playerId]!.walls)
         : null;
+    const hadInterior = state.players[ctrl.playerId]!.interior.size > 0;
 
     const phantoms = ctrl.buildTick(state, dt);
 
@@ -272,6 +274,10 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
           });
         }
       }
+    }
+
+    if (!hadInterior && state.players[ctrl.playerId]!.interior.size > 0) {
+      deps.onFirstEnclosure?.(ctrl.playerId);
     }
 
     for (const p of phantoms) {

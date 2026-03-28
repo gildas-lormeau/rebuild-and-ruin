@@ -21,7 +21,6 @@ import {
   TOUCH_ZOOM_HOME_BG,
   ZOOM_BUTTON_ALPHA,
 } from "./render-theme.ts";
-import { soundPieceRotated } from "./sound-system.ts";
 import { findNearestTower } from "./spatial.ts";
 import {
   Action,
@@ -52,6 +51,7 @@ interface DpadDeps {
     human: PlayerController & InputReceiver,
     state: GameState,
   ) => void;
+  onPieceRotated?: () => void;
   getSelectionStates: () => Map<number, SelectionState>;
   highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
   confirmSelectionForPlayer: (pid: number, isReselect: boolean) => boolean;
@@ -109,6 +109,7 @@ interface RotateDeps {
   withFirstHuman: (
     action: (human: PlayerController & InputReceiver) => void,
   ) => void;
+  onPieceRotated?: () => void;
 }
 
 interface FloatingActionsDeps {
@@ -125,6 +126,7 @@ interface FloatingActionsDeps {
     state: GameState,
     max: number,
   ) => void;
+  onPieceRotated?: () => void;
   /** Forward a drag touch to the canvas pointer-move logic. */
   onDrag?: (clientX: number, clientY: number) => void;
 }
@@ -699,7 +701,7 @@ function dispatchRotate(deps: RotateDeps): void {
   deps.withFirstHuman((human) => {
     if (state.phase === Phase.WALL_BUILD) {
       human.rotatePiece();
-      soundPieceRotated();
+      deps.onPieceRotated?.();
     } else if (state.phase === Phase.CANNON_PLACE) {
       const max = state.cannonLimits[human.playerId] ?? 0;
       human.cycleCannonMode(state, max);

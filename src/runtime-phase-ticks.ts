@@ -43,7 +43,7 @@ import {
 } from "./runtime-host-phase-ticks.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { GameRuntime } from "./runtime-types.ts";
-import { soundBattleEvents } from "./sound-system.ts";
+import type { SoundSystem } from "./sound-system.ts";
 import type { BalloonFlight, GameState } from "./types.ts";
 import {
   BALLOON_FLIGHT_DURATION,
@@ -103,6 +103,9 @@ interface PhaseTicksDeps {
   saveBattleCrosshair?: () => void;
   /** Called after beginBattle completes (crosshair override, etc.). */
   onBeginBattle?: () => void;
+  /** Called when a player encloses territory for the first time during build phase. */
+  onFirstEnclosure?: (playerId: number) => void;
+  sound: SoundSystem;
 }
 
 export type PhaseTicksSystem = Pick<
@@ -146,6 +149,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function startCannonPhase() {
+    deps.sound.drumsQuiet();
     const remoteHumanSlots = rs.ctx.remoteHumanSlots;
     deps.log(`startCannonPhase (round=${rs.state.round})`);
     initCannonPhase({
@@ -166,6 +170,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function startBattle() {
+    deps.sound.drumsStop();
     deps.log(`startBattle (round=${rs.state.round})`);
     rs.scoreDeltas = [];
     rs.scoreDeltaTimer = 0;
@@ -311,15 +316,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
             events as Array<{ type: string; playerId?: number; hp?: number }>,
             localPid,
           );
-          soundBattleEvents(
-            events as Array<{
-              type: string;
-              playerId?: number;
-              hp?: number;
-              newHp?: number;
-            }>,
-            localPid,
-          );
+          deps.sound.battleEvents(events, localPid);
         }
         for (const evt of events as Array<{
           type: string;
@@ -383,6 +380,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       showLifeLostDialog: deps.showLifeLostDialog,
       afterLifeLostResolved: deps.afterLifeLostResolved,
       showScoreDeltas: deps.showScoreDeltas,
+      onFirstEnclosure: deps.onFirstEnclosure,
       net: {
         remoteHumanSlots: rs.ctx.remoteHumanSlots,
         isHost: rs.ctx.isHost,

@@ -7,6 +7,7 @@ type RecoveredBalloonFlight = {
 
 interface FullStateUiRecoveryDeps {
   setMode: (mode: Mode) => void;
+  onModeSet?: (mode: Mode) => void;
   clearCastleBuilds: () => void;
   clearLifeLostDialog: () => void;
   clearAnnouncement: () => void;
@@ -18,7 +19,9 @@ export function applyFullStateUiRecovery(
   phase: Phase,
   balloonFlights?: readonly RecoveredBalloonFlight[],
 ): void {
-  deps.setMode(resolveModeAfterFullState(phase, balloonFlights));
+  const mode = resolveModeAfterFullState(phase, balloonFlights);
+  deps.setMode(mode);
+  deps.onModeSet?.(mode);
   deps.clearCastleBuilds();
   deps.clearLifeLostDialog();
   deps.clearAnnouncement();

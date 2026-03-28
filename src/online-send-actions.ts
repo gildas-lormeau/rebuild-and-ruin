@@ -3,11 +3,6 @@ import type {
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
-import {
-  soundCannonPlaced,
-  soundPieceFailed,
-  soundPiecePlaced,
-} from "./sound-system.ts";
 import type { GameState } from "./types.ts";
 
 export function tryPlacePieceAndSend(
@@ -20,7 +15,6 @@ export function tryPlacePieceAndSend(
   const col = ctrl.buildCursor.col;
   const placed = ctrl.tryPlacePiece(gameState);
   if (placed && piece) {
-    soundPiecePlaced();
     send({
       type: MSG.OPPONENT_PIECE_PLACED,
       playerId: ctrl.playerId,
@@ -28,8 +22,6 @@ export function tryPlacePieceAndSend(
       col,
       offsets: piece.offsets,
     });
-  } else if (!placed) {
-    soundPieceFailed();
   }
   return placed;
 }
@@ -45,7 +37,6 @@ export function tryPlaceCannonAndSend(
   const mode = ctrl.getCannonPlaceMode();
   const placed = ctrl.tryPlaceCannon(gameState, max);
   if (placed) {
-    soundCannonPlaced();
     send({
       type: MSG.OPPONENT_CANNON_PLACED,
       playerId: ctrl.playerId,

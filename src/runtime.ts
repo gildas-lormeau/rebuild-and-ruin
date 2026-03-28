@@ -80,14 +80,7 @@ import {
 import { createRuntimeState } from "./runtime-state.ts";
 import { updateTouchControls } from "./runtime-touch-ui.ts";
 import type { GameRuntime, RuntimeConfig } from "./runtime-types.ts";
-import {
-  setSoundLevel,
-  soundCannonPlaced,
-  soundGameOver,
-  soundPhaseStart,
-  soundPieceFailed,
-  soundPiecePlaced,
-} from "./sound-system.ts";
+import { createSoundSystem } from "./sound-system.ts";
 import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
 import {
   BANNER_DURATION,
@@ -115,7 +108,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const rs = createRuntimeState();
   setHapticsLevel(rs.settings.haptics);
-  setSoundLevel(rs.settings.sound);
+  const sound = createSoundSystem();
+  sound.setLevel(rs.settings.sound);
 
   // Sub-systems initialized after uiCtx (forward-declared, assigned once)
   // deno-lint-ignore prefer-const
@@ -369,7 +363,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       },
     });
     hapticPhaseChange();
-    soundPhaseStart();
+    sound.phaseStart();
   }
 
   function tickBanner(dt: number) {
@@ -406,6 +400,37 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const human = firstHuman();
     if (!human) return;
     action(human);
+  }
+
+  // -------------------------------------------------------------------------
+  // Sound wrappers for placement actions (local + online)
+  // -------------------------------------------------------------------------
+
+  type PlacePieceFn = (
+    ctrl: PlayerController & InputReceiver,
+    gs: GameState,
+  ) => boolean;
+  type PlaceCannonFn = (
+    ctrl: PlayerController & InputReceiver,
+    gs: GameState,
+    max: number,
+  ) => boolean;
+
+  function wrapPiecePlace(inner: PlacePieceFn): PlacePieceFn {
+    return (ctrl, gs) => {
+      const ok = inner(ctrl, gs);
+      if (ok) sound.piecePlaced();
+      else sound.pieceFailed();
+      return ok;
+    };
+  }
+
+  function wrapCannonPlace(inner: PlaceCannonFn): PlaceCannonFn {
+    return (ctrl, gs, max) => {
+      const ok = inner(ctrl, gs, max);
+      if (ok) sound.cannonPlaced();
+      return ok;
+    };
   }
 
   // -------------------------------------------------------------------------
@@ -448,6 +473,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs,
     send: config.send,
     log: config.log,
+    onSelectionStart: sound.drumsStart,
+    onCastleBuildDone: (pids) => {
+      for (const pid of pids) sound.chargeFanfare(pid);
+    },
     lightUnzoom: () => camera.lightUnzoom(),
     clearCastleBuildViewport: () => camera.clearCastleBuildViewport(),
     setCastleBuildViewport: (plans) => camera.setCastleBuildViewport(plans),
@@ -591,7 +620,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs.scoreDeltaOnDone = null;
     camera.unzoom();
     config.onEndGame?.(winner, rs.state);
-    soundGameOver();
+    sound.reset();
+    sound.gameOver();
     const name = winner
       ? (PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`)
       : "Nobody";
@@ -643,7 +673,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render: () => render(),
     firstHuman,
     showBanner,
-    showLifeLostDialog: lifeLost.show,
+    showLifeLostDialog: (needsReselect, eliminated) => {
+      sound.lifeLost();
+      lifeLost.show(needsReselect, eliminated);
+    },
     afterLifeLostResolved: () => lifeLost.afterResolved(),
     showScoreDeltas: (onDone) => selection.showBuildScoreDeltas(onDone),
     snapshotTerritory,
@@ -657,6 +690,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         }
       : undefined,
     onBeginBattle: IS_TOUCH_DEVICE ? aimAtEnemyCastle : undefined,
+    onFirstEnclosure: sound.chargeFanfare,
+    sound,
   });
 
   // -------------------------------------------------------------------------
@@ -684,6 +719,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     lastBattleCrosshair = null;
     resetGameStats();
     camera.resetCamera();
+    sound.reset();
   }
 
   // -------------------------------------------------------------------------
@@ -784,6 +820,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     updateDpad: (phase) => dpad?.update(phase),
     setDpadLeftHanded: (left) => dpad?.setLeftHanded(left),
     refreshLobbySeed: () => lobby.refreshLobbySeed(),
+    setSoundLevel: sound.setLevel,
     isOnline: !!config.isOnline,
     getRemoteHumanSlots: config.getRemoteHumanSlots,
     onCloseOptions: config.onCloseOptions,
@@ -864,23 +901,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       onPinchUpdate,
       onPinchEnd,
       maybeSendAimUpdate: config.maybeSendAimUpdate ?? (() => {}),
-      tryPlaceCannonAndSend:
+      tryPlaceCannonAndSend: wrapCannonPlace(
         config.tryPlaceCannonAndSend ??
-        ((ctrl, gs, max) => {
-          const ok = ctrl.tryPlaceCannon(gs, max);
-          if (ok) soundCannonPlaced();
-          return ok;
-        }),
-      tryPlacePieceAndSend:
-        config.tryPlacePieceAndSend ??
-        ((ctrl, gs) => {
-          const ok = ctrl.tryPlacePiece(gs);
-          if (ok) soundPiecePlaced();
-          else soundPieceFailed();
-          return ok;
-        }),
+          ((ctrl, gs, max) => ctrl.tryPlaceCannon(gs, max)),
+      ),
+      tryPlacePieceAndSend: wrapPiecePlace(
+        config.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
+      ),
       fireAndSend:
         config.fireAndSend ?? ((ctrl, gameState) => ctrl.fire(gameState)),
+      onPieceRotated: sound.pieceRotated,
       getSelectionStates: () => rs.selectionStates,
       highlightTowerForPlayer: selection.highlight,
       confirmSelectionForPlayer: selection.confirm,
@@ -925,6 +955,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           tryPlacePieceAndSend: placePiece,
           tryPlaceCannonAndSend: placeCannon,
           fireAndSend: inputDeps.fireAndSend,
+          onPieceRotated: sound.pieceRotated,
           getSelectionStates: () => rs.selectionStates,
           highlightTowerForPlayer: selection.highlight,
           confirmSelectionForPlayer: selection.confirm,
@@ -1051,6 +1082,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
             withFirstHuman,
             tryPlacePieceAndSend: inputDeps.tryPlacePieceAndSend,
             tryPlaceCannonAndSend: inputDeps.tryPlaceCannonAndSend,
+            onPieceRotated: sound.pieceRotated,
             onDrag: (clientX, clientY) => {
               const state = rs.state;
               if (!state) return;
@@ -1124,5 +1156,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     // Sub-systems
     selection,
     lifeLost,
+    sound,
   };
 }

@@ -136,6 +136,7 @@ function buildIncrementalDeps() {
     finishReselection: () => runtime.selection.finishReselection(),
     finishSelection: () => runtime.selection.finish(),
     applyPiecePlacement,
+    onFirstEnclosure: (pid: number) => runtime.sound.chargeFanfare(pid),
     canApplyPiecePlacement: (
       state: GameState,
       playerId: number,

@@ -70,6 +70,10 @@ interface SelectionSystemDeps {
   ) => void;
   setSelectionViewport: (towerRow: number, towerCol: number) => void;
 
+  // Sound callbacks
+  onSelectionStart: () => void;
+  onCastleBuildDone: (playerIds: readonly number[]) => void;
+
   // Sibling systems / parent callbacks
   render: () => void;
   firstHuman: () => (PlayerController & InputReceiver) | null;
@@ -131,6 +135,7 @@ export function createSelectionSystem(
       now: () => performance.now(),
       setModeSelection: () => {
         rs.mode = Mode.SELECTION;
+        deps.onSelectionStart();
       },
       setLastTime: (t) => {
         rs.lastTime = t;
@@ -299,6 +304,7 @@ export function createSelectionSystem(
         },
       });
       if (!result.next) {
+        deps.onCastleBuildDone(build.wallPlans.map((p) => p.playerId));
         if (build.wallPlans.some((p) => p.playerId === humanPid))
           humanBuildDone = true;
         rs.castleBuilds.splice(i, 1);
@@ -400,6 +406,7 @@ export function createSelectionSystem(
       rs.accum.select = 0;
       rs.state.timer = SELECT_TIMER;
       rs.mode = Mode.SELECTION;
+      deps.onSelectionStart();
       if (rs.ctx.isHost) {
         deps.send({ type: MSG.SELECT_START, timer: SELECT_TIMER });
       }

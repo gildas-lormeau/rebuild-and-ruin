@@ -24,6 +24,7 @@ import type {
 } from "./online-types.ts";
 import type { RendererInterface } from "./render-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
+import type { SoundSystem } from "./sound-system.ts";
 import type { BalloonFlight, GameState, SelectionState } from "./types.ts";
 
 export interface RuntimeConfig {
@@ -146,6 +147,7 @@ export interface GameRuntime {
   // --- Sub-systems ---
   selection: RuntimeSelection;
   lifeLost: RuntimeLifeLost;
+  sound: SoundSystem;
 
   // --- Functions ---
   mainLoop: (now: number) => void;

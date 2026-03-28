@@ -42,6 +42,7 @@ interface HandleServerIncrementalDeps {
     row: number,
     col: number,
   ) => void;
+  onFirstEnclosure?: (playerId: number) => void;
   applyCannonPlacement: (
     state: GameState,
     playerId: number,
@@ -138,6 +139,7 @@ export function handleServerIncrementalMessage(
         deps.log(
           `applying piece placement for P${msg.playerId} (${msg.offsets.length} tiles)`,
         );
+        const hadInterior = state.players[msg.playerId]!.interior.size > 0;
         deps.applyPiecePlacement(
           state,
           msg.playerId,
@@ -145,6 +147,9 @@ export function handleServerIncrementalMessage(
           msg.row,
           msg.col,
         );
+        if (!hadInterior && state.players[msg.playerId]!.interior.size > 0) {
+          deps.onFirstEnclosure?.(msg.playerId);
+        }
       }
       return true;
     }
