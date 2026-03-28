@@ -577,3 +577,12 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
 export function isPlacementPhase(phase: Phase): boolean {
   return phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE;
 }
+
+/**
+ * Compile-time exhaustiveness check for switch/if-else on enums.
+ * A missing case makes `value` a concrete enum member instead of `never`,
+ * producing a type error at the call site.
+ */
+export function assertNever(value: never): never {
+  throw new Error(`Unexpected value: ${String(value)}`);
+}

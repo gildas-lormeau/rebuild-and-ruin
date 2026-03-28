@@ -55,6 +55,7 @@ import { Rng } from "./rng.ts";
 import { DIRS_4, isBalloonCannon, packTile, unpackTile } from "./spatial.ts";
 import type { GameState, Player } from "./types.ts";
 import {
+  assertNever,
   BATTLE_TIMER,
   BUILD_TIMER,
   CANNON_MAX_HP,
@@ -211,7 +212,8 @@ export function advanceToCannonPlacePhase(state: GameState): void {
 }
 
 export function nextPhase(state: GameState): void {
-  switch (state.phase) {
+  const { phase } = state;
+  switch (phase) {
     case Phase.CASTLE_SELECT:
       enterBuildFromSelect(state);
       break;
@@ -227,6 +229,8 @@ export function nextPhase(state: GameState): void {
     case Phase.BATTLE:
       enterBuildFromBattle(state);
       break;
+    default:
+      assertNever(phase);
   }
 }
 

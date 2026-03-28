@@ -25,7 +25,7 @@ import {
 } from "./online-host-promotion.ts";
 import { createFullStateMessage } from "./online-serialize.ts";
 import { resetWatcherForHost } from "./online-watcher-tick.ts";
-import { Mode } from "./types.ts";
+import { assertNever, Mode } from "./types.ts";
 
 export function promoteToHost(): void {
   log("PROMOTING TO HOST");
@@ -59,25 +59,38 @@ function resetNetworkingForHost(): void {
 
 /**
  * Skip any animations or dialogs that depend on the old host's state.
- * NOTE: when adding new Mode values, check if they need handling here.
+ * Exhaustive switch ensures adding a new Mode is a compile error until handled.
  */
 function skipPendingAnimations(): void {
   const state = runtime.rs.state;
   const mode = runtime.rs.mode;
-  if (mode === Mode.CASTLE_BUILD) {
-    runtime.rs.castleBuilds = [];
-    finalizeCastleConstruction(state);
-    enterCannonPlacePhase(state);
-    runtime.phaseTicks.startCannonPhase();
-    runtime.rs.mode = Mode.GAME;
-    log("Skipped castle build animation → cannon phase");
-  } else if (mode === Mode.LIFE_LOST) {
-    runtime.lifeLost.set(null);
-    runtime.rs.mode = Mode.GAME;
-    log("Cleared life-lost dialog → game mode");
-  } else if (mode === Mode.BANNER || mode === Mode.BALLOON_ANIM) {
-    runtime.rs.mode = Mode.GAME;
-    log("Skipped banner/animation → game mode");
+  switch (mode) {
+    case Mode.CASTLE_BUILD:
+      runtime.rs.castleBuilds = [];
+      finalizeCastleConstruction(state);
+      enterCannonPlacePhase(state);
+      runtime.phaseTicks.startCannonPhase();
+      runtime.rs.mode = Mode.GAME;
+      log("Skipped castle build animation → cannon phase");
+      break;
+    case Mode.LIFE_LOST:
+      runtime.lifeLost.set(null);
+      runtime.rs.mode = Mode.GAME;
+      log("Cleared life-lost dialog → game mode");
+      break;
+    case Mode.BANNER:
+    case Mode.BALLOON_ANIM:
+      runtime.rs.mode = Mode.GAME;
+      log("Skipped banner/animation → game mode");
+      break;
+    case Mode.GAME:
+    case Mode.LOBBY:
+    case Mode.OPTIONS:
+    case Mode.CONTROLS:
+    case Mode.SELECTION:
+    case Mode.STOPPED:
+      break; // no action needed
+    default:
+      assertNever(mode);
   }
-  // GAME, LOBBY, OPTIONS, CONTROLS, SELECTION, STOPPED — no action needed
 }
