@@ -80,7 +80,7 @@ The layer map file. Committed to the repo. An array of named groups — position
                                 runtime-game-lifecycle, runtime-lobby, runtime-options,
                                 runtime, runtime-headless
 13  server                      game-room, room-manager, server
-14  entry points                entry, main, online-client, headless-test
+14  entry points                entry, main, online-client
 ```
 
 When a new file is added but not yet in `.import-layers.json`, `--check` warns and treats it as layer 0 (maximally strict). Regenerate to pick up new files, then move them to the right group.
@@ -154,7 +154,7 @@ npx tsc --noEmit                                       # type-check browser code
 deno check server/server.ts                            # type-check server code
 npm run lint:all                                       # biome + knip + madge + jscpd + literals + layers + imports
 npx tsx scripts/audit-imports.ts --check               # re-exports, duplicate names, layer misuse
-timeout 60 bun src/headless-test.ts                    # headless game test
+timeout 60 bun test/headless.test.ts                   # headless game test
 ```
 
 All must pass before moving to the next fix.

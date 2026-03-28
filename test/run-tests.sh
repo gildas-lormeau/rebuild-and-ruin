@@ -78,7 +78,7 @@ for file in "${TEST_FILES[@]}"; do
 	run_suite "$file"
 done
 
-headless_output="$(cd "$PROJECT_DIR" && bun src/headless-test.ts 2>&1)"
+headless_output="$(cd "$PROJECT_DIR" && bun test/headless.test.ts 2>&1)"
 headless_status=$?
 printf "%s\n" "$headless_output"
 

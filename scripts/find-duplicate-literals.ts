@@ -53,7 +53,7 @@ const filesFilter: string[] = (() => {
 })();
 
 // Files to exclude from numeric analysis (sprite data tables, test fixtures)
-const NUMERIC_EXCLUDED_FILES = new Set(["sprites.ts", "headless-test.ts"]);
+const NUMERIC_EXCLUDED_FILES = new Set(["sprites.ts"]);
 
 const root = path.resolve(import.meta.dirname!, "..");
 const BASELINE_PATH = path.join(root, ".literals-baseline.json");

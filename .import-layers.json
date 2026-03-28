@@ -176,8 +176,7 @@
       "src/online-client-deps.ts",
       "src/online-client-promote.ts",
       "src/online-client-ws.ts",
-      "src/online-client-lobby.ts",
-      "src/headless-test.ts"
+      "src/online-client-lobby.ts"
     ]
   }
 ]
