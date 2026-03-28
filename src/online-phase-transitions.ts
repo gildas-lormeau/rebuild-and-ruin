@@ -4,11 +4,11 @@ import {
   type ServerMessage,
 } from "../server/protocol.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
+import { createCastle } from "./castle-generation.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import { setPhase } from "./game-engine.ts";
 import type { RGB } from "./geometry-types.ts";
 import { TILE_COUNT } from "./grid.ts";
-import { createCastle } from "./map-generation.ts";
 import type { WatcherTimingState } from "./online-types.ts";
 import { BANNER_PLACE_CANNONS, type BannerShow } from "./phase-banner.ts";
 import { NO_WINNER_NAME } from "./player-config.ts";

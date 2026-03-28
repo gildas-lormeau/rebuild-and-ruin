@@ -34,6 +34,13 @@ import {
   findNearestValidCannonPlacement,
   resetCannonFacings,
 } from "./cannon-system.ts";
+import {
+  applyClumsyBuilders,
+  computeCastleWallTiles,
+  createCastle,
+  spawnHousesInZone,
+  startOfBuildPhaseHousekeeping,
+} from "./castle-generation.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import type { Castle, GameMap, Tower } from "./geometry-types.ts";
 import {
@@ -42,15 +49,7 @@ import {
   spawnGruntOnZone,
   updateGruntBlockedBattles,
 } from "./grunt-system.ts";
-import {
-  applyClumsyBuilders,
-  computeCastleWallTiles,
-  createCastle,
-  generateMap,
-  spawnHousesInZone,
-  startOfBuildPhaseHousekeeping,
-  topZonesBySize,
-} from "./map-generation.ts";
+import { generateMap, topZonesBySize } from "./map-generation.ts";
 import { Rng } from "./rng.ts";
 import { DIRS_4, isBalloonCannon, packTile, unpackTile } from "./spatial.ts";
 import type { GameState, Player } from "./types.ts";

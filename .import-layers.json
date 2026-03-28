@@ -45,6 +45,7 @@
       "src/grunt-system.ts",
       "src/battle-system.ts",
       "src/build-system.ts",
+      "src/castle-generation.ts",
       "src/map-generation.ts",
       "src/game-engine.ts",
       "src/game-ui-helpers.ts",

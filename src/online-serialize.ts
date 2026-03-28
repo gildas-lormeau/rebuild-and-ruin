@@ -9,9 +9,9 @@ import {
   type SerializedGrunt,
   type SerializedPlayer,
 } from "../server/protocol.ts";
+import { createCastle } from "./castle-generation.ts";
 import { setPhase } from "./game-engine.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "./grid.ts";
-import { createCastle } from "./map-generation.ts";
 import { toCannonMode } from "./online-types.ts";
 import { NO_WINNER_NAME } from "./player-config.ts";
 import { Rng } from "./rng.ts";
