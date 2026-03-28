@@ -16,23 +16,10 @@ import {
   snapshotTerritory as snapshotTerritoryImpl,
   tickMainLoop,
 } from "./game-ui-helpers.ts";
-import { type UIContext, visibleOptions } from "./game-ui-screens.ts";
+import type { UIContext } from "./game-ui-screens.ts";
 import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { createHapticsSystem } from "./haptics-system.ts";
-import {
-  type RegisterOnlineInputDeps,
-  registerOnlineInputHandlers,
-} from "./input.ts";
-import { dispatchPointerMove } from "./input-dispatch.ts";
-import { registerTouchHandlers } from "./input-touch.ts";
-import {
-  createDpad,
-  createEnemyZoomButton,
-  createFloatingActions,
-  createHomeZoomButton,
-  createQuitButton,
-} from "./input-touch-ui.ts";
 import {
   createBannerState,
   showBannerTransition,
@@ -58,6 +45,7 @@ import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { bootstrapGame } from "./runtime-bootstrap.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
+import { createInputSystem } from "./runtime-input.ts";
 import {
   createLifeLostSystem,
   type LifeLostSystem,
@@ -85,7 +73,6 @@ import {
   FOCUS_MENU,
   FOCUS_REMATCH,
   type GameState,
-  LifeLostChoice,
   MAX_FRAME_DT,
   Mode,
   Phase,
@@ -115,14 +102,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // deno-lint-ignore prefer-const
   let options: OptionsSystem;
 
-  // DOM-only locals (not shared with consumers)
-  let dpad: ReturnType<typeof createDpad> | null = null;
-  let floatingActions: ReturnType<typeof createFloatingActions> | null = null;
-  let homeZoomButton: ReturnType<typeof createHomeZoomButton> | null = null;
-  let enemyZoomButton: ReturnType<typeof createEnemyZoomButton> | null = null;
-  let quitButton: ReturnType<typeof createQuitButton> | null = null;
-  let loupeHandle: ReturnType<NonNullable<typeof renderer.createLoupe>> | null =
-    null;
+  // Input system (forward-declared, assigned after all sub-systems are created)
+  // deno-lint-ignore prefer-const
+  let input: ReturnType<typeof createInputSystem>;
 
   function resetGameStats() {
     rs.gameStats = Array.from({ length: MAX_PLAYERS }, () => ({
@@ -401,37 +383,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   // -------------------------------------------------------------------------
-  // Sound wrappers for placement actions (local + online)
-  // -------------------------------------------------------------------------
-
-  type PlacePieceFn = (
-    ctrl: PlayerController & InputReceiver,
-    gs: GameState,
-  ) => boolean;
-  type PlaceCannonFn = (
-    ctrl: PlayerController & InputReceiver,
-    gs: GameState,
-    max: number,
-  ) => boolean;
-
-  function wrapPiecePlace(inner: PlacePieceFn): PlacePieceFn {
-    return (ctrl, gs) => {
-      const ok = inner(ctrl, gs);
-      if (ok) sound.piecePlaced();
-      else sound.pieceFailed();
-      return ok;
-    };
-  }
-
-  function wrapCannonPlace(inner: PlaceCannonFn): PlaceCannonFn {
-    return (ctrl, gs, max) => {
-      const ok = inner(ctrl, gs, max);
-      if (ok) sound.cannonPlaced();
-      return ok;
-    };
-  }
-
-  // -------------------------------------------------------------------------
   // Camera / zoom (delegated to runtime-camera.ts)
   // -------------------------------------------------------------------------
 
@@ -450,18 +401,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     },
   });
 
-  // Re-export camera functions used by other parts of the runtime
-  const {
-    tickCamera,
-    updateViewport,
-    screenToWorld,
-    pixelToTile,
-    onPinchStart,
-    onPinchUpdate,
-    onPinchEnd,
-    myPlayerId,
-    getEnemyZones,
-  } = camera;
+  const { tickCamera, updateViewport } = camera;
 
   // -------------------------------------------------------------------------
   // Selection sub-system (delegated to runtime-selection.ts)
@@ -552,12 +492,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       directTouchActive: rs.directTouchActive,
       leftHanded: rs.settings.leftHanded,
       firstHuman,
-      dpad,
-      floatingActions,
-      homeZoomButton,
-      enemyZoomButton,
-      quitButton,
-      loupeHandle,
+      dpad: input.touch.dpad,
+      floatingActions: input.touch.floatingActions,
+      homeZoomButton: input.touch.homeZoomButton,
+      enemyZoomButton: input.touch.enemyZoomButton,
+      quitButton: input.touch.quitButton,
+      loupeHandle: input.touch.loupeHandle,
       worldToScreen: camera.worldToScreen,
       screenToContainerCSS: renderer.screenToContainerCSS,
       containerHeight: gameContainer.clientHeight,
@@ -599,12 +539,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     camera.unzoom();
     rs.mouseJoinedSlot = -1;
     rs.directTouchActive = false;
-    floatingActions?.update(false, 0, 0, false, false);
-    dpad?.update(null); // disable d-pad + rotate
-    quitButton?.update(null); // hide quit
-    homeZoomButton?.update(false); // disable zoom buttons
-    enemyZoomButton?.update(false);
-    loupeHandle?.update(false, 0, 0); // hide loupe before lobby takes over rendering
+    input.touch.floatingActions?.update(false, 0, 0, false, false);
+    input.touch.dpad?.update(null); // disable d-pad + rotate
+    input.touch.quitButton?.update(null); // hide quit
+    input.touch.homeZoomButton?.update(false); // disable zoom buttons
+    input.touch.enemyZoomButton?.update(false);
+    input.touch.loupeHandle?.update(false, 0, 0); // hide loupe before lobby takes over rendering
     config.showLobby();
   }
 
@@ -798,8 +738,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs,
     uiCtx,
     renderFrame,
-    updateDpad: (phase) => dpad?.update(phase),
-    setDpadLeftHanded: (left) => dpad?.setLeftHanded(left),
+    updateDpad: (phase) => input.touch.dpad?.update(phase),
+    setDpadLeftHanded: (left) => input.touch.dpad?.setLeftHanded(left),
     refreshLobbySeed: () => lobby.refreshLobbySeed(),
     sound,
     haptics,
@@ -820,265 +760,35 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
 
   // -------------------------------------------------------------------------
-  // Input handlers registration
+  // Input sub-system (delegated to runtime-input.ts)
   // -------------------------------------------------------------------------
 
-  function registerInputHandlers(): void {
-    const inputDeps: RegisterOnlineInputDeps = {
-      renderer,
-      getState: () => rs.state,
-      getMode: () => rs.mode,
-      setMode: (m) => {
-        rs.mode = m as Mode;
-      },
-      modeValues: {
-        LOBBY: Mode.LOBBY,
-        OPTIONS: Mode.OPTIONS,
-        CONTROLS: Mode.CONTROLS,
-        SELECTION: Mode.SELECTION,
-        BANNER: Mode.BANNER,
-        BALLOON_ANIM: Mode.BALLOON_ANIM,
-        CASTLE_BUILD: Mode.CASTLE_BUILD,
-        LIFE_LOST: Mode.LIFE_LOST,
-        GAME: Mode.GAME,
-        STOPPED: Mode.STOPPED,
-      },
-      isLobbyActive: () => rs.lobby.active,
-      lobbyKeyJoin: (key: string) => lobby.lobbyKeyJoin(key),
-      lobbyClick: (x: number, y: number) => lobby.lobbyClick(x, y),
-      showLobby: returnToLobby,
-      rematch,
-      getGameOverFocused: () => rs.frame.gameOver?.focused ?? FOCUS_REMATCH,
-      setGameOverFocused: (f) => {
-        if (rs.frame.gameOver) {
-          rs.frame.gameOver.focused = f;
-          render();
-        }
-      },
-      gameOverClick,
-      showOptions: options.showOptions,
-      closeOptions: options.closeOptions,
-      showControls: options.showControls,
-      closeControls: options.closeControls,
-      getOptionsCursor: () => rs.optionsCursor,
-      setOptionsCursor: (c) => {
-        rs.optionsCursor = c;
-      },
-      getOptionsCount: () => visibleOptions(uiCtx).length,
-      getRealOptionIdx: options.realOptionIdx,
-      getOptionsReturnMode: () => rs.optionsReturnMode,
-      setOptionsReturnMode: (m) => {
-        rs.optionsReturnMode = m as Mode | null;
-      },
-      changeOption: options.changeOption,
-      getControlsState: () => rs.controlsState,
-      getLifeLostDialog: () => rs.lifeLostDialog,
-      lifeLostDialogClick: lifeLost.click,
-      getControllers: () => rs.controllers,
-      isHuman,
-      withFirstHuman,
-      pixelToTile,
-      screenToWorld,
-      onPinchStart,
-      onPinchUpdate,
-      onPinchEnd,
-      maybeSendAimUpdate: config.maybeSendAimUpdate ?? (() => {}),
-      tryPlaceCannonAndSend: wrapCannonPlace(
-        config.tryPlaceCannonAndSend ??
-          ((ctrl, gs, max) => ctrl.tryPlaceCannon(gs, max)),
-      ),
-      tryPlacePieceAndSend: wrapPiecePlace(
-        config.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
-      ),
-      fireAndSend:
-        config.fireAndSend ?? ((ctrl, gameState) => ctrl.fire(gameState)),
-      onPieceRotated: sound.pieceRotated,
-      getSelectionStates: () => rs.selectionStates,
-      highlightTowerForPlayer: selection.highlight,
-      confirmSelectionForPlayer: selection.confirm,
-      isSelectionReady,
-      togglePause: options.togglePause,
-      getQuitPending: () => rs.quitPending,
-      setQuitPending: (v) => {
-        rs.quitPending = v;
-      },
-      setQuitTimer: (s) => {
-        rs.quitTimer = s;
-      },
-      setQuitMessage: (msg) => {
-        rs.quitMessage = msg;
-      },
-      sendLifeLostChoice: lifeLost.sendLifeLostChoice,
-      setDirectTouchActive: (v) => {
-        rs.directTouchActive = v;
-      },
-      isDirectTouchActive: () => rs.directTouchActive,
-      settings: rs.settings,
-      isOnline: config.isOnline,
-    };
-    registerOnlineInputHandlers(inputDeps);
-    registerTouchHandlers({ ...inputDeps, lobbyKeyJoin: undefined });
-
-    // Touch controls: wire static DOM elements from index.html
-    if (IS_TOUCH_DEVICE) {
-      gameContainer.classList.add("has-touch-panels");
-      const placePiece = inputDeps.tryPlacePieceAndSend;
-      const placeCannon = inputDeps.tryPlaceCannonAndSend;
-      dpad = createDpad(
-        {
-          getState: () => rs.state,
-          getMode: () => rs.mode,
-          modeValues: {
-            GAME: Mode.GAME,
-            SELECTION: Mode.SELECTION,
-            LOBBY: Mode.LOBBY,
-          },
-          withFirstHuman,
-          tryPlacePieceAndSend: placePiece,
-          tryPlaceCannonAndSend: placeCannon,
-          fireAndSend: inputDeps.fireAndSend,
-          onPieceRotated: sound.pieceRotated,
-          onHapticTap: haptics.tap,
-          getSelectionStates: () => rs.selectionStates,
-          highlightTowerForPlayer: selection.highlight,
-          confirmSelectionForPlayer: selection.confirm,
-          isHost: config.getIsHost,
-          lobbyAction: () =>
-            lobby.lobbyKeyJoin(rs.settings.keyBindings[0]!.confirm),
-          getLeftHanded: () => rs.settings.leftHanded,
-          clearDirectTouch: () => {
-            rs.directTouchActive = false;
-          },
-          isSelectionReady,
-          options: {
-            isActive: () => rs.mode === Mode.OPTIONS,
-            navigate: (dir) => {
-              const count = visibleOptions(uiCtx).length;
-              rs.optionsCursor = (rs.optionsCursor + dir + count) % count;
-            },
-            changeValue: (dir) => options.changeOption(dir),
-            confirm: () => {
-              if (options.realOptionIdx() === 5) options.showControls();
-              else options.closeOptions();
-            },
-          },
-          lifeLost: {
-            isActive: () =>
-              rs.mode === Mode.LIFE_LOST && rs.lifeLostDialog !== null,
-            toggleFocus: () => {
-              const human = firstHuman();
-              if (!human || !rs.lifeLostDialog) return;
-              const entry = rs.lifeLostDialog.entries.find(
-                (e) =>
-                  e.playerId === human.playerId &&
-                  e.choice === LifeLostChoice.PENDING,
-              );
-              if (entry) entry.focused = entry.focused === 0 ? 1 : 0;
-            },
-            confirm: () => {
-              const human = firstHuman();
-              if (!human || !rs.lifeLostDialog) return;
-              const entry = rs.lifeLostDialog.entries.find(
-                (e) =>
-                  e.playerId === human.playerId &&
-                  e.choice === LifeLostChoice.PENDING,
-              );
-              if (!entry) return;
-              entry.choice =
-                entry.focused === 0
-                  ? LifeLostChoice.CONTINUE
-                  : LifeLostChoice.ABANDON;
-              lifeLost.sendLifeLostChoice(entry.choice, entry.playerId);
-            },
-          },
-          gameOver: {
-            isActive: () =>
-              rs.mode === Mode.STOPPED && rs.frame.gameOver !== undefined,
-            toggleFocus: () => {
-              if (!rs.frame.gameOver) return;
-              rs.frame.gameOver.focused =
-                rs.frame.gameOver.focused === FOCUS_REMATCH
-                  ? FOCUS_MENU
-                  : FOCUS_REMATCH;
-              render();
-            },
-            confirm: () => {
-              if (!rs.frame.gameOver) return;
-              if (rs.frame.gameOver.focused === FOCUS_REMATCH) rematch();
-              else returnToLobby();
-            },
-          },
-        },
-        gameContainer,
-      );
-      dpad.update(null); // initial state: d-pad + rotate disabled
-      const zoomDeps = {
-        getState: () => rs.state,
-        getCameraZone: camera.getCameraZone,
-        setCameraZone: camera.setCameraZone,
-        myPlayerId,
-        getEnemyZones,
-        aimAtZone: (zone: number) => {
-          if (!rs.state) return;
-          const human = firstHuman();
-          if (!human) return;
-          const pid = rs.state.playerZones.indexOf(zone);
-          const tower = pid >= 0 ? rs.state.players[pid]?.homeTower : null;
-          if (!tower) return;
-          const px = towerCenterPx(tower);
-          human.setCrosshair(px.x, px.y);
-        },
-      };
-      loupeHandle = renderer.createLoupe?.(gameContainer) ?? null;
-      quitButton = createQuitButton(
-        {
-          getQuitPending: () => rs.quitPending,
-          setQuitPending: (v: boolean) => {
-            rs.quitPending = v;
-          },
-          setQuitTimer: (v: number) => {
-            rs.quitTimer = v;
-          },
-          setQuitMessage: (msg: string) => {
-            rs.quitMessage = msg;
-          },
-          showLobby: returnToLobby,
-          getControllers: () => rs.controllers,
-          isHuman,
-        },
-        gameContainer,
-      );
-      quitButton.update(null); // initial state: hidden
-      homeZoomButton = createHomeZoomButton(zoomDeps, gameContainer);
-      enemyZoomButton = createEnemyZoomButton(zoomDeps, gameContainer);
-      homeZoomButton.update(false); // initial state: disabled
-      enemyZoomButton.update(false);
-      camera.enableMobileZoom();
-
-      // Floating contextual buttons for direct-touch placement
-      const floatingEl =
-        gameContainer.querySelector<HTMLElement>("#floating-actions");
-      if (floatingEl) {
-        floatingActions = createFloatingActions(
-          {
-            getState: () => rs.state,
-            withFirstHuman,
-            tryPlacePieceAndSend: inputDeps.tryPlacePieceAndSend,
-            tryPlaceCannonAndSend: inputDeps.tryPlaceCannonAndSend,
-            onPieceRotated: sound.pieceRotated,
-            onHapticTap: haptics.tap,
-            onDrag: (clientX, clientY) => {
-              const state = rs.state;
-              if (!state) return;
-              const { x, y } = renderer.clientToSurface(clientX, clientY);
-              dispatchPointerMove(x, y, state, inputDeps);
-            },
-          },
-          floatingEl,
-        );
-      }
-    }
-  }
+  input = createInputSystem({
+    rs,
+    renderer,
+    gameContainer,
+    uiCtx,
+    isOnline: config.isOnline,
+    maybeSendAimUpdate: config.maybeSendAimUpdate,
+    tryPlaceCannonAndSend: config.tryPlaceCannonAndSend,
+    tryPlacePieceAndSend: config.tryPlacePieceAndSend,
+    fireAndSend: config.fireAndSend,
+    getIsHost: config.getIsHost,
+    lobby,
+    options,
+    lifeLost,
+    selection,
+    camera,
+    sound,
+    haptics,
+    firstHuman,
+    withFirstHuman,
+    isSelectionReady,
+    render,
+    rematch,
+    returnToLobby,
+    gameOverClick,
+  });
 
   // -------------------------------------------------------------------------
   // Return the runtime object
@@ -1135,7 +845,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     startGame,
 
     uiCtx,
-    registerInputHandlers,
+    registerInputHandlers: input.register,
 
     // Sub-systems
     selection,

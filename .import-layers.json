@@ -143,6 +143,7 @@
       "src/runtime-lobby.ts",
       "src/runtime-options.ts",
       "src/runtime-touch-ui.ts",
+      "src/runtime-input.ts",
       "src/runtime-phase-ticks.ts",
       "src/runtime-selection.ts",
       "src/runtime-host-phase-ticks.ts",
