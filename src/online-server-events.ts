@@ -5,7 +5,12 @@ import type { PixelPos } from "./geometry-types.ts";
 import { LifeLostChoice, parseLifeLostChoice } from "./life-lost.ts";
 import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
 import { inBoundsStrict } from "./spatial.ts";
-import { CannonMode, type GameState, type SelectionState } from "./types.ts";
+import {
+  CANNON_MODES,
+  type GameState,
+  type SelectionState,
+  toCannonMode,
+} from "./types.ts";
 
 interface LifeLostChoiceEntry {
   playerId: number;
@@ -68,12 +73,6 @@ interface HandleServerIncrementalDeps {
   getLifeLostDialog: () => LifeLostChoiceDialog | null;
   queueEarlyLifeLostChoice: (playerId: number, choice: LifeLostChoice) => void;
 }
-
-const VALID_CANNON_MODES = new Set<string>([
-  CannonMode.NORMAL,
-  CannonMode.SUPER,
-  CannonMode.BALLOON,
-]);
 
 export function handleServerIncrementalMessage(
   msg: ServerMessage,
@@ -153,7 +152,7 @@ export function handleServerIncrementalMessage(
     case MSG.OPPONENT_CANNON_PLACED: {
       if (!state || !validPid(msg.playerId, state)) return true;
       if (!inBoundsStrict(msg.row, msg.col)) return true;
-      if (!VALID_CANNON_MODES.has(msg.mode)) return true;
+      if (!CANNON_MODES.has(msg.mode)) return true;
       if (acceptRemote(msg.playerId, deps)) {
         if (
           deps.isHost &&
@@ -287,7 +286,7 @@ export function handleServerIncrementalMessage(
             row: msg.row,
             col: msg.col,
             valid: msg.valid,
-            kind: (msg.mode ?? CannonMode.NORMAL) as CannonMode,
+            kind: toCannonMode(msg.mode),
             playerId: msg.playerId,
             facing: msg.facing,
           },

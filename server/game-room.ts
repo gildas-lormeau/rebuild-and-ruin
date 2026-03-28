@@ -13,7 +13,7 @@
 
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/grid.ts";
 import { LifeLostChoice } from "../src/life-lost.ts";
-import { CannonMode } from "../src/types.ts";
+import { CANNON_MODES } from "../src/types.ts";
 import { MSG, type RoomSettings, sanitizeRoomSettings } from "./protocol.ts";
 
 // Rate limit: max messages per second per type (cosmetic/display only).
@@ -59,11 +59,6 @@ const MAX_TOWER_IDX = 30;
 const MAX_CANNON_IDX = 30;
 const MAX_PIECE_TILES = 50;
 const MAX_PIXEL = Math.max(GRID_COLS, GRID_ROWS) * TILE_SIZE + 100;
-const VALID_CANNON_MODES = new Set([
-  CannonMode.NORMAL,
-  CannonMode.SUPER,
-  CannonMode.BALLOON,
-]);
 const VALID_CHOICES = new Set([
   LifeLostChoice.CONTINUE,
   LifeLostChoice.ABANDON,
@@ -113,7 +108,7 @@ function validatePayload(msg: Record<string, any>): boolean {
         isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
         isInt(msg.row, 0, GRID_ROWS - 1) &&
         isInt(msg.col, 0, GRID_COLS - 1) &&
-        VALID_CANNON_MODES.has(msg.mode)
+        CANNON_MODES.has(msg.mode)
       );
     case MSG.CANNON_FIRED:
       return (
@@ -156,7 +151,7 @@ function validatePayload(msg: Record<string, any>): boolean {
         isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
         isInt(msg.row, 0, GRID_ROWS - 1) &&
         isInt(msg.col, 0, GRID_COLS - 1) &&
-        VALID_CANNON_MODES.has(msg.mode)
+        CANNON_MODES.has(msg.mode)
       );
     default:
       return true; // no validation for unknown or host-only messages

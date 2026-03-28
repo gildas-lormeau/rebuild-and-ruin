@@ -96,15 +96,14 @@ export function placeCannon(
   row: number,
   col: number,
   maxCannons: number,
-  mode: CannonMode | undefined,
+  mode: CannonMode,
   state: GameState,
 ): boolean {
-  const normalizedMode = mode ?? CannonMode.NORMAL;
   const used = cannonSlotsUsed(player);
-  const cost = cannonSlotCost(normalizedMode);
+  const cost = cannonSlotCost(mode);
   if (used + cost > maxCannons) return false;
-  if (!canPlaceCannon(player, row, col, normalizedMode, state)) return false;
-  applyCannonPlacement(player, row, col, normalizedMode, state);
+  if (!canPlaceCannon(player, row, col, mode, state)) return false;
+  applyCannonPlacement(player, row, col, mode, state);
   return true;
 }
 

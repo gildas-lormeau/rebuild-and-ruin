@@ -8,6 +8,7 @@
 
 import {
   type AiStrategy,
+  type CannonPlacement,
   Chain,
   type ChainType,
   DefaultStrategy,
@@ -128,16 +129,9 @@ export class AiController extends BaseController implements AiAnimatable {
   private battleState: BattleState = { step: Step.IDLE };
 
   // --- Cannon peer fields (shared across cannon states) ---
-  private cannonQueue: {
-    row: number;
-    col: number;
-    mode?: CannonMode.SUPER | CannonMode.BALLOON;
-  }[] = [];
+  private cannonQueue: CannonPlacement[] = [];
   private cannonMaxSlots = 0;
-  private displayedCannonMode:
-    | CannonMode.SUPER
-    | CannonMode.BALLOON
-    | undefined;
+  private displayedCannonMode: CannonMode | undefined;
 
   // --- Battle peer fields (shared across battle states) ---
   private crosshairTarget: StrategicPixelPos | null = null;
@@ -585,7 +579,7 @@ export class AiController extends BaseController implements AiAnimatable {
         this.cannonState.timer -= dt;
         if (this.cannonState.timer <= 0) {
           const target = this.cannonQueue[0]!;
-          const targetMode = target.mode ?? CannonMode.NORMAL;
+          const targetMode = target.mode;
           if (
             canPlaceCannon(player, target.row, target.col, targetMode, state)
           ) {
@@ -617,7 +611,7 @@ export class AiController extends BaseController implements AiAnimatable {
     dt: number,
   ): LocalCannonPhantom | null {
     const target = this.cannonQueue[0]!;
-    const targetMode = target.mode ?? CannonMode.NORMAL;
+    const targetMode = target.mode;
     if (
       this.stepTileCursorToward(
         this.cannonCursor,
@@ -654,7 +648,7 @@ export class AiController extends BaseController implements AiAnimatable {
     player: Player,
   ): LocalCannonPhantom {
     const target = this.cannonQueue[0]!;
-    const targetMode = target.mode ?? CannonMode.NORMAL;
+    const targetMode = target.mode;
     return {
       row,
       col,
@@ -669,7 +663,7 @@ export class AiController extends BaseController implements AiAnimatable {
     const player = state.players[this.playerId]!;
     if (player.eliminated) return;
     for (const target of this.cannonQueue) {
-      const mode = target.mode ?? CannonMode.NORMAL;
+      const mode = target.mode;
       if (canPlaceCannon(player, target.row, target.col, mode, state)) {
         placeCannon(player, target.row, target.col, maxSlots, mode, state);
       }

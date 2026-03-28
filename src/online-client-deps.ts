@@ -38,11 +38,11 @@ import { handleServerIncrementalMessage } from "./online-server-events.ts";
 import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
 import { PLAYER_NAMES } from "./player-config.ts";
 import {
-  CannonMode,
   type GameState,
   isReselectPhase,
   MIGRATION_ANNOUNCEMENT_DURATION,
   Mode,
+  toCannonMode,
 } from "./types.ts";
 
 export function handleServerMessage(msg: ServerMessage): void {
@@ -154,7 +154,7 @@ function buildIncrementalDeps() {
         state.players[playerId]!,
         row,
         col,
-        mode as CannonMode,
+        toCannonMode(mode),
         state,
       );
     },
@@ -168,7 +168,7 @@ function buildIncrementalDeps() {
       const player = state.players[playerId];
       if (!player) return false;
       const maxCannons = state.cannonLimits[playerId] ?? 0;
-      const normalizedMode = mode as CannonMode;
+      const normalizedMode = toCannonMode(mode);
       if (cannonSlotsUsed(player) + cannonSlotCost(normalizedMode) > maxCannons)
         return false;
       return canPlaceCannon(player, row, col, normalizedMode, state);

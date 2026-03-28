@@ -217,15 +217,12 @@ export class HumanController extends BaseController implements InputReceiver {
   /** Try to place a cannon at the current cursor position. Returns true on success. */
   tryPlaceCannon(state: GameState, maxSlots: number): boolean {
     const player = state.players[this.playerId]!;
-    const mode = isNormalMode(this.cannonPlaceMode)
-      ? undefined
-      : this.cannonPlaceMode;
     const placed = placeCannon(
       player,
       this.cannonCursor.row,
       this.cannonCursor.col,
       maxSlots,
-      mode,
+      this.cannonPlaceMode,
       state,
     );
     if (placed) this.cannonCursorNeedsSnap = false;

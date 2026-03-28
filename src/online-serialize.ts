@@ -14,9 +14,9 @@ import { createCastle } from "./map-generation.ts";
 import { Rng } from "./rng.ts";
 import {
   type BalloonFlight,
-  CannonMode,
   type GameState,
   Phase,
+  toCannonMode,
 } from "./types.ts";
 
 interface FullStateResult {
@@ -331,7 +331,7 @@ export function applyPlayersCheckpoint(
       row: c.row,
       col: c.col,
       hp: c.hp,
-      kind: (c.kind ?? CannonMode.NORMAL) as CannonMode,
+      kind: toCannonMode(c.kind),
       facing: c.facing ?? 0,
     }));
     player.ownedTowers = sp.ownedTowerIndices

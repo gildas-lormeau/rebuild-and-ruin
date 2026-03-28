@@ -41,7 +41,6 @@ import {
   type Cannon,
   CannonMode,
   type GameState,
-  isNormalMode,
   type Player,
 } from "./types.ts";
 
@@ -57,7 +56,7 @@ export interface BattlePlan {
 export interface CannonPlacement {
   row: number;
   col: number;
-  mode?: CannonMode.SUPER | CannonMode.BALLOON;
+  mode: CannonMode;
 }
 
 export interface AiStrategy {
@@ -383,7 +382,7 @@ export class DefaultStrategy implements AiStrategy {
     return placed.map((c) => ({
       row: c.row,
       col: c.col,
-      mode: isNormalMode(c.kind) ? undefined : c.kind,
+      mode: c.kind,
     }));
   }
 

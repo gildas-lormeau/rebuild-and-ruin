@@ -17,6 +17,7 @@ import type { GameMap, TilePos, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import type { Rng } from "./rng.ts";
 import {
+  cannonSize,
   computeCannonTileSet,
   DIRS_4,
   forEachCannonTile,
@@ -162,7 +163,6 @@ export function autoPlaceCannons(
   const normalCandidates = collectCannonCandidates(
     player,
     CannonMode.NORMAL,
-    2,
     state,
     rng,
     noiseScale,
@@ -189,7 +189,7 @@ export function autoPlaceCannons(
       bestPosition.row,
       bestPosition.col,
       count,
-      undefined,
+      CannonMode.NORMAL,
       state,
     );
   }
@@ -216,7 +216,7 @@ function findBestNormalCannonPosition(
       player,
       r,
       c,
-      2,
+      CannonMode.NORMAL,
       state,
       rng,
       noiseScale,
@@ -244,7 +244,6 @@ function tryPlaceSuperGun(
   const superCandidates = collectCannonCandidates(
     player,
     CannonMode.SUPER,
-    3,
     state,
     rng,
     noiseScale,
@@ -259,7 +258,6 @@ function tryPlaceSuperGun(
 function collectCannonCandidates(
   player: Player,
   mode: CannonMode,
-  size: number,
   state: GameState,
   rng: Rng,
   noiseScale: number,
@@ -276,7 +274,7 @@ function collectCannonCandidates(
         player,
         r,
         c,
-        size,
+        mode,
         state,
         rng,
         noiseScale,
@@ -296,15 +294,15 @@ function scoreCannonPosition(
   player: Player,
   row: number,
   col: number,
-  size: number,
+  mode: CannonMode,
   state: GameState,
   rng: Rng,
   noiseScale = 1,
   towerCenters: readonly TilePos[] = player.ownedTowers.map(towerCenter),
 ): number {
-  const cannonKind = size === 3 ? CannonMode.SUPER : CannonMode.NORMAL;
+  const size = cannonSize(mode);
   let score = 0;
-  forEachCannonTile({ row, col, kind: cannonKind }, (r, c) => {
+  forEachCannonTile({ row, col, kind: mode }, (r, c) => {
     score += scoreCannonTileLocalPenalty(state, r, c);
   });
 
@@ -319,7 +317,7 @@ function scoreCannonPosition(
     score += minTowerDistance * TOWER_DISTANCE_MULTIPLIER;
   }
 
-  const cannonTiles = computeCannonTileSet({ row, col, kind: cannonKind });
+  const cannonTiles = computeCannonTileSet({ row, col, kind: mode });
   const occupied = new Set(cannonTiles);
   for (const cannon of player.cannons) {
     for (const key of computeCannonTileSet(cannon)) occupied.add(key);
