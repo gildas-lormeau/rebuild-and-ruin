@@ -8,6 +8,17 @@ import {
   filterActiveFiringCannons,
   isCannonEnclosed,
 } from "./cannon-system.ts";
+import {
+  BALL_SPEED,
+  BALLOON_HITS_NEEDED,
+  BURNING_PIT_DURATION,
+  DESTROY_CANNON_POINTS,
+  DESTROY_GRUNT_POINTS,
+  DESTROY_WALL_POINTS,
+  HOUSE_GRUNT_SPAWN_CHANCE,
+  SUPER_BALLOON_HITS_NEEDED,
+  SUPER_GUN_THREAT_WEIGHT,
+} from "./game-constants.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { findGruntSpawnNear } from "./grunt-system.ts";
@@ -33,17 +44,6 @@ import type {
   CapturedCannon,
   CombinedCannonResult,
   GameState,
-} from "./types.ts";
-import {
-  BALL_SPEED,
-  BALLOON_HITS_NEEDED,
-  BURNING_PIT_DURATION,
-  DESTROY_CANNON_POINTS,
-  DESTROY_GRUNT_POINTS,
-  DESTROY_WALL_POINTS,
-  HOUSE_GRUNT_SPAWN_CHANCE,
-  SUPER_BALLOON_HITS_NEEDED,
-  SUPER_GUN_THREAT_WEIGHT,
 } from "./types.ts";
 
 /** An event emitted by applyImpact for network relay. */

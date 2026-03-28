@@ -10,6 +10,7 @@ import {
   collectAllWalls,
 } from "./board-occupancy.ts";
 import { resetCannonFacings } from "./cannon-system.ts";
+import { BATTLE_TIMER, BUILD_TIMER } from "./game-constants.ts";
 import {
   computeCannonLimitsForPhase,
   finalizeBuildPhase,
@@ -22,7 +23,7 @@ import {
   processHeadlessReselection,
 } from "./runtime-headless.ts";
 import { forEachTowerTile, isGrass, packTile, unpackTile } from "./spatial.ts";
-import { BATTLE_TIMER, BUILD_TIMER, type GameState } from "./types.ts";
+import type { GameState } from "./types.ts";
 
 interface Violation {
   game: number;

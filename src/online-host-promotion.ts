@@ -4,12 +4,8 @@
  */
 
 import type { PlayerController } from "./controller-interfaces.ts";
-import {
-  BATTLE_TIMER,
-  type GameState,
-  Phase,
-  type TimerAccums,
-} from "./types.ts";
+import { BATTLE_TIMER } from "./game-constants.ts";
+import { type GameState, Phase, type TimerAccums } from "./types.ts";
 
 const SEED_ROUND_MULTIPLIER = 1000003;
 const SEED_SLOT_MULTIPLIER = 0x9e3779b9;

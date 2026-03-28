@@ -14,6 +14,7 @@ import {
   cannonSlotsUsed,
   canPlaceCannon,
 } from "./cannon-system.ts";
+import { MIGRATION_ANNOUNCEMENT_DURATION } from "./game-constants.ts";
 import { markPlayerReselected } from "./game-engine.ts";
 import { GRID_COLS } from "./grid.ts";
 import { promoteToHost } from "./online-client-promote.ts";
@@ -41,7 +42,6 @@ import {
   type GameState,
   isReselectPhase,
   LifeLostChoice,
-  MIGRATION_ANNOUNCEMENT_DURATION,
   Mode,
 } from "./types.ts";
 

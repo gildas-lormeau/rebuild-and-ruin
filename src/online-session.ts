@@ -11,7 +11,8 @@ import {
   MESSAGE,
   type ServerMessage,
 } from "../server/protocol.ts";
-import { type LifeLostChoice, LOBBY_TIMER } from "./types.ts";
+import { LOBBY_TIMER } from "./game-constants.ts";
+import type { LifeLostChoice } from "./types.ts";
 
 export interface OnlineSession {
   ws: WebSocket | null;

@@ -11,6 +11,12 @@ import {
   type PlayerController,
 } from "./controller-interfaces.ts";
 import {
+  BALLOON_FLIGHT_DURATION,
+  BATTLE_COUNTDOWN,
+  BATTLE_TIMER,
+  IMPACT_FLASH_DURATION,
+} from "./game-constants.ts";
+import {
   finalizeBuildPhase,
   initBuildPhase,
   initCannonPhase,
@@ -38,13 +44,7 @@ import type {
   RuntimeSelection,
 } from "./runtime-types.ts";
 import type { SoundSystem } from "./sound-system.ts";
-import {
-  BALLOON_FLIGHT_DURATION,
-  BATTLE_COUNTDOWN,
-  BATTLE_TIMER,
-  IMPACT_FLASH_DURATION,
-  Mode,
-} from "./types.ts";
+import { Mode } from "./types.ts";
 
 interface PhaseTicksDeps
   extends Pick<

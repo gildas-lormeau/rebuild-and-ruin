@@ -13,6 +13,14 @@ import {
   hasWallAt,
   isTileOwnedByPlayer,
 } from "./board-occupancy.ts";
+import {
+  BONUS_SQUARE_MIN_DISTANCE,
+  BONUS_SQUARES_PER_ZONE,
+  CASTLE_BONUS_TABLE,
+  DESTROY_GRUNT_POINTS,
+  ENCLOSED_GRUNT_RESPAWN_CHANCE,
+  TERRITORY_POINT_TIERS,
+} from "./game-constants.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { spawnGruntNearPos, spawnGruntOnZone } from "./grunt-system.ts";
@@ -29,17 +37,7 @@ import {
   manhattanDistance,
   packTile,
 } from "./spatial.ts";
-import {
-  BONUS_SQUARE_MIN_DISTANCE,
-  BONUS_SQUARES_PER_ZONE,
-  CASTLE_BONUS_TABLE,
-  DESTROY_GRUNT_POINTS,
-  ENCLOSED_GRUNT_RESPAWN_CHANCE,
-  type GameState,
-  isPlayerActive,
-  type Player,
-  TERRITORY_POINT_TIERS,
-} from "./types.ts";
+import { type GameState, isPlayerActive, type Player } from "./types.ts";
 
 /** Validate + apply piece placement. Returns true if placed. */
 export function placePiece(

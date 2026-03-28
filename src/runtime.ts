@@ -14,6 +14,12 @@ import {
   type PlayerController,
 } from "./controller-interfaces.ts";
 import {
+  BANNER_DURATION,
+  MAX_FRAME_DT,
+  SCORE_DELTA_DISPLAY_TIME,
+  SELECT_ANNOUNCEMENT_DURATION,
+} from "./game-constants.ts";
+import {
   snapshotTerritory as snapshotTerritoryImpl,
   tickMainLoop,
 } from "./game-ui-helpers.ts";
@@ -54,15 +60,7 @@ import { updateTouchControls } from "./runtime-touch-ui.ts";
 import type { GameRuntime, RuntimeConfig } from "./runtime-types.ts";
 import { createSoundSystem } from "./sound-system.ts";
 import { unpackTile } from "./spatial.ts";
-import {
-  BANNER_DURATION,
-  computeFrameContext,
-  MAX_FRAME_DT,
-  Mode,
-  Phase,
-  SCORE_DELTA_DISPLAY_TIME,
-  SELECT_ANNOUNCEMENT_DURATION,
-} from "./types.ts";
+import { computeFrameContext, Mode, Phase } from "./types.ts";
 
 export type { GameRuntime } from "./runtime-types.ts";
 

@@ -6,6 +6,7 @@
  */
 
 import { collectOccupiedTiles } from "./board-occupancy.ts";
+import { HOUSE_MIN_DISTANCE } from "./game-constants.ts";
 import type { Castle, House, Tower } from "./geometry-types.ts";
 import {
   GRID_COLS,
@@ -24,7 +25,7 @@ import {
   packTile,
   unpackTile,
 } from "./spatial.ts";
-import { type GameState, HOUSE_MIN_DISTANCE, isPlayerActive } from "./types.ts";
+import { type GameState, isPlayerActive } from "./types.ts";
 
 type CastleSide = (typeof Side)[keyof typeof Side];
 

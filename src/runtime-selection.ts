@@ -18,6 +18,12 @@ import {
   type PlayerController,
 } from "./controller-interfaces.ts";
 import {
+  SCORE_DELTA_DISPLAY_TIME,
+  SELECT_ANNOUNCEMENT_DURATION,
+  SELECT_TIMER,
+  WALL_BUILD_INTERVAL,
+} from "./game-constants.ts";
+import {
   advanceToCannonPlacePhase,
   enterCannonPlacePhase,
   enterCastleReselectPhase,
@@ -48,13 +54,7 @@ import {
 } from "./selection.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import { towerCenterPx } from "./spatial.ts";
-import {
-  Mode,
-  SCORE_DELTA_DISPLAY_TIME,
-  SELECT_ANNOUNCEMENT_DURATION,
-  SELECT_TIMER,
-  WALL_BUILD_INTERVAL,
-} from "./types.ts";
+import { Mode } from "./types.ts";
 
 interface SelectionSystemDeps {
   rs: RuntimeState;

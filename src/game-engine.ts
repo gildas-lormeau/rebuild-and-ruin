@@ -42,6 +42,17 @@ import {
   startOfBuildPhaseHousekeeping,
 } from "./castle-generation.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
+import {
+  BATTLE_TIMER,
+  BUILD_TIMER,
+  CANNON_MAX_HP,
+  CANNON_PLACE_TIMER,
+  FIRST_GRUNT_SPAWN_ROUND,
+  FIRST_ROUND_CANNONS,
+  INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
+  INTERBATTLE_GRUNT_SPAWN_CHANCE,
+  STARTING_LIVES,
+} from "./game-constants.ts";
 import type { Castle, GameMap, Tower } from "./geometry-types.ts";
 import {
   rollGruntWallAttacks,
@@ -53,21 +64,7 @@ import { generateMap, topZonesBySize } from "./map-generation.ts";
 import { Rng } from "./rng.ts";
 import { DIRS_4, isBalloonCannon, packTile, unpackTile } from "./spatial.ts";
 import type { GameState, Player } from "./types.ts";
-import {
-  assertNever,
-  BATTLE_TIMER,
-  BUILD_TIMER,
-  CANNON_MAX_HP,
-  CANNON_PLACE_TIMER,
-  CannonMode,
-  FIRST_GRUNT_SPAWN_ROUND,
-  FIRST_ROUND_CANNONS,
-  INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
-  INTERBATTLE_GRUNT_SPAWN_CHANCE,
-  isPlayerActive,
-  Phase,
-  STARTING_LIVES,
-} from "./types.ts";
+import { assertNever, CannonMode, isPlayerActive, Phase } from "./types.ts";
 
 /** Grunts spawned per player on first battle when nobody fires. */
 const IDLE_FIRST_BATTLE_GRUNTS = 2;

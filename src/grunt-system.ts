@@ -14,6 +14,11 @@ import {
   hasWallAt,
   removeWallFromAllPlayers,
 } from "./board-occupancy.ts";
+import {
+  GRUNT_ATTACK_DURATION,
+  GRUNT_WALL_ATTACK_CHANCE,
+  GRUNT_WALL_ATTACK_MIN_BATTLES,
+} from "./game-constants.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import {
@@ -28,12 +33,7 @@ import {
   unpackTile,
 } from "./spatial.ts";
 import type { GameState, Grunt, Player } from "./types.ts";
-import {
-  GRUNT_ATTACK_DURATION,
-  GRUNT_WALL_ATTACK_CHANCE,
-  GRUNT_WALL_ATTACK_MIN_BATTLES,
-  isPlayerActive,
-} from "./types.ts";
+import { isPlayerActive } from "./types.ts";
 
 /**
  * Grunts adjacent to an alive tower start a 3-second attack timer.

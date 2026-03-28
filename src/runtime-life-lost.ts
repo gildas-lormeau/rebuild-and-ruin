@@ -11,6 +11,7 @@ import {
   isHuman,
   type PlayerController,
 } from "./controller-interfaces.ts";
+import { LIFE_LOST_AI_DELAY, LIFE_LOST_MAX_TIMER } from "./game-constants.ts";
 import { eliminatePlayer } from "./game-engine.ts";
 import {
   createLifeLostDialogState,
@@ -25,8 +26,6 @@ import {
 import type { RuntimeState } from "./runtime-state.ts";
 import type { RuntimeLifeLost } from "./runtime-types.ts";
 import {
-  LIFE_LOST_AI_DELAY,
-  LIFE_LOST_MAX_TIMER,
   LifeLostChoice,
   type LifeLostDialogState,
   Mode,

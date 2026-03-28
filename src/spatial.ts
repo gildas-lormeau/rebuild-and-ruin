@@ -6,18 +6,15 @@
  * phase-build.ts, and other domain-specific modules.
  */
 
+import {
+  BALLOON_SIZE,
+  NORMAL_CANNON_SIZE,
+  SUPER_GUN_SIZE,
+} from "./game-constants.ts";
 import type { PixelPos, TilePos, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
 import type { BurningPit, Cannon } from "./types.ts";
-import {
-  Action,
-  BALLOON_SIZE,
-  CannonMode,
-  isBalloonMode,
-  isSuperMode,
-  NORMAL_CANNON_SIZE,
-  SUPER_GUN_SIZE,
-} from "./types.ts";
+import { Action, CannonMode, isBalloonMode, isSuperMode } from "./types.ts";
 
 /** 45° angle step (π/4 radians) — used for 8-direction snapping. */
 const FACING_45_STEP = Math.PI / 4;

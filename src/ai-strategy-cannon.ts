@@ -13,6 +13,7 @@ import {
   isCannonEnclosed,
   placeCannon,
 } from "./cannon-system.ts";
+import { BALLOON_COST, SUPER_GUN_COST } from "./game-constants.ts";
 import type { GameMap, TilePos, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import type { Rng } from "./rng.ts";
@@ -30,13 +31,7 @@ import {
   towerCenter,
   unpackTile,
 } from "./spatial.ts";
-import {
-  BALLOON_COST,
-  CannonMode,
-  type GameState,
-  type Player,
-  SUPER_GUN_COST,
-} from "./types.ts";
+import { CannonMode, type GameState, type Player } from "./types.ts";
 
 type CannonCandidate = { row: number; col: number; score: number };
 

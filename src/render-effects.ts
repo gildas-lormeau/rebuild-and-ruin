@@ -3,6 +3,7 @@
  * crosshairs, phantoms, bonus squares, houses, grunts.
  */
 
+import { IMPACT_FLASH_DURATION } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { getPlayerColor } from "./player-config.ts";
@@ -24,12 +25,7 @@ import {
 } from "./render-theme.ts";
 import type { MapData, RenderOverlay } from "./render-types.ts";
 import { facingToCardinal } from "./spatial.ts";
-import {
-  type CannonMode,
-  IMPACT_FLASH_DURATION,
-  isBalloonMode,
-  isSuperMode,
-} from "./types.ts";
+import { type CannonMode, isBalloonMode, isSuperMode } from "./types.ts";
 
 // Phantom invalid-placement color (red overlay for blocked positions)
 const DARK_METAL = "#111";

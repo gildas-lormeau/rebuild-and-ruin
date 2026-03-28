@@ -3,6 +3,7 @@
     "name": "leaf utilities",
     "files": [
       "src/canvas-layout.ts",
+      "src/game-constants.ts",
       "src/grid.ts",
       "src/jsfxr.d.ts",
       "src/platform.ts",

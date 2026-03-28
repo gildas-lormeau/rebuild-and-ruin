@@ -5,6 +5,16 @@
  * and exposes a pure API for the runtime to call.
  */
 
+import {
+  MAX_ZOOM_VIEWPORT_RATIO,
+  MIN_ZOOM_RATIO,
+  PINCH_FULL_MAP_SNAP,
+  VIEWPORT_SNAP_THRESHOLD,
+  ZONE_PAD_NO_WALLS,
+  ZONE_PAD_SELECTION,
+  ZONE_PAD_WITH_WALLS,
+  ZOOM_LERP_SPEED,
+} from "./game-constants.ts";
 import type { TilePos, WorldPos } from "./geometry-types.ts";
 import {
   CANVAS_H,
@@ -18,19 +28,7 @@ import type { Viewport } from "./render-types.ts";
 import type { CameraSystem } from "./runtime-types.ts";
 import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
 import type { FrameContext } from "./types.ts";
-import {
-  type GameState,
-  MAX_ZOOM_VIEWPORT_RATIO,
-  MIN_ZOOM_RATIO,
-  Mode,
-  Phase,
-  PINCH_FULL_MAP_SNAP,
-  VIEWPORT_SNAP_THRESHOLD,
-  ZONE_PAD_NO_WALLS,
-  ZONE_PAD_SELECTION,
-  ZONE_PAD_WITH_WALLS,
-  ZOOM_LERP_SPEED,
-} from "./types.ts";
+import { type GameState, Mode, Phase } from "./types.ts";
 
 interface CameraDeps {
   getState: () => GameState | undefined;

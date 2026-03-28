@@ -4,6 +4,7 @@ import type {
   OrbitParams,
   PlayerController,
 } from "./controller-interfaces.ts";
+import { BATTLE_TIMER } from "./game-constants.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import {
   type CannonPhantom,
@@ -16,7 +17,6 @@ import {
   type WatcherTimingState,
 } from "./online-types.ts";
 import {
-  BATTLE_TIMER,
   type CannonMode,
   type GameState,
   type Impact,

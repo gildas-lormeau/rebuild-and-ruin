@@ -4,6 +4,12 @@
 
 import { filterAliveOwnedTowers } from "./board-occupancy.ts";
 import {
+  BALLOON_COST,
+  MAX_CANNON_LIMIT_ON_RESELECT,
+  STARTING_LIVES,
+  SUPER_GUN_COST,
+} from "./game-constants.ts";
+import {
   cannonSize,
   FACING_90_STEP,
   hasPitAt,
@@ -19,14 +25,10 @@ import {
 } from "./spatial.ts";
 import type { Cannon, GameState, Player } from "./types.ts";
 import {
-  BALLOON_COST,
   CannonMode,
   isBalloonMode,
   isPlayerActive,
   isSuperMode,
-  MAX_CANNON_LIMIT_ON_RESELECT,
-  STARTING_LIVES,
-  SUPER_GUN_COST,
 } from "./types.ts";
 
 /** Max search radius when snapping cannon placement to a valid tile. */

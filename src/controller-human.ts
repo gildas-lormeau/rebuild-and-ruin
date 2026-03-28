@@ -19,6 +19,7 @@ import {
   type LocalPiecePhantom,
 } from "./controller-interfaces.ts";
 import { BaseController } from "./controller-types.ts";
+import { BALLOON_COST, SUPER_GUN_COST } from "./game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import { rotateCW } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
@@ -26,12 +27,10 @@ import { cannonSize } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 import {
   Action,
-  BALLOON_COST,
   CannonMode,
   isBalloonMode,
   isNormalMode,
   isSuperMode,
-  SUPER_GUN_COST,
 } from "./types.ts";
 
 export class HumanController extends BaseController implements InputReceiver {

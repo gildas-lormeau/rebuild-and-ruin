@@ -17,6 +17,7 @@ import type {
   LocalPiecePhantom,
   PlayerController,
 } from "./controller-interfaces.ts";
+import { NORMAL_CANNON_SIZE } from "./game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import {
   type BagState,
@@ -26,12 +27,7 @@ import {
 } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
 import { pxToTile, towerCenter } from "./spatial.ts";
-import {
-  Action,
-  type CombinedCannonResult,
-  type GameState,
-  NORMAL_CANNON_SIZE,
-} from "./types.ts";
+import { Action, type CombinedCannonResult, type GameState } from "./types.ts";
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
 const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);

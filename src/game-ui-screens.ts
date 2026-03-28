@@ -3,6 +3,7 @@
  * Used by both main.ts and online-client.ts.
  */
 
+import { LOBBY_SKIP_LOCKOUT, LOBBY_SKIP_STEP } from "./game-constants.ts";
 import { createLobbyConfirmKeys, formatKeyHint } from "./game-ui-helpers.ts";
 import { formatKeyName, saveSettings } from "./game-ui-settings.ts";
 import {
@@ -26,13 +27,7 @@ import {
   SEED_CUSTOM,
 } from "./player-config.ts";
 import type { OptionEntry, RenderOverlay } from "./render-types.ts";
-import type { ControlsState, LobbyState } from "./types.ts";
-import {
-  type GameState,
-  LOBBY_SKIP_LOCKOUT,
-  LOBBY_SKIP_STEP,
-  type Mode,
-} from "./types.ts";
+import type { ControlsState, GameState, LobbyState, Mode } from "./types.ts";
 
 export interface UIContext {
   getState: () => GameState | undefined;

@@ -13,6 +13,13 @@ import type {
 } from "../server/protocol.ts";
 import { MESSAGE } from "../server/protocol.ts";
 import {
+  BANNER_DURATION,
+  BATTLE_COUNTDOWN,
+  BUILD_TIMER,
+  CANNON_PLACE_TIMER,
+  SELECT_TIMER,
+} from "./game-constants.ts";
+import {
   enterCannonPlacePhase,
   finalizeCastleConstruction,
   resetZoneState,
@@ -70,15 +77,7 @@ import {
   createOnlineControllerSlotFactory,
   initWaitingRoom,
 } from "./runtime-bootstrap.ts";
-import {
-  BANNER_DURATION,
-  BATTLE_COUNTDOWN,
-  BUILD_TIMER,
-  CANNON_PLACE_TIMER,
-  LifeLostChoice,
-  Mode,
-  SELECT_TIMER,
-} from "./types.ts";
+import { LifeLostChoice, Mode } from "./types.ts";
 
 // ── DOM singletons ──────────────────────────────────────────────────
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;

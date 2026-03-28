@@ -1,3 +1,4 @@
+import { LIFE_LOST_MAX_TIMER } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import type { BannerState } from "./phase-banner.ts";
@@ -25,7 +26,6 @@ import {
   type GameOverFocus,
   type GameState,
   type Impact,
-  LIFE_LOST_MAX_TIMER,
   LifeLostChoice,
   type LifeLostDialogState,
   Phase,
