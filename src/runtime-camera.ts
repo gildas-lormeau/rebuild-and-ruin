@@ -342,9 +342,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     ) {
       selectionZoomApplied = true;
       if (mobileAuto) {
-        // During reselection the human may not be participating, so skip
-        // the zone auto-zoom — setSelectionViewport handles it per-tower.
-        if (!isReselectPhase(state.phase)) {
+        // During reselection, only auto-zoom if the human is reselecting.
+        if (!isReselectPhase(state.phase) || ctx.humanIsReselecting) {
           autoZoom(state.phase);
         }
         if (pendingSelectionVp) {
@@ -366,10 +365,12 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       ctx.mode !== Mode.BALLOON_ANIM &&
       ctx.mode !== Mode.CASTLE_BUILD;
     if (state.phase !== lastAutoZoomPhase && notTransition) {
-      // Reselect: don't auto-zoom to own zone — the human may not be
-      // reselecting.  Selection-viewport calls handle it if they are.
+      // Reselect: only auto-zoom if the human is reselecting.
       if (state.phase === Phase.CASTLE_RESELECT) {
         selectionZoomApplied = false;
+        if (mobileAuto && ctx.humanIsReselecting) {
+          autoZoom(state.phase);
+        }
       } else if (
         mobileAuto &&
         !(ctx.mode === Mode.SELECTION && lastAutoZoomPhase === null)

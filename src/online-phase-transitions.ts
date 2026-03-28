@@ -164,11 +164,15 @@ export function handleCannonStartTransition(
   if (state.phase !== Phase.CANNON_PLACE) {
     setPhase(state, Phase.CANNON_PLACE);
     state.timer = state.cannonPlaceTimer;
-    ctx.showBanner(BANNER_PLACE_CANNONS, () => {
-      ctx.watcherTiming.phaseStartTime = ctx.now();
-      ctx.watcherTiming.phaseDuration = state.timer;
-      ctx.setMode(Mode.GAME);
-    });
+    ctx.showBanner(
+      BANNER_PLACE_CANNONS,
+      () => {
+        ctx.watcherTiming.phaseStartTime = ctx.now();
+        ctx.watcherTiming.phaseDuration = state.timer;
+        ctx.setMode(Mode.GAME);
+      },
+      true,
+    );
   }
 }
 

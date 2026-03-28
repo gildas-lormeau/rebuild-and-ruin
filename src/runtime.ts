@@ -170,6 +170,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       quitPending: rs.quitPending,
       hasLifeLostDialog: rs.lifeLostDialog !== null,
       isSelectionReady: isSelectionReady(),
+      humanIsReselecting: rs.reselectQueue.includes(
+        firstHuman()?.playerId ?? -1,
+      ),
       myPlayerId: config.getMyPlayerId(),
       firstHumanPlayerId: firstHuman()?.playerId ?? -1,
       isHost: config.getIsHost(),

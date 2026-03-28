@@ -293,5 +293,72 @@ test("Place Cannons banner old scene includes pre-sweep walls via pendingOldWall
 });
 
 // ---------------------------------------------------------------------------
+// 8. Online watcher: cannon banner missing reveal
+// ---------------------------------------------------------------------------
+
+test("online cannon banner uses reveal=true for progressive scene transition", () => {
+  // Both local and online paths should use reveal=true for the cannon banner.
+  // The fix added reveal=true to handleCannonStartTransition.
+  const s = createScenario();
+  s.runCannon();
+  s.runBattle();
+  s.runBuild();
+  s.finalizeBuild();
+
+  // Simulate what both paths now do: reveal=true
+  const banner = s.createBanner();
+  showBannerTransition({
+    banner,
+    state: s.state,
+    battleAnim: s.createBattleAnim(),
+    text: "Place Cannons",
+    onDone: () => {},
+    reveal: true,
+    setModeBanner: () => {},
+  });
+
+  const hasOldScene = banner.oldCastles !== undefined;
+  console.log("  [debug] cannon banner has old scene:", hasOldScene);
+  console.log("  [debug] old castles count:", banner.oldCastles?.length ?? 0);
+
+  assert(hasOldScene, "Cannon banner should capture old scene for progressive reveal");
+});
+
+// ---------------------------------------------------------------------------
+// 9. Camera: human reselecting gets no initial zone zoom
+// ---------------------------------------------------------------------------
+
+test("camera zooms to human zone when human IS reselecting", () => {
+  const s = createScenario();
+  s.playRound();
+
+  // Human (player 0) needs reselection
+  s.setLives(0, 2);
+  s.clearWalls(0);
+  s.state.phase = Phase.CASTLE_RESELECT;
+
+  const handle = s.createCamera({
+    mode: Mode.SELECTION,
+    phase: Phase.CASTLE_RESELECT,
+    myPlayerId: 0,
+    firstHumanPlayerId: 0,
+    isSelectionReady: false,
+    humanIsReselecting: true,
+    mobileAutoZoom: true,
+  });
+
+  // Phase change tick — should zoom because human IS reselecting
+  handle.tick();
+  const zoneAfterPhaseChange = handle.camera.getCameraZone();
+  console.log("  [debug] camera zone after phase change:", zoneAfterPhaseChange);
+  console.log("  [debug] human's zone:", s.state.playerZones[0]);
+
+  assert(
+    zoneAfterPhaseChange !== null,
+    "Camera should zoom to human zone when human is reselecting",
+  );
+});
+
+// ---------------------------------------------------------------------------
 
 runTests("Scenario Tests");

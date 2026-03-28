@@ -301,6 +301,8 @@ export interface FrameContext {
   readonly quitPending: boolean;
   readonly hasLifeLostDialog: boolean;
   readonly isSelectionReady: boolean;
+  /** True when the local human player is in the reselect queue. */
+  readonly humanIsReselecting: boolean;
 
   // Composite guards
   /** UI overlay suppresses gameplay (pause, quit dialog, life-lost). */
@@ -319,6 +321,7 @@ export interface FrameContextInputs {
   quitPending: boolean;
   hasLifeLostDialog: boolean;
   isSelectionReady: boolean;
+  humanIsReselecting: boolean;
   myPlayerId: number;
   firstHumanPlayerId: number;
   isHost: boolean;
@@ -435,6 +438,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     quitPending,
     hasLifeLostDialog,
     isSelectionReady,
+    humanIsReselecting: inputs.humanIsReselecting,
     uiBlocking,
     phaseEnding,
     shouldUnzoom,

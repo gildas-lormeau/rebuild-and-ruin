@@ -96,6 +96,7 @@ export interface CameraTestDeps {
   myPlayerId: number;
   firstHumanPlayerId: number;
   isSelectionReady: boolean;
+  humanIsReselecting: boolean;
   mobileAutoZoom: boolean;
 }
 
@@ -215,6 +216,7 @@ export function createScenario(seed = 42): Scenario {
       myPlayerId: 0,
       firstHumanPlayerId: 0,
       isSelectionReady: false,
+      humanIsReselecting: false,
       mobileAutoZoom: true,
     };
     let ctx: FrameContext = buildFrameCtx({ ...defaults, ...overrides });
@@ -228,6 +230,7 @@ export function createScenario(seed = 42): Scenario {
         quitPending: false,
         hasLifeLostDialog: false,
         isSelectionReady: deps.isSelectionReady,
+        humanIsReselecting: deps.humanIsReselecting,
         myPlayerId: deps.myPlayerId,
         firstHumanPlayerId: deps.firstHumanPlayerId,
         isHost: true,
