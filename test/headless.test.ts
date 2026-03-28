@@ -1,6 +1,6 @@
 /**
  * Headless game simulation — runs N full games validating invariants
- * at phase boundaries. Rewritten to use the scenario test DSL.
+ * at phase boundaries. Uses the scenario test DSL.
  *
  * Run with: bun test/headless.test.ts
  */
@@ -11,15 +11,24 @@ import {
   collectAllWalls,
 } from "../src/board-occupancy.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/grid.ts";
-import { forEachTowerTile, isGrass, packTile, unpackTile } from "../src/spatial.ts";
+import {
+  cannonSize,
+  forEachTowerTile,
+  isCannonAlive,
+  isGrass,
+  packTile,
+  unpackTile,
+} from "../src/spatial.ts";
+import { computeOutside, waterKeys } from "../src/spatial.ts";
 import type { GameState } from "../src/types.ts";
 import { createScenario } from "./scenario-helpers.ts";
+import process from "node:process";
 
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 
-const NUM_GAMES = 3;
+const NUM_GAMES = 5;
 const MAX_ROUNDS = 50;
 
 // ---------------------------------------------------------------------------
@@ -53,7 +62,7 @@ function validateGameState(
     forEachTowerTile(t, (_r, _c, key) => towerTiles.add(key));
   }
 
-  // Check grunts
+  // --- Grunt checks ---
   const gruntPositions = new Set<number>();
   for (const grunt of state.grunts) {
     const key = packTile(grunt.row, grunt.col);
@@ -89,7 +98,7 @@ function validateGameState(
       fail(`Grunt out of bounds (${grunt.row}, ${grunt.col})`);
   }
 
-  // Check alive houses
+  // --- House checks ---
   for (const house of state.map.houses) {
     if (!house.alive) continue;
     const key = packTile(house.row, house.col);
@@ -99,13 +108,13 @@ function validateGameState(
       fail(`Alive house on interior tile (${house.row}, ${house.col})`);
   }
 
-  // Check tower alive flags
+  // --- Tower checks ---
   for (let i = 0; i < state.map.towers.length; i++) {
     if (state.towerAlive[i] === undefined)
       fail(`Tower ${i} has undefined alive state`);
   }
 
-  // Check walls are on grass
+  // --- Wall checks ---
   for (const p of state.players) {
     for (const key of p.walls) {
       const { r, c } = unpackTile(key);
@@ -113,6 +122,143 @@ function validateGameState(
         fail(`Player ${p.id} has wall on non-grass tile (${r}, ${c})`);
     }
   }
+
+  // --- Walls and interior must not overlap ---
+  for (const p of state.players) {
+    for (const key of p.walls) {
+      if (p.interior.has(key))
+        fail(`Player ${p.id} wall+interior overlap at tile ${key}`);
+    }
+  }
+
+  // --- Interior tiles must be enclosed by walls ---
+  // (flood-fill from edges should NOT reach interior tiles)
+  const water = waterKeys(state.map.tiles);
+  for (const p of state.players) {
+    if (p.interior.size === 0) continue;
+    const outside = computeOutside(p.walls, water);
+    for (const key of p.interior) {
+      if (outside.has(key)) {
+        const { r, c } = unpackTile(key);
+        fail(
+          `Player ${p.id} interior tile (${r}, ${c}) is reachable from edges (not enclosed)`,
+        );
+      }
+    }
+  }
+
+  // --- Cannon consistency ---
+  for (const p of state.players) {
+    const cannonTilesForPlayer = new Set<number>();
+    for (const cannon of p.cannons) {
+      const sz = cannonSize(cannon.kind);
+      // Cannon must be in bounds
+      if (
+        cannon.row < 0 ||
+        cannon.col < 0 ||
+        cannon.row + sz > GRID_ROWS ||
+        cannon.col + sz > GRID_COLS
+      )
+        fail(
+          `Player ${p.id} cannon at (${cannon.row}, ${cannon.col}) sz=${sz} out of bounds`,
+        );
+
+      // Alive cannons must have hp > 0
+      if (isCannonAlive(cannon) && cannon.hp <= 0)
+        fail(
+          `Player ${p.id} cannon at (${cannon.row}, ${cannon.col}) alive but hp=${cannon.hp}`,
+        );
+
+      // Dead cannons must have hp <= 0
+      if (!isCannonAlive(cannon) && cannon.hp > 0)
+        fail(
+          `Player ${p.id} cannon at (${cannon.row}, ${cannon.col}) dead but hp=${cannon.hp}`,
+        );
+
+      // No overlapping cannons
+      for (let dr = 0; dr < sz; dr++) {
+        for (let dc = 0; dc < sz; dc++) {
+          const key = packTile(cannon.row + dr, cannon.col + dc);
+          if (cannonTilesForPlayer.has(key))
+            fail(
+              `Player ${p.id} overlapping cannons at (${cannon.row + dr}, ${cannon.col + dc})`,
+            );
+          cannonTilesForPlayer.add(key);
+        }
+      }
+    }
+  }
+
+  // --- Eliminated player consistency ---
+  for (const p of state.players) {
+    if (!p.eliminated) continue;
+    if (p.lives > 0)
+      fail(`Eliminated player ${p.id} has lives=${p.lives}`);
+  }
+
+  // --- Score must never be negative ---
+  for (const p of state.players) {
+    if (p.score < 0) fail(`Player ${p.id} has negative score ${p.score}`);
+  }
+
+  // --- Burning pits on grass ---
+  for (const pit of state.burningPits) {
+    if (!isGrass(state.map.tiles, pit.row, pit.col))
+      fail(`Burning pit on non-grass tile (${pit.row}, ${pit.col})`);
+    if (pit.roundsLeft <= 0)
+      fail(`Expired burning pit at (${pit.row}, ${pit.col}) roundsLeft=${pit.roundsLeft}`);
+  }
+
+  // --- Bonus squares on grass and not on walls/interior ---
+  for (const sq of state.bonusSquares) {
+    if (!isGrass(state.map.tiles, sq.row, sq.col))
+      fail(`Bonus square on non-grass tile (${sq.row}, ${sq.col})`);
+    const key = packTile(sq.row, sq.col);
+    if (allWalls.has(key))
+      fail(`Bonus square on wall tile (${sq.row}, ${sq.col})`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Cross-round invariants (tracked across the game)
+// ---------------------------------------------------------------------------
+
+interface GameTracker {
+  prevScores: number[];
+  prevRound: number;
+}
+
+function validateCrossRound(
+  state: GameState,
+  tracker: GameTracker,
+  gameNum: number,
+  violations: Violation[],
+): void {
+  const ctx = { game: gameNum, round: state.round, phase: state.phase };
+
+  // Round must advance
+  if (state.round < tracker.prevRound) {
+    violations.push({
+      ...ctx,
+      message: `Round went backwards: ${tracker.prevRound} → ${state.round}`,
+    });
+  }
+
+  // Scores must never decrease
+  for (let i = 0; i < state.players.length; i++) {
+    const prev = tracker.prevScores[i] ?? 0;
+    const curr = state.players[i]!.score;
+    if (curr < prev) {
+      violations.push({
+        ...ctx,
+        message: `Player ${i} score decreased: ${prev} → ${curr}`,
+      });
+    }
+  }
+
+  // Update tracker
+  tracker.prevScores = state.players.map((p) => p.score);
+  tracker.prevRound = state.round;
 }
 
 // ---------------------------------------------------------------------------
@@ -124,14 +270,22 @@ console.log(`Running ${NUM_GAMES} headless games...\n`);
 const violations: Violation[] = [];
 
 for (let i = 0; i < NUM_GAMES; i++) {
-  const seed = Math.floor(Math.random() * 1000000);
+  // Deterministic seeds spread across the range
+  const seed = 1000 + i * 7919;
   const s = createScenario(seed);
+  const tracker: GameTracker = {
+    prevScores: s.state.players.map((p) => p.score),
+    prevRound: s.state.round,
+  };
 
   let rounds = 0;
+  let winner: number | null = null;
+
   while (s.state.round <= MAX_ROUNDS) {
     const { needsReselect } = s.playRound();
 
     validateGameState(s.state, i, violations);
+    validateCrossRound(s.state, tracker, i, violations);
 
     s.processReselection(needsReselect);
 
@@ -139,23 +293,18 @@ for (let i = 0; i < NUM_GAMES; i++) {
 
     const alive = s.state.players.filter((p) => !p.eliminated);
     if (alive.length <= 1) {
-      rounds = s.state.round;
-      const winner = alive[0]?.id ?? null;
-      const status =
-        violations.length > 0 ? `⚠ ${violations.length} violations` : "OK";
-      console.log(
-        `  Game ${i + 1} (seed=${seed}): ${rounds} rounds, winner=${winner ?? "draw"} [${status}]`,
-      );
+      winner = alive[0]?.id ?? null;
       break;
     }
     rounds = s.state.round;
   }
 
-  if (s.state.players.filter((p) => !p.eliminated).length > 1) {
-    console.log(
-      `  Game ${i + 1} (seed=${seed}): ${rounds} rounds, winner=draw [max rounds]`,
-    );
-  }
+  rounds = s.state.round;
+  const status =
+    violations.length > 0 ? `⚠ ${violations.length} violations` : "OK";
+  console.log(
+    `  Game ${i + 1} (seed=${seed}): ${rounds} rounds, winner=${winner ?? "draw"} [${status}]`,
+  );
 }
 
 // ---------------------------------------------------------------------------
