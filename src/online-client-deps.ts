@@ -45,10 +45,13 @@ import {
   Mode,
 } from "./types.ts";
 
+const lifecycleDeps = buildLifecycleDeps();
+const incrementalDeps = buildIncrementalDeps();
+
 export function handleServerMessage(msg: ServerMessage): void {
   log(`received: ${msg.type}`);
-  if (handleServerLifecycleMessage(msg, buildLifecycleDeps())) return;
-  handleServerIncrementalMessage(msg, buildIncrementalDeps());
+  if (handleServerLifecycleMessage(msg, lifecycleDeps)) return;
+  handleServerIncrementalMessage(msg, incrementalDeps);
 }
 
 function buildLifecycleDeps() {

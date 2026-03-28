@@ -94,6 +94,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const { gameOver } = rs.frame;
     rs.frame = { crosshairs: [], phantoms: {} };
     if (gameOver) rs.frame.gameOver = gameOver;
+    cachedFirstHuman = undefined;
   }
 
   function clampedFrameDt(now: number): number {
@@ -326,20 +327,23 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     return snapshotTerritoryImpl(rs.state.players);
   }
 
+  let cachedFirstHuman: (PlayerController & InputReceiver) | null | undefined;
+
   function firstHuman(): (PlayerController & InputReceiver) | null {
+    if (cachedFirstHuman !== undefined) return cachedFirstHuman;
     // Prefer the player who joined via mouse/trackpad
     if (rs.mouseJoinedSlot >= 0) {
       const ctrl = rs.controllers.find(
         (c) => c.playerId === rs.mouseJoinedSlot,
       );
       if (ctrl && isHuman(ctrl) && !rs.state.players[ctrl.playerId]?.eliminated)
-        return ctrl;
+        return (cachedFirstHuman = ctrl);
     }
     for (const ctrl of rs.controllers) {
       if (isHuman(ctrl) && !rs.state.players[ctrl.playerId]?.eliminated)
-        return ctrl;
+        return (cachedFirstHuman = ctrl);
     }
-    return null;
+    return (cachedFirstHuman = null);
   }
 
   function withFirstHuman(

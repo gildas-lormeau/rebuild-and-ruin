@@ -37,7 +37,6 @@ import {
   FOCUS_MENU,
   FOCUS_REMATCH,
   type GameState,
-  LifeLostChoice,
   Mode,
   type ResolvedChoice,
 } from "./types.ts";
@@ -99,6 +98,8 @@ interface InputSystemDeps {
   readonly lifeLost: {
     click: (canvasX: number, canvasY: number) => void;
     sendLifeLostChoice: (choice: ResolvedChoice, playerId: number) => void;
+    toggleFocus: (playerId: number) => void;
+    confirmChoice: (playerId: number) => void;
   };
   readonly selection: {
     highlight: (idx: number, zone: number, pid: number) => void;
@@ -328,28 +329,11 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
               rs.mode === Mode.LIFE_LOST && rs.lifeLostDialog !== null,
             toggleFocus: () => {
               const human = firstHuman();
-              if (!human || !rs.lifeLostDialog) return;
-              const entry = rs.lifeLostDialog.entries.find(
-                (e) =>
-                  e.playerId === human.playerId &&
-                  e.choice === LifeLostChoice.PENDING,
-              );
-              if (entry) entry.focused = entry.focused === 0 ? 1 : 0;
+              if (human) lifeLost.toggleFocus(human.playerId);
             },
             confirm: () => {
               const human = firstHuman();
-              if (!human || !rs.lifeLostDialog) return;
-              const entry = rs.lifeLostDialog.entries.find(
-                (e) =>
-                  e.playerId === human.playerId &&
-                  e.choice === LifeLostChoice.PENDING,
-              );
-              if (!entry) return;
-              entry.choice =
-                entry.focused === 0
-                  ? LifeLostChoice.CONTINUE
-                  : LifeLostChoice.ABANDON;
-              lifeLost.sendLifeLostChoice(entry.choice, entry.playerId);
+              if (human) lifeLost.confirmChoice(human.playerId);
             },
           },
           gameOver: {

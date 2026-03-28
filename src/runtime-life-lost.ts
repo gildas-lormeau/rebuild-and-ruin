@@ -48,6 +48,10 @@ interface LifeLostSystemDeps {
 /** Extended return type: RuntimeLifeLost + extras for game-runtime wiring. */
 export type LifeLostSystem = RuntimeLifeLost & {
   sendLifeLostChoice: (choice: ResolvedChoice, playerId: number) => void;
+  /** Toggle continue/abandon focus for a player's pending entry. */
+  toggleFocus: (playerId: number) => void;
+  /** Confirm the currently focused choice for a player. */
+  confirmChoice: (playerId: number) => void;
 };
 
 export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
@@ -132,6 +136,25 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     deps.send({ type: MSG.LIFE_LOST_CHOICE, choice, playerId });
   }
 
+  function findPendingEntry(playerId: number) {
+    return rs.lifeLostDialog?.entries.find(
+      (e) => e.playerId === playerId && e.choice === LifeLostChoice.PENDING,
+    );
+  }
+
+  function toggleFocus(playerId: number): void {
+    const entry = findPendingEntry(playerId);
+    if (entry) entry.focused = entry.focused === 0 ? 1 : 0;
+  }
+
+  function confirmChoice(playerId: number): void {
+    const entry = findPendingEntry(playerId);
+    if (!entry) return;
+    entry.choice =
+      entry.focused === 0 ? LifeLostChoice.CONTINUE : LifeLostChoice.ABANDON;
+    sendLifeLostChoice(entry.choice, entry.playerId);
+  }
+
   function lifeLostDialogClick(canvasX: number, canvasY: number) {
     if (!rs.lifeLostDialog) return;
     const mousePlayer = deps.firstHuman();
@@ -166,5 +189,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     click: lifeLostDialogClick,
     // Extra — needed by game-runtime internals
     sendLifeLostChoice,
+    toggleFocus,
+    confirmChoice,
   };
 }
