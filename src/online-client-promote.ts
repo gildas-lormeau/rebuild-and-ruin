@@ -68,7 +68,7 @@ function skipPendingAnimations(): void {
     runtime.rs.castleBuilds = [];
     finalizeCastleConstruction(state);
     enterCannonPlacePhase(state);
-    runtime.startCannonPhase();
+    runtime.phaseTicks.startCannonPhase();
     runtime.rs.mode = Mode.GAME;
     log("Skipped castle build animation → cannon phase");
   } else if (mode === Mode.LIFE_LOST) {

@@ -15,7 +15,6 @@ import type {
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
-import type { UIContext } from "./game-ui-screens.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import type {
@@ -195,35 +194,37 @@ export interface RuntimeLifeLost {
   click: (canvasX: number, canvasY: number) => void;
 }
 
+export interface RuntimeLobby {
+  renderLobby: () => void;
+}
+
+export interface RuntimeLifecycle {
+  startGame: () => void;
+  resetUIState: () => void;
+}
+
+export interface RuntimePhaseTicks {
+  startCannonPhase: () => void;
+}
+
 export interface GameRuntime {
   /** Mutable runtime state — direct property access replaces getter/setter pairs. */
   rs: RuntimeState;
 
-  // --- Sub-systems ---
+  // --- Sub-system handles ---
   selection: RuntimeSelection;
   lifeLost: RuntimeLifeLost;
   sound: SoundSystem;
   haptics: HapticsSystem;
+  lobby: RuntimeLobby;
+  lifecycle: RuntimeLifecycle;
+  phaseTicks: RuntimePhaseTicks;
 
-  // --- Functions ---
+  // --- Cross-cutting orchestration ---
   mainLoop: (now: number) => void;
   resetFrame: () => void;
-  clampedFrameDt: (now: number) => number;
-
-  renderLobby: () => void;
-  tickLobby: (dt: number) => void;
-  lobbyKeyJoin: (key: string) => boolean;
-  lobbyClick: (canvasX: number, canvasY: number) => boolean;
-
-  changeOption: (dir: number) => void;
-  renderOptions: () => void;
-  showOptions: () => void;
-  closeOptions: () => void;
-
-  renderControls: () => void;
-  showControls: () => void;
-  closeControls: () => void;
-  togglePause: () => boolean;
+  render: () => void;
+  registerInputHandlers: () => void;
 
   showBanner: (
     text: string,
@@ -231,34 +232,6 @@ export interface GameRuntime {
     reveal?: boolean,
     newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
   ) => void;
-  tickBanner: (dt: number) => void;
-
-  syncCrosshairs: (canFireNow: boolean, dt?: number) => void;
   snapshotTerritory: () => Set<number>[];
-  firstHuman: () => (PlayerController & InputReceiver) | null;
-  withFirstHuman: (
-    action: (human: PlayerController & InputReceiver) => void,
-  ) => void;
-
-  render: () => void;
-  endGame: (winner: { id: number } | null) => void;
   aimAtEnemyCastle: () => void;
-
-  startCannonPhase: () => void;
-  startBattle: () => void;
-  tickBalloonAnim: (dt: number) => void;
-  beginBattle: () => void;
-  startBuildPhase: () => void;
-
-  tickCannonPhase: (dt: number) => boolean;
-  tickBattleCountdown: (dt: number) => void;
-  tickBattlePhase: (dt: number) => boolean;
-  tickBuildPhase: (dt: number) => boolean;
-
-  tickGame: (dt: number) => void;
-  resetUIState: () => void;
-  startGame: () => void;
-
-  uiCtx: UIContext;
-  registerInputHandlers: () => void;
 }

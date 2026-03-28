@@ -321,7 +321,7 @@ export function initFromServer(msg: InitMessage): void {
       runtime.rs.controllers = [...c];
     },
     resetUIState: () => {
-      runtime.resetUIState();
+      runtime.lifecycle.resetUIState();
       resetWatcherState(watcher);
       resetDedup();
     },

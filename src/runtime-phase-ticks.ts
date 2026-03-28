@@ -33,7 +33,6 @@ import {
 } from "./runtime-host-phase-ticks.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type {
-  GameRuntime,
   RuntimeConfig,
   RuntimeLifeLost,
   RuntimeSelection,
@@ -82,20 +81,19 @@ interface PhaseTicksDeps
   haptics: HapticsSystem;
 }
 
-export type PhaseTicksSystem = Pick<
-  GameRuntime,
-  | "startCannonPhase"
-  | "startBattle"
-  | "tickBalloonAnim"
-  | "beginBattle"
-  | "startBuildPhase"
-  | "tickCannonPhase"
-  | "tickBattleCountdown"
-  | "tickBattlePhase"
-  | "tickBuildPhase"
-  | "tickGame"
-  | "syncCrosshairs"
->;
+export interface PhaseTicksSystem {
+  startCannonPhase: () => void;
+  startBattle: () => void;
+  tickBalloonAnim: (dt: number) => void;
+  beginBattle: () => void;
+  startBuildPhase: () => void;
+  tickCannonPhase: (dt: number) => boolean;
+  tickBattleCountdown: (dt: number) => void;
+  tickBattlePhase: (dt: number) => boolean;
+  tickBuildPhase: (dt: number) => boolean;
+  tickGame: (dt: number) => void;
+  syncCrosshairs: (canFireNow: boolean, dt?: number) => void;
+}
 
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   const { rs } = deps;

@@ -43,13 +43,13 @@ const runtime = createGameRuntime({
   showLobby,
   onLobbySlotJoined: (pid) => {
     runtime.rs.lobby.joined[pid] = true;
-    runtime.renderLobby();
+    runtime.lobby.renderLobby();
   },
   onCloseOptions: () => {
     runtime.rs.lobby.timerAccum = 0; // reset countdown after settings
   },
   onTickLobbyExpired: () => {
-    runtime.startGame();
+    runtime.lifecycle.startGame();
     runtime.rs.mode = Mode.SELECTION;
   },
 });
@@ -77,7 +77,7 @@ function showLobby(): void {
   lobby.map = null; // force fresh seed + map preview
   runtime.rs.quitPending = false;
   runtime.rs.optionsReturnMode = null;
-  runtime.renderLobby();
+  runtime.lobby.renderLobby();
   runtime.rs.mode = Mode.LOBBY;
   runtime.rs.lastTime = performance.now();
   requestAnimationFrame(runtime.mainLoop);

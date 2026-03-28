@@ -646,60 +646,25 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   return {
     rs,
 
-    // Functions
-    mainLoop,
-    resetFrame,
-    clampedFrameDt,
-
-    renderLobby: lobby.renderLobby,
-    tickLobby: lobby.tickLobby,
-    lobbyKeyJoin: lobby.lobbyKeyJoin,
-    lobbyClick: lobby.lobbyClick,
-
-    changeOption: options.changeOption,
-    renderOptions: options.renderOptions,
-    showOptions: options.showOptions,
-    closeOptions: options.closeOptions,
-
-    renderControls: options.renderControls,
-    showControls: options.showControls,
-    closeControls: options.closeControls,
-    togglePause: options.togglePause,
-
-    showBanner,
-    tickBanner,
-
-    syncCrosshairs: phaseTicks.syncCrosshairs,
-    snapshotTerritory,
-    firstHuman,
-    withFirstHuman,
-
-    render,
-    endGame: lifecycle.endGame,
-    aimAtEnemyCastle,
-
-    startCannonPhase: phaseTicks.startCannonPhase,
-    startBattle: phaseTicks.startBattle,
-    tickBalloonAnim: phaseTicks.tickBalloonAnim,
-    beginBattle: phaseTicks.beginBattle,
-    startBuildPhase: phaseTicks.startBuildPhase,
-
-    tickCannonPhase: phaseTicks.tickCannonPhase,
-    tickBattleCountdown: phaseTicks.tickBattleCountdown,
-    tickBattlePhase: phaseTicks.tickBattlePhase,
-    tickBuildPhase: phaseTicks.tickBuildPhase,
-
-    tickGame: phaseTicks.tickGame,
-    resetUIState: lifecycle.resetUIState,
-    startGame: lifecycle.startGame,
-
-    uiCtx,
-    registerInputHandlers: input.register,
-
-    // Sub-systems
+    // Sub-system handles
     selection,
     lifeLost,
     sound,
     haptics,
+    lobby: { renderLobby: lobby.renderLobby },
+    lifecycle: {
+      startGame: lifecycle.startGame,
+      resetUIState: lifecycle.resetUIState,
+    },
+    phaseTicks: { startCannonPhase: phaseTicks.startCannonPhase },
+
+    // Cross-cutting orchestration
+    mainLoop,
+    resetFrame,
+    render,
+    registerInputHandlers: input.register,
+    showBanner,
+    snapshotTerritory,
+    aimAtEnemyCastle,
   };
 }
