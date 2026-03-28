@@ -13,6 +13,7 @@ import {
   createBattleStartMessage,
   createCannonStartMessage,
 } from "../src/online-serialize.ts";
+import { createSession, resetSessionState } from "../src/online-session.ts";
 import { type BannerState, showBannerTransition } from "../src/phase-banner.ts";
 import { type LifeLostDialogState, LifeLostChoice, Mode, Phase } from "../src/types.ts";
 import {
@@ -583,6 +584,33 @@ test("tile finders return valid positions", () => {
     s.state.players[enemy!.owner]!.walls.has(enemy!.row * 40 + enemy!.col),
     "Enemy wall tile should be in the owner's wall set",
   );
+});
+
+// ---------------------------------------------------------------------------
+// 18. Online session cleanup on disconnect
+// ---------------------------------------------------------------------------
+
+test("resetSessionState closes WebSocket and resets all fields", () => {
+  const session = createSession();
+  let closeCalled = false;
+  session.ws = { close: () => { closeCalled = true; } } as unknown as WebSocket;
+  session.isHost = true;
+  session.myPlayerId = 2;
+  session.hostMigrationSeq = 3;
+  session.occupiedSlots = new Set([0, 1, 2]);
+  session.remoteHumanSlots.add(1);
+  session.earlyLifeLostChoices.set(0, LifeLostChoice.CONTINUE);
+
+  resetSessionState(session);
+
+  assert(closeCalled, "ws.close() should be called");
+  assert(session.ws === null, "ws should be null after reset");
+  assert(!session.isHost, "isHost should be false");
+  assert(session.myPlayerId === -1, "myPlayerId should be -1");
+  assert(session.hostMigrationSeq === 0, "hostMigrationSeq should be 0");
+  assert(session.occupiedSlots.size === 0, "occupiedSlots should be empty");
+  assert(session.remoteHumanSlots.size === 0, "remoteHumanSlots should be empty");
+  assert(session.earlyLifeLostChoices.size === 0, "earlyLifeLostChoices should be empty");
 });
 
 // ---------------------------------------------------------------------------
