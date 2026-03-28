@@ -8,7 +8,6 @@ import { TILE_SIZE } from "./grid.ts";
 import { getPlayerColor } from "./player-config.ts";
 import { drawSprite } from "./render-sprites.ts";
 import {
-  applyCenterText,
   BONUS_FLASH_MS,
   CROSSHAIR_ARM_IDLE,
   CROSSHAIR_ARM_PULSE,
@@ -19,6 +18,8 @@ import {
   FONT_TIMER,
   rgb,
   SHADOW_COLOR,
+  TEXT_ALIGN_CENTER,
+  TEXT_BASELINE_MIDDLE,
   TEXT_WHITE,
 } from "./render-theme.ts";
 import type { MapData, RenderOverlay } from "./render-types.ts";
@@ -31,6 +32,7 @@ import {
 } from "./types.ts";
 
 // Phantom invalid-placement color (red overlay for blocked positions)
+const DARK_METAL = "#111";
 const PHANTOM_INVALID_COLOR = "#aa2222";
 // Spatial hash multipliers for per-tile visual noise
 const SEED_ROW = 41;
@@ -267,7 +269,7 @@ export function drawBattleEffects(
     for (const ball of overlay.battle.cannonballs) {
       const height = Math.sin(ball.progress * Math.PI);
       const radius = 3 + height * 2;
-      octx.fillStyle = ball.incendiary ? "#c22" : "#111";
+      octx.fillStyle = ball.incendiary ? "#c22" : DARK_METAL;
       octx.beginPath();
       octx.arc(ball.x, ball.y, radius, 0, Math.PI * 2);
       octx.fill();
@@ -415,7 +417,8 @@ export function drawBattleEffects(
     const jy = map.junction.y * TILE_SIZE + TILE_SIZE / 2;
     octx.save();
     octx.font = FONT_TIMER;
-    applyCenterText(octx);
+    octx.textAlign = TEXT_ALIGN_CENTER;
+    octx.textBaseline = TEXT_BASELINE_MIDDLE;
     drawShadowText(octx, text, jx, jy, SHADOW_COLOR, TEXT_WHITE);
     octx.restore();
   }
@@ -482,7 +485,7 @@ function drawPhantomCannon(
     ctx.fillRect(-16, -2, 32, 2);
     ctx.fillStyle = tint ? "#884444" : "#444";
     ctx.fillRect(-4, -18, 8, 27);
-    ctx.fillStyle = tint ? "#331111" : "#111";
+    ctx.fillStyle = tint ? "#331111" : DARK_METAL;
     ctx.fillRect(-1, -18, 2, 3);
     ctx.fillStyle = tint ? "#cc4444" : "#a33";
     ctx.fillRect(-5, -11, 10, 2);
@@ -498,7 +501,7 @@ function drawPhantomCannon(
     ctx.fillRect(-10, 0, 20, 2);
     ctx.fillStyle = tint ? "#884444" : "#555";
     ctx.fillRect(-2, -11, 4, 17);
-    ctx.fillStyle = tint ? "#331111" : "#111";
+    ctx.fillStyle = tint ? "#331111" : DARK_METAL;
     ctx.fillRect(-1, -11, 2, 2);
     ctx.fillStyle = tint ? "#aa4444" : "#777";
     ctx.fillRect(-3, -6, 6, 2);

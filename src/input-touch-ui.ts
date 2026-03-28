@@ -145,6 +145,9 @@ interface FloatingActionsHandle {
   setConfirmValid: (valid: boolean) => void;
 }
 
+const CLS_DISABLED = "disabled";
+const CLS_HIDDEN = "hidden";
+
 /**
  * Wire touch controls inside the game container.
  * Finds all d-pad, action, and rotate buttons (both landscape and portrait copies)
@@ -395,17 +398,17 @@ export function createDpad(
     update(phase: Phase | null, disableRotate?: boolean) {
       stopRepeat();
       const inGame = phase !== null;
-      for (const dpad of dpads) dpad.classList.toggle("disabled", !inGame);
+      for (const dpad of dpads) dpad.classList.toggle(CLS_DISABLED, !inGame);
       const rotateActive =
         inGame && !isSelectionPhase(phase!) && !disableRotate;
       for (const btn of btnsRotate)
-        btn.classList.toggle("disabled", !rotateActive);
+        btn.classList.toggle(CLS_DISABLED, !rotateActive);
     },
     setLeftHanded(lh: boolean) {
       container.classList.toggle("left-handed", lh);
     },
     setConfirmValid(valid: boolean) {
-      for (const btn of btnsAction) btn.classList.toggle("disabled", !valid);
+      for (const btn of btnsAction) btn.classList.toggle(CLS_DISABLED, !valid);
     },
   };
 }
@@ -449,7 +452,7 @@ export function createQuitButton(
   return {
     update(phase?: Phase | null) {
       const hidden = phase === null || phase === undefined;
-      for (const btn of buttons) btn.classList.toggle("hidden", hidden);
+      for (const btn of buttons) btn.classList.toggle(CLS_HIDDEN, hidden);
     },
   };
 }
@@ -519,7 +522,7 @@ export function createHomeZoomButton(
 
   return {
     update(active = true) {
-      for (const btn of buttons) btn.classList.toggle("disabled", !active);
+      for (const btn of buttons) btn.classList.toggle(CLS_DISABLED, !active);
       if (active) updateLabel();
     },
   };
@@ -574,7 +577,7 @@ export function createEnemyZoomButton(
 
   return {
     update(active = true) {
-      for (const btn of buttons) btn.classList.toggle("disabled", !active);
+      for (const btn of buttons) btn.classList.toggle(CLS_DISABLED, !active);
       if (active) updateLabel();
     },
   };
@@ -682,7 +685,7 @@ export function createFloatingActions(
       el.style.top = `${Math.round(Math.max(0, top))}px`;
     },
     setConfirmValid(valid) {
-      btnConfirm.classList.toggle("disabled", !valid);
+      btnConfirm.classList.toggle(CLS_DISABLED, !valid);
     },
   };
 }

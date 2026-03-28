@@ -13,6 +13,7 @@ import { setPhase } from "./game-engine.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "./grid.ts";
 import { createCastle } from "./map-generation.ts";
 import { toCannonMode } from "./online-types.ts";
+import { NO_WINNER_NAME } from "./player-config.ts";
 import { Rng } from "./rng.ts";
 import { type BalloonFlight, type GameState, Phase } from "./types.ts";
 
@@ -364,7 +365,7 @@ export function createGameOverPayload(
 ) {
   const winnerName = winner
     ? (playerNames[winner.id] ?? `Player ${winner.id + 1}`)
-    : "Nobody";
+    : NO_WINNER_NAME;
   return {
     winnerName,
     serverPayload: {

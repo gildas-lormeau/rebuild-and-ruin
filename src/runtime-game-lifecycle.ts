@@ -15,6 +15,7 @@ import {
   DIFFICULTY_PARAMS,
   getPlayerColor,
   MAX_PLAYERS,
+  NO_WINNER_NAME,
   PLAYER_KEY_BINDINGS,
   PLAYER_NAMES,
 } from "./player-config.ts";
@@ -174,7 +175,7 @@ export function createGameLifecycle(
     sound.gameOver();
     const name = winner
       ? (PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`)
-      : "Nobody";
+      : NO_WINNER_NAME;
     rs.frame.gameOver = {
       winner: name,
       scores: rs.state.players.map((p) => ({

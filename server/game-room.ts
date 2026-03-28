@@ -12,7 +12,7 @@
  */
 
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/grid.ts";
-import { CANNON_MODES, LifeLostChoice } from "../src/types.ts";
+import { CANNON_MODES, LifeLostChoice, Phase } from "../src/types.ts";
 import { MSG, type RoomSettings, sanitizeRoomSettings } from "./protocol.ts";
 
 // Rate limit: max messages per second per type (cosmetic/display only).
@@ -159,13 +159,13 @@ function validatePayload(msg: Record<string, any>): boolean {
 
 // Phase gating: which message types are valid in which phases
 const PHASE_GATES: Record<string, Set<string>> = {
-  [MSG.CANNON_FIRED]: new Set(["BATTLE"]),
-  [MSG.OPPONENT_PIECE_PLACED]: new Set(["WALL_BUILD"]),
-  [MSG.OPPONENT_PHANTOM]: new Set(["WALL_BUILD"]),
-  [MSG.OPPONENT_CANNON_PLACED]: new Set(["CANNON_PLACE"]),
-  [MSG.OPPONENT_CANNON_PHANTOM]: new Set(["CANNON_PLACE"]),
-  [MSG.OPPONENT_TOWER_SELECTED]: new Set(["SELECTION"]),
-  [MSG.AIM_UPDATE]: new Set(["BATTLE"]),
+  [MSG.CANNON_FIRED]: new Set([Phase.BATTLE]),
+  [MSG.OPPONENT_PIECE_PLACED]: new Set([Phase.WALL_BUILD]),
+  [MSG.OPPONENT_PHANTOM]: new Set([Phase.WALL_BUILD]),
+  [MSG.OPPONENT_CANNON_PLACED]: new Set([Phase.CANNON_PLACE]),
+  [MSG.OPPONENT_CANNON_PHANTOM]: new Set([Phase.CANNON_PLACE]),
+  [MSG.OPPONENT_TOWER_SELECTED]: new Set([Phase.CASTLE_SELECT]),
+  [MSG.AIM_UPDATE]: new Set([Phase.BATTLE]),
 };
 
 export class GameRoom {
@@ -229,10 +229,10 @@ export class GameRoom {
     // --- Host-only messages ---
     if (HOST_ONLY.has(type)) {
       if (senderSocket !== this.hostSocket) return;
-      if (type === MSG.CANNON_START) this.phase = "CANNON_PLACE";
-      else if (type === MSG.BATTLE_START) this.phase = "BATTLE";
-      else if (type === MSG.BUILD_START) this.phase = "WALL_BUILD";
-      else if (type === MSG.SELECT_START) this.phase = "SELECTION";
+      if (type === MSG.CANNON_START) this.phase = Phase.CANNON_PLACE;
+      else if (type === MSG.BATTLE_START) this.phase = Phase.BATTLE;
+      else if (type === MSG.BUILD_START) this.phase = Phase.WALL_BUILD;
+      else if (type === MSG.SELECT_START) this.phase = Phase.CASTLE_SELECT;
       else if (type === MSG.CASTLE_WALLS) this.phase = "CASTLE_BUILD";
     }
 

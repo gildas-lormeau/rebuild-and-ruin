@@ -537,12 +537,11 @@ function isSidewaysAxisAllowed(
 ): boolean {
   const rowDist = Math.max(0, target.row - fromRow, fromRow - (target.row + 1));
   const colDist = Math.max(0, target.col - fromCol, fromCol - (target.col + 1));
-  const movingAxis = stepRow !== 0 ? "row" : "col";
+  const movingRow = stepRow !== 0;
   const nRowDist = Math.max(0, target.row - toRow, toRow - (target.row + 1));
   const nColDist = Math.max(0, target.col - toCol, toCol - (target.col + 1));
-  const axisAway =
-    movingAxis === "row" ? nRowDist > rowDist : nColDist > colDist;
-  const axisDistZero = movingAxis === "row" ? rowDist === 0 : colDist === 0;
+  const axisAway = movingRow ? nRowDist > rowDist : nColDist > colDist;
+  const axisDistZero = movingRow ? rowDist === 0 : colDist === 0;
   return !axisAway || axisDistZero;
 }
 

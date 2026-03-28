@@ -11,6 +11,7 @@ import { TILE_COUNT } from "./grid.ts";
 import { createCastle } from "./map-generation.ts";
 import type { WatcherTimingState } from "./online-types.ts";
 import { BANNER_PLACE_CANNONS, type BannerShow } from "./phase-banner.ts";
+import { NO_WINNER_NAME } from "./player-config.ts";
 import {
   FOCUS_REMATCH,
   type GameOverFocus,
@@ -277,7 +278,7 @@ export function handleGameOverTransition(
 ): void {
   if (msg.type !== MSG.GAME_OVER) return;
   ctx.setGameOverFrame({
-    winner: msg.winner ?? "Nobody",
+    winner: msg.winner ?? NO_WINNER_NAME,
     scores: msg.scores.map((s, i) => ({
       ...s,
       color: ctx.playerColors[i % ctx.playerColors.length]!.wall,

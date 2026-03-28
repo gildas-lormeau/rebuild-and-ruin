@@ -42,6 +42,8 @@ export const DIFFICULTY_PARAMS = [
   { buildTimer: 15, cannonPlaceTimer: 10, firstRoundCannons: 1 }, // Very Hard
 ];
 export const PLAYER_NAMES = ["Red", "Blue", "Gold"] as const;
+/** Fallback winner name when no player wins (e.g. all eliminated). */
+export const NO_WINNER_NAME = "Nobody";
 // Player castle colors: wall and interior (checkerboard light/dark)
 export const PLAYER_COLORS: readonly PlayerColor[] = [
   {

@@ -94,6 +94,11 @@ export const TEXT_WHITE = "#fff";
 export const STATUS_TEXT_COLOR = "#a08050";
 /** Red heart color for lives display in status bar. */
 export const LIVES_HEART_COLOR = "#c44";
+// Canvas text alignment constants
+export const TEXT_ALIGN_CENTER = "center" as const;
+export const TEXT_ALIGN_LEFT = "left" as const;
+export const TEXT_ALIGN_RIGHT = "right" as const;
+export const TEXT_BASELINE_MIDDLE = "middle" as const;
 
 /** Convert RGB tuple to CSS color string, with optional alpha. */
 export function rgb(c: RGB, alpha?: number): string {
@@ -104,12 +109,6 @@ export function rgb(c: RGB, alpha?: number): string {
 /** Returns true on even half of a repeating blink cycle. */
 export function flashOn(intervalMs: number, now: number): boolean {
   return Math.floor(now / intervalMs) % 2 === 0;
-}
-
-/** Set text alignment to centered (both horizontal and vertical). */
-export function applyCenterText(ctx: CanvasRenderingContext2D): void {
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
 }
 
 /** Draw text with a dark shadow offset by 1px. */

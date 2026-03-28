@@ -86,5 +86,33 @@
   {
     "type": "number",
     "key": "90"
+  },
+  {
+    "type": "string",
+    "key": "ArrowDown"
+  },
+  {
+    "type": "string",
+    "key": "ArrowLeft"
+  },
+  {
+    "type": "string",
+    "key": "ArrowRight"
+  },
+  {
+    "type": "string",
+    "key": "ArrowUp"
+  },
+  {
+    "type": "string",
+    "key": "center"
+  },
+  {
+    "type": "string",
+    "key": "Enter"
+  },
+  {
+    "type": "string",
+    "key": "Escape"
   }
 ]

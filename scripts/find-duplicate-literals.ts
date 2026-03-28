@@ -210,38 +210,9 @@ function isSkippedString(node: ts.StringLiteral, sourceFile: ts.SourceFile): boo
     }
   }
 
-  // Skip: property assignments to known DOM/Canvas properties
-  if (ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-      parent.right === node && ts.isPropertyAccessExpression(parent.left)) {
-    const prop = parent.left.name.text;
-    const domProps = new Set([
-      "display", "position", "textAlign", "textBaseline", "fillStyle",
-      "strokeStyle", "font", "cursor", "overflow", "visibility",
-      "pointerEvents", "touchAction", "userSelect", "className",
-      "textContent", "innerHTML", "id", "type", "textDecoration",
-    ]);
-    if (domProps.has(prop)) return true;
-  }
-
-  // Skip: hex color strings
-  if (/^#[0-9a-f]{3,8}$/i.test(text)) return true;
-
   // Skip: well-known CSS/DOM values and HTML tag/attribute names
   const CSS_DOM_STRINGS = new Set([
-    "none", "block", "flex", "grid", "inline", "inline-block",
-    "absolute", "relative", "fixed", "sticky",
-    "hidden", "visible", "scroll", "auto",
-    "center", "left", "right", "top", "bottom", "middle",
-    "bold", "normal", "italic", "underline",
-    "pointer", "default", "grab", "crosshair",
-    "solid", "dashed", "dotted",
-    "transparent", "inherit", "initial", "unset",
-    "div", "span", "button", "input", "canvas", "img", "label",
-    "click", "touchstart", "touchmove", "touchend", "touchcancel",
-    "keydown", "keyup", "mousedown", "mouseup", "mousemove",
-    "resize", "wheel", "contextmenu", "pointerdown", "pointerup",
-    "active", "disabled", "checked", "focus", "hover",
-    "row", "col", "column",
+    "none", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Escape", "Enter"
   ]);
   if (CSS_DOM_STRINGS.has(text)) return true;
 
@@ -253,8 +224,7 @@ function isSkippedString(node: ts.StringLiteral, sourceFile: ts.SourceFile): boo
     if (ts.isTypeOfExpression(other)) return true;
   }
 
-  // Skip strings with uppercase, spaces, dots, slashes (UI text, paths, etc.)
-  if (/[A-Z /.]/.test(text)) return true;
+  
 
   return false;
 }

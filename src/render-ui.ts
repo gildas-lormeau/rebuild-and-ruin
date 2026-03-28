@@ -13,7 +13,6 @@ import {
   lifeLostButtonLayout,
 } from "./render-composition.ts";
 import {
-  applyCenterText,
   BANNER_HEIGHT_RATIO,
   LIFE_LOST_BTN_H as BTN_H,
   LIFE_LOST_BTN_W as BTN_W,
@@ -52,6 +51,10 @@ import {
   SHADOW_COLOR_HEAVY,
   STATUS_TEXT_COLOR,
   STATUSBAR_HEIGHT,
+  TEXT_ALIGN_CENTER,
+  TEXT_ALIGN_LEFT,
+  TEXT_ALIGN_RIGHT,
+  TEXT_BASELINE_MIDDLE,
   TEXT_WHITE,
 } from "./render-theme.ts";
 import { type RenderOverlay } from "./render-types.ts";
@@ -70,8 +73,32 @@ const BTN_ABANDON = {
 };
 const TEXT_DIM = "#666";
 const TEXT_MUTED = "#888";
+const TEXT_SOFT = "#aaa";
+const TEXT_LIGHT = "#ccc";
+const TEXT_FAINT = "#777";
 const TEXT_DISABLED = "#999";
 const ELIMINATED_RED = "#c44";
+const BTN_MENU = {
+  stroke: "#99c",
+  strokeFocused: "#ccf",
+};
+// Layout spacing (pixels)
+const PAD = 8;
+const INSET = 10;
+const INSET_X2 = 20;
+// Panel background opacities
+const BG_OPAQUE = 0.95;
+const BG_OVERLAY = 0.9;
+const BG_BANNER = 0.85;
+// Fill/tint opacity scale (buttons, highlights, color alphas)
+const OP_SECONDARY = 0.7;
+const OP_VIVID = 0.6;
+const OP_FOCUS = 0.5;
+const OP_ACCENT = 0.4;
+const OP_ACTIVE = 0.3;
+const OP_IDLE = 0.2;
+const OP_SUBTLE = 0.15;
+const OP_GHOST = 0.1;
 
 /** Draw announcement text centered on screen. */
 export function drawAnnouncement(
@@ -84,7 +111,8 @@ export function drawAnnouncement(
   const text = overlay.ui.announcement;
   octx.save();
   octx.font = FONT_ANNOUNCE;
-  applyCenterText(octx);
+  octx.textAlign = TEXT_ALIGN_CENTER;
+  octx.textBaseline = TEXT_BASELINE_MIDDLE;
   drawShadowText(octx, text, W / 2, H / 2, SHADOW_COLOR_HEAVY, TEXT_WHITE);
   octx.restore();
 }
@@ -99,17 +127,17 @@ export function drawBanner(
   if (!overlay?.ui?.banner) return;
   const bannerH = Math.round(H * BANNER_HEIGHT_RATIO);
   const by = Math.round(overlay.ui.banner.y - bannerH / 2);
-  octx.fillStyle = PANEL_BG(0.85);
+  octx.fillStyle = PANEL_BG(BG_BANNER);
   octx.fillRect(0, by, W, bannerH);
   octx.fillStyle = GOLD;
   octx.fillRect(0, by, W, 2);
   octx.fillRect(0, by + bannerH - 2, W, 2);
   octx.save();
-  octx.textAlign = "center";
+  octx.textAlign = TEXT_ALIGN_CENTER;
   const hasSubtitle = !!overlay.ui.banner.subtitle;
   const titleY = hasSubtitle ? by + bannerH * 0.38 : by + bannerH / 2;
   octx.font = FONT_TITLE;
-  octx.textBaseline = "middle";
+  octx.textBaseline = TEXT_BASELINE_MIDDLE;
   drawShadowText(
     octx,
     overlay.ui.banner.text,
@@ -138,7 +166,8 @@ export function drawScoreDeltas(
   const fade = Math.min(1, progress / 0.15); // fade in over first 15%
   octx.save();
   octx.globalAlpha = fade;
-  applyCenterText(octx);
+  octx.textAlign = TEXT_ALIGN_CENTER;
+  octx.textBaseline = TEXT_BASELINE_MIDDLE;
   for (const d of overlay.ui.scoreDeltas) {
     const shown = Math.round(d.delta * t);
     const total = d.total - d.delta + shown;
@@ -169,24 +198,24 @@ export function drawStatusBar(
   const barH = STATUSBAR_HEIGHT;
   const by = H - barH;
 
-  octx.fillStyle = PANEL_BG(0.95);
+  octx.fillStyle = PANEL_BG(BG_OPAQUE);
   octx.fillRect(0, by, W, barH);
-  octx.fillStyle = GOLD_BG(0.4);
+  octx.fillStyle = GOLD_BG(OP_ACCENT);
   octx.fillRect(0, by, W, 1);
 
   octx.save();
   octx.font = FONT_STATUS;
-  octx.textBaseline = "middle";
+  octx.textBaseline = TEXT_BASELINE_MIDDLE;
   const cy = by + barH / 2;
 
   // Left: round + phase + timer
-  octx.textAlign = "left";
+  octx.textAlign = TEXT_ALIGN_LEFT;
   octx.fillStyle = STATUS_TEXT_COLOR;
-  octx.fillText(`${sb.round}  ${sb.phase}  ${sb.timer}`, 8, cy);
+  octx.fillText(`${sb.round}  ${sb.phase}  ${sb.timer}`, PAD, cy);
 
   // Right: player stats
-  octx.textAlign = "right";
-  let rx = W - 8;
+  octx.textAlign = TEXT_ALIGN_RIGHT;
+  let rx = W - PAD;
   for (let i = sb.players.length - 1; i >= 0; i--) {
     const p = sb.players[i]!;
     if (p.eliminated) continue;
@@ -197,7 +226,7 @@ export function drawStatusBar(
     octx.fillText(heartsStr, rx, cy);
     rx -= octx.measureText(heartsStr).width + 2;
     // Cannons
-    octx.fillStyle = rgb(c, 0.6);
+    octx.fillStyle = rgb(c, OP_VIVID);
     const cannonStr = `${p.cannons}c `;
     octx.fillText(cannonStr, rx, cy);
     rx -= octx.measureText(cannonStr).width;
@@ -225,10 +254,10 @@ export function drawGameOver(
   const lo = gameOverLayout(W, H, gameOverData.scores);
   const { panelW, panelH, px, py, btnW, btnY, rematchX, menuX } = lo;
 
-  drawPanel(octx, px, py, panelW, panelH, PANEL_BG(0.9), GOLD);
+  drawPanel(octx, px, py, panelW, panelH, PANEL_BG(BG_OVERLAY), GOLD);
 
   const cx = W / 2;
-  octx.textAlign = "center";
+  octx.textAlign = TEXT_ALIGN_CENTER;
   octx.font = FONT_HEADING;
   drawShadowText(
     octx,
@@ -239,11 +268,11 @@ export function drawGameOver(
     GOLD_LIGHT,
   );
   octx.fillStyle = GOLD;
-  octx.fillRect(px + 10, py + 32, panelW - 20, 1);
+  octx.fillRect(px + INSET, py + 32, panelW - INSET_X2, 1);
 
   // Column headers
   const tableTop = py + GAMEOVER_HEADER_H;
-  const colName = px + 10;
+  const colName = px + INSET;
   const colScore = px + panelW * GAMEOVER_COL_RATIOS[0];
   const colWalls = px + panelW * GAMEOVER_COL_RATIOS[1];
   const colCannons = px + panelW * GAMEOVER_COL_RATIOS[2];
@@ -251,28 +280,28 @@ export function drawGameOver(
 
   if (hasStats) {
     octx.font = FONT_FLOAT_XS;
-    octx.fillStyle = "#888";
-    octx.textAlign = "right";
-    octx.fillText("Score", colScore, tableTop + 8);
-    octx.fillText("Walls", colWalls, tableTop + 8);
-    octx.fillText("Cannons", colCannons, tableTop + 8);
-    octx.fillText("Land", colTerritory, tableTop + 8);
+    octx.fillStyle = TEXT_MUTED;
+    octx.textAlign = TEXT_ALIGN_RIGHT;
+    octx.fillText("Score", colScore, tableTop + PAD);
+    octx.fillText("Walls", colWalls, tableTop + PAD);
+    octx.fillText("Cannons", colCannons, tableTop + PAD);
+    octx.fillText("Land", colTerritory, tableTop + PAD);
   }
 
   // Player rows
   octx.font = FONT_LABEL;
   for (let i = 0; i < sorted.length; i++) {
     const entry = sorted[i]!;
-    const y = tableTop + statsH + 10 + i * GAMEOVER_ROW_H;
+    const y = tableTop + statsH + INSET + i * GAMEOVER_ROW_H;
     const c = entry.color;
-    const alpha = entry.eliminated ? 0.4 : 1;
+    const alpha = entry.eliminated ? OP_ACCENT : 1;
     octx.fillStyle = rgb(c, alpha);
-    octx.textAlign = "left";
+    octx.textAlign = TEXT_ALIGN_LEFT;
     octx.fillText(entry.name, colName, y);
-    octx.textAlign = "right";
+    octx.textAlign = TEXT_ALIGN_RIGHT;
     octx.fillText(`${entry.score}`, colScore, y);
     if (entry.stats) {
-      octx.fillStyle = rgb(c, alpha * 0.7);
+      octx.fillStyle = rgb(c, alpha * OP_SECONDARY);
       octx.fillText(`${entry.stats.wallsDestroyed}`, colWalls, y);
       octx.fillText(`${entry.stats.cannonsKilled}`, colCannons, y);
       octx.fillText(`${entry.territory ?? 0}`, colTerritory, y);
@@ -280,7 +309,8 @@ export function drawGameOver(
   }
 
   // Rematch / Menu buttons
-  applyCenterText(octx);
+  octx.textAlign = TEXT_ALIGN_CENTER;
+  octx.textBaseline = TEXT_BASELINE_MIDDLE;
   const focused = gameOverData.focused;
 
   const rematchFocused = focused === FOCUS_REMATCH;
@@ -290,11 +320,11 @@ export function drawGameOver(
     btnY,
     btnW,
     GAMEOVER_BTN_H,
-    BTN_CONTINUE.fill(rematchFocused ? 0.5 : 0.2),
+    BTN_CONTINUE.fill(rematchFocused ? OP_FOCUS : OP_IDLE),
     rematchFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
     rematchFocused ? 2 : 1,
     FONT_BUTTON,
-    rematchFocused ? TEXT_WHITE : "#ccc",
+    rematchFocused ? TEXT_WHITE : TEXT_LIGHT,
     "Rematch",
   );
 
@@ -305,11 +335,11 @@ export function drawGameOver(
     btnY,
     btnW,
     GAMEOVER_BTN_H,
-    BTN_ABANDON.fill(menuFocused ? 0.5 : 0.2),
-    menuFocused ? "#ccf" : "#99c",
+    BTN_ABANDON.fill(menuFocused ? OP_FOCUS : OP_IDLE),
+    menuFocused ? BTN_MENU.strokeFocused : BTN_MENU.stroke,
     menuFocused ? 2 : 1,
     FONT_BUTTON,
-    menuFocused ? TEXT_WHITE : "#ccc",
+    menuFocused ? TEXT_WHITE : TEXT_LIGHT,
     "Menu",
   );
 }
@@ -331,17 +361,18 @@ export function drawLifeLostDialog(
     const cx = px + PANEL_W / 2;
 
     // Panel background
-    drawPanel(octx, px, py, PANEL_W, PANEL_H, PANEL_BG(0.9), rgb(c));
+    drawPanel(octx, px, py, PANEL_W, PANEL_H, PANEL_BG(BG_OVERLAY), rgb(c));
 
     // Player name
-    applyCenterText(octx);
+    octx.textAlign = TEXT_ALIGN_CENTER;
+    octx.textBaseline = TEXT_BASELINE_MIDDLE;
     octx.font = FONT_BODY;
     octx.fillStyle = rgb(c);
     octx.fillText(entry.name, cx, py + 18);
 
     // Separator
     octx.fillStyle = GOLD;
-    octx.fillRect(px + 10, py + 28, PANEL_W - 20, 1);
+    octx.fillRect(px + INSET, py + 28, PANEL_W - INSET_X2, 1);
 
     // Lives remaining
     octx.font = FONT_SMALL;
@@ -374,7 +405,9 @@ export function drawLifeLostDialog(
         btnY,
         btnW,
         btnH,
-        BTN_CONTINUE.fill(contFocused ? (contFlash ? 0.6 : 0.4) : 0.15),
+        BTN_CONTINUE.fill(
+          contFocused ? (contFlash ? OP_VIVID : OP_ACCENT) : OP_SUBTLE,
+        ),
         contFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
         contFocused ? 2 : 1,
         FONT_BUTTON,
@@ -390,11 +423,13 @@ export function drawLifeLostDialog(
         btnY,
         btnW,
         btnH,
-        BTN_ABANDON.fill(abFocused ? (abFlash ? 0.5 : 0.3) : 0.1),
+        BTN_ABANDON.fill(
+          abFocused ? (abFlash ? OP_FOCUS : OP_ACTIVE) : OP_GHOST,
+        ),
         abFocused ? BTN_ABANDON.strokeFocused : BTN_ABANDON.stroke,
         abFocused ? 2 : 1,
         FONT_BUTTON,
-        abFocused ? TEXT_WHITE : "#777",
+        abFocused ? TEXT_WHITE : TEXT_FAINT,
         "Abandon",
       );
     } else {
@@ -448,7 +483,7 @@ export function drawPlayerSelect(
     const c = p.color;
     const rx = gap + i * (rectW + gap);
 
-    drawPanel(octx, rx, rectY, rectW, rectH, rgb(c, 0.15), rgb(c));
+    drawPanel(octx, rx, rectY, rectW, rectH, rgb(c, OP_SUBTLE), rgb(c));
 
     const cx = rx + rectW / 2;
     const touch = IS_TOUCH_DEVICE;
@@ -467,7 +502,7 @@ export function drawPlayerSelect(
         btnY,
         btnW,
         btnH,
-        rgb(c, 0.3),
+        rgb(c, OP_ACTIVE),
         rgb(c),
         1,
         touch ? FONT_BODY : FONT_BUTTON,
@@ -482,11 +517,11 @@ export function drawPlayerSelect(
         btnY,
         btnW,
         btnH,
-        rgb(c, flash ? 0.5 : 0.2),
+        rgb(c, flash ? OP_FOCUS : OP_IDLE),
         rgb(c),
         1,
         touch ? FONT_LABEL : FONT_HINT,
-        flash ? TEXT_WHITE : "#aaa",
+        flash ? TEXT_WHITE : TEXT_SOFT,
         touch ? "Tap to join" : "Press button to start",
       );
     }
@@ -494,7 +529,7 @@ export function drawPlayerSelect(
     if (!touch) {
       octx.font = FONT_HINT;
       octx.fillStyle = TEXT_DIM;
-      octx.fillText(p.keyHint ?? "", cx, btnY - 8);
+      octx.fillText(p.keyHint ?? "", cx, btnY - PAD);
     }
   }
 
@@ -504,8 +539,8 @@ export function drawPlayerSelect(
   octx.fillText(`Starting in ${secs}s`, W / 2, H * 0.88);
 
   // Gear button + F1 hint (top-right corner)
-  octx.textAlign = "right";
-  octx.textBaseline = "middle";
+  octx.textAlign = TEXT_ALIGN_RIGHT;
+  octx.textBaseline = TEXT_BASELINE_MIDDLE;
   octx.font = FONT_ICON;
   octx.fillStyle = TEXT_MUTED;
   octx.fillText("\u2699", W - 6, 18);
@@ -543,7 +578,7 @@ export function drawOptionsScreen(
 
     // Row background
     if (selected) {
-      octx.fillStyle = GOLD_BG(0.15);
+      octx.fillStyle = GOLD_BG(OP_SUBTLE);
       octx.fillRect(px, oy, panelW, optH - 2);
     }
 
@@ -553,24 +588,24 @@ export function drawOptionsScreen(
       const flash = flashOn(BUTTON_FLASH_MS, t);
       octx.font = FONT_BODY;
       octx.fillStyle = flash ? GOLD_LIGHT : GOLD;
-      octx.textAlign = "left";
-      octx.fillText("\u25C0", px + 4, oy + optH / 2);
-      octx.textAlign = "right";
-      octx.fillText("\u25B6", px + panelW - 4, oy + optH / 2);
+      octx.textAlign = TEXT_ALIGN_LEFT;
+      octx.fillText("\u25C0", px + PAD / 2, oy + optH / 2);
+      octx.textAlign = TEXT_ALIGN_RIGHT;
+      octx.fillText("\u25B6", px + panelW - PAD / 2, oy + optH / 2);
     }
 
     // Option name (left-aligned)
-    octx.textAlign = "left";
+    octx.textAlign = TEXT_ALIGN_LEFT;
     octx.font = selected ? FONT_BODY : FONT_LABEL;
     octx.fillStyle = selected
       ? opt.editable
         ? TEXT_WHITE
         : TEXT_DISABLED
       : TEXT_MUTED;
-    octx.fillText(opt.name, px + 20, oy + optH / 2);
+    octx.fillText(opt.name, px + INSET_X2, oy + optH / 2);
 
     // Option value (right-aligned) — with blinking cursor for seed input
-    octx.textAlign = "right";
+    octx.textAlign = TEXT_ALIGN_RIGHT;
     octx.fillStyle = selected
       ? opt.editable
         ? GOLD_LIGHT
@@ -589,16 +624,16 @@ export function drawOptionsScreen(
           ? "_"
           : " "
         : "");
-    octx.fillText(displayValue, px + panelW - 20, oy + optH / 2);
+    octx.fillText(displayValue, px + panelW - INSET_X2, oy + optH / 2);
   }
 
   // Separator
-  const sepY = startY + opts.options.length * optH + 8;
+  const sepY = startY + opts.options.length * optH + PAD;
   octx.fillStyle = GOLD;
-  octx.fillRect(px + 10, sepY, panelW - 20, 1);
+  octx.fillRect(px + INSET, sepY, panelW - INSET_X2, 1);
 
   // Context-sensitive hint
-  octx.textAlign = "center";
+  octx.textAlign = TEXT_ALIGN_CENTER;
   octx.font = FONT_HINT;
   octx.fillStyle = TEXT_DIM;
   const selOpt = opts.options[opts.cursor];
@@ -653,67 +688,67 @@ export function drawControlsScreen(
 
   // Header separator
   octx.fillStyle = GOLD;
-  octx.fillRect(tableX + 4, headerY + 12, tableW - 8, 1);
+  octx.fillRect(tableX + PAD, headerY + 12, tableW - PAD * 2, 1);
 
   // Rows
   for (let a = 0; a < rowCount; a++) {
     const oy = startY + a * rowH;
 
     // Action label (left column)
-    octx.textAlign = "left";
+    octx.textAlign = TEXT_ALIGN_LEFT;
     octx.font = FONT_LABEL;
     octx.fillStyle = TEXT_MUTED;
-    octx.fillText(ctrl.actionNames[a]!, tableX + 6, oy + rowH / 2);
+    octx.fillText(ctrl.actionNames[a]!, tableX + PAD, oy + rowH / 2);
 
     // Key cells for each player
     for (let p = 0; p < colCount; p++) {
       const player = ctrl.players[p]!;
       const cx = tableX + labelColW + p * playerColW + playerColW / 2;
-      const cellX = tableX + labelColW + p * playerColW + 4;
-      const cellW = playerColW - 8;
+      const cellX = tableX + labelColW + p * playerColW + PAD / 2;
+      const cellW = playerColW - PAD;
       const isSelected = p === ctrl.playerIdx && a === ctrl.actionIdx;
 
       if (isSelected) {
         if (ctrl.rebinding) {
           // Flashing "Press key..." cell
           const flash = flashOn(REBIND_FLASH_MS, now ?? Date.now());
-          octx.fillStyle = flash ? GOLD_BG(0.3) : GOLD_BG(0.1);
+          octx.fillStyle = flash ? GOLD_BG(OP_ACTIVE) : GOLD_BG(OP_GHOST);
           octx.fillRect(cellX, oy + 1, cellW, rowH - 2);
           octx.strokeStyle = GOLD_LIGHT;
           octx.lineWidth = 1;
           octx.strokeRect(cellX, oy + 1, cellW, rowH - 2);
-          octx.textAlign = "center";
+          octx.textAlign = TEXT_ALIGN_CENTER;
           octx.font = FONT_SMALL;
           octx.fillStyle = flash ? GOLD_LIGHT : GOLD;
           octx.fillText("Press key\u2026", cx, oy + rowH / 2);
         } else {
           // Highlighted selected cell
-          octx.fillStyle = GOLD_BG(0.2);
+          octx.fillStyle = GOLD_BG(OP_IDLE);
           octx.fillRect(cellX, oy + 1, cellW, rowH - 2);
           octx.strokeStyle = GOLD;
           octx.lineWidth = 1;
           octx.strokeRect(cellX, oy + 1, cellW, rowH - 2);
-          octx.textAlign = "center";
+          octx.textAlign = TEXT_ALIGN_CENTER;
           octx.font = FONT_BODY;
           octx.fillStyle = TEXT_WHITE;
           octx.fillText(player.bindings[a]!, cx, oy + rowH / 2);
         }
       } else {
-        octx.textAlign = "center";
+        octx.textAlign = TEXT_ALIGN_CENTER;
         octx.font = FONT_LABEL;
-        octx.fillStyle = rgb(player.color, 0.7);
+        octx.fillStyle = rgb(player.color, OP_SECONDARY);
         octx.fillText(player.bindings[a]!, cx, oy + rowH / 2);
       }
     }
   }
 
   // Bottom separator
-  const sepY = startY + rowCount * rowH + 8;
+  const sepY = startY + rowCount * rowH + PAD;
   octx.fillStyle = GOLD;
-  octx.fillRect(tableX + 10, sepY, tableW - 20, 1);
+  octx.fillRect(tableX + INSET, sepY, tableW - INSET_X2, 1);
 
   // Bottom hint
-  octx.textAlign = "center";
+  octx.textAlign = TEXT_ALIGN_CENTER;
   octx.font = FONT_HINT;
   octx.fillStyle = TEXT_DIM;
   octx.fillText(
@@ -770,7 +805,8 @@ function beginModalScreen(
   W: number,
   H: number,
 ): void {
-  octx.fillStyle = PANEL_BG(0.95);
+  octx.fillStyle = PANEL_BG(BG_OPAQUE);
   octx.fillRect(0, 0, W, H);
-  applyCenterText(octx);
+  octx.textAlign = TEXT_ALIGN_CENTER;
+  octx.textBaseline = TEXT_BASELINE_MIDDLE;
 }

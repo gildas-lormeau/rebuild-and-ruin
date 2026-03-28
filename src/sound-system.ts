@@ -234,6 +234,10 @@ const DRUM_FADE_IN_SECONDS = 2;
 const DRUM_RAMP_SECONDS = 30;
 const DRUM_FADE_OUT_SECONDS = 0.5;
 const DRUM_DROP_SECONDS = 0.8;
+// Web Audio API type literals
+const SINE: OscillatorType = "sine";
+const LOWPASS: BiquadFilterType = "lowpass";
+const BANDPASS: BiquadFilterType = "bandpass";
 
 export function createSoundSystem(): SoundSystem {
   // ── Mutable state (closure-scoped) ─────────────────────────────────
@@ -328,7 +332,7 @@ export function createSoundSystem(): SoundSystem {
     blast.stop(t + 0.5);
 
     const bass = ctx.createOscillator();
-    bass.type = "sine";
+    bass.type = SINE;
     bass.frequency.setValueAtTime(CANNON_BASS_START_HZ, t);
     bass.frequency.exponentialRampToValueAtTime(40, t + 0.3);
     const bassGain = ctx.createGain();
@@ -339,7 +343,7 @@ export function createSoundSystem(): SoundSystem {
     bass.stop(t + 0.5);
 
     const mid = ctx.createOscillator();
-    mid.type = "sine";
+    mid.type = SINE;
     mid.frequency.setValueAtTime(400, t);
     mid.frequency.exponentialRampToValueAtTime(100, t + 0.15);
     const midGain = ctx.createGain();
@@ -359,7 +363,7 @@ export function createSoundSystem(): SoundSystem {
     tailGain.gain.setValueAtTime(V * 0.3, t + 0.1);
     tailGain.gain.exponentialRampToValueAtTime(GAIN_SILENT, t + 0.8);
     const tailFilter = ctx.createBiquadFilter();
-    tailFilter.type = "lowpass";
+    tailFilter.type = LOWPASS;
     tailFilter.frequency.setValueAtTime(800, t);
     tailFilter.frequency.exponentialRampToValueAtTime(150, t + 0.8);
     tail.connect(tailFilter).connect(tailGain).connect(ctx.destination);
@@ -400,7 +404,7 @@ export function createSoundSystem(): SoundSystem {
     const t = ctx.currentTime + 0.02;
 
     const osc = ctx.createOscillator();
-    osc.type = "sine";
+    osc.type = SINE;
     osc.frequency.setValueAtTime(startHz, t);
     osc.frequency.exponentialRampToValueAtTime(endHz, t + dur);
     const gain = ctx.createGain();
@@ -424,7 +428,7 @@ export function createSoundSystem(): SoundSystem {
     nGain.gain.setValueAtTime(peakVol * 0.28, t + dur - release);
     nGain.gain.linearRampToValueAtTime(GAIN_SILENT, t + dur);
     const nFilter = ctx.createBiquadFilter();
-    nFilter.type = "bandpass";
+    nFilter.type = BANDPASS;
     nFilter.frequency.setValueAtTime(startHz, t);
     nFilter.frequency.exponentialRampToValueAtTime(endHz, t + dur);
     nFilter.Q.value = 5;
@@ -448,7 +452,7 @@ export function createSoundSystem(): SoundSystem {
     const V = level === 1 ? 0.5 : 1;
 
     const thud = ctx.createOscillator();
-    thud.type = "sine";
+    thud.type = SINE;
     thud.frequency.setValueAtTime(100, t);
     thud.frequency.exponentialRampToValueAtTime(35, t + 0.08);
     const thudGain = ctx.createGain();
@@ -470,7 +474,7 @@ export function createSoundSystem(): SoundSystem {
     crunchGain.gain.setValueAtTime(0.25 * V, t);
     crunchGain.gain.exponentialRampToValueAtTime(GAIN_SILENT, t + 0.15);
     const crunchFilter = ctx.createBiquadFilter();
-    crunchFilter.type = "bandpass";
+    crunchFilter.type = BANDPASS;
     crunchFilter.frequency.value = 800;
     crunchFilter.Q.value = 0.8;
     crunch.connect(crunchFilter).connect(crunchGain).connect(ctx.destination);
@@ -682,7 +686,7 @@ function fanfareNote(
     gain.gain.setValueAtTime(v * 0.85, startTime + duration - 0.02);
     gain.gain.linearRampToValueAtTime(0, startTime + duration);
     const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
+    filter.type = LOWPASS;
     filter.frequency.setValueAtTime(3500, startTime);
     filter.frequency.exponentialRampToValueAtTime(1800, startTime + 0.06);
     filter.Q.value = 2;
@@ -752,11 +756,11 @@ function timpaniHit(
   nodes: StoppableNode[],
 ): void {
   const osc = ctx.createOscillator();
-  osc.type = "sine";
+  osc.type = SINE;
   osc.frequency.setValueAtTime(pitch * 1.15, t);
   osc.frequency.exponentialRampToValueAtTime(pitch, t + 0.08);
   const osc2 = ctx.createOscillator();
-  osc2.type = "sine";
+  osc2.type = SINE;
   osc2.frequency.value = pitch * 1.5;
   const gain = ctx.createGain();
   gain.gain.setValueAtTime(vol, t);
@@ -766,7 +770,7 @@ function timpaniHit(
   gain2.gain.setValueAtTime(vol * 0.25, t);
   gain2.gain.exponentialRampToValueAtTime(GAIN_NEAR_ZERO, t + 0.4);
   const filter = ctx.createBiquadFilter();
-  filter.type = "lowpass";
+  filter.type = LOWPASS;
   filter.frequency.value = 250;
   filter.Q.value = 0.7;
   osc.connect(gain).connect(filter).connect(dest);
@@ -787,7 +791,7 @@ function timpaniHit(
   nGain.gain.setValueAtTime(vol * 0.3, t);
   nGain.gain.exponentialRampToValueAtTime(GAIN_NEAR_ZERO, t + 0.015);
   const nFilter = ctx.createBiquadFilter();
-  nFilter.type = "lowpass";
+  nFilter.type = LOWPASS;
   nFilter.frequency.value = 400;
   noise.connect(nFilter).connect(nGain).connect(dest);
   noise.start(t);
@@ -836,7 +840,7 @@ function scheduleSnareRoll(
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(vol * band.volMul, t);
     const filter = ctx.createBiquadFilter();
-    filter.type = "bandpass";
+    filter.type = BANDPASS;
     filter.frequency.value = band.freq;
     filter.Q.value = band.Q;
     noise.connect(filter).connect(gain).connect(dest);

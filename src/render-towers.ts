@@ -9,6 +9,7 @@ import {
   FONT_FLOAT_LG,
   rgb,
   SHADOW_COLOR_DENSE,
+  TEXT_ALIGN_CENTER,
   TOWER_FLASH_MS,
 } from "./render-theme.ts";
 import type { MapData, RenderOverlay } from "./render-types.ts";
@@ -52,7 +53,7 @@ export function drawTowers(
         octx.save();
         octx.globalAlpha = 0.7;
         octx.font = FONT_FLOAT_LG;
-        octx.textAlign = "center";
+        octx.textAlign = TEXT_ALIGN_CENTER;
         octx.textBaseline = "bottom";
         octx.fillStyle = SHADOW_COLOR_DENSE;
         octx.fillText(name, cx, cy - 20);
