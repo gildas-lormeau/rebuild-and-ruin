@@ -7,9 +7,14 @@
  */
 
 import "./style.css";
-import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./game-ui-types.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
-import { initRouter, navigateTo, onRoute } from "./router.ts";
+import {
+  GAME_CONTAINER_ACTIVE,
+  GAME_EXIT_EVENT,
+  initRouter,
+  navigateTo,
+  onRoute,
+} from "./router.ts";
 
 const DEFAULT_SERVER = "rebuild-and-ruin.gildas-lormeau.deno.net";
 const SERVER_STORAGE_KEY = "castles99_server";

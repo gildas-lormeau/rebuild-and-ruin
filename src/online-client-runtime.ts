@@ -17,7 +17,6 @@ import {
   finalizeCastleConstruction,
   resetZoneState,
 } from "./game-engine.ts";
-import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./game-ui-types.ts";
 import {
   clearReconnect,
   dedup,
@@ -60,7 +59,11 @@ import {
 } from "./online-watcher-tick.ts";
 import { MAX_PLAYERS, PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
 import { createCanvasRenderer } from "./render-canvas.ts";
-import { navigateTo } from "./router.ts";
+import {
+  GAME_CONTAINER_ACTIVE,
+  GAME_EXIT_EVENT,
+  navigateTo,
+} from "./router.ts";
 import { createGameRuntime, type GameRuntime } from "./runtime.ts";
 import {
   bootstrapGame,

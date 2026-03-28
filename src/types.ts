@@ -274,6 +274,60 @@ export interface LifeLostDialogState {
   timer: number;
 }
 
+/** Player selection lobby state. */
+export interface LobbyState {
+  joined: boolean[];
+  active: boolean;
+  /** Accumulator for lobby countdown timer (local play). */
+  timerAccum?: number;
+  /** Pre-computed seed for the next game (also used for lobby map preview). */
+  seed: number;
+  map: GameMap | null;
+}
+
+export interface FrameContext {
+  // Identity
+  readonly myPlayerId: number;
+  readonly firstHumanPlayerId: number;
+  readonly isHost: boolean;
+  readonly remoteHumanSlots: ReadonlySet<number>;
+
+  // Mode / Phase
+  readonly mode: Mode;
+  readonly phase: Phase;
+
+  // Overlay flags
+  readonly paused: boolean;
+  readonly quitPending: boolean;
+  readonly hasLifeLostDialog: boolean;
+  readonly isSelectionReady: boolean;
+
+  // Composite guards
+  /** UI overlay suppresses gameplay (pause, quit dialog, life-lost). */
+  readonly uiBlocking: boolean;
+  /** Phase timer about to expire (< PHASE_ENDING_THRESHOLD) on non-touch. */
+  readonly phaseEnding: boolean;
+  /** Camera should unzoom (uiBlocking OR phaseEnding). */
+  readonly shouldUnzoom: boolean;
+}
+
+interface FrameContextInputs {
+  mode: Mode;
+  phase: Phase;
+  timer: number;
+  paused: boolean;
+  quitPending: boolean;
+  hasLifeLostDialog: boolean;
+  isSelectionReady: boolean;
+  myPlayerId: number;
+  firstHumanPlayerId: number;
+  isHost: boolean;
+  remoteHumanSlots: ReadonlySet<number>;
+  mobileAutoZoom: boolean;
+}
+
+/** Seconds before timer reaches 0 to trigger unzoom. */
+const PHASE_ENDING_THRESHOLD = 1.5;
 /** Default hits needed to destroy a cannon. */
 export const CANNON_MAX_HP = 3;
 /** How many cannon slots a super gun costs. */
@@ -402,8 +456,6 @@ export const ZONE_PAD_WITH_WALLS = 4;
 export const ZONE_PAD_NO_WALLS = 1;
 /** Tile padding around tower during selection zoom. */
 export const ZONE_PAD_SELECTION = 7;
-/** Seconds before timer reaches 0 to trigger unzoom. */
-export const PHASE_ENDING_THRESHOLD = 1.5;
 /** Pixel distance threshold for viewport lerp convergence snap. */
 export const VIEWPORT_SNAP_THRESHOLD = 0.5;
 /** Minimum Manhattan distance between any two houses. */
@@ -441,11 +493,6 @@ export function isReselectPhase(phase: Phase): boolean {
   return phase === Phase.CASTLE_RESELECT;
 }
 
-/** True if the phase is a placement phase (walls or cannons). */
-export function isPlacementPhase(phase: Phase): boolean {
-  return phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE;
-}
-
 /** True if the action is a directional movement. */
 export function isMovementAction(action: Action): boolean {
   return (
@@ -480,4 +527,53 @@ export function isPlayerActive(
   player: Player | null | undefined,
 ): player is Player & { homeTower: Tower } {
   return !!player && !player.eliminated && !!player.homeTower;
+}
+
+export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
+  const {
+    mode,
+    phase,
+    timer,
+    paused,
+    quitPending,
+    hasLifeLostDialog,
+    isSelectionReady,
+    myPlayerId,
+    firstHumanPlayerId,
+    isHost,
+    remoteHumanSlots,
+    mobileAutoZoom,
+  } = inputs;
+
+  const uiBlocking = paused || quitPending || hasLifeLostDialog;
+
+  const timedPhase = isPlacementPhase(phase) || phase === Phase.BATTLE;
+  const phaseEnding =
+    !mobileAutoZoom &&
+    timer > 0 &&
+    timer <= PHASE_ENDING_THRESHOLD &&
+    timedPhase;
+
+  const shouldUnzoom = uiBlocking || phaseEnding;
+
+  return {
+    myPlayerId,
+    firstHumanPlayerId,
+    isHost,
+    remoteHumanSlots,
+    mode,
+    phase,
+    paused,
+    quitPending,
+    hasLifeLostDialog,
+    isSelectionReady,
+    uiBlocking,
+    phaseEnding,
+    shouldUnzoom,
+  };
+}
+
+/** True if the phase is a placement phase (walls or cannons). */
+export function isPlacementPhase(phase: Phase): boolean {
+  return phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE;
 }

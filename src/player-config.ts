@@ -23,6 +23,24 @@ interface PlayerColor {
 
 export type SeedMode = typeof SEED_RANDOM | typeof SEED_CUSTOM;
 
+export interface GameSettings {
+  difficulty: number;
+  rounds: number;
+  cannonHp: number;
+  haptics: number; // 0=off, 1=phase changes only, 2=all
+  sound: number; // 0=off, 1=phase changes only, 2=all
+  seed: string;
+  seedMode: SeedMode;
+  keyBindings: KeyBindings[];
+  leftHanded: boolean; // true = d-pad on right, action buttons on left
+}
+
+export const DIFFICULTY_PARAMS = [
+  { buildTimer: 30, cannonPlaceTimer: 20, firstRoundCannons: 4 }, // Easy
+  { buildTimer: 25, cannonPlaceTimer: 15, firstRoundCannons: 3 }, // Normal
+  { buildTimer: 20, cannonPlaceTimer: 12, firstRoundCannons: 2 }, // Hard
+  { buildTimer: 15, cannonPlaceTimer: 10, firstRoundCannons: 1 }, // Very Hard
+];
 export const PLAYER_NAMES = ["Red", "Blue", "Gold"] as const;
 // Player castle colors: wall and interior (checkerboard light/dark)
 export const PLAYER_COLORS: readonly PlayerColor[] = [

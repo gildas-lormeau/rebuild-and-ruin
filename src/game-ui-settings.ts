@@ -6,11 +6,11 @@
 import {
   CANNON_HP_OPTIONS,
   DIFFICULTY_LABELS,
-  type GameSettings,
   HAPTICS_LABELS,
   ROUNDS_OPTIONS,
   SOUND_LABELS,
 } from "./game-ui-types.ts";
+import type { GameSettings } from "./player-config.ts";
 import {
   type KeyBindings,
   MAX_PLAYERS,

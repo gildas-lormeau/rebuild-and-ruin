@@ -12,17 +12,12 @@ import {
   isHuman,
   type PlayerController,
 } from "./controller-interfaces.ts";
-import { computeFrameContext } from "./game-ui-frame.ts";
 import {
   snapshotTerritory as snapshotTerritoryImpl,
   tickMainLoop,
 } from "./game-ui-helpers.ts";
 import { type UIContext, visibleOptions } from "./game-ui-screens.ts";
-import {
-  CANNON_HP_OPTIONS,
-  DIFFICULTY_PARAMS,
-  ROUNDS_OPTIONS,
-} from "./game-ui-types.ts";
+import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { createHapticsSystem } from "./haptics-system.ts";
 import {
@@ -45,6 +40,7 @@ import {
 } from "./phase-banner.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "./platform.ts";
 import {
+  DIFFICULTY_PARAMS,
   getPlayerColor,
   MAX_PLAYERS,
   PLAYER_COLORS,
@@ -83,6 +79,7 @@ import { createSoundSystem } from "./sound-system.ts";
 import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
 import {
   BANNER_DURATION,
+  computeFrameContext,
   createBattleAnimState,
   createTimerAccums,
   FOCUS_MENU,

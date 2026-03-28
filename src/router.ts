@@ -8,9 +8,14 @@
  * activates — deduped so repeat navigations to the same route are ignored.
  */
 
+/** CSS class toggled on #game-container to show/hide it. */
+
 type RouteHandler = () => void;
 
 const handlers = new Map<string, RouteHandler>();
+export const GAME_CONTAINER_ACTIVE = "active";
+/** Custom event dispatched when the router navigates away from the game. */
+export const GAME_EXIT_EVENT = "game-exit";
 
 let currentRoute = "";
 

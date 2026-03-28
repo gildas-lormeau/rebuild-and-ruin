@@ -1,11 +1,12 @@
 import { createController } from "./controller-factory.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import { createGameFromSeed } from "./game-engine.ts";
-import { GAME_CONTAINER_ACTIVE, type LobbyState } from "./game-ui-types.ts";
 import { generateMap } from "./map-generation.ts";
 import type { KeyBindings } from "./player-config.ts";
 import { GOLD, PANEL_BG } from "./render-theme.ts";
 import { MAX_UINT32 } from "./rng.ts";
+import { GAME_CONTAINER_ACTIVE } from "./router.ts";
+import type { LobbyState } from "./types.ts";
 import {
   type GameState,
   isReselectPhase,

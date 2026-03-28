@@ -5,7 +5,6 @@
  * and exposes a pure API for the runtime to call.
  */
 
-import type { FrameContext } from "./game-ui-frame.ts";
 import type { TilePos, WorldPos } from "./geometry-types.ts";
 import {
   CANVAS_H,
@@ -18,6 +17,7 @@ import {
 import type { Viewport } from "./render-types.ts";
 import type { CameraSystem } from "./runtime-types.ts";
 import { pxToTile, unpackTile } from "./spatial.ts";
+import type { FrameContext } from "./types.ts";
 import {
   type GameState,
   MAX_ZOOM_VIEWPORT_RATIO,

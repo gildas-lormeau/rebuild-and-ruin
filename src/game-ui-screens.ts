@@ -5,13 +5,10 @@
 
 import { createLobbyConfirmKeys, formatKeyHint } from "./game-ui-helpers.ts";
 import { formatKeyName, saveSettings } from "./game-ui-settings.ts";
-import type { LobbyState } from "./game-ui-types.ts";
 import {
   CANNON_HP_OPTIONS,
-  type ControlsState,
   DIFFICULTY_LABELS,
   DPAD_LABELS,
-  type GameSettings,
   HAPTICS_LABELS,
   OPTION_NAMES,
   ROUNDS_OPTIONS,
@@ -20,6 +17,7 @@ import {
 import type { GameMap } from "./geometry-types.ts";
 import { generateMap } from "./map-generation.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
+import type { GameSettings } from "./player-config.ts";
 import {
   ACTION_KEYS,
   getPlayerColor,
@@ -28,6 +26,7 @@ import {
   SEED_CUSTOM,
 } from "./player-config.ts";
 import type { OptionEntry, RenderOverlay } from "./render-types.ts";
+import type { ControlsState, LobbyState } from "./types.ts";
 import {
   type GameState,
   LOBBY_SKIP_LOCKOUT,
