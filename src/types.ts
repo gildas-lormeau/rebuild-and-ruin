@@ -387,7 +387,7 @@ export const VIEWPORT_SNAP_THRESHOLD = 0.5;
 export const HOUSE_MIN_DISTANCE = 3;
 export const FOCUS_REMATCH: GameOverFocus = "rematch";
 export const FOCUS_MENU: GameOverFocus = "menu";
-export const CANNON_MODES = new Set<string>([
+export const CANNON_MODES: ReadonlySet<CannonMode> = new Set([
   CannonMode.NORMAL,
   CannonMode.SUPER,
   CannonMode.BALLOON,
@@ -395,7 +395,8 @@ export const CANNON_MODES = new Set<string>([
 
 /** Parse a string as a CannonMode, defaulting to NORMAL if invalid. */
 export function toCannonMode(value: string | undefined): CannonMode {
-  if (value && CANNON_MODES.has(value)) return value as CannonMode;
+  if (value && (CANNON_MODES as ReadonlySet<string>).has(value))
+    return value as CannonMode;
   return CannonMode.NORMAL;
 }
 
