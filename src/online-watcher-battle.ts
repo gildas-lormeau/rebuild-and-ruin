@@ -2,7 +2,7 @@ import { canPlayerFire, countdownAnnouncement } from "./battle-system.ts";
 import type { Crosshair, OrbitParams, PlayerController } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { type CannonPhantom, cannonPhantomKey, type HumanPiecePhantom, type PiecePhantom, phantomChanged, phantomWireMode, piecePhantomKey, type WatcherTimingState } from "./online-types.ts";
-import { BATTLE_TIMER, type GameState, type Impact, isPlacementPhase, Phase } from "./types.ts";
+import { BATTLE_TIMER, type CannonMode, type GameState, type Impact, isPlacementPhase, Phase } from "./types.ts";
 
 interface WatcherFrameAnnouncement {
   announcement?: string;
@@ -68,7 +68,7 @@ interface TickWatcherCannonPhantomsDeps {
     playerId: number;
     row: number;
     col: number;
-    mode: "normal" | "super" | "balloon";
+    mode: CannonMode;
     valid: boolean;
     facing: number;
   }) => void;

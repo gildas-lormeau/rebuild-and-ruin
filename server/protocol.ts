@@ -9,6 +9,7 @@
  */
 
 import type { ResolvedChoice } from "../src/life-lost.ts";
+import type { CannonMode } from "../src/types.ts";
 
 // ---------------------------------------------------------------------------
 // Message type constants
@@ -375,7 +376,7 @@ export interface OpponentCannonPlacedMessage {
   playerId: number;
   row: number;
   col: number;
-  mode: "normal" | "super" | "balloon";
+  mode: CannonMode;
 }
 
 /** An opponent's phantom cannon position (for rendering ghost). */
@@ -384,7 +385,7 @@ export interface OpponentCannonPhantomMessage {
   playerId: number;
   row: number;
   col: number;
-  mode: "normal" | "super" | "balloon";
+  mode: CannonMode;
   valid: boolean;
   facing: number;
 }
