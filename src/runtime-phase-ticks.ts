@@ -18,13 +18,10 @@ import {
 import {
   finalizeBuildPhase,
   initBuildPhase,
+  initCannonPhase,
   nextPhase,
 } from "./game-engine.ts";
-import {
-  collectLocalCrosshairs,
-  initCannonPhase,
-  tickGameCore,
-} from "./game-ui-runtime.ts";
+import { collectLocalCrosshairs, tickGameCore } from "./game-ui-runtime.ts";
 import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
 import { hapticBattleEvents } from "./input-haptics.ts";
 import type {

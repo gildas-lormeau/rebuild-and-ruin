@@ -5,18 +5,10 @@
  */
 
 import { nextReadyCombined } from "./battle-system.ts";
-import {
-  findNearestValidCannonPlacement,
-  resetCannonFacings,
-} from "./cannon-system.ts";
 import type { Crosshair, PlayerController } from "./controller-interfaces.ts";
-import {
-  computeCannonLimitsForPhase,
-  rebuildHomeCastle,
-} from "./game-engine.ts";
+import { rebuildHomeCastle } from "./game-engine.ts";
 import type { KeyBindings } from "./player-config.ts";
 import {
-  CannonMode,
   type GameState,
   type Impact,
   Mode,
@@ -56,45 +48,6 @@ export function snapshotTerritory(players: readonly Player[]): Set<number>[] {
     for (const key of p.walls) combined.add(key);
     return combined;
   });
-}
-
-/** Initialize cannon phase: compute limits, reset facings, let controllers place. */
-export function initCannonPhase(params: {
-  state: GameState;
-  controllers: PlayerController[];
-  skipController?: (playerId: number) => boolean;
-}): void {
-  const { state, controllers, skipController } = params;
-
-  computeCannonLimitsForPhase(state);
-  resetCannonFacings(state);
-
-  // Let each controller place cannons
-  for (const ctrl of controllers) {
-    if (skipController?.(ctrl.playerId)) continue;
-    const player = state.players[ctrl.playerId]!;
-    if (player.eliminated) continue;
-    const max = state.cannonLimits[player.id] ?? 0;
-    ctrl.placeCannons(state, max);
-  }
-
-  // Initialize cannon cursor near home tower for all controllers
-  for (const ctrl of controllers) {
-    if (skipController?.(ctrl.playerId)) continue;
-    const player = state.players[ctrl.playerId]!;
-    if (player.homeTower) {
-      const t = player.homeTower;
-      const snapped = findNearestValidCannonPlacement(
-        player,
-        t.row,
-        t.col,
-        CannonMode.NORMAL,
-        state,
-      );
-      ctrl.cannonCursor = snapped ?? { row: t.row, col: t.col };
-    }
-    ctrl.onCannonPhaseStart(state);
-  }
 }
 
 /** Collect crosshairs from local controllers. */

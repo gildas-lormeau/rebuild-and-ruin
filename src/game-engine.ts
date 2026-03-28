@@ -29,7 +29,11 @@ import {
   removeBonusSquaresCoveredByWalls,
   replenishBonusSquares,
 } from "./build-system.ts";
-import { cannonSlotsForRound, resetCannonFacings } from "./cannon-system.ts";
+import {
+  cannonSlotsForRound,
+  findNearestValidCannonPlacement,
+  resetCannonFacings,
+} from "./cannon-system.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import type { Castle, GameMap } from "./geometry-types.ts";
 import {
@@ -55,6 +59,7 @@ import {
   BUILD_TIMER,
   CANNON_MAX_HP,
   CANNON_PLACE_TIMER,
+  CannonMode,
   FIRST_GRUNT_SPAWN_ROUND,
   FIRST_ROUND_CANNONS,
   INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
@@ -169,14 +174,6 @@ export function markPlayerReselected(state: GameState, playerId: number): void {
   state.reselectedPlayers.add(playerId);
 }
 
-/** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
-export function computeCannonLimitsForPhase(state: GameState): void {
-  state.cannonLimits = state.players.map((player) =>
-    cannonSlotsForRound(player, state),
-  );
-  state.reselectedPlayers.clear();
-}
-
 /**
  * Complete the build phase using the canonical gameplay rules.
  * Owns wall sweeping, territory/tower revival, and the life check.
@@ -230,6 +227,53 @@ export function nextPhase(state: GameState): void {
 export function enterCannonPlacePhase(state: GameState): void {
   state.phase = Phase.CANNON_PLACE;
   state.timer = 0;
+}
+
+/** Initialize cannon phase: compute limits, reset facings, let controllers place. */
+export function initCannonPhase(params: {
+  state: GameState;
+  controllers: PlayerController[];
+  skipController?: (playerId: number) => boolean;
+}): void {
+  const { state, controllers, skipController } = params;
+
+  computeCannonLimitsForPhase(state);
+  resetCannonFacings(state);
+
+  // Let each controller place cannons
+  for (const ctrl of controllers) {
+    if (skipController?.(ctrl.playerId)) continue;
+    const player = state.players[ctrl.playerId]!;
+    if (player.eliminated) continue;
+    const max = state.cannonLimits[player.id] ?? 0;
+    ctrl.placeCannons(state, max);
+  }
+
+  // Initialize cannon cursor near home tower for all controllers
+  for (const ctrl of controllers) {
+    if (skipController?.(ctrl.playerId)) continue;
+    const player = state.players[ctrl.playerId]!;
+    if (player.homeTower) {
+      const t = player.homeTower;
+      const snapped = findNearestValidCannonPlacement(
+        player,
+        t.row,
+        t.col,
+        CannonMode.NORMAL,
+        state,
+      );
+      ctrl.cannonCursor = snapped ?? { row: t.row, col: t.col };
+    }
+    ctrl.onCannonPhaseStart(state);
+  }
+}
+
+/** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
+export function computeCannonLimitsForPhase(state: GameState): void {
+  state.cannonLimits = state.players.map((player) =>
+    cannonSlotsForRound(player, state),
+  );
+  state.reselectedPlayers.clear();
 }
 
 /** Initialize build phase controllers — reset facings, clear accumulators. */
