@@ -1,6 +1,7 @@
 import { MSG, type ServerMessage } from "../server/protocol.ts";
 import type { ImpactEvent } from "./battle-system.ts";
 import type { OrbitParams } from "./controller-interfaces.ts";
+import { selectPlayerTower } from "./game-engine.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { LifeLostChoice, parseLifeLostChoice } from "./life-lost.ts";
 import type { CannonPhantom, PiecePhantom } from "./online-types.ts";
@@ -95,8 +96,7 @@ export function handleServerIncrementalMessage(
           tower.zone === expectedZone
         ) {
           const player = state.players[msg.playerId]!;
-          player.homeTower = tower;
-          player.ownedTowers = [tower];
+          selectPlayerTower(player, tower);
           const ss = deps.selectionStates.get(msg.playerId);
           if (ss && !ss.confirmed) {
             ss.highlighted = msg.towerIdx;

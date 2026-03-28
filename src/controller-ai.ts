@@ -24,6 +24,7 @@ import {
   type OrbitParams,
 } from "./controller-interfaces.ts";
 import { BaseController } from "./controller-types.ts";
+import { selectPlayerTower } from "./game-engine.ts";
 import type { PixelPos, StrategicPixelPos, TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { type PieceShape, rotateCW } from "./pieces.ts";
@@ -228,10 +229,7 @@ export class AiController extends BaseController implements AiAnimatable {
     const firstIdx = queue[0];
     const firstTower =
       firstIdx !== undefined ? state.map.towers[firstIdx] : chosenTower;
-    if (firstTower) {
-      player.homeTower = firstTower;
-      player.ownedTowers = [firstTower];
-    }
+    if (firstTower) selectPlayerTower(player, firstTower);
     return false;
   }
 
@@ -249,10 +247,8 @@ export class AiController extends BaseController implements AiAnimatable {
             const nextIdx = s.queue[0];
             const nextTower =
               nextIdx !== undefined ? state.map.towers[nextIdx] : undefined;
-            if (nextTower) {
-              state.players[this.playerId]!.homeTower = nextTower;
-              state.players[this.playerId]!.ownedTowers = [nextTower];
-            }
+            if (nextTower)
+              selectPlayerTower(state.players[this.playerId]!, nextTower);
           }
           return false;
         }

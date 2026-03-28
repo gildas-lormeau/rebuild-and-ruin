@@ -1,5 +1,6 @@
 import { MSG } from "../server/protocol.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
+import { selectPlayerTower } from "./game-engine.ts";
 import { BANNER_SELECT } from "./phase-banner.ts";
 import {
   type GameState,
@@ -52,10 +53,7 @@ export function initTowerSelection(
     tapped: true,
   });
   const tower = state.map.towers[towerIdx];
-  if (tower) {
-    player.homeTower = tower;
-    player.ownedTowers = [tower];
-  }
+  if (tower) selectPlayerTower(player, tower);
 }
 
 export function highlightTowerSelection(
@@ -82,8 +80,7 @@ export function highlightTowerSelection(
   ss.highlighted = idx;
 
   const player = state.players[playerId]!;
-  player.homeTower = tower;
-  player.ownedTowers = [tower];
+  selectPlayerTower(player, tower);
 
   send({
     type: MSG.OPPONENT_TOWER_SELECTED,

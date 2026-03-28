@@ -35,7 +35,7 @@ import {
   resetCannonFacings,
 } from "./cannon-system.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
-import type { Castle, GameMap } from "./geometry-types.ts";
+import type { Castle, GameMap, Tower } from "./geometry-types.ts";
 import {
   rollGruntWallAttacks,
   spawnGruntGroupOnZone,
@@ -167,6 +167,12 @@ export function rebuildHomeCastle(state: GameState, player: Player): void {
 export function enterCastleReselectPhase(state: GameState): void {
   state.phase = Phase.CASTLE_RESELECT;
   state.timer = 0;
+}
+
+/** Set a player's home tower and initialize their owned towers list. */
+export function selectPlayerTower(player: Player, tower: Tower): void {
+  player.homeTower = tower;
+  player.ownedTowers = [tower];
 }
 
 /** Mark a player as having reselected a castle this round. */
