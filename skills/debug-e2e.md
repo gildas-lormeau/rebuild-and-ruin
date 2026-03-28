@@ -45,6 +45,9 @@ test("describe the bug being tested", () => {
   s.runBuild();                     // simulate full build phase
   s.playRound();                    // cannon + battle + build + finalize
 
+  // Inspect state
+  console.log(s.describe());        // "Phase:BATTLE | P0: 3♥ 12w 2c 45t 0pts | ..."
+
   // Manipulate state to reproduce the bug
   s.setLives(1, 2);                // set player 1 to 2 lives
   s.clearWalls(1);                  // remove all walls for player 1

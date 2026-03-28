@@ -482,7 +482,28 @@ test("online handleBattleStartTransition sets banner.newWalls after checkpoint",
 });
 
 // ---------------------------------------------------------------------------
-// 14. Tile finders return valid results
+// 14. State summary
+// ---------------------------------------------------------------------------
+
+test("describe() returns a compact state summary", () => {
+  const s = createScenario();
+  const desc = s.describe();
+
+  // Should contain phase, all players, and round
+  assert(desc.includes("Phase:"), "Should include phase");
+  assert(desc.includes("P0:"), "Should include player 0");
+  assert(desc.includes("P1:"), "Should include player 1");
+  assert(desc.includes("P2:"), "Should include player 2");
+  assert(desc.includes("round:"), "Should include round");
+
+  // After elimination, should show 'elim'
+  s.eliminatePlayer(2);
+  const desc2 = s.describe();
+  assert(desc2.includes("P2:elim"), "Should show eliminated player as 'elim'");
+});
+
+// ---------------------------------------------------------------------------
+// 15. Tile finders return valid results
 // ---------------------------------------------------------------------------
 
 test("tile finders return valid positions", () => {

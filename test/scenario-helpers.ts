@@ -87,6 +87,9 @@ export interface Scenario {
   processReselection(needsReselect: readonly number[]): void;
   playRound(): { needsReselect: number[]; eliminated: number[] };
 
+  // State inspection
+  describe(): string;
+
   // State manipulation
   setLives(playerId: number, lives: number): void;
   clearWalls(playerId: number): void;
@@ -238,6 +241,26 @@ export function createScenario(seed = 42): Scenario {
 
   function doEliminatePlayer(playerId: number) {
     eliminatePlayer(state.players[playerId]!);
+  }
+
+  function describe(): string {
+    const phaseName = Object.entries(Phase).find(
+      ([, v]) => v === state.phase,
+    )?.[0] ?? state.phase;
+    const parts = [`Phase:${phaseName}`];
+    for (let i = 0; i < state.players.length; i++) {
+      const p = state.players[i]!;
+      if (p.eliminated) {
+        parts.push(`P${i}:elim`);
+        continue;
+      }
+      const alive = p.cannons.filter((c) => c.hp > 0).length;
+      parts.push(
+        `P${i}: ${p.lives}\u2665 ${p.walls.size}w ${alive}c ${p.interior.size}t ${p.score}pts`,
+      );
+    }
+    parts.push(`round:${state.round}`);
+    return parts.join(" | ");
   }
 
   function doPlaceCannonAt(
@@ -526,6 +549,7 @@ export function createScenario(seed = 42): Scenario {
     playRound,
     setLives,
     clearWalls,
+    describe,
     eliminatePlayer: doEliminatePlayer,
     findGrassTile: doFindGrassTile,
     findInteriorTile: doFindInteriorTile,
