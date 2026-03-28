@@ -214,7 +214,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   // -------------------------------------------------------------------------
-  // Rendering helpers
+  // Rendering / frame helpers
   // -------------------------------------------------------------------------
 
   function renderFrame(
@@ -225,13 +225,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     renderer.drawFrame(map, overlay, viewport);
   }
 
-  // -------------------------------------------------------------------------
-  // Lobby (delegated to runtime-lobby.ts)
-  // -------------------------------------------------------------------------
-
   function isSelectionReady(): boolean {
     return rs.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION;
   }
+
+  // -------------------------------------------------------------------------
+  // Touch battle targeting (aimAtEnemyCastle)
+  // -------------------------------------------------------------------------
 
   /** Crosshair position from the previous battle (null = first battle). */
   let lastBattleCrosshair: { x: number; y: number } | null = null;
@@ -279,11 +279,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     lastBattleCrosshair = { x: px.x, y: px.y };
   }
 
-  // -------------------------------------------------------------------------
-  // Options / Controls / Pause (delegated to runtime-options.ts)
-  // -------------------------------------------------------------------------
-
-  // Options system is created after uiCtx is defined (forward reference).
   // -------------------------------------------------------------------------
   // Banner
   // -------------------------------------------------------------------------
@@ -526,7 +521,14 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const phaseTicks: PhaseTicksSystem = createPhaseTicksSystem({
     rs,
-    ...config,
+    send: config.send,
+    log: config.log,
+    hostNetworking: config.hostNetworking,
+    watcherTiming: config.watcherTiming,
+    extendCrosshairs: config.extendCrosshairs,
+    onLocalCrosshairCollected: config.onLocalCrosshairCollected,
+    tickNonHost: config.tickNonHost,
+    everyTick: config.everyTick,
     render: () => render(),
     firstHuman,
     showBanner,
