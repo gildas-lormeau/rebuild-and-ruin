@@ -17,18 +17,7 @@ import {
   snapshotTerritory as snapshotTerritoryImpl,
   tickMainLoop,
 } from "./game-ui-runtime.ts";
-import type { UIContext } from "./game-ui-screens.ts";
-import {
-  closeControls as closeControlsShared,
-  closeOptions as closeOptionsShared,
-  createControlsOverlay,
-  createOptionsOverlay,
-  showControls as showControlsShared,
-  showOptions as showOptionsShared,
-  togglePause as togglePauseShared,
-  visibleOptions,
-} from "./game-ui-screens.ts";
-import { cycleOption } from "./game-ui-settings.ts";
+import { type UIContext, visibleOptions } from "./game-ui-screens.ts";
 import {
   CANNON_HP_OPTIONS,
   DIFFICULTY_PARAMS,
@@ -79,6 +68,7 @@ import {
   type LifeLostSystem,
 } from "./runtime-life-lost.ts";
 import { createLobbySystem, type LobbySystem } from "./runtime-lobby.ts";
+import { createOptionsSystem, type OptionsSystem } from "./runtime-options.ts";
 import {
   createPhaseTicksSystem,
   type PhaseTicksSystem,
@@ -88,6 +78,7 @@ import {
   type SelectionSystem,
 } from "./runtime-selection.ts";
 import { createRuntimeState } from "./runtime-state.ts";
+import { updateTouchControls } from "./runtime-touch-ui.ts";
 import type { GameRuntime, RuntimeConfig } from "./runtime-types.ts";
 import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
 import {
@@ -97,7 +88,6 @@ import {
   FOCUS_MENU,
   FOCUS_REMATCH,
   type GameState,
-  isPlacementPhase,
   MAX_FRAME_DT,
   Mode,
   Phase,
@@ -106,102 +96,6 @@ import {
 } from "./types.ts";
 
 export type { GameRuntime } from "./runtime-types.ts";
-
-type TouchBtnRule = boolean | typeof HUMAN;
-
-interface TouchButtonState {
-  dpad: TouchBtnRule;
-  confirm: TouchBtnRule;
-  rotate: TouchBtnRule;
-  placementValidity: TouchBtnRule;
-  zoom: TouchBtnRule;
-  quit: boolean;
-}
-
-const HUMAN = "human" as const;
-const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
-  //                       dpad     confirm  rotate   validity zoom     quit
-  [Mode.LOBBY]: {
-    dpad: false,
-    confirm: true,
-    rotate: false,
-    placementValidity: false,
-    zoom: false,
-    quit: false,
-  },
-  [Mode.OPTIONS]: {
-    dpad: true,
-    confirm: true,
-    rotate: true,
-    placementValidity: false,
-    zoom: false,
-    quit: false,
-  },
-  [Mode.CONTROLS]: {
-    dpad: false,
-    confirm: false,
-    rotate: false,
-    placementValidity: false,
-    zoom: false,
-    quit: false,
-  },
-  [Mode.SELECTION]: {
-    dpad: HUMAN,
-    confirm: HUMAN,
-    rotate: false,
-    placementValidity: false,
-    zoom: HUMAN,
-    quit: true,
-  },
-  [Mode.BANNER]: {
-    dpad: false,
-    confirm: false,
-    rotate: false,
-    placementValidity: false,
-    zoom: HUMAN,
-    quit: true,
-  },
-  [Mode.BALLOON_ANIM]: {
-    dpad: false,
-    confirm: false,
-    rotate: false,
-    placementValidity: false,
-    zoom: HUMAN,
-    quit: true,
-  },
-  [Mode.CASTLE_BUILD]: {
-    dpad: false,
-    confirm: false,
-    rotate: false,
-    placementValidity: false,
-    zoom: HUMAN,
-    quit: true,
-  },
-  [Mode.LIFE_LOST]: {
-    dpad: HUMAN,
-    confirm: HUMAN,
-    rotate: false,
-    placementValidity: false,
-    zoom: HUMAN,
-    quit: true,
-  },
-  [Mode.GAME]: {
-    dpad: HUMAN,
-    confirm: HUMAN,
-    rotate: HUMAN,
-    placementValidity: HUMAN,
-    zoom: HUMAN,
-    quit: true,
-  },
-  [Mode.STOPPED]: {
-    dpad: HUMAN,
-    confirm: HUMAN,
-    rotate: false,
-    placementValidity: false,
-    zoom: false,
-    quit: false,
-  },
-};
 
 export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const { renderer } = config;
@@ -213,6 +107,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const rs = createRuntimeState();
   setHapticsLevel(rs.settings.haptics);
+
+  // Sub-systems initialized after uiCtx (forward-declared, assigned once)
+  // deno-lint-ignore prefer-const
+  let lobby: LobbySystem;
+  // deno-lint-ignore prefer-const
+  let options: OptionsSystem;
 
   // DOM-only locals (not shared with consumers)
   let dpad: ReturnType<typeof createDpad> | null = null;
@@ -341,8 +241,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       render,
       ticks: {
         [Mode.LOBBY]: (dt: number) => lobby.tickLobby(dt),
-        [Mode.OPTIONS]: () => renderOptions(),
-        [Mode.CONTROLS]: () => renderControls(),
+        [Mode.OPTIONS]: () => options.renderOptions(),
+        [Mode.CONTROLS]: () => options.renderControls(),
         [Mode.SELECTION]: (dt: number) => selection.tick(dt),
         [Mode.BANNER]: tickBanner,
         [Mode.BALLOON_ANIM]: (dt: number) => phaseTicks.tickBalloonAnim(dt),
@@ -372,10 +272,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
   // Lobby (delegated to runtime-lobby.ts)
   // -------------------------------------------------------------------------
-
-  // Lobby system is created after showOptions is defined (forward reference).
-  // Declared here, initialized below.
-  let lobby: LobbySystem;
 
   function isSelectionReady(): boolean {
     return rs.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION;
@@ -428,86 +324,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   // -------------------------------------------------------------------------
-  // Options screen
+  // Options / Controls / Pause (delegated to runtime-options.ts)
   // -------------------------------------------------------------------------
 
-  /** Map cursor row to real option index. */
-  function realOptionIdx(): number {
-    return visibleOptionsForCtx()[rs.optionsCursor] ?? rs.optionsCursor;
-  }
-
-  function visibleOptionsForCtx(): number[] {
-    return visibleOptions(uiCtx);
-  }
-
-  function changeOption(dir: number): void {
-    cycleOption(
-      dir,
-      realOptionIdx(),
-      rs.settings,
-      rs.optionsReturnMode,
-      rs.state ?? null,
-      config.isOnline,
-    );
-    setHapticsLevel(rs.settings.haptics);
-    dpad?.setLeftHanded(rs.settings.leftHanded);
-  }
-
-  function renderOptions(): void {
-    const { map, overlay } = createOptionsOverlay(uiCtx);
-    renderFrame(map, overlay);
-  }
-
-  function showOptions(): void {
-    showOptionsShared(uiCtx, { OPTIONS: Mode.OPTIONS });
-    dpad?.update(Phase.WALL_BUILD); // enable d-pad for options navigation
-  }
-
-  function closeOptions(): void {
-    const wasInGame = rs.optionsReturnMode !== null;
-    closeOptionsShared(uiCtx, { LOBBY: Mode.LOBBY, GAME: Mode.GAME });
-    if (wasInGame) {
-      rs.lastTime = performance.now(); // avoid huge dt on first frame back
-    } else {
-      lobby.refreshLobbySeed(); // regenerate map preview with (possibly changed) seed
-      dpad?.update(null); // back to lobby — disable d-pad
-    }
-    config.onCloseOptions?.();
-  }
-
-  // -------------------------------------------------------------------------
-  // Controls screen
-  // -------------------------------------------------------------------------
-
-  function renderControls(): void {
-    const { map, overlay } = createControlsOverlay(uiCtx);
-    renderFrame(map, overlay);
-  }
-
-  function showControls(): void {
-    showControlsShared(uiCtx, { CONTROLS: Mode.CONTROLS });
-    dpad?.update(Phase.WALL_BUILD); // enable d-pad for controls navigation
-  }
-
-  function closeControls(): void {
-    if (rs.optionsReturnMode !== null) {
-      for (const ctrl of rs.controllers) {
-        const kb = rs.settings.keyBindings[ctrl.playerId];
-        if (kb) ctrl.updateBindings(kb);
-      }
-    }
-    closeControlsShared(uiCtx, { OPTIONS: Mode.OPTIONS });
-  }
-
-  function togglePause(): boolean {
-    // Disable pause when other human players are connected
-    if (config.getRemoteHumanSlots().size > 0) return false;
-    return togglePauseShared(uiCtx, {
-      GAME: Mode.GAME,
-      SELECTION: Mode.SELECTION,
-    });
-  }
-
+  // Options system is created after uiCtx is defined (forward reference).
   // -------------------------------------------------------------------------
   // Banner
   // -------------------------------------------------------------------------
@@ -693,117 +513,24 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     renderFrame(rs.state.map, rs.overlay, updateViewport());
 
-    // Update loupe for precision placement / aiming on touch
-    if (loupeHandle) {
-      const phase = rs.state.phase;
-      const loupeVisible =
-        rs.mode === Mode.GAME &&
-        (isPlacementPhase(phase) || phase === Phase.BATTLE);
-      const human = firstHuman();
-      let wx = 0;
-      let wy = 0;
-      if (human && phase === Phase.BATTLE) {
-        const ch = human.getCrosshair();
-        wx = ch.x;
-        wy = ch.y;
-      } else if (human) {
-        const cursor =
-          phase === Phase.WALL_BUILD ? human.buildCursor : human.cannonCursor;
-        const piece =
-          phase === Phase.WALL_BUILD ? human.getCurrentPiece() : null;
-        const pivotR = piece ? piece.pivot[0] : 0;
-        const pivotC = piece ? piece.pivot[1] : 0;
-        wx = (cursor.col + pivotC + 0.5) * TILE_SIZE;
-        wy = (cursor.row + pivotR + 0.5) * TILE_SIZE;
-      }
-      loupeHandle.update(loupeVisible && human !== null, wx, wy);
-    }
-
-    const hasHuman = firstHuman() !== null;
-    const bs = TOUCH_BUTTON_STATES[rs.mode];
-    const on = (rule: TouchBtnRule) =>
-      rule === true || (rule === HUMAN && hasHuman);
-
-    // D-pad, rotate, confirm
-    dpad?.update(
-      on(bs.dpad) ? (rs.state?.phase ?? Phase.WALL_BUILD) : null,
-      !on(bs.rotate),
-    );
-    if (dpad) {
-      if (!on(bs.confirm)) {
-        dpad.setConfirmValid(false);
-      } else if (
-        rs.state &&
-        isPlacementPhase(rs.state.phase) &&
-        on(bs.placementValidity)
-      ) {
-        dpad.setConfirmValid(
-          humanPhantomValid(rs.state.phase, firstHuman()) ?? true,
-        );
-      } else {
-        dpad.setConfirmValid(true);
-      }
-    }
-
-    // Zoom, quit
-    homeZoomButton?.update(on(bs.zoom));
-    enemyZoomButton?.update(on(bs.zoom));
-    quitButton?.update(bs.quit ? rs.state.phase : null);
-    updateFloatingActions();
-  }
-
-  /** Phantom validity for the first human in the current placement phase. */
-  function humanPhantomValid(
-    phase: Phase,
-    human: PlayerController | null,
-  ): boolean | undefined {
-    if (!human) return undefined;
-    if (phase === Phase.WALL_BUILD) {
-      return rs.frame.phantoms.humanPhantoms?.[0]?.valid;
-    }
-    return rs.frame.phantoms.aiCannonPhantoms?.find(
-      (p) => p.playerId === human.playerId,
-    )?.valid;
-  }
-
-  /** Position and show/hide the floating Rotate+Confirm buttons over the canvas. */
-  function updateFloatingActions(): void {
-    if (!floatingActions) return;
-    const phase = rs.state?.phase;
-    const human = firstHuman();
-    const hasPhantom = humanPhantomValid(phase, human) !== undefined;
-    const visible =
-      rs.directTouchActive &&
-      human !== null &&
-      rs.mode === Mode.GAME &&
-      isPlacementPhase(phase) &&
-      hasPhantom;
-    if (!visible) {
-      floatingActions.update(false, 0, 0, false, false);
-      return;
-    }
-
-    // Phantom center in world-pixel (tile-pixel) coordinates
-    let wx: number;
-    let wy: number;
-    if (phase === Phase.WALL_BUILD) {
-      const cursor = human.buildCursor;
-      const piece = human.getCurrentPiece();
-      const pc = piece ? piece.pivot[1] : 0;
-      wx = (cursor.col + pc + 0.5) * TILE_SIZE;
-      wy = cursor.row * TILE_SIZE;
-    } else {
-      const cursor = human.cannonCursor;
-      wx = (cursor.col + 1) * TILE_SIZE;
-      wy = cursor.row * TILE_SIZE;
-    }
-
-    // World-pixel → screen-pixel (camera), then → CSS relative to container
-    const { sx, sy } = camera.worldToScreen(wx, wy);
-    const { x: cssX, y: cssY } = renderer.screenToContainerCSS(sx, sy);
-    const nearTop = cssY < gameContainer.clientHeight * 0.15;
-    floatingActions.update(true, cssX, cssY, nearTop, rs.settings.leftHanded);
-    floatingActions.setConfirmValid(humanPhantomValid(phase, human) ?? false);
+    // Update touch controls (loupe, d-pad, zoom, quit, floating actions)
+    updateTouchControls({
+      mode: rs.mode,
+      state: rs.state,
+      phantoms: rs.frame.phantoms,
+      directTouchActive: rs.directTouchActive,
+      leftHanded: rs.settings.leftHanded,
+      firstHuman,
+      dpad,
+      floatingActions,
+      homeZoomButton,
+      enemyZoomButton,
+      quitButton,
+      loupeHandle,
+      worldToScreen: camera.worldToScreen,
+      screenToContainerCSS: renderer.screenToContainerCSS,
+      containerHeight: gameContainer.clientHeight,
+    });
   }
 
   function rematch() {
@@ -1038,12 +765,25 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     isOnline: !!config.isOnline,
   };
 
-  // Initialize lobby system (needs uiCtx and showOptions defined above)
+  // Initialize options system first (lobby depends on showOptions)
+  options = createOptionsSystem({
+    rs,
+    uiCtx,
+    renderFrame,
+    updateDpad: (phase) => dpad?.update(phase),
+    setDpadLeftHanded: (left) => dpad?.setLeftHanded(left),
+    refreshLobbySeed: () => lobby.refreshLobbySeed(),
+    isOnline: !!config.isOnline,
+    getRemoteHumanSlots: config.getRemoteHumanSlots,
+    onCloseOptions: config.onCloseOptions,
+  });
+
+  // Initialize lobby system (needs options.showOptions)
   lobby = createLobbySystem({
     rs,
     uiCtx,
     renderFrame,
-    showOptions,
+    showOptions: options.showOptions,
     isOnline: !!config.isOnline,
     onTickLobbyExpired: config.onTickLobbyExpired,
     onLobbySlotJoined: config.onLobbySlotJoined,
@@ -1086,21 +826,21 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         }
       },
       gameOverClick,
-      showOptions,
-      closeOptions,
-      showControls,
-      closeControls,
+      showOptions: options.showOptions,
+      closeOptions: options.closeOptions,
+      showControls: options.showControls,
+      closeControls: options.closeControls,
       getOptionsCursor: () => rs.optionsCursor,
       setOptionsCursor: (c) => {
         rs.optionsCursor = c;
       },
-      getOptionsCount: () => visibleOptionsForCtx().length,
-      getRealOptionIdx: realOptionIdx,
+      getOptionsCount: () => visibleOptions(uiCtx).length,
+      getRealOptionIdx: options.realOptionIdx,
       getOptionsReturnMode: () => rs.optionsReturnMode,
       setOptionsReturnMode: (m) => {
         rs.optionsReturnMode = m as Mode | null;
       },
-      changeOption,
+      changeOption: options.changeOption,
       getControlsState: () => rs.controlsState,
       getLifeLostDialog: () => rs.lifeLostDialog,
       lifeLostDialogClick: lifeLost.click,
@@ -1124,7 +864,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       highlightTowerForPlayer: selection.highlight,
       confirmSelectionForPlayer: selection.confirm,
       isSelectionReady,
-      togglePause,
+      togglePause: options.togglePause,
       getQuitPending: () => rs.quitPending,
       setQuitPending: (v) => {
         rs.quitPending = v;
@@ -1178,13 +918,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           options: {
             isActive: () => rs.mode === Mode.OPTIONS,
             navigate: (dir) => {
-              const count = visibleOptionsForCtx().length;
+              const count = visibleOptions(uiCtx).length;
               rs.optionsCursor = (rs.optionsCursor + dir + count) % count;
             },
-            changeValue: (dir) => changeOption(dir),
+            changeValue: (dir) => options.changeOption(dir),
             confirm: () => {
-              if (realOptionIdx() === 5) showControls();
-              else closeOptions();
+              if (options.realOptionIdx() === 5) options.showControls();
+              else options.closeOptions();
             },
           },
           lifeLost: {
@@ -1320,15 +1060,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     lobbyKeyJoin: lobby.lobbyKeyJoin,
     lobbyClick: lobby.lobbyClick,
 
-    changeOption,
-    renderOptions,
-    showOptions,
-    closeOptions,
+    changeOption: options.changeOption,
+    renderOptions: options.renderOptions,
+    showOptions: options.showOptions,
+    closeOptions: options.closeOptions,
 
-    renderControls,
-    showControls,
-    closeControls,
-    togglePause,
+    renderControls: options.renderControls,
+    showControls: options.showControls,
+    closeControls: options.closeControls,
+    togglePause: options.togglePause,
 
     showBanner,
     tickBanner,
