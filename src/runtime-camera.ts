@@ -27,7 +27,13 @@ import {
 import type { Viewport } from "./render-types.ts";
 import type { CameraSystem } from "./runtime-types.ts";
 import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
-import { type FrameContext, type GameState, Mode, Phase } from "./types.ts";
+import {
+  type FrameContext,
+  type GameState,
+  isReselectPhase,
+  Mode,
+  Phase,
+} from "./types.ts";
 
 interface CameraDeps {
   getState: () => GameState | undefined;
@@ -336,7 +342,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     ) {
       selectionZoomApplied = true;
       if (mobileAuto) {
-        autoZoom(state.phase);
+        // During reselection the human may not be participating, so skip
+        // the zone auto-zoom — setSelectionViewport handles it per-tower.
+        if (!isReselectPhase(state.phase)) {
+          autoZoom(state.phase);
+        }
         if (pendingSelectionVp) {
           castleBuildVp = boundsToViewport(
             pendingSelectionVp.row,
@@ -356,7 +366,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       ctx.mode !== Mode.BALLOON_ANIM &&
       ctx.mode !== Mode.CASTLE_BUILD;
     if (state.phase !== lastAutoZoomPhase && notTransition) {
-      if (
+      // Reselect: don't auto-zoom to own zone — the human may not be
+      // reselecting.  Selection-viewport calls handle it if they are.
+      if (state.phase === Phase.CASTLE_RESELECT) {
+        selectionZoomApplied = false;
+      } else if (
         mobileAuto &&
         !(ctx.mode === Mode.SELECTION && lastAutoZoomPhase === null)
       ) {
