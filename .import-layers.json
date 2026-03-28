@@ -139,6 +139,7 @@
       "src/runtime-state.ts",
       "src/runtime-camera.ts",
       "src/runtime-life-lost.ts",
+      "src/runtime-lobby.ts",
       "src/runtime-phase-ticks.ts",
       "src/runtime-selection.ts",
       "src/runtime-host-phase-ticks.ts",

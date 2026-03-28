@@ -22,30 +22,19 @@ import {
   closeControls as closeControlsShared,
   closeOptions as closeOptionsShared,
   createControlsOverlay,
-  createLobbyOverlay,
   createOptionsOverlay,
-  lobbyKeyJoin as lobbyKeyJoinShared,
-  lobbySkipStep,
   showControls as showControlsShared,
   showOptions as showOptionsShared,
-  tickLobby as tickLobbyShared,
   togglePause as togglePauseShared,
   visibleOptions,
 } from "./game-ui-screens.ts";
-import { computeGameSeed, cycleOption } from "./game-ui-settings.ts";
+import { cycleOption } from "./game-ui-settings.ts";
 import {
   CANNON_HP_OPTIONS,
   DIFFICULTY_PARAMS,
   ROUNDS_OPTIONS,
 } from "./game-ui-types.ts";
-import {
-  CANVAS_H,
-  CANVAS_W,
-  GRID_COLS,
-  GRID_ROWS,
-  SCALE,
-  TILE_SIZE,
-} from "./grid.ts";
+import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import {
   type RegisterOnlineInputDeps,
   registerOnlineInputHandlers,
@@ -61,7 +50,6 @@ import {
   createQuitButton,
 } from "./input-touch-ui.ts";
 import { LifeLostChoice } from "./life-lost.ts";
-import { generateMap } from "./map-generation.ts";
 import {
   createBannerState,
   showBannerTransition,
@@ -76,14 +64,11 @@ import {
   PLAYER_NAMES,
 } from "./player-config.ts";
 import {
-  computeLobbyLayout,
   createBannerUi,
   createOnlineOverlay,
   createRenderSummaryMessage,
   createStatusBar,
   gameOverButtonHitTest,
-  type LobbyHit,
-  lobbyClickHitTest,
 } from "./render-composition.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import { MAX_UINT32 } from "./rng.ts";
@@ -93,6 +78,7 @@ import {
   createLifeLostSystem,
   type LifeLostSystem,
 } from "./runtime-life-lost.ts";
+import { createLobbySystem, type LobbySystem } from "./runtime-lobby.ts";
 import {
   createPhaseTicksSystem,
   type PhaseTicksSystem,
@@ -354,7 +340,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       },
       render,
       ticks: {
-        [Mode.LOBBY]: tickLobby,
+        [Mode.LOBBY]: (dt: number) => lobby.tickLobby(dt),
         [Mode.OPTIONS]: () => renderOptions(),
         [Mode.CONTROLS]: () => renderControls(),
         [Mode.SELECTION]: (dt: number) => selection.tick(dt),
@@ -384,69 +370,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   // -------------------------------------------------------------------------
-  // Lobby
+  // Lobby (delegated to runtime-lobby.ts)
   // -------------------------------------------------------------------------
 
-  function refreshLobbySeed(): void {
-    rs.lobby.seed = computeGameSeed(rs.settings);
-    rs.lobby.map = generateMap(rs.lobby.seed);
-  }
-
-  function renderLobby(): void {
-    if (!rs.lobby.map) refreshLobbySeed();
-    const { map, overlay } = createLobbyOverlay(uiCtx);
-    renderFrame(map, overlay);
-  }
-
-  function tickLobby(dt: number): void {
-    rs.lobby.timerAccum = (rs.lobby.timerAccum ?? 0) + dt;
-    renderLobby();
-    tickLobbyShared(uiCtx, () => {
-      config.onTickLobbyExpired();
-    });
-  }
-
-  function onLobbyJoin(pid: number): void {
-    config.onLobbySlotJoined(pid);
-    renderLobby();
-    // On touch devices in local mode, start immediately after joining
-    if (IS_TOUCH_DEVICE && !config.isOnline) {
-      rs.lobby.active = false;
-      config.onTickLobbyExpired();
-    }
-  }
-
-  function lobbyKeyJoin(key: string): boolean {
-    return lobbyKeyJoinShared(uiCtx, key, onLobbyJoin);
-  }
-
-  function lobbyClick(canvasX: number, canvasY: number): boolean {
-    if (!rs.lobby.active) return false;
-    const hit: LobbyHit | null = lobbyClickHitTest({
-      canvasX,
-      canvasY,
-      canvasW: CANVAS_W,
-      canvasH: CANVAS_H,
-      tileSize: TILE_SIZE,
-      slotCount: MAX_PLAYERS,
-      computeLayout: computeLobbyLayout,
-    });
-    if (!hit) return false;
-    if (hit.type === "gear") {
-      showOptions();
-      return true;
-    }
-    // Mouse/trackpad can only join one slot (keyboard can join additional slots)
-    if (rs.mouseJoinedSlot >= 0) {
-      lobbySkipStep(uiCtx);
-      return true;
-    }
-    if (!rs.lobby.joined[hit.slotId]) {
-      rs.mouseJoinedSlot = hit.slotId;
-      onLobbyJoin(hit.slotId);
-    }
-    return true;
-  }
+  // Lobby system is created after showOptions is defined (forward reference).
+  // Declared here, initialized below.
+  let lobby: LobbySystem;
 
   function isSelectionReady(): boolean {
     return rs.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION;
@@ -540,7 +469,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     if (wasInGame) {
       rs.lastTime = performance.now(); // avoid huge dt on first frame back
     } else {
-      refreshLobbySeed(); // regenerate map preview with (possibly changed) seed
+      lobby.refreshLobbySeed(); // regenerate map preview with (possibly changed) seed
       dpad?.update(null); // back to lobby — disable d-pad
     }
     config.onCloseOptions?.();
@@ -1109,6 +1038,17 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     isOnline: !!config.isOnline,
   };
 
+  // Initialize lobby system (needs uiCtx and showOptions defined above)
+  lobby = createLobbySystem({
+    rs,
+    uiCtx,
+    renderFrame,
+    showOptions,
+    isOnline: !!config.isOnline,
+    onTickLobbyExpired: config.onTickLobbyExpired,
+    onLobbySlotJoined: config.onLobbySlotJoined,
+  });
+
   // -------------------------------------------------------------------------
   // Input handlers registration
   // -------------------------------------------------------------------------
@@ -1134,8 +1074,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         STOPPED: Mode.STOPPED,
       },
       isLobbyActive: () => rs.lobby.active,
-      lobbyKeyJoin,
-      lobbyClick,
+      lobbyKeyJoin: (key: string) => lobby.lobbyKeyJoin(key),
+      lobbyClick: (x: number, y: number) => lobby.lobbyClick(x, y),
       showLobby: returnToLobby,
       rematch,
       getGameOverFocused: () => rs.frame.gameOver?.focused ?? FOCUS_REMATCH,
@@ -1228,7 +1168,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           highlightTowerForPlayer: selection.highlight,
           confirmSelectionForPlayer: selection.confirm,
           isHost: config.getIsHost,
-          lobbyAction: () => lobbyKeyJoin(rs.settings.keyBindings[0]!.confirm),
+          lobbyAction: () =>
+            lobby.lobbyKeyJoin(rs.settings.keyBindings[0]!.confirm),
           getLeftHanded: () => rs.settings.leftHanded,
           clearDirectTouch: () => {
             rs.directTouchActive = false;
@@ -1374,10 +1315,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     resetFrame,
     clampedFrameDt,
 
-    renderLobby,
-    tickLobby,
-    lobbyKeyJoin,
-    lobbyClick,
+    renderLobby: lobby.renderLobby,
+    tickLobby: lobby.tickLobby,
+    lobbyKeyJoin: lobby.lobbyKeyJoin,
+    lobbyClick: lobby.lobbyClick,
 
     changeOption,
     renderOptions,
