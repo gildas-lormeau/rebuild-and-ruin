@@ -474,14 +474,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs,
     send: config.send,
     log: config.log,
-    onSelectionStart: sound.drumsStart,
-    onCastleBuildDone: (pids) => {
-      for (const pid of pids) sound.chargeFanfare(pid);
-    },
-    lightUnzoom: () => camera.lightUnzoom(),
-    clearCastleBuildViewport: () => camera.clearCastleBuildViewport(),
-    setCastleBuildViewport: (plans) => camera.setCastleBuildViewport(plans),
-    setSelectionViewport: (row, col) => camera.setSelectionViewport(row, col),
+    camera,
+    sound,
     render: () => render(),
     firstHuman,
     startCannonPhase: () => phaseTicks.startCannonPhase(),
@@ -653,8 +647,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render: () => render(),
     firstHuman,
     endGame,
-    startReselection: () => selection.startReselection(),
-    advanceToCannonPhase: () => selection.advanceToCannonPhase(),
+    startReselection: selection.startReselection,
+    advanceToCannonPhase: selection.advanceToCannonPhase,
   });
 
   // -------------------------------------------------------------------------
@@ -763,7 +757,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           rs.settings.difficulty,
         );
       },
-      enterSelection: () => selection.enter(),
+      enterSelection: selection.enter,
     });
   }
 
@@ -798,7 +792,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     },
     lobby: rs.lobby,
     getFrame: () => rs.frame,
-    getLobbyRemaining: () => config.getLobbyRemaining(),
+    getLobbyRemaining: config.getLobbyRemaining,
     isOnline: !!config.isOnline,
   };
 
@@ -810,8 +804,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     updateDpad: (phase) => dpad?.update(phase),
     setDpadLeftHanded: (left) => dpad?.setLeftHanded(left),
     refreshLobbySeed: () => lobby.refreshLobbySeed(),
-    setSoundLevel: sound.setLevel,
-    setHapticsLevel: haptics.setLevel,
+    sound,
+    haptics,
     isOnline: !!config.isOnline,
     getRemoteHumanSlots: config.getRemoteHumanSlots,
     onCloseOptions: config.onCloseOptions,

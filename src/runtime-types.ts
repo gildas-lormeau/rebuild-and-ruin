@@ -16,6 +16,7 @@ import type {
   PlayerController,
 } from "./controller-interfaces.ts";
 import type { UIContext } from "./game-ui-screens.ts";
+import type { WorldPos } from "./geometry-types.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
 import type {
@@ -23,7 +24,7 @@ import type {
   PiecePhantom,
   WatcherTimingState,
 } from "./online-types.ts";
-import type { RendererInterface } from "./render-types.ts";
+import type { RendererInterface, Viewport } from "./render-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import type { BalloonFlight, GameState, SelectionState } from "./types.ts";
@@ -106,6 +107,55 @@ export interface RuntimeConfig {
   roomCode?: string;
   /** Optional hook called when a game ends (before frame payload is set). */
   onEndGame?: (winner: { id: number } | null, state: GameState) => void;
+}
+
+export interface CameraSystem {
+  // Per-frame lifecycle
+  tickCamera: () => void;
+  updateViewport: () => Viewport | null;
+
+  // Coordinate conversion
+  getViewport: () => Viewport | null;
+  screenToWorld: (x: number, y: number) => WorldPos;
+  worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
+  pixelToTile: (x: number, y: number) => { row: number; col: number };
+
+  // Pinch gesture handlers
+  onPinchStart: (midX: number, midY: number) => void;
+  onPinchUpdate: (midX: number, midY: number, scale: number) => void;
+  onPinchEnd: () => void;
+
+  // Zone queries
+  myPlayerId: () => number;
+  getMyZone: () => number | null;
+  getBestEnemyZone: () => number | null;
+  getEnemyZones: () => number[];
+
+  // Zone bounds (used by advanceToCannonPhase for score delta positions)
+  computeZoneBounds: (zoneId: number) => Viewport;
+
+  // Zoom state
+  getCameraZone: () => number | null;
+  setCameraZone: (zone: number | null) => void;
+
+  // Lifecycle commands
+  /** Light unzoom: clear cameraZone + pinchVp only (preserves per-phase memory for autoZoom restore). */
+  lightUnzoom: () => void;
+  /** Full unzoom: clear all zoom state for returnToLobby/endGame. */
+  unzoom: () => void;
+  /** Full reset for rematch. */
+  resetCamera: () => void;
+
+  // Castle build viewport
+  setSelectionViewport: (towerRow: number, towerCol: number) => void;
+  setCastleBuildViewport: (
+    wallPlans: readonly { playerId: number; tiles: number[] }[],
+  ) => void;
+  clearCastleBuildViewport: () => void;
+
+  // Mobile zoom
+  enableMobileZoom: () => void;
+  isMobileAutoZoom: () => boolean;
 }
 
 export interface RuntimeSelection {

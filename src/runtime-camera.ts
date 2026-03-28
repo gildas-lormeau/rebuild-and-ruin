@@ -16,6 +16,7 @@ import {
   TILE_SIZE,
 } from "./grid.ts";
 import type { Viewport } from "./render-types.ts";
+import type { CameraSystem } from "./runtime-types.ts";
 import { pxToTile, unpackTile } from "./spatial.ts";
 import {
   type GameState,
@@ -37,55 +38,6 @@ interface CameraDeps {
   getFrameDt: () => number;
   setFrameAnnouncement: (text: string) => void;
   getFirstHumanCrosshair?: () => { x: number; y: number } | null;
-}
-
-interface CameraSystem {
-  // Per-frame lifecycle
-  tickCamera: () => void;
-  updateViewport: () => Viewport | null;
-
-  // Coordinate conversion
-  getViewport: () => Viewport | null;
-  screenToWorld: (x: number, y: number) => WorldPos;
-  worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
-  pixelToTile: (x: number, y: number) => { row: number; col: number };
-
-  // Pinch gesture handlers
-  onPinchStart: (midX: number, midY: number) => void;
-  onPinchUpdate: (midX: number, midY: number, scale: number) => void;
-  onPinchEnd: () => void;
-
-  // Zone queries
-  myPlayerId: () => number;
-  getMyZone: () => number | null;
-  getBestEnemyZone: () => number | null;
-  getEnemyZones: () => number[];
-
-  // Zone bounds (used by advanceToCannonPhase for score delta positions)
-  computeZoneBounds: (zoneId: number) => Viewport;
-
-  // Zoom state
-  getCameraZone: () => number | null;
-  setCameraZone: (zone: number | null) => void;
-
-  // Lifecycle commands
-  /** Light unzoom: clear cameraZone + pinchVp only (preserves per-phase memory for autoZoom restore). */
-  lightUnzoom: () => void;
-  /** Full unzoom: clear all zoom state for returnToLobby/endGame. */
-  unzoom: () => void;
-  /** Full reset for rematch. */
-  resetCamera: () => void;
-
-  // Castle build viewport
-  setSelectionViewport: (towerRow: number, towerCol: number) => void;
-  setCastleBuildViewport: (
-    wallPlans: readonly { playerId: number; tiles: number[] }[],
-  ) => void;
-  clearCastleBuildViewport: () => void;
-
-  // Mobile zoom
-  enableMobileZoom: () => void;
-  isMobileAutoZoom: () => boolean;
 }
 
 export function createCameraSystem(deps: CameraDeps): CameraSystem {

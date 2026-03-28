@@ -17,8 +17,10 @@ import {
   visibleOptions,
 } from "./game-ui-screens.ts";
 import { cycleOption } from "./game-ui-settings.ts";
+import type { HapticsSystem } from "./haptics-system.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
+import type { SoundSystem } from "./sound-system.ts";
 import { Mode, Phase } from "./types.ts";
 
 interface OptionsSystemDeps {
@@ -32,8 +34,8 @@ interface OptionsSystemDeps {
   updateDpad: (phase: Phase | null) => void;
   setDpadLeftHanded: (left: boolean) => void;
   refreshLobbySeed: () => void;
-  setSoundLevel: (l: number) => void;
-  setHapticsLevel: (l: number) => void;
+  sound: Pick<SoundSystem, "setLevel">;
+  haptics: Pick<HapticsSystem, "setLevel">;
   isOnline: boolean;
   getRemoteHumanSlots: () => ReadonlySet<number>;
   onCloseOptions?: () => void;
@@ -72,8 +74,8 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
       rs.state ?? null,
       deps.isOnline,
     );
-    deps.setHapticsLevel(rs.settings.haptics);
-    deps.setSoundLevel(rs.settings.sound);
+    deps.haptics.setLevel(rs.settings.haptics);
+    deps.sound.setLevel(rs.settings.sound);
     deps.setDpadLeftHanded(rs.settings.leftHanded);
   }
 

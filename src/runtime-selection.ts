@@ -37,7 +37,7 @@ import {
 import { syncSelectionOverlay as syncSelectionOverlayImpl } from "./render-composition.ts";
 import { initTowerSelection } from "./runtime-bootstrap.ts";
 import type { RuntimeState } from "./runtime-state.ts";
-import type { RuntimeSelection } from "./runtime-types.ts";
+import type { CameraSystem, RuntimeSelection } from "./runtime-types.ts";
 import {
   allSelectionsConfirmed as allSelectionsConfirmedImpl,
   confirmTowerSelection,
@@ -46,6 +46,7 @@ import {
   initTowerSelection as initTowerSelectionImpl,
   tickSelectionPhase,
 } from "./selection.ts";
+import type { SoundSystem } from "./sound-system.ts";
 import { towerCenterPx } from "./spatial.ts";
 import {
   Mode,
@@ -62,17 +63,14 @@ interface SelectionSystemDeps {
   send: (msg: GameMessage) => void;
   log: (msg: string) => void;
 
-  // Camera
-  lightUnzoom: () => void;
-  clearCastleBuildViewport: () => void;
-  setCastleBuildViewport: (
-    plans: readonly { playerId: number; tiles: number[] }[],
-  ) => void;
-  setSelectionViewport: (towerRow: number, towerCol: number) => void;
-
-  // Sound callbacks
-  onSelectionStart: () => void;
-  onCastleBuildDone: (playerIds: readonly number[]) => void;
+  camera: Pick<
+    CameraSystem,
+    | "lightUnzoom"
+    | "clearCastleBuildViewport"
+    | "setCastleBuildViewport"
+    | "setSelectionViewport"
+  >;
+  sound: Pick<SoundSystem, "drumsStart" | "chargeFanfare">;
 
   // Sibling systems / parent callbacks
   render: () => void;
@@ -112,7 +110,10 @@ export function createSelectionSystem(
     if (isHuman(rs.controllers[pid]!)) {
       const player = rs.state.players[pid];
       if (player?.homeTower)
-        deps.setSelectionViewport(player.homeTower.row, player.homeTower.col);
+        deps.camera.setSelectionViewport(
+          player.homeTower.row,
+          player.homeTower.col,
+        );
     }
   }
 
@@ -135,7 +136,7 @@ export function createSelectionSystem(
       now: () => performance.now(),
       setModeSelection: () => {
         rs.mode = Mode.SELECTION;
-        deps.onSelectionStart();
+        deps.sound.drumsStart();
       },
       setLastTime: (t) => {
         rs.lastTime = t;
@@ -175,7 +176,7 @@ export function createSelectionSystem(
     if (human && pid === human.playerId) {
       const tower = rs.state.map.towers[idx];
       if (tower && tower.zone === zone)
-        deps.setSelectionViewport(tower.row, tower.col);
+        deps.camera.setSelectionViewport(tower.row, tower.col);
     }
   }
 
@@ -261,7 +262,7 @@ export function createSelectionSystem(
     rs.banner.oldBonusSquares = rs.state.bonusSquares.map((b) => ({ ...b }));
     finalizeCastleConstruction(rs.state);
     enterCannonPlacePhase(rs.state);
-    deps.clearCastleBuildViewport();
+    deps.camera.clearCastleBuildViewport();
     advanceToCannonPhase();
   }
 
@@ -283,7 +284,7 @@ export function createSelectionSystem(
     rs.castleBuilds.push(createCastleBuildState([plan], () => {}));
     // Only zoom to the human player's castle build
     if (human && playerId === human.playerId) {
-      deps.setCastleBuildViewport([plan]);
+      deps.camera.setCastleBuildViewport([plan]);
     }
   }
 
@@ -304,7 +305,7 @@ export function createSelectionSystem(
         },
       });
       if (!result.next) {
-        deps.onCastleBuildDone(build.wallPlans.map((p) => p.playerId));
+        for (const p of build.wallPlans) deps.sound.chargeFanfare(p.playerId);
         if (build.wallPlans.some((p) => p.playerId === humanPid))
           humanBuildDone = true;
         rs.castleBuilds.splice(i, 1);
@@ -315,8 +316,8 @@ export function createSelectionSystem(
     if (anyPlaced) claimTerritory(rs.state);
     // Unzoom once human player's castle build animation finishes
     if (humanBuildDone) {
-      deps.clearCastleBuildViewport();
-      deps.lightUnzoom();
+      deps.camera.clearCastleBuildViewport();
+      deps.camera.lightUnzoom();
     }
   }
 
@@ -337,7 +338,7 @@ export function createSelectionSystem(
       .filter((d) => d.delta > 0 && !rs.state.players[d.playerId]!.eliminated);
 
     if (rs.scoreDeltas.length > 0) {
-      deps.lightUnzoom();
+      deps.camera.lightUnzoom();
       rs.scoreDeltaTimer = SCORE_DELTA_DISPLAY_TIME;
       rs.scoreDeltaOnDone = onDone;
     } else {
@@ -406,7 +407,7 @@ export function createSelectionSystem(
       rs.accum.select = 0;
       rs.state.timer = SELECT_TIMER;
       rs.mode = Mode.SELECTION;
-      deps.onSelectionStart();
+      deps.sound.drumsStart();
       if (rs.ctx.isHost) {
         deps.send({ type: MSG.SELECT_START, timer: SELECT_TIMER });
       }
@@ -444,7 +445,7 @@ export function createSelectionSystem(
     tickCastleBuild,
     setCastleBuildViewport: (
       plans: readonly { playerId: number; tiles: number[] }[],
-    ) => deps.setCastleBuildViewport(plans),
+    ) => deps.camera.setCastleBuildViewport(plans),
     startReselection,
     finishReselection,
     showBuildScoreDeltas,
