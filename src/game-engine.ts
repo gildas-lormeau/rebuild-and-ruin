@@ -63,8 +63,14 @@ import {
 import { generateMap, topZonesBySize } from "./map-generation.ts";
 import { Rng } from "./rng.ts";
 import { DIRS_4, isBalloonCannon, packTile, unpackTile } from "./spatial.ts";
-import type { GameState, Player } from "./types.ts";
-import { assertNever, CannonMode, isPlayerActive, Phase } from "./types.ts";
+import {
+  assertNever,
+  CannonMode,
+  type GameState,
+  isPlayerActive,
+  Phase,
+  type Player,
+} from "./types.ts";
 
 /** Grunts spawned per player on first battle when nobody fires. */
 const IDLE_FIRST_BATTLE_GRUNTS = 2;

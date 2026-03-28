@@ -27,8 +27,7 @@ import {
 import type { Viewport } from "./render-types.ts";
 import type { CameraSystem } from "./runtime-types.ts";
 import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
-import type { FrameContext } from "./types.ts";
-import { type GameState, Mode, Phase } from "./types.ts";
+import { type FrameContext, type GameState, Mode, Phase } from "./types.ts";
 
 interface CameraDeps {
   getState: () => GameState | undefined;

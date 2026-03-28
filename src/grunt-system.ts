@@ -32,8 +32,12 @@ import {
   packTile,
   unpackTile,
 } from "./spatial.ts";
-import type { GameState, Grunt, Player } from "./types.ts";
-import { isPlayerActive } from "./types.ts";
+import {
+  type GameState,
+  type Grunt,
+  isPlayerActive,
+  type Player,
+} from "./types.ts";
 
 /**
  * Grunts adjacent to an alive tower start a 3-second attack timer.
