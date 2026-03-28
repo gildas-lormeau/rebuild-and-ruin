@@ -26,6 +26,16 @@ import {
 } from "./spatial.ts";
 import { type GameState, HOUSE_MIN_DISTANCE, isPlayerActive } from "./types.ts";
 
+type CastleSide = (typeof Side)[keyof typeof Side];
+
+/** Gap sizes per side: [L, R, T, B]. */
+type Gaps = [number, number, number, number];
+
+type GapsValidator = (g: Gaps) => boolean;
+
+/** Castle gap directions: indices into a Gaps tuple. */
+const Side = { L: 0, R: 1, T: 2, B: 3 } as const;
+const ALL_SIDES: readonly CastleSide[] = [Side.L, Side.R, Side.T, Side.B];
 const HOUSE_SPAWN_MARGIN = 2;
 /** Max houses when refilling a zone mid-game (lower than initial to leave room). */
 const REFILL_HOUSES_PER_ZONE = 8;
@@ -70,16 +80,11 @@ export function createCastle(
   // Check if a proposed wall ring is fully valid (all wall tiles on grass & on-map).
   // Interior is defined by gaps: cols [tc-gL .. tc+1+gR], rows [tr-gT .. tr+1+gB].
   // Wall ring is 1 tile outside that.
-  function isWallRingValid(
-    gL: number,
-    gR: number,
-    gT: number,
-    gB: number,
-  ): boolean {
-    const intLeft = tc - gL;
-    const intRight = tc + 1 + gR;
-    const intTop = tr - gT;
-    const intBottom = tr + 1 + gB;
+  function isWallRingValid(g: Gaps): boolean {
+    const intLeft = tc - g[Side.L];
+    const intRight = tc + 1 + g[Side.R];
+    const intTop = tr - g[Side.T];
+    const intBottom = tr + 1 + g[Side.B];
     const wL = intLeft - 1;
     const wR = intRight + 1;
     const wT = intTop - 1;
@@ -109,27 +114,27 @@ export function createCastle(
 
   // Find the maximum gap in a direction before the wall ring would hit water/edge.
   // Tests incrementally: gap=0,1,2,... checking if a wall at that distance is valid.
-  function maxGap(side: "L" | "R" | "T" | "B"): number {
+  function maxGap(side: CastleSide): number {
     const MAX_CASTLE_GAP = 15;
+    const isHorizontal = side === Side.L || side === Side.R;
     for (let g = 0; g <= MAX_CASTLE_GAP; g++) {
       // Check the wall column/row at distance g+1 from the tower edge
       const wallPos =
-        side === "L"
+        side === Side.L
           ? tc - g - 1
-          : side === "R"
+          : side === Side.R
             ? tc + 2 + g
-            : side === "T"
+            : side === Side.T
               ? tr - g - 1
               : tr + 2 + g;
 
-      if (side === "L" || side === "R") {
+      if (isHorizontal) {
         if (wallPos < 0 || wallPos >= GRID_COLS) return g;
         if (
           tiles[tr]![wallPos] === TILE_WATER ||
           tiles[tr + 1]![wallPos] === TILE_WATER
         )
           return g;
-        // Check for other towers
         if (
           otherTowerTiles.has(packTile(tr, wallPos)) ||
           otherTowerTiles.has(packTile(tr + 1, wallPos))
@@ -153,48 +158,29 @@ export function createCastle(
   }
 
   // Phase 1: Find maximum possible gap in each direction (quick check along tower rows/cols)
-  const quickMax = {
-    L: maxGap("L"),
-    R: maxGap("R"),
-    T: maxGap("T"),
-    B: maxGap("B"),
-  };
+  const quickMax: Gaps = [
+    maxGap(Side.L),
+    maxGap(Side.R),
+    maxGap(Side.T),
+    maxGap(Side.B),
+  ];
 
   // Phase 2: Start with ideal gaps, shrink where wall ring is invalid
-  const initialL = Math.min(IDEAL_GAP, quickMax.L);
-  const initialR = Math.min(IDEAL_GAP, quickMax.R);
-  const initialT = Math.min(IDEAL_GAP, quickMax.T);
-  const initialB = Math.min(IDEAL_GAP, quickMax.B);
+  const initial: Gaps = ALL_SIDES.map((s) =>
+    Math.min(IDEAL_GAP, quickMax[s]),
+  ) as unknown as Gaps;
 
-  const shrunk = shrinkGapsUntilValid(
-    isWallRingValid,
-    initialL,
-    initialR,
-    initialT,
-    initialB,
-  );
-  let { gL, gR, gT, gB } = shrunk;
+  const gaps = shrinkGapsUntilValid(isWallRingValid, initial);
 
   // Phase 3: Compensate — extend opposite sides to reach GAP_BUDGET
-  const extended = extendGapsToTarget(
-    isWallRingValid,
-    GAP_BUDGET,
-    gL,
-    gR,
-    gT,
-    gB,
-  );
-  gL = extended.gL;
-  gR = extended.gR;
-  gT = extended.gT;
-  gB = extended.gB;
+  extendGapsToTarget(isWallRingValid, GAP_BUDGET, gaps);
 
   // Interior bounds (inclusive)
   return {
-    left: tc - gL,
-    right: tc + 1 + gR,
-    top: tr - gT,
-    bottom: tr + 1 + gB,
+    left: tc - gaps[Side.L],
+    right: tc + 1 + gaps[Side.R],
+    top: tr - gaps[Side.T],
+    bottom: tr + 1 + gaps[Side.B],
     tower,
   };
 }
@@ -445,105 +431,61 @@ function isHouseTooClose(
 /**
  * Shrink gaps until the wall ring is valid (full ring check including corners).
  * Tries to identify the specific side causing invalidity; falls back to shrinking
- * the largest gap.
+ * the largest gap. Mutates `gaps` in place.
  */
-function shrinkGapsUntilValid(
-  isValid: (gL: number, gR: number, gT: number, gB: number) => boolean,
-  gL: number,
-  gR: number,
-  gT: number,
-  gB: number,
-): { gL: number; gR: number; gT: number; gB: number } {
+function shrinkGapsUntilValid(isValid: GapsValidator, gaps: Gaps): Gaps {
   let maxIter = CASTLE_SHRINK_MAX_ITER;
-  while (!isValid(gL, gR, gT, gB) && maxIter-- > 0) {
-    // Find which side's wall has water and shrink it
+  while (!isValid(gaps) && maxIter-- > 0) {
     let shrunk = false;
-    for (const side of ["L", "R", "T", "B"] as const) {
-      const g = side === "L" ? gL : side === "R" ? gR : side === "T" ? gT : gB;
-      if (g > 0) {
-        const tryL = side === "L" ? g - 1 : gL;
-        const tryR = side === "R" ? g - 1 : gR;
-        const tryT = side === "T" ? g - 1 : gT;
-        const tryB = side === "B" ? g - 1 : gB;
-        // Check if this side's wall column/row has issues
-        if (!isValid(gL, gR, gT, gB) && isValid(tryL, tryR, tryT, tryB)) {
-          gL = tryL;
-          gR = tryR;
-          gT = tryT;
-          gB = tryB;
-          shrunk = true;
-          break;
-        }
+    for (const side of ALL_SIDES) {
+      if (gaps[side] <= 0) continue;
+      const trial: Gaps = [...gaps];
+      trial[side]--;
+      if (isValid(trial)) {
+        gaps[side] = trial[side];
+        shrunk = true;
+        break;
       }
     }
     if (!shrunk) {
       // Shrink the side with the largest gap
-      const gaps = [
-        { side: "B" as const, val: gB },
-        { side: "R" as const, val: gR },
-        { side: "T" as const, val: gT },
-        { side: "L" as const, val: gL },
-      ].sort((a, b) => b.val - a.val);
-      for (const { side } of gaps) {
-        const g =
-          side === "L" ? gL : side === "R" ? gR : side === "T" ? gT : gB;
-        if (g > 0) {
-          if (side === "L") gL--;
-          else if (side === "R") gR--;
-          else if (side === "T") gT--;
-          else gB--;
+      const sorted = [...ALL_SIDES].sort((a, b) => gaps[b] - gaps[a]);
+      for (const side of sorted) {
+        if (gaps[side] > 0) {
+          gaps[side]--;
           break;
         }
       }
     }
   }
-  return { gL, gR, gT, gB };
+  return gaps;
 }
 
 /**
  * Extend gaps to reach the target budget, preferring the shorter axis first.
- * Each extension is validated against the wall ring check.
+ * Each extension is validated against the wall ring check. Mutates `gaps` in place.
  */
 function extendGapsToTarget(
-  isValid: (gL: number, gR: number, gT: number, gB: number) => boolean,
+  isValid: GapsValidator,
   budget: number,
-  gL: number,
-  gR: number,
-  gT: number,
-  gB: number,
-): { gL: number; gR: number; gT: number; gB: number } {
-  while (gL + gR + gT + gB < budget) {
-    // Try extending in priority order: opposite of constrained sides, then any direction
-    const deficit = budget - (gL + gR + gT + gB);
-    if (deficit <= 0) break;
-
+  gaps: Gaps,
+): Gaps {
+  while (gaps[Side.L] + gaps[Side.R] + gaps[Side.T] + gaps[Side.B] < budget) {
     let extended = false;
 
-    // If horizontal axis is short (gL+gR < 4), try extending horizontally
-    // If vertical axis is short (gT+gB < 4), try extending vertically
-    const hTotal = gL + gR;
-    const vTotal = gT + gB;
-
-    // Try each direction, preferring the axis that's shorter
-    const directions: ("L" | "R" | "T" | "B")[] =
-      hTotal <= vTotal ? ["R", "L", "B", "T"] : ["B", "T", "R", "L"];
+    // If horizontal axis is short, try extending horizontally first
+    const hTotal = gaps[Side.L] + gaps[Side.R];
+    const vTotal = gaps[Side.T] + gaps[Side.B];
+    const directions: CastleSide[] =
+      hTotal <= vTotal
+        ? [Side.R, Side.L, Side.B, Side.T]
+        : [Side.B, Side.T, Side.R, Side.L];
 
     for (const dir of directions) {
-      const newL = dir === "L" ? gL + 1 : gL;
-      const newR = dir === "R" ? gR + 1 : gR;
-      const newT = dir === "T" ? gT + 1 : gT;
-      const newB = dir === "B" ? gB + 1 : gB;
-      if (
-        newL >= 0 &&
-        newR >= 0 &&
-        newT >= 0 &&
-        newB >= 0 &&
-        isValid(newL, newR, newT, newB)
-      ) {
-        gL = newL;
-        gR = newR;
-        gT = newT;
-        gB = newB;
+      const trial: Gaps = [...gaps];
+      trial[dir]++;
+      if (isValid(trial)) {
+        gaps[dir] = trial[dir];
         extended = true;
         break;
       }
@@ -551,5 +493,5 @@ function extendGapsToTarget(
 
     if (!extended) break;
   }
-  return { gL, gR, gT, gB };
+  return gaps;
 }
