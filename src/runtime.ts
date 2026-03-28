@@ -1,9 +1,11 @@
 /**
- * Shared game runtime factory — consolidates all orchestration code
- * from main.ts (local) and online-client.ts (online).
+ * Shared game runtime factory — composition root that wires subsystems.
  *
- * createGameRuntime(config) returns a RuntimeState bag (rs) plus
- * methods that operate on it. See runtime-state.ts for the state type.
+ * createGameRuntime(config) creates all subsystems (camera, selection,
+ * life-lost, phase-ticks, lobby, options, input, lifecycle), wires
+ * their deps, and returns a narrow GameRuntime handle.
+ *
+ * Used by both main.ts (local play) and online-client-runtime.ts (online).
  */
 
 import {
@@ -16,8 +18,10 @@ import {
   tickMainLoop,
 } from "./game-ui-helpers.ts";
 import type { UIContext } from "./game-ui-screens.ts";
+import { computeGameSeed } from "./game-ui-settings.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { createHapticsSystem } from "./haptics-system.ts";
+import { generateMap } from "./map-generation.ts";
 import { showBannerTransition, tickBannerTransition } from "./phase-banner.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "./platform.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
@@ -35,7 +39,7 @@ import {
   createLifeLostSystem,
   type LifeLostSystem,
 } from "./runtime-life-lost.ts";
-import { createLobbySystem, type LobbySystem } from "./runtime-lobby.ts";
+import { createLobbySystem } from "./runtime-lobby.ts";
 import { createOptionsSystem, type OptionsSystem } from "./runtime-options.ts";
 import {
   createPhaseTicksSystem,
@@ -76,15 +80,19 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const sound = createSoundSystem();
   sound.setLevel(rs.settings.sound);
 
-  // Sub-systems initialized after uiCtx (forward-declared, assigned once)
-  // deno-lint-ignore prefer-const
-  let lobby: LobbySystem;
+  // Options is forward-declared because lobby depends on options.showOptions
   // deno-lint-ignore prefer-const
   let options: OptionsSystem;
 
   // Input system (forward-declared, assigned after all sub-systems are created)
   // deno-lint-ignore prefer-const
   let input: ReturnType<typeof createInputSystem>;
+
+  /** Refresh lobby seed + map preview. Defined here to break the lobby↔options cycle. */
+  function refreshLobbySeed(): void {
+    rs.lobby.seed = computeGameSeed(rs.settings);
+    rs.lobby.map = generateMap(rs.lobby.seed);
+  }
 
   // -------------------------------------------------------------------------
   // Frame/timing helpers
@@ -541,7 +549,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     renderFrame,
     updateDpad: (phase) => input.touch.dpad?.update(phase),
     setDpadLeftHanded: (left) => input.touch.dpad?.setLeftHanded(left),
-    refreshLobbySeed: () => lobby.refreshLobbySeed(),
+    refreshLobbySeed,
     sound,
     haptics,
     isOnline: !!config.isOnline,
@@ -550,7 +558,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
 
   // Initialize lobby system (needs options.showOptions)
-  lobby = createLobbySystem({
+  const lobby = createLobbySystem({
     rs,
     uiCtx,
     renderFrame,

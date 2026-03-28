@@ -39,7 +39,7 @@ interface LobbySystemDeps {
   onLobbySlotJoined: (pid: number) => void;
 }
 
-export interface LobbySystem {
+interface LobbySystem {
   refreshLobbySeed: () => void;
   renderLobby: () => void;
   tickLobby: (dt: number) => void;
