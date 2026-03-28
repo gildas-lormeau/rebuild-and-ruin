@@ -482,5 +482,37 @@ test("online handleBattleStartTransition sets banner.newWalls after checkpoint",
 });
 
 // ---------------------------------------------------------------------------
+// 14. Tile finders return valid results
+// ---------------------------------------------------------------------------
+
+test("tile finders return valid positions", () => {
+  const s = createScenario();
+
+  const grass = s.findGrassTile(0);
+  assert(grass !== null, "Should find a grass tile in player 0's zone");
+  assert(
+    !s.state.players.some(
+      (p) => p.walls.has(grass!.row * 40 + grass!.col) || p.interior.has(grass!.row * 40 + grass!.col),
+    ),
+    "Grass tile should not be occupied",
+  );
+
+  const interior = s.findInteriorTile(0);
+  assert(interior !== null, "Should find an interior tile for player 0");
+  assert(
+    s.state.players[0]!.interior.has(interior!.row * 40 + interior!.col),
+    "Interior tile should be in player's interior set",
+  );
+
+  const enemy = s.findEnemyWallTile(0);
+  assert(enemy !== null, "Should find an enemy wall tile");
+  assert(enemy!.owner !== 0, "Enemy wall should not belong to player 0");
+  assert(
+    s.state.players[enemy!.owner]!.walls.has(enemy!.row * 40 + enemy!.col),
+    "Enemy wall tile should be in the owner's wall set",
+  );
+});
+
+// ---------------------------------------------------------------------------
 
 runTests("Scenario Tests");

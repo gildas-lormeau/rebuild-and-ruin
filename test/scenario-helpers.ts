@@ -11,6 +11,7 @@
 import { fireCannon, resolveBalloons, tickCannonballs } from "../src/battle-system.ts";
 import { placePiece } from "../src/build-system.ts";
 import { placeCannon, resetCannonFacings } from "../src/cannon-system.ts";
+import { GRID_COLS, GRID_ROWS } from "../src/grid.ts";
 import type { PlayerController } from "../src/controller-interfaces.ts";
 import {
   BATTLE_TIMER,
@@ -65,6 +66,7 @@ import {
   Mode,
   Phase,
 } from "../src/types.ts";
+import { isGrass, packTile } from "../src/spatial.ts";
 import { assert } from "./test-helpers.ts";
 
 // ---------------------------------------------------------------------------
@@ -89,6 +91,11 @@ export interface Scenario {
   setLives(playerId: number, lives: number): void;
   clearWalls(playerId: number): void;
   eliminatePlayer(playerId: number): void;
+
+  // Tile finders
+  findGrassTile(playerId: number): { row: number; col: number } | null;
+  findInteriorTile(playerId: number): { row: number; col: number } | null;
+  findEnemyWallTile(playerId: number): { row: number; col: number; owner: number } | null;
 
   // Scripted player actions
   placeCannonAt(playerId: number, row: number, col: number, mode?: CannonMode): boolean;
@@ -260,6 +267,77 @@ export function createScenario(seed = 42): Scenario {
     col: number,
   ): boolean {
     return fireCannon(state, playerId, cannonIdx, row, col);
+  }
+
+  function doFindGrassTile(
+    playerId: number,
+  ): { row: number; col: number } | null {
+    const zone = state.playerZones[playerId];
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        if (state.map.zones[r]![c] !== zone) continue;
+        if (!isGrass(state.map.tiles, r, c)) continue;
+        const key = packTile(r, c);
+        let occupied = false;
+        for (const p of state.players) {
+          if (p.walls.has(key) || p.interior.has(key)) {
+            occupied = true;
+            break;
+          }
+        }
+        if (!occupied) return { row: r, col: c };
+      }
+    }
+    return null;
+  }
+
+  function doFindInteriorTile(
+    playerId: number,
+  ): { row: number; col: number } | null {
+    const player = state.players[playerId]!;
+    for (const key of player.interior) {
+      const row = Math.floor(key / GRID_COLS);
+      const col = key % GRID_COLS;
+      // Skip tiles occupied by towers or cannons
+      let blocked = false;
+      for (const t of state.map.towers) {
+        if (
+          row >= t.row &&
+          row < t.row + 2 &&
+          col >= t.col &&
+          col < t.col + 2
+        ) {
+          blocked = true;
+          break;
+        }
+      }
+      if (!blocked) {
+        for (const cn of player.cannons) {
+          if (cn.row === row && cn.col === col) {
+            blocked = true;
+            break;
+          }
+        }
+      }
+      if (!blocked) return { row, col };
+    }
+    return null;
+  }
+
+  function doFindEnemyWallTile(
+    playerId: number,
+  ): { row: number; col: number; owner: number } | null {
+    for (let i = 0; i < state.players.length; i++) {
+      if (i === playerId) continue;
+      const enemy = state.players[i]!;
+      if (enemy.eliminated) continue;
+      for (const key of enemy.walls) {
+        const row = Math.floor(key / GRID_COLS);
+        const col = key % GRID_COLS;
+        return { row, col, owner: i };
+      }
+    }
+    return null;
   }
 
   function createCamera(
@@ -449,6 +527,9 @@ export function createScenario(seed = 42): Scenario {
     setLives,
     clearWalls,
     eliminatePlayer: doEliminatePlayer,
+    findGrassTile: doFindGrassTile,
+    findInteriorTile: doFindInteriorTile,
+    findEnemyWallTile: doFindEnemyWallTile,
     placeCannonAt: doPlaceCannonAt,
     placePieceAt: doPlacePieceAt,
     fireAt: doFireAt,

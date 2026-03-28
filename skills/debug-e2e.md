@@ -80,6 +80,16 @@ runTests("My Tests");
 
 ### Available assertions
 
+### Tile finders
+
+```typescript
+s.findGrassTile(playerId)       // open grass tile in player's zone (not occupied)
+s.findInteriorTile(playerId)    // interior tile not blocked by tower/cannon
+s.findEnemyWallTile(playerId)   // {row, col, owner} of an enemy wall tile
+```
+
+### Available assertions
+
 ```typescript
 assertPhase(s, Phase.CANNON_PLACE)
 assertLives(s, playerId, expectedLives)
