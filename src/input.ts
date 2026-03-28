@@ -16,6 +16,12 @@ import {
 import {
   ACTION_KEYS,
   applyKeyRebinding,
+  KEY_DOWN,
+  KEY_ENTER,
+  KEY_ESCAPE,
+  KEY_LEFT,
+  KEY_RIGHT,
+  KEY_UP,
   type KeyBindings,
   MAX_PLAYERS,
   SEED_CUSTOM,
@@ -271,8 +277,8 @@ function handleKeyStopped(
 ): void {
   const { getGameOverFocused, setGameOverFocused, rematch, showLobby } = deps;
   if (
-    e.key === "ArrowLeft" ||
-    e.key === "ArrowRight" ||
+    e.key === KEY_LEFT ||
+    e.key === KEY_RIGHT ||
     e.key === "a" ||
     e.key === "d"
   ) {
@@ -280,14 +286,14 @@ function handleKeyStopped(
       getGameOverFocused() === FOCUS_REMATCH ? FOCUS_MENU : FOCUS_REMATCH,
     );
   } else if (
-    e.key === "Enter" ||
+    e.key === KEY_ENTER ||
     e.key === " " ||
     e.key === "n" ||
     e.key === "f"
   ) {
     if (getGameOverFocused() === FOCUS_REMATCH) rematch();
     else showLobby();
-  } else if (e.key === "Escape") {
+  } else if (e.key === KEY_ESCAPE) {
     showLobby();
   }
   e.preventDefault();
@@ -298,7 +304,7 @@ function handleKeyEscape(
   mode: number,
   deps: RegisterOnlineInputDeps,
 ): boolean {
-  if (e.key !== "Escape") return false;
+  if (e.key !== KEY_ESCAPE) return false;
   const {
     modeValues,
     showLobby,
@@ -337,7 +343,7 @@ function handleKeyControls(
   const controlsState = getControlsState();
   if (controlsState.rebinding) {
     e.preventDefault();
-    if (e.key === "Escape") {
+    if (e.key === KEY_ESCAPE) {
       controlsState.rebinding = false;
     } else if (e.key === "p" || e.key === "P" || e.key === "F1") {
       // Reserved keys.
@@ -349,25 +355,25 @@ function handleKeyControls(
       controlsState.rebinding = false;
     }
   } else {
-    if (e.key === "ArrowUp") {
+    if (e.key === KEY_UP) {
       controlsState.actionIdx =
         (controlsState.actionIdx - 1 + ACTION_KEYS.length) % ACTION_KEYS.length;
       e.preventDefault();
-    } else if (e.key === "ArrowDown") {
+    } else if (e.key === KEY_DOWN) {
       controlsState.actionIdx =
         (controlsState.actionIdx + 1) % ACTION_KEYS.length;
       e.preventDefault();
-    } else if (e.key === "ArrowLeft") {
+    } else if (e.key === KEY_LEFT) {
       controlsState.playerIdx =
         (controlsState.playerIdx - 1 + MAX_PLAYERS) % MAX_PLAYERS;
       e.preventDefault();
-    } else if (e.key === "ArrowRight") {
+    } else if (e.key === KEY_RIGHT) {
       controlsState.playerIdx = (controlsState.playerIdx + 1) % MAX_PLAYERS;
       e.preventDefault();
-    } else if (e.key === "Enter" || e.key === " ") {
+    } else if (e.key === KEY_ENTER || e.key === " ") {
       controlsState.rebinding = true;
       e.preventDefault();
-    } else if (e.key === "Escape") {
+    } else if (e.key === KEY_ESCAPE) {
       closeControls();
       e.preventDefault();
     }
@@ -393,7 +399,7 @@ function handleKeyOptions(
   const seedMode = settings.seedMode;
 
   if (!readOnly && !deps.isOnline && getRealOptionIdx() === 4) {
-    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+    if (e.key === KEY_LEFT || e.key === KEY_RIGHT) {
       if (seedMode === SEED_RANDOM) {
         settings.seedMode = SEED_CUSTOM;
         settings.seed = "";
@@ -422,25 +428,25 @@ function handleKeyOptions(
     }
   }
 
-  if (e.key === "ArrowUp" || e.key === "w" || e.key === "i") {
+  if (e.key === KEY_UP || e.key === "w" || e.key === "i") {
     setOptionsCursor(
       (getOptionsCursor() - 1 + getOptionsCount()) % getOptionsCount(),
     );
     e.preventDefault();
-  } else if (e.key === "ArrowDown" || e.key === "s" || e.key === "k") {
+  } else if (e.key === KEY_DOWN || e.key === "s" || e.key === "k") {
     setOptionsCursor((getOptionsCursor() + 1) % getOptionsCount());
     e.preventDefault();
-  } else if (e.key === "ArrowLeft" || e.key === "a" || e.key === "j") {
+  } else if (e.key === KEY_LEFT || e.key === "a" || e.key === "j") {
     changeOption(-1);
     e.preventDefault();
-  } else if (e.key === "ArrowRight" || e.key === "d" || e.key === "l") {
+  } else if (e.key === KEY_RIGHT || e.key === "d" || e.key === "l") {
     changeOption(1);
     e.preventDefault();
-  } else if (e.key === "Escape") {
+  } else if (e.key === KEY_ESCAPE) {
     closeOptions();
     e.preventDefault();
   } else if (
-    e.key === "Enter" ||
+    e.key === KEY_ENTER ||
     e.key === " " ||
     e.key === "n" ||
     e.key === "f" ||

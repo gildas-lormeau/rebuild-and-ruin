@@ -35,6 +35,12 @@ export interface GameSettings {
   leftHanded: boolean; // true = d-pad on right, action buttons on left
 }
 
+export const KEY_UP = "ArrowUp";
+export const KEY_DOWN = "ArrowDown";
+export const KEY_LEFT = "ArrowLeft";
+export const KEY_RIGHT = "ArrowRight";
+export const KEY_ENTER = "Enter";
+export const KEY_ESCAPE = "Escape";
 export const DIFFICULTY_PARAMS = [
   { buildTimer: 30, cannonPlaceTimer: 20, firstRoundCannons: 4 }, // Easy
   { buildTimer: 25, cannonPlaceTimer: 15, firstRoundCannons: 3 }, // Normal
@@ -64,10 +70,10 @@ export const PLAYER_COLORS: readonly PlayerColor[] = [
 ];
 export const PLAYER_KEY_BINDINGS: readonly KeyBindings[] = [
   {
-    up: "ArrowUp",
-    down: "ArrowDown",
-    left: "ArrowLeft",
-    right: "ArrowRight",
+    up: KEY_UP,
+    down: KEY_DOWN,
+    left: KEY_LEFT,
+    right: KEY_RIGHT,
     confirm: "n",
     rotate: "b",
   },

@@ -12,6 +12,10 @@ import {
 } from "./game-ui-types.ts";
 import type { GameSettings } from "./player-config.ts";
 import {
+  KEY_DOWN,
+  KEY_LEFT,
+  KEY_RIGHT,
+  KEY_UP,
   type KeyBindings,
   MAX_PLAYERS,
   PLAYER_KEY_BINDINGS,
@@ -80,10 +84,10 @@ export function saveSettings(settings: GameSettings): void {
 }
 
 export function formatKeyName(key: string): string {
-  if (key === "ArrowUp") return "\u2191";
-  if (key === "ArrowDown") return "\u2193";
-  if (key === "ArrowLeft") return "\u2190";
-  if (key === "ArrowRight") return "\u2192";
+  if (key === KEY_UP) return "\u2191";
+  if (key === KEY_DOWN) return "\u2193";
+  if (key === KEY_LEFT) return "\u2190";
+  if (key === KEY_RIGHT) return "\u2192";
   if (key === " ") return "Space";
   if (key.length === 1) return key.toUpperCase();
   return key;

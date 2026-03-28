@@ -7,7 +7,7 @@
 import { nextReadyCombined } from "./battle-system.ts";
 import type { Crosshair, PlayerController } from "./controller-interfaces.ts";
 import { rebuildHomeCastle } from "./game-engine.ts";
-import type { KeyBindings } from "./player-config.ts";
+import { KEY_UP, type KeyBindings } from "./player-config.ts";
 import {
   type GameState,
   type Impact,
@@ -30,7 +30,7 @@ type TickDispatch = { readonly [M in TickableMode]: (dt: number) => void };
 /** Format a key binding as a short hint string (e.g. "Arrows + N (B rotate)"). */
 export function formatKeyHint(kb: KeyBindings): string {
   const arrows =
-    kb.up === "ArrowUp"
+    kb.up === KEY_UP
       ? "Arrows"
       : kb.up.toUpperCase() +
         kb.left.toUpperCase() +
