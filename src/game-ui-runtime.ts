@@ -5,7 +5,10 @@
  */
 
 import { nextReadyCombined } from "./battle-system.ts";
-import { resetCannonFacings } from "./cannon-system.ts";
+import {
+  findNearestValidCannonPlacement,
+  resetCannonFacings,
+} from "./cannon-system.ts";
 import type { Crosshair, PlayerController } from "./controller-interfaces.ts";
 import {
   computeCannonLimitsForPhase,
@@ -13,6 +16,7 @@ import {
 } from "./game-engine.ts";
 import type { KeyBindings } from "./player-config.ts";
 import {
+  CannonMode,
   type GameState,
   type Impact,
   Mode,
@@ -74,15 +78,20 @@ export function initCannonPhase(params: {
     ctrl.placeCannons(state, max);
   }
 
-  // Initialize cannon cursor at home tower for all controllers
+  // Initialize cannon cursor near home tower for all controllers
   for (const ctrl of controllers) {
     if (skipController?.(ctrl.playerId)) continue;
     const player = state.players[ctrl.playerId]!;
     if (player.homeTower) {
-      ctrl.cannonCursor = {
-        row: player.homeTower.row,
-        col: player.homeTower.col,
-      };
+      const t = player.homeTower;
+      const snapped = findNearestValidCannonPlacement(
+        player,
+        t.row,
+        t.col,
+        CannonMode.NORMAL,
+        state,
+      );
+      ctrl.cannonCursor = snapped ?? { row: t.row, col: t.col };
     }
     ctrl.onCannonPhaseStart(state);
   }
