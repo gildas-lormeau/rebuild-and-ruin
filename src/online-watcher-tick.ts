@@ -93,6 +93,22 @@ export function resetWatcherState(ws: WatcherState): void {
   ws.timing.phaseDuration = 0;
   ws.timing.countdownStartTime = 0;
   ws.timing.countdownDuration = 0;
+  ws.migrationTimer = 0;
+  ws.migrationText = "";
+}
+
+/**
+ * Partial reset for host promotion. Clears timing and AI-driven state
+ * but keeps remoteCrosshairs/phantoms/crosshairPos — the new host still
+ * uses those for remote human players via extendCrosshairs.
+ */
+export function resetWatcherForHost(ws: WatcherState): void {
+  ws.timing.phaseStartTime = 0;
+  ws.timing.phaseDuration = 0;
+  ws.timing.countdownStartTime = 0;
+  ws.timing.countdownDuration = 0;
+  ws.idlePhases.clear();
+  ws.orbitParams.clear();
 }
 
 export function tickMigrationAnnouncement(

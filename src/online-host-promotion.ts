@@ -1,10 +1,6 @@
 /**
- * Host promotion helpers — extracted from online-client.ts so each step
- * of promoteToHost() is a named, testable function.
- *
- * When adding new mutable state to the online system, check whether it
- * needs to be reset in resetNetworkingForHost() or handled in
- * skipPendingAnimations().
+ * Host promotion helpers — pure functions for controller rebuild and
+ * accumulator sync during host migration.
  */
 
 import type { PlayerController } from "./controller-interfaces.ts";

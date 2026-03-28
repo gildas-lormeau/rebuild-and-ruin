@@ -16,6 +16,8 @@ export const TILE_GRASS = Tile.Grass;
 export const TILE_WATER = Tile.Water;
 export const GRID_COLS = 40;
 export const GRID_ROWS = 28;
+/** Total tile count — upper bound for packed tile indices (row * GRID_COLS + col). */
+export const TILE_COUNT = GRID_ROWS * GRID_COLS;
 export const TILE_SIZE = 16;
 /** Canvas display scale factor (pixel-art 2× upscale). */
 export const SCALE = 2;

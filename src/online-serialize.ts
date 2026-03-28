@@ -4,6 +4,7 @@
  */
 
 import { type FullStateMessage, MSG, type SerializedGrunt, type SerializedPlayer } from "../server/protocol.ts";
+import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "./grid.ts";
 import { createCastle } from "./map-generation.ts";
 import { Rng } from "./rng.ts";
 import { type BalloonFlight, CannonMode, type GameState, Phase } from "./types.ts";
@@ -11,6 +12,9 @@ import { type BalloonFlight, CannonMode, type GameState, Phase } from "./types.t
 interface FullStateResult {
   balloonFlights?: { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[];
 }
+
+/** Returned when validation fails — no state was mutated. */
+type FullStateApplyResult = FullStateResult | null;
 
 export function applyHousesCheckpoint(
   state: GameState,
@@ -156,11 +160,14 @@ export function serializePlayers(state: GameState) {
   }));
 }
 
-export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage): FullStateResult {
-  const nextPhase = Phase[msg.phase as keyof typeof Phase];
-  if (nextPhase === undefined) return {};
-  if (!Number.isFinite(msg.rngState)) return {};
+export function applyFullStateSnapshot(state: GameState, msg: FullStateMessage): FullStateApplyResult {
+  const error = validateFullState(state, msg);
+  if (error) {
+    console.error(`[checkpoint] validation failed: ${error}`);
+    return null;
+  }
 
+  const nextPhase = Phase[msg.phase as keyof typeof Phase]!;
   state.phase = nextPhase;
   state.round = msg.round;
   state.timer = msg.timer;
@@ -291,6 +298,50 @@ export function createGameOverPayload(
       })),
     },
   };
+}
+
+/**
+ * Structural validation — rejects the message before any state mutation
+ * if it contains out-of-bounds indices or mismatched array lengths.
+ */
+function validateFullState(state: GameState, msg: FullStateMessage): string | null {
+  if (Phase[msg.phase as keyof typeof Phase] === undefined) return `invalid phase "${msg.phase}"`;
+  if (!Number.isFinite(msg.rngState)) return "non-finite rngState";
+
+  const pc = state.players.length;
+  const tc = state.map.towers.length;
+
+  if (msg.players.length !== pc) return `players length ${msg.players.length} != ${pc}`;
+  if (msg.cannonLimits.length !== pc) return `cannonLimits length ${msg.cannonLimits.length} != ${pc}`;
+  if (msg.playerZones.length !== pc) return `playerZones length ${msg.playerZones.length} != ${pc}`;
+  if (msg.towerAlive.length !== tc) return `towerAlive length ${msg.towerAlive.length} != ${tc}`;
+
+  for (const sp of msg.players) {
+    if (sp.id < 0 || sp.id >= pc) return `player id ${sp.id} out of bounds`;
+    if (sp.walls.some((t) => t < 0 || t >= TILE_COUNT)) return `player ${sp.id} wall tile out of bounds`;
+    if (sp.interior.some((t) => t < 0 || t >= TILE_COUNT)) return `player ${sp.id} interior tile out of bounds`;
+    for (const c of sp.cannons) {
+      if (c.row < 0 || c.row >= GRID_ROWS || c.col < 0 || c.col >= GRID_COLS) return `player ${sp.id} cannon at ${c.row},${c.col} out of bounds`;
+    }
+    for (const ti of sp.ownedTowerIndices) {
+      if (ti < 0 || ti >= tc) return `player ${sp.id} tower index ${ti} out of bounds`;
+    }
+    if (sp.homeTowerIdx !== null && (sp.homeTowerIdx < 0 || sp.homeTowerIdx >= tc)) {
+      return `player ${sp.id} homeTowerIdx ${sp.homeTowerIdx} out of bounds`;
+    }
+  }
+
+  for (const g of msg.grunts) {
+    if (g.row < 0 || g.row >= GRID_ROWS || g.col < 0 || g.col >= GRID_COLS) return `grunt at ${g.row},${g.col} out of bounds`;
+  }
+
+  for (const ti of msg.towerPendingRevive) {
+    if (ti < 0 || ti >= tc) return `towerPendingRevive index ${ti} out of bounds`;
+  }
+
+  if (msg.activePlayer < -1 || msg.activePlayer >= pc) return `activePlayer ${msg.activePlayer} out of bounds`;
+
+  return null;
 }
 
 function serializeGrunts(state: GameState) {

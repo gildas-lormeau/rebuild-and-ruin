@@ -163,6 +163,12 @@
       "src/entry.ts",
       "src/main.ts",
       "src/online-client.ts",
+      "src/online-client-stores.ts",
+      "src/online-client-runtime.ts",
+      "src/online-client-deps.ts",
+      "src/online-client-promote.ts",
+      "src/online-client-ws.ts",
+      "src/online-client-lobby.ts",
       "src/headless-test.ts"
     ]
   }

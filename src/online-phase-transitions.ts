@@ -2,7 +2,7 @@ import { MSG, type SerializedPlayer, type ServerMessage } from "../server/protoc
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import type { RGB } from "./geometry-types.ts";
-import { GRID_COLS, GRID_ROWS } from "./grid.ts";
+import { TILE_COUNT } from "./grid.ts";
 import { createCastle } from "./map-generation.ts";
 import type { WatcherTimingState } from "./online-types.ts";
 import { BANNER_PLACE_CANNONS, type BannerShow } from "./phase-banner.ts";
@@ -60,7 +60,6 @@ interface TransitionContext {
   setGameOverFrame: (payload: { winner: string; scores: { name: string; score: number; color: RGB; eliminated: boolean; territory?: number; stats?: { wallsDestroyed: number; cannonsKilled: number } }[]; focused: GameOverFocus }) => void;
 }
 
-const MAX_TILE_KEY = GRID_ROWS * GRID_COLS;
 const BANNER_BATTLE_ONLINE = "Battle!";
 const BANNER_REPAIR_ONLINE = "Repair!";
 
@@ -69,7 +68,7 @@ export function handleCastleWallsTransition(msg: ServerMessage, ctx: TransitionC
   const state = ctx.getState();
   const plans = msg.plans.map((p) => ({
     ...p,
-    tiles: p.tiles.filter((t) => t >= 0 && t < MAX_TILE_KEY),
+    tiles: p.tiles.filter((t) => t >= 0 && t < TILE_COUNT),
   }));
   const maxTiles = Math.max(...plans.map((p) => p.tiles.length), 0);
   // Set player.castle so walls render during the build animation
