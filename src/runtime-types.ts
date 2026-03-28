@@ -16,6 +16,7 @@ import type {
   PlayerController,
 } from "./controller-interfaces.ts";
 import type { UIContext } from "./game-ui-screens.ts";
+import type { HapticsSystem } from "./haptics-system.ts";
 import type { LifeLostDialogState } from "./life-lost.ts";
 import type {
   CannonPhantom,
@@ -148,6 +149,7 @@ export interface GameRuntime {
   selection: RuntimeSelection;
   lifeLost: RuntimeLifeLost;
   sound: SoundSystem;
+  haptics: HapticsSystem;
 
   // --- Functions ---
   mainLoop: (now: number) => void;

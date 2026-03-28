@@ -24,12 +24,12 @@ import {
   ROUNDS_OPTIONS,
 } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
+import { createHapticsSystem } from "./haptics-system.ts";
 import {
   type RegisterOnlineInputDeps,
   registerOnlineInputHandlers,
 } from "./input.ts";
 import { dispatchPointerMove } from "./input-dispatch.ts";
-import { hapticPhaseChange, setHapticsLevel } from "./input-haptics.ts";
 import { registerTouchHandlers } from "./input-touch.ts";
 import {
   createDpad,
@@ -107,7 +107,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   const rs = createRuntimeState();
-  setHapticsLevel(rs.settings.haptics);
+  const haptics = createHapticsSystem();
+  haptics.setLevel(rs.settings.haptics);
   const sound = createSoundSystem();
   sound.setLevel(rs.settings.sound);
 
@@ -362,7 +363,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         rs.mode = Mode.BANNER;
       },
     });
-    hapticPhaseChange();
+    haptics.phaseChange();
     sound.phaseStart();
   }
 
@@ -662,23 +663,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const phaseTicks: PhaseTicksSystem = createPhaseTicksSystem({
     rs,
-    send: config.send,
-    log: config.log,
-    hostNetworking: config.hostNetworking,
-    watcherTiming: config.watcherTiming,
-    extendCrosshairs: config.extendCrosshairs,
-    onLocalCrosshairCollected: config.onLocalCrosshairCollected,
-    tickNonHost: config.tickNonHost,
-    everyTick: config.everyTick,
+    ...config,
     render: () => render(),
     firstHuman,
     showBanner,
-    showLifeLostDialog: (needsReselect, eliminated) => {
-      sound.lifeLost();
-      lifeLost.show(needsReselect, eliminated);
-    },
-    afterLifeLostResolved: () => lifeLost.afterResolved(),
-    showScoreDeltas: (onDone) => selection.showBuildScoreDeltas(onDone),
+    lifeLost,
+    selection,
     snapshotTerritory,
     saveBattleCrosshair: IS_TOUCH_DEVICE
       ? () => {
@@ -690,8 +680,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         }
       : undefined,
     onBeginBattle: IS_TOUCH_DEVICE ? aimAtEnemyCastle : undefined,
-    onFirstEnclosure: sound.chargeFanfare,
     sound,
+    haptics,
   });
 
   // -------------------------------------------------------------------------
@@ -821,6 +811,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     setDpadLeftHanded: (left) => dpad?.setLeftHanded(left),
     refreshLobbySeed: () => lobby.refreshLobbySeed(),
     setSoundLevel: sound.setLevel,
+    setHapticsLevel: haptics.setLevel,
     isOnline: !!config.isOnline,
     getRemoteHumanSlots: config.getRemoteHumanSlots,
     onCloseOptions: config.onCloseOptions,
@@ -956,6 +947,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           tryPlaceCannonAndSend: placeCannon,
           fireAndSend: inputDeps.fireAndSend,
           onPieceRotated: sound.pieceRotated,
+          onHapticTap: haptics.tap,
           getSelectionStates: () => rs.selectionStates,
           highlightTowerForPlayer: selection.highlight,
           confirmSelectionForPlayer: selection.confirm,
@@ -1083,6 +1075,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
             tryPlacePieceAndSend: inputDeps.tryPlacePieceAndSend,
             tryPlaceCannonAndSend: inputDeps.tryPlaceCannonAndSend,
             onPieceRotated: sound.pieceRotated,
+            onHapticTap: haptics.tap,
             onDrag: (clientX, clientY) => {
               const state = rs.state;
               if (!state) return;
@@ -1157,5 +1150,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     selection,
     lifeLost,
     sound,
+    haptics,
   };
 }

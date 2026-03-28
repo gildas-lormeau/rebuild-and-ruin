@@ -13,7 +13,6 @@ import type {
   PlayerController,
 } from "./controller-interfaces.ts";
 import { dispatchPlacement, isGameInteractionMode } from "./input-dispatch.ts";
-import { hapticTap } from "./input-haptics.ts";
 import { ACTION_CONFIRM, PLAYER_COLORS } from "./player-config.ts";
 import {
   rgb,
@@ -52,6 +51,7 @@ interface DpadDeps {
     state: GameState,
   ) => void;
   onPieceRotated?: () => void;
+  onHapticTap?: () => void;
   getSelectionStates: () => Map<number, SelectionState>;
   highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
   confirmSelectionForPlayer: (pid: number, isReselect: boolean) => boolean;
@@ -127,6 +127,7 @@ interface FloatingActionsDeps {
     max: number,
   ) => void;
   onPieceRotated?: () => void;
+  onHapticTap?: () => void;
   /** Forward a drag touch to the canvas pointer-move logic. */
   onDrag?: (clientX: number, clientY: number) => void;
 }
@@ -188,7 +189,7 @@ export function createDpad(
   }
 
   function fireDirection(action: Action) {
-    hapticTap();
+    deps.onHapticTap?.();
     if (deps.options?.isActive()) {
       if (action === Action.UP) deps.options.navigate(-1);
       else if (action === Action.DOWN) deps.options.navigate(1);
@@ -238,7 +239,7 @@ export function createDpad(
 
   /** Battle: hold-to-move via handleKeyDown/handleKeyUp (mirrors keyboard). */
   function battleKeyDown(action: Action) {
-    hapticTap();
+    deps.onHapticTap?.();
     deps.withFirstHuman((human) => human.handleKeyDown(action));
   }
 
@@ -288,7 +289,7 @@ export function createDpad(
 
   // --- Action button: confirm selection / place piece / place cannon ---
   function handleAction() {
-    hapticTap();
+    deps.onHapticTap?.();
     if (deps.options?.isActive()) {
       deps.options.confirm();
       return;
@@ -351,7 +352,7 @@ export function createDpad(
 
   // --- Rotate button: rotate piece / cycle cannon mode / speed up crosshair ---
   function handleRotate() {
-    hapticTap();
+    deps.onHapticTap?.();
     if (deps.options?.isActive()) {
       deps.options.changeValue(1);
       return;
@@ -595,12 +596,12 @@ export function createFloatingActions(
   )!;
 
   function handleRotate() {
-    hapticTap();
+    deps.onHapticTap?.();
     dispatchRotate(deps);
   }
 
   function handleConfirm() {
-    hapticTap();
+    deps.onHapticTap?.();
     const state = deps.getState();
     if (!state) return;
     dispatchPlacement(state, deps);

@@ -3,14 +3,9 @@
  * tick functions from runtime-host-battle-ticks.ts, runtime-host-phase-ticks.ts, etc.
  */
 
-import {
-  type GameMessage,
-  MSG,
-  type SerializedPlayer,
-} from "../server/protocol.ts";
+import { MSG } from "../server/protocol.ts";
 import { resolveBalloons, tickCannonballs } from "./battle-system.ts";
 import {
-  type Crosshair,
   type InputReceiver,
   isHuman,
   type PlayerController,
@@ -23,12 +18,7 @@ import {
 } from "./game-engine.ts";
 import { collectLocalCrosshairs, tickGameCore } from "./game-ui-helpers.ts";
 import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
-import { hapticBattleEvents } from "./input-haptics.ts";
-import type {
-  CannonPhantom,
-  PiecePhantom,
-  WatcherTimingState,
-} from "./online-types.ts";
+import type { HapticsSystem } from "./haptics-system.ts";
 import { BANNER_BUILD, BANNER_BUILD_SUB } from "./phase-banner.ts";
 import {
   beginHostBattle,
@@ -42,9 +32,13 @@ import {
   tickHostCannonPhase,
 } from "./runtime-host-phase-ticks.ts";
 import type { RuntimeState } from "./runtime-state.ts";
-import type { GameRuntime } from "./runtime-types.ts";
+import type {
+  GameRuntime,
+  RuntimeConfig,
+  RuntimeLifeLost,
+  RuntimeSelection,
+} from "./runtime-types.ts";
 import type { SoundSystem } from "./sound-system.ts";
-import type { BalloonFlight, GameState } from "./types.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,
@@ -53,34 +47,19 @@ import {
   Mode,
 } from "./types.ts";
 
-interface PhaseTicksDeps {
+interface PhaseTicksDeps
+  extends Pick<
+    RuntimeConfig,
+    | "send"
+    | "log"
+    | "hostNetworking"
+    | "watcherTiming"
+    | "extendCrosshairs"
+    | "onLocalCrosshairCollected"
+    | "tickNonHost"
+    | "everyTick"
+  > {
   rs: RuntimeState;
-
-  // Config / networking
-  send: (msg: GameMessage) => void;
-  log: (msg: string) => void;
-  hostNetworking?: {
-    serializePlayers: (state: GameState) => SerializedPlayer[];
-    createCannonStartMessage: (state: GameState) => GameMessage;
-    createBattleStartMessage: (
-      state: GameState,
-      flights: readonly BalloonFlight[],
-    ) => GameMessage;
-    createBuildStartMessage: (state: GameState) => GameMessage;
-    remoteCannonPhantoms: () => readonly CannonPhantom[];
-    remotePiecePhantoms: () => readonly PiecePhantom[];
-    lastSentCannonPhantom: () => Map<number, string>;
-    lastSentPiecePhantom: () => Map<number, string>;
-  };
-  watcherTiming?: WatcherTimingState;
-  extendCrosshairs?: (crosshairs: Crosshair[], dt: number) => Crosshair[];
-  onLocalCrosshairCollected?: (
-    ctrl: PlayerController,
-    ch: { x: number; y: number },
-    readyCannon: boolean,
-  ) => void;
-  tickNonHost?: (dt: number) => void;
-  everyTick?: (dt: number) => void;
 
   // Sibling systems / parent callbacks
   render: () => void;
@@ -92,20 +71,15 @@ interface PhaseTicksDeps {
     newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
     subtitle?: string,
   ) => void;
-  showLifeLostDialog: (
-    needsReselect: readonly number[],
-    eliminated: readonly number[],
-  ) => void;
-  afterLifeLostResolved: () => boolean;
-  showScoreDeltas: (onDone: () => void) => void;
+  lifeLost: Pick<RuntimeLifeLost, "show" | "afterResolved">;
+  selection: Pick<RuntimeSelection, "showBuildScoreDeltas">;
   snapshotTerritory: () => Set<number>[];
   /** Save human crosshair at end of battle so it can be restored next battle. */
   saveBattleCrosshair?: () => void;
   /** Called after beginBattle completes (crosshair override, etc.). */
   onBeginBattle?: () => void;
-  /** Called when a player encloses territory for the first time during build phase. */
-  onFirstEnclosure?: (playerId: number) => void;
   sound: SoundSystem;
+  haptics: HapticsSystem;
 }
 
 export type PhaseTicksSystem = Pick<
@@ -312,7 +286,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         const pid = rs.ctx.myPlayerId;
         const localPid = pid >= 0 ? pid : (deps.firstHuman()?.playerId ?? -1);
         if (localPid >= 0) {
-          hapticBattleEvents(
+          deps.haptics.battleEvents(
             events as Array<{ type: string; playerId?: number; hp?: number }>,
             localPid,
           );
@@ -377,10 +351,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       tickGrunts,
       isHuman,
       finalizeBuildPhase,
-      showLifeLostDialog: deps.showLifeLostDialog,
-      afterLifeLostResolved: deps.afterLifeLostResolved,
-      showScoreDeltas: deps.showScoreDeltas,
-      onFirstEnclosure: deps.onFirstEnclosure,
+      showLifeLostDialog: (needsReselect, eliminated) => {
+        deps.sound.lifeLost();
+        deps.lifeLost.show(needsReselect, eliminated);
+      },
+      afterLifeLostResolved: deps.lifeLost.afterResolved,
+      showScoreDeltas: deps.selection.showBuildScoreDeltas,
+      onFirstEnclosure: deps.sound.chargeFanfare,
       net: {
         remoteHumanSlots: rs.ctx.remoteHumanSlots,
         isHost: rs.ctx.isHost,

@@ -66,7 +66,7 @@ The layer map file. Committed to the repo. An array of named groups — position
                                 game-ui-helpers, phase-banner, selection
  5  AI strategy                 ai-constants, ai-build-*, ai-strategy-*, ai-castle-rect
  6  controllers                 controller-ai, controller-types, controller-human, controller-factory
- 7  input                       all input-*
+ 7  input & feedback systems     input-*, haptics-system, sound-system
  8  render                      render-sprites, render-loupe, render-effects, render-towers,
                                 render-composition, render-ui, render-map, render-canvas  ← canvas-using files
  9  game UI                     game-ui-types, game-ui-screens, game-ui-frame

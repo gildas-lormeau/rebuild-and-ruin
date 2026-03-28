@@ -79,7 +79,7 @@
   {
     "name": "input",
     "files": [
-      "src/input-haptics.ts",
+      "src/haptics-system.ts",
       "src/input-recorder.ts",
       "src/input-dispatch.ts",
       "src/input-touch-ui.ts",
