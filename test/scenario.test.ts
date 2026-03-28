@@ -249,15 +249,12 @@ test("Place Cannons banner old scene includes pre-sweep walls via pendingOldWall
   assert(isolatedKey >= 0, "Should find tile for isolated wall");
   player.walls.add(isolatedKey);
 
-  const wallCountBefore = player.walls.size;
-
   // Stash pre-sweep walls on banner (simulates what tickHostBuildPhase now does)
   const banner = s.createBanner();
   banner.pendingOldWalls = snapshotAllWalls(s.state);
 
   // finalizeBuildPhase sweeps isolated walls
   s.finalizeBuild();
-  const wallCountAfter = player.walls.size;
   assert(!player.walls.has(isolatedKey), "Isolated wall removed by sweep");
 
   // showBannerTransition consumes pendingOldWalls for oldCastles
@@ -273,21 +270,13 @@ test("Place Cannons banner old scene includes pre-sweep walls via pendingOldWall
 
   // The old scene should have the pre-sweep walls (including the isolated one)
   const oldCastleWalls = banner.oldCastles?.find((c) => c.playerId === 0)?.walls;
-  const oldSceneHasSweptWall = oldCastleWalls?.has(isolatedKey) ?? false;
-  const newSceneHasSweptWall = player.walls.has(isolatedKey);
-
-  console.log("  [debug] walls before sweep:", wallCountBefore);
-  console.log("  [debug] walls after sweep:", wallCountAfter);
-  console.log("  [debug] swept:", wallCountBefore - wallCountAfter, "walls");
-  console.log("  [debug] isolated wall in banner old scene:", oldSceneHasSweptWall);
-  console.log("  [debug] isolated wall in new scene:", newSceneHasSweptWall);
 
   assert(
-    oldSceneHasSweptWall,
+    oldCastleWalls?.has(isolatedKey) ?? false,
     "Banner old scene should include pre-sweep walls for progressive reveal",
   );
   assert(
-    !newSceneHasSweptWall,
+    !player.walls.has(isolatedKey),
     "New scene should NOT have the swept wall",
   );
 });
@@ -317,11 +306,10 @@ test("online cannon banner uses reveal=true for progressive scene transition", (
     setModeBanner: () => {},
   });
 
-  const hasOldScene = banner.oldCastles !== undefined;
-  console.log("  [debug] cannon banner has old scene:", hasOldScene);
-  console.log("  [debug] old castles count:", banner.oldCastles?.length ?? 0);
-
-  assert(hasOldScene, "Cannon banner should capture old scene for progressive reveal");
+  assert(
+    banner.oldCastles !== undefined,
+    "Cannon banner should capture old scene for progressive reveal",
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -349,12 +337,9 @@ test("camera zooms to human zone when human IS reselecting", () => {
 
   // Phase change tick — should zoom because human IS reselecting
   handle.tick();
-  const zoneAfterPhaseChange = handle.camera.getCameraZone();
-  console.log("  [debug] camera zone after phase change:", zoneAfterPhaseChange);
-  console.log("  [debug] human's zone:", s.state.playerZones[0]);
 
   assert(
-    zoneAfterPhaseChange !== null,
+    handle.camera.getCameraZone() !== null,
     "Camera should zoom to human zone when human is reselecting",
   );
 });
