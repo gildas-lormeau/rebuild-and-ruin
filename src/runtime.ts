@@ -647,11 +647,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       if (!on(bs.confirm)) {
         dpad.setConfirmValid(false);
       } else if (rs.state && isPlacementPhase(rs.state.phase) && on(bs.placementValidity)) {
-        const human = firstHuman();
-        const barValid = rs.state.phase === Phase.WALL_BUILD
-          ? rs.frame.phantoms.humanPhantoms?.[0]?.valid ?? true
-          : rs.frame.phantoms.aiCannonPhantoms?.find(p => p.playerId === human?.playerId)?.valid ?? true;
-        dpad.setConfirmValid(barValid);
+        dpad.setConfirmValid(humanPhantomValid(rs.state.phase, firstHuman()) ?? true);
       } else {
         dpad.setConfirmValid(true);
       }
@@ -664,14 +660,21 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     updateFloatingActions();
   }
 
+  /** Phantom validity for the first human in the current placement phase. */
+  function humanPhantomValid(phase: Phase, human: PlayerController | null): boolean | undefined {
+    if (!human) return undefined;
+    if (phase === Phase.WALL_BUILD) {
+      return rs.frame.phantoms.humanPhantoms?.[0]?.valid;
+    }
+    return rs.frame.phantoms.aiCannonPhantoms?.find(p => p.playerId === human.playerId)?.valid;
+  }
+
   /** Position and show/hide the floating Rotate+Confirm buttons over the canvas. */
   function updateFloatingActions(): void {
     if (!floatingActions) return;
     const phase = rs.state?.phase;
     const human = firstHuman();
-    const hasPhantom = phase === Phase.WALL_BUILD
-      ? (rs.frame.phantoms.humanPhantoms?.length ?? 0) > 0
-      : (rs.frame.phantoms.aiCannonPhantoms?.some(p => p.playerId === human?.playerId) ?? false);
+    const hasPhantom = humanPhantomValid(phase, human) !== undefined;
     const visible = rs.directTouchActive && human !== null &&
       rs.mode === Mode.GAME &&
       isPlacementPhase(phase) &&
@@ -700,12 +703,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const { sx, sy } = camera.worldToScreen(wx, wy);
     const { x: cssX, y: cssY } = renderer.screenToContainerCSS(sx, sy);
     const nearTop = cssY < gameContainer.clientHeight * 0.15;
-    // Check placement validity from phantom data
-    const phantomValid = phase === Phase.WALL_BUILD
-      ? rs.frame.phantoms.humanPhantoms?.[0]?.valid ?? false
-      : rs.frame.phantoms.aiCannonPhantoms?.find(p => p.playerId === human.playerId)?.valid ?? false;
     floatingActions.update(true, cssX, cssY, nearTop, rs.settings.leftHanded);
-    floatingActions.setConfirmValid(phantomValid);
+    floatingActions.setConfirmValid(humanPhantomValid(phase, human) ?? false);
   }
 
   function rematch() {
