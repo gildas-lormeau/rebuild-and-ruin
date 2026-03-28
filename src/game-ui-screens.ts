@@ -91,8 +91,27 @@ export function createOptionsOverlay(ctx: UIContext): {
       editable: true,
     };
   });
+  const state = ctx.getState();
+  const castles = state
+    ? state.players
+        .filter((p) => p.castle)
+        .map((p) => ({
+          walls: p.walls,
+          interior: p.interior,
+          cannons: p.cannons,
+          playerId: p.id,
+        }))
+    : undefined;
   const overlay: RenderOverlay = {
     selection: { highlighted: null, selected: null },
+    castles,
+    entities: state
+      ? {
+          houses: state.map.houses,
+          towerAlive: state.towerAlive,
+          burningPits: state.burningPits,
+        }
+      : undefined,
     ui: {
       optionsScreen: {
         options,
@@ -101,7 +120,7 @@ export function createOptionsOverlay(ctx: UIContext): {
       },
     },
   };
-  return { map: ctx.getState()?.map ?? lobbyMap, overlay };
+  return { map: state?.map ?? lobbyMap, overlay };
 }
 
 export function showOptions(
