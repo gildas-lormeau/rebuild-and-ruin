@@ -4,6 +4,7 @@
     "files": [
       "src/canvas-layout.ts",
       "src/grid.ts",
+      "src/jsfxr.d.ts",
       "src/platform.ts",
       "src/rng.ts",
       "src/router.ts"
@@ -83,7 +84,8 @@
       "src/input-dispatch.ts",
       "src/input-touch-ui.ts",
       "src/input-touch.ts",
-      "src/input.ts"
+      "src/input.ts",
+      "src/sound-system.ts"
     ]
   },
   {

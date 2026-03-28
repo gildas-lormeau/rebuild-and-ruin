@@ -43,6 +43,7 @@ import {
 } from "./runtime-host-phase-ticks.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { GameRuntime } from "./runtime-types.ts";
+import { soundBattleEvents } from "./sound-system.ts";
 import type { BalloonFlight, GameState } from "./types.ts";
 import {
   BALLOON_FLIGHT_DURATION,
@@ -305,11 +306,21 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       onBattleEvents: (events) => {
         const pid = rs.ctx.myPlayerId;
         const localPid = pid >= 0 ? pid : (deps.firstHuman()?.playerId ?? -1);
-        if (localPid >= 0)
+        if (localPid >= 0) {
           hapticBattleEvents(
             events as Array<{ type: string; playerId?: number; hp?: number }>,
             localPid,
           );
+          soundBattleEvents(
+            events as Array<{
+              type: string;
+              playerId?: number;
+              hp?: number;
+              newHp?: number;
+            }>,
+            localPid,
+          );
+        }
         for (const evt of events as Array<{
           type: string;
           playerId?: number;

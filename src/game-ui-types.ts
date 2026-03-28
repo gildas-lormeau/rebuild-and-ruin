@@ -16,6 +16,7 @@ export interface GameSettings {
   rounds: number;
   cannonHp: number;
   haptics: number; // 0=off, 1=phase changes only, 2=all
+  sound: number; // 0=off, 1=phase changes only, 2=all
   seed: string;
   seedMode: SeedMode;
   keyBindings: KeyBindings[];
@@ -58,6 +59,7 @@ export const CANNON_HP_OPTIONS = [
   { value: 12, label: "12 hits" },
 ];
 export const HAPTICS_LABELS = ["Off", "Phase changes", "All"];
+export const SOUND_LABELS = ["Off", "Phase changes", "All"];
 export const DPAD_LABELS = ["Right-handed", "Left-handed"];
 export const OPTION_NAMES = [
   "Difficulty",
@@ -67,4 +69,5 @@ export const OPTION_NAMES = [
   "Seed",
   "Controls",
   "D-Pad",
+  "Sound",
 ];

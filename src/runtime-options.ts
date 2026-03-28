@@ -20,6 +20,7 @@ import { cycleOption } from "./game-ui-settings.ts";
 import { setHapticsLevel } from "./input-haptics.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
+import { setSoundLevel } from "./sound-system.ts";
 import { Mode, Phase } from "./types.ts";
 
 interface OptionsSystemDeps {
@@ -72,6 +73,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
       deps.isOnline,
     );
     setHapticsLevel(rs.settings.haptics);
+    setSoundLevel(rs.settings.sound);
     deps.setDpadLeftHanded(rs.settings.leftHanded);
   }
 

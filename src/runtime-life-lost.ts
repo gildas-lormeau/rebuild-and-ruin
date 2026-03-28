@@ -26,6 +26,7 @@ import {
 } from "./render-composition.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { RuntimeLifeLost } from "./runtime-types.ts";
+import { soundLifeLost } from "./sound-system.ts";
 import { LIFE_LOST_AI_DELAY, LIFE_LOST_MAX_TIMER, Mode } from "./types.ts";
 
 interface LifeLostSystemDeps {
@@ -77,6 +78,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       isHumanController: (playerId) => isHuman(rs.controllers[playerId]!),
     });
     rs.mode = Mode.LIFE_LOST;
+    soundLifeLost();
   }
 
   function tickLifeLostDialog(dt: number) {

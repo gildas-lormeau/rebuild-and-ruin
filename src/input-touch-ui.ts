@@ -21,6 +21,7 @@ import {
   TOUCH_ZOOM_HOME_BG,
   ZOOM_BUTTON_ALPHA,
 } from "./render-theme.ts";
+import { soundPieceRotated } from "./sound-system.ts";
 import { findNearestTower } from "./spatial.ts";
 import {
   Action,
@@ -698,6 +699,7 @@ function dispatchRotate(deps: RotateDeps): void {
   deps.withFirstHuman((human) => {
     if (state.phase === Phase.WALL_BUILD) {
       human.rotatePiece();
+      soundPieceRotated();
     } else if (state.phase === Phase.CANNON_PLACE) {
       const max = state.cannonLimits[human.playerId] ?? 0;
       human.cycleCannonMode(state, max);

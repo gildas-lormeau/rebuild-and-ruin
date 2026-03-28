@@ -28,6 +28,7 @@ import {
   type SeedMode,
 } from "./player-config.ts";
 import type { RendererInterface } from "./render-types.ts";
+import { soundPieceRotated } from "./sound-system.ts";
 import { findNearestTower } from "./spatial.ts";
 import {
   Action,
@@ -556,6 +557,7 @@ function handleKeyGame(
         e.preventDefault();
       } else if (action === Action.ROTATE) {
         ctrl.rotatePiece();
+        soundPieceRotated();
         e.preventDefault();
       } else if (action === Action.CONFIRM) {
         tryPlacePieceAndSend(ctrl, state);

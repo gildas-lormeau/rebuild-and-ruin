@@ -80,6 +80,14 @@ import {
 import { createRuntimeState } from "./runtime-state.ts";
 import { updateTouchControls } from "./runtime-touch-ui.ts";
 import type { GameRuntime, RuntimeConfig } from "./runtime-types.ts";
+import {
+  setSoundLevel,
+  soundCannonPlaced,
+  soundGameOver,
+  soundPhaseStart,
+  soundPieceFailed,
+  soundPiecePlaced,
+} from "./sound-system.ts";
 import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
 import {
   BANNER_DURATION,
@@ -107,6 +115,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const rs = createRuntimeState();
   setHapticsLevel(rs.settings.haptics);
+  setSoundLevel(rs.settings.sound);
 
   // Sub-systems initialized after uiCtx (forward-declared, assigned once)
   // deno-lint-ignore prefer-const
@@ -360,6 +369,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       },
     });
     hapticPhaseChange();
+    soundPhaseStart();
   }
 
   function tickBanner(dt: number) {
@@ -581,6 +591,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs.scoreDeltaOnDone = null;
     camera.unzoom();
     config.onEndGame?.(winner, rs.state);
+    soundGameOver();
     const name = winner
       ? (PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`)
       : "Nobody";
@@ -855,9 +866,19 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       maybeSendAimUpdate: config.maybeSendAimUpdate ?? (() => {}),
       tryPlaceCannonAndSend:
         config.tryPlaceCannonAndSend ??
-        ((ctrl, gs, max) => ctrl.tryPlaceCannon(gs, max)),
+        ((ctrl, gs, max) => {
+          const ok = ctrl.tryPlaceCannon(gs, max);
+          if (ok) soundCannonPlaced();
+          return ok;
+        }),
       tryPlacePieceAndSend:
-        config.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
+        config.tryPlacePieceAndSend ??
+        ((ctrl, gs) => {
+          const ok = ctrl.tryPlacePiece(gs);
+          if (ok) soundPiecePlaced();
+          else soundPieceFailed();
+          return ok;
+        }),
       fireAndSend:
         config.fireAndSend ?? ((ctrl, gameState) => ctrl.fire(gameState)),
       getSelectionStates: () => rs.selectionStates,

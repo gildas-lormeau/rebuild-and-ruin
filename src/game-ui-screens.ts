@@ -15,6 +15,7 @@ import {
   HAPTICS_LABELS,
   OPTION_NAMES,
   ROUNDS_OPTIONS,
+  SOUND_LABELS,
 } from "./game-ui-types.ts";
 import type { GameMap } from "./geometry-types.ts";
 import { generateMap } from "./map-generation.ts";
@@ -255,9 +256,10 @@ export function lobbySkipStep(ctx: UIContext): boolean {
 }
 
 export function visibleOptions(ctx: UIContext): number[] {
-  // 0=Difficulty, 1=Rounds, 2=Cannon HP, 3=Haptics, 4=Seed, 5=Controls, 6=D-Pad
-  if (ctx.isOnline) return IS_TOUCH_DEVICE ? [1, 2, 3, 4, 5, 6] : [1, 2, 4, 5];
-  return IS_TOUCH_DEVICE ? [0, 1, 2, 3, 4, 5, 6] : [0, 1, 2, 4, 5];
+  // 0=Difficulty, 1=Rounds, 2=Cannon HP, 3=Haptics, 4=Seed, 5=Controls, 6=D-Pad, 7=Sound
+  if (ctx.isOnline)
+    return IS_TOUCH_DEVICE ? [1, 2, 3, 7, 4, 5, 6] : [1, 2, 7, 4, 5];
+  return IS_TOUCH_DEVICE ? [0, 1, 2, 3, 7, 4, 5, 6] : [0, 1, 2, 7, 4, 5];
 }
 
 function optionValue(ctx: UIContext, idx: number): string {
@@ -273,6 +275,7 @@ function optionValue(ctx: UIContext, idx: number): string {
   }
   if (idx === 2) return CANNON_HP_OPTIONS[s.cannonHp]!.label;
   if (idx === 3) return HAPTICS_LABELS[s.haptics] ?? "All";
+  if (idx === 7) return SOUND_LABELS[s.sound] ?? "All";
   if (idx === 4) {
     if (ctx.isOnline) return s.seed || "—";
     return s.seedMode === SEED_CUSTOM ? s.seed || "_" : "Random";

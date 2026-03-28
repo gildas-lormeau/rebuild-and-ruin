@@ -9,6 +9,7 @@ import {
   type GameSettings,
   HAPTICS_LABELS,
   ROUNDS_OPTIONS,
+  SOUND_LABELS,
 } from "./game-ui-types.ts";
 import {
   type KeyBindings,
@@ -24,6 +25,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   rounds: 4,
   cannonHp: 0,
   haptics: 2, // default: all
+  sound: 2, // default: all
   seed: "",
   seedMode: SEED_RANDOM,
   keyBindings: [],
@@ -49,6 +51,7 @@ export function loadSettings(): GameSettings {
         rounds: saved.rounds ?? DEFAULT_SETTINGS.rounds,
         cannonHp: saved.cannonHp ?? DEFAULT_SETTINGS.cannonHp,
         haptics: saved.haptics ?? DEFAULT_SETTINGS.haptics,
+        sound: saved.sound ?? DEFAULT_SETTINGS.sound,
         seed: saved.seed ?? DEFAULT_SETTINGS.seed,
         seedMode: saved.seedMode === SEED_CUSTOM ? SEED_CUSTOM : SEED_RANDOM,
         leftHanded: saved.leftHanded ?? DEFAULT_SETTINGS.leftHanded,
@@ -129,6 +132,9 @@ export function cycleOption(
       (settings.haptics + dir + HAPTICS_LABELS.length) % HAPTICS_LABELS.length;
   } else if (optionsCursor === 6) {
     settings.leftHanded = !settings.leftHanded;
+  } else if (optionsCursor === 7) {
+    settings.sound =
+      (settings.sound + dir + SOUND_LABELS.length) % SOUND_LABELS.length;
   }
   // optionsCursor === 4 (Seed) — handled via direct keyboard input in options handler
   // optionsCursor === 5 (Controls) — no left/right value, opened via confirm
