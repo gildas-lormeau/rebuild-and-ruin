@@ -86,6 +86,7 @@ export interface Scenario {
   finalizeBuild(): { needsReselect: number[]; eliminated: number[] };
   processReselection(needsReselect: readonly number[]): void;
   playRound(): { needsReselect: number[]; eliminated: number[] };
+  playRounds(n: number): void;
 
   // State inspection
   describe(): string;
@@ -230,6 +231,18 @@ export function createScenario(seed = 42): Scenario {
     runBattle();
     runBuild();
     return doFinalizeBuild();
+  }
+
+  function doPlayRounds(n: number): void {
+    for (let i = 0; i < n; i++) {
+      const { needsReselect } = playRound();
+      if (needsReselect.length > 0) {
+        doProcessReselection(needsReselect);
+      }
+      if (state.players.every((p) => p.eliminated)) break;
+      // Advance back to CANNON_PLACE for the next round
+      if (i < n - 1) advanceTo(Phase.CANNON_PLACE);
+    }
   }
 
   function setLives(playerId: number, lives: number) {
@@ -566,6 +579,7 @@ export function createScenario(seed = 42): Scenario {
     finalizeBuild: doFinalizeBuild,
     processReselection: doProcessReselection,
     playRound,
+    playRounds: doPlayRounds,
     setLives,
     clearWalls,
     describe,

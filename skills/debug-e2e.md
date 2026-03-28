@@ -44,6 +44,7 @@ test("describe the bug being tested", () => {
   s.runBattle();                    // simulate full battle
   s.runBuild();                     // simulate full build phase
   s.playRound();                    // cannon + battle + build + finalize
+  s.playRounds(5);                  // 5 full rounds with reselection handling
 
   // Inspect state
   console.log(s.describe());        // "Phase:BATTLE | P0: 3♥ 12w 2c 45t 0pts | ..."

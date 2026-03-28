@@ -531,7 +531,30 @@ test("destroyCannon sets cannon HP to 0", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 16. Tile finders return valid results
+// 16. Multi-round shortcut
+// ---------------------------------------------------------------------------
+
+test("playRounds advances multiple rounds with reselection handling", () => {
+  const s = createScenario();
+  const roundBefore = s.state.round;
+
+  s.playRounds(3);
+
+  // Round counter increments at BUILD→CANNON transition, so after N playRounds
+  // the round advances by at least N-1 (first playRound starts mid-cycle).
+  assert(
+    s.state.round > roundBefore,
+    `Should advance rounds (was ${roundBefore}, now ${s.state.round})`,
+  );
+  // Verify no crash and game still functional
+  assert(
+    s.state.players.some((p) => !p.eliminated),
+    "At least one player should still be alive",
+  );
+});
+
+// ---------------------------------------------------------------------------
+// 17. Tile finders return valid results
 // ---------------------------------------------------------------------------
 
 test("tile finders return valid positions", () => {
