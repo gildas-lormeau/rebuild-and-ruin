@@ -393,7 +393,7 @@ function applyLifePenalties(state: GameState): {
       const zone = state.playerZones[player.id];
       clearPlayerState(player);
       if (player.lives <= 0) {
-        player.eliminated = true;
+        eliminatePlayer(player);
         eliminated.push(player.id);
       } else {
         needsReselect.push(player.id);
@@ -418,6 +418,12 @@ export function resetZoneState(state: GameState, zone: number): void {
       state.towerAlive[towerIndex] = true;
     }
   }
+}
+
+/** Mark a player as eliminated (used when abandoning in life-lost dialog). */
+export function eliminatePlayer(player: Player): void {
+  player.eliminated = true;
+  player.lives = 0;
 }
 
 /** Clear all mutable state from a player (used when losing a life or being eliminated). */

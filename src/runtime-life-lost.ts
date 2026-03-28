@@ -11,6 +11,7 @@ import {
   isHuman,
   type PlayerController,
 } from "./controller-interfaces.ts";
+import { eliminatePlayer } from "./game-engine.ts";
 import {
   createLifeLostDialogState,
   resolveAfterLifeLost,
@@ -62,8 +63,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       if (entry.choice !== LifeLostChoice.ABANDON) continue;
       const player = rs.state.players[entry.playerId];
       if (!player) continue;
-      player.eliminated = true;
-      player.lives = 0;
+      eliminatePlayer(player);
     }
   }
 
