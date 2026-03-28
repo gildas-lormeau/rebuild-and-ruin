@@ -46,6 +46,7 @@
       "src/build-system.ts",
       "src/map-generation.ts",
       "src/game-engine.ts",
+      "src/game-ui-helpers.ts",
       "src/phase-banner.ts",
       "src/selection.ts"
     ]
@@ -102,7 +103,6 @@
     "name": "game UI",
     "files": [
       "src/game-ui-types.ts",
-      "src/game-ui-helpers.ts",
       "src/game-ui-screens.ts",
       "src/game-ui-frame.ts",
       "src/game-ui-settings.ts"

@@ -63,13 +63,13 @@ The layer map file. Committed to the repo. An array of named groups — position
  3  shared interfaces & theme   player-config, controller-interfaces, tick-context,
                                 render-theme, render-types  ← pure interfaces/theme, no canvas deps
  4  game systems & selection    cannon/grunt/battle/build-system, map-generation, game-engine,
-                                phase-banner, selection
+                                game-ui-helpers, phase-banner, selection
  5  AI strategy                 ai-constants, ai-build-*, ai-strategy-*, ai-castle-rect
  6  controllers                 controller-ai, controller-types, controller-human, controller-factory
  7  input                       all input-*
  8  render                      render-sprites, render-loupe, render-effects, render-towers,
                                 render-composition, render-ui, render-map, render-canvas  ← canvas-using files
- 9  game UI                     game-ui-types, game-ui-helpers, game-ui-screens, game-ui-frame
+ 9  game UI                     game-ui-types, game-ui-screens, game-ui-frame
 10  online types & config       online-config, online-types, online-lobby-ui, online-server-lifecycle,
                                 online-session, online-serialize
 11  online logic                online-send-actions, online-checkpoints, online-watcher-*, online-phase-transitions,
