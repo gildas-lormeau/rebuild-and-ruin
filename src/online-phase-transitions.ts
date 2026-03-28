@@ -25,7 +25,11 @@ interface TransitionContext {
   getMyPlayerId: () => number;
   getControllers: () => PlayerController[];
   showBanner: BannerShow;
-  banner: { newTerritory?: Set<number>[]; newWalls?: Set<number>[] };
+  banner: {
+    newTerritory?: Set<number>[];
+    newWalls?: Set<number>[];
+    pendingOldWalls?: Set<number>[];
+  };
   clearSelectionOverlay: () => void;
   now: () => number;
 
@@ -145,6 +149,8 @@ export function handleCannonStartTransition(
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
   ctx.clearSelectionOverlay();
+  // Stash pre-checkpoint walls so the banner old scene shows pre-sweep walls
+  ctx.banner.pendingOldWalls = snapshotAllWalls(state);
   ctx.applyCannonStartData(msg);
   if (myPlayerId >= 0) {
     const ctrl = ctx.getControllers()[myPlayerId];
