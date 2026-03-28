@@ -311,7 +311,7 @@ export interface FrameContext {
   readonly shouldUnzoom: boolean;
 }
 
-interface FrameContextInputs {
+export interface FrameContextInputs {
   mode: Mode;
   phase: Phase;
   timer: number;
