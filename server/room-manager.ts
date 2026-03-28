@@ -13,7 +13,7 @@ export interface RoomEntry {
   room: GameRoom;
   code: string;
   hostSocket: WebSocket;
-  connectedSockets: Set<WebSocket>;       // all connected sockets
+  connectedSockets: Set<WebSocket>; // all connected sockets
   slotAssignments: Map<WebSocket, number>; // socket → slotId (only for those who picked a slot)
   started: boolean;
   cleanupTimer: ReturnType<typeof setTimeout> | null;
@@ -41,7 +41,9 @@ export class RoomManager {
     const code = this.generateCode();
     const room = new GameRoom(settings);
     const entry: RoomEntry = {
-      room, code, hostSocket,
+      room,
+      code,
+      hostSocket,
       connectedSockets: new Set([hostSocket]),
       slotAssignments: new Map(),
       started: false,
@@ -106,15 +108,21 @@ export class RoomManager {
       entry.waitTimer = null;
     }
     // All sockets are already spectators (added on join/create)
-    console.log(`[rooms] Room ${entry.code} started with ${entry.slotAssignments.size} human(s)`);
+    console.log(
+      `[rooms] Room ${entry.code} started with ${entry.slotAssignments.size} human(s)`,
+    );
   }
 
   // ---------------------------------------------------------------------------
   // Message routing
   // ---------------------------------------------------------------------------
 
-  // deno-lint-ignore no-explicit-any
-  handleMessage(socket: WebSocket, msg: Record<string, any>, rawJson: string): void {
+  handleMessage(
+    socket: WebSocket,
+    // deno-lint-ignore no-explicit-any
+    msg: Record<string, any>,
+    rawJson: string,
+  ): void {
     const entry = this.socketToRoom.get(socket);
     if (!entry) return;
     entry.room.handleMessage(socket, msg, rawJson);
@@ -136,13 +144,18 @@ export class RoomManager {
 
     // Host left before game start — delete the room immediately
     if (wasHost && !entry.started) {
-      if (entry.waitTimer) { clearTimeout(entry.waitTimer); entry.waitTimer = null; }
+      if (entry.waitTimer) {
+        clearTimeout(entry.waitTimer);
+        entry.waitTimer = null;
+      }
       for (const s of entry.connectedSockets) {
         this.socketToRoom.delete(s);
       }
       entry.connectedSockets.clear();
       this.rooms.delete(entry.code);
-      console.log(`[rooms] Room ${entry.code} deleted (host left before start)`);
+      console.log(
+        `[rooms] Room ${entry.code} deleted (host left before start)`,
+      );
       return;
     }
 
@@ -160,7 +173,10 @@ export class RoomManager {
 
         // Prefer lowest-slotId player
         for (const [sock, sid] of entry.slotAssignments) {
-          if (sock.readyState === WebSocket.OPEN && (newHostPlayerId < 0 || sid < newHostPlayerId)) {
+          if (
+            sock.readyState === WebSocket.OPEN &&
+            (newHostPlayerId < 0 || sid < newHostPlayerId)
+          ) {
             newHostSocket = sock;
             newHostPlayerId = sid;
           }
@@ -168,15 +184,24 @@ export class RoomManager {
         // Fallback: any connected socket (watcher becomes relay host, all players AI)
         if (!newHostSocket) {
           for (const sock of entry.connectedSockets) {
-            if (sock.readyState === WebSocket.OPEN) { newHostSocket = sock; break; }
+            if (sock.readyState === WebSocket.OPEN) {
+              newHostSocket = sock;
+              break;
+            }
           }
         }
 
         if (newHostSocket) {
           entry.hostSocket = newHostSocket;
           entry.room.setHost(newHostSocket);
-          this.broadcastToRoom(entry, { type: MSG.HOST_LEFT, newHostPlayerId, previousHostPlayerId });
-          console.log(`[rooms] Room ${entry.code}: host migrated to P${newHostPlayerId}`);
+          this.broadcastToRoom(entry, {
+            type: MSG.HOST_LEFT,
+            newHostPlayerId,
+            previousHostPlayerId,
+          });
+          console.log(
+            `[rooms] Room ${entry.code}: host migrated to P${newHostPlayerId}`,
+          );
         }
       }
     }
@@ -199,7 +224,10 @@ export class RoomManager {
     const result: { playerId: number; name: string }[] = [];
     for (const [, pid] of entry.slotAssignments) {
       if (pid >= 0) {
-        result.push({ playerId: pid, name: PLAYER_NAMES[pid] ?? `P${pid + 1}` });
+        result.push({
+          playerId: pid,
+          name: PLAYER_NAMES[pid] ?? `P${pid + 1}`,
+        });
       }
     }
     return result;
@@ -216,8 +244,18 @@ export class RoomManager {
   }
 
   /** List rooms available to join (not started, not empty). */
-  listRooms(): { code: string; players: number; settings: RoomSettings; elapsedSec: number }[] {
-    const result: { code: string; players: number; settings: RoomSettings; elapsedSec: number }[] = [];
+  listRooms(): {
+    code: string;
+    players: number;
+    settings: RoomSettings;
+    elapsedSec: number;
+  }[] {
+    const result: {
+      code: string;
+      players: number;
+      settings: RoomSettings;
+      elapsedSec: number;
+    }[] = [];
     for (const entry of this.rooms.values()) {
       if (entry.started) continue;
       result.push({

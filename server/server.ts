@@ -20,13 +20,19 @@ Deno.serve({ port: PORT }, (req) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, {
-      headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET, POST, OPTIONS" },
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+      },
     });
   }
 
   if (url.pathname === "/api/rooms") {
     return new Response(JSON.stringify(rooms.listRooms()), {
-      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
     });
   }
 
@@ -68,13 +74,20 @@ Deno.serve({ port: PORT }, (req) => {
   return new Response("Not found", { status: 404 });
 });
 
-// deno-lint-ignore no-explicit-any
-function handleMessage(socket: WebSocket, msg: Record<string, any>, rawJson: string): void {
+function handleMessage(
+  socket: WebSocket,
+  // deno-lint-ignore no-explicit-any
+  msg: Record<string, any>,
+  rawJson: string,
+): void {
   switch (msg.type) {
     case MSG.CREATE_ROOM: {
       const code = rooms.createRoom(msg.settings, socket);
       if (!code) {
-        send(socket, { type: MSG.ROOM_ERROR, message: "Server full, try again later" });
+        send(socket, {
+          type: MSG.ROOM_ERROR,
+          message: "Server full, try again later",
+        });
         return;
       }
       const entry = rooms.getEntry(socket)!;
@@ -93,7 +106,10 @@ function handleMessage(socket: WebSocket, msg: Record<string, any>, rawJson: str
       if (typeof msg.code !== "string") break;
       const entry = rooms.joinRoom(msg.code, socket);
       if (!entry) {
-        send(socket, { type: MSG.ROOM_ERROR, message: "Room not found or already started" });
+        send(socket, {
+          type: MSG.ROOM_ERROR,
+          message: "Room not found or already started",
+        });
         return;
       }
       // No slot assigned yet — player clicks a panel to pick their color
@@ -116,7 +132,8 @@ function handleMessage(socket: WebSocket, msg: Record<string, any>, rawJson: str
       const entry = rooms.getEntry(socket);
       if (!entry) break;
       const previousPlayerId =
-        selection.previousSlotId !== null && selection.previousSlotId !== selection.slotId
+        selection.previousSlotId !== null &&
+        selection.previousSlotId !== selection.slotId
           ? selection.previousSlotId
           : undefined;
       send(socket, {
@@ -144,7 +161,10 @@ function handleMessage(socket: WebSocket, msg: Record<string, any>, rawJson: str
   }
 }
 
-function send(socket: WebSocket, msg: import("./protocol.ts").ServerMessage): void {
+function send(
+  socket: WebSocket,
+  msg: import("./protocol.ts").ServerMessage,
+): void {
   if (socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(msg));
   }

@@ -126,9 +126,9 @@ export interface SerializedTower {
 // ---------------------------------------------------------------------------
 
 export interface RoomSettings {
-  battleLength: number;   // 0 (unlimited), 3, 5, 8, or 12
-  cannonMaxHp: number;    // 3, 6, 9, or 12
-  waitTimerSec: number;   // lobby wait duration before auto-start (seconds)
+  battleLength: number; // 0 (unlimited), 3, 5, 8, or 12
+  cannonMaxHp: number; // 3, 6, 9, or 12
+  waitTimerSec: number; // lobby wait duration before auto-start (seconds)
 }
 
 const VALID_BATTLE_LENGTHS = [0, 3, 5, 8, 12];
@@ -144,7 +144,10 @@ export function sanitizeRoomSettings(raw: Partial<RoomSettings>): RoomSettings {
   return {
     battleLength: VALID_BATTLE_LENGTHS.includes(bl) ? bl : 0,
     cannonMaxHp: VALID_CANNON_HP.includes(hp) ? hp : 3,
-    waitTimerSec: Number.isFinite(wait) && wait >= 0 ? Math.min(wait, MAX_WAIT_TIMER_SEC) : DEFAULT_WAIT_TIMER_SEC,
+    waitTimerSec:
+      Number.isFinite(wait) && wait >= 0
+        ? Math.min(wait, MAX_WAIT_TIMER_SEC)
+        : DEFAULT_WAIT_TIMER_SEC,
   };
 }
 
@@ -185,7 +188,6 @@ export interface JoinedMessage {
   playerId: number;
   previousPlayerId?: number;
 }
-
 
 // ---------------------------------------------------------------------------
 // Server → Client: Lobby
@@ -273,7 +275,11 @@ export interface BattleStartMessage {
   type: "battle_start";
   players: SerializedPlayer[];
   grunts: SerializedGrunt[];
-  capturedCannons: { victimId: number; capturerId: number; cannonIdx: number }[];
+  capturedCannons: {
+    victimId: number;
+    capturerId: number;
+    cannonIdx: number;
+  }[];
   burningPits: SerializedBurningPit[];
   towerAlive: boolean[];
   /** Balloon flight paths (for animation). */
@@ -331,20 +337,38 @@ export interface FullStateMessage {
   playerZones: number[];
   activePlayer: number;
   towerPendingRevive: number[];
-  capturedCannons: { victimId: number; capturerId: number; cannonIdx: number }[];
-  balloonHits: { playerId: number; cannonIdx: number; count: number; capturerIds: number[] }[];
+  capturedCannons: {
+    victimId: number;
+    capturerId: number;
+    cannonIdx: number;
+  }[];
+  balloonHits: {
+    playerId: number;
+    cannonIdx: number;
+    count: number;
+    capturerIds: number[];
+  }[];
   cannonballs: {
     cannonIdx: number;
-    startX: number; startY: number;
-    x: number; y: number;
-    targetX: number; targetY: number;
+    startX: number;
+    startY: number;
+    x: number;
+    y: number;
+    targetX: number;
+    targetY: number;
     speed: number;
     playerId: number;
     scoringPlayerId?: number;
     incendiary?: boolean;
   }[];
   /** In-flight balloon animations (present only during BALLOON_ANIM mode). */
-  balloonFlights?: { startX: number; startY: number; endX: number; endY: number; progress: number }[];
+  balloonFlights?: {
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+    progress: number;
+  }[];
 }
 
 // ---------------------------------------------------------------------------

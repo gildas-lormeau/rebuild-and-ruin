@@ -32,11 +32,22 @@ const RATE_LIMITED_TYPES: Set<string> = new Set([
 
 // Messages only the host socket can send
 const HOST_ONLY: Set<string> = new Set([
-  MSG.INIT, MSG.SELECT_START, MSG.CASTLE_WALLS,
-  MSG.CANNON_START, MSG.BATTLE_START, MSG.BUILD_START, MSG.BUILD_END,
-  MSG.GAME_OVER, MSG.FULL_STATE,
-  MSG.WALL_DESTROYED, MSG.CANNON_DAMAGED, MSG.HOUSE_DESTROYED,
-  MSG.GRUNT_KILLED, MSG.GRUNT_SPAWNED, MSG.PIT_CREATED, MSG.TOWER_KILLED,
+  MSG.INIT,
+  MSG.SELECT_START,
+  MSG.CASTLE_WALLS,
+  MSG.CANNON_START,
+  MSG.BATTLE_START,
+  MSG.BUILD_START,
+  MSG.BUILD_END,
+  MSG.GAME_OVER,
+  MSG.FULL_STATE,
+  MSG.WALL_DESTROYED,
+  MSG.CANNON_DAMAGED,
+  MSG.HOUSE_DESTROYED,
+  MSG.GRUNT_KILLED,
+  MSG.GRUNT_SPAWNED,
+  MSG.PIT_CREATED,
+  MSG.TOWER_KILLED,
 ]);
 
 // ---------------------------------------------------------------------------
@@ -47,54 +58,106 @@ const MAX_PLAYER_ID = 2;
 const MAX_TOWER_IDX = 30;
 const MAX_CANNON_IDX = 30;
 const MAX_PIECE_TILES = 50;
-const MAX_PIXEL = (Math.max(GRID_COLS, GRID_ROWS) * TILE_SIZE) + 100;
-const VALID_CANNON_MODES = new Set([CannonMode.NORMAL, CannonMode.SUPER, CannonMode.BALLOON]);
-const VALID_CHOICES = new Set([LifeLostChoice.CONTINUE, LifeLostChoice.ABANDON]);
+const MAX_PIXEL = Math.max(GRID_COLS, GRID_ROWS) * TILE_SIZE + 100;
+const VALID_CANNON_MODES = new Set([
+  CannonMode.NORMAL,
+  CannonMode.SUPER,
+  CannonMode.BALLOON,
+]);
+const VALID_CHOICES = new Set([
+  LifeLostChoice.CONTINUE,
+  LifeLostChoice.ABANDON,
+]);
 
 function isInt(val: unknown, min: number, max: number): boolean {
-  return typeof val === "number" && Number.isInteger(val) && val >= min && val <= max;
+  return (
+    typeof val === "number" && Number.isInteger(val) && val >= min && val <= max
+  );
 }
 function isFinite(val: unknown): boolean {
   return typeof val === "number" && Number.isFinite(val);
 }
 function isFiniteRange(val: unknown, min: number, max: number): boolean {
-  return typeof val === "number" && Number.isFinite(val) && val >= min && val <= max;
+  return (
+    typeof val === "number" && Number.isFinite(val) && val >= min && val <= max
+  );
 }
 
 // deno-lint-ignore no-explicit-any
 function validatePayload(msg: Record<string, any>): boolean {
   switch (msg.type) {
     case MSG.OPPONENT_TOWER_SELECTED:
-      return isInt(msg.playerId, 0, MAX_PLAYER_ID) && isInt(msg.towerIdx, 0, MAX_TOWER_IDX);
+      return (
+        isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
+        isInt(msg.towerIdx, 0, MAX_TOWER_IDX)
+      );
     case MSG.OPPONENT_PIECE_PLACED:
       // Offsets can be piece-relative (humans: [-4,4]) or absolute grid coords (AI host: [0,GRID_*-1])
-      return isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
-        isInt(msg.row, 0, GRID_ROWS - 1) && isInt(msg.col, 0, GRID_COLS - 1) &&
-        Array.isArray(msg.offsets) && msg.offsets.length >= 1 && msg.offsets.length <= MAX_PIECE_TILES &&
-        msg.offsets.every((o: unknown) => Array.isArray(o) && o.length === 2 &&
-          isInt(o[0], -(GRID_ROWS - 1), GRID_ROWS - 1) && isInt(o[1], -(GRID_COLS - 1), GRID_COLS - 1));
+      return (
+        isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
+        isInt(msg.row, 0, GRID_ROWS - 1) &&
+        isInt(msg.col, 0, GRID_COLS - 1) &&
+        Array.isArray(msg.offsets) &&
+        msg.offsets.length >= 1 &&
+        msg.offsets.length <= MAX_PIECE_TILES &&
+        msg.offsets.every(
+          (o: unknown) =>
+            Array.isArray(o) &&
+            o.length === 2 &&
+            isInt(o[0], -(GRID_ROWS - 1), GRID_ROWS - 1) &&
+            isInt(o[1], -(GRID_COLS - 1), GRID_COLS - 1),
+        )
+      );
     case MSG.OPPONENT_CANNON_PLACED:
-      return isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
-        isInt(msg.row, 0, GRID_ROWS - 1) && isInt(msg.col, 0, GRID_COLS - 1) &&
-        VALID_CANNON_MODES.has(msg.mode);
+      return (
+        isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
+        isInt(msg.row, 0, GRID_ROWS - 1) &&
+        isInt(msg.col, 0, GRID_COLS - 1) &&
+        VALID_CANNON_MODES.has(msg.mode)
+      );
     case MSG.CANNON_FIRED:
-      return isInt(msg.playerId, 0, MAX_PLAYER_ID) && isInt(msg.cannonIdx, 0, MAX_CANNON_IDX) &&
-        isFiniteRange(msg.startX, -MAX_PIXEL, MAX_PIXEL) && isFiniteRange(msg.startY, -MAX_PIXEL, MAX_PIXEL) &&
-        isFiniteRange(msg.targetX, -MAX_PIXEL, MAX_PIXEL) && isFiniteRange(msg.targetY, -MAX_PIXEL, MAX_PIXEL) &&
-        isFiniteRange(msg.speed, 1, 1000);
+      return (
+        isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
+        isInt(msg.cannonIdx, 0, MAX_CANNON_IDX) &&
+        isFiniteRange(msg.startX, -MAX_PIXEL, MAX_PIXEL) &&
+        isFiniteRange(msg.startY, -MAX_PIXEL, MAX_PIXEL) &&
+        isFiniteRange(msg.targetX, -MAX_PIXEL, MAX_PIXEL) &&
+        isFiniteRange(msg.targetY, -MAX_PIXEL, MAX_PIXEL) &&
+        isFiniteRange(msg.speed, 1, 1000)
+      );
     case MSG.LIFE_LOST_CHOICE:
-      return isInt(msg.playerId, 0, MAX_PLAYER_ID) && VALID_CHOICES.has(msg.choice);
+      return (
+        isInt(msg.playerId, 0, MAX_PLAYER_ID) && VALID_CHOICES.has(msg.choice)
+      );
     case MSG.AIM_UPDATE:
-      return isInt(msg.playerId, 0, MAX_PLAYER_ID) && isFinite(msg.x) && isFinite(msg.y);
+      return (
+        isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
+        isFinite(msg.x) &&
+        isFinite(msg.y)
+      );
     case MSG.OPPONENT_PHANTOM:
-      return isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
-        isInt(msg.row, 0, GRID_ROWS - 1) && isInt(msg.col, 0, GRID_COLS - 1) &&
-        Array.isArray(msg.offsets) && msg.offsets.length >= 1 && msg.offsets.length <= MAX_PIECE_TILES &&
-        msg.offsets.every((o: unknown) => Array.isArray(o) && o.length === 2 && isInt(o[0], -4, 4) && isInt(o[1], -4, 4));
+      return (
+        isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
+        isInt(msg.row, 0, GRID_ROWS - 1) &&
+        isInt(msg.col, 0, GRID_COLS - 1) &&
+        Array.isArray(msg.offsets) &&
+        msg.offsets.length >= 1 &&
+        msg.offsets.length <= MAX_PIECE_TILES &&
+        msg.offsets.every(
+          (o: unknown) =>
+            Array.isArray(o) &&
+            o.length === 2 &&
+            isInt(o[0], -4, 4) &&
+            isInt(o[1], -4, 4),
+        )
+      );
     case MSG.OPPONENT_CANNON_PHANTOM:
-      return isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
-        isInt(msg.row, 0, GRID_ROWS - 1) && isInt(msg.col, 0, GRID_COLS - 1) &&
-        VALID_CANNON_MODES.has(msg.mode);
+      return (
+        isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
+        isInt(msg.row, 0, GRID_ROWS - 1) &&
+        isInt(msg.col, 0, GRID_COLS - 1) &&
+        VALID_CANNON_MODES.has(msg.mode)
+      );
     default:
       return true; // no validation for unknown or host-only messages
   }
@@ -112,7 +175,7 @@ const PHASE_GATES: Record<string, Set<string>> = {
 };
 
 export class GameRoom {
-  private players = new Map<WebSocket, number>();      // socket → playerId
+  private players = new Map<WebSocket, number>(); // socket → playerId
   private spectators = new Set<WebSocket>();
   private hostSocket: WebSocket | null = null;
 
@@ -120,7 +183,10 @@ export class GameRoom {
   private phase = "LOBBY";
 
   /** Rate limit tracking: socket → type → { count, windowStart }. */
-  private rateLimits = new Map<WebSocket, Map<string, { count: number; windowStart: number }>>();
+  private rateLimits = new Map<
+    WebSocket,
+    Map<string, { count: number; windowStart: number }>
+  >();
 
   readonly seed: number;
   readonly settings: RoomSettings;
@@ -157,8 +223,12 @@ export class GameRoom {
   // Message relay with validation
   // ---------------------------------------------------------------------------
 
-  // deno-lint-ignore no-explicit-any
-  handleMessage(senderSocket: WebSocket, msg: Record<string, any>, rawJson: string): void {
+  handleMessage(
+    senderSocket: WebSocket,
+    // deno-lint-ignore no-explicit-any
+    msg: Record<string, any>,
+    rawJson: string,
+  ): void {
     const type = msg.type as string;
     if (!type) return;
 
@@ -174,7 +244,11 @@ export class GameRoom {
 
     // --- Identity enforcement (for messages with playerId) ---
     // Host is exempt: it sends actions on behalf of AI players.
-    if ("playerId" in msg && !HOST_ONLY.has(type) && senderSocket !== this.hostSocket) {
+    if (
+      "playerId" in msg &&
+      !HOST_ONLY.has(type) &&
+      senderSocket !== this.hostSocket
+    ) {
       const senderPid = this.players.get(senderSocket);
       if (senderPid === undefined) return;
       if (msg.playerId !== senderPid) return;
