@@ -3,7 +3,7 @@
  * Used by both main.ts and online-client.ts.
  */
 
-import { createLobbyConfirmKeys, formatKeyHint } from "./game-ui-runtime.ts";
+import { createLobbyConfirmKeys, formatKeyHint } from "./game-ui-helpers.ts";
 import { formatKeyName, saveSettings } from "./game-ui-settings.ts";
 import type { LobbyState } from "./game-ui-types.ts";
 import {

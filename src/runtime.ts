@@ -16,7 +16,7 @@ import { computeFrameContext } from "./game-ui-frame.ts";
 import {
   snapshotTerritory as snapshotTerritoryImpl,
   tickMainLoop,
-} from "./game-ui-runtime.ts";
+} from "./game-ui-helpers.ts";
 import { type UIContext, visibleOptions } from "./game-ui-screens.ts";
 import {
   CANNON_HP_OPTIONS,

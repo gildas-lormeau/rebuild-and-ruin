@@ -28,7 +28,7 @@ import {
 import {
   completeReselection,
   processReselectionQueue,
-} from "./game-ui-runtime.ts";
+} from "./game-ui-helpers.ts";
 import { TILE_SIZE } from "./grid.ts";
 import {
   BANNER_PLACE_CANNONS,

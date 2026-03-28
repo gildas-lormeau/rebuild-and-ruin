@@ -69,7 +69,7 @@ The layer map file. Committed to the repo. An array of named groups — position
  7  input                       all input-*
  8  render                      render-sprites, render-loupe, render-effects, render-towers,
                                 render-composition, render-ui, render-map, render-canvas  ← canvas-using files
- 9  game UI                     game-ui-types, game-ui-runtime, game-ui-screens, game-ui-frame
+ 9  game UI                     game-ui-types, game-ui-helpers, game-ui-screens, game-ui-frame
 10  online types & config       online-config, online-types, online-lobby-ui, online-server-lifecycle,
                                 online-session, online-serialize
 11  online logic                online-send-actions, online-checkpoints, online-watcher-*, online-phase-transitions,
