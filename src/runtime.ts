@@ -6,7 +6,6 @@
  * methods that operate on it. See runtime-state.ts for the state type.
  */
 
-import { createController } from "./controller-factory.ts";
 import {
   type InputReceiver,
   isHuman,
@@ -17,34 +16,20 @@ import {
   tickMainLoop,
 } from "./game-ui-helpers.ts";
 import type { UIContext } from "./game-ui-screens.ts";
-import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "./game-ui-types.ts";
-import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
+import { TILE_SIZE } from "./grid.ts";
 import { createHapticsSystem } from "./haptics-system.ts";
-import {
-  createBannerState,
-  showBannerTransition,
-  tickBannerTransition,
-} from "./phase-banner.ts";
+import { showBannerTransition, tickBannerTransition } from "./phase-banner.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "./platform.ts";
-import {
-  DIFFICULTY_PARAMS,
-  getPlayerColor,
-  MAX_PLAYERS,
-  PLAYER_COLORS,
-  PLAYER_KEY_BINDINGS,
-  PLAYER_NAMES,
-} from "./player-config.ts";
+import { PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
 import {
   createBannerUi,
   createOnlineOverlay,
   createRenderSummaryMessage,
   createStatusBar,
-  gameOverButtonHitTest,
 } from "./render-composition.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
-import { MAX_UINT32 } from "./rng.ts";
-import { bootstrapGame } from "./runtime-bootstrap.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
+import { createGameLifecycle } from "./runtime-game-lifecycle.ts";
 import { createInputSystem } from "./runtime-input.ts";
 import {
   createLifeLostSystem,
@@ -68,11 +53,6 @@ import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
 import {
   BANNER_DURATION,
   computeFrameContext,
-  createBattleAnimState,
-  createTimerAccums,
-  FOCUS_MENU,
-  FOCUS_REMATCH,
-  type GameState,
   MAX_FRAME_DT,
   Mode,
   Phase,
@@ -105,13 +85,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Input system (forward-declared, assigned after all sub-systems are created)
   // deno-lint-ignore prefer-const
   let input: ReturnType<typeof createInputSystem>;
-
-  function resetGameStats() {
-    rs.gameStats = Array.from({ length: MAX_PLAYERS }, () => ({
-      wallsDestroyed: 0,
-      cannonsKilled: 0,
-    }));
-  }
 
   // -------------------------------------------------------------------------
   // Frame/timing helpers
@@ -504,74 +477,33 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     });
   }
 
-  function rematch() {
-    camera.resetCamera();
-    rs.frame.gameOver = undefined;
-    startGame();
-    rs.mode = Mode.SELECTION;
-    rs.lastTime = performance.now();
-    requestAnimationFrame(mainLoop);
-  }
+  // -------------------------------------------------------------------------
+  // Game lifecycle (delegated to runtime-game-lifecycle.ts)
+  // -------------------------------------------------------------------------
 
-  function gameOverClick(canvasX: number, canvasY: number): void {
-    const gameOver = rs.frame.gameOver;
-    if (!gameOver) return;
-    const W = GRID_COLS * TILE_SIZE;
-    const H = GRID_ROWS * TILE_SIZE;
-    const hit = gameOverButtonHitTest(
-      canvasX / SCALE,
-      canvasY / SCALE,
-      W,
-      H,
-      gameOver,
-    );
-    if (hit === FOCUS_REMATCH) rematch();
-    else if (hit === FOCUS_MENU) returnToLobby();
-    else {
-      // Tap outside buttons — use current focus
-      if (gameOver.focused === FOCUS_REMATCH) rematch();
-      else returnToLobby();
-    }
-  }
-
-  function returnToLobby(): void {
-    rs.scoreDeltaOnDone = null;
-    camera.unzoom();
-    rs.mouseJoinedSlot = -1;
-    rs.directTouchActive = false;
-    input.touch.floatingActions?.update(false, 0, 0, false, false);
-    input.touch.dpad?.update(null); // disable d-pad + rotate
-    input.touch.quitButton?.update(null); // hide quit
-    input.touch.homeZoomButton?.update(false); // disable zoom buttons
-    input.touch.enemyZoomButton?.update(false);
-    input.touch.loupeHandle?.update(false, 0, 0); // hide loupe before lobby takes over rendering
-    config.showLobby();
-  }
-
-  function endGame(winner: { id: number } | null) {
-    rs.scoreDeltaOnDone = null;
-    camera.unzoom();
-    config.onEndGame?.(winner, rs.state);
-    sound.reset();
-    sound.gameOver();
-    const name = winner
-      ? (PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`)
-      : "Nobody";
-    rs.frame.gameOver = {
-      winner: name,
-      scores: rs.state.players.map((p) => ({
-        name: PLAYER_NAMES[p.id] ?? `P${p.id + 1}`,
-        score: p.score,
-        color: getPlayerColor(p.id).wall,
-        eliminated: p.eliminated,
-        territory: p.interior.size,
-        stats: rs.gameStats[p.id],
-      })),
-      focused: FOCUS_REMATCH,
-    };
-    render();
-    rs.mode = Mode.STOPPED;
-  }
+  const lifecycle = createGameLifecycle({
+    rs,
+    log: config.log,
+    showLobby: config.showLobby,
+    onEndGame: config.onEndGame,
+    camera,
+    sound,
+    selection,
+    render: () => render(),
+    resetFrame,
+    requestMainLoop: () => requestAnimationFrame(mainLoop),
+    resetTouchForLobby: () => {
+      input.touch.floatingActions?.update(false, 0, 0, false, false);
+      input.touch.dpad?.update(null);
+      input.touch.quitButton?.update(null);
+      input.touch.homeZoomButton?.update(false);
+      input.touch.enemyZoomButton?.update(false);
+      input.touch.loupeHandle?.update(false, 0, 0);
+    },
+    resetBattleCrosshair: () => {
+      lastBattleCrosshair = null;
+    },
+  });
 
   // -------------------------------------------------------------------------
   // Life-lost sub-system (delegated to runtime-life-lost.ts)
@@ -583,7 +515,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     log: config.log,
     render: () => render(),
     firstHuman,
-    endGame,
+    endGame: lifecycle.endGame,
     startReselection: selection.startReselection,
     advanceToCannonPhase: selection.advanceToCannonPhase,
   });
@@ -614,89 +546,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     sound,
     haptics,
   });
-
-  // -------------------------------------------------------------------------
-  // resetUIState
-  // -------------------------------------------------------------------------
-
-  function resetUIState(): void {
-    rs.reselectQueue = [];
-    rs.reselectionPids = [];
-    rs.battleAnim = createBattleAnimState();
-    rs.accum = createTimerAccums();
-    rs.banner = createBannerState();
-    rs.lifeLostDialog = null;
-    rs.paused = false;
-    rs.quitPending = false;
-    rs.optionsReturnMode = null;
-    rs.castleBuilds = [];
-    rs.castleBuildOnDone = null;
-    rs.selectionStates.clear();
-    rs.scoreDeltas = [];
-    rs.scoreDeltaTimer = 0;
-    rs.scoreDeltaOnDone = null;
-    rs.directTouchActive = false;
-    rs.preScores = [];
-    lastBattleCrosshair = null;
-    resetGameStats();
-    camera.resetCamera();
-    sound.reset();
-  }
-
-  // -------------------------------------------------------------------------
-  // startGame
-  // -------------------------------------------------------------------------
-
-  function startGame() {
-    const seed = rs.lobby.seed;
-
-    const diffParams =
-      DIFFICULTY_PARAMS[rs.settings.difficulty] ?? DIFFICULTY_PARAMS[1]!;
-    const { buildTimer, cannonPlaceTimer, firstRoundCannons } = diffParams;
-    const roundsParam =
-      typeof location !== "undefined"
-        ? Number(new URL(location.href).searchParams.get("rounds"))
-        : 0;
-    const roundsVal =
-      roundsParam > 0
-        ? roundsParam
-        : (ROUNDS_OPTIONS[rs.settings.rounds] ?? ROUNDS_OPTIONS[0]!).value;
-
-    bootstrapGame({
-      seed,
-      maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),
-      battleLength: roundsVal,
-      cannonMaxHp: (
-        CANNON_HP_OPTIONS[rs.settings.cannonHp] ?? CANNON_HP_OPTIONS[0]!
-      ).value,
-      buildTimer,
-      cannonPlaceTimer,
-      log: config.log,
-      resetFrame,
-      setState: (s: GameState) => {
-        s.firstRoundCannons = firstRoundCannons;
-        rs.state = s;
-      },
-      setControllers: (c: readonly PlayerController[]) => {
-        rs.controllers = [...c];
-      },
-      resetUIState,
-      createControllerForSlot: (i: number, gameState: GameState) => {
-        const isAi = !rs.lobby.joined[i];
-        const strategySeed = isAi
-          ? gameState.rng.int(0, MAX_UINT32)
-          : undefined;
-        return createController(
-          i,
-          isAi,
-          rs.settings.keyBindings[i]!,
-          strategySeed,
-          rs.settings.difficulty,
-        );
-      },
-      enterSelection: selection.enter,
-    });
-  }
 
   // -------------------------------------------------------------------------
   // UIContext — bridges internal state to game-ui-screens.ts functions
@@ -785,9 +634,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     withFirstHuman,
     isSelectionReady,
     render,
-    rematch,
-    returnToLobby,
-    gameOverClick,
+    rematch: lifecycle.rematch,
+    returnToLobby: lifecycle.returnToLobby,
+    gameOverClick: lifecycle.gameOverClick,
   });
 
   // -------------------------------------------------------------------------
@@ -826,7 +675,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     withFirstHuman,
 
     render,
-    endGame,
+    endGame: lifecycle.endGame,
     aimAtEnemyCastle,
 
     startCannonPhase: phaseTicks.startCannonPhase,
@@ -841,8 +690,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     tickBuildPhase: phaseTicks.tickBuildPhase,
 
     tickGame: phaseTicks.tickGame,
-    resetUIState,
-    startGame,
+    resetUIState: lifecycle.resetUIState,
+    startGame: lifecycle.startGame,
 
     uiCtx,
     registerInputHandlers: input.register,
