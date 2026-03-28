@@ -202,7 +202,7 @@ function isOnPhantom(
   }
   if (phase === Phase.CANNON_PLACE) {
     const mode = human.getCannonPlaceMode();
-    const size = cannonSize({ kind: mode });
+    const size = cannonSize(mode);
     const cr = human.cannonCursor.row;
     const cc = human.cannonCursor.col;
     return row >= cr && row < cr + size && col >= cc && col < cc + size;

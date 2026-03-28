@@ -22,6 +22,7 @@ import {
   forEachCannonTile,
   inBounds,
   isCannonAlive,
+  isSuperCannon,
   isWater,
   manhattanDistance,
   packTile,
@@ -441,7 +442,7 @@ function enemyHasLiveCannon(enemy: Player): boolean {
 
 function enemyHasThreateningSuperGun(state: GameState, enemy: Player): boolean {
   return enemy.cannons.some((c) => {
-    if (!isCannonAlive(c) || c.kind !== CannonMode.SUPER) return false;
+    if (!isCannonAlive(c) || !isSuperCannon(c)) return false;
     if (state.capturedCannons.some((cc) => cc.cannon === c)) return false;
     return isCannonEnclosed(c, enemy.interior);
   });

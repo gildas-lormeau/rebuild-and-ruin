@@ -13,6 +13,8 @@ import {
   Action,
   BALLOON_SIZE,
   CannonMode,
+  isBalloonMode,
+  isSuperMode,
   NORMAL_CANNON_SIZE,
   SUPER_GUN_SIZE,
 } from "./types.ts";
@@ -76,7 +78,7 @@ export function forEachCannonTile(
   cannon: Pick<Cannon, "row" | "col" | "kind">,
   fn: (r: number, c: number, key: number) => void,
 ): void {
-  forEachSquareTile(cannon.row, cannon.col, cannonSize(cannon), fn);
+  forEachSquareTile(cannon.row, cannon.col, cannonSize(cannon.kind), fn);
 }
 
 /** True if (r,c) is within a cannon footprint (size based on kind). */
@@ -85,7 +87,7 @@ export function isCannonTile(
   r: number,
   c: number,
 ): boolean {
-  return isTileInRect(cannon.row, cannon.col, cannonSize(cannon), r, c);
+  return isTileInRect(cannon.row, cannon.col, cannonSize(cannon.kind), r, c);
 }
 
 /** Manhattan distance from (r,c) to nearest tile of a 2×2 tower. */
@@ -99,7 +101,7 @@ export function distanceToTower(t: TilePos, r: number, c: number): number {
 export function cannonCenter(
   cannon: Pick<Cannon, "row" | "col" | "kind">,
 ): PixelPos {
-  const size = cannonSize(cannon);
+  const size = cannonSize(cannon.kind);
   return {
     x: (cannon.col + size / 2) * TILE_SIZE,
     y: (cannon.row + size / 2) * TILE_SIZE,
@@ -169,13 +171,11 @@ export function towerReachesOutsideCardinal(
   return false;
 }
 
-/** Get the tile size of a cannon (2 for normal/balloon, 3 for super). */
-export function cannonSize(cannon: Pick<Cannon, "kind">): number {
-  switch (cannon.kind) {
-    case CannonMode.SUPER: return SUPER_GUN_SIZE;
-    case CannonMode.BALLOON: return BALLOON_SIZE;
-    default: return NORMAL_CANNON_SIZE;
-  }
+/** Get the tile size of a cannon mode (2 for normal/balloon, 3 for super). */
+export function cannonSize(mode: CannonMode): number {
+  if (isSuperMode(mode)) return SUPER_GUN_SIZE;
+  if (isBalloonMode(mode)) return BALLOON_SIZE;
+  return NORMAL_CANNON_SIZE;
 }
 
 /** True if a cannon still has hit points remaining. */
@@ -184,13 +184,13 @@ export function isCannonAlive(cannon: Pick<Cannon, "hp">): boolean {
 }
 
 /** True if a cannon is a balloon (propaganda balloon). */
-export function isBalloonCannon(cannon: { kind: string }): boolean {
-  return cannon.kind === CannonMode.BALLOON;
+export function isBalloonCannon(cannon: { kind: CannonMode }): cannon is { kind: CannonMode.BALLOON } {
+  return isBalloonMode(cannon.kind);
 }
 
 /** True if a cannon is a super gun. */
-export function isSuperCannon(cannon: { kind: string }): boolean {
-  return cannon.kind === CannonMode.SUPER;
+export function isSuperCannon(cannon: { kind: CannonMode }): cannon is { kind: CannonMode.SUPER } {
+  return isSuperMode(cannon.kind);
 }
 
 /** True if (r,c) is occupied by a burning pit. */

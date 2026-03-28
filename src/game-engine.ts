@@ -40,14 +40,13 @@ import {
   topZonesBySize,
 } from "./map-generation.ts";
 import { Rng } from "./rng.ts";
-import { DIRS_4, packTile, unpackTile } from "./spatial.ts";
+import { DIRS_4, isBalloonCannon, packTile, unpackTile } from "./spatial.ts";
 import type { GameState, Player } from "./types.ts";
 import {
   BATTLE_TIMER,
   BUILD_TIMER,
   CANNON_MAX_HP,
   CANNON_PLACE_TIMER,
-  CannonMode,
   FIRST_GRUNT_SPAWN_ROUND,
   FIRST_ROUND_CANNONS,
   INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
@@ -286,7 +285,7 @@ function enterBuildFromBattle(state: GameState): void {
   state.capturedCannons = [];
   // Remove all balloon bases (they disappear after battle)
   for (const player of state.players) {
-    player.cannons = player.cannons.filter((c) => c.kind !== CannonMode.BALLOON);
+    player.cannons = player.cannons.filter((c) => !isBalloonCannon(c));
   }
   // First battle with no shots fired (nobody playing): spawn grouped grunts per player
   if (state.round === 1 && state.shotsFired === 0) {

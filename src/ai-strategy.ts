@@ -34,7 +34,7 @@ import type { GameMap, PixelPos, StrategicPixelPos, TilePos, Tower } from "./geo
 import type { PieceShape } from "./pieces.ts";
 import { MAX_UINT32, Rng } from "./rng.ts";
 import { computeOutside, isTowerEnclosed, waterKeys } from "./spatial.ts";
-import { type Cannon, CannonMode, type GameState, type Player } from "./types.ts";
+import { type Cannon, CannonMode, type GameState, isNormalMode, type Player } from "./types.ts";
 
 export type ChainType = (typeof Chain)[keyof typeof Chain];
 
@@ -370,7 +370,7 @@ export class DefaultStrategy implements AiStrategy {
     return placed.map((c) => ({
       row: c.row,
       col: c.col,
-      mode: c.kind === CannonMode.NORMAL ? undefined : c.kind,
+      mode: isNormalMode(c.kind) ? undefined : c.kind,
     }));
   }
 

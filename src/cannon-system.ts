@@ -21,7 +21,9 @@ import type { Cannon, GameState, Player } from "./types.ts";
 import {
   BALLOON_COST,
   CannonMode,
+  isBalloonMode,
   isPlayerActive,
+  isSuperMode,
   MAX_CANNON_LIMIT_ON_RESELECT,
   STARTING_LIVES,
   SUPER_GUN_COST,
@@ -37,7 +39,7 @@ export function isCannonEnclosed(
   cannon: Cannon,
   interior: Set<number>,
 ): boolean {
-  const sz = cannonSize(cannon);
+  const sz = cannonSize(cannon.kind);
   for (let dr = 0; dr < sz; dr++) {
     for (let dc = 0; dc < sz; dc++) {
       if (!interior.has(packTile(cannon.row + dr, cannon.col + dc))) return false;
@@ -90,7 +92,7 @@ export function placeCannon(
 ): boolean {
   const normalizedMode = mode ?? CannonMode.NORMAL;
   const used = cannonSlotsUsed(player);
-  const cost = cannonSlotCost({ kind: normalizedMode });
+  const cost = cannonSlotCost(normalizedMode);
   if (used + cost > maxCannons) return false;
   if (!canPlaceCannon(player, row, col, normalizedMode, state)) return false;
   applyCannonPlacement(player, row, col, normalizedMode, state);
@@ -108,7 +110,7 @@ export function canPlaceCannon(
   mode: CannonMode,
   state: GameState,
 ): boolean {
-  const size = cannonSize({ kind: mode });
+  const size = cannonSize(mode);
   for (let dr = 0; dr < size; dr++) {
     for (let dc = 0; dc < size; dc++) {
       const r = row + dr;
@@ -172,7 +174,7 @@ export function cannonSlotsUsed(player: Player): number {
   let slots = 0;
   for (const cannon of player.cannons) {
     if (!isCannonAlive(cannon)) continue;
-    slots += cannonSlotCost(cannon);
+    slots += cannonSlotCost(cannon.kind);
   }
   return slots;
 }
@@ -215,12 +217,10 @@ export function filterActiveFiringCannons(player: Player): Cannon[] {
   );
 }
 
-export function cannonSlotCost(cannon: Pick<Cannon, "kind">): number {
-  switch (cannon.kind) {
-    case CannonMode.BALLOON: return BALLOON_COST;
-    case CannonMode.SUPER: return SUPER_GUN_COST;
-    default: return NORMAL_CANNON_COST;
-  }
+export function cannonSlotCost(mode: CannonMode): number {
+  if (isBalloonMode(mode)) return BALLOON_COST;
+  if (isSuperMode(mode)) return SUPER_GUN_COST;
+  return NORMAL_CANNON_COST;
 }
 
 function overlapsExistingCannon(

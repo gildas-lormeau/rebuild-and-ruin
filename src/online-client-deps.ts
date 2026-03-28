@@ -118,7 +118,7 @@ function buildIncrementalDeps() {
       if (!player) return false;
       const maxCannons = state.cannonLimits[playerId] ?? 0;
       const normalizedMode = mode as CannonMode;
-      if (cannonSlotsUsed(player) + cannonSlotCost({ kind: normalizedMode }) > maxCannons) return false;
+      if (cannonSlotsUsed(player) + cannonSlotCost(normalizedMode) > maxCannons) return false;
       return canPlaceCannon(player, row, col, normalizedMode, state);
     },
     applyImpactEvent,

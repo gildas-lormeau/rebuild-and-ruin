@@ -28,6 +28,9 @@ import {
   Action,
   BALLOON_COST,
   CannonMode,
+  isBalloonMode,
+  isNormalMode,
+  isSuperMode,
   SUPER_GUN_COST,
 } from "./types.ts";
 
@@ -79,10 +82,10 @@ export class HumanController extends BaseController implements InputReceiver {
     if (remaining <= 0) return null;
     if (!hasAnyCannonPlacement(player, this.cannonPlaceMode, state)) return null;
     // Auto-downgrade mode if it no longer fits in remaining slots
-    if (this.cannonPlaceMode === CannonMode.SUPER && remaining < SUPER_GUN_COST) {
+    if (isSuperMode(this.cannonPlaceMode) && remaining < SUPER_GUN_COST) {
       this.cannonPlaceMode = CannonMode.NORMAL;
     }
-    if (this.cannonPlaceMode === CannonMode.BALLOON && remaining < BALLOON_COST) {
+    if (isBalloonMode(this.cannonPlaceMode) && remaining < BALLOON_COST) {
       this.cannonPlaceMode = CannonMode.NORMAL;
     }
     // Snap-to-fit: only on mouse/touch (absolute position), not d-pad/keyboard (relative)
@@ -114,7 +117,7 @@ export class HumanController extends BaseController implements InputReceiver {
 
   override setCannonCursor(row: number, col: number): void {
     // Offset so the clicked tile is near the center of the cannon phantom
-    const sz = cannonSize({ kind: this.cannonPlaceMode });
+    const sz = cannonSize(this.cannonPlaceMode);
     const offset = Math.floor(sz / 2);
     super.setCannonCursor(row - offset, col - offset);
     this.cannonCursorNeedsSnap = true;
@@ -125,7 +128,7 @@ export class HumanController extends BaseController implements InputReceiver {
   }
 
   override moveCannonCursor(direction: Action): void {
-    const sz = cannonSize({ kind: this.cannonPlaceMode });
+    const sz = cannonSize(this.cannonPlaceMode);
     if (direction === Action.UP)
       this.cannonCursor.row = Math.max(0, this.cannonCursor.row - 1);
     else if (direction === Action.DOWN)
@@ -193,7 +196,7 @@ export class HumanController extends BaseController implements InputReceiver {
   tryPlaceCannon(state: GameState, maxSlots: number): boolean {
     const player = state.players[this.playerId]!;
     const mode =
-      this.cannonPlaceMode === CannonMode.NORMAL
+      isNormalMode(this.cannonPlaceMode)
         ? undefined
         : this.cannonPlaceMode;
     const placed = placeCannon(
@@ -242,13 +245,13 @@ export class HumanController extends BaseController implements InputReceiver {
     const player = state.players[this.playerId]!;
     const used = cannonSlotsUsed(player);
     if (
-      this.cannonPlaceMode === CannonMode.NORMAL &&
+      isNormalMode(this.cannonPlaceMode) &&
       used + SUPER_GUN_COST <= maxSlots
     ) {
       this.cannonPlaceMode = CannonMode.SUPER;
     } else if (
-      (this.cannonPlaceMode === CannonMode.NORMAL ||
-        this.cannonPlaceMode === CannonMode.SUPER) &&
+      (isNormalMode(this.cannonPlaceMode) ||
+        isSuperMode(this.cannonPlaceMode)) &&
       used + BALLOON_COST <= maxSlots
     ) {
       this.cannonPlaceMode = CannonMode.BALLOON;
@@ -256,7 +259,7 @@ export class HumanController extends BaseController implements InputReceiver {
       this.cannonPlaceMode = CannonMode.NORMAL;
     }
     // Re-clamp cursor so the new cannon size stays within the grid
-    const sz = cannonSize({ kind: this.cannonPlaceMode });
+    const sz = cannonSize(this.cannonPlaceMode);
     this.cannonCursor.row = Math.min(this.cannonCursor.row, GRID_ROWS - sz);
     this.cannonCursor.col = Math.min(this.cannonCursor.col, GRID_COLS - sz);
   }

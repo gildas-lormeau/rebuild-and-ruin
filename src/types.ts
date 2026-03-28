@@ -388,6 +388,21 @@ export const HOUSE_MIN_DISTANCE = 3;
 export const FOCUS_REMATCH: GameOverFocus = "rematch";
 export const FOCUS_MENU: GameOverFocus = "menu";
 
+/** True if the cannon mode is normal. */
+export function isNormalMode(mode: CannonMode): mode is CannonMode.NORMAL {
+  return mode === CannonMode.NORMAL;
+}
+
+/** True if the cannon mode is super gun. */
+export function isSuperMode(mode: CannonMode): mode is CannonMode.SUPER {
+  return mode === CannonMode.SUPER;
+}
+
+/** True if the cannon mode is balloon. */
+export function isBalloonMode(mode: CannonMode): mode is CannonMode.BALLOON {
+  return mode === CannonMode.BALLOON;
+}
+
 /** True if the phase is castle selection (initial or reselect). */
 export function isSelectionPhase(phase: Phase): boolean {
   return phase === Phase.CASTLE_SELECT || phase === Phase.CASTLE_RESELECT;
