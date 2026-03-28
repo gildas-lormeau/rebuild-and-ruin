@@ -313,6 +313,7 @@ export interface FrameContext {
   readonly shouldUnzoom: boolean;
 }
 
+/** Exported for headless camera testing (test/scenario-helpers.ts). */
 export interface FrameContextInputs {
   mode: Mode;
   phase: Phase;
