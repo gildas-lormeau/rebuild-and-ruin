@@ -12,6 +12,7 @@
  */
 import { readFileSync } from "node:fs";
 import { Project, SyntaxKind } from "ts-morph";
+import process from "node:process";
 
 const baseline: { mutableArrayParams: string[] } = JSON.parse(
   readFileSync(".readonly-params-baseline.json", "utf8"),
