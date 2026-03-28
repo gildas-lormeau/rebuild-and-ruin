@@ -16,6 +16,17 @@ import {
   type Player,
 } from "./types.ts";
 
+/** Run the shared main loop tick: quit countdown, pause check, mode dispatch.
+ *  Returns false if the loop should NOT reschedule (Mode.STOPPED). */
+/** Modes that have tick handlers. STOPPED is handled by early-return. */
+type TickableMode = Exclude<Mode, Mode.STOPPED>;
+
+/**
+ * Tick dispatch table — mapped type forces every tickable Mode to have
+ * a handler.  Adding a new Mode without a handler is a compile error.
+ */
+type TickDispatch = { readonly [M in TickableMode]: (dt: number) => void };
+
 /** Format a key binding as a short hint string (e.g. "Arrows + N (B rotate)"). */
 export function formatKeyHint(kb: KeyBindings): string {
   const arrows =
@@ -140,20 +151,18 @@ export function tickGameCore(params: {
   }
 }
 
-/** Run the shared main loop tick: quit countdown, pause check, mode dispatch.
- *  Returns false if the loop should NOT reschedule (Mode.STOPPED). */
 export function tickMainLoop(params: {
-  dt: number;
-  mode: Mode;
-  paused: boolean;
-  quitPending: boolean;
-  quitTimer: number;
-  quitMessage?: string;
-  frame: { announcement?: string };
-  setQuitPending: (v: boolean) => void;
-  setQuitTimer: (v: number) => void;
-  render: () => void;
-  ticks: Record<number, (dt: number) => void>;
+  readonly dt: number;
+  readonly mode: Mode;
+  readonly paused: boolean;
+  readonly quitPending: boolean;
+  readonly quitTimer: number;
+  readonly quitMessage?: string;
+  readonly frame: { announcement?: string };
+  readonly setQuitPending: (v: boolean) => void;
+  readonly setQuitTimer: (v: number) => void;
+  readonly render: () => void;
+  readonly ticks: TickDispatch;
 }): boolean {
   const { dt, mode, frame, ticks } = params;
 
@@ -183,8 +192,7 @@ export function tickMainLoop(params: {
 
   if (mode === Mode.STOPPED) return false;
 
-  const tick = ticks[mode];
-  if (tick) tick(dt);
+  ticks[mode](dt);
 
   return true;
 }
