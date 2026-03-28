@@ -1,8 +1,6 @@
 /**
  * Phase tick wrappers — thin glue between config/rs and the imported
  * tick functions from runtime-host-battle-ticks.ts, runtime-host-phase-ticks.ts, etc.
- *
- * Extracted from runtime.ts.
  */
 
 import { type GameMessage, MSG, type SerializedPlayer } from "../server/protocol.ts";
