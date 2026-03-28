@@ -5,6 +5,7 @@
 
 import { snapshotAllWalls, sweepIsolatedWalls } from "../src/board-occupancy.ts";
 import { GRID_COLS } from "../src/grid.ts";
+import { showBannerTransition } from "../src/phase-banner.ts";
 import { type LifeLostDialogState, LifeLostChoice, Mode, Phase } from "../src/types.ts";
 import {
   assertCameraZone,
@@ -12,7 +13,7 @@ import {
   assertPhase,
   createScenario,
 } from "./scenario-helpers.ts";
-import { assert, knownFailureTest, test, runTests } from "./test-helpers.ts";
+import { assert, test, runTests } from "./test-helpers.ts";
 
 // ---------------------------------------------------------------------------
 // 1. Game-over overlay cleared on returnToLobby
@@ -224,7 +225,7 @@ test("continuing player entry shows Continuing label", () => {
 // 7. KNOWN BUG: Place Cannons banner doesn't progressively hide swept walls
 // ---------------------------------------------------------------------------
 
-knownFailureTest("Place Cannons banner old scene misses swept walls", () => {
+test("Place Cannons banner old scene includes pre-sweep walls via pendingOldWalls", () => {
   const s = createScenario();
 
   // Play a round so we have battle damage and build phase
@@ -232,8 +233,7 @@ knownFailureTest("Place Cannons banner old scene misses swept walls", () => {
   s.runBattle();
   s.runBuild();
 
-  // Before finalizing, add an isolated wall (1 neighbor or fewer) that
-  // sweepIsolatedWalls will remove during finalizeBuildPhase.
+  // Add an isolated wall (0-1 neighbors) that sweepIsolatedWalls will remove
   const player = s.state.players[0]!;
   let isolatedKey = -1;
   for (let r = 10; r < 30; r++) {
@@ -249,39 +249,46 @@ knownFailureTest("Place Cannons banner old scene misses swept walls", () => {
   assert(isolatedKey >= 0, "Should find tile for isolated wall");
   player.walls.add(isolatedKey);
 
-  // Snapshot walls BEFORE finalizeBuildPhase (this is what the banner
-  // old scene SHOULD capture for a progressive sweep)
-  const wallsBeforeSweep = new Set(player.walls);
-  assert(wallsBeforeSweep.has(isolatedKey), "Isolated wall present before sweep");
+  const wallCountBefore = player.walls.size;
+
+  // Stash pre-sweep walls on banner (simulates what tickHostBuildPhase now does)
+  const banner = s.createBanner();
+  banner.pendingOldWalls = snapshotAllWalls(s.state);
 
   // finalizeBuildPhase sweeps isolated walls
   s.finalizeBuild();
+  const wallCountAfter = player.walls.size;
   assert(!player.walls.has(isolatedKey), "Isolated wall removed by sweep");
 
-  // At this point, advanceToCannonPhase -> showBanner(reveal=true) would
-  // capture oldCastles.walls = new Set(p.walls). Since the sweep already
-  // happened, the old scene is IDENTICAL to the new scene — the swept
-  // wall is missing from both. It vanished instantly instead of
-  // progressively during the banner sweep.
-  const wallsAtBannerCapture = new Set(player.walls);
+  // showBannerTransition consumes pendingOldWalls for oldCastles
+  showBannerTransition({
+    banner,
+    state: s.state,
+    battleAnim: s.createBattleAnim(),
+    text: "Place Cannons",
+    onDone: () => {},
+    reveal: true,
+    setModeBanner: () => {},
+  });
 
-  // THE BUG: old scene should contain the pre-sweep walls but doesn't
-  const oldSceneHasSweptWall = wallsBeforeSweep.has(isolatedKey);
-  const bannerCaptureHasSweptWall = wallsAtBannerCapture.has(isolatedKey);
+  // The old scene should have the pre-sweep walls (including the isolated one)
+  const oldCastleWalls = banner.oldCastles?.find((c) => c.playerId === 0)?.walls;
+  const oldSceneHasSweptWall = oldCastleWalls?.has(isolatedKey) ?? false;
+  const newSceneHasSweptWall = player.walls.has(isolatedKey);
 
-  console.log("  [debug] walls before sweep:", wallsBeforeSweep.size);
-  console.log("  [debug] walls at banner capture:", wallsAtBannerCapture.size);
-  console.log("  [debug] isolated wall in pre-sweep snapshot:", oldSceneHasSweptWall);
-  console.log("  [debug] isolated wall at banner capture time:", bannerCaptureHasSweptWall);
-  console.log("  [debug] → banner old scene = new scene (no progressive reveal)");
+  console.log("  [debug] walls before sweep:", wallCountBefore);
+  console.log("  [debug] walls after sweep:", wallCountAfter);
+  console.log("  [debug] swept:", wallCountBefore - wallCountAfter, "walls");
+  console.log("  [debug] isolated wall in banner old scene:", oldSceneHasSweptWall);
+  console.log("  [debug] isolated wall in new scene:", newSceneHasSweptWall);
 
-  // When fixed, the banner should capture pre-sweep walls so the old
-  // scene still has them. This fails today because finalizeBuildPhase
-  // sweeps walls before the banner captures the old scene.
   assert(
-    bannerCaptureHasSweptWall,
-    "Swept wall is gone before banner captures old scene — " +
-    "Place Cannons banner cannot progressively hide it",
+    oldSceneHasSweptWall,
+    "Banner old scene should include pre-sweep walls for progressive reveal",
+  );
+  assert(
+    !newSceneHasSweptWall,
+    "New scene should NOT have the swept wall",
   );
 });
 

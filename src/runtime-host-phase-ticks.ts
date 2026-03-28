@@ -7,6 +7,7 @@
  */
 
 import type { SerializedPlayer } from "../server/protocol.ts";
+import { snapshotAllWalls } from "./board-occupancy.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import {
   type CannonPhantom,
@@ -93,6 +94,7 @@ interface TickHostCannonPhaseDeps {
 interface TickHostBuildPhaseDeps {
   dt: number;
   state: GameState;
+  banner: { pendingOldWalls?: Set<number>[] };
   accum: { build: number; grunt: number };
   frame: HostFrame;
   controllers: PlayerController[];
@@ -327,6 +329,10 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
     if (remoteHumanSlots.has(ctrl.playerId)) continue;
     ctrl.endBuild(state);
   }
+
+  // Stash pre-sweep walls so the Place Cannons banner can show them
+  // as the old scene (swept walls vanish progressively during the sweep).
+  deps.banner.pendingOldWalls = snapshotAllWalls(state);
 
   const { needsReselect, eliminated } = finalizeBuildPhase(state);
   if (isHost && sendBuildEnd) {

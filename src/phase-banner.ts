@@ -14,6 +14,8 @@ export interface BannerState {
   oldBonusSquares?: TilePos[];
   newTerritory?: Set<number>[];
   newWalls?: Set<number>[];
+  /** Pre-sweep wall snapshot stashed before finalizeBuildPhase; consumed by next showBannerTransition. */
+  pendingOldWalls?: Set<number>[];
 }
 
 interface ShowBannerDeps {
@@ -66,11 +68,15 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
     setModeBanner,
   } = deps;
 
+  // Consume pre-sweep wall snapshot if stashed before finalizeBuildPhase
+  const pendingWalls = banner.pendingOldWalls;
+  banner.pendingOldWalls = undefined;
+
   if (reveal) {
     banner.oldCastles = state.players
       .filter((p) => p.castle)
       .map((p) => ({
-        walls: new Set(p.walls),
+        walls: pendingWalls?.[p.id] ?? new Set(p.walls),
         interior: new Set(p.interior),
         cannons: p.cannons.map((c) => ({ ...c })),
         playerId: p.id,

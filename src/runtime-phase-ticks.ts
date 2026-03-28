@@ -343,6 +343,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     return tickHostBuildPhase({
       dt,
       state: rs.state,
+      banner: rs.banner,
       accum: rs.accum,
       frame: rs.frame,
       controllers: rs.controllers,
