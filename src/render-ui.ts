@@ -453,17 +453,15 @@ export function drawLifeLostDialog(
     } else {
       // Resolved state
       octx.font = FONT_LABEL;
-      octx.fillStyle =
-        entry.choice === LifeLostChoice.CONTINUE
-          ? BTN_CONTINUE.stroke
-          : BTN_ABANDON.stroke;
-      octx.fillText(
-        entry.choice === LifeLostChoice.CONTINUE
-          ? "Continuing..."
-          : "Abandoned",
-        cx,
-        py + PANEL_H - 18,
-      );
+      const isContinue = entry.choice === LifeLostChoice.CONTINUE;
+      octx.fillStyle = isContinue ? BTN_CONTINUE.stroke : BTN_ABANDON.stroke;
+      if (entry.lives > 0) {
+        octx.fillText(
+          isContinue ? "Continuing..." : "Abandoned",
+          cx,
+          py + PANEL_H - 18,
+        );
+      }
     }
   }
 }
