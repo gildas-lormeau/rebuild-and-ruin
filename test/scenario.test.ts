@@ -346,4 +346,53 @@ test("camera zooms to human zone when human IS reselecting", () => {
 
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// 10. Scripted player actions work
+// ---------------------------------------------------------------------------
+
+test("placeCannonAt places a cannon at the given position", () => {
+  const s = createScenario();
+  assertPhase(s, Phase.CANNON_PLACE);
+
+  const player = s.state.players[0]!;
+  const cannonsBefore = player.cannons.length;
+
+  // Find a valid interior tile for cannon placement
+  const interior = [...player.interior];
+  assert(interior.length > 0, "Player should have interior tiles");
+
+  // Try placing at first interior tile (may fail if blocked by tower, etc.)
+  let placed = false;
+  for (const key of interior) {
+    const row = Math.floor(key / GRID_COLS);
+    const col = key % GRID_COLS;
+    if (s.placeCannonAt(0, row, col)) {
+      placed = true;
+      break;
+    }
+  }
+  assert(placed, "Should place at least one cannon via placeCannonAt");
+  assert(player.cannons.length === cannonsBefore + 1, "Cannon count should increase by 1");
+});
+
+test("fireAt launches a cannonball at the target", () => {
+  const s = createScenario();
+
+  // Place cannons and advance to battle
+  s.runCannon();
+  s.advanceTo(Phase.BATTLE);
+  for (const ctrl of s.controllers) ctrl.resetBattle(s.state);
+
+  const player = s.state.players[0]!;
+  const aliveCannon = player.cannons.findIndex((c) => c.hp > 0);
+  assert(aliveCannon >= 0, "Player should have an alive cannon");
+
+  const shotsBefore = s.state.shotsFired;
+  const fired = s.fireAt(0, aliveCannon, 20, 20);
+  assert(fired, "fireAt should succeed for alive cannon");
+  assert(s.state.shotsFired === shotsBefore + 1, "shotsFired should increase");
+});
+
+// ---------------------------------------------------------------------------
+
 runTests("Scenario Tests");

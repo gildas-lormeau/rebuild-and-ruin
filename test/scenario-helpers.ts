@@ -8,8 +8,9 @@
  * Run with: bun test/scenario.test.ts
  */
 
-import { resolveBalloons, tickCannonballs } from "../src/battle-system.ts";
-import { resetCannonFacings } from "../src/cannon-system.ts";
+import { fireCannon, resolveBalloons, tickCannonballs } from "../src/battle-system.ts";
+import { placePiece } from "../src/build-system.ts";
+import { placeCannon, resetCannonFacings } from "../src/cannon-system.ts";
 import type { PlayerController } from "../src/controller-interfaces.ts";
 import {
   BATTLE_TIMER,
@@ -40,8 +41,10 @@ import {
   processHeadlessReselection,
 } from "../src/runtime-headless.ts";
 import type { CameraSystem } from "../src/runtime-types.ts";
+import type { PieceShape } from "../src/pieces.ts";
 import {
   type BattleAnimState,
+  CannonMode,
   computeFrameContext,
   type FrameContext,
   type FrameContextInputs,
@@ -75,6 +78,11 @@ export interface Scenario {
   setLives(playerId: number, lives: number): void;
   clearWalls(playerId: number): void;
   eliminatePlayer(playerId: number): void;
+
+  // Scripted player actions
+  placeCannonAt(playerId: number, row: number, col: number, mode?: CannonMode): boolean;
+  placePieceAt(playerId: number, piece: PieceShape, row: number, col: number): boolean;
+  fireAt(playerId: number, cannonIdx: number, row: number, col: number): boolean;
 
   // Sub-system creation for isolated testing
   createCamera(overrides?: Partial<CameraTestDeps>): CameraTestHandle;
@@ -207,6 +215,35 @@ export function createScenario(seed = 42): Scenario {
     eliminatePlayer(state.players[playerId]!);
   }
 
+  function doPlaceCannonAt(
+    playerId: number,
+    row: number,
+    col: number,
+    mode: CannonMode = CannonMode.NORMAL,
+  ): boolean {
+    const player = state.players[playerId]!;
+    const max = state.cannonLimits[playerId] ?? 99;
+    return placeCannon(player, row, col, max, mode, state);
+  }
+
+  function doPlacePieceAt(
+    playerId: number,
+    piece: PieceShape,
+    row: number,
+    col: number,
+  ): boolean {
+    return placePiece(state, playerId, piece, row, col);
+  }
+
+  function doFireAt(
+    playerId: number,
+    cannonIdx: number,
+    row: number,
+    col: number,
+  ): boolean {
+    return fireCannon(state, playerId, cannonIdx, row, col);
+  }
+
   function createCamera(
     overrides: Partial<CameraTestDeps> = {},
   ): CameraTestHandle {
@@ -323,6 +360,9 @@ export function createScenario(seed = 42): Scenario {
     setLives,
     clearWalls,
     eliminatePlayer: doEliminatePlayer,
+    placeCannonAt: doPlaceCannonAt,
+    placePieceAt: doPlacePieceAt,
+    fireAt: doFireAt,
     createCamera,
     createBanner,
     createBattleAnim: createBattleAnimState,
