@@ -20,7 +20,6 @@ import {
   Phase,
 } from "./types.ts";
 
-/** Exported for headless testing (test/scenario-helpers.ts). */
 export interface TransitionContext {
   getState: () => GameState;
   getMyPlayerId: () => number;

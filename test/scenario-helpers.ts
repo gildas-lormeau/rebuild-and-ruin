@@ -37,7 +37,7 @@ import {
   type CheckpointDeps,
 } from "../src/online-checkpoints.ts";
 import type { TransitionContext } from "../src/online-phase-transitions.ts";
-import { serializePlayers } from "../src/online-serialize.ts";
+import { applyPlayersCheckpoint } from "../src/online-serialize.ts";
 import type { WatcherTimingState } from "../src/online-types.ts";
 import {
   type BannerState,
@@ -418,8 +418,7 @@ export function createScenario(seed = 42): Scenario {
         applyBattleStartCheckpoint(msg, checkpointDeps),
       applyBuildStartData: (msg) =>
         applyBuildStartCheckpoint(msg, checkpointDeps),
-      applyPlayersCheckpoint: (s, players) =>
-        serializePlayers(s),
+      applyPlayersCheckpoint,
       resetZoneState: () => {},
       finalizeCastleConstruction: () => {},
       enterCannonPlacePhase: () => {},
