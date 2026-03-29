@@ -62,7 +62,7 @@ const MAX_TOWER_IDX = 30;
 const MAX_CANNON_IDX = 30;
 const MAX_PIECE_TILES = 50;
 const MAX_PIXEL = Math.max(GRID_COLS, GRID_ROWS) * TILE_SIZE + 100;
-const VALID_CHOICES = new Set([
+const VALID_CHOICES: ReadonlySet<string> = new Set([
   LifeLostChoice.CONTINUE,
   LifeLostChoice.ABANDON,
 ]);
@@ -81,8 +81,7 @@ function isFiniteRange(val: unknown, min: number, max: number): boolean {
   );
 }
 
-// deno-lint-ignore no-explicit-any
-function validatePayload(msg: Record<string, any>): boolean {
+function validatePayload(msg: Record<string, unknown>): boolean {
   switch (msg.type) {
     case MESSAGE.OPPONENT_TOWER_SELECTED:
       return (
@@ -111,7 +110,7 @@ function validatePayload(msg: Record<string, any>): boolean {
         isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
         isInt(msg.row, 0, GRID_ROWS - 1) &&
         isInt(msg.col, 0, GRID_COLS - 1) &&
-        CANNON_MODES.has(msg.mode)
+        (CANNON_MODES as ReadonlySet<string>).has(msg.mode as string)
       );
     case MESSAGE.CANNON_FIRED:
       return (
@@ -125,7 +124,8 @@ function validatePayload(msg: Record<string, any>): boolean {
       );
     case MESSAGE.LIFE_LOST_CHOICE:
       return (
-        isInt(msg.playerId, 0, MAX_PLAYER_ID) && VALID_CHOICES.has(msg.choice)
+        isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
+        VALID_CHOICES.has(msg.choice as string)
       );
     case MESSAGE.AIM_UPDATE:
       return (
@@ -154,7 +154,7 @@ function validatePayload(msg: Record<string, any>): boolean {
         isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
         isInt(msg.row, 0, GRID_ROWS - 1) &&
         isInt(msg.col, 0, GRID_COLS - 1) &&
-        CANNON_MODES.has(msg.mode)
+        (CANNON_MODES as ReadonlySet<string>).has(msg.mode as string)
       );
     default:
       return true; // no validation for unknown or host-only messages
@@ -239,8 +239,7 @@ export class GameRoom {
 
   handleMessage(
     senderSocket: WebSocket,
-    // deno-lint-ignore no-explicit-any
-    msg: Record<string, any>,
+    msg: Record<string, unknown>,
     rawJson: string,
   ): void {
     const type = msg.type as string;

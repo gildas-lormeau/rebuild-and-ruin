@@ -18,6 +18,27 @@ export default [
     plugins: { "@typescript-eslint": tseslint },
     rules: {
       "@typescript-eslint/no-floating-promises": "error",
+
+      // --- LLM-agent guardrails ---
+
+      // Prevent type-safety erosion: agents reach for `any` when stuck
+      "@typescript-eslint/no-explicit-any": "error",
+
+      // Enforce project naming conventions so agents can't invent names
+      "@typescript-eslint/naming-convention": [
+        "error",
+        // Types, interfaces, type aliases, enums, classes: PascalCase
+        { selector: "typeLike", format: ["PascalCase"] },
+        // Enum members: UPPER_CASE (allow PascalCase for Tile.Grass/Water)
+        {
+          selector: "enumMember",
+          format: ["UPPER_CASE", "PascalCase"],
+        },
+        // Function declarations: camelCase
+        { selector: "function", format: ["camelCase"] },
+        // Class methods: camelCase
+        { selector: "method", format: ["camelCase"], leadingUnderscore: "allow" },
+      ],
     },
   },
 ];

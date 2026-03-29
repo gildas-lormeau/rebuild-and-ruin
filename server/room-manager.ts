@@ -119,8 +119,7 @@ export class RoomManager {
 
   handleMessage(
     socket: WebSocket,
-    // deno-lint-ignore no-explicit-any
-    msg: Record<string, any>,
+    msg: Record<string, unknown>,
     rawJson: string,
   ): void {
     const entry = this.socketToRoom.get(socket);

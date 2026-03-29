@@ -4,7 +4,7 @@
  */
 
 import { PLAYER_NAMES } from "../src/player-config.ts";
-import { MESSAGE } from "./protocol.ts";
+import { MESSAGE, type RoomSettings } from "./protocol.ts";
 import { RoomManager } from "./room-manager.ts";
 
 const rooms = new RoomManager();
@@ -76,13 +76,12 @@ Deno.serve({ port: PORT }, (req) => {
 
 function handleMessage(
   socket: WebSocket,
-  // deno-lint-ignore no-explicit-any
-  msg: Record<string, any>,
+  msg: Record<string, unknown>,
   rawJson: string,
 ): void {
   switch (msg.type) {
     case MESSAGE.CREATE_ROOM: {
-      const code = rooms.createRoom(msg.settings, socket);
+      const code = rooms.createRoom(msg.settings as RoomSettings, socket);
       if (!code) {
         send(socket, {
           type: MESSAGE.ROOM_ERROR,
@@ -127,7 +126,7 @@ function handleMessage(
     }
 
     case MESSAGE.SELECT_SLOT: {
-      const selection = rooms.selectSlot(socket, msg.slotId);
+      const selection = rooms.selectSlot(socket, msg.slotId as number);
       if (!selection) break;
       const entry = rooms.getEntry(socket);
       if (!entry) break;
