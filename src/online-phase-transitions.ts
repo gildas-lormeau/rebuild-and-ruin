@@ -156,13 +156,13 @@ export function handleCannonStartTransition(
       const max = state.cannonLimits[myPlayerId] ?? 0;
       ctrl.placeCannons(state, max);
     }
-    if (ctrl && player?.homeTower) {
+    if (ctrl && player && !player.eliminated && player.homeTower) {
       ctrl.cannonCursor = {
         row: player.homeTower.row,
         col: player.homeTower.col,
       };
+      ctrl.onCannonPhaseStart(state);
     }
-    ctrl?.onCannonPhaseStart(state);
   }
   if (state.phase !== Phase.CANNON_PLACE) {
     setPhase(state, Phase.CANNON_PLACE);
@@ -253,7 +253,10 @@ export function handleBuildStartTransition(
   ctx.applyBuildStartData(msg);
   setPhase(state, Phase.WALL_BUILD);
   if (myPlayerId >= 0) {
-    ctx.getControllers()[myPlayerId]?.startBuild(state);
+    const player = state.players[myPlayerId];
+    if (player && !player.eliminated) {
+      ctx.getControllers()[myPlayerId]?.startBuild(state);
+    }
   }
 }
 

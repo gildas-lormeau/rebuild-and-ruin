@@ -265,6 +265,7 @@ export function initCannonPhase(params: {
   for (const ctrl of controllers) {
     if (skipController?.(ctrl.playerId)) continue;
     const player = state.players[ctrl.playerId]!;
+    if (player.eliminated) continue;
     if (player.homeTower) {
       const t = player.homeTower;
       const snapped = findNearestValidCannonPlacement(
@@ -297,6 +298,8 @@ export function initBuildPhase(
   resetCannonFacings(state);
   for (const ctrl of controllers) {
     if (skipController?.(ctrl.playerId)) continue;
+    const player = state.players[ctrl.playerId];
+    if (player?.eliminated) continue;
     ctrl.startBuild(state);
   }
 }
