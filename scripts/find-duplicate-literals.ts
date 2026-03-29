@@ -212,7 +212,7 @@ function isSkippedString(node: ts.StringLiteral, sourceFile: ts.SourceFile): boo
 
   // Skip: well-known CSS/DOM values and HTML tag/attribute names
   const CSS_DOM_STRINGS = new Set([
-    "none", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Escape", "Enter", "click"
+    "none", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Escape", "Enter"
   ]);
   if (CSS_DOM_STRINGS.has(text)) return true;
 
