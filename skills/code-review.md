@@ -22,12 +22,22 @@ Structured multi-pass review that catches issues in dependency order so each pas
 - Repeated literals that should be named constants
 - **Why second:** named constants make duplication visible
 
-### Pass 3: Duplicate code & missing helpers
+### Pass 3a: Duplicate code & missing helpers (syntactic)
 - Same logic repeated in 2+ places
 - Copy-pasted patterns (device detection, coordinate conversion, player ID resolution)
 - Inline types / shapes used in multiple places that should be named
 - Functions that could be shared but are defined locally in each call site
 - **Why third:** easier to spot with constants in place and dead code gone
+- **Tool:** `jscpd` catches identical clones; this pass catches near-clones the tool misses
+
+### Pass 3b: Semantic duplication (structural)
+- Multiple files independently branching on the same enum (Phase, Mode, CannonMode) to implement the same behavior through different code paths
+- Same domain action dispatched via different call chains (e.g., keyboard vs touch implementing the same game action with separate phase/guard checks)
+- Parallel dep interfaces in different files that carry the same fields as pass-throughs to the same consumer
+- **Detection technique:** find files with high import overlap — if two files both import `Phase`, `isSelectionPhase`, `findNearestTower`, they likely both implement selection logic
+- **Fix pattern:** extract a shared dispatch function that both call sites delegate to (like `dispatchGameAction`), or carry shared deps as a sub-object instead of re-declaring fields
+- **Why separate from 3a:** jscpd and manual scanning miss this entirely because the code looks different despite doing the same thing
+- **Scope per domain:** review one domain cluster at a time (input, rendering, online, phase transitions) — ask a sub-agent to read all files in the cluster and flag where the same responsibility is implemented in multiple places
 
 ### Pass 4: Misplaced logic
 - Game logic in rendering code (state mutation in render functions)
@@ -135,5 +145,5 @@ the codebase, not theoretical purity issues.
 - **Scope narrowly** — review 5-10 related files per session, not the whole codebase
 - **Commit after each pass** — if something breaks, you know which pass caused it
 - **Skip passes that don't apply** — if there's no dead code, go straight to pass 2
-- **Don't fix everything** — low-value fixes that risk regressions (e.g., deduplicating input handler dispatch) can be deferred
+- **Don't fix everything** — low-value fixes that risk regressions can be deferred
 - **Always run E2E after UI changes** — use `timeout 45 npx tsx test/online-e2e.ts local 1 --mobile --headless --action "mode:GAME screenshot:check exit" "" 3`
