@@ -102,7 +102,12 @@ export interface RegisterOnlineInputDeps {
   maybeSendAimUpdate: (x: number, y: number) => void;
 
   // --- Direct touch state ---
+  /** Mark whether the user is using direct canvas touch (vs d-pad).
+   *  When active, floating action buttons appear near the phantom. */
   setDirectTouchActive?: (active: boolean) => void;
+  /** Whether the user is currently in direct-touch mode (floating buttons visible).
+   *  When true, tap-to-place on the canvas is suppressed (the floating confirm
+   *  button handles placement instead). Optional — absent on desktop. */
   isDirectTouchActive?: () => boolean;
 
   // --- Quit flow ---

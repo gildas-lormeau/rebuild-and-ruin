@@ -155,7 +155,11 @@ export abstract class BaseController implements PlayerController {
     this.initCannons(state, maxSlots);
   }
 
-  /** Round-1 safety net: auto-place cannons if none were manually placed. */
+  /** Round-1 safety net: auto-place cannons if none were manually placed.
+   *  Public because remote controllers call it directly (their client handles
+   *  flush locally, so the host only runs initCannons for them).
+   *  Contrast with initBuildPhase which is private — it's an internal step of
+   *  the startBuild template method and never called externally. */
   initCannons(state: GameState, maxSlots: number): void {
     if (state.round !== 1) return;
     const player = state.players[this.playerId];

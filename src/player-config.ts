@@ -107,6 +107,8 @@ export const ACTION_KEYS: readonly (keyof KeyBindings)[] = [
 ];
 export const SEED_RANDOM = "random" as const;
 export const SEED_CUSTOM = "custom" as const;
+/** Maximum character length for user-entered seeds. */
+export const MAX_SEED_LENGTH = 9;
 
 /** Get player color with safe modulo wrapping. */
 export function getPlayerColor(playerId: number): PlayerColor {

@@ -6,8 +6,8 @@ import type { RegisterOnlineInputDeps } from "./input.ts";
 import {
   dispatchGameAction,
   dispatchOverlayAction,
+  dispatchQuit,
   type OverlayActionDeps,
-  QUIT_WARNING_SECONDS,
 } from "./input-dispatch.ts";
 import {
   ACTION_KEYS,
@@ -19,6 +19,7 @@ import {
   KEY_RIGHT,
   KEY_UP,
   MAX_PLAYERS,
+  MAX_SEED_LENGTH,
   SEED_CUSTOM,
   SEED_RANDOM,
 } from "./player-config.ts";
@@ -31,9 +32,6 @@ import {
   LIFE_LOST_FOCUS_CONTINUE,
   LifeLostChoice,
 } from "./types.ts";
-
-/** Maximum character length for user-entered seeds. */
-const MAX_SEED_LENGTH = 9;
 
 // Note: keyboard uses per-handler mode checks because different keys are valid
 // in different modes (e.g., arrows in lobby vs game, ESC always available).
@@ -159,23 +157,25 @@ function handleKeyEscape(
   deps: RegisterOnlineInputDeps,
 ): boolean {
   if (e.key !== KEY_ESCAPE) return false;
-  const { modeValues, showLobby, getControllers, isHuman, quit } = deps;
+  const { modeValues } = deps;
   if (
     mode === modeValues.LOBBY ||
     mode === modeValues.OPTIONS ||
     mode === modeValues.CONTROLS
   )
     return false;
-  const hasHumans = getControllers().some((c) => isHuman(c));
-  if (!hasHumans) {
-    showLobby();
-  } else if (quit.getPending()) {
-    showLobby();
-  } else {
-    quit.setPending(true);
-    quit.setTimer(QUIT_WARNING_SECONDS);
-    quit.setMessage("Press ESC or ✕ again to quit");
-  }
+  dispatchQuit(
+    {
+      getPending: deps.quit.getPending,
+      setPending: deps.quit.setPending,
+      setTimer: deps.quit.setTimer,
+      setMessage: deps.quit.setMessage,
+      showLobby: deps.showLobby,
+      getControllers: deps.getControllers,
+      isHuman: deps.isHuman,
+    },
+    "Press ESC or \u2715 again to quit",
+  );
   e.preventDefault();
   return true;
 }

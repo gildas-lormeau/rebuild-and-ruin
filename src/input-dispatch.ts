@@ -75,13 +75,36 @@ export interface GameActionDeps {
   fireAndSend: (ctrl: PlayerController, state: GameState) => void;
 }
 
+interface QuitFlowDeps {
+  getPending: () => boolean;
+  setPending: (v: boolean) => void;
+  setTimer: (seconds: number) => void;
+  setMessage: (msg: string) => void;
+  showLobby: () => void;
+  getControllers: () => PlayerController[];
+  isHuman: (ctrl: PlayerController) => boolean;
+}
+
 const TOUCH_CLICK_SUPPRESS_MS = 500;
 /** Seconds to wait before second ESC/✕ actually quits.
  *  Used by both keyboard (input-keyboard.ts) and touch (input-touch-ui.ts). */
-export const QUIT_WARNING_SECONDS = 2;
+const QUIT_WARNING_SECONDS = 2;
 
 /** Timestamp of last touchend; suppresses synthetic click events on mobile. */
 let lastTouchTime = 0;
+
+/** Shared quit flow: if no humans or already pending → quit immediately, else show warning.
+ *  Used by both keyboard ESC and touch ✕ button to ensure identical behavior. */
+export function dispatchQuit(deps: QuitFlowDeps, warningMessage: string): void {
+  const hasHumans = deps.getControllers().some((c) => deps.isHuman(c));
+  if (!hasHumans || deps.getPending()) {
+    deps.showLobby();
+  } else {
+    deps.setPending(true);
+    deps.setTimer(QUIT_WARNING_SECONDS);
+    deps.setMessage(warningMessage);
+  }
+}
 
 export function markTouchTime(): void {
   lastTouchTime = performance.now();
@@ -176,11 +199,14 @@ export function dispatchTowerSelect(
     const idx = towerAtPixel(state.map.towers, wx, wy);
     if (idx !== null && state.map.towers[idx]?.zone === zone) {
       const alreadyHighlighted = ss.highlighted === idx;
-      if (alreadyHighlighted && (!requireSecondTapToConfirm || ss.tapped)) {
+      if (
+        alreadyHighlighted &&
+        (!requireSecondTapToConfirm || ss.readyToConfirm)
+      ) {
         gameAction.confirmSelectionForPlayer(human.playerId, isReselect);
       } else {
         gameAction.highlightTowerForPlayer(idx, zone, human.playerId);
-        ss.tapped = alreadyHighlighted;
+        ss.readyToConfirm = alreadyHighlighted;
       }
     }
   });
@@ -287,7 +313,10 @@ export function dispatchOverlayAction(
   return false;
 }
 
-/** Dispatch a game action for a single controller. Returns true if handled. */
+/** Dispatch a game action for a single controller. Returns true if handled.
+ *  Keyboard callers use the return value to call preventDefault(); touch callers
+ *  (handleAction in input-touch-ui.ts) ignore it since touch events are already
+ *  prevented at the touchstart level. */
 export function dispatchGameAction(
   ctrl: PlayerController & InputReceiver,
   action: Action,
@@ -371,10 +400,12 @@ export function dispatchPointerMove(
     maybeSendAimUpdate: (x: number, y: number) => void;
   },
 ): void {
-  const { withFirstHuman, coords, gameAction, maybeSendAimUpdate } = deps;
+  const { coords, gameAction, maybeSendAimUpdate } = deps;
   if (isSelectionPhase(state.phase)) {
     if (gameAction.isSelectionReady && !gameAction.isSelectionReady()) return;
-    withFirstHuman((human) => {
+  }
+  deps.withFirstHuman((human) => {
+    if (isSelectionPhase(state.phase)) {
       const ss = gameAction.getSelectionStates().get(human.playerId);
       if (!ss || ss.confirmed) return;
       const zone = state.playerZones[human.playerId] ?? 0;
@@ -386,26 +417,20 @@ export function dispatchPointerMove(
         state.map.towers[idx]?.zone === zone
       ) {
         gameAction.highlightTowerForPlayer(idx, zone, human.playerId);
-        ss.tapped = false;
+        ss.readyToConfirm = false;
       }
-    });
-  } else if (state.phase === Phase.WALL_BUILD) {
-    withFirstHuman((human) => {
+    } else if (state.phase === Phase.WALL_BUILD) {
       const { row, col } = coords.pixelToTile(x, y);
       human.setBuildCursor(row, col);
-    });
-  } else if (state.phase === Phase.CANNON_PLACE) {
-    withFirstHuman((human) => {
+    } else if (state.phase === Phase.CANNON_PLACE) {
       const { row, col } = coords.pixelToTile(x, y);
       human.setCannonCursor(row, col);
-    });
-  } else if (state.phase === Phase.BATTLE) {
-    withFirstHuman((human) => {
+    } else if (state.phase === Phase.BATTLE) {
       const w = coords.screenToWorld(x, y);
       human.setCrosshair(w.wx, w.wy);
       maybeSendAimUpdate(w.wx, w.wy);
-    });
-  }
+    }
+  });
 }
 
 /** Dispatch any action for a single controller in a placement phase. Returns true if handled. */

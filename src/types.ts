@@ -255,8 +255,10 @@ export interface ControlsState {
 export interface SelectionState {
   highlighted: number;
   confirmed: boolean;
-  /** True once the user has explicitly tapped a tower (enables confirm on next tap). */
-  tapped?: boolean;
+  /** True once the user has interacted with the highlighted tower (click or tap),
+   *  enabling confirmation on the next interaction. Reset on pointer-move to a
+   *  different tower. Used by both mouse and touch input paths. */
+  readyToConfirm?: boolean;
 }
 
 /** Life-lost types. */

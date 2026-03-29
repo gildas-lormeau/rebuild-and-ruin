@@ -17,11 +17,11 @@ import {
   dispatchConfirmForCtrl,
   dispatchGameAction,
   dispatchOverlayAction,
+  dispatchQuit,
   dispatchRotateForCtrl,
   type GameActionDeps,
   isGameInteractionMode,
   type OverlayActionDeps,
-  QUIT_WARNING_SECONDS,
 } from "./input-dispatch.ts";
 import { ACTION_CONFIRM, PLAYER_COLORS } from "./player-config.ts";
 import {
@@ -321,14 +321,18 @@ export function createQuitButton(
   const buttons = queryAll(container, "quit");
 
   function handleQuit() {
-    const hasHumans = deps.getControllers().some((c) => deps.isHuman(c));
-    if (!hasHumans || deps.getQuitPending()) {
-      deps.showLobby();
-    } else {
-      deps.setQuitPending(true);
-      deps.setQuitTimer(QUIT_WARNING_SECONDS);
-      deps.setQuitMessage("Tap \u2715 again to quit");
-    }
+    dispatchQuit(
+      {
+        getPending: deps.getQuitPending,
+        setPending: deps.setQuitPending,
+        setTimer: deps.setQuitTimer,
+        setMessage: deps.setQuitMessage,
+        showLobby: deps.showLobby,
+        getControllers: deps.getControllers,
+        isHuman: deps.isHuman,
+      },
+      "Tap \u2715 again to quit",
+    );
   }
 
   for (const btn of buttons) {
@@ -515,59 +519,11 @@ export function createFloatingActions(
     });
   }
 
-  const TAP_THRESHOLD = TAP_MAX_DIST;
   for (const [btn, handler] of [
     [btnRotate, handleRotate],
     [btnConfirm, handleConfirm],
   ] as const) {
-    let startX = 0;
-    let startY = 0;
-    let dragged = false;
-    btn.addEventListener(
-      "touchstart",
-      (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        pressDown(btn);
-        const t = e.touches[0];
-        if (t) {
-          startX = t.clientX;
-          startY = t.clientY;
-        }
-        dragged = false;
-      },
-      { passive: false },
-    );
-    btn.addEventListener(
-      "touchmove",
-      (e) => {
-        e.preventDefault();
-        const t = e.touches[0];
-        if (!t) return;
-        if (
-          !dragged &&
-          Math.hypot(t.clientX - startX, t.clientY - startY) > TAP_THRESHOLD
-        ) {
-          dragged = true;
-          pressUp(btn);
-        }
-        if (dragged) deps.onDrag?.(t.clientX, t.clientY);
-      },
-      { passive: false },
-    );
-    btn.addEventListener(
-      "touchend",
-      (e) => {
-        e.preventDefault();
-        pressUp(btn);
-        if (!dragged) handler();
-      },
-      { passive: false },
-    );
-    btn.addEventListener("touchcancel", () => {
-      pressUp(btn);
-      dragged = false;
-    });
+    wireDragOrTap(btn, handler, deps.onDrag);
   }
 
   return {
@@ -608,6 +564,63 @@ function queryAll(container: HTMLElement, action: string): HTMLButtonElement[] {
   return Array.from(
     container.querySelectorAll<HTMLButtonElement>(`[data-action="${action}"]`),
   );
+}
+
+/** Wire a button for drag-or-tap discrimination: short touches fire `onTap`,
+ *  longer drags forward to `onDrag`. Used by floating action buttons. */
+function wireDragOrTap(
+  btn: HTMLButtonElement,
+  onTap: () => void,
+  onDrag?: (clientX: number, clientY: number) => void,
+): void {
+  let startX = 0;
+  let startY = 0;
+  let dragged = false;
+  btn.addEventListener(
+    "touchstart",
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      pressDown(btn);
+      const t = e.touches[0];
+      if (t) {
+        startX = t.clientX;
+        startY = t.clientY;
+      }
+      dragged = false;
+    },
+    { passive: false },
+  );
+  btn.addEventListener(
+    "touchmove",
+    (e) => {
+      e.preventDefault();
+      const t = e.touches[0];
+      if (!t) return;
+      if (
+        !dragged &&
+        Math.hypot(t.clientX - startX, t.clientY - startY) > TAP_MAX_DIST
+      ) {
+        dragged = true;
+        pressUp(btn);
+      }
+      if (dragged) onDrag?.(t.clientX, t.clientY);
+    },
+    { passive: false },
+  );
+  btn.addEventListener(
+    "touchend",
+    (e) => {
+      e.preventDefault();
+      pressUp(btn);
+      if (!dragged) onTap();
+    },
+    { passive: false },
+  );
+  btn.addEventListener("touchcancel", () => {
+    pressUp(btn);
+    dragged = false;
+  });
 }
 
 /** Visual press feedback via CSS class. */
