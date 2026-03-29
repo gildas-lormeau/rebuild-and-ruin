@@ -3,18 +3,27 @@
  * Run with: bun test/scenario.test.ts
  */
 
+import { MESSAGE } from "../server/protocol.ts";
 import { canFire, tickCannonballs } from "../src/battle-system.ts";
 import { snapshotAllWalls, sweepIsolatedWalls } from "../src/board-occupancy.ts";
 import { isCannonEnclosed } from "../src/cannon-system.ts";
 import { GRID_COLS } from "../src/grid.ts";
 import {
   handleBattleStartTransition,
+  handleBuildEndTransition,
   handleCannonStartTransition,
 } from "../src/online-phase-transitions.ts";
 import {
   createBattleStartMessage,
   createCannonStartMessage,
+  serializePlayers,
 } from "../src/online-serialize.ts";
+import {
+  runBuildEndSequence,
+  showBattlePhaseBanner,
+  showBuildPhaseBanner,
+  showCannonPhaseBanner,
+} from "../src/phase-transition-shared.ts";
 import { createSession, resetSessionState } from "../src/online-session.ts";
 import { type BannerState, showBannerTransition } from "../src/phase-banner.ts";
 import { type LifeLostDialogState, CannonMode, LifeLostChoice, Mode, Phase } from "../src/types.ts";
@@ -690,8 +699,122 @@ test("AI fires super gun during battle (not skipped in round-robin)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 22. Place Cannons banner: no wall flash after battle damage
+// 22. runBuildEndSequence notifies all affected players
 // ---------------------------------------------------------------------------
+
+test("runBuildEndSequence notifies all affected players", () => {
+  const notified: number[] = [];
+  let dialogShown = false;
+  runBuildEndSequence({
+    needsReselect: [0, 2],
+    eliminated: [1],
+    showScoreDeltas: (onDone) => onDone(),
+    notifyLifeLost: (pid) => notified.push(pid),
+    showLifeLostDialog: () => { dialogShown = true; },
+  });
+  assert(notified.length === 3, `Expected 3 notifications, got ${notified.length}`);
+  assert(notified[0] === 0, "First notified should be P0");
+  assert(notified[1] === 2, "Second notified should be P2");
+  assert(notified[2] === 1, "Third notified should be P1");
+  assert(dialogShown, "Should show life-lost dialog");
+});
+
+test("runBuildEndSequence calls afterLifeLostResolved when no affected players", () => {
+  let resolved = false;
+  runBuildEndSequence({
+    needsReselect: [],
+    eliminated: [],
+    showScoreDeltas: (onDone) => onDone(),
+    notifyLifeLost: () => { throw new Error("should not notify"); },
+    showLifeLostDialog: () => { throw new Error("should not show dialog"); },
+    afterLifeLostResolved: () => { resolved = true; },
+  });
+  assert(resolved, "Should call afterLifeLostResolved when no affected players");
+});
+
+// ---------------------------------------------------------------------------
+// 23. Host and watcher build-end paths both notify the local player
+// ---------------------------------------------------------------------------
+
+test("host and watcher build-end both notify affected controller via shared sequence", () => {
+  const s = createScenario();
+  s.playRounds(2);
+
+  // Destroy P0's walls so they need reselect after build phase
+  s.clearWalls(0);
+  s.advanceTo(Phase.WALL_BUILD);
+  const { needsReselect } = s.finalizeBuild();
+  assert(needsReselect.includes(0), "P0 should need reselect after losing all walls");
+
+  // --- Host path: capture who gets notified ---
+  const hostNotified: number[] = [];
+  runBuildEndSequence({
+    needsReselect,
+    eliminated: [],
+    showScoreDeltas: (onDone) => onDone(),
+    notifyLifeLost: (pid) => hostNotified.push(pid),
+    showLifeLostDialog: () => {},
+    afterLifeLostResolved: () => {},
+  });
+
+  // --- Watcher path: build a BUILD_END message and run through the transition ---
+  const watcherNotified: number[] = [];
+  const ctx = s.createTransitionContext();
+  // Intercept the local controller's onLifeLost to capture the call
+  const origCtrl = s.controllers[0]!;
+  const origOnLifeLost = origCtrl.onLifeLost.bind(origCtrl);
+  origCtrl.onLifeLost = () => {
+    watcherNotified.push(0);
+    origOnLifeLost();
+  };
+
+  const buildEndMsg = {
+    type: MESSAGE.BUILD_END,
+    needsReselect,
+    eliminated: [] as number[],
+    scores: s.state.players.map((p) => p.score),
+    players: serializePlayers(s.state),
+  };
+  handleBuildEndTransition(buildEndMsg as any, ctx);
+
+  // Both paths should have notified P0
+  assert(hostNotified.includes(0), "Host path should notify P0");
+  assert(watcherNotified.includes(0), "Watcher path should notify P0");
+});
+
+// ---------------------------------------------------------------------------
+// 24. Banner shared helpers pass subtitle
+// ---------------------------------------------------------------------------
+
+test("showCannonPhaseBanner passes subtitle to showBanner", () => {
+  let capturedSubtitle: string | undefined;
+  const mockShow = (_t: string, _cb: () => void, _r?: boolean, _nb?: any, sub?: string) => {
+    capturedSubtitle = sub;
+  };
+  showCannonPhaseBanner(mockShow, () => {});
+  assert(capturedSubtitle !== undefined, "Should pass subtitle");
+  assert(capturedSubtitle!.length > 0, "Subtitle should be non-empty");
+});
+
+test("showBattlePhaseBanner passes subtitle to showBanner", () => {
+  let capturedSubtitle: string | undefined;
+  const mockShow = (_t: string, _cb: () => void, _r?: boolean, _nb?: any, sub?: string) => {
+    capturedSubtitle = sub;
+  };
+  showBattlePhaseBanner(mockShow, "Battle!", () => {});
+  assert(capturedSubtitle !== undefined, "Should pass subtitle");
+  assert(capturedSubtitle!.length > 0, "Subtitle should be non-empty");
+});
+
+test("showBuildPhaseBanner passes subtitle to showBanner", () => {
+  let capturedSubtitle: string | undefined;
+  const mockShow = (_t: string, _cb: () => void, _r?: boolean, _nb?: any, sub?: string) => {
+    capturedSubtitle = sub;
+  };
+  showBuildPhaseBanner(mockShow, "Repair!", () => {});
+  assert(capturedSubtitle !== undefined, "Should pass subtitle");
+  assert(capturedSubtitle!.length > 0, "Subtitle should be non-empty");
+});
 
 // ---------------------------------------------------------------------------
 
