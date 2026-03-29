@@ -324,45 +324,8 @@ export function createScenario(seed = 42): Scenario {
     return fireCannon(state, playerId, cannonIdx, row, col);
   }
 
-  function buildOccupiedSet(): Set<number> {
-    const occupied = new Set<number>();
-    for (const p of state.players) {
-      for (const k of p.walls) occupied.add(k);
-      for (const k of p.interior) occupied.add(k);
-      for (const cn of p.cannons) occupied.add(packTile(cn.row, cn.col));
-    }
-    for (const t of state.map.towers) {
-      for (let dr = 0; dr < 2; dr++)
-        for (let dc = 0; dc < 2; dc++)
-          occupied.add(packTile(t.row + dr, t.col + dc));
-    }
-    for (const h of state.map.houses) occupied.add(packTile(h.row, h.col));
-    for (const pit of state.burningPits)
-      occupied.add(packTile(pit.row, pit.col));
-    return occupied;
-  }
-
-  function doFindGrassTile(
-    playerId: number,
-  ): { row: number; col: number } | null {
-    const zone = state.playerZones[playerId];
-    const occupied = buildOccupiedSet();
-    for (let r = 0; r < GRID_ROWS; r++) {
-      for (let c = 0; c < GRID_COLS; c++) {
-        if (state.map.zones[r]![c] !== zone) continue;
-        if (!isGrass(state.map.tiles, r, c)) continue;
-        if (occupied.has(packTile(r, c))) continue;
-        return { row: r, col: c };
-      }
-    }
-    return null;
-  }
-
-  function doFindInteriorTile(
-    playerId: number,
-  ): { row: number; col: number } | null {
-    const player = state.players[playerId]!;
-    // Build a set of tiles blocked by towers, cannons, houses, and burning pits
+  /** Tiles blocked by entities (towers, cannons, houses, burning pits). */
+  function buildEntityBlockedSet(): Set<number> {
     const blocked = new Set<number>();
     for (const t of state.map.towers)
       for (let dr = 0; dr < 2; dr++)
@@ -373,6 +336,39 @@ export function createScenario(seed = 42): Scenario {
     for (const h of state.map.houses) blocked.add(packTile(h.row, h.col));
     for (const pit of state.burningPits)
       blocked.add(packTile(pit.row, pit.col));
+    return blocked;
+  }
+
+  function doFindGrassTile(
+    playerId: number,
+  ): { row: number; col: number } | null {
+    const zone = state.playerZones[playerId];
+    const blocked = buildEntityBlockedSet();
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        if (state.map.zones[r]![c] !== zone) continue;
+        if (!isGrass(state.map.tiles, r, c)) continue;
+        const key = packTile(r, c);
+        if (blocked.has(key)) continue;
+        // Also skip tiles claimed by any player (walls or interior)
+        let claimed = false;
+        for (const p of state.players) {
+          if (p.walls.has(key) || p.interior.has(key)) {
+            claimed = true;
+            break;
+          }
+        }
+        if (!claimed) return { row: r, col: c };
+      }
+    }
+    return null;
+  }
+
+  function doFindInteriorTile(
+    playerId: number,
+  ): { row: number; col: number } | null {
+    const player = state.players[playerId]!;
+    const blocked = buildEntityBlockedSet();
     for (const key of player.interior) {
       if (!blocked.has(key)) {
         return { row: Math.floor(key / GRID_COLS), col: key % GRID_COLS };
