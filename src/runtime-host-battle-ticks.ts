@@ -78,7 +78,6 @@ interface StartHostBattleLifecycleDeps {
   state: GameState;
   battleAnim: BattleAnimState;
   banner: {
-    pendingOldWalls?: Set<number>[];
     newTerritory?: Set<number>[];
     newWalls?: Set<number>[];
   };
@@ -223,9 +222,6 @@ export function startHostBattleLifecycle(
 
   const flights = resolveBalloons(state);
 
-  // Stash pre-sweep walls so the banner old scene shows them progressively
-  deps.banner.pendingOldWalls = snapshotAllWalls(state);
-
   showBanner(
     BANNER_BATTLE,
     () => {
@@ -241,7 +237,6 @@ export function startHostBattleLifecycle(
     BANNER_BATTLE_SUB,
   );
 
-  // Sweep walls AFTER showBanner captured the old scene (via pendingOldWalls)
   nextPhase(state);
   battleAnim.impacts = [];
   if (isHost && sendBattleStart) sendBattleStart(flights);

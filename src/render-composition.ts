@@ -247,6 +247,7 @@ export function createOnlineOverlay(params: {
     | "oldBonusSquares"
     | "newTerritory"
     | "newWalls"
+    | "pendingOldWalls"
   >;
   battleAnim: {
     territory: Set<number>[];
@@ -303,7 +304,7 @@ export function createOnlineOverlay(params: {
 
   return {
     selection: previousSelection,
-    castles: buildCastleOverlay(state),
+    castles: buildCastleOverlay(state, banner.pendingOldWalls),
     entities: {
       houses: state.map.houses,
       grunts: state.grunts,
@@ -469,11 +470,14 @@ export function computeLobbyLayout(W: number, H: number, count: number) {
   return { gap, rectW, rectH, rectY };
 }
 
-function buildCastleOverlay(state: GameState): CastleData[] {
+function buildCastleOverlay(
+  state: GameState,
+  pendingOldWalls?: readonly Set<number>[],
+): CastleData[] {
   return state.players
     .filter((p) => p.castle)
     .map((p) => ({
-      walls: p.walls,
+      walls: pendingOldWalls?.[p.id] ?? p.walls,
       interior: p.interior,
       cannons: p.cannons,
       playerId: p.id,

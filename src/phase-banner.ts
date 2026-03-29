@@ -14,7 +14,7 @@ export interface BannerState {
   oldBonusSquares?: TilePos[];
   newTerritory?: Set<number>[];
   newWalls?: Set<number>[];
-  /** Pre-sweep wall snapshot stashed before finalizeBuildPhase; consumed by next showBannerTransition. */
+  /** Pre-sweep wall snapshot; consumed by showBannerTransition for the old scene. */
   pendingOldWalls?: Set<number>[];
 }
 

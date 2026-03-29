@@ -330,8 +330,8 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
     ctrl.endBuild(state);
   }
 
-  // Stash pre-sweep walls so the Place Cannons banner can show them
-  // as the old scene (swept walls vanish progressively during the sweep).
+  // Stash pre-sweep walls so the live render keeps showing them
+  // until the Place Cannons banner starts and consumes them.
   deps.banner.pendingOldWalls = snapshotAllWalls(state);
 
   const { needsReselect, eliminated } = finalizeBuildPhase(state);
