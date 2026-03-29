@@ -8,7 +8,7 @@
 
 import { IMPACT_FLASH_DURATION } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
-import { TILE_SIZE } from "./grid.ts";
+import { TILE_SIZE, TILE_WATER } from "./grid.ts";
 import { getPlayerColor } from "./player-config.ts";
 import { drawSprite } from "./render-sprites.ts";
 import {
@@ -47,6 +47,15 @@ const IMPACT_CORE_END = 0.25;
 const IMPACT_RING_END = 0.6;
 const IMPACT_DEBRIS_END = 0.8;
 const IMPACT_SMOKE_START = 0.2;
+// Burning pit ember glow
+const EMBER_RED_BASE = 180;
+const EMBER_RED_RANGE = 75;
+const EMBER_GREEN_BASE = 60;
+const EMBER_GREEN_RANGE = 40;
+const EMBER_ALPHA_BASE = 0.15;
+const EMBER_ALPHA_RANGE = 0.3;
+const EMBER_RADIUS_FRESH = 4;
+const EMBER_RADIUS_FADING = 3;
 // Crosshair colors per player
 const CROSSHAIR_COLORS: RGB[] = [
   [255, 50, 50], // P1 red
@@ -131,9 +140,10 @@ export function drawBonusSquares(
 ): void {
   if (!overlay?.entities?.bonusSquares || overlay.battle?.battleTerritory)
     return;
-  const flash = Math.sin((now ?? Date.now()) / BONUS_FLASH_MS) * 0.15 + 0.85;
+  const alphaScale =
+    Math.sin((now ?? Date.now()) / BONUS_FLASH_MS) * 0.15 + 0.85;
   octx.save();
-  octx.globalAlpha = flash;
+  octx.globalAlpha = alphaScale;
   for (const bs of overlay.entities.bonusSquares) {
     const bx = bs.col * TILE_SIZE;
     const by = bs.row * TILE_SIZE;
@@ -184,13 +194,13 @@ export function drawWaterAnimation(
 
   for (let r = 1; r < rows - 1; r++) {
     for (let c = 1; c < cols - 1; c++) {
-      if (map.tiles[r]![c] !== 1) continue; // 1 = water
+      if (map.tiles[r]![c] !== TILE_WATER) continue;
       // Skip water tiles adjacent to grass (bank transition zone)
       if (
-        map.tiles[r - 1]![c] !== 1 ||
-        map.tiles[r + 1]![c] !== 1 ||
-        map.tiles[r]![c - 1] !== 1 ||
-        map.tiles[r]![c + 1] !== 1
+        map.tiles[r - 1]![c] !== TILE_WATER ||
+        map.tiles[r + 1]![c] !== TILE_WATER ||
+        map.tiles[r]![c - 1] !== TILE_WATER ||
+        map.tiles[r]![c + 1] !== TILE_WATER
       )
         continue;
       const px = c * TILE_SIZE;
@@ -390,10 +400,10 @@ function drawBurningPits(
     // Animated lava flicker (round glow, stronger for fresh pits)
     if (stage >= 2) {
       const intensity = stage === 3 ? 1.0 : 0.5;
-      const emberR = 180 + Math.floor(flicker * 75);
-      const emberG = 60 + Math.floor(flicker * 40);
-      const radius = stage === 3 ? 4 : 3;
-      octx.fillStyle = `rgba(${emberR}, ${emberG}, 0, ${(0.15 + flicker * 0.3) * intensity})`;
+      const emberR = EMBER_RED_BASE + Math.floor(flicker * EMBER_RED_RANGE);
+      const emberG = EMBER_GREEN_BASE + Math.floor(flicker * EMBER_GREEN_RANGE);
+      const radius = stage === 3 ? EMBER_RADIUS_FRESH : EMBER_RADIUS_FADING;
+      octx.fillStyle = `rgba(${emberR}, ${emberG}, 0, ${(EMBER_ALPHA_BASE + flicker * EMBER_ALPHA_RANGE) * intensity})`;
       octx.beginPath();
       octx.arc(px + mid, py + mid, radius, 0, Math.PI * 2);
       octx.fill();

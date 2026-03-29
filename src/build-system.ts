@@ -201,6 +201,7 @@ export function replenishBonusSquares(state: GameState): void {
     if (needed <= 0) continue;
 
     const candidates: [number, number][] = [];
+    // 1-tile padding from map edges — bonus squares must be enclosable
     for (let r = 1; r < GRID_ROWS - 1; r++) {
       for (let c = 1; c < GRID_COLS - 1; c++) {
         if (!isGrass(tiles, r, c)) continue;
@@ -411,6 +412,7 @@ function isTowerOwnedByPlayer(
   tower: TilePos,
   player: Pick<Player, "interior" | "walls">,
 ): boolean {
+  // Towers occupy a 2×2 footprint — check all four tiles
   for (let dr = 0; dr < 2; dr++) {
     for (let dc = 0; dc < 2; dc++) {
       if (

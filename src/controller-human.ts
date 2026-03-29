@@ -44,7 +44,7 @@ export class HumanController extends BaseController implements InputReceiver {
   /** Cannon placement mode. */
   private cannonPlaceMode: CannonMode = CannonMode.NORMAL;
   /** True when cannon cursor was set by mouse/touch (snap on next tick). */
-  private cannonCursorNeedsSnap = false;
+  private cannonCursorSetByMouse = false;
   /** Actions currently held for continuous crosshair movement. */
   private readonly heldActions = new Set<Action>();
 
@@ -94,8 +94,8 @@ export class HumanController extends BaseController implements InputReceiver {
       this.cannonPlaceMode = CannonMode.NORMAL;
     }
     // Snap-to-fit: only on mouse/touch (absolute position), not d-pad/keyboard (relative)
-    if (this.cannonCursorNeedsSnap) {
-      this.cannonCursorNeedsSnap = false;
+    if (this.cannonCursorSetByMouse) {
+      this.cannonCursorSetByMouse = false;
       if (
         !canPlaceCannon(
           player,
@@ -141,7 +141,7 @@ export class HumanController extends BaseController implements InputReceiver {
     const sz = cannonSize(this.cannonPlaceMode);
     const offset = Math.floor(sz / 2);
     super.setCannonCursor(row - offset, col - offset);
-    this.cannonCursorNeedsSnap = true;
+    this.cannonCursorSetByMouse = true;
   }
 
   override moveBuildCursor(direction: Action): void {
@@ -225,7 +225,7 @@ export class HumanController extends BaseController implements InputReceiver {
       this.cannonPlaceMode,
       state,
     );
-    if (placed) this.cannonCursorNeedsSnap = true;
+    if (placed) this.cannonCursorSetByMouse = true;
     return placed;
   }
 
@@ -313,7 +313,7 @@ export class HumanController extends BaseController implements InputReceiver {
     super.onLifeLost();
     this.cannonPlaceMode = CannonMode.NORMAL;
     this.heldActions.clear();
-    this.cannonCursorNeedsSnap = false;
+    this.cannonCursorSetByMouse = false;
   }
 
   onCannonPhaseStart(_state: GameState): void {

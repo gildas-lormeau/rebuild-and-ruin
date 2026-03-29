@@ -29,6 +29,11 @@ import {
   LifeLostChoice,
 } from "./types.ts";
 
+/** Seconds to wait before second ESC/✕ actually quits. */
+const QUIT_WARNING_SECONDS = 2;
+/** Maximum character length for user-entered seeds. */
+const MAX_SEED_LENGTH = 9;
+
 export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
   const { getState, getMode, modeValues } = deps;
 
@@ -164,7 +169,7 @@ function handleKeyEscape(
     showLobby();
   } else {
     quit.setPending(true);
-    quit.setTimer(2);
+    quit.setTimer(QUIT_WARNING_SECONDS);
     quit.setMessage("Press ESC or ✕ again to quit");
   }
   e.preventDefault();
@@ -237,7 +242,11 @@ function handleKeyOptions(
     }
     if (seedMode === SEED_CUSTOM) {
       const currentSeed = settings.seed;
-      if (e.key >= "0" && e.key <= "9" && currentSeed.length < 9) {
+      if (
+        e.key >= "0" &&
+        e.key <= "9" &&
+        currentSeed.length < MAX_SEED_LENGTH
+      ) {
         settings.seed = currentSeed + e.key;
         e.preventDefault();
         return;

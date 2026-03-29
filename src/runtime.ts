@@ -82,11 +82,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const sound = createSoundSystem();
   sound.setLevel(rs.settings.sound);
 
-  // Options is forward-declared because lobby depends on options.showOptions
+  // Forward-declared: options must exist before lobby (lobby triggers
+  // showOptions), and input must exist before the game-lifecycle system
+  // (lifecycle registers cleanup). Both are assigned immediately after
+  // their factory calls below — the `let` is required by declaration order.
   // deno-lint-ignore prefer-const
   let options: OptionsSystem;
-
-  // Input system (forward-declared, assigned after all sub-systems are created)
   // deno-lint-ignore prefer-const
   let input: ReturnType<typeof createInputSystem>;
 

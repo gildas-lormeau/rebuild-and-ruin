@@ -237,7 +237,7 @@ export class GameRoom {
     else if (type === MESSAGE.BATTLE_START) this.phase = Phase.BATTLE;
     else if (type === MESSAGE.BUILD_START) this.phase = Phase.WALL_BUILD;
     else if (type === MESSAGE.SELECT_START) this.phase = Phase.CASTLE_SELECT;
-    else if (type === MESSAGE.CASTLE_WALLS) this.phase = "CASTLE_BUILD";
+    else if (type === MESSAGE.CASTLE_WALLS) this.phase = Phase.CASTLE_BUILD;
   }
 
   // ---------------------------------------------------------------------------

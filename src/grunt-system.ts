@@ -52,9 +52,9 @@ interface GruntAttackEvent {
 
 /** Search radius for finding nearest water tile. */
 const WATER_SEARCH_RADIUS = 5;
-/** Minimum Manhattan distance between spawn candidates. */
+/** Minimum Manhattan distance between spawn candidates so grunts don't cluster on arrival. */
 const GRUNT_SPAWN_MIN_DISTANCE = 2;
-/** Distance threshold for detecting nearby blocking grunts. */
+/** Manhattan radius for checking if another grunt targeting the same tower is queued nearby. */
 const GRUNT_BLOCKED_NEARBY_DISTANCE = 2;
 
 export function spawnGruntNearPos(
@@ -198,7 +198,7 @@ export function tickGrunts(state: GameState): boolean {
         );
         if (adjacent) {
           // Slide along the tower perimeter to make room for grunts behind us
-          if (hasBlockedSameTargetNearby(state, grunt)) {
+          if (hasNonAdjacentBlockedAlly(state, grunt)) {
             const slide = findAdjacentSlideTarget(state, grunt);
             if (slide) {
               applyGruntMove(grunt, slide.row, slide.col);
@@ -659,8 +659,8 @@ function adjacentWallKeys(
   return walls;
 }
 
-/** Check if any non-adjacent grunt with the same target tower is nearby (within 2 tiles). */
-function hasBlockedSameTargetNearby(state: GameState, grunt: Grunt): boolean {
+/** True if a nearby ally grunt (same target) is NOT yet adjacent to the tower — triggers slide behavior. */
+function hasNonAdjacentBlockedAlly(state: GameState, grunt: Grunt): boolean {
   if (grunt.targetTowerIdx === undefined) return false;
   for (const other of state.grunts) {
     if (other === grunt) continue;

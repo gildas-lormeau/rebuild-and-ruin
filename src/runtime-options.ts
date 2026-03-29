@@ -19,7 +19,7 @@ import {
 import { cycleOption } from "./game-ui-settings.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import { type RuntimeState, safeState } from "./runtime-state.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import { Mode, Phase } from "./types.ts";
 
@@ -71,7 +71,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
       realOptionIdx(),
       rs.settings,
       rs.optionsReturnMode,
-      rs.state ?? null,
+      safeState(rs) ?? null,
       deps.isOnline,
     );
     deps.haptics.setLevel(rs.settings.haptics);

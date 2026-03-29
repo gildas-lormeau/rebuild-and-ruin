@@ -210,7 +210,10 @@ export function processReselectionQueue(params: {
     zone: number,
   ) => "done" | "pending";
   onDone: (pid: number, ctrl: PlayerController) => void;
-}): { remaining: number[]; needsUI: boolean } {
+}): {
+  remaining: number[] /** True if any player still needs interactive castle selection. */;
+  needsUI: boolean;
+} {
   const remaining: number[] = [];
   let needsUI = false;
   for (const pid of params.reselectQueue) {
