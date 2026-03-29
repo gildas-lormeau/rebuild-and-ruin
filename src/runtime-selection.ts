@@ -36,7 +36,11 @@ import {
   processReselectionQueue,
 } from "./game-ui-helpers.ts";
 import { TILE_SIZE } from "./grid.ts";
-import { showCannonPhaseBanner } from "./phase-transition-shared.ts";
+import {
+  CANNON_START_STEPS,
+  executeTransition,
+  showCannonPhaseBanner,
+} from "./phase-transition-shared.ts";
 import { syncSelectionOverlay as syncSelectionOverlayImpl } from "./render-composition.ts";
 import { initTowerSelection } from "./runtime-bootstrap.ts";
 import type { RuntimeState } from "./runtime-state.ts";
@@ -344,10 +348,16 @@ export function createSelectionSystem(
   }
 
   function advanceToCannonPhase(): void {
-    advanceToCannonPlacePhase(rs.state);
-    deps.startCannonPhase();
-    showCannonPhaseBanner(deps.showBanner, () => {
-      rs.mode = Mode.GAME;
+    executeTransition(CANNON_START_STEPS, {
+      reconcileState: () => {
+        advanceToCannonPlacePhase(rs.state);
+        deps.startCannonPhase();
+      },
+      initControllers: () => {},
+      showBanner: () =>
+        showCannonPhaseBanner(deps.showBanner, () => {
+          rs.mode = Mode.GAME;
+        }),
     });
   }
 

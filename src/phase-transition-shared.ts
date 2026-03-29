@@ -34,6 +34,25 @@ interface BuildEndSequenceDeps {
   afterLifeLostResolved?: () => void;
 }
 
+type TransitionStep =
+  | typeof SHOW_BANNER
+  | typeof RECONCILE
+  | typeof SNAPSHOT
+  | typeof INIT_CTRL;
+
+/** Named steps in a phase transition. The recipe declares their ordering;
+ *  host and watcher supply different adapter implementations for each step. */
+const SHOW_BANNER = "showBanner" as const;
+const RECONCILE = "reconcileState" as const;
+const SNAPSHOT = "snapshotForBanner" as const;
+const INIT_CTRL = "initControllers" as const;
+/** Ordered steps for the build→cannon transition (cannon start). */
+export const CANNON_START_STEPS = [RECONCILE, INIT_CTRL, SHOW_BANNER] as const;
+/** Ordered steps for the cannon→battle transition (battle start). */
+export const BATTLE_START_STEPS = [SHOW_BANNER, RECONCILE, SNAPSHOT] as const;
+/** Ordered steps for the battle→build transition (build start). */
+export const BUILD_START_STEPS = [SHOW_BANNER, RECONCILE, INIT_CTRL] as const;
+
 /** Show the "Place Cannons" banner with its canonical subtitle. */
 export function showCannonPhaseBanner(
   show: BannerShow,
@@ -62,11 +81,18 @@ export function showBuildPhaseBanner(
   show(text, onDone, true, undefined, BANNER_BUILD_SUB);
 }
 
-/** Canonical post-build-end sequence shared by host and watcher.
- *
- *  1. Show score deltas animation
- *  2. Notify each affected controller via `notifyLifeLost`
- *  3. Show life-lost dialog (if any), else advance directly */
+/** Execute a phase transition recipe: run each named step in declared order.
+ *  Host and watcher provide different adapter implementations; the recipe
+ *  ensures both follow the same step ordering. */
+export function executeTransition<S extends TransitionStep>(
+  steps: readonly S[],
+  adapters: Readonly<Record<S, () => void>>,
+): void {
+  for (const step of steps) {
+    adapters[step]();
+  }
+}
+
 export function runBuildEndSequence(deps: BuildEndSequenceDeps): void {
   deps.showScoreDeltas(() => {
     for (const pid of [...deps.needsReselect, ...deps.eliminated]) {

@@ -26,7 +26,11 @@ import { collectLocalCrosshairs, tickGameCore } from "./game-ui-helpers.ts";
 import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import { BANNER_BUILD } from "./phase-banner.ts";
-import { showBuildPhaseBanner } from "./phase-transition-shared.ts";
+import {
+  BUILD_START_STEPS,
+  executeTransition,
+  showBuildPhaseBanner,
+} from "./phase-transition-shared.ts";
 import {
   beginHostBattle,
   startHostBattleLifecycle,
@@ -313,14 +317,20 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       },
       onBattlePhaseEnded: () => {
         deps.saveBattleCrosshair?.();
-        showBuildPhaseBanner(deps.showBanner, BANNER_BUILD, () => {
-          startBuildPhase();
-          rs.mode = Mode.GAME;
+        executeTransition(BUILD_START_STEPS, {
+          showBanner: () =>
+            showBuildPhaseBanner(deps.showBanner, BANNER_BUILD, () => {
+              startBuildPhase();
+              rs.mode = Mode.GAME;
+            }),
+          reconcileState: () => {
+            nextPhase(rs.state);
+            if (rs.ctx.isHost && deps.hostNetworking) {
+              deps.send(deps.hostNetworking.createBuildStartMessage(rs.state));
+            }
+          },
+          initControllers: () => {},
         });
-        nextPhase(rs.state);
-        if (rs.ctx.isHost && deps.hostNetworking) {
-          deps.send(deps.hostNetworking.createBuildStartMessage(rs.state));
-        }
       },
       net: {
         remoteHumanSlots: rs.ctx.remoteHumanSlots,

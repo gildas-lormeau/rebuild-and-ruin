@@ -22,6 +22,10 @@ import {
   serializePlayers,
 } from "../src/online-serialize.ts";
 import {
+  BATTLE_START_STEPS,
+  BUILD_START_STEPS,
+  CANNON_START_STEPS,
+  executeTransition,
   runBuildEndSequence,
   showBattlePhaseBanner,
   showBuildPhaseBanner,
@@ -879,6 +883,47 @@ test("build-start: watcher calls startBuild on local controller", () => {
 
   assert(startBuildCalled, "Watcher should call startBuild on local controller");
   assertPhase(s, Phase.WALL_BUILD);
+});
+
+// ---------------------------------------------------------------------------
+// 27. executeTransition runs steps in declared order
+// ---------------------------------------------------------------------------
+
+test("executeTransition runs steps in declared order for all recipes", () => {
+  const log: string[] = [];
+
+  // BUILD_START: showBanner → reconcileState → initControllers
+  executeTransition(BUILD_START_STEPS, {
+    showBanner: () => log.push("showBanner"),
+    reconcileState: () => log.push("reconcileState"),
+    initControllers: () => log.push("initControllers"),
+  });
+  assert(log.length === 3, `BUILD: expected 3 steps, got ${log.length}`);
+  assert(log[0] === "showBanner", `BUILD step 0: ${log[0]}`);
+  assert(log[1] === "reconcileState", `BUILD step 1: ${log[1]}`);
+  assert(log[2] === "initControllers", `BUILD step 2: ${log[2]}`);
+
+  // CANNON_START: reconcileState → initControllers → showBanner
+  log.length = 0;
+  executeTransition(CANNON_START_STEPS, {
+    reconcileState: () => log.push("reconcileState"),
+    initControllers: () => log.push("initControllers"),
+    showBanner: () => log.push("showBanner"),
+  });
+  assert(log[0] === "reconcileState", `CANNON step 0: ${log[0]}`);
+  assert(log[1] === "initControllers", `CANNON step 1: ${log[1]}`);
+  assert(log[2] === "showBanner", `CANNON step 2: ${log[2]}`);
+
+  // BATTLE_START: showBanner → reconcileState → snapshotForBanner
+  log.length = 0;
+  executeTransition(BATTLE_START_STEPS, {
+    showBanner: () => log.push("showBanner"),
+    reconcileState: () => log.push("reconcileState"),
+    snapshotForBanner: () => log.push("snapshotForBanner"),
+  });
+  assert(log[0] === "showBanner", `BATTLE step 0: ${log[0]}`);
+  assert(log[1] === "reconcileState", `BATTLE step 1: ${log[1]}`);
+  assert(log[2] === "snapshotForBanner", `BATTLE step 2: ${log[2]}`);
 });
 
 // ---------------------------------------------------------------------------

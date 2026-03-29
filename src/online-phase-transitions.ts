@@ -16,6 +16,10 @@ import {
   type BannerShow,
 } from "./phase-banner.ts";
 import {
+  BATTLE_START_STEPS,
+  BUILD_START_STEPS,
+  CANNON_START_STEPS,
+  executeTransition,
   runBuildEndSequence,
   showBattlePhaseBanner,
   showBuildPhaseBanner,
@@ -160,20 +164,32 @@ export function handleCannonStartTransition(
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
   ctx.selection.clearOverlay();
-  ctx.checkpoint.applyCannonStart(msg);
-  if (myPlayerId >= 0) {
-    const ctrl = ctx.getControllers()[myPlayerId];
-    if (ctrl) initControllerForCannonPhase(ctrl, state);
-  }
-  if (state.phase !== Phase.CANNON_PLACE) {
-    setPhase(state, Phase.CANNON_PLACE);
-    state.timer = state.cannonPlaceTimer;
-    showCannonPhaseBanner(ctx.ui.showBanner, () => {
-      ctx.ui.watcherTiming.phaseStartTime = ctx.now();
-      ctx.ui.watcherTiming.phaseDuration = state.timer;
-      ctx.setMode(Mode.GAME);
-    });
-  }
+  let needsBanner = false;
+  executeTransition(CANNON_START_STEPS, {
+    reconcileState: () => {
+      ctx.checkpoint.applyCannonStart(msg);
+      if (state.phase !== Phase.CANNON_PLACE) {
+        setPhase(state, Phase.CANNON_PLACE);
+        state.timer = state.cannonPlaceTimer;
+        needsBanner = true;
+      }
+    },
+    initControllers: () => {
+      if (myPlayerId >= 0) {
+        const ctrl = ctx.getControllers()[myPlayerId];
+        if (ctrl) initControllerForCannonPhase(ctrl, state);
+      }
+    },
+    showBanner: () => {
+      if (needsBanner) {
+        showCannonPhaseBanner(ctx.ui.showBanner, () => {
+          ctx.ui.watcherTiming.phaseStartTime = ctx.now();
+          ctx.ui.watcherTiming.phaseDuration = state.timer;
+          ctx.setMode(Mode.GAME);
+        });
+      }
+    },
+  });
 }
 
 export function handleBattleStartTransition(
@@ -184,35 +200,35 @@ export function handleBattleStartTransition(
   const state = ctx.getState();
   const battleFlights = msg.flights;
 
-  showBattlePhaseBanner(ctx.ui.showBanner, BANNER_BATTLE_ONLINE, () => {
-    if (battleFlights && battleFlights.length > 0) {
-      ctx.battle.setFlights(
-        battleFlights.map((f) => ({
-          flight: {
-            startX: f.startX,
-            startY: f.startY,
-            endX: f.endX,
-            endY: f.endY,
-          },
-          progress: 0,
-        })),
-      );
-      // Balloon anim ticks → beginBattle() when complete
-      ctx.setMode(Mode.BALLOON_ANIM);
-    } else {
-      // No balloons — go straight to countdown via the shared beginBattle path
-      // (handles resetBattle, countdown, watcher timing, aimAtEnemyCastle, Mode.GAME)
-      ctx.battle.beginBattle();
-    }
+  executeTransition(BATTLE_START_STEPS, {
+    showBanner: () =>
+      showBattlePhaseBanner(ctx.ui.showBanner, BANNER_BATTLE_ONLINE, () => {
+        if (battleFlights && battleFlights.length > 0) {
+          ctx.battle.setFlights(
+            battleFlights.map((f) => ({
+              flight: {
+                startX: f.startX,
+                startY: f.startY,
+                endX: f.endX,
+                endY: f.endY,
+              },
+              progress: 0,
+            })),
+          );
+          ctx.setMode(Mode.BALLOON_ANIM);
+        } else {
+          ctx.battle.beginBattle();
+        }
+      }),
+    reconcileState: () => {
+      ctx.checkpoint.applyBattleStart(msg);
+      setPhase(state, Phase.BATTLE);
+    },
+    snapshotForBanner: () => {
+      ctx.ui.banner.newTerritory = ctx.battle.snapshotTerritory();
+      ctx.ui.banner.newWalls = snapshotAllWalls(state);
+    },
   });
-
-  ctx.checkpoint.applyBattleStart(msg);
-  setPhase(state, Phase.BATTLE);
-
-  // Set post-checkpoint walls/territory so the banner's new scene shows
-  // clean grass instead of debris for swept walls.
-  ctx.ui.banner.newTerritory = ctx.battle.snapshotTerritory();
-  ctx.ui.banner.newWalls = snapshotAllWalls(state);
 }
 
 export function handleBuildStartTransition(
@@ -223,21 +239,27 @@ export function handleBuildStartTransition(
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
   const buildReceivedAt = ctx.now();
-  showBuildPhaseBanner(ctx.ui.showBanner, BANNER_REPAIR_ONLINE, () => {
-    ctx.ui.watcherTiming.phaseStartTime =
-      buildReceivedAt + ctx.ui.bannerDuration * 1000;
-    ctx.ui.watcherTiming.phaseDuration = state.timer;
-    ctx.setMode(Mode.GAME);
+  executeTransition(BUILD_START_STEPS, {
+    showBanner: () =>
+      showBuildPhaseBanner(ctx.ui.showBanner, BANNER_REPAIR_ONLINE, () => {
+        ctx.ui.watcherTiming.phaseStartTime =
+          buildReceivedAt + ctx.ui.bannerDuration * 1000;
+        ctx.ui.watcherTiming.phaseDuration = state.timer;
+        ctx.setMode(Mode.GAME);
+      }),
+    reconcileState: () => {
+      ctx.checkpoint.applyBuildStart(msg);
+      setPhase(state, Phase.WALL_BUILD);
+    },
+    initControllers: () => {
+      if (myPlayerId >= 0) {
+        const player = state.players[myPlayerId];
+        if (player && !player.eliminated) {
+          ctx.getControllers()[myPlayerId]?.startBuild(state);
+        }
+      }
+    },
   });
-
-  ctx.checkpoint.applyBuildStart(msg);
-  setPhase(state, Phase.WALL_BUILD);
-  if (myPlayerId >= 0) {
-    const player = state.players[myPlayerId];
-    if (player && !player.eliminated) {
-      ctx.getControllers()[myPlayerId]?.startBuild(state);
-    }
-  }
 }
 
 export function handleBuildEndTransition(

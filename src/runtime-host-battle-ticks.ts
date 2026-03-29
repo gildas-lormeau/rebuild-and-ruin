@@ -15,7 +15,11 @@ import type { TilePos } from "./geometry-types.ts";
 import { createCannonFiredMsg } from "./online-send-actions.ts";
 import type { WatcherTimingState } from "./online-types.ts";
 import { BANNER_BATTLE, type BannerShow } from "./phase-banner.ts";
-import { showBattlePhaseBanner } from "./phase-transition-shared.ts";
+import {
+  BATTLE_START_STEPS,
+  executeTransition,
+  showBattlePhaseBanner,
+} from "./phase-transition-shared.ts";
 import {
   getRemoteSlots,
   type HostNetContext,
@@ -226,26 +230,33 @@ export function startHostBattleLifecycle(
 
   const flights = resolveBalloons(state);
 
-  showBattlePhaseBanner(showBanner, BANNER_BATTLE, () => {
-    if (flights.length > 0) {
-      battleAnim.flights = flights.map((f) => ({ flight: f, progress: 0 }));
-      setModeBalloonAnim();
-    } else {
-      beginBattle();
-    }
+  executeTransition(BATTLE_START_STEPS, {
+    showBanner: () =>
+      showBattlePhaseBanner(showBanner, BANNER_BATTLE, () => {
+        if (flights.length > 0) {
+          battleAnim.flights = flights.map((f) => ({
+            flight: f,
+            progress: 0,
+          }));
+          setModeBalloonAnim();
+        } else {
+          beginBattle();
+        }
+      }),
+    reconcileState: () => {
+      nextPhase(state);
+      battleAnim.impacts = [];
+      if (isHost && sendBattleStart) sendBattleStart(flights);
+    },
+    snapshotForBanner: () => {
+      const postTerritory = snapshotTerritory();
+      const postWalls = snapshotAllWalls(state);
+      battleAnim.territory = postTerritory;
+      battleAnim.walls = postWalls;
+      deps.banner.newTerritory = postTerritory;
+      deps.banner.newWalls = postWalls;
+    },
   });
-
-  nextPhase(state);
-  battleAnim.impacts = [];
-  if (isHost && sendBattleStart) sendBattleStart(flights);
-
-  // Post-sweep snapshots for the banner's new scene
-  const postTerritory = snapshotTerritory();
-  const postWalls = snapshotAllWalls(state);
-  battleAnim.territory = postTerritory;
-  battleAnim.walls = postWalls;
-  deps.banner.newTerritory = postTerritory;
-  deps.banner.newWalls = postWalls;
 }
 
 export function tickHostBalloonAnim(deps: TickHostBalloonAnimDeps): void {
