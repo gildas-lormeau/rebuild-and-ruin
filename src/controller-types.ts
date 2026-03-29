@@ -143,9 +143,19 @@ export abstract class BaseController implements PlayerController {
       }
     }
   }
-  /** Flush remaining auto-placement queue when cannon timer expires. */
+  /** Flush remaining auto-placement queue when cannon timer expires.
+   *  Do NOT call directly — use finalizeCannonPhase() which guarantees flush→init order. */
   abstract flushCannons(state: GameState, maxSlots: number): void;
 
+  /** End-of-cannon-phase finalization: flush remaining placements, then auto-place
+   *  round-1 cannons if none were placed. Guarantees correct flush→init ordering.
+   *  Call this for LOCAL controllers; remote controllers only need initCannons(). */
+  finalizeCannonPhase(state: GameState, maxSlots: number): void {
+    this.flushCannons(state, maxSlots);
+    this.initCannons(state, maxSlots);
+  }
+
+  /** Round-1 safety net: auto-place cannons if none were manually placed. */
   initCannons(state: GameState, maxSlots: number): void {
     if (state.round !== 1) return;
     const player = state.players[this.playerId];

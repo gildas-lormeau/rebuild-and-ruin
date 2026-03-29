@@ -160,7 +160,7 @@ test("cannon cursor needs snap after successful placement", () => {
 
   // Let AI place cannons normally
   ctrl.placeCannons(s.state, maxSlots);
-  ctrl.flushCannons(s.state, maxSlots);
+  ctrl.finalizeCannonPhase(s.state, maxSlots);
 
   // After placement, the controller should still report done
   assert(

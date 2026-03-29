@@ -101,8 +101,13 @@ export interface PlayerController {
   /** Reset battle state (accumulators, targets). Called at battle start. */
   resetBattle(state?: GameState): void;
 
-  /** Flush any remaining auto-placement queue (cannon timer expired). */
+  /** Flush any remaining auto-placement queue (cannon timer expired).
+   *  Do NOT call directly — use finalizeCannonPhase() which guarantees flush→init order. */
   flushCannons(state: GameState, maxSlots: number): void;
+
+  /** End-of-cannon-phase finalization (flush + init). Use for LOCAL controllers.
+   *  Remote controllers only need initCannons() (their client handles flush). */
+  finalizeCannonPhase(state: GameState, maxSlots: number): void;
 
   /** Round-1 safety net: auto-place cannons if none were manually placed. No-op on round 2+. */
   initCannons(state: GameState, maxSlots: number): void;

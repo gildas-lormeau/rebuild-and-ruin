@@ -130,7 +130,7 @@ const EMPTY_MAP = new Map<number, string>();
  *   isCannonPhaseDone(state, max) — check if controller is finished
  *   flushCannons(state, max) — finalize remaining placements (called once at phase end)
  *   initCannons(state, max) — auto-place round-1 cannons if none placed (called once after flush)
- * flush + init must be called together, in that order, exactly once at phase end.
+ * flush + init are combined in finalizeCannonPhase() which guarantees correct ordering.
  *
  * Remote vs local dispatch:
  *   Pass 1 (per-frame): ticks LOCAL controllers only (remoteHumanSlots are skipped).
@@ -221,15 +221,14 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
 
   if (state.timer > 0 && !allDone) return false;
 
-  // Pass 2: flush/init ALL controllers (including remote) for phase transition
+  // Pass 2: finalize ALL controllers (including remote) for phase transition
   for (const ctrl of controllers) {
     const max = state.cannonLimits[ctrl.playerId] ?? 0;
     if (remoteHumanSlots.has(ctrl.playerId)) {
-      ctrl.initCannons(state, max);
+      ctrl.initCannons(state, max); // Remote: init only (client flushed locally)
       continue;
     }
-    ctrl.flushCannons(state, max);
-    ctrl.initCannons(state, max);
+    ctrl.finalizeCannonPhase(state, max); // Local: flush→init (order guaranteed)
   }
 
   startBattle();

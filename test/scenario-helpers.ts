@@ -173,7 +173,7 @@ export function createScenario(seed = 42): Scenario {
       if (player.eliminated) continue;
       const ctrl = controllers[i]!;
       ctrl.placeCannons(state, state.cannonLimits[i]!);
-      ctrl.flushCannons(state, state.cannonLimits[i]!);
+      ctrl.finalizeCannonPhase(state, state.cannonLimits[i]!);
     }
   }
 
