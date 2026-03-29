@@ -31,8 +31,8 @@ import { Action, type CombinedCannonResult, type GameState } from "./types.ts";
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
 const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
-/** Sentinel for round-robin cannon rotation: no cannon fired yet. */
-const NO_CANNON_FIRED = -1;
+/** Sentinel index meaning no cannon has fired yet in this round's rotation. */
+const NO_CANNON_ROTATION_IDX = -1;
 
 export abstract class BaseController implements PlayerController {
   readonly playerId: number;
@@ -44,7 +44,7 @@ export abstract class BaseController implements PlayerController {
     y: DEFAULT_CURSOR_ROW * TILE_SIZE,
   };
   /** Round-robin index into combined cannon list. Reset in resetBattle() and onLifeLost(). */
-  protected cannonRotationIdx = NO_CANNON_FIRED;
+  protected cannonRotationIdx = NO_CANNON_ROTATION_IDX;
 
   /** Piece bag for the build phase (shared by AI and Human). */
   protected bag: BagState | null = null;
@@ -94,7 +94,7 @@ export abstract class BaseController implements PlayerController {
    *  if its cost exceeds remaining slots (SUPER→NORMAL, BALLOON→NORMAL). */
   abstract cannonTick(state: GameState, dt: number): LocalCannonPhantom | null;
   /** Shared build-phase init: bag + cursor on home tower. */
-  protected initBuildPhase(state: GameState): void {
+  private initBuildPhase(state: GameState): void {
     this.initBag(state.round, state.rng);
     const player = state.players[this.playerId]!;
     if (player.homeTower) {
@@ -107,23 +107,35 @@ export abstract class BaseController implements PlayerController {
     this.clampBuildCursor(this.currentPiece);
   }
 
-  /** Start build phase. Must call super.initBuildPhase(state) to init bag + cursor. */
-  abstract startBuild(state: GameState): void;
+  /** Start build phase: initializes bag + cursor, then calls onStartBuild hook.
+   *  Subclasses override onStartBuild() for phase-specific setup (NOT startBuild). */
+  startBuild(state: GameState): void {
+    this.initBuildPhase(state);
+    this.onStartBuild(state);
+  }
+
+  /** Subclass hook called after bag/cursor are initialized. Override for AI targeting etc. */
+  protected onStartBuild(_state: GameState): void {}
   /** Called each frame during build. Returns phantom pieces for rendering. */
   abstract buildTick(state: GameState, dt: number): LocalPiecePhantom[];
 
-  /** End build phase: clear bag/piece. Subclasses must call super.endBuild(). */
-  endBuild(_state: GameState): void {
+  /** End build phase: calls onEndBuild hook, then clears bag/piece.
+   *  Subclasses override onEndBuild() for cleanup (NOT endBuild). */
+  endBuild(state: GameState): void {
+    this.onEndBuild(state);
     this.bag = null;
     this.currentPiece = null;
   }
+
+  /** Subclass hook called before bag/piece are cleared. Override for AI cleanup etc. */
+  protected onEndBuild(_state: GameState): void {}
 
   /** Called each frame during battle. Should call this.fire(state) to fire cannons. */
   abstract battleTick(state: GameState, dt: number): void;
 
   /** Reset battle state (cannonRotationIdx, cursors). Subclasses must call super.resetBattle(). */
   resetBattle(state?: GameState): void {
-    this.cannonRotationIdx = NO_CANNON_FIRED;
+    this.cannonRotationIdx = NO_CANNON_ROTATION_IDX;
     if (state) {
       const player = state.players[this.playerId];
       if (player?.homeTower) {
@@ -143,7 +155,7 @@ export abstract class BaseController implements PlayerController {
   /** Clean up at end of battle (e.g. clear AI fire targets). */
   abstract onBattleEnd(): void;
   onLifeLost(): void {
-    this.cannonRotationIdx = NO_CANNON_FIRED;
+    this.cannonRotationIdx = NO_CANNON_ROTATION_IDX;
     this.bag = null;
     this.currentPiece = null;
   }
@@ -154,7 +166,7 @@ export abstract class BaseController implements PlayerController {
       x: DEFAULT_CURSOR_COL * TILE_SIZE,
       y: DEFAULT_CURSOR_ROW * TILE_SIZE,
     };
-    this.cannonRotationIdx = NO_CANNON_FIRED;
+    this.cannonRotationIdx = NO_CANNON_ROTATION_IDX;
     this.bag = null;
     this.currentPiece = null;
   }

@@ -149,6 +149,7 @@ export function createStatusBar(
   };
 }
 
+/** Mutates overlay.selection in-place to reflect current selection highlights. */
 export function syncSelectionOverlay(
   overlay: RenderOverlay,
   selectionStates: Map<number, SelectionState>,

@@ -77,7 +77,11 @@ export function canPlacePiece(
 }
 
 /** Same as canPlacePiece but accepts raw offsets — used when no PieceShape is available (e.g. network validation).
- * See also: canPlaceCannon in cannon-system.ts for cannon placement validation. */
+ *
+ * Validation differs from canPlaceCannon (cannon-system.ts):
+ *   - Walls check: isGrass, playerZone, all towers (hasTowerAt), grunts, cannons
+ *   - Cannons check: player.interior (enclosed territory), owned towers only, no grunt/zone check
+ * An LLM copying one to the other will get the wrong validation. */
 export function canPlacePieceOffsets(
   state: GameState,
   playerId: number,

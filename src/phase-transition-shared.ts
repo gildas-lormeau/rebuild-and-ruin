@@ -36,22 +36,40 @@ interface BuildEndSequenceDeps {
 
 type TransitionStep =
   | typeof SHOW_BANNER
-  | typeof RECONCILE
+  | typeof APPLY_CHECKPOINT
   | typeof SNAPSHOT
   | typeof INIT_CTRL;
 
 /** Named steps in a phase transition. The recipe declares their ordering;
- *  host and watcher supply different adapter implementations for each step. */
+ *  host and watcher supply different adapter implementations for each step.
+ *
+ *  - applyCheckpoint: Apply server checkpoint data to reconcile game state.
+ *    Must run before any logic that reads the updated state.
+ *  - initControllers: Prepare controllers for the new phase (cannon setup, build init).
+ *  - showBanner: Display the phase-transition banner animation.
+ *  - snapshotForBanner: Capture post-transition territory/walls for the banner overlay. */
 const SHOW_BANNER = "showBanner" as const;
-const RECONCILE = "reconcileState" as const;
+const APPLY_CHECKPOINT = "applyCheckpoint" as const;
 const SNAPSHOT = "snapshotForBanner" as const;
 const INIT_CTRL = "initControllers" as const;
-/** Ordered steps for the build→cannon transition (cannon start). */
-export const CANNON_START_STEPS = [RECONCILE, INIT_CTRL, SHOW_BANNER] as const;
-/** Ordered steps for the cannon→battle transition (battle start). */
-export const BATTLE_START_STEPS = [SHOW_BANNER, RECONCILE, SNAPSHOT] as const;
-/** Ordered steps for the battle→build transition (build start). */
-export const BUILD_START_STEPS = [SHOW_BANNER, RECONCILE, INIT_CTRL] as const;
+/** Ordered steps for the build→cannon transition: checkpoint first, then controllers, then banner. */
+export const CANNON_START_STEPS = [
+  APPLY_CHECKPOINT,
+  INIT_CTRL,
+  SHOW_BANNER,
+] as const;
+/** Ordered steps for the cannon→battle transition: banner first (snapshots old scene), then checkpoint, then snapshot. */
+export const BATTLE_START_STEPS = [
+  SHOW_BANNER,
+  APPLY_CHECKPOINT,
+  SNAPSHOT,
+] as const;
+/** Ordered steps for the battle→build transition: banner first, then checkpoint, then controllers. */
+export const BUILD_START_STEPS = [
+  SHOW_BANNER,
+  APPLY_CHECKPOINT,
+  INIT_CTRL,
+] as const;
 
 /** Show the "Place Cannons" banner with its canonical subtitle. */
 export function showCannonPhaseBanner(

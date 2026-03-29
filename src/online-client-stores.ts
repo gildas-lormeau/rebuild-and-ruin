@@ -73,10 +73,12 @@ export function maybeSendAimUpdate(
   sendAimUpdate(session, dedup, x, y, playerId);
 }
 
+/** Clear all last-sent dedup state — call when entering a new game or after host promotion. */
 export function resetDedup(): void {
   resetDedupMaps(dedup);
 }
 
+/** Zero out reconnect state — call after successful reconnect or when giving up. */
 export function clearReconnect(): void {
   reconnect.attempt = 0;
   if (reconnect.timer) {

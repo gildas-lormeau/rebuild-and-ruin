@@ -183,7 +183,7 @@ export function handleCannonStartTransition(
   }
 
   executeTransition(CANNON_START_STEPS, {
-    reconcileState: () => {
+    applyCheckpoint: () => {
       setPhase(state, Phase.CANNON_PLACE);
       state.timer = state.cannonPlaceTimer;
     },
@@ -225,7 +225,7 @@ export function handleBattleStartTransition(
           ctx.battle.beginBattle();
         }
       }),
-    reconcileState: () => {
+    applyCheckpoint: () => {
       ctx.checkpoint.applyBattleStart(msg);
       setPhase(state, Phase.BATTLE);
     },
@@ -252,7 +252,7 @@ export function handleBuildStartTransition(
         ctx.ui.watcherTiming.phaseDuration = state.timer;
         ctx.setMode(Mode.GAME);
       }),
-    reconcileState: () => {
+    applyCheckpoint: () => {
       ctx.checkpoint.applyBuildStart(msg);
       setPhase(state, Phase.WALL_BUILD);
     },

@@ -318,12 +318,14 @@ export function dispatchGameAction(
     return false;
   }
 
+  // Guard: CANNON_PLACE requires a built castle — can't place cannons without one.
+  if (
+    state.phase === Phase.CANNON_PLACE &&
+    !state.players[ctrl.playerId]?.castle
+  )
+    return false;
+
   if (isPlacementPhase(state.phase)) {
-    if (
-      state.phase === Phase.CANNON_PLACE &&
-      !state.players[ctrl.playerId]?.castle
-    )
-      return false;
     return dispatchPlacementAction(ctrl, action, state, deps);
   }
 

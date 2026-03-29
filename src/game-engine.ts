@@ -74,7 +74,7 @@ import {
 
 /** Grunts spawned per player on first battle when nobody fires. */
 const IDLE_FIRST_BATTLE_GRUNTS = 2;
-/** Probability of reversing castle-wall build animation direction. */
+/** 50% chance to reverse castle-wall build animation direction (visual variety). */
 const CASTLE_RING_REVERSE_CHANCE = 0.5;
 
 /** Create a game from a seed: generate map, pick zones, create state. */

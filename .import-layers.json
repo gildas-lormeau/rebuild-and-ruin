@@ -164,6 +164,7 @@
   {
     "name": "server",
     "files": [
+      "server/send-utils.ts",
       "server/game-room.ts",
       "server/room-manager.ts",
       "server/server.ts"

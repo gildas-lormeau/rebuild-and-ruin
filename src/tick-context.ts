@@ -19,6 +19,11 @@ export interface HostNetContext {
  *  Reuses the frozen EMPTY_TILE_SET sentinel from spatial.ts (both are Set<number>). */
 const NO_REMOTE_SLOTS: ReadonlySet<number> = EMPTY_TILE_SET;
 
+/** True if this client is the host. Defaults to true when net is omitted (local play). */
+export function isHostInContext(net?: Pick<HostNetContext, "isHost">): boolean {
+  return net?.isHost ?? true;
+}
+
 /** Extract remote human slots from optional net context, defaulting to empty for local play. */
 export function getRemoteSlots(
   net?: Pick<HostNetContext, "remoteHumanSlots">,
@@ -26,8 +31,10 @@ export function getRemoteSlots(
   return net?.remoteHumanSlots ?? NO_REMOTE_SLOTS;
 }
 
-/** Advance an accumulator timer: adds dt, returns the new accumulator value and clamped display timer.
- *  Used by cannon/build/battle ticks to avoid repeating the same pattern. */
+/** Advance an accumulator timer: adds dt, returns the new accumulator value
+ *  and clamped countdown timer (`max - elapsed`, clamped to 0).
+ *  Callers destructure as: `({ accum: accum.X, timer: state.timer } = tickTimer(...))`.
+ *  The returned `timer` counts DOWN — 0 means phase time expired. */
 export function tickTimer(
   accum: number,
   dt: number,

@@ -286,10 +286,9 @@ export class AiController extends BaseController implements AiAnimatable {
   // Build phase
   // -----------------------------------------------------------------------
 
-  startBuild(state: GameState): void {
+  protected override onStartBuild(state: GameState): void {
     const player = state.players[this.playerId]!;
     if (player.eliminated) return;
-    this.initBuildPhase(state);
     const target = this.computeNextPlacement(state);
     if (target) {
       this.buildState = {
@@ -506,8 +505,7 @@ export class AiController extends BaseController implements AiAnimatable {
     };
   }
 
-  override endBuild(state: GameState): void {
-    super.endBuild(state);
+  protected override onEndBuild(state: GameState): void {
     this.buildState = { step: Step.IDLE };
     this.strategy.assessBuildEnd(state, this.playerId);
   }

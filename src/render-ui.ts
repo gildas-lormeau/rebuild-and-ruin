@@ -58,7 +58,13 @@ import {
   TEXT_WHITE,
 } from "./render-theme.ts";
 import { type RenderOverlay } from "./render-types.ts";
-import { FOCUS_MENU, FOCUS_REMATCH, LifeLostChoice } from "./types.ts";
+import {
+  FOCUS_MENU,
+  FOCUS_REMATCH,
+  LIFE_LOST_FOCUS_ABANDON,
+  LIFE_LOST_FOCUS_CONTINUE,
+  LifeLostChoice,
+} from "./types.ts";
 
 interface ButtonStyle {
   fill: string;
@@ -405,8 +411,8 @@ export function drawLifeLostDialog(
       const btnW = BTN_W,
         btnH = BTN_H;
       const { btnY, contX, abX } = lifeLostButtonLayout(px, py);
-      const contFocused = entry.focused === 0;
-      const abFocused = entry.focused === 1;
+      const contFocused = entry.focused === LIFE_LOST_FOCUS_CONTINUE;
+      const abFocused = entry.focused === LIFE_LOST_FOCUS_ABANDON;
 
       // Continue button
       const t = now ?? Date.now();

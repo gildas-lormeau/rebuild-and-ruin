@@ -94,6 +94,7 @@ export function createWatcherState(): WatcherState {
   };
 }
 
+/** Full reset — clears all watcher state. Used when joining a new game or full-state recovery. */
 export function resetWatcherState(ws: WatcherState): void {
   ws.remoteCrosshairs.clear();
   ws.remoteCannonPhantoms = [];

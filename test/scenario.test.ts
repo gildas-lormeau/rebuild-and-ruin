@@ -892,37 +892,37 @@ test("build-start: watcher calls startBuild on local controller", () => {
 test("executeTransition runs steps in declared order for all recipes", () => {
   const log: string[] = [];
 
-  // BUILD_START: showBanner → reconcileState → initControllers
+  // BUILD_START: showBanner → applyCheckpoint → initControllers
   executeTransition(BUILD_START_STEPS, {
     showBanner: () => log.push("showBanner"),
-    reconcileState: () => log.push("reconcileState"),
+    applyCheckpoint: () => log.push("applyCheckpoint"),
     initControllers: () => log.push("initControllers"),
   });
   assert(log.length === 3, `BUILD: expected 3 steps, got ${log.length}`);
   assert(log[0] === "showBanner", `BUILD step 0: ${log[0]}`);
-  assert(log[1] === "reconcileState", `BUILD step 1: ${log[1]}`);
+  assert(log[1] === "applyCheckpoint", `BUILD step 1: ${log[1]}`);
   assert(log[2] === "initControllers", `BUILD step 2: ${log[2]}`);
 
-  // CANNON_START: reconcileState → initControllers → showBanner
+  // CANNON_START: applyCheckpoint → initControllers → showBanner
   log.length = 0;
   executeTransition(CANNON_START_STEPS, {
-    reconcileState: () => log.push("reconcileState"),
+    applyCheckpoint: () => log.push("applyCheckpoint"),
     initControllers: () => log.push("initControllers"),
     showBanner: () => log.push("showBanner"),
   });
-  assert(log[0] === "reconcileState", `CANNON step 0: ${log[0]}`);
+  assert(log[0] === "applyCheckpoint", `CANNON step 0: ${log[0]}`);
   assert(log[1] === "initControllers", `CANNON step 1: ${log[1]}`);
   assert(log[2] === "showBanner", `CANNON step 2: ${log[2]}`);
 
-  // BATTLE_START: showBanner → reconcileState → snapshotForBanner
+  // BATTLE_START: showBanner → applyCheckpoint → snapshotForBanner
   log.length = 0;
   executeTransition(BATTLE_START_STEPS, {
     showBanner: () => log.push("showBanner"),
-    reconcileState: () => log.push("reconcileState"),
+    applyCheckpoint: () => log.push("applyCheckpoint"),
     snapshotForBanner: () => log.push("snapshotForBanner"),
   });
   assert(log[0] === "showBanner", `BATTLE step 0: ${log[0]}`);
-  assert(log[1] === "reconcileState", `BATTLE step 1: ${log[1]}`);
+  assert(log[1] === "applyCheckpoint", `BATTLE step 1: ${log[1]}`);
   assert(log[2] === "snapshotForBanner", `BATTLE step 2: ${log[2]}`);
 });
 
@@ -945,7 +945,7 @@ test("recipe step arrays are distinct and have expected lengths", () => {
   assert(battle !== build, "BATTLE and BUILD recipes must differ");
 
   // Cannon starts with reconcile (state before banner)
-  assert(CANNON_START_STEPS[0] === "reconcileState", "Cannon must reconcile first");
+  assert(CANNON_START_STEPS[0] === "applyCheckpoint", "Cannon must reconcile first");
   // Battle and build start with banner (capture old scene before reconcile)
   assert(BATTLE_START_STEPS[0] === "showBanner", "Battle must banner first");
   assert(BUILD_START_STEPS[0] === "showBanner", "Build must banner first");

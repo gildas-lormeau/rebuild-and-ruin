@@ -475,9 +475,9 @@ function renderTerrainPixels(
   inBattle: boolean,
 ): void {
   const data = imgData.data;
-  const LAND_DIST = 3;
-  const BANK_DIST = 6;
-  const TRANS = 1.5;
+  const LAND_DIST = 3; // SDF distance: grass → bank transition starts
+  const BANK_DIST = 6; // SDF distance: bank → water transition starts
+  const TRANS = 1.5; // Width of each smooth transition band (pixels)
 
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {

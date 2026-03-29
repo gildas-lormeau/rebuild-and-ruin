@@ -363,6 +363,12 @@ export function applyImpactEvent(
  * Resolve all placed propaganda balloons at the CANNON_PLACE → BATTLE transition.
  * For each balloon, find the "most dangerous" enemy cannon and capture it.
  * Returns flight paths for animation.
+ *
+ * Balloon hit lifecycle:
+ *   - state.balloonHits accumulates hit counts across battles (persists).
+ *   - capturerIds is cleared each battle by cleanupBalloonHitTrackingAfterBattle()
+ *     so only the deciding battle's contributors claim the capture.
+ *   - Entries are deleted when a cannon is captured or destroyed.
  */
 export function resolveBalloons(state: GameState): BalloonFlight[] {
   const flights: BalloonFlight[] = [];

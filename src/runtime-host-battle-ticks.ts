@@ -23,6 +23,7 @@ import {
 import {
   getRemoteSlots,
   type HostNetContext,
+  isHostInContext,
   localActiveControllers,
   tickTimer,
 } from "./tick-context.ts";
@@ -139,6 +140,12 @@ export function tickHostBattleCountdown(
   render();
 }
 
+/** Tick the battle phase. Returns true when battle ends.
+ *
+ *  Remote vs local dispatch:
+ *    Per-frame: ticks LOCAL controllers only (remote crosshairs arrive via network).
+ *    Fire events from local controllers are broadcast to remotes.
+ *    All controllers (local + remote) contribute to grunt/tower event collection. */
 export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   const {
     dt,
@@ -155,7 +162,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     onBattleEvents,
   } = deps;
   const remoteHumanSlots = getRemoteSlots(deps.net);
-  const isHost = deps.net?.isHost ?? true;
+  const isHost = isHostInContext(deps.net);
   const sendMessage = deps.net?.sendMessage;
 
   ({ accum: accum.battle, timer: state.timer } = tickTimer(
@@ -225,7 +232,7 @@ export function startHostBattleLifecycle(
     setModeBalloonAnim,
     beginBattle,
   } = deps;
-  const isHost = deps.net?.isHost ?? true;
+  const isHost = isHostInContext(deps.net);
   const sendBattleStart = deps.net?.sendBattleStart;
 
   const flights = resolveBalloons(state);
@@ -243,7 +250,7 @@ export function startHostBattleLifecycle(
           beginBattle();
         }
       }),
-    reconcileState: () => {
+    applyCheckpoint: () => {
       nextPhase(state);
       battleAnim.impacts = [];
       if (isHost && sendBattleStart) sendBattleStart(flights);
@@ -278,7 +285,7 @@ export function tickHostBalloonAnim(deps: TickHostBalloonAnimDeps): void {
 export function beginHostBattle(deps: BeginHostBattleDeps): void {
   const { state, controllers, accum, battleCountdown, setModeGame } = deps;
   const remoteHumanSlots = getRemoteSlots(deps.net);
-  const isHost = deps.net?.isHost ?? true;
+  const isHost = isHostInContext(deps.net);
 
   for (const ctrl of localActiveControllers(
     controllers,

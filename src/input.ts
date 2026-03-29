@@ -72,6 +72,8 @@ export interface RegisterOnlineInputDeps {
     setCursor: (cursor: number) => void;
     getCount: () => number;
     getRealIdx: () => number;
+    /** Confirm the current option: shows controls if on that row, else closes. */
+    confirmOption: () => void;
     getReturnMode: () => number | null;
     setReturnMode: (mode: number | null) => void;
     changeValue: (dir: number) => void;

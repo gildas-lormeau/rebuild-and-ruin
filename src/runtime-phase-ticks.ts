@@ -133,7 +133,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const remoteHumanSlots = rs.ctx.remoteHumanSlots;
     deps.log(`startCannonPhase (round=${rs.state.round})`);
     executeTransition(CANNON_START_STEPS, {
-      reconcileState: () => {
+      applyCheckpoint: () => {
         prepareCannonPhase(rs.state);
         rs.accum.cannon = 0;
         rs.state.timer = rs.state.cannonPlaceTimer;
@@ -335,7 +335,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
             showBuildPhaseBanner(deps.showBanner, BANNER_BUILD, () => {
               rs.mode = Mode.GAME;
             }),
-          reconcileState: () => {
+          applyCheckpoint: () => {
             nextPhase(rs.state);
             if (rs.ctx.isHost && deps.hostNetworking) {
               deps.send(deps.hostNetworking.createBuildStartMessage(rs.state));

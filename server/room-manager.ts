@@ -5,9 +5,13 @@
 import { MAX_PLAYERS, PLAYER_NAMES } from "../src/player-config.ts";
 import { GameRoom } from "./game-room.ts";
 import { MESSAGE, type RoomSettings, type ServerMessage } from "./protocol.ts";
+import { safeSendRaw } from "./send-utils.ts";
 
 const MAX_ROOMS = 50;
 const ROOM_CLEANUP_DELAY_MS = 60_000; // 60s after game over
+/** Uppercase letters excluding I and O to avoid confusion with 1 and 0. */
+const ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+const ROOM_CODE_LENGTH = 4;
 
 export interface RoomEntry {
   room: GameRoom;
@@ -313,12 +317,12 @@ export class RoomManager {
   // ---------------------------------------------------------------------------
 
   private generateCode(): string {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // no I, O (avoid confusion with 1, 0)
     let code: string;
     do {
       code = "";
-      for (let i = 0; i < 4; i++) {
-        code += chars[Math.floor(Math.random() * chars.length)];
+      for (let i = 0; i < ROOM_CODE_LENGTH; i++) {
+        code +=
+          ROOM_CODE_CHARS[Math.floor(Math.random() * ROOM_CODE_CHARS.length)];
       }
     } while (this.rooms.has(code));
     return code;
@@ -337,9 +341,4 @@ export class RoomManager {
       console.log(`[rooms] Room ${entry.code} cleaned up`);
     }, ROOM_CLEANUP_DELAY_MS);
   }
-}
-
-/** Send a pre-serialized JSON string to a socket, guarded by readyState. */
-function safeSendRaw(socket: WebSocket, json: string): void {
-  if (socket.readyState === WebSocket.OPEN) socket.send(json);
 }

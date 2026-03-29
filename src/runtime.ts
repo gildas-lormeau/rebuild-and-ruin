@@ -315,6 +315,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     return (cachedFirstHuman = null);
   }
 
+  /** Run `action` with the first human controller. No-op if no human exists
+   *  (e.g. all-AI game) — the action callback will NOT be called. */
   function withFirstHuman(
     action: (human: PlayerController & InputReceiver) => void,
   ): void {

@@ -221,6 +221,10 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       },
       getCount: () => visibleOptions(uiCtx).length,
       getRealIdx: options.realOptionIdx,
+      confirmOption: () => {
+        if (options.realOptionIdx() === OPTION_CONTROLS) options.showControls();
+        else options.closeOptions();
+      },
       getReturnMode: () => rs.optionsReturnMode,
       setReturnMode: (m: unknown) => {
         rs.optionsReturnMode = m as Mode | null;

@@ -26,6 +26,8 @@ import {
   FOCUS_REMATCH,
   type GameState,
   isPlacementPhase,
+  LIFE_LOST_FOCUS_ABANDON,
+  LIFE_LOST_FOCUS_CONTINUE,
   LifeLostChoice,
 } from "./types.ts";
 
@@ -299,9 +301,7 @@ function handleKeyOptionsNavigation(
     e.key === "f" ||
     e.key === "h"
   ) {
-    if (options.getRealIdx() === 5)
-      options.showControls(); // 5 = OPTION_CONTROLS
-    else options.close();
+    options.confirmOption();
     e.preventDefault();
   }
 }
@@ -343,7 +343,11 @@ function buildLifeLostOverlayDeps(
             en.playerId === ctrl.playerId &&
             en.choice === LifeLostChoice.PENDING,
         );
-        if (entry) entry.focused = entry.focused === 0 ? 1 : 0;
+        if (entry)
+          entry.focused =
+            entry.focused === LIFE_LOST_FOCUS_CONTINUE
+              ? LIFE_LOST_FOCUS_ABANDON
+              : LIFE_LOST_FOCUS_CONTINUE;
       },
       confirm: () => {
         const dialog = deps.lifeLost.get();
@@ -354,7 +358,7 @@ function buildLifeLostOverlayDeps(
         );
         if (entry) {
           entry.choice =
-            entry.focused === 0
+            entry.focused === LIFE_LOST_FOCUS_CONTINUE
               ? LifeLostChoice.CONTINUE
               : LifeLostChoice.ABANDON;
           deps.lifeLost.sendChoice(entry.choice, entry.playerId);

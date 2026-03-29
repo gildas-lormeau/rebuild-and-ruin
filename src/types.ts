@@ -143,7 +143,9 @@ export interface Player {
   ownedTowers: Tower[];
   /** Wall tiles owned by this player (row,col pairs encoded as row*COLS+col). */
   walls: Set<number>;
-  /** Interior tiles (territory inside walls, encoded as row*COLS+col). */
+  /** Interior tiles (territory inside walls, encoded as row*COLS+col).
+   *  Must be recomputed via recomputeInterior() after any wall changes,
+   *  before querying isCannonEnclosed(), canPlaceCannon(), or canFire(). */
   interior: Set<number>;
   /** Cannon positions (top-left tile of 2x2 cannon). */
   cannons: Cannon[];
@@ -173,7 +175,9 @@ export interface Grunt extends TilePos {
 }
 
 export interface GameState {
-  /** Shared seeded RNG for deterministic gameplay decisions. */
+  /** Shared seeded RNG for deterministic gameplay decisions.
+   *  Available methods: .next() → [0,1), .int(lo,hi), .bool(prob),
+   *  .pick(arr), .shuffle(arr). See rng.ts for full API. */
   rng: Rng;
   map: GameMap;
   phase: Phase;
@@ -191,7 +195,8 @@ export interface GameState {
   players: Player[];
   /** Index of the player whose turn it is (for sequential phases). */
   activePlayer: number;
-  /** Remaining time in seconds for timed phases (WALL_BUILD, BATTLE). */
+  /** Remaining time in seconds for timed phases (counts DOWN from phase max to 0).
+   *  Set via tickTimer(): `timer = max - elapsed`. Check `timer > 0` for "time left". */
   timer: number;
   /** Active cannonballs in flight. */
   cannonballs: Cannonball[];
@@ -269,6 +274,7 @@ export interface LifeLostEntry {
   isAi: boolean;
   choice: LifeLostChoice;
   aiTimer: number;
+  /** Which button is focused: LIFE_LOST_FOCUS_CONTINUE (0) or LIFE_LOST_FOCUS_ABANDON (1). */
   focused: number;
 }
 
@@ -335,6 +341,9 @@ export interface FrameContextInputs {
 
 /** Seconds before timer reaches 0 to trigger unzoom. */
 const PHASE_ENDING_THRESHOLD = 1.5;
+/** Which button is focused in the life-lost dialog. */
+export const LIFE_LOST_FOCUS_CONTINUE = 0;
+export const LIFE_LOST_FOCUS_ABANDON = 1;
 export const FOCUS_REMATCH: GameOverFocus = "rematch";
 export const FOCUS_MENU: GameOverFocus = "menu";
 export const CANNON_MODES: ReadonlySet<CannonMode> = new Set([

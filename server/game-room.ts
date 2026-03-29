@@ -19,6 +19,7 @@ import {
   type RoomSettings,
   sanitizeRoomSettings,
 } from "./protocol.ts";
+import { safeSendRaw } from "./send-utils.ts";
 
 // Rate limit: max messages per second per type (cosmetic/display only).
 // Game-state messages (piece_placed, cannon_placed, fired, tower_selected,
@@ -227,6 +228,12 @@ export class GameRoom {
     this.hostSocket = socket;
   }
 
+  /** Host is exempt from identity enforcement: it sends actions on behalf of
+   *  AI players (whose playerId differs from the host's own slot). */
+  private isHostExempt(senderSocket: WebSocket, type: string): boolean {
+    return senderSocket === this.hostSocket && !HOST_ONLY.has(type);
+  }
+
   // ---------------------------------------------------------------------------
   // Phase tracking
   // ---------------------------------------------------------------------------
@@ -254,7 +261,9 @@ export class GameRoom {
     const type = msg.type as string;
     if (!type) return;
 
-    // --- Host-only messages ---
+    // --- Host-only messages (phase transitions, checkpoints, etc.) ---
+    // Only the host socket may send these. Adding a new host-only message
+    // type requires adding it to the HOST_ONLY set above.
     if (HOST_ONLY.has(type)) {
       if (senderSocket !== this.hostSocket) return;
       this.updatePhaseFromMessage(type);
@@ -262,11 +271,8 @@ export class GameRoom {
 
     // --- Identity enforcement (for messages with playerId) ---
     // Host is exempt: it sends actions on behalf of AI players.
-    if (
-      "playerId" in msg &&
-      !HOST_ONLY.has(type) &&
-      senderSocket !== this.hostSocket
-    ) {
+    // Non-host sockets may only send messages for their own playerId.
+    if ("playerId" in msg && !this.isHostExempt(senderSocket, type)) {
       const senderPid = this.players.get(senderSocket);
       if (senderPid === undefined) return;
       if (msg.playerId !== senderPid) return;
@@ -301,9 +307,4 @@ export class GameRoom {
       safeSendRaw(socket, rawJson);
     }
   }
-}
-
-/** Send a pre-serialized JSON string to a socket, guarded by readyState. */
-function safeSendRaw(socket: WebSocket, json: string): void {
-  if (socket.readyState === WebSocket.OPEN) socket.send(json);
 }

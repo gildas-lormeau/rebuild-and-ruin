@@ -50,6 +50,7 @@ export interface Crosshair {
 /** Shared interface — both AI and Human genuinely use these. */
 export interface PlayerController {
   readonly playerId: number;
+  /** Discriminant for isHuman/isAiAnimatable type guards (string union, not enum — only two values). */
   readonly kind: "human" | "ai";
 
   /** Build cursor position. */

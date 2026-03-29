@@ -220,7 +220,11 @@ export function drawWaterAnimation(
       const px = c * TILE_SIZE;
       const py = r * TILE_SIZE;
 
-      // Three wave highlights drifting at different speeds across the tile
+      // Three wave highlights drifting at different speeds across the tile.
+      // Tuning constants below control wave animation feel:
+      //   t * (baseSpeed + i*speedVar) — time-based drift (0.8 base, +0.3 per layer)
+      //   r/c * (rowFreq + i*var) — spatial frequency for row/col variation
+      //   i * 2.1 — phase offset between layers (coprime-ish avoids sync)
       for (let i = 0; i < 3; i++) {
         const phase =
           t * (0.8 + i * 0.3) +

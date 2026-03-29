@@ -26,6 +26,8 @@ import {
 import type { RuntimeState } from "./runtime-state.ts";
 import type { RuntimeLifeLost } from "./runtime-types.ts";
 import {
+  LIFE_LOST_FOCUS_ABANDON,
+  LIFE_LOST_FOCUS_CONTINUE,
   LifeLostChoice,
   type LifeLostDialogState,
   Mode,
@@ -153,14 +155,20 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
   function toggleFocus(playerId: number): void {
     const entry = findPendingEntry(playerId);
-    if (entry) entry.focused = entry.focused === 0 ? 1 : 0;
+    if (entry)
+      entry.focused =
+        entry.focused === LIFE_LOST_FOCUS_CONTINUE
+          ? LIFE_LOST_FOCUS_ABANDON
+          : LIFE_LOST_FOCUS_CONTINUE;
   }
 
   function confirmChoice(playerId: number): void {
     const entry = findPendingEntry(playerId);
     if (!entry) return;
     entry.choice =
-      entry.focused === 0 ? LifeLostChoice.CONTINUE : LifeLostChoice.ABANDON;
+      entry.focused === LIFE_LOST_FOCUS_CONTINUE
+        ? LifeLostChoice.CONTINUE
+        : LifeLostChoice.ABANDON;
     sendLifeLostChoice(entry.choice, entry.playerId);
   }
 

@@ -36,7 +36,9 @@ const CANNON_SNAP_RADIUS = 2;
 /** Slot cost for a normal cannon. */
 const NORMAL_CANNON_COST = 1;
 
-/** Check whether all tiles of a cannon are inside enclosed territory. */
+/** Check whether all tiles of a cannon are inside enclosed territory.
+ *  Requires player.interior to be freshly computed via recomputeInterior()
+ *  after any wall changes — stale interior produces incorrect results. */
 export function isCannonEnclosed(
   cannon: Cannon,
   interior: Set<number>,
@@ -112,8 +114,10 @@ export function placeCannon(
 /**
  * Check if a cannon can be placed at (row, col) inside the player's territory.
  * All tiles must be interior, not a wall, not a tower, not an existing cannon.
- * See also: canPlacePieceOffsets in build-system.ts for wall placement validation.
- */
+ * Requires player.interior to be freshly computed (via recomputeInterior) —
+ * cannons must be placed inside enclosed territory.
+ * See also: canPlacePieceOffsets in build-system.ts for wall placement validation
+ * (walls use different checks: all towers, grass, zone — no interior requirement). */
 export function canPlaceCannon(
   player: Player,
   row: number,

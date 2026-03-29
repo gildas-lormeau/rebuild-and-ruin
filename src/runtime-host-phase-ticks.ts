@@ -23,6 +23,7 @@ import { unpackTile } from "./spatial.ts";
 import {
   getRemoteSlots,
   type HostNetContext,
+  isHostInContext,
   localActiveControllers,
   tickTimer,
 } from "./tick-context.ts";
@@ -130,12 +131,17 @@ const EMPTY_MAP = new Map<number, string>();
  *   flushCannons(state, max) — finalize remaining placements (called once at phase end)
  *   initCannons(state, max) — auto-place round-1 cannons if none placed (called once after flush)
  * flush + init must be called together, in that order, exactly once at phase end.
+ *
+ * Remote vs local dispatch:
+ *   Pass 1 (per-frame): ticks LOCAL controllers only (remoteHumanSlots are skipped).
+ *   Pass 2 (phase end): calls flushCannons on LOCAL only, initCannons on ALL
+ *     (remote humans get initCannons only — their placements arrive via network).
  */
 export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   const { dt, state, accum, frame, controllers, render, startBattle } = deps;
   // Networking defaults (no-op for local play)
   const remoteHumanSlots = getRemoteSlots(deps.net);
-  const isHost = deps.net?.isHost ?? true;
+  const isHost = isHostInContext(deps.net);
   const remoteCannonPhantoms = deps.net?.remoteCannonPhantoms ?? [];
   const lastSentCannonPhantom = deps.net?.lastSentCannonPhantom ?? EMPTY_MAP;
   const sendOpponentCannonPlaced = deps.net?.sendOpponentCannonPlaced;
@@ -230,6 +236,13 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   return true;
 }
 
+/** Tick the build phase. Returns true when the phase timer expires.
+ *
+ *  Remote vs local dispatch:
+ *    Per-frame: ticks LOCAL controllers only (remoteHumanSlots skipped — their
+ *      placements arrive via network and are applied by the message handler).
+ *    Phase end (finalizeBuildAndShowDialogs): calls endBuild on LOCAL only —
+ *      remote clients finalize their own controllers independently. */
 export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   const { dt, state, accum, frame, controllers, render } = deps;
   const remoteHumanSlots = getRemoteSlots(deps.net);
@@ -268,7 +281,7 @@ function processControllerBuildActions(
   remoteHumanSlots: ReadonlySet<number>,
 ): void {
   const { state, dt, controllers } = deps;
-  const isHost = deps.net?.isHost ?? true;
+  const isHost = isHostInContext(deps.net);
   const lastSentPiecePhantom = deps.net?.lastSentPiecePhantom ?? EMPTY_MAP;
   const sendOpponentPiecePlaced = deps.net?.sendOpponentPiecePlaced;
   const sendOpponentPhantom = deps.net?.sendOpponentPhantom;
@@ -385,7 +398,7 @@ function finalizeBuildAndShowDialogs(
   remoteHumanSlots: ReadonlySet<number>,
 ): void {
   const { state } = deps;
-  const isHost = deps.net?.isHost ?? true;
+  const isHost = isHostInContext(deps.net);
   const serializePlayers = deps.net?.serializePlayers ?? (() => []);
   const sendBuildEnd = deps.net?.sendBuildEnd;
 

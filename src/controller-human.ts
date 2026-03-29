@@ -43,8 +43,8 @@ export class HumanController extends BaseController implements InputReceiver {
 
   /** Cannon placement mode. */
   private cannonPlaceMode: CannonMode = CannonMode.NORMAL;
-  /** True when cannon cursor was set by mouse/touch (snap on next tick). */
-  private cannonCursorSetByMouse = false;
+  /** Set by mouse/touch cursor placement; consumed (cleared) by snapCannonCursorIfNeeded on next tick. */
+  private pendingCannonSnap = false;
   /** Actions currently held for continuous crosshair movement. */
   private readonly heldActions = new Set<Action>();
 
@@ -120,8 +120,8 @@ export class HumanController extends BaseController implements InputReceiver {
 
   /** After mouse/touch cursor set, snap to nearest valid tile if current is invalid. */
   private snapCannonCursorIfNeeded(player: Player, state: GameState): void {
-    if (!this.cannonCursorSetByMouse) return;
-    this.cannonCursorSetByMouse = false;
+    if (!this.pendingCannonSnap) return;
+    this.pendingCannonSnap = false;
     if (
       canPlaceCannon(
         player,
@@ -151,7 +151,7 @@ export class HumanController extends BaseController implements InputReceiver {
     const sz = cannonSize(this.cannonPlaceMode);
     const offset = Math.floor(sz / 2);
     super.setCannonCursor(row - offset, col - offset);
-    this.cannonCursorSetByMouse = true;
+    this.pendingCannonSnap = true;
   }
 
   override moveBuildCursor(direction: Action): void {
@@ -172,9 +172,8 @@ export class HumanController extends BaseController implements InputReceiver {
     super.setBuildCursor(row, col, this.currentPiece);
   }
 
-  startBuild(state: GameState): void {
-    this.initBuildPhase(state);
-  }
+  // startBuild: uses base class template (initBuildPhase + onStartBuild)
+  // No onStartBuild override needed — human has no AI targeting setup.
 
   buildTick(state: GameState, _dt: number): LocalPiecePhantom[] {
     const player = state.players[this.playerId];
@@ -235,7 +234,7 @@ export class HumanController extends BaseController implements InputReceiver {
       this.cannonPlaceMode,
       state,
     );
-    if (placed) this.cannonCursorSetByMouse = true;
+    if (placed) this.pendingCannonSnap = true;
     return placed;
   }
 
@@ -323,7 +322,7 @@ export class HumanController extends BaseController implements InputReceiver {
     super.onLifeLost();
     this.cannonPlaceMode = CannonMode.NORMAL;
     this.heldActions.clear();
-    this.cannonCursorSetByMouse = false;
+    this.pendingCannonSnap = false;
   }
 
   onCannonPhaseStart(_state: GameState): void {
