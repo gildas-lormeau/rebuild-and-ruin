@@ -45,9 +45,11 @@ onRoute(ROUTE_ONLINE, () => {
 });
 
 onRoute(ROUTE_PLAY, () => {
-  // Fullscreen requires a user gesture — defer to first tap if navigated via bookmark
-  document.addEventListener("pointerdown", () => tryFullscreen(), {
+  // Fullscreen requires a user gesture — defer to first tap if navigated via bookmark.
+  // Use capture phase on game container since touch UI stops propagation.
+  gameContainer.addEventListener("click", () => tryFullscreen(), {
     once: true,
+    capture: true,
   });
   void import("./main.ts").then((m) => m.enterLocalLobby());
 });
