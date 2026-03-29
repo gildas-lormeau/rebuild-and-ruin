@@ -94,10 +94,10 @@ const Step = {
   CHAIN_DWELLING: "chain_dwelling",
   PICKING: "picking",
 } as const;
-/** AI build-phase cursor speed in tiles per second. */
-const BUILD_CURSOR_SPEED = 12;
-/** AI cannon-phase cursor speed in tiles per second. */
-const CANNON_CURSOR_SPEED = 6;
+/** AI build-phase cursor speed in tiles per second, indexed by cursorSkill 1–3. */
+const BUILD_CURSOR_SPEEDS = [8, 12, 14] as const;
+/** AI cannon-phase cursor speed in tiles per second, indexed by cursorSkill 1–3. */
+const CANNON_CURSOR_SPEEDS = [4, 6, 7] as const;
 /** Pixel distance at which countdown orbit engages (stop approaching, start circling). */
 const ORBIT_ENGAGEMENT_DISTANCE = 12;
 /** Base orbit angular speed (rad/s) when targeting a strategic tile. */
@@ -165,6 +165,16 @@ export class AiController extends BaseController implements AiAnimatable {
   /** Delay multiplier derived from thinkingSpeed: 1=slow(1.4×), 2=normal(1×), 3=fast(0.65×). */
   private get delayScale(): number {
     return [1.4, 1.0, 0.65][this.strategy.thinkingSpeed - 1]!;
+  }
+
+  /** Build cursor speed scaled by cursorSkill: 1=8, 2=12, 3=14 tiles/s. */
+  private get buildCursorSpeed(): number {
+    return BUILD_CURSOR_SPEEDS[this.strategy.cursorSkill - 1]!;
+  }
+
+  /** Cannon cursor speed scaled by cursorSkill: 1=4, 2=6, 3=7 tiles/s. */
+  private get cannonCursorSpeed(): number {
+    return CANNON_CURSOR_SPEEDS[this.strategy.cursorSkill - 1]!;
   }
 
   /** Distance threshold (tiles) below which the cursor uses 1× instead of 2× speed.
@@ -342,7 +352,7 @@ export class AiController extends BaseController implements AiAnimatable {
           this.buildCursor,
           Math.round(home.row),
           Math.round(home.col),
-          BUILD_CURSOR_SPEED,
+          this.buildCursorSpeed,
           Infinity,
           dt,
         );
@@ -426,7 +436,7 @@ export class AiController extends BaseController implements AiAnimatable {
       this.buildCursor,
       target.row,
       target.col,
-      BUILD_CURSOR_SPEED,
+      this.buildCursorSpeed,
       this.boostThreshold,
       dt,
     );
@@ -613,7 +623,7 @@ export class AiController extends BaseController implements AiAnimatable {
         this.cannonCursor,
         target.row,
         target.col,
-        CANNON_CURSOR_SPEED,
+        this.cannonCursorSpeed,
         this.boostThreshold,
         dt,
       )
