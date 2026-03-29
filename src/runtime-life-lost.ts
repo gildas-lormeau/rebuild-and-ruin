@@ -180,8 +180,8 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     const choice = handleLifeLostDialogClickShared({
       state: rs.state,
       lifeLostDialog: rs.lifeLostDialog,
-      canvasX,
-      canvasY,
+      screenX: canvasX,
+      screenY: canvasY,
       firstHumanPlayerId: mousePlayer.playerId,
     });
     if (!choice) return;

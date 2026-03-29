@@ -149,8 +149,8 @@ export function createStatusBar(
   };
 }
 
-/** Mutates overlay.selection in-place to reflect current selection highlights. */
-export function syncSelectionOverlay(
+/** Writes selection highlights into overlay.selection (mutates in-place). */
+export function updateSelectionOverlay(
   overlay: RenderOverlay,
   selectionStates: Map<number, SelectionState>,
   isLocalHuman?: (pid: number) => boolean,
@@ -173,15 +173,17 @@ export function syncSelectionOverlay(
 export function handleLifeLostDialogClick(params: {
   state: GameState;
   lifeLostDialog: LifeLostDialogState;
-  canvasX: number;
-  canvasY: number;
+  /** Canvas-pixel X coordinate (divided by SCALE internally for game-space hit testing). */
+  screenX: number;
+  /** Canvas-pixel Y coordinate (divided by SCALE internally for game-space hit testing). */
+  screenY: number;
   firstHumanPlayerId: number;
 }): { playerId: number; choice: ResolvedChoice } | null {
-  const { state, lifeLostDialog, canvasX, canvasY, firstHumanPlayerId } =
+  const { state, lifeLostDialog, screenX, screenY, firstHumanPlayerId } =
     params;
 
-  const x = canvasX / SCALE;
-  const y = canvasY / SCALE;
+  const gameX = screenX / SCALE;
+  const gameY = screenY / SCALE;
 
   for (const entry of lifeLostDialog.entries) {
     if (entry.choice !== LifeLostChoice.PENDING || entry.isAi) continue;
@@ -190,11 +192,21 @@ export function handleLifeLostDialogClick(params: {
     const { px, py } = lifeLostPanelPos(state, entry.playerId);
     const { btnY, contX, abX } = lifeLostButtonLayout(px, py);
 
-    if (x >= contX && x <= contX + BTN_W && y >= btnY && y <= btnY + BTN_H) {
+    if (
+      gameX >= contX &&
+      gameX <= contX + BTN_W &&
+      gameY >= btnY &&
+      gameY <= btnY + BTN_H
+    ) {
       return { playerId: entry.playerId, choice: LifeLostChoice.CONTINUE };
     }
 
-    if (x >= abX && x <= abX + BTN_W && y >= btnY && y <= btnY + BTN_H) {
+    if (
+      gameX >= abX &&
+      gameX <= abX + BTN_W &&
+      gameY >= btnY &&
+      gameY <= btnY + BTN_H
+    ) {
       return { playerId: entry.playerId, choice: LifeLostChoice.ABANDON };
     }
   }

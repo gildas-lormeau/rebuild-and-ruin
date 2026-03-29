@@ -36,7 +36,7 @@ import {
   processReselectionQueue,
 } from "./game-ui-helpers.ts";
 import { TILE_SIZE } from "./grid.ts";
-import { syncSelectionOverlay as syncSelectionOverlayImpl } from "./render-composition.ts";
+import { updateSelectionOverlay as syncSelectionOverlayImpl } from "./render-composition.ts";
 import { initTowerSelection } from "./runtime-bootstrap.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { CameraSystem, RuntimeSelection } from "./runtime-types.ts";

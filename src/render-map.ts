@@ -14,7 +14,7 @@ import {
   drawWaterAnimation,
 } from "./render-effects.ts";
 import { drawSprite } from "./render-sprites.ts";
-import { BANNER_HEIGHT_RATIO, STATUSBAR_HEIGHT } from "./render-theme.ts";
+import { BANNER_HEIGHT_RATIO, rgb, STATUSBAR_HEIGHT } from "./render-theme.ts";
 import { drawTowers } from "./render-towers.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import {
@@ -274,6 +274,8 @@ export function drawMap(
   }
 }
 
+// Bake per-pixel brightness offsets into the tile-sized texture lookup tables.
+// Values are signed: negative = darker, positive = lighter (added to base RGB).
 for (const [lx, ly] of BLADE_DARK) GRASS_TEX[ly * TILE_SIZE + lx] = -12;
 
 for (const [lx, ly] of BLADE_LIGHT) GRASS_TEX[ly * TILE_SIZE + lx] = 10;
@@ -323,7 +325,7 @@ function drawTerrain(
   map: MapData,
   overlay?: RenderOverlay,
 ): void {
-  const inBattle = overlay?.battle?.battleTerritory !== undefined;
+  const inBattle = !!overlay?.battle?.battleTerritory;
   const cache = getTerrainCache(map, W, H);
   const cachedImage = inBattle ? cache.battle : cache.normal;
   if (cachedImage) {
@@ -376,6 +378,8 @@ function initDistanceField(
 
 /** Two-pass (forward + backward) distance propagation with orthogonal and diagonal steps. */
 function propagateDistances(dist: Float32Array, W: number, H: number): void {
+  // Chamfer distance costs: ORTHO = 1 pixel step, DIAG ≈ √2 for diagonal steps.
+  // This approximates Euclidean distance using a two-pass sequential scan.
   const ORTHO = 1.0;
   const DIAG = 1.414;
   // Forward pass
@@ -465,7 +469,13 @@ function blurSignedDistanceField(
   }
 }
 
-/** Use SDF to paint grass/bank/water pixels into an ImageData buffer. */
+/**
+ * Paint grass/bank/water pixels into an ImageData buffer using the SDF.
+ *
+ * For each pixel: resolve tile coordinates, apply per-tile texture offsets to
+ * the grass/water base colors, then blend between grass → bank → water based
+ * on the signed-distance value at that pixel.
+ */
 function renderTerrainPixels(
   imgData: ImageData,
   sdf: Float32Array,
@@ -477,21 +487,21 @@ function renderTerrainPixels(
   const data = imgData.data;
   // SDF terrain transition thresholds — controls where color bands appear
   // relative to the signed-distance field from water tiles.
-  // TERRAIN_LAND_DIST: distance (in SDF units) where grass→bank transition starts
-  // TERRAIN_BANK_DIST: distance where bank→water transition starts
-  // TERRAIN_TRANS_WIDTH: smoothness of each transition band (higher = softer edge)
-  const LAND_DIST = 3;
-  const BANK_DIST = 6;
-  const TRANS = 1.5;
+  const GRASS_TO_BANK_DIST = 3; // SDF units where grass→bank transition starts
+  const BANK_TO_WATER_DIST = 6; // SDF units where bank→water transition starts
+  const TRANSITION_WIDTH = 1.5; // smoothness of each transition band (higher = softer edge)
 
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
       const d = sdf[py * W + px]!;
+
+      // Map pixel back to tile grid and local offset within that tile
       const tr = pxToTile(py);
       const tc = pxToTile(px);
       const lx = px - tc * TILE_SIZE;
       const ly = py - tr * TILE_SIZE;
 
+      // Apply per-tile texture detail to base colors
       const grass = texturedColor(
         GRASS_TEX,
         grassBaseColor(tr, tc, inBattle),
@@ -500,14 +510,16 @@ function renderTerrainPixels(
         ly,
       );
       const water = texturedColor(WATER_TEX, WATER_COLOR, inBattle, lx, ly);
+
+      // Blend grass → bank → water based on SDF distance
       const color = selectTerrainColor(
         tileAt(map, tr, tc) === 1,
         d,
         grass,
         water,
-        LAND_DIST,
-        BANK_DIST,
-        TRANS,
+        GRASS_TO_BANK_DIST,
+        BANK_TO_WATER_DIST,
+        TRANSITION_WIDTH,
       );
 
       const idx = (py * W + px) * 4;
@@ -550,17 +562,25 @@ function selectTerrainColor(
   d: number,
   grass: RGB,
   water: RGB,
-  landDist: number,
-  bankDist: number,
-  trans: number,
+  grassToBankDist: number,
+  bankToWaterDist: number,
+  transitionWidth: number,
 ): RGB {
   if (!isWater) return grass;
-  if (d < landDist) return grass;
-  if (d < landDist + trans)
-    return lerp3(grass, BANK_COLOR, smoothClamp((d - landDist) / trans));
-  if (d < bankDist) return BANK_COLOR;
-  if (d < bankDist + trans)
-    return lerp3(BANK_COLOR, water, smoothClamp((d - bankDist) / trans));
+  if (d < grassToBankDist) return grass;
+  if (d < grassToBankDist + transitionWidth)
+    return lerp3(
+      grass,
+      BANK_COLOR,
+      smoothClamp((d - grassToBankDist) / transitionWidth),
+    );
+  if (d < bankToWaterDist) return BANK_COLOR;
+  if (d < bankToWaterDist + transitionWidth)
+    return lerp3(
+      BANK_COLOR,
+      water,
+      smoothClamp((d - bankToWaterDist) / transitionWidth),
+    );
   return water;
 }
 
@@ -637,6 +657,7 @@ function drawCastleInterior(
   }
 }
 
+/** Draw castle walls with a staggered 3-row brick pattern, mortar lines, and edge bevels. */
 function drawCastleWalls(
   octx: CanvasRenderingContext2D,
   castle: CastleData,
@@ -645,10 +666,22 @@ function drawCastleWalls(
   const colors = getPlayerColor(castle.playerId);
   const wall: RGB = battleWalls ? NEUTRAL_WALL : colors.wall;
   const [wR, wG, wB] = wall;
-  const lightEdge = `rgb(${Math.min(255, wR + 35)},${Math.min(255, wG + 35)},${Math.min(255, wB + 35)})`;
-  const shadowEdge = `rgb(${Math.max(0, wR - 40)},${Math.max(0, wG - 40)},${Math.max(0, wB - 40)})`;
-  const mortarStyle = `rgb(${Math.max(0, wR - 25)},${Math.max(0, wG - 25)},${Math.max(0, wB - 25)})`;
-  const wallStyle = `rgb(${wR},${wG},${wB})`;
+  const lightEdge = rgb([
+    Math.min(255, wR + 35),
+    Math.min(255, wG + 35),
+    Math.min(255, wB + 35),
+  ]);
+  const shadowEdge = rgb([
+    Math.max(0, wR - 40),
+    Math.max(0, wG - 40),
+    Math.max(0, wB - 40),
+  ]);
+  const mortarStyle = rgb([
+    Math.max(0, wR - 25),
+    Math.max(0, wG - 25),
+    Math.max(0, wB - 25),
+  ]);
+  const wallStyle = rgb(wall);
 
   for (const key of castle.walls) {
     const { r, c } = unpackTile(key);
