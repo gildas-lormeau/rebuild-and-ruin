@@ -7,6 +7,7 @@
  */
 
 import { type GameMessage, MESSAGE } from "../server/protocol.ts";
+import { snapshotAllWalls } from "./board-occupancy.ts";
 import { claimTerritory } from "./build-system.ts";
 import {
   createCastleBuildState,
@@ -258,6 +259,7 @@ export function createSelectionSystem(
   }
 
   function finalizeAndAdvance(): void {
+    rs.banner.pendingOldWalls = snapshotAllWalls(rs.state);
     rs.banner.oldHouses = rs.state.map.houses.map((h) => ({ ...h }));
     rs.banner.oldBonusSquares = rs.state.bonusSquares.map((b) => ({ ...b }));
     finalizeCastleConstruction(rs.state);
