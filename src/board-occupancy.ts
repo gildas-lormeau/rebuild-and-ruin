@@ -23,6 +23,34 @@ import {
 } from "./spatial.ts";
 import type { GameState, Grunt, Player } from "./types.ts";
 
+/** Preset: tiles that block grunt spawning (zone-based). */
+export const GRUNT_SPAWN_BLOCKED = {
+  includeWalls: true,
+  includeInterior: true,
+  includeCannons: true,
+  includeTowers: true,
+  includeHouses: true,
+  includeGrunts: true,
+  includePits: true,
+} as const;
+/** Preset: tiles that block bonus square placement. */
+export const BONUS_PLACEMENT_BLOCKED = {
+  includeWalls: true,
+  includeCannons: true,
+  includeTowers: true,
+  includeHouses: true,
+  includeGrunts: true,
+  includePits: true,
+  includeBonusSquares: true,
+} as const;
+/** Preset: tiles that block house spawning (minimal set). */
+export const HOUSE_SPAWN_BLOCKED = {
+  includeWalls: true,
+  includeInterior: true,
+  includeCannons: true,
+  includeGrunts: true,
+} as const;
+
 export function isTileOwnedByPlayer(
   player: Pick<Player, "interior" | "walls">,
   key: number,

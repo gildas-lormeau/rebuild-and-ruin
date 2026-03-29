@@ -5,6 +5,7 @@
  */
 
 import {
+  BONUS_PLACEMENT_BLOCKED,
   collectAllInterior,
   collectOccupiedTiles,
   hasCannonAt,
@@ -180,15 +181,7 @@ export function replenishBonusSquares(state: GameState): void {
 
   // Build sets of enclosed and occupied tiles
   const enclosed = collectAllInterior(state);
-  const occupied = collectOccupiedTiles(state, {
-    includeWalls: true,
-    includeCannons: true,
-    includeTowers: true,
-    includeHouses: true,
-    includePits: true,
-    includeBonusSquares: true,
-    includeGrunts: true,
-  });
+  const occupied = collectOccupiedTiles(state, BONUS_PLACEMENT_BLOCKED);
 
   for (const zoneId of mainZones) {
     const existing = state.bonusSquares.filter(

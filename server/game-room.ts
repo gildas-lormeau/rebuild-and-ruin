@@ -214,7 +214,21 @@ export class GameRoom {
   }
 
   setHost(socket: WebSocket): void {
+    if (socket.readyState !== WebSocket.OPEN) return;
     this.hostSocket = socket;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Phase tracking
+  // ---------------------------------------------------------------------------
+
+  /** Update tracked phase from a host checkpoint message. */
+  private updatePhaseFromMessage(type: string): void {
+    if (type === MESSAGE.CANNON_START) this.phase = Phase.CANNON_PLACE;
+    else if (type === MESSAGE.BATTLE_START) this.phase = Phase.BATTLE;
+    else if (type === MESSAGE.BUILD_START) this.phase = Phase.WALL_BUILD;
+    else if (type === MESSAGE.SELECT_START) this.phase = Phase.CASTLE_SELECT;
+    else if (type === MESSAGE.CASTLE_WALLS) this.phase = "CASTLE_BUILD";
   }
 
   // ---------------------------------------------------------------------------
@@ -233,11 +247,7 @@ export class GameRoom {
     // --- Host-only messages ---
     if (HOST_ONLY.has(type)) {
       if (senderSocket !== this.hostSocket) return;
-      if (type === MESSAGE.CANNON_START) this.phase = Phase.CANNON_PLACE;
-      else if (type === MESSAGE.BATTLE_START) this.phase = Phase.BATTLE;
-      else if (type === MESSAGE.BUILD_START) this.phase = Phase.WALL_BUILD;
-      else if (type === MESSAGE.SELECT_START) this.phase = Phase.CASTLE_SELECT;
-      else if (type === MESSAGE.CASTLE_WALLS) this.phase = "CASTLE_BUILD";
+      this.updatePhaseFromMessage(type);
     }
 
     // --- Identity enforcement (for messages with playerId) ---

@@ -6,6 +6,7 @@ import { MESSAGE } from "../server/protocol.ts";
 import {
   collectOccupiedTiles,
   findLivingTowerIndexAt,
+  GRUNT_SPAWN_BLOCKED,
   hasAliveHouseAt,
   hasCannonAt,
   hasGruntAt,
@@ -366,15 +367,7 @@ function findGruntSpawnPositions(
   const zone = enemy.homeTower?.zone;
   if (zone === undefined) return [];
 
-  const blocked = collectOccupiedTiles(state, {
-    includeWalls: true,
-    includeInterior: true,
-    includeGrunts: true,
-    includeHouses: true,
-    includeCannons: true,
-    includeTowers: true,
-    includePits: true,
-  });
+  const blocked = collectOccupiedTiles(state, GRUNT_SPAWN_BLOCKED);
 
   // Collect available grass tiles in zone, sorted by proximity to water
   const candidates: {

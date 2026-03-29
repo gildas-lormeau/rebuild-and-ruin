@@ -251,11 +251,7 @@ export function createDpad(
   // --- Rotate button: rotate piece / cycle cannon mode / speed up crosshair ---
   function handleRotate() {
     deps.onHapticTap?.();
-    const ov = deps.overlay.options;
-    if (ov?.isActive()) {
-      ov.changeValue(1);
-      return;
-    }
+    if (dispatchOverlayAction(Action.ROTATE, deps.overlay)) return;
     if (!isGameInteractionMode(deps.getMode(), deps.modeValues)) return;
     const state = deps.getState();
     if (!state) return;

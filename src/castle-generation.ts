@@ -5,7 +5,10 @@
  * clumsy-builder cosmetic noise, and house spawning.
  */
 
-import { collectOccupiedTiles } from "./board-occupancy.ts";
+import {
+  collectOccupiedTiles,
+  HOUSE_SPAWN_BLOCKED,
+} from "./board-occupancy.ts";
 import { HOUSE_MIN_DISTANCE } from "./game-constants.ts";
 import type { Castle, House, Tower } from "./geometry-types.ts";
 import {
@@ -351,12 +354,7 @@ export function spawnHousesInZone(state: GameState, zoneId: number): void {
   const towerTiles = buildTowerTileSet(towers);
 
   // Build set of blocked tiles: all player walls, interior, cannons (alive + dead debris), grunts
-  const blocked = collectOccupiedTiles(state, {
-    includeWalls: true,
-    includeInterior: true,
-    includeCannons: true,
-    includeGrunts: true,
-  });
+  const blocked = collectOccupiedTiles(state, HOUSE_SPAWN_BLOCKED);
 
   const candidates: [number, number][] = [];
   for (let r = HOUSE_SPAWN_MARGIN; r < GRID_ROWS - HOUSE_SPAWN_MARGIN; r++) {

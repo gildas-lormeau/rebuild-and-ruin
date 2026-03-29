@@ -256,6 +256,10 @@ export function dispatchOverlayAction(
       deps.options.changeValue(1);
       return true;
     }
+    if (action === Action.ROTATE) {
+      deps.options.changeValue(1);
+      return true;
+    }
     if (action === Action.CONFIRM) {
       deps.options.confirm();
       return true;
