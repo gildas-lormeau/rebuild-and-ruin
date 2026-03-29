@@ -6,7 +6,7 @@ import {
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import { createCastle } from "./castle-generation.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
-import { setPhase } from "./game-engine.ts";
+import { initControllerForCannonPhase, setPhase } from "./game-engine.ts";
 import type { RGB } from "./geometry-types.ts";
 import { TILE_COUNT } from "./grid.ts";
 import type { WatcherTimingState } from "./online-types.ts";
@@ -163,18 +163,7 @@ export function handleCannonStartTransition(
   ctx.checkpoint.applyCannonStart(msg);
   if (myPlayerId >= 0) {
     const ctrl = ctx.getControllers()[myPlayerId];
-    const player = state.players[myPlayerId];
-    if (ctrl && player && !player.eliminated) {
-      const max = state.cannonLimits[myPlayerId] ?? 0;
-      ctrl.placeCannons(state, max);
-    }
-    if (ctrl && player && !player.eliminated && player.homeTower) {
-      ctrl.cannonCursor = {
-        row: player.homeTower.row,
-        col: player.homeTower.col,
-      };
-      ctrl.onCannonPhaseStart(state);
-    }
+    if (ctrl) initControllerForCannonPhase(ctrl, state);
   }
   if (state.phase !== Phase.CANNON_PLACE) {
     setPhase(state, Phase.CANNON_PLACE);

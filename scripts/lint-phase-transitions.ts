@@ -27,7 +27,13 @@ const SHARED_FILE = "phase-transition-shared.ts";
 const DEFINITION_FILES = new Set(["phase-banner.ts", SHARED_FILE]);
 
 /** Online transition files that must use shared helpers instead of raw showBanner. */
-const ONLINE_TRANSITION_FILES = new Set(["online-phase-transitions.ts"]);
+/** Files that must use shared helpers instead of raw showBanner for phase transitions. */
+const GUARDED_TRANSITION_FILES = new Set([
+  "online-phase-transitions.ts",
+  "runtime-host-battle-ticks.ts",
+  "runtime-phase-ticks.ts",
+  "runtime-selection.ts",
+]);
 
 interface Violation {
   file: string;
@@ -57,8 +63,8 @@ function main(): void {
       }
     }
 
-    // Check 2: Online transition files must not call showBanner directly
-    if (ONLINE_TRANSITION_FILES.has(file)) {
+    // Check 2: Guarded files must not call showBanner directly for phase transitions
+    if (GUARDED_TRANSITION_FILES.has(file)) {
       const lines = content.split("\n");
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]!;

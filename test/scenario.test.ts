@@ -7,14 +7,17 @@ import { MESSAGE } from "../server/protocol.ts";
 import { canFire, tickCannonballs } from "../src/battle-system.ts";
 import { snapshotAllWalls, sweepIsolatedWalls } from "../src/board-occupancy.ts";
 import { isCannonEnclosed } from "../src/cannon-system.ts";
+import { initControllerForCannonPhase } from "../src/game-engine.ts";
 import { GRID_COLS } from "../src/grid.ts";
 import {
   handleBattleStartTransition,
   handleBuildEndTransition,
+  handleBuildStartTransition,
   handleCannonStartTransition,
 } from "../src/online-phase-transitions.ts";
 import {
   createBattleStartMessage,
+  createBuildStartMessage,
   createCannonStartMessage,
   serializePlayers,
 } from "../src/online-serialize.ts";
@@ -814,6 +817,68 @@ test("showBuildPhaseBanner passes subtitle to showBanner", () => {
   showBuildPhaseBanner(mockShow, "Repair!", () => {});
   assert(capturedSubtitle !== undefined, "Should pass subtitle");
   assert(capturedSubtitle!.length > 0, "Subtitle should be non-empty");
+});
+
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// 25. Cannon-start: host and watcher init controller the same way
+// ---------------------------------------------------------------------------
+
+test("cannon-start: watcher uses same initControllerForCannonPhase as host", () => {
+  const s = createScenario();
+  s.runCannon();
+  s.runBattle();
+  s.runBuild();
+  s.finalizeBuild();
+
+  // Serialize cannon-start message as host would send it
+  const msg = createCannonStartMessage(s.state);
+
+  // --- Host path: init controller directly ---
+  const hostCtrl = s.controllers[0]!;
+  initControllerForCannonPhase(hostCtrl, s.state);
+  const hostCursor = { ...hostCtrl.cannonCursor };
+
+  // --- Watcher path: reset cursor and apply transition ---
+  hostCtrl.cannonCursor = { row: 0, col: 0 }; // deliberately wrong
+  s.state.phase = Phase.WALL_BUILD; // reset so transition runs banner
+  const ctx = s.createTransitionContext();
+  handleCannonStartTransition(msg, ctx);
+  const watcherCursor = { ...hostCtrl.cannonCursor };
+
+  // Both should produce the same snapped cursor position
+  assert(
+    hostCursor.row === watcherCursor.row && hostCursor.col === watcherCursor.col,
+    `Cursor mismatch: host=(${hostCursor.row},${hostCursor.col}) watcher=(${watcherCursor.row},${watcherCursor.col})`,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// 26. Build-start: watcher calls startBuild on local controller
+// ---------------------------------------------------------------------------
+
+test("build-start: watcher calls startBuild on local controller", () => {
+  const s = createScenario();
+  s.runCannon();
+  s.runBattle();
+
+  // Serialize build-start message as host would send it
+  const msg = createBuildStartMessage(s.state);
+
+  let startBuildCalled = false;
+  const ctrl = s.controllers[0]!;
+  const origStartBuild = ctrl.startBuild.bind(ctrl);
+  ctrl.startBuild = (state) => {
+    startBuildCalled = true;
+    origStartBuild(state);
+  };
+
+  const ctx = s.createTransitionContext();
+  handleBuildStartTransition(msg as any, ctx);
+
+  assert(startBuildCalled, "Watcher should call startBuild on local controller");
+  assertPhase(s, Phase.WALL_BUILD);
 });
 
 // ---------------------------------------------------------------------------

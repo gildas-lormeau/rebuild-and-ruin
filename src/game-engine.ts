@@ -252,33 +252,35 @@ export function initCannonPhase(params: {
   computeCannonLimitsForPhase(state);
   resetCannonFacings(state);
 
-  // Let each controller place cannons
   for (const ctrl of controllers) {
     if (skipController?.(ctrl.playerId)) continue;
-    const player = state.players[ctrl.playerId]!;
-    if (player.eliminated) continue;
-    const max = state.cannonLimits[player.id] ?? 0;
-    ctrl.placeCannons(state, max);
+    initControllerForCannonPhase(ctrl, state);
   }
+}
 
-  // Initialize cannon cursor near home tower for all controllers
-  for (const ctrl of controllers) {
-    if (skipController?.(ctrl.playerId)) continue;
-    const player = state.players[ctrl.playerId]!;
-    if (player.eliminated) continue;
-    if (player.homeTower) {
-      const t = player.homeTower;
-      const snapped = findNearestValidCannonPlacement(
-        player,
-        t.row,
-        t.col,
-        CannonMode.NORMAL,
-        state,
-      );
-      ctrl.cannonCursor = snapped ?? { row: t.row, col: t.col };
-    }
-    ctrl.onCannonPhaseStart(state);
+/** Initialize a single controller for the cannon phase: place cannons, snap
+ *  cursor to nearest valid position near home tower, fire onCannonPhaseStart.
+ *  Used by both host (initCannonPhase loop) and watcher (handleCannonStartTransition). */
+export function initControllerForCannonPhase(
+  ctrl: PlayerController,
+  state: GameState,
+): void {
+  const player = state.players[ctrl.playerId];
+  if (!player || player.eliminated) return;
+  const max = state.cannonLimits[player.id] ?? 0;
+  ctrl.placeCannons(state, max);
+  if (player.homeTower) {
+    const t = player.homeTower;
+    const snapped = findNearestValidCannonPlacement(
+      player,
+      t.row,
+      t.col,
+      CannonMode.NORMAL,
+      state,
+    );
+    ctrl.cannonCursor = snapped ?? { row: t.row, col: t.col };
   }
+  ctrl.onCannonPhaseStart(state);
 }
 
 /** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
