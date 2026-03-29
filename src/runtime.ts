@@ -90,10 +90,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // deno-lint-ignore prefer-const
   let input: ReturnType<typeof createInputSystem>;
 
-  /** Refresh lobby seed + map preview. Defined here to break the lobby↔options cycle. */
+  /** Refresh lobby seed + map preview only if the seed changed. */
   function refreshLobbySeed(): void {
-    rs.lobby.seed = computeGameSeed(rs.settings);
-    rs.lobby.map = generateMap(rs.lobby.seed);
+    const newSeed = computeGameSeed(rs.settings);
+    if (newSeed !== rs.lobby.seed) {
+      rs.lobby.seed = newSeed;
+      rs.lobby.map = generateMap(newSeed);
+    }
   }
 
   // -------------------------------------------------------------------------

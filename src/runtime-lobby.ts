@@ -51,8 +51,11 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
   const { rs, uiCtx } = deps;
 
   function refreshLobbySeed(): void {
-    rs.lobby.seed = computeGameSeed(rs.settings);
-    rs.lobby.map = generateMap(rs.lobby.seed);
+    const newSeed = computeGameSeed(rs.settings);
+    if (newSeed !== rs.lobby.seed) {
+      rs.lobby.seed = newSeed;
+      rs.lobby.map = generateMap(newSeed);
+    }
   }
 
   function renderLobby(): void {

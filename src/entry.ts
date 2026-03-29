@@ -45,7 +45,10 @@ onRoute(ROUTE_ONLINE, () => {
 });
 
 onRoute(ROUTE_PLAY, () => {
-  tryFullscreen(); // covers direct navigation (bookmark) — silently fails without user gesture
+  // Fullscreen requires a user gesture — defer to first tap if navigated via bookmark
+  document.addEventListener("pointerdown", () => tryFullscreen(), {
+    once: true,
+  });
   void import("./main.ts").then((m) => m.enterLocalLobby());
 });
 
