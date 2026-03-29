@@ -567,7 +567,7 @@ test("tile finders return valid positions", () => {
   assert(grass !== null, "Should find a grass tile in player 0's zone");
   assert(
     !s.state.players.some(
-      (p) => p.walls.has(grass!.row * 40 + grass!.col) || p.interior.has(grass!.row * 40 + grass!.col),
+      (p) => p.walls.has(grass!.row * GRID_COLS + grass!.col) || p.interior.has(grass!.row * GRID_COLS + grass!.col),
     ),
     "Grass tile should not be occupied",
   );
@@ -575,7 +575,7 @@ test("tile finders return valid positions", () => {
   const interior = s.findInteriorTile(0);
   assert(interior !== null, "Should find an interior tile for player 0");
   assert(
-    s.state.players[0]!.interior.has(interior!.row * 40 + interior!.col),
+    s.state.players[0]!.interior.has(interior!.row * GRID_COLS + interior!.col),
     "Interior tile should be in player's interior set",
   );
 
@@ -583,7 +583,7 @@ test("tile finders return valid positions", () => {
   assert(enemy !== null, "Should find an enemy wall tile");
   assert(enemy!.owner !== 0, "Enemy wall should not belong to player 0");
   assert(
-    s.state.players[enemy!.owner]!.walls.has(enemy!.row * 40 + enemy!.col),
+    s.state.players[enemy!.owner]!.walls.has(enemy!.row * GRID_COLS + enemy!.col),
     "Enemy wall tile should be in the owner's wall set",
   );
 });
