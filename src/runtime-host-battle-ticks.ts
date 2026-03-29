@@ -226,18 +226,6 @@ export function startHostBattleLifecycle(
   // Stash pre-sweep walls so the banner old scene shows them progressively
   deps.banner.pendingOldWalls = snapshotAllWalls(state);
 
-  // Sweep walls and transition to battle before showing the banner
-  nextPhase(state);
-  battleAnim.impacts = [];
-  if (isHost && sendBattleStart) sendBattleStart(flights);
-
-  const postTerritory = snapshotTerritory();
-  const postWalls = snapshotAllWalls(state);
-  battleAnim.territory = postTerritory;
-  battleAnim.walls = postWalls;
-  deps.banner.newTerritory = postTerritory;
-  deps.banner.newWalls = postWalls;
-
   showBanner(
     BANNER_BATTLE,
     () => {
@@ -252,6 +240,19 @@ export function startHostBattleLifecycle(
     undefined,
     BANNER_BATTLE_SUB,
   );
+
+  // Sweep walls AFTER showBanner captured the old scene (via pendingOldWalls)
+  nextPhase(state);
+  battleAnim.impacts = [];
+  if (isHost && sendBattleStart) sendBattleStart(flights);
+
+  // Post-sweep snapshots for the banner's new scene
+  const postTerritory = snapshotTerritory();
+  const postWalls = snapshotAllWalls(state);
+  battleAnim.territory = postTerritory;
+  battleAnim.walls = postWalls;
+  deps.banner.newTerritory = postTerritory;
+  deps.banner.newWalls = postWalls;
 }
 
 export function tickHostBalloonAnim(deps: TickHostBalloonAnimDeps): void {
