@@ -133,15 +133,15 @@ export function computeTowerProximityBonus(
   if (targetGaps.size !== 0) return 0;
 
   let towerProximityBonus = 0;
-  for (const t of zoneTowers) {
-    if (ownedTowers.includes(t)) continue;
+  for (const tower of zoneTowers) {
+    if (ownedTowers.includes(tower)) continue;
     for (const [dr, dc] of candidate.rotation.offsets) {
-      const d =
-        Math.abs(candidate.row + dr - (t.row + 0.5)) +
-        Math.abs(candidate.col + dc - (t.col + 0.5));
+      const distance =
+        Math.abs(candidate.row + dr - (tower.row + 0.5)) +
+        Math.abs(candidate.col + dc - (tower.col + 0.5));
       towerProximityBonus = Math.max(
         towerProximityBonus,
-        Math.max(0, TOWER_PROXIMITY_RANGE - d) * TOWER_PROXIMITY_FACTOR,
+        Math.max(0, TOWER_PROXIMITY_RANGE - distance) * TOWER_PROXIMITY_FACTOR,
       );
     }
   }

@@ -227,7 +227,7 @@ export function drawWaterAnimation(
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.battle?.battleTerritory) return; // only during battle
-  const t = performance.now() / 1000;
+  const time = performance.now() / 1000;
   const rows = map.tiles.length;
   const cols = map.tiles[0]!.length;
 
@@ -247,12 +247,12 @@ export function drawWaterAnimation(
 
       // Three wave highlights drifting at different speeds across the tile.
       // Tuning constants below control wave animation feel:
-      //   t * (baseSpeed + i*speedVar) — time-based drift (0.8 base, +0.3 per layer)
+      //   time * (baseSpeed + i*speedVar) — time-based drift (0.8 base, +0.3 per layer)
       //   r/c * (rowFreq + i*var) — spatial frequency for row/col variation
       //   i * 2.1 — phase offset between layers (coprime-ish avoids sync)
       for (let i = 0; i < 3; i++) {
         const phase =
-          t * (0.8 + i * 0.3) +
+          time * (0.8 + i * 0.3) +
           r * (0.5 + i * 0.2) +
           c * (0.3 + i * 0.15) +
           i * 2.1;
@@ -291,17 +291,17 @@ function drawImpacts(
 ): void {
   if (!overlay?.battle?.impacts) return;
   for (const impact of overlay.battle.impacts) {
-    const t = impact.age / IMPACT_FLASH_DURATION;
-    if (t >= 1) continue;
+    const time = impact.age / IMPACT_FLASH_DURATION;
+    if (time >= 1) continue;
     octx.save();
     const cx = impact.col * TILE_SIZE + TILE_SIZE / 2;
     const cy = impact.row * TILE_SIZE + TILE_SIZE / 2;
     const seed = impact.row * SEED_ROW + impact.col * SEED_COL;
 
     // Core flash — brief bright spot, shrinks quickly
-    if (t < IMPACT_CORE_END) {
-      const coreAlpha = (1 - t / IMPACT_CORE_END) * 0.6;
-      const coreSize = TILE_SIZE * (0.6 - t * 1.2);
+    if (time < IMPACT_CORE_END) {
+      const coreAlpha = (1 - time / IMPACT_CORE_END) * 0.6;
+      const coreSize = TILE_SIZE * (0.6 - time * 1.2);
       octx.globalAlpha = coreAlpha;
       octx.fillStyle = "#ffe0a0";
       octx.beginPath();
@@ -310,9 +310,9 @@ function drawImpacts(
     }
 
     // Shockwave ring — expands outward
-    if (t < IMPACT_RING_END) {
-      const ringR = TILE_SIZE * 0.5 + t * TILE_SIZE;
-      octx.globalAlpha = (1 - t / IMPACT_RING_END) * 0.7;
+    if (time < IMPACT_RING_END) {
+      const ringR = TILE_SIZE * 0.5 + time * TILE_SIZE;
+      octx.globalAlpha = (1 - time / IMPACT_RING_END) * 0.7;
       octx.strokeStyle = "#ffcc44";
       octx.lineWidth = 2;
       octx.beginPath();
@@ -321,13 +321,13 @@ function drawImpacts(
     }
 
     // Debris sparks — 5 particles flying outward
-    if (t < IMPACT_DEBRIS_END) {
-      const sparkAlpha = 1 - t / IMPACT_DEBRIS_END;
+    if (time < IMPACT_DEBRIS_END) {
+      const sparkAlpha = 1 - time / IMPACT_DEBRIS_END;
       for (let i = 0; i < 5; i++) {
         const angle = (seed + i * 1.3) % (Math.PI * 2);
-        const dist = t * (TILE_SIZE * 0.8 + i * 3);
+        const dist = time * (TILE_SIZE * 0.8 + i * 3);
         const sx = cx + Math.cos(angle) * dist;
-        const sy = cy + Math.sin(angle) * dist - t * 3;
+        const sy = cy + Math.sin(angle) * dist - time * 3;
         octx.globalAlpha = sparkAlpha * 0.9;
         octx.fillStyle = i % 2 === 0 ? "#ffaa30" : "#ff6600";
         octx.fillRect(sx - 1, sy - 1, 2, 2);
@@ -335,8 +335,8 @@ function drawImpacts(
     }
 
     // Smoke — dark puff rising, lingers in second half
-    if (t > IMPACT_SMOKE_START) {
-      const smokeT = (t - IMPACT_SMOKE_START) / (1 - IMPACT_SMOKE_START);
+    if (time > IMPACT_SMOKE_START) {
+      const smokeT = (time - IMPACT_SMOKE_START) / (1 - IMPACT_SMOKE_START);
       const smokeR = TILE_SIZE * 0.4 + smokeT * TILE_SIZE * 0.3;
       octx.globalAlpha = (1 - smokeT) * 0.35;
       octx.fillStyle = "#3a3028";
@@ -370,13 +370,15 @@ function drawBalloons(
 ): void {
   if (!overlay?.battle?.balloons) return;
   for (const b of overlay.battle.balloons) {
-    const t = b.progress;
+    const progress = b.progress;
     const radius = 8;
     const basketOffset = radius + 9; // envelope center to basket center
     // Interpolate so the basket (not envelope) arrives at the target center
-    const cx = b.x + (b.targetX - b.x) * t;
+    const cx = b.x + (b.targetX - b.x) * progress;
     const cy =
-      b.y + (b.targetY - basketOffset - b.y) * t - Math.sin(t * Math.PI) * 40;
+      b.y +
+      (b.targetY - basketOffset - b.y) * progress -
+      Math.sin(progress * Math.PI) * 40;
     // Balloon envelope (main body — red)
     octx.fillStyle = "#b03030";
     octx.beginPath();
@@ -431,13 +433,13 @@ function drawBurningPits(
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.entities?.burningPits) return;
-  const t = performance.now() / 1000;
+  const time = performance.now() / 1000;
   for (const pit of overlay.entities.burningPits) {
     const px = pit.col * TILE_SIZE;
     const py = pit.row * TILE_SIZE;
     const mid = TILE_SIZE / 2;
     const flicker =
-      (Math.sin(t * 8 + pit.row * SEED_ROW + pit.col * SEED_COL) + 1) * 0.15;
+      (Math.sin(time * 8 + pit.row * SEED_ROW + pit.col * SEED_COL) + 1) * 0.15;
     const stage = Math.max(1, Math.min(3, pit.roundsLeft));
     drawSprite(octx, `burning_pit_${stage}`, px, py);
     // Animated lava flicker (round glow, stronger for fresh pits)
@@ -459,7 +461,7 @@ function drawCrosshairs(
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.battle?.crosshairs) return;
-  const t = performance.now() / 1000;
+  const time = performance.now() / 1000;
   for (const ch of overlay.battle.crosshairs) {
     const cx = Math.round(ch.x) + 0.5;
     const cy = Math.round(ch.y) + 0.5;
@@ -467,7 +469,7 @@ function drawCrosshairs(
       CROSSHAIR_COLORS[ch.playerId % CROSSHAIR_COLORS.length]!;
     const { alpha, arm, diag, gap } = crosshairGeometry(
       ch.cannonReady === true,
-      t,
+      time,
     );
 
     const drawArm = (
@@ -529,14 +531,14 @@ function drawPhaseTimer(
  *  diag (diagonal tick length, ~70% of arm), gap (px between center and lines). */
 function crosshairGeometry(
   ready: boolean,
-  t: number,
+  time: number,
 ): { alpha: number; arm: number; diag: number; gap: number } {
   const alpha = ready
-    ? 0.7 + 0.3 * Math.sin(t * CROSSHAIR_READY_FREQ)
-    : 0.35 + 0.15 * Math.sin(t * CROSSHAIR_IDLE_FREQ);
+    ? 0.7 + 0.3 * Math.sin(time * CROSSHAIR_READY_FREQ)
+    : 0.35 + 0.15 * Math.sin(time * CROSSHAIR_IDLE_FREQ);
   const arm = ready
     ? CROSSHAIR_ARM_READY +
-      Math.sin(t * CROSSHAIR_READY_FREQ) * CROSSHAIR_ARM_PULSE
+      Math.sin(time * CROSSHAIR_READY_FREQ) * CROSSHAIR_ARM_PULSE
     : CROSSHAIR_ARM_IDLE;
   const diag = Math.round(arm * 0.7);
   const gap = ready ? 5 : 3;
@@ -558,8 +560,8 @@ function drawPhantomCannon(
   const cx = col * TILE_SIZE;
   const cy = row * TILE_SIZE;
   const sz = isSuperMode(mode) ? 3 : 2;
-  const s = TILE_SIZE * sz;
-  const mid = s / 2;
+  const size = TILE_SIZE * sz;
+  const mid = size / 2;
 
   ctx.save();
   ctx.globalAlpha = valid ? 0.7 : 0.5;
@@ -569,7 +571,7 @@ function drawPhantomCannon(
     drawSprite(ctx, "balloon_base", cx, cy);
     if (!valid) {
       ctx.fillStyle = "rgba(170, 34, 34, 0.4)";
-      ctx.fillRect(cx, cy, s, s);
+      ctx.fillRect(cx, cy, size, size);
     }
     ctx.restore();
     return;

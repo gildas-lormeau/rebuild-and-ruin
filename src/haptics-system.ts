@@ -10,7 +10,7 @@ import { MESSAGE } from "../server/protocol.ts";
 import { CAN_VIBRATE } from "./platform.ts";
 
 export interface HapticsSystem {
-  setLevel: (l: number) => void;
+  setLevel: (level: number) => void;
   tap: () => void;
   phaseChange: () => void;
   battleEvents: (
@@ -23,14 +23,14 @@ const HAPTIC_WALL_HIT_MS = 30;
 const HAPTIC_CANNON_DESTROYED_MS = 150;
 
 export function createHapticsSystem(): HapticsSystem {
-  let level = 2;
+  let hapticsLevel = 2;
 
   function vibrate(ms: number, minLevel: number): void {
-    if (CAN_VIBRATE && level >= minLevel) navigator.vibrate(ms);
+    if (CAN_VIBRATE && hapticsLevel >= minLevel) navigator.vibrate(ms);
   }
 
-  function setLevel(l: number): void {
-    level = l;
+  function setLevel(level: number): void {
+    hapticsLevel = level;
   }
 
   /** Light tap for d-pad / button presses. */
@@ -48,7 +48,7 @@ export function createHapticsSystem(): HapticsSystem {
     events: ReadonlyArray<{ type: string; playerId?: number; hp?: number }>,
     myPlayerId: number,
   ): void {
-    if (!CAN_VIBRATE || level < 2) return;
+    if (!CAN_VIBRATE || hapticsLevel < 2) return;
     for (const evt of events) {
       if (evt.type === MESSAGE.WALL_DESTROYED && evt.playerId === myPlayerId) {
         vibrate(HAPTIC_WALL_HIT_MS, 2);

@@ -235,7 +235,9 @@ export function handleServerIncrementalMessage(
         if ("playerId" in msg && !validPid(msg.playerId, state)) return true;
         if (msg.type === MESSAGE.WALL_DESTROYED) {
           const wallKey = msg.row * deps.gridCols + msg.col;
-          const owner = state.players.find((p) => p.walls.has(wallKey));
+          const owner = state.players.find((player) =>
+            player.walls.has(wallKey),
+          );
           deps.log(
             `wall_destroyed: (${msg.row},${msg.col}) owner=P${owner?.id ?? "?"} shooter=P${msg.shooterId ?? "?"}`,
           );
@@ -356,7 +358,7 @@ function setPhantom<T extends { playerId: number }>(
   next: T,
   set: (value: readonly T[]) => void,
 ): void {
-  const updated = current.filter((p) => p.playerId !== playerId);
+  const updated = current.filter((entry) => entry.playerId !== playerId);
   updated.push(next);
   set(updated);
 }

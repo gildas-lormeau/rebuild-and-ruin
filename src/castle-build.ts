@@ -25,7 +25,7 @@ export function createCastleBuildState(
 ): CastleBuildState {
   return {
     wallPlans,
-    maxTiles: Math.max(...wallPlans.map((p) => p.tiles.length), 0),
+    maxTiles: Math.max(...wallPlans.map((plan) => plan.tiles.length), 0),
     tileIdx: 0,
     accum: 0,
     onDone,

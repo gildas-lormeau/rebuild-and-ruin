@@ -407,14 +407,16 @@ function propagateDistances(dist: Float32Array, W: number, H: number): void {
     for (let px = 0; px < W; px++) {
       const i = py * W + px;
       if (dist[i] === 0) continue;
-      let d = dist[i]!;
-      if (py > 0) d = Math.min(d, dist[(py - 1) * W + px]! + ORTHO);
-      if (px > 0) d = Math.min(d, dist[py * W + (px - 1)]! + ORTHO);
+      let distance = dist[i]!;
+      if (py > 0)
+        distance = Math.min(distance, dist[(py - 1) * W + px]! + ORTHO);
+      if (px > 0)
+        distance = Math.min(distance, dist[py * W + (px - 1)]! + ORTHO);
       if (py > 0 && px > 0)
-        d = Math.min(d, dist[(py - 1) * W + (px - 1)]! + DIAG);
+        distance = Math.min(distance, dist[(py - 1) * W + (px - 1)]! + DIAG);
       if (py > 0 && px < W - 1)
-        d = Math.min(d, dist[(py - 1) * W + (px + 1)]! + DIAG);
-      dist[i] = d;
+        distance = Math.min(distance, dist[(py - 1) * W + (px + 1)]! + DIAG);
+      dist[i] = distance;
     }
   }
   // Backward pass
@@ -422,14 +424,16 @@ function propagateDistances(dist: Float32Array, W: number, H: number): void {
     for (let px = W - 1; px >= 0; px--) {
       const i = py * W + px;
       if (dist[i] === 0) continue;
-      let d = dist[i]!;
-      if (py < H - 1) d = Math.min(d, dist[(py + 1) * W + px]! + ORTHO);
-      if (px < W - 1) d = Math.min(d, dist[py * W + (px + 1)]! + ORTHO);
+      let distance = dist[i]!;
+      if (py < H - 1)
+        distance = Math.min(distance, dist[(py + 1) * W + px]! + ORTHO);
+      if (px < W - 1)
+        distance = Math.min(distance, dist[py * W + (px + 1)]! + ORTHO);
       if (py < H - 1 && px < W - 1)
-        d = Math.min(d, dist[(py + 1) * W + (px + 1)]! + DIAG);
+        distance = Math.min(distance, dist[(py + 1) * W + (px + 1)]! + DIAG);
       if (py < H - 1 && px > 0)
-        d = Math.min(d, dist[(py + 1) * W + (px - 1)]! + DIAG);
-      dist[i] = d;
+        distance = Math.min(distance, dist[(py + 1) * W + (px - 1)]! + DIAG);
+      dist[i] = distance;
     }
   }
 }
@@ -513,7 +517,7 @@ function renderTerrainPixels(
 
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
-      const d = sdf[py * W + px]!;
+      const distance = sdf[py * W + px]!;
 
       // Map pixel back to tile grid and local offset within that tile
       const tr = pxToTile(py);
@@ -534,7 +538,7 @@ function renderTerrainPixels(
       // Blend grass → bank → water based on SDF distance
       const color = selectTerrainColor(
         tileAt(map, tr, tc) === 1,
-        d,
+        distance,
         grass,
         water,
         GRASS_TO_BANK_DIST,
@@ -579,7 +583,7 @@ function texturedColor(
 /** Pick terrain color based on SDF distance from water/grass boundary. */
 function selectTerrainColor(
   isWater: boolean,
-  d: number,
+  distance: number,
   grass: RGB,
   water: RGB,
   grassToBankDist: number,
@@ -587,19 +591,19 @@ function selectTerrainColor(
   transitionWidth: number,
 ): RGB {
   if (!isWater) return grass;
-  if (d < grassToBankDist) return grass;
-  if (d < grassToBankDist + transitionWidth)
+  if (distance < grassToBankDist) return grass;
+  if (distance < grassToBankDist + transitionWidth)
     return lerp3(
       grass,
       BANK_COLOR,
-      smoothClamp((d - grassToBankDist) / transitionWidth),
+      smoothClamp((distance - grassToBankDist) / transitionWidth),
     );
-  if (d < bankToWaterDist) return BANK_COLOR;
-  if (d < bankToWaterDist + transitionWidth)
+  if (distance < bankToWaterDist) return BANK_COLOR;
+  if (distance < bankToWaterDist + transitionWidth)
     return lerp3(
       BANK_COLOR,
       water,
-      smoothClamp((d - bankToWaterDist) / transitionWidth),
+      smoothClamp((distance - bankToWaterDist) / transitionWidth),
     );
   return water;
 }
@@ -623,16 +627,16 @@ function tileAt(map: MapData, r: number, c: number): number {
   return map.tiles[r]![c]!;
 }
 
-function smoothClamp(t: number): number {
-  const c = Math.max(0, Math.min(1, t));
+function smoothClamp(interpolationFactor: number): number {
+  const c = Math.max(0, Math.min(1, interpolationFactor));
   return c * c * (3 - 2 * c);
 }
 
-function lerp3(a: RGB, b: RGB, t: number): RGB {
+function lerp3(a: RGB, b: RGB, interpolationFactor: number): RGB {
   return [
-    a[0] + (b[0] - a[0]) * t,
-    a[1] + (b[1] - a[1]) * t,
-    a[2] + (b[2] - a[2]) * t,
+    a[0] + (b[0] - a[0]) * interpolationFactor,
+    a[1] + (b[1] - a[1]) * interpolationFactor,
+    a[2] + (b[2] - a[2]) * interpolationFactor,
   ];
 }
 

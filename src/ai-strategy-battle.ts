@@ -250,7 +250,7 @@ export function pickTarget(
 
   // Filter out any target tile that already has a cannonball in flight
   const filtered = targets.filter(
-    (t) => !isTileTargetedByInFlightBall(state, t.row, t.col),
+    (tile) => !isTileTargetedByInFlightBall(state, tile.row, tile.col),
   );
   if (filtered.length === 0) return null;
 
@@ -309,7 +309,7 @@ export function pickTarget(
   }
 
   // Prefer priority targets (cannons we already shot at) to finish them off
-  const priorityTargets = filtered.filter((t) => t.priority);
+  const priorityTargets = filtered.filter((target) => target.priority);
   const basePool = priorityTargets.length > 0 ? priorityTargets : filtered;
 
   // Prefer targets 3–8 tiles from crosshair to spread damage across the enemy.
@@ -559,10 +559,10 @@ function planGruntTargets(
   rng: Rng,
 ): TilePos[] | null {
   const grunts = state.grunts.filter(
-    (g) => g.targetPlayerId === targetPlayerId,
+    (grunt) => grunt.targetPlayerId === targetPlayerId,
   );
   if (grunts.length <= GRUNT_SWEEP_THRESHOLD) return null;
-  const positions = grunts.map((g) => ({ row: g.row, col: g.col }));
+  const positions = grunts.map((grunt) => ({ row: grunt.row, col: grunt.col }));
   // Random starting point
   const startIndex = rng.int(0, positions.length - 1);
   [positions[0], positions[startIndex]] = [
@@ -575,8 +575,8 @@ function planGruntTargets(
 /** Check if a 4-tile pocket forms a 2x2 square (can fit a cannon). */
 function is2x2(keys: readonly number[]): boolean {
   const tiles = keys.map((key) => unpackTile(key));
-  const minRow = Math.min(...tiles.map((t) => t.r));
-  const minCol = Math.min(...tiles.map((t) => t.c));
+  const minRow = Math.min(...tiles.map((tile) => tile.r));
+  const minCol = Math.min(...tiles.map((tile) => tile.c));
   const expected = new Set([
     packTile(minRow, minCol),
     packTile(minRow, minCol + 1),

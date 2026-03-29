@@ -138,11 +138,11 @@ export function handleCastleWallsTransition(
 ): void {
   if (msg.type !== MESSAGE.CASTLE_WALLS) return;
   const state = ctx.getState();
-  const plans = msg.plans.map((p) => ({
-    ...p,
-    tiles: p.tiles.filter((t) => t >= 0 && t < TILE_COUNT),
+  const plans = msg.plans.map((plan) => ({
+    ...plan,
+    tiles: plan.tiles.filter((tile) => tile >= 0 && tile < TILE_COUNT),
   }));
-  const maxTiles = Math.max(...plans.map((p) => p.tiles.length), 0);
+  const maxTiles = Math.max(...plans.map((plan) => plan.tiles.length), 0);
   // Set player.castle so walls render during the build animation
   for (const plan of plans) {
     const player = state.players[plan.playerId];
@@ -157,7 +157,7 @@ export function handleCastleWallsTransition(
   ctx.selection.getStates().clear();
   ctx.selection.clearSelectionOverlay();
   // Zoom to the local player's castle on mobile
-  const myPlan = plans.find((p) => p.playerId === ctx.getMyPlayerId());
+  const myPlan = plans.find((plan) => plan.playerId === ctx.getMyPlayerId());
   if (myPlan) ctx.selection.setCastleBuildViewport([myPlan]);
 
   ctx.selection.setCastleBuildFromPlans(plans, maxTiles, () => {
@@ -218,12 +218,12 @@ export function handleBattleStartTransition(
       showBattlePhaseBanner(ctx.ui.showBanner, BANNER_BATTLE_ONLINE, () => {
         if (battleFlights && battleFlights.length > 0) {
           ctx.battle.setFlights(
-            battleFlights.map((f) => ({
+            battleFlights.map((flight) => ({
               flight: {
-                startX: f.startX,
-                startY: f.startY,
-                endX: f.endX,
-                endY: f.endY,
+                startX: flight.startX,
+                startY: flight.startY,
+                endX: flight.endX,
+                endY: flight.endY,
               },
               progress: 0,
             })),
@@ -288,7 +288,7 @@ export function handleBuildEndTransition(
   if (msg.type !== MESSAGE.BUILD_END) return;
   const state = ctx.getState();
   // Capture pre-scores before checkpoint overwrites them (needed for score delta animation)
-  const preScores = state.players.map((p) => p.score);
+  const preScores = state.players.map((player) => player.score);
   ctx.checkpoint.applyPlayers(state, msg.players);
   for (let i = 0; i < state.players.length; i++) {
     state.players[i]!.score = msg.scores[i] ?? state.players[i]!.score;
@@ -321,8 +321,8 @@ export function handleGameOverTransition(
   if (msg.type !== MESSAGE.GAME_OVER) return;
   ctx.endPhase.setGameOverFrame({
     winner: msg.winner ?? NO_WINNER_NAME,
-    scores: msg.scores.map((s, i) => ({
-      ...s,
+    scores: msg.scores.map((score, i) => ({
+      ...score,
       color:
         ctx.endPhase.playerColors[i % ctx.endPhase.playerColors.length]!.wall,
     })),

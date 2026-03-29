@@ -371,7 +371,7 @@ export function applyImpactEvent(
     case MESSAGE.GRUNT_KILLED: {
       const shooter = sid !== undefined ? state.players[sid] : undefined;
       state.grunts = state.grunts.filter(
-        (g) => !isAtTile(g, event.row, event.col),
+        (grunt) => !isAtTile(grunt, event.row, event.col),
       );
       if (shooter) shooter.score += DESTROY_GRUNT_POINTS;
       break;
@@ -667,12 +667,12 @@ function collectGruntImpacts(
   col: number,
   shooterId: number,
 ): void {
-  for (const g of state.grunts) {
-    if (isAtTile(g, row, col)) {
+  for (const grunt of state.grunts) {
+    if (isAtTile(grunt, row, col)) {
       events.push({
         type: MESSAGE.GRUNT_KILLED,
-        row: g.row,
-        col: g.col,
+        row: grunt.row,
+        col: grunt.col,
         shooterId,
       });
     }
@@ -736,9 +736,9 @@ function resolveBalloonCaptures(
       const target = thisRoundTargets.get(cannon);
       let victimId = target?.victimId ?? -1;
       if (victimId < 0) {
-        for (const p of state.players) {
-          if (p.cannons.includes(cannon)) {
-            victimId = p.id;
+        for (const player of state.players) {
+          if (player.cannons.includes(cannon)) {
+            victimId = player.id;
             break;
           }
         }

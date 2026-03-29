@@ -54,8 +54,8 @@ interface DpadDeps {
 
 interface QuitButtonDeps {
   getQuitPending: () => boolean;
-  setQuitPending: (v: boolean) => void;
-  setQuitTimer: (v: number) => void;
+  setQuitPending: (quitPending: boolean) => void;
+  setQuitTimer: (quitTimer: number) => void;
   setQuitMessage: (msg: string) => void;
   showLobby: () => void;
   getControllers: () => PlayerController[];
@@ -587,10 +587,10 @@ function wireDragOrTap(
       e.preventDefault();
       e.stopPropagation();
       pressDown(btn);
-      const t = e.touches[0];
-      if (t) {
-        startX = t.clientX;
-        startY = t.clientY;
+      const touch = e.touches[0];
+      if (touch) {
+        startX = touch.clientX;
+        startY = touch.clientY;
       }
       dragged = false;
     },
@@ -600,16 +600,17 @@ function wireDragOrTap(
     "touchmove",
     (e) => {
       e.preventDefault();
-      const t = e.touches[0];
-      if (!t) return;
+      const touch = e.touches[0];
+      if (!touch) return;
       if (
         !dragged &&
-        Math.hypot(t.clientX - startX, t.clientY - startY) > TAP_MAX_DIST
+        Math.hypot(touch.clientX - startX, touch.clientY - startY) >
+          TAP_MAX_DIST
       ) {
         dragged = true;
         pressUp(btn);
       }
-      if (dragged) onDrag?.(t.clientX, t.clientY);
+      if (dragged) onDrag?.(touch.clientX, touch.clientY);
     },
     { passive: false },
   );

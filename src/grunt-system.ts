@@ -65,7 +65,12 @@ export function spawnGruntNearPos(
   posRow: number,
   posCol: number,
 ): void {
-  if (state.players.every((p) => p.id === destroyerId || p.eliminated)) return;
+  if (
+    state.players.every(
+      (player) => player.id === destroyerId || player.eliminated,
+    )
+  )
+    return;
   const pos = findGruntSpawnNear(state, posRow, posCol);
   if (pos) addGrunt(state, pos.row, pos.col, destroyerId);
 }
@@ -288,8 +293,8 @@ export function rollGruntWallAttacks(state: GameState): void {
 function moveOneGrunt(state: GameState, grunt: Grunt): boolean {
   // Already adjacent to alive target tower — stay put unless blocking a friend
   if (grunt.targetTowerIdx !== undefined) {
-    const t = getGruntTargetTower(state, grunt);
-    if (t && state.towerAlive[grunt.targetTowerIdx]!) {
+    const tower = getGruntTargetTower(state, grunt);
+    if (tower && state.towerAlive[grunt.targetTowerIdx]!) {
       const adjacent = isAdjacentToLivingTower(
         state,
         grunt.row,
@@ -309,8 +314,8 @@ function moveOneGrunt(state: GameState, grunt: Grunt): boolean {
       }
     }
     // Dead target tower — stop once adjacent to its footprint
-    if (t && !state.towerAlive[grunt.targetTowerIdx]!) {
-      if (distanceToTower(t, grunt.row, grunt.col) <= 1) return false;
+    if (tower && !state.towerAlive[grunt.targetTowerIdx]!) {
+      if (distanceToTower(tower, grunt.row, grunt.col) <= 1) return false;
     }
   }
 
@@ -435,8 +440,8 @@ function minWaterDistance(state: GameState, row: number, col: number): number {
       const nr = row + dr;
       const nc = col + dc;
       if (inBounds(nr, nc) && isWater(state.map.tiles, nr, nc)) {
-        const d = Math.abs(dr) + Math.abs(dc);
-        if (d < minWaterDist) minWaterDist = d;
+        const distance = Math.abs(dr) + Math.abs(dc);
+        if (distance < minWaterDist) minWaterDist = distance;
       }
     }
   }
@@ -456,10 +461,10 @@ function lockGruntTarget(state: GameState, grunt: Grunt): void {
   let bestIdx = NO_TOWER_INDEX;
 
   for (let i = 0; i < state.map.towers.length; i++) {
-    const t = state.map.towers[i]!;
+    const tower = state.map.towers[i]!;
     if (!state.towerAlive[i]) continue;
-    if (t.zone !== gruntZone) continue;
-    const dist = distanceToTower(t, grunt.row, grunt.col);
+    if (tower.zone !== gruntZone) continue;
+    const dist = distanceToTower(tower, grunt.row, grunt.col);
     if (dist < bestDist) {
       bestDist = dist;
       bestIdx = i;
@@ -471,7 +476,9 @@ function lockGruntTarget(state: GameState, grunt: Grunt): void {
 
   // Correct targetPlayerId to match zone owner (in case of mismatch from spawn)
   const towerZone = state.map.towers[bestIdx]!.zone;
-  const zoneOwner = state.players.find((p) => p.homeTower?.zone === towerZone);
+  const zoneOwner = state.players.find(
+    (player) => player.homeTower?.zone === towerZone,
+  );
   if (zoneOwner && zoneOwner.id !== grunt.targetPlayerId) {
     grunt.targetPlayerId = zoneOwner.id;
   }
@@ -518,10 +525,10 @@ function gruntCandidateMoves(state: GameState, grunt: Grunt): TilePos[] {
   const moves: TilePos[] = [];
 
   // 1. Forward moves
-  for (const m of forward) moves.push({ row: m.row, col: m.col });
+  for (const move of forward) moves.push({ row: move.row, col: move.col });
 
   // 2. Sideways moves: pacing back and forth along obstacles
-  for (const m of sideways) moves.push({ row: m.row, col: m.col });
+  for (const move of sideways) moves.push({ row: move.row, col: move.col });
 
   return moves;
 }
@@ -531,8 +538,8 @@ function gruntCandidateMoves(state: GameState, grunt: Grunt): TilePos[] {
  * Pure read — grunt must already be locked via lockGruntTarget.
  */
 function gruntTargetPos(state: GameState, grunt: Grunt): TilePos | null {
-  const t = getGruntTargetTower(state, grunt);
-  return t ? { row: t.row, col: t.col } : null;
+  const tower = getGruntTargetTower(state, grunt);
+  return tower ? { row: tower.row, col: tower.col } : null;
 }
 
 /** Check if a sideways move is acceptable (doesn't increase distance to target).
@@ -637,9 +644,9 @@ function pickAdjacentWallKeyForAttack(
   for (const wallKey of adjacentWallKeys(state, row, col)) {
     if (!target) return wallKey;
     const { r: nr, c: nc } = unpackTile(wallKey);
-    const d = manhattanDistance(nr, nc, target.row, target.col);
-    if (d < bestDist) {
-      bestDist = d;
+    const distance = manhattanDistance(nr, nc, target.row, target.col);
+    if (distance < bestDist) {
+      bestDist = distance;
       bestWallKey = wallKey;
     }
   }

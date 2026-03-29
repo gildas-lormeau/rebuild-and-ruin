@@ -156,7 +156,7 @@ export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
     onAdvanceToCannonPhase,
   } = deps;
 
-  const alive = state.players.filter((p) => !p.eliminated);
+  const alive = state.players.filter((player) => !player.eliminated);
   if (alive.length <= 1) {
     onEndGame(alive[0] ?? null);
     return true;
@@ -164,7 +164,7 @@ export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
 
   if (state.round > state.battleLength) {
     const winner = alive.reduce(
-      (best, p) => (p.score > best.score ? p : best),
+      (best, player) => (player.score > best.score ? player : best),
       alive[0]!,
     );
     onEndGame(winner);

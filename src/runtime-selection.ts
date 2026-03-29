@@ -238,7 +238,8 @@ export function createSelectionSystem(
       allBuildsComplete: () =>
         rs.castleBuilds.length === 0 &&
         rs.state.players.every(
-          (p) => !p.homeTower || p.interior.size > 0 || p.eliminated,
+          (player) =>
+            !player.homeTower || player.interior.size > 0 || player.eliminated,
         ),
       tickActiveBuilds: tickAllCastleBuilds,
       announcementDuration: SELECT_ANNOUNCEMENT_DURATION,
@@ -312,8 +313,9 @@ export function createSelectionSystem(
         },
       });
       if (!result.next) {
-        for (const p of build.wallPlans) deps.sound.chargeFanfare(p.playerId);
-        if (build.wallPlans.some((p) => p.playerId === humanPid))
+        for (const plan of build.wallPlans)
+          deps.sound.chargeFanfare(plan.playerId);
+        if (build.wallPlans.some((plan) => plan.playerId === humanPid))
           humanBuildDone = true;
         rs.castleBuilds.splice(i, 1);
       } else {
@@ -331,18 +333,22 @@ export function createSelectionSystem(
   function showBuildScoreDeltas(onDone: () => void): void {
     // Compute score deltas from the build phase (with display coordinates)
     rs.scoreDeltas = rs.state.players
-      .map((p, i) => {
-        const ht = p.homeTower;
+      .map((player, i) => {
+        const ht = player.homeTower;
         const px = ht ? towerCenterPx(ht) : { x: 0, y: 0 };
         return {
           playerId: i,
-          delta: p.score - (rs.preScores[i] ?? 0),
-          total: p.score,
+          delta: player.score - (rs.preScores[i] ?? 0),
+          total: player.score,
           cx: px.x,
           cy: px.y - TILE_SIZE, // just above the tower
         };
       })
-      .filter((d) => d.delta > 0 && !rs.state.players[d.playerId]!.eliminated);
+      .filter(
+        (scoreDelta) =>
+          scoreDelta.delta > 0 &&
+          !rs.state.players[scoreDelta.playerId]!.eliminated,
+      );
 
     if (rs.scoreDeltas.length > 0) {
       deps.camera.phaseUnzoom();

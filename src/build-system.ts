@@ -278,9 +278,9 @@ function awardEndOfBuildPoints(
 
 function countCastleBonusUnits(state: GameState, player: Player): number {
   let castleUnits = 0;
-  for (const t of player.ownedTowers) {
-    if (state.towerAlive[t.index]!) {
-      castleUnits += t === player.homeTower ? 2 : 1;
+  for (const tower of player.ownedTowers) {
+    if (state.towerAlive[tower.index]!) {
+      castleUnits += tower === player.homeTower ? 2 : 1;
     }
   }
   return castleUnits;
@@ -309,11 +309,11 @@ function removeEnclosedGruntsAndRespawn(
 ): void {
   const kept: typeof state.grunts = [];
   const enclosed: typeof state.grunts = [];
-  for (const g of state.grunts) {
-    if (player.interior.has(packTile(g.row, g.col))) {
-      enclosed.push(g);
+  for (const grunt of state.grunts) {
+    if (player.interior.has(packTile(grunt.row, grunt.col))) {
+      enclosed.push(grunt);
     } else {
-      kept.push(g);
+      kept.push(grunt);
     }
   }
   if (enclosed.length === 0) return;
@@ -322,7 +322,7 @@ function removeEnclosedGruntsAndRespawn(
   player.score += enclosed.length * DESTROY_GRUNT_POINTS;
 
   const enemies = state.players.filter(
-    (p) => p.id !== player.id && isPlayerActive(p),
+    (player) => player.id !== player.id && isPlayerActive(player),
   );
   if (enemies.length === 0) return;
 
@@ -343,8 +343,8 @@ function clearUnenclosedPendingRevives(state: GameState): void {
       toRemove.push(ti);
       continue;
     }
-    const isEnclosed = state.players.some((p) =>
-      p.ownedTowers.includes(state.map.towers[ti]!),
+    const isEnclosed = state.players.some((player) =>
+      player.ownedTowers.includes(state.map.towers[ti]!),
     );
     if (!isEnclosed) toRemove.push(ti);
   }
@@ -432,8 +432,8 @@ function isTowerOwnedByPlayer(
 }
 
 function sweepMisplacedGrunts(state: GameState): void {
-  state.grunts = state.grunts.filter((g) => {
-    const gKey = packTile(g.row, g.col);
-    return !state.players.some((p) => isTileOwnedByPlayer(p, gKey));
+  state.grunts = state.grunts.filter((grunt) => {
+    const gKey = packTile(grunt.row, grunt.col);
+    return !state.players.some((player) => isTileOwnedByPlayer(player, gKey));
   });
 }

@@ -152,12 +152,12 @@ export function createGameLifecycle(
       cannonPlaceTimer,
       log: deps.log,
       resetFrame: deps.resetFrame,
-      setState: (s: GameState) => {
-        s.firstRoundCannons = firstRoundCannons;
-        rs.state = s;
+      setState: (state: GameState) => {
+        state.firstRoundCannons = firstRoundCannons;
+        rs.state = state;
       },
-      setControllers: (c: readonly PlayerController[]) => {
-        rs.controllers = [...c];
+      setControllers: (controller: readonly PlayerController[]) => {
+        rs.controllers = [...controller];
       },
       resetUIState,
       createControllerForSlot: (i: number, gameState: GameState) => {
@@ -193,13 +193,13 @@ export function createGameLifecycle(
       : NO_WINNER_NAME;
     rs.frame.gameOver = {
       winner: name,
-      scores: rs.state.players.map((p) => ({
-        name: PLAYER_NAMES[p.id] ?? `P${p.id + 1}`,
-        score: p.score,
-        color: getPlayerColor(p.id).wall,
-        eliminated: p.eliminated,
-        territory: p.interior.size,
-        stats: rs.gameStats[p.id],
+      scores: rs.state.players.map((player) => ({
+        name: PLAYER_NAMES[player.id] ?? `P${player.id + 1}`,
+        score: player.score,
+        color: getPlayerColor(player.id).wall,
+        eliminated: player.eliminated,
+        territory: player.interior.size,
+        stats: rs.gameStats[player.id],
       })),
       focused: FOCUS_REMATCH,
     };

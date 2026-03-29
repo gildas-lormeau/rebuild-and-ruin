@@ -272,7 +272,7 @@ function refillBagQueueIfNeeded(bag: BagState): void {
 
 function piecePool(round: number, rng: Rng): PieceShape[] {
   // t goes from 0 (round 2) to 1 (round 8+)
-  const t = Math.min(
+  const interpolationFactor = Math.min(
     1,
     Math.max(
       0,
@@ -283,7 +283,7 @@ function piecePool(round: number, rng: Rng): PieceShape[] {
   // Build one bucket per tier
   const buckets: PieceShape[][] = [[], [], []]; // tier 1, 2, 3
   for (const pw of PIECE_WEIGHTS) {
-    const copies = interpolatedCopies(pw, t);
+    const copies = interpolatedCopies(pw, interpolationFactor);
     for (let i = 0; i < copies; i++) buckets[pw.tier - 1]!.push(pw.piece);
   }
   // Shuffle within each bucket
@@ -309,8 +309,12 @@ function piecePool(round: number, rng: Rng): PieceShape[] {
   return queue;
 }
 
-function interpolatedCopies(pieceWeight: PieceWeight, t: number): number {
+function interpolatedCopies(
+  pieceWeight: PieceWeight,
+  interpolationFactor: number,
+): number {
   return Math.round(
-    pieceWeight.early + (pieceWeight.late - pieceWeight.early) * t,
+    pieceWeight.early +
+      (pieceWeight.late - pieceWeight.early) * interpolationFactor,
   );
 }

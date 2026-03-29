@@ -1,3 +1,4 @@
+/* eslint-disable id-length -- `t` is a serialized replay field name (consumed by online-e2e.ts) */
 /**
  * In-page input recorder for capturing touch/mouse/keyboard events.
  *

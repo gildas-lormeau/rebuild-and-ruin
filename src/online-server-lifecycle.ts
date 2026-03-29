@@ -114,11 +114,11 @@ export function handleServerLifecycleMessage(
       );
       deps.lobby.showWaitingRoom(msg.code, msg.seed);
       deps.lobby.setStartTime(deps.now() - msg.elapsedSec * 1000);
-      for (const p of msg.players) {
-        deps.lobby.joined[p.playerId] = true;
-        deps.lobby.occupiedSlots.add(p.playerId);
-        if (p.playerId !== deps.session.getMyPlayerId()) {
-          deps.lobby.remoteHumanSlots.add(p.playerId);
+      for (const player of msg.players) {
+        deps.lobby.joined[player.playerId] = true;
+        deps.lobby.occupiedSlots.add(player.playerId);
+        if (player.playerId !== deps.session.getMyPlayerId()) {
+          deps.lobby.remoteHumanSlots.add(player.playerId);
         }
       }
       return true;

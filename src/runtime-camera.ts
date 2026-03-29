@@ -135,8 +135,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     const zones: number[] = [];
     for (let i = 0; i < state.players.length; i++) {
       if (i === myPid || state.players[i]!.eliminated) continue;
-      const z = state.playerZones[i];
-      if (z !== undefined && !zones.includes(z)) zones.push(z);
+      const zone = state.playerZones[i];
+      if (zone !== undefined && !zones.includes(zone)) zones.push(zone);
     }
     return zones;
   }
@@ -232,7 +232,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   ): Viewport {
     const state = deps.getState()!;
     const myPid = myPlayerId();
-    const plan = wallPlans.find((p) => p.playerId === myPid) ?? wallPlans[0];
+    const plan =
+      wallPlans.find((plan) => plan.playerId === myPid) ?? wallPlans[0];
     if (!plan || plan.tiles.length === 0) return fullMapVp;
     const player = state.players[plan.playerId];
     const b = newBounds();
@@ -467,11 +468,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       target = fullMapVp;
     }
 
-    const t = Math.min(1, ZOOM_LERP_SPEED * deps.getFrameDt());
-    currentVp.x += (target.x - currentVp.x) * t;
-    currentVp.y += (target.y - currentVp.y) * t;
-    currentVp.w += (target.w - currentVp.w) * t;
-    currentVp.h += (target.h - currentVp.h) * t;
+    const time = Math.min(1, ZOOM_LERP_SPEED * deps.getFrameDt());
+    currentVp.x += (target.x - currentVp.x) * time;
+    currentVp.y += (target.y - currentVp.y) * time;
+    currentVp.w += (target.w - currentVp.w) * time;
+    currentVp.h += (target.h - currentVp.h) * time;
 
     const dx =
       Math.abs(currentVp.x - target.x) +
@@ -625,10 +626,10 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     currentVp.h = fullMapVp.h;
   }
 
-  function setCameraZone(z: number | null): void {
+  function setCameraZone(zone: number | null): void {
     const state = deps.getState();
-    cameraZone = z;
-    zoomActivated = z !== null;
+    cameraZone = zone;
+    zoomActivated = zone !== null;
     pinchVp = null;
     if (state && state.phase === Phase.BATTLE) {
       phasePinch.battle = null;

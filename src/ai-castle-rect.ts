@@ -63,7 +63,7 @@ export function computeFillableGaps(
 }
 
 export function scoreBuildTowerTarget(
-  t: Tower,
+  tower: Tower,
   state: GameState,
   player: { id: number; walls: Set<number> },
   currentRow: number,
@@ -72,7 +72,7 @@ export function scoreBuildTowerTarget(
   bankHugging: boolean,
 ): { tower: Tower; score: number } {
   const rect = castleRect(
-    t,
+    tower,
     state.map.tiles,
     state.map.towers,
     castleMargin,
@@ -83,12 +83,12 @@ export function scoreBuildTowerTarget(
   const ringTotal = countRingTiles(rect);
   const progress = ringTotal > 0 ? (ringTotal - ringGaps.size) / ringTotal : 0;
   const distance = manhattanDistance(
-    t.row + 0.5,
-    t.col + 0.5,
+    tower.row + 0.5,
+    tower.col + 0.5,
     currentRow,
     currentCol,
   );
-  const dead = !state.towerAlive[t.index];
+  const dead = !state.towerAlive[tower.index];
 
   const { obstructions, area } = countCastleRectObstructions(
     rect,
@@ -98,7 +98,7 @@ export function scoreBuildTowerTarget(
   const obstructionRatio = area > 0 ? obstructions / area : 0;
 
   return {
-    tower: t,
+    tower: tower,
     score:
       progress * TOWER_PROGRESS_WEIGHT -
       distance -
@@ -237,7 +237,7 @@ export function findGapTiles(
  * the lost space, preserving interior area for super gun placement.
  */
 export function castleRect(
-  t: Tower,
+  tower: Tower,
   tiles: readonly (readonly Tile[])[],
   towers: readonly Tower[],
   margin: number,
@@ -254,23 +254,23 @@ export function castleRect(
     crossB: number,
     vertical: boolean,
   ): number => {
-    for (let m = 1; m <= margin; m++) {
-      const interior = base + direction * m;
+    for (let margin = 1; margin <= margin; margin++) {
+      const interior = base + direction * margin;
       const ring = interior + direction;
-      if (ring < 0 || ring >= gridSize) return m - 1;
+      if (ring < 0 || ring >= gridSize) return margin - 1;
       const crossLimit = vertical ? GRID_COLS : GRID_ROWS;
       for (const cross of [crossA, crossB]) {
         if (cross < 0 || cross >= crossLimit) continue;
         const iRow = vertical ? interior : cross;
         const iCol = vertical ? cross : interior;
-        if (isWater(tiles, iRow, iCol)) return m - 1;
+        if (isWater(tiles, iRow, iCol)) return margin - 1;
         // Also check the ring tile — walls are placed there
         const rRow = vertical ? ring : cross;
         const rCol = vertical ? cross : ring;
-        if (isWater(tiles, rRow, rCol)) return m - 1;
+        if (isWater(tiles, rRow, rCol)) return margin - 1;
       }
       for (const other of towers) {
-        if (other === t) continue;
+        if (other === tower) continue;
         // Check both interior and ring lines for tower collisions
         for (const line of [interior, ring]) {
           const hitA = vertical
@@ -279,7 +279,7 @@ export function castleRect(
           const hitB = vertical
             ? isTowerTile(other, line, crossB)
             : isTowerTile(other, crossB, line);
-          if (hitA || hitB) return m - 1;
+          if (hitA || hitB) return margin - 1;
         }
       }
     }
@@ -287,29 +287,36 @@ export function castleRect(
   };
 
   // Per-side max before obstacle
-  const capTop = maxMarginForSide(t.row, -1, GRID_ROWS, t.col, t.col + 1, true);
+  const capTop = maxMarginForSide(
+    tower.row,
+    -1,
+    GRID_ROWS,
+    tower.col,
+    tower.col + 1,
+    true,
+  );
   const capBottom = maxMarginForSide(
-    t.row + 1,
+    tower.row + 1,
     1,
     GRID_ROWS,
-    t.col,
-    t.col + 1,
+    tower.col,
+    tower.col + 1,
     true,
   );
   const capLeft = maxMarginForSide(
-    t.col,
+    tower.col,
     -1,
     GRID_COLS,
-    t.row,
-    t.row + 1,
+    tower.row,
+    tower.row + 1,
     false,
   );
   const capRight = maxMarginForSide(
-    t.col + 1,
+    tower.col + 1,
     1,
     GRID_COLS,
-    t.row,
-    t.row + 1,
+    tower.row,
+    tower.row + 1,
     false,
   );
 
@@ -331,10 +338,10 @@ export function castleRect(
   // corners where two ring edges meet a stepped bank.
   if (shrinkCorners) {
     for (let pass = 0; pass < 3; pass++) {
-      const rTop = t.row - growthTop - 1;
-      const rBot = t.row + 1 + growthBottom + 1;
-      const rLeft = t.col - growthLeft - 1;
-      const rRight = t.col + 1 + growthRight + 1;
+      const rTop = tower.row - growthTop - 1;
+      const rBot = tower.row + 1 + growthBottom + 1;
+      const rLeft = tower.col - growthLeft - 1;
+      const rRight = tower.col + 1 + growthRight + 1;
       let shrunk = false;
       if (rTop >= 0 && rLeft >= 0 && isWater(tiles, rTop, rLeft)) {
         if (growthTop >= growthLeft && growthTop > 0) {
@@ -382,10 +389,10 @@ export function castleRect(
 
   // Return interior bounds — wall ring is one tile outside these bounds.
   return {
-    top: t.row - growthTop,
-    bottom: t.row + 1 + growthBottom,
-    left: t.col - growthLeft,
-    right: t.col + 1 + growthRight,
+    top: tower.row - growthTop,
+    bottom: tower.row + 1 + growthBottom,
+    left: tower.col - growthLeft,
+    right: tower.col + 1 + growthRight,
   };
 }
 

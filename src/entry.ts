@@ -30,7 +30,11 @@ const autoJoinCode = params.get("join");
 
 // Lock to landscape on mobile (best-effort, silently ignored if unsupported)
 try {
-  (screen.orientation as unknown as { lock?: (o: string) => Promise<void> })
+  (
+    screen.orientation as unknown as {
+      lock?: (orientation: string) => Promise<void>;
+    }
+  )
     ?.lock?.("landscape")
     .catch(() => {});
 } catch {
@@ -52,7 +56,7 @@ onRoute(ROUTE_PLAY, () => {
     once: true,
     capture: true,
   });
-  void import("./main.ts").then((m) => m.enterLocalLobby());
+  void import("./main.ts").then((module) => module.enterLocalLobby());
 });
 
 onRoute("/", () => {
@@ -99,7 +103,7 @@ if (autoJoinCode) {
 }
 
 if (params.has("record-inputs")) {
-  void import("./input-recorder.ts").then((m) => m.initRecorder());
+  void import("./input-recorder.ts").then((module) => module.initRecorder());
 }
 
 /** Hide the game container and notify game modules to clean up. */

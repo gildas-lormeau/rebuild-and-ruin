@@ -82,8 +82,8 @@ function buildLifecycleDeps() {
     },
 
     lobby: {
-      setWaitTimer: (s: number) => {
-        session.lobbyWaitTimer = s;
+      setWaitTimer: (lobbyWaitTimer: number) => {
+        session.lobbyWaitTimer = lobbyWaitTimer;
       },
       setRoomSettings: (battleLength: number, cannonMaxHp: number) => {
         session.roomBattleLength = battleLength;

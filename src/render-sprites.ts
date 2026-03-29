@@ -140,9 +140,9 @@ export function drawSprite(
   dx: number,
   dy: number,
 ): boolean {
-  const s = resolveSprite(name);
-  if (!s) return false;
-  blitSprite(ctx, s, dx, dy);
+  const sprite = resolveSprite(name);
+  if (!sprite) return false;
+  blitSprite(ctx, sprite, dx, dy);
   return true;
 }
 
@@ -156,9 +156,9 @@ export function drawSpriteCentered(
   cx: number,
   cy: number,
 ): boolean {
-  const s = resolveSprite(name);
-  if (!s) return false;
-  blitSprite(ctx, s, cx - s.rect.w / 2, cy - s.rect.h / 2);
+  const sprite = resolveSprite(name);
+  if (!sprite) return false;
+  blitSprite(ctx, sprite, cx - sprite.rect.w / 2, cy - sprite.rect.h / 2);
   return true;
 }
 
@@ -175,19 +175,19 @@ function resolveSprite(
 /** Blit a resolved sprite rect at the given destination. */
 function blitSprite(
   ctx: CanvasRenderingContext2D,
-  s: { rect: SpriteRect; img: HTMLImageElement },
+  sprite: { rect: SpriteRect; img: HTMLImageElement },
   dx: number,
   dy: number,
 ): void {
   ctx.drawImage(
-    s.img,
-    s.rect.x,
-    s.rect.y,
-    s.rect.w,
-    s.rect.h,
+    sprite.img,
+    sprite.rect.x,
+    sprite.rect.y,
+    sprite.rect.w,
+    sprite.rect.h,
     dx,
     dy,
-    s.rect.w,
-    s.rect.h,
+    sprite.rect.w,
+    sprite.rect.h,
   );
 }

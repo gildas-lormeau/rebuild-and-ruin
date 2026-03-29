@@ -77,20 +77,20 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
 
   if (reveal) {
     banner.oldCastles = state.players
-      .filter((p) => p.castle)
-      .map((p) => ({
-        walls: pendingWalls?.[p.id] ?? new Set(p.walls),
-        interior: new Set(p.interior),
-        cannons: p.cannons.map((c) => ({ ...c })),
-        playerId: p.id,
+      .filter((player) => player.castle)
+      .map((player) => ({
+        walls: pendingWalls?.[player.id] ?? new Set(player.walls),
+        interior: new Set(player.interior),
+        cannons: player.cannons.map((c) => ({ ...c })),
+        playerId: player.id,
       }));
     banner.oldTerritory =
       state.phase === Phase.BATTLE
-        ? battleAnim.territory?.map((s) => new Set(s))
+        ? battleAnim.territory?.map((territory) => new Set(territory))
         : undefined;
     banner.oldWalls =
       state.phase === Phase.BATTLE
-        ? battleAnim.walls?.map((s) => new Set(s))
+        ? battleAnim.walls?.map((wall) => new Set(wall))
         : undefined;
     banner.oldHouses ??= state.map.houses.map((h) => ({ ...h }));
     banner.oldBonusSquares ??= state.bonusSquares.map((b) => ({ ...b }));

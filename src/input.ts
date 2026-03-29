@@ -91,7 +91,7 @@ export interface RegisterOnlineInputDeps {
   // --- Game over ---
   gameOver: {
     getFocused: () => GameOverFocus;
-    setFocused: (f: GameOverFocus) => void;
+    setFocused: (focused: GameOverFocus) => void;
     click: (x: number, y: number) => void;
   };
 

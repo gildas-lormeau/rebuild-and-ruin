@@ -36,13 +36,13 @@ export interface UIContext {
   getMode: () => Mode;
   /** Raw field write — assigns rs.mode. Callers (showOptions, closeOptions, etc.)
    *  are responsible for any state-machine side effects around the transition. */
-  setMode: (m: Mode) => void;
+  setMode: (mode: Mode) => void;
   getPaused: () => boolean;
-  setPaused: (v: boolean) => void;
+  setPaused: (paused: boolean) => void;
   optionsCursor: { value: number };
   controlsState: ControlsState;
   getOptionsReturnMode: () => Mode | null;
-  setOptionsReturnMode: (m: Mode | null) => void;
+  setOptionsReturnMode: (mode: Mode | null) => void;
   lobby: LobbyState;
   getFrame: () => { announcement?: string };
   getLobbyRemaining: () => number;
@@ -98,12 +98,12 @@ export function createOptionsOverlay(ctx: UIContext): {
   const state = ctx.getState();
   const castles = state
     ? state.players
-        .filter((p) => p.castle)
-        .map((p) => ({
-          walls: p.walls,
-          interior: p.interior,
-          cannons: p.cannons,
-          playerId: p.id,
+        .filter((player) => player.castle)
+        .map((player) => ({
+          walls: player.walls,
+          interior: player.interior,
+          cannons: player.cannons,
+          playerId: player.id,
         }))
     : undefined;
   const overlay: RenderOverlay = {
@@ -156,11 +156,11 @@ export function createControlsOverlay(ctx: UIContext): {
 } {
   const lobbyMap = ctx.lobby.map ?? generateMap(ctx.lobby.seed);
   const cs = ctx.controlsState;
-  const players = PLAYER_NAMES.map((name, p) => {
-    const kb = ctx.settings.keyBindings[p]!;
+  const players = PLAYER_NAMES.map((name, player) => {
+    const kb = ctx.settings.keyBindings[player]!;
     return {
       name: name!,
-      color: getPlayerColor(p).wall,
+      color: getPlayerColor(player).wall,
       bindings: ACTION_KEYS.map((key) =>
         formatKeyName(kb[key as keyof KeyBindings]),
       ),
@@ -253,8 +253,8 @@ export function lobbyKeyJoin(
   onJoin: (pid: number) => void,
 ): boolean {
   if (!ctx.lobby.active) return false;
-  const m = createLobbyConfirmKeys(ctx.settings.keyBindings);
-  const pid = m.get(key);
+  const map = createLobbyConfirmKeys(ctx.settings.keyBindings);
+  const pid = map.get(key);
   if (pid === undefined) return false;
   if (ctx.lobby.joined[pid]) {
     lobbySkipStep(ctx);
@@ -280,23 +280,23 @@ export function visibleOptions(ctx: UIContext): number[] {
 }
 
 function optionValue(ctx: UIContext, idx: number): string {
-  const s = ctx.settings;
+  const settings = ctx.settings;
   const state = ctx.getState();
-  if (idx === 0) return DIFFICULTY_LABELS[s.difficulty]!;
+  if (idx === 0) return DIFFICULTY_LABELS[settings.difficulty]!;
   if (idx === 1) {
-    const opt = ROUNDS_OPTIONS[s.rounds]!;
+    const opt = ROUNDS_OPTIONS[settings.rounds]!;
     if (ctx.getOptionsReturnMode() !== null && state) {
       return `${opt.label} (round ${state.round})`;
     }
     return opt.label;
   }
-  if (idx === 2) return CANNON_HP_OPTIONS[s.cannonHp]!.label;
-  if (idx === 3) return HAPTICS_LABELS[s.haptics] ?? "All";
-  if (idx === 7) return SOUND_LABELS[s.sound] ?? "All";
+  if (idx === 2) return CANNON_HP_OPTIONS[settings.cannonHp]!.label;
+  if (idx === 3) return HAPTICS_LABELS[settings.haptics] ?? "All";
+  if (idx === 7) return SOUND_LABELS[settings.sound] ?? "All";
   if (idx === 4) {
-    if (ctx.isOnline) return s.seed || "—";
-    return s.seedMode === SEED_CUSTOM ? s.seed || "_" : "Random";
+    if (ctx.isOnline) return settings.seed || "—";
+    return settings.seedMode === SEED_CUSTOM ? settings.seed || "_" : "Random";
   }
-  if (idx === 6) return DPAD_LABELS[s.leftHanded ? 1 : 0]!;
+  if (idx === 6) return DPAD_LABELS[settings.leftHanded ? 1 : 0]!;
   return "";
 }

@@ -66,7 +66,7 @@ export function extendWithRemoteCrosshairs(
 ): Crosshair[] {
   deps.logThrottled(
     "host-ch-remote",
-    `collectCrosshairs: localCh=${crosshairs.length} remoteCrosshairs keys=[${[...deps.remoteCrosshairs.keys()]}] cannons=[${state.players.map((p, i) => `P${i}:${p.cannons.length}`).join(",")}]`,
+    `collectCrosshairs: localCh=${crosshairs.length} remoteCrosshairs keys=[${[...deps.remoteCrosshairs.keys()]}] cannons=[${state.players.map((player, i) => `P${i}:${player.cannons.length}`).join(",")}]`,
   );
   for (const [pid, target] of deps.remoteCrosshairs) {
     if (!deps.remoteHumanSlots.has(pid)) continue;

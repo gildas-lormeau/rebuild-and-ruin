@@ -278,6 +278,7 @@ function humanPhantomValid(
   if (phase === Phase.WALL_BUILD) {
     return phantoms.humanPhantoms?.[0]?.valid;
   }
-  return phantoms.aiCannonPhantoms?.find((p) => p.playerId === human.playerId)
-    ?.valid;
+  return phantoms.aiCannonPhantoms?.find(
+    (phantom) => phantom.playerId === human.playerId,
+  )?.valid;
 }

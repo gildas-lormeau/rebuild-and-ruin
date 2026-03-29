@@ -281,7 +281,7 @@ export class DefaultStrategy implements AiStrategy {
   ) {
     this.rng = new Rng(seed);
     this.archetype = archetype ?? rollArchetype(this.rng);
-    const p = ARCHETYPE_PROFILES[this.archetype];
+    const profile = ARCHETYPE_PROFILES[this.archetype];
 
     // Difficulty biases trait rolls within archetype ranges:
     //   Easy(0):      lo end minus 1 (floor 1) — noticeably weaker than archetype baseline
@@ -295,16 +295,16 @@ export class DefaultStrategy implements AiStrategy {
       return this.rng.int(...range);
     };
 
-    this.buildSkill = bias(p.buildSkill, 5) as 1 | 2 | 3 | 4 | 5;
-    this.spatialAwareness = bias(p.spatialAwareness, 3) as 1 | 2 | 3;
-    this.aggressiveness = bias(p.aggressiveness, 3) as 1 | 2 | 3;
-    this.defensiveness = bias(p.defensiveness, 3) as 1 | 2 | 3;
-    this.battleTactics = bias(p.battleTactics, 3) as 1 | 2 | 3;
-    this.cursorSkill = bias(p.cursorSkill, 3) as 1 | 2 | 3;
-    this.thinkingSpeed = bias(p.thinkingSpeed, 3) as 1 | 2 | 3;
-    this.caresAboutHouses = this.rng.bool(p.caresAboutHouses);
-    this.caresAboutBonuses = this.rng.bool(p.caresAboutBonuses);
-    this.bankHugging = this.rng.bool(p.bankHugging);
+    this.buildSkill = bias(profile.buildSkill, 5) as 1 | 2 | 3 | 4 | 5;
+    this.spatialAwareness = bias(profile.spatialAwareness, 3) as 1 | 2 | 3;
+    this.aggressiveness = bias(profile.aggressiveness, 3) as 1 | 2 | 3;
+    this.defensiveness = bias(profile.defensiveness, 3) as 1 | 2 | 3;
+    this.battleTactics = bias(profile.battleTactics, 3) as 1 | 2 | 3;
+    this.cursorSkill = bias(profile.cursorSkill, 3) as 1 | 2 | 3;
+    this.thinkingSpeed = bias(profile.thinkingSpeed, 3) as 1 | 2 | 3;
+    this.caresAboutHouses = this.rng.bool(profile.caresAboutHouses);
+    this.caresAboutBonuses = this.rng.bool(profile.caresAboutBonuses);
+    this.bankHugging = this.rng.bool(profile.bankHugging);
   }
 
   /** Castle ring margin for secondary towers (derived from aggressiveness). */

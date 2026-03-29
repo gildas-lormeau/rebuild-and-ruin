@@ -149,8 +149,13 @@ export class AiController extends BaseController implements AiAnimatable {
   }
   getOrbitParams(): OrbitParams | null {
     if (this.battleState.step === Step.COUNTDOWN && this.battleState.orbit) {
-      const o = this.battleState.orbit;
-      return { rx: o.rx, ry: o.ry, speed: o.speed, phase: this.idlePhase };
+      const orbit = this.battleState.orbit;
+      return {
+        rx: orbit.rx,
+        ry: orbit.ry,
+        speed: orbit.speed,
+        phase: this.idlePhase,
+      };
     }
     return null;
   }
@@ -160,8 +165,8 @@ export class AiController extends BaseController implements AiAnimatable {
   get bankHugging(): boolean {
     return this.strategy.bankHugging;
   }
-  set bankHugging(v: boolean) {
-    this.strategy.bankHugging = v;
+  set bankHugging(bankHugging: boolean) {
+    this.strategy.bankHugging = bankHugging;
   }
 
   /** Delay multiplier derived from thinkingSpeed: 1=slow(1.4×), 2=normal(1×), 3=fast(0.65×). */
@@ -216,8 +221,8 @@ export class AiController extends BaseController implements AiAnimatable {
     const chosenTower = this.strategy.selectTower(state.map, zone);
 
     // Build browse queue: visit 1-3 random zone towers before the chosen one
-    const zoneTowers = state.map.towers.filter((t) => t.zone === zone);
-    const others = zoneTowers.filter((t) => t !== chosenTower);
+    const zoneTowers = state.map.towers.filter((tower) => tower.zone === zone);
+    const others = zoneTowers.filter((tower) => tower !== chosenTower);
     const browseCount = Math.min(
       others.length,
       1 + Math.floor(this.strategy.rng.next() * 3),
@@ -227,7 +232,7 @@ export class AiController extends BaseController implements AiAnimatable {
       const j = Math.floor(this.strategy.rng.next() * (i + 1));
       [others[i], others[j]] = [others[j]!, others[i]!];
     }
-    const queue = others.slice(0, browseCount).map((t) => t.index);
+    const queue = others.slice(0, browseCount).map((tower) => tower.index);
     if (chosenTower) queue.push(chosenTower.index);
 
     this.selectionState = {
@@ -249,13 +254,13 @@ export class AiController extends BaseController implements AiAnimatable {
       case Step.IDLE:
         return false;
       case Step.BROWSING: {
-        const s = this.selectionState;
-        s.dwell -= dt;
-        if (s.dwell <= 0 && s.queue.length > 1) {
-          s.queue.shift();
-          s.dwell = this.scaledDelay(0.8, 0.6);
+        const selectionState = this.selectionState;
+        selectionState.dwell -= dt;
+        if (selectionState.dwell <= 0 && selectionState.queue.length > 1) {
+          selectionState.queue.shift();
+          selectionState.dwell = this.scaledDelay(0.8, 0.6);
           if (state) {
-            const nextIdx = s.queue[0];
+            const nextIdx = selectionState.queue[0];
             const nextTower =
               nextIdx !== undefined ? state.map.towers[nextIdx] : undefined;
             if (nextTower)
@@ -263,10 +268,10 @@ export class AiController extends BaseController implements AiAnimatable {
           }
           return false;
         }
-        if (s.queue.length <= 1) {
+        if (selectionState.queue.length <= 1) {
           this.selectionState = {
             step: Step.CONFIRMING,
-            timer: s.confirmDelay,
+            timer: selectionState.confirmDelay,
           };
         }
         return false;
@@ -320,9 +325,9 @@ export class AiController extends BaseController implements AiAnimatable {
         return [];
 
       case Step.THINKING: {
-        const s = this.buildState;
-        if (s.timer > 0) {
-          s.timer -= dt;
+        const buildState = this.buildState;
+        if (buildState.timer > 0) {
+          buildState.timer -= dt;
           return [this.phantomAtCursor()];
         }
         // Timer expired — compute next placement
@@ -344,7 +349,7 @@ export class AiController extends BaseController implements AiAnimatable {
       }
 
       case Step.GAVE_UP: {
-        const s = this.buildState;
+        const buildState = this.buildState;
         const home = player.homeTower
           ? towerCenter(player.homeTower)
           : this.buildCursor;
@@ -356,8 +361,8 @@ export class AiController extends BaseController implements AiAnimatable {
           Infinity,
           dt,
         );
-        s.retryTimer -= dt;
-        if (s.retryTimer <= 0) {
+        buildState.retryTimer -= dt;
+        if (buildState.retryTimer <= 0) {
           const target = this.computeNextPlacement(state);
           if (target) {
             this.buildState = {
@@ -366,7 +371,7 @@ export class AiController extends BaseController implements AiAnimatable {
               rotation: this.buildRotationFor(target),
             };
           } else {
-            s.retryTimer = 1.0;
+            buildState.retryTimer = 1.0;
           }
         }
         return [this.phantomAtCursor()];
@@ -376,15 +381,15 @@ export class AiController extends BaseController implements AiAnimatable {
         return this.buildTickMoving(dt);
 
       case Step.DWELLING: {
-        const s = this.buildState;
-        s.timer -= dt;
-        if (s.timer <= 0) {
+        const buildState = this.buildState;
+        buildState.timer -= dt;
+        if (buildState.timer <= 0) {
           const placed = placePiece(
             state,
             this.playerId,
-            s.target.piece,
-            s.target.row,
-            s.target.col,
+            buildState.target.piece,
+            buildState.target.row,
+            buildState.target.col,
           );
           if (placed) {
             this.advanceBag();
@@ -395,16 +400,21 @@ export class AiController extends BaseController implements AiAnimatable {
             return [];
           }
           // Placement blocked (e.g. grunt moved onto target)
-          if (!s.retried) {
-            s.retried = true;
-            s.timer = 1.0;
+          if (!buildState.retried) {
+            buildState.retried = true;
+            buildState.timer = 1.0;
           } else {
             this.buildState = { step: Step.THINKING, timer: 0.1 };
           }
           return [];
         }
         return [
-          this.makePhantom(s.target.piece, s.target.row, s.target.col, true),
+          this.makePhantom(
+            buildState.target.piece,
+            buildState.target.row,
+            buildState.target.col,
+            true,
+          ),
         ];
       }
     }
@@ -412,11 +422,11 @@ export class AiController extends BaseController implements AiAnimatable {
 
   /** Handle "moving toward target" state with concurrent rotation animation. */
   private buildTickMoving(dt: number): PiecePlacementPreview[] {
-    const s = this.buildState as Extract<
+    const buildState = this.buildState as Extract<
       BuildState,
       { step: typeof Step.MOVING }
     >;
-    const { target, rotation } = s;
+    const { target, rotation } = buildState;
 
     // Tick rotation animation concurrently with movement
     if (rotation.idx < rotation.seq.length) {
@@ -797,7 +807,7 @@ export class AiController extends BaseController implements AiAnimatable {
     }
     if (!this.crosshairTarget) return;
 
-    const s = this.battleState as Extract<
+    const battleState = this.battleState as Extract<
       BattleState,
       { step: typeof Step.COUNTDOWN }
     >;
@@ -815,7 +825,7 @@ export class AiController extends BaseController implements AiAnimatable {
           dt,
         );
       } else {
-        if (!s.orbit) {
+        if (!battleState.orbit) {
           const strategic = !!this.crosshairTarget.strategic;
           const boost = strategic ? 1.2 : 1;
           const rng = this.strategy.rng;
@@ -824,17 +834,19 @@ export class AiController extends BaseController implements AiAnimatable {
             : ORBIT_SPEED_DEFAULT_BASE;
           const baseSpeed =
             Math.PI * (speedBase + rng.next() * ORBIT_SPEED_RANGE);
-          s.orbit = {
+          battleState.orbit = {
             rx: (ORBIT_RADIUS_BASE + rng.next() * ORBIT_RADIUS_RANGE) * boost,
             ry: (ORBIT_RADIUS_BASE + rng.next() * ORBIT_RADIUS_RANGE) * boost,
             speed: baseSpeed * (rng.bool() ? 1 : -1),
           };
         }
-        this.idlePhase += s.orbit.speed * dt;
+        this.idlePhase += battleState.orbit.speed * dt;
         this.crosshair.x =
-          this.crosshairTarget.x + Math.cos(this.idlePhase) * s.orbit.rx;
+          this.crosshairTarget.x +
+          Math.cos(this.idlePhase) * battleState.orbit.rx;
         this.crosshair.y =
-          this.crosshairTarget.y + Math.sin(this.idlePhase) * s.orbit.ry;
+          this.crosshairTarget.y +
+          Math.sin(this.idlePhase) * battleState.orbit.ry;
       }
     } else {
       this.stepCrosshairToward(
@@ -887,12 +899,12 @@ export class AiController extends BaseController implements AiAnimatable {
 
   /** Chain attack: dwell then fire at chain target. */
   private battleTickChainDwelling(state: GameState, dt: number): void {
-    const s = this.battleState as Extract<
+    const battleState = this.battleState as Extract<
       BattleState,
       { step: typeof Step.CHAIN_DWELLING }
     >;
-    s.timer -= dt;
-    if (s.timer > 0) return;
+    battleState.timer -= dt;
+    if (battleState.timer > 0) return;
 
     if (!this.chainTargets || this.chainIdx >= this.chainTargets.length) {
       this.battleState = { step: Step.PICKING };
@@ -911,18 +923,18 @@ export class AiController extends BaseController implements AiAnimatable {
       }
     } else {
       // No cannon ready — wait a bit longer
-      s.timer = 0.05;
+      battleState.timer = 0.05;
     }
   }
 
   /** Standard fire: dwell on target then fire. */
   private battleTickDwelling(state: GameState, dt: number): void {
-    const s = this.battleState as Extract<
+    const battleState = this.battleState as Extract<
       BattleState,
       { step: typeof Step.DWELLING }
     >;
-    s.timer -= dt;
-    if (s.timer > 0) return;
+    battleState.timer -= dt;
+    if (battleState.timer > 0) return;
 
     const ready = nextReadyCombined(
       state,
@@ -930,7 +942,7 @@ export class AiController extends BaseController implements AiAnimatable {
       this.cannonRotationIdx,
     );
     if (!ready) {
-      s.timer = 0.05;
+      battleState.timer = 0.05;
       return;
     }
     this.fire(state);
@@ -1053,19 +1065,19 @@ export class AiController extends BaseController implements AiAnimatable {
   ): boolean {
     const dx = tx - this.crosshair.x;
     const dy = ty - this.crosshair.y;
-    const f = moveStepFraction(
+    const fraction = moveStepFraction(
       Math.sqrt(dx * dx + dy * dy),
       CROSSHAIR_SPEED,
       this.battleBoostDist,
       dt,
     );
-    if (f >= 1) {
+    if (fraction >= 1) {
       this.crosshair.x = tx;
       this.crosshair.y = ty;
       return true;
     }
-    this.crosshair.x += dx * f;
-    this.crosshair.y += dy * f;
+    this.crosshair.x += dx * fraction;
+    this.crosshair.y += dy * fraction;
     return false;
   }
 
@@ -1126,12 +1138,12 @@ function sameShape(a: PieceShape, b: PieceShape): boolean {
 }
 
 /** Normalized key for a piece shape (origin-independent). */
-function pieceKey(p: PieceShape): string {
-  const minR = Math.min(...p.offsets.map((o) => o[0]));
-  const minC = Math.min(...p.offsets.map((o) => o[1]));
-  return [...p.offsets]
+function pieceKey(pieceShape: PieceShape): string {
+  const minR = Math.min(...pieceShape.offsets.map((offset) => offset[0]));
+  const minC = Math.min(...pieceShape.offsets.map((offset) => offset[1]));
+  return [...pieceShape.offsets]
     .map(([r, c]) => [r - minR, c - minC] as [number, number])
     .sort((a, b) => a[0] - b[0] || a[1] - b[1])
-    .map((o) => `${o[0]},${o[1]}`)
+    .map((offset) => `${offset[0]},${offset[1]}`)
     .join(";");
 }

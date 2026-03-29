@@ -67,7 +67,7 @@ export function autoSelectTower(
   rng: Rng,
   spatialAwareness = 2,
 ): Tower | null {
-  const zoneTowers = map.towers.filter((t) => t.zone === zone);
+  const zoneTowers = map.towers.filter((tower) => tower.zone === zone);
   if (zoneTowers.length === 0) return null;
 
   // spatialAwareness: 1 = 1/3 centroid, 2 = 2/3 centroid, 3 = always centroid
@@ -95,8 +95,8 @@ export function autoSelectTower(
         centroidCol = sumCol / count;
       let bestTower = zoneTowers[0]!;
       let bestDistance = Infinity;
-      for (const t of zoneTowers) {
-        const center = towerCenter(t);
+      for (const tower of zoneTowers) {
+        const center = towerCenter(tower);
         const distance = manhattanDistance(
           center.row,
           center.col,
@@ -105,7 +105,7 @@ export function autoSelectTower(
         );
         if (distance < bestDistance) {
           bestDistance = distance;
-          bestTower = t;
+          bestTower = tower;
         }
       }
       return bestTower;

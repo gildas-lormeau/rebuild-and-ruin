@@ -201,7 +201,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   if (remoteCannonPhantoms.length > 0) {
     frame.phantoms.aiCannonPhantoms!.push(
       ...filterAlivePhantoms(remoteCannonPhantoms, state.players).filter(
-        (p) => !remoteHumanSlots.has(p.playerId),
+        (player) => !remoteHumanSlots.has(player.playerId),
       ),
     );
   }
@@ -311,33 +311,39 @@ function processControllerBuildActions(
       deps.onFirstEnclosure?.(ctrl.playerId);
     }
 
-    for (const p of phantoms) {
+    for (const phantom of phantoms) {
       if (deps.isHuman(ctrl)) {
         frame.phantoms.humanPhantoms!.push({
-          offsets: p.offsets,
-          row: p.row,
-          col: p.col,
-          valid: p.valid,
-          playerId: p.playerId,
+          offsets: phantom.offsets,
+          row: phantom.row,
+          col: phantom.col,
+          valid: phantom.valid,
+          playerId: phantom.playerId,
         });
       } else {
         frame.phantoms.aiPhantoms!.push({
-          offsets: p.offsets,
-          row: p.row,
-          col: p.col,
-          playerId: p.playerId,
+          offsets: phantom.offsets,
+          row: phantom.row,
+          col: phantom.col,
+          playerId: phantom.playerId,
         });
       }
 
       if (!isHost || !sendOpponentPhantom) continue;
-      if (!phantomChanged(lastSentPiecePhantom, p.playerId, piecePhantomKey(p)))
+      if (
+        !phantomChanged(
+          lastSentPiecePhantom,
+          phantom.playerId,
+          piecePhantomKey(phantom),
+        )
+      )
         continue;
       sendOpponentPhantom({
-        playerId: p.playerId,
-        row: p.row,
-        col: p.col,
-        offsets: p.offsets,
-        valid: p.valid,
+        playerId: phantom.playerId,
+        row: phantom.row,
+        col: phantom.col,
+        offsets: phantom.offsets,
+        valid: phantom.valid,
       });
     }
   }
@@ -381,7 +387,7 @@ function mergeRemotePiecePhantoms(
   if (remotePiecePhantoms.length > 0) {
     frame.phantoms.aiPhantoms!.push(
       ...filterAlivePhantoms(remotePiecePhantoms, state.players).filter(
-        (p) => !remoteHumanSlots.has(p.playerId),
+        (player) => !remoteHumanSlots.has(player.playerId),
       ),
     );
   }
@@ -413,7 +419,7 @@ function finalizeBuildAndShowDialogs(
     sendBuildEnd({
       needsReselect,
       eliminated,
-      scores: state.players.map((p) => p.score),
+      scores: state.players.map((player) => player.score),
       players: serializePlayers(state),
     });
   }

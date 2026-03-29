@@ -277,15 +277,15 @@ export function initControllerForCannonPhase(
   const max = state.cannonLimits[player.id] ?? 0;
   ctrl.placeCannons(state, max);
   if (player.homeTower) {
-    const t = player.homeTower;
+    const tower = player.homeTower;
     const snapped = findNearestValidCannonPlacement(
       player,
-      t.row,
-      t.col,
+      tower.row,
+      tower.col,
       CannonMode.NORMAL,
       state,
     );
-    ctrl.cannonCursor = snapped ?? { row: t.row, col: t.col };
+    ctrl.cannonCursor = snapped ?? { row: tower.row, col: tower.col };
   }
   ctrl.onCannonPhaseStart(state);
 }
@@ -333,7 +333,7 @@ function enterBattleFromCannon(state: GameState): void {
   // Decay burning pits at the start of each battle (not after — so pits
   // created during a battle remain at full intensity through repair/cannon)
   for (const pit of state.burningPits) pit.roundsLeft--;
-  state.burningPits = state.burningPits.filter((p) => p.roundsLeft > 0);
+  state.burningPits = state.burningPits.filter((pit) => pit.roundsLeft > 0);
 
   sweepAllPlayersWalls(state);
   claimTerritory(state);

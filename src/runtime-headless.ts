@@ -26,7 +26,7 @@ export interface HeadlessRuntime {
 /** Build a full headless runtime from a seed and advance to CANNON_PLACE. */
 export function createHeadlessRuntime(seed: number): HeadlessRuntime {
   const map = generateMap(seed);
-  const zones = [...new Set(map.towers.map((t) => t.zone))].slice(0, 3);
+  const zones = [...new Set(map.towers.map((tower) => tower.zone))].slice(0, 3);
   const playerCount = zones.length;
 
   const state = createGameState(map, playerCount, seed);
@@ -58,7 +58,7 @@ export function createMixedRuntime(
   humanSlots: readonly number[],
 ): HeadlessRuntime {
   const map = generateMap(seed);
-  const zones = [...new Set(map.towers.map((t) => t.zone))].slice(0, 3);
+  const zones = [...new Set(map.towers.map((tower) => tower.zone))].slice(0, 3);
   const playerCount = zones.length;
 
   const state = createGameState(map, playerCount, seed);

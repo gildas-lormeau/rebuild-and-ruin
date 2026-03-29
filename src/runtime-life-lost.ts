@@ -211,8 +211,8 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
   return {
     get: () => rs.lifeLostDialog,
-    set: (d: LifeLostDialogState | null) => {
-      rs.lifeLostDialog = d;
+    set: (dialog: LifeLostDialogState | null) => {
+      rs.lifeLostDialog = dialog;
     },
     show: showLifeLostDialog,
     tick: tickLifeLostDialog,

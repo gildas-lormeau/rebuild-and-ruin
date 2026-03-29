@@ -187,7 +187,7 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
   frame.crosshairs = [];
   logThrottled(
     "watcher-ch-map",
-    `tickWatcher battle: remoteCrosshairs keys=[${[...remoteCrosshairs.keys()]}] cannons=[${state.players.map((p, i) => `P${i}:${p.cannons.length}`).join(",")}]`,
+    `tickWatcher battle: remoteCrosshairs keys=[${[...remoteCrosshairs.keys()]}] cannons=[${state.players.map((player, i) => `P${i}:${player.cannons.length}`).join(",")}]`,
   );
 
   for (const [pid, target] of remoteCrosshairs) {
@@ -328,23 +328,29 @@ export function tickWatcherBuildPhantomsPhase(
   if (!myHuman) return;
 
   const phantoms = myHuman.buildTick(state, dt);
-  for (const p of phantoms) {
+  for (const phantom of phantoms) {
     frame.phantoms.humanPhantoms!.push({
-      offsets: p.offsets,
-      row: p.row,
-      col: p.col,
-      valid: p.valid,
-      playerId: p.playerId,
+      offsets: phantom.offsets,
+      row: phantom.row,
+      col: phantom.col,
+      valid: phantom.valid,
+      playerId: phantom.playerId,
     });
 
-    if (!phantomChanged(lastSentPiecePhantom, p.playerId, piecePhantomKey(p)))
+    if (
+      !phantomChanged(
+        lastSentPiecePhantom,
+        phantom.playerId,
+        piecePhantomKey(phantom),
+      )
+    )
       continue;
     sendOpponentPiecePhantom({
-      playerId: p.playerId,
-      row: p.row,
-      col: p.col,
-      offsets: p.offsets,
-      valid: p.valid,
+      playerId: phantom.playerId,
+      row: phantom.row,
+      col: phantom.col,
+      offsets: phantom.offsets,
+      valid: phantom.valid,
     });
   }
 }

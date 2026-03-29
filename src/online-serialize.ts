@@ -94,11 +94,11 @@ export function createBattleStartMessage(
     towerAlive: [...state.towerAlive],
     flights:
       flights && flights.length > 0
-        ? flights.map((f) => ({
-            startX: f.startX,
-            startY: f.startY,
-            endX: f.endX,
-            endY: f.endY,
+        ? flights.map((flight) => ({
+            startX: flight.startX,
+            startY: flight.startY,
+            endX: flight.endX,
+            endY: flight.endY,
           }))
         : undefined,
   };
@@ -146,11 +146,11 @@ export function createFullStateMessage(
       }[] = [];
       for (const [cannon, hit] of state.balloonHits) {
         // Find which player owns this cannon
-        for (const p of state.players) {
-          const idx = p.cannons.indexOf(cannon);
+        for (const player of state.players) {
+          const idx = player.cannons.indexOf(cannon);
           if (idx >= 0) {
             hits.push({
-              playerId: p.id,
+              playerId: player.id,
               cannonIdx: idx,
               count: hit.count,
               capturerIds: hit.capturerIds,
@@ -167,28 +167,31 @@ export function createFullStateMessage(
     })),
     balloonFlights:
       flights && flights.length > 0
-        ? flights.map((f) => ({ ...f.flight, progress: f.progress }))
+        ? flights.map((balloonFlight) => ({
+            ...balloonFlight.flight,
+            progress: balloonFlight.progress,
+          }))
         : undefined,
   };
 }
 
 export function serializePlayers(state: GameState) {
-  return state.players.map((p) => ({
-    id: p.id,
-    walls: [...p.walls],
-    interior: [...p.interior],
-    cannons: p.cannons.map((c) => ({
+  return state.players.map((player) => ({
+    id: player.id,
+    walls: [...player.walls],
+    interior: [...player.interior],
+    cannons: player.cannons.map((c) => ({
       row: c.row,
       col: c.col,
       hp: c.hp,
       mode: c.mode,
       facing: c.facing,
     })),
-    ownedTowerIndices: p.ownedTowers.map((t) => t.index),
-    homeTowerIdx: p.homeTower?.index ?? null,
-    lives: p.lives,
-    eliminated: p.eliminated,
-    score: p.score,
+    ownedTowerIndices: player.ownedTowers.map((tower) => tower.index),
+    homeTowerIdx: player.homeTower?.index ?? null,
+    lives: player.lives,
+    eliminated: player.eliminated,
+    score: player.score,
   }));
 }
 
@@ -214,15 +217,15 @@ export function applyFullStateSnapshot(
   state.activePlayer = msg.activePlayer;
   state.towerPendingRevive = new Set(msg.towerPendingRevive);
   state.towerAlive = msg.towerAlive;
-  state.burningPits = msg.burningPits.map((p) => ({
-    row: p.row,
-    col: p.col,
-    roundsLeft: p.roundsLeft,
+  state.burningPits = msg.burningPits.map((pit) => ({
+    row: pit.row,
+    col: pit.col,
+    roundsLeft: pit.roundsLeft,
   }));
-  state.bonusSquares = msg.bonusSquares.map((b) => ({
-    row: b.row,
-    col: b.col,
-    zone: b.zone,
+  state.bonusSquares = msg.bonusSquares.map((bonus) => ({
+    row: bonus.row,
+    col: bonus.col,
+    zone: bonus.zone,
   }));
 
   // Restore RNG internal state
@@ -286,14 +289,14 @@ export function applyFullStateSnapshot(
   }
 
   return {
-    balloonFlights: msg.balloonFlights?.map((f) => ({
+    balloonFlights: msg.balloonFlights?.map((flight) => ({
       flight: {
-        startX: f.startX,
-        startY: f.startY,
-        endX: f.endX,
-        endY: f.endY,
+        startX: flight.startX,
+        startY: flight.startY,
+        endX: flight.endX,
+        endY: flight.endY,
       },
-      progress: f.progress,
+      progress: flight.progress,
     })),
   };
 }
@@ -354,10 +357,10 @@ export function createGameOverPayload(
     serverPayload: {
       type: MESSAGE.GAME_OVER,
       winner: winner ? winnerName : null,
-      scores: state.players.map((p) => ({
-        name: playerNames[p.id] ?? `P${p.id + 1}`,
-        score: p.score,
-        eliminated: p.eliminated,
+      scores: state.players.map((player) => ({
+        name: playerNames[player.id] ?? `P${player.id + 1}`,
+        score: player.score,
+        eliminated: player.eliminated,
       })),
     },
   };
@@ -405,9 +408,9 @@ function validateFullState(
 
   for (const sp of msg.players) {
     if (sp.id < 0 || sp.id >= pc) return `player id ${sp.id} out of bounds`;
-    if (sp.walls.some((t) => t < 0 || t >= TILE_COUNT))
+    if (sp.walls.some((tile) => tile < 0 || tile >= TILE_COUNT))
       return `player ${sp.id} wall tile out of bounds`;
-    if (sp.interior.some((t) => t < 0 || t >= TILE_COUNT))
+    if (sp.interior.some((tile) => tile < 0 || tile >= TILE_COUNT))
       return `player ${sp.id} interior tile out of bounds`;
     for (const c of sp.cannons) {
       if (c.row < 0 || c.row >= GRID_ROWS || c.col < 0 || c.col >= GRID_COLS)
@@ -425,9 +428,14 @@ function validateFullState(
     }
   }
 
-  for (const g of msg.grunts) {
-    if (g.row < 0 || g.row >= GRID_ROWS || g.col < 0 || g.col >= GRID_COLS)
-      return `grunt at ${g.row},${g.col} out of bounds`;
+  for (const grunt of msg.grunts) {
+    if (
+      grunt.row < 0 ||
+      grunt.row >= GRID_ROWS ||
+      grunt.col < 0 ||
+      grunt.col >= GRID_COLS
+    )
+      return `grunt at ${grunt.row},${grunt.col} out of bounds`;
   }
 
   for (const ti of msg.towerPendingRevive) {
@@ -445,12 +453,12 @@ function serializeGrunts(state: GameState) {
   return state.grunts.map(serializeGrunt);
 }
 
-function deserializeGrunt(g: SerializedGrunt): GameState["grunts"][number] {
-  return serializeGrunt(g);
+function deserializeGrunt(grunt: SerializedGrunt): GameState["grunts"][number] {
+  return serializeGrunt(grunt);
 }
 
 function serializeGrunt(
-  g: Pick<
+  grunt: Pick<
     GameState["grunts"][number],
     | "row"
     | "col"
@@ -463,14 +471,14 @@ function serializeGrunt(
   >,
 ): SerializedGrunt {
   return {
-    row: g.row,
-    col: g.col,
-    targetPlayerId: g.targetPlayerId,
-    targetTowerIdx: g.targetTowerIdx,
-    attackTimer: g.attackTimer,
-    blockedBattles: g.blockedBattles,
-    wallAttack: g.wallAttack,
-    facing: g.facing,
+    row: grunt.row,
+    col: grunt.col,
+    targetPlayerId: grunt.targetPlayerId,
+    targetTowerIdx: grunt.targetTowerIdx,
+    attackTimer: grunt.attackTimer,
+    blockedBattles: grunt.blockedBattles,
+    wallAttack: grunt.wallAttack,
+    facing: grunt.facing,
   };
 }
 
@@ -484,10 +492,10 @@ function serializeHouses(state: GameState) {
 }
 
 function serializeBurningPits(state: GameState) {
-  return state.burningPits.map((p) => ({
-    row: p.row,
-    col: p.col,
-    roundsLeft: p.roundsLeft,
+  return state.burningPits.map((pit) => ({
+    row: pit.row,
+    col: pit.col,
+    roundsLeft: pit.roundsLeft,
   }));
 }
 

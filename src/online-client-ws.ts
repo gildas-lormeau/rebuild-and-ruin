@@ -34,10 +34,11 @@ export function connect(onConnectError?: () => void): void {
       handleServerMessage(msg);
     },
     onClose: () => {
-      const m = runtime.rs.mode;
-      // Mode[m] is TypeScript's reverse enum mapping (numeric → string name)
-      devLog(`WebSocket closed (mode=${Mode[m]} isHost=${session.isHost})`);
-      if (session.isHost || m === Mode.STOPPED || m === Mode.LOBBY) return;
+      const mode = runtime.rs.mode;
+      // Mode[mode] is TypeScript's reverse enum mapping (numeric → string name)
+      devLog(`WebSocket closed (mode=${Mode[mode]} isHost=${session.isHost})`);
+      if (session.isHost || mode === Mode.STOPPED || mode === Mode.LOBBY)
+        return;
       if (reconnect.count < MAX_RECONNECT_ATTEMPTS) {
         reconnect.count++;
         // Exponential backoff: base × 2^(attempt-1) via bit-shift

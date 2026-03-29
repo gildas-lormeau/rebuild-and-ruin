@@ -234,7 +234,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   function startBuildPhase() {
     const remoteHumanSlots = rs.ctx.remoteHumanSlots;
     deps.log(`startBuildPhase (round=${rs.state.round})`);
-    rs.preScores = rs.state.players.map((p) => p.score);
+    rs.preScores = rs.state.players.map((player) => player.score);
     rs.scoreDeltas = [];
     rs.scoreDeltaTimer = 0;
     rs.scoreDeltaOnDone = null;

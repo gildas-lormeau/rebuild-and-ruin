@@ -159,7 +159,7 @@ export function pickPlacement(
   //   tinyPocketReject: whether tiny-pocket hard reject is active
   const skill = BUILD_SKILL_TABLE[buildSkill - 1]!;
   const zoneTowers = state.map.towers.filter(
-    (t) => t.zone === castle.tower.zone,
+    (tower) => tower.zone === castle.tower.zone,
   );
 
   // Enclosure detection must match territory's computeOutside (no water
@@ -171,8 +171,8 @@ export function pickPlacement(
   const homeTowerEnclosed = isTowerEnclosed(castle.tower, outside);
   // 4-dir BFS from a tower: returns true if the BFS can reach the map
   // border without crossing walls.
-  const unenclosedTowers = zoneTowers.filter((t) => {
-    if (!isTowerEnclosed(t, outside)) {
+  const unenclosedTowers = zoneTowers.filter((tower) => {
+    if (!isTowerEnclosed(tower, outside)) {
       // 8-dir flood says not enclosed. But if 4-dir BFS can't reach the
       // map border, the tower only has diagonal leaks — walls form a
       // complete orthogonal ring. Treat as enclosed to avoid building a
@@ -180,9 +180,9 @@ export function pickPlacement(
       // But first: if the expected ring has fillable gaps, the tower
       // genuinely needs repair (e.g. a single missing corner — 4-dir BFS
       // can't escape through the diagonal but the gap is real).
-      if (!towerReachesOutsideCardinal(t, player.walls)) {
+      if (!towerReachesOutsideCardinal(tower, player.walls)) {
         const rect = castleRect(
-          t,
+          tower,
           state.map.tiles,
           state.map.towers,
           castleMargin,
@@ -198,7 +198,7 @@ export function pickPlacement(
     // 8-directional flood says enclosed, but diagonal wall connections can
     // create false positives. Verify with 4-directional BFS from the tower:
     // if we can reach an "outside" tile, the tower isn't truly enclosed.
-    if (towerReachesOutsideCardinal(t, player.walls, outside)) return true;
+    if (towerReachesOutsideCardinal(tower, player.walls, outside)) return true;
     // Truly enclosed (BFS confirmed) — territory will count this tower.
     return false;
   });
@@ -207,7 +207,9 @@ export function pickPlacement(
   // If home was broken or its tower is dead, deprioritize it if there are other unenclosed towers
   // But only skip if the gap is large (> 5 tiles) — small holes are worth repairing
   const homeTowerDead = !state.towerAlive[castle.tower.index];
-  const otherUnenclosed = unenclosedTowers.filter((t) => t !== castle.tower);
+  const otherUnenclosed = unenclosedTowers.filter(
+    (tower) => tower !== castle.tower,
+  );
   let effectiveSkipHome =
     (homeWasBroken || homeTowerDead) && otherUnenclosed.length > 0;
   if (effectiveSkipHome && !homeTowerEnclosed) {
@@ -259,14 +261,14 @@ export function pickPlacement(
             occupiedInterior++;
             continue;
           }
-          for (const t of state.map.towers) {
-            if (isTowerTile(t, r, c)) {
+          for (const tower of state.map.towers) {
+            if (isTowerTile(tower, r, c)) {
               occupiedInterior++;
               break;
             }
           }
-          for (const p of state.players) {
-            for (const cannon of p.cannons) {
+          for (const player of state.players) {
+            for (const cannon of player.cannons) {
               if (isCannonTile(cannon, r, c)) {
                 occupiedInterior++;
                 break;
@@ -278,8 +280,8 @@ export function pickPlacement(
       const freeRatio =
         totalInterior > 0 ? 1 - occupiedInterior / totalInterior : 1;
       const MAX_EXPAND =
-        EXPANSION_TIERS.find((t) => freeRatio > t.minFreeRatio)?.maxExpand ??
-        EXPANSION_DEFAULT_MAX;
+        EXPANSION_TIERS.find((tier) => freeRatio > tier.minFreeRatio)
+          ?.maxExpand ?? EXPANSION_DEFAULT_MAX;
 
       for (let attempt = 0; attempt < MAX_EXPAND; attempt++) {
         const gaps = findGapTiles({ top, bottom, left, right }, player.walls);
@@ -377,9 +379,9 @@ export function pickPlacement(
       const currentCol = cursorPos?.col ?? castle.tower.col;
 
       // Score all towers, then try them in order — skip towers whose ring is unfillable
-      const towerScores = buildTowers.map((t) =>
+      const towerScores = buildTowers.map((tower) =>
         scoreBuildTowerTarget(
-          t,
+          tower,
           state,
           player,
           currentRow,
@@ -547,9 +549,11 @@ export function pickPlacement(
   // Threshold matches canPieceFillAnyGap — if the piece CAN fill a gap, it SHOULD.
   let restrictedToGapFillers = false;
   if (hasManageableGaps()) {
-    const allGapFillers = scored.filter((s) => s.candidate.gapsFilled > 0);
+    const allGapFillers = scored.filter(
+      (score) => score.candidate.gapsFilled > 0,
+    );
     const topGapFillers = topCandidates.filter(
-      (s) => s.candidate.gapsFilled > 0,
+      (score) => score.candidate.gapsFilled > 0,
     );
     if (topGapFillers.length > 0) {
       topCandidates = topGapFillers;
@@ -565,7 +569,8 @@ export function pickPlacement(
     ctx: ScoringContext,
   ): { bestCandidate: Candidate; bestScore: number; evaluated: boolean } {
     const anyHasWallAdjacent = topCandidates.some(
-      (s) => s.candidate.wallAdjacent > 0 || s.candidate.connectedTiles > 0,
+      (score) =>
+        score.candidate.wallAdjacent > 0 || score.candidate.connectedTiles > 0,
     );
 
     let bestCandidate = topCandidates[0]!.candidate;
@@ -736,14 +741,15 @@ export function pickPlacement(
   // enclosing, or if the scoring found a placement with positive territory gain.
   if (noBuildTargets) {
     const hasOutsideGrunts = state.grunts.some(
-      (g) =>
-        g.targetPlayerId === playerId && outside.has(packTile(g.row, g.col)),
+      (grunt) =>
+        grunt.targetPlayerId === playerId &&
+        outside.has(packTile(grunt.row, grunt.col)),
     );
     const hasUnenclosedCannons = player.cannons.some(
-      (c) =>
-        isCannonAlive(c) &&
-        !isBalloonCannon(c) &&
-        !isCannonEnclosed(c, player.interior),
+      (cannon) =>
+        isCannonAlive(cannon) &&
+        !isBalloonCannon(cannon) &&
+        !isCannonEnclosed(cannon, player.interior),
     );
     if ((!hasOutsideGrunts && !hasUnenclosedCannons) || bestScore <= 0)
       return null;
@@ -761,7 +767,9 @@ export function pickPlacement(
     }
     // Fat wall gap-filler — find a non-fat alternative among gap fillers
     const nonFatGapFillers = topCandidates.filter(
-      (s) => s.candidate.gapsFilled > 0 && fatBlockCountFor(s.candidate) === 0,
+      (score) =>
+        score.candidate.gapsFilled > 0 &&
+        fatBlockCountFor(score.candidate) === 0,
     );
     if (nonFatGapFillers.length > 0) {
       nonFatGapFillers.sort(compareByNumericScoreDesc);

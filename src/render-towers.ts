@@ -93,7 +93,7 @@ function drawTowerHighlight(
   const w = 30 + margin * 2;
   const h = 32 + margin * 2;
   const corner = 10;
-  const t = 4; // thickness
+  const thickness = 4;
 
   // Slow flash: alpha pulses between 0.4 and 1.0 over ~1.5s cycle
   const flash = 0.7 + 0.3 * Math.sin((now ?? Date.now()) / TOWER_FLASH_MS);
@@ -101,16 +101,26 @@ function drawTowerHighlight(
   octx.globalAlpha = flash;
   octx.fillStyle = color ?? "#ffcc00";
   // Top-left
-  octx.fillRect(bx, by, corner, t);
-  octx.fillRect(bx, by + t, t, corner - t);
+  octx.fillRect(bx, by, corner, thickness);
+  octx.fillRect(bx, by + thickness, thickness, corner - thickness);
   // Top-right
-  octx.fillRect(bx + w - corner, by, corner, t);
-  octx.fillRect(bx + w - t, by + t, t, corner - t);
+  octx.fillRect(bx + w - corner, by, corner, thickness);
+  octx.fillRect(
+    bx + w - thickness,
+    by + thickness,
+    thickness,
+    corner - thickness,
+  );
   // Bottom-left
-  octx.fillRect(bx, by + h - t, corner, t);
-  octx.fillRect(bx, by + h - corner, t, corner - t);
+  octx.fillRect(bx, by + h - thickness, corner, thickness);
+  octx.fillRect(bx, by + h - corner, thickness, corner - thickness);
   // Bottom-right
-  octx.fillRect(bx + w - corner, by + h - t, corner, t);
-  octx.fillRect(bx + w - t, by + h - corner, t, corner - t);
+  octx.fillRect(bx + w - corner, by + h - thickness, corner, thickness);
+  octx.fillRect(
+    bx + w - thickness,
+    by + h - corner,
+    thickness,
+    corner - thickness,
+  );
   octx.restore();
 }

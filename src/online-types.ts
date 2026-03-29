@@ -63,8 +63,8 @@ export function interpolateToward(
 }
 
 /** Return the wire protocol cannon mode string for a phantom. */
-export function phantomWireMode(p: CannonPhantom): CannonMode {
-  return p.mode;
+export function phantomWireMode(phantom: CannonPhantom): CannonMode {
+  return phantom.mode;
 }
 
 /** Check if a phantom changed since last send; updates the map if so. */
@@ -85,15 +85,15 @@ export function filterAlivePhantoms<T extends { playerId: number }>(
   phantoms: readonly T[],
   players: readonly { eliminated?: boolean }[],
 ): T[] {
-  return phantoms.filter((p) => !players[p.playerId]?.eliminated);
+  return phantoms.filter((phantom) => !players[phantom.playerId]?.eliminated);
 }
 
 /** Dedup key for cannon phantom network sends. Covers all fields that affect display. */
-export function cannonPhantomKey(p: CannonPhantom): string {
-  return `${p.row},${p.col},${p.mode}`;
+export function cannonPhantomKey(phantom: CannonPhantom): string {
+  return `${phantom.row},${phantom.col},${phantom.mode}`;
 }
 
 /** Dedup key for piece phantom network sends. Covers position + shape. */
-export function piecePhantomKey(p: PiecePhantom): string {
-  return `${p.row},${p.col},${p.offsets.map((o) => o.join(":")).join(";")}`;
+export function piecePhantomKey(phantom: PiecePhantom): string {
+  return `${phantom.row},${phantom.col},${phantom.offsets.map((offset) => offset.join(":")).join(";")}`;
 }

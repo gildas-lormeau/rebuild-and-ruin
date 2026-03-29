@@ -139,8 +139,8 @@ export function initLobbyUi({
         setMessage("room-list-empty", "No rooms available");
         return;
       }
-      const roundsLabel = (v: number) =>
-        v > 0 ? `${v} rounds` : "To The Death";
+      const roundsLabel = (rounds: number) =>
+        rounds > 0 ? `${rounds} rounds` : "To The Death";
       const ageLabel = (sec: number) =>
         sec < SECS_PER_MIN
           ? "just now"

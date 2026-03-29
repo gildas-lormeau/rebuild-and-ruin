@@ -77,7 +77,7 @@ export interface GameActionDeps {
 
 interface QuitFlowDeps {
   getPending: () => boolean;
-  setPending: (v: boolean) => void;
+  setPending: (pending: boolean) => void;
   setTimer: (seconds: number) => void;
   setMessage: (msg: string) => void;
   showLobby: () => void;

@@ -183,7 +183,8 @@ export function cannonSlotsForRound(player: Player, state: GameState): number {
   } else {
     const aliveTowers = filterAliveOwnedTowers(player, state);
     const ownsHome =
-      player.homeTower && aliveTowers.some((t) => t === player.homeTower);
+      player.homeTower &&
+      aliveTowers.some((tower) => tower === player.homeTower);
     const otherCount = aliveTowers.length - (ownsHome ? 1 : 0);
     newSlots = (ownsHome ? 2 : 0) + otherCount;
   }

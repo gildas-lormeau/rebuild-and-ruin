@@ -35,7 +35,7 @@ type CastleSide = (typeof Side)[keyof typeof Side];
 /** Gap sizes per side: [L, R, T, B]. */
 type Gaps = [number, number, number, number];
 
-type GapsValidator = (g: Gaps) => boolean;
+type GapsValidator = (gap: Gaps) => boolean;
 
 /** Castle gap directions: indices into a Gaps tuple. */
 const Side = { L: 0, R: 1, T: 2, B: 3 } as const;
@@ -75,9 +75,9 @@ export function createCastle(
   // Build a set of tiles occupied by OTHER towers (2×2 each)
   const otherTowerTiles = new Set<number>();
   if (allTowers) {
-    for (const t of allTowers) {
-      if (t === tower) continue;
-      forEachTowerTile(t, (_r, _c, key) => otherTowerTiles.add(key));
+    for (const tower of allTowers) {
+      if (tower === tower) continue;
+      forEachTowerTile(tower, (_r, _c, key) => otherTowerTiles.add(key));
     }
   }
 
@@ -85,11 +85,11 @@ export function createCastle(
   // Towers are 2×2: tc..tc+1 cols, tr..tr+1 rows (TOWER_SIZE in game-constants.ts).
   // Interior is defined by gaps: cols [tc-gL .. tc+1+gR], rows [tr-gT .. tr+1+gB].
   // Wall ring is 1 tile outside that.
-  function isWallRingValid(g: Gaps): boolean {
-    const intLeft = tc - g[Side.L];
-    const intRight = tc + 1 + g[Side.R];
-    const intTop = tr - g[Side.T];
-    const intBottom = tr + 1 + g[Side.B];
+  function isWallRingValid(gap: Gaps): boolean {
+    const intLeft = tc - gap[Side.L];
+    const intRight = tc + 1 + gap[Side.R];
+    const intTop = tr - gap[Side.T];
+    const intBottom = tr + 1 + gap[Side.B];
     const wL = intLeft - 1;
     const wR = intRight + 1;
     const wT = intTop - 1;
@@ -122,41 +122,41 @@ export function createCastle(
   function maxGap(side: CastleSide): number {
     const MAX_CASTLE_GAP = 15;
     const isHorizontal = side === Side.L || side === Side.R;
-    for (let g = 0; g <= MAX_CASTLE_GAP; g++) {
+    for (let gap = 0; gap <= MAX_CASTLE_GAP; gap++) {
       // Check the wall column/row at distance g+1 from the tower edge
       const wallPos =
         side === Side.L
-          ? tc - g - 1
+          ? tc - gap - 1
           : side === Side.R
-            ? tc + 2 + g
+            ? tc + 2 + gap
             : side === Side.T
-              ? tr - g - 1
-              : tr + 2 + g;
+              ? tr - gap - 1
+              : tr + 2 + gap;
 
       if (isHorizontal) {
-        if (wallPos < 0 || wallPos >= GRID_COLS) return g;
+        if (wallPos < 0 || wallPos >= GRID_COLS) return gap;
         if (
           tiles[tr]![wallPos] === TILE_WATER ||
           tiles[tr + 1]![wallPos] === TILE_WATER
         )
-          return g;
+          return gap;
         if (
           otherTowerTiles.has(packTile(tr, wallPos)) ||
           otherTowerTiles.has(packTile(tr + 1, wallPos))
         )
-          return g;
+          return gap;
       } else {
-        if (wallPos < 0 || wallPos >= GRID_ROWS) return g;
+        if (wallPos < 0 || wallPos >= GRID_ROWS) return gap;
         if (
           tiles[wallPos]![tc] === TILE_WATER ||
           tiles[wallPos]![tc + 1] === TILE_WATER
         )
-          return g;
+          return gap;
         if (
           otherTowerTiles.has(packTile(wallPos, tc)) ||
           otherTowerTiles.has(packTile(wallPos, tc + 1))
         )
-          return g;
+          return gap;
       }
     }
     return 15;
@@ -171,8 +171,8 @@ export function createCastle(
   ];
 
   // Phase 2: Start with ideal gaps, shrink where wall ring is invalid
-  const initial: Gaps = ALL_SIDES.map((s) =>
-    Math.min(IDEAL_GAP, quickMax[s]),
+  const initial: Gaps = ALL_SIDES.map((side) =>
+    Math.min(IDEAL_GAP, quickMax[side]),
   ) as unknown as Gaps;
 
   const gaps = shrinkGapsUntilValid(isWallRingValid, initial);
@@ -243,8 +243,8 @@ export function applyClumsyBuilders(
   const wB = bottom + 1;
 
   const towerTiles = new Set<number>();
-  for (const t of allTowers ?? [castle.tower]) {
-    forEachTowerTile(t, (_r, _c, key) => towerTiles.add(key));
+  for (const tower of allTowers ?? [castle.tower]) {
+    forEachTowerTile(tower, (_r, _c, key) => towerTiles.add(key));
   }
   const isTower = (r: number, c: number) => towerTiles.has(packTile(r, c));
 
@@ -388,8 +388,8 @@ export function spawnHousesInZone(state: GameState, zoneId: number): void {
 /** Build set of all 2×2 tower tile keys. */
 function buildTowerTileSet(towers: readonly Tower[]): Set<number> {
   const towerTiles = new Set<number>();
-  for (const t of towers) {
-    forEachTowerTile(t, (_r, _c, key) => towerTiles.add(key));
+  for (const tower of towers) {
+    forEachTowerTile(tower, (_r, _c, key) => towerTiles.add(key));
   }
   return towerTiles;
 }

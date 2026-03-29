@@ -45,7 +45,7 @@ export function initTowerSelection(
 ): void {
   const player = state.players[playerId]!;
   const towerIdx = player.homeTower
-    ? state.map.towers.findIndex((t) => t === player.homeTower)
+    ? state.map.towers.findIndex((tower) => tower === player.homeTower)
     : (zoneTowerIndices(state, zone)[0] ?? 0);
   selectionStates.set(playerId, {
     highlighted: towerIdx,
@@ -261,7 +261,7 @@ export function finishSelectionPhase(deps: {
 
 function zoneTowerIndices(state: GameState, zone: number): number[] {
   return state.map.towers
-    .map((t, i) => ({ t, i }))
-    .filter(({ t }) => t.zone === zone)
+    .map((tower, i) => ({ tower, i }))
+    .filter(({ tower }) => tower.zone === zone)
     .map(({ i }) => i);
 }

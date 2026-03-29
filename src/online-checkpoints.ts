@@ -100,9 +100,9 @@ export function applyBattleStartCheckpoint(
   resetBattleState(deps);
   deps.state.timer = BATTLE_TIMER;
   resetWatcherCrosshairs(deps);
-  for (const p of deps.state.players) {
-    if (p.eliminated || !p.homeTower) continue;
-    deps.watcherCrosshairPos.set(p.id, towerCenterPx(p.homeTower));
+  for (const player of deps.state.players) {
+    if (player.eliminated || !player.homeTower) continue;
+    deps.watcherCrosshairPos.set(player.id, towerCenterPx(player.homeTower));
   }
 }
 

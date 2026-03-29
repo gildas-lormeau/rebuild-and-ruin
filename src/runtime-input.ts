@@ -224,8 +224,8 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
         else options.closeOptions();
       },
       getReturnMode: () => rs.optionsReturnMode,
-      setReturnMode: (m: unknown) => {
-        rs.optionsReturnMode = m as Mode | null;
+      setReturnMode: (mode: unknown) => {
+        rs.optionsReturnMode = mode as Mode | null;
       },
       changeValue: options.changeOption,
       togglePause: options.togglePause,
@@ -238,9 +238,9 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     };
     const gameOverDeps = {
       getFocused: () => rs.frame.gameOver?.focused ?? FOCUS_REMATCH,
-      setFocused: (f: GameOverFocus) => {
+      setFocused: (focused: GameOverFocus) => {
         if (rs.frame.gameOver) {
-          rs.frame.gameOver.focused = f;
+          rs.frame.gameOver.focused = focused;
           render();
         }
       },
@@ -260,14 +260,14 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     };
     const quitDeps = {
       getPending: () => rs.quitPending,
-      setPending: (v: boolean) => {
-        rs.quitPending = v;
+      setPending: (quitPending: boolean) => {
+        rs.quitPending = quitPending;
       },
-      setTimer: (s: number) => {
-        rs.quitTimer = s;
+      setTimer: (quitTimer: number) => {
+        rs.quitTimer = quitTimer;
       },
-      setMessage: (msg: string) => {
-        rs.quitMessage = msg;
+      setMessage: (quitMessage: string) => {
+        rs.quitMessage = quitMessage;
       },
     };
     // ── Combined input deps: assembles all subsystem deps ──
@@ -275,8 +275,8 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       renderer,
       getState: () => safeState(rs),
       getMode: () => rs.mode,
-      setMode: (m) => {
-        rs.mode = m as Mode;
+      setMode: (mode) => {
+        rs.mode = mode as Mode;
       },
       modeValues: {
         LOBBY: Mode.LOBBY,
@@ -298,8 +298,8 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       showLobby: returnToLobby,
       rematch,
       maybeSendAimUpdate: deps.maybeSendAimUpdate ?? (() => {}),
-      setDirectTouchActive: (v) => {
-        rs.directTouchActive = v;
+      setDirectTouchActive: (active) => {
+        rs.directTouchActive = active;
       },
       isDirectTouchActive: () => rs.directTouchActive,
       coords: coordsDeps,
@@ -395,11 +395,11 @@ function setupTouchControls(
   touch.quitButton = createQuitButton(
     {
       getQuitPending: () => rs.quitPending,
-      setQuitPending: (v: boolean) => {
-        rs.quitPending = v;
+      setQuitPending: (quitPending: boolean) => {
+        rs.quitPending = quitPending;
       },
-      setQuitTimer: (v: number) => {
-        rs.quitTimer = v;
+      setQuitTimer: (quitTimer: number) => {
+        rs.quitTimer = quitTimer;
       },
       setQuitMessage: (msg: string) => {
         rs.quitMessage = msg;

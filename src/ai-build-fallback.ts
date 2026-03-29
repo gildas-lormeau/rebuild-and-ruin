@@ -69,15 +69,15 @@ export function pickFallbackPlacement(
       if (!interior.has(k)) continue;
       if (walls.has(k)) continue;
       let blocked = false;
-      for (const t of state.map.towers) {
-        if (isTowerTile(t, r, c)) {
+      for (const tower of state.map.towers) {
+        if (isTowerTile(tower, r, c)) {
           blocked = true;
           break;
         }
       }
       if (blocked) continue;
-      for (const p of state.players) {
-        for (const cannon of p.cannons) {
+      for (const player of state.players) {
+        for (const cannon of player.cannons) {
           if (isCannonTile(cannon, r, c)) {
             blocked = true;
             break;
@@ -118,8 +118,8 @@ export function pickFallbackPlacement(
         let hasOccupant = false;
         for (const pocketKey of pocket) {
           const { r: pr, c: pc } = unpackTile(pocketKey);
-          for (const t of state.map.towers) {
-            if (isTowerTile(t, pr, pc)) {
+          for (const tower of state.map.towers) {
+            if (isTowerTile(tower, pr, pc)) {
               hasOccupant = true;
               break;
             }
@@ -127,8 +127,8 @@ export function pickFallbackPlacement(
           if (!hasOccupant && !isGrass(state.map.tiles, pr, pc))
             hasOccupant = true;
           if (!hasOccupant) {
-            for (const g of state.grunts) {
-              if (g.row === pr && g.col === pc) {
+            for (const grunt of state.grunts) {
+              if (grunt.row === pr && grunt.col === pc) {
                 hasOccupant = true;
                 break;
               }
@@ -147,15 +147,15 @@ export function pickFallbackPlacement(
   const insideEnclosure = (candidate: Candidate): boolean => {
     for (const [dr, dc] of candidate.rotation.offsets) {
       const k = packTile(candidate.row + dr, candidate.col + dc);
-      for (const p of state.players) {
-        if (p.interior.has(k)) return true;
+      for (const player of state.players) {
+        if (player.interior.has(k)) return true;
       }
     }
     return false;
   };
 
   const fallbackTowers = homeWasBroken
-    ? unenclosedTowers.filter((t) => t !== castle.tower)
+    ? unenclosedTowers.filter((tower) => tower !== castle.tower)
     : unenclosedTowers;
 
   const isInsideOrFatCandidate = (candidate: Candidate): boolean => {
@@ -216,9 +216,9 @@ function pickTowerExtensionCandidate(
   candidate: Candidate | null;
   reason: "extend" | "extend-fallback" | "extend-all-fat";
 } {
-  const extending = scored.filter((s) =>
+  const extending = scored.filter((score) =>
     isExtensionCandidateForFallback(
-      s.candidate,
+      score.candidate,
       fallbackTowers,
       castleMargin,
       ringDistanceCache,
@@ -241,9 +241,9 @@ function pickTowerExtensionCandidate(
     return { candidate: extending[0]!.candidate, reason: "extend" };
   }
 
-  const fallback = [...scored].filter((s) =>
+  const fallback = [...scored].filter((score) =>
     isExtensionFallbackCandidateForFallback(
-      s.candidate,
+      score.candidate,
       createsSmallEnclosureCached,
       isInsideOrFatCandidate,
     ),
@@ -389,7 +389,7 @@ function pickDiscardCandidate(
   isInsideOrFatCandidate: (candidate: Candidate) => boolean,
 ): Candidate | null {
   const throwAway = [...scored].filter(
-    (s) => !isInsideOrFatCandidate(s.candidate),
+    (score) => !isInsideOrFatCandidate(score.candidate),
   );
   if (throwAway.length === 0) return null;
   throwAway.sort((a, b) =>

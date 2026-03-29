@@ -43,20 +43,20 @@ export function formatKeyHint(kb: KeyBindings): string {
 export function createLobbyConfirmKeys(
   keyBindings: readonly KeyBindings[],
 ): Map<string, number> {
-  const m = new Map<string, number>();
+  const map = new Map<string, number>();
   for (let i = 0; i < keyBindings.length; i++) {
     const kb = keyBindings[i]!;
-    m.set(kb.confirm, i);
-    m.set(kb.confirm.toUpperCase(), i);
+    map.set(kb.confirm, i);
+    map.set(kb.confirm.toUpperCase(), i);
   }
-  return m;
+  return map;
 }
 
 /** Snapshot per-player territory (interior + walls) for battle rendering. */
 export function snapshotTerritory(players: readonly Player[]): Set<number>[] {
-  return players.map((p) => {
-    const combined = new Set(p.interior);
-    for (const key of p.walls) combined.add(key);
+  return players.map((player) => {
+    const combined = new Set(player.interior);
+    for (const key of player.walls) combined.add(key);
     return combined;
   });
 }
@@ -159,8 +159,8 @@ export function tickMainLoop(params: {
   readonly quitTimer: number;
   readonly quitMessage?: string;
   readonly frame: { announcement?: string };
-  readonly setQuitPending: (v: boolean) => void;
-  readonly setQuitTimer: (v: number) => void;
+  readonly setQuitPending: (quitPending: boolean) => void;
+  readonly setQuitTimer: (quitTimer: number) => void;
   readonly render: () => void;
   readonly ticks: TickDispatch;
 }): boolean {

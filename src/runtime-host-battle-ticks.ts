@@ -251,8 +251,8 @@ export function startHostBattleLifecycle(
     showBanner: () =>
       showBattlePhaseBanner(showBanner, BANNER_BATTLE, () => {
         if (flights.length > 0) {
-          battleAnim.flights = flights.map((f) => ({
-            flight: f,
+          battleAnim.flights = flights.map((flight) => ({
+            flight,
             progress: 0,
           }));
           setModeBalloonAnim();

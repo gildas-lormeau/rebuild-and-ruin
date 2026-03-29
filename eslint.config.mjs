@@ -18,6 +18,20 @@ export default [
     plugins: { "@typescript-eslint": tseslint },
     rules: {
       "@typescript-eslint/no-floating-promises": "error",
+      "id-length": ["error", {
+          min: 2,
+          exceptions: [
+            "_",
+            "x", "y",       // pixel/world coordinates
+            "r", "c",       // row/col (grid coordinates, unpackTile destructuring)
+            "w", "h",       // width/height (lowercase)
+            "W", "H",       // width/height (canvas constants in render code)
+            "L", "R", "T", "B", // left/right/top/bottom bounds
+            "i", "j", "k",  // loop indices
+            "a", "b",       // sort comparators
+            "e",            // event handlers
+          ],
+        }],
 
       // --- LLM-agent guardrails ---
 

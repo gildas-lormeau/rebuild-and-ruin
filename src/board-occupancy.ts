@@ -134,7 +134,7 @@ export function collectOccupiedTiles(
 
 /** Snapshot each player's wall set (independent copies). */
 export function snapshotAllWalls(state: GameState): Set<number>[] {
-  return state.players.map((p) => new Set(p.walls));
+  return state.players.map((player) => new Set(player.walls));
 }
 
 export function collectAllWalls(state: GameState): Set<number> {
@@ -299,7 +299,9 @@ export function sweepIsolatedWalls(walls: Set<number>): void {
 
 /** Return all players that are not `playerId` and not eliminated. */
 export function filterActiveEnemies(state: GameState, playerId: number) {
-  return state.players.filter((p) => p.id !== playerId && !p.eliminated);
+  return state.players.filter(
+    (player) => player.id !== playerId && !player.eliminated,
+  );
 }
 
 function hasWallMatching(

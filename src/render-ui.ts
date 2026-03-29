@@ -176,26 +176,33 @@ export function drawScoreDeltas(
   if (!overlay?.ui?.scoreDeltas?.length) return;
   const progress = overlay.ui.scoreDeltaProgress ?? 1;
   const linear = Math.min(1, progress / 0.8); // count up in first 80%, hold final value for last 20%
-  const t = linear ** 3; // ease-in cubic: slow start, fast finish
+  const time = linear ** 3; // ease-in cubic: slow start, fast finish
   const fade = Math.min(1, progress / 0.15); // fade in over first 15%
   octx.save();
   octx.globalAlpha = fade;
   octx.textAlign = TEXT_ALIGN_CENTER;
   octx.textBaseline = TEXT_BASELINE_MIDDLE;
-  for (const d of overlay.ui.scoreDeltas) {
-    const shown = Math.round(d.delta * t);
-    const total = d.total - d.delta + shown;
+  for (const delta of overlay.ui.scoreDeltas) {
+    const shown = Math.round(delta.delta * time);
+    const total = delta.total - delta.delta + shown;
     octx.font = FONT_FLOAT_LG;
     drawShadowText(
       octx,
       `+${shown}`,
-      d.cx,
-      d.cy - 6,
+      delta.cx,
+      delta.cy - 6,
       SHADOW_COLOR_DENSE,
       TEXT_WHITE,
     );
     octx.font = FONT_FLOAT_MD;
-    drawShadowText(octx, `${total}`, d.cx, d.cy + 8, SHADOW_COLOR, GOLD_LIGHT);
+    drawShadowText(
+      octx,
+      `${total}`,
+      delta.cx,
+      delta.cy + 8,
+      SHADOW_COLOR,
+      GOLD_LIGHT,
+    );
   }
   octx.restore();
 }
@@ -231,22 +238,22 @@ export function drawStatusBar(
   octx.textAlign = TEXT_ALIGN_RIGHT;
   let rx = W - PAD;
   for (let i = sb.players.length - 1; i >= 0; i--) {
-    const p = sb.players[i]!;
-    if (p.eliminated) continue;
-    const c = p.color;
+    const player = sb.players[i]!;
+    if (player.eliminated) continue;
+    const c = player.color;
     // Lives
     octx.fillStyle = LIVES_HEART_COLOR;
-    const heartsStr = "\u2665".repeat(p.lives);
+    const heartsStr = "\u2665".repeat(player.lives);
     octx.fillText(heartsStr, rx, cy);
     rx -= octx.measureText(heartsStr).width + 2;
     // Cannons
     octx.fillStyle = rgb(c, OP_VIVID);
-    const cannonStr = `${p.cannons}c `;
+    const cannonStr = `${player.cannons}c `;
     octx.fillText(cannonStr, rx, cy);
     rx -= octx.measureText(cannonStr).width;
     // Score
     octx.fillStyle = rgb(c);
-    const scoreStr = `${p.score} `;
+    const scoreStr = `${player.score} `;
     octx.fillText(scoreStr, rx, cy);
     rx -= octx.measureText(scoreStr).width + 4;
   }
@@ -415,8 +422,8 @@ export function drawLifeLostDialog(
       const abFocused = entry.focused === LIFE_LOST_FOCUS_ABANDON;
 
       // Continue button
-      const t = now ?? Date.now();
-      const contFlash = contFocused && flashOn(BUTTON_FLASH_MS, t);
+      const time = now ?? Date.now();
+      const contFlash = contFocused && flashOn(BUTTON_FLASH_MS, time);
       drawButton(
         octx,
         contX,
@@ -438,7 +445,7 @@ export function drawLifeLostDialog(
       );
 
       // Abandon button
-      const abFlash = abFocused && flashOn(BUTTON_FLASH_MS, t);
+      const abFlash = abFocused && flashOn(BUTTON_FLASH_MS, time);
       drawButton(
         octx,
         abX,
@@ -501,8 +508,8 @@ export function drawPlayerSelect(
   const { gap, rectW, rectH, rectY } = computeLobbyLayout(W, H, count);
 
   for (let i = 0; i < count; i++) {
-    const p = selectData.players[i]!;
-    const c = p.color;
+    const player = selectData.players[i]!;
+    const c = player.color;
     const rx = gap + i * (rectW + gap);
 
     drawPanel(octx, rx, rectY, rectW, rectH, rgb(c, OP_SUBTLE), rgb(c));
@@ -511,13 +518,13 @@ export function drawPlayerSelect(
     const touch = IS_TOUCH_DEVICE;
     octx.font = touch ? FONT_HEADING : FONT_BODY;
     octx.fillStyle = rgb(c);
-    octx.fillText(p.name, cx, rectY + (touch ? 34 : 30));
+    octx.fillText(player.name, cx, rectY + (touch ? 34 : 30));
     const btnW = rectW - (touch ? 12 : 16);
     const btnH = touch ? 36 : 24;
     const btnX = rx + (touch ? 6 : 8);
     const btnY = rectY + rectH - btnH - (touch ? 8 : 12);
 
-    if (p.joined) {
+    if (player.joined) {
       drawButton(
         octx,
         btnX,
@@ -555,7 +562,7 @@ export function drawPlayerSelect(
     if (!touch) {
       octx.font = FONT_HINT;
       octx.fillStyle = TEXT_DIM;
-      octx.fillText(p.keyHint ?? "", cx, btnY - PAD);
+      octx.fillText(player.keyHint ?? "", cx, btnY - PAD);
     }
   }
 
@@ -610,8 +617,8 @@ export function drawOptionsScreen(
 
     // Arrow indicators for selected editable row
     if (selected && opt.editable) {
-      const t = now ?? Date.now();
-      const flash = flashOn(BUTTON_FLASH_MS, t);
+      const time = now ?? Date.now();
+      const flash = flashOn(BUTTON_FLASH_MS, time);
       octx.font = FONT_BODY;
       octx.fillStyle = flash ? GOLD_LIGHT : GOLD;
       octx.textAlign = TEXT_ALIGN_LEFT;
@@ -703,10 +710,10 @@ export function drawControlsScreen(
   const startY = headerY + 28;
 
   // Player name headers
-  for (let p = 0; p < colCount; p++) {
-    const player = ctrl.players[p]!;
+  for (let playerIndex = 0; playerIndex < colCount; playerIndex++) {
+    const player = ctrl.players[playerIndex]!;
     const c = player.color;
-    const cx = tableX + labelColW + p * playerColW + playerColW / 2;
+    const cx = tableX + labelColW + playerIndex * playerColW + playerColW / 2;
     octx.font = FONT_BODY;
     octx.fillStyle = rgb(c);
     octx.fillText(player.name, cx, headerY);
@@ -727,12 +734,12 @@ export function drawControlsScreen(
     octx.fillText(ctrl.actionNames[a]!, tableX + PAD, oy + rowH / 2);
 
     // Key cells for each player
-    for (let p = 0; p < colCount; p++) {
-      const player = ctrl.players[p]!;
-      const cx = tableX + labelColW + p * playerColW + playerColW / 2;
-      const cellX = tableX + labelColW + p * playerColW + PAD / 2;
+    for (let playerIndex = 0; playerIndex < colCount; playerIndex++) {
+      const player = ctrl.players[playerIndex]!;
+      const cx = tableX + labelColW + playerIndex * playerColW + playerColW / 2;
+      const cellX = tableX + labelColW + playerIndex * playerColW + PAD / 2;
       const cellW = playerColW - PAD;
-      const isSelected = p === ctrl.playerIdx && a === ctrl.actionIdx;
+      const isSelected = playerIndex === ctrl.playerIdx && a === ctrl.actionIdx;
 
       if (isSelected) {
         if (ctrl.rebinding) {

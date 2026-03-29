@@ -150,9 +150,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const myPid = config.getMyPlayerId();
     if (isStateReady(rs) && myPid >= 0) {
       const enemies: { x: number; y: number }[] = [];
-      for (const p of rs.state.players) {
-        if (p.id === myPid || p.eliminated) continue;
-        for (const c of p.cannons) {
+      for (const player of rs.state.players) {
+        if (player.id === myPid || player.eliminated) continue;
+        for (const c of player.cannons) {
           if (c.hp > 0)
             enemies.push({
               // +0.5 converts tile top-left to tile center (pixel coords)
@@ -163,9 +163,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       }
       w.__testEnemyCannons = enemies;
       const targets: { x: number; y: number }[] = [...enemies];
-      for (const p of rs.state.players) {
-        if (p.id === myPid || p.eliminated) continue;
-        for (const key of p.walls) {
+      for (const player of rs.state.players) {
+        if (player.id === myPid || player.eliminated) continue;
+        for (const key of player.walls) {
           const { r, c } = unpackTile(key);
           targets.push({ x: (c + 0.5) * TILE_SIZE, y: (r + 0.5) * TILE_SIZE });
         }
@@ -225,11 +225,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       quitTimer: rs.quitTimer,
       quitMessage: rs.quitMessage,
       frame: rs.frame,
-      setQuitPending: (v: boolean) => {
-        rs.quitPending = v;
+      setQuitPending: (quitPending: boolean) => {
+        rs.quitPending = quitPending;
       },
-      setQuitTimer: (v: number) => {
-        rs.quitTimer = v;
+      setQuitTimer: (quitTimer: number) => {
+        rs.quitTimer = quitTimer;
       },
       render,
       ticks: modeTickers,
@@ -539,25 +539,25 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getOverlay: () => rs.overlay,
     settings: rs.settings,
     getMode: () => rs.mode,
-    setMode: (m) => {
-      rs.mode = m;
+    setMode: (mode) => {
+      rs.mode = mode;
     },
     getPaused: () => rs.paused,
-    setPaused: (v) => {
-      rs.paused = v;
+    setPaused: (paused) => {
+      rs.paused = paused;
     },
     optionsCursor: {
       get value() {
         return rs.optionsCursor;
       },
-      set value(v) {
-        rs.optionsCursor = v;
+      set value(value) {
+        rs.optionsCursor = value;
       },
     },
     controlsState: rs.controlsState,
     getOptionsReturnMode: () => rs.optionsReturnMode,
-    setOptionsReturnMode: (m) => {
-      rs.optionsReturnMode = m;
+    setOptionsReturnMode: (mode) => {
+      rs.optionsReturnMode = mode;
     },
     lobby: rs.lobby,
     getFrame: () => rs.frame,

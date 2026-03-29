@@ -55,15 +55,15 @@ export const TILE_CENTER_OFFSET = 0.5;
 
 /** Call `fn` for each tile of a 2×2 tower footprint. */
 export function forEachTowerTile(
-  t: TilePos,
+  tilePos: TilePos,
   fn: (r: number, c: number, key: number) => void,
 ): void {
-  forEachSquareTile(t.row, t.col, TOWER_SIZE, fn);
+  forEachSquareTile(tilePos.row, tilePos.col, TOWER_SIZE, fn);
 }
 
 /** True if (r,c) is within a 2×2 tower footprint. */
-export function isTowerTile(t: TilePos, r: number, c: number): boolean {
-  return isTileInRect(t.row, t.col, TOWER_SIZE, r, c);
+export function isTowerTile(tilePos: TilePos, r: number, c: number): boolean {
+  return isTileInRect(tilePos.row, tilePos.col, TOWER_SIZE, r, c);
 }
 
 /** Return the set of packed tile keys covered by a cannon footprint. */
@@ -93,9 +93,21 @@ export function isCannonTile(
 }
 
 /** Manhattan distance from (r,c) to nearest tile of a TOWER_SIZE×TOWER_SIZE tower. */
-export function distanceToTower(t: TilePos, r: number, c: number): number {
-  const dr = Math.max(0, t.row - r, r - (t.row + TOWER_SIZE - 1));
-  const dc = Math.max(0, t.col - c, c - (t.col + TOWER_SIZE - 1));
+export function distanceToTower(
+  tilePos: TilePos,
+  row: number,
+  col: number,
+): number {
+  const dr = Math.max(
+    0,
+    tilePos.row - row,
+    row - (tilePos.row + TOWER_SIZE - 1),
+  );
+  const dc = Math.max(
+    0,
+    tilePos.col - col,
+    col - (tilePos.col + TOWER_SIZE - 1),
+  );
   return dr + dc;
 }
 
@@ -111,18 +123,21 @@ export function cannonCenter(
 }
 
 /** Center of a tower footprint (between the tiles). */
-export function towerCenter(t: TilePos): {
+export function towerCenter(tilePos: TilePos): {
   row: number;
   col: number;
 } {
   const half = TOWER_SIZE / 2;
-  return { row: t.row + half - 0.5, col: t.col + half - 0.5 };
+  return { row: tilePos.row + half - 0.5, col: tilePos.col + half - 0.5 };
 }
 
 /** Pixel center of a tower footprint. */
-export function towerCenterPx(t: TilePos): PixelPos {
+export function towerCenterPx(tilePos: TilePos): PixelPos {
   const half = TOWER_SIZE / 2;
-  return { x: (t.col + half) * TILE_SIZE, y: (t.row + half) * TILE_SIZE };
+  return {
+    x: (tilePos.col + half) * TILE_SIZE,
+    y: (tilePos.row + half) * TILE_SIZE,
+  };
 }
 
 /** Pixel position at the center of the tile at (row, col). */
@@ -131,8 +146,11 @@ export function tileCenterPx(row: number, col: number): PixelPos {
 }
 
 /** True if all 4 tiles of a 2×2 tower are enclosed (not in the outside set). */
-export function isTowerEnclosed(t: TilePos, outside: Set<number>): boolean {
-  return isSquareEnclosed(t.row, t.col, 2, outside);
+export function isTowerEnclosed(
+  tilePos: TilePos,
+  outside: Set<number>,
+): boolean {
+  return isSquareEnclosed(tilePos.row, tilePos.col, 2, outside);
 }
 
 /**
@@ -147,15 +165,15 @@ export function isTowerEnclosed(t: TilePos, outside: Set<number>): boolean {
  *    even when 8-dir flood leaks through a diagonal gap
  */
 export function towerReachesOutsideCardinal(
-  t: Tower,
+  tower: Tower,
   walls: Set<number>,
   targets?: Set<number>,
 ): boolean {
-  const start = packTile(t.row, t.col);
+  const start = packTile(tower.row, tower.col);
   const visited = new Set<number>([start]);
-  const q = [start];
-  while (q.length > 0) {
-    const key = q.pop()!;
+  const queue = [start];
+  while (queue.length > 0) {
+    const key = queue.pop()!;
     const { r: kr, c: kc } = unpackTile(key);
     if (targets) {
       if (targets.has(key)) return true;
@@ -169,7 +187,7 @@ export function towerReachesOutsideCardinal(
       const nk = packTile(nr, nc);
       if (visited.has(nk) || walls.has(nk)) continue;
       visited.add(nk);
-      q.push(nk);
+      queue.push(nk);
     }
   }
   return false;
@@ -207,7 +225,7 @@ export function hasPitAt(
   r: number,
   c: number,
 ): boolean {
-  return pits.some((p) => isAtTile(p, r, c));
+  return pits.some((pit) => isAtTile(pit, r, c));
 }
 
 /** Count orthogonal wall neighbors of a tile key in a wall set. */
@@ -216,12 +234,12 @@ export function countWallNeighbors(
   r: number,
   c: number,
 ): number {
-  let n = 0;
-  if (walls.has(packTile(r - 1, c))) n++;
-  if (walls.has(packTile(r + 1, c))) n++;
-  if (walls.has(packTile(r, c - 1))) n++;
-  if (walls.has(packTile(r, c + 1))) n++;
-  return n;
+  let neighbors = 0;
+  if (walls.has(packTile(r - 1, c))) neighbors++;
+  if (walls.has(packTile(r + 1, c))) neighbors++;
+  if (walls.has(packTile(r, c - 1))) neighbors++;
+  if (walls.has(packTile(r, c + 1))) neighbors++;
+  return neighbors;
 }
 
 /** Compute the facing angle from origin to target, snapped to 45° increments. */
@@ -289,9 +307,9 @@ export function towerAtPixel(
   let bestDist = Infinity;
 
   for (let i = 0; i < towers.length; i++) {
-    const t = towers[i]!;
-    const dr = tileRow - (t.row + 0.5);
-    const dc = tileCol - (t.col + 0.5);
+    const tower = towers[i]!;
+    const dr = tileRow - (tower.row + 0.5);
+    const dc = tileCol - (tower.col + 0.5);
     const dist = Math.sqrt(dr * dr + dc * dc);
     if (dist < HIT_RADIUS && dist < bestDist) {
       bestDist = dist;
@@ -320,10 +338,10 @@ export function findNearestTower(
 
   for (let i = 0; i < towers.length; i++) {
     if (i === currentIdx) continue;
-    const t = towers[i]!;
-    if (zone !== undefined && t.zone !== zone) continue;
-    const dr = t.row - current.row;
-    const dc = t.col - current.col;
+    const tower = towers[i]!;
+    if (zone !== undefined && tower.zone !== zone) continue;
+    const dr = tower.row - current.row;
+    const dc = tower.col - current.col;
 
     let primary: number;
     let secondary: number;
@@ -411,7 +429,7 @@ export function computeOutside(
   extraBarriers?: Set<number>,
 ): Set<number> {
   const outside = new Set<number>();
-  const q: number[] = [];
+  const queue: number[] = [];
   const blocked = (key: number) =>
     walls.has(key) || (extraBarriers !== undefined && extraBarriers.has(key));
   for (let r = 0; r < GRID_ROWS; r++) {
@@ -420,13 +438,13 @@ export function computeOutside(
         const key = packTile(r, c);
         if (!blocked(key)) {
           outside.add(key);
-          q.push(key);
+          queue.push(key);
         }
       }
     }
   }
-  while (q.length > 0) {
-    const key = q.pop()!;
+  while (queue.length > 0) {
+    const key = queue.pop()!;
     const { r, c } = unpackTile(key);
     for (const [dr, dc] of DIRS_8) {
       const nr = r + dr,
@@ -435,7 +453,7 @@ export function computeOutside(
       const nk = packTile(nr, nc);
       if (outside.has(nk) || blocked(nk)) continue;
       outside.add(nk);
-      q.push(nk);
+      queue.push(nk);
     }
   }
   return outside;
@@ -529,14 +547,14 @@ function nearestItemIndex<T extends TilePos>(
   let bestIdx = 0;
   let bestDist = Infinity;
   for (let i = 0; i < remaining.length; i++) {
-    const d = manhattanDistance(
+    const distance = manhattanDistance(
       remaining[i]!.row,
       remaining[i]!.col,
       target.row,
       target.col,
     );
-    if (d < bestDist) {
-      bestDist = d;
+    if (distance < bestDist) {
+      bestDist = distance;
       bestIdx = i;
     }
   }

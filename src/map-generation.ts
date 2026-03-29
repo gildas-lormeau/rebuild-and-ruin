@@ -142,20 +142,20 @@ export function generateMap(seed?: number): GameMap {
  */
 export function topZonesBySize(
   map: GameMap,
-  n: number,
+  count: number,
 ): { zone: number; count: number }[] {
   const counts = new Map<number, number>();
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       if (map.tiles[r]![c] === TILE_GRASS) {
-        const z = map.zones[r]![c]!;
-        counts.set(z, (counts.get(z) ?? 0) + 1);
+        const zone = map.zones[r]![c]!;
+        counts.set(zone, (counts.get(zone) ?? 0) + 1);
       }
     }
   }
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, n)
+    .slice(0, count)
     .map(([zone, count]) => ({ zone, count }));
 }
 
@@ -164,7 +164,7 @@ function hasThreeBalancedZones(
   maxRatio: number,
 ): boolean {
   const bigZones = [...regionSizes.values()]
-    .filter((s) => s > MIN_ZONE_SIZE)
+    .filter((size) => size > MIN_ZONE_SIZE)
     .sort((a, b) => b - a);
   if (bigZones.length < 3) return false;
   return bigZones[0]! / bigZones[2]! <= maxRatio;
@@ -272,16 +272,16 @@ function buildRiverDistanceGrid(tiles: readonly Tile[][]): number[][] {
   let head = 0;
   while (head < queue.length) {
     const [r, c] = queue[head++]!;
-    const d = dist[r]![c]!;
+    const distance = dist[r]![c]!;
     forEachOrthoNeighbor(r, c, (nr, nc) => {
       if (
         nr >= 0 &&
         nr < GRID_ROWS &&
         nc >= 0 &&
         nc < GRID_COLS &&
-        dist[nr]![nc]! > d + 1
+        dist[nr]![nc]! > distance + 1
       ) {
-        dist[nr]![nc] = d + 1;
+        dist[nr]![nc] = distance + 1;
         queue.push([nr, nc]);
       }
     });
@@ -316,18 +316,19 @@ function placeTowers(
     // Farthest-point sampling
     // First tower: near centroid
     const centroidC =
-      validPositions.reduce((s, [c]) => s + c, 0) / validPositions.length;
+      validPositions.reduce((size, [c]) => size + c, 0) / validPositions.length;
     const centroidR =
-      validPositions.reduce((s, [, r]) => s + r, 0) / validPositions.length;
+      validPositions.reduce((size, [, r]) => size + r, 0) /
+      validPositions.length;
 
     let bestIdx = 0;
     let bestDist = Infinity;
     for (let i = 0; i < validPositions.length; i++) {
-      const d =
+      const distance =
         Math.abs(validPositions[i]![0] - centroidC) +
         Math.abs(validPositions[i]![1] - centroidR);
-      if (d < bestDist) {
-        bestDist = d;
+      if (distance < bestDist) {
+        bestDist = distance;
         bestIdx = i;
       }
     }
@@ -340,7 +341,7 @@ function placeTowers(
     });
 
     // Remaining towers: farthest from existing zone towers
-    for (let t = 1; t < TOWERS_PER_ZONE; t++) {
+    for (let tower = 1; tower < TOWERS_PER_ZONE; tower++) {
       let bestPos: [number, number] | null = null;
       let bestMinDist = -1;
 
@@ -411,8 +412,9 @@ function isValidTowerPos(
   }
 
   // Tower gap: min empty tiles between edges (Manhattan)
-  for (const t of existingTowers) {
-    if (towerRectDistance(col, row, t.col, t.row) < MIN_GAP_TOWER) return false;
+  for (const tower of existingTowers) {
+    if (towerRectDistance(col, row, tower.col, tower.row) < MIN_GAP_TOWER)
+      return false;
   }
 
   return true;
@@ -475,7 +477,7 @@ function paintRiver(
     const path = interpolatePath(junction, exit, rng);
 
     for (let i = 0; i < path.length; i++) {
-      const p = path[i]!;
+      const point = path[i]!;
 
       // Determine path direction to paint perpendicular width
       const prev = path[Math.max(0, i - 1)]!;
@@ -483,16 +485,16 @@ function paintRiver(
       const dx = next.x - prev.x;
       const dy = next.y - prev.y;
 
-      setWater(p.x, p.y);
+      setWater(point.x, point.y);
 
       if (Math.abs(dx) >= Math.abs(dy)) {
         // Moving mostly horizontal -> paint vertical width (3 tiles)
-        setWater(p.x, p.y - 1);
-        setWater(p.x, p.y + 1);
+        setWater(point.x, point.y - 1);
+        setWater(point.x, point.y + 1);
       } else {
         // Moving mostly vertical -> paint horizontal width (3 tiles)
-        setWater(p.x - 1, p.y);
-        setWater(p.x + 1, p.y);
+        setWater(point.x - 1, point.y);
+        setWater(point.x + 1, point.y);
       }
     }
   }
@@ -526,16 +528,16 @@ function interpolatePath(from: PixelPos, to: PixelPos, rng: Rng): PixelPos[] {
   let prevY = -999;
 
   for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const u = 1 - t;
+    const interpolationParameter = i / steps;
+    const complement = 1 - interpolationParameter;
     const bx =
-      u * u * controlPoints[0]!.x +
-      2 * u * t * controlPoints[1]!.x +
-      t * t * controlPoints[2]!.x;
+      complement * complement * controlPoints[0]!.x +
+      2 * complement * interpolationParameter * controlPoints[1]!.x +
+      interpolationParameter * interpolationParameter * controlPoints[2]!.x;
     const by =
-      u * u * controlPoints[0]!.y +
-      2 * u * t * controlPoints[1]!.y +
-      t * t * controlPoints[2]!.y;
+      complement * complement * controlPoints[0]!.y +
+      2 * complement * interpolationParameter * controlPoints[1]!.y +
+      interpolationParameter * interpolationParameter * controlPoints[2]!.y;
 
     const px = Math.round(bx);
     const py = Math.round(by);

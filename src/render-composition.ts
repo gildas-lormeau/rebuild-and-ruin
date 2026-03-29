@@ -140,12 +140,12 @@ export function createStatusBar(
         : `R${state.round}/${state.battleLength}`,
     phase: PHASE_LABELS.get(state.phase) ?? "",
     timer: state.timer > 0 ? `${Math.ceil(state.timer)}s` : "",
-    players: state.players.map((p, i) => ({
-      score: p.score,
-      cannons: p.cannons.filter((c) => c.hp > 0).length,
-      lives: p.lives,
+    players: state.players.map((player, i) => ({
+      score: player.score,
+      cannons: player.cannons.filter((c) => c.hp > 0).length,
+      lives: player.lives,
       color: playerColors[i % playerColors.length]!.interiorLight,
-      eliminated: p.eliminated,
+      eliminated: player.eliminated,
     })),
   };
 }
@@ -238,19 +238,23 @@ export function lifeLostPanelPos(
   playerId: number,
 ): { px: number; py: number } {
   const zone = state.playerZones[playerId] ?? 0;
-  const zoneTowers = state.map.towers.filter((t) => t.zone === zone);
+  const zoneTowers = state.map.towers.filter((tower) => tower.zone === zone);
   const tsW = GRID_COLS * TILE_SIZE;
   const tsH = GRID_ROWS * TILE_SIZE;
 
   // Tower centroid (+1 offset for 2×2 tower center), or map center as fallback
   const cx =
     zoneTowers.length > 0
-      ? (zoneTowers.reduce((s, t) => s + t.col, 0) / zoneTowers.length + 1) *
+      ? (zoneTowers.reduce((sum, tower) => sum + tower.col, 0) /
+          zoneTowers.length +
+          1) *
         TILE_SIZE
       : tsW / 2;
   const cy =
     zoneTowers.length > 0
-      ? (zoneTowers.reduce((s, t) => s + t.row, 0) / zoneTowers.length + 1) *
+      ? (zoneTowers.reduce((sum, tower) => sum + tower.row, 0) /
+          zoneTowers.length +
+          1) *
         TILE_SIZE
       : tsH / 2;
 
@@ -501,12 +505,12 @@ function buildCastleOverlay(
   pendingOldWalls?: readonly Set<number>[],
 ): CastleData[] {
   return state.players
-    .filter((p) => p.castle)
-    .map((p) => ({
-      walls: pendingOldWalls?.[p.id] ?? p.walls,
-      interior: p.interior,
-      cannons: p.cannons,
-      playerId: p.id,
+    .filter((player) => player.castle)
+    .map((player) => ({
+      walls: pendingOldWalls?.[player.id] ?? player.walls,
+      interior: player.interior,
+      cannons: player.cannons,
+      playerId: player.id,
     }));
 }
 
