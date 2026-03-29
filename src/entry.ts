@@ -72,14 +72,12 @@ serverHostInput.addEventListener("change", () => {
   else localStorage.removeItem(SERVER_STORAGE_KEY);
 });
 
-// Fullscreen on Create/Join confirm (needs user gesture)
+// Fullscreen on Create/Join submit (needs user gesture)
 document
-  .getElementById("btn-create-confirm")!
-  .addEventListener("click", tryFullscreen);
+  .getElementById("form-create")!
+  .addEventListener("submit", tryFullscreen);
 
-document
-  .getElementById("btn-join-confirm")!
-  .addEventListener("click", tryFullscreen);
+document.getElementById("form-join")!.addEventListener("submit", tryFullscreen);
 
 // --- Auto-join via QR code: ?join=XXXX&server=host ---
 if (autoJoinCode) {

@@ -40,7 +40,7 @@
       </div>
 
       <div class="lobby-grid">
-        <section class="lobby-card" aria-label="Create a room">
+        <form class="lobby-card" id="form-create" aria-label="Create a room">
           <h2>Create Room</h2>
           <div class="card-body">
             <div class="setting-row">
@@ -74,21 +74,21 @@
                 <option value="120">2 minutes</option>
               </select>
             </div>
-            <button type="button" class="lobby-btn" id="btn-create-confirm">Create Room</button>
+            <button type="submit" class="lobby-btn" id="btn-create-confirm">Create Room</button>
             <output class="error-msg" id="create-error"></output>
           </div>
-        </section>
+        </form>
 
-        <section class="lobby-card" aria-label="Join a room">
+        <form class="lobby-card" id="form-join" aria-label="Join a room">
           <h2>Join Room</h2>
           <div class="card-body card-body--join">
             <p class="card-hint">Enter a 4-letter room code</p>
             <input class="lobby-input room-code-input" id="join-code" type="text"
               maxlength="4" placeholder="ABCD" autocomplete="off" spellcheck="false">
-            <button type="button" class="lobby-btn" id="btn-join-confirm">Join Room</button>
+            <button type="submit" class="lobby-btn" id="btn-join-confirm">Join Room</button>
             <output class="error-msg" id="join-error"></output>
           </div>
-        </section>
+        </form>
       </div>
 
       <section class="rooms-section" aria-label="Available rooms">

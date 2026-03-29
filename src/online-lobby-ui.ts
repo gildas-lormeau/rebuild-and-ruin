@@ -65,22 +65,27 @@ export function initLobbyUi({
     }
   };
 
-  elements.btnCreateConfirm.addEventListener("click", () => {
-    elements.createError.textContent = "";
-    scheduleOnOpen(() => {
-      const roundsVal = Number(elements.setRounds.value);
-      const battleLength = roundsVal > 0 ? roundsVal : 0;
-      send({
-        type: MESSAGE.CREATE_ROOM,
-        settings: {
-          battleLength,
-          cannonMaxHp: Number(elements.setHp.value),
-          waitTimerSec: Number(elements.setWait.value),
-        },
+  const formCreate = elements.btnCreateConfirm.closest("form");
+  (formCreate ?? elements.btnCreateConfirm).addEventListener(
+    formCreate ? "submit" : "click",
+    (e) => {
+      e.preventDefault();
+      elements.createError.textContent = "";
+      scheduleOnOpen(() => {
+        const roundsVal = Number(elements.setRounds.value);
+        const battleLength = roundsVal > 0 ? roundsVal : 0;
+        send({
+          type: MESSAGE.CREATE_ROOM,
+          settings: {
+            battleLength,
+            cannonMaxHp: Number(elements.setHp.value),
+            waitTimerSec: Number(elements.setWait.value),
+          },
+        });
+        setIsHost(true);
       });
-      setIsHost(true);
-    });
-  });
+    },
+  );
 
   const doJoin = (code: string) => {
     elements.joinError.textContent = "";
@@ -91,9 +96,14 @@ export function initLobbyUi({
     scheduleOnOpen(() => send({ type: MESSAGE.JOIN_ROOM, code }));
   };
 
-  elements.btnJoinConfirm.addEventListener("click", () => {
-    doJoin(elements.joinCodeInput.value.trim().toUpperCase());
-  });
+  const formJoin = elements.btnJoinConfirm.closest("form");
+  (formJoin ?? elements.btnJoinConfirm).addEventListener(
+    formJoin ? "submit" : "click",
+    (e) => {
+      e.preventDefault();
+      doJoin(elements.joinCodeInput.value.trim().toUpperCase());
+    },
+  );
 
   // Room list: fetch and render available rooms, poll every 3s while visible
   const roomListEl = doc.getElementById("room-list");
