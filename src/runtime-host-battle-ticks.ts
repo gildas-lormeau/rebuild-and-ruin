@@ -21,11 +21,11 @@ import {
   showBattlePhaseBanner,
 } from "./phase-transition-shared.ts";
 import {
+  advancePhaseTimer,
   getRemoteSlots,
   type HostNetContext,
   isHostInContext,
   localActiveControllers,
-  tickTimer,
 } from "./tick-context.ts";
 import type {
   BalloonFlight,
@@ -136,7 +136,8 @@ export function tickHostBattleCountdown(
 
   frame.announcement = getCountdownAnnouncement(state.battleCountdown);
 
-  syncCrosshairs(false, dt);
+  const canFireNow = false; // countdown — weapons not yet active
+  syncCrosshairs(canFireNow, dt);
   render();
 }
 
@@ -172,11 +173,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   const isHost = isHostInContext(deps.net);
   const sendMessage = deps.net?.sendMessage;
 
-  ({ accum: accum.battle, timer: state.timer } = tickTimer(
-    accum.battle,
-    dt,
-    battleTimer,
-  ));
+  advancePhaseTimer(accum, "battle", state, dt, battleTimer);
 
   // --- Step 1: Tick controllers → collect fire events ---
   const ballsBefore = state.cannonballs.length;
@@ -218,14 +215,15 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     if (allEvents.length > 0) onBattleEvents(allEvents);
   }
 
-  syncCrosshairs(true, dt);
+  const canFireNow = true; // battle active — weapons enabled
+  syncCrosshairs(canFireNow, dt);
   render();
 
   if (state.timer > 0 || state.cannonballs.length > 0) return false;
 
   for (const ctrl of controllers) {
     if (remoteHumanSlots.has(ctrl.playerId)) continue;
-    ctrl.onBattleEnd();
+    ctrl.endBattle();
   }
   onBattlePhaseEnded();
   return true;

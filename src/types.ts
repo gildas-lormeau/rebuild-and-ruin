@@ -196,7 +196,7 @@ export interface GameState {
   /** Index of the player whose turn it is (for sequential phases). */
   activePlayer: number;
   /** Remaining time in seconds for timed phases (counts DOWN from phase max to 0).
-   *  Set via tickTimer(): `timer = max - elapsed`. Check `timer > 0` for "time left". */
+   *  Set via advancePhaseTimer(): `timer = max - elapsed`. Check `timer > 0` for "time left". */
   timer: number;
   /** Active cannonballs in flight. */
   cannonballs: Cannonball[];

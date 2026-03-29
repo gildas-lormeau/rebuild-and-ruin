@@ -31,17 +31,18 @@ export function getRemoteSlots(
   return net?.remoteHumanSlots ?? NO_REMOTE_SLOTS;
 }
 
-/** Advance an accumulator timer: adds dt, returns the new accumulator value
- *  and clamped countdown timer (`max - elapsed`, clamped to 0).
- *  Callers destructure as: `({ accum: accum.X, timer: state.timer } = tickTimer(...))`.
- *  The returned `timer` counts DOWN — 0 means phase time expired. */
-export function tickTimer(
-  accum: number,
+/** Advance a phase timer in place: increments `accum[key]` by `dt` and sets
+ *  `state.timer` to the countdown value (`max − elapsed`, clamped to 0).
+ *  Mutates both objects so callers can't forget to write one of the two fields. */
+export function advancePhaseTimer<K extends string>(
+  accum: Record<K, number>,
+  key: K,
+  state: { timer: number },
   dt: number,
   max: number,
-): { accum: number; timer: number } {
-  const newAccum = accum + dt;
-  return { accum: newAccum, timer: Math.max(0, max - newAccum) };
+): void {
+  const elapsed = (accum[key] += dt);
+  state.timer = Math.max(0, max - elapsed);
 }
 
 /** Advance grunt accumulator and tick grunts when the interval elapses.

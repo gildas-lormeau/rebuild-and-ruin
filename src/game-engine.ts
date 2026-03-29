@@ -518,6 +518,13 @@ export function prepareCastleWallsForPlayer(
  * Order castle wall tiles for the build animation.
  * Walks the clean ring in perimeter order (CW or CCW), then interleaves
  * any extra tiles from clumsy builders right after their ring neighbor.
+ *
+ * Three tile sets in play (may overlap):
+ *   ringSet    — ideal 1-tile-wide perimeter ring before clumsy builders
+ *   finalWalls — all wall tiles that survived clumsy builders (ring ∩ survivors + extras)
+ *   extras     — tiles added by clumsy builders that are NOT in the original ring
+ *
+ * activeRing is ringSet ∩ finalWalls: ring tiles that survived the sweep.
  */
 function orderCastleWallsForAnimation(
   castle: Castle,
@@ -525,18 +532,21 @@ function orderCastleWallsForAnimation(
   finalWalls: Set<number>,
   rng: Rng,
 ): number[] {
+  // Pack the ideal ring into a fast-lookup set
   const ringSet = new Set<number>();
   for (const [r, c] of ringTiles) ringSet.add(packTile(r, c));
 
+  // Walk the ring in perimeter order (randomly CW or CCW)
   const ringWalk = buildPerimeterWalk(castle, ringSet);
   if (rng.bool(CASTLE_RING_REVERSE_CHANCE)) ringWalk.reverse();
 
+  // Extras = clumsy-builder tiles outside the original ring
   const extras = new Set<number>();
   for (const k of finalWalls) {
     if (!ringSet.has(k)) extras.add(k);
   }
-  // Some ring tiles may have been removed by clumsy builders
-  // (sweep phase removes tiles with ≤1 neighbor). Filter ring walk.
+
+  // Ring tiles that survived the clumsy-builder sweep (≤1 neighbor removal)
   const activeRing = ringWalk.filter((k) => finalWalls.has(k));
 
   return interleaveExtras(activeRing, extras, finalWalls);

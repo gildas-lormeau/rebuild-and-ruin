@@ -195,7 +195,7 @@ export function createScenario(seed = 42): Scenario {
       tickCannonballs(state, dt);
       t += dt;
     }
-    for (const ctrl of controllers) ctrl.onBattleEnd();
+    for (const ctrl of controllers) ctrl.endBattle();
     nextPhase(state);
   }
 

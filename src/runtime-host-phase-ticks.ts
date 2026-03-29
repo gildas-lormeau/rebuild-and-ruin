@@ -22,12 +22,12 @@ import {
 import { runBuildEndSequence } from "./phase-transition-shared.ts";
 import { unpackTile } from "./spatial.ts";
 import {
+  advancePhaseTimer,
   getRemoteSlots,
   type HostNetContext,
   isHostInContext,
   localActiveControllers,
   tickGruntsIfDue,
-  tickTimer,
 } from "./tick-context.ts";
 import { CannonMode, type GameState } from "./types.ts";
 
@@ -149,11 +149,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   const sendOpponentCannonPlaced = deps.net?.sendOpponentCannonPlaced;
   const sendOpponentCannonPhantom = deps.net?.sendOpponentCannonPhantom;
 
-  ({ accum: accum.cannon, timer: state.timer } = tickTimer(
-    accum.cannon,
-    dt,
-    state.cannonPlaceTimer,
-  ));
+  advancePhaseTimer(accum, "cannon", state, dt, state.cannonPlaceTimer);
 
   frame.phantoms = { aiCannonPhantoms: [] };
   // Pass 1: tick only local, non-eliminated controllers (process input & AI decisions)
@@ -235,7 +231,8 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   return true;
 }
 
-/** Tick the build phase. Returns true when the phase timer expires.
+/** Tick the build phase. Returns true when the phase ends (timer expired,
+ *  controllers finalized, life-loss dialogs queued), false while still ticking.
  *
  *  Remote vs local dispatch:
  *    Per-frame: ticks LOCAL controllers only (remoteHumanSlots skipped — their
@@ -247,11 +244,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   const remoteHumanSlots = getRemoteSlots(deps.net);
 
   // --- Timer + grunt tick ---
-  ({ accum: accum.build, timer: state.timer } = tickTimer(
-    accum.build,
-    dt,
-    state.buildTimer,
-  ));
+  advancePhaseTimer(accum, "build", state, dt, state.buildTimer);
   tickGruntsIfDue(accum, dt, state, deps.tickGrunts);
 
   // --- Process each controller's build actions, collect phantoms ---
