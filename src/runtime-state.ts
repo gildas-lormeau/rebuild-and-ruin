@@ -96,6 +96,9 @@ const DEFAULT_FRAME_DT = 1 / 60;
  */
 const SENTINEL = Symbol("uninitialized");
 
+/** Create initial runtime state. `state` and `ctx` are sentinel-guarded:
+ * they throw on any property access until startGame() assigns real values.
+ * All other fields are safe to access immediately. */
 export function createRuntimeState(): RuntimeState {
   return {
     state: uninitializedSentinel<GameState>("state"),

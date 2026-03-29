@@ -144,7 +144,7 @@ export function dispatchModeTap(
   return false;
 }
 
-/** Shared tower-selection tap — first tap highlights, same tower again confirms. */
+/** Shared tower-selection tap — first tap highlights, same tower again confirms. Does not return consumed status; caller is responsible for event management. */
 export function dispatchTowerSelect(
   wx: number,
   wy: number,
@@ -346,7 +346,7 @@ export function dispatchGameAction(
   return false;
 }
 
-/** Shared pointer-move dispatch — updates cursor/crosshair based on current phase. */
+/** Shared pointer-move dispatch — updates cursor/crosshair based on current phase. Always updates state; never "consumes" the event (returns void). */
 export function dispatchPointerMove(
   x: number,
   y: number,

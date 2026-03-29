@@ -27,6 +27,13 @@ import { createFullStateMessage } from "./online-serialize.ts";
 import { resetWatcherForHost } from "./online-watcher-tick.ts";
 import { assertNever, Mode } from "./types.ts";
 
+/** Promote this client to host. Order matters:
+ *  1. Reset networking (clear stale watcher/dedup state)
+ *  2. Rebuild controllers (create AI for vacant slots in current phase)
+ *  3. Sync accumulators (align timing with game state timers)
+ *  4. Skip pending UI animations (banner/balloon left over from old host)
+ *  5. Broadcast full state (must be last — state must be coherent first)
+ */
 export function promoteToHost(): void {
   log("PROMOTING TO HOST");
   session.isHost = true;

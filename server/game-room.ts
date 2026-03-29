@@ -177,8 +177,10 @@ export class GameRoom {
   private spectators = new Set<WebSocket>();
   private hostSocket: WebSocket | null = null;
 
-  /** Current phase, tracked from checkpoint messages. */
-  private phase = "LOBBY";
+  /** Current phase, tracked from checkpoint messages.
+   * Uses Phase enum for game phases + string literals for lobby/castle-build
+   * (which don't exist in the game Phase enum since they're UI-only states). */
+  private phase: string = "LOBBY";
 
   /** Rate limit tracking: socket → type → { count, windowStart }. */
   private rateLimits = new Map<

@@ -75,7 +75,8 @@ export function canPlacePiece(
   );
 }
 
-/** Same as canPlacePiece but accepts raw offsets — used when no PieceShape is available (e.g. network validation). */
+/** Same as canPlacePiece but accepts raw offsets — used when no PieceShape is available (e.g. network validation).
+ * See also: canPlaceCannon in cannon-system.ts for cannon placement validation. */
 export function canPlacePieceOffsets(
   state: GameState,
   playerId: number,
@@ -145,6 +146,13 @@ export function applyPiecePlacement(
   }
 }
 
+/** Reclaim territory for all players. Sub-function order matters:
+ *  1. recomputeInterior — flood-fill to find enclosed tiles (must be first)
+ *  2. updateOwnedTowers — mark towers alive/dead based on fresh interior
+ *  3. removeEnclosedGrunts — enemy grunts inside interior are killed/respawned
+ *  4. destroyEnclosedHouses — enemy houses inside interior are destroyed
+ *  5. captureEnclosedBonusSquares — bonus squares inside interior are scored
+ */
 export function claimTerritory(
   state: GameState,
   endOfBuildPhase = false,

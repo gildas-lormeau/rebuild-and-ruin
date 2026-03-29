@@ -512,7 +512,7 @@ export function createFloatingActions(
     });
   }
 
-  const TAP_THRESHOLD = 10; // pixels — beyond this the gesture is a drag
+  const TAP_THRESHOLD = 20; // CSS pixels — must match TAP_MAX_DIST in input-touch-canvas.ts
   for (const [btn, handler] of [
     [btnRotate, handleRotate],
     [btnConfirm, handleConfirm],

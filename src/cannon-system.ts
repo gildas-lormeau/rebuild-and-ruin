@@ -112,6 +112,7 @@ export function placeCannon(
 /**
  * Check if a cannon can be placed at (row, col) inside the player's territory.
  * All tiles must be interior, not a wall, not a tower, not an existing cannon.
+ * See also: canPlacePieceOffsets in build-system.ts for wall placement validation.
  */
 export function canPlaceCannon(
   player: Player,

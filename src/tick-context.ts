@@ -15,11 +15,14 @@ export interface HostNetContext {
   isHost: boolean;
 }
 
+/** Empty set used as default when no remote players exist (local play). */
+const NO_REMOTE_SLOTS: ReadonlySet<number> = EMPTY_TILE_SET;
+
 /** Extract remote human slots from optional net context, defaulting to empty for local play. */
 export function getRemoteSlots(
   net?: Pick<HostNetContext, "remoteHumanSlots">,
 ): ReadonlySet<number> {
-  return net?.remoteHumanSlots ?? EMPTY_TILE_SET;
+  return net?.remoteHumanSlots ?? NO_REMOTE_SLOTS;
 }
 
 /** Filter controllers to only local (non-remote) players that are still alive. */

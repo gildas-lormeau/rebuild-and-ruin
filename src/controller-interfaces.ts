@@ -18,18 +18,23 @@ export type OrbitParams = {
   phase: number;
 };
 
+/** Visual preview of a piece placement (not committed to game state). */
 export interface LocalPiecePhantom {
   offsets: [number, number][];
   row: number;
   col: number;
+  /** true = placement is legal at this position. */
   valid: boolean;
   playerId: number;
 }
 
+/** Visual preview of a cannon placement (not committed to game state). */
 export interface LocalCannonPhantom {
   row: number;
   col: number;
+  /** true = placement is legal at this position. */
   valid: boolean;
+  /** Cannon mode — named `kind` to match the Cannon type's field. */
   kind: CannonMode;
   playerId: number;
   facing: number;

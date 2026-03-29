@@ -16,6 +16,7 @@ import type { LifeLostChoice } from "./types.ts";
 
 export interface OnlineSession {
   ws: WebSocket | null;
+  /** This player's slot id. -1 = watcher/spectator (not an active player). */
   myPlayerId: number;
   isHost: boolean;
   hostMigrationSeq: number;
