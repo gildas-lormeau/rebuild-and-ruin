@@ -257,7 +257,7 @@ export function tickCannonballs(
   const remaining: Cannonball[] = [];
 
   for (const ball of state.cannonballs) {
-    const hit = moveCannonball(ball, dt);
+    const hit = advanceCannonball(ball, dt);
     if (hit) {
       // Ball has arrived — compute and apply impact
       const shooterId = ball.scoringPlayerId ?? ball.playerId;
@@ -283,13 +283,13 @@ export function tickCannonballs(
 }
 
 /**
- * Move a cannonball toward its target by `dt` seconds. Mutates `ball.x`/`ball.y`.
+ * Advance a cannonball by one tick (`dt` seconds). Mutates `ball.x`/`ball.y`.
  * Returns the impact tile position if the ball arrived, or null if still in flight.
  *
  * Shared between host (tickCannonballs) and watcher (tickWatcherBattlePhase)
  * to eliminate drift in speed/arrival logic.
  */
-export function moveCannonball(
+export function advanceCannonball(
   ball: Pick<Cannonball, "x" | "y" | "targetX" | "targetY" | "speed">,
   dt: number,
 ): TilePos | null {
@@ -381,10 +381,12 @@ export function applyImpactEvent(
  * For each balloon, find the "most dangerous" enemy cannon and capture it.
  * Returns flight paths for animation.
  *
- * Balloon hit lifecycle:
- *   - state.balloonHits accumulates hit counts across battles (persists).
- *   - capturerIds is cleared each battle by cleanupBalloonHitTrackingAfterBattle()
- *     so only the deciding battle's contributors claim the capture.
+ * Balloon hit lifecycle (persistent counts, per-battle capturers):
+ *   - state.balloonHits.count accumulates across battles — a cannon that
+ *     survives multiple rounds keeps its prior hit count toward capture.
+ *   - state.balloonHits.capturerIds tracks which players contributed hits
+ *     THIS battle only — cleared each round by cleanupBalloonHitTrackingAfterBattle()
+ *     so only the deciding battle's contributors can claim the capture.
  *   - Entries are deleted when a cannon is captured or destroyed.
  */
 export function resolveBalloons(state: GameState): BalloonFlight[] {
@@ -442,20 +444,31 @@ export function resolveBalloons(state: GameState): BalloonFlight[] {
   return flights;
 }
 
-/** Clean up balloon hit tracking at the end of a battle round. */
+/** Clean up balloon hit tracking at the end of a battle round.
+ *
+ *  Order is load-bearing:
+ *  1. Delete captured cannons (fully resolved — no longer need tracking)
+ *  2. Delete destroyed cannons (dead target — hits are moot)
+ *  3. Clear capturerIds on survivors (hit count persists, but next battle
+ *     must earn its own capturer credit)
+ *
+ *  Reordering breaks invariant: clearing capturerIds before deleting captured
+ *  would leave stale entries; deleting destroyed before captured would miss
+ *  cannons that died from capture-related combat this round.
+ */
 export function cleanupBalloonHitTrackingAfterBattle(state: GameState): void {
-  // Reset balloon hit counters for cannons that were captured (used this battle)
+  // 1. Remove entries for captured cannons (capture is resolved)
   for (const cc of state.capturedCannons) {
     state.balloonHits.delete(cc.cannon);
   }
 
-  // Also clean up hit counters for destroyed cannons
+  // 2. Remove entries for destroyed cannons (no longer targetable)
   for (const [cannon] of state.balloonHits) {
     if (!isCannonAlive(cannon)) state.balloonHits.delete(cannon);
   }
 
-  // Clear capturerIds for non-captured cannons so only the deciding
-  // battle's contributors can win (hit count persists across battles)
+  // 3. Clear capturerIds for survivors — hit count persists across battles,
+  //    but only the deciding battle's contributors can claim a capture
   for (const [, hit] of state.balloonHits) {
     hit.capturerIds = [];
   }
@@ -525,6 +538,13 @@ function canFireCaptured(state: GameState, cc: CapturedCannon): boolean {
 /**
  * Compute impact events at a tile position (pure — no state mutation).
  * Returns events describing what should happen: wall destroyed, cannon damaged, etc.
+ *
+ * Collector order matters — adding a new impact type:
+ *   1. collectWallImpacts must run first (its `hitWall` return gates incendiary pit creation)
+ *   2. collectCannonImpacts is independent
+ *   3. PIT_CREATED depends on step 1's hitWall + incendiary flag
+ *   4. collectHouseImpacts / collectGruntImpacts are independent
+ * New collectors that don't depend on hitWall can go after step 3.
  */
 function computeImpact(
   state: GameState,
@@ -537,9 +557,12 @@ function computeImpact(
   if (!inBounds(row, col)) return events;
   const key = packTile(row, col);
 
+  // Step 1: walls (must be first — hitWall gates incendiary pit below)
   const hitWall = collectWallImpacts(state, events, key, row, col, shooterId);
+  // Step 2: cannons (independent)
   collectCannonImpacts(state, events, row, col, shooterId);
 
+  // Step 3: incendiary pit (depends on hitWall from step 1)
   if (incendiary && hitWall && !hasPitAt(state.burningPits, row, col)) {
     events.push({
       type: MESSAGE.PIT_CREATED,
@@ -549,7 +572,7 @@ function computeImpact(
     });
   }
 
-  // Towers are NOT damaged by cannonballs — only grunts can destroy towers.
+  // Step 4: houses and grunts (independent — towers NOT damaged by cannonballs)
   collectHouseImpacts(state, events, row, col, shooterId);
   collectGruntImpacts(state, events, row, col, shooterId);
 

@@ -324,12 +324,14 @@ function moveOneGrunt(state: GameState, grunt: Grunt): boolean {
   return false;
 }
 
+/** Add a grunt at (row, col). Validates position is in-bounds and on passable grass. */
 function addGrunt(
   state: GameState,
   row: number,
   col: number,
   targetPlayerId: number,
 ): void {
+  if (!inBounds(row, col) || !isGrass(state.map.tiles, row, col)) return;
   state.grunts.push({ row, col, targetPlayerId });
 }
 
@@ -476,10 +478,10 @@ function lockGruntTarget(state: GameState, grunt: Grunt): void {
 }
 
 /**
- * Ranked candidate moves for a grunt.
- * 1. Forward moves (reduce distance to target), sorted closest first
- * 2. Orthogonal moves (same distance), for going around blockers
- * tickGrunts tries them in order, skipping grunt-occupied tiles.
+ * Ranked candidate moves for a grunt (2-tier priority):
+ * 1. Forward moves — reduce distance to target, sorted closest-first
+ * 2. Sideways moves — don't increase distance on the moving axis, for skirting obstacles
+ * moveOneGrunt tries them in order, skipping grunt-occupied and interior tiles.
  */
 function gruntCandidateMoves(state: GameState, grunt: Grunt): TilePos[] {
   const target = gruntTargetPos(state, grunt);

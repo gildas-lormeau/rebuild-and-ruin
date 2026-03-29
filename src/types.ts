@@ -63,7 +63,8 @@ export interface Cannon extends TilePos {
 export interface CastleData {
   /** Wall tile positions encoded as row*GRID_COLS+col. */
   walls: Set<number>;
-  /** Interior tile positions encoded as row*GRID_COLS+col. */
+  /** Enclosed territory: grass tiles fully surrounded by walls (inverse flood-fill).
+   *  Encoded as row*GRID_COLS+col. Used for cannon eligibility, grunt blocking, and scoring. */
   interior: ReadonlySet<number>;
   /** Cannon positions (top-left of 2×2 or 3×3 super) with HP. */
   cannons: Cannon[];
@@ -143,7 +144,8 @@ export interface Player {
   ownedTowers: Tower[];
   /** Wall tiles owned by this player (row,col pairs encoded as row*COLS+col). */
   walls: Set<number>;
-  /** Interior tiles (territory inside walls, encoded as row*COLS+col).
+  /** Enclosed territory: grass tiles fully surrounded by walls (inverse flood-fill),
+   *  encoded as row*COLS+col. Determines cannon eligibility, grunt blocking, and scoring.
    *  ReadonlySet enforced at the type level — only recomputeInterior(),
    *  resetCastle(), and checkpoint deserialization may write to it. */
   interior: ReadonlySet<number>;
@@ -464,6 +466,15 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
 /** True if the phase is a placement phase (walls or cannons). */
 export function isPlacementPhase(phase: Phase): boolean {
   return phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE;
+}
+
+/** True if the mode is a non-interactive transition (banner, balloon anim, castle build). */
+export function isTransitionMode(mode: Mode): boolean {
+  return (
+    mode === Mode.BANNER ||
+    mode === Mode.BALLOON_ANIM ||
+    mode === Mode.CASTLE_BUILD
+  );
 }
 
 /**

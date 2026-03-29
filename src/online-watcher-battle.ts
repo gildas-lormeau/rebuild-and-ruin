@@ -1,7 +1,7 @@
 import {
+  advanceCannonball,
   canPlayerFire,
   getCountdownAnnouncement,
-  moveCannonball,
 } from "./battle-system.ts";
 import type {
   Crosshair,
@@ -175,7 +175,7 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
 
   const remaining: typeof state.cannonballs = [];
   for (const ball of state.cannonballs) {
-    const hit = moveCannonball(ball, dt);
+    const hit = advanceCannonball(ball, dt);
     if (hit) {
       battleAnim.impacts.push({ ...hit, age: 0 });
     } else {

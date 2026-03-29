@@ -24,7 +24,9 @@ import {
 } from "./spatial.ts";
 import type { GameState, Grunt, Player } from "./types.ts";
 
-/** Preset: tiles that block grunt spawning (zone-based). */
+/** Preset: tiles that block grunt spawning (zone-based).
+ *  Includes interior: grunts must spawn OUTSIDE enclosed territory.
+ *  Does NOT include bonusSquares: grunts can spawn on bonus tiles. */
 export const GRUNT_SPAWN_BLOCKED = {
   includeWalls: true,
   includeInterior: true,
@@ -34,7 +36,10 @@ export const GRUNT_SPAWN_BLOCKED = {
   includeGrunts: true,
   includePits: true,
 } as const;
-/** Preset: tiles that block bonus square placement. */
+/** Preset: tiles that block bonus square placement.
+ *  Does NOT include interior: bonus squares CAN appear inside territory
+ *  (the separate `enclosed` check in replenishBonusSquares filters those).
+ *  Includes bonusSquares: prevents stacking multiple on one tile. */
 export const BONUS_PLACEMENT_BLOCKED = {
   includeWalls: true,
   includeCannons: true,
