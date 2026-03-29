@@ -3,7 +3,7 @@
  * Run with: bun test/scenario.test.ts
  */
 
-import { canFire } from "../src/battle-system.ts";
+import { canFire, tickCannonballs } from "../src/battle-system.ts";
 import { snapshotAllWalls, sweepIsolatedWalls } from "../src/board-occupancy.ts";
 import { isCannonEnclosed } from "../src/cannon-system.ts";
 import { GRID_COLS } from "../src/grid.ts";
@@ -703,45 +703,50 @@ test("super gun placed during cannon phase can fire in battle", () => {
   assert(s.fireAt(0, superIdx, enemy!.row, enemy!.col), "Should fire super gun");
 });
 
-// Disabled: takes ~10s due to playRounds + 60s battle simulation
-// test("AI fires super gun during battle (not skipped in round-robin)", () => {
-//   const s = createScenario();
-//   s.playRounds(4);
+test("AI fires super gun during battle (not skipped in round-robin)", () => {
+  // Find a seed where we can place a super gun with only 1 existing cannon
+  let s = createScenario();
+  let placed = false;
+  for (const seed of [42, 100, 200, 300, 999]) {
+    s = createScenario(seed);
+    s.playRounds(3);
+    const p = s.state.players[0]!;
+    // Remove all but 1 cannon so the round-robin reaches the super gun fast
+    p.cannons = p.cannons.slice(0, 1);
+    s.state.cannonLimits[0] = 99;
+    for (const key of p.interior) {
+      const row = Math.floor(key / GRID_COLS);
+      const col = key % GRID_COLS;
+      if (s.placeCannonAt(0, row, col, CannonMode.SUPER)) {
+        placed = true;
+        break;
+      }
+    }
+    if (placed) break;
+  }
+  assert(placed, "Should place a super gun in at least one seed");
+  const superIdx = s.state.players[0]!.cannons.length - 1;
 
-//   const player = s.state.players[0]!;
-//   s.state.cannonLimits[0] = 99;
-//   let superPlaced = false;
-//   for (const key of player.interior) {
-//     const row = Math.floor(key / GRID_COLS);
-//     const col = key % GRID_COLS;
-//     if (s.placeCannonAt(0, row, col, CannonMode.SUPER)) {
-//       superPlaced = true;
-//       break;
-//     }
-//   }
-//   assert(superPlaced, "Should place a super gun");
-//   const superIdx = player.cannons.length - 1;
-//
-//   s.advanceTo(Phase.BATTLE);
-//   for (const ctrl of s.controllers) ctrl.resetBattle(s.state);
-//
-//   let superGunFired = false;
-//   const dt = 0.1;
-//   for (let t = 0; t < 60; t += dt) {
-//     for (let i = 0; i < s.state.players.length; i++) {
-//       if (s.state.players[i]!.eliminated) continue;
-//       s.controllers[i]!.battleTick(s.state, dt);
-//     }
-//     for (const ball of s.state.cannonballs) {
-//       if (ball.playerId === 0 && ball.cannonIdx === superIdx) {
-//         superGunFired = true;
-//       }
-//     }
-//     tickCannonballs(s.state, dt);
-//   }
-//
-//   assert(superGunFired, "AI should fire the super gun during battle");
-// });
+  s.advanceTo(Phase.BATTLE);
+  for (const ctrl of s.controllers) ctrl.resetBattle(s.state);
+
+  let superGunFired = false;
+  const dt = 0.1;
+  for (let t = 0; t < 20 && !superGunFired; t += dt) {
+    for (let i = 0; i < s.state.players.length; i++) {
+      if (s.state.players[i]!.eliminated) continue;
+      s.controllers[i]!.battleTick(s.state, dt);
+    }
+    for (const ball of s.state.cannonballs) {
+      if (ball.playerId === 0 && ball.cannonIdx === superIdx) {
+        superGunFired = true;
+      }
+    }
+    tickCannonballs(s.state, dt);
+  }
+
+  assert(superGunFired, "AI should fire the super gun during battle");
+});
 
 // ---------------------------------------------------------------------------
 
