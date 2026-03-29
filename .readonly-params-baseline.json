@@ -1,5 +1,6 @@
 {
   "mutableArrayParams": [
+    "src/battle-system.ts:events",
     "src/grunt-system.ts:queue",
     "src/online-host-crosshairs.ts:crosshairs",
     "src/online-host-promotion.ts:controllers",

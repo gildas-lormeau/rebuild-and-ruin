@@ -21,6 +21,7 @@ import {
   DESTROY_GRUNT_POINTS,
   ENCLOSED_GRUNT_RESPAWN_CHANCE,
   TERRITORY_POINT_TIERS,
+  TOWER_SIZE,
 } from "./game-constants.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
@@ -412,9 +413,9 @@ function isTowerOwnedByPlayer(
   tower: TilePos,
   player: Pick<Player, "interior" | "walls">,
 ): boolean {
-  // Towers occupy a 2×2 footprint — check all four tiles
-  for (let dr = 0; dr < 2; dr++) {
-    for (let dc = 0; dc < 2; dc++) {
+  // Towers occupy a TOWER_SIZE×TOWER_SIZE footprint — check all tiles
+  for (let dr = 0; dr < TOWER_SIZE; dr++) {
+    for (let dc = 0; dc < TOWER_SIZE; dc++) {
       if (
         !isTileOwnedByPlayer(player, packTile(tower.row + dr, tower.col + dc))
       )

@@ -19,6 +19,8 @@ import {
   GRUNT_ATTACK_DURATION,
   GRUNT_WALL_ATTACK_CHANCE,
   GRUNT_WALL_ATTACK_MIN_BATTLES,
+  NO_TOWER_INDEX,
+  TOWER_SIZE,
 } from "./game-constants.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
@@ -186,48 +188,7 @@ export function tickGrunts(state: GameState): boolean {
   });
 
   for (const grunt of sorted) {
-    // Already adjacent to alive target tower — stay put unless blocking a friend
-    if (grunt.targetTowerIdx !== undefined) {
-      const t = getGruntTargetTower(state, grunt);
-      if (t && state.towerAlive[grunt.targetTowerIdx]!) {
-        const adjacent = isAdjacentToLivingTower(
-          state,
-          grunt.row,
-          grunt.col,
-          grunt.targetTowerIdx,
-        );
-        if (adjacent) {
-          // Slide along the tower perimeter to make room for grunts behind us
-          if (hasNonAdjacentBlockedAlly(state, grunt)) {
-            const slide = findAdjacentSlideTarget(state, grunt);
-            if (slide) {
-              applyGruntMove(grunt, slide.row, slide.col);
-              anyMoved = true;
-            }
-          }
-          continue;
-        }
-      }
-      // Dead target tower — stop once adjacent to its 2x2 footprint
-      if (t && !state.towerAlive[grunt.targetTowerIdx]!) {
-        if (distanceToTower(t, grunt.row, grunt.col) <= 1) continue;
-      }
-    }
-
-    const candidates = gruntCandidateMoves(state, grunt);
-    let moved = false;
-
-    for (const candidate of candidates) {
-      const { row: nr, col: nc } = candidate;
-      if (!canGruntMoveToCandidate(state, grunt, nr, nc)) continue;
-
-      // Move to the tile
-      applyGruntMove(grunt, nr, nc);
-      moved = true;
-      break;
-    }
-
-    if (moved) anyMoved = true;
+    if (moveOneGrunt(state, grunt)) anyMoved = true;
   }
 
   return anyMoved;
@@ -321,6 +282,46 @@ export function rollGruntWallAttacks(state: GameState): void {
       grunt.wallAttack = true;
     }
   }
+}
+
+/** Move a single grunt toward its target. Returns true if it moved. */
+function moveOneGrunt(state: GameState, grunt: Grunt): boolean {
+  // Already adjacent to alive target tower — stay put unless blocking a friend
+  if (grunt.targetTowerIdx !== undefined) {
+    const t = getGruntTargetTower(state, grunt);
+    if (t && state.towerAlive[grunt.targetTowerIdx]!) {
+      const adjacent = isAdjacentToLivingTower(
+        state,
+        grunt.row,
+        grunt.col,
+        grunt.targetTowerIdx,
+      );
+      if (adjacent) {
+        // Slide along the tower perimeter to make room for grunts behind us
+        if (hasNonAdjacentBlockedAlly(state, grunt)) {
+          const slide = findAdjacentSlideTarget(state, grunt);
+          if (slide) {
+            applyGruntMove(grunt, slide.row, slide.col);
+            return true;
+          }
+        }
+        return false;
+      }
+    }
+    // Dead target tower — stop once adjacent to its footprint
+    if (t && !state.towerAlive[grunt.targetTowerIdx]!) {
+      if (distanceToTower(t, grunt.row, grunt.col) <= 1) return false;
+    }
+  }
+
+  const candidates = gruntCandidateMoves(state, grunt);
+  for (const candidate of candidates) {
+    const { row: nr, col: nc } = candidate;
+    if (!canGruntMoveToCandidate(state, grunt, nr, nc)) continue;
+    applyGruntMove(grunt, nr, nc);
+    return true;
+  }
+  return false;
 }
 
 function addGrunt(
@@ -450,7 +451,7 @@ function lockGruntTarget(state: GameState, grunt: Grunt): void {
 
   const gruntZone = state.map.zones[grunt.row]?.[grunt.col] ?? -1;
   let bestDist = Infinity;
-  let bestIdx = -1;
+  let bestIdx = NO_TOWER_INDEX;
 
   for (let i = 0; i < state.map.towers.length; i++) {
     const t = state.map.towers[i]!;
@@ -463,7 +464,7 @@ function lockGruntTarget(state: GameState, grunt: Grunt): void {
     }
   }
 
-  if (bestIdx < 0) return;
+  if (bestIdx === NO_TOWER_INDEX) return;
   grunt.targetTowerIdx = bestIdx;
 
   // Correct targetPlayerId to match zone owner (in case of mismatch from spawn)
@@ -741,9 +742,9 @@ function isCardinalAdjacentToTower(
       nc = col + dc;
     if (
       nr >= tower.row &&
-      nr <= tower.row + 1 &&
+      nr <= tower.row + TOWER_SIZE - 1 &&
       nc >= tower.col &&
-      nc <= tower.col + 1
+      nc <= tower.col + TOWER_SIZE - 1
     ) {
       return true;
     }

@@ -18,6 +18,8 @@ export interface OnlineSession {
   ws: WebSocket | null;
   /** This player's slot id. -1 = watcher/spectator (not an active player). */
   myPlayerId: number;
+  /** Can flip during host promotion — always re-check before critical operations;
+   *  do not cache across awaits or across tick boundaries. */
   isHost: boolean;
   hostMigrationSeq: number;
   occupiedSlots: Set<number>;

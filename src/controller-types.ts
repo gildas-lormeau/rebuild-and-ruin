@@ -31,6 +31,8 @@ import { Action, type CombinedCannonResult, type GameState } from "./types.ts";
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
 const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
+/** Sentinel for round-robin cannon rotation: no cannon fired yet. */
+const NO_CANNON_FIRED = -1;
 
 export abstract class BaseController implements PlayerController {
   readonly playerId: number;
@@ -42,7 +44,7 @@ export abstract class BaseController implements PlayerController {
     y: DEFAULT_CURSOR_ROW * TILE_SIZE,
   };
   /** Round-robin index into combined cannon list. Reset in resetBattle() and onLifeLost(). */
-  protected lastFiredIdx = -1;
+  protected cannonRotationIdx = NO_CANNON_FIRED;
 
   /** Piece bag for the build phase (shared by AI and Human). */
   protected bag: BagState | null = null;
@@ -81,9 +83,9 @@ export abstract class BaseController implements PlayerController {
 
   updateBindings(_keys: KeyBindings): void {}
   /** Pick a tower. Must set buildCursor/crosshair to the chosen tower. */
-  abstract selectTower(state: GameState, zone: number): boolean;
+  abstract selectTower(state: GameState, zone: number): void;
   /** Pick a tower for reselection. Same contract as selectTower. */
-  abstract reselect(state: GameState, zone: number): boolean;
+  abstract reselect(state: GameState, zone: number): void;
   /** Place cannons. AI places all immediately; Human sets up cursor/mode. */
   abstract placeCannons(state: GameState, maxSlots: number): void;
   /** Whether the player has placed all their cannons (slots exhausted or timer expired). */
@@ -119,9 +121,9 @@ export abstract class BaseController implements PlayerController {
   /** Called each frame during battle. Should call this.fire(state) to fire cannons. */
   abstract battleTick(state: GameState, dt: number): void;
 
-  /** Reset battle state (lastFiredIdx, cursors). Subclasses must call super.resetBattle(). */
+  /** Reset battle state (cannonRotationIdx, cursors). Subclasses must call super.resetBattle(). */
   resetBattle(state?: GameState): void {
-    this.lastFiredIdx = -1;
+    this.cannonRotationIdx = NO_CANNON_FIRED;
     if (state) {
       const player = state.players[this.playerId];
       if (player?.homeTower) {
@@ -141,7 +143,7 @@ export abstract class BaseController implements PlayerController {
   /** Clean up at end of battle (e.g. clear AI fire targets). */
   abstract onBattleEnd(): void;
   onLifeLost(): void {
-    this.lastFiredIdx = -1;
+    this.cannonRotationIdx = NO_CANNON_FIRED;
     this.bag = null;
     this.currentPiece = null;
   }
@@ -152,7 +154,7 @@ export abstract class BaseController implements PlayerController {
       x: DEFAULT_CURSOR_COL * TILE_SIZE,
       y: DEFAULT_CURSOR_ROW * TILE_SIZE,
     };
-    this.lastFiredIdx = -1;
+    this.cannonRotationIdx = NO_CANNON_FIRED;
     this.bag = null;
     this.currentPiece = null;
   }
@@ -235,9 +237,13 @@ export abstract class BaseController implements PlayerController {
     targetRow: number,
     targetCol: number,
   ): CombinedCannonResult | null {
-    const result = nextReadyCombined(state, this.playerId, this.lastFiredIdx);
+    const result = nextReadyCombined(
+      state,
+      this.playerId,
+      this.cannonRotationIdx,
+    );
     if (!result) return null;
-    this.lastFiredIdx = result.combinedIdx;
+    this.cannonRotationIdx = result.combinedIdx;
     if (result.type === "own") {
       fireCannon(state, this.playerId, result.ownIdx, targetRow, targetCol);
     } else {

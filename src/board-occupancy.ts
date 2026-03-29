@@ -6,6 +6,7 @@
  * towers, and cannons.
  */
 
+import { NO_TOWER_INDEX } from "./game-constants.ts";
 import {
   computeCannonTileSet,
   countWallNeighbors,
@@ -208,7 +209,7 @@ export function findLivingTowerIndexAt(
     if (!state.towerAlive[i]) continue;
     if (isTowerTile(state.map.towers[i]!, r, c)) return i;
   }
-  return -1;
+  return NO_TOWER_INDEX;
 }
 
 export function computeCardinalObstacleMask(

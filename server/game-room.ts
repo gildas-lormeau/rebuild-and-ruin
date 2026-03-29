@@ -179,8 +179,10 @@ export class GameRoom {
   private hostSocket: WebSocket | null = null;
 
   /** Current phase, tracked from checkpoint messages.
-   * Uses Phase enum for game phases + string literals for lobby/castle-build
-   * (which don't exist in the game Phase enum since they're UI-only states). */
+   * Uses Phase enum values for game phases + server-only string literals:
+   * - "LOBBY" — before game starts (no Phase enum equivalent)
+   * - "CASTLE_BUILD" — castle wall construction animation (UI-only state)
+   * See updatePhaseFromMessage() for all transitions. */
   private phase: string = "LOBBY";
 
   /** Rate limit tracking: socket → type → { count, windowStart }. */
@@ -206,7 +208,7 @@ export class GameRoom {
   }
 
   /** Internal cleanup only — removes socket from tracking maps.
-   *  For full disconnect handling (host migration, room cleanup), use RoomManager.removeSocket(). */
+   *  For full disconnect handling (host migration, room cleanup), use RoomManager.handleSocketDisconnect(). */
   removePlayer(socket: WebSocket): void {
     this.players.delete(socket);
     this.broadcastRecipients.delete(socket);

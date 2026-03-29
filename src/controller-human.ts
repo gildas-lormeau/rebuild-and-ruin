@@ -58,13 +58,12 @@ export class HumanController extends BaseController implements InputReceiver {
     this.keyMap = buildKeyMap(keys);
   }
 
-  selectTower(_state: GameState, _zone: number): boolean {
-    // Human needs UI interaction — return false to wait
-    return false;
+  selectTower(_state: GameState, _zone: number): void {
+    // Human selects via UI — selectionTick() drives confirmation
   }
 
-  reselect(_state: GameState, _zone: number): boolean {
-    return false;
+  reselect(_state: GameState, _zone: number): void {
+    // Same as selectTower — human reselects via UI
   }
 
   placeCannons(_state: GameState, _maxSlots: number): void {
@@ -107,7 +106,9 @@ export class HumanController extends BaseController implements InputReceiver {
     };
   }
 
-  /** Downgrade cannon mode if it no longer fits in remaining slots. */
+  /** Downgrade cannon mode if it no longer fits in remaining slots.
+   *  IMPORTANT: Must be called in cannonTick() before canPlaceCannon() —
+   *  otherwise phantom may show an impossible placement. */
   private ensureValidCannonMode(remaining: number): void {
     if (isSuperMode(this.cannonPlaceMode) && remaining < SUPER_GUN_COST) {
       this.cannonPlaceMode = CannonMode.NORMAL;

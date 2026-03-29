@@ -2,7 +2,7 @@
  * Cannon placement and management — validation, slot counting, placement.
  */
 
-import { filterAliveOwnedTowers } from "./board-occupancy.ts";
+import { filterAliveOwnedTowers, hasWallAt } from "./board-occupancy.ts";
 import {
   BALLOON_COST,
   MAX_CANNON_LIMIT_ON_RESELECT,
@@ -129,7 +129,7 @@ export function canPlaceCannon(
       if (!inBounds(r, c)) return false;
       const key = packTile(r, c);
       if (!player.interior.has(key)) return false;
-      if (player.walls.has(key)) return false;
+      if (hasWallAt(state, r, c)) return false;
       if (overlapsOwnedTower(player.ownedTowers, r, c)) return false;
       if (overlapsExistingCannon(player.cannons, r, c)) return false;
       if (hasPitAt(state.burningPits, r, c)) return false;

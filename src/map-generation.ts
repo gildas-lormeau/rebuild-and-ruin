@@ -10,6 +10,7 @@
 
 // --- Constants ---
 
+import { TOWER_SIZE } from "./game-constants.ts";
 import type { GameMap, PixelPos, Tower } from "./geometry-types.ts";
 import {
   GRID_COLS,
@@ -384,20 +385,23 @@ function isValidTowerPos(
   riverDist: readonly number[][],
   existingTowers: readonly Tower[],
 ): boolean {
-  if (col + 1 >= GRID_COLS || row + 1 >= GRID_ROWS) return false;
+  if (col + TOWER_SIZE - 1 >= GRID_COLS || row + TOWER_SIZE - 1 >= GRID_ROWS)
+    return false;
 
-  // Edge gap: tower occupies [col, col+1] x [row, row+1]
-  if (col < MIN_GAP_EDGE || col + 2 > GRID_COLS - MIN_GAP_EDGE) return false;
-  if (row < MIN_GAP_EDGE || row + 2 > GRID_ROWS - MIN_GAP_EDGE) return false;
+  // Edge gap: tower footprint must fit within grid minus edge margin
+  if (col < MIN_GAP_EDGE || col + TOWER_SIZE > GRID_COLS - MIN_GAP_EDGE)
+    return false;
+  if (row < MIN_GAP_EDGE || row + TOWER_SIZE > GRID_ROWS - MIN_GAP_EDGE)
+    return false;
 
-  // Safe zone: 8×8 area centered on the 2×2 tower, corners cut off
+  // Safe zone: padded area around the tower footprint, corners cut off
   // Distance from tower edge: dx = max(0, distance to nearest tower col)
   //                           dy = max(0, distance to nearest tower row)
   // Skip corners where dx + dy > SAFE_ZONE_PAD + 1
-  for (let dr = -SAFE_ZONE_PAD; dr < 2 + SAFE_ZONE_PAD; dr++) {
-    for (let dc = -SAFE_ZONE_PAD; dc < 2 + SAFE_ZONE_PAD; dc++) {
-      const dy = dr < 0 ? -dr : dr >= 2 ? dr - 1 : 0;
-      const dx = dc < 0 ? -dc : dc >= 2 ? dc - 1 : 0;
+  for (let dr = -SAFE_ZONE_PAD; dr < TOWER_SIZE + SAFE_ZONE_PAD; dr++) {
+    for (let dc = -SAFE_ZONE_PAD; dc < TOWER_SIZE + SAFE_ZONE_PAD; dc++) {
+      const dy = dr < 0 ? -dr : dr >= TOWER_SIZE ? dr - (TOWER_SIZE - 1) : 0;
+      const dx = dc < 0 ? -dc : dc >= TOWER_SIZE ? dc - (TOWER_SIZE - 1) : 0;
       if (dx + dy > SAFE_ZONE_PAD + 1) continue; // cut corners
       const r = row + dr;
       const c = col + dc;

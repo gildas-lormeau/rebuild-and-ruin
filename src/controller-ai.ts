@@ -211,7 +211,7 @@ export class AiController extends BaseController implements AiAnimatable {
   // Selection phase
   // -----------------------------------------------------------------------
 
-  override selectTower(state: GameState, zone: number): boolean {
+  override selectTower(state: GameState, zone: number): void {
     const player = state.players[this.playerId]!;
     const chosenTower = this.strategy.selectTower(state.map, zone);
 
@@ -242,7 +242,6 @@ export class AiController extends BaseController implements AiAnimatable {
     const firstTower =
       firstIdx !== undefined ? state.map.towers[firstIdx] : chosenTower;
     if (firstTower) selectPlayerTower(player, firstTower);
-    return false;
   }
 
   override selectionTick(dt: number, state?: GameState): boolean {
@@ -279,8 +278,8 @@ export class AiController extends BaseController implements AiAnimatable {
     }
   }
 
-  override reselect(state: GameState, zone: number): boolean {
-    return this.selectTower(state, zone);
+  override reselect(state: GameState, zone: number): void {
+    this.selectTower(state, zone);
   }
 
   // -----------------------------------------------------------------------
@@ -928,7 +927,11 @@ export class AiController extends BaseController implements AiAnimatable {
     s.timer -= dt;
     if (s.timer > 0) return;
 
-    const ready = nextReadyCombined(state, this.playerId, this.lastFiredIdx);
+    const ready = nextReadyCombined(
+      state,
+      this.playerId,
+      this.cannonRotationIdx,
+    );
     if (!ready) {
       s.timer = 0.05;
       return;

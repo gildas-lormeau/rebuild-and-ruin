@@ -18,7 +18,7 @@ import {
 } from "./game-constants.ts";
 import {
   finalizeBuildPhase,
-  initBuildPhase,
+  initBuildPhaseControllers,
   initCannonPhase,
   nextPhase,
 } from "./game-engine.ts";
@@ -220,7 +220,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     rs.scoreDeltas = [];
     rs.scoreDeltaTimer = 0;
     rs.scoreDeltaOnDone = null;
-    initBuildPhase(
+    initBuildPhaseControllers(
       rs.state,
       rs.controllers,
       (pid) => remoteHumanSlots.has(pid) || !!rs.state.players[pid]?.eliminated,

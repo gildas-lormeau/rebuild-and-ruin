@@ -121,6 +121,14 @@ interface TickHostBuildPhaseDeps {
 /** Sentinel empty map — never mutated (phantomChanged short-circuits on empty maps). */
 const EMPTY_MAP = new Map<number, string>();
 
+/**
+ * Controller cannon lifecycle per frame:
+ *   cannonTick(state, dt) — called each frame (AI places, Human updates cursor)
+ *   isCannonPhaseDone(state, max) — check if controller is finished
+ *   flushCannons(state, max) — finalize remaining placements (called once at phase end)
+ *   initCannons(state, max) — auto-place round-1 cannons if none placed (called once after flush)
+ * flush + init must be called together, in that order, exactly once at phase end.
+ */
 export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   const { dt, state, accum, frame, controllers, render, startBattle } = deps;
   // Networking defaults (no-op for local play)

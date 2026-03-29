@@ -187,6 +187,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
   };
 
   function register(): void {
+    // ── Wrapped placement handlers ──
     const placeCannon = wrapCannonPlace(
       deps.tryPlaceCannonAndSend ??
         ((ctrl, gs, max) => ctrl.tryPlaceCannon(gs, max)),
@@ -196,6 +197,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       deps.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
       sound,
     );
+    // ── Subsystem deps: coords, lobby, options, life-lost, game-over ──
     const coordsDeps = {
       pixelToTile: camera.pixelToTile,
       screenToWorld: camera.screenToWorld,
@@ -242,6 +244,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       },
       click: gameOverClick,
     };
+    // ── Game action deps: selection, placement, rotation, firing ──
     const gameActionDeps = {
       getSelectionStates: () => rs.selectionStates,
       highlightTowerForPlayer: selection.highlight,
@@ -265,6 +268,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
         rs.quitMessage = msg;
       },
     };
+    // ── Combined input deps: assembles all subsystem deps ──
     const inputDeps: RegisterOnlineInputDeps = {
       renderer,
       getState: () => safeState(rs),
@@ -329,19 +333,13 @@ function setupTouchControls(
     rs,
     renderer,
     gameContainer,
-    uiCtx,
     camera,
     sound,
     haptics,
     lobby,
-    options,
-    lifeLost,
     selection,
-    firstHuman,
     withFirstHuman,
     isSelectionReady,
-    render,
-    rematch,
     returnToLobby,
   } = deps;
 
@@ -350,49 +348,11 @@ function setupTouchControls(
     tryPlacePieceAndSend: placePieceAction,
     tryPlaceCannonAndSend: placeCannonAction,
   } = inputDeps.gameAction;
-  const overlayActionDeps = {
-    options: {
-      isActive: () => rs.mode === Mode.OPTIONS,
-      navigate: (dir: -1 | 1) => {
-        const count = visibleOptions(uiCtx).length;
-        rs.optionsCursor = (rs.optionsCursor + dir + count) % count;
-      },
-      changeValue: (dir: -1 | 1) => options.changeOption(dir),
-      confirm: () => {
-        if (options.realOptionIdx() === OPTION_CONTROLS)
-          options.showControls(); // 5 = Controls row
-        else options.closeOptions();
-      },
-    },
-    lifeLost: {
-      isActive: () => rs.mode === Mode.LIFE_LOST && rs.lifeLostDialog !== null,
-      toggleFocus: () => {
-        const human = firstHuman();
-        if (human) lifeLost.toggleFocus(human.playerId);
-      },
-      confirm: () => {
-        const human = firstHuman();
-        if (human) lifeLost.confirmChoice(human.playerId);
-      },
-    },
-    gameOver: {
-      isActive: () =>
-        rs.mode === Mode.STOPPED && rs.frame.gameOver !== undefined,
-      toggleFocus: () => {
-        if (!rs.frame.gameOver) return;
-        rs.frame.gameOver.focused =
-          rs.frame.gameOver.focused === FOCUS_REMATCH
-            ? FOCUS_MENU
-            : FOCUS_REMATCH;
-        render();
-      },
-      confirm: () => {
-        if (!rs.frame.gameOver) return;
-        if (rs.frame.gameOver.focused === FOCUS_REMATCH) rematch();
-        else returnToLobby();
-      },
-    },
-  };
+
+  // ── Overlay action deps: options, life-lost, game-over ──
+  const overlayActionDeps = buildOverlayActionDeps(deps);
+
+  // ── D-pad ──
   touch.dpad = createDpad(
     {
       getState: () => safeState(rs),
@@ -426,23 +386,9 @@ function setupTouchControls(
     gameContainer,
   );
   touch.dpad.update(null); // initial state: d-pad + rotate disabled
-  const zoomDeps = {
-    getState: () => safeState(rs),
-    getCameraZone: camera.getCameraZone,
-    setCameraZone: camera.setCameraZone,
-    myPlayerId: camera.myPlayerId,
-    getEnemyZones: camera.getEnemyZones,
-    aimAtZone: (zone: number) => {
-      if (!rs.state) return;
-      const human = firstHuman();
-      if (!human) return;
-      const pid = rs.state.playerZones.indexOf(zone);
-      const tower = pid >= 0 ? rs.state.players[pid]?.homeTower : null;
-      if (!tower) return;
-      const px = towerCenterPx(tower);
-      human.setCrosshair(px.x, px.y);
-    },
-  };
+
+  // ── Zoom buttons ──
+  const zoomDeps = buildZoomDeps(deps);
   touch.loupeHandle = renderer.createLoupe?.(gameContainer) ?? null;
   touch.quitButton = createQuitButton(
     {
@@ -491,6 +437,77 @@ function setupTouchControls(
       floatingEl,
     );
   }
+}
+
+/** Build overlay action deps for touch d-pad (options, life-lost, game-over). */
+function buildOverlayActionDeps(deps: InputSystemDeps) {
+  const { rs, uiCtx, options, lifeLost, render, rematch, returnToLobby } = deps;
+  const firstHuman = deps.firstHuman;
+  return {
+    options: {
+      isActive: () => rs.mode === Mode.OPTIONS,
+      navigate: (dir: -1 | 1) => {
+        const count = visibleOptions(uiCtx).length;
+        rs.optionsCursor = (rs.optionsCursor + dir + count) % count;
+      },
+      changeValue: (dir: -1 | 1) => options.changeOption(dir),
+      confirm: () => {
+        if (options.realOptionIdx() === OPTION_CONTROLS) options.showControls();
+        else options.closeOptions();
+      },
+    },
+    lifeLost: {
+      isActive: () => rs.mode === Mode.LIFE_LOST && rs.lifeLostDialog !== null,
+      toggleFocus: () => {
+        const human = firstHuman();
+        if (human) lifeLost.toggleFocus(human.playerId);
+      },
+      confirm: () => {
+        const human = firstHuman();
+        if (human) lifeLost.confirmChoice(human.playerId);
+      },
+    },
+    gameOver: {
+      isActive: () =>
+        rs.mode === Mode.STOPPED && rs.frame.gameOver !== undefined,
+      toggleFocus: () => {
+        if (!rs.frame.gameOver) return;
+        rs.frame.gameOver.focused =
+          rs.frame.gameOver.focused === FOCUS_REMATCH
+            ? FOCUS_MENU
+            : FOCUS_REMATCH;
+        render();
+      },
+      confirm: () => {
+        if (!rs.frame.gameOver) return;
+        if (rs.frame.gameOver.focused === FOCUS_REMATCH) rematch();
+        else returnToLobby();
+      },
+    },
+  };
+}
+
+/** Build zoom button deps for touch controls (home/enemy zone zoom). */
+function buildZoomDeps(deps: InputSystemDeps) {
+  const { rs, camera } = deps;
+  const firstHuman = deps.firstHuman;
+  return {
+    getState: () => safeState(rs),
+    getCameraZone: camera.getCameraZone,
+    setCameraZone: camera.setCameraZone,
+    myPlayerId: camera.myPlayerId,
+    getEnemyZones: camera.getEnemyZones,
+    aimAtZone: (zone: number) => {
+      if (!rs.state) return;
+      const human = firstHuman();
+      if (!human) return;
+      const pid = rs.state.playerZones.indexOf(zone);
+      const tower = pid >= 0 ? rs.state.players[pid]?.homeTower : null;
+      if (!tower) return;
+      const px = towerCenterPx(tower);
+      human.setCrosshair(px.x, px.y);
+    },
+  };
 }
 
 function wrapPiecePlace(

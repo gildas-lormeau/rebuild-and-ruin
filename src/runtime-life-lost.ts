@@ -94,6 +94,8 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     rs.mode = Mode.LIFE_LOST;
   }
 
+  /** Tick life-lost dialog. Host resolves locally via resolveHostDialog callback;
+   *  non-host eliminates abandoned players but waits for server message to advance phase. */
   function tickLifeLostDialog(dt: number) {
     rs.lifeLostDialog = tickLifeLostDialogRuntime({
       dt,

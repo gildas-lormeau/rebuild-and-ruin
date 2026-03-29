@@ -10,6 +10,7 @@ import {
   BALLOON_SIZE,
   NORMAL_CANNON_SIZE,
   SUPER_GUN_SIZE,
+  TOWER_SIZE,
 } from "./game-constants.ts";
 import type { PixelPos, TilePos, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
@@ -61,12 +62,12 @@ export function forEachTowerTile(
   t: TilePos,
   fn: (r: number, c: number, key: number) => void,
 ): void {
-  forEachSquareTile(t.row, t.col, 2, fn);
+  forEachSquareTile(t.row, t.col, TOWER_SIZE, fn);
 }
 
 /** True if (r,c) is within a 2×2 tower footprint. */
 export function isTowerTile(t: TilePos, r: number, c: number): boolean {
-  return isTileInRect(t.row, t.col, 2, r, c);
+  return isTileInRect(t.row, t.col, TOWER_SIZE, r, c);
 }
 
 /** Return the set of packed tile keys covered by a cannon footprint. */
@@ -95,10 +96,10 @@ export function isCannonTile(
   return isTileInRect(cannon.row, cannon.col, cannonSize(cannon.mode), r, c);
 }
 
-/** Manhattan distance from (r,c) to nearest tile of a 2×2 tower. */
+/** Manhattan distance from (r,c) to nearest tile of a TOWER_SIZE×TOWER_SIZE tower. */
 export function distanceToTower(t: TilePos, r: number, c: number): number {
-  const dr = Math.max(0, t.row - r, r - (t.row + 1));
-  const dc = Math.max(0, t.col - c, c - (t.col + 1));
+  const dr = Math.max(0, t.row - r, r - (t.row + TOWER_SIZE - 1));
+  const dc = Math.max(0, t.col - c, c - (t.col + TOWER_SIZE - 1));
   return dr + dc;
 }
 
@@ -113,17 +114,19 @@ export function cannonCenter(
   };
 }
 
-/** Center of a 2×2 tower footprint (between the 4 tiles). */
+/** Center of a tower footprint (between the tiles). */
 export function towerCenter(t: TilePos): {
   row: number;
   col: number;
 } {
-  return { row: t.row + 0.5, col: t.col + 0.5 };
+  const half = TOWER_SIZE / 2;
+  return { row: t.row + half - 0.5, col: t.col + half - 0.5 };
 }
 
-/** Pixel center of a 2×2 tower footprint. */
+/** Pixel center of a tower footprint. */
 export function towerCenterPx(t: TilePos): PixelPos {
-  return { x: (t.col + 1) * TILE_SIZE, y: (t.row + 1) * TILE_SIZE };
+  const half = TOWER_SIZE / 2;
+  return { x: (t.col + half) * TILE_SIZE, y: (t.row + half) * TILE_SIZE };
 }
 
 /** Pixel position at the center of the tile at (row, col). */

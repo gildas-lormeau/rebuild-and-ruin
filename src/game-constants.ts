@@ -135,3 +135,7 @@ export const ZONE_PAD_SELECTION = 7;
 export const VIEWPORT_SNAP_THRESHOLD = 0.5;
 /** Minimum Manhattan distance between any two houses. */
 export const HOUSE_MIN_DISTANCE = 3;
+/** Tower footprint size in tiles (towers are 2×2). */
+export const TOWER_SIZE = 2;
+/** Sentinel: no tower found/selected. Used by grunt targeting and tower search. */
+export const NO_TOWER_INDEX = -1;

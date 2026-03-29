@@ -18,6 +18,7 @@ import type {
   Scored,
 } from "./ai-build-types.ts";
 import { floodPocket } from "./ai-castle-rect.ts";
+import { TOWER_SIZE } from "./game-constants.ts";
 import type { Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import {
@@ -338,10 +339,12 @@ function candidateRingDistanceForTower(
   tower: Tower,
   castleMargin: number,
 ): { distance: number; tooClose: boolean } {
+  const lastRow = tower.row + TOWER_SIZE - 1;
+  const lastCol = tower.col + TOWER_SIZE - 1;
   const ringTop = tower.row - castleMargin - 1;
-  const ringBot = tower.row + 1 + castleMargin + 1;
+  const ringBot = lastRow + castleMargin + 1;
   const ringLeft = tower.col - castleMargin - 1;
-  const ringRight = tower.col + 1 + castleMargin + 1;
+  const ringRight = lastCol + castleMargin + 1;
 
   let tooClose = false;
   for (const [dr, dc] of candidate.rotation.offsets) {
@@ -349,9 +352,9 @@ function candidateRingDistanceForTower(
     const pc = candidate.col + dc;
     if (
       pr >= tower.row - castleMargin &&
-      pr <= tower.row + 1 + castleMargin &&
+      pr <= lastRow + castleMargin &&
       pc >= tower.col - castleMargin &&
-      pc <= tower.col + 1 + castleMargin
+      pc <= lastCol + castleMargin
     ) {
       if (pr > ringTop && pr < ringBot && pc > ringLeft && pc < ringRight) {
         tooClose = true;

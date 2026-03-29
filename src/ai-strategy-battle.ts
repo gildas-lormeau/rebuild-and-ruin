@@ -12,6 +12,7 @@ import {
   filterActiveEnemies,
 } from "./board-occupancy.ts";
 import { filterActiveFiringCannons } from "./cannon-system.ts";
+import { TOWER_SIZE } from "./game-constants.ts";
 import type {
   PixelPos,
   PrioritizedTilePos,
@@ -378,8 +379,12 @@ function collectGruntBlockingWallTargets(
     let bestTowerRow = tower.row,
       bestTowerCol = tower.col,
       bestDistance = Infinity;
-    for (let tileRow = tower.row; tileRow < tower.row + 2; tileRow++) {
-      for (let tileCol = tower.col; tileCol < tower.col + 2; tileCol++) {
+    for (let tileRow = tower.row; tileRow < tower.row + TOWER_SIZE; tileRow++) {
+      for (
+        let tileCol = tower.col;
+        tileCol < tower.col + TOWER_SIZE;
+        tileCol++
+      ) {
         const distance = manhattanDistance(
           tileRow,
           tileCol,

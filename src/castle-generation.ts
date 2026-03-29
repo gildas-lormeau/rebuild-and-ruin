@@ -82,6 +82,7 @@ export function createCastle(
   }
 
   // Check if a proposed wall ring is fully valid (all wall tiles on grass & on-map).
+  // Towers are 2×2: tc..tc+1 cols, tr..tr+1 rows (TOWER_SIZE in game-constants.ts).
   // Interior is defined by gaps: cols [tc-gL .. tc+1+gR], rows [tr-gT .. tr+1+gB].
   // Wall ring is 1 tile outside that.
   function isWallRingValid(g: Gaps): boolean {

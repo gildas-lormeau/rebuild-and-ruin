@@ -644,7 +644,12 @@ function drawCastles(
       // Base wall tile: brick texture (procedural — no baked bevels)
       octx.fillStyle = `rgb(${wR},${wG},${wB})`;
       octx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      // Mortar lines
+      // Mortar lines — 3-row staggered brick pattern within a 16×16 tile:
+      //   Row 0 (y 0–4):  vertical joints at x=4, x=10
+      //   Horiz line at y=5
+      //   Row 1 (y 6–10): vertical joints at x=7, x=13 (staggered +3)
+      //   Horiz line at y=11
+      //   Row 2 (y 12–15): vertical joints at x=3, x=9 (staggered −1)
       const mR = Math.max(0, wR - 25),
         mG = Math.max(0, wG - 25),
         mB = Math.max(0, wB - 25);

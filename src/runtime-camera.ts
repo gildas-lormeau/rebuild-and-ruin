@@ -241,7 +241,9 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     if (pinchVp) buildPinchVp = { ...pinchVp };
   }
 
-  /** Save current pinch viewport to the phase-specific slot and restore the other. */
+  /** Save current pinch viewport to the phase-specific slot and restore the other.
+   *  enteringBattle=true: save current zoom as build-phase zoom, restore battle zoom.
+   *  enteringBattle=false: save current zoom as battle-phase zoom, restore build zoom. */
   function swapPinchViewport(enteringBattle: boolean): void {
     if (enteringBattle) savePinchForBuild();
     else savePinchForBattle();

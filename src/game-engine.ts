@@ -290,7 +290,7 @@ export function computeCannonLimitsForPhase(state: GameState): void {
 }
 
 /** Initialize build phase controllers — reset facings, clear accumulators. */
-export function initBuildPhase(
+export function initBuildPhaseControllers(
   state: GameState,
   controllers: readonly PlayerController[],
   skipController?: (playerId: number) => boolean,
@@ -305,7 +305,7 @@ export function initBuildPhase(
 }
 
 /** Enter build from initial castle selection — builds castles first.
- *  Callers must call initBuildPhase() afterwards to init controllers. */
+ *  Callers must call initBuildPhaseControllers() afterwards to init controllers. */
 function enterBuildFromSelect(state: GameState): void {
   autoBuildCastles(state);
   replenishBonusSquares(state);
@@ -314,7 +314,7 @@ function enterBuildFromSelect(state: GameState): void {
 }
 
 /** Enter build from reselection — castles already exist, just set phase.
- *  Callers must call initBuildPhase() afterwards to init controllers. */
+ *  Callers must call initBuildPhaseControllers() afterwards to init controllers. */
 function enterBuildFromReselect(state: GameState): void {
   setPhase(state, Phase.WALL_BUILD);
   state.timer = 0;
@@ -354,7 +354,7 @@ function sweepAllPlayersWalls(state: GameState): void {
 }
 
 /** Enter build from battle — cleans up battle state (balloons, captured cannons, grunts).
- *  Callers must call initBuildPhase() afterwards to init controllers. */
+ *  Callers must call initBuildPhaseControllers() afterwards to init controllers. */
 function enterBuildFromBattle(state: GameState): void {
   updateGruntBlockedBattles(state);
   cleanupBalloonHitTrackingAfterBattle(state);

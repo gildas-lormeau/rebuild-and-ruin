@@ -48,7 +48,15 @@ const PHANTOM_ALPHA_AI = 0.6;
 // Spatial hash multipliers for per-tile visual noise
 const SEED_ROW = 41;
 const SEED_COL = 17;
-// Impact animation phases (normalized 0–1 within IMPACT_FLASH_DURATION)
+/**
+ * Impact animation phases (normalized 0–1 within IMPACT_FLASH_DURATION):
+ *   0.0–0.25:  Core flash (bright spot, quick fade)
+ *   0.2–0.6:   Smoke puff (starts during core, continues through ring)
+ *   0.0–0.6:   Shockwave ring (expanding circle)
+ *   0.0–0.8:   Debris sparks (flying outward)
+ *   0.8–1.0:   Smoke lingers (no new effects)
+ * Overlaps are intentional — multiple effects layer simultaneously.
+ */
 const IMPACT_CORE_END = 0.25;
 const IMPACT_RING_END = 0.6;
 const IMPACT_DEBRIS_END = 0.8;
@@ -504,7 +512,10 @@ function crosshairGeometry(
   return { alpha, arm, diag, gap };
 }
 
-/** Draw a semi-transparent cannon sprite as a placement phantom. */
+/** Draw a semi-transparent cannon sprite as a placement phantom.
+ *  Unlike piece phantoms (which use a single valid/invalid fill color),
+ *  cannon phantoms use per-rect color pairs because they're procedurally drawn
+ *  with multiple shapes. Each shape has a normal color and a red-tinted invalid variant. */
 function drawPhantomCannon(
   ctx: CanvasRenderingContext2D,
   row: number,

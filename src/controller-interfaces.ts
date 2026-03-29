@@ -61,11 +61,11 @@ export interface PlayerController {
   /** Update key bindings (no-op for AI). */
   updateBindings(keys: KeyBindings): void;
 
-  /** Pick a tower. Returns false — use selectionTick to advance. */
-  selectTower(state: GameState, zone: number): boolean;
+  /** Pick a tower. Initiates async selection — use selectionTick() to advance. */
+  selectTower(state: GameState, zone: number): void;
 
-  /** Pick a tower for reselection. Returns false — use selectionTick to advance. */
-  reselect(state: GameState, zone: number): boolean;
+  /** Pick a tower for reselection. Same contract as selectTower. */
+  reselect(state: GameState, zone: number): void;
 
   /** Tick during selection phase. Returns true when the player has confirmed. */
   selectionTick(dt: number, state?: GameState): boolean;

@@ -45,6 +45,8 @@ import {
   Mode,
 } from "./types.ts";
 
+// WARNING: These deps objects are built once and reused for the session lifetime.
+// They contain live closures over runtime state — do NOT rebuild them.
 const lifecycleDeps = buildLifecycleDeps();
 const incrementalDeps = buildIncrementalDeps();
 

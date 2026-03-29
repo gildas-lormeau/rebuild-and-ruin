@@ -57,7 +57,7 @@ Deno.serve({ port: PORT }, (req) => {
     };
 
     socket.onclose = () => {
-      rooms.removeSocket(socket);
+      rooms.handleSocketDisconnect(socket);
     };
 
     socket.onerror = (e) => {
