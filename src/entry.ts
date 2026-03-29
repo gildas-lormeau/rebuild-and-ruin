@@ -46,9 +46,9 @@ onRoute(ROUTE_ONLINE, () => {
 
 onRoute(ROUTE_PLAY, () => {
   // Fullscreen requires a user gesture — defer to first tap if navigated via bookmark.
-  // Use touchstart (click doesn't fire on canvas on mobile) with capture to
-  // intercept before child stopPropagation.
-  gameContainer.addEventListener("touchstart", () => tryFullscreen(), {
+  // Use touchstart on document (capture phase) since the game container may not
+  // be visible yet and click doesn't fire on canvas on mobile.
+  document.addEventListener("touchstart", () => tryFullscreen(), {
     once: true,
     capture: true,
   });
