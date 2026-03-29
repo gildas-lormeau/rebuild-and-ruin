@@ -189,7 +189,7 @@ export function serializePlayers(state: GameState) {
       row: c.row,
       col: c.col,
       hp: c.hp,
-      kind: c.kind,
+      mode: c.mode,
       facing: c.facing,
     })),
     ownedTowerIndices: p.ownedTowers.map((t) => t.index),
@@ -329,7 +329,7 @@ export function applyPlayersCheckpoint(
       row: c.row,
       col: c.col,
       hp: c.hp,
-      kind: toCannonMode(c.kind),
+      mode: toCannonMode(c.mode),
       facing: c.facing ?? 0,
     }));
     player.ownedTowers = sp.ownedTowerIndices

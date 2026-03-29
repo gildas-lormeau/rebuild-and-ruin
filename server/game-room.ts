@@ -81,40 +81,58 @@ function isFiniteRange(val: unknown, min: number, max: number): boolean {
   );
 }
 
+/** Max offset in a piece phantom preview (piece-relative coordinates). */
+const MAX_PHANTOM_OFFSET = 4;
+
+function hasValidPlayer(msg: Record<string, unknown>): boolean {
+  return isInt(msg.playerId, 0, MAX_PLAYER_ID);
+}
+
+function hasValidGridPos(msg: Record<string, unknown>): boolean {
+  return isInt(msg.row, 0, GRID_ROWS - 1) && isInt(msg.col, 0, GRID_COLS - 1);
+}
+
+function hasValidOffsets(
+  msg: Record<string, unknown>,
+  minOffset: number,
+  maxOffset: number,
+): boolean {
+  return (
+    Array.isArray(msg.offsets) &&
+    msg.offsets.length >= 1 &&
+    msg.offsets.length <= MAX_PIECE_TILES &&
+    msg.offsets.every(
+      (o: unknown) =>
+        Array.isArray(o) &&
+        o.length === 2 &&
+        isInt(o[0], minOffset, maxOffset) &&
+        isInt(o[1], minOffset, maxOffset),
+    )
+  );
+}
+
+function hasValidCannonMode(msg: Record<string, unknown>): boolean {
+  return (CANNON_MODES as ReadonlySet<string>).has(msg.mode as string);
+}
+
 function validatePayload(msg: Record<string, unknown>): boolean {
   switch (msg.type) {
     case MESSAGE.OPPONENT_TOWER_SELECTED:
-      return (
-        isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
-        isInt(msg.towerIdx, 0, MAX_TOWER_IDX)
-      );
+      return hasValidPlayer(msg) && isInt(msg.towerIdx, 0, MAX_TOWER_IDX);
     case MESSAGE.OPPONENT_PIECE_PLACED:
-      // Offsets can be piece-relative (humans: [-4,4]) or absolute grid coords (AI host: [0,GRID_*-1])
+      // Offsets can be piece-relative (humans) or absolute grid coords (AI host)
       return (
-        isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
-        isInt(msg.row, 0, GRID_ROWS - 1) &&
-        isInt(msg.col, 0, GRID_COLS - 1) &&
-        Array.isArray(msg.offsets) &&
-        msg.offsets.length >= 1 &&
-        msg.offsets.length <= MAX_PIECE_TILES &&
-        msg.offsets.every(
-          (o: unknown) =>
-            Array.isArray(o) &&
-            o.length === 2 &&
-            isInt(o[0], -(GRID_ROWS - 1), GRID_ROWS - 1) &&
-            isInt(o[1], -(GRID_COLS - 1), GRID_COLS - 1),
-        )
+        hasValidPlayer(msg) &&
+        hasValidGridPos(msg) &&
+        hasValidOffsets(msg, -(GRID_ROWS - 1), GRID_ROWS - 1)
       );
     case MESSAGE.OPPONENT_CANNON_PLACED:
       return (
-        isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
-        isInt(msg.row, 0, GRID_ROWS - 1) &&
-        isInt(msg.col, 0, GRID_COLS - 1) &&
-        (CANNON_MODES as ReadonlySet<string>).has(msg.mode as string)
+        hasValidPlayer(msg) && hasValidGridPos(msg) && hasValidCannonMode(msg)
       );
     case MESSAGE.CANNON_FIRED:
       return (
-        isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
+        hasValidPlayer(msg) &&
         isInt(msg.cannonIdx, 0, MAX_CANNON_IDX) &&
         isFiniteRange(msg.startX, -MAX_PIXEL, MAX_PIXEL) &&
         isFiniteRange(msg.startY, -MAX_PIXEL, MAX_PIXEL) &&
@@ -123,38 +141,18 @@ function validatePayload(msg: Record<string, unknown>): boolean {
         isFiniteRange(msg.speed, 1, 1000)
       );
     case MESSAGE.LIFE_LOST_CHOICE:
-      return (
-        isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
-        VALID_CHOICES.has(msg.choice as string)
-      );
+      return hasValidPlayer(msg) && VALID_CHOICES.has(msg.choice as string);
     case MESSAGE.AIM_UPDATE:
-      return (
-        isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
-        isFinite(msg.x) &&
-        isFinite(msg.y)
-      );
+      return hasValidPlayer(msg) && isFinite(msg.x) && isFinite(msg.y);
     case MESSAGE.OPPONENT_PHANTOM:
       return (
-        isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
-        isInt(msg.row, 0, GRID_ROWS - 1) &&
-        isInt(msg.col, 0, GRID_COLS - 1) &&
-        Array.isArray(msg.offsets) &&
-        msg.offsets.length >= 1 &&
-        msg.offsets.length <= MAX_PIECE_TILES &&
-        msg.offsets.every(
-          (o: unknown) =>
-            Array.isArray(o) &&
-            o.length === 2 &&
-            isInt(o[0], -4, 4) &&
-            isInt(o[1], -4, 4),
-        )
+        hasValidPlayer(msg) &&
+        hasValidGridPos(msg) &&
+        hasValidOffsets(msg, -MAX_PHANTOM_OFFSET, MAX_PHANTOM_OFFSET)
       );
     case MESSAGE.OPPONENT_CANNON_PHANTOM:
       return (
-        isInt(msg.playerId, 0, MAX_PLAYER_ID) &&
-        isInt(msg.row, 0, GRID_ROWS - 1) &&
-        isInt(msg.col, 0, GRID_COLS - 1) &&
-        (CANNON_MODES as ReadonlySet<string>).has(msg.mode as string)
+        hasValidPlayer(msg) && hasValidGridPos(msg) && hasValidCannonMode(msg)
       );
     default:
       return true; // no validation for unknown or host-only messages
@@ -174,7 +172,9 @@ const PHASE_GATES: Record<string, Set<string>> = {
 
 export class GameRoom {
   private players = new Map<WebSocket, number>(); // socket → playerId
-  private spectators = new Set<WebSocket>();
+  /** All connected sockets (players + observers). Used for broadcast relay. */
+  private broadcastRecipients = new Set<WebSocket>();
+  /** Current host socket. Can change mid-game due to host migration (see RoomManager.migrateHost). */
   private hostSocket: WebSocket | null = null;
 
   /** Current phase, tracked from checkpoint messages.
@@ -200,23 +200,23 @@ export class GameRoom {
   // Player management
   // ---------------------------------------------------------------------------
 
-  addSpectator(socket: WebSocket): void {
-    this.spectators.add(socket);
+  addSocket(socket: WebSocket): void {
+    this.broadcastRecipients.add(socket);
   }
 
   /** Internal cleanup only — removes socket from tracking maps.
    *  For full disconnect handling (host migration, room cleanup), use RoomManager.removeSocket(). */
   removePlayer(socket: WebSocket): void {
     this.players.delete(socket);
-    this.spectators.delete(socket);
+    this.broadcastRecipients.delete(socket);
     this.rateLimits.delete(socket);
   }
 
-  /** Register a player socket. playerId is the same as slotId (color/position choice, 0-indexed).
-   *  Also adds to spectators — all players receive broadcast messages. */
+  /** Register a player socket with their playerId (determined by slot choice, 0-indexed).
+   *  Also adds to broadcastRecipients so players receive relayed messages. */
   registerPlayer(socket: WebSocket, playerId: number): void {
     this.players.set(socket, playerId);
-    this.spectators.add(socket);
+    this.broadcastRecipients.add(socket);
   }
 
   setHost(socket: WebSocket): void {
@@ -291,7 +291,7 @@ export class GameRoom {
     }
 
     // --- Relay (forward raw string to avoid re-serialization) ---
-    for (const socket of this.spectators) {
+    for (const socket of this.broadcastRecipients) {
       if (socket === senderSocket) continue;
       if (socket.readyState === WebSocket.OPEN) {
         socket.send(rawJson);

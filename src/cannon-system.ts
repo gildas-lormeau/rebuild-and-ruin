@@ -41,7 +41,7 @@ export function isCannonEnclosed(
   cannon: Cannon,
   interior: Set<number>,
 ): boolean {
-  const sz = cannonSize(cannon.kind);
+  const sz = cannonSize(cannon.mode);
   for (let dr = 0; dr < sz; dr++) {
     for (let dc = 0; dc < sz; dc++) {
       if (!interior.has(packTile(cannon.row + dr, cannon.col + dc)))
@@ -150,7 +150,7 @@ export function applyCannonPlacement(
     row,
     col,
     hp: state.cannonMaxHp,
-    kind: mode,
+    mode,
     facing: player.defaultFacing,
   });
 }
@@ -183,7 +183,7 @@ export function cannonSlotsUsed(player: Player): number {
   let slots = 0;
   for (const cannon of player.cannons) {
     if (!isCannonAlive(cannon)) continue;
-    slots += cannonSlotCost(cannon.kind);
+    slots += cannonSlotCost(cannon.mode);
   }
   return slots;
 }

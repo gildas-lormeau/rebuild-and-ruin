@@ -126,7 +126,7 @@ export class HumanController extends BaseController implements InputReceiver {
       row: this.cannonCursor.row,
       col: this.cannonCursor.col,
       valid,
-      kind: this.cannonPlaceMode,
+      mode: this.cannonPlaceMode,
       playerId: this.playerId,
       facing: player.defaultFacing,
     };

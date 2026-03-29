@@ -13,12 +13,17 @@ export interface RoomEntry {
   room: GameRoom;
   code: string;
   hostSocket: WebSocket;
-  connectedSockets: Set<WebSocket>; // all connected sockets
-  slotAssignments: Map<WebSocket, number>; // socket → slotId (only for those who picked a slot)
+  connectedSockets: Set<WebSocket>;
+  /** socket → playerId. A player's slot choice (color/position, 0-indexed)
+   *  determines their playerId for the entire session. Only set for sockets
+   *  that have picked a slot; spectators are in connectedSockets but not here. */
+  slotAssignments: Map<WebSocket, number>;
+  /** True once the game has started (wait timer fired or manual start).
+   *  No new players can join after this point. */
   started: boolean;
   cleanupTimer: ReturnType<typeof setTimeout> | null;
   waitTimer: ReturnType<typeof setTimeout> | null;
-  createdAt: number; // Date.now() when room was created
+  createdAt: number;
 }
 
 interface SlotSelectionResult {
@@ -53,7 +58,7 @@ export class RoomManager {
     };
     this.rooms.set(code, entry);
     this.socketToRoom.set(hostSocket, entry);
-    room.addSpectator(hostSocket);
+    room.addSocket(hostSocket);
     room.setHost(hostSocket);
 
     // Start wait timer
@@ -71,12 +76,13 @@ export class RoomManager {
     if (!entry || entry.started) return null;
 
     entry.connectedSockets.add(socket);
-    entry.room.addSpectator(socket);
+    entry.room.addSocket(socket);
     this.socketToRoom.set(socket, entry);
     return entry;
   }
 
-  /** Player selects a slot (color). Returns the slotId or -1 if taken. */
+  /** Player selects a color/position slot, which becomes their playerId.
+   *  Returns null if: slot taken by another player, invalid slotId, or game already started. */
   selectSlot(socket: WebSocket, slotId: number): SlotSelectionResult | null {
     const entry = this.socketToRoom.get(socket);
     if (!entry || entry.started) return null;
@@ -143,72 +149,89 @@ export class RoomManager {
     entry.slotAssignments.delete(socket);
     this.socketToRoom.delete(socket);
 
-    // Host left before game start — delete the room immediately
     if (wasHost && !entry.started) {
-      if (entry.waitTimer) {
-        clearTimeout(entry.waitTimer);
-        entry.waitTimer = null;
-      }
-      for (const s of entry.connectedSockets) {
-        this.socketToRoom.delete(s);
-      }
-      entry.connectedSockets.clear();
-      this.rooms.delete(entry.code);
-      console.log(
-        `[rooms] Room ${entry.code} deleted (host left before start)`,
-      );
+      this.teardownUnstartedRoom(entry);
       return;
     }
 
     if (entry.started) {
-      entry.room.removePlayer(socket);
-      if (playerId !== undefined && playerId >= 0) {
-        this.broadcastToRoom(entry, { type: MESSAGE.PLAYER_LEFT, playerId });
-      }
-
-      // Host left mid-game — promote another player
-      if (wasHost) {
-        const previousHostPlayerId = playerId ?? -1;
-        let newHostSocket: WebSocket | null = null;
-        let newHostPlayerId = -1;
-
-        // Prefer lowest-slotId player
-        for (const [sock, sid] of entry.slotAssignments) {
-          if (
-            sock.readyState === WebSocket.OPEN &&
-            (newHostPlayerId < 0 || sid < newHostPlayerId)
-          ) {
-            newHostSocket = sock;
-            newHostPlayerId = sid;
-          }
-        }
-        // Fallback: any connected socket (watcher becomes relay host, all players AI)
-        if (!newHostSocket) {
-          for (const sock of entry.connectedSockets) {
-            if (sock.readyState === WebSocket.OPEN) {
-              newHostSocket = sock;
-              break;
-            }
-          }
-        }
-
-        if (newHostSocket) {
-          entry.hostSocket = newHostSocket;
-          entry.room.setHost(newHostSocket);
-          this.broadcastToRoom(entry, {
-            type: MESSAGE.HOST_LEFT,
-            newHostPlayerId,
-            previousHostPlayerId,
-          });
-          console.log(
-            `[rooms] Room ${entry.code}: host migrated to P${newHostPlayerId}`,
-          );
-        }
-      }
+      this.handlePlayerLeftMidGame(entry, socket, playerId, wasHost);
     }
 
     if (entry.connectedSockets.size === 0) {
       this.scheduleCleanup(entry);
+    }
+  }
+
+  /** Host left before game start — delete the room immediately. */
+  private teardownUnstartedRoom(entry: RoomEntry): void {
+    if (entry.waitTimer) {
+      clearTimeout(entry.waitTimer);
+      entry.waitTimer = null;
+    }
+    for (const s of entry.connectedSockets) {
+      this.socketToRoom.delete(s);
+    }
+    entry.connectedSockets.clear();
+    this.rooms.delete(entry.code);
+    console.log(`[rooms] Room ${entry.code} deleted (host left before start)`);
+  }
+
+  /** Handle a player (or host) disconnecting during an active game. */
+  private handlePlayerLeftMidGame(
+    entry: RoomEntry,
+    socket: WebSocket,
+    playerId: number | undefined,
+    wasHost: boolean,
+  ): void {
+    entry.room.removePlayer(socket);
+    if (playerId !== undefined && playerId >= 0) {
+      this.broadcastToRoom(entry, { type: MESSAGE.PLAYER_LEFT, playerId });
+    }
+    if (wasHost) {
+      this.migrateHost(entry, playerId);
+    }
+  }
+
+  /** Promote the lowest-slot player to host; falls back to any open socket. */
+  private migrateHost(
+    entry: RoomEntry,
+    previousHostPlayerId: number | undefined,
+  ): void {
+    let newHostSocket: WebSocket | null = null;
+    let newHostPlayerId = -1;
+
+    // Prefer lowest-slotId player
+    for (const [sock, sid] of entry.slotAssignments) {
+      if (
+        sock.readyState === WebSocket.OPEN &&
+        (newHostPlayerId < 0 || sid < newHostPlayerId)
+      ) {
+        newHostSocket = sock;
+        newHostPlayerId = sid;
+      }
+    }
+    // Fallback: any connected socket (watcher becomes relay host, all players AI)
+    if (!newHostSocket) {
+      for (const sock of entry.connectedSockets) {
+        if (sock.readyState === WebSocket.OPEN) {
+          newHostSocket = sock;
+          break;
+        }
+      }
+    }
+
+    if (newHostSocket) {
+      entry.hostSocket = newHostSocket;
+      entry.room.setHost(newHostSocket);
+      this.broadcastToRoom(entry, {
+        type: MESSAGE.HOST_LEFT,
+        newHostPlayerId,
+        previousHostPlayerId: previousHostPlayerId ?? -1,
+      });
+      console.log(
+        `[rooms] Room ${entry.code}: host migrated to P${newHostPlayerId}`,
+      );
     }
   }
 

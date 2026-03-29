@@ -155,6 +155,8 @@ export function applyPiecePlacement(
  */
 export function claimTerritory(
   state: GameState,
+  /** When true: awards territory points, clears unenclosed pending revives,
+   *  and calls awardEndOfBuildPoints. Only set at the end of WALL_BUILD phase. */
   endOfBuildPhase = false,
 ): void {
   for (const player of state.players) {

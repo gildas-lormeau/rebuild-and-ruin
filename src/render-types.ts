@@ -63,7 +63,7 @@ export interface FrameData {
       row: number;
       col: number;
       valid: boolean;
-      kind: CannonMode;
+      mode: CannonMode;
       playerId: number;
       facing?: number;
     }[];
@@ -148,7 +148,7 @@ export interface PhantomOverlay {
     row: number;
     col: number;
     valid: boolean;
-    kind: CannonMode;
+    mode: CannonMode;
     playerId: number;
     facing?: number;
   }[];

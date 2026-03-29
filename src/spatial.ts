@@ -71,28 +71,28 @@ export function isTowerTile(t: TilePos, r: number, c: number): boolean {
 
 /** Return the set of packed tile keys covered by a cannon footprint. */
 export function computeCannonTileSet(
-  cannon: Pick<Cannon, "row" | "col" | "kind">,
+  cannon: Pick<Cannon, "row" | "col" | "mode">,
 ): Set<number> {
   const tiles = new Set<number>();
   forEachCannonTile(cannon, (_r, _c, key) => tiles.add(key));
   return tiles;
 }
 
-/** Call `fn` for each tile of a cannon footprint (size based on kind). */
+/** Call `fn` for each tile of a cannon footprint (size based on mode). */
 export function forEachCannonTile(
-  cannon: Pick<Cannon, "row" | "col" | "kind">,
+  cannon: Pick<Cannon, "row" | "col" | "mode">,
   fn: (r: number, c: number, key: number) => void,
 ): void {
-  forEachSquareTile(cannon.row, cannon.col, cannonSize(cannon.kind), fn);
+  forEachSquareTile(cannon.row, cannon.col, cannonSize(cannon.mode), fn);
 }
 
-/** True if (r,c) is within a cannon footprint (size based on kind). */
+/** True if (r,c) is within a cannon footprint (size based on mode). */
 export function isCannonTile(
-  cannon: Pick<Cannon, "row" | "col" | "kind">,
+  cannon: Pick<Cannon, "row" | "col" | "mode">,
   r: number,
   c: number,
 ): boolean {
-  return isTileInRect(cannon.row, cannon.col, cannonSize(cannon.kind), r, c);
+  return isTileInRect(cannon.row, cannon.col, cannonSize(cannon.mode), r, c);
 }
 
 /** Manhattan distance from (r,c) to nearest tile of a 2×2 tower. */
@@ -104,9 +104,9 @@ export function distanceToTower(t: TilePos, r: number, c: number): number {
 
 /** Center of a cannon footprint in pixels. */
 export function cannonCenter(
-  cannon: Pick<Cannon, "row" | "col" | "kind">,
+  cannon: Pick<Cannon, "row" | "col" | "mode">,
 ): PixelPos {
-  const size = cannonSize(cannon.kind);
+  const size = cannonSize(cannon.mode);
   return {
     x: (cannon.col + size / 2) * TILE_SIZE,
     y: (cannon.row + size / 2) * TILE_SIZE,
@@ -190,16 +190,16 @@ export function isCannonAlive(cannon: Pick<Cannon, "hp">): boolean {
 
 /** True if a cannon is a balloon (propaganda balloon). */
 export function isBalloonCannon(cannon: {
-  kind: CannonMode;
-}): cannon is { kind: CannonMode.BALLOON } {
-  return isBalloonMode(cannon.kind);
+  mode: CannonMode;
+}): cannon is { mode: CannonMode.BALLOON } {
+  return isBalloonMode(cannon.mode);
 }
 
 /** True if a cannon is a super gun. */
 export function isSuperCannon(cannon: {
-  kind: CannonMode;
-}): cannon is { kind: CannonMode.SUPER } {
-  return isSuperMode(cannon.kind);
+  mode: CannonMode;
+}): cannon is { mode: CannonMode.SUPER } {
+  return isSuperMode(cannon.mode);
 }
 
 /** True if (r,c) is occupied by a burning pit. */

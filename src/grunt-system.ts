@@ -162,11 +162,16 @@ export function spawnGruntGroupOnZone(
  * the nearest enemy tower. When blocked by another grunt, tries orthogonal
  * moves to go around, producing natural encirclement of towers.
  * Returns true if any grunt moved (for animation purposes).
+ *
+ * INVARIANT: targets must be locked before movement. The two-pass order is:
+ * 1. lockGruntTarget() for all grunts (assigns targetTowerIdx/targetPlayerId)
+ * 2. Sort by distance, then move each grunt toward its locked target
+ * These passes must not be interleaved — a grunt's target must not change mid-move.
  */
 export function tickGrunts(state: GameState): boolean {
   let anyMoved = false;
 
-  // Lock all targets before sorting — all mutation happens here, once per grunt
+  // Pass 1: Lock all targets before sorting — all mutation happens here, once per grunt
   for (const grunt of state.grunts) {
     lockGruntTarget(state, grunt);
   }

@@ -643,7 +643,7 @@ export class AiController extends BaseController implements AiAnimatable {
       col: curCol,
       valid:
         atTarget && canPlaceCannon(player, curRow, curCol, targetMode, state),
-      kind: targetMode,
+      mode: targetMode,
       playerId: this.playerId,
       facing: player.defaultFacing,
     };
@@ -661,7 +661,7 @@ export class AiController extends BaseController implements AiAnimatable {
       row,
       col,
       valid,
-      kind: targetMode,
+      mode: targetMode,
       playerId: this.playerId,
       facing: player.defaultFacing,
     };

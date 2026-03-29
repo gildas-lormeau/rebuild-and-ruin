@@ -123,7 +123,7 @@ export function autoPlaceCannons(
   aggressiveness = 2,
   defensiveness = 2,
   spatialAwareness = 2,
-): { row: number; col: number; kind: CannonMode }[] {
+): { row: number; col: number; mode: CannonMode }[] {
   const beforeCount = player.cannons.length;
   // Precompute tower centers once — used by all scoring calls
   const towerCenters = player.ownedTowers.map(towerCenter);
@@ -191,7 +191,7 @@ export function autoPlaceCannons(
   return player.cannons.slice(beforeCount).map((c) => ({
     row: c.row,
     col: c.col,
-    kind: c.kind,
+    mode: c.mode,
   }));
 }
 
@@ -297,7 +297,7 @@ function scoreCannonPosition(
 ): number {
   const size = cannonSize(mode);
   let score = 0;
-  forEachCannonTile({ row, col, kind: mode }, (r, c) => {
+  forEachCannonTile({ row, col, mode }, (r, c) => {
     score += scoreCannonTileLocalPenalty(state, r, c);
   });
 
@@ -312,7 +312,7 @@ function scoreCannonPosition(
     score += minTowerDistance * TOWER_DISTANCE_MULTIPLIER;
   }
 
-  const cannonTiles = computeCannonTileSet({ row, col, kind: mode });
+  const cannonTiles = computeCannonTileSet({ row, col, mode });
   const occupied = new Set(cannonTiles);
   for (const cannon of player.cannons) {
     for (const key of computeCannonTileSet(cannon)) occupied.add(key);

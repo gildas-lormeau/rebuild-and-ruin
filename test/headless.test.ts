@@ -151,7 +151,7 @@ function validateGameState(
   for (const p of state.players) {
     const cannonTilesForPlayer = new Set<number>();
     for (const cannon of p.cannons) {
-      const sz = cannonSize(cannon.kind);
+      const sz = cannonSize(cannon.mode);
       // Cannon must be in bounds
       if (
         cannon.row < 0 ||

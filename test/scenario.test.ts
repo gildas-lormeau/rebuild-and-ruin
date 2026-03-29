@@ -627,7 +627,7 @@ test("super gun placed during cannon phase can fire in battle", () => {
 
   const superIdx = player.cannons.length - 1;
   const superCannon = player.cannons[superIdx]!;
-  assert(superCannon.kind === CannonMode.SUPER, "Last cannon should be super");
+  assert(superCannon.mode === CannonMode.SUPER, "Last cannon should be super");
 
   // Advance to battle (sweepAllPlayersWalls + claimTerritory runs)
   s.advanceTo(Phase.BATTLE);

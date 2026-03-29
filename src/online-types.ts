@@ -7,7 +7,7 @@ export type CannonPhantom = {
   row: number;
   col: number;
   valid: boolean;
-  kind: CannonMode;
+  mode: CannonMode;
   playerId: number;
   facing?: number;
 };
@@ -64,7 +64,7 @@ export function interpolateToward(
 
 /** Return the wire protocol cannon mode string for a phantom. */
 export function phantomWireMode(p: CannonPhantom): CannonMode {
-  return p.kind;
+  return p.mode;
 }
 
 /** Check if a phantom changed since last send; updates the map if so. */
@@ -80,7 +80,7 @@ export function phantomChanged(
 
 /** Dedup key for cannon phantom network sends. Covers all fields that affect display. */
 export function cannonPhantomKey(p: CannonPhantom): string {
-  return `${p.row},${p.col},${p.kind}`;
+  return `${p.row},${p.col},${p.mode}`;
 }
 
 /** Dedup key for piece phantom network sends. Covers position + shape. */

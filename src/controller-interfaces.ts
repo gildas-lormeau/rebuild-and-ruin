@@ -34,8 +34,8 @@ export interface LocalCannonPhantom {
   col: number;
   /** true = placement is legal at this position. */
   valid: boolean;
-  /** Cannon mode — named `kind` to match the Cannon type's field. */
-  kind: CannonMode;
+  /** Cannon variant (normal, super, or balloon). */
+  mode: CannonMode;
   playerId: number;
   facing: number;
 }

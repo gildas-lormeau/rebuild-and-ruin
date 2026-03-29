@@ -41,6 +41,7 @@ export abstract class BaseController implements PlayerController {
     x: DEFAULT_CURSOR_COL * TILE_SIZE,
     y: DEFAULT_CURSOR_ROW * TILE_SIZE,
   };
+  /** Round-robin index into combined cannon list. Reset in resetBattle() and onLifeLost(). */
   protected lastFiredIdx = -1;
 
   /** Piece bag for the build phase (shared by AI and Human). */
@@ -79,10 +80,16 @@ export abstract class BaseController implements PlayerController {
   }
 
   updateBindings(_keys: KeyBindings): void {}
+  /** Pick a tower. Must set buildCursor/crosshair to the chosen tower. */
   abstract selectTower(state: GameState, zone: number): boolean;
+  /** Pick a tower for reselection. Same contract as selectTower. */
   abstract reselect(state: GameState, zone: number): boolean;
+  /** Place cannons. AI places all immediately; Human sets up cursor/mode. */
   abstract placeCannons(state: GameState, maxSlots: number): void;
+  /** Whether the player has placed all their cannons (slots exhausted or timer expired). */
   abstract isCannonPhaseDone(state: GameState, maxSlots: number): boolean;
+  /** Called each frame during cannon phase. Must auto-downgrade cannonPlaceMode
+   *  if its cost exceeds remaining slots (SUPER→NORMAL, BALLOON→NORMAL). */
   abstract cannonTick(state: GameState, dt: number): LocalCannonPhantom | null;
   /** Shared build-phase init: bag + cursor on home tower. */
   protected initBuildPhase(state: GameState): void {
@@ -98,18 +105,21 @@ export abstract class BaseController implements PlayerController {
     this.clampBuildCursor(this.currentPiece);
   }
 
+  /** Start build phase. Must call super.initBuildPhase(state) to init bag + cursor. */
   abstract startBuild(state: GameState): void;
+  /** Called each frame during build. Returns phantom pieces for rendering. */
   abstract buildTick(state: GameState, dt: number): LocalPiecePhantom[];
 
-  /** End build phase: clear bag/piece. Subclasses should call super. */
+  /** End build phase: clear bag/piece. Subclasses must call super.endBuild(). */
   endBuild(_state: GameState): void {
     this.bag = null;
     this.currentPiece = null;
   }
 
+  /** Called each frame during battle. Should call this.fire(state) to fire cannons. */
   abstract battleTick(state: GameState, dt: number): void;
 
-  /** Reset battle state. Subclasses should call super. */
+  /** Reset battle state (lastFiredIdx, cursors). Subclasses must call super.resetBattle(). */
   resetBattle(state?: GameState): void {
     this.lastFiredIdx = -1;
     if (state) {
@@ -119,6 +129,7 @@ export abstract class BaseController implements PlayerController {
       }
     }
   }
+  /** Flush remaining auto-placement queue when cannon timer expires. */
   abstract flushCannons(state: GameState, maxSlots: number): void;
 
   initCannons(state: GameState, maxSlots: number): void {
@@ -127,6 +138,7 @@ export abstract class BaseController implements PlayerController {
     if (!player || player.eliminated || player.cannons.length > 0) return;
     autoPlaceCannonsBalanced(player, maxSlots, state);
   }
+  /** Clean up at end of battle (e.g. clear AI fire targets). */
   abstract onBattleEnd(): void;
   onLifeLost(): void {
     this.lastFiredIdx = -1;
@@ -144,6 +156,7 @@ export abstract class BaseController implements PlayerController {
     this.bag = null;
     this.currentPiece = null;
   }
+  /** Called at start of cannon phase. Should reset cannon cursor and mode. */
   abstract onCannonPhaseStart(state: GameState): void;
 
   /** Human never auto-confirms — driven by UI. */

@@ -58,7 +58,7 @@ export function drawPhantoms(
         phantom.row,
         phantom.col,
         phantom.valid,
-        phantom.kind,
+        phantom.mode,
         phantom.facing ?? 0,
       );
     }
@@ -469,19 +469,19 @@ function drawPhantomCannon(
   row: number,
   col: number,
   valid: boolean,
-  kind: CannonMode,
+  mode: CannonMode,
   facing = 0,
 ): void {
   const cx = col * TILE_SIZE;
   const cy = row * TILE_SIZE;
-  const sz = isSuperMode(kind) ? 3 : 2;
+  const sz = isSuperMode(mode) ? 3 : 2;
   const s = TILE_SIZE * sz;
   const mid = s / 2;
 
   ctx.save();
   ctx.globalAlpha = valid ? 0.7 : 0.5;
 
-  if (isBalloonMode(kind)) {
+  if (isBalloonMode(mode)) {
     // Balloon base preview — sprite with red tint overlay if invalid
     drawSprite(ctx, "balloon_base", cx, cy);
     if (!valid) {
@@ -496,7 +496,7 @@ function drawPhantomCannon(
   ctx.translate(cx + mid, cy + mid);
   ctx.rotate(facing);
   const tint = !valid;
-  if (isSuperMode(kind)) {
+  if (isSuperMode(mode)) {
     // Super gun phantom — symmetric around (0,0)
     ctx.fillStyle = tint ? "#3a1111" : "#1a1a1a";
     ctx.fillRect(-14, -8, 28, 24);

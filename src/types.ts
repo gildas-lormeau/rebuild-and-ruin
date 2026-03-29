@@ -51,7 +51,7 @@ export interface Cannon extends TilePos {
   /** Hits remaining before destruction. Persists across rounds. */
   hp: number;
   /** Cannon variant: normal (2×2), super (3×3 incendiary), or balloon (2×2 propaganda). */
-  kind: CannonMode;
+  mode: CannonMode;
   /** Facing angle in radians (snapped to 45° increments). 0 = up. */
   facing?: number;
 }

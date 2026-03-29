@@ -453,7 +453,7 @@ function collectEnemyTargets(
         // Skip if we've already fired enough shots to destroy it
         const shots = shotCounts.get(cannon) ?? 0;
         if (shots >= state.cannonMaxHp) continue;
-        const size = cannonSize(cannon.kind);
+        const size = cannonSize(cannon.mode);
         const targetRow = cannon.row + (size - 1) / 2;
         const targetCol = cannon.col + (size - 1) / 2;
         targets.push({ row: targetRow, col: targetCol, priority: shots > 0 });

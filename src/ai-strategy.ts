@@ -382,7 +382,7 @@ export class DefaultStrategy implements AiStrategy {
     return placed.map((c) => ({
       row: c.row,
       col: c.col,
-      mode: c.kind,
+      mode: c.mode,
     }));
   }
 

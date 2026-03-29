@@ -295,7 +295,7 @@ export function handleServerIncrementalMessage(
             row: msg.row,
             col: msg.col,
             valid: msg.valid,
-            kind: toCannonMode(msg.mode),
+            mode: toCannonMode(msg.mode),
             playerId: msg.playerId,
             facing: msg.facing,
           },
