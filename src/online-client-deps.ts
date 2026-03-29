@@ -25,7 +25,7 @@ import {
   showWaitingRoom,
   transitionCtx,
 } from "./online-client-runtime.ts";
-import { log, session, watcher } from "./online-client-stores.ts";
+import { devLog, session, watcher } from "./online-client-stores.ts";
 import {
   handleBattleStartTransition,
   handleBuildEndTransition,
@@ -51,86 +51,102 @@ const lifecycleDeps = buildLifecycleDeps();
 const incrementalDeps = buildIncrementalDeps();
 
 export function handleServerMessage(msg: ServerMessage): void {
-  log(`received: ${msg.type}`);
+  devLog(`received: ${msg.type}`);
   if (handleServerLifecycleMessage(msg, lifecycleDeps)) return;
   handleServerIncrementalMessage(msg, incrementalDeps);
 }
 
-/** Flat deps object for backward compat. New context objects (e.g., transitionCtx
- *  in online-client-runtime.ts) should nest by concern for better readability. */
 function buildLifecycleDeps() {
   return {
-    log,
-    isHost: () => session.isHost,
-    getState: () => runtime.rs.state,
-    getLifeLostDialog: () => runtime.lifeLost.get(),
-    clearLifeLostDialog: () => {
-      runtime.lifeLost.set(null);
-    },
-    isLifeLostMode: () => runtime.rs.mode === Mode.LIFE_LOST,
-    setGameMode: () => {
-      runtime.rs.mode = Mode.GAME;
-    },
-    setLobbyWaitTimer: (s: number) => {
-      session.lobbyWaitTimer = s;
-    },
-    setRoomSettings: (bl: number, hp: number) => {
-      session.roomBattleLength = bl;
-      session.roomCannonMaxHp = hp;
-    },
-    showWaitingRoom,
-    setLobbyStartTime: (t: number) => {
-      session.lobbyStartTime = t;
-    },
+    log: devLog,
     now: () => performance.now(),
-    lobbyJoined: runtime.rs.lobby.joined,
-    occupiedSlots: session.occupiedSlots,
-    remoteHumanSlots: session.remoteHumanSlots,
-    getMyPlayerId: () => session.myPlayerId,
-    setMyPlayerId: (pid: number) => {
-      session.myPlayerId = pid;
+
+    session: {
+      isHost: () => session.isHost,
+      getMyPlayerId: () => session.myPlayerId,
+      setMyPlayerId: (pid: number) => {
+        session.myPlayerId = pid;
+      },
+      /** Host migration sequence counter — incremented each time a new host takes over.
+       *  Watchers compare their local seq against incoming checkpoint seq to detect
+       *  stale state: if checkpoint.seq > local.seq, the watcher missed a migration
+       *  and should request full-state recovery. The host includes this in FULL_STATE
+       *  messages so recovering watchers can sync up. */
+      getHostMigrationSeq: () => session.hostMigrationSeq,
+      setHostMigrationSeq: (seq: number) => {
+        session.hostMigrationSeq = seq;
+      },
+      bumpHostMigrationSeq: () => {
+        session.hostMigrationSeq++;
+      },
     },
-    createErrorEl: document.getElementById("create-error")!,
-    joinErrorEl: document.getElementById("join-error")!,
-    initFromServer,
-    enterTowerSelection: () => runtime.selection.enter(),
-    onCastleWalls: (msg: ServerMessage) =>
-      handleCastleWallsTransition(msg, transitionCtx),
-    onCannonStart: (msg: ServerMessage) =>
-      handleCannonStartTransition(msg, transitionCtx),
-    onBattleStart: (msg: ServerMessage) =>
-      handleBattleStartTransition(msg, transitionCtx),
-    onBuildStart: (msg: ServerMessage) =>
-      handleBuildStartTransition(msg, transitionCtx),
-    onBuildEnd: (msg: ServerMessage) =>
-      handleBuildEndTransition(msg, transitionCtx),
-    onGameOver: (msg: ServerMessage) =>
-      handleGameOverTransition(msg, transitionCtx),
-    setAnnouncement: (text: string) => {
-      watcher.migrationText = text;
-      watcher.migrationTimer = MIGRATION_ANNOUNCEMENT_DURATION;
+
+    lobby: {
+      setWaitTimer: (s: number) => {
+        session.lobbyWaitTimer = s;
+      },
+      setRoomSettings: (bl: number, hp: number) => {
+        session.roomBattleLength = bl;
+        session.roomCannonMaxHp = hp;
+      },
+      showWaitingRoom,
+      setStartTime: (t: number) => {
+        session.lobbyStartTime = t;
+      },
+      joined: runtime.rs.lobby.joined,
+      occupiedSlots: session.occupiedSlots,
+      remoteHumanSlots: session.remoteHumanSlots,
     },
-    /** Host migration sequence counter — incremented each time a new host takes over.
-     *  Watchers compare their local seq against incoming checkpoint seq to detect
-     *  stale state: if checkpoint.seq > local.seq, the watcher missed a migration
-     *  and should request full-state recovery. The host includes this in FULL_STATE
-     *  messages so recovering watchers can sync up. */
-    getHostMigrationSeq: () => session.hostMigrationSeq,
-    setHostMigrationSeq: (seq: number) => {
-      session.hostMigrationSeq = seq;
+
+    ui: {
+      getLifeLostDialog: () => runtime.lifeLost.get(),
+      clearLifeLostDialog: () => {
+        runtime.lifeLost.set(null);
+      },
+      isLifeLostMode: () => runtime.rs.mode === Mode.LIFE_LOST,
+      setGameMode: () => {
+        runtime.rs.mode = Mode.GAME;
+      },
+      setAnnouncement: (text: string) => {
+        watcher.migrationText = text;
+        watcher.migrationTimer = MIGRATION_ANNOUNCEMENT_DURATION;
+      },
+      createErrorEl: document.getElementById("create-error")!,
+      joinErrorEl: document.getElementById("join-error")!,
     },
-    bumpHostMigrationSeq: () => {
-      session.hostMigrationSeq++;
+
+    game: {
+      getState: () => runtime.rs.state,
+      initFromServer,
+      enterTowerSelection: () => runtime.selection.enter(),
     },
-    playerNames: PLAYER_NAMES,
-    promoteToHost,
-    applyFullState,
+
+    transitions: {
+      onCastleWalls: (msg: ServerMessage) =>
+        handleCastleWallsTransition(msg, transitionCtx),
+      onCannonStart: (msg: ServerMessage) =>
+        handleCannonStartTransition(msg, transitionCtx),
+      onBattleStart: (msg: ServerMessage) =>
+        handleBattleStartTransition(msg, transitionCtx),
+      onBuildStart: (msg: ServerMessage) =>
+        handleBuildStartTransition(msg, transitionCtx),
+      onBuildEnd: (msg: ServerMessage) =>
+        handleBuildEndTransition(msg, transitionCtx),
+      onGameOver: (msg: ServerMessage) =>
+        handleGameOverTransition(msg, transitionCtx),
+    },
+
+    migration: {
+      playerNames: PLAYER_NAMES,
+      promoteToHost,
+      applyFullState,
+    },
   };
 }
 
 function buildIncrementalDeps() {
   return {
-    log,
+    log: devLog,
     isHost: () => session.isHost,
     getState: () => runtime.rs.state,
     remoteHumanSlots: session.remoteHumanSlots,

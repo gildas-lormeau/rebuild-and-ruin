@@ -25,10 +25,11 @@ import {
 import {
   clearReconnect,
   dedup,
-  log,
-  logThrottled,
+  devLog,
+  devLogThrottled,
   maybeSendAimUpdate,
   resetDedup,
+  resetForNewGame,
   send,
   session,
   watcher,
@@ -59,7 +60,6 @@ import {
   applyBattleStartData,
   applyBuildStartData,
   applyCannonStartData,
-  resetWatcherState,
   tickMigrationAnnouncement as tickMigrationAnnouncementFn,
   tickWatcher as tickWatcherFn,
 } from "./online-watcher-tick.ts";
@@ -200,7 +200,7 @@ const watcherTickCtx: WatcherTickContext = {
   lastSentCannonPhantom: dedup.cannonPhantom,
   lastSentPiecePhantom: dedup.piecePhantom,
   send: (msg) => send(msg as GameMessage),
-  logThrottled,
+  logThrottled: devLogThrottled,
   maybeSendAimUpdate,
   render: () => runtime.render(),
   now: () => performance.now(),
@@ -213,8 +213,8 @@ export const runtime: GameRuntime = createGameRuntime({
   getIsHost: () => session.isHost,
   getMyPlayerId: () => session.myPlayerId,
   getRemoteHumanSlots: () => session.remoteHumanSlots,
-  log,
-  logThrottled,
+  log: devLog,
+  logThrottled: devLogThrottled,
   getLobbyRemaining: () =>
     Math.max(
       0,
@@ -264,7 +264,7 @@ export const runtime: GameRuntime = createGameRuntime({
       remoteCrosshairs: watcher.remoteCrosshairs,
       crosshairPos: watcher.crosshairPos,
       remoteHumanSlots: session.remoteHumanSlots,
-      logThrottled,
+      logThrottled: devLogThrottled,
     }),
   hostNetworking: {
     serializePlayers,
@@ -285,7 +285,7 @@ export const runtime: GameRuntime = createGameRuntime({
   fireAndSend: (ctrl, gs) => fireAndSendAction(ctrl, gs, send),
   onEndGame: (winner, gameState) => {
     const payloads = createGameOverPayload(winner, gameState, PLAYER_NAMES);
-    log(
+    devLog(
       `endGame winner=${payloads.winnerName} round=${gameState.round} battleLength=${gameState.battleLength}`,
     );
     if (session.isHost) send(payloads.serverPayload);
@@ -330,7 +330,7 @@ export function initFromServer(msg: InitMessage): void {
     cannonMaxHp: msg.settings.cannonMaxHp,
     buildTimer: msg.settings.buildTimer,
     cannonPlaceTimer: msg.settings.cannonPlaceTimer,
-    log,
+    log: devLog,
     resetFrame: () => runtime.resetFrame(),
     setState: (s) => {
       runtime.rs.state = s;
@@ -340,8 +340,7 @@ export function initFromServer(msg: InitMessage): void {
     },
     resetUIState: () => {
       runtime.lifecycle.resetUIState();
-      resetWatcherState(watcher);
-      resetDedup();
+      resetForNewGame();
     },
     createControllerForSlot: createOnlineControllerSlotFactory(
       session.myPlayerId,

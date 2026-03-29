@@ -2,7 +2,7 @@
  * Online play entry point — barrel re-export.
  *
  * The implementation is split across focused modules:
- *   online-client-stores.ts   — mutable singletons, send/log utilities
+ *   online-client-stores.ts   — mutable singletons, send/devLog utilities
  *   online-client-runtime.ts  — GameRuntime creation and online callbacks
  *   online-client-deps.ts     — server message dispatch, dep-object builders
  *   online-client-promote.ts     — host promotion orchestration

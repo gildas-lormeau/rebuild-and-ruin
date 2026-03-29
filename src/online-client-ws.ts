@@ -6,7 +6,8 @@ import { handleServerMessage } from "./online-client-deps.ts";
 import { runtime } from "./online-client-runtime.ts";
 import {
   clearReconnect,
-  log,
+  devLog,
+  isReconnecting,
   MAX_RECONNECT_ATTEMPTS,
   RECONNECT_BASE_DELAY_MS,
   reconnect,
@@ -23,23 +24,23 @@ export function connect(onConnectError?: () => void): void {
   if (onConnectError) _onConnectError = onConnectError;
   connectWebSocket(session, computeWsUrl(), {
     onMessage: (msg) => {
-      if (reconnect.attempt > 0) {
-        log(`reconnected after ${reconnect.attempt} attempt(s)`);
+      if (isReconnecting()) {
+        devLog(`reconnected after ${reconnect.count} attempt(s)`);
         clearReconnect();
       }
       handleServerMessage(msg);
     },
     onClose: () => {
       const m = runtime.rs.mode;
-      log(`WebSocket closed (mode=${Mode[m]} isHost=${session.isHost})`);
+      devLog(`WebSocket closed (mode=${Mode[m]} isHost=${session.isHost})`);
       if (session.isHost || m === Mode.STOPPED || m === Mode.LOBBY) return;
-      if (reconnect.attempt < MAX_RECONNECT_ATTEMPTS) {
-        reconnect.attempt++;
-        const delay = RECONNECT_BASE_DELAY_MS * (1 << (reconnect.attempt - 1));
+      if (reconnect.count < MAX_RECONNECT_ATTEMPTS) {
+        reconnect.count++;
+        const delay = RECONNECT_BASE_DELAY_MS * (1 << (reconnect.count - 1));
         runtime.rs.frame.announcement = "Reconnecting\u2026";
         runtime.render();
-        log(
-          `reconnect attempt ${reconnect.attempt}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`,
+        devLog(
+          `reconnect attempt ${reconnect.count}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`,
         );
         reconnect.timer = setTimeout(() => {
           reconnect.timer = null;

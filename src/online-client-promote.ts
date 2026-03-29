@@ -13,18 +13,16 @@ import {
 } from "./game-engine.ts";
 import { runtime } from "./online-client-runtime.ts";
 import {
-  log,
-  resetDedup,
+  devLog,
+  resetForHostPromotion,
   send,
   session,
-  watcher,
 } from "./online-client-stores.ts";
 import {
   rebuildControllersForPhase,
   syncAccumulatorsFromTimer,
 } from "./online-host-promotion.ts";
 import { createFullStateMessage } from "./online-serialize.ts";
-import { resetWatcherForHost } from "./online-watcher-tick.ts";
 import { assertNever, Mode } from "./types.ts";
 
 /** Promote this client to host. Order matters:
@@ -35,7 +33,7 @@ import { assertNever, Mode } from "./types.ts";
  *  5. Broadcast full state (must be last — state must be coherent first)
  */
 export function promoteToHost(): void {
-  log("PROMOTING TO HOST");
+  devLog("PROMOTING TO HOST");
   session.isHost = true;
 
   resetNetworkingForHost();
@@ -55,13 +53,12 @@ export function promoteToHost(): void {
       runtime.rs.battleAnim.flights,
     ),
   );
-  log("Promotion complete, now running as host");
+  devLog("Promotion complete, now running as host");
 }
 
 /** Clear networking state the host doesn't carry over from the watcher phase. */
 function resetNetworkingForHost(): void {
-  resetDedup();
-  resetWatcherForHost(watcher);
+  resetForHostPromotion();
 }
 
 /**
@@ -78,17 +75,17 @@ function skipPendingAnimations(): void {
       enterCannonPlacePhase(state);
       runtime.phaseTicks.startCannonPhase();
       runtime.rs.mode = Mode.GAME;
-      log("Skipped castle build animation → cannon phase");
+      devLog("Skipped castle build animation → cannon phase");
       break;
     case Mode.LIFE_LOST:
       runtime.lifeLost.set(null);
       runtime.rs.mode = Mode.GAME;
-      log("Cleared life-lost dialog → game mode");
+      devLog("Cleared life-lost dialog → game mode");
       break;
     case Mode.BANNER:
     case Mode.BALLOON_ANIM:
       runtime.rs.mode = Mode.GAME;
-      log("Skipped banner/animation → game mode");
+      devLog("Skipped banner/animation → game mode");
       break;
     case Mode.GAME:
     case Mode.LOBBY:

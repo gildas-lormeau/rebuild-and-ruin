@@ -41,6 +41,14 @@ export interface TransitionContext {
   getState: () => GameState;
   getMyPlayerId: () => number;
   getControllers: () => PlayerController[];
+  /** Set the UI rendering mode. Valid transitions from phase handlers:
+   *  - CASTLE_BUILD — castle wall animation playing
+   *  - GAME — normal gameplay (cannon, battle, build phases)
+   *  - BALLOON_ANIM — balloon flight animation before battle
+   *  - STOPPED — game over
+   *
+   *  Host promotion (skipPendingAnimations) may also set GAME from
+   *  CASTLE_BUILD, LIFE_LOST, BANNER, or BALLOON_ANIM. */
   setMode: (mode: Mode) => void;
   now: () => number;
 
@@ -267,6 +275,12 @@ export function handleBuildStartTransition(
   });
 }
 
+/** Handle BUILD_END: apply player checkpoint, show score deltas, then life-lost dialog.
+ *
+ *  IMPORTANT: `preScores` must be captured BEFORE `applyPlayers` overwrites player state.
+ *  The score-delta animation relies on comparing old scores against the new ones the host
+ *  computed. Without the delta delay, the non-host would send life_lost_choice before the
+ *  host has created its dialog, causing the choice to be silently dropped. */
 export function handleBuildEndTransition(
   msg: ServerMessage,
   ctx: TransitionContext,

@@ -43,44 +43,56 @@ test("lifecycle drops stale full_state after host migration", () => {
 
   const deps = {
     log: () => {},
-    isHost: () => false,
-    getState: () => ({}) as unknown as GameState,
-    getLifeLostDialog: () => null,
-    clearLifeLostDialog: () => {},
-    isLifeLostMode: () => false,
-    setGameMode: () => {},
-    setLobbyWaitTimer: () => {},
-    setRoomSettings: () => {},
-    showWaitingRoom: () => {},
-    setLobbyStartTime: () => {},
     now: () => 0,
-    lobbyJoined: [],
-    occupiedSlots: new Set<number>(),
-    remoteHumanSlots: new Set<number>(),
-    getMyPlayerId: () => 0,
-    setMyPlayerId: () => {},
-    createErrorEl: { textContent: "" } as HTMLElement,
-    joinErrorEl: { textContent: "" } as HTMLElement,
-    initFromServer: () => {},
-    enterTowerSelection: () => {},
-    onCastleWalls: () => {},
-    onCannonStart: () => {},
-    onBattleStart: () => {},
-    onBuildStart: () => {},
-    onBuildEnd: () => {},
-    onGameOver: () => {},
-    setAnnouncement: () => {},
-    playerNames: ["P1", "P2", "P3"],
-    getHostMigrationSeq: () => migrationSeq,
-    setHostMigrationSeq: (seq: number) => {
-      migrationSeq = seq;
+    session: {
+      isHost: () => false,
+      getMyPlayerId: () => 0,
+      setMyPlayerId: () => {},
+      getHostMigrationSeq: () => migrationSeq,
+      setHostMigrationSeq: (seq: number) => {
+        migrationSeq = seq;
+      },
+      bumpHostMigrationSeq: () => {
+        migrationSeq++;
+      },
     },
-    bumpHostMigrationSeq: () => {
-      migrationSeq++;
+    lobby: {
+      setWaitTimer: () => {},
+      setRoomSettings: () => {},
+      showWaitingRoom: () => {},
+      setStartTime: () => {},
+      joined: [] as boolean[],
+      occupiedSlots: new Set<number>(),
+      remoteHumanSlots: new Set<number>(),
     },
-    promoteToHost: () => {},
-    applyFullState: () => {
-      applyCalls++;
+    ui: {
+      getLifeLostDialog: () => null,
+      clearLifeLostDialog: () => {},
+      isLifeLostMode: () => false,
+      setGameMode: () => {},
+      setAnnouncement: () => {},
+      createErrorEl: { textContent: "" } as HTMLElement,
+      joinErrorEl: { textContent: "" } as HTMLElement,
+    },
+    game: {
+      getState: () => ({}) as unknown as GameState,
+      initFromServer: () => {},
+      enterTowerSelection: () => {},
+    },
+    transitions: {
+      onCastleWalls: () => {},
+      onCannonStart: () => {},
+      onBattleStart: () => {},
+      onBuildStart: () => {},
+      onBuildEnd: () => {},
+      onGameOver: () => {},
+    },
+    migration: {
+      playerNames: ["P1", "P2", "P3"],
+      promoteToHost: () => {},
+      applyFullState: () => {
+        applyCalls++;
+      },
     },
   };
 

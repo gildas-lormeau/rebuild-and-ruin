@@ -4,7 +4,7 @@
  * Every piece of online mutable state lives here so that ownership is
  * explicit and mutation is visible across the split online-client modules.
  *
- * NOTE: log() and logThrottled() are dev-only (gated by IS_DEV).
+ * NOTE: devLog() and devLogThrottled() are dev-only (gated by IS_DEV).
  * They produce no output in production builds. Do not rely on them
  * for user-visible feedback or error handling.
  */
@@ -19,7 +19,11 @@ import {
   sendAimUpdate,
   sendMessage,
 } from "./online-session.ts";
-import { createWatcherState } from "./online-watcher-tick.ts";
+import {
+  createWatcherState,
+  resetWatcherForHost,
+  resetWatcherState,
+} from "./online-watcher-tick.ts";
 import { IS_DEV } from "./platform.ts";
 
 // ── Constants ───────────────────────────────────────────────────────
@@ -33,25 +37,31 @@ export const session: OnlineSession = createSession();
 export const dedup: DedupMaps = createDedupMaps();
 export const watcher = createWatcherState();
 /** Reconnect bookkeeping — wrapped in an object so other modules can mutate.
- *  attempt=0 means no reconnection in progress; 1+ = number of attempts made so far. */
+ *  count: number of attempts made in the current reconnect cycle (0 = idle).
+ *  Use `isReconnecting()` to check if a reconnect cycle is in progress. */
 export const reconnect = {
-  attempt: 0,
+  count: 0,
   timer: null as ReturnType<typeof setTimeout> | null,
 };
 export const MAX_RECONNECT_ATTEMPTS = 3;
 export const RECONNECT_BASE_DELAY_MS = 1000;
 
-export function logThrottled(key: string, msg: string): void {
+/** Whether a reconnect cycle is currently in progress. */
+export function isReconnecting(): boolean {
+  return reconnect.count > 0;
+}
+
+export function devLogThrottled(key: string, msg: string): void {
   if (!DEV) return;
   const now = performance.now();
   const last = _throttleTimestamps.get(key) ?? 0;
   if (now - last < LOG_THROTTLE_MS) return;
   _throttleTimestamps.set(key, now);
-  log(msg);
+  devLog(msg);
 }
 
 // ── Utilities ───────────────────────────────────────────────────────
-export function log(msg: string): void {
+export function devLog(msg: string): void {
   if (!DEV) return;
   const modeStr = session.isHost
     ? "host"
@@ -73,13 +83,7 @@ export function maybeSendAimUpdate(
   sendAimUpdate(session, dedup, x, y, playerId);
 }
 
-/** Clear all last-sent dedup state.
- *
- *  Must be called whenever the "last sent" baseline is invalidated:
- *  - Game initialization (new game state, all phantoms stale)
- *  - Host promotion (new role, dedup keys from watcher state are meaningless)
- *  - Full-state recovery (state replaced wholesale)
- *  - Session reset (disconnected, all tracking invalid)
+/** Clear all last-sent dedup state (low-level — prefer the paired resets below).
  *
  *  INVARIANT: dedup maps must always be checked BEFORE calling send() for
  *  phantom/aim messages. The pattern is: if key changed → send → update map.
@@ -89,9 +93,24 @@ export function resetDedup(): void {
   resetDedupMaps(dedup);
 }
 
+/** Reset networking state for a new game (INIT or full-state recovery).
+ *  Pairs dedup + full watcher reset so they stay in sync. */
+export function resetForNewGame(): void {
+  resetDedupMaps(dedup);
+  resetWatcherState(watcher);
+}
+
+/** Reset networking state for host promotion.
+ *  Clears dedup + watcher timing/AI state but keeps remote crosshairs
+ *  and phantoms the new host still needs for remote human players. */
+export function resetForHostPromotion(): void {
+  resetDedupMaps(dedup);
+  resetWatcherForHost(watcher);
+}
+
 /** Zero out reconnect state — call after successful reconnect or when giving up. */
 export function clearReconnect(): void {
-  reconnect.attempt = 0;
+  reconnect.count = 0;
   if (reconnect.timer) {
     clearTimeout(reconnect.timer);
     reconnect.timer = null;
