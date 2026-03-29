@@ -7,7 +7,9 @@ import type { PlayerController } from "./controller-interfaces.ts";
 import { BATTLE_TIMER } from "./game-constants.ts";
 import { type GameState, Phase, type TimerAccums } from "./types.ts";
 
+/** Large prime for deriving per-round AI strategy seeds (ensures uncorrelated rounds). */
 const SEED_ROUND_MULTIPLIER = 1000003;
+/** Golden ratio hash constant (2^32 × φ⁻¹) for deriving per-slot AI strategy seeds. */
 const SEED_SLOT_MULTIPLIER = 0x9e3779b9;
 
 /**

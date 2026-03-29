@@ -213,71 +213,66 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
 }
 
 export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
-  const {
-    dt,
-    state,
-    accum,
-    frame,
-    controllers,
-    render,
-    tickGrunts,
-    isHuman,
-    finalizeBuildPhase,
-    showLifeLostDialog,
-    afterLifeLostResolved,
-    showScoreDeltas,
-  } = deps;
-  // Networking defaults (no-op for local play)
+  const { dt, state, accum, frame, controllers, render } = deps;
   const remoteHumanSlots = getRemoteSlots(deps.net);
-  const isHost = deps.net?.isHost ?? true;
-  const remotePiecePhantoms = deps.net?.remotePiecePhantoms ?? [];
-  const lastSentPiecePhantom = deps.net?.lastSentPiecePhantom ?? EMPTY_MAP;
-  const serializePlayers = deps.net?.serializePlayers ?? (() => []);
-  const sendOpponentPiecePlaced = deps.net?.sendOpponentPiecePlaced;
-  const sendOpponentPhantom = deps.net?.sendOpponentPhantom;
-  const sendBuildEnd = deps.net?.sendBuildEnd;
 
+  // --- Timer + grunt tick ---
   accum.build += dt;
   state.timer = Math.max(0, state.buildTimer - accum.build);
   accum.grunt += dt;
   if (accum.grunt >= 1.0) {
     accum.grunt -= 1.0;
-    tickGrunts(state);
+    deps.tickGrunts(state);
   }
 
+  // --- Process each controller's build actions, collect phantoms ---
   frame.phantoms = { aiPhantoms: [], humanPhantoms: [] };
+  processControllerBuildActions(deps, frame, remoteHumanSlots);
+
+  // --- Merge remote phantoms from non-host players ---
+  mergeRemotePiecePhantoms(frame, deps.net, remoteHumanSlots, state);
+
+  render();
+  if (state.timer > 0) return false;
+
+  // --- End of phase: finalize and handle life loss ---
+  finalizeBuildAndShowDialogs(deps, controllers, remoteHumanSlots);
+  return true;
+}
+
+/** Tick each local controller's build logic, detect new walls, collect phantoms. */
+function processControllerBuildActions(
+  deps: TickHostBuildPhaseDeps,
+  frame: HostFrame,
+  remoteHumanSlots: ReadonlySet<number>,
+): void {
+  const { state, dt, controllers } = deps;
+  const isHost = deps.net?.isHost ?? true;
+  const lastSentPiecePhantom = deps.net?.lastSentPiecePhantom ?? EMPTY_MAP;
+  const sendOpponentPiecePlaced = deps.net?.sendOpponentPiecePlaced;
+  const sendOpponentPhantom = deps.net?.sendOpponentPhantom;
+
   for (const ctrl of localActiveControllers(
     controllers,
     remoteHumanSlots,
     state,
   )) {
     const wallSnapshot =
-      isHost && !isHuman(ctrl)
+      isHost && !deps.isHuman(ctrl)
         ? new Set(state.players[ctrl.playerId]!.walls)
         : null;
     const hadInterior = state.players[ctrl.playerId]!.interior.size > 0;
 
     const phantoms = ctrl.buildTick(state, dt);
 
+    // Broadcast new walls placed by AI controllers
     if (wallSnapshot && sendOpponentPiecePlaced) {
-      const player = state.players[ctrl.playerId]!;
-      if (player.walls.size > wallSnapshot.size) {
-        const offsets: [number, number][] = [];
-        for (const key of player.walls) {
-          if (!wallSnapshot.has(key)) {
-            const { r, c } = unpackTile(key);
-            offsets.push([r, c]);
-          }
-        }
-        if (offsets.length > 0) {
-          sendOpponentPiecePlaced({
-            playerId: ctrl.playerId,
-            row: 0,
-            col: 0,
-            offsets,
-          });
-        }
-      }
+      broadcastNewWalls(
+        state,
+        ctrl.playerId,
+        wallSnapshot,
+        sendOpponentPiecePlaced,
+      );
     }
 
     if (!hadInterior && state.players[ctrl.playerId]!.interior.size > 0) {
@@ -285,7 +280,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
     }
 
     for (const p of phantoms) {
-      if (isHuman(ctrl)) {
+      if (deps.isHuman(ctrl)) {
         frame.phantoms.humanPhantoms!.push({
           offsets: p.offsets,
           row: p.row,
@@ -314,7 +309,42 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
       });
     }
   }
+}
 
+/** Detect walls added by an AI controller tick and broadcast them. */
+function broadcastNewWalls(
+  state: GameState,
+  playerId: number,
+  wallSnapshot: ReadonlySet<number>,
+  sendOpponentPiecePlaced: (msg: {
+    playerId: number;
+    row: number;
+    col: number;
+    offsets: [number, number][];
+  }) => void,
+): void {
+  const player = state.players[playerId]!;
+  if (player.walls.size <= wallSnapshot.size) return;
+  const offsets: [number, number][] = [];
+  for (const key of player.walls) {
+    if (!wallSnapshot.has(key)) {
+      const { r, c } = unpackTile(key);
+      offsets.push([r, c]);
+    }
+  }
+  if (offsets.length > 0) {
+    sendOpponentPiecePlaced({ playerId, row: 0, col: 0, offsets });
+  }
+}
+
+/** Add remote piece phantoms from non-host players into the frame. */
+function mergeRemotePiecePhantoms(
+  frame: HostFrame,
+  net: BuildPhaseNet | undefined,
+  remoteHumanSlots: ReadonlySet<number>,
+  state: GameState,
+): void {
+  const remotePiecePhantoms = net?.remotePiecePhantoms ?? [];
   if (remotePiecePhantoms.length > 0) {
     frame.phantoms.aiPhantoms!.push(
       ...remotePiecePhantoms.filter(
@@ -324,10 +354,18 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
       ),
     );
   }
+}
 
-  render();
-
-  if (state.timer > 0) return false;
+/** End build phase: finalize, broadcast, and show life-lost dialogs. */
+function finalizeBuildAndShowDialogs(
+  deps: TickHostBuildPhaseDeps,
+  controllers: readonly PlayerController[],
+  remoteHumanSlots: ReadonlySet<number>,
+): void {
+  const { state } = deps;
+  const isHost = deps.net?.isHost ?? true;
+  const serializePlayers = deps.net?.serializePlayers ?? (() => []);
+  const sendBuildEnd = deps.net?.sendBuildEnd;
 
   for (const ctrl of controllers) {
     if (remoteHumanSlots.has(ctrl.playerId)) continue;
@@ -338,7 +376,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   // until the Place Cannons banner starts and consumes them.
   deps.banner.pendingOldWalls = snapshotAllWalls(state);
 
-  const { needsReselect, eliminated } = finalizeBuildPhase(state);
+  const { needsReselect, eliminated } = deps.finalizeBuildPhase(state);
   if (isHost && sendBuildEnd) {
     sendBuildEnd({
       needsReselect,
@@ -348,18 +386,17 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
     });
   }
 
-  showScoreDeltas(() => {
+  deps.showScoreDeltas(() => {
     for (const pid of [...needsReselect, ...eliminated]) {
       if (remoteHumanSlots.has(pid)) continue;
       controllers[pid]!.onLifeLost();
     }
 
     if (needsReselect.length > 0 || eliminated.length > 0) {
-      showLifeLostDialog(needsReselect, eliminated);
+      deps.showLifeLostDialog(needsReselect, eliminated);
       return;
     }
 
-    afterLifeLostResolved();
+    deps.afterLifeLostResolved();
   });
-  return true;
 }

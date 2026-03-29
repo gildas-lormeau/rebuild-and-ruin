@@ -3,6 +3,10 @@
  *
  * Every piece of online mutable state lives here so that ownership is
  * explicit and mutation is visible across the split online-client modules.
+ *
+ * NOTE: log() and logThrottled() are dev-only (gated by IS_DEV).
+ * They produce no output in production builds. Do not rely on them
+ * for user-visible feedback or error handling.
  */
 
 import type { GameMessage } from "../server/protocol.ts";
@@ -28,7 +32,8 @@ export const session: OnlineSession = createSession();
 /** Network dedup maps — cleared on reset and host promotion. */
 export const dedup: DedupMaps = createDedupMaps();
 export const watcher = createWatcherState();
-/** Reconnect bookkeeping — wrapped in an object so other modules can mutate. */
+/** Reconnect bookkeeping — wrapped in an object so other modules can mutate.
+ *  attempt=0 means no reconnection in progress; 1+ = number of attempts made so far. */
 export const reconnect = {
   attempt: 0,
   timer: null as ReturnType<typeof setTimeout> | null,

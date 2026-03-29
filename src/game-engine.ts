@@ -304,6 +304,8 @@ export function initBuildPhase(
   }
 }
 
+/** Enter build from initial castle selection — builds castles first.
+ *  Callers must call initBuildPhase() afterwards to init controllers. */
 function enterBuildFromSelect(state: GameState): void {
   autoBuildCastles(state);
   replenishBonusSquares(state);
@@ -311,6 +313,8 @@ function enterBuildFromSelect(state: GameState): void {
   state.timer = 0;
 }
 
+/** Enter build from reselection — castles already exist, just set phase.
+ *  Callers must call initBuildPhase() afterwards to init controllers. */
 function enterBuildFromReselect(state: GameState): void {
   setPhase(state, Phase.WALL_BUILD);
   state.timer = 0;
@@ -349,6 +353,8 @@ function sweepAllPlayersWalls(state: GameState): void {
   }
 }
 
+/** Enter build from battle — cleans up battle state (balloons, captured cannons, grunts).
+ *  Callers must call initBuildPhase() afterwards to init controllers. */
 function enterBuildFromBattle(state: GameState): void {
   updateGruntBlockedBattles(state);
   cleanupBalloonHitTrackingAfterBattle(state);
@@ -515,42 +521,12 @@ function orderCastleWallsForAnimation(
   finalWalls: Set<number>,
   rng: Rng,
 ): number[] {
-  const { left, top, right, bottom } = castle;
-  const wL = left - 1,
-    wR = right + 1,
-    wT = top - 1,
-    wB = bottom + 1;
-
-  // 1. Build the clean ring walk (clockwise or counterclockwise)
   const ringSet = new Set<number>();
   for (const [r, c] of ringTiles) ringSet.add(packTile(r, c));
 
-  const ringWalk: number[] = [];
-  // Top edge (left to right)
-  for (let c = wL; c <= wR; c++) {
-    const k = packTile(wT, c);
-    if (ringSet.has(k)) ringWalk.push(k);
-  }
-  // Right edge (top+1 to bottom)
-  for (let r = wT + 1; r <= wB; r++) {
-    const k = packTile(r, wR);
-    if (ringSet.has(k)) ringWalk.push(k);
-  }
-  // Bottom edge (right-1 to left)
-  for (let c = wR - 1; c >= wL; c--) {
-    const k = packTile(wB, c);
-    if (ringSet.has(k)) ringWalk.push(k);
-  }
-  // Left edge (bottom-1 to top+1)
-  for (let r = wB - 1; r > wT; r--) {
-    const k = packTile(r, wL);
-    if (ringSet.has(k)) ringWalk.push(k);
-  }
-
-  // Randomly reverse for counterclockwise
+  const ringWalk = buildPerimeterWalk(castle, ringSet);
   if (rng.bool(CASTLE_RING_REVERSE_CHANCE)) ringWalk.reverse();
 
-  // 2. Find extra tiles added by clumsy builders (in finalWalls but not in ringSet)
   const extras = new Set<number>();
   for (const k of finalWalls) {
     if (!ringSet.has(k)) extras.add(k);
@@ -559,14 +535,55 @@ function orderCastleWallsForAnimation(
   // (sweep phase removes tiles with ≤1 neighbor). Filter ring walk.
   const activeRing = ringWalk.filter((k) => finalWalls.has(k));
 
-  // 3. Interleave: after each ring tile, insert any adjacent extras
+  return interleaveExtras(activeRing, extras, finalWalls);
+}
+
+/** Walk the castle perimeter clockwise: top→right→bottom→left. */
+function buildPerimeterWalk(
+  castle: Castle,
+  ringSet: ReadonlySet<number>,
+): number[] {
+  const wL = castle.left - 1,
+    wR = castle.right + 1,
+    wT = castle.top - 1,
+    wB = castle.bottom + 1;
+
+  const walk: number[] = [];
+  // Top edge (left to right)
+  for (let c = wL; c <= wR; c++) {
+    const k = packTile(wT, c);
+    if (ringSet.has(k)) walk.push(k);
+  }
+  // Right edge (top+1 to bottom)
+  for (let r = wT + 1; r <= wB; r++) {
+    const k = packTile(r, wR);
+    if (ringSet.has(k)) walk.push(k);
+  }
+  // Bottom edge (right-1 to left)
+  for (let c = wR - 1; c >= wL; c--) {
+    const k = packTile(wB, c);
+    if (ringSet.has(k)) walk.push(k);
+  }
+  // Left edge (bottom-1 to top+1)
+  for (let r = wB - 1; r > wT; r--) {
+    const k = packTile(r, wL);
+    if (ringSet.has(k)) walk.push(k);
+  }
+  return walk;
+}
+
+/** After each ring tile, insert any adjacent extra tiles, then append remainders. */
+function interleaveExtras(
+  activeRing: readonly number[],
+  extras: ReadonlySet<number>,
+  finalWalls: ReadonlySet<number>,
+): number[] {
   const ordered: number[] = [];
   const placed = new Set<number>();
   for (const k of activeRing) {
     if (placed.has(k)) continue;
     ordered.push(k);
     placed.add(k);
-    // Insert any extras adjacent to this ring tile
     const { r, c } = unpackTile(k);
     for (const [dr, dc] of DIRS_4) {
       const nk = packTile(r + dr, c + dc);
@@ -580,6 +597,5 @@ function orderCastleWallsForAnimation(
   for (const k of finalWalls) {
     if (!placed.has(k)) ordered.push(k);
   }
-
   return ordered;
 }
