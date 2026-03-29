@@ -21,6 +21,10 @@ import {
 } from "./protocol.ts";
 import { safeSendRaw } from "./send-utils.ts";
 
+/** Phase values the server tracks. Extends the game Phase enum with server-only
+ *  states that have no Phase enum equivalent. Used only for phase gating. */
+type ServerPhase = Phase | "LOBBY" | "CASTLE_BUILD";
+
 // Rate limit: max messages per second per type (cosmetic/display only).
 // Game-state messages (piece_placed, cannon_placed, fired, tower_selected,
 // life_lost_choice) are NOT rate-limited — they are low-frequency and must
@@ -157,12 +161,16 @@ function validatePayload(msg: Record<string, unknown>): boolean {
         hasValidPlayer(msg) && hasValidGridPos(msg) && hasValidCannonMode(msg)
       );
     default:
-      return true; // no validation for unknown or host-only messages
+      // Unknown types pass through: host-only messages are already gated by the
+      // HOST_ONLY set check in handleMessage(); remaining unknowns are relayed
+      // game-state messages with no field-level validation needed. If adding a
+      // new message type with user-supplied fields, add a case above.
+      return true;
   }
 }
 
 // Phase gating: which message types are valid in which phases
-const PHASE_GATES: Record<string, Set<string>> = {
+const PHASE_GATES: Record<string, Set<ServerPhase>> = {
   [MESSAGE.CANNON_FIRED]: new Set([Phase.BATTLE]),
   [MESSAGE.OPPONENT_PIECE_PLACED]: new Set([Phase.WALL_BUILD]),
   [MESSAGE.OPPONENT_PHANTOM]: new Set([Phase.WALL_BUILD]),
@@ -184,7 +192,7 @@ export class GameRoom {
    * - "LOBBY" — before game starts (no Phase enum equivalent)
    * - "CASTLE_BUILD" — castle wall construction animation (UI-only state)
    * See updatePhaseFromMessage() for all transitions. */
-  private phase: string = "LOBBY";
+  private phase: ServerPhase = "LOBBY";
 
   /** Rate limit tracking: socket → type → { count, windowStart }. */
   private rateLimits = new Map<

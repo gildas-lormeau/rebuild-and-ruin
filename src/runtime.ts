@@ -253,6 +253,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Banner
   // -------------------------------------------------------------------------
 
+  /** Show a phase-transition banner with text and optional battle reveal.
+   *  @param onDone — Called exactly once when the banner animation completes.
+   *    Must not be called again or stored for later — the banner system nulls
+   *    its internal reference after invoking it. */
   function showBanner(
     text: string,
     onDone: () => void,

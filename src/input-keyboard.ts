@@ -7,6 +7,7 @@ import {
   dispatchGameAction,
   dispatchOverlayAction,
   type OverlayActionDeps,
+  QUIT_WARNING_SECONDS,
 } from "./input-dispatch.ts";
 import {
   ACTION_KEYS,
@@ -31,8 +32,6 @@ import {
   LifeLostChoice,
 } from "./types.ts";
 
-/** Seconds to wait before second ESC/✕ actually quits. */
-const QUIT_WARNING_SECONDS = 2;
 /** Maximum character length for user-entered seeds. */
 const MAX_SEED_LENGTH = 9;
 

@@ -48,7 +48,7 @@ export function rebuildControllersForPhase(
       }
       controllers[i]!.onCannonPhaseStart(state);
     } else if (state.phase === Phase.BATTLE) {
-      controllers[i]!.resetBattle(state);
+      controllers[i]!.resetBattleState(state);
     }
     // SELECTION, CASTLE_RESELECT — AI will be driven by selection system
   }

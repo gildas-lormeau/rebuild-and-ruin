@@ -37,8 +37,13 @@ const CANNON_SNAP_RADIUS = 2;
 const NORMAL_CANNON_COST = 1;
 
 /** Check whether all tiles of a cannon are inside enclosed territory.
- *  Requires player.interior to be freshly computed via recomputeInterior()
- *  after any wall changes — stale interior produces incorrect results. */
+ *
+ *  FRESHNESS INVARIANT: `interior` must be recomputed via claimTerritory()
+ *  after any wall change. The required call order is:
+ *    1. Place/destroy walls
+ *    2. claimTerritory() — recomputes player.interior via flood fill
+ *    3. isCannonEnclosed() — reads the freshly computed interior
+ *  Skipping step 2 silently produces stale results with no error. */
 export function isCannonEnclosed(
   cannon: Cannon,
   interior: ReadonlySet<number>,

@@ -269,7 +269,12 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   return true;
 }
 
-/** Tick each local controller's build logic, detect new walls, collect phantoms. */
+/** Tick each local controller's build logic, detect new walls, collect phantoms.
+ *
+ *  Wall snapshot convention: for AI controllers, we snapshot `player.walls`
+ *  BEFORE calling `buildTick()`. New walls = (post-tick walls) − (snapshot).
+ *  This is how we detect which tiles to broadcast as OPPONENT_PIECE_PLACED.
+ *  The snapshot must be taken before the tick, not after. */
 function processControllerBuildActions(
   deps: TickHostBuildPhaseDeps,
   frame: HostFrame,

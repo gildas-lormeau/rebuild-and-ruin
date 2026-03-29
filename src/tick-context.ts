@@ -7,7 +7,6 @@
 
 import type { PlayerController } from "./controller-interfaces.ts";
 import { GRUNT_TICK_INTERVAL } from "./game-constants.ts";
-import { EMPTY_TILE_SET } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 
 /** Base networking context shared by all phase ticks. */
@@ -16,9 +15,8 @@ export interface HostNetContext {
   isHost: boolean;
 }
 
-/** Empty set used as default when no remote players exist (local play).
- *  Reuses the frozen EMPTY_TILE_SET sentinel from spatial.ts (both are Set<number>). */
-const NO_REMOTE_SLOTS: ReadonlySet<number> = EMPTY_TILE_SET;
+/** Empty set used as default when no remote players exist (local play). */
+const NO_REMOTE_SLOTS: ReadonlySet<number> = Object.freeze(new Set<number>());
 
 /** True if this client is the host. Defaults to true when net is omitted (local play). */
 export function isHostInContext(net?: Pick<HostNetContext, "isHost">): boolean {

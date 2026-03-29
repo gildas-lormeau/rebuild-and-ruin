@@ -50,10 +50,6 @@ export const CORNERS_2X2 = [
   [-1, 0],
   [-1, -1],
 ] as const;
-/** Shared empty set — avoids allocating throwaway Set objects on every frame. */
-export const EMPTY_TILE_SET: ReadonlySet<number> = Object.freeze(
-  new Set<number>(),
-);
 /** Offset to convert a tile index to the center of that tile (0.5). */
 export const TILE_CENTER_OFFSET = 0.5;
 

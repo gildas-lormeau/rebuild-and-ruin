@@ -30,6 +30,9 @@ import {
 
 export interface RuntimeState {
   // Core game
+  /** The current game state. IMPORTANT: guarded by an uninitialized sentinel
+   *  before startGame() assigns a real value. Always check `isStateReady(rs)`
+   *  or use `safeState(rs)` before accessing — direct access throws if uninitialized. */
   state: GameState;
   overlay: RenderOverlay;
   controllers: PlayerController[];
@@ -50,6 +53,9 @@ export interface RuntimeState {
   // Grouped sub-state
   battleAnim: BattleAnimState;
   banner: BannerState;
+  /** Per-frame context (dt, mode, etc.). IMPORTANT: guarded by an uninitialized
+   *  sentinel before the first mainLoop tick. Same rules as `state` — check
+   *  `isStateReady(rs)` before accessing. */
   ctx: FrameContext;
   frame: FrameData;
   lobby: LobbyState;

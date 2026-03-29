@@ -180,7 +180,7 @@ export function createScenario(seed = 42): Scenario {
   function runBattle(durationSec = BATTLE_TIMER): void {
     resolveBalloons(state);
     nextPhase(state);
-    for (const ctrl of controllers) ctrl.resetBattle(state);
+    for (const ctrl of controllers) ctrl.resetBattleState(state);
 
     let t = 0;
     const dt = 0.1;
@@ -560,7 +560,7 @@ export function createScenario(seed = 42): Scenario {
         applyPlayers: applyPlayersCheckpoint,
       },
       selection: {
-        clearOverlay: () => {},
+        clearSelectionOverlay: () => {},
         getStates: () => new Map(),
         finalizeCastleConstruction: () => {},
         enterCannonPlacePhase: () => {},

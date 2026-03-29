@@ -8,6 +8,8 @@ import { MESSAGE, type RoomSettings, type ServerMessage } from "./protocol.ts";
 import { safeSendRaw } from "./send-utils.ts";
 
 const MAX_ROOMS = 50;
+/** Sentinel for "no player slot assigned" in host migration. */
+const NO_HOST_SLOT = -1;
 const ROOM_CLEANUP_DELAY_MS = 60_000; // 60s after game over
 /** Uppercase letters excluding I and O to avoid confusion with 1 and 0. */
 const ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -203,13 +205,13 @@ export class RoomManager {
     previousHostPlayerId: number | undefined,
   ): void {
     let newHostSocket: WebSocket | null = null;
-    let newHostPlayerId = -1;
+    let newHostPlayerId = NO_HOST_SLOT;
 
     // Prefer lowest-slotId player
     for (const [sock, sid] of entry.slotAssignments) {
       if (
         sock.readyState === WebSocket.OPEN &&
-        (newHostPlayerId < 0 || sid < newHostPlayerId)
+        (newHostPlayerId === NO_HOST_SLOT || sid < newHostPlayerId)
       ) {
         newHostSocket = sock;
         newHostPlayerId = sid;
@@ -231,7 +233,7 @@ export class RoomManager {
       this.broadcastToRoom(entry, {
         type: MESSAGE.HOST_LEFT,
         newHostPlayerId,
-        previousHostPlayerId: previousHostPlayerId ?? -1,
+        previousHostPlayerId: previousHostPlayerId ?? NO_HOST_SLOT,
       });
       console.log(
         `[rooms] Room ${entry.code}: host migrated to P${newHostPlayerId}`,

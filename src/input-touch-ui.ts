@@ -21,6 +21,7 @@ import {
   type GameActionDeps,
   isGameInteractionMode,
   type OverlayActionDeps,
+  QUIT_WARNING_SECONDS,
 } from "./input-dispatch.ts";
 import { ACTION_CONFIRM, PLAYER_COLORS } from "./player-config.ts";
 import {
@@ -325,7 +326,7 @@ export function createQuitButton(
       deps.showLobby();
     } else {
       deps.setQuitPending(true);
-      deps.setQuitTimer(2);
+      deps.setQuitTimer(QUIT_WARNING_SECONDS);
       deps.setQuitMessage("Tap \u2715 again to quit");
     }
   }

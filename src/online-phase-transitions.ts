@@ -66,7 +66,7 @@ export interface TransitionContext {
 
   // --- Selection & castle build ---
   selection: {
-    clearOverlay: () => void;
+    clearSelectionOverlay: () => void;
     getStates: () => Map<number, { highlighted: number; confirmed: boolean }>;
     finalizeCastleConstruction: (state: GameState) => void;
     enterCannonPlacePhase: (state: GameState) => void;
@@ -95,7 +95,7 @@ export interface TransitionContext {
     ) => void;
     snapshotTerritory: () => Set<number>[];
     /** Initiate the battle countdown.  Goes through beginHostBattle which
-     *  handles resetBattle, countdown, watcher timing, aimAtEnemyCastle, and
+     *  handles resetBattleState, countdown, watcher timing, aimAtEnemyCastle, and
      *  Mode.GAME — so the banner callback doesn't need to duplicate any of it. */
     beginBattle: () => void;
   };
@@ -147,7 +147,7 @@ export function handleCastleWallsTransition(
     }
   }
   ctx.selection.getStates().clear();
-  ctx.selection.clearOverlay();
+  ctx.selection.clearSelectionOverlay();
   // Zoom to the local player's castle on mobile
   const myPlan = plans.find((p) => p.playerId === ctx.getMyPlayerId());
   if (myPlan) ctx.selection.setCastleBuildViewport([myPlan]);
@@ -165,7 +165,7 @@ export function handleCannonStartTransition(
   if (msg.type !== MESSAGE.CANNON_START) return;
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
-  ctx.selection.clearOverlay();
+  ctx.selection.clearSelectionOverlay();
   ctx.checkpoint.applyCannonStart(msg);
 
   const initLocalController = () => {

@@ -76,6 +76,9 @@ export interface GameActionDeps {
 }
 
 const TOUCH_CLICK_SUPPRESS_MS = 500;
+/** Seconds to wait before second ESC/✕ actually quits.
+ *  Used by both keyboard (input-keyboard.ts) and touch (input-touch-ui.ts). */
+export const QUIT_WARNING_SECONDS = 2;
 
 /** Timestamp of last touchend; suppresses synthetic click events on mobile. */
 let lastTouchTime = 0;
@@ -162,7 +165,7 @@ export function dispatchTowerSelect(
       | "isSelectionReady"
     >;
   },
-  requireDoubleTap = false,
+  requireSecondTapToConfirm = false,
 ): void {
   const { gameAction } = deps;
   if (gameAction.isSelectionReady && !gameAction.isSelectionReady()) return;
@@ -173,7 +176,7 @@ export function dispatchTowerSelect(
     const idx = towerAtPixel(state.map.towers, wx, wy);
     if (idx !== null && state.map.towers[idx]?.zone === zone) {
       const alreadyHighlighted = ss.highlighted === idx;
-      if (alreadyHighlighted && (!requireDoubleTap || ss.tapped)) {
+      if (alreadyHighlighted && (!requireSecondTapToConfirm || ss.tapped)) {
         gameAction.confirmSelectionForPlayer(human.playerId, isReselect);
       } else {
         gameAction.highlightTowerForPlayer(idx, zone, human.playerId);

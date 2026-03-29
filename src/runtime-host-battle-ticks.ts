@@ -142,6 +142,13 @@ export function tickHostBattleCountdown(
 
 /** Tick the battle phase. Returns true when battle ends.
  *
+ *  Event collection order (load-bearing — do not reorder):
+ *    1. Tick controllers → fire events (new cannonballs from battleTick)
+ *    2. collectTowerEvents → tower kill/damage events
+ *    3. tickCannonballsWithEvents → impact events (walls, cannons, houses, grunts)
+ *    4. Broadcast all events to network
+ *  Events in each category are collected by comparing array lengths before/after.
+ *
  *  Remote vs local dispatch:
  *    Per-frame: ticks LOCAL controllers only (remote crosshairs arrive via network).
  *    Fire events from local controllers are broadcast to remotes.
@@ -171,6 +178,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     battleTimer,
   ));
 
+  // --- Step 1: Tick controllers → collect fire events ---
   const ballsBefore = state.cannonballs.length;
   for (const ctrl of localActiveControllers(
     controllers,
@@ -180,6 +188,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     ctrl.battleTick(state, dt);
   }
 
+  // Fire events = cannonballs added by battleTick (index ballsBefore..length)
   const fireEvents: GameMessage[] = [];
   for (let i = ballsBefore; i < state.cannonballs.length; i++) {
     const msg = createCannonFiredMsg(state.cannonballs[i]!);
@@ -187,11 +196,13 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     if (isHost && sendMessage) sendMessage(msg);
   }
 
+  // --- Step 2: Collect tower kill/damage events ---
   const towerEvents = collectTowerEvents(state, dt);
   if (isHost && sendMessage) {
     for (const evt of towerEvents) sendMessage(evt);
   }
 
+  // --- Step 3: Tick cannonball movement → collect impact events ---
   const { impacts: newImpacts, events: impactEvents } =
     tickCannonballsWithEvents(state, dt);
   for (const imp of newImpacts) {
@@ -201,6 +212,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     for (const evt of impactEvents) sendMessage(evt);
   }
 
+  // --- Step 4: Notify all battle events for sound/haptics ---
   if (onBattleEvents) {
     const allEvents = [...fireEvents, ...towerEvents, ...impactEvents];
     if (allEvents.length > 0) onBattleEvents(allEvents);
@@ -292,7 +304,7 @@ export function beginHostBattle(deps: BeginHostBattleDeps): void {
     remoteHumanSlots,
     state,
   )) {
-    ctrl.resetBattle(state);
+    ctrl.resetBattleState(state);
   }
 
   state.battleCountdown = battleCountdown;

@@ -681,8 +681,8 @@ export class AiController extends BaseController implements AiAnimatable {
   // Battle phase
   // -----------------------------------------------------------------------
 
-  override resetBattle(state?: GameState): void {
-    super.resetBattle(state);
+  override resetBattleState(state?: GameState): void {
+    super.resetBattleState(state);
     this.crosshairTarget = null;
 
     // Delegate battle planning to strategy

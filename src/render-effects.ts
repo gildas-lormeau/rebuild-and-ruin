@@ -5,11 +5,21 @@
  * Convention: exported functions use `octx` (overlay context) for the parameter name.
  * Private helper functions use `ctx` for brevity.
  *
- * Time parameter convention:
- * - `now?: number` — caller-supplied timestamp (Date.now() scale) for testability
- *   (e.g. drawBonusSquares). Falls back to Date.now() when omitted.
- * - `performance.now()` — called inline for animations that are never tested in
- *   isolation and need high-resolution timing (water, burning pits, crosshairs).
+ * ### Time parameter convention (applies across all render-* files)
+ *
+ * Two timestamp sources are used in the render domain:
+ *
+ * 1. `now?: number` (Date.now() scale) — used for TESTABLE animations
+ *    (bonus squares, score deltas). Caller can inject a fixed timestamp in tests.
+ *    Falls back to `Date.now()` when omitted.
+ *
+ * 2. `performance.now()` — called inline for REAL-TIME visual effects that are
+ *    never tested in isolation (water shimmer, burning pits, crosshair pulse).
+ *    Higher resolution than Date.now() but not injectable.
+ *
+ * **Rule**: new render functions should accept `now?: number` (Date.now scale)
+ * unless the animation is purely cosmetic and will never be snapshot-tested.
+ * Never mix the two in a single function — pick one source and stick with it.
  */
 
 import { IMPACT_FLASH_DURATION } from "./game-constants.ts";
@@ -39,11 +49,15 @@ import { type CannonMode, isBalloonMode, isSuperMode } from "./types.ts";
 // Phantom rendering
 const DARK_METAL = "#111";
 const PHANTOM_INVALID_COLOR = "#aa2222";
-/** Alpha for primary human phantom (cursor preview). */
+/**
+ * Phantom alpha hierarchy — lower alpha = more transparent = closer to "ghost".
+ * PRIMARY is the local player's cursor preview (most prominent / least transparent).
+ * HUMAN is for other human players in split-screen (slightly less prominent).
+ * AI is for AI placement previews (least prominent / most transparent).
+ * The values are intentionally close — subtle visual layering, not obvious opacity steps.
+ */
 const PHANTOM_ALPHA_PRIMARY = 0.5;
-/** Alpha for secondary human phantoms (multi-player build). */
 const PHANTOM_ALPHA_HUMAN = 0.55;
-/** Alpha for AI phantom previews. */
 const PHANTOM_ALPHA_AI = 0.6;
 // Spatial hash multipliers for per-tile visual noise
 const SEED_ROW = 41;

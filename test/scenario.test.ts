@@ -350,7 +350,7 @@ test("fireAt launches a cannonball at the target", () => {
   // Place cannons and advance to battle
   s.runCannon();
   s.advanceTo(Phase.BATTLE);
-  for (const ctrl of s.controllers) ctrl.resetBattle(s.state);
+  for (const ctrl of s.controllers) ctrl.resetBattleState(s.state);
 
   const player = s.state.players[0]!;
   const aliveCannon = player.cannons.findIndex((c) => c.hp > 0);
@@ -647,7 +647,7 @@ test("super gun placed during cannon phase can fire in battle", () => {
 
   // Advance to battle (sweepAllPlayersWalls + claimTerritory runs)
   s.advanceTo(Phase.BATTLE);
-  for (const ctrl of s.controllers) ctrl.resetBattle(s.state);
+  for (const ctrl of s.controllers) ctrl.resetBattleState(s.state);
 
   const enclosed = isCannonEnclosed(superCannon, player.interior);
   const fireable = canFire(s.state, 0, superIdx);
@@ -685,7 +685,7 @@ test("AI fires super gun during battle (not skipped in round-robin)", () => {
   const superIdx = s.state.players[0]!.cannons.length - 1;
 
   s.advanceTo(Phase.BATTLE);
-  for (const ctrl of s.controllers) ctrl.resetBattle(s.state);
+  for (const ctrl of s.controllers) ctrl.resetBattleState(s.state);
 
   let superGunFired = false;
   const dt = 0.1;

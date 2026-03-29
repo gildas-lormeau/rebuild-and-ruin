@@ -117,7 +117,7 @@ export const transitionCtx: TransitionContext = {
   },
 
   selection: {
-    clearOverlay: () => {
+    clearSelectionOverlay: () => {
       const overlay = runtime.rs.overlay;
       if (overlay.selection) {
         overlay.selection.highlights = undefined;

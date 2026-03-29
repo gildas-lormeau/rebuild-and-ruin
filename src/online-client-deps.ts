@@ -110,6 +110,11 @@ function buildLifecycleDeps() {
       watcher.migrationText = text;
       watcher.migrationTimer = MIGRATION_ANNOUNCEMENT_DURATION;
     },
+    /** Host migration sequence counter — incremented each time a new host takes over.
+     *  Watchers compare their local seq against incoming checkpoint seq to detect
+     *  stale state: if checkpoint.seq > local.seq, the watcher missed a migration
+     *  and should request full-state recovery. The host includes this in FULL_STATE
+     *  messages so recovering watchers can sync up. */
     getHostMigrationSeq: () => session.hostMigrationSeq,
     setHostMigrationSeq: (seq: number) => {
       session.hostMigrationSeq = seq;

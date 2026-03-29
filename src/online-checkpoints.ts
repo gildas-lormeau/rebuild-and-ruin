@@ -45,6 +45,11 @@ export interface CheckpointDeps {
   snapshotTerritory: () => Set<number>[];
 }
 
+/** Apply a cannon-start checkpoint received from the host.
+ *  @param data — Checkpoint payload (players, grunts, houses, limits, etc.)
+ *  @param deps — Mutable game state + watcher crosshair maps to reset.
+ *  Argument order is (data, deps) — same for all three checkpoint functions.
+ *  Do not swap: TypeScript won't catch it because both are plain objects. */
 export function applyCannonStartCheckpoint(
   data: CannonStartData,
   deps: CheckpointDeps,
@@ -62,6 +67,10 @@ export function applyCannonStartCheckpoint(
   resetCannonFacings(deps.state);
 }
 
+/** Apply a battle-start checkpoint received from the host.
+ *  @param data — Checkpoint payload (players, grunts, captured cannons, flights, etc.)
+ *  @param deps — Mutable game state + battle animation state to reset.
+ *  Argument order is (data, deps) — same for all three checkpoint functions. */
 export function applyBattleStartCheckpoint(
   data: BattleStartData,
   deps: CheckpointDeps,
@@ -97,6 +106,10 @@ export function applyBattleStartCheckpoint(
   }
 }
 
+/** Apply a build-start checkpoint received from the host.
+ *  @param data — Checkpoint payload (players, grunts, houses, bonus squares, etc.)
+ *  @param deps — Mutable game state + accumulators to reset.
+ *  Argument order is (data, deps) — same for all three checkpoint functions. */
 export function applyBuildStartCheckpoint(
   data: BuildStartData,
   deps: CheckpointDeps,

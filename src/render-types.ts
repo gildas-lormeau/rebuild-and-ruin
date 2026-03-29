@@ -257,6 +257,15 @@ export interface Viewport {
 /**
  * Renderer abstraction — decouples game-runtime from Canvas 2D specifics.
  * Implement this interface to swap in a WebGL / 3D renderer.
+ *
+ * ### Coordinate spaces (from outermost to innermost)
+ *
+ * 1. **Client coords** — `MouseEvent.clientX/Y`, relative to browser viewport
+ * 2. **Surface (world-pixel) coords** — game world at TILE_SIZE scale (0..GRID_COLS*TILE_SIZE)
+ * 3. **Screen-pixel coords** — post-camera transform (viewport zoom/pan applied)
+ * 4. **Container-CSS coords** — relative to the container `<div>`, for DOM positioning
+ *
+ * `clientToSurface` converts 1→2.  `screenToContainerCSS` converts 3→4.
  */
 export interface RendererInterface {
   /** Draw one frame using whatever rendering backend is active. */
@@ -265,11 +274,14 @@ export interface RendererInterface {
     overlay: RenderOverlay | undefined,
     viewport?: Viewport | null,
   ): void;
-  /** Convert pointer event client coordinates to surface (world-pixel) coordinates. */
+  /** Convert pointer event client coordinates (MouseEvent.clientX/Y) to
+   *  surface world-pixel coordinates (tile grid at TILE_SIZE scale).
+   *  Accounts for canvas position, letterboxing, and DPR. */
   clientToSurface(clientX: number, clientY: number): { x: number; y: number };
   /**
-   * Convert screen-pixel coordinates (post-camera) to CSS coordinates relative to
-   * the container element. Used to position floating action buttons over the surface.
+   * Convert screen-pixel coordinates (post-camera transform) to CSS coordinates
+   * relative to the container element. Accounts for letterbox offset and scaling.
+   * Used to position floating action buttons over the rendered surface.
    */
   screenToContainerCSS(sx: number, sy: number): { x: number; y: number };
   /** The element that receives pointer/touch events and cursor-style changes. */

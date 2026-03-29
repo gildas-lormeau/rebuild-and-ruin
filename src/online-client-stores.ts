@@ -73,7 +73,18 @@ export function maybeSendAimUpdate(
   sendAimUpdate(session, dedup, x, y, playerId);
 }
 
-/** Clear all last-sent dedup state — call when entering a new game or after host promotion. */
+/** Clear all last-sent dedup state.
+ *
+ *  Must be called whenever the "last sent" baseline is invalidated:
+ *  - Game initialization (new game state, all phantoms stale)
+ *  - Host promotion (new role, dedup keys from watcher state are meaningless)
+ *  - Full-state recovery (state replaced wholesale)
+ *  - Session reset (disconnected, all tracking invalid)
+ *
+ *  INVARIANT: dedup maps must always be checked BEFORE calling send() for
+ *  phantom/aim messages. The pattern is: if key changed → send → update map.
+ *  Sending without checking causes redundant network traffic; checking without
+ *  resetting after state changes causes missed updates. */
 export function resetDedup(): void {
   resetDedupMaps(dedup);
 }

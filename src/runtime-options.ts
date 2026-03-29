@@ -84,9 +84,13 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     deps.renderFrame(map, overlay);
   }
 
+  // Any non-null phase enables the d-pad; the specific phase value is
+  // irrelevant — WALL_BUILD is used by convention as a truthy sentinel.
+  const DPAD_ENABLED_PHASE = Phase.WALL_BUILD;
+
   function showOptions(): void {
     showOptionsShared(uiCtx, { OPTIONS: Mode.OPTIONS });
-    deps.updateDpad(Phase.WALL_BUILD); // enable d-pad for options navigation
+    deps.updateDpad(DPAD_ENABLED_PHASE);
   }
 
   function closeOptions(): void {
@@ -108,7 +112,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
 
   function showControls(): void {
     showControlsShared(uiCtx, { CONTROLS: Mode.CONTROLS });
-    deps.updateDpad(Phase.WALL_BUILD); // enable d-pad for controls navigation
+    deps.updateDpad(DPAD_ENABLED_PHASE);
   }
 
   function closeControls(): void {

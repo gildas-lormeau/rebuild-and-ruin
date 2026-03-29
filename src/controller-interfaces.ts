@@ -77,13 +77,17 @@ export interface PlayerController {
   /** Whether the player has placed all their cannons. */
   isCannonPhaseDone(state: GameState, maxSlots: number): boolean;
 
-  /** Called each frame during cannon phase. Returns phantom cannon for rendering. */
+  /** Called each frame during cannon phase. Returns phantom cannon for rendering,
+   *  or null if no phantom should be shown (player eliminated / no placement active).
+   *  NOTE: return type differs from buildTick (which always returns an array). */
   cannonTick(state: GameState, dt: number): LocalCannonPhantom | null;
 
   /** Called once at the start of the build phase. */
   startBuild(state: GameState): void;
 
-  /** Called each frame during the build phase. Returns phantom pieces to display. */
+  /** Called each frame during the build phase. Returns phantom pieces to display
+   *  (may be empty array if no piece is being previewed).
+   *  NOTE: return type differs from cannonTick (which returns null when inactive). */
   buildTick(state: GameState, dt: number): LocalPiecePhantom[];
 
   /** Called at the end of the build phase. */
@@ -98,8 +102,9 @@ export interface PlayerController {
   /** Center cursors/crosshair on a tower position. */
   centerOn(row: number, col: number): void;
 
-  /** Reset battle state (accumulators, targets). Called at battle start. */
-  resetBattle(state?: GameState): void;
+  /** Reset battle-phase state (cannon rotation index, crosshair position).
+   *  Called once at battle start — not a full game reset (see reset() for that). */
+  resetBattleState(state?: GameState): void;
 
   /** Flush any remaining auto-placement queue (cannon timer expired).
    *  Do NOT call directly — use finalizeCannonPhase() which guarantees flush→init order. */
