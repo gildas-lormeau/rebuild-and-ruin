@@ -199,225 +199,251 @@ export function drawBattleEffects(
   map: MapData,
   overlay?: RenderOverlay,
 ): void {
-  // Impact flashes
-  if (overlay?.battle?.impacts) {
-    for (const impact of overlay.battle.impacts) {
-      const t = impact.age / IMPACT_FLASH_DURATION;
-      if (t >= 1) continue;
-      octx.save();
-      const cx = impact.col * TILE_SIZE + TILE_SIZE / 2;
-      const cy = impact.row * TILE_SIZE + TILE_SIZE / 2;
-      const seed = impact.row * SEED_ROW + impact.col * SEED_COL;
+  drawImpacts(octx, overlay);
+  drawCannonballs(octx, overlay);
+  drawBalloons(octx, overlay);
+  drawBurningPits(octx, overlay);
+  drawCrosshairs(octx, overlay);
+  drawPhaseTimer(octx, map, overlay);
+}
 
-      // Core flash — brief bright spot, shrinks quickly
-      if (t < IMPACT_CORE_END) {
-        const coreAlpha = (1 - t / IMPACT_CORE_END) * 0.6;
-        const coreSize = TILE_SIZE * (0.6 - t * 1.2);
-        octx.globalAlpha = coreAlpha;
-        octx.fillStyle = "#ffe0a0";
-        octx.beginPath();
-        octx.arc(cx, cy, Math.max(1, coreSize), 0, Math.PI * 2);
-        octx.fill();
-      }
-
-      // Shockwave ring — expands outward
-      if (t < IMPACT_RING_END) {
-        const ringR = TILE_SIZE * 0.5 + t * TILE_SIZE;
-        octx.globalAlpha = (1 - t / IMPACT_RING_END) * 0.7;
-        octx.strokeStyle = "#ffcc44";
-        octx.lineWidth = 2;
-        octx.beginPath();
-        octx.arc(cx, cy, ringR, 0, Math.PI * 2);
-        octx.stroke();
-      }
-
-      // Debris sparks — 5 particles flying outward
-      if (t < IMPACT_DEBRIS_END) {
-        const sparkAlpha = 1 - t / IMPACT_DEBRIS_END;
-        for (let i = 0; i < 5; i++) {
-          const angle = (seed + i * 1.3) % (Math.PI * 2);
-          const dist = t * (TILE_SIZE * 0.8 + i * 3);
-          const sx = cx + Math.cos(angle) * dist;
-          const sy = cy + Math.sin(angle) * dist - t * 3;
-          octx.globalAlpha = sparkAlpha * 0.9;
-          octx.fillStyle = i % 2 === 0 ? "#ffaa30" : "#ff6600";
-          octx.fillRect(sx - 1, sy - 1, 2, 2);
-        }
-      }
-
-      // Smoke — dark puff rising, lingers in second half
-      if (t > IMPACT_SMOKE_START) {
-        const smokeT = (t - IMPACT_SMOKE_START) / (1 - IMPACT_SMOKE_START);
-        const smokeR = TILE_SIZE * 0.4 + smokeT * TILE_SIZE * 0.3;
-        octx.globalAlpha = (1 - smokeT) * 0.35;
-        octx.fillStyle = "#3a3028";
-        octx.beginPath();
-        octx.arc(cx, cy - smokeT * 4, smokeR, 0, Math.PI * 2);
-        octx.fill();
-      }
-
-      octx.restore();
-    }
-  }
-
-  // Cannonballs in flight (radius varies with arc height for 3D depth illusion)
-  if (overlay?.battle?.cannonballs) {
-    for (const ball of overlay.battle.cannonballs) {
-      const height = Math.sin(ball.progress * Math.PI);
-      const radius = 3 + height * 2; // 3px base + up to 2px from arc
-      octx.fillStyle = ball.incendiary ? "#c22" : DARK_METAL;
-      octx.beginPath();
-      octx.arc(ball.x, ball.y, radius, 0, Math.PI * 2);
-      octx.fill();
-    }
-  }
-
-  // In-flight propaganda balloons
-  if (overlay?.battle?.balloons) {
-    for (const b of overlay.battle.balloons) {
-      const t = b.progress;
-      const radius = 8;
-      const basketOffset = radius + 9; // envelope center to basket center
-      // Interpolate so the basket (not envelope) arrives at the target center
-      const cx = b.x + (b.targetX - b.x) * t;
-      const cy =
-        b.y + (b.targetY - basketOffset - b.y) * t - Math.sin(t * Math.PI) * 40;
-      // Balloon envelope (main body — red)
-      octx.fillStyle = "#b03030";
-      octx.beginPath();
-      octx.ellipse(cx, cy - 1, radius, radius + 2, 0, 0, Math.PI * 2);
-      octx.fill();
-      // Highlight (specular)
-      octx.fillStyle = "rgba(220, 120, 120, 0.5)";
-      octx.beginPath();
-      octx.ellipse(cx - 2, cy - 4, 3, 4, -0.3, 0, Math.PI * 2);
-      octx.fill();
-      // Panel seams
-      octx.strokeStyle = "#802020";
-      octx.lineWidth = 0.5;
-      octx.beginPath();
-      octx.moveTo(cx, cy - radius - 1);
-      octx.lineTo(cx, cy + radius + 1);
-      octx.stroke();
-      octx.beginPath();
-      octx.moveTo(cx - radius, cy);
-      octx.lineTo(cx + radius, cy);
-      octx.stroke();
-      // Envelope outline
-      octx.strokeStyle = "#601818";
-      octx.lineWidth = 1;
-      octx.beginPath();
-      octx.ellipse(cx, cy - 1, radius, radius + 2, 0, 0, Math.PI * 2);
-      octx.stroke();
-      // Ropes (two angled lines from envelope base to basket)
-      octx.strokeStyle = "#6a5a3a";
-      octx.lineWidth = 0.7;
-      octx.beginPath();
-      octx.moveTo(cx - 3, cy + radius + 1);
-      octx.lineTo(cx - 2, cy + radius + 7);
-      octx.stroke();
-      octx.beginPath();
-      octx.moveTo(cx + 3, cy + radius + 1);
-      octx.lineTo(cx + 2, cy + radius + 7);
-      octx.stroke();
-      // Basket (wicker)
-      octx.fillStyle = "#8b6914";
-      octx.fillRect(cx - 3, cy + radius + 7, 6, 4);
-      octx.fillStyle = "#a07a1a";
-      octx.fillRect(cx - 2, cy + radius + 8, 4, 2);
-      // Basket rim
-      octx.fillStyle = "#6a4a0a";
-      octx.fillRect(cx - 3, cy + radius + 7, 6, 1);
-    }
-  }
-
-  // Burning pits
-  if (overlay?.entities?.burningPits) {
-    const t = performance.now() / 1000;
-    for (const pit of overlay.entities.burningPits) {
-      const px = pit.col * TILE_SIZE;
-      const py = pit.row * TILE_SIZE;
-      const mid = TILE_SIZE / 2;
-      const flicker =
-        (Math.sin(t * 8 + pit.row * SEED_ROW + pit.col * SEED_COL) + 1) * 0.15;
-      const stage = Math.max(1, Math.min(3, pit.roundsLeft));
-      drawSprite(octx, `burning_pit_${stage}`, px, py);
-      // Animated lava flicker (round glow, stronger for fresh pits)
-      if (stage >= 2) {
-        const intensity = stage === 3 ? 1.0 : 0.5;
-        const emberR = 180 + Math.floor(flicker * 75);
-        const emberG = 60 + Math.floor(flicker * 40);
-        const radius = stage === 3 ? 4 : 3;
-        octx.fillStyle = `rgba(${emberR}, ${emberG}, 0, ${(0.15 + flicker * 0.3) * intensity})`;
-        octx.beginPath();
-        octx.arc(px + mid, py + mid, radius, 0, Math.PI * 2);
-        octx.fill();
-      }
-    }
-  }
-
-  // Crosshairs (all players)
-  if (overlay?.battle?.crosshairs) {
-    const t = performance.now() / 1000;
-    for (const ch of overlay.battle.crosshairs) {
-      const cx = Math.round(ch.x) + 0.5;
-      const cy = Math.round(ch.y) + 0.5;
-      const [cr, cg, cb] =
-        CROSSHAIR_COLORS[ch.playerId % CROSSHAIR_COLORS.length]!;
-      const { alpha, arm, diag, gap } = crosshairGeometry(
-        ch.cannonReady === true,
-        t,
-      );
-
-      const drawArm = (
-        x1: number,
-        y1: number,
-        x2: number,
-        y2: number,
-        color: string,
-      ) => {
-        octx.strokeStyle = `rgba(0,0,0,${alpha * 0.8})`;
-        octx.lineWidth = 5;
-        octx.beginPath();
-        octx.moveTo(x1, y1);
-        octx.lineTo(x2, y2);
-        octx.stroke();
-        octx.strokeStyle = color;
-        octx.lineWidth = 2;
-        octx.beginPath();
-        octx.moveTo(x1, y1);
-        octx.lineTo(x2, y2);
-        octx.stroke();
-      };
-
-      const pColor = `rgba(${cr},${cg},${cb},${alpha})`;
-      const wColor = `rgba(255,255,255,${alpha})`;
-
-      drawArm(cx - gap, cy - gap, cx - diag, cy - diag, pColor);
-      drawArm(cx + gap, cy - gap, cx + diag, cy - diag, pColor);
-      drawArm(cx - gap, cy + gap, cx - diag, cy + diag, pColor);
-      drawArm(cx + gap, cy + gap, cx + diag, cy + diag, pColor);
-
-      drawArm(cx, cy - gap, cx, cy - arm, wColor);
-      drawArm(cx, cy + gap, cx, cy + arm, wColor);
-      drawArm(cx - gap, cy, cx - arm, cy, wColor);
-      drawArm(cx + gap, cy, cx + arm, cy, wColor);
-    }
-  }
-
-  // Phase timer at river junction
-  if (overlay?.ui?.timer != null && overlay.ui.timer >= 0) {
-    const secs = Math.max(0, Math.ceil(overlay.ui.timer) - 1);
-    const text = `${secs}`;
-    const jx = map.junction.x * TILE_SIZE + TILE_SIZE / 2;
-    const jy = map.junction.y * TILE_SIZE + TILE_SIZE / 2;
+function drawImpacts(
+  octx: CanvasRenderingContext2D,
+  overlay?: RenderOverlay,
+): void {
+  if (!overlay?.battle?.impacts) return;
+  for (const impact of overlay.battle.impacts) {
+    const t = impact.age / IMPACT_FLASH_DURATION;
+    if (t >= 1) continue;
     octx.save();
-    octx.font = FONT_TIMER;
-    octx.textAlign = TEXT_ALIGN_CENTER;
-    octx.textBaseline = TEXT_BASELINE_MIDDLE;
-    drawShadowText(octx, text, jx, jy, SHADOW_COLOR, TEXT_WHITE);
+    const cx = impact.col * TILE_SIZE + TILE_SIZE / 2;
+    const cy = impact.row * TILE_SIZE + TILE_SIZE / 2;
+    const seed = impact.row * SEED_ROW + impact.col * SEED_COL;
+
+    // Core flash — brief bright spot, shrinks quickly
+    if (t < IMPACT_CORE_END) {
+      const coreAlpha = (1 - t / IMPACT_CORE_END) * 0.6;
+      const coreSize = TILE_SIZE * (0.6 - t * 1.2);
+      octx.globalAlpha = coreAlpha;
+      octx.fillStyle = "#ffe0a0";
+      octx.beginPath();
+      octx.arc(cx, cy, Math.max(1, coreSize), 0, Math.PI * 2);
+      octx.fill();
+    }
+
+    // Shockwave ring — expands outward
+    if (t < IMPACT_RING_END) {
+      const ringR = TILE_SIZE * 0.5 + t * TILE_SIZE;
+      octx.globalAlpha = (1 - t / IMPACT_RING_END) * 0.7;
+      octx.strokeStyle = "#ffcc44";
+      octx.lineWidth = 2;
+      octx.beginPath();
+      octx.arc(cx, cy, ringR, 0, Math.PI * 2);
+      octx.stroke();
+    }
+
+    // Debris sparks — 5 particles flying outward
+    if (t < IMPACT_DEBRIS_END) {
+      const sparkAlpha = 1 - t / IMPACT_DEBRIS_END;
+      for (let i = 0; i < 5; i++) {
+        const angle = (seed + i * 1.3) % (Math.PI * 2);
+        const dist = t * (TILE_SIZE * 0.8 + i * 3);
+        const sx = cx + Math.cos(angle) * dist;
+        const sy = cy + Math.sin(angle) * dist - t * 3;
+        octx.globalAlpha = sparkAlpha * 0.9;
+        octx.fillStyle = i % 2 === 0 ? "#ffaa30" : "#ff6600";
+        octx.fillRect(sx - 1, sy - 1, 2, 2);
+      }
+    }
+
+    // Smoke — dark puff rising, lingers in second half
+    if (t > IMPACT_SMOKE_START) {
+      const smokeT = (t - IMPACT_SMOKE_START) / (1 - IMPACT_SMOKE_START);
+      const smokeR = TILE_SIZE * 0.4 + smokeT * TILE_SIZE * 0.3;
+      octx.globalAlpha = (1 - smokeT) * 0.35;
+      octx.fillStyle = "#3a3028";
+      octx.beginPath();
+      octx.arc(cx, cy - smokeT * 4, smokeR, 0, Math.PI * 2);
+      octx.fill();
+    }
+
     octx.restore();
   }
+}
+
+function drawCannonballs(
+  octx: CanvasRenderingContext2D,
+  overlay?: RenderOverlay,
+): void {
+  if (!overlay?.battle?.cannonballs) return;
+  for (const ball of overlay.battle.cannonballs) {
+    const height = Math.sin(ball.progress * Math.PI);
+    const radius = 3 + height * 2; // 3px base + up to 2px from arc
+    octx.fillStyle = ball.incendiary ? "#c22" : DARK_METAL;
+    octx.beginPath();
+    octx.arc(ball.x, ball.y, radius, 0, Math.PI * 2);
+    octx.fill();
+  }
+}
+
+function drawBalloons(
+  octx: CanvasRenderingContext2D,
+  overlay?: RenderOverlay,
+): void {
+  if (!overlay?.battle?.balloons) return;
+  for (const b of overlay.battle.balloons) {
+    const t = b.progress;
+    const radius = 8;
+    const basketOffset = radius + 9; // envelope center to basket center
+    // Interpolate so the basket (not envelope) arrives at the target center
+    const cx = b.x + (b.targetX - b.x) * t;
+    const cy =
+      b.y + (b.targetY - basketOffset - b.y) * t - Math.sin(t * Math.PI) * 40;
+    // Balloon envelope (main body — red)
+    octx.fillStyle = "#b03030";
+    octx.beginPath();
+    octx.ellipse(cx, cy - 1, radius, radius + 2, 0, 0, Math.PI * 2);
+    octx.fill();
+    // Highlight (specular)
+    octx.fillStyle = "rgba(220, 120, 120, 0.5)";
+    octx.beginPath();
+    octx.ellipse(cx - 2, cy - 4, 3, 4, -0.3, 0, Math.PI * 2);
+    octx.fill();
+    // Panel seams
+    octx.strokeStyle = "#802020";
+    octx.lineWidth = 0.5;
+    octx.beginPath();
+    octx.moveTo(cx, cy - radius - 1);
+    octx.lineTo(cx, cy + radius + 1);
+    octx.stroke();
+    octx.beginPath();
+    octx.moveTo(cx - radius, cy);
+    octx.lineTo(cx + radius, cy);
+    octx.stroke();
+    // Envelope outline
+    octx.strokeStyle = "#601818";
+    octx.lineWidth = 1;
+    octx.beginPath();
+    octx.ellipse(cx, cy - 1, radius, radius + 2, 0, 0, Math.PI * 2);
+    octx.stroke();
+    // Ropes (two angled lines from envelope base to basket)
+    octx.strokeStyle = "#6a5a3a";
+    octx.lineWidth = 0.7;
+    octx.beginPath();
+    octx.moveTo(cx - 3, cy + radius + 1);
+    octx.lineTo(cx - 2, cy + radius + 7);
+    octx.stroke();
+    octx.beginPath();
+    octx.moveTo(cx + 3, cy + radius + 1);
+    octx.lineTo(cx + 2, cy + radius + 7);
+    octx.stroke();
+    // Basket (wicker)
+    octx.fillStyle = "#8b6914";
+    octx.fillRect(cx - 3, cy + radius + 7, 6, 4);
+    octx.fillStyle = "#a07a1a";
+    octx.fillRect(cx - 2, cy + radius + 8, 4, 2);
+    // Basket rim
+    octx.fillStyle = "#6a4a0a";
+    octx.fillRect(cx - 3, cy + radius + 7, 6, 1);
+  }
+}
+
+function drawBurningPits(
+  octx: CanvasRenderingContext2D,
+  overlay?: RenderOverlay,
+): void {
+  if (!overlay?.entities?.burningPits) return;
+  const t = performance.now() / 1000;
+  for (const pit of overlay.entities.burningPits) {
+    const px = pit.col * TILE_SIZE;
+    const py = pit.row * TILE_SIZE;
+    const mid = TILE_SIZE / 2;
+    const flicker =
+      (Math.sin(t * 8 + pit.row * SEED_ROW + pit.col * SEED_COL) + 1) * 0.15;
+    const stage = Math.max(1, Math.min(3, pit.roundsLeft));
+    drawSprite(octx, `burning_pit_${stage}`, px, py);
+    // Animated lava flicker (round glow, stronger for fresh pits)
+    if (stage >= 2) {
+      const intensity = stage === 3 ? 1.0 : 0.5;
+      const emberR = 180 + Math.floor(flicker * 75);
+      const emberG = 60 + Math.floor(flicker * 40);
+      const radius = stage === 3 ? 4 : 3;
+      octx.fillStyle = `rgba(${emberR}, ${emberG}, 0, ${(0.15 + flicker * 0.3) * intensity})`;
+      octx.beginPath();
+      octx.arc(px + mid, py + mid, radius, 0, Math.PI * 2);
+      octx.fill();
+    }
+  }
+}
+
+function drawCrosshairs(
+  octx: CanvasRenderingContext2D,
+  overlay?: RenderOverlay,
+): void {
+  if (!overlay?.battle?.crosshairs) return;
+  const t = performance.now() / 1000;
+  for (const ch of overlay.battle.crosshairs) {
+    const cx = Math.round(ch.x) + 0.5;
+    const cy = Math.round(ch.y) + 0.5;
+    const [cr, cg, cb] =
+      CROSSHAIR_COLORS[ch.playerId % CROSSHAIR_COLORS.length]!;
+    const { alpha, arm, diag, gap } = crosshairGeometry(
+      ch.cannonReady === true,
+      t,
+    );
+
+    const drawArm = (
+      x1: number,
+      y1: number,
+      x2: number,
+      y2: number,
+      color: string,
+    ) => {
+      octx.strokeStyle = `rgba(0,0,0,${alpha * 0.8})`;
+      octx.lineWidth = 5;
+      octx.beginPath();
+      octx.moveTo(x1, y1);
+      octx.lineTo(x2, y2);
+      octx.stroke();
+      octx.strokeStyle = color;
+      octx.lineWidth = 2;
+      octx.beginPath();
+      octx.moveTo(x1, y1);
+      octx.lineTo(x2, y2);
+      octx.stroke();
+    };
+
+    const pColor = `rgba(${cr},${cg},${cb},${alpha})`;
+    const wColor = `rgba(255,255,255,${alpha})`;
+
+    drawArm(cx - gap, cy - gap, cx - diag, cy - diag, pColor);
+    drawArm(cx + gap, cy - gap, cx + diag, cy - diag, pColor);
+    drawArm(cx - gap, cy + gap, cx - diag, cy + diag, pColor);
+    drawArm(cx + gap, cy + gap, cx + diag, cy + diag, pColor);
+
+    drawArm(cx, cy - gap, cx, cy - arm, wColor);
+    drawArm(cx, cy + gap, cx, cy + arm, wColor);
+    drawArm(cx - gap, cy, cx - arm, cy, wColor);
+    drawArm(cx + gap, cy, cx + arm, cy, wColor);
+  }
+}
+
+function drawPhaseTimer(
+  octx: CanvasRenderingContext2D,
+  map: MapData,
+  overlay?: RenderOverlay,
+): void {
+  if (overlay?.ui?.timer == null || overlay.ui.timer < 0) return;
+  const secs = Math.max(0, Math.ceil(overlay.ui.timer) - 1);
+  const text = `${secs}`;
+  const jx = map.junction.x * TILE_SIZE + TILE_SIZE / 2;
+  const jy = map.junction.y * TILE_SIZE + TILE_SIZE / 2;
+  octx.save();
+  octx.font = FONT_TIMER;
+  octx.textAlign = TEXT_ALIGN_CENTER;
+  octx.textBaseline = TEXT_BASELINE_MIDDLE;
+  drawShadowText(octx, text, jx, jy, SHADOW_COLOR, TEXT_WHITE);
+  octx.restore();
 }
 
 /** Compute animated crosshair dimensions from ready state and time. */
