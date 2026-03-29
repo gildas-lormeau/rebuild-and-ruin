@@ -180,19 +180,19 @@ export abstract class BaseController implements PlayerController {
     if (piece) this.clampBuildCursor(piece);
   }
 
-  moveCannonCursor(direction: Action): void {
+  moveCannonCursor(direction: Action, size = NORMAL_CANNON_SIZE): void {
     if (direction === Action.UP)
       this.cannonCursor.row = Math.max(0, this.cannonCursor.row - 1);
     else if (direction === Action.DOWN)
       this.cannonCursor.row = Math.min(
-        GRID_ROWS - NORMAL_CANNON_SIZE,
+        GRID_ROWS - size,
         this.cannonCursor.row + 1,
       );
     else if (direction === Action.LEFT)
       this.cannonCursor.col = Math.max(0, this.cannonCursor.col - 1);
     else if (direction === Action.RIGHT)
       this.cannonCursor.col = Math.min(
-        GRID_COLS - NORMAL_CANNON_SIZE,
+        GRID_COLS - size,
         this.cannonCursor.col + 1,
       );
   }

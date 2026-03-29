@@ -70,12 +70,14 @@ export class HumanController extends BaseController implements InputReceiver {
   }
 
   isCannonPhaseDone(state: GameState, maxSlots: number): boolean {
-    const player = state.players[this.playerId]!;
+    const player = state.players[this.playerId];
+    if (!player || player.eliminated) return true;
     return cannonSlotsUsed(player) >= maxSlots;
   }
 
   cannonTick(state: GameState, _dt: number): LocalCannonPhantom | null {
-    const player = state.players[this.playerId]!;
+    const player = state.players[this.playerId];
+    if (!player || player.eliminated) return null;
     const maxSlots = state.cannonLimits[this.playerId] ?? 0;
     const remaining = maxSlots - cannonSlotsUsed(player);
     if (remaining <= 0) return null;
@@ -143,21 +145,7 @@ export class HumanController extends BaseController implements InputReceiver {
   }
 
   override moveCannonCursor(direction: Action): void {
-    const sz = cannonSize(this.cannonPlaceMode);
-    if (direction === Action.UP)
-      this.cannonCursor.row = Math.max(0, this.cannonCursor.row - 1);
-    else if (direction === Action.DOWN)
-      this.cannonCursor.row = Math.min(
-        GRID_ROWS - sz,
-        this.cannonCursor.row + 1,
-      );
-    else if (direction === Action.LEFT)
-      this.cannonCursor.col = Math.max(0, this.cannonCursor.col - 1);
-    else if (direction === Action.RIGHT)
-      this.cannonCursor.col = Math.min(
-        GRID_COLS - sz,
-        this.cannonCursor.col + 1,
-      );
+    super.moveCannonCursor(direction, cannonSize(this.cannonPlaceMode));
   }
 
   override setBuildCursor(row: number, col: number): void {
@@ -175,6 +163,8 @@ export class HumanController extends BaseController implements InputReceiver {
   }
 
   buildTick(state: GameState, _dt: number): LocalPiecePhantom[] {
+    const player = state.players[this.playerId];
+    if (!player || player.eliminated) return [];
     if (!this.currentPiece) return [];
     const valid = canPlacePiece(
       state,
@@ -195,6 +185,8 @@ export class HumanController extends BaseController implements InputReceiver {
   }
 
   battleTick(state: GameState, dt: number): void {
+    const player = state.players[this.playerId];
+    if (!player || player.eliminated) return;
     // Move crosshair based on held actions
     if (this.heldActions.size > 0) {
       const speed =
@@ -215,7 +207,8 @@ export class HumanController extends BaseController implements InputReceiver {
 
   /** Try to place a cannon at the current cursor position. Returns true on success. */
   tryPlaceCannon(state: GameState, maxSlots: number): boolean {
-    const player = state.players[this.playerId]!;
+    const player = state.players[this.playerId];
+    if (!player || player.eliminated) return false;
     const placed = placeCannon(
       player,
       this.cannonCursor.row,
@@ -259,7 +252,8 @@ export class HumanController extends BaseController implements InputReceiver {
 
   /** Cycle cannon placement mode (normal -> super -> balloon -> normal). */
   cycleCannonMode(state: GameState, maxSlots: number): void {
-    const player = state.players[this.playerId]!;
+    const player = state.players[this.playerId];
+    if (!player || player.eliminated) return;
     const used = cannonSlotsUsed(player);
     if (
       isNormalMode(this.cannonPlaceMode) &&

@@ -179,7 +179,9 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   if (remoteCannonPhantoms.length > 0) {
     frame.phantoms.aiCannonPhantoms!.push(
       ...remoteCannonPhantoms.filter(
-        (p) => !state.players[p.playerId]?.eliminated,
+        (p) =>
+          !remoteHumanSlots.has(p.playerId) &&
+          !state.players[p.playerId]?.eliminated,
       ),
     );
   }
@@ -316,7 +318,9 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   if (remotePiecePhantoms.length > 0) {
     frame.phantoms.aiPhantoms!.push(
       ...remotePiecePhantoms.filter(
-        (p) => !state.players[p.playerId]?.eliminated,
+        (p) =>
+          !remoteHumanSlots.has(p.playerId) &&
+          !state.players[p.playerId]?.eliminated,
       ),
     );
   }
