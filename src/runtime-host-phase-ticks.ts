@@ -6,8 +6,8 @@
  * same functions serve both local and online play.
  */
 
-import type { SerializedPlayer } from "../server/protocol.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
+import type { SerializedPlayer } from "./checkpoint-data.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import {
   type CannonPhantom,

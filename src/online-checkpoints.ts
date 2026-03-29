@@ -1,10 +1,10 @@
+import { snapshotAllWalls } from "./board-occupancy.ts";
+import { resetCannonFacings } from "./cannon-system.ts";
 import type {
   BattleStartData,
   BuildStartData,
   CannonStartData,
-} from "../server/protocol.ts";
-import { snapshotAllWalls } from "./board-occupancy.ts";
-import { resetCannonFacings } from "./cannon-system.ts";
+} from "./checkpoint-data.ts";
 import type { OrbitParams } from "./controller-interfaces.ts";
 import { BATTLE_TIMER } from "./game-constants.ts";
 import type { PixelPos } from "./geometry-types.ts";

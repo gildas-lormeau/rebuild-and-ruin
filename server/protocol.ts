@@ -59,66 +59,17 @@ export const MESSAGE = {
   HOST_LEFT: "host_left",
 } as const;
 
-// ---------------------------------------------------------------------------
-// Serialized sub-types
-// ---------------------------------------------------------------------------
-
-export interface SerializedCannon {
-  row: number;
-  col: number;
-  hp: number;
-  mode: string;
-  facing?: number;
-}
-
-export interface SerializedGrunt {
-  row: number;
-  col: number;
-  targetPlayerId: number;
-  targetTowerIdx?: number;
-  attackTimer?: number;
-  blockedBattles?: number;
-  wallAttack?: boolean;
-  facing?: number;
-}
-
-export interface SerializedPlayer {
-  id: number;
-  walls: number[];
-  interior: number[];
-  cannons: SerializedCannon[];
-  ownedTowerIndices: number[];
-  homeTowerIdx: number | null;
-  lives: number;
-  eliminated: boolean;
-  score: number;
-}
-
-export interface SerializedHouse {
-  row: number;
-  col: number;
-  zone: number;
-  alive: boolean;
-}
-
-export interface SerializedBurningPit {
-  row: number;
-  col: number;
-  roundsLeft: number;
-}
-
-export interface SerializedBonusSquare {
-  row: number;
-  col: number;
-  zone: number;
-}
-
-export interface SerializedTower {
-  row: number;
-  col: number;
-  zone: number;
-  index: number;
-}
+// Serialized sub-types and checkpoint data — defined in the game layer
+// (src/checkpoint-data.ts). Import here for local use in message types.
+import type {
+  BattleStartData,
+  BuildStartData,
+  CannonStartData,
+  SerializedBonusSquare,
+  SerializedBurningPit,
+  SerializedGrunt,
+  SerializedPlayer,
+} from "../src/checkpoint-data.ts";
 
 // ---------------------------------------------------------------------------
 // Room settings
@@ -243,54 +194,8 @@ export interface SelectStartMessage {
 }
 
 // ---------------------------------------------------------------------------
-// Checkpoint data types — protocol-free payloads consumed by game-layer code.
-// These are the primary data contracts; protocol messages extend them with a
-// `type` discriminant.  Checkpoint apply functions and recipe adapters accept
-// these types so they never depend on ServerMessage or the wire protocol.
-// ---------------------------------------------------------------------------
-
-/** Data needed to sync state at cannon phase start. */
-export interface CannonStartData {
-  timer: number;
-  limits: number[];
-  players: SerializedPlayer[];
-  grunts: SerializedGrunt[];
-  bonusSquares: SerializedBonusSquare[];
-  towerAlive: boolean[];
-  burningPits: SerializedBurningPit[];
-  houses: SerializedHouse[];
-}
-
-/** Data needed to sync state at battle start. */
-export interface BattleStartData {
-  players: SerializedPlayer[];
-  grunts: SerializedGrunt[];
-  capturedCannons: {
-    victimId: number;
-    capturerId: number;
-    cannonIdx: number;
-  }[];
-  burningPits: SerializedBurningPit[];
-  towerAlive: boolean[];
-  /** Balloon flight paths (for animation). */
-  flights?: { startX: number; startY: number; endX: number; endY: number }[];
-}
-
-/** Data needed to sync state at build phase start. */
-export interface BuildStartData {
-  round: number;
-  timer: number;
-  players: SerializedPlayer[];
-  houses: SerializedHouse[];
-  grunts: SerializedGrunt[];
-  bonusSquares: SerializedBonusSquare[];
-  towerAlive: boolean[];
-  burningPits: SerializedBurningPit[];
-  rngSeed: number;
-}
-
-// ---------------------------------------------------------------------------
 // Protocol messages — add wire-format `type` discriminant to data payloads.
+// Data types (CannonStartData, etc.) are defined in src/checkpoint-data.ts.
 // ---------------------------------------------------------------------------
 
 /** Start of cannon placement phase. */

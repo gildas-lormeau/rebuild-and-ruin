@@ -5,13 +5,13 @@
  * functions that online-client.ts wires into the game runtime.
  */
 
-import {
-  type BattleStartData,
-  type BuildStartData,
-  type CannonStartData,
-  MESSAGE,
-} from "../server/protocol.ts";
+import { MESSAGE } from "../server/protocol.ts";
 import { aimCannons, nextReadyCombined } from "./battle-system.ts";
+import type {
+  BattleStartData,
+  BuildStartData,
+  CannonStartData,
+} from "./checkpoint-data.ts";
 import {
   CROSSHAIR_SPEED,
   isHuman,

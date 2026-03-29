@@ -35,7 +35,7 @@ import type {
   BattleStartData,
   BuildStartData,
   CannonStartData,
-} from "../server/protocol.ts";
+} from "../src/checkpoint-data.ts";
 import {
   applyBattleStartCheckpoint,
   applyBuildStartCheckpoint,

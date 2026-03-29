@@ -1,13 +1,12 @@
-import {
-  type BattleStartData,
-  type BuildStartData,
-  type CannonStartData,
-  MESSAGE,
-  type SerializedPlayer,
-  type ServerMessage,
-} from "../server/protocol.ts";
+import { MESSAGE, type ServerMessage } from "../server/protocol.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import { createCastle } from "./castle-generation.ts";
+import type {
+  BattleStartData,
+  BuildStartData,
+  CannonStartData,
+  SerializedPlayer,
+} from "./checkpoint-data.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import { initControllerForCannonPhase, setPhase } from "./game-engine.ts";
 import type { RGB } from "./geometry-types.ts";

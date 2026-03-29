@@ -1026,14 +1026,17 @@ test("battle-start: host and watcher produce same phase and territory snapshot",
     `Territory array length mismatch: host=${hostTerritory.length} watcher=${bannerNewTerritory!.length}`,
   );
 
-  // Verify territory matches for each player
+  // Verify exact tile-set equality for each player
   for (let i = 0; i < hostTerritory.length; i++) {
-    const hSize = hostTerritory[i]!.size;
-    const wSize = bannerNewTerritory![i]!.size;
+    const hSet = hostTerritory[i]!;
+    const wSet = bannerNewTerritory![i]!;
     assert(
-      hSize === wSize,
-      `Player ${i} territory size mismatch: host=${hSize} watcher=${wSize}`,
+      hSet.size === wSet.size,
+      `Player ${i} territory size mismatch: host=${hSet.size} watcher=${wSet.size}`,
     );
+    for (const tile of hSet) {
+      assert(wSet.has(tile), `Player ${i} tile ${tile} in host but not watcher`);
+    }
   }
 });
 

@@ -5,11 +5,8 @@
  * on the factory closure, and to let consumers import just the types.
  */
 
-import type {
-  GameMessage,
-  SerializedPlayer,
-  ServerMessage,
-} from "../server/protocol.ts";
+import type { GameMessage, ServerMessage } from "../server/protocol.ts";
+import type { SerializedPlayer } from "./checkpoint-data.ts";
 import type {
   Crosshair,
   InputReceiver,

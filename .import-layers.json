@@ -26,6 +26,7 @@
       "src/life-lost.ts",
       "src/castle-build.ts",
       "src/board-occupancy.ts",
+      "src/checkpoint-data.ts",
       "server/protocol.ts"
     ]
   },

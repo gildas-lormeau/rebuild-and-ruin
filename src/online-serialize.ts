@@ -3,13 +3,9 @@
  * Pure functions that read/write GameState — no module-level state.
  */
 
-import {
-  type FullStateMessage,
-  MESSAGE,
-  type SerializedGrunt,
-  type SerializedPlayer,
-} from "../server/protocol.ts";
+import { type FullStateMessage, MESSAGE } from "../server/protocol.ts";
 import { createCastle } from "./castle-generation.ts";
+import type { SerializedGrunt, SerializedPlayer } from "./checkpoint-data.ts";
 import { setPhase } from "./game-engine.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "./grid.ts";
 import { toCannonMode } from "./online-types.ts";
