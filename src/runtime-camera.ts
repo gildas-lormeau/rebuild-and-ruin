@@ -317,19 +317,34 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     const ctx = deps.getCtx();
     const mobileAuto = mobileZoomEnabled && zoomActivated;
 
-    // Unzoom for UI overlays and near end of phase
-    if (
-      ctx.shouldUnzoom &&
-      (cameraZone !== null || pinchVp !== null || castleBuildVp !== null)
-    ) {
-      if (state.phase === Phase.BATTLE) savePinchForBattle();
-      else savePinchForBuild();
-      cameraZone = null;
-      pinchVp = null;
-      castleBuildVp = null;
-    }
+    unzoomForOverlays(state, ctx);
+    restoreZoomAfterModal(mobileAuto, state, ctx);
+    handleSelectionZoom(mobileAuto, state, ctx);
+    const notTransition = isNotTransitionMode(ctx);
+    handlePhaseChangeZoom(mobileAuto, state, ctx, notTransition);
+    followCrosshairInBattle(mobileAuto, state, ctx, notTransition);
+  }
 
-    // Restore zoom after pause/quit cleared (mobile only)
+  /** Clear zoom when UI overlays or phase-end unzoom is active. */
+  function unzoomForOverlays(state: GameState, ctx: FrameContext): void {
+    if (
+      !ctx.shouldUnzoom ||
+      (cameraZone === null && pinchVp === null && castleBuildVp === null)
+    )
+      return;
+    if (state.phase === Phase.BATTLE) savePinchForBattle();
+    else savePinchForBuild();
+    cameraZone = null;
+    pinchVp = null;
+    castleBuildVp = null;
+  }
+
+  /** Re-engage auto-zoom when pause or quit dialog is dismissed (mobile only). */
+  function restoreZoomAfterModal(
+    mobileAuto: boolean,
+    state: GameState,
+    ctx: FrameContext,
+  ): void {
     if (
       mobileAuto &&
       ((wasPaused && !ctx.paused) || (wasQuitPending && !ctx.quitPending))
@@ -338,65 +353,85 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     }
     wasPaused = ctx.paused;
     wasQuitPending = ctx.quitPending;
+  }
 
-    // Selection zoom: wait for announcement to finish before auto-zooming
+  /** Auto-zoom to selection after announcement finishes. */
+  function handleSelectionZoom(
+    mobileAuto: boolean,
+    state: GameState,
+    ctx: FrameContext,
+  ): void {
     if (
-      ctx.mode === Mode.SELECTION &&
-      !selectionZoomApplied &&
-      ctx.isSelectionReady
-    ) {
-      selectionZoomApplied = true;
-      if (mobileAuto) {
-        // During reselection, only auto-zoom if the human is reselecting.
-        if (!isReselectPhase(state.phase) || ctx.humanIsReselecting) {
-          autoZoom(state.phase);
-        }
-        if (pendingSelectionVp) {
-          castleBuildVp = boundsToViewport(
-            pendingSelectionVp.row,
-            pendingSelectionVp.row + 1,
-            pendingSelectionVp.col,
-            pendingSelectionVp.col + 1,
-            ZONE_PAD_SELECTION,
-          );
-          pendingSelectionVp = null;
-        }
-      }
+      ctx.mode !== Mode.SELECTION ||
+      selectionZoomApplied ||
+      !ctx.isSelectionReady
+    )
+      return;
+    selectionZoomApplied = true;
+    if (!mobileAuto) return;
+    if (!isReselectPhase(state.phase) || ctx.humanIsReselecting) {
+      autoZoom(state.phase);
     }
+    if (pendingSelectionVp) {
+      castleBuildVp = boundsToViewport(
+        pendingSelectionVp.row,
+        pendingSelectionVp.row + 1,
+        pendingSelectionVp.col,
+        pendingSelectionVp.col + 1,
+        ZONE_PAD_SELECTION,
+      );
+      pendingSelectionVp = null;
+    }
+  }
 
-    // Auto-zoom on phase change (mobile only, not during banners)
-    const notTransition =
+  function isNotTransitionMode(ctx: FrameContext): boolean {
+    return (
       ctx.mode !== Mode.BANNER &&
       ctx.mode !== Mode.BALLOON_ANIM &&
-      ctx.mode !== Mode.CASTLE_BUILD;
-    if (state.phase !== lastAutoZoomPhase && notTransition) {
-      // Reselect: only auto-zoom if the human is reselecting.
-      if (state.phase === Phase.CASTLE_RESELECT) {
-        selectionZoomApplied = false;
-        if (mobileAuto && ctx.humanIsReselecting) {
-          autoZoom(state.phase);
-        }
-      } else if (
-        mobileAuto &&
-        !(ctx.mode === Mode.SELECTION && lastAutoZoomPhase === null)
-      ) {
+      ctx.mode !== Mode.CASTLE_BUILD
+    );
+  }
+
+  /** Auto-zoom when the game phase changes (mobile only, skip during transitions). */
+  function handlePhaseChangeZoom(
+    mobileAuto: boolean,
+    state: GameState,
+    ctx: FrameContext,
+    notTransition: boolean,
+  ): void {
+    if (state.phase === lastAutoZoomPhase || !notTransition) return;
+    if (state.phase === Phase.CASTLE_RESELECT) {
+      selectionZoomApplied = false;
+      if (mobileAuto && ctx.humanIsReselecting) {
         autoZoom(state.phase);
       }
-      lastAutoZoomPhase = state.phase;
-    }
-
-    // Camera follows crosshair during battle (mobile auto-zoom only)
-    if (
+    } else if (
       mobileAuto &&
-      state.phase === Phase.BATTLE &&
-      !pinchVp &&
-      !ctx.shouldUnzoom &&
-      notTransition
+      !(ctx.mode === Mode.SELECTION && lastAutoZoomPhase === null)
     ) {
-      const zone = crosshairZone();
-      if (zone !== null && zone !== cameraZone) {
-        cameraZone = zone;
-      }
+      autoZoom(state.phase);
+    }
+    lastAutoZoomPhase = state.phase;
+  }
+
+  /** Track crosshair zone during battle for camera follow (mobile only). */
+  function followCrosshairInBattle(
+    mobileAuto: boolean,
+    state: GameState,
+    ctx: FrameContext,
+    notTransition: boolean,
+  ): void {
+    if (
+      !mobileAuto ||
+      state.phase !== Phase.BATTLE ||
+      pinchVp ||
+      ctx.shouldUnzoom ||
+      !notTransition
+    )
+      return;
+    const zone = crosshairZone();
+    if (zone !== null && zone !== cameraZone) {
+      cameraZone = zone;
     }
   }
 

@@ -43,7 +43,7 @@ test("lifecycle drops stale full_state after host migration", () => {
 
   const deps = {
     log: () => {},
-    isHost: false,
+    isHost: () => false,
     getState: () => ({}) as unknown as GameState,
     getLifeLostDialog: () => null,
     clearLifeLostDialog: () => {},

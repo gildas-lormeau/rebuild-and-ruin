@@ -15,7 +15,12 @@ import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "./grid.ts";
 import { toCannonMode } from "./online-types.ts";
 import { NO_WINNER_NAME } from "./player-config.ts";
 import { Rng } from "./rng.ts";
-import { type BalloonFlight, type GameState, Phase } from "./types.ts";
+import {
+  type BalloonFlight,
+  type Cannonball,
+  type GameState,
+  Phase,
+} from "./types.ts";
 
 interface FullStateResult {
   balloonFlights?: {
@@ -161,16 +166,7 @@ export function createFullStateMessage(
       return hits;
     })(),
     cannonballs: state.cannonballs.map((b) => ({
-      cannonIdx: b.cannonIdx,
-      startX: b.startX,
-      startY: b.startY,
-      x: b.x,
-      y: b.y,
-      targetX: b.targetX,
-      targetY: b.targetY,
-      speed: b.speed,
-      playerId: b.playerId,
-      scoringPlayerId: b.scoringPlayerId,
+      ...copyCannonballCore(b),
       incendiary: b.incendiary ? true : undefined,
     })),
     balloonFlights:
@@ -261,16 +257,7 @@ export function applyFullStateSnapshot(
     );
   }
   state.cannonballs = validBalls.map((b) => ({
-    cannonIdx: b.cannonIdx,
-    startX: b.startX,
-    startY: b.startY,
-    x: b.x,
-    y: b.y,
-    targetX: b.targetX,
-    targetY: b.targetY,
-    speed: b.speed,
-    playerId: b.playerId,
-    scoringPlayerId: b.scoringPlayerId,
+    ...copyCannonballCore(b),
     incendiary: b.incendiary ?? false,
   }));
 
@@ -377,6 +364,22 @@ export function createGameOverPayload(
         eliminated: p.eliminated,
       })),
     },
+  };
+}
+
+/** Copy the positional/kinematic fields shared by all cannonball representations. */
+function copyCannonballCore(b: Cannonball): Omit<Cannonball, "incendiary"> {
+  return {
+    cannonIdx: b.cannonIdx,
+    startX: b.startX,
+    startY: b.startY,
+    x: b.x,
+    y: b.y,
+    targetX: b.targetX,
+    targetY: b.targetY,
+    speed: b.speed,
+    playerId: b.playerId,
+    scoringPlayerId: b.scoringPlayerId,
   };
 }
 

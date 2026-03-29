@@ -140,10 +140,9 @@ export function drawSprite(
   dx: number,
   dy: number,
 ): boolean {
-  if (!atlas) return false;
-  const rect = SPRITES[name];
-  if (!rect) return false;
-  ctx.drawImage(atlas, rect.x, rect.y, rect.w, rect.h, dx, dy, rect.w, rect.h);
+  const s = resolveSprite(name);
+  if (!s) return false;
+  blitSprite(ctx, s, dx, dy);
   return true;
 }
 
@@ -157,19 +156,38 @@ export function drawSpriteCentered(
   cx: number,
   cy: number,
 ): boolean {
-  if (!atlas) return false;
-  const rect = SPRITES[name];
-  if (!rect) return false;
-  ctx.drawImage(
-    atlas,
-    rect.x,
-    rect.y,
-    rect.w,
-    rect.h,
-    cx - rect.w / 2,
-    cy - rect.h / 2,
-    rect.w,
-    rect.h,
-  );
+  const s = resolveSprite(name);
+  if (!s) return false;
+  blitSprite(ctx, s, cx - s.rect.w / 2, cy - s.rect.h / 2);
   return true;
+}
+
+/** Resolve atlas + sprite rect, or null if not ready/unknown. */
+function resolveSprite(
+  name: string,
+): { rect: SpriteRect; img: HTMLImageElement } | null {
+  if (!atlas) return null;
+  const rect = SPRITES[name];
+  if (!rect) return null;
+  return { rect, img: atlas };
+}
+
+/** Blit a resolved sprite rect at the given destination. */
+function blitSprite(
+  ctx: CanvasRenderingContext2D,
+  s: { rect: SpriteRect; img: HTMLImageElement },
+  dx: number,
+  dy: number,
+): void {
+  ctx.drawImage(
+    s.img,
+    s.rect.x,
+    s.rect.y,
+    s.rect.w,
+    s.rect.h,
+    dx,
+    dy,
+    s.rect.w,
+    s.rect.h,
+  );
 }

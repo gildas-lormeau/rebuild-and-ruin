@@ -20,7 +20,7 @@
     "lint:fix": "biome check --fix --unsafe src/ server/",
     "lint:unused": "knip",
     "lint:circular": "madge --circular --extensions ts src/ server/",
-    "lint:duplicates": "jscpd src/ --min-lines 15",
+    "lint:duplicates": "jscpd src/ --min-lines 10",
     "lint:literals": "npm run find-literals",
     "find-literals": "npx tsx scripts/find-duplicate-literals.ts",
     "lint:server": "deno check server/server.ts",

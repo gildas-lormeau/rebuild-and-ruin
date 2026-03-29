@@ -348,101 +348,76 @@ function computeSignedDistanceField(
   H: number,
   map: MapData,
 ): Float32Array {
-  const INF = 1e9;
-  const ORTHO_DIST = 1.0;
-  const DIAG_DIST = 1.414;
+  const distFromWater = initDistanceField(W, H, map, 1);
+  propagateDistances(distFromWater, W, H);
 
-  // Compute distance of water pixels to nearest grass (positive side)
-  const distFromWater = new Float32Array(W * H);
+  const distFromGrass = initDistanceField(W, H, map, 0);
+  propagateDistances(distFromGrass, W, H);
+
+  return combineSDF(distFromWater, distFromGrass, W * H);
+}
+
+/** Initialize a distance field: INF where tile matches `seedTile`, 0 elsewhere. */
+function initDistanceField(
+  W: number,
+  H: number,
+  map: MapData,
+  seedTile: number,
+): Float32Array {
+  const dist = new Float32Array(W * H);
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
-      const tr = pxToTile(py);
-      const tc = pxToTile(px);
-      distFromWater[py * W + px] = tileAt(map, tr, tc) === 1 ? INF : 0;
+      dist[py * W + px] =
+        tileAt(map, pxToTile(py), pxToTile(px)) === seedTile ? 1e9 : 0;
     }
   }
-  // Forward
+  return dist;
+}
+
+/** Two-pass (forward + backward) distance propagation with orthogonal and diagonal steps. */
+function propagateDistances(dist: Float32Array, W: number, H: number): void {
+  const ORTHO = 1.0;
+  const DIAG = 1.414;
+  // Forward pass
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
       const i = py * W + px;
-      if (distFromWater[i] === 0) continue;
-      let d = distFromWater[i]!;
-      if (py > 0)
-        d = Math.min(d, distFromWater[(py - 1) * W + px]! + ORTHO_DIST);
-      if (px > 0)
-        d = Math.min(d, distFromWater[py * W + (px - 1)]! + ORTHO_DIST);
+      if (dist[i] === 0) continue;
+      let d = dist[i]!;
+      if (py > 0) d = Math.min(d, dist[(py - 1) * W + px]! + ORTHO);
+      if (px > 0) d = Math.min(d, dist[py * W + (px - 1)]! + ORTHO);
       if (py > 0 && px > 0)
-        d = Math.min(d, distFromWater[(py - 1) * W + (px - 1)]! + DIAG_DIST);
+        d = Math.min(d, dist[(py - 1) * W + (px - 1)]! + DIAG);
       if (py > 0 && px < W - 1)
-        d = Math.min(d, distFromWater[(py - 1) * W + (px + 1)]! + DIAG_DIST);
-      distFromWater[i] = d;
+        d = Math.min(d, dist[(py - 1) * W + (px + 1)]! + DIAG);
+      dist[i] = d;
     }
   }
-  // Backward
+  // Backward pass
   for (let py = H - 1; py >= 0; py--) {
     for (let px = W - 1; px >= 0; px--) {
       const i = py * W + px;
-      if (distFromWater[i] === 0) continue;
-      let d = distFromWater[i]!;
-      if (py < H - 1)
-        d = Math.min(d, distFromWater[(py + 1) * W + px]! + ORTHO_DIST);
-      if (px < W - 1)
-        d = Math.min(d, distFromWater[py * W + (px + 1)]! + ORTHO_DIST);
+      if (dist[i] === 0) continue;
+      let d = dist[i]!;
+      if (py < H - 1) d = Math.min(d, dist[(py + 1) * W + px]! + ORTHO);
+      if (px < W - 1) d = Math.min(d, dist[py * W + (px + 1)]! + ORTHO);
       if (py < H - 1 && px < W - 1)
-        d = Math.min(d, distFromWater[(py + 1) * W + (px + 1)]! + DIAG_DIST);
+        d = Math.min(d, dist[(py + 1) * W + (px + 1)]! + DIAG);
       if (py < H - 1 && px > 0)
-        d = Math.min(d, distFromWater[(py + 1) * W + (px - 1)]! + DIAG_DIST);
-      distFromWater[i] = d;
+        d = Math.min(d, dist[(py + 1) * W + (px - 1)]! + DIAG);
+      dist[i] = d;
     }
   }
+}
 
-  // Compute distance of grass pixels to nearest water (negative side)
-  const distFromGrass = new Float32Array(W * H);
-  for (let py = 0; py < H; py++) {
-    for (let px = 0; px < W; px++) {
-      const tr = pxToTile(py);
-      const tc = pxToTile(px);
-      distFromGrass[py * W + px] = tileAt(map, tr, tc) === 0 ? INF : 0;
-    }
-  }
-  // Forward
-  for (let py = 0; py < H; py++) {
-    for (let px = 0; px < W; px++) {
-      const i = py * W + px;
-      if (distFromGrass[i] === 0) continue;
-      let d = distFromGrass[i]!;
-      if (py > 0)
-        d = Math.min(d, distFromGrass[(py - 1) * W + px]! + ORTHO_DIST);
-      if (px > 0)
-        d = Math.min(d, distFromGrass[py * W + (px - 1)]! + ORTHO_DIST);
-      if (py > 0 && px > 0)
-        d = Math.min(d, distFromGrass[(py - 1) * W + (px - 1)]! + DIAG_DIST);
-      if (py > 0 && px < W - 1)
-        d = Math.min(d, distFromGrass[(py - 1) * W + (px + 1)]! + DIAG_DIST);
-      distFromGrass[i] = d;
-    }
-  }
-  // Backward
-  for (let py = H - 1; py >= 0; py--) {
-    for (let px = W - 1; px >= 0; px--) {
-      const i = py * W + px;
-      if (distFromGrass[i] === 0) continue;
-      let d = distFromGrass[i]!;
-      if (py < H - 1)
-        d = Math.min(d, distFromGrass[(py + 1) * W + px]! + ORTHO_DIST);
-      if (px < W - 1)
-        d = Math.min(d, distFromGrass[py * W + (px + 1)]! + ORTHO_DIST);
-      if (py < H - 1 && px < W - 1)
-        d = Math.min(d, distFromGrass[(py + 1) * W + (px + 1)]! + DIAG_DIST);
-      if (py < H - 1 && px > 0)
-        d = Math.min(d, distFromGrass[(py + 1) * W + (px - 1)]! + DIAG_DIST);
-      distFromGrass[i] = d;
-    }
-  }
-
-  // Combine into signed distance field: positive in water, negative in grass
-  const sdf = new Float32Array(W * H);
-  for (let i = 0; i < W * H; i++) {
+/** Combine water/grass distance fields into signed distance: positive in water, negative in grass. */
+function combineSDF(
+  distFromWater: Float32Array,
+  distFromGrass: Float32Array,
+  len: number,
+): Float32Array {
+  const sdf = new Float32Array(len);
+  for (let i = 0; i < len; i++) {
     sdf[i] = distFromWater[i]! > 0 ? distFromWater[i]! : -distFromGrass[i]!;
   }
   return sdf;
@@ -509,65 +484,79 @@ function renderTerrainPixels(
       const d = sdf[py * W + px]!;
       const tr = pxToTile(py);
       const tc = pxToTile(px);
-      const idx = (py * W + px) * 4;
-      const isWater = tileAt(map, tr, tc) === 1;
-
-      // Local pixel coords within the tile
       const lx = px - tc * TILE_SIZE;
       const ly = py - tr * TILE_SIZE;
 
-      // Base grass color with blade texture baked in
-      const grassBase: RGB = inBattle
-        ? GRASS_BATTLE
-        : (tr + tc) % 2 === 0
-          ? GRASS_DARK
-          : GRASS_LIGHT;
-      // Textures only in battle mode; flat colors otherwise
-      const grassTexOffset = inBattle ? GRASS_TEX[ly * TILE_SIZE + lx]! : 0;
-      const grass: RGB =
-        grassTexOffset === 0
-          ? grassBase
-          : [
-              Math.max(0, Math.min(255, grassBase[0] + grassTexOffset)),
-              Math.max(0, Math.min(255, grassBase[1] + grassTexOffset)),
-              Math.max(0, Math.min(255, grassBase[2] + grassTexOffset)),
-            ];
+      const grass = texturedColor(
+        GRASS_TEX,
+        grassBaseColor(tr, tc, inBattle),
+        inBattle,
+        lx,
+        ly,
+      );
+      const water = texturedColor(WATER_TEX, WATER_COLOR, inBattle, lx, ly);
+      const color = selectTerrainColor(
+        tileAt(map, tr, tc) === 1,
+        d,
+        grass,
+        water,
+        LAND_DIST,
+        BANK_DIST,
+        TRANS,
+      );
 
-      const waterTexOffset = inBattle ? WATER_TEX[ly * TILE_SIZE + lx]! : 0;
-      const water: RGB =
-        waterTexOffset === 0
-          ? WATER_COLOR
-          : [
-              Math.max(0, Math.min(255, WATER_COLOR[0] + waterTexOffset)),
-              Math.max(0, Math.min(255, WATER_COLOR[1] + waterTexOffset)),
-              Math.max(0, Math.min(255, WATER_COLOR[2] + waterTexOffset)),
-            ];
-
-      let color: RGB;
-      if (!isWater) {
-        color = grass;
-      } else {
-        if (d < LAND_DIST) {
-          color = grass;
-        } else if (d < LAND_DIST + TRANS) {
-          const t = smoothClamp((d - LAND_DIST) / TRANS);
-          color = lerp3(grass, BANK_COLOR, t);
-        } else if (d < BANK_DIST) {
-          color = BANK_COLOR;
-        } else if (d < BANK_DIST + TRANS) {
-          const t = smoothClamp((d - BANK_DIST) / TRANS);
-          color = lerp3(BANK_COLOR, water, t);
-        } else {
-          color = water;
-        }
-      }
-
+      const idx = (py * W + px) * 4;
       data[idx] = color[0];
       data[idx + 1] = color[1];
       data[idx + 2] = color[2];
       data[idx + 3] = 255;
     }
   }
+}
+
+function grassBaseColor(tr: number, tc: number, inBattle: boolean): RGB {
+  return inBattle
+    ? GRASS_BATTLE
+    : (tr + tc) % 2 === 0
+      ? GRASS_DARK
+      : GRASS_LIGHT;
+}
+
+/** Apply a per-pixel texture offset to a base color, only in battle mode. */
+function texturedColor(
+  tex: ArrayLike<number>,
+  base: RGB,
+  inBattle: boolean,
+  lx: number,
+  ly: number,
+): RGB {
+  const offset = inBattle ? tex[ly * TILE_SIZE + lx]! : 0;
+  if (offset === 0) return base;
+  return [
+    Math.max(0, Math.min(255, base[0] + offset)),
+    Math.max(0, Math.min(255, base[1] + offset)),
+    Math.max(0, Math.min(255, base[2] + offset)),
+  ];
+}
+
+/** Pick terrain color based on SDF distance from water/grass boundary. */
+function selectTerrainColor(
+  isWater: boolean,
+  d: number,
+  grass: RGB,
+  water: RGB,
+  landDist: number,
+  bankDist: number,
+  trans: number,
+): RGB {
+  if (!isWater) return grass;
+  if (d < landDist) return grass;
+  if (d < landDist + trans)
+    return lerp3(grass, BANK_COLOR, smoothClamp((d - landDist) / trans));
+  if (d < bankDist) return BANK_COLOR;
+  if (d < bankDist + trans)
+    return lerp3(BANK_COLOR, water, smoothClamp((d - bankDist) / trans));
+  return water;
 }
 
 function getTerrainCache(
@@ -609,116 +598,139 @@ function drawCastles(
 ): void {
   if (!overlay?.castles) return;
   for (const castle of overlay.castles) {
-    const colors = getPlayerColor(castle.playerId);
+    const battleTerritory = overlay.battle?.battleTerritory?.[castle.playerId];
+    const battleWalls = overlay.battle?.battleWalls?.[castle.playerId];
+    drawCastleInterior(octx, castle, battleTerritory);
+    drawCastleWalls(octx, castle, battleWalls);
+    drawWallDebris(octx, castle, battleWalls);
+    drawCastleCannons(octx, castle);
+  }
+}
 
-    // Draw interior: checkerboard normally, cobblestone during battle
-    const territory = overlay.battle?.battleTerritory?.[castle.playerId];
-    if (territory) {
-      const cobbleName = `cobblestone_p${castle.playerId}`;
-      for (const key of territory) {
-        const { r, c } = unpackTile(key);
-        drawSprite(octx, cobbleName, c * TILE_SIZE, r * TILE_SIZE);
-      }
-    } else {
-      for (const key of castle.interior) {
-        const { r, c } = unpackTile(key);
-        const isLight = (r + c) % 2 === 0;
-        drawSprite(
-          octx,
-          `interior_${isLight ? "light" : "dark"}_p${castle.playerId}`,
-          c * TILE_SIZE,
-          r * TILE_SIZE,
-        );
-      }
-    }
-
-    // Draw walls
-    const isBattle = !!overlay.battle?.battleWalls?.[castle.playerId];
-    const wall: RGB = isBattle ? NEUTRAL_WALL : colors.wall;
-    // Precompute bevel colors from wall RGB
-    const wR = wall[0],
-      wG = wall[1],
-      wB = wall[2];
-    const lightEdge = `rgb(${Math.min(255, wR + 35)},${Math.min(255, wG + 35)},${Math.min(255, wB + 35)})`;
-    const shadowEdge = `rgb(${Math.max(0, wR - 40)},${Math.max(0, wG - 40)},${Math.max(0, wB - 40)})`;
-    for (const key of castle.walls) {
+function drawCastleInterior(
+  octx: CanvasRenderingContext2D,
+  castle: CastleData,
+  battleTerritory: Set<number> | undefined,
+): void {
+  if (battleTerritory) {
+    const cobbleName = `cobblestone_p${castle.playerId}`;
+    for (const key of battleTerritory) {
       const { r, c } = unpackTile(key);
-      const px = c * TILE_SIZE;
-      const py = r * TILE_SIZE;
-      // Base wall tile: brick texture (procedural — no baked bevels)
-      octx.fillStyle = `rgb(${wR},${wG},${wB})`;
-      octx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-      // Mortar lines — 3-row staggered brick pattern within a 16×16 tile:
-      //   Row 0 (y 0–4):  vertical joints at x=4, x=10
-      //   Horiz line at y=5
-      //   Row 1 (y 6–10): vertical joints at x=7, x=13 (staggered +3)
-      //   Horiz line at y=11
-      //   Row 2 (y 12–15): vertical joints at x=3, x=9 (staggered −1)
-      const mR = Math.max(0, wR - 25),
-        mG = Math.max(0, wG - 25),
-        mB = Math.max(0, wB - 25);
-      octx.fillStyle = `rgb(${mR},${mG},${mB})`;
-      octx.fillRect(px, py + 5, TILE_SIZE, 1);
-      octx.fillRect(px, py + 11, TILE_SIZE, 1);
-      octx.fillRect(px + 4, py, 1, 5);
-      octx.fillRect(px + 10, py, 1, 5);
-      octx.fillRect(px + 7, py + 6, 1, 5);
-      octx.fillRect(px + 13, py + 6, 1, 5);
-      octx.fillRect(px + 3, py + 12, 1, 4);
-      octx.fillRect(px + 9, py + 12, 1, 4);
-      // Procedural bevels only on exposed edges (no wall neighbor)
-      const hasUp = castle.walls.has((r - 1) * GRID_COLS + c);
-      const hasDown = castle.walls.has((r + 1) * GRID_COLS + c);
-      const hasLeft = castle.walls.has(r * GRID_COLS + (c - 1));
-      const hasRight = castle.walls.has(r * GRID_COLS + (c + 1));
-      if (!hasUp) {
-        octx.fillStyle = lightEdge;
-        octx.fillRect(px, py, TILE_SIZE, 2);
-      }
-      if (!hasDown) {
-        octx.fillStyle = shadowEdge;
-        octx.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
-      }
-      if (!hasLeft) {
-        octx.fillStyle = lightEdge;
-        octx.fillRect(px, py, 2, TILE_SIZE);
-      }
-      if (!hasRight) {
-        octx.fillStyle = shadowEdge;
-        octx.fillRect(px + TILE_SIZE - 2, py, 2, TILE_SIZE);
-      }
+      drawSprite(octx, cobbleName, c * TILE_SIZE, r * TILE_SIZE);
     }
-
-    // Draw wall debris
-    const origWalls = overlay.battle?.battleWalls?.[castle.playerId];
-    if (origWalls) {
-      for (const key of origWalls) {
-        if (castle.walls.has(key)) continue;
-        const { r, c } = unpackTile(key);
-        drawSprite(octx, "wall_debris", c * TILE_SIZE, r * TILE_SIZE);
-      }
+  } else {
+    for (const key of castle.interior) {
+      const { r, c } = unpackTile(key);
+      const isLight = (r + c) % 2 === 0;
+      drawSprite(
+        octx,
+        `interior_${isLight ? "light" : "dark"}_p${castle.playerId}`,
+        c * TILE_SIZE,
+        r * TILE_SIZE,
+      );
     }
+  }
+}
 
-    // Draw cannons
-    for (const cannon of castle.cannons) {
-      const cx = cannon.col * TILE_SIZE;
-      const cy = cannon.row * TILE_SIZE;
-      if (!isCannonAlive(cannon)) {
-        drawSprite(
-          octx,
-          isSuperCannon(cannon) ? "super_debris" : "cannon_debris",
-          cx,
-          cy,
-        );
-        continue;
-      }
-      if (isBalloonCannon(cannon)) {
-        drawSprite(octx, "balloon_base", cx, cy);
-      } else {
-        const prefix = isSuperCannon(cannon) ? "super" : "cannon";
-        const dir = facingToDir8(cannon.facing ?? 0);
-        drawSprite(octx, `${prefix}_${dir}`, cx, cy);
-      }
+function drawCastleWalls(
+  octx: CanvasRenderingContext2D,
+  castle: CastleData,
+  battleWalls: Set<number> | undefined,
+): void {
+  const colors = getPlayerColor(castle.playerId);
+  const wall: RGB = battleWalls ? NEUTRAL_WALL : colors.wall;
+  const [wR, wG, wB] = wall;
+  const lightEdge = `rgb(${Math.min(255, wR + 35)},${Math.min(255, wG + 35)},${Math.min(255, wB + 35)})`;
+  const shadowEdge = `rgb(${Math.max(0, wR - 40)},${Math.max(0, wG - 40)},${Math.max(0, wB - 40)})`;
+  const mortarStyle = `rgb(${Math.max(0, wR - 25)},${Math.max(0, wG - 25)},${Math.max(0, wB - 25)})`;
+  const wallStyle = `rgb(${wR},${wG},${wB})`;
+
+  for (const key of castle.walls) {
+    const { r, c } = unpackTile(key);
+    const px = c * TILE_SIZE;
+    const py = r * TILE_SIZE;
+    // Base wall fill
+    octx.fillStyle = wallStyle;
+    octx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+    // Mortar lines — 3-row staggered brick pattern
+    octx.fillStyle = mortarStyle;
+    octx.fillRect(px, py + 5, TILE_SIZE, 1);
+    octx.fillRect(px, py + 11, TILE_SIZE, 1);
+    octx.fillRect(px + 4, py, 1, 5);
+    octx.fillRect(px + 10, py, 1, 5);
+    octx.fillRect(px + 7, py + 6, 1, 5);
+    octx.fillRect(px + 13, py + 6, 1, 5);
+    octx.fillRect(px + 3, py + 12, 1, 4);
+    octx.fillRect(px + 9, py + 12, 1, 4);
+    // Bevels on exposed edges only
+    drawWallBevels(octx, castle.walls, r, c, px, py, lightEdge, shadowEdge);
+  }
+}
+
+/** Draw 2px bevels on wall edges that have no neighbor. */
+function drawWallBevels(
+  octx: CanvasRenderingContext2D,
+  walls: Set<number>,
+  r: number,
+  c: number,
+  px: number,
+  py: number,
+  lightEdge: string,
+  shadowEdge: string,
+): void {
+  if (!walls.has((r - 1) * GRID_COLS + c)) {
+    octx.fillStyle = lightEdge;
+    octx.fillRect(px, py, TILE_SIZE, 2);
+  }
+  if (!walls.has((r + 1) * GRID_COLS + c)) {
+    octx.fillStyle = shadowEdge;
+    octx.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
+  }
+  if (!walls.has(r * GRID_COLS + (c - 1))) {
+    octx.fillStyle = lightEdge;
+    octx.fillRect(px, py, 2, TILE_SIZE);
+  }
+  if (!walls.has(r * GRID_COLS + (c + 1))) {
+    octx.fillStyle = shadowEdge;
+    octx.fillRect(px + TILE_SIZE - 2, py, 2, TILE_SIZE);
+  }
+}
+
+function drawWallDebris(
+  octx: CanvasRenderingContext2D,
+  castle: CastleData,
+  origWalls: Set<number> | undefined,
+): void {
+  if (!origWalls) return;
+  for (const key of origWalls) {
+    if (castle.walls.has(key)) continue;
+    const { r, c } = unpackTile(key);
+    drawSprite(octx, "wall_debris", c * TILE_SIZE, r * TILE_SIZE);
+  }
+}
+
+function drawCastleCannons(
+  octx: CanvasRenderingContext2D,
+  castle: CastleData,
+): void {
+  for (const cannon of castle.cannons) {
+    const cx = cannon.col * TILE_SIZE;
+    const cy = cannon.row * TILE_SIZE;
+    if (!isCannonAlive(cannon)) {
+      drawSprite(
+        octx,
+        isSuperCannon(cannon) ? "super_debris" : "cannon_debris",
+        cx,
+        cy,
+      );
+      continue;
+    }
+    if (isBalloonCannon(cannon)) {
+      drawSprite(octx, "balloon_base", cx, cy);
+    } else {
+      const prefix = isSuperCannon(cannon) ? "super" : "cannon";
+      const dir = facingToDir8(cannon.facing ?? 0);
+      drawSprite(octx, `${prefix}_${dir}`, cx, cy);
     }
   }
 }

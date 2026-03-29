@@ -45,8 +45,8 @@ import {
   Mode,
 } from "./types.ts";
 
-// WARNING: These deps objects are built once and reused for the session lifetime.
-// They contain live closures over runtime state — do NOT rebuild them.
+// These deps objects are built once and reused for the session lifetime.
+// All mutable state (isHost, etc.) is accessed via closures, not captured values.
 const lifecycleDeps = buildLifecycleDeps();
 const incrementalDeps = buildIncrementalDeps();
 
@@ -61,7 +61,7 @@ export function handleServerMessage(msg: ServerMessage): void {
 function buildLifecycleDeps() {
   return {
     log,
-    isHost: session.isHost,
+    isHost: () => session.isHost,
     getState: () => runtime.rs.state,
     getLifeLostDialog: () => runtime.lifeLost.get(),
     clearLifeLostDialog: () => {
@@ -126,7 +126,7 @@ function buildLifecycleDeps() {
 function buildIncrementalDeps() {
   return {
     log,
-    isHost: session.isHost,
+    isHost: () => session.isHost,
     getState: () => runtime.rs.state,
     remoteHumanSlots: session.remoteHumanSlots,
     selectionStates: runtime.selection.getStates(),

@@ -8,7 +8,7 @@ import type { GameState } from "./types.ts";
 
 interface HandleServerLifecycleDeps {
   log: (msg: string) => void;
-  isHost: boolean;
+  isHost: () => boolean;
   getState: () => GameState | undefined;
   getLifeLostDialog: () => unknown;
   clearLifeLostDialog: () => void;
@@ -65,7 +65,7 @@ export function handleServerLifecycleMessage(
 
   // Dismiss stale life-lost dialog when a phase transition arrives from host.
   if (
-    !deps.isHost &&
+    !deps.isHost() &&
     deps.getLifeLostDialog() &&
     (msg.type === MESSAGE.CANNON_START ||
       msg.type === MESSAGE.BATTLE_START ||
@@ -150,27 +150,27 @@ export function handleServerLifecycleMessage(
       return true;
 
     case MESSAGE.CASTLE_WALLS:
-      if (!deps.isHost && deps.getState()) deps.onCastleWalls(msg);
+      if (!deps.isHost() && deps.getState()) deps.onCastleWalls(msg);
       return true;
 
     case MESSAGE.CANNON_START:
-      if (!deps.isHost && deps.getState()) deps.onCannonStart(msg);
+      if (!deps.isHost() && deps.getState()) deps.onCannonStart(msg);
       return true;
 
     case MESSAGE.BATTLE_START:
-      if (!deps.isHost && deps.getState()) deps.onBattleStart(msg);
+      if (!deps.isHost() && deps.getState()) deps.onBattleStart(msg);
       return true;
 
     case MESSAGE.BUILD_START:
-      if (!deps.isHost && deps.getState()) deps.onBuildStart(msg);
+      if (!deps.isHost() && deps.getState()) deps.onBuildStart(msg);
       return true;
 
     case MESSAGE.BUILD_END:
-      if (!deps.isHost && deps.getState()) deps.onBuildEnd(msg);
+      if (!deps.isHost() && deps.getState()) deps.onBuildEnd(msg);
       return true;
 
     case MESSAGE.GAME_OVER:
-      if (!deps.isHost) deps.onGameOver(msg);
+      if (!deps.isHost()) deps.onGameOver(msg);
       return true;
 
     case MESSAGE.HOST_LEFT: {
@@ -189,7 +189,7 @@ export function handleServerLifecycleMessage(
     }
 
     case MESSAGE.FULL_STATE:
-      if (!deps.isHost && deps.getState()) {
+      if (!deps.isHost() && deps.getState()) {
         const incomingSeq = msg.migrationSeq ?? 0;
         if (incomingSeq < deps.getHostMigrationSeq()) {
           deps.log(

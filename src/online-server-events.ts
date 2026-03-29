@@ -28,7 +28,7 @@ interface LifeLostChoiceDialog {
 
 interface HandleServerIncrementalDeps {
   log: (msg: string) => void;
-  isHost: boolean;
+  isHost: () => boolean;
   getState: () => GameState | undefined;
   remoteHumanSlots: Set<number>;
   selectionStates: Map<number, SelectionState>;
@@ -106,7 +106,7 @@ export function handleServerIncrementalMessage(
           if (ss && !ss.confirmed) {
             ss.highlighted = msg.towerIdx;
             deps.syncSelectionOverlay();
-            if (msg.confirmed && deps.isHost) {
+            if (msg.confirmed && deps.isHost()) {
               deps.confirmSelectionForPlayer(
                 msg.playerId,
                 deps.isCastleReselectPhase(),
@@ -126,7 +126,7 @@ export function handleServerIncrementalMessage(
       if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return true;
       if (acceptRemote(msg.playerId, deps)) {
         if (
-          deps.isHost &&
+          deps.isHost() &&
           !deps.canApplyPiecePlacement(
             state,
             msg.playerId,
@@ -164,7 +164,7 @@ export function handleServerIncrementalMessage(
       if (!CANNON_MODES.has(msg.mode)) return true;
       if (acceptRemote(msg.playerId, deps)) {
         if (
-          deps.isHost &&
+          deps.isHost() &&
           !deps.canApplyCannonPlacement(
             state,
             msg.playerId,
@@ -229,7 +229,7 @@ export function handleServerIncrementalMessage(
     case MESSAGE.GRUNT_KILLED:
     case MESSAGE.GRUNT_SPAWNED:
     case MESSAGE.PIT_CREATED:
-      if (!deps.isHost && state) {
+      if (!deps.isHost() && state) {
         if ("row" in msg && "col" in msg && !inBoundsStrict(msg.row, msg.col))
           return true;
         if ("playerId" in msg && !validPid(msg.playerId, state)) return true;
@@ -258,7 +258,7 @@ export function handleServerIncrementalMessage(
     }
 
     case MESSAGE.TOWER_KILLED:
-      if (!deps.isHost && state) {
+      if (!deps.isHost() && state) {
         if (msg.towerIdx < 0 || msg.towerIdx >= state.towerAlive.length)
           return true;
         state.towerAlive[msg.towerIdx] = false;
@@ -306,7 +306,7 @@ export function handleServerIncrementalMessage(
     }
 
     case MESSAGE.LIFE_LOST_CHOICE: {
-      if (!deps.isHost) return true;
+      if (!deps.isHost()) return true;
       deps.log(
         `life_lost_choice from P${msg.playerId}: ${msg.choice} (dialog=${deps.getLifeLostDialog() ? "active" : "null"})`,
       );
@@ -342,7 +342,7 @@ function acceptRemote(
   pid: number,
   deps: Pick<HandleServerIncrementalDeps, "isHost" | "remoteHumanSlots">,
 ): boolean {
-  return !deps.isHost || deps.remoteHumanSlots.has(pid);
+  return !deps.isHost() || deps.remoteHumanSlots.has(pid);
 }
 
 function validPid(pid: number, state: GameState): boolean {
