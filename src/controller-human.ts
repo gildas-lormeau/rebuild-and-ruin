@@ -33,6 +33,9 @@ import {
   isSuperMode,
 } from "./types.ts";
 
+/** Speed multiplier when ROTATE (sprint) key is held during battle crosshair movement. */
+const CROSSHAIR_SPRINT_MULTIPLIER = 2;
+
 export class HumanController extends BaseController implements InputReceiver {
   override readonly kind = "human" as const;
   /** Pre-computed lowercase key → action map for fast matching. */
@@ -191,7 +194,11 @@ export class HumanController extends BaseController implements InputReceiver {
     // Move crosshair based on held actions
     if (this.heldActions.size > 0) {
       const speed =
-        CROSSHAIR_SPEED * (this.heldActions.has(Action.ROTATE) ? 2 : 1) * dt;
+        CROSSHAIR_SPEED *
+        (this.heldActions.has(Action.ROTATE)
+          ? CROSSHAIR_SPRINT_MULTIPLIER
+          : 1) *
+        dt;
       const W = GRID_COLS * TILE_SIZE;
       const H = GRID_ROWS * TILE_SIZE;
       if (this.heldActions.has(Action.UP))

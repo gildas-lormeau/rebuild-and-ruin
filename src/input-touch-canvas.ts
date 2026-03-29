@@ -9,7 +9,11 @@ import type {
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
-import type { RegisterOnlineInputDeps } from "./input.ts";
+import {
+  type RegisterOnlineInputDeps,
+  TAP_MAX_DIST,
+  TAP_MAX_TIME,
+} from "./input.ts";
 import {
   dispatchBattleFire,
   dispatchModeTap,
@@ -26,10 +30,6 @@ import {
   isSelectionPhase,
   Phase,
 } from "./types.ts";
-
-const TAP_MAX_DIST = 20;
-// CSS pixels
-const TAP_MAX_TIME = 300;
 
 export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   const { renderer, getState, getMode, coords } = deps;

@@ -12,6 +12,7 @@ import type {
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
+import { TAP_MAX_DIST } from "./input.ts";
 import {
   dispatchConfirmForCtrl,
   dispatchGameAction,
@@ -512,7 +513,7 @@ export function createFloatingActions(
     });
   }
 
-  const TAP_THRESHOLD = 20; // CSS pixels — must match TAP_MAX_DIST in input-touch-canvas.ts
+  const TAP_THRESHOLD = TAP_MAX_DIST;
   for (const [btn, handler] of [
     [btnRotate, handleRotate],
     [btnConfirm, handleConfirm],

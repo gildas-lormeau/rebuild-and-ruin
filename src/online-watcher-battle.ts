@@ -1,4 +1,4 @@
-import { canPlayerFire, countdownAnnouncement } from "./battle-system.ts";
+import { canPlayerFire, getCountdownAnnouncement } from "./battle-system.ts";
 import type {
   Crosshair,
   OrbitParams,
@@ -135,7 +135,7 @@ export function tickWatcherTimers(
     const elapsed = Math.max(0, (now() - timing.countdownStartTime) / 1000);
     state.battleCountdown = Math.max(0, timing.countdownDuration - elapsed);
 
-    frame.announcement = countdownAnnouncement(state.battleCountdown);
+    frame.announcement = getCountdownAnnouncement(state.battleCountdown);
     if (!frame.announcement) {
       timing.phaseStartTime =
         timing.countdownStartTime + timing.countdownDuration * 1000;

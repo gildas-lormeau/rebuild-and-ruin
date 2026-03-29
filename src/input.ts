@@ -111,3 +111,8 @@ export interface RegisterOnlineInputDeps {
     setMessage: (text: string) => void;
   };
 }
+
+/** Max CSS pixel distance for a touch to count as a tap (not a drag). */
+export const TAP_MAX_DIST = 20;
+/** Max milliseconds for a touch to count as a tap. */
+export const TAP_MAX_TIME = 300;

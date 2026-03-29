@@ -55,6 +55,8 @@ const CONTROL_ACTION_NAMES: readonly string[] = [
   "Confirm",
   "Rotate",
 ];
+/** Raw option indices — positions in the options list. */
+export const OPTION_CONTROLS = 5;
 
 export function createOptionsOverlay(ctx: UIContext): {
   map: GameMap;

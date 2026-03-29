@@ -278,7 +278,7 @@ function handleKeyOptions(
     e.key === "h"
   ) {
     if (options.getRealIdx() === 5)
-      options.showControls(); // 5 = Controls row
+      options.showControls(); // 5 = OPTION_CONTROLS
     else options.close();
     e.preventDefault();
   }

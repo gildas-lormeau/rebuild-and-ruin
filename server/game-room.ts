@@ -12,6 +12,7 @@
  */
 
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/grid.ts";
+import { MAX_PLAYERS } from "../src/player-config.ts";
 import { CANNON_MODES, LifeLostChoice, Phase } from "../src/types.ts";
 import {
   MESSAGE,
@@ -57,7 +58,7 @@ const HOST_ONLY: Set<string> = new Set([
 // Payload validation — reject obviously malformed values before relaying
 // ---------------------------------------------------------------------------
 
-const MAX_PLAYER_ID = 2;
+const MAX_PLAYER_ID = MAX_PLAYERS - 1;
 const MAX_TOWER_IDX = 30;
 const MAX_CANNON_IDX = 30;
 const MAX_PIECE_TILES = 50;

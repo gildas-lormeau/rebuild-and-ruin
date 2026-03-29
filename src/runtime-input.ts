@@ -12,7 +12,11 @@ import type {
   PlayerController,
 } from "./controller-interfaces.ts";
 import { isHuman } from "./controller-interfaces.ts";
-import { type UIContext, visibleOptions } from "./game-ui-screens.ts";
+import {
+  OPTION_CONTROLS,
+  type UIContext,
+  visibleOptions,
+} from "./game-ui-screens.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
 import { dispatchPointerMove } from "./input-dispatch.ts";
@@ -345,7 +349,7 @@ function setupTouchControls(
       },
       changeValue: (dir: -1 | 1) => options.changeOption(dir),
       confirm: () => {
-        if (options.realOptionIdx() === 5)
+        if (options.realOptionIdx() === OPTION_CONTROLS)
           options.showControls(); // 5 = Controls row
         else options.closeOptions();
       },

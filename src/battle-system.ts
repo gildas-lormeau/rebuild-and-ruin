@@ -95,7 +95,7 @@ const COUNTDOWN_READY = 3;
 const COUNTDOWN_AIM = 1;
 
 /** Map battleCountdown to the corresponding announcement text. */
-export function countdownAnnouncement(
+export function getCountdownAnnouncement(
   battleCountdown: number,
 ): string | undefined {
   if (battleCountdown > COUNTDOWN_READY) return "Ready";

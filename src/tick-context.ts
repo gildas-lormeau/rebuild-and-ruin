@@ -15,7 +15,8 @@ export interface HostNetContext {
   isHost: boolean;
 }
 
-/** Empty set used as default when no remote players exist (local play). */
+/** Empty set used as default when no remote players exist (local play).
+ *  Reuses the frozen EMPTY_TILE_SET sentinel from spatial.ts (both are Set<number>). */
 const NO_REMOTE_SLOTS: ReadonlySet<number> = EMPTY_TILE_SET;
 
 /** Extract remote human slots from optional net context, defaulting to empty for local play. */

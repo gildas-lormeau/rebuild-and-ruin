@@ -8,7 +8,7 @@
  */
 
 import type { GameMessage } from "../server/protocol.ts";
-import { countdownAnnouncement } from "./battle-system.ts";
+import { getCountdownAnnouncement } from "./battle-system.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import type { TilePos } from "./geometry-types.ts";
@@ -128,7 +128,7 @@ export function tickHostBattleCountdown(
     ctrl.battleTick(state, dt);
   }
 
-  frame.announcement = countdownAnnouncement(state.battleCountdown);
+  frame.announcement = getCountdownAnnouncement(state.battleCountdown);
 
   syncCrosshairs(false, dt);
   render();

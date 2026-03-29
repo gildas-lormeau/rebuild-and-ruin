@@ -27,9 +27,15 @@ import type { MapData, RenderOverlay } from "./render-types.ts";
 import { facingToCardinal } from "./spatial.ts";
 import { type CannonMode, isBalloonMode, isSuperMode } from "./types.ts";
 
-// Phantom invalid-placement color (red overlay for blocked positions)
+// Phantom rendering
 const DARK_METAL = "#111";
 const PHANTOM_INVALID_COLOR = "#aa2222";
+/** Alpha for primary human phantom (cursor preview). */
+const PHANTOM_ALPHA_PRIMARY = 0.5;
+/** Alpha for secondary human phantoms (multi-player build). */
+const PHANTOM_ALPHA_HUMAN = 0.55;
+/** Alpha for AI phantom previews. */
+const PHANTOM_ALPHA_AI = 0.6;
 // Spatial hash multipliers for per-tile visual noise
 const SEED_ROW = 41;
 const SEED_COL = 17;
@@ -73,7 +79,7 @@ export function drawPhantoms(
       row,
       col,
       valid ? "#c8c0b8" : PHANTOM_INVALID_COLOR,
-      0.5,
+      PHANTOM_ALPHA_PRIMARY,
       false,
     );
   }
@@ -84,7 +90,15 @@ export function drawPhantoms(
       const { offsets, row, col, valid, playerId } = phantom;
       const wall = getPlayerColor(playerId).wall;
       const fill = valid ? rgb(wall) : PHANTOM_INVALID_COLOR;
-      drawPiecePhantom(octx, offsets, row, col, fill, 0.55, true);
+      drawPiecePhantom(
+        octx,
+        offsets,
+        row,
+        col,
+        fill,
+        PHANTOM_ALPHA_HUMAN,
+        true,
+      );
     }
   }
 
@@ -93,7 +107,15 @@ export function drawPhantoms(
     for (const phantom of overlay.phantoms.aiPhantoms) {
       const { offsets, row, col, playerId } = phantom;
       const wall = getPlayerColor(playerId).wall;
-      drawPiecePhantom(octx, offsets, row, col, rgb(wall), 0.6, true);
+      drawPiecePhantom(
+        octx,
+        offsets,
+        row,
+        col,
+        rgb(wall),
+        PHANTOM_ALPHA_AI,
+        true,
+      );
     }
   }
 }
@@ -495,37 +517,37 @@ function drawPhantomCannon(
   // Draw actual cannon sprite at alpha, tinted red if invalid
   ctx.translate(cx + mid, cy + mid);
   ctx.rotate(facing);
-  const tint = !valid;
+  const invalid = !valid;
   if (isSuperMode(mode)) {
     // Super gun phantom — symmetric around (0,0)
-    ctx.fillStyle = tint ? "#3a1111" : "#1a1a1a";
+    ctx.fillStyle = invalid ? "#3a1111" : "#1a1a1a";
     ctx.fillRect(-14, -8, 28, 24);
-    ctx.fillStyle = tint ? "#553333" : "#333";
+    ctx.fillStyle = invalid ? "#553333" : "#333";
     ctx.fillRect(-18, -6, 5, 11);
     ctx.fillRect(13, -6, 5, 11);
-    ctx.fillStyle = tint ? "#4a2222" : "#2a2a2a";
+    ctx.fillStyle = invalid ? "#4a2222" : "#2a2a2a";
     ctx.fillRect(-16, -2, 32, 2);
-    ctx.fillStyle = tint ? "#884444" : "#444";
+    ctx.fillStyle = invalid ? "#884444" : "#444";
     ctx.fillRect(-4, -18, 8, 27);
-    ctx.fillStyle = tint ? "#331111" : DARK_METAL;
+    ctx.fillStyle = invalid ? "#331111" : DARK_METAL;
     ctx.fillRect(-1, -18, 2, 3);
-    ctx.fillStyle = tint ? "#cc4444" : "#a33";
+    ctx.fillStyle = invalid ? "#cc4444" : "#a33";
     ctx.fillRect(-5, -11, 10, 2);
     ctx.fillRect(-5, -5, 10, 2);
   } else {
     // Normal cannon phantom — symmetric around (0,0)
-    ctx.fillStyle = tint ? "#3a1111" : "#1a1a1a";
+    ctx.fillStyle = invalid ? "#3a1111" : "#1a1a1a";
     ctx.fillRect(-10, -5, 20, 16);
-    ctx.fillStyle = tint ? "#553333" : "#333";
+    ctx.fillStyle = invalid ? "#553333" : "#333";
     ctx.fillRect(-12, -3, 4, 8);
     ctx.fillRect(8, -3, 4, 8);
-    ctx.fillStyle = tint ? "#4a2222" : "#2a2a2a";
+    ctx.fillStyle = invalid ? "#4a2222" : "#2a2a2a";
     ctx.fillRect(-10, 0, 20, 2);
-    ctx.fillStyle = tint ? "#884444" : "#555";
+    ctx.fillStyle = invalid ? "#884444" : "#555";
     ctx.fillRect(-2, -11, 4, 17);
-    ctx.fillStyle = tint ? "#331111" : DARK_METAL;
+    ctx.fillStyle = invalid ? "#331111" : DARK_METAL;
     ctx.fillRect(-1, -11, 2, 2);
-    ctx.fillStyle = tint ? "#aa4444" : "#777";
+    ctx.fillStyle = invalid ? "#aa4444" : "#777";
     ctx.fillRect(-3, -6, 6, 2);
   }
   ctx.restore();
