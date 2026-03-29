@@ -45,13 +45,7 @@ onRoute(ROUTE_ONLINE, () => {
 });
 
 onRoute(ROUTE_PLAY, () => {
-  // Fullscreen requires a user gesture — defer to first tap if navigated via bookmark.
-  // Use touchstart on document (capture phase) since the game container may not
-  // be visible yet and click doesn't fire on canvas on mobile.
-  document.addEventListener("touchstart", () => tryFullscreen(), {
-    once: true,
-    capture: true,
-  });
+  tryFullscreen(); // works when navigated via user gesture; silently fails on bookmark
   void import("./main.ts").then((m) => m.enterLocalLobby());
 });
 
@@ -78,12 +72,14 @@ serverHostInput.addEventListener("change", () => {
   else localStorage.removeItem(SERVER_STORAGE_KEY);
 });
 
-// Fullscreen on Create/Join submit (needs user gesture)
+// Fullscreen on Create/Join confirm (needs user gesture — click for mobile compat)
 document
-  .getElementById("form-create")!
-  .addEventListener("submit", tryFullscreen);
+  .getElementById("btn-create-confirm")!
+  .addEventListener("click", tryFullscreen);
 
-document.getElementById("form-join")!.addEventListener("submit", tryFullscreen);
+document
+  .getElementById("btn-join-confirm")!
+  .addEventListener("click", tryFullscreen);
 
 // --- Auto-join via QR code: ?join=XXXX&server=host ---
 if (autoJoinCode) {
