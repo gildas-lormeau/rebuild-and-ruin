@@ -970,7 +970,11 @@ export class AiController extends BaseController implements AiAnimatable {
   // Movement helpers
   // -----------------------------------------------------------------------
 
-  /** Move a tile cursor one step toward (targetRow, targetCol). */
+  /** Which axis to move first — randomized when a new target is set. */
+  private tileMoveRowFirst = true;
+
+  /** Move a tile cursor one step toward (targetRow, targetCol).
+   *  Moves one axis at a time (like arrow keys) with slight perpendicular jitter. */
   private stepTileCursorToward(
     cursor: TilePos,
     targetRow: number,
@@ -981,19 +985,41 @@ export class AiController extends BaseController implements AiAnimatable {
   ): boolean {
     const dr = targetRow - cursor.row;
     const dc = targetCol - cursor.col;
-    const f = moveStepFraction(
-      Math.sqrt(dr * dr + dc * dc),
-      baseSpeed,
-      boostThreshold,
-      dt,
-    );
-    if (f >= 1) {
+    const dist = Math.abs(dr) + Math.abs(dc);
+    if (dist < 0.05) {
       cursor.row = targetRow;
       cursor.col = targetCol;
       return true;
     }
-    cursor.row += dr * f;
-    cursor.col += dc * f;
+    const speed = baseSpeed * (dist > boostThreshold ? 2 : 1);
+    let remaining = speed * dt;
+
+    // Randomize axis priority when far from target (new movement)
+    if (Math.abs(dr) > 0.5 && Math.abs(dc) > 0.5) {
+      this.tileMoveRowFirst = this.strategy.rng.bool(0.5);
+    }
+    const rowFirst = this.tileMoveRowFirst;
+    const d1 = rowFirst ? dr : dc;
+    const d2 = rowFirst ? dc : dr;
+
+    if (Math.abs(d1) > 0.01) {
+      const move = Math.min(remaining, Math.abs(d1));
+      if (rowFirst) cursor.row += Math.sign(d1) * move;
+      else cursor.col += Math.sign(d1) * move;
+      remaining -= move;
+      // Perpendicular jitter while traveling primary axis
+      if (Math.abs(d2) > 1) {
+        const jitter = (this.strategy.rng.next() - 0.5) * 0.4 * dt;
+        if (rowFirst) cursor.col += jitter;
+        else cursor.row += jitter;
+      }
+    }
+    // Move secondary axis with leftover step
+    if (remaining > 0.01 && Math.abs(d2) > 0.01) {
+      const move = Math.min(remaining, Math.abs(d2));
+      if (rowFirst) cursor.col += Math.sign(d2) * move;
+      else cursor.row += Math.sign(d2) * move;
+    }
     return false;
   }
 
