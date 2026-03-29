@@ -10,7 +10,12 @@ import { setPhase } from "./game-engine.ts";
 import type { RGB } from "./geometry-types.ts";
 import { TILE_COUNT } from "./grid.ts";
 import type { WatcherTimingState } from "./online-types.ts";
-import { BANNER_PLACE_CANNONS, type BannerShow } from "./phase-banner.ts";
+import {
+  BANNER_BATTLE_ONLINE,
+  BANNER_PLACE_CANNONS,
+  BANNER_REPAIR_ONLINE,
+  type BannerShow,
+} from "./phase-banner.ts";
 import { NO_WINNER_NAME } from "./player-config.ts";
 import {
   FOCUS_REMATCH,
@@ -105,9 +110,6 @@ export interface TransitionContext {
     playerColors: ReadonlyArray<{ wall: RGB }>;
   };
 }
-
-const BANNER_BATTLE_ONLINE = "Battle!";
-const BANNER_REPAIR_ONLINE = "Repair!";
 
 export function handleCastleWallsTransition(
   msg: ServerMessage,

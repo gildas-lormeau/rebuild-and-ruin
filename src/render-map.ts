@@ -109,6 +109,10 @@ const bannerSceneCanvas = document.createElement("canvas");
 const bannerSceneCtx = bannerSceneCanvas.getContext("2d", {
   willReadFrequently: true,
 })!;
+/** WeakMap so terrain caches auto-cleanup when a MapData is GC'd (e.g., lobby map change).
+ *  Banner cache below uses module-level variables + manual clearBannerCache() instead,
+ *  because the banner scene combines data from multiple sources (castles, territory, walls)
+ *  that aren't keyed by a single object. */
 const terrainImageCache = new WeakMap<MapData, TerrainImageCache>();
 
 /** Cached main-canvas context — avoids per-frame getContext overhead on Chrome mobile. */

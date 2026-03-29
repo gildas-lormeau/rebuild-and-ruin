@@ -56,6 +56,8 @@ export function handleServerMessage(msg: ServerMessage): void {
   handleServerIncrementalMessage(msg, incrementalDeps);
 }
 
+/** Flat deps object for backward compat. New context objects (e.g., transitionCtx
+ *  in online-client-runtime.ts) should nest by concern for better readability. */
 function buildLifecycleDeps() {
   return {
     log,

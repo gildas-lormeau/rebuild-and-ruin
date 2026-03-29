@@ -34,6 +34,9 @@ const QUIT_WARNING_SECONDS = 2;
 /** Maximum character length for user-entered seeds. */
 const MAX_SEED_LENGTH = 9;
 
+// Note: keyboard uses per-handler mode checks because different keys are valid
+// in different modes (e.g., arrows in lobby vs game, ESC always available).
+// Mouse handlers check mode at event-handler level instead (see input-mouse.ts).
 export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
   const { getState, getMode, modeValues } = deps;
 

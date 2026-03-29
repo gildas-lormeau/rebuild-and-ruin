@@ -23,6 +23,7 @@ import {
   getRemoteSlots,
   type HostNetContext,
   localActiveControllers,
+  tickTimer,
 } from "./tick-context.ts";
 import { CannonMode, type GameState } from "./types.ts";
 
@@ -139,8 +140,11 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   const sendOpponentCannonPlaced = deps.net?.sendOpponentCannonPlaced;
   const sendOpponentCannonPhantom = deps.net?.sendOpponentCannonPhantom;
 
-  accum.cannon += dt;
-  state.timer = Math.max(0, state.cannonPlaceTimer - accum.cannon);
+  ({ accum: accum.cannon, timer: state.timer } = tickTimer(
+    accum.cannon,
+    dt,
+    state.cannonPlaceTimer,
+  ));
 
   frame.phantoms = { aiCannonPhantoms: [] };
   // Pass 1: tick only local, non-eliminated controllers (process input & AI decisions)
@@ -230,8 +234,11 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   const remoteHumanSlots = getRemoteSlots(deps.net);
 
   // --- Timer + grunt tick ---
-  accum.build += dt;
-  state.timer = Math.max(0, state.buildTimer - accum.build);
+  ({ accum: accum.build, timer: state.timer } = tickTimer(
+    accum.build,
+    dt,
+    state.buildTimer,
+  ));
   accum.grunt += dt;
   if (accum.grunt >= 1.0) {
     accum.grunt -= 1.0;

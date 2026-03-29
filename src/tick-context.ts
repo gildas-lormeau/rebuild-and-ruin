@@ -26,6 +26,17 @@ export function getRemoteSlots(
   return net?.remoteHumanSlots ?? NO_REMOTE_SLOTS;
 }
 
+/** Advance an accumulator timer: adds dt, returns the new accumulator value and clamped display timer.
+ *  Used by cannon/build/battle ticks to avoid repeating the same pattern. */
+export function tickTimer(
+  accum: number,
+  dt: number,
+  max: number,
+): { accum: number; timer: number } {
+  const newAccum = accum + dt;
+  return { accum: newAccum, timer: Math.max(0, max - newAccum) };
+}
+
 /** Filter controllers to only local (non-remote) players that are still alive. */
 export function localActiveControllers(
   controllers: readonly PlayerController[],

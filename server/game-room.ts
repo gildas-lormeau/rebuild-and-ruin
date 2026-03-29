@@ -298,9 +298,12 @@ export class GameRoom {
     // --- Relay (forward raw string to avoid re-serialization) ---
     for (const socket of this.broadcastRecipients) {
       if (socket === senderSocket) continue;
-      if (socket.readyState === WebSocket.OPEN) {
-        socket.send(rawJson);
-      }
+      safeSendRaw(socket, rawJson);
     }
   }
+}
+
+/** Send a pre-serialized JSON string to a socket, guarded by readyState. */
+function safeSendRaw(socket: WebSocket, json: string): void {
+  if (socket.readyState === WebSocket.OPEN) socket.send(json);
 }

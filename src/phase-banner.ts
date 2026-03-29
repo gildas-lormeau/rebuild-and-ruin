@@ -45,6 +45,9 @@ export const BANNER_BATTLE_SUB = "Shoot at enemy walls";
 export const BANNER_BUILD = "Build & Repair";
 export const BANNER_BUILD_SUB = "Surround castles, repair walls";
 export const BANNER_SELECT = "Select your home castle";
+/** Online-specific variants — shorter text for multi-player context. */
+export const BANNER_BATTLE_ONLINE = "Battle!";
+export const BANNER_REPAIR_ONLINE = "Repair!";
 
 export function createBannerState(): BannerState {
   return {

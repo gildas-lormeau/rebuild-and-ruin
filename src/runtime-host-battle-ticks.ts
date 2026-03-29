@@ -23,6 +23,7 @@ import {
   getRemoteSlots,
   type HostNetContext,
   localActiveControllers,
+  tickTimer,
 } from "./tick-context.ts";
 import type {
   BalloonFlight,
@@ -41,7 +42,9 @@ interface TickHostBattleCountdownDeps {
   net?: Pick<HostNetContext, "remoteHumanSlots">;
 }
 
-/** Networking context for the battle phase. */
+/** Networking context for the battle phase.
+ *  Optional (`net?`) — when omitted, no fire events are broadcast and
+ *  all controllers are treated as local. */
 interface BattlePhaseNet extends HostNetContext {
   sendMessage: (msg: GameMessage) => void;
 }
@@ -68,7 +71,8 @@ interface TickHostBattlePhaseDeps {
   net?: BattlePhaseNet;
 }
 
-/** Networking context for starting battle. */
+/** Networking context for starting battle.
+ *  Optional — when omitted, balloon flights are not broadcast. */
 interface BattleStartNet {
   isHost: boolean;
   sendBattleStart: (flights: readonly BalloonFlight[]) => void;
@@ -153,8 +157,11 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   const isHost = deps.net?.isHost ?? true;
   const sendMessage = deps.net?.sendMessage;
 
-  accum.battle += dt;
-  state.timer = Math.max(0, battleTimer - accum.battle);
+  ({ accum: accum.battle, timer: state.timer } = tickTimer(
+    accum.battle,
+    dt,
+    battleTimer,
+  ));
 
   const ballsBefore = state.cannonballs.length;
   for (const ctrl of localActiveControllers(

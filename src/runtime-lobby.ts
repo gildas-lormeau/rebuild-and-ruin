@@ -3,6 +3,10 @@
  *
  * Extracted from runtime.ts. Follows the same factory-with-deps
  * pattern as runtime-camera.ts and runtime-selection.ts.
+ *
+ * Deps convention: destructure frequently-used deps (rs, uiCtx) at top;
+ * keep rarely-used deps inline (deps.X) to avoid clutter. See runtime-input.ts
+ * header for the full rationale.
  */
 
 import type { UIContext } from "./game-ui-screens.ts";

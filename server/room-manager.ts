@@ -304,9 +304,7 @@ export class RoomManager {
   broadcastToRoom(entry: RoomEntry, msg: ServerMessage): void {
     const json = JSON.stringify(msg);
     for (const sock of entry.connectedSockets) {
-      if (sock.readyState === WebSocket.OPEN) {
-        sock.send(json);
-      }
+      safeSendRaw(sock, json);
     }
   }
 
@@ -339,4 +337,9 @@ export class RoomManager {
       console.log(`[rooms] Room ${entry.code} cleaned up`);
     }, ROOM_CLEANUP_DELAY_MS);
   }
+}
+
+/** Send a pre-serialized JSON string to a socket, guarded by readyState. */
+function safeSendRaw(socket: WebSocket, json: string): void {
+  if (socket.readyState === WebSocket.OPEN) socket.send(json);
 }
