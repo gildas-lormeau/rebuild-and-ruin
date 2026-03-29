@@ -19,7 +19,7 @@
     ]
   },
   {
-    "name": "core types & systems",
+    "name": "core types & state",
     "files": [
       "src/types.ts",
       "src/spatial.ts",
@@ -41,7 +41,7 @@
     ]
   },
   {
-    "name": "game systems & selection",
+    "name": "game logic",
     "files": [
       "src/cannon-system.ts",
       "src/grunt-system.ts",
@@ -116,7 +116,7 @@
     ]
   },
   {
-    "name": "online types & config",
+    "name": "online infrastructure",
     "files": [
       "src/online-config.ts",
       "src/online-types.ts",
@@ -170,7 +170,7 @@
     ]
   },
   {
-    "name": "entry points",
+    "name": "application roots",
     "files": [
       "src/entry.ts",
       "src/main.ts",
