@@ -23,8 +23,6 @@
     "files": [
       "src/types.ts",
       "src/spatial.ts",
-      "src/life-lost.ts",
-      "src/castle-build.ts",
       "src/board-occupancy.ts",
       "src/checkpoint-data.ts",
       "server/protocol.ts"
@@ -35,7 +33,9 @@
     "files": [
       "src/player-config.ts",
       "src/controller-interfaces.ts",
-      "src/tick-context.ts",
+      "src/life-lost.ts",
+      "src/castle-build.ts",
+      "src/phase-banner.ts",
       "src/render-theme.ts",
       "src/render-types.ts"
     ]
@@ -51,7 +51,7 @@
       "src/map-generation.ts",
       "src/game-engine.ts",
       "src/game-ui-helpers.ts",
-      "src/phase-banner.ts",
+      "src/tick-context.ts",
       "src/phase-transition-shared.ts",
       "src/selection.ts"
     ]
