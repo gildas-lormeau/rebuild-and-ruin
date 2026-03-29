@@ -1,12 +1,14 @@
 ---
 name: architecture-audit
-description: Parallel multi-domain architecture audit. Spawns sub-agents per domain to find semantic duplication, misplaced logic, and cross-domain inconsistencies.
+description: Parallel multi-domain architecture audit focused on LLM-agent readability. Finds ambiguous naming, implicit conventions, divergent patterns, large functions, and magic values.
 user-invocable: true
 ---
 
 # Architecture Audit
 
-Parallel multi-domain review that detects semantic duplication (same behavior implemented differently across files) and cross-domain inconsistencies. Complements `/code-review` which works per-pass on a scoped file set.
+Parallel multi-domain review focused on making the codebase easy for LLM-based coding agents to work with correctly. An LLM agent that reads these files should be able to understand intent, find the right place to make changes, and produce code that follows existing patterns — without hallucinating wrong field names, missing guards, or placing logic in the wrong file.
+
+Complements `/code-review` which works per-pass on a scoped file set.
 
 ## Domain clusters
 
@@ -74,28 +76,43 @@ Spawn one Explore sub-agent per domain (up to 8 in parallel). Each agent receive
 Read ALL files in this domain completely:
 [file list]
 
+Our primary goal is making this codebase easy for LLM-based coding
+agents to work with correctly. An LLM agent that reads these files
+should be able to understand intent, find the right place to make
+changes, and produce code that follows existing patterns — without
+hallucinating wrong field names, missing guards, or placing logic
+in the wrong file.
+
 Report findings in these categories:
 
-1. SEMANTIC DUPLICATION — same behavior implemented via different code.
-   Detection: multiple files branching on the same enum/phase/mode,
-   parallel guard checks, same controller/state methods called from
-   different paths with different subsets of checks.
+1. AMBIGUOUS NAMING — identifiers whose meaning an LLM could easily
+   misinterpret. E.g., a function called "update" that actually resets,
+   a boolean whose true/false semantics are unclear, or two
+   similarly-named functions with different behavior.
 
-2. MISPLACED LOGIC — code that belongs in another domain.
-   Detection: file imports types/functions from a domain it shouldn't
-   depend on, or implements behavior that another domain already owns.
+2. IMPLICIT CONVENTIONS — patterns that are followed consistently but
+   never documented in types or comments. An LLM would need to see
+   many examples to infer the rule. E.g., "always check isActive()
+   before calling confirm()", or "this callback must be called
+   exactly once."
 
-3. INCONSISTENT GUARDS — same action reachable via multiple paths
-   with different precondition checks (e.g., one path checks eliminated,
-   another doesn't).
+3. DIVERGENT PATTERNS — places where two files handle the same concern
+   differently for no clear reason. An LLM copying from file A would
+   produce wrong code for file B. E.g., one handler destructures deps
+   at the top, another accesses deps.X inline.
 
-4. INTERFACE BLOAT — deps interfaces with fields that are only
-   pass-throughs to another consumer. Should carry a sub-object instead.
+4. LARGE FUNCTIONS — functions over ~50 lines where an LLM might lose
+   track of which variables are in scope or what the current branch
+   handles.
 
-For each finding: file, line number, what's duplicated/misplaced,
-severity (high/medium/low), suggested fix. Do NOT make any edits.
-Be pragmatic — only flag things where the fix genuinely improves
-the codebase.
+5. MAGIC VALUES — literal numbers, strings, or enum values used
+   without named constants, making it hard for an LLM to know what
+   they represent.
+
+For each finding: file, line number, what the issue is,
+severity (high/medium/low), and a concrete suggestion.
+Do NOT make any edits. Only flag things where fixing them would
+genuinely help an LLM agent write better code.
 ```
 
 ### Phase 2: Cross-domain audit
@@ -106,26 +123,30 @@ After all domain agents complete, spawn one Explore agent with all domain report
 Given these domain audit findings:
 [paste all domain reports]
 
-Now check for CROSS-DOMAIN issues:
+Now check for CROSS-DOMAIN issues that would trip up an LLM agent:
 
-1. SHARED TYPES used inconsistently — same interface/enum imported by
-   multiple domains but with different field subsets or different
+1. AMBIGUOUS NAMING across domains — same name used for different
+   things in different files, or different names used for the same
+   concept. An LLM working in one domain would use the wrong
+   identifier in another.
+
+2. DIVERGENT PATTERNS across domains — same concern (guards, deps
+   access, phase checks, error handling) handled differently in
+   different domains. An LLM copying a pattern from domain A would
+   produce wrong code in domain B.
+
+3. IMPLICIT CONVENTIONS spanning domains — rules an LLM must follow
+   when code in one domain calls into another (e.g., "always check
+   eliminated before calling controller methods", "net context is
+   optional and defaults to local-play no-ops"). These are easy to
+   miss when only reading one domain.
+
+4. SHARED TYPES used inconsistently — same interface/enum imported
+   by multiple domains but with different field subsets or different
    type signatures (e.g., one domain uses `boolean`, another uses
    `boolean | undefined` for the same concept).
 
-2. ENUM BRANCHING scattered — the same enum (Phase, Mode, CannonMode)
-   branched independently in multiple domains. Each domain implements
-   its own phase-specific behavior instead of delegating to a shared
-   dispatch.
-
-3. PARALLEL DEPS — two domains define similar deps interfaces that
-   could share a common base or sub-object.
-
-4. IMPORT OVERLAP — two files in different domains that import the
-   same set of 3+ game types/functions, suggesting they both implement
-   the same responsibility.
-
-For each finding: which domains are involved, what's duplicated,
+For each finding: which domains are involved, what the issue is,
 severity, suggested fix. Do NOT make any edits.
 ```
 
@@ -133,7 +154,7 @@ severity, suggested fix. Do NOT make any edits.
 
 Present all findings (domain + cross-domain) to the user, ranked by severity. For each:
 - What's wrong and where
-- Whether it's an actual bug, latent risk, or just messy
+- How it would cause an LLM agent to produce incorrect code
 - Estimated fix effort (low/medium/high)
 - Recommended action (fix now, defer, or ignore)
 
