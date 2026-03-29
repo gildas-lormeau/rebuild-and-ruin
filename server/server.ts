@@ -166,6 +166,8 @@ function handleMessage(
   }
 }
 
+/** Send a server-originated message (serializes to JSON).
+ *  For relaying client messages, use safeSendRaw() to avoid re-serialization. */
 function send(
   socket: WebSocket,
   msg: import("./protocol.ts").ServerMessage,

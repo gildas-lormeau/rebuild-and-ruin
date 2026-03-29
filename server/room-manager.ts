@@ -299,9 +299,9 @@ export class RoomManager {
     return result;
   }
 
-  /** Get the slot occupied by the host, or -1 if host hasn't selected a slot. */
+  /** Get the slot occupied by the host, or NO_HOST_SLOT if host hasn't selected a slot. */
   getHostId(entry: RoomEntry): number {
-    return entry.slotAssignments.get(entry.hostSocket) ?? -1;
+    return entry.slotAssignments.get(entry.hostSocket) ?? NO_HOST_SLOT;
   }
 
   /** Seconds elapsed since room creation. */

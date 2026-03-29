@@ -169,77 +169,8 @@ export function drawMap(
   drawHouses(octx, overlay);
   drawTowers(octx, map, overlay, now);
 
-  // If banner is active with old data, re-draw old scene below the banner.
-  // Uses a temp canvas because putImageData in drawTerrain ignores clip regions.
-  if (overlay?.ui?.banner && overlay.ui.bannerOldCastles) {
-    const bannerH = Math.round(H * BANNER_HEIGHT_RATIO);
-    const clipY = Math.round(overlay.ui.banner.y - bannerH / 2);
-    if (clipY < H) {
-      const oldCastles = overlay.ui.bannerOldCastles;
-      const oldTerritory = overlay.ui.bannerOldBattleTerritory;
-      const oldWalls = overlay.ui.bannerOldBattleWalls;
-      const bannerCacheMiss =
-        cachedBannerMap !== map ||
-        cachedBannerCastles !== oldCastles ||
-        cachedBannerTerritory !== oldTerritory ||
-        cachedBannerWalls !== oldWalls;
-
-      if (bannerCacheMiss) {
-        const oldHouses = overlay.ui.bannerOldHouses;
-        const oldBonusSquares = overlay.ui.bannerOldBonusSquares;
-        const oldOverlay: RenderOverlay = {
-          ...overlay,
-          castles: oldCastles,
-          entities: {
-            ...overlay.entities,
-            houses: oldHouses ?? overlay.entities?.houses,
-            bonusSquares: oldBonusSquares ?? overlay.entities?.bonusSquares,
-          },
-          battle: {
-            ...overlay.battle,
-            battleTerritory: oldTerritory,
-            battleWalls: oldWalls,
-            cannonballs: undefined,
-            crosshairs: undefined,
-            impacts: undefined,
-          },
-          ui: {
-            ...overlay.ui,
-            banner: undefined,
-            announcement: undefined,
-            bannerOldCastles: undefined,
-          },
-          // Suppress phase-specific phantoms in old scene
-          phantoms: {
-            phantomPiece: null,
-            humanPhantoms: undefined,
-            aiPhantoms: undefined,
-            aiCannonPhantoms: undefined,
-          },
-        };
-        const tmpCtx = bannerSceneCtx;
-        tmpCtx.clearRect(0, 0, W, H);
-        drawTerrain(tmpCtx, W, H, map, oldOverlay);
-        drawCastles(tmpCtx, oldOverlay);
-        drawBonusSquares(tmpCtx, oldOverlay, now);
-        drawHouses(tmpCtx, oldOverlay);
-        drawTowers(tmpCtx, map, oldOverlay, now);
-        cachedBannerMap = map;
-        cachedBannerCastles = oldCastles;
-        cachedBannerTerritory = oldTerritory;
-        cachedBannerWalls = oldWalls;
-      }
-
-      octx.save();
-      octx.beginPath();
-      octx.rect(0, clipY, W, H - clipY);
-      octx.clip();
-      octx.drawImage(bannerSceneCanvas, 0, 0);
-      octx.restore();
-    }
-  } else {
-    clearBannerCache();
-  }
+  // If banner is active with old data, composite the old scene below the banner.
+  drawBannerOldScene(octx, W, H, map, overlay, now);
 
   // Layers that don't change between phases — draw once on top
   drawPhantoms(octx, overlay);
@@ -314,6 +245,89 @@ function ensureOffscreenSize(width: number, height: number): void {
     bannerSceneCanvas.height = height;
     clearBannerCache();
   }
+}
+
+/** Re-draw the pre-transition scene below the banner divider line.
+ *  Uses a temp canvas because putImageData in drawTerrain ignores clip regions.
+ *  The old scene is cached (by reference identity) to avoid re-rendering each frame. */
+function drawBannerOldScene(
+  octx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  map: MapData,
+  overlay: RenderOverlay | undefined,
+  now: number,
+): void {
+  if (!overlay?.ui?.banner || !overlay.ui.bannerOldCastles) {
+    clearBannerCache();
+    return;
+  }
+
+  const bannerH = Math.round(H * BANNER_HEIGHT_RATIO);
+  const clipY = Math.round(overlay.ui.banner.y - bannerH / 2);
+  if (clipY >= H) return;
+
+  const oldCastles = overlay.ui.bannerOldCastles;
+  const oldTerritory = overlay.ui.bannerOldBattleTerritory;
+  const oldWalls = overlay.ui.bannerOldBattleWalls;
+  const bannerCacheMiss =
+    cachedBannerMap !== map ||
+    cachedBannerCastles !== oldCastles ||
+    cachedBannerTerritory !== oldTerritory ||
+    cachedBannerWalls !== oldWalls;
+
+  if (bannerCacheMiss) {
+    const oldHouses = overlay.ui.bannerOldHouses;
+    const oldBonusSquares = overlay.ui.bannerOldBonusSquares;
+    const oldOverlay: RenderOverlay = {
+      ...overlay,
+      castles: oldCastles,
+      entities: {
+        ...overlay.entities,
+        houses: oldHouses ?? overlay.entities?.houses,
+        bonusSquares: oldBonusSquares ?? overlay.entities?.bonusSquares,
+      },
+      battle: {
+        ...overlay.battle,
+        battleTerritory: oldTerritory,
+        battleWalls: oldWalls,
+        cannonballs: undefined,
+        crosshairs: undefined,
+        impacts: undefined,
+      },
+      ui: {
+        ...overlay.ui,
+        banner: undefined,
+        announcement: undefined,
+        bannerOldCastles: undefined,
+      },
+      // Suppress phase-specific phantoms in old scene
+      phantoms: {
+        phantomPiece: null,
+        humanPhantoms: undefined,
+        aiPhantoms: undefined,
+        aiCannonPhantoms: undefined,
+      },
+    };
+    const tmpCtx = bannerSceneCtx;
+    tmpCtx.clearRect(0, 0, W, H);
+    drawTerrain(tmpCtx, W, H, map, oldOverlay);
+    drawCastles(tmpCtx, oldOverlay);
+    drawBonusSquares(tmpCtx, oldOverlay, now);
+    drawHouses(tmpCtx, oldOverlay);
+    drawTowers(tmpCtx, map, oldOverlay, now);
+    cachedBannerMap = map;
+    cachedBannerCastles = oldCastles;
+    cachedBannerTerritory = oldTerritory;
+    cachedBannerWalls = oldWalls;
+  }
+
+  octx.save();
+  octx.beginPath();
+  octx.rect(0, clipY, W, H - clipY);
+  octx.clip();
+  octx.drawImage(bannerSceneCanvas, 0, 0);
+  octx.restore();
 }
 
 function clearBannerCache(): void {

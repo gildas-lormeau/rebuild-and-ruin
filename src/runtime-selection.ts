@@ -185,6 +185,8 @@ export function createSelectionSystem(
    *  1. confirmSelectionForPlayer — marks the player as confirmed in selectionStates,
    *     then kicks off startPlayerCastleBuild for the newly confirmed player.
    *     Returns true when ALL players have confirmed.
+   *     Dual responsibility: both marks confirmed AND triggers castle build animation
+   *     as a side effect (idempotent — skips if already confirmed).
    *  2. finishSelection (called separately by tickSelection when allConfirmed) —
    *     clears overlay state, finalizes castle construction, and advances to cannon phase.
    */

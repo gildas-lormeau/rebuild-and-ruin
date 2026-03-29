@@ -26,6 +26,15 @@ import { safeSendRaw } from "./send-utils.ts";
 type ServerPhase = Phase | "LOBBY" | "CASTLE_BUILD";
 
 // ---------------------------------------------------------------------------
+// Message validation tables
+// ---------------------------------------------------------------------------
+// When adding a new message type, check each table:
+//   HOST_ONLY         — add if only the host may send it (transitions, checkpoints)
+//   PHASE_GATES       — add if the message is only valid during specific phases
+//   validatePayload() — add a case if the message has fields needing bounds checks
+//   RATE_LIMITED_TYPES — add only for high-frequency cosmetic/display messages
+//
+// ---------------------------------------------------------------------------
 // Rate limiting — cosmetic/display messages only
 // ---------------------------------------------------------------------------
 // Only high-frequency display messages (phantoms, aim updates) are rate-limited.

@@ -324,9 +324,10 @@ export class HumanController extends BaseController implements InputReceiver {
     return this.cannonPlaceMode;
   }
 
-  flushCannons(_state: GameState, _maxSlots: number): void {
-    // Round-1 auto-placement for humans with 0 cannons is handled by the game engine
-  }
+  /** Human: no-op — auto-placement for humans with 0 cannons is handled by the game engine.
+   *  AI overrides this to process its remaining queued placements from strategy.
+   *  Called via finalizeCannonPhase() which guarantees flush→init order. */
+  flushCannons(_state: GameState, _maxSlots: number): void {}
 
   endBattle(): void {
     this.heldActions.clear();

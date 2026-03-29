@@ -5,6 +5,11 @@
  * Convention: exported functions use `octx` (overlay context) for the parameter name.
  * Private helper functions use `ctx` for brevity.
  *
+ * ### Parameter convention (shared with render-composition.ts, render-map.ts)
+ *
+ * Functions with ≤3 closely-related args use positional parameters;
+ * functions with >3 args or heterogeneous config use a `params` object.
+ *
  * ### Time parameter convention (applies across all render-* files)
  *
  * Two timestamp sources are used in the render domain:

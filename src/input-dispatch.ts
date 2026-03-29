@@ -256,7 +256,9 @@ export function dispatchBattleFire(
   });
 }
 
-/** Dispatch a UI action to the active overlay (options, life-lost, game-over). Returns true if consumed. */
+/** Dispatch a UI action to the active overlay (options, life-lost, game-over). Returns true if consumed.
+ *  Priority order: options → life-lost → game-over. At most one overlay is active at a time;
+ *  the order only matters as a safety net — it does not imply overlays can stack. */
 export function dispatchOverlayAction(
   action: Action,
   deps: OverlayActionDeps,

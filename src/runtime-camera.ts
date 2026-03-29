@@ -48,9 +48,13 @@ interface CameraDeps {
 
 export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // --- Internal state ---
-  // Zoom lifecycle: mobileZoomEnabled (platform supports it) → zoomActivated (game started)
-  //   → selectionZoomApplied (initial selection zoom done) → per-phase auto-zoom via lastAutoZoomPhase.
-  // pendingSelectionVp defers zoom until announcement finishes.
+  // Zoom state machine (flags are set/cleared in the order listed):
+  //   mobileZoomEnabled — set once at enableMobileZoom(), never cleared (platform capability)
+  //   zoomActivated     — set in startGame(), cleared in resetCamera() (session lifecycle)
+  //   selectionZoomApplied — set after first selection zoom, cleared in resetCamera()
+  //   lastAutoZoomPhase — tracks which phase last triggered auto-zoom, cleared in lightUnzoom/resetCamera
+  //   pendingSelectionVp — defers zoom until announcement finishes, consumed by applyPendingZoom
+  //   pinchVp / buildPinchVp / battlePinchVp — saved per-phase viewport overrides from user pinch
   let cameraZone: number | null = null;
   let lastAutoZoomPhase: Phase | null = null;
   let mobileZoomEnabled = false;

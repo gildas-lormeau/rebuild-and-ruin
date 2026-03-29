@@ -3,6 +3,17 @@
  *
  * Maps touch events to the same deps callbacks as mouse/keyboard input.
  * Single-touch only. Gesture discrimination: tap vs drag.
+ *
+ * ### Pinch suppression state machine
+ *
+ * After a two-finger pinch, single-touch events are suppressed until all
+ * fingers lift. This prevents "ghost taps" when releasing from a pinch gesture.
+ *
+ *   touchstart (2+ fingers) → pinchActive=true, suppressSingleTouch=true
+ *   touchend   (1 finger left) → pinchActive=false (pinch done, suppress still on)
+ *   touchend   (0 fingers)     → suppressSingleTouch=false (all clear)
+ *
+ * While suppressSingleTouch is true, all single-finger events early-return.
  */
 
 import type {

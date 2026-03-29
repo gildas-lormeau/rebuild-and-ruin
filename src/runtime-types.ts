@@ -3,6 +3,16 @@
  *
  * Separated from runtime.ts to keep the implementation file focused
  * on the factory closure, and to let consumers import just the types.
+ *
+ * ### Sub-system deps convention (all runtime-*.ts files)
+ *
+ * Each sub-system factory (`createXxxSystem(deps)`) follows:
+ *   - Destructure `rs` (and a few frequently-used deps) at the factory top.
+ *   - Access other deps inline as `deps.xxx` — avoids stale captures and makes
+ *     the dependency explicit at each call site.
+ *   - Deps interfaces use getters/closures for late binding (e.g. `getState()`).
+ *   - Sub-systems must not import from each other, only from runtime-types.ts
+ *     and runtime-state.ts.
  */
 
 import type { GameMessage, ServerMessage } from "../server/protocol.ts";
