@@ -730,10 +730,14 @@ export class AiController extends BaseController implements AiAnimatable {
 
     // Transition out of countdown on first active frame
     if (this.battleState.step === Step.COUNTDOWN) {
-      this.battleState =
-        this.chainTargets && this.chainIdx < this.chainTargets.length
-          ? { step: Step.CHAIN_MOVING }
-          : { step: Step.PICKING };
+      if (this.chainTargets && this.chainIdx < this.chainTargets.length) {
+        this.battleState = { step: Step.CHAIN_MOVING };
+      } else if (this.crosshairTarget) {
+        // Fire at the target we were aiming at during countdown
+        this.battleState = { step: Step.MOVING };
+      } else {
+        this.battleState = { step: Step.PICKING };
+      }
     }
 
     switch (this.battleState.step) {
