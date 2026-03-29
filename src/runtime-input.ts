@@ -155,16 +155,13 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
   const {
     rs,
     renderer,
-    gameContainer,
     uiCtx,
     camera,
     sound,
-    haptics,
     lobby,
     options,
     lifeLost,
     selection,
-    firstHuman,
     withFirstHuman,
     isSelectionReady,
     render,
@@ -302,157 +299,184 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
 
     // Touch controls: wire static DOM elements from index.html
     if (IS_TOUCH_DEVICE) {
-      gameContainer.classList.add("has-touch-panels");
-      const {
-        tryPlacePieceAndSend: placePieceAction,
-        tryPlaceCannonAndSend: placeCannonAction,
-      } = inputDeps.gameAction;
-      const overlayActionDeps = {
-        options: {
-          isActive: () => rs.mode === Mode.OPTIONS,
-          navigate: (dir: -1 | 1) => {
-            const count = visibleOptions(uiCtx).length;
-            rs.optionsCursor = (rs.optionsCursor + dir + count) % count;
-          },
-          changeValue: (dir: -1 | 1) => options.changeOption(dir),
-          confirm: () => {
-            if (options.realOptionIdx() === 5)
-              options.showControls(); // 5 = Controls row
-            else options.closeOptions();
-          },
-        },
-        lifeLost: {
-          isActive: () =>
-            rs.mode === Mode.LIFE_LOST && rs.lifeLostDialog !== null,
-          toggleFocus: () => {
-            const human = firstHuman();
-            if (human) lifeLost.toggleFocus(human.playerId);
-          },
-          confirm: () => {
-            const human = firstHuman();
-            if (human) lifeLost.confirmChoice(human.playerId);
-          },
-        },
-        gameOver: {
-          isActive: () =>
-            rs.mode === Mode.STOPPED && rs.frame.gameOver !== undefined,
-          toggleFocus: () => {
-            if (!rs.frame.gameOver) return;
-            rs.frame.gameOver.focused =
-              rs.frame.gameOver.focused === FOCUS_REMATCH
-                ? FOCUS_MENU
-                : FOCUS_REMATCH;
-            render();
-          },
-          confirm: () => {
-            if (!rs.frame.gameOver) return;
-            if (rs.frame.gameOver.focused === FOCUS_REMATCH) rematch();
-            else returnToLobby();
-          },
-        },
-      };
-      touch.dpad = createDpad(
-        {
-          getState: () => safeState(rs),
-          getMode: () => rs.mode,
-          modeValues: {
-            GAME: Mode.GAME,
-            SELECTION: Mode.SELECTION,
-            LOBBY: Mode.LOBBY,
-          },
-          withFirstHuman,
-          onHapticTap: haptics.tap,
-          isHost: deps.getIsHost,
-          lobbyAction: () =>
-            lobby.lobbyKeyJoin(rs.settings.keyBindings[0]!.confirm),
-          getLeftHanded: () => rs.settings.leftHanded,
-          clearDirectTouch: () => {
-            rs.directTouchActive = false;
-          },
-          gameAction: {
-            getSelectionStates: () => rs.selectionStates,
-            highlightTowerForPlayer: selection.highlight,
-            confirmSelectionForPlayer: selection.confirm,
-            isSelectionReady,
-            tryPlacePieceAndSend: placePieceAction,
-            tryPlaceCannonAndSend: placeCannonAction,
-            onPieceRotated: sound.pieceRotated,
-            fireAndSend: inputDeps.gameAction.fireAndSend,
-          },
-          overlay: overlayActionDeps,
-        },
-        gameContainer,
-      );
-      touch.dpad.update(null); // initial state: d-pad + rotate disabled
-      const zoomDeps = {
-        getState: () => safeState(rs),
-        getCameraZone: camera.getCameraZone,
-        setCameraZone: camera.setCameraZone,
-        myPlayerId: camera.myPlayerId,
-        getEnemyZones: camera.getEnemyZones,
-        aimAtZone: (zone: number) => {
-          if (!rs.state) return;
-          const human = firstHuman();
-          if (!human) return;
-          const pid = rs.state.playerZones.indexOf(zone);
-          const tower = pid >= 0 ? rs.state.players[pid]?.homeTower : null;
-          if (!tower) return;
-          const px = towerCenterPx(tower);
-          human.setCrosshair(px.x, px.y);
-        },
-      };
-      touch.loupeHandle = renderer.createLoupe?.(gameContainer) ?? null;
-      touch.quitButton = createQuitButton(
-        {
-          getQuitPending: () => rs.quitPending,
-          setQuitPending: (v: boolean) => {
-            rs.quitPending = v;
-          },
-          setQuitTimer: (v: number) => {
-            rs.quitTimer = v;
-          },
-          setQuitMessage: (msg: string) => {
-            rs.quitMessage = msg;
-          },
-          showLobby: returnToLobby,
-          getControllers: () => rs.controllers,
-          isHuman,
-        },
-        gameContainer,
-      );
-      touch.quitButton.update(null); // initial state: hidden
-      touch.homeZoomButton = createHomeZoomButton(zoomDeps, gameContainer);
-      touch.enemyZoomButton = createEnemyZoomButton(zoomDeps, gameContainer);
-      touch.homeZoomButton.update(false); // initial state: disabled
-      touch.enemyZoomButton.update(false);
-      camera.enableMobileZoom();
-
-      // Floating contextual buttons for direct-touch placement
-      const floatingEl =
-        gameContainer.querySelector<HTMLElement>("#floating-actions");
-      if (floatingEl) {
-        touch.floatingActions = createFloatingActions(
-          {
-            getState: () => safeState(rs),
-            withFirstHuman,
-            tryPlacePieceAndSend: placePieceAction,
-            tryPlaceCannonAndSend: placeCannonAction,
-            onPieceRotated: sound.pieceRotated,
-            onHapticTap: haptics.tap,
-            onDrag: (clientX, clientY) => {
-              const state = rs.state;
-              if (!state) return;
-              const { x, y } = renderer.clientToSurface(clientX, clientY);
-              dispatchPointerMove(x, y, state, inputDeps);
-            },
-          },
-          floatingEl,
-        );
-      }
+      setupTouchControls(inputDeps, touch, deps);
     }
   }
 
   return { register, touch };
+}
+
+function setupTouchControls(
+  inputDeps: RegisterOnlineInputDeps,
+  touch: TouchHandles,
+  deps: InputSystemDeps,
+): void {
+  const {
+    rs,
+    renderer,
+    gameContainer,
+    uiCtx,
+    camera,
+    sound,
+    haptics,
+    lobby,
+    options,
+    lifeLost,
+    selection,
+    firstHuman,
+    withFirstHuman,
+    isSelectionReady,
+    render,
+    rematch,
+    returnToLobby,
+  } = deps;
+
+  gameContainer.classList.add("has-touch-panels");
+  const {
+    tryPlacePieceAndSend: placePieceAction,
+    tryPlaceCannonAndSend: placeCannonAction,
+  } = inputDeps.gameAction;
+  const overlayActionDeps = {
+    options: {
+      isActive: () => rs.mode === Mode.OPTIONS,
+      navigate: (dir: -1 | 1) => {
+        const count = visibleOptions(uiCtx).length;
+        rs.optionsCursor = (rs.optionsCursor + dir + count) % count;
+      },
+      changeValue: (dir: -1 | 1) => options.changeOption(dir),
+      confirm: () => {
+        if (options.realOptionIdx() === 5)
+          options.showControls(); // 5 = Controls row
+        else options.closeOptions();
+      },
+    },
+    lifeLost: {
+      isActive: () => rs.mode === Mode.LIFE_LOST && rs.lifeLostDialog !== null,
+      toggleFocus: () => {
+        const human = firstHuman();
+        if (human) lifeLost.toggleFocus(human.playerId);
+      },
+      confirm: () => {
+        const human = firstHuman();
+        if (human) lifeLost.confirmChoice(human.playerId);
+      },
+    },
+    gameOver: {
+      isActive: () =>
+        rs.mode === Mode.STOPPED && rs.frame.gameOver !== undefined,
+      toggleFocus: () => {
+        if (!rs.frame.gameOver) return;
+        rs.frame.gameOver.focused =
+          rs.frame.gameOver.focused === FOCUS_REMATCH
+            ? FOCUS_MENU
+            : FOCUS_REMATCH;
+        render();
+      },
+      confirm: () => {
+        if (!rs.frame.gameOver) return;
+        if (rs.frame.gameOver.focused === FOCUS_REMATCH) rematch();
+        else returnToLobby();
+      },
+    },
+  };
+  touch.dpad = createDpad(
+    {
+      getState: () => safeState(rs),
+      getMode: () => rs.mode,
+      modeValues: {
+        GAME: Mode.GAME,
+        SELECTION: Mode.SELECTION,
+        LOBBY: Mode.LOBBY,
+      },
+      withFirstHuman,
+      onHapticTap: haptics.tap,
+      isHost: deps.getIsHost,
+      lobbyAction: () =>
+        lobby.lobbyKeyJoin(rs.settings.keyBindings[0]!.confirm),
+      getLeftHanded: () => rs.settings.leftHanded,
+      clearDirectTouch: () => {
+        rs.directTouchActive = false;
+      },
+      gameAction: {
+        getSelectionStates: () => rs.selectionStates,
+        highlightTowerForPlayer: selection.highlight,
+        confirmSelectionForPlayer: selection.confirm,
+        isSelectionReady,
+        tryPlacePieceAndSend: placePieceAction,
+        tryPlaceCannonAndSend: placeCannonAction,
+        onPieceRotated: sound.pieceRotated,
+        fireAndSend: inputDeps.gameAction.fireAndSend,
+      },
+      overlay: overlayActionDeps,
+    },
+    gameContainer,
+  );
+  touch.dpad.update(null); // initial state: d-pad + rotate disabled
+  const zoomDeps = {
+    getState: () => safeState(rs),
+    getCameraZone: camera.getCameraZone,
+    setCameraZone: camera.setCameraZone,
+    myPlayerId: camera.myPlayerId,
+    getEnemyZones: camera.getEnemyZones,
+    aimAtZone: (zone: number) => {
+      if (!rs.state) return;
+      const human = firstHuman();
+      if (!human) return;
+      const pid = rs.state.playerZones.indexOf(zone);
+      const tower = pid >= 0 ? rs.state.players[pid]?.homeTower : null;
+      if (!tower) return;
+      const px = towerCenterPx(tower);
+      human.setCrosshair(px.x, px.y);
+    },
+  };
+  touch.loupeHandle = renderer.createLoupe?.(gameContainer) ?? null;
+  touch.quitButton = createQuitButton(
+    {
+      getQuitPending: () => rs.quitPending,
+      setQuitPending: (v: boolean) => {
+        rs.quitPending = v;
+      },
+      setQuitTimer: (v: number) => {
+        rs.quitTimer = v;
+      },
+      setQuitMessage: (msg: string) => {
+        rs.quitMessage = msg;
+      },
+      showLobby: returnToLobby,
+      getControllers: () => rs.controllers,
+      isHuman,
+    },
+    gameContainer,
+  );
+  touch.quitButton.update(null); // initial state: hidden
+  touch.homeZoomButton = createHomeZoomButton(zoomDeps, gameContainer);
+  touch.enemyZoomButton = createEnemyZoomButton(zoomDeps, gameContainer);
+  touch.homeZoomButton.update(false); // initial state: disabled
+  touch.enemyZoomButton.update(false);
+  camera.enableMobileZoom();
+
+  // Floating contextual buttons for direct-touch placement
+  const floatingEl =
+    gameContainer.querySelector<HTMLElement>("#floating-actions");
+  if (floatingEl) {
+    touch.floatingActions = createFloatingActions(
+      {
+        getState: () => safeState(rs),
+        withFirstHuman,
+        tryPlacePieceAndSend: placePieceAction,
+        tryPlaceCannonAndSend: placeCannonAction,
+        onPieceRotated: sound.pieceRotated,
+        onHapticTap: haptics.tap,
+        onDrag: (clientX, clientY) => {
+          const state = rs.state;
+          if (!state) return;
+          const { x, y } = renderer.clientToSurface(clientX, clientY);
+          dispatchPointerMove(x, y, state, inputDeps);
+        },
+      },
+      floatingEl,
+    );
+  }
 }
 
 function wrapPiecePlace(
