@@ -169,6 +169,7 @@ export function createGameLifecycle(
 
   function endGame(winner: { id: number } | null) {
     rs.scoreDeltaOnDone = null;
+    rs.lifeLostDialog = null;
     camera.unzoom();
     deps.onEndGame?.(winner, rs.state);
     sound.reset();
