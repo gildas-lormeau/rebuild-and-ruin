@@ -327,6 +327,23 @@ function drawTerrain(
     return;
   }
 
+  const sdf = computeSignedDistanceField(W, H, map);
+  blurSignedDistanceField(sdf, W, H);
+
+  const imgData = octx.createImageData(W, H);
+  renderTerrainPixels(imgData, sdf, W, H, map, inBattle);
+
+  octx.putImageData(imgData, 0, 0);
+  if (inBattle) cache.battle = imgData;
+  else cache.normal = imgData;
+}
+
+/** Forward + backward SDF passes for water/grass boundary distances. */
+function computeSignedDistanceField(
+  W: number,
+  H: number,
+  map: MapData,
+): Float32Array {
   const INF = 1e9;
   const ORTHO_DIST = 1.0;
   const DIAG_DIST = 1.414;
@@ -424,8 +441,15 @@ function drawTerrain(
   for (let i = 0; i < W * H; i++) {
     sdf[i] = distFromWater[i]! > 0 ? distFromWater[i]! : -distFromGrass[i]!;
   }
+  return sdf;
+}
 
-  // Blur the SDF to round corners
+/** Gaussian blur on the SDF to round water/grass boundary corners. */
+function blurSignedDistanceField(
+  sdf: Float32Array,
+  W: number,
+  H: number,
+): void {
   const tmp = new Float32Array(W * H);
   const BLUR_R = 5;
   const BLUR_D = 2 * BLUR_R + 1;
@@ -460,20 +484,25 @@ function drawTerrain(
     boxBlurH(sdf, tmp);
     boxBlurV(tmp, sdf);
   }
+}
 
-  const dist = sdf;
-
-  // Render pixels with smooth color blending
-  const imgData = octx.createImageData(W, H);
+/** Use SDF to paint grass/bank/water pixels into an ImageData buffer. */
+function renderTerrainPixels(
+  imgData: ImageData,
+  sdf: Float32Array,
+  W: number,
+  H: number,
+  map: MapData,
+  inBattle: boolean,
+): void {
   const data = imgData.data;
-
   const LAND_DIST = 3;
   const BANK_DIST = 6;
   const TRANS = 1.5;
 
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {
-      const d = dist[py * W + px]!;
+      const d = sdf[py * W + px]!;
       const tr = pxToTile(py);
       const tc = pxToTile(px);
       const idx = (py * W + px) * 4;
@@ -535,10 +564,6 @@ function drawTerrain(
       data[idx + 3] = 255;
     }
   }
-
-  octx.putImageData(imgData, 0, 0);
-  if (inBattle) cache.battle = imgData;
-  else cache.normal = imgData;
 }
 
 function getTerrainCache(
