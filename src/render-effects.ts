@@ -260,11 +260,11 @@ export function drawBattleEffects(
     }
   }
 
-  // Cannonballs in flight
+  // Cannonballs in flight (radius varies with arc height for 3D depth illusion)
   if (overlay?.battle?.cannonballs) {
     for (const ball of overlay.battle.cannonballs) {
       const height = Math.sin(ball.progress * Math.PI);
-      const radius = 3 + height * 2;
+      const radius = 3 + height * 2; // 3px base + up to 2px from arc
       octx.fillStyle = ball.incendiary ? "#c22" : DARK_METAL;
       octx.beginPath();
       octx.arc(ball.x, ball.y, radius, 0, Math.PI * 2);

@@ -133,7 +133,8 @@ export class HumanController extends BaseController implements InputReceiver {
   }
 
   override setCannonCursor(row: number, col: number): void {
-    // Offset so the clicked tile is near the center of the cannon phantom
+    // Mouse/touch: offset so the clicked tile lands at the phantom's center.
+    // Keyboard uses moveCannonCursor() instead, which clamps to grid bounds.
     const sz = cannonSize(this.cannonPlaceMode);
     const offset = Math.floor(sz / 2);
     super.setCannonCursor(row - offset, col - offset);

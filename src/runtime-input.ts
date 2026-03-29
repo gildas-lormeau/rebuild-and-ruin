@@ -316,7 +316,8 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
           },
           changeValue: (dir: -1 | 1) => options.changeOption(dir),
           confirm: () => {
-            if (options.realOptionIdx() === 5) options.showControls();
+            if (options.realOptionIdx() === 5)
+              options.showControls(); // 5 = Controls row
             else options.closeOptions();
           },
         },

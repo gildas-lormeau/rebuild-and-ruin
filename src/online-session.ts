@@ -31,6 +31,9 @@ export interface OnlineSession {
   earlyLifeLostChoices: Map<number, LifeLostChoice>;
 }
 
+/** Network deduplication maps — tracks the last-sent value per player for each
+ *  message type. If the new value matches, the send is skipped to reduce bandwidth.
+ *  Cleared on session reset and host promotion. */
 export interface DedupMaps {
   aimTarget: Map<number, string>;
   piecePhantom: Map<number, string>;

@@ -148,7 +148,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
           playerId: ctrl.playerId,
           row: c.row,
           col: c.col,
-          mode: c.kind,
+          mode: c.kind, // Cannon.kind is the stored CannonMode; wire protocol uses "mode"
         });
       }
     }

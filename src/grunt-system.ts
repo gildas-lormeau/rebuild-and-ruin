@@ -527,6 +527,9 @@ function gruntTargetPos(state: GameState, grunt: Grunt): TilePos | null {
   return t ? { row: t.row, col: t.col } : null;
 }
 
+/** Check if a sideways move is acceptable (doesn't increase distance to target).
+ *  Towers are 2×2: distance is 0 if within [target.row, target.row+1] / [target.col, target.col+1],
+ *  else Manhattan distance to nearest edge tile. */
 function isSidewaysAxisAllowed(
   target: TilePos,
   fromRow: number,
@@ -535,6 +538,7 @@ function isSidewaysAxisAllowed(
   toCol: number,
   stepRow: number,
 ): boolean {
+  // Distance to nearest edge of 2×2 tower footprint (0 if adjacent/overlapping)
   const rowDist = Math.max(0, target.row - fromRow, fromRow - (target.row + 1));
   const colDist = Math.max(0, target.col - fromCol, fromCol - (target.col + 1));
   const movingRow = stepRow !== 0;

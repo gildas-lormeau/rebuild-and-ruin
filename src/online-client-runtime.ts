@@ -396,6 +396,8 @@ export function applyFullState(msg: FullStateMessage): void {
 }
 
 // ── Checkpoint helper ───────────────────────────────────────────────
+/** Build positional args for applyCannonStartData / applyBattleStartData / applyBuildStartData.
+ *  Order must match their signatures: (watcher, msg, state, battleAnim, accum, snapshotTerritory). */
 function checkpointArgs(msg: ServerMessage) {
   return [
     watcher,

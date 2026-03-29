@@ -47,6 +47,9 @@ interface CameraDeps {
 
 export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // --- Internal state ---
+  // Zoom lifecycle: mobileZoomEnabled (platform supports it) → zoomActivated (game started)
+  //   → selectionZoomApplied (initial selection zoom done) → per-phase auto-zoom via lastAutoZoomPhase.
+  // pendingSelectionVp defers zoom until announcement finishes.
   let cameraZone: number | null = null;
   let lastAutoZoomPhase: Phase | null = null;
   let mobileZoomEnabled = false;

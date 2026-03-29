@@ -94,11 +94,11 @@ const Step = {
   CHAIN_DWELLING: "chain_dwelling",
   PICKING: "picking",
 } as const;
-/** AI build-phase cursor speed in tiles per second, indexed by cursorSkill 1–3.
+/** AI build-phase cursor speed in tiles per second, indexed by cursorSkill-1 (skill 1→[0], 2→[1], 3→[2]).
  *  Reduced from [8,12,14] to compensate for Manhattan movement being faster
  *  than the old diagonal (Euclidean) movement on non-axis-aligned paths. */
 const BUILD_CURSOR_SPEEDS = [5, 8, 10] as const;
-/** AI cannon-phase cursor speed in tiles per second, indexed by cursorSkill 1–3. */
+/** AI cannon-phase cursor speed in tiles per second, indexed by cursorSkill-1 (skill 1→[0], 2→[1], 3→[2]). */
 const CANNON_CURSOR_SPEEDS = [3, 4, 5] as const;
 /** Pixel distance at which countdown orbit engages (stop approaching, start circling). */
 const ORBIT_ENGAGEMENT_DISTANCE = 12;

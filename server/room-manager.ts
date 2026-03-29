@@ -131,6 +131,8 @@ export class RoomManager {
   // Disconnection
   // ---------------------------------------------------------------------------
 
+  /** Full disconnect handler — cleans up slots, triggers host migration if needed,
+   *  schedules room deletion. Calls GameRoom.removePlayer() internally. */
   removeSocket(socket: WebSocket): void {
     const entry = this.socketToRoom.get(socket);
     if (!entry) return;

@@ -398,6 +398,7 @@ function captureEnclosedBonusSquares(state: GameState, player: Player): void {
   });
 }
 
+/** SNES Rampart formula: 10×√territory, quantized to nearest 100, clamped [100,1000]. */
 function territoryBonusSquarePoints(territorySize: number): number {
   const raw = Math.floor((10 * Math.sqrt(territorySize)) / 100) * 100;
   return Math.max(100, Math.min(1000, raw));

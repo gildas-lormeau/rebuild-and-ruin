@@ -204,12 +204,16 @@ export class GameRoom {
     this.spectators.add(socket);
   }
 
+  /** Internal cleanup only — removes socket from tracking maps.
+   *  For full disconnect handling (host migration, room cleanup), use RoomManager.removeSocket(). */
   removePlayer(socket: WebSocket): void {
     this.players.delete(socket);
     this.spectators.delete(socket);
     this.rateLimits.delete(socket);
   }
 
+  /** Register a player socket. playerId is the same as slotId (color/position choice, 0-indexed).
+   *  Also adds to spectators — all players receive broadcast messages. */
   registerPlayer(socket: WebSocket, playerId: number): void {
     this.players.set(socket, playerId);
     this.spectators.add(socket);
