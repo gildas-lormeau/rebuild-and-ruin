@@ -45,7 +45,7 @@ import {
   tickHostBuildPhase,
   tickHostCannonPhase,
 } from "./runtime-host-phase-ticks.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import { assertStateReady, type RuntimeState } from "./runtime-state.ts";
 import type {
   RuntimeConfig,
   RuntimeLifeLost,
@@ -398,6 +398,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function tickGame(dt: number) {
+    assertStateReady(rs);
     if (rs.ctx.isHost) {
       tickGameCore({
         dt,

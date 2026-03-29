@@ -23,6 +23,12 @@ import {
   resetZoneState,
 } from "./game-engine.ts";
 import {
+  applyBattleStartCheckpoint,
+  applyBuildStartCheckpoint,
+  applyCannonStartCheckpoint,
+  type CheckpointDeps,
+} from "./online-checkpoints.ts";
+import {
   clearReconnect,
   dedup,
   devLog,
@@ -57,9 +63,6 @@ import {
 import { resetSessionState } from "./online-session.ts";
 import type { WatcherTickContext } from "./online-watcher-tick.ts";
 import {
-  applyBattleStartData,
-  applyBuildStartData,
-  applyCannonStartData,
   tickMigrationAnnouncement as tickMigrationAnnouncementFn,
   tickWatcher as tickWatcherFn,
 } from "./online-watcher-tick.ts";
@@ -110,9 +113,12 @@ export const transitionCtx: TransitionContext = {
   },
 
   checkpoint: {
-    applyCannonStart: (data) => applyCannonStartData(...checkpointArgs(data)),
-    applyBattleStart: (data) => applyBattleStartData(...checkpointArgs(data)),
-    applyBuildStart: (data) => applyBuildStartData(...checkpointArgs(data)),
+    applyCannonStart: (data) =>
+      applyCannonStartCheckpoint(data, buildCheckpointDeps()),
+    applyBattleStart: (data) =>
+      applyBattleStartCheckpoint(data, buildCheckpointDeps()),
+    applyBuildStart: (data) =>
+      applyBuildStartCheckpoint(data, buildCheckpointDeps()),
     applyPlayers: applyPlayersCheckpoint,
   },
 
@@ -390,20 +396,18 @@ export function applyFullState(msg: FullStateMessage): void {
 }
 
 // ── Checkpoint helper ───────────────────────────────────────────────
-/** Build a positional arg tuple for applyCannonStartData / applyBattleStartData / applyBuildStartData.
- *  Spread as: `applyXxxData(...checkpointArgs(msg))`.
- *  Order is load-bearing — must match the shared function signatures:
- *    (watcher, data, state, battleAnim, accum, snapshotTerritory).
- *  If a signature changes, update this tuple to match. */
-function checkpointArgs<T>(data: T) {
-  return [
-    watcher,
-    data,
-    runtime.rs.state,
-    runtime.rs.battleAnim,
-    runtime.rs.accum,
-    () => runtime.snapshotTerritory(),
-  ] as const;
+/** Build the deps object shared by all three checkpoint functions. */
+function buildCheckpointDeps(): CheckpointDeps {
+  return {
+    state: runtime.rs.state,
+    battleAnim: runtime.rs.battleAnim,
+    accum: runtime.rs.accum,
+    remoteCrosshairs: watcher.remoteCrosshairs,
+    watcherCrosshairPos: watcher.crosshairPos,
+    watcherOrbitParams: watcher.orbitParams,
+    watcherIdlePhases: watcher.idlePhases,
+    snapshotTerritory: () => runtime.snapshotTerritory(),
+  };
 }
 
 // ── Functions that close over runtime ───────────────────────────────

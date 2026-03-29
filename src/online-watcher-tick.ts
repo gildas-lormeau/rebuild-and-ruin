@@ -7,11 +7,6 @@
 
 import { MESSAGE } from "../server/protocol.ts";
 import { aimCannons, nextReadyCombined } from "./battle-system.ts";
-import type {
-  BattleStartData,
-  BuildStartData,
-  CannonStartData,
-} from "./checkpoint-data.ts";
 import {
   CROSSHAIR_SPEED,
   isHuman,
@@ -20,12 +15,6 @@ import {
 } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { tickGrunts } from "./grunt-system.ts";
-import type { CheckpointDeps } from "./online-checkpoints.ts";
-import {
-  applyBattleStartCheckpoint,
-  applyBuildStartCheckpoint,
-  applyCannonStartCheckpoint,
-} from "./online-checkpoints.ts";
 import {
   type CannonPhantom,
   interpolateToward,
@@ -210,48 +199,6 @@ export function tickWatcher(
   ctx.render();
 }
 
-export function applyCannonStartData(
-  ws: WatcherState,
-  data: CannonStartData,
-  state: GameState,
-  battleAnim: BattleAnimState,
-  accum: TimerAccums,
-  snapshotTerritory: () => Set<number>[],
-): void {
-  applyCannonStartCheckpoint(
-    data,
-    buildCheckpointDeps(ws, state, battleAnim, accum, snapshotTerritory),
-  );
-}
-
-export function applyBattleStartData(
-  ws: WatcherState,
-  data: BattleStartData,
-  state: GameState,
-  battleAnim: BattleAnimState,
-  accum: TimerAccums,
-  snapshotTerritory: () => Set<number>[],
-): void {
-  applyBattleStartCheckpoint(
-    data,
-    buildCheckpointDeps(ws, state, battleAnim, accum, snapshotTerritory),
-  );
-}
-
-export function applyBuildStartData(
-  ws: WatcherState,
-  data: BuildStartData,
-  state: GameState,
-  battleAnim: BattleAnimState,
-  accum: TimerAccums,
-  snapshotTerritory: () => Set<number>[],
-): void {
-  applyBuildStartCheckpoint(
-    data,
-    buildCheckpointDeps(ws, state, battleAnim, accum, snapshotTerritory),
-  );
-}
-
 /** Get the local human controller, or null if eliminated/watcher. */
 function getLocalHuman(
   state: GameState,
@@ -261,23 +208,4 @@ function getLocalHuman(
   if (myPlayerId < 0 || state.players[myPlayerId]?.eliminated) return null;
   const ctrl = controllers[myPlayerId];
   return ctrl && isHuman(ctrl) ? ctrl : null;
-}
-
-function buildCheckpointDeps(
-  ws: WatcherState,
-  state: GameState,
-  battleAnim: BattleAnimState,
-  accum: TimerAccums,
-  snapshotTerritory: () => Set<number>[],
-): CheckpointDeps {
-  return {
-    state,
-    battleAnim,
-    accum,
-    remoteCrosshairs: ws.remoteCrosshairs,
-    watcherCrosshairPos: ws.crosshairPos,
-    watcherOrbitParams: ws.orbitParams,
-    watcherIdlePhases: ws.idlePhases,
-    snapshotTerritory,
-  };
 }

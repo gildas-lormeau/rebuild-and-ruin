@@ -161,6 +161,16 @@ export function safeState(rs: RuntimeState): GameState | undefined {
   return isStateReady(rs) ? rs.state : undefined;
 }
 
+/** Assert `rs.state` is initialized and return it. Throws if still sentinel.
+ *  Use in code paths that must not run before startGame(). For optional access
+ *  (e.g. render code that may run during lobby), use `safeState(rs)` instead. */
+export function assertStateReady(rs: RuntimeState): GameState {
+  if (!isStateReady(rs)) {
+    throw new Error("rs.state accessed before initialization");
+  }
+  return rs.state;
+}
+
 /** Returns true when `rs.state` has been assigned a real GameState. */
 export function isStateReady(rs: RuntimeState): boolean {
   return !(rs.state as unknown as Record<symbol, unknown>)[SENTINEL];
