@@ -34,6 +34,9 @@ export interface RoomEntry {
 
 interface SlotSelectionResult {
   slotId: number;
+  /** The slot this socket previously occupied, or null if this is their first
+   *  slot selection (new player joining). Used by the caller to broadcast
+   *  a previousPlayerId so clients can clean up the vacated slot's UI. */
   previousSlotId: number | null;
 }
 
@@ -45,10 +48,18 @@ export class RoomManager {
   // Room lifecycle
   // ---------------------------------------------------------------------------
 
+  /** Create a new room with the given host socket.
+   *  Initialization order matters — each step depends on the previous:
+   *  1. Detach socket from any existing room
+   *  2. Create GameRoom + RoomEntry (entry holds all room state)
+   *  3. Register entry in lookup maps (rooms, socketToRoom)
+   *  4. Register host socket in GameRoom (addSocket + setHost)
+   *  5. Start wait timer (auto-starts game after timeout) */
   createRoom(settings: RoomSettings, hostSocket: WebSocket): string | null {
-    this.detachExistingSocket(hostSocket);
+    this.detachExistingSocket(hostSocket); // Step 1
     if (this.rooms.size >= MAX_ROOMS) return null;
 
+    // Step 2: Create room + entry
     const code = this.generateCode();
     const room = new GameRoom(settings);
     const entry: RoomEntry = {
@@ -62,12 +73,14 @@ export class RoomManager {
       waitTimer: null,
       createdAt: Date.now(),
     };
+    // Step 3: Register in lookup maps
     this.rooms.set(code, entry);
     this.socketToRoom.set(hostSocket, entry);
+    // Step 4: Register socket in GameRoom
     room.addSocket(hostSocket);
     room.setHost(hostSocket);
 
-    // Start wait timer
+    // Step 5: Start wait timer
     const waitSec = room.settings.waitTimerSec;
     entry.waitTimer = setTimeout(() => {
       if (!entry.started) this.doStartGame(entry);
@@ -88,6 +101,8 @@ export class RoomManager {
   }
 
   /** Player selects a color/position slot, which becomes their playerId.
+   *  Side effect: registers the socket with GameRoom.registerPlayer() so the
+   *  room tracks the socket→playerId mapping for identity enforcement.
    *  Returns null if: slot taken by another player, invalid slotId, or game already started. */
   selectSlot(socket: WebSocket, slotId: number): SlotSelectionResult | null {
     const entry = this.socketToRoom.get(socket);
@@ -143,23 +158,37 @@ export class RoomManager {
   // Disconnection
   // ---------------------------------------------------------------------------
 
-  /** Full disconnect handler — cleans up slots, triggers host migration if needed,
-   *  schedules room deletion. Calls GameRoom.removePlayer() internally. */
+  /** Full disconnect handler — two distinct paths:
+   *
+   *  **Pre-start** (host leaves before game begins):
+   *  → teardownUnstartedRoom() — room deleted immediately, all sockets detached.
+   *
+   *  **Mid-game** (any socket leaves after game started):
+   *  → handlePlayerLeftMidGame() — broadcasts PLAYER_LEFT, migrates host if needed.
+   *  → If room is now empty, schedules delayed cleanup.
+   *
+   *  Socket cleanup is split between GameRoom (tracking maps: players, broadcast,
+   *  rate limits) and RoomManager (slot assignments, room lookup maps). This method
+   *  handles RoomManager-level cleanup; GameRoom cleanup happens in handlePlayerLeftMidGame. */
   handleSocketDisconnect(socket: WebSocket): void {
     const entry = this.socketToRoom.get(socket);
     if (!entry) return;
 
     const playerId = entry.slotAssignments.get(socket);
     const wasHost = socket === entry.hostSocket;
+
+    // RoomManager-level cleanup (always)
     entry.connectedSockets.delete(socket);
     entry.slotAssignments.delete(socket);
     this.socketToRoom.delete(socket);
 
+    // Path 1: Host left before game start — tear down immediately
     if (wasHost && !entry.started) {
       this.teardownUnstartedRoom(entry);
       return;
     }
 
+    // Path 2: Socket left during active game
     if (entry.started) {
       this.handlePlayerLeftMidGame(entry, socket, playerId, wasHost);
     }
@@ -183,7 +212,10 @@ export class RoomManager {
     console.log(`[rooms] Room ${entry.code} deleted (host left before start)`);
   }
 
-  /** Handle a player (or host) disconnecting during an active game. */
+  /** Handle a player (or host) disconnecting during an active game.
+   *  @param playerId — The disconnected socket's slot, or undefined if the
+   *  socket never selected a slot (spectator/watcher). When undefined,
+   *  no PLAYER_LEFT is broadcast (spectators are invisible to clients). */
   private handlePlayerLeftMidGame(
     entry: RoomEntry,
     socket: WebSocket,

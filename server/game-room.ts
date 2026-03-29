@@ -25,15 +25,19 @@ import { safeSendRaw } from "./send-utils.ts";
  *  states that have no Phase enum equivalent. Used only for phase gating. */
 type ServerPhase = Phase | "LOBBY" | "CASTLE_BUILD";
 
-// Rate limit: max messages per second per type (cosmetic/display only).
+// ---------------------------------------------------------------------------
+// Rate limiting — cosmetic/display messages only
+// ---------------------------------------------------------------------------
+// Only high-frequency display messages (phantoms, aim updates) are rate-limited.
 // Game-state messages (piece_placed, cannon_placed, fired, tower_selected,
-// life_lost_choice) are NOT rate-limited — they are low-frequency and must
-// never be silently dropped. The host sends actions for all AI players
-// through a single socket, so a shared per-type bucket would starve AI
-// messages when humans act fast.
+// life_lost_choice) are NEVER rate-limited — they are low-frequency, must
+// never be silently dropped, and the host sends AI-player actions through a
+// single socket so a shared per-type bucket would starve AI messages.
 const RATE_LIMIT_PER_SEC = 100;
 const RATE_LIMIT_WINDOW_MS = 1000;
-const RATE_LIMITED_TYPES: Set<string> = new Set([
+/** Exhaustive set of message types subject to rate limiting.
+ *  All other types pass through without rate checks. */
+const RATE_LIMITED_TYPES: ReadonlySet<string> = new Set([
   MESSAGE.OPPONENT_PHANTOM,
   MESSAGE.OPPONENT_CANNON_PHANTOM,
   MESSAGE.AIM_UPDATE,
@@ -216,8 +220,10 @@ export class GameRoom {
     this.broadcastRecipients.add(socket);
   }
 
-  /** Internal cleanup only — removes socket from tracking maps.
-   *  For full disconnect handling (host migration, room cleanup), use RoomManager.handleSocketDisconnect(). */
+  /** Remove socket from GameRoom-owned tracking (players, broadcast, rate limits).
+   *  Called by RoomManager.handlePlayerLeftMidGame() which owns the higher-level
+   *  cleanup (slot assignments, host migration, room deletion scheduling).
+   *  Do NOT call directly — use RoomManager.handleSocketDisconnect(). */
   removePlayer(socket: WebSocket): void {
     this.players.delete(socket);
     this.broadcastRecipients.delete(socket);
@@ -236,9 +242,13 @@ export class GameRoom {
     this.hostSocket = socket;
   }
 
-  /** Host is exempt from identity enforcement: it sends actions on behalf of
-   *  AI players (whose playerId differs from the host's own slot). */
-  private isHostExempt(senderSocket: WebSocket, type: string): boolean {
+  /** Should the identity check (playerId === sender's slot) be skipped?
+   *  True for the host on non-host-only messages: the host sends actions on
+   *  behalf of AI players whose playerId differs from its own slot. */
+  private shouldSkipIdentityCheck(
+    senderSocket: WebSocket,
+    type: string,
+  ): boolean {
     return senderSocket === this.hostSocket && !HOST_ONLY.has(type);
   }
 
@@ -261,6 +271,14 @@ export class GameRoom {
   // Message relay with validation
   // ---------------------------------------------------------------------------
 
+  /** Validate and relay an in-game message.
+   *  Validation pipeline (order matters — each stage may early-return):
+   *  1. Host-only gate — reject non-host senders for checkpoint/transition messages
+   *  2. Identity check — non-host sockets may only send their own playerId
+   *  3. Phase gate — reject messages outside their valid phase
+   *  4. Payload validation — reject malformed field values
+   *  5. Rate limiting — cap high-frequency display messages
+   *  6. Relay — forward raw JSON to all other sockets */
   handleMessage(
     senderSocket: WebSocket,
     msg: Record<string, unknown>,
@@ -269,7 +287,7 @@ export class GameRoom {
     const type = msg.type as string;
     if (!type) return;
 
-    // --- Host-only messages (phase transitions, checkpoints, etc.) ---
+    // --- 1. Host-only messages (phase transitions, checkpoints, etc.) ---
     // Only the host socket may send these. Adding a new host-only message
     // type requires adding it to the HOST_ONLY set above.
     if (HOST_ONLY.has(type)) {
@@ -277,23 +295,26 @@ export class GameRoom {
       this.updatePhaseFromMessage(type);
     }
 
-    // --- Identity enforcement (for messages with playerId) ---
+    // --- 2. Identity enforcement (for messages with playerId) ---
     // Host is exempt: it sends actions on behalf of AI players.
     // Non-host sockets may only send messages for their own playerId.
-    if ("playerId" in msg && !this.isHostExempt(senderSocket, type)) {
+    if (
+      "playerId" in msg &&
+      !this.shouldSkipIdentityCheck(senderSocket, type)
+    ) {
       const senderPid = this.players.get(senderSocket);
       if (senderPid === undefined) return;
       if (msg.playerId !== senderPid) return;
     }
 
-    // --- Phase gating ---
+    // --- 3. Phase gating ---
     const validPhases = PHASE_GATES[type];
     if (validPhases && !validPhases.has(this.phase)) return;
 
-    // --- Payload validation ---
+    // --- 4. Payload validation ---
     if (!validatePayload(msg)) return;
 
-    // --- Rate limiting (sliding window counter) ---
+    // --- 5. Rate limiting (sliding window counter) ---
     if (RATE_LIMITED_TYPES.has(type)) {
       if (!this.rateLimits.has(senderSocket)) {
         this.rateLimits.set(senderSocket, new Map());
@@ -309,7 +330,7 @@ export class GameRoom {
       bucket.count++;
     }
 
-    // --- Relay (forward raw string to avoid re-serialization) ---
+    // --- 6. Relay (forward raw string to avoid re-serialization) ---
     for (const socket of this.broadcastRecipients) {
       if (socket === senderSocket) continue;
       safeSendRaw(socket, rawJson);

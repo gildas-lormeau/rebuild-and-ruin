@@ -74,6 +74,12 @@ Deno.serve({ port: PORT }, (req) => {
   return new Response("Not found", { status: 404 });
 });
 
+/** Route incoming WebSocket messages.
+ *  Two-tier dispatch: this switch handles lobby/room-management messages
+ *  (CREATE_ROOM, JOIN_ROOM, SELECT_SLOT, PING) that require server-side
+ *  responses. All other messages fall through to RoomManager→GameRoom which
+ *  validates and relays using set-based gates (HOST_ONLY, PHASE_GATES,
+ *  RATE_LIMITED_TYPES). */
 function handleMessage(
   socket: WebSocket,
   msg: Record<string, unknown>,
