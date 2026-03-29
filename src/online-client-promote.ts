@@ -36,7 +36,7 @@ export function promoteToHost(): void {
   devLog("PROMOTING TO HOST");
   session.isHost = true;
 
-  resetNetworkingForHost();
+  resetForHostPromotion();
   rebuildControllersForPhase(
     runtime.rs.state,
     runtime.rs.controllers,
@@ -54,11 +54,6 @@ export function promoteToHost(): void {
     ),
   );
   devLog("Promotion complete, now running as host");
-}
-
-/** Clear networking state the host doesn't carry over from the watcher phase. */
-function resetNetworkingForHost(): void {
-  resetForHostPromotion();
 }
 
 /**
