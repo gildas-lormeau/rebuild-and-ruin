@@ -18,8 +18,8 @@ export type OrbitParams = {
   phase: number;
 };
 
-/** Visual preview of a piece placement (not committed to game state). */
-export interface LocalPiecePhantom {
+/** Visual preview of a piece the player is about to place (not yet committed to game state). */
+export interface PiecePlacementPreview {
   offsets: [number, number][];
   row: number;
   col: number;
@@ -28,8 +28,8 @@ export interface LocalPiecePhantom {
   playerId: number;
 }
 
-/** Visual preview of a cannon placement (not committed to game state). */
-export interface LocalCannonPhantom {
+/** Visual preview of a cannon the player is about to place (not yet committed to game state). */
+export interface CannonPlacementPreview {
   row: number;
   col: number;
   /** true = placement is legal at this position. */
@@ -68,7 +68,10 @@ export interface PlayerController {
   /** Pick a tower for reselection. Same contract as selectTower. */
   reselect(state: GameState, zone: number): void;
 
-  /** Tick during selection phase. Returns true when the player has confirmed. */
+  /** Tick during selection phase.
+   *  Returns true when the player has confirmed their tower choice (AI auto-confirms
+   *  after an animation delay; human always returns false — confirmation is driven by
+   *  explicit UI input, not by the tick). */
   selectionTick(dt: number, state?: GameState): boolean;
 
   /** Place cannons. AI places all immediately. Human sets up UI. */
@@ -77,18 +80,18 @@ export interface PlayerController {
   /** Whether the player has placed all their cannons. */
   isCannonPhaseDone(state: GameState, maxSlots: number): boolean;
 
-  /** Called each frame during cannon phase. Returns phantom cannon for rendering,
-   *  or null if no phantom should be shown (player eliminated / no placement active).
+  /** Called each frame during cannon phase. Returns a placement preview for rendering,
+   *  or null if no preview should be shown (player eliminated / no placement active).
    *  NOTE: return type differs from buildTick (which always returns an array). */
-  cannonTick(state: GameState, dt: number): LocalCannonPhantom | null;
+  cannonTick(state: GameState, dt: number): CannonPlacementPreview | null;
 
   /** Called once at the start of the build phase. */
   startBuild(state: GameState): void;
 
-  /** Called each frame during the build phase. Returns phantom pieces to display
+  /** Called each frame during the build phase. Returns placement previews to display
    *  (may be empty array if no piece is being previewed).
    *  NOTE: return type differs from cannonTick (which returns null when inactive). */
-  buildTick(state: GameState, dt: number): LocalPiecePhantom[];
+  buildTick(state: GameState, dt: number): PiecePlacementPreview[];
 
   /** Called at the end of the build phase. */
   endBuild(state: GameState): void;
@@ -117,8 +120,8 @@ export interface PlayerController {
   /** Round-1 safety net: auto-place cannons if none were manually placed. No-op on round 2+. */
   initCannons(state: GameState, maxSlots: number): void;
 
-  /** Clean up at end of battle. */
-  onBattleEnd(): void;
+  /** Called at the end of the battle phase. */
+  endBattle(): void;
 
   /** Reset stale state after losing a life (before reselection). */
   onLifeLost(): void;
@@ -135,10 +138,14 @@ export interface PlayerController {
   /** Move cannon cursor one tile in a direction (keyboard). */
   moveCannonCursor(direction: Action): void;
 
-  /** Set build cursor to absolute position (mouse). Piece-aware clamping when provided. */
+  /** Set build cursor to absolute position (mouse/touch).
+   *  HumanController overrides to offset by the piece pivot so the clicked tile
+   *  aligns with the piece's visual center. Piece-aware clamping when provided. */
   setBuildCursor(row: number, col: number, piece?: PieceShape | null): void;
 
-  /** Set cannon cursor to absolute position (mouse). */
+  /** Set cannon cursor to absolute position (mouse/touch).
+   *  HumanController overrides to offset by half the cannon size so the clicked
+   *  tile lands at the placement preview's center. */
   setCannonCursor(row: number, col: number): void;
 
   /** Set crosshair to absolute pixel position (mouse). */
@@ -147,7 +154,8 @@ export interface PlayerController {
   /** Get the current build piece (for sending placement data). */
   getCurrentPiece(): PieceShape | null;
 
-  /** Fire at the current crosshair position. */
+  /** Fire one cannon at the current crosshair position (public entry point).
+   *  Delegates to the protected round-robin method fireNextCannon(). */
   fire(state: GameState): void;
 }
 

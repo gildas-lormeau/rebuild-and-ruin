@@ -18,10 +18,10 @@ import { placePiece } from "./build-system.ts";
 import { canPlaceCannon, placeCannon } from "./cannon-system.ts";
 import {
   type AiAnimatable,
+  type CannonPlacementPreview,
   CROSSHAIR_SPEED,
-  type LocalCannonPhantom,
-  type LocalPiecePhantom,
   type OrbitParams,
+  type PiecePlacementPreview,
 } from "./controller-interfaces.ts";
 import { BaseController } from "./controller-types.ts";
 import { selectPlayerTower } from "./game-engine.ts";
@@ -302,7 +302,7 @@ export class AiController extends BaseController implements AiAnimatable {
     }
   }
 
-  buildTick(state: GameState, dt: number): LocalPiecePhantom[] {
+  buildTick(state: GameState, dt: number): PiecePlacementPreview[] {
     if (!this.currentPiece) return [];
     const player = state.players[this.playerId]!;
     if (player.eliminated) return [];
@@ -411,7 +411,7 @@ export class AiController extends BaseController implements AiAnimatable {
   }
 
   /** Handle "moving toward target" state with concurrent rotation animation. */
-  private buildTickMoving(dt: number): LocalPiecePhantom[] {
+  private buildTickMoving(dt: number): PiecePlacementPreview[] {
     const s = this.buildState as Extract<
       BuildState,
       { step: typeof Step.MOVING }
@@ -530,7 +530,7 @@ export class AiController extends BaseController implements AiAnimatable {
     return this.cannonQueue.length === 0 && this.cannonState.step === Step.IDLE;
   }
 
-  cannonTick(state: GameState, dt: number): LocalCannonPhantom | null {
+  cannonTick(state: GameState, dt: number): CannonPlacementPreview | null {
     const player = state.players[this.playerId]!;
     if (player.eliminated) return null;
 
@@ -614,7 +614,7 @@ export class AiController extends BaseController implements AiAnimatable {
     state: GameState,
     player: Player,
     dt: number,
-  ): LocalCannonPhantom | null {
+  ): CannonPlacementPreview | null {
     const target = this.cannonQueue[0]!;
     const targetMode = target.mode;
     if (
@@ -651,7 +651,7 @@ export class AiController extends BaseController implements AiAnimatable {
     col: number,
     valid: boolean,
     player: Player,
-  ): LocalCannonPhantom {
+  ): CannonPlacementPreview {
     const target = this.cannonQueue[0]!;
     const targetMode = target.mode;
     return {
@@ -681,8 +681,7 @@ export class AiController extends BaseController implements AiAnimatable {
   // Battle phase
   // -----------------------------------------------------------------------
 
-  override resetBattleState(state?: GameState): void {
-    super.resetBattleState(state);
+  protected override onResetBattle(state?: GameState): void {
     this.crosshairTarget = null;
 
     // Delegate battle planning to strategy
@@ -900,7 +899,7 @@ export class AiController extends BaseController implements AiAnimatable {
       return;
     }
     const target = this.chainTargets[this.chainIdx]!;
-    const result = this.fireNext(state, target.row, target.col);
+    const result = this.fireNextCannon(state, target.row, target.col);
     if (result) {
       this.chainIdx++;
       if (this.chainIdx >= this.chainTargets.length) {
@@ -974,7 +973,7 @@ export class AiController extends BaseController implements AiAnimatable {
     this.chainType = Chain.WALL;
   }
 
-  onBattleEnd(): void {}
+  endBattle(): void {}
 
   override reset(): void {
     super.reset();
@@ -1074,7 +1073,7 @@ export class AiController extends BaseController implements AiAnimatable {
   // Build helpers
   // -----------------------------------------------------------------------
 
-  private phantomAtCursor(): LocalPiecePhantom {
+  private phantomAtCursor(): PiecePlacementPreview {
     return this.makePhantom(
       this.currentPiece!,
       Math.round(this.buildCursor.row),
@@ -1088,7 +1087,7 @@ export class AiController extends BaseController implements AiAnimatable {
     row: number,
     col: number,
     valid: boolean,
-  ): LocalPiecePhantom {
+  ): PiecePlacementPreview {
     return { offsets: shape.offsets, row, col, valid, playerId: this.playerId };
   }
 

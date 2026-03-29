@@ -3,7 +3,10 @@
  * circular dependencies between render-map and render-effects/towers/ui.
  */
 
-import type { Crosshair, LocalPiecePhantom } from "./controller-interfaces.ts";
+import type {
+  Crosshair,
+  PiecePlacementPreview,
+} from "./controller-interfaces.ts";
 import type { House, PixelPos, RGB, TilePos, Tower } from "./geometry-types.ts";
 import {
   type BurningPit,
@@ -58,7 +61,7 @@ export interface FrameData {
       col: number;
       playerId: number;
     }[];
-    humanPhantoms?: LocalPiecePhantom[];
+    humanPhantoms?: PiecePlacementPreview[];
     aiCannonPhantoms?: {
       row: number;
       col: number;

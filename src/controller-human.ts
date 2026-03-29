@@ -13,10 +13,10 @@ import {
   placeCannon,
 } from "./cannon-system.ts";
 import {
+  type CannonPlacementPreview,
   CROSSHAIR_SPEED,
   type InputReceiver,
-  type LocalCannonPhantom,
-  type LocalPiecePhantom,
+  type PiecePlacementPreview,
 } from "./controller-interfaces.ts";
 import { BaseController } from "./controller-types.ts";
 import { BALLOON_COST, SUPER_GUN_COST } from "./game-constants.ts";
@@ -43,8 +43,9 @@ export class HumanController extends BaseController implements InputReceiver {
 
   /** Cannon placement mode. */
   private cannonPlaceMode: CannonMode = CannonMode.NORMAL;
-  /** Set by mouse/touch cursor placement; consumed (cleared) by snapCannonCursorIfNeeded on next tick. */
-  private pendingCannonSnap = false;
+  /** When true, the next cannonTick() will snap the cursor to the nearest valid placement.
+   *  Set after mouse/touch cursor placement; consumed (cleared) by snapCannonCursorIfNeeded(). */
+  private needsCursorSnap = false;
   /** Actions currently held for continuous crosshair movement. */
   private readonly heldActions = new Set<Action>();
 
@@ -77,7 +78,7 @@ export class HumanController extends BaseController implements InputReceiver {
     return cannonSlotsUsed(player) >= maxSlots;
   }
 
-  cannonTick(state: GameState, _dt: number): LocalCannonPhantom | null {
+  cannonTick(state: GameState, _dt: number): CannonPlacementPreview | null {
     const player = state.players[this.playerId];
     if (!player || player.eliminated) return null;
     const maxSlots = state.cannonLimits[this.playerId] ?? 0;
@@ -86,7 +87,7 @@ export class HumanController extends BaseController implements InputReceiver {
     if (!hasAnyCannonPlacement(player, this.cannonPlaceMode, state))
       return null;
 
-    this.ensureValidCannonMode(remaining);
+    this.downgradeCannonModeIfNeeded(remaining);
     this.snapCannonCursorIfNeeded(player, state);
 
     const valid = canPlaceCannon(
@@ -106,10 +107,10 @@ export class HumanController extends BaseController implements InputReceiver {
     };
   }
 
-  /** Downgrade cannon mode if it no longer fits in remaining slots.
-   *  IMPORTANT: Must be called in cannonTick() before canPlaceCannon() —
-   *  otherwise phantom may show an impossible placement. */
-  private ensureValidCannonMode(remaining: number): void {
+  /** Downgrade cannon mode if its slot cost exceeds remaining slots (SUPER→NORMAL, BALLOON→NORMAL).
+   *  Called in cannonTick() before canPlaceCannon() — otherwise the preview may show
+   *  an impossible placement. */
+  private downgradeCannonModeIfNeeded(remaining: number): void {
     if (isSuperMode(this.cannonPlaceMode) && remaining < SUPER_GUN_COST) {
       this.cannonPlaceMode = CannonMode.NORMAL;
     }
@@ -120,8 +121,8 @@ export class HumanController extends BaseController implements InputReceiver {
 
   /** After mouse/touch cursor set, snap to nearest valid tile if current is invalid. */
   private snapCannonCursorIfNeeded(player: Player, state: GameState): void {
-    if (!this.pendingCannonSnap) return;
-    this.pendingCannonSnap = false;
+    if (!this.needsCursorSnap) return;
+    this.needsCursorSnap = false;
     if (
       canPlaceCannon(
         player,
@@ -151,7 +152,7 @@ export class HumanController extends BaseController implements InputReceiver {
     const sz = cannonSize(this.cannonPlaceMode);
     const offset = Math.floor(sz / 2);
     super.setCannonCursor(row - offset, col - offset);
-    this.pendingCannonSnap = true;
+    this.needsCursorSnap = true;
   }
 
   override moveBuildCursor(direction: Action): void {
@@ -175,7 +176,7 @@ export class HumanController extends BaseController implements InputReceiver {
   // startBuild: uses base class template (initBuildPhase + onStartBuild)
   // No onStartBuild override needed — human has no AI targeting setup.
 
-  buildTick(state: GameState, _dt: number): LocalPiecePhantom[] {
+  buildTick(state: GameState, _dt: number): PiecePlacementPreview[] {
     const player = state.players[this.playerId];
     if (!player || player.eliminated) return [];
     if (!this.currentPiece) return [];
@@ -200,26 +201,27 @@ export class HumanController extends BaseController implements InputReceiver {
   battleTick(state: GameState, dt: number): void {
     const player = state.players[this.playerId];
     if (!player || player.eliminated) return;
-    // Move crosshair based on held actions
-    if (this.heldActions.size > 0) {
-      const speed =
-        CROSSHAIR_SPEED *
-        (this.heldActions.has(Action.ROTATE)
-          ? CROSSHAIR_SPRINT_MULTIPLIER
-          : 1) *
-        dt;
-      const W = GRID_COLS * TILE_SIZE;
-      const H = GRID_ROWS * TILE_SIZE;
-      if (this.heldActions.has(Action.UP))
-        this.crosshair.y = Math.max(0, this.crosshair.y - speed);
-      if (this.heldActions.has(Action.DOWN))
-        this.crosshair.y = Math.min(H, this.crosshair.y + speed);
-      if (this.heldActions.has(Action.LEFT))
-        this.crosshair.x = Math.max(0, this.crosshair.x - speed);
-      if (this.heldActions.has(Action.RIGHT))
-        this.crosshair.x = Math.min(W, this.crosshair.x + speed);
-    }
+    this.moveCrosshairFromInput(dt);
     aimCannons(state, this.playerId, this.crosshair.x, this.crosshair.y, dt);
+  }
+
+  /** Apply held directional keys to crosshair position (sprint when ROTATE held). */
+  private moveCrosshairFromInput(dt: number): void {
+    if (this.heldActions.size === 0) return;
+    const speed =
+      CROSSHAIR_SPEED *
+      (this.heldActions.has(Action.ROTATE) ? CROSSHAIR_SPRINT_MULTIPLIER : 1) *
+      dt;
+    const W = GRID_COLS * TILE_SIZE;
+    const H = GRID_ROWS * TILE_SIZE;
+    if (this.heldActions.has(Action.UP))
+      this.crosshair.y = Math.max(0, this.crosshair.y - speed);
+    if (this.heldActions.has(Action.DOWN))
+      this.crosshair.y = Math.min(H, this.crosshair.y + speed);
+    if (this.heldActions.has(Action.LEFT))
+      this.crosshair.x = Math.max(0, this.crosshair.x - speed);
+    if (this.heldActions.has(Action.RIGHT))
+      this.crosshair.x = Math.min(W, this.crosshair.x + speed);
   }
 
   /** Try to place a cannon at the current cursor position. Returns true on success. */
@@ -234,7 +236,7 @@ export class HumanController extends BaseController implements InputReceiver {
       this.cannonPlaceMode,
       state,
     );
-    if (placed) this.pendingCannonSnap = true;
+    if (placed) this.needsCursorSnap = true;
     return placed;
   }
 
@@ -268,7 +270,8 @@ export class HumanController extends BaseController implements InputReceiver {
   }
 
   /** Cycle cannon placement mode: NORMAL → SUPER → BALLOON → NORMAL.
-   *  Skips modes whose slot cost exceeds remaining slots. */
+   *  Skips modes whose slot cost exceeds remaining slots.
+   *  Also re-clamps the cursor so the new cannon size stays within the grid. */
   cycleCannonMode(state: GameState, maxSlots: number): void {
     const player = state.players[this.playerId];
     if (!player || player.eliminated) return;
@@ -287,7 +290,11 @@ export class HumanController extends BaseController implements InputReceiver {
     } else {
       this.cannonPlaceMode = CannonMode.NORMAL;
     }
-    // Re-clamp cursor so the new cannon size stays within the grid
+    this.clampCannonCursorToMode();
+  }
+
+  /** Clamp cannon cursor so the current cannon size stays within the grid. */
+  private clampCannonCursorToMode(): void {
     const sz = cannonSize(this.cannonPlaceMode);
     this.cannonCursor.row = Math.min(this.cannonCursor.row, GRID_ROWS - sz);
     this.cannonCursor.col = Math.min(this.cannonCursor.col, GRID_COLS - sz);
@@ -314,7 +321,7 @@ export class HumanController extends BaseController implements InputReceiver {
     // Round-1 auto-placement for humans with 0 cannons is handled by the game engine
   }
 
-  onBattleEnd(): void {
+  endBattle(): void {
     this.heldActions.clear();
   }
 
@@ -322,7 +329,7 @@ export class HumanController extends BaseController implements InputReceiver {
     super.onLifeLost();
     this.cannonPlaceMode = CannonMode.NORMAL;
     this.heldActions.clear();
-    this.pendingCannonSnap = false;
+    this.needsCursorSnap = false;
   }
 
   onCannonPhaseStart(_state: GameState): void {

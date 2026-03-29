@@ -12,9 +12,9 @@ import {
   nextReadyCombined,
 } from "./battle-system.ts";
 import type {
+  CannonPlacementPreview,
   Crosshair,
-  LocalCannonPhantom,
-  LocalPiecePhantom,
+  PiecePlacementPreview,
   PlayerController,
 } from "./controller-interfaces.ts";
 import { NORMAL_CANNON_SIZE } from "./game-constants.ts";
@@ -90,10 +90,17 @@ export abstract class BaseController implements PlayerController {
   abstract placeCannons(state: GameState, maxSlots: number): void;
   /** Whether the player has placed all their cannons (slots exhausted or timer expired). */
   abstract isCannonPhaseDone(state: GameState, maxSlots: number): boolean;
-  /** Called each frame during cannon phase. Must auto-downgrade cannonPlaceMode
-   *  if its cost exceeds remaining slots (SUPER→NORMAL, BALLOON→NORMAL). */
-  abstract cannonTick(state: GameState, dt: number): LocalCannonPhantom | null;
-  /** Shared build-phase init: bag + cursor on home tower. */
+  /** Called each frame during cannon phase. Returns a placement preview for rendering.
+   *  Human subclass must call downgradeCannonModeIfNeeded() before validating placement
+   *  to auto-downgrade when the selected mode's cost exceeds remaining slots.
+   *  AI manages mode per-target from its pre-planned queue and does not need downgrading. */
+  abstract cannonTick(
+    state: GameState,
+    dt: number,
+  ): CannonPlacementPreview | null;
+  /** Shared build-phase init: bag + cursor on home tower.
+   *  Private — only called as an internal step of the startBuild() template method.
+   *  Contrast with initCannons() which is public for remote-controller use. */
   private initBuildPhase(state: GameState): void {
     this.initBag(state.round, state.rng);
     const player = state.players[this.playerId]!;
@@ -116,8 +123,8 @@ export abstract class BaseController implements PlayerController {
 
   /** Subclass hook called after bag/cursor are initialized. Override for AI targeting etc. */
   protected onStartBuild(_state: GameState): void {}
-  /** Called each frame during build. Returns phantom pieces for rendering. */
-  abstract buildTick(state: GameState, dt: number): LocalPiecePhantom[];
+  /** Called each frame during build. Returns placement previews for rendering. */
+  abstract buildTick(state: GameState, dt: number): PiecePlacementPreview[];
 
   /** End build phase: calls onEndBuild hook, then clears bag/piece.
    *  Subclasses override onEndBuild() for cleanup (NOT endBuild). */
@@ -133,7 +140,9 @@ export abstract class BaseController implements PlayerController {
   /** Called each frame during battle. Should call this.fire(state) to fire cannons. */
   abstract battleTick(state: GameState, dt: number): void;
 
-  /** Reset battle-phase state (cannonRotationIdx, cursors). Subclasses must call super.resetBattleState(). */
+  /** Reset battle-phase state (cannonRotationIdx, cursors), then call subclass hook.
+   *  Template method — subclasses override onResetBattle() instead of this method,
+   *  so the base reset is always guaranteed to run. */
   resetBattleState(state?: GameState): void {
     this.cannonRotationIdx = NO_CANNON_ROTATION_IDX;
     if (state) {
@@ -142,7 +151,11 @@ export abstract class BaseController implements PlayerController {
         this.centerOn(player.homeTower.row, player.homeTower.col);
       }
     }
+    this.onResetBattle(state);
   }
+
+  /** Subclass hook called after base battle state is reset. Override for AI battle planning etc. */
+  protected onResetBattle(_state?: GameState): void {}
   /** Flush remaining auto-placement queue when cannon timer expires.
    *  Do NOT call directly — use finalizeCannonPhase() which guarantees flush→init order. */
   abstract flushCannons(state: GameState, maxSlots: number): void;
@@ -166,8 +179,8 @@ export abstract class BaseController implements PlayerController {
     if (!player || player.eliminated || player.cannons.length > 0) return;
     autoPlaceCannonsBalanced(player, maxSlots, state);
   }
-  /** Clean up at end of battle (e.g. clear AI fire targets). */
-  abstract onBattleEnd(): void;
+  /** Called at the end of the battle phase (e.g. clear AI fire targets). */
+  abstract endBattle(): void;
   onLifeLost(): void {
     this.cannonRotationIdx = NO_CANNON_ROTATION_IDX;
     this.bag = null;
@@ -187,7 +200,8 @@ export abstract class BaseController implements PlayerController {
   /** Called at start of cannon phase. Should reset cannon cursor and mode. */
   abstract onCannonPhaseStart(state: GameState): void;
 
-  /** Human never auto-confirms — driven by UI. */
+  /** Base returns false (human never auto-confirms — confirmation is driven by UI).
+   *  AI overrides to return true after its selection animation completes. */
   selectionTick(_dt: number, _state?: GameState): boolean {
     return false;
   }
@@ -249,16 +263,18 @@ export abstract class BaseController implements PlayerController {
     this.crosshair = { x, y };
   }
 
-  /** Fire one cannon (own or captured) at the current crosshair position, round-robin. */
+  /** Fire one cannon at the current crosshair position (public entry point).
+   *  Converts pixel crosshair to tile coords and delegates to fireNextCannon(). */
   fire(state: GameState): void {
     if (state.timer <= 0) return;
     const targetRow = pxToTile(this.crosshair.y);
     const targetCol = pxToTile(this.crosshair.x);
-    this.fireNext(state, targetRow, targetCol);
+    this.fireNextCannon(state, targetRow, targetCol);
   }
 
-  /** Fire the next ready cannon (own or captured) at a target tile via combined round-robin. */
-  protected fireNext(
+  /** Fire the next ready cannon (own or captured) at a target tile via combined round-robin.
+   *  Returns the fired cannon's result for AI chain-attack tracking, or null if no cannon is ready. */
+  protected fireNextCannon(
     state: GameState,
     targetRow: number,
     targetCol: number,
