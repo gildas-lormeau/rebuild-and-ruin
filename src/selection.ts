@@ -246,16 +246,16 @@ export function allSelectionsConfirmed(
 export function finishSelectionPhase(deps: {
   state: GameState;
   selectionStates: Map<number, SelectionState>;
-  clearOverlaySelection: () => void;
+  resetOverlaySelection: () => void;
   finalizeAndAdvance: () => void;
 }): void {
-  const { state, selectionStates, clearOverlaySelection, finalizeAndAdvance } =
+  const { state, selectionStates, resetOverlaySelection, finalizeAndAdvance } =
     deps;
 
   if (state.phase !== Phase.CASTLE_SELECT) return;
 
   selectionStates.clear();
-  clearOverlaySelection();
+  resetOverlaySelection();
   finalizeAndAdvance();
 }
 

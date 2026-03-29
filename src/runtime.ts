@@ -117,6 +117,21 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     return dt;
   }
 
+  /** Tick the score delta display timer (mode-independent — counts during banner/castle-build).
+   *  Lifecycle: showBuildScoreDeltas sets deltas+timer+onDone → this ticks down →
+   *  clears deltas and fires onDone exactly once when the timer expires. */
+  function tickScoreDeltaDisplay(dt: number): void {
+    if (rs.scoreDeltaTimer <= 0) return;
+    rs.scoreDeltaTimer -= dt;
+    if (rs.scoreDeltaTimer <= 0) {
+      rs.scoreDeltas = [];
+      rs.scoreDeltaTimer = 0;
+      const cb = rs.scoreDeltaOnDone;
+      rs.scoreDeltaOnDone = null;
+      cb?.();
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Main loop
   // -------------------------------------------------------------------------
@@ -185,18 +200,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     });
 
     tickCamera();
-
-    // Tick score delta display timer (mode-independent so it counts during banner/castle-build)
-    if (rs.scoreDeltaTimer > 0) {
-      rs.scoreDeltaTimer -= dt;
-      if (rs.scoreDeltaTimer <= 0) {
-        rs.scoreDeltas = [];
-        rs.scoreDeltaTimer = 0;
-        const cb = rs.scoreDeltaOnDone;
-        rs.scoreDeltaOnDone = null;
-        cb?.();
-      }
-    }
+    tickScoreDeltaDisplay(dt);
 
     const modeTickers = {
       [Mode.LOBBY]: (dt: number) => lobby.tickLobby(dt),
@@ -265,7 +269,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     subtitle?: string,
   ) {
     // Unzoom before banner so the full map is visible during transition
-    camera.lightUnzoom();
+    camera.phaseUnzoom();
     if (rs.banner.active) {
       config.log(
         `showBanner "${text}" while banner "${rs.banner.text}" is still active`,
@@ -563,7 +567,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs,
     uiCtx,
     renderFrame,
-    updateDpad: (phase) => input.touch.dpad?.update(phase),
+    // Bridge boolean enable to dpad's Phase|null API (WALL_BUILD = any non-selection phase)
+    updateDpad: (enabled) =>
+      input.touch.dpad?.update(enabled ? Phase.WALL_BUILD : null),
     setDpadLeftHanded: (left) => input.touch.dpad?.setLeftHanded(left),
     refreshLobbySeed,
     sound,

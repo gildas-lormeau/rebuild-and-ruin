@@ -235,15 +235,15 @@ export function processReselectionQueue(params: {
 export function completeReselection(params: {
   state: GameState;
   selectionStates: Map<number, { highlighted: number; confirmed: boolean }>;
-  clearOverlaySelection: () => void;
+  resetOverlaySelection: () => void;
   reselectQueue: { length: number };
   reselectionPids: number[];
   finalizeAndAdvance: () => void;
 }): void {
-  const { state, selectionStates, clearOverlaySelection, reselectionPids } =
+  const { state, selectionStates, resetOverlaySelection, reselectionPids } =
     params;
   selectionStates.clear();
-  clearOverlaySelection();
+  resetOverlaySelection();
   (params.reselectQueue as number[]).length = 0;
 
   const pids = new Set(reselectionPids);

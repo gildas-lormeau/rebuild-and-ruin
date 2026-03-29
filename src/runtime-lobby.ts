@@ -1,12 +1,11 @@
 /**
  * Lobby sub-system factory.
  *
- * Extracted from runtime.ts. Follows the same factory-with-deps
- * pattern as runtime-camera.ts and runtime-selection.ts.
+ * Extracted from runtime.ts. Follows the factory-with-deps pattern.
  *
- * Deps convention: destructure frequently-used deps (rs, uiCtx) at top;
- * keep rarely-used deps inline (deps.X) to avoid clutter. See runtime-input.ts
- * header for the full rationale.
+ * Deps convention (shared across all runtime-*.ts sub-systems):
+ * destructure frequently-used deps (rs, uiCtx) at the factory top;
+ * reference rarely-used deps inline as deps.X to avoid clutter.
  */
 
 import type { UIContext } from "./game-ui-screens.ts";

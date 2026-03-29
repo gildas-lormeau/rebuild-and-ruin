@@ -139,10 +139,10 @@ export interface CameraSystem {
   setCameraZone: (zone: number | null) => void;
 
   // Lifecycle commands
-  /** Light unzoom: clear cameraZone + pinchVp only (preserves per-phase memory for autoZoom restore). */
-  lightUnzoom: () => void;
+  /** Phase unzoom: clear cameraZone + pinchVp only (preserves per-phase memory for autoZoom restore). */
+  phaseUnzoom: () => void;
   /** Full unzoom: clear all zoom state for returnToLobby/endGame. */
-  unzoom: () => void;
+  fullUnzoom: () => void;
   /** Full reset for rematch. */
   resetCamera: () => void;
 

@@ -193,7 +193,9 @@ function updateButtons(deps: TouchControlsDeps): void {
   const on = (rule: TouchBtnRule) =>
     rule === true || (rule === HUMAN && hasHuman);
 
-  // D-pad, rotate, confirm
+  // D-pad, rotate, confirm — pass current phase to dpad so it can decide
+  // which buttons to show (e.g. rotate is hidden during selection).
+  // Fallback to WALL_BUILD if state is unexpectedly missing (defensive only).
   deps.dpad?.update(
     on(bs.dpad) ? (deps.state?.phase ?? Phase.WALL_BUILD) : null,
     !on(bs.rotate),

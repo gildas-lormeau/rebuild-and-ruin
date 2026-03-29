@@ -1,12 +1,10 @@
 /**
  * Input registration sub-system — wires keyboard, mouse, touch, and
- * d-pad handlers.  Extracted from runtime.ts to keep it a pure
- * composition root.
+ * d-pad handlers.  Extracted from runtime.ts.
  *
- * Follows the factory-with-deps pattern used by runtime-camera.ts,
- * runtime-selection.ts, etc.  Deps are referenced via `deps.X` inline
- * rather than destructured at top, because the large inputDeps literal
- * would require many forwarding variables with no clarity gain.
+ * Deps convention (shared across all runtime-*.ts sub-systems):
+ * destructure frequently-used deps (rs, renderer, camera, etc.) at the
+ * factory top; reference rarely-used deps inline as deps.X.
  */
 
 import type {

@@ -21,7 +21,7 @@ import type { HapticsSystem } from "./haptics-system.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
 import type { SoundSystem } from "./sound-system.ts";
-import { Mode, Phase } from "./types.ts";
+import { Mode } from "./types.ts";
 
 interface OptionsSystemDeps {
   rs: RuntimeState;
@@ -31,7 +31,8 @@ interface OptionsSystemDeps {
     overlay: RenderOverlay | undefined,
     viewport?: Viewport | null,
   ) => void;
-  updateDpad: (phase: Phase | null) => void;
+  /** Enable/disable the d-pad (true = enabled with navigation, false = disabled). */
+  updateDpad: (enabled: boolean) => void;
   setDpadLeftHanded: (left: boolean) => void;
   refreshLobbySeed: () => void;
   sound: Pick<SoundSystem, "setLevel">;
@@ -84,13 +85,9 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     deps.renderFrame(map, overlay);
   }
 
-  // Any non-null phase enables the d-pad; the specific phase value is
-  // irrelevant — WALL_BUILD is used by convention as a truthy sentinel.
-  const DPAD_ENABLED_PHASE = Phase.WALL_BUILD;
-
   function showOptions(): void {
     showOptionsShared(uiCtx, { OPTIONS: Mode.OPTIONS });
-    deps.updateDpad(DPAD_ENABLED_PHASE);
+    deps.updateDpad(true);
   }
 
   function closeOptions(): void {
@@ -100,7 +97,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
       rs.lastTime = performance.now(); // avoid huge dt on first frame back
     } else {
       deps.refreshLobbySeed(); // regenerate map preview with (possibly changed) seed
-      deps.updateDpad(null); // back to lobby — disable d-pad
+      deps.updateDpad(false); // back to lobby — disable d-pad
     }
     deps.onCloseOptions?.();
   }
@@ -112,7 +109,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
 
   function showControls(): void {
     showControlsShared(uiCtx, { CONTROLS: Mode.CONTROLS });
-    deps.updateDpad(DPAD_ENABLED_PHASE);
+    deps.updateDpad(true);
   }
 
   function closeControls(): void {

@@ -61,7 +61,7 @@ interface SelectionSystemDeps {
 
   camera: Pick<
     CameraSystem,
-    | "lightUnzoom"
+    | "phaseUnzoom"
     | "clearCastleBuildViewport"
     | "setCastleBuildViewport"
     | "setSelectionViewport"
@@ -89,6 +89,15 @@ export function createSelectionSystem(
   deps: SelectionSystemDeps,
 ): SelectionSystem {
   const { rs } = deps;
+
+  /** Clear all selection tracking state — call before entering a new selection
+   *  round (initial selection or reselection). Resets selectionStates map,
+   *  reselectionPids, and overlay selection display. */
+  function resetSelectionState(): void {
+    rs.selectionStates.clear();
+    rs.reselectionPids = [];
+    resetOverlaySelection();
+  }
 
   // -------------------------------------------------------------------------
   // Tower selection helpers
@@ -169,6 +178,16 @@ export function createSelectionSystem(
     }
   }
 
+  /**
+   * Confirm a player's tower selection and trigger their castle-build animation.
+   *
+   * Two-step flow:
+   *  1. confirmSelectionForPlayer — marks the player as confirmed in selectionStates,
+   *     then kicks off startPlayerCastleBuild for the newly confirmed player.
+   *     Returns true when ALL players have confirmed.
+   *  2. finishSelection (called separately by tickSelection when allConfirmed) —
+   *     clears overlay state, finalizes castle construction, and advances to cannon phase.
+   */
   function confirmSelectionForPlayer(pid: number, isReselect = false): boolean {
     const ss = rs.selectionStates.get(pid);
     const alreadyConfirmed = ss?.confirmed ?? true;
@@ -238,12 +257,9 @@ export function createSelectionSystem(
     });
   }
 
-  function clearOverlaySelection() {
-    if (rs.overlay.selection) {
-      rs.overlay.selection.highlights = undefined;
-      rs.overlay.selection.highlighted = null;
-      rs.overlay.selection.selected = null;
-    }
+  /** Reset the overlay selection to its clean initial state (no highlights, no selection). */
+  function resetOverlaySelection() {
+    rs.overlay.selection = { highlighted: null, selected: null };
   }
 
   function finalizeAndAdvance(): void {
@@ -259,7 +275,7 @@ export function createSelectionSystem(
     finishSelectionPhase({
       state: rs.state,
       selectionStates: rs.selectionStates,
-      clearOverlaySelection,
+      resetOverlaySelection,
       finalizeAndAdvance,
     });
   }
@@ -306,7 +322,7 @@ export function createSelectionSystem(
     // Unzoom once human player's castle build animation finishes
     if (humanBuildDone) {
       deps.camera.clearCastleBuildViewport();
-      deps.camera.lightUnzoom();
+      deps.camera.phaseUnzoom();
     }
   }
 
@@ -327,7 +343,7 @@ export function createSelectionSystem(
       .filter((d) => d.delta > 0 && !rs.state.players[d.playerId]!.eliminated);
 
     if (rs.scoreDeltas.length > 0) {
-      deps.camera.lightUnzoom();
+      deps.camera.phaseUnzoom();
       rs.scoreDeltaTimer = SCORE_DELTA_DISPLAY_TIME;
       rs.scoreDeltaOnDone = onDone;
     } else {
@@ -361,8 +377,7 @@ export function createSelectionSystem(
   function startReselection() {
     const remoteHumanSlots = rs.ctx.remoteHumanSlots;
     enterCastleReselectPhase(rs.state);
-    rs.selectionStates.clear();
-    rs.reselectionPids = [];
+    resetSelectionState();
 
     const { remaining, needsUI } = processReselectionQueue({
       reselectQueue: rs.reselectQueue,
@@ -403,7 +418,7 @@ export function createSelectionSystem(
     completeReselection({
       state: rs.state,
       selectionStates: rs.selectionStates,
-      clearOverlaySelection,
+      resetOverlaySelection,
       reselectQueue: rs.reselectQueue,
       reselectionPids: rs.reselectionPids,
       finalizeAndAdvance,

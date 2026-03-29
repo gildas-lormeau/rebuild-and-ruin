@@ -31,6 +31,7 @@ import {
   type FrameContext,
   type GameState,
   isReselectPhase,
+  isTransitionMode,
   Mode,
   Phase,
 } from "./types.ts";
@@ -385,11 +386,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
 
   function isNotTransitionMode(ctx: FrameContext): boolean {
-    return (
-      ctx.mode !== Mode.BANNER &&
-      ctx.mode !== Mode.BALLOON_ANIM &&
-      ctx.mode !== Mode.CASTLE_BUILD
-    );
+    return !isTransitionMode(ctx.mode);
   }
 
   /** Auto-zoom when the game phase changes (mobile only, skip during transitions). */
@@ -579,14 +576,14 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   /** Clear current zoom but preserve per-phase pinch memory (battle↔build).
    *  Use for phase transitions where the player may return to the same zoom. */
-  function lightUnzoom(): void {
+  function phaseUnzoom(): void {
     cameraZone = null;
     pinchVp = null;
   }
 
   /** Clear all zoom state including per-phase pinch memory.
    *  Use for full resets (rematch, return to lobby). */
-  function unzoom(): void {
+  function fullUnzoom(): void {
     cameraZone = null;
     pinchVp = null;
     buildPinchVp = null;
@@ -731,10 +728,10 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     getBestEnemyZone,
     getEnemyZones,
     computeZoneBounds,
-    lightUnzoom,
+    phaseUnzoom,
     getCameraZone: () => cameraZone,
     setCameraZone,
-    unzoom,
+    fullUnzoom,
     resetCamera,
     setSelectionViewport,
     setCastleBuildViewport,

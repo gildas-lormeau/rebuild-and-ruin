@@ -59,6 +59,11 @@ export type LifeLostSystem = RuntimeLifeLost & {
 export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   const { rs } = deps;
 
+  /** True when every entry has been resolved (no PENDING choices remain). */
+  function allResolved(dialog: LifeLostDialogState): boolean {
+    return dialog.entries.every((e) => e.choice !== LifeLostChoice.PENDING);
+  }
+
   function eliminateAbandoned(dialog: LifeLostDialogState): void {
     for (const entry of dialog.entries) {
       if (entry.choice !== LifeLostChoice.ABANDON) continue;
@@ -86,7 +91,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       isHumanController: (playerId) => isHuman(rs.controllers[playerId]!),
     });
     // Skip dialog if all entries are already resolved (e.g. only eliminations)
-    if (dialog.entries.every((e) => e.choice !== LifeLostChoice.PENDING)) {
+    if (allResolved(dialog)) {
       deps.log("showLifeLostDialog: all pre-resolved, skipping dialog");
       eliminateAbandoned(dialog);
       afterLifeLostResolved();
@@ -96,8 +101,18 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     rs.mode = Mode.LIFE_LOST;
   }
 
-  /** Tick life-lost dialog. Host resolves locally via resolveHostDialog callback;
-   *  non-host eliminates abandoned players but waits for server message to advance phase. */
+  /**
+   * Tick life-lost dialog — delegates resolution to one of two paths:
+   *
+   * - **Host**: resolveHostDialog eliminates abandoned players, then calls
+   *   afterLifeLostResolved which decides: end game, start reselection, or
+   *   advance to cannon phase.
+   * - **Non-host**: onNonHostResolved eliminates abandoned players locally and
+   *   returns to Mode.GAME, waiting for the server to drive the next phase.
+   *
+   * Both paths use eliminateAbandoned for player removal; only the host
+   * triggers downstream phase transitions.
+   */
   function tickLifeLostDialog(dt: number) {
     rs.lifeLostDialog = tickLifeLostDialogRuntime({
       dt,
