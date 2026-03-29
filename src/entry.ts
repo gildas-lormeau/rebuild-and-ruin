@@ -20,6 +20,7 @@ const DEFAULT_SERVER = "rebuild-and-ruin.gildas-lormeau.deno.net";
 const SERVER_STORAGE_KEY = "castles99_server";
 const ROUTE_ONLINE = "/online";
 const ROUTE_PLAY = "/play";
+const CLICK_EVENT = "click";
 const gameContainer = document.getElementById("game-container")!;
 const serverHostInput = document.getElementById(
   "server-host",
@@ -47,7 +48,7 @@ onRoute(ROUTE_ONLINE, () => {
 onRoute(ROUTE_PLAY, () => {
   tryFullscreen(); // works when navigated via user gesture; silently fails on bookmark
   // Fallback: first tap on any game UI button triggers fullscreen
-  gameContainer.addEventListener("click", () => tryFullscreen(), {
+  gameContainer.addEventListener(CLICK_EVENT, () => tryFullscreen(), {
     once: true,
     capture: true,
   });
@@ -61,12 +62,12 @@ onRoute("/", () => {
 initRouter();
 
 // --- Navigation handlers ---
-document.getElementById("btn-local")!.addEventListener("click", () => {
+document.getElementById("btn-local")!.addEventListener(CLICK_EVENT, () => {
   tryFullscreen();
   navigateTo(ROUTE_PLAY);
 });
 
-document.getElementById("btn-online")!.addEventListener("click", () => {
+document.getElementById("btn-online")!.addEventListener(CLICK_EVENT, () => {
   navigateTo(ROUTE_ONLINE);
 });
 
@@ -80,11 +81,11 @@ serverHostInput.addEventListener("change", () => {
 // Fullscreen on Create/Join confirm (needs user gesture — click for mobile compat)
 document
   .getElementById("btn-create-confirm")!
-  .addEventListener("click", tryFullscreen);
+  .addEventListener(CLICK_EVENT, tryFullscreen);
 
 document
   .getElementById("btn-join-confirm")!
-  .addEventListener("click", tryFullscreen);
+  .addEventListener(CLICK_EVENT, tryFullscreen);
 
 // --- Auto-join via QR code: ?join=XXXX&server=host ---
 if (autoJoinCode) {

@@ -27,6 +27,8 @@ const ROOM_CODE_LENGTH = 4;
 const ROOM_POLL_INTERVAL_MS = 3000;
 const SECS_PER_MIN = 60;
 const SECS_PER_HOUR = 3600;
+const CLICK_EVENT = "click";
+const SUBMIT_EVENT = "submit";
 
 /** Stored interval so repeated initLobbyUi calls don't leak timers. */
 let roomPollTimer: ReturnType<typeof setInterval> | null = null;
@@ -67,7 +69,7 @@ export function initLobbyUi({
 
   const formCreate = elements.btnCreateConfirm.closest("form");
   (formCreate ?? elements.btnCreateConfirm).addEventListener(
-    formCreate ? "submit" : "click",
+    formCreate ? SUBMIT_EVENT : CLICK_EVENT,
     (e) => {
       e.preventDefault();
       elements.createError.textContent = "";
@@ -98,7 +100,7 @@ export function initLobbyUi({
 
   const formJoin = elements.btnJoinConfirm.closest("form");
   (formJoin ?? elements.btnJoinConfirm).addEventListener(
-    formJoin ? "submit" : "click",
+    formJoin ? SUBMIT_EVENT : CLICK_EVENT,
     (e) => {
       e.preventDefault();
       doJoin(elements.joinCodeInput.value.trim().toUpperCase());
@@ -157,7 +159,7 @@ export function initLobbyUi({
           `${roundsLabel(r.settings.battleLength)} · ${r.settings.cannonMaxHp} HP`,
         );
         item.appendChild(info);
-        item.addEventListener("click", () => joinViaCode(r.code));
+        item.addEventListener(CLICK_EVENT, () => joinViaCode(r.code));
         roomListEl.appendChild(item);
       }
     };

@@ -106,6 +106,7 @@ interface FloatingActionsHandle {
 
 const CLS_DISABLED = "disabled";
 const CLS_HIDDEN = "hidden";
+const CLICK_EVENT = "click";
 
 /**
  * Wire touch controls inside the game container.
@@ -330,7 +331,7 @@ export function createQuitButton(
   }
 
   for (const btn of buttons) {
-    btn.addEventListener("click", (e) => {
+    btn.addEventListener(CLICK_EVENT, (e) => {
       e.preventDefault();
       e.stopPropagation();
       handleQuit();
@@ -410,7 +411,7 @@ export function createHomeZoomButton(
       },
       { passive: false },
     );
-    btn.addEventListener("click", (e) => {
+    btn.addEventListener(CLICK_EVENT, (e) => {
       e.preventDefault();
       e.stopPropagation();
       toggle();
@@ -465,7 +466,7 @@ export function createEnemyZoomButton(
       },
       { passive: false },
     );
-    btn.addEventListener("click", (e) => {
+    btn.addEventListener(CLICK_EVENT, (e) => {
       e.preventDefault();
       e.stopPropagation();
       cycle();

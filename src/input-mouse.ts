@@ -15,6 +15,8 @@ import {
   Phase,
 } from "./types.ts";
 
+const CLICK_EVENT = "click";
+
 // Note: keyboard checks mode in per-handler switches (different keys per mode).
 // Mouse checks mode at event-handler level because all mouse actions share the
 // same guard: no game state → no-op, lobby active → lobby hit-test only.
@@ -39,7 +41,7 @@ export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
     dispatchPointerMove(x, y, state, deps);
   });
 
-  renderer.eventTarget.addEventListener("click", (e) => {
+  renderer.eventTarget.addEventListener(CLICK_EVENT, (e) => {
     if (isTouchSuppressed()) return;
     const { x, y } = renderer.clientToSurface(e.clientX, e.clientY);
     const mode = getMode();

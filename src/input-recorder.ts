@@ -54,6 +54,7 @@ const STOP_BTN_CSS = `
   padding: 4px 12px; font: bold 12px sans-serif; cursor: pointer;
   touch-action: manipulation;
 `;
+const CLICK_EVENT = "click";
 
 export function initRecorder(): void {
   const steps: InputStep[] = [];
@@ -124,7 +125,7 @@ export function initRecorder(): void {
   document.addEventListener("touchstart", onTouchStart, opts);
   document.addEventListener("touchmove", onTouchMove, opts);
   document.addEventListener("touchend", onTouchEnd, opts);
-  document.addEventListener("click", onClick, opts);
+  document.addEventListener(CLICK_EVENT, onClick, opts);
   document.addEventListener("mousemove", onMouseMove, opts);
   document.addEventListener("keydown", onKeyDown, opts);
   document.addEventListener("keyup", onKeyUp, opts);
@@ -134,7 +135,7 @@ export function initRecorder(): void {
     document.removeEventListener("touchstart", onTouchStart, opts);
     document.removeEventListener("touchmove", onTouchMove, opts);
     document.removeEventListener("touchend", onTouchEnd, opts);
-    document.removeEventListener("click", onClick, opts);
+    document.removeEventListener(CLICK_EVENT, onClick, opts);
     document.removeEventListener("mousemove", onMouseMove, opts);
     document.removeEventListener("keydown", onKeyDown, opts);
     document.removeEventListener("keyup", onKeyUp, opts);
@@ -190,7 +191,7 @@ export function initRecorder(): void {
   const stopBtn = document.createElement("button");
   stopBtn.textContent = "Stop";
   stopBtn.style.cssText = STOP_BTN_CSS;
-  stopBtn.addEventListener("click", (e) => {
+  stopBtn.addEventListener(CLICK_EVENT, (e) => {
     e.stopPropagation();
     e.preventDefault();
     stopRecording();
