@@ -224,44 +224,54 @@ function handleKeyOptions(
   e: KeyboardEvent,
   deps: RegisterOnlineInputDeps,
 ): void {
+  if (handleKeyOptionsSeedMode(e, deps)) return;
+  handleKeyOptionsNavigation(e, deps.options);
+}
+
+/** Handle seed-entry keys when the seed option row is focused. Returns true if consumed. */
+function handleKeyOptionsSeedMode(
+  e: KeyboardEvent,
+  deps: RegisterOnlineInputDeps,
+): boolean {
   const { options, settings } = deps;
   const readOnly = options.getReturnMode() !== null;
-  const seedMode = settings.seedMode;
+  if (readOnly || deps.isOnline || options.getRealIdx() !== 4) return false;
 
-  if (!readOnly && !deps.isOnline && options.getRealIdx() === 4) {
-    if (e.key === KEY_LEFT || e.key === KEY_RIGHT) {
-      if (seedMode === SEED_RANDOM) {
-        settings.seedMode = SEED_CUSTOM;
-        settings.seed = "";
-      } else {
-        settings.seedMode = SEED_RANDOM;
-        settings.seed = "";
-      }
-      e.preventDefault();
-      return;
+  if (e.key === KEY_LEFT || e.key === KEY_RIGHT) {
+    if (settings.seedMode === SEED_RANDOM) {
+      settings.seedMode = SEED_CUSTOM;
+      settings.seed = "";
+    } else {
+      settings.seedMode = SEED_RANDOM;
+      settings.seed = "";
     }
-    if (seedMode === SEED_CUSTOM) {
-      const currentSeed = settings.seed;
-      if (
-        e.key >= "0" &&
-        e.key <= "9" &&
-        currentSeed.length < MAX_SEED_LENGTH
-      ) {
-        settings.seed = currentSeed + e.key;
-        e.preventDefault();
-        return;
-      } else if (e.key === "Backspace") {
-        settings.seed = currentSeed.slice(0, -1);
-        e.preventDefault();
-        return;
-      } else if (e.key === "Delete") {
-        settings.seed = "";
-        e.preventDefault();
-        return;
-      }
+    e.preventDefault();
+    return true;
+  }
+  if (settings.seedMode === SEED_CUSTOM) {
+    const currentSeed = settings.seed;
+    if (e.key >= "0" && e.key <= "9" && currentSeed.length < MAX_SEED_LENGTH) {
+      settings.seed = currentSeed + e.key;
+      e.preventDefault();
+      return true;
+    } else if (e.key === "Backspace") {
+      settings.seed = currentSeed.slice(0, -1);
+      e.preventDefault();
+      return true;
+    } else if (e.key === "Delete") {
+      settings.seed = "";
+      e.preventDefault();
+      return true;
     }
   }
+  return false;
+}
 
+/** Handle general navigation keys in the options menu. */
+function handleKeyOptionsNavigation(
+  e: KeyboardEvent,
+  options: RegisterOnlineInputDeps["options"],
+): void {
   if (e.key === KEY_UP || e.key === "w" || e.key === "i") {
     options.setCursor(
       (options.getCursor() - 1 + options.getCount()) % options.getCount(),

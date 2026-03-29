@@ -198,6 +198,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       }
     }
 
+    const modeTickers = {
+      [Mode.LOBBY]: (dt: number) => lobby.tickLobby(dt),
+      [Mode.OPTIONS]: () => options.renderOptions(),
+      [Mode.CONTROLS]: () => options.renderControls(),
+      [Mode.SELECTION]: (dt: number) => selection.tick(dt),
+      [Mode.BANNER]: tickBanner,
+      [Mode.BALLOON_ANIM]: (dt: number) => phaseTicks.tickBalloonAnim(dt),
+      [Mode.CASTLE_BUILD]: (dt: number) => selection.tickCastleBuild(dt),
+      [Mode.LIFE_LOST]: (dt: number) => lifeLost.tick(dt),
+      [Mode.GAME]: (dt: number) => phaseTicks.tickGame(dt),
+    };
+
     const shouldContinue = tickMainLoop({
       dt,
       mode: rs.mode,
@@ -213,17 +225,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         rs.quitTimer = v;
       },
       render,
-      ticks: {
-        [Mode.LOBBY]: (dt: number) => lobby.tickLobby(dt),
-        [Mode.OPTIONS]: () => options.renderOptions(),
-        [Mode.CONTROLS]: () => options.renderControls(),
-        [Mode.SELECTION]: (dt: number) => selection.tick(dt),
-        [Mode.BANNER]: tickBanner,
-        [Mode.BALLOON_ANIM]: (dt: number) => phaseTicks.tickBalloonAnim(dt),
-        [Mode.CASTLE_BUILD]: (dt: number) => selection.tickCastleBuild(dt),
-        [Mode.LIFE_LOST]: (dt: number) => lifeLost.tick(dt),
-        [Mode.GAME]: (dt: number) => phaseTicks.tickGame(dt),
-      },
+      ticks: modeTickers,
     });
 
     if (DEV) exposeTestGlobals();

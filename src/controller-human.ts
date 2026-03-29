@@ -24,7 +24,7 @@ import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import { rotateCW } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
 import { cannonSize } from "./spatial.ts";
-import type { GameState } from "./types.ts";
+import type { GameState, Player } from "./types.ts";
 import {
   Action,
   CannonMode,
@@ -86,38 +86,10 @@ export class HumanController extends BaseController implements InputReceiver {
     if (remaining <= 0) return null;
     if (!hasAnyCannonPlacement(player, this.cannonPlaceMode, state))
       return null;
-    // Auto-downgrade mode if it no longer fits in remaining slots
-    if (isSuperMode(this.cannonPlaceMode) && remaining < SUPER_GUN_COST) {
-      this.cannonPlaceMode = CannonMode.NORMAL;
-    }
-    if (isBalloonMode(this.cannonPlaceMode) && remaining < BALLOON_COST) {
-      this.cannonPlaceMode = CannonMode.NORMAL;
-    }
-    // Snap-to-fit: only on mouse/touch (absolute position), not d-pad/keyboard (relative)
-    if (this.cannonCursorSetByMouse) {
-      this.cannonCursorSetByMouse = false;
-      if (
-        !canPlaceCannon(
-          player,
-          this.cannonCursor.row,
-          this.cannonCursor.col,
-          this.cannonPlaceMode,
-          state,
-        )
-      ) {
-        const snapped = findNearestValidCannonPlacement(
-          player,
-          this.cannonCursor.row,
-          this.cannonCursor.col,
-          this.cannonPlaceMode,
-          state,
-        );
-        if (snapped) {
-          this.cannonCursor.row = snapped.row;
-          this.cannonCursor.col = snapped.col;
-        }
-      }
-    }
+
+    this.ensureValidCannonMode(remaining);
+    this.snapCannonCursorIfNeeded(player, state);
+
     const valid = canPlaceCannon(
       player,
       this.cannonCursor.row,
@@ -133,6 +105,43 @@ export class HumanController extends BaseController implements InputReceiver {
       playerId: this.playerId,
       facing: player.defaultFacing,
     };
+  }
+
+  /** Downgrade cannon mode if it no longer fits in remaining slots. */
+  private ensureValidCannonMode(remaining: number): void {
+    if (isSuperMode(this.cannonPlaceMode) && remaining < SUPER_GUN_COST) {
+      this.cannonPlaceMode = CannonMode.NORMAL;
+    }
+    if (isBalloonMode(this.cannonPlaceMode) && remaining < BALLOON_COST) {
+      this.cannonPlaceMode = CannonMode.NORMAL;
+    }
+  }
+
+  /** After mouse/touch cursor set, snap to nearest valid tile if current is invalid. */
+  private snapCannonCursorIfNeeded(player: Player, state: GameState): void {
+    if (!this.cannonCursorSetByMouse) return;
+    this.cannonCursorSetByMouse = false;
+    if (
+      canPlaceCannon(
+        player,
+        this.cannonCursor.row,
+        this.cannonCursor.col,
+        this.cannonPlaceMode,
+        state,
+      )
+    )
+      return;
+    const snapped = findNearestValidCannonPlacement(
+      player,
+      this.cannonCursor.row,
+      this.cannonCursor.col,
+      this.cannonPlaceMode,
+      state,
+    );
+    if (snapped) {
+      this.cannonCursor.row = snapped.row;
+      this.cannonCursor.col = snapped.col;
+    }
   }
 
   override setCannonCursor(row: number, col: number): void {
