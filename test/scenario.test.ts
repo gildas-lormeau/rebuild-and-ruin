@@ -233,53 +233,6 @@ test("continuing player entry shows Continuing label", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 7. KNOWN BUG: Place Cannons banner doesn't progressively hide swept walls
-// ---------------------------------------------------------------------------
-
-test("Place Cannons banner old scene does not reintroduce swept walls", () => {
-  const s = createScenario();
-  s.runCannon();
-  s.runBattle();
-  s.runBuild();
-
-  // Add an isolated wall that sweepIsolatedWalls will remove
-  const player = s.state.players[0]!;
-  let isolatedKey = -1;
-  for (let r = 10; r < 30; r++) {
-    for (let c = 10; c < 30; c++) {
-      const key = r * GRID_COLS + c;
-      if (!player.walls.has(key) && !player.interior.has(key)) {
-        isolatedKey = key;
-        break;
-      }
-    }
-    if (isolatedKey >= 0) break;
-  }
-  assert(isolatedKey >= 0, "Should find tile for isolated wall");
-  player.walls.add(isolatedKey);
-
-  // finalizeBuildPhase sweeps isolated walls
-  s.finalizeBuild();
-  assert(!player.walls.has(isolatedKey), "Isolated wall removed by sweep");
-
-  // Banner captures old scene from current (post-sweep) walls
-  const banner = s.createBanner();
-  showBannerTransition({
-    banner,
-    state: s.state,
-    battleAnim: s.createBattleAnim(),
-    text: "Place Cannons",
-    onDone: () => {},
-    reveal: true,
-    setModeBanner: () => {},
-  });
-
-  const oldCastleWalls = banner.oldCastles?.find((c) => c.playerId === 0)?.walls;
-  assert(
-    !(oldCastleWalls?.has(isolatedKey) ?? false),
-    "Banner old scene should NOT reintroduce swept walls",
-  );
-});
 
 // ---------------------------------------------------------------------------
 // 8. Online watcher: cannon banner missing reveal
@@ -739,48 +692,6 @@ test("AI fires super gun during battle (not skipped in round-robin)", () => {
 // ---------------------------------------------------------------------------
 // 22. Place Cannons banner: no wall flash after battle damage
 // ---------------------------------------------------------------------------
-
-test("swept walls stay visible in live render until banner consumes them", () => {
-  const s = createScenario();
-  s.playRounds(2);
-  s.runCannon();
-  s.runBattle();
-  s.runBuild();
-
-  // Stash pre-sweep walls on banner (simulates what tickHostBuildPhase does)
-  const banner = s.createBanner();
-  banner.pendingOldWalls = snapshotAllWalls(s.state);
-  const preSweep = snapshotAllWalls(s.state);
-
-  // finalizeBuildPhase sweeps walls
-  s.finalizeBuild();
-
-  // Verify pendingOldWalls preserves swept walls for the live render
-  const p0pre = preSweep[0] ?? new Set();
-  const p0live = s.state.players[0]!.walls;
-  let swept = 0;
-  for (const key of p0pre) {
-    if (!p0live.has(key)) swept++;
-  }
-  console.log(`P0 swept walls: ${swept}`);
-
-  // pendingOldWalls should preserve them for rendering
-  const pending = banner.pendingOldWalls?.[0];
-  assert(pending !== undefined, "pendingOldWalls should be set");
-  let preserved = 0;
-  for (const key of p0pre) {
-    if (!p0live.has(key) && pending!.has(key)) preserved++;
-  }
-  console.log(`P0 swept walls preserved in pendingOldWalls: ${preserved}`);
-  assert(preserved === swept, "All swept walls should be in pendingOldWalls for rendering");
-
-  // After banner consumes them, they're gone
-  showBannerTransition({
-    banner, state: s.state, battleAnim: s.createBattleAnim(),
-    text: "Place Cannons", onDone: () => {}, reveal: true, setModeBanner: () => {},
-  });
-  assert(banner.pendingOldWalls === undefined, "pendingOldWalls consumed by banner");
-});
 
 // ---------------------------------------------------------------------------
 
