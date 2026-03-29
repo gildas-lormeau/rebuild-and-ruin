@@ -136,7 +136,7 @@ test("cannon cursor needs snap after successful placement", () => {
   const s = createScenario();
   assertPhase(s, Phase.CANNON_PLACE);
 
-  // The fix: after tryPlaceCannon succeeds, cannonCursorNeedsSnap = true.
+  // The fix: after tryPlaceCannon succeeds, cannonCursorSetByMouse = true.
   // We verify that the controller's cannonTick returns a valid phantom
   // even after placement (snap finds a nearby spot).
   const ctrl = s.controllers[0]!;
