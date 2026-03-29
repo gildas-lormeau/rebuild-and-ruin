@@ -64,7 +64,7 @@ export interface CastleData {
   /** Wall tile positions encoded as row*GRID_COLS+col. */
   walls: Set<number>;
   /** Interior tile positions encoded as row*GRID_COLS+col. */
-  interior: Set<number>;
+  interior: ReadonlySet<number>;
   /** Cannon positions (top-left of 2×2 or 3×3 super) with HP. */
   cannons: Cannon[];
   /** Player index (for color). */
@@ -144,9 +144,9 @@ export interface Player {
   /** Wall tiles owned by this player (row,col pairs encoded as row*COLS+col). */
   walls: Set<number>;
   /** Interior tiles (territory inside walls, encoded as row*COLS+col).
-   *  Must be recomputed via recomputeInterior() after any wall changes,
-   *  before querying isCannonEnclosed(), canPlaceCannon(), or canFire(). */
-  interior: Set<number>;
+   *  ReadonlySet enforced at the type level — only recomputeInterior(),
+   *  resetCastle(), and checkpoint deserialization may write to it. */
+  interior: ReadonlySet<number>;
   /** Cannon positions (top-left tile of 2x2 cannon). */
   cannons: Cannon[];
   /** Lives remaining (starts at 3, lose 1 when failing to enclose any tower). */

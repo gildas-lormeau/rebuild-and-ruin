@@ -21,6 +21,7 @@ const NO_REMOTE_SLOTS: ReadonlySet<number> = EMPTY_TILE_SET;
 
 /** True if this client is the host. Defaults to true when net is omitted (local play). */
 export function isHostInContext(net?: Pick<HostNetContext, "isHost">): boolean {
+  // eslint-disable-next-line no-restricted-syntax -- canonical implementation
   return net?.isHost ?? true;
 }
 

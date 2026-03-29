@@ -41,7 +41,7 @@ const NORMAL_CANNON_COST = 1;
  *  after any wall changes — stale interior produces incorrect results. */
 export function isCannonEnclosed(
   cannon: Cannon,
-  interior: Set<number>,
+  interior: ReadonlySet<number>,
 ): boolean {
   const sz = cannonSize(cannon.mode);
   for (let dr = 0; dr < sz; dr++) {

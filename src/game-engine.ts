@@ -435,7 +435,8 @@ function clearPlayerState(
   options?: { keepHomeTower?: boolean },
 ): void {
   player.walls.clear();
-  player.interior.clear();
+  // Authorized mutation site
+  (player.interior as Set<number>).clear();
   player.cannons = [];
   player.ownedTowers = [];
   player.castle = null;

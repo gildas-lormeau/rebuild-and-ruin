@@ -44,7 +44,7 @@ const OBSTRUCTION_PENALTY = 60;
  */
 export function computeFillableGaps(
   rect: TileRect,
-  player: { walls: Set<number>; interior: Set<number> },
+  player: { walls: Set<number>; interior: ReadonlySet<number> },
   state: GameState,
   bankHugging: boolean,
 ): Set<number> {
@@ -113,7 +113,7 @@ export function hasMeaningfulHomeRingGaps(
   walls: Set<number>,
   outside: Set<number>,
   state: GameState,
-  interior: Set<number>,
+  interior: ReadonlySet<number>,
 ): boolean {
   if (!homeTowerEnclosed) return true;
   if (castle.top > castle.bottom || castle.left > castle.right) return false;
@@ -131,7 +131,7 @@ export function hasMeaningfulHomeRingGaps(
 export function filterUnfillableGaps(
   gaps: Set<number>,
   state: GameState,
-  interior?: Set<number>,
+  interior?: ReadonlySet<number>,
 ): void {
   for (const key of gaps) {
     const { r, c } = unpackTile(key);

@@ -64,7 +64,7 @@ export function canPlacePiece(
   piece: PieceShape,
   row: number,
   col: number,
-  excludeInterior?: Set<number>,
+  excludeInterior?: ReadonlySet<number>,
 ): boolean {
   return canPlacePieceOffsets(
     state,
@@ -88,7 +88,7 @@ export function canPlacePieceOffsets(
   offsets: readonly [number, number][],
   row: number,
   col: number,
-  excludeInterior?: Set<number>,
+  excludeInterior?: ReadonlySet<number>,
 ): boolean {
   const playerZone = state.players[playerId]?.homeTower?.zone;
   for (const [dr, dc] of offsets) {
@@ -358,14 +358,16 @@ function clearUnenclosedPendingRevives(state: GameState): void {
  */
 /** Recompute a player's interior via inverse flood-fill. */
 function recomputeInterior(state: GameState, player: Player): void {
-  player.interior.clear();
+  // Authorized mutation site
+  (player.interior as Set<number>).clear();
   const outside = computeOutside(player.walls);
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       const key = packTile(r, c);
       if (!outside.has(key) && !player.walls.has(key)) {
         if (isGrass(state.map.tiles, r, c)) {
-          player.interior.add(key);
+          // Authorized mutation site
+          (player.interior as Set<number>).add(key);
         }
       }
     }

@@ -17,7 +17,7 @@ export function canPieceFillAnyGap(
   state: GameState,
   playerId: number,
   piece: PieceShape,
-  interior: Set<number>,
+  interior: ReadonlySet<number>,
   gaps: Set<number>,
   rect?: TileRect | null,
 ): boolean {
@@ -36,7 +36,7 @@ export function plugUnreachableGaps(
   rect: TileRect | null,
   state: GameState,
   playerId: number,
-  player: { walls: Set<number>; interior: Set<number> },
+  player: { walls: Set<number>; interior: ReadonlySet<number> },
 ): boolean {
   if (!rect || gaps.size === 0) return false;
   const unreachable: number[] = [];
@@ -74,7 +74,7 @@ export function plugUnreachableGaps(
 function isGapFillableByAnyShape(
   state: GameState,
   playerId: number,
-  interior: Set<number>,
+  interior: ReadonlySet<number>,
   gapKey: number,
   rect?: TileRect | null,
 ): boolean {
@@ -95,7 +95,7 @@ function isGapFillableByAnyShape(
  * so the AI is free to extend pieces into it while filling gaps.
  */
 function adjustInterior(
-  interior: Set<number>,
+  interior: ReadonlySet<number>,
   gaps: Set<number>,
   rect?: TileRect | null,
 ): Set<number> {
@@ -115,7 +115,7 @@ function adjustInterior(
 function canAnyRotationFillGap(
   pieces: readonly PieceShape[],
   gaps: Set<number>,
-  adjusted: Set<number>,
+  adjusted: ReadonlySet<number>,
   state: GameState,
   playerId: number,
 ): boolean {

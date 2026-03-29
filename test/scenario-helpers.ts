@@ -256,7 +256,8 @@ export function createScenario(seed = 42): Scenario {
 
   function clearWalls(playerId: number) {
     state.players[playerId]!.walls.clear();
-    state.players[playerId]!.interior.clear();
+    // Authorized mutation site
+    (state.players[playerId]!.interior as Set<number>).clear();
   }
 
   function doEliminatePlayer(playerId: number) {

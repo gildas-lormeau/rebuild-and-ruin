@@ -24,6 +24,18 @@ export default [
       // Prevent type-safety erosion: agents reach for `any` when stuck
       "@typescript-eslint/no-explicit-any": "error",
 
+      // Ban patterns that have safer alternatives (architecture audit)
+      "no-restricted-syntax": [
+        "error",
+        {
+          // isHostInContext(net) is the canonical helper (tick-context.ts)
+          selector:
+            "LogicalExpression[operator='??'][right.value=true]:has(MemberExpression[property.name='isHost'])",
+          message:
+            "Use isHostInContext(net) from tick-context.ts instead of net?.isHost ?? true.",
+        },
+      ],
+
       // Enforce project naming conventions so agents can't invent names
       "@typescript-eslint/naming-convention": [
         "error",
