@@ -6,6 +6,7 @@
  */
 
 import type { PlayerController } from "./controller-interfaces.ts";
+import { GRUNT_TICK_INTERVAL } from "./game-constants.ts";
 import { EMPTY_TILE_SET } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 
@@ -43,6 +44,21 @@ export function tickTimer(
 ): { accum: number; timer: number } {
   const newAccum = accum + dt;
   return { accum: newAccum, timer: Math.max(0, max - newAccum) };
+}
+
+/** Advance grunt accumulator and tick grunts when the interval elapses.
+ *  Shared between host (tickHostBuildPhase) and watcher to prevent interval drift. */
+export function tickGruntsIfDue(
+  accum: { grunt: number },
+  dt: number,
+  state: GameState,
+  tickGrunts: (state: GameState) => void,
+): void {
+  accum.grunt += dt;
+  if (accum.grunt >= GRUNT_TICK_INTERVAL) {
+    accum.grunt -= GRUNT_TICK_INTERVAL;
+    tickGrunts(state);
+  }
 }
 
 /** Filter controllers to only local (non-remote) players that are still alive. */

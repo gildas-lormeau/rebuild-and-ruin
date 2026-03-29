@@ -89,6 +89,8 @@ export const FIRST_GRUNT_SPAWN_ROUND = 2;
 export const STARTING_LIVES = 3;
 /** Cannonball travel speed in pixels per second. */
 export const BALL_SPEED = 150;
+/** Interval between grunt movement ticks during build phase (seconds). */
+export const GRUNT_TICK_INTERVAL = 1.0;
 /** Scoring weight for super guns in balloon threat evaluation. */
 export const SUPER_GUN_THREAT_WEIGHT = 100;
 /** Maximum total cannon slots a reselecting player can earn. */

@@ -19,7 +19,6 @@ import {
   type PlayerController,
 } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
-import { TILE_SIZE } from "./grid.ts";
 import { tickGrunts } from "./grunt-system.ts";
 import type { CheckpointDeps } from "./online-checkpoints.ts";
 import {
@@ -40,6 +39,7 @@ import {
   tickWatcherTimers,
 } from "./online-watcher-battle.ts";
 import type { FrameData } from "./render-types.ts";
+import { tickGruntsIfDue } from "./tick-context.ts";
 import {
   type BattleAnimState,
   type GameState,
@@ -169,7 +169,6 @@ export function tickWatcher(
       watcherIdlePhases: ws.idlePhases,
       watcherOrbitParams: ws.orbitParams,
       crosshairSpeed: CROSSHAIR_SPEED,
-      tileSize: TILE_SIZE,
       logThrottled: ctx.logThrottled,
       interpolateToward,
       nextReadyCombined,
@@ -205,11 +204,7 @@ export function tickWatcher(
 
   // Grunt movement during build phase (deterministic — runs locally)
   if (state.phase === Phase.WALL_BUILD) {
-    accum.grunt += dt;
-    if (accum.grunt >= 1.0) {
-      accum.grunt -= 1.0;
-      tickGrunts(state);
-    }
+    tickGruntsIfDue(accum, dt, state, tickGrunts);
   }
 
   ctx.render();

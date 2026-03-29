@@ -1,4 +1,8 @@
-import { canPlayerFire, getCountdownAnnouncement } from "./battle-system.ts";
+import {
+  canPlayerFire,
+  getCountdownAnnouncement,
+  moveCannonball,
+} from "./battle-system.ts";
 import type {
   Crosshair,
   OrbitParams,
@@ -9,6 +13,7 @@ import type { PixelPos } from "./geometry-types.ts";
 import {
   type CannonPhantom,
   cannonPhantomKey,
+  filterAlivePhantoms,
   type HumanPiecePhantom,
   type PiecePhantom,
   phantomChanged,
@@ -48,7 +53,6 @@ interface WatcherBattleDeps {
   watcherIdlePhases: Map<number, number>;
   watcherOrbitParams: Map<number, OrbitParams>;
   crosshairSpeed: number;
-  tileSize: number;
   logThrottled: (key: string, msg: string) => void;
   interpolateToward: (
     vis: PixelPos,
@@ -162,7 +166,6 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     watcherIdlePhases,
     watcherOrbitParams,
     crosshairSpeed,
-    tileSize,
     logThrottled,
     interpolateToward,
     nextReadyCombined,
@@ -172,19 +175,10 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
 
   const remaining: typeof state.cannonballs = [];
   for (const ball of state.cannonballs) {
-    const dx = ball.targetX - ball.x;
-    const dy = ball.targetY - ball.y;
-    const dist = Math.hypot(dx, dy);
-    const move = ball.speed * dt;
-    if (dist <= move) {
-      battleAnim.impacts.push({
-        row: Math.floor(ball.targetY / tileSize),
-        col: Math.floor(ball.targetX / tileSize),
-        age: 0,
-      });
+    const hit = moveCannonball(ball, dt);
+    if (hit) {
+      battleAnim.impacts.push({ ...hit, age: 0 });
     } else {
-      ball.x += (dx / dist) * move;
-      ball.y += (dy / dist) * move;
       remaining.push(ball);
     }
   }
@@ -286,9 +280,7 @@ export function tickWatcherCannonPhantomsPhase(
   } = deps;
 
   frame.phantoms = {
-    aiCannonPhantoms: remoteCannonPhantoms.filter(
-      (p) => !state.players[p.playerId]?.eliminated,
-    ),
+    aiCannonPhantoms: filterAlivePhantoms(remoteCannonPhantoms, state.players),
   };
 
   if (!myHuman) return;
@@ -329,9 +321,7 @@ export function tickWatcherBuildPhantomsPhase(
   } = deps;
 
   frame.phantoms = {
-    aiPhantoms: remotePiecePhantoms.filter(
-      (p) => !state.players[p.playerId]?.eliminated,
-    ),
+    aiPhantoms: filterAlivePhantoms(remotePiecePhantoms, state.players),
     humanPhantoms: [],
   };
 

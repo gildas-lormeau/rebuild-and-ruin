@@ -257,20 +257,14 @@ export function tickCannonballs(
   const remaining: Cannonball[] = [];
 
   for (const ball of state.cannonballs) {
-    const dx = ball.targetX - ball.x;
-    const dy = ball.targetY - ball.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const move = ball.speed * dt;
-
-    if (dist <= move) {
+    const hit = moveCannonball(ball, dt);
+    if (hit) {
       // Ball has arrived — compute and apply impact
-      const impactRow = pxToTile(ball.targetY);
-      const impactCol = pxToTile(ball.targetX);
       const shooterId = ball.scoringPlayerId ?? ball.playerId;
       const impactEvents = computeImpact(
         state,
-        impactRow,
-        impactCol,
+        hit.row,
+        hit.col,
         shooterId,
         ball.incendiary,
       );
@@ -278,17 +272,37 @@ export function tickCannonballs(
         applyImpactEvent(state, evt, shooterId);
         events.push(evt);
       }
-      impacts.push({ row: impactRow, col: impactCol });
+      impacts.push(hit);
     } else {
-      // Move toward target
-      ball.x += (dx / dist) * move;
-      ball.y += (dy / dist) * move;
       remaining.push(ball);
     }
   }
 
   state.cannonballs = remaining;
   return { impacts, events };
+}
+
+/**
+ * Move a cannonball toward its target by `dt` seconds. Mutates `ball.x`/`ball.y`.
+ * Returns the impact tile position if the ball arrived, or null if still in flight.
+ *
+ * Shared between host (tickCannonballs) and watcher (tickWatcherBattlePhase)
+ * to eliminate drift in speed/arrival logic.
+ */
+export function moveCannonball(
+  ball: Pick<Cannonball, "x" | "y" | "targetX" | "targetY" | "speed">,
+  dt: number,
+): TilePos | null {
+  const dx = ball.targetX - ball.x;
+  const dy = ball.targetY - ball.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const move = ball.speed * dt;
+  if (dist <= move) {
+    return { row: pxToTile(ball.targetY), col: pxToTile(ball.targetX) };
+  }
+  ball.x += (dx / dist) * move;
+  ball.y += (dy / dist) * move;
+  return null;
 }
 
 /**

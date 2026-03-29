@@ -78,6 +78,16 @@ export function phantomChanged(
   return true;
 }
 
+/** Filter remote phantoms to only those from non-eliminated players.
+ *  Shared between host (mergeRemotePiecePhantoms) and watcher to prevent
+ *  drift in the eliminated-player exclusion logic. */
+export function filterAlivePhantoms<T extends { playerId: number }>(
+  phantoms: readonly T[],
+  players: readonly { eliminated?: boolean }[],
+): T[] {
+  return phantoms.filter((p) => !players[p.playerId]?.eliminated);
+}
+
 /** Dedup key for cannon phantom network sends. Covers all fields that affect display. */
 export function cannonPhantomKey(p: CannonPhantom): string {
   return `${p.row},${p.col},${p.mode}`;

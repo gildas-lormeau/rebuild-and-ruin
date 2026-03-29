@@ -12,6 +12,7 @@ import type { PlayerController } from "./controller-interfaces.ts";
 import {
   type CannonPhantom,
   cannonPhantomKey,
+  filterAlivePhantoms,
   type HumanPiecePhantom,
   type PiecePhantom,
   phantomChanged,
@@ -25,6 +26,7 @@ import {
   type HostNetContext,
   isHostInContext,
   localActiveControllers,
+  tickGruntsIfDue,
   tickTimer,
 } from "./tick-context.ts";
 import { CannonMode, type GameState } from "./types.ts";
@@ -201,10 +203,8 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
 
   if (remoteCannonPhantoms.length > 0) {
     frame.phantoms.aiCannonPhantoms!.push(
-      ...remoteCannonPhantoms.filter(
-        (p) =>
-          !remoteHumanSlots.has(p.playerId) &&
-          !state.players[p.playerId]?.eliminated,
+      ...filterAlivePhantoms(remoteCannonPhantoms, state.players).filter(
+        (p) => !remoteHumanSlots.has(p.playerId),
       ),
     );
   }
@@ -252,11 +252,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
     dt,
     state.buildTimer,
   ));
-  accum.grunt += dt;
-  if (accum.grunt >= 1.0) {
-    accum.grunt -= 1.0;
-    deps.tickGrunts(state);
-  }
+  tickGruntsIfDue(accum, dt, state, deps.tickGrunts);
 
   // --- Process each controller's build actions, collect phantoms ---
   frame.phantoms = { aiPhantoms: [], humanPhantoms: [] };
@@ -381,10 +377,8 @@ function mergeRemotePiecePhantoms(
   const remotePiecePhantoms = net?.remotePiecePhantoms ?? [];
   if (remotePiecePhantoms.length > 0) {
     frame.phantoms.aiPhantoms!.push(
-      ...remotePiecePhantoms.filter(
-        (p) =>
-          !remoteHumanSlots.has(p.playerId) &&
-          !state.players[p.playerId]?.eliminated,
+      ...filterAlivePhantoms(remotePiecePhantoms, state.players).filter(
+        (p) => !remoteHumanSlots.has(p.playerId),
       ),
     );
   }
