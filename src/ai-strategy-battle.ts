@@ -61,7 +61,7 @@ const TOP_TARGET_PICK_COUNT = 3;
 /** Pixel inset from tile edges to prevent cannonballs spilling into neighbors. */
 const TARGET_TILE_MARGIN = 1;
 /** Minimum preferred distance (in tiles) from crosshair for target spread. */
-const SWEET_SPOT_MIN_DISTANCE = 3;
+const SWEET_SPOT_MIN_DISTANCE = 0;
 /** Width of the preferred distance band (sweet spot = min .. min + range). */
 const SWEET_SPOT_DISTANCE_RANGE = 5;
 
