@@ -74,7 +74,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     deps.log(
       `showLifeLostDialog: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
     );
-    rs.lifeLostDialog = createLifeLostDialogState({
+    const dialog = createLifeLostDialogState({
       needsReselect,
       eliminated,
       state: rs.state,
@@ -83,6 +83,14 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       remoteHumanSlots,
       isHumanController: (playerId) => isHuman(rs.controllers[playerId]!),
     });
+    // Skip dialog if all entries are already resolved (e.g. only eliminations)
+    if (dialog.entries.every((e) => e.choice !== LifeLostChoice.PENDING)) {
+      deps.log("showLifeLostDialog: all pre-resolved, skipping dialog");
+      eliminateAbandoned(dialog);
+      afterLifeLostResolved();
+      return;
+    }
+    rs.lifeLostDialog = dialog;
     rs.mode = Mode.LIFE_LOST;
   }
 
