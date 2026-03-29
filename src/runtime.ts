@@ -119,7 +119,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   /** Tick the score delta display timer (mode-independent — counts during banner/castle-build).
    *  Lifecycle: showBuildScoreDeltas sets deltas+timer+onDone → this ticks down →
-   *  clears deltas and fires onDone exactly once when the timer expires. */
+   *  clears deltas and fires onDone exactly once when the timer expires.
+   *  Re-entrancy: onDone must NOT call showBuildScoreDeltas() — that would restart
+   *  the timer and create an infinite display loop. */
   function tickScoreDeltaDisplay(dt: number): void {
     if (rs.scoreDeltaTimer <= 0) return;
     rs.scoreDeltaTimer -= dt;

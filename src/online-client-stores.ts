@@ -88,7 +88,18 @@ export function maybeSendAimUpdate(
  *  INVARIANT: dedup maps must always be checked BEFORE calling send() for
  *  phantom/aim messages. The pattern is: if key changed → send → update map.
  *  Sending without checking causes redundant network traffic; checking without
- *  resetting after state changes causes missed updates. */
+ *  resetting after state changes causes missed updates.
+ *
+ *  Reset function selection (use the most specific one that applies):
+ *  ┌──────────────────────┬───────────┬─────────────────────────────────────┐
+ *  │ Function             │ When      │ Clears                              │
+ *  ├──────────────────────┼───────────┼─────────────────────────────────────┤
+ *  │ resetDedup()         │ mid-game  │ dedup maps only                     │
+ *  │ resetForNewGame()    │ INIT /    │ dedup + full watcher (timing, AI,   │
+ *  │                      │ recovery  │ crosshairs, phantoms)               │
+ *  │ resetForHostPromotion│ promote   │ dedup + watcher timing/AI (keeps    │
+ *  │                      │           │ remote crosshairs & phantoms)       │
+ *  └──────────────────────┴───────────┴─────────────────────────────────────┘ */
 export function resetDedup(): void {
   resetDedupMaps(dedup);
 }

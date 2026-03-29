@@ -103,6 +103,8 @@ export class RoomManager {
   }
 
   /** Player selects a color/position slot, which becomes their playerId.
+   *  Note: slotId ≡ playerId — the 0-indexed player position used as the
+   *  player's identity for the entire session across all game messages.
    *  Side effect: registers the socket with GameRoom.registerPlayer() so the
    *  room tracks the socket→playerId mapping for identity enforcement.
    *  Returns null if: slot taken by another player, invalid slotId, or game already started. */

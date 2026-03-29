@@ -266,10 +266,12 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
 
 /** Tick each local controller's build logic, detect new walls, collect phantoms.
  *
- *  Wall snapshot convention: for AI controllers, we snapshot `player.walls`
- *  BEFORE calling `buildTick()`. New walls = (post-tick walls) − (snapshot).
- *  This is how we detect which tiles to broadcast as OPPONENT_PIECE_PLACED.
- *  The snapshot must be taken before the tick, not after. */
+ *  CRITICAL ORDER — wall snapshot convention:
+ *    1. Snapshot player.walls (before tick)
+ *    2. ctrl.buildTick()        (may add walls)
+ *    3. Diff snapshot vs current walls → broadcast new tiles
+ *  Reversing steps 1–2 silently produces empty diffs with no compile error.
+ *  This only applies to AI controllers — human walls arrive via explicit placement. */
 function processControllerBuildActions(
   deps: TickHostBuildPhaseDeps,
   frame: HostFrame,
@@ -363,6 +365,7 @@ function broadcastNewWalls(
     }
   }
   if (offsets.length > 0) {
+    // row/col are protocol placeholders — real coordinates are in offsets (absolute tile positions)
     sendOpponentPiecePlaced({ playerId, row: 0, col: 0, offsets });
   }
 }
