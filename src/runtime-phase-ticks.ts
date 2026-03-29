@@ -397,6 +397,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // tickGame — dispatches to the correct phase tick
   // -------------------------------------------------------------------------
 
+  /** Canonical state-ready guard — all phase ticks funnel through here,
+   *  so a single assertion covers cannon, battle, build, and balloon ticks. */
   function tickGame(dt: number) {
     assertStateReady(rs);
     if (rs.ctx.isHost) {

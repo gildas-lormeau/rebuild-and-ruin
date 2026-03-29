@@ -100,10 +100,10 @@ export const transitionCtx: TransitionContext = {
     showBanner: (
       text: string,
       onDone: () => void,
-      revealBattle?: boolean,
-      newScene?: { territory: Set<number>[]; walls: Set<number>[] },
+      reveal?: boolean,
+      newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
       subtitle?: string,
-    ) => runtime.showBanner(text, onDone, revealBattle, newScene, subtitle),
+    ) => runtime.showBanner(text, onDone, reveal, newBattle, subtitle),
     get banner() {
       return runtime.rs.banner;
     },

@@ -7,8 +7,10 @@
  *
  * ### Parameter convention (shared with render-composition.ts, render-map.ts)
  *
- * Functions with ≤3 closely-related args use positional parameters;
- * functions with >3 args or heterogeneous config use a `params` object.
+ * Exported functions with ≤3 closely-related args use positional parameters;
+ * exported functions with >3 args or heterogeneous config use a `params` object.
+ * Private helpers are exempt — they use positional args for brevity since
+ * they're called from one place and readability is local.
  *
  * ### Time parameter convention (applies across all render-* files)
  *
