@@ -183,6 +183,15 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
   };
 
   function register(): void {
+    const placeCannon = wrapCannonPlace(
+      deps.tryPlaceCannonAndSend ??
+        ((ctrl, gs, max) => ctrl.tryPlaceCannon(gs, max)),
+      sound,
+    );
+    const placePieceWrapped = wrapPiecePlace(
+      deps.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
+      sound,
+    );
     const inputDeps: RegisterOnlineInputDeps = {
       renderer,
       getState: () => safeState(rs),
@@ -202,90 +211,102 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
         GAME: Mode.GAME,
         STOPPED: Mode.STOPPED,
       },
-      isLobbyActive: () => rs.lobby.active,
-      lobbyKeyJoin: (key: string) => lobby.lobbyKeyJoin(key),
-      lobbyClick: (x: number, y: number) => lobby.lobbyClick(x, y),
-      showLobby: returnToLobby,
-      rematch,
-      getGameOverFocused: () => rs.frame.gameOver?.focused ?? FOCUS_REMATCH,
-      setGameOverFocused: (f) => {
-        if (rs.frame.gameOver) {
-          rs.frame.gameOver.focused = f;
-          render();
-        }
-      },
-      gameOverClick,
-      showOptions: options.showOptions,
-      closeOptions: options.closeOptions,
-      showControls: options.showControls,
-      closeControls: options.closeControls,
-      getOptionsCursor: () => rs.optionsCursor,
-      setOptionsCursor: (c) => {
-        rs.optionsCursor = c;
-      },
-      getOptionsCount: () => visibleOptions(uiCtx).length,
-      getRealOptionIdx: options.realOptionIdx,
-      getOptionsReturnMode: () => rs.optionsReturnMode,
-      setOptionsReturnMode: (m) => {
-        rs.optionsReturnMode = m as Mode | null;
-      },
-      changeOption: options.changeOption,
-      getControlsState: () => rs.controlsState,
-      getLifeLostDialog: () => rs.lifeLostDialog,
-      lifeLostDialogClick: lifeLost.click,
+      isOnline: deps.isOnline,
+      settings: rs.settings,
       getControllers: () => rs.controllers,
       isHuman,
       withFirstHuman,
-      pixelToTile: camera.pixelToTile,
-      screenToWorld: camera.screenToWorld,
-      onPinchStart: camera.onPinchStart,
-      onPinchUpdate: camera.onPinchUpdate,
-      onPinchEnd: camera.onPinchEnd,
+      showLobby: returnToLobby,
+      rematch,
       maybeSendAimUpdate: deps.maybeSendAimUpdate ?? (() => {}),
-      tryPlaceCannonAndSend: wrapCannonPlace(
-        deps.tryPlaceCannonAndSend ??
-          ((ctrl, gs, max) => ctrl.tryPlaceCannon(gs, max)),
-        sound,
-      ),
-      tryPlacePieceAndSend: wrapPiecePlace(
-        deps.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
-        sound,
-      ),
-      fireAndSend:
-        deps.fireAndSend ?? ((ctrl, gameState) => ctrl.fire(gameState)),
-      onPieceRotated: sound.pieceRotated,
-      getSelectionStates: () => rs.selectionStates,
-      highlightTowerForPlayer: selection.highlight,
-      confirmSelectionForPlayer: selection.confirm,
-      isSelectionReady,
-      togglePause: options.togglePause,
-      getQuitPending: () => rs.quitPending,
-      setQuitPending: (v) => {
-        rs.quitPending = v;
-      },
-      setQuitTimer: (s) => {
-        rs.quitTimer = s;
-      },
-      setQuitMessage: (msg) => {
-        rs.quitMessage = msg;
-      },
-      sendLifeLostChoice: lifeLost.sendLifeLostChoice,
       setDirectTouchActive: (v) => {
         rs.directTouchActive = v;
       },
       isDirectTouchActive: () => rs.directTouchActive,
-      settings: rs.settings,
-      isOnline: deps.isOnline,
+      coords: {
+        pixelToTile: camera.pixelToTile,
+        screenToWorld: camera.screenToWorld,
+        onPinchStart: camera.onPinchStart,
+        onPinchUpdate: camera.onPinchUpdate,
+        onPinchEnd: camera.onPinchEnd,
+      },
+      lobby: {
+        isActive: () => rs.lobby.active,
+        keyJoin: (key: string) => lobby.lobbyKeyJoin(key),
+        click: (x: number, y: number) => lobby.lobbyClick(x, y),
+      },
+      options: {
+        show: options.showOptions,
+        close: options.closeOptions,
+        showControls: options.showControls,
+        closeControls: options.closeControls,
+        getCursor: () => rs.optionsCursor,
+        setCursor: (c) => {
+          rs.optionsCursor = c;
+        },
+        getCount: () => visibleOptions(uiCtx).length,
+        getRealIdx: options.realOptionIdx,
+        getReturnMode: () => rs.optionsReturnMode,
+        setReturnMode: (m) => {
+          rs.optionsReturnMode = m as Mode | null;
+        },
+        changeValue: options.changeOption,
+        togglePause: options.togglePause,
+        getControlsState: () => rs.controlsState,
+      },
+      lifeLost: {
+        get: () => rs.lifeLostDialog,
+        click: lifeLost.click,
+        sendChoice: lifeLost.sendLifeLostChoice,
+      },
+      gameOver: {
+        getFocused: () => rs.frame.gameOver?.focused ?? FOCUS_REMATCH,
+        setFocused: (f) => {
+          if (rs.frame.gameOver) {
+            rs.frame.gameOver.focused = f;
+            render();
+          }
+        },
+        click: gameOverClick,
+      },
+      gameAction: {
+        getSelectionStates: () => rs.selectionStates,
+        highlightTowerForPlayer: selection.highlight,
+        confirmSelectionForPlayer: selection.confirm,
+        isSelectionReady,
+        tryPlaceCannonAndSend: placeCannon,
+        tryPlacePieceAndSend: placePieceWrapped,
+        onPieceRotated: sound.pieceRotated,
+        fireAndSend:
+          deps.fireAndSend ?? ((ctrl, gameState) => ctrl.fire(gameState)),
+      },
+      quit: {
+        getPending: () => rs.quitPending,
+        setPending: (v) => {
+          rs.quitPending = v;
+        },
+        setTimer: (s) => {
+          rs.quitTimer = s;
+        },
+        setMessage: (msg) => {
+          rs.quitMessage = msg;
+        },
+      },
     };
     registerMouseHandlers(inputDeps);
     registerKeyboardHandlers(inputDeps);
-    registerTouchHandlers({ ...inputDeps, lobbyKeyJoin: undefined });
+    registerTouchHandlers({
+      ...inputDeps,
+      lobby: { ...inputDeps.lobby, keyJoin: undefined },
+    });
 
     // Touch controls: wire static DOM elements from index.html
     if (IS_TOUCH_DEVICE) {
       gameContainer.classList.add("has-touch-panels");
-      const placePiece = inputDeps.tryPlacePieceAndSend;
-      const placeCannon = inputDeps.tryPlaceCannonAndSend;
+      const {
+        tryPlacePieceAndSend: placePieceAction,
+        tryPlaceCannonAndSend: placeCannonAction,
+      } = inputDeps.gameAction;
       const overlayActionDeps = {
         options: {
           isActive: () => rs.mode === Mode.OPTIONS,
@@ -352,10 +373,10 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
             highlightTowerForPlayer: selection.highlight,
             confirmSelectionForPlayer: selection.confirm,
             isSelectionReady,
-            tryPlacePieceAndSend: placePiece,
-            tryPlaceCannonAndSend: placeCannon,
+            tryPlacePieceAndSend: placePieceAction,
+            tryPlaceCannonAndSend: placeCannonAction,
             onPieceRotated: sound.pieceRotated,
-            fireAndSend: inputDeps.fireAndSend,
+            fireAndSend: inputDeps.gameAction.fireAndSend,
           },
           overlay: overlayActionDeps,
         },
@@ -413,8 +434,8 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
           {
             getState: () => safeState(rs),
             withFirstHuman,
-            tryPlacePieceAndSend: inputDeps.tryPlacePieceAndSend,
-            tryPlaceCannonAndSend: inputDeps.tryPlaceCannonAndSend,
+            tryPlacePieceAndSend: placePieceAction,
+            tryPlaceCannonAndSend: placeCannonAction,
             onPieceRotated: sound.pieceRotated,
             onHapticTap: haptics.tap,
             onDrag: (clientX, clientY) => {

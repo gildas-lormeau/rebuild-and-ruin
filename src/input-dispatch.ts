@@ -104,45 +104,41 @@ export function dispatchModeTap(
   mode: number,
   deps: {
     modeValues: ModeValues;
-    gameOverClick: (x: number, y: number) => void;
-    closeOptions: () => void;
-    closeControls: () => void;
-    getControlsState: () => ControlsState;
-    getLifeLostDialog: () => LifeLostDialogState | null;
-    lifeLostDialogClick: (x: number, y: number) => void;
-    isLobbyActive: () => boolean;
-    lobbyClick: (x: number, y: number) => boolean;
+    gameOver: { click: (x: number, y: number) => void };
+    options: {
+      close: () => void;
+      closeControls: () => void;
+      getControlsState: () => ControlsState;
+    };
+    lifeLost: {
+      get: () => LifeLostDialogState | null;
+      click: (x: number, y: number) => void;
+    };
+    lobby: {
+      isActive: () => boolean;
+      click: (x: number, y: number) => boolean;
+    };
   },
 ): boolean {
-  const {
-    modeValues,
-    gameOverClick,
-    closeOptions,
-    closeControls,
-    getControlsState,
-    getLifeLostDialog,
-    lifeLostDialogClick,
-    isLobbyActive,
-    lobbyClick,
-  } = deps;
+  const { modeValues, gameOver, options, lifeLost, lobby } = deps;
   if (mode === modeValues.STOPPED) {
-    gameOverClick(x, y);
+    gameOver.click(x, y);
     return true;
   }
   if (mode === modeValues.OPTIONS) {
-    closeOptions();
+    options.close();
     return true;
   }
   if (mode === modeValues.CONTROLS) {
-    if (!getControlsState().rebinding) closeControls();
+    if (!options.getControlsState().rebinding) options.closeControls();
     return true;
   }
-  if (mode === modeValues.LIFE_LOST && getLifeLostDialog()) {
-    lifeLostDialogClick(x, y);
+  if (mode === modeValues.LIFE_LOST && lifeLost.get()) {
+    lifeLost.click(x, y);
     return true;
   }
-  if (isLobbyActive()) {
-    lobbyClick(x, y);
+  if (lobby.isActive()) {
+    lobby.click(x, y);
     return true;
   }
   return false;
@@ -158,27 +154,29 @@ export function dispatchTowerSelect(
     withFirstHuman: (
       action: (human: PlayerController & InputReceiver) => void,
     ) => void;
-    getSelectionStates: () => Map<number, SelectionState>;
-    highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
-    confirmSelectionForPlayer: (pid: number, isReselect?: boolean) => boolean;
-    isSelectionReady?: () => boolean;
+    gameAction: Pick<
+      GameActionDeps,
+      | "getSelectionStates"
+      | "highlightTowerForPlayer"
+      | "confirmSelectionForPlayer"
+      | "isSelectionReady"
+    >;
   },
   requireDoubleTap = false,
 ): void {
-  if (deps.isSelectionReady && !deps.isSelectionReady()) return;
+  const { gameAction } = deps;
+  if (gameAction.isSelectionReady && !gameAction.isSelectionReady()) return;
   deps.withFirstHuman((human) => {
-    const ss = deps.getSelectionStates().get(human.playerId);
+    const ss = gameAction.getSelectionStates().get(human.playerId);
     if (!ss || ss.confirmed) return;
     const zone = state.playerZones[human.playerId] ?? 0;
     const idx = towerAtPixel(state.map.towers, wx, wy);
     if (idx !== null && state.map.towers[idx]?.zone === zone) {
       const alreadyHighlighted = ss.highlighted === idx;
       if (alreadyHighlighted && (!requireDoubleTap || ss.tapped)) {
-        deps.confirmSelectionForPlayer(human.playerId, isReselect);
+        gameAction.confirmSelectionForPlayer(human.playerId, isReselect);
       } else {
-        deps.highlightTowerForPlayer(idx, zone, human.playerId);
-        // Mark tapped only when re-tapping the already-highlighted tower;
-        // switching to a different tower resets so you can browse freely.
+        gameAction.highlightTowerForPlayer(idx, zone, human.playerId);
         ss.tapped = alreadyHighlighted;
       }
     }
@@ -192,19 +190,14 @@ export function dispatchPlacement(
     withFirstHuman: (
       action: (human: PlayerController & InputReceiver) => void,
     ) => void;
-    tryPlacePieceAndSend: (
-      human: PlayerController & InputReceiver,
-      state: GameState,
-    ) => void;
-    tryPlaceCannonAndSend: (
-      human: PlayerController & InputReceiver,
-      state: GameState,
-      max: number,
-    ) => void;
+    gameAction: Pick<
+      GameActionDeps,
+      "tryPlacePieceAndSend" | "tryPlaceCannonAndSend"
+    >;
   },
 ): void {
   deps.withFirstHuman((human) => {
-    dispatchConfirmForCtrl(human, state, deps);
+    dispatchConfirmForCtrl(human, state, deps.gameAction);
   });
 }
 
@@ -217,8 +210,8 @@ export function dispatchBattleFire(
     withFirstHuman: (
       action: (human: PlayerController & InputReceiver) => void,
     ) => void;
-    screenToWorld: (x: number, y: number) => WorldPos;
-    fireAndSend: (ctrl: PlayerController, gameState: GameState) => void;
+    coords: { screenToWorld: (x: number, y: number) => WorldPos };
+    gameAction: Pick<GameActionDeps, "fireAndSend">;
   },
 ): void {
   if (
@@ -228,9 +221,9 @@ export function dispatchBattleFire(
   )
     return;
   deps.withFirstHuman((human) => {
-    const w = deps.screenToWorld(x, y);
+    const w = deps.coords.screenToWorld(x, y);
     human.setCrosshair(w.wx, w.wy);
-    deps.fireAndSend(human, state);
+    deps.gameAction.fireAndSend(human, state);
   });
 }
 
@@ -362,52 +355,48 @@ export function dispatchPointerMove(
     withFirstHuman: (
       action: (human: PlayerController & InputReceiver) => void,
     ) => void;
-    getSelectionStates: () => Map<number, SelectionState>;
-    screenToWorld: (x: number, y: number) => WorldPos;
-    highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
-    pixelToTile: (x: number, y: number) => { row: number; col: number };
+    coords: {
+      screenToWorld: (x: number, y: number) => WorldPos;
+      pixelToTile: (x: number, y: number) => { row: number; col: number };
+    };
+    gameAction: Pick<
+      GameActionDeps,
+      "getSelectionStates" | "highlightTowerForPlayer" | "isSelectionReady"
+    >;
     maybeSendAimUpdate: (x: number, y: number) => void;
-    isSelectionReady?: () => boolean;
   },
 ): void {
-  const {
-    withFirstHuman,
-    getSelectionStates,
-    screenToWorld,
-    highlightTowerForPlayer,
-    pixelToTile,
-    maybeSendAimUpdate,
-  } = deps;
+  const { withFirstHuman, coords, gameAction, maybeSendAimUpdate } = deps;
   if (isSelectionPhase(state.phase)) {
-    if (deps.isSelectionReady && !deps.isSelectionReady()) return;
+    if (gameAction.isSelectionReady && !gameAction.isSelectionReady()) return;
     withFirstHuman((human) => {
-      const ss = getSelectionStates().get(human.playerId);
+      const ss = gameAction.getSelectionStates().get(human.playerId);
       if (!ss || ss.confirmed) return;
       const zone = state.playerZones[human.playerId] ?? 0;
-      const w = screenToWorld(x, y);
+      const w = coords.screenToWorld(x, y);
       const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
       if (
         idx !== null &&
         idx !== ss.highlighted &&
         state.map.towers[idx]?.zone === zone
       ) {
-        highlightTowerForPlayer(idx, zone, human.playerId);
+        gameAction.highlightTowerForPlayer(idx, zone, human.playerId);
         ss.tapped = false;
       }
     });
   } else if (state.phase === Phase.WALL_BUILD) {
     withFirstHuman((human) => {
-      const { row, col } = pixelToTile(x, y);
+      const { row, col } = coords.pixelToTile(x, y);
       human.setBuildCursor(row, col);
     });
   } else if (state.phase === Phase.CANNON_PLACE) {
     withFirstHuman((human) => {
-      const { row, col } = pixelToTile(x, y);
+      const { row, col } = coords.pixelToTile(x, y);
       human.setCannonCursor(row, col);
     });
   } else if (state.phase === Phase.BATTLE) {
     withFirstHuman((human) => {
-      const w = screenToWorld(x, y);
+      const w = coords.screenToWorld(x, y);
       human.setCrosshair(w.wx, w.wy);
       maybeSendAimUpdate(w.wx, w.wy);
     });

@@ -16,14 +16,7 @@ import {
 } from "./types.ts";
 
 export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
-  const {
-    renderer,
-    getState,
-    getMode,
-    modeValues,
-    isLobbyActive,
-    screenToWorld,
-  } = deps;
+  const { renderer, getState, getMode, modeValues, coords } = deps;
 
   renderer.eventTarget.addEventListener("mousemove", (e) => {
     const mode = getMode();
@@ -38,7 +31,7 @@ export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
     }
 
     const state = getState();
-    if (!state || isLobbyActive()) return;
+    if (!state || deps.lobby.isActive()) return;
     const { x, y } = renderer.clientToSurface(e.clientX, e.clientY);
     dispatchPointerMove(x, y, state, deps);
   });
@@ -53,7 +46,7 @@ export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
     if (!state || !isGameInteractionMode(mode, modeValues)) return;
 
     if (isSelectionPhase(state.phase)) {
-      const tw = screenToWorld(x, y);
+      const tw = coords.screenToWorld(x, y);
       dispatchTowerSelect(
         tw.wx,
         tw.wy,

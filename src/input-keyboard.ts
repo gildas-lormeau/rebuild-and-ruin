@@ -6,7 +6,6 @@ import type { RegisterOnlineInputDeps } from "./input.ts";
 import {
   dispatchGameAction,
   dispatchOverlayAction,
-  type GameActionDeps,
   type OverlayActionDeps,
 } from "./input-dispatch.ts";
 import {
@@ -31,14 +30,7 @@ import {
 } from "./types.ts";
 
 export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
-  const {
-    getState,
-    getMode,
-    modeValues,
-    isLobbyActive,
-    lobbyKeyJoin,
-    togglePause,
-  } = deps;
+  const { getState, getMode, modeValues } = deps;
 
   document.addEventListener("keydown", (e) => {
     if (
@@ -62,18 +54,18 @@ export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
       handleKeyOptions(e, deps);
       return;
     }
-    if (isLobbyActive()) {
-      if (lobbyKeyJoin?.(e.key)) e.preventDefault();
+    if (deps.lobby.isActive()) {
+      if (deps.lobby.keyJoin?.(e.key)) e.preventDefault();
       return;
     }
 
     const state = getState();
     if (!state) return;
-    if (mode === modeValues.LIFE_LOST && deps.getLifeLostDialog()) {
+    if (mode === modeValues.LIFE_LOST && deps.lifeLost.get()) {
       handleKeyLifeLost(e, deps);
       return;
     }
-    if ((e.key === "p" || e.key === "P") && togglePause()) {
+    if ((e.key === "p" || e.key === "P") && deps.options.togglePause()) {
       e.preventDefault();
       return;
     }
@@ -99,20 +91,13 @@ function handleKeyF1(
   deps: RegisterOnlineInputDeps,
 ): boolean {
   if (e.key !== "F1") return false;
-  const {
-    modeValues,
-    showOptions,
-    closeOptions,
-    closeControls,
-    setOptionsReturnMode,
-    setMode,
-  } = deps;
+  const { modeValues, setMode } = deps;
   if (mode === modeValues.LOBBY) {
-    showOptions();
+    deps.options.show();
   } else if (mode === modeValues.OPTIONS) {
-    closeOptions();
+    deps.options.close();
   } else if (mode === modeValues.CONTROLS) {
-    closeControls();
+    deps.options.closeControls();
   } else if (
     mode === modeValues.SELECTION ||
     mode === modeValues.BANNER ||
@@ -121,7 +106,7 @@ function handleKeyF1(
     mode === modeValues.LIFE_LOST ||
     mode === modeValues.GAME
   ) {
-    setOptionsReturnMode(mode);
+    deps.options.setReturnMode(mode);
     setMode(modeValues.OPTIONS);
   } else {
     // Unlisted modes (e.g. STOPPED): consume F1 without action or preventDefault
@@ -135,15 +120,15 @@ function handleKeyStopped(
   e: KeyboardEvent,
   deps: RegisterOnlineInputDeps,
 ): void {
-  const { getGameOverFocused, setGameOverFocused, rematch, showLobby } = deps;
+  const { gameOver, rematch, showLobby } = deps;
   if (
     e.key === KEY_LEFT ||
     e.key === KEY_RIGHT ||
     e.key === "a" ||
     e.key === "d"
   ) {
-    setGameOverFocused(
-      getGameOverFocused() === FOCUS_REMATCH ? FOCUS_MENU : FOCUS_REMATCH,
+    gameOver.setFocused(
+      gameOver.getFocused() === FOCUS_REMATCH ? FOCUS_MENU : FOCUS_REMATCH,
     );
   } else if (
     e.key === KEY_ENTER ||
@@ -151,7 +136,7 @@ function handleKeyStopped(
     e.key === "n" ||
     e.key === "f"
   ) {
-    if (getGameOverFocused() === FOCUS_REMATCH) rematch();
+    if (gameOver.getFocused() === FOCUS_REMATCH) rematch();
     else showLobby();
   } else if (e.key === KEY_ESCAPE) {
     showLobby();
@@ -165,16 +150,7 @@ function handleKeyEscape(
   deps: RegisterOnlineInputDeps,
 ): boolean {
   if (e.key !== KEY_ESCAPE) return false;
-  const {
-    modeValues,
-    showLobby,
-    getControllers,
-    isHuman,
-    getQuitPending,
-    setQuitPending,
-    setQuitTimer,
-    setQuitMessage,
-  } = deps;
+  const { modeValues, showLobby, getControllers, isHuman, quit } = deps;
   if (
     mode === modeValues.LOBBY ||
     mode === modeValues.OPTIONS ||
@@ -184,12 +160,12 @@ function handleKeyEscape(
   const hasHumans = getControllers().some((c) => isHuman(c));
   if (!hasHumans) {
     showLobby();
-  } else if (getQuitPending()) {
+  } else if (quit.getPending()) {
     showLobby();
   } else {
-    setQuitPending(true);
-    setQuitTimer(2);
-    setQuitMessage("Press ESC or ✕ again to quit");
+    quit.setPending(true);
+    quit.setTimer(2);
+    quit.setMessage("Press ESC or ✕ again to quit");
   }
   e.preventDefault();
   return true;
@@ -199,8 +175,7 @@ function handleKeyControls(
   e: KeyboardEvent,
   deps: RegisterOnlineInputDeps,
 ): void {
-  const { getControlsState, closeControls, settings } = deps;
-  const controlsState = getControlsState();
+  const controlsState = deps.options.getControlsState();
   if (controlsState.rebinding) {
     e.preventDefault();
     if (e.key === KEY_ESCAPE) {
@@ -211,7 +186,7 @@ function handleKeyControls(
       const pIdx = controlsState.playerIdx;
       const aIdx = controlsState.actionIdx;
       const actionKey = ACTION_KEYS[aIdx]!;
-      applyKeyRebinding(settings.keyBindings[pIdx]!, actionKey, e.key);
+      applyKeyRebinding(deps.settings.keyBindings[pIdx]!, actionKey, e.key);
       controlsState.rebinding = false;
     }
   } else {
@@ -234,7 +209,7 @@ function handleKeyControls(
       controlsState.rebinding = true;
       e.preventDefault();
     } else if (e.key === KEY_ESCAPE) {
-      closeControls();
+      deps.options.closeControls();
       e.preventDefault();
     }
   }
@@ -244,21 +219,11 @@ function handleKeyOptions(
   e: KeyboardEvent,
   deps: RegisterOnlineInputDeps,
 ): void {
-  const {
-    getOptionsCursor,
-    setOptionsCursor,
-    getOptionsCount,
-    getRealOptionIdx,
-    getOptionsReturnMode,
-    changeOption,
-    closeOptions,
-    showControls,
-    settings,
-  } = deps;
-  const readOnly = getOptionsReturnMode() !== null;
+  const { options, settings } = deps;
+  const readOnly = options.getReturnMode() !== null;
   const seedMode = settings.seedMode;
 
-  if (!readOnly && !deps.isOnline && getRealOptionIdx() === 4) {
+  if (!readOnly && !deps.isOnline && options.getRealIdx() === 4) {
     if (e.key === KEY_LEFT || e.key === KEY_RIGHT) {
       if (seedMode === SEED_RANDOM) {
         settings.seedMode = SEED_CUSTOM;
@@ -289,21 +254,21 @@ function handleKeyOptions(
   }
 
   if (e.key === KEY_UP || e.key === "w" || e.key === "i") {
-    setOptionsCursor(
-      (getOptionsCursor() - 1 + getOptionsCount()) % getOptionsCount(),
+    options.setCursor(
+      (options.getCursor() - 1 + options.getCount()) % options.getCount(),
     );
     e.preventDefault();
   } else if (e.key === KEY_DOWN || e.key === "s" || e.key === "k") {
-    setOptionsCursor((getOptionsCursor() + 1) % getOptionsCount());
+    options.setCursor((options.getCursor() + 1) % options.getCount());
     e.preventDefault();
   } else if (e.key === KEY_LEFT || e.key === "a" || e.key === "j") {
-    changeOption(-1);
+    options.changeValue(-1);
     e.preventDefault();
   } else if (e.key === KEY_RIGHT || e.key === "d" || e.key === "l") {
-    changeOption(1);
+    options.changeValue(1);
     e.preventDefault();
   } else if (e.key === KEY_ESCAPE) {
-    closeOptions();
+    options.close();
     e.preventDefault();
   } else if (
     e.key === KEY_ENTER ||
@@ -312,8 +277,8 @@ function handleKeyOptions(
     e.key === "f" ||
     e.key === "h"
   ) {
-    if (getRealOptionIdx() === 5) showControls();
-    else closeOptions();
+    if (options.getRealIdx() === 5) options.showControls();
+    else options.close();
     e.preventDefault();
   }
 }
@@ -339,7 +304,7 @@ function buildLifeLostOverlayDeps(
   return {
     lifeLost: {
       isActive: () => {
-        const dialog = deps.getLifeLostDialog();
+        const dialog = deps.lifeLost.get();
         return (
           dialog?.entries.some(
             (en) =>
@@ -349,7 +314,7 @@ function buildLifeLostOverlayDeps(
         );
       },
       toggleFocus: () => {
-        const dialog = deps.getLifeLostDialog();
+        const dialog = deps.lifeLost.get();
         const entry = dialog?.entries.find(
           (en) =>
             en.playerId === ctrl.playerId &&
@@ -358,7 +323,7 @@ function buildLifeLostOverlayDeps(
         if (entry) entry.focused = entry.focused === 0 ? 1 : 0;
       },
       confirm: () => {
-        const dialog = deps.getLifeLostDialog();
+        const dialog = deps.lifeLost.get();
         const entry = dialog?.entries.find(
           (en) =>
             en.playerId === ctrl.playerId &&
@@ -369,7 +334,7 @@ function buildLifeLostOverlayDeps(
             entry.focused === 0
               ? LifeLostChoice.CONTINUE
               : LifeLostChoice.ABANDON;
-          deps.sendLifeLostChoice(entry.choice, entry.playerId);
+          deps.lifeLost.sendChoice(entry.choice, entry.playerId);
         }
       },
     },
@@ -386,21 +351,8 @@ function handleKeyGame(
     const action = ctrl.matchKey(e.key);
     if (!action) continue;
     if (isPlacementPhase(state.phase)) deps.setDirectTouchActive?.(false);
-    if (dispatchGameAction(ctrl, action, state, buildGameActionDeps(deps))) {
+    if (dispatchGameAction(ctrl, action, state, deps.gameAction)) {
       e.preventDefault();
     }
   }
-}
-
-function buildGameActionDeps(deps: RegisterOnlineInputDeps): GameActionDeps {
-  return {
-    getSelectionStates: deps.getSelectionStates,
-    highlightTowerForPlayer: deps.highlightTowerForPlayer,
-    confirmSelectionForPlayer: deps.confirmSelectionForPlayer,
-    isSelectionReady: deps.isSelectionReady,
-    tryPlacePieceAndSend: deps.tryPlacePieceAndSend,
-    tryPlaceCannonAndSend: deps.tryPlaceCannonAndSend,
-    onPieceRotated: deps.onPieceRotated,
-    fireAndSend: deps.fireAndSend,
-  };
 }

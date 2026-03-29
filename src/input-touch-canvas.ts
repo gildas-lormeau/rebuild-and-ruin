@@ -32,16 +32,7 @@ const TAP_MAX_DIST = 20;
 const TAP_MAX_TIME = 300;
 
 export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
-  const {
-    renderer,
-    getState,
-    getMode,
-    isLobbyActive,
-    screenToWorld,
-    onPinchStart,
-    onPinchUpdate,
-    onPinchEnd,
-  } = deps;
+  const { renderer, getState, getMode, coords } = deps;
 
   // Gesture tracking
   let touchStartX = 0;
@@ -81,7 +72,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
         pinchStartDist = Math.hypot(c1.x - c0.x, c1.y - c0.y);
         const midX = (c0.x + c1.x) / 2,
           midY = (c0.y + c1.y) / 2;
-        onPinchStart?.(midX, midY);
+        coords.onPinchStart?.(midX, midY);
         pinchActive = true;
         suppressSingleTouch = true;
         return;
@@ -97,7 +88,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
 
       const { x, y } = canvasCoords(touch);
       const state = getState();
-      if (!state || isLobbyActive()) return;
+      if (!state || deps.lobby.isActive()) return;
 
       // Tap-on-phantom: if the touch lands directly on the current phantom,
       // skip cursor movement so the tap can confirm placement at touchend.
@@ -105,7 +96,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
         isPlacementPhase(state.phase) &&
         isGameInteractionMode(getMode(), deps.modeValues)
       ) {
-        const tile = deps.pixelToTile(x, y);
+        const tile = coords.pixelToTile(x, y);
         let hit = false;
         deps.withFirstHuman((human) => {
           hit = isOnPhantom(human, state.phase, tile.row, tile.col);
@@ -142,7 +133,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
           midY = (c0.y + c1.y) / 2;
         // Inverted: scale > 1 = fingers closer = zoom out (viewport grows)
         const scale = pinchStartDist / Math.max(1, dist);
-        onPinchUpdate?.(midX, midY, scale);
+        coords.onPinchUpdate?.(midX, midY, scale);
         return;
       }
       if (suppressSingleTouch) return;
@@ -152,7 +143,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
 
       const { x, y } = canvasCoords(touch);
       const state = getState();
-      if (!state || isLobbyActive()) return;
+      if (!state || deps.lobby.isActive()) return;
 
       dispatchPointerMove(x, y, state, deps);
     },
@@ -169,7 +160,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
       if (pinchActive) {
         if (e.touches.length < 2) {
           pinchActive = false;
-          onPinchEnd?.();
+          coords.onPinchEnd?.();
           if (e.touches.length === 0) suppressSingleTouch = false;
         }
         return;
@@ -195,7 +186,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
 
       // Selection: first tap highlights, second tap on same tower confirms
       if (tap && isSelectionPhase(state.phase)) {
-        const w = screenToWorld(x, y);
+        const w = coords.screenToWorld(x, y);
         dispatchTowerSelect(
           w.wx,
           w.wy,
@@ -219,7 +210,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
 
   // Reset pinch state if OS cancels touches (e.g. phone call, gesture conflict)
   renderer.eventTarget.addEventListener("touchcancel", () => {
-    if (pinchActive) onPinchEnd?.();
+    if (pinchActive) coords.onPinchEnd?.();
     pinchActive = false;
     suppressSingleTouch = false;
   });
