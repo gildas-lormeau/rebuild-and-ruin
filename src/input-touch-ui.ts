@@ -12,7 +12,15 @@ import type {
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
-import { dispatchPlacement, isGameInteractionMode } from "./input-dispatch.ts";
+import {
+  dispatchConfirmForCtrl,
+  dispatchGameAction,
+  dispatchOverlayAction,
+  dispatchRotateForCtrl,
+  type GameActionDeps,
+  isGameInteractionMode,
+  type OverlayActionDeps,
+} from "./input-dispatch.ts";
 import { ACTION_CONFIRM, PLAYER_COLORS } from "./player-config.ts";
 import {
   rgb,
@@ -20,15 +28,7 @@ import {
   TOUCH_ZOOM_HOME_BG,
   ZOOM_BUTTON_ALPHA,
 } from "./render-theme.ts";
-import { findNearestTower } from "./spatial.ts";
-import {
-  Action,
-  type GameState,
-  isReselectPhase,
-  isSelectionPhase,
-  Phase,
-  type SelectionState,
-} from "./types.ts";
+import { Action, type GameState, isSelectionPhase, Phase } from "./types.ts";
 
 interface DpadDeps {
   getState: () => GameState | undefined;
@@ -37,51 +37,17 @@ interface DpadDeps {
   withFirstHuman: (
     action: (human: PlayerController & InputReceiver) => void,
   ) => void;
-  tryPlacePieceAndSend: (
-    human: PlayerController & InputReceiver,
-    state: GameState,
-  ) => void;
-  tryPlaceCannonAndSend: (
-    human: PlayerController & InputReceiver,
-    state: GameState,
-    max: number,
-  ) => void;
-  fireAndSend: (
-    human: PlayerController & InputReceiver,
-    state: GameState,
-  ) => void;
-  onPieceRotated?: () => void;
   onHapticTap?: () => void;
-  getSelectionStates: () => Map<number, SelectionState>;
-  highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
-  confirmSelectionForPlayer: (pid: number, isReselect: boolean) => boolean;
   isHost: () => boolean;
   /** Join P1 in lobby (or skip if already joined). */
   lobbyAction: () => void;
   getLeftHanded: () => boolean;
   /** Clear the direct-touch-active flag (hides floating buttons). */
   clearDirectTouch?: () => void;
-  /** True after the "Select your home castle" announcement has finished. */
-  isSelectionReady?: () => boolean;
-  /** Options screen navigation (optional — only wired on touch). */
-  options?: {
-    isActive: () => boolean;
-    navigate: (dir: -1 | 1) => void;
-    changeValue: (dir: -1 | 1) => void;
-    confirm: () => void;
-  };
-  /** Life-lost dialog navigation (optional — only wired on touch). */
-  lifeLost?: {
-    isActive: () => boolean;
-    toggleFocus: () => void;
-    confirm: () => void;
-  };
-  /** Game-over screen navigation (optional — only wired on touch). */
-  gameOver?: {
-    isActive: () => boolean;
-    toggleFocus: () => void;
-    confirm: () => void;
-  };
+  /** Shared game action deps (selection, placement, battle). */
+  gameAction: GameActionDeps;
+  /** Shared overlay action deps (options, life-lost, game-over). */
+  overlay: OverlayActionDeps;
 }
 
 interface QuitButtonDeps {
@@ -102,14 +68,6 @@ interface ZoomButtonDeps {
   getEnemyZones: () => number[];
   /** Move the human crosshair to a zone's home tower (battle auto-zoom). */
   aimAtZone?: (zone: number) => void;
-}
-
-interface RotateDeps {
-  getState: () => GameState | undefined;
-  withFirstHuman: (
-    action: (human: PlayerController & InputReceiver) => void,
-  ) => void;
-  onPieceRotated?: () => void;
 }
 
 interface FloatingActionsDeps {
@@ -193,51 +151,13 @@ export function createDpad(
 
   function fireDirection(action: Action) {
     deps.onHapticTap?.();
-    if (deps.options?.isActive()) {
-      if (action === Action.UP) deps.options.navigate(-1);
-      else if (action === Action.DOWN) deps.options.navigate(1);
-      else if (action === Action.LEFT) deps.options.changeValue(-1);
-      else if (action === Action.RIGHT) deps.options.changeValue(1);
-      return;
-    }
-    if (deps.lifeLost?.isActive()) {
-      if (action === Action.LEFT || action === Action.RIGHT)
-        deps.lifeLost.toggleFocus();
-      return;
-    }
-    if (deps.gameOver?.isActive()) {
-      if (action === Action.LEFT || action === Action.RIGHT)
-        deps.gameOver.toggleFocus();
-      return;
-    }
+    if (dispatchOverlayAction(action, deps.overlay)) return;
     const state = deps.getState();
     if (!state || !isGameInteractionMode(deps.getMode(), deps.modeValues))
       return;
-    if (
-      isSelectionPhase(state.phase) &&
-      (!deps.isSelectionReady || deps.isSelectionReady())
-    ) {
-      deps.withFirstHuman((human) => {
-        const ss = deps.getSelectionStates().get(human.playerId);
-        if (!ss || ss.confirmed) return;
-        const zone = state.playerZones[human.playerId] ?? 0;
-        const next = findNearestTower(
-          state.map.towers,
-          ss.highlighted,
-          action,
-          zone,
-        );
-        deps.highlightTowerForPlayer(next, zone, human.playerId);
-      });
-    } else {
-      deps.withFirstHuman((human) => {
-        if (state.phase === Phase.WALL_BUILD) {
-          human.moveBuildCursor(action);
-        } else if (state.phase === Phase.CANNON_PLACE) {
-          human.moveCannonCursor(action);
-        }
-      });
-    }
+    deps.withFirstHuman((human) => {
+      dispatchGameAction(human, action, state, deps.gameAction);
+    });
   }
 
   /** Battle: hold-to-move via handleKeyDown/handleKeyUp (mirrors keyboard). */
@@ -293,18 +213,7 @@ export function createDpad(
   // --- Action button: confirm selection / place piece / place cannon ---
   function handleAction() {
     deps.onHapticTap?.();
-    if (deps.options?.isActive()) {
-      deps.options.confirm();
-      return;
-    }
-    if (deps.lifeLost?.isActive()) {
-      deps.lifeLost.confirm();
-      return;
-    }
-    if (deps.gameOver?.isActive()) {
-      deps.gameOver.confirm();
-      return;
-    }
+    if (dispatchOverlayAction(Action.CONFIRM, deps.overlay)) return;
     const mode = deps.getMode();
     if (mode === deps.modeValues.LOBBY) {
       deps.lobbyAction();
@@ -312,23 +221,9 @@ export function createDpad(
     }
     const state = deps.getState();
     if (!state || !isGameInteractionMode(mode, deps.modeValues)) return;
-    if (
-      isSelectionPhase(state.phase) &&
-      (!deps.isSelectionReady || deps.isSelectionReady())
-    ) {
-      deps.withFirstHuman((human) => {
-        deps.confirmSelectionForPlayer(
-          human.playerId,
-          isReselectPhase(state.phase),
-        );
-      });
-    } else if (state.phase === Phase.BATTLE) {
-      if (state.battleCountdown <= 0) {
-        deps.withFirstHuman((human) => deps.fireAndSend(human, state));
-      }
-    } else {
-      dispatchPlacement(state, deps);
-    }
+    deps.withFirstHuman((human) => {
+      dispatchGameAction(human, Action.CONFIRM, state, deps.gameAction);
+    });
   }
 
   for (const btn of btnsAction) {
@@ -356,12 +251,17 @@ export function createDpad(
   // --- Rotate button: rotate piece / cycle cannon mode / speed up crosshair ---
   function handleRotate() {
     deps.onHapticTap?.();
-    if (deps.options?.isActive()) {
-      deps.options.changeValue(1);
+    const ov = deps.overlay.options;
+    if (ov?.isActive()) {
+      ov.changeValue(1);
       return;
     }
     if (!isGameInteractionMode(deps.getMode(), deps.modeValues)) return;
-    dispatchRotate(deps);
+    const state = deps.getState();
+    if (!state) return;
+    deps.withFirstHuman((human) => {
+      dispatchGameAction(human, Action.ROTATE, state, deps.gameAction);
+    });
   }
 
   for (const btn of btnsRotate) {
@@ -600,14 +500,20 @@ export function createFloatingActions(
 
   function handleRotate() {
     deps.onHapticTap?.();
-    dispatchRotate(deps);
+    const state = deps.getState();
+    if (!state) return;
+    deps.withFirstHuman((human) => {
+      dispatchRotateForCtrl(human, state, deps.onPieceRotated);
+    });
   }
 
   function handleConfirm() {
     deps.onHapticTap?.();
     const state = deps.getState();
     if (!state) return;
-    dispatchPlacement(state, deps);
+    deps.withFirstHuman((human) => {
+      dispatchConfirmForCtrl(human, state, deps);
+    });
   }
 
   const TAP_THRESHOLD = 10; // pixels — beyond this the gesture is a drag
@@ -696,21 +602,6 @@ function zoomButtonBg(pid: number, fallbackBg: string): string {
     return rgb(PLAYER_COLORS[pid]!.interiorLight, ZOOM_BUTTON_ALPHA);
   }
   return fallbackBg;
-}
-
-/** Rotate piece or cycle cannon mode for the first human player. */
-function dispatchRotate(deps: RotateDeps): void {
-  const state = deps.getState();
-  if (!state) return;
-  deps.withFirstHuman((human) => {
-    if (state.phase === Phase.WALL_BUILD) {
-      human.rotatePiece();
-      deps.onPieceRotated?.();
-    } else if (state.phase === Phase.CANNON_PLACE) {
-      const max = state.cannonLimits[human.playerId] ?? 0;
-      human.cycleCannonMode(state, max);
-    }
-  });
 }
 
 /** Query all elements matching a data-action within a container. */

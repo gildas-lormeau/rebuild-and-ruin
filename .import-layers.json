@@ -85,7 +85,9 @@
       "src/input-recorder.ts",
       "src/input-dispatch.ts",
       "src/input-touch-ui.ts",
-      "src/input-touch.ts",
+      "src/input-touch-canvas.ts",
+      "src/input-mouse.ts",
+      "src/input-keyboard.ts",
       "src/input.ts",
       "src/sound-system.ts"
     ]

@@ -14,12 +14,11 @@ import type {
 import { isHuman } from "./controller-interfaces.ts";
 import { type UIContext, visibleOptions } from "./game-ui-screens.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
-import {
-  type RegisterOnlineInputDeps,
-  registerOnlineInputHandlers,
-} from "./input.ts";
+import type { RegisterOnlineInputDeps } from "./input.ts";
 import { dispatchPointerMove } from "./input-dispatch.ts";
-import { registerTouchHandlers } from "./input-touch.ts";
+import { registerKeyboardHandlers } from "./input-keyboard.ts";
+import { registerMouseHandlers } from "./input-mouse.ts";
+import { registerTouchHandlers } from "./input-touch-canvas.ts";
 import {
   createDpad,
   createEnemyZoomButton,
@@ -278,7 +277,8 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       settings: rs.settings,
       isOnline: deps.isOnline,
     };
-    registerOnlineInputHandlers(inputDeps);
+    registerMouseHandlers(inputDeps);
+    registerKeyboardHandlers(inputDeps);
     registerTouchHandlers({ ...inputDeps, lobbyKeyJoin: undefined });
 
     // Touch controls: wire static DOM elements from index.html
@@ -286,6 +286,49 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       gameContainer.classList.add("has-touch-panels");
       const placePiece = inputDeps.tryPlacePieceAndSend;
       const placeCannon = inputDeps.tryPlaceCannonAndSend;
+      const overlayActionDeps = {
+        options: {
+          isActive: () => rs.mode === Mode.OPTIONS,
+          navigate: (dir: -1 | 1) => {
+            const count = visibleOptions(uiCtx).length;
+            rs.optionsCursor = (rs.optionsCursor + dir + count) % count;
+          },
+          changeValue: (dir: -1 | 1) => options.changeOption(dir),
+          confirm: () => {
+            if (options.realOptionIdx() === 5) options.showControls();
+            else options.closeOptions();
+          },
+        },
+        lifeLost: {
+          isActive: () =>
+            rs.mode === Mode.LIFE_LOST && rs.lifeLostDialog !== null,
+          toggleFocus: () => {
+            const human = firstHuman();
+            if (human) lifeLost.toggleFocus(human.playerId);
+          },
+          confirm: () => {
+            const human = firstHuman();
+            if (human) lifeLost.confirmChoice(human.playerId);
+          },
+        },
+        gameOver: {
+          isActive: () =>
+            rs.mode === Mode.STOPPED && rs.frame.gameOver !== undefined,
+          toggleFocus: () => {
+            if (!rs.frame.gameOver) return;
+            rs.frame.gameOver.focused =
+              rs.frame.gameOver.focused === FOCUS_REMATCH
+                ? FOCUS_MENU
+                : FOCUS_REMATCH;
+            render();
+          },
+          confirm: () => {
+            if (!rs.frame.gameOver) return;
+            if (rs.frame.gameOver.focused === FOCUS_REMATCH) rematch();
+            else returnToLobby();
+          },
+        },
+      };
       touch.dpad = createDpad(
         {
           getState: () => safeState(rs),
@@ -296,14 +339,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
             LOBBY: Mode.LOBBY,
           },
           withFirstHuman,
-          tryPlacePieceAndSend: placePiece,
-          tryPlaceCannonAndSend: placeCannon,
-          fireAndSend: inputDeps.fireAndSend,
-          onPieceRotated: sound.pieceRotated,
           onHapticTap: haptics.tap,
-          getSelectionStates: () => rs.selectionStates,
-          highlightTowerForPlayer: selection.highlight,
-          confirmSelectionForPlayer: selection.confirm,
           isHost: deps.getIsHost,
           lobbyAction: () =>
             lobby.lobbyKeyJoin(rs.settings.keyBindings[0]!.confirm),
@@ -311,48 +347,17 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
           clearDirectTouch: () => {
             rs.directTouchActive = false;
           },
-          isSelectionReady,
-          options: {
-            isActive: () => rs.mode === Mode.OPTIONS,
-            navigate: (dir) => {
-              const count = visibleOptions(uiCtx).length;
-              rs.optionsCursor = (rs.optionsCursor + dir + count) % count;
-            },
-            changeValue: (dir) => options.changeOption(dir),
-            confirm: () => {
-              if (options.realOptionIdx() === 5) options.showControls();
-              else options.closeOptions();
-            },
+          gameAction: {
+            getSelectionStates: () => rs.selectionStates,
+            highlightTowerForPlayer: selection.highlight,
+            confirmSelectionForPlayer: selection.confirm,
+            isSelectionReady,
+            tryPlacePieceAndSend: placePiece,
+            tryPlaceCannonAndSend: placeCannon,
+            onPieceRotated: sound.pieceRotated,
+            fireAndSend: inputDeps.fireAndSend,
           },
-          lifeLost: {
-            isActive: () =>
-              rs.mode === Mode.LIFE_LOST && rs.lifeLostDialog !== null,
-            toggleFocus: () => {
-              const human = firstHuman();
-              if (human) lifeLost.toggleFocus(human.playerId);
-            },
-            confirm: () => {
-              const human = firstHuman();
-              if (human) lifeLost.confirmChoice(human.playerId);
-            },
-          },
-          gameOver: {
-            isActive: () =>
-              rs.mode === Mode.STOPPED && rs.frame.gameOver !== undefined,
-            toggleFocus: () => {
-              if (!rs.frame.gameOver) return;
-              rs.frame.gameOver.focused =
-                rs.frame.gameOver.focused === FOCUS_REMATCH
-                  ? FOCUS_MENU
-                  : FOCUS_REMATCH;
-              render();
-            },
-            confirm: () => {
-              if (!rs.frame.gameOver) return;
-              if (rs.frame.gameOver.focused === FOCUS_REMATCH) rematch();
-              else returnToLobby();
-            },
-          },
+          overlay: overlayActionDeps,
         },
         gameContainer,
       );
