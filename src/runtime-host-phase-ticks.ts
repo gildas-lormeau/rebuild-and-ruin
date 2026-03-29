@@ -125,6 +125,9 @@ interface TickHostBuildPhaseDeps {
 
 /** Sentinel empty map — never mutated (phantomChanged short-circuits on empty maps). */
 const EMPTY_MAP = new Map<number, string>();
+/** Protocol placeholder — broadcastNewWalls sends absolute tile positions in `offsets`,
+ *  so `row`/`col` are unused. This constant documents the intent. */
+const PLACEHOLDER_ORIGIN = { row: 0, col: 0 } as const;
 
 /**
  * Controller cannon lifecycle per frame:
@@ -289,11 +292,11 @@ function processControllerBuildActions(
     remoteHumanSlots,
     state,
   )) {
+    const player = state.players[ctrl.playerId];
+    if (!player) continue;
     const wallSnapshot =
-      isHost && !deps.isHuman(ctrl)
-        ? new Set(state.players[ctrl.playerId]!.walls)
-        : null;
-    const hadInterior = state.players[ctrl.playerId]!.interior.size > 0;
+      isHost && !deps.isHuman(ctrl) ? new Set(player.walls) : null;
+    const hadInterior = player.interior.size > 0;
 
     const phantoms = ctrl.buildTick(state, dt);
 
@@ -307,45 +310,72 @@ function processControllerBuildActions(
       );
     }
 
-    if (!hadInterior && state.players[ctrl.playerId]!.interior.size > 0) {
+    if (!hadInterior && player.interior.size > 0) {
       deps.onFirstEnclosure?.(ctrl.playerId);
     }
 
-    for (const phantom of phantoms) {
-      if (deps.isHuman(ctrl)) {
-        frame.phantoms.humanPhantoms!.push({
-          offsets: phantom.offsets,
-          row: phantom.row,
-          col: phantom.col,
-          valid: phantom.valid,
-          playerId: phantom.playerId,
-        });
-      } else {
-        frame.phantoms.aiPhantoms!.push({
-          offsets: phantom.offsets,
-          row: phantom.row,
-          col: phantom.col,
-          playerId: phantom.playerId,
-        });
-      }
+    collectBuildPhantoms(
+      phantoms,
+      deps.isHuman(ctrl),
+      frame,
+      isHost,
+      lastSentPiecePhantom,
+      sendOpponentPhantom,
+    );
+  }
+}
 
-      if (!isHost || !sendOpponentPhantom) continue;
-      if (
-        !phantomChanged(
-          lastSentPiecePhantom,
-          phantom.playerId,
-          piecePhantomKey(phantom),
-        )
-      )
-        continue;
-      sendOpponentPhantom({
-        playerId: phantom.playerId,
+/** Collect build-phase phantoms into the frame and broadcast new ones to peers. */
+function collectBuildPhantoms(
+  phantoms: readonly (PiecePhantom & { valid?: boolean })[],
+  isHumanCtrl: boolean,
+  frame: HostFrame,
+  isHost: boolean,
+  lastSentPiecePhantom: Map<number, string>,
+  sendOpponentPhantom:
+    | ((msg: {
+        playerId: number;
+        row: number;
+        col: number;
+        offsets: [number, number][];
+        valid: boolean;
+      }) => void)
+    | undefined,
+): void {
+  for (const phantom of phantoms) {
+    if (isHumanCtrl) {
+      frame.phantoms.humanPhantoms!.push({
+        offsets: phantom.offsets,
         row: phantom.row,
         col: phantom.col,
+        valid: phantom.valid ?? true,
+        playerId: phantom.playerId,
+      });
+    } else {
+      frame.phantoms.aiPhantoms!.push({
         offsets: phantom.offsets,
-        valid: phantom.valid,
+        row: phantom.row,
+        col: phantom.col,
+        playerId: phantom.playerId,
       });
     }
+
+    if (!isHost || !sendOpponentPhantom) continue;
+    if (
+      !phantomChanged(
+        lastSentPiecePhantom,
+        phantom.playerId,
+        piecePhantomKey(phantom),
+      )
+    )
+      continue;
+    sendOpponentPhantom({
+      playerId: phantom.playerId,
+      row: phantom.row,
+      col: phantom.col,
+      offsets: phantom.offsets,
+      valid: phantom.valid ?? true,
+    });
   }
 }
 
@@ -371,8 +401,7 @@ function broadcastNewWalls(
     }
   }
   if (offsets.length > 0) {
-    // row/col are protocol placeholders — real coordinates are in offsets (absolute tile positions)
-    sendOpponentPiecePlaced({ playerId, row: 0, col: 0, offsets });
+    sendOpponentPiecePlaced({ playerId, ...PLACEHOLDER_ORIGIN, offsets });
   }
 }
 

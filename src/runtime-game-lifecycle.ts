@@ -22,7 +22,7 @@ import {
 import { gameOverButtonHitTest } from "./render-composition.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { bootstrapGame } from "./runtime-bootstrap.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import { NO_SLOT, type RuntimeState } from "./runtime-state.ts";
 import type { CameraSystem } from "./runtime-types.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import {
@@ -232,7 +232,7 @@ export function createGameLifecycle(
     rs.scoreDeltaOnDone = null;
     camera.fullUnzoom();
     rs.frame.gameOver = undefined;
-    rs.mouseJoinedSlot = -1;
+    rs.mouseJoinedSlot = NO_SLOT;
     rs.directTouchActive = false;
     deps.resetTouchForLobby();
     deps.showLobby();

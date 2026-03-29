@@ -288,7 +288,7 @@ export function filterAliveOwnedTowers(player: Player, state: GameState) {
  * Sweep one layer of debris wall tiles (0 or 1 orthogonal neighbor).
  * Collects all isolated tiles first, then removes them in one batch.
  */
-export function sweepIsolatedWalls(walls: Set<number>): void {
+export function removeIsolatedWalls(walls: Set<number>): void {
   const toRemove: number[] = [];
   for (const key of walls) {
     const { r, c } = unpackTile(key);

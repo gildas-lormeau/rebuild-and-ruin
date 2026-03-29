@@ -27,6 +27,15 @@
  * **Rule**: new render functions should accept `now?: number` (Date.now scale)
  * unless the animation is purely cosmetic and will never be snapshot-tested.
  * Never mix the two in a single function — pick one source and stick with it.
+ *
+ * ### Canvas save/restore convention (applies across all render-* files)
+ *
+ * Any function that mutates the canvas context (globalAlpha, transform, clip,
+ * fillStyle, etc.) MUST wrap the mutation in `ctx.save()` / `ctx.restore()`.
+ * This ensures callers don't inherit unexpected state. The pattern is:
+ *   ctx.save();
+ *   // ... mutations + drawing ...
+ *   ctx.restore();
  */
 
 import { IMPACT_FLASH_DURATION } from "./game-constants.ts";

@@ -5,7 +5,7 @@
 
 import { MESSAGE } from "../server/protocol.ts";
 import { canFire, resolveBalloons, tickCannonballs } from "../src/battle-system.ts";
-import { snapshotAllWalls, sweepIsolatedWalls } from "../src/board-occupancy.ts";
+import { snapshotAllWalls, removeIsolatedWalls } from "../src/board-occupancy.ts";
 import { isCannonEnclosed } from "../src/cannon-system.ts";
 import { initControllerForCannonPhase, nextPhase } from "../src/game-engine.ts";
 import { GRID_COLS } from "../src/grid.ts";
@@ -71,7 +71,7 @@ test("frame.gameOver is undefined after game ends and lobby is requested", () =>
 test("isolated walls are swept before battle banner captures newWalls", () => {
   const s = createScenario();
 
-  // Add isolated wall tiles (0-1 neighbors) that sweepIsolatedWalls should remove
+  // Add isolated wall tiles (0-1 neighbors) that removeIsolatedWalls should remove
   const player = s.state.players[0]!;
   const wallsBefore = new Set(player.walls);
 
@@ -91,10 +91,10 @@ test("isolated walls are swept before battle banner captures newWalls", () => {
   player.walls.add(isolatedKey);
 
   // Verify it's truly isolated (0-1 neighbors)
-  sweepIsolatedWalls(player.walls);
+  removeIsolatedWalls(player.walls);
   assert(
     !player.walls.has(isolatedKey),
-    "Isolated wall tile should be swept by sweepIsolatedWalls",
+    "Isolated wall tile should be swept by removeIsolatedWalls",
   );
 
   // Restore for the real test: advance through cannon phase to battle

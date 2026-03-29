@@ -28,7 +28,7 @@ interface BroadcastDeps {
 
 interface ExtendDeps {
   remoteCrosshairs: Map<number, PixelPos>;
-  crosshairPos: Map<number, PixelPos>;
+  watcherCrosshairPos: Map<number, PixelPos>;
   remoteHumanSlots: ReadonlySet<number>;
   logThrottled: (key: string, msg: string) => void;
 }
@@ -74,10 +74,10 @@ export function extendWithRemoteCrosshairs(
     if (!player || player.eliminated) continue;
     if (!canPlayerFire(state, pid)) continue;
     const readyCannon = nextReadyCombined(state, pid);
-    let vis = deps.crosshairPos.get(pid);
+    let vis = deps.watcherCrosshairPos.get(pid);
     if (!vis) {
       vis = { x: target.x, y: target.y };
-      deps.crosshairPos.set(pid, vis);
+      deps.watcherCrosshairPos.set(pid, vis);
     }
     interpolateToward(
       vis,

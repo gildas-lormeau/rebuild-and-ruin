@@ -14,13 +14,13 @@ import type {
 } from "./controller-interfaces.ts";
 import { TAP_MAX_DIST } from "./input.ts";
 import {
-  dispatchConfirmForCtrl,
   dispatchGameAction,
   dispatchOverlayAction,
+  dispatchPlacementConfirm,
   dispatchQuit,
   dispatchRotateForCtrl,
   type GameActionDeps,
-  isGameInteractionMode,
+  isGameOrSelectionMode,
   type OverlayActionDeps,
 } from "./input-dispatch.ts";
 import { ACTION_CONFIRM, PLAYER_COLORS } from "./player-config.ts";
@@ -160,7 +160,7 @@ export function createDpad(
     deps.onHapticTap?.();
     if (dispatchOverlayAction(action, deps.overlay)) return;
     const state = deps.getState();
-    if (!state || !isGameInteractionMode(deps.getMode(), deps.modeValues))
+    if (!state || !isGameOrSelectionMode(deps.getMode(), deps.modeValues))
       return;
     deps.withFirstHuman((human) => {
       dispatchGameAction(human, action, state, deps.gameAction);
@@ -228,72 +228,20 @@ export function createDpad(
       return;
     }
     const state = deps.getState();
-    if (!state || !isGameInteractionMode(mode, deps.modeValues)) return;
+    if (!state || !isGameOrSelectionMode(mode, deps.modeValues)) return;
     deps.withFirstHuman((human) => {
       dispatchGameAction(human, Action.CONFIRM, state, deps.gameAction);
     });
   }
 
-  for (const btn of btnsAction) {
-    btn.addEventListener(
-      "touchstart",
-      (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        pressDown(btn);
-        handleAction();
-      },
-      { passive: false },
-    );
-    btn.addEventListener(
-      "touchend",
-      (e) => {
-        e.preventDefault();
-        pressUp(btn);
-      },
-      { passive: false },
-    );
-    btn.addEventListener("touchcancel", () => pressUp(btn));
-  }
-
-  // --- Rotate button: rotate piece / cycle cannon mode / speed up crosshair ---
-  function handleRotate() {
-    deps.onHapticTap?.();
-    if (dispatchOverlayAction(Action.ROTATE, deps.overlay)) return;
-    if (!isGameInteractionMode(deps.getMode(), deps.modeValues)) return;
-    const state = deps.getState();
-    if (!state) return;
-    deps.withFirstHuman((human) => {
-      dispatchGameAction(human, Action.ROTATE, state, deps.gameAction);
-    });
-  }
-
-  for (const btn of btnsRotate) {
-    btn.addEventListener(
-      "touchstart",
-      (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        pressDown(btn);
-        if (isBattlePhase()) battleKeyDown(Action.ROTATE);
-        else handleRotate();
-      },
-      { passive: false },
-    );
-    btn.addEventListener(
-      "touchend",
-      (e) => {
-        e.preventDefault();
-        pressUp(btn);
-        if (isBattlePhase()) battleKeyUp(Action.ROTATE);
-      },
-      { passive: false },
-    );
-    btn.addEventListener("touchcancel", () => {
-      pressUp(btn);
-      if (isBattlePhase()) battleKeyUp(Action.ROTATE);
-    });
-  }
+  wireActionButtons(btnsAction, handleAction);
+  wireRotateButtons(
+    btnsRotate,
+    deps,
+    isBattlePhase,
+    battleKeyDown,
+    battleKeyUp,
+  );
 
   // --- Layout: left-handed toggle ---
   container.classList.toggle("left-handed", deps.getLeftHanded());
@@ -520,7 +468,7 @@ export function createFloatingActions(
     const state = deps.getState();
     if (!state) return;
     deps.withFirstHuman((human) => {
-      dispatchConfirmForCtrl(human, state, deps);
+      dispatchPlacementConfirm(human, state, deps);
     });
   }
 
@@ -554,6 +502,81 @@ export function createFloatingActions(
       btnConfirm.classList.toggle(CLS_DISABLED, !valid);
     },
   };
+}
+
+/** Wire action (confirm) buttons — single-tap, no repeat. */
+function wireActionButtons(
+  btnsAction: readonly HTMLButtonElement[],
+  handleAction: () => void,
+): void {
+  for (const btn of btnsAction) {
+    btn.addEventListener(
+      "touchstart",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        pressDown(btn);
+        handleAction();
+      },
+      { passive: false },
+    );
+    btn.addEventListener(
+      "touchend",
+      (e) => {
+        e.preventDefault();
+        pressUp(btn);
+      },
+      { passive: false },
+    );
+    btn.addEventListener("touchcancel", () => pressUp(btn));
+  }
+}
+
+/** Wire rotate buttons — single-tap in placement, hold-to-move in battle. */
+function wireRotateButtons(
+  btnsRotate: readonly HTMLButtonElement[],
+  deps: DpadDeps,
+  isBattlePhase: () => boolean,
+  battleKeyDown: (action: Action) => void,
+  battleKeyUp: (action: Action) => void,
+): void {
+  function handleRotate() {
+    deps.onHapticTap?.();
+    if (dispatchOverlayAction(Action.ROTATE, deps.overlay)) return;
+    if (!isGameOrSelectionMode(deps.getMode(), deps.modeValues)) return;
+    const state = deps.getState();
+    if (!state) return;
+    deps.withFirstHuman((human) => {
+      dispatchGameAction(human, Action.ROTATE, state, deps.gameAction);
+    });
+  }
+
+  for (const btn of btnsRotate) {
+    btn.addEventListener(
+      "touchstart",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        pressDown(btn);
+        if (isBattlePhase()) battleKeyDown(Action.ROTATE);
+        else handleRotate();
+      },
+      { passive: false },
+    );
+    btn.addEventListener(
+      "touchend",
+      (e) => {
+        e.preventDefault();
+        pressUp(btn);
+        if (isBattlePhase()) battleKeyUp(Action.ROTATE);
+      },
+      { passive: false },
+    );
+    btn.addEventListener("touchcancel", () => {
+      pressUp(btn);
+      if (isBattlePhase()) battleKeyUp(Action.ROTATE);
+    });
+  }
 }
 
 /** Resolve the background color for a zoom button: player color if pid is valid, fallback otherwise. */

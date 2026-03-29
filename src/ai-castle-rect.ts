@@ -254,20 +254,20 @@ export function castleRect(
     crossB: number,
     vertical: boolean,
   ): number => {
-    for (let margin = 1; margin <= margin; margin++) {
-      const interior = base + direction * margin;
+    for (let step = 1; step <= margin; step++) {
+      const interior = base + direction * step;
       const ring = interior + direction;
-      if (ring < 0 || ring >= gridSize) return margin - 1;
+      if (ring < 0 || ring >= gridSize) return step - 1;
       const crossLimit = vertical ? GRID_COLS : GRID_ROWS;
       for (const cross of [crossA, crossB]) {
         if (cross < 0 || cross >= crossLimit) continue;
         const iRow = vertical ? interior : cross;
         const iCol = vertical ? cross : interior;
-        if (isWater(tiles, iRow, iCol)) return margin - 1;
+        if (isWater(tiles, iRow, iCol)) return step - 1;
         // Also check the ring tile — walls are placed there
         const rRow = vertical ? ring : cross;
         const rCol = vertical ? cross : ring;
-        if (isWater(tiles, rRow, rCol)) return margin - 1;
+        if (isWater(tiles, rRow, rCol)) return step - 1;
       }
       for (const other of towers) {
         if (other === tower) continue;
@@ -279,7 +279,7 @@ export function castleRect(
           const hitB = vertical
             ? isTowerTile(other, line, crossB)
             : isTowerTile(other, crossB, line);
-          if (hitA || hitB) return margin - 1;
+          if (hitA || hitB) return step - 1;
         }
       }
     }

@@ -322,7 +322,7 @@ function removeEnclosedGruntsAndRespawn(
   player.score += enclosed.length * DESTROY_GRUNT_POINTS;
 
   const enemies = state.players.filter(
-    (player) => player.id !== player.id && isPlayerActive(player),
+    (other) => other.id !== player.id && isPlayerActive(other),
   );
   if (enemies.length === 0) return;
 

@@ -6,6 +6,23 @@
  * their deps, and returns a narrow GameRuntime handle.
  *
  * Used by both main.ts (local play) and online-client-runtime.ts (online).
+ *
+ * ### Sub-system deps destructuring convention
+ *
+ * Each createXSystem(deps) factory destructures only frequently-used deps
+ * (typically `rs` and `uiCtx`) at the factory top level. Rarely-used deps
+ * are accessed inline as `deps.X`. This keeps closures lean while avoiding
+ * verbose `deps.` prefixes on hot paths. The pattern is intentionally not
+ * uniform across sub-systems — it reflects each sub-system's actual usage.
+ *
+ * ### Overlay mutation convention
+ *
+ * Two overlay patterns coexist by design:
+ * - **Persistent state** (game overlays): mutated in-place via `rs.overlay.X = ...`
+ *   because the overlay persists across frames and is read by the main render loop.
+ * - **Transient overlays** (lobby, options): created fresh via factory functions
+ *   (`createLobbyOverlay`, `createOptionsOverlay`) and passed directly to
+ *   `renderFrame(map, overlay)` — these don't persist in `rs.overlay`.
  */
 
 import {
@@ -58,6 +75,7 @@ import {
 import {
   createRuntimeState,
   isStateReady,
+  NO_SLOT,
   safeState,
 } from "./runtime-state.ts";
 import { updateTouchControls } from "./runtime-touch-ui.ts";
@@ -312,7 +330,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function firstHuman(): (PlayerController & InputReceiver) | null {
     if (cachedFirstHuman !== undefined) return cachedFirstHuman;
     // Prefer the player who joined via mouse/trackpad
-    if (rs.mouseJoinedSlot >= 0) {
+    if (rs.mouseJoinedSlot !== NO_SLOT) {
       const ctrl = rs.controllers.find(
         (c) => c.playerId === rs.mouseJoinedSlot,
       );

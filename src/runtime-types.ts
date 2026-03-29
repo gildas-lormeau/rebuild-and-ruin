@@ -93,7 +93,10 @@ export interface RuntimeConfig {
     createBuildStartMessage: (state: GameState) => ServerMessage;
     remoteCannonPhantoms: () => readonly CannonPhantom[];
     remotePiecePhantoms: () => readonly PiecePhantom[];
+    /** Getter returning the dedup map — wraps the direct Map property from
+     *  WatcherTickContext/CannonPhaseNet so the runtime doesn't hold a stale reference. */
     lastSentCannonPhantom: () => Map<number, string>;
+    /** Getter returning the dedup map — same late-binding pattern as lastSentCannonPhantom. */
     lastSentPiecePhantom: () => Map<number, string>;
   };
   /** Watcher timing state (for non-host battle). */
@@ -193,6 +196,8 @@ export interface RuntimeSelection {
   ) => void;
   startReselection: () => void;
   finishReselection: () => void;
+  /** Show animated score deltas after build phase. `onDone` is invoked exactly once
+   *  when the animation finishes (or immediately if there are no deltas to show). */
   showBuildScoreDeltas: (onDone: () => void) => void;
 }
 
@@ -242,6 +247,7 @@ export interface GameRuntime {
   render: () => void;
   registerInputHandlers: () => void;
 
+  /** Show a full-screen banner. `onDone` is invoked exactly once when the banner finishes. */
   showBanner: (
     text: string,
     onDone: () => void,

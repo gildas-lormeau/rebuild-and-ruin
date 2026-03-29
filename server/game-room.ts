@@ -21,8 +21,9 @@ import {
 } from "./protocol.ts";
 import { safeSendRaw } from "./send-utils.ts";
 
-/** Phase values the server tracks. Extends the game Phase enum with server-only
- *  states that have no Phase enum equivalent. Used only for phase gating. */
+/** Phase values the server tracks for message gating.
+ *  Union of the game-engine Phase enum with server-only string literal states
+ *  ("LOBBY", "CASTLE_BUILD") that have no Phase enum equivalent. */
 type ServerPhase = Phase | "LOBBY" | "CASTLE_BUILD";
 
 // ---------------------------------------------------------------------------
@@ -253,14 +254,14 @@ export class GameRoom {
     this.hostSocket = socket;
   }
 
-  /** Should the identity check (playerId === sender's slot) be skipped?
-   *  True for the host on non-host-only messages: the host sends actions on
-   *  behalf of AI players whose playerId differs from its own slot. */
-  private shouldSkipIdentityCheck(
+  /** Must the sender's playerId match their assigned slot?
+   *  False for the host on non-host-only messages: the host relays actions
+   *  on behalf of AI players whose playerId differs from its own slot. */
+  private requiresIdentityCheck(
     senderSocket: WebSocket,
     type: string,
   ): boolean {
-    return senderSocket === this.hostSocket && !HOST_ONLY.has(type);
+    return !(senderSocket === this.hostSocket && !HOST_ONLY.has(type));
   }
 
   // ---------------------------------------------------------------------------
@@ -309,10 +310,7 @@ export class GameRoom {
     // --- 2. Identity enforcement (for messages with playerId) ---
     // Host is exempt: it sends actions on behalf of AI players.
     // Non-host sockets may only send messages for their own playerId.
-    if (
-      "playerId" in msg &&
-      !this.shouldSkipIdentityCheck(senderSocket, type)
-    ) {
+    if ("playerId" in msg && this.requiresIdentityCheck(senderSocket, type)) {
       const senderPid = this.players.get(senderSocket);
       if (senderPid === undefined) return;
       if (msg.playerId !== senderPid) return;
@@ -326,6 +324,10 @@ export class GameRoom {
     if (!validatePayload(msg)) return;
 
     // --- 5. Rate limiting (sliding window counter) ---
+    // Messages exceeding the limit are SILENTLY DROPPED — no NACK, no log.
+    // This is safe because RATE_LIMITED_TYPES contains only cosmetic/display
+    // messages (phantoms, aim updates) where occasional drops are invisible.
+    // NEVER add game-state or checkpoint messages to RATE_LIMITED_TYPES.
     if (RATE_LIMITED_TYPES.has(type)) {
       if (!this.rateLimits.has(senderSocket)) {
         this.rateLimits.set(senderSocket, new Map());

@@ -4,6 +4,12 @@
  * Pure functions that translate pointer/tap events into game actions.
  * Used by mouse input (input.ts), touch input (input-touch-canvas.ts),
  * and touch UI controls (touch-ui.ts).
+ *
+ * ### First-human-player convention
+ *
+ * Touch and mouse dispatchers target the first human player only
+ * (via `withFirstHuman`). Keyboard input loops over ALL controllers
+ * to support local multiplayer with distinct key bindings.
  */
 
 import type {
@@ -115,8 +121,8 @@ export function isTouchSuppressed(): boolean {
   return performance.now() - lastTouchTime < TOUCH_CLICK_SUPPRESS_MS;
 }
 
-/** Whether the current mode allows gameplay interaction (tower selection or active game). */
-export function isGameInteractionMode(
+/** Whether the current mode allows gameplay interaction (tower selection or active game play). */
+export function isGameOrSelectionMode(
   mode: number,
   mv: { GAME: number; SELECTION: number },
 ): boolean {
@@ -201,12 +207,12 @@ export function dispatchTowerSelect(
       const alreadyHighlighted = ss.highlighted === idx;
       if (
         alreadyHighlighted &&
-        (!requireSecondTapToConfirm || ss.readyToConfirm)
+        (!requireSecondTapToConfirm || ss.secondTapReady)
       ) {
         gameAction.confirmSelectionForPlayer(human.playerId, isReselect);
       } else {
         gameAction.highlightTowerForPlayer(idx, zone, human.playerId);
-        ss.readyToConfirm = alreadyHighlighted;
+        ss.secondTapReady = alreadyHighlighted;
       }
     }
   });
@@ -226,7 +232,7 @@ export function dispatchPlacement(
   },
 ): void {
   deps.withFirstHuman((human) => {
-    dispatchConfirmForCtrl(human, state, deps.gameAction);
+    dispatchPlacementConfirm(human, state, deps.gameAction);
   });
 }
 
@@ -419,7 +425,7 @@ export function dispatchPointerMove(
         state.map.towers[idx]?.zone === zone
       ) {
         gameAction.highlightTowerForPlayer(idx, zone, human.playerId);
-        ss.readyToConfirm = false;
+        ss.secondTapReady = false;
       }
     } else if (state.phase === Phase.WALL_BUILD) {
       const { row, col } = coords.pixelToTile(x, y);
@@ -462,7 +468,7 @@ function dispatchPlacementAction(
     return true;
   }
   if (action === Action.CONFIRM) {
-    dispatchConfirmForCtrl(ctrl, state, deps);
+    dispatchPlacementConfirm(ctrl, state, deps);
     return true;
   }
   return false;
@@ -484,7 +490,7 @@ export function dispatchRotateForCtrl(
 }
 
 /** Place piece or cannon for a single controller. */
-export function dispatchConfirmForCtrl(
+export function dispatchPlacementConfirm(
   ctrl: PlayerController & InputReceiver,
   state: GameState,
   deps: {

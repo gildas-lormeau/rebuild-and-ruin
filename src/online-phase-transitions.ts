@@ -66,7 +66,7 @@ export interface TransitionContext {
     applyCannonStart: (data: CannonStartData) => void;
     applyBattleStart: (data: BattleStartData) => void;
     applyBuildStart: (data: BuildStartData) => void;
-    applyPlayers: (
+    applyPlayersCheckpoint: (
       state: GameState,
       players: readonly SerializedPlayer[],
     ) => void;
@@ -277,7 +277,7 @@ export function handleBuildStartTransition(
 
 /** Handle BUILD_END: apply player checkpoint, show score deltas, then life-lost dialog.
  *
- *  IMPORTANT: `preScores` must be captured BEFORE `applyPlayers` overwrites player state.
+ *  IMPORTANT: `preScores` must be captured BEFORE `applyPlayersCheckpoint` overwrites player state.
  *  The score-delta animation relies on comparing old scores against the new ones the host
  *  computed. Without the delta delay, the non-host would send life_lost_choice before the
  *  host has created its dialog, causing the choice to be silently dropped. */
@@ -289,7 +289,7 @@ export function handleBuildEndTransition(
   const state = ctx.getState();
   // Capture pre-scores before checkpoint overwrites them (needed for score delta animation)
   const preScores = state.players.map((player) => player.score);
-  ctx.checkpoint.applyPlayers(state, msg.players);
+  ctx.checkpoint.applyPlayersCheckpoint(state, msg.players);
   for (let i = 0; i < state.players.length; i++) {
     state.players[i]!.score = msg.scores[i] ?? state.players[i]!.score;
   }

@@ -21,8 +21,8 @@ import {
 } from "./online-session.ts";
 import {
   createWatcherState,
-  resetWatcherForHost,
   resetWatcherState,
+  resetWatcherTimingForHost,
 } from "./online-watcher-tick.ts";
 import { IS_DEV } from "./platform.ts";
 
@@ -97,7 +97,7 @@ export function maybeSendAimUpdate(
  *  │ resetDedup()         │ mid-game  │ dedup maps only                     │
  *  │ resetForNewGame()    │ INIT /    │ dedup + full watcher (timing, AI,   │
  *  │                      │ recovery  │ crosshairs, phantoms)               │
- *  │ resetForHostPromotion│ promote   │ dedup + watcher timing/AI (keeps    │
+ *  │ resetNetworkingForHostPromotion│ promote   │ dedup + watcher timing/AI (keeps    │
  *  │                      │           │ remote crosshairs & phantoms)       │
  *  └──────────────────────┴───────────┴─────────────────────────────────────┘ */
 export function resetDedup(): void {
@@ -114,9 +114,9 @@ export function resetForNewGame(): void {
 /** Reset networking state for host promotion.
  *  Clears dedup + watcher timing/AI state but keeps remote crosshairs
  *  and phantoms the new host still needs for remote human players. */
-export function resetForHostPromotion(): void {
+export function resetNetworkingForHostPromotion(): void {
   resetDedupMaps(dedup);
-  resetWatcherForHost(watcher);
+  resetWatcherTimingForHost(watcher);
 }
 
 /** Zero out reconnect state — call after successful reconnect or when giving up. */

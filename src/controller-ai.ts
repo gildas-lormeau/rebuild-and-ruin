@@ -122,6 +122,7 @@ const ROTATION_INITIAL_BASE = 0.15;
 const ROTATION_INITIAL_RANGE = 0.1;
 
 export class AiController extends BaseController implements AiAnimatable {
+  override readonly kind = "ai" as const;
   /** Pluggable AI strategy (decision-making). */
   private strategy: AiStrategy;
 
@@ -217,7 +218,8 @@ export class AiController extends BaseController implements AiAnimatable {
   // -----------------------------------------------------------------------
 
   override selectTower(state: GameState, zone: number): void {
-    const player = state.players[this.playerId]!;
+    const player = state.players[this.playerId];
+    if (!player) return;
     const chosenTower = this.strategy.selectTower(state.map, zone);
 
     // Build browse queue: visit 1-3 random zone towers before the chosen one
@@ -263,8 +265,9 @@ export class AiController extends BaseController implements AiAnimatable {
             const nextIdx = selectionState.queue[0];
             const nextTower =
               nextIdx !== undefined ? state.map.towers[nextIdx] : undefined;
-            if (nextTower)
-              selectPlayerTower(state.players[this.playerId]!, nextTower);
+            const browsePlayer = state.players[this.playerId];
+            if (nextTower && browsePlayer)
+              selectPlayerTower(browsePlayer, nextTower);
           }
           return false;
         }
@@ -292,8 +295,8 @@ export class AiController extends BaseController implements AiAnimatable {
   // -----------------------------------------------------------------------
 
   protected override onStartBuild(state: GameState): void {
-    const player = state.players[this.playerId]!;
-    if (player.eliminated) return;
+    const player = state.players[this.playerId];
+    if (!player || player.eliminated) return;
     const target = this.computeNextPlacement(state);
     if (target) {
       this.buildState = {
@@ -309,8 +312,8 @@ export class AiController extends BaseController implements AiAnimatable {
 
   buildTick(state: GameState, dt: number): PiecePlacementPreview[] {
     if (!this.currentPiece) return [];
-    const player = state.players[this.playerId]!;
-    if (player.eliminated) return [];
+    const player = state.players[this.playerId];
+    if (!player || player.eliminated) return [];
 
     // Clamp cursor so phantom never extends beyond the grid
     const clampPiece =
@@ -525,8 +528,8 @@ export class AiController extends BaseController implements AiAnimatable {
   // -----------------------------------------------------------------------
 
   override placeCannons(state: GameState, maxSlots: number): void {
-    const player = state.players[this.playerId]!;
-    if (player.eliminated) return;
+    const player = state.players[this.playerId];
+    if (!player || player.eliminated) return;
     this.cannonQueue = this.strategy.placeCannons(player, maxSlots, state);
     this.cannonMaxSlots = maxSlots;
     this.displayedCannonMode = undefined;
@@ -541,8 +544,8 @@ export class AiController extends BaseController implements AiAnimatable {
   }
 
   cannonTick(state: GameState, dt: number): CannonPlacementPreview | null {
-    const player = state.players[this.playerId]!;
-    if (player.eliminated) return null;
+    const player = state.players[this.playerId];
+    if (!player || player.eliminated) return null;
 
     switch (this.cannonState.step) {
       case Step.IDLE:
@@ -675,8 +678,8 @@ export class AiController extends BaseController implements AiAnimatable {
   }
 
   flushCannons(state: GameState, maxSlots: number): void {
-    const player = state.players[this.playerId]!;
-    if (player.eliminated) return;
+    const player = state.players[this.playerId];
+    if (!player || player.eliminated) return;
     for (const target of this.cannonQueue) {
       const mode = target.mode;
       if (canPlaceCannon(player, target.row, target.col, mode, state)) {
@@ -708,8 +711,8 @@ export class AiController extends BaseController implements AiAnimatable {
   }
 
   battleTick(state: GameState, dt: number): void {
-    const player = state.players[this.playerId]!;
-    if (player.eliminated) return;
+    const player = state.players[this.playerId];
+    if (!player || player.eliminated) return;
     if (!nextReadyCombined(state, this.playerId)) return;
 
     const aimAt = this.crosshairTarget ?? this.crosshair;
@@ -796,8 +799,8 @@ export class AiController extends BaseController implements AiAnimatable {
 
   /** Countdown: move toward target then orbit. */
   private battleTickCountdown(state: GameState, dt: number): void {
-    const player = state.players[this.playerId]!;
-    if (player.eliminated) return;
+    const player = state.players[this.playerId];
+    if (!player || player.eliminated) return;
     if (!this.crosshairTarget) {
       this.crosshairTarget = this.strategy.pickTarget(
         state,
@@ -869,7 +872,8 @@ export class AiController extends BaseController implements AiAnimatable {
       const targetKey = packTile(target.row, target.col);
       let wallExists = false;
       if (this.chainType === Chain.POCKET) {
-        wallExists = state.players[this.playerId]!.walls.has(targetKey);
+        wallExists =
+          state.players[this.playerId]?.walls.has(targetKey) ?? false;
       } else {
         for (const other of state.players) {
           if (other.id !== this.playerId && other.walls.has(targetKey)) {

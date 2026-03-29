@@ -88,12 +88,15 @@ export function filterAlivePhantoms<T extends { playerId: number }>(
   return phantoms.filter((phantom) => !players[phantom.playerId]?.eliminated);
 }
 
-/** Dedup key for cannon phantom network sends. Covers all fields that affect display. */
+/** Dedup key for cannon phantom network sends. Covers all fields that affect display.
+ *  Same pattern as piecePhantomKey — both are `(phantom: T) => string` dedup keys
+ *  used by phantomChanged() to suppress redundant network sends. */
 export function cannonPhantomKey(phantom: CannonPhantom): string {
   return `${phantom.row},${phantom.col},${phantom.mode}`;
 }
 
-/** Dedup key for piece phantom network sends. Covers position + shape. */
+/** Dedup key for piece phantom network sends. Covers position + shape.
+ *  Same pattern as cannonPhantomKey — more complex key due to variable-length offsets. */
 export function piecePhantomKey(phantom: PiecePhantom): string {
   return `${phantom.row},${phantom.col},${phantom.offsets.map((offset) => offset.join(":")).join(";")}`;
 }

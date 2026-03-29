@@ -119,7 +119,7 @@ export const transitionCtx: TransitionContext = {
       applyBattleStartCheckpoint(data, buildCheckpointDeps()),
     applyBuildStart: (data) =>
       applyBuildStartCheckpoint(data, buildCheckpointDeps()),
-    applyPlayers: applyPlayersCheckpoint,
+    applyPlayersCheckpoint,
   },
 
   selection: {
@@ -273,7 +273,7 @@ export const runtime: GameRuntime = createGameRuntime({
   extendCrosshairs: (crosshairs, dt) =>
     extendWithRemoteCrosshairs(crosshairs, runtime.rs.state, dt, {
       remoteCrosshairs: watcher.remoteCrosshairs,
-      crosshairPos: watcher.crosshairPos,
+      watcherCrosshairPos: watcher.crosshairPos,
       remoteHumanSlots: session.remoteHumanSlots,
       logThrottled: devLogThrottled,
     }),

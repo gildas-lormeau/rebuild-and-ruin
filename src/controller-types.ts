@@ -36,7 +36,7 @@ const NO_CANNON_ROTATION_IDX = -1;
 
 export abstract class BaseController implements PlayerController {
   readonly playerId: number;
-  readonly kind: "human" | "ai" = "ai";
+  abstract readonly kind: "human" | "ai";
   buildCursor = { row: DEFAULT_CURSOR_ROW, col: DEFAULT_CURSOR_COL };
   cannonCursor = { row: DEFAULT_CURSOR_ROW, col: DEFAULT_CURSOR_COL };
   crosshair = {
@@ -61,7 +61,9 @@ export abstract class BaseController implements PlayerController {
     this.currentPiece = nextPiece(this.bag);
   }
 
-  /** Draw the next piece from the bag. */
+  /** Draw the next piece from the bag.
+   *  IMPORTANT: Only call after a successful placement — advancing without placing
+   *  skips a piece and desynchronizes the bag with the board state. */
   protected advanceBag(): void {
     if (this.bag) {
       this.currentPiece = nextPiece(this.bag);
@@ -103,8 +105,8 @@ export abstract class BaseController implements PlayerController {
    *  Contrast with initCannons() which is public for remote-controller use. */
   private initBuildPhase(state: GameState): void {
     this.initBag(state.round, state.rng);
-    const player = state.players[this.playerId]!;
-    if (player.homeTower) {
+    const player = state.players[this.playerId];
+    if (player?.homeTower) {
       const center = towerCenter(player.homeTower);
       this.buildCursor = {
         row: Math.round(center.row),

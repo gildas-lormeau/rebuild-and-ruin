@@ -557,7 +557,7 @@ export function createScenario(seed = 42): Scenario {
           applyBattleStartCheckpoint(data, checkpointDeps),
         applyBuildStart: (data: BuildStartData) =>
           applyBuildStartCheckpoint(data, checkpointDeps),
-        applyPlayers: applyPlayersCheckpoint,
+        applyPlayersCheckpoint,
       },
       selection: {
         clearSelectionOverlay: () => {},

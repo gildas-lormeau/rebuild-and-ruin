@@ -114,8 +114,8 @@ export class HumanController extends BaseController implements InputReceiver {
   //   clampCannonCursorToMode     — keep footprint within grid bounds
 
   /** Downgrade cannon mode if its slot cost exceeds remaining slots (SUPER→NORMAL, BALLOON→NORMAL).
-   *  Called in cannonTick() before canPlaceCannon() — otherwise the preview may show
-   *  an impossible placement. */
+   *  MUST be called before canPlaceCannon() in cannonTick() — otherwise the preview
+   *  may show an impossible placement that confuses the player. */
   private downgradeCannonModeIfNeeded(remaining: number): void {
     if (isSuperMode(this.cannonPlaceMode) && remaining < SUPER_GUN_COST) {
       this.cannonPlaceMode = CannonMode.NORMAL;

@@ -5,7 +5,7 @@ import {
   dispatchPlacement,
   dispatchPointerMove,
   dispatchTowerSelect,
-  isGameInteractionMode,
+  isGameOrSelectionMode,
   isTouchSuppressed,
 } from "./input-dispatch.ts";
 import {
@@ -48,7 +48,7 @@ export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
     const state = getState();
 
     if (dispatchModeTap(x, y, mode, deps)) return;
-    if (!state || !isGameInteractionMode(mode, modeValues)) return;
+    if (!state || !isGameOrSelectionMode(mode, modeValues)) return;
 
     if (isSelectionPhase(state.phase)) {
       const tw = coords.screenToWorld(x, y);

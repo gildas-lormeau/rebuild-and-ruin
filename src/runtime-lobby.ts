@@ -26,7 +26,7 @@ import {
   lobbyClickHitTest,
 } from "./render-composition.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import { NO_SLOT, type RuntimeState } from "./runtime-state.ts";
 
 interface LobbySystemDeps {
   rs: RuntimeState;
@@ -106,7 +106,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
       return true;
     }
     // Mouse/trackpad can only join one slot (keyboard can join additional slots)
-    if (rs.mouseJoinedSlot >= 0) {
+    if (rs.mouseJoinedSlot !== NO_SLOT) {
       lobbySkipStep(uiCtx);
       return true;
     }

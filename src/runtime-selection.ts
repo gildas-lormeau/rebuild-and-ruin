@@ -154,6 +154,8 @@ export function createSelectionSystem(
     );
   }
 
+  /** Highlight a tower for a player's selection UI.
+   *  Side effects: sends network message (via deps.send) and auto-zooms camera on mobile. */
   function highlightTowerForPlayer(
     idx: number,
     zone: number,

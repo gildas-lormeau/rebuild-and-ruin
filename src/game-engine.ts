@@ -22,7 +22,7 @@ import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import {
   collectAllWalls,
   filterAliveOwnedTowers,
-  sweepIsolatedWalls,
+  removeIsolatedWalls,
 } from "./board-occupancy.ts";
 import {
   claimTerritory,
@@ -358,7 +358,7 @@ function enterBattleFromCannon(state: GameState): void {
 
 function sweepAllPlayersWalls(state: GameState): void {
   for (const player of state.players) {
-    sweepIsolatedWalls(player.walls);
+    removeIsolatedWalls(player.walls);
   }
 }
 
@@ -440,13 +440,17 @@ export function resetZoneState(state: GameState, zone: number): void {
   }
 }
 
-/** Mark a player as eliminated (used when abandoning in life-lost dialog). */
+/** Mark a player as permanently eliminated (sets eliminated flag + zeroes lives).
+ *  Used when the player abandons in the life-lost dialog.
+ *  Contrast with clearPlayerState which resets board state but keeps the player alive. */
 export function eliminatePlayer(player: Player): void {
   player.eliminated = true;
   player.lives = 0;
 }
 
-/** Clear all mutable state from a player (used when losing a life or being eliminated). */
+/** Reset a player's board state (walls, interior, cannons, towers, castle) for a new round.
+ *  The player remains in the game — only their placed objects are cleared.
+ *  Contrast with eliminatePlayer which permanently removes the player. */
 function clearPlayerState(
   player: Player,
   options?: { keepHomeTower?: boolean },

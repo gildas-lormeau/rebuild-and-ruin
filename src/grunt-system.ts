@@ -174,6 +174,8 @@ export function spawnGruntGroupOnZone(
  * 1. lockGruntTarget() for all grunts (assigns targetTowerIdx/targetPlayerId)
  * 2. Sort by distance, then move each grunt toward its locked target
  * These passes must not be interleaved — a grunt's target must not change mid-move.
+ * Enforced by the single call site in this function; no external API exposes
+ * lock+move separately.
  */
 export function tickGrunts(state: GameState): boolean {
   let anyMoved = false;
