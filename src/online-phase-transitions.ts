@@ -21,86 +21,89 @@ import {
 } from "./types.ts";
 
 export interface TransitionContext {
+  // --- Core state (used by most handlers) ---
   getState: () => GameState;
   getMyPlayerId: () => number;
   getControllers: () => PlayerController[];
-  showBanner: BannerShow;
-  banner: {
-    newTerritory?: Set<number>[];
-    newWalls?: Set<number>[];
-  };
-  clearSelectionOverlay: () => void;
+  setMode: (mode: Mode) => void;
   now: () => number;
 
-  /** Mutable watcher timing — written directly by transition handlers. */
-  watcherTiming: WatcherTimingState;
-  /** Set the runtime mode (GAME, CASTLE_BUILD, BALLOON_ANIM, STOPPED). */
-  setMode: (mode: Mode) => void;
+  // --- Banner & UI ---
+  ui: {
+    showBanner: BannerShow;
+    banner: { newTerritory?: Set<number>[]; newWalls?: Set<number>[] };
+    render: () => void;
+    watcherTiming: WatcherTimingState;
+    bannerDuration: number;
+  };
 
-  // Constants
-  battleCountdown: number;
-  bannerDuration: number;
-  playerColors: ReadonlyArray<{ wall: RGB }>;
+  // --- Checkpoints ---
+  checkpoint: {
+    applyCannonStart: (msg: ServerMessage) => void;
+    applyBattleStart: (msg: ServerMessage) => void;
+    applyBuildStart: (msg: ServerMessage) => void;
+    applyPlayers: (
+      state: GameState,
+      players: readonly SerializedPlayer[],
+    ) => void;
+  };
 
-  // Checkpoint appliers
-  applyCannonStartData: (msg: ServerMessage) => void;
-  applyBattleStartData: (msg: ServerMessage) => void;
-  applyBuildStartData: (msg: ServerMessage) => void;
-  applyPlayersCheckpoint: (
-    state: GameState,
-    players: readonly SerializedPlayer[],
-  ) => void;
-  resetZoneState: (state: GameState, zone: number) => void;
+  // --- Selection & castle build ---
+  selection: {
+    clearOverlay: () => void;
+    getStates: () => Map<number, { highlighted: number; confirmed: boolean }>;
+    finalizeCastleConstruction: (state: GameState) => void;
+    enterCannonPlacePhase: (state: GameState) => void;
+    setCastleBuildFromPlans: (
+      plans: readonly { playerId: number; tiles: number[] }[],
+      maxTiles: number,
+      onDone: () => void,
+    ) => void;
+    setCastleBuildViewport: (
+      plans: readonly { playerId: number; tiles: number[] }[],
+    ) => void;
+  };
 
-  // Castle build
-  finalizeCastleConstruction: (state: GameState) => void;
-  enterCannonPlacePhase: (state: GameState) => void;
-  getSelectionStates: () => Map<
-    number,
-    { highlighted: number; confirmed: boolean }
-  >;
-  setCastleBuildFromPlans: (
-    plans: readonly { playerId: number; tiles: number[] }[],
-    maxTiles: number,
-    onDone: () => void,
-  ) => void;
-  setCastleBuildViewport: (
-    plans: readonly { playerId: number; tiles: number[] }[],
-  ) => void;
+  // --- Battle ---
+  battle: {
+    countdown: number;
+    setFlights: (
+      value: readonly {
+        flight: {
+          startX: number;
+          startY: number;
+          endX: number;
+          endY: number;
+        };
+        progress: number;
+      }[],
+    ) => void;
+    snapshotTerritory: () => Set<number>[];
+    aimAtEnemyCastle?: () => void;
+  };
 
-  // Battle flights
-  setBattleFlights: (
-    value: readonly {
-      flight: { startX: number; startY: number; endX: number; endY: number };
-      progress: number;
-    }[],
-  ) => void;
-  snapshotTerritory: () => Set<number>[];
-
-  // Battle
-  /** Position battle crosshair (first battle: best enemy; subsequent: restore last position). */
-  aimAtEnemyCastle?: () => void;
-
-  // Life-lost / game over
-  showLifeLostDialog: (
-    needsReselect: readonly number[],
-    eliminated: readonly number[],
-  ) => void;
-  /** Show score delta animation, calling onDone when complete (or immediately if no deltas). */
-  showScoreDeltas: (preScores: readonly number[], onDone: () => void) => void;
-  render: () => void;
-  setGameOverFrame: (payload: {
-    winner: string;
-    scores: {
-      name: string;
-      score: number;
-      color: RGB;
-      eliminated: boolean;
-      territory?: number;
-      stats?: { wallsDestroyed: number; cannonsKilled: number };
-    }[];
-    focused: GameOverFocus;
-  }) => void;
+  // --- Life-lost & game over ---
+  endPhase: {
+    resetZoneState: (state: GameState, zone: number) => void;
+    showLifeLostDialog: (
+      needsReselect: readonly number[],
+      eliminated: readonly number[],
+    ) => void;
+    showScoreDeltas: (preScores: readonly number[], onDone: () => void) => void;
+    setGameOverFrame: (payload: {
+      winner: string;
+      scores: {
+        name: string;
+        score: number;
+        color: RGB;
+        eliminated: boolean;
+        territory?: number;
+        stats?: { wallsDestroyed: number; cannonsKilled: number };
+      }[];
+      focused: GameOverFocus;
+    }) => void;
+    playerColors: ReadonlyArray<{ wall: RGB }>;
+  };
 }
 
 const BANNER_BATTLE_ONLINE = "Battle!";
@@ -128,13 +131,13 @@ export function handleCastleWallsTransition(
       );
     }
   }
-  ctx.getSelectionStates().clear();
-  ctx.clearSelectionOverlay();
+  ctx.selection.getStates().clear();
+  ctx.selection.clearOverlay();
   // Zoom to the local player's castle on mobile
   const myPlan = plans.find((p) => p.playerId === ctx.getMyPlayerId());
-  if (myPlan) ctx.setCastleBuildViewport([myPlan]);
+  if (myPlan) ctx.selection.setCastleBuildViewport([myPlan]);
 
-  ctx.setCastleBuildFromPlans(plans, maxTiles, () => {
+  ctx.selection.setCastleBuildFromPlans(plans, maxTiles, () => {
     // No phase transition — cannon_start checkpoint drives it and reconciles state.
   });
   ctx.setMode(Mode.CASTLE_BUILD);
@@ -147,8 +150,8 @@ export function handleCannonStartTransition(
   if (msg.type !== MESSAGE.CANNON_START) return;
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
-  ctx.clearSelectionOverlay();
-  ctx.applyCannonStartData(msg);
+  ctx.selection.clearOverlay();
+  ctx.checkpoint.applyCannonStart(msg);
   if (myPlayerId >= 0) {
     const ctrl = ctx.getControllers()[myPlayerId];
     const player = state.players[myPlayerId];
@@ -167,11 +170,11 @@ export function handleCannonStartTransition(
   if (state.phase !== Phase.CANNON_PLACE) {
     setPhase(state, Phase.CANNON_PLACE);
     state.timer = state.cannonPlaceTimer;
-    ctx.showBanner(
+    ctx.ui.showBanner(
       BANNER_PLACE_CANNONS,
       () => {
-        ctx.watcherTiming.phaseStartTime = ctx.now();
-        ctx.watcherTiming.phaseDuration = state.timer;
+        ctx.ui.watcherTiming.phaseStartTime = ctx.now();
+        ctx.ui.watcherTiming.phaseDuration = state.timer;
         ctx.setMode(Mode.GAME);
       },
       true,
@@ -189,16 +192,16 @@ export function handleBattleStartTransition(
   const battleReceivedAt = ctx.now();
   const battleFlights = msg.flights;
 
-  ctx.showBanner(
+  ctx.ui.showBanner(
     BANNER_BATTLE_ONLINE,
     () => {
       if (myPlayerId >= 0) {
         const ctrl = ctx.getControllers()[myPlayerId];
         if (ctrl) ctrl.resetBattle(state);
       }
-      ctx.aimAtEnemyCastle?.();
+      ctx.battle.aimAtEnemyCastle?.();
       if (battleFlights && battleFlights.length > 0) {
-        ctx.setBattleFlights(
+        ctx.battle.setFlights(
           battleFlights.map((f) => ({
             flight: {
               startX: f.startX,
@@ -211,24 +214,24 @@ export function handleBattleStartTransition(
         );
         ctx.setMode(Mode.BALLOON_ANIM);
       } else {
-        state.battleCountdown = ctx.battleCountdown;
-        ctx.watcherTiming.countdownStartTime =
-          battleReceivedAt + ctx.bannerDuration * 1000;
-        ctx.watcherTiming.countdownDuration = ctx.battleCountdown;
+        state.battleCountdown = ctx.battle.countdown;
+        ctx.ui.watcherTiming.countdownStartTime =
+          battleReceivedAt + ctx.ui.bannerDuration * 1000;
+        ctx.ui.watcherTiming.countdownDuration = ctx.battle.countdown;
         ctx.setMode(Mode.GAME);
       }
     },
     true,
   );
 
-  ctx.applyBattleStartData(msg);
+  ctx.checkpoint.applyBattleStart(msg);
   setPhase(state, Phase.BATTLE);
 
   // Set post-checkpoint walls/territory so the banner's new scene shows
   // clean grass instead of debris for swept walls.
-  ctx.banner.newTerritory = ctx.snapshotTerritory();
-  ctx.banner.newWalls = snapshotAllWalls(state);
-  state.battleCountdown = ctx.battleCountdown;
+  ctx.ui.banner.newTerritory = ctx.battle.snapshotTerritory();
+  ctx.ui.banner.newWalls = snapshotAllWalls(state);
+  state.battleCountdown = ctx.battle.countdown;
 }
 
 export function handleBuildStartTransition(
@@ -239,18 +242,18 @@ export function handleBuildStartTransition(
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
   const buildReceivedAt = ctx.now();
-  ctx.showBanner(
+  ctx.ui.showBanner(
     BANNER_REPAIR_ONLINE,
     () => {
-      ctx.watcherTiming.phaseStartTime =
-        buildReceivedAt + ctx.bannerDuration * 1000;
-      ctx.watcherTiming.phaseDuration = state.timer;
+      ctx.ui.watcherTiming.phaseStartTime =
+        buildReceivedAt + ctx.ui.bannerDuration * 1000;
+      ctx.ui.watcherTiming.phaseDuration = state.timer;
       ctx.setMode(Mode.GAME);
     },
     true,
   );
 
-  ctx.applyBuildStartData(msg);
+  ctx.checkpoint.applyBuildStart(msg);
   setPhase(state, Phase.WALL_BUILD);
   if (myPlayerId >= 0) {
     const player = state.players[myPlayerId];
@@ -268,19 +271,19 @@ export function handleBuildEndTransition(
   const state = ctx.getState();
   // Capture pre-scores before checkpoint overwrites them (needed for score delta animation)
   const preScores = state.players.map((p) => p.score);
-  ctx.applyPlayersCheckpoint(state, msg.players);
+  ctx.checkpoint.applyPlayers(state, msg.players);
   for (let i = 0; i < state.players.length; i++) {
     state.players[i]!.score = msg.scores[i] ?? state.players[i]!.score;
   }
   for (const pid of [...msg.needsReselect, ...msg.eliminated]) {
     const zone = state.playerZones[pid];
-    if (zone !== undefined) ctx.resetZoneState(state, zone);
+    if (zone !== undefined) ctx.endPhase.resetZoneState(state, zone);
   }
   // Show score deltas first (matches host timing), then life-lost dialog.
   // Without this delay, non-host sends life_lost_choice before host creates its dialog.
-  ctx.showScoreDeltas(preScores, () => {
+  ctx.endPhase.showScoreDeltas(preScores, () => {
     if (msg.needsReselect.length > 0 || msg.eliminated.length > 0) {
-      ctx.showLifeLostDialog(msg.needsReselect, msg.eliminated);
+      ctx.endPhase.showLifeLostDialog(msg.needsReselect, msg.eliminated);
     }
   });
 }
@@ -290,14 +293,15 @@ export function handleGameOverTransition(
   ctx: TransitionContext,
 ): void {
   if (msg.type !== MESSAGE.GAME_OVER) return;
-  ctx.setGameOverFrame({
+  ctx.endPhase.setGameOverFrame({
     winner: msg.winner ?? NO_WINNER_NAME,
     scores: msg.scores.map((s, i) => ({
       ...s,
-      color: ctx.playerColors[i % ctx.playerColors.length]!.wall,
+      color:
+        ctx.endPhase.playerColors[i % ctx.endPhase.playerColors.length]!.wall,
     })),
     focused: FOCUS_REMATCH,
   });
-  ctx.render();
+  ctx.ui.render();
   ctx.setMode(Mode.STOPPED);
 }

@@ -40,6 +40,7 @@ import {
   broadcastLocalCrosshair,
   extendWithRemoteCrosshairs,
 } from "./online-host-crosshairs.ts";
+import type { TransitionContext } from "./online-phase-transitions.ts";
 import {
   fireAndSend as fireAndSendAction,
   tryPlaceCannonAndSend as tryPlaceCannonAndSendAction,
@@ -85,92 +86,112 @@ const renderer = createCanvasRenderer(canvas);
 const roomCodeOverlay = document.getElementById("room-code-overlay")!;
 export const pageOnline = document.getElementById("page-online")!;
 // ── Transition context ──────────────────────────────────────────────
-export const transitionCtx = {
+export const transitionCtx: TransitionContext = {
   getState: () => runtime.rs.state,
   getMyPlayerId: () => session.myPlayerId,
   getControllers: () => runtime.rs.controllers,
-  showBanner: (
-    t: string,
-    cb: () => void,
-    r?: boolean,
-    nb?: { territory: Set<number>[]; walls: Set<number>[] },
-  ) => runtime.showBanner(t, cb, r, nb),
-  get banner() {
-    return runtime.rs.banner;
-  },
-  clearSelectionOverlay: () => {
-    const overlay = runtime.rs.overlay;
-    if (overlay.selection) {
-      overlay.selection.highlights = undefined;
-      overlay.selection.highlighted = null;
-      overlay.selection.selected = null;
-    }
-  },
-  now: () => performance.now(),
-  watcherTiming: watcher.timing,
   setMode: (mode: Mode) => {
     runtime.rs.mode = mode;
   },
-  battleCountdown: BATTLE_COUNTDOWN,
-  bannerDuration: BANNER_DURATION,
-  playerColors: PLAYER_COLORS,
-  applyCannonStartData: (msg: ServerMessage) =>
-    applyCannonStartData(...checkpointArgs(msg)),
-  applyBattleStartData: (msg: ServerMessage) =>
-    applyBattleStartData(...checkpointArgs(msg)),
-  applyBuildStartData: (msg: ServerMessage) =>
-    applyBuildStartData(...checkpointArgs(msg)),
-  applyPlayersCheckpoint,
-  resetZoneState,
-  finalizeCastleConstruction,
-  enterCannonPlacePhase,
-  getSelectionStates: () => runtime.selection.getStates(),
-  setCastleBuildFromPlans: (
-    plans: readonly { playerId: number; tiles: number[] }[],
-    maxTiles: number,
-    onDone: () => void,
-  ) => {
-    runtime.rs.castleBuilds.push({
-      wallPlans: plans,
-      maxTiles,
-      tileIdx: 0,
-      accum: 0,
-      onDone,
-    });
-    runtime.rs.castleBuildOnDone = onDone;
+  now: () => performance.now(),
+
+  ui: {
+    showBanner: (
+      t: string,
+      cb: () => void,
+      r?: boolean,
+      nb?: { territory: Set<number>[]; walls: Set<number>[] },
+    ) => runtime.showBanner(t, cb, r, nb),
+    get banner() {
+      return runtime.rs.banner;
+    },
+    render: () => runtime.render(),
+    watcherTiming: watcher.timing,
+    bannerDuration: BANNER_DURATION,
   },
-  setCastleBuildViewport: (
-    plans: readonly { playerId: number; tiles: number[] }[],
-  ) => runtime.selection.setCastleBuildViewport(plans),
-  setBattleFlights: (
-    v: readonly {
-      flight: { startX: number; startY: number; endX: number; endY: number };
-      progress: number;
-    }[],
-  ) => {
-    runtime.rs.battleAnim.flights = v;
+
+  checkpoint: {
+    applyCannonStart: (msg: ServerMessage) =>
+      applyCannonStartData(...checkpointArgs(msg)),
+    applyBattleStart: (msg: ServerMessage) =>
+      applyBattleStartData(...checkpointArgs(msg)),
+    applyBuildStart: (msg: ServerMessage) =>
+      applyBuildStartData(...checkpointArgs(msg)),
+    applyPlayers: applyPlayersCheckpoint,
   },
-  snapshotTerritory: () => runtime.snapshotTerritory(),
-  showLifeLostDialog: (nr: readonly number[], el: readonly number[]) => {
-    runtime.lifeLost.show(nr, el);
-    const dialog = runtime.lifeLost.get();
-    if (dialog) {
-      for (const [pid, choice] of session.earlyLifeLostChoices) {
-        const entry = dialog.entries.find((e) => e.playerId === pid);
-        if (entry && entry.choice === LifeLostChoice.PENDING)
-          entry.choice = choice;
+
+  selection: {
+    clearOverlay: () => {
+      const overlay = runtime.rs.overlay;
+      if (overlay.selection) {
+        overlay.selection.highlights = undefined;
+        overlay.selection.highlighted = null;
+        overlay.selection.selected = null;
       }
-    }
-    session.earlyLifeLostChoices.clear();
+    },
+    getStates: () => runtime.selection.getStates(),
+    finalizeCastleConstruction,
+    enterCannonPlacePhase,
+    setCastleBuildFromPlans: (
+      plans: readonly { playerId: number; tiles: number[] }[],
+      maxTiles: number,
+      onDone: () => void,
+    ) => {
+      runtime.rs.castleBuilds.push({
+        wallPlans: plans,
+        maxTiles,
+        tileIdx: 0,
+        accum: 0,
+        onDone,
+      });
+      runtime.rs.castleBuildOnDone = onDone;
+    },
+    setCastleBuildViewport: (
+      plans: readonly { playerId: number; tiles: number[] }[],
+    ) => runtime.selection.setCastleBuildViewport(plans),
   },
-  showScoreDeltas: (preScores: readonly number[], onDone: () => void) => {
-    runtime.rs.preScores = preScores;
-    runtime.selection.showBuildScoreDeltas(onDone);
+
+  battle: {
+    countdown: BATTLE_COUNTDOWN,
+    setFlights: (
+      v: readonly {
+        flight: {
+          startX: number;
+          startY: number;
+          endX: number;
+          endY: number;
+        };
+        progress: number;
+      }[],
+    ) => {
+      runtime.rs.battleAnim.flights = v;
+    },
+    snapshotTerritory: () => runtime.snapshotTerritory(),
+    aimAtEnemyCastle: () => runtime.aimAtEnemyCastle(),
   },
-  aimAtEnemyCastle: () => runtime.aimAtEnemyCastle(),
-  render: () => runtime.render(),
-  setGameOverFrame: (p: NonNullable<typeof runtime.rs.frame.gameOver>) => {
-    runtime.rs.frame.gameOver = p;
+
+  endPhase: {
+    resetZoneState,
+    showLifeLostDialog: (nr: readonly number[], el: readonly number[]) => {
+      runtime.lifeLost.show(nr, el);
+      const dialog = runtime.lifeLost.get();
+      if (dialog) {
+        for (const [pid, choice] of session.earlyLifeLostChoices) {
+          const entry = dialog.entries.find((e) => e.playerId === pid);
+          if (entry && entry.choice === LifeLostChoice.PENDING)
+            entry.choice = choice;
+        }
+      }
+      session.earlyLifeLostChoices.clear();
+    },
+    showScoreDeltas: (preScores: readonly number[], onDone: () => void) => {
+      runtime.rs.preScores = preScores;
+      runtime.selection.showBuildScoreDeltas(onDone);
+    },
+    setGameOverFrame: (p: NonNullable<typeof runtime.rs.frame.gameOver>) => {
+      runtime.rs.frame.gameOver = p;
+    },
+    playerColors: PLAYER_COLORS,
   },
 };
 // ── Watcher tick context ────────────────────────────────────────────

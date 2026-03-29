@@ -31,6 +31,7 @@ import {
   resolveLifeLostDialogRuntime,
   tickLifeLostDialogRuntime,
 } from "../src/life-lost.ts";
+import type { ServerMessage } from "../server/protocol.ts";
 import {
   applyBattleStartCheckpoint,
   applyBuildStartCheckpoint,
@@ -523,46 +524,56 @@ export function createScenario(seed = 42): Scenario {
       getState: () => state,
       getMyPlayerId: () => myPlayerId,
       getControllers: () => controllers,
-      showBanner: (text, onDone, reveal, newBattle) => {
-        showBannerTransition({
-          banner,
-          state,
-          battleAnim,
-          text,
-          onDone,
-          reveal,
-          newBattle,
-          setModeBanner: () => {},
-        });
-      },
-      banner,
-      clearSelectionOverlay: () => {},
-      now: () => performance.now(),
-      watcherTiming,
       setMode: () => {},
-      battleCountdown: 3,
-      bannerDuration: 3,
-      playerColors: PLAYER_COLORS,
-      applyCannonStartData: (msg) =>
-        applyCannonStartCheckpoint(msg, checkpointDeps),
-      applyBattleStartData: (msg) =>
-        applyBattleStartCheckpoint(msg, checkpointDeps),
-      applyBuildStartData: (msg) =>
-        applyBuildStartCheckpoint(msg, checkpointDeps),
-      applyPlayersCheckpoint,
-      resetZoneState: () => {},
-      finalizeCastleConstruction: () => {},
-      enterCannonPlacePhase: () => {},
-      getSelectionStates: () => new Map(),
-      setCastleBuildFromPlans: () => {},
-      setCastleBuildViewport: () => {},
-      setBattleFlights: () => {},
-      snapshotTerritory: () =>
-        state.players.map((p) => new Set(p.interior)),
-      showLifeLostDialog: () => {},
-      showScoreDeltas: (_pre, onDone) => onDone(),
-      render: () => {},
-      setGameOverFrame: () => {},
+      now: () => performance.now(),
+      ui: {
+        showBanner: (text: string, onDone: () => void, reveal?: boolean, newBattle?: { territory: Set<number>[]; walls: Set<number>[] }) => {
+          showBannerTransition({
+            banner,
+            state,
+            battleAnim,
+            text,
+            onDone,
+            reveal,
+            newBattle,
+            setModeBanner: () => {},
+          });
+        },
+        banner,
+        render: () => {},
+        watcherTiming,
+        bannerDuration: 3,
+      },
+      checkpoint: {
+        applyCannonStart: (msg: ServerMessage) =>
+          applyCannonStartCheckpoint(msg, checkpointDeps),
+        applyBattleStart: (msg: ServerMessage) =>
+          applyBattleStartCheckpoint(msg, checkpointDeps),
+        applyBuildStart: (msg: ServerMessage) =>
+          applyBuildStartCheckpoint(msg, checkpointDeps),
+        applyPlayers: applyPlayersCheckpoint,
+      },
+      selection: {
+        clearOverlay: () => {},
+        getStates: () => new Map(),
+        finalizeCastleConstruction: () => {},
+        enterCannonPlacePhase: () => {},
+        setCastleBuildFromPlans: () => {},
+        setCastleBuildViewport: () => {},
+      },
+      battle: {
+        countdown: 3,
+        setFlights: () => {},
+        snapshotTerritory: () =>
+          state.players.map((p) => new Set(p.interior)),
+      },
+      endPhase: {
+        resetZoneState: () => {},
+        showLifeLostDialog: () => {},
+        showScoreDeltas: (_pre: readonly number[], onDone: () => void) => onDone(),
+        setGameOverFrame: () => {},
+        playerColors: PLAYER_COLORS,
+      },
     };
   }
 

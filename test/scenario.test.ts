@@ -386,7 +386,7 @@ test("online handleCannonStartTransition stashes pre-checkpoint walls on banner"
   handleCannonStartTransition(msg, ctx);
 
   // The banner old scene uses current (post-checkpoint) walls — no reintroduction
-  const banner = ctx.banner as BannerState;
+  const banner = ctx.ui.banner as BannerState;
   const oldWalls = banner.oldCastles?.find((c) => c.playerId === 0)?.walls;
   assert(
     !(oldWalls?.has(isolatedKey) ?? false),
@@ -416,11 +416,11 @@ test("online handleBattleStartTransition sets banner.newWalls after checkpoint",
 
   // banner.newWalls should be set (post-checkpoint walls)
   assert(
-    ctx.banner.newWalls !== undefined,
+    ctx.ui.banner.newWalls !== undefined,
     "banner.newWalls should be set after battle start transition",
   );
   assert(
-    ctx.banner.newTerritory !== undefined,
+    ctx.ui.banner.newTerritory !== undefined,
     "banner.newTerritory should be set after battle start transition",
   );
 });
