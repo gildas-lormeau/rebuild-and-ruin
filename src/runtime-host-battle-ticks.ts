@@ -14,11 +14,8 @@ import type { PlayerController } from "./controller-interfaces.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { createCannonFiredMsg } from "./online-send-actions.ts";
 import type { WatcherTimingState } from "./online-types.ts";
-import {
-  BANNER_BATTLE,
-  BANNER_BATTLE_SUB,
-  type BannerShow,
-} from "./phase-banner.ts";
+import { BANNER_BATTLE, type BannerShow } from "./phase-banner.ts";
+import { showBattlePhaseBanner } from "./phase-transition-shared.ts";
 import {
   getRemoteSlots,
   type HostNetContext,
@@ -229,20 +226,14 @@ export function startHostBattleLifecycle(
 
   const flights = resolveBalloons(state);
 
-  showBanner(
-    BANNER_BATTLE,
-    () => {
-      if (flights.length > 0) {
-        battleAnim.flights = flights.map((f) => ({ flight: f, progress: 0 }));
-        setModeBalloonAnim();
-      } else {
-        beginBattle();
-      }
-    },
-    true,
-    undefined,
-    BANNER_BATTLE_SUB,
-  );
+  showBattlePhaseBanner(showBanner, BANNER_BATTLE, () => {
+    if (flights.length > 0) {
+      battleAnim.flights = flights.map((f) => ({ flight: f, progress: 0 }));
+      setModeBalloonAnim();
+    } else {
+      beginBattle();
+    }
+  });
 
   nextPhase(state);
   battleAnim.impacts = [];

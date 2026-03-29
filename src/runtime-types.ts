@@ -213,6 +213,7 @@ export interface RuntimeLifecycle {
 
 export interface RuntimePhaseTicks {
   startCannonPhase: () => void;
+  beginBattle: () => void;
 }
 
 export interface GameRuntime {
@@ -239,6 +240,7 @@ export interface GameRuntime {
     onDone: () => void,
     reveal?: boolean,
     newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
+    subtitle?: string,
   ) => void;
   snapshotTerritory: () => Set<number>[];
   aimAtEnemyCastle: () => void;

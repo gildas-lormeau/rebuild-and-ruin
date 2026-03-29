@@ -14,7 +14,6 @@ import type {
 import { MESSAGE } from "../server/protocol.ts";
 import {
   BANNER_DURATION,
-  BATTLE_COUNTDOWN,
   BUILD_TIMER,
   CANNON_PLACE_TIMER,
   SELECT_TIMER,
@@ -101,7 +100,8 @@ export const transitionCtx: TransitionContext = {
       cb: () => void,
       r?: boolean,
       nb?: { territory: Set<number>[]; walls: Set<number>[] },
-    ) => runtime.showBanner(t, cb, r, nb),
+      sub?: string,
+    ) => runtime.showBanner(t, cb, r, nb, sub),
     get banner() {
       return runtime.rs.banner;
     },
@@ -152,7 +152,6 @@ export const transitionCtx: TransitionContext = {
   },
 
   battle: {
-    countdown: BATTLE_COUNTDOWN,
     setFlights: (
       v: readonly {
         flight: {
@@ -167,7 +166,7 @@ export const transitionCtx: TransitionContext = {
       runtime.rs.battleAnim.flights = v;
     },
     snapshotTerritory: () => runtime.snapshotTerritory(),
-    aimAtEnemyCastle: () => runtime.aimAtEnemyCastle(),
+    beginBattle: () => runtime.phaseTicks.beginBattle(),
   },
 
   endPhase: {

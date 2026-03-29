@@ -627,7 +627,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       startGame: lifecycle.startGame,
       resetUIState: lifecycle.resetUIState,
     },
-    phaseTicks: { startCannonPhase: phaseTicks.startCannonPhase },
+    phaseTicks: {
+      startCannonPhase: phaseTicks.startCannonPhase,
+      beginBattle: phaseTicks.beginBattle,
+    },
 
     // Cross-cutting orchestration
     mainLoop,

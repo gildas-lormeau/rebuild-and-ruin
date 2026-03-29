@@ -562,10 +562,10 @@ export function createScenario(seed = 42): Scenario {
         setCastleBuildViewport: () => {},
       },
       battle: {
-        countdown: 3,
         setFlights: () => {},
         snapshotTerritory: () =>
           state.players.map((p) => new Set(p.interior)),
+        beginBattle: () => {},
       },
       endPhase: {
         resetZoneState: () => {},

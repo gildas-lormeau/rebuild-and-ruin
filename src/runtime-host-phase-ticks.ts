@@ -18,6 +18,7 @@ import {
   phantomWireMode,
   piecePhantomKey,
 } from "./online-types.ts";
+import { runBuildEndSequence } from "./phase-transition-shared.ts";
 import { unpackTile } from "./spatial.ts";
 import {
   getRemoteSlots,
@@ -408,17 +409,14 @@ function finalizeBuildAndShowDialogs(
     });
   }
 
-  deps.showScoreDeltas(() => {
-    for (const pid of [...needsReselect, ...eliminated]) {
-      if (remoteHumanSlots.has(pid)) continue;
-      controllers[pid]!.onLifeLost();
-    }
-
-    if (needsReselect.length > 0 || eliminated.length > 0) {
-      deps.showLifeLostDialog(needsReselect, eliminated);
-      return;
-    }
-
-    deps.afterLifeLostResolved();
+  runBuildEndSequence({
+    needsReselect,
+    eliminated,
+    showScoreDeltas: deps.showScoreDeltas,
+    notifyLifeLost: (pid) => {
+      if (!remoteHumanSlots.has(pid)) controllers[pid]!.onLifeLost();
+    },
+    showLifeLostDialog: deps.showLifeLostDialog,
+    afterLifeLostResolved: deps.afterLifeLostResolved,
   });
 }

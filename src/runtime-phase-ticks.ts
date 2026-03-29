@@ -25,7 +25,8 @@ import {
 import { collectLocalCrosshairs, tickGameCore } from "./game-ui-helpers.ts";
 import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
-import { BANNER_BUILD, BANNER_BUILD_SUB } from "./phase-banner.ts";
+import { BANNER_BUILD } from "./phase-banner.ts";
+import { showBuildPhaseBanner } from "./phase-transition-shared.ts";
 import {
   beginHostBattle,
   startHostBattleLifecycle,
@@ -312,16 +313,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       },
       onBattlePhaseEnded: () => {
         deps.saveBattleCrosshair?.();
-        deps.showBanner(
-          BANNER_BUILD,
-          () => {
-            startBuildPhase();
-            rs.mode = Mode.GAME;
-          },
-          true,
-          undefined,
-          BANNER_BUILD_SUB,
-        );
+        showBuildPhaseBanner(deps.showBanner, BANNER_BUILD, () => {
+          startBuildPhase();
+          rs.mode = Mode.GAME;
+        });
         nextPhase(rs.state);
         if (rs.ctx.isHost && deps.hostNetworking) {
           deps.send(deps.hostNetworking.createBuildStartMessage(rs.state));

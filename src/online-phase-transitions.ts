@@ -12,10 +12,15 @@ import { TILE_COUNT } from "./grid.ts";
 import type { WatcherTimingState } from "./online-types.ts";
 import {
   BANNER_BATTLE_ONLINE,
-  BANNER_PLACE_CANNONS,
   BANNER_REPAIR_ONLINE,
   type BannerShow,
 } from "./phase-banner.ts";
+import {
+  runBuildEndSequence,
+  showBattlePhaseBanner,
+  showBuildPhaseBanner,
+  showCannonPhaseBanner,
+} from "./phase-transition-shared.ts";
 import { NO_WINNER_NAME } from "./player-config.ts";
 import {
   FOCUS_REMATCH,
@@ -71,7 +76,6 @@ export interface TransitionContext {
 
   // --- Battle ---
   battle: {
-    countdown: number;
     setFlights: (
       value: readonly {
         flight: {
@@ -84,7 +88,10 @@ export interface TransitionContext {
       }[],
     ) => void;
     snapshotTerritory: () => Set<number>[];
-    aimAtEnemyCastle?: () => void;
+    /** Initiate the battle countdown.  Goes through beginHostBattle which
+     *  handles resetBattle, countdown, watcher timing, aimAtEnemyCastle, and
+     *  Mode.GAME — so the banner callback doesn't need to duplicate any of it. */
+    beginBattle: () => void;
   };
 
   // --- Life-lost & game over ---
@@ -172,15 +179,11 @@ export function handleCannonStartTransition(
   if (state.phase !== Phase.CANNON_PLACE) {
     setPhase(state, Phase.CANNON_PLACE);
     state.timer = state.cannonPlaceTimer;
-    ctx.ui.showBanner(
-      BANNER_PLACE_CANNONS,
-      () => {
-        ctx.ui.watcherTiming.phaseStartTime = ctx.now();
-        ctx.ui.watcherTiming.phaseDuration = state.timer;
-        ctx.setMode(Mode.GAME);
-      },
-      true,
-    );
+    showCannonPhaseBanner(ctx.ui.showBanner, () => {
+      ctx.ui.watcherTiming.phaseStartTime = ctx.now();
+      ctx.ui.watcherTiming.phaseDuration = state.timer;
+      ctx.setMode(Mode.GAME);
+    });
   }
 }
 
@@ -190,41 +193,29 @@ export function handleBattleStartTransition(
 ): void {
   if (msg.type !== MESSAGE.BATTLE_START) return;
   const state = ctx.getState();
-  const myPlayerId = ctx.getMyPlayerId();
-  const battleReceivedAt = ctx.now();
   const battleFlights = msg.flights;
 
-  ctx.ui.showBanner(
-    BANNER_BATTLE_ONLINE,
-    () => {
-      if (myPlayerId >= 0) {
-        const ctrl = ctx.getControllers()[myPlayerId];
-        if (ctrl) ctrl.resetBattle(state);
-      }
-      ctx.battle.aimAtEnemyCastle?.();
-      if (battleFlights && battleFlights.length > 0) {
-        ctx.battle.setFlights(
-          battleFlights.map((f) => ({
-            flight: {
-              startX: f.startX,
-              startY: f.startY,
-              endX: f.endX,
-              endY: f.endY,
-            },
-            progress: 0,
-          })),
-        );
-        ctx.setMode(Mode.BALLOON_ANIM);
-      } else {
-        state.battleCountdown = ctx.battle.countdown;
-        ctx.ui.watcherTiming.countdownStartTime =
-          battleReceivedAt + ctx.ui.bannerDuration * 1000;
-        ctx.ui.watcherTiming.countdownDuration = ctx.battle.countdown;
-        ctx.setMode(Mode.GAME);
-      }
-    },
-    true,
-  );
+  showBattlePhaseBanner(ctx.ui.showBanner, BANNER_BATTLE_ONLINE, () => {
+    if (battleFlights && battleFlights.length > 0) {
+      ctx.battle.setFlights(
+        battleFlights.map((f) => ({
+          flight: {
+            startX: f.startX,
+            startY: f.startY,
+            endX: f.endX,
+            endY: f.endY,
+          },
+          progress: 0,
+        })),
+      );
+      // Balloon anim ticks → beginBattle() when complete
+      ctx.setMode(Mode.BALLOON_ANIM);
+    } else {
+      // No balloons — go straight to countdown via the shared beginBattle path
+      // (handles resetBattle, countdown, watcher timing, aimAtEnemyCastle, Mode.GAME)
+      ctx.battle.beginBattle();
+    }
+  });
 
   ctx.checkpoint.applyBattleStart(msg);
   setPhase(state, Phase.BATTLE);
@@ -233,7 +224,6 @@ export function handleBattleStartTransition(
   // clean grass instead of debris for swept walls.
   ctx.ui.banner.newTerritory = ctx.battle.snapshotTerritory();
   ctx.ui.banner.newWalls = snapshotAllWalls(state);
-  state.battleCountdown = ctx.battle.countdown;
 }
 
 export function handleBuildStartTransition(
@@ -244,16 +234,12 @@ export function handleBuildStartTransition(
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
   const buildReceivedAt = ctx.now();
-  ctx.ui.showBanner(
-    BANNER_REPAIR_ONLINE,
-    () => {
-      ctx.ui.watcherTiming.phaseStartTime =
-        buildReceivedAt + ctx.ui.bannerDuration * 1000;
-      ctx.ui.watcherTiming.phaseDuration = state.timer;
-      ctx.setMode(Mode.GAME);
-    },
-    true,
-  );
+  showBuildPhaseBanner(ctx.ui.showBanner, BANNER_REPAIR_ONLINE, () => {
+    ctx.ui.watcherTiming.phaseStartTime =
+      buildReceivedAt + ctx.ui.bannerDuration * 1000;
+    ctx.ui.watcherTiming.phaseDuration = state.timer;
+    ctx.setMode(Mode.GAME);
+  });
 
   ctx.checkpoint.applyBuildStart(msg);
   setPhase(state, Phase.WALL_BUILD);
@@ -281,12 +267,20 @@ export function handleBuildEndTransition(
     const zone = state.playerZones[pid];
     if (zone !== undefined) ctx.endPhase.resetZoneState(state, zone);
   }
-  // Show score deltas first (matches host timing), then life-lost dialog.
-  // Without this delay, non-host sends life_lost_choice before host creates its dialog.
-  ctx.endPhase.showScoreDeltas(preScores, () => {
-    if (msg.needsReselect.length > 0 || msg.eliminated.length > 0) {
-      ctx.endPhase.showLifeLostDialog(msg.needsReselect, msg.eliminated);
-    }
+  // Shared build-end sequence: score deltas → onLifeLost → dialog.
+  // Without the score-delta delay, non-host sends life_lost_choice before
+  // host creates its dialog.
+  const myPlayerId = ctx.getMyPlayerId();
+  runBuildEndSequence({
+    needsReselect: msg.needsReselect,
+    eliminated: msg.eliminated,
+    showScoreDeltas: (onDone) =>
+      ctx.endPhase.showScoreDeltas(preScores, onDone),
+    notifyLifeLost: (pid) => {
+      if (pid === myPlayerId) ctx.getControllers()[pid]?.onLifeLost();
+    },
+    showLifeLostDialog: ctx.endPhase.showLifeLostDialog,
+    // No afterLifeLostResolved — watcher waits for host's next phase message
   });
 }
 

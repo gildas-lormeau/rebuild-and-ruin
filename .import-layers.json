@@ -51,6 +51,7 @@
       "src/game-engine.ts",
       "src/game-ui-helpers.ts",
       "src/phase-banner.ts",
+      "src/phase-transition-shared.ts",
       "src/selection.ts"
     ]
   },
