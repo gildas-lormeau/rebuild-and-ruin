@@ -6,11 +6,11 @@ import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
   computeLobbyLayout,
   GAMEOVER_BTN_H,
-  GAMEOVER_COL_RATIOS,
   GAMEOVER_HEADER_H,
   GAMEOVER_ROW_H,
   gameOverLayout,
   lifeLostButtonLayout,
+  SCOREBOARD_COL_RATIOS,
 } from "./render-composition.ts";
 import {
   BANNER_HEIGHT_RATIO,
@@ -287,10 +287,10 @@ export function drawGameOver(
   // Column headers
   const tableTop = py + GAMEOVER_HEADER_H;
   const colName = px + INSET;
-  const colScore = px + panelW * GAMEOVER_COL_RATIOS[0];
-  const colWalls = px + panelW * GAMEOVER_COL_RATIOS[1];
-  const colCannons = px + panelW * GAMEOVER_COL_RATIOS[2];
-  const colTerritory = px + panelW * GAMEOVER_COL_RATIOS[3];
+  const colScore = px + panelW * SCOREBOARD_COL_RATIOS[0];
+  const colWalls = px + panelW * SCOREBOARD_COL_RATIOS[1];
+  const colCannons = px + panelW * SCOREBOARD_COL_RATIOS[2];
+  const colTerritory = px + panelW * SCOREBOARD_COL_RATIOS[3];
 
   if (hasStats) {
     octx.font = FONT_FLOAT_XS;

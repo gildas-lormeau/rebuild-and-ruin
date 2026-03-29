@@ -207,8 +207,14 @@ export function finalizeCastleConstruction(state: GameState): void {
 
 /** Advance state through nextPhase until CANNON_PLACE is reached. */
 export function advanceToCannonPlacePhase(state: GameState): void {
-  const MAX_ADVANCES = 5;
-  for (let i = 0; i < MAX_ADVANCES && state.phase !== Phase.CANNON_PLACE; i++) {
+  // Safety limit: at most 5 transitions to reach CANNON_PLACE (SELECT→BUILD→CANNON = 2–3).
+  // Prevents infinite loops if phase logic has a bug.
+  const PHASE_ADVANCE_LIMIT = 5;
+  for (
+    let i = 0;
+    i < PHASE_ADVANCE_LIMIT && state.phase !== Phase.CANNON_PLACE;
+    i++
+  ) {
     nextPhase(state);
   }
 }

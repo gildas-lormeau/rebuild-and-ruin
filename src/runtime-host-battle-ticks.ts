@@ -280,6 +280,7 @@ export function tickHostBalloonAnim(deps: TickHostBalloonAnimDeps): void {
   const { dt, balloonFlightDuration, battleAnim, render, beginBattle } = deps;
   let allDone = true;
   for (const b of battleAnim.flights) {
+    // Clamp to 1.0 — progress is normalized [0,1] and must not overshoot
     b.progress = Math.min(1, b.progress + dt / balloonFlightDuration);
     if (b.progress < 1) allDone = false;
   }

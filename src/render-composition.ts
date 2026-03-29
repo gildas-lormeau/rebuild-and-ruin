@@ -69,7 +69,8 @@ const GEAR_SIZE = 28;
 export const GAMEOVER_ROW_H = 14;
 export const GAMEOVER_HEADER_H = 36;
 export const GAMEOVER_BTN_H = 20;
-export const GAMEOVER_COL_RATIOS = [0.38, 0.56, 0.74, 0.92] as const;
+/** Scoreboard column X positions as ratios of panel width: Score, Walls, Cannons, Territory. */
+export const SCOREBOARD_COL_RATIOS = [0.38, 0.56, 0.74, 0.92] as const;
 
 export function createRenderSummaryMessage(params: {
   phaseName: string;
@@ -229,6 +230,9 @@ export function lifeLostButtonLayout(
   };
 }
 
+/** Position the life-lost dialog panel centered over the player's zone towers.
+ *  Falls back to the map center if no zone towers exist.
+ *  Result is clamped to keep the panel 2px inside the tile-space edges. */
 export function lifeLostPanelPos(
   state: GameState,
   playerId: number,
@@ -238,6 +242,7 @@ export function lifeLostPanelPos(
   const tsW = GRID_COLS * TILE_SIZE;
   const tsH = GRID_ROWS * TILE_SIZE;
 
+  // Tower centroid (+1 offset for 2×2 tower center), or map center as fallback
   const cx =
     zoneTowers.length > 0
       ? (zoneTowers.reduce((s, t) => s + t.col, 0) / zoneTowers.length + 1) *

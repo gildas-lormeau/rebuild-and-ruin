@@ -90,7 +90,8 @@ interface CannonballUpdateResult {
 
 /** Cannon rotation speed in radians per second. */
 const CANNON_ROTATE_SPEED = Math.PI * 3;
-/** Countdown thresholds for battle announcement phases. */
+/** Countdown thresholds for battle announcement phases:
+ *    > 3s → "Ready"   |   1–3s → "Aim"   |   ≤ 1s → "FIRE!" */
 const COUNTDOWN_READY = 3;
 const COUNTDOWN_AIM = 1;
 
@@ -136,7 +137,7 @@ export function canPlayerFire(state: GameState, playerId: number): boolean {
 export function nextReadyCombined(
   state: GameState,
   playerId: number,
-  after: number = -1,
+  after: number = -1 /* -1 = start from beginning (no previous cannon) */,
 ): CombinedCannonResult | null {
   const player = state.players[playerId];
   if (!player) return null;
@@ -310,13 +311,15 @@ export function advanceCannonball(
 
 /**
  * Apply a single impact event to game state. Used by both host and watcher.
+ * @param shooterId — fallback owner for scoring when event lacks embedded shooterId
+ *   (host passes it from the firing loop; network events embed it in the payload).
  */
 export function applyImpactEvent(
   state: GameState,
   event: ImpactEvent,
   shooterId?: number,
 ): void {
-  // Use shooterId from event (network) or parameter (host)
+  // Prefer shooterId from event (network payload) over parameter (host fallback)
   const sid =
     "shooterId" in event && event.shooterId !== undefined
       ? event.shooterId
@@ -698,12 +701,12 @@ function findBestBalloonTarget(
   assignedThisRound: Map<Cannon, number>,
 ): { cannon: Cannon; victimId: number } | null {
   let bestCannon: Cannon | null = null;
-  let bestVictimId = -1;
+  let bestVictimId = -1; // sentinel: no target found yet
   let bestScore = -1;
 
   for (const other of filterActiveEnemies(state, ownerId)) {
     for (const cannon of filterActiveFiringCannons(other)) {
-      const needed = balloonHitsNeeded(cannon);
+      const needed = balloonHitThreshold(cannon);
       const prevHits = state.balloonHits.get(cannon)?.count ?? 0;
       const roundHits = assignedThisRound.get(cannon) ?? 0;
       if (prevHits + roundHits >= needed) continue;
@@ -728,7 +731,7 @@ function resolveBalloonCaptures(
 ): void {
   state.capturedCannons = [];
   for (const [cannon, hit] of state.balloonHits) {
-    const needed = balloonHitsNeeded(cannon);
+    const needed = balloonHitThreshold(cannon);
     if (hit.count >= needed) {
       const target = thisRoundTargets.get(cannon);
       let victimId = target?.victimId ?? -1;
@@ -752,8 +755,8 @@ function resolveBalloonCaptures(
   }
 }
 
-/** How many balloon hits are required to capture a cannon. */
-function balloonHitsNeeded(cannon: Cannon): number {
+/** Number of balloon hits required to capture a cannon (super guns need more). */
+function balloonHitThreshold(cannon: Cannon): number {
   return isSuperCannon(cannon)
     ? SUPER_BALLOON_HITS_NEEDED
     : BALLOON_HITS_NEEDED;

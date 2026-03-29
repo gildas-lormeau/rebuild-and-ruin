@@ -10,9 +10,11 @@ import { safeSendRaw } from "./send-utils.ts";
 const MAX_ROOMS = 50;
 /** Sentinel for "no player slot assigned" in host migration. */
 const NO_HOST_SLOT = -1;
-const ROOM_CLEANUP_DELAY_MS = 60_000; // 60s after game over
+/** Grace period before destroying a room after game over — allows clients to see final screen. */
+const ROOM_CLEANUP_DELAY_MS = 60_000;
 /** Uppercase letters excluding I and O to avoid confusion with 1 and 0. */
 const ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+/** 4 chars from 24-letter alphabet ≈ 330K combinations — sufficient for concurrent rooms. */
 const ROOM_CODE_LENGTH = 4;
 
 export interface RoomEntry {

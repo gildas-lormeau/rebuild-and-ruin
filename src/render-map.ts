@@ -45,15 +45,21 @@ interface TerrainImageCache {
   battle?: ImageData;
 }
 
+// Tile fill colors — RGB tuples fed into ImageData pixel arrays.
 const GRASS_DARK: RGB = [45, 140, 45];
+// checkerboard dark square
 const GRASS_LIGHT: RGB = [51, 153, 51];
+// checkerboard light square
 const GRASS_BATTLE: RGB = [
+  // darkened 85% of light grass during battle phase
   Math.floor(51 * 0.85),
   Math.floor(153 * 0.85),
   Math.floor(51 * 0.85),
 ];
 const WATER_COLOR: RGB = [40, 104, 176];
+// river fill
 const BANK_COLOR: RGB = [139, 58, 26];
+// river bank / shoreline
 // Neutral stone color used for all walls during battle phase
 const NEUTRAL_WALL: RGB = [140, 130, 120];
 // Grass blade texture pattern (local pixel offsets within a 16x16 tile)

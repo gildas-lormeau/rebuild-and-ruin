@@ -632,7 +632,7 @@ function pickAdjacentWallKeyForAttack(
   col: number,
   target: TilePos | null,
 ): number {
-  let bestWallKey = -1;
+  let bestWallKey = -1; // sentinel: no wall found yet
   let bestDist = Infinity;
   for (const wallKey of adjacentWallKeys(state, row, col)) {
     if (!target) return wallKey;

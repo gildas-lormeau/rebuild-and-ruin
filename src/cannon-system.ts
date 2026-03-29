@@ -166,11 +166,14 @@ export function applyCannonPlacement(
 
 /**
  * Compute the total cannon slot limit for a player this round.
+ * Three paths: reselection (fixed budget based on lives lost),
+ * round 1 (firstRoundCannons), or normal (tower-based: 2 for home + 1 per other).
  */
 export function cannonSlotsForRound(player: Player, state: GameState): number {
   const existingSlots = cannonSlotsUsed(player);
   let newSlots: number;
   if (state.reselectedPlayers.has(player.id)) {
+    // Reselection: compensate for lives lost, capped at MAX_CANNON_LIMIT_ON_RESELECT
     newSlots = Math.min(
       state.firstRoundCannons + (STARTING_LIVES - player.lives),
       MAX_CANNON_LIMIT_ON_RESELECT,

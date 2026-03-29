@@ -75,7 +75,11 @@ const IMPACT_CORE_END = 0.25;
 const IMPACT_RING_END = 0.6;
 const IMPACT_DEBRIS_END = 0.8;
 const IMPACT_SMOKE_START = 0.2;
-// Burning pit ember glow
+/**
+ * Burning pit ember glow — pulsing orange/red gradient.
+ * Color = rgba(RED_BASE ± RED_RANGE, GREEN_BASE ± GREEN_RANGE, 0, ALPHA_BASE ± ALPHA_RANGE)
+ * driven by sin(time) for a slow breathing effect.
+ */
 const EMBER_RED_BASE = 180;
 const EMBER_RED_RANGE = 75;
 const EMBER_GREEN_BASE = 60;
@@ -513,7 +517,9 @@ function drawPhaseTimer(
   octx.restore();
 }
 
-/** Compute animated crosshair dimensions from ready state and time. */
+/** Compute animated crosshair dimensions from ready state and time.
+ *  Returns: alpha (opacity), arm (crosshair line length),
+ *  diag (diagonal tick length, ~70% of arm), gap (px between center and lines). */
 function crosshairGeometry(
   ready: boolean,
   t: number,

@@ -17,6 +17,9 @@ import { computeWsUrl } from "./online-config.ts";
 import { connectWebSocket } from "./online-session.ts";
 import { Mode } from "./types.ts";
 
+const ANNOUNCEMENT_RECONNECTING = "Reconnecting\u2026";
+const ANNOUNCEMENT_DISCONNECTED = "Disconnected from server";
+
 /** Stashed from the first call so reconnect retries reuse it. */
 let _onConnectError: (() => void) | undefined;
 
@@ -32,12 +35,14 @@ export function connect(onConnectError?: () => void): void {
     },
     onClose: () => {
       const m = runtime.rs.mode;
+      // Mode[m] is TypeScript's reverse enum mapping (numeric → string name)
       devLog(`WebSocket closed (mode=${Mode[m]} isHost=${session.isHost})`);
       if (session.isHost || m === Mode.STOPPED || m === Mode.LOBBY) return;
       if (reconnect.count < MAX_RECONNECT_ATTEMPTS) {
         reconnect.count++;
+        // Exponential backoff: base × 2^(attempt-1) via bit-shift
         const delay = RECONNECT_BASE_DELAY_MS * (1 << (reconnect.count - 1));
-        runtime.rs.frame.announcement = "Reconnecting\u2026";
+        runtime.rs.frame.announcement = ANNOUNCEMENT_RECONNECTING;
         runtime.render();
         devLog(
           `reconnect attempt ${reconnect.count}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`,
@@ -48,7 +53,7 @@ export function connect(onConnectError?: () => void): void {
         }, delay);
       } else {
         clearReconnect();
-        runtime.rs.frame.announcement = "Disconnected from server";
+        runtime.rs.frame.announcement = ANNOUNCEMENT_DISCONNECTED;
         runtime.render();
         runtime.rs.mode = Mode.STOPPED;
       }

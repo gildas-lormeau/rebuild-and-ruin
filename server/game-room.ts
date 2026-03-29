@@ -67,10 +67,12 @@ const HOST_ONLY: Set<string> = new Set([
 // Payload validation — reject obviously malformed values before relaying
 // ---------------------------------------------------------------------------
 
+// Upper bounds for payload validation — reject clearly malformed values before relaying.
+// These are generous limits (well above real game maximums) to catch garbage data.
 const MAX_PLAYER_ID = MAX_PLAYERS - 1;
-const MAX_TOWER_IDX = 30;
-const MAX_CANNON_IDX = 30;
-const MAX_PIECE_TILES = 50;
+const MAX_TOWER_IDX = 30; // maps generate ≤15 towers, allow headroom
+const MAX_CANNON_IDX = 30; // players can place ~8–10 cannons max per round
+const MAX_PIECE_TILES = 50; // largest piece is 5 tiles; generous for batched placements
 const MAX_PIXEL = Math.max(GRID_COLS, GRID_ROWS) * TILE_SIZE + 100;
 const VALID_CHOICES: ReadonlySet<string> = new Set([
   LifeLostChoice.CONTINUE,

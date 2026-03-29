@@ -94,8 +94,9 @@ function handleTouchStart(
   gs.touchedPhantom = false;
   const { renderer, getState, getMode, coords } = deps;
 
-  // Two-finger pinch start
-  if (e.touches.length >= 2) {
+  // Two-finger pinch start (minimum 2 fingers to distinguish from single-touch pan)
+  const MIN_PINCH_FINGERS = 2;
+  if (e.touches.length >= MIN_PINCH_FINGERS) {
     const c0 = canvasCoords(e.touches[0]!, renderer),
       c1 = canvasCoords(e.touches[1]!, renderer);
     gs.pinchStartDist = Math.hypot(c1.x - c0.x, c1.y - c0.y);

@@ -131,8 +131,12 @@ export function createDpad(
   const btnsAction = queryAll(container, ACTION_CONFIRM);
   const btnsRotate = queryAll(container, "rotate");
 
-  // --- Key-repeat for arrows ---
+  // --- Key-repeat for d-pad arrows ---
+  // Tuned for piece/cursor movement: short initial delay for responsiveness,
+  // fast repeat for holding to slide across the grid.
+  /** ms before the first repeat fires after initial press. */
   const REPEAT_DELAY = 120;
+  /** ms between subsequent repeats while held. */
   const REPEAT_RATE = 50;
   let repeatTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -173,7 +177,8 @@ export function createDpad(
     deps.withFirstHuman((human) => human.handleKeyUp(action));
   }
 
-  function isBattle(): boolean {
+  /** True when the current game phase is BATTLE (d-pad switches to hold-to-move). */
+  function isBattlePhase(): boolean {
     return deps.getState()?.phase === Phase.BATTLE;
   }
 
@@ -185,7 +190,7 @@ export function createDpad(
         e.stopPropagation();
         pressDown(btn);
         deps.clearDirectTouch?.();
-        if (isBattle()) battleKeyDown(action);
+        if (isBattlePhase()) battleKeyDown(action);
         else startRepeat(action);
       },
       { passive: false },
@@ -196,14 +201,14 @@ export function createDpad(
         e.preventDefault();
         e.stopPropagation();
         pressUp(btn);
-        if (isBattle()) battleKeyUp(action);
+        if (isBattlePhase()) battleKeyUp(action);
         else stopRepeat();
       },
       { passive: false },
     );
     btn.addEventListener("touchcancel", () => {
       pressUp(btn);
-      if (isBattle()) battleKeyUp(action);
+      if (isBattlePhase()) battleKeyUp(action);
       else stopRepeat();
     });
   }
@@ -270,7 +275,7 @@ export function createDpad(
         e.preventDefault();
         e.stopPropagation();
         pressDown(btn);
-        if (isBattle()) battleKeyDown(Action.ROTATE);
+        if (isBattlePhase()) battleKeyDown(Action.ROTATE);
         else handleRotate();
       },
       { passive: false },
@@ -280,13 +285,13 @@ export function createDpad(
       (e) => {
         e.preventDefault();
         pressUp(btn);
-        if (isBattle()) battleKeyUp(Action.ROTATE);
+        if (isBattlePhase()) battleKeyUp(Action.ROTATE);
       },
       { passive: false },
     );
     btn.addEventListener("touchcancel", () => {
       pressUp(btn);
-      if (isBattle()) battleKeyUp(Action.ROTATE);
+      if (isBattlePhase()) battleKeyUp(Action.ROTATE);
     });
   }
 

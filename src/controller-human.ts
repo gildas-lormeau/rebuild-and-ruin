@@ -107,6 +107,12 @@ export class HumanController extends BaseController implements InputReceiver {
     };
   }
 
+  // --- Cannon cursor state fixups ---
+  // Three operations keep the cursor valid after mode/position changes:
+  //   downgradeCannonModeIfNeeded — revert to NORMAL if slots insufficient
+  //   snapCannonCursorIfNeeded    — nudge to nearest valid tile after mouse/touch
+  //   clampCannonCursorToMode     — keep footprint within grid bounds
+
   /** Downgrade cannon mode if its slot cost exceeds remaining slots (SUPER→NORMAL, BALLOON→NORMAL).
    *  Called in cannonTick() before canPlaceCannon() — otherwise the preview may show
    *  an impossible placement. */
@@ -293,9 +299,10 @@ export class HumanController extends BaseController implements InputReceiver {
     this.clampCannonCursorToMode();
   }
 
-  /** Clamp cannon cursor so the current cannon size stays within the grid. */
+  /** Clamp cannon cursor so the full cannon footprint (sz×sz) stays within the grid. */
   private clampCannonCursorToMode(): void {
     const sz = cannonSize(this.cannonPlaceMode);
+    // Top-left anchor must leave room for sz tiles: max row/col = GRID - sz
     this.cannonCursor.row = Math.min(this.cannonCursor.row, GRID_ROWS - sz);
     this.cannonCursor.col = Math.min(this.cannonCursor.col, GRID_COLS - sz);
   }

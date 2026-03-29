@@ -151,6 +151,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
 
   advancePhaseTimer(accum, "cannon", state, dt, state.cannonPlaceTimer);
 
+  // Reset per-frame phantom collection (cannon phase only needs AI cannon phantoms)
   frame.phantoms = { aiCannonPhantoms: [] };
   // Pass 1: tick only local, non-eliminated controllers (process input & AI decisions)
   for (const ctrl of localActiveControllers(
@@ -248,6 +249,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   tickGruntsIfDue(accum, dt, state, deps.tickGrunts);
 
   // --- Process each controller's build actions, collect phantoms ---
+  // Reset per-frame phantom collection (build phase tracks AI and human piece previews separately)
   frame.phantoms = { aiPhantoms: [], humanPhantoms: [] };
   processControllerBuildActions(deps, frame, remoteHumanSlots);
 

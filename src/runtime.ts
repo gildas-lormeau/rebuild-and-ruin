@@ -153,6 +153,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         for (const c of p.cannons) {
           if (c.hp > 0)
             enemies.push({
+              // +0.5 converts tile top-left to tile center (pixel coords)
               x: (c.col + 0.5) * TILE_SIZE,
               y: (c.row + 0.5) * TILE_SIZE,
             });
