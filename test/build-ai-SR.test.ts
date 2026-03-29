@@ -475,4 +475,4 @@ test("AI does not create 1 square enclosure", () => {
   );
 });
 
-runTests("Build AI — SR piece");
+await runTests("Build AI — SR piece");

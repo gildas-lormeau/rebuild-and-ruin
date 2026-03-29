@@ -826,4 +826,4 @@ test("AI does not create 1 square enclosure (horizontal)", () => {
   );
 });
 
-runTests("Build AI — L piece");
+await runTests("Build AI — L piece");

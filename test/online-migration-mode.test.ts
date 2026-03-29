@@ -67,4 +67,4 @@ test("full_state recovery restores balloon animation mode when flights are prese
   assert(target.battleFlights[0]!.progress === 0.25, "expected recovered flight progress to be preserved");
 });
 
-runTests("Online full_state migration mode recovery");
+await runTests("Online full_state migration mode recovery");

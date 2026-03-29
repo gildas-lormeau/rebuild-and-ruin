@@ -109,4 +109,4 @@ test("lifecycle drops stale full_state after host migration", () => {
   assert(migrationSeq === 2, `expected migrationSeq to advance to 2, got ${migrationSeq}`);
 });
 
-runTests("Online lifecycle migration sequence");
+await runTests("Online lifecycle migration sequence");

@@ -878,4 +878,4 @@ test("AI does not create 1 square enclosure (horizontal)", () => {
   );
 });
 
-runTests("Build AI — J piece");
+await runTests("Build AI — J piece");

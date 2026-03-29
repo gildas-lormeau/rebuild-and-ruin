@@ -699,4 +699,4 @@ test("AI does not create fat walls (horizontal)", () => {
   );
 });
 
-runTests("Build AI — 1x3 piece");
+await runTests("Build AI — 1x3 piece");

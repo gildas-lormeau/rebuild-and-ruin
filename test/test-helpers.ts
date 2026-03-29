@@ -400,17 +400,17 @@ export function assertNotPlacedAt(
 
 interface TestCase {
   name: string;
-  fn: () => void;
+  fn: () => void | Promise<void>;
   expected: "pass" | "known-failure";
 }
 
 const tests: TestCase[] = [];
 
-export function test(name: string, fn: () => void) {
+export function test(name: string, fn: () => void | Promise<void>) {
   tests.push({ name, fn, expected: "pass" });
 }
 
-export function knownFailureTest(name: string, fn: () => void) {
+export function knownFailureTest(name: string, fn: () => void | Promise<void>) {
   tests.push({ name, fn, expected: "known-failure" });
 }
 
@@ -418,7 +418,7 @@ export function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(`Assertion failed: ${message}`);
 }
 
-export function runTests(label?: string) {
+export async function runTests(label?: string) {
   if (label) console.log(`${label}\n`);
   const suite = tests.splice(0, tests.length);
   let passed = 0;
@@ -427,7 +427,7 @@ export function runTests(label?: string) {
   let unexpectedPasses = 0;
   for (const t of suite) {
     try {
-      t.fn();
+      await t.fn();
       if (t.expected === "known-failure") {
         console.log(`  ! ${t.name} (unexpected pass)`);
         unexpectedPasses++;

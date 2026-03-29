@@ -68,6 +68,9 @@ interface GameLifecycleSystem {
   gameOverClick: (canvasX: number, canvasY: number) => void;
 }
 
+/** How long to show the winner screen before auto-returning to lobby in demo mode. */
+const DEMO_RETURN_DELAY_MS = 10_000;
+
 export function createGameLifecycle(
   deps: GameLifecycleDeps,
 ): GameLifecycleSystem {
@@ -167,6 +170,9 @@ export function createGameLifecycle(
   // End / rematch / return to lobby
   // -------------------------------------------------------------------------
 
+  /** Timer for auto-return to lobby in demo mode (all-AI games). */
+  let demoReturnTimer: ReturnType<typeof setTimeout> | null = null;
+
   function endGame(winner: { id: number } | null) {
     rs.scoreDeltaOnDone = null;
     rs.lifeLostDialog = null;
@@ -191,9 +197,23 @@ export function createGameLifecycle(
     };
     deps.render();
     rs.mode = Mode.STOPPED;
+
+    // Demo mode: auto-return to lobby after 10s when all players are AI
+    if (demoReturnTimer) clearTimeout(demoReturnTimer);
+    const allAi = rs.lobby.joined.every((j) => !j);
+    if (allAi) {
+      demoReturnTimer = setTimeout(() => {
+        demoReturnTimer = null;
+        if (rs.mode === Mode.STOPPED) returnToLobby();
+      }, DEMO_RETURN_DELAY_MS);
+    }
   }
 
   function rematch() {
+    if (demoReturnTimer) {
+      clearTimeout(demoReturnTimer);
+      demoReturnTimer = null;
+    }
     camera.resetCamera();
     rs.frame.gameOver = undefined;
     startGame();
@@ -203,6 +223,10 @@ export function createGameLifecycle(
   }
 
   function returnToLobby(): void {
+    if (demoReturnTimer) {
+      clearTimeout(demoReturnTimer);
+      demoReturnTimer = null;
+    }
     rs.scoreDeltaOnDone = null;
     camera.unzoom();
     rs.frame.gameOver = undefined;

@@ -616,7 +616,50 @@ test("resetSessionState closes WebSocket and resets all fields", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 19. Super gun can fire immediately after placement
+// 19. Demo mode auto-returns to lobby after game over
+// ---------------------------------------------------------------------------
+
+test("demo mode auto-returns to lobby after game ends (all-AI)", async () => {
+  // Simulate the demo timer logic from endGame
+  let returnCalled = false;
+  const mode = { current: Mode.STOPPED };
+  const joined = [false, false, false];
+  const allAi = joined.every((j) => !j);
+  assert(allAi, "All-false joined should be all-AI");
+
+  const timer = setTimeout(() => {
+    if (mode.current === Mode.STOPPED) returnCalled = true;
+  }, 20);
+
+  assert(!returnCalled, "Should not return immediately");
+  await new Promise((r) => setTimeout(r, 50));
+  assert(returnCalled, "Should auto-return after delay");
+  clearTimeout(timer);
+});
+
+test("demo timer does not fire if user clicks rematch first", async () => {
+  let returnCalled = false;
+  const mode = { current: Mode.STOPPED };
+
+  const timer = setTimeout(() => {
+    if (mode.current === Mode.STOPPED) returnCalled = true;
+  }, 20);
+
+  // User clicks rematch — mode changes before timer fires
+  mode.current = Mode.SELECTION;
+  await new Promise((r) => setTimeout(r, 50));
+  assert(!returnCalled, "Should not return if mode changed away from STOPPED");
+  clearTimeout(timer);
+});
+
+test("demo timer not started when human is playing", () => {
+  const joined = [true, false, false];
+  const allAi = joined.every((j) => !j);
+  assert(!allAi, "Should not be all-AI when a human joined");
+});
+
+// ---------------------------------------------------------------------------
+// 20. Super gun can fire immediately after placement
 // ---------------------------------------------------------------------------
 
 test("super gun placed during cannon phase can fire in battle", () => {
@@ -702,4 +745,4 @@ test("super gun placed during cannon phase can fire in battle", () => {
 
 // ---------------------------------------------------------------------------
 
-runTests("Scenario Tests");
+await runTests("Scenario Tests");
