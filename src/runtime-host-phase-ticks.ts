@@ -135,6 +135,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   state.timer = Math.max(0, state.cannonPlaceTimer - accum.cannon);
 
   frame.phantoms = { aiCannonPhantoms: [] };
+  // Pass 1: tick only local, non-eliminated controllers (process input & AI decisions)
   for (const ctrl of localActiveControllers(
     controllers,
     remoteHumanSlots,
@@ -201,6 +202,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
 
   if (state.timer > 0 && !allDone) return false;
 
+  // Pass 2: flush/init ALL controllers (including remote) for phase transition
   for (const ctrl of controllers) {
     const max = state.cannonLimits[ctrl.playerId] ?? 0;
     if (remoteHumanSlots.has(ctrl.playerId)) {
@@ -255,6 +257,7 @@ function processControllerBuildActions(
   const sendOpponentPiecePlaced = deps.net?.sendOpponentPiecePlaced;
   const sendOpponentPhantom = deps.net?.sendOpponentPhantom;
 
+  // Pass 1: tick only local, non-eliminated controllers (process input & AI decisions)
   for (const ctrl of localActiveControllers(
     controllers,
     remoteHumanSlots,
@@ -370,6 +373,7 @@ function finalizeBuildAndShowDialogs(
   const serializePlayers = deps.net?.serializePlayers ?? (() => []);
   const sendBuildEnd = deps.net?.sendBuildEnd;
 
+  // Pass 2: finalize ALL controllers (including remote) for phase transition
   for (const ctrl of controllers) {
     if (remoteHumanSlots.has(ctrl.playerId)) continue;
     ctrl.endBuild(state);

@@ -1,3 +1,11 @@
+/**
+ * Overlay composition, layout, and hit-test utilities.
+ *
+ * Parameter convention: functions with ≤3 closely-related args use positional
+ * parameters; functions with >3 args or heterogeneous config use a `params`
+ * object for readability at the call site.
+ */
+
 import { LIFE_LOST_MAX_TIMER } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";

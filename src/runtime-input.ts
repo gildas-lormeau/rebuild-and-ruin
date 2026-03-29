@@ -4,7 +4,9 @@
  * composition root.
  *
  * Follows the factory-with-deps pattern used by runtime-camera.ts,
- * runtime-selection.ts, etc.
+ * runtime-selection.ts, etc.  Deps are referenced via `deps.X` inline
+ * rather than destructured at top, because the large inputDeps literal
+ * would require many forwarding variables with no clarity gain.
  */
 
 import type {

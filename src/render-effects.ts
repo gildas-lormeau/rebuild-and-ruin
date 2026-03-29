@@ -4,6 +4,12 @@
  *
  * Convention: exported functions use `octx` (overlay context) for the parameter name.
  * Private helper functions use `ctx` for brevity.
+ *
+ * Time parameter convention:
+ * - `now?: number` — caller-supplied timestamp (Date.now() scale) for testability
+ *   (e.g. drawBonusSquares). Falls back to Date.now() when omitted.
+ * - `performance.now()` — called inline for animations that are never tested in
+ *   isolation and need high-resolution timing (water, burning pits, crosshairs).
  */
 
 import { IMPACT_FLASH_DURATION } from "./game-constants.ts";
