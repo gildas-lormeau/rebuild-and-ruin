@@ -296,6 +296,9 @@ export function moveCannonball(
   const dx = ball.targetX - ball.x;
   const dy = ball.targetY - ball.y;
   const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist === 0) {
+    return { row: pxToTile(ball.targetY), col: pxToTile(ball.targetX) };
+  }
   const move = ball.speed * dt;
   if (dist <= move) {
     return { row: pxToTile(ball.targetY), col: pxToTile(ball.targetX) };
