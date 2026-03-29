@@ -6,7 +6,7 @@ A multiplayer Rampart remake for the web. Up to 3 players compete on a battlefie
 
 ## Map
 
-- **Grid**: 40 columns × 28 rows.
+- **Grid**: 42 columns × 28 rows.
 - **Terrain**: Grass (buildable) and Water (impassable).
 - **River**: A Y-shaped river divides the map into **3 zones** of roughly equal size. Generated via Bezier curves from a central junction to 3 map edges; 3 tiles wide.
 - **Towers**: 12 total (4 per zone), each occupying 2×2 tiles. Placed via farthest-point sampling with minimum 4-tile gap between towers and a safe zone around each.
