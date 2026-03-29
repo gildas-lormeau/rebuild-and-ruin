@@ -59,11 +59,12 @@ The layer map file. Committed to the repo. An array of named groups — position
 ```
  0  leaf utilities              canvas-layout, grid, platform, rng, router
  1  geometry & pieces           geometry-types, pieces
- 2  core types & systems        types, spatial, life-lost, castle-build, board-occupancy, server/protocol
+ 2  core types & systems        types, spatial, life-lost, castle-build, board-occupancy,
+                                checkpoint-data, server/protocol
  3  shared interfaces & theme   player-config, controller-interfaces, tick-context,
                                 render-theme, render-types  ← pure interfaces/theme, no canvas deps
  4  game systems & selection    cannon/grunt/battle/build-system, map-generation, game-engine,
-                                game-ui-helpers, phase-banner, selection
+                                game-ui-helpers, phase-banner, phase-transition-shared, selection
  5  AI strategy                 ai-constants, ai-build-*, ai-strategy-*, ai-castle-rect
  6  controllers                 controller-ai, controller-types, controller-human, controller-factory
  7  input & feedback systems     input-*, haptics-system, sound-system
