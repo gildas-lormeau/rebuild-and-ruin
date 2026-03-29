@@ -9,7 +9,6 @@ import type {
   FullStateMessage,
   GameMessage,
   InitMessage,
-  ServerMessage,
 } from "../server/protocol.ts";
 import { MESSAGE } from "../server/protocol.ts";
 import {
@@ -111,12 +110,9 @@ export const transitionCtx: TransitionContext = {
   },
 
   checkpoint: {
-    applyCannonStart: (msg: ServerMessage) =>
-      applyCannonStartData(...checkpointArgs(msg)),
-    applyBattleStart: (msg: ServerMessage) =>
-      applyBattleStartData(...checkpointArgs(msg)),
-    applyBuildStart: (msg: ServerMessage) =>
-      applyBuildStartData(...checkpointArgs(msg)),
+    applyCannonStart: (data) => applyCannonStartData(...checkpointArgs(data)),
+    applyBattleStart: (data) => applyBattleStartData(...checkpointArgs(data)),
+    applyBuildStart: (data) => applyBuildStartData(...checkpointArgs(data)),
     applyPlayers: applyPlayersCheckpoint,
   },
 
@@ -396,11 +392,11 @@ export function applyFullState(msg: FullStateMessage): void {
 
 // ── Checkpoint helper ───────────────────────────────────────────────
 /** Build positional args for applyCannonStartData / applyBattleStartData / applyBuildStartData.
- *  Order must match their signatures: (watcher, msg, state, battleAnim, accum, snapshotTerritory). */
-function checkpointArgs(msg: ServerMessage) {
+ *  Order must match their signatures: (watcher, data, state, battleAnim, accum, snapshotTerritory). */
+function checkpointArgs<T>(data: T) {
   return [
     watcher,
-    msg,
+    data,
     runtime.rs.state,
     runtime.rs.battleAnim,
     runtime.rs.accum,

@@ -36,11 +36,6 @@ import {
   processReselectionQueue,
 } from "./game-ui-helpers.ts";
 import { TILE_SIZE } from "./grid.ts";
-import {
-  CANNON_START_STEPS,
-  executeTransition,
-  showCannonPhaseBanner,
-} from "./phase-transition-shared.ts";
 import { syncSelectionOverlay as syncSelectionOverlayImpl } from "./render-composition.ts";
 import { initTowerSelection } from "./runtime-bootstrap.ts";
 import type { RuntimeState } from "./runtime-state.ts";
@@ -76,14 +71,7 @@ interface SelectionSystemDeps {
   // Sibling systems / parent callbacks
   render: () => void;
   firstHuman: () => (PlayerController & InputReceiver) | null;
-  startCannonPhase: () => void;
-  showBanner: (
-    text: string,
-    onDone: () => void,
-    reveal?: boolean,
-    newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
-    subtitle?: string,
-  ) => void;
+  startCannonPhase: (onBannerDone?: () => void) => void;
 
   /**
    * Called once during enterTowerSelection — kicks off the animation loop
@@ -348,16 +336,9 @@ export function createSelectionSystem(
   }
 
   function advanceToCannonPhase(): void {
-    executeTransition(CANNON_START_STEPS, {
-      reconcileState: () => {
-        advanceToCannonPlacePhase(rs.state);
-        deps.startCannonPhase();
-      },
-      initControllers: () => {},
-      showBanner: () =>
-        showCannonPhaseBanner(deps.showBanner, () => {
-          rs.mode = Mode.GAME;
-        }),
+    advanceToCannonPlacePhase(rs.state);
+    deps.startCannonPhase(() => {
+      rs.mode = Mode.GAME;
     });
   }
 

@@ -31,7 +31,11 @@ import {
   resolveLifeLostDialogRuntime,
   tickLifeLostDialogRuntime,
 } from "../src/life-lost.ts";
-import type { ServerMessage } from "../server/protocol.ts";
+import type {
+  BattleStartData,
+  BuildStartData,
+  CannonStartData,
+} from "../server/protocol.ts";
 import {
   applyBattleStartCheckpoint,
   applyBuildStartCheckpoint,
@@ -546,12 +550,12 @@ export function createScenario(seed = 42): Scenario {
         bannerDuration: 3,
       },
       checkpoint: {
-        applyCannonStart: (msg: ServerMessage) =>
-          applyCannonStartCheckpoint(msg, checkpointDeps),
-        applyBattleStart: (msg: ServerMessage) =>
-          applyBattleStartCheckpoint(msg, checkpointDeps),
-        applyBuildStart: (msg: ServerMessage) =>
-          applyBuildStartCheckpoint(msg, checkpointDeps),
+        applyCannonStart: (data: CannonStartData) =>
+          applyCannonStartCheckpoint(data, checkpointDeps),
+        applyBattleStart: (data: BattleStartData) =>
+          applyBattleStartCheckpoint(data, checkpointDeps),
+        applyBuildStart: (data: BuildStartData) =>
+          applyBuildStartCheckpoint(data, checkpointDeps),
         applyPlayers: applyPlayersCheckpoint,
       },
       selection: {

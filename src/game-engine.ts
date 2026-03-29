@@ -241,26 +241,16 @@ export function enterCannonPlacePhase(state: GameState): void {
   state.timer = 0;
 }
 
-/** Initialize cannon phase: compute limits, reset facings, let controllers place. */
-export function initCannonPhase(params: {
-  state: GameState;
-  controllers: PlayerController[];
-  skipController?: (playerId: number) => boolean;
-}): void {
-  const { state, controllers, skipController } = params;
-
+/** Prepare state for cannon phase: compute limits and reset facings.
+ *  Does NOT init controllers — call initControllerForCannonPhase separately. */
+export function prepareCannonPhase(state: GameState): void {
   computeCannonLimitsForPhase(state);
   resetCannonFacings(state);
-
-  for (const ctrl of controllers) {
-    if (skipController?.(ctrl.playerId)) continue;
-    initControllerForCannonPhase(ctrl, state);
-  }
 }
 
 /** Initialize a single controller for the cannon phase: place cannons, snap
  *  cursor to nearest valid position near home tower, fire onCannonPhaseStart.
- *  Used by both host (initCannonPhase loop) and watcher (handleCannonStartTransition). */
+ *  Used by both host (startCannonPhase loop) and watcher (handleCannonStartTransition). */
 export function initControllerForCannonPhase(
   ctrl: PlayerController,
   state: GameState,

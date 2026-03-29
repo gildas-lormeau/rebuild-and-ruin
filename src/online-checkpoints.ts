@@ -1,4 +1,8 @@
-import { MESSAGE, type ServerMessage } from "../server/protocol.ts";
+import type {
+  BattleStartData,
+  BuildStartData,
+  CannonStartData,
+} from "../server/protocol.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import { resetCannonFacings } from "./cannon-system.ts";
 import type { OrbitParams } from "./controller-interfaces.ts";
@@ -42,38 +46,36 @@ export interface CheckpointDeps {
 }
 
 export function applyCannonStartCheckpoint(
-  msg: ServerMessage,
+  data: CannonStartData,
   deps: CheckpointDeps,
 ): void {
-  if (msg.type !== MESSAGE.CANNON_START) return;
-  applyPlayersCheckpoint(deps.state, msg.players);
-  applyGruntsCheckpoint(deps.state, msg.grunts);
-  applyHousesCheckpoint(deps.state, msg.houses);
-  deps.state.bonusSquares = msg.bonusSquares;
-  deps.state.towerAlive = msg.towerAlive;
-  deps.state.burningPits = msg.burningPits;
-  deps.state.cannonLimits = msg.limits;
-  deps.state.timer = msg.timer;
+  applyPlayersCheckpoint(deps.state, data.players);
+  applyGruntsCheckpoint(deps.state, data.grunts);
+  applyHousesCheckpoint(deps.state, data.houses);
+  deps.state.bonusSquares = data.bonusSquares;
+  deps.state.towerAlive = data.towerAlive;
+  deps.state.burningPits = data.burningPits;
+  deps.state.cannonLimits = data.limits;
+  deps.state.timer = data.timer;
   resetBattleState(deps);
   resetWatcherCrosshairs(deps);
   resetCannonFacings(deps.state);
 }
 
 export function applyBattleStartCheckpoint(
-  msg: ServerMessage,
+  data: BattleStartData,
   deps: CheckpointDeps,
 ): void {
-  if (msg.type !== MESSAGE.BATTLE_START) return;
-  applyPlayersCheckpoint(deps.state, msg.players);
-  applyGruntsCheckpoint(deps.state, msg.grunts);
-  deps.state.burningPits = msg.burningPits;
-  deps.state.towerAlive = msg.towerAlive;
+  applyPlayersCheckpoint(deps.state, data.players);
+  applyGruntsCheckpoint(deps.state, data.grunts);
+  deps.state.burningPits = data.burningPits;
+  deps.state.towerAlive = data.towerAlive;
   deps.battleAnim.territory = deps.snapshotTerritory();
   deps.battleAnim.walls = snapshotAllWalls(deps.state);
 
   deps.state.capturedCannons = [];
-  if (msg.capturedCannons) {
-    for (const cc of msg.capturedCannons) {
+  if (data.capturedCannons) {
+    for (const cc of data.capturedCannons) {
       const victim = deps.state.players[cc.victimId];
       if (victim && cc.cannonIdx >= 0 && cc.cannonIdx < victim.cannons.length) {
         deps.state.capturedCannons.push({
@@ -96,18 +98,17 @@ export function applyBattleStartCheckpoint(
 }
 
 export function applyBuildStartCheckpoint(
-  msg: ServerMessage,
+  data: BuildStartData,
   deps: CheckpointDeps,
 ): void {
-  if (msg.type !== MESSAGE.BUILD_START) return;
-  applyPlayersCheckpoint(deps.state, msg.players);
-  applyGruntsCheckpoint(deps.state, msg.grunts);
-  applyHousesCheckpoint(deps.state, msg.houses);
-  deps.state.bonusSquares = msg.bonusSquares;
-  deps.state.towerAlive = msg.towerAlive;
-  deps.state.burningPits = msg.burningPits;
-  deps.state.round = msg.round;
-  deps.state.timer = msg.timer;
+  applyPlayersCheckpoint(deps.state, data.players);
+  applyGruntsCheckpoint(deps.state, data.grunts);
+  applyHousesCheckpoint(deps.state, data.houses);
+  deps.state.bonusSquares = data.bonusSquares;
+  deps.state.towerAlive = data.towerAlive;
+  deps.state.burningPits = data.burningPits;
+  deps.state.round = data.round;
+  deps.state.timer = data.timer;
   resetBattleState(deps);
   deps.accum.grunt = 0;
   resetCannonFacings(deps.state);

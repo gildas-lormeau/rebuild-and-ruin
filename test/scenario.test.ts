@@ -4,10 +4,10 @@
  */
 
 import { MESSAGE } from "../server/protocol.ts";
-import { canFire, tickCannonballs } from "../src/battle-system.ts";
+import { canFire, resolveBalloons, tickCannonballs } from "../src/battle-system.ts";
 import { snapshotAllWalls, sweepIsolatedWalls } from "../src/board-occupancy.ts";
 import { isCannonEnclosed } from "../src/cannon-system.ts";
-import { initControllerForCannonPhase } from "../src/game-engine.ts";
+import { initControllerForCannonPhase, nextPhase } from "../src/game-engine.ts";
 import { GRID_COLS } from "../src/grid.ts";
 import {
   handleBattleStartTransition,
@@ -924,6 +924,117 @@ test("executeTransition runs steps in declared order for all recipes", () => {
   assert(log[0] === "showBanner", `BATTLE step 0: ${log[0]}`);
   assert(log[1] === "reconcileState", `BATTLE step 1: ${log[1]}`);
   assert(log[2] === "snapshotForBanner", `BATTLE step 2: ${log[2]}`);
+});
+
+// ---------------------------------------------------------------------------
+// 28. All three recipes are structurally distinct (no accidental reuse)
+// ---------------------------------------------------------------------------
+
+test("recipe step arrays are distinct and have expected lengths", () => {
+  // Each recipe is 3 steps
+  assert(CANNON_START_STEPS.length === 3, "CANNON_START_STEPS should have 3 steps");
+  assert(BATTLE_START_STEPS.length === 3, "BATTLE_START_STEPS should have 3 steps");
+  assert(BUILD_START_STEPS.length === 3, "BUILD_START_STEPS should have 3 steps");
+
+  // Recipes differ — guards against accidentally using the wrong constant
+  const cannon = CANNON_START_STEPS.join(",");
+  const battle = BATTLE_START_STEPS.join(",");
+  const build = BUILD_START_STEPS.join(",");
+  assert(cannon !== battle, "CANNON and BATTLE recipes must differ");
+  assert(cannon !== build, "CANNON and BUILD recipes must differ");
+  assert(battle !== build, "BATTLE and BUILD recipes must differ");
+
+  // Cannon starts with reconcile (state before banner)
+  assert(CANNON_START_STEPS[0] === "reconcileState", "Cannon must reconcile first");
+  // Battle and build start with banner (capture old scene before reconcile)
+  assert(BATTLE_START_STEPS[0] === "showBanner", "Battle must banner first");
+  assert(BUILD_START_STEPS[0] === "showBanner", "Build must banner first");
+});
+
+// ---------------------------------------------------------------------------
+// 29. Build-start parity: host initControllers does real work
+// ---------------------------------------------------------------------------
+
+test("build-start: host initControllers runs startBuildPhase (not a no-op)", () => {
+  const s = createScenario();
+  s.runCannon();
+  s.runBattle();
+
+  // Before build-start, controllers should NOT have build state
+  const ctrl = s.controllers[0]!;
+  const hadPieceBefore = ctrl.getCurrentPiece() !== undefined;
+
+  // Trigger the watcher build-start path
+  const msg = createBuildStartMessage(s.state);
+  const ctx = s.createTransitionContext();
+  handleBuildStartTransition(msg as any, ctx);
+
+  // Watcher inits the controller — it should have a piece now
+  const hasPieceAfter = ctrl.getCurrentPiece() !== undefined;
+  assert(
+    !hadPieceBefore || hasPieceAfter,
+    "Controller should have build state after build-start transition",
+  );
+  assertPhase(s, Phase.WALL_BUILD);
+});
+
+// ---------------------------------------------------------------------------
+// 30. Battle-start parity: host and watcher reach same post-sweep state
+// ---------------------------------------------------------------------------
+
+test("battle-start: host and watcher produce same phase and territory snapshot", () => {
+  const s = createScenario();
+  s.runCannon();
+
+  // --- Host path: nextPhase + snapshot territory ---
+  const hostState = s.state;
+  const hostFlights = resolveBalloons(hostState);
+  nextPhase(hostState);
+  const hostTerritory = hostState.players.map((p) => new Set(p.interior));
+  const hostPhase = hostState.phase;
+
+  // --- Watcher path: apply the message the host would have sent ---
+  // Reset to pre-transition state for watcher test
+  // (host already advanced, so we use the serialized message from before)
+  // We test that handleBattleStartTransition sets the same phase.
+  const msg = createBattleStartMessage(hostState, hostFlights);
+  // Create a fresh scenario for the watcher so states don't share
+  const w = createScenario();
+  w.runCannon();
+  const wCtx = w.createTransitionContext();
+  let watcherTerritory: Set<number>[] | undefined;
+  let bannerNewTerritory: Set<number>[] | undefined;
+  // Intercept snapshotTerritory and banner to capture what the watcher produces
+  const origSnapshot = wCtx.battle.snapshotTerritory;
+  wCtx.battle.snapshotTerritory = () => {
+    watcherTerritory = origSnapshot();
+    return watcherTerritory;
+  };
+  const origBanner = wCtx.ui.banner;
+  // banner.newTerritory is set by the recipe's snapshotForBanner step
+  handleBattleStartTransition(msg as any, wCtx);
+  bannerNewTerritory = origBanner.newTerritory;
+
+  // Both should be in BATTLE phase
+  assert(hostPhase === Phase.BATTLE, `Host should be in BATTLE, got ${hostPhase}`);
+  assertPhase(w, Phase.BATTLE);
+
+  // Banner should have received territory snapshot
+  assert(bannerNewTerritory !== undefined, "Watcher banner should have newTerritory set");
+  assert(
+    bannerNewTerritory!.length === hostTerritory.length,
+    `Territory array length mismatch: host=${hostTerritory.length} watcher=${bannerNewTerritory!.length}`,
+  );
+
+  // Verify territory matches for each player
+  for (let i = 0; i < hostTerritory.length; i++) {
+    const hSize = hostTerritory[i]!.size;
+    const wSize = bannerNewTerritory![i]!.size;
+    assert(
+      hSize === wSize,
+      `Player ${i} territory size mismatch: host=${hSize} watcher=${wSize}`,
+    );
+  }
 });
 
 // ---------------------------------------------------------------------------

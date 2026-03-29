@@ -360,8 +360,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     sound,
     render: () => render(),
     firstHuman,
-    startCannonPhase: () => phaseTicks.startCannonPhase(),
-    showBanner,
+    startCannonPhase: (onDone) => phaseTicks.startCannonPhase(onDone),
     requestFrame: () => {
       if (rs.mode === Mode.STOPPED) requestAnimationFrame(mainLoop);
     },

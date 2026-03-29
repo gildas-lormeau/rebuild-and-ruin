@@ -5,7 +5,12 @@
  * functions that online-client.ts wires into the game runtime.
  */
 
-import { MESSAGE, type ServerMessage } from "../server/protocol.ts";
+import {
+  type BattleStartData,
+  type BuildStartData,
+  type CannonStartData,
+  MESSAGE,
+} from "../server/protocol.ts";
 import { aimCannons, nextReadyCombined } from "./battle-system.ts";
 import {
   CROSSHAIR_SPEED,
@@ -211,42 +216,42 @@ export function tickWatcher(
 
 export function applyCannonStartData(
   ws: WatcherState,
-  msg: ServerMessage,
+  data: CannonStartData,
   state: GameState,
   battleAnim: BattleAnimState,
   accum: TimerAccums,
   snapshotTerritory: () => Set<number>[],
 ): void {
   applyCannonStartCheckpoint(
-    msg,
+    data,
     buildCheckpointDeps(ws, state, battleAnim, accum, snapshotTerritory),
   );
 }
 
 export function applyBattleStartData(
   ws: WatcherState,
-  msg: ServerMessage,
+  data: BattleStartData,
   state: GameState,
   battleAnim: BattleAnimState,
   accum: TimerAccums,
   snapshotTerritory: () => Set<number>[],
 ): void {
   applyBattleStartCheckpoint(
-    msg,
+    data,
     buildCheckpointDeps(ws, state, battleAnim, accum, snapshotTerritory),
   );
 }
 
 export function applyBuildStartData(
   ws: WatcherState,
-  msg: ServerMessage,
+  data: BuildStartData,
   state: GameState,
   battleAnim: BattleAnimState,
   accum: TimerAccums,
   snapshotTerritory: () => Set<number>[],
 ): void {
   applyBuildStartCheckpoint(
-    msg,
+    data,
     buildCheckpointDeps(ws, state, battleAnim, accum, snapshotTerritory),
   );
 }

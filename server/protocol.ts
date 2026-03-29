@@ -242,23 +242,15 @@ export interface SelectStartMessage {
   timer: number;
 }
 
-/** Start of build phase — full reconciliation point. */
-export interface BuildStartMessage {
-  type: "build_start";
-  round: number;
-  timer: number;
-  players: SerializedPlayer[];
-  houses: SerializedHouse[];
-  grunts: SerializedGrunt[];
-  bonusSquares: SerializedBonusSquare[];
-  towerAlive: boolean[];
-  burningPits: SerializedBurningPit[];
-  rngSeed: number;
-}
+// ---------------------------------------------------------------------------
+// Checkpoint data types — protocol-free payloads consumed by game-layer code.
+// These are the primary data contracts; protocol messages extend them with a
+// `type` discriminant.  Checkpoint apply functions and recipe adapters accept
+// these types so they never depend on ServerMessage or the wire protocol.
+// ---------------------------------------------------------------------------
 
-/** Start of cannon placement phase. */
-export interface CannonStartMessage {
-  type: "cannon_start";
+/** Data needed to sync state at cannon phase start. */
+export interface CannonStartData {
   timer: number;
   limits: number[];
   players: SerializedPlayer[];
@@ -269,9 +261,8 @@ export interface CannonStartMessage {
   houses: SerializedHouse[];
 }
 
-/** Start of battle (after balloon resolution, grunt spawning, wall sweep). */
-export interface BattleStartMessage {
-  type: "battle_start";
+/** Data needed to sync state at battle start. */
+export interface BattleStartData {
   players: SerializedPlayer[];
   grunts: SerializedGrunt[];
   capturedCannons: {
@@ -283,6 +274,38 @@ export interface BattleStartMessage {
   towerAlive: boolean[];
   /** Balloon flight paths (for animation). */
   flights?: { startX: number; startY: number; endX: number; endY: number }[];
+}
+
+/** Data needed to sync state at build phase start. */
+export interface BuildStartData {
+  round: number;
+  timer: number;
+  players: SerializedPlayer[];
+  houses: SerializedHouse[];
+  grunts: SerializedGrunt[];
+  bonusSquares: SerializedBonusSquare[];
+  towerAlive: boolean[];
+  burningPits: SerializedBurningPit[];
+  rngSeed: number;
+}
+
+// ---------------------------------------------------------------------------
+// Protocol messages — add wire-format `type` discriminant to data payloads.
+// ---------------------------------------------------------------------------
+
+/** Start of cannon placement phase. */
+export interface CannonStartMessage extends CannonStartData {
+  type: "cannon_start";
+}
+
+/** Start of battle (after balloon resolution, grunt spawning, wall sweep). */
+export interface BattleStartMessage extends BattleStartData {
+  type: "battle_start";
+}
+
+/** Start of build phase — full reconciliation point. */
+export interface BuildStartMessage extends BuildStartData {
+  type: "build_start";
 }
 
 /** End of build phase — results of wall sweep, territory claim, life check. */

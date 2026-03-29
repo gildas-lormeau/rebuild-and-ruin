@@ -212,7 +212,7 @@ export interface RuntimeLifecycle {
 }
 
 export interface RuntimePhaseTicks {
-  startCannonPhase: () => void;
+  startCannonPhase: (onBannerDone?: () => void) => void;
   beginBattle: () => void;
 }
 

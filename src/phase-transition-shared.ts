@@ -93,6 +93,11 @@ export function executeTransition<S extends TransitionStep>(
   }
 }
 
+/** Canonical post-build-end sequence shared by host and watcher.
+ *
+ *  1. Show score deltas animation
+ *  2. Notify each affected controller via `notifyLifeLost`
+ *  3. Show life-lost dialog (if any), else advance directly */
 export function runBuildEndSequence(deps: BuildEndSequenceDeps): void {
   deps.showScoreDeltas(() => {
     for (const pid of [...deps.needsReselect, ...deps.eliminated]) {

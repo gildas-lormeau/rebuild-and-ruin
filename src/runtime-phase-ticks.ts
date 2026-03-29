@@ -19,8 +19,9 @@ import {
 import {
   finalizeBuildPhase,
   initBuildPhaseControllers,
-  initCannonPhase,
+  initControllerForCannonPhase,
   nextPhase,
+  prepareCannonPhase,
 } from "./game-engine.ts";
 import { collectLocalCrosshairs, tickGameCore } from "./game-ui-helpers.ts";
 import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
@@ -28,8 +29,10 @@ import type { HapticsSystem } from "./haptics-system.ts";
 import { BANNER_BUILD } from "./phase-banner.ts";
 import {
   BUILD_START_STEPS,
+  CANNON_START_STEPS,
   executeTransition,
   showBuildPhaseBanner,
+  showCannonPhaseBanner,
 } from "./phase-transition-shared.ts";
 import {
   beginHostBattle,
@@ -87,7 +90,7 @@ interface PhaseTicksDeps
 }
 
 export interface PhaseTicksSystem {
-  startCannonPhase: () => void;
+  startCannonPhase: (onBannerDone?: () => void) => void;
   startBattle: () => void;
   tickBalloonAnim: (dt: number) => void;
   beginBattle: () => void;
@@ -125,21 +128,31 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // Cannon phase
   // -------------------------------------------------------------------------
 
-  function startCannonPhase() {
+  function startCannonPhase(onBannerDone?: () => void) {
     deps.sound.drumsQuiet();
     const remoteHumanSlots = rs.ctx.remoteHumanSlots;
     deps.log(`startCannonPhase (round=${rs.state.round})`);
-    initCannonPhase({
-      state: rs.state,
-      controllers: rs.controllers,
-      skipController: (pid) => remoteHumanSlots.has(pid),
+    executeTransition(CANNON_START_STEPS, {
+      reconcileState: () => {
+        prepareCannonPhase(rs.state);
+        rs.accum.cannon = 0;
+        rs.state.timer = rs.state.cannonPlaceTimer;
+        if (rs.ctx.isHost && deps.hostNetworking) {
+          deps.send(deps.hostNetworking.createCannonStartMessage(rs.state));
+        }
+      },
+      initControllers: () => {
+        for (const ctrl of rs.controllers) {
+          if (remoteHumanSlots.has(ctrl.playerId)) continue;
+          initControllerForCannonPhase(ctrl, rs.state);
+        }
+      },
+      showBanner: () => {
+        if (onBannerDone) {
+          showCannonPhaseBanner(deps.showBanner, onBannerDone);
+        }
+      },
     });
-
-    rs.accum.cannon = 0;
-    rs.state.timer = rs.state.cannonPlaceTimer;
-    if (rs.ctx.isHost && deps.hostNetworking) {
-      deps.send(deps.hostNetworking.createCannonStartMessage(rs.state));
-    }
   }
 
   // -------------------------------------------------------------------------
@@ -320,7 +333,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         executeTransition(BUILD_START_STEPS, {
           showBanner: () =>
             showBuildPhaseBanner(deps.showBanner, BANNER_BUILD, () => {
-              startBuildPhase();
               rs.mode = Mode.GAME;
             }),
           reconcileState: () => {
@@ -329,7 +341,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
               deps.send(deps.hostNetworking.createBuildStartMessage(rs.state));
             }
           },
-          initControllers: () => {},
+          // Runs immediately (during banner), not deferred to onDone.
+          // Safe: build phase doesn't tick until Mode.GAME is set in the callback.
+          initControllers: () => startBuildPhase(),
         });
       },
       net: {

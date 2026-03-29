@@ -1,4 +1,7 @@
 import {
+  type BattleStartData,
+  type BuildStartData,
+  type CannonStartData,
   MESSAGE,
   type SerializedPlayer,
   type ServerMessage,
@@ -51,11 +54,11 @@ export interface TransitionContext {
     bannerDuration: number;
   };
 
-  // --- Checkpoints ---
+  // --- Checkpoints (protocol-free data types) ---
   checkpoint: {
-    applyCannonStart: (msg: ServerMessage) => void;
-    applyBattleStart: (msg: ServerMessage) => void;
-    applyBuildStart: (msg: ServerMessage) => void;
+    applyCannonStart: (data: CannonStartData) => void;
+    applyBattleStart: (data: BattleStartData) => void;
+    applyBuildStart: (data: BuildStartData) => void;
     applyPlayers: (
       state: GameState,
       players: readonly SerializedPlayer[],
@@ -164,31 +167,34 @@ export function handleCannonStartTransition(
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
   ctx.selection.clearOverlay();
-  let needsBanner = false;
+  ctx.checkpoint.applyCannonStart(msg);
+
+  const initLocalController = () => {
+    if (myPlayerId >= 0) {
+      const ctrl = ctx.getControllers()[myPlayerId];
+      if (ctrl) initControllerForCannonPhase(ctrl, state);
+    }
+  };
+
+  // Dedup guard: checkpoint already set the phase (e.g. full-state recovery).
+  // Init the local controller but skip the full transition.
+  if (state.phase === Phase.CANNON_PLACE) {
+    initLocalController();
+    return;
+  }
+
   executeTransition(CANNON_START_STEPS, {
     reconcileState: () => {
-      ctx.checkpoint.applyCannonStart(msg);
-      if (state.phase !== Phase.CANNON_PLACE) {
-        setPhase(state, Phase.CANNON_PLACE);
-        state.timer = state.cannonPlaceTimer;
-        needsBanner = true;
-      }
+      setPhase(state, Phase.CANNON_PLACE);
+      state.timer = state.cannonPlaceTimer;
     },
-    initControllers: () => {
-      if (myPlayerId >= 0) {
-        const ctrl = ctx.getControllers()[myPlayerId];
-        if (ctrl) initControllerForCannonPhase(ctrl, state);
-      }
-    },
-    showBanner: () => {
-      if (needsBanner) {
-        showCannonPhaseBanner(ctx.ui.showBanner, () => {
-          ctx.ui.watcherTiming.phaseStartTime = ctx.now();
-          ctx.ui.watcherTiming.phaseDuration = state.timer;
-          ctx.setMode(Mode.GAME);
-        });
-      }
-    },
+    initControllers: initLocalController,
+    showBanner: () =>
+      showCannonPhaseBanner(ctx.ui.showBanner, () => {
+        ctx.ui.watcherTiming.phaseStartTime = ctx.now();
+        ctx.ui.watcherTiming.phaseDuration = state.timer;
+        ctx.setMode(Mode.GAME);
+      }),
   });
 }
 
