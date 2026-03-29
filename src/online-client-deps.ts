@@ -85,13 +85,13 @@ function buildLifecycleDeps() {
       setWaitTimer: (s: number) => {
         session.lobbyWaitTimer = s;
       },
-      setRoomSettings: (bl: number, hp: number) => {
-        session.roomBattleLength = bl;
-        session.roomCannonMaxHp = hp;
+      setRoomSettings: (battleLength: number, cannonMaxHp: number) => {
+        session.roomBattleLength = battleLength;
+        session.roomCannonMaxHp = cannonMaxHp;
       },
       showWaitingRoom,
-      setStartTime: (t: number) => {
-        session.lobbyStartTime = t;
+      setStartTime: (timestamp: number) => {
+        session.lobbyStartTime = timestamp;
       },
       joined: runtime.rs.lobby.joined,
       occupiedSlots: session.occupiedSlots,

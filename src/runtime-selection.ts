@@ -136,8 +136,8 @@ export function createSelectionSystem(
         rs.mode = Mode.SELECTION;
         deps.sound.drumsStart();
       },
-      setLastTime: (t) => {
-        rs.lastTime = t;
+      setLastTime: (timestamp) => {
+        rs.lastTime = timestamp;
       },
       requestFrame: deps.requestFrame,
       log: deps.log,

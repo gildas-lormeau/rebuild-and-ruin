@@ -155,7 +155,7 @@ export const transitionCtx: TransitionContext = {
 
   battle: {
     setFlights: (
-      v: readonly {
+      flights: readonly {
         flight: {
           startX: number;
           startY: number;
@@ -165,7 +165,7 @@ export const transitionCtx: TransitionContext = {
         progress: number;
       }[],
     ) => {
-      runtime.rs.battleAnim.flights = v;
+      runtime.rs.battleAnim.flights = flights;
     },
     snapshotTerritory: () => runtime.snapshotTerritory(),
     beginBattle: () => runtime.phaseTicks.beginBattle(),
@@ -173,8 +173,11 @@ export const transitionCtx: TransitionContext = {
 
   endPhase: {
     resetZoneState,
-    showLifeLostDialog: (nr: readonly number[], el: readonly number[]) => {
-      runtime.lifeLost.show(nr, el);
+    showLifeLostDialog: (
+      needsReselect: readonly number[],
+      eliminated: readonly number[],
+    ) => {
+      runtime.lifeLost.show(needsReselect, eliminated);
       const dialog = runtime.lifeLost.get();
       if (dialog) {
         for (const [pid, choice] of session.earlyLifeLostChoices) {
@@ -189,8 +192,10 @@ export const transitionCtx: TransitionContext = {
       runtime.rs.preScores = preScores;
       runtime.selection.showBuildScoreDeltas(onDone);
     },
-    setGameOverFrame: (p: NonNullable<typeof runtime.rs.frame.gameOver>) => {
-      runtime.rs.frame.gameOver = p;
+    setGameOverFrame: (
+      gameOver: NonNullable<typeof runtime.rs.frame.gameOver>,
+    ) => {
+      runtime.rs.frame.gameOver = gameOver;
     },
     playerColors: PLAYER_COLORS,
   },
@@ -258,9 +263,9 @@ export const runtime: GameRuntime = createGameRuntime({
   // Networking callbacks
   tickNonHost: (dt) => tickWatcherFn(watcher, dt, watcherTickCtx),
   everyTick: (dt) => tickMigrationAnnouncementFn(watcher, runtime.rs.frame, dt),
-  onLocalCrosshairCollected: (ctrl, ch) => {
+  onLocalCrosshairCollected: (ctrl, crosshair) => {
     if (session.isHost)
-      broadcastLocalCrosshair(ctrl, ch, {
+      broadcastLocalCrosshair(ctrl, crosshair, {
         lastSentAimTarget: dedup.aimTarget,
         send,
       });
@@ -284,11 +289,11 @@ export const runtime: GameRuntime = createGameRuntime({
   },
   watcherTiming: watcher.timing,
   maybeSendAimUpdate,
-  tryPlaceCannonAndSend: (ctrl, gs, max) =>
-    tryPlaceCannonAndSendAction(ctrl, gs, max, send),
-  tryPlacePieceAndSend: (ctrl, gs) =>
-    tryPlacePieceAndSendAction(ctrl, gs, send),
-  fireAndSend: (ctrl, gs) => fireAndSendAction(ctrl, gs, send),
+  tryPlaceCannonAndSend: (ctrl, state, maxSlots) =>
+    tryPlaceCannonAndSendAction(ctrl, state, maxSlots, send),
+  tryPlacePieceAndSend: (ctrl, state) =>
+    tryPlacePieceAndSendAction(ctrl, state, send),
+  fireAndSend: (ctrl, state) => fireAndSendAction(ctrl, state, send),
   onEndGame: (winner, gameState) => {
     const payloads = createGameOverPayload(winner, gameState, PLAYER_NAMES);
     devLog(
@@ -310,14 +315,14 @@ export function showWaitingRoom(code: string, seed: number): void {
     lobby: runtime.rs.lobby,
     maxPlayers: MAX_PLAYERS,
     now: () => performance.now(),
-    setLobbyStartTime: (t: number) => {
-      session.lobbyStartTime = t;
+    setLobbyStartTime: (timestamp: number) => {
+      session.lobbyStartTime = timestamp;
     },
     setModeLobby: () => {
       runtime.rs.mode = Mode.LOBBY;
     },
-    setLastTime: (t: number) => {
-      runtime.rs.lastTime = t;
+    setLastTime: (timestamp: number) => {
+      runtime.rs.lastTime = timestamp;
     },
     requestFrame: () => {
       requestAnimationFrame(runtime.mainLoop);
@@ -338,11 +343,11 @@ export function initFromServer(msg: InitMessage): void {
     cannonPlaceTimer: msg.settings.cannonPlaceTimer,
     log: devLog,
     resetFrame: () => runtime.resetFrame(),
-    setState: (s) => {
-      runtime.rs.state = s;
+    setState: (state) => {
+      runtime.rs.state = state;
     },
-    setControllers: (c) => {
-      runtime.rs.controllers = [...c];
+    setControllers: (controllers) => {
+      runtime.rs.controllers = [...controllers];
     },
     resetUIState: () => {
       runtime.lifecycle.resetUIState();
