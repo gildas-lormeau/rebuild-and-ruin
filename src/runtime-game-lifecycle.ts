@@ -91,7 +91,18 @@ export function createGameLifecycle(
   // Reset / init
   // -------------------------------------------------------------------------
 
+  /** Timer for auto-return to lobby in demo mode (all-AI games). */
+  let demoReturnTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function clearDemoTimer(): void {
+    if (demoReturnTimer) {
+      clearTimeout(demoReturnTimer);
+      demoReturnTimer = null;
+    }
+  }
+
   function resetUIState(): void {
+    clearDemoTimer();
     rs.reselectQueue = [];
     rs.reselectionPids = [];
     rs.battleAnim = createBattleAnimState();
@@ -170,9 +181,6 @@ export function createGameLifecycle(
   // End / rematch / return to lobby
   // -------------------------------------------------------------------------
 
-  /** Timer for auto-return to lobby in demo mode (all-AI games). */
-  let demoReturnTimer: ReturnType<typeof setTimeout> | null = null;
-
   function endGame(winner: { id: number } | null) {
     rs.scoreDeltaOnDone = null;
     rs.lifeLostDialog = null;
@@ -199,7 +207,7 @@ export function createGameLifecycle(
     rs.mode = Mode.STOPPED;
 
     // Demo mode: auto-return to lobby after 10s when all players are AI
-    if (demoReturnTimer) clearTimeout(demoReturnTimer);
+    clearDemoTimer();
     const allAi = rs.lobby.joined.every((j) => !j);
     if (allAi) {
       demoReturnTimer = setTimeout(() => {
@@ -210,10 +218,7 @@ export function createGameLifecycle(
   }
 
   function rematch() {
-    if (demoReturnTimer) {
-      clearTimeout(demoReturnTimer);
-      demoReturnTimer = null;
-    }
+    clearDemoTimer();
     camera.resetCamera();
     rs.frame.gameOver = undefined;
     startGame();
@@ -223,10 +228,7 @@ export function createGameLifecycle(
   }
 
   function returnToLobby(): void {
-    if (demoReturnTimer) {
-      clearTimeout(demoReturnTimer);
-      demoReturnTimer = null;
-    }
+    clearDemoTimer();
     rs.scoreDeltaOnDone = null;
     camera.unzoom();
     rs.frame.gameOver = undefined;
