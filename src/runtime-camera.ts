@@ -540,11 +540,15 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Lifecycle commands ---
 
+  /** Clear current zoom but preserve per-phase pinch memory (battle↔build).
+   *  Use for phase transitions where the player may return to the same zoom. */
   function lightUnzoom(): void {
     cameraZone = null;
     pinchVp = null;
   }
 
+  /** Clear all zoom state including per-phase pinch memory.
+   *  Use for full resets (rematch, return to lobby). */
   function unzoom(): void {
     cameraZone = null;
     pinchVp = null;

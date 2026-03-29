@@ -39,7 +39,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   let touchStartY = 0;
   let touchStartTime = 0;
   /** Set when touchstart lands directly on the current phantom (tap confirms placement). */
-  let phantomTapped = false;
+  let touchedPhantom = false;
 
   // Pinch-to-zoom tracking
   let pinchActive = false;
@@ -63,7 +63,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
     "touchstart",
     (e) => {
       e.preventDefault();
-      phantomTapped = false;
+      touchedPhantom = false;
 
       // Two-finger pinch start
       if (e.touches.length >= 2) {
@@ -102,7 +102,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
           hit = isOnPhantom(human, state.phase, tile.row, tile.col);
         });
         if (hit) {
-          phantomTapped = true;
+          touchedPhantom = true;
           return;
         }
       }
@@ -198,7 +198,7 @@ export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
       }
 
       // Build / Cannon: tap on phantom places directly; otherwise tap-to-place when no floating buttons
-      if (tap && (phantomTapped || !deps.isDirectTouchActive?.())) {
+      if (tap && (touchedPhantom || !deps.isDirectTouchActive?.())) {
         dispatchPlacement(state, deps);
       }
 

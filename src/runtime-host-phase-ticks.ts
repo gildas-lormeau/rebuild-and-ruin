@@ -26,7 +26,9 @@ import {
 } from "./tick-context.ts";
 import { CannonMode, type GameState } from "./types.ts";
 
-/** Networking context for the cannon placement phase. */
+/** Networking context for the cannon placement phase.
+ *  Optional (`net?`) — when omitted, the tick function runs in local-play mode
+ *  with no-op networking (no broadcasts, no remote phantom merging). */
 interface CannonPhaseNet extends HostNetContext {
   remoteCannonPhantoms: readonly CannonPhantom[];
   lastSentCannonPhantom: Map<number, string>;
@@ -46,7 +48,8 @@ interface CannonPhaseNet extends HostNetContext {
   }) => void;
 }
 
-/** Networking context for the wall build phase. */
+/** Networking context for the wall build phase.
+ *  Optional (`net?`) — when omitted, defaults to local-play no-ops. */
 interface BuildPhaseNet extends HostNetContext {
   remotePiecePhantoms: readonly PiecePhantom[];
   lastSentPiecePhantom: Map<number, string>;

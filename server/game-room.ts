@@ -229,7 +229,9 @@ export class GameRoom {
   // Phase tracking
   // ---------------------------------------------------------------------------
 
-  /** Update tracked phase from a host checkpoint message. */
+  /** Update tracked phase from a host checkpoint message.
+   *  If adding a new phase-changing message type, add its transition here
+   *  AND add phase gating to PHASE_GATES below if the new phase restricts messages. */
   private updatePhaseFromMessage(type: string): void {
     if (type === MESSAGE.CANNON_START) this.phase = Phase.CANNON_PLACE;
     else if (type === MESSAGE.BATTLE_START) this.phase = Phase.BATTLE;

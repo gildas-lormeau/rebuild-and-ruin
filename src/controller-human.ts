@@ -258,7 +258,8 @@ export class HumanController extends BaseController implements InputReceiver {
     }
   }
 
-  /** Cycle cannon placement mode (normal -> super -> balloon -> normal). */
+  /** Cycle cannon placement mode: NORMAL → SUPER → BALLOON → NORMAL.
+   *  Skips modes whose slot cost exceeds remaining slots. */
   cycleCannonMode(state: GameState, maxSlots: number): void {
     const player = state.players[this.playerId];
     if (!player || player.eliminated) return;

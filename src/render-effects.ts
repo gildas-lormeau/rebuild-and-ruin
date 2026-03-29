@@ -1,6 +1,9 @@
 /**
  * Visual effects rendering — impacts, cannonballs, balloons, burning pits,
  * crosshairs, phantoms, bonus squares, houses, grunts.
+ *
+ * Convention: exported functions use `octx` (overlay context) for the parameter name.
+ * Private helper functions use `ctx` for brevity.
  */
 
 import { IMPACT_FLASH_DURATION } from "./game-constants.ts";
