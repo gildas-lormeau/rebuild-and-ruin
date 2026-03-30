@@ -277,14 +277,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   return true;
 }
 
-/** Tick each local controller's build logic, detect new walls, collect phantoms.
- *
- *  CRITICAL ORDER — wall snapshot convention:
- *    1. Snapshot player.walls (before tick)
- *    2. ctrl.buildTick()        (may add walls)
- *    3. Diff snapshot vs current walls → broadcast new tiles
- *  Reversing steps 1–2 silently produces empty diffs with no compile error.
- *  This only applies to AI controllers — human walls arrive via explicit placement. */
+/** Tick each local controller's build logic, detect new walls, collect phantoms. */
 function processControllerBuildActions(
   deps: TickHostBuildPhaseDeps,
   frame: HostFrame,
@@ -304,21 +297,16 @@ function processControllerBuildActions(
   )) {
     const player = state.players[ctrl.playerId];
     if (!player) continue;
-    const wallSnapshot =
-      isHost && !deps.isHuman(ctrl) ? new Set(player.walls) : null;
     const hadInterior = player.interior.size > 0;
 
-    const phantoms = ctrl.buildTick(state, dt);
-
-    // Broadcast new walls placed by AI controllers
-    if (wallSnapshot && sendOpponentPiecePlaced) {
-      broadcastNewWalls(
-        state,
-        ctrl.playerId,
-        wallSnapshot,
-        sendOpponentPiecePlaced,
-      );
-    }
+    const phantoms = buildTickWithWallBroadcast(
+      ctrl,
+      player,
+      state,
+      dt,
+      isHost && !deps.isHuman(ctrl),
+      sendOpponentPiecePlaced,
+    );
 
     if (!hadInterior && player.interior.size > 0) {
       deps.onFirstEnclosure?.(ctrl.playerId);
@@ -333,6 +321,35 @@ function processControllerBuildActions(
       sendOpponentPhantom,
     );
   }
+}
+
+/** Snapshot walls, run buildTick, and broadcast any new AI walls.
+ *  Enforces the invariant that the snapshot is captured BEFORE the tick —
+ *  reversing the order silently produces empty diffs with no compile error. */
+function buildTickWithWallBroadcast(
+  ctrl: PlayerController,
+  player: { readonly walls: ReadonlySet<number> },
+  state: GameState,
+  dt: number,
+  shouldSnapshot: boolean,
+  sendOpponentPiecePlaced?: (msg: {
+    playerId: number;
+    row: number;
+    col: number;
+    offsets: [number, number][];
+  }) => void,
+): readonly (PiecePhantom & { valid?: boolean })[] {
+  const wallSnapshot = shouldSnapshot ? new Set(player.walls) : null;
+  const phantoms = ctrl.buildTick(state, dt);
+  if (wallSnapshot && sendOpponentPiecePlaced) {
+    broadcastNewWalls(
+      state,
+      ctrl.playerId,
+      wallSnapshot,
+      sendOpponentPiecePlaced,
+    );
+  }
+  return phantoms;
 }
 
 /** Collect build-phase phantoms into the frame and broadcast new ones to peers. */
@@ -449,11 +466,13 @@ function finalizeBuildAndShowDialogs(
     ctrl.finalizeBuildPhase(state);
   }
 
-  // ORDERING: snapshot MUST precede finalizeBuildPhase — finalize calls
-  // sweepAllPlayersWalls which deletes isolated walls. The banner needs the
-  // pre-sweep snapshot for its before/after visual comparison.
-  deps.banner.wallsBeforeSweep = snapshotAllWalls(state);
-  const { needsReselect, eliminated } = deps.finalizeBuildPhase(state);
+  // Snapshot MUST precede finalize — finalize calls sweepAllPlayersWalls
+  // which deletes isolated walls. The banner needs the pre-sweep snapshot.
+  const { wallsBeforeSweep, needsReselect, eliminated } = snapshotThenFinalize(
+    state,
+    deps.finalizeBuildPhase,
+  );
+  deps.banner.wallsBeforeSweep = wallsBeforeSweep;
   if (isHost && sendBuildEnd) {
     sendBuildEnd({
       needsReselect,
@@ -473,4 +492,22 @@ function finalizeBuildAndShowDialogs(
     showLifeLostDialog: deps.showLifeLostDialog,
     afterLifeLostResolved: deps.afterLifeLostResolved,
   });
+}
+
+/** Snapshot all walls THEN finalize the build phase. Enforces the invariant
+ *  that the snapshot is captured before sweepAllPlayersWalls deletes isolated walls. */
+function snapshotThenFinalize(
+  state: GameState,
+  finalizeBuildPhase: (state: GameState) => {
+    needsReselect: number[];
+    eliminated: number[];
+  },
+): {
+  wallsBeforeSweep: Set<number>[];
+  needsReselect: number[];
+  eliminated: number[];
+} {
+  const wallsBeforeSweep = snapshotAllWalls(state);
+  const { needsReselect, eliminated } = finalizeBuildPhase(state);
+  return { wallsBeforeSweep, needsReselect, eliminated };
 }

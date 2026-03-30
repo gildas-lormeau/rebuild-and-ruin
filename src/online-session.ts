@@ -12,6 +12,7 @@ import {
   type ServerMessage,
 } from "../server/protocol.ts";
 import { LOBBY_TIMER } from "./game-constants.ts";
+import { phantomChanged } from "./online-types.ts";
 import type { LifeLostChoice } from "./types.ts";
 
 export interface OnlineSession {
@@ -103,8 +104,7 @@ export function sendAimUpdate(
 ): void {
   const pid = playerId ?? session.myPlayerId;
   const key = `${Math.round(x)},${Math.round(y)}`;
-  if (dedup.aimTarget.get(pid) === key) return;
-  dedup.aimTarget.set(pid, key);
+  if (!phantomChanged(dedup.aimTarget, pid, key)) return;
   sendMessage(session, { type: MESSAGE.AIM_UPDATE, playerId: pid, x, y });
 }
 
