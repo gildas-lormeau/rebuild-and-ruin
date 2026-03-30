@@ -9,7 +9,7 @@ A multiplayer Rampart remake for the web. Up to 3 players compete on a battlefie
 - **Grid**: 42 columns × 28 rows.
 - **Terrain**: Grass (buildable) and Water (impassable).
 - **River**: A Y-shaped river divides the map into **3 zones** of roughly equal size. Generated via Bezier curves from a central junction to 3 map edges; 3 tiles wide.
-- **Towers**: 12 total (4 per zone), each occupying 2×2 tiles. Placed via farthest-point sampling with minimum 4-tile gap between towers and a safe zone around each.
+- **Towers**: 12 total (4 per zone), each occupying 2×2 tiles. Placed via farthest-point sampling with minimum 5-tile gap between towers and a safe zone around each.
 - **Houses**: 8 per zone initially, 1×1 tiles. Placed on grass with a 1-tile margin from water and towers, minimum 3-tile Manhattan distance between houses. Houses are spawned after castle construction (visible from the cannon phase onward). Zones are refilled to 8 houses at the start of each build phase when below that count.
 - **Bonus squares**: 3 per zone, placed on open (non-enclosed) grass with a 1-tile gap from borders/river and minimum 3-tile Manhattan distance from each other. Replenished after any are captured.
 

@@ -31,7 +31,7 @@ interface ZoneStats {
 const SAFE_ZONE_PAD = 3;
 // 8×8 safe zone with corners cut (3 tiles clearance orthogonally)
 const MIN_GAP_EDGE = 2;
-const MIN_GAP_TOWER = 4;
+const MIN_GAP_TOWER = 5;
 const TOWERS_PER_ZONE = 4;
 /** Minimum zone size to be considered a valid zone. */
 const MIN_ZONE_SIZE = 80;
