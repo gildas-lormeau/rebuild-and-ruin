@@ -258,6 +258,7 @@ export function initFromServer(msg: InitMessage): void {
     createControllerForSlot: createOnlineControllerSlotFactory(
       session.myPlayerId,
       settings.keyBindings[0]!,
+      settings.difficulty,
     ),
     enterSelection: () => runtime.selection.enter(),
   });

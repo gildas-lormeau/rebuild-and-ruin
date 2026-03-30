@@ -240,6 +240,7 @@ export function createAiController(id: number, seed: number): PlayerController {
 export function createOnlineControllerSlotFactory(
   myPlayerId: number,
   localKeyBinding: KeyBindings,
+  difficulty?: number,
 ): (i: number, gameState: GameState) => PlayerController {
   return (i, gameState) => {
     const isAi = i !== myPlayerId;
@@ -249,6 +250,7 @@ export function createOnlineControllerSlotFactory(
       isAi,
       isAi ? undefined : localKeyBinding,
       strategySeed,
+      isAi ? difficulty : undefined,
     );
   };
 }

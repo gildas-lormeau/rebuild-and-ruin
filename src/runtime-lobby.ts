@@ -15,9 +15,7 @@ import {
   lobbySkipStep,
   tickLobby as tickLobbyShared,
 } from "./game-ui-screens.ts";
-import { computeGameSeed } from "./game-ui-settings.ts";
 import { CANVAS_H, CANVAS_W, TILE_SIZE } from "./grid.ts";
-import { generateMap } from "./map-generation.ts";
 import { CURSOR_DEFAULT, CURSOR_POINTER, IS_TOUCH_DEVICE } from "./platform.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 import {
@@ -25,7 +23,6 @@ import {
   type LobbyHit,
   lobbyClickHitTest,
 } from "./render-composition.ts";
-import { precomputeTerrainCache } from "./render-map.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
@@ -37,6 +34,7 @@ interface LobbySystemDeps {
     overlay: RenderOverlay | undefined,
     viewport?: Viewport | null,
   ) => void;
+  refreshLobbySeed: () => void;
   showOptions: () => void;
   isOnline: boolean;
   onTickLobbyExpired: () => void;
@@ -44,7 +42,6 @@ interface LobbySystemDeps {
 }
 
 interface LobbySystem {
-  refreshLobbySeed: () => void;
   renderLobby: () => void;
   tickLobby: (dt: number) => void;
   lobbyKeyJoin: (key: string) => boolean;
@@ -55,17 +52,8 @@ interface LobbySystem {
 export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
   const { runtimeState, uiCtx } = deps;
 
-  function refreshLobbySeed(): void {
-    const newSeed = computeGameSeed(runtimeState.settings);
-    if (newSeed !== runtimeState.lobby.seed) {
-      runtimeState.lobby.seed = newSeed;
-      runtimeState.lobby.map = generateMap(newSeed);
-      precomputeTerrainCache(runtimeState.lobby.map);
-    }
-  }
-
   function renderLobby(): void {
-    if (!runtimeState.lobby.map) refreshLobbySeed();
+    if (!runtimeState.lobby.map) deps.refreshLobbySeed();
     const { map, overlay } = createLobbyOverlay(uiCtx);
     deps.renderFrame(map, overlay);
   }
@@ -135,7 +123,6 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
   }
 
   return {
-    refreshLobbySeed,
     renderLobby,
     tickLobby,
     lobbyKeyJoin,

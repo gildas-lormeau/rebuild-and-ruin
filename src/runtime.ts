@@ -54,6 +54,7 @@ import {
   createRenderSummaryMessage,
   createStatusBar,
 } from "./render-composition.ts";
+import { precomputeTerrainCache } from "./render-map.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { createGameLifecycle } from "./runtime-game-lifecycle.ts";
@@ -114,6 +115,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     if (newSeed !== runtimeState.lobby.seed) {
       runtimeState.lobby.seed = newSeed;
       runtimeState.lobby.map = generateMap(newSeed);
+      precomputeTerrainCache(runtimeState.lobby.map);
     }
   }
 
@@ -625,6 +627,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     uiCtx,
     renderFrame,
+    refreshLobbySeed,
     showOptions: options.showOptions,
     isOnline: !!config.isOnline,
     onTickLobbyExpired: config.onTickLobbyExpired,
