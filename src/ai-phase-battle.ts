@@ -251,6 +251,12 @@ function tickCountdown(
           ry: (ORBIT_RADIUS_BASE + rng.next() * ORBIT_RADIUS_RANGE) * boost,
           speed: baseSpeed * (rng.bool() ? 1 : -1),
         };
+        // Seed the phase from the current approach angle so the orbit
+        // starts where the crosshair already is (no visible jump).
+        phase.idlePhase = Math.atan2(
+          host.crosshair.y - phase.crosshairTarget.y,
+          host.crosshair.x - phase.crosshairTarget.x,
+        );
       }
       phase.idlePhase += bs.orbit.speed * dt;
       host.crosshair.x =
