@@ -20,10 +20,11 @@
 
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import {
+  addPlayerWalls,
+  clearPlayerWalls,
   collectAllWalls,
   filterAliveOwnedTowers,
-  markWallsDirty,
-  removeIsolatedWalls,
+  sweepIsolatedWalls,
 } from "./board-occupancy.ts";
 import {
   claimTerritory,
@@ -157,10 +158,10 @@ export function rebuildHomeCastle(state: GameState, player: Player): void {
   );
   player.castle = castle;
   const wallTiles = computeCastleWallTiles(castle, state.map.tiles);
-  for (const [r, c] of wallTiles) {
-    player.walls.add(packTile(r, c)); // markWallsDirty called below after all mutations
-  }
-  markWallsDirty(player);
+  addPlayerWalls(
+    player,
+    wallTiles.map(([r, c]) => packTile(r, c)),
+  );
   // Destroy houses under rebuilt castle walls
   for (const house of state.map.houses) {
     if (!house.alive) continue;
@@ -366,7 +367,7 @@ function enterBattleFromCannon(state: GameState): void {
 
 function sweepAllPlayersWalls(state: GameState): void {
   for (const player of state.players) {
-    removeIsolatedWalls(player.walls);
+    sweepIsolatedWalls(player);
   }
 }
 
@@ -464,8 +465,7 @@ function resetPlayerBoardState(
   player: Player,
   options?: { keepHomeTower?: boolean },
 ): void {
-  player.walls.clear();
-  markWallsDirty(player);
+  clearPlayerWalls(player);
   player.interior = emptyFreshInterior();
   player.cannons = [];
   player.ownedTowers = [];
@@ -478,8 +478,7 @@ function autoBuildCastles(state: GameState): void {
   const plans = prepareCastleWalls(state);
   for (const plan of plans) {
     const player = state.players[plan.playerId]!;
-    for (const key of plan.tiles) player.walls.add(key); // markWallsDirty called below after all mutations
-    markWallsDirty(player);
+    addPlayerWalls(player, plan.tiles);
   }
   claimTerritory(state);
   for (const player of state.players) {

@@ -3,7 +3,10 @@
  */
 
 import { MESSAGE } from "../server/protocol.ts";
-import { filterActiveEnemies } from "./board-occupancy.ts";
+import {
+  deletePlayerWallBattle,
+  filterActiveEnemies,
+} from "./board-occupancy.ts";
 import {
   filterActiveFiringCannons,
   isCannonEnclosed,
@@ -333,10 +336,7 @@ export function applyImpactEvent(
     case MESSAGE.WALL_DESTROYED: {
       const player = state.players[event.playerId];
       if (player) {
-        player.walls.delete(packTile(event.row, event.col));
-        // No markWallsDirty — battle wall destruction is intentionally not
-        // tracked. Interior is stale during battle by design; isCannonEnclosed
-        // checks pre-battle interior. claimTerritory runs at next phase start.
+        deletePlayerWallBattle(player, packTile(event.row, event.col));
         const shooter = sid !== undefined ? state.players[sid] : undefined;
         if (shooter && event.playerId !== sid)
           shooter.score += DESTROY_WALL_POINTS;

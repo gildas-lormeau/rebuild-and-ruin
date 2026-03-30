@@ -8,14 +8,16 @@
  * ## Epoch tracking (stale-interior detection)
  *
  * Wall mutations and interior recomputation are tracked via epoch counters.
- * The required protocol after modifying walls:
- *   1. addPlayerWall/deletePlayerWall (or bulk .add/.delete + markWallsDirty)
- *   2. claimTerritory(state)        — recomputes interior, calls markInteriorFresh
- *   3. Read player.interior safely
+ * ALL wall mutations must go through the centralized helpers:
+ *   - addPlayerWall / addPlayerWalls — build phase (marks dirty)
+ *   - clearPlayerWalls              — board reset (marks dirty)
+ *   - sweepIsolatedWalls            — debris sweep at phase transitions (marks dirty)
+ *   - deletePlayerWallBattle        — battle destruction (intentionally no mark)
  *
- * assertInteriorFresh(player) throws if step 3 was skipped after step 2.
- * Omitting markWallsDirty is safe (assertion may false-negative) but including
- * it catches stale-interior bugs in development.
+ * Never call player.walls.add/delete/clear directly.
+ *
+ * After any dirty-marking mutation, call claimTerritory(state) before reading
+ * player.interior. assertInteriorFresh(player) throws if this is skipped.
  */
 
 import {
@@ -78,12 +80,9 @@ export function isTileOwnedByPlayer(
   return player.interior.has(key) || player.walls.has(key);
 }
 
-/** Remove a wall tile from all players. Used during battle (grunt attacks).
- *  No markWallsDirty — battle wall destruction is intentionally not tracked.
- *  Interior stays stale during battle by design; claimTerritory runs at
- *  the next phase start. */
+/** Remove a wall tile from all players. Used during battle (grunt attacks). */
 export function removeWallFromAllPlayers(state: GameState, key: number): void {
-  for (const player of state.players) player.walls.delete(key);
+  for (const player of state.players) deletePlayerWallBattle(player, key);
 }
 
 export function collectOccupiedTiles(
@@ -305,19 +304,6 @@ export function filterAliveOwnedTowers(player: Player, state: GameState) {
   return player.ownedTowers.filter((tower) => state.towerAlive[tower.index]!);
 }
 
-/**
- * Sweep one layer of debris wall tiles (0 or 1 orthogonal neighbor).
- * Collects all isolated tiles first, then removes them in one batch.
- */
-export function removeIsolatedWalls(walls: Set<number>): void {
-  const toRemove: number[] = [];
-  for (const key of walls) {
-    const { r, c } = unpackTile(key);
-    if (countWallNeighbors(walls, r, c) <= 1) toRemove.push(key);
-  }
-  for (const key of toRemove) walls.delete(key);
-}
-
 /** Return all players that are not `playerId` and not eliminated. */
 export function filterActiveEnemies(state: GameState, playerId: number) {
   return state.players.filter(
@@ -329,6 +315,44 @@ export function filterActiveEnemies(state: GameState, playerId: number) {
 export function addPlayerWall(player: Player, key: number): void {
   player.walls.add(key);
   markWallsDirty(player);
+}
+
+/** Batch-add wall keys and mark dirty once. Use instead of a loop of .add() calls. */
+export function addPlayerWalls(player: Player, keys: Iterable<number>): void {
+  for (const key of keys) player.walls.add(key);
+  markWallsDirty(player);
+}
+
+/** Delete a wall during battle. Intentionally skips markWallsDirty — interior is
+ *  stale during battle by design; claimTerritory runs at the next phase start. */
+export function deletePlayerWallBattle(player: Player, key: number): void {
+  player.walls.delete(key);
+}
+
+/** Clear all walls and mark dirty. Used when resetting a player's board state. */
+export function clearPlayerWalls(player: Player): void {
+  player.walls.clear();
+  markWallsDirty(player);
+}
+
+/** Remove isolated debris walls (≤1 orthogonal neighbor) and mark dirty.
+ *  Used during wall sweep at build phase transitions. */
+export function sweepIsolatedWalls(player: Player): void {
+  removeIsolatedWalls(player.walls);
+  markWallsDirty(player);
+}
+
+/**
+ * Sweep one layer of debris wall tiles (0 or 1 orthogonal neighbor).
+ * Collects all isolated tiles first, then removes them in one batch.
+ */
+export function removeIsolatedWalls(walls: Set<number>): void {
+  const toRemove: number[] = [];
+  for (const key of walls) {
+    const { r, c } = unpackTile(key);
+    if (countWallNeighbors(walls, r, c) <= 1) toRemove.push(key);
+  }
+  for (const key of toRemove) walls.delete(key);
 }
 
 /** Mark a player's wall set as modified. Call after any .add/.delete/.clear

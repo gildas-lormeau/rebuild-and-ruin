@@ -5,6 +5,7 @@
  */
 
 import {
+  addPlayerWalls,
   BONUS_PLACEMENT_BLOCKED,
   collectAllInterior,
   collectOccupiedTiles,
@@ -14,7 +15,6 @@ import {
   hasWallAt,
   isTileOwnedByPlayer,
   markInteriorFresh,
-  markWallsDirty,
 } from "./board-occupancy.ts";
 import {
   BONUS_SQUARE_MIN_DISTANCE,
@@ -35,7 +35,6 @@ import {
   DIRS_8,
   hasPitAt,
   inBounds,
-  isAtTile,
   isGrass,
   isWater,
   manhattanDistance,
@@ -136,18 +135,15 @@ export function applyPiecePlacement(
   const pieceKeys = new Set(
     offsets.map(([dr, dc]) => packTile(row + dr, col + dc)),
   );
-  for (const [dr, dc] of offsets) {
-    const pr = row + dr,
-      pc = col + dc;
-    player.walls.add(packTile(pr, pc)); // markWallsDirty called below after all mutations
-    for (const house of state.map.houses) {
-      if (house.alive && isAtTile(house, pr, pc)) {
-        house.alive = false;
-        destroyedHousePositions.push({ row: pr, col: pc });
-      }
+  addPlayerWalls(player, pieceKeys);
+  for (const house of state.map.houses) {
+    if (!house.alive) continue;
+    const hKey = packTile(house.row, house.col);
+    if (pieceKeys.has(hKey)) {
+      house.alive = false;
+      destroyedHousePositions.push({ row: house.row, col: house.col });
     }
   }
-  markWallsDirty(player);
   state.bonusSquares = state.bonusSquares.filter(
     (b) => !pieceKeys.has(packTile(b.row, b.col)),
   );
