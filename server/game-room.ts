@@ -146,11 +146,13 @@ function validatePayload(msg: Record<string, unknown>): boolean {
     case MESSAGE.OPPONENT_TOWER_SELECTED:
       return hasValidPlayer(msg) && isInt(msg.towerIdx, 0, MAX_TOWER_IDX);
     case MESSAGE.OPPONENT_PIECE_PLACED:
-      // Offsets can be piece-relative (humans) or absolute grid coords (AI host)
+      // Offsets can be piece-relative (humans) or absolute grid coords (AI host).
+      // Absolute coords use [row, col] pairs where col can reach GRID_COLS-1,
+      // so the range must cover the larger dimension.
       return (
         hasValidPlayer(msg) &&
         hasValidGridPos(msg) &&
-        hasValidOffsets(msg, -(GRID_ROWS - 1), GRID_ROWS - 1)
+        hasValidOffsets(msg, -(GRID_COLS - 1), GRID_COLS - 1)
       );
     case MESSAGE.OPPONENT_CANNON_PLACED:
       return (

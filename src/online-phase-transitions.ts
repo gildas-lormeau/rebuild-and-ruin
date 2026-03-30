@@ -58,7 +58,12 @@ export interface TransitionContext {
   // --- Banner & UI ---
   ui: {
     showBanner: BannerShow;
-    banner: { newTerritory?: Set<number>[]; newWalls?: Set<number>[] };
+    banner: {
+      newTerritory?: Set<number>[];
+      newWalls?: Set<number>[];
+      oldHouses?: { row: number; col: number; zone: number; alive: boolean }[];
+      oldBonusSquares?: { row: number; col: number }[];
+    };
     render: () => void;
     watcherTiming: WatcherTimingState;
     bannerDuration: number;
@@ -215,6 +220,10 @@ export function handleBattleStartTransition(
   const state = ctx.getState();
   const battleFlights = msg.flights;
 
+  // Pre-capture old scene before checkpoint replaces state (banner ??= keeps it)
+  ctx.ui.banner.oldHouses = state.map.houses.map((h) => ({ ...h }));
+  ctx.ui.banner.oldBonusSquares = state.bonusSquares.map((b) => ({ ...b }));
+
   executeTransition(BATTLE_START_STEPS, {
     showBanner: () =>
       showBattlePhaseBanner(ctx.ui.showBanner, BANNER_BATTLE_ONLINE, () => {
@@ -254,6 +263,11 @@ export function handleBuildStartTransition(
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
   const buildReceivedAt = ctx.now();
+
+  // Pre-capture old scene before checkpoint replaces state (banner ??= keeps it)
+  ctx.ui.banner.oldHouses = state.map.houses.map((h) => ({ ...h }));
+  ctx.ui.banner.oldBonusSquares = state.bonusSquares.map((b) => ({ ...b }));
+
   executeTransition(BUILD_START_STEPS, {
     showBanner: () =>
       showBuildPhaseBanner(ctx.ui.showBanner, BANNER_REPAIR_ONLINE, () => {
