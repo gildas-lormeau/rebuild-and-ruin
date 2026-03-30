@@ -14,40 +14,57 @@ Complements `/code-review` which works per-pass on a scoped file set.
 
 Each domain is a group of tightly related files that share responsibility for a subsystem.
 
-### 1. Input (6 files)
+### 1. Input (7 files)
 ```
 src/input.ts, src/input-dispatch.ts, src/input-keyboard.ts,
-src/input-mouse.ts, src/input-touch-canvas.ts, src/input-touch-ui.ts
+src/input-mouse.ts, src/input-touch-canvas.ts, src/input-touch-ui.ts,
+src/input-recorder.ts
 ```
 
-### 2. Online client (10 files)
+### 2. Online client — core wiring (7 files)
 ```
 src/online-client.ts, src/online-client-stores.ts, src/online-client-runtime.ts,
 src/online-client-deps.ts, src/online-client-promote.ts, src/online-client-ws.ts,
-src/online-client-lobby.ts, src/online-phase-transitions.ts,
-src/online-checkpoints.ts, src/online-host-promotion.ts
+src/online-client-lobby.ts
 ```
 
-### 3. Phase transitions & game engine (5 files)
+### 3. Online client — game logic (9 files)
+```
+src/online-phase-transitions.ts, src/online-checkpoints.ts,
+src/online-host-promotion.ts, src/online-host-crosshairs.ts,
+src/online-watcher-tick.ts, src/online-watcher-battle.ts,
+src/online-send-actions.ts, src/online-server-events.ts,
+src/online-full-state-recovery.ts
+```
+
+### 4. Online client — infrastructure (5 files)
+```
+src/online-config.ts, src/online-types.ts, src/online-lobby-ui.ts,
+src/online-server-lifecycle.ts, src/online-session.ts, src/online-serialize.ts
+```
+
+### 5. Phase transitions & game engine (5 files)
 ```
 src/game-engine.ts, src/runtime-phase-ticks.ts,
 src/runtime-host-phase-ticks.ts, src/runtime-host-battle-ticks.ts,
 src/tick-context.ts
 ```
 
-### 4. Controllers (4 files)
+### 6. Controllers (4 files)
 ```
 src/controller-interfaces.ts, src/controller-types.ts,
 src/controller-human.ts, src/controller-factory.ts
 ```
 
-### 5. Rendering (5 files)
+### 7. Rendering (10 files)
 ```
-src/map-renderer.ts, src/render-effects.ts, src/render-composition.ts,
-src/render-theme.ts, src/render-canvas.ts
+src/render-map.ts, src/render-effects.ts, src/render-composition.ts,
+src/render-theme.ts, src/render-canvas.ts, src/render-loupe.ts,
+src/render-sprites.ts, src/render-towers.ts, src/render-ui.ts,
+src/render-types.ts
 ```
 
-### 6. Runtime sub-systems (10 files)
+### 8. Runtime sub-systems (10 files)
 ```
 src/runtime.ts, src/runtime-state.ts, src/runtime-types.ts,
 src/runtime-camera.ts, src/runtime-selection.ts, src/runtime-life-lost.ts,
@@ -55,13 +72,13 @@ src/runtime-lobby.ts, src/runtime-options.ts, src/runtime-input.ts,
 src/runtime-game-lifecycle.ts
 ```
 
-### 7. Game systems (5 files)
+### 9. Game systems (5 files)
 ```
 src/battle-system.ts, src/build-system.ts, src/cannon-system.ts,
 src/grunt-system.ts, src/board-occupancy.ts
 ```
 
-### 8. Server (3 files)
+### 10. Server (3 files)
 ```
 server/server.ts, server/game-room.ts, server/room-manager.ts
 ```
@@ -70,7 +87,7 @@ server/server.ts, server/game-room.ts, server/room-manager.ts
 
 ### Phase 1: Parallel domain audits
 
-Spawn one Explore sub-agent per domain (up to 8 in parallel). Each agent receives this prompt template:
+Spawn one Explore sub-agent per domain (up to 10 in parallel). Each agent receives this prompt template:
 
 ```
 Read ALL files in this domain completely:
@@ -117,7 +134,8 @@ genuinely help an LLM agent write better code.
 
 ### Phase 2: Cross-domain audit
 
-After all domain agents complete, spawn one Explore agent with all domain reports combined:
+After all domain agents complete, spawn one Explore agent with all domain reports combined.
+Online client is split into 3 sub-domains (core wiring, game logic, infrastructure) to keep each under 10 files:
 
 ```
 Given these domain audit findings:
@@ -170,6 +188,6 @@ Ask the user which findings to fix. Then fix them one domain at a time, running 
 ## Tips
 
 - Skip domains that were recently audited and had no findings
-- The online client domain (#2) is highest risk — it mirrors local runtime logic and drifts silently
+- The online client domains (#2–#4) are highest risk — they mirror local runtime logic and drift silently
 - Cross-domain findings are often more impactful than within-domain ones
-- If a domain has >15 files, split it into sub-domains for the audit
+- If a domain has >10 files, split it into sub-domains for the audit
