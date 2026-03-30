@@ -25,7 +25,9 @@ interface ShowBannerDeps {
   text: string;
   subtitle?: string;
   onDone: () => void;
-  reveal?: boolean;
+  /** When true, snapshot old castles/territory/walls before transitioning
+   *  so the banner can show a before/after visual comparison. */
+  preserveOldScene?: boolean;
   newBattle?: { territory: Set<number>[]; walls: Set<number>[] };
   setModeBanner: () => void;
 }
@@ -33,7 +35,7 @@ interface ShowBannerDeps {
 export type BannerShow = (
   text: string,
   onDone: () => void,
-  reveal?: boolean,
+  preserveOldScene?: boolean,
   newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
   subtitle?: string,
 ) => void;
@@ -66,7 +68,7 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
     text,
     subtitle,
     onDone,
-    reveal = false,
+    preserveOldScene = false,
     newBattle,
     setModeBanner,
   } = deps;
@@ -75,7 +77,7 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
   const pendingWalls = banner.pendingOldWalls;
   banner.pendingOldWalls = undefined;
 
-  if (reveal) {
+  if (preserveOldScene) {
     banner.oldCastles = state.players
       .filter((player) => player.castle)
       .map((player) => ({

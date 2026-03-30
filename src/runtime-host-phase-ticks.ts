@@ -4,6 +4,12 @@
  * Contains the pure tick logic (tickHostCannonPhase, tickHostBuildPhase)
  * consumed by runtime-phase-ticks.ts. Networking deps are optional so the
  * same functions serve both local and online play.
+ *
+ * Net destructuring convention (shared with runtime-host-battle-ticks.ts):
+ *   const remoteHumanSlots = getRemoteSlots(deps.net);
+ *   const isHost = isHostInContext(deps.net);
+ *   const sendXxx = deps.net?.sendXxx;          // optional send callbacks
+ * Always destructure net at the top of each tick function for consistency.
  */
 
 import { snapshotAllWalls } from "./board-occupancy.ts";
@@ -439,10 +445,10 @@ function finalizeBuildAndShowDialogs(
     ctrl.endBuild(state);
   }
 
-  // Stash pre-sweep walls so the live render keeps showing them
-  // until the Place Cannons banner starts and consumes them.
+  // ORDERING: snapshot MUST precede finalizeBuildPhase — finalize calls
+  // sweepAllPlayersWalls which deletes isolated walls. The banner needs the
+  // pre-sweep snapshot for its before/after visual comparison.
   deps.banner.pendingOldWalls = snapshotAllWalls(state);
-
   const { needsReselect, eliminated } = deps.finalizeBuildPhase(state);
   if (isHost && sendBuildEnd) {
     sendBuildEnd({

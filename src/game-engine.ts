@@ -145,7 +145,7 @@ export function createGameState(
 /** Rebuild a player's home castle from scratch (used when continuing after losing a life). */
 export function rebuildHomeCastle(state: GameState, player: Player): void {
   if (!player.homeTower) return;
-  clearPlayerState(player, { keepHomeTower: true });
+  resetPlayerBoardState(player, { keepHomeTower: true });
   const castle = createCastle(
     player.homeTower,
     state.map.tiles,
@@ -413,7 +413,7 @@ function applyLifePenalties(state: GameState): {
     if (!hasAliveTower) {
       player.lives--;
       const zone = state.playerZones[player.id];
-      clearPlayerState(player);
+      resetPlayerBoardState(player);
       if (player.lives <= 0) {
         eliminatePlayer(player);
         eliminated.push(player.id);
@@ -444,7 +444,7 @@ export function resetZoneState(state: GameState, zone: number): void {
 
 /** Mark a player as permanently eliminated (sets eliminated flag + zeroes lives).
  *  Used when the player abandons in the life-lost dialog.
- *  Contrast with clearPlayerState which resets board state but keeps the player alive. */
+ *  Contrast with resetPlayerBoardState which resets board state but keeps the player alive. */
 export function eliminatePlayer(player: Player): void {
   player.eliminated = true;
   player.lives = 0;
@@ -452,8 +452,9 @@ export function eliminatePlayer(player: Player): void {
 
 /** Reset a player's board state (walls, interior, cannons, towers, castle) for a new round.
  *  The player remains in the game — only their placed objects are cleared.
- *  Contrast with eliminatePlayer which permanently removes the player. */
-function clearPlayerState(
+ *  Contrast with eliminatePlayer which permanently removes the player.
+ *  Called at the start of each build round (and during reselection with keepHomeTower). */
+function resetPlayerBoardState(
   player: Player,
   options?: { keepHomeTower?: boolean },
 ): void {

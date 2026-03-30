@@ -251,19 +251,19 @@ test("continuing player entry shows Continuing label", () => {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// 8. Online watcher: cannon banner missing reveal
+// 8. Online watcher: cannon banner missing preserveOldScene
 // ---------------------------------------------------------------------------
 
-test("online cannon banner uses reveal=true for progressive scene transition", () => {
-  // Both local and online paths should use reveal=true for the cannon banner.
-  // The fix added reveal=true to handleCannonStartTransition.
+test("online cannon banner uses preserveOldScene=true for progressive scene transition", () => {
+  // Both local and online paths should use preserveOldScene=true for the cannon banner.
+  // The fix added preserveOldScene=true to handleCannonStartTransition.
   const s = createScenario();
   s.runCannon();
   s.runBattle();
   s.runBuild();
   s.finalizeBuild();
 
-  // Simulate what both paths now do: reveal=true
+  // Simulate what both paths now do: preserveOldScene=true
   const banner = s.createBanner();
   showBannerTransition({
     banner,
@@ -271,13 +271,13 @@ test("online cannon banner uses reveal=true for progressive scene transition", (
     battleAnim: s.createBattleAnim(),
     text: "Place Cannons",
     onDone: () => {},
-    reveal: true,
+    preserveOldScene: true,
     setModeBanner: () => {},
   });
 
   assert(
     banner.oldCastles !== undefined,
-    "Cannon banner should capture old scene for progressive reveal",
+    "Cannon banner should capture old scene for progressive transition",
   );
 });
 

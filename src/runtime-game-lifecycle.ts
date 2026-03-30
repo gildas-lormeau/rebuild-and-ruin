@@ -52,7 +52,7 @@ interface GameLifecycleDeps {
 
   // Late-bound callbacks (resolved at call time via closures)
   readonly render: () => void;
-  readonly resetFrame: () => void;
+  readonly clearFrameData: () => void;
   readonly requestMainLoop: () => void;
   readonly resetTouchForLobby: () => void;
   readonly resetBattleCrosshair: () => void;
@@ -151,7 +151,7 @@ export function createGameLifecycle(
       buildTimer,
       cannonPlaceTimer,
       log: deps.log,
-      resetFrame: deps.resetFrame,
+      clearFrameData: deps.clearFrameData,
       setState: (state: GameState) => {
         state.firstRoundCannons = firstRoundCannons;
         rs.state = state;

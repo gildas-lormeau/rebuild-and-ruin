@@ -58,7 +58,7 @@ interface InitGameDeps {
   buildTimer: number;
   cannonPlaceTimer: number;
   log: (msg: string) => void;
-  resetFrame: () => void;
+  clearFrameData: () => void;
   setState: (nextState: GameState) => void;
   setControllers: (nextControllers: readonly PlayerController[]) => void;
   resetUIState: () => void;
@@ -243,7 +243,7 @@ export function createOnlineControllerSlotFactory(
  *  Generates map from seed, creates state, creates controllers, enters selection. */
 export function bootstrapGame(deps: InitGameDeps): void {
   deps.resetUIState();
-  deps.resetFrame();
+  deps.clearFrameData();
 
   const { state, playerCount } = createGameFromSeed(deps.seed, deps.maxPlayers);
   state.battleLength = deps.battleLength > 0 ? deps.battleLength : Infinity;

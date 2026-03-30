@@ -13,6 +13,10 @@
  *   - Deps interfaces use getters/closures for late binding (e.g. `getState()`).
  *   - Sub-systems must not import from each other, only from runtime-types.ts
  *     and runtime-state.ts.
+ *
+ * Exception: CameraDeps is all getters (no `rs` access) because camera state
+ * can change during host migration and must always re-read the latest value.
+ * For new sub-systems, prefer the standard `rs` + inline deps pattern.
  */
 
 import type { GameMessage, ServerMessage } from "../server/protocol.ts";
@@ -243,7 +247,7 @@ export interface GameRuntime {
 
   // --- Cross-cutting orchestration ---
   mainLoop: (now: number) => void;
-  resetFrame: () => void;
+  clearFrameData: () => void;
   render: () => void;
   registerInputHandlers: () => void;
 
@@ -251,7 +255,7 @@ export interface GameRuntime {
   showBanner: (
     text: string,
     onDone: () => void,
-    reveal?: boolean,
+    preserveOldScene?: boolean,
     newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
     subtitle?: string,
   ) => void;

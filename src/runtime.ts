@@ -122,7 +122,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Frame/timing helpers
   // -------------------------------------------------------------------------
 
-  function resetFrame(): void {
+  function clearFrameData(): void {
     const { gameOver } = rs.frame;
     rs.frame = { crosshairs: [], phantoms: {} };
     if (gameOver) rs.frame.gameOver = gameOver;
@@ -198,7 +198,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function mainLoop(now: number): void {
     const dt = clampedFrameDt(now);
     rs.frameDt = dt;
-    resetFrame();
+    clearFrameData();
 
     rs.ctx = computeFrameContext({
       mode: rs.mode,
@@ -276,14 +276,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Banner
   // -------------------------------------------------------------------------
 
-  /** Show a phase-transition banner with text and optional battle reveal.
+  /** Show a phase-transition banner with text and optional old-scene preservation.
    *  @param onDone — Called exactly once when the banner animation completes.
    *    Must not be called again or stored for later — the banner system nulls
-   *    its internal reference after invoking it. */
+   *    its internal reference after invoking it.
+   *  @param preserveOldScene — When true, snapshot old castles/territory/walls
+   *    before transitioning so the banner can show a before/after comparison. */
   function showBanner(
     text: string,
     onDone: () => void,
-    reveal = false,
+    preserveOldScene = false,
     newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
     subtitle?: string,
   ) {
@@ -301,7 +303,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       text,
       subtitle,
       onDone,
-      reveal,
+      preserveOldScene,
       newBattle,
       setModeBanner: () => {
         rs.mode = Mode.BANNER;
@@ -490,7 +492,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     sound,
     selection,
     render: () => render(),
-    resetFrame,
+    clearFrameData,
     requestMainLoop: () => requestAnimationFrame(mainLoop),
     resetTouchForLobby: () => {
       input.touch.floatingActions?.update(false, 0, 0, false, false);
@@ -664,7 +666,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     // Cross-cutting orchestration
     mainLoop,
-    resetFrame,
+    clearFrameData,
     render,
     registerInputHandlers: input.register,
     showBanner,

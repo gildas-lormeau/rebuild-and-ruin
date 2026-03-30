@@ -45,7 +45,7 @@ export class HumanController extends BaseController implements InputReceiver {
   private cannonPlaceMode: CannonMode = CannonMode.NORMAL;
   /** When true, the next cannonTick() will snap the cursor to the nearest valid placement.
    *  Set after mouse/touch cursor placement; consumed (cleared) by snapCannonCursorIfNeeded(). */
-  private needsCursorSnap = false;
+  private shouldSnapCursorNextTick = false;
   /** Actions currently held for continuous crosshair movement. */
   private readonly heldActions = new Set<Action>();
 
@@ -127,8 +127,8 @@ export class HumanController extends BaseController implements InputReceiver {
 
   /** After mouse/touch cursor set, snap to nearest valid tile if current is invalid. */
   private snapCannonCursorIfNeeded(player: Player, state: GameState): void {
-    if (!this.needsCursorSnap) return;
-    this.needsCursorSnap = false;
+    if (!this.shouldSnapCursorNextTick) return;
+    this.shouldSnapCursorNextTick = false;
     if (
       canPlaceCannon(
         player,
@@ -158,7 +158,7 @@ export class HumanController extends BaseController implements InputReceiver {
     const sz = cannonSize(this.cannonPlaceMode);
     const offset = Math.floor(sz / 2);
     super.setCannonCursor(row - offset, col - offset);
-    this.needsCursorSnap = true;
+    this.shouldSnapCursorNextTick = true;
   }
 
   override moveBuildCursor(direction: Action): void {
@@ -242,7 +242,7 @@ export class HumanController extends BaseController implements InputReceiver {
       this.cannonPlaceMode,
       state,
     );
-    if (placed) this.needsCursorSnap = true;
+    if (placed) this.shouldSnapCursorNextTick = true;
     return placed;
   }
 
@@ -337,7 +337,7 @@ export class HumanController extends BaseController implements InputReceiver {
     super.onLifeLost();
     this.cannonPlaceMode = CannonMode.NORMAL;
     this.heldActions.clear();
-    this.needsCursorSnap = false;
+    this.shouldSnapCursorNextTick = false;
   }
 
   onCannonPhaseStart(_state: GameState): void {

@@ -230,7 +230,13 @@ export interface GameState {
 
 /** Phase timer accumulators — tracks elapsed time per phase for host tick logic.
  *  NEVER mutate these fields directly — always use advancePhaseTimer() from
- *  tick-context.ts, which keeps accum and state.timer in sync. */
+ *  tick-context.ts, which keeps accum and state.timer in sync.
+ *
+ *  Naming convention:
+ *    - One key per distinct timer: accum.cannon, accum.battle, accum.build, accum.select
+ *    - Separate concerns get their own key: accum.grunt (cross-phase spawning interval),
+ *      accum.selectAnnouncement (UI countdown separate from selection timer)
+ *    - All keys are reset to 0 via createTimerAccums() at game start / rematch. */
 export interface TimerAccums {
   battle: number;
   cannon: number;

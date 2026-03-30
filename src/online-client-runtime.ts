@@ -99,10 +99,11 @@ export const transitionCtx: TransitionContext = {
     showBanner: (
       text: string,
       onDone: () => void,
-      reveal?: boolean,
+      preserveOldScene?: boolean,
       newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
       subtitle?: string,
-    ) => runtime.showBanner(text, onDone, reveal, newBattle, subtitle),
+    ) =>
+      runtime.showBanner(text, onDone, preserveOldScene, newBattle, subtitle),
     get banner() {
       return runtime.rs.banner;
     },
@@ -341,7 +342,7 @@ export function initFromServer(msg: InitMessage): void {
     buildTimer: msg.settings.buildTimer,
     cannonPlaceTimer: msg.settings.cannonPlaceTimer,
     log: devLog,
-    resetFrame: () => runtime.resetFrame(),
+    clearFrameData: () => runtime.clearFrameData(),
     setState: (state) => {
       runtime.rs.state = state;
     },

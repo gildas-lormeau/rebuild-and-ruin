@@ -532,7 +532,7 @@ export function createScenario(seed = 42): Scenario {
       setMode: () => {},
       now: () => performance.now(),
       ui: {
-        showBanner: (text: string, onDone: () => void, reveal?: boolean, newBattle?: { territory: Set<number>[]; walls: Set<number>[] }, subtitle?: string) => {
+        showBanner: (text: string, onDone: () => void, preserveOldScene?: boolean, newBattle?: { territory: Set<number>[]; walls: Set<number>[] }, subtitle?: string) => {
           showBannerTransition({
             banner,
             state,
@@ -540,7 +540,7 @@ export function createScenario(seed = 42): Scenario {
             text,
             subtitle,
             onDone,
-            reveal,
+            preserveOldScene,
             newBattle,
             setModeBanner: () => {},
           });

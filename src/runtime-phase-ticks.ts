@@ -74,7 +74,7 @@ interface PhaseTicksDeps
   showBanner: (
     text: string,
     onDone: () => void,
-    reveal?: boolean,
+    preserveOldScene?: boolean,
     newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
     subtitle?: string,
   ) => void;

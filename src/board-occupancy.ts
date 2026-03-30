@@ -4,6 +4,19 @@
  * These helpers centralize state-based tile checks so build, grunt, and AI
  * logic do not each re-implement the same scans across walls, units, houses,
  * towers, and cannons.
+ *
+ * ## Epoch tracking (stale-interior detection)
+ *
+ * Wall mutations and interior recomputation are tracked via epoch counters.
+ * The required protocol after modifying walls:
+ *   1. player.walls.add/delete/clear(...)
+ *   2. markWallsDirty(player)       — bumps wall epoch
+ *   3. claimTerritory(state)        — recomputes interior, calls markInteriorFresh
+ *   4. Read player.interior safely
+ *
+ * assertInteriorFresh(player) throws if step 3 was skipped after step 2.
+ * Omitting markWallsDirty is safe (assertion may false-negative) but including
+ * it catches stale-interior bugs in development.
  */
 
 import { NO_TOWER_INDEX } from "./game-constants.ts";
