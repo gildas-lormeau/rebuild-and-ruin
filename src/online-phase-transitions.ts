@@ -40,7 +40,7 @@ import {
 } from "./types.ts";
 
 export interface TransitionContext {
-  // --- Core state (used by most handlers) ---
+  // ── Core state access ──
   getState: () => GameState;
   getMyPlayerId: () => number;
   getControllers: () => PlayerController[];
@@ -55,7 +55,7 @@ export interface TransitionContext {
   setMode: (mode: Mode) => void;
   now: () => number;
 
-  // --- Banner & UI ---
+  // ── Banner & UI ──
   ui: {
     showBanner: BannerShow;
     banner: {
@@ -82,7 +82,7 @@ export interface TransitionContext {
     bannerDuration: number;
   };
 
-  // --- Checkpoints (protocol-free data types) ---
+  // ── Checkpoint application ──
   checkpoint: {
     applyCannonStart: (data: CannonStartData) => void;
     applyBattleStart: (data: BattleStartData) => void;
@@ -93,7 +93,7 @@ export interface TransitionContext {
     ) => void;
   };
 
-  // --- Selection & castle build ---
+  // ── Selection & castle build ──
   selection: {
     clearSelectionOverlay: () => void;
     getStates: () => Map<number, { highlighted: number; confirmed: boolean }>;
@@ -109,7 +109,7 @@ export interface TransitionContext {
     ) => void;
   };
 
-  // --- Battle ---
+  // ── Battle lifecycle ──
   battle: {
     setFlights: (
       value: readonly {
@@ -129,7 +129,7 @@ export interface TransitionContext {
     beginBattle: () => void;
   };
 
-  // --- Life-lost & game over ---
+  // ── End-of-phase (life-lost, scoring, game over) ──
   endPhase: {
     resetZoneState: (state: GameState, zone: number) => void;
     showLifeLostDialog: (

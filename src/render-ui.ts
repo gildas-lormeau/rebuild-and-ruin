@@ -57,7 +57,11 @@ import {
   TEXT_BASELINE_MIDDLE,
   TEXT_WHITE,
 } from "./render-theme.ts";
-import { type ControlsPlayer, type RenderOverlay } from "./render-types.ts";
+import {
+  type ControlsPlayer,
+  type GameOverOverlay,
+  type RenderOverlay,
+} from "./render-types.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
@@ -73,6 +77,8 @@ interface ButtonStyle {
   font: string;
   textColor: string;
 }
+
+type ScoreEntry = GameOverOverlay["scores"][number];
 
 // Local semantic colors (not shared across files — context-specific to UI panels)
 const BTN_CONTINUE = {
@@ -282,101 +288,18 @@ export function drawGameOver(
   const gameOverData = overlay.ui.gameOver;
   const sorted = [...gameOverData.scores].sort((a, b) => b.score - a.score);
   const hasStats = sorted.some((e) => e.stats);
-  const statsH = hasStats ? GAMEOVER_ROW_H : 0;
   const lo = gameOverLayout(W, H, gameOverData.scores);
   const { panelW, panelH, px, py, btnW, btnY, rematchX, menuX } = lo;
 
-  drawPanel(overlayCtx, px, py, panelW, panelH, PANEL_BG(BG_OVERLAY), GOLD);
-
-  const cx = W / 2;
-  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
-  overlayCtx.font = FONT_HEADING;
-  drawShadowText(
+  drawGameOverPanel(overlayCtx, W, px, py, panelW, panelH, gameOverData.winner);
+  drawGameOverScores(overlayCtx, sorted, hasStats, px, py, panelW);
+  drawGameOverButtons(
     overlayCtx,
-    `${gameOverData.winner} wins!`,
-    cx,
-    py + 20,
-    SHADOW_COLOR,
-    GOLD_LIGHT,
-  );
-  overlayCtx.fillStyle = GOLD;
-  overlayCtx.fillRect(px + INSET, py + 32, panelW - INSET_X2, 1);
-
-  // Column headers
-  const tableTop = py + GAMEOVER_HEADER_H;
-  const colName = px + INSET;
-  const colScore = px + panelW * SCOREBOARD_COL_RATIOS[0];
-  const colWalls = px + panelW * SCOREBOARD_COL_RATIOS[1];
-  const colCannons = px + panelW * SCOREBOARD_COL_RATIOS[2];
-  const colTerritory = px + panelW * SCOREBOARD_COL_RATIOS[3];
-
-  if (hasStats) {
-    overlayCtx.font = FONT_FLOAT_XS;
-    overlayCtx.fillStyle = TEXT_MUTED;
-    overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
-    overlayCtx.fillText("Score", colScore, tableTop + PAD);
-    overlayCtx.fillText("Walls", colWalls, tableTop + PAD);
-    overlayCtx.fillText("Cannons", colCannons, tableTop + PAD);
-    overlayCtx.fillText("Land", colTerritory, tableTop + PAD);
-  }
-
-  // Player rows
-  overlayCtx.font = FONT_LABEL;
-  for (let i = 0; i < sorted.length; i++) {
-    const entry = sorted[i]!;
-    const y = tableTop + statsH + INSET + i * GAMEOVER_ROW_H;
-    const c = entry.color;
-    const alpha = entry.eliminated ? OP_ACCENT : 1;
-    overlayCtx.fillStyle = rgb(c, alpha);
-    overlayCtx.textAlign = TEXT_ALIGN_LEFT;
-    overlayCtx.fillText(entry.name, colName, y);
-    overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
-    overlayCtx.fillText(`${entry.score}`, colScore, y);
-    if (entry.stats) {
-      overlayCtx.fillStyle = rgb(c, alpha * OP_SECONDARY);
-      overlayCtx.fillText(`${entry.stats.wallsDestroyed}`, colWalls, y);
-      overlayCtx.fillText(`${entry.stats.cannonsKilled}`, colCannons, y);
-      overlayCtx.fillText(`${entry.territory ?? 0}`, colTerritory, y);
-    }
-  }
-
-  // Rematch / Menu buttons
-  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
-  overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
-  const focused = gameOverData.focused;
-
-  const rematchFocused = focused === FOCUS_REMATCH;
-  drawButton(
-    overlayCtx,
+    btnW,
+    btnY,
     rematchX,
-    btnY,
-    btnW,
-    GAMEOVER_BTN_H,
-    {
-      fill: BTN_CONTINUE.fill(rematchFocused ? OP_FOCUS : OP_IDLE),
-      stroke: rematchFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
-      lineWidth: rematchFocused ? 2 : 1,
-      font: FONT_BUTTON,
-      textColor: rematchFocused ? TEXT_WHITE : TEXT_LIGHT,
-    },
-    "Rematch",
-  );
-
-  const menuFocused = focused === FOCUS_MENU;
-  drawButton(
-    overlayCtx,
     menuX,
-    btnY,
-    btnW,
-    GAMEOVER_BTN_H,
-    {
-      fill: BTN_ABANDON.fill(menuFocused ? OP_FOCUS : OP_IDLE),
-      stroke: menuFocused ? BTN_MENU.strokeFocused : BTN_MENU.stroke,
-      lineWidth: menuFocused ? 2 : 1,
-      font: FONT_BUTTON,
-      textColor: menuFocused ? TEXT_WHITE : TEXT_LIGHT,
-    },
-    "Menu",
+    gameOverData.focused,
   );
 }
 
@@ -715,10 +638,6 @@ export function drawControlsScreen(
   const ctrl = overlay.ui.controlsScreen;
   beginModalScreen(overlayCtx, W, H);
 
-  overlayCtx.font = FONT_TITLE;
-  overlayCtx.fillStyle = GOLD_LIGHT;
-  overlayCtx.fillText("CONTROLS", W / 2, H * 0.1);
-
   // Layout
   const colCount = ctrl.players.length;
   const rowCount = ctrl.actionNames.length;
@@ -730,9 +649,175 @@ export function drawControlsScreen(
   const rowH = 22;
   const startY = headerY + 28;
 
-  // Player name headers
-  for (let playerIndex = 0; playerIndex < colCount; playerIndex++) {
-    const player = ctrl.players[playerIndex]!;
+  drawControlsHeader(
+    overlayCtx,
+    W,
+    H,
+    ctrl.players,
+    tableX,
+    tableW,
+    labelColW,
+    playerColW,
+    headerY,
+  );
+  drawControlsTable(
+    overlayCtx,
+    W,
+    H,
+    ctrl.players,
+    ctrl.actionNames,
+    ctrl.playerIdx,
+    ctrl.actionIdx,
+    ctrl.rebinding,
+    tableX,
+    tableW,
+    labelColW,
+    playerColW,
+    startY,
+    rowH,
+    rowCount,
+    now,
+  );
+}
+
+/** Draw the game-over panel background, winner heading and separator line. */
+function drawGameOverPanel(
+  overlayCtx: CanvasRenderingContext2D,
+  W: number,
+  px: number,
+  py: number,
+  panelW: number,
+  panelH: number,
+  winner: string,
+): void {
+  drawPanel(overlayCtx, px, py, panelW, panelH, PANEL_BG(BG_OVERLAY), GOLD);
+
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.font = FONT_HEADING;
+  drawShadowText(
+    overlayCtx,
+    `${winner} wins!`,
+    W / 2,
+    py + 20,
+    SHADOW_COLOR,
+    GOLD_LIGHT,
+  );
+  overlayCtx.fillStyle = GOLD;
+  overlayCtx.fillRect(px + INSET, py + 32, panelW - INSET_X2, 1);
+}
+
+/** Draw score column headers and per-player score rows. */
+function drawGameOverScores(
+  overlayCtx: CanvasRenderingContext2D,
+  sorted: readonly ScoreEntry[],
+  hasStats: boolean,
+  px: number,
+  py: number,
+  panelW: number,
+): void {
+  const statsH = hasStats ? GAMEOVER_ROW_H : 0;
+  const tableTop = py + GAMEOVER_HEADER_H;
+  const colName = px + INSET;
+  const colScore = px + panelW * SCOREBOARD_COL_RATIOS[0];
+  const colWalls = px + panelW * SCOREBOARD_COL_RATIOS[1];
+  const colCannons = px + panelW * SCOREBOARD_COL_RATIOS[2];
+  const colTerritory = px + panelW * SCOREBOARD_COL_RATIOS[3];
+
+  if (hasStats) {
+    overlayCtx.font = FONT_FLOAT_XS;
+    overlayCtx.fillStyle = TEXT_MUTED;
+    overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
+    overlayCtx.fillText("Score", colScore, tableTop + PAD);
+    overlayCtx.fillText("Walls", colWalls, tableTop + PAD);
+    overlayCtx.fillText("Cannons", colCannons, tableTop + PAD);
+    overlayCtx.fillText("Land", colTerritory, tableTop + PAD);
+  }
+
+  overlayCtx.font = FONT_LABEL;
+  for (let i = 0; i < sorted.length; i++) {
+    const entry = sorted[i]!;
+    const y = tableTop + statsH + INSET + i * GAMEOVER_ROW_H;
+    const c = entry.color;
+    const alpha = entry.eliminated ? OP_ACCENT : 1;
+    overlayCtx.fillStyle = rgb(c, alpha);
+    overlayCtx.textAlign = TEXT_ALIGN_LEFT;
+    overlayCtx.fillText(entry.name, colName, y);
+    overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
+    overlayCtx.fillText(`${entry.score}`, colScore, y);
+    if (entry.stats) {
+      overlayCtx.fillStyle = rgb(c, alpha * OP_SECONDARY);
+      overlayCtx.fillText(`${entry.stats.wallsDestroyed}`, colWalls, y);
+      overlayCtx.fillText(`${entry.stats.cannonsKilled}`, colCannons, y);
+      overlayCtx.fillText(`${entry.territory ?? 0}`, colTerritory, y);
+    }
+  }
+}
+
+/** Draw the rematch and menu buttons at the bottom of the game-over panel. */
+function drawGameOverButtons(
+  overlayCtx: CanvasRenderingContext2D,
+  btnW: number,
+  btnY: number,
+  rematchX: number,
+  menuX: number,
+  focused: GameOverOverlay["focused"],
+): void {
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
+
+  const rematchFocused = focused === FOCUS_REMATCH;
+  drawButton(
+    overlayCtx,
+    rematchX,
+    btnY,
+    btnW,
+    GAMEOVER_BTN_H,
+    {
+      fill: BTN_CONTINUE.fill(rematchFocused ? OP_FOCUS : OP_IDLE),
+      stroke: rematchFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
+      lineWidth: rematchFocused ? 2 : 1,
+      font: FONT_BUTTON,
+      textColor: rematchFocused ? TEXT_WHITE : TEXT_LIGHT,
+    },
+    "Rematch",
+  );
+
+  const menuFocused = focused === FOCUS_MENU;
+  drawButton(
+    overlayCtx,
+    menuX,
+    btnY,
+    btnW,
+    GAMEOVER_BTN_H,
+    {
+      fill: BTN_ABANDON.fill(menuFocused ? OP_FOCUS : OP_IDLE),
+      stroke: menuFocused ? BTN_MENU.strokeFocused : BTN_MENU.stroke,
+      lineWidth: menuFocused ? 2 : 1,
+      font: FONT_BUTTON,
+      textColor: menuFocused ? TEXT_WHITE : TEXT_LIGHT,
+    },
+    "Menu",
+  );
+}
+
+/** Draw the controls screen title, player name columns and header separator. */
+function drawControlsHeader(
+  overlayCtx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  players: readonly ControlsPlayer[],
+  tableX: number,
+  tableW: number,
+  labelColW: number,
+  playerColW: number,
+  headerY: number,
+): void {
+  overlayCtx.font = FONT_TITLE;
+  overlayCtx.fillStyle = GOLD_LIGHT;
+  overlayCtx.fillText("CONTROLS", W / 2, H * 0.1);
+
+  for (let playerIndex = 0; playerIndex < players.length; playerIndex++) {
+    const player = players[playerIndex]!;
     const c = player.color;
     const cx = tableX + labelColW + playerIndex * playerColW + playerColW / 2;
     overlayCtx.font = FONT_BODY;
@@ -740,33 +825,50 @@ export function drawControlsScreen(
     overlayCtx.fillText(player.name, cx, headerY);
   }
 
-  // Header separator
   overlayCtx.fillStyle = GOLD;
   overlayCtx.fillRect(tableX + PAD, headerY + 12, tableW - PAD * 2, 1);
+}
 
-  // Rows
+/** Draw the action rows (labels + key cells) and bottom separator/hint. */
+function drawControlsTable(
+  overlayCtx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  players: readonly ControlsPlayer[],
+  actionNames: readonly string[],
+  selectedPlayerIdx: number,
+  selectedActionIdx: number,
+  rebinding: boolean,
+  tableX: number,
+  tableW: number,
+  labelColW: number,
+  playerColW: number,
+  startY: number,
+  rowH: number,
+  rowCount: number,
+  now?: number,
+): void {
   for (let a = 0; a < rowCount; a++) {
     const oy = startY + a * rowH;
 
-    // Action label (left column)
     overlayCtx.textAlign = TEXT_ALIGN_LEFT;
     overlayCtx.font = FONT_LABEL;
     overlayCtx.fillStyle = TEXT_MUTED;
-    overlayCtx.fillText(ctrl.actionNames[a]!, tableX + PAD, oy + rowH / 2);
+    overlayCtx.fillText(actionNames[a]!, tableX + PAD, oy + rowH / 2);
 
-    // Key cells for each player
-    for (let playerIndex = 0; playerIndex < colCount; playerIndex++) {
-      const player = ctrl.players[playerIndex]!;
+    for (let playerIndex = 0; playerIndex < players.length; playerIndex++) {
+      const player = players[playerIndex]!;
       const cx = tableX + labelColW + playerIndex * playerColW + playerColW / 2;
       const cellX = tableX + labelColW + playerIndex * playerColW + PAD / 2;
       const cellW = playerColW - PAD;
-      const isSelected = playerIndex === ctrl.playerIdx && a === ctrl.actionIdx;
+      const isSelected =
+        playerIndex === selectedPlayerIdx && a === selectedActionIdx;
       drawControlsKeyCell(
         overlayCtx,
         player,
         a,
         isSelected,
-        ctrl.rebinding,
+        rebinding,
         cellX,
         cellW,
         cx,
@@ -777,12 +879,10 @@ export function drawControlsScreen(
     }
   }
 
-  // Bottom separator
   const sepY = startY + rowCount * rowH + PAD;
   overlayCtx.fillStyle = GOLD;
   overlayCtx.fillRect(tableX + INSET, sepY, tableW - INSET_X2, 1);
 
-  // Bottom hint
   overlayCtx.textAlign = TEXT_ALIGN_CENTER;
   overlayCtx.font = FONT_HINT;
   overlayCtx.fillStyle = TEXT_DIM;

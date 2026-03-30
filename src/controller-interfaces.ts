@@ -81,16 +81,18 @@ export interface PlayerController {
   isCannonPhaseDone(state: GameState, maxSlots: number): boolean;
 
   /** Called each frame during cannon phase. Returns a placement preview for rendering,
-   *  or null if no preview should be shown (player eliminated / no placement active).
-   *  NOTE: return type differs from buildTick (which always returns an array). */
+   *  or null if no preview should be shown (player eliminated, no slots remaining).
+   *  NOTE: Returns null (not empty array) because at most one cannon preview exists at a time.
+   *  Contrast with buildTick() which returns an array (multiple piece previews possible). */
   cannonTick(state: GameState, dt: number): CannonPlacementPreview | null;
 
   /** Called once at the start of the build phase. */
   startBuild(state: GameState): void;
 
-  /** Called each frame during the build phase. Returns placement previews to display
-   *  (may be empty array if no piece is being previewed).
-   *  NOTE: return type differs from cannonTick (which returns null when inactive). */
+  /** Called each frame during build phase. Returns piece placement previews for rendering.
+   *  Returns empty array when no preview is active.
+   *  NOTE: Returns array (not null) because multiple piece previews can exist simultaneously.
+   *  Contrast with cannonTick() which returns null when inactive. */
   buildTick(state: GameState, dt: number): PiecePlacementPreview[];
 
   /** Called at the end of the build phase. */

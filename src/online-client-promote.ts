@@ -34,6 +34,7 @@ import { assertNever, Mode } from "./types.ts";
  */
 export function promoteToHost(): void {
   devLog("PROMOTING TO HOST");
+  // Re-read isHost (volatile — can flip during host promotion)
   session.isHost = true;
 
   resetNetworking("host-promotion");

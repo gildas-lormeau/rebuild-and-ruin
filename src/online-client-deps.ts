@@ -1,8 +1,16 @@
 /**
- * Server message handling and dependency-object builders for online play.
+ * Online client dependency wiring.
  *
  * Builds the deps bags consumed by online-server-lifecycle.ts and
  * online-server-events.ts, and dispatches incoming server messages.
+ *
+ * DI PATTERN: This module builds deps objects with closures for late-binding.
+ * - lifecycleDeps / incrementalDeps: built once at module load, reused for session lifetime.
+ *   All mutable state wrapped in closures to stay current.
+ * - Contrast with online-client-runtime.ts where checkpointDeps are built dynamically
+ *   on each call (because checkpoint state changes frequently during play).
+ * - Contrast with runtime sub-systems which destructure runtimeState directly
+ *   (simpler pattern — mutable state is a single bag passed by reference).
  */
 
 import type { ServerMessage } from "../server/protocol.ts";
@@ -45,14 +53,15 @@ import {
   Mode,
 } from "./types.ts";
 
-// These deps objects are built once and reused for the session lifetime.
-// CRITICAL: All mutable state must be accessed via closures (arrow functions that
-// re-read the current value), NOT captured values. This is because session state
-// changes at runtime (e.g. isHost flips during host migration, myPlayerId changes
-// on slot selection). A captured value would go stale silently.
-//   CORRECT:   isHost: () => session.isHost          // re-reads current value
-//   WRONG:     isHost: session.isHost                 // captured at build time, stale after migration
-// When adding new fields, always wrap mutable state in a closure.
+/** CLOSURE CONVENTION: All mutable state in deps objects MUST be accessed via closures,
+ *  not captured values. This prevents stale reads when state changes mid-session.
+ *
+ *  CORRECT:   isHost: () => session.isHost,     // Re-reads on every call
+ *  INCORRECT: isHost: session.isHost,            // Captured at build time — stale after promotion
+ *
+ *  This applies to: session fields, watcher state, dedup maps, and any other mutable singleton.
+ *
+ *  These deps objects are built once and reused for the session lifetime. */
 const lifecycleDeps = buildLifecycleDeps();
 const incrementalDeps = buildIncrementalDeps();
 

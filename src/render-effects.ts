@@ -30,9 +30,10 @@
  *
  * ### Canvas save/restore convention (applies across all render-* files)
  *
- * Any function that mutates the canvas context (globalAlpha, transform, clip,
- * fillStyle, etc.) MUST wrap the mutation in `ctx.save()` / `ctx.restore()`.
- * This ensures callers don't inherit unexpected state. The pattern is:
+ * CONVENTION: All exported render functions that mutate canvas context state
+ * (globalAlpha, fillStyle, transform, etc.) MUST call ctx.save() at entry
+ * and ctx.restore() before returning. This prevents style leaks between draw calls.
+ * The pattern is:
  *   ctx.save();
  *   // ... mutations + drawing ...
  *   ctx.restore();

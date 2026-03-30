@@ -244,6 +244,7 @@ export const runtime: GameRuntime = createGameRuntime({
     }
   },
   onTickLobbyExpired: () => {
+    // Re-read isHost (volatile — can flip during host promotion)
     if (!session.isHost) return;
     const initMsg: InitMessage = {
       type: MESSAGE.INIT,

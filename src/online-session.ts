@@ -18,8 +18,9 @@ export interface OnlineSession {
   socket: WebSocket | null;
   /** This player's slot id. -1 = watcher/spectator (not an active player). */
   myPlayerId: number;
-  /** Can flip during host promotion — always re-check before critical operations;
-   *  do not cache across awaits or across tick boundaries. */
+  /** Whether this client is the room host.
+   *  VOLATILE: Can flip to `true` during host promotion (mid-tick).
+   *  Always re-read before critical operations — never cache across tick boundaries or awaits. */
   isHost: boolean;
   hostMigrationSeq: number;
   occupiedSlots: Set<number>;

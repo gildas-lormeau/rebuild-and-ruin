@@ -38,6 +38,7 @@ export function connect(onConnectError?: () => void): void {
       const mode = runtime.runtimeState.mode;
       // Mode[mode] is TypeScript's reverse enum mapping (numeric → string name)
       devLog(`WebSocket closed (mode=${Mode[mode]} isHost=${session.isHost})`);
+      // Re-read isHost (volatile — can flip during host promotion)
       if (session.isHost || mode === Mode.STOPPED || mode === Mode.LOBBY)
         return;
       if (reconnect.count < MAX_RECONNECT_ATTEMPTS) {
