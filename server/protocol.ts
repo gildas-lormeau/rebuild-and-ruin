@@ -157,7 +157,8 @@ export interface RoomJoinedMessage {
   code: string;
   players: { playerId: number; name: string }[];
   settings: RoomSettings;
-  hostId: number;
+  /** PlayerId of the host, or null if the host hasn't selected a slot yet. */
+  hostId: number | null;
   seed: number;
   /** Seconds elapsed since room creation (for lobby timer sync). */
   elapsedSec: number;
@@ -236,10 +237,10 @@ export interface GameOverMessage {
 /** Host disconnected — server tells all clients who the new host is. */
 export interface HostLeftMessage {
   type: "host_left";
-  /** PlayerId of the promoted player, or -1 if no human available (AI fallback). */
-  newHostPlayerId: number;
-  /** PlayerId of the departed host. */
-  previousHostPlayerId: number;
+  /** PlayerId of the promoted player, or null if no human available (watcher fallback). */
+  newHostPlayerId: number | null;
+  /** PlayerId of the departed host, or null if the host never selected a slot. */
+  previousHostPlayerId: number | null;
 }
 
 /** Full game state snapshot sent by new host after promotion for watcher reconciliation. */

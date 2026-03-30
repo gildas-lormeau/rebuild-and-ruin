@@ -209,7 +209,9 @@ export function handleServerLifecycleMessage(
         deps.ui.setAnnouncement("You are now the host");
       } else {
         const name =
-          deps.migration.playerNames[msg.newHostPlayerId] ?? "a watcher";
+          (msg.newHostPlayerId !== null
+            ? deps.migration.playerNames[msg.newHostPlayerId]
+            : undefined) ?? "a watcher";
         deps.ui.setAnnouncement(`Host migrated to ${name}`);
       }
       return true;

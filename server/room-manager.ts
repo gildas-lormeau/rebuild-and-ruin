@@ -8,8 +8,6 @@ import { MESSAGE, type RoomSettings, type ServerMessage } from "./protocol.ts";
 import { safeSendRaw } from "./send-utils.ts";
 
 const MAX_ROOMS = 50;
-/** Sentinel for "no player slot assigned" in host migration. */
-const NO_HOST_SLOT = -1;
 /** Grace period before destroying a room after game over — allows clients to see final screen. */
 const ROOM_CLEANUP_DELAY_MS = 60_000;
 /** Uppercase letters excluding I and O to avoid confusion with 1 and 0. */
@@ -236,13 +234,13 @@ export class RoomManager {
     previousHostPlayerId: number | undefined,
   ): void {
     let newHostSocket: WebSocket | null = null;
-    let newHostPlayerId = NO_HOST_SLOT;
+    let newHostPlayerId: number | null = null;
 
     // Prefer lowest-slotId player
     for (const [sock, sid] of entry.slotAssignments) {
       if (
         sock.readyState === WebSocket.OPEN &&
-        (newHostPlayerId === NO_HOST_SLOT || sid < newHostPlayerId)
+        (newHostPlayerId === null || sid < newHostPlayerId)
       ) {
         newHostSocket = sock;
         newHostPlayerId = sid;
@@ -264,7 +262,7 @@ export class RoomManager {
       this.broadcastToRoom(entry, {
         type: MESSAGE.HOST_LEFT,
         newHostPlayerId,
-        previousHostPlayerId: previousHostPlayerId ?? NO_HOST_SLOT,
+        previousHostPlayerId: previousHostPlayerId ?? null,
       });
       console.log(
         `[rooms] Room ${entry.code}: host migrated to P${newHostPlayerId}`,
@@ -294,9 +292,9 @@ export class RoomManager {
     return result;
   }
 
-  /** Get the slot occupied by the host, or NO_HOST_SLOT if host hasn't selected a slot. */
-  getHostId(entry: RoomEntry): number {
-    return entry.slotAssignments.get(entry.hostSocket) ?? NO_HOST_SLOT;
+  /** Get the slot occupied by the host, or null if host hasn't selected a slot. */
+  getHostId(entry: RoomEntry): number | null {
+    return entry.slotAssignments.get(entry.hostSocket) ?? null;
   }
 
   /** Seconds elapsed since room creation. */
