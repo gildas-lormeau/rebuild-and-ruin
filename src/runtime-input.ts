@@ -107,7 +107,7 @@ interface InputSystemDeps {
   };
   readonly selection: {
     highlight: (idx: number, zone: number, pid: number) => void;
-    confirm: (pid: number, isReselect?: boolean) => boolean;
+    confirmAndStartBuild: (pid: number, isReselect?: boolean) => boolean;
   };
   readonly camera: Pick<
     CameraSystem,
@@ -383,7 +383,7 @@ function buildGameActionDeps(
   return {
     getSelectionStates: () => runtimeState.selectionStates,
     highlightTowerForPlayer: selection.highlight,
-    confirmSelectionAndStartBuild: selection.confirm,
+    confirmSelectionAndStartBuild: selection.confirmAndStartBuild,
     isSelectionReady,
     tryPlaceCannonAndSend: placeCannon,
     tryPlacePieceAndSend: placePiece,
@@ -432,7 +432,7 @@ function setupDpadAndActions(
       gameAction: {
         getSelectionStates: () => runtimeState.selectionStates,
         highlightTowerForPlayer: selection.highlight,
-        confirmSelectionAndStartBuild: selection.confirm,
+        confirmSelectionAndStartBuild: selection.confirmAndStartBuild,
         isSelectionReady,
         tryPlacePieceAndSend: placePieceAction,
         tryPlaceCannonAndSend: placeCannonAction,

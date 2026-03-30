@@ -16,8 +16,8 @@ import type { ServerMessage } from "../server/protocol.ts";
 import { MIGRATION_ANNOUNCEMENT_DURATION } from "./game-constants.ts";
 import { promoteToHost } from "./online-client-promote.ts";
 import {
-  applyFullState,
   initFromServer,
+  restoreFullState,
   runtime,
   showWaitingRoom,
   transitionCtx,
@@ -36,12 +36,25 @@ import { PLAYER_NAMES } from "./player-config.ts";
 import { devLog, session, watcher } from "./runtime-online-stores.ts";
 import { isReselectPhase, Mode } from "./types.ts";
 
-/** Mutable singletons (session, watcher) are passed by reference — consumers
- *  read fields at call time via Pick<>, so values are always current.
- *  Runtime-dependent state (e.g. runtime.runtimeState) still uses closures
- *  because the runtime object itself is created after module load.
+/**
+ * Dependency injection pattern for online client:
  *
- *  These deps objects are built once and reused for the session lifetime. */
+ * Closures (getState, isCastleReselectPhase):
+ *   Use for state that changes frequently during a tick or between ticks.
+ *   The closure re-reads the value on each call, ensuring freshness.
+ *
+ * Direct references (session, watcher):
+ *   Use for mutable singletons that persist across the entire online session.
+ *   The reference itself doesn't change, but the object's fields may (e.g., session.isHost).
+ *
+ * Pick<Type, fields>:
+ *   Use to restrict surface area — only expose fields the handler actually needs.
+ *   Include volatile fields (isHost, myPlayerId) so they're always fresh via the reference.
+ *
+ * When adding a new handler: prefer closures for derived/computed state, direct refs for singletons.
+ *
+ * These deps objects are built once and reused for the session lifetime.
+ */
 const lifecycleDeps = buildLifecycleDeps();
 const incrementalDeps = buildIncrementalDeps();
 
@@ -84,7 +97,7 @@ function buildIncrementalDeps() {
     isCastleReselectPhase: () =>
       isReselectPhase(runtime.runtimeState.state.phase),
     confirmSelectionAndStartBuild: (playerId: number, isReselect: boolean) => {
-      runtime.selection.confirm(playerId, isReselect);
+      runtime.selection.confirmAndStartBuild(playerId, isReselect);
     },
     allSelectionsConfirmed: () => runtime.selection.allConfirmed(),
     finishReselection: () => runtime.selection.finishReselection(),
@@ -149,6 +162,6 @@ function buildMigrationDeps() {
   return {
     playerNames: PLAYER_NAMES,
     promoteToHost,
-    applyFullState,
+    restoreFullState,
   };
 }

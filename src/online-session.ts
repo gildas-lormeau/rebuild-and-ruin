@@ -19,9 +19,10 @@ export interface OnlineSession {
   socket: WebSocket | null;
   /** This player's slot id. -1 = watcher/spectator (not an active player). */
   myPlayerId: number;
-  /** Whether this client is the room host.
-   *  VOLATILE: Can flip to `true` during host promotion (mid-tick).
-   *  Always re-read before critical operations — never cache across tick boundaries or awaits. */
+  /** Whether this client is the current host.
+   *  VOLATILE: Can flip from false to true during host promotion (see online-host-promotion.ts).
+   *  Never cache across tick boundaries, awaits, or phase transitions — always re-read from session.
+   *  Host promotion triggers: original host disconnects → server sends HOST_MIGRATION → this flips. */
   isHost: boolean;
   hostMigrationSeq: number;
   occupiedSlots: Set<number>;

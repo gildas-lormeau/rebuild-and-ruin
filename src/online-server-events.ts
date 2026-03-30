@@ -1,3 +1,20 @@
+/**
+ * Incremental message validation patterns (host vs watcher):
+ *
+ * SELECTION, PLACEMENT, AIM_UPDATE:
+ *   Host validates remote-human actions (guards against invalid input).
+ *   Watcher applies them directly (trusts host-relayed events).
+ *
+ * IMPACTS (WALL_DESTROYED, TOWER_HIT, etc.):
+ *   Host computes these locally — drops incoming impact messages.
+ *   Watcher applies them (host is authoritative for battle outcomes).
+ *
+ * PHANTOM UPDATES:
+ *   No validation needed — UI-only, no state mutation.
+ *
+ * Rule of thumb: if (session.isHost) { validate then apply }; if (!session.isHost) { apply directly }.
+ */
+
 import { MESSAGE, type ServerMessage } from "../server/protocol.ts";
 import { applyImpactEvent, type ImpactEvent } from "./battle-system.ts";
 import { applyPiecePlacement, canPlacePieceOffsets } from "./build-system.ts";

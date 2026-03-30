@@ -231,13 +231,17 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   if (state.timer > 0 && !allDone) return false;
 
   // ── PASS 2: Finalize all controllers (including remote) for phase transition ──
+  // Controller finalization — load-bearing split:
+  // Remote humans: call initCannons() only (their cannons were flushed client-side).
+  // Local controllers (AI + local human): call finalizeCannonPhase() which flushes then inits.
+  // Using the wrong method corrupts cannon state.
   for (const ctrl of controllers) {
     const max = state.cannonLimits[ctrl.playerId] ?? 0;
     if (remoteHumanSlots.has(ctrl.playerId)) {
-      ctrl.initCannons(state, max); // Remote: init only (client flushed locally)
+      ctrl.initCannons(state, max);
       continue;
     }
-    ctrl.finalizeCannonPhase(state, max); // Local: flush→init (order guaranteed)
+    ctrl.finalizeCannonPhase(state, max);
   }
 
   startBattle();
@@ -461,6 +465,10 @@ function finalizeBuildAndShowDialogs(
   const sendBuildEnd = deps.net?.sendBuildEnd;
 
   // ── PASS 2: Finalize all controllers for phase transition ──
+  // Controller finalization — load-bearing split:
+  // Remote humans: call initBag() only (their build was finalized client-side).
+  // Local controllers (AI + local human): call finalizeBuildPhase() which flushes then inits.
+  // Using the wrong method corrupts piece-bag state.
   for (const ctrl of controllers) {
     if (remoteHumanSlots.has(ctrl.playerId)) continue;
     ctrl.finalizeBuildPhase(state);

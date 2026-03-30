@@ -14,7 +14,7 @@ interface FullStateUiRecoveryDeps {
   setBattleFlights: (flights: readonly RecoveredBalloonFlight[]) => void;
 }
 
-export function applyFullStateUiRecovery(
+export function restoreFullStateUiRecovery(
   deps: FullStateUiRecoveryDeps,
   phase: Phase,
   balloonFlights?: readonly RecoveredBalloonFlight[],

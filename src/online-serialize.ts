@@ -196,7 +196,7 @@ export function serializePlayers(state: GameState) {
   }));
 }
 
-export function applyFullStateSnapshot(
+export function restoreFullStateSnapshot(
   state: GameState,
   msg: FullStateMessage,
 ): FullStateApplyResult {

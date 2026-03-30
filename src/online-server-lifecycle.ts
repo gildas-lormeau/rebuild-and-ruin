@@ -57,7 +57,7 @@ interface HandleServerLifecycleDeps {
   migration: {
     playerNames: readonly string[];
     promoteToHost: () => void;
-    applyFullState: (msg: FullStateMessage) => void;
+    restoreFullState: (msg: FullStateMessage) => void;
   };
 }
 
@@ -227,7 +227,7 @@ export function handleServerLifecycleMessage(
         if (incomingSeq > deps.session.hostMigrationSeq) {
           deps.session.hostMigrationSeq = incomingSeq;
         }
-        deps.migration.applyFullState(msg);
+        deps.migration.restoreFullState(msg);
         deps.log("applied full_state from new host");
       }
       return true;

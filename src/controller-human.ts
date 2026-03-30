@@ -162,9 +162,11 @@ export class HumanController extends BaseController implements InputReceiver {
     }
   }
 
+  /** Set cannon cursor from absolute position (mouse/touch click).
+   *  Offsets by floor(cannonSize/2) so the clicked tile lands at the phantom's center.
+   *  Uses floor (not round) to bias top-left for even-sized cannons.
+   *  Contrast with setBuildCursor() which offsets by the piece's pivot point instead. */
   override setCannonCursor(row: number, col: number): void {
-    // Mouse/touch: offset so the clicked tile lands at the phantom's center.
-    // Keyboard uses moveCannonCursor() instead, which clamps to grid bounds.
     const sz = cannonSize(this.cannonPlaceMode);
     // Floor (not round) to bias top-left for even sizes, keeping the click inside the phantom
     const offset = Math.floor(sz / 2);
@@ -180,8 +182,10 @@ export class HumanController extends BaseController implements InputReceiver {
     super.moveCannonCursor(direction, cannonSize(this.cannonPlaceMode));
   }
 
+  /** Set build cursor from absolute position (mouse/touch click).
+   *  Offsets by the current piece's pivot so the clicked tile aligns with the piece's visual center.
+   *  Contrast with setCannonCursor() which offsets by floor(cannonSize/2) instead. */
   override setBuildCursor(row: number, col: number): void {
-    // Offset so the clicked tile aligns with the piece's pivot (visual center)
     if (this.currentPiece) {
       const [pr, pc] = this.currentPiece.pivot;
       row -= pr;

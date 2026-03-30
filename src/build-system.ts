@@ -78,8 +78,10 @@ export function canPlacePiece(
   );
 }
 
-/** Validates piece tile placement. Checks: grass, playerZone, towers (ALL), grunts, cannons.
- *  Contrast with canPlaceCannon() in cannon-system.ts which checks: interior (enclosed), owned towers only.
+/** Validate piece placement on the grid.
+ *  Checks: grass, playerZone, ALL towers (not just owned), grunts, cannons, burning pits.
+ *  Does NOT check interior (enclosed territory) — pieces can go on open grass.
+ *  Contrast with canPlaceCannon() in cannon-system.ts which checks interior + owned towers only.
  *
  *  Same as canPlacePiece but accepts raw offsets — used when no PieceShape is available (e.g. network validation).
  *  An LLM copying one to the other will get the wrong validation. */
@@ -118,7 +120,10 @@ export function canPlacePieceOffsets(
   return true;
 }
 
-/** Apply piece placement to state (no validation). Used by host and watcher. */
+/** Apply a piece placement to the board. Marks walls dirty after mutation.
+ *  IMPORTANT: Interior is stale after this call — caller must call claimTerritory()
+ *  before reading player.interior to get correct enclosed-territory data.
+ *  Used by host and watcher (no validation). */
 export function applyPiecePlacement(
   state: GameState,
   playerId: number,
@@ -153,15 +158,11 @@ export function applyPiecePlacement(
   }
 }
 
-/** Reclaim territory for all players. Sub-function order matters:
- *  1. recomputeInterior — flood-fill to find enclosed tiles (must be first)
- *  2. updateOwnedTowers — mark towers alive/dead based on fresh interior
- *  3. removeEnclosedGrunts — enemy grunts inside interior are killed/respawned
- *  4. destroyEnclosedHouses — enemy houses inside interior are destroyed
- *  5. captureEnclosedBonusSquares — bonus squares inside interior are scored
- *
- * Called after every wall mutation (piece placement, castle construction, etc.).
- * For end-of-build-phase finalization, use claimTerritoryEndOfBuild instead. */
+/** Reclaim territory for all players after a wall mutation during active build phase.
+ *  Sub-functions: recomputeInterior → updateOwnedTowers → removeEnclosedGrunts →
+ *  destroyEnclosedHouses → captureEnclosedBonusSquares → sweepMisplacedGrunts.
+ *  Call after each piece placement or wall change during build phase.
+ *  Do NOT use at end-of-build — use claimTerritoryEndOfBuild() instead (adds tower revival + scoring). */
 export function claimTerritory(state: GameState): void {
   for (const player of state.players) {
     recomputeInterior(state, player);
@@ -173,11 +174,11 @@ export function claimTerritory(state: GameState): void {
   sweepMisplacedGrunts(state);
 }
 
-/** End-of-build-phase territory finalization. Same as claimTerritory plus:
- *  - Awards territory points (based on interior size)
- *  - Resolves pending tower revives (delayed revival requires two consecutive enclosures)
+/** End-of-build territory finalization. Same as claimTerritory() plus:
+ *  - Awards territory/enclosure scoring points
+ *  - Resolves pending tower revives (towerPendingRevive → alive if still enclosed)
  *  - Clears unenclosed pending revives
- * Only called once per build phase from finalizeBuildPhase in game-engine.ts. */
+ *  Called exactly once at end of build phase from finalizeBuildPhase(). */
 export function claimTerritoryEndOfBuild(state: GameState): void {
   // ── Per-player territory claims (loop above) ──
   for (const player of state.players) {

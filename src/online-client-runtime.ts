@@ -27,7 +27,7 @@ import {
   applyCannonStartCheckpoint,
   type CheckpointDeps,
 } from "./online-checkpoints.ts";
-import { applyFullStateUiRecovery } from "./online-full-state-recovery.ts";
+import { restoreFullStateUiRecovery } from "./online-full-state-recovery.ts";
 import {
   broadcastLocalCrosshair,
   extendWithRemoteCrosshairs,
@@ -39,12 +39,12 @@ import {
   tryPlacePieceAndSend as tryPlacePieceAndSendAction,
 } from "./online-send-actions.ts";
 import {
-  applyFullStateSnapshot,
   applyPlayersCheckpoint,
   createBattleStartMessage,
   createBuildStartMessage,
   createCannonStartMessage,
   createGameOverPayload,
+  restoreFullStateSnapshot,
   serializePlayers,
 } from "./online-serialize.ts";
 import { resetSessionState } from "./online-session.ts";
@@ -262,12 +262,12 @@ export function initFromServer(msg: InitMessage): void {
   });
 }
 
-export function applyFullState(msg: FullStateMessage): void {
+export function restoreFullState(msg: FullStateMessage): void {
   const state = runtime.runtimeState.state;
-  const result = applyFullStateSnapshot(state, msg);
+  const result = restoreFullStateSnapshot(state, msg);
   if (!result) return; // Validation failed — no state was mutated
 
-  applyFullStateUiRecovery(
+  restoreFullStateUiRecovery(
     {
       setMode: (mode) => {
         runtime.runtimeState.mode = mode;

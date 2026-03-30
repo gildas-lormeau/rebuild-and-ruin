@@ -123,8 +123,10 @@ export function placeCannon(
   return true;
 }
 
-/** Validates cannon placement. Checks: interior (enclosed territory), owned towers.
- *  Contrast with canPlacePieceOffsets() in build-system.ts which checks: grass, zone, ALL towers, grunts, cannons.
+/** Validate cannon placement on the grid.
+ *  Checks: interior (enclosed territory), walls, owned towers (not ALL), cannons, burning pits.
+ *  Does NOT check grass or playerZone — cannon placement requires enclosed territory.
+ *  Contrast with canPlacePieceOffsets() in build-system.ts which checks grass + zone + all towers.
  *
  *  All tiles must be interior, not a wall, not a tower, not an existing cannon.
  *  Requires player.interior to be freshly computed (via recomputeInterior) —

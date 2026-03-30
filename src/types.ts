@@ -114,7 +114,10 @@ export interface Cannonball {
   speed: number;
   /** Owner player id (used for in-flight tracking — index into this player's cannons array). */
   playerId: number;
-  /** Player who should receive scoring credit. Differs from playerId for captured cannons. */
+  /** Player who receives scoring credit for this cannonball's impacts.
+   *  Set to capturerId when this cannon was captured by a propaganda balloon.
+   *  When undefined, defaults to playerId (normal cannon fire).
+   *  Always use: `const shooter = ball.scoringPlayerId ?? ball.playerId` */
   scoringPlayerId?: number;
   /** If true, leaves a burning pit on impact (fired from super gun). */
   incendiary?: boolean;

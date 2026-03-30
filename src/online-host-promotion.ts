@@ -74,10 +74,14 @@ export function skipCastleBuildAnimation(state: GameState): void {
 }
 
 /**
- * Sync phase accumulators from the watcher's wall-clock timer.
- * The host uses accumulators (accum.X += dt) while watchers use
- * wall-clock subtraction (timer = max - elapsed). This converts
- * the watcher's remaining timer into the equivalent accumulator value.
+ * Sync accumulators from watcher's wall-clock timer after host promotion.
+ *
+ * Timer semantics differ by role:
+ *   Host: uses accumulators (accum.X += dt each tick). Timer counts elapsed time.
+ *   Watcher: uses wall-clock subtraction (timer = phaseDuration - elapsed). Timer counts remaining time.
+ *
+ * On promotion (watcher → host), this function converts the watcher's remaining-time timer
+ * back into accumulator values so the new host can resume ticking correctly.
  */
 export function syncAccumulatorsFromTimer(
   state: GameState,

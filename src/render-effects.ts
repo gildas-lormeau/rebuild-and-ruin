@@ -2,9 +2,6 @@
  * Visual effects rendering — impacts, cannonballs, balloons, burning pits,
  * crosshairs, phantoms, bonus squares, houses, grunts.
  *
- * Convention: exported functions use `overlayCtx` (overlay context) for the parameter name.
- * Private helper functions use `ctx` for brevity.
- *
  * ### Parameter convention (shared with render-composition.ts, render-map.ts)
  *
  * Exported functions with ≤3 closely-related args use positional parameters;

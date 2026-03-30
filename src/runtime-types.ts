@@ -189,7 +189,7 @@ export interface RuntimeSelection {
   enter: () => void;
   syncOverlay: () => void;
   highlight: (idx: number, zone: number, pid: number) => void;
-  confirm: (pid: number, isReselect?: boolean) => boolean;
+  confirmAndStartBuild: (pid: number, isReselect?: boolean) => boolean;
   allConfirmed: () => boolean;
   tick: (dt: number) => void;
   finish: () => void;

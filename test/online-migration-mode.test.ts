@@ -1,4 +1,4 @@
-import { applyFullStateUiRecovery } from "../src/online-full-state-recovery.ts";
+import { restoreFullStateUiRecovery } from "../src/online-full-state-recovery.ts";
 import { Mode, Phase } from "../src/types.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
 
@@ -11,7 +11,7 @@ test("full_state recovery clears stale banner mode into game mode", () => {
     lifeLostCleared: false,
   };
 
-  applyFullStateUiRecovery(
+  restoreFullStateUiRecovery(
     {
       setMode: (mode) => {
         target.mode = mode;
@@ -46,7 +46,7 @@ test("full_state recovery restores balloon animation mode when flights are prese
   };
   const flights = [{ flight: { startX: 1, startY: 2, endX: 3, endY: 4 }, progress: 0.25 }];
 
-  applyFullStateUiRecovery(
+  restoreFullStateUiRecovery(
     {
       setMode: (mode) => {
         target.mode = mode;

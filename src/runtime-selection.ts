@@ -454,7 +454,7 @@ export function createSelectionSystem(
     enter: enterTowerSelection,
     syncOverlay: syncSelectionOverlay,
     highlight: highlightTowerForPlayer,
-    confirm: confirmSelectionAndStartBuild,
+    confirmAndStartBuild: confirmSelectionAndStartBuild,
     allConfirmed: allSelectionsConfirmed,
     tick: tickSelection,
     finish: finishSelection,

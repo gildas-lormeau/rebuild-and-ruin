@@ -1,5 +1,5 @@
 /**
- * Full-state round-trip tests: createFullStateMessage → applyFullStateSnapshot.
+ * Full-state round-trip tests: createFullStateMessage → restoreFullStateSnapshot.
  *
  * This is the most complex serialization path, used during host migration.
  * Covers players, grunts, cannonballs, captured cannons, balloon hits,
@@ -9,7 +9,7 @@
  */
 
 import {
-  applyFullStateSnapshot,
+  restoreFullStateSnapshot,
   createFullStateMessage,
 } from "../src/online-serialize.ts";
 import {
@@ -66,8 +66,8 @@ test("full-state round-trip preserves phase, round, timer, battleLength", () => 
   watcher.state.timer = 0;
   watcher.state.battleCountdown = 0;
 
-  const result = applyFullStateSnapshot(watcher.state, msg);
-  assert(result !== null, "applyFullStateSnapshot should succeed");
+  const result = restoreFullStateSnapshot(watcher.state, msg);
+  assert(result !== null, "restoreFullStateSnapshot should succeed");
   assert(watcher.state.phase === host.state.phase, `phase mismatch: expected ${Phase[host.state.phase]}, got ${Phase[watcher.state.phase]}`);
   assert(watcher.state.round === 4, `round: expected 4, got ${watcher.state.round}`);
   assert(watcher.state.timer === 8.5, `timer: expected 8.5, got ${watcher.state.timer}`);
@@ -85,7 +85,7 @@ test("full-state round-trip preserves player walls, interior, lives, score", () 
   watcher.state.players[0]!.score = 0;
   watcher.state.players[0]!.lives = 3;
 
-  applyFullStateSnapshot(watcher.state, msg);
+  restoreFullStateSnapshot(watcher.state, msg);
 
   for (let i = 0; i < host.state.players.length; i++) {
     const hp = host.state.players[i]!;
@@ -108,7 +108,7 @@ test("full-state round-trip preserves cannons with modes and facings", () => {
   ];
 
   const msg = createFullStateMessage(host.state, 1);
-  applyFullStateSnapshot(watcher.state, msg);
+  restoreFullStateSnapshot(watcher.state, msg);
 
   const wp = watcher.state.players[0]!;
   assert(wp.cannons.length === 3, `expected 3 cannons, got ${wp.cannons.length}`);
@@ -130,7 +130,7 @@ test("full-state round-trip preserves grunts", () => {
 
   const msg = createFullStateMessage(host.state, 1);
   watcher.state.grunts = [];
-  applyFullStateSnapshot(watcher.state, msg);
+  restoreFullStateSnapshot(watcher.state, msg);
 
   assert(watcher.state.grunts.length === 2, `expected 2 grunts, got ${watcher.state.grunts.length}`);
   assert(watcher.state.grunts[0]!.row === 10, "grunt 0 row");
@@ -150,7 +150,7 @@ test("full-state round-trip preserves RNG state", () => {
   const hostRngState = host.state.rng.getState();
 
   const msg = createFullStateMessage(host.state, 1);
-  applyFullStateSnapshot(watcher.state, msg);
+  restoreFullStateSnapshot(watcher.state, msg);
 
   assert(watcher.state.rng.getState() === hostRngState,
     `RNG state: expected ${hostRngState}, got ${watcher.state.rng.getState()}`);
@@ -173,7 +173,7 @@ test("full-state round-trip preserves cannonLimits and playerZones", () => {
   host.state.activePlayer = 2;
 
   const msg = createFullStateMessage(host.state, 1);
-  applyFullStateSnapshot(watcher.state, msg);
+  restoreFullStateSnapshot(watcher.state, msg);
 
   for (let i = 0; i < 3; i++) {
     assert(watcher.state.cannonLimits[i] === host.state.cannonLimits[i],
@@ -193,7 +193,7 @@ test("full-state round-trip preserves towerPendingRevive", () => {
 
   const msg = createFullStateMessage(host.state, 1);
   watcher.state.towerPendingRevive = new Set();
-  applyFullStateSnapshot(watcher.state, msg);
+  restoreFullStateSnapshot(watcher.state, msg);
 
   assert(setsEqual(watcher.state.towerPendingRevive, host.state.towerPendingRevive),
     `towerPendingRevive mismatch: expected ${[...host.state.towerPendingRevive]}, got ${[...watcher.state.towerPendingRevive]}`);
@@ -210,7 +210,7 @@ test("full-state round-trip preserves towerAlive", () => {
   }
 
   const msg = createFullStateMessage(host.state, 1);
-  applyFullStateSnapshot(watcher.state, msg);
+  restoreFullStateSnapshot(watcher.state, msg);
 
   for (let i = 0; i < host.state.towerAlive.length; i++) {
     assert(watcher.state.towerAlive[i] === host.state.towerAlive[i],
@@ -226,7 +226,7 @@ test("full-state round-trip preserves burningPits and bonusSquares", () => {
   const msg = createFullStateMessage(host.state, 1);
   watcher.state.burningPits = [];
   watcher.state.bonusSquares = [];
-  applyFullStateSnapshot(watcher.state, msg);
+  restoreFullStateSnapshot(watcher.state, msg);
 
   assert(watcher.state.burningPits.length === 1, "burningPits lost");
   assert(watcher.state.burningPits[0]!.row === 3, "burningPit row");
@@ -244,7 +244,7 @@ test("full-state round-trip preserves house alive status", () => {
   }
 
   const msg = createFullStateMessage(host.state, 1);
-  applyFullStateSnapshot(watcher.state, msg);
+  restoreFullStateSnapshot(watcher.state, msg);
 
   for (let i = 0; i < host.state.map.houses.length; i++) {
     assert(watcher.state.map.houses[i]!.alive === host.state.map.houses[i]!.alive,
@@ -282,7 +282,7 @@ test("full-state round-trip preserves cannonballs", () => {
 
     const msg = createFullStateMessage(host.state, 1);
     watcher.state.cannonballs = [];
-    applyFullStateSnapshot(watcher.state, msg);
+    restoreFullStateSnapshot(watcher.state, msg);
 
     assert(watcher.state.cannonballs.length === 2, `expected 2 cannonballs, got ${watcher.state.cannonballs.length}`);
     const b0 = watcher.state.cannonballs[0]!;
@@ -307,7 +307,7 @@ test("full-state drops cannonballs with stale cannon references", () => {
   }];
 
   const msg = createFullStateMessage(host.state, 1);
-  applyFullStateSnapshot(watcher.state, msg);
+  restoreFullStateSnapshot(watcher.state, msg);
 
   assert(watcher.state.cannonballs.length === 0,
     `stale cannonball should be dropped, got ${watcher.state.cannonballs.length}`);
@@ -330,7 +330,7 @@ test("full-state round-trip preserves captured cannons", () => {
 
     const msg = createFullStateMessage(host.state, 1);
     watcher.state.capturedCannons = [];
-    applyFullStateSnapshot(watcher.state, msg);
+    restoreFullStateSnapshot(watcher.state, msg);
 
     assert(watcher.state.capturedCannons.length === 1,
       `expected 1 captured cannon, got ${watcher.state.capturedCannons.length}`);
@@ -353,7 +353,7 @@ test("full-state round-trip preserves balloon hits", () => {
 
     const msg = createFullStateMessage(host.state, 1);
     watcher.state.balloonHits = new Map();
-    applyFullStateSnapshot(watcher.state, msg);
+    restoreFullStateSnapshot(watcher.state, msg);
 
     assert(watcher.state.balloonHits.size === 1, `expected 1 balloon hit, got ${watcher.state.balloonHits.size}`);
     const wp1 = watcher.state.players[1]!;
@@ -377,7 +377,7 @@ test("full-state round-trip preserves balloon flights", () => {
   ];
 
   const msg = createFullStateMessage(host.state, 1, flights);
-  const result = applyFullStateSnapshot(watcher.state, msg);
+  const result = restoreFullStateSnapshot(watcher.state, msg);
 
   assert(result !== null, "should succeed");
   assert(result!.balloonFlights !== undefined, "balloonFlights should be present");
@@ -391,7 +391,7 @@ test("full-state round-trip preserves balloon flights", () => {
 test("full-state without flights returns undefined balloonFlights", () => {
   const { host, watcher } = createPair(42);
   const msg = createFullStateMessage(host.state, 1);
-  const result = applyFullStateSnapshot(watcher.state, msg);
+  const result = restoreFullStateSnapshot(watcher.state, msg);
 
   assert(result !== null, "should succeed");
   assert(result!.balloonFlights === undefined, "balloonFlights should be undefined when no flights");
@@ -406,7 +406,7 @@ test("full-state rejects invalid phase string", () => {
   const msg = createFullStateMessage(host.state, 1);
   msg.phase = "INVALID_PHASE";
 
-  const result = applyFullStateSnapshot(watcher.state, msg);
+  const result = restoreFullStateSnapshot(watcher.state, msg);
   assert(result === null, "should reject invalid phase");
 });
 
@@ -415,7 +415,7 @@ test("full-state rejects mismatched player count", () => {
   const msg = createFullStateMessage(host.state, 1);
   msg.players = msg.players.slice(0, 1);
 
-  const result = applyFullStateSnapshot(watcher.state, msg);
+  const result = restoreFullStateSnapshot(watcher.state, msg);
   assert(result === null, "should reject mismatched player count");
 });
 
@@ -424,7 +424,7 @@ test("full-state rejects non-finite rngState", () => {
   const msg = createFullStateMessage(host.state, 1);
   msg.rngState = NaN;
 
-  const result = applyFullStateSnapshot(watcher.state, msg);
+  const result = restoreFullStateSnapshot(watcher.state, msg);
   assert(result === null, "should reject NaN rngState");
 });
 
@@ -433,7 +433,7 @@ test("full-state rejects out-of-bounds tower index in player", () => {
   const msg = createFullStateMessage(host.state, 1);
   msg.players[0]!.ownedTowerIndices.push(9999);
 
-  const result = applyFullStateSnapshot(watcher.state, msg);
+  const result = restoreFullStateSnapshot(watcher.state, msg);
   assert(result === null, "should reject out-of-bounds tower index");
 });
 
@@ -442,7 +442,7 @@ test("full-state rejects out-of-bounds grunt position", () => {
   const msg = createFullStateMessage(host.state, 1);
   msg.grunts.push({ row: -1, col: 0, targetPlayerId: 0 });
 
-  const result = applyFullStateSnapshot(watcher.state, msg);
+  const result = restoreFullStateSnapshot(watcher.state, msg);
   assert(result === null, "should reject negative grunt row");
 });
 
@@ -451,7 +451,7 @@ test("full-state rejects mismatched towerAlive length", () => {
   const msg = createFullStateMessage(host.state, 1);
   msg.towerAlive = [true]; // wrong length
 
-  const result = applyFullStateSnapshot(watcher.state, msg);
+  const result = restoreFullStateSnapshot(watcher.state, msg);
   assert(result === null, "should reject mismatched towerAlive length");
 });
 
@@ -468,7 +468,7 @@ test("full-state round-trip preserves eliminated player state", () => {
   host.state.players[1]!.cannons = [];
 
   const msg = createFullStateMessage(host.state, 1);
-  applyFullStateSnapshot(watcher.state, msg);
+  restoreFullStateSnapshot(watcher.state, msg);
 
   const wp = watcher.state.players[1]!;
   assert(wp.eliminated === true, "eliminated not preserved");
