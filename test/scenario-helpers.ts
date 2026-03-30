@@ -25,7 +25,8 @@ import {
   finalizeBuildPhase,
   nextPhase,
 } from "../src/game-engine.ts";
-import { gruntAttackTowers, tickGrunts } from "../src/grunt-system.ts";
+import { tickGrunts } from "../src/grunt-movement.ts";
+import { gruntAttackTowers } from "../src/grunt-system.ts";
 import {
   createLifeLostDialogState,
   resolveLifeLostDialogRuntime,

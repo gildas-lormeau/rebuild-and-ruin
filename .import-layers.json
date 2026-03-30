@@ -44,6 +44,7 @@
     "name": "game logic",
     "files": [
       "src/cannon-system.ts",
+      "src/grunt-movement.ts",
       "src/grunt-system.ts",
       "src/battle-system.ts",
       "src/build-system.ts",

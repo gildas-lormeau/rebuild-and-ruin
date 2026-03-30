@@ -54,7 +54,7 @@ The layer map file. Committed to the repo. An array of named groups — position
 
 **Rule: imports must flow downward.** A file in group N can import from any group 0..N. Importing from group N+1 or higher is a violation.
 
-**Current architecture (15 groups, 0 violations, 91 files incl. server):**
+**Current architecture (15 groups, 0 violations, 115 files incl. server):**
 
 ```
  0  leaf utilities              canvas-layout, grid, platform, rng, router
@@ -62,10 +62,12 @@ The layer map file. Committed to the repo. An array of named groups — position
  2  core types & state          types, spatial, board-occupancy, checkpoint-data, server/protocol
  3  shared interfaces & theme   player-config, controller-interfaces, life-lost, castle-build,
                                 phase-banner, render-theme, render-types  ← pure interfaces/state/theme, no canvas deps
- 4  game logic                  cannon/grunt/battle/build-system, map-generation, game-engine,
-                                game-ui-helpers, tick-context, phase-transition-shared, selection
+ 4  game logic                  cannon-system, grunt-movement, grunt-system, battle-system, build-system,
+                                map-generation, game-engine, game-ui-helpers, tick-context,
+                                phase-transition-shared, selection
  5  AI strategy                 ai-constants, ai-build-*, ai-strategy-*, ai-castle-rect
- 6  controllers                 controller-ai, controller-types, controller-human, controller-factory
+ 6  controllers                 ai-phase-select, ai-phase-build, ai-phase-cannon, ai-phase-battle,
+                                controller-ai, controller-types, controller-human, controller-factory
  7  input                       input-*, haptics-system, sound-system
  8  render                      render-sprites, render-loupe, render-effects, render-towers,
                                 render-composition, render-ui, render-map, render-canvas  ← canvas-using files

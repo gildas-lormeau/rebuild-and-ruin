@@ -13,7 +13,7 @@ import {
   type PlayerController,
 } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
-import { tickGrunts } from "./grunt-system.ts";
+import { tickGrunts } from "./grunt-movement.ts";
 import type { DedupMaps, OnlineSession } from "./online-session.ts";
 import {
   interpolateToward,

@@ -25,7 +25,8 @@ import {
   prepareCannonPhase,
 } from "./game-engine.ts";
 import { collectLocalCrosshairs, tickGameCore } from "./game-ui-helpers.ts";
-import { gruntAttackTowers, tickGrunts } from "./grunt-system.ts";
+import { tickGrunts } from "./grunt-movement.ts";
+import { gruntAttackTowers } from "./grunt-system.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import { BANNER_BUILD } from "./phase-banner.ts";
 import {
