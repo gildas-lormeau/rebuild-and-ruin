@@ -19,6 +19,7 @@ import {
   phantomChanged,
   phantomWireMode,
   piecePhantomKey,
+  startWatcherPhaseTimer,
   type WatcherTimingState,
 } from "./online-types.ts";
 import {
@@ -141,9 +142,11 @@ export function tickWatcherTimers(
 
     frame.announcement = getCountdownAnnouncement(state.battleCountdown);
     if (!frame.announcement) {
-      timing.phaseStartTime =
-        timing.countdownStartTime + timing.countdownDuration * 1000;
-      timing.phaseDuration = BATTLE_TIMER;
+      startWatcherPhaseTimer(
+        timing,
+        timing.countdownStartTime + timing.countdownDuration * 1000,
+        BATTLE_TIMER,
+      );
       timing.countdownDuration = 0;
     }
     return;

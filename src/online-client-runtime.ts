@@ -60,6 +60,7 @@ import {
   serializePlayers,
 } from "./online-serialize.ts";
 import { resetSessionState } from "./online-session.ts";
+import { startWatcherPhaseTimer } from "./online-types.ts";
 import type { WatcherTickContext } from "./online-watcher-tick.ts";
 import {
   tickMigrationAnnouncement as tickMigrationAnnouncementFn,
@@ -392,8 +393,7 @@ export function applyFullState(msg: FullStateMessage): void {
     result.balloonFlights,
   );
 
-  watcher.timing.phaseStartTime = performance.now();
-  watcher.timing.phaseDuration = state.timer;
+  startWatcherPhaseTimer(watcher.timing, performance.now(), state.timer);
   if (state.battleCountdown > 0) {
     watcher.timing.countdownStartTime = performance.now();
     watcher.timing.countdownDuration = state.battleCountdown;

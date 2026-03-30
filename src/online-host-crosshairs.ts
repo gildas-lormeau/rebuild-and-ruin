@@ -18,7 +18,7 @@ import {
   type PlayerController,
 } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
-import { interpolateToward } from "./online-types.ts";
+import { interpolateToward, phantomChanged } from "./online-types.ts";
 import type { GameState } from "./types.ts";
 
 interface BroadcastDeps {
@@ -46,8 +46,7 @@ export function broadcastLocalCrosshair(
     (isAiAnimatable(ctrl) ? ctrl.getCrosshairTarget() : null) ?? ch;
   const orbit = isAiAnimatable(ctrl) ? ctrl.getOrbitParams() : null;
   const key = `${Math.round(target.x)},${Math.round(target.y)},${orbit ? "o" : ""}`;
-  if (deps.lastSentAimTarget.get(ctrl.playerId) === key) return;
-  deps.lastSentAimTarget.set(ctrl.playerId, key);
+  if (!phantomChanged(deps.lastSentAimTarget, ctrl.playerId, key)) return;
   deps.send({
     type: MESSAGE.AIM_UPDATE,
     playerId: ctrl.playerId,

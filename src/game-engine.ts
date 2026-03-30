@@ -27,6 +27,7 @@ import {
 } from "./board-occupancy.ts";
 import {
   claimTerritory,
+  claimTerritoryEndOfBuild,
   removeBonusSquaresCoveredByWalls,
   replenishBonusSquares,
 } from "./build-system.ts";
@@ -194,7 +195,7 @@ export function finalizeBuildPhase(state: GameState): {
   eliminated: number[];
 } {
   sweepAllPlayersWalls(state);
-  claimTerritory(state, true);
+  claimTerritoryEndOfBuild(state);
   return applyLifePenalties(state);
 }
 

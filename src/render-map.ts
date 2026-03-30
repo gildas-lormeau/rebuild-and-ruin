@@ -250,6 +250,16 @@ function ensureOffscreenSize(width: number, height: number): void {
 /** Re-draw the pre-transition scene below the banner divider line.
  *  Uses a temp canvas because putImageData in drawTerrain ignores clip regions.
  *  The old scene is cached (by reference identity) to avoid re-rendering each frame. */
+/** Render the "old scene" behind the phase-transition banner.
+ *
+ *  When a banner has preserveOldScene=true, showBannerTransition captures pre-transition
+ *  state (castles, territory, walls, houses, bonus squares). This function reconstructs
+ *  a full RenderOverlay from that snapshot, suppressing phase-specific elements (phantoms,
+ *  battle effects, crosshairs) so the old scene looks clean beneath the banner.
+ *
+ *  The result is cached (keyed on map + old-scene references) and composited below the
+ *  banner via a clip rect. Cache is invalidated when any of the four cached references change.
+ *  All four cached values must be updated atomically on a cache miss. */
 function drawBannerOldScene(
   octx: CanvasRenderingContext2D,
   W: number,

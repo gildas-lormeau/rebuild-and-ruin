@@ -19,6 +19,7 @@ import {
   type CannonPhantom,
   interpolateToward,
   type PiecePhantom,
+  resetWatcherPhaseTimer,
   type WatcherTimingState,
 } from "./online-types.ts";
 import {
@@ -91,8 +92,7 @@ export function resetWatcherState(ws: WatcherState): void {
   ws.crosshairPos.clear();
   ws.idlePhases.clear();
   ws.orbitParams.clear();
-  ws.timing.phaseStartTime = 0;
-  ws.timing.phaseDuration = 0;
+  resetWatcherPhaseTimer(ws.timing);
   ws.timing.countdownStartTime = 0;
   ws.timing.countdownDuration = 0;
   ws.migrationTimer = 0;
@@ -105,8 +105,7 @@ export function resetWatcherState(ws: WatcherState): void {
  * uses those for remote human players via extendCrosshairs.
  */
 export function resetWatcherTimingForHost(ws: WatcherState): void {
-  ws.timing.phaseStartTime = 0;
-  ws.timing.phaseDuration = 0;
+  resetWatcherPhaseTimer(ws.timing);
   ws.timing.countdownStartTime = 0;
   ws.timing.countdownDuration = 0;
   ws.idlePhases.clear();

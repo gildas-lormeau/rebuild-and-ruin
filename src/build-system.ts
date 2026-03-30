@@ -160,29 +160,36 @@ export function applyPiecePlacement(
  *  3. removeEnclosedGrunts — enemy grunts inside interior are killed/respawned
  *  4. destroyEnclosedHouses — enemy houses inside interior are destroyed
  *  5. captureEnclosedBonusSquares — bonus squares inside interior are scored
- */
-export function claimTerritory(
-  state: GameState,
-  /** When true: awards territory points, clears unenclosed pending revives,
-   *  and calls awardEndOfBuildPoints. Only set at the end of WALL_BUILD phase. */
-  endOfBuildPhase = false,
-): void {
+ *
+ * Called after every wall mutation (piece placement, castle construction, etc.).
+ * For end-of-build-phase finalization, use claimTerritoryEndOfBuild instead. */
+export function claimTerritory(state: GameState): void {
   for (const player of state.players) {
     recomputeInterior(state, player);
-    updateOwnedTowers(state, player, endOfBuildPhase);
+    updateOwnedTowers(state, player, false);
     removeEnclosedGruntsAndRespawn(state, player);
     destroyEnclosedHousesAndSpawnGrunts(state, player);
     captureEnclosedBonusSquares(state, player);
-    if (endOfBuildPhase) {
-      awardEndOfBuildPoints(state, player, player.interior.size);
-    }
   }
-
   sweepMisplacedGrunts(state);
+}
 
-  if (endOfBuildPhase) {
-    clearUnenclosedPendingRevives(state);
+/** End-of-build-phase territory finalization. Same as claimTerritory plus:
+ *  - Awards territory points (based on interior size)
+ *  - Resolves pending tower revives (delayed revival requires two consecutive enclosures)
+ *  - Clears unenclosed pending revives
+ * Only called once per build phase from finalizeBuildPhase in game-engine.ts. */
+export function claimTerritoryEndOfBuild(state: GameState): void {
+  for (const player of state.players) {
+    recomputeInterior(state, player);
+    updateOwnedTowers(state, player, true);
+    removeEnclosedGruntsAndRespawn(state, player);
+    destroyEnclosedHousesAndSpawnGrunts(state, player);
+    captureEnclosedBonusSquares(state, player);
+    awardEndOfBuildPoints(state, player, player.interior.size);
   }
+  sweepMisplacedGrunts(state);
+  clearUnenclosedPendingRevives(state);
 }
 
 /**

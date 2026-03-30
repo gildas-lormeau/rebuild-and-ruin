@@ -62,11 +62,14 @@ export function handleServerMessage(msg: ServerMessage): void {
   handleServerIncrementalMessage(msg, incrementalDeps);
 }
 
+/** Deps for server lifecycle messages (join, start, phase transitions, migration).
+ *  Sub-objects group related concerns: session, lobby, ui, game, transitions, migration. */
 function buildLifecycleDeps() {
   return {
     log: devLog,
     now: () => performance.now(),
 
+    // ── Session identity & migration tracking ──
     session: {
       isHost: () => session.isHost,
       getMyPlayerId: () => session.myPlayerId,
@@ -87,6 +90,7 @@ function buildLifecycleDeps() {
       },
     },
 
+    // ── Lobby UI & slot management ──
     lobby: {
       setWaitTimer: (lobbyWaitTimer: number) => {
         session.lobbyWaitTimer = lobbyWaitTimer;
@@ -104,6 +108,7 @@ function buildLifecycleDeps() {
       remoteHumanSlots: session.remoteHumanSlots,
     },
 
+    // ── UI state access (life-lost dialog, mode, announcements) ──
     ui: {
       getLifeLostDialog: () => runtime.lifeLost.get(),
       clearLifeLostDialog: () => {
@@ -121,12 +126,14 @@ function buildLifecycleDeps() {
       joinErrorEl: document.getElementById("join-error")!,
     },
 
+    // ── Game state & initialization ──
     game: {
       getState: () => runtime.rs.state,
       initFromServer,
       enterTowerSelection: () => runtime.selection.enter(),
     },
 
+    // ── Phase transition handlers (watcher-side) ──
     transitions: {
       onCastleWalls: (msg: ServerMessage) =>
         handleCastleWallsTransition(msg, transitionCtx),
@@ -142,6 +149,7 @@ function buildLifecycleDeps() {
         handleGameOverTransition(msg, transitionCtx),
     },
 
+    // ── Host migration & full-state recovery ──
     migration: {
       playerNames: PLAYER_NAMES,
       promoteToHost,
@@ -150,6 +158,8 @@ function buildLifecycleDeps() {
   };
 }
 
+/** Deps for incremental in-game messages (placement, cannon, aim, life-lost).
+ *  Flat structure — groups are implicit by naming (selection*, cannon*, phantom*, lifeLost*). */
 function buildIncrementalDeps() {
   return {
     log: devLog,

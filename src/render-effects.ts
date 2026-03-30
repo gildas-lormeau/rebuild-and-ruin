@@ -119,14 +119,7 @@ export function drawPhantoms(
   // AI cannon phantoms
   if (overlay?.phantoms?.aiCannonPhantoms) {
     for (const phantom of overlay.phantoms.aiCannonPhantoms) {
-      drawPhantomCannon(
-        octx,
-        phantom.row,
-        phantom.col,
-        phantom.valid,
-        phantom.mode,
-        phantom.facing ?? 0,
-      );
+      drawPhantomCannon(octx, phantom);
     }
   }
 
@@ -564,12 +557,15 @@ function crosshairGeometry(
  *  with multiple shapes. Each shape has a normal color and a red-tinted invalid variant. */
 function drawPhantomCannon(
   ctx: CanvasRenderingContext2D,
-  row: number,
-  col: number,
-  valid: boolean,
-  mode: CannonMode,
-  facing = 0,
+  phantom: {
+    readonly row: number;
+    readonly col: number;
+    readonly valid: boolean;
+    readonly mode: CannonMode;
+    readonly facing?: number;
+  },
 ): void {
+  const { row, col, valid, mode, facing = 0 } = phantom;
   const cx = col * TILE_SIZE;
   const cy = row * TILE_SIZE;
   const sz = isSuperMode(mode) ? 3 : 2;

@@ -34,6 +34,23 @@ export interface WatcherTimingState {
   countdownDuration: number;
 }
 
+/** Start tracking a new phase timer. Call at the moment a phase begins on the watcher side.
+ *  The watcher reconstructs `state.timer` each frame from `(now - phaseStartTime)`. */
+export function startWatcherPhaseTimer(
+  timing: WatcherTimingState,
+  now: number,
+  phaseDuration: number,
+): void {
+  timing.phaseStartTime = now;
+  timing.phaseDuration = phaseDuration;
+}
+
+/** Reset phase timing to idle (no active phase timer). */
+export function resetWatcherPhaseTimer(timing: WatcherTimingState): void {
+  timing.phaseStartTime = 0;
+  timing.phaseDuration = 0;
+}
+
 /** Parse a string as a CannonMode, defaulting to NORMAL if invalid. */
 export function toCannonMode(value: string | undefined): CannonMode {
   if (value && (CANNON_MODES as ReadonlySet<string>).has(value))

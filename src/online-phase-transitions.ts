@@ -11,7 +11,10 @@ import type { PlayerController } from "./controller-interfaces.ts";
 import { initControllerForCannonPhase, setPhase } from "./game-engine.ts";
 import type { RGB } from "./geometry-types.ts";
 import { TILE_COUNT } from "./grid.ts";
-import type { WatcherTimingState } from "./online-types.ts";
+import {
+  startWatcherPhaseTimer,
+  type WatcherTimingState,
+} from "./online-types.ts";
 import {
   BANNER_BATTLE_ONLINE,
   BANNER_REPAIR_ONLINE,
@@ -198,8 +201,7 @@ export function handleCannonStartTransition(
     initControllers: initLocalController,
     showBanner: () =>
       showCannonPhaseBanner(ctx.ui.showBanner, () => {
-        ctx.ui.watcherTiming.phaseStartTime = ctx.now();
-        ctx.ui.watcherTiming.phaseDuration = state.timer;
+        startWatcherPhaseTimer(ctx.ui.watcherTiming, ctx.now(), state.timer);
         ctx.setMode(Mode.GAME);
       }),
   });
@@ -255,9 +257,11 @@ export function handleBuildStartTransition(
   executeTransition(BUILD_START_STEPS, {
     showBanner: () =>
       showBuildPhaseBanner(ctx.ui.showBanner, BANNER_REPAIR_ONLINE, () => {
-        ctx.ui.watcherTiming.phaseStartTime =
-          buildReceivedAt + ctx.ui.bannerDuration * 1000;
-        ctx.ui.watcherTiming.phaseDuration = state.timer;
+        startWatcherPhaseTimer(
+          ctx.ui.watcherTiming,
+          buildReceivedAt + ctx.ui.bannerDuration * 1000,
+          state.timer,
+        );
         ctx.setMode(Mode.GAME);
       }),
     applyCheckpoint: () => {
