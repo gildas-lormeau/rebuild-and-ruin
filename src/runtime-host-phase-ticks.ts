@@ -135,6 +135,8 @@ const EMPTY_MAP = new Map<number, string>();
 /** Protocol placeholder — broadcastNewWalls sends absolute tile positions in `offsets`,
  *  so `row`/`col` are unused. This constant documents the intent. */
 const PLACEHOLDER_ORIGIN = { row: 0, col: 0 } as const;
+/** Duration (seconds) of the smooth cannon facing reset at cannon-phase start. */
+const CANNON_FACING_RESET_DURATION = 0.5;
 
 /**
  * Controller cannon lifecycle per frame:
@@ -160,7 +162,9 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   const sendOpponentCannonPhantom = deps.net?.sendOpponentCannonPhantom;
 
   advancePhaseTimer(accum, "cannon", state, dt, state.cannonPlaceTimer);
-  tickCannonFacingReset(state, dt);
+  if (accum.cannon <= CANNON_FACING_RESET_DURATION) {
+    tickCannonFacingReset(state, dt);
+  }
 
   // Reset per-frame phantom collection (cannon phase only needs AI cannon phantoms)
   frame.phantoms = { aiCannonPhantoms: [] };
