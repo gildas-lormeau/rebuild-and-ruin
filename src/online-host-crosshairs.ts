@@ -19,7 +19,7 @@ import {
 } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { interpolateToward, phantomChanged } from "./online-types.ts";
-import type { GameState } from "./types.ts";
+import { type GameState, isPlayerAlive } from "./types.ts";
 
 interface BroadcastDeps {
   lastSentAimTarget: Map<number, string>;
@@ -70,7 +70,7 @@ export function extendWithRemoteCrosshairs(
   for (const [pid, target] of deps.remoteCrosshairs) {
     if (!deps.remoteHumanSlots.has(pid)) continue;
     const player = state.players[pid];
-    if (!player || player.eliminated) continue;
+    if (!isPlayerAlive(player)) continue;
     if (!canPlayerFire(state, pid)) continue;
     const readyCannon = nextReadyCombined(state, pid);
     let vis = deps.watcherCrosshairPos.get(pid);

@@ -27,7 +27,12 @@ import {
 } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
 import { pxToTile, towerCenter } from "./spatial.ts";
-import { Action, type CombinedCannonResult, type GameState } from "./types.ts";
+import {
+  Action,
+  type CombinedCannonResult,
+  type GameState,
+  isPlayerAlive,
+} from "./types.ts";
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
 const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
@@ -179,7 +184,7 @@ export abstract class BaseController implements PlayerController {
   initCannons(state: GameState, maxSlots: number): void {
     if (state.round !== 1) return;
     const player = state.players[this.playerId];
-    if (!player || player.eliminated || player.cannons.length > 0) return;
+    if (!isPlayerAlive(player) || player.cannons.length > 0) return;
     autoPlaceCannonsBalanced(player, maxSlots, state);
   }
   /** Called at the end of the battle phase (e.g. clear AI fire targets). */

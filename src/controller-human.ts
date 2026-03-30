@@ -30,6 +30,7 @@ import {
   CannonMode,
   isBalloonMode,
   isNormalMode,
+  isPlayerAlive,
   isSuperMode,
 } from "./types.ts";
 
@@ -74,13 +75,13 @@ export class HumanController extends BaseController implements InputReceiver {
 
   isCannonPhaseDone(state: GameState, maxSlots: number): boolean {
     const player = state.players[this.playerId];
-    if (!player || player.eliminated) return true;
+    if (!isPlayerAlive(player)) return true;
     return cannonSlotsUsed(player) >= maxSlots;
   }
 
   cannonTick(state: GameState, _dt: number): CannonPlacementPreview | null {
     const player = state.players[this.playerId];
-    if (!player || player.eliminated) return null;
+    if (!isPlayerAlive(player)) return null;
     const maxSlots = state.cannonLimits[this.playerId] ?? 0;
     const remaining = maxSlots - cannonSlotsUsed(player);
     if (remaining <= 0) return null;
@@ -184,7 +185,7 @@ export class HumanController extends BaseController implements InputReceiver {
 
   buildTick(state: GameState, _dt: number): PiecePlacementPreview[] {
     const player = state.players[this.playerId];
-    if (!player || player.eliminated) return [];
+    if (!isPlayerAlive(player)) return [];
     if (!this.currentPiece) return [];
     const valid = canPlacePiece(
       state,
@@ -206,7 +207,7 @@ export class HumanController extends BaseController implements InputReceiver {
 
   battleTick(state: GameState, dt: number): void {
     const player = state.players[this.playerId];
-    if (!player || player.eliminated) return;
+    if (!isPlayerAlive(player)) return;
     this.moveCrosshairFromInput(dt);
     aimCannons(state, this.playerId, this.crosshair.x, this.crosshair.y, dt);
   }
@@ -233,7 +234,7 @@ export class HumanController extends BaseController implements InputReceiver {
   /** Try to place a cannon at the current cursor position. Returns true on success. */
   tryPlaceCannon(state: GameState, maxSlots: number): boolean {
     const player = state.players[this.playerId];
-    if (!player || player.eliminated) return false;
+    if (!isPlayerAlive(player)) return false;
     const placed = placeCannon(
       player,
       this.cannonCursor.row,
@@ -280,7 +281,7 @@ export class HumanController extends BaseController implements InputReceiver {
    *  Also re-clamps the cursor so the new cannon size stays within the grid. */
   cycleCannonMode(state: GameState, maxSlots: number): void {
     const player = state.players[this.playerId];
-    if (!player || player.eliminated) return;
+    if (!isPlayerAlive(player)) return;
     const used = cannonSlotsUsed(player);
     if (
       isNormalMode(this.cannonPlaceMode) &&

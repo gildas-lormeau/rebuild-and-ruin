@@ -166,7 +166,7 @@ export function applyPiecePlacement(
 export function claimTerritory(state: GameState): void {
   for (const player of state.players) {
     recomputeInterior(state, player);
-    updateOwnedTowers(state, player, false);
+    updateOwnedTowers(state, player);
     removeEnclosedGruntsAndRespawn(state, player);
     destroyEnclosedHousesAndSpawnGrunts(state, player);
     captureEnclosedBonusSquares(state, player);
@@ -182,7 +182,8 @@ export function claimTerritory(state: GameState): void {
 export function claimTerritoryEndOfBuild(state: GameState): void {
   for (const player of state.players) {
     recomputeInterior(state, player);
-    updateOwnedTowers(state, player, true);
+    updateOwnedTowers(state, player);
+    reviveEnclosedTowers(state, player);
     removeEnclosedGruntsAndRespawn(state, player);
     destroyEnclosedHousesAndSpawnGrunts(state, player);
     captureEnclosedBonusSquares(state, player);
@@ -385,23 +386,26 @@ function recomputeInterior(state: GameState, player: Player): void {
   markInteriorFresh(player);
 }
 
-/** Find towers enclosed by a player's territory; handle revival logic at end of build phase. */
-function updateOwnedTowers(
-  state: GameState,
-  player: Player,
-  endOfBuildPhase: boolean,
-): void {
+/** Find towers enclosed by a player's territory and update ownedTowers list. */
+function updateOwnedTowers(state: GameState, player: Player): void {
   player.ownedTowers = [];
   for (const tower of state.map.towers) {
     if (!isTowerOwnedByPlayer(tower, player)) continue;
     player.ownedTowers.push(tower);
-    if (endOfBuildPhase && !state.towerAlive[tower.index]) {
-      if (state.towerPendingRevive.has(tower.index)) {
-        state.towerAlive[tower.index] = true;
-        state.towerPendingRevive.delete(tower.index);
-      } else {
-        state.towerPendingRevive.add(tower.index);
-      }
+  }
+}
+
+/** Process delayed tower revival for a single player (end-of-build-phase only).
+ *  Dead towers enclosed for two consecutive build phases are revived.
+ *  Dead towers enclosed for only one phase are marked pending. */
+function reviveEnclosedTowers(state: GameState, player: Player): void {
+  for (const tower of player.ownedTowers) {
+    if (state.towerAlive[tower.index]) continue;
+    if (state.towerPendingRevive.has(tower.index)) {
+      state.towerAlive[tower.index] = true;
+      state.towerPendingRevive.delete(tower.index);
+    } else {
+      state.towerPendingRevive.add(tower.index);
     }
   }
 }

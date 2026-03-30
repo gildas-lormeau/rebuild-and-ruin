@@ -65,16 +65,8 @@ import { type CannonMode, isBalloonMode, isSuperMode } from "./types.ts";
 // Phantom rendering
 const DARK_METAL = "#111";
 const PHANTOM_INVALID_COLOR = "#aa2222";
-/**
- * Phantom alpha hierarchy — lower alpha = more transparent = closer to "ghost".
- * PRIMARY is the local player's cursor preview (most prominent / least transparent).
- * HUMAN is for other human players in split-screen (slightly less prominent).
- * AI is for AI placement previews (least prominent / most transparent).
- * The values are intentionally close — subtle visual layering, not obvious opacity steps.
- */
-const PHANTOM_ALPHA_PRIMARY = 0.5;
-const PHANTOM_ALPHA_HUMAN = 0.55;
-const PHANTOM_ALPHA_AI = 0.6;
+/** Shared phantom opacity for all placement previews (primary, split-screen human, AI). */
+const PHANTOM_ALPHA = 0.55;
 // Spatial hash multipliers for per-tile visual noise
 const SEED_ROW = 41;
 const SEED_COL = 17;
@@ -132,7 +124,7 @@ export function drawPhantoms(
       row,
       col,
       valid ? "#c8c0b8" : PHANTOM_INVALID_COLOR,
-      PHANTOM_ALPHA_PRIMARY,
+      PHANTOM_ALPHA,
       false,
     );
   }
@@ -143,15 +135,7 @@ export function drawPhantoms(
       const { offsets, row, col, valid, playerId } = phantom;
       const wall = getPlayerColor(playerId).wall;
       const fill = valid ? rgb(wall) : PHANTOM_INVALID_COLOR;
-      drawPiecePhantom(
-        octx,
-        offsets,
-        row,
-        col,
-        fill,
-        PHANTOM_ALPHA_HUMAN,
-        true,
-      );
+      drawPiecePhantom(octx, offsets, row, col, fill, PHANTOM_ALPHA, true);
     }
   }
 
@@ -160,15 +144,7 @@ export function drawPhantoms(
     for (const phantom of overlay.phantoms.aiPhantoms) {
       const { offsets, row, col, playerId } = phantom;
       const wall = getPlayerColor(playerId).wall;
-      drawPiecePhantom(
-        octx,
-        offsets,
-        row,
-        col,
-        rgb(wall),
-        PHANTOM_ALPHA_AI,
-        true,
-      );
+      drawPiecePhantom(octx, offsets, row, col, rgb(wall), PHANTOM_ALPHA, true);
     }
   }
 }
@@ -589,37 +565,36 @@ function drawPhantomCannon(
   // Draw actual cannon sprite at alpha, tinted red if invalid
   ctx.translate(cx + mid, cy + mid);
   ctx.rotate(facing);
-  const invalid = !valid;
   if (isSuperMode(mode)) {
     // Super gun phantom — symmetric around (0,0)
-    ctx.fillStyle = invalid ? "#3a1111" : "#1a1a1a";
+    ctx.fillStyle = valid ? "#1a1a1a" : "#3a1111";
     ctx.fillRect(-14, -8, 28, 24);
-    ctx.fillStyle = invalid ? "#553333" : "#333";
+    ctx.fillStyle = valid ? "#333" : "#553333";
     ctx.fillRect(-18, -6, 5, 11);
     ctx.fillRect(13, -6, 5, 11);
-    ctx.fillStyle = invalid ? "#4a2222" : "#2a2a2a";
+    ctx.fillStyle = valid ? "#2a2a2a" : "#4a2222";
     ctx.fillRect(-16, -2, 32, 2);
-    ctx.fillStyle = invalid ? "#884444" : "#444";
+    ctx.fillStyle = valid ? "#444" : "#884444";
     ctx.fillRect(-4, -18, 8, 27);
-    ctx.fillStyle = invalid ? "#331111" : DARK_METAL;
+    ctx.fillStyle = valid ? DARK_METAL : "#331111";
     ctx.fillRect(-1, -18, 2, 3);
-    ctx.fillStyle = invalid ? "#cc4444" : "#a33";
+    ctx.fillStyle = valid ? "#a33" : "#cc4444";
     ctx.fillRect(-5, -11, 10, 2);
     ctx.fillRect(-5, -5, 10, 2);
   } else {
     // Normal cannon phantom — symmetric around (0,0)
-    ctx.fillStyle = invalid ? "#3a1111" : "#1a1a1a";
+    ctx.fillStyle = valid ? "#1a1a1a" : "#3a1111";
     ctx.fillRect(-10, -5, 20, 16);
-    ctx.fillStyle = invalid ? "#553333" : "#333";
+    ctx.fillStyle = valid ? "#333" : "#553333";
     ctx.fillRect(-12, -3, 4, 8);
     ctx.fillRect(8, -3, 4, 8);
-    ctx.fillStyle = invalid ? "#4a2222" : "#2a2a2a";
+    ctx.fillStyle = valid ? "#2a2a2a" : "#4a2222";
     ctx.fillRect(-10, 0, 20, 2);
-    ctx.fillStyle = invalid ? "#884444" : "#555";
+    ctx.fillStyle = valid ? "#555" : "#884444";
     ctx.fillRect(-2, -11, 4, 17);
-    ctx.fillStyle = invalid ? "#331111" : DARK_METAL;
+    ctx.fillStyle = valid ? DARK_METAL : "#331111";
     ctx.fillRect(-1, -11, 2, 2);
-    ctx.fillStyle = invalid ? "#aa4444" : "#777";
+    ctx.fillStyle = valid ? "#777" : "#aa4444";
     ctx.fillRect(-3, -6, 6, 2);
   }
   ctx.restore();

@@ -29,7 +29,12 @@ import type { PixelPos, StrategicPixelPos, TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { type PieceShape, rotateCW } from "./pieces.ts";
 import { packTile, tileCenterPx, towerCenter } from "./spatial.ts";
-import { CannonMode, type GameState, type Player } from "./types.ts";
+import {
+  CannonMode,
+  type GameState,
+  isPlayerAlive,
+  type Player,
+} from "./types.ts";
 
 /** Placement target with piece and position. */
 type BuildTarget = { piece: PieceShape } & TilePos;
@@ -296,7 +301,7 @@ export class AiController extends BaseController implements AiAnimatable {
 
   protected override onStartBuild(state: GameState): void {
     const player = state.players[this.playerId];
-    if (!player || player.eliminated) return;
+    if (!isPlayerAlive(player)) return;
     const target = this.computeNextPlacement(state);
     if (target) {
       this.buildState = {
@@ -313,7 +318,7 @@ export class AiController extends BaseController implements AiAnimatable {
   buildTick(state: GameState, dt: number): PiecePlacementPreview[] {
     if (!this.currentPiece) return [];
     const player = state.players[this.playerId];
-    if (!player || player.eliminated) return [];
+    if (!isPlayerAlive(player)) return [];
 
     // Clamp cursor so phantom never extends beyond the grid
     const clampPiece =
@@ -529,7 +534,7 @@ export class AiController extends BaseController implements AiAnimatable {
 
   override placeCannons(state: GameState, maxSlots: number): void {
     const player = state.players[this.playerId];
-    if (!player || player.eliminated) return;
+    if (!isPlayerAlive(player)) return;
     this.cannonQueue = this.strategy.placeCannons(player, maxSlots, state);
     this.cannonMaxSlots = maxSlots;
     this.displayedCannonMode = undefined;
@@ -545,7 +550,7 @@ export class AiController extends BaseController implements AiAnimatable {
 
   cannonTick(state: GameState, dt: number): CannonPlacementPreview | null {
     const player = state.players[this.playerId];
-    if (!player || player.eliminated) return null;
+    if (!isPlayerAlive(player)) return null;
 
     switch (this.cannonState.step) {
       case Step.IDLE:
@@ -679,7 +684,7 @@ export class AiController extends BaseController implements AiAnimatable {
 
   flushCannons(state: GameState, maxSlots: number): void {
     const player = state.players[this.playerId];
-    if (!player || player.eliminated) return;
+    if (!isPlayerAlive(player)) return;
     for (const target of this.cannonQueue) {
       const mode = target.mode;
       if (canPlaceCannon(player, target.row, target.col, mode, state)) {
@@ -712,7 +717,7 @@ export class AiController extends BaseController implements AiAnimatable {
 
   battleTick(state: GameState, dt: number): void {
     const player = state.players[this.playerId];
-    if (!player || player.eliminated) return;
+    if (!isPlayerAlive(player)) return;
     if (!nextReadyCombined(state, this.playerId)) return;
 
     const aimAt = this.crosshairTarget ?? this.crosshair;
@@ -800,7 +805,7 @@ export class AiController extends BaseController implements AiAnimatable {
   /** Countdown: move toward target then orbit. */
   private battleTickCountdown(state: GameState, dt: number): void {
     const player = state.players[this.playerId];
-    if (!player || player.eliminated) return;
+    if (!isPlayerAlive(player)) return;
     if (!this.crosshairTarget) {
       this.crosshairTarget = this.strategy.pickTarget(
         state,

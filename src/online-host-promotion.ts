@@ -5,7 +5,12 @@
 
 import type { PlayerController } from "./controller-interfaces.ts";
 import { BATTLE_TIMER } from "./game-constants.ts";
-import { type GameState, Phase, type TimerAccums } from "./types.ts";
+import {
+  type GameState,
+  isPlayerAlive,
+  Phase,
+  type TimerAccums,
+} from "./types.ts";
 
 /** Large prime for deriving per-round AI strategy seeds (ensures uncorrelated rounds). */
 const SEED_ROUND_MULTIPLIER = 1000003;
@@ -25,7 +30,7 @@ export function rebuildControllersForPhase(
   for (let i = 0; i < controllers.length; i++) {
     if (i === myPlayerId) continue;
     const player = state.players[i];
-    if (!player || player.eliminated) continue;
+    if (!isPlayerAlive(player)) continue;
 
     const strategySeed =
       (state.rng.seed +

@@ -418,6 +418,14 @@ export function createBattleAnimState(): BattleAnimState {
   return { territory: [], walls: [], flights: [], impacts: [] };
 }
 
+/** Type guard: player exists and is not eliminated.
+ *  Use this instead of the `!player || player.eliminated` pattern. */
+export function isPlayerAlive(
+  player: Player | null | undefined,
+): player is Player {
+  return !!player && !player.eliminated;
+}
+
 /** True when a player can actively participate in zone-based gameplay. */
 export function isPlayerActive(
   player: Player | null | undefined,

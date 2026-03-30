@@ -70,6 +70,7 @@ import {
   CannonMode,
   type GameState,
   isPlayerActive,
+  isPlayerAlive,
   Phase,
   type Player,
 } from "./types.ts";
@@ -276,7 +277,7 @@ export function initControllerForCannonPhase(
   state: GameState,
 ): void {
   const player = state.players[ctrl.playerId];
-  if (!player || player.eliminated) return;
+  if (!isPlayerAlive(player)) return;
   const max = state.cannonLimits[player.id] ?? 0;
   ctrl.placeCannons(state, max);
   if (player.homeTower) {

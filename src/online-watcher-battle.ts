@@ -27,6 +27,7 @@ import {
   type GameState,
   type Impact,
   isPlacementPhase,
+  isPlayerAlive,
   Phase,
 } from "./types.ts";
 
@@ -195,7 +196,7 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
 
   for (const [pid, target] of remoteCrosshairs) {
     const player = state.players[pid];
-    if (!player || player.eliminated) continue;
+    if (!isPlayerAlive(player)) continue;
 
     if (!canPlayerFire(state, pid)) continue;
 
