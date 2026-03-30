@@ -461,7 +461,7 @@ function buildOverlayActionDeps(deps: InputSystemDeps) {
   return {
     options: {
       isActive: () => runtimeState.mode === Mode.OPTIONS,
-      navigate: (dir: -1 | 1) => {
+      moveCursor: (dir: -1 | 1) => {
         const count = visibleOptions(uiCtx).length;
         runtimeState.optionsCursor =
           (runtimeState.optionsCursor + dir + count) % count;

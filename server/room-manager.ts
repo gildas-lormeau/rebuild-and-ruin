@@ -58,7 +58,7 @@ export class RoomManager {
    *  4. Register host socket in GameRoom (addSocket + setHost)
    *  5. Start wait timer (auto-starts game after timeout) */
   createRoom(settings: RoomSettings, hostSocket: WebSocket): string | null {
-    this.detachExistingSocket(hostSocket); // Step 1
+    this.disconnectSocketFromRoom(hostSocket); // Step 1
     if (this.rooms.size >= MAX_ROOMS) return null;
 
     // Step 2: Create room + entry (shared maps passed to GameRoom)
@@ -93,7 +93,7 @@ export class RoomManager {
   }
 
   joinRoom(code: string, socket: WebSocket): RoomEntry | null {
-    this.detachExistingSocket(socket);
+    this.disconnectSocketFromRoom(socket);
     const entry = this.rooms.get(code.toUpperCase());
     if (!entry || entry.started) return null;
 
@@ -281,7 +281,7 @@ export class RoomManager {
   }
 
   /** Get list of players who have selected a slot. */
-  getRoomPlayers(entry: RoomEntry): { playerId: number; name: string }[] {
+  getSlottedPlayers(entry: RoomEntry): { playerId: number; name: string }[] {
     const result: { playerId: number; name: string }[] = [];
     for (const [, pid] of entry.slotAssignments) {
       if (pid >= 0) {
@@ -361,7 +361,7 @@ export class RoomManager {
     return code;
   }
 
-  private detachExistingSocket(socket: WebSocket): void {
+  private disconnectSocketFromRoom(socket: WebSocket): void {
     if (this.socketToRoom.has(socket)) {
       this.handleSocketDisconnect(socket);
     }

@@ -35,7 +35,7 @@ import {
 export interface OverlayActionDeps {
   options?: {
     isActive: () => boolean;
-    navigate: (dir: -1 | 1) => void;
+    moveCursor: (dir: -1 | 1) => void;
     changeValue: (dir: -1 | 1) => void;
     confirm: () => void;
   };
@@ -250,11 +250,11 @@ export function dispatchOverlayAction(
 ): boolean {
   if (deps.options?.isActive()) {
     if (action === Action.UP) {
-      deps.options.navigate(-1);
+      deps.options.moveCursor(-1);
       return true;
     }
     if (action === Action.DOWN) {
-      deps.options.navigate(1);
+      deps.options.moveCursor(1);
       return true;
     }
     if (action === Action.LEFT) {

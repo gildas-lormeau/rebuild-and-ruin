@@ -121,7 +121,7 @@ function handleMessage(
       send(socket, {
         type: MESSAGE.ROOM_JOINED,
         code: entry.code,
-        players: rooms.getRoomPlayers(entry),
+        players: rooms.getSlottedPlayers(entry),
         settings: entry.room.settings,
         hostId: rooms.getHostId(entry),
         seed: entry.room.seed,
