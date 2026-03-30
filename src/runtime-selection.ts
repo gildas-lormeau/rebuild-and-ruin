@@ -92,11 +92,15 @@ export function createSelectionSystem(
 
   /** Clear all selection tracking state — call before entering a new selection
    *  round (initial selection or reselection). Resets selectionStates map,
-   *  reselectionPids, and overlay selection display. */
+   *  reselectionPids, overlay selection display, and stale banner snapshots
+   *  (wallsBeforeSweep / oldCastles captured at BUILD_END become invalid
+   *  when a player's zone is reset after losing a life). */
   function resetSelectionState(): void {
     runtimeState.selectionStates.clear();
     runtimeState.reselectionPids = [];
     resetOverlaySelection();
+    runtimeState.banner.wallsBeforeSweep = undefined;
+    runtimeState.banner.oldCastles = undefined;
   }
 
   // -------------------------------------------------------------------------
@@ -121,6 +125,7 @@ export function createSelectionSystem(
   }
 
   function enterTowerSelection(): void {
+    resetSelectionState();
     initTowerSelection({
       state: runtimeState.state,
       isHost: runtimeState.frameCtx.isHost,
