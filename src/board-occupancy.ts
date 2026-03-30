@@ -18,7 +18,6 @@
  * it catches stale-interior bugs in development.
  */
 
-import { NO_TOWER_INDEX } from "./game-constants.ts";
 import {
   computeCannonTileSet,
   countWallNeighbors,
@@ -227,12 +226,12 @@ export function findLivingTowerIndexAt(
   state: GameState,
   r: number,
   c: number,
-): number {
+): number | null {
   for (let i = 0; i < state.map.towers.length; i++) {
     if (!state.towerAlive[i]) continue;
     if (isTowerTile(state.map.towers[i]!, r, c)) return i;
   }
-  return NO_TOWER_INDEX;
+  return null;
 }
 
 export function computeCardinalObstacleMask(

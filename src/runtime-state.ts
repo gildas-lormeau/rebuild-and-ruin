@@ -87,8 +87,8 @@ export interface RuntimeState {
   gameStats: PlayerStats[];
 
   // Input tracking
-  /** Player slot joined by mouse/trackpad, or NO_SLOT if none joined yet. */
-  mouseJoinedSlot: number;
+  /** Player slot joined by mouse/trackpad, or null if none joined yet. */
+  mouseJoinedSlot: number | null;
   /** True when the player is using direct touch on the canvas (not d-pad). */
   directTouchActive: boolean;
 }
@@ -102,8 +102,6 @@ const DEFAULT_FRAME_DT = 1 / 60;
  * "Cannot read properties of null" when accessed before assignment.
  */
 const SENTINEL = Symbol("uninitialized");
-/** Sentinel value for mouseJoinedSlot: no player has joined via mouse/trackpad. */
-export const NO_SLOT = -1;
 
 /** Create initial runtime state. `state` and `ctx` are sentinel-guarded:
  * they throw on any property access until startGame() assigns real values.
@@ -154,7 +152,7 @@ export function createRuntimeState(): RuntimeState {
     preScores: [],
     gameStats: [],
 
-    mouseJoinedSlot: NO_SLOT,
+    mouseJoinedSlot: null,
     directTouchActive: false,
   };
 }

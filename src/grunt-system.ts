@@ -193,7 +193,7 @@ export function gruntAttackTowers(
       grunt.row,
       grunt.col,
     );
-    if (adjacentTowerIndex >= 0) {
+    if (adjacentTowerIndex !== null) {
       if (tickGruntAttackTimer(grunt, dt)) {
         state.towerAlive[adjacentTowerIndex] = false;
         events.push({

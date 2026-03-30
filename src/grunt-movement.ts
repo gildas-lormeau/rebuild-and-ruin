@@ -19,7 +19,7 @@ import {
   hasTowerAt,
   hasWallAt,
 } from "./board-occupancy.ts";
-import { NO_TOWER_INDEX, TOWER_SIZE } from "./game-constants.ts";
+import { TOWER_SIZE } from "./game-constants.ts";
 import type { TilePos } from "./geometry-types.ts";
 import {
   DIRS_4,
@@ -92,7 +92,7 @@ function lockGruntTarget(state: GameState, grunt: Grunt): void {
 
   const gruntZone = state.map.zones[grunt.row]?.[grunt.col] ?? -1;
   let bestDist = Infinity;
-  let bestIdx = NO_TOWER_INDEX;
+  let bestIdx: number | null = null;
 
   for (let i = 0; i < state.map.towers.length; i++) {
     const tower = state.map.towers[i]!;
@@ -105,7 +105,7 @@ function lockGruntTarget(state: GameState, grunt: Grunt): void {
     }
   }
 
-  if (bestIdx === NO_TOWER_INDEX) return;
+  if (bestIdx === null) return;
   grunt.targetTowerIdx = bestIdx;
 
   // Correct targetPlayerId to match zone owner (in case of mismatch from spawn)
@@ -171,12 +171,12 @@ export function adjacentLivingTowerIndex(
   state: GameState,
   row: number,
   col: number,
-): number {
+): number | null {
   for (const [dr, dc] of DIRS_4) {
     const towerIndex = findLivingTowerIndexAt(state, row + dr, col + dc);
-    if (towerIndex >= 0) return towerIndex;
+    if (towerIndex !== null) return towerIndex;
   }
-  return -1;
+  return null;
 }
 
 /**
@@ -268,7 +268,7 @@ function canGruntMoveToCandidate(
   row: number,
   col: number,
 ): boolean {
-  if (findLivingTowerIndexAt(state, row, col) >= 0) return false;
+  if (findLivingTowerIndexAt(state, row, col) !== null) return false;
   if (hasGruntAt(state, row, col, grunt)) return false;
   if (hasInteriorAt(state, packTile(row, col))) return false;
   return true;

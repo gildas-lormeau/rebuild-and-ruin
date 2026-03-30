@@ -36,8 +36,6 @@ import {
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
 const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
-/** Sentinel index meaning no cannon has fired yet in this round's rotation. */
-const NO_CANNON_ROTATION_IDX = -1;
 
 export abstract class BaseController implements PlayerController {
   readonly playerId: number;
@@ -48,8 +46,9 @@ export abstract class BaseController implements PlayerController {
     x: DEFAULT_CURSOR_COL * TILE_SIZE,
     y: DEFAULT_CURSOR_ROW * TILE_SIZE,
   };
-  /** Round-robin index into combined cannon list. Reset in initBattleState() and onLifeLost(). */
-  cannonRotationIdx = NO_CANNON_ROTATION_IDX;
+  /** Round-robin index into combined cannon list. null = no cannon fired yet this round.
+   *  Reset in initBattleState() and onLifeLost(). */
+  cannonRotationIdx: number | null = null;
 
   /** Piece bag for the build phase (shared by AI and Human). */
   protected bag: BagState | null = null;
@@ -154,7 +153,7 @@ export abstract class BaseController implements PlayerController {
    *  so the base init is always guaranteed to run.
    *  Scope: cannonRotationIdx + cursor centering only — not a full game reset (see reset()). */
   initBattleState(state?: GameState): void {
-    this.cannonRotationIdx = NO_CANNON_ROTATION_IDX;
+    this.cannonRotationIdx = null;
     if (state) {
       const player = state.players[this.playerId];
       if (player?.homeTower) {
@@ -192,7 +191,7 @@ export abstract class BaseController implements PlayerController {
   /** Called at the end of the battle phase (e.g. clear AI fire targets). */
   abstract endBattle(): void;
   onLifeLost(): void {
-    this.cannonRotationIdx = NO_CANNON_ROTATION_IDX;
+    this.cannonRotationIdx = null;
     this.bag = null;
     this.currentPiece = null;
   }
@@ -203,7 +202,7 @@ export abstract class BaseController implements PlayerController {
       x: DEFAULT_CURSOR_COL * TILE_SIZE,
       y: DEFAULT_CURSOR_ROW * TILE_SIZE,
     };
-    this.cannonRotationIdx = NO_CANNON_ROTATION_IDX;
+    this.cannonRotationIdx = null;
     this.bag = null;
     this.currentPiece = null;
   }

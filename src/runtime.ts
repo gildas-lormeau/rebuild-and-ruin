@@ -75,7 +75,6 @@ import {
 import {
   createRuntimeState,
   isStateReady,
-  NO_SLOT,
   safeState,
 } from "./runtime-state.ts";
 import { updateTouchControls } from "./runtime-touch-ui.ts";
@@ -345,7 +344,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function firstHuman(): (PlayerController & InputReceiver) | null {
     if (cachedFirstHuman !== undefined) return cachedFirstHuman;
     // Prefer the player who joined via mouse/trackpad
-    if (runtimeState.mouseJoinedSlot !== NO_SLOT) {
+    if (runtimeState.mouseJoinedSlot !== null) {
       const ctrl = runtimeState.controllers.find(
         (c) => c.playerId === runtimeState.mouseJoinedSlot,
       );

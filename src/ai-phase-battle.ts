@@ -22,7 +22,7 @@ interface BattleHost {
   readonly playerId: number;
   readonly strategy: AiStrategy;
   crosshair: { x: number; y: number };
-  readonly cannonRotationIdx: number;
+  readonly cannonRotationIdx: number | null;
   readonly anticipatesTarget: boolean;
   scaledDelay(base: number, spread: number): number;
   stepCrosshairToward(tx: number, ty: number, dt: number): boolean;

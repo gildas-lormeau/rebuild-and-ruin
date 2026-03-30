@@ -140,7 +140,7 @@ export function canPlayerFire(state: GameState, playerId: number): boolean {
 export function nextReadyCombined(
   state: GameState,
   playerId: number,
-  after: number = -1 /* -1 = start from beginning (no previous cannon) */,
+  after: number | null = null,
 ): CombinedCannonResult | null {
   const player = state.players[playerId];
   if (!player) return null;
@@ -151,8 +151,9 @@ export function nextReadyCombined(
   const total = ownCount + captured.length;
   if (total === 0) return null;
 
+  const start = after === null ? 0 : (after + 1) % total;
   for (let j = 0; j < total; j++) {
-    const i = (after + 1 + j) % total;
+    const i = (start + j) % total;
     if (i < ownCount) {
       if (canFireOwnCannon(state, playerId, i)) {
         return { type: "own", combinedIdx: i, ownIdx: i };
