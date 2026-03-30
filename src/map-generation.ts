@@ -5,7 +5,7 @@
  * - A Y-shaped river dividing the map into 3 zones
  * - 12 towers (4 per zone, each 2×2 tiles)
  *
- * Grid: 40×28 tiles
+ * Grid: 42×28 tiles
  */
 
 // --- Constants ---
@@ -20,7 +20,13 @@ import {
   type Tile,
 } from "./grid.ts";
 import { Rng } from "./rng.ts";
-import { DIRS_4, inBounds } from "./spatial.ts";
+
+interface ZoneStats {
+  minRow: number;
+  maxRow: number;
+  height: number;
+  centroidRow: number;
+}
 
 const SAFE_ZONE_PAD = 3;
 // 8×8 safe zone with corners cut (3 tiles clearance orthogonally)
@@ -78,16 +84,22 @@ export function generateMap(seed?: number): GameMap {
     // Check we have exactly 3 large zones of roughly equal size
     if (!hasThreeBalancedZones(regionSizes, ZONE_BALANCE_RATIO)) continue;
 
+    // Collect per-zone row bounds + centroid in a single grid scan
+    const top3 = topZoneIds(regionSizes, 3);
+    const zoneStats = collectZoneStats(zones, top3);
+
     // Reject if any zone has insufficient vertical height
-    if (hasAnyThinTopZone(zones, regionSizes, MIN_ZONE_HEIGHT)) continue;
+    if (top3.some((zid) => (zoneStats.get(zid)?.height ?? 0) < MIN_ZONE_HEIGHT))
+      continue;
 
     // Nudge junction 1 tile toward the largest zone to balance height.
     // Find the largest zone's centroid row; if it's above/below junction,
     // shift junction 1 tile in that direction and repaint.
-    const largestZoneId = topZoneIds(regionSizes, 1)[0];
-    if (largestZoneId !== undefined) {
-      const centroidR = zoneCentroidRow(zones, largestZoneId);
-      if (centroidR === null) continue;
+    const largestZoneId = top3[0];
+    const largestStats =
+      largestZoneId !== undefined ? zoneStats.get(largestZoneId) : undefined;
+    if (largestStats !== undefined) {
+      const centroidR = largestStats.centroidRow;
       const nudge = centroidR < junction.y ? -1 : 1;
       const newY = junction.y + nudge;
       if (newY >= 8 && newY <= GRID_ROWS - 9) {
@@ -170,44 +182,42 @@ function hasThreeBalancedZones(
   return bigZones[0]! / bigZones[2]! <= maxRatio;
 }
 
-function hasAnyThinTopZone(
+/** Single-pass: collect row bounds + centroid for the given zone IDs. */
+function collectZoneStats(
   zones: readonly number[][],
-  regionSizes: Map<number, number>,
-  minHeight: number,
-): boolean {
-  const top3 = topZoneIds(regionSizes, 3);
-  for (const zid of top3) {
-    let minR = GRID_ROWS;
-    let maxR = 0;
-    for (let r = 0; r < GRID_ROWS; r++) {
-      for (let c = 0; c < GRID_COLS; c++) {
-        if (zones[r]![c] === zid) {
-          minR = Math.min(minR, r);
-          maxR = Math.max(maxR, r);
-        }
-      }
-    }
-    if (maxR - minR + 1 < minHeight) return true;
+  zoneIds: readonly number[],
+): Map<number, ZoneStats> {
+  const acc = new Map<
+    number,
+    { minR: number; maxR: number; sumR: number; count: number }
+  >();
+  for (const zid of zoneIds) {
+    acc.set(zid, { minR: GRID_ROWS, maxR: 0, sumR: 0, count: 0 });
   }
-  return false;
-}
 
-function zoneCentroidRow(
-  zones: readonly number[][],
-  zoneId: number,
-): number | null {
-  let sumR = 0;
-  let count = 0;
   for (let r = 0; r < GRID_ROWS; r++) {
+    const row = zones[r]!;
     for (let c = 0; c < GRID_COLS; c++) {
-      if (zones[r]![c] === zoneId) {
-        sumR += r;
-        count++;
-      }
+      const a = acc.get(row[c]!);
+      if (a === undefined) continue;
+      if (r < a.minR) a.minR = r;
+      if (r > a.maxR) a.maxR = r;
+      a.sumR += r;
+      a.count++;
     }
   }
-  if (count === 0) return null;
-  return sumR / count;
+
+  const result = new Map<number, ZoneStats>();
+  for (const [zid, a] of acc) {
+    if (a.count === 0) continue;
+    result.set(zid, {
+      minRow: a.minR,
+      maxRow: a.maxR,
+      height: a.maxR - a.minR + 1,
+      centroidRow: a.sumR / a.count,
+    });
+  }
+  return result;
 }
 
 function pickExits(rng: Rng): PixelPos[] {
@@ -256,14 +266,15 @@ function buildRiverDistanceGrid(tiles: readonly Tile[][]): number[][] {
   const dist: number[][] = Array.from({ length: GRID_ROWS }, () =>
     new Array(GRID_COLS).fill(Infinity),
   );
-  const queue: [number, number][] = [];
+  // Flat-index BFS queue avoids tuple allocations (encode as r * GRID_COLS + c)
+  const queue: number[] = [];
 
   // Seed BFS from all river tiles
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       if (tiles[r]![c] === TILE_WATER) {
         dist[r]![c] = 0;
-        queue.push([r, c]);
+        queue.push(r * GRID_COLS + c);
       }
     }
   }
@@ -271,20 +282,26 @@ function buildRiverDistanceGrid(tiles: readonly Tile[][]): number[][] {
   // BFS to compute Manhattan distance to nearest river tile
   let head = 0;
   while (head < queue.length) {
-    const [r, c] = queue[head++]!;
-    const distance = dist[r]![c]!;
-    forEachOrthoNeighbor(r, c, (nr, nc) => {
-      if (
-        nr >= 0 &&
-        nr < GRID_ROWS &&
-        nc >= 0 &&
-        nc < GRID_COLS &&
-        dist[nr]![nc]! > distance + 1
-      ) {
-        dist[nr]![nc] = distance + 1;
-        queue.push([nr, nc]);
-      }
-    });
+    const idx = queue[head++]!;
+    const r = (idx / GRID_COLS) | 0;
+    const c = idx % GRID_COLS;
+    const d1 = dist[r]![c]! + 1;
+    if (r > 0 && dist[r - 1]![c]! > d1) {
+      dist[r - 1]![c] = d1;
+      queue.push(idx - GRID_COLS);
+    }
+    if (r < GRID_ROWS - 1 && dist[r + 1]![c]! > d1) {
+      dist[r + 1]![c] = d1;
+      queue.push(idx + GRID_COLS);
+    }
+    if (c > 0 && dist[r]![c - 1]! > d1) {
+      dist[r]![c - 1] = d1;
+      queue.push(idx - 1);
+    }
+    if (c < GRID_COLS - 1 && dist[r]![c + 1]! > d1) {
+      dist[r]![c + 1] = d1;
+      queue.push(idx + 1);
+    }
   }
 
   return dist;
@@ -341,6 +358,7 @@ function placeTowers(
     });
 
     // Remaining towers: farthest from existing zone towers
+    const zoneTowerStart = towers.length - 1; // index of first tower in this zone
     for (let tower = 1; tower < TOWERS_PER_ZONE; tower++) {
       let bestPos: [number, number] | null = null;
       let bestMinDist = -1;
@@ -349,7 +367,8 @@ function placeTowers(
         if (!isValidTowerPos(c, r, riverDist, towers)) continue;
 
         let minDist = Infinity;
-        for (const tw of towers.filter((tw) => tw.zone === zoneId)) {
+        for (let ti = zoneTowerStart; ti < towers.length; ti++) {
+          const tw = towers[ti]!;
           minDist = Math.min(minDist, towerRectDistance(c, r, tw.col, tw.row));
         }
 
@@ -406,7 +425,7 @@ function isValidTowerPos(
       if (dx + dy > SAFE_ZONE_PAD + 1) continue; // cut corners
       const r = row + dr;
       const c = col + dc;
-      if (!inBounds(r, c)) return false;
+      if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return false;
       if (riverDist[r]![c] === 0) return false;
     }
   }
@@ -583,13 +602,12 @@ function smoothRiver(tiles: readonly Tile[][]): void {
     for (let r = 0; r < GRID_ROWS; r++) {
       for (let c = 0; c < GRID_COLS; c++) {
         if (tiles[r]![c] !== TILE_GRASS) continue;
-        let grassNeighbors = 0;
-        forEachOrthoNeighbor(r, c, (nr, nc) => {
-          if (inBounds(nr, nc) && tiles[nr]![nc] === TILE_GRASS) {
-            grassNeighbors++;
-          }
-        });
-        if (grassNeighbors <= 1) {
+        let gn = 0;
+        if (r > 0 && tiles[r - 1]![c] === TILE_GRASS) gn++;
+        if (r < GRID_ROWS - 1 && tiles[r + 1]![c] === TILE_GRASS) gn++;
+        if (c > 0 && tiles[r]![c - 1] === TILE_GRASS) gn++;
+        if (c < GRID_COLS - 1 && tiles[r]![c + 1] === TILE_GRASS) gn++;
+        if (gn <= 1) {
           tiles[r]![c] = TILE_WATER;
           changed = true;
         }
@@ -606,13 +624,12 @@ function removeIsolatedWater(tiles: readonly Tile[][]): void {
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       if (tiles[r]![c] !== TILE_WATER) continue;
-      let waterOrtho = 0;
-      forEachOrthoNeighbor(r, c, (nr, nc) => {
-        if (inBounds(nr, nc) && tiles[nr]![nc] === TILE_WATER) {
-          waterOrtho++;
-        }
-      });
-      if (waterOrtho <= 1) {
+      let wn = 0;
+      if (r > 0 && tiles[r - 1]![c] === TILE_WATER) wn++;
+      if (r < GRID_ROWS - 1 && tiles[r + 1]![c] === TILE_WATER) wn++;
+      if (c > 0 && tiles[r]![c - 1] === TILE_WATER) wn++;
+      if (c < GRID_COLS - 1 && tiles[r]![c + 1] === TILE_WATER) wn++;
+      if (wn <= 1) {
         tiles[r]![c] = TILE_GRASS;
       }
     }
@@ -628,25 +645,43 @@ function floodFillZones(tiles: readonly Tile[][]): {
   );
   let regionId = 0;
   const regionSizes = new Map<number, number>();
+  // Reusable flat-index queue across all fills (cleared per region)
+  const queue: number[] = [];
+
+  const tryEnqueue = (r: number, c: number, rid: number): void => {
+    if (
+      r >= 0 &&
+      r < GRID_ROWS &&
+      c >= 0 &&
+      c < GRID_COLS &&
+      zones[r]![c] === 0 &&
+      tiles[r]![c] === TILE_GRASS
+    ) {
+      zones[r]![c] = rid;
+      queue.push(r * GRID_COLS + c);
+    }
+  };
 
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       if (zones[r]![c] !== 0 || tiles[r]![c] !== TILE_GRASS) continue;
 
       regionId++;
+      queue.length = 0;
+      zones[r]![c] = regionId;
+      queue.push(r * GRID_COLS + c);
       let size = 0;
-      const queue: [number, number][] = [[r, c]];
+      let head = 0;
 
-      while (queue.length > 0) {
-        const [cr, cc] = queue.pop()!;
-        if (cr < 0 || cr >= GRID_ROWS || cc < 0 || cc >= GRID_COLS) continue;
-        if (zones[cr]![cc] !== 0 || tiles[cr]![cc] !== TILE_GRASS) continue;
-
-        zones[cr]![cc] = regionId;
+      while (head < queue.length) {
+        const idx = queue[head++]!;
+        const cr = (idx / GRID_COLS) | 0;
+        const cc = idx % GRID_COLS;
         size++;
-        forEachOrthoNeighbor(cr, cc, (nr, nc) => {
-          queue.push([nr, nc]);
-        });
+        tryEnqueue(cr - 1, cc, regionId);
+        tryEnqueue(cr + 1, cc, regionId);
+        tryEnqueue(cr, cc - 1, regionId);
+        tryEnqueue(cr, cc + 1, regionId);
       }
 
       regionSizes.set(regionId, size);
@@ -654,14 +689,4 @@ function floodFillZones(tiles: readonly Tile[][]): {
   }
 
   return { zones, regionSizes };
-}
-
-function forEachOrthoNeighbor(
-  row: number,
-  col: number,
-  fn: (neighborRow: number, neighborCol: number) => void,
-): void {
-  for (const [dr, dc] of DIRS_4) {
-    fn(row + dr, col + dc);
-  }
 }
