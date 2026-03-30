@@ -14,6 +14,9 @@ import {
   type SelectionState,
 } from "./types.ts";
 
+export { createCanvasRenderer } from "./render-canvas.ts";
+export { loadAtlas } from "./render-sprites.ts";
+
 interface InitWaitingRoomDeps {
   code: string;
   seed: number;

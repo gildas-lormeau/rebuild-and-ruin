@@ -8,7 +8,7 @@
 import { pageOnline } from "./online-client-runtime.ts";
 import { connect } from "./online-client-ws.ts";
 import { initLobbyUi } from "./online-lobby-ui.ts";
-import { loadAtlas } from "./render-sprites.ts";
+import { loadAtlas } from "./runtime-bootstrap.ts";
 import { send, session } from "./runtime-online-stores.ts";
 
 const lobbyElements = {

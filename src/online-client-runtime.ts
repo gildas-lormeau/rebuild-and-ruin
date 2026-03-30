@@ -55,7 +55,6 @@ import {
   tickWatcher as tickWatcherFn,
 } from "./online-watcher-tick.ts";
 import { MAX_PLAYERS, PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
-import { createCanvasRenderer } from "./render-canvas.ts";
 import {
   GAME_CONTAINER_ACTIVE,
   GAME_EXIT_EVENT,
@@ -64,6 +63,7 @@ import {
 import { createGameRuntime, type GameRuntime } from "./runtime.ts";
 import {
   bootstrapGame,
+  createCanvasRenderer,
   createOnlineControllerSlotFactory,
   initWaitingRoom,
 } from "./runtime-bootstrap.ts";
