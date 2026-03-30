@@ -89,7 +89,7 @@ export const pageOnline = document.getElementById("page-online")!;
 // ── Transition context ──────────────────────────────────────────────
 export const transitionCtx: TransitionContext = {
   getState: () => runtime.runtimeState.state,
-  getMyPlayerId: () => session.myPlayerId,
+  session,
   getControllers: () => runtime.runtimeState.controllers,
   setMode: (mode: Mode) => {
     runtime.runtimeState.mode = mode;
@@ -208,9 +208,8 @@ const watcherTickCtx: WatcherTickContext = {
   getAccum: () => runtime.runtimeState.accum,
   getBattleAnim: () => runtime.runtimeState.battleAnim,
   getControllers: () => runtime.runtimeState.controllers,
-  getMyPlayerId: () => session.myPlayerId,
-  lastSentCannonPhantom: dedup.cannonPhantom,
-  lastSentPiecePhantom: dedup.piecePhantom,
+  session,
+  dedup,
   send: (msg) => send(msg as GameMessage),
   logThrottled: devLogThrottled,
   maybeSendAimUpdate,

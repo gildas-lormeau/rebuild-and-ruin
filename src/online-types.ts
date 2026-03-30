@@ -1,5 +1,6 @@
 /** Shared types and utilities for online multiplayer sub-modules. */
 
+import type { OrbitParams } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { CANNON_MODES, CannonMode } from "./types.ts";
 
@@ -29,6 +30,16 @@ export type HumanPiecePhantom = {
   valid: boolean;
   playerId: number;
 };
+
+/** Subset of watcher state containing network-received data (phantoms, crosshairs).
+ *  Defined here (L10) so both "online infrastructure" and "online logic" consumers
+ *  can reference it without importing from the higher-layer watcher module. */
+export interface WatcherNetworkState {
+  remoteCrosshairs: Map<number, PixelPos>;
+  remoteCannonPhantoms: readonly CannonPhantom[];
+  remotePiecePhantoms: readonly PiecePhantom[];
+  orbitParams: Map<number, OrbitParams>;
+}
 
 export interface WatcherTimingState {
   phaseStartTime: number;

@@ -527,7 +527,7 @@ export function createScenario(seed = 42): Scenario {
 
     return {
       getState: () => state,
-      getMyPlayerId: () => myPlayerId,
+      session: { myPlayerId },
       getControllers: () => controllers,
       setMode: () => {},
       now: () => performance.now(),

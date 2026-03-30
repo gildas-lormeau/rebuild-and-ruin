@@ -23,6 +23,7 @@ import {
   createWatcherState,
   resetWatcherState,
   resetWatcherTimingForHostPromotion,
+  type WatcherState,
 } from "./online-watcher-tick.ts";
 import { IS_DEV } from "./platform.ts";
 
@@ -49,7 +50,7 @@ const _throttleTimestamps = new Map<string, number>();
 export const session: OnlineSession = createSession();
 /** Network dedup maps — cleared on reset and host promotion. */
 export const dedup: DedupMaps = createDedupMaps();
-export const watcher = createWatcherState();
+export const watcher: WatcherState = createWatcherState();
 /** Reconnect bookkeeping — wrapped in an object so other modules can mutate.
  *  count: number of attempts made in the current reconnect cycle (0 = idle).
  *  Use `isReconnecting()` to check if a reconnect cycle is in progress. */

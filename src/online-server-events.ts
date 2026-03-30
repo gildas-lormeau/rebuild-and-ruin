@@ -1,13 +1,8 @@
 import { MESSAGE, type ServerMessage } from "../server/protocol.ts";
 import type { ImpactEvent } from "./battle-system.ts";
-import type { OrbitParams } from "./controller-interfaces.ts";
 import { selectPlayerTower } from "./game-engine.ts";
-import type { PixelPos } from "./geometry-types.ts";
-import {
-  type CannonPhantom,
-  type PiecePhantom,
-  toCannonMode,
-} from "./online-types.ts";
+import type { OnlineSession } from "./online-session.ts";
+import { toCannonMode, type WatcherNetworkState } from "./online-types.ts";
 import { inBoundsStrict } from "./spatial.ts";
 import {
   CANNON_MODES,
@@ -28,9 +23,12 @@ interface LifeLostChoiceDialog {
 
 interface HandleServerIncrementalDeps {
   log: (msg: string) => void;
-  isHost: () => boolean;
+  session: Pick<
+    OnlineSession,
+    "isHost" | "remoteHumanSlots" | "earlyLifeLostChoices"
+  >;
+  watcher: WatcherNetworkState;
   getState: () => GameState | undefined;
-  remoteHumanSlots: Set<number>;
   selectionStates: Map<number, SelectionState>;
   syncSelectionOverlay: () => void;
   isCastleReselectPhase: () => boolean;
@@ -73,14 +71,7 @@ interface HandleServerIncrementalDeps {
   ) => boolean;
   applyImpactEvent: (state: GameState, event: ImpactEvent) => void;
   gridCols: number;
-  remoteCrosshairs: Map<number, PixelPos>;
-  watcherOrbitParams: Map<number, OrbitParams>;
-  getRemotePiecePhantoms: () => readonly PiecePhantom[];
-  setRemotePiecePhantoms: (value: readonly PiecePhantom[]) => void;
-  getRemoteCannonPhantoms: () => readonly CannonPhantom[];
-  setRemoteCannonPhantoms: (value: readonly CannonPhantom[]) => void;
   getLifeLostDialog: () => LifeLostChoiceDialog | null;
-  queueEarlyLifeLostChoice: (playerId: number, choice: LifeLostChoice) => void;
 }
 
 type TowerSelectedMsg = Extract<
@@ -203,7 +194,7 @@ function handleTowerSelected(
       if (selectionState && !selectionState.confirmed) {
         selectionState.highlighted = msg.towerIdx;
         deps.syncSelectionOverlay();
-        if (msg.confirmed && deps.isHost()) {
+        if (msg.confirmed && deps.session.isHost) {
           deps.confirmSelectionAndStartBuild(
             msg.playerId,
             deps.isCastleReselectPhase(),
@@ -228,7 +219,7 @@ function handlePiecePlaced(
   if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return true;
   if (isRemoteHumanAction(msg.playerId, deps)) {
     if (
-      deps.isHost() &&
+      deps.session.isHost &&
       !deps.canApplyPiecePlacement(
         state,
         msg.playerId,
@@ -269,7 +260,7 @@ function handleCannonPlaced(
   if (!CANNON_MODES.has(msg.mode)) return true;
   if (isRemoteHumanAction(msg.playerId, deps)) {
     if (
-      deps.isHost() &&
+      deps.session.isHost &&
       !deps.canApplyCannonPlacement(
         state,
         msg.playerId,
@@ -332,7 +323,7 @@ function handleImpactEvent(
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
 ): true {
-  if (!deps.isHost() && state) {
+  if (!deps.session.isHost && state) {
     // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
     if ("row" in msg && "col" in msg && !inBoundsStrict(msg.row, msg.col))
       return true;
@@ -360,8 +351,8 @@ function handleAimUpdate(
   // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
   if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return true;
   if (isRemoteHumanAction(msg.playerId, deps)) {
-    deps.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
-    if (msg.orbit) deps.watcherOrbitParams.set(msg.playerId, msg.orbit);
+    deps.watcher.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
+    if (msg.orbit) deps.watcher.orbitParams.set(msg.playerId, msg.orbit);
   }
   return true;
 }
@@ -371,7 +362,7 @@ function handleTowerKilled(
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
 ): true {
-  if (!deps.isHost() && state) {
+  if (!deps.session.isHost && state) {
     // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
     if (msg.towerIdx < 0 || msg.towerIdx >= state.towerAlive.length)
       return true;
@@ -389,17 +380,16 @@ function handlePiecePhantom(
   if (state && !validPid(msg.playerId, state)) return true;
   if (!inBoundsStrict(msg.row, msg.col)) return true;
   if (isRemoteHumanAction(msg.playerId, deps)) {
-    setPhantom(
-      deps.getRemotePiecePhantoms(),
-      msg.playerId,
-      {
-        offsets: msg.offsets,
-        row: msg.row,
-        col: msg.col,
-        playerId: msg.playerId,
-      },
-      deps.setRemotePiecePhantoms,
+    const updated = deps.watcher.remotePiecePhantoms.filter(
+      (entry) => entry.playerId !== msg.playerId,
     );
+    updated.push({
+      offsets: msg.offsets,
+      row: msg.row,
+      col: msg.col,
+      playerId: msg.playerId,
+    });
+    deps.watcher.remotePiecePhantoms = updated;
   }
   return true;
 }
@@ -413,19 +403,18 @@ function handleCannonPhantom(
   if (state && !validPid(msg.playerId, state)) return true;
   if (!inBoundsStrict(msg.row, msg.col)) return true;
   if (isRemoteHumanAction(msg.playerId, deps)) {
-    setPhantom(
-      deps.getRemoteCannonPhantoms(),
-      msg.playerId,
-      {
-        row: msg.row,
-        col: msg.col,
-        valid: msg.valid,
-        mode: toCannonMode(msg.mode),
-        playerId: msg.playerId,
-        facing: msg.facing,
-      },
-      deps.setRemoteCannonPhantoms,
+    const updated = deps.watcher.remoteCannonPhantoms.filter(
+      (entry) => entry.playerId !== msg.playerId,
     );
+    updated.push({
+      row: msg.row,
+      col: msg.col,
+      valid: msg.valid,
+      mode: toCannonMode(msg.mode),
+      playerId: msg.playerId,
+      facing: msg.facing,
+    });
+    deps.watcher.remoteCannonPhantoms = updated;
   }
   return true;
 }
@@ -434,7 +423,7 @@ function handleLifeLostChoice(
   msg: LifeLostChoiceMsg,
   deps: HandleServerIncrementalDeps,
 ): true {
-  if (!deps.isHost()) return true;
+  if (!deps.session.isHost) return true;
   deps.log(
     `life_lost_choice from P${msg.playerId}: ${msg.choice} (dialog=${deps.getLifeLostDialog() ? "active" : "null"})`,
   );
@@ -449,7 +438,7 @@ function handleLifeLostChoice(
     }
   } else {
     // Dialog not yet created — queue choice for when it appears
-    deps.queueEarlyLifeLostChoice(msg.playerId, validated);
+    deps.session.earlyLifeLostChoices.set(msg.playerId, validated);
   }
   return true;
 }
@@ -464,23 +453,11 @@ function parseLifeLostChoice(raw: unknown): ResolvedChoice | null {
 /** Watchers accept all remote messages; hosts only accept from remote humans. */
 function isRemoteHumanAction(
   pid: number,
-  deps: Pick<HandleServerIncrementalDeps, "isHost" | "remoteHumanSlots">,
+  deps: Pick<HandleServerIncrementalDeps, "session">,
 ): boolean {
-  return !deps.isHost() || deps.remoteHumanSlots.has(pid);
+  return !deps.session.isHost || deps.session.remoteHumanSlots.has(pid);
 }
 
 function validPid(pid: number, state: GameState): boolean {
   return Number.isInteger(pid) && pid >= 0 && pid < state.players.length;
-}
-
-/** Replace or append a phantom entry for `playerId` in an array, then persist via `set`. */
-function setPhantom<T extends { playerId: number }>(
-  current: readonly T[],
-  playerId: number,
-  next: T,
-  set: (value: readonly T[]) => void,
-): void {
-  const updated = current.filter((entry) => entry.playerId !== playerId);
-  updated.push(next);
-  set(updated);
 }

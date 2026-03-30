@@ -10,16 +10,15 @@ import { aimCannons, nextReadyCombined } from "./battle-system.ts";
 import {
   CROSSHAIR_SPEED,
   isHuman,
-  type OrbitParams,
   type PlayerController,
 } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { tickGrunts } from "./grunt-system.ts";
+import type { DedupMaps, OnlineSession } from "./online-session.ts";
 import {
-  type CannonPhantom,
   interpolateToward,
-  type PiecePhantom,
   resetWatcherPhaseTimer,
+  type WatcherNetworkState,
   type WatcherTimingState,
 } from "./online-types.ts";
 import {
@@ -37,16 +36,11 @@ import {
   type TimerAccums,
 } from "./types.ts";
 
-interface WatcherState {
+export interface WatcherState extends WatcherNetworkState {
   timing: WatcherTimingState;
-  /** Target aim positions received from remote players (where they're aiming). */
-  remoteCrosshairs: Map<number, PixelPos>;
-  remoteCannonPhantoms: readonly CannonPhantom[];
   /** Interpolated visual positions shown to the watcher (smoothed toward remoteCrosshairs). */
   crosshairPos: Map<number, PixelPos>;
   idlePhases: Map<number, number>;
-  orbitParams: Map<number, OrbitParams>;
-  remotePiecePhantoms: readonly PiecePhantom[];
   migrationTimer: number;
   migrationText: string;
 }
@@ -57,9 +51,8 @@ export interface WatcherTickContext {
   getAccum: () => TimerAccums;
   getBattleAnim: () => BattleAnimState;
   getControllers: () => PlayerController[];
-  getMyPlayerId: () => number;
-  lastSentCannonPhantom: Map<number, string>;
-  lastSentPiecePhantom: Map<number, string>;
+  session: Pick<OnlineSession, "myPlayerId">;
+  dedup: Pick<DedupMaps, "cannonPhantom" | "piecePhantom">;
   send: (msg: { type: string; [key: string]: unknown }) => void;
   logThrottled: (key: string, msg: string) => void;
   maybeSendAimUpdate: (x: number, y: number) => void;
@@ -152,7 +145,7 @@ export function tickWatcher(
 
   tickWatcherTimers(state, frame, watcherState.timing, transitionCtx.now);
 
-  const myPlayerId = transitionCtx.getMyPlayerId();
+  const myPlayerId = transitionCtx.session.myPlayerId;
   const myHuman = getLocalHuman(
     state,
     transitionCtx.getControllers(),
@@ -186,7 +179,7 @@ export function tickWatcher(
       myPlayerId,
       myHuman,
       remoteCannonPhantoms: watcherState.remoteCannonPhantoms,
-      lastSentCannonPhantom: transitionCtx.lastSentCannonPhantom,
+      lastSentCannonPhantom: transitionCtx.dedup.cannonPhantom,
       sendOpponentCannonPhantom: (msg) => {
         transitionCtx.send({ type: MESSAGE.OPPONENT_CANNON_PHANTOM, ...msg });
       },
@@ -198,7 +191,7 @@ export function tickWatcher(
       dt,
       myHuman,
       remotePiecePhantoms: watcherState.remotePiecePhantoms,
-      lastSentPiecePhantom: transitionCtx.lastSentPiecePhantom,
+      lastSentPiecePhantom: transitionCtx.dedup.piecePhantom,
       sendOpponentPiecePhantom: (msg) => {
         transitionCtx.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg });
       },

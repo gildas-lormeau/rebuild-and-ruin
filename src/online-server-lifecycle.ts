@@ -4,29 +4,29 @@ import {
   MESSAGE,
   type ServerMessage,
 } from "../server/protocol.ts";
+import type { OnlineSession } from "./online-session.ts";
 import type { GameState } from "./types.ts";
 
 interface HandleServerLifecycleDeps {
   log: (msg: string) => void;
   now: () => number;
 
-  session: {
-    isHost: () => boolean;
-    getMyPlayerId: () => number;
-    setMyPlayerId: (playerId: number) => void;
-    getHostMigrationSeq: () => number;
-    setHostMigrationSeq: (seq: number) => void;
-    bumpHostMigrationSeq: () => void;
-  };
+  session: Pick<
+    OnlineSession,
+    | "isHost"
+    | "myPlayerId"
+    | "hostMigrationSeq"
+    | "lobbyWaitTimer"
+    | "roomBattleLength"
+    | "roomCannonMaxHp"
+    | "lobbyStartTime"
+    | "occupiedSlots"
+    | "remoteHumanSlots"
+  >;
 
   lobby: {
-    setWaitTimer: (seconds: number) => void;
-    setRoomSettings: (battleLength: number, cannonMaxHp: number) => void;
     showWaitingRoom: (code: string, seed: number) => void;
-    setStartTime: (timeMs: number) => void;
     joined: boolean[];
-    occupiedSlots: Set<number>;
-    remoteHumanSlots: Set<number>;
   };
 
   ui: {
@@ -67,23 +67,23 @@ export function handleServerLifecycleMessage(
 ): boolean {
   const clearLobbySlot = (playerId: number) => {
     deps.lobby.joined[playerId] = false;
-    deps.lobby.occupiedSlots.delete(playerId);
-    deps.lobby.remoteHumanSlots.delete(playerId);
+    deps.session.occupiedSlots.delete(playerId);
+    deps.session.remoteHumanSlots.delete(playerId);
   };
 
   const occupyLobbySlot = (playerId: number) => {
     deps.lobby.joined[playerId] = true;
-    deps.lobby.occupiedSlots.add(playerId);
-    if (playerId !== deps.session.getMyPlayerId()) {
-      deps.lobby.remoteHumanSlots.add(playerId);
+    deps.session.occupiedSlots.add(playerId);
+    if (playerId !== deps.session.myPlayerId) {
+      deps.session.remoteHumanSlots.add(playerId);
     } else {
-      deps.lobby.remoteHumanSlots.delete(playerId);
+      deps.session.remoteHumanSlots.delete(playerId);
     }
   };
 
   // Dismiss stale life-lost dialog when a phase transition arrives from host.
   if (
-    !deps.session.isHost() &&
+    !deps.session.isHost &&
     deps.ui.getLifeLostDialog() &&
     (msg.type === MESSAGE.CANNON_START ||
       msg.type === MESSAGE.BATTLE_START ||
@@ -98,27 +98,23 @@ export function handleServerLifecycleMessage(
 
   switch (msg.type) {
     case MESSAGE.ROOM_CREATED:
-      deps.lobby.setWaitTimer(msg.settings.waitTimerSec);
-      deps.lobby.setRoomSettings(
-        msg.settings.battleLength,
-        msg.settings.cannonMaxHp,
-      );
+      deps.session.lobbyWaitTimer = msg.settings.waitTimerSec;
+      deps.session.roomBattleLength = msg.settings.battleLength;
+      deps.session.roomCannonMaxHp = msg.settings.cannonMaxHp;
       deps.lobby.showWaitingRoom(msg.code, msg.seed);
       return true;
 
     case MESSAGE.ROOM_JOINED:
-      deps.lobby.setWaitTimer(msg.settings.waitTimerSec);
-      deps.lobby.setRoomSettings(
-        msg.settings.battleLength,
-        msg.settings.cannonMaxHp,
-      );
+      deps.session.lobbyWaitTimer = msg.settings.waitTimerSec;
+      deps.session.roomBattleLength = msg.settings.battleLength;
+      deps.session.roomCannonMaxHp = msg.settings.cannonMaxHp;
       deps.lobby.showWaitingRoom(msg.code, msg.seed);
-      deps.lobby.setStartTime(deps.now() - msg.elapsedSec * 1000);
+      deps.session.lobbyStartTime = deps.now() - msg.elapsedSec * 1000;
       for (const player of msg.players) {
         deps.lobby.joined[player.playerId] = true;
-        deps.lobby.occupiedSlots.add(player.playerId);
-        if (player.playerId !== deps.session.getMyPlayerId()) {
-          deps.lobby.remoteHumanSlots.add(player.playerId);
+        deps.session.occupiedSlots.add(player.playerId);
+        if (player.playerId !== deps.session.myPlayerId) {
+          deps.session.remoteHumanSlots.add(player.playerId);
         }
       }
       return true;
@@ -130,12 +126,12 @@ export function handleServerLifecycleMessage(
       ) {
         clearLobbySlot(msg.previousPlayerId);
       } else {
-        const currentPlayerId = deps.session.getMyPlayerId();
+        const currentPlayerId = deps.session.myPlayerId;
         if (currentPlayerId >= 0 && currentPlayerId !== msg.playerId) {
           clearLobbySlot(currentPlayerId);
         }
       }
-      deps.session.setMyPlayerId(msg.playerId);
+      deps.session.myPlayerId = msg.playerId;
       occupyLobbySlot(msg.playerId);
       return true;
 
@@ -154,8 +150,8 @@ export function handleServerLifecycleMessage(
         deps.migration.playerNames[msg.playerId] ??
         `Player ${msg.playerId + 1}`;
       deps.lobby.joined[msg.playerId] = false;
-      deps.lobby.occupiedSlots.delete(msg.playerId);
-      deps.lobby.remoteHumanSlots.delete(msg.playerId);
+      deps.session.occupiedSlots.delete(msg.playerId);
+      deps.session.remoteHumanSlots.delete(msg.playerId);
       deps.ui.setAnnouncement(`${name} disconnected`);
       deps.log(`player_left: ${name} (pid=${msg.playerId})`);
       return true;
@@ -175,40 +171,40 @@ export function handleServerLifecycleMessage(
       return true;
 
     case MESSAGE.CASTLE_WALLS:
-      if (!deps.session.isHost() && deps.game.getState())
+      if (!deps.session.isHost && deps.game.getState())
         deps.transitions.onCastleWalls(msg);
       return true;
 
     case MESSAGE.CANNON_START:
-      if (!deps.session.isHost() && deps.game.getState())
+      if (!deps.session.isHost && deps.game.getState())
         deps.transitions.onCannonStart(msg);
       return true;
 
     case MESSAGE.BATTLE_START:
-      if (!deps.session.isHost() && deps.game.getState())
+      if (!deps.session.isHost && deps.game.getState())
         deps.transitions.onBattleStart(msg);
       return true;
 
     case MESSAGE.BUILD_START:
-      if (!deps.session.isHost() && deps.game.getState())
+      if (!deps.session.isHost && deps.game.getState())
         deps.transitions.onBuildStart(msg);
       return true;
 
     case MESSAGE.BUILD_END:
-      if (!deps.session.isHost() && deps.game.getState())
+      if (!deps.session.isHost && deps.game.getState())
         deps.transitions.onBuildEnd(msg);
       return true;
 
     case MESSAGE.GAME_OVER:
-      if (!deps.session.isHost()) deps.transitions.onGameOver(msg);
+      if (!deps.session.isHost) deps.transitions.onGameOver(msg);
       return true;
 
     case MESSAGE.HOST_LEFT: {
       deps.log(
         `host_left: new host is P${msg.newHostPlayerId} (previous: P${msg.previousHostPlayerId})`,
       );
-      deps.session.bumpHostMigrationSeq();
-      if (msg.newHostPlayerId === deps.session.getMyPlayerId()) {
+      deps.session.hostMigrationSeq++;
+      if (msg.newHostPlayerId === deps.session.myPlayerId) {
         deps.migration.promoteToHost();
         deps.ui.setAnnouncement("You are now the host");
       } else {
@@ -220,16 +216,16 @@ export function handleServerLifecycleMessage(
     }
 
     case MESSAGE.FULL_STATE:
-      if (!deps.session.isHost() && deps.game.getState()) {
+      if (!deps.session.isHost && deps.game.getState()) {
         const incomingSeq = msg.migrationSeq ?? 0;
-        if (incomingSeq < deps.session.getHostMigrationSeq()) {
+        if (incomingSeq < deps.session.hostMigrationSeq) {
           deps.log(
             `ignored stale full_state in lifecycle (seq=${incomingSeq})`,
           );
           return true;
         }
-        if (incomingSeq > deps.session.getHostMigrationSeq()) {
-          deps.session.setHostMigrationSeq(incomingSeq);
+        if (incomingSeq > deps.session.hostMigrationSeq) {
+          deps.session.hostMigrationSeq = incomingSeq;
         }
         deps.migration.applyFullState(msg);
         deps.log("applied full_state from new host");

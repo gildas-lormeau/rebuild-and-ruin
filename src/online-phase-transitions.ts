@@ -11,6 +11,7 @@ import type { PlayerController } from "./controller-interfaces.ts";
 import { initControllerForCannonPhase, setPhase } from "./game-engine.ts";
 import type { RGB } from "./geometry-types.ts";
 import { TILE_COUNT } from "./grid.ts";
+import type { OnlineSession } from "./online-session.ts";
 import {
   startWatcherPhaseTimer,
   type WatcherTimingState,
@@ -42,7 +43,7 @@ import {
 export interface TransitionContext {
   // ── Core state access ──
   getState: () => GameState;
-  getMyPlayerId: () => number;
+  session: Pick<OnlineSession, "myPlayerId">;
   getControllers: () => PlayerController[];
   /** Set the UI rendering mode. Valid transitions from phase handlers:
    *  - CASTLE_BUILD — castle wall animation playing
@@ -180,7 +181,7 @@ export function handleCastleWallsTransition(
   transitionCtx.selection.clearSelectionOverlay();
   // Zoom to the local player's castle on mobile
   const myPlan = plans.find(
-    (plan) => plan.playerId === transitionCtx.getMyPlayerId(),
+    (plan) => plan.playerId === transitionCtx.session.myPlayerId,
   );
   if (myPlan) transitionCtx.selection.setCastleBuildViewport([myPlan]);
 
@@ -197,7 +198,7 @@ export function handleCannonStartTransition(
 ): void {
   if (msg.type !== MESSAGE.CANNON_START) return;
   const state = transitionCtx.getState();
-  const myPlayerId = transitionCtx.getMyPlayerId();
+  const myPlayerId = transitionCtx.session.myPlayerId;
   transitionCtx.selection.clearSelectionOverlay();
 
   // Pre-capture old houses/bonus before checkpoint spawns new ones.
@@ -299,7 +300,7 @@ export function handleBuildStartTransition(
 ): void {
   if (msg.type !== MESSAGE.BUILD_START) return;
   const state = transitionCtx.getState();
-  const myPlayerId = transitionCtx.getMyPlayerId();
+  const myPlayerId = transitionCtx.session.myPlayerId;
   const buildReceivedAt = transitionCtx.now();
 
   // Pre-capture old scene before checkpoint replaces state (banner ??= keeps it)
@@ -378,7 +379,7 @@ export function handleBuildEndTransition(
   // Shared build-end sequence: score deltas → onLifeLost → dialog.
   // Without the score-delta delay, non-host sends life_lost_choice before
   // host creates its dialog.
-  const myPlayerId = transitionCtx.getMyPlayerId();
+  const myPlayerId = transitionCtx.session.myPlayerId;
   runBuildEndSequence({
     needsReselect: msg.needsReselect,
     eliminated: msg.eliminated,

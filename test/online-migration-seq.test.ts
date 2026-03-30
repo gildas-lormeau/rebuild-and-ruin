@@ -45,25 +45,20 @@ test("lifecycle drops stale full_state after host migration", () => {
     log: () => {},
     now: () => 0,
     session: {
-      isHost: () => false,
-      getMyPlayerId: () => 0,
-      setMyPlayerId: () => {},
-      getHostMigrationSeq: () => migrationSeq,
-      setHostMigrationSeq: (seq: number) => {
-        migrationSeq = seq;
-      },
-      bumpHostMigrationSeq: () => {
-        migrationSeq++;
-      },
-    },
-    lobby: {
-      setWaitTimer: () => {},
-      setRoomSettings: () => {},
-      showWaitingRoom: () => {},
-      setStartTime: () => {},
-      joined: [] as boolean[],
+      isHost: false,
+      myPlayerId: 0,
+      get hostMigrationSeq() { return migrationSeq; },
+      set hostMigrationSeq(seq: number) { migrationSeq = seq; },
+      lobbyWaitTimer: 0,
+      roomBattleLength: 0,
+      roomCannonMaxHp: 3,
+      lobbyStartTime: 0,
       occupiedSlots: new Set<number>(),
       remoteHumanSlots: new Set<number>(),
+    },
+    lobby: {
+      showWaitingRoom: () => {},
+      joined: [] as boolean[],
     },
     ui: {
       getLifeLostDialog: () => null,

@@ -4,13 +4,12 @@
  * Builds the deps bags consumed by online-server-lifecycle.ts and
  * online-server-events.ts, and dispatches incoming server messages.
  *
- * DI PATTERN: This module builds deps objects with closures for late-binding.
+ * DI PATTERN: Mutable singletons (session, watcher) are passed directly as
+ * Pick<> references — consumers read fields at call time, so values are always
+ * current. Runtime-dependent state still uses closures for late binding.
  * - lifecycleDeps / incrementalDeps: built once at module load, reused for session lifetime.
- *   All mutable state wrapped in closures to stay current.
  * - Contrast with online-client-runtime.ts where checkpointDeps are built dynamically
  *   on each call (because checkpoint state changes frequently during play).
- * - Contrast with runtime sub-systems which destructure runtimeState directly
- *   (simpler pattern — mutable state is a single bag passed by reference).
  */
 
 import type { ServerMessage } from "../server/protocol.ts";
@@ -46,20 +45,12 @@ import { handleServerIncrementalMessage } from "./online-server-events.ts";
 import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
 import { toCannonMode } from "./online-types.ts";
 import { PLAYER_NAMES } from "./player-config.ts";
-import {
-  type GameState,
-  isReselectPhase,
-  LifeLostChoice,
-  Mode,
-} from "./types.ts";
+import { type GameState, isReselectPhase, Mode } from "./types.ts";
 
-/** CLOSURE CONVENTION: All mutable state in deps objects MUST be accessed via closures,
- *  not captured values. This prevents stale reads when state changes mid-session.
- *
- *  CORRECT:   isHost: () => session.isHost,     // Re-reads on every call
- *  INCORRECT: isHost: session.isHost,            // Captured at build time — stale after promotion
- *
- *  This applies to: session fields, watcher state, dedup maps, and any other mutable singleton.
+/** Mutable singletons (session, watcher) are passed by reference — consumers
+ *  read fields at call time via Pick<>, so values are always current.
+ *  Runtime-dependent state (e.g. runtime.runtimeState) still uses closures
+ *  because the runtime object itself is created after module load.
  *
  *  These deps objects are built once and reused for the session lifetime. */
 const lifecycleDeps = buildLifecycleDeps();
@@ -78,7 +69,7 @@ function buildLifecycleDeps() {
   return {
     log: devLog,
     now: () => performance.now(),
-    session: buildSessionDeps(),
+    session,
     lobby: buildLobbyDeps(),
     ui: buildUiDeps(),
     game: buildGameDeps(),
@@ -95,9 +86,9 @@ function buildLifecycleDeps() {
 function buildIncrementalDeps() {
   return {
     log: devLog,
-    isHost: () => session.isHost,
+    session,
+    watcher,
     getState: () => runtime.runtimeState.state,
-    remoteHumanSlots: session.remoteHumanSlots,
     selectionStates: runtime.selection.getStates(),
     syncSelectionOverlay: () => runtime.selection.syncOverlay(),
     isCastleReselectPhase: () =>
@@ -153,61 +144,14 @@ function buildIncrementalDeps() {
     },
     applyImpactEvent,
     gridCols: GRID_COLS,
-    remoteCrosshairs: watcher.remoteCrosshairs,
-    watcherOrbitParams: watcher.orbitParams,
-    getRemotePiecePhantoms: () => watcher.remotePiecePhantoms,
-    setRemotePiecePhantoms: (value: typeof watcher.remotePiecePhantoms) => {
-      watcher.remotePiecePhantoms = value;
-    },
-    getRemoteCannonPhantoms: () => watcher.remoteCannonPhantoms,
-    setRemoteCannonPhantoms: (value: typeof watcher.remoteCannonPhantoms) => {
-      watcher.remoteCannonPhantoms = value;
-    },
     getLifeLostDialog: () => runtime.lifeLost.get(),
-    queueEarlyLifeLostChoice: (playerId: number, choice: LifeLostChoice) => {
-      session.earlyLifeLostChoices.set(playerId, choice);
-    },
-  };
-}
-
-function buildSessionDeps() {
-  return {
-    isHost: () => session.isHost,
-    getMyPlayerId: () => session.myPlayerId,
-    setMyPlayerId: (pid: number) => {
-      session.myPlayerId = pid;
-    },
-    /** Host migration sequence counter — incremented each time a new host takes over.
-     *  Watchers compare their local seq against incoming checkpoint seq to detect
-     *  stale state: if checkpoint.seq > local.seq, the watcher missed a migration
-     *  and should request full-state recovery. The host includes this in FULL_STATE
-     *  messages so recovering watchers can sync up. */
-    getHostMigrationSeq: () => session.hostMigrationSeq,
-    setHostMigrationSeq: (seq: number) => {
-      session.hostMigrationSeq = seq;
-    },
-    bumpHostMigrationSeq: () => {
-      session.hostMigrationSeq++;
-    },
   };
 }
 
 function buildLobbyDeps() {
   return {
-    setWaitTimer: (lobbyWaitTimer: number) => {
-      session.lobbyWaitTimer = lobbyWaitTimer;
-    },
-    setRoomSettings: (battleLength: number, cannonMaxHp: number) => {
-      session.roomBattleLength = battleLength;
-      session.roomCannonMaxHp = cannonMaxHp;
-    },
     showWaitingRoom,
-    setStartTime: (timestamp: number) => {
-      session.lobbyStartTime = timestamp;
-    },
     joined: runtime.runtimeState.lobby.joined,
-    occupiedSlots: session.occupiedSlots,
-    remoteHumanSlots: session.remoteHumanSlots,
   };
 }
 
