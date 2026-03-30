@@ -39,7 +39,8 @@ export function promoteToHost(): void {
     runtime.runtimeState.state,
     runtime.runtimeState.controllers,
     session.myPlayerId,
-    createAiController,
+    (id, seed) =>
+      createAiController(id, seed, runtime.runtimeState.settings.difficulty),
   );
   syncAccumulatorsFromTimer(
     runtime.runtimeState.state,
