@@ -452,7 +452,7 @@ function territoryBonusSquarePoints(territorySize: number): number {
 /** Remove grunts that landed on any player's territory during processing. */
 function isTowerOwnedByPlayer(
   tower: TilePos,
-  player: Pick<Player, "interior" | "walls">,
+  player: Pick<Player, "id" | "interior" | "walls">,
 ): boolean {
   // Towers occupy a TOWER_SIZE×TOWER_SIZE footprint — check all tiles
   for (let dr = 0; dr < TOWER_SIZE; dr++) {

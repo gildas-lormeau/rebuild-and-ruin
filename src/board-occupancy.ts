@@ -71,9 +71,10 @@ export const HOUSE_SPAWN_BLOCKED = {
 } as const;
 
 export function isTileOwnedByPlayer(
-  player: Pick<Player, "interior" | "walls">,
+  player: Pick<Player, "id" | "interior" | "walls">,
   key: number,
 ): boolean {
+  assertInteriorFresh(player as Player);
   return player.interior.has(key) || player.walls.has(key);
 }
 
@@ -200,7 +201,10 @@ export function hasEnemyWallAt(
 }
 
 export function hasInteriorAt(state: GameState, key: number): boolean {
-  return state.players.some((player) => player.interior.has(key));
+  return state.players.some((player) => {
+    assertInteriorFresh(player);
+    return player.interior.has(key);
+  });
 }
 
 export function hasGruntAt(
