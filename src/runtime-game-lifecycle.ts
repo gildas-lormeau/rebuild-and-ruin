@@ -146,6 +146,7 @@ export function createGameLifecycle(
     bootstrapGame({
       seed,
       maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),
+      existingMap: runtimeState.lobby.map ?? undefined,
       battleLength: roundsVal,
       cannonMaxHp: (
         CANNON_HP_OPTIONS[runtimeState.settings.cannonHp] ??

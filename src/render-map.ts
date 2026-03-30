@@ -45,6 +45,13 @@ interface TerrainImageCache {
   battle?: ImageData;
 }
 
+type BannerCacheEntry = {
+  map: MapData;
+  castles: CastleData[];
+  territory: Set<number>[] | undefined;
+  walls: Set<number>[] | undefined;
+};
+
 // Tile fill colors — RGB tuples fed into ImageData pixel arrays.
 const GRASS_DARK: RGB = [45, 140, 45];
 // checkerboard dark square
@@ -120,18 +127,20 @@ const bannerSceneCtx = bannerSceneCanvas.getContext("2d", {
  *  because the banner scene combines data from multiple sources (castles, territory, walls)
  *  that aren't keyed by a single object. */
 const terrainImageCache = new WeakMap<MapData, TerrainImageCache>();
+/** Sentinel: cache render deferred to next frame (avoids double-scene spike). */
+const BANNER_CACHE_PENDING: BannerCacheEntry = {
+  map: null!,
+  castles: [],
+  territory: undefined,
+  walls: undefined,
+};
 
 /** Cached main-canvas context — avoids per-frame getContext overhead on Chrome mobile. */
 let mainCtxCache: {
   canvas: HTMLCanvasElement;
   canvasCtx: CanvasRenderingContext2D;
 } | null = null;
-let bannerCache: {
-  map: MapData;
-  castles: CastleData[];
-  territory: Set<number>[] | undefined;
-  walls: Set<number>[] | undefined;
-} | null = null;
+let bannerCache: BannerCacheEntry | null = null;
 
 /** Expose the offscreen scene canvas for post-processing (loupe, etc.). */
 export function sceneCanvas(): HTMLCanvasElement {
@@ -213,6 +222,29 @@ export function drawMap(
   }
 }
 
+/** Pre-compute both terrain variants (normal + battle) so the first
+ *  render of each doesn't stall the frame. Call during game init. */
+export function precomputeTerrainCache(map: MapData): void {
+  const W = GRID_COLS * TILE_SIZE;
+  const H = GRID_ROWS * TILE_SIZE;
+  const cache = getTerrainCache(map, W, H);
+  if (cache.normal && cache.battle) return;
+
+  const sdf = computeSignedDistanceField(W, H, map);
+  blurSignedDistanceField(sdf, W, H);
+
+  if (!cache.normal) {
+    const imgData = new ImageData(W, H);
+    renderTerrainPixels(imgData, sdf, W, H, map, false);
+    cache.normal = imgData;
+  }
+  if (!cache.battle) {
+    const imgData = new ImageData(W, H);
+    renderTerrainPixels(imgData, sdf, W, H, map, true);
+    cache.battle = imgData;
+  }
+}
+
 // Bake per-pixel brightness offsets into the tile-sized texture lookup tables.
 // Values are signed: negative = darker, positive = lighter (added to base RGB).
 for (const [lx, ly] of BLADE_DARK) GRASS_TEX[ly * TILE_SIZE + lx] = -12;
@@ -288,6 +320,14 @@ function drawBannerOldScene(
     oldTerritory,
     oldWalls,
   );
+
+  if (needsBannerRender && bannerCache === null) {
+    // First banner frame: defer the expensive old-scene render to avoid a
+    // frame spike (double scene draw). Mark the cache as pending so
+    // frame 2 builds it — by then the banner text covers the transition.
+    bannerCache = BANNER_CACHE_PENDING;
+    return;
+  }
 
   if (needsBannerRender) {
     const oldHouses = overlay.ui.bannerOldHouses;

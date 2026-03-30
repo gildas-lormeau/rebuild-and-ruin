@@ -238,6 +238,7 @@ export function initFromServer(msg: InitMessage): void {
   bootstrapGame({
     seed: msg.seed,
     maxPlayers: msg.playerCount,
+    existingMap: runtime.runtimeState.lobby.map ?? undefined,
     battleLength: msg.settings.battleLength,
     cannonMaxHp: msg.settings.cannonMaxHp,
     buildTimer: msg.settings.buildTimer,

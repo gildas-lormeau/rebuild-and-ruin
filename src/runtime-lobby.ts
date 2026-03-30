@@ -25,6 +25,7 @@ import {
   type LobbyHit,
   lobbyClickHitTest,
 } from "./render-composition.ts";
+import { precomputeTerrainCache } from "./render-map.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
@@ -59,6 +60,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     if (newSeed !== runtimeState.lobby.seed) {
       runtimeState.lobby.seed = newSeed;
       runtimeState.lobby.map = generateMap(newSeed);
+      precomputeTerrainCache(runtimeState.lobby.map);
     }
   }
 

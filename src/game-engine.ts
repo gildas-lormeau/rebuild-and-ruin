@@ -83,12 +83,14 @@ const IDLE_FIRST_BATTLE_GRUNTS = 2;
 /** 50% chance to reverse castle-wall build animation direction (visual variety). */
 const CASTLE_RING_REVERSE_CHANCE = 0.5;
 
-/** Create a game from a seed: generate map, pick zones, create state. */
+/** Create a game from a seed: generate map, pick zones, create state.
+ *  Pass an existing map to reuse it (avoids regeneration + keeps terrain cache warm). */
 export function createGameFromSeed(
   seed: number,
   maxPlayers: number,
+  existingMap?: GameMap,
 ): { map: GameMap; state: GameState; zones: number[]; playerCount: number } {
-  const map = generateMap(seed);
+  const map = existingMap ?? generateMap(seed);
   const zones = topZonesBySize(map, maxPlayers).map(({ zone }) => zone);
   const playerCount = Math.min(zones.length, maxPlayers);
   const state = createGameState(map, playerCount, seed);

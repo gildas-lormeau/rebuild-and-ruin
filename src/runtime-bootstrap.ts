@@ -1,8 +1,10 @@
 import { createController } from "./controller-factory.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import { createGameFromSeed } from "./game-engine.ts";
+import type { GameMap } from "./geometry-types.ts";
 import { generateMap } from "./map-generation.ts";
 import type { KeyBindings } from "./player-config.ts";
+import { precomputeTerrainCache } from "./render-map.ts";
 import { GOLD, PANEL_BG } from "./render-theme.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { GAME_CONTAINER_ACTIVE } from "./router.ts";
@@ -55,6 +57,8 @@ interface InitTowerSelectionDeps {
 interface InitGameDeps {
   seed: number;
   maxPlayers: number;
+  /** Reuse an existing map (e.g. from lobby) to avoid regeneration and keep terrain cache warm. */
+  existingMap?: GameMap;
   /** Game settings to apply after state creation. */
   battleLength: number;
   cannonMaxHp: number;
@@ -131,6 +135,7 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
 
   lobby.seed = seed;
   lobby.map = generateMap(seed);
+  precomputeTerrainCache(lobby.map);
   lobby.joined = new Array(maxPlayers).fill(false);
   lobby.active = true;
   const time = now();
@@ -254,7 +259,11 @@ export function bootstrapGame(deps: InitGameDeps): void {
   deps.resetUIState();
   deps.clearFrameData();
 
-  const { state, playerCount } = createGameFromSeed(deps.seed, deps.maxPlayers);
+  const { state, playerCount } = createGameFromSeed(
+    deps.seed,
+    deps.maxPlayers,
+    deps.existingMap,
+  );
   state.battleLength = deps.battleLength > 0 ? deps.battleLength : Infinity;
   state.cannonMaxHp = deps.cannonMaxHp;
   state.buildTimer = deps.buildTimer;
