@@ -6,6 +6,7 @@
  * readable and testable.
  */
 
+import { Step } from "./ai-constants.ts";
 import type { AiStrategy } from "./ai-strategy.ts";
 import { placePiece } from "./build-system.ts";
 import type { PiecePlacementPreview } from "./controller-interfaces.ts";
@@ -41,16 +42,16 @@ type BuildTarget = { piece: PieceShape } & TilePos;
 type BuildRotation = { seq: PieceShape[]; idx: number; timer: number };
 
 type BuildState =
-  | { step: "idle" }
-  | { step: "thinking"; timer: number }
-  | { step: "moving"; target: BuildTarget; rotation: BuildRotation }
+  | { step: typeof Step.IDLE }
+  | { step: typeof Step.THINKING; timer: number }
+  | { step: typeof Step.MOVING; target: BuildTarget; rotation: BuildRotation }
   | {
-      step: "dwelling";
+      step: typeof Step.DWELLING;
       target: BuildTarget;
       timer: number;
       retried: boolean;
     }
-  | { step: "gave_up"; retryTimer: number };
+  | { step: typeof Step.GAVE_UP; retryTimer: number };
 
 interface BuildPhase {
   state: BuildState;
@@ -71,11 +72,11 @@ const ROTATION_INITIAL_RANGE = 0.1;
 export const BUILD_CURSOR_SPEEDS = [5, 8, 10] as const;
 
 export function createBuildPhase(): BuildPhase {
-  return { state: { step: "idle" } };
+  return { state: { step: Step.IDLE } };
 }
 
 export function resetBuildPhase(phase: BuildPhase): void {
-  phase.state = { step: "idle" };
+  phase.state = { step: Step.IDLE };
 }
 
 /** Compute the first placement target and enter MOVING or THINKING state. */
@@ -89,12 +90,12 @@ export function initBuild(
   const target = computeNextPlacement(host, state);
   if (target) {
     phase.state = {
-      step: "moving",
+      step: Step.MOVING,
       target,
       rotation: buildRotationFor(host, target),
     };
   } else {
-    phase.state = { step: "thinking", timer: 0 };
+    phase.state = { step: Step.THINKING, timer: 0 };
   }
 }
 
@@ -103,7 +104,7 @@ export function finalizeBuild(
   phase: BuildPhase,
   state: GameState,
 ): void {
-  phase.state = { step: "idle" };
+  phase.state = { step: Step.IDLE };
   host.strategy.assessBuildEnd(state, host.playerId);
 }
 
@@ -119,16 +120,16 @@ export function tickBuild(
 
   // Clamp cursor so phantom never extends beyond the grid
   const clampPiece =
-    phase.state.step === "moving" || phase.state.step === "dwelling"
+    phase.state.step === Step.MOVING || phase.state.step === Step.DWELLING
       ? phase.state.target.piece
       : host.currentPiece;
   host.clampBuildCursor(clampPiece);
 
   switch (phase.state.step) {
-    case "idle":
+    case Step.IDLE:
       return [];
 
-    case "thinking": {
+    case Step.THINKING: {
       const bs = phase.state;
       if (bs.timer > 0) {
         bs.timer -= dt;
@@ -138,21 +139,21 @@ export function tickBuild(
       const target = computeNextPlacement(host, state);
       if (target) {
         phase.state = {
-          step: "moving",
+          step: Step.MOVING,
           target,
           rotation: buildRotationFor(host, target),
         };
         return tickMoving(host, phase, dt);
       }
       if (state.timer > 2) {
-        phase.state = { step: "thinking", timer: 1.0 };
+        phase.state = { step: Step.THINKING, timer: 1.0 };
       } else {
-        phase.state = { step: "gave_up", retryTimer: 1.0 };
+        phase.state = { step: Step.GAVE_UP, retryTimer: 1.0 };
       }
       return [phantomAtCursor(host)];
     }
 
-    case "gave_up": {
+    case Step.GAVE_UP: {
       const bs = phase.state;
       const home = player.homeTower
         ? towerCenter(player.homeTower)
@@ -170,7 +171,7 @@ export function tickBuild(
         const target = computeNextPlacement(host, state);
         if (target) {
           phase.state = {
-            step: "moving",
+            step: Step.MOVING,
             target,
             rotation: buildRotationFor(host, target),
           };
@@ -181,10 +182,10 @@ export function tickBuild(
       return [phantomAtCursor(host)];
     }
 
-    case "moving":
+    case Step.MOVING:
       return tickMoving(host, phase, dt);
 
-    case "dwelling": {
+    case Step.DWELLING: {
       const bs = phase.state;
       bs.timer -= dt;
       if (bs.timer <= 0) {
@@ -198,7 +199,7 @@ export function tickBuild(
         if (placed) {
           host.advanceBag();
           phase.state = {
-            step: "thinking",
+            step: Step.THINKING,
             timer: host.scaledDelay(0.3, 0.4),
           };
           return [];
@@ -208,7 +209,7 @@ export function tickBuild(
           bs.retried = true;
           bs.timer = 1.0;
         } else {
-          phase.state = { step: "thinking", timer: 0.1 };
+          phase.state = { step: Step.THINKING, timer: 0.1 };
         }
         return [];
       }
@@ -231,7 +232,7 @@ function tickMoving(
   phase: BuildPhase,
   dt: number,
 ): PiecePlacementPreview[] {
-  const bs = phase.state as Extract<BuildState, { step: "moving" }>;
+  const bs = phase.state as Extract<BuildState, { step: typeof Step.MOVING }>;
   const { target, rotation } = bs;
 
   // Tick rotation animation concurrently with movement
@@ -257,7 +258,7 @@ function tickMoving(
   );
   if (arrived && rotation.idx >= rotation.seq.length) {
     phase.state = {
-      step: "dwelling",
+      step: Step.DWELLING,
       target,
       timer: host.scaledDelay(0.2, 0.3),
       retried: false,

@@ -58,6 +58,33 @@ export interface FallbackContext {
   caresAboutBonuses: boolean;
 }
 
+/** Per-candidate computed values for the scoring pipeline. Built once per
+ *  candidate after cheap pre-filter checks pass, then passed to each rule. */
+export interface CandidateEnv {
+  simulatedWalls: Set<number>;
+  newOutside: Set<number>;
+  usefulGain: number;
+  pocketDelta: number;
+  pocketInfo: { wasted: number; smallestPocket: number };
+  gapClosingFat: boolean;
+  hasFatWall: boolean;
+  fatBlocks: number;
+  /** True when ANY candidate in the current batch has wallAdjacent or connectedTiles > 0.
+   *  Batch-level flag — same for all candidates, computed once per scoring pass. */
+  anyHasWallAdjacent: boolean;
+}
+
+/** A named scoring rule: returns a score contribution, or null to hard-reject.
+ *  Positive = bonus, negative = penalty. */
+export interface ScoringRule {
+  readonly name: string;
+  apply(
+    candidate: Candidate,
+    env: CandidateEnv,
+    ctx: ScoringContext,
+  ): number | null;
+}
+
 /** Shared context for the scoring loop — avoids threading 15+ params through closures. */
 export type ScoringContext = {
   state: import("./types.ts").GameState;

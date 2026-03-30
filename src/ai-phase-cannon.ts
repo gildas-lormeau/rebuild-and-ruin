@@ -6,6 +6,7 @@
  * readable and testable.
  */
 
+import { Step } from "./ai-constants.ts";
 import type { AiStrategy, CannonPlacement } from "./ai-strategy.ts";
 import { canPlaceCannon, placeCannon } from "./cannon-system.ts";
 import type { CannonPlacementPreview } from "./controller-interfaces.ts";
@@ -36,11 +37,11 @@ interface CannonHost {
 }
 
 type CannonState =
-  | { step: "idle" }
-  | { step: "thinking"; timer: number }
-  | { step: "mode_switching"; timer: number }
-  | { step: "moving" }
-  | { step: "dwelling"; timer: number };
+  | { step: typeof Step.IDLE }
+  | { step: typeof Step.THINKING; timer: number }
+  | { step: typeof Step.MODE_SWITCHING; timer: number }
+  | { step: typeof Step.MOVING }
+  | { step: typeof Step.DWELLING; timer: number };
 
 interface CannonPhase {
   state: CannonState;
@@ -55,7 +56,7 @@ export const CANNON_CURSOR_SPEEDS = [3, 4, 5] as const;
 
 export function createCannonPhase(): CannonPhase {
   return {
-    state: { step: "idle" },
+    state: { step: Step.IDLE },
     queue: [],
     maxSlots: 0,
     displayedMode: undefined,
@@ -63,7 +64,7 @@ export function createCannonPhase(): CannonPhase {
 }
 
 export function resetCannonPhase(phase: CannonPhase): void {
-  phase.state = { step: "idle" };
+  phase.state = { step: Step.IDLE };
   phase.queue = [];
   phase.maxSlots = 0;
 }
@@ -81,13 +82,13 @@ export function initCannon(
   phase.maxSlots = maxSlots;
   phase.displayedMode = undefined;
   phase.state = {
-    step: "thinking",
+    step: Step.THINKING,
     timer: host.scaledDelay(0.3, 0.4),
   };
 }
 
 export function isCannonDone(phase: CannonPhase): boolean {
-  return phase.queue.length === 0 && phase.state.step === "idle";
+  return phase.queue.length === 0 && phase.state.step === Step.IDLE;
 }
 
 /** Place all remaining queued cannons instantly (timer expired). */
@@ -106,7 +107,7 @@ export function flushCannon(
     }
   }
   phase.queue = [];
-  phase.state = { step: "idle" };
+  phase.state = { step: Step.IDLE };
 }
 
 export function tickCannon(
@@ -119,14 +120,14 @@ export function tickCannon(
   if (!isPlayerAlive(player)) return null;
 
   switch (phase.state.step) {
-    case "idle":
+    case Step.IDLE:
       return null;
 
-    case "thinking": {
+    case Step.THINKING: {
       phase.state.timer -= dt;
       if (phase.state.timer > 0) return null;
       if (phase.queue.length === 0) {
-        phase.state = { step: "idle" };
+        phase.state = { step: Step.IDLE };
         return null;
       }
       // Check if mode switch is needed
@@ -134,7 +135,7 @@ export function tickCannon(
       if (target.mode !== phase.displayedMode) {
         phase.displayedMode = target.mode;
         phase.state = {
-          step: "mode_switching",
+          step: Step.MODE_SWITCHING,
           timer: host.scaledDelay(0.25, 0.2),
         };
         return phantomAt(
@@ -146,14 +147,14 @@ export function tickCannon(
           player,
         );
       }
-      phase.state = { step: "moving" };
+      phase.state = { step: Step.MOVING };
       return tickMoving(host, phase, state, player, dt);
     }
 
-    case "mode_switching": {
+    case Step.MODE_SWITCHING: {
       phase.state.timer -= dt;
       if (phase.state.timer <= 0) {
-        phase.state = { step: "moving" };
+        phase.state = { step: Step.MOVING };
       }
       return phantomAt(
         host.playerId,
@@ -165,10 +166,10 @@ export function tickCannon(
       );
     }
 
-    case "moving":
+    case Step.MOVING:
       return tickMoving(host, phase, state, player, dt);
 
-    case "dwelling": {
+    case Step.DWELLING: {
       phase.state.timer -= dt;
       if (phase.state.timer <= 0) {
         const target = phase.queue[0]!;
@@ -185,7 +186,7 @@ export function tickCannon(
         }
         phase.queue.shift();
         phase.state = {
-          step: "thinking",
+          step: Step.THINKING,
           timer: host.scaledDelay(0.3, 0.4),
         };
         return null;
@@ -223,7 +224,7 @@ function tickMoving(
     )
   ) {
     phase.state = {
-      step: "dwelling",
+      step: Step.DWELLING,
       timer: host.scaledDelay(0.2, 0.3),
     };
   }

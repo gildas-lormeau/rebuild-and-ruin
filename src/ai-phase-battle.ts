@@ -6,6 +6,7 @@
  * readable and testable.
  */
 
+import { Step } from "./ai-constants.ts";
 import { type AiStrategy, Chain, type ChainType } from "./ai-strategy.ts";
 import { aimCannons, nextReadyCombined } from "./battle-system.ts";
 import type { StrategicPixelPos, TilePos } from "./geometry-types.ts";
@@ -37,14 +38,14 @@ interface BattleHost {
 type IdleOrbit = { rx: number; ry: number; speed: number };
 
 type BattleState =
-  | { step: "idle" }
-  | { step: "countdown"; orbit: IdleOrbit | null }
-  | { step: "chain_moving" }
-  | { step: "chain_dwelling"; timer: number }
-  | { step: "thinking"; timer: number }
-  | { step: "picking" }
-  | { step: "moving" }
-  | { step: "dwelling"; timer: number };
+  | { step: typeof Step.IDLE }
+  | { step: typeof Step.COUNTDOWN; orbit: IdleOrbit | null }
+  | { step: typeof Step.CHAIN_MOVING }
+  | { step: typeof Step.CHAIN_DWELLING; timer: number }
+  | { step: typeof Step.THINKING; timer: number }
+  | { step: typeof Step.PICKING }
+  | { step: typeof Step.MOVING }
+  | { step: typeof Step.DWELLING; timer: number };
 
 interface BattlePhase {
   state: BattleState;
@@ -71,7 +72,7 @@ const ORBIT_RADIUS_RANGE = 3;
 
 export function createBattlePhase(): BattlePhase {
   return {
-    state: { step: "idle" },
+    state: { step: Step.IDLE },
     crosshairTarget: null,
     chainTargets: null,
     chainIdx: 0,
@@ -83,7 +84,7 @@ export function createBattlePhase(): BattlePhase {
 /** Reset battle state for life-lost / new-game. Does NOT reset idlePhase
  *  (it persists across battles for natural variation). */
 export function resetBattlePhase(phase: BattlePhase): void {
-  phase.state = { step: "idle" };
+  phase.state = { step: Step.IDLE };
   phase.crosshairTarget = null;
   phase.chainTargets = null;
   phase.chainIdx = 0;
@@ -105,7 +106,7 @@ export function initBattle(
     phase.chainTargets = plan.chainTargets;
     phase.chainType = plan.chainType;
   }
-  phase.state = { step: "countdown", orbit: null };
+  phase.state = { step: Step.COUNTDOWN, orbit: null };
 }
 
 export function tickBattle(
@@ -124,8 +125,8 @@ export function tickBattle(
   // During countdown or after battle timer expires: move/orbit only
   if (state.battleCountdown > 0 || state.timer <= 0) {
     // Force back to countdown state if needed
-    if (phase.state.step !== "countdown") {
-      phase.state = { step: "countdown", orbit: null };
+    if (phase.state.step !== Step.COUNTDOWN) {
+      phase.state = { step: Step.COUNTDOWN, orbit: null };
     }
     // If chain attack is planned, move toward first target during countdown
     if (
@@ -141,39 +142,39 @@ export function tickBattle(
   }
 
   // Transition out of countdown on first active frame
-  if (phase.state.step === "countdown") {
+  if (phase.state.step === Step.COUNTDOWN) {
     if (phase.chainTargets && phase.chainIdx < phase.chainTargets.length) {
-      phase.state = { step: "chain_moving" };
+      phase.state = { step: Step.CHAIN_MOVING };
     } else if (phase.crosshairTarget) {
       // Fire at the target we were aiming at during countdown
-      phase.state = { step: "moving" };
+      phase.state = { step: Step.MOVING };
     } else {
-      phase.state = { step: "picking" };
+      phase.state = { step: Step.PICKING };
     }
   }
 
   switch (phase.state.step) {
-    case "chain_moving":
+    case Step.CHAIN_MOVING:
       tickChainMoving(host, phase, state, dt);
       break;
-    case "chain_dwelling":
+    case Step.CHAIN_DWELLING:
       tickChainDwelling(host, phase, state, dt);
       break;
-    case "thinking":
+    case Step.THINKING:
       phase.state.timer -= dt;
       if (phase.state.timer <= 0) {
-        phase.state = { step: "picking" };
+        phase.state = { step: Step.PICKING };
       }
       break;
-    case "picking":
+    case Step.PICKING:
       phase.crosshairTarget = host.strategy.pickTarget(
         state,
         host.playerId,
         host.crosshair,
       );
-      phase.state = { step: "moving" };
+      phase.state = { step: Step.MOVING };
       break;
-    case "moving":
+    case Step.MOVING:
       if (phase.crosshairTarget) {
         if (
           host.stepCrosshairToward(
@@ -183,16 +184,16 @@ export function tickBattle(
           )
         ) {
           phase.state = {
-            step: "dwelling",
+            step: Step.DWELLING,
             timer: host.scaledDelay(0.15, 0.1),
           };
         }
       } else {
         // No target available — keep picking
-        phase.state = { step: "picking" };
+        phase.state = { step: Step.PICKING };
       }
       break;
-    case "dwelling":
+    case Step.DWELLING:
       tickDwelling(host, phase, state, dt);
       break;
     default:
@@ -218,7 +219,10 @@ function tickCountdown(
   }
   if (!phase.crosshairTarget) return;
 
-  const bs = phase.state as Extract<BattleState, { step: "countdown" }>;
+  const bs = phase.state as Extract<
+    BattleState,
+    { step: typeof Step.COUNTDOWN }
+  >;
 
   if (state.battleCountdown > 0) {
     // During countdown, move to target then orbit around it
@@ -271,7 +275,7 @@ function tickChainMoving(
   dt: number,
 ): void {
   if (!phase.chainTargets || phase.chainIdx >= phase.chainTargets.length) {
-    phase.state = { step: "picking" };
+    phase.state = { step: Step.PICKING };
     return;
   }
   const target = phase.chainTargets[phase.chainIdx]!;
@@ -294,7 +298,7 @@ function tickChainMoving(
       if (phase.chainIdx >= phase.chainTargets.length) {
         phase.chainTargets = null;
         phase.crosshairTarget = null;
-        phase.state = { step: "picking" };
+        phase.state = { step: Step.PICKING };
       }
       return;
     }
@@ -302,7 +306,7 @@ function tickChainMoving(
   const center = tileCenterPx(target.row, target.col);
   if (host.stepCrosshairToward(center.x, center.y, dt)) {
     phase.state = {
-      step: "chain_dwelling",
+      step: Step.CHAIN_DWELLING,
       timer: host.scaledDelay(0.2, 0.1),
     };
   }
@@ -315,12 +319,15 @@ function tickChainDwelling(
   state: GameState,
   dt: number,
 ): void {
-  const bs = phase.state as Extract<BattleState, { step: "chain_dwelling" }>;
+  const bs = phase.state as Extract<
+    BattleState,
+    { step: typeof Step.CHAIN_DWELLING }
+  >;
   bs.timer -= dt;
   if (bs.timer > 0) return;
 
   if (!phase.chainTargets || phase.chainIdx >= phase.chainTargets.length) {
-    phase.state = { step: "picking" };
+    phase.state = { step: Step.PICKING };
     return;
   }
   const target = phase.chainTargets[phase.chainIdx]!;
@@ -330,9 +337,9 @@ function tickChainDwelling(
     if (phase.chainIdx >= phase.chainTargets.length) {
       phase.chainTargets = null;
       phase.crosshairTarget = null;
-      phase.state = { step: "picking" };
+      phase.state = { step: Step.PICKING };
     } else {
-      phase.state = { step: "chain_moving" };
+      phase.state = { step: Step.CHAIN_MOVING };
     }
   } else {
     // No cannon ready — wait a bit longer
@@ -347,7 +354,10 @@ function tickDwelling(
   state: GameState,
   dt: number,
 ): void {
-  const bs = phase.state as Extract<BattleState, { step: "dwelling" }>;
+  const bs = phase.state as Extract<
+    BattleState,
+    { step: typeof Step.DWELLING }
+  >;
   bs.timer -= dt;
   if (bs.timer > 0) return;
 
@@ -366,9 +376,9 @@ function tickDwelling(
       host.playerId,
       host.crosshair,
     );
-    phase.state = { step: "thinking", timer: thinkTime };
+    phase.state = { step: Step.THINKING, timer: thinkTime };
   } else {
     phase.crosshairTarget = null;
-    phase.state = { step: "thinking", timer: thinkTime };
+    phase.state = { step: Step.THINKING, timer: thinkTime };
   }
 }

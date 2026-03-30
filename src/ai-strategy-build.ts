@@ -17,21 +17,10 @@ import {
   compareByNumericScoreDesc,
   compareCandidatesByObstaclePreference,
   compareScoredByScoreDesc,
-  computeCursorProximityBonus,
-  computeDifficultyBonus,
-  computeFatWallPenalty,
-  computeGapBonus,
-  computeInnerObstacleBonus,
-  computeObstacleHitPenalty,
-  computePocketPenalty,
-  computeSweepSafeBonus,
-  computeTowerProximityBonus,
-  computeWastefulClosureAdjustment,
   countFatBlocks,
   countSmallPocketTiles,
-  createSimulatedWalls,
   FAT_WALL_TILE_PENALTY,
-  shouldRejectForFatWalls,
+  scoreTopCandidates,
 } from "./ai-build-score.ts";
 import { canPieceFillAnyGap, plugUnreachableGaps } from "./ai-build-target.ts";
 import type {
@@ -49,7 +38,6 @@ import {
   hasMeaningfulHomeRingGaps,
   scoreBuildTowerTarget,
 } from "./ai-castle-rect.ts";
-import { SMALL_POCKET_MAX_SIZE } from "./ai-constants.ts";
 import { hasGruntAt } from "./board-occupancy.ts";
 import { canPlacePiece } from "./build-system.ts";
 import { isCannonEnclosed } from "./cannon-system.ts";
@@ -74,8 +62,6 @@ import type { GameState } from "./types.ts";
 
 /** Max gap tiles in home castle before AI skips it for other towers. */
 const HOME_GAP_REPAIR_THRESHOLD = 5;
-/** Pockets this small or smaller block placement when no gaps are being filled. */
-const TINY_POCKET_MAX_SIZE = 2;
 /** Score weight per gap tile filled by a placement. */
 const GAP_FILLED_WEIGHT = 100;
 /** Score weight per tile adjacent to a gap (supports gap closure). */
@@ -564,155 +550,6 @@ export function pickPlacement(
     }
   }
 
-  function scoreCandidates(
-    topCandidates: readonly Scored[],
-    buildCtx: ScoringContext,
-  ): { bestCandidate: Candidate; bestScore: number; evaluated: boolean } {
-    const anyHasWallAdjacent = topCandidates.some(
-      (score) =>
-        score.candidate.wallAdjacent > 0 || score.candidate.connectedTiles > 0,
-    );
-
-    let bestCandidate = topCandidates[0]!.candidate;
-    let bestScore = -Infinity;
-    let evaluated = false;
-
-    for (const {
-      candidate,
-      gapClosingFat,
-      hasFatWall,
-      fatBlocks: rawFatBlocks,
-    } of topCandidates) {
-      const nonGapCount =
-        candidate.rotation.offsets.length - candidate.gapsFilled;
-      if (
-        !buildCtx.homeWasBroken &&
-        !buildCtx.homeTowerEnclosed &&
-        candidate.gapsFilled > 0 &&
-        nonGapCount > 0 &&
-        candidate.isolated >= nonGapCount
-      )
-        continue;
-
-      const simulatedWalls = createSimulatedWalls(buildCtx.walls, candidate);
-      const newOutside = computeOutside(simulatedWalls);
-      const rawGain = buildCtx.baselineOutside - newOutside.size;
-      const pieceTiles = candidate.rotation.offsets.length;
-      const usefulGain = rawGain - pieceTiles;
-
-      const fatExempt =
-        candidate.gapsFilled > 0 && !buildCtx.allCastlesEnclosed;
-      if (
-        shouldRejectForFatWalls(
-          rawFatBlocks,
-          buildCtx.skill.fatGainPerBlock,
-          usefulGain,
-          fatExempt,
-        )
-      )
-        continue;
-
-      const pocketInfo = countSmallPocketTiles(simulatedWalls, newOutside);
-      const pocketDelta = pocketInfo.wasted - buildCtx.baselinePocketWaste;
-
-      if (
-        buildCtx.skill.tinyPocketReject &&
-        pocketDelta > 0 &&
-        pocketInfo.smallestPocket <= TINY_POCKET_MAX_SIZE &&
-        candidate.gapsFilled === 0
-      )
-        continue;
-      if (
-        buildCtx.skill.tinyPocketReject &&
-        buildCtx.allCastlesEnclosed &&
-        pocketDelta > 0 &&
-        pocketInfo.smallestPocket < SMALL_POCKET_MAX_SIZE
-      )
-        continue;
-
-      const baseGapBonus = computeGapBonus(candidate.gapsFilled, usefulGain);
-      const { gapBonus, wastefulClosurePenalty } =
-        computeWastefulClosureAdjustment(
-          candidate,
-          buildCtx.targetGaps,
-          buildCtx.castle,
-          usefulGain,
-          baseGapBonus,
-        );
-
-      const cursorProximityBonus = computeCursorProximityBonus(
-        candidate,
-        anyHasWallAdjacent,
-        buildCtx.cursorPos,
-      );
-
-      const innerObstacleBonus = computeInnerObstacleBonus(
-        candidate,
-        buildCtx.targetGaps,
-        buildCtx.castle,
-        buildCtx.state.map.tiles,
-      );
-
-      const fatWallPenalty = computeFatWallPenalty(
-        gapClosingFat,
-        hasFatWall,
-        usefulGain,
-        buildCtx.skill.fatPenaltyScale,
-      );
-      const pocketPenalty = computePocketPenalty(
-        pocketDelta,
-        buildCtx.skill.pocketScale,
-      );
-      const obstacleHitPenalty = computeObstacleHitPenalty(
-        candidate,
-        buildCtx.caresAboutHouses,
-        buildCtx.caresAboutBonuses,
-      );
-
-      const difficultyBonus = computeDifficultyBonus(buildCtx.state, candidate);
-
-      const towerProximityBonus = computeTowerProximityBonus(
-        candidate,
-        buildCtx.targetGaps,
-        buildCtx.zoneTowers,
-        buildCtx.ownedTowers,
-      );
-
-      // Bonus for gap tiles that would survive the post-build sweep (≥2 cardinal neighbors).
-      // Guides the AI to fill well-connected gaps first, deferring corners until
-      // adjacent gaps are filled and provide the needed cardinal connections.
-      const sweepSafeBonus = computeSweepSafeBonus(
-        candidate,
-        buildCtx.targetGaps,
-        simulatedWalls,
-      );
-
-      const score =
-        usefulGain +
-        gapBonus +
-        innerObstacleBonus +
-        difficultyBonus -
-        pocketPenalty -
-        obstacleHitPenalty -
-        fatWallPenalty -
-        wastefulClosurePenalty +
-        sweepSafeBonus +
-        cursorProximityBonus +
-        towerProximityBonus;
-
-      if (
-        score > bestScore ||
-        (score === bestScore && candidate.gapsFilled > bestCandidate.gapsFilled)
-      ) {
-        bestScore = score;
-        bestCandidate = candidate;
-        evaluated = true;
-      }
-    }
-
-    return { bestCandidate, bestScore, evaluated };
-  }
-
   const scoringCtx: ScoringContext = {
     state,
     walls,
@@ -735,7 +572,7 @@ export function pickPlacement(
     bestCandidate,
     bestScore,
     evaluated: bestCandidateEvaluated,
-  } = scoreCandidates(topCandidates, scoringCtx);
+  } = scoreTopCandidates(topCandidates, scoringCtx);
 
   // All enclosed, no gaps, no towers to build toward — keep going only if
   // there are enemy grunts or unenclosed cannons on outside tiles worth

@@ -5,6 +5,7 @@
  * readable and testable.
  */
 
+import { Step } from "./ai-constants.ts";
 import type { AiStrategy } from "./ai-strategy.ts";
 import { selectPlayerTower } from "./game-engine.ts";
 import type { GameState } from "./types.ts";
@@ -17,25 +18,25 @@ interface SelectionHost {
 }
 
 type SelectionState =
-  | { step: "idle" }
+  | { step: typeof Step.IDLE }
   | {
-      step: "browsing";
+      step: typeof Step.BROWSING;
       queue: number[];
       dwell: number;
       confirmDelay: number;
     }
-  | { step: "confirming"; timer: number };
+  | { step: typeof Step.CONFIRMING; timer: number };
 
 interface SelectionPhase {
   state: SelectionState;
 }
 
 export function createSelectionPhase(): SelectionPhase {
-  return { state: { step: "idle" } };
+  return { state: { step: Step.IDLE } };
 }
 
 export function resetSelectionPhase(phase: SelectionPhase): void {
-  phase.state = { step: "idle" };
+  phase.state = { step: Step.IDLE };
 }
 
 /** Pick a tower and begin the browse → confirm animation. */
@@ -65,7 +66,7 @@ export function initSelection(
   if (chosenTower) queue.push(chosenTower.index);
 
   phase.state = {
-    step: "browsing",
+    step: Step.BROWSING,
     queue,
     dwell: host.scaledDelay(0.8, 0.6),
     confirmDelay: host.scaledDelay(1.0, 0.6),
@@ -86,9 +87,9 @@ export function tickSelection(
   state?: GameState,
 ): boolean {
   switch (phase.state.step) {
-    case "idle":
+    case Step.IDLE:
       return false;
-    case "browsing": {
+    case Step.BROWSING: {
       const bs = phase.state;
       bs.dwell -= dt;
       if (bs.dwell <= 0 && bs.queue.length > 1) {
@@ -105,11 +106,11 @@ export function tickSelection(
         return false;
       }
       if (bs.queue.length <= 1) {
-        phase.state = { step: "confirming", timer: bs.confirmDelay };
+        phase.state = { step: Step.CONFIRMING, timer: bs.confirmDelay };
       }
       return false;
     }
-    case "confirming": {
+    case Step.CONFIRMING: {
       phase.state.timer -= dt;
       return phase.state.timer <= 0;
     }
