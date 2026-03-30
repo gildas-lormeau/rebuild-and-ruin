@@ -72,7 +72,7 @@ These are sent by the host and relayed to all other clients. They carry full sta
 
 | Message | When | Key Data |
 |---------|------|----------|
-| `init` | Game start | `seed`, `playerCount`, `settings` (`battleLength`, `cannonMaxHp`, `buildTimer`, `cannonPlaceTimer`) |
+| `init` | Game start | `seed`, `playerCount`, `settings` (`battleLength`, `cannonMaxHp`, `buildTimer`, `cannonPlaceTimer`, `firstRoundCannons`) |
 | `select_start` | Tower selection begins | `timer` |
 | `castle_walls` | Castle construction animation | `plans[]` (playerId + ordered wall tiles) |
 | `cannon_start` | Cannon placement begins | `timer`, `limits[]`, `players[]`, `grunts[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `houses[]` |
