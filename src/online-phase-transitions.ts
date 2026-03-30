@@ -61,6 +61,18 @@ export interface TransitionContext {
     banner: {
       newTerritory?: Set<number>[];
       newWalls?: Set<number>[];
+      oldCastles?: {
+        walls: ReadonlySet<number>;
+        interior: ReadonlySet<number>;
+        cannons: readonly {
+          row: number;
+          col: number;
+          hp: number;
+          mode: string;
+          facing?: number;
+        }[];
+        playerId: number;
+      }[];
       oldHouses?: { row: number; col: number; zone: number; alive: boolean }[];
       oldBonusSquares?: { row: number; col: number }[];
     };
@@ -182,6 +194,12 @@ export function handleCannonStartTransition(
   const state = ctx.getState();
   const myPlayerId = ctx.getMyPlayerId();
   ctx.selection.clearSelectionOverlay();
+
+  // Pre-capture old houses/bonus before checkpoint spawns new ones.
+  // oldCastles is already pre-captured in handleBuildEndTransition (pre-sweep walls).
+  ctx.ui.banner.oldHouses = state.map.houses.map((h) => ({ ...h }));
+  ctx.ui.banner.oldBonusSquares = state.bonusSquares.map((b) => ({ ...b }));
+
   ctx.checkpoint.applyCannonStart(msg);
 
   const initLocalController = () => {
@@ -305,6 +323,19 @@ export function handleBuildEndTransition(
 ): void {
   if (msg.type !== MESSAGE.BUILD_END) return;
   const state = ctx.getState();
+
+  // Pre-capture old scene before checkpoint applies the wall sweep.
+  // The host stashes pendingOldWalls before sweeping; the watcher must
+  // capture oldCastles here because BUILD_END contains post-sweep walls.
+  ctx.ui.banner.oldCastles = state.players
+    .filter((player) => player.castle)
+    .map((player) => ({
+      walls: new Set(player.walls),
+      interior: new Set(player.interior),
+      cannons: player.cannons.map((cn) => ({ ...cn })),
+      playerId: player.id,
+    }));
+
   // Capture pre-scores before checkpoint overwrites them (needed for score delta animation)
   const preScores = state.players.map((player) => player.score);
   ctx.checkpoint.applyPlayersCheckpoint(state, msg.players);

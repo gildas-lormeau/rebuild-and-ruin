@@ -78,7 +78,7 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
   banner.pendingOldWalls = undefined;
 
   if (preserveOldScene) {
-    banner.oldCastles = state.players
+    banner.oldCastles ??= state.players
       .filter((player) => player.castle)
       .map((player) => ({
         walls: pendingWalls?.[player.id] ?? new Set(player.walls),
