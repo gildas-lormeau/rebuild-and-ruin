@@ -12,8 +12,8 @@ import {
 import {
   type GameState,
   isPlayerAlive,
+  type MutableAccums,
   Phase,
-  type TimerAccums,
 } from "./types.ts";
 
 /** Large prime for deriving per-round AI strategy seeds (ensures uncorrelated rounds). */
@@ -81,7 +81,7 @@ export function skipCastleBuildAnimation(state: GameState): void {
  */
 export function syncAccumulatorsFromTimer(
   state: GameState,
-  accum: TimerAccums,
+  accum: MutableAccums,
 ): void {
   accum.build = 0;
   accum.cannon = 0;

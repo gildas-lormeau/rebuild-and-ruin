@@ -50,7 +50,7 @@ import {
 } from "./selection.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import { towerCenterPx } from "./spatial.ts";
-import { fireOnce, Mode } from "./types.ts";
+import { fireOnce, Mode, type MutableAccums } from "./types.ts";
 
 interface SelectionSystemDeps {
   runtimeState: RuntimeState;
@@ -421,7 +421,7 @@ export function createSelectionSystem(
 
     if (needsUI) {
       syncSelectionOverlay();
-      runtimeState.accum.select = 0;
+      (runtimeState.accum as MutableAccums).select = 0;
       runtimeState.state.timer = SELECT_TIMER;
       runtimeState.mode = Mode.SELECTION;
       deps.sound.drumsStart();

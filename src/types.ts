@@ -247,13 +247,17 @@ export interface GameState {
  *      accum.selectAnnouncement (UI countdown separate from selection timer)
  *    - All keys are reset to 0 via createTimerAccums() at game start / rematch. */
 export interface TimerAccums {
-  battle: number;
-  cannon: number;
-  select: number;
-  selectAnnouncement: number;
-  build: number;
-  grunt: number;
+  readonly battle: number;
+  readonly cannon: number;
+  readonly select: number;
+  readonly selectAnnouncement: number;
+  readonly build: number;
+  readonly grunt: number;
 }
+
+/** Mutable view of TimerAccums — use ONLY inside advancePhaseTimer,
+ *  tickGruntsIfDue, and tickSelectionPhase (the three blessed mutation sites). */
+export type MutableAccums = { -readonly [K in keyof TimerAccums]: number };
 
 /** Battle animation state — territory/wall snapshots and in-flight effects. */
 export interface BattleAnimState {

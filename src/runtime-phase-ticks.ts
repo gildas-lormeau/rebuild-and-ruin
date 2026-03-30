@@ -54,7 +54,7 @@ import type {
   RuntimeSelection,
 } from "./runtime-types.ts";
 import type { SoundSystem } from "./sound-system.ts";
-import { Mode } from "./types.ts";
+import { Mode, type MutableAccums } from "./types.ts";
 
 interface PhaseTicksDeps
   extends Pick<
@@ -140,7 +140,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     executeTransition(CANNON_START_STEPS, {
       applyCheckpoint: () => {
         prepareCannonPhase(runtimeState.state);
-        runtimeState.accum.cannon = 0;
+        (runtimeState.accum as MutableAccums).cannon = 0;
         runtimeState.state.timer = runtimeState.state.cannonPlaceTimer;
         if (runtimeState.frameCtx.isHost && deps.hostNetworking) {
           deps.send(
@@ -258,8 +258,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         !!runtimeState.state.players[pid]?.eliminated,
     );
     runtimeState.battleAnim.impacts = [];
-    runtimeState.accum.grunt = 0;
-    runtimeState.accum.build = 0;
+    (runtimeState.accum as MutableAccums).grunt = 0;
+    (runtimeState.accum as MutableAccums).build = 0;
   }
 
   // -------------------------------------------------------------------------
