@@ -4,8 +4,10 @@
  */
 
 import { MESSAGE } from "../server/protocol.ts";
-import { canFire, resolveBalloons, tickCannonballs } from "../src/battle-system.ts";
+import { applyImpactEvent, canFire, resolveBalloons, tickCannonballs } from "../src/battle-system.ts";
 import { snapshotAllWalls, removeIsolatedWalls } from "../src/board-occupancy.ts";
+import { createOnlineOverlay } from "../src/render-composition.ts";
+import { PLAYER_COLORS, PLAYER_NAMES } from "../src/player-config.ts";
 import { isCannonEnclosed } from "../src/cannon-system.ts";
 import { initControllerForCannonPhase, nextPhase } from "../src/game-engine.ts";
 import { GRID_COLS } from "../src/grid.ts";
@@ -1036,6 +1038,169 @@ test("battle-start: host and watcher produce same phase and territory snapshot",
     );
     for (const tile of hSet) {
       assert(wSet.has(tile), `Player ${i} tile ${tile} in host but not watcher`);
+    }
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Watcher: wall debris visible after WALL_DESTROYED events
+// ---------------------------------------------------------------------------
+
+test("watcher: wall debris visible in render overlay after WALL_DESTROYED", () => {
+  // Simulate the full watcher flow: checkpoint → wall destruction → overlay build
+  const s = createScenario();
+  s.runCannon();
+
+  // Host side: create the BATTLE_START message
+  const hostFlights = resolveBalloons(s.state);
+  nextPhase(s.state);
+  const msg = createBattleStartMessage(s.state, hostFlights);
+
+  // --- Watcher side ---
+  const w = createScenario();
+  w.runCannon();
+
+  // Replicate what online-client-runtime does: shared battleAnim object
+  const battleAnim = w.createBattleAnim();
+  const wCtx = w.createTransitionContext();
+
+  // Rewire checkpoint to write into OUR battleAnim (like online-client-runtime does)
+  const origApply = wCtx.checkpoint.applyBattleStart;
+  wCtx.checkpoint.applyBattleStart = (data) => {
+    // Mimic applyBattleStartCheckpoint writing to the shared battleAnim
+    origApply(data);
+    // The transition context has its own internal battleAnim; copy walls to ours
+    // This simulates buildCheckpointDeps() capturing rs.battleAnim
+    battleAnim.walls = snapshotAllWalls(w.state);
+    battleAnim.territory = w.state.players.map((p) => new Set(p.interior));
+  };
+
+  handleBattleStartTransition(msg as any, wCtx);
+  assertPhase(w, Phase.BATTLE);
+
+  // Verify battleAnim.walls was populated
+  assert(battleAnim.walls.length > 0, "battleAnim.walls should be set after checkpoint");
+
+  // Find a wall to destroy
+  let targetPid = -1;
+  let targetWallKey = -1;
+  let targetRow = -1;
+  let targetCol = -1;
+  for (const player of w.state.players) {
+    if (player.walls.size > 0) {
+      targetPid = player.id;
+      for (const key of player.walls) {
+        targetWallKey = key;
+        targetRow = Math.floor(key / GRID_COLS);
+        targetCol = key % GRID_COLS;
+        break;
+      }
+      break;
+    }
+  }
+  assert(targetPid >= 0, "Need a player with walls to test debris");
+
+  // Confirm the wall is in the snapshot
+  assert(
+    battleAnim.walls[targetPid]!.has(targetWallKey),
+    "battleAnim.walls snapshot should contain the wall before destruction",
+  );
+
+  // Simulate WALL_DESTROYED event arriving on watcher
+  applyImpactEvent(w.state, {
+    type: MESSAGE.WALL_DESTROYED,
+    row: targetRow,
+    col: targetCol,
+    playerId: targetPid,
+  });
+
+  // Wall removed from live state but still in snapshot
+  assert(
+    !w.state.players[targetPid]!.walls.has(targetWallKey),
+    "player.walls should not contain the destroyed wall",
+  );
+  assert(
+    battleAnim.walls[targetPid]!.has(targetWallKey),
+    "battleAnim.walls snapshot should still contain the destroyed wall",
+  );
+
+  // Build the render overlay — this is what the renderer actually sees
+  const banner = w.createBanner();
+  const overlay = createOnlineOverlay({
+    previousSelection: { highlighted: null, selected: null },
+    state: w.state,
+    banner,
+    battleAnim,
+    frame: { crosshairs: [], phantoms: {} },
+    bannerUi: undefined,
+    lifeLostDialog: null,
+    playerNames: PLAYER_NAMES,
+    playerColors: PLAYER_COLORS,
+    getLifeLostPanelPos: () => ({ px: 0, py: 0 }),
+  });
+
+  // overlay.battle.battleWalls should contain the snapshot (origWalls for debris)
+  const battle = overlay.battle!;
+  assert(
+    battle.battleWalls !== undefined,
+    "overlay.battle.battleWalls should be defined during BATTLE phase",
+  );
+  const origWalls = battle.battleWalls![targetPid];
+  assert(
+    origWalls !== undefined,
+    `battleWalls[${targetPid}] should exist in overlay`,
+  );
+  assert(
+    origWalls!.has(targetWallKey),
+    "overlay battleWalls (origWalls) should still have the destroyed wall for debris",
+  );
+
+  // overlay.castles[].walls should NOT have the destroyed wall (current state)
+  const castle = overlay.castles!.find((c) => c.playerId === targetPid);
+  assert(castle !== undefined, `Castle for player ${targetPid} should exist`);
+  assert(
+    !castle!.walls.has(targetWallKey),
+    "overlay castle.walls should NOT have the destroyed wall",
+  );
+
+  // This is exactly what drawWallDebris checks:
+  // origWalls.has(key) && !castle.walls.has(key) → draw debris
+  // If both conditions hold, debris is visible.
+});
+
+// ---------------------------------------------------------------------------
+// Castle wall ring must not overlap other towers
+// ---------------------------------------------------------------------------
+
+test("prebuilt castle walls never land on another tower's tiles", () => {
+  // Try multiple seeds to exercise different tower layouts
+  for (const seed of [1, 7, 42, 99, 123, 256, 500, 777]) {
+    const s = createScenario(seed);
+    const { state } = s;
+
+    // Collect all tower tiles (2×2 each)
+    const towerTiles = new Map<number, number>(); // tile key → tower index
+    for (let ti = 0; ti < state.map.towers.length; ti++) {
+      const tower = state.map.towers[ti]!;
+      for (let dr = 0; dr < 2; dr++) {
+        for (let dc = 0; dc < 2; dc++) {
+          towerTiles.set(
+            (tower.row + dr) * GRID_COLS + (tower.col + dc),
+            ti,
+          );
+        }
+      }
+    }
+
+    // After initial castle construction, check each player's walls
+    for (const player of state.players) {
+      if (!player.castle) continue;
+      for (const wallKey of player.walls) {
+        assert(
+          !towerTiles.has(wallKey),
+          `seed=${seed} P${player.id}: wall at tile ${wallKey} overlaps tower ${towerTiles.get(wallKey)}`,
+        );
+      }
     }
   }
 });

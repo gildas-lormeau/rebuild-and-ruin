@@ -259,13 +259,14 @@ export class GameRoom {
   }
 
   /** Must the sender's playerId match their assigned slot?
-   *  False for the host on non-host-only messages: the host relays actions
-   *  on behalf of AI players whose playerId differs from its own slot. */
+   *  False for the host — it sends actions on behalf of AI players (non-host-only)
+   *  and game-state events like wall_destroyed (host-only) where playerId is the
+   *  affected player, not the sender. */
   private requiresIdentityCheck(
     senderSocket: WebSocket,
-    type: string,
+    _type: string,
   ): boolean {
-    return !(senderSocket === this.hostSocket && !HOST_ONLY.has(type));
+    return senderSocket !== this.hostSocket;
   }
 
   // ---------------------------------------------------------------------------

@@ -75,9 +75,9 @@ export function createCastle(
   // Build a set of tiles occupied by OTHER towers (2×2 each)
   const otherTowerTiles = new Set<number>();
   if (allTowers) {
-    for (const tower of allTowers) {
-      if (tower === tower) continue;
-      forEachTowerTile(tower, (_r, _c, key) => otherTowerTiles.add(key));
+    for (const other of allTowers) {
+      if (other === tower) continue;
+      forEachTowerTile(other, (_r, _c, key) => otherTowerTiles.add(key));
     }
   }
 
