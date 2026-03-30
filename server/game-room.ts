@@ -9,6 +9,10 @@
  * - Host-only: only the host can send checkpoints and phase transitions
  *
  * Zero game state.
+ *
+ * Player/socket tracking is owned by RoomManager (via RoomEntry). GameRoom
+ * receives shared read-only references to the player and broadcast maps so
+ * there is a single source of truth — no dual-tracking desync risk.
  */
 
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/grid.ts";
@@ -203,9 +207,11 @@ const PHASE_GATES: Record<string, Set<ServerPhase>> = {
 };
 
 export class GameRoom {
-  private players = new Map<WebSocket, number>(); // socket → playerId
-  /** All connected sockets (players + observers). Used for broadcast relay. */
-  private broadcastRecipients = new Set<WebSocket>();
+  /** Shared read-only references to RoomEntry's maps — single source of truth
+   *  owned by RoomManager. GameRoom reads for validation and relay; only
+   *  RoomManager mutates them. */
+  private readonly players: ReadonlyMap<WebSocket, number>;
+  private readonly broadcastRecipients: ReadonlySet<WebSocket>;
   /** Current host socket. Can change mid-game due to host migration (see RoomManager.migrateHost). */
   private hostSocket: WebSocket | null = null;
 
@@ -225,7 +231,14 @@ export class GameRoom {
   readonly seed: number;
   readonly settings: RoomSettings;
 
-  constructor(settings?: Partial<RoomSettings>, seed?: number) {
+  constructor(
+    players: ReadonlyMap<WebSocket, number>,
+    broadcastRecipients: ReadonlySet<WebSocket>,
+    settings?: Partial<RoomSettings>,
+    seed?: number,
+  ) {
+    this.players = players;
+    this.broadcastRecipients = broadcastRecipients;
     this.seed = seed ?? Math.floor(Math.random() * 1000000);
     this.settings = sanitizeRoomSettings(settings ?? {});
   }
@@ -234,25 +247,9 @@ export class GameRoom {
   // Player management
   // ---------------------------------------------------------------------------
 
-  addSocket(socket: WebSocket): void {
-    this.broadcastRecipients.add(socket);
-  }
-
-  /** Remove socket from GameRoom-owned tracking (players, broadcast, rate limits).
-   *  Called by RoomManager.handlePlayerLeftMidGame() which owns the higher-level
-   *  cleanup (slot assignments, host migration, room deletion scheduling).
-   *  Do NOT call directly — use RoomManager.handleSocketDisconnect(). */
-  removePlayer(socket: WebSocket): void {
-    this.players.delete(socket);
-    this.broadcastRecipients.delete(socket);
+  /** Clear rate limit state for a disconnected socket. */
+  clearRateLimits(socket: WebSocket): void {
     this.rateLimits.delete(socket);
-  }
-
-  /** Register a player socket with their playerId (determined by slot choice, 0-indexed).
-   *  Also adds to broadcastRecipients so players receive relayed messages. */
-  registerPlayer(socket: WebSocket, playerId: number): void {
-    this.players.set(socket, playerId);
-    this.broadcastRecipients.add(socket);
   }
 
   setHost(socket: WebSocket): void {

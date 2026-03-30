@@ -61,15 +61,17 @@ export class RoomManager {
     this.detachExistingSocket(hostSocket); // Step 1
     if (this.rooms.size >= MAX_ROOMS) return null;
 
-    // Step 2: Create room + entry
+    // Step 2: Create room + entry (shared maps passed to GameRoom)
     const code = this.generateCode();
-    const room = new GameRoom(settings);
+    const connectedSockets = new Set([hostSocket]);
+    const slotAssignments = new Map<WebSocket, number>();
+    const room = new GameRoom(slotAssignments, connectedSockets, settings);
     const entry: RoomEntry = {
       room,
       code,
       hostSocket,
-      connectedSockets: new Set([hostSocket]),
-      slotAssignments: new Map(),
+      connectedSockets,
+      slotAssignments,
       started: false,
       cleanupTimer: null,
       waitTimer: null,
@@ -78,8 +80,7 @@ export class RoomManager {
     // Step 3: Register in lookup maps
     this.rooms.set(code, entry);
     this.socketToRoom.set(hostSocket, entry);
-    // Step 4: Register socket in GameRoom
-    room.addSocket(hostSocket);
+    // Step 4: Set host in GameRoom (socket already in connectedSockets)
     room.setHost(hostSocket);
 
     // Step 5: Start wait timer
@@ -97,7 +98,6 @@ export class RoomManager {
     if (!entry || entry.started) return null;
 
     entry.connectedSockets.add(socket);
-    entry.room.addSocket(socket);
     this.socketToRoom.set(socket, entry);
     return entry;
   }
@@ -105,8 +105,7 @@ export class RoomManager {
   /** Player selects a color/position slot, which becomes their playerId.
    *  Note: slotId ≡ playerId — the 0-indexed player position used as the
    *  player's identity for the entire session across all game messages.
-   *  Side effect: registers the socket with GameRoom.registerPlayer() so the
-   *  room tracks the socket→playerId mapping for identity enforcement.
+   *  Updates slotAssignments (shared with GameRoom for identity enforcement).
    *  Returns null if: slot taken by another player, invalid slotId, or game already started. */
   selectSlot(socket: WebSocket, slotId: number): SlotSelectionResult | null {
     const entry = this.socketToRoom.get(socket);
@@ -121,11 +120,8 @@ export class RoomManager {
     const previousSlotId = entry.slotAssignments.get(socket) ?? null;
     // Release previous slot if this socket had one
     entry.slotAssignments.delete(socket);
-    // Assign new slot
+    // Assign new slot (shared map — GameRoom sees this immediately)
     entry.slotAssignments.set(socket, slotId);
-
-    // Register with game room
-    entry.room.registerPlayer(socket, slotId);
 
     return { slotId, previousSlotId };
   }
@@ -171,9 +167,8 @@ export class RoomManager {
    *  → handlePlayerLeftMidGame() — broadcasts PLAYER_LEFT, migrates host if needed.
    *  → If room is now empty, schedules delayed cleanup.
    *
-   *  Socket cleanup is split between GameRoom (tracking maps: players, broadcast,
-   *  rate limits) and RoomManager (slot assignments, room lookup maps). This method
-   *  handles RoomManager-level cleanup; GameRoom cleanup happens in handlePlayerLeftMidGame. */
+   *  RoomManager owns all socket/player tracking (connectedSockets, slotAssignments).
+   *  GameRoom only owns rate limit state, cleaned up via clearRateLimits(). */
   handleSocketDisconnect(socket: WebSocket): void {
     const entry = this.socketToRoom.get(socket);
     if (!entry) return;
@@ -226,7 +221,7 @@ export class RoomManager {
     playerId: number | undefined,
     wasHost: boolean,
   ): void {
-    entry.room.removePlayer(socket);
+    entry.room.clearRateLimits(socket);
     if (playerId !== undefined && playerId >= 0) {
       this.broadcastToRoom(entry, { type: MESSAGE.PLAYER_LEFT, playerId });
     }
