@@ -487,6 +487,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       state: runtimeState.state,
       phantoms: runtimeState.frame.phantoms,
       directTouchActive: runtimeState.directTouchActive,
+      clearDirectTouch: () => {
+        runtimeState.directTouchActive = false;
+      },
       leftHanded: runtimeState.settings.leftHanded,
       firstHuman,
       dpad: input.touch.dpad,

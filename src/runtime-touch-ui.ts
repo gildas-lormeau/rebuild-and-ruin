@@ -58,6 +58,7 @@ interface TouchControlsDeps {
     aiCannonPhantoms?: { playerId: number; valid: boolean }[];
   };
   directTouchActive: boolean;
+  clearDirectTouch: () => void;
   leftHanded: boolean;
   firstHuman: () => (PlayerController & InputReceiver) | null;
   dpad: Dpad | null;
@@ -229,6 +230,11 @@ function updateFloatingActions(deps: TouchControlsDeps): void {
   const human = deps.firstHuman();
   const hasPhantom =
     humanPhantomValid(phase, human, deps.phantoms) !== undefined;
+  // Reset direct-touch flag when leaving placement phases so it doesn't
+  // carry over into the next placement phase.
+  if (!isPlacementPhase(phase) && deps.directTouchActive) {
+    deps.clearDirectTouch();
+  }
   const visible =
     deps.directTouchActive &&
     human !== null &&

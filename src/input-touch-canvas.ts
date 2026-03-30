@@ -141,13 +141,9 @@ function handleTouchStart(
     });
     if (hit) {
       gs.touchedPhantom = true;
+      deps.setDirectTouchActive?.(true);
       return;
     }
-  }
-
-  // Activate floating buttons when touching the canvas during placement phases
-  if (isPlacementPhase(state.phase)) {
-    deps.setDirectTouchActive?.(true);
   }
 
   // Update cursor/crosshair position on touch down
