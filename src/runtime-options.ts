@@ -12,6 +12,7 @@ import {
   createControlsOverlay,
   createOptionsOverlay,
   OPTION_CONTROLS,
+  OPTION_SEED,
   showControls as showControlsShared,
   showOptions as showOptionsShared,
   togglePause as togglePauseShared,
@@ -20,8 +21,13 @@ import {
 import { cycleOption } from "./game-ui-settings.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
-import { CURSOR_DEFAULT, CURSOR_POINTER } from "./platform.ts";
-import { ACTION_KEYS, MAX_PLAYERS } from "./player-config.ts";
+import { CURSOR_DEFAULT, CURSOR_POINTER, IS_TOUCH_DEVICE } from "./platform.ts";
+import {
+  ACTION_KEYS,
+  MAX_PLAYERS,
+  MAX_SEED_LENGTH,
+  SEED_CUSTOM,
+} from "./player-config.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import {
   controlsScreenHitTest,
@@ -72,6 +78,57 @@ export interface OptionsSystem {
 export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   const { runtimeState, uiCtx } = deps;
 
+  // ── Hidden input for mobile virtual keyboard (seed entry) ──
+  let seedInput: HTMLInputElement | null = null;
+
+  function ensureSeedInput(): HTMLInputElement {
+    if (seedInput) return seedInput;
+    const el = document.createElement("input");
+    el.type = "text";
+    el.inputMode = "numeric";
+    el.pattern = "[0-9]*";
+    el.maxLength = MAX_SEED_LENGTH;
+    el.autocomplete = "off";
+    Object.assign(el.style, {
+      position: "fixed",
+      top: "0",
+      left: "0",
+      opacity: "0",
+      width: "1px",
+      height: "1px",
+      border: "none",
+      padding: "0",
+      pointerEvents: "none",
+    });
+    el.addEventListener("input", () => {
+      // Sync input value → settings.seed (strip non-digits, cap length)
+      const digits = el.value.replace(/\D/g, "").slice(0, MAX_SEED_LENGTH);
+      el.value = digits;
+      runtimeState.settings.seedMode = SEED_CUSTOM;
+      runtimeState.settings.seed = digits;
+    });
+    el.addEventListener("blur", () => {
+      // If seed is empty after blur, stay in custom mode with empty seed
+      // (user can switch back to random via arrows)
+    });
+    document.body.appendChild(el);
+    seedInput = el;
+    return el;
+  }
+
+  function focusSeedInput(): void {
+    if (!IS_TOUCH_DEVICE || deps.isOnline) return;
+    if (runtimeState.optionsReturnMode !== null) return; // read-only in-game
+    const el = ensureSeedInput();
+    el.value = runtimeState.settings.seed;
+    runtimeState.settings.seedMode = SEED_CUSTOM;
+    el.focus({ preventScroll: true });
+  }
+
+  function blurSeedInput(): void {
+    seedInput?.blur();
+  }
+
   function visibleOptionsForCtx(): number[] {
     return visibleOptions(uiCtx);
   }
@@ -109,6 +166,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function closeOptions(): void {
+    blurSeedInput();
     const wasInGame = runtimeState.optionsReturnMode !== null;
     closeOptionsShared(uiCtx);
     if (wasInGame) {
@@ -160,9 +218,13 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     runtimeState.optionsCursor = hit.index;
     const realIdx = visible[hit.index] ?? hit.index;
     if (realIdx === OPTION_CONTROLS) {
+      blurSeedInput();
       showControls();
-    } else if (hit.type === HIT_ARROW) {
-      changeOption(hit.dir);
+    } else if (realIdx === OPTION_SEED) {
+      focusSeedInput();
+    } else {
+      blurSeedInput();
+      if (hit.type === HIT_ARROW) changeOption(hit.dir);
     }
   }
 

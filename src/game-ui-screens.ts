@@ -64,6 +64,7 @@ const CONTROL_ACTION_NAMES: readonly string[] = [
   "Rotate",
 ];
 /** Raw option indices — positions in the options list. */
+export const OPTION_SEED = 4;
 export const OPTION_CONTROLS = 5;
 
 export function createOptionsOverlay(frameCtx: UIContext): {
