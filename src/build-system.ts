@@ -26,7 +26,7 @@ import {
   TOWER_SIZE,
 } from "./game-constants.ts";
 import type { TilePos } from "./geometry-types.ts";
-import { GRID_COLS, GRID_ROWS } from "./grid.ts";
+import { GRID_COLS, GRID_ROWS, type Tile } from "./grid.ts";
 import { spawnGruntNearPos, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
 import type { PieceShape } from "./pieces.ts";
@@ -179,6 +179,7 @@ export function claimTerritory(state: GameState): void {
  *  - Clears unenclosed pending revives
  * Only called once per build phase from finalizeBuildPhase in game-engine.ts. */
 export function claimTerritoryEndOfBuild(state: GameState): void {
+  // ── Per-player territory claims (loop above) ──
   for (const player of state.players) {
     recomputeInterior(state, player);
     updateOwnedTowers(state, player);
@@ -188,6 +189,7 @@ export function claimTerritoryEndOfBuild(state: GameState): void {
     captureEnclosedBonusSquares(state, player);
     awardEndOfBuildPoints(state, player, player.interior.size);
   }
+  // ── Post-loop: global finalization ──
   sweepMisplacedGrunts(state);
   clearUnenclosedPendingRevives(state);
 }
@@ -215,27 +217,13 @@ export function replenishBonusSquares(state: GameState): void {
     const needed = BONUS_SQUARES_PER_ZONE - existing;
     if (needed <= 0) continue;
 
-    const candidates: [number, number][] = [];
-    // 1-tile padding from map edges — bonus squares must be enclosable
-    for (let r = 1; r < GRID_ROWS - 1; r++) {
-      for (let c = 1; c < GRID_COLS - 1; c++) {
-        if (!isGrass(tiles, r, c)) continue;
-        if (zones[r]![c] !== zoneId) continue;
-        const key = packTile(r, c);
-        if (occupied.has(key)) continue;
-        if (enclosed.has(key)) continue;
-        // Must not be adjacent to map edge or water (unenclosable)
-        if (
-          DIRS_8.some(([dr, dc]) => {
-            const nr = r + dr,
-              nc = c + dc;
-            return !inBounds(nr, nc) || isWater(tiles, nr, nc);
-          })
-        )
-          continue;
-        candidates.push([r, c]);
-      }
-    }
+    const candidates = findBonusSpawnCandidates(
+      tiles,
+      zones,
+      zoneId,
+      occupied,
+      enclosed,
+    );
 
     state.rng.shuffle(candidates);
 
@@ -263,6 +251,38 @@ export function removeBonusSquaresCoveredByWalls(
   state.bonusSquares = state.bonusSquares.filter(
     (bonusSquare) => !walls.has(packTile(bonusSquare.row, bonusSquare.col)),
   );
+}
+
+/** Collect valid grass tiles for bonus square placement in a single zone. */
+function findBonusSpawnCandidates(
+  tiles: readonly (readonly Tile[])[],
+  zones: readonly (readonly number[])[],
+  zoneId: number,
+  occupied: ReadonlySet<number>,
+  enclosed: ReadonlySet<number>,
+): [number, number][] {
+  const candidates: [number, number][] = [];
+  // 1-tile padding from map edges — bonus squares must be enclosable
+  for (let r = 1; r < GRID_ROWS - 1; r++) {
+    for (let c = 1; c < GRID_COLS - 1; c++) {
+      if (!isGrass(tiles, r, c)) continue;
+      if (zones[r]![c] !== zoneId) continue;
+      const key = packTile(r, c);
+      if (occupied.has(key)) continue;
+      if (enclosed.has(key)) continue;
+      // Must not be adjacent to map edge or water (unenclosable)
+      if (
+        DIRS_8.some(([dr, dc]) => {
+          const nr = r + dr,
+            nc = c + dc;
+          return !inBounds(nr, nc) || isWater(tiles, nr, nc);
+        })
+      )
+        continue;
+      candidates.push([r, c]);
+    }
+  }
+  return candidates;
 }
 
 function awardEndOfBuildPoints(

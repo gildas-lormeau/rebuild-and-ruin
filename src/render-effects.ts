@@ -63,6 +63,20 @@ import type { MapData, RenderOverlay } from "./render-types.ts";
 import { facingToCardinal } from "./spatial.ts";
 import { type CannonMode, isBalloonMode, isSuperMode } from "./types.ts";
 
+// Water wave animation parameters — tuned for natural-looking tile-scale ripples
+const WAVE_TIME_BASE = 0.8;
+// Base drift speed
+const WAVE_TIME_LAYER_STEP = 0.3;
+// Speed increment per layer
+const WAVE_ROW_FREQ = 0.5;
+// Spatial frequency along rows
+const WAVE_ROW_LAYER_VAR = 0.2;
+// Row frequency variation per layer
+const WAVE_COL_FREQ = 0.3;
+// Spatial frequency along columns
+const WAVE_COL_LAYER_VAR = 0.15;
+// Column frequency variation per layer
+const WAVE_PHASE_OFFSET = 2.1;
 // Phantom rendering
 const DARK_METAL = "#111";
 const PHANTOM_INVALID_COLOR = "#aa2222";
@@ -241,16 +255,12 @@ export function drawWaterAnimation(
       const py = r * TILE_SIZE;
 
       // Three wave highlights drifting at different speeds across the tile.
-      // Tuning constants below control wave animation feel:
-      //   time * (baseSpeed + i*speedVar) — time-based drift (0.8 base, +0.3 per layer)
-      //   r/c * (rowFreq + i*var) — spatial frequency for row/col variation
-      //   i * 2.1 — phase offset between layers (coprime-ish avoids sync)
       for (let i = 0; i < 3; i++) {
         const phase =
-          time * (0.8 + i * 0.3) +
-          r * (0.5 + i * 0.2) +
-          c * (0.3 + i * 0.15) +
-          i * 2.1;
+          time * (WAVE_TIME_BASE + i * WAVE_TIME_LAYER_STEP) +
+          r * (WAVE_ROW_FREQ + i * WAVE_ROW_LAYER_VAR) +
+          c * (WAVE_COL_FREQ + i * WAVE_COL_LAYER_VAR) +
+          i * WAVE_PHASE_OFFSET;
         const wave = Math.sin(phase) * 0.5 + 0.5;
         const alpha = 0.06 + wave * 0.09;
         const wy = py + 1 + Math.floor(wave * (TILE_SIZE - 3));
@@ -569,12 +579,7 @@ function drawPhantomCannon(
   canvasCtx.globalAlpha = valid ? 0.7 : 0.5;
 
   if (isBalloonMode(mode)) {
-    // Balloon base preview — sprite with red tint overlay if invalid
-    drawSprite(canvasCtx, "balloon_base", cx, cy);
-    if (!valid) {
-      canvasCtx.fillStyle = "rgba(170, 34, 34, 0.4)";
-      canvasCtx.fillRect(cx, cy, size, size);
-    }
+    drawBalloonPhantom(canvasCtx, cx, cy, size, valid);
     canvasCtx.restore();
     return;
   }
@@ -583,21 +588,7 @@ function drawPhantomCannon(
   canvasCtx.translate(cx + mid, cy + mid);
   canvasCtx.rotate(facing);
   if (isSuperMode(mode)) {
-    // Super gun phantom — symmetric around (0,0)
-    canvasCtx.fillStyle = valid ? "#1a1a1a" : "#3a1111";
-    canvasCtx.fillRect(-14, -8, 28, 24);
-    canvasCtx.fillStyle = valid ? "#333" : "#553333";
-    canvasCtx.fillRect(-18, -6, 5, 11);
-    canvasCtx.fillRect(13, -6, 5, 11);
-    canvasCtx.fillStyle = valid ? "#2a2a2a" : "#4a2222";
-    canvasCtx.fillRect(-16, -2, 32, 2);
-    canvasCtx.fillStyle = valid ? "#444" : "#884444";
-    canvasCtx.fillRect(-4, -18, 8, 27);
-    canvasCtx.fillStyle = valid ? DARK_METAL : "#331111";
-    canvasCtx.fillRect(-1, -18, 2, 3);
-    canvasCtx.fillStyle = valid ? "#a33" : "#cc4444";
-    canvasCtx.fillRect(-5, -11, 10, 2);
-    canvasCtx.fillRect(-5, -5, 10, 2);
+    drawSuperPhantom(canvasCtx, valid);
   } else {
     // Normal cannon phantom — symmetric around (0,0)
     canvasCtx.fillStyle = valid ? "#1a1a1a" : "#3a1111";
@@ -651,4 +642,37 @@ function drawPiecePhantom(
     }
   }
   overlayCtx.restore();
+}
+
+/** Draw balloon base phantom — sprite with red tint overlay if invalid. */
+function drawBalloonPhantom(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number,
+  valid: boolean,
+): void {
+  drawSprite(ctx, "balloon_base", x, y);
+  if (!valid) {
+    ctx.fillStyle = "rgba(170, 34, 34, 0.4)";
+    ctx.fillRect(x, y, size, size);
+  }
+}
+
+/** Draw super gun phantom footprint — symmetric around current transform origin. */
+function drawSuperPhantom(ctx: CanvasRenderingContext2D, valid: boolean): void {
+  ctx.fillStyle = valid ? "#1a1a1a" : "#3a1111";
+  ctx.fillRect(-14, -8, 28, 24);
+  ctx.fillStyle = valid ? "#333" : "#553333";
+  ctx.fillRect(-18, -6, 5, 11);
+  ctx.fillRect(13, -6, 5, 11);
+  ctx.fillStyle = valid ? "#2a2a2a" : "#4a2222";
+  ctx.fillRect(-16, -2, 32, 2);
+  ctx.fillStyle = valid ? "#444" : "#884444";
+  ctx.fillRect(-4, -18, 8, 27);
+  ctx.fillStyle = valid ? DARK_METAL : "#331111";
+  ctx.fillRect(-1, -18, 2, 3);
+  ctx.fillStyle = valid ? "#a33" : "#cc4444";
+  ctx.fillRect(-5, -11, 10, 2);
+  ctx.fillRect(-5, -5, 10, 2);
 }

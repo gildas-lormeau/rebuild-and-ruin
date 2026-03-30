@@ -394,11 +394,7 @@ function findGruntSpawnPositions(
   }[] = [];
   for (let r = 1; r < GRID_ROWS - 1; r++) {
     for (let c = 1; c < GRID_COLS - 1; c++) {
-      if (!isGrass(state.map.tiles, r, c)) continue;
-      if (state.map.zones[r]![c] !== zone) continue;
-      if (isGruntBlocked(state, r, c)) continue;
-      const key = packTile(r, c);
-      if (blocked.has(key)) continue;
+      if (!isValidSpawnCandidate(state, r, c, zone, blocked)) continue;
 
       // Distance to nearest water
       const waterDist = minWaterDistance(state, r, c);
@@ -426,6 +422,21 @@ function findGruntSpawnPositions(
   }
 
   return result;
+}
+
+/** Check if a tile is a valid grunt spawn candidate (grass, correct zone, not blocked). */
+function isValidSpawnCandidate(
+  state: GameState,
+  row: number,
+  col: number,
+  zone: number,
+  occupied: ReadonlySet<number>,
+): boolean {
+  if (!isGrass(state.map.tiles, row, col)) return false;
+  if (state.map.zones[row]![col] !== zone) return false;
+  if (isGruntBlocked(state, row, col)) return false;
+  if (occupied.has(packTile(row, col))) return false;
+  return true;
 }
 
 function minWaterDistance(state: GameState, row: number, col: number): number {

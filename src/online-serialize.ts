@@ -246,47 +246,9 @@ export function applyFullStateSnapshot(
     state.map.houses[i]!.alive = msg.housesAlive[i]!;
   }
 
-  // Restore cannonballs (skip any with stale cannon references)
-  const validBalls = msg.cannonballs.filter(
-    (b) => state.players[b.playerId]?.cannons[b.cannonIdx],
-  );
-  if (validBalls.length < msg.cannonballs.length) {
-    console.warn(
-      `[checkpoint] dropped ${msg.cannonballs.length - validBalls.length} cannonballs with stale refs`,
-    );
-  }
-  state.cannonballs = validBalls.map((b) => ({
-    ...copyCannonballCore(b),
-    incendiary: b.incendiary ?? false,
-  }));
-
-  // Restore captured cannons (reconstruct object references from indices)
-  state.capturedCannons = msg.capturedCannons
-    .filter((cc) => cc.victimId >= 0 && cc.victimId < state.players.length)
-    .map((cc) => {
-      const victim = state.players[cc.victimId]!;
-      const cannon = victim.cannons[cc.cannonIdx];
-      return cannon
-        ? {
-            cannon,
-            cannonIdx: cc.cannonIdx,
-            victimId: cc.victimId,
-            capturerId: cc.capturerId,
-          }
-        : null;
-    })
-    .filter((cc) => cc !== null);
-
-  // Restore balloonHits (reconstruct Cannon object references as Map keys)
-  state.balloonHits = new Map();
-  for (const bh of msg.balloonHits) {
-    const cannon = state.players[bh.playerId]?.cannons[bh.cannonIdx];
-    if (cannon)
-      state.balloonHits.set(cannon, {
-        count: bh.count,
-        capturerIds: bh.capturerIds,
-      });
-  }
+  restoreCannonballs(state, msg);
+  restoreCapturedCannons(state, msg);
+  restoreBalloonHits(state, msg);
 
   return {
     balloonFlights: msg.balloonFlights?.map((flight) => ({
@@ -363,22 +325,6 @@ export function createGameOverPayload(
         eliminated: player.eliminated,
       })),
     },
-  };
-}
-
-/** Copy the positional/kinematic fields shared by all cannonball representations. */
-function copyCannonballCore(b: Cannonball): Omit<Cannonball, "incendiary"> {
-  return {
-    cannonIdx: b.cannonIdx,
-    startX: b.startX,
-    startY: b.startY,
-    x: b.x,
-    y: b.y,
-    targetX: b.targetX,
-    targetY: b.targetY,
-    speed: b.speed,
-    playerId: b.playerId,
-    scoringPlayerId: b.scoringPlayerId,
   };
 }
 
@@ -507,4 +453,68 @@ function serializeBonusSquares(state: GameState) {
     col: b.col,
     zone: b.zone,
   }));
+}
+
+/** Restore cannonballs from a full-state message, dropping any with stale cannon references. */
+function restoreCannonballs(state: GameState, msg: FullStateMessage): void {
+  const validBalls = msg.cannonballs.filter(
+    (b) => state.players[b.playerId]?.cannons[b.cannonIdx],
+  );
+  if (validBalls.length < msg.cannonballs.length) {
+    console.warn(
+      `[checkpoint] dropped ${msg.cannonballs.length - validBalls.length} cannonballs with stale refs`,
+    );
+  }
+  state.cannonballs = validBalls.map((b) => ({
+    ...copyCannonballCore(b),
+    incendiary: b.incendiary ?? false,
+  }));
+}
+
+/** Copy the positional/kinematic fields shared by all cannonball representations. */
+function copyCannonballCore(b: Cannonball): Omit<Cannonball, "incendiary"> {
+  return {
+    cannonIdx: b.cannonIdx,
+    startX: b.startX,
+    startY: b.startY,
+    x: b.x,
+    y: b.y,
+    targetX: b.targetX,
+    targetY: b.targetY,
+    speed: b.speed,
+    playerId: b.playerId,
+    scoringPlayerId: b.scoringPlayerId,
+  };
+}
+
+/** Restore captured cannon object references from serialized indices. */
+function restoreCapturedCannons(state: GameState, msg: FullStateMessage): void {
+  state.capturedCannons = msg.capturedCannons
+    .filter((cc) => cc.victimId >= 0 && cc.victimId < state.players.length)
+    .map((cc) => {
+      const victim = state.players[cc.victimId]!;
+      const cannon = victim.cannons[cc.cannonIdx];
+      return cannon
+        ? {
+            cannon,
+            cannonIdx: cc.cannonIdx,
+            victimId: cc.victimId,
+            capturerId: cc.capturerId,
+          }
+        : null;
+    })
+    .filter((cc) => cc !== null);
+}
+
+/** Restore balloon hit map, reconstructing Cannon object references as Map keys. */
+function restoreBalloonHits(state: GameState, msg: FullStateMessage): void {
+  state.balloonHits = new Map();
+  for (const bh of msg.balloonHits) {
+    const cannon = state.players[bh.playerId]?.cannons[bh.cannonIdx];
+    if (cannon)
+      state.balloonHits.set(cannon, {
+        count: bh.count,
+        capturerIds: bh.capturerIds,
+      });
+  }
 }

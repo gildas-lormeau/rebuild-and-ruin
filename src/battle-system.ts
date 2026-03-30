@@ -403,7 +403,7 @@ export function resolveBalloons(state: GameState): BalloonFlight[] {
   const flights: BalloonFlight[] = [];
   const allBalloons = collectAllBalloons(state);
   const thisRoundTargets = new Map<Cannon, { victimId: number }>();
-  const assignedThisRound = new Map<Cannon, number>();
+  const balloonCountPerTarget = new Map<Cannon, number>();
 
   // Assign each balloon to a target (deferred to avoid double-counting)
   const assignments: {
@@ -414,11 +414,11 @@ export function resolveBalloons(state: GameState): BalloonFlight[] {
   }[] = [];
 
   for (const { balloon, ownerId } of allBalloons) {
-    const best = findBestBalloonTarget(state, ownerId, assignedThisRound);
+    const best = findBestBalloonTarget(state, ownerId, balloonCountPerTarget);
     if (best) {
-      assignedThisRound.set(
+      balloonCountPerTarget.set(
         best.cannon,
-        (assignedThisRound.get(best.cannon) ?? 0) + 1,
+        (balloonCountPerTarget.get(best.cannon) ?? 0) + 1,
       );
       assignments.push({
         balloon,
@@ -705,7 +705,7 @@ function collectAllBalloons(
 function findBestBalloonTarget(
   state: GameState,
   ownerId: number,
-  assignedThisRound: Map<Cannon, number>,
+  balloonCountPerTarget: Map<Cannon, number>,
 ): { cannon: Cannon; victimId: number } | null {
   let bestCannon: Cannon | null = null;
   let bestVictimId = -1; // sentinel: no target found yet
@@ -715,7 +715,7 @@ function findBestBalloonTarget(
     for (const cannon of filterActiveFiringCannons(other)) {
       const needed = balloonHitThreshold(cannon);
       const prevHits = state.balloonHits.get(cannon)?.count ?? 0;
-      const roundHits = assignedThisRound.get(cannon) ?? 0;
+      const roundHits = balloonCountPerTarget.get(cannon) ?? 0;
       if (prevHits + roundHits >= needed) continue;
       if (!isCannonEnclosed(cannon, other)) continue;
       const score =

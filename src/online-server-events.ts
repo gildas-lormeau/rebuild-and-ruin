@@ -190,6 +190,7 @@ function handleTowerSelected(
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
 ): true {
+  // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
   if (!state || !validPid(msg.playerId, state)) return true;
   if (msg.towerIdx < 0 || msg.towerIdx >= state.map.towers.length) return true;
   if (isRemoteHumanAction(msg.playerId, deps)) {
@@ -221,6 +222,7 @@ function handlePiecePlaced(
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
 ): true {
+  // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
   if (!state || !validPid(msg.playerId, state)) return true;
   if (!inBoundsStrict(msg.row, msg.col)) return true;
   if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return true;
@@ -261,6 +263,7 @@ function handleCannonPlaced(
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
 ): true {
+  // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
   if (!state || !validPid(msg.playerId, state)) return true;
   if (!inBoundsStrict(msg.row, msg.col)) return true;
   if (!CANNON_MODES.has(msg.mode)) return true;
@@ -290,6 +293,7 @@ function handleCannonFired(
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
 ): true {
+  // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
   if (!state || !validPid(msg.playerId, state)) return true;
   if (!Number.isFinite(msg.speed) || msg.speed <= 0) return true;
   if (
@@ -329,6 +333,7 @@ function handleImpactEvent(
   deps: HandleServerIncrementalDeps,
 ): true {
   if (!deps.isHost() && state) {
+    // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
     if ("row" in msg && "col" in msg && !inBoundsStrict(msg.row, msg.col))
       return true;
     if ("playerId" in msg && !validPid(msg.playerId, state)) return true;
@@ -352,6 +357,7 @@ function handleAimUpdate(
   msg: AimUpdateMsg,
   deps: HandleServerIncrementalDeps,
 ): true {
+  // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
   if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return true;
   if (isRemoteHumanAction(msg.playerId, deps)) {
     deps.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
@@ -366,6 +372,7 @@ function handleTowerKilled(
   deps: HandleServerIncrementalDeps,
 ): true {
   if (!deps.isHost() && state) {
+    // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
     if (msg.towerIdx < 0 || msg.towerIdx >= state.towerAlive.length)
       return true;
     state.towerAlive[msg.towerIdx] = false;
@@ -378,6 +385,7 @@ function handlePiecePhantom(
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
 ): true {
+  // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
   if (state && !validPid(msg.playerId, state)) return true;
   if (!inBoundsStrict(msg.row, msg.col)) return true;
   if (isRemoteHumanAction(msg.playerId, deps)) {
@@ -401,6 +409,7 @@ function handleCannonPhantom(
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
 ): true {
+  // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
   if (state && !validPid(msg.playerId, state)) return true;
   if (!inBoundsStrict(msg.row, msg.col)) return true;
   if (isRemoteHumanAction(msg.playerId, deps)) {
@@ -430,6 +439,7 @@ function handleLifeLostChoice(
     `life_lost_choice from P${msg.playerId}: ${msg.choice} (dialog=${deps.getLifeLostDialog() ? "active" : "null"})`,
   );
   const validated = parseLifeLostChoice(msg.choice);
+  // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
   if (validated === null) return true;
   const dialog = deps.getLifeLostDialog();
   if (dialog) {

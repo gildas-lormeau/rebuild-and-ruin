@@ -189,7 +189,7 @@ export function createSelectionSystem(
 
   /** Confirms tower selection and triggers castle build animation.
    *  @sideeffect Starts castle build animation for the player (via startPlayerCastleBuild).
-   *  Idempotent — skips if already confirmed.
+   *  Idempotent: calling multiple times for the same player is safe — skips if already confirmed.
    *
    *  Two-step flow:
    *  1. confirmSelectionAndStartBuild — marks the player as confirmed in selectionStates,

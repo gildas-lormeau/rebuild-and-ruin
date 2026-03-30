@@ -196,7 +196,6 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
   for (const [pid, target] of remoteCrosshairs) {
     const player = state.players[pid];
     if (!isPlayerAlive(player)) continue;
-
     if (!canPlayerFire(state, pid)) continue;
 
     let vis = watcherCrosshairPos.get(pid);
@@ -205,39 +204,18 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
       watcherCrosshairPos.set(pid, vis);
     }
 
-    if (state.battleCountdown > 0) {
-      const op = watcherOrbitParams.get(pid);
-      if (op) {
-        let phase = watcherIdlePhases.get(pid) ?? op.phase;
-        const rx = op.rx + Math.sin(phase * ORBIT_FREQ_X);
-        const ry = op.ry + Math.sin(phase * ORBIT_FREQ_Y);
-        phase += op.speed * dt;
-        watcherIdlePhases.set(pid, phase);
-        interpolateToward(
-          vis,
-          target.x + Math.cos(phase) * rx,
-          target.y + Math.sin(phase) * ry,
-          crosshairSpeed * REMOTE_CROSSHAIR_MULT,
-          dt,
-        );
-      } else {
-        interpolateToward(
-          vis,
-          target.x,
-          target.y,
-          crosshairSpeed * REMOTE_CROSSHAIR_MULT,
-          dt,
-        );
-      }
-    } else {
-      interpolateToward(
-        vis,
-        target.x,
-        target.y,
-        crosshairSpeed * REMOTE_CROSSHAIR_MULT,
-        dt,
-      );
-    }
+    const op =
+      state.battleCountdown > 0 ? watcherOrbitParams.get(pid) : undefined;
+    const newPhase = updateOrbitCrosshair(
+      vis,
+      target,
+      op,
+      watcherIdlePhases.get(pid) ?? op?.phase ?? 0,
+      dt,
+      crosshairSpeed * REMOTE_CROSSHAIR_MULT,
+      interpolateToward,
+    );
+    if (op) watcherIdlePhases.set(pid, newPhase);
 
     frame.crosshairs.push({
       x: vis.x,
@@ -249,23 +227,16 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     aimCannons(state, pid, vis.x, vis.y, dt);
   }
 
-  if (!myHuman) return;
-
-  myHuman.battleTick(state, dt);
-  const ch = myHuman.getCrosshair();
-
-  if (canPlayerFire(state, myPlayerId)) {
-    const readyCannon = nextReadyCombined(state, myPlayerId);
-    frame.crosshairs.push({
-      x: ch.x,
-      y: ch.y,
-      playerId: myPlayerId,
-      cannonReady: state.battleCountdown <= 0 && !!readyCannon,
-    });
-  }
-
-  maybeSendAimUpdate(ch.x, ch.y);
-  aimCannons(state, myPlayerId, ch.x, ch.y, dt);
+  tickLocalHumanBattle(
+    state,
+    frame,
+    dt,
+    myPlayerId,
+    myHuman,
+    nextReadyCombined,
+    maybeSendAimUpdate,
+    aimCannons,
+  );
 }
 
 export function tickWatcherCannonPhantomsPhase(
@@ -356,4 +327,73 @@ export function tickWatcherBuildPhantomsPhase(
       valid: phantom.valid,
     });
   }
+}
+
+/** Interpolate a crosshair toward its target, applying orbital wobble when orbit params are present. */
+function updateOrbitCrosshair(
+  vis: PixelPos,
+  target: PixelPos,
+  op: OrbitParams | undefined,
+  phase: number,
+  dt: number,
+  speed: number,
+  interpolateToward: (
+    vis: PixelPos,
+    tx: number,
+    ty: number,
+    speed: number,
+    dt: number,
+  ) => void,
+): number {
+  if (op) {
+    const rx = op.rx + Math.sin(phase * ORBIT_FREQ_X);
+    const ry = op.ry + Math.sin(phase * ORBIT_FREQ_Y);
+    const next = phase + op.speed * dt;
+    interpolateToward(
+      vis,
+      target.x + Math.cos(next) * rx,
+      target.y + Math.sin(next) * ry,
+      speed,
+      dt,
+    );
+    return next;
+  }
+  interpolateToward(vis, target.x, target.y, speed, dt);
+  return phase;
+}
+
+/** Tick the local human player's battle crosshair and send aim updates. */
+function tickLocalHumanBattle(
+  state: GameState,
+  frame: WatcherBattleFrame,
+  dt: number,
+  myPlayerId: number,
+  myHuman: PlayerController | null,
+  nextReadyCombined: (state: GameState, playerId: number) => unknown,
+  maybeSendAimUpdate: (x: number, y: number) => void,
+  aimCannons: (
+    state: GameState,
+    playerId: number,
+    x: number,
+    y: number,
+    dt: number,
+  ) => void,
+): void {
+  if (!myHuman) return;
+
+  myHuman.battleTick(state, dt);
+  const ch = myHuman.getCrosshair();
+
+  if (canPlayerFire(state, myPlayerId)) {
+    const readyCannon = nextReadyCombined(state, myPlayerId);
+    frame.crosshairs.push({
+      x: ch.x,
+      y: ch.y,
+      playerId: myPlayerId,
+      cannonReady: state.battleCountdown <= 0 && !!readyCannon,
+    });
+  }
+
+  maybeSendAimUpdate(ch.x, ch.y);
+  aimCannons(state, myPlayerId, ch.x, ch.y, dt);
 }

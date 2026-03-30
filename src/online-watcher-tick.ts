@@ -39,8 +39,10 @@ import {
 
 interface WatcherState {
   timing: WatcherTimingState;
+  /** Target aim positions received from remote players (where they're aiming). */
   remoteCrosshairs: Map<number, PixelPos>;
   remoteCannonPhantoms: readonly CannonPhantom[];
+  /** Interpolated visual positions shown to the watcher (smoothed toward remoteCrosshairs). */
   crosshairPos: Map<number, PixelPos>;
   idlePhases: Map<number, number>;
   orbitParams: Map<number, OrbitParams>;

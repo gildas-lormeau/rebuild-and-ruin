@@ -285,6 +285,7 @@ export function drawGameOver(
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.ui?.gameOver) return;
+  overlayCtx.save();
   const gameOverData = overlay.ui.gameOver;
   const sorted = [...gameOverData.scores].sort((a, b) => b.score - a.score);
   const hasStats = sorted.some((e) => e.stats);
@@ -301,6 +302,7 @@ export function drawGameOver(
     menuX,
     gameOverData.focused,
   );
+  overlayCtx.restore();
 }
 
 /** Draw life-lost continue/abandon dialogs (one per player). */
@@ -355,71 +357,7 @@ export function drawLifeLostDialog(
       overlayCtx.fillText("Eliminated", cx, py + 40);
     }
 
-    if (entry.choice === LifeLostChoice.PENDING && entry.lives > 0) {
-      // Continue / Abandon buttons with focus highlight
-      const btnW = BTN_W,
-        btnH = BTN_H;
-      const { btnY, contX, abX } = lifeLostButtonLayout(px, py);
-      const contFocused = entry.focused === LIFE_LOST_FOCUS_CONTINUE;
-      const abFocused = entry.focused === LIFE_LOST_FOCUS_ABANDON;
-
-      // Continue button
-      const time = now ?? Date.now();
-      const contFlash = contFocused && flashOn(BUTTON_FLASH_MS, time);
-      drawButton(
-        overlayCtx,
-        contX,
-        btnY,
-        btnW,
-        btnH,
-        {
-          fill: BTN_CONTINUE.fill(
-            contFocused ? (contFlash ? OP_VIVID : OP_ACCENT) : OP_SUBTLE,
-          ),
-          stroke: contFocused
-            ? BTN_CONTINUE.strokeFocused
-            : BTN_CONTINUE.stroke,
-          lineWidth: contFocused ? 2 : 1,
-          font: FONT_BUTTON,
-          textColor: contFocused ? TEXT_WHITE : TEXT_DISABLED,
-        },
-        "Continue",
-      );
-
-      // Abandon button
-      const abFlash = abFocused && flashOn(BUTTON_FLASH_MS, time);
-      drawButton(
-        overlayCtx,
-        abX,
-        btnY,
-        btnW,
-        btnH,
-        {
-          fill: BTN_ABANDON.fill(
-            abFocused ? (abFlash ? OP_FOCUS : OP_ACTIVE) : OP_GHOST,
-          ),
-          stroke: abFocused ? BTN_ABANDON.strokeFocused : BTN_ABANDON.stroke,
-          lineWidth: abFocused ? 2 : 1,
-          font: FONT_BUTTON,
-          textColor: abFocused ? TEXT_WHITE : TEXT_FAINT,
-        },
-        "Abandon",
-      );
-    } else {
-      // Resolved state
-      overlayCtx.font = FONT_LABEL;
-      const isContinue = entry.choice === LifeLostChoice.CONTINUE;
-      overlayCtx.fillStyle = isContinue
-        ? BTN_CONTINUE.stroke
-        : BTN_ABANDON.stroke;
-      if (entry.lives > 0) {
-        overlayCtx.fillText(
-          isContinue ? "Continuing..." : "Abandoned",
-          cx,
-          py + PANEL_H - 18,
-        );
-      }
-    }
+    drawLifeLostEntry(overlayCtx, entry, px, py, cx, now);
   }
 }
 
@@ -938,6 +876,84 @@ function drawControlsKeyCell(
     overlayCtx.font = FONT_LABEL;
     overlayCtx.fillStyle = rgb(player.color, OP_SECONDARY);
     overlayCtx.fillText(player.bindings[actionIdx]!, cx, cy);
+  }
+}
+
+/** Draw a single player's life-lost entry: choice buttons (pending) or resolved text. */
+function drawLifeLostEntry(
+  ctx: CanvasRenderingContext2D,
+  entry: {
+    readonly lives: number;
+    readonly choice: LifeLostChoice;
+    readonly focused: number;
+    readonly px: number;
+    readonly py: number;
+  },
+  px: number,
+  py: number,
+  cx: number,
+  now?: number,
+): void {
+  if (entry.choice === LifeLostChoice.PENDING && entry.lives > 0) {
+    // Continue / Abandon buttons with focus highlight
+    const btnW = BTN_W;
+    const btnH = BTN_H;
+    const { btnY, contX, abX } = lifeLostButtonLayout(px, py);
+    const contFocused = entry.focused === LIFE_LOST_FOCUS_CONTINUE;
+    const abFocused = entry.focused === LIFE_LOST_FOCUS_ABANDON;
+
+    // Continue button
+    const time = now ?? Date.now();
+    const contFlash = contFocused && flashOn(BUTTON_FLASH_MS, time);
+    drawButton(
+      ctx,
+      contX,
+      btnY,
+      btnW,
+      btnH,
+      {
+        fill: BTN_CONTINUE.fill(
+          contFocused ? (contFlash ? OP_VIVID : OP_ACCENT) : OP_SUBTLE,
+        ),
+        stroke: contFocused ? BTN_CONTINUE.strokeFocused : BTN_CONTINUE.stroke,
+        lineWidth: contFocused ? 2 : 1,
+        font: FONT_BUTTON,
+        textColor: contFocused ? TEXT_WHITE : TEXT_DISABLED,
+      },
+      "Continue",
+    );
+
+    // Abandon button
+    const abFlash = abFocused && flashOn(BUTTON_FLASH_MS, time);
+    drawButton(
+      ctx,
+      abX,
+      btnY,
+      btnW,
+      btnH,
+      {
+        fill: BTN_ABANDON.fill(
+          abFocused ? (abFlash ? OP_FOCUS : OP_ACTIVE) : OP_GHOST,
+        ),
+        stroke: abFocused ? BTN_ABANDON.strokeFocused : BTN_ABANDON.stroke,
+        lineWidth: abFocused ? 2 : 1,
+        font: FONT_BUTTON,
+        textColor: abFocused ? TEXT_WHITE : TEXT_FAINT,
+      },
+      "Abandon",
+    );
+  } else {
+    // Resolved state
+    ctx.font = FONT_LABEL;
+    const isContinue = entry.choice === LifeLostChoice.CONTINUE;
+    ctx.fillStyle = isContinue ? BTN_CONTINUE.stroke : BTN_ABANDON.stroke;
+    if (entry.lives > 0) {
+      ctx.fillText(
+        isContinue ? "Continuing..." : "Abandoned",
+        cx,
+        py + PANEL_H - 18,
+      );
+    }
   }
 }
 

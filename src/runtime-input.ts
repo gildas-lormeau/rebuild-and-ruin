@@ -195,121 +195,37 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       deps.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
       sound,
     );
-    // ── Subsystem deps: coords, lobby, options, life-lost, game-over ──
-    const coordsDeps = {
-      pixelToTile: camera.pixelToTile,
-      screenToWorld: camera.screenToWorld,
-      onPinchStart: camera.onPinchStart,
-      onPinchUpdate: camera.onPinchUpdate,
-      onPinchEnd: camera.onPinchEnd,
-    };
-    const lobbyDeps = {
-      isActive: () => runtimeState.lobby.active,
-      keyJoin: (key: string) => lobby.lobbyKeyJoin(key),
-      click: (x: number, y: number) => lobby.lobbyClick(x, y),
-    };
-    const optionsDeps = {
-      show: options.showOptions,
-      close: options.closeOptions,
-      showControls: options.showControls,
-      closeControls: options.closeControls,
-      getCursor: () => runtimeState.optionsCursor,
-      setCursor: (c: number) => {
-        runtimeState.optionsCursor = c;
-      },
-      getCount: () => visibleOptions(uiCtx).length,
-      getRealIdx: options.realOptionIdx,
-      confirmOption: () => {
-        if (options.realOptionIdx() === OPTION_CONTROLS) options.showControls();
-        else options.closeOptions();
-      },
-      getReturnMode: () => runtimeState.optionsReturnMode,
-      setReturnMode: (mode: unknown) => {
-        runtimeState.optionsReturnMode = mode as Mode | null;
-      },
-      changeValue: options.changeOption,
-      togglePause: options.togglePause,
-      getControlsState: () => runtimeState.controlsState,
-    };
-    const lifeLostDeps = {
-      get: () => runtimeState.lifeLostDialog,
-      click: lifeLost.click,
-      sendChoice: lifeLost.sendLifeLostChoice,
-    };
-    const gameOverDeps = {
-      getFocused: () => runtimeState.frame.gameOver?.focused ?? FOCUS_REMATCH,
-      setFocused: (focused: GameOverFocus) => {
-        if (runtimeState.frame.gameOver) {
-          runtimeState.frame.gameOver.focused = focused;
-          render();
-        }
-      },
-      click: gameOverClick,
-    };
-    // ── Game action deps: selection, placement, rotation, firing ──
-    const gameActionDeps = {
-      getSelectionStates: () => runtimeState.selectionStates,
-      highlightTowerForPlayer: selection.highlight,
-      confirmSelectionAndStartBuild: selection.confirm,
+
+    const coordsDeps = buildCoordsDeps(camera);
+    const lobbyDeps = buildLobbyDeps(runtimeState, lobby);
+    const gameActionDeps = buildGameActionDeps(
+      runtimeState,
+      selection,
       isSelectionReady,
-      tryPlaceCannonAndSend: placeCannon,
-      tryPlacePieceAndSend: placePieceWrapped,
-      onPieceRotated: sound.pieceRotated,
-      fireAndSend:
-        deps.fireAndSend ?? ((ctrl, gameState) => ctrl.fire(gameState)),
-    };
-    const quitDeps = {
-      getPending: () => runtimeState.quitPending,
-      setPending: (quitPending: boolean) => {
-        runtimeState.quitPending = quitPending;
-      },
-      setTimer: (quitTimer: number) => {
-        runtimeState.quitTimer = quitTimer;
-      },
-      setMessage: (quitMessage: string) => {
-        runtimeState.quitMessage = quitMessage;
-      },
-    };
+      placeCannon,
+      placePieceWrapped,
+      sound,
+      deps.fireAndSend,
+    );
+
     // ── Combined input deps: assembles all subsystem deps ──
-    const inputDeps: RegisterOnlineInputDeps = {
+    const inputDeps = buildInputDeps(
+      deps,
+      runtimeState,
       renderer,
-      getState: () => safeState(runtimeState),
-      getMode: () => runtimeState.mode,
-      setMode: (mode) => {
-        runtimeState.mode = mode as Mode;
-      },
-      modeValues: {
-        LOBBY: Mode.LOBBY,
-        OPTIONS: Mode.OPTIONS,
-        CONTROLS: Mode.CONTROLS,
-        SELECTION: Mode.SELECTION,
-        BANNER: Mode.BANNER,
-        BALLOON_ANIM: Mode.BALLOON_ANIM,
-        CASTLE_BUILD: Mode.CASTLE_BUILD,
-        LIFE_LOST: Mode.LIFE_LOST,
-        GAME: Mode.GAME,
-        STOPPED: Mode.STOPPED,
-      },
-      isOnline: deps.isOnline,
-      settings: runtimeState.settings,
-      getControllers: () => runtimeState.controllers,
-      isHuman,
+      uiCtx,
+      options,
+      lifeLost,
       withFirstHuman,
-      showLobby: returnToLobby,
+      render,
       rematch,
-      maybeSendAimUpdate: deps.maybeSendAimUpdate ?? (() => {}),
-      setDirectTouchActive: (active) => {
-        runtimeState.directTouchActive = active;
-      },
-      isDirectTouchActive: () => runtimeState.directTouchActive,
-      coords: coordsDeps,
-      lobby: lobbyDeps,
-      options: optionsDeps,
-      lifeLost: lifeLostDeps,
-      gameOver: gameOverDeps,
-      gameAction: gameActionDeps,
-      quit: quitDeps,
-    };
+      returnToLobby,
+      gameOverClick,
+      coordsDeps,
+      lobbyDeps,
+      gameActionDeps,
+    );
+
     registerMouseHandlers(inputDeps);
     registerKeyboardHandlers(inputDeps);
     registerTouchHandlers({
@@ -331,30 +247,187 @@ function setupTouchControls(
   touch: TouchHandles,
   deps: InputSystemDeps,
 ): void {
+  const { gameContainer, renderer, camera } = deps;
+
+  gameContainer.classList.add("has-touch-panels");
+
+  setupDpadAndActions(inputDeps, touch, deps);
+  setupZoomButtons(touch, deps);
+  setupFloatingActions(inputDeps, touch, deps);
+
+  touch.loupeHandle = renderer.createLoupe?.(gameContainer) ?? null;
+  camera.enableMobileZoom();
+}
+
+function buildInputDeps(
+  deps: InputSystemDeps,
+  runtimeState: RuntimeState,
+  renderer: RendererInterface,
+  uiCtx: UIContext,
+  options: InputSystemDeps["options"],
+  lifeLost: InputSystemDeps["lifeLost"],
+  withFirstHuman: InputSystemDeps["withFirstHuman"],
+  render: () => void,
+  rematch: () => void,
+  returnToLobby: () => void,
+  gameOverClick: (canvasX: number, canvasY: number) => void,
+  coordsDeps: ReturnType<typeof buildCoordsDeps>,
+  lobbyDeps: ReturnType<typeof buildLobbyDeps>,
+  gameActionDeps: ReturnType<typeof buildGameActionDeps>,
+): RegisterOnlineInputDeps {
+  return {
+    renderer,
+    getState: () => safeState(runtimeState),
+    getMode: () => runtimeState.mode,
+    setMode: (mode) => {
+      runtimeState.mode = mode as Mode;
+    },
+    modeValues: {
+      LOBBY: Mode.LOBBY,
+      OPTIONS: Mode.OPTIONS,
+      CONTROLS: Mode.CONTROLS,
+      SELECTION: Mode.SELECTION,
+      BANNER: Mode.BANNER,
+      BALLOON_ANIM: Mode.BALLOON_ANIM,
+      CASTLE_BUILD: Mode.CASTLE_BUILD,
+      LIFE_LOST: Mode.LIFE_LOST,
+      GAME: Mode.GAME,
+      STOPPED: Mode.STOPPED,
+    },
+    isOnline: deps.isOnline,
+    settings: runtimeState.settings,
+    getControllers: () => runtimeState.controllers,
+    isHuman,
+    withFirstHuman,
+    showLobby: returnToLobby,
+    rematch,
+    maybeSendAimUpdate: deps.maybeSendAimUpdate ?? (() => {}),
+    setDirectTouchActive: (active) => {
+      runtimeState.directTouchActive = active;
+    },
+    isDirectTouchActive: () => runtimeState.directTouchActive,
+    coords: coordsDeps,
+    lobby: lobbyDeps,
+    options: {
+      show: options.showOptions,
+      close: options.closeOptions,
+      showControls: options.showControls,
+      closeControls: options.closeControls,
+      getCursor: () => runtimeState.optionsCursor,
+      setCursor: (c: number) => {
+        runtimeState.optionsCursor = c;
+      },
+      getCount: () => visibleOptions(uiCtx).length,
+      getRealIdx: options.realOptionIdx,
+      confirmOption: () => {
+        if (options.realOptionIdx() === OPTION_CONTROLS) options.showControls();
+        else options.closeOptions();
+      },
+      getReturnMode: () => runtimeState.optionsReturnMode,
+      setReturnMode: (mode: unknown) => {
+        runtimeState.optionsReturnMode = mode as Mode | null;
+      },
+      changeValue: options.changeOption,
+      togglePause: options.togglePause,
+      getControlsState: () => runtimeState.controlsState,
+    },
+    lifeLost: {
+      get: () => runtimeState.lifeLostDialog,
+      click: lifeLost.click,
+      sendChoice: lifeLost.sendLifeLostChoice,
+    },
+    gameOver: {
+      getFocused: () => runtimeState.frame.gameOver?.focused ?? FOCUS_REMATCH,
+      setFocused: (focused: GameOverFocus) => {
+        if (runtimeState.frame.gameOver) {
+          runtimeState.frame.gameOver.focused = focused;
+          render();
+        }
+      },
+      click: gameOverClick,
+    },
+    gameAction: gameActionDeps,
+    quit: {
+      getPending: () => runtimeState.quitPending,
+      setPending: (quitPending: boolean) => {
+        runtimeState.quitPending = quitPending;
+      },
+      setTimer: (quitTimer: number) => {
+        runtimeState.quitTimer = quitTimer;
+      },
+      setMessage: (quitMessage: string) => {
+        runtimeState.quitMessage = quitMessage;
+      },
+    },
+  };
+}
+
+function buildCoordsDeps(camera: InputSystemDeps["camera"]) {
+  return {
+    pixelToTile: camera.pixelToTile,
+    screenToWorld: camera.screenToWorld,
+    onPinchStart: camera.onPinchStart,
+    onPinchUpdate: camera.onPinchUpdate,
+    onPinchEnd: camera.onPinchEnd,
+  };
+}
+
+function buildLobbyDeps(
+  runtimeState: RuntimeState,
+  lobby: InputSystemDeps["lobby"],
+) {
+  return {
+    isActive: () => runtimeState.lobby.active,
+    keyJoin: (key: string) => lobby.lobbyKeyJoin(key),
+    click: (x: number, y: number) => lobby.lobbyClick(x, y),
+  };
+}
+
+function buildGameActionDeps(
+  runtimeState: RuntimeState,
+  selection: InputSystemDeps["selection"],
+  isSelectionReady: () => boolean,
+  placeCannon: PlaceCannonFn,
+  placePiece: PlacePieceFn,
+  sound: InputSystemDeps["sound"],
+  fireAndSend: InputSystemDeps["fireAndSend"],
+) {
+  return {
+    getSelectionStates: () => runtimeState.selectionStates,
+    highlightTowerForPlayer: selection.highlight,
+    confirmSelectionAndStartBuild: selection.confirm,
+    isSelectionReady,
+    tryPlaceCannonAndSend: placeCannon,
+    tryPlacePieceAndSend: placePiece,
+    onPieceRotated: sound.pieceRotated,
+    fireAndSend:
+      fireAndSend ??
+      ((ctrl: PlayerController, gameState: GameState) => ctrl.fire(gameState)),
+  };
+}
+
+function setupDpadAndActions(
+  inputDeps: RegisterOnlineInputDeps,
+  touch: TouchHandles,
+  deps: InputSystemDeps,
+): void {
   const {
     runtimeState,
-    renderer,
     gameContainer,
-    camera,
     sound,
     haptics,
     lobby,
     selection,
     withFirstHuman,
     isSelectionReady,
-    returnToLobby,
   } = deps;
-
-  gameContainer.classList.add("has-touch-panels");
   const {
     tryPlacePieceAndSend: placePieceAction,
     tryPlaceCannonAndSend: placeCannonAction,
   } = inputDeps.gameAction;
 
-  // ── Overlay action deps: options, life-lost, game-over ──
   const overlayActionDeps = buildOverlayActionDeps(deps);
 
-  // ── D-pad ──
   touch.dpad = createDpad(
     {
       getState: () => safeState(runtimeState),
@@ -388,57 +461,6 @@ function setupTouchControls(
     gameContainer,
   );
   touch.dpad.update(null); // initial state: d-pad + rotate disabled
-
-  // ── Zoom buttons ──
-  const zoomDeps = buildZoomDeps(deps);
-  touch.loupeHandle = renderer.createLoupe?.(gameContainer) ?? null;
-  touch.quitButton = createQuitButton(
-    {
-      getQuitPending: () => runtimeState.quitPending,
-      setQuitPending: (quitPending: boolean) => {
-        runtimeState.quitPending = quitPending;
-      },
-      setQuitTimer: (quitTimer: number) => {
-        runtimeState.quitTimer = quitTimer;
-      },
-      setQuitMessage: (msg: string) => {
-        runtimeState.quitMessage = msg;
-      },
-      showLobby: returnToLobby,
-      getControllers: () => runtimeState.controllers,
-      isHuman,
-    },
-    gameContainer,
-  );
-  touch.quitButton.update(null); // initial state: hidden
-  touch.homeZoomButton = createHomeZoomButton(zoomDeps, gameContainer);
-  touch.enemyZoomButton = createEnemyZoomButton(zoomDeps, gameContainer);
-  touch.homeZoomButton.update(false); // initial state: disabled
-  touch.enemyZoomButton.update(false);
-  camera.enableMobileZoom();
-
-  // Floating contextual buttons for direct-touch placement
-  const floatingEl =
-    gameContainer.querySelector<HTMLElement>("#floating-actions");
-  if (floatingEl) {
-    touch.floatingActions = createFloatingActions(
-      {
-        getState: () => safeState(runtimeState),
-        withFirstHuman,
-        tryPlacePieceAndSend: placePieceAction,
-        tryPlaceCannonAndSend: placeCannonAction,
-        onPieceRotated: sound.pieceRotated,
-        onHapticTap: haptics.tap,
-        onDrag: (clientX, clientY) => {
-          const state = runtimeState.state;
-          if (!state) return;
-          const { x, y } = renderer.clientToSurface(clientX, clientY);
-          dispatchPointerMove(x, y, state, inputDeps);
-        },
-      },
-      floatingEl,
-    );
-  }
 }
 
 /** Build overlay action deps for touch d-pad (options, life-lost, game-over). */
@@ -501,6 +523,35 @@ function buildOverlayActionDeps(deps: InputSystemDeps) {
   };
 }
 
+function setupZoomButtons(touch: TouchHandles, deps: InputSystemDeps): void {
+  const { runtimeState, gameContainer, returnToLobby } = deps;
+  const zoomDeps = buildZoomDeps(deps);
+
+  touch.quitButton = createQuitButton(
+    {
+      getQuitPending: () => runtimeState.quitPending,
+      setQuitPending: (quitPending: boolean) => {
+        runtimeState.quitPending = quitPending;
+      },
+      setQuitTimer: (quitTimer: number) => {
+        runtimeState.quitTimer = quitTimer;
+      },
+      setQuitMessage: (msg: string) => {
+        runtimeState.quitMessage = msg;
+      },
+      showLobby: returnToLobby,
+      getControllers: () => runtimeState.controllers,
+      isHuman,
+    },
+    gameContainer,
+  );
+  touch.quitButton.update(null); // initial state: hidden
+  touch.homeZoomButton = createHomeZoomButton(zoomDeps, gameContainer);
+  touch.enemyZoomButton = createEnemyZoomButton(zoomDeps, gameContainer);
+  touch.homeZoomButton.update(false); // initial state: disabled
+  touch.enemyZoomButton.update(false);
+}
+
 /** Build zoom button deps for touch controls (home/enemy zone zoom). */
 function buildZoomDeps(deps: InputSystemDeps) {
   const { runtimeState, camera } = deps;
@@ -523,6 +574,47 @@ function buildZoomDeps(deps: InputSystemDeps) {
       human.setCrosshair(px.x, px.y);
     },
   };
+}
+
+function setupFloatingActions(
+  inputDeps: RegisterOnlineInputDeps,
+  touch: TouchHandles,
+  deps: InputSystemDeps,
+): void {
+  const {
+    runtimeState,
+    renderer,
+    gameContainer,
+    sound,
+    haptics,
+    withFirstHuman,
+  } = deps;
+  const {
+    tryPlacePieceAndSend: placePieceAction,
+    tryPlaceCannonAndSend: placeCannonAction,
+  } = inputDeps.gameAction;
+
+  const floatingEl =
+    gameContainer.querySelector<HTMLElement>("#floating-actions");
+  if (floatingEl) {
+    touch.floatingActions = createFloatingActions(
+      {
+        getState: () => safeState(runtimeState),
+        withFirstHuman,
+        tryPlacePieceAndSend: placePieceAction,
+        tryPlaceCannonAndSend: placeCannonAction,
+        onPieceRotated: sound.pieceRotated,
+        onHapticTap: haptics.tap,
+        onDrag: (clientX, clientY) => {
+          const state = runtimeState.state;
+          if (!state) return;
+          const { x, y } = renderer.clientToSurface(clientX, clientY);
+          dispatchPointerMove(x, y, state, inputDeps);
+        },
+      },
+      floatingEl,
+    );
+  }
 }
 
 function wrapPiecePlace(
