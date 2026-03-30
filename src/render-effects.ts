@@ -129,13 +129,15 @@ export function drawPhantoms(
 
   // Primary human phantom piece
   if (overlay?.phantoms?.phantomPiece) {
-    const { offsets, row, col, valid } = overlay.phantoms.phantomPiece;
+    const { offsets, row, col, valid, playerId } =
+      overlay.phantoms.phantomPiece;
+    const wall = getPlayerColor(playerId ?? 0).wall;
     drawPiecePhantom(
       overlayCtx,
       offsets,
       row,
       col,
-      valid ? "#eeeeee" : PHANTOM_INVALID_COLOR,
+      valid ? rgb(saturateRgb(wall, 2.5)) : PHANTOM_INVALID_COLOR,
       PHANTOM_ALPHA,
       false,
     );
@@ -146,7 +148,7 @@ export function drawPhantoms(
     for (const phantom of overlay.phantoms.humanPhantoms) {
       const { offsets, row, col, valid, playerId } = phantom;
       const wall = getPlayerColor(playerId).wall;
-      const fill = valid ? rgb(brightenRgb(wall, 0.3)) : PHANTOM_INVALID_COLOR;
+      const fill = valid ? rgb(saturateRgb(wall, 2.5)) : PHANTOM_INVALID_COLOR;
       drawPiecePhantom(
         overlayCtx,
         offsets,
@@ -169,7 +171,7 @@ export function drawPhantoms(
         offsets,
         row,
         col,
-        rgb(brightenRgb(wall, 0.3)),
+        rgb(saturateRgb(wall, 2.5)),
         PHANTOM_ALPHA,
         true,
       );
@@ -288,12 +290,13 @@ export function drawBattleEffects(
   drawPhaseTimer(overlayCtx, map, overlay);
 }
 
-/** Lighten an RGB color by blending toward white. factor 0 = original, 1 = white. */
-function brightenRgb(c: RGB, factor: number): RGB {
+/** Boost saturation of an RGB color. factor 0 = original, 1 = fully saturated. */
+function saturateRgb(c: RGB, factor: number): RGB {
+  const avg = (c[0] + c[1] + c[2]) / 3;
   return [
-    Math.round(c[0] + (255 - c[0]) * factor),
-    Math.round(c[1] + (255 - c[1]) * factor),
-    Math.round(c[2] + (255 - c[2]) * factor),
+    Math.round(Math.min(255, c[0] + (c[0] - avg) * factor)),
+    Math.round(Math.min(255, c[1] + (c[1] - avg) * factor)),
+    Math.round(Math.min(255, c[2] + (c[2] - avg) * factor)),
   ];
 }
 
