@@ -30,6 +30,7 @@ import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
 import {
   type FrameContext,
   type GameState,
+  isInteractiveMode,
   isReselectPhase,
   isTransitionMode,
   Mode,
@@ -539,7 +540,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   function onPinchStart(midX: number, midY: number): void {
     const { mode } = deps.getCtx();
-    if (mode !== Mode.GAME && mode !== Mode.SELECTION) return;
+    if (!isInteractiveMode(mode)) return;
     activePinch = {
       startVp: { ...currentVp },
       startMidX: midX,
@@ -549,7 +550,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   function onPinchUpdate(midX: number, midY: number, scale: number): void {
     const { mode } = deps.getCtx();
-    if (!activePinch || (mode !== Mode.GAME && mode !== Mode.SELECTION)) return;
+    if (!activePinch || !isInteractiveMode(mode)) return;
     const newW = Math.max(
       MIN_ZOOM_W,
       Math.min(fullMapVp.w, activePinch.startVp.w * scale),

@@ -31,11 +31,11 @@ import {
   dispatchPlacement,
   dispatchPointerMove,
   dispatchTowerSelect,
-  isGameOrSelectionMode,
   markTouchTime,
 } from "./input-dispatch.ts";
 import { cannonSize } from "./spatial.ts";
 import {
+  isInteractiveMode,
   isPlacementPhase,
   isReselectPhase,
   isSelectionPhase,
@@ -133,10 +133,7 @@ function handleTouchStart(
 
   // Tap-on-phantom: if the touch lands directly on the current phantom,
   // skip cursor movement so the tap can confirm placement at touchend.
-  if (
-    isPlacementPhase(state.phase) &&
-    isGameOrSelectionMode(getMode(), deps.modeValues)
-  ) {
+  if (isPlacementPhase(state.phase) && isInteractiveMode(getMode())) {
     const tile = coords.pixelToTile(x, y);
     let hit = false;
     deps.withFirstHuman((human) => {
@@ -223,7 +220,7 @@ function handleTouchEnd(
   // Non-game modes: tap acts as click
   if (tap && dispatchModeTap(x, y, mode, deps)) return;
 
-  if (!state || !isGameOrSelectionMode(mode, deps.modeValues)) return;
+  if (!state || !isInteractiveMode(mode)) return;
 
   // Selection: first tap highlights, second tap on same tower confirms
   if (tap && isSelectionPhase(state.phase)) {

@@ -40,7 +40,7 @@ import {
 import {
   type GameState,
   type Grunt,
-  isPlayerInZone,
+  isPlayerSeated,
   type Player,
 } from "./types.ts";
 
@@ -110,7 +110,7 @@ export function findGruntSpawnNear(
 /** Spawn a single grunt immediately on the given player's zone. */
 export function spawnGruntOnZone(state: GameState, playerId: number): void {
   const player = state.players[playerId];
-  if (!isPlayerInZone(player)) return;
+  if (!isPlayerSeated(player)) return;
   const spawnPos = findGruntSpawnPositions(state, player, 1);
   for (const pos of spawnPos) {
     addGrunt(state, pos.row, pos.col, playerId);
@@ -124,7 +124,7 @@ export function spawnGruntGroupOnZone(
   count: number,
 ): void {
   const player = state.players[playerId];
-  if (!isPlayerInZone(player)) return;
+  if (!isPlayerSeated(player)) return;
   const zone = player.homeTower.zone;
 
   // Find one anchor position, then cluster remaining grunts on adjacent tiles

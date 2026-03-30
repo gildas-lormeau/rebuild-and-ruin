@@ -72,7 +72,7 @@ import {
   emptyFreshInterior,
   type GameState,
   isPlayerAlive,
-  isPlayerInZone,
+  isPlayerSeated,
   Phase,
   type Player,
 } from "./types.ts";
@@ -347,7 +347,7 @@ function enterBattleFromCannon(state: GameState): void {
   claimTerritory(state);
   // From round 2+, each player has a chance to get grunts spawned on their zone
   if (state.round >= FIRST_GRUNT_SPAWN_ROUND) {
-    for (const player of state.players.filter(isPlayerInZone)) {
+    for (const player of state.players.filter(isPlayerSeated)) {
       for (let i = 0; i < INTERBATTLE_GRUNT_SPAWN_ATTEMPTS; i++) {
         if (state.rng.bool(INTERBATTLE_GRUNT_SPAWN_CHANCE)) {
           spawnGruntOnZone(state, player.id);
@@ -382,7 +382,7 @@ function enterBuildFromBattle(state: GameState): void {
   }
   // First battle with no shots fired (nobody playing): spawn grouped grunts per player
   if (state.round === 1 && state.shotsFired === 0) {
-    for (const player of state.players.filter(isPlayerInZone)) {
+    for (const player of state.players.filter(isPlayerSeated)) {
       spawnGruntGroupOnZone(state, player.id, IDLE_FIRST_BATTLE_GRUNTS);
     }
   }

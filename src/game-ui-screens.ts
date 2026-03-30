@@ -27,7 +27,13 @@ import {
   SEED_CUSTOM,
 } from "./player-config.ts";
 import type { OptionEntry, RenderOverlay } from "./render-types.ts";
-import type { ControlsState, GameState, LobbyState, Mode } from "./types.ts";
+import {
+  type ControlsState,
+  type GameState,
+  isInteractiveMode,
+  type LobbyState,
+  Mode,
+} from "./types.ts";
 
 export interface UIContext {
   getState: () => GameState | undefined;
@@ -127,25 +133,19 @@ export function createOptionsOverlay(frameCtx: UIContext): {
   return { map: state?.map ?? lobbyMap, overlay };
 }
 
-export function showOptions(
-  frameCtx: UIContext,
-  modeValues: { OPTIONS: Mode },
-): void {
+export function showOptions(frameCtx: UIContext): void {
   frameCtx.optionsCursor.value = 0;
-  frameCtx.setMode(modeValues.OPTIONS);
+  frameCtx.setMode(Mode.OPTIONS);
 }
 
-export function closeOptions(
-  frameCtx: UIContext,
-  modeValues: { LOBBY: Mode; GAME: Mode },
-): void {
+export function closeOptions(frameCtx: UIContext): void {
   const returnMode = frameCtx.getOptionsReturnMode();
   if (returnMode !== null) {
     // Returning to game — read-only view, don't save settings
     frameCtx.setMode(returnMode);
     frameCtx.setOptionsReturnMode(null);
   } else {
-    frameCtx.setMode(modeValues.LOBBY);
+    frameCtx.setMode(Mode.LOBBY);
     saveSettings(frameCtx.settings);
   }
 }
@@ -181,30 +181,21 @@ export function createControlsOverlay(frameCtx: UIContext): {
   return { map: frameCtx.getState()?.map ?? lobbyMap, overlay };
 }
 
-export function showControls(
-  frameCtx: UIContext,
-  modeValues: { CONTROLS: Mode },
-): void {
+export function showControls(frameCtx: UIContext): void {
   frameCtx.controlsState.playerIdx = 0;
   frameCtx.controlsState.actionIdx = 0;
   frameCtx.controlsState.rebinding = false;
-  frameCtx.setMode(modeValues.CONTROLS);
+  frameCtx.setMode(Mode.CONTROLS);
 }
 
-export function closeControls(
-  frameCtx: UIContext,
-  modeValues: { OPTIONS: Mode },
-): void {
+export function closeControls(frameCtx: UIContext): void {
   saveSettings(frameCtx.settings);
-  frameCtx.setMode(modeValues.OPTIONS);
+  frameCtx.setMode(Mode.OPTIONS);
 }
 
-export function togglePause(
-  frameCtx: UIContext,
-  modeValues: { GAME: Mode; SELECTION: Mode },
-): boolean {
+export function togglePause(frameCtx: UIContext): boolean {
   const mode = frameCtx.getMode();
-  if (mode !== modeValues.GAME && mode !== modeValues.SELECTION) return false;
+  if (!isInteractiveMode(mode)) return false;
   const next = !frameCtx.getPaused();
   frameCtx.setPaused(next);
   frameCtx.getFrame().announcement = next ? "PAUSED" : undefined;

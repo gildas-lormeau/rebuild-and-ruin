@@ -5,13 +5,14 @@ import {
   dispatchPlacement,
   dispatchPointerMove,
   dispatchTowerSelect,
-  isGameOrSelectionMode,
   isTouchSuppressed,
 } from "./input-dispatch.ts";
 import {
+  isInteractiveMode,
   isPlacementPhase,
   isReselectPhase,
   isSelectionPhase,
+  Mode,
   Phase,
 } from "./types.ts";
 
@@ -21,13 +22,13 @@ const CLICK_EVENT = "click";
 // Mouse checks mode at event-handler level because all mouse actions share the
 // same guard: no game state → no-op, lobby active → lobby hit-test only.
 export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
-  const { renderer, getState, getMode, modeValues, coords } = deps;
+  const { renderer, getState, getMode, coords } = deps;
 
   renderer.eventTarget.addEventListener("mousemove", (e) => {
     const mode = getMode();
-    if (mode === modeValues.LOBBY || mode === modeValues.STOPPED) {
+    if (mode === Mode.LOBBY || mode === Mode.STOPPED) {
       renderer.eventTarget.style.cursor = "pointer";
-    } else if (mode === modeValues.GAME) {
+    } else if (mode === Mode.GAME) {
       const state = getState();
       renderer.eventTarget.style.cursor =
         state?.phase === Phase.BATTLE ? "none" : "default";
@@ -48,7 +49,7 @@ export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
     const state = getState();
 
     if (dispatchModeTap(x, y, mode, deps)) return;
-    if (!state || !isGameOrSelectionMode(mode, modeValues)) return;
+    if (!state || !isInteractiveMode(mode)) return;
 
     if (isSelectionPhase(state.phase)) {
       const tw = coords.screenToWorld(x, y);

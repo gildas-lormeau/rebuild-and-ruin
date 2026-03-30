@@ -41,7 +41,7 @@ import {
   manhattanDistance,
   packTile,
 } from "./spatial.ts";
-import { type GameState, isPlayerInZone, type Player } from "./types.ts";
+import { type GameState, isPlayerSeated, type Player } from "./types.ts";
 
 /** Validate + apply piece placement. Returns true if placed. */
 export function placePiece(
@@ -327,7 +327,7 @@ function destroyEnclosedHousesAndSpawnGrunts(
 
     house.alive = false;
     for (const enemy of state.players) {
-      if (enemy.id === player.id || !isPlayerInZone(enemy)) continue;
+      if (enemy.id === player.id || !isPlayerSeated(enemy)) continue;
       spawnGruntOnZone(state, enemy.id);
     }
   }
@@ -352,7 +352,7 @@ function removeEnclosedGruntsAndRespawn(
   player.score += enclosed.length * DESTROY_GRUNT_POINTS;
 
   const enemies = state.players.filter(
-    (other) => other.id !== player.id && isPlayerInZone(other),
+    (other) => other.id !== player.id && isPlayerSeated(other),
   );
   if (enemies.length === 0) return;
 

@@ -280,19 +280,7 @@ function buildInputDeps(
     getState: () => safeState(runtimeState),
     getMode: () => runtimeState.mode,
     setMode: (mode) => {
-      runtimeState.mode = mode as Mode;
-    },
-    modeValues: {
-      LOBBY: Mode.LOBBY,
-      OPTIONS: Mode.OPTIONS,
-      CONTROLS: Mode.CONTROLS,
-      SELECTION: Mode.SELECTION,
-      BANNER: Mode.BANNER,
-      BALLOON_ANIM: Mode.BALLOON_ANIM,
-      CASTLE_BUILD: Mode.CASTLE_BUILD,
-      LIFE_LOST: Mode.LIFE_LOST,
-      GAME: Mode.GAME,
-      STOPPED: Mode.STOPPED,
+      runtimeState.mode = mode;
     },
     isOnline: deps.isOnline,
     settings: runtimeState.settings,
@@ -432,11 +420,6 @@ function setupDpadAndActions(
     {
       getState: () => safeState(runtimeState),
       getMode: () => runtimeState.mode,
-      modeValues: {
-        GAME: Mode.GAME,
-        SELECTION: Mode.SELECTION,
-        LOBBY: Mode.LOBBY,
-      },
       withFirstHuman,
       onHapticTap: haptics.tap,
       isHost: deps.getIsHost,

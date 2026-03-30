@@ -446,8 +446,8 @@ export function isPlayerAlive(
   return !!player && !player.eliminated;
 }
 
-/** True when a player can actively participate in zone-based gameplay. */
-export function isPlayerInZone(
+/** True when a player has selected a castle and can actively participate. */
+export function isPlayerSeated(
   player: Player | null | undefined,
 ): player is Player & { homeTower: Tower } {
   return !!player && !player.eliminated && !!player.homeTower;
@@ -502,6 +502,23 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
 /** True if the phase is a placement phase (walls or cannons). */
 export function isPlacementPhase(phase: Phase): boolean {
   return phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE;
+}
+
+/** Mode allows direct gameplay interaction (active game or tower selection).
+ *  Use this instead of `mode === Mode.GAME || mode === Mode.SELECTION`. */
+export function isInteractiveMode(mode: Mode): boolean {
+  return mode === Mode.GAME || mode === Mode.SELECTION;
+}
+
+/** Mode represents an in-game screen that should be paused/ticked (not lobby/options/stopped).
+ *  Use this instead of negated multi-mode checks. */
+export function isGameplayMode(mode: Mode): boolean {
+  return (
+    mode !== Mode.LOBBY &&
+    mode !== Mode.OPTIONS &&
+    mode !== Mode.CONTROLS &&
+    mode !== Mode.STOPPED
+  );
 }
 
 /** True if the mode is a non-interactive transition (banner, balloon anim, castle build). */

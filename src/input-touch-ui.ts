@@ -20,7 +20,6 @@ import {
   dispatchQuit,
   dispatchRotateForCtrl,
   type GameActionDeps,
-  isGameOrSelectionMode,
   type OverlayActionDeps,
 } from "./input-dispatch.ts";
 import { ACTION_CONFIRM, PLAYER_COLORS } from "./player-config.ts";
@@ -30,12 +29,18 @@ import {
   TOUCH_ZOOM_HOME_BG,
   ZOOM_BUTTON_ALPHA,
 } from "./render-theme.ts";
-import { Action, type GameState, isSelectionPhase, Phase } from "./types.ts";
+import {
+  Action,
+  type GameState,
+  isInteractiveMode,
+  isSelectionPhase,
+  Mode,
+  Phase,
+} from "./types.ts";
 
 interface DpadDeps {
   getState: () => GameState | undefined;
-  getMode: () => number;
-  modeValues: { GAME: number; SELECTION: number; LOBBY: number };
+  getMode: () => Mode;
   withFirstHuman: (
     action: (human: PlayerController & InputReceiver) => void,
   ) => void;
@@ -404,12 +409,12 @@ function handleDpadAction(deps: DpadDeps): void {
   deps.onHapticTap?.();
   if (dispatchOverlayAction(Action.CONFIRM, deps.overlay)) return;
   const mode = deps.getMode();
-  if (mode === deps.modeValues.LOBBY) {
+  if (mode === Mode.LOBBY) {
     deps.lobbyAction();
     return;
   }
   const state = deps.getState();
-  if (!state || !isGameOrSelectionMode(mode, deps.modeValues)) return;
+  if (!state || !isInteractiveMode(mode)) return;
   deps.withFirstHuman((human) => {
     dispatchGameAction(human, Action.CONFIRM, state, deps.gameAction);
   });
@@ -457,8 +462,7 @@ function wireDpadArrows(
     deps.onHapticTap?.();
     if (dispatchOverlayAction(action, deps.overlay)) return;
     const state = deps.getState();
-    if (!state || !isGameOrSelectionMode(deps.getMode(), deps.modeValues))
-      return;
+    if (!state || !isInteractiveMode(deps.getMode())) return;
     deps.withFirstHuman((human) => {
       dispatchGameAction(human, action, state, deps.gameAction);
     });
@@ -555,7 +559,7 @@ function wireRotateButtons(
   function handleRotate() {
     deps.onHapticTap?.();
     if (dispatchOverlayAction(Action.ROTATE, deps.overlay)) return;
-    if (!isGameOrSelectionMode(deps.getMode(), deps.modeValues)) return;
+    if (!isInteractiveMode(deps.getMode())) return;
     const state = deps.getState();
     if (!state) return;
     deps.withFirstHuman((human) => {

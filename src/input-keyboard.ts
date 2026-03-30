@@ -27,17 +27,20 @@ import {
   FOCUS_MENU,
   FOCUS_REMATCH,
   type GameState,
+  isGameplayMode,
+  isInteractiveMode,
   isPlacementPhase,
   LIFE_LOST_FOCUS_ABANDON,
   LIFE_LOST_FOCUS_CONTINUE,
   LifeLostChoice,
+  Mode,
 } from "./types.ts";
 
 // Note: keyboard uses per-handler mode checks because different keys are valid
 // in different modes (e.g., arrows in lobby vs game, ESC always available).
 // Mouse handlers check mode at event-handler level instead (see input-mouse.ts).
 export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
-  const { getState, getMode, modeValues } = deps;
+  const { getState, getMode } = deps;
 
   document.addEventListener("keydown", (e) => {
     if (
@@ -48,16 +51,16 @@ export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
     const mode = getMode();
 
     if (handleKeyF1(e, mode, deps)) return;
-    if (mode === modeValues.STOPPED) {
+    if (mode === Mode.STOPPED) {
       handleKeyStopped(e, deps);
       return;
     }
     if (handleKeyEscape(e, mode, deps)) return;
-    if (mode === modeValues.CONTROLS) {
+    if (mode === Mode.CONTROLS) {
       handleKeyControls(e, deps);
       return;
     }
-    if (mode === modeValues.OPTIONS) {
+    if (mode === Mode.OPTIONS) {
       handleKeyOptions(e, deps);
       return;
     }
@@ -68,7 +71,7 @@ export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
 
     const state = getState();
     if (!state) return;
-    if (mode === modeValues.LIFE_LOST && deps.lifeLost.get()) {
+    if (mode === Mode.LIFE_LOST && deps.lifeLost.get()) {
       handleKeyLifeLost(e, deps);
       return;
     }
@@ -76,7 +79,7 @@ export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
       e.preventDefault();
       return;
     }
-    if (mode === modeValues.GAME || mode === modeValues.SELECTION) {
+    if (isInteractiveMode(mode)) {
       handleKeyGame(e, state, deps);
       return;
     }
@@ -94,27 +97,20 @@ export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
 
 function handleKeyF1(
   e: KeyboardEvent,
-  mode: number,
+  mode: Mode,
   deps: RegisterOnlineInputDeps,
 ): boolean {
   if (e.key !== "F1") return false;
-  const { modeValues, setMode } = deps;
-  if (mode === modeValues.LOBBY) {
+  const { setMode } = deps;
+  if (mode === Mode.LOBBY) {
     deps.options.show();
-  } else if (mode === modeValues.OPTIONS) {
+  } else if (mode === Mode.OPTIONS) {
     deps.options.close();
-  } else if (mode === modeValues.CONTROLS) {
+  } else if (mode === Mode.CONTROLS) {
     deps.options.closeControls();
-  } else if (
-    mode === modeValues.SELECTION ||
-    mode === modeValues.BANNER ||
-    mode === modeValues.BALLOON_ANIM ||
-    mode === modeValues.CASTLE_BUILD ||
-    mode === modeValues.LIFE_LOST ||
-    mode === modeValues.GAME
-  ) {
+  } else if (isGameplayMode(mode)) {
     deps.options.setReturnMode(mode);
-    setMode(modeValues.OPTIONS);
+    setMode(Mode.OPTIONS);
   } else {
     // Unlisted modes (e.g. STOPPED): consume F1 without action or preventDefault
     return true;
@@ -153,16 +149,11 @@ function handleKeyStopped(
 
 function handleKeyEscape(
   e: KeyboardEvent,
-  mode: number,
+  mode: Mode,
   deps: RegisterOnlineInputDeps,
 ): boolean {
   if (e.key !== KEY_ESCAPE) return false;
-  const { modeValues } = deps;
-  if (
-    mode === modeValues.LOBBY ||
-    mode === modeValues.OPTIONS ||
-    mode === modeValues.CONTROLS
-  )
+  if (mode === Mode.LOBBY || mode === Mode.OPTIONS || mode === Mode.CONTROLS)
     return false;
   dispatchQuit(
     {

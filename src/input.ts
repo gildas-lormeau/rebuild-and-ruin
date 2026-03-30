@@ -6,9 +6,10 @@
  *
  * ### Mode vs Phase (glossary)
  *
- * **Mode** (`getMode()` / `setMode()`) — numeric UI state set at the app level.
- * Values: STOPPED, LOBBY, OPTIONS, GAME (see `ModeValues` in input-dispatch.ts).
+ * **Mode** (`getMode()` / `setMode()`) — UI state set at the app level (`Mode` enum).
+ * Values: STOPPED, LOBBY, OPTIONS, GAME, SELECTION, BANNER, etc.
  * Controls which input handlers are active and which screen is drawn.
+ * Use `isInteractiveMode(mode)` to check if gameplay interaction is allowed.
  *
  * **Phase** (`state.phase`, `Phase` enum) — gameplay state within GAME mode.
  * Values: CASTLE_SELECT, WALL_BUILD, CANNON_PLACE, BATTLE, CASTLE_RESELECT.
@@ -24,7 +25,7 @@ import type {
   PlayerController,
 } from "./controller-interfaces.ts";
 import type { WorldPos } from "./geometry-types.ts";
-import type { GameActionDeps, ModeValues } from "./input-dispatch.ts";
+import type { GameActionDeps } from "./input-dispatch.ts";
 import type { KeyBindings, SeedMode } from "./player-config.ts";
 import type { RendererInterface } from "./render-types.ts";
 import type {
@@ -32,6 +33,7 @@ import type {
   GameOverFocus,
   GameState,
   LifeLostDialogState,
+  Mode,
   ResolvedChoice,
 } from "./types.ts";
 
@@ -39,9 +41,8 @@ export interface RegisterOnlineInputDeps {
   // --- Core (used by all handlers) ---
   renderer: RendererInterface;
   getState: () => GameState | undefined;
-  getMode: () => number;
-  setMode: (mode: number) => void;
-  modeValues: ModeValues;
+  getMode: () => Mode;
+  setMode: (mode: Mode) => void;
   isOnline?: boolean;
   settings: {
     keyBindings: KeyBindings[];

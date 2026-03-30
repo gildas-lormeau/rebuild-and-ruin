@@ -21,7 +21,6 @@ import type { HapticsSystem } from "./haptics-system.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
 import type { SoundSystem } from "./sound-system.ts";
-import { Mode } from "./types.ts";
 
 interface OptionsSystemDeps {
   runtimeState: RuntimeState;
@@ -89,13 +88,13 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function showOptions(): void {
-    showOptionsShared(uiCtx, { OPTIONS: Mode.OPTIONS });
+    showOptionsShared(uiCtx);
     deps.updateDpad(true);
   }
 
   function closeOptions(): void {
     const wasInGame = runtimeState.optionsReturnMode !== null;
-    closeOptionsShared(uiCtx, { LOBBY: Mode.LOBBY, GAME: Mode.GAME });
+    closeOptionsShared(uiCtx);
     if (wasInGame) {
       runtimeState.lastTime = performance.now(); // avoid huge dt on first frame back
     } else {
@@ -111,7 +110,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function showControls(): void {
-    showControlsShared(uiCtx, { CONTROLS: Mode.CONTROLS });
+    showControlsShared(uiCtx);
     deps.updateDpad(true);
   }
 
@@ -122,16 +121,13 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
         if (kb) ctrl.updateBindings(kb);
       }
     }
-    closeControlsShared(uiCtx, { OPTIONS: Mode.OPTIONS });
+    closeControlsShared(uiCtx);
   }
 
   function togglePause(): boolean {
     // Disable pause when other human players are connected
     if (deps.getRemoteHumanSlots().size > 0) return false;
-    return togglePauseShared(uiCtx, {
-      GAME: Mode.GAME,
-      SELECTION: Mode.SELECTION,
-    });
+    return togglePauseShared(uiCtx);
   }
 
   return {

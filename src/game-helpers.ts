@@ -11,6 +11,7 @@ import { KEY_UP, type KeyBindings } from "./player-config.ts";
 import {
   type GameState,
   type Impact,
+  isGameplayMode,
   Mode,
   Phase,
   type Player,
@@ -178,13 +179,7 @@ export function tickMainLoop(params: {
   }
 
   // Pause: keep rendering but skip all game ticks
-  if (
-    params.paused &&
-    mode !== Mode.LOBBY &&
-    mode !== Mode.OPTIONS &&
-    mode !== Mode.CONTROLS &&
-    mode !== Mode.STOPPED
-  ) {
+  if (params.paused && isGameplayMode(mode)) {
     if (!frame.announcement) frame.announcement = "PAUSED";
     params.render();
     return true;

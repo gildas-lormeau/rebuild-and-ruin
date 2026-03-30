@@ -27,22 +27,10 @@ import {
   isReselectPhase,
   isSelectionPhase,
   type LifeLostDialogState,
+  Mode,
   Phase,
   type SelectionState,
 } from "./types.ts";
-
-export interface ModeValues {
-  LOBBY: number;
-  OPTIONS: number;
-  CONTROLS: number;
-  SELECTION: number;
-  BANNER: number;
-  BALLOON_ANIM: number;
-  CASTLE_BUILD: number;
-  LIFE_LOST: number;
-  GAME: number;
-  STOPPED: number;
-}
 
 export interface OverlayActionDeps {
   options?: {
@@ -121,21 +109,12 @@ export function isTouchSuppressed(): boolean {
   return performance.now() - lastTouchTime < TOUCH_CLICK_SUPPRESS_MS;
 }
 
-/** Whether the current mode allows gameplay interaction (tower selection or active game play). */
-export function isGameOrSelectionMode(
-  mode: number,
-  mv: { GAME: number; SELECTION: number },
-): boolean {
-  return mode === mv.GAME || mode === mv.SELECTION;
-}
-
 /** Shared mode-tap dispatch — handles non-game UI taps (game over, options, lobby, etc.). Returns true if consumed. */
 export function dispatchModeTap(
   x: number,
   y: number,
-  mode: number,
+  mode: Mode,
   deps: {
-    modeValues: ModeValues;
     gameOver: { click: (x: number, y: number) => void };
     options: {
       close: () => void;
@@ -152,20 +131,20 @@ export function dispatchModeTap(
     };
   },
 ): boolean {
-  const { modeValues, gameOver, options, lifeLost, lobby } = deps;
-  if (mode === modeValues.STOPPED) {
+  const { gameOver, options, lifeLost, lobby } = deps;
+  if (mode === Mode.STOPPED) {
     gameOver.click(x, y);
     return true;
   }
-  if (mode === modeValues.OPTIONS) {
+  if (mode === Mode.OPTIONS) {
     options.close();
     return true;
   }
-  if (mode === modeValues.CONTROLS) {
+  if (mode === Mode.CONTROLS) {
     if (!options.getControlsState().rebinding) options.closeControls();
     return true;
   }
-  if (mode === modeValues.LIFE_LOST && lifeLost.get()) {
+  if (mode === Mode.LIFE_LOST && lifeLost.get()) {
     lifeLost.click(x, y);
     return true;
   }

@@ -31,7 +31,7 @@ import type { Cannon, GameState, Player } from "./types.ts";
 import {
   CannonMode,
   isBalloonMode,
-  isPlayerInZone,
+  isPlayerSeated,
   isSuperMode,
 } from "./types.ts";
 
@@ -226,13 +226,13 @@ export function resetCannonFacings(state: GameState): void {
  */
 export function computeDefaultFacings(state: GameState): void {
   for (const player of state.players) {
-    if (!isPlayerInZone(player)) continue;
+    if (!isPlayerSeated(player)) continue;
     const pc = towerCenter(player.homeTower);
     let ex = 0,
       ey = 0,
       count = 0;
     for (const other of state.players) {
-      if (other.id === player.id || !isPlayerInZone(other)) continue;
+      if (other.id === player.id || !isPlayerSeated(other)) continue;
       const oc = towerCenter(other.homeTower);
       ex += oc.col;
       ey += oc.row;
@@ -253,7 +253,7 @@ export function computeDefaultFacings(state: GameState): void {
 /** Apply each player's defaultFacing to all their existing cannons. */
 export function applyDefaultFacings(state: GameState): void {
   for (const player of state.players) {
-    if (!isPlayerInZone(player)) continue;
+    if (!isPlayerSeated(player)) continue;
     for (const cannon of player.cannons) {
       cannon.facing = player.defaultFacing;
     }
