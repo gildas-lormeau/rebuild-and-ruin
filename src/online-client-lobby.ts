@@ -6,10 +6,10 @@
  */
 
 import { pageOnline } from "./online-client-runtime.ts";
-import { send, session } from "./online-client-stores.ts";
 import { connect } from "./online-client-ws.ts";
 import { initLobbyUi } from "./online-lobby-ui.ts";
 import { loadAtlas } from "./render-sprites.ts";
+import { send, session } from "./runtime-online-stores.ts";
 
 const lobbyElements = {
   btnCreateConfirm: document.getElementById("btn-create-confirm")!,

@@ -4,7 +4,7 @@
  */
 
 import { LOBBY_SKIP_LOCKOUT, LOBBY_SKIP_STEP } from "./game-constants.ts";
-import { createLobbyConfirmKeys, formatKeyHint } from "./game-ui-helpers.ts";
+import { createLobbyConfirmKeys, formatKeyHint } from "./game-helpers.ts";
 import { formatKeyName, saveSettings } from "./game-ui-settings.ts";
 import {
   CANNON_HP_OPTIONS,

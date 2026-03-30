@@ -8,7 +8,11 @@ import type {
   SerializedPlayer,
 } from "./checkpoint-data.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
-import { initControllerForCannonPhase, setPhase } from "./game-engine.ts";
+import {
+  initControllerForCannonPhase,
+  resetZoneState,
+  setPhase,
+} from "./game-engine.ts";
 import type { RGB } from "./geometry-types.ts";
 import { TILE_COUNT } from "./grid.ts";
 import type { OnlineSession } from "./online-session.ts";
@@ -98,8 +102,6 @@ export interface TransitionContext {
   selection: {
     clearSelectionOverlay: () => void;
     getStates: () => Map<number, { highlighted: number; confirmed: boolean }>;
-    finalizeCastleConstruction: (state: GameState) => void;
-    enterCannonPlacePhase: (state: GameState) => void;
     setCastleBuildFromPlans: (
       plans: readonly { playerId: number; tiles: number[] }[],
       maxTiles: number,
@@ -132,7 +134,6 @@ export interface TransitionContext {
 
   // ── End-of-phase (life-lost, scoring, game over) ──
   endPhase: {
-    resetZoneState: (state: GameState, zone: number) => void;
     showLifeLostDialog: (
       needsReselect: readonly number[],
       eliminated: readonly number[],
@@ -374,7 +375,7 @@ export function handleBuildEndTransition(
   }
   for (const pid of [...msg.needsReselect, ...msg.eliminated]) {
     const zone = state.playerZones[pid];
-    if (zone !== undefined) transitionCtx.endPhase.resetZoneState(state, zone);
+    if (zone !== undefined) resetZoneState(state, zone);
   }
   // Shared build-end sequence: score deltas → onLifeLost → dialog.
   // Without the score-delta delay, non-host sends life_lost_choice before

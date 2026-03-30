@@ -32,6 +32,7 @@ const EXEMPT = new Set([
   "runtime-bootstrap.ts",
   "runtime-host-phase-ticks.ts", // pure tick functions, not a factory sub-system
   "runtime-host-battle-ticks.ts", // pure tick functions, not a factory sub-system
+  "runtime-online-stores.ts", // mutable singletons, not a factory sub-system
 ]);
 
 /** Sub-system files may import from these runtime-layer files. */

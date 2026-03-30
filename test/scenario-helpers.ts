@@ -563,8 +563,6 @@ export function createScenario(seed = 42): Scenario {
       selection: {
         clearSelectionOverlay: () => {},
         getStates: () => new Map(),
-        finalizeCastleConstruction: () => {},
-        enterCannonPlacePhase: () => {},
         setCastleBuildFromPlans: () => {},
         setCastleBuildViewport: () => {},
       },
@@ -575,7 +573,6 @@ export function createScenario(seed = 42): Scenario {
         beginBattle: () => {},
       },
       endPhase: {
-        resetZoneState: () => {},
         showLifeLostDialog: () => {},
         showScoreDeltas: (_pre: readonly number[], onDone: () => void) => onDone(),
         setGameOverFrame: () => {},

@@ -221,6 +221,12 @@ export function initTowerSelection(deps: InitTowerSelectionDeps): void {
   requestFrame();
 }
 
+/** Create an AI-only controller (no key bindings). Used during host promotion
+ *  to rebuild controllers for vacant slots. */
+export function createAiController(id: number, seed: number): PlayerController {
+  return createController(id, true, undefined, seed);
+}
+
 /** Returns a createControllerForSlot factory for online play.
  *  The local player (myPlayerId) gets a human controller; all others get AI. */
 export function createOnlineControllerSlotFactory(

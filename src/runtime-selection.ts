@@ -34,7 +34,7 @@ import {
 import {
   completeReselection,
   processReselectionQueue,
-} from "./game-ui-helpers.ts";
+} from "./game-helpers.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { updateSelectionOverlay as syncSelectionOverlayImpl } from "./render-composition.ts";
 import { initTowerSelection } from "./runtime-bootstrap.ts";

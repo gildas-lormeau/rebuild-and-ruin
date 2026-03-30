@@ -1,6 +1,14 @@
 import { MESSAGE, type ServerMessage } from "../server/protocol.ts";
-import type { ImpactEvent } from "./battle-system.ts";
+import { applyImpactEvent, type ImpactEvent } from "./battle-system.ts";
+import { applyPiecePlacement, canPlacePieceOffsets } from "./build-system.ts";
+import {
+  applyCannonPlacement,
+  cannonSlotCost,
+  cannonSlotsUsed,
+  canPlaceCannon,
+} from "./cannon-system.ts";
 import { selectPlayerTower } from "./game-engine.ts";
+import { GRID_COLS } from "./grid.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { toCannonMode, type WatcherNetworkState } from "./online-types.ts";
 import { inBoundsStrict } from "./spatial.ts";
@@ -32,7 +40,6 @@ interface HandleServerIncrementalDeps {
   selectionStates: Map<number, SelectionState>;
   syncSelectionOverlay: () => void;
   isCastleReselectPhase: () => boolean;
-  onRemotePlayerReselected: (playerId: number) => void;
   confirmSelectionAndStartBuild: (
     playerId: number,
     isReselect: boolean,
@@ -40,37 +47,7 @@ interface HandleServerIncrementalDeps {
   allSelectionsConfirmed: () => boolean;
   finishReselection: () => void;
   finishSelection: () => void;
-  applyPiecePlacement: (
-    state: GameState,
-    playerId: number,
-    offsets: readonly [number, number][],
-    row: number,
-    col: number,
-  ) => void;
   onFirstEnclosure?: (playerId: number) => void;
-  applyCannonPlacement: (
-    state: GameState,
-    playerId: number,
-    row: number,
-    col: number,
-    mode: string,
-  ) => void;
-  canApplyPiecePlacement: (
-    state: GameState,
-    playerId: number,
-    offsets: readonly [number, number][],
-    row: number,
-    col: number,
-  ) => boolean;
-  canApplyCannonPlacement: (
-    state: GameState,
-    playerId: number,
-    row: number,
-    col: number,
-    mode: string,
-  ) => boolean;
-  applyImpactEvent: (state: GameState, event: ImpactEvent) => void;
-  gridCols: number;
   getLifeLostDialog: () => LifeLostChoiceDialog | null;
 }
 
@@ -229,13 +206,7 @@ function handlePiecePlaced(
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
   if (
     deps.session.isHost &&
-    !deps.canApplyPiecePlacement(
-      state,
-      msg.playerId,
-      msg.offsets,
-      msg.row,
-      msg.col,
-    )
+    !canPlacePieceOffsets(state, msg.playerId, msg.offsets, msg.row, msg.col)
   ) {
     deps.log(`piece_placed: rejected invalid placement for P${msg.playerId}`);
     return DROPPED;
@@ -244,7 +215,7 @@ function handlePiecePlaced(
     `applying piece placement for P${msg.playerId} (${msg.offsets.length} tiles)`,
   );
   const hadInterior = state.players[msg.playerId]!.interior.size > 0;
-  deps.applyPiecePlacement(state, msg.playerId, msg.offsets, msg.row, msg.col);
+  applyPiecePlacement(state, msg.playerId, msg.offsets, msg.row, msg.col);
   if (!hadInterior && state.players[msg.playerId]!.interior.size > 0) {
     deps.onFirstEnclosure?.(msg.playerId);
   }
@@ -260,20 +231,32 @@ function handleCannonPlaced(
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!CANNON_MODES.has(msg.mode)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
-  if (
-    deps.session.isHost &&
-    !deps.canApplyCannonPlacement(
-      state,
-      msg.playerId,
-      msg.row,
-      msg.col,
-      msg.mode,
-    )
-  ) {
-    deps.log(`cannon_placed: rejected invalid placement for P${msg.playerId}`);
-    return DROPPED;
+  if (deps.session.isHost) {
+    const player = state.players[msg.playerId];
+    if (!player) return DROPPED;
+    const maxCannons = state.cannonLimits[msg.playerId] ?? 0;
+    const normalizedMode = toCannonMode(msg.mode);
+    if (cannonSlotsUsed(player) + cannonSlotCost(normalizedMode) > maxCannons) {
+      deps.log(
+        `cannon_placed: rejected invalid placement for P${msg.playerId}`,
+      );
+      return DROPPED;
+    }
+    if (!canPlaceCannon(player, msg.row, msg.col, normalizedMode, state)) {
+      deps.log(
+        `cannon_placed: rejected invalid placement for P${msg.playerId}`,
+      );
+      return DROPPED;
+    }
   }
-  deps.applyCannonPlacement(state, msg.playerId, msg.row, msg.col, msg.mode);
+  const cannonPlayer = state.players[msg.playerId]!;
+  applyCannonPlacement(
+    cannonPlayer,
+    msg.row,
+    msg.col,
+    toCannonMode(msg.mode),
+    state,
+  );
   return APPLIED;
 }
 
@@ -329,7 +312,7 @@ function handleImpactEvent(
     return DROPPED;
   if ("playerId" in msg && !validPid(msg.playerId, state)) return DROPPED;
   if (msg.type === MESSAGE.WALL_DESTROYED) {
-    const wallKey = msg.row * deps.gridCols + msg.col;
+    const wallKey = msg.row * GRID_COLS + msg.col;
     const owner = state.players.find((player) => player.walls.has(wallKey));
     deps.log(
       `wall_destroyed: (${msg.row},${msg.col}) owner=P${owner?.id ?? "?"} shooter=P${msg.shooterId ?? "?"}`,
@@ -339,7 +322,7 @@ function handleImpactEvent(
       `cannon_damaged: P${msg.playerId} newHp=${msg.newHp} shooter=P${msg.shooterId ?? "?"}`,
     );
   }
-  deps.applyImpactEvent(state, msg as ImpactEvent);
+  applyImpactEvent(state, msg as ImpactEvent);
   return APPLIED;
 }
 

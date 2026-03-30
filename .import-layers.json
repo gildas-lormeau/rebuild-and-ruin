@@ -51,7 +51,7 @@
       "src/castle-generation.ts",
       "src/map-generation.ts",
       "src/game-engine.ts",
-      "src/game-ui-helpers.ts",
+      "src/game-helpers.ts",
       "src/tick-context.ts",
       "src/phase-transition-shared.ts",
       "src/selection.ts"
@@ -86,7 +86,7 @@
     ]
   },
   {
-    "name": "input",
+    "name": "input & sound",
     "files": [
       "src/haptics-system.ts",
       "src/input-recorder.ts",
@@ -127,13 +127,13 @@
       "src/online-types.ts",
       "src/online-lobby-ui.ts",
       "src/online-server-lifecycle.ts",
-      "src/online-session.ts",
-      "src/online-serialize.ts"
+      "src/online-session.ts"
     ]
   },
   {
     "name": "online logic",
     "files": [
+      "src/online-serialize.ts",
       "src/online-full-state-recovery.ts",
       "src/online-send-actions.ts",
       "src/online-checkpoints.ts",
@@ -163,7 +163,8 @@
       "src/runtime-types.ts",
       "src/runtime-bootstrap.ts",
       "src/runtime.ts",
-      "src/runtime-headless.ts"
+      "src/runtime-headless.ts",
+      "src/runtime-online-stores.ts"
     ]
   },
   {
@@ -181,7 +182,6 @@
       "src/entry.ts",
       "src/main.ts",
       "src/online-client.ts",
-      "src/online-client-stores.ts",
       "src/online-client-runtime.ts",
       "src/online-client-deps.ts",
       "src/online-client-promote.ts",

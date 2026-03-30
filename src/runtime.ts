@@ -39,7 +39,7 @@ import {
 import {
   snapshotTerritory as snapshotTerritoryImpl,
   tickMainLoop,
-} from "./game-ui-helpers.ts";
+} from "./game-helpers.ts";
 import type { UIContext } from "./game-ui-screens.ts";
 import { computeGameSeed } from "./game-ui-settings.ts";
 import { TILE_SIZE } from "./grid.ts";

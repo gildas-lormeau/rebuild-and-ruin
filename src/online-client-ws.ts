@@ -4,6 +4,8 @@
 
 import { handleServerMessage } from "./online-client-deps.ts";
 import { runtime } from "./online-client-runtime.ts";
+import { computeWsUrl } from "./online-config.ts";
+import { connectWebSocket } from "./online-session.ts";
 import {
   clearReconnect,
   devLog,
@@ -12,9 +14,7 @@ import {
   RECONNECT_BASE_DELAY_MS,
   reconnect,
   session,
-} from "./online-client-stores.ts";
-import { computeWsUrl } from "./online-config.ts";
-import { connectWebSocket } from "./online-session.ts";
+} from "./runtime-online-stores.ts";
 import { Mode } from "./types.ts";
 
 const ANNOUNCEMENT_RECONNECTING = "Reconnecting\u2026";

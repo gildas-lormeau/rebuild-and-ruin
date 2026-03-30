@@ -22,27 +22,11 @@ import {
   SELECT_TIMER,
 } from "./game-constants.ts";
 import {
-  enterCannonPlacePhase,
-  finalizeCastleConstruction,
-  resetZoneState,
-} from "./game-engine.ts";
-import {
   applyBattleStartCheckpoint,
   applyBuildStartCheckpoint,
   applyCannonStartCheckpoint,
   type CheckpointDeps,
 } from "./online-checkpoints.ts";
-import {
-  clearReconnect,
-  dedup,
-  devLog,
-  devLogThrottled,
-  maybeSendAimUpdate,
-  resetNetworking,
-  send,
-  session,
-  watcher,
-} from "./online-client-stores.ts";
 import { applyFullStateUiRecovery } from "./online-full-state-recovery.ts";
 import {
   broadcastLocalCrosshair,
@@ -83,6 +67,17 @@ import {
   createOnlineControllerSlotFactory,
   initWaitingRoom,
 } from "./runtime-bootstrap.ts";
+import {
+  clearReconnect,
+  dedup,
+  devLog,
+  devLogThrottled,
+  maybeSendAimUpdate,
+  resetNetworking,
+  send,
+  session,
+  watcher,
+} from "./runtime-online-stores.ts";
 import { LifeLostChoice, Mode } from "./types.ts";
 
 // ── DOM singletons ──────────────────────────────────────────────────
@@ -341,8 +336,6 @@ function buildTransitionSelectionCtx(): TransitionContext["selection"] {
       }
     },
     getStates: () => runtime.selection.getStates(),
-    finalizeCastleConstruction,
-    enterCannonPlacePhase,
     setCastleBuildFromPlans: (plans, maxTiles, onDone) => {
       runtime.runtimeState.castleBuilds.push({
         wallPlans: plans,
@@ -370,7 +363,6 @@ function buildTransitionBattleCtx(): TransitionContext["battle"] {
 
 function buildTransitionEndPhaseCtx(): TransitionContext["endPhase"] {
   return {
-    resetZoneState,
     showLifeLostDialog: (needsReselect, eliminated) => {
       runtime.lifeLost.show(needsReselect, eliminated);
       const dialog = runtime.lifeLost.get();

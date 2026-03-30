@@ -13,17 +13,7 @@
  */
 
 import type { ServerMessage } from "../server/protocol.ts";
-import { applyImpactEvent } from "./battle-system.ts";
-import { applyPiecePlacement, canPlacePieceOffsets } from "./build-system.ts";
-import {
-  applyCannonPlacement,
-  cannonSlotCost,
-  cannonSlotsUsed,
-  canPlaceCannon,
-} from "./cannon-system.ts";
 import { MIGRATION_ANNOUNCEMENT_DURATION } from "./game-constants.ts";
-import { markPlayerReselected } from "./game-engine.ts";
-import { GRID_COLS } from "./grid.ts";
 import { promoteToHost } from "./online-client-promote.ts";
 import {
   applyFullState,
@@ -32,7 +22,6 @@ import {
   showWaitingRoom,
   transitionCtx,
 } from "./online-client-runtime.ts";
-import { devLog, session, watcher } from "./online-client-stores.ts";
 import {
   handleBattleStartTransition,
   handleBuildEndTransition,
@@ -43,9 +32,9 @@ import {
 } from "./online-phase-transitions.ts";
 import { handleServerIncrementalMessage } from "./online-server-events.ts";
 import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
-import { toCannonMode } from "./online-types.ts";
 import { PLAYER_NAMES } from "./player-config.ts";
-import { type GameState, isReselectPhase, Mode } from "./types.ts";
+import { devLog, session, watcher } from "./runtime-online-stores.ts";
+import { isReselectPhase, Mode } from "./types.ts";
 
 /** Mutable singletons (session, watcher) are passed by reference — consumers
  *  read fields at call time via Pick<>, so values are always current.
@@ -94,57 +83,13 @@ function buildIncrementalDeps() {
     syncSelectionOverlay: () => runtime.selection.syncOverlay(),
     isCastleReselectPhase: () =>
       isReselectPhase(runtime.runtimeState.state.phase),
-    onRemotePlayerReselected: (playerId: number) => {
-      markPlayerReselected(runtime.runtimeState.state, playerId);
-      runtime.runtimeState.reselectionPids.push(playerId);
-    },
     confirmSelectionAndStartBuild: (playerId: number, isReselect: boolean) => {
       runtime.selection.confirm(playerId, isReselect);
     },
     allSelectionsConfirmed: () => runtime.selection.allConfirmed(),
     finishReselection: () => runtime.selection.finishReselection(),
     finishSelection: () => runtime.selection.finish(),
-    applyPiecePlacement,
     onFirstEnclosure: (pid: number) => runtime.sound.chargeFanfare(pid),
-    canApplyPiecePlacement: (
-      state: GameState,
-      playerId: number,
-      offsets: readonly [number, number][],
-      row: number,
-      col: number,
-    ) => canPlacePieceOffsets(state, playerId, offsets, row, col),
-    applyCannonPlacement: (
-      state: GameState,
-      playerId: number,
-      row: number,
-      col: number,
-      mode: string,
-    ) => {
-      applyCannonPlacement(
-        state.players[playerId]!,
-        row,
-        col,
-        toCannonMode(mode),
-        state,
-      );
-    },
-    canApplyCannonPlacement: (
-      state: GameState,
-      playerId: number,
-      row: number,
-      col: number,
-      mode: string,
-    ) => {
-      const player = state.players[playerId];
-      if (!player) return false;
-      const maxCannons = state.cannonLimits[playerId] ?? 0;
-      const normalizedMode = toCannonMode(mode);
-      if (cannonSlotsUsed(player) + cannonSlotCost(normalizedMode) > maxCannons)
-        return false;
-      return canPlaceCannon(player, row, col, normalizedMode, state);
-    },
-    applyImpactEvent,
-    gridCols: GRID_COLS,
     getLifeLostDialog: () => runtime.lifeLost.get(),
   };
 }

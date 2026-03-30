@@ -6,6 +6,10 @@
 import type { PlayerController } from "./controller-interfaces.ts";
 import { BATTLE_TIMER } from "./game-constants.ts";
 import {
+  enterCannonPlacePhase,
+  finalizeCastleConstruction,
+} from "./game-engine.ts";
+import {
   type GameState,
   isPlayerAlive,
   Phase,
@@ -57,6 +61,16 @@ export function rebuildControllersForPhase(
     }
     // SELECTION, CASTLE_RESELECT — AI will be driven by selection system
   }
+}
+
+/**
+ * Fast-forward past the castle build animation during host promotion.
+ * Finalizes construction and enters cannon placement so the new host
+ * can immediately resume gameplay.
+ */
+export function skipCastleBuildAnimation(state: GameState): void {
+  finalizeCastleConstruction(state);
+  enterCannonPlacePhase(state);
 }
 
 /**

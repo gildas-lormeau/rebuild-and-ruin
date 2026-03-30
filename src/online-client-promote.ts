@@ -6,23 +6,20 @@
  * syncs accumulators, and broadcasts the authoritative full state.
  */
 
-import { createController } from "./controller-factory.ts";
-import {
-  enterCannonPlacePhase,
-  finalizeCastleConstruction,
-} from "./game-engine.ts";
 import { runtime } from "./online-client-runtime.ts";
+import {
+  rebuildControllersForPhase,
+  skipCastleBuildAnimation,
+  syncAccumulatorsFromTimer,
+} from "./online-host-promotion.ts";
+import { createFullStateMessage } from "./online-serialize.ts";
+import { createAiController } from "./runtime-bootstrap.ts";
 import {
   devLog,
   resetNetworking,
   send,
   session,
-} from "./online-client-stores.ts";
-import {
-  rebuildControllersForPhase,
-  syncAccumulatorsFromTimer,
-} from "./online-host-promotion.ts";
-import { createFullStateMessage } from "./online-serialize.ts";
+} from "./runtime-online-stores.ts";
 import { assertNever, Mode } from "./types.ts";
 
 /** Promote this client to host. Order matters:
@@ -42,7 +39,7 @@ export function promoteToHost(): void {
     runtime.runtimeState.state,
     runtime.runtimeState.controllers,
     session.myPlayerId,
-    (id, seed) => createController(id, true, undefined, seed),
+    createAiController,
   );
   syncAccumulatorsFromTimer(
     runtime.runtimeState.state,
@@ -70,8 +67,7 @@ function skipPendingAnimations(): void {
   switch (mode) {
     case Mode.CASTLE_BUILD:
       runtime.runtimeState.castleBuilds = [];
-      finalizeCastleConstruction(state);
-      enterCannonPlacePhase(state);
+      skipCastleBuildAnimation(state);
       runtime.phaseTicks.startCannonPhase();
       runtime.runtimeState.mode = Mode.GAME;
       devLog("Skipped castle build animation → cannon phase");

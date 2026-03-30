@@ -128,3 +128,8 @@ Rename groups in `.import-layers.json` to match reality. **Naming is the analysi
 | `input` → `render` (was L9→L7, now L7→L8) | Moved `render-theme.ts` to L3 (no canvas deps); moved `ControlsState` to `types.ts`; reordered input before render |
 | `online-logic` → `render` (L11→L8) | Reclassified `render-types.ts` to L3 (only imports L1–L3) |
 | `selection.ts` misplaced in "controllers" | Moved to "game systems" — it's phase logic, not a controller impl |
+| `online-infra` → `game-logic` (L10→L4) | Reclassified `online-serialize.ts` to L11 (imports L0–L10) |
+| `app-roots` → `game-logic` (L14→L4) | Hoisted `resetZoneState` to `online-phase-transitions.ts`; hoisted battle/build/cannon-system functions to `online-server-events.ts`; removed dead TransitionContext fields |
+| `app-roots` → `controllers` (L14→L6) | Added `createAiController` to `runtime-bootstrap.ts`; `online-client-promote.ts` imports L12 instead of L6 |
+| `online-client-stores.ts` misplaced in "app roots" | Reclassified to L12 "runtime" (only imports L0–L11); renamed to `runtime-online-stores.ts` |
+| `game-ui-helpers.ts` prefix mismatch in "game logic" | Renamed to `game-helpers.ts` — deps are L3–L4, not L9 "game UI" |
