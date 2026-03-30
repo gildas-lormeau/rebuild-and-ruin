@@ -64,6 +64,7 @@ interface InitGameDeps {
   cannonMaxHp: number;
   buildTimer: number;
   cannonPlaceTimer: number;
+  firstRoundCannons: number;
   log: (msg: string) => void;
   clearFrameData: () => void;
   setState: (nextState: GameState) => void;
@@ -270,6 +271,7 @@ export function bootstrapGame(deps: InitGameDeps): void {
   state.cannonMaxHp = deps.cannonMaxHp;
   state.buildTimer = deps.buildTimer;
   state.cannonPlaceTimer = deps.cannonPlaceTimer;
+  state.firstRoundCannons = deps.firstRoundCannons;
 
   deps.log(
     `initGame: ${playerCount} players, seed=${deps.seed}, battleLength=${state.battleLength}`,

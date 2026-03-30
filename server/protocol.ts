@@ -132,6 +132,7 @@ export interface InitMessage {
     cannonMaxHp: number;
     buildTimer: number;
     cannonPlaceTimer: number;
+    firstRoundCannons: number;
   };
 }
 

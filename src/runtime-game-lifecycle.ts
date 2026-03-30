@@ -154,10 +154,10 @@ export function createGameLifecycle(
       ).value,
       buildTimer,
       cannonPlaceTimer,
+      firstRoundCannons,
       log: deps.log,
       clearFrameData: deps.clearFrameData,
       setState: (state: GameState) => {
-        state.firstRoundCannons = firstRoundCannons;
         runtimeState.state = state;
       },
       setControllers: (controller: readonly PlayerController[]) => {

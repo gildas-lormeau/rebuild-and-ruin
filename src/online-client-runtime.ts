@@ -15,12 +15,7 @@ import type {
   InitMessage,
 } from "../server/protocol.ts";
 import { MESSAGE } from "../server/protocol.ts";
-import {
-  BANNER_DURATION,
-  BUILD_TIMER,
-  CANNON_PLACE_TIMER,
-  SELECT_TIMER,
-} from "./game-constants.ts";
+import { BANNER_DURATION, SELECT_TIMER } from "./game-constants.ts";
 import {
   applyBattleStartCheckpoint,
   applyBuildStartCheckpoint,
@@ -54,7 +49,12 @@ import {
   tickMigrationAnnouncement as tickMigrationAnnouncementFn,
   tickWatcher as tickWatcherFn,
 } from "./online-watcher-tick.ts";
-import { MAX_PLAYERS, PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
+import {
+  DIFFICULTY_PARAMS,
+  MAX_PLAYERS,
+  PLAYER_COLORS,
+  PLAYER_NAMES,
+} from "./player-config.ts";
 import {
   GAME_CONTAINER_ACTIVE,
   GAME_EXIT_EVENT,
@@ -144,6 +144,9 @@ export const runtime: GameRuntime = createGameRuntime({
   onTickLobbyExpired: () => {
     // Re-read isHost (volatile — can flip during host promotion)
     if (!session.isHost) return;
+    const diffParams =
+      DIFFICULTY_PARAMS[runtime.runtimeState.settings.difficulty] ??
+      DIFFICULTY_PARAMS[1]!;
     const initMsg: InitMessage = {
       type: MESSAGE.INIT,
       seed: session.roomSeed,
@@ -151,8 +154,9 @@ export const runtime: GameRuntime = createGameRuntime({
       settings: {
         battleLength: session.roomBattleLength,
         cannonMaxHp: session.roomCannonMaxHp,
-        buildTimer: BUILD_TIMER,
-        cannonPlaceTimer: CANNON_PLACE_TIMER,
+        buildTimer: diffParams.buildTimer,
+        cannonPlaceTimer: diffParams.cannonPlaceTimer,
+        firstRoundCannons: diffParams.firstRoundCannons,
       },
     };
     send(initMsg);
@@ -243,6 +247,7 @@ export function initFromServer(msg: InitMessage): void {
     cannonMaxHp: msg.settings.cannonMaxHp,
     buildTimer: msg.settings.buildTimer,
     cannonPlaceTimer: msg.settings.cannonPlaceTimer,
+    firstRoundCannons: msg.settings.firstRoundCannons,
     log: devLog,
     clearFrameData: () => runtime.clearFrameData(),
     setState: (state) => {
