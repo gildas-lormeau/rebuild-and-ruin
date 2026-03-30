@@ -107,7 +107,7 @@ export function parseBoard(ascii: string, playerId = 0): ParseResult {
 
   const walls = new Set<number>();
   const towers: Tower[] = [];
-  const grunts: { row: number; col: number; ownerId: number; targetPlayerId: number }[] = [];
+  const grunts: { row: number; col: number; ownerId: number; targetPlayerId: number; blockedBattles: number }[] = [];
   const burningPits: { row: number; col: number; roundsLeft: number }[] = [];
   const originalChars = new Map<number, string>();
 
@@ -138,7 +138,7 @@ export function parseBoard(ascii: string, playerId = 0): ParseResult {
           burningPits.push({ row: r, col: c, roundsLeft: 3 });
           break;
         case "G":
-          grunts.push({ row: r, col: c, ownerId: 1, targetPlayerId: playerId });
+          grunts.push({ row: r, col: c, ownerId: 1, targetPlayerId: playerId, blockedBattles: 0 });
           break;
         case "~":
         case "X":

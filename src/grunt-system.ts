@@ -228,7 +228,7 @@ export function updateGruntBlockedBattles(state: GameState): void {
     if (adjacent) {
       grunt.blockedBattles = 0;
     } else {
-      grunt.blockedBattles = (grunt.blockedBattles ?? 0) + 1;
+      grunt.blockedBattles += 1;
     }
     // Clear wall attack state for next round
     grunt.wallAttack = false;
@@ -258,7 +258,7 @@ function addGrunt(
 ): void {
   if (!inBounds(row, col) || !isGrass(state.map.tiles, row, col)) return;
   // targetPlayerId is provisional at spawn — corrected in lockGruntTarget() to match actual zone owner
-  state.grunts.push({ row, col, targetPlayerId });
+  state.grunts.push({ row, col, targetPlayerId, blockedBattles: 0 });
 }
 
 function enqueueUnvisitedTile(
@@ -388,7 +388,7 @@ function canAttemptWallAttack(state: GameState, grunt: Grunt): boolean {
 function hasBlockedBattlesForWallAttack(
   grunt: Pick<Grunt, "blockedBattles">,
 ): boolean {
-  return (grunt.blockedBattles ?? 0) >= GRUNT_WALL_ATTACK_MIN_BATTLES;
+  return grunt.blockedBattles >= GRUNT_WALL_ATTACK_MIN_BATTLES;
 }
 
 function hasAdjacentWall(state: GameState, row: number, col: number): boolean {

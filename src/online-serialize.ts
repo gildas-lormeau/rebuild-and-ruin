@@ -401,24 +401,16 @@ function serializeGrunts(state: GameState) {
 }
 
 function deserializeGrunt(grunt: SerializedGrunt): GameState["grunts"][number] {
-  return gruntWireFields(grunt);
+  return {
+    ...gruntWireFields(grunt),
+    blockedBattles: grunt.blockedBattles ?? 0,
+  };
 }
 
-/** Pick the wire-format fields from a grunt. Grunt wire format is identical
- *  to runtime format, so this works in both directions (serialize & deserialize). */
-function gruntWireFields(
-  grunt: Pick<
-    GameState["grunts"][number],
-    | "row"
-    | "col"
-    | "targetPlayerId"
-    | "targetTowerIdx"
-    | "attackTimer"
-    | "blockedBattles"
-    | "wallAttack"
-    | "facing"
-  >,
-): SerializedGrunt {
+/** Pick the wire-format fields from a grunt. Accepts both runtime Grunt
+ *  (required fields) and SerializedGrunt (optional fields) since runtime
+ *  Grunt satisfies the wire format's optional shape. */
+function gruntWireFields(grunt: SerializedGrunt): SerializedGrunt {
   return {
     row: grunt.row,
     col: grunt.col,
