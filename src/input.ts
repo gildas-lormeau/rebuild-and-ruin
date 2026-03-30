@@ -3,6 +3,20 @@
  *
  * Pure type definitions consumed by mouse, keyboard, and touch input handlers.
  * No runtime code — avoids circular dependencies between handler modules.
+ *
+ * ### Mode vs Phase (glossary)
+ *
+ * **Mode** (`getMode()` / `setMode()`) — numeric UI state set at the app level.
+ * Values: STOPPED, LOBBY, OPTIONS, GAME (see `ModeValues` in input-dispatch.ts).
+ * Controls which input handlers are active and which screen is drawn.
+ *
+ * **Phase** (`state.phase`, `Phase` enum) — gameplay state within GAME mode.
+ * Values: CASTLE_SELECT, WALL_BUILD, CANNON_PLACE, BATTLE, CASTLE_RESELECT.
+ * Controls which game actions are valid and which tick functions run.
+ *
+ * They are independent: Mode gates top-level input routing; Phase gates
+ * game-action semantics. An LLM editing input code should check Mode first,
+ * then Phase only when Mode === GAME.
  */
 
 import type {

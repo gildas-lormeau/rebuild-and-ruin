@@ -3,6 +3,28 @@
  *
  * Extracted from phase-ticks.ts so that battle-ticks.ts can import
  * without creating a peer dependency on phase-ticks.
+ *
+ * ### State mutation phases (applies across all game code)
+ *
+ * Game state is mutated in three distinct phases per frame. The order is
+ * load-bearing — reordering causes silent correctness bugs.
+ *
+ * 1. **APPLY** (message handlers) — Incremental mutations from remote
+ *    players. Guards ensure valid state transitions. Runs as messages
+ *    arrive (may be zero or many per frame).
+ *    Examples: applyPiecePlacement, applyImpactEvent, applyCannonPlacement.
+ *
+ * 2. **TICK** (main game loop) — Deterministic per-frame simulation:
+ *    cannonball physics, grunt movement, battle timers, phase countdowns.
+ *    Runs exactly once per frame.
+ *    Examples: tickCannonballs, tickGrunts, advancePhaseTimer.
+ *
+ * 3. **CHECKPOINT** (phase transitions) — Full state reset from host
+ *    checkpoint. Replaces entire subsystem state. Runs at most once per
+ *    frame, only when the phase changes.
+ *    Examples: applyBattleStartCheckpoint, applyBuildStartCheckpoint.
+ *
+ * Within a single frame: APPLY → TICK → CHECKPOINT (if phase change).
  */
 
 import type { PlayerController } from "./controller-interfaces.ts";

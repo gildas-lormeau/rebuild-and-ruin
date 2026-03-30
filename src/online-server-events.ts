@@ -318,6 +318,11 @@ function handleCannonFired(
   return true;
 }
 
+/** Watcher-only: the host computes impacts locally, so it never applies
+ *  incoming impact messages. Watchers apply all impacts unconditionally.
+ *  This is intentionally different from other handlers that use
+ *  `isRemoteHumanAction()` — impacts are authoritative host events, not
+ *  player actions that need remote-human filtering. */
 function handleImpactEvent(
   msg: ImpactMsg,
   state: GameState | undefined,

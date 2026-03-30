@@ -236,6 +236,7 @@ export function drawWaterAnimation(
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.battle?.battleTerritory) return; // only during battle
+  overlayCtx.save();
   const time = performance.now() / 1000;
   const rows = map.tiles.length;
   const cols = map.tiles[0]!.length;
@@ -274,6 +275,7 @@ export function drawWaterAnimation(
       }
     }
   }
+  overlayCtx.restore();
 }
 
 /** Draw impact flashes, cannonballs, balloons, burning pits, crosshairs, and timer. */
