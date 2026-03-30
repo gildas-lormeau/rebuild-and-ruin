@@ -6,7 +6,6 @@
  * Follows the factory-with-deps pattern used by other runtime-*.ts files.
  */
 
-import { createController } from "./controller-factory.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
@@ -20,7 +19,6 @@ import {
   PLAYER_NAMES,
 } from "./player-config.ts";
 import { gameOverButtonHitTest } from "./render-composition.ts";
-import { MAX_UINT32 } from "./rng.ts";
 import { bootstrapGame } from "./runtime-bootstrap.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { CameraSystem } from "./runtime-types.ts";
@@ -163,20 +161,10 @@ export function createGameLifecycle(
       setControllers: (controller: readonly PlayerController[]) => {
         runtimeState.controllers = [...controller];
       },
+      humanSlots: runtimeState.lobby.joined,
+      keyBindings: runtimeState.settings.keyBindings,
+      difficulty: runtimeState.settings.difficulty,
       resetUIState,
-      createControllerForSlot: (i: number, gameState: GameState) => {
-        const isAi = !runtimeState.lobby.joined[i];
-        const strategySeed = isAi
-          ? gameState.rng.int(0, MAX_UINT32)
-          : undefined;
-        return createController(
-          i,
-          isAi,
-          runtimeState.settings.keyBindings[i]!,
-          strategySeed,
-          runtimeState.settings.difficulty,
-        );
-      },
       enterSelection: selection.enter,
     });
   }

@@ -64,7 +64,6 @@ import { createGameRuntime, type GameRuntime } from "./runtime.ts";
 import {
   bootstrapGame,
   createCanvasRenderer,
-  createOnlineControllerSlotFactory,
   initWaitingRoom,
 } from "./runtime-bootstrap.ts";
 import {
@@ -239,6 +238,13 @@ export function initFromServer(msg: InitMessage): void {
   roomCodeOverlay.style.display = "none";
   runtime.runtimeState.lobby.active = false;
   const settings = runtime.runtimeState.settings;
+  const humanSlots = Array.from(
+    { length: msg.playerCount },
+    (_, i) => i === session.myPlayerId,
+  );
+  const keyBindings = Array.from({ length: msg.playerCount }, (_, i) =>
+    i === session.myPlayerId ? settings.keyBindings[0] : undefined,
+  );
   bootstrapGame({
     seed: msg.seed,
     maxPlayers: msg.playerCount,
@@ -248,6 +254,9 @@ export function initFromServer(msg: InitMessage): void {
     buildTimer: msg.settings.buildTimer,
     cannonPlaceTimer: msg.settings.cannonPlaceTimer,
     firstRoundCannons: msg.settings.firstRoundCannons,
+    humanSlots,
+    keyBindings,
+    difficulty: settings.difficulty,
     log: devLog,
     clearFrameData: () => runtime.clearFrameData(),
     setState: (state) => {
@@ -260,11 +269,6 @@ export function initFromServer(msg: InitMessage): void {
       runtime.lifecycle.resetUIState();
       resetNetworking("new-game");
     },
-    createControllerForSlot: createOnlineControllerSlotFactory(
-      session.myPlayerId,
-      settings.keyBindings[0]!,
-      settings.difficulty,
-    ),
     enterSelection: () => runtime.selection.enter(),
   });
 }

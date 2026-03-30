@@ -65,13 +65,17 @@ interface InitGameDeps {
   buildTimer: number;
   cannonPlaceTimer: number;
   firstRoundCannons: number;
+  /** Which slots are human (true = human, false/missing = AI). */
+  humanSlots: readonly boolean[];
+  /** Per-slot key bindings (only used for human slots). */
+  keyBindings: readonly (KeyBindings | undefined)[];
+  /** AI difficulty level (0=Easy, 1=Normal, 2=Hard, 3=Very Hard). */
+  difficulty?: number;
   log: (msg: string) => void;
   clearFrameData: () => void;
   setState: (nextState: GameState) => void;
   setControllers: (nextControllers: readonly PlayerController[]) => void;
   resetUIState: () => void;
-  /** Create a controller for slot `i`. Receives the state for RNG access. */
-  createControllerForSlot: (i: number, state: GameState) => PlayerController;
   /** Called after state + controllers are ready. Enters tower selection. */
   enterSelection: () => void;
 }
@@ -240,26 +244,6 @@ export function createAiController(
   return createController(id, true, undefined, seed, difficulty);
 }
 
-/** Returns a createControllerForSlot factory for online play.
- *  The local player (myPlayerId) gets a human controller; all others get AI. */
-export function createOnlineControllerSlotFactory(
-  myPlayerId: number,
-  localKeyBinding: KeyBindings,
-  difficulty?: number,
-): (i: number, gameState: GameState) => PlayerController {
-  return (i, gameState) => {
-    const isAi = i !== myPlayerId;
-    const strategySeed = isAi ? gameState.rng.int(0, MAX_UINT32) : undefined;
-    return createController(
-      i,
-      isAi,
-      isAi ? undefined : localKeyBinding,
-      strategySeed,
-      isAi ? difficulty : undefined,
-    );
-  };
-}
-
 /** Shared game init — used by both local startGame and online initFromServer.
  *  Generates map from seed, creates state, creates controllers, enters selection. */
 export function bootstrapGame(deps: InitGameDeps): void {
@@ -283,7 +267,17 @@ export function bootstrapGame(deps: InitGameDeps): void {
 
   const nextControllers: PlayerController[] = [];
   for (let i = 0; i < playerCount; i++) {
-    nextControllers.push(deps.createControllerForSlot(i, state));
+    const isAi = !deps.humanSlots[i];
+    const strategySeed = isAi ? state.rng.int(0, MAX_UINT32) : undefined;
+    nextControllers.push(
+      createController(
+        i,
+        isAi,
+        deps.keyBindings[i],
+        strategySeed,
+        isAi ? deps.difficulty : undefined,
+      ),
+    );
   }
 
   deps.setState(state);
