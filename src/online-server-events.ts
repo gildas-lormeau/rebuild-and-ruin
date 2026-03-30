@@ -129,9 +129,20 @@ type LifeLostChoiceMsg = Extract<
   { type: typeof MESSAGE.LIFE_LOST_CHOICE }
 >;
 
+/** Result of handling a server message.
+ *  `applied` = true when the message mutated game state.
+ *  `applied` = false when it was silently dropped (validation failed,
+ *  not a remote-human action, host-only filter, etc.). */
+interface HandleResult {
+  applied: boolean;
+}
+
+const APPLIED: HandleResult = { applied: true };
+const DROPPED: HandleResult = { applied: false };
+
 /** Dispatch incremental game messages from the server.
- *  Each case follows the same pattern: validate → isRemoteHumanAction guard → apply → return true.
- *  Returns true if handled, false if unrecognized.
+ *  Each case follows the same pattern: validate → isRemoteHumanAction guard → apply.
+ *  Returns `{ applied }` for observability; returns `null` if unrecognized.
  *
  *  Case groups:
  *    Selection:  OPPONENT_TOWER_SELECTED
@@ -142,7 +153,7 @@ type LifeLostChoiceMsg = Extract<
 export function handleServerIncrementalMessage(
   msg: ServerMessage,
   deps: HandleServerIncrementalDeps,
-): boolean {
+): HandleResult | null {
   const state = deps.getState();
 
   switch (msg.type) {
@@ -172,7 +183,7 @@ export function handleServerIncrementalMessage(
     case MESSAGE.LIFE_LOST_CHOICE:
       return handleLifeLostChoice(msg, deps);
     default:
-      return false;
+      return null;
   }
 }
 
@@ -180,142 +191,127 @@ function handleTowerSelected(
   msg: TowerSelectedMsg,
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
-): true {
-  // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
-  if (!state || !validPid(msg.playerId, state)) return true;
-  if (msg.towerIdx < 0 || msg.towerIdx >= state.map.towers.length) return true;
-  if (isRemoteHumanAction(msg.playerId, deps)) {
-    const tower = state.map.towers[msg.towerIdx];
-    const expectedZone: number | undefined = state.playerZones[msg.playerId];
-    if (tower && expectedZone !== undefined && tower.zone === expectedZone) {
-      const player = state.players[msg.playerId]!;
-      selectPlayerTower(player, tower);
-      const selectionState = deps.selectionStates.get(msg.playerId);
-      if (selectionState && !selectionState.confirmed) {
-        selectionState.highlighted = msg.towerIdx;
-        deps.syncSelectionOverlay();
-        if (msg.confirmed && deps.session.isHost) {
-          deps.confirmSelectionAndStartBuild(
-            msg.playerId,
-            deps.isCastleReselectPhase(),
-          );
-        } else if (msg.confirmed) {
-          selectionState.confirmed = true;
-        }
-      }
+): HandleResult {
+  if (!state || !validPid(msg.playerId, state)) return DROPPED;
+  if (msg.towerIdx < 0 || msg.towerIdx >= state.map.towers.length)
+    return DROPPED;
+  if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
+  const tower = state.map.towers[msg.towerIdx];
+  const expectedZone: number | undefined = state.playerZones[msg.playerId];
+  if (!tower || expectedZone === undefined || tower.zone !== expectedZone)
+    return DROPPED;
+  const player = state.players[msg.playerId]!;
+  selectPlayerTower(player, tower);
+  const selectionState = deps.selectionStates.get(msg.playerId);
+  if (selectionState && !selectionState.confirmed) {
+    selectionState.highlighted = msg.towerIdx;
+    deps.syncSelectionOverlay();
+    if (msg.confirmed && deps.session.isHost) {
+      deps.confirmSelectionAndStartBuild(
+        msg.playerId,
+        deps.isCastleReselectPhase(),
+      );
+    } else if (msg.confirmed) {
+      selectionState.confirmed = true;
     }
   }
-  return true;
+  return APPLIED;
 }
 
 function handlePiecePlaced(
   msg: PiecePlacedMsg,
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
-): true {
-  // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
-  if (!state || !validPid(msg.playerId, state)) return true;
-  if (!inBoundsStrict(msg.row, msg.col)) return true;
-  if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return true;
-  if (isRemoteHumanAction(msg.playerId, deps)) {
-    if (
-      deps.session.isHost &&
-      !deps.canApplyPiecePlacement(
-        state,
-        msg.playerId,
-        msg.offsets,
-        msg.row,
-        msg.col,
-      )
-    ) {
-      deps.log(`piece_placed: rejected invalid placement for P${msg.playerId}`);
-      return true;
-    }
-    deps.log(
-      `applying piece placement for P${msg.playerId} (${msg.offsets.length} tiles)`,
-    );
-    const hadInterior = state.players[msg.playerId]!.interior.size > 0;
-    deps.applyPiecePlacement(
+): HandleResult {
+  if (!state || !validPid(msg.playerId, state)) return DROPPED;
+  if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
+  if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return DROPPED;
+  if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
+  if (
+    deps.session.isHost &&
+    !deps.canApplyPiecePlacement(
       state,
       msg.playerId,
       msg.offsets,
       msg.row,
       msg.col,
-    );
-    if (!hadInterior && state.players[msg.playerId]!.interior.size > 0) {
-      deps.onFirstEnclosure?.(msg.playerId);
-    }
+    )
+  ) {
+    deps.log(`piece_placed: rejected invalid placement for P${msg.playerId}`);
+    return DROPPED;
   }
-  return true;
+  deps.log(
+    `applying piece placement for P${msg.playerId} (${msg.offsets.length} tiles)`,
+  );
+  const hadInterior = state.players[msg.playerId]!.interior.size > 0;
+  deps.applyPiecePlacement(state, msg.playerId, msg.offsets, msg.row, msg.col);
+  if (!hadInterior && state.players[msg.playerId]!.interior.size > 0) {
+    deps.onFirstEnclosure?.(msg.playerId);
+  }
+  return APPLIED;
 }
 
 function handleCannonPlaced(
   msg: CannonPlacedMsg,
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
-): true {
-  // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
-  if (!state || !validPid(msg.playerId, state)) return true;
-  if (!inBoundsStrict(msg.row, msg.col)) return true;
-  if (!CANNON_MODES.has(msg.mode)) return true;
-  if (isRemoteHumanAction(msg.playerId, deps)) {
-    if (
-      deps.session.isHost &&
-      !deps.canApplyCannonPlacement(
-        state,
-        msg.playerId,
-        msg.row,
-        msg.col,
-        msg.mode,
-      )
-    ) {
-      deps.log(
-        `cannon_placed: rejected invalid placement for P${msg.playerId}`,
-      );
-      return true;
-    }
-    deps.applyCannonPlacement(state, msg.playerId, msg.row, msg.col, msg.mode);
+): HandleResult {
+  if (!state || !validPid(msg.playerId, state)) return DROPPED;
+  if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
+  if (!CANNON_MODES.has(msg.mode)) return DROPPED;
+  if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
+  if (
+    deps.session.isHost &&
+    !deps.canApplyCannonPlacement(
+      state,
+      msg.playerId,
+      msg.row,
+      msg.col,
+      msg.mode,
+    )
+  ) {
+    deps.log(`cannon_placed: rejected invalid placement for P${msg.playerId}`);
+    return DROPPED;
   }
-  return true;
+  deps.applyCannonPlacement(state, msg.playerId, msg.row, msg.col, msg.mode);
+  return APPLIED;
 }
 
 function handleCannonFired(
   msg: CannonFiredMsg,
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
-): true {
-  // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
-  if (!state || !validPid(msg.playerId, state)) return true;
-  if (!Number.isFinite(msg.speed) || msg.speed <= 0) return true;
+): HandleResult {
+  if (!state || !validPid(msg.playerId, state)) return DROPPED;
+  if (!Number.isFinite(msg.speed) || msg.speed <= 0) return DROPPED;
   if (
     !Number.isFinite(msg.startX) ||
     !Number.isFinite(msg.startY) ||
     !Number.isFinite(msg.targetX) ||
     !Number.isFinite(msg.targetY)
   )
-    return true;
-  if (isRemoteHumanAction(msg.playerId, deps)) {
-    const player = state.players[msg.playerId];
-    if (!player || !player.cannons[msg.cannonIdx]) {
-      deps.log(
-        `cannon_fired: stale ref P${msg.playerId} cannon[${msg.cannonIdx}] — skipped`,
-      );
-      return true;
-    }
-    state.cannonballs.push({
-      cannonIdx: msg.cannonIdx,
-      startX: msg.startX,
-      startY: msg.startY,
-      x: msg.startX,
-      y: msg.startY,
-      targetX: msg.targetX,
-      targetY: msg.targetY,
-      speed: msg.speed,
-      playerId: msg.playerId,
-      incendiary: msg.incendiary,
-    });
+    return DROPPED;
+  if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
+  const player = state.players[msg.playerId];
+  if (!player || !player.cannons[msg.cannonIdx]) {
+    deps.log(
+      `cannon_fired: stale ref P${msg.playerId} cannon[${msg.cannonIdx}] — skipped`,
+    );
+    return DROPPED;
   }
-  return true;
+  state.cannonballs.push({
+    cannonIdx: msg.cannonIdx,
+    startX: msg.startX,
+    startY: msg.startY,
+    x: msg.startX,
+    y: msg.startY,
+    targetX: msg.targetX,
+    targetY: msg.targetY,
+    speed: msg.speed,
+    playerId: msg.playerId,
+    incendiary: msg.incendiary,
+  });
+  return APPLIED;
 }
 
 /** Watcher-only: the host computes impacts locally, so it never applies
@@ -327,125 +323,115 @@ function handleImpactEvent(
   msg: ImpactMsg,
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
-): true {
-  if (!deps.session.isHost && state) {
-    // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
-    if ("row" in msg && "col" in msg && !inBoundsStrict(msg.row, msg.col))
-      return true;
-    if ("playerId" in msg && !validPid(msg.playerId, state)) return true;
-    if (msg.type === MESSAGE.WALL_DESTROYED) {
-      const wallKey = msg.row * deps.gridCols + msg.col;
-      const owner = state.players.find((player) => player.walls.has(wallKey));
-      deps.log(
-        `wall_destroyed: (${msg.row},${msg.col}) owner=P${owner?.id ?? "?"} shooter=P${msg.shooterId ?? "?"}`,
-      );
-    } else if (msg.type === MESSAGE.CANNON_DAMAGED) {
-      deps.log(
-        `cannon_damaged: P${msg.playerId} newHp=${msg.newHp} shooter=P${msg.shooterId ?? "?"}`,
-      );
-    }
-    deps.applyImpactEvent(state, msg as ImpactEvent);
+): HandleResult {
+  if (deps.session.isHost || !state) return DROPPED;
+  if ("row" in msg && "col" in msg && !inBoundsStrict(msg.row, msg.col))
+    return DROPPED;
+  if ("playerId" in msg && !validPid(msg.playerId, state)) return DROPPED;
+  if (msg.type === MESSAGE.WALL_DESTROYED) {
+    const wallKey = msg.row * deps.gridCols + msg.col;
+    const owner = state.players.find((player) => player.walls.has(wallKey));
+    deps.log(
+      `wall_destroyed: (${msg.row},${msg.col}) owner=P${owner?.id ?? "?"} shooter=P${msg.shooterId ?? "?"}`,
+    );
+  } else if (msg.type === MESSAGE.CANNON_DAMAGED) {
+    deps.log(
+      `cannon_damaged: P${msg.playerId} newHp=${msg.newHp} shooter=P${msg.shooterId ?? "?"}`,
+    );
   }
-  return true;
+  deps.applyImpactEvent(state, msg as ImpactEvent);
+  return APPLIED;
 }
 
 function handleAimUpdate(
   msg: AimUpdateMsg,
   deps: HandleServerIncrementalDeps,
-): true {
-  // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
-  if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return true;
-  if (isRemoteHumanAction(msg.playerId, deps)) {
-    deps.watcher.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
-    if (msg.orbit) deps.watcher.orbitParams.set(msg.playerId, msg.orbit);
-  }
-  return true;
+): HandleResult {
+  if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return DROPPED;
+  if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
+  deps.watcher.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
+  if (msg.orbit) deps.watcher.orbitParams.set(msg.playerId, msg.orbit);
+  return APPLIED;
 }
 
 function handleTowerKilled(
   msg: TowerKilledMsg,
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
-): true {
-  if (!deps.session.isHost && state) {
-    // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
-    if (msg.towerIdx < 0 || msg.towerIdx >= state.towerAlive.length)
-      return true;
-    state.towerAlive[msg.towerIdx] = false;
-  }
-  return true;
+): HandleResult {
+  if (deps.session.isHost || !state) return DROPPED;
+  if (msg.towerIdx < 0 || msg.towerIdx >= state.towerAlive.length)
+    return DROPPED;
+  state.towerAlive[msg.towerIdx] = false;
+  return APPLIED;
 }
 
 function handlePiecePhantom(
   msg: PiecePhantomMsg,
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
-): true {
-  // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
-  if (state && !validPid(msg.playerId, state)) return true;
-  if (!inBoundsStrict(msg.row, msg.col)) return true;
-  if (isRemoteHumanAction(msg.playerId, deps)) {
-    const updated = deps.watcher.remotePiecePhantoms.filter(
-      (entry) => entry.playerId !== msg.playerId,
-    );
-    updated.push({
-      offsets: msg.offsets,
-      row: msg.row,
-      col: msg.col,
-      playerId: msg.playerId,
-    });
-    deps.watcher.remotePiecePhantoms = updated;
-  }
-  return true;
+): HandleResult {
+  if (state && !validPid(msg.playerId, state)) return DROPPED;
+  if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
+  if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
+  const updated = deps.watcher.remotePiecePhantoms.filter(
+    (entry) => entry.playerId !== msg.playerId,
+  );
+  updated.push({
+    offsets: msg.offsets,
+    row: msg.row,
+    col: msg.col,
+    playerId: msg.playerId,
+  });
+  deps.watcher.remotePiecePhantoms = updated;
+  return APPLIED;
 }
 
 function handleCannonPhantom(
   msg: CannonPhantomMsg,
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
-): true {
-  // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
-  if (state && !validPid(msg.playerId, state)) return true;
-  if (!inBoundsStrict(msg.row, msg.col)) return true;
-  if (isRemoteHumanAction(msg.playerId, deps)) {
-    const updated = deps.watcher.remoteCannonPhantoms.filter(
-      (entry) => entry.playerId !== msg.playerId,
-    );
-    updated.push({
-      row: msg.row,
-      col: msg.col,
-      valid: msg.valid,
-      mode: toCannonMode(msg.mode),
-      playerId: msg.playerId,
-      facing: msg.facing,
-    });
-    deps.watcher.remoteCannonPhantoms = updated;
-  }
-  return true;
+): HandleResult {
+  if (state && !validPid(msg.playerId, state)) return DROPPED;
+  if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
+  if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
+  const updated = deps.watcher.remoteCannonPhantoms.filter(
+    (entry) => entry.playerId !== msg.playerId,
+  );
+  updated.push({
+    row: msg.row,
+    col: msg.col,
+    valid: msg.valid,
+    mode: toCannonMode(msg.mode),
+    playerId: msg.playerId,
+    facing: msg.facing,
+  });
+  deps.watcher.remoteCannonPhantoms = updated;
+  return APPLIED;
 }
 
 function handleLifeLostChoice(
   msg: LifeLostChoiceMsg,
   deps: HandleServerIncrementalDeps,
-): true {
-  if (!deps.session.isHost) return true;
+): HandleResult {
+  if (!deps.session.isHost) return DROPPED;
   deps.log(
     `life_lost_choice from P${msg.playerId}: ${msg.choice} (dialog=${deps.getLifeLostDialog() ? "active" : "null"})`,
   );
   const validated = parseLifeLostChoice(msg.choice);
-  // Validation failed — silently drop invalid message (expected during reconnection/race conditions)
-  if (validated === null) return true;
+  if (validated === null) return DROPPED;
   const dialog = deps.getLifeLostDialog();
   if (dialog) {
     const entry = dialog.entries.find((e) => e.playerId === msg.playerId);
     if (entry && entry.choice === LifeLostChoice.PENDING) {
       entry.choice = validated;
+      return APPLIED;
     }
-  } else {
-    // Dialog not yet created — queue choice for when it appears
-    deps.session.earlyLifeLostChoices.set(msg.playerId, validated);
+    return DROPPED;
   }
-  return true;
+  // Dialog not yet created — queue choice for when it appears
+  deps.session.earlyLifeLostChoices.set(msg.playerId, validated);
+  return APPLIED;
 }
 
 /** Parse an untrusted value into a resolved LifeLostChoice, or null if invalid. */

@@ -175,48 +175,34 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
 
   advancePhaseTimer(accum, "battle", state, dt, battleTimer);
 
-  // ── Step 1: Tick controllers → collect fire events ──
-  const ballsBefore = state.cannonballs.length;
-  for (const ctrl of localActiveControllers(
+  // Steps 1–3: collect events in load-bearing order
+  const fireEvents = tickControllersAndCollectFires(
+    state,
+    dt,
     controllers,
     remoteHumanSlots,
-    state,
-  )) {
-    ctrl.battleTick(state, dt);
-  }
-
-  // Fire events = cannonballs added by battleTick (index ballsBefore..length)
-  const fireEvents: GameMessage[] = [];
-  for (let i = ballsBefore; i < state.cannonballs.length; i++) {
-    const msg = createCannonFiredMsg(state.cannonballs[i]!);
-    fireEvents.push(msg);
-    if (isHost && sendMessage) sendMessage(msg);
-  }
-
-  // ── Step 2: Collect tower kill/damage events ──
+    isHost,
+    sendMessage,
+  );
   const towerEvents = collectTowerEvents(state, dt);
   if (isHost && sendMessage) {
     for (const evt of towerEvents) sendMessage(evt);
   }
+  const impactEvents = tickCannonballsAndRecordImpacts(
+    state,
+    dt,
+    battleAnim,
+    tickCannonballsWithEvents,
+    sendMessage,
+  );
 
-  // ── Step 3: Tick cannonball movement → collect impact events ──
-  const { impacts: newImpacts, events: impactEvents } =
-    tickCannonballsWithEvents(state, dt);
-  for (const imp of newImpacts) {
-    battleAnim.impacts.push({ ...imp, age: 0 });
-  }
-  if (sendMessage) {
-    for (const evt of impactEvents) sendMessage(evt);
-  }
-
-  // ── Step 4: Notify all battle events for sound/haptics ──
+  // Step 4: notify sound/haptics
   if (onBattleEvents) {
     const allEvents = [...fireEvents, ...towerEvents, ...impactEvents];
     if (allEvents.length > 0) onBattleEvents(allEvents);
   }
 
-  const canFireNow = true; // battle active — weapons enabled
-  syncCrosshairs(canFireNow, dt);
+  syncCrosshairs(/* canFireNow */ true, dt);
   render();
 
   if (state.timer > 0 || state.cannonballs.length > 0) return false;
@@ -315,4 +301,49 @@ export function beginHostBattle(deps: BeginHostBattleDeps): void {
   }
 
   setModeGame();
+}
+
+/** Tick local controllers and collect fire events from newly created cannonballs. */
+function tickControllersAndCollectFires(
+  state: GameState,
+  dt: number,
+  controllers: readonly PlayerController[],
+  remoteHumanSlots: ReadonlySet<number>,
+  isHost: boolean,
+  sendMessage: ((msg: GameMessage) => void) | undefined,
+): GameMessage[] {
+  const ballsBefore = state.cannonballs.length;
+  for (const ctrl of localActiveControllers(
+    controllers,
+    remoteHumanSlots,
+    state,
+  )) {
+    ctrl.battleTick(state, dt);
+  }
+  const fireEvents: GameMessage[] = [];
+  for (let i = ballsBefore; i < state.cannonballs.length; i++) {
+    const msg = createCannonFiredMsg(state.cannonballs[i]!);
+    fireEvents.push(msg);
+    if (isHost && sendMessage) sendMessage(msg);
+  }
+  return fireEvents;
+}
+
+/** Advance cannonballs, record visual impacts, broadcast impact events. */
+function tickCannonballsAndRecordImpacts(
+  state: GameState,
+  dt: number,
+  battleAnim: { impacts: Impact[] },
+  tickCannonballsWithEvents: TickHostBattlePhaseDeps["tickCannonballsWithEvents"],
+  sendMessage: ((msg: GameMessage) => void) | undefined,
+): GameMessage[] {
+  const { impacts: newImpacts, events: impactEvents } =
+    tickCannonballsWithEvents(state, dt);
+  for (const imp of newImpacts) {
+    battleAnim.impacts.push({ ...imp, age: 0 });
+  }
+  if (sendMessage) {
+    for (const evt of impactEvents) sendMessage(evt);
+  }
+  return impactEvents;
 }

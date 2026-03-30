@@ -59,7 +59,8 @@ const incrementalDeps = buildIncrementalDeps();
 export function handleServerMessage(msg: ServerMessage): void {
   devLog(`received: ${msg.type}`);
   if (handleServerLifecycleMessage(msg, lifecycleDeps)) return;
-  handleServerIncrementalMessage(msg, incrementalDeps);
+  const result = handleServerIncrementalMessage(msg, incrementalDeps);
+  if (!result) devLog(`unhandled incremental message: ${msg.type}`);
 }
 
 /** Deps for server lifecycle messages (join, start, phase transitions, migration).
