@@ -3,6 +3,10 @@
  *
  * Creates the GameRuntime with all online-specific callbacks, owns the
  * DOM canvas singletons, and defines functions that close over `runtime`.
+ *
+ * The TransitionContext and networking config are assembled from focused
+ * builder functions (one per concern) to keep each section small and
+ * colocated with its domain logic.
  */
 
 import type {
@@ -86,7 +90,7 @@ const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const renderer = createCanvasRenderer(canvas);
 const roomCodeOverlay = document.getElementById("room-code-overlay")!;
 export const pageOnline = document.getElementById("page-online")!;
-// ── Transition context ──────────────────────────────────────────────
+// ── Assemble transition context ─────────────────────────────────────
 export const transitionCtx: TransitionContext = {
   getState: () => runtime.runtimeState.state,
   session,
@@ -95,111 +99,11 @@ export const transitionCtx: TransitionContext = {
     runtime.runtimeState.mode = mode;
   },
   now: () => performance.now(),
-
-  ui: {
-    showBanner: (
-      text: string,
-      onDone: () => void,
-      preserveOldScene?: boolean,
-      newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
-      subtitle?: string,
-    ) =>
-      runtime.showBanner(text, onDone, preserveOldScene, newBattle, subtitle),
-    get banner() {
-      return runtime.runtimeState.banner;
-    },
-    render: () => runtime.render(),
-    watcherTiming: watcher.timing,
-    bannerDuration: BANNER_DURATION,
-  },
-
-  checkpoint: {
-    applyCannonStart: (data) =>
-      applyCannonStartCheckpoint(data, buildCheckpointDeps()),
-    applyBattleStart: (data) =>
-      applyBattleStartCheckpoint(data, buildCheckpointDeps()),
-    applyBuildStart: (data) =>
-      applyBuildStartCheckpoint(data, buildCheckpointDeps()),
-    applyPlayersCheckpoint,
-  },
-
-  selection: {
-    clearSelectionOverlay: () => {
-      const overlay = runtime.runtimeState.overlay;
-      if (overlay.selection) {
-        overlay.selection.highlights = undefined;
-        overlay.selection.highlighted = null;
-        overlay.selection.selected = null;
-      }
-    },
-    getStates: () => runtime.selection.getStates(),
-    finalizeCastleConstruction,
-    enterCannonPlacePhase,
-    setCastleBuildFromPlans: (
-      plans: readonly { playerId: number; tiles: number[] }[],
-      maxTiles: number,
-      onDone: () => void,
-    ) => {
-      runtime.runtimeState.castleBuilds.push({
-        wallPlans: plans,
-        maxTiles,
-        tileIdx: 0,
-        accum: 0,
-        onDone,
-      });
-      runtime.runtimeState.castleBuildOnDone = onDone;
-    },
-    setCastleBuildViewport: (
-      plans: readonly { playerId: number; tiles: number[] }[],
-    ) => runtime.selection.setCastleBuildViewport(plans),
-  },
-
-  battle: {
-    setFlights: (
-      flights: readonly {
-        flight: {
-          startX: number;
-          startY: number;
-          endX: number;
-          endY: number;
-        };
-        progress: number;
-      }[],
-    ) => {
-      runtime.runtimeState.battleAnim.flights = flights;
-    },
-    snapshotTerritory: () => runtime.snapshotTerritory(),
-    beginBattle: () => runtime.phaseTicks.beginBattle(),
-  },
-
-  endPhase: {
-    resetZoneState,
-    showLifeLostDialog: (
-      needsReselect: readonly number[],
-      eliminated: readonly number[],
-    ) => {
-      runtime.lifeLost.show(needsReselect, eliminated);
-      const dialog = runtime.lifeLost.get();
-      if (dialog) {
-        for (const [pid, choice] of session.earlyLifeLostChoices) {
-          const entry = dialog.entries.find((e) => e.playerId === pid);
-          if (entry && entry.choice === LifeLostChoice.PENDING)
-            entry.choice = choice;
-        }
-      }
-      session.earlyLifeLostChoices.clear();
-    },
-    showScoreDeltas: (preScores: readonly number[], onDone: () => void) => {
-      runtime.runtimeState.preScores = preScores;
-      runtime.selection.showBuildScoreDeltas(onDone);
-    },
-    setGameOverFrame: (
-      gameOver: NonNullable<typeof runtime.runtimeState.frame.gameOver>,
-    ) => {
-      runtime.runtimeState.frame.gameOver = gameOver;
-    },
-    playerColors: PLAYER_COLORS,
-  },
+  ui: buildTransitionUiCtx(),
+  checkpoint: buildTransitionCheckpointCtx(),
+  selection: buildTransitionSelectionCtx(),
+  battle: buildTransitionBattleCtx(),
+  endPhase: buildTransitionEndPhaseCtx(),
 };
 // ── Watcher tick context ────────────────────────────────────────────
 const watcherTickCtx: WatcherTickContext = {
@@ -261,7 +165,7 @@ export const runtime: GameRuntime = createGameRuntime({
     send({ type: MESSAGE.SELECT_START, timer: SELECT_TIMER });
   },
 
-  // Networking callbacks
+  // ── Networking callbacks ──
   tickNonHost: (dt) => tickWatcherFn(watcher, dt, watcherTickCtx),
   everyTick: (dt) =>
     tickMigrationAnnouncementFn(watcher, runtime.runtimeState.frame, dt),
@@ -401,7 +305,95 @@ export function applyFullState(msg: FullStateMessage): void {
   }
 }
 
-// ── Checkpoint helper ───────────────────────────────────────────────
+function buildTransitionUiCtx(): TransitionContext["ui"] {
+  return {
+    showBanner: (text, onDone, preserveOldScene?, newBattle?, subtitle?) =>
+      runtime.showBanner(text, onDone, preserveOldScene, newBattle, subtitle),
+    get banner() {
+      return runtime.runtimeState.banner;
+    },
+    render: () => runtime.render(),
+    watcherTiming: watcher.timing,
+    bannerDuration: BANNER_DURATION,
+  };
+}
+
+function buildTransitionCheckpointCtx(): TransitionContext["checkpoint"] {
+  return {
+    applyCannonStart: (data) =>
+      applyCannonStartCheckpoint(data, buildCheckpointDeps()),
+    applyBattleStart: (data) =>
+      applyBattleStartCheckpoint(data, buildCheckpointDeps()),
+    applyBuildStart: (data) =>
+      applyBuildStartCheckpoint(data, buildCheckpointDeps()),
+    applyPlayersCheckpoint,
+  };
+}
+
+function buildTransitionSelectionCtx(): TransitionContext["selection"] {
+  return {
+    clearSelectionOverlay: () => {
+      const overlay = runtime.runtimeState.overlay;
+      if (overlay.selection) {
+        overlay.selection.highlights = undefined;
+        overlay.selection.highlighted = null;
+        overlay.selection.selected = null;
+      }
+    },
+    getStates: () => runtime.selection.getStates(),
+    finalizeCastleConstruction,
+    enterCannonPlacePhase,
+    setCastleBuildFromPlans: (plans, maxTiles, onDone) => {
+      runtime.runtimeState.castleBuilds.push({
+        wallPlans: plans,
+        maxTiles,
+        tileIdx: 0,
+        accum: 0,
+        onDone,
+      });
+      runtime.runtimeState.castleBuildOnDone = onDone;
+    },
+    setCastleBuildViewport: (plans) =>
+      runtime.selection.setCastleBuildViewport(plans),
+  };
+}
+
+function buildTransitionBattleCtx(): TransitionContext["battle"] {
+  return {
+    setFlights: (flights) => {
+      runtime.runtimeState.battleAnim.flights = flights;
+    },
+    snapshotTerritory: () => runtime.snapshotTerritory(),
+    beginBattle: () => runtime.phaseTicks.beginBattle(),
+  };
+}
+
+function buildTransitionEndPhaseCtx(): TransitionContext["endPhase"] {
+  return {
+    resetZoneState,
+    showLifeLostDialog: (needsReselect, eliminated) => {
+      runtime.lifeLost.show(needsReselect, eliminated);
+      const dialog = runtime.lifeLost.get();
+      if (dialog) {
+        for (const [pid, choice] of session.earlyLifeLostChoices) {
+          const entry = dialog.entries.find((e) => e.playerId === pid);
+          if (entry && entry.choice === LifeLostChoice.PENDING)
+            entry.choice = choice;
+        }
+      }
+      session.earlyLifeLostChoices.clear();
+    },
+    showScoreDeltas: (preScores, onDone) => {
+      runtime.runtimeState.preScores = preScores;
+      runtime.selection.showBuildScoreDeltas(onDone);
+    },
+    setGameOverFrame: (gameOver) => {
+      runtime.runtimeState.frame.gameOver = gameOver;
+    },
+    playerColors: PLAYER_COLORS,
+  };
+}
+
 /** Build the deps object shared by all three checkpoint functions. */
 function buildCheckpointDeps(): CheckpointDeps {
   return {
