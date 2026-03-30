@@ -127,13 +127,6 @@ const bannerSceneCtx = bannerSceneCanvas.getContext("2d", {
  *  because the banner scene combines data from multiple sources (castles, territory, walls)
  *  that aren't keyed by a single object. */
 const terrainImageCache = new WeakMap<MapData, TerrainImageCache>();
-/** Sentinel: cache render deferred to next frame (avoids double-scene spike). */
-const BANNER_CACHE_PENDING: BannerCacheEntry = {
-  map: null!,
-  castles: [],
-  territory: undefined,
-  walls: undefined,
-};
 
 /** Cached main-canvas context — avoids per-frame getContext overhead on Chrome mobile. */
 let mainCtxCache: {
@@ -320,14 +313,6 @@ function drawBannerOldScene(
     oldTerritory,
     oldWalls,
   );
-
-  if (needsBannerRender && bannerCache === null) {
-    // First banner frame: defer the expensive old-scene render to avoid a
-    // frame spike (double scene draw). Mark the cache as pending so
-    // frame 2 builds it — by then the banner text covers the transition.
-    bannerCache = BANNER_CACHE_PENDING;
-    return;
-  }
 
   if (needsBannerRender) {
     const oldHouses = overlay.ui.bannerOldHouses;

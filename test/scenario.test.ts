@@ -905,16 +905,16 @@ test("executeTransition runs steps in declared order for all recipes", () => {
   assert(log[1] === "applyCheckpoint", `BUILD step 1: ${log[1]}`);
   assert(log[2] === "initControllers", `BUILD step 2: ${log[2]}`);
 
-  // CANNON_START: applyCheckpoint → initControllers → showBanner
+  // CANNON_START: showBanner → applyCheckpoint → initControllers
   log.length = 0;
   executeTransition(CANNON_START_STEPS, {
+    showBanner: () => log.push("showBanner"),
     applyCheckpoint: () => log.push("applyCheckpoint"),
     initControllers: () => log.push("initControllers"),
-    showBanner: () => log.push("showBanner"),
   });
-  assert(log[0] === "applyCheckpoint", `CANNON step 0: ${log[0]}`);
-  assert(log[1] === "initControllers", `CANNON step 1: ${log[1]}`);
-  assert(log[2] === "showBanner", `CANNON step 2: ${log[2]}`);
+  assert(log[0] === "showBanner", `CANNON step 0: ${log[0]}`);
+  assert(log[1] === "applyCheckpoint", `CANNON step 1: ${log[1]}`);
+  assert(log[2] === "initControllers", `CANNON step 2: ${log[2]}`);
 
   // BATTLE_START: showBanner → applyCheckpoint → snapshotForBanner
   log.length = 0;
@@ -938,17 +938,13 @@ test("recipe step arrays are distinct and have expected lengths", () => {
   assert(BATTLE_START_STEPS.length === 3, "BATTLE_START_STEPS should have 3 steps");
   assert(BUILD_START_STEPS.length === 3, "BUILD_START_STEPS should have 3 steps");
 
-  // Recipes differ — guards against accidentally using the wrong constant
+  // Battle uses a different recipe (snapshot instead of initControllers)
   const cannon = CANNON_START_STEPS.join(",");
   const battle = BATTLE_START_STEPS.join(",");
-  const build = BUILD_START_STEPS.join(",");
   assert(cannon !== battle, "CANNON and BATTLE recipes must differ");
-  assert(cannon !== build, "CANNON and BUILD recipes must differ");
-  assert(battle !== build, "BATTLE and BUILD recipes must differ");
 
-  // Cannon starts with reconcile (state before banner)
-  assert(CANNON_START_STEPS[0] === "applyCheckpoint", "Cannon must reconcile first");
-  // Battle and build start with banner (capture old scene before reconcile)
+  // All transitions start with banner (capture old scene before reconcile)
+  assert(CANNON_START_STEPS[0] === "showBanner", "Cannon must banner first");
   assert(BATTLE_START_STEPS[0] === "showBanner", "Battle must banner first");
   assert(BUILD_START_STEPS[0] === "showBanner", "Build must banner first");
 });

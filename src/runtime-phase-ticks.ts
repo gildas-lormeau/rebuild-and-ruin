@@ -145,8 +145,16 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const remoteHumanSlots = runtimeState.frameCtx.remoteHumanSlots;
     deps.log(`startCannonPhase (round=${runtimeState.state.round})`);
     executeTransition(CANNON_START_STEPS, {
+      showBanner: () => {
+        if (onBannerDone) {
+          // Banner captures oldCastles (with old facings) before checkpoint runs.
+          showCannonPhaseBanner(deps.showBanner, onBannerDone);
+        }
+      },
       applyCheckpoint: () => {
         prepareCannonPhase(runtimeState.state);
+        // Apply reset facings — hidden behind the banner overlay.
+        applyDefaultFacings(runtimeState.state);
         (runtimeState.accum as MutableAccums).cannon = 0;
         runtimeState.state.timer = runtimeState.state.cannonPlaceTimer;
         if (runtimeState.frameCtx.isHost && deps.hostNetworking) {
@@ -159,14 +167,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         for (const ctrl of runtimeState.controllers) {
           if (remoteHumanSlots.has(ctrl.playerId)) continue;
           initControllerForCannonPhase(ctrl, runtimeState.state);
-        }
-      },
-      showBanner: () => {
-        if (onBannerDone) {
-          // Banner captures oldCastles (with old facings) before we snap.
-          showCannonPhaseBanner(deps.showBanner, onBannerDone);
-          // Now apply reset facings — hidden behind the banner overlay.
-          applyDefaultFacings(runtimeState.state);
         }
       },
     });

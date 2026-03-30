@@ -78,7 +78,7 @@ const WAVE_PHASE_OFFSET = 2.1;
 const DARK_METAL = "#111";
 const PHANTOM_INVALID_COLOR = "#aa2222";
 /** Shared phantom opacity for all placement previews (primary, split-screen human, AI). */
-const PHANTOM_ALPHA = 0.55;
+const PHANTOM_ALPHA = 1;
 // Spatial hash multipliers for per-tile visual noise
 const SEED_ROW = 41;
 const SEED_COL = 17;
@@ -135,7 +135,7 @@ export function drawPhantoms(
       offsets,
       row,
       col,
-      valid ? "#c8c0b8" : PHANTOM_INVALID_COLOR,
+      valid ? "#eeeeee" : PHANTOM_INVALID_COLOR,
       PHANTOM_ALPHA,
       false,
     );
@@ -146,7 +146,7 @@ export function drawPhantoms(
     for (const phantom of overlay.phantoms.humanPhantoms) {
       const { offsets, row, col, valid, playerId } = phantom;
       const wall = getPlayerColor(playerId).wall;
-      const fill = valid ? rgb(wall) : PHANTOM_INVALID_COLOR;
+      const fill = valid ? rgb(brightenRgb(wall, 0.3)) : PHANTOM_INVALID_COLOR;
       drawPiecePhantom(
         overlayCtx,
         offsets,
@@ -169,7 +169,7 @@ export function drawPhantoms(
         offsets,
         row,
         col,
-        rgb(wall),
+        rgb(brightenRgb(wall, 0.3)),
         PHANTOM_ALPHA,
         true,
       );
@@ -286,6 +286,15 @@ export function drawBattleEffects(
   drawBurningPits(overlayCtx, overlay);
   drawCrosshairs(overlayCtx, overlay);
   drawPhaseTimer(overlayCtx, map, overlay);
+}
+
+/** Lighten an RGB color by blending toward white. factor 0 = original, 1 = white. */
+function brightenRgb(c: RGB, factor: number): RGB {
+  return [
+    Math.round(c[0] + (255 - c[0]) * factor),
+    Math.round(c[1] + (255 - c[1]) * factor),
+    Math.round(c[2] + (255 - c[2]) * factor),
+  ];
 }
 
 function drawImpacts(

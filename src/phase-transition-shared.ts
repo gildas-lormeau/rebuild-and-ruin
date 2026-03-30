@@ -52,11 +52,11 @@ const SHOW_BANNER = "showBanner" as const;
 const APPLY_CHECKPOINT = "applyCheckpoint" as const;
 const SNAPSHOT = "snapshotForBanner" as const;
 const INIT_CTRL = "initControllers" as const;
-/** Ordered steps for the build→cannon transition: checkpoint first, then controllers, then banner. */
+/** Ordered steps for the build→cannon transition: banner first (hides new houses/bonus), then checkpoint, then controllers. */
 export const CANNON_START_STEPS = [
+  SHOW_BANNER,
   APPLY_CHECKPOINT,
   INIT_CTRL,
-  SHOW_BANNER,
 ] as const;
 /** Ordered steps for the cannon→battle transition: banner first (snapshots old scene), then checkpoint, then snapshot. */
 export const BATTLE_START_STEPS = [
