@@ -14,9 +14,10 @@ import { send, session } from "./runtime-online-stores.ts";
 const lobbyElements = {
   btnCreateConfirm: document.getElementById("btn-create-confirm")!,
   btnJoinConfirm: document.getElementById("btn-join-confirm")!,
-  setRounds: document.getElementById("set-rounds") as HTMLSelectElement,
-  setHp: document.getElementById("set-hp") as HTMLSelectElement,
-  setWait: document.getElementById("set-wait") as HTMLSelectElement,
+  rounds: document.getElementById("create-rounds") as HTMLSelectElement,
+  hp: document.getElementById("create-hp") as HTMLSelectElement,
+  wait: document.getElementById("create-wait") as HTMLSelectElement,
+  seed: document.getElementById("create-seed") as HTMLInputElement,
   joinCodeInput: document.getElementById("join-code") as HTMLInputElement,
   createError: document.getElementById("create-error")!,
   joinError: document.getElementById("join-error")!,

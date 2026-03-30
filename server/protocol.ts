@@ -79,6 +79,7 @@ export interface RoomSettings {
   battleLength: number; // 0 (unlimited), 3, 5, 8, or 12
   cannonMaxHp: number; // 3, 6, 9, or 12
   waitTimerSec: number; // lobby wait duration before auto-start (seconds)
+  seed?: number; // optional map seed (server generates random if omitted)
 }
 
 const VALID_BATTLE_LENGTHS = [0, 3, 5, 8, 12];
@@ -91,6 +92,7 @@ export function sanitizeRoomSettings(raw: Partial<RoomSettings>): RoomSettings {
   const bl = Number(raw.battleLength);
   const hp = Number(raw.cannonMaxHp);
   const wait = Number(raw.waitTimerSec);
+  const seed = raw.seed != null ? Math.floor(Number(raw.seed)) : undefined;
   return {
     battleLength: VALID_BATTLE_LENGTHS.includes(bl) ? bl : 0,
     cannonMaxHp: VALID_CANNON_HP.includes(hp) ? hp : 3,
@@ -98,6 +100,7 @@ export function sanitizeRoomSettings(raw: Partial<RoomSettings>): RoomSettings {
       Number.isFinite(wait) && wait >= 0
         ? Math.min(wait, MAX_WAIT_TIMER_SEC)
         : DEFAULT_WAIT_TIMER_SEC,
+    seed: Number.isFinite(seed) ? seed : undefined,
   };
 }
 

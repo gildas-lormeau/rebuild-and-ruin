@@ -63,7 +63,12 @@ export class RoomManager {
     const code = this.generateCode();
     const connectedSockets = new Set([hostSocket]);
     const slotAssignments = new Map<WebSocket, number>();
-    const room = new GameRoom(slotAssignments, connectedSockets, settings);
+    const room = new GameRoom(
+      slotAssignments,
+      connectedSockets,
+      settings,
+      settings.seed,
+    );
     const entry: RoomEntry = {
       room,
       code,

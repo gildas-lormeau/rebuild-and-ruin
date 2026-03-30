@@ -554,8 +554,8 @@ async function createRoom(page: Page): Promise<string> {
   await page.goto(PAGE_URL);
   await page.click("#btn-online");
   await page.waitForSelector("#page-online[data-ready]", { timeout: 10000 });
-  await page.selectOption("#set-wait", "10");
-  await page.selectOption("#set-rounds", ONLINE_SELECTED_ROUNDS);
+  await page.selectOption("#create-wait", "10");
+  await page.selectOption("#create-rounds", ONLINE_SELECTED_ROUNDS);
   await page.click("#btn-create-confirm");
   await page.waitForFunction(
     () => document.getElementById("page-online")?.hidden === true,

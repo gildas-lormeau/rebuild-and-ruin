@@ -5,9 +5,10 @@ import { MAX_PLAYERS } from "./player-config.ts";
 interface LobbyElements {
   btnCreateConfirm: HTMLElement;
   btnJoinConfirm: HTMLElement;
-  setRounds: HTMLSelectElement;
-  setHp: HTMLSelectElement;
-  setWait: HTMLSelectElement;
+  rounds: HTMLSelectElement;
+  hp: HTMLSelectElement;
+  wait: HTMLSelectElement;
+  seed: HTMLInputElement;
   joinCodeInput: HTMLInputElement;
   createError: HTMLElement;
   joinError: HTMLElement;
@@ -74,14 +75,17 @@ export function initLobbyUi({
       e.preventDefault();
       elements.createError.textContent = "";
       scheduleOnOpen(() => {
-        const roundsVal = Number(elements.setRounds.value);
+        const roundsVal = Number(elements.rounds.value);
         const roundCount = roundsVal > 0 ? roundsVal : 0;
+        const seedStr = elements.seed.value.trim();
+        const seedNum = seedStr.length > 0 ? Number(seedStr) : undefined;
         send({
           type: MESSAGE.CREATE_ROOM,
           settings: {
             battleLength: roundCount,
-            cannonMaxHp: Number(elements.setHp.value),
-            waitTimerSec: Number(elements.setWait.value),
+            cannonMaxHp: Number(elements.hp.value),
+            waitTimerSec: Number(elements.wait.value),
+            seed: Number.isFinite(seedNum) ? seedNum : undefined,
           },
         });
         setIsHost(true);
