@@ -224,6 +224,7 @@ export function aimCannons(
   for (const cc of state.capturedCannons) {
     capturedByOthers.add(cc.cannon);
   }
+  // Infinity = snap instantly (used when dt <= 0, e.g. initial facing setup)
   const maxStep = dt > 0 ? CANNON_ROTATE_SPEED * dt : Infinity;
   const aimAt = (cannon: Cannon) => {
     const { x: ox, y: oy } = cannonCenter(cannon);

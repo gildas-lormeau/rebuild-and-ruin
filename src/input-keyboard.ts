@@ -190,7 +190,7 @@ function handleKeyControls(
     if (e.key === KEY_ESCAPE) {
       controlsState.rebinding = false;
     } else if (e.key === "p" || e.key === "P" || e.key === "F1") {
-      // Reserved keys.
+      // Reserved keys — silently ignore during rebinding (P=pause, F1=options).
     } else {
       const pIdx = controlsState.playerIdx;
       const aIdx = controlsState.actionIdx;

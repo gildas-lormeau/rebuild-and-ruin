@@ -19,6 +19,7 @@ import {
   phantomChanged,
   phantomWireMode,
   piecePhantomKey,
+  REMOTE_CROSSHAIR_MULT,
   startWatcherPhaseTimer,
   type WatcherTimingState,
 } from "./online-types.ts";
@@ -116,11 +117,9 @@ interface TickWatcherBuildPhantomsDeps {
   }) => void;
 }
 
-/** Multiplier for remote crosshair interpolation speed (faster than local). */
-const REMOTE_CROSSHAIR_MULT = 2;
-/** Orbital idle wobble frequency on X axis. */
+/** Orbital idle wobble frequency on X axis (rad/s — coprime with Y to avoid repetition). */
 const ORBIT_FREQ_X = 0.23;
-/** Orbital idle wobble frequency on Y axis. */
+/** Orbital idle wobble frequency on Y axis (rad/s — coprime with X to avoid repetition). */
 const ORBIT_FREQ_Y = 0.19;
 
 export function tickWatcherTimers(

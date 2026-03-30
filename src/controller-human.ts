@@ -157,6 +157,7 @@ export class HumanController extends BaseController implements InputReceiver {
     // Mouse/touch: offset so the clicked tile lands at the phantom's center.
     // Keyboard uses moveCannonCursor() instead, which clamps to grid bounds.
     const sz = cannonSize(this.cannonPlaceMode);
+    // Floor (not round) to bias top-left for even sizes, keeping the click inside the phantom
     const offset = Math.floor(sz / 2);
     super.setCannonCursor(row - offset, col - offset);
     this.shouldSnapCursorNextTick = true;

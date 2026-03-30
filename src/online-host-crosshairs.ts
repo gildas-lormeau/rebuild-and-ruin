@@ -18,7 +18,11 @@ import {
   type PlayerController,
 } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
-import { interpolateToward, phantomChanged } from "./online-types.ts";
+import {
+  interpolateToward,
+  phantomChanged,
+  REMOTE_CROSSHAIR_MULT,
+} from "./online-types.ts";
 import { type GameState, isPlayerAlive } from "./types.ts";
 
 interface BroadcastDeps {
@@ -32,9 +36,6 @@ interface ExtendDeps {
   remoteHumanSlots: ReadonlySet<number>;
   logThrottled: (key: string, msg: string) => void;
 }
-
-/** Multiplier for remote crosshair interpolation speed (same as watcher). */
-const REMOTE_CROSSHAIR_MULT = 2;
 
 /** Send aim_update for a local controller's crosshair (host only, deduped). */
 export function broadcastLocalCrosshair(

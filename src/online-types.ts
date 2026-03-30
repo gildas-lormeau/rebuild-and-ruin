@@ -37,6 +37,10 @@ export interface WatcherTimingState {
   countdownDuration: number;
 }
 
+/** Speed multiplier for interpolating remote crosshairs (faster than local to reduce visual lag).
+ *  Shared between host (online-host-crosshairs) and watcher (online-watcher-battle). */
+export const REMOTE_CROSSHAIR_MULT = 2;
+
 /** Start tracking a new phase timer. Call at the moment a phase begins on the watcher side.
  *  The watcher reconstructs `state.timer` each frame from `(now - phaseStartTime)`. */
 export function startWatcherPhaseTimer(

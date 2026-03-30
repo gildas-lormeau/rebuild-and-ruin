@@ -18,6 +18,7 @@ import { connectWebSocket } from "./online-session.ts";
 import { Mode } from "./types.ts";
 
 const ANNOUNCEMENT_RECONNECTING = "Reconnecting\u2026";
+// \u2026 = ellipsis (…)
 const ANNOUNCEMENT_DISCONNECTED = "Disconnected from server";
 
 /** Stashed from the first call so reconnect retries reuse it. */
