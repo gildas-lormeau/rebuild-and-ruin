@@ -566,7 +566,7 @@ export function pickPlacement(
 
   function scoreCandidates(
     topCandidates: readonly Scored[],
-    ctx: ScoringContext,
+    buildCtx: ScoringContext,
   ): { bestCandidate: Candidate; bestScore: number; evaluated: boolean } {
     const anyHasWallAdjacent = topCandidates.some(
       (score) =>
@@ -586,25 +586,26 @@ export function pickPlacement(
       const nonGapCount =
         candidate.rotation.offsets.length - candidate.gapsFilled;
       if (
-        !ctx.homeWasBroken &&
-        !ctx.homeTowerEnclosed &&
+        !buildCtx.homeWasBroken &&
+        !buildCtx.homeTowerEnclosed &&
         candidate.gapsFilled > 0 &&
         nonGapCount > 0 &&
         candidate.isolated >= nonGapCount
       )
         continue;
 
-      const simulatedWalls = createSimulatedWalls(ctx.walls, candidate);
+      const simulatedWalls = createSimulatedWalls(buildCtx.walls, candidate);
       const newOutside = computeOutside(simulatedWalls);
-      const rawGain = ctx.baselineOutside - newOutside.size;
+      const rawGain = buildCtx.baselineOutside - newOutside.size;
       const pieceTiles = candidate.rotation.offsets.length;
       const usefulGain = rawGain - pieceTiles;
 
-      const fatExempt = candidate.gapsFilled > 0 && !ctx.allCastlesEnclosed;
+      const fatExempt =
+        candidate.gapsFilled > 0 && !buildCtx.allCastlesEnclosed;
       if (
         shouldRejectForFatWalls(
           rawFatBlocks,
-          ctx.skill.fatGainPerBlock,
+          buildCtx.skill.fatGainPerBlock,
           usefulGain,
           fatExempt,
         )
@@ -612,18 +613,18 @@ export function pickPlacement(
         continue;
 
       const pocketInfo = countSmallPocketTiles(simulatedWalls, newOutside);
-      const pocketDelta = pocketInfo.wasted - ctx.baselinePocketWaste;
+      const pocketDelta = pocketInfo.wasted - buildCtx.baselinePocketWaste;
 
       if (
-        ctx.skill.tinyPocketReject &&
+        buildCtx.skill.tinyPocketReject &&
         pocketDelta > 0 &&
         pocketInfo.smallestPocket <= TINY_POCKET_MAX_SIZE &&
         candidate.gapsFilled === 0
       )
         continue;
       if (
-        ctx.skill.tinyPocketReject &&
-        ctx.allCastlesEnclosed &&
+        buildCtx.skill.tinyPocketReject &&
+        buildCtx.allCastlesEnclosed &&
         pocketDelta > 0 &&
         pocketInfo.smallestPocket < SMALL_POCKET_MAX_SIZE
       )
@@ -633,8 +634,8 @@ export function pickPlacement(
       const { gapBonus, wastefulClosurePenalty } =
         computeWastefulClosureAdjustment(
           candidate,
-          ctx.targetGaps,
-          ctx.castle,
+          buildCtx.targetGaps,
+          buildCtx.castle,
           usefulGain,
           baseGapBonus,
         );
@@ -642,39 +643,39 @@ export function pickPlacement(
       const cursorProximityBonus = computeCursorProximityBonus(
         candidate,
         anyHasWallAdjacent,
-        ctx.cursorPos,
+        buildCtx.cursorPos,
       );
 
       const innerObstacleBonus = computeInnerObstacleBonus(
         candidate,
-        ctx.targetGaps,
-        ctx.castle,
-        ctx.state.map.tiles,
+        buildCtx.targetGaps,
+        buildCtx.castle,
+        buildCtx.state.map.tiles,
       );
 
       const fatWallPenalty = computeFatWallPenalty(
         gapClosingFat,
         hasFatWall,
         usefulGain,
-        ctx.skill.fatPenaltyScale,
+        buildCtx.skill.fatPenaltyScale,
       );
       const pocketPenalty = computePocketPenalty(
         pocketDelta,
-        ctx.skill.pocketScale,
+        buildCtx.skill.pocketScale,
       );
       const obstacleHitPenalty = computeObstacleHitPenalty(
         candidate,
-        ctx.caresAboutHouses,
-        ctx.caresAboutBonuses,
+        buildCtx.caresAboutHouses,
+        buildCtx.caresAboutBonuses,
       );
 
-      const difficultyBonus = computeDifficultyBonus(ctx.state, candidate);
+      const difficultyBonus = computeDifficultyBonus(buildCtx.state, candidate);
 
       const towerProximityBonus = computeTowerProximityBonus(
         candidate,
-        ctx.targetGaps,
-        ctx.zoneTowers,
-        ctx.ownedTowers,
+        buildCtx.targetGaps,
+        buildCtx.zoneTowers,
+        buildCtx.ownedTowers,
       );
 
       // Bonus for gap tiles that would survive the post-build sweep (≥2 cardinal neighbors).
@@ -682,7 +683,7 @@ export function pickPlacement(
       // adjacent gaps are filled and provide the needed cardinal connections.
       const sweepSafeBonus = computeSweepSafeBonus(
         candidate,
-        ctx.targetGaps,
+        buildCtx.targetGaps,
         simulatedWalls,
       );
 

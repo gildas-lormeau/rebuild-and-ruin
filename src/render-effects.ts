@@ -548,7 +548,7 @@ function crosshairGeometry(
  *  cannon phantoms use per-rect color pairs because they're procedurally drawn
  *  with multiple shapes. Each shape has a normal color and a red-tinted invalid variant. */
 function drawPhantomCannon(
-  ctx: CanvasRenderingContext2D,
+  canvasCtx: CanvasRenderingContext2D,
   phantom: {
     readonly row: number;
     readonly col: number;
@@ -564,56 +564,56 @@ function drawPhantomCannon(
   const size = TILE_SIZE * sz;
   const mid = size / 2;
 
-  ctx.save();
-  ctx.globalAlpha = valid ? 0.7 : 0.5;
+  canvasCtx.save();
+  canvasCtx.globalAlpha = valid ? 0.7 : 0.5;
 
   if (isBalloonMode(mode)) {
     // Balloon base preview — sprite with red tint overlay if invalid
-    drawSprite(ctx, "balloon_base", cx, cy);
+    drawSprite(canvasCtx, "balloon_base", cx, cy);
     if (!valid) {
-      ctx.fillStyle = "rgba(170, 34, 34, 0.4)";
-      ctx.fillRect(cx, cy, size, size);
+      canvasCtx.fillStyle = "rgba(170, 34, 34, 0.4)";
+      canvasCtx.fillRect(cx, cy, size, size);
     }
-    ctx.restore();
+    canvasCtx.restore();
     return;
   }
 
   // Draw actual cannon sprite at alpha, tinted red if invalid
-  ctx.translate(cx + mid, cy + mid);
-  ctx.rotate(facing);
+  canvasCtx.translate(cx + mid, cy + mid);
+  canvasCtx.rotate(facing);
   if (isSuperMode(mode)) {
     // Super gun phantom — symmetric around (0,0)
-    ctx.fillStyle = valid ? "#1a1a1a" : "#3a1111";
-    ctx.fillRect(-14, -8, 28, 24);
-    ctx.fillStyle = valid ? "#333" : "#553333";
-    ctx.fillRect(-18, -6, 5, 11);
-    ctx.fillRect(13, -6, 5, 11);
-    ctx.fillStyle = valid ? "#2a2a2a" : "#4a2222";
-    ctx.fillRect(-16, -2, 32, 2);
-    ctx.fillStyle = valid ? "#444" : "#884444";
-    ctx.fillRect(-4, -18, 8, 27);
-    ctx.fillStyle = valid ? DARK_METAL : "#331111";
-    ctx.fillRect(-1, -18, 2, 3);
-    ctx.fillStyle = valid ? "#a33" : "#cc4444";
-    ctx.fillRect(-5, -11, 10, 2);
-    ctx.fillRect(-5, -5, 10, 2);
+    canvasCtx.fillStyle = valid ? "#1a1a1a" : "#3a1111";
+    canvasCtx.fillRect(-14, -8, 28, 24);
+    canvasCtx.fillStyle = valid ? "#333" : "#553333";
+    canvasCtx.fillRect(-18, -6, 5, 11);
+    canvasCtx.fillRect(13, -6, 5, 11);
+    canvasCtx.fillStyle = valid ? "#2a2a2a" : "#4a2222";
+    canvasCtx.fillRect(-16, -2, 32, 2);
+    canvasCtx.fillStyle = valid ? "#444" : "#884444";
+    canvasCtx.fillRect(-4, -18, 8, 27);
+    canvasCtx.fillStyle = valid ? DARK_METAL : "#331111";
+    canvasCtx.fillRect(-1, -18, 2, 3);
+    canvasCtx.fillStyle = valid ? "#a33" : "#cc4444";
+    canvasCtx.fillRect(-5, -11, 10, 2);
+    canvasCtx.fillRect(-5, -5, 10, 2);
   } else {
     // Normal cannon phantom — symmetric around (0,0)
-    ctx.fillStyle = valid ? "#1a1a1a" : "#3a1111";
-    ctx.fillRect(-10, -5, 20, 16);
-    ctx.fillStyle = valid ? "#333" : "#553333";
-    ctx.fillRect(-12, -3, 4, 8);
-    ctx.fillRect(8, -3, 4, 8);
-    ctx.fillStyle = valid ? "#2a2a2a" : "#4a2222";
-    ctx.fillRect(-10, 0, 20, 2);
-    ctx.fillStyle = valid ? "#555" : "#884444";
-    ctx.fillRect(-2, -11, 4, 17);
-    ctx.fillStyle = valid ? DARK_METAL : "#331111";
-    ctx.fillRect(-1, -11, 2, 2);
-    ctx.fillStyle = valid ? "#777" : "#aa4444";
-    ctx.fillRect(-3, -6, 6, 2);
+    canvasCtx.fillStyle = valid ? "#1a1a1a" : "#3a1111";
+    canvasCtx.fillRect(-10, -5, 20, 16);
+    canvasCtx.fillStyle = valid ? "#333" : "#553333";
+    canvasCtx.fillRect(-12, -3, 4, 8);
+    canvasCtx.fillRect(8, -3, 4, 8);
+    canvasCtx.fillStyle = valid ? "#2a2a2a" : "#4a2222";
+    canvasCtx.fillRect(-10, 0, 20, 2);
+    canvasCtx.fillStyle = valid ? "#555" : "#884444";
+    canvasCtx.fillRect(-2, -11, 4, 17);
+    canvasCtx.fillStyle = valid ? DARK_METAL : "#331111";
+    canvasCtx.fillRect(-1, -11, 2, 2);
+    canvasCtx.fillStyle = valid ? "#777" : "#aa4444";
+    canvasCtx.fillRect(-3, -6, 6, 2);
   }
-  ctx.restore();
+  canvasCtx.restore();
 }
 
 /** Draw a single phantom piece (fill + optional outline). */

@@ -118,9 +118,9 @@ export function createSelectionSystem(
   function enterTowerSelection(): void {
     initTowerSelection({
       state: rs.state,
-      isHost: rs.ctx.isHost,
-      myPlayerId: rs.ctx.myPlayerId,
-      remoteHumanSlots: rs.ctx.remoteHumanSlots,
+      isHost: rs.frameCtx.isHost,
+      myPlayerId: rs.frameCtx.myPlayerId,
+      remoteHumanSlots: rs.frameCtx.remoteHumanSlots,
       controllers: rs.controllers,
       selectionStates: rs.selectionStates,
       initTowerSelection: initPlayerTowerSelection,
@@ -225,12 +225,12 @@ export function createSelectionSystem(
   // -------------------------------------------------------------------------
 
   function tickSelection(dt: number) {
-    const remoteHumanSlots = rs.ctx.remoteHumanSlots;
+    const remoteHumanSlots = rs.frameCtx.remoteHumanSlots;
     tickSelectionPhase({
       dt,
       state: rs.state,
-      isHost: rs.ctx.isHost,
-      myPlayerId: rs.ctx.myPlayerId,
+      isHost: rs.frameCtx.isHost,
+      myPlayerId: rs.frameCtx.myPlayerId,
       selectTimer: SELECT_TIMER,
       accum: rs.accum,
       selectionStates: rs.selectionStates,
@@ -289,7 +289,7 @@ export function createSelectionSystem(
   }
 
   function startPlayerCastleBuild(playerId: number): void {
-    if (!rs.ctx.isHost) return; // non-host builds via castle_walls message
+    if (!rs.frameCtx.isHost) return; // non-host builds via castle_walls message
     const plan = prepareCastleWallsForPlayer(rs.state, playerId);
     if (!plan) return;
     deps.send({ type: MESSAGE.CASTLE_WALLS, plans: [plan] });
@@ -388,7 +388,7 @@ export function createSelectionSystem(
   // -------------------------------------------------------------------------
 
   function startReselection() {
-    const remoteHumanSlots = rs.ctx.remoteHumanSlots;
+    const remoteHumanSlots = rs.frameCtx.remoteHumanSlots;
     enterCastleReselectPhase(rs.state);
     resetSelectionState();
 
@@ -419,7 +419,7 @@ export function createSelectionSystem(
       rs.state.timer = SELECT_TIMER;
       rs.mode = Mode.SELECTION;
       deps.sound.drumsStart();
-      if (rs.ctx.isHost) {
+      if (rs.frameCtx.isHost) {
         deps.send({ type: MESSAGE.SELECT_START, timer: SELECT_TIMER });
       }
     } else {

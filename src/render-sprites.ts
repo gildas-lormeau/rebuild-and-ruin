@@ -135,14 +135,14 @@ export function loadAtlas(src = `${BASE}assets/sprites.png`): Promise<void> {
  * (caller should fall back to procedural drawing).
  */
 export function drawSprite(
-  ctx: CanvasRenderingContext2D,
+  canvasCtx: CanvasRenderingContext2D,
   name: string,
   dx: number,
   dy: number,
 ): boolean {
   const sprite = resolveSprite(name);
   if (!sprite) return false;
-  blitSprite(ctx, sprite, dx, dy);
+  blitSprite(canvasCtx, sprite, dx, dy);
   return true;
 }
 
@@ -151,14 +151,14 @@ export function drawSprite(
  * Useful for entities that are positioned by their center (towers, cannons).
  */
 export function drawSpriteCentered(
-  ctx: CanvasRenderingContext2D,
+  canvasCtx: CanvasRenderingContext2D,
   name: string,
   cx: number,
   cy: number,
 ): boolean {
   const sprite = resolveSprite(name);
   if (!sprite) return false;
-  blitSprite(ctx, sprite, cx - sprite.rect.w / 2, cy - sprite.rect.h / 2);
+  blitSprite(canvasCtx, sprite, cx - sprite.rect.w / 2, cy - sprite.rect.h / 2);
   return true;
 }
 
@@ -174,12 +174,12 @@ function resolveSprite(
 
 /** Blit a resolved sprite rect at the given destination. */
 function blitSprite(
-  ctx: CanvasRenderingContext2D,
+  canvasCtx: CanvasRenderingContext2D,
   sprite: { rect: SpriteRect; img: HTMLImageElement },
   dx: number,
   dy: number,
 ): void {
-  ctx.drawImage(
+  canvasCtx.drawImage(
     sprite.img,
     sprite.rect.x,
     sprite.rect.y,

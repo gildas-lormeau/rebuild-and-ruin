@@ -98,9 +98,9 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // --- Helpers ---
 
   function myPlayerId(): number {
-    const ctx = deps.getCtx();
-    const pid = ctx.myPlayerId;
-    return pid >= 0 ? pid : ctx.firstHumanPlayerId;
+    const frameCtx = deps.getCtx();
+    const pid = frameCtx.myPlayerId;
+    return pid >= 0 ? pid : frameCtx.firstHumanPlayerId;
   }
 
   function getMyZone(): number | null {
@@ -332,21 +332,21 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function tickCamera(): void {
     const state = deps.getState();
     if (!state) return;
-    const ctx = deps.getCtx();
+    const frameCtx = deps.getCtx();
     const mobileAuto = mobileZoomEnabled && zoomActivated;
 
-    unzoomForOverlays(state, ctx);
-    restoreZoomAfterModal(mobileAuto, state, ctx);
-    handleSelectionZoom(mobileAuto, state, ctx);
-    const notTransition = isNotTransitionMode(ctx);
-    handlePhaseChangeZoom(mobileAuto, state, ctx, notTransition);
-    followCrosshairInBattle(mobileAuto, state, ctx, notTransition);
+    unzoomForOverlays(state, frameCtx);
+    restoreZoomAfterModal(mobileAuto, state, frameCtx);
+    handleSelectionZoom(mobileAuto, state, frameCtx);
+    const notTransition = isNotTransitionMode(frameCtx);
+    handlePhaseChangeZoom(mobileAuto, state, frameCtx, notTransition);
+    followCrosshairInBattle(mobileAuto, state, frameCtx, notTransition);
   }
 
   /** Clear zoom when UI overlays or phase-end unzoom is active. */
-  function unzoomForOverlays(state: GameState, ctx: FrameContext): void {
+  function unzoomForOverlays(state: GameState, frameCtx: FrameContext): void {
     if (
-      !ctx.shouldUnzoom ||
+      !frameCtx.shouldUnzoom ||
       (cameraZone === null && pinchVp === null && castleBuildVp === null)
     )
       return;
@@ -360,33 +360,34 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function restoreZoomAfterModal(
     mobileAuto: boolean,
     state: GameState,
-    ctx: FrameContext,
+    frameCtx: FrameContext,
   ): void {
     if (
       mobileAuto &&
-      ((wasPaused && !ctx.paused) || (wasQuitPending && !ctx.quitPending))
+      ((wasPaused && !frameCtx.paused) ||
+        (wasQuitPending && !frameCtx.quitPending))
     ) {
       autoZoom(state.phase);
     }
-    wasPaused = ctx.paused;
-    wasQuitPending = ctx.quitPending;
+    wasPaused = frameCtx.paused;
+    wasQuitPending = frameCtx.quitPending;
   }
 
   /** Auto-zoom to selection after announcement finishes. */
   function handleSelectionZoom(
     mobileAuto: boolean,
     state: GameState,
-    ctx: FrameContext,
+    frameCtx: FrameContext,
   ): void {
     if (
-      ctx.mode !== Mode.SELECTION ||
+      frameCtx.mode !== Mode.SELECTION ||
       selectionZoom.applied ||
-      !ctx.isSelectionReady
+      !frameCtx.isSelectionReady
     )
       return;
     selectionZoom.applied = true;
     if (!mobileAuto) return;
-    if (!isReselectPhase(state.phase) || ctx.humanIsReselecting) {
+    if (!isReselectPhase(state.phase) || frameCtx.humanIsReselecting) {
       autoZoom(state.phase);
     }
     if (selectionZoom.pendingVp) {
@@ -401,26 +402,26 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     }
   }
 
-  function isNotTransitionMode(ctx: FrameContext): boolean {
-    return !isTransitionMode(ctx.mode);
+  function isNotTransitionMode(frameCtx: FrameContext): boolean {
+    return !isTransitionMode(frameCtx.mode);
   }
 
   /** Auto-zoom when the game phase changes (mobile only, skip during transitions). */
   function handlePhaseChangeZoom(
     mobileAuto: boolean,
     state: GameState,
-    ctx: FrameContext,
+    frameCtx: FrameContext,
     notTransition: boolean,
   ): void {
     if (state.phase === lastAutoZoomPhase || !notTransition) return;
     if (state.phase === Phase.CASTLE_RESELECT) {
       selectionZoom.applied = false;
-      if (mobileAuto && ctx.humanIsReselecting) {
+      if (mobileAuto && frameCtx.humanIsReselecting) {
         autoZoom(state.phase);
       }
     } else if (
       mobileAuto &&
-      !(ctx.mode === Mode.SELECTION && lastAutoZoomPhase === null)
+      !(frameCtx.mode === Mode.SELECTION && lastAutoZoomPhase === null)
     ) {
       autoZoom(state.phase);
     }
@@ -431,14 +432,14 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function followCrosshairInBattle(
     mobileAuto: boolean,
     state: GameState,
-    ctx: FrameContext,
+    frameCtx: FrameContext,
     notTransition: boolean,
   ): void {
     if (
       !mobileAuto ||
       state.phase !== Phase.BATTLE ||
       pinchVp ||
-      ctx.shouldUnzoom ||
+      frameCtx.shouldUnzoom ||
       !notTransition
     )
       return;

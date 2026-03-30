@@ -201,7 +201,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     rs.frameDt = dt;
     clearFrameData();
 
-    rs.ctx = computeFrameContext({
+    rs.frameCtx = computeFrameContext({
       mode: rs.mode,
       phase: isStateReady(rs) ? rs.state.phase : Phase.CASTLE_SELECT,
       timer: isStateReady(rs) ? rs.state.timer : 0,
@@ -369,7 +369,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const camera = createCameraSystem({
     getState: () => safeState(rs),
-    getCtx: () => rs.ctx,
+    getCtx: () => rs.frameCtx,
     getFrameDt: () => rs.frameDt,
     setFrameAnnouncement: (text) => {
       rs.frame.announcement = text;

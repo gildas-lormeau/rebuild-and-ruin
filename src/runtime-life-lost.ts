@@ -77,7 +77,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     needsReselect: readonly number[],
     eliminated: readonly number[],
   ) {
-    const remoteHumanSlots = rs.ctx.remoteHumanSlots;
+    const remoteHumanSlots = rs.frameCtx.remoteHumanSlots;
     deps.log(
       `showLifeLostDialog: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
     );
@@ -85,8 +85,8 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       needsReselect,
       eliminated,
       state: rs.state,
-      isHost: rs.ctx.isHost,
-      myPlayerId: rs.ctx.myPlayerId,
+      isHost: rs.frameCtx.isHost,
+      myPlayerId: rs.frameCtx.myPlayerId,
       remoteHumanSlots,
       isHumanController: (playerId) => isHuman(rs.controllers[playerId]!),
     });
@@ -119,7 +119,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       lifeLostDialog: rs.lifeLostDialog,
       lifeLostAiDelay: LIFE_LOST_AI_DELAY,
       lifeLostMaxTimer: LIFE_LOST_MAX_TIMER,
-      isHost: rs.ctx.isHost,
+      isHost: rs.frameCtx.isHost,
       render: deps.render,
       logResolved: (dialog) => {
         deps.log(

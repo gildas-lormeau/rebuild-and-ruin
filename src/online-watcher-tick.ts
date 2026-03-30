@@ -140,22 +140,26 @@ export function tickMigrationAnnouncement(
 export function tickWatcher(
   ws: WatcherState,
   dt: number,
-  ctx: WatcherTickContext,
+  transitionCtx: WatcherTickContext,
 ): void {
-  const state = ctx.getState();
-  const frame = ctx.getFrame();
-  const accum = ctx.getAccum();
+  const state = transitionCtx.getState();
+  const frame = transitionCtx.getFrame();
+  const accum = transitionCtx.getAccum();
 
-  tickWatcherTimers(state, frame, ws.timing, ctx.now);
+  tickWatcherTimers(state, frame, ws.timing, transitionCtx.now);
 
-  const myPlayerId = ctx.getMyPlayerId();
-  const myHuman = getLocalHuman(state, ctx.getControllers(), myPlayerId);
+  const myPlayerId = transitionCtx.getMyPlayerId();
+  const myHuman = getLocalHuman(
+    state,
+    transitionCtx.getControllers(),
+    myPlayerId,
+  );
 
   if (state.phase === Phase.BATTLE) {
     tickWatcherBattlePhase({
       state,
       frame,
-      battleAnim: ctx.getBattleAnim(),
+      battleAnim: transitionCtx.getBattleAnim(),
       dt,
       myPlayerId,
       myHuman,
@@ -164,10 +168,10 @@ export function tickWatcher(
       watcherIdlePhases: ws.idlePhases,
       watcherOrbitParams: ws.orbitParams,
       crosshairSpeed: CROSSHAIR_SPEED,
-      logThrottled: ctx.logThrottled,
+      logThrottled: transitionCtx.logThrottled,
       interpolateToward,
       nextReadyCombined,
-      maybeSendAimUpdate: ctx.maybeSendAimUpdate,
+      maybeSendAimUpdate: transitionCtx.maybeSendAimUpdate,
       aimCannons,
     });
   } else if (state.phase === Phase.CANNON_PLACE) {
@@ -178,9 +182,9 @@ export function tickWatcher(
       myPlayerId,
       myHuman,
       remoteCannonPhantoms: ws.remoteCannonPhantoms,
-      lastSentCannonPhantom: ctx.lastSentCannonPhantom,
+      lastSentCannonPhantom: transitionCtx.lastSentCannonPhantom,
       sendOpponentCannonPhantom: (msg) => {
-        ctx.send({ type: MESSAGE.OPPONENT_CANNON_PHANTOM, ...msg });
+        transitionCtx.send({ type: MESSAGE.OPPONENT_CANNON_PHANTOM, ...msg });
       },
     });
   } else if (state.phase === Phase.WALL_BUILD) {
@@ -190,9 +194,9 @@ export function tickWatcher(
       dt,
       myHuman,
       remotePiecePhantoms: ws.remotePiecePhantoms,
-      lastSentPiecePhantom: ctx.lastSentPiecePhantom,
+      lastSentPiecePhantom: transitionCtx.lastSentPiecePhantom,
       sendOpponentPiecePhantom: (msg) => {
-        ctx.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg });
+        transitionCtx.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg });
       },
     });
   }
@@ -202,7 +206,7 @@ export function tickWatcher(
     tickGruntsIfDue(accum, dt, state, tickGrunts);
   }
 
-  ctx.render();
+  transitionCtx.render();
 }
 
 /** Get the local human controller, or null if eliminated/watcher. */

@@ -156,10 +156,10 @@ export interface TransitionContext {
 /** Watcher-only: processes CASTLE_WALLS from host (triggers castle build animation). */
 export function handleCastleWallsTransition(
   msg: ServerMessage,
-  ctx: TransitionContext,
+  transitionCtx: TransitionContext,
 ): void {
   if (msg.type !== MESSAGE.CASTLE_WALLS) return;
-  const state = ctx.getState();
+  const state = transitionCtx.getState();
   const plans = msg.plans.map((plan) => ({
     ...plan,
     tiles: plan.tiles.filter((tile) => tile >= 0 && tile < TILE_COUNT),
@@ -176,38 +176,42 @@ export function handleCastleWallsTransition(
       );
     }
   }
-  ctx.selection.getStates().clear();
-  ctx.selection.clearSelectionOverlay();
+  transitionCtx.selection.getStates().clear();
+  transitionCtx.selection.clearSelectionOverlay();
   // Zoom to the local player's castle on mobile
-  const myPlan = plans.find((plan) => plan.playerId === ctx.getMyPlayerId());
-  if (myPlan) ctx.selection.setCastleBuildViewport([myPlan]);
+  const myPlan = plans.find(
+    (plan) => plan.playerId === transitionCtx.getMyPlayerId(),
+  );
+  if (myPlan) transitionCtx.selection.setCastleBuildViewport([myPlan]);
 
-  ctx.selection.setCastleBuildFromPlans(plans, maxTiles, () => {
+  transitionCtx.selection.setCastleBuildFromPlans(plans, maxTiles, () => {
     // No phase transition — cannon_start checkpoint drives it and reconciles state.
   });
-  ctx.setMode(Mode.CASTLE_BUILD);
+  transitionCtx.setMode(Mode.CASTLE_BUILD);
 }
 
 /** Watcher-only: processes CANNON_START checkpoint and transitions to cannon phase. */
 export function handleCannonStartTransition(
   msg: ServerMessage,
-  ctx: TransitionContext,
+  transitionCtx: TransitionContext,
 ): void {
   if (msg.type !== MESSAGE.CANNON_START) return;
-  const state = ctx.getState();
-  const myPlayerId = ctx.getMyPlayerId();
-  ctx.selection.clearSelectionOverlay();
+  const state = transitionCtx.getState();
+  const myPlayerId = transitionCtx.getMyPlayerId();
+  transitionCtx.selection.clearSelectionOverlay();
 
   // Pre-capture old houses/bonus before checkpoint spawns new ones.
   // oldCastles is already pre-captured in handleBuildEndTransition (pre-sweep walls).
-  ctx.ui.banner.oldHouses = state.map.houses.map((h) => ({ ...h }));
-  ctx.ui.banner.oldBonusSquares = state.bonusSquares.map((b) => ({ ...b }));
+  transitionCtx.ui.banner.oldHouses = state.map.houses.map((h) => ({ ...h }));
+  transitionCtx.ui.banner.oldBonusSquares = state.bonusSquares.map((b) => ({
+    ...b,
+  }));
 
-  ctx.checkpoint.applyCannonStart(msg);
+  transitionCtx.checkpoint.applyCannonStart(msg);
 
   const initLocalController = () => {
     if (myPlayerId >= 0) {
-      const ctrl = ctx.getControllers()[myPlayerId];
+      const ctrl = transitionCtx.getControllers()[myPlayerId];
       if (ctrl) initControllerForCannonPhase(ctrl, state);
     }
   };
@@ -226,9 +230,13 @@ export function handleCannonStartTransition(
     },
     initControllers: initLocalController,
     showBanner: () =>
-      showCannonPhaseBanner(ctx.ui.showBanner, () => {
-        startWatcherPhaseTimer(ctx.ui.watcherTiming, ctx.now(), state.timer);
-        ctx.setMode(Mode.GAME);
+      showCannonPhaseBanner(transitionCtx.ui.showBanner, () => {
+        startWatcherPhaseTimer(
+          transitionCtx.ui.watcherTiming,
+          transitionCtx.now(),
+          state.timer,
+        );
+        transitionCtx.setMode(Mode.GAME);
       }),
   });
 }
@@ -236,43 +244,50 @@ export function handleCannonStartTransition(
 /** Watcher-only: processes BATTLE_START checkpoint and transitions to battle phase. */
 export function handleBattleStartTransition(
   msg: ServerMessage,
-  ctx: TransitionContext,
+  transitionCtx: TransitionContext,
 ): void {
   if (msg.type !== MESSAGE.BATTLE_START) return;
-  const state = ctx.getState();
+  const state = transitionCtx.getState();
   const battleFlights = msg.flights;
 
   // Pre-capture old scene before checkpoint replaces state (banner ??= keeps it)
-  ctx.ui.banner.oldHouses = state.map.houses.map((h) => ({ ...h }));
-  ctx.ui.banner.oldBonusSquares = state.bonusSquares.map((b) => ({ ...b }));
+  transitionCtx.ui.banner.oldHouses = state.map.houses.map((h) => ({ ...h }));
+  transitionCtx.ui.banner.oldBonusSquares = state.bonusSquares.map((b) => ({
+    ...b,
+  }));
 
   executeTransition(BATTLE_START_STEPS, {
     showBanner: () =>
-      showBattlePhaseBanner(ctx.ui.showBanner, BANNER_BATTLE_ONLINE, () => {
-        if (battleFlights && battleFlights.length > 0) {
-          ctx.battle.setFlights(
-            battleFlights.map((flight) => ({
-              flight: {
-                startX: flight.startX,
-                startY: flight.startY,
-                endX: flight.endX,
-                endY: flight.endY,
-              },
-              progress: 0,
-            })),
-          );
-          ctx.setMode(Mode.BALLOON_ANIM);
-        } else {
-          ctx.battle.beginBattle();
-        }
-      }),
+      showBattlePhaseBanner(
+        transitionCtx.ui.showBanner,
+        BANNER_BATTLE_ONLINE,
+        () => {
+          if (battleFlights && battleFlights.length > 0) {
+            transitionCtx.battle.setFlights(
+              battleFlights.map((flight) => ({
+                flight: {
+                  startX: flight.startX,
+                  startY: flight.startY,
+                  endX: flight.endX,
+                  endY: flight.endY,
+                },
+                progress: 0,
+              })),
+            );
+            transitionCtx.setMode(Mode.BALLOON_ANIM);
+          } else {
+            transitionCtx.battle.beginBattle();
+          }
+        },
+      ),
     applyCheckpoint: () => {
-      ctx.checkpoint.applyBattleStart(msg);
+      transitionCtx.checkpoint.applyBattleStart(msg);
       setPhase(state, Phase.BATTLE);
     },
     snapshotForBanner: () => {
-      ctx.ui.banner.newTerritory = ctx.battle.snapshotTerritory();
-      ctx.ui.banner.newWalls = snapshotAllWalls(state);
+      transitionCtx.ui.banner.newTerritory =
+        transitionCtx.battle.snapshotTerritory();
+      transitionCtx.ui.banner.newWalls = snapshotAllWalls(state);
     },
   });
 }
@@ -280,36 +295,42 @@ export function handleBattleStartTransition(
 /** Watcher-only: processes BUILD_START checkpoint and transitions to build phase. */
 export function handleBuildStartTransition(
   msg: ServerMessage,
-  ctx: TransitionContext,
+  transitionCtx: TransitionContext,
 ): void {
   if (msg.type !== MESSAGE.BUILD_START) return;
-  const state = ctx.getState();
-  const myPlayerId = ctx.getMyPlayerId();
-  const buildReceivedAt = ctx.now();
+  const state = transitionCtx.getState();
+  const myPlayerId = transitionCtx.getMyPlayerId();
+  const buildReceivedAt = transitionCtx.now();
 
   // Pre-capture old scene before checkpoint replaces state (banner ??= keeps it)
-  ctx.ui.banner.oldHouses = state.map.houses.map((h) => ({ ...h }));
-  ctx.ui.banner.oldBonusSquares = state.bonusSquares.map((b) => ({ ...b }));
+  transitionCtx.ui.banner.oldHouses = state.map.houses.map((h) => ({ ...h }));
+  transitionCtx.ui.banner.oldBonusSquares = state.bonusSquares.map((b) => ({
+    ...b,
+  }));
 
   executeTransition(BUILD_START_STEPS, {
     showBanner: () =>
-      showBuildPhaseBanner(ctx.ui.showBanner, BANNER_REPAIR_ONLINE, () => {
-        startWatcherPhaseTimer(
-          ctx.ui.watcherTiming,
-          buildReceivedAt + ctx.ui.bannerDuration * 1000,
-          state.timer,
-        );
-        ctx.setMode(Mode.GAME);
-      }),
+      showBuildPhaseBanner(
+        transitionCtx.ui.showBanner,
+        BANNER_REPAIR_ONLINE,
+        () => {
+          startWatcherPhaseTimer(
+            transitionCtx.ui.watcherTiming,
+            buildReceivedAt + transitionCtx.ui.bannerDuration * 1000,
+            state.timer,
+          );
+          transitionCtx.setMode(Mode.GAME);
+        },
+      ),
     applyCheckpoint: () => {
-      ctx.checkpoint.applyBuildStart(msg);
+      transitionCtx.checkpoint.applyBuildStart(msg);
       setPhase(state, Phase.WALL_BUILD);
     },
     initControllers: () => {
       if (myPlayerId >= 0) {
         const player = state.players[myPlayerId];
         if (player && !player.eliminated) {
-          ctx.getControllers()[myPlayerId]?.startBuild(state);
+          transitionCtx.getControllers()[myPlayerId]?.startBuild(state);
         }
       }
     },
@@ -324,18 +345,18 @@ export function handleBuildStartTransition(
  *  host has created its dialog, causing the choice to be silently dropped. */
 export function handleBuildEndTransition(
   msg: ServerMessage,
-  ctx: TransitionContext,
+  transitionCtx: TransitionContext,
 ): void {
   if (msg.type !== MESSAGE.BUILD_END) return;
-  const state = ctx.getState();
+  const state = transitionCtx.getState();
 
   // Pre-capture old scene before checkpoint applies the wall sweep.
   // The host stashes wallsBeforeSweep before sweeping; the watcher must
   // do the same so walls stay visible until the cannon-start banner.
-  ctx.ui.banner.wallsBeforeSweep = state.players.map(
+  transitionCtx.ui.banner.wallsBeforeSweep = state.players.map(
     (player) => new Set(player.walls),
   );
-  ctx.ui.banner.oldCastles = state.players
+  transitionCtx.ui.banner.oldCastles = state.players
     .filter((player) => player.castle)
     .map((player) => ({
       walls: new Set(player.walls),
@@ -346,45 +367,47 @@ export function handleBuildEndTransition(
 
   // Capture pre-scores before checkpoint overwrites them (needed for score delta animation)
   const preScores = state.players.map((player) => player.score);
-  ctx.checkpoint.applyPlayersCheckpoint(state, msg.players);
+  transitionCtx.checkpoint.applyPlayersCheckpoint(state, msg.players);
   for (let i = 0; i < state.players.length; i++) {
     state.players[i]!.score = msg.scores[i] ?? state.players[i]!.score;
   }
   for (const pid of [...msg.needsReselect, ...msg.eliminated]) {
     const zone = state.playerZones[pid];
-    if (zone !== undefined) ctx.endPhase.resetZoneState(state, zone);
+    if (zone !== undefined) transitionCtx.endPhase.resetZoneState(state, zone);
   }
   // Shared build-end sequence: score deltas → onLifeLost → dialog.
   // Without the score-delta delay, non-host sends life_lost_choice before
   // host creates its dialog.
-  const myPlayerId = ctx.getMyPlayerId();
+  const myPlayerId = transitionCtx.getMyPlayerId();
   runBuildEndSequence({
     needsReselect: msg.needsReselect,
     eliminated: msg.eliminated,
     showScoreDeltas: (onDone) =>
-      ctx.endPhase.showScoreDeltas(preScores, onDone),
+      transitionCtx.endPhase.showScoreDeltas(preScores, onDone),
     notifyLifeLost: (pid) => {
-      if (pid === myPlayerId) ctx.getControllers()[pid]?.onLifeLost();
+      if (pid === myPlayerId) transitionCtx.getControllers()[pid]?.onLifeLost();
     },
-    showLifeLostDialog: ctx.endPhase.showLifeLostDialog,
+    showLifeLostDialog: transitionCtx.endPhase.showLifeLostDialog,
     // No afterLifeLostResolved — watcher waits for host's next phase message
   });
 }
 
 export function handleGameOverTransition(
   msg: ServerMessage,
-  ctx: TransitionContext,
+  transitionCtx: TransitionContext,
 ): void {
   if (msg.type !== MESSAGE.GAME_OVER) return;
-  ctx.endPhase.setGameOverFrame({
+  transitionCtx.endPhase.setGameOverFrame({
     winner: msg.winner ?? NO_WINNER_NAME,
     scores: msg.scores.map((score, i) => ({
       ...score,
       color:
-        ctx.endPhase.playerColors[i % ctx.endPhase.playerColors.length]!.wall,
+        transitionCtx.endPhase.playerColors[
+          i % transitionCtx.endPhase.playerColors.length
+        ]!.wall,
     })),
     focused: FOCUS_REMATCH,
   });
-  ctx.ui.render();
-  ctx.setMode(Mode.STOPPED);
+  transitionCtx.ui.render();
+  transitionCtx.setMode(Mode.STOPPED);
 }

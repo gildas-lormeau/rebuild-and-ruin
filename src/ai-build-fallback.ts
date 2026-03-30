@@ -38,7 +38,7 @@ const MIN_VIABLE_ENCLOSURE = 9;
 export function pickFallbackPlacement(
   scored: readonly Scored[],
   state: GameState,
-  ctx: FallbackContext,
+  buildCtx: FallbackContext,
 ): { placement: AiPlacement | null; reason: string } | null {
   const {
     walls,
@@ -50,7 +50,7 @@ export function pickFallbackPlacement(
     unenclosedTowers,
     caresAboutHouses,
     caresAboutBonuses,
-  } = ctx;
+  } = buildCtx;
   const placementResult = (
     candidate: Candidate,
     reason: string,

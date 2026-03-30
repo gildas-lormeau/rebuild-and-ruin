@@ -312,61 +312,61 @@ export function createSoundSystem(): SoundSystem {
 
   function cannonBoom(): void {
     if (activeBooms >= MAX_BOOMS) return;
-    const ctx = getCtx();
-    ctx.resume().catch(() => {});
-    const time = ctx.currentTime + 0.01;
+    const audioCtx = getCtx();
+    audioCtx.resume().catch(() => {});
+    const time = audioCtx.currentTime + 0.01;
     const volume = CANNON_BOOM_VOL * (soundLevel === 1 ? 0.5 : 1);
 
-    const blastLen = Math.ceil(ctx.sampleRate * 0.5);
-    const blastBuf = ctx.createBuffer(1, blastLen, ctx.sampleRate);
+    const blastLen = Math.ceil(audioCtx.sampleRate * 0.5);
+    const blastBuf = audioCtx.createBuffer(1, blastLen, audioCtx.sampleRate);
     const blastData = blastBuf.getChannelData(0);
     for (let i = 0; i < blastLen; i++) blastData[i] = Math.random() * 2 - 1;
-    const blast = ctx.createBufferSource();
+    const blast = audioCtx.createBufferSource();
     blast.buffer = blastBuf;
-    const blastGain = ctx.createGain();
+    const blastGain = audioCtx.createGain();
     blastGain.gain.setValueAtTime(volume, time);
     blastGain.gain.setValueAtTime(volume * 0.6, time + 0.05);
     blastGain.gain.exponentialRampToValueAtTime(GAIN_SILENT, time + 0.5);
-    blast.connect(blastGain).connect(ctx.destination);
+    blast.connect(blastGain).connect(audioCtx.destination);
     blast.start(time);
     blast.stop(time + 0.5);
 
-    const bass = ctx.createOscillator();
+    const bass = audioCtx.createOscillator();
     bass.type = SINE;
     bass.frequency.setValueAtTime(CANNON_BASS_START_HZ, time);
     bass.frequency.exponentialRampToValueAtTime(40, time + 0.3);
-    const bassGain = ctx.createGain();
+    const bassGain = audioCtx.createGain();
     bassGain.gain.setValueAtTime(volume * 0.9, time);
     bassGain.gain.exponentialRampToValueAtTime(GAIN_SILENT, time + 0.5);
-    bass.connect(bassGain).connect(ctx.destination);
+    bass.connect(bassGain).connect(audioCtx.destination);
     bass.start(time);
     bass.stop(time + 0.5);
 
-    const mid = ctx.createOscillator();
+    const mid = audioCtx.createOscillator();
     mid.type = SINE;
     mid.frequency.setValueAtTime(400, time);
     mid.frequency.exponentialRampToValueAtTime(100, time + 0.15);
-    const midGain = ctx.createGain();
+    const midGain = audioCtx.createGain();
     midGain.gain.setValueAtTime(volume * 0.5, time);
     midGain.gain.exponentialRampToValueAtTime(GAIN_SILENT, time + 0.2);
-    mid.connect(midGain).connect(ctx.destination);
+    mid.connect(midGain).connect(audioCtx.destination);
     mid.start(time);
     mid.stop(time + 0.2);
 
-    const tailLen = Math.ceil(ctx.sampleRate * 0.8);
-    const tailBuf = ctx.createBuffer(1, tailLen, ctx.sampleRate);
+    const tailLen = Math.ceil(audioCtx.sampleRate * 0.8);
+    const tailBuf = audioCtx.createBuffer(1, tailLen, audioCtx.sampleRate);
     const tailData = tailBuf.getChannelData(0);
     for (let i = 0; i < tailLen; i++) tailData[i] = Math.random() * 2 - 1;
-    const tail = ctx.createBufferSource();
+    const tail = audioCtx.createBufferSource();
     tail.buffer = tailBuf;
-    const tailGain = ctx.createGain();
+    const tailGain = audioCtx.createGain();
     tailGain.gain.setValueAtTime(volume * 0.3, time + 0.1);
     tailGain.gain.exponentialRampToValueAtTime(GAIN_SILENT, time + 0.8);
-    const tailFilter = ctx.createBiquadFilter();
+    const tailFilter = audioCtx.createBiquadFilter();
     tailFilter.type = LOWPASS;
     tailFilter.frequency.setValueAtTime(800, time);
     tailFilter.frequency.exponentialRampToValueAtTime(150, time + 0.8);
-    tail.connect(tailFilter).connect(tailGain).connect(ctx.destination);
+    tail.connect(tailFilter).connect(tailGain).connect(audioCtx.destination);
     tail.start(time);
     tail.stop(time + 0.8);
 
@@ -380,8 +380,8 @@ export function createSoundSystem(): SoundSystem {
 
   function cannonWhistle(evt: BattleAudioEvent, myPlayerId: number): void {
     if (activeWhistles >= MAX_WHISTLES) return;
-    const ctx = getCtx();
-    ctx.resume().catch(() => {});
+    const audioCtx = getCtx();
+    audioCtx.resume().catch(() => {});
 
     const dx = (evt.targetX ?? 0) - (evt.startX ?? 0);
     const dy = (evt.targetY ?? 0) - (evt.startY ?? 0);
@@ -401,38 +401,38 @@ export function createSoundSystem(): SoundSystem {
     const volScale = soundLevel === 1 ? 0.5 : 1;
     const peakVol = 0.15 * volScale;
 
-    const time = ctx.currentTime + 0.02;
+    const time = audioCtx.currentTime + 0.02;
 
-    const osc = ctx.createOscillator();
+    const osc = audioCtx.createOscillator();
     osc.type = SINE;
     osc.frequency.setValueAtTime(startHz, time);
     osc.frequency.exponentialRampToValueAtTime(endHz, time + dur);
-    const gain = ctx.createGain();
+    const gain = audioCtx.createGain();
     gain.gain.setValueAtTime(GAIN_SILENT, time);
     gain.gain.linearRampToValueAtTime(peakVol, time + attack);
     gain.gain.setValueAtTime(peakVol * 0.7, time + dur - release);
     gain.gain.linearRampToValueAtTime(GAIN_SILENT, time + dur);
-    osc.connect(gain).connect(ctx.destination);
+    osc.connect(gain).connect(audioCtx.destination);
     osc.start(time);
     osc.stop(time + dur);
 
-    const nLen = Math.ceil(ctx.sampleRate * dur);
-    const nBuf = ctx.createBuffer(1, nLen, ctx.sampleRate);
+    const nLen = Math.ceil(audioCtx.sampleRate * dur);
+    const nBuf = audioCtx.createBuffer(1, nLen, audioCtx.sampleRate);
     const nData = nBuf.getChannelData(0);
     for (let i = 0; i < nLen; i++) nData[i] = Math.random() * 2 - 1;
-    const noise = ctx.createBufferSource();
+    const noise = audioCtx.createBufferSource();
     noise.buffer = nBuf;
-    const nGain = ctx.createGain();
+    const nGain = audioCtx.createGain();
     nGain.gain.setValueAtTime(GAIN_SILENT, time);
     nGain.gain.linearRampToValueAtTime(peakVol * 0.4, time + attack);
     nGain.gain.setValueAtTime(peakVol * 0.28, time + dur - release);
     nGain.gain.linearRampToValueAtTime(GAIN_SILENT, time + dur);
-    const nFilter = ctx.createBiquadFilter();
+    const nFilter = audioCtx.createBiquadFilter();
     nFilter.type = BANDPASS;
     nFilter.frequency.setValueAtTime(startHz, time);
     nFilter.frequency.exponentialRampToValueAtTime(endHz, time + dur);
     nFilter.Q.value = 5;
-    noise.connect(nFilter).connect(nGain).connect(ctx.destination);
+    noise.connect(nFilter).connect(nGain).connect(audioCtx.destination);
     noise.start(time);
     noise.stop(time + dur);
 
@@ -446,56 +446,62 @@ export function createSoundSystem(): SoundSystem {
 
   function impact(): void {
     if (activeImpacts >= MAX_IMPACTS) return;
-    const ctx = getCtx();
-    ctx.resume().catch(() => {});
-    const time = ctx.currentTime + 0.01;
+    const audioCtx = getCtx();
+    audioCtx.resume().catch(() => {});
+    const time = audioCtx.currentTime + 0.01;
     const volume = soundLevel === 1 ? 0.5 : 1;
 
-    const thud = ctx.createOscillator();
+    const thud = audioCtx.createOscillator();
     thud.type = SINE;
     thud.frequency.setValueAtTime(100, time);
     thud.frequency.exponentialRampToValueAtTime(35, time + 0.08);
-    const thudGain = ctx.createGain();
+    const thudGain = audioCtx.createGain();
     thudGain.gain.setValueAtTime(0.3 * volume, time);
     thudGain.gain.exponentialRampToValueAtTime(GAIN_SILENT, time + 0.12);
-    thud.connect(thudGain).connect(ctx.destination);
+    thud.connect(thudGain).connect(audioCtx.destination);
     thud.start(time);
     thud.stop(time + 0.12);
 
-    const crunchLen = Math.ceil(ctx.sampleRate * 0.15);
-    const crunchBuf = ctx.createBuffer(1, crunchLen, ctx.sampleRate);
+    const crunchLen = Math.ceil(audioCtx.sampleRate * 0.15);
+    const crunchBuf = audioCtx.createBuffer(1, crunchLen, audioCtx.sampleRate);
     const crunchData = crunchBuf.getChannelData(0);
     for (let i = 0; i < crunchLen; i++) {
       crunchData[i] = (Math.random() * 2 - 1) * (Math.random() < 0.3 ? 1 : 0.3);
     }
-    const crunch = ctx.createBufferSource();
+    const crunch = audioCtx.createBufferSource();
     crunch.buffer = crunchBuf;
-    const crunchGain = ctx.createGain();
+    const crunchGain = audioCtx.createGain();
     crunchGain.gain.setValueAtTime(0.25 * volume, time);
     crunchGain.gain.exponentialRampToValueAtTime(GAIN_SILENT, time + 0.15);
-    const crunchFilter = ctx.createBiquadFilter();
+    const crunchFilter = audioCtx.createBiquadFilter();
     crunchFilter.type = BANDPASS;
     crunchFilter.frequency.value = 800;
     crunchFilter.Q.value = 0.8;
-    crunch.connect(crunchFilter).connect(crunchGain).connect(ctx.destination);
+    crunch
+      .connect(crunchFilter)
+      .connect(crunchGain)
+      .connect(audioCtx.destination);
     crunch.start(time);
     crunch.stop(time + 0.15);
 
-    const debrisLen = Math.ceil(ctx.sampleRate * 0.3);
-    const debrisBuf = ctx.createBuffer(1, debrisLen, ctx.sampleRate);
+    const debrisLen = Math.ceil(audioCtx.sampleRate * 0.3);
+    const debrisBuf = audioCtx.createBuffer(1, debrisLen, audioCtx.sampleRate);
     const debrisData = debrisBuf.getChannelData(0);
     for (let i = 0; i < debrisLen; i++) {
       debrisData[i] = Math.random() < 0.08 ? Math.random() * 2 - 1 : 0;
     }
-    const debris = ctx.createBufferSource();
+    const debris = audioCtx.createBufferSource();
     debris.buffer = debrisBuf;
-    const debrisGain = ctx.createGain();
+    const debrisGain = audioCtx.createGain();
     debrisGain.gain.setValueAtTime(0.12 * volume, time + 0.05);
     debrisGain.gain.exponentialRampToValueAtTime(GAIN_SILENT, time + 0.3);
-    const debrisFilter = ctx.createBiquadFilter();
+    const debrisFilter = audioCtx.createBiquadFilter();
     debrisFilter.type = "highpass";
     debrisFilter.frequency.value = 1500;
-    debris.connect(debrisFilter).connect(debrisGain).connect(ctx.destination);
+    debris
+      .connect(debrisFilter)
+      .connect(debrisGain)
+      .connect(audioCtx.destination);
     debris.start(time + 0.05);
     debris.stop(time + 0.35);
 
@@ -577,8 +583,8 @@ export function createSoundSystem(): SoundSystem {
 
     chargeFanfare(playerId = 0) {
       if (soundLevel < 1) return;
-      const ctx = getCtx();
-      ctx.resume().catch(() => {});
+      const audioCtx = getCtx();
+      audioCtx.resume().catch(() => {});
 
       const pitch = FANFARE_PITCH[playerId] ?? 1;
       const G4 = 392 * pitch;
@@ -597,9 +603,9 @@ export function createSoundSystem(): SoundSystem {
         [G5, noteStep * 6, 0.45, true],
       ];
 
-      let time = ctx.currentTime + 0.05;
+      let time = audioCtx.currentTime + 0.05;
       for (const [freq, dur, vol, accent] of score) {
-        fanfareNote(ctx, freq, time, dur * 0.92, vol * volScale, accent);
+        fanfareNote(audioCtx, freq, time, dur * 0.92, vol * volScale, accent);
         time += dur;
       }
     },
@@ -614,20 +620,20 @@ export function createSoundSystem(): SoundSystem {
     drumsStart() {
       if (soundLevel < 2) return;
       drumsStopInternal();
-      const ctx = getCtx();
-      ctx.resume().catch(() => {});
+      const audioCtx = getCtx();
+      audioCtx.resume().catch(() => {});
 
-      drumGainNode = ctx.createGain();
-      drumGainNode.gain.setValueAtTime(1, ctx.currentTime);
-      drumGainNode.connect(ctx.destination);
+      drumGainNode = audioCtx.createGain();
+      drumGainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+      drumGainNode.connect(audioCtx.destination);
 
       const maxVol = soundLevel === 1 ? 0.5 : 1;
-      const t0 = ctx.currentTime + 0.05;
+      const t0 = audioCtx.currentTime + 0.05;
       let time = t0;
       const end = time + DRUM_MAX_DURATION;
       while (time < end) {
         scheduleDrumBar(
-          ctx,
+          audioCtx,
           drumGainNode,
           time,
           maxVol * drumVolume(time - t0),
@@ -664,7 +670,7 @@ export function createSoundSystem(): SoundSystem {
 }
 
 function fanfareNote(
-  ctx: AudioContext,
+  audioCtx: AudioContext,
   freq: number,
   startTime: number,
   duration: number,
@@ -674,42 +680,42 @@ function fanfareNote(
   const volume = accent ? vol * 1.3 : vol;
 
   for (const detune of [-6, 6]) {
-    const osc = ctx.createOscillator();
+    const osc = audioCtx.createOscillator();
     osc.type = "sawtooth";
     osc.frequency.value = freq;
     osc.detune.value = detune;
-    const gain = ctx.createGain();
+    const gain = audioCtx.createGain();
     const attackEnd = startTime + 0.006;
     gain.gain.setValueAtTime(0, startTime);
     gain.gain.linearRampToValueAtTime(volume * 1.4, attackEnd);
     gain.gain.exponentialRampToValueAtTime(volume, attackEnd + 0.03);
     gain.gain.setValueAtTime(volume * 0.85, startTime + duration - 0.02);
     gain.gain.linearRampToValueAtTime(0, startTime + duration);
-    const filter = ctx.createBiquadFilter();
+    const filter = audioCtx.createBiquadFilter();
     filter.type = LOWPASS;
     filter.frequency.setValueAtTime(3500, startTime);
     filter.frequency.exponentialRampToValueAtTime(1800, startTime + 0.06);
     filter.Q.value = 2;
-    osc.connect(filter).connect(gain).connect(ctx.destination);
+    osc.connect(filter).connect(gain).connect(audioCtx.destination);
     osc.start(startTime);
     osc.stop(startTime + duration);
   }
 
-  const sub = ctx.createOscillator();
+  const sub = audioCtx.createOscillator();
   sub.type = "square";
   sub.frequency.value = freq / 2;
-  const subGain = ctx.createGain();
+  const subGain = audioCtx.createGain();
   subGain.gain.setValueAtTime(0, startTime);
   subGain.gain.linearRampToValueAtTime(volume * 0.15, startTime + 0.01);
   subGain.gain.setValueAtTime(volume * 0.12, startTime + duration - 0.02);
   subGain.gain.linearRampToValueAtTime(0, startTime + duration);
-  sub.connect(subGain).connect(ctx.destination);
+  sub.connect(subGain).connect(audioCtx.destination);
   sub.start(startTime);
   sub.stop(startTime + duration);
 }
 
 function scheduleDrumBar(
-  ctx: AudioContext,
+  audioCtx: AudioContext,
   dest: AudioNode,
   time: number,
   vol: number,
@@ -720,7 +726,7 @@ function scheduleDrumBar(
   const pitch = (base: number) => base + (Math.random() - 0.5) * 6;
 
   timpaniHit(
-    ctx,
+    audioCtx,
     dest,
     time + j(),
     volume(vol * 0.65),
@@ -728,7 +734,7 @@ function scheduleDrumBar(
     nodes,
   );
   timpaniHit(
-    ctx,
+    audioCtx,
     dest,
     time + DRUM_BEAT + j(),
     volume(vol * 0.45),
@@ -736,7 +742,7 @@ function scheduleDrumBar(
     nodes,
   );
   timpaniHit(
-    ctx,
+    audioCtx,
     dest,
     time + DRUM_BEAT * 1.35 + j(),
     volume(vol * 0.3),
@@ -744,39 +750,39 @@ function scheduleDrumBar(
     nodes,
   );
   timpaniHit(
-    ctx,
+    audioCtx,
     dest,
     time + DRUM_BEAT * 3 + j(),
     volume(vol * 0.55),
     pitch(DRUM_LOW_PITCH),
     nodes,
   );
-  scheduleSnareRoll(ctx, dest, time, DRUM_BAR, vol * 0.08, nodes);
+  scheduleSnareRoll(audioCtx, dest, time, DRUM_BAR, vol * 0.08, nodes);
 }
 
 function timpaniHit(
-  ctx: AudioContext,
+  audioCtx: AudioContext,
   dest: AudioNode,
   time: number,
   vol: number,
   pitch: number,
   nodes: StoppableNode[],
 ): void {
-  const osc = ctx.createOscillator();
+  const osc = audioCtx.createOscillator();
   osc.type = SINE;
   osc.frequency.setValueAtTime(pitch * 1.15, time);
   osc.frequency.exponentialRampToValueAtTime(pitch, time + 0.08);
-  const osc2 = ctx.createOscillator();
+  const osc2 = audioCtx.createOscillator();
   osc2.type = SINE;
   osc2.frequency.value = pitch * 1.5;
-  const gain = ctx.createGain();
+  const gain = audioCtx.createGain();
   gain.gain.setValueAtTime(vol, time);
   gain.gain.setValueAtTime(vol * 0.7, time + 0.05);
   gain.gain.exponentialRampToValueAtTime(GAIN_NEAR_ZERO, time + 0.8);
-  const gain2 = ctx.createGain();
+  const gain2 = audioCtx.createGain();
   gain2.gain.setValueAtTime(vol * 0.25, time);
   gain2.gain.exponentialRampToValueAtTime(GAIN_NEAR_ZERO, time + 0.4);
-  const filter = ctx.createBiquadFilter();
+  const filter = audioCtx.createBiquadFilter();
   filter.type = LOWPASS;
   filter.frequency.value = 250;
   filter.Q.value = 0.7;
@@ -788,16 +794,16 @@ function timpaniHit(
   osc2.stop(time + 0.5);
   nodes.push(osc, osc2);
 
-  const bufLen = Math.ceil(ctx.sampleRate * 0.015);
-  const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+  const bufLen = Math.ceil(audioCtx.sampleRate * 0.015);
+  const buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
   const data = buf.getChannelData(0);
   for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
-  const noise = ctx.createBufferSource();
+  const noise = audioCtx.createBufferSource();
   noise.buffer = buf;
-  const nGain = ctx.createGain();
+  const nGain = audioCtx.createGain();
   nGain.gain.setValueAtTime(vol * 0.3, time);
   nGain.gain.exponentialRampToValueAtTime(GAIN_NEAR_ZERO, time + 0.015);
-  const nFilter = ctx.createBiquadFilter();
+  const nFilter = audioCtx.createBiquadFilter();
   nFilter.type = LOWPASS;
   nFilter.frequency.value = 400;
   noise.connect(nFilter).connect(nGain).connect(dest);
@@ -807,7 +813,7 @@ function timpaniHit(
 }
 
 function scheduleSnareRoll(
-  ctx: AudioContext,
+  audioCtx: AudioContext,
   dest: AudioNode,
   time: number,
   dur: number,
@@ -829,13 +835,13 @@ function scheduleSnareRoll(
     { freq: 900, qFactor: 0.6, volMul: 1.0 },
     { freq: 2200, qFactor: 1.0, volMul: 0.5 },
   ];
-  const bufLen = Math.ceil(ctx.sampleRate * dur);
+  const bufLen = Math.ceil(audioCtx.sampleRate * dur);
 
   for (const band of bands) {
-    const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+    const buf = audioCtx.createBuffer(1, bufLen, audioCtx.sampleRate);
     const data = buf.getChannelData(0);
     for (let i = 0; i < bufLen; i++) {
-      const tSample = i / ctx.sampleRate;
+      const tSample = i / audioCtx.sampleRate;
       let timeSinceStroke = strokeInterval;
       for (const st of strokeTimes) {
         const delta = tSample - st;
@@ -846,11 +852,11 @@ function scheduleSnareRoll(
         phase < 0.15 ? 0.7 + Math.random() * 0.3 : 0.3 + 0.3 * (1 - phase);
       data[i] = (Math.random() * 2 - 1) * strokeEnv;
     }
-    const noise = ctx.createBufferSource();
+    const noise = audioCtx.createBufferSource();
     noise.buffer = buf;
-    const gain = ctx.createGain();
+    const gain = audioCtx.createGain();
     gain.gain.setValueAtTime(vol * band.volMul, time);
-    const filter = ctx.createBiquadFilter();
+    const filter = audioCtx.createBiquadFilter();
     filter.type = BANDPASS;
     filter.frequency.value = band.freq;
     filter.Q.value = band.qFactor;
@@ -860,10 +866,10 @@ function scheduleSnareRoll(
     nodes.push(noise);
   }
 
-  const wireOsc = ctx.createOscillator();
+  const wireOsc = audioCtx.createOscillator();
   wireOsc.type = "triangle";
   wireOsc.frequency.value = SNARE_WIRE_HZ;
-  const wireGain = ctx.createGain();
+  const wireGain = audioCtx.createGain();
   wireGain.gain.setValueAtTime(vol * 0.08, time);
   wireOsc.connect(wireGain).connect(dest);
   wireOsc.start(time);

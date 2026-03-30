@@ -77,8 +77,8 @@ export function createLoupe(
       canvas.height = ph;
     }
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const canvasCtx = canvas.getContext("2d");
+    if (!canvasCtx) return;
 
     const w = pw;
     const h = ph;
@@ -103,32 +103,32 @@ export function createLoupe(
     srcY = Math.max(0, Math.min(sceneH - srcH, srcY));
 
     // Clear
-    ctx.clearRect(0, 0, w, h);
+    canvasCtx.clearRect(0, 0, w, h);
 
     // Stone border
-    roundedRect(ctx, 0, 0, w, h, r);
-    ctx.fillStyle = LOUPE_STONE_COLOR;
-    ctx.fill();
+    roundedRect(canvasCtx, 0, 0, w, h, r);
+    canvasCtx.fillStyle = LOUPE_STONE_COLOR;
+    canvasCtx.fill();
 
     // Clip inner viewport and draw magnified scene
-    ctx.save();
-    roundedRect(ctx, ix, iy, iw, ih, ir);
-    ctx.clip();
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(scene, srcX, srcY, srcW, srcH, ix, iy, iw, ih);
-    ctx.restore();
+    canvasCtx.save();
+    roundedRect(canvasCtx, ix, iy, iw, ih, ir);
+    canvasCtx.clip();
+    canvasCtx.imageSmoothingEnabled = false;
+    canvasCtx.drawImage(scene, srcX, srcY, srcW, srcH, ix, iy, iw, ih);
+    canvasCtx.restore();
 
     // Inner border highlight
-    roundedRect(ctx, ix, iy, iw, ih, ir);
-    ctx.lineWidth = 1.5 * dpr;
-    ctx.strokeStyle = LOUPE_STONE_LIGHT;
-    ctx.stroke();
+    roundedRect(canvasCtx, ix, iy, iw, ih, ir);
+    canvasCtx.lineWidth = 1.5 * dpr;
+    canvasCtx.strokeStyle = LOUPE_STONE_LIGHT;
+    canvasCtx.stroke();
 
     // Outer border
-    roundedRect(ctx, 0, 0, w, h, r);
-    ctx.lineWidth = 2 * dpr;
-    ctx.strokeStyle = LOUPE_STONE_LIGHT;
-    ctx.stroke();
+    roundedRect(canvasCtx, 0, 0, w, h, r);
+    canvasCtx.lineWidth = 2 * dpr;
+    canvasCtx.strokeStyle = LOUPE_STONE_LIGHT;
+    canvasCtx.stroke();
 
     // Corner rivets
     const rivetR = Math.round(LOUPE_RIVET_RADIUS * dpr);
@@ -140,32 +140,32 @@ export function createLoupe(
       [w - rivetInset, h - rivetInset],
     ];
     for (const [rx, ry] of rivets) {
-      ctx.beginPath();
-      ctx.arc(rx!, ry!, rivetR, 0, Math.PI * 2);
-      ctx.fillStyle = LOUPE_RIVET_COLOR;
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(rx! - dpr, ry! - dpr, rivetR * 0.5, 0, Math.PI * 2);
-      ctx.fillStyle = LOUPE_RIVET_HIGHLIGHT;
-      ctx.fill();
+      canvasCtx.beginPath();
+      canvasCtx.arc(rx!, ry!, rivetR, 0, Math.PI * 2);
+      canvasCtx.fillStyle = LOUPE_RIVET_COLOR;
+      canvasCtx.fill();
+      canvasCtx.beginPath();
+      canvasCtx.arc(rx! - dpr, ry! - dpr, rivetR * 0.5, 0, Math.PI * 2);
+      canvasCtx.fillStyle = LOUPE_RIVET_HIGHLIGHT;
+      canvasCtx.fill();
     }
 
     // Crosshair
     const cx = ix + iw / 2;
     const cy = iy + ih / 2;
     const crossLen = Math.round(8 * dpr);
-    ctx.strokeStyle = LOUPE_CROSSHAIR_COLOR;
-    ctx.lineWidth = dpr;
-    ctx.beginPath();
-    ctx.moveTo(cx - crossLen, cy);
-    ctx.lineTo(cx + crossLen, cy);
-    ctx.moveTo(cx, cy - crossLen);
-    ctx.lineTo(cx, cy + crossLen);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(cx, cy, 2 * dpr, 0, Math.PI * 2);
-    ctx.fillStyle = LOUPE_CROSSHAIR_DOT;
-    ctx.fill();
+    canvasCtx.strokeStyle = LOUPE_CROSSHAIR_COLOR;
+    canvasCtx.lineWidth = dpr;
+    canvasCtx.beginPath();
+    canvasCtx.moveTo(cx - crossLen, cy);
+    canvasCtx.lineTo(cx + crossLen, cy);
+    canvasCtx.moveTo(cx, cy - crossLen);
+    canvasCtx.lineTo(cx, cy + crossLen);
+    canvasCtx.stroke();
+    canvasCtx.beginPath();
+    canvasCtx.arc(cx, cy, 2 * dpr, 0, Math.PI * 2);
+    canvasCtx.fillStyle = LOUPE_CROSSHAIR_DOT;
+    canvasCtx.fill();
   }
 
   return { update };
@@ -173,22 +173,22 @@ export function createLoupe(
 
 /** Draw a rounded rectangle path (no stroke/fill). */
 function roundedRect(
-  ctx: CanvasRenderingContext2D,
+  canvasCtx: CanvasRenderingContext2D,
   x: number,
   y: number,
   w: number,
   h: number,
   r: number,
 ): void {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.arcTo(x + w, y, x + w, y + r, r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
-  ctx.lineTo(x + r, y + h);
-  ctx.arcTo(x, y + h, x, y + h - r, r);
-  ctx.lineTo(x, y + r);
-  ctx.arcTo(x, y, x + r, y, r);
-  ctx.closePath();
+  canvasCtx.beginPath();
+  canvasCtx.moveTo(x + r, y);
+  canvasCtx.lineTo(x + w - r, y);
+  canvasCtx.arcTo(x + w, y, x + w, y + r, r);
+  canvasCtx.lineTo(x + w, y + h - r);
+  canvasCtx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  canvasCtx.lineTo(x + r, y + h);
+  canvasCtx.arcTo(x, y + h, x, y + h - r, r);
+  canvasCtx.lineTo(x, y + r);
+  canvasCtx.arcTo(x, y, x + r, y, r);
+  canvasCtx.closePath();
 }

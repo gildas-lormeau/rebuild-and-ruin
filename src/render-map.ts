@@ -124,7 +124,7 @@ const terrainImageCache = new WeakMap<MapData, TerrainImageCache>();
 /** Cached main-canvas context — avoids per-frame getContext overhead on Chrome mobile. */
 let mainCtxCache: {
   canvas: HTMLCanvasElement;
-  ctx: CanvasRenderingContext2D;
+  canvasCtx: CanvasRenderingContext2D;
 } | null = null;
 let cachedBannerMap: MapData | null = null;
 let cachedBannerCastles: CastleData[] | undefined;
@@ -143,7 +143,7 @@ export function drawMap(
   viewport?: Viewport | null,
 ): void {
   const now = Date.now();
-  const ctx = getMainCtx(canvas);
+  const canvasCtx = getMainCtx(canvas);
   const W = GRID_COLS * TILE_SIZE;
   const H = GRID_ROWS * TILE_SIZE;
 
@@ -154,7 +154,7 @@ export function drawMap(
   if (canvas.width !== cw || canvas.height !== ch) {
     canvas.width = cw;
     canvas.height = ch;
-    ctx.imageSmoothingEnabled = false;
+    canvasCtx.imageSmoothingEnabled = false;
   }
 
   ensureOffscreenSize(W, H);
@@ -188,9 +188,9 @@ export function drawMap(
   drawControlsScreen(overlayCtx, W, H, overlay, now);
 
   // Scale up to display canvas (with optional zoom viewport)
-  ctx.imageSmoothingEnabled = false;
+  canvasCtx.imageSmoothingEnabled = false;
   if (viewport) {
-    ctx.drawImage(
+    canvasCtx.drawImage(
       offscreenScene,
       viewport.x,
       viewport.y,
@@ -202,12 +202,12 @@ export function drawMap(
       gameH,
     );
   } else {
-    ctx.drawImage(offscreenScene, 0, 0, cw, gameH);
+    canvasCtx.drawImage(offscreenScene, 0, 0, cw, gameH);
   }
 
   // Status bar drawn at display resolution below the game scene
   if (STATUS_BAR_H > 0) {
-    drawStatusBar(ctx, cw, ch, overlay);
+    drawStatusBar(canvasCtx, cw, ch, overlay);
   }
 }
 
@@ -226,10 +226,10 @@ for (const w of WAVE_LO) {
 }
 
 function getMainCtx(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
-  if (mainCtxCache?.canvas === canvas) return mainCtxCache.ctx;
-  const ctx = canvas.getContext("2d", { alpha: false })!;
-  mainCtxCache = { canvas, ctx };
-  return ctx;
+  if (mainCtxCache?.canvas === canvas) return mainCtxCache.canvasCtx;
+  const canvasCtx = canvas.getContext("2d", { alpha: false })!;
+  mainCtxCache = { canvas, canvasCtx };
+  return canvasCtx;
 }
 
 function ensureOffscreenSize(width: number, height: number): void {

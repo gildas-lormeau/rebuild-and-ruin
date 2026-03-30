@@ -60,42 +60,42 @@ const CONTROL_ACTION_NAMES: readonly string[] = [
 /** Raw option indices — positions in the options list. */
 export const OPTION_CONTROLS = 5;
 
-export function createOptionsOverlay(ctx: UIContext): {
+export function createOptionsOverlay(frameCtx: UIContext): {
   map: GameMap;
   overlay: RenderOverlay;
 } {
-  const lobbyMap = ctx.lobby.map ?? generateMap(ctx.lobby.seed);
-  const readOnly = ctx.getOptionsReturnMode() !== null;
-  const visible = visibleOptions(ctx);
+  const lobbyMap = frameCtx.lobby.map ?? generateMap(frameCtx.lobby.seed);
+  const readOnly = frameCtx.getOptionsReturnMode() !== null;
+  const visible = visibleOptions(frameCtx);
   const options: OptionEntry[] = visible.map((i) => {
     // Seed is typed, Controls is opened via confirm — neither uses left/right cycling
     if (i === 4 || i === 5)
       return {
         name: OPTION_NAMES[i]!,
-        value: optionValue(ctx, i),
+        value: optionValue(frameCtx, i),
         editable: false,
       };
     // Online: Rounds, Cannon HP, Seed are locked by room host
-    if (ctx.isOnline && (i === 1 || i === 2))
+    if (frameCtx.isOnline && (i === 1 || i === 2))
       return {
         name: OPTION_NAMES[i]!,
-        value: optionValue(ctx, i),
+        value: optionValue(frameCtx, i),
         editable: false,
       };
     // In-game: Difficulty and Cannon HP are locked (only Rounds, Haptics, D-Pad remain editable)
     if (readOnly && (i === 0 || i === 2))
       return {
         name: OPTION_NAMES[i]!,
-        value: optionValue(ctx, i),
+        value: optionValue(frameCtx, i),
         editable: false,
       };
     return {
       name: OPTION_NAMES[i]!,
-      value: optionValue(ctx, i),
+      value: optionValue(frameCtx, i),
       editable: true,
     };
   });
-  const state = ctx.getState();
+  const state = frameCtx.getState();
   const castles = state
     ? state.players
         .filter((player) => player.castle)
@@ -119,7 +119,7 @@ export function createOptionsOverlay(ctx: UIContext): {
     ui: {
       optionsScreen: {
         options,
-        cursor: ctx.optionsCursor.value,
+        cursor: frameCtx.optionsCursor.value,
         readOnly,
       },
     },
@@ -128,36 +128,36 @@ export function createOptionsOverlay(ctx: UIContext): {
 }
 
 export function showOptions(
-  ctx: UIContext,
+  frameCtx: UIContext,
   modeValues: { OPTIONS: Mode },
 ): void {
-  ctx.optionsCursor.value = 0;
-  ctx.setMode(modeValues.OPTIONS);
+  frameCtx.optionsCursor.value = 0;
+  frameCtx.setMode(modeValues.OPTIONS);
 }
 
 export function closeOptions(
-  ctx: UIContext,
+  frameCtx: UIContext,
   modeValues: { LOBBY: Mode; GAME: Mode },
 ): void {
-  const returnMode = ctx.getOptionsReturnMode();
+  const returnMode = frameCtx.getOptionsReturnMode();
   if (returnMode !== null) {
     // Returning to game — read-only view, don't save settings
-    ctx.setMode(returnMode);
-    ctx.setOptionsReturnMode(null);
+    frameCtx.setMode(returnMode);
+    frameCtx.setOptionsReturnMode(null);
   } else {
-    ctx.setMode(modeValues.LOBBY);
-    saveSettings(ctx.settings);
+    frameCtx.setMode(modeValues.LOBBY);
+    saveSettings(frameCtx.settings);
   }
 }
 
-export function createControlsOverlay(ctx: UIContext): {
+export function createControlsOverlay(frameCtx: UIContext): {
   map: GameMap;
   overlay: RenderOverlay;
 } {
-  const lobbyMap = ctx.lobby.map ?? generateMap(ctx.lobby.seed);
-  const cs = ctx.controlsState;
+  const lobbyMap = frameCtx.lobby.map ?? generateMap(frameCtx.lobby.seed);
+  const cs = frameCtx.controlsState;
   const players = PLAYER_NAMES.map((name, player) => {
-    const kb = ctx.settings.keyBindings[player]!;
+    const kb = frameCtx.settings.keyBindings[player]!;
     return {
       name: name!,
       color: getPlayerColor(player).wall,
@@ -178,54 +178,54 @@ export function createControlsOverlay(ctx: UIContext): {
       },
     },
   };
-  return { map: ctx.getState()?.map ?? lobbyMap, overlay };
+  return { map: frameCtx.getState()?.map ?? lobbyMap, overlay };
 }
 
 export function showControls(
-  ctx: UIContext,
+  frameCtx: UIContext,
   modeValues: { CONTROLS: Mode },
 ): void {
-  ctx.controlsState.playerIdx = 0;
-  ctx.controlsState.actionIdx = 0;
-  ctx.controlsState.rebinding = false;
-  ctx.setMode(modeValues.CONTROLS);
+  frameCtx.controlsState.playerIdx = 0;
+  frameCtx.controlsState.actionIdx = 0;
+  frameCtx.controlsState.rebinding = false;
+  frameCtx.setMode(modeValues.CONTROLS);
 }
 
 export function closeControls(
-  ctx: UIContext,
+  frameCtx: UIContext,
   modeValues: { OPTIONS: Mode },
 ): void {
-  saveSettings(ctx.settings);
-  ctx.setMode(modeValues.OPTIONS);
+  saveSettings(frameCtx.settings);
+  frameCtx.setMode(modeValues.OPTIONS);
 }
 
 export function togglePause(
-  ctx: UIContext,
+  frameCtx: UIContext,
   modeValues: { GAME: Mode; SELECTION: Mode },
 ): boolean {
-  const mode = ctx.getMode();
+  const mode = frameCtx.getMode();
   if (mode !== modeValues.GAME && mode !== modeValues.SELECTION) return false;
-  const next = !ctx.getPaused();
-  ctx.setPaused(next);
-  ctx.getFrame().announcement = next ? "PAUSED" : undefined;
+  const next = !frameCtx.getPaused();
+  frameCtx.setPaused(next);
+  frameCtx.getFrame().announcement = next ? "PAUSED" : undefined;
   return true;
 }
 
 /** Tick the lobby — check expiry. Calls `onExpired` when timer runs out or all slots are filled. */
-export function tickLobby(ctx: UIContext, onExpired: () => void): void {
-  if (!ctx.lobby.active) return;
-  const allJoined = ctx.lobby.joined.every(Boolean);
-  if (ctx.getLobbyRemaining() <= 0 || allJoined) {
-    ctx.lobby.active = false;
+export function tickLobby(frameCtx: UIContext, onExpired: () => void): void {
+  if (!frameCtx.lobby.active) return;
+  const allJoined = frameCtx.lobby.joined.every(Boolean);
+  if (frameCtx.getLobbyRemaining() <= 0 || allJoined) {
+    frameCtx.lobby.active = false;
     onExpired();
   }
 }
 
-export function createLobbyOverlay(ctx: UIContext): {
+export function createLobbyOverlay(frameCtx: UIContext): {
   map: GameMap;
   overlay: RenderOverlay;
 } {
-  const remaining = Math.max(0, ctx.getLobbyRemaining());
+  const remaining = Math.max(0, frameCtx.getLobbyRemaining());
   const overlay: RenderOverlay = {
     selection: { highlighted: null, selected: null },
     ui: {
@@ -233,31 +233,32 @@ export function createLobbyOverlay(ctx: UIContext): {
         players: PLAYER_NAMES.map((name, i) => ({
           name: `${name} Player`,
           color: getPlayerColor(i).wall,
-          joined: ctx.lobby.joined[i]!,
-          keyHint: ctx.settings.keyBindings[i]
-            ? formatKeyHint(ctx.settings.keyBindings[i])
+          joined: frameCtx.lobby.joined[i]!,
+          keyHint: frameCtx.settings.keyBindings[i]
+            ? formatKeyHint(frameCtx.settings.keyBindings[i])
             : undefined,
         })),
         timer: remaining,
       },
     },
   };
-  if (!ctx.lobby.map) ctx.lobby.map = generateMap(ctx.lobby.seed);
-  return { map: ctx.getState()?.map ?? ctx.lobby.map, overlay };
+  if (!frameCtx.lobby.map)
+    frameCtx.lobby.map = generateMap(frameCtx.lobby.seed);
+  return { map: frameCtx.getState()?.map ?? frameCtx.lobby.map, overlay };
 }
 
 /** Handle a lobby key press — resolve slot from key bindings, call `onJoin` if valid. */
 export function lobbyKeyJoin(
-  ctx: UIContext,
+  frameCtx: UIContext,
   key: string,
   onJoin: (pid: number) => void,
 ): boolean {
-  if (!ctx.lobby.active) return false;
-  const map = createLobbyConfirmKeys(ctx.settings.keyBindings);
+  if (!frameCtx.lobby.active) return false;
+  const map = createLobbyConfirmKeys(frameCtx.settings.keyBindings);
   const pid = map.get(key);
   if (pid === undefined) return false;
-  if (ctx.lobby.joined[pid]) {
-    lobbySkipStep(ctx);
+  if (frameCtx.lobby.joined[pid]) {
+    lobbySkipStep(frameCtx);
     return true;
   }
   onJoin(pid);
@@ -265,27 +266,27 @@ export function lobbyKeyJoin(
 }
 
 /** Speed up lobby timer by one step if allowed. Returns true if timer was advanced. */
-export function lobbySkipStep(ctx: UIContext): boolean {
-  if (ctx.lobby.timerAccum === undefined) return false;
-  if (ctx.getLobbyRemaining() <= LOBBY_SKIP_LOCKOUT) return false;
-  ctx.lobby.timerAccum += LOBBY_SKIP_STEP;
+export function lobbySkipStep(frameCtx: UIContext): boolean {
+  if (frameCtx.lobby.timerAccum === undefined) return false;
+  if (frameCtx.getLobbyRemaining() <= LOBBY_SKIP_LOCKOUT) return false;
+  frameCtx.lobby.timerAccum += LOBBY_SKIP_STEP;
   return true;
 }
 
-export function visibleOptions(ctx: UIContext): number[] {
+export function visibleOptions(frameCtx: UIContext): number[] {
   // 0=Difficulty, 1=Rounds, 2=Cannon HP, 3=Haptics, 4=Seed, 5=Controls, 6=D-Pad, 7=Sound
-  if (ctx.isOnline)
+  if (frameCtx.isOnline)
     return IS_TOUCH_DEVICE ? [1, 2, 3, 7, 4, 5, 6] : [1, 2, 7, 4, 5];
   return IS_TOUCH_DEVICE ? [0, 1, 2, 3, 7, 4, 5, 6] : [0, 1, 2, 7, 4, 5];
 }
 
-function optionValue(ctx: UIContext, idx: number): string {
-  const settings = ctx.settings;
-  const state = ctx.getState();
+function optionValue(frameCtx: UIContext, idx: number): string {
+  const settings = frameCtx.settings;
+  const state = frameCtx.getState();
   if (idx === 0) return DIFFICULTY_LABELS[settings.difficulty]!;
   if (idx === 1) {
     const opt = ROUNDS_OPTIONS[settings.rounds]!;
-    if (ctx.getOptionsReturnMode() !== null && state) {
+    if (frameCtx.getOptionsReturnMode() !== null && state) {
       return `${opt.label} (round ${state.round})`;
     }
     return opt.label;
@@ -294,7 +295,7 @@ function optionValue(ctx: UIContext, idx: number): string {
   if (idx === 3) return HAPTICS_LABELS[settings.haptics] ?? "All";
   if (idx === 7) return SOUND_LABELS[settings.sound] ?? "All";
   if (idx === 4) {
-    if (ctx.isOnline) return settings.seed || "—";
+    if (frameCtx.isOnline) return settings.seed || "—";
     return settings.seedMode === SEED_CUSTOM ? settings.seed || "_" : "Random";
   }
   if (idx === 6) return DPAD_LABELS[settings.leftHanded ? 1 : 0]!;
