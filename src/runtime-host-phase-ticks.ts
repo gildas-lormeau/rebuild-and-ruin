@@ -13,6 +13,7 @@
  */
 
 import { snapshotAllWalls } from "./board-occupancy.ts";
+import { tickCannonFacingReset } from "./cannon-system.ts";
 import type { SerializedPlayer } from "./checkpoint-data.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import {
@@ -159,6 +160,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   const sendOpponentCannonPhantom = deps.net?.sendOpponentCannonPhantom;
 
   advancePhaseTimer(accum, "cannon", state, dt, state.cannonPlaceTimer);
+  tickCannonFacingReset(state, dt);
 
   // Reset per-frame phantom collection (cannon phase only needs AI cannon phantoms)
   frame.phantoms = { aiCannonPhantoms: [] };
