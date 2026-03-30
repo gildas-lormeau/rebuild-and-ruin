@@ -38,19 +38,22 @@ export function promoteToHost(): void {
 
   resetNetworking("host-promotion");
   rebuildControllersForPhase(
-    runtime.rs.state,
-    runtime.rs.controllers,
+    runtime.runtimeState.state,
+    runtime.runtimeState.controllers,
     session.myPlayerId,
     (id, seed) => createController(id, true, undefined, seed),
   );
-  syncAccumulatorsFromTimer(runtime.rs.state, runtime.rs.accum);
+  syncAccumulatorsFromTimer(
+    runtime.runtimeState.state,
+    runtime.runtimeState.accum,
+  );
   skipPendingAnimations();
 
   send(
     createFullStateMessage(
-      runtime.rs.state,
+      runtime.runtimeState.state,
       session.hostMigrationSeq,
-      runtime.rs.battleAnim.flights,
+      runtime.runtimeState.battleAnim.flights,
     ),
   );
   devLog("Promotion complete, now running as host");
@@ -61,25 +64,25 @@ export function promoteToHost(): void {
  * Exhaustive switch ensures adding a new Mode is a compile error until handled.
  */
 function skipPendingAnimations(): void {
-  const state = runtime.rs.state;
-  const mode = runtime.rs.mode;
+  const state = runtime.runtimeState.state;
+  const mode = runtime.runtimeState.mode;
   switch (mode) {
     case Mode.CASTLE_BUILD:
-      runtime.rs.castleBuilds = [];
+      runtime.runtimeState.castleBuilds = [];
       finalizeCastleConstruction(state);
       enterCannonPlacePhase(state);
       runtime.phaseTicks.startCannonPhase();
-      runtime.rs.mode = Mode.GAME;
+      runtime.runtimeState.mode = Mode.GAME;
       devLog("Skipped castle build animation → cannon phase");
       break;
     case Mode.LIFE_LOST:
       runtime.lifeLost.set(null);
-      runtime.rs.mode = Mode.GAME;
+      runtime.runtimeState.mode = Mode.GAME;
       devLog("Cleared life-lost dialog → game mode");
       break;
     case Mode.BANNER:
     case Mode.BALLOON_ANIM:
-      runtime.rs.mode = Mode.GAME;
+      runtime.runtimeState.mode = Mode.GAME;
       devLog("Skipped banner/animation → game mode");
       break;
     case Mode.GAME:

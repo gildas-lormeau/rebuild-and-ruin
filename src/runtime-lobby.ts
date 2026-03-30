@@ -4,7 +4,7 @@
  * Extracted from runtime.ts. Follows the factory-with-deps pattern.
  *
  * Deps convention (shared across all runtime-*.ts sub-systems):
- * destructure frequently-used deps (rs, uiCtx) at the factory top;
+ * destructure frequently-used deps (runtimeState, uiCtx) at the factory top;
  * reference rarely-used deps inline as deps.X to avoid clutter.
  */
 
@@ -29,7 +29,7 @@ import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import { NO_SLOT, type RuntimeState } from "./runtime-state.ts";
 
 interface LobbySystemDeps {
-  rs: RuntimeState;
+  runtimeState: RuntimeState;
   uiCtx: UIContext;
   renderFrame: (
     map: MapData,
@@ -51,24 +51,24 @@ interface LobbySystem {
 }
 
 export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
-  const { rs, uiCtx } = deps;
+  const { runtimeState, uiCtx } = deps;
 
   function refreshLobbySeed(): void {
-    const newSeed = computeGameSeed(rs.settings);
-    if (newSeed !== rs.lobby.seed) {
-      rs.lobby.seed = newSeed;
-      rs.lobby.map = generateMap(newSeed);
+    const newSeed = computeGameSeed(runtimeState.settings);
+    if (newSeed !== runtimeState.lobby.seed) {
+      runtimeState.lobby.seed = newSeed;
+      runtimeState.lobby.map = generateMap(newSeed);
     }
   }
 
   function renderLobby(): void {
-    if (!rs.lobby.map) refreshLobbySeed();
+    if (!runtimeState.lobby.map) refreshLobbySeed();
     const { map, overlay } = createLobbyOverlay(uiCtx);
     deps.renderFrame(map, overlay);
   }
 
   function tickLobby(dt: number): void {
-    rs.lobby.timerAccum = (rs.lobby.timerAccum ?? 0) + dt;
+    runtimeState.lobby.timerAccum = (runtimeState.lobby.timerAccum ?? 0) + dt;
     renderLobby();
     tickLobbyShared(uiCtx, () => {
       deps.onTickLobbyExpired();
@@ -80,7 +80,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     renderLobby();
     // On touch devices in local mode, start immediately after joining
     if (IS_TOUCH_DEVICE && !deps.isOnline) {
-      rs.lobby.active = false;
+      runtimeState.lobby.active = false;
       deps.onTickLobbyExpired();
     }
   }
@@ -90,7 +90,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
   }
 
   function lobbyClick(canvasX: number, canvasY: number): boolean {
-    if (!rs.lobby.active) return false;
+    if (!runtimeState.lobby.active) return false;
     const hit: LobbyHit | null = lobbyClickHitTest({
       canvasX,
       canvasY,
@@ -106,12 +106,12 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
       return true;
     }
     // Mouse/trackpad can only join one slot (keyboard can join additional slots)
-    if (rs.mouseJoinedSlot !== NO_SLOT) {
+    if (runtimeState.mouseJoinedSlot !== NO_SLOT) {
       lobbySkipStep(uiCtx);
       return true;
     }
-    if (!rs.lobby.joined[hit.slotId]) {
-      rs.mouseJoinedSlot = hit.slotId;
+    if (!runtimeState.lobby.joined[hit.slotId]) {
+      runtimeState.mouseJoinedSlot = hit.slotId;
       onLobbyJoin(hit.slotId);
     }
     return true;

@@ -46,7 +46,7 @@ interface CameraDeps {
   setFirstHumanCrosshair?: (x: number, y: number) => void;
 }
 
-// Note: unlike other sub-systems, CameraDeps is all getters — no rs to destructure.
+// Note: unlike other sub-systems, CameraDeps is all getters — no runtimeState to destructure.
 // State is accessed via deps.getState(), deps.getCtx(), etc. throughout.
 export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // --- Internal state ---

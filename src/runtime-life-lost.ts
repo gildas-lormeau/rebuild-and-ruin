@@ -35,7 +35,7 @@ import {
 } from "./types.ts";
 
 interface LifeLostSystemDeps {
-  rs: RuntimeState;
+  runtimeState: RuntimeState;
 
   send: (msg: GameMessage) => void;
   log: (msg: string) => void;
@@ -57,7 +57,7 @@ export type LifeLostSystem = RuntimeLifeLost & {
 };
 
 export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
-  const { rs } = deps;
+  const { runtimeState } = deps;
 
   /** True when every entry has been resolved (no PENDING choices remain). */
   function allResolved(dialog: LifeLostDialogState): boolean {
@@ -67,7 +67,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   function eliminateAbandoned(dialog: LifeLostDialogState): void {
     for (const entry of dialog.entries) {
       if (entry.choice !== LifeLostChoice.ABANDON) continue;
-      const player = rs.state.players[entry.playerId];
+      const player = runtimeState.state.players[entry.playerId];
       if (!player) continue;
       eliminatePlayer(player);
     }
@@ -77,18 +77,19 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     needsReselect: readonly number[],
     eliminated: readonly number[],
   ) {
-    const remoteHumanSlots = rs.frameCtx.remoteHumanSlots;
+    const remoteHumanSlots = runtimeState.frameCtx.remoteHumanSlots;
     deps.log(
       `showLifeLostDialog: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
     );
     const dialog = createLifeLostDialogState({
       needsReselect,
       eliminated,
-      state: rs.state,
-      isHost: rs.frameCtx.isHost,
-      myPlayerId: rs.frameCtx.myPlayerId,
+      state: runtimeState.state,
+      isHost: runtimeState.frameCtx.isHost,
+      myPlayerId: runtimeState.frameCtx.myPlayerId,
       remoteHumanSlots,
-      isHumanController: (playerId) => isHuman(rs.controllers[playerId]!),
+      isHumanController: (playerId) =>
+        isHuman(runtimeState.controllers[playerId]!),
     });
     // Skip dialog if all entries are already resolved (e.g. only eliminations)
     if (allResolved(dialog)) {
@@ -97,8 +98,8 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       afterLifeLostResolved();
       return;
     }
-    rs.lifeLostDialog = dialog;
-    rs.mode = Mode.LIFE_LOST;
+    runtimeState.lifeLostDialog = dialog;
+    runtimeState.mode = Mode.LIFE_LOST;
   }
 
   /**
@@ -114,12 +115,12 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
    * triggers downstream phase transitions.
    */
   function tickLifeLostDialog(dt: number) {
-    rs.lifeLostDialog = tickLifeLostDialogRuntime({
+    runtimeState.lifeLostDialog = tickLifeLostDialogRuntime({
       dt,
-      lifeLostDialog: rs.lifeLostDialog,
+      lifeLostDialog: runtimeState.lifeLostDialog,
       lifeLostAiDelay: LIFE_LOST_AI_DELAY,
       lifeLostMaxTimer: LIFE_LOST_MAX_TIMER,
-      isHost: rs.frameCtx.isHost,
+      isHost: runtimeState.frameCtx.isHost,
       render: deps.render,
       logResolved: (dialog) => {
         deps.log(
@@ -135,27 +136,27 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       },
       onNonHostResolved: (dialog) => {
         eliminateAbandoned(dialog);
-        rs.mode = Mode.GAME;
+        runtimeState.mode = Mode.GAME;
       },
     });
   }
 
   function afterLifeLostResolved(continuing: readonly number[] = []): boolean {
     return resolveAfterLifeLost({
-      state: rs.state,
+      state: runtimeState.state,
       continuing,
       onEndGame: deps.endGame,
       onStartReselection: (players) => {
-        rs.reselectQueue = [...players];
+        runtimeState.reselectQueue = [...players];
         deps.startReselection();
-        rs.mode = Mode.SELECTION;
+        runtimeState.mode = Mode.SELECTION;
       },
       onAdvanceToCannonPhase: deps.advanceToCannonPhase,
     });
   }
 
   function lifeLostPanelPos(playerId: number): { px: number; py: number } {
-    return lifeLostPanelPosShared(rs.state, playerId);
+    return lifeLostPanelPosShared(runtimeState.state, playerId);
   }
 
   function sendLifeLostChoice(choice: ResolvedChoice, playerId: number) {
@@ -163,7 +164,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   }
 
   function findPendingEntry(playerId: number) {
-    return rs.lifeLostDialog?.entries.find(
+    return runtimeState.lifeLostDialog?.entries.find(
       (e) => e.playerId === playerId && e.choice === LifeLostChoice.PENDING,
     );
   }
@@ -188,13 +189,13 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   }
 
   function lifeLostDialogClick(canvasX: number, canvasY: number) {
-    if (!rs.lifeLostDialog) return;
+    if (!runtimeState.lifeLostDialog) return;
     const mousePlayer = deps.firstHuman();
     if (!mousePlayer) return;
 
     const choice = handleLifeLostDialogClickShared({
-      state: rs.state,
-      lifeLostDialog: rs.lifeLostDialog,
+      state: runtimeState.state,
+      lifeLostDialog: runtimeState.lifeLostDialog,
       screenX: canvasX,
       screenY: canvasY,
       firstHumanPlayerId: mousePlayer.playerId,
@@ -202,7 +203,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     if (!choice) return;
 
     // Apply the choice to the dialog entry (mutation owned by game runtime, not render-composition)
-    const entry = rs.lifeLostDialog.entries.find(
+    const entry = runtimeState.lifeLostDialog.entries.find(
       (e) => e.playerId === choice.playerId,
     );
     if (entry) entry.choice = choice.choice;
@@ -210,9 +211,9 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   }
 
   return {
-    get: () => rs.lifeLostDialog,
+    get: () => runtimeState.lifeLostDialog,
     set: (dialog: LifeLostDialogState | null) => {
-      rs.lifeLostDialog = dialog;
+      runtimeState.lifeLostDialog = dialog;
     },
     show: showLifeLostDialog,
     tick: tickLifeLostDialog,

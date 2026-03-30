@@ -160,11 +160,11 @@ export function updateSelectionOverlay(
     overlay.selection = { highlighted: null, selected: null };
   }
   overlay.selection.highlights = [];
-  for (const [pid, ss] of selectionStates) {
-    if (ss.confirmed) continue;
+  for (const [pid, selectionState] of selectionStates) {
+    if (selectionState.confirmed) continue;
     if (isLocalHuman && !isLocalHuman(pid)) continue;
     overlay.selection.highlights.push({
-      towerIdx: ss.highlighted,
+      towerIdx: selectionState.highlighted,
       playerId: pid,
       confirmed: false,
     });

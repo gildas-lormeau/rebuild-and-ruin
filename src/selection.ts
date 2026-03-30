@@ -77,10 +77,10 @@ export function highlightTowerSelection(
   const tower = state.map.towers[idx];
   if (!tower || tower.zone !== zone) return;
 
-  const ss = selectionStates.get(playerId);
-  if (!ss) return;
-  if (ss.highlighted === idx) return;
-  ss.highlighted = idx;
+  const selectionState = selectionStates.get(playerId);
+  if (!selectionState) return;
+  if (selectionState.highlighted === idx) return;
+  selectionState.highlighted = idx;
 
   const player = state.players[playerId]!;
   selectPlayerTower(player, tower);
@@ -112,15 +112,16 @@ export function confirmTowerSelection(
   onOverlayChanged: () => void,
   render: () => void,
 ): boolean {
-  const ss = selectionStates.get(playerId);
+  const selectionState = selectionStates.get(playerId);
   // Idempotent: ignore if player not in selection or already confirmed
-  if (!ss || ss.confirmed) return allSelectionsConfirmed(selectionStates);
-  ss.confirmed = true;
+  if (!selectionState || selectionState.confirmed)
+    return allSelectionsConfirmed(selectionStates);
+  selectionState.confirmed = true;
 
   send({
     type: MESSAGE.OPPONENT_TOWER_SELECTED,
     playerId,
-    towerIdx: ss.highlighted,
+    towerIdx: selectionState.highlighted,
     confirmed: true,
   });
 
@@ -179,8 +180,8 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
 
   if (!isHost && myPlayerId >= 0) {
     if (accum.select >= selectTimer) {
-      const ss = selectionStates.get(myPlayerId);
-      if (ss && !ss.confirmed) {
+      const selectionState = selectionStates.get(myPlayerId);
+      if (selectionState && !selectionState.confirmed) {
         confirmSelectionAndStartBuild(myPlayerId, isReselectPhase(state.phase));
       }
     }
@@ -199,8 +200,8 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
   }
 
   const isReselect = isReselectPhase(state.phase);
-  for (const [pid, ss] of selectionStates) {
-    if (ss.confirmed) continue;
+  for (const [pid, selectionState] of selectionStates) {
+    if (selectionState.confirmed) continue;
     if (remoteHumanSlots.has(pid)) continue;
 
     const towerBefore = state.players[pid]!.homeTower;
@@ -212,7 +213,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     if (state.players[pid]!.homeTower !== towerBefore) {
       const newTower = state.players[pid]!.homeTower;
       if (newTower) {
-        ss.highlighted = newTower.index;
+        selectionState.highlighted = newTower.index;
         syncSelectionOverlay();
         sendOpponentTowerSelected(pid, newTower.index, false);
       }
@@ -225,8 +226,8 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
   render();
 
   if (accum.select >= selectTimer) {
-    for (const [pid, ss] of selectionStates) {
-      if (ss.confirmed) continue;
+    for (const [pid, selectionState] of selectionStates) {
+      if (selectionState.confirmed) continue;
       confirmSelectionAndStartBuild(pid, isReselect);
     }
   }
@@ -240,8 +241,8 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
 export function allSelectionsConfirmed(
   selectionStates: Map<number, SelectionState>,
 ): boolean {
-  for (const [, ss] of selectionStates) {
-    if (!ss.confirmed) return false;
+  for (const [, selectionState] of selectionStates) {
+    if (!selectionState.confirmed) return false;
   }
   return true;
 }

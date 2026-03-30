@@ -35,7 +35,7 @@ export function connect(onConnectError?: () => void): void {
       handleServerMessage(msg);
     },
     onClose: () => {
-      const mode = runtime.rs.mode;
+      const mode = runtime.runtimeState.mode;
       // Mode[mode] is TypeScript's reverse enum mapping (numeric → string name)
       devLog(`WebSocket closed (mode=${Mode[mode]} isHost=${session.isHost})`);
       if (session.isHost || mode === Mode.STOPPED || mode === Mode.LOBBY)
@@ -44,7 +44,7 @@ export function connect(onConnectError?: () => void): void {
         reconnect.count++;
         // Exponential backoff: base × 2^(attempt-1) via bit-shift
         const delay = RECONNECT_BASE_DELAY_MS * (1 << (reconnect.count - 1));
-        runtime.rs.frame.announcement = ANNOUNCEMENT_RECONNECTING;
+        runtime.runtimeState.frame.announcement = ANNOUNCEMENT_RECONNECTING;
         runtime.render();
         devLog(
           `reconnect attempt ${reconnect.count}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`,
@@ -55,9 +55,9 @@ export function connect(onConnectError?: () => void): void {
         }, delay);
       } else {
         clearReconnect();
-        runtime.rs.frame.announcement = ANNOUNCEMENT_DISCONNECTED;
+        runtime.runtimeState.frame.announcement = ANNOUNCEMENT_DISCONNECTED;
         runtime.render();
-        runtime.rs.mode = Mode.STOPPED;
+        runtime.runtimeState.mode = Mode.STOPPED;
       }
     },
     onError: () => {

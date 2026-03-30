@@ -24,7 +24,7 @@ import type { SoundSystem } from "./sound-system.ts";
 import { Mode } from "./types.ts";
 
 interface OptionsSystemDeps {
-  rs: RuntimeState;
+  runtimeState: RuntimeState;
   uiCtx: UIContext;
   renderFrame: (
     map: MapData,
@@ -55,7 +55,7 @@ export interface OptionsSystem {
 }
 
 export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
-  const { rs, uiCtx } = deps;
+  const { runtimeState, uiCtx } = deps;
 
   function visibleOptionsForCtx(): number[] {
     return visibleOptions(uiCtx);
@@ -63,21 +63,24 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
 
   /** Map cursor row to real option index. */
   function realOptionIdx(): number {
-    return visibleOptionsForCtx()[rs.optionsCursor] ?? rs.optionsCursor;
+    return (
+      visibleOptionsForCtx()[runtimeState.optionsCursor] ??
+      runtimeState.optionsCursor
+    );
   }
 
   function changeOption(dir: number): void {
     cycleOption(
       dir,
       realOptionIdx(),
-      rs.settings,
-      rs.optionsReturnMode,
-      safeState(rs) ?? null,
+      runtimeState.settings,
+      runtimeState.optionsReturnMode,
+      safeState(runtimeState) ?? null,
       deps.isOnline,
     );
-    deps.haptics.setLevel(rs.settings.haptics);
-    deps.sound.setLevel(rs.settings.sound);
-    deps.setDpadLeftHanded(rs.settings.leftHanded);
+    deps.haptics.setLevel(runtimeState.settings.haptics);
+    deps.sound.setLevel(runtimeState.settings.sound);
+    deps.setDpadLeftHanded(runtimeState.settings.leftHanded);
   }
 
   function renderOptions(): void {
@@ -91,10 +94,10 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function closeOptions(): void {
-    const wasInGame = rs.optionsReturnMode !== null;
+    const wasInGame = runtimeState.optionsReturnMode !== null;
     closeOptionsShared(uiCtx, { LOBBY: Mode.LOBBY, GAME: Mode.GAME });
     if (wasInGame) {
-      rs.lastTime = performance.now(); // avoid huge dt on first frame back
+      runtimeState.lastTime = performance.now(); // avoid huge dt on first frame back
     } else {
       deps.refreshLobbySeed(); // regenerate map preview with (possibly changed) seed
       deps.updateDpad(false); // back to lobby — disable d-pad
@@ -113,9 +116,9 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function closeControls(): void {
-    if (rs.optionsReturnMode !== null) {
-      for (const ctrl of rs.controllers) {
-        const kb = rs.settings.keyBindings[ctrl.playerId];
+    if (runtimeState.optionsReturnMode !== null) {
+      for (const ctrl of runtimeState.controllers) {
+        const kb = runtimeState.settings.keyBindings[ctrl.playerId];
         if (kb) ctrl.updateBindings(kb);
       }
     }

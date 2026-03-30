@@ -116,9 +116,9 @@ export function handleServerIncrementalMessage(
         ) {
           const player = state.players[msg.playerId]!;
           selectPlayerTower(player, tower);
-          const ss = deps.selectionStates.get(msg.playerId);
-          if (ss && !ss.confirmed) {
-            ss.highlighted = msg.towerIdx;
+          const selectionState = deps.selectionStates.get(msg.playerId);
+          if (selectionState && !selectionState.confirmed) {
+            selectionState.highlighted = msg.towerIdx;
             deps.syncSelectionOverlay();
             if (msg.confirmed && deps.isHost()) {
               deps.confirmSelectionAndStartBuild(
@@ -126,7 +126,7 @@ export function handleServerIncrementalMessage(
                 deps.isCastleReselectPhase(),
               );
             } else if (msg.confirmed) {
-              ss.confirmed = true;
+              selectionState.confirmed = true;
             }
           }
         }

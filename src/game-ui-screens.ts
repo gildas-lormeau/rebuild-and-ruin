@@ -34,7 +34,7 @@ export interface UIContext {
   getOverlay: () => RenderOverlay;
   settings: GameSettings;
   getMode: () => Mode;
-  /** Raw field write — assigns rs.mode. Callers (showOptions, closeOptions, etc.)
+  /** Raw field write — assigns runtimeState.mode. Callers (showOptions, closeOptions, etc.)
    *  are responsible for any state-machine side effects around the transition. */
   setMode: (mode: Mode) => void;
   getPaused: () => boolean;

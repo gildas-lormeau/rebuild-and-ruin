@@ -7,16 +7,16 @@
  * ### Sub-system deps convention (all runtime-*.ts files)
  *
  * Each sub-system factory (`createXxxSystem(deps)`) follows:
- *   - Destructure `rs` (and a few frequently-used deps) at the factory top.
+ *   - Destructure `runtimeState` (and a few frequently-used deps) at the factory top.
  *   - Access other deps inline as `deps.xxx` — avoids stale captures and makes
  *     the dependency explicit at each call site.
  *   - Deps interfaces use getters/closures for late binding (e.g. `getState()`).
  *   - Sub-systems must not import from each other, only from runtime-types.ts
  *     and runtime-state.ts.
  *
- * Exception: CameraDeps is all getters (no `rs` access) because camera state
+ * Exception: CameraDeps is all getters (no `runtimeState` access) because camera state
  * can change during host migration and must always re-read the latest value.
- * For new sub-systems, prefer the standard `rs` + inline deps pattern.
+ * For new sub-systems, prefer the standard `runtimeState` + inline deps pattern.
  */
 
 import type { GameMessage, ServerMessage } from "../server/protocol.ts";
@@ -234,7 +234,7 @@ export interface RuntimePhaseTicks {
 
 export interface GameRuntime {
   /** Mutable runtime state — direct property access replaces getter/setter pairs. */
-  rs: RuntimeState;
+  runtimeState: RuntimeState;
 
   // --- Sub-system handles ---
   selection: RuntimeSelection;

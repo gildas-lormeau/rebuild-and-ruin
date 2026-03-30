@@ -40,18 +40,18 @@ const runtime = createGameRuntime({
       })()
     : () => {},
   getLobbyRemaining: () =>
-    Math.max(0, LOBBY_TIMER - (runtime.rs.lobby.timerAccum ?? 0)),
+    Math.max(0, LOBBY_TIMER - (runtime.runtimeState.lobby.timerAccum ?? 0)),
   showLobby,
   onLobbySlotJoined: (pid) => {
-    runtime.rs.lobby.joined[pid] = true;
+    runtime.runtimeState.lobby.joined[pid] = true;
     runtime.lobby.renderLobby();
   },
   onCloseOptions: () => {
-    runtime.rs.lobby.timerAccum = 0; // reset countdown after settings
+    runtime.runtimeState.lobby.timerAccum = 0; // reset countdown after settings
   },
   onTickLobbyExpired: () => {
     runtime.lifecycle.startGame();
-    runtime.rs.mode = Mode.SELECTION;
+    runtime.runtimeState.mode = Mode.SELECTION;
   },
 });
 const atlasReady = loadAtlas().catch((e) => {
@@ -67,19 +67,19 @@ export function enterLocalLobby(): void {
 runtime.registerInputHandlers();
 
 document.addEventListener(GAME_EXIT_EVENT, () => {
-  runtime.rs.mode = Mode.STOPPED;
+  runtime.runtimeState.mode = Mode.STOPPED;
 });
 
 function showLobby(): void {
-  const lobby = runtime.rs.lobby;
+  const lobby = runtime.runtimeState.lobby;
   lobby.joined = new Array(MAX_PLAYERS).fill(false);
   lobby.active = true;
   lobby.timerAccum = 0;
   lobby.map = null; // force fresh seed + map preview
-  runtime.rs.quitPending = false;
-  runtime.rs.optionsReturnMode = null;
+  runtime.runtimeState.quitPending = false;
+  runtime.runtimeState.optionsReturnMode = null;
   runtime.lobby.renderLobby();
-  runtime.rs.mode = Mode.LOBBY;
-  runtime.rs.lastTime = performance.now();
+  runtime.runtimeState.mode = Mode.LOBBY;
+  runtime.runtimeState.lastTime = performance.now();
   requestAnimationFrame(runtime.mainLoop);
 }

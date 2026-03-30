@@ -88,11 +88,11 @@ const roomCodeOverlay = document.getElementById("room-code-overlay")!;
 export const pageOnline = document.getElementById("page-online")!;
 // ── Transition context ──────────────────────────────────────────────
 export const transitionCtx: TransitionContext = {
-  getState: () => runtime.rs.state,
+  getState: () => runtime.runtimeState.state,
   getMyPlayerId: () => session.myPlayerId,
-  getControllers: () => runtime.rs.controllers,
+  getControllers: () => runtime.runtimeState.controllers,
   setMode: (mode: Mode) => {
-    runtime.rs.mode = mode;
+    runtime.runtimeState.mode = mode;
   },
   now: () => performance.now(),
 
@@ -106,7 +106,7 @@ export const transitionCtx: TransitionContext = {
     ) =>
       runtime.showBanner(text, onDone, preserveOldScene, newBattle, subtitle),
     get banner() {
-      return runtime.rs.banner;
+      return runtime.runtimeState.banner;
     },
     render: () => runtime.render(),
     watcherTiming: watcher.timing,
@@ -125,7 +125,7 @@ export const transitionCtx: TransitionContext = {
 
   selection: {
     clearSelectionOverlay: () => {
-      const overlay = runtime.rs.overlay;
+      const overlay = runtime.runtimeState.overlay;
       if (overlay.selection) {
         overlay.selection.highlights = undefined;
         overlay.selection.highlighted = null;
@@ -140,14 +140,14 @@ export const transitionCtx: TransitionContext = {
       maxTiles: number,
       onDone: () => void,
     ) => {
-      runtime.rs.castleBuilds.push({
+      runtime.runtimeState.castleBuilds.push({
         wallPlans: plans,
         maxTiles,
         tileIdx: 0,
         accum: 0,
         onDone,
       });
-      runtime.rs.castleBuildOnDone = onDone;
+      runtime.runtimeState.castleBuildOnDone = onDone;
     },
     setCastleBuildViewport: (
       plans: readonly { playerId: number; tiles: number[] }[],
@@ -166,7 +166,7 @@ export const transitionCtx: TransitionContext = {
         progress: number;
       }[],
     ) => {
-      runtime.rs.battleAnim.flights = flights;
+      runtime.runtimeState.battleAnim.flights = flights;
     },
     snapshotTerritory: () => runtime.snapshotTerritory(),
     beginBattle: () => runtime.phaseTicks.beginBattle(),
@@ -190,24 +190,24 @@ export const transitionCtx: TransitionContext = {
       session.earlyLifeLostChoices.clear();
     },
     showScoreDeltas: (preScores: readonly number[], onDone: () => void) => {
-      runtime.rs.preScores = preScores;
+      runtime.runtimeState.preScores = preScores;
       runtime.selection.showBuildScoreDeltas(onDone);
     },
     setGameOverFrame: (
-      gameOver: NonNullable<typeof runtime.rs.frame.gameOver>,
+      gameOver: NonNullable<typeof runtime.runtimeState.frame.gameOver>,
     ) => {
-      runtime.rs.frame.gameOver = gameOver;
+      runtime.runtimeState.frame.gameOver = gameOver;
     },
     playerColors: PLAYER_COLORS,
   },
 };
 // ── Watcher tick context ────────────────────────────────────────────
 const watcherTickCtx: WatcherTickContext = {
-  getState: () => runtime.rs.state,
-  getFrame: () => runtime.rs.frame,
-  getAccum: () => runtime.rs.accum,
-  getBattleAnim: () => runtime.rs.battleAnim,
-  getControllers: () => runtime.rs.controllers,
+  getState: () => runtime.runtimeState.state,
+  getFrame: () => runtime.runtimeState.frame,
+  getAccum: () => runtime.runtimeState.accum,
+  getBattleAnim: () => runtime.runtimeState.battleAnim,
+  getControllers: () => runtime.runtimeState.controllers,
   getMyPlayerId: () => session.myPlayerId,
   lastSentCannonPhantom: dedup.cannonPhantom,
   lastSentPiecePhantom: dedup.piecePhantom,
@@ -239,7 +239,7 @@ export const runtime: GameRuntime = createGameRuntime({
     send({ type: MESSAGE.SELECT_SLOT, slotId: pid });
   },
   onCloseOptions: () => {
-    if (runtime.rs.optionsReturnMode === null) {
+    if (runtime.runtimeState.optionsReturnMode === null) {
       session.lobbyStartTime = performance.now();
     }
   },
@@ -263,7 +263,8 @@ export const runtime: GameRuntime = createGameRuntime({
 
   // Networking callbacks
   tickNonHost: (dt) => tickWatcherFn(watcher, dt, watcherTickCtx),
-  everyTick: (dt) => tickMigrationAnnouncementFn(watcher, runtime.rs.frame, dt),
+  everyTick: (dt) =>
+    tickMigrationAnnouncementFn(watcher, runtime.runtimeState.frame, dt),
   onLocalCrosshairCollected: (ctrl, crosshair) => {
     if (session.isHost)
       broadcastLocalCrosshair(ctrl, crosshair, {
@@ -272,7 +273,7 @@ export const runtime: GameRuntime = createGameRuntime({
       });
   },
   extendCrosshairs: (crosshairs, dt) =>
-    extendWithRemoteCrosshairs(crosshairs, runtime.rs.state, dt, {
+    extendWithRemoteCrosshairs(crosshairs, runtime.runtimeState.state, dt, {
       remoteCrosshairs: watcher.remoteCrosshairs,
       watcherCrosshairPos: watcher.crosshairPos,
       remoteHumanSlots: session.remoteHumanSlots,
@@ -306,24 +307,24 @@ export const runtime: GameRuntime = createGameRuntime({
 
 export function showWaitingRoom(code: string, seed: number): void {
   session.roomSeed = seed;
-  runtime.rs.settings.seed = String(seed);
+  runtime.runtimeState.settings.seed = String(seed);
   initWaitingRoom({
     code,
     seed,
     lobbyEl: pageOnline,
     container: renderer.container,
     roomCodeOverlay,
-    lobby: runtime.rs.lobby,
+    lobby: runtime.runtimeState.lobby,
     maxPlayers: MAX_PLAYERS,
     now: () => performance.now(),
     setLobbyStartTime: (timestamp: number) => {
       session.lobbyStartTime = timestamp;
     },
     setModeLobby: () => {
-      runtime.rs.mode = Mode.LOBBY;
+      runtime.runtimeState.mode = Mode.LOBBY;
     },
     setLastTime: (timestamp: number) => {
-      runtime.rs.lastTime = timestamp;
+      runtime.runtimeState.lastTime = timestamp;
     },
     requestFrame: () => {
       requestAnimationFrame(runtime.mainLoop);
@@ -333,8 +334,8 @@ export function showWaitingRoom(code: string, seed: number): void {
 
 export function initFromServer(msg: InitMessage): void {
   roomCodeOverlay.style.display = "none";
-  runtime.rs.lobby.active = false;
-  const settings = runtime.rs.settings;
+  runtime.runtimeState.lobby.active = false;
+  const settings = runtime.runtimeState.settings;
   bootstrapGame({
     seed: msg.seed,
     maxPlayers: msg.playerCount,
@@ -345,10 +346,10 @@ export function initFromServer(msg: InitMessage): void {
     log: devLog,
     clearFrameData: () => runtime.clearFrameData(),
     setState: (state) => {
-      runtime.rs.state = state;
+      runtime.runtimeState.state = state;
     },
     setControllers: (controllers) => {
-      runtime.rs.controllers = [...controllers];
+      runtime.runtimeState.controllers = [...controllers];
     },
     resetUIState: () => {
       runtime.lifecycle.resetUIState();
@@ -363,30 +364,30 @@ export function initFromServer(msg: InitMessage): void {
 }
 
 export function applyFullState(msg: FullStateMessage): void {
-  const state = runtime.rs.state;
+  const state = runtime.runtimeState.state;
   const result = applyFullStateSnapshot(state, msg);
   if (!result) return; // Validation failed — no state was mutated
 
   applyFullStateUiRecovery(
     {
       setMode: (mode) => {
-        runtime.rs.mode = mode;
+        runtime.runtimeState.mode = mode;
       },
       onModeSet: (mode) => {
         if (mode === Mode.SELECTION) runtime.sound.drumsStart();
         else runtime.sound.drumsStop();
       },
       clearCastleBuilds: () => {
-        runtime.rs.castleBuilds = [];
+        runtime.runtimeState.castleBuilds = [];
       },
       clearLifeLostDialog: () => {
         runtime.lifeLost.set(null);
       },
       clearAnnouncement: () => {
-        runtime.rs.frame.announcement = undefined;
+        runtime.runtimeState.frame.announcement = undefined;
       },
       setBattleFlights: (flights) => {
-        runtime.rs.battleAnim.flights = flights;
+        runtime.runtimeState.battleAnim.flights = flights;
       },
     },
     state.phase,
@@ -404,9 +405,9 @@ export function applyFullState(msg: FullStateMessage): void {
 /** Build the deps object shared by all three checkpoint functions. */
 function buildCheckpointDeps(): CheckpointDeps {
   return {
-    state: runtime.rs.state,
-    battleAnim: runtime.rs.battleAnim,
-    accum: runtime.rs.accum,
+    state: runtime.runtimeState.state,
+    battleAnim: runtime.runtimeState.battleAnim,
+    accum: runtime.runtimeState.accum,
     remoteCrosshairs: watcher.remoteCrosshairs,
     watcherCrosshairPos: watcher.crosshairPos,
     watcherOrbitParams: watcher.orbitParams,
@@ -417,8 +418,8 @@ function buildCheckpointDeps(): CheckpointDeps {
 
 // ── Functions that close over runtime ───────────────────────────────
 function showLobby(): void {
-  runtime.rs.mode = Mode.STOPPED;
-  runtime.rs.lobby.active = false;
+  runtime.runtimeState.mode = Mode.STOPPED;
+  runtime.runtimeState.lobby.active = false;
   renderer.container.classList.remove(GAME_CONTAINER_ACTIVE);
   roomCodeOverlay.style.display = "none";
   navigateTo("/online");
@@ -429,8 +430,8 @@ function showLobby(): void {
 runtime.registerInputHandlers();
 
 document.addEventListener(GAME_EXIT_EVENT, () => {
-  runtime.rs.mode = Mode.STOPPED;
-  runtime.rs.lobby.active = false;
+  runtime.runtimeState.mode = Mode.STOPPED;
+  runtime.runtimeState.lobby.active = false;
   roomCodeOverlay.style.display = "none";
   resetSession();
 });
@@ -438,6 +439,6 @@ document.addEventListener(GAME_EXIT_EVENT, () => {
 function resetSession(): void {
   clearReconnect();
   resetSessionState(session);
-  runtime.rs.settings.seed = "";
+  runtime.runtimeState.settings.seed = "";
   resetNetworking("dedup");
 }

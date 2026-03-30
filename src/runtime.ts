@@ -10,7 +10,7 @@
  * ### Sub-system deps destructuring convention
  *
  * Each createXSystem(deps) factory destructures only frequently-used deps
- * (typically `rs` and `uiCtx`) at the factory top level. Rarely-used deps
+ * (typically `runtimeState` and `uiCtx`) at the factory top level. Rarely-used deps
  * are accessed inline as `deps.X`. This keeps closures lean while avoiding
  * verbose `deps.` prefixes on hot paths. The pattern is intentionally not
  * uniform across sub-systems — it reflects each sub-system's actual usage.
@@ -18,11 +18,11 @@
  * ### Overlay mutation convention
  *
  * Two overlay patterns coexist by design:
- * - **Persistent state** (game overlays): mutated in-place via `rs.overlay.X = ...`
+ * - **Persistent state** (game overlays): mutated in-place via `runtimeState.overlay.X = ...`
  *   because the overlay persists across frames and is read by the main render loop.
  * - **Transient overlays** (lobby, options): created fresh via factory functions
  *   (`createLobbyOverlay`, `createOptionsOverlay`) and passed directly to
- *   `renderFrame(map, overlay)` — these don't persist in `rs.overlay`.
+ *   `renderFrame(map, overlay)` — these don't persist in `runtimeState.overlay`.
  */
 
 import {
@@ -94,11 +94,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Mutable state (shared bag — see runtime-state.ts)
   // -------------------------------------------------------------------------
 
-  const rs = createRuntimeState();
+  const runtimeState = createRuntimeState();
   const haptics = createHapticsSystem();
-  haptics.setLevel(rs.settings.haptics);
+  haptics.setLevel(runtimeState.settings.haptics);
   const sound = createSoundSystem();
-  sound.setLevel(rs.settings.sound);
+  sound.setLevel(runtimeState.settings.sound);
 
   // Forward-declared: options must exist before lobby (lobby triggers
   // showOptions), and input must exist before the game-lifecycle system
@@ -111,10 +111,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   /** Refresh lobby seed + map preview only if the seed changed. */
   function refreshLobbySeed(): void {
-    const newSeed = computeGameSeed(rs.settings);
-    if (newSeed !== rs.lobby.seed) {
-      rs.lobby.seed = newSeed;
-      rs.lobby.map = generateMap(newSeed);
+    const newSeed = computeGameSeed(runtimeState.settings);
+    if (newSeed !== runtimeState.lobby.seed) {
+      runtimeState.lobby.seed = newSeed;
+      runtimeState.lobby.map = generateMap(newSeed);
     }
   }
 
@@ -123,15 +123,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   function clearFrameData(): void {
-    const { gameOver } = rs.frame;
-    rs.frame = { crosshairs: [], phantoms: {} };
-    if (gameOver) rs.frame.gameOver = gameOver;
+    const { gameOver } = runtimeState.frame;
+    runtimeState.frame = { crosshairs: [], phantoms: {} };
+    if (gameOver) runtimeState.frame.gameOver = gameOver;
     cachedFirstHuman = undefined;
   }
 
   function clampedFrameDt(now: number): number {
-    const dt = Math.min((now - rs.lastTime) / 1000, MAX_FRAME_DT);
-    rs.lastTime = now;
+    const dt = Math.min((now - runtimeState.lastTime) / 1000, MAX_FRAME_DT);
+    runtimeState.lastTime = now;
     return dt;
   }
 
@@ -141,13 +141,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
    *  Re-entrancy: onDone must NOT call showBuildScoreDeltas() — that would restart
    *  the timer and create an infinite display loop. */
   function tickScoreDeltaDisplay(dt: number): void {
-    if (rs.scoreDeltaTimer <= 0) return;
-    rs.scoreDeltaTimer -= dt;
-    if (rs.scoreDeltaTimer <= 0) {
-      rs.scoreDeltas = [];
-      rs.scoreDeltaTimer = 0;
-      // fireOnce: invokes rs.scoreDeltaOnDone at most once, then clears it
-      fireOnce(rs, "scoreDeltaOnDone");
+    if (runtimeState.scoreDeltaTimer <= 0) return;
+    runtimeState.scoreDeltaTimer -= dt;
+    if (runtimeState.scoreDeltaTimer <= 0) {
+      runtimeState.scoreDeltas = [];
+      runtimeState.scoreDeltaTimer = 0;
+      // fireOnce: invokes runtimeState.scoreDeltaOnDone at most once, then clears it
+      fireOnce(runtimeState, "scoreDeltaOnDone");
     }
   }
 
@@ -161,13 +161,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function exposeTestGlobals(): void {
     if (typeof window === "undefined") return;
     const w = globalThis as unknown as Record<string, unknown>;
-    w.__testMode = Mode[rs.mode];
-    w.__testPhase = isStateReady(rs) ? Phase[rs.state.phase] : "";
-    w.__testTimer = isStateReady(rs) ? rs.state.timer : 0;
+    w.__testMode = Mode[runtimeState.mode];
+    w.__testPhase = isStateReady(runtimeState)
+      ? Phase[runtimeState.state.phase]
+      : "";
+    w.__testTimer = isStateReady(runtimeState) ? runtimeState.state.timer : 0;
     const myPid = config.getMyPlayerId();
-    if (isStateReady(rs) && myPid >= 0) {
+    if (isStateReady(runtimeState) && myPid >= 0) {
       const enemies: { x: number; y: number }[] = [];
-      for (const player of rs.state.players) {
+      for (const player of runtimeState.state.players) {
         if (player.id === myPid || player.eliminated) continue;
         for (const c of player.cannons) {
           if (c.hp > 0)
@@ -180,7 +182,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       }
       w.__testEnemyCannons = enemies;
       const targets: { x: number; y: number }[] = [...enemies];
-      for (const player of rs.state.players) {
+      for (const player of runtimeState.state.players) {
         if (player.id === myPid || player.eliminated) continue;
         for (const key of player.walls) {
           const { r, c } = unpackTile(key);
@@ -188,7 +190,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         }
       }
       w.__testEnemyTargets = targets;
-      const myCtrl = rs.controllers[myPid];
+      const myCtrl = runtimeState.controllers[myPid];
       if (myCtrl) {
         const ch = myCtrl.getCrosshair();
         if (ch) w.__testCrosshair = { x: ch.x, y: ch.y };
@@ -198,18 +200,20 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function mainLoop(now: number): void {
     const dt = clampedFrameDt(now);
-    rs.frameDt = dt;
+    runtimeState.frameDt = dt;
     clearFrameData();
 
-    rs.frameCtx = computeFrameContext({
-      mode: rs.mode,
-      phase: isStateReady(rs) ? rs.state.phase : Phase.CASTLE_SELECT,
-      timer: isStateReady(rs) ? rs.state.timer : 0,
-      paused: rs.paused,
-      quitPending: rs.quitPending,
-      hasLifeLostDialog: rs.lifeLostDialog !== null,
+    runtimeState.frameCtx = computeFrameContext({
+      mode: runtimeState.mode,
+      phase: isStateReady(runtimeState)
+        ? runtimeState.state.phase
+        : Phase.CASTLE_SELECT,
+      timer: isStateReady(runtimeState) ? runtimeState.state.timer : 0,
+      paused: runtimeState.paused,
+      quitPending: runtimeState.quitPending,
+      hasLifeLostDialog: runtimeState.lifeLostDialog !== null,
       isSelectionReady: isSelectionReady(),
-      humanIsReselecting: rs.reselectQueue.includes(
+      humanIsReselecting: runtimeState.reselectQueue.includes(
         firstHuman()?.playerId ?? -1,
       ),
       myPlayerId: config.getMyPlayerId(),
@@ -236,24 +240,24 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     const shouldContinue = tickMainLoop({
       dt,
-      mode: rs.mode,
-      paused: rs.paused,
-      quitPending: rs.quitPending,
-      quitTimer: rs.quitTimer,
-      quitMessage: rs.quitMessage,
-      frame: rs.frame,
+      mode: runtimeState.mode,
+      paused: runtimeState.paused,
+      quitPending: runtimeState.quitPending,
+      quitTimer: runtimeState.quitTimer,
+      quitMessage: runtimeState.quitMessage,
+      frame: runtimeState.frame,
       setQuitPending: (quitPending: boolean) => {
-        rs.quitPending = quitPending;
+        runtimeState.quitPending = quitPending;
       },
       setQuitTimer: (quitTimer: number) => {
-        rs.quitTimer = quitTimer;
+        runtimeState.quitTimer = quitTimer;
       },
       render,
       ticks: modeTickers,
     });
 
     if (DEV) exposeTestGlobals();
-    if (shouldContinue && rs.mode !== Mode.STOPPED)
+    if (shouldContinue && runtimeState.mode !== Mode.STOPPED)
       requestAnimationFrame(mainLoop);
   }
 
@@ -272,7 +276,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   /** True once the selection announcement has finished playing and input is unblocked.
    *  Guard pattern: `if (!isSelectionReady()) return;` blocks input during announcement. */
   function isSelectionReady(): boolean {
-    return rs.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION;
+    return (
+      runtimeState.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -300,22 +306,22 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   ) {
     // Unzoom before banner so the full map is visible during transition
     camera.phaseUnzoom();
-    if (rs.banner.active) {
+    if (runtimeState.banner.active) {
       config.log(
-        `showBanner "${text}" while banner "${rs.banner.text}" is still active`,
+        `showBanner "${text}" while banner "${runtimeState.banner.text}" is still active`,
       );
     }
     showBannerTransition({
-      banner: rs.banner,
-      state: rs.state,
-      battleAnim: rs.battleAnim,
+      banner: runtimeState.banner,
+      state: runtimeState.state,
+      battleAnim: runtimeState.battleAnim,
       text,
       subtitle,
       onDone,
       preserveOldScene,
       newBattle,
       setModeBanner: () => {
-        rs.mode = Mode.BANNER;
+        runtimeState.mode = Mode.BANNER;
       },
     });
     haptics.phaseChange();
@@ -323,7 +329,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   function tickBanner(dt: number) {
-    tickBannerTransition(rs.banner, dt, BANNER_DURATION, render);
+    tickBannerTransition(runtimeState.banner, dt, BANNER_DURATION, render);
   }
 
   // -------------------------------------------------------------------------
@@ -331,7 +337,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   function snapshotTerritory(): Set<number>[] {
-    return snapshotTerritoryImpl(rs.state.players);
+    return snapshotTerritoryImpl(runtimeState.state.players);
   }
 
   let cachedFirstHuman: (PlayerController & InputReceiver) | null | undefined;
@@ -339,15 +345,22 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function firstHuman(): (PlayerController & InputReceiver) | null {
     if (cachedFirstHuman !== undefined) return cachedFirstHuman;
     // Prefer the player who joined via mouse/trackpad
-    if (rs.mouseJoinedSlot !== NO_SLOT) {
-      const ctrl = rs.controllers.find(
-        (c) => c.playerId === rs.mouseJoinedSlot,
+    if (runtimeState.mouseJoinedSlot !== NO_SLOT) {
+      const ctrl = runtimeState.controllers.find(
+        (c) => c.playerId === runtimeState.mouseJoinedSlot,
       );
-      if (ctrl && isHuman(ctrl) && !rs.state.players[ctrl.playerId]?.eliminated)
+      if (
+        ctrl &&
+        isHuman(ctrl) &&
+        !runtimeState.state.players[ctrl.playerId]?.eliminated
+      )
         return (cachedFirstHuman = ctrl);
     }
-    for (const ctrl of rs.controllers) {
-      if (isHuman(ctrl) && !rs.state.players[ctrl.playerId]?.eliminated)
+    for (const ctrl of runtimeState.controllers) {
+      if (
+        isHuman(ctrl) &&
+        !runtimeState.state.players[ctrl.playerId]?.eliminated
+      )
         return (cachedFirstHuman = ctrl);
     }
     return (cachedFirstHuman = null);
@@ -368,11 +381,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   const camera = createCameraSystem({
-    getState: () => safeState(rs),
-    getCtx: () => rs.frameCtx,
-    getFrameDt: () => rs.frameDt,
+    getState: () => safeState(runtimeState),
+    getCtx: () => runtimeState.frameCtx,
+    getFrameDt: () => runtimeState.frameDt,
     setFrameAnnouncement: (text) => {
-      rs.frame.announcement = text;
+      runtimeState.frame.announcement = text;
     },
     getFirstHumanCrosshair: () => {
       const h = firstHuman();
@@ -393,7 +406,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   const selection: SelectionSystem = createSelectionSystem({
-    rs,
+    runtimeState,
     send: config.send,
     log: config.log,
     camera,
@@ -402,7 +415,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     firstHuman,
     startCannonPhase: (onDone) => phaseTicks.startCannonPhase(onDone),
     requestFrame: () => {
-      if (rs.mode === Mode.STOPPED) requestAnimationFrame(mainLoop);
+      if (runtimeState.mode === Mode.STOPPED) requestAnimationFrame(mainLoop);
     },
   });
 
@@ -412,69 +425,74 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   function render() {
     // Summary log: crosshairs, phantoms, impacts per frame (throttled 1/s)
-    const chList = rs.frame.crosshairs ?? [];
-    const selH = rs.overlay.selection?.highlights;
+    const chList = runtimeState.frame.crosshairs ?? [];
+    const selH = runtimeState.overlay.selection?.highlights;
     config.logThrottled(
       "render-summary",
       createRenderSummaryMessage({
-        phaseName: Phase[rs.state.phase],
-        timer: rs.state.timer,
+        phaseName: Phase[runtimeState.state.phase],
+        timer: runtimeState.state.timer,
         crosshairs: chList,
-        aiPhantomsCount: rs.frame.phantoms?.aiPhantoms?.length ?? 0,
-        humanPhantomsCount: rs.frame.phantoms?.humanPhantoms?.length ?? 0,
-        aiCannonPhantomsCount: rs.frame.phantoms?.aiCannonPhantoms?.length ?? 0,
-        impactsCount: rs.battleAnim.impacts.length,
-        cannonballsCount: rs.state.cannonballs.length,
+        aiPhantomsCount: runtimeState.frame.phantoms?.aiPhantoms?.length ?? 0,
+        humanPhantomsCount:
+          runtimeState.frame.phantoms?.humanPhantoms?.length ?? 0,
+        aiCannonPhantomsCount:
+          runtimeState.frame.phantoms?.aiCannonPhantoms?.length ?? 0,
+        impactsCount: runtimeState.battleAnim.impacts.length,
+        cannonballsCount: runtimeState.state.cannonballs.length,
         selectionHighlights: selH,
       }),
     );
 
     // Refresh crosshairs from controller state when paused
-    if (rs.state.phase === Phase.BATTLE && rs.paused) {
-      phaseTicks.syncCrosshairs(rs.state.battleCountdown <= 0);
+    if (runtimeState.state.phase === Phase.BATTLE && runtimeState.paused) {
+      phaseTicks.syncCrosshairs(runtimeState.state.battleCountdown <= 0);
     }
 
     const bannerUi = createBannerUi(
-      rs.banner.active,
-      rs.banner.text,
-      rs.banner.progress,
-      rs.banner.subtitle,
+      runtimeState.banner.active,
+      runtimeState.banner.text,
+      runtimeState.banner.progress,
+      runtimeState.banner.subtitle,
     );
 
-    rs.overlay = createOnlineOverlay({
-      previousSelection: rs.overlay.selection,
-      state: rs.state,
-      banner: rs.banner,
-      battleAnim: rs.battleAnim,
-      frame: rs.frame,
+    runtimeState.overlay = createOnlineOverlay({
+      previousSelection: runtimeState.overlay.selection,
+      state: runtimeState.state,
+      banner: runtimeState.banner,
+      battleAnim: runtimeState.battleAnim,
+      frame: runtimeState.frame,
       bannerUi,
-      lifeLostDialog: rs.lifeLostDialog,
+      lifeLostDialog: runtimeState.lifeLostDialog,
       playerNames: PLAYER_NAMES,
       playerColors: PLAYER_COLORS,
       getLifeLostPanelPos: (playerId) => lifeLost.panelPos(playerId),
     });
 
     // Status bar (rendered inside canvas)
-    if (rs.overlay.ui) {
-      rs.overlay.ui.statusBar = createStatusBar(rs.state, PLAYER_COLORS);
+    if (runtimeState.overlay.ui) {
+      runtimeState.overlay.ui.statusBar = createStatusBar(
+        runtimeState.state,
+        PLAYER_COLORS,
+      );
     }
 
     // Add score deltas to overlay (shown briefly before Place Cannons banner)
-    if (rs.scoreDeltas.length > 0 && rs.overlay.ui) {
-      rs.overlay.ui.scoreDeltas = rs.scoreDeltas;
-      rs.overlay.ui.scoreDeltaProgress =
-        1 - rs.scoreDeltaTimer / SCORE_DELTA_DISPLAY_TIME;
+    if (runtimeState.scoreDeltas.length > 0 && runtimeState.overlay.ui) {
+      runtimeState.overlay.ui.scoreDeltas = runtimeState.scoreDeltas;
+      runtimeState.overlay.ui.scoreDeltaProgress =
+        1 - runtimeState.scoreDeltaTimer / SCORE_DELTA_DISPLAY_TIME;
     }
 
-    renderFrame(rs.state.map, rs.overlay, updateViewport());
+    renderFrame(runtimeState.state.map, runtimeState.overlay, updateViewport());
 
     // Update touch controls (loupe, d-pad, zoom, quit, floating actions)
     updateTouchControls({
-      mode: rs.mode,
-      state: rs.state,
-      phantoms: rs.frame.phantoms,
-      directTouchActive: rs.directTouchActive,
-      leftHanded: rs.settings.leftHanded,
+      mode: runtimeState.mode,
+      state: runtimeState.state,
+      phantoms: runtimeState.frame.phantoms,
+      directTouchActive: runtimeState.directTouchActive,
+      leftHanded: runtimeState.settings.leftHanded,
       firstHuman,
       dpad: input.touch.dpad,
       floatingActions: input.touch.floatingActions,
@@ -493,7 +511,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   const lifecycle = createGameLifecycle({
-    rs,
+    runtimeState,
     log: config.log,
     showLobby: config.showLobby,
     onEndGame: config.onEndGame,
@@ -519,7 +537,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   const lifeLost: LifeLostSystem = createLifeLostSystem({
-    rs,
+    runtimeState,
     send: config.send,
     log: config.log,
     render: () => render(),
@@ -534,7 +552,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   const phaseTicks: PhaseTicksSystem = createPhaseTicksSystem({
-    rs,
+    runtimeState,
     send: config.send,
     log: config.log,
     hostNetworking: config.hostNetworking,
@@ -562,39 +580,39 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   const uiCtx: UIContext = {
-    getState: () => safeState(rs),
-    getOverlay: () => rs.overlay,
-    settings: rs.settings,
-    getMode: () => rs.mode,
+    getState: () => safeState(runtimeState),
+    getOverlay: () => runtimeState.overlay,
+    settings: runtimeState.settings,
+    getMode: () => runtimeState.mode,
     setMode: (mode) => {
-      rs.mode = mode;
+      runtimeState.mode = mode;
     },
-    getPaused: () => rs.paused,
+    getPaused: () => runtimeState.paused,
     setPaused: (paused) => {
-      rs.paused = paused;
+      runtimeState.paused = paused;
     },
     optionsCursor: {
       get value() {
-        return rs.optionsCursor;
+        return runtimeState.optionsCursor;
       },
       set value(value) {
-        rs.optionsCursor = value;
+        runtimeState.optionsCursor = value;
       },
     },
-    controlsState: rs.controlsState,
-    getOptionsReturnMode: () => rs.optionsReturnMode,
+    controlsState: runtimeState.controlsState,
+    getOptionsReturnMode: () => runtimeState.optionsReturnMode,
     setOptionsReturnMode: (mode) => {
-      rs.optionsReturnMode = mode;
+      runtimeState.optionsReturnMode = mode;
     },
-    lobby: rs.lobby,
-    getFrame: () => rs.frame,
+    lobby: runtimeState.lobby,
+    getFrame: () => runtimeState.frame,
     getLobbyRemaining: config.getLobbyRemaining,
     isOnline: !!config.isOnline,
   };
 
   // Initialize options system first (lobby depends on showOptions)
   options = createOptionsSystem({
-    rs,
+    runtimeState,
     uiCtx,
     renderFrame,
     // Bridge boolean enable to dpad's Phase|null API (WALL_BUILD = any non-selection phase)
@@ -611,7 +629,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   // Initialize lobby system (needs options.showOptions)
   const lobby = createLobbySystem({
-    rs,
+    runtimeState,
     uiCtx,
     renderFrame,
     showOptions: options.showOptions,
@@ -625,7 +643,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   input = createInputSystem({
-    rs,
+    runtimeState,
     renderer,
     gameContainer,
     uiCtx,
@@ -656,7 +674,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   return {
-    rs,
+    runtimeState,
 
     // Sub-system handles
     selection,

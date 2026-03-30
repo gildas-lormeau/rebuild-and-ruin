@@ -35,7 +35,7 @@ import {
 } from "./types.ts";
 
 interface GameLifecycleDeps {
-  readonly rs: RuntimeState;
+  readonly runtimeState: RuntimeState;
 
   // Config / networking
   readonly log: (msg: string) => void;
@@ -74,14 +74,14 @@ const DEMO_RETURN_DELAY_MS = 10_000;
 export function createGameLifecycle(
   deps: GameLifecycleDeps,
 ): GameLifecycleSystem {
-  const { rs, camera, sound, selection } = deps;
+  const { runtimeState, camera, sound, selection } = deps;
 
   // -------------------------------------------------------------------------
   // Game stats
   // -------------------------------------------------------------------------
 
   function resetGameStats() {
-    rs.gameStats = Array.from({ length: MAX_PLAYERS }, () => ({
+    runtimeState.gameStats = Array.from({ length: MAX_PLAYERS }, () => ({
       wallsDestroyed: 0,
       cannonsKilled: 0,
     }));
@@ -103,23 +103,23 @@ export function createGameLifecycle(
 
   function resetUIState(): void {
     clearDemoTimer();
-    rs.reselectQueue = [];
-    rs.reselectionPids = [];
-    rs.battleAnim = createBattleAnimState();
-    rs.accum = createTimerAccums();
-    rs.banner = createBannerState();
-    rs.lifeLostDialog = null;
-    rs.paused = false;
-    rs.quitPending = false;
-    rs.optionsReturnMode = null;
-    rs.castleBuilds = [];
-    rs.castleBuildOnDone = null;
-    rs.selectionStates.clear();
-    rs.scoreDeltas = [];
-    rs.scoreDeltaTimer = 0;
-    rs.scoreDeltaOnDone = null;
-    rs.directTouchActive = false;
-    rs.preScores = [];
+    runtimeState.reselectQueue = [];
+    runtimeState.reselectionPids = [];
+    runtimeState.battleAnim = createBattleAnimState();
+    runtimeState.accum = createTimerAccums();
+    runtimeState.banner = createBannerState();
+    runtimeState.lifeLostDialog = null;
+    runtimeState.paused = false;
+    runtimeState.quitPending = false;
+    runtimeState.optionsReturnMode = null;
+    runtimeState.castleBuilds = [];
+    runtimeState.castleBuildOnDone = null;
+    runtimeState.selectionStates.clear();
+    runtimeState.scoreDeltas = [];
+    runtimeState.scoreDeltaTimer = 0;
+    runtimeState.scoreDeltaOnDone = null;
+    runtimeState.directTouchActive = false;
+    runtimeState.preScores = [];
     deps.resetBattleCrosshair();
     resetGameStats();
     camera.resetCamera();
@@ -127,10 +127,11 @@ export function createGameLifecycle(
   }
 
   function startGame() {
-    const seed = rs.lobby.seed;
+    const seed = runtimeState.lobby.seed;
 
     const diffParams =
-      DIFFICULTY_PARAMS[rs.settings.difficulty] ?? DIFFICULTY_PARAMS[1]!;
+      DIFFICULTY_PARAMS[runtimeState.settings.difficulty] ??
+      DIFFICULTY_PARAMS[1]!;
     const { buildTimer, cannonPlaceTimer, firstRoundCannons } = diffParams;
     const roundsParam =
       typeof location !== "undefined"
@@ -139,14 +140,16 @@ export function createGameLifecycle(
     const roundsVal =
       roundsParam > 0
         ? roundsParam
-        : (ROUNDS_OPTIONS[rs.settings.rounds] ?? ROUNDS_OPTIONS[0]!).value;
+        : (ROUNDS_OPTIONS[runtimeState.settings.rounds] ?? ROUNDS_OPTIONS[0]!)
+            .value;
 
     bootstrapGame({
       seed,
       maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),
       battleLength: roundsVal,
       cannonMaxHp: (
-        CANNON_HP_OPTIONS[rs.settings.cannonHp] ?? CANNON_HP_OPTIONS[0]!
+        CANNON_HP_OPTIONS[runtimeState.settings.cannonHp] ??
+        CANNON_HP_OPTIONS[0]!
       ).value,
       buildTimer,
       cannonPlaceTimer,
@@ -154,23 +157,23 @@ export function createGameLifecycle(
       clearFrameData: deps.clearFrameData,
       setState: (state: GameState) => {
         state.firstRoundCannons = firstRoundCannons;
-        rs.state = state;
+        runtimeState.state = state;
       },
       setControllers: (controller: readonly PlayerController[]) => {
-        rs.controllers = [...controller];
+        runtimeState.controllers = [...controller];
       },
       resetUIState,
       createControllerForSlot: (i: number, gameState: GameState) => {
-        const isAi = !rs.lobby.joined[i];
+        const isAi = !runtimeState.lobby.joined[i];
         const strategySeed = isAi
           ? gameState.rng.int(0, MAX_UINT32)
           : undefined;
         return createController(
           i,
           isAi,
-          rs.settings.keyBindings[i]!,
+          runtimeState.settings.keyBindings[i]!,
           strategySeed,
-          rs.settings.difficulty,
+          runtimeState.settings.difficulty,
         );
       },
       enterSelection: selection.enter,
@@ -182,37 +185,37 @@ export function createGameLifecycle(
   // -------------------------------------------------------------------------
 
   function endGame(winner: { id: number } | null) {
-    rs.scoreDeltaOnDone = null;
-    rs.lifeLostDialog = null;
+    runtimeState.scoreDeltaOnDone = null;
+    runtimeState.lifeLostDialog = null;
     camera.fullUnzoom();
-    deps.onEndGame?.(winner, rs.state);
+    deps.onEndGame?.(winner, runtimeState.state);
     sound.reset();
     sound.gameOver();
     const name = winner
       ? (PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`)
       : NO_WINNER_NAME;
-    rs.frame.gameOver = {
+    runtimeState.frame.gameOver = {
       winner: name,
-      scores: rs.state.players.map((player) => ({
+      scores: runtimeState.state.players.map((player) => ({
         name: PLAYER_NAMES[player.id] ?? `P${player.id + 1}`,
         score: player.score,
         color: getPlayerColor(player.id).wall,
         eliminated: player.eliminated,
         territory: player.interior.size,
-        stats: rs.gameStats[player.id],
+        stats: runtimeState.gameStats[player.id],
       })),
       focused: FOCUS_REMATCH,
     };
     deps.render();
-    rs.mode = Mode.STOPPED;
+    runtimeState.mode = Mode.STOPPED;
 
     // Demo mode: auto-return to lobby after 10s when all players are AI
     clearDemoTimer();
-    const allAi = rs.lobby.joined.every((j) => !j);
+    const allAi = runtimeState.lobby.joined.every((j) => !j);
     if (allAi) {
       demoReturnTimer = setTimeout(() => {
         demoReturnTimer = null;
-        if (rs.mode === Mode.STOPPED) returnToLobby();
+        if (runtimeState.mode === Mode.STOPPED) returnToLobby();
       }, DEMO_RETURN_DELAY_MS);
     }
   }
@@ -220,26 +223,26 @@ export function createGameLifecycle(
   function rematch() {
     clearDemoTimer();
     camera.resetCamera();
-    rs.frame.gameOver = undefined;
+    runtimeState.frame.gameOver = undefined;
     startGame();
-    rs.mode = Mode.SELECTION;
-    rs.lastTime = performance.now();
+    runtimeState.mode = Mode.SELECTION;
+    runtimeState.lastTime = performance.now();
     deps.requestMainLoop();
   }
 
   function returnToLobby(): void {
     clearDemoTimer();
-    rs.scoreDeltaOnDone = null;
+    runtimeState.scoreDeltaOnDone = null;
     camera.fullUnzoom();
-    rs.frame.gameOver = undefined;
-    rs.mouseJoinedSlot = NO_SLOT;
-    rs.directTouchActive = false;
+    runtimeState.frame.gameOver = undefined;
+    runtimeState.mouseJoinedSlot = NO_SLOT;
+    runtimeState.directTouchActive = false;
     deps.resetTouchForLobby();
     deps.showLobby();
   }
 
   function gameOverClick(canvasX: number, canvasY: number): void {
-    const gameOver = rs.frame.gameOver;
+    const gameOver = runtimeState.frame.gameOver;
     if (!gameOver) return;
     const W = GRID_COLS * TILE_SIZE;
     const H = GRID_ROWS * TILE_SIZE;

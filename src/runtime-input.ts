@@ -3,7 +3,7 @@
  * d-pad handlers.  Extracted from runtime.ts.
  *
  * Deps convention (shared across all runtime-*.ts sub-systems):
- * destructure frequently-used deps (rs, renderer, camera, etc.) at the
+ * destructure frequently-used deps (runtimeState, renderer, camera, etc.) at the
  * factory top; reference rarely-used deps inline as deps.X.
  */
 
@@ -65,7 +65,7 @@ interface TouchHandles {
 }
 
 interface InputSystemDeps {
-  readonly rs: RuntimeState;
+  readonly runtimeState: RuntimeState;
   readonly renderer: RendererInterface;
   readonly gameContainer: HTMLElement;
   readonly uiCtx: UIContext;
@@ -158,7 +158,7 @@ interface InputSystem {
 
 export function createInputSystem(deps: InputSystemDeps): InputSystem {
   const {
-    rs,
+    runtimeState,
     renderer,
     uiCtx,
     camera,
@@ -204,7 +204,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       onPinchEnd: camera.onPinchEnd,
     };
     const lobbyDeps = {
-      isActive: () => rs.lobby.active,
+      isActive: () => runtimeState.lobby.active,
       keyJoin: (key: string) => lobby.lobbyKeyJoin(key),
       click: (x: number, y: number) => lobby.lobbyClick(x, y),
     };
@@ -213,9 +213,9 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       close: options.closeOptions,
       showControls: options.showControls,
       closeControls: options.closeControls,
-      getCursor: () => rs.optionsCursor,
+      getCursor: () => runtimeState.optionsCursor,
       setCursor: (c: number) => {
-        rs.optionsCursor = c;
+        runtimeState.optionsCursor = c;
       },
       getCount: () => visibleOptions(uiCtx).length,
       getRealIdx: options.realOptionIdx,
@@ -223,24 +223,24 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
         if (options.realOptionIdx() === OPTION_CONTROLS) options.showControls();
         else options.closeOptions();
       },
-      getReturnMode: () => rs.optionsReturnMode,
+      getReturnMode: () => runtimeState.optionsReturnMode,
       setReturnMode: (mode: unknown) => {
-        rs.optionsReturnMode = mode as Mode | null;
+        runtimeState.optionsReturnMode = mode as Mode | null;
       },
       changeValue: options.changeOption,
       togglePause: options.togglePause,
-      getControlsState: () => rs.controlsState,
+      getControlsState: () => runtimeState.controlsState,
     };
     const lifeLostDeps = {
-      get: () => rs.lifeLostDialog,
+      get: () => runtimeState.lifeLostDialog,
       click: lifeLost.click,
       sendChoice: lifeLost.sendLifeLostChoice,
     };
     const gameOverDeps = {
-      getFocused: () => rs.frame.gameOver?.focused ?? FOCUS_REMATCH,
+      getFocused: () => runtimeState.frame.gameOver?.focused ?? FOCUS_REMATCH,
       setFocused: (focused: GameOverFocus) => {
-        if (rs.frame.gameOver) {
-          rs.frame.gameOver.focused = focused;
+        if (runtimeState.frame.gameOver) {
+          runtimeState.frame.gameOver.focused = focused;
           render();
         }
       },
@@ -248,7 +248,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     };
     // ── Game action deps: selection, placement, rotation, firing ──
     const gameActionDeps = {
-      getSelectionStates: () => rs.selectionStates,
+      getSelectionStates: () => runtimeState.selectionStates,
       highlightTowerForPlayer: selection.highlight,
       confirmSelectionAndStartBuild: selection.confirm,
       isSelectionReady,
@@ -259,24 +259,24 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
         deps.fireAndSend ?? ((ctrl, gameState) => ctrl.fire(gameState)),
     };
     const quitDeps = {
-      getPending: () => rs.quitPending,
+      getPending: () => runtimeState.quitPending,
       setPending: (quitPending: boolean) => {
-        rs.quitPending = quitPending;
+        runtimeState.quitPending = quitPending;
       },
       setTimer: (quitTimer: number) => {
-        rs.quitTimer = quitTimer;
+        runtimeState.quitTimer = quitTimer;
       },
       setMessage: (quitMessage: string) => {
-        rs.quitMessage = quitMessage;
+        runtimeState.quitMessage = quitMessage;
       },
     };
     // ── Combined input deps: assembles all subsystem deps ──
     const inputDeps: RegisterOnlineInputDeps = {
       renderer,
-      getState: () => safeState(rs),
-      getMode: () => rs.mode,
+      getState: () => safeState(runtimeState),
+      getMode: () => runtimeState.mode,
       setMode: (mode) => {
-        rs.mode = mode as Mode;
+        runtimeState.mode = mode as Mode;
       },
       modeValues: {
         LOBBY: Mode.LOBBY,
@@ -291,17 +291,17 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
         STOPPED: Mode.STOPPED,
       },
       isOnline: deps.isOnline,
-      settings: rs.settings,
-      getControllers: () => rs.controllers,
+      settings: runtimeState.settings,
+      getControllers: () => runtimeState.controllers,
       isHuman,
       withFirstHuman,
       showLobby: returnToLobby,
       rematch,
       maybeSendAimUpdate: deps.maybeSendAimUpdate ?? (() => {}),
       setDirectTouchActive: (active) => {
-        rs.directTouchActive = active;
+        runtimeState.directTouchActive = active;
       },
-      isDirectTouchActive: () => rs.directTouchActive,
+      isDirectTouchActive: () => runtimeState.directTouchActive,
       coords: coordsDeps,
       lobby: lobbyDeps,
       options: optionsDeps,
@@ -332,7 +332,7 @@ function setupTouchControls(
   deps: InputSystemDeps,
 ): void {
   const {
-    rs,
+    runtimeState,
     renderer,
     gameContainer,
     camera,
@@ -357,8 +357,8 @@ function setupTouchControls(
   // ── D-pad ──
   touch.dpad = createDpad(
     {
-      getState: () => safeState(rs),
-      getMode: () => rs.mode,
+      getState: () => safeState(runtimeState),
+      getMode: () => runtimeState.mode,
       modeValues: {
         GAME: Mode.GAME,
         SELECTION: Mode.SELECTION,
@@ -368,13 +368,13 @@ function setupTouchControls(
       onHapticTap: haptics.tap,
       isHost: deps.getIsHost,
       lobbyAction: () =>
-        lobby.lobbyKeyJoin(rs.settings.keyBindings[0]!.confirm),
-      getLeftHanded: () => rs.settings.leftHanded,
+        lobby.lobbyKeyJoin(runtimeState.settings.keyBindings[0]!.confirm),
+      getLeftHanded: () => runtimeState.settings.leftHanded,
       clearDirectTouch: () => {
-        rs.directTouchActive = false;
+        runtimeState.directTouchActive = false;
       },
       gameAction: {
-        getSelectionStates: () => rs.selectionStates,
+        getSelectionStates: () => runtimeState.selectionStates,
         highlightTowerForPlayer: selection.highlight,
         confirmSelectionAndStartBuild: selection.confirm,
         isSelectionReady,
@@ -394,18 +394,18 @@ function setupTouchControls(
   touch.loupeHandle = renderer.createLoupe?.(gameContainer) ?? null;
   touch.quitButton = createQuitButton(
     {
-      getQuitPending: () => rs.quitPending,
+      getQuitPending: () => runtimeState.quitPending,
       setQuitPending: (quitPending: boolean) => {
-        rs.quitPending = quitPending;
+        runtimeState.quitPending = quitPending;
       },
       setQuitTimer: (quitTimer: number) => {
-        rs.quitTimer = quitTimer;
+        runtimeState.quitTimer = quitTimer;
       },
       setQuitMessage: (msg: string) => {
-        rs.quitMessage = msg;
+        runtimeState.quitMessage = msg;
       },
       showLobby: returnToLobby,
-      getControllers: () => rs.controllers,
+      getControllers: () => runtimeState.controllers,
       isHuman,
     },
     gameContainer,
@@ -423,14 +423,14 @@ function setupTouchControls(
   if (floatingEl) {
     touch.floatingActions = createFloatingActions(
       {
-        getState: () => safeState(rs),
+        getState: () => safeState(runtimeState),
         withFirstHuman,
         tryPlacePieceAndSend: placePieceAction,
         tryPlaceCannonAndSend: placeCannonAction,
         onPieceRotated: sound.pieceRotated,
         onHapticTap: haptics.tap,
         onDrag: (clientX, clientY) => {
-          const state = rs.state;
+          const state = runtimeState.state;
           if (!state) return;
           const { x, y } = renderer.clientToSurface(clientX, clientY);
           dispatchPointerMove(x, y, state, inputDeps);
@@ -443,14 +443,23 @@ function setupTouchControls(
 
 /** Build overlay action deps for touch d-pad (options, life-lost, game-over). */
 function buildOverlayActionDeps(deps: InputSystemDeps) {
-  const { rs, uiCtx, options, lifeLost, render, rematch, returnToLobby } = deps;
+  const {
+    runtimeState,
+    uiCtx,
+    options,
+    lifeLost,
+    render,
+    rematch,
+    returnToLobby,
+  } = deps;
   const firstHuman = deps.firstHuman;
   return {
     options: {
-      isActive: () => rs.mode === Mode.OPTIONS,
+      isActive: () => runtimeState.mode === Mode.OPTIONS,
       navigate: (dir: -1 | 1) => {
         const count = visibleOptions(uiCtx).length;
-        rs.optionsCursor = (rs.optionsCursor + dir + count) % count;
+        runtimeState.optionsCursor =
+          (runtimeState.optionsCursor + dir + count) % count;
       },
       changeValue: (dir: -1 | 1) => options.changeOption(dir),
       confirm: () => {
@@ -459,7 +468,9 @@ function buildOverlayActionDeps(deps: InputSystemDeps) {
       },
     },
     lifeLost: {
-      isActive: () => rs.mode === Mode.LIFE_LOST && rs.lifeLostDialog !== null,
+      isActive: () =>
+        runtimeState.mode === Mode.LIFE_LOST &&
+        runtimeState.lifeLostDialog !== null,
       toggleFocus: () => {
         const human = firstHuman();
         if (human) lifeLost.toggleFocus(human.playerId);
@@ -471,18 +482,19 @@ function buildOverlayActionDeps(deps: InputSystemDeps) {
     },
     gameOver: {
       isActive: () =>
-        rs.mode === Mode.STOPPED && rs.frame.gameOver !== undefined,
+        runtimeState.mode === Mode.STOPPED &&
+        runtimeState.frame.gameOver !== undefined,
       toggleFocus: () => {
-        if (!rs.frame.gameOver) return;
-        rs.frame.gameOver.focused =
-          rs.frame.gameOver.focused === FOCUS_REMATCH
+        if (!runtimeState.frame.gameOver) return;
+        runtimeState.frame.gameOver.focused =
+          runtimeState.frame.gameOver.focused === FOCUS_REMATCH
             ? FOCUS_MENU
             : FOCUS_REMATCH;
         render();
       },
       confirm: () => {
-        if (!rs.frame.gameOver) return;
-        if (rs.frame.gameOver.focused === FOCUS_REMATCH) rematch();
+        if (!runtimeState.frame.gameOver) return;
+        if (runtimeState.frame.gameOver.focused === FOCUS_REMATCH) rematch();
         else returnToLobby();
       },
     },
@@ -491,20 +503,21 @@ function buildOverlayActionDeps(deps: InputSystemDeps) {
 
 /** Build zoom button deps for touch controls (home/enemy zone zoom). */
 function buildZoomDeps(deps: InputSystemDeps) {
-  const { rs, camera } = deps;
+  const { runtimeState, camera } = deps;
   const firstHuman = deps.firstHuman;
   return {
-    getState: () => safeState(rs),
+    getState: () => safeState(runtimeState),
     getCameraZone: camera.getCameraZone,
     setCameraZone: camera.setCameraZone,
     myPlayerId: camera.myPlayerId,
     getEnemyZones: camera.getEnemyZones,
     aimAtZone: (zone: number) => {
-      if (!rs.state) return;
+      if (!runtimeState.state) return;
       const human = firstHuman();
       if (!human) return;
-      const pid = rs.state.playerZones.indexOf(zone);
-      const tower = pid >= 0 ? rs.state.players[pid]?.homeTower : null;
+      const pid = runtimeState.state.playerZones.indexOf(zone);
+      const tower =
+        pid >= 0 ? runtimeState.state.players[pid]?.homeTower : null;
       if (!tower) return;
       const px = towerCenterPx(tower);
       human.setCrosshair(px.x, px.y);

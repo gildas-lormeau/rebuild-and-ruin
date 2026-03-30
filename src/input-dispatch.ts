@@ -199,20 +199,20 @@ export function dispatchTowerSelect(
   const { gameAction } = deps;
   if (gameAction.isSelectionReady && !gameAction.isSelectionReady()) return;
   deps.withFirstHuman((human) => {
-    const ss = gameAction.getSelectionStates().get(human.playerId);
-    if (!ss || ss.confirmed) return;
+    const selectionState = gameAction.getSelectionStates().get(human.playerId);
+    if (!selectionState || selectionState.confirmed) return;
     const zone = state.playerZones[human.playerId] ?? 0;
     const idx = towerAtPixel(state.map.towers, wx, wy);
     if (idx !== null && state.map.towers[idx]?.zone === zone) {
-      const alreadyHighlighted = ss.highlighted === idx;
+      const alreadyHighlighted = selectionState.highlighted === idx;
       if (
         alreadyHighlighted &&
-        (!requireSecondTapToConfirm || ss.secondTapReady)
+        (!requireSecondTapToConfirm || selectionState.secondTapReady)
       ) {
         gameAction.confirmSelectionAndStartBuild(human.playerId, isReselect);
       } else {
         gameAction.highlightTowerForPlayer(idx, zone, human.playerId);
-        ss.secondTapReady = alreadyHighlighted;
+        selectionState.secondTapReady = alreadyHighlighted;
       }
     }
   });
@@ -335,13 +335,13 @@ export function dispatchGameAction(
 
   if (isSelectionPhase(state.phase)) {
     if (deps.isSelectionReady && !deps.isSelectionReady()) return false;
-    const ss = deps.getSelectionStates().get(ctrl.playerId);
-    if (!ss || ss.confirmed) return false;
+    const selectionState = deps.getSelectionStates().get(ctrl.playerId);
+    if (!selectionState || selectionState.confirmed) return false;
     if (isMovementAction(action)) {
       const zone = state.playerZones[ctrl.playerId] ?? 0;
       const next = findNearestTower(
         state.map.towers,
-        ss.highlighted,
+        selectionState.highlighted,
         action,
         zone,
       );
@@ -414,18 +414,20 @@ export function dispatchPointerMove(
   }
   deps.withFirstHuman((human) => {
     if (isSelectionPhase(state.phase)) {
-      const ss = gameAction.getSelectionStates().get(human.playerId);
-      if (!ss || ss.confirmed) return;
+      const selectionState = gameAction
+        .getSelectionStates()
+        .get(human.playerId);
+      if (!selectionState || selectionState.confirmed) return;
       const zone = state.playerZones[human.playerId] ?? 0;
       const w = coords.screenToWorld(x, y);
       const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
       if (
         idx !== null &&
-        idx !== ss.highlighted &&
+        idx !== selectionState.highlighted &&
         state.map.towers[idx]?.zone === zone
       ) {
         gameAction.highlightTowerForPlayer(idx, zone, human.playerId);
-        ss.secondTapReady = false;
+        selectionState.secondTapReady = false;
       }
     } else if (state.phase === Phase.WALL_BUILD) {
       const { row, col } = coords.pixelToTile(x, y);

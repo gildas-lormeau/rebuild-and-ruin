@@ -3,7 +3,7 @@
  * that used to live inside createGameRuntime().
  *
  * Exposing state as a plain object lets inner functions be extracted
- * to separate modules (they just take rs: RuntimeState) and eliminates
+ * to separate modules (they just take runtimeState: RuntimeState) and eliminates
  * the getter/setter boilerplate on the GameRuntime interface.
  */
 
@@ -31,8 +31,8 @@ import {
 export interface RuntimeState {
   // Core game
   /** The current game state. IMPORTANT: guarded by an uninitialized sentinel
-   *  before startGame() assigns a real value. Always check `isStateReady(rs)`
-   *  or use `safeState(rs)` before accessing — direct access throws if uninitialized. */
+   *  before startGame() assigns a real value. Always check `isStateReady(runtimeState)`
+   *  or use `safeState(runtimeState)` before accessing — direct access throws if uninitialized. */
   state: GameState;
   overlay: RenderOverlay;
   controllers: PlayerController[];
@@ -55,7 +55,7 @@ export interface RuntimeState {
   banner: BannerState;
   /** Per-frame context (dt, mode, etc.). IMPORTANT: guarded by an uninitialized
    *  sentinel before the first mainLoop tick. Same rules as `state` — check
-   *  `isStateReady(rs)` before accessing. */
+   *  `isStateReady(runtimeState)` before accessing. */
   frameCtx: FrameContext;
   frame: FrameData;
   lobby: LobbyState;
@@ -159,27 +159,27 @@ export function createRuntimeState(): RuntimeState {
   };
 }
 
-/** Returns `rs.state` if initialized, `undefined` otherwise. */
-export function safeState(rs: RuntimeState): GameState | undefined {
-  return isStateReady(rs) ? rs.state : undefined;
+/** Returns `runtimeState.state` if initialized, `undefined` otherwise. */
+export function safeState(runtimeState: RuntimeState): GameState | undefined {
+  return isStateReady(runtimeState) ? runtimeState.state : undefined;
 }
 
-/** Assert `rs.state` is initialized and return it. Throws if still sentinel.
+/** Assert `runtimeState.state` is initialized and return it. Throws if still sentinel.
  *  Use in code paths that must not run before startGame(). For optional access
- *  (e.g. render code that may run during lobby), use `safeState(rs)` instead. */
-export function assertStateReady(rs: RuntimeState): GameState {
-  if (!isStateReady(rs)) {
-    throw new Error("rs.state accessed before initialization");
+ *  (e.g. render code that may run during lobby), use `safeState(runtimeState)` instead. */
+export function assertStateReady(runtimeState: RuntimeState): GameState {
+  if (!isStateReady(runtimeState)) {
+    throw new Error("runtimeState.state accessed before initialization");
   }
-  return rs.state;
+  return runtimeState.state;
 }
 
-/** Returns true when `rs.state` has been assigned a real GameState.
- *  Note: `rs.ctx` is also sentinel-guarded and initialized at the same time
+/** Returns true when `runtimeState.state` has been assigned a real GameState.
+ *  Note: `runtimeState.ctx` is also sentinel-guarded and initialized at the same time
  *  (first mainLoop tick after startGame). Both are safe to access when this
  *  returns true. */
-export function isStateReady(rs: RuntimeState): boolean {
-  return !(rs.state as unknown as Record<symbol, unknown>)[SENTINEL];
+export function isStateReady(runtimeState: RuntimeState): boolean {
+  return !(runtimeState.state as unknown as Record<symbol, unknown>)[SENTINEL];
 }
 
 function uninitializedSentinel<T extends object>(name: string): T {
@@ -187,7 +187,7 @@ function uninitializedSentinel<T extends object>(name: string): T {
     get(_, prop) {
       if (prop === SENTINEL) return true;
       throw new Error(
-        `rs.${name} accessed before initialization (property: ${String(prop)})`,
+        `runtimeState.${name} accessed before initialization (property: ${String(prop)})`,
       );
     },
   });

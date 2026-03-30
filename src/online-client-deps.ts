@@ -103,7 +103,7 @@ function buildLifecycleDeps() {
       setStartTime: (timestamp: number) => {
         session.lobbyStartTime = timestamp;
       },
-      joined: runtime.rs.lobby.joined,
+      joined: runtime.runtimeState.lobby.joined,
       occupiedSlots: session.occupiedSlots,
       remoteHumanSlots: session.remoteHumanSlots,
     },
@@ -114,9 +114,9 @@ function buildLifecycleDeps() {
       clearLifeLostDialog: () => {
         runtime.lifeLost.set(null);
       },
-      isLifeLostMode: () => runtime.rs.mode === Mode.LIFE_LOST,
+      isLifeLostMode: () => runtime.runtimeState.mode === Mode.LIFE_LOST,
       setGameMode: () => {
-        runtime.rs.mode = Mode.GAME;
+        runtime.runtimeState.mode = Mode.GAME;
       },
       setAnnouncement: (text: string) => {
         watcher.migrationText = text;
@@ -128,7 +128,7 @@ function buildLifecycleDeps() {
 
     // ── Game state & initialization ──
     game: {
-      getState: () => runtime.rs.state,
+      getState: () => runtime.runtimeState.state,
       initFromServer,
       enterTowerSelection: () => runtime.selection.enter(),
     },
@@ -164,14 +164,15 @@ function buildIncrementalDeps() {
   return {
     log: devLog,
     isHost: () => session.isHost,
-    getState: () => runtime.rs.state,
+    getState: () => runtime.runtimeState.state,
     remoteHumanSlots: session.remoteHumanSlots,
     selectionStates: runtime.selection.getStates(),
     syncSelectionOverlay: () => runtime.selection.syncOverlay(),
-    isCastleReselectPhase: () => isReselectPhase(runtime.rs.state.phase),
+    isCastleReselectPhase: () =>
+      isReselectPhase(runtime.runtimeState.state.phase),
     onRemotePlayerReselected: (playerId: number) => {
-      markPlayerReselected(runtime.rs.state, playerId);
-      runtime.rs.reselectionPids.push(playerId);
+      markPlayerReselected(runtime.runtimeState.state, playerId);
+      runtime.runtimeState.reselectionPids.push(playerId);
     },
     confirmSelectionAndStartBuild: (playerId: number, isReselect: boolean) => {
       runtime.selection.confirm(playerId, isReselect);
