@@ -46,7 +46,10 @@ import type {
   GameState,
 } from "./types.ts";
 
-/** An event emitted by applyImpact for network relay. */
+/** An event emitted by cannonball impact resolution for network relay.
+ *  Includes both direct effects (WALL_DESTROYED, CANNON_DAMAGED) and secondary
+ *  consequences of impacts (GRUNT_SPAWNED from destroyed houses, PIT_CREATED
+ *  from super gun incendiary hits). */
 export type ImpactEvent =
   | {
       type: typeof MESSAGE.WALL_DESTROYED;

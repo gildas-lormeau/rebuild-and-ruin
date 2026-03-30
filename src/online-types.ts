@@ -3,6 +3,7 @@
 import type { PixelPos } from "./geometry-types.ts";
 import { CANNON_MODES, CannonMode } from "./types.ts";
 
+/** Cannon phantom sent over the network. `valid` controls placement coloring (green/red). */
 export type CannonPhantom = {
   row: number;
   col: number;
@@ -12,6 +13,7 @@ export type CannonPhantom = {
   facing?: number;
 };
 
+/** Remote AI piece phantom (no `valid` — always drawn as neutral; no local validation). */
 export type PiecePhantom = {
   offsets: [number, number][];
   row: number;
@@ -19,6 +21,7 @@ export type PiecePhantom = {
   playerId: number;
 };
 
+/** Local human piece phantom. Has `valid` for green/red placement preview coloring. */
 export type HumanPiecePhantom = {
   offsets: [number, number][];
   row: number;

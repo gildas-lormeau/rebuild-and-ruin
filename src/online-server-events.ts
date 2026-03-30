@@ -83,6 +83,16 @@ interface HandleServerIncrementalDeps {
   queueEarlyLifeLostChoice: (playerId: number, choice: LifeLostChoice) => void;
 }
 
+/** Dispatch incremental game messages from the server.
+ *  Each case follows the same pattern: validate → isRemoteHumanAction guard → apply → return true.
+ *  Returns true if handled, false if unrecognized.
+ *
+ *  Case groups:
+ *    Selection:  OPPONENT_TOWER_SELECTED
+ *    Placement:  OPPONENT_PIECE_PLACED, OPPONENT_CANNON_PLACED
+ *    Battle:     CANNON_FIRED, impact events (WALL_DESTROYED etc.), AIM_UPDATE, TOWER_KILLED
+ *    Phantoms:   OPPONENT_PHANTOM, OPPONENT_CANNON_PHANTOM
+ *    Life-lost:  LIFE_LOST_CHOICE */
 export function handleServerIncrementalMessage(
   msg: ServerMessage,
   deps: HandleServerIncrementalDeps,
@@ -90,6 +100,7 @@ export function handleServerIncrementalMessage(
   const state = deps.getState();
 
   switch (msg.type) {
+    // --- Selection ---
     case MESSAGE.OPPONENT_TOWER_SELECTED: {
       if (!state || !validPid(msg.playerId, state)) return true;
       if (msg.towerIdx < 0 || msg.towerIdx >= state.map.towers.length)
@@ -123,6 +134,7 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
+    // --- Placement ---
     case MESSAGE.OPPONENT_PIECE_PLACED: {
       if (!state || !validPid(msg.playerId, state)) return true;
       if (!inBoundsStrict(msg.row, msg.col)) return true;
@@ -192,6 +204,7 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
+    // --- Battle ---
     case MESSAGE.CANNON_FIRED: {
       if (!state || !validPid(msg.playerId, state)) return true;
       if (!Number.isFinite(msg.speed) || msg.speed <= 0) return true;
@@ -270,6 +283,7 @@ export function handleServerIncrementalMessage(
       }
       return true;
 
+    // --- Phantoms ---
     case MESSAGE.OPPONENT_PHANTOM: {
       if (state && !validPid(msg.playerId, state)) return true;
       if (!inBoundsStrict(msg.row, msg.col)) return true;
@@ -310,6 +324,7 @@ export function handleServerIncrementalMessage(
       return true;
     }
 
+    // --- Life-lost ---
     case MESSAGE.LIFE_LOST_CHOICE: {
       if (!deps.isHost()) return true;
       deps.log(

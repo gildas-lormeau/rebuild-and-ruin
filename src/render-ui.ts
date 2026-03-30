@@ -57,7 +57,7 @@ import {
   TEXT_BASELINE_MIDDLE,
   TEXT_WHITE,
 } from "./render-theme.ts";
-import { type RenderOverlay } from "./render-types.ts";
+import { type ControlsPlayer, type RenderOverlay } from "./render-types.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
@@ -740,38 +740,19 @@ export function drawControlsScreen(
       const cellX = tableX + labelColW + playerIndex * playerColW + PAD / 2;
       const cellW = playerColW - PAD;
       const isSelected = playerIndex === ctrl.playerIdx && a === ctrl.actionIdx;
-
-      if (isSelected) {
-        if (ctrl.rebinding) {
-          // Flashing "Press key..." cell
-          const flash = flashOn(REBIND_FLASH_MS, now ?? Date.now());
-          octx.fillStyle = flash ? GOLD_BG(OP_ACTIVE) : GOLD_BG(OP_GHOST);
-          octx.fillRect(cellX, oy + 1, cellW, rowH - 2);
-          octx.strokeStyle = GOLD_LIGHT;
-          octx.lineWidth = 1;
-          octx.strokeRect(cellX, oy + 1, cellW, rowH - 2);
-          octx.textAlign = TEXT_ALIGN_CENTER;
-          octx.font = FONT_SMALL;
-          octx.fillStyle = flash ? GOLD_LIGHT : GOLD;
-          octx.fillText("Press key\u2026", cx, oy + rowH / 2);
-        } else {
-          // Highlighted selected cell
-          octx.fillStyle = GOLD_BG(OP_IDLE);
-          octx.fillRect(cellX, oy + 1, cellW, rowH - 2);
-          octx.strokeStyle = GOLD;
-          octx.lineWidth = 1;
-          octx.strokeRect(cellX, oy + 1, cellW, rowH - 2);
-          octx.textAlign = TEXT_ALIGN_CENTER;
-          octx.font = FONT_BODY;
-          octx.fillStyle = TEXT_WHITE;
-          octx.fillText(player.bindings[a]!, cx, oy + rowH / 2);
-        }
-      } else {
-        octx.textAlign = TEXT_ALIGN_CENTER;
-        octx.font = FONT_LABEL;
-        octx.fillStyle = rgb(player.color, OP_SECONDARY);
-        octx.fillText(player.bindings[a]!, cx, oy + rowH / 2);
-      }
+      drawControlsKeyCell(
+        octx,
+        player,
+        a,
+        isSelected,
+        ctrl.rebinding,
+        cellX,
+        cellW,
+        cx,
+        oy,
+        rowH,
+        now,
+      );
     }
   }
 
@@ -789,6 +770,54 @@ export function drawControlsScreen(
     W / 2,
     H * 0.88,
   );
+}
+
+/** Draw a single key cell in the controls table.
+ *  Three visual states: rebinding flash, selected highlight, or normal. */
+function drawControlsKeyCell(
+  octx: CanvasRenderingContext2D,
+  player: ControlsPlayer,
+  actionIdx: number,
+  isSelected: boolean,
+  rebinding: boolean,
+  cellX: number,
+  cellW: number,
+  cx: number,
+  oy: number,
+  rowH: number,
+  now?: number,
+): void {
+  const cy = oy + rowH / 2;
+  if (isSelected && rebinding) {
+    // Flashing "Press key..." cell
+    const flash = flashOn(REBIND_FLASH_MS, now ?? Date.now());
+    octx.fillStyle = flash ? GOLD_BG(OP_ACTIVE) : GOLD_BG(OP_GHOST);
+    octx.fillRect(cellX, oy + 1, cellW, rowH - 2);
+    octx.strokeStyle = GOLD_LIGHT;
+    octx.lineWidth = 1;
+    octx.strokeRect(cellX, oy + 1, cellW, rowH - 2);
+    octx.textAlign = TEXT_ALIGN_CENTER;
+    octx.font = FONT_SMALL;
+    octx.fillStyle = flash ? GOLD_LIGHT : GOLD;
+    octx.fillText("Press key\u2026", cx, cy);
+  } else if (isSelected) {
+    // Highlighted selected cell
+    octx.fillStyle = GOLD_BG(OP_IDLE);
+    octx.fillRect(cellX, oy + 1, cellW, rowH - 2);
+    octx.strokeStyle = GOLD;
+    octx.lineWidth = 1;
+    octx.strokeRect(cellX, oy + 1, cellW, rowH - 2);
+    octx.textAlign = TEXT_ALIGN_CENTER;
+    octx.font = FONT_BODY;
+    octx.fillStyle = TEXT_WHITE;
+    octx.fillText(player.bindings[actionIdx]!, cx, cy);
+  } else {
+    // Normal unselected cell
+    octx.textAlign = TEXT_ALIGN_CENTER;
+    octx.font = FONT_LABEL;
+    octx.fillStyle = rgb(player.color, OP_SECONDARY);
+    octx.fillText(player.bindings[actionIdx]!, cx, cy);
+  }
 }
 
 /** Draw a panel: filled rect + inset border stroke. */

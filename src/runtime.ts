@@ -269,6 +269,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     renderer.drawFrame(map, overlay, viewport);
   }
 
+  /** True once the selection announcement has finished playing and input is unblocked.
+   *  Guard pattern: `if (!isSelectionReady()) return;` blocks input during announcement. */
   function isSelectionReady(): boolean {
     return rs.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION;
   }
