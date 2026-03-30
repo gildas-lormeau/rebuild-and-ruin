@@ -117,8 +117,10 @@ export interface RegisterOnlineInputDeps {
   maybeSendAimUpdate: (x: number, y: number) => void;
 
   // --- Direct touch state ---
-  /** Mark whether the user is using direct canvas touch (vs d-pad).
-   *  When active, floating action buttons appear near the phantom. */
+  /** Enable or disable direct-touch mode (finger on screen = cursor follows touch).
+   *  Keyboard disables this when entering placement phase.
+   *  Touch canvas enables it when user touches during placement.
+   *  D-pad uses clearDirectTouch() (a shorthand for setDirectTouchActive(false)). */
   setDirectTouchActive?: (active: boolean) => void;
   /** Whether the user is currently in direct-touch mode (floating buttons visible).
    *  When true, tap-to-place on the canvas is suppressed (the floating confirm

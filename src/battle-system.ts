@@ -94,7 +94,9 @@ interface CannonballUpdateResult {
   events: ImpactEvent[];
 }
 
-/** Cannon rotation speed in radians per second. */
+/** Cannon barrel rotation speed: 3π rad/s ≈ 540°/s.
+ *  Tuned for snappy visual feedback — cannons should visually track
+ *  the crosshair with minimal lag but not feel instant. */
 const CANNON_ROTATE_SPEED = Math.PI * 3;
 /** Countdown thresholds for battle announcement phases:
  *    > 3s → "Ready"   |   1–3s → "Aim"   |   ≤ 1s → "FIRE!" */

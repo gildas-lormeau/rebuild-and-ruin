@@ -284,18 +284,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Banner
   // -------------------------------------------------------------------------
 
-  /** Show a phase-transition banner with text and optional old-scene preservation.
-   *  @param onDone — Called exactly once when the banner animation completes.
-   *    Must not be called again or stored for later — the banner system nulls
-   *    its internal reference after invoking it.
-   *  @param preserveOldScene — When true, snapshot old castles/territory/walls
-   *    before transitioning so the banner can show a before/after comparison. */
-  /** Show a phase-transition banner.
-   *  @param preserveOldScene When true, captures before-state (castles, territory, walls)
-   *    for the banner's before/after visual comparison (e.g. build→cannon transition).
-   *  @param newBattle Post-transition battle state snapshot (territory + walls) for the
-   *    banner "after" scene. Only meaningful when preserveOldScene is true.
-   *  @param subtitle Optional subtitle line below the main banner text. */
+  /** Show a phase transition banner.
+   *  @param text — Banner text
+   *  @param onDone — Called once when banner animation completes
+   *  @param preserveOldScene — If true, render old scene behind the banner (for before/after comparison)
+   *  @param newBattle — Battle territory/walls snapshot for the "after" scene. Only used when preserveOldScene is true; ignored otherwise.
+   *  @param subtitle — Optional smaller text below the main banner */
   function showBanner(
     text: string,
     onDone: () => void,

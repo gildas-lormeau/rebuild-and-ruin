@@ -65,7 +65,10 @@ export interface PlayerController {
   /** Pick a tower. Initiates async selection — use selectionTick() to advance. */
   selectTower(state: GameState, zone: number): void;
 
-  /** Pick a tower for reselection. Same contract as selectTower. */
+  /** Select a new tower after losing a life (castle reselection phase).
+   *  Called when the player enters CASTLE_RESELECT phase — they must pick a new
+   *  home tower because their previous territory was destroyed.
+   *  Not to be confused with selectTower() which is for initial tower selection. */
   reselect(state: GameState, zone: number): void;
 
   /** Tick during selection phase.

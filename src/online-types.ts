@@ -103,10 +103,10 @@ export function phantomWireMode(phantom: CannonPhantom): CannonMode {
   return phantom.mode;
 }
 
-/** Check-and-record dedup: returns true if `key` differs from the last
- *  recorded value for `playerId`, and updates the map to `key`.
- *  Returns false (and does not mutate) if the value is unchanged.
- *  Callers should send the network message only when this returns true. */
+/** Check if a value has changed since last send, updating the dedup map.
+ *  Returns true if the value changed (caller should send).
+ *  Returns false if unchanged (caller should skip sending).
+ *  Usage: `if (!dedupChanged(map, playerId, key)) return;` */
 export function dedupChanged(
   map: Map<number, string>,
   playerId: number,

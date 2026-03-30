@@ -157,14 +157,16 @@ export function createRuntimeState(): RuntimeState {
   };
 }
 
-/** Returns `runtimeState.state` if initialized, `undefined` otherwise. */
+/** Return game state or a safe empty fallback. Use in code paths that run during
+ *  lobby or transitions (render, input) where state may not exist yet.
+ *  Contrast with assertStateReady() which throws if state is missing. */
 export function safeState(runtimeState: RuntimeState): GameState | undefined {
   return isStateReady(runtimeState) ? runtimeState.state : undefined;
 }
 
-/** Assert `runtimeState.state` is initialized and return it. Throws if still sentinel.
- *  Use in code paths that must not run before startGame(). For optional access
- *  (e.g. render code that may run during lobby), use `safeState(runtimeState)` instead. */
+/** Assert that game state exists and return it. Use in tick/game-logic code paths
+ *  that must not run before startGame(). Throws if state is missing.
+ *  Contrast with safeState() which returns a fallback instead of throwing. */
 export function assertStateReady(runtimeState: RuntimeState): GameState {
   if (!isStateReady(runtimeState)) {
     throw new Error("runtimeState.state accessed before initialization");

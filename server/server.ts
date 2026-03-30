@@ -74,6 +74,11 @@ Deno.serve({ port: PORT }, (req) => {
   return new Response("Not found", { status: 404 });
 });
 
+// Lobby/room-management message handler (simple switch dispatch).
+// In-game messages are forwarded to GameRoom which uses a validation
+// pipeline instead (phase gating → identity → payload → rate limit → relay).
+// See game-room.ts handleMessage() for the pipeline pattern.
+
 /** Route incoming WebSocket messages.
  *  Two-tier dispatch: this switch handles lobby/room-management messages
  *  (CREATE_ROOM, JOIN_ROOM, SELECT_SLOT, PING) that require server-side

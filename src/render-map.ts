@@ -539,11 +539,13 @@ function renderTerrainPixels(
   inBattle: boolean,
 ): void {
   const data = imgData.data;
-  // SDF terrain transition thresholds — controls where color bands appear
-  // relative to the signed-distance field from water tiles.
-  const GRASS_TO_BANK_DIST = 3; // SDF units where grass→bank transition starts
-  const BANK_TO_WATER_DIST = 6; // SDF units where bank→water transition starts
-  const TRANSITION_WIDTH = 1.5; // smoothness of each transition band (higher = softer edge)
+  // Water/grass terrain transition thresholds (in blurred SDF units, ~1 unit ≈ 1 pixel distance).
+  // GRASS_TO_BANK_DIST: start bank texture blend at this distance from water edge
+  // BANK_TO_WATER_DIST: complete transition to water texture at this distance
+  // TRANSITION_WIDTH: smoothstep blend width (larger = softer edge)
+  const GRASS_TO_BANK_DIST = 3;
+  const BANK_TO_WATER_DIST = 6;
+  const TRANSITION_WIDTH = 1.5;
 
   for (let py = 0; py < H; py++) {
     for (let px = 0; px < W; px++) {

@@ -547,8 +547,12 @@ export function assertNever(value: never): never {
   throw new Error(`Unexpected value: ${String(value)}`);
 }
 
-/** Fire a "call exactly once" callback field: reads it, nulls the field, then
- *  calls. The null-before-call order prevents re-entrancy loops.
+/** Invoke a one-shot callback field and clear it to prevent re-entry.
+ *  Pattern: runtimeState stores an optional callback (e.g., scoreDeltaOnDone).
+ *  fireOnce() calls it exactly once, then sets the field to null.
+ *  This prevents double-firing if the caller runs again before the next frame.
+ *
+ *  The null-before-call order prevents re-entrancy loops.
  *
  *  Usage:  `fireOnce(obj, "callback")` replaces the manual pattern:
  *    `const cb = obj.callback; obj.callback = null; cb?.();`

@@ -222,6 +222,9 @@ export function createSelectionSystem(
     return allDone;
   }
 
+  /** Alias for allSelectionsConfirmed() — returns true when every player's selection is confirmed.
+   *  Named `allConfirmed` for brevity in the public API; the underlying function is
+   *  allSelectionsConfirmed() in selection.ts. */
   function allSelectionsConfirmed(): boolean {
     return allSelectionsConfirmedImpl(runtimeState.selectionStates);
   }

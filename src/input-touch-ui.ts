@@ -49,7 +49,9 @@ interface DpadDeps {
   /** Join P1 in lobby (or skip if already joined). */
   lobbyAction: () => void;
   getLeftHanded: () => boolean;
-  /** Clear the direct-touch-active flag (hides floating buttons). */
+  /** Clear direct-touch mode (equivalent to setDirectTouchActive(false)).
+   *  Named differently for brevity in the d-pad context where only clearing is needed.
+   *  See setDirectTouchActive in input.ts for the full setter. */
   clearDirectTouch?: () => void;
   /** Shared game action deps (selection, placement, battle). */
   gameAction: GameActionDeps;

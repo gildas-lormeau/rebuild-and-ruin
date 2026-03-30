@@ -1,5 +1,9 @@
 /**
  * Tower rendering — drawTowers layer and tower highlight overlay.
+ *
+ * Time parameter convention: `now?: number` uses Date.now() scale (milliseconds
+ * since epoch). Allows deterministic testing by injecting a fixed timestamp.
+ * See render-effects.ts for the full convention documentation.
  */
 
 import { TILE_SIZE } from "./grid.ts";

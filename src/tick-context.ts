@@ -25,6 +25,12 @@
  *    Examples: applyBattleStartCheckpoint, applyBuildStartCheckpoint.
  *
  * Within a single frame: APPLY → TICK → CHECKPOINT (if phase change).
+ *
+ * Phase completion terminology (used interchangeably across the codebase):
+ *   "done" — controller query: isCannonPhaseDone() checks if slots are exhausted or timer expired
+ *   "finalize" — engine action: finalizeBuildPhase() runs end-of-phase cleanup and scoring
+ *   "ended" — callback: onBattlePhaseEnded() signals the tick system that battle is over
+ * These are not interchangeable — each has a specific role in the phase lifecycle.
  */
 
 import type { PlayerController } from "./controller-interfaces.ts";

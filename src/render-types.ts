@@ -125,7 +125,15 @@ export interface EntityOverlay {
   homeTowers?: Map<number, number>;
 }
 
-/** Build/cannon phase — piece and cannon placement previews. */
+/** Build/cannon phase — piece and cannon placement previews.
+ *
+ *  `valid` field (on phantomPiece, humanPhantoms, aiCannonPhantoms):
+ *  true = placement is legal (rendered at normal color/alpha).
+ *  false = illegal placement. Visual feedback differs by phantom type:
+ *    - Piece phantoms: rendered with PHANTOM_INVALID_COLOR (red tint)
+ *    - Cannon phantoms: rendered with reduced alpha (0.5)
+ *  This asymmetry is intentional — cannon phantoms use alpha because they
+ *  already have a colored fill that would clash with a red overlay. */
 export interface PhantomOverlay {
   phantomPiece?: {
     offsets: [number, number][];

@@ -359,6 +359,7 @@ function drawCannonballs(
   if (!overlay?.battle?.cannonballs) return;
   overlayCtx.save();
   for (const ball of overlay.battle.cannonballs) {
+    // progress: normalized 0→1 linear interpolation from launch position to target
     const height = Math.sin(ball.progress * Math.PI);
     const radius = 3 + height * 2; // 3px base + up to 2px from arc
     overlayCtx.fillStyle = ball.incendiary ? "#c22" : DARK_METAL;
@@ -376,6 +377,7 @@ function drawBalloons(
   if (!overlay?.battle?.balloons) return;
   overlayCtx.save();
   for (const b of overlay.battle.balloons) {
+    // progress: normalized 0→1 arc trajectory (basket follows parabolic path to target)
     const progress = b.progress;
     const radius = 8;
     const basketOffset = radius + 9; // envelope center to basket center
