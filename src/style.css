@@ -293,6 +293,11 @@ nav.dpad {
     --dpad-btn-size: min(72px, 11.25vmin);
   }
 
+  .floating-actions .btn-round {
+    width: min(72px, 11.25vmin);
+    height: min(72px, 11.25vmin);
+  }
+
   .portrait-bottom .btn-round {
     flex-shrink: 1;
   }
