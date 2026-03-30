@@ -5,7 +5,7 @@
  * - A Y-shaped river dividing the map into 3 zones
  * - 12 towers (4 per zone, each 2×2 tiles)
  *
- * Grid: 42×28 tiles
+ * Grid: 44×28 tiles
  */
 
 // --- Constants ---
