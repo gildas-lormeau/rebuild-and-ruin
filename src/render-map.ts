@@ -282,12 +282,12 @@ function drawBannerOldScene(
   const oldCastles = overlay.ui.bannerOldCastles;
   const oldTerritory = overlay.ui.bannerOldBattleTerritory;
   const oldWalls = overlay.ui.bannerOldBattleWalls;
-  const needsBannerRender =
-    bannerCache === null ||
-    bannerCache.map !== map ||
-    bannerCache.castles !== oldCastles ||
-    bannerCache.territory !== oldTerritory ||
-    bannerCache.walls !== oldWalls;
+  const needsBannerRender = !isBannerCacheValid(
+    map,
+    oldCastles,
+    oldTerritory,
+    oldWalls,
+  );
 
   if (needsBannerRender) {
     const oldHouses = overlay.ui.bannerOldHouses;
@@ -348,6 +348,23 @@ function drawBannerOldScene(
 
 function clearBannerCache(): void {
   bannerCache = null;
+}
+
+/** Check if the banner scene cache is still valid (all 4 reference-equality checks).
+ *  When adding a new cached field, update both this function and the bannerCache assignment. */
+function isBannerCacheValid(
+  map: MapData,
+  castles: readonly CastleData[],
+  territory: Set<number>[] | undefined,
+  walls: Set<number>[] | undefined,
+): boolean {
+  return (
+    bannerCache !== null &&
+    bannerCache.map === map &&
+    bannerCache.castles === castles &&
+    bannerCache.territory === territory &&
+    bannerCache.walls === walls
+  );
 }
 
 /** Build SDF for water/grass boundaries, blur it, and paint terrain pixels. */
