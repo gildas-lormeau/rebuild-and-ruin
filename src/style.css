@@ -290,7 +290,6 @@ nav.dpad {
 
 @media (orientation: portrait) {
   :root {
-    --btn-size: min(72px, 11.25vmin);
     --dpad-btn-size: min(72px, 11.25vmin);
   }
 
@@ -353,18 +352,32 @@ nav.dpad {
       align-self: end;
     }
 
-    .zoom-group {
-      flex-direction: row;
-    }
-
-    .action-group {
-      flex-direction: row;
-    }
-
     .controls {
-      display: flex;
-      gap: var(--safe-padding);
-      align-items: start;
+      display: grid;
+      grid-template: repeat(3, var(--btn-size)) / repeat(3, var(--btn-size));
+      gap: 1vmin;
+      align-self: end;
+    }
+
+    .controls .zoom-group,
+    .controls .action-group {
+      display: contents;
+    }
+
+    .controls [data-action="zoom-enemy"] {
+      grid-area: 1 / 2;
+    }
+
+    .controls [data-action="zoom-home"] {
+      grid-area: 2 / 1;
+    }
+
+    .controls [data-action="confirm"] {
+      grid-area: 2 / 3;
+    }
+
+    .controls [data-action="rotate"] {
+      grid-area: 3 / 2;
     }
   }
 }
