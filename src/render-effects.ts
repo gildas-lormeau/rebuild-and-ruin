@@ -2,7 +2,7 @@
  * Visual effects rendering — impacts, cannonballs, balloons, burning pits,
  * crosshairs, phantoms, bonus squares, houses, grunts.
  *
- * Convention: exported functions use `octx` (overlay context) for the parameter name.
+ * Convention: exported functions use `overlayCtx` (overlay context) for the parameter name.
  * Private helper functions use `ctx` for brevity.
  *
  * ### Parameter convention (shared with render-composition.ts, render-map.ts)
@@ -105,13 +105,13 @@ const CROSSHAIR_COLORS: RGB[] = [
 
 /** Draw phantom piece/cannon previews (AI and human). */
 export function drawPhantoms(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
 ): void {
   // AI cannon phantoms
   if (overlay?.phantoms?.aiCannonPhantoms) {
     for (const phantom of overlay.phantoms.aiCannonPhantoms) {
-      drawPhantomCannon(octx, phantom);
+      drawPhantomCannon(overlayCtx, phantom);
     }
   }
 
@@ -119,7 +119,7 @@ export function drawPhantoms(
   if (overlay?.phantoms?.phantomPiece) {
     const { offsets, row, col, valid } = overlay.phantoms.phantomPiece;
     drawPiecePhantom(
-      octx,
+      overlayCtx,
       offsets,
       row,
       col,
@@ -135,7 +135,15 @@ export function drawPhantoms(
       const { offsets, row, col, valid, playerId } = phantom;
       const wall = getPlayerColor(playerId).wall;
       const fill = valid ? rgb(wall) : PHANTOM_INVALID_COLOR;
-      drawPiecePhantom(octx, offsets, row, col, fill, PHANTOM_ALPHA, true);
+      drawPiecePhantom(
+        overlayCtx,
+        offsets,
+        row,
+        col,
+        fill,
+        PHANTOM_ALPHA,
+        true,
+      );
     }
   }
 
@@ -144,14 +152,22 @@ export function drawPhantoms(
     for (const phantom of overlay.phantoms.aiPhantoms) {
       const { offsets, row, col, playerId } = phantom;
       const wall = getPlayerColor(playerId).wall;
-      drawPiecePhantom(octx, offsets, row, col, rgb(wall), PHANTOM_ALPHA, true);
+      drawPiecePhantom(
+        overlayCtx,
+        offsets,
+        row,
+        col,
+        rgb(wall),
+        PHANTOM_ALPHA,
+        true,
+      );
     }
   }
 }
 
 /** Draw bonus squares (flashing green diamonds). */
 export function drawBonusSquares(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
   now?: number,
 ): void {
@@ -159,19 +175,19 @@ export function drawBonusSquares(
     return;
   const alphaScale =
     Math.sin((now ?? Date.now()) / BONUS_FLASH_MS) * 0.15 + 0.85;
-  octx.save();
-  octx.globalAlpha = alphaScale;
+  overlayCtx.save();
+  overlayCtx.globalAlpha = alphaScale;
   for (const bs of overlay.entities.bonusSquares) {
     const bx = bs.col * TILE_SIZE;
     const by = bs.row * TILE_SIZE;
-    drawSprite(octx, "bonus_square", bx, by);
+    drawSprite(overlayCtx, "bonus_square", bx, by);
   }
-  octx.restore();
+  overlayCtx.restore();
 }
 
 /** Draw houses (settler tents/huts). */
 export function drawHouses(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.entities?.houses) return;
@@ -179,13 +195,13 @@ export function drawHouses(
     if (!house.alive) continue;
     const hx = house.col * TILE_SIZE;
     const hy = house.row * TILE_SIZE;
-    drawSprite(octx, "house", hx, hy);
+    drawSprite(overlayCtx, "house", hx, hy);
   }
 }
 
 /** Draw grunts (little tanks, top-down, rotated to facing). */
 export function drawGrunts(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.entities?.grunts) return;
@@ -194,13 +210,13 @@ export function drawGrunts(
     const gy = grunt.row * TILE_SIZE;
     const angle = grunt.facing ?? 0;
     const dir = facingToCardinal(angle);
-    drawSprite(octx, `grunt_${dir}`, gx, gy);
+    drawSprite(overlayCtx, `grunt_${dir}`, gx, gy);
   }
 }
 
 /** Draw animated wave shimmer over water tiles during battle. */
 export function drawWaterAnimation(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   map: MapData,
   overlay?: RenderOverlay,
 ): void {
@@ -239,11 +255,11 @@ export function drawWaterAnimation(
         const wy = py + 1 + Math.floor(wave * (TILE_SIZE - 3));
         const wx = px + 1 + ((i * 3) % (TILE_SIZE - 4));
         const wLen = 3 + Math.floor(wave * 4);
-        octx.fillStyle = `rgba(140, 200, 255, ${alpha})`;
-        octx.fillRect(wx, wy, wLen, 1);
+        overlayCtx.fillStyle = `rgba(140, 200, 255, ${alpha})`;
+        overlayCtx.fillRect(wx, wy, wLen, 1);
         // Shadow line below
-        octx.fillStyle = `rgba(20, 60, 120, ${alpha * 0.5})`;
-        octx.fillRect(wx, wy + 1, wLen, 1);
+        overlayCtx.fillStyle = `rgba(20, 60, 120, ${alpha * 0.5})`;
+        overlayCtx.fillRect(wx, wy + 1, wLen, 1);
       }
     }
   }
@@ -251,27 +267,27 @@ export function drawWaterAnimation(
 
 /** Draw impact flashes, cannonballs, balloons, burning pits, crosshairs, and timer. */
 export function drawBattleEffects(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   map: MapData,
   overlay?: RenderOverlay,
 ): void {
-  drawImpacts(octx, overlay);
-  drawCannonballs(octx, overlay);
-  drawBalloons(octx, overlay);
-  drawBurningPits(octx, overlay);
-  drawCrosshairs(octx, overlay);
-  drawPhaseTimer(octx, map, overlay);
+  drawImpacts(overlayCtx, overlay);
+  drawCannonballs(overlayCtx, overlay);
+  drawBalloons(overlayCtx, overlay);
+  drawBurningPits(overlayCtx, overlay);
+  drawCrosshairs(overlayCtx, overlay);
+  drawPhaseTimer(overlayCtx, map, overlay);
 }
 
 function drawImpacts(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.battle?.impacts) return;
   for (const impact of overlay.battle.impacts) {
     const time = impact.age / IMPACT_FLASH_DURATION;
     if (time >= 1) continue;
-    octx.save();
+    overlayCtx.save();
     const cx = impact.col * TILE_SIZE + TILE_SIZE / 2;
     const cy = impact.row * TILE_SIZE + TILE_SIZE / 2;
     const seed = impact.row * SEED_ROW + impact.col * SEED_COL;
@@ -280,22 +296,22 @@ function drawImpacts(
     if (time < IMPACT_CORE_END) {
       const coreAlpha = (1 - time / IMPACT_CORE_END) * 0.6;
       const coreSize = TILE_SIZE * (0.6 - time * 1.2);
-      octx.globalAlpha = coreAlpha;
-      octx.fillStyle = "#ffe0a0";
-      octx.beginPath();
-      octx.arc(cx, cy, Math.max(1, coreSize), 0, Math.PI * 2);
-      octx.fill();
+      overlayCtx.globalAlpha = coreAlpha;
+      overlayCtx.fillStyle = "#ffe0a0";
+      overlayCtx.beginPath();
+      overlayCtx.arc(cx, cy, Math.max(1, coreSize), 0, Math.PI * 2);
+      overlayCtx.fill();
     }
 
     // Shockwave ring — expands outward
     if (time < IMPACT_RING_END) {
       const ringR = TILE_SIZE * 0.5 + time * TILE_SIZE;
-      octx.globalAlpha = (1 - time / IMPACT_RING_END) * 0.7;
-      octx.strokeStyle = "#ffcc44";
-      octx.lineWidth = 2;
-      octx.beginPath();
-      octx.arc(cx, cy, ringR, 0, Math.PI * 2);
-      octx.stroke();
+      overlayCtx.globalAlpha = (1 - time / IMPACT_RING_END) * 0.7;
+      overlayCtx.strokeStyle = "#ffcc44";
+      overlayCtx.lineWidth = 2;
+      overlayCtx.beginPath();
+      overlayCtx.arc(cx, cy, ringR, 0, Math.PI * 2);
+      overlayCtx.stroke();
     }
 
     // Debris sparks — 5 particles flying outward
@@ -306,9 +322,9 @@ function drawImpacts(
         const dist = time * (TILE_SIZE * 0.8 + i * 3);
         const sx = cx + Math.cos(angle) * dist;
         const sy = cy + Math.sin(angle) * dist - time * 3;
-        octx.globalAlpha = sparkAlpha * 0.9;
-        octx.fillStyle = i % 2 === 0 ? "#ffaa30" : "#ff6600";
-        octx.fillRect(sx - 1, sy - 1, 2, 2);
+        overlayCtx.globalAlpha = sparkAlpha * 0.9;
+        overlayCtx.fillStyle = i % 2 === 0 ? "#ffaa30" : "#ff6600";
+        overlayCtx.fillRect(sx - 1, sy - 1, 2, 2);
       }
     }
 
@@ -316,40 +332,40 @@ function drawImpacts(
     if (time > IMPACT_SMOKE_START) {
       const smokeT = (time - IMPACT_SMOKE_START) / (1 - IMPACT_SMOKE_START);
       const smokeR = TILE_SIZE * 0.4 + smokeT * TILE_SIZE * 0.3;
-      octx.globalAlpha = (1 - smokeT) * 0.35;
-      octx.fillStyle = "#3a3028";
-      octx.beginPath();
-      octx.arc(cx, cy - smokeT * 4, smokeR, 0, Math.PI * 2);
-      octx.fill();
+      overlayCtx.globalAlpha = (1 - smokeT) * 0.35;
+      overlayCtx.fillStyle = "#3a3028";
+      overlayCtx.beginPath();
+      overlayCtx.arc(cx, cy - smokeT * 4, smokeR, 0, Math.PI * 2);
+      overlayCtx.fill();
     }
 
-    octx.restore();
+    overlayCtx.restore();
   }
 }
 
 function drawCannonballs(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.battle?.cannonballs) return;
-  octx.save();
+  overlayCtx.save();
   for (const ball of overlay.battle.cannonballs) {
     const height = Math.sin(ball.progress * Math.PI);
     const radius = 3 + height * 2; // 3px base + up to 2px from arc
-    octx.fillStyle = ball.incendiary ? "#c22" : DARK_METAL;
-    octx.beginPath();
-    octx.arc(ball.x, ball.y, radius, 0, Math.PI * 2);
-    octx.fill();
+    overlayCtx.fillStyle = ball.incendiary ? "#c22" : DARK_METAL;
+    overlayCtx.beginPath();
+    overlayCtx.arc(ball.x, ball.y, radius, 0, Math.PI * 2);
+    overlayCtx.fill();
   }
-  octx.restore();
+  overlayCtx.restore();
 }
 
 function drawBalloons(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.battle?.balloons) return;
-  octx.save();
+  overlayCtx.save();
   for (const b of overlay.battle.balloons) {
     const progress = b.progress;
     const radius = 8;
@@ -361,57 +377,57 @@ function drawBalloons(
       (b.targetY - basketOffset - b.y) * progress -
       Math.sin(progress * Math.PI) * 40;
     // Balloon envelope (main body — red)
-    octx.fillStyle = "#b03030";
-    octx.beginPath();
-    octx.ellipse(cx, cy - 1, radius, radius + 2, 0, 0, Math.PI * 2);
-    octx.fill();
+    overlayCtx.fillStyle = "#b03030";
+    overlayCtx.beginPath();
+    overlayCtx.ellipse(cx, cy - 1, radius, radius + 2, 0, 0, Math.PI * 2);
+    overlayCtx.fill();
     // Highlight (specular)
-    octx.fillStyle = "rgba(220, 120, 120, 0.5)";
-    octx.beginPath();
-    octx.ellipse(cx - 2, cy - 4, 3, 4, -0.3, 0, Math.PI * 2);
-    octx.fill();
+    overlayCtx.fillStyle = "rgba(220, 120, 120, 0.5)";
+    overlayCtx.beginPath();
+    overlayCtx.ellipse(cx - 2, cy - 4, 3, 4, -0.3, 0, Math.PI * 2);
+    overlayCtx.fill();
     // Panel seams
-    octx.strokeStyle = "#802020";
-    octx.lineWidth = 0.5;
-    octx.beginPath();
-    octx.moveTo(cx, cy - radius - 1);
-    octx.lineTo(cx, cy + radius + 1);
-    octx.stroke();
-    octx.beginPath();
-    octx.moveTo(cx - radius, cy);
-    octx.lineTo(cx + radius, cy);
-    octx.stroke();
+    overlayCtx.strokeStyle = "#802020";
+    overlayCtx.lineWidth = 0.5;
+    overlayCtx.beginPath();
+    overlayCtx.moveTo(cx, cy - radius - 1);
+    overlayCtx.lineTo(cx, cy + radius + 1);
+    overlayCtx.stroke();
+    overlayCtx.beginPath();
+    overlayCtx.moveTo(cx - radius, cy);
+    overlayCtx.lineTo(cx + radius, cy);
+    overlayCtx.stroke();
     // Envelope outline
-    octx.strokeStyle = "#601818";
-    octx.lineWidth = 1;
-    octx.beginPath();
-    octx.ellipse(cx, cy - 1, radius, radius + 2, 0, 0, Math.PI * 2);
-    octx.stroke();
+    overlayCtx.strokeStyle = "#601818";
+    overlayCtx.lineWidth = 1;
+    overlayCtx.beginPath();
+    overlayCtx.ellipse(cx, cy - 1, radius, radius + 2, 0, 0, Math.PI * 2);
+    overlayCtx.stroke();
     // Ropes (two angled lines from envelope base to basket)
-    octx.strokeStyle = "#6a5a3a";
-    octx.lineWidth = 0.7;
-    octx.beginPath();
-    octx.moveTo(cx - 3, cy + radius + 1);
-    octx.lineTo(cx - 2, cy + radius + 7);
-    octx.stroke();
-    octx.beginPath();
-    octx.moveTo(cx + 3, cy + radius + 1);
-    octx.lineTo(cx + 2, cy + radius + 7);
-    octx.stroke();
+    overlayCtx.strokeStyle = "#6a5a3a";
+    overlayCtx.lineWidth = 0.7;
+    overlayCtx.beginPath();
+    overlayCtx.moveTo(cx - 3, cy + radius + 1);
+    overlayCtx.lineTo(cx - 2, cy + radius + 7);
+    overlayCtx.stroke();
+    overlayCtx.beginPath();
+    overlayCtx.moveTo(cx + 3, cy + radius + 1);
+    overlayCtx.lineTo(cx + 2, cy + radius + 7);
+    overlayCtx.stroke();
     // Basket (wicker)
-    octx.fillStyle = "#8b6914";
-    octx.fillRect(cx - 3, cy + radius + 7, 6, 4);
-    octx.fillStyle = "#a07a1a";
-    octx.fillRect(cx - 2, cy + radius + 8, 4, 2);
+    overlayCtx.fillStyle = "#8b6914";
+    overlayCtx.fillRect(cx - 3, cy + radius + 7, 6, 4);
+    overlayCtx.fillStyle = "#a07a1a";
+    overlayCtx.fillRect(cx - 2, cy + radius + 8, 4, 2);
     // Basket rim
-    octx.fillStyle = "#6a4a0a";
-    octx.fillRect(cx - 3, cy + radius + 7, 6, 1);
+    overlayCtx.fillStyle = "#6a4a0a";
+    overlayCtx.fillRect(cx - 3, cy + radius + 7, 6, 1);
   }
-  octx.restore();
+  overlayCtx.restore();
 }
 
 function drawBurningPits(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.entities?.burningPits) return;
@@ -423,23 +439,23 @@ function drawBurningPits(
     const flicker =
       (Math.sin(time * 8 + pit.row * SEED_ROW + pit.col * SEED_COL) + 1) * 0.15;
     const stage = Math.max(1, Math.min(3, pit.roundsLeft));
-    drawSprite(octx, `burning_pit_${stage}`, px, py);
+    drawSprite(overlayCtx, `burning_pit_${stage}`, px, py);
     // Animated lava flicker (round glow, stronger for fresh pits)
     if (stage >= 2) {
       const intensity = stage === 3 ? 1.0 : 0.5;
       const emberR = EMBER_RED_BASE + Math.floor(flicker * EMBER_RED_RANGE);
       const emberG = EMBER_GREEN_BASE + Math.floor(flicker * EMBER_GREEN_RANGE);
       const radius = stage === 3 ? EMBER_RADIUS_FRESH : EMBER_RADIUS_FADING;
-      octx.fillStyle = `rgba(${emberR}, ${emberG}, 0, ${(EMBER_ALPHA_BASE + flicker * EMBER_ALPHA_RANGE) * intensity})`;
-      octx.beginPath();
-      octx.arc(px + mid, py + mid, radius, 0, Math.PI * 2);
-      octx.fill();
+      overlayCtx.fillStyle = `rgba(${emberR}, ${emberG}, 0, ${(EMBER_ALPHA_BASE + flicker * EMBER_ALPHA_RANGE) * intensity})`;
+      overlayCtx.beginPath();
+      overlayCtx.arc(px + mid, py + mid, radius, 0, Math.PI * 2);
+      overlayCtx.fill();
     }
   }
 }
 
 function drawCrosshairs(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.battle?.crosshairs) return;
@@ -461,18 +477,18 @@ function drawCrosshairs(
       y2: number,
       color: string,
     ) => {
-      octx.strokeStyle = `rgba(0,0,0,${alpha * 0.8})`;
-      octx.lineWidth = 5;
-      octx.beginPath();
-      octx.moveTo(x1, y1);
-      octx.lineTo(x2, y2);
-      octx.stroke();
-      octx.strokeStyle = color;
-      octx.lineWidth = 2;
-      octx.beginPath();
-      octx.moveTo(x1, y1);
-      octx.lineTo(x2, y2);
-      octx.stroke();
+      overlayCtx.strokeStyle = `rgba(0,0,0,${alpha * 0.8})`;
+      overlayCtx.lineWidth = 5;
+      overlayCtx.beginPath();
+      overlayCtx.moveTo(x1, y1);
+      overlayCtx.lineTo(x2, y2);
+      overlayCtx.stroke();
+      overlayCtx.strokeStyle = color;
+      overlayCtx.lineWidth = 2;
+      overlayCtx.beginPath();
+      overlayCtx.moveTo(x1, y1);
+      overlayCtx.lineTo(x2, y2);
+      overlayCtx.stroke();
     };
 
     const pColor = `rgba(${cr},${cg},${cb},${alpha})`;
@@ -491,7 +507,7 @@ function drawCrosshairs(
 }
 
 function drawPhaseTimer(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   map: MapData,
   overlay?: RenderOverlay,
 ): void {
@@ -500,12 +516,12 @@ function drawPhaseTimer(
   const text = `${secs}`;
   const jx = map.junction.x * TILE_SIZE + TILE_SIZE / 2;
   const jy = map.junction.y * TILE_SIZE + TILE_SIZE / 2;
-  octx.save();
-  octx.font = FONT_TIMER;
-  octx.textAlign = TEXT_ALIGN_CENTER;
-  octx.textBaseline = TEXT_BASELINE_MIDDLE;
-  drawShadowText(octx, text, jx, jy, SHADOW_COLOR, TEXT_WHITE);
-  octx.restore();
+  overlayCtx.save();
+  overlayCtx.font = FONT_TIMER;
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
+  drawShadowText(overlayCtx, text, jx, jy, SHADOW_COLOR, TEXT_WHITE);
+  overlayCtx.restore();
 }
 
 /** Compute animated crosshair dimensions from ready state and time.
@@ -602,7 +618,7 @@ function drawPhantomCannon(
 
 /** Draw a single phantom piece (fill + optional outline). */
 function drawPiecePhantom(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   offsets: readonly [number, number][],
   row: number,
   col: number,
@@ -610,11 +626,11 @@ function drawPiecePhantom(
   alpha: number,
   outline: boolean,
 ): void {
-  octx.save();
-  octx.globalAlpha = alpha;
-  octx.fillStyle = fillColor;
+  overlayCtx.save();
+  overlayCtx.globalAlpha = alpha;
+  overlayCtx.fillStyle = fillColor;
   for (const [dr, dc] of offsets) {
-    octx.fillRect(
+    overlayCtx.fillRect(
       (col + dc) * TILE_SIZE,
       (row + dr) * TILE_SIZE,
       TILE_SIZE,
@@ -622,10 +638,10 @@ function drawPiecePhantom(
     );
   }
   if (outline) {
-    octx.strokeStyle = TEXT_WHITE;
-    octx.lineWidth = 1;
+    overlayCtx.strokeStyle = TEXT_WHITE;
+    overlayCtx.lineWidth = 1;
     for (const [dr, dc] of offsets) {
-      octx.strokeRect(
+      overlayCtx.strokeRect(
         (col + dc) * TILE_SIZE,
         (row + dr) * TILE_SIZE,
         TILE_SIZE,
@@ -633,5 +649,5 @@ function drawPiecePhantom(
       );
     }
   }
-  octx.restore();
+  overlayCtx.restore();
 }

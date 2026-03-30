@@ -113,15 +113,15 @@ export function flashOn(intervalMs: number, now: number): boolean {
 
 /** Draw text with a dark shadow offset by 1px. */
 export function drawShadowText(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   text: string,
   x: number,
   y: number,
   shadowColor: string,
   textColor: string,
 ): void {
-  octx.fillStyle = shadowColor;
-  octx.fillText(text, x + 1, y + 1);
-  octx.fillStyle = textColor;
-  octx.fillText(text, x, y);
+  overlayCtx.fillStyle = shadowColor;
+  overlayCtx.fillText(text, x + 1, y + 1);
+  overlayCtx.fillStyle = textColor;
+  overlayCtx.fillText(text, x, y);
 }

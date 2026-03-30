@@ -17,7 +17,7 @@ import { towerCenterPx } from "./spatial.ts";
 
 /** Draw towers (alive, destroyed, highlighted, selected). */
 export function drawTowers(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   map: MapData,
   overlay?: RenderOverlay,
   now?: number,
@@ -36,7 +36,7 @@ export function drawTowers(
         ownerId !== undefined
           ? `tower_debris_p${ownerId}${suffix}`
           : `tower_debris${suffix}`;
-      drawSpriteCentered(octx, debrisName, cx, cy);
+      drawSpriteCentered(overlayCtx, debrisName, cx, cy);
       continue;
     }
 
@@ -45,34 +45,34 @@ export function drawTowers(
         ownerId !== undefined
           ? `tower_home_p${ownerId}${suffix}`
           : `tower_home_p0${suffix}`;
-      drawSpriteCentered(octx, homeName, cx, cy);
+      drawSpriteCentered(overlayCtx, homeName, cx, cy);
       // Player name label above home tower (battle phase only, semi-transparent)
       if (ownerId !== undefined && inBattle) {
         const name = PLAYER_NAMES[ownerId] ?? `P${ownerId + 1}`;
         const c = getPlayerColor(ownerId).interiorLight;
-        octx.save();
-        octx.globalAlpha = 0.7;
-        octx.font = FONT_FLOAT_LG;
-        octx.textAlign = TEXT_ALIGN_CENTER;
-        octx.textBaseline = "bottom";
-        octx.fillStyle = SHADOW_COLOR_DENSE;
-        octx.fillText(name, cx, cy - 20);
-        octx.fillStyle = rgb(c);
-        octx.fillText(name, cx - 0.5, cy - 20.5);
-        octx.restore();
+        overlayCtx.save();
+        overlayCtx.globalAlpha = 0.7;
+        overlayCtx.font = FONT_FLOAT_LG;
+        overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+        overlayCtx.textBaseline = "bottom";
+        overlayCtx.fillStyle = SHADOW_COLOR_DENSE;
+        overlayCtx.fillText(name, cx, cy - 20);
+        overlayCtx.fillStyle = rgb(c);
+        overlayCtx.fillText(name, cx - 0.5, cy - 20.5);
+        overlayCtx.restore();
       }
     } else {
-      drawSpriteCentered(octx, `tower_neutral${suffix}`, cx, cy);
+      drawSpriteCentered(overlayCtx, `tower_neutral${suffix}`, cx, cy);
     }
 
     if (overlay?.selection?.highlighted === i) {
-      drawTowerHighlight(octx, cx, cy, undefined, now);
+      drawTowerHighlight(overlayCtx, cx, cy, undefined, now);
     }
     if (overlay?.selection?.highlights) {
       for (const hl of overlay.selection.highlights) {
         if (hl.towerIdx === i) {
           const c = getPlayerColor(hl.playerId).interiorLight;
-          drawTowerHighlight(octx, cx, cy, rgb(c), now);
+          drawTowerHighlight(overlayCtx, cx, cy, rgb(c), now);
         }
       }
     }
@@ -81,7 +81,7 @@ export function drawTowers(
 
 /** Draw a highlight selector around a tower position. */
 function drawTowerHighlight(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   cx: number,
   cy: number,
   color?: string,
@@ -97,30 +97,30 @@ function drawTowerHighlight(
 
   // Slow flash: alpha pulses between 0.4 and 1.0 over ~1.5s cycle
   const flash = 0.7 + 0.3 * Math.sin((now ?? Date.now()) / TOWER_FLASH_MS);
-  octx.save();
-  octx.globalAlpha = flash;
-  octx.fillStyle = color ?? "#ffcc00";
+  overlayCtx.save();
+  overlayCtx.globalAlpha = flash;
+  overlayCtx.fillStyle = color ?? "#ffcc00";
   // Top-left
-  octx.fillRect(bx, by, corner, thickness);
-  octx.fillRect(bx, by + thickness, thickness, corner - thickness);
+  overlayCtx.fillRect(bx, by, corner, thickness);
+  overlayCtx.fillRect(bx, by + thickness, thickness, corner - thickness);
   // Top-right
-  octx.fillRect(bx + w - corner, by, corner, thickness);
-  octx.fillRect(
+  overlayCtx.fillRect(bx + w - corner, by, corner, thickness);
+  overlayCtx.fillRect(
     bx + w - thickness,
     by + thickness,
     thickness,
     corner - thickness,
   );
   // Bottom-left
-  octx.fillRect(bx, by + h - thickness, corner, thickness);
-  octx.fillRect(bx, by + h - corner, thickness, corner - thickness);
+  overlayCtx.fillRect(bx, by + h - thickness, corner, thickness);
+  overlayCtx.fillRect(bx, by + h - corner, thickness, corner - thickness);
   // Bottom-right
-  octx.fillRect(bx + w - corner, by + h - thickness, corner, thickness);
-  octx.fillRect(
+  overlayCtx.fillRect(bx + w - corner, by + h - thickness, corner, thickness);
+  overlayCtx.fillRect(
     bx + w - thickness,
     by + h - corner,
     thickness,
     corner - thickness,
   );
-  octx.restore();
+  overlayCtx.restore();
 }

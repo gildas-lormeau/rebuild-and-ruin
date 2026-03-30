@@ -158,34 +158,34 @@ export function drawMap(
   }
 
   ensureOffscreenSize(W, H);
-  const octx = sceneCtx;
-  octx.clearRect(0, 0, W, H);
+  const overlayCtx = sceneCtx;
+  overlayCtx.clearRect(0, 0, W, H);
 
   // Draw the new (target) scene — layers that change between phases
-  drawTerrain(octx, W, H, map, overlay);
-  drawWaterAnimation(octx, map, overlay);
-  drawCastles(octx, overlay);
-  drawBonusSquares(octx, overlay, now);
-  drawHouses(octx, overlay);
-  drawTowers(octx, map, overlay, now);
+  drawTerrain(overlayCtx, W, H, map, overlay);
+  drawWaterAnimation(overlayCtx, map, overlay);
+  drawCastles(overlayCtx, overlay);
+  drawBonusSquares(overlayCtx, overlay, now);
+  drawHouses(overlayCtx, overlay);
+  drawTowers(overlayCtx, map, overlay, now);
 
   // If banner is active with old data, composite the old scene below the banner.
-  drawBannerOldScene(octx, W, H, map, overlay, now);
+  drawBannerOldScene(overlayCtx, W, H, map, overlay, now);
 
   // Layers that don't change between phases — draw once on top
-  drawPhantoms(octx, overlay);
-  drawGrunts(octx, overlay);
-  drawBattleEffects(octx, map, overlay);
-  drawScoreDeltas(octx, overlay);
-  drawAnnouncement(octx, W, H, overlay);
-  drawBanner(octx, W, H, overlay);
-  drawGameOver(octx, W, H, overlay);
-  drawLifeLostDialog(octx, W, H, overlay, now);
+  drawPhantoms(overlayCtx, overlay);
+  drawGrunts(overlayCtx, overlay);
+  drawBattleEffects(overlayCtx, map, overlay);
+  drawScoreDeltas(overlayCtx, overlay);
+  drawAnnouncement(overlayCtx, W, H, overlay);
+  drawBanner(overlayCtx, W, H, overlay);
+  drawGameOver(overlayCtx, W, H, overlay);
+  drawLifeLostDialog(overlayCtx, W, H, overlay, now);
 
   // Full-screen modal screens (opaque — drawn last, on top of everything)
-  drawPlayerSelect(octx, W, H, overlay, now);
-  drawOptionsScreen(octx, W, H, overlay, now);
-  drawControlsScreen(octx, W, H, overlay, now);
+  drawPlayerSelect(overlayCtx, W, H, overlay, now);
+  drawOptionsScreen(overlayCtx, W, H, overlay, now);
+  drawControlsScreen(overlayCtx, W, H, overlay, now);
 
   // Scale up to display canvas (with optional zoom viewport)
   ctx.imageSmoothingEnabled = false;
@@ -261,7 +261,7 @@ function ensureOffscreenSize(width: number, height: number): void {
  *  banner via a clip rect. Cache is invalidated when any of the four cached references change.
  *  All four cached values must be updated atomically on a cache miss. */
 function drawBannerOldScene(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   W: number,
   H: number,
   map: MapData,
@@ -332,12 +332,12 @@ function drawBannerOldScene(
     cachedBannerWalls = oldWalls;
   }
 
-  octx.save();
-  octx.beginPath();
-  octx.rect(0, clipY, W, H - clipY);
-  octx.clip();
-  octx.drawImage(bannerSceneCanvas, 0, 0);
-  octx.restore();
+  overlayCtx.save();
+  overlayCtx.beginPath();
+  overlayCtx.rect(0, clipY, W, H - clipY);
+  overlayCtx.clip();
+  overlayCtx.drawImage(bannerSceneCanvas, 0, 0);
+  overlayCtx.restore();
 }
 
 function clearBannerCache(): void {
@@ -349,7 +349,7 @@ function clearBannerCache(): void {
 
 /** Build SDF for water/grass boundaries, blur it, and paint terrain pixels. */
 function drawTerrain(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   W: number,
   H: number,
   map: MapData,
@@ -359,17 +359,17 @@ function drawTerrain(
   const cache = getTerrainCache(map, W, H);
   const cachedImage = inBattle ? cache.battle : cache.normal;
   if (cachedImage) {
-    octx.putImageData(cachedImage, 0, 0);
+    overlayCtx.putImageData(cachedImage, 0, 0);
     return;
   }
 
   const sdf = computeSignedDistanceField(W, H, map);
   blurSignedDistanceField(sdf, W, H);
 
-  const imgData = octx.createImageData(W, H);
+  const imgData = overlayCtx.createImageData(W, H);
   renderTerrainPixels(imgData, sdf, W, H, map, inBattle);
 
-  octx.putImageData(imgData, 0, 0);
+  overlayCtx.putImageData(imgData, 0, 0);
   if (inBattle) cache.battle = imgData;
   else cache.normal = imgData;
 }
@@ -652,22 +652,22 @@ function lerp3(a: RGB, b: RGB, interpolationFactor: number): RGB {
 
 /** Draw castle walls, interiors, wall debris, and cannons for all players. */
 function drawCastles(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.castles) return;
   for (const castle of overlay.castles) {
     const battleTerritory = overlay.battle?.battleTerritory?.[castle.playerId];
     const battleWalls = overlay.battle?.battleWalls?.[castle.playerId];
-    drawCastleInterior(octx, castle, battleTerritory);
-    drawCastleWalls(octx, castle, battleWalls);
-    drawWallDebris(octx, castle, battleWalls);
-    drawCastleCannons(octx, castle);
+    drawCastleInterior(overlayCtx, castle, battleTerritory);
+    drawCastleWalls(overlayCtx, castle, battleWalls);
+    drawWallDebris(overlayCtx, castle, battleWalls);
+    drawCastleCannons(overlayCtx, castle);
   }
 }
 
 function drawCastleInterior(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   castle: CastleData,
   battleTerritory: Set<number> | undefined,
 ): void {
@@ -675,14 +675,14 @@ function drawCastleInterior(
     const cobbleName = `cobblestone_p${castle.playerId}`;
     for (const key of battleTerritory) {
       const { r, c } = unpackTile(key);
-      drawSprite(octx, cobbleName, c * TILE_SIZE, r * TILE_SIZE);
+      drawSprite(overlayCtx, cobbleName, c * TILE_SIZE, r * TILE_SIZE);
     }
   } else {
     for (const key of castle.interior) {
       const { r, c } = unpackTile(key);
       const isLight = (r + c) % 2 === 0;
       drawSprite(
-        octx,
+        overlayCtx,
         `interior_${isLight ? "light" : "dark"}_p${castle.playerId}`,
         c * TILE_SIZE,
         r * TILE_SIZE,
@@ -693,7 +693,7 @@ function drawCastleInterior(
 
 /** Draw castle walls with a staggered 3-row brick pattern, mortar lines, and edge bevels. */
 function drawCastleWalls(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   castle: CastleData,
   battleWalls: Set<number> | undefined,
 ): void {
@@ -722,26 +722,35 @@ function drawCastleWalls(
     const px = c * TILE_SIZE;
     const py = r * TILE_SIZE;
     // Base wall fill
-    octx.fillStyle = wallStyle;
-    octx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+    overlayCtx.fillStyle = wallStyle;
+    overlayCtx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
     // Mortar lines — 3-row staggered brick pattern
-    octx.fillStyle = mortarStyle;
-    octx.fillRect(px, py + 5, TILE_SIZE, 1);
-    octx.fillRect(px, py + 11, TILE_SIZE, 1);
-    octx.fillRect(px + 4, py, 1, 5);
-    octx.fillRect(px + 10, py, 1, 5);
-    octx.fillRect(px + 7, py + 6, 1, 5);
-    octx.fillRect(px + 13, py + 6, 1, 5);
-    octx.fillRect(px + 3, py + 12, 1, 4);
-    octx.fillRect(px + 9, py + 12, 1, 4);
+    overlayCtx.fillStyle = mortarStyle;
+    overlayCtx.fillRect(px, py + 5, TILE_SIZE, 1);
+    overlayCtx.fillRect(px, py + 11, TILE_SIZE, 1);
+    overlayCtx.fillRect(px + 4, py, 1, 5);
+    overlayCtx.fillRect(px + 10, py, 1, 5);
+    overlayCtx.fillRect(px + 7, py + 6, 1, 5);
+    overlayCtx.fillRect(px + 13, py + 6, 1, 5);
+    overlayCtx.fillRect(px + 3, py + 12, 1, 4);
+    overlayCtx.fillRect(px + 9, py + 12, 1, 4);
     // Bevels on exposed edges only
-    drawWallBevels(octx, castle.walls, r, c, px, py, lightEdge, shadowEdge);
+    drawWallBevels(
+      overlayCtx,
+      castle.walls,
+      r,
+      c,
+      px,
+      py,
+      lightEdge,
+      shadowEdge,
+    );
   }
 }
 
 /** Draw 2px bevels on wall edges that have no neighbor. */
 function drawWallBevels(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   walls: Set<number>,
   r: number,
   c: number,
@@ -751,25 +760,25 @@ function drawWallBevels(
   shadowEdge: string,
 ): void {
   if (!walls.has((r - 1) * GRID_COLS + c)) {
-    octx.fillStyle = lightEdge;
-    octx.fillRect(px, py, TILE_SIZE, 2);
+    overlayCtx.fillStyle = lightEdge;
+    overlayCtx.fillRect(px, py, TILE_SIZE, 2);
   }
   if (!walls.has((r + 1) * GRID_COLS + c)) {
-    octx.fillStyle = shadowEdge;
-    octx.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
+    overlayCtx.fillStyle = shadowEdge;
+    overlayCtx.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
   }
   if (!walls.has(r * GRID_COLS + (c - 1))) {
-    octx.fillStyle = lightEdge;
-    octx.fillRect(px, py, 2, TILE_SIZE);
+    overlayCtx.fillStyle = lightEdge;
+    overlayCtx.fillRect(px, py, 2, TILE_SIZE);
   }
   if (!walls.has(r * GRID_COLS + (c + 1))) {
-    octx.fillStyle = shadowEdge;
-    octx.fillRect(px + TILE_SIZE - 2, py, 2, TILE_SIZE);
+    overlayCtx.fillStyle = shadowEdge;
+    overlayCtx.fillRect(px + TILE_SIZE - 2, py, 2, TILE_SIZE);
   }
 }
 
 function drawWallDebris(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   castle: CastleData,
   origWalls: Set<number> | undefined,
 ): void {
@@ -777,12 +786,12 @@ function drawWallDebris(
   for (const key of origWalls) {
     if (castle.walls.has(key)) continue;
     const { r, c } = unpackTile(key);
-    drawSprite(octx, "wall_debris", c * TILE_SIZE, r * TILE_SIZE);
+    drawSprite(overlayCtx, "wall_debris", c * TILE_SIZE, r * TILE_SIZE);
   }
 }
 
 function drawCastleCannons(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   castle: CastleData,
 ): void {
   for (const cannon of castle.cannons) {
@@ -790,7 +799,7 @@ function drawCastleCannons(
     const cy = cannon.row * TILE_SIZE;
     if (!isCannonAlive(cannon)) {
       drawSprite(
-        octx,
+        overlayCtx,
         isSuperCannon(cannon) ? "super_debris" : "cannon_debris",
         cx,
         cy,
@@ -798,11 +807,11 @@ function drawCastleCannons(
       continue;
     }
     if (isBalloonCannon(cannon)) {
-      drawSprite(octx, "balloon_base", cx, cy);
+      drawSprite(overlayCtx, "balloon_base", cx, cy);
     } else {
       const prefix = isSuperCannon(cannon) ? "super" : "cannon";
       const dir = facingToDir8(cannon.facing ?? 0);
-      drawSprite(octx, `${prefix}_${dir}`, cx, cy);
+      drawSprite(overlayCtx, `${prefix}_${dir}`, cx, cy);
     }
   }
 }

@@ -116,24 +116,31 @@ const OP_GHOST = 0.1;
 
 /** Draw announcement text centered on screen. */
 export function drawAnnouncement(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   W: number,
   H: number,
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.ui?.announcement) return;
   const text = overlay.ui.announcement;
-  octx.save();
-  octx.font = FONT_ANNOUNCE;
-  octx.textAlign = TEXT_ALIGN_CENTER;
-  octx.textBaseline = TEXT_BASELINE_MIDDLE;
-  drawShadowText(octx, text, W / 2, H / 2, SHADOW_COLOR_HEAVY, TEXT_WHITE);
-  octx.restore();
+  overlayCtx.save();
+  overlayCtx.font = FONT_ANNOUNCE;
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
+  drawShadowText(
+    overlayCtx,
+    text,
+    W / 2,
+    H / 2,
+    SHADOW_COLOR_HEAVY,
+    TEXT_WHITE,
+  );
+  overlayCtx.restore();
 }
 
 /** Draw phase transition banner sweeping across the screen. */
 export function drawBanner(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   W: number,
   H: number,
   overlay?: RenderOverlay,
@@ -141,19 +148,19 @@ export function drawBanner(
   if (!overlay?.ui?.banner) return;
   const bannerH = Math.round(H * BANNER_HEIGHT_RATIO);
   const by = Math.round(overlay.ui.banner.y - bannerH / 2);
-  octx.fillStyle = PANEL_BG(BG_BANNER);
-  octx.fillRect(0, by, W, bannerH);
-  octx.fillStyle = GOLD;
-  octx.fillRect(0, by, W, 2);
-  octx.fillRect(0, by + bannerH - 2, W, 2);
-  octx.save();
-  octx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.fillStyle = PANEL_BG(BG_BANNER);
+  overlayCtx.fillRect(0, by, W, bannerH);
+  overlayCtx.fillStyle = GOLD;
+  overlayCtx.fillRect(0, by, W, 2);
+  overlayCtx.fillRect(0, by + bannerH - 2, W, 2);
+  overlayCtx.save();
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
   const hasSubtitle = !!overlay.ui.banner.subtitle;
   const titleY = hasSubtitle ? by + bannerH * 0.38 : by + bannerH / 2;
-  octx.font = FONT_TITLE;
-  octx.textBaseline = TEXT_BASELINE_MIDDLE;
+  overlayCtx.font = FONT_TITLE;
+  overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
   drawShadowText(
-    octx,
+    overlayCtx,
     overlay.ui.banner.text,
     W / 2,
     titleY,
@@ -161,16 +168,20 @@ export function drawBanner(
     GOLD_LIGHT,
   );
   if (hasSubtitle) {
-    octx.font = FONT_FLOAT_SM;
-    octx.fillStyle = GOLD_SUBTITLE;
-    octx.fillText(overlay.ui.banner.subtitle!, W / 2, by + bannerH * 0.72);
+    overlayCtx.font = FONT_FLOAT_SM;
+    overlayCtx.fillStyle = GOLD_SUBTITLE;
+    overlayCtx.fillText(
+      overlay.ui.banner.subtitle!,
+      W / 2,
+      by + bannerH * 0.72,
+    );
   }
-  octx.restore();
+  overlayCtx.restore();
 }
 
 /** Draw score deltas floating over each player's territory. */
 export function drawScoreDeltas(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.ui?.scoreDeltas?.length) return;
@@ -178,25 +189,25 @@ export function drawScoreDeltas(
   const linear = Math.min(1, progress / 0.8); // count up in first 80%, hold final value for last 20%
   const time = linear ** 3; // ease-in cubic: slow start, fast finish
   const fade = Math.min(1, progress / 0.15); // fade in over first 15%
-  octx.save();
-  octx.globalAlpha = fade;
-  octx.textAlign = TEXT_ALIGN_CENTER;
-  octx.textBaseline = TEXT_BASELINE_MIDDLE;
+  overlayCtx.save();
+  overlayCtx.globalAlpha = fade;
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
   for (const delta of overlay.ui.scoreDeltas) {
     const shown = Math.round(delta.delta * time);
     const total = delta.total - delta.delta + shown;
-    octx.font = FONT_FLOAT_LG;
+    overlayCtx.font = FONT_FLOAT_LG;
     drawShadowText(
-      octx,
+      overlayCtx,
       `+${shown}`,
       delta.cx,
       delta.cy - 6,
       SHADOW_COLOR_DENSE,
       TEXT_WHITE,
     );
-    octx.font = FONT_FLOAT_MD;
+    overlayCtx.font = FONT_FLOAT_MD;
     drawShadowText(
-      octx,
+      overlayCtx,
       `${total}`,
       delta.cx,
       delta.cy + 8,
@@ -204,12 +215,12 @@ export function drawScoreDeltas(
       GOLD_LIGHT,
     );
   }
-  octx.restore();
+  overlayCtx.restore();
 }
 
 /** Draw status bar at the bottom of the canvas. */
 export function drawStatusBar(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   W: number,
   H: number,
   overlay?: RenderOverlay,
@@ -219,50 +230,50 @@ export function drawStatusBar(
   const barH = STATUSBAR_HEIGHT;
   const by = H - barH;
 
-  octx.fillStyle = PANEL_BG(BG_OPAQUE);
-  octx.fillRect(0, by, W, barH);
-  octx.fillStyle = GOLD_BG(OP_ACCENT);
-  octx.fillRect(0, by, W, 1);
+  overlayCtx.fillStyle = PANEL_BG(BG_OPAQUE);
+  overlayCtx.fillRect(0, by, W, barH);
+  overlayCtx.fillStyle = GOLD_BG(OP_ACCENT);
+  overlayCtx.fillRect(0, by, W, 1);
 
-  octx.save();
-  octx.font = FONT_STATUS;
-  octx.textBaseline = TEXT_BASELINE_MIDDLE;
+  overlayCtx.save();
+  overlayCtx.font = FONT_STATUS;
+  overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
   const cy = by + barH / 2;
 
   // Left: round + phase + timer
-  octx.textAlign = TEXT_ALIGN_LEFT;
-  octx.fillStyle = STATUS_TEXT_COLOR;
-  octx.fillText(`${sb.round}  ${sb.phase}  ${sb.timer}`, PAD, cy);
+  overlayCtx.textAlign = TEXT_ALIGN_LEFT;
+  overlayCtx.fillStyle = STATUS_TEXT_COLOR;
+  overlayCtx.fillText(`${sb.round}  ${sb.phase}  ${sb.timer}`, PAD, cy);
 
   // Right: player stats
-  octx.textAlign = TEXT_ALIGN_RIGHT;
+  overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
   let rx = W - PAD;
   for (let i = sb.players.length - 1; i >= 0; i--) {
     const player = sb.players[i]!;
     if (player.eliminated) continue;
     const c = player.color;
     // Lives
-    octx.fillStyle = LIVES_HEART_COLOR;
+    overlayCtx.fillStyle = LIVES_HEART_COLOR;
     const heartsStr = "\u2665".repeat(player.lives);
-    octx.fillText(heartsStr, rx, cy);
-    rx -= octx.measureText(heartsStr).width + 2;
+    overlayCtx.fillText(heartsStr, rx, cy);
+    rx -= overlayCtx.measureText(heartsStr).width + 2;
     // Cannons
-    octx.fillStyle = rgb(c, OP_VIVID);
+    overlayCtx.fillStyle = rgb(c, OP_VIVID);
     const cannonStr = `${player.cannons}c `;
-    octx.fillText(cannonStr, rx, cy);
-    rx -= octx.measureText(cannonStr).width;
+    overlayCtx.fillText(cannonStr, rx, cy);
+    rx -= overlayCtx.measureText(cannonStr).width;
     // Score
-    octx.fillStyle = rgb(c);
+    overlayCtx.fillStyle = rgb(c);
     const scoreStr = `${player.score} `;
-    octx.fillText(scoreStr, rx, cy);
-    rx -= octx.measureText(scoreStr).width + 4;
+    overlayCtx.fillText(scoreStr, rx, cy);
+    rx -= overlayCtx.measureText(scoreStr).width + 4;
   }
-  octx.restore();
+  overlayCtx.restore();
 }
 
 /** Draw the game over overlay with winner and scores. */
 export function drawGameOver(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   W: number,
   H: number,
   overlay?: RenderOverlay,
@@ -275,21 +286,21 @@ export function drawGameOver(
   const lo = gameOverLayout(W, H, gameOverData.scores);
   const { panelW, panelH, px, py, btnW, btnY, rematchX, menuX } = lo;
 
-  drawPanel(octx, px, py, panelW, panelH, PANEL_BG(BG_OVERLAY), GOLD);
+  drawPanel(overlayCtx, px, py, panelW, panelH, PANEL_BG(BG_OVERLAY), GOLD);
 
   const cx = W / 2;
-  octx.textAlign = TEXT_ALIGN_CENTER;
-  octx.font = FONT_HEADING;
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.font = FONT_HEADING;
   drawShadowText(
-    octx,
+    overlayCtx,
     `${gameOverData.winner} wins!`,
     cx,
     py + 20,
     SHADOW_COLOR,
     GOLD_LIGHT,
   );
-  octx.fillStyle = GOLD;
-  octx.fillRect(px + INSET, py + 32, panelW - INSET_X2, 1);
+  overlayCtx.fillStyle = GOLD;
+  overlayCtx.fillRect(px + INSET, py + 32, panelW - INSET_X2, 1);
 
   // Column headers
   const tableTop = py + GAMEOVER_HEADER_H;
@@ -300,43 +311,43 @@ export function drawGameOver(
   const colTerritory = px + panelW * SCOREBOARD_COL_RATIOS[3];
 
   if (hasStats) {
-    octx.font = FONT_FLOAT_XS;
-    octx.fillStyle = TEXT_MUTED;
-    octx.textAlign = TEXT_ALIGN_RIGHT;
-    octx.fillText("Score", colScore, tableTop + PAD);
-    octx.fillText("Walls", colWalls, tableTop + PAD);
-    octx.fillText("Cannons", colCannons, tableTop + PAD);
-    octx.fillText("Land", colTerritory, tableTop + PAD);
+    overlayCtx.font = FONT_FLOAT_XS;
+    overlayCtx.fillStyle = TEXT_MUTED;
+    overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
+    overlayCtx.fillText("Score", colScore, tableTop + PAD);
+    overlayCtx.fillText("Walls", colWalls, tableTop + PAD);
+    overlayCtx.fillText("Cannons", colCannons, tableTop + PAD);
+    overlayCtx.fillText("Land", colTerritory, tableTop + PAD);
   }
 
   // Player rows
-  octx.font = FONT_LABEL;
+  overlayCtx.font = FONT_LABEL;
   for (let i = 0; i < sorted.length; i++) {
     const entry = sorted[i]!;
     const y = tableTop + statsH + INSET + i * GAMEOVER_ROW_H;
     const c = entry.color;
     const alpha = entry.eliminated ? OP_ACCENT : 1;
-    octx.fillStyle = rgb(c, alpha);
-    octx.textAlign = TEXT_ALIGN_LEFT;
-    octx.fillText(entry.name, colName, y);
-    octx.textAlign = TEXT_ALIGN_RIGHT;
-    octx.fillText(`${entry.score}`, colScore, y);
+    overlayCtx.fillStyle = rgb(c, alpha);
+    overlayCtx.textAlign = TEXT_ALIGN_LEFT;
+    overlayCtx.fillText(entry.name, colName, y);
+    overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
+    overlayCtx.fillText(`${entry.score}`, colScore, y);
     if (entry.stats) {
-      octx.fillStyle = rgb(c, alpha * OP_SECONDARY);
-      octx.fillText(`${entry.stats.wallsDestroyed}`, colWalls, y);
-      octx.fillText(`${entry.stats.cannonsKilled}`, colCannons, y);
-      octx.fillText(`${entry.territory ?? 0}`, colTerritory, y);
+      overlayCtx.fillStyle = rgb(c, alpha * OP_SECONDARY);
+      overlayCtx.fillText(`${entry.stats.wallsDestroyed}`, colWalls, y);
+      overlayCtx.fillText(`${entry.stats.cannonsKilled}`, colCannons, y);
+      overlayCtx.fillText(`${entry.territory ?? 0}`, colTerritory, y);
     }
   }
 
   // Rematch / Menu buttons
-  octx.textAlign = TEXT_ALIGN_CENTER;
-  octx.textBaseline = TEXT_BASELINE_MIDDLE;
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
   const focused = gameOverData.focused;
 
   const rematchFocused = focused === FOCUS_REMATCH;
   drawButton(
-    octx,
+    overlayCtx,
     rematchX,
     btnY,
     btnW,
@@ -353,7 +364,7 @@ export function drawGameOver(
 
   const menuFocused = focused === FOCUS_MENU;
   drawButton(
-    octx,
+    overlayCtx,
     menuX,
     btnY,
     btnW,
@@ -371,7 +382,7 @@ export function drawGameOver(
 
 /** Draw life-lost continue/abandon dialogs (one per player). */
 export function drawLifeLostDialog(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   _W: number,
   _H: number,
   overlay?: RenderOverlay,
@@ -386,31 +397,39 @@ export function drawLifeLostDialog(
     const cx = px + PANEL_W / 2;
 
     // Panel background
-    drawPanel(octx, px, py, PANEL_W, PANEL_H, PANEL_BG(BG_OVERLAY), rgb(c));
+    drawPanel(
+      overlayCtx,
+      px,
+      py,
+      PANEL_W,
+      PANEL_H,
+      PANEL_BG(BG_OVERLAY),
+      rgb(c),
+    );
 
     // Player name
-    octx.textAlign = TEXT_ALIGN_CENTER;
-    octx.textBaseline = TEXT_BASELINE_MIDDLE;
-    octx.font = FONT_BODY;
-    octx.fillStyle = rgb(c);
-    octx.fillText(entry.name, cx, py + 18);
+    overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+    overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
+    overlayCtx.font = FONT_BODY;
+    overlayCtx.fillStyle = rgb(c);
+    overlayCtx.fillText(entry.name, cx, py + 18);
 
     // Separator
-    octx.fillStyle = GOLD;
-    octx.fillRect(px + INSET, py + 28, PANEL_W - INSET_X2, 1);
+    overlayCtx.fillStyle = GOLD;
+    overlayCtx.fillRect(px + INSET, py + 28, PANEL_W - INSET_X2, 1);
 
     // Lives remaining
-    octx.font = FONT_SMALL;
+    overlayCtx.font = FONT_SMALL;
     if (entry.lives > 0) {
-      octx.fillStyle = GOLD_LIGHT;
-      octx.fillText(
+      overlayCtx.fillStyle = GOLD_LIGHT;
+      overlayCtx.fillText(
         `${entry.lives} ${entry.lives === 1 ? "life" : "lives"} left`,
         cx,
         py + 40,
       );
     } else {
-      octx.fillStyle = ELIMINATED_RED;
-      octx.fillText("Eliminated", cx, py + 40);
+      overlayCtx.fillStyle = ELIMINATED_RED;
+      overlayCtx.fillText("Eliminated", cx, py + 40);
     }
 
     if (entry.choice === LifeLostChoice.PENDING && entry.lives > 0) {
@@ -425,7 +444,7 @@ export function drawLifeLostDialog(
       const time = now ?? Date.now();
       const contFlash = contFocused && flashOn(BUTTON_FLASH_MS, time);
       drawButton(
-        octx,
+        overlayCtx,
         contX,
         btnY,
         btnW,
@@ -447,7 +466,7 @@ export function drawLifeLostDialog(
       // Abandon button
       const abFlash = abFocused && flashOn(BUTTON_FLASH_MS, time);
       drawButton(
-        octx,
+        overlayCtx,
         abX,
         btnY,
         btnW,
@@ -465,11 +484,13 @@ export function drawLifeLostDialog(
       );
     } else {
       // Resolved state
-      octx.font = FONT_LABEL;
+      overlayCtx.font = FONT_LABEL;
       const isContinue = entry.choice === LifeLostChoice.CONTINUE;
-      octx.fillStyle = isContinue ? BTN_CONTINUE.stroke : BTN_ABANDON.stroke;
+      overlayCtx.fillStyle = isContinue
+        ? BTN_CONTINUE.stroke
+        : BTN_ABANDON.stroke;
       if (entry.lives > 0) {
-        octx.fillText(
+        overlayCtx.fillText(
           isContinue ? "Continuing..." : "Abandoned",
           cx,
           py + PANEL_H - 18,
@@ -481,7 +502,7 @@ export function drawLifeLostDialog(
 
 /** Draw the player selection lobby screen. */
 export function drawPlayerSelect(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   W: number,
   H: number,
   overlay?: RenderOverlay,
@@ -489,19 +510,19 @@ export function drawPlayerSelect(
 ): void {
   if (!overlay?.ui?.playerSelect) return;
   const selectData = overlay.ui.playerSelect;
-  beginModalScreen(octx, W, H);
+  beginModalScreen(overlayCtx, W, H);
 
-  octx.font = FONT_TITLE;
-  octx.fillStyle = GOLD_LIGHT;
-  octx.fillText("Rebuild & Ruin", W / 2, H * 0.1);
-  octx.font = FONT_SUBTITLE;
-  octx.fillStyle = TEXT_MUTED;
-  octx.fillText("A Rampart Tribute", W / 2, H * 0.1 + 20);
+  overlayCtx.font = FONT_TITLE;
+  overlayCtx.fillStyle = GOLD_LIGHT;
+  overlayCtx.fillText("Rebuild & Ruin", W / 2, H * 0.1);
+  overlayCtx.font = FONT_SUBTITLE;
+  overlayCtx.fillStyle = TEXT_MUTED;
+  overlayCtx.fillText("A Rampart Tribute", W / 2, H * 0.1 + 20);
 
   if (selectData.roomCode) {
-    octx.font = FONT_TIMER;
-    octx.fillStyle = GOLD;
-    octx.fillText(`Room: ${selectData.roomCode}`, W / 2, H * 0.1 + 42);
+    overlayCtx.font = FONT_TIMER;
+    overlayCtx.fillStyle = GOLD;
+    overlayCtx.fillText(`Room: ${selectData.roomCode}`, W / 2, H * 0.1 + 42);
   }
 
   const count = selectData.players.length;
@@ -512,13 +533,13 @@ export function drawPlayerSelect(
     const c = player.color;
     const rx = gap + i * (rectW + gap);
 
-    drawPanel(octx, rx, rectY, rectW, rectH, rgb(c, OP_SUBTLE), rgb(c));
+    drawPanel(overlayCtx, rx, rectY, rectW, rectH, rgb(c, OP_SUBTLE), rgb(c));
 
     const cx = rx + rectW / 2;
     const touch = IS_TOUCH_DEVICE;
-    octx.font = touch ? FONT_HEADING : FONT_BODY;
-    octx.fillStyle = rgb(c);
-    octx.fillText(player.name, cx, rectY + (touch ? 34 : 30));
+    overlayCtx.font = touch ? FONT_HEADING : FONT_BODY;
+    overlayCtx.fillStyle = rgb(c);
+    overlayCtx.fillText(player.name, cx, rectY + (touch ? 34 : 30));
     const btnW = rectW - (touch ? 12 : 16);
     const btnH = touch ? 36 : 24;
     const btnX = rx + (touch ? 6 : 8);
@@ -526,7 +547,7 @@ export function drawPlayerSelect(
 
     if (player.joined) {
       drawButton(
-        octx,
+        overlayCtx,
         btnX,
         btnY,
         btnW,
@@ -543,7 +564,7 @@ export function drawPlayerSelect(
     } else {
       const flash = flashOn(CURSOR_BLINK_MS, now ?? Date.now());
       drawButton(
-        octx,
+        overlayCtx,
         btnX,
         btnY,
         btnW,
@@ -560,31 +581,31 @@ export function drawPlayerSelect(
     }
 
     if (!touch) {
-      octx.font = FONT_HINT;
-      octx.fillStyle = TEXT_DIM;
-      octx.fillText(player.keyHint ?? "", cx, btnY - PAD);
+      overlayCtx.font = FONT_HINT;
+      overlayCtx.fillStyle = TEXT_DIM;
+      overlayCtx.fillText(player.keyHint ?? "", cx, btnY - PAD);
     }
   }
 
   const secs = Math.ceil(selectData.timer);
-  octx.font = FONT_TIMER;
-  octx.fillStyle = GOLD;
-  octx.fillText(`Starting in ${secs}s`, W / 2, H * 0.88);
+  overlayCtx.font = FONT_TIMER;
+  overlayCtx.fillStyle = GOLD;
+  overlayCtx.fillText(`Starting in ${secs}s`, W / 2, H * 0.88);
 
   // Gear button + F1 hint (top-right corner)
-  octx.textAlign = TEXT_ALIGN_RIGHT;
-  octx.textBaseline = TEXT_BASELINE_MIDDLE;
-  octx.font = FONT_ICON;
-  octx.fillStyle = TEXT_MUTED;
-  octx.fillText("\u2699", W - 6, 18);
-  octx.font = FONT_HINT;
-  octx.fillStyle = TEXT_DIM;
-  octx.fillText("F1", W - 30, 18);
+  overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
+  overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
+  overlayCtx.font = FONT_ICON;
+  overlayCtx.fillStyle = TEXT_MUTED;
+  overlayCtx.fillText("\u2699", W - 6, 18);
+  overlayCtx.font = FONT_HINT;
+  overlayCtx.fillStyle = TEXT_DIM;
+  overlayCtx.fillText("F1", W - 30, 18);
 }
 
 /** Draw the options screen. */
 export function drawOptionsScreen(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   W: number,
   H: number,
   overlay?: RenderOverlay,
@@ -592,11 +613,11 @@ export function drawOptionsScreen(
 ): void {
   if (!overlay?.ui?.optionsScreen) return;
   const opts = overlay.ui.optionsScreen;
-  beginModalScreen(octx, W, H);
+  beginModalScreen(overlayCtx, W, H);
 
-  octx.font = FONT_TITLE;
-  octx.fillStyle = GOLD_LIGHT;
-  octx.fillText("OPTIONS", W / 2, H * 0.12);
+  overlayCtx.font = FONT_TITLE;
+  overlayCtx.fillStyle = GOLD_LIGHT;
+  overlayCtx.fillText("OPTIONS", W / 2, H * 0.12);
 
   // Options list
   const optH = 28;
@@ -611,35 +632,35 @@ export function drawOptionsScreen(
 
     // Row background
     if (selected) {
-      octx.fillStyle = GOLD_BG(OP_SUBTLE);
-      octx.fillRect(px, oy, panelW, optH - 2);
+      overlayCtx.fillStyle = GOLD_BG(OP_SUBTLE);
+      overlayCtx.fillRect(px, oy, panelW, optH - 2);
     }
 
     // Arrow indicators for selected editable row
     if (selected && opt.editable) {
       const time = now ?? Date.now();
       const flash = flashOn(BUTTON_FLASH_MS, time);
-      octx.font = FONT_BODY;
-      octx.fillStyle = flash ? GOLD_LIGHT : GOLD;
-      octx.textAlign = TEXT_ALIGN_LEFT;
-      octx.fillText("\u25C0", px + PAD / 2, oy + optH / 2);
-      octx.textAlign = TEXT_ALIGN_RIGHT;
-      octx.fillText("\u25B6", px + panelW - PAD / 2, oy + optH / 2);
+      overlayCtx.font = FONT_BODY;
+      overlayCtx.fillStyle = flash ? GOLD_LIGHT : GOLD;
+      overlayCtx.textAlign = TEXT_ALIGN_LEFT;
+      overlayCtx.fillText("\u25C0", px + PAD / 2, oy + optH / 2);
+      overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
+      overlayCtx.fillText("\u25B6", px + panelW - PAD / 2, oy + optH / 2);
     }
 
     // Option name (left-aligned)
-    octx.textAlign = TEXT_ALIGN_LEFT;
-    octx.font = selected ? FONT_BODY : FONT_LABEL;
-    octx.fillStyle = selected
+    overlayCtx.textAlign = TEXT_ALIGN_LEFT;
+    overlayCtx.font = selected ? FONT_BODY : FONT_LABEL;
+    overlayCtx.fillStyle = selected
       ? opt.editable
         ? TEXT_WHITE
         : TEXT_DISABLED
       : TEXT_MUTED;
-    octx.fillText(opt.name, px + INSET_X2, oy + optH / 2);
+    overlayCtx.fillText(opt.name, px + INSET_X2, oy + optH / 2);
 
     // Option value (right-aligned) — with blinking cursor for seed input
-    octx.textAlign = TEXT_ALIGN_RIGHT;
-    octx.fillStyle = selected
+    overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
+    overlayCtx.fillStyle = selected
       ? opt.editable
         ? GOLD_LIGHT
         : TEXT_DISABLED
@@ -657,18 +678,18 @@ export function drawOptionsScreen(
           ? "_"
           : " "
         : "");
-    octx.fillText(displayValue, px + panelW - INSET_X2, oy + optH / 2);
+    overlayCtx.fillText(displayValue, px + panelW - INSET_X2, oy + optH / 2);
   }
 
   // Separator
   const sepY = startY + opts.options.length * optH + PAD;
-  octx.fillStyle = GOLD;
-  octx.fillRect(px + INSET, sepY, panelW - INSET_X2, 1);
+  overlayCtx.fillStyle = GOLD;
+  overlayCtx.fillRect(px + INSET, sepY, panelW - INSET_X2, 1);
 
   // Context-sensitive hint
-  octx.textAlign = TEXT_ALIGN_CENTER;
-  octx.font = FONT_HINT;
-  octx.fillStyle = TEXT_DIM;
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.font = FONT_HINT;
+  overlayCtx.fillStyle = TEXT_DIM;
   const selOpt = opts.options[opts.cursor];
   let hint: string;
   if (opts.readOnly) {
@@ -679,12 +700,12 @@ export function drawOptionsScreen(
     hint =
       "ESC to go back  |  \u2190 \u2192 to change value  |  Enter to select";
   }
-  octx.fillText(hint, W / 2, H * 0.85);
+  overlayCtx.fillText(hint, W / 2, H * 0.85);
 }
 
 /** Draw the controls rebinding screen. */
 export function drawControlsScreen(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   W: number,
   H: number,
   overlay?: RenderOverlay,
@@ -692,11 +713,11 @@ export function drawControlsScreen(
 ): void {
   if (!overlay?.ui?.controlsScreen) return;
   const ctrl = overlay.ui.controlsScreen;
-  beginModalScreen(octx, W, H);
+  beginModalScreen(overlayCtx, W, H);
 
-  octx.font = FONT_TITLE;
-  octx.fillStyle = GOLD_LIGHT;
-  octx.fillText("CONTROLS", W / 2, H * 0.1);
+  overlayCtx.font = FONT_TITLE;
+  overlayCtx.fillStyle = GOLD_LIGHT;
+  overlayCtx.fillText("CONTROLS", W / 2, H * 0.1);
 
   // Layout
   const colCount = ctrl.players.length;
@@ -714,24 +735,24 @@ export function drawControlsScreen(
     const player = ctrl.players[playerIndex]!;
     const c = player.color;
     const cx = tableX + labelColW + playerIndex * playerColW + playerColW / 2;
-    octx.font = FONT_BODY;
-    octx.fillStyle = rgb(c);
-    octx.fillText(player.name, cx, headerY);
+    overlayCtx.font = FONT_BODY;
+    overlayCtx.fillStyle = rgb(c);
+    overlayCtx.fillText(player.name, cx, headerY);
   }
 
   // Header separator
-  octx.fillStyle = GOLD;
-  octx.fillRect(tableX + PAD, headerY + 12, tableW - PAD * 2, 1);
+  overlayCtx.fillStyle = GOLD;
+  overlayCtx.fillRect(tableX + PAD, headerY + 12, tableW - PAD * 2, 1);
 
   // Rows
   for (let a = 0; a < rowCount; a++) {
     const oy = startY + a * rowH;
 
     // Action label (left column)
-    octx.textAlign = TEXT_ALIGN_LEFT;
-    octx.font = FONT_LABEL;
-    octx.fillStyle = TEXT_MUTED;
-    octx.fillText(ctrl.actionNames[a]!, tableX + PAD, oy + rowH / 2);
+    overlayCtx.textAlign = TEXT_ALIGN_LEFT;
+    overlayCtx.font = FONT_LABEL;
+    overlayCtx.fillStyle = TEXT_MUTED;
+    overlayCtx.fillText(ctrl.actionNames[a]!, tableX + PAD, oy + rowH / 2);
 
     // Key cells for each player
     for (let playerIndex = 0; playerIndex < colCount; playerIndex++) {
@@ -741,7 +762,7 @@ export function drawControlsScreen(
       const cellW = playerColW - PAD;
       const isSelected = playerIndex === ctrl.playerIdx && a === ctrl.actionIdx;
       drawControlsKeyCell(
-        octx,
+        overlayCtx,
         player,
         a,
         isSelected,
@@ -758,14 +779,14 @@ export function drawControlsScreen(
 
   // Bottom separator
   const sepY = startY + rowCount * rowH + PAD;
-  octx.fillStyle = GOLD;
-  octx.fillRect(tableX + INSET, sepY, tableW - INSET_X2, 1);
+  overlayCtx.fillStyle = GOLD;
+  overlayCtx.fillRect(tableX + INSET, sepY, tableW - INSET_X2, 1);
 
   // Bottom hint
-  octx.textAlign = TEXT_ALIGN_CENTER;
-  octx.font = FONT_HINT;
-  octx.fillStyle = TEXT_DIM;
-  octx.fillText(
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.font = FONT_HINT;
+  overlayCtx.fillStyle = TEXT_DIM;
+  overlayCtx.fillText(
     "\u2190 \u2192 switch player  |  \u2191 \u2193 select action  |  Enter to rebind  |  ESC to go back",
     W / 2,
     H * 0.88,
@@ -775,7 +796,7 @@ export function drawControlsScreen(
 /** Draw a single key cell in the controls table.
  *  Three visual states: rebinding flash, selected highlight, or normal. */
 function drawControlsKeyCell(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   player: ControlsPlayer,
   actionIdx: number,
   isSelected: boolean,
@@ -791,38 +812,38 @@ function drawControlsKeyCell(
   if (isSelected && rebinding) {
     // Flashing "Press key..." cell
     const flash = flashOn(REBIND_FLASH_MS, now ?? Date.now());
-    octx.fillStyle = flash ? GOLD_BG(OP_ACTIVE) : GOLD_BG(OP_GHOST);
-    octx.fillRect(cellX, oy + 1, cellW, rowH - 2);
-    octx.strokeStyle = GOLD_LIGHT;
-    octx.lineWidth = 1;
-    octx.strokeRect(cellX, oy + 1, cellW, rowH - 2);
-    octx.textAlign = TEXT_ALIGN_CENTER;
-    octx.font = FONT_SMALL;
-    octx.fillStyle = flash ? GOLD_LIGHT : GOLD;
-    octx.fillText("Press key\u2026", cx, cy);
+    overlayCtx.fillStyle = flash ? GOLD_BG(OP_ACTIVE) : GOLD_BG(OP_GHOST);
+    overlayCtx.fillRect(cellX, oy + 1, cellW, rowH - 2);
+    overlayCtx.strokeStyle = GOLD_LIGHT;
+    overlayCtx.lineWidth = 1;
+    overlayCtx.strokeRect(cellX, oy + 1, cellW, rowH - 2);
+    overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+    overlayCtx.font = FONT_SMALL;
+    overlayCtx.fillStyle = flash ? GOLD_LIGHT : GOLD;
+    overlayCtx.fillText("Press key\u2026", cx, cy);
   } else if (isSelected) {
     // Highlighted selected cell
-    octx.fillStyle = GOLD_BG(OP_IDLE);
-    octx.fillRect(cellX, oy + 1, cellW, rowH - 2);
-    octx.strokeStyle = GOLD;
-    octx.lineWidth = 1;
-    octx.strokeRect(cellX, oy + 1, cellW, rowH - 2);
-    octx.textAlign = TEXT_ALIGN_CENTER;
-    octx.font = FONT_BODY;
-    octx.fillStyle = TEXT_WHITE;
-    octx.fillText(player.bindings[actionIdx]!, cx, cy);
+    overlayCtx.fillStyle = GOLD_BG(OP_IDLE);
+    overlayCtx.fillRect(cellX, oy + 1, cellW, rowH - 2);
+    overlayCtx.strokeStyle = GOLD;
+    overlayCtx.lineWidth = 1;
+    overlayCtx.strokeRect(cellX, oy + 1, cellW, rowH - 2);
+    overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+    overlayCtx.font = FONT_BODY;
+    overlayCtx.fillStyle = TEXT_WHITE;
+    overlayCtx.fillText(player.bindings[actionIdx]!, cx, cy);
   } else {
     // Normal unselected cell
-    octx.textAlign = TEXT_ALIGN_CENTER;
-    octx.font = FONT_LABEL;
-    octx.fillStyle = rgb(player.color, OP_SECONDARY);
-    octx.fillText(player.bindings[actionIdx]!, cx, cy);
+    overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+    overlayCtx.font = FONT_LABEL;
+    overlayCtx.fillStyle = rgb(player.color, OP_SECONDARY);
+    overlayCtx.fillText(player.bindings[actionIdx]!, cx, cy);
   }
 }
 
 /** Draw a panel: filled rect + inset border stroke. */
 function drawPanel(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   x: number,
   y: number,
   w: number,
@@ -830,16 +851,16 @@ function drawPanel(
   fill: string,
   stroke: string,
 ): void {
-  octx.fillStyle = fill;
-  octx.fillRect(x, y, w, h);
-  octx.strokeStyle = stroke;
-  octx.lineWidth = 2;
-  octx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+  overlayCtx.fillStyle = fill;
+  overlayCtx.fillRect(x, y, w, h);
+  overlayCtx.strokeStyle = stroke;
+  overlayCtx.lineWidth = 2;
+  overlayCtx.strokeRect(x + 1, y + 1, w - 2, h - 2);
 }
 
 /** Draw a styled button: filled rect + border + centered label. */
 function drawButton(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   x: number,
   y: number,
   w: number,
@@ -847,24 +868,24 @@ function drawButton(
   style: ButtonStyle,
   label: string,
 ): void {
-  octx.fillStyle = style.fill;
-  octx.fillRect(x, y, w, h);
-  octx.strokeStyle = style.stroke;
-  octx.lineWidth = style.lineWidth;
-  octx.strokeRect(x, y, w, h);
-  octx.font = style.font;
-  octx.fillStyle = style.textColor;
-  octx.fillText(label, x + w / 2, y + h / 2);
+  overlayCtx.fillStyle = style.fill;
+  overlayCtx.fillRect(x, y, w, h);
+  overlayCtx.strokeStyle = style.stroke;
+  overlayCtx.lineWidth = style.lineWidth;
+  overlayCtx.strokeRect(x, y, w, h);
+  overlayCtx.font = style.font;
+  overlayCtx.fillStyle = style.textColor;
+  overlayCtx.fillText(label, x + w / 2, y + h / 2);
 }
 
 /** Fill a full-screen opaque panel and set up centered text drawing. */
 function beginModalScreen(
-  octx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   W: number,
   H: number,
 ): void {
-  octx.fillStyle = PANEL_BG(BG_OPAQUE);
-  octx.fillRect(0, 0, W, H);
-  octx.textAlign = TEXT_ALIGN_CENTER;
-  octx.textBaseline = TEXT_BASELINE_MIDDLE;
+  overlayCtx.fillStyle = PANEL_BG(BG_OPAQUE);
+  overlayCtx.fillRect(0, 0, W, H);
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
 }
