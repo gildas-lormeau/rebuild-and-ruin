@@ -63,6 +63,7 @@ import {
   type BattleAnimState,
   CannonMode,
   computeFrameContext,
+  emptyFreshInterior,
   type FrameContext,
   type FrameContextInputs,
   type GameState,
@@ -256,8 +257,7 @@ export function createScenario(seed = 42): Scenario {
 
   function clearWalls(playerId: number) {
     state.players[playerId]!.walls.clear();
-    // Authorized mutation site
-    (state.players[playerId]!.interior as Set<number>).clear();
+    state.players[playerId]!.interior = emptyFreshInterior();
   }
 
   function doEliminatePlayer(playerId: number) {

@@ -69,6 +69,7 @@ import { DIRS_4, isBalloonCannon, packTile, unpackTile } from "./spatial.ts";
 import {
   assertNever,
   CannonMode,
+  emptyFreshInterior,
   type GameState,
   isPlayerAlive,
   isPlayerInZone,
@@ -107,7 +108,7 @@ export function createGameState(
       castle: null,
       ownedTowers: [],
       walls: new Set(),
-      interior: new Set(),
+      interior: emptyFreshInterior(),
       cannons: [],
       lives: STARTING_LIVES,
       eliminated: false,
@@ -465,8 +466,7 @@ function resetPlayerBoardState(
 ): void {
   player.walls.clear();
   markWallsDirty(player);
-  // Authorized mutation site
-  (player.interior as Set<number>).clear();
+  player.interior = emptyFreshInterior();
   player.cannons = [];
   player.ownedTowers = [];
   player.castle = null;

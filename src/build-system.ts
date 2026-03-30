@@ -388,21 +388,22 @@ function clearUnenclosedPendingRevives(state: GameState): void {
  */
 /** Recompute a player's interior via inverse flood-fill. */
 function recomputeInterior(state: GameState, player: Player): void {
-  // Authorized mutation site
-  (player.interior as Set<number>).clear();
+  const fresh = new Set<number>();
   const outside = computeOutside(player.walls);
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       const key = packTile(r, c);
       if (!outside.has(key) && !player.walls.has(key)) {
         if (isGrass(state.map.tiles, r, c)) {
-          // Authorized mutation site
-          (player.interior as Set<number>).add(key);
+          fresh.add(key);
         }
       }
     }
   }
-  markInteriorFresh(player);
+  // Assign new set then brand via epoch update — markInteriorFresh
+  // records the epoch and returns the branded FreshInterior reference.
+  (player as unknown as { interior: Set<number> }).interior = fresh;
+  player.interior = markInteriorFresh(player);
 }
 
 /** Find towers enclosed by a player's territory and update ownedTowers list. */

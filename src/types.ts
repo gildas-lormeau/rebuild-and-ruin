@@ -134,6 +134,15 @@ export interface BonusSquare extends TilePos {
   zone: number;
 }
 
+/** Branded ReadonlySet<number> proving that interior was recomputed after the
+ *  last wall mutation. Only produced by `markInteriorFresh` (board-occupancy)
+ *  and `emptyFreshInterior` (initial construction / deserialization).
+ *  Consumers can read `.has()` / `.size` / iterate freely — the brand carries
+ *  through because FreshInterior extends ReadonlySet<number>. */
+export type FreshInterior = ReadonlySet<number> & {
+  readonly __brand: "FreshInterior";
+};
+
 export interface Player {
   id: number;
   /** The tower this player selected as home castle. */
@@ -146,9 +155,9 @@ export interface Player {
   walls: Set<number>;
   /** Enclosed territory: grass tiles fully surrounded by walls (inverse flood-fill),
    *  encoded as row*COLS+col. Determines cannon eligibility, grunt blocking, and scoring.
-   *  ReadonlySet enforced at the type level — only recomputeInterior(),
-   *  resetCastle(), and checkpoint deserialization may write to it. */
-  interior: ReadonlySet<number>;
+   *  Branded as FreshInterior — only recomputeInterior(), resetCastle(),
+   *  and checkpoint deserialization may write to it. */
+  interior: FreshInterior;
   /** Cannon positions (top-left tile of 2x2 cannon). */
   cannons: Cannon[];
   /** Lives remaining (starts at 3, lose 1 when failing to enclose any tower). */
@@ -363,6 +372,17 @@ export const CANNON_MODES: ReadonlySet<CannonMode> = new Set([
   CannonMode.SUPER,
   CannonMode.BALLOON,
 ]);
+
+/** Create a branded empty interior set. Use at Player creation. */
+export function emptyFreshInterior(): FreshInterior {
+  return new Set<number>() as unknown as FreshInterior;
+}
+
+/** Brand an existing set as fresh interior. Use at checkpoint
+ *  deserialization where the set is constructed from trusted data. */
+export function brandFreshInterior(set: ReadonlySet<number>): FreshInterior {
+  return set as FreshInterior;
+}
 
 /** True if the cannon mode is normal. */
 export function isNormalMode(mode: CannonMode): mode is CannonMode.NORMAL {

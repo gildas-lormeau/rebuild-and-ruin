@@ -26,7 +26,7 @@ import {
   createHeadlessRuntime,
   type HeadlessRuntime,
 } from "../src/runtime-headless.ts";
-import { CannonMode } from "../src/types.ts";
+import { CannonMode, emptyFreshInterior } from "../src/types.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
 
 // ---------------------------------------------------------------------------
@@ -317,7 +317,7 @@ test("checkpoint handles eliminated players correctly", () => {
   host.state.players[1]!.eliminated = true;
   host.state.players[1]!.lives = 0;
   (host.state.players[1]!.walls as Set<number>).clear();
-  (host.state.players[1]!.interior as Set<number>).clear();
+  host.state.players[1]!.interior = emptyFreshInterior();
   const msg = createCannonStartMessage(host.state);
 
   const watcher = createHeadlessRuntime(42);

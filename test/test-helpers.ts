@@ -20,7 +20,7 @@
 import { GRID_ROWS, GRID_COLS, Tile } from "../src/grid.ts";
 import type { Castle, GameMap, Tower } from "../src/geometry-types.ts";
 import type { GameState, Player } from "../src/types.ts";
-import { Phase } from "../src/types.ts";
+import { emptyFreshInterior, Phase } from "../src/types.ts";
 import { pickPlacementStandalone as pickPlacement } from "../src/ai-strategy.ts";
 import { placePiece, claimTerritory } from "../src/build-system.ts";
 import type { PieceShape } from "../src/pieces.ts";
@@ -168,7 +168,7 @@ export function parseBoard(ascii: string, playerId = 0): ParseResult {
     castle,
     ownedTowers: [tower],
     walls,
-    interior: new Set(),
+    interior: emptyFreshInterior(),
     cannons: [],
     lives: 3,
     eliminated: false,

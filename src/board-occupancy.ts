@@ -34,7 +34,7 @@ import {
   packTile,
   unpackTile,
 } from "./spatial.ts";
-import type { GameState, Grunt, Player } from "./types.ts";
+import type { FreshInterior, GameState, Grunt, Player } from "./types.ts";
 
 const wallsEpoch = new WeakMap<Player, number>();
 const interiorEpoch = new WeakMap<Player, number>();
@@ -335,10 +335,11 @@ export function markWallsDirty(player: Player): void {
   wallsEpoch.set(player, (wallsEpoch.get(player) ?? 0) + 1);
 }
 
-/** Mark a player's interior as freshly recomputed. Called by recomputeInterior
- *  inside claimTerritory — do NOT call from other code. */
-export function markInteriorFresh(player: Player): void {
+/** Mark a player's interior as freshly recomputed and brand the set.
+ *  Called by recomputeInterior inside claimTerritory — do NOT call from other code. */
+export function markInteriorFresh(player: Player): FreshInterior {
   interiorEpoch.set(player, wallsEpoch.get(player) ?? 0);
+  return player.interior;
 }
 
 /** Assert that a player's interior is not stale (walls haven't changed since

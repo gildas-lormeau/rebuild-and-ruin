@@ -38,6 +38,7 @@ import type { PieceShape } from "./pieces.ts";
 import { MAX_UINT32, Rng } from "./rng.ts";
 import { computeOutside, isTowerEnclosed, waterKeys } from "./spatial.ts";
 import {
+  brandFreshInterior,
   type Cannon,
   CannonMode,
   type GameState,
@@ -367,7 +368,7 @@ export class DefaultStrategy implements AiStrategy {
       ...player,
       ownedTowers: [...player.ownedTowers],
       walls: new Set(player.walls),
-      interior: new Set(player.interior),
+      interior: brandFreshInterior(new Set(player.interior)),
       cannons: [...player.cannons],
     };
     const placed = autoPlaceCannons(

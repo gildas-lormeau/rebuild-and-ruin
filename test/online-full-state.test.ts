@@ -16,7 +16,7 @@ import {
   createHeadlessRuntime,
   type HeadlessRuntime,
 } from "../src/runtime-headless.ts";
-import { CannonMode, Phase } from "../src/types.ts";
+import { CannonMode, emptyFreshInterior, Phase } from "../src/types.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
 
 // ---------------------------------------------------------------------------
@@ -464,7 +464,7 @@ test("full-state round-trip preserves eliminated player state", () => {
   host.state.players[1]!.eliminated = true;
   host.state.players[1]!.lives = 0;
   (host.state.players[1]!.walls as Set<number>).clear();
-  (host.state.players[1]!.interior as Set<number>).clear();
+  host.state.players[1]!.interior = emptyFreshInterior();
   host.state.players[1]!.cannons = [];
 
   const msg = createFullStateMessage(host.state, 1);

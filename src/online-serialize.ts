@@ -13,6 +13,7 @@ import { NO_WINNER_NAME } from "./player-config.ts";
 import { Rng } from "./rng.ts";
 import {
   type BalloonFlight,
+  brandFreshInterior,
   type Cannonball,
   type GameState,
   Phase,
@@ -272,7 +273,7 @@ export function applyPlayersCheckpoint(
     if (!player) continue;
 
     player.walls = new Set(sp.walls);
-    player.interior = new Set(sp.interior);
+    player.interior = brandFreshInterior(new Set(sp.interior));
     player.cannons = sp.cannons.map((c) => ({
       row: c.row,
       col: c.col,
