@@ -124,117 +124,13 @@ export function createDpad(
 } {
   // Query all duplicated elements (landscape + portrait)
   const dpads = Array.from(container.querySelectorAll<HTMLElement>(".dpad"));
-  const btnsUp = queryAll(container, "up");
-  const btnsDown = queryAll(container, "down");
-  const btnsLeft = queryAll(container, "left");
-  const btnsRight = queryAll(container, "right");
   const btnsAction = queryAll(container, ACTION_CONFIRM);
   const btnsRotate = queryAll(container, "rotate");
 
-  // --- Key-repeat for d-pad arrows ---
-  // Tuned for piece/cursor movement: short initial delay for responsiveness,
-  // fast repeat for holding to slide across the grid.
-  /** ms before the first repeat fires after initial press. */
-  const REPEAT_DELAY = 120;
-  /** ms between subsequent repeats while held. */
-  const REPEAT_RATE = 50;
-  let repeatTimer: ReturnType<typeof setTimeout> | null = null;
+  const { stopRepeat, isBattlePhase, battleKeyDown, battleKeyUp } =
+    wireDpadArrows(deps, container);
 
-  function stopRepeat() {
-    if (repeatTimer !== null) {
-      clearTimeout(repeatTimer);
-      repeatTimer = null;
-    }
-  }
-
-  function startRepeat(action: Action) {
-    stopRepeat();
-    fireDirection(action);
-    repeatTimer = setTimeout(function tick() {
-      fireDirection(action);
-      repeatTimer = setTimeout(tick, REPEAT_RATE);
-    }, REPEAT_DELAY);
-  }
-
-  function fireDirection(action: Action) {
-    deps.onHapticTap?.();
-    if (dispatchOverlayAction(action, deps.overlay)) return;
-    const state = deps.getState();
-    if (!state || !isGameOrSelectionMode(deps.getMode(), deps.modeValues))
-      return;
-    deps.withFirstHuman((human) => {
-      dispatchGameAction(human, action, state, deps.gameAction);
-    });
-  }
-
-  /** Battle: hold-to-move via handleKeyDown/handleKeyUp (mirrors keyboard). */
-  function battleKeyDown(action: Action) {
-    deps.onHapticTap?.();
-    deps.withFirstHuman((human) => human.handleKeyDown(action));
-  }
-
-  function battleKeyUp(action: Action) {
-    deps.withFirstHuman((human) => human.handleKeyUp(action));
-  }
-
-  /** True when the current game phase is BATTLE (d-pad switches to hold-to-move). */
-  function isBattlePhase(): boolean {
-    return deps.getState()?.phase === Phase.BATTLE;
-  }
-
-  function wireArrow(btn: HTMLButtonElement, action: Action) {
-    btn.addEventListener(
-      "touchstart",
-      (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        pressDown(btn);
-        deps.clearDirectTouch?.();
-        if (isBattlePhase()) battleKeyDown(action);
-        else startRepeat(action);
-      },
-      { passive: false },
-    );
-    btn.addEventListener(
-      "touchend",
-      (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        pressUp(btn);
-        if (isBattlePhase()) battleKeyUp(action);
-        else stopRepeat();
-      },
-      { passive: false },
-    );
-    btn.addEventListener("touchcancel", () => {
-      pressUp(btn);
-      if (isBattlePhase()) battleKeyUp(action);
-      else stopRepeat();
-    });
-  }
-
-  for (const btn of btnsUp) wireArrow(btn, Action.UP);
-  for (const btn of btnsDown) wireArrow(btn, Action.DOWN);
-  for (const btn of btnsLeft) wireArrow(btn, Action.LEFT);
-  for (const btn of btnsRight) wireArrow(btn, Action.RIGHT);
-
-  // --- Action button: confirm selection / place piece / place cannon ---
-  function handleAction() {
-    deps.onHapticTap?.();
-    if (dispatchOverlayAction(Action.CONFIRM, deps.overlay)) return;
-    const mode = deps.getMode();
-    if (mode === deps.modeValues.LOBBY) {
-      deps.lobbyAction();
-      return;
-    }
-    const state = deps.getState();
-    if (!state || !isGameOrSelectionMode(mode, deps.modeValues)) return;
-    deps.withFirstHuman((human) => {
-      dispatchGameAction(human, Action.CONFIRM, state, deps.gameAction);
-    });
-  }
-
-  wireActionButtons(btnsAction, handleAction);
+  wireActionButtons(btnsAction, () => handleDpadAction(deps));
   wireRotateButtons(
     btnsRotate,
     deps,
@@ -243,7 +139,6 @@ export function createDpad(
     battleKeyUp,
   );
 
-  // --- Layout: left-handed toggle ---
   container.classList.toggle("left-handed", deps.getLeftHanded());
 
   return {
@@ -502,6 +397,123 @@ export function createFloatingActions(
       btnConfirm.classList.toggle(CLS_DISABLED, !valid);
     },
   };
+}
+
+/** Action button: confirm selection / place piece / place cannon / lobby join. */
+function handleDpadAction(deps: DpadDeps): void {
+  deps.onHapticTap?.();
+  if (dispatchOverlayAction(Action.CONFIRM, deps.overlay)) return;
+  const mode = deps.getMode();
+  if (mode === deps.modeValues.LOBBY) {
+    deps.lobbyAction();
+    return;
+  }
+  const state = deps.getState();
+  if (!state || !isGameOrSelectionMode(mode, deps.modeValues)) return;
+  deps.withFirstHuman((human) => {
+    dispatchGameAction(human, Action.CONFIRM, state, deps.gameAction);
+  });
+}
+
+/** Wire d-pad arrow buttons with key-repeat (placement) and hold-to-move (battle).
+ *  Returns handles needed by the parent for phase updates and rotate wiring. */
+function wireDpadArrows(
+  deps: DpadDeps,
+  container: HTMLElement,
+): {
+  stopRepeat: () => void;
+  isBattlePhase: () => boolean;
+  battleKeyDown: (action: Action) => void;
+  battleKeyUp: (action: Action) => void;
+} {
+  const btnsUp = queryAll(container, "up");
+  const btnsDown = queryAll(container, "down");
+  const btnsLeft = queryAll(container, "left");
+  const btnsRight = queryAll(container, "right");
+
+  // Key-repeat: short initial delay for responsiveness, fast repeat for
+  // holding to slide across the grid.
+  const REPEAT_DELAY = 120;
+  const REPEAT_RATE = 50;
+  let repeatTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function stopRepeat() {
+    if (repeatTimer !== null) {
+      clearTimeout(repeatTimer);
+      repeatTimer = null;
+    }
+  }
+
+  function startRepeat(action: Action) {
+    stopRepeat();
+    fireDirection(action);
+    repeatTimer = setTimeout(function tick() {
+      fireDirection(action);
+      repeatTimer = setTimeout(tick, REPEAT_RATE);
+    }, REPEAT_DELAY);
+  }
+
+  function fireDirection(action: Action) {
+    deps.onHapticTap?.();
+    if (dispatchOverlayAction(action, deps.overlay)) return;
+    const state = deps.getState();
+    if (!state || !isGameOrSelectionMode(deps.getMode(), deps.modeValues))
+      return;
+    deps.withFirstHuman((human) => {
+      dispatchGameAction(human, action, state, deps.gameAction);
+    });
+  }
+
+  function isBattlePhase(): boolean {
+    return deps.getState()?.phase === Phase.BATTLE;
+  }
+
+  function battleKeyDown(action: Action) {
+    deps.onHapticTap?.();
+    deps.withFirstHuman((human) => human.handleKeyDown(action));
+  }
+
+  function battleKeyUp(action: Action) {
+    deps.withFirstHuman((human) => human.handleKeyUp(action));
+  }
+
+  function wireArrow(btn: HTMLButtonElement, action: Action) {
+    btn.addEventListener(
+      "touchstart",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        pressDown(btn);
+        deps.clearDirectTouch?.();
+        if (isBattlePhase()) battleKeyDown(action);
+        else startRepeat(action);
+      },
+      { passive: false },
+    );
+    btn.addEventListener(
+      "touchend",
+      (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        pressUp(btn);
+        if (isBattlePhase()) battleKeyUp(action);
+        else stopRepeat();
+      },
+      { passive: false },
+    );
+    btn.addEventListener("touchcancel", () => {
+      pressUp(btn);
+      if (isBattlePhase()) battleKeyUp(action);
+      else stopRepeat();
+    });
+  }
+
+  for (const btn of btnsUp) wireArrow(btn, Action.UP);
+  for (const btn of btnsDown) wireArrow(btn, Action.DOWN);
+  for (const btn of btnsLeft) wireArrow(btn, Action.LEFT);
+  for (const btn of btnsRight) wireArrow(btn, Action.RIGHT);
+
+  return { stopRepeat, isBattlePhase, battleKeyDown, battleKeyUp };
 }
 
 /** Wire action (confirm) buttons — single-tap, no repeat. */
