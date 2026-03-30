@@ -19,8 +19,8 @@ import {
 } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import {
+  dedupChanged,
   interpolateToward,
-  phantomChanged,
   REMOTE_CROSSHAIR_MULT,
 } from "./online-types.ts";
 import { type GameState, isPlayerAlive } from "./types.ts";
@@ -47,7 +47,7 @@ export function broadcastLocalCrosshair(
     (isAiAnimatable(ctrl) ? ctrl.getCrosshairTarget() : null) ?? ch;
   const orbit = isAiAnimatable(ctrl) ? ctrl.getOrbitParams() : null;
   const key = `${Math.round(target.x)},${Math.round(target.y)},${orbit ? "o" : ""}`;
-  if (!phantomChanged(deps.lastSentAimTarget, ctrl.playerId, key)) return;
+  if (!dedupChanged(deps.lastSentAimTarget, ctrl.playerId, key)) return;
   deps.send({
     type: MESSAGE.AIM_UPDATE,
     playerId: ctrl.playerId,

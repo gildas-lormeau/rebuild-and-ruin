@@ -13,10 +13,10 @@ import type { PixelPos } from "./geometry-types.ts";
 import {
   type CannonPhantom,
   cannonPhantomKey,
+  dedupChanged,
   filterAlivePhantoms,
   type HumanPiecePhantom,
   type PiecePhantom,
-  phantomChanged,
   phantomWireMode,
   piecePhantomKey,
   REMOTE_CROSSHAIR_MULT,
@@ -264,11 +264,7 @@ export function tickWatcherCannonPhantomsPhase(
 
   frame.phantoms.aiCannonPhantoms!.push(phantom);
   if (
-    !phantomChanged(
-      lastSentCannonPhantom,
-      myPlayerId,
-      cannonPhantomKey(phantom),
-    )
+    !dedupChanged(lastSentCannonPhantom, myPlayerId, cannonPhantomKey(phantom))
   )
     return;
   sendOpponentCannonPhantom({
@@ -312,7 +308,7 @@ export function tickWatcherBuildPhantomsPhase(
     });
 
     if (
-      !phantomChanged(
+      !dedupChanged(
         lastSentPiecePhantom,
         phantom.playerId,
         piecePhantomKey(phantom),

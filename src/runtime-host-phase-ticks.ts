@@ -18,10 +18,10 @@ import type { PlayerController } from "./controller-interfaces.ts";
 import {
   type CannonPhantom,
   cannonPhantomKey,
+  dedupChanged,
   filterAlivePhantoms,
   type HumanPiecePhantom,
   type PiecePhantom,
-  phantomChanged,
   phantomWireMode,
   piecePhantomKey,
 } from "./online-types.ts";
@@ -129,7 +129,7 @@ interface TickHostBuildPhaseDeps {
   net?: BuildPhaseNet;
 }
 
-/** Sentinel empty map — never mutated (phantomChanged short-circuits on empty maps). */
+/** Sentinel empty map — never mutated (dedupChanged short-circuits on empty maps). */
 const EMPTY_MAP = new Map<number, string>();
 /** Protocol placeholder — broadcastNewWalls sends absolute tile positions in `offsets`,
  *  so `row`/`col` are unused. This constant documents the intent. */
@@ -193,7 +193,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
     if (!isHost || !sendOpponentCannonPhantom) continue;
 
     if (
-      !phantomChanged(
+      !dedupChanged(
         lastSentCannonPhantom,
         ctrl.playerId,
         cannonPhantomKey(phantom),
@@ -389,7 +389,7 @@ function collectBuildPhantoms(
 
     if (!isHost || !sendOpponentPhantom) continue;
     if (
-      !phantomChanged(
+      !dedupChanged(
         lastSentPiecePhantom,
         phantom.playerId,
         piecePhantomKey(phantom),

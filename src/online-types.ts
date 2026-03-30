@@ -103,8 +103,11 @@ export function phantomWireMode(phantom: CannonPhantom): CannonMode {
   return phantom.mode;
 }
 
-/** Check if a phantom changed since last send; updates the map if so. */
-export function phantomChanged(
+/** Check-and-record dedup: returns true if `key` differs from the last
+ *  recorded value for `playerId`, and updates the map to `key`.
+ *  Returns false (and does not mutate) if the value is unchanged.
+ *  Callers should send the network message only when this returns true. */
+export function dedupChanged(
   map: Map<number, string>,
   playerId: number,
   key: string,
@@ -126,7 +129,7 @@ export function filterAlivePhantoms<T extends { playerId: number }>(
 
 /** Dedup key for cannon phantom network sends. Covers all fields that affect display.
  *  Same pattern as piecePhantomKey — both are `(phantom: T) => string` dedup keys
- *  used by phantomChanged() to suppress redundant network sends. */
+ *  used by dedupChanged() to suppress redundant network sends. */
 export function cannonPhantomKey(phantom: CannonPhantom): string {
   return `${phantom.row},${phantom.col},${phantom.mode}`;
 }

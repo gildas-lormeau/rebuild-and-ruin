@@ -1,8 +1,8 @@
 /**
- * Phantom dedup tests: cannonPhantomKey, piecePhantomKey, phantomChanged.
+ * Phantom dedup tests: cannonPhantomKey, piecePhantomKey, dedupChanged.
  *
  * Verifies that the dedup key functions produce stable keys and that
- * phantomChanged correctly detects first sends, duplicates, and changes.
+ * dedupChanged correctly detects first sends, duplicates, and changes.
  *
  * Run with: bun test/online-phantom-dedup.test.ts
  */
@@ -12,7 +12,7 @@ import {
   type CannonPhantom,
   filterAlivePhantoms,
   interpolateToward,
-  phantomChanged,
+  dedupChanged,
   piecePhantomKey,
   type PiecePhantom,
   toCannonMode,
@@ -76,37 +76,37 @@ test("piecePhantomKey differs by position", () => {
 });
 
 // ---------------------------------------------------------------------------
-// phantomChanged
+// dedupChanged
 // ---------------------------------------------------------------------------
 
-test("phantomChanged returns true on first send", () => {
+test("dedupChanged returns true on first send", () => {
   const map = new Map<number, string>();
-  assert(phantomChanged(map, 0, "5,3,normal") === true, "first send should return true");
+  assert(dedupChanged(map, 0, "5,3,normal") === true, "first send should return true");
 });
 
-test("phantomChanged returns false on duplicate", () => {
+test("dedupChanged returns false on duplicate", () => {
   const map = new Map<number, string>();
-  phantomChanged(map, 0, "5,3,normal");
-  assert(phantomChanged(map, 0, "5,3,normal") === false, "duplicate should return false");
+  dedupChanged(map, 0, "5,3,normal");
+  assert(dedupChanged(map, 0, "5,3,normal") === false, "duplicate should return false");
 });
 
-test("phantomChanged returns true when key changes", () => {
+test("dedupChanged returns true when key changes", () => {
   const map = new Map<number, string>();
-  phantomChanged(map, 0, "5,3,normal");
-  assert(phantomChanged(map, 0, "6,3,normal") === true, "changed key should return true");
+  dedupChanged(map, 0, "5,3,normal");
+  assert(dedupChanged(map, 0, "6,3,normal") === true, "changed key should return true");
 });
 
-test("phantomChanged tracks players independently", () => {
+test("dedupChanged tracks players independently", () => {
   const map = new Map<number, string>();
-  phantomChanged(map, 0, "5,3,normal");
-  assert(phantomChanged(map, 1, "5,3,normal") === true, "different player same key should return true");
-  assert(phantomChanged(map, 0, "5,3,normal") === false, "player 0 unchanged should return false");
+  dedupChanged(map, 0, "5,3,normal");
+  assert(dedupChanged(map, 1, "5,3,normal") === true, "different player same key should return true");
+  assert(dedupChanged(map, 0, "5,3,normal") === false, "player 0 unchanged should return false");
 });
 
-test("phantomChanged updates stored key on change", () => {
+test("dedupChanged updates stored key on change", () => {
   const map = new Map<number, string>();
-  phantomChanged(map, 0, "first");
-  phantomChanged(map, 0, "second");
+  dedupChanged(map, 0, "first");
+  dedupChanged(map, 0, "second");
   assert(map.get(0) === "second", `stored key should be "second", got "${map.get(0)}"`);
 });
 
