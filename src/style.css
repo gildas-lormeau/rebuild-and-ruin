@@ -213,10 +213,6 @@ nav.dpad {
   flex-direction: row-reverse;
 }
 
-.left-handed .landscape.panel-left {
-  align-items: end;
-}
-
 /* ===== Landscape layout ===== */
 
 /* Panels use --gap as base padding (loupe-friendly).
@@ -348,10 +344,14 @@ nav.dpad {
   .portrait-bottom {
     flex-direction: row;
     justify-content: space-between;
-    align-items: center;
+    align-items: stretch;
     padding: var(--safe-padding);
     gap: var(--safe-padding);
     flex-shrink: 0;
+
+    .dpad {
+      align-self: end;
+    }
 
     .zoom-group {
       flex-direction: row;
@@ -364,7 +364,7 @@ nav.dpad {
     .controls {
       display: flex;
       gap: var(--safe-padding);
-      align-items: center;
+      align-items: start;
     }
   }
 }
