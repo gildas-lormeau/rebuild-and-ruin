@@ -1,6 +1,13 @@
 /**
  * Phase tick wrappers — thin glue between config/runtimeState and the imported
  * tick functions from runtime-host-battle-ticks.ts, runtime-host-phase-ticks.ts, etc.
+ *
+ * Network wiring convention:
+ *   When building deps for tick functions, always pass:
+ *     net: deps.hostNetworking ? { ...networking fields... } : undefined
+ *   Omitting `net` silently falls back to local-play behavior (all players local,
+ *   no broadcasts). This is correct for local play but a silent bug if forgotten
+ *   when adding a new online tick call.
  */
 
 import { MESSAGE } from "../server/protocol.ts";
