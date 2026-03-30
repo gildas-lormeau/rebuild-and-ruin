@@ -33,6 +33,7 @@ import {
 } from "./build-system.ts";
 import {
   cannonSlotsForRound,
+  computeDefaultFacings,
   findNearestValidCannonPlacement,
   resetCannonFacings,
 } from "./cannon-system.ts";
@@ -262,11 +263,13 @@ export function enterCannonPlacePhase(state: GameState): void {
   state.timer = 0;
 }
 
-/** Prepare state for cannon phase: compute limits and reset facings.
+/** Prepare state for cannon phase: compute limits and default facings.
+ *  Does NOT apply facings to existing cannons (the banner captures old
+ *  facings first, then applyDefaultFacings runs after the snapshot).
  *  Does NOT init controllers — call initControllerForCannonPhase separately. */
 export function prepareCannonPhase(state: GameState): void {
   computeCannonLimitsForPhase(state);
-  resetCannonFacings(state);
+  computeDefaultFacings(state);
 }
 
 /** Initialize a single controller for the cannon phase: place cannons, snap

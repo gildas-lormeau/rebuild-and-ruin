@@ -210,9 +210,22 @@ export function cannonSlotsUsed(player: Player): number {
 
 /**
  * Reset cannon facings to point toward the average enemy position.
- * Call at the start of the cannon phase and after reselection.
+ * Convenience wrapper: computes defaultFacing + applies to all cannons.
+ * Call at the start of the build phase and in online checkpoints.
  */
 export function resetCannonFacings(state: GameState): void {
+  computeDefaultFacings(state);
+  applyDefaultFacings(state);
+}
+
+/**
+ * Compute each player's defaultFacing toward the average enemy position.
+ * Does NOT update existing cannon facings — call resetCannonFacings or
+ * applyDefaultFacings for that.  Separated so that new cannons placed by
+ * AI controllers pick up the right defaultFacing before the banner
+ * captures old cannon facings for the old-scene overlay.
+ */
+export function computeDefaultFacings(state: GameState): void {
   for (const player of state.players) {
     if (!isPlayerActive(player)) continue;
     const pc = towerCenter(player.homeTower);
@@ -226,17 +239,24 @@ export function resetCannonFacings(state: GameState): void {
       ey += oc.row;
       count++;
     }
-    let facing = 0;
     if (count > 0) {
       const avgEx = ex / count;
       const avgEy = ey / count;
       const dx = avgEx - pc.col;
       const dy = avgEy - pc.row;
-      facing = snapAngle(Math.atan2(dx, -dy), FACING_90_STEP);
+      player.defaultFacing = snapAngle(Math.atan2(dx, -dy), FACING_90_STEP);
+    } else {
+      player.defaultFacing = 0;
     }
-    player.defaultFacing = facing;
+  }
+}
+
+/** Apply each player's defaultFacing to all their existing cannons. */
+export function applyDefaultFacings(state: GameState): void {
+  for (const player of state.players) {
+    if (!isPlayerActive(player)) continue;
     for (const cannon of player.cannons) {
-      cannon.facing = facing;
+      cannon.facing = player.defaultFacing;
     }
   }
 }

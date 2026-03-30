@@ -5,6 +5,7 @@
 
 import { MESSAGE } from "../server/protocol.ts";
 import { resolveBalloons, tickCannonballs } from "./battle-system.ts";
+import { applyDefaultFacings } from "./cannon-system.ts";
 import {
   type InputReceiver,
   isHuman,
@@ -149,7 +150,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       },
       showBanner: () => {
         if (onBannerDone) {
+          // Banner captures oldCastles (with old facings) before we snap.
           showCannonPhaseBanner(deps.showBanner, onBannerDone);
+          // Now apply reset facings — hidden behind the banner overlay.
+          applyDefaultFacings(rs.state);
         }
       },
     });
