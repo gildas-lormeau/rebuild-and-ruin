@@ -159,6 +159,9 @@ export interface PhantomOverlay {
 
 /** Battle phase — projectiles, effects, territory state. */
 export interface BattleOverlay {
+  /** True when battle visuals should render (battle phase or banner with battle snapshot).
+   *  Use this instead of duck-typing `!!battleTerritory`. */
+  inBattle?: boolean;
   cannonballs?: {
     x: number;
     y: number;

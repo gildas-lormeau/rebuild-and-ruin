@@ -27,7 +27,7 @@ export function drawTowers(
     const { x: cx, y: cy } = towerCenterPx(tower);
 
     const ownerId = overlay?.entities?.homeTowers?.get(i);
-    const inBattle = !!overlay?.battle?.battleTerritory;
+    const inBattle = !!overlay?.battle?.inBattle;
     const suffix = inBattle ? "_battle" : "";
 
     const alive = overlay?.entities?.towerAlive?.[i];

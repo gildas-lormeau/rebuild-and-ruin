@@ -186,8 +186,7 @@ export function drawBonusSquares(
   overlay?: RenderOverlay,
   now?: number,
 ): void {
-  if (!overlay?.entities?.bonusSquares || overlay.battle?.battleTerritory)
-    return;
+  if (!overlay?.entities?.bonusSquares || overlay.battle?.inBattle) return;
   const alphaScale =
     Math.sin((now ?? Date.now()) / BONUS_FLASH_MS) * 0.15 + 0.85;
   overlayCtx.save();
@@ -235,7 +234,7 @@ export function drawWaterAnimation(
   map: MapData,
   overlay?: RenderOverlay,
 ): void {
-  if (!overlay?.battle?.battleTerritory) return; // only during battle
+  if (!overlay?.battle?.inBattle) return; // only during battle
   overlayCtx.save();
   const time = performance.now() / 1000;
   const rows = map.tiles.length;

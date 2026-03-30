@@ -344,6 +344,7 @@ export function createOnlineOverlay(params: {
       homeTowers: homeTowers.size > 0 ? homeTowers : undefined,
     },
     battle: {
+      inBattle: !!battleTerritory,
       battleTerritory,
       battleWalls,
       cannonballs: buildBattleCannonballsPayload(

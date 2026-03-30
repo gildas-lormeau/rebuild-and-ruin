@@ -302,6 +302,7 @@ function drawBannerOldScene(
       },
       battle: {
         ...overlay.battle,
+        inBattle: !!oldTerritory,
         battleTerritory: oldTerritory,
         battleWalls: oldWalls,
         cannonballs: undefined,
@@ -357,7 +358,7 @@ function drawTerrain(
   map: MapData,
   overlay?: RenderOverlay,
 ): void {
-  const inBattle = !!overlay?.battle?.battleTerritory;
+  const inBattle = !!overlay?.battle?.inBattle;
   const cache = getTerrainCache(map, W, H);
   const cachedImage = inBattle ? cache.battle : cache.normal;
   if (cachedImage) {
