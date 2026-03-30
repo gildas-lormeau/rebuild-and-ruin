@@ -85,18 +85,18 @@ export function createWatcherState(): WatcherState {
 }
 
 /** Full reset — clears all watcher state. Used when joining a new game or full-state recovery. */
-export function resetWatcherState(ws: WatcherState): void {
-  ws.remoteCrosshairs.clear();
-  ws.remoteCannonPhantoms = [];
-  ws.remotePiecePhantoms = [];
-  ws.crosshairPos.clear();
-  ws.idlePhases.clear();
-  ws.orbitParams.clear();
-  resetWatcherPhaseTimer(ws.timing);
-  ws.timing.countdownStartTime = 0;
-  ws.timing.countdownDuration = 0;
-  ws.migrationTimer = 0;
-  ws.migrationText = "";
+export function resetWatcherState(watcherState: WatcherState): void {
+  watcherState.remoteCrosshairs.clear();
+  watcherState.remoteCannonPhantoms = [];
+  watcherState.remotePiecePhantoms = [];
+  watcherState.crosshairPos.clear();
+  watcherState.idlePhases.clear();
+  watcherState.orbitParams.clear();
+  resetWatcherPhaseTimer(watcherState.timing);
+  watcherState.timing.countdownStartTime = 0;
+  watcherState.timing.countdownDuration = 0;
+  watcherState.migrationTimer = 0;
+  watcherState.migrationText = "";
 }
 
 /**
@@ -104,41 +104,41 @@ export function resetWatcherState(ws: WatcherState): void {
  * but keeps remoteCrosshairs/phantoms/crosshairPos — the new host still
  * uses those for remote human players via extendCrosshairs.
  */
-export function resetWatcherTimingForHost(ws: WatcherState): void {
-  resetWatcherPhaseTimer(ws.timing);
-  ws.timing.countdownStartTime = 0;
-  ws.timing.countdownDuration = 0;
-  ws.idlePhases.clear();
-  ws.orbitParams.clear();
+export function resetWatcherTimingForHost(watcherState: WatcherState): void {
+  resetWatcherPhaseTimer(watcherState.timing);
+  watcherState.timing.countdownStartTime = 0;
+  watcherState.timing.countdownDuration = 0;
+  watcherState.idlePhases.clear();
+  watcherState.orbitParams.clear();
 }
 
 /** Tick the migration announcement timer. Two announcement channels exist:
  *  1. frame.announcement — general-purpose, set directly (reconnection, countdown).
  *     Cleared each frame by clearFrameData(). Used by online-client-ws.ts for
  *     "Reconnecting..." / "Disconnected" and by battle countdown.
- *  2. ws.migrationText — persists across frames, copied into frame.announcement here.
+ *  2. watcherState.migrationText — persists across frames, copied into frame.announcement here.
  *     Used only for host-migration announcements that must survive frame clears.
  *  This function bridges channel 2→1 without overwriting existing game announcements. */
 export function tickMigrationAnnouncement(
-  ws: WatcherState,
+  watcherState: WatcherState,
   frame: { announcement?: string },
   dt: number,
 ): void {
-  if (ws.migrationTimer <= 0) return;
-  ws.migrationTimer -= dt;
-  if (ws.migrationTimer > 0) {
+  if (watcherState.migrationTimer <= 0) return;
+  watcherState.migrationTimer -= dt;
+  if (watcherState.migrationTimer > 0) {
     // Don't overwrite game announcements (e.g., Ready/Aim/Fire countdown)
     if (!frame.announcement) {
-      frame.announcement = ws.migrationText;
+      frame.announcement = watcherState.migrationText;
     }
   } else {
-    ws.migrationTimer = 0;
-    ws.migrationText = "";
+    watcherState.migrationTimer = 0;
+    watcherState.migrationText = "";
   }
 }
 
 export function tickWatcher(
-  ws: WatcherState,
+  watcherState: WatcherState,
   dt: number,
   transitionCtx: WatcherTickContext,
 ): void {
@@ -146,7 +146,7 @@ export function tickWatcher(
   const frame = transitionCtx.getFrame();
   const accum = transitionCtx.getAccum();
 
-  tickWatcherTimers(state, frame, ws.timing, transitionCtx.now);
+  tickWatcherTimers(state, frame, watcherState.timing, transitionCtx.now);
 
   const myPlayerId = transitionCtx.getMyPlayerId();
   const myHuman = getLocalHuman(
@@ -163,10 +163,10 @@ export function tickWatcher(
       dt,
       myPlayerId,
       myHuman,
-      remoteCrosshairs: ws.remoteCrosshairs,
-      watcherCrosshairPos: ws.crosshairPos,
-      watcherIdlePhases: ws.idlePhases,
-      watcherOrbitParams: ws.orbitParams,
+      remoteCrosshairs: watcherState.remoteCrosshairs,
+      watcherCrosshairPos: watcherState.crosshairPos,
+      watcherIdlePhases: watcherState.idlePhases,
+      watcherOrbitParams: watcherState.orbitParams,
       crosshairSpeed: CROSSHAIR_SPEED,
       logThrottled: transitionCtx.logThrottled,
       interpolateToward,
@@ -181,7 +181,7 @@ export function tickWatcher(
       dt,
       myPlayerId,
       myHuman,
-      remoteCannonPhantoms: ws.remoteCannonPhantoms,
+      remoteCannonPhantoms: watcherState.remoteCannonPhantoms,
       lastSentCannonPhantom: transitionCtx.lastSentCannonPhantom,
       sendOpponentCannonPhantom: (msg) => {
         transitionCtx.send({ type: MESSAGE.OPPONENT_CANNON_PHANTOM, ...msg });
@@ -193,7 +193,7 @@ export function tickWatcher(
       frame,
       dt,
       myHuman,
-      remotePiecePhantoms: ws.remotePiecePhantoms,
+      remotePiecePhantoms: watcherState.remotePiecePhantoms,
       lastSentPiecePhantom: transitionCtx.lastSentPiecePhantom,
       sendOpponentPiecePhantom: (msg) => {
         transitionCtx.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg });

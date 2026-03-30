@@ -15,7 +15,7 @@ import { LOBBY_TIMER } from "./game-constants.ts";
 import type { LifeLostChoice } from "./types.ts";
 
 export interface OnlineSession {
-  ws: WebSocket | null;
+  socket: WebSocket | null;
   /** This player's slot id. -1 = watcher/spectator (not an active player). */
   myPlayerId: number;
   /** Can flip during host promotion — always re-check before critical operations;
@@ -52,7 +52,7 @@ const KEEPALIVE_MS = 30_000;
 
 export function createSession(): OnlineSession {
   return {
-    ws: null,
+    socket: null,
     myPlayerId: -1,
     isHost: false,
     hostMigrationSeq: 0,
@@ -83,8 +83,8 @@ export function resetDedupMaps(dedup: DedupMaps): void {
 }
 
 export function resetSessionState(session: OnlineSession): void {
-  session.ws?.close();
-  session.ws = null;
+  session.socket?.close();
+  session.socket = null;
   session.isHost = false;
   session.hostMigrationSeq = 0;
   session.myPlayerId = -1;
@@ -109,8 +109,8 @@ export function sendAimUpdate(
 
 export function sendMessage(session: OnlineSession, msg: GameMessage): void {
   // === OPEN: only send when fully connected (not CONNECTING)
-  if (session.ws?.readyState === WebSocket.OPEN) {
-    session.ws.send(JSON.stringify(msg));
+  if (session.socket?.readyState === WebSocket.OPEN) {
+    session.socket.send(JSON.stringify(msg));
   }
 }
 
@@ -124,31 +124,31 @@ export function connectWebSocket(
   handlers: ConnectHandlers,
 ): void {
   // <= OPEN: skip if CONNECTING (0) or OPEN (1); only connect when CLOSING/CLOSED
-  if (session.ws && session.ws.readyState <= WebSocket.OPEN) return;
-  session.ws = new WebSocket(wsUrl);
-  session.ws.onmessage = (e) => {
+  if (session.socket && session.socket.readyState <= WebSocket.OPEN) return;
+  session.socket = new WebSocket(wsUrl);
+  session.socket.onmessage = (e) => {
     try {
       handlers.onMessage(JSON.parse(e.data as string) as ServerMessage);
     } catch (err) {
       console.warn("[ws] malformed message:", err);
     }
   };
-  session.ws.onopen = () => {
+  session.socket.onopen = () => {
     if (session.keepaliveTimer) clearInterval(session.keepaliveTimer);
     session.keepaliveTimer = setInterval(() => {
-      if (session.ws?.readyState === WebSocket.OPEN) {
-        session.ws.send(JSON.stringify({ type: MESSAGE.PING }));
+      if (session.socket?.readyState === WebSocket.OPEN) {
+        session.socket.send(JSON.stringify({ type: MESSAGE.PING }));
       }
     }, KEEPALIVE_MS);
   };
-  session.ws.onclose = () => {
+  session.socket.onclose = () => {
     if (session.keepaliveTimer) {
       clearInterval(session.keepaliveTimer);
       session.keepaliveTimer = null;
     }
     handlers.onClose();
   };
-  session.ws.onerror = () => {
+  session.socket.onerror = () => {
     handlers.onError();
   };
 }

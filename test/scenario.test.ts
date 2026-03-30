@@ -554,7 +554,7 @@ test("tile finders return valid positions", () => {
 test("resetSessionState closes WebSocket and resets all fields", () => {
   const session = createSession();
   let closeCalled = false;
-  session.ws = { close: () => { closeCalled = true; } } as unknown as WebSocket;
+  session.socket = { close: () => { closeCalled = true; } } as unknown as WebSocket;
   session.isHost = true;
   session.myPlayerId = 2;
   session.hostMigrationSeq = 3;
@@ -564,8 +564,8 @@ test("resetSessionState closes WebSocket and resets all fields", () => {
 
   resetSessionState(session);
 
-  assert(closeCalled, "ws.close() should be called");
-  assert(session.ws === null, "ws should be null after reset");
+  assert(closeCalled, "socket.close() should be called");
+  assert(session.socket === null, "socket should be null after reset");
   assert(!session.isHost, "isHost should be false");
   assert(session.myPlayerId === -1, "myPlayerId should be -1");
   assert(session.hostMigrationSeq === 0, "hostMigrationSeq should be 0");

@@ -31,7 +31,7 @@ const initDomLobby = () =>
         lobbyElements.joinError.textContent = msg;
       }),
     send,
-    getSocket: () => session.ws,
+    getSocket: () => session.socket,
     setIsHost: (value) => {
       session.isHost = value;
     },
