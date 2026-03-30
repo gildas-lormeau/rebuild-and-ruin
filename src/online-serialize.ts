@@ -397,16 +397,16 @@ function validateFullState(
 }
 
 function serializeGrunts(state: GameState) {
-  return state.grunts.map(serializeGrunt);
+  return state.grunts.map(gruntWireFields);
 }
 
-/** Grunts are structurally identical in serialized and runtime forms —
- *  deserialize delegates to serialize (no-op transform, exists for API symmetry). */
 function deserializeGrunt(grunt: SerializedGrunt): GameState["grunts"][number] {
-  return serializeGrunt(grunt);
+  return gruntWireFields(grunt);
 }
 
-function serializeGrunt(
+/** Pick the wire-format fields from a grunt. Grunt wire format is identical
+ *  to runtime format, so this works in both directions (serialize & deserialize). */
+function gruntWireFields(
   grunt: Pick<
     GameState["grunts"][number],
     | "row"
