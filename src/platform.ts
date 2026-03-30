@@ -10,6 +10,9 @@ export const IS_TOUCH_DEVICE: boolean =
 /** Whether the device supports the Vibration API. */
 export const CAN_VIBRATE: boolean =
   typeof navigator !== "undefined" && !!navigator.vibrate;
+/** CSS cursor values — shared across input and runtime files. */
+export const CURSOR_POINTER = "pointer";
+export const CURSOR_DEFAULT = "default";
 /** Whether running in dev mode (Vite dev server or localhost). */
 export const IS_DEV: boolean =
   // @ts-ignore — import.meta.env is Vite-specific (not recognized by Deno LSP)

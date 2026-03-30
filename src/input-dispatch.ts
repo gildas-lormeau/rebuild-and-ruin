@@ -117,6 +117,8 @@ export function dispatchModeTap(
   deps: {
     gameOver: { click: (x: number, y: number) => void };
     options: {
+      click: (x: number, y: number) => void;
+      clickControls: (x: number, y: number) => void;
       close: () => void;
       closeControls: () => void;
       getControlsState: () => ControlsState;
@@ -137,11 +139,11 @@ export function dispatchModeTap(
     return true;
   }
   if (mode === Mode.OPTIONS) {
-    options.close();
+    options.click(x, y);
     return true;
   }
   if (mode === Mode.CONTROLS) {
-    if (!options.getControlsState().rebinding) options.closeControls();
+    options.clickControls(x, y);
     return true;
   }
   if (mode === Mode.LIFE_LOST && lifeLost.get()) {

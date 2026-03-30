@@ -11,14 +11,24 @@ import {
   closeOptions as closeOptionsShared,
   createControlsOverlay,
   createOptionsOverlay,
+  OPTION_CONTROLS,
   showControls as showControlsShared,
   showOptions as showOptionsShared,
   togglePause as togglePauseShared,
   visibleOptions,
 } from "./game-ui-screens.ts";
 import { cycleOption } from "./game-ui-settings.ts";
+import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
+import { CURSOR_DEFAULT, CURSOR_POINTER } from "./platform.ts";
+import { ACTION_KEYS, MAX_PLAYERS } from "./player-config.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
+import {
+  controlsScreenHitTest,
+  HIT_ARROW,
+  HIT_CLOSE,
+  optionsScreenHitTest,
+} from "./render-ui.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
 import type { SoundSystem } from "./sound-system.ts";
 
@@ -44,6 +54,12 @@ interface OptionsSystemDeps {
 export interface OptionsSystem {
   realOptionIdx: () => number;
   changeOption: (dir: number) => void;
+  clickOptions: (canvasX: number, canvasY: number) => void;
+  clickControls: (canvasX: number, canvasY: number) => void;
+  /** Returns CSS cursor for the given canvas coordinate (pointer over interactive elements). */
+  cursorAt: (canvasX: number, canvasY: number) => string;
+  /** Returns CSS cursor for controls screen (pointer over cells and close button). */
+  controlsCursorAt: (canvasX: number, canvasY: number) => string;
   renderOptions: () => void;
   showOptions: () => void;
   closeOptions: () => void;
@@ -124,6 +140,76 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     closeControlsShared(uiCtx);
   }
 
+  function clickOptions(canvasX: number, canvasY: number): void {
+    const W = GRID_COLS * TILE_SIZE;
+    const H = GRID_ROWS * TILE_SIZE;
+    const visible = visibleOptionsForCtx();
+    const hit = optionsScreenHitTest(
+      canvasX / SCALE,
+      canvasY / SCALE,
+      W,
+      H,
+      visible.length,
+    );
+    if (!hit) return;
+    if (hit.type === HIT_CLOSE) {
+      closeOptions();
+      return;
+    }
+    // Move cursor to the tapped row
+    runtimeState.optionsCursor = hit.index;
+    const realIdx = visible[hit.index] ?? hit.index;
+    if (realIdx === OPTION_CONTROLS) {
+      showControls();
+    } else if (hit.type === HIT_ARROW) {
+      changeOption(hit.dir);
+    }
+  }
+
+  function cursorAt(canvasX: number, canvasY: number): string {
+    const W = GRID_COLS * TILE_SIZE;
+    const H = GRID_ROWS * TILE_SIZE;
+    const hit = optionsScreenHitTest(
+      canvasX / SCALE,
+      canvasY / SCALE,
+      W,
+      H,
+      visibleOptionsForCtx().length,
+    );
+    return hit ? CURSOR_POINTER : CURSOR_DEFAULT;
+  }
+
+  function controlsHitTest(canvasX: number, canvasY: number) {
+    const W = GRID_COLS * TILE_SIZE;
+    const H = GRID_ROWS * TILE_SIZE;
+    return controlsScreenHitTest(
+      canvasX / SCALE,
+      canvasY / SCALE,
+      W,
+      H,
+      MAX_PLAYERS,
+      ACTION_KEYS.length,
+    );
+  }
+
+  function clickControls(canvasX: number, canvasY: number): void {
+    const hit = controlsHitTest(canvasX, canvasY);
+    if (!hit) return;
+    if (hit.type === HIT_CLOSE) {
+      if (!runtimeState.controlsState.rebinding) closeControls();
+      return;
+    }
+    const cs = runtimeState.controlsState;
+    if (cs.rebinding) return; // ignore taps while waiting for key press
+    cs.playerIdx = hit.playerIdx;
+    cs.actionIdx = hit.actionIdx;
+    cs.rebinding = true;
+  }
+
+  function controlsCursorAt(canvasX: number, canvasY: number): string {
+    return controlsHitTest(canvasX, canvasY) ? CURSOR_POINTER : CURSOR_DEFAULT;
+  }
+
   function togglePause(): boolean {
     // Disable pause when other human players are connected
     if (deps.getRemoteHumanSlots().size > 0) return false;
@@ -133,6 +219,10 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   return {
     realOptionIdx,
     changeOption,
+    clickOptions,
+    clickControls,
+    cursorAt,
+    controlsCursorAt,
     renderOptions,
     showOptions,
     closeOptions,

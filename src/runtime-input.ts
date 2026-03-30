@@ -89,9 +89,14 @@ interface InputSystemDeps {
   readonly lobby: {
     lobbyKeyJoin: (key: string) => boolean;
     lobbyClick: (x: number, y: number) => boolean;
+    cursorAt: (x: number, y: number) => string;
   };
   readonly options: {
     showOptions: () => void;
+    clickOptions: (canvasX: number, canvasY: number) => void;
+    clickControls: (canvasX: number, canvasY: number) => void;
+    cursorAt: (canvasX: number, canvasY: number) => string;
+    controlsCursorAt: (canvasX: number, canvasY: number) => string;
     closeOptions: () => void;
     showControls: () => void;
     closeControls: () => void;
@@ -298,6 +303,10 @@ function buildInputDeps(
     lobby: lobbyDeps,
     options: {
       show: options.showOptions,
+      click: options.clickOptions,
+      clickControls: options.clickControls,
+      cursorAt: options.cursorAt,
+      controlsCursorAt: options.controlsCursorAt,
       close: options.closeOptions,
       showControls: options.showControls,
       closeControls: options.closeControls,
@@ -368,6 +377,7 @@ function buildLobbyDeps(
     isActive: () => runtimeState.lobby.active,
     keyJoin: (key: string) => lobby.lobbyKeyJoin(key),
     click: (x: number, y: number) => lobby.lobbyClick(x, y),
+    cursorAt: (x: number, y: number) => lobby.cursorAt(x, y),
   };
 }
 

@@ -71,6 +71,7 @@ export interface RegisterOnlineInputDeps {
     isActive: () => boolean;
     keyJoin?: (key: string) => boolean;
     click: (x: number, y: number) => boolean;
+    cursorAt: (x: number, y: number) => string;
   };
 
   // --- Navigation ---
@@ -80,6 +81,10 @@ export interface RegisterOnlineInputDeps {
   // --- Options overlay ---
   options: {
     show: () => void;
+    click: (x: number, y: number) => void;
+    clickControls: (x: number, y: number) => void;
+    cursorAt: (x: number, y: number) => string;
+    controlsCursorAt: (x: number, y: number) => string;
     close: () => void;
     showControls: () => void;
     closeControls: () => void;

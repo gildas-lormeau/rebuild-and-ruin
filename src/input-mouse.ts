@@ -7,6 +7,7 @@ import {
   dispatchTowerSelect,
   isTouchSuppressed,
 } from "./input-dispatch.ts";
+import { CURSOR_DEFAULT, CURSOR_POINTER } from "./platform.ts";
 import {
   isInteractiveMode,
   isPlacementPhase,
@@ -26,19 +27,25 @@ export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
 
   renderer.eventTarget.addEventListener("mousemove", (e) => {
     const mode = getMode();
-    if (mode === Mode.LOBBY || mode === Mode.STOPPED) {
-      renderer.eventTarget.style.cursor = "pointer";
+    const { x, y } = renderer.clientToSurface(e.clientX, e.clientY);
+    if (mode === Mode.LOBBY) {
+      renderer.eventTarget.style.cursor = deps.lobby.cursorAt(x, y);
+    } else if (mode === Mode.STOPPED) {
+      renderer.eventTarget.style.cursor = CURSOR_POINTER;
+    } else if (mode === Mode.OPTIONS) {
+      renderer.eventTarget.style.cursor = deps.options.cursorAt(x, y);
+    } else if (mode === Mode.CONTROLS) {
+      renderer.eventTarget.style.cursor = deps.options.controlsCursorAt(x, y);
     } else if (mode === Mode.GAME) {
       const state = getState();
       renderer.eventTarget.style.cursor =
-        state?.phase === Phase.BATTLE ? "none" : "default";
+        state?.phase === Phase.BATTLE ? "none" : CURSOR_DEFAULT;
     } else {
-      renderer.eventTarget.style.cursor = "default";
+      renderer.eventTarget.style.cursor = CURSOR_DEFAULT;
     }
 
     const state = getState();
     if (!state || deps.lobby.isActive()) return;
-    const { x, y } = renderer.clientToSurface(e.clientX, e.clientY);
     dispatchPointerMove(x, y, state, deps);
   });
 

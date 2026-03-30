@@ -84,6 +84,19 @@ interface ButtonStyle {
 
 type ScoreEntry = GameOverOverlay["scores"][number];
 
+/** Hit-test result for a tap/click on the options screen. */
+type OptionsHit =
+  | { type: typeof HIT_CLOSE }
+  | { type: typeof HIT_ROW; index: number }
+  | { type: typeof HIT_ARROW; index: number; dir: -1 | 1 }
+  | null;
+
+/** Hit-test result for a tap/click on the controls screen. */
+type ControlsHit =
+  | { type: typeof HIT_CLOSE }
+  | { type: typeof HIT_CELL; playerIdx: number; actionIdx: number }
+  | null;
+
 // Local semantic colors (not shared across files — context-specific to UI panels)
 const BTN_CONTINUE = {
   fill: (a: number) => `rgba(80,180,80,${a})`,
@@ -123,6 +136,17 @@ const OP_ACTIVE = 0.3;
 const OP_IDLE = 0.2;
 const OP_SUBTLE = 0.15;
 const OP_GHOST = 0.1;
+const HIT_ROW = "row" as const;
+const HIT_CELL = "cell" as const;
+// Options screen layout constants
+const OPT_ROW_H = 28;
+const CLOSE_BTN_SIZE = 24;
+const CLOSE_BTN_MARGIN = 6;
+/** Width of the tap target around each arrow indicator (◀ / ▶). */
+const ARROW_TAP_W = 28;
+// Options/controls hit-test discriminators
+export const HIT_CLOSE = "close" as const;
+export const HIT_ARROW = "arrow" as const;
 
 /** Draw announcement text centered on screen. */
 export function drawAnnouncement(
@@ -468,6 +492,44 @@ export function drawPlayerSelect(
   overlayCtx.fillText("F1", W - 30, 18);
 }
 
+/** Hit-test the options screen. Coordinates in tile-pixel space (W×H). */
+export function optionsScreenHitTest(
+  x: number,
+  y: number,
+  W: number,
+  H: number,
+  optionCount: number,
+): OptionsHit {
+  const { panelW, px, startY, optH, closeX, closeY, closeSize } =
+    optionsScreenLayout(W, H, optionCount);
+
+  // Close button
+  if (
+    x >= closeX &&
+    x <= closeX + closeSize &&
+    y >= closeY &&
+    y <= closeY + closeSize
+  ) {
+    return { type: HIT_CLOSE };
+  }
+
+  // Option rows
+  for (let i = 0; i < optionCount; i++) {
+    const oy = startY + i * optH;
+    if (x >= px && x <= px + panelW && y >= oy && y <= oy + optH) {
+      // Left arrow area (◀)
+      if (x < px + ARROW_TAP_W) return { type: HIT_ARROW, index: i, dir: -1 };
+      // Right arrow area (▶)
+      if (x > px + panelW - ARROW_TAP_W)
+        return { type: HIT_ARROW, index: i, dir: 1 };
+      // Row body — select only, no value change
+      return { type: HIT_ROW, index: i };
+    }
+  }
+
+  return null;
+}
+
 /** Draw the options screen. */
 export function drawOptionsScreen(
   overlayCtx: CanvasRenderingContext2D,
@@ -480,15 +542,23 @@ export function drawOptionsScreen(
   const opts = overlay.ui.optionsScreen;
   beginModalScreen(overlayCtx, W, H);
 
+  const { panelW, px, startY, optH, closeX, closeY, closeSize } =
+    optionsScreenLayout(W, H, opts.options.length);
+
   overlayCtx.font = FONT_TITLE;
   overlayCtx.fillStyle = GOLD_LIGHT;
   overlayCtx.fillText("OPTIONS", W / 2, H * 0.12);
 
-  // Options list
-  const optH = 28;
-  const startY = Math.round(H * 0.28);
-  const panelW = Math.round(W * 0.65);
-  const px = Math.round((W - panelW) / 2);
+  // Close button (✕)
+  overlayCtx.fillStyle = GOLD_BG(OP_IDLE);
+  overlayCtx.fillRect(closeX, closeY, closeSize, closeSize);
+  overlayCtx.strokeStyle = GOLD;
+  overlayCtx.lineWidth = 1;
+  overlayCtx.strokeRect(closeX, closeY, closeSize, closeSize);
+  overlayCtx.font = FONT_BODY;
+  overlayCtx.fillStyle = GOLD_LIGHT;
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.fillText("\u2715", closeX + closeSize / 2, closeY + closeSize / 2);
 
   for (let i = 0; i < opts.options.length; i++) {
     const opt = opts.options[i]!;
@@ -568,6 +638,52 @@ export function drawOptionsScreen(
   overlayCtx.fillText(hint, W / 2, H * 0.85);
 }
 
+/** Hit-test the controls screen. Coordinates in tile-pixel space (W×H). */
+export function controlsScreenHitTest(
+  x: number,
+  y: number,
+  W: number,
+  H: number,
+  colCount: number,
+  rowCount: number,
+): ControlsHit {
+  const {
+    tableX,
+    labelColW,
+    playerColW,
+    startY,
+    rowH,
+    closeX,
+    closeY,
+    closeSize,
+  } = controlsScreenLayout(W, H, colCount, rowCount);
+
+  // Close button
+  if (
+    x >= closeX &&
+    x <= closeX + closeSize &&
+    y >= closeY &&
+    y <= closeY + closeSize
+  ) {
+    return { type: HIT_CLOSE };
+  }
+
+  // Key cells
+  for (let a = 0; a < rowCount; a++) {
+    const oy = startY + a * rowH;
+    if (y < oy || y > oy + rowH) continue;
+    for (let pi = 0; pi < colCount; pi++) {
+      const cellX = tableX + labelColW + pi * playerColW + PAD / 2;
+      const cellW = playerColW - PAD;
+      if (x >= cellX && x <= cellX + cellW) {
+        return { type: HIT_CELL, playerIdx: pi, actionIdx: a };
+      }
+    }
+  }
+
+  return null;
+}
+
 /** Draw the controls rebinding screen. */
 export function drawControlsScreen(
   overlayCtx: CanvasRenderingContext2D,
@@ -583,13 +699,29 @@ export function drawControlsScreen(
   // Layout
   const colCount = ctrl.players.length;
   const rowCount = ctrl.actionNames.length;
-  const tableW = Math.round(W * 0.8);
-  const labelColW = Math.round(tableW * 0.2);
-  const playerColW = Math.round((tableW - labelColW) / colCount);
-  const tableX = Math.round((W - tableW) / 2);
-  const headerY = Math.round(H * 0.2);
-  const rowH = 22;
-  const startY = headerY + 28;
+  const {
+    tableW,
+    tableX,
+    labelColW,
+    playerColW,
+    headerY,
+    startY,
+    rowH,
+    closeX,
+    closeY,
+    closeSize,
+  } = controlsScreenLayout(W, H, colCount, rowCount);
+
+  // Close button (✕)
+  overlayCtx.fillStyle = GOLD_BG(OP_IDLE);
+  overlayCtx.fillRect(closeX, closeY, closeSize, closeSize);
+  overlayCtx.strokeStyle = GOLD;
+  overlayCtx.lineWidth = 1;
+  overlayCtx.strokeRect(closeX, closeY, closeSize, closeSize);
+  overlayCtx.font = FONT_BODY;
+  overlayCtx.fillStyle = GOLD_LIGHT;
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.fillText("\u2715", closeX + closeSize / 2, closeY + closeSize / 2);
 
   drawControlsHeader(
     overlayCtx,
@@ -620,6 +752,71 @@ export function drawControlsScreen(
     rowCount,
     now,
   );
+}
+
+/** Compute options screen geometry (shared by renderer and hit-test). */
+function optionsScreenLayout(
+  W: number,
+  H: number,
+  optionCount: number,
+): {
+  panelW: number;
+  px: number;
+  startY: number;
+  optH: number;
+  closeX: number;
+  closeY: number;
+  closeSize: number;
+} {
+  const panelW = Math.round(W * 0.65);
+  const px = Math.round((W - panelW) / 2);
+  const startY = Math.round(H * 0.28);
+  return {
+    panelW,
+    px,
+    startY,
+    optH: OPT_ROW_H,
+    closeX: px + panelW - CLOSE_BTN_SIZE - CLOSE_BTN_MARGIN,
+    closeY: Math.round(H * 0.12) - CLOSE_BTN_SIZE / 2 - 2,
+    closeSize: CLOSE_BTN_SIZE,
+  };
+}
+
+/** Compute controls screen geometry (shared by renderer and hit-test). */
+function controlsScreenLayout(
+  W: number,
+  H: number,
+  colCount: number,
+  rowCount: number,
+): {
+  tableW: number;
+  tableX: number;
+  labelColW: number;
+  playerColW: number;
+  headerY: number;
+  startY: number;
+  rowH: number;
+  closeX: number;
+  closeY: number;
+  closeSize: number;
+} {
+  const tableW = Math.round(W * 0.8);
+  const labelColW = Math.round(tableW * 0.2);
+  const playerColW = Math.round((tableW - labelColW) / colCount);
+  const tableX = Math.round((W - tableW) / 2);
+  const headerY = Math.round(H * 0.2);
+  return {
+    tableW,
+    tableX,
+    labelColW,
+    playerColW,
+    headerY,
+    startY: headerY + 28,
+    rowH: 22,
+    closeX: tableX + tableW - CLOSE_BTN_SIZE - CLOSE_BTN_MARGIN,
+    closeY: Math.round(H * 0.1) - CLOSE_BTN_SIZE / 2 - 2,
+    closeSize: CLOSE_BTN_SIZE,
+  };
 }
 
 /** Draw the game-over panel background, winner heading and separator line. */

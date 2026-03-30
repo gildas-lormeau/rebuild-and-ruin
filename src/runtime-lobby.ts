@@ -18,7 +18,7 @@ import {
 import { computeGameSeed } from "./game-ui-settings.ts";
 import { CANVAS_H, CANVAS_W, TILE_SIZE } from "./grid.ts";
 import { generateMap } from "./map-generation.ts";
-import { IS_TOUCH_DEVICE } from "./platform.ts";
+import { CURSOR_DEFAULT, CURSOR_POINTER, IS_TOUCH_DEVICE } from "./platform.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 import {
   computeLobbyLayout,
@@ -48,6 +48,7 @@ interface LobbySystem {
   tickLobby: (dt: number) => void;
   lobbyKeyJoin: (key: string) => boolean;
   lobbyClick: (canvasX: number, canvasY: number) => boolean;
+  cursorAt: (canvasX: number, canvasY: number) => string;
 }
 
 export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
@@ -117,11 +118,26 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     return true;
   }
 
+  function cursorAt(canvasX: number, canvasY: number): string {
+    if (!runtimeState.lobby.active) return CURSOR_DEFAULT;
+    const hit = lobbyClickHitTest({
+      canvasX,
+      canvasY,
+      canvasW: CANVAS_W,
+      canvasH: CANVAS_H,
+      tileSize: TILE_SIZE,
+      slotCount: MAX_PLAYERS,
+      computeLayout: computeLobbyLayout,
+    });
+    return hit ? CURSOR_POINTER : CURSOR_DEFAULT;
+  }
+
   return {
     refreshLobbySeed,
     renderLobby,
     tickLobby,
     lobbyKeyJoin,
     lobbyClick,
+    cursorAt,
   };
 }
