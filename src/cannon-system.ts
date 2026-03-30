@@ -23,7 +23,6 @@ import {
   isCannonTile,
   isTowerTile,
   packTile,
-  rotateToward,
   snapAngle,
   towerCenter,
   unpackTile,
@@ -38,8 +37,6 @@ import {
 
 /** Max search radius when snapping cannon placement to a valid tile. */
 const CANNON_SNAP_RADIUS = 2;
-/** Rotation speed (rad/s) for the smooth facing reset at cannon-phase start. */
-const CANNON_FACING_RESET_SPEED = Math.PI * 2;
 /** Slot cost for a normal cannon. */
 const NORMAL_CANNON_COST = 1;
 
@@ -215,7 +212,7 @@ export function cannonSlotsUsed(player: Player): number {
  * Reset cannon facings to point toward the average enemy position.
  * Call at the start of the cannon phase and after reselection.
  */
-export function resetCannonFacings(state: GameState, snap = false): void {
+export function resetCannonFacings(state: GameState): void {
   for (const player of state.players) {
     if (!isPlayerActive(player)) continue;
     const pc = towerCenter(player.homeTower);
@@ -238,25 +235,8 @@ export function resetCannonFacings(state: GameState, snap = false): void {
       facing = snapAngle(Math.atan2(dx, -dy), FACING_90_STEP);
     }
     player.defaultFacing = facing;
-    if (snap) {
-      for (const cannon of player.cannons) {
-        cannon.facing = facing;
-      }
-    }
-  }
-}
-
-/** Smoothly rotate all cannons toward their player's defaultFacing.
- *  Called each frame during the cannon phase to animate the reset. */
-export function tickCannonFacingReset(state: GameState, dt: number): void {
-  const maxStep = CANNON_FACING_RESET_SPEED * dt;
-  for (const player of state.players) {
-    if (!isPlayerActive(player)) continue;
-    const target = player.defaultFacing;
     for (const cannon of player.cannons) {
-      if (!isCannonAlive(cannon)) continue;
-      const current = cannon.facing ?? 0;
-      cannon.facing = rotateToward(current, target, maxStep);
+      cannon.facing = facing;
     }
   }
 }
