@@ -50,7 +50,7 @@ import {
 } from "./selection.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import { towerCenterPx } from "./spatial.ts";
-import { Mode } from "./types.ts";
+import { fireOnce, Mode } from "./types.ts";
 
 interface SelectionSystemDeps {
   runtimeState: RuntimeState;
@@ -61,7 +61,7 @@ interface SelectionSystemDeps {
 
   camera: Pick<
     CameraSystem,
-    | "phaseUnzoom"
+    | "clearPhaseZoom"
     | "clearCastleBuildViewport"
     | "setCastleBuildViewport"
     | "setSelectionViewport"
@@ -341,7 +341,7 @@ export function createSelectionSystem(
     // Unzoom once human player's castle build animation finishes
     if (humanBuildDone) {
       deps.camera.clearCastleBuildViewport();
-      deps.camera.phaseUnzoom();
+      deps.camera.clearPhaseZoom();
     }
   }
 
@@ -366,7 +366,7 @@ export function createSelectionSystem(
       );
 
     if (runtimeState.scoreDeltas.length > 0) {
-      deps.camera.phaseUnzoom();
+      deps.camera.clearPhaseZoom();
       runtimeState.scoreDeltaTimer = SCORE_DELTA_DISPLAY_TIME;
       runtimeState.scoreDeltaOnDone = onDone;
     } else {
@@ -385,11 +385,7 @@ export function createSelectionSystem(
     tickAllCastleBuilds(dt);
     deps.render();
     if (runtimeState.castleBuilds.length === 0) {
-      if (runtimeState.castleBuildOnDone) {
-        const cb = runtimeState.castleBuildOnDone;
-        runtimeState.castleBuildOnDone = null;
-        cb();
-      }
+      fireOnce(runtimeState, "castleBuildOnDone");
     }
   }
 

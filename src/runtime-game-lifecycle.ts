@@ -46,7 +46,7 @@ interface GameLifecycleDeps {
   ) => void;
 
   // Sub-systems
-  readonly camera: Pick<CameraSystem, "resetCamera" | "fullUnzoom">;
+  readonly camera: Pick<CameraSystem, "resetCamera" | "clearAllZoomState">;
   readonly sound: Pick<SoundSystem, "reset" | "gameOver">;
   readonly selection: { enter: () => void };
 
@@ -187,7 +187,7 @@ export function createGameLifecycle(
   function endGame(winner: { id: number } | null) {
     runtimeState.scoreDeltaOnDone = null;
     runtimeState.lifeLostDialog = null;
-    camera.fullUnzoom();
+    camera.clearAllZoomState();
     deps.onEndGame?.(winner, runtimeState.state);
     sound.reset();
     sound.gameOver();
@@ -233,7 +233,7 @@ export function createGameLifecycle(
   function returnToLobby(): void {
     clearDemoTimer();
     runtimeState.scoreDeltaOnDone = null;
-    camera.fullUnzoom();
+    camera.clearAllZoomState();
     runtimeState.frame.gameOver = undefined;
     runtimeState.mouseJoinedSlot = NO_SLOT;
     runtimeState.directTouchActive = false;

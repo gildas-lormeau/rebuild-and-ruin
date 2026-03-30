@@ -598,14 +598,14 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   /** Clear current zoom but preserve per-phase pinch memory (battle↔build).
    *  Use for phase transitions where the player may return to the same zoom. */
-  function phaseUnzoom(): void {
+  function clearPhaseZoom(): void {
     cameraZone = null;
     pinchVp = null;
   }
 
   /** Clear all zoom state including per-phase pinch memory.
    *  Use for full resets (rematch, return to lobby). */
-  function fullUnzoom(): void {
+  function clearAllZoomState(): void {
     cameraZone = null;
     pinchVp = null;
     phasePinch.build = null;
@@ -750,10 +750,10 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     getBestEnemyZone,
     getEnemyZones,
     computeZoneBounds,
-    phaseUnzoom,
+    clearPhaseZoom,
     getCameraZone: () => cameraZone,
     setCameraZone,
-    fullUnzoom,
+    clearAllZoomState,
     resetCamera,
     setSelectionViewport,
     setCastleBuildViewport,

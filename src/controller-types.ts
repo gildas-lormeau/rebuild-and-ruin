@@ -245,6 +245,8 @@ export abstract class BaseController implements PlayerController {
     if (piece) this.clampBuildCursor(piece);
   }
 
+  /** @param size — footprint size for grid-boundary clamping. Callers MUST
+   *  compute from cannonSize(mode); the default (NORMAL) is a fallback only. */
   moveCannonCursor(direction: Action, size = NORMAL_CANNON_SIZE): void {
     if (direction === Action.UP)
       this.cannonCursor.row = Math.max(0, this.cannonCursor.row - 1);

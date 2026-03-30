@@ -305,7 +305,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     subtitle?: string,
   ) {
     // Unzoom before banner so the full map is visible during transition
-    camera.phaseUnzoom();
+    camera.clearPhaseZoom();
     if (runtimeState.banner.active) {
       config.log(
         `showBanner "${text}" while banner "${runtimeState.banner.text}" is still active`,

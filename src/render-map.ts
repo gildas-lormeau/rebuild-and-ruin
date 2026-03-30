@@ -126,10 +126,12 @@ let mainCtxCache: {
   canvas: HTMLCanvasElement;
   canvasCtx: CanvasRenderingContext2D;
 } | null = null;
-let cachedBannerMap: MapData | null = null;
-let cachedBannerCastles: CastleData[] | undefined;
-let cachedBannerTerritory: Set<number>[] | undefined;
-let cachedBannerWalls: Set<number>[] | undefined;
+let bannerCache: {
+  map: MapData;
+  castles: CastleData[];
+  territory: Set<number>[] | undefined;
+  walls: Set<number>[] | undefined;
+} | null = null;
 
 /** Expose the offscreen scene canvas for post-processing (loupe, etc.). */
 export function sceneCanvas(): HTMLCanvasElement {
@@ -280,13 +282,14 @@ function drawBannerOldScene(
   const oldCastles = overlay.ui.bannerOldCastles;
   const oldTerritory = overlay.ui.bannerOldBattleTerritory;
   const oldWalls = overlay.ui.bannerOldBattleWalls;
-  const bannerCacheMiss =
-    cachedBannerMap !== map ||
-    cachedBannerCastles !== oldCastles ||
-    cachedBannerTerritory !== oldTerritory ||
-    cachedBannerWalls !== oldWalls;
+  const needsBannerRender =
+    bannerCache === null ||
+    bannerCache.map !== map ||
+    bannerCache.castles !== oldCastles ||
+    bannerCache.territory !== oldTerritory ||
+    bannerCache.walls !== oldWalls;
 
-  if (bannerCacheMiss) {
+  if (needsBannerRender) {
     const oldHouses = overlay.ui.bannerOldHouses;
     const oldBonusSquares = overlay.ui.bannerOldBonusSquares;
     const oldOverlay: RenderOverlay = {
@@ -326,10 +329,12 @@ function drawBannerOldScene(
     drawBonusSquares(tmpCtx, oldOverlay, now);
     drawHouses(tmpCtx, oldOverlay);
     drawTowers(tmpCtx, map, oldOverlay, now);
-    cachedBannerMap = map;
-    cachedBannerCastles = oldCastles;
-    cachedBannerTerritory = oldTerritory;
-    cachedBannerWalls = oldWalls;
+    bannerCache = {
+      map,
+      castles: oldCastles,
+      territory: oldTerritory,
+      walls: oldWalls,
+    };
   }
 
   overlayCtx.save();
@@ -341,10 +346,7 @@ function drawBannerOldScene(
 }
 
 function clearBannerCache(): void {
-  cachedBannerMap = null;
-  cachedBannerCastles = undefined;
-  cachedBannerTerritory = undefined;
-  cachedBannerWalls = undefined;
+  bannerCache = null;
 }
 
 /** Build SDF for water/grass boundaries, blur it, and paint terrain pixels. */
