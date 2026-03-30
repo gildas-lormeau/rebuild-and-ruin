@@ -75,6 +75,7 @@ export interface TransitionContext {
       }[];
       oldHouses?: { row: number; col: number; zone: number; alive: boolean }[];
       oldBonusSquares?: { row: number; col: number }[];
+      pendingOldWalls?: Set<number>[];
     };
     render: () => void;
     watcherTiming: WatcherTimingState;
@@ -326,7 +327,10 @@ export function handleBuildEndTransition(
 
   // Pre-capture old scene before checkpoint applies the wall sweep.
   // The host stashes pendingOldWalls before sweeping; the watcher must
-  // capture oldCastles here because BUILD_END contains post-sweep walls.
+  // do the same so walls stay visible until the cannon-start banner.
+  ctx.ui.banner.pendingOldWalls = state.players.map(
+    (player) => new Set(player.walls),
+  );
   ctx.ui.banner.oldCastles = state.players
     .filter((player) => player.castle)
     .map((player) => ({
