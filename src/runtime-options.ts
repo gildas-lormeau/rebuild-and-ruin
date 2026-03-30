@@ -249,7 +249,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
       canvasY / SCALE,
       W,
       H,
-      MAX_PLAYERS,
+      IS_TOUCH_DEVICE ? 1 : MAX_PLAYERS,
       ACTION_KEYS.length,
     );
   }

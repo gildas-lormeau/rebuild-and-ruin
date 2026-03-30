@@ -157,7 +157,8 @@ export function createControlsOverlay(frameCtx: UIContext): {
 } {
   const lobbyMap = frameCtx.lobby.map ?? generateMap(frameCtx.lobby.seed);
   const cs = frameCtx.controlsState;
-  const players = PLAYER_NAMES.map((name, player) => {
+  const playerCount = IS_TOUCH_DEVICE ? 1 : PLAYER_NAMES.length;
+  const players = PLAYER_NAMES.slice(0, playerCount).map((name, player) => {
     const kb = frameCtx.settings.keyBindings[player]!;
     return {
       name: name!,

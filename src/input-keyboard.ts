@@ -9,6 +9,7 @@ import {
   dispatchQuit,
   type OverlayActionDeps,
 } from "./input-dispatch.ts";
+import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
   ACTION_KEYS,
   applyKeyRebinding,
@@ -199,11 +200,13 @@ function handleKeyControls(
         (controlsState.actionIdx + 1) % ACTION_KEYS.length;
       e.preventDefault();
     } else if (e.key === KEY_LEFT) {
+      const colCount = IS_TOUCH_DEVICE ? 1 : MAX_PLAYERS;
       controlsState.playerIdx =
-        (controlsState.playerIdx - 1 + MAX_PLAYERS) % MAX_PLAYERS;
+        (controlsState.playerIdx - 1 + colCount) % colCount;
       e.preventDefault();
     } else if (e.key === KEY_RIGHT) {
-      controlsState.playerIdx = (controlsState.playerIdx + 1) % MAX_PLAYERS;
+      const colCount = IS_TOUCH_DEVICE ? 1 : MAX_PLAYERS;
+      controlsState.playerIdx = (controlsState.playerIdx + 1) % colCount;
       e.preventDefault();
     } else if (e.key === KEY_ENTER || e.key === " ") {
       controlsState.rebinding = true;
