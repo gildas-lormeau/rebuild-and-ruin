@@ -88,7 +88,7 @@ export function resetSessionState(session: OnlineSession): void {
   session.isHost = false;
   session.hostMigrationSeq = 0;
   session.myPlayerId = -1;
-  session.occupiedSlots = new Set();
+  session.occupiedSlots.clear();
   session.remoteHumanSlots.clear();
   session.earlyLifeLostChoices.clear();
 }
@@ -108,6 +108,7 @@ export function sendAimUpdate(
 }
 
 export function sendMessage(session: OnlineSession, msg: GameMessage): void {
+  // === OPEN: only send when fully connected (not CONNECTING)
   if (session.ws?.readyState === WebSocket.OPEN) {
     session.ws.send(JSON.stringify(msg));
   }
@@ -122,6 +123,7 @@ export function connectWebSocket(
   wsUrl: string,
   handlers: ConnectHandlers,
 ): void {
+  // <= OPEN: skip if CONNECTING (0) or OPEN (1); only connect when CLOSING/CLOSED
   if (session.ws && session.ws.readyState <= WebSocket.OPEN) return;
   session.ws = new WebSocket(wsUrl);
   session.ws.onmessage = (e) => {

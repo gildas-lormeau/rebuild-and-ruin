@@ -184,7 +184,7 @@ export function createSelectionSystem(
    * Confirm a player's tower selection and trigger their castle-build animation.
    *
    * Two-step flow:
-   *  1. confirmSelectionForPlayer — marks the player as confirmed in selectionStates,
+   *  1. confirmSelectionAndStartBuild — marks the player as confirmed in selectionStates,
    *     then kicks off startPlayerCastleBuild for the newly confirmed player.
    *     Returns true when ALL players have confirmed.
    *     Dual responsibility: both marks confirmed AND triggers castle build animation
@@ -192,7 +192,10 @@ export function createSelectionSystem(
    *  2. finishSelection (called separately by tickSelection when allConfirmed) —
    *     clears overlay state, finalizes castle construction, and advances to cannon phase.
    */
-  function confirmSelectionForPlayer(pid: number, isReselect = false): boolean {
+  function confirmSelectionAndStartBuild(
+    pid: number,
+    isReselect = false,
+  ): boolean {
     const ss = rs.selectionStates.get(pid);
     const alreadyConfirmed = ss?.confirmed ?? true;
     const allDone = confirmTowerSelection(
@@ -234,8 +237,8 @@ export function createSelectionSystem(
       remoteHumanSlots,
       controllers: rs.controllers,
       render: deps.render,
-      confirmSelectionForPlayer: (pid, isReselect) =>
-        confirmSelectionForPlayer(pid, isReselect ?? false),
+      confirmSelectionAndStartBuild: (pid, isReselect) =>
+        confirmSelectionAndStartBuild(pid, isReselect ?? false),
       allSelectionsConfirmed,
       allBuildsComplete: () =>
         rs.castleBuilds.length === 0 &&
@@ -445,7 +448,7 @@ export function createSelectionSystem(
     enter: enterTowerSelection,
     syncOverlay: syncSelectionOverlay,
     highlight: highlightTowerForPlayer,
-    confirm: confirmSelectionForPlayer,
+    confirm: confirmSelectionAndStartBuild,
     allConfirmed: allSelectionsConfirmed,
     tick: tickSelection,
     finish: finishSelection,

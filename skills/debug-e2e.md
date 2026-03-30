@@ -73,7 +73,7 @@ test("describe the bug being tested", () => {
 
   // Test banner state
   const banner = s.createBanner();
-  // ... set pendingOldWalls, call showBannerTransition, check oldCastles
+  // ... set wallsBeforeSweep, call showBannerTransition, check oldCastles
 
   // Test life-lost dialog
   const dialog = s.createLifeLostDialog([1], [2]);  // reselect=[1], eliminated=[2]
@@ -133,13 +133,13 @@ test("Place Cannons banner old scene includes pre-sweep walls", () => {
 
   // Stash pre-sweep walls (simulates what tickHostBuildPhase does)
   const banner = s.createBanner();
-  banner.pendingOldWalls = snapshotAllWalls(s.state);
+  banner.wallsBeforeSweep = snapshotAllWalls(s.state);
 
   // Sweep happens here
   s.finalizeBuild();
   console.log("walls before:", wallsBefore, "after:", player.walls.size);
 
-  // Banner captures old scene using pendingOldWalls
+  // Banner captures old scene using wallsBeforeSweep
   showBannerTransition({ banner, state: s.state, ... });
 
   // Old scene has pre-sweep walls, new scene doesn't → progressive reveal

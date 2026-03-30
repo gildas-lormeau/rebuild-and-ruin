@@ -75,7 +75,7 @@ export interface TransitionContext {
       }[];
       oldHouses?: { row: number; col: number; zone: number; alive: boolean }[];
       oldBonusSquares?: { row: number; col: number }[];
-      pendingOldWalls?: Set<number>[];
+      wallsBeforeSweep?: Set<number>[];
     };
     render: () => void;
     watcherTiming: WatcherTimingState;
@@ -153,6 +153,7 @@ export interface TransitionContext {
   };
 }
 
+/** Watcher-only: processes CASTLE_WALLS from host (triggers castle build animation). */
 export function handleCastleWallsTransition(
   msg: ServerMessage,
   ctx: TransitionContext,
@@ -187,6 +188,7 @@ export function handleCastleWallsTransition(
   ctx.setMode(Mode.CASTLE_BUILD);
 }
 
+/** Watcher-only: processes CANNON_START checkpoint and transitions to cannon phase. */
 export function handleCannonStartTransition(
   msg: ServerMessage,
   ctx: TransitionContext,
@@ -231,6 +233,7 @@ export function handleCannonStartTransition(
   });
 }
 
+/** Watcher-only: processes BATTLE_START checkpoint and transitions to battle phase. */
 export function handleBattleStartTransition(
   msg: ServerMessage,
   ctx: TransitionContext,
@@ -274,6 +277,7 @@ export function handleBattleStartTransition(
   });
 }
 
+/** Watcher-only: processes BUILD_START checkpoint and transitions to build phase. */
 export function handleBuildStartTransition(
   msg: ServerMessage,
   ctx: TransitionContext,
@@ -326,9 +330,9 @@ export function handleBuildEndTransition(
   const state = ctx.getState();
 
   // Pre-capture old scene before checkpoint applies the wall sweep.
-  // The host stashes pendingOldWalls before sweeping; the watcher must
+  // The host stashes wallsBeforeSweep before sweeping; the watcher must
   // do the same so walls stay visible until the cannon-start banner.
-  ctx.ui.banner.pendingOldWalls = state.players.map(
+  ctx.ui.banner.wallsBeforeSweep = state.players.map(
     (player) => new Set(player.walls),
   );
   ctx.ui.banner.oldCastles = state.players

@@ -112,6 +112,13 @@ export function resetWatcherTimingForHost(ws: WatcherState): void {
   ws.orbitParams.clear();
 }
 
+/** Tick the migration announcement timer. Two announcement channels exist:
+ *  1. frame.announcement — general-purpose, set directly (reconnection, countdown).
+ *     Cleared each frame by clearFrameData(). Used by online-client-ws.ts for
+ *     "Reconnecting..." / "Disconnected" and by battle countdown.
+ *  2. ws.migrationText — persists across frames, copied into frame.announcement here.
+ *     Used only for host-migration announcements that must survive frame clears.
+ *  This function bridges channel 2→1 without overwriting existing game announcements. */
 export function tickMigrationAnnouncement(
   ws: WatcherState,
   frame: { announcement?: string },

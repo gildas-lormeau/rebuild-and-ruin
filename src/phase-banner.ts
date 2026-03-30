@@ -15,7 +15,7 @@ export interface BannerState {
   newTerritory?: Set<number>[];
   newWalls?: Set<number>[];
   /** Pre-sweep wall snapshot; consumed by showBannerTransition for the old scene. */
-  pendingOldWalls?: Set<number>[];
+  wallsBeforeSweep?: Set<number>[];
 }
 
 interface ShowBannerDeps {
@@ -74,8 +74,8 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
   } = deps;
 
   // Consume pre-sweep wall snapshot if stashed before finalizeBuildPhase
-  const pendingWalls = banner.pendingOldWalls;
-  banner.pendingOldWalls = undefined;
+  const pendingWalls = banner.wallsBeforeSweep;
+  banner.wallsBeforeSweep = undefined;
 
   if (preserveOldScene) {
     banner.oldCastles ??= state.players

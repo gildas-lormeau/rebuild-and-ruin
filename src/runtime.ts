@@ -146,6 +146,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     if (rs.scoreDeltaTimer <= 0) {
       rs.scoreDeltas = [];
       rs.scoreDeltaTimer = 0;
+      // fireOnce: invokes rs.scoreDeltaOnDone at most once, then clears it
       fireOnce(rs, "scoreDeltaOnDone");
     }
   }
@@ -282,6 +283,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
    *    its internal reference after invoking it.
    *  @param preserveOldScene — When true, snapshot old castles/territory/walls
    *    before transitioning so the banner can show a before/after comparison. */
+  /** Show a phase-transition banner.
+   *  @param preserveOldScene When true, captures before-state (castles, territory, walls)
+   *    for the banner's before/after visual comparison (e.g. build→cannon transition).
+   *  @param newBattle Post-transition battle state snapshot (territory + walls) for the
+   *    banner "after" scene. Only meaningful when preserveOldScene is true.
+   *  @param subtitle Optional subtitle line below the main banner text. */
   function showBanner(
     text: string,
     onDone: () => void,

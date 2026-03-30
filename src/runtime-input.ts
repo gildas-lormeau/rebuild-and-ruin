@@ -250,7 +250,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     const gameActionDeps = {
       getSelectionStates: () => rs.selectionStates,
       highlightTowerForPlayer: selection.highlight,
-      confirmSelectionForPlayer: selection.confirm,
+      confirmSelectionAndStartBuild: selection.confirm,
       isSelectionReady,
       tryPlaceCannonAndSend: placeCannon,
       tryPlacePieceAndSend: placePieceWrapped,
@@ -376,7 +376,7 @@ function setupTouchControls(
       gameAction: {
         getSelectionStates: () => rs.selectionStates,
         highlightTowerForPlayer: selection.highlight,
-        confirmSelectionForPlayer: selection.confirm,
+        confirmSelectionAndStartBuild: selection.confirm,
         isSelectionReady,
         tryPlacePieceAndSend: placePieceAction,
         tryPlaceCannonAndSend: placeCannonAction,

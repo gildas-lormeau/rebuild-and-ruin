@@ -66,7 +66,7 @@ export interface OverlayActionDeps {
 export interface GameActionDeps {
   getSelectionStates: () => Map<number, SelectionState>;
   highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
-  confirmSelectionForPlayer: (pid: number, isReselect?: boolean) => boolean;
+  confirmSelectionAndStartBuild: (pid: number, isReselect?: boolean) => boolean;
   isSelectionReady?: () => boolean;
   tryPlacePieceAndSend: (
     ctrl: PlayerController & InputReceiver,
@@ -190,7 +190,7 @@ export function dispatchTowerSelect(
       GameActionDeps,
       | "getSelectionStates"
       | "highlightTowerForPlayer"
-      | "confirmSelectionForPlayer"
+      | "confirmSelectionAndStartBuild"
       | "isSelectionReady"
     >;
   },
@@ -209,7 +209,7 @@ export function dispatchTowerSelect(
         alreadyHighlighted &&
         (!requireSecondTapToConfirm || ss.secondTapReady)
       ) {
-        gameAction.confirmSelectionForPlayer(human.playerId, isReselect);
+        gameAction.confirmSelectionAndStartBuild(human.playerId, isReselect);
       } else {
         gameAction.highlightTowerForPlayer(idx, zone, human.playerId);
         ss.secondTapReady = alreadyHighlighted;
@@ -349,7 +349,7 @@ export function dispatchGameAction(
       return true;
     }
     if (action === Action.CONFIRM) {
-      deps.confirmSelectionForPlayer(
+      deps.confirmSelectionAndStartBuild(
         ctrl.playerId,
         isReselectPhase(state.phase),
       );

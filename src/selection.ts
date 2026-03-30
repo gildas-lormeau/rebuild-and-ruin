@@ -21,7 +21,10 @@ interface TickSelectionPhaseDeps {
   remoteHumanSlots: ReadonlySet<number>;
   controllers: PlayerController[];
   render: () => void;
-  confirmSelectionForPlayer: (playerId: number, isReselect?: boolean) => void;
+  confirmSelectionAndStartBuild: (
+    playerId: number,
+    isReselect?: boolean,
+  ) => void;
   allSelectionsConfirmed: () => boolean;
   allBuildsComplete: () => boolean;
   tickActiveBuilds: (dt: number) => void;
@@ -146,7 +149,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     remoteHumanSlots,
     controllers,
     render,
-    confirmSelectionForPlayer,
+    confirmSelectionAndStartBuild,
     allSelectionsConfirmed,
     allBuildsComplete,
     tickActiveBuilds,
@@ -178,7 +181,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     if (accum.select >= selectTimer) {
       const ss = selectionStates.get(myPlayerId);
       if (ss && !ss.confirmed) {
-        confirmSelectionForPlayer(myPlayerId, isReselectPhase(state.phase));
+        confirmSelectionAndStartBuild(myPlayerId, isReselectPhase(state.phase));
       }
     }
     render();
@@ -202,7 +205,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
 
     const towerBefore = state.players[pid]!.homeTower;
     if (controllers[pid]!.selectionTick(dt, state)) {
-      confirmSelectionForPlayer(pid, isReselect);
+      confirmSelectionAndStartBuild(pid, isReselect);
       continue;
     }
 
@@ -224,7 +227,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
   if (accum.select >= selectTimer) {
     for (const [pid, ss] of selectionStates) {
       if (ss.confirmed) continue;
-      confirmSelectionForPlayer(pid, isReselect);
+      confirmSelectionAndStartBuild(pid, isReselect);
     }
   }
 

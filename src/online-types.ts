@@ -79,7 +79,8 @@ export function interpolateToward(
   }
 }
 
-/** Return the wire protocol cannon mode string for a phantom. */
+/** Return the cannon mode for network transmission. Currently identity (returns
+ *  phantom.mode directly), but provides an abstraction point if wire format diverges. */
 export function phantomWireMode(phantom: CannonPhantom): CannonMode {
   return phantom.mode;
 }

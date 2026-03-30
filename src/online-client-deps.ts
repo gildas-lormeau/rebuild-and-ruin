@@ -173,7 +173,7 @@ function buildIncrementalDeps() {
       markPlayerReselected(runtime.rs.state, playerId);
       runtime.rs.reselectionPids.push(playerId);
     },
-    confirmSelectionForPlayer: (playerId: number, isReselect: boolean) => {
+    confirmSelectionAndStartBuild: (playerId: number, isReselect: boolean) => {
       runtime.selection.confirm(playerId, isReselect);
     },
     allSelectionsConfirmed: () => runtime.selection.allConfirmed(),

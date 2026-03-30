@@ -108,7 +108,7 @@ interface TickHostCannonPhaseDeps {
 interface TickHostBuildPhaseDeps {
   dt: number;
   state: GameState;
-  banner: { pendingOldWalls?: Set<number>[] };
+  banner: { wallsBeforeSweep?: Set<number>[] };
   accum: { build: number; grunt: number };
   frame: HostFrame;
   controllers: PlayerController[];
@@ -135,7 +135,9 @@ const EMPTY_MAP = new Map<number, string>();
  *  so `row`/`col` are unused. This constant documents the intent. */
 const PLACEHOLDER_ORIGIN = { row: 0, col: 0 } as const;
 
-/**
+/** Tick the cannon phase. Returns true when the phase ends (all controllers
+ *  done or timer expired → transitions to battle), false while still ticking.
+ *
  * Controller cannon lifecycle per frame:
  *   cannonTick(state, dt) — called each frame (AI places, Human updates cursor)
  *   isCannonPhaseDone(state, max) — check if controller is finished
@@ -448,7 +450,7 @@ function finalizeBuildAndShowDialogs(
   // ORDERING: snapshot MUST precede finalizeBuildPhase — finalize calls
   // sweepAllPlayersWalls which deletes isolated walls. The banner needs the
   // pre-sweep snapshot for its before/after visual comparison.
-  deps.banner.pendingOldWalls = snapshotAllWalls(state);
+  deps.banner.wallsBeforeSweep = snapshotAllWalls(state);
   const { needsReselect, eliminated } = deps.finalizeBuildPhase(state);
   if (isHost && sendBuildEnd) {
     sendBuildEnd({

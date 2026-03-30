@@ -35,7 +35,10 @@ interface HandleServerIncrementalDeps {
   syncSelectionOverlay: () => void;
   isCastleReselectPhase: () => boolean;
   onRemotePlayerReselected: (playerId: number) => void;
-  confirmSelectionForPlayer: (playerId: number, isReselect: boolean) => void;
+  confirmSelectionAndStartBuild: (
+    playerId: number,
+    isReselect: boolean,
+  ) => void;
   allSelectionsConfirmed: () => boolean;
   finishReselection: () => void;
   finishSelection: () => void;
@@ -91,7 +94,7 @@ export function handleServerIncrementalMessage(
       if (!state || !validPid(msg.playerId, state)) return true;
       if (msg.towerIdx < 0 || msg.towerIdx >= state.map.towers.length)
         return true;
-      if (acceptRemote(msg.playerId, deps)) {
+      if (isRemoteHumanAction(msg.playerId, deps)) {
         const tower = state.map.towers[msg.towerIdx];
         const expectedZone: number | undefined =
           state.playerZones[msg.playerId];
@@ -107,7 +110,7 @@ export function handleServerIncrementalMessage(
             ss.highlighted = msg.towerIdx;
             deps.syncSelectionOverlay();
             if (msg.confirmed && deps.isHost()) {
-              deps.confirmSelectionForPlayer(
+              deps.confirmSelectionAndStartBuild(
                 msg.playerId,
                 deps.isCastleReselectPhase(),
               );
@@ -124,7 +127,7 @@ export function handleServerIncrementalMessage(
       if (!state || !validPid(msg.playerId, state)) return true;
       if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return true;
-      if (acceptRemote(msg.playerId, deps)) {
+      if (isRemoteHumanAction(msg.playerId, deps)) {
         if (
           deps.isHost() &&
           !deps.canApplyPiecePlacement(
@@ -162,7 +165,7 @@ export function handleServerIncrementalMessage(
       if (!state || !validPid(msg.playerId, state)) return true;
       if (!inBoundsStrict(msg.row, msg.col)) return true;
       if (!CANNON_MODES.has(msg.mode)) return true;
-      if (acceptRemote(msg.playerId, deps)) {
+      if (isRemoteHumanAction(msg.playerId, deps)) {
         if (
           deps.isHost() &&
           !deps.canApplyCannonPlacement(
@@ -199,7 +202,7 @@ export function handleServerIncrementalMessage(
         !Number.isFinite(msg.targetY)
       )
         return true;
-      if (acceptRemote(msg.playerId, deps)) {
+      if (isRemoteHumanAction(msg.playerId, deps)) {
         const player = state.players[msg.playerId];
         if (!player || !player.cannons[msg.cannonIdx]) {
           deps.log(
@@ -252,7 +255,7 @@ export function handleServerIncrementalMessage(
 
     case MESSAGE.AIM_UPDATE: {
       if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return true;
-      if (acceptRemote(msg.playerId, deps)) {
+      if (isRemoteHumanAction(msg.playerId, deps)) {
         deps.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
         if (msg.orbit) deps.watcherOrbitParams.set(msg.playerId, msg.orbit);
       }
@@ -270,7 +273,7 @@ export function handleServerIncrementalMessage(
     case MESSAGE.OPPONENT_PHANTOM: {
       if (state && !validPid(msg.playerId, state)) return true;
       if (!inBoundsStrict(msg.row, msg.col)) return true;
-      if (acceptRemote(msg.playerId, deps)) {
+      if (isRemoteHumanAction(msg.playerId, deps)) {
         setPhantom(
           deps.getRemotePiecePhantoms(),
           msg.playerId,
@@ -289,7 +292,7 @@ export function handleServerIncrementalMessage(
     case MESSAGE.OPPONENT_CANNON_PHANTOM: {
       if (state && !validPid(msg.playerId, state)) return true;
       if (!inBoundsStrict(msg.row, msg.col)) return true;
-      if (acceptRemote(msg.playerId, deps)) {
+      if (isRemoteHumanAction(msg.playerId, deps)) {
         setPhantom(
           deps.getRemoteCannonPhantoms(),
           msg.playerId,
@@ -340,7 +343,7 @@ function parseLifeLostChoice(raw: unknown): ResolvedChoice | null {
 }
 
 /** Watchers accept all remote messages; hosts only accept from remote humans. */
-function acceptRemote(
+function isRemoteHumanAction(
   pid: number,
   deps: Pick<HandleServerIncrementalDeps, "isHost" | "remoteHumanSlots">,
 ): boolean {
