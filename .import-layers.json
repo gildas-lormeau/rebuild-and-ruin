@@ -74,6 +74,10 @@
   {
     "name": "controllers",
     "files": [
+      "src/ai-phase-select.ts",
+      "src/ai-phase-build.ts",
+      "src/ai-phase-cannon.ts",
+      "src/ai-phase-battle.ts",
       "src/controller-ai.ts",
       "src/controller-types.ts",
       "src/controller-human.ts",

@@ -49,12 +49,12 @@ export abstract class BaseController implements PlayerController {
     y: DEFAULT_CURSOR_ROW * TILE_SIZE,
   };
   /** Round-robin index into combined cannon list. Reset in initBattleState() and onLifeLost(). */
-  protected cannonRotationIdx = NO_CANNON_ROTATION_IDX;
+  cannonRotationIdx = NO_CANNON_ROTATION_IDX;
 
   /** Piece bag for the build phase (shared by AI and Human). */
   protected bag: BagState | null = null;
   /** Current piece drawn from the bag. */
-  protected currentPiece: PieceShape | null = null;
+  currentPiece: PieceShape | null = null;
 
   constructor(playerId: number) {
     this.playerId = playerId;
@@ -69,7 +69,7 @@ export abstract class BaseController implements PlayerController {
   /** Draw the next piece from the bag.
    *  IMPORTANT: Only call after a successful placement — advancing without placing
    *  skips a piece and desynchronizes the bag with the board state. */
-  protected advanceBag(): void {
+  advanceBag(): void {
     if (!this.bag) {
       console.warn("advanceBag called with null bag — likely a desync");
       return;
@@ -221,7 +221,7 @@ export abstract class BaseController implements PlayerController {
   }
 
   /** Clamp build cursor so the entire piece stays within the grid. */
-  protected clampBuildCursor(piece: PieceShape | null): void {
+  clampBuildCursor(piece: PieceShape | null): void {
     if (!piece) return;
     this.buildCursor.row = Math.max(
       0,
@@ -284,7 +284,7 @@ export abstract class BaseController implements PlayerController {
 
   /** Fire the next ready cannon (own or captured) at a target tile via combined round-robin.
    *  Returns the fired cannon's result for AI chain-attack tracking, or null if no cannon is ready. */
-  protected fireNextCannon(
+  fireNextCannon(
     state: GameState,
     targetRow: number,
     targetCol: number,
