@@ -306,7 +306,7 @@ export class GameRoom {
     const type = msg.type as string;
     if (!type) return;
 
-    // --- 1. Host-only messages (phase transitions, checkpoints, etc.) ---
+    // ── Stage 1: Host-only message check ──
     // Only the host socket may send these. Adding a new host-only message
     // type requires adding it to the HOST_ONLY set above.
     if (HOST_ONLY.has(type)) {
@@ -314,7 +314,7 @@ export class GameRoom {
       this.updatePhaseFromMessage(type);
     }
 
-    // --- 2. Identity enforcement (for messages with playerId) ---
+    // ── Stage 2: Identity validation ──
     // Host is exempt: it sends actions on behalf of AI players.
     // Non-host sockets may only send messages for their own playerId.
     if ("playerId" in msg && this.requiresIdentityCheck(senderSocket, type)) {
@@ -323,14 +323,14 @@ export class GameRoom {
       if (msg.playerId !== senderPid) return;
     }
 
-    // --- 3. Phase gating ---
+    // ── Stage 3: Phase gating ──
     const validPhases = PHASE_GATES[type];
     if (validPhases && !validPhases.has(this.phase)) return;
 
-    // --- 4. Payload validation ---
+    // ── Stage 4: Payload validation ──
     if (!validatePayload(msg)) return;
 
-    // --- 5. Rate limiting (sliding window counter) ---
+    // ── Stage 5: Rate limiting ──
     // Messages exceeding the limit are SILENTLY DROPPED — no NACK, no log.
     // This is safe because RATE_LIMITED_TYPES contains only cosmetic/display
     // messages (phantoms, aim updates) where occasional drops are invisible.
@@ -350,7 +350,7 @@ export class GameRoom {
       bucket.count++;
     }
 
-    // --- 6. Relay (forward raw string to avoid re-serialization) ---
+    // ── Stage 6: Relay to room ──
     for (const socket of this.broadcastRecipients) {
       if (socket === senderSocket) continue;
       safeSendRaw(socket, rawJson);

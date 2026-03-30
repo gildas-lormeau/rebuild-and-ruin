@@ -104,7 +104,9 @@ export function resetWatcherState(watcherState: WatcherState): void {
  * but keeps remoteCrosshairs/phantoms/crosshairPos — the new host still
  * uses those for remote human players via extendCrosshairs.
  */
-export function resetWatcherTimingForHost(watcherState: WatcherState): void {
+export function resetWatcherTimingForHostPromotion(
+  watcherState: WatcherState,
+): void {
   resetWatcherPhaseTimer(watcherState.timing);
   watcherState.timing.countdownStartTime = 0;
   watcherState.timing.countdownDuration = 0;

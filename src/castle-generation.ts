@@ -28,7 +28,7 @@ import {
   packTile,
   unpackTile,
 } from "./spatial.ts";
-import { type GameState, isPlayerActive } from "./types.ts";
+import { type GameState, isPlayerInZone } from "./types.ts";
 
 type CastleSide = (typeof Side)[keyof typeof Side];
 
@@ -331,7 +331,7 @@ export function applyClumsyBuilders(
  */
 export function startOfBuildPhaseHousekeeping(state: GameState): void {
   for (const player of state.players) {
-    if (!isPlayerActive(player)) continue;
+    if (!isPlayerInZone(player)) continue;
     const zone = player.homeTower.zone;
     const aliveInZone = state.map.houses.filter(
       (h) => h.zone === zone && h.alive,

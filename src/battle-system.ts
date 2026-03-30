@@ -118,7 +118,7 @@ export function fireCannon(
   targetRow: number,
   targetCol: number,
 ): boolean {
-  if (!canFire(state, playerId, cannonIdx)) return false;
+  if (!canFireOwnCannon(state, playerId, cannonIdx)) return false;
   const cannon = state.players[playerId]!.cannons[cannonIdx]!;
   launchCannonball(state, cannon, cannonIdx, playerId, targetRow, targetCol);
   state.shotsFired++;
@@ -154,12 +154,12 @@ export function nextReadyCombined(
   for (let j = 0; j < total; j++) {
     const i = (after + 1 + j) % total;
     if (i < ownCount) {
-      if (canFire(state, playerId, i)) {
+      if (canFireOwnCannon(state, playerId, i)) {
         return { type: "own", combinedIdx: i, ownIdx: i };
       }
     } else {
       const cc = captured[i - ownCount]!;
-      if (canFireCaptured(state, cc)) {
+      if (canFireCapturedCannon(state, cc)) {
         return { type: "captured", combinedIdx: i, cc };
       }
     }
@@ -170,7 +170,7 @@ export function nextReadyCombined(
 /**
  * Check if a cannon is ready to fire (no ball currently in flight from it).
  */
-export function canFire(
+export function canFireOwnCannon(
   state: GameState,
   playerId: number,
   cannonIdx: number,
@@ -490,7 +490,7 @@ function fireCapturedCannon(
   targetRow: number,
   targetCol: number,
 ): boolean {
-  if (!canFireCaptured(state, cc)) return false;
+  if (!canFireCapturedCannon(state, cc)) return false;
   launchCannonball(
     state,
     cc.cannon,
@@ -537,7 +537,7 @@ function launchCannonball(
 }
 
 /** Check if a captured cannon is ready to fire (not destroyed, no ball in flight). */
-function canFireCaptured(state: GameState, cc: CapturedCannon): boolean {
+function canFireCapturedCannon(state: GameState, cc: CapturedCannon): boolean {
   if (!isCannonAlive(cc.cannon)) return false;
   if (cc.cannonIdx < 0) return false;
   return !state.cannonballs.some(

@@ -220,7 +220,7 @@ export function createScenario(seed = 42): Scenario {
       }
       t += dt;
     }
-    for (const ctrl of controllers) ctrl.endBuild(state);
+    for (const ctrl of controllers) ctrl.finalizeBuildPhase(state);
   }
 
   function doFinalizeBuild() {

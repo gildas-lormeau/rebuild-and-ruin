@@ -6,7 +6,7 @@
  */
 
 import { SMALL_POCKET_MAX_SIZE, traitLookup } from "./ai-constants.ts";
-import { canFire } from "./battle-system.ts";
+import { canFireOwnCannon } from "./battle-system.ts";
 import {
   computeCardinalObstacleMask,
   filterActiveEnemies,
@@ -71,7 +71,7 @@ export function countUsableCannons(state: GameState, playerId: number): number {
   const player = state.players[playerId]!;
   let count = 0;
   for (let i = 0; i < player.cannons.length; i++) {
-    if (canFire(state, playerId, i)) count++;
+    if (canFireOwnCannon(state, playerId, i)) count++;
   }
   return count;
 }

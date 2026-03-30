@@ -88,16 +88,7 @@ export class HumanController extends BaseController implements InputReceiver {
     if (!hasAnyCannonPlacement(player, this.cannonPlaceMode, state))
       return null;
 
-    this.downgradeCannonModeIfNeeded(remaining);
-    this.snapCannonCursorIfNeeded(player, state);
-
-    const valid = canPlaceCannon(
-      player,
-      this.cannonCursor.row,
-      this.cannonCursor.col,
-      this.cannonPlaceMode,
-      state,
-    );
+    const valid = this.resolveCannonPlacement(remaining, player, state);
     return {
       row: this.cannonCursor.row,
       col: this.cannonCursor.col,
@@ -113,6 +104,24 @@ export class HumanController extends BaseController implements InputReceiver {
   //   downgradeCannonModeIfNeeded — revert to NORMAL if slots insufficient
   //   snapCannonCursorIfNeeded    — nudge to nearest valid tile after mouse/touch
   //   clampCannonCursorToMode     — keep footprint within grid bounds
+
+  /** Atomically downgrades cannon mode if needed, snaps cursor, and validates placement.
+   *  Ensures downgrade always runs before validation. */
+  private resolveCannonPlacement(
+    remaining: number,
+    player: Player,
+    state: GameState,
+  ): boolean {
+    this.downgradeCannonModeIfNeeded(remaining);
+    this.snapCannonCursorIfNeeded(player, state);
+    return canPlaceCannon(
+      player,
+      this.cannonCursor.row,
+      this.cannonCursor.col,
+      this.cannonPlaceMode,
+      state,
+    );
+  }
 
   /** Downgrade cannon mode if its slot cost exceeds remaining slots (SUPER→NORMAL, BALLOON→NORMAL).
    *  MUST be called before canPlaceCannon() in cannonTick() — otherwise the preview

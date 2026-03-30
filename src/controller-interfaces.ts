@@ -94,7 +94,7 @@ export interface PlayerController {
   buildTick(state: GameState, dt: number): PiecePlacementPreview[];
 
   /** Called at the end of the build phase. */
-  endBuild(state: GameState): void;
+  finalizeBuildPhase(state: GameState): void;
 
   /** Called each frame during battle. Uses state.battleCountdown and state.timer to decide behavior. */
   battleTick(state: GameState, dt: number): void;

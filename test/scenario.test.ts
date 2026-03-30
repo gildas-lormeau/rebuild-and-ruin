@@ -4,7 +4,7 @@
  */
 
 import { MESSAGE } from "../server/protocol.ts";
-import { applyImpactEvent, canFire, resolveBalloons, tickCannonballs } from "../src/battle-system.ts";
+import { applyImpactEvent, canFireOwnCannon, resolveBalloons, tickCannonballs } from "../src/battle-system.ts";
 import { snapshotAllWalls, removeIsolatedWalls } from "../src/board-occupancy.ts";
 import { createOnlineOverlay } from "../src/render-composition.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "../src/player-config.ts";
@@ -652,7 +652,7 @@ test("super gun placed during cannon phase can fire in battle", () => {
   for (const ctrl of s.controllers) ctrl.initBattleState(s.state);
 
   const enclosed = isCannonEnclosed(superCannon, player);
-  const fireable = canFire(s.state, 0, superIdx);
+  const fireable = canFireOwnCannon(s.state, 0, superIdx);
   assert(enclosed, "Super gun should still be enclosed after battle transition");
   assert(fireable, "Super gun should be fireable immediately in battle");
 

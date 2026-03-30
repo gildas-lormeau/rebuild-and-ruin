@@ -427,7 +427,7 @@ export function isPlayerAlive(
 }
 
 /** True when a player can actively participate in zone-based gameplay. */
-export function isPlayerActive(
+export function isPlayerInZone(
   player: Player | null | undefined,
 ): player is Player & { homeTower: Tower } {
   return !!player && !player.eliminated && !!player.homeTower;

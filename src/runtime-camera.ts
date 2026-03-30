@@ -36,6 +36,8 @@ import {
   Phase,
 } from "./types.ts";
 
+/** EXCEPTION: CameraDeps uses all-getter pattern (late binding) because camera state
+ *  can change during host migration. Other sub-systems destructure runtimeState directly. */
 interface CameraDeps {
   getState: () => GameState | undefined;
   getCtx: () => FrameContext;

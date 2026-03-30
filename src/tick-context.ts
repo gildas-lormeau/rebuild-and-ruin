@@ -31,14 +31,14 @@ export function getRemoteSlots(
   return net?.remoteHumanSlots ?? NO_REMOTE_SLOTS;
 }
 
-/** Advance a phase timer in place: increments `accum[key]` by `dt` and sets
- *  `state.timer` to the countdown value (`max − elapsed`, clamped to 0).
+/** Advance a phase timer: accum += dt, state.timer = max - accum.
+ *  INVARIANT: All phase timers MUST use this function. Never manually write `accum.X += dt`.
+ *  Returns the updated timer value (milliseconds, counts down to 0).
  *
  *  This is the ONLY correct way to advance phase timers. It mutates both
  *  `accum` and `state.timer` atomically so they can't drift out of sync.
- *  NEVER manually write `accum.X += dt` or `state.timer = ...` — always
- *  call this function instead. Separate mutations silently break the
- *  `timer = max - elapsed` invariant with no compile error. */
+ *  Separate mutations silently break the `timer = max - elapsed` invariant
+ *  with no compile error. */
 export function advancePhaseTimer<K extends string>(
   accum: Record<K, number>,
   key: K,

@@ -9,10 +9,9 @@
  *
  * Wall mutations and interior recomputation are tracked via epoch counters.
  * The required protocol after modifying walls:
- *   1. player.walls.add/delete/clear(...)
- *   2. markWallsDirty(player)       — bumps wall epoch
- *   3. claimTerritory(state)        — recomputes interior, calls markInteriorFresh
- *   4. Read player.interior safely
+ *   1. addPlayerWall/deletePlayerWall (or bulk .add/.delete + markWallsDirty)
+ *   2. claimTerritory(state)        — recomputes interior, calls markInteriorFresh
+ *   3. Read player.interior safely
  *
  * assertInteriorFresh(player) throws if step 3 was skipped after step 2.
  * Omitting markWallsDirty is safe (assertion may false-negative) but including
@@ -321,6 +320,12 @@ export function filterActiveEnemies(state: GameState, playerId: number) {
   return state.players.filter(
     (player) => player.id !== playerId && !player.eliminated,
   );
+}
+
+/** Add a wall key and mark dirty. Ensures the freshness invariant is maintained. */
+export function addPlayerWall(player: Player, key: number): void {
+  player.walls.add(key);
+  markWallsDirty(player);
 }
 
 /** Mark a player's wall set as modified. Call after any .add/.delete/.clear

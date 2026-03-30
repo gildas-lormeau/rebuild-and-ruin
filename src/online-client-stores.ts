@@ -22,7 +22,7 @@ import {
 import {
   createWatcherState,
   resetWatcherState,
-  resetWatcherTimingForHost,
+  resetWatcherTimingForHostPromotion,
 } from "./online-watcher-tick.ts";
 import { IS_DEV } from "./platform.ts";
 
@@ -103,7 +103,7 @@ export function resetNetworking(scope: ResetScope): void {
   if (scope === "new-game") {
     resetWatcherState(watcher);
   } else if (scope === "host-promotion") {
-    resetWatcherTimingForHost(watcher);
+    resetWatcherTimingForHostPromotion(watcher);
   }
 }
 

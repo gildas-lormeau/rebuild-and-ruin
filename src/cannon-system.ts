@@ -31,7 +31,7 @@ import type { Cannon, GameState, Player } from "./types.ts";
 import {
   CannonMode,
   isBalloonMode,
-  isPlayerActive,
+  isPlayerInZone,
   isSuperMode,
 } from "./types.ts";
 
@@ -123,13 +123,12 @@ export function placeCannon(
   return true;
 }
 
-/**
- * Check if a cannon can be placed at (row, col) inside the player's territory.
- * All tiles must be interior, not a wall, not a tower, not an existing cannon.
- * Requires player.interior to be freshly computed (via recomputeInterior) —
- * cannons must be placed inside enclosed territory.
- * See also: canPlacePieceOffsets in build-system.ts for wall placement validation
- * (walls use different checks: all towers, grass, zone — no interior requirement). */
+/** Validates cannon placement. Checks: interior (enclosed territory), owned towers.
+ *  Contrast with canPlacePieceOffsets() in build-system.ts which checks: grass, zone, ALL towers, grunts, cannons.
+ *
+ *  All tiles must be interior, not a wall, not a tower, not an existing cannon.
+ *  Requires player.interior to be freshly computed (via recomputeInterior) —
+ *  cannons must be placed inside enclosed territory. */
 export function canPlaceCannon(
   player: Player,
   row: number,
@@ -227,13 +226,13 @@ export function resetCannonFacings(state: GameState): void {
  */
 export function computeDefaultFacings(state: GameState): void {
   for (const player of state.players) {
-    if (!isPlayerActive(player)) continue;
+    if (!isPlayerInZone(player)) continue;
     const pc = towerCenter(player.homeTower);
     let ex = 0,
       ey = 0,
       count = 0;
     for (const other of state.players) {
-      if (other.id === player.id || !isPlayerActive(other)) continue;
+      if (other.id === player.id || !isPlayerInZone(other)) continue;
       const oc = towerCenter(other.homeTower);
       ex += oc.col;
       ey += oc.row;
@@ -254,7 +253,7 @@ export function computeDefaultFacings(state: GameState): void {
 /** Apply each player's defaultFacing to all their existing cannons. */
 export function applyDefaultFacings(state: GameState): void {
   for (const player of state.players) {
-    if (!isPlayerActive(player)) continue;
+    if (!isPlayerInZone(player)) continue;
     for (const cannon of player.cannons) {
       cannon.facing = player.defaultFacing;
     }

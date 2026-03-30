@@ -453,6 +453,8 @@ function serializeGrunts(state: GameState) {
   return state.grunts.map(serializeGrunt);
 }
 
+/** Grunts are structurally identical in serialized and runtime forms —
+ *  deserialize delegates to serialize (no-op transform, exists for API symmetry). */
 function deserializeGrunt(grunt: SerializedGrunt): GameState["grunts"][number] {
   return serializeGrunt(grunt);
 }

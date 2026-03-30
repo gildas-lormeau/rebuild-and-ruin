@@ -175,7 +175,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
 
   advancePhaseTimer(accum, "battle", state, dt, battleTimer);
 
-  // --- Step 1: Tick controllers → collect fire events ---
+  // ── Step 1: Tick controllers → collect fire events ──
   const ballsBefore = state.cannonballs.length;
   for (const ctrl of localActiveControllers(
     controllers,
@@ -193,13 +193,13 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     if (isHost && sendMessage) sendMessage(msg);
   }
 
-  // --- Step 2: Collect tower kill/damage events ---
+  // ── Step 2: Collect tower kill/damage events ──
   const towerEvents = collectTowerEvents(state, dt);
   if (isHost && sendMessage) {
     for (const evt of towerEvents) sendMessage(evt);
   }
 
-  // --- Step 3: Tick cannonball movement → collect impact events ---
+  // ── Step 3: Tick cannonball movement → collect impact events ──
   const { impacts: newImpacts, events: impactEvents } =
     tickCannonballsWithEvents(state, dt);
   for (const imp of newImpacts) {
@@ -209,7 +209,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     for (const evt of impactEvents) sendMessage(evt);
   }
 
-  // --- Step 4: Notify all battle events for sound/haptics ---
+  // ── Step 4: Notify all battle events for sound/haptics ──
   if (onBattleEvents) {
     const allEvents = [...fireEvents, ...towerEvents, ...impactEvents];
     if (allEvents.length > 0) onBattleEvents(allEvents);

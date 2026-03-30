@@ -75,11 +75,11 @@ export function initLobbyUi({
       elements.createError.textContent = "";
       scheduleOnOpen(() => {
         const roundsVal = Number(elements.setRounds.value);
-        const battleLength = roundsVal > 0 ? roundsVal : 0;
+        const roundCount = roundsVal > 0 ? roundsVal : 0;
         send({
           type: MESSAGE.CREATE_ROOM,
           settings: {
-            battleLength,
+            battleLength: roundCount,
             cannonMaxHp: Number(elements.setHp.value),
             waitTimerSec: Number(elements.setWait.value),
           },

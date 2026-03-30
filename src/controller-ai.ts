@@ -523,7 +523,7 @@ export class AiController extends BaseController implements AiAnimatable {
     };
   }
 
-  protected override onEndBuild(state: GameState): void {
+  protected override onFinalizeBuildPhase(state: GameState): void {
     this.buildState = { step: Step.IDLE };
     this.strategy.assessBuildEnd(state, this.playerId);
   }

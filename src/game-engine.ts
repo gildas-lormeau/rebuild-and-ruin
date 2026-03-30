@@ -70,8 +70,8 @@ import {
   assertNever,
   CannonMode,
   type GameState,
-  isPlayerActive,
   isPlayerAlive,
+  isPlayerInZone,
   Phase,
   type Player,
 } from "./types.ts";
@@ -157,7 +157,7 @@ export function rebuildHomeCastle(state: GameState, player: Player): void {
   player.castle = castle;
   const wallTiles = computeCastleWallTiles(castle, state.map.tiles);
   for (const [r, c] of wallTiles) {
-    player.walls.add(packTile(r, c));
+    player.walls.add(packTile(r, c)); // markWallsDirty called below after all mutations
   }
   markWallsDirty(player);
   // Destroy houses under rebuilt castle walls
@@ -346,7 +346,7 @@ function enterBattleFromCannon(state: GameState): void {
   claimTerritory(state);
   // From round 2+, each player has a chance to get grunts spawned on their zone
   if (state.round >= FIRST_GRUNT_SPAWN_ROUND) {
-    for (const player of state.players.filter(isPlayerActive)) {
+    for (const player of state.players.filter(isPlayerInZone)) {
       for (let i = 0; i < INTERBATTLE_GRUNT_SPAWN_ATTEMPTS; i++) {
         if (state.rng.bool(INTERBATTLE_GRUNT_SPAWN_CHANCE)) {
           spawnGruntOnZone(state, player.id);
@@ -381,7 +381,7 @@ function enterBuildFromBattle(state: GameState): void {
   }
   // First battle with no shots fired (nobody playing): spawn grouped grunts per player
   if (state.round === 1 && state.shotsFired === 0) {
-    for (const player of state.players.filter(isPlayerActive)) {
+    for (const player of state.players.filter(isPlayerInZone)) {
       spawnGruntGroupOnZone(state, player.id, IDLE_FIRST_BATTLE_GRUNTS);
     }
   }
@@ -478,7 +478,7 @@ function autoBuildCastles(state: GameState): void {
   const plans = prepareCastleWalls(state);
   for (const plan of plans) {
     const player = state.players[plan.playerId]!;
-    for (const key of plan.tiles) player.walls.add(key);
+    for (const key of plan.tiles) player.walls.add(key); // markWallsDirty called below after all mutations
     markWallsDirty(player);
   }
   claimTerritory(state);

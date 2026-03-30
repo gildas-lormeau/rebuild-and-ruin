@@ -70,9 +70,11 @@ export abstract class BaseController implements PlayerController {
    *  IMPORTANT: Only call after a successful placement — advancing without placing
    *  skips a piece and desynchronizes the bag with the board state. */
   protected advanceBag(): void {
-    if (this.bag) {
-      this.currentPiece = nextPiece(this.bag);
+    if (!this.bag) {
+      console.warn("advanceBag called with null bag — likely a desync");
+      return;
     }
+    this.currentPiece = nextPiece(this.bag);
   }
 
   centerOn(row: number, col: number): void {
@@ -121,8 +123,8 @@ export abstract class BaseController implements PlayerController {
     this.clampBuildCursor(this.currentPiece);
   }
 
-  /** Start build phase: initializes bag + cursor, then calls onStartBuild hook.
-   *  Subclasses override onStartBuild() for phase-specific setup (NOT startBuild). */
+  /** Template method — subclasses MUST override onStartBuild(), NOT startBuild().
+   *  startBuild() runs base initialization (bag + cursor) then delegates to the hook. */
   startBuild(state: GameState): void {
     this.initBuildPhase(state);
     this.onStartBuild(state);
@@ -133,16 +135,16 @@ export abstract class BaseController implements PlayerController {
   /** Called each frame during build. Returns placement previews for rendering. */
   abstract buildTick(state: GameState, dt: number): PiecePlacementPreview[];
 
-  /** End build phase: calls onEndBuild hook, then clears bag/piece.
-   *  Subclasses override onEndBuild() for cleanup (NOT endBuild). */
-  endBuild(state: GameState): void {
-    this.onEndBuild(state);
+  /** Template method — subclasses MUST override onFinalizeBuildPhase(), NOT finalizeBuildPhase().
+   *  finalizeBuildPhase() calls the hook then clears bag/piece. */
+  finalizeBuildPhase(state: GameState): void {
+    this.onFinalizeBuildPhase(state);
     this.bag = null;
     this.currentPiece = null;
   }
 
   /** Subclass hook called before bag/piece are cleared. Override for AI cleanup etc. */
-  protected onEndBuild(_state: GameState): void {}
+  protected onFinalizeBuildPhase(_state: GameState): void {}
 
   /** Called each frame during battle. Should call this.fire(state) to fire cannons. */
   abstract battleTick(state: GameState, dt: number): void;

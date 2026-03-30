@@ -164,7 +164,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
 
   // Reset per-frame phantom collection (cannon phase only needs AI cannon phantoms)
   frame.phantoms = { aiCannonPhantoms: [] };
-  // Pass 1: tick only local, non-eliminated controllers (process input & AI decisions)
+  // ── PASS 1: Tick local controllers (process input & AI decisions) ──
   for (const ctrl of localActiveControllers(
     controllers,
     remoteHumanSlots,
@@ -229,7 +229,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
 
   if (state.timer > 0 && !allDone) return false;
 
-  // Pass 2: finalize ALL controllers (including remote) for phase transition
+  // ── PASS 2: Finalize all controllers (including remote) for phase transition ──
   for (const ctrl of controllers) {
     const max = state.cannonLimits[ctrl.playerId] ?? 0;
     if (remoteHumanSlots.has(ctrl.playerId)) {
@@ -249,7 +249,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
  *  Remote vs local dispatch:
  *    Per-frame: ticks LOCAL controllers only (remoteHumanSlots skipped — their
  *      placements arrive via network and are applied by the message handler).
- *    Phase end (finalizeBuildAndShowDialogs): calls endBuild on LOCAL only —
+ *    Phase end (finalizeBuildAndShowDialogs): calls finalizeBuildPhase on LOCAL only —
  *      remote clients finalize their own controllers independently. */
 export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   const { dt, state, accum, frame, controllers, render } = deps;
@@ -294,7 +294,7 @@ function processControllerBuildActions(
   const sendOpponentPiecePlaced = deps.net?.sendOpponentPiecePlaced;
   const sendOpponentPhantom = deps.net?.sendOpponentPhantom;
 
-  // Pass 1: tick only local, non-eliminated controllers (process input & AI decisions)
+  // ── PASS 1: Tick local controllers (process input & AI decisions) ──
   for (const ctrl of localActiveControllers(
     controllers,
     remoteHumanSlots,
@@ -441,10 +441,10 @@ function finalizeBuildAndShowDialogs(
   const serializePlayers = deps.net?.serializePlayers ?? (() => []);
   const sendBuildEnd = deps.net?.sendBuildEnd;
 
-  // Pass 2: finalize ALL controllers (including remote) for phase transition
+  // ── PASS 2: Finalize all controllers for phase transition ──
   for (const ctrl of controllers) {
     if (remoteHumanSlots.has(ctrl.playerId)) continue;
-    ctrl.endBuild(state);
+    ctrl.finalizeBuildPhase(state);
   }
 
   // ORDERING: snapshot MUST precede finalizeBuildPhase — finalize calls

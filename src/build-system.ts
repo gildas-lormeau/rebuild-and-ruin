@@ -41,7 +41,7 @@ import {
   manhattanDistance,
   packTile,
 } from "./spatial.ts";
-import { type GameState, isPlayerActive, type Player } from "./types.ts";
+import { type GameState, isPlayerInZone, type Player } from "./types.ts";
 
 /** Validate + apply piece placement. Returns true if placed. */
 export function placePiece(
@@ -78,12 +78,11 @@ export function canPlacePiece(
   );
 }
 
-/** Same as canPlacePiece but accepts raw offsets — used when no PieceShape is available (e.g. network validation).
+/** Validates piece tile placement. Checks: grass, playerZone, towers (ALL), grunts, cannons.
+ *  Contrast with canPlaceCannon() in cannon-system.ts which checks: interior (enclosed), owned towers only.
  *
- * Validation differs from canPlaceCannon (cannon-system.ts):
- *   - Walls check: isGrass, playerZone, all towers (hasTowerAt), grunts, cannons
- *   - Cannons check: player.interior (enclosed territory), owned towers only, no grunt/zone check
- * An LLM copying one to the other will get the wrong validation. */
+ *  Same as canPlacePiece but accepts raw offsets — used when no PieceShape is available (e.g. network validation).
+ *  An LLM copying one to the other will get the wrong validation. */
 export function canPlacePieceOffsets(
   state: GameState,
   playerId: number,
@@ -135,8 +134,7 @@ export function applyPiecePlacement(
   for (const [dr, dc] of offsets) {
     const pr = row + dr,
       pc = col + dc;
-    player.walls.add(packTile(pr, pc));
-    markWallsDirty(player);
+    player.walls.add(packTile(pr, pc)); // markWallsDirty called below after all mutations
     for (const house of state.map.houses) {
       if (house.alive && isAtTile(house, pr, pc)) {
         house.alive = false;
@@ -144,6 +142,7 @@ export function applyPiecePlacement(
       }
     }
   }
+  markWallsDirty(player);
   state.bonusSquares = state.bonusSquares.filter(
     (b) => !pieceKeys.has(packTile(b.row, b.col)),
   );
@@ -308,7 +307,7 @@ function destroyEnclosedHousesAndSpawnGrunts(
 
     house.alive = false;
     for (const enemy of state.players) {
-      if (enemy.id === player.id || !isPlayerActive(enemy)) continue;
+      if (enemy.id === player.id || !isPlayerInZone(enemy)) continue;
       spawnGruntOnZone(state, enemy.id);
     }
   }
@@ -333,7 +332,7 @@ function removeEnclosedGruntsAndRespawn(
   player.score += enclosed.length * DESTROY_GRUNT_POINTS;
 
   const enemies = state.players.filter(
-    (other) => other.id !== player.id && isPlayerActive(other),
+    (other) => other.id !== player.id && isPlayerInZone(other),
   );
   if (enemies.length === 0) return;
 

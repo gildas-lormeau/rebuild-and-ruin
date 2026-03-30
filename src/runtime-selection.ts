@@ -187,15 +187,14 @@ export function createSelectionSystem(
     }
   }
 
-  /**
-   * Confirm a player's tower selection and trigger their castle-build animation.
+  /** Confirms tower selection and triggers castle build animation.
+   *  @sideeffect Starts castle build animation for the player (via startPlayerCastleBuild).
+   *  Idempotent — skips if already confirmed.
    *
-   * Two-step flow:
+   *  Two-step flow:
    *  1. confirmSelectionAndStartBuild — marks the player as confirmed in selectionStates,
    *     then kicks off startPlayerCastleBuild for the newly confirmed player.
    *     Returns true when ALL players have confirmed.
-   *     Dual responsibility: both marks confirmed AND triggers castle build animation
-   *     as a side effect (idempotent — skips if already confirmed).
    *  2. finishSelection (called separately by tickSelection when allConfirmed) —
    *     clears overlay state, finalizes castle construction, and advances to cannon phase.
    */
