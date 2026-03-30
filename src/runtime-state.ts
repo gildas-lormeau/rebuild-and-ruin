@@ -174,7 +174,10 @@ export function assertStateReady(rs: RuntimeState): GameState {
   return rs.state;
 }
 
-/** Returns true when `rs.state` has been assigned a real GameState. */
+/** Returns true when `rs.state` has been assigned a real GameState.
+ *  Note: `rs.ctx` is also sentinel-guarded and initialized at the same time
+ *  (first mainLoop tick after startGame). Both are safe to access when this
+ *  returns true. */
 export function isStateReady(rs: RuntimeState): boolean {
   return !(rs.state as unknown as Record<symbol, unknown>)[SENTINEL];
 }

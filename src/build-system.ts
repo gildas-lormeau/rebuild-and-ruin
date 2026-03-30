@@ -13,6 +13,8 @@ import {
   hasTowerAt,
   hasWallAt,
   isTileOwnedByPlayer,
+  markInteriorFresh,
+  markWallsDirty,
 } from "./board-occupancy.ts";
 import {
   BONUS_SQUARE_MIN_DISTANCE,
@@ -134,6 +136,7 @@ export function applyPiecePlacement(
     const pr = row + dr,
       pc = col + dc;
     player.walls.add(packTile(pr, pc));
+    markWallsDirty(player);
     for (const house of state.map.houses) {
       if (house.alive && isAtTile(house, pr, pc)) {
         house.alive = false;
@@ -372,6 +375,7 @@ function recomputeInterior(state: GameState, player: Player): void {
       }
     }
   }
+  markInteriorFresh(player);
 }
 
 /** Find towers enclosed by a player's territory; handle revival logic at end of build phase. */

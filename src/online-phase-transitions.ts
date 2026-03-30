@@ -103,7 +103,7 @@ export interface TransitionContext {
     ) => void;
     snapshotTerritory: () => Set<number>[];
     /** Initiate the battle countdown.  Goes through beginHostBattle which
-     *  handles resetBattleState, countdown, watcher timing, aimAtEnemyCastle, and
+     *  handles initBattleState, countdown, watcher timing, aimAtEnemyCastle, and
      *  Mode.GAME — so the banner callback doesn't need to duplicate any of it. */
     beginBattle: () => void;
   };

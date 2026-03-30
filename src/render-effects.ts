@@ -363,6 +363,7 @@ function drawCannonballs(
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.battle?.cannonballs) return;
+  octx.save();
   for (const ball of overlay.battle.cannonballs) {
     const height = Math.sin(ball.progress * Math.PI);
     const radius = 3 + height * 2; // 3px base + up to 2px from arc
@@ -371,6 +372,7 @@ function drawCannonballs(
     octx.arc(ball.x, ball.y, radius, 0, Math.PI * 2);
     octx.fill();
   }
+  octx.restore();
 }
 
 function drawBalloons(
@@ -378,6 +380,7 @@ function drawBalloons(
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.battle?.balloons) return;
+  octx.save();
   for (const b of overlay.battle.balloons) {
     const progress = b.progress;
     const radius = 8;
@@ -435,6 +438,7 @@ function drawBalloons(
     octx.fillStyle = "#6a4a0a";
     octx.fillRect(cx - 3, cy + radius + 7, 6, 1);
   }
+  octx.restore();
 }
 
 function drawBurningPits(

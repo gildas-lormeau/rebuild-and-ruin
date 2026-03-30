@@ -14,7 +14,7 @@ import {
 import { runtime } from "./online-client-runtime.ts";
 import {
   devLog,
-  resetNetworkingForHostPromotion,
+  resetNetworking,
   send,
   session,
 } from "./online-client-stores.ts";
@@ -36,7 +36,7 @@ export function promoteToHost(): void {
   devLog("PROMOTING TO HOST");
   session.isHost = true;
 
-  resetNetworkingForHostPromotion();
+  resetNetworking("host-promotion");
   rebuildControllersForPhase(
     runtime.rs.state,
     runtime.rs.controllers,

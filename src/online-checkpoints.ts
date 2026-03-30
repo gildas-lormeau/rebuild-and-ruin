@@ -60,7 +60,7 @@ export function applyCannonStartCheckpoint(
   deps.state.burningPits = data.burningPits;
   deps.state.cannonLimits = data.limits;
   deps.state.timer = data.timer;
-  resetBattleState(deps);
+  clearBattleProjectiles(deps);
   resetWatcherCrosshairs(deps);
   resetCannonFacings(deps.state);
 }
@@ -94,7 +94,7 @@ export function applyBattleStartCheckpoint(
     }
   }
 
-  resetBattleState(deps);
+  clearBattleProjectiles(deps);
   deps.state.timer = BATTLE_TIMER;
   resetWatcherCrosshairs(deps);
   for (const player of deps.state.players) {
@@ -118,13 +118,15 @@ export function applyBuildStartCheckpoint(
   deps.state.burningPits = data.burningPits;
   deps.state.round = data.round;
   deps.state.timer = data.timer;
-  resetBattleState(deps);
+  clearBattleProjectiles(deps);
   deps.accum.grunt = 0;
   resetCannonFacings(deps.state);
 }
 
-/** Clear in-flight cannonballs and visual impacts. */
-function resetBattleState(deps: CheckpointDeps): void {
+/** Clear in-flight cannonballs and visual impacts.
+ *  Named clearBattleProjectiles to avoid confusion with the controller method
+ *  initBattleState() which resets cannon rotation and cursors (different concern). */
+function clearBattleProjectiles(deps: CheckpointDeps): void {
   deps.state.cannonballs = [];
   deps.battleAnim.impacts = [];
 }

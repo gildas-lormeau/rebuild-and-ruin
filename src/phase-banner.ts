@@ -1,5 +1,5 @@
 import type { House, TilePos } from "./geometry-types.ts";
-import { type CastleData, type GameState, Phase } from "./types.ts";
+import { type CastleData, fireOnce, type GameState, Phase } from "./types.ts";
 
 export interface BannerState {
   active: boolean;
@@ -131,7 +131,5 @@ export function tickBannerTransition(
   banner.newTerritory = undefined;
   banner.newWalls = undefined;
   banner.active = false;
-  const cb = banner.callback;
-  banner.callback = null;
-  if (cb) cb();
+  fireOnce(banner, "callback", "banner.callback");
 }

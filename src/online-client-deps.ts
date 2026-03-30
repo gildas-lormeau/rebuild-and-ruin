@@ -46,7 +46,13 @@ import {
 } from "./types.ts";
 
 // These deps objects are built once and reused for the session lifetime.
-// All mutable state (isHost, etc.) is accessed via closures, not captured values.
+// CRITICAL: All mutable state must be accessed via closures (arrow functions that
+// re-read the current value), NOT captured values. This is because session state
+// changes at runtime (e.g. isHost flips during host migration, myPlayerId changes
+// on slot selection). A captured value would go stale silently.
+//   CORRECT:   isHost: () => session.isHost          // re-reads current value
+//   WRONG:     isHost: session.isHost                 // captured at build time, stale after migration
+// When adding new fields, always wrap mutable state in a closure.
 const lifecycleDeps = buildLifecycleDeps();
 const incrementalDeps = buildIncrementalDeps();
 

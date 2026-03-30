@@ -33,7 +33,12 @@ export function getRemoteSlots(
 
 /** Advance a phase timer in place: increments `accum[key]` by `dt` and sets
  *  `state.timer` to the countdown value (`max − elapsed`, clamped to 0).
- *  Mutates both objects so callers can't forget to write one of the two fields. */
+ *
+ *  This is the ONLY correct way to advance phase timers. It mutates both
+ *  `accum` and `state.timer` atomically so they can't drift out of sync.
+ *  NEVER manually write `accum.X += dt` or `state.timer = ...` — always
+ *  call this function instead. Separate mutations silently break the
+ *  `timer = max - elapsed` invariant with no compile error. */
 export function advancePhaseTimer<K extends string>(
   accum: Record<K, number>,
   key: K,

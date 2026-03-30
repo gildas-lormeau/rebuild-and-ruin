@@ -24,6 +24,8 @@ import {
 } from "./spatial.ts";
 import type { GameState, Grunt, Player } from "./types.ts";
 
+const wallsEpoch = new WeakMap<Player, number>();
+const interiorEpoch = new WeakMap<Player, number>();
 /** Preset: tiles that block grunt spawning (zone-based).
  *  Includes interior: grunts must spawn OUTSIDE enclosed territory.
  *  Does NOT include bonusSquares: grunts can spawn on bonus tiles. */
@@ -64,6 +66,10 @@ export function isTileOwnedByPlayer(
   return player.interior.has(key) || player.walls.has(key);
 }
 
+/** Remove a wall tile from all players. Used during battle (grunt attacks).
+ *  No markWallsDirty — battle wall destruction is intentionally not tracked.
+ *  Interior stays stale during battle by design; claimTerritory runs at
+ *  the next phase start. */
 export function removeWallFromAllPlayers(state: GameState, key: number): void {
   for (const player of state.players) player.walls.delete(key);
 }
@@ -302,6 +308,35 @@ export function filterActiveEnemies(state: GameState, playerId: number) {
   return state.players.filter(
     (player) => player.id !== playerId && !player.eliminated,
   );
+}
+
+/** Mark a player's wall set as modified. Call after any .add/.delete/.clear
+ *  on player.walls. Omitting this call is safe (assertion may false-negative)
+ *  but including it catches stale-interior bugs. */
+export function markWallsDirty(player: Player): void {
+  wallsEpoch.set(player, (wallsEpoch.get(player) ?? 0) + 1);
+}
+
+/** Mark a player's interior as freshly recomputed. Called by recomputeInterior
+ *  inside claimTerritory — do NOT call from other code. */
+export function markInteriorFresh(player: Player): void {
+  interiorEpoch.set(player, wallsEpoch.get(player) ?? 0);
+}
+
+/** Assert that a player's interior is not stale (walls haven't changed since
+ *  the last claimTerritory). Throws if stale — this is a programming error,
+ *  not a runtime condition. No-op if epochs were never initialized (e.g. tests
+ *  that don't call markWallsDirty). */
+export function assertInteriorFresh(player: Player): void {
+  const we = wallsEpoch.get(player);
+  if (we === undefined) return; // epoch tracking not active for this player
+  const ie = interiorEpoch.get(player) ?? -1;
+  if (ie < we) {
+    throw new Error(
+      `Stale interior for player ${player.id}: walls epoch ${we} > interior epoch ${ie}. ` +
+        `Call claimTerritory() after wall mutations before reading interior.`,
+    );
+  }
 }
 
 function hasWallMatching(

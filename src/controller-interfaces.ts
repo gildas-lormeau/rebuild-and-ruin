@@ -105,9 +105,10 @@ export interface PlayerController {
   /** Center cursors/crosshair on a tower position. */
   centerOn(row: number, col: number): void;
 
-  /** Reset battle-phase state (cannon rotation index, crosshair position).
-   *  Called once at battle start — not a full game reset (see reset() for that). */
-  resetBattleState(state?: GameState): void;
+  /** Initialize battle-phase state (cannon rotation index, crosshair position).
+   *  Called once at battle start — not a full game reset (see reset() for that).
+   *  Scope: resets cannonRotationIdx + centers cursors on home tower. */
+  initBattleState(state?: GameState): void;
 
   /** Flush any remaining auto-placement queue (cannon timer expired).
    *  Do NOT call directly — use finalizeCannonPhase() which guarantees flush→init order. */

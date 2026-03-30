@@ -22,8 +22,12 @@ import {
 import { safeSendRaw } from "./send-utils.ts";
 
 /** Phase values the server tracks for message gating.
- *  Union of the game-engine Phase enum with server-only string literal states
- *  ("LOBBY", "CASTLE_BUILD") that have no Phase enum equivalent. */
+ *  Includes all game-engine Phase enum values (CASTLE_SELECT, WALL_BUILD,
+ *  CANNON_PLACE, BATTLE, CASTLE_RESELECT) plus server-only string literals:
+ *  - "LOBBY" — before game starts (no Phase enum equivalent)
+ *  - "CASTLE_BUILD" — castle wall animation (UI-only, no Phase equivalent)
+ *  When adding a new phase: if it's part of game logic, add to Phase enum in types.ts;
+ *  if it's server/UI-only, add to this union. */
 type ServerPhase = Phase | "LOBBY" | "CASTLE_BUILD";
 
 // ---------------------------------------------------------------------------
@@ -284,13 +288,13 @@ export class GameRoom {
   // ---------------------------------------------------------------------------
 
   /** Validate and relay an in-game message.
-   *  Validation pipeline (order matters — each stage may early-return):
-   *  1. Host-only gate — reject non-host senders for checkpoint/transition messages
-   *  2. Identity check — non-host sockets may only send their own playerId
-   *  3. Phase gate — reject messages outside their valid phase
-   *  4. Payload validation — reject malformed field values
-   *  5. Rate limiting — cap high-frequency display messages
-   *  6. Relay — forward raw JSON to all other sockets */
+   *  Validation pipeline — order is security-critical (each stage may early-return):
+   *  1. Host-only gate — reject before identity check (host exemption is conditional)
+   *  2. Identity check — before phase gate (prevent non-host from spoofing other slots)
+   *  3. Phase gate — before payload (reject early if message is out-of-phase)
+   *  4. Payload validation — before rate limiting (drop garbage without consuming quota)
+   *  5. Rate limiting — before relay (prevent amplification of malformed messages)
+   *  6. Relay — final step (only valid messages reach other sockets) */
   handleMessage(
     senderSocket: WebSocket,
     msg: Record<string, unknown>,

@@ -228,7 +228,9 @@ export interface GameState {
   cannonLimits: number[];
 }
 
-/** Phase timer accumulators — tracks elapsed time per phase for host tick logic. */
+/** Phase timer accumulators — tracks elapsed time per phase for host tick logic.
+ *  NEVER mutate these fields directly — always use advancePhaseTimer() from
+ *  tick-context.ts, which keeps accum and state.timer in sync. */
 export interface TimerAccums {
   battle: number;
   cannon: number;
@@ -484,4 +486,28 @@ export function isTransitionMode(mode: Mode): boolean {
  */
 export function assertNever(value: never): never {
   throw new Error(`Unexpected value: ${String(value)}`);
+}
+
+/** Fire a "call exactly once" callback field: reads it, nulls the field, then
+ *  calls. The null-before-call order prevents re-entrancy loops.
+ *
+ *  Usage:  `fireOnce(obj, "callback")` replaces the manual pattern:
+ *    `const cb = obj.callback; obj.callback = null; cb?.();`
+ *
+ *  In dev mode, logs a warning if the field was already null (double-fire). */
+export function fireOnce<
+  K extends string,
+  T extends Record<K, (() => void) | null>,
+>(obj: T, key: K, label?: string): void {
+  const cb = obj[key] as (() => void) | null;
+  (obj as Record<K, (() => void) | null>)[key] = null;
+  if (cb) {
+    cb();
+  } else if (
+    typeof import.meta !== "undefined" &&
+    // @ts-ignore — import.meta.env is Vite-specific
+    import.meta.env?.DEV
+  ) {
+    console.warn(`fireOnce: ${label ?? key} was already null (double-fire?)`);
+  }
 }

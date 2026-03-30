@@ -82,7 +82,7 @@ import { updateTouchControls } from "./runtime-touch-ui.ts";
 import type { GameRuntime, RuntimeConfig } from "./runtime-types.ts";
 import { createSoundSystem } from "./sound-system.ts";
 import { unpackTile } from "./spatial.ts";
-import { computeFrameContext, Mode, Phase } from "./types.ts";
+import { computeFrameContext, fireOnce, Mode, Phase } from "./types.ts";
 
 export type { GameRuntime } from "./runtime-types.ts";
 
@@ -146,9 +146,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     if (rs.scoreDeltaTimer <= 0) {
       rs.scoreDeltas = [];
       rs.scoreDeltaTimer = 0;
-      const cb = rs.scoreDeltaOnDone;
-      rs.scoreDeltaOnDone = null;
-      cb?.();
+      fireOnce(rs, "scoreDeltaOnDone");
     }
   }
 

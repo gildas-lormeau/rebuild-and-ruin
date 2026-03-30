@@ -3,6 +3,7 @@
  * Used by both main.ts (local play) and online-client.ts (online play).
  */
 
+import { markWallsDirty } from "./board-occupancy.ts";
 import type { GameState } from "./types.ts";
 
 export interface CastleWallPlan {
@@ -58,7 +59,9 @@ export function tickCastleBuildAnimation(params: {
     for (const plan of castleBuild.wallPlans) {
       if (castleBuild.tileIdx < plan.tiles.length) {
         const key = plan.tiles[castleBuild.tileIdx]!;
-        state.players[plan.playerId]!.walls.add(key);
+        const owner = state.players[plan.playerId]!;
+        owner.walls.add(key);
+        markWallsDirty(owner);
         placed = true;
       }
     }

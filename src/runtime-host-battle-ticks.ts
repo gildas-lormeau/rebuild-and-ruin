@@ -303,7 +303,7 @@ export function beginHostBattle(deps: BeginHostBattleDeps): void {
     remoteHumanSlots,
     state,
   )) {
-    ctrl.resetBattleState(state);
+    ctrl.initBattleState(state);
   }
 
   state.battleCountdown = battleCountdown;

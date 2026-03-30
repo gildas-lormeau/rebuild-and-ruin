@@ -22,6 +22,7 @@ import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import {
   collectAllWalls,
   filterAliveOwnedTowers,
+  markWallsDirty,
   removeIsolatedWalls,
 } from "./board-occupancy.ts";
 import {
@@ -155,6 +156,7 @@ export function rebuildHomeCastle(state: GameState, player: Player): void {
   for (const [r, c] of wallTiles) {
     player.walls.add(packTile(r, c));
   }
+  markWallsDirty(player);
   // Destroy houses under rebuilt castle walls
   for (const house of state.map.houses) {
     if (!house.alive) continue;
@@ -456,6 +458,7 @@ function clearPlayerState(
   options?: { keepHomeTower?: boolean },
 ): void {
   player.walls.clear();
+  markWallsDirty(player);
   // Authorized mutation site
   (player.interior as Set<number>).clear();
   player.cannons = [];
@@ -470,6 +473,7 @@ function autoBuildCastles(state: GameState): void {
   for (const plan of plans) {
     const player = state.players[plan.playerId]!;
     for (const key of plan.tiles) player.walls.add(key);
+    markWallsDirty(player);
   }
   claimTerritory(state);
   for (const player of state.players) {

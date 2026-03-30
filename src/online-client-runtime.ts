@@ -34,8 +34,7 @@ import {
   devLog,
   devLogThrottled,
   maybeSendAimUpdate,
-  resetDedup,
-  resetForNewGame,
+  resetNetworking,
   send,
   session,
   watcher,
@@ -351,7 +350,7 @@ export function initFromServer(msg: InitMessage): void {
     },
     resetUIState: () => {
       runtime.lifecycle.resetUIState();
-      resetForNewGame();
+      resetNetworking("new-game");
     },
     createControllerForSlot: createOnlineControllerSlotFactory(
       session.myPlayerId,
@@ -439,5 +438,5 @@ function resetSession(): void {
   clearReconnect();
   resetSessionState(session);
   runtime.rs.settings.seed = "";
-  resetDedup();
+  resetNetworking("dedup");
 }

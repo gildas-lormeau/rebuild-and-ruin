@@ -749,7 +749,7 @@ export function pickPlacement(
       (cannon) =>
         isCannonAlive(cannon) &&
         !isBalloonCannon(cannon) &&
-        !isCannonEnclosed(cannon, player.interior),
+        !isCannonEnclosed(cannon, player),
     );
     if ((!hasOutsideGrunts && !hasUnenclosedCannons) || bestScore <= 0)
       return null;

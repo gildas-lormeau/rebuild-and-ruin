@@ -26,6 +26,20 @@ import {
 } from "./online-watcher-tick.ts";
 import { IS_DEV } from "./platform.ts";
 
+/** Network reset scope — forces callers to declare intent, preventing
+ *  accidental use of the wrong reset level. Each scope clears a different
+ *  subset of networking state:
+ *  - "dedup"     — mid-game phase transitions: clears dedup maps only
+ *  - "new-game"  — INIT or full-state recovery: dedup + full watcher reset
+ *  - "host-promotion" — host migration: dedup + watcher timing/AI (keeps
+ *      remote crosshairs & phantoms the new host still needs)
+ *
+ *  INVARIANT: dedup maps must always be checked BEFORE calling send() for
+ *  phantom/aim messages. The pattern is: if key changed → send → update map.
+ *  Sending without checking causes redundant network traffic; checking without
+ *  resetting after state changes causes missed updates. */
+type ResetScope = "dedup" | "new-game" | "host-promotion";
+
 // ── Constants ───────────────────────────────────────────────────────
 const DEV = IS_DEV;
 const LOG_THROTTLE_MS = 1000;
@@ -83,40 +97,14 @@ export function maybeSendAimUpdate(
   sendAimUpdate(session, dedup, x, y, playerId);
 }
 
-/** Clear all last-sent dedup state (low-level — prefer the paired resets below).
- *
- *  INVARIANT: dedup maps must always be checked BEFORE calling send() for
- *  phantom/aim messages. The pattern is: if key changed → send → update map.
- *  Sending without checking causes redundant network traffic; checking without
- *  resetting after state changes causes missed updates.
- *
- *  Reset function selection (use the most specific one that applies):
- *  ┌──────────────────────┬───────────┬─────────────────────────────────────┐
- *  │ Function             │ When      │ Clears                              │
- *  ├──────────────────────┼───────────┼─────────────────────────────────────┤
- *  │ resetDedup()         │ mid-game  │ dedup maps only                     │
- *  │ resetForNewGame()    │ INIT /    │ dedup + full watcher (timing, AI,   │
- *  │                      │ recovery  │ crosshairs, phantoms)               │
- *  │ resetNetworkingForHostPromotion│ promote   │ dedup + watcher timing/AI (keeps    │
- *  │                      │           │ remote crosshairs & phantoms)       │
- *  └──────────────────────┴───────────┴─────────────────────────────────────┘ */
-export function resetDedup(): void {
+/** Reset networking state for the given scope. */
+export function resetNetworking(scope: ResetScope): void {
   resetDedupMaps(dedup);
-}
-
-/** Reset networking state for a new game (INIT or full-state recovery).
- *  Pairs dedup + full watcher reset so they stay in sync. */
-export function resetForNewGame(): void {
-  resetDedupMaps(dedup);
-  resetWatcherState(watcher);
-}
-
-/** Reset networking state for host promotion.
- *  Clears dedup + watcher timing/AI state but keeps remote crosshairs
- *  and phantoms the new host still needs for remote human players. */
-export function resetNetworkingForHostPromotion(): void {
-  resetDedupMaps(dedup);
-  resetWatcherTimingForHost(watcher);
+  if (scope === "new-game") {
+    resetWatcherState(watcher);
+  } else if (scope === "host-promotion") {
+    resetWatcherTimingForHost(watcher);
+  }
 }
 
 /** Zero out reconnect state — call after successful reconnect or when giving up. */

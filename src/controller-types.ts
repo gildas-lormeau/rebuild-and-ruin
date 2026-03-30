@@ -43,7 +43,7 @@ export abstract class BaseController implements PlayerController {
     x: DEFAULT_CURSOR_COL * TILE_SIZE,
     y: DEFAULT_CURSOR_ROW * TILE_SIZE,
   };
-  /** Round-robin index into combined cannon list. Reset in resetBattleState() and onLifeLost(). */
+  /** Round-robin index into combined cannon list. Reset in initBattleState() and onLifeLost(). */
   protected cannonRotationIdx = NO_CANNON_ROTATION_IDX;
 
   /** Piece bag for the build phase (shared by AI and Human). */
@@ -142,10 +142,11 @@ export abstract class BaseController implements PlayerController {
   /** Called each frame during battle. Should call this.fire(state) to fire cannons. */
   abstract battleTick(state: GameState, dt: number): void;
 
-  /** Reset battle-phase state (cannonRotationIdx, cursors), then call subclass hook.
+  /** Initialize battle-phase state (cannonRotationIdx, cursors), then call subclass hook.
    *  Template method — subclasses override onResetBattle() instead of this method,
-   *  so the base reset is always guaranteed to run. */
-  resetBattleState(state?: GameState): void {
+   *  so the base init is always guaranteed to run.
+   *  Scope: cannonRotationIdx + cursor centering only — not a full game reset (see reset()). */
+  initBattleState(state?: GameState): void {
     this.cannonRotationIdx = NO_CANNON_ROTATION_IDX;
     if (state) {
       const player = state.players[this.playerId];

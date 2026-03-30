@@ -185,7 +185,7 @@ export function canFire(
   )
     return false;
   // Cannon must be inside enclosed territory
-  if (!isCannonEnclosed(cannon, player.interior)) return false;
+  if (!isCannonEnclosed(cannon, player)) return false;
   // Check no ball in flight from this cannon
   return !state.cannonballs.some(
     (b) => b.playerId === playerId && b.cannonIdx === cannonIdx,
@@ -234,7 +234,7 @@ export function aimCannons(
   for (const cannon of player.cannons) {
     if (!isCannonAlive(cannon) || capturedByOthers.has(cannon)) continue;
     // Only rotate cannons inside enclosed territory
-    if (!isCannonEnclosed(cannon, player.interior)) continue;
+    if (!isCannonEnclosed(cannon, player)) continue;
     aimAt(cannon);
   }
   // Aim captured cannons toward the capturer's crosshair
@@ -329,6 +329,9 @@ export function applyImpactEvent(
       const player = state.players[event.playerId];
       if (player) {
         player.walls.delete(packTile(event.row, event.col));
+        // No markWallsDirty — battle wall destruction is intentionally not
+        // tracked. Interior is stale during battle by design; isCannonEnclosed
+        // checks pre-battle interior. claimTerritory runs at next phase start.
         const shooter = sid !== undefined ? state.players[sid] : undefined;
         if (shooter && event.playerId !== sid)
           shooter.score += DESTROY_WALL_POINTS;
@@ -710,7 +713,7 @@ function findBestBalloonTarget(
       const prevHits = state.balloonHits.get(cannon)?.count ?? 0;
       const roundHits = assignedThisRound.get(cannon) ?? 0;
       if (prevHits + roundHits >= needed) continue;
-      if (!isCannonEnclosed(cannon, other.interior)) continue;
+      if (!isCannonEnclosed(cannon, other)) continue;
       const score =
         (isSuperCannon(cannon) ? SUPER_GUN_THREAT_WEIGHT : 0) + cannon.hp;
       if (score > bestScore) {

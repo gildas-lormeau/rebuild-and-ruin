@@ -180,7 +180,7 @@ export function createScenario(seed = 42): Scenario {
   function runBattle(durationSec = BATTLE_TIMER): void {
     resolveBalloons(state);
     nextPhase(state);
-    for (const ctrl of controllers) ctrl.resetBattleState(state);
+    for (const ctrl of controllers) ctrl.initBattleState(state);
 
     let t = 0;
     const dt = 0.1;
