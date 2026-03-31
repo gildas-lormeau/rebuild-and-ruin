@@ -117,6 +117,7 @@ export function createGameState(
       eliminated: false,
       score: 0,
       defaultFacing: 0,
+      castleWallTiles: new Set(),
     });
   }
 
@@ -153,17 +154,10 @@ export function createGameState(
 export function rebuildHomeCastle(state: GameState, player: Player): void {
   if (!player.homeTower) return;
   resetPlayerBoardState(player, { keepHomeTower: true });
-  const castle = createCastle(
-    player.homeTower,
-    state.map.tiles,
-    state.map.towers,
-  );
-  player.castle = castle;
-  const wallTiles = computeCastleWallTiles(castle, state.map.tiles);
-  addPlayerWalls(
-    player,
-    wallTiles.map(([r, c]) => packTile(r, c)),
-  );
+  const plan = prepareCastleWallsForPlayer(state, player.id);
+  if (!plan) return;
+  addPlayerWalls(player, plan.tiles);
+  player.castleWallTiles = new Set(plan.tiles);
   // Destroy houses under rebuilt castle walls
   for (const house of state.map.houses) {
     if (!house.alive) continue;
@@ -481,6 +475,7 @@ function autoBuildCastles(state: GameState): void {
   for (const plan of plans) {
     const player = state.players[plan.playerId]!;
     addPlayerWalls(player, plan.tiles);
+    player.castleWallTiles = new Set(plan.tiles);
   }
   claimTerritory(state);
   for (const player of state.players) {

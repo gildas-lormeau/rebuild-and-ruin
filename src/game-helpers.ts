@@ -6,8 +6,8 @@
 
 import { nextReadyCombined } from "./battle-system.ts";
 import type { Crosshair, PlayerController } from "./controller-interfaces.ts";
-import { rebuildHomeCastle } from "./game-engine.ts";
 import { KEY_UP, type KeyBindings } from "./player-config.ts";
+import { packTile } from "./spatial.ts";
 import {
   type GameState,
   type Impact,
@@ -241,11 +241,21 @@ export function completeReselection(params: {
   resetOverlaySelection();
   (params.reselectQueue as number[]).length = 0;
 
+  // The castle build animation already placed walls (including clumsy extras)
+  // via addPlayerWall. Don't rebuild — just do cleanup.
   const pids = new Set(reselectionPids);
   for (const pid of pids) {
     const player = state.players[pid]!;
     if (!player.homeTower) continue;
-    rebuildHomeCastle(state, player);
+    // Protect animated walls from debris sweep
+    player.castleWallTiles = new Set(player.walls);
+    // Destroy houses under rebuilt castle walls
+    for (const house of state.map.houses) {
+      if (!house.alive) continue;
+      if (player.walls.has(packTile(house.row, house.col))) {
+        house.alive = false;
+      }
+    }
   }
 
   params.finalizeAndAdvance();

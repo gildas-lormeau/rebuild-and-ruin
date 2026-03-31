@@ -171,6 +171,8 @@ export interface Player {
   score: number;
   /** Default cannon facing (radians, 0 = up) — toward enemies, set at castle creation. */
   defaultFacing: number;
+  /** Castle wall tiles (including clumsy extras) — protected from debris sweep. */
+  castleWallTiles: ReadonlySet<number>;
 }
 
 export interface Grunt extends TilePos {
