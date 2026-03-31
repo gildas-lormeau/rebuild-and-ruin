@@ -19,12 +19,12 @@ import {
   LIFE_LOST_AI_DELAY,
   LIFE_LOST_MAX_TIMER,
 } from "../src/game-constants.ts";
+import { nextPhase } from "../src/game-engine.ts";
 import {
   computeCannonLimitsForPhase,
   eliminatePlayer,
   finalizeBuildPhase,
-  nextPhase,
-} from "../src/game-engine.ts";
+} from "../src/phase-setup.ts";
 import { tickGrunts } from "../src/grunt-movement.ts";
 import { gruntAttackTowers } from "../src/grunt-system.ts";
 import {

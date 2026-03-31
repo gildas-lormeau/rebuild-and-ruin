@@ -8,11 +8,6 @@ import type {
   SerializedPlayer,
 } from "./checkpoint-data.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
-import {
-  initControllerForCannonPhase,
-  resetZoneState,
-  setPhase,
-} from "./game-engine.ts";
 import type { RGB } from "./geometry-types.ts";
 import { TILE_COUNT } from "./grid.ts";
 import type { OnlineSession } from "./online-session.ts";
@@ -26,6 +21,11 @@ import {
   type BannerShow,
   snapshotEntities,
 } from "./phase-banner.ts";
+import {
+  initControllerForCannonPhase,
+  resetZoneState,
+  setPhase,
+} from "./phase-setup.ts";
 import {
   BATTLE_START_STEPS,
   BUILD_START_STEPS,

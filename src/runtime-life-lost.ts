@@ -12,13 +12,13 @@ import {
   type PlayerController,
 } from "./controller-interfaces.ts";
 import { LIFE_LOST_AI_DELAY, LIFE_LOST_MAX_TIMER } from "./game-constants.ts";
-import { eliminatePlayer } from "./game-engine.ts";
 import {
   createLifeLostDialogState,
   resolveAfterLifeLost,
   resolveLifeLostDialogRuntime,
   tickLifeLostDialogRuntime,
 } from "./life-lost.ts";
+import { eliminatePlayer } from "./phase-setup.ts";
 import {
   handleLifeLostDialogClick as handleLifeLostDialogClickShared,
   lifeLostPanelPos as lifeLostPanelPosShared,

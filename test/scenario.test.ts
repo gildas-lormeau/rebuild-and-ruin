@@ -9,7 +9,8 @@ import { snapshotAllWalls, removeIsolatedWalls } from "../src/board-occupancy.ts
 import { createOnlineOverlay } from "../src/render-composition.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "../src/player-config.ts";
 import { isCannonEnclosed } from "../src/cannon-system.ts";
-import { initControllerForCannonPhase, nextPhase } from "../src/game-engine.ts";
+import { nextPhase } from "../src/game-engine.ts";
+import { initControllerForCannonPhase } from "../src/phase-setup.ts";
 import { GRID_COLS } from "../src/grid.ts";
 import {
   handleBattleStartTransition,

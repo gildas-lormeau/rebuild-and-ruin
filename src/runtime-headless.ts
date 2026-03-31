@@ -9,9 +9,9 @@ import {
   enterCastleReselectPhase,
   markPlayerReselected,
   nextPhase,
-  rebuildHomeCastle,
 } from "./game-engine.ts";
 import { generateMap } from "./map-generation.ts";
+import { rebuildHomeCastle } from "./phase-setup.ts";
 import { PLAYER_KEY_BINDINGS } from "./player-config.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import type { GameState } from "./types.ts";

@@ -7,9 +7,9 @@ import { type FullStateMessage, MESSAGE } from "../server/protocol.ts";
 import { recomputeTerritoryFromWalls } from "./build-system.ts";
 import { createCastle } from "./castle-generation.ts";
 import type { SerializedGrunt, SerializedPlayer } from "./checkpoint-data.ts";
-import { setPhase } from "./game-engine.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "./grid.ts";
 import { toCannonMode } from "./online-types.ts";
+import { setPhase } from "./phase-setup.ts";
 import { NO_WINNER_NAME } from "./player-config.ts";
 import { Rng } from "./rng.ts";
 import {

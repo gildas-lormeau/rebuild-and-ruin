@@ -5,10 +5,8 @@
 
 import type { PlayerController } from "./controller-interfaces.ts";
 import { BATTLE_TIMER } from "./game-constants.ts";
-import {
-  enterCannonPlacePhase,
-  finalizeCastleConstruction,
-} from "./game-engine.ts";
+import { enterCannonPlacePhase } from "./game-engine.ts";
+import { finalizeCastleConstruction } from "./phase-setup.ts";
 import type { MutableAccums } from "./tick-context.ts";
 import { type GameState, isPlayerAlive, Phase } from "./types.ts";
 

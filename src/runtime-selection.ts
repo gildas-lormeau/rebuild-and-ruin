@@ -24,12 +24,10 @@ import {
   WALL_BUILD_INTERVAL,
 } from "./game-constants.ts";
 import {
-  advanceToCannonPlacePhase,
   enterCannonPlacePhase,
   enterCastleReselectPhase,
-  finalizeCastleConstruction,
   markPlayerReselected,
-  prepareCastleWallsForPlayer,
+  nextPhase,
 } from "./game-engine.ts";
 import {
   completeReselection,
@@ -37,6 +35,11 @@ import {
 } from "./game-helpers.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { snapshotEntities } from "./phase-banner.ts";
+import {
+  advanceToCannonPlacePhase,
+  finalizeCastleConstruction,
+  prepareCastleWallsForPlayer,
+} from "./phase-setup.ts";
 import { updateSelectionOverlay as syncSelectionOverlayImpl } from "./render-composition.ts";
 import { enterTowerSelection as enterTowerSelectionImpl } from "./runtime-bootstrap.ts";
 import type { RuntimeState } from "./runtime-state.ts";
@@ -381,7 +384,7 @@ export function createSelectionSystem(
   }
 
   function advanceToCannonPhase(): void {
-    advanceToCannonPlacePhase(runtimeState.state);
+    advanceToCannonPlacePhase(runtimeState.state, nextPhase);
     deps.startCannonPhase(() => {
       runtimeState.mode = Mode.GAME;
     });

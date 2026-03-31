@@ -52,6 +52,7 @@
       "src/build-system.ts",
       "src/castle-generation.ts",
       "src/map-generation.ts",
+      "src/phase-setup.ts",
       "src/game-engine.ts",
       "src/game-helpers.ts",
       "src/tick-context.ts",

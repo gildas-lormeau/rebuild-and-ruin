@@ -48,6 +48,8 @@ const CLUMSY_CORNER_CHANCE = 1 / 12;
 /** Clumsy builder: chance per wall tile to add an adjacent tile. */
 const CLUMSY_WALL_CHANCE = 1 / 10;
 const CASTLE_SHRINK_MAX_ITER = 20;
+/** 50% chance to reverse castle-wall build animation direction (visual variety). */
+const CASTLE_RING_REVERSE_CHANCE = 0.5;
 
 /**
  * Build the initial castle walls around a selected tower.
@@ -402,6 +404,44 @@ export function spawnHousesInZone(state: GameState, zoneId: number): void {
   }
 }
 
+/**
+ * Order castle wall tiles for the build animation.
+ * Walks the clean ring in perimeter order (CW or CCW), then interleaves
+ * any extra tiles from clumsy builders right after their ring neighbor.
+ *
+ * Three tile sets in play (may overlap):
+ *   ringSet    — ideal 1-tile-wide perimeter ring before clumsy builders
+ *   finalWalls — all wall tiles that survived clumsy builders (ring ∩ survivors + extras)
+ *   extras     — tiles added by clumsy builders that are NOT in the original ring
+ *
+ * activeRing is ringSet ∩ finalWalls: ring tiles that survived the sweep.
+ */
+export function orderCastleWallsForAnimation(
+  castle: Castle,
+  ringTiles: readonly [number, number][],
+  finalWalls: Set<number>,
+  rng: Rng,
+): number[] {
+  // Pack the ideal ring into a fast-lookup set
+  const ringSet = new Set<number>();
+  for (const [r, c] of ringTiles) ringSet.add(packTile(r, c));
+
+  // Walk the ring in perimeter order (randomly CW or CCW)
+  const ringWalk = buildPerimeterWalk(castle, ringSet);
+  if (rng.bool(CASTLE_RING_REVERSE_CHANCE)) ringWalk.reverse();
+
+  // Extras = clumsy-builder tiles outside the original ring
+  const extras = new Set<number>();
+  for (const k of finalWalls) {
+    if (!ringSet.has(k)) extras.add(k);
+  }
+
+  // Ring tiles that survived the clumsy-builder sweep (≤1 neighbor removal)
+  const activeRing = ringWalk.filter((k) => finalWalls.has(k));
+
+  return interleaveExtras(activeRing, extras, finalWalls);
+}
+
 /** Build set of all 2×2 tower tile keys. */
 function buildTowerTileSet(towers: readonly Tower[]): Set<number> {
   const towerTiles = new Set<number>();
@@ -514,4 +554,66 @@ function extendGapsToTarget(
     if (!extended) break;
   }
   return gaps;
+}
+
+/** Walk the castle perimeter clockwise: top→right→bottom→left. */
+function buildPerimeterWalk(
+  castle: Castle,
+  ringSet: ReadonlySet<number>,
+): number[] {
+  const wL = castle.left - 1,
+    wR = castle.right + 1,
+    wT = castle.top - 1,
+    wB = castle.bottom + 1;
+
+  const walk: number[] = [];
+  // Top edge (left to right)
+  for (let c = wL; c <= wR; c++) {
+    const k = packTile(wT, c);
+    if (ringSet.has(k)) walk.push(k);
+  }
+  // Right edge (top+1 to bottom)
+  for (let r = wT + 1; r <= wB; r++) {
+    const k = packTile(r, wR);
+    if (ringSet.has(k)) walk.push(k);
+  }
+  // Bottom edge (right-1 to left)
+  for (let c = wR - 1; c >= wL; c--) {
+    const k = packTile(wB, c);
+    if (ringSet.has(k)) walk.push(k);
+  }
+  // Left edge (bottom-1 to top+1)
+  for (let r = wB - 1; r > wT; r--) {
+    const k = packTile(r, wL);
+    if (ringSet.has(k)) walk.push(k);
+  }
+  return walk;
+}
+
+/** After each ring tile, insert any adjacent extra tiles, then append remainders. */
+function interleaveExtras(
+  activeRing: readonly number[],
+  extras: ReadonlySet<number>,
+  finalWalls: ReadonlySet<number>,
+): number[] {
+  const ordered: number[] = [];
+  const placed = new Set<number>();
+  for (const k of activeRing) {
+    if (placed.has(k)) continue;
+    ordered.push(k);
+    placed.add(k);
+    const { r, c } = unpackTile(k);
+    for (const [dr, dc] of DIRS_4) {
+      const nk = packTile(r + dr, c + dc);
+      if (extras.has(nk) && !placed.has(nk)) {
+        ordered.push(nk);
+        placed.add(nk);
+      }
+    }
+  }
+  // Safety: add any remaining tiles not yet placed
+  for (const k of finalWalls) {
+    if (!placed.has(k)) ordered.push(k);
+  }
+  return ordered;
 }
