@@ -510,6 +510,16 @@ function buildCastleOverlay(
   state: GameState,
   wallsBeforeSweep?: readonly Set<number>[],
 ): CastleData[] {
+  // Enclosure reveal delay only applies during active wall placement.
+  // Outside build phases (checkpoints, phase transitions, game restart),
+  // clear stale state and show interior immediately.
+  const isBuildPhase =
+    state.phase === Phase.WALL_BUILD || state.phase === Phase.CASTLE_RESELECT;
+  if (!isBuildPhase) {
+    prevInterior.clear();
+    pendingReveal.clear();
+  }
+
   const now = performance.now();
   for (const [key, revealAt] of pendingReveal) {
     if (now >= revealAt) pendingReveal.delete(key);
@@ -519,7 +529,7 @@ function buildCastleOverlay(
     .filter((player) => player.castle)
     .map((player) => {
       const cached = prevInterior.get(player.id);
-      if (cached && cached !== player.interior) {
+      if (isBuildPhase && cached && cached !== player.interior) {
         for (const key of player.interior) {
           if (!cached.has(key)) {
             pendingReveal.set(key, now + ENCLOSURE_REVEAL_DELAY_MS);
