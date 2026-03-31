@@ -1272,10 +1272,20 @@ test("burning pits visible in overlay during cannon-to-battle banner", () => {
     getLifeLostPanelPos: () => ({ px: 0, py: 0 }),
   });
 
-  // BUG: overlay reads live state.burningPits which is now empty
+  // Current scene (below sweep) shows live state — pits are gone, that's correct
   assert(
-    overlay.entities!.burningPits!.length > 0,
-    "burning pits should still be visible during the banner transition (bug: they disappear immediately)",
+    overlay.entities!.burningPits!.length === 0,
+    "current scene should show live state (pits expired)",
+  );
+
+  // Old scene (above sweep) preserves pits via the snapshot
+  assert(
+    overlay.ui!.bannerOldEntities !== undefined,
+    "banner should have old entities snapshot",
+  );
+  assert(
+    overlay.ui!.bannerOldEntities!.burningPits!.length > 0,
+    "old scene should still show burning pits during the banner transition",
   );
 });
 

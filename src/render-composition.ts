@@ -341,7 +341,7 @@ export function createOnlineOverlay(params: {
   return {
     selection: previousSelection,
     castles: buildCastleOverlay(state, banner.wallsBeforeSweep),
-    entities: banner.oldEntities ?? {
+    entities: {
       houses: state.map.houses,
       grunts: state.grunts,
       towerAlive: state.towerAlive,
