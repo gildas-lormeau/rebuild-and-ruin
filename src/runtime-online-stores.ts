@@ -2,7 +2,7 @@
  * Online mutable singletons and thin utilities.
  *
  * Every piece of online mutable state lives here so that ownership is
- * explicit and mutation is visible across the split online-client modules.
+ * explicit and mutation is visible across the split runtime-online modules.
  *
  * NOTE: devLog() and devLogThrottled() are dev-only (gated by IS_DEV).
  * They produce no output in production builds. Do not rely on them

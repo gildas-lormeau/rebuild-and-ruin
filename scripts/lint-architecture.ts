@@ -33,6 +33,11 @@ const EXEMPT = new Set([
   "runtime-host-phase-ticks.ts", // pure tick functions, not a factory sub-system
   "runtime-host-battle-ticks.ts", // pure tick functions, not a factory sub-system
   "runtime-online-stores.ts", // mutable singletons, not a factory sub-system
+  "runtime-online-game.ts", // online orchestration, not a factory sub-system
+  "runtime-online-deps.ts", // online orchestration, not a factory sub-system
+  "runtime-online-promote.ts", // online orchestration, not a factory sub-system
+  "runtime-online-ws.ts", // online orchestration, not a factory sub-system
+  "runtime-online-lobby.ts", // online orchestration, not a factory sub-system
 ]);
 
 /** Sub-system files may import from these runtime-layer files. */

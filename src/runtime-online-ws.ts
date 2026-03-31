@@ -2,10 +2,10 @@
  * WebSocket connection lifecycle and reconnection for online play.
  */
 
-import { handleServerMessage } from "./online-client-deps.ts";
-import { runtime } from "./online-client-runtime.ts";
 import { computeWsUrl } from "./online-config.ts";
 import { connectWebSocket } from "./online-session.ts";
+import { handleServerMessage } from "./runtime-online-deps.ts";
+import { runtime } from "./runtime-online-game.ts";
 import {
   clearReconnect,
   devLog,

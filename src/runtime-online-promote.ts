@@ -6,7 +6,6 @@
  * syncs accumulators, and broadcasts the authoritative full state.
  */
 
-import { runtime } from "./online-client-runtime.ts";
 import {
   rebuildControllersForPhase,
   skipCastleBuildAnimation,
@@ -14,6 +13,7 @@ import {
 } from "./online-host-promotion.ts";
 import { createFullStateMessage } from "./online-serialize.ts";
 import { createAiController } from "./runtime-bootstrap.ts";
+import { runtime } from "./runtime-online-game.ts";
 import {
   devLog,
   resetNetworking,

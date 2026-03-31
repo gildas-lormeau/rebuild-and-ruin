@@ -5,11 +5,11 @@
  * `lobbyReady` — the single public API consumed by entry.ts.
  */
 
-import { pageOnline } from "./online-client-runtime.ts";
-import { connect } from "./online-client-ws.ts";
 import { initLobbyUi } from "./online-lobby-ui.ts";
 import { loadAtlas } from "./runtime-bootstrap.ts";
+import { pageOnline } from "./runtime-online-game.ts";
 import { send, session } from "./runtime-online-stores.ts";
+import { connect } from "./runtime-online-ws.ts";
 
 const lobbyElements = {
   btnCreateConfirm: document.getElementById("btn-create-confirm")!,

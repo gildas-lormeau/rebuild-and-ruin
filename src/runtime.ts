@@ -5,7 +5,7 @@
  * life-lost, phase-ticks, lobby, options, input, lifecycle), wires
  * their deps, and returns a narrow GameRuntime handle.
  *
- * Used by both main.ts (local play) and online-client-runtime.ts (online).
+ * Used by both main.ts (local play) and runtime-online-game.ts (online).
  *
  * ### Sub-system deps destructuring convention
  *

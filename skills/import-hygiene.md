@@ -82,8 +82,8 @@ The layer map file. Committed to the repo. An array of named groups — position
                                 runtime-types, runtime-bootstrap, runtime-touch-ui, runtime-input,
                                 runtime-game-lifecycle, runtime-lobby, runtime-options,
                                 runtime-online-stores, runtime, runtime-headless,
-                                online-client-runtime, online-client-deps, online-client-promote,
-                                online-client-ws, online-client-lobby
+                                runtime-online-game, runtime-online-deps, runtime-online-promote,
+                                runtime-online-ws, runtime-online-lobby
 13  entry points                entry, main, online-client, send-utils, game-room, room-manager, server
 ```
 

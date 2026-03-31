@@ -165,11 +165,11 @@
       "src/runtime.ts",
       "src/runtime-headless.ts",
       "src/runtime-online-stores.ts",
-      "src/online-client-runtime.ts",
-      "src/online-client-deps.ts",
-      "src/online-client-promote.ts",
-      "src/online-client-ws.ts",
-      "src/online-client-lobby.ts"
+      "src/runtime-online-game.ts",
+      "src/runtime-online-deps.ts",
+      "src/runtime-online-promote.ts",
+      "src/runtime-online-ws.ts",
+      "src/runtime-online-lobby.ts"
     ]
   },
   {

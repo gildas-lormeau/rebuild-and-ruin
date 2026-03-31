@@ -8,20 +8,12 @@
  * Pick<> references — consumers read fields at call time, so values are always
  * current. Runtime-dependent state still uses closures for late binding.
  * - lifecycleDeps / incrementalDeps: built once at module load, reused for session lifetime.
- * - Contrast with online-client-runtime.ts where checkpointDeps are built dynamically
+ * - Contrast with runtime-online-game.ts where checkpointDeps are built dynamically
  *   on each call (because checkpoint state changes frequently during play).
  */
 
 import type { ServerMessage } from "../server/protocol.ts";
 import { MIGRATION_ANNOUNCEMENT_DURATION } from "./game-constants.ts";
-import { promoteToHost } from "./online-client-promote.ts";
-import {
-  initFromServer,
-  restoreFullState,
-  runtime,
-  showWaitingRoom,
-  transitionCtx,
-} from "./online-client-runtime.ts";
 import {
   handleBattleStartTransition,
   handleBuildEndTransition,
@@ -33,6 +25,14 @@ import {
 import { handleServerIncrementalMessage } from "./online-server-events.ts";
 import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
 import { PLAYER_NAMES } from "./player-config.ts";
+import {
+  initFromServer,
+  restoreFullState,
+  runtime,
+  showWaitingRoom,
+  transitionCtx,
+} from "./runtime-online-game.ts";
+import { promoteToHost } from "./runtime-online-promote.ts";
 import { devLog, session, watcher } from "./runtime-online-stores.ts";
 import { isReselectPhase, Mode } from "./types.ts";
 
