@@ -26,7 +26,6 @@
  */
 
 import {
-  BANNER_DURATION,
   MAX_FRAME_DT,
   SCORE_DELTA_DISPLAY_TIME,
   SELECT_ANNOUNCEMENT_DURATION,
@@ -39,7 +38,6 @@ import type { UIContext } from "./game-ui-screens.ts";
 import { computeGameSeed } from "./game-ui-settings.ts";
 import { createHapticsSystem } from "./haptics-system.ts";
 import { generateMap } from "./map-generation.ts";
-import { showBannerTransition, tickBannerTransition } from "./phase-banner.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "./platform.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
 import {
@@ -50,6 +48,7 @@ import {
 } from "./render-composition.ts";
 import { precomputeTerrainCache } from "./render-map.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
+import { createBannerSystem } from "./runtime-banner.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { createGameLifecycle } from "./runtime-game-lifecycle.ts";
 import { createHumanLookup } from "./runtime-human.ts";
@@ -243,52 +242,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   }
 
   // -------------------------------------------------------------------------
-  // Banner
-  // -------------------------------------------------------------------------
-
-  /** Show a phase transition banner.
-   *  @param text — Banner text
-   *  @param onDone — Called once when banner animation completes
-   *  @param preserveOldScene — If true, render old scene behind the banner (for before/after comparison)
-   *  @param newBattle — Battle territory/walls snapshot for the "after" scene. Only used when preserveOldScene is true; ignored otherwise.
-   *  @param subtitle — Optional smaller text below the main banner */
-  function showBanner(
-    text: string,
-    onDone: () => void,
-    preserveOldScene = false,
-    newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
-    subtitle?: string,
-  ) {
-    // Unzoom before banner so the full map is visible during transition
-    camera.clearPhaseZoom();
-    if (runtimeState.banner.active) {
-      config.log(
-        `showBanner "${text}" while banner "${runtimeState.banner.text}" is still active`,
-      );
-    }
-    showBannerTransition({
-      banner: runtimeState.banner,
-      state: runtimeState.state,
-      battleAnim: runtimeState.battleAnim,
-      text,
-      subtitle,
-      onDone,
-      preserveOldScene,
-      newBattle,
-      setModeBanner: () => {
-        runtimeState.mode = Mode.BANNER;
-      },
-    });
-    haptics.phaseChange();
-    sound.phaseStart();
-  }
-
-  function tickBanner(dt: number) {
-    tickBannerTransition(runtimeState.banner, dt, BANNER_DURATION, render);
-  }
-
-  // -------------------------------------------------------------------------
-  // Territory / human helpers
+  // Territory helper
   // -------------------------------------------------------------------------
 
   function snapshotTerritory(): Set<number>[] {
@@ -329,6 +283,19 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
 
   const { tickCamera, updateViewport } = camera;
+
+  // -------------------------------------------------------------------------
+  // Banner sub-system (delegated to runtime-banner.ts)
+  // -------------------------------------------------------------------------
+
+  const { showBanner, tickBanner } = createBannerSystem({
+    runtimeState,
+    clearPhaseZoom: camera.clearPhaseZoom,
+    log: config.log,
+    haptics,
+    sound,
+    render: () => render(),
+  });
 
   // -------------------------------------------------------------------------
   // Selection sub-system (delegated to runtime-selection.ts)

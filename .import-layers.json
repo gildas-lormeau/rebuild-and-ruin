@@ -152,6 +152,7 @@
     "name": "runtime",
     "files": [
       "src/runtime-state.ts",
+      "src/runtime-banner.ts",
       "src/runtime-camera.ts",
       "src/runtime-life-lost.ts",
       "src/runtime-lobby.ts",
