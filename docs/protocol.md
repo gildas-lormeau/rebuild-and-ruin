@@ -81,6 +81,23 @@ These are sent by the host and relayed to all other clients. They carry full sta
 | `build_end` | Build phase ends | `needsReselect[]`, `eliminated[]`, `scores[]`, `players[]` |
 | `game_over` | Game ends | `winner`, `scores[]` |
 
+#### Serialized Player Shape
+
+The `players[]` array in checkpoint messages uses `SerializedPlayer` (`src/checkpoint-data.ts`):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `number` | Player index |
+| `walls` | `number[]` | Wall tile keys (row×COLS+col) |
+| `interior` | `number[]` | Enclosed territory tile keys |
+| `cannons` | `{row, col, hp, mode, facing?}[]` | Cannon positions and state |
+| `ownedTowerIndices` | `number[]` | Indices into `map.towers` |
+| `homeTowerIdx` | `number \| null` | Home tower index |
+| `castleWallTiles` | `number[]?` | Castle wall tiles protected from debris sweep (includes clumsy extras) |
+| `lives` | `number` | Lives remaining |
+| `eliminated` | `boolean` | Whether player is out |
+| `score` | `number` | Accumulated score |
+
 ### Host → All (Incremental Events)
 
 Streamed during gameplay phases. Battle impact events (`wall_destroyed` through `tower_killed`) are **host-only** — only the host can send them.
