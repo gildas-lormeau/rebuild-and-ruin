@@ -618,7 +618,7 @@ function drawPhantomCannon(
   canvasCtx.restore();
 }
 
-/** Draw a single phantom piece (fill + optional outline). */
+/** Draw a single phantom piece (fill + white outline). */
 function drawPiecePhantom(
   overlayCtx: CanvasRenderingContext2D,
   offsets: readonly [number, number][],
@@ -632,6 +632,16 @@ function drawPiecePhantom(
   overlayCtx.fillStyle = fillColor;
   for (const [dr, dc] of offsets) {
     overlayCtx.fillRect(
+      (col + dc) * TILE_SIZE,
+      (row + dr) * TILE_SIZE,
+      TILE_SIZE,
+      TILE_SIZE,
+    );
+  }
+  overlayCtx.strokeStyle = TEXT_WHITE;
+  overlayCtx.lineWidth = 1;
+  for (const [dr, dc] of offsets) {
+    overlayCtx.strokeRect(
       (col + dc) * TILE_SIZE,
       (row + dr) * TILE_SIZE,
       TILE_SIZE,
