@@ -76,9 +76,11 @@ const WAVE_COL_LAYER_VAR = 0.15;
 const WAVE_PHASE_OFFSET = 2.1;
 // Phantom rendering
 const DARK_METAL = "#111";
-const PHANTOM_INVALID_COLOR = "#aa2222";
-/** Shared phantom opacity for all placement previews (primary, split-screen human, AI). */
+const PHANTOM_INVALID_COLOR = "#222";
+/** Shared phantom opacity for valid placement previews. */
 const PHANTOM_ALPHA = 1;
+/** Reduced opacity for invalid placement previews. */
+const PHANTOM_INVALID_ALPHA = 0.5;
 // Spatial hash multipliers for per-tile visual noise
 const SEED_ROW = 41;
 const SEED_COL = 17;
@@ -138,7 +140,7 @@ export function drawPhantoms(
       row,
       col,
       valid ? rgb(saturateRgb(wall, 2.5)) : PHANTOM_INVALID_COLOR,
-      PHANTOM_ALPHA,
+      valid ? PHANTOM_ALPHA : PHANTOM_INVALID_ALPHA,
       false,
     );
   }
@@ -155,7 +157,7 @@ export function drawPhantoms(
         row,
         col,
         fill,
-        PHANTOM_ALPHA,
+        valid ? PHANTOM_ALPHA : PHANTOM_INVALID_ALPHA,
         true,
       );
     }
@@ -164,15 +166,15 @@ export function drawPhantoms(
   // AI phantom piece previews
   if (overlay?.phantoms?.aiPhantoms) {
     for (const phantom of overlay.phantoms.aiPhantoms) {
-      const { offsets, row, col, playerId } = phantom;
+      const { offsets, row, col, playerId, valid } = phantom;
       const wall = getPlayerColor(playerId).wall;
       drawPiecePhantom(
         overlayCtx,
         offsets,
         row,
         col,
-        rgb(saturateRgb(wall, 2.5)),
-        PHANTOM_ALPHA,
+        valid ? rgb(saturateRgb(wall, 2.5)) : PHANTOM_INVALID_COLOR,
+        valid ? PHANTOM_ALPHA : PHANTOM_INVALID_ALPHA,
         true,
       );
     }

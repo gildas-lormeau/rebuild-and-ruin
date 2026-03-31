@@ -390,6 +390,7 @@ function collectBuildPhantoms(
         row: phantom.row,
         col: phantom.col,
         playerId: phantom.playerId,
+        valid: phantom.valid ?? true,
       });
     }
 

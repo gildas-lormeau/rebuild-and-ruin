@@ -25,6 +25,7 @@ export type PiecePhantom = {
   row: number;
   col: number;
   playerId: number;
+  valid: boolean;
 };
 
 /** Local human piece phantom. Has `valid` for green/red placement preview coloring. */

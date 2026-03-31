@@ -57,20 +57,20 @@ test("cannonPhantomKey ignores valid and playerId (display-only fields)", () => 
 // ---------------------------------------------------------------------------
 
 test("piecePhantomKey encodes position and offsets", () => {
-  const phantom: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0], [1, 0], [0, 1]], playerId: 0 };
+  const phantom: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0], [1, 0], [0, 1]], playerId: 0, valid: true };
   const key = piecePhantomKey(phantom);
   assert(key === "10,20,0:0;1:0;0:1", `expected "10,20,0:0;1:0;0:1", got "${key}"`);
 });
 
 test("piecePhantomKey differs by offset shape", () => {
-  const a: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0], [1, 0]], playerId: 0 };
-  const b: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0], [0, 1]], playerId: 0 };
+  const a: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0], [1, 0]], playerId: 0, valid: true };
+  const b: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0], [0, 1]], playerId: 0, valid: true };
   assert(piecePhantomKey(a) !== piecePhantomKey(b), "different offsets should produce different keys");
 });
 
 test("piecePhantomKey differs by position", () => {
-  const a: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0]], playerId: 0 };
-  const b: PiecePhantom = { row: 11, col: 20, offsets: [[0, 0]], playerId: 0 };
+  const a: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0]], playerId: 0, valid: true };
+  const b: PiecePhantom = { row: 11, col: 20, offsets: [[0, 0]], playerId: 0, valid: true };
   assert(piecePhantomKey(a) !== piecePhantomKey(b), "different position should produce different key");
 });
 
