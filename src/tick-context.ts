@@ -33,7 +33,7 @@
  * These are not interchangeable — each has a specific role in the phase lifecycle.
  */
 
-import type { PlayerController } from "./controller-interfaces.ts";
+import type { ControllerIdentity } from "./controller-interfaces.ts";
 import { GRUNT_TICK_INTERVAL } from "./game-constants.ts";
 import type { GameState } from "./types.ts";
 
@@ -94,11 +94,13 @@ export function tickGruntsIfDue(
 }
 
 /** Filter controllers to only local (non-remote) players that are still alive. */
-export function localActiveControllers(
-  controllers: readonly PlayerController[],
+export function localActiveControllers<
+  T extends ControllerIdentity = ControllerIdentity,
+>(
+  controllers: readonly T[],
   remoteHumanSlots: ReadonlySet<number>,
   state: GameState,
-): PlayerController[] {
+): T[] {
   return controllers.filter(
     (ctrl) =>
       !remoteHumanSlots.has(ctrl.playerId) &&

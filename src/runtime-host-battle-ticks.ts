@@ -13,7 +13,10 @@ import {
   getCountdownAnnouncement,
 } from "./battle-system.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
-import type { PlayerController } from "./controller-interfaces.ts";
+import type {
+  BattleController,
+  ControllerIdentity,
+} from "./controller-interfaces.ts";
 import type { TilePos } from "./geometry-types.ts";
 import type { WatcherTimingState } from "./online-types.ts";
 import { BANNER_BATTLE, type BannerShow } from "./phase-banner.ts";
@@ -36,11 +39,13 @@ import type {
   Impact,
 } from "./types.ts";
 
+type BattleCapable = ControllerIdentity & BattleController;
+
 interface TickHostBattleCountdownDeps {
   dt: number;
   state: GameState;
   frame: { announcement?: string };
-  controllers: PlayerController[];
+  controllers: BattleCapable[];
   syncCrosshairs: (canFireNow: boolean, dt: number) => void;
   render: () => void;
   net?: Pick<HostNetContext, "remoteHumanSlots">;
@@ -58,7 +63,7 @@ interface TickHostBattlePhaseDeps {
   state: GameState;
   battleTimer: number;
   accum: { battle: number };
-  controllers: PlayerController[];
+  controllers: BattleCapable[];
   battleAnim: { impacts: Impact[] };
   render: () => void;
   syncCrosshairs: (canFireNow: boolean, dt: number) => void;
@@ -114,7 +119,7 @@ interface BattleBeginNet extends HostNetContext {
 
 interface BeginHostBattleDeps {
   state: GameState;
-  controllers: PlayerController[];
+  controllers: BattleCapable[];
   accum: { battle: number };
   battleCountdown: number;
   setModeGame: () => void;
@@ -309,7 +314,7 @@ export function beginHostBattle(deps: BeginHostBattleDeps): void {
 function tickControllersAndCollectFires(
   state: GameState,
   dt: number,
-  controllers: readonly PlayerController[],
+  controllers: readonly BattleCapable[],
   remoteHumanSlots: ReadonlySet<number>,
   isHost: boolean,
   sendMessage: ((msg: GameMessage) => void) | undefined,

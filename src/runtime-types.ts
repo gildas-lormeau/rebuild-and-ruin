@@ -22,9 +22,12 @@
 import type { GameMessage, ServerMessage } from "../server/protocol.ts";
 import type { SerializedPlayer } from "./checkpoint-data.ts";
 import type {
+  BattleController,
+  BuildController,
+  CannonController,
+  ControllerIdentity,
   Crosshair,
   InputReceiver,
-  PlayerController,
 } from "./controller-interfaces.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
@@ -75,7 +78,7 @@ export interface RuntimeConfig {
   extendCrosshairs?: (crosshairs: Crosshair[], dt: number) => Crosshair[];
   /** Called per controller during crosshair collection (e.g., sends aim_update to watchers). */
   onLocalCrosshairCollected?: (
-    ctrl: PlayerController,
+    ctrl: ControllerIdentity,
     ch: { x: number; y: number },
     readyCannon: boolean,
   ) => void;
@@ -106,17 +109,17 @@ export interface RuntimeConfig {
   maybeSendAimUpdate?: (x: number, y: number) => void;
   /** Try to place cannon and send to server. */
   tryPlaceCannonAndSend?: (
-    ctrl: PlayerController & InputReceiver,
+    ctrl: ControllerIdentity & CannonController & InputReceiver,
     gameState: GameState,
     max: number,
   ) => boolean;
   /** Try to place piece and send to server. */
   tryPlacePieceAndSend?: (
-    ctrl: PlayerController & InputReceiver,
+    ctrl: ControllerIdentity & BuildController & InputReceiver,
     gameState: GameState,
   ) => boolean;
   /** Fire and send to server. */
-  fireAndSend?: (ctrl: PlayerController, gameState: GameState) => void;
+  fireAndSend?: (ctrl: BattleController, gameState: GameState) => void;
   /** Room code for lobby overlay. */
   roomCode?: string;
   /** Optional hook called when a game ends (before frame payload is set). */

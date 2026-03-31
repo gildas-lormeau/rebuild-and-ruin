@@ -1,5 +1,8 @@
 import { MESSAGE } from "../server/protocol.ts";
-import type { PlayerController } from "./controller-interfaces.ts";
+import type {
+  ControllerIdentity,
+  SelectionController,
+} from "./controller-interfaces.ts";
 import { selectPlayerTower } from "./game-engine.ts";
 import { BANNER_SELECT } from "./phase-banner.ts";
 import {
@@ -10,6 +13,8 @@ import {
   type SelectionState,
 } from "./types.ts";
 
+type SelectionCapable = ControllerIdentity & SelectionController;
+
 interface TickSelectionPhaseDeps {
   dt: number;
   state: GameState;
@@ -19,7 +24,7 @@ interface TickSelectionPhaseDeps {
   accum: { select: number; selectAnnouncement: number };
   selectionStates: Map<number, SelectionState>;
   remoteHumanSlots: ReadonlySet<number>;
-  controllers: PlayerController[];
+  controllers: SelectionCapable[];
   render: () => void;
   confirmSelectionAndStartBuild: (
     playerId: number,
@@ -99,7 +104,7 @@ export function highlightTowerSelection(
 export function confirmTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
-  controllers: readonly PlayerController[],
+  controllers: readonly SelectionCapable[],
   playerId: number,
   isReselect: boolean,
   send: (msg: {

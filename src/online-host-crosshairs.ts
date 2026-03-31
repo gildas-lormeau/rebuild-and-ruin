@@ -12,10 +12,10 @@ import {
   nextReadyCombined,
 } from "./battle-system.ts";
 import {
+  type ControllerIdentity,
   CROSSHAIR_SPEED,
   type Crosshair,
   isAiAnimatable,
-  type PlayerController,
 } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { interpolateToward, REMOTE_CROSSHAIR_MULT } from "./online-types.ts";
@@ -36,7 +36,7 @@ interface ExtendDeps {
 
 /** Send aim_update for a local controller's crosshair (host only, deduped). */
 export function broadcastLocalCrosshair(
-  ctrl: PlayerController,
+  ctrl: ControllerIdentity,
   ch: { x: number; y: number },
   deps: BroadcastDeps,
 ): void {

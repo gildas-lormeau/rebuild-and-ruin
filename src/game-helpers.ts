@@ -5,7 +5,12 @@
  */
 
 import { nextReadyCombined } from "./battle-system.ts";
-import type { Crosshair, PlayerController } from "./controller-interfaces.ts";
+import type {
+  BattleController,
+  ControllerIdentity,
+  Crosshair,
+  SelectionController,
+} from "./controller-interfaces.ts";
 import { KEY_UP, type KeyBindings } from "./player-config.ts";
 import { packTile } from "./spatial.ts";
 import {
@@ -63,13 +68,16 @@ export function snapshotTerritory(players: readonly Player[]): Set<number>[] {
 }
 
 /** Collect crosshairs from local controllers. */
-export function collectLocalCrosshairs(params: {
+export function collectLocalCrosshairs<
+  T extends ControllerIdentity & BattleController = ControllerIdentity &
+    BattleController,
+>(params: {
   state: GameState;
-  controllers: PlayerController[];
+  controllers: T[];
   canFireNow: boolean;
   skipController?: (playerId: number) => boolean;
   onCrosshairCollected?: (
-    ctrl: PlayerController,
+    ctrl: T,
     ch: { x: number; y: number },
     readyCannon: boolean,
   ) => void;
@@ -194,17 +202,16 @@ export function tickMainLoop(params: {
 
 /** Process the reselection queue. Returns players still needing UI interaction.
  *  `processPlayer` returns: "done" (AI picked), "pending" (needs UI), or "remote" (remote human). */
-export function processReselectionQueue(params: {
+export function processReselectionQueue<
+  T extends ControllerIdentity & SelectionController = ControllerIdentity &
+    SelectionController,
+>(params: {
   reselectQueue: number[];
   state: GameState;
-  controllers: PlayerController[];
+  controllers: T[];
   initTowerSelection: (pid: number, zone: number) => void;
-  processPlayer: (
-    pid: number,
-    ctrl: PlayerController,
-    zone: number,
-  ) => "done" | "pending";
-  onDone: (pid: number, ctrl: PlayerController) => void;
+  processPlayer: (pid: number, ctrl: T, zone: number) => "done" | "pending";
+  onDone: (pid: number, ctrl: T) => void;
 }): {
   remaining: number[] /** True if any player still needs interactive castle selection. */;
   needsUI: boolean;

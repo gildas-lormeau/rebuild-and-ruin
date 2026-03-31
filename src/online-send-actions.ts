@@ -1,13 +1,16 @@
 import { type GameMessage, MESSAGE } from "../server/protocol.ts";
 import { createCannonFiredMsg } from "./battle-system.ts";
 import type {
+  BattleController,
+  BuildController,
+  CannonController,
+  ControllerIdentity,
   InputReceiver,
-  PlayerController,
 } from "./controller-interfaces.ts";
 import type { GameState } from "./types.ts";
 
 export function tryPlacePieceAndSend(
-  ctrl: PlayerController & InputReceiver,
+  ctrl: ControllerIdentity & BuildController & InputReceiver,
   gameState: GameState,
   send: (msg: GameMessage) => void,
 ): boolean {
@@ -28,7 +31,7 @@ export function tryPlacePieceAndSend(
 }
 
 export function tryPlaceCannonAndSend(
-  ctrl: PlayerController & InputReceiver,
+  ctrl: ControllerIdentity & CannonController & InputReceiver,
   gameState: GameState,
   max: number,
   send: (msg: GameMessage) => void,
@@ -50,7 +53,7 @@ export function tryPlaceCannonAndSend(
 }
 
 export function fireAndSend(
-  ctrl: PlayerController,
+  ctrl: BattleController,
   gameState: GameState,
   send: (msg: GameMessage) => void,
 ): void {

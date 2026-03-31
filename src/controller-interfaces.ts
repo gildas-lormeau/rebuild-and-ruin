@@ -3,6 +3,14 @@
  *
  * Extracted from controller-types.ts so that modules needing only the
  * PlayerController interface don't transitively depend on battle-system.
+ *
+ * Phase-scoped sub-interfaces let consumers import only the slice they need:
+ *   ControllerIdentity  — identity, lifecycle, cursor centering
+ *   SelectionController — tower selection phase
+ *   BuildController     — wall build phase
+ *   CannonController    — cannon placement phase
+ *   BattleController    — battle phase
+ *   PlayerController    — full intersection (backward-compatible)
  */
 
 import type { PixelPos, TilePos } from "./geometry-types.ts";
@@ -46,21 +54,27 @@ export interface Crosshair {
   cannonReady?: boolean;
 }
 
-/** Shared interface — both AI and Human genuinely use these. */
-export interface PlayerController {
+/** Identity, lifecycle, and cursor centering — the minimal slice every consumer needs. */
+export interface ControllerIdentity {
   readonly playerId: number;
   /** Discriminant for isHuman/isAiAnimatable type guards (string union, not enum — only two values). */
   readonly kind: "human" | "ai";
 
-  /** Build cursor position. */
-  buildCursor: TilePos;
-
-  /** Cannon cursor position (set by the game at cannon phase start). */
-  cannonCursor: TilePos;
-
   /** Update key bindings (no-op for AI). */
   updateBindings(keys: KeyBindings): void;
 
+  /** Center cursors/crosshair on a tower position. */
+  centerOn(row: number, col: number): void;
+
+  /** Reset stale state after losing a life (before reselection). */
+  onLifeLost(): void;
+
+  /** Reset all state for a new game. */
+  reset(): void;
+}
+
+/** Tower selection phase. */
+export interface SelectionController {
   /** Pick a tower. Initiates async selection — use selectionTick() to advance. */
   selectTower(state: GameState, zone: number): void;
 
@@ -75,18 +89,12 @@ export interface PlayerController {
    *  after an animation delay; human always returns false — confirmation is driven by
    *  explicit UI input, not by the tick). */
   selectionTick(dt: number, state?: GameState): boolean;
+}
 
-  /** Place cannons. AI places all immediately. Human sets up UI. */
-  placeCannons(state: GameState, maxSlots: number): void;
-
-  /** Whether the player has placed all their cannons. */
-  isCannonPhaseDone(state: GameState, maxSlots: number): boolean;
-
-  /** Called each frame during cannon phase. Returns a placement preview for rendering,
-   *  or null if no preview should be shown (player eliminated, no slots remaining).
-   *  NOTE: Returns null (not empty array) because at most one cannon preview exists at a time.
-   *  Contrast with buildTick() which returns an array (multiple piece previews possible). */
-  cannonTick(state: GameState, dt: number): CannonPlacementPreview | null;
+/** Wall build phase. */
+export interface BuildController {
+  /** Build cursor position. */
+  buildCursor: TilePos;
 
   /** Called once at the start of the build phase. */
   startBuild(state: GameState): void;
@@ -100,22 +108,48 @@ export interface PlayerController {
   /** Called at the end of the build phase. */
   finalizeBuildPhase(state: GameState): void;
 
-  /** Called each frame during battle. Uses state.battleCountdown and state.timer to decide behavior. */
-  battleTick(state: GameState, dt: number): void;
+  /** Move build cursor one tile in a direction (keyboard). Piece-aware clamping when provided. */
+  moveBuildCursor(direction: Action, piece?: PieceShape | null): void;
 
-  /** Current crosshair for rendering. */
-  getCrosshair(): Crosshair;
+  /** Set build cursor to absolute position (mouse/touch).
+   *  HumanController overrides to offset by the piece pivot so the clicked tile
+   *  aligns with the piece's visual center. Piece-aware clamping when provided. */
+  setBuildCursor(row: number, col: number, piece?: PieceShape | null): void;
 
-  /** Center cursors/crosshair on a tower position. */
-  centerOn(row: number, col: number): void;
+  /** Get the current build piece (for sending placement data). */
+  getCurrentPiece(): PieceShape | null;
+}
 
-  /** Initialize battle-phase state (cannon rotation index, crosshair position).
-   *  Called once at battle start — not a full game reset (see reset() for that).
-   *  Scope: resets cannonRotationIdx + centers cursors on home tower. */
-  initBattleState(state?: GameState): void;
+/** Cannon placement phase. */
+export interface CannonController {
+  /** Cannon cursor position (set by the game at cannon phase start). */
+  cannonCursor: TilePos;
+
+  /** Place cannons. AI places all immediately. Human sets up UI. */
+  placeCannons(state: GameState, maxSlots: number): void;
+
+  /** Whether the player has placed all their cannons. */
+  isCannonPhaseDone(state: GameState, maxSlots: number): boolean;
+
+  /** Called each frame during cannon phase. Returns a placement preview for rendering,
+   *  or null if no preview should be shown (player eliminated, no slots remaining).
+   *  NOTE: Returns null (not empty array) because at most one cannon preview exists at a time.
+   *  Contrast with buildTick() which returns an array (multiple piece previews possible). */
+  cannonTick(state: GameState, dt: number): CannonPlacementPreview | null;
+
+  /** Move cannon cursor one tile in a direction (keyboard). */
+  moveCannonCursor(direction: Action): void;
+
+  /** Set cannon cursor to absolute position (mouse/touch).
+   *  HumanController overrides to offset by half the cannon size so the clicked
+   *  tile lands at the placement preview's center. */
+  setCannonCursor(row: number, col: number): void;
+
+  /** Called at start of cannon phase. */
+  onCannonPhaseStart(state: GameState): void;
 
   /** Flush any remaining auto-placement queue (cannon timer expired).
-   *  Do NOT call directly — use finalizeCannonPhase() which guarantees flush→init order. */
+   *  Do NOT call directly — use finalizeCannonPhase() which guarantees flush->init order. */
   flushCannons(state: GameState, maxSlots: number): void;
 
   /** End-of-cannon-phase finalization (flush + init). Use for LOCAL controllers.
@@ -124,45 +158,41 @@ export interface PlayerController {
 
   /** Round-1 safety net: auto-place cannons if none were manually placed. No-op on round 2+. */
   initCannons(state: GameState, maxSlots: number): void;
+}
 
-  /** Called at the end of the battle phase. */
-  endBattle(): void;
-
-  /** Reset stale state after losing a life (before reselection). */
-  onLifeLost(): void;
-
-  /** Reset all state for a new game. */
-  reset(): void;
-
-  /** Called at start of cannon phase. */
-  onCannonPhaseStart(state: GameState): void;
-
-  /** Move build cursor one tile in a direction (keyboard). Piece-aware clamping when provided. */
-  moveBuildCursor(direction: Action, piece?: PieceShape | null): void;
-
-  /** Move cannon cursor one tile in a direction (keyboard). */
-  moveCannonCursor(direction: Action): void;
-
-  /** Set build cursor to absolute position (mouse/touch).
-   *  HumanController overrides to offset by the piece pivot so the clicked tile
-   *  aligns with the piece's visual center. Piece-aware clamping when provided. */
-  setBuildCursor(row: number, col: number, piece?: PieceShape | null): void;
-
-  /** Set cannon cursor to absolute position (mouse/touch).
-   *  HumanController overrides to offset by half the cannon size so the clicked
-   *  tile lands at the placement preview's center. */
-  setCannonCursor(row: number, col: number): void;
-
-  /** Set crosshair to absolute pixel position (mouse). */
-  setCrosshair(x: number, y: number): void;
-
-  /** Get the current build piece (for sending placement data). */
-  getCurrentPiece(): PieceShape | null;
+/** Battle phase. */
+export interface BattleController {
+  /** Called each frame during battle. Uses state.battleCountdown and state.timer to decide behavior. */
+  battleTick(state: GameState, dt: number): void;
 
   /** Fire one cannon at the current crosshair position (public entry point).
    *  Delegates to the protected round-robin method fireNextCannon(). */
   fire(state: GameState): void;
+
+  /** Current crosshair for rendering. */
+  getCrosshair(): Crosshair;
+
+  /** Set crosshair to absolute pixel position (mouse). */
+  setCrosshair(x: number, y: number): void;
+
+  /** Initialize battle-phase state (cannon rotation index, crosshair position).
+   *  Called once at battle start — not a full game reset (see reset() for that).
+   *  Scope: resets cannonRotationIdx + centers cursors on home tower. */
+  initBattleState(state?: GameState): void;
+
+  /** Called at the end of the battle phase. */
+  endBattle(): void;
 }
+
+/** Full controller interface — intersection of all phase-scoped sub-interfaces.
+ *  Use this when a module genuinely crosses phases (orchestrators, factories).
+ *  Prefer the narrower sub-interfaces when only one phase is needed. */
+export interface PlayerController
+  extends ControllerIdentity,
+    SelectionController,
+    BuildController,
+    CannonController,
+    BattleController {}
 
 /** Human input handling — no-op in BaseController, overridden by HumanController. */
 export interface InputReceiver {
@@ -203,16 +233,36 @@ export interface AiAnimatable {
 /** Battle crosshair movement speed in pixels per second. */
 export const CROSSHAIR_SPEED = 80;
 
-/** Type guard — true when ctrl is a HumanController (implements InputReceiver). */
+/** Type guard — true when ctrl is a HumanController (implements InputReceiver).
+ *  Overloaded so callers with the full PlayerController get a PlayerController predicate,
+ *  while callers with only ControllerIdentity get a narrower predicate. */
 export function isHuman(
   ctrl: PlayerController,
-): ctrl is PlayerController & InputReceiver {
+): ctrl is PlayerController & InputReceiver;
+
+export function isHuman(
+  ctrl: ControllerIdentity,
+): ctrl is ControllerIdentity & InputReceiver;
+
+export function isHuman(
+  ctrl: ControllerIdentity,
+): ctrl is ControllerIdentity & InputReceiver {
   return ctrl.kind === "human";
 }
 
-/** Type guard — true when ctrl is an AiController (implements AiAnimatable). */
+/** Type guard — true when ctrl is an AiController (implements AiAnimatable).
+ *  Overloaded so callers with the full PlayerController get a PlayerController predicate,
+ *  while callers with only ControllerIdentity get a narrower predicate. */
 export function isAiAnimatable(
   ctrl: PlayerController,
-): ctrl is PlayerController & AiAnimatable {
+): ctrl is PlayerController & AiAnimatable;
+
+export function isAiAnimatable(
+  ctrl: ControllerIdentity,
+): ctrl is ControllerIdentity & AiAnimatable;
+
+export function isAiAnimatable(
+  ctrl: ControllerIdentity,
+): ctrl is ControllerIdentity & AiAnimatable {
   return ctrl.kind === "ai";
 }
