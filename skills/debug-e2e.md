@@ -22,9 +22,10 @@ Tell the sub-agent: **"Do NOT fix the bug. Only investigate and report back."**
 You are investigating a bug in a game project.
 
 CRITICAL RULES:
-- DO NOT fix the bug. DO NOT modify any source files in src/.
-- You may ONLY create files in test/ for investigation.
-- Your job is to find the root cause and report back with evidence.
+- DO NOT fix the bug — only investigate and report.
+- You ARE running in an isolated worktree. You CAN freely modify src/ files to add logs.
+  Changes here do not affect the main repo.
+- After finding one cause, check if the same data is modified by other code paths too.
 
 ## Bug description
 {describe what the user reported}
