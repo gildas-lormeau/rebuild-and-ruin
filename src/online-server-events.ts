@@ -382,7 +382,7 @@ function handlePiecePhantom(
     row: msg.row,
     col: msg.col,
     playerId: msg.playerId,
-    valid: true,
+    valid: msg.valid,
   });
   deps.watcher.remotePiecePhantoms = updated;
   return APPLIED;

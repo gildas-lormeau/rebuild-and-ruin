@@ -8,7 +8,7 @@
 
 import { Step } from "./ai-constants.ts";
 import type { AiStrategy } from "./ai-strategy.ts";
-import { placePiece } from "./build-system.ts";
+import { canPlacePiece, placePiece } from "./build-system.ts";
 import type { PiecePlacementPreview } from "./controller-interfaces.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
@@ -133,7 +133,7 @@ export function tickBuild(
       const bs = phase.state;
       if (bs.timer > 0) {
         bs.timer -= dt;
-        return [phantomAtCursor(host)];
+        return [phantomAtCursor(host, state)];
       }
       // Timer expired — compute next placement
       const target = computeNextPlacement(host, state);
@@ -143,14 +143,14 @@ export function tickBuild(
           target,
           rotation: buildRotationFor(host, target),
         };
-        return tickMoving(host, phase, dt);
+        return tickMoving(host, phase, state, dt);
       }
       if (state.timer > 2) {
         phase.state = { step: Step.THINKING, timer: 1.0 };
       } else {
         phase.state = { step: Step.GAVE_UP, retryTimer: 1.0 };
       }
-      return [phantomAtCursor(host)];
+      return [phantomAtCursor(host, state)];
     }
 
     case Step.GAVE_UP: {
@@ -179,11 +179,11 @@ export function tickBuild(
           bs.retryTimer = 1.0;
         }
       }
-      return [phantomAtCursor(host)];
+      return [phantomAtCursor(host, state)];
     }
 
     case Step.MOVING:
-      return tickMoving(host, phase, dt);
+      return tickMoving(host, phase, state, dt);
 
     case Step.DWELLING: {
       const bs = phase.state;
@@ -230,6 +230,7 @@ export function tickBuild(
 function tickMoving(
   host: BuildHost,
   phase: BuildPhase,
+  state: GameState,
   dt: number,
 ): PiecePlacementPreview[] {
   const bs = phase.state as Extract<BuildState, { step: typeof Step.MOVING }>;
@@ -292,7 +293,7 @@ function tickMoving(
       movingPiece,
       curRow,
       curCol,
-      curRow === target.row && curCol === target.col,
+      canPlacePiece(state, host.playerId, movingPiece, curRow, curCol),
     ),
   ];
 }
@@ -321,13 +322,19 @@ function buildRotationFor(host: BuildHost, target: BuildTarget): BuildRotation {
   };
 }
 
-function phantomAtCursor(host: BuildHost): PiecePlacementPreview {
+function phantomAtCursor(
+  host: BuildHost,
+  state: GameState,
+): PiecePlacementPreview {
+  const piece = host.currentPiece!;
+  const row = Math.round(host.buildCursor.row);
+  const col = Math.round(host.buildCursor.col);
   return makePhantom(
     host.playerId,
-    host.currentPiece!,
-    Math.round(host.buildCursor.row),
-    Math.round(host.buildCursor.col),
-    false,
+    piece,
+    row,
+    col,
+    canPlacePiece(state, host.playerId, piece, row, col),
   );
 }
 

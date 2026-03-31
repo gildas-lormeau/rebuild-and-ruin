@@ -65,8 +65,8 @@ export function cannonPhantomKey(phantom: CannonPhantom): string {
   return `${phantom.row},${phantom.col},${phantom.mode}`;
 }
 
-/** Dedup key for piece phantom network sends. Covers position + shape.
+/** Dedup key for piece phantom network sends. Covers position + shape + validity.
  *  Same pattern as cannonPhantomKey — more complex key due to variable-length offsets. */
 export function piecePhantomKey(phantom: PiecePhantom): string {
-  return `${phantom.row},${phantom.col},${phantom.offsets.map((offset) => offset.join(":")).join(";")}`;
+  return `${phantom.row},${phantom.col},${phantom.valid ? 1 : 0},${phantom.offsets.map((offset) => offset.join(":")).join(";")}`;
 }

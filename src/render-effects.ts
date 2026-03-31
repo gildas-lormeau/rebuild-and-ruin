@@ -141,7 +141,6 @@ export function drawPhantoms(
       col,
       valid ? rgb(saturateRgb(wall, 2.5)) : PHANTOM_INVALID_COLOR,
       valid ? PHANTOM_ALPHA : PHANTOM_INVALID_ALPHA,
-      false,
     );
   }
 
@@ -158,7 +157,6 @@ export function drawPhantoms(
         col,
         fill,
         valid ? PHANTOM_ALPHA : PHANTOM_INVALID_ALPHA,
-        true,
       );
     }
   }
@@ -175,7 +173,6 @@ export function drawPhantoms(
         col,
         valid ? rgb(saturateRgb(wall, 2.5)) : PHANTOM_INVALID_COLOR,
         valid ? PHANTOM_ALPHA : PHANTOM_INVALID_ALPHA,
-        true,
       );
     }
   }
@@ -629,7 +626,6 @@ function drawPiecePhantom(
   col: number,
   fillColor: string,
   alpha: number,
-  outline: boolean,
 ): void {
   overlayCtx.save();
   overlayCtx.globalAlpha = alpha;
@@ -641,18 +637,6 @@ function drawPiecePhantom(
       TILE_SIZE,
       TILE_SIZE,
     );
-  }
-  if (outline) {
-    overlayCtx.strokeStyle = TEXT_WHITE;
-    overlayCtx.lineWidth = 1;
-    for (const [dr, dc] of offsets) {
-      overlayCtx.strokeRect(
-        (col + dc) * TILE_SIZE,
-        (row + dr) * TILE_SIZE,
-        TILE_SIZE,
-        TILE_SIZE,
-      );
-    }
   }
   overlayCtx.restore();
 }
