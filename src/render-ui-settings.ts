@@ -74,7 +74,7 @@ export function optionsScreenHitTest(
   optionCount: number,
 ): OptionsHit {
   const { panelW, px, startY, optH, closeX, closeY, closeSize } =
-    optionsScreenLayout(W, H, optionCount);
+    optionsScreenLayout(W, H);
 
   // Close button
   if (
@@ -116,7 +116,7 @@ export function drawOptionsScreen(
   beginModalScreen(overlayCtx, W, H);
 
   const { panelW, px, startY, optH, closeX, closeY, closeSize } =
-    optionsScreenLayout(W, H, opts.options.length);
+    optionsScreenLayout(W, H);
 
   overlayCtx.font = FONT_TITLE;
   overlayCtx.fillStyle = GOLD_LIGHT;
@@ -220,7 +220,7 @@ export function controlsScreenHitTest(
     closeX,
     closeY,
     closeSize,
-  } = controlsScreenLayout(W, H, colCount, rowCount);
+  } = controlsScreenLayout(W, H, colCount);
 
   // Close button
   if (
@@ -274,7 +274,7 @@ export function drawControlsScreen(
     closeX,
     closeY,
     closeSize,
-  } = controlsScreenLayout(W, H, colCount, rowCount);
+  } = controlsScreenLayout(W, H, colCount);
 
   drawCloseButton(overlayCtx, closeX, closeY, closeSize);
 
@@ -313,7 +313,6 @@ export function drawControlsScreen(
 function optionsScreenLayout(
   W: number,
   H: number,
-  optionCount: number,
 ): {
   panelW: number;
   px: number;
@@ -342,7 +341,6 @@ function controlsScreenLayout(
   W: number,
   H: number,
   colCount: number,
-  rowCount: number,
 ): {
   tableW: number;
   tableX: number;

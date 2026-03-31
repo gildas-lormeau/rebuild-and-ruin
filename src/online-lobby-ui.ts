@@ -154,7 +154,7 @@ export function initLobbyUi({
       roomListEl.innerHTML = "";
       for (const r of rooms) {
         const item = el("div", "room-item");
-        item.dataset.code = r.code;
+        item.dataset["code"] = r.code;
         item.appendChild(el("span", "room-code", r.code));
         const info = el("span", "room-info");
         info.append(

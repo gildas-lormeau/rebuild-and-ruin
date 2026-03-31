@@ -44,7 +44,7 @@ export function initRouter(): void {
 function applyRoute(): void {
   const route = getRoute();
   for (const el of document.querySelectorAll<HTMLElement>(".page")) {
-    el.hidden = el.dataset.route !== route;
+    el.hidden = el.dataset["route"] !== route;
   }
   if (route !== currentRoute) {
     currentRoute = route;
