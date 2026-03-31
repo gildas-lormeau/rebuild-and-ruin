@@ -40,6 +40,8 @@ export interface SerializedPlayer {
   cannons: SerializedCannon[];
   ownedTowerIndices: number[];
   homeTowerIdx: number | null;
+  /** Castle wall tiles protected from debris sweep (includes clumsy extras). */
+  castleWallTiles?: number[];
   lives: number;
   eliminated: boolean;
   score: number;

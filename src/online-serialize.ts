@@ -190,6 +190,7 @@ export function serializePlayers(state: GameState) {
     })),
     ownedTowerIndices: player.ownedTowers.map((tower) => tower.index),
     homeTowerIdx: player.homeTower?.index ?? null,
+    castleWallTiles: [...player.castleWallTiles],
     lives: player.lives,
     eliminated: player.eliminated,
     score: player.score,
@@ -290,6 +291,7 @@ export function applyPlayersCheckpoint(
       sp.homeTowerIdx < state.map.towers.length
         ? state.map.towers[sp.homeTowerIdx]!
         : null;
+    player.castleWallTiles = new Set(sp.castleWallTiles ?? []);
     player.lives = sp.lives;
     player.eliminated = sp.eliminated;
     player.score = sp.score;
