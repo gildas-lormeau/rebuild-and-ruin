@@ -36,7 +36,7 @@ import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
 import { PLAYER_NAMES } from "./player-config.ts";
 import { createError, joinError } from "./runtime-online-dom.ts";
 import { promoteToHost } from "./runtime-online-promote.ts";
-import { devLog, session, watcher } from "./runtime-online-stores.ts";
+import { ctx, devLog } from "./runtime-online-stores.ts";
 import type { GameRuntime } from "./runtime-types.ts";
 import { isReselectPhase, Mode } from "./types.ts";
 
@@ -76,7 +76,7 @@ function buildLifecycleDeps() {
   return {
     log: devLog,
     now: () => performance.now(),
-    session,
+    session: ctx.session,
     lobby: buildLobbyDeps(),
     ui: buildUiDeps(),
     game: buildGameDeps(),
@@ -93,8 +93,8 @@ function buildLifecycleDeps() {
 function buildIncrementalDeps() {
   return {
     log: devLog,
-    session,
-    watcher,
+    session: ctx.session,
+    watcher: ctx.watcher,
     getState: () => _g.runtime.runtimeState.state,
     selectionStates: _g.runtime.selection.getStates(),
     syncSelectionOverlay: () => _g.runtime.selection.syncOverlay(),
@@ -129,8 +129,8 @@ function buildUiDeps() {
       _g.runtime.runtimeState.mode = Mode.GAME;
     },
     setAnnouncement: (text: string) => {
-      watcher.migrationText = text;
-      watcher.migrationTimer = MIGRATION_ANNOUNCEMENT_DURATION;
+      ctx.watcher.migrationText = text;
+      ctx.watcher.migrationTimer = MIGRATION_ANNOUNCEMENT_DURATION;
     },
     createErrorEl: createError,
     joinErrorEl: joinError,

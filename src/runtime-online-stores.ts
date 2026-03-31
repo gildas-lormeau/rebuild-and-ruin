@@ -1,8 +1,9 @@
 /**
- * Online mutable singletons and thin utilities.
+ * Online mutable state — owned by a single OnlineContext instance.
  *
- * Every piece of online mutable state lives here so that ownership is
- * explicit and mutation is visible across the split runtime-online modules.
+ * All mutable online state (session, dedup, watcher, reconnect) is bundled
+ * into one context object so that ownership is explicit and visible. Utility
+ * functions (devLog, send, etc.) close over the default `ctx` instance.
  *
  * NOTE: devLog() and devLogThrottled() are dev-only (gated by IS_DEV).
  * They produce no output in production builds. Do not rely on them
@@ -41,29 +42,28 @@ import { IS_DEV } from "./platform.ts";
  *  resetting after state changes causes missed updates. */
 type ResetScope = "dedup" | "new-game" | "host-promotion";
 
-// ── Constants ───────────────────────────────────────────────────────
+interface OnlineContext {
+  readonly session: OnlineSession;
+  readonly dedup: DedupMaps;
+  readonly watcher: WatcherState;
+  readonly reconnect: {
+    count: number;
+    timer: ReturnType<typeof setTimeout> | null;
+  };
+}
+
+// ── Constants ──────────────────────────────────────────────────────
 const DEV = IS_DEV;
 const LOG_THROTTLE_MS = 1000;
-// ── Private state ───────────────────────────────────────────────────
+// ── Private state ──────────────────────────────────────────────────
 const _throttleTimestamps = new Map<string, number>();
-// ── Singletons ──────────────────────────────────────────────────────
-export const session: OnlineSession = createSession();
-/** Network dedup maps — cleared on reset and host promotion. */
-export const dedup: DedupMaps = createDedupMaps();
-export const watcher: WatcherState = createWatcherState();
-/** Reconnect bookkeeping — wrapped in an object so other modules can mutate.
- *  count: number of attempts made in the current reconnect cycle (0 = idle).
- *  Use `isReconnecting()` to check if a reconnect cycle is in progress. */
-export const reconnect = {
-  count: 0,
-  timer: null as ReturnType<typeof setTimeout> | null,
-};
+export const ctx: OnlineContext = createOnlineContext();
 export const MAX_RECONNECT_ATTEMPTS = 3;
 export const RECONNECT_BASE_DELAY_MS = 1000;
 
 /** Whether a reconnect cycle is currently in progress. */
 export function isReconnecting(): boolean {
-  return reconnect.count > 0;
+  return ctx.reconnect.count > 0;
 }
 
 export function devLogThrottled(key: string, msg: string): void {
@@ -75,19 +75,20 @@ export function devLogThrottled(key: string, msg: string): void {
   devLog(msg);
 }
 
-// ── Utilities ───────────────────────────────────────────────────────
 export function devLog(msg: string): void {
   if (!DEV) return;
-  const modeStr = session.isHost
+  const modeStr = ctx.session.isHost
     ? "host"
-    : session.myPlayerId >= 0
+    : ctx.session.myPlayerId >= 0
       ? "player"
       : "watcher";
-  console.log(`[online] (mode=${modeStr} pid=${session.myPlayerId}) ${msg}`);
+  console.log(
+    `[online] (mode=${modeStr} pid=${ctx.session.myPlayerId}) ${msg}`,
+  );
 }
 
 export function send(msg: GameMessage): void {
-  sendMessage(session, msg);
+  sendMessage(ctx.session, msg);
 }
 
 export function maybeSendAimUpdate(
@@ -95,24 +96,33 @@ export function maybeSendAimUpdate(
   y: number,
   playerId?: number,
 ): void {
-  sendAimUpdate(session, dedup, x, y, playerId);
+  sendAimUpdate(ctx.session, ctx.dedup, x, y, playerId);
 }
 
 /** Reset networking state for the given scope. */
 export function resetNetworking(scope: ResetScope): void {
-  resetDedupMaps(dedup);
+  resetDedupMaps(ctx.dedup);
   if (scope === "new-game") {
-    resetWatcherState(watcher);
+    resetWatcherState(ctx.watcher);
   } else if (scope === "host-promotion") {
-    resetWatcherTimingForHostPromotion(watcher);
+    resetWatcherTimingForHostPromotion(ctx.watcher);
   }
 }
 
 /** Zero out reconnect state — call after successful reconnect or when giving up. */
 export function clearReconnect(): void {
-  reconnect.count = 0;
-  if (reconnect.timer) {
-    clearTimeout(reconnect.timer);
-    reconnect.timer = null;
+  ctx.reconnect.count = 0;
+  if (ctx.reconnect.timer) {
+    clearTimeout(ctx.reconnect.timer);
+    ctx.reconnect.timer = null;
   }
+}
+
+function createOnlineContext(): OnlineContext {
+  return {
+    session: createSession(),
+    dedup: createDedupMaps(),
+    watcher: createWatcherState(),
+    reconnect: { count: 0, timer: null },
+  };
 }

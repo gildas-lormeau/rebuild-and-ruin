@@ -19,7 +19,7 @@ import {
   joinError,
   pageOnline,
 } from "./runtime-online-dom.ts";
-import { send, session } from "./runtime-online-stores.ts";
+import { ctx, send } from "./runtime-online-stores.ts";
 import { connect } from "./runtime-online-ws.ts";
 
 const lobbyElements = {
@@ -43,9 +43,9 @@ const initDomLobby = () =>
         lobbyElements.joinError.textContent = msg;
       }),
     send,
-    getSocket: () => session.socket,
+    getSocket: () => ctx.session.socket,
     setIsHost: (value) => {
-      session.isHost = value;
+      ctx.session.isHost = value;
     },
     isVisible: () => !pageOnline.hidden,
   });

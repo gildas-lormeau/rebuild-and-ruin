@@ -10,12 +10,11 @@ import { connectWebSocket } from "./online-session.ts";
 import { handleServerMessage } from "./runtime-online-deps.ts";
 import {
   clearReconnect,
+  ctx,
   devLog,
   isReconnecting,
   MAX_RECONNECT_ATTEMPTS,
   RECONNECT_BASE_DELAY_MS,
-  reconnect,
-  session,
 } from "./runtime-online-stores.ts";
 import { Mode } from "./types.ts";
 
@@ -45,10 +44,10 @@ export function initWs(deps: WsRuntimeDeps): void {
 
 export function connect(onConnectError?: () => void): void {
   if (onConnectError) _onConnectError = onConnectError;
-  connectWebSocket(session, computeWsUrl(), {
+  connectWebSocket(ctx.session, computeWsUrl(), {
     onMessage: (msg) => {
       if (isReconnecting()) {
-        devLog(`reconnected after ${reconnect.count} attempt(s)`);
+        devLog(`reconnected after ${ctx.reconnect.count} attempt(s)`);
         clearReconnect();
       }
       handleServerMessage(msg);
@@ -56,21 +55,24 @@ export function connect(onConnectError?: () => void): void {
     onClose: () => {
       const mode = _rt.getMode();
       // Mode[mode] is TypeScript's reverse enum mapping (numeric → string name)
-      devLog(`WebSocket closed (mode=${Mode[mode]} isHost=${session.isHost})`);
+      devLog(
+        `WebSocket closed (mode=${Mode[mode]} isHost=${ctx.session.isHost})`,
+      );
       // Re-read isHost (volatile — can flip during host promotion)
-      if (session.isHost || mode === Mode.STOPPED || mode === Mode.LOBBY)
+      if (ctx.session.isHost || mode === Mode.STOPPED || mode === Mode.LOBBY)
         return;
-      if (reconnect.count < MAX_RECONNECT_ATTEMPTS) {
-        reconnect.count++;
+      if (ctx.reconnect.count < MAX_RECONNECT_ATTEMPTS) {
+        ctx.reconnect.count++;
         // Exponential backoff: base × 2^(attempt-1) via bit-shift
-        const delay = RECONNECT_BASE_DELAY_MS * (1 << (reconnect.count - 1));
+        const delay =
+          RECONNECT_BASE_DELAY_MS * (1 << (ctx.reconnect.count - 1));
         _rt.setAnnouncement(ANNOUNCEMENT_RECONNECTING);
         _rt.render();
         devLog(
-          `reconnect attempt ${reconnect.count}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`,
+          `reconnect attempt ${ctx.reconnect.count}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`,
         );
-        reconnect.timer = setTimeout(() => {
-          reconnect.timer = null;
+        ctx.reconnect.timer = setTimeout(() => {
+          ctx.reconnect.timer = null;
           connect();
         }, delay);
       } else {

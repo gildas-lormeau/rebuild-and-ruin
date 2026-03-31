@@ -16,12 +16,7 @@ import {
 } from "./online-host-promotion.ts";
 import { createFullStateMessage } from "./online-serialize.ts";
 import { createAiController } from "./runtime-bootstrap.ts";
-import {
-  devLog,
-  resetNetworking,
-  send,
-  session,
-} from "./runtime-online-stores.ts";
+import { ctx, devLog, resetNetworking, send } from "./runtime-online-stores.ts";
 import type { GameRuntime } from "./runtime-types.ts";
 import { Mode } from "./types.ts";
 import { assertNever } from "./utils.ts";
@@ -45,13 +40,13 @@ export function initPromote(rt: GameRuntime): void {
 export function promoteToHost(): void {
   devLog("PROMOTING TO HOST");
   // Re-read isHost (volatile — can flip during host promotion)
-  session.isHost = true;
+  ctx.session.isHost = true;
 
   resetNetworking("host-promotion");
   rebuildControllersForPhase(
     _runtime.runtimeState.state,
     _runtime.runtimeState.controllers,
-    session.myPlayerId,
+    ctx.session.myPlayerId,
     (id, seed) =>
       createAiController(id, seed, _runtime.runtimeState.settings.difficulty),
   );
@@ -64,7 +59,7 @@ export function promoteToHost(): void {
   send(
     createFullStateMessage(
       _runtime.runtimeState.state,
-      session.hostMigrationSeq,
+      ctx.session.hostMigrationSeq,
       _runtime.runtimeState.battleAnim.flights,
     ),
   );

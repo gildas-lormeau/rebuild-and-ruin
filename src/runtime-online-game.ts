@@ -71,14 +71,12 @@ import { canvas, pageOnline, roomCodeOverlay } from "./runtime-online-dom.ts";
 import { initPromote } from "./runtime-online-promote.ts";
 import {
   clearReconnect,
-  dedup,
+  ctx,
   devLog,
   devLogThrottled,
   maybeSendAimUpdate,
   resetNetworking,
   send,
-  session,
-  watcher,
 } from "./runtime-online-stores.ts";
 import { initWs } from "./runtime-online-ws.ts";
 import { LifeLostChoice, Mode } from "./types.ts";
@@ -88,7 +86,7 @@ const renderer = createCanvasRenderer(canvas);
 // ── Assemble transition context ─────────────────────────────────────
 const transitionCtx: TransitionContext = {
   getState: () => runtime.runtimeState.state,
-  session,
+  session: ctx.session,
   getControllers: () => runtime.runtimeState.controllers,
   setMode: (mode: Mode) => {
     runtime.runtimeState.mode = mode;
@@ -107,8 +105,8 @@ const watcherTickCtx: WatcherTickContext = {
   getAccum: () => runtime.runtimeState.accum,
   getBattleAnim: () => runtime.runtimeState.battleAnim,
   getControllers: () => runtime.runtimeState.controllers,
-  session,
-  dedup,
+  session: ctx.session,
+  dedup: ctx.dedup,
   send: (msg) => send(msg as GameMessage),
   logThrottled: devLogThrottled,
   maybeSendAimUpdate,
@@ -120,17 +118,17 @@ const runtime: GameRuntime = createGameRuntime({
   renderer,
   isOnline: true,
   send,
-  getIsHost: () => session.isHost,
-  getMyPlayerId: () => session.myPlayerId,
-  getRemoteHumanSlots: () => session.remoteHumanSlots,
+  getIsHost: () => ctx.session.isHost,
+  getMyPlayerId: () => ctx.session.myPlayerId,
+  getRemoteHumanSlots: () => ctx.session.remoteHumanSlots,
   log: devLog,
   logThrottled: devLogThrottled,
   getLobbyRemaining: () =>
     Math.max(
       0,
-      session.lobbyWaitTimer -
+      ctx.session.lobbyWaitTimer -
         1 -
-        (performance.now() - session.lobbyStartTime) / 1000,
+        (performance.now() - ctx.session.lobbyStartTime) / 1000,
     ),
   showLobby,
   onLobbySlotJoined: (pid) => {
@@ -138,22 +136,22 @@ const runtime: GameRuntime = createGameRuntime({
   },
   onCloseOptions: () => {
     if (runtime.runtimeState.optionsReturnMode === null) {
-      session.lobbyStartTime = performance.now();
+      ctx.session.lobbyStartTime = performance.now();
     }
   },
   onTickLobbyExpired: () => {
     // Re-read isHost (volatile — can flip during host promotion)
-    if (!session.isHost) return;
+    if (!ctx.session.isHost) return;
     const diffParams =
       DIFFICULTY_PARAMS[runtime.runtimeState.settings.difficulty] ??
       DIFFICULTY_PARAMS[1]!;
     const initMsg: InitMessage = {
       type: MESSAGE.INIT,
-      seed: session.roomSeed,
+      seed: ctx.session.roomSeed,
       playerCount: MAX_PLAYERS,
       settings: {
-        battleLength: session.roomBattleLength,
-        cannonMaxHp: session.roomCannonMaxHp,
+        battleLength: ctx.session.roomBattleLength,
+        cannonMaxHp: ctx.session.roomCannonMaxHp,
         buildTimer: diffParams.buildTimer,
         cannonPlaceTimer: diffParams.cannonPlaceTimer,
         firstRoundCannons: diffParams.firstRoundCannons,
@@ -165,22 +163,22 @@ const runtime: GameRuntime = createGameRuntime({
   },
 
   // ── Networking callbacks ──
-  tickNonHost: (dt) => tickWatcherFn(watcher, dt, watcherTickCtx),
+  tickNonHost: (dt) => tickWatcherFn(ctx.watcher, dt, watcherTickCtx),
   everyTick: (dt) =>
-    tickMigrationAnnouncementFn(watcher, runtime.runtimeState.frame, dt),
+    tickMigrationAnnouncementFn(ctx.watcher, runtime.runtimeState.frame, dt),
   onLocalCrosshairCollected: (ctrl, crosshair) => {
     // isHost is volatile — re-read each tick (safe: inline, not cached)
-    if (session.isHost)
+    if (ctx.session.isHost)
       broadcastLocalCrosshair(ctrl, crosshair, {
-        lastSentAimTarget: dedup.aimTarget,
+        lastSentAimTarget: ctx.dedup.aimTarget,
         send,
       });
   },
   extendCrosshairs: (crosshairs, dt) =>
     extendWithRemoteCrosshairs(crosshairs, runtime.runtimeState.state, dt, {
-      remoteCrosshairs: watcher.remoteCrosshairs,
-      watcherCrosshairPos: watcher.crosshairPos,
-      remoteHumanSlots: session.remoteHumanSlots,
+      remoteCrosshairs: ctx.watcher.remoteCrosshairs,
+      watcherCrosshairPos: ctx.watcher.crosshairPos,
+      remoteHumanSlots: ctx.session.remoteHumanSlots,
       logThrottled: devLogThrottled,
     }),
   hostNetworking: {
@@ -188,12 +186,12 @@ const runtime: GameRuntime = createGameRuntime({
     createCannonStartMessage,
     createBattleStartMessage,
     createBuildStartMessage,
-    remoteCannonPhantoms: () => watcher.remoteCannonPhantoms,
-    remotePiecePhantoms: () => watcher.remotePiecePhantoms,
-    lastSentCannonPhantom: () => dedup.cannonPhantom,
-    lastSentPiecePhantom: () => dedup.piecePhantom,
+    remoteCannonPhantoms: () => ctx.watcher.remoteCannonPhantoms,
+    remotePiecePhantoms: () => ctx.watcher.remotePiecePhantoms,
+    lastSentCannonPhantom: () => ctx.dedup.cannonPhantom,
+    lastSentPiecePhantom: () => ctx.dedup.piecePhantom,
   },
-  watcherTiming: watcher.timing,
+  watcherTiming: ctx.watcher.timing,
   maybeSendAimUpdate,
   tryPlaceCannonAndSend: (ctrl, state, maxSlots) =>
     tryPlaceCannonAndSendAction(ctrl, state, maxSlots, send),
@@ -205,7 +203,7 @@ const runtime: GameRuntime = createGameRuntime({
     devLog(
       `endGame winner=${payloads.winnerName} round=${gameState.round} battleLength=${gameState.battleLength}`,
     );
-    if (session.isHost) send(payloads.serverPayload); // volatile — re-read (safe: inline)
+    if (ctx.session.isHost) send(payloads.serverPayload); // volatile — re-read (safe: inline)
   },
 });
 
@@ -217,7 +215,7 @@ function buildTransitionUiCtx(): TransitionContext["ui"] {
       return runtime.runtimeState.banner;
     },
     render: () => runtime.render(),
-    watcherTiming: watcher.timing,
+    watcherTiming: ctx.watcher.timing,
     bannerDuration: BANNER_DURATION,
   };
 }
@@ -276,13 +274,13 @@ function buildTransitionEndPhaseCtx(): TransitionContext["endPhase"] {
       runtime.lifeLost.show(needsReselect, eliminated);
       const dialog = runtime.lifeLost.get();
       if (dialog) {
-        for (const [pid, choice] of session.earlyLifeLostChoices) {
+        for (const [pid, choice] of ctx.session.earlyLifeLostChoices) {
           const entry = dialog.entries.find((e) => e.playerId === pid);
           if (entry && entry.choice === LifeLostChoice.PENDING)
             entry.choice = choice;
         }
       }
-      session.earlyLifeLostChoices.clear();
+      ctx.session.earlyLifeLostChoices.clear();
     },
     showScoreDeltas: (preScores, onDone) => {
       runtime.runtimeState.preScores = preScores;
@@ -301,10 +299,10 @@ function buildCheckpointDeps(): CheckpointDeps {
     state: runtime.runtimeState.state,
     battleAnim: runtime.runtimeState.battleAnim,
     accum: runtime.runtimeState.accum,
-    remoteCrosshairs: watcher.remoteCrosshairs,
-    watcherCrosshairPos: watcher.crosshairPos,
-    watcherOrbitParams: watcher.orbitParams,
-    watcherIdlePhases: watcher.idlePhases,
+    remoteCrosshairs: ctx.watcher.remoteCrosshairs,
+    watcherCrosshairPos: ctx.watcher.crosshairPos,
+    watcherOrbitParams: ctx.watcher.orbitParams,
+    watcherIdlePhases: ctx.watcher.idlePhases,
     snapshotTerritory: () => runtime.snapshotTerritory(),
   };
 }
@@ -342,7 +340,7 @@ initDeps({
 });
 
 function showWaitingRoom(code: string, seed: number): void {
-  session.roomSeed = seed;
+  ctx.session.roomSeed = seed;
   runtime.runtimeState.settings.seed = String(seed);
   initWaitingRoom({
     code,
@@ -354,7 +352,7 @@ function showWaitingRoom(code: string, seed: number): void {
     maxPlayers: MAX_PLAYERS,
     now: () => performance.now(),
     setLobbyStartTime: (timestamp: number) => {
-      session.lobbyStartTime = timestamp;
+      ctx.session.lobbyStartTime = timestamp;
     },
     setModeLobby: () => {
       runtime.runtimeState.mode = Mode.LOBBY;
@@ -374,10 +372,10 @@ function initFromServer(msg: InitMessage): void {
   const settings = runtime.runtimeState.settings;
   const humanSlots = Array.from(
     { length: msg.playerCount },
-    (_, i) => i === session.myPlayerId,
+    (_, i) => i === ctx.session.myPlayerId,
   );
   const keyBindings = Array.from({ length: msg.playerCount }, (_, i) =>
-    i === session.myPlayerId ? settings.keyBindings[0] : undefined,
+    i === ctx.session.myPlayerId ? settings.keyBindings[0] : undefined,
   );
   bootstrapGame({
     seed: msg.seed,
@@ -438,10 +436,10 @@ function restoreFullState(msg: FullStateMessage): void {
     result.balloonFlights,
   );
 
-  startWatcherPhaseTimer(watcher.timing, performance.now(), state.timer);
+  startWatcherPhaseTimer(ctx.watcher.timing, performance.now(), state.timer);
   if (state.battleCountdown > 0) {
-    watcher.timing.countdownStartTime = performance.now();
-    watcher.timing.countdownDuration = state.battleCountdown;
+    ctx.watcher.timing.countdownStartTime = performance.now();
+    ctx.watcher.timing.countdownDuration = state.battleCountdown;
   }
 }
 
@@ -457,7 +455,7 @@ document.addEventListener(GAME_EXIT_EVENT, () => {
 
 function resetSession(): void {
   clearReconnect();
-  resetSessionState(session);
+  resetSessionState(ctx.session);
   runtime.runtimeState.settings.seed = "";
   resetNetworking("dedup");
 }
