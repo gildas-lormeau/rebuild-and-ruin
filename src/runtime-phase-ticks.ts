@@ -11,7 +11,11 @@
  */
 
 import { MESSAGE } from "../server/protocol.ts";
-import { resolveBalloons, tickCannonballs } from "./battle-system.ts";
+import {
+  type BattleEvent,
+  resolveBalloons,
+  tickCannonballs,
+} from "./battle-system.ts";
 import { applyDefaultFacings } from "./cannon-system.ts";
 import {
   type InputReceiver,
@@ -321,32 +325,26 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       syncCrosshairs,
       collectTowerEvents: gruntAttackTowers,
       tickCannonballsWithEvents: tickCannonballs,
-      onBattleEvents: (events) => {
+      onBattleEvents: (events: ReadonlyArray<BattleEvent>) => {
         const pid = runtimeState.frameCtx.myPlayerId;
         const localPid = pid >= 0 ? pid : (deps.firstHuman()?.playerId ?? -1);
         if (localPid >= 0) {
-          deps.haptics.battleEvents(
-            events as Array<{ type: string; playerId?: number; hp?: number }>,
-            localPid,
-          );
+          deps.haptics.battleEvents(events, localPid);
           deps.sound.battleEvents(events, localPid);
         }
-        for (const evt of events as Array<{
-          type: string;
-          playerId?: number;
-          shooterId?: number;
-          hp?: number;
-          newHp?: number;
-        }>) {
-          const stats =
-            evt.shooterId !== undefined
-              ? runtimeState.gameStats[evt.shooterId]
-              : undefined;
-          if (!stats) continue;
+        for (const evt of events) {
           if (evt.type === MESSAGE.WALL_DESTROYED) {
-            stats.wallsDestroyed++;
+            const stats =
+              evt.shooterId !== undefined
+                ? runtimeState.gameStats[evt.shooterId]
+                : undefined;
+            if (stats) stats.wallsDestroyed++;
           } else if (evt.type === MESSAGE.CANNON_DAMAGED && evt.newHp === 0) {
-            stats.cannonsKilled++;
+            const stats =
+              evt.shooterId !== undefined
+                ? runtimeState.gameStats[evt.shooterId]
+                : undefined;
+            if (stats) stats.cannonsKilled++;
           }
         }
       },

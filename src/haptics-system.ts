@@ -7,6 +7,7 @@
  */
 
 import { MESSAGE } from "../server/protocol.ts";
+import type { BattleEvent } from "./battle-system.ts";
 import { CAN_VIBRATE } from "./platform.ts";
 
 export interface HapticsSystem {
@@ -14,7 +15,7 @@ export interface HapticsSystem {
   tap: () => void;
   phaseChange: () => void;
   battleEvents: (
-    events: ReadonlyArray<{ type: string; playerId?: number; hp?: number }>,
+    events: ReadonlyArray<BattleEvent>,
     myPlayerId: number,
   ) => void;
 }
@@ -45,7 +46,7 @@ export function createHapticsSystem(): HapticsSystem {
 
   /** Process battle events and trigger appropriate haptics for the local player. */
   function battleEvents(
-    events: ReadonlyArray<{ type: string; playerId?: number; hp?: number }>,
+    events: ReadonlyArray<BattleEvent>,
     myPlayerId: number,
   ): void {
     if (!CAN_VIBRATE || hapticsLevel < 2) return;
@@ -56,7 +57,7 @@ export function createHapticsSystem(): HapticsSystem {
         evt.type === MESSAGE.CANNON_DAMAGED &&
         evt.playerId === myPlayerId
       ) {
-        if (evt.hp === 0) vibrate(HAPTIC_CANNON_DESTROYED_MS, 2);
+        if (evt.newHp === 0) vibrate(HAPTIC_CANNON_DESTROYED_MS, 2);
         else vibrate(80, 2);
       } else if (evt.type === MESSAGE.TOWER_KILLED) {
         vibrate(200, 2);

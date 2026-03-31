@@ -2,7 +2,7 @@
  * Battle system — cannon firing, cannonball physics, impacts, and balloon capture.
  */
 
-import { type GameMessage, MESSAGE } from "../server/protocol.ts";
+import { MESSAGE } from "../server/protocol.ts";
 import {
   deletePlayerWallBattle,
   filterActiveEnemies,
@@ -87,6 +87,30 @@ export type ImpactEvent =
       col: number;
       roundsLeft: number;
     };
+
+/** A cannon-fired event emitted when a cannonball is launched. */
+export interface CannonFiredEvent {
+  type: typeof MESSAGE.CANNON_FIRED;
+  playerId: number;
+  cannonIdx: number;
+  startX: number;
+  startY: number;
+  targetX: number;
+  targetY: number;
+  speed: number;
+  incendiary?: true;
+}
+
+/** A tower-killed event emitted when grunts destroy a tower. */
+export interface TowerKilledEvent {
+  type: typeof MESSAGE.TOWER_KILLED;
+  towerIdx: number;
+}
+
+/** Union of all events emitted during battle — fire, tower kill, and impact.
+ *  Discriminated on `type` (MESSAGE.* string literal). Use in switch/if chains
+ *  for exhaustive handling. Replaces the loose `{ type: string }` pattern. */
+export type BattleEvent = CannonFiredEvent | TowerKilledEvent | ImpactEvent;
 
 /** Result of tickCannonballs: impact positions (for VFX) + detailed events (for network). */
 interface CannonballUpdateResult {
@@ -504,7 +528,7 @@ export function createCannonFiredMsg(ball: {
   targetY: number;
   speed: number;
   incendiary?: boolean;
-}): GameMessage {
+}): CannonFiredEvent {
   return {
     type: MESSAGE.CANNON_FIRED,
     playerId: ball.playerId,

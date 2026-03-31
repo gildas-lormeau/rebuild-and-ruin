@@ -9,8 +9,11 @@
 
 import type { GameMessage } from "../server/protocol.ts";
 import {
+  type BattleEvent,
+  type CannonFiredEvent,
   createCannonFiredMsg,
   getCountdownAnnouncement,
+  type ImpactEvent,
 } from "./battle-system.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import type {
@@ -67,16 +70,16 @@ interface TickHostBattlePhaseDeps {
   battleAnim: { impacts: Impact[] };
   render: () => void;
   syncCrosshairs: (canFireNow: boolean, dt: number) => void;
-  collectTowerEvents: (state: GameState, dt: number) => Array<GameMessage>;
+  collectTowerEvents: (state: GameState, dt: number) => Array<BattleEvent>;
   tickCannonballsWithEvents: (
     state: GameState,
     dt: number,
   ) => {
     impacts: TilePos[];
-    events: Array<GameMessage>;
+    events: Array<ImpactEvent>;
   };
   onBattlePhaseEnded: () => void;
-  onBattleEvents?: (events: ReadonlyArray<GameMessage>) => void;
+  onBattleEvents?: (events: ReadonlyArray<BattleEvent>) => void;
   net?: BattlePhaseNet;
 }
 
@@ -322,7 +325,7 @@ function tickControllersAndCollectFires(
   remoteHumanSlots: ReadonlySet<number>,
   isHost: boolean,
   sendMessage: ((msg: GameMessage) => void) | undefined,
-): GameMessage[] {
+): CannonFiredEvent[] {
   const ballsBefore = state.cannonballs.length;
   for (const ctrl of localActiveControllers(
     controllers,
@@ -331,7 +334,7 @@ function tickControllersAndCollectFires(
   )) {
     ctrl.battleTick(state, dt);
   }
-  const fireEvents: GameMessage[] = [];
+  const fireEvents: CannonFiredEvent[] = [];
   for (let i = ballsBefore; i < state.cannonballs.length; i++) {
     const msg = createCannonFiredMsg(state.cannonballs[i]!);
     fireEvents.push(msg);
@@ -347,7 +350,7 @@ function tickCannonballsAndRecordImpacts(
   battleAnim: { impacts: Impact[] },
   tickCannonballsWithEvents: TickHostBattlePhaseDeps["tickCannonballsWithEvents"],
   sendMessage: ((msg: GameMessage) => void) | undefined,
-): GameMessage[] {
+): ImpactEvent[] {
   const { impacts: newImpacts, events: impactEvents } =
     tickCannonballsWithEvents(state, dt);
   for (const imp of newImpacts) {

@@ -9,19 +9,7 @@
 
 import { sfxr } from "jsfxr";
 import { MESSAGE } from "../server/protocol.ts";
-
-/** Shape of battle events consumed by the sound system. */
-interface BattleAudioEvent {
-  type: string;
-  playerId?: number;
-  hp?: number;
-  newHp?: number;
-  startX?: number;
-  startY?: number;
-  targetX?: number;
-  targetY?: number;
-  speed?: number;
-}
+import type { BattleEvent } from "./battle-system.ts";
 
 export interface SoundSystem {
   setLevel: (level: number) => void;
@@ -31,7 +19,7 @@ export interface SoundSystem {
 
   // Battle (level 2)
   battleEvents: (
-    events: ReadonlyArray<BattleAudioEvent>,
+    events: ReadonlyArray<BattleEvent>,
     myPlayerId: number,
   ) => void;
 
@@ -219,7 +207,6 @@ const POOL_SIZE = 3;
 const FANFARE_PITCH = [1.0, 1.122, 0.794];
 const CANNON_BOOM_VOL = 0.12;
 const CANNON_BASS_START_HZ = 200;
-const CANNON_DEFAULT_SPEED = 200;
 const MAX_BOOMS = 4;
 const MAX_WHISTLES = 6;
 const MAX_IMPACTS = 4;
@@ -378,18 +365,25 @@ export function createSoundSystem(): SoundSystem {
 
   // ── Cannonball whistle (Web Audio) ─────────────────────────────────
 
-  function cannonWhistle(evt: BattleAudioEvent, myPlayerId: number): void {
+  function cannonWhistle(
+    evt: {
+      startX: number;
+      startY: number;
+      targetX: number;
+      targetY: number;
+      speed: number;
+      playerId: number;
+    },
+    myPlayerId: number,
+  ): void {
     if (activeWhistles >= MAX_WHISTLES) return;
     const audioCtx = getCtx();
     audioCtx.resume().catch(() => {});
 
-    const dx = (evt.targetX ?? 0) - (evt.startX ?? 0);
-    const dy = (evt.targetY ?? 0) - (evt.startY ?? 0);
+    const dx = evt.targetX - evt.startX;
+    const dy = evt.targetY - evt.startY;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const dur = Math.min(
-      3,
-      Math.max(0.3, dist / (evt.speed ?? CANNON_DEFAULT_SPEED)),
-    );
+    const dur = Math.min(3, Math.max(0.3, dist / evt.speed));
 
     const mine = evt.playerId === myPlayerId;
     const jitter = 1 + (Math.random() - 0.5) * 0.15;
@@ -552,16 +546,18 @@ export function createSoundSystem(): SoundSystem {
       for (const evt of events) {
         if (evt.type === MESSAGE.CANNON_FIRED) {
           cannonBoom();
-          if (evt.speed && evt.startX !== undefined) {
-            cannonWhistle(evt, myPlayerId);
-          }
+          cannonWhistle(evt, myPlayerId);
         } else if (
-          evt.type === MESSAGE.WALL_DESTROYED ||
-          evt.type === MESSAGE.HOUSE_DESTROYED ||
-          evt.type === MESSAGE.PIT_CREATED ||
-          (evt.type === MESSAGE.CANNON_DAMAGED && evt.newHp !== 0)
+          evt.type === MESSAGE.WALL_DESTROYED &&
+          evt.playerId === myPlayerId
         ) {
-          if (evt.playerId === myPlayerId) impact();
+          impact();
+        } else if (
+          evt.type === MESSAGE.CANNON_DAMAGED &&
+          evt.newHp !== 0 &&
+          evt.playerId === myPlayerId
+        ) {
+          impact();
         }
         const key = battleEventSound(evt, myPlayerId);
         if (key) play(key, 2);
@@ -889,12 +885,8 @@ function drumVolume(elapsed: number): number {
   );
 }
 
-function battleEventSound(
-  evt: { type: string; playerId?: number; newHp?: number },
-  myPlayerId: number,
-): SfxKey | null {
-  const mine = evt.playerId === myPlayerId;
-  if (evt.type === MESSAGE.CANNON_DAMAGED && mine)
+function battleEventSound(evt: BattleEvent, myPlayerId: number): SfxKey | null {
+  if (evt.type === MESSAGE.CANNON_DAMAGED && evt.playerId === myPlayerId)
     return evt.newHp === 0 ? "cannonKilled" : null;
   if (evt.type === MESSAGE.GRUNT_SPAWNED) return "gruntSpawned";
   if (evt.type === MESSAGE.GRUNT_KILLED) return "gruntKilled";
