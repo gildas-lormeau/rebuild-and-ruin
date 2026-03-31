@@ -134,3 +134,10 @@ Rename groups in `.import-layers.json` to match reality. **Naming is the analysi
 | `online-client-stores.ts` misplaced in "app roots" | Reclassified to L12 "runtime" (only imports L0–L11); renamed to `runtime-online-stores.ts` |
 | `game-ui-helpers.ts` prefix mismatch in "game logic" | Renamed to `game-helpers.ts` — deps are L3–L4, not L9 "game UI" |
 | `app-roots` → `online-logic` (L14→L11) | Reclassified 5 `online-client-*.ts` orchestration files to L12 "runtime" (max dep is L12); eliminated L14→L10 edge too |
+| `ai-constants.ts` over-classified in L5 | Reclassified to L0 — zero imports |
+| `ai-build-types.ts` over-classified in L5 | Reclassified to L1 — only imports geometry-types + pieces |
+| `ai-castle-rect.ts` over-classified in L5 | Reclassified to L2 — max dep is board-occupancy/spatial/types |
+| `ai-build-score.ts`, `ai-build-fallback.ts` over-classified in L5 | Reclassified to L3 after cascade — max dep is L2 |
+| `ai-build-target.ts` over-classified in L5 | Reclassified to L4 — needs build-system |
+| `tick-context.ts` over-classified in L4 | Reclassified to L3 — max dep is controller-interfaces (freed by game-engine extraction) |
+| `phase-transition-shared.ts` over-classified in L4 | Reclassified to L3 — max dep is phase-banner |

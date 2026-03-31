@@ -54,19 +54,20 @@ The layer map file. Committed to the repo. An array of named groups — position
 
 **Rule: imports must flow downward.** A file in group N can import from any group 0..N. Importing from group N+1 or higher is a violation.
 
-**Current architecture (14 groups, 0 violations, 115 files incl. server):**
+**Current architecture (14 groups, 0 violations, 118 files incl. server):**
 
 ```
- 0  leaf utilities              canvas-layout, grid, platform, rng, router
- 1  geometry & pieces           geometry-types, pieces
- 2  core types & state          types, spatial, board-occupancy, checkpoint-data, server/protocol
- 3  shared interfaces & theme   player-config, controller-interfaces, life-lost, castle-build,
-                                phase-banner, render-theme, render-types,
-                                phantom-types  ← pure interfaces/state/theme, no canvas deps
- 4  game logic                  cannon-system, grunt-movement, grunt-system, battle-system, build-system,
-                                map-generation, game-engine, game-helpers, tick-context,
-                                phase-transition-shared, selection, castle-generation
- 5  AI strategy                 ai-constants, ai-build-*, ai-strategy-*, ai-castle-rect
+ 0  leaf utilities              ai-constants, canvas-layout, game-constants, grid, platform, rng, router, utils
+ 1  geometry & pieces           ai-build-types, geometry-types, pieces
+ 2  core types, state & spatial ai-castle-rect, types, spatial, board-occupancy, checkpoint-data,
+                                server/protocol
+ 3  shared interfaces, config   ai-build-score, ai-build-fallback, phase-transition-shared,
+    & scoring                   player-config, controller-interfaces, life-lost, castle-build,
+                                phase-banner, render-theme, render-types, phantom-types, tick-context
+ 4  game logic                  ai-build-target, cannon-system, grunt-movement, grunt-system,
+                                battle-system, build-system, castle-generation, map-generation,
+                                phase-setup, game-engine, game-helpers, selection
+ 5  AI strategy                 ai-strategy-battle, ai-strategy-build, ai-strategy-cannon, ai-strategy
  6  controllers                 ai-phase-select, ai-phase-build, ai-phase-cannon, ai-phase-battle,
                                 controller-ai, controller-types, controller-human, controller-factory
  7  input & sound               input-*, haptics-system, sound-system
