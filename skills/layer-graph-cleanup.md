@@ -133,3 +133,4 @@ Rename groups in `.import-layers.json` to match reality. **Naming is the analysi
 | `app-roots` → `controllers` (L14→L6) | Added `createAiController` to `runtime-bootstrap.ts`; `online-client-promote.ts` imports L12 instead of L6 |
 | `online-client-stores.ts` misplaced in "app roots" | Reclassified to L12 "runtime" (only imports L0–L11); renamed to `runtime-online-stores.ts` |
 | `game-ui-helpers.ts` prefix mismatch in "game logic" | Renamed to `game-helpers.ts` — deps are L3–L4, not L9 "game UI" |
+| `app-roots` → `online-logic` (L14→L11) | Reclassified 5 `online-client-*.ts` orchestration files to L12 "runtime" (max dep is L12); eliminated L14→L10 edge too |

@@ -164,7 +164,12 @@
       "src/runtime-bootstrap.ts",
       "src/runtime.ts",
       "src/runtime-headless.ts",
-      "src/runtime-online-stores.ts"
+      "src/runtime-online-stores.ts",
+      "src/online-client-runtime.ts",
+      "src/online-client-deps.ts",
+      "src/online-client-promote.ts",
+      "src/online-client-ws.ts",
+      "src/online-client-lobby.ts"
     ]
   },
   {
@@ -181,12 +186,7 @@
     "files": [
       "src/entry.ts",
       "src/main.ts",
-      "src/online-client.ts",
-      "src/online-client-runtime.ts",
-      "src/online-client-deps.ts",
-      "src/online-client-promote.ts",
-      "src/online-client-ws.ts",
-      "src/online-client-lobby.ts"
+      "src/online-client.ts"
     ]
   }
 ]

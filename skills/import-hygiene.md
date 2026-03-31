@@ -81,9 +81,11 @@ The layer map file. Committed to the repo. An array of named groups — position
                                 runtime-selection, runtime-host-phase-ticks, runtime-host-battle-ticks,
                                 runtime-types, runtime-bootstrap, runtime-touch-ui, runtime-input,
                                 runtime-game-lifecycle, runtime-lobby, runtime-options,
-                                runtime-online-stores, runtime, runtime-headless
+                                runtime-online-stores, runtime, runtime-headless,
+                                online-client-runtime, online-client-deps, online-client-promote,
+                                online-client-ws, online-client-lobby
 13  server                      send-utils, game-room, room-manager, server
-14  application roots           entry, main, online-client-*
+14  application roots           entry, main, online-client
 ```
 
 When a new file is added but not yet in `.import-layers.json`, `--check` warns and treats it as layer 0 (maximally strict). Regenerate to pick up new files, then move them to the right group.
