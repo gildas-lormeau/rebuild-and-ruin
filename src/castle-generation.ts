@@ -373,15 +373,32 @@ export function spawnHousesInZone(state: GameState, zoneId: number): void {
     }
   }
 
+  // Shuffle once so ties in distance are broken by random order
   state.rng.shuffle(candidates);
 
   const existingHouses = state.map.houses;
-  let placed = 0;
-  for (const [r, c] of candidates) {
-    if (placed >= REFILL_HOUSES_PER_ZONE) break;
-    if (isHouseTooClose(existingHouses, r, c)) continue;
+  const needed =
+    REFILL_HOUSES_PER_ZONE -
+    existingHouses.filter((h) => h.zone === zoneId && h.alive).length;
+
+  // Furthest-point sampling: greedily pick the candidate that maximizes
+  // its minimum distance to all already-placed houses, spreading them evenly.
+  for (let placed = 0; placed < needed && candidates.length > 0; placed++) {
+    let bestIdx = -1;
+    let bestDist = -1;
+    for (let i = 0; i < candidates.length; i++) {
+      const [r, c] = candidates[i]!;
+      const dist = minDistToHouses(existingHouses, r, c);
+      if (dist < HOUSE_MIN_DISTANCE) continue;
+      if (dist > bestDist) {
+        bestDist = dist;
+        bestIdx = i;
+      }
+    }
+    if (bestIdx === -1) break;
+    const [r, c] = candidates[bestIdx]!;
     existingHouses.push({ row: r, col: c, zone: zoneId, alive: true });
-    placed++;
+    candidates.splice(bestIdx, 1);
   }
 }
 
@@ -417,15 +434,18 @@ function isValidHousePos(
   return true;
 }
 
-/** True if (r,c) is too close to any existing house. */
-function isHouseTooClose(
+/** Minimum manhattan distance from (r,c) to any existing house (Infinity if none). */
+function minDistToHouses(
   houses: readonly House[],
   r: number,
   c: number,
-): boolean {
-  return houses.some(
-    (h) => manhattanDistance(h.row, h.col, r, c) < HOUSE_MIN_DISTANCE,
-  );
+): number {
+  let min = Infinity;
+  for (const h of houses) {
+    const dist = manhattanDistance(h.row, h.col, r, c);
+    if (dist < min) min = dist;
+  }
+  return min;
 }
 
 /**
