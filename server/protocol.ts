@@ -377,7 +377,7 @@ export interface CannonFiredMessage {
   targetX: number;
   targetY: number;
   speed: number;
-  incendiary?: boolean;
+  incendiary?: true;
 }
 
 /** A wall tile was destroyed by impact. */
@@ -451,6 +451,23 @@ export interface AimUpdateMessage {
   /** Optional orbit parameters (sent once at countdown start). */
   orbit?: { rx: number; ry: number; speed: number; phase: number };
 }
+
+// ---------------------------------------------------------------------------
+// Battle event unions (used by game engine, sound, haptics)
+// ---------------------------------------------------------------------------
+
+/** Impact events — effects from cannonball/grunt interactions. */
+export type ImpactEvent =
+  | WallDestroyedMessage
+  | CannonDamagedMessage
+  | HouseDestroyedMessage
+  | GruntKilledMessage
+  | GruntSpawnedMessage
+  | PitCreatedMessage;
+
+/** All events emitted during battle — fire, tower kill, and impact.
+ *  Discriminated on `type` (MESSAGE.* string literal). */
+export type BattleEvent = CannonFiredMessage | TowerKilledMessage | ImpactEvent;
 
 // ---------------------------------------------------------------------------
 // Union types

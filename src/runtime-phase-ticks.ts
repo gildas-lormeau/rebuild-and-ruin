@@ -10,12 +10,8 @@
  *   when adding a new online tick call.
  */
 
-import { MESSAGE } from "../server/protocol.ts";
-import {
-  type BattleEvent,
-  resolveBalloons,
-  tickCannonballs,
-} from "./battle-system.ts";
+import { type BattleEvent, MESSAGE } from "../server/protocol.ts";
+import { resolveBalloons, tickCannonballs } from "./battle-system.ts";
 import { applyDefaultFacings } from "./cannon-system.ts";
 import {
   type InputReceiver,

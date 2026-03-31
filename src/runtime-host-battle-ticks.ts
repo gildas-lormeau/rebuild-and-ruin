@@ -7,13 +7,15 @@
  * serve both local and online play.
  */
 
-import type { GameMessage } from "../server/protocol.ts";
+import type {
+  BattleEvent,
+  CannonFiredMessage,
+  GameMessage,
+  ImpactEvent,
+} from "../server/protocol.ts";
 import {
-  type BattleEvent,
-  type CannonFiredEvent,
   createCannonFiredMsg,
   getCountdownAnnouncement,
-  type ImpactEvent,
 } from "./battle-system.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import type {
@@ -325,7 +327,7 @@ function tickControllersAndCollectFires(
   remoteHumanSlots: ReadonlySet<number>,
   isHost: boolean,
   sendMessage: ((msg: GameMessage) => void) | undefined,
-): CannonFiredEvent[] {
+): CannonFiredMessage[] {
   const ballsBefore = state.cannonballs.length;
   for (const ctrl of localActiveControllers(
     controllers,
@@ -334,7 +336,7 @@ function tickControllersAndCollectFires(
   )) {
     ctrl.battleTick(state, dt);
   }
-  const fireEvents: CannonFiredEvent[] = [];
+  const fireEvents: CannonFiredMessage[] = [];
   for (let i = ballsBefore; i < state.cannonballs.length; i++) {
     const msg = createCannonFiredMsg(state.cannonballs[i]!);
     fireEvents.push(msg);

@@ -54,10 +54,11 @@ The layer map file. Committed to the repo. An array of named groups — position
 
 **Rule: imports must flow downward.** A file in group N can import from any group 0..N. Importing from group N+1 or higher is a violation.
 
-**Current architecture (14 groups, 0 violations, 118 files incl. server):**
+**Current architecture (14 groups, 0 violations, 125 files incl. server):**
 
 ```
- 0  leaf utilities              ai-constants, canvas-layout, game-constants, grid, platform, rng, router, utils
+ 0  leaf utilities              ai-constants, canvas-layout, game-constants, grid, jsfxr.d,
+                                platform, rng, router, utils
  1  geometry & pieces           ai-build-types, geometry-types, pieces
  2  core types, state & spatial ai-castle-rect, types, spatial, board-occupancy, checkpoint-data,
                                 server/protocol
@@ -72,20 +73,23 @@ The layer map file. Committed to the repo. An array of named groups — position
                                 controller-ai, controller-types, controller-human, controller-factory
  7  input & sound               input-*, haptics-system, sound-system
  8  render                      render-sprites, render-loupe, render-effects, render-towers,
-                                render-composition, render-ui, render-map, render-canvas  ← canvas-using files
+                                render-composition, render-ui-theme, render-ui, render-ui-settings,
+                                render-map, render-canvas  ← canvas-using files
  9  game UI                     game-ui-types, game-ui-screens, game-ui-settings
 10  online infrastructure       online-config, online-types, online-lobby-ui, online-server-lifecycle,
                                 online-session
 11  online logic                online-serialize, online-send-actions, online-checkpoints, online-watcher-*,
                                 online-phase-transitions, online-server-events, online-host-*,
                                 online-full-state-recovery
-12  runtime                     runtime-state, runtime-camera, runtime-life-lost, runtime-phase-ticks,
+12  runtime                     runtime-state, runtime-banner, runtime-camera, runtime-life-lost,
+                                runtime-lobby, runtime-options, runtime-touch-ui,
+                                runtime-game-lifecycle, runtime-human, runtime-test-globals,
+                                runtime-input, runtime-phase-ticks, runtime-render,
                                 runtime-selection, runtime-host-phase-ticks, runtime-host-battle-ticks,
-                                runtime-types, runtime-bootstrap, runtime-touch-ui, runtime-input,
-                                runtime-game-lifecycle, runtime-lobby, runtime-options,
-                                runtime-online-stores, runtime, runtime-headless,
-                                runtime-online-game, runtime-online-deps, runtime-online-promote,
-                                runtime-online-ws, runtime-online-lobby
+                                runtime-types, runtime-bootstrap, runtime, runtime-headless,
+                                runtime-online-dom, runtime-online-stores, runtime-online-game,
+                                runtime-online-deps, runtime-online-promote, runtime-online-ws,
+                                runtime-online-lobby
 13  entry points                entry, main, online-client, send-utils, game-room, room-manager, server
 ```
 

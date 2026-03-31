@@ -6,8 +6,7 @@
  * Follows the factory-with-deps pattern used by sound, camera, selection, etc.
  */
 
-import { MESSAGE } from "../server/protocol.ts";
-import type { BattleEvent } from "./battle-system.ts";
+import { type BattleEvent, MESSAGE } from "../server/protocol.ts";
 import { CAN_VIBRATE } from "./platform.ts";
 
 export interface HapticsSystem {

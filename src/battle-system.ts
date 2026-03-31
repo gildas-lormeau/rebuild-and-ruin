@@ -2,7 +2,11 @@
  * Battle system — cannon firing, cannonball physics, impacts, and balloon capture.
  */
 
-import { MESSAGE } from "../server/protocol.ts";
+import {
+  type CannonFiredMessage,
+  type ImpactEvent,
+  MESSAGE,
+} from "../server/protocol.ts";
 import {
   deletePlayerWallBattle,
   filterActiveEnemies,
@@ -48,69 +52,6 @@ import type {
   CombinedCannonResult,
   GameState,
 } from "./types.ts";
-
-/** An event emitted by cannonball impact resolution for network relay.
- *  Includes both direct effects (WALL_DESTROYED, CANNON_DAMAGED) and secondary
- *  consequences of impacts (GRUNT_SPAWNED from destroyed houses, PIT_CREATED
- *  from super gun incendiary hits). */
-export type ImpactEvent =
-  | {
-      type: typeof MESSAGE.WALL_DESTROYED;
-      row: number;
-      col: number;
-      playerId: number;
-      shooterId?: number;
-    }
-  | {
-      type: typeof MESSAGE.CANNON_DAMAGED;
-      playerId: number;
-      cannonIdx: number;
-      newHp: number;
-      shooterId?: number;
-    }
-  | { type: typeof MESSAGE.HOUSE_DESTROYED; row: number; col: number }
-  | {
-      type: typeof MESSAGE.GRUNT_KILLED;
-      row: number;
-      col: number;
-      shooterId?: number;
-    }
-  | {
-      type: typeof MESSAGE.GRUNT_SPAWNED;
-      row: number;
-      col: number;
-      targetPlayerId: number;
-    }
-  | {
-      type: typeof MESSAGE.PIT_CREATED;
-      row: number;
-      col: number;
-      roundsLeft: number;
-    };
-
-/** A cannon-fired event emitted when a cannonball is launched. */
-export interface CannonFiredEvent {
-  type: typeof MESSAGE.CANNON_FIRED;
-  playerId: number;
-  cannonIdx: number;
-  startX: number;
-  startY: number;
-  targetX: number;
-  targetY: number;
-  speed: number;
-  incendiary?: true;
-}
-
-/** A tower-killed event emitted when grunts destroy a tower. */
-export interface TowerKilledEvent {
-  type: typeof MESSAGE.TOWER_KILLED;
-  towerIdx: number;
-}
-
-/** Union of all events emitted during battle — fire, tower kill, and impact.
- *  Discriminated on `type` (MESSAGE.* string literal). Use in switch/if chains
- *  for exhaustive handling. Replaces the loose `{ type: string }` pattern. */
-export type BattleEvent = CannonFiredEvent | TowerKilledEvent | ImpactEvent;
 
 /** Result of tickCannonballs: impact positions (for VFX) + detailed events (for network). */
 interface CannonballUpdateResult {
@@ -528,7 +469,7 @@ export function createCannonFiredMsg(ball: {
   targetY: number;
   speed: number;
   incendiary?: boolean;
-}): CannonFiredEvent {
+}): CannonFiredMessage {
   return {
     type: MESSAGE.CANNON_FIRED,
     playerId: ball.playerId,

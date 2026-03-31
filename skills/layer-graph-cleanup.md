@@ -141,3 +141,4 @@ Rename groups in `.import-layers.json` to match reality. **Naming is the analysi
 | `ai-build-target.ts` over-classified in L5 | Reclassified to L4 — needs build-system |
 | `tick-context.ts` over-classified in L4 | Reclassified to L3 — max dep is controller-interfaces (freed by game-engine extraction) |
 | `phase-transition-shared.ts` over-classified in L4 | Reclassified to L3 — max dep is phase-banner |
+| `input & sound` → `game logic` (L7→L4) | Reconciled duplicate `BattleEvent`/`ImpactEvent`/`CannonFiredEvent`/`TowerKilledEvent` types from `battle-system.ts` with identical `*Message` types already in `protocol.ts` (L2); added `ImpactEvent` and `BattleEvent` union aliases to protocol; consumers import from protocol |

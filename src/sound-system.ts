@@ -8,8 +8,8 @@
  */
 
 import { sfxr } from "jsfxr";
+import type { BattleEvent } from "../server/protocol.ts";
 import { MESSAGE } from "../server/protocol.ts";
-import type { BattleEvent } from "./battle-system.ts";
 
 export interface SoundSystem {
   setLevel: (level: number) => void;

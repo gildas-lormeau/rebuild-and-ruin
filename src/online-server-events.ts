@@ -20,8 +20,12 @@
  * session.isHost in a local variable that persists across message handling.
  */
 
-import { MESSAGE, type ServerMessage } from "../server/protocol.ts";
-import { applyImpactEvent, type ImpactEvent } from "./battle-system.ts";
+import {
+  type ImpactEvent,
+  MESSAGE,
+  type ServerMessage,
+} from "../server/protocol.ts";
+import { applyImpactEvent } from "./battle-system.ts";
 import { applyPiecePlacement, canPlacePieceOffsets } from "./build-system.ts";
 import {
   applyCannonPlacement,
