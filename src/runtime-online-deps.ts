@@ -4,16 +4,25 @@
  * Builds the deps bags consumed by online-server-lifecycle.ts and
  * online-server-events.ts, and dispatches incoming server messages.
  *
+ * Does NOT import runtime-online-game.ts — all runtime-dependent values
+ * are injected via initDeps() to avoid initialization coupling with the
+ * composition root.
+ *
  * DI PATTERN: Mutable singletons (session, watcher) are passed directly as
  * Pick<> references — consumers read fields at call time, so values are always
  * current. Runtime-dependent state still uses closures for late binding.
- * - lifecycleDeps / incrementalDeps: built once at module load, reused for session lifetime.
+ * - lifecycleDeps / incrementalDeps: built once via initDeps(), reused for session lifetime.
  * - Contrast with runtime-online-game.ts where checkpointDeps are built dynamically
  *   on each call (because checkpoint state changes frequently during play).
  */
 
-import type { ServerMessage } from "../server/protocol.ts";
+import type {
+  FullStateMessage,
+  InitMessage,
+  ServerMessage,
+} from "../server/protocol.ts";
 import { MIGRATION_ANNOUNCEMENT_DURATION } from "./game-constants.ts";
+import type { TransitionContext } from "./online-phase-transitions.ts";
 import {
   handleBattleStartTransition,
   handleBuildEndTransition,
@@ -26,43 +35,37 @@ import { handleServerIncrementalMessage } from "./online-server-events.ts";
 import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
 import { PLAYER_NAMES } from "./player-config.ts";
 import { createError, joinError } from "./runtime-online-dom.ts";
-import {
-  initFromServer,
-  restoreFullState,
-  runtime,
-  showWaitingRoom,
-  transitionCtx,
-} from "./runtime-online-game.ts";
 import { promoteToHost } from "./runtime-online-promote.ts";
 import { devLog, session, watcher } from "./runtime-online-stores.ts";
+import type { GameRuntime } from "./runtime-types.ts";
 import { isReselectPhase, Mode } from "./types.ts";
 
-/**
- * Dependency injection pattern for online client:
- *
- * Closures (getState, isCastleReselectPhase):
- *   Use for state that changes frequently during a tick or between ticks.
- *   The closure re-reads the value on each call, ensuring freshness.
- *
- * Direct references (session, watcher):
- *   Use for mutable singletons that persist across the entire online session.
- *   The reference itself doesn't change, but the object's fields may (e.g., session.isHost).
- *
- * Pick<Type, fields>:
- *   Use to restrict surface area — only expose fields the handler actually needs.
- *   Include volatile fields (isHost, myPlayerId) so they're always fresh via the reference.
- *
- * When adding a new handler: prefer closures for derived/computed state, direct refs for singletons.
- *
- * These deps objects are built once and reused for the session lifetime.
- */
-const lifecycleDeps = buildLifecycleDeps();
-const incrementalDeps = buildIncrementalDeps();
+// ── Types ──────────────────────────────────────────────────────────
+interface DepsInit {
+  readonly runtime: GameRuntime;
+  readonly initFromServer: (msg: InitMessage) => void;
+  readonly restoreFullState: (msg: FullStateMessage) => void;
+  readonly showWaitingRoom: (code: string, seed: number) => void;
+  readonly transitionCtx: TransitionContext;
+}
+
+// ── Late-bound state ───────────────────────────────────────────────
+let _g: DepsInit;
+let _lifecycleDeps: ReturnType<typeof buildLifecycleDeps>;
+let _incrementalDeps: ReturnType<typeof buildIncrementalDeps>;
+
+/** Bind runtime-dependent values and build deps objects. Called once from
+ *  runtime-online-game.ts after the GameRuntime is created. */
+export function initDeps(init: DepsInit): void {
+  _g = init;
+  _lifecycleDeps = buildLifecycleDeps();
+  _incrementalDeps = buildIncrementalDeps();
+}
 
 export function handleServerMessage(msg: ServerMessage): void {
   devLog(`received: ${msg.type}`);
-  if (handleServerLifecycleMessage(msg, lifecycleDeps)) return;
-  const result = handleServerIncrementalMessage(msg, incrementalDeps);
+  if (handleServerLifecycleMessage(msg, _lifecycleDeps)) return;
+  const result = handleServerIncrementalMessage(msg, _incrementalDeps);
   if (!result) devLog(`unhandled incremental message: ${msg.type}`);
 }
 
@@ -92,38 +95,38 @@ function buildIncrementalDeps() {
     log: devLog,
     session,
     watcher,
-    getState: () => runtime.runtimeState.state,
-    selectionStates: runtime.selection.getStates(),
-    syncSelectionOverlay: () => runtime.selection.syncOverlay(),
+    getState: () => _g.runtime.runtimeState.state,
+    selectionStates: _g.runtime.selection.getStates(),
+    syncSelectionOverlay: () => _g.runtime.selection.syncOverlay(),
     isCastleReselectPhase: () =>
-      isReselectPhase(runtime.runtimeState.state.phase),
+      isReselectPhase(_g.runtime.runtimeState.state.phase),
     confirmSelectionAndStartBuild: (playerId: number, isReselect: boolean) => {
-      runtime.selection.confirmAndStartBuild(playerId, isReselect);
+      _g.runtime.selection.confirmAndStartBuild(playerId, isReselect);
     },
-    allSelectionsConfirmed: () => runtime.selection.allConfirmed(),
-    finishReselection: () => runtime.selection.finishReselection(),
-    finishSelection: () => runtime.selection.finish(),
-    onFirstEnclosure: (pid: number) => runtime.sound.chargeFanfare(pid),
-    getLifeLostDialog: () => runtime.lifeLost.get(),
+    allSelectionsConfirmed: () => _g.runtime.selection.allConfirmed(),
+    finishReselection: () => _g.runtime.selection.finishReselection(),
+    finishSelection: () => _g.runtime.selection.finish(),
+    onFirstEnclosure: (pid: number) => _g.runtime.sound.chargeFanfare(pid),
+    getLifeLostDialog: () => _g.runtime.lifeLost.get(),
   };
 }
 
 function buildLobbyDeps() {
   return {
-    showWaitingRoom,
-    joined: runtime.runtimeState.lobby.joined,
+    showWaitingRoom: _g.showWaitingRoom,
+    joined: _g.runtime.runtimeState.lobby.joined,
   };
 }
 
 function buildUiDeps() {
   return {
-    getLifeLostDialog: () => runtime.lifeLost.get(),
+    getLifeLostDialog: () => _g.runtime.lifeLost.get(),
     clearLifeLostDialog: () => {
-      runtime.lifeLost.set(null);
+      _g.runtime.lifeLost.set(null);
     },
-    isLifeLostMode: () => runtime.runtimeState.mode === Mode.LIFE_LOST,
+    isLifeLostMode: () => _g.runtime.runtimeState.mode === Mode.LIFE_LOST,
     setModeToGame: () => {
-      runtime.runtimeState.mode = Mode.GAME;
+      _g.runtime.runtimeState.mode = Mode.GAME;
     },
     setAnnouncement: (text: string) => {
       watcher.migrationText = text;
@@ -136,26 +139,26 @@ function buildUiDeps() {
 
 function buildGameDeps() {
   return {
-    getState: () => runtime.runtimeState.state,
-    initFromServer,
-    enterTowerSelection: () => runtime.selection.enter(),
+    getState: () => _g.runtime.runtimeState.state,
+    initFromServer: _g.initFromServer,
+    enterTowerSelection: () => _g.runtime.selection.enter(),
   };
 }
 
 function buildTransitionDeps() {
   return {
     onCastleWalls: (msg: ServerMessage) =>
-      handleCastleWallsTransition(msg, transitionCtx),
+      handleCastleWallsTransition(msg, _g.transitionCtx),
     onCannonStart: (msg: ServerMessage) =>
-      handleCannonStartTransition(msg, transitionCtx),
+      handleCannonStartTransition(msg, _g.transitionCtx),
     onBattleStart: (msg: ServerMessage) =>
-      handleBattleStartTransition(msg, transitionCtx),
+      handleBattleStartTransition(msg, _g.transitionCtx),
     onBuildStart: (msg: ServerMessage) =>
-      handleBuildStartTransition(msg, transitionCtx),
+      handleBuildStartTransition(msg, _g.transitionCtx),
     onBuildEnd: (msg: ServerMessage) =>
-      handleBuildEndTransition(msg, transitionCtx),
+      handleBuildEndTransition(msg, _g.transitionCtx),
     onGameOver: (msg: ServerMessage) =>
-      handleGameOverTransition(msg, transitionCtx),
+      handleGameOverTransition(msg, _g.transitionCtx),
   };
 }
 
@@ -163,6 +166,6 @@ function buildMigrationDeps() {
   return {
     playerNames: PLAYER_NAMES,
     promoteToHost,
-    restoreFullState,
+    restoreFullState: _g.restoreFullState,
   };
 }

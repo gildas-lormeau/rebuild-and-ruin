@@ -1,11 +1,13 @@
 /**
  * WebSocket connection lifecycle and reconnection for online play.
+ *
+ * Does NOT import runtime-online-game.ts — runtime access is injected
+ * via initWs() to avoid initialization coupling with the composition root.
  */
 
 import { computeWsUrl } from "./online-config.ts";
 import { connectWebSocket } from "./online-session.ts";
 import { handleServerMessage } from "./runtime-online-deps.ts";
-import { runtime } from "./runtime-online-game.ts";
 import {
   clearReconnect,
   devLog,
@@ -17,12 +19,29 @@ import {
 } from "./runtime-online-stores.ts";
 import { Mode } from "./types.ts";
 
+// ── Types ──────────────────────────────────────────────────────────
+interface WsRuntimeDeps {
+  readonly getMode: () => Mode;
+  readonly setMode: (mode: Mode) => void;
+  readonly setAnnouncement: (text: string | undefined) => void;
+  readonly render: () => void;
+}
+
+// ── Constants ──────────────────────────────────────────────────────
 const ANNOUNCEMENT_RECONNECTING = "Reconnecting\u2026";
 // \u2026 = ellipsis (…)
 const ANNOUNCEMENT_DISCONNECTED = "Disconnected from server";
 
+// ── Late-bound state ───────────────────────────────────────────────
+let _rt: WsRuntimeDeps;
 /** Stashed from the first call so reconnect retries reuse it. */
 let _onConnectError: (() => void) | undefined;
+
+/** Bind runtime-dependent callbacks. Called once from runtime-online-game.ts
+ *  after the GameRuntime is created. */
+export function initWs(deps: WsRuntimeDeps): void {
+  _rt = deps;
+}
 
 export function connect(onConnectError?: () => void): void {
   if (onConnectError) _onConnectError = onConnectError;
@@ -35,7 +54,7 @@ export function connect(onConnectError?: () => void): void {
       handleServerMessage(msg);
     },
     onClose: () => {
-      const mode = runtime.runtimeState.mode;
+      const mode = _rt.getMode();
       // Mode[mode] is TypeScript's reverse enum mapping (numeric → string name)
       devLog(`WebSocket closed (mode=${Mode[mode]} isHost=${session.isHost})`);
       // Re-read isHost (volatile — can flip during host promotion)
@@ -45,8 +64,8 @@ export function connect(onConnectError?: () => void): void {
         reconnect.count++;
         // Exponential backoff: base × 2^(attempt-1) via bit-shift
         const delay = RECONNECT_BASE_DELAY_MS * (1 << (reconnect.count - 1));
-        runtime.runtimeState.frame.announcement = ANNOUNCEMENT_RECONNECTING;
-        runtime.render();
+        _rt.setAnnouncement(ANNOUNCEMENT_RECONNECTING);
+        _rt.render();
         devLog(
           `reconnect attempt ${reconnect.count}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`,
         );
@@ -56,9 +75,9 @@ export function connect(onConnectError?: () => void): void {
         }, delay);
       } else {
         clearReconnect();
-        runtime.runtimeState.frame.announcement = ANNOUNCEMENT_DISCONNECTED;
-        runtime.render();
-        runtime.runtimeState.mode = Mode.STOPPED;
+        _rt.setAnnouncement(ANNOUNCEMENT_DISCONNECTED);
+        _rt.render();
+        _rt.setMode(Mode.STOPPED);
       }
     },
     onError: () => {

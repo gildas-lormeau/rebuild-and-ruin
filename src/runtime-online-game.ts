@@ -66,7 +66,9 @@ import {
   createCanvasRenderer,
   initWaitingRoom,
 } from "./runtime-bootstrap.ts";
+import { initDeps } from "./runtime-online-deps.ts";
 import { canvas, pageOnline, roomCodeOverlay } from "./runtime-online-dom.ts";
+import { initPromote } from "./runtime-online-promote.ts";
 import {
   clearReconnect,
   dedup,
@@ -78,12 +80,13 @@ import {
   session,
   watcher,
 } from "./runtime-online-stores.ts";
+import { initWs } from "./runtime-online-ws.ts";
 import { LifeLostChoice, Mode } from "./types.ts";
 
 // ── DOM singletons (from centralized boundary) ─────────────────────
 const renderer = createCanvasRenderer(canvas);
 // ── Assemble transition context ─────────────────────────────────────
-export const transitionCtx: TransitionContext = {
+const transitionCtx: TransitionContext = {
   getState: () => runtime.runtimeState.state,
   session,
   getControllers: () => runtime.runtimeState.controllers,
@@ -113,7 +116,7 @@ const watcherTickCtx: WatcherTickContext = {
   now: () => performance.now(),
 };
 // ── Runtime creation ────────────────────────────────────────────────
-export const runtime: GameRuntime = createGameRuntime({
+const runtime: GameRuntime = createGameRuntime({
   renderer,
   isOnline: true,
   send,
@@ -205,110 +208,6 @@ export const runtime: GameRuntime = createGameRuntime({
     if (session.isHost) send(payloads.serverPayload); // volatile — re-read (safe: inline)
   },
 });
-
-export function showWaitingRoom(code: string, seed: number): void {
-  session.roomSeed = seed;
-  runtime.runtimeState.settings.seed = String(seed);
-  initWaitingRoom({
-    code,
-    seed,
-    lobbyEl: pageOnline,
-    container: renderer.container,
-    roomCodeOverlay,
-    lobby: runtime.runtimeState.lobby,
-    maxPlayers: MAX_PLAYERS,
-    now: () => performance.now(),
-    setLobbyStartTime: (timestamp: number) => {
-      session.lobbyStartTime = timestamp;
-    },
-    setModeLobby: () => {
-      runtime.runtimeState.mode = Mode.LOBBY;
-    },
-    setLastTime: (timestamp: number) => {
-      runtime.runtimeState.lastTime = timestamp;
-    },
-    requestFrame: () => {
-      requestAnimationFrame(runtime.mainLoop);
-    },
-  });
-}
-
-export function initFromServer(msg: InitMessage): void {
-  roomCodeOverlay.style.display = "none";
-  runtime.runtimeState.lobby.active = false;
-  const settings = runtime.runtimeState.settings;
-  const humanSlots = Array.from(
-    { length: msg.playerCount },
-    (_, i) => i === session.myPlayerId,
-  );
-  const keyBindings = Array.from({ length: msg.playerCount }, (_, i) =>
-    i === session.myPlayerId ? settings.keyBindings[0] : undefined,
-  );
-  bootstrapGame({
-    seed: msg.seed,
-    maxPlayers: msg.playerCount,
-    existingMap: runtime.runtimeState.lobby.map ?? undefined,
-    battleLength: msg.settings.battleLength,
-    cannonMaxHp: msg.settings.cannonMaxHp,
-    buildTimer: msg.settings.buildTimer,
-    cannonPlaceTimer: msg.settings.cannonPlaceTimer,
-    firstRoundCannons: msg.settings.firstRoundCannons,
-    humanSlots,
-    keyBindings,
-    difficulty: settings.difficulty,
-    log: devLog,
-    clearFrameData: () => runtime.clearFrameData(),
-    setState: (state) => {
-      runtime.runtimeState.state = state;
-    },
-    setControllers: (controllers) => {
-      runtime.runtimeState.controllers = [...controllers];
-    },
-    resetUIState: () => {
-      runtime.lifecycle.resetUIState();
-      resetNetworking("new-game");
-    },
-    enterSelection: () => runtime.selection.enter(),
-  });
-}
-
-export function restoreFullState(msg: FullStateMessage): void {
-  const state = runtime.runtimeState.state;
-  const result = restoreFullStateSnapshot(state, msg);
-  if (!result) return; // Validation failed — no state was mutated
-
-  restoreFullStateUiRecovery(
-    {
-      setMode: (mode) => {
-        runtime.runtimeState.mode = mode;
-      },
-      onModeSet: (mode) => {
-        if (mode === Mode.SELECTION) runtime.sound.drumsStart();
-        else runtime.sound.drumsStop();
-      },
-      clearCastleBuilds: () => {
-        runtime.runtimeState.castleBuilds = [];
-      },
-      clearLifeLostDialog: () => {
-        runtime.lifeLost.set(null);
-      },
-      clearAnnouncement: () => {
-        runtime.runtimeState.frame.announcement = undefined;
-      },
-      setBattleFlights: (flights) => {
-        runtime.runtimeState.battleAnim.flights = flights;
-      },
-    },
-    state.phase,
-    result.balloonFlights,
-  );
-
-  startWatcherPhaseTimer(watcher.timing, performance.now(), state.timer);
-  if (state.battleCountdown > 0) {
-    watcher.timing.countdownStartTime = performance.now();
-    watcher.timing.countdownDuration = state.battleCountdown;
-  }
-}
 
 function buildTransitionUiCtx(): TransitionContext["ui"] {
   return {
@@ -418,6 +317,132 @@ function showLobby(): void {
   roomCodeOverlay.style.display = "none";
   navigateTo("/online");
   resetSession();
+}
+
+// ── Initialize dependent modules (breaks import coupling) ──────────
+initWs({
+  getMode: () => runtime.runtimeState.mode,
+  setMode: (mode) => {
+    runtime.runtimeState.mode = mode;
+  },
+  setAnnouncement: (text) => {
+    runtime.runtimeState.frame.announcement = text;
+  },
+  render: () => runtime.render(),
+});
+
+initPromote(runtime);
+
+initDeps({
+  runtime,
+  initFromServer,
+  restoreFullState,
+  showWaitingRoom,
+  transitionCtx,
+});
+
+function showWaitingRoom(code: string, seed: number): void {
+  session.roomSeed = seed;
+  runtime.runtimeState.settings.seed = String(seed);
+  initWaitingRoom({
+    code,
+    seed,
+    lobbyEl: pageOnline,
+    container: renderer.container,
+    roomCodeOverlay,
+    lobby: runtime.runtimeState.lobby,
+    maxPlayers: MAX_PLAYERS,
+    now: () => performance.now(),
+    setLobbyStartTime: (timestamp: number) => {
+      session.lobbyStartTime = timestamp;
+    },
+    setModeLobby: () => {
+      runtime.runtimeState.mode = Mode.LOBBY;
+    },
+    setLastTime: (timestamp: number) => {
+      runtime.runtimeState.lastTime = timestamp;
+    },
+    requestFrame: () => {
+      requestAnimationFrame(runtime.mainLoop);
+    },
+  });
+}
+
+function initFromServer(msg: InitMessage): void {
+  roomCodeOverlay.style.display = "none";
+  runtime.runtimeState.lobby.active = false;
+  const settings = runtime.runtimeState.settings;
+  const humanSlots = Array.from(
+    { length: msg.playerCount },
+    (_, i) => i === session.myPlayerId,
+  );
+  const keyBindings = Array.from({ length: msg.playerCount }, (_, i) =>
+    i === session.myPlayerId ? settings.keyBindings[0] : undefined,
+  );
+  bootstrapGame({
+    seed: msg.seed,
+    maxPlayers: msg.playerCount,
+    existingMap: runtime.runtimeState.lobby.map ?? undefined,
+    battleLength: msg.settings.battleLength,
+    cannonMaxHp: msg.settings.cannonMaxHp,
+    buildTimer: msg.settings.buildTimer,
+    cannonPlaceTimer: msg.settings.cannonPlaceTimer,
+    firstRoundCannons: msg.settings.firstRoundCannons,
+    humanSlots,
+    keyBindings,
+    difficulty: settings.difficulty,
+    log: devLog,
+    clearFrameData: () => runtime.clearFrameData(),
+    setState: (state) => {
+      runtime.runtimeState.state = state;
+    },
+    setControllers: (controllers) => {
+      runtime.runtimeState.controllers = [...controllers];
+    },
+    resetUIState: () => {
+      runtime.lifecycle.resetUIState();
+      resetNetworking("new-game");
+    },
+    enterSelection: () => runtime.selection.enter(),
+  });
+}
+
+function restoreFullState(msg: FullStateMessage): void {
+  const state = runtime.runtimeState.state;
+  const result = restoreFullStateSnapshot(state, msg);
+  if (!result) return; // Validation failed — no state was mutated
+
+  restoreFullStateUiRecovery(
+    {
+      setMode: (mode) => {
+        runtime.runtimeState.mode = mode;
+      },
+      onModeSet: (mode) => {
+        if (mode === Mode.SELECTION) runtime.sound.drumsStart();
+        else runtime.sound.drumsStop();
+      },
+      clearCastleBuilds: () => {
+        runtime.runtimeState.castleBuilds = [];
+      },
+      clearLifeLostDialog: () => {
+        runtime.lifeLost.set(null);
+      },
+      clearAnnouncement: () => {
+        runtime.runtimeState.frame.announcement = undefined;
+      },
+      setBattleFlights: (flights) => {
+        runtime.runtimeState.battleAnim.flights = flights;
+      },
+    },
+    state.phase,
+    result.balloonFlights,
+  );
+
+  startWatcherPhaseTimer(watcher.timing, performance.now(), state.timer);
+  if (state.battleCountdown > 0) {
+    watcher.timing.countdownStartTime = performance.now();
+    watcher.timing.countdownDuration = state.battleCountdown;
+  }
 }
 
 // ── Side effects ────────────────────────────────────────────────────

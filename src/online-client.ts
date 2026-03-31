@@ -10,4 +10,9 @@
  *   runtime-online-lobby.ts    — lobby DOM and lobbyReady promise
  */
 
+// Side-effect: creates GameRuntime, wires init calls to deps/ws/promote modules.
+// Must evaluate before lobby (which may call connect() after atlas loads).
+
+import "./runtime-online-game.ts";
+
 export { lobbyReady } from "./runtime-online-lobby.ts";

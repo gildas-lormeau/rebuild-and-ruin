@@ -4,6 +4,9 @@
  * Called when this client is promoted from watcher to host after the
  * previous host disconnects. Resets networking state, rebuilds controllers,
  * syncs accumulators, and broadcasts the authoritative full state.
+ *
+ * Does NOT import runtime-online-game.ts — the GameRuntime reference is
+ * injected via initPromote() to avoid initialization coupling.
  */
 
 import {
@@ -13,15 +16,24 @@ import {
 } from "./online-host-promotion.ts";
 import { createFullStateMessage } from "./online-serialize.ts";
 import { createAiController } from "./runtime-bootstrap.ts";
-import { runtime } from "./runtime-online-game.ts";
 import {
   devLog,
   resetNetworking,
   send,
   session,
 } from "./runtime-online-stores.ts";
+import type { GameRuntime } from "./runtime-types.ts";
 import { Mode } from "./types.ts";
 import { assertNever } from "./utils.ts";
+
+// ── Late-bound state ───────────────────────────────────────────────
+let _runtime: GameRuntime;
+
+/** Bind the GameRuntime reference. Called once from runtime-online-game.ts
+ *  after the GameRuntime is created. */
+export function initPromote(rt: GameRuntime): void {
+  _runtime = rt;
+}
 
 /** Promote this client to host. Order matters:
  *  1. Reset networking (clear stale watcher/dedup state)
@@ -37,23 +49,23 @@ export function promoteToHost(): void {
 
   resetNetworking("host-promotion");
   rebuildControllersForPhase(
-    runtime.runtimeState.state,
-    runtime.runtimeState.controllers,
+    _runtime.runtimeState.state,
+    _runtime.runtimeState.controllers,
     session.myPlayerId,
     (id, seed) =>
-      createAiController(id, seed, runtime.runtimeState.settings.difficulty),
+      createAiController(id, seed, _runtime.runtimeState.settings.difficulty),
   );
   syncAccumulatorsFromTimer(
-    runtime.runtimeState.state,
-    runtime.runtimeState.accum,
+    _runtime.runtimeState.state,
+    _runtime.runtimeState.accum,
   );
   skipPendingAnimations();
 
   send(
     createFullStateMessage(
-      runtime.runtimeState.state,
+      _runtime.runtimeState.state,
       session.hostMigrationSeq,
-      runtime.runtimeState.battleAnim.flights,
+      _runtime.runtimeState.battleAnim.flights,
     ),
   );
   devLog("Promotion complete, now running as host");
@@ -64,24 +76,24 @@ export function promoteToHost(): void {
  * Exhaustive switch ensures adding a new Mode is a compile error until handled.
  */
 function skipPendingAnimations(): void {
-  const state = runtime.runtimeState.state;
-  const mode = runtime.runtimeState.mode;
+  const state = _runtime.runtimeState.state;
+  const mode = _runtime.runtimeState.mode;
   switch (mode) {
     case Mode.CASTLE_BUILD:
-      runtime.runtimeState.castleBuilds = [];
+      _runtime.runtimeState.castleBuilds = [];
       skipCastleBuildAnimation(state);
-      runtime.phaseTicks.startCannonPhase();
-      runtime.runtimeState.mode = Mode.GAME;
+      _runtime.phaseTicks.startCannonPhase();
+      _runtime.runtimeState.mode = Mode.GAME;
       devLog("Skipped castle build animation → cannon phase");
       break;
     case Mode.LIFE_LOST:
-      runtime.lifeLost.set(null);
-      runtime.runtimeState.mode = Mode.GAME;
+      _runtime.lifeLost.set(null);
+      _runtime.runtimeState.mode = Mode.GAME;
       devLog("Cleared life-lost dialog → game mode");
       break;
     case Mode.BANNER:
     case Mode.BALLOON_ANIM:
-      runtime.runtimeState.mode = Mode.GAME;
+      _runtime.runtimeState.mode = Mode.GAME;
       devLog("Skipped banner/animation → game mode");
       break;
     case Mode.GAME:
