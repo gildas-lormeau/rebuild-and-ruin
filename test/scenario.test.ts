@@ -622,25 +622,21 @@ test("demo timer not started when human is playing", () => {
 // ---------------------------------------------------------------------------
 
 test("super gun placed during cannon phase can fire in battle", () => {
-  // Try multiple seeds until one has enough interior for a 3x3 super gun
-  let s = createScenario();
+  // Seed 14: P0 has enough interior for a 3x3 super gun after 1 round
+  const s = createScenario(14);
+  s.playRounds(1);
   let placed = false;
-  for (const seed of [42, 100, 200, 300, 999]) {
-    s = createScenario(seed);
-    s.playRounds(3);
-    const p = s.state.players[0]!;
-    s.state.cannonLimits[0] = 99;
-    for (const key of p.interior) {
-      const row = Math.floor(key / GRID_COLS);
-      const col = key % GRID_COLS;
-      if (s.placeCannonAt(0, row, col, CannonMode.SUPER)) {
-        placed = true;
-        break;
-      }
+  const p = s.state.players[0]!;
+  s.state.cannonLimits[0] = 99;
+  for (const key of p.interior) {
+    const row = Math.floor(key / GRID_COLS);
+    const col = key % GRID_COLS;
+    if (s.placeCannonAt(0, row, col, CannonMode.SUPER)) {
+      placed = true;
+      break;
     }
-    if (placed) break;
   }
-  assert(placed, "Should place a super gun in at least one seed");
+  assert(placed, "Should place a super gun with seed 14");
   const player = s.state.players[0]!;
 
   const superIdx = player.cannons.length - 1;

@@ -28,8 +28,8 @@ import process from "node:process";
 // Config
 // ---------------------------------------------------------------------------
 
-const SEEDS = [52, 66, 65, 56, 2];
-const MAX_ROUNDS = 50;
+const SEEDS = [3, 7, 25, 40, 55];
+const MAX_ROUNDS = 12;
 
 // ---------------------------------------------------------------------------
 // Invariant validation

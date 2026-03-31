@@ -20,17 +20,17 @@ import { assert, runTests, test } from "./test-helpers.ts";
 // executeTransition step ordering
 // ---------------------------------------------------------------------------
 
-test("CANNON_START_STEPS executes in order: checkpoint, controllers, banner", () => {
+test("CANNON_START_STEPS executes in order: banner, checkpoint, controllers", () => {
   const order: string[] = [];
   executeTransition(CANNON_START_STEPS, {
+    showBanner: () => order.push("banner"),
     applyCheckpoint: () => order.push("checkpoint"),
     initControllers: () => order.push("controllers"),
-    showBanner: () => order.push("banner"),
   });
   assert(order.length === 3, `expected 3 steps, got ${order.length}`);
-  assert(order[0] === "checkpoint", `step 0: expected checkpoint, got ${order[0]}`);
-  assert(order[1] === "controllers", `step 1: expected controllers, got ${order[1]}`);
-  assert(order[2] === "banner", `step 2: expected banner, got ${order[2]}`);
+  assert(order[0] === "banner", `step 0: expected banner, got ${order[0]}`);
+  assert(order[1] === "checkpoint", `step 1: expected checkpoint, got ${order[1]}`);
+  assert(order[2] === "controllers", `step 2: expected controllers, got ${order[2]}`);
 });
 
 test("BATTLE_START_STEPS executes in order: banner, checkpoint, snapshot", () => {
