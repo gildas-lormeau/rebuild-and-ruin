@@ -76,13 +76,18 @@ const WAVE_COL_LAYER_VAR = 0.15;
 const WAVE_PHASE_OFFSET = 2.1;
 // Phantom rendering
 const DARK_METAL = "#111";
-const PHANTOM_INVALID_COLOR = "#222";
 /** Shared phantom opacity for valid placement previews. */
-const PHANTOM_ALPHA = 1;
+const PHANTOM_ALPHA = 0.85;
 /** Reduced opacity for invalid placement previews. */
-const PHANTOM_INVALID_ALPHA = 0.5;
+const PHANTOM_INVALID_ALPHA = 0.55;
 /** Saturation boost for valid phantom wall colors. */
 const PHANTOM_SATURATION = 2.5;
+/** 3D bevel inset width in pixels. */
+const BEVEL_W = 2;
+/** How much brighter the top/left bevel highlight is (0–255 additive). */
+const BEVEL_HIGHLIGHT = 80;
+/** How much darker the bottom/right bevel shadow is (0–1 multiplicative). */
+const BEVEL_SHADOW = 0.45;
 // Spatial hash multipliers for per-tile visual noise
 const SEED_ROW = 41;
 const SEED_COL = 17;
@@ -137,16 +142,7 @@ export function drawPhantoms(
     const { offsets, row, col, valid, playerId } =
       overlay.phantoms.phantomPiece;
     const wall = getPlayerColor(playerId ?? 0).wall;
-    drawPiecePhantom(
-      overlayCtx,
-      offsets,
-      row,
-      col,
-      valid
-        ? rgb(saturateRgb(wall, PHANTOM_SATURATION))
-        : PHANTOM_INVALID_COLOR,
-      valid ? PHANTOM_ALPHA : PHANTOM_INVALID_ALPHA,
-    );
+    drawPiecePhantom(overlayCtx, offsets, row, col, wall, valid);
   }
 
   // All human phantom pieces (multi-human build phase)
@@ -154,17 +150,7 @@ export function drawPhantoms(
     for (const phantom of overlay.phantoms.humanPhantoms) {
       const { offsets, row, col, valid, playerId } = phantom;
       const wall = getPlayerColor(playerId).wall;
-      const fill = valid
-        ? rgb(saturateRgb(wall, PHANTOM_SATURATION))
-        : PHANTOM_INVALID_COLOR;
-      drawPiecePhantom(
-        overlayCtx,
-        offsets,
-        row,
-        col,
-        fill,
-        valid ? PHANTOM_ALPHA : PHANTOM_INVALID_ALPHA,
-      );
+      drawPiecePhantom(overlayCtx, offsets, row, col, wall, valid);
     }
   }
 
@@ -173,16 +159,7 @@ export function drawPhantoms(
     for (const phantom of overlay.phantoms.aiPhantoms) {
       const { offsets, row, col, playerId, valid } = phantom;
       const wall = getPlayerColor(playerId).wall;
-      drawPiecePhantom(
-        overlayCtx,
-        offsets,
-        row,
-        col,
-        valid
-          ? rgb(saturateRgb(wall, PHANTOM_SATURATION))
-          : PHANTOM_INVALID_COLOR,
-        valid ? PHANTOM_ALPHA : PHANTOM_INVALID_ALPHA,
-      );
+      drawPiecePhantom(overlayCtx, offsets, row, col, wall, valid);
     }
   }
 }
@@ -323,16 +300,6 @@ export function drawBurningPits(
       overlayCtx.fill();
     }
   }
-}
-
-/** Boost saturation of an RGB color. factor 0 = original, 1 = fully saturated. */
-function saturateRgb(c: RGB, factor: number): RGB {
-  const avg = (c[0] + c[1] + c[2]) / 3;
-  return [
-    Math.round(Math.min(255, c[0] + (c[0] - avg) * factor)),
-    Math.round(Math.min(255, c[1] + (c[1] - avg) * factor)),
-    Math.round(Math.min(255, c[2] + (c[2] - avg) * factor)),
-  ];
 }
 
 function drawImpacts(
@@ -629,37 +596,67 @@ function drawPhantomCannon(
   canvasCtx.restore();
 }
 
-/** Draw a single phantom piece (fill + white outline). */
+/** Draw a single phantom piece — 3D bevel when valid, red tint + red outline when invalid. */
 function drawPiecePhantom(
   overlayCtx: CanvasRenderingContext2D,
   offsets: readonly [number, number][],
   row: number,
   col: number,
-  fillColor: string,
-  alpha: number,
+  wall: RGB,
+  valid: boolean,
 ): void {
+  const face = saturateRgb(wall, PHANTOM_SATURATION);
   overlayCtx.save();
-  overlayCtx.globalAlpha = alpha;
-  overlayCtx.fillStyle = fillColor;
+  overlayCtx.globalAlpha = valid ? PHANTOM_ALPHA : PHANTOM_INVALID_ALPHA;
+
+  const base: RGB = valid
+    ? face
+    : [
+        Math.min(255, Math.round(face[0] * 0.3 + 170)),
+        Math.round(face[1] * 0.15),
+        Math.round(face[2] * 0.15),
+      ];
+  const hi: RGB = [
+    Math.min(255, base[0] + BEVEL_HIGHLIGHT),
+    Math.min(255, base[1] + BEVEL_HIGHLIGHT),
+    Math.min(255, base[2] + BEVEL_HIGHLIGHT),
+  ];
+  const sh: RGB = [
+    Math.round(base[0] * BEVEL_SHADOW),
+    Math.round(base[1] * BEVEL_SHADOW),
+    Math.round(base[2] * BEVEL_SHADOW),
+  ];
   for (const [dr, dc] of offsets) {
-    overlayCtx.fillRect(
-      (col + dc) * TILE_SIZE,
-      (row + dr) * TILE_SIZE,
-      TILE_SIZE,
-      TILE_SIZE,
-    );
+    const x = (col + dc) * TILE_SIZE;
+    const y = (row + dr) * TILE_SIZE;
+    const sz = TILE_SIZE;
+    const bv = BEVEL_W;
+    // Face fill
+    overlayCtx.fillStyle = rgb(base);
+    overlayCtx.fillRect(x, y, sz, sz);
+    // Top highlight
+    overlayCtx.fillStyle = rgb(hi);
+    overlayCtx.fillRect(x, y, sz, bv);
+    // Left highlight
+    overlayCtx.fillRect(x, y, bv, sz);
+    // Bottom shadow
+    overlayCtx.fillStyle = rgb(sh);
+    overlayCtx.fillRect(x, y + sz - bv, sz, bv);
+    // Right shadow
+    overlayCtx.fillRect(x + sz - bv, y, bv, sz);
   }
-  overlayCtx.strokeStyle = TEXT_WHITE;
-  overlayCtx.lineWidth = 1;
-  for (const [dr, dc] of offsets) {
-    overlayCtx.strokeRect(
-      (col + dc) * TILE_SIZE,
-      (row + dr) * TILE_SIZE,
-      TILE_SIZE,
-      TILE_SIZE,
-    );
-  }
+
   overlayCtx.restore();
+}
+
+/** Boost saturation of an RGB color. factor 0 = original, 1 = fully saturated. */
+function saturateRgb(c: RGB, factor: number): RGB {
+  const avg = (c[0] + c[1] + c[2]) / 3;
+  return [
+    Math.round(Math.min(255, c[0] + (c[0] - avg) * factor)),
+    Math.round(Math.min(255, c[1] + (c[1] - avg) * factor)),
+    Math.round(Math.min(255, c[2] + (c[2] - avg) * factor)),
+  ];
 }
 
 /** Draw balloon base phantom — sprite with red tint overlay if invalid. */
