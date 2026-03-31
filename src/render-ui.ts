@@ -406,7 +406,7 @@ export function drawPlayerSelect(
   overlayCtx.fillText("Rebuild & Ruin", W / 2, H * 0.1);
   overlayCtx.font = FONT_SUBTITLE;
   overlayCtx.fillStyle = TEXT_MUTED;
-  overlayCtx.fillText("A Rampart Tribute", W / 2, H * 0.1 + 20);
+  overlayCtx.fillText("A Rampart Remake", W / 2, H * 0.1 + 20);
 
   if (selectData.roomCode) {
     overlayCtx.font = FONT_TIMER;
