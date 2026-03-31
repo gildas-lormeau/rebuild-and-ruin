@@ -271,7 +271,7 @@ export class HumanController extends BaseController implements InputReceiver {
       this.buildCursor.col,
     );
     if (placed) {
-      this.advanceBag();
+      this.advanceBag(true);
       this.clampBuildCursor(this.currentPiece);
     }
     return placed;

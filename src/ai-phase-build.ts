@@ -25,7 +25,7 @@ interface BuildHost {
   readonly buildCursorSpeed: number;
   readonly boostThreshold: number;
   scaledDelay(base: number, spread: number): number;
-  advanceBag(): void;
+  advanceBag(_placed: true): void;
   clampBuildCursor(piece: PieceShape | null): void;
   stepTileCursorToward(
     cursor: TilePos,
@@ -197,7 +197,7 @@ export function tickBuild(
           bs.target.col,
         );
         if (placed) {
-          host.advanceBag();
+          host.advanceBag(true);
           phase.state = {
             step: STEP.THINKING,
             timer: host.scaledDelay(0.3, 0.4),

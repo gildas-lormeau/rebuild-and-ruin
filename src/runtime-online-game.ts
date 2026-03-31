@@ -168,6 +168,7 @@ export const runtime: GameRuntime = createGameRuntime({
   everyTick: (dt) =>
     tickMigrationAnnouncementFn(watcher, runtime.runtimeState.frame, dt),
   onLocalCrosshairCollected: (ctrl, crosshair) => {
+    // isHost is volatile — re-read each tick (safe: inline, not cached)
     if (session.isHost)
       broadcastLocalCrosshair(ctrl, crosshair, {
         lastSentAimTarget: dedup.aimTarget,
@@ -203,7 +204,7 @@ export const runtime: GameRuntime = createGameRuntime({
     devLog(
       `endGame winner=${payloads.winnerName} round=${gameState.round} battleLength=${gameState.battleLength}`,
     );
-    if (session.isHost) send(payloads.serverPayload);
+    if (session.isHost) send(payloads.serverPayload); // volatile — re-read (safe: inline)
   },
 });
 

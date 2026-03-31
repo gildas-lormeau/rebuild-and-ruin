@@ -21,6 +21,7 @@ interface TickSelectionPhaseDeps {
   isHost: boolean;
   myPlayerId: number;
   selectTimer: number;
+  /** Mutable — tickSelectionPhase is a blessed mutation site (see MutableAccums in tick-context.ts). */
   accum: { select: number; selectAnnouncement: number };
   selectionStates: Map<number, SelectionState>;
   remoteHumanSlots: ReadonlySet<number>;

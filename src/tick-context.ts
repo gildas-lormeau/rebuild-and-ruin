@@ -61,8 +61,11 @@ export interface TimerAccums {
   readonly grunt: number;
 }
 
-/** Mutable view of TimerAccums — use ONLY inside advancePhaseTimer,
- *  tickGruntsIfDue, and tickSelectionPhase (the three blessed mutation sites). */
+/** Mutable view of TimerAccums — use ONLY inside these blessed mutation sites:
+ *  - advancePhaseTimer() in tick-context.ts — canonical phase timer advancement
+ *  - tickGruntsIfDue() in tick-context.ts — cross-phase grunt spawn interval
+ *  - tickSelectionPhase() in selection.ts — selection phase has custom timer logic
+ *  Everywhere else, pass TimerAccums (readonly) to prevent accidental mutation. */
 export type MutableAccums = { -readonly [K in keyof TimerAccums]: number };
 
 /** Empty set used as default when no remote players exist (local play). */

@@ -205,7 +205,15 @@ export interface GameState {
   /** Index of the player whose turn it is (for sequential phases). */
   activePlayer: number;
   /** Remaining time in seconds for timed phases (counts DOWN from phase max to 0).
-   *  Set via advancePhaseTimer(): `timer = max - elapsed`. Check `timer > 0` for "time left". */
+   *
+   *  Host: computed by advancePhaseTimer() as `timer = max - elapsed`, where elapsed
+   *  is accumulated in TimerAccums per frame. This is the authoritative source.
+   *
+   *  Watcher: recomputed each frame as `timer = phaseDuration - (now - phaseStart)`,
+   *  using wall-clock time since the watcher doesn't run the host tick loop.
+   *  Both converge to the same value but the computation path differs by role.
+   *
+   *  Check `timer > 0` for "time left". Never write `timer -= dt` directly. */
   timer: number;
   /** Active cannonballs in flight. */
   cannonballs: Cannonball[];
@@ -225,13 +233,17 @@ export interface GameState {
   balloonHits: Map<Cannon, { count: number; capturerIds: number[] }>;
   /** Bonus squares on the map (3 per zone). */
   bonusSquares: BonusSquare[];
-  /** Countdown before battle starts (Ready/Aim/Fire). 0 = battle active. */
+  /** Countdown before battle starts (Ready/Aim/Fire). 0 = battle active.
+   *  Phase-dependent: only meaningful when `state.phase === Phase.BATTLE`. */
   battleCountdown: number;
   /** Players who reselected a castle since the last cannon phase setup. */
   reselectedPlayers: Set<number>;
   /** Zone index assigned to each player (indexed by player id). Set at game start. */
   playerZones: number[];
-  /** Cannon slot limits per player for the current cannon phase. Computed by computeCannonLimitsForPhase. */
+  /** Cannon slot limits per player for the current cannon phase.
+   *  Computed by computeCannonLimitsForPhase at CANNON_PLACE start.
+   *  Phase-dependent: only meaningful when `state.phase === Phase.CANNON_PLACE`.
+   *  Always guard: `if (state.phase === Phase.CANNON_PLACE) { ... state.cannonLimits ... }` */
   cannonLimits: number[];
 }
 

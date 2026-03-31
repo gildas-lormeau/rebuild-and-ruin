@@ -66,9 +66,10 @@ export abstract class BaseController implements PlayerController {
   }
 
   /** Draw the next piece from the bag.
-   *  IMPORTANT: Only call after a successful placement — advancing without placing
-   *  skips a piece and desynchronizes the bag with the board state. */
-  advanceBag(): void {
+   *  @param _placed — must be `true`; enforces that callers only advance
+   *  after a successful placement. Advancing without placing skips a piece
+   *  and desynchronizes the bag with the board state. */
+  advanceBag(_placed: true): void {
     if (!this.bag) {
       console.warn("advanceBag called with null bag — likely a desync");
       return;

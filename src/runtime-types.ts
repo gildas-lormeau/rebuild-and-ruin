@@ -14,9 +14,17 @@
  *   - Sub-systems must not import from each other, only from runtime-types.ts
  *     and runtime-state.ts.
  *
- * Exception: CameraDeps is all getters (no `runtimeState` access) because camera state
- * can change during host migration and must always re-read the latest value.
+ * State access patterns by sub-system:
+ *   STANDARD (destructure runtimeState at top):
+ *     runtime-selection.ts, runtime-input.ts, runtime-life-lost.ts,
+ *     runtime-lobby.ts, runtime-options.ts, runtime-game-lifecycle.ts,
+ *     runtime-banner.ts, runtime-render.ts, runtime-phase-ticks.ts
+ *   ALL-GETTERS (no runtimeState access — late-bind everything):
+ *     runtime-camera.ts — camera state can change during host migration,
+ *     so every field must be re-read via getter to avoid stale values.
+ *
  * For new sub-systems, prefer the standard `runtimeState` + inline deps pattern.
+ * Only use all-getters if the sub-system's state is mutated externally (e.g. host migration).
  */
 
 import type { GameMessage, ServerMessage } from "../server/protocol.ts";

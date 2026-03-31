@@ -13,6 +13,11 @@
  *   No validation needed — UI-only, no state mutation.
  *
  * Rule of thumb: if (session.isHost) { validate then apply }; if (!session.isHost) { apply directly }.
+ *
+ * NOTE: session.isHost is VOLATILE — it can flip from false to true during
+ * host promotion (see OnlineSession in online-session.ts). All reads in
+ * this file are inline (no caching), which is correct. Never store
+ * session.isHost in a local variable that persists across message handling.
  */
 
 import { MESSAGE, type ServerMessage } from "../server/protocol.ts";

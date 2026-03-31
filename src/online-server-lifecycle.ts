@@ -1,3 +1,11 @@
+/**
+ * Server lifecycle message handlers — room join, slot selection, phase transitions.
+ *
+ * NOTE: deps.session.isHost is VOLATILE (can flip during host promotion).
+ * All reads here are inline (not cached), which is safe.
+ * The `!deps.session.isHost` guards on phase-transition cases ensure that
+ * only watchers apply host-sent checkpoints — the host computes its own. */
+
 import {
   type FullStateMessage,
   type InitMessage,
