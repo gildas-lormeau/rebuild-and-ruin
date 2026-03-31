@@ -3,10 +3,7 @@
  * circular dependencies between render-map and render-effects/towers/ui.
  */
 
-import type {
-  Crosshair,
-  PiecePlacementPreview,
-} from "./controller-interfaces.ts";
+import type { Crosshair } from "./controller-interfaces.ts";
 import type { House, PixelPos, RGB, TilePos, Tower } from "./geometry-types.ts";
 import {
   type BurningPit,
@@ -55,28 +52,10 @@ export interface GameOverOverlay {
 export interface FrameData {
   crosshairs: Crosshair[];
   phantoms: {
-    aiPhantoms?: {
-      offsets: [number, number][];
-      row: number;
-      col: number;
-      playerId: number;
-      valid: boolean;
-    }[];
-    humanPhantoms?: PiecePlacementPreview[];
-    aiCannonPhantoms?: {
-      row: number;
-      col: number;
-      valid: boolean;
-      mode: CannonMode;
-      playerId: number;
-    }[];
-    phantomPiece?: {
-      offsets: [number, number][];
-      row: number;
-      col: number;
-      valid: boolean;
-      playerId?: number;
-    } | null;
+    aiPhantoms?: RenderPiecePhantom[];
+    humanPhantoms?: RenderPiecePhantom[];
+    aiCannonPhantoms?: RenderCannonPhantom[];
+    phantomPiece?: (RenderPiecePhantom & { playerId?: number }) | null;
     defaultFacings?: ReadonlyMap<number, number>;
   };
   announcement?: string;
@@ -126,40 +105,34 @@ export interface EntityOverlay {
   homeTowers?: Map<number, number>;
 }
 
+/** Piece phantom shape shared by AI, human, and primary piece overlays. */
+export interface RenderPiecePhantom {
+  offsets: [number, number][];
+  row: number;
+  col: number;
+  valid: boolean;
+  playerId: number;
+}
+
+/** Cannon phantom shape for render overlays. */
+export interface RenderCannonPhantom {
+  row: number;
+  col: number;
+  valid: boolean;
+  mode: CannonMode;
+  playerId: number;
+}
+
 /** Build/cannon phase — piece and cannon placement previews.
  *
  *  `valid` field (on all phantom types):
  *  true = placement is legal (rendered at normal color/alpha).
  *  false = illegal placement (rendered dark gray at reduced alpha). */
 export interface PhantomOverlay {
-  phantomPiece?: {
-    offsets: [number, number][];
-    row: number;
-    col: number;
-    valid: boolean;
-    playerId?: number;
-  } | null;
-  humanPhantoms?: {
-    offsets: [number, number][];
-    row: number;
-    col: number;
-    valid: boolean;
-    playerId: number;
-  }[];
-  aiPhantoms?: {
-    offsets: [number, number][];
-    row: number;
-    col: number;
-    playerId: number;
-    valid: boolean;
-  }[];
-  aiCannonPhantoms?: {
-    row: number;
-    col: number;
-    valid: boolean;
-    mode: CannonMode;
-    playerId: number;
-  }[];
+  phantomPiece?: (RenderPiecePhantom & { playerId?: number }) | null;
+  humanPhantoms?: RenderPiecePhantom[];
+  aiPhantoms?: RenderPiecePhantom[];
+  aiCannonPhantoms?: RenderCannonPhantom[];
   /** Default cannon facing per player — used by cannon phantom rendering. */
   defaultFacings?: ReadonlyMap<number, number>;
 }
