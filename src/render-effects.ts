@@ -276,7 +276,7 @@ export function drawWaterAnimation(
   overlayCtx.restore();
 }
 
-/** Draw impact flashes, cannonballs, balloons, burning pits, crosshairs, and timer. */
+/** Draw impact flashes, cannonballs, balloons, crosshairs, and timer. */
 export function drawBattleEffects(
   overlayCtx: CanvasRenderingContext2D,
   map: MapData,
@@ -285,9 +285,36 @@ export function drawBattleEffects(
   drawImpacts(overlayCtx, overlay);
   drawCannonballs(overlayCtx, overlay);
   drawBalloons(overlayCtx, overlay);
-  drawBurningPits(overlayCtx, overlay);
   drawCrosshairs(overlayCtx, overlay);
   drawPhaseTimer(overlayCtx, map, overlay);
+}
+
+export function drawBurningPits(
+  overlayCtx: CanvasRenderingContext2D,
+  overlay?: RenderOverlay,
+): void {
+  if (!overlay?.entities?.burningPits) return;
+  const time = performance.now() / 1000;
+  for (const pit of overlay.entities.burningPits) {
+    const px = pit.col * TILE_SIZE;
+    const py = pit.row * TILE_SIZE;
+    const mid = TILE_SIZE / 2;
+    const flicker =
+      (Math.sin(time * 8 + pit.row * SEED_ROW + pit.col * SEED_COL) + 1) * 0.15;
+    const stage = Math.max(1, Math.min(3, pit.roundsLeft));
+    drawSprite(overlayCtx, `burning_pit_${stage}`, px, py);
+    // Animated lava flicker (round glow, stronger for fresh pits)
+    if (stage >= 2) {
+      const intensity = stage === 3 ? 1.0 : 0.5;
+      const emberR = EMBER_RED_BASE + Math.floor(flicker * EMBER_RED_RANGE);
+      const emberG = EMBER_GREEN_BASE + Math.floor(flicker * EMBER_GREEN_RANGE);
+      const radius = stage === 3 ? EMBER_RADIUS_FRESH : EMBER_RADIUS_FADING;
+      overlayCtx.fillStyle = `rgba(${emberR}, ${emberG}, 0, ${(EMBER_ALPHA_BASE + flicker * EMBER_ALPHA_RANGE) * intensity})`;
+      overlayCtx.beginPath();
+      overlayCtx.arc(px + mid, py + mid, radius, 0, Math.PI * 2);
+      overlayCtx.fill();
+    }
+  }
 }
 
 /** Boost saturation of an RGB color. factor 0 = original, 1 = fully saturated. */
@@ -447,34 +474,6 @@ function drawBalloons(
     overlayCtx.fillRect(cx - 3, cy + radius + 7, 6, 1);
   }
   overlayCtx.restore();
-}
-
-function drawBurningPits(
-  overlayCtx: CanvasRenderingContext2D,
-  overlay?: RenderOverlay,
-): void {
-  if (!overlay?.entities?.burningPits) return;
-  const time = performance.now() / 1000;
-  for (const pit of overlay.entities.burningPits) {
-    const px = pit.col * TILE_SIZE;
-    const py = pit.row * TILE_SIZE;
-    const mid = TILE_SIZE / 2;
-    const flicker =
-      (Math.sin(time * 8 + pit.row * SEED_ROW + pit.col * SEED_COL) + 1) * 0.15;
-    const stage = Math.max(1, Math.min(3, pit.roundsLeft));
-    drawSprite(overlayCtx, `burning_pit_${stage}`, px, py);
-    // Animated lava flicker (round glow, stronger for fresh pits)
-    if (stage >= 2) {
-      const intensity = stage === 3 ? 1.0 : 0.5;
-      const emberR = EMBER_RED_BASE + Math.floor(flicker * EMBER_RED_RANGE);
-      const emberG = EMBER_GREEN_BASE + Math.floor(flicker * EMBER_GREEN_RANGE);
-      const radius = stage === 3 ? EMBER_RADIUS_FRESH : EMBER_RADIUS_FADING;
-      overlayCtx.fillStyle = `rgba(${emberR}, ${emberG}, 0, ${(EMBER_ALPHA_BASE + flicker * EMBER_ALPHA_RANGE) * intensity})`;
-      overlayCtx.beginPath();
-      overlayCtx.arc(px + mid, py + mid, radius, 0, Math.PI * 2);
-      overlayCtx.fill();
-    }
-  }
 }
 
 function drawCrosshairs(

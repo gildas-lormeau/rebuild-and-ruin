@@ -8,6 +8,7 @@ import { getPlayerColor } from "./player-config.ts";
 import {
   drawBattleEffects,
   drawBonusSquares,
+  drawBurningPits,
   drawGrunts,
   drawHouses,
   drawPhantoms,
@@ -172,13 +173,14 @@ export function drawMap(
   drawBonusSquares(overlayCtx, overlay, now);
   drawHouses(overlayCtx, overlay);
   drawTowers(overlayCtx, map, overlay, now);
+  drawBurningPits(overlayCtx, overlay);
+  drawGrunts(overlayCtx, overlay);
 
   // If banner is active with old data, composite the old scene below the banner.
   drawBannerOldScene(overlayCtx, W, H, map, overlay, now);
 
   // Layers that don't change between phases — draw once on top
   drawPhantoms(overlayCtx, overlay);
-  drawGrunts(overlayCtx, overlay);
   drawBattleEffects(overlayCtx, map, overlay);
   drawScoreDeltas(overlayCtx, overlay);
   drawAnnouncement(overlayCtx, W, H, overlay);
@@ -317,6 +319,8 @@ function drawBannerOldScene(
   if (needsBannerRender) {
     const oldOverlay: RenderOverlay = {
       ...overlay,
+      // Suppress selection highlights — they belong to the new phase
+      selection: { highlighted: null, selected: null },
       castles: oldCastles,
       entities: overlay.ui.bannerOldEntities
         ? {
@@ -350,10 +354,13 @@ function drawBannerOldScene(
     const tmpCtx = bannerSceneCtx;
     tmpCtx.clearRect(0, 0, W, H);
     drawTerrain(tmpCtx, W, H, map, oldOverlay);
+    drawWaterAnimation(tmpCtx, map, oldOverlay);
     drawCastles(tmpCtx, oldOverlay);
     drawBonusSquares(tmpCtx, oldOverlay, now);
     drawHouses(tmpCtx, oldOverlay);
     drawTowers(tmpCtx, map, oldOverlay, now);
+    drawBurningPits(tmpCtx, oldOverlay);
+    drawGrunts(tmpCtx, oldOverlay);
     bannerCache = {
       map,
       castles: oldCastles,

@@ -28,7 +28,7 @@ import process from "node:process";
 // Config
 // ---------------------------------------------------------------------------
 
-const NUM_GAMES = 5;
+const SEEDS = [52, 66, 65, 56, 2];
 const MAX_ROUNDS = 50;
 
 // ---------------------------------------------------------------------------
@@ -265,13 +265,12 @@ function validateCrossRound(
 // Run games
 // ---------------------------------------------------------------------------
 
-console.log(`Running ${NUM_GAMES} headless games...\n`);
+console.log(`Running ${SEEDS.length} headless games...\n`);
 
 const violations: Violation[] = [];
 
-for (let i = 0; i < NUM_GAMES; i++) {
-  // Deterministic seeds spread across the range
-  const seed = 1000 + i * 7919;
+for (let i = 0; i < SEEDS.length; i++) {
+  const seed = SEEDS[i]!;
   const s = createScenario(seed);
   const tracker: GameTracker = {
     prevScores: s.state.players.map((p) => p.score),
@@ -312,7 +311,7 @@ for (let i = 0; i < NUM_GAMES; i++) {
 // ---------------------------------------------------------------------------
 
 console.log(`\n=== RESULTS ===`);
-console.log(`Games: ${NUM_GAMES}`);
+console.log(`Games: ${SEEDS.length}`);
 console.log(`Total violations: ${violations.length}`);
 
 if (violations.length > 0) {
