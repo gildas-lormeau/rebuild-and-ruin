@@ -159,6 +159,7 @@
       "src/runtime-touch-ui.ts",
       "src/runtime-game-lifecycle.ts",
       "src/runtime-human.ts",
+      "src/runtime-test-globals.ts",
       "src/runtime-input.ts",
       "src/runtime-phase-ticks.ts",
       "src/runtime-selection.ts",

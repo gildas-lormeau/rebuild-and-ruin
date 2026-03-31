@@ -37,7 +37,6 @@ import {
 } from "./game-helpers.ts";
 import type { UIContext } from "./game-ui-screens.ts";
 import { computeGameSeed } from "./game-ui-settings.ts";
-import { TILE_SIZE } from "./grid.ts";
 import { createHapticsSystem } from "./haptics-system.ts";
 import { generateMap } from "./map-generation.ts";
 import { showBannerTransition, tickBannerTransition } from "./phase-banner.ts";
@@ -74,6 +73,7 @@ import {
   isStateReady,
   safeState,
 } from "./runtime-state.ts";
+import { exposeTestGlobals } from "./runtime-test-globals.ts";
 import { updateTouchControls } from "./runtime-touch-ui.ts";
 import {
   computeFrameContext,
@@ -81,7 +81,6 @@ import {
   type RuntimeConfig,
 } from "./runtime-types.ts";
 import { createSoundSystem } from "./sound-system.ts";
-import { unpackTile } from "./spatial.ts";
 import { Mode, Phase } from "./types.ts";
 import { fireOnce } from "./utils.ts";
 
@@ -160,47 +159,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const DEV = IS_DEV;
 
-  /** Expose mode, phase, and targeting data for E2E test automation (dev only). */
-  function exposeTestGlobals(): void {
-    if (typeof window === "undefined") return;
-    const w = globalThis as unknown as Record<string, unknown>;
-    w.__testMode = Mode[runtimeState.mode];
-    w.__testPhase = isStateReady(runtimeState)
-      ? Phase[runtimeState.state.phase]
-      : "";
-    w.__testTimer = isStateReady(runtimeState) ? runtimeState.state.timer : 0;
-    const myPid = config.getMyPlayerId();
-    if (isStateReady(runtimeState) && myPid >= 0) {
-      const enemies: { x: number; y: number }[] = [];
-      for (const player of runtimeState.state.players) {
-        if (player.id === myPid || player.eliminated) continue;
-        for (const c of player.cannons) {
-          if (c.hp > 0)
-            enemies.push({
-              // +0.5 converts tile top-left to tile center (pixel coords)
-              x: (c.col + 0.5) * TILE_SIZE,
-              y: (c.row + 0.5) * TILE_SIZE,
-            });
-        }
-      }
-      w.__testEnemyCannons = enemies;
-      const targets: { x: number; y: number }[] = [...enemies];
-      for (const player of runtimeState.state.players) {
-        if (player.id === myPid || player.eliminated) continue;
-        for (const key of player.walls) {
-          const { r, c } = unpackTile(key);
-          targets.push({ x: (c + 0.5) * TILE_SIZE, y: (r + 0.5) * TILE_SIZE });
-        }
-      }
-      w.__testEnemyTargets = targets;
-      const myCtrl = runtimeState.controllers[myPid];
-      if (myCtrl) {
-        const ch = myCtrl.getCrosshair();
-        if (ch) w.__testCrosshair = { x: ch.x, y: ch.y };
-      }
-    }
-  }
-
   function mainLoop(now: number): void {
     const dt = clampedFrameDt(now);
     runtimeState.frameDt = dt;
@@ -259,7 +217,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       ticks: modeTickers,
     });
 
-    if (DEV) exposeTestGlobals();
+    if (DEV) exposeTestGlobals(runtimeState, config);
     if (shouldContinue && runtimeState.mode !== Mode.STOPPED)
       requestAnimationFrame(mainLoop);
   }
