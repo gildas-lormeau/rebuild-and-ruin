@@ -199,12 +199,10 @@ export function finalizeBuildPhase(state: GameState): {
   return applyLifePenalties(state);
 }
 
-/** Finalize castle construction — claim territory, spawn houses, replenish bonus squares. */
+/** Finalize castle construction — claim territory, refill houses, replenish bonus squares. */
 export function finalizeCastleConstruction(state: GameState): void {
   claimTerritory(state);
-  for (const player of state.players) {
-    if (player.homeTower) spawnHousesInZone(state, player.homeTower.zone);
-  }
+  startOfBuildPhaseHousekeeping(state);
   replenishBonusSquares(state);
 }
 
