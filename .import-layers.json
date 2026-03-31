@@ -2,6 +2,7 @@
   {
     "name": "leaf utilities",
     "files": [
+      "src/ai-constants.ts",
       "src/canvas-layout.ts",
       "src/game-constants.ts",
       "src/grid.ts",
@@ -15,13 +16,15 @@
   {
     "name": "geometry & pieces",
     "files": [
+      "src/ai-build-types.ts",
       "src/geometry-types.ts",
       "src/pieces.ts"
     ]
   },
   {
-    "name": "core types & state",
+    "name": "core types, state & spatial",
     "files": [
+      "src/ai-castle-rect.ts",
       "src/types.ts",
       "src/spatial.ts",
       "src/board-occupancy.ts",
@@ -30,8 +33,11 @@
     ]
   },
   {
-    "name": "shared interfaces & theme",
+    "name": "shared interfaces, config & scoring",
     "files": [
+      "src/ai-build-score.ts",
+      "src/ai-build-fallback.ts",
+      "src/phase-transition-shared.ts",
       "src/player-config.ts",
       "src/controller-interfaces.ts",
       "src/life-lost.ts",
@@ -39,12 +45,14 @@
       "src/phase-banner.ts",
       "src/render-theme.ts",
       "src/render-types.ts",
-      "src/phantom-types.ts"
+      "src/phantom-types.ts",
+      "src/tick-context.ts"
     ]
   },
   {
     "name": "game logic",
     "files": [
+      "src/ai-build-target.ts",
       "src/cannon-system.ts",
       "src/grunt-movement.ts",
       "src/grunt-system.ts",
@@ -55,20 +63,12 @@
       "src/phase-setup.ts",
       "src/game-engine.ts",
       "src/game-helpers.ts",
-      "src/tick-context.ts",
-      "src/phase-transition-shared.ts",
       "src/selection.ts"
     ]
   },
   {
     "name": "AI strategy",
     "files": [
-      "src/ai-constants.ts",
-      "src/ai-build-types.ts",
-      "src/ai-castle-rect.ts",
-      "src/ai-build-score.ts",
-      "src/ai-build-fallback.ts",
-      "src/ai-build-target.ts",
       "src/ai-strategy-battle.ts",
       "src/ai-strategy-build.ts",
       "src/ai-strategy-cannon.ts",
