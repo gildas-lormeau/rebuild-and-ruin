@@ -34,7 +34,7 @@ import {
   HIT_ARROW,
   HIT_CLOSE,
   optionsScreenHitTest,
-} from "./render-ui.ts";
+} from "./render-ui-settings.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
 import type { SoundSystem } from "./sound-system.ts";
 

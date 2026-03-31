@@ -48,7 +48,6 @@ import {
   PANEL_BG,
   LIFE_LOST_PANEL_H as PANEL_H,
   LIFE_LOST_PANEL_W as PANEL_W,
-  REBIND_FLASH_MS,
   rgb,
   SHADOW_COLOR,
   SHADOW_COLOR_DENSE,
@@ -61,11 +60,35 @@ import {
   TEXT_BASELINE_MIDDLE,
   TEXT_WHITE,
 } from "./render-theme.ts";
+import { type GameOverOverlay, type RenderOverlay } from "./render-types.ts";
 import {
-  type ControlsPlayer,
-  type GameOverOverlay,
-  type RenderOverlay,
-} from "./render-types.ts";
+  BG_BANNER,
+  BG_OVERLAY,
+  BTN_ABANDON,
+  BTN_CONTINUE,
+  BTN_MENU,
+  beginModalScreen,
+  drawButton,
+  drawPanel,
+  ELIMINATED_RED,
+  INSET,
+  INSET_X2,
+  OP_ACCENT,
+  OP_ACTIVE,
+  OP_FOCUS,
+  OP_GHOST,
+  OP_IDLE,
+  OP_SECONDARY,
+  OP_SUBTLE,
+  OP_VIVID,
+  PAD,
+  TEXT_DIM,
+  TEXT_DISABLED,
+  TEXT_FAINT,
+  TEXT_LIGHT,
+  TEXT_MUTED,
+  TEXT_SOFT,
+} from "./render-ui-theme.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
@@ -74,79 +97,7 @@ import {
   LifeLostChoice,
 } from "./types.ts";
 
-interface ButtonStyle {
-  fill: string;
-  stroke: string;
-  lineWidth: number;
-  font: string;
-  textColor: string;
-}
-
 type ScoreEntry = GameOverOverlay["scores"][number];
-
-/** Hit-test result for a tap/click on the options screen. */
-type OptionsHit =
-  | { type: typeof HIT_CLOSE }
-  | { type: typeof HIT_ROW; index: number }
-  | { type: typeof HIT_ARROW; index: number; dir: -1 | 1 }
-  | null;
-
-/** Hit-test result for a tap/click on the controls screen. */
-type ControlsHit =
-  | { type: typeof HIT_CLOSE }
-  | { type: typeof HIT_CELL; playerIdx: number; actionIdx: number }
-  | null;
-
-// Local semantic colors (not shared across files — context-specific to UI panels)
-const BTN_CONTINUE = {
-  fill: (a: number) => `rgba(80,180,80,${a})`,
-  stroke: "#8c8",
-  strokeFocused: "#afa",
-};
-const BTN_ABANDON = {
-  fill: (a: number) => `rgba(180,60,60,${a})`,
-  stroke: "#c66",
-  strokeFocused: "#f88",
-};
-const TEXT_DIM = "#666";
-const TEXT_MUTED = "#888";
-const TEXT_SOFT = "#aaa";
-const TEXT_LIGHT = "#ccc";
-const TEXT_FAINT = "#777";
-const TEXT_DISABLED = "#999";
-const ELIMINATED_RED = "#c44";
-const BTN_MENU = {
-  stroke: "#99c",
-  strokeFocused: "#ccf",
-};
-// Layout spacing (pixels)
-const PAD = 8;
-const INSET = 10;
-const INSET_X2 = 20;
-// Panel background opacities
-const BG_OPAQUE = 0.95;
-const BG_OVERLAY = 0.9;
-const BG_BANNER = 0.85;
-// Fill/tint opacity scale (buttons, highlights, color alphas)
-const OP_SECONDARY = 0.7;
-const OP_VIVID = 0.6;
-const OP_FOCUS = 0.5;
-const OP_ACCENT = 0.4;
-const OP_ACTIVE = 0.3;
-const OP_IDLE = 0.2;
-const OP_SUBTLE = 0.15;
-const OP_GHOST = 0.1;
-const HIT_ROW = "row" as const;
-const HIT_CELL = "cell" as const;
-// Options screen layout constants
-const OPT_ROW_H = 28;
-const CLOSE_BTN_SIZE = 24;
-const CLOSE_BTN_MARGIN = 6;
-/** Width of the tap target around each arrow indicator (◀ / ▶). */
-const ARROW_TAP_W = 28;
-// Options/controls hit-test discriminators
-export const HIT_CLOSE = "close" as const;
-export const HIT_ARROW = "arrow" as const;
 
 /** Draw announcement text centered on screen. */
 export function drawAnnouncement(
@@ -264,7 +215,7 @@ export function drawStatusBar(
   const barH = STATUSBAR_HEIGHT;
   const by = H - barH;
 
-  overlayCtx.fillStyle = PANEL_BG(BG_OPAQUE);
+  overlayCtx.fillStyle = PANEL_BG(BG_OVERLAY);
   overlayCtx.fillRect(0, by, W, barH);
   overlayCtx.fillStyle = GOLD_BG(OP_ACCENT);
   overlayCtx.fillRect(0, by, W, 1);
@@ -492,333 +443,6 @@ export function drawPlayerSelect(
   overlayCtx.fillText("F1", W - 30, 18);
 }
 
-/** Hit-test the options screen. Coordinates in tile-pixel space (W×H). */
-export function optionsScreenHitTest(
-  x: number,
-  y: number,
-  W: number,
-  H: number,
-  optionCount: number,
-): OptionsHit {
-  const { panelW, px, startY, optH, closeX, closeY, closeSize } =
-    optionsScreenLayout(W, H, optionCount);
-
-  // Close button
-  if (
-    x >= closeX &&
-    x <= closeX + closeSize &&
-    y >= closeY &&
-    y <= closeY + closeSize
-  ) {
-    return { type: HIT_CLOSE };
-  }
-
-  // Option rows
-  for (let i = 0; i < optionCount; i++) {
-    const oy = startY + i * optH;
-    if (x >= px && x <= px + panelW && y >= oy && y <= oy + optH) {
-      // Left arrow area (◀)
-      if (x < px + ARROW_TAP_W) return { type: HIT_ARROW, index: i, dir: -1 };
-      // Right arrow area (▶)
-      if (x > px + panelW - ARROW_TAP_W)
-        return { type: HIT_ARROW, index: i, dir: 1 };
-      // Row body — select only, no value change
-      return { type: HIT_ROW, index: i };
-    }
-  }
-
-  return null;
-}
-
-/** Draw the options screen. */
-export function drawOptionsScreen(
-  overlayCtx: CanvasRenderingContext2D,
-  W: number,
-  H: number,
-  overlay?: RenderOverlay,
-  now?: number,
-): void {
-  if (!overlay?.ui?.optionsScreen) return;
-  const opts = overlay.ui.optionsScreen;
-  beginModalScreen(overlayCtx, W, H);
-
-  const { panelW, px, startY, optH, closeX, closeY, closeSize } =
-    optionsScreenLayout(W, H, opts.options.length);
-
-  overlayCtx.font = FONT_TITLE;
-  overlayCtx.fillStyle = GOLD_LIGHT;
-  overlayCtx.fillText("OPTIONS", W / 2, H * 0.12);
-
-  // Close button (✕)
-  overlayCtx.fillStyle = GOLD_BG(OP_IDLE);
-  overlayCtx.fillRect(closeX, closeY, closeSize, closeSize);
-  overlayCtx.strokeStyle = GOLD;
-  overlayCtx.lineWidth = 1;
-  overlayCtx.strokeRect(closeX, closeY, closeSize, closeSize);
-  overlayCtx.font = FONT_BODY;
-  overlayCtx.fillStyle = GOLD_LIGHT;
-  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
-  overlayCtx.fillText("\u2715", closeX + closeSize / 2, closeY + closeSize / 2);
-
-  for (let i = 0; i < opts.options.length; i++) {
-    const opt = opts.options[i]!;
-    const oy = startY + i * optH;
-    const selected = i === opts.cursor;
-
-    // Row background
-    if (selected) {
-      overlayCtx.fillStyle = GOLD_BG(OP_SUBTLE);
-      overlayCtx.fillRect(px, oy, panelW, optH - 2);
-    }
-
-    // Arrow indicators for selected editable row
-    if (selected && opt.editable) {
-      const time = now ?? Date.now();
-      const flash = flashOn(BUTTON_FLASH_MS, time);
-      overlayCtx.font = FONT_BODY;
-      overlayCtx.fillStyle = flash ? GOLD_LIGHT : GOLD;
-      overlayCtx.textAlign = TEXT_ALIGN_LEFT;
-      overlayCtx.fillText("\u25C0", px + PAD / 2, oy + optH / 2);
-      overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
-      overlayCtx.fillText("\u25B6", px + panelW - PAD / 2, oy + optH / 2);
-    }
-
-    // Option name (left-aligned)
-    overlayCtx.textAlign = TEXT_ALIGN_LEFT;
-    overlayCtx.font = selected ? FONT_BODY : FONT_LABEL;
-    overlayCtx.fillStyle = selected
-      ? opt.editable
-        ? TEXT_WHITE
-        : TEXT_DISABLED
-      : TEXT_MUTED;
-    overlayCtx.fillText(opt.name, px + INSET_X2, oy + optH / 2);
-
-    // Option value (right-aligned) — with blinking cursor for seed input
-    overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
-    overlayCtx.fillStyle = selected
-      ? opt.editable
-        ? GOLD_LIGHT
-        : TEXT_DISABLED
-      : GOLD;
-    const showCursor =
-      selected &&
-      opt.editable &&
-      opt.name === "Seed" &&
-      opt.value !== "Random" &&
-      !opts.readOnly;
-    const displayValue =
-      opt.value +
-      (showCursor
-        ? flashOn(CURSOR_BLINK_MS, now ?? Date.now())
-          ? "_"
-          : " "
-        : "");
-    overlayCtx.fillText(displayValue, px + panelW - INSET_X2, oy + optH / 2);
-  }
-
-  // Separator
-  const sepY = startY + opts.options.length * optH + PAD;
-  overlayCtx.fillStyle = GOLD;
-  overlayCtx.fillRect(px + INSET, sepY, panelW - INSET_X2, 1);
-
-  // Context-sensitive hint
-  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
-  overlayCtx.font = FONT_HINT;
-  overlayCtx.fillStyle = TEXT_DIM;
-  const selOpt = opts.options[opts.cursor];
-  let hint: string;
-  if (opts.readOnly) {
-    hint = "Game paused  |  ESC to resume";
-  } else if (selOpt?.name === "Seed") {
-    hint = "Type digits to set seed  |  Delete to clear  |  ESC to go back";
-  } else {
-    hint =
-      "ESC to go back  |  \u2190 \u2192 to change value  |  Enter to select";
-  }
-  overlayCtx.fillText(hint, W / 2, H * 0.85);
-}
-
-/** Hit-test the controls screen. Coordinates in tile-pixel space (W×H). */
-export function controlsScreenHitTest(
-  x: number,
-  y: number,
-  W: number,
-  H: number,
-  colCount: number,
-  rowCount: number,
-): ControlsHit {
-  const {
-    tableX,
-    labelColW,
-    playerColW,
-    startY,
-    rowH,
-    closeX,
-    closeY,
-    closeSize,
-  } = controlsScreenLayout(W, H, colCount, rowCount);
-
-  // Close button
-  if (
-    x >= closeX &&
-    x <= closeX + closeSize &&
-    y >= closeY &&
-    y <= closeY + closeSize
-  ) {
-    return { type: HIT_CLOSE };
-  }
-
-  // Key cells
-  for (let a = 0; a < rowCount; a++) {
-    const oy = startY + a * rowH;
-    if (y < oy || y > oy + rowH) continue;
-    for (let pi = 0; pi < colCount; pi++) {
-      const cellX = tableX + labelColW + pi * playerColW + PAD / 2;
-      const cellW = playerColW - PAD;
-      if (x >= cellX && x <= cellX + cellW) {
-        return { type: HIT_CELL, playerIdx: pi, actionIdx: a };
-      }
-    }
-  }
-
-  return null;
-}
-
-/** Draw the controls rebinding screen. */
-export function drawControlsScreen(
-  overlayCtx: CanvasRenderingContext2D,
-  W: number,
-  H: number,
-  overlay?: RenderOverlay,
-  now?: number,
-): void {
-  if (!overlay?.ui?.controlsScreen) return;
-  const ctrl = overlay.ui.controlsScreen;
-  beginModalScreen(overlayCtx, W, H);
-
-  // Layout
-  const colCount = ctrl.players.length;
-  const rowCount = ctrl.actionNames.length;
-  const {
-    tableW,
-    tableX,
-    labelColW,
-    playerColW,
-    headerY,
-    startY,
-    rowH,
-    closeX,
-    closeY,
-    closeSize,
-  } = controlsScreenLayout(W, H, colCount, rowCount);
-
-  // Close button (✕)
-  overlayCtx.fillStyle = GOLD_BG(OP_IDLE);
-  overlayCtx.fillRect(closeX, closeY, closeSize, closeSize);
-  overlayCtx.strokeStyle = GOLD;
-  overlayCtx.lineWidth = 1;
-  overlayCtx.strokeRect(closeX, closeY, closeSize, closeSize);
-  overlayCtx.font = FONT_BODY;
-  overlayCtx.fillStyle = GOLD_LIGHT;
-  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
-  overlayCtx.fillText("\u2715", closeX + closeSize / 2, closeY + closeSize / 2);
-
-  drawControlsHeader(
-    overlayCtx,
-    W,
-    H,
-    ctrl.players,
-    tableX,
-    tableW,
-    labelColW,
-    playerColW,
-    headerY,
-  );
-  drawControlsTable(
-    overlayCtx,
-    W,
-    H,
-    ctrl.players,
-    ctrl.actionNames,
-    ctrl.playerIdx,
-    ctrl.actionIdx,
-    ctrl.rebinding,
-    tableX,
-    tableW,
-    labelColW,
-    playerColW,
-    startY,
-    rowH,
-    rowCount,
-    now,
-  );
-}
-
-/** Compute options screen geometry (shared by renderer and hit-test). */
-function optionsScreenLayout(
-  W: number,
-  H: number,
-  optionCount: number,
-): {
-  panelW: number;
-  px: number;
-  startY: number;
-  optH: number;
-  closeX: number;
-  closeY: number;
-  closeSize: number;
-} {
-  const panelW = Math.round(W * 0.65);
-  const px = Math.round((W - panelW) / 2);
-  const startY = Math.round(H * 0.28);
-  return {
-    panelW,
-    px,
-    startY,
-    optH: OPT_ROW_H,
-    closeX: px + panelW - CLOSE_BTN_SIZE - CLOSE_BTN_MARGIN,
-    closeY: Math.round(H * 0.12) - CLOSE_BTN_SIZE / 2 - 2,
-    closeSize: CLOSE_BTN_SIZE,
-  };
-}
-
-/** Compute controls screen geometry (shared by renderer and hit-test). */
-function controlsScreenLayout(
-  W: number,
-  H: number,
-  colCount: number,
-  rowCount: number,
-): {
-  tableW: number;
-  tableX: number;
-  labelColW: number;
-  playerColW: number;
-  headerY: number;
-  startY: number;
-  rowH: number;
-  closeX: number;
-  closeY: number;
-  closeSize: number;
-} {
-  const tableW = Math.round(W * 0.8);
-  const labelColW = Math.round(tableW * 0.2);
-  const playerColW = Math.round((tableW - labelColW) / colCount);
-  const tableX = Math.round((W - tableW) / 2);
-  const headerY = Math.round(H * 0.2);
-  return {
-    tableW,
-    tableX,
-    labelColW,
-    playerColW,
-    headerY,
-    startY: headerY + 28,
-    rowH: 22,
-    closeX: tableX + tableW - CLOSE_BTN_SIZE - CLOSE_BTN_MARGIN,
-    closeY: Math.round(H * 0.1) - CLOSE_BTN_SIZE / 2 - 2,
-    closeSize: CLOSE_BTN_SIZE,
-  };
-}
-
 /** Draw the game-over panel background, winner heading and separator line. */
 function drawGameOverPanel(
   overlayCtx: CanvasRenderingContext2D,
@@ -939,147 +563,6 @@ function drawGameOverButtons(
   );
 }
 
-/** Draw the controls screen title, player name columns and header separator. */
-function drawControlsHeader(
-  overlayCtx: CanvasRenderingContext2D,
-  W: number,
-  H: number,
-  players: readonly ControlsPlayer[],
-  tableX: number,
-  tableW: number,
-  labelColW: number,
-  playerColW: number,
-  headerY: number,
-): void {
-  overlayCtx.font = FONT_TITLE;
-  overlayCtx.fillStyle = GOLD_LIGHT;
-  overlayCtx.fillText("CONTROLS", W / 2, H * 0.1);
-
-  for (let playerIndex = 0; playerIndex < players.length; playerIndex++) {
-    const player = players[playerIndex]!;
-    const c = player.color;
-    const cx = tableX + labelColW + playerIndex * playerColW + playerColW / 2;
-    overlayCtx.font = FONT_BODY;
-    overlayCtx.fillStyle = rgb(c);
-    overlayCtx.fillText(player.name, cx, headerY);
-  }
-
-  overlayCtx.fillStyle = GOLD;
-  overlayCtx.fillRect(tableX + PAD, headerY + 12, tableW - PAD * 2, 1);
-}
-
-/** Draw the action rows (labels + key cells) and bottom separator/hint. */
-function drawControlsTable(
-  overlayCtx: CanvasRenderingContext2D,
-  W: number,
-  H: number,
-  players: readonly ControlsPlayer[],
-  actionNames: readonly string[],
-  selectedPlayerIdx: number,
-  selectedActionIdx: number,
-  rebinding: boolean,
-  tableX: number,
-  tableW: number,
-  labelColW: number,
-  playerColW: number,
-  startY: number,
-  rowH: number,
-  rowCount: number,
-  now?: number,
-): void {
-  for (let a = 0; a < rowCount; a++) {
-    const oy = startY + a * rowH;
-
-    overlayCtx.textAlign = TEXT_ALIGN_LEFT;
-    overlayCtx.font = FONT_LABEL;
-    overlayCtx.fillStyle = TEXT_MUTED;
-    overlayCtx.fillText(actionNames[a]!, tableX + PAD, oy + rowH / 2);
-
-    for (let playerIndex = 0; playerIndex < players.length; playerIndex++) {
-      const player = players[playerIndex]!;
-      const cx = tableX + labelColW + playerIndex * playerColW + playerColW / 2;
-      const cellX = tableX + labelColW + playerIndex * playerColW + PAD / 2;
-      const cellW = playerColW - PAD;
-      const isSelected =
-        playerIndex === selectedPlayerIdx && a === selectedActionIdx;
-      drawControlsKeyCell(
-        overlayCtx,
-        player,
-        a,
-        isSelected,
-        rebinding,
-        cellX,
-        cellW,
-        cx,
-        oy,
-        rowH,
-        now,
-      );
-    }
-  }
-
-  const sepY = startY + rowCount * rowH + PAD;
-  overlayCtx.fillStyle = GOLD;
-  overlayCtx.fillRect(tableX + INSET, sepY, tableW - INSET_X2, 1);
-
-  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
-  overlayCtx.font = FONT_HINT;
-  overlayCtx.fillStyle = TEXT_DIM;
-  overlayCtx.fillText(
-    "\u2190 \u2192 switch player  |  \u2191 \u2193 select action  |  Enter to rebind  |  ESC to go back",
-    W / 2,
-    H * 0.88,
-  );
-}
-
-/** Draw a single key cell in the controls table.
- *  Three visual states: rebinding flash, selected highlight, or normal. */
-function drawControlsKeyCell(
-  overlayCtx: CanvasRenderingContext2D,
-  player: ControlsPlayer,
-  actionIdx: number,
-  isSelected: boolean,
-  rebinding: boolean,
-  cellX: number,
-  cellW: number,
-  cx: number,
-  oy: number,
-  rowH: number,
-  now?: number,
-): void {
-  const cy = oy + rowH / 2;
-  if (isSelected && rebinding) {
-    // Flashing "Press key..." cell
-    const flash = flashOn(REBIND_FLASH_MS, now ?? Date.now());
-    overlayCtx.fillStyle = flash ? GOLD_BG(OP_ACTIVE) : GOLD_BG(OP_GHOST);
-    overlayCtx.fillRect(cellX, oy + 1, cellW, rowH - 2);
-    overlayCtx.strokeStyle = GOLD_LIGHT;
-    overlayCtx.lineWidth = 1;
-    overlayCtx.strokeRect(cellX, oy + 1, cellW, rowH - 2);
-    overlayCtx.textAlign = TEXT_ALIGN_CENTER;
-    overlayCtx.font = FONT_SMALL;
-    overlayCtx.fillStyle = flash ? GOLD_LIGHT : GOLD;
-    overlayCtx.fillText("Press key\u2026", cx, cy);
-  } else if (isSelected) {
-    // Highlighted selected cell
-    overlayCtx.fillStyle = GOLD_BG(OP_IDLE);
-    overlayCtx.fillRect(cellX, oy + 1, cellW, rowH - 2);
-    overlayCtx.strokeStyle = GOLD;
-    overlayCtx.lineWidth = 1;
-    overlayCtx.strokeRect(cellX, oy + 1, cellW, rowH - 2);
-    overlayCtx.textAlign = TEXT_ALIGN_CENTER;
-    overlayCtx.font = FONT_BODY;
-    overlayCtx.fillStyle = TEXT_WHITE;
-    overlayCtx.fillText(player.bindings[actionIdx]!, cx, cy);
-  } else {
-    // Normal unselected cell
-    overlayCtx.textAlign = TEXT_ALIGN_CENTER;
-    overlayCtx.font = FONT_LABEL;
-    overlayCtx.fillStyle = rgb(player.color, OP_SECONDARY);
-    overlayCtx.fillText(player.bindings[actionIdx]!, cx, cy);
-  }
-}
-
 /** Draw a single player's life-lost entry: choice buttons (pending) or resolved text. */
 function drawLifeLostEntry(
   ctx: CanvasRenderingContext2D,
@@ -1156,53 +639,4 @@ function drawLifeLostEntry(
       );
     }
   }
-}
-
-/** Draw a panel: filled rect + inset border stroke. */
-function drawPanel(
-  overlayCtx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  fill: string,
-  stroke: string,
-): void {
-  overlayCtx.fillStyle = fill;
-  overlayCtx.fillRect(x, y, w, h);
-  overlayCtx.strokeStyle = stroke;
-  overlayCtx.lineWidth = 2;
-  overlayCtx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-}
-
-/** Draw a styled button: filled rect + border + centered label. */
-function drawButton(
-  overlayCtx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  style: ButtonStyle,
-  label: string,
-): void {
-  overlayCtx.fillStyle = style.fill;
-  overlayCtx.fillRect(x, y, w, h);
-  overlayCtx.strokeStyle = style.stroke;
-  overlayCtx.lineWidth = style.lineWidth;
-  overlayCtx.strokeRect(x, y, w, h);
-  overlayCtx.font = style.font;
-  overlayCtx.fillStyle = style.textColor;
-  overlayCtx.fillText(label, x + w / 2, y + h / 2);
-}
-
-/** Fill a full-screen opaque panel and set up centered text drawing. */
-function beginModalScreen(
-  overlayCtx: CanvasRenderingContext2D,
-  W: number,
-  H: number,
-): void {
-  overlayCtx.fillStyle = PANEL_BG(BG_OPAQUE);
-  overlayCtx.fillRect(0, 0, W, H);
-  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
-  overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
 }

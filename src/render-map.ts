@@ -26,14 +26,13 @@ import type {
 import {
   drawAnnouncement,
   drawBanner,
-  drawControlsScreen,
   drawGameOver,
   drawLifeLostDialog,
-  drawOptionsScreen,
   drawPlayerSelect,
   drawScoreDeltas,
   drawStatusBar,
 } from "./render-ui.ts";
+import { drawControlsScreen, drawOptionsScreen } from "./render-ui-settings.ts";
 import {
   facingToDir8,
   isBalloonCannon,
