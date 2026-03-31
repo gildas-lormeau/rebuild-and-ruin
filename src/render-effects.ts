@@ -124,8 +124,9 @@ export function drawPhantoms(
 ): void {
   // AI cannon phantoms
   if (overlay?.phantoms?.aiCannonPhantoms) {
+    const facings = overlay.phantoms.defaultFacings;
     for (const phantom of overlay.phantoms.aiCannonPhantoms) {
-      drawPhantomCannon(overlayCtx, phantom);
+      drawPhantomCannon(overlayCtx, phantom, facings);
     }
   }
 
@@ -575,10 +576,12 @@ function drawPhantomCannon(
     readonly col: number;
     readonly valid: boolean;
     readonly mode: CannonMode;
-    readonly facing?: number;
+    readonly playerId: number;
   },
+  defaultFacings?: ReadonlyMap<number, number>,
 ): void {
-  const { row, col, valid, mode, facing = 0 } = phantom;
+  const { row, col, valid, mode, playerId } = phantom;
+  const facing = defaultFacings?.get(playerId) ?? 0;
   const cx = col * TILE_SIZE;
   const cy = row * TILE_SIZE;
   const sz = isSuperMode(mode) ? 3 : 2;

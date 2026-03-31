@@ -56,7 +56,6 @@ interface CannonPhaseNet extends HostNetContext {
     col: number;
     mode: CannonMode;
     valid: boolean;
-    facing: number;
   }) => void;
 }
 
@@ -92,6 +91,7 @@ interface HostFrame {
     aiCannonPhantoms?: CannonPhantom[];
     aiPhantoms?: PiecePhantom[];
     humanPhantoms?: PiecePhantom[];
+    defaultFacings?: ReadonlyMap<number, number>;
   };
 }
 
@@ -165,7 +165,11 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
 
   // Cannon phase phantom contract: { aiCannonPhantoms: CannonPhantom[] }
   // (only AI cannon phantoms — human cannon previews come from cannonTick return value)
-  frame.phantoms = { aiCannonPhantoms: [] };
+  const defaultFacings = new Map<number, number>();
+  for (const player of state.players) {
+    defaultFacings.set(player.id, player.defaultFacing);
+  }
+  frame.phantoms = { aiCannonPhantoms: [], defaultFacings };
   // ── PASS 1: Tick local controllers (process input & AI decisions) ──
   for (const ctrl of localActiveControllers(
     controllers,
@@ -207,7 +211,6 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
       col: phantom.col,
       mode: phantomWireMode(phantom),
       valid: phantom.valid,
-      facing: phantom.facing ?? 0,
     });
   }
 

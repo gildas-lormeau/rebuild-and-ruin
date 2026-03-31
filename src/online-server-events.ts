@@ -405,7 +405,6 @@ function handleCannonPhantom(
     valid: msg.valid,
     mode: toCannonMode(msg.mode),
     playerId: msg.playerId,
-    facing: msg.facing,
   });
   deps.watcher.remoteCannonPhantoms = updated;
   return APPLIED;

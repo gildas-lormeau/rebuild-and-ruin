@@ -37,7 +37,6 @@ export interface CannonPlacementPreview {
   /** Cannon variant (normal, super, or balloon). */
   mode: CannonMode;
   playerId: number;
-  facing: number;
 }
 
 export interface Crosshair {

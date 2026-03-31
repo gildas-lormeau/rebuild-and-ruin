@@ -144,7 +144,6 @@ export function tickCannon(
           Math.round(host.cannonCursor.row),
           Math.round(host.cannonCursor.col),
           false,
-          player,
         );
       }
       phase.state = { step: Step.MOVING };
@@ -162,7 +161,6 @@ export function tickCannon(
         Math.round(host.cannonCursor.row),
         Math.round(host.cannonCursor.col),
         false,
-        player,
       );
     }
 
@@ -192,14 +190,7 @@ export function tickCannon(
         return null;
       }
       const target = phase.queue[0]!;
-      return phantomAt(
-        host.playerId,
-        phase,
-        target.row,
-        target.col,
-        true,
-        player,
-      );
+      return phantomAt(host.playerId, phase, target.row, target.col, true);
     }
   }
 }
@@ -238,7 +229,6 @@ function tickMoving(
       atTarget && canPlaceCannon(player, curRow, curCol, targetMode, state),
     mode: targetMode,
     playerId: host.playerId,
-    facing: player.defaultFacing,
   };
 }
 
@@ -248,7 +238,6 @@ function phantomAt(
   row: number,
   col: number,
   valid: boolean,
-  player: Player,
 ): CannonPlacementPreview {
   const target = phase.queue[0]!;
   const targetMode = target.mode;
@@ -258,6 +247,5 @@ function phantomAt(
     valid,
     mode: targetMode,
     playerId,
-    facing: player.defaultFacing,
   };
 }

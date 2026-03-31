@@ -81,6 +81,7 @@ interface WatcherPhantomFrame {
     aiCannonPhantoms?: CannonPhantom[];
     aiPhantoms?: PiecePhantom[];
     humanPhantoms?: PiecePhantom[];
+    defaultFacings?: ReadonlyMap<number, number>;
   };
 }
 
@@ -98,7 +99,6 @@ interface TickWatcherCannonPhantomsDeps {
     col: number;
     mode: CannonMode;
     valid: boolean;
-    facing: number;
   }) => void;
 }
 
@@ -254,8 +254,13 @@ export function tickWatcherCannonPhantomsPhase(
     sendOpponentCannonPhantom,
   } = deps;
 
+  const defaultFacings = new Map<number, number>();
+  for (const player of state.players) {
+    defaultFacings.set(player.id, player.defaultFacing);
+  }
   frame.phantoms = {
     aiCannonPhantoms: filterAlivePhantoms(remoteCannonPhantoms, state.players),
+    defaultFacings,
   };
 
   if (!myHuman) return;
@@ -274,7 +279,6 @@ export function tickWatcherCannonPhantomsPhase(
     col: phantom.col,
     mode: phantomWireMode(phantom),
     valid: phantom.valid,
-    facing: phantom.facing ?? 0,
   });
 }
 

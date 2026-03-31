@@ -343,7 +343,6 @@ export interface OpponentCannonPhantomMessage {
   col: number;
   mode: CannonMode;
   valid: boolean;
-  facing: number;
 }
 
 /** An opponent confirmed their tower selection. */

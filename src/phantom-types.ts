@@ -16,7 +16,6 @@ export type CannonPhantom = {
   valid: boolean;
   mode: CannonMode;
   playerId: number;
-  facing?: number;
 };
 
 /** Remote AI piece phantom (no `valid` — always drawn as neutral; no local validation). */
@@ -62,7 +61,7 @@ export function filterAlivePhantoms<T extends { playerId: number }>(
  *  Same pattern as piecePhantomKey — both are `(phantom: T) => string` dedup keys
  *  used by dedupChanged() to suppress redundant network sends. */
 export function cannonPhantomKey(phantom: CannonPhantom): string {
-  return `${phantom.row},${phantom.col},${phantom.mode}`;
+  return `${phantom.row},${phantom.col},${phantom.mode},${phantom.valid ? 1 : 0}`;
 }
 
 /** Dedup key for piece phantom network sends. Covers position + shape + validity.

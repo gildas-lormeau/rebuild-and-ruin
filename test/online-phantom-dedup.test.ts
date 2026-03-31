@@ -23,10 +23,10 @@ import { assert, runTests, test } from "./test-helpers.ts";
 // cannonPhantomKey
 // ---------------------------------------------------------------------------
 
-test("cannonPhantomKey produces row,col,mode format", () => {
+test("cannonPhantomKey produces row,col,mode,valid format", () => {
   const phantom: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 };
   const key = cannonPhantomKey(phantom);
-  assert(key === "5,3,normal", `expected "5,3,normal", got "${key}"`);
+  assert(key === "5,3,normal,1", `expected "5,3,normal,1", got "${key}"`);
 });
 
 test("cannonPhantomKey differs by mode", () => {
@@ -46,10 +46,16 @@ test("cannonPhantomKey differs by position", () => {
   assert(cannonPhantomKey(a) !== cannonPhantomKey(c), "different col should produce different key");
 });
 
-test("cannonPhantomKey ignores valid and playerId (display-only fields)", () => {
+test("cannonPhantomKey differs by valid flag", () => {
   const a: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 };
-  const b: CannonPhantom = { ...a, valid: false, playerId: 2 };
-  assert(cannonPhantomKey(a) === cannonPhantomKey(b), "valid and playerId should not affect key");
+  const b: CannonPhantom = { ...a, valid: false };
+  assert(cannonPhantomKey(a) !== cannonPhantomKey(b), "different valid should produce different key");
+});
+
+test("cannonPhantomKey ignores playerId", () => {
+  const a: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 };
+  const b: CannonPhantom = { ...a, playerId: 2 };
+  assert(cannonPhantomKey(a) === cannonPhantomKey(b), "playerId should not affect key");
 });
 
 // ---------------------------------------------------------------------------

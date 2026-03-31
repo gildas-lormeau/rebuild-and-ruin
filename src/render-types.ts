@@ -69,7 +69,6 @@ export interface FrameData {
       valid: boolean;
       mode: CannonMode;
       playerId: number;
-      facing?: number;
     }[];
     phantomPiece?: {
       offsets: [number, number][];
@@ -78,6 +77,7 @@ export interface FrameData {
       valid: boolean;
       playerId?: number;
     } | null;
+    defaultFacings?: ReadonlyMap<number, number>;
   };
   announcement?: string;
   gameOver?: GameOverOverlay;
@@ -159,8 +159,9 @@ export interface PhantomOverlay {
     valid: boolean;
     mode: CannonMode;
     playerId: number;
-    facing?: number;
   }[];
+  /** Default cannon facing per player — used by cannon phantom rendering. */
+  defaultFacings?: ReadonlyMap<number, number>;
 }
 
 /** Battle phase — projectiles, effects, territory state. */
