@@ -43,6 +43,7 @@ export function initWs(deps: WsRuntimeDeps): void {
 }
 
 export function connect(onConnectError?: () => void): void {
+  if (!_rt) throw new Error("connect() called before initWs()");
   if (onConnectError) _onConnectError = onConnectError;
   connectWebSocket(ctx.session, computeWsUrl(), {
     onMessage: (msg) => {

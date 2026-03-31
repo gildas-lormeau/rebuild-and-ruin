@@ -207,6 +207,41 @@ const runtime: GameRuntime = createGameRuntime({
   },
 });
 
+// ── Initialize dependent modules and register handlers ─────────────
+/** Wire runtime into ws/promote/deps modules and register input + exit
+ *  handlers. Called once from online-client.ts after module evaluation. */
+export function initOnlineRuntime(): void {
+  initWs({
+    getMode: () => runtime.runtimeState.mode,
+    setMode: (mode) => {
+      runtime.runtimeState.mode = mode;
+    },
+    setAnnouncement: (text) => {
+      runtime.runtimeState.frame.announcement = text;
+    },
+    render: () => runtime.render(),
+  });
+
+  initPromote(runtime);
+
+  initDeps({
+    runtime,
+    initFromServer,
+    restoreFullState,
+    showWaitingRoom,
+    transitionCtx,
+  });
+
+  runtime.registerInputHandlers();
+
+  document.addEventListener(GAME_EXIT_EVENT, () => {
+    runtime.runtimeState.mode = Mode.STOPPED;
+    runtime.runtimeState.lobby.active = false;
+    roomCodeOverlay.style.display = "none";
+    resetSession();
+  });
+}
+
 function buildTransitionUiCtx(): TransitionContext["ui"] {
   return {
     showBanner: (text, onDone, preserveOldScene?, newBattle?, subtitle?) =>
@@ -317,28 +352,6 @@ function showLobby(): void {
   resetSession();
 }
 
-// ── Initialize dependent modules (breaks import coupling) ──────────
-initWs({
-  getMode: () => runtime.runtimeState.mode,
-  setMode: (mode) => {
-    runtime.runtimeState.mode = mode;
-  },
-  setAnnouncement: (text) => {
-    runtime.runtimeState.frame.announcement = text;
-  },
-  render: () => runtime.render(),
-});
-
-initPromote(runtime);
-
-initDeps({
-  runtime,
-  initFromServer,
-  restoreFullState,
-  showWaitingRoom,
-  transitionCtx,
-});
-
 function showWaitingRoom(code: string, seed: number): void {
   ctx.session.roomSeed = seed;
   runtime.runtimeState.settings.seed = String(seed);
@@ -442,16 +455,6 @@ function restoreFullState(msg: FullStateMessage): void {
     ctx.watcher.timing.countdownDuration = state.battleCountdown;
   }
 }
-
-// ── Side effects ────────────────────────────────────────────────────
-runtime.registerInputHandlers();
-
-document.addEventListener(GAME_EXIT_EVENT, () => {
-  runtime.runtimeState.mode = Mode.STOPPED;
-  runtime.runtimeState.lobby.active = false;
-  roomCodeOverlay.style.display = "none";
-  resetSession();
-});
 
 function resetSession(): void {
   clearReconnect();
