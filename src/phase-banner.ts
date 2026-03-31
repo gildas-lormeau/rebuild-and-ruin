@@ -1,4 +1,4 @@
-import type { House, TilePos } from "./geometry-types.ts";
+import type { EntityOverlay } from "./render-types.ts";
 import { type CastleData, fireOnce, type GameState, Phase } from "./types.ts";
 
 export interface BannerState {
@@ -10,8 +10,9 @@ export interface BannerState {
   oldCastles?: CastleData[];
   oldTerritory?: Set<number>[];
   oldWalls?: Set<number>[];
-  oldHouses?: House[];
-  oldBonusSquares?: TilePos[];
+  /** Snapshot of all map entities at banner start — used to keep the scene
+   *  stable while applyCheckpoint mutates live state behind the banner. */
+  oldEntities?: EntityOverlay;
   newTerritory?: Set<number>[];
   newWalls?: Set<number>[];
   /** Pre-sweep wall snapshot; consumed by showBannerTransition for the old scene. */
@@ -94,14 +95,12 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
       state.phase === Phase.BATTLE
         ? battleAnim.walls?.map((wall) => new Set(wall))
         : undefined;
-    banner.oldHouses ??= state.map.houses.map((h) => ({ ...h }));
-    banner.oldBonusSquares ??= state.bonusSquares.map((b) => ({ ...b }));
+    banner.oldEntities ??= snapshotEntities(state);
   } else {
     banner.oldCastles = undefined;
     banner.oldTerritory = undefined;
     banner.oldWalls = undefined;
-    banner.oldHouses = undefined;
-    banner.oldBonusSquares = undefined;
+    banner.oldEntities = undefined;
   }
 
   banner.newTerritory = newBattle?.territory;
@@ -112,6 +111,18 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
   banner.subtitle = subtitle;
   banner.callback = onDone;
   setModeBanner();
+}
+
+/** Shallow-clone all map entities so the banner scene stays frozen while
+ *  applyCheckpoint mutates the live state behind it. */
+export function snapshotEntities(state: GameState): EntityOverlay {
+  return {
+    houses: state.map.houses.map((h) => ({ ...h })),
+    grunts: state.grunts.map((gr) => ({ ...gr })),
+    towerAlive: [...state.towerAlive],
+    burningPits: state.burningPits.map((pit) => ({ ...pit })),
+    bonusSquares: state.bonusSquares.map((b) => ({ ...b })),
+  };
 }
 
 export function tickBannerTransition(
@@ -128,8 +139,7 @@ export function tickBannerTransition(
   banner.oldCastles = undefined;
   banner.oldTerritory = undefined;
   banner.oldWalls = undefined;
-  banner.oldHouses = undefined;
-  banner.oldBonusSquares = undefined;
+  banner.oldEntities = undefined;
   banner.newTerritory = undefined;
   banner.newWalls = undefined;
   banner.active = false;

@@ -1202,5 +1202,83 @@ test("prebuilt castle walls never land on another tower's tiles", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Burning pits must survive visually through cannon→battle banner transition
+// ---------------------------------------------------------------------------
+
+test("burning pits visible in overlay during cannon-to-battle banner", () => {
+  const s = createScenario();
+
+  // Inject a burning pit with roundsLeft=1 so enterBattleFromCannon will expire it
+  const wallTile = s.findEnemyWallTile(0);
+  assert(wallTile !== null, "need an enemy wall tile for pit placement");
+  s.state.burningPits.push({ row: wallTile!.row, col: wallTile!.col, roundsLeft: 1 });
+  assert(s.state.burningPits.length > 0, "pit should exist before transition");
+
+  // Advance to CANNON_PLACE so we can trigger the cannon→battle transition
+  s.runCannon();
+
+  // Run the transition steps manually (same as startHostBattleLifecycle)
+  const banner = s.createBanner();
+  const battleAnim = s.createBattleAnim();
+
+  executeTransition(BATTLE_START_STEPS, {
+    showBanner: () =>
+      showBattlePhaseBanner(
+        (text, onDone, preserveOldScene?, newBattle?, subtitle?) => {
+          showBannerTransition({
+            banner,
+            state: s.state,
+            battleAnim,
+            text,
+            subtitle,
+            onDone,
+            preserveOldScene,
+            newBattle,
+            setModeBanner: () => {},
+          });
+        },
+        "BATTLE!",
+        () => {},
+      ),
+    applyCheckpoint: () => {
+      nextPhase(s.state);
+      battleAnim.impacts = [];
+    },
+    snapshotForBanner: () => {
+      battleAnim.territory = s.state.players.map((p) => new Set(p.interior));
+      battleAnim.walls = s.state.players.map((p) => new Set(p.walls));
+      banner.newTerritory = battleAnim.territory;
+      banner.newWalls = battleAnim.walls;
+    },
+  });
+
+  // After transition, state.burningPits has been filtered (the pit expired)
+  assert(
+    s.state.burningPits.length === 0,
+    "pit should be expired in live state after enterBattleFromCannon",
+  );
+
+  // But the overlay rendered during the banner should still show the pit
+  const overlay = createOnlineOverlay({
+    previousSelection: { highlighted: null, selected: null },
+    state: s.state,
+    banner,
+    battleAnim,
+    frame: { crosshairs: [], phantoms: {} },
+    bannerUi: undefined,
+    lifeLostDialog: null,
+    playerNames: PLAYER_NAMES,
+    playerColors: PLAYER_COLORS,
+    getLifeLostPanelPos: () => ({ px: 0, py: 0 }),
+  });
+
+  // BUG: overlay reads live state.burningPits which is now empty
+  assert(
+    overlay.entities!.burningPits!.length > 0,
+    "burning pits should still be visible during the banner transition (bug: they disappear immediately)",
+  );
+});
+
+// ---------------------------------------------------------------------------
 
 await runTests("Scenario Tests");

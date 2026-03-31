@@ -315,16 +315,11 @@ function drawBannerOldScene(
   );
 
   if (needsBannerRender) {
-    const oldHouses = overlay.ui.bannerOldHouses;
-    const oldBonusSquares = overlay.ui.bannerOldBonusSquares;
+    const oldEntities = overlay.ui.bannerOldEntities;
     const oldOverlay: RenderOverlay = {
       ...overlay,
       castles: oldCastles,
-      entities: {
-        ...overlay.entities,
-        houses: oldHouses ?? overlay.entities?.houses,
-        bonusSquares: oldBonusSquares ?? overlay.entities?.bonusSquares,
-      },
+      entities: oldEntities ?? overlay.entities,
       battle: {
         ...overlay.battle,
         inBattle: !!oldTerritory,

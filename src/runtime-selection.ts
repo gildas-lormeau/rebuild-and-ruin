@@ -36,6 +36,7 @@ import {
   processReselectionQueue,
 } from "./game-helpers.ts";
 import { TILE_SIZE } from "./grid.ts";
+import { snapshotEntities } from "./phase-banner.ts";
 import { updateSelectionOverlay as syncSelectionOverlayImpl } from "./render-composition.ts";
 import { initTowerSelection } from "./runtime-bootstrap.ts";
 import type { RuntimeState } from "./runtime-state.ts";
@@ -285,12 +286,7 @@ export function createSelectionSystem(
   }
 
   function finalizeAndAdvance(): void {
-    runtimeState.banner.oldHouses = runtimeState.state.map.houses.map((h) => ({
-      ...h,
-    }));
-    runtimeState.banner.oldBonusSquares = runtimeState.state.bonusSquares.map(
-      (b) => ({ ...b }),
-    );
+    runtimeState.banner.oldEntities = snapshotEntities(runtimeState.state);
     finalizeCastleConstruction(runtimeState.state);
     enterCannonPlacePhase(runtimeState.state);
     deps.camera.clearCastleBuildViewport();

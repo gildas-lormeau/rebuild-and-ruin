@@ -280,8 +280,7 @@ export function createOnlineOverlay(params: {
     | "oldCastles"
     | "oldTerritory"
     | "oldWalls"
-    | "oldHouses"
-    | "oldBonusSquares"
+    | "oldEntities"
     | "newTerritory"
     | "newWalls"
     | "wallsBeforeSweep"
@@ -342,7 +341,7 @@ export function createOnlineOverlay(params: {
   return {
     selection: previousSelection,
     castles: buildCastleOverlay(state, banner.wallsBeforeSweep),
-    entities: {
+    entities: banner.oldEntities ?? {
       houses: state.map.houses,
       grunts: state.grunts,
       towerAlive: state.towerAlive,
@@ -372,8 +371,7 @@ export function createOnlineOverlay(params: {
       bannerOldCastles: banner.active ? banner.oldCastles : undefined,
       bannerOldBattleTerritory: banner.active ? banner.oldTerritory : undefined,
       bannerOldBattleWalls: banner.active ? banner.oldWalls : undefined,
-      bannerOldHouses: banner.active ? banner.oldHouses : undefined,
-      bannerOldBonusSquares: banner.active ? banner.oldBonusSquares : undefined,
+      bannerOldEntities: banner.active ? banner.oldEntities : undefined,
       announcement: frame.announcement,
       gameOver: frame.gameOver,
       lifeLostDialog: buildLifeLostDialogUi(

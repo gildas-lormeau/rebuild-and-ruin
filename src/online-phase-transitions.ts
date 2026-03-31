@@ -24,6 +24,7 @@ import {
   BANNER_BATTLE_ONLINE,
   BANNER_REPAIR_ONLINE,
   type BannerShow,
+  snapshotEntities,
 } from "./phase-banner.ts";
 import {
   BATTLE_START_STEPS,
@@ -78,8 +79,7 @@ export interface TransitionContext {
         }[];
         playerId: number;
       }[];
-      oldHouses?: { row: number; col: number; zone: number; alive: boolean }[];
-      oldBonusSquares?: { row: number; col: number }[];
+      oldEntities?: import("./render-types.ts").EntityOverlay;
       wallsBeforeSweep?: Set<number>[];
     };
     render: () => void;
@@ -202,12 +202,9 @@ export function handleCannonStartTransition(
   const myPlayerId = transitionCtx.session.myPlayerId;
   transitionCtx.selection.clearSelectionOverlay();
 
-  // Pre-capture old houses/bonus before checkpoint spawns new ones.
+  // Pre-capture old entities before checkpoint spawns new ones.
   // oldCastles is already pre-captured in handleBuildEndTransition (pre-sweep walls).
-  transitionCtx.ui.banner.oldHouses = state.map.houses.map((h) => ({ ...h }));
-  transitionCtx.ui.banner.oldBonusSquares = state.bonusSquares.map((b) => ({
-    ...b,
-  }));
+  transitionCtx.ui.banner.oldEntities = snapshotEntities(state);
 
   transitionCtx.checkpoint.applyCannonStart(msg);
 
@@ -253,10 +250,7 @@ export function handleBattleStartTransition(
   const battleFlights = msg.flights;
 
   // Pre-capture old scene before checkpoint replaces state (banner ??= keeps it)
-  transitionCtx.ui.banner.oldHouses = state.map.houses.map((h) => ({ ...h }));
-  transitionCtx.ui.banner.oldBonusSquares = state.bonusSquares.map((b) => ({
-    ...b,
-  }));
+  transitionCtx.ui.banner.oldEntities = snapshotEntities(state);
 
   executeTransition(BATTLE_START_STEPS, {
     showBanner: () =>
@@ -305,10 +299,7 @@ export function handleBuildStartTransition(
   const buildReceivedAt = transitionCtx.now();
 
   // Pre-capture old scene before checkpoint replaces state (banner ??= keeps it)
-  transitionCtx.ui.banner.oldHouses = state.map.houses.map((h) => ({ ...h }));
-  transitionCtx.ui.banner.oldBonusSquares = state.bonusSquares.map((b) => ({
-    ...b,
-  }));
+  transitionCtx.ui.banner.oldEntities = snapshotEntities(state);
 
   executeTransition(BUILD_START_STEPS, {
     showBanner: () =>
