@@ -117,11 +117,11 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
  *  applyCheckpoint mutates the live state behind it. */
 export function snapshotEntities(state: GameState): EntityOverlay {
   return {
-    houses: state.map.houses.map((h) => ({ ...h })),
-    grunts: state.grunts.map((gr) => ({ ...gr })),
+    houses: state.map.houses.map((house) => ({ ...house })),
+    grunts: state.grunts.map((grunt) => ({ ...grunt })),
     towerAlive: [...state.towerAlive],
     burningPits: state.burningPits.map((pit) => ({ ...pit })),
-    bonusSquares: state.bonusSquares.map((b) => ({ ...b })),
+    bonusSquares: state.bonusSquares.map((bonus) => ({ ...bonus })),
   };
 }
 
