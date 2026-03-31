@@ -8,6 +8,10 @@
  *   Omitting `net` silently falls back to local-play behavior (all players local,
  *   no broadcasts). This is correct for local play but a silent bug if forgotten
  *   when adding a new online tick call.
+ *
+ *   Guard: createPhaseTicksSystem asserts that hostNetworking is present whenever
+ *   tickNonHost is configured (online mode), so the fallback can only trigger
+ *   in local play where it is correct.
  */
 
 import { type BattleEvent, MESSAGE } from "../server/protocol.ts";
@@ -114,6 +118,11 @@ export interface PhaseTicksSystem {
 }
 
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
+  if (deps.tickNonHost && !deps.hostNetworking) {
+    throw new Error(
+      "hostNetworking required when tickNonHost is configured (online mode)",
+    );
+  }
   const { runtimeState } = deps;
 
   // -------------------------------------------------------------------------
