@@ -20,7 +20,8 @@ import {
   send,
   session,
 } from "./runtime-online-stores.ts";
-import { assertNever, Mode } from "./types.ts";
+import { Mode } from "./types.ts";
+import { assertNever } from "./utils.ts";
 
 /** Promote this client to host. Order matters:
  *  1. Reset networking (clear stale watcher/dedup state)

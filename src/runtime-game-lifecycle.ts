@@ -23,9 +23,9 @@ import { bootstrapGame } from "./runtime-bootstrap.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { CameraSystem } from "./runtime-types.ts";
 import type { SoundSystem } from "./sound-system.ts";
+import { createTimerAccums } from "./tick-context.ts";
 import {
   createBattleAnimState,
-  createTimerAccums,
   FOCUS_MENU,
   FOCUS_REMATCH,
   type GameState,

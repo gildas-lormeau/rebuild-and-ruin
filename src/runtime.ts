@@ -86,7 +86,8 @@ import {
 } from "./runtime-types.ts";
 import { createSoundSystem } from "./sound-system.ts";
 import { unpackTile } from "./spatial.ts";
-import { fireOnce, Mode, Phase } from "./types.ts";
+import { Mode, Phase } from "./types.ts";
+import { fireOnce } from "./utils.ts";
 
 export type { GameRuntime } from "./runtime-types.ts";
 

@@ -1,5 +1,6 @@
 import type { CastleData, EntityOverlay } from "./render-types.ts";
-import { fireOnce, type GameState, Phase } from "./types.ts";
+import { type GameState, Phase } from "./types.ts";
+import { fireOnce } from "./utils.ts";
 
 export interface BannerState {
   active: boolean;

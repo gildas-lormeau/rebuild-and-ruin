@@ -51,7 +51,9 @@ import {
 } from "./selection.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import { towerCenterPx } from "./spatial.ts";
-import { fireOnce, Mode, type MutableAccums } from "./types.ts";
+import type { MutableAccums } from "./tick-context.ts";
+import { Mode } from "./types.ts";
+import { fireOnce } from "./utils.ts";
 
 interface SelectionSystemDeps {
   runtimeState: RuntimeState;

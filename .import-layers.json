@@ -8,7 +8,8 @@
       "src/jsfxr.d.ts",
       "src/platform.ts",
       "src/rng.ts",
-      "src/router.ts"
+      "src/router.ts",
+      "src/utils.ts"
     ]
   },
   {

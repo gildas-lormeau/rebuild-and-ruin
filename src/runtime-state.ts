@@ -17,17 +17,16 @@ import { loadSettings } from "./game-ui-settings.ts";
 import { type BannerState, createBannerState } from "./phase-banner.ts";
 import { type GameSettings, MAX_PLAYERS } from "./player-config.ts";
 import type { FrameData, PlayerStats, RenderOverlay } from "./render-types.ts";
+import { createTimerAccums, type TimerAccums } from "./tick-context.ts";
 import {
   type BattleAnimState,
   createBattleAnimState,
-  createTimerAccums,
   type FrameContext,
   type GameState,
   type LifeLostDialogState,
   type LobbyState,
   Mode,
   type SelectionState,
-  type TimerAccums,
 } from "./types.ts";
 
 export interface RuntimeState {

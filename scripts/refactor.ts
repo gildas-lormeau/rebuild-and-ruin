@@ -55,6 +55,21 @@ function resolve(filePath: string): string {
   return path.resolve(filePath);
 }
 
+/** Get an existing source file or create it if it doesn't exist / is empty.
+ *  Works around ts-morph's addStatements bug on almost-empty files by seeding
+ *  a dummy export that is removed after the real content is inserted. */
+function getOrCreateSourceFile(project: Project, filePath: string): SourceFile {
+  const existing = project.getSourceFile(filePath);
+  if (existing && existing.getFullText().trim().length > 0) return existing;
+
+  // File is missing or empty — create/overwrite with a dummy export so
+  // ts-morph's internal printer has something to anchor against.
+  if (existing) existing.removeText();
+  const sf = existing ?? project.createSourceFile(filePath, "", { overwrite: true });
+  sf.addStatements("export {};\n");
+  return sf;
+}
+
 // ---------------------------------------------------------------------------
 // rename-symbol: rename an exported symbol across all files
 // ---------------------------------------------------------------------------
@@ -95,7 +110,7 @@ function moveExport(fromPath: string, toPath: string, name: string): void {
   addAllSources(project);
 
   const fromFile = project.getSourceFileOrThrow(resolve(fromPath));
-  const toFile = project.getSourceFileOrThrow(resolve(toPath));
+  const toFile = getOrCreateSourceFile(project, resolve(toPath));
 
   // Find the exported declaration
   const declarations = fromFile.getExportedDeclarations().get(name);
@@ -119,6 +134,9 @@ function moveExport(fromPath: string, toPath: string, name: string): void {
 
   // Add to target file
   toFile.addStatements(`\n${fullText}\n`);
+
+  // Remove dummy export if we seeded one for an empty file
+  removeDummyExport(toFile);
 
   // Add needed imports to target file
   addImportsToFile(toFile, neededImports, fromFile);
@@ -275,6 +293,19 @@ function collapseRedundantPropertyAssignments(project: Project, name: string): v
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** Remove the `export {};` dummy statement seeded by getOrCreateSourceFile. */
+function removeDummyExport(sf: SourceFile): void {
+  for (const stmt of sf.getStatements()) {
+    if (stmt.isKind(SyntaxKind.ExportDeclaration)) {
+      const exportDecl = stmt.asKindOrThrow(SyntaxKind.ExportDeclaration);
+      if (!exportDecl.getModuleSpecifier() && exportDecl.getNamedExports().length === 0) {
+        stmt.remove();
+        return;
+      }
+    }
+  }
+}
 
 function findDeclarationIdentifier(sf: SourceFile, name: string): Identifier | undefined {
   // Search exported declarations first

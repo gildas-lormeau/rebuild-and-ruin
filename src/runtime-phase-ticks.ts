@@ -61,7 +61,8 @@ import type {
   RuntimeSelection,
 } from "./runtime-types.ts";
 import type { SoundSystem } from "./sound-system.ts";
-import { Mode, type MutableAccums } from "./types.ts";
+import type { MutableAccums } from "./tick-context.ts";
+import { Mode } from "./types.ts";
 
 interface PhaseTicksDeps
   extends Pick<

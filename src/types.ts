@@ -230,68 +230,12 @@ export interface GameState {
   cannonLimits: number[];
 }
 
-/** Phase timer accumulators — tracks elapsed time per phase for host tick logic.
- *  NEVER mutate these fields directly — always use advancePhaseTimer() from
- *  tick-context.ts, which keeps accum and state.timer in sync.
- *
- *  Naming convention:
- *    - One key per distinct timer: accum.cannon, accum.battle, accum.build, accum.select
- *    - Separate concerns get their own key: accum.grunt (cross-phase spawning interval),
- *      accum.selectAnnouncement (UI countdown separate from selection timer)
- *    - All keys are reset to 0 via createTimerAccums() at game start / rematch. */
-export interface TimerAccums {
-  readonly battle: number;
-  readonly cannon: number;
-  readonly select: number;
-  readonly selectAnnouncement: number;
-  readonly build: number;
-  readonly grunt: number;
-}
-
-/** Mutable view of TimerAccums — use ONLY inside advancePhaseTimer,
- *  tickGruntsIfDue, and tickSelectionPhase (the three blessed mutation sites). */
-export type MutableAccums = { -readonly [K in keyof TimerAccums]: number };
-
 /** Battle animation state — territory/wall snapshots and in-flight effects. */
 export interface BattleAnimState {
   territory: Set<number>[];
   walls: Set<number>[];
   flights: readonly { flight: BalloonFlight; progress: number }[];
   impacts: Impact[];
-}
-
-/** Per-player state during castle selection (highlighted tower, confirm status). */
-export interface SelectionState {
-  highlighted: number;
-  confirmed: boolean;
-  /** True once the user has tapped/clicked the highlighted tower once,
-   *  enabling confirmation on the second tap. Reset on pointer-move to a
-   *  different tower. Used by touch input to require a deliberate double-tap. */
-  secondTapReady?: boolean;
-}
-
-/** Life-lost types. */
-export enum LifeLostChoice {
-  PENDING = "pending",
-  CONTINUE = "continue",
-  ABANDON = "abandon",
-}
-
-export type ResolvedChoice = LifeLostChoice.CONTINUE | LifeLostChoice.ABANDON;
-
-export interface LifeLostEntry {
-  playerId: number;
-  lives: number;
-  isAi: boolean;
-  choice: LifeLostChoice;
-  aiTimer: number;
-  /** Which button is focused: LIFE_LOST_FOCUS_CONTINUE (0) or LIFE_LOST_FOCUS_ABANDON (1). */
-  focused: number;
-}
-
-export interface LifeLostDialogState {
-  entries: LifeLostEntry[];
-  timer: number;
 }
 
 /** Player selection lobby state. */
@@ -303,6 +247,16 @@ export interface LobbyState {
   /** Pre-computed seed for the next game (also used for lobby map preview). */
   seed: number;
   map: GameMap | null;
+}
+
+/** Per-player state during castle selection (highlighted tower, confirm status). */
+export interface SelectionState {
+  highlighted: number;
+  confirmed: boolean;
+  /** True once the user has tapped/clicked the highlighted tower once,
+   *  enabling confirmation on the second tap. Reset on pointer-move to a
+   *  different tower. Used by touch input to require a deliberate double-tap. */
+  secondTapReady?: boolean;
 }
 
 export interface FrameContext {
@@ -331,6 +285,30 @@ export interface FrameContext {
   readonly phaseEnding: boolean;
   /** Camera should unzoom (uiBlocking OR phaseEnding). */
   readonly shouldUnzoom: boolean;
+}
+
+/** Life-lost types. */
+export enum LifeLostChoice {
+  PENDING = "pending",
+  CONTINUE = "continue",
+  ABANDON = "abandon",
+}
+
+export type ResolvedChoice = LifeLostChoice.CONTINUE | LifeLostChoice.ABANDON;
+
+export interface LifeLostEntry {
+  playerId: number;
+  lives: number;
+  isAi: boolean;
+  choice: LifeLostChoice;
+  aiTimer: number;
+  /** Which button is focused: LIFE_LOST_FOCUS_CONTINUE (0) or LIFE_LOST_FOCUS_ABANDON (1). */
+  focused: number;
+}
+
+export interface LifeLostDialogState {
+  entries: LifeLostEntry[];
+  timer: number;
 }
 
 /** Which button is focused in the life-lost dialog. */
@@ -378,17 +356,6 @@ export function isSelectionPhase(phase: Phase): boolean {
 /** True if the phase is castle reselection specifically (not initial selection). */
 export function isReselectPhase(phase: Phase): boolean {
   return phase === Phase.CASTLE_RESELECT;
-}
-
-export function createTimerAccums(): TimerAccums {
-  return {
-    battle: 0,
-    cannon: 0,
-    select: 0,
-    selectAnnouncement: 0,
-    build: 0,
-    grunt: 0,
-  };
 }
 
 export function createBattleAnimState(): BattleAnimState {
@@ -439,41 +406,4 @@ export function isTransitionMode(mode: Mode): boolean {
     mode === Mode.BALLOON_ANIM ||
     mode === Mode.CASTLE_BUILD
   );
-}
-
-/**
- * Compile-time exhaustiveness check for switch/if-else on enums.
- * A missing case makes `value` a concrete enum member instead of `never`,
- * producing a type error at the call site.
- */
-export function assertNever(value: never): never {
-  throw new Error(`Unexpected value: ${String(value)}`);
-}
-
-/** Invoke a one-shot callback field and clear it to prevent re-entry.
- *  Pattern: runtimeState stores an optional callback (e.g., scoreDeltaOnDone).
- *  fireOnce() calls it exactly once, then sets the field to null.
- *  This prevents double-firing if the caller runs again before the next frame.
- *
- *  The null-before-call order prevents re-entrancy loops.
- *
- *  Usage:  `fireOnce(obj, "callback")` replaces the manual pattern:
- *    `const cb = obj.callback; obj.callback = null; cb?.();`
- *
- *  In dev mode, logs a warning if the field was already null (double-fire). */
-export function fireOnce<
-  K extends string,
-  T extends Record<K, (() => void) | null>,
->(obj: T, key: K, label?: string): void {
-  const cb = obj[key] as (() => void) | null;
-  (obj as Record<K, (() => void) | null>)[key] = null;
-  if (cb) {
-    cb();
-  } else if (
-    typeof import.meta !== "undefined" &&
-    // @ts-ignore — import.meta.env is Vite-specific
-    import.meta.env?.DEV
-  ) {
-    console.warn(`fireOnce: ${label ?? key} was already null (double-fire?)`);
-  }
 }

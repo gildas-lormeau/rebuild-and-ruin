@@ -28,13 +28,8 @@ import {
   tickWatcherTimers,
 } from "./online-watcher-battle.ts";
 import type { FrameData } from "./render-types.ts";
-import { tickGruntsIfDue } from "./tick-context.ts";
-import {
-  type BattleAnimState,
-  type GameState,
-  Phase,
-  type TimerAccums,
-} from "./types.ts";
+import { type TimerAccums, tickGruntsIfDue } from "./tick-context.ts";
+import { type BattleAnimState, type GameState, Phase } from "./types.ts";
 
 export interface WatcherState extends WatcherNetworkState {
   timing: WatcherTimingState;

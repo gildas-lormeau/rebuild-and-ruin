@@ -8,10 +8,10 @@ import { precomputeTerrainCache } from "./render-map.ts";
 import { GOLD, PANEL_BG } from "./render-theme.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { GAME_CONTAINER_ACTIVE } from "./router.ts";
-import type { LobbyState } from "./types.ts";
 import {
   type GameState,
   isReselectPhase,
+  type LobbyState,
   Phase,
   type SelectionState,
 } from "./types.ts";

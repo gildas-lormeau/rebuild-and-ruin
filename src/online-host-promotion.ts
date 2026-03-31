@@ -9,12 +9,8 @@ import {
   enterCannonPlacePhase,
   finalizeCastleConstruction,
 } from "./game-engine.ts";
-import {
-  type GameState,
-  isPlayerAlive,
-  type MutableAccums,
-  Phase,
-} from "./types.ts";
+import type { MutableAccums } from "./tick-context.ts";
+import { type GameState, isPlayerAlive, Phase } from "./types.ts";
 
 /** Large prime for deriving per-round AI strategy seeds (ensures uncorrelated rounds). */
 const SEED_ROUND_MULTIPLIER = 1000003;

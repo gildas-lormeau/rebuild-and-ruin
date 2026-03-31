@@ -43,6 +43,28 @@ export interface HostNetContext {
   isHost: boolean;
 }
 
+/** Phase timer accumulators — tracks elapsed time per phase for host tick logic.
+ *  NEVER mutate these fields directly — always use advancePhaseTimer() from
+ *  tick-context.ts, which keeps accum and state.timer in sync.
+ *
+ *  Naming convention:
+ *    - One key per distinct timer: accum.cannon, accum.battle, accum.build, accum.select
+ *    - Separate concerns get their own key: accum.grunt (cross-phase spawning interval),
+ *      accum.selectAnnouncement (UI countdown separate from selection timer)
+ *    - All keys are reset to 0 via createTimerAccums() at game start / rematch. */
+export interface TimerAccums {
+  readonly battle: number;
+  readonly cannon: number;
+  readonly select: number;
+  readonly selectAnnouncement: number;
+  readonly build: number;
+  readonly grunt: number;
+}
+
+/** Mutable view of TimerAccums — use ONLY inside advancePhaseTimer,
+ *  tickGruntsIfDue, and tickSelectionPhase (the three blessed mutation sites). */
+export type MutableAccums = { -readonly [K in keyof TimerAccums]: number };
+
 /** Empty set used as default when no remote players exist (local play). */
 const NO_REMOTE_SLOTS: ReadonlySet<number> = Object.freeze(new Set<number>());
 
@@ -106,4 +128,15 @@ export function localActiveControllers<
       !remoteHumanSlots.has(ctrl.playerId) &&
       !state.players[ctrl.playerId]?.eliminated,
   );
+}
+
+export function createTimerAccums(): TimerAccums {
+  return {
+    battle: 0,
+    cannon: 0,
+    select: 0,
+    selectAnnouncement: 0,
+    build: 0,
+    grunt: 0,
+  };
 }
