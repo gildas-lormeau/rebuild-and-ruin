@@ -163,6 +163,7 @@
       "src/runtime-test-globals.ts",
       "src/runtime-input.ts",
       "src/runtime-phase-ticks.ts",
+      "src/runtime-render.ts",
       "src/runtime-selection.ts",
       "src/runtime-host-phase-ticks.ts",
       "src/runtime-host-battle-ticks.ts",

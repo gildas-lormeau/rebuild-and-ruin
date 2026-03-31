@@ -27,7 +27,6 @@
 
 import {
   MAX_FRAME_DT,
-  SCORE_DELTA_DISPLAY_TIME,
   SELECT_ANNOUNCEMENT_DURATION,
 } from "./game-constants.ts";
 import {
@@ -39,13 +38,6 @@ import { computeGameSeed } from "./game-ui-settings.ts";
 import { createHapticsSystem } from "./haptics-system.ts";
 import { generateMap } from "./map-generation.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "./platform.ts";
-import { PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
-import {
-  createBannerUi,
-  createOnlineOverlay,
-  createRenderSummaryMessage,
-  createStatusBar,
-} from "./render-composition.ts";
 import { precomputeTerrainCache } from "./render-map.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
@@ -63,6 +55,7 @@ import {
   createPhaseTicksSystem,
   type PhaseTicksSystem,
 } from "./runtime-phase-ticks.ts";
+import { createRenderSystem } from "./runtime-render.ts";
 import {
   createSelectionSystem,
   type SelectionSystem,
@@ -73,7 +66,6 @@ import {
   safeState,
 } from "./runtime-state.ts";
 import { exposeTestGlobals } from "./runtime-test-globals.ts";
-import { updateTouchControls } from "./runtime-touch-ui.ts";
 import {
   computeFrameContext,
   type GameRuntime,
@@ -316,94 +308,23 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
 
   // -------------------------------------------------------------------------
-  // Rendering
+  // Render sub-system (delegated to runtime-render.ts)
   // -------------------------------------------------------------------------
 
-  function render() {
-    // Summary log: crosshairs, phantoms, impacts per frame (throttled 1/s)
-    const chList = runtimeState.frame.crosshairs ?? [];
-    const selH = runtimeState.overlay.selection?.highlights;
-    config.logThrottled(
-      "render-summary",
-      createRenderSummaryMessage({
-        phaseName: Phase[runtimeState.state.phase],
-        timer: runtimeState.state.timer,
-        crosshairs: chList,
-        aiPhantomsCount: runtimeState.frame.phantoms?.aiPhantoms?.length ?? 0,
-        humanPhantomsCount:
-          runtimeState.frame.phantoms?.humanPhantoms?.length ?? 0,
-        aiCannonPhantomsCount:
-          runtimeState.frame.phantoms?.aiCannonPhantoms?.length ?? 0,
-        impactsCount: runtimeState.battleAnim.impacts.length,
-        cannonballsCount: runtimeState.state.cannonballs.length,
-        selectionHighlights: selH,
-      }),
-    );
-
-    // Refresh crosshairs from controller state when paused
-    if (runtimeState.state.phase === Phase.BATTLE && runtimeState.paused) {
-      phaseTicks.syncCrosshairs(runtimeState.state.battleCountdown <= 0);
-    }
-
-    const bannerUi = createBannerUi(
-      runtimeState.banner.active,
-      runtimeState.banner.text,
-      runtimeState.banner.progress,
-      runtimeState.banner.subtitle,
-    );
-
-    runtimeState.overlay = createOnlineOverlay({
-      previousSelection: runtimeState.overlay.selection,
-      state: runtimeState.state,
-      banner: runtimeState.banner,
-      battleAnim: runtimeState.battleAnim,
-      frame: runtimeState.frame,
-      bannerUi,
-      lifeLostDialog: runtimeState.lifeLostDialog,
-      playerNames: PLAYER_NAMES,
-      playerColors: PLAYER_COLORS,
-      getLifeLostPanelPos: (playerId) => lifeLost.panelPos(playerId),
-    });
-
-    // Status bar (rendered inside canvas)
-    if (runtimeState.overlay.ui) {
-      runtimeState.overlay.ui.statusBar = createStatusBar(
-        runtimeState.state,
-        PLAYER_COLORS,
-      );
-    }
-
-    // Add score deltas to overlay (shown briefly before Place Cannons banner)
-    if (runtimeState.scoreDeltas.length > 0 && runtimeState.overlay.ui) {
-      runtimeState.overlay.ui.scoreDeltas = runtimeState.scoreDeltas;
-      runtimeState.overlay.ui.scoreDeltaProgress =
-        1 - runtimeState.scoreDeltaTimer / SCORE_DELTA_DISPLAY_TIME;
-    }
-
-    renderFrame(runtimeState.state.map, runtimeState.overlay, updateViewport());
-
-    // Update touch controls (loupe, d-pad, zoom, quit, floating actions)
-    updateTouchControls({
-      mode: runtimeState.mode,
-      state: runtimeState.state,
-      phantoms: runtimeState.frame.phantoms,
-      directTouchActive: runtimeState.directTouchActive,
-      clearDirectTouch: () => {
-        runtimeState.directTouchActive = false;
-      },
-      leftHanded: runtimeState.settings.leftHanded,
-      firstHuman,
-      dpad: input.touch.dpad,
-      floatingActions: input.touch.floatingActions,
-      homeZoomButton: input.touch.homeZoomButton,
-      enemyZoomButton: input.touch.enemyZoomButton,
-      quitButton: input.touch.quitButton,
-      loupeHandle: input.touch.loupeHandle,
-      worldToScreen: camera.worldToScreen,
-      screenToContainerCSS: renderer.screenToContainerCSS,
-      containerHeight: gameContainer.clientHeight,
-    });
-  }
+  const render = createRenderSystem({
+    runtimeState,
+    drawFrame: (map, overlay, viewport) =>
+      renderer.drawFrame(map, overlay, viewport),
+    logThrottled: config.logThrottled,
+    syncCrosshairs: (expired) => phaseTicks.syncCrosshairs(expired),
+    getLifeLostPanelPos: (pid) => lifeLost.panelPos(pid),
+    updateViewport,
+    firstHuman,
+    getTouch: () => input.touch,
+    worldToScreen: camera.worldToScreen,
+    screenToContainerCSS: renderer.screenToContainerCSS,
+    getContainerHeight: () => gameContainer.clientHeight,
+  });
 
   // -------------------------------------------------------------------------
   // Game lifecycle (delegated to runtime-game-lifecycle.ts)
