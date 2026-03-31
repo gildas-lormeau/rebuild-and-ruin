@@ -5,6 +5,10 @@
  * Extracted from runtime.ts to reduce composition-root fan-out.
  */
 
+import type {
+  InputReceiver,
+  PlayerController,
+} from "./controller-interfaces.ts";
 import { SCORE_DELTA_DISPLAY_TIME } from "./game-constants.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
 import {
@@ -13,9 +17,16 @@ import {
   createRenderSummaryMessage,
   createStatusBar,
 } from "./render-composition.ts";
+import type { LoupeHandle } from "./render-loupe.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
-import { updateTouchControls } from "./runtime-touch-ui.ts";
+import {
+  type Dpad,
+  type FloatingActions,
+  type QuitButton,
+  updateTouchControls,
+  type ZoomButton,
+} from "./runtime-touch-ui.ts";
 import { Phase } from "./types.ts";
 
 interface RenderSystemDeps {
@@ -32,21 +43,14 @@ interface RenderSystemDeps {
     py: number;
   };
   readonly updateViewport: () => Viewport | null;
-  readonly firstHuman: () =>
-    | (import("./controller-interfaces.ts").PlayerController &
-        import("./controller-interfaces.ts").InputReceiver)
-    | null;
+  readonly firstHuman: () => (PlayerController & InputReceiver) | null;
   readonly getTouch: () => {
-    dpad: Parameters<typeof updateTouchControls>[0]["dpad"];
-    floatingActions: Parameters<
-      typeof updateTouchControls
-    >[0]["floatingActions"];
-    homeZoomButton: Parameters<typeof updateTouchControls>[0]["homeZoomButton"];
-    enemyZoomButton: Parameters<
-      typeof updateTouchControls
-    >[0]["enemyZoomButton"];
-    quitButton: Parameters<typeof updateTouchControls>[0]["quitButton"];
-    loupeHandle: Parameters<typeof updateTouchControls>[0]["loupeHandle"];
+    dpad: Dpad | null;
+    floatingActions: FloatingActions | null;
+    homeZoomButton: ZoomButton | null;
+    enemyZoomButton: ZoomButton | null;
+    quitButton: QuitButton | null;
+    loupeHandle: LoupeHandle | null;
   };
   readonly worldToScreen: (
     wx: number,

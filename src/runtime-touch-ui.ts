@@ -23,12 +23,12 @@ interface TouchButtonState {
   quit: boolean;
 }
 
-interface Dpad {
+export interface Dpad {
   update(phase: Phase | null, disableRotate?: boolean): void;
   setConfirmValid(valid: boolean): void;
 }
 
-interface FloatingActions {
+export interface FloatingActions {
   update(
     visible: boolean,
     x: number,
@@ -39,11 +39,11 @@ interface FloatingActions {
   setConfirmValid(valid: boolean): void;
 }
 
-interface ZoomButton {
+export interface ZoomButton {
   update(active: boolean): void;
 }
 
-interface QuitButton {
+export interface QuitButton {
   update(phase: Phase | null): void;
 }
 
