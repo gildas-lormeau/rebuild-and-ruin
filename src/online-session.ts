@@ -12,7 +12,7 @@ import {
   type ServerMessage,
 } from "../server/protocol.ts";
 import { LOBBY_TIMER } from "./game-constants.ts";
-import { dedupChanged } from "./online-types.ts";
+import { dedupChanged } from "./phantom-types.ts";
 import type { LifeLostChoice } from "./types.ts";
 
 export interface OnlineSession {

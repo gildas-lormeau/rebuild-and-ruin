@@ -11,6 +11,11 @@ import type {
 import { BATTLE_TIMER } from "./game-constants.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import {
+  REMOTE_CROSSHAIR_MULT,
+  startWatcherPhaseTimer,
+  type WatcherTimingState,
+} from "./online-types.ts";
+import {
   type CannonPhantom,
   cannonPhantomKey,
   dedupChanged,
@@ -19,10 +24,7 @@ import {
   type PiecePhantom,
   phantomWireMode,
   piecePhantomKey,
-  REMOTE_CROSSHAIR_MULT,
-  startWatcherPhaseTimer,
-  type WatcherTimingState,
-} from "./online-types.ts";
+} from "./phantom-types.ts";
 import {
   type CannonMode,
   type GameState,

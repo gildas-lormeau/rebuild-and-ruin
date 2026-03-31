@@ -61,7 +61,8 @@ The layer map file. Committed to the repo. An array of named groups — position
  1  geometry & pieces           geometry-types, pieces
  2  core types & state          types, spatial, board-occupancy, checkpoint-data, server/protocol
  3  shared interfaces & theme   player-config, controller-interfaces, life-lost, castle-build,
-                                phase-banner, render-theme, render-types  ← pure interfaces/state/theme, no canvas deps
+                                phase-banner, render-theme, render-types,
+                                phantom-types  ← pure interfaces/state/theme, no canvas deps
  4  game logic                  cannon-system, grunt-movement, grunt-system, battle-system, build-system,
                                 map-generation, game-engine, game-helpers, tick-context,
                                 phase-transition-shared, selection, castle-generation

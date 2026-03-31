@@ -7,16 +7,15 @@
  * Run with: bun test/online-phantom-dedup.test.ts
  */
 
+import { interpolateToward, toCannonMode } from "../src/online-types.ts";
 import {
   cannonPhantomKey,
   type CannonPhantom,
-  filterAlivePhantoms,
-  interpolateToward,
   dedupChanged,
+  filterAlivePhantoms,
   piecePhantomKey,
   type PiecePhantom,
-  toCannonMode,
-} from "../src/online-types.ts";
+} from "../src/phantom-types.ts";
 import { CannonMode } from "../src/types.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
 

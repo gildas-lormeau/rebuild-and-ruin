@@ -28,11 +28,8 @@ import type {
 } from "./controller-interfaces.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
-import type {
-  CannonPhantom,
-  PiecePhantom,
-  WatcherTimingState,
-} from "./online-types.ts";
+import type { WatcherTimingState } from "./online-types.ts";
+import type { CannonPhantom, PiecePhantom } from "./phantom-types.ts";
 import type { RendererInterface, Viewport } from "./render-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { SoundSystem } from "./sound-system.ts";

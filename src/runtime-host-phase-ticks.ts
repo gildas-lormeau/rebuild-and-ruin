@@ -24,7 +24,7 @@ import {
   type PiecePhantom,
   phantomWireMode,
   piecePhantomKey,
-} from "./online-types.ts";
+} from "./phantom-types.ts";
 import { snapshotEntities } from "./phase-banner.ts";
 import { runBuildEndSequence } from "./phase-transition-shared.ts";
 import type { EntityOverlay } from "./render-types.ts";

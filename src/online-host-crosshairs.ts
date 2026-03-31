@@ -18,11 +18,8 @@ import {
   type PlayerController,
 } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
-import {
-  dedupChanged,
-  interpolateToward,
-  REMOTE_CROSSHAIR_MULT,
-} from "./online-types.ts";
+import { interpolateToward, REMOTE_CROSSHAIR_MULT } from "./online-types.ts";
+import { dedupChanged } from "./phantom-types.ts";
 import { type GameState, isPlayerAlive } from "./types.ts";
 
 interface BroadcastDeps {

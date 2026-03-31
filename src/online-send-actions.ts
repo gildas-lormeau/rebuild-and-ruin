@@ -3,6 +3,7 @@ import type {
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
+import { createCannonFiredMsg } from "./phantom-types.ts";
 import type { GameState } from "./types.ts";
 
 export function tryPlacePieceAndSend(
@@ -63,27 +64,4 @@ export function fireAndSend(
       ),
     );
   }
-}
-
-export function createCannonFiredMsg(ball: {
-  playerId: number;
-  cannonIdx: number;
-  startX: number;
-  startY: number;
-  targetX: number;
-  targetY: number;
-  speed: number;
-  incendiary?: boolean;
-}): GameMessage {
-  return {
-    type: MESSAGE.CANNON_FIRED,
-    playerId: ball.playerId,
-    cannonIdx: ball.cannonIdx,
-    startX: ball.startX,
-    startY: ball.startY,
-    targetX: ball.targetX,
-    targetY: ball.targetY,
-    speed: ball.speed,
-    incendiary: ball.incendiary ? true : undefined,
-  };
 }

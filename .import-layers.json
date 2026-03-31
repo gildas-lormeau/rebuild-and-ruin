@@ -37,7 +37,8 @@
       "src/castle-build.ts",
       "src/phase-banner.ts",
       "src/render-theme.ts",
-      "src/render-types.ts"
+      "src/render-types.ts",
+      "src/phantom-types.ts"
     ]
   },
   {
