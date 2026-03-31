@@ -9,6 +9,7 @@ import type {
   PlayerController,
 } from "./controller-interfaces.ts";
 import { TILE_SIZE } from "./grid.ts";
+import type { LoupeHandle } from "./render-loupe.ts";
 import { isPlacementPhase, Mode, Phase } from "./types.ts";
 
 type TouchBtnRule = boolean | typeof HUMAN;
@@ -44,10 +45,6 @@ interface ZoomButton {
 
 interface QuitButton {
   update(phase: Phase | null): void;
-}
-
-interface LoupeHandle {
-  update(visible: boolean, wx: number, wy: number): void;
 }
 
 interface TouchControlsDeps {

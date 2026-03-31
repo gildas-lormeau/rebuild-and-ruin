@@ -29,8 +29,10 @@ import {
   createFloatingActions,
   createHomeZoomButton,
   createQuitButton,
+  type FloatingActionsHandle,
 } from "./input-touch-ui.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
+import type { LoupeHandle } from "./render-loupe.ts";
 import type { RendererInterface } from "./render-types.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
 import type { CameraSystem } from "./runtime-types.ts";
@@ -47,13 +49,9 @@ import {
 
 type DpadHandle = ReturnType<typeof createDpad>;
 
-type FloatingActionsHandle = ReturnType<typeof createFloatingActions>;
-
 type ZoomButtonHandle = ReturnType<typeof createHomeZoomButton>;
 
 type QuitButtonHandle = ReturnType<typeof createQuitButton>;
-
-type LoupeHandle = ReturnType<NonNullable<RendererInterface["createLoupe"]>>;
 
 interface TouchHandles {
   dpad: DpadHandle | null;

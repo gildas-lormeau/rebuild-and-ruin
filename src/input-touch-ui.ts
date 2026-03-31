@@ -99,7 +99,7 @@ interface FloatingActionsDeps {
   onDrag?: (clientX: number, clientY: number) => void;
 }
 
-interface FloatingActionsHandle {
+export interface FloatingActionsHandle {
   /** Reposition + show/hide based on current phantom screen coords. */
   update: (
     visible: boolean,

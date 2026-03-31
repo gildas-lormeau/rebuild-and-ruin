@@ -23,7 +23,7 @@ import {
   LOUPE_ZOOM,
 } from "./render-theme.ts";
 
-interface LoupeHandle {
+export interface LoupeHandle {
   /** Update the loupe content — call from render(). */
   update: (visible: boolean, worldX: number, worldY: number) => void;
 }

@@ -17,7 +17,7 @@ interface SelectionHost {
   scaledDelay(base: number, spread: number): number;
 }
 
-type SelectionState =
+type AiSelectionState =
   | { step: typeof Step.IDLE }
   | {
       step: typeof Step.BROWSING;
@@ -28,7 +28,7 @@ type SelectionState =
   | { step: typeof Step.CONFIRMING; timer: number };
 
 interface SelectionPhase {
-  state: SelectionState;
+  state: AiSelectionState;
 }
 
 export function createSelectionPhase(): SelectionPhase {
