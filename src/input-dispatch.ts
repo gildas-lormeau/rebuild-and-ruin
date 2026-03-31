@@ -12,17 +12,17 @@
  * to support local multiplayer with distinct key bindings.
  */
 
-import type {
-  InputReceiver,
-  PlayerController,
+import {
+  type ControlsState,
+  type InputReceiver,
+  isMovementAction,
+  type PlayerController,
 } from "./controller-interfaces.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import { findNearestTower, towerAtPixel } from "./spatial.ts";
 import {
   Action,
-  type ControlsState,
   type GameState,
-  isMovementAction,
   isPlacementPhase,
   isReselectPhase,
   isSelectionPhase,

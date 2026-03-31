@@ -59,19 +59,6 @@ export interface Cannon extends TilePos {
   facing?: number;
 }
 
-/** A cannon captured by a propaganda balloon — fires for the balloon owner during battle. */
-export interface CastleData {
-  /** Wall tile positions encoded as row*GRID_COLS+col. */
-  walls: Set<number>;
-  /** Enclosed territory: grass tiles fully surrounded by walls (inverse flood-fill).
-   *  Encoded as row*GRID_COLS+col. Used for cannon eligibility, grunt blocking, and scoring. */
-  interior: ReadonlySet<number>;
-  /** Cannon positions (top-left of 2×2 or 3×3 super) with HP. */
-  cannons: Cannon[];
-  /** Player index (for color). */
-  playerId: number;
-}
-
 export interface CapturedCannon {
   /** The captured cannon reference. */
   cannon: Cannon;
@@ -273,13 +260,6 @@ export interface BattleAnimState {
   impacts: Impact[];
 }
 
-/** Mutable state for the controls-rebinding screen. */
-export interface ControlsState {
-  playerIdx: number;
-  actionIdx: number;
-  rebinding: boolean;
-}
-
 /** Per-player state during castle selection (highlighted tower, confirm status). */
 export interface SelectionState {
   highlighted: number;
@@ -417,20 +397,6 @@ export function isSelectionPhase(phase: Phase): boolean {
 /** True if the phase is castle reselection specifically (not initial selection). */
 export function isReselectPhase(phase: Phase): boolean {
   return phase === Phase.CASTLE_RESELECT;
-}
-
-/** True if the action is a directional movement. */
-export function isMovementAction(action: Action): boolean {
-  return (
-    action === Action.UP ||
-    action === Action.DOWN ||
-    action === Action.LEFT ||
-    action === Action.RIGHT
-  );
-}
-
-export function createControlsState(): ControlsState {
-  return { playerIdx: 0, actionIdx: 0, rebinding: false };
 }
 
 export function createTimerAccums(): TimerAccums {

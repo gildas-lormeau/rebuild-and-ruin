@@ -21,6 +21,7 @@
  */
 
 import type {
+  ControlsState,
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
@@ -29,7 +30,6 @@ import type { GameActionDeps } from "./input-dispatch.ts";
 import type { KeyBindings, SeedMode } from "./player-config.ts";
 import type { RendererInterface } from "./render-types.ts";
 import type {
-  ControlsState,
   GameOverFocus,
   GameState,
   LifeLostDialogState,

@@ -8,16 +8,18 @@
  */
 
 import type { CastleBuildState } from "./castle-build.ts";
-import type { PlayerController } from "./controller-interfaces.ts";
+import {
+  type ControlsState,
+  createControlsState,
+  type PlayerController,
+} from "./controller-interfaces.ts";
 import { loadSettings } from "./game-ui-settings.ts";
 import { type BannerState, createBannerState } from "./phase-banner.ts";
 import { type GameSettings, MAX_PLAYERS } from "./player-config.ts";
 import type { FrameData, PlayerStats, RenderOverlay } from "./render-types.ts";
 import {
   type BattleAnimState,
-  type ControlsState,
   createBattleAnimState,
-  createControlsState,
   createTimerAccums,
   type FrameContext,
   type GameState,

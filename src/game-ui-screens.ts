@@ -3,6 +3,7 @@
  * Used by both main.ts and online-client.ts.
  */
 
+import type { ControlsState } from "./controller-interfaces.ts";
 import { LOBBY_SKIP_LOCKOUT, LOBBY_SKIP_STEP } from "./game-constants.ts";
 import { createLobbyConfirmKeys, formatKeyHint } from "./game-helpers.ts";
 import { formatKeyName, saveSettings } from "./game-ui-settings.ts";
@@ -28,7 +29,6 @@ import {
 } from "./player-config.ts";
 import type { OptionEntry, RenderOverlay } from "./render-types.ts";
 import {
-  type ControlsState,
   type GameState,
   isInteractiveMode,
   type LobbyState,

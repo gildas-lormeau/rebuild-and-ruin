@@ -17,7 +17,12 @@ import {
 import { drawSprite } from "./render-sprites.ts";
 import { BANNER_HEIGHT_RATIO, rgb, STATUSBAR_HEIGHT } from "./render-theme.ts";
 import { drawTowers } from "./render-towers.ts";
-import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
+import type {
+  CastleData,
+  MapData,
+  RenderOverlay,
+  Viewport,
+} from "./render-types.ts";
 import {
   drawAnnouncement,
   drawBanner,
@@ -37,7 +42,6 @@ import {
   pxToTile,
   unpackTile,
 } from "./spatial.ts";
-import type { CastleData } from "./types.ts";
 
 interface TerrainImageCache {
   width: number;

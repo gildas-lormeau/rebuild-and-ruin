@@ -7,13 +7,26 @@ import type { Crosshair } from "./controller-interfaces.ts";
 import type { House, PixelPos, RGB, TilePos, Tower } from "./geometry-types.ts";
 import {
   type BurningPit,
+  type Cannon,
   CannonMode,
-  type CastleData,
   type GameOverFocus,
   type Grunt,
   type Impact,
   type LifeLostChoice,
 } from "./types.ts";
+
+/** A cannon captured by a propaganda balloon — fires for the balloon owner during battle. */
+export interface CastleData {
+  /** Wall tile positions encoded as row*GRID_COLS+col. */
+  walls: Set<number>;
+  /** Enclosed territory: grass tiles fully surrounded by walls (inverse flood-fill).
+   *  Encoded as row*GRID_COLS+col. Used for cannon eligibility, grunt blocking, and scoring. */
+  interior: ReadonlySet<number>;
+  /** Cannon positions (top-left of 2×2 or 3×3 super) with HP. */
+  cannons: Cannon[];
+  /** Player index (for color). */
+  playerId: number;
+}
 
 /** A single row in the options screen. */
 export interface OptionEntry {
