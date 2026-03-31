@@ -34,7 +34,7 @@ interface InitWaitingRoomDeps {
   requestFrame: () => void;
 }
 
-interface InitTowerSelectionDeps {
+interface EnterTowerSelectionDeps {
   state: GameState;
   isHost: boolean;
   myPlayerId: number;
@@ -150,7 +150,7 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
   requestFrame();
 }
 
-export function initTowerSelection(deps: InitTowerSelectionDeps): void {
+export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
   const {
     state,
     isHost,

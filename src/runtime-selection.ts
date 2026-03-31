@@ -38,7 +38,7 @@ import {
 import { TILE_SIZE } from "./grid.ts";
 import { snapshotEntities } from "./phase-banner.ts";
 import { updateSelectionOverlay as syncSelectionOverlayImpl } from "./render-composition.ts";
-import { initTowerSelection } from "./runtime-bootstrap.ts";
+import { enterTowerSelection as enterTowerSelectionImpl } from "./runtime-bootstrap.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { CameraSystem, RuntimeSelection } from "./runtime-types.ts";
 import {
@@ -127,7 +127,7 @@ export function createSelectionSystem(
 
   function enterTowerSelection(): void {
     resetSelectionState();
-    initTowerSelection({
+    enterTowerSelectionImpl({
       state: runtimeState.state,
       isHost: runtimeState.frameCtx.isHost,
       myPlayerId: runtimeState.frameCtx.myPlayerId,

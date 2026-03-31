@@ -14,7 +14,7 @@ export const SMALL_POCKET_MAX_SIZE = 4;
 /** Pockets this small or smaller block placement when no gaps are being filled (skill ≥3). */
 export const TINY_POCKET_MAX_SIZE = 2;
 /** Shared step discriminant values for all AI phase state machines. */
-export const Step = {
+export const STEP = {
   IDLE: "idle",
   BROWSING: "browsing",
   CONFIRMING: "confirming",

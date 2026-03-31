@@ -10,7 +10,7 @@
  *   ai-phase-battle.ts  — targeting, chain attacks, orbit & fire
  */
 
-import { Step } from "./ai-constants.ts";
+import { STEP } from "./ai-constants.ts";
 import {
   createBattlePhase,
   initBattle,
@@ -85,7 +85,7 @@ export class AiController extends BaseController implements AiAnimatable {
 
   getOrbitParams(): OrbitParams | null {
     const bp = this._battlePhase;
-    if (bp.state.step === Step.COUNTDOWN && bp.state.orbit) {
+    if (bp.state.step === STEP.COUNTDOWN && bp.state.orbit) {
       const orbit = bp.state.orbit;
       return {
         rx: orbit.rx,

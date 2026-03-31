@@ -5,7 +5,7 @@
  * readable and testable.
  */
 
-import { Step } from "./ai-constants.ts";
+import { STEP } from "./ai-constants.ts";
 import type { AiStrategy } from "./ai-strategy.ts";
 import { selectPlayerTower } from "./game-engine.ts";
 import type { GameState } from "./types.ts";
@@ -18,25 +18,25 @@ interface SelectionHost {
 }
 
 type AiSelectionState =
-  | { step: typeof Step.IDLE }
+  | { step: typeof STEP.IDLE }
   | {
-      step: typeof Step.BROWSING;
+      step: typeof STEP.BROWSING;
       queue: number[];
       dwell: number;
       confirmDelay: number;
     }
-  | { step: typeof Step.CONFIRMING; timer: number };
+  | { step: typeof STEP.CONFIRMING; timer: number };
 
 interface SelectionPhase {
   state: AiSelectionState;
 }
 
 export function createSelectionPhase(): SelectionPhase {
-  return { state: { step: Step.IDLE } };
+  return { state: { step: STEP.IDLE } };
 }
 
 export function resetSelectionPhase(phase: SelectionPhase): void {
-  phase.state = { step: Step.IDLE };
+  phase.state = { step: STEP.IDLE };
 }
 
 /** Pick a tower and begin the browse → confirm animation. */
@@ -66,7 +66,7 @@ export function initSelection(
   if (chosenTower) queue.push(chosenTower.index);
 
   phase.state = {
-    step: Step.BROWSING,
+    step: STEP.BROWSING,
     queue,
     dwell: host.scaledDelay(0.8, 0.6),
     confirmDelay: host.scaledDelay(1.0, 0.6),
@@ -87,9 +87,9 @@ export function tickSelection(
   state?: GameState,
 ): boolean {
   switch (phase.state.step) {
-    case Step.IDLE:
+    case STEP.IDLE:
       return false;
-    case Step.BROWSING: {
+    case STEP.BROWSING: {
       const bs = phase.state;
       bs.dwell -= dt;
       if (bs.dwell <= 0 && bs.queue.length > 1) {
@@ -106,11 +106,11 @@ export function tickSelection(
         return false;
       }
       if (bs.queue.length <= 1) {
-        phase.state = { step: Step.CONFIRMING, timer: bs.confirmDelay };
+        phase.state = { step: STEP.CONFIRMING, timer: bs.confirmDelay };
       }
       return false;
     }
-    case Step.CONFIRMING: {
+    case STEP.CONFIRMING: {
       phase.state.timer -= dt;
       return phase.state.timer <= 0;
     }

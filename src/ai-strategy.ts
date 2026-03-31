@@ -45,7 +45,7 @@ import {
   type Player,
 } from "./types.ts";
 
-export type ChainType = (typeof Chain)[keyof typeof Chain];
+export type ChainType = (typeof CHAIN)[keyof typeof CHAIN];
 
 /** Result of planBattle — tells the controller what chain attack to execute. */
 export interface BattlePlan {
@@ -241,7 +241,7 @@ const ARCHETYPE_PROFILES: Record<ArchetypeType, ArchetypeProfile> = {
 };
 const ARCHETYPE_LIST = Object.values(Archetype);
 /** The kind of chain attack the AI executes during battle. */
-export const Chain = {
+export const CHAIN = {
   WALL: "wall",
   GRUNT: "grunt",
   POCKET: "pocket",
@@ -415,7 +415,7 @@ export class DefaultStrategy implements AiStrategy {
 
     // Chain attacks
     let chainTargets: TilePos[] | null = null;
-    let chainType: ChainType = Chain.WALL;
+    let chainType: ChainType = CHAIN.WALL;
 
     const readyCount = countUsableCannons(state, playerId);
 
@@ -429,7 +429,7 @@ export class DefaultStrategy implements AiStrategy {
       );
       if (gruntTargets) {
         chainTargets = gruntTargets;
-        chainType = Chain.GRUNT;
+        chainType = CHAIN.GRUNT;
       }
     }
 
@@ -452,7 +452,7 @@ export class DefaultStrategy implements AiStrategy {
       );
       if (charityTargets) {
         chainTargets = charityTargets;
-        chainType = Chain.GRUNT;
+        chainType = CHAIN.GRUNT;
       }
     }
 
@@ -461,7 +461,7 @@ export class DefaultStrategy implements AiStrategy {
       const pocketTargets = planPocketDestruction(state, playerId);
       if (pocketTargets) {
         chainTargets = pocketTargets;
-        chainType = Chain.POCKET;
+        chainType = CHAIN.POCKET;
       }
     }
 
@@ -477,7 +477,7 @@ export class DefaultStrategy implements AiStrategy {
       this.rng.bool(demolitionProb)
     ) {
       chainTargets = planWallDemolition(state, playerId, readyCount, this.rng);
-      chainType = Chain.WALL;
+      chainType = CHAIN.WALL;
     }
 
     // Super attack — controlled by battleTactics
@@ -492,7 +492,7 @@ export class DefaultStrategy implements AiStrategy {
       this.rng.bool(superAtkProb)
     ) {
       chainTargets = planSuperAttack(state, playerId, readyCount, this.rng);
-      chainType = Chain.WALL;
+      chainType = CHAIN.WALL;
     }
 
     return { chainTargets, chainType };

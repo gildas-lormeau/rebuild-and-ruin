@@ -6,7 +6,7 @@
  * readable and testable.
  */
 
-import { Step } from "./ai-constants.ts";
+import { STEP } from "./ai-constants.ts";
 import type { AiStrategy, CannonPlacement } from "./ai-strategy.ts";
 import { canPlaceCannon, placeCannon } from "./cannon-system.ts";
 import type { CannonPlacementPreview } from "./controller-interfaces.ts";
@@ -37,11 +37,11 @@ interface CannonHost {
 }
 
 type CannonState =
-  | { step: typeof Step.IDLE }
-  | { step: typeof Step.THINKING; timer: number }
-  | { step: typeof Step.MODE_SWITCHING; timer: number }
-  | { step: typeof Step.MOVING }
-  | { step: typeof Step.DWELLING; timer: number };
+  | { step: typeof STEP.IDLE }
+  | { step: typeof STEP.THINKING; timer: number }
+  | { step: typeof STEP.MODE_SWITCHING; timer: number }
+  | { step: typeof STEP.MOVING }
+  | { step: typeof STEP.DWELLING; timer: number };
 
 interface CannonPhase {
   state: CannonState;
@@ -56,7 +56,7 @@ export const CANNON_CURSOR_SPEEDS = [3, 4, 5] as const;
 
 export function createCannonPhase(): CannonPhase {
   return {
-    state: { step: Step.IDLE },
+    state: { step: STEP.IDLE },
     queue: [],
     maxSlots: 0,
     displayedMode: undefined,
@@ -64,7 +64,7 @@ export function createCannonPhase(): CannonPhase {
 }
 
 export function resetCannonPhase(phase: CannonPhase): void {
-  phase.state = { step: Step.IDLE };
+  phase.state = { step: STEP.IDLE };
   phase.queue = [];
   phase.maxSlots = 0;
 }
@@ -82,13 +82,13 @@ export function initCannon(
   phase.maxSlots = maxSlots;
   phase.displayedMode = undefined;
   phase.state = {
-    step: Step.THINKING,
+    step: STEP.THINKING,
     timer: host.scaledDelay(0.3, 0.4),
   };
 }
 
 export function isCannonDone(phase: CannonPhase): boolean {
-  return phase.queue.length === 0 && phase.state.step === Step.IDLE;
+  return phase.queue.length === 0 && phase.state.step === STEP.IDLE;
 }
 
 /** Place all remaining queued cannons instantly (timer expired). */
@@ -107,7 +107,7 @@ export function flushCannon(
     }
   }
   phase.queue = [];
-  phase.state = { step: Step.IDLE };
+  phase.state = { step: STEP.IDLE };
 }
 
 export function tickCannon(
@@ -120,14 +120,14 @@ export function tickCannon(
   if (!isPlayerAlive(player)) return null;
 
   switch (phase.state.step) {
-    case Step.IDLE:
+    case STEP.IDLE:
       return null;
 
-    case Step.THINKING: {
+    case STEP.THINKING: {
       phase.state.timer -= dt;
       if (phase.state.timer > 0) return null;
       if (phase.queue.length === 0) {
-        phase.state = { step: Step.IDLE };
+        phase.state = { step: STEP.IDLE };
         return null;
       }
       // Check if mode switch is needed
@@ -135,7 +135,7 @@ export function tickCannon(
       if (target.mode !== phase.displayedMode) {
         phase.displayedMode = target.mode;
         phase.state = {
-          step: Step.MODE_SWITCHING,
+          step: STEP.MODE_SWITCHING,
           timer: host.scaledDelay(0.25, 0.2),
         };
         return phantomAt(
@@ -146,14 +146,14 @@ export function tickCannon(
           false,
         );
       }
-      phase.state = { step: Step.MOVING };
+      phase.state = { step: STEP.MOVING };
       return tickMoving(host, phase, state, player, dt);
     }
 
-    case Step.MODE_SWITCHING: {
+    case STEP.MODE_SWITCHING: {
       phase.state.timer -= dt;
       if (phase.state.timer <= 0) {
-        phase.state = { step: Step.MOVING };
+        phase.state = { step: STEP.MOVING };
       }
       return phantomAt(
         host.playerId,
@@ -164,10 +164,10 @@ export function tickCannon(
       );
     }
 
-    case Step.MOVING:
+    case STEP.MOVING:
       return tickMoving(host, phase, state, player, dt);
 
-    case Step.DWELLING: {
+    case STEP.DWELLING: {
       phase.state.timer -= dt;
       if (phase.state.timer <= 0) {
         const target = phase.queue[0]!;
@@ -184,7 +184,7 @@ export function tickCannon(
         }
         phase.queue.shift();
         phase.state = {
-          step: Step.THINKING,
+          step: STEP.THINKING,
           timer: host.scaledDelay(0.3, 0.4),
         };
         return null;
@@ -215,7 +215,7 @@ function tickMoving(
     )
   ) {
     phase.state = {
-      step: Step.DWELLING,
+      step: STEP.DWELLING,
       timer: host.scaledDelay(0.2, 0.3),
     };
   }
