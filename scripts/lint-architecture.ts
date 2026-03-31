@@ -32,13 +32,10 @@ const EXEMPT = new Set([
   "runtime-bootstrap.ts",
   "runtime-host-phase-ticks.ts", // pure tick functions, not a factory sub-system
   "runtime-host-battle-ticks.ts", // pure tick functions, not a factory sub-system
-  "runtime-online-stores.ts", // mutable singletons, not a factory sub-system
-  "runtime-online-game.ts", // online orchestration, not a factory sub-system
-  "runtime-online-deps.ts", // online orchestration, not a factory sub-system
-  "runtime-online-promote.ts", // online orchestration, not a factory sub-system
-  "runtime-online-ws.ts", // online orchestration, not a factory sub-system
-  "runtime-online-lobby.ts", // online orchestration, not a factory sub-system
 ]);
+
+/** Prefixes for runtime-layer file families that are not sub-systems. */
+const EXEMPT_PREFIXES = ["runtime-online-"];
 
 /** Sub-system files may import from these runtime-layer files. */
 const ALLOWED_RUNTIME_IMPORTS = new Set([
@@ -56,7 +53,7 @@ interface Violation {
 
 function getSubSystemFiles(): string[] {
   return readdirSync(SRC)
-    .filter((f) => f.startsWith("runtime-") && f.endsWith(".ts") && !EXEMPT.has(f))
+    .filter((f) => f.startsWith("runtime-") && f.endsWith(".ts") && !EXEMPT.has(f) && !EXEMPT_PREFIXES.some((p) => f.startsWith(p)))
     .sort();
 }
 
