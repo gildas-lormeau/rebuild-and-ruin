@@ -7,20 +7,31 @@
 
 import { initLobbyUi } from "./online-lobby-ui.ts";
 import { loadAtlas } from "./runtime-bootstrap.ts";
-import { pageOnline } from "./runtime-online-game.ts";
+import {
+  btnCreateConfirm,
+  btnJoinConfirm,
+  createError,
+  createHp,
+  createRounds,
+  createSeed,
+  createWait,
+  joinCodeInput,
+  joinError,
+  pageOnline,
+} from "./runtime-online-dom.ts";
 import { send, session } from "./runtime-online-stores.ts";
 import { connect } from "./runtime-online-ws.ts";
 
 const lobbyElements = {
-  btnCreateConfirm: document.getElementById("btn-create-confirm")!,
-  btnJoinConfirm: document.getElementById("btn-join-confirm")!,
-  rounds: document.getElementById("create-rounds") as HTMLSelectElement,
-  hp: document.getElementById("create-hp") as HTMLSelectElement,
-  wait: document.getElementById("create-wait") as HTMLSelectElement,
-  seed: document.getElementById("create-seed") as HTMLInputElement,
-  joinCodeInput: document.getElementById("join-code") as HTMLInputElement,
-  createError: document.getElementById("create-error")!,
-  joinError: document.getElementById("join-error")!,
+  btnCreateConfirm,
+  btnJoinConfirm,
+  rounds: createRounds,
+  hp: createHp,
+  wait: createWait,
+  seed: createSeed,
+  joinCodeInput,
+  createError,
+  joinError,
 };
 const initDomLobby = () =>
   initLobbyUi({

@@ -25,6 +25,7 @@ import {
 import { handleServerIncrementalMessage } from "./online-server-events.ts";
 import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
 import { PLAYER_NAMES } from "./player-config.ts";
+import { createError, joinError } from "./runtime-online-dom.ts";
 import {
   initFromServer,
   restoreFullState,
@@ -128,8 +129,8 @@ function buildUiDeps() {
       watcher.migrationText = text;
       watcher.migrationTimer = MIGRATION_ANNOUNCEMENT_DURATION;
     },
-    createErrorEl: document.getElementById("create-error")!,
-    joinErrorEl: document.getElementById("join-error")!,
+    createErrorEl: createError,
+    joinErrorEl: joinError,
   };
 }
 

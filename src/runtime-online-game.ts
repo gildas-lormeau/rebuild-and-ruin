@@ -1,8 +1,8 @@
 /**
  * Online runtime wiring.
  *
- * Creates the GameRuntime with all online-specific callbacks, owns the
- * DOM canvas singletons, and defines functions that close over `runtime`.
+ * Creates the GameRuntime with all online-specific callbacks and defines
+ * functions that close over `runtime`.
  *
  * The TransitionContext and networking config are assembled from focused
  * builder functions (one per concern) to keep each section small and
@@ -66,6 +66,7 @@ import {
   createCanvasRenderer,
   initWaitingRoom,
 } from "./runtime-bootstrap.ts";
+import { canvas, pageOnline, roomCodeOverlay } from "./runtime-online-dom.ts";
 import {
   clearReconnect,
   dedup,
@@ -79,11 +80,8 @@ import {
 } from "./runtime-online-stores.ts";
 import { LifeLostChoice, Mode } from "./types.ts";
 
-// ── DOM singletons ──────────────────────────────────────────────────
-const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+// ── DOM singletons (from centralized boundary) ─────────────────────
 const renderer = createCanvasRenderer(canvas);
-const roomCodeOverlay = document.getElementById("room-code-overlay")!;
-export const pageOnline = document.getElementById("page-online")!;
 // ── Assemble transition context ─────────────────────────────────────
 export const transitionCtx: TransitionContext = {
   getState: () => runtime.runtimeState.state,

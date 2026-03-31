@@ -173,6 +173,7 @@
       "src/runtime-bootstrap.ts",
       "src/runtime.ts",
       "src/runtime-headless.ts",
+      "src/runtime-online-dom.ts",
       "src/runtime-online-stores.ts",
       "src/runtime-online-game.ts",
       "src/runtime-online-deps.ts",
