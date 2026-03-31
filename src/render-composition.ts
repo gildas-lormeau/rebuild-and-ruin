@@ -6,7 +6,10 @@
  * object for readability at the call site.
  */
 
-import { LIFE_LOST_MAX_TIMER } from "./game-constants.ts";
+import {
+  ENCLOSURE_REVEAL_DELAY_MS,
+  LIFE_LOST_MAX_TIMER,
+} from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import type { BannerState } from "./phase-banner.ts";
@@ -66,6 +69,10 @@ const GAMEOVER_PANEL_W_RATIO = 0.65;
 const GEAR_X = GRID_COLS * TILE_SIZE - 32;
 const GEAR_Y = 4;
 const GEAR_SIZE = 28;
+/** Per-player snapshot of previous interior, used to detect newly enclosed tiles. */
+const prevInterior = new Map<number, ReadonlySet<number>>();
+/** Tiles waiting to be revealed after ENCLOSURE_REVEAL_DELAY_MS elapses. */
+const pendingReveal = new Map<number, number>();
 export const GAMEOVER_ROW_H = 14;
 export const GAMEOVER_HEADER_H = 36;
 export const GAMEOVER_BTN_H = 20;
@@ -505,14 +512,40 @@ function buildCastleOverlay(
   state: GameState,
   wallsBeforeSweep?: readonly Set<number>[],
 ): CastleData[] {
+  const now = performance.now();
+  for (const [key, revealAt] of pendingReveal) {
+    if (now >= revealAt) pendingReveal.delete(key);
+  }
+
   return state.players
     .filter((player) => player.castle)
-    .map((player) => ({
-      walls: wallsBeforeSweep?.[player.id] ?? player.walls,
-      interior: player.interior,
-      cannons: player.cannons,
-      playerId: player.id,
-    }));
+    .map((player) => {
+      const cached = prevInterior.get(player.id);
+      if (cached && cached !== player.interior) {
+        for (const key of player.interior) {
+          if (!cached.has(key)) {
+            pendingReveal.set(key, now + ENCLOSURE_REVEAL_DELAY_MS);
+          }
+        }
+      }
+      prevInterior.set(player.id, player.interior);
+
+      let displayInterior: ReadonlySet<number> = player.interior;
+      if (pendingReveal.size > 0) {
+        const filtered = new Set<number>();
+        for (const key of player.interior) {
+          if (!pendingReveal.has(key)) filtered.add(key);
+        }
+        displayInterior = filtered;
+      }
+
+      return {
+        walls: wallsBeforeSweep?.[player.id] ?? player.walls,
+        interior: displayInterior,
+        cannons: player.cannons,
+        playerId: player.id,
+      };
+    });
 }
 
 function buildHomeTowersByIndex(state: GameState): Map<number, number> {
