@@ -7,7 +7,6 @@
  * so they live in a shared layer to avoid pulling online code into the runtime chunk.
  */
 
-import { type GameMessage, MESSAGE } from "../server/protocol.ts";
 import { CannonMode } from "./types.ts";
 
 /** Cannon phantom sent over the network. `valid` controls placement coloring (green/red). */
@@ -78,28 +77,4 @@ export function cannonPhantomKey(phantom: CannonPhantom): string {
  *  Same pattern as cannonPhantomKey — more complex key due to variable-length offsets. */
 export function piecePhantomKey(phantom: PiecePhantom): string {
   return `${phantom.row},${phantom.col},${phantom.offsets.map((offset) => offset.join(":")).join(";")}`;
-}
-
-/** Create a CANNON_FIRED message from a cannonball's launch data. */
-export function createCannonFiredMsg(ball: {
-  playerId: number;
-  cannonIdx: number;
-  startX: number;
-  startY: number;
-  targetX: number;
-  targetY: number;
-  speed: number;
-  incendiary?: boolean;
-}): GameMessage {
-  return {
-    type: MESSAGE.CANNON_FIRED,
-    playerId: ball.playerId,
-    cannonIdx: ball.cannonIdx,
-    startX: ball.startX,
-    startY: ball.startY,
-    targetX: ball.targetX,
-    targetY: ball.targetY,
-    speed: ball.speed,
-    incendiary: ball.incendiary ? true : undefined,
-  };
 }

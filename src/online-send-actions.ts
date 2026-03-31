@@ -1,9 +1,9 @@
 import { type GameMessage, MESSAGE } from "../server/protocol.ts";
+import { createCannonFiredMsg } from "./battle-system.ts";
 import type {
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
-import { createCannonFiredMsg } from "./phantom-types.ts";
 import type { GameState } from "./types.ts";
 
 export function tryPlacePieceAndSend(

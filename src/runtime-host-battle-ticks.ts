@@ -8,12 +8,14 @@
  */
 
 import type { GameMessage } from "../server/protocol.ts";
-import { getCountdownAnnouncement } from "./battle-system.ts";
+import {
+  createCannonFiredMsg,
+  getCountdownAnnouncement,
+} from "./battle-system.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import type { TilePos } from "./geometry-types.ts";
 import type { WatcherTimingState } from "./online-types.ts";
-import { createCannonFiredMsg } from "./phantom-types.ts";
 import { BANNER_BATTLE, type BannerShow } from "./phase-banner.ts";
 import {
   BATTLE_START_STEPS,

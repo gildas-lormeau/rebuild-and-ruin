@@ -2,7 +2,7 @@
  * Battle system — cannon firing, cannonball physics, impacts, and balloon capture.
  */
 
-import { MESSAGE } from "../server/protocol.ts";
+import { type GameMessage, MESSAGE } from "../server/protocol.ts";
 import {
   deletePlayerWallBattle,
   filterActiveEnemies,
@@ -486,6 +486,30 @@ export function cleanupBalloonHitTrackingAfterBattle(state: GameState): void {
   for (const [, hit] of state.balloonHits) {
     hit.capturerIds = [];
   }
+}
+
+/** Create a CANNON_FIRED message from a cannonball's launch data. */
+export function createCannonFiredMsg(ball: {
+  playerId: number;
+  cannonIdx: number;
+  startX: number;
+  startY: number;
+  targetX: number;
+  targetY: number;
+  speed: number;
+  incendiary?: boolean;
+}): GameMessage {
+  return {
+    type: MESSAGE.CANNON_FIRED,
+    playerId: ball.playerId,
+    cannonIdx: ball.cannonIdx,
+    startX: ball.startX,
+    startY: ball.startY,
+    targetX: ball.targetX,
+    targetY: ball.targetY,
+    speed: ball.speed,
+    incendiary: ball.incendiary ? true : undefined,
+  };
 }
 
 function fireCapturedCannon(
