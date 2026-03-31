@@ -173,20 +173,15 @@
     ]
   },
   {
-    "name": "server",
+    "name": "entry points",
     "files": [
+      "src/entry.ts",
+      "src/main.ts",
+      "src/online-client.ts",
       "server/send-utils.ts",
       "server/game-room.ts",
       "server/room-manager.ts",
       "server/server.ts"
-    ]
-  },
-  {
-    "name": "application roots",
-    "files": [
-      "src/entry.ts",
-      "src/main.ts",
-      "src/online-client.ts"
     ]
   }
 ]

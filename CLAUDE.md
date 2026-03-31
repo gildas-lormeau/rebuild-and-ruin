@@ -20,8 +20,8 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 
 ## Architecture
 
-### Module layers (15 groups, `.import-layers.json`)
-L0 leaf utils → L1 geometry → L2 core types & state → L3 shared interfaces & theme → L4 game logic → L5 AI strategy → L6 controllers → L7 input → L8 render → L9 game UI → L10 online infrastructure → L11 online logic → L12 runtime → L13 server → L14 application roots. Imports must flow downward.
+### Module layers (14 groups, `.import-layers.json`)
+L0 leaf utils → L1 geometry → L2 core types & state → L3 shared interfaces & theme → L4 game logic → L5 AI strategy → L6 controllers → L7 input → L8 render → L9 game UI → L10 online infrastructure → L11 online logic → L12 runtime → L13 entry points (client & server). Imports must flow downward.
 
 ### Phase flow
 CASTLE_SELECT → WALL_BUILD → CANNON_PLACE → BATTLE → loop (+ CASTLE_RESELECT when a player loses lives)

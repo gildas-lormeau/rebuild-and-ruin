@@ -54,7 +54,7 @@ The layer map file. Committed to the repo. An array of named groups — position
 
 **Rule: imports must flow downward.** A file in group N can import from any group 0..N. Importing from group N+1 or higher is a violation.
 
-**Current architecture (15 groups, 0 violations, 115 files incl. server):**
+**Current architecture (14 groups, 0 violations, 115 files incl. server):**
 
 ```
  0  leaf utilities              canvas-layout, grid, platform, rng, router
@@ -84,8 +84,7 @@ The layer map file. Committed to the repo. An array of named groups — position
                                 runtime-online-stores, runtime, runtime-headless,
                                 online-client-runtime, online-client-deps, online-client-promote,
                                 online-client-ws, online-client-lobby
-13  server                      send-utils, game-room, room-manager, server
-14  application roots           entry, main, online-client
+13  entry points                entry, main, online-client, send-utils, game-room, room-manager, server
 ```
 
 When a new file is added but not yet in `.import-layers.json`, `--check` warns and treats it as layer 0 (maximally strict). Regenerate to pick up new files, then move them to the right group.
