@@ -75,9 +75,9 @@ These are sent by the host and relayed to all other clients. They carry full sta
 | `init` | Game start | `seed`, `playerCount`, `settings` (`battleLength`, `cannonMaxHp`, `buildTimer`, `cannonPlaceTimer`, `firstRoundCannons`) |
 | `select_start` | Tower selection begins | `timer` |
 | `castle_walls` | Castle construction animation | `plans[]` (playerId + ordered wall tiles) |
-| `cannon_start` | Cannon placement begins | `timer`, `limits[]`, `players[]`, `grunts[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `houses[]` |
+| `cannon_start` | Cannon placement begins | `timer`, `limits[]`, `players[]`, `grunts[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `housesAlive[]` |
 | `battle_start` | Battle begins | `players[]`, `grunts[]`, `capturedCannons[]`, `burningPits[]`, `towerAlive[]`, `flights[]?` |
-| `build_start` | Build/repair phase begins | `round`, `timer`, `players[]`, `houses[]`, `grunts[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `rngSeed` |
+| `build_start` | Build/repair phase begins | `round`, `timer`, `players[]`, `housesAlive[]`, `grunts[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `rngSeed` |
 | `build_end` | Build phase ends | `needsReselect[]`, `eliminated[]`, `scores[]`, `players[]` |
 | `game_over` | Game ends | `winner`, `scores[]` |
 
@@ -89,14 +89,14 @@ The `players[]` array in checkpoint messages uses `SerializedPlayer` (`src/check
 |-------|------|-------------|
 | `id` | `number` | Player index |
 | `walls` | `number[]` | Wall tile keys (row×COLS+col) |
-| `interior` | `number[]` | Enclosed territory tile keys |
 | `cannons` | `{row, col, hp, mode, facing?}[]` | Cannon positions and state |
-| `ownedTowerIndices` | `number[]` | Indices into `map.towers` |
 | `homeTowerIdx` | `number \| null` | Home tower index |
 | `castleWallTiles` | `number[]?` | Castle wall tiles protected from debris sweep (includes clumsy extras) |
 | `lives` | `number` | Lives remaining |
 | `eliminated` | `boolean` | Whether player is out |
 | `score` | `number` | Accumulated score |
+
+`interior` and `ownedTowers` are recomputed from `walls` on the receiver (flood-fill + tower enclosure check). House positions are deterministic from the seed — only `housesAlive: boolean[]` is sent.
 
 ### Host → All (Incremental Events)
 

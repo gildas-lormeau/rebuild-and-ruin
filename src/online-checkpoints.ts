@@ -10,7 +10,7 @@ import { BATTLE_TIMER } from "./game-constants.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import {
   applyGruntsCheckpoint,
-  applyHousesCheckpoint,
+  applyHousesAlive,
   applyPlayersCheckpoint,
 } from "./online-serialize.ts";
 import { towerCenterPx } from "./spatial.ts";
@@ -54,7 +54,7 @@ export function applyCannonStartCheckpoint(
 ): void {
   applyPlayersCheckpoint(deps.state, data.players);
   applyGruntsCheckpoint(deps.state, data.grunts);
-  applyHousesCheckpoint(deps.state, data.houses);
+  applyHousesAlive(deps.state, data.housesAlive);
   deps.state.bonusSquares = data.bonusSquares;
   deps.state.towerAlive = data.towerAlive;
   deps.state.burningPits = data.burningPits;
@@ -112,7 +112,7 @@ export function applyBuildStartCheckpoint(
 ): void {
   applyPlayersCheckpoint(deps.state, data.players);
   applyGruntsCheckpoint(deps.state, data.grunts);
-  applyHousesCheckpoint(deps.state, data.houses);
+  applyHousesAlive(deps.state, data.housesAlive);
   deps.state.bonusSquares = data.bonusSquares;
   deps.state.towerAlive = data.towerAlive;
   deps.state.burningPits = data.burningPits;

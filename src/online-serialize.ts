@@ -4,6 +4,7 @@
  */
 
 import { type FullStateMessage, MESSAGE } from "../server/protocol.ts";
+import { recomputeTerritoryFromWalls } from "./build-system.ts";
 import { createCastle } from "./castle-generation.ts";
 import type { SerializedGrunt, SerializedPlayer } from "./checkpoint-data.ts";
 import { setPhase } from "./game-engine.ts";
@@ -13,7 +14,6 @@ import { NO_WINNER_NAME } from "./player-config.ts";
 import { Rng } from "./rng.ts";
 import {
   type BalloonFlight,
-  brandFreshInterior,
   type Cannonball,
   type GameState,
   Phase,
@@ -29,23 +29,13 @@ interface FullStateResult {
 /** Returned when validation fails — no state was mutated. */
 type FullStateApplyResult = FullStateResult | null;
 
-export function applyHousesCheckpoint(
+/** Update house alive status from a boolean array (positions are deterministic from seed). */
+export function applyHousesAlive(
   state: GameState,
-  serialized: readonly {
-    row: number;
-    col: number;
-    zone: number;
-    alive: boolean;
-  }[],
+  alive: readonly boolean[],
 ): void {
-  state.map.houses.length = 0;
-  for (const h of serialized) {
-    state.map.houses.push({
-      row: h.row,
-      col: h.col,
-      zone: h.zone,
-      alive: h.alive,
-    });
+  for (let i = 0; i < state.map.houses.length && i < alive.length; i++) {
+    state.map.houses[i]!.alive = alive[i]!;
   }
 }
 
@@ -55,7 +45,7 @@ export function createBuildStartMessage(state: GameState) {
     round: state.round,
     timer: state.timer,
     players: serializePlayers(state),
-    houses: serializeHouses(state),
+    housesAlive: state.map.houses.map((h) => h.alive),
     grunts: serializeGrunts(state),
     bonusSquares: serializeBonusSquares(state),
     towerAlive: [...state.towerAlive],
@@ -74,7 +64,7 @@ export function createCannonStartMessage(state: GameState) {
     bonusSquares: serializeBonusSquares(state),
     towerAlive: [...state.towerAlive],
     burningPits: serializeBurningPits(state),
-    houses: serializeHouses(state),
+    housesAlive: state.map.houses.map((h) => h.alive),
   };
 }
 
@@ -180,7 +170,6 @@ export function serializePlayers(state: GameState) {
   return state.players.map((player) => ({
     id: player.id,
     walls: [...player.walls],
-    interior: [...player.interior],
     cannons: player.cannons.map((c) => ({
       row: c.row,
       col: c.col,
@@ -188,7 +177,6 @@ export function serializePlayers(state: GameState) {
       mode: c.mode,
       facing: c.facing,
     })),
-    ownedTowerIndices: player.ownedTowers.map((tower) => tower.index),
     homeTowerIdx: player.homeTower?.index ?? null,
     castleWallTiles: [...player.castleWallTiles],
     lives: player.lives,
@@ -274,7 +262,6 @@ export function applyPlayersCheckpoint(
     if (!player) continue;
 
     player.walls = new Set(sp.walls);
-    player.interior = brandFreshInterior(new Set(sp.interior));
     player.cannons = sp.cannons.map((c) => ({
       row: c.row,
       col: c.col,
@@ -282,9 +269,6 @@ export function applyPlayersCheckpoint(
       mode: toCannonMode(c.mode),
       facing: c.facing ?? 0,
     }));
-    player.ownedTowers = sp.ownedTowerIndices
-      .filter((i) => i >= 0 && i < state.map.towers.length)
-      .map((i) => state.map.towers[i]!);
     player.homeTower =
       sp.homeTowerIdx !== null &&
       sp.homeTowerIdx >= 0 &&
@@ -299,6 +283,8 @@ export function applyPlayersCheckpoint(
     player.castle = player.homeTower
       ? createCastle(player.homeTower, state.map.tiles, state.map.towers)
       : null;
+    // Recompute interior + ownedTowers from walls (deterministic)
+    recomputeTerritoryFromWalls(state, player);
   }
 }
 
@@ -359,15 +345,9 @@ function validateFullState(
     if (sp.id < 0 || sp.id >= pc) return `player id ${sp.id} out of bounds`;
     if (sp.walls.some((tile) => tile < 0 || tile >= TILE_COUNT))
       return `player ${sp.id} wall tile out of bounds`;
-    if (sp.interior.some((tile) => tile < 0 || tile >= TILE_COUNT))
-      return `player ${sp.id} interior tile out of bounds`;
     for (const c of sp.cannons) {
       if (c.row < 0 || c.row >= GRID_ROWS || c.col < 0 || c.col >= GRID_COLS)
         return `player ${sp.id} cannon at ${c.row},${c.col} out of bounds`;
-    }
-    for (const ti of sp.ownedTowerIndices) {
-      if (ti < 0 || ti >= tc)
-        return `player ${sp.id} tower index ${ti} out of bounds`;
     }
     if (
       sp.homeTowerIdx !== null &&
@@ -423,15 +403,6 @@ function gruntWireFields(grunt: SerializedGrunt): SerializedGrunt {
     wallAttack: grunt.wallAttack,
     facing: grunt.facing,
   };
-}
-
-function serializeHouses(state: GameState) {
-  return state.map.houses.map((h) => ({
-    row: h.row,
-    col: h.col,
-    zone: h.zone,
-    alive: h.alive,
-  }));
 }
 
 function serializeBurningPits(state: GameState) {

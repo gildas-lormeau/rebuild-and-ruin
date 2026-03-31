@@ -250,6 +250,16 @@ export function removeBonusSquaresCoveredByWalls(
   );
 }
 
+/** Recompute interior and ownedTowers from walls — no side effects.
+ *  Used by checkpoint restore where grunts/houses/bonus are already correct. */
+export function recomputeTerritoryFromWalls(
+  state: GameState,
+  player: Player,
+): void {
+  recomputeInterior(state, player);
+  updateOwnedTowers(state, player);
+}
+
 /** Collect valid grass tiles for bonus square placement in a single zone. */
 function findBonusSpawnCandidates(
   tiles: readonly (readonly Tile[])[],

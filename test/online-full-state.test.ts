@@ -428,15 +428,6 @@ test("full-state rejects non-finite rngState", () => {
   assert(result === null, "should reject NaN rngState");
 });
 
-test("full-state rejects out-of-bounds tower index in player", () => {
-  const { host, watcher } = createPair(42);
-  const msg = createFullStateMessage(host.state, 1);
-  msg.players[0]!.ownedTowerIndices.push(9999);
-
-  const result = restoreFullStateSnapshot(watcher.state, msg);
-  assert(result === null, "should reject out-of-bounds tower index");
-});
-
 test("full-state rejects out-of-bounds grunt position", () => {
   const { host, watcher } = createPair(42);
   const msg = createFullStateMessage(host.state, 1);

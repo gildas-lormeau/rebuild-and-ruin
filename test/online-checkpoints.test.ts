@@ -293,19 +293,21 @@ test("build-start checkpoint resets grunt accumulator", () => {
   assert(deps.accum.grunt === 0, `grunt accum should be reset to 0, got ${deps.accum.grunt}`);
 });
 
-test("build-start checkpoint preserves houses", () => {
+test("build-start checkpoint preserves house alive status", () => {
   const host = createHeadlessRuntime(77);
-  const hostHouseCount = host.state.map.houses.length;
+  // Kill some houses on host
+  host.state.map.houses[0]!.alive = false;
+  host.state.map.houses[2]!.alive = false;
   const msg = createBuildStartMessage(host.state);
 
   const watcher = createHeadlessRuntime(77);
-  // Clear watcher houses to verify they're restored
-  watcher.state.map.houses.length = 0;
   const deps = makeDeps(watcher);
   applyBuildStartCheckpoint(msg, deps);
 
-  assert(watcher.state.map.houses.length === hostHouseCount,
-    `house count: expected ${hostHouseCount}, got ${watcher.state.map.houses.length}`);
+  // Positions come from seed (identical), alive status comes from checkpoint
+  assert(!watcher.state.map.houses[0]!.alive, "house 0 should be dead");
+  assert(watcher.state.map.houses[1]!.alive, "house 1 should be alive");
+  assert(!watcher.state.map.houses[2]!.alive, "house 2 should be dead");
 });
 
 // ---------------------------------------------------------------------------

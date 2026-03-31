@@ -36,22 +36,13 @@ export interface SerializedGrunt {
 export interface SerializedPlayer {
   id: number;
   walls: number[];
-  interior: number[];
   cannons: SerializedCannon[];
-  ownedTowerIndices: number[];
   homeTowerIdx: number | null;
   /** Castle wall tiles protected from debris sweep (includes clumsy extras). */
   castleWallTiles?: number[];
   lives: number;
   eliminated: boolean;
   score: number;
-}
-
-export interface SerializedHouse {
-  row: number;
-  col: number;
-  zone: number;
-  alive: boolean;
 }
 
 export interface SerializedBurningPit {
@@ -75,7 +66,7 @@ export interface CannonStartData {
   bonusSquares: SerializedBonusSquare[];
   towerAlive: boolean[];
   burningPits: SerializedBurningPit[];
-  houses: SerializedHouse[];
+  housesAlive: boolean[];
 }
 
 /** Data needed to sync state at battle start. */
@@ -98,7 +89,7 @@ export interface BuildStartData {
   round: number;
   timer: number;
   players: SerializedPlayer[];
-  houses: SerializedHouse[];
+  housesAlive: boolean[];
   grunts: SerializedGrunt[];
   bonusSquares: SerializedBonusSquare[];
   towerAlive: boolean[];
