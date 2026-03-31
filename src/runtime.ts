@@ -79,10 +79,14 @@ import {
   safeState,
 } from "./runtime-state.ts";
 import { updateTouchControls } from "./runtime-touch-ui.ts";
-import type { GameRuntime, RuntimeConfig } from "./runtime-types.ts";
+import {
+  computeFrameContext,
+  type GameRuntime,
+  type RuntimeConfig,
+} from "./runtime-types.ts";
 import { createSoundSystem } from "./sound-system.ts";
 import { unpackTile } from "./spatial.ts";
-import { computeFrameContext, fireOnce, Mode, Phase } from "./types.ts";
+import { fireOnce, Mode, Phase } from "./types.ts";
 
 export type { GameRuntime } from "./runtime-types.ts";
 

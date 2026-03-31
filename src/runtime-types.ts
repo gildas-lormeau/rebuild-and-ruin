@@ -36,12 +36,35 @@ import type { CannonPhantom, PiecePhantom } from "./phantom-types.ts";
 import type { RendererInterface, Viewport } from "./render-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { SoundSystem } from "./sound-system.ts";
-import type {
-  BalloonFlight,
-  GameState,
-  LifeLostDialogState,
-  SelectionState,
+import {
+  type BalloonFlight,
+  type FrameContext,
+  type GameState,
+  isPlacementPhase,
+  type LifeLostDialogState,
+  Mode,
+  Phase,
+  type SelectionState,
 } from "./types.ts";
+
+export type { FrameContext } from "./types.ts";
+
+/** Exported for headless camera testing (test/scenario-helpers.ts). */
+export interface FrameContextInputs {
+  mode: Mode;
+  phase: Phase;
+  timer: number;
+  paused: boolean;
+  quitPending: boolean;
+  hasLifeLostDialog: boolean;
+  isSelectionReady: boolean;
+  humanIsReselecting: boolean;
+  myPlayerId: number;
+  firstHumanPlayerId: number;
+  isHost: boolean;
+  remoteHumanSlots: ReadonlySet<number>;
+  mobileAutoZoom: boolean;
+}
 
 export interface RuntimeConfig {
   renderer: RendererInterface;
@@ -261,4 +284,53 @@ export interface GameRuntime {
   ) => void;
   snapshotTerritory: () => Set<number>[];
   aimAtEnemyCastle: () => void;
+}
+
+/** Seconds before timer reaches 0 to trigger unzoom. */
+const PHASE_ENDING_THRESHOLD = 1.5;
+
+export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
+  const {
+    mode,
+    phase,
+    timer,
+    paused,
+    quitPending,
+    hasLifeLostDialog,
+    isSelectionReady,
+    humanIsReselecting,
+    myPlayerId,
+    firstHumanPlayerId,
+    isHost,
+    remoteHumanSlots,
+    mobileAutoZoom,
+  } = inputs;
+
+  const uiBlocking = paused || quitPending || hasLifeLostDialog;
+
+  const timedPhase = isPlacementPhase(phase) || phase === Phase.BATTLE;
+  const phaseEnding =
+    !mobileAutoZoom &&
+    timer > 0 &&
+    timer <= PHASE_ENDING_THRESHOLD &&
+    timedPhase;
+
+  const shouldUnzoom = uiBlocking || phaseEnding;
+
+  return {
+    myPlayerId,
+    firstHumanPlayerId,
+    isHost,
+    remoteHumanSlots,
+    mode,
+    phase,
+    paused,
+    quitPending,
+    hasLifeLostDialog,
+    isSelectionReady,
+    humanIsReselecting,
+    uiBlocking,
+    phaseEnding,
+    shouldUnzoom,
+  };
 }

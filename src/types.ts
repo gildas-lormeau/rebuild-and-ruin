@@ -333,25 +333,6 @@ export interface FrameContext {
   readonly shouldUnzoom: boolean;
 }
 
-/** Exported for headless camera testing (test/scenario-helpers.ts). */
-export interface FrameContextInputs {
-  mode: Mode;
-  phase: Phase;
-  timer: number;
-  paused: boolean;
-  quitPending: boolean;
-  hasLifeLostDialog: boolean;
-  isSelectionReady: boolean;
-  humanIsReselecting: boolean;
-  myPlayerId: number;
-  firstHumanPlayerId: number;
-  isHost: boolean;
-  remoteHumanSlots: ReadonlySet<number>;
-  mobileAutoZoom: boolean;
-}
-
-/** Seconds before timer reaches 0 to trigger unzoom. */
-const PHASE_ENDING_THRESHOLD = 1.5;
 /** Which button is focused in the life-lost dialog. */
 export const LIFE_LOST_FOCUS_CONTINUE = 0;
 export const LIFE_LOST_FOCUS_ABANDON = 1;
@@ -427,52 +408,6 @@ export function isPlayerSeated(
   player: Player | null | undefined,
 ): player is Player & { homeTower: Tower } {
   return !!player && !player.eliminated && !!player.homeTower;
-}
-
-export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
-  const {
-    mode,
-    phase,
-    timer,
-    paused,
-    quitPending,
-    hasLifeLostDialog,
-    isSelectionReady,
-    humanIsReselecting,
-    myPlayerId,
-    firstHumanPlayerId,
-    isHost,
-    remoteHumanSlots,
-    mobileAutoZoom,
-  } = inputs;
-
-  const uiBlocking = paused || quitPending || hasLifeLostDialog;
-
-  const timedPhase = isPlacementPhase(phase) || phase === Phase.BATTLE;
-  const phaseEnding =
-    !mobileAutoZoom &&
-    timer > 0 &&
-    timer <= PHASE_ENDING_THRESHOLD &&
-    timedPhase;
-
-  const shouldUnzoom = uiBlocking || phaseEnding;
-
-  return {
-    myPlayerId,
-    firstHumanPlayerId,
-    isHost,
-    remoteHumanSlots,
-    mode,
-    phase,
-    paused,
-    quitPending,
-    hasLifeLostDialog,
-    isSelectionReady,
-    humanIsReselecting,
-    uiBlocking,
-    phaseEnding,
-    shouldUnzoom,
-  };
 }
 
 /** True if the phase is a placement phase (walls or cannons). */

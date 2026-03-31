@@ -25,10 +25,9 @@ import {
   TILE_SIZE,
 } from "./grid.ts";
 import type { Viewport } from "./render-types.ts";
-import type { CameraSystem } from "./runtime-types.ts";
+import type { CameraSystem, FrameContext } from "./runtime-types.ts";
 import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
 import {
-  type FrameContext,
   type GameState,
   isInteractiveMode,
   isReselectPhase,

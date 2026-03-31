@@ -58,15 +58,17 @@ import {
   type HeadlessRuntime,
   processHeadlessReselection,
 } from "../src/runtime-headless.ts";
-import type { CameraSystem } from "../src/runtime-types.ts";
 import type { PieceShape } from "../src/pieces.ts";
+import {
+  type CameraSystem,
+  computeFrameContext,
+  type FrameContext,
+  type FrameContextInputs,
+} from "../src/runtime-types.ts";
 import {
   type BattleAnimState,
   CannonMode,
-  computeFrameContext,
   emptyFreshInterior,
-  type FrameContext,
-  type FrameContextInputs,
   type GameState,
   type LifeLostDialogState,
   LifeLostChoice,
