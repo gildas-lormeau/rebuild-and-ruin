@@ -121,7 +121,7 @@ function buildUiDeps() {
       runtime.lifeLost.set(null);
     },
     isLifeLostMode: () => runtime.runtimeState.mode === Mode.LIFE_LOST,
-    setGameMode: () => {
+    setModeToGame: () => {
       runtime.runtimeState.mode = Mode.GAME;
     },
     setAnnouncement: (text: string) => {

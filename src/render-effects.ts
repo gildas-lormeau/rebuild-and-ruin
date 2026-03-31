@@ -129,6 +129,7 @@ export function drawPhantoms(
   overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
 ): void {
+  overlayCtx.save();
   // AI cannon phantoms
   if (overlay?.phantoms?.aiCannonPhantoms) {
     const facings = overlay.phantoms.defaultFacings;
@@ -162,6 +163,7 @@ export function drawPhantoms(
       drawPiecePhantom(overlayCtx, offsets, row, col, wall, valid);
     }
   }
+  overlayCtx.restore();
 }
 
 /** Draw bonus squares (flashing green diamonds). */
@@ -212,15 +214,18 @@ export function drawGrunts(
   }
 }
 
-/** Draw animated wave shimmer over water tiles during battle. */
+/** Draw animated wave shimmer over water tiles during battle.
+ *  @param now — injectable timestamp in ms (performance.now() scale). Falls back
+ *  to performance.now() when omitted. Pass a fixed value in tests for determinism. */
 export function drawWaterAnimation(
   overlayCtx: CanvasRenderingContext2D,
   map: MapData,
   overlay?: RenderOverlay,
+  now?: number,
 ): void {
   if (!overlay?.battle?.inBattle) return; // only during battle
   overlayCtx.save();
-  const time = performance.now() / 1000;
+  const time = (now ?? performance.now()) / 1000;
   const rows = map.tiles.length;
   const cols = map.tiles[0]!.length;
 
@@ -274,12 +279,17 @@ export function drawBattleEffects(
   drawPhaseTimer(overlayCtx, map, overlay);
 }
 
+/** Draw burning pit ember glows.
+ *  @param now — injectable timestamp in ms (performance.now() scale). Falls back
+ *  to performance.now() when omitted. Pass a fixed value in tests for determinism. */
 export function drawBurningPits(
   overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
+  now?: number,
 ): void {
   if (!overlay?.entities?.burningPits) return;
-  const time = performance.now() / 1000;
+  overlayCtx.save();
+  const time = (now ?? performance.now()) / 1000;
   for (const pit of overlay.entities.burningPits) {
     const px = pit.col * TILE_SIZE;
     const py = pit.row * TILE_SIZE;
@@ -300,6 +310,7 @@ export function drawBurningPits(
       overlayCtx.fill();
     }
   }
+  overlayCtx.restore();
 }
 
 function drawImpacts(

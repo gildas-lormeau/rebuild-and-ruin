@@ -53,6 +53,10 @@ export interface RegisterOnlineInputDeps {
   // --- Controllers ---
   getControllers: () => PlayerController[];
   isHuman: (ctrl: PlayerController) => ctrl is PlayerController & InputReceiver;
+  /** Execute an action with the first human-controlled player.
+   *  IMPORTANT: The callback is NOT invoked if no human players exist
+   *  (e.g., all-AI game or spectator mode). Callers must not rely on
+   *  side effects — the action may silently not run. */
   withFirstHuman: (
     action: (human: PlayerController & InputReceiver) => void,
   ) => void;

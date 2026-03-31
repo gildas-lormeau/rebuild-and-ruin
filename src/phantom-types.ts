@@ -34,8 +34,16 @@ export function phantomWireMode(phantom: CannonPhantom): CannonMode {
 }
 
 /** Check if a value has changed since last send, updating the dedup map.
+ *  **Side effect**: updates `map[playerId] = key` on change.
  *  Returns true if the value changed (caller should send).
  *  Returns false if unchanged (caller should skip sending).
+ *
+ *  Dedup invariant (used across online-session.ts, online-host-crosshairs.ts,
+ *  online-watcher-battle.ts): always follow the three-step sequence:
+ *    1. Call `dedupChanged(map, id, key)` — returns true if value changed
+ *    2. Send the network message (only if step 1 returned true)
+ *    3. Map is already updated by step 1 (no separate update needed)
+ *  Skipping step 1 wastes bandwidth; calling send without step 1 breaks dedup.
  *  Usage: `if (!dedupChanged(map, playerId, key)) return;` */
 export function dedupChanged(
   map: Map<number, string>,

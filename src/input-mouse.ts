@@ -49,6 +49,8 @@ export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
     dispatchPointerMove(x, y, state, deps);
   });
 
+  // Touch-suppression check: touchend calls markTouchTime() in input-touch-canvas.ts;
+  // this guard prevents the synthetic click that mobile browsers fire after touchend.
   renderer.eventTarget.addEventListener(CLICK_EVENT, (e) => {
     if (isTouchSuppressed()) return;
     const { x, y } = renderer.clientToSurface(e.clientX, e.clientY);

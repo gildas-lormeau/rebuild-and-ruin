@@ -118,7 +118,8 @@ export function confirmTowerSelection(
   render: () => void,
 ): boolean {
   const selectionState = selectionStates.get(playerId);
-  // Idempotent: ignore if player not in selection or already confirmed
+  // Selection-confirmed guard (see input-dispatch.ts header for convention):
+  // once confirmed, all further selection actions are no-ops.
   if (!selectionState || selectionState.confirmed)
     return allSelectionsConfirmed(selectionStates);
   selectionState.confirmed = true;

@@ -64,7 +64,7 @@ test("lifecycle drops stale full_state after host migration", () => {
       getLifeLostDialog: () => null,
       clearLifeLostDialog: () => {},
       isLifeLostMode: () => false,
-      setGameMode: () => {},
+      setModeToGame: () => {},
       setAnnouncement: () => {},
       createErrorEl: { textContent: "" } as HTMLElement,
       joinErrorEl: { textContent: "" } as HTMLElement,

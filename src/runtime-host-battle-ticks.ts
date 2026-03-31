@@ -182,7 +182,11 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
 
   advancePhaseTimer(accum, "battle", state, dt, battleTimer);
 
-  // Steps 1–3: collect events in load-bearing order
+  // Steps 1–3: collect events in LOAD-BEARING order (do not reorder).
+  // Step 1 (fires) must run before step 3 (impacts) because new cannonballs
+  // from battleTick are added to state.cannonballs, which step 3 then advances.
+  // Step 2 (towers) must run before step 3 so tower kills are detected before
+  // impact events check tower state. Reordering silently corrupts event data.
   const fireEvents = tickControllersAndCollectFires(
     state,
     dt,

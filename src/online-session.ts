@@ -38,7 +38,10 @@ export interface OnlineSession {
 
 /** Network deduplication maps — tracks the last-sent value per player for each
  *  message type. If the new value matches, the send is skipped to reduce bandwidth.
- *  Cleared on session reset and host promotion. */
+ *  Cleared on session reset and host promotion.
+ *
+ *  Dedup invariant: always use `dedupChanged(map, id, key)` before sending.
+ *  That function both checks AND updates the map atomically — see phantom-types.ts. */
 export interface DedupMaps {
   aimTarget: Map<number, string>;
   piecePhantom: Map<number, string>;
@@ -110,9 +113,8 @@ export function sendAimUpdate(
 }
 
 export function sendMessage(session: OnlineSession, msg: GameMessage): void {
-  // === OPEN: only send when fully connected (not CONNECTING)
-  if (session.socket?.readyState === WebSocket.OPEN) {
-    session.socket.send(JSON.stringify(msg));
+  if (canSend(session)) {
+    session.socket!.send(JSON.stringify(msg));
   }
 }
 
@@ -125,8 +127,7 @@ export function connectWebSocket(
   wsUrl: string,
   handlers: ConnectHandlers,
 ): void {
-  // <= OPEN: skip if CONNECTING (0) or OPEN (1); only connect when CLOSING/CLOSED
-  if (session.socket && session.socket.readyState <= WebSocket.OPEN) return;
+  if (!shouldReconnect(session)) return;
   session.socket = new WebSocket(wsUrl);
   session.socket.onmessage = (e) => {
     try {
@@ -138,8 +139,8 @@ export function connectWebSocket(
   session.socket.onopen = () => {
     if (session.keepaliveTimer) clearInterval(session.keepaliveTimer);
     session.keepaliveTimer = setInterval(() => {
-      if (session.socket?.readyState === WebSocket.OPEN) {
-        session.socket.send(JSON.stringify({ type: MESSAGE.PING }));
+      if (canSend(session)) {
+        session.socket!.send(JSON.stringify({ type: MESSAGE.PING }));
       }
     }, KEEPALIVE_MS);
   };
@@ -153,4 +154,17 @@ export function connectWebSocket(
   session.socket.onerror = () => {
     handlers.onError();
   };
+}
+
+/** True when the socket is fully connected and can transmit.
+ *  Use for send guards. Contrast with `shouldReconnect()`. */
+function canSend(session: OnlineSession): boolean {
+  return session.socket?.readyState === WebSocket.OPEN;
+}
+
+/** True when the socket is closed/closing and a reconnect attempt is appropriate.
+ *  readyState > OPEN means CLOSING(2) or CLOSED(3).
+ *  Contrast with `canSend()` which checks === OPEN only. */
+function shouldReconnect(session: OnlineSession): boolean {
+  return !session.socket || session.socket.readyState > WebSocket.OPEN;
 }

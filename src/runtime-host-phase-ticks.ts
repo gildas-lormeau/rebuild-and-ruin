@@ -235,10 +235,11 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   if (state.timer > 0 && !allDone) return false;
 
   // ── PASS 2: Finalize all controllers (including remote) for phase transition ──
-  // Controller finalization — load-bearing split:
+  // Controller finalization — LOAD-BEARING SPLIT (do not merge):
   // Remote humans: call initCannons() only (their cannons were flushed client-side).
   // Local controllers (AI + local human): call finalizeCannonPhase() which flushes then inits.
-  // Using the wrong method corrupts cannon state.
+  // Using the wrong method corrupts cannon state — finalizeCannonPhase on a remote
+  // double-flushes; initCannons on a local skips the flush entirely.
   for (const ctrl of controllers) {
     const max = state.cannonLimits[ctrl.playerId] ?? 0;
     if (remoteHumanSlots.has(ctrl.playerId)) {

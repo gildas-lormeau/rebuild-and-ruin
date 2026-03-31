@@ -10,6 +10,21 @@
  * Touch and mouse dispatchers target the first human player only
  * (via `withFirstHuman`). Keyboard input loops over ALL controllers
  * to support local multiplayer with distinct key bindings.
+ *
+ * ### Selection-confirmed guard convention
+ *
+ * All selection/dispatch handlers MUST skip if already confirmed:
+ *   `if (!selectionState || selectionState.confirmed) return;`
+ * Once a player confirms their tower choice, further selection
+ * actions are no-ops. Omitting this guard causes double-processing.
+ *
+ * ### Touch-suppression pairing
+ *
+ * Mobile browsers fire synthetic click events after touchend.
+ * To prevent double-actions: touch handlers call `markTouchTime()`
+ * on touchend, and mouse/click handlers call `isTouchSuppressed()`
+ * at entry. Both sides of the pair are required — adding a new
+ * mouse handler without the suppression check causes ghost clicks.
  */
 
 import {
@@ -100,11 +115,16 @@ export function dispatchQuit(deps: QuitFlowDeps, warningMessage: string): void {
   }
 }
 
+/** Record that a touch just ended. Paired with `isTouchSuppressed()` in mouse
+ *  handlers to prevent synthetic click events on mobile. Both sides are required:
+ *  - Touch handlers (input-touch-canvas.ts): call markTouchTime() on touchend
+ *  - Mouse handlers (input-mouse.ts): call isTouchSuppressed() before dispatching */
 export function markTouchTime(): void {
   lastTouchTime = performance.now();
 }
 
-/** Whether a recent touch should suppress the current synthetic click. */
+/** Whether a recent touch should suppress the current synthetic click.
+ *  Must be checked in ALL mouse/click handlers — see markTouchTime() for the pairing. */
 export function isTouchSuppressed(): boolean {
   return performance.now() - lastTouchTime < TOUCH_CLICK_SUPPRESS_MS;
 }

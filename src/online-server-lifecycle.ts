@@ -33,7 +33,7 @@ interface HandleServerLifecycleDeps {
     getLifeLostDialog: () => unknown;
     clearLifeLostDialog: () => void;
     isLifeLostMode: () => boolean;
-    setGameMode: () => void;
+    setModeToGame: () => void;
     setAnnouncement: (msg: string) => void;
     createErrorEl: HTMLElement;
     joinErrorEl: HTMLElement;
@@ -93,7 +93,7 @@ export function handleServerLifecycleMessage(
   ) {
     deps.log("dismissing stale life-lost dialog (phase transition received)");
     deps.ui.clearLifeLostDialog();
-    if (deps.ui.isLifeLostMode()) deps.ui.setGameMode();
+    if (deps.ui.isLifeLostMode()) deps.ui.setModeToGame();
   }
 
   switch (msg.type) {

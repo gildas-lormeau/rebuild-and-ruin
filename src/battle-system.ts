@@ -321,6 +321,12 @@ export function advanceCannonball(
 
 /**
  * Apply a single impact event to game state. Used by both host and watcher.
+ *
+ * IMPORTANT: This function does NOT recompute territory/interior after wall
+ * destruction. Interior is intentionally left stale during battle — it will
+ * be recomputed at the next phase boundary (claimTerritory / claimTerritoryEndOfBuild).
+ * Do not add interior recomputation here.
+ *
  * @param shooterId — fallback owner for scoring when event lacks embedded shooterId
  *   (host passes it from the firing loop; network events embed it in the payload).
  */
