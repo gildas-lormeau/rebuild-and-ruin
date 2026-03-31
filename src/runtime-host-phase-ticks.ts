@@ -25,7 +25,9 @@ import {
   phantomWireMode,
   piecePhantomKey,
 } from "./online-types.ts";
+import { snapshotEntities } from "./phase-banner.ts";
 import { runBuildEndSequence } from "./phase-transition-shared.ts";
+import type { EntityOverlay } from "./render-types.ts";
 import { unpackTile } from "./spatial.ts";
 import {
   advancePhaseTimer,
@@ -108,7 +110,7 @@ interface TickHostCannonPhaseDeps {
 interface TickHostBuildPhaseDeps {
   dt: number;
   state: GameState;
-  banner: { wallsBeforeSweep?: Set<number>[] };
+  banner: { wallsBeforeSweep?: Set<number>[]; oldEntities?: EntityOverlay };
   accum: { build: number; grunt: number };
   frame: HostFrame;
   controllers: PlayerController[];
@@ -475,12 +477,12 @@ function finalizeBuildAndShowDialogs(
   }
 
   // Snapshot MUST precede finalize — finalize calls sweepAllPlayersWalls
-  // which deletes isolated walls. The banner needs the pre-sweep snapshot.
-  const { wallsBeforeSweep, needsReselect, eliminated } = snapshotThenFinalize(
-    state,
-    deps.finalizeBuildPhase,
-  );
+  // (deletes isolated walls) and reviveEnclosedTowers (mutates towerAlive).
+  // The banner needs pre-finalize snapshots for both.
+  const { wallsBeforeSweep, oldEntities, needsReselect, eliminated } =
+    snapshotThenFinalize(state, deps.finalizeBuildPhase);
   deps.banner.wallsBeforeSweep = wallsBeforeSweep;
+  deps.banner.oldEntities = oldEntities;
   if (isHost && sendBuildEnd) {
     sendBuildEnd({
       needsReselect,
@@ -512,10 +514,12 @@ function snapshotThenFinalize(
   },
 ): {
   wallsBeforeSweep: Set<number>[];
+  oldEntities: EntityOverlay;
   needsReselect: number[];
   eliminated: number[];
 } {
   const wallsBeforeSweep = snapshotAllWalls(state);
+  const oldEntities = snapshotEntities(state);
   const { needsReselect, eliminated } = finalizeBuildPhase(state);
-  return { wallsBeforeSweep, needsReselect, eliminated };
+  return { wallsBeforeSweep, oldEntities, needsReselect, eliminated };
 }
