@@ -139,6 +139,7 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
   roomCodeOverlay.appendChild(wrapper);
 
   lobby.seed = seed;
+  console.log("[online] seed:", seed);
   lobby.map = generateMap(seed);
   precomputeTerrainCache(lobby.map);
   lobby.joined = new Array(maxPlayers).fill(false);

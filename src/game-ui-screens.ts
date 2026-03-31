@@ -289,6 +289,9 @@ function optionValue(frameCtx: UIContext, idx: number): string {
   if (idx === 7) return SOUND_LABELS[settings.sound] ?? "All";
   if (idx === 4) {
     if (frameCtx.isOnline) return settings.seed || "—";
+    if (frameCtx.getOptionsReturnMode() !== null && state) {
+      return String(state.rng.seed);
+    }
     return settings.seedMode === SEED_CUSTOM ? settings.seed || "_" : "Random";
   }
   if (idx === 6) return DPAD_LABELS[settings.leftHanded ? 1 : 0]!;

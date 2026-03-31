@@ -114,6 +114,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const newSeed = computeGameSeed(runtimeState.settings);
     if (newSeed !== runtimeState.lobby.seed) {
       runtimeState.lobby.seed = newSeed;
+      console.log("[lobby] seed:", newSeed);
       runtimeState.lobby.map = generateMap(newSeed);
       precomputeTerrainCache(runtimeState.lobby.map);
     }
