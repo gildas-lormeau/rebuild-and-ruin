@@ -28,15 +28,6 @@ export type PiecePhantom = {
   valid: boolean;
 };
 
-/** Local human piece phantom. Has `valid` for green/red placement preview coloring. */
-export type HumanPiecePhantom = {
-  offsets: [number, number][];
-  row: number;
-  col: number;
-  valid: boolean;
-  playerId: number;
-};
-
 /** Return the cannon mode for network transmission. Currently identity (returns
  *  phantom.mode directly), but provides an abstraction point if wire format diverges. */
 export function phantomWireMode(phantom: CannonPhantom): CannonMode {

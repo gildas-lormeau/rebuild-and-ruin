@@ -20,7 +20,6 @@ import {
   cannonPhantomKey,
   dedupChanged,
   filterAlivePhantoms,
-  type HumanPiecePhantom,
   type PiecePhantom,
   phantomWireMode,
   piecePhantomKey,
@@ -92,7 +91,7 @@ interface HostFrame {
   phantoms: {
     aiCannonPhantoms?: CannonPhantom[];
     aiPhantoms?: PiecePhantom[];
-    humanPhantoms?: HumanPiecePhantom[];
+    humanPhantoms?: PiecePhantom[];
   };
 }
 
