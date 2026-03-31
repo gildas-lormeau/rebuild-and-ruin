@@ -81,6 +81,8 @@ const PHANTOM_INVALID_COLOR = "#222";
 const PHANTOM_ALPHA = 1;
 /** Reduced opacity for invalid placement previews. */
 const PHANTOM_INVALID_ALPHA = 0.5;
+/** Saturation boost for valid phantom wall colors. */
+const PHANTOM_SATURATION = 2.5;
 // Spatial hash multipliers for per-tile visual noise
 const SEED_ROW = 41;
 const SEED_COL = 17;
@@ -140,7 +142,9 @@ export function drawPhantoms(
       offsets,
       row,
       col,
-      valid ? rgb(saturateRgb(wall, 2.5)) : PHANTOM_INVALID_COLOR,
+      valid
+        ? rgb(saturateRgb(wall, PHANTOM_SATURATION))
+        : PHANTOM_INVALID_COLOR,
       valid ? PHANTOM_ALPHA : PHANTOM_INVALID_ALPHA,
     );
   }
@@ -150,7 +154,9 @@ export function drawPhantoms(
     for (const phantom of overlay.phantoms.humanPhantoms) {
       const { offsets, row, col, valid, playerId } = phantom;
       const wall = getPlayerColor(playerId).wall;
-      const fill = valid ? rgb(saturateRgb(wall, 2.5)) : PHANTOM_INVALID_COLOR;
+      const fill = valid
+        ? rgb(saturateRgb(wall, PHANTOM_SATURATION))
+        : PHANTOM_INVALID_COLOR;
       drawPiecePhantom(
         overlayCtx,
         offsets,
@@ -172,7 +178,9 @@ export function drawPhantoms(
         offsets,
         row,
         col,
-        valid ? rgb(saturateRgb(wall, 2.5)) : PHANTOM_INVALID_COLOR,
+        valid
+          ? rgb(saturateRgb(wall, PHANTOM_SATURATION))
+          : PHANTOM_INVALID_COLOR,
         valid ? PHANTOM_ALPHA : PHANTOM_INVALID_ALPHA,
       );
     }
