@@ -26,11 +26,6 @@
  */
 
 import {
-  type InputReceiver,
-  isHuman,
-  type PlayerController,
-} from "./controller-interfaces.ts";
-import {
   BANNER_DURATION,
   MAX_FRAME_DT,
   SCORE_DELTA_DISPLAY_TIME,
@@ -58,6 +53,7 @@ import { precomputeTerrainCache } from "./render-map.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { createGameLifecycle } from "./runtime-game-lifecycle.ts";
+import { createHumanLookup } from "./runtime-human.ts";
 import { createInputSystem } from "./runtime-input.ts";
 import {
   createLifeLostSystem,
@@ -133,7 +129,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     const { gameOver } = runtimeState.frame;
     runtimeState.frame = { crosshairs: [], phantoms: {} };
     if (gameOver) runtimeState.frame.gameOver = gameOver;
-    cachedFirstHuman = undefined;
+    clearHumanCache();
   }
 
   function clampedFrameDt(now: number): number {
@@ -341,41 +337,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     return snapshotTerritoryImpl(runtimeState.state.players);
   }
 
-  let cachedFirstHuman: (PlayerController & InputReceiver) | null | undefined;
+  // -------------------------------------------------------------------------
+  // Human-player lookup (delegated to runtime-human.ts)
+  // -------------------------------------------------------------------------
 
-  function firstHuman(): (PlayerController & InputReceiver) | null {
-    if (cachedFirstHuman !== undefined) return cachedFirstHuman;
-    // Prefer the player who joined via mouse/trackpad
-    if (runtimeState.mouseJoinedSlot !== null) {
-      const ctrl = runtimeState.controllers.find(
-        (c) => c.playerId === runtimeState.mouseJoinedSlot,
-      );
-      if (
-        ctrl &&
-        isHuman(ctrl) &&
-        !runtimeState.state.players[ctrl.playerId]?.eliminated
-      )
-        return (cachedFirstHuman = ctrl);
-    }
-    for (const ctrl of runtimeState.controllers) {
-      if (
-        isHuman(ctrl) &&
-        !runtimeState.state.players[ctrl.playerId]?.eliminated
-      )
-        return (cachedFirstHuman = ctrl);
-    }
-    return (cachedFirstHuman = null);
-  }
-
-  /** Run `action` with the first human controller. No-op if no human exists
-   *  (e.g. all-AI game) — the action callback will NOT be called. */
-  function withFirstHuman(
-    action: (human: PlayerController & InputReceiver) => void,
-  ): void {
-    const human = firstHuman();
-    if (!human) return;
-    action(human);
-  }
+  const {
+    firstHuman,
+    withFirstHuman,
+    clearCache: clearHumanCache,
+  } = createHumanLookup(runtimeState);
 
   // -------------------------------------------------------------------------
   // Camera / zoom (delegated to runtime-camera.ts)
