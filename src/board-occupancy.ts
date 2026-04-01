@@ -339,22 +339,17 @@ export function clearPlayerWalls(player: Player): void {
 /** Remove isolated debris walls (≤1 orthogonal neighbor) and mark dirty.
  *  Used during wall sweep at build phase transitions. */
 export function sweepIsolatedWalls(player: Player): void {
-  removeIsolatedWalls(player.walls, player.castleWallTiles);
+  removeIsolatedWalls(player.walls);
   markWallsDirty(player);
 }
 
 /**
  * Sweep one layer of debris wall tiles (0 or 1 orthogonal neighbor).
  * Collects all isolated tiles first, then removes them in one batch.
- * Tiles in `protect` (castle wall tiles including clumsy extras) are skipped.
  */
-export function removeIsolatedWalls(
-  walls: Set<number>,
-  protect?: ReadonlySet<number>,
-): void {
+export function removeIsolatedWalls(walls: Set<number>): void {
   const toRemove: number[] = [];
   for (const key of walls) {
-    if (protect?.has(key)) continue;
     const { r, c } = unpackTile(key);
     if (countWallNeighbors(walls, r, c) <= 1) toRemove.push(key);
   }
