@@ -31,6 +31,7 @@ import {
   drawPlayerSelect,
   drawScoreDeltas,
   drawStatusBar,
+  drawUpgradePick,
 } from "./render-ui.ts";
 import { drawControlsScreen, drawOptionsScreen } from "./render-ui-settings.ts";
 import {
@@ -190,6 +191,7 @@ export function drawMap(
   drawBanner(overlayCtx, W, H, overlay);
   drawGameOver(overlayCtx, W, H, overlay);
   drawLifeLostDialog(overlayCtx, W, H, overlay, now);
+  drawUpgradePick(overlayCtx, W, H, overlay, now);
 
   // Full-screen modal screens (opaque — drawn last, on top of everything)
   drawPlayerSelect(overlayCtx, W, H, overlay, now);

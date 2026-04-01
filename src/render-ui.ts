@@ -340,6 +340,133 @@ export function drawLifeLostDialog(
   }
 }
 
+/** Draw upgrade pick cards (3 choices for the local human player). */
+export function drawUpgradePick(
+  overlayCtx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  overlay?: RenderOverlay,
+  now?: number,
+): void {
+  if (!overlay?.ui?.upgradePick) return;
+  const pick = overlay.ui.upgradePick;
+  if (!pick.cards) return;
+
+  // Semi-transparent backdrop
+  overlayCtx.fillStyle = SHADOW_COLOR_HEAVY;
+  overlayCtx.fillRect(0, 0, W, H);
+
+  // Title
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
+  overlayCtx.font = FONT_TITLE;
+  overlayCtx.fillStyle = GOLD_LIGHT;
+  overlayCtx.fillText("CHOOSE UPGRADE", W / 2, H * 0.12);
+
+  // Card dimensions
+  const cardW = 130;
+  const cardH = 120;
+  const gap = 16;
+  const totalW = pick.cards.length * cardW + (pick.cards.length - 1) * gap;
+  const startX = (W - totalW) / 2;
+  const cardY = H * 0.25;
+
+  const time = now ?? Date.now();
+
+  for (let i = 0; i < pick.cards.length; i++) {
+    const card = pick.cards[i]!;
+    const cx = startX + i * (cardW + gap);
+
+    // Card background
+    const isFocused = card.focused && flashOn(BUTTON_FLASH_MS, time);
+    const borderColor = card.picked
+      ? GOLD_LIGHT
+      : card.focused
+        ? GOLD
+        : SHADOW_COLOR;
+    drawPanel(
+      overlayCtx,
+      cx,
+      cardY,
+      cardW,
+      cardH,
+      card.picked ? GOLD_BG(OP_ACTIVE) : PANEL_BG(BG_OVERLAY),
+      borderColor,
+    );
+
+    // Focus indicator (pulsing border)
+    if (isFocused) {
+      overlayCtx.strokeStyle = GOLD_LIGHT;
+      overlayCtx.lineWidth = 2;
+      overlayCtx.strokeRect(cx - 1, cardY - 1, cardW + 2, cardH + 2);
+    }
+
+    const cardCx = cx + cardW / 2;
+
+    // Category badge
+    overlayCtx.font = FONT_SMALL;
+    overlayCtx.fillStyle = TEXT_DIM;
+    overlayCtx.fillText(card.category.toUpperCase(), cardCx, cardY + 14);
+
+    // Separator
+    overlayCtx.fillStyle = GOLD;
+    overlayCtx.fillRect(cx + INSET, cardY + 22, cardW - INSET_X2, 1);
+
+    // Upgrade name
+    overlayCtx.font = FONT_BODY;
+    overlayCtx.fillStyle =
+      card.focused || card.picked ? TEXT_WHITE : GOLD_LIGHT;
+    overlayCtx.fillText(card.label, cardCx, cardY + 40);
+
+    // Description (word-wrapped manually for short lines)
+    overlayCtx.font = FONT_SMALL;
+    overlayCtx.fillStyle = card.focused ? GOLD_LIGHT : TEXT_MUTED;
+    const words = card.description.split(" ");
+    const lines: string[] = [];
+    let line = "";
+    for (const word of words) {
+      const test = line ? `${line} ${word}` : word;
+      if (overlayCtx.measureText(test).width > cardW - INSET_X2) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    for (let li = 0; li < lines.length; li++) {
+      overlayCtx.fillText(lines[li]!, cardCx, cardY + 58 + li * 13);
+    }
+
+    // "Picked" label
+    if (card.picked) {
+      overlayCtx.font = FONT_BODY;
+      overlayCtx.fillStyle = GOLD_LIGHT;
+      overlayCtx.fillText("\u2713", cardCx, cardY + cardH - 12);
+    }
+  }
+
+  // Timer bar at the bottom
+  const barW = totalW;
+  const barH = 4;
+  const barX = startX;
+  const barY = cardY + cardH + 12;
+  const progress = Math.max(0, 1 - pick.timer / pick.maxTimer);
+  overlayCtx.fillStyle = SHADOW_COLOR;
+  overlayCtx.fillRect(barX, barY, barW, barH);
+  overlayCtx.fillStyle = progress > 0.25 ? GOLD : ELIMINATED_RED;
+  overlayCtx.fillRect(barX, barY, barW * progress, barH);
+
+  // Hint
+  overlayCtx.font = FONT_HINT;
+  overlayCtx.fillStyle = TEXT_DIM;
+  overlayCtx.fillText(
+    "\u2190 \u2192 to browse  |  Enter to pick",
+    W / 2,
+    H * 0.88,
+  );
+}
+
 /** Draw the player selection lobby screen. */
 export function drawPlayerSelect(
   overlayCtx: CanvasRenderingContext2D,

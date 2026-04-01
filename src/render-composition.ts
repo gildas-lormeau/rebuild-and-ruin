@@ -30,6 +30,7 @@ import {
   type GameOverOverlay,
   type LifeLostDialogOverlay,
   type RenderOverlay,
+  type UpgradePickOverlay,
 } from "./render-types.ts";
 import {
   FOCUS_MENU,
@@ -42,7 +43,10 @@ import {
   Phase,
   type ResolvedChoice,
   type SelectionState,
+  type UpgradePickDialogState,
 } from "./types.ts";
+import { UPGRADE_POOL } from "./upgrade-defs.ts";
+import { UPGRADE_PICK_MAX_TIMER } from "./upgrade-pick.ts";
 
 /** Result of a lobby click hit-test. */
 export type LobbyHit = { type: "gear" } | { type: "slot"; slotId: number };
@@ -307,6 +311,8 @@ export function createOnlineOverlay(params: {
   };
   bannerUi?: { text: string; subtitle?: string; y: number };
   lifeLostDialog: LifeLostDialogState | null;
+  upgradePickDialog: UpgradePickDialogState | null;
+  myPlayerId: number;
   playerNames: ReadonlyArray<string>;
   playerColors: ReadonlyArray<{ wall: RGB }>;
   getLifeLostPanelPos: (playerId: number) => { px: number; py: number };
@@ -319,6 +325,8 @@ export function createOnlineOverlay(params: {
     frame,
     bannerUi,
     lifeLostDialog,
+    upgradePickDialog,
+    myPlayerId,
     playerNames,
     playerColors,
     getLifeLostPanelPos,
@@ -381,6 +389,7 @@ export function createOnlineOverlay(params: {
         LIFE_LOST_MAX_TIMER,
         getLifeLostPanelPos,
       ),
+      upgradePick: buildUpgradePickUi(upgradePickDialog, myPlayerId),
     },
   };
 }
@@ -591,6 +600,38 @@ function buildLifeLostDialogUi(
     }),
     timer: dialog.timer,
     maxTimer,
+  };
+}
+
+function buildUpgradePickUi(
+  dialog: UpgradePickDialogState | null,
+  myPlayerId: number,
+): UpgradePickOverlay | undefined {
+  if (!dialog) return undefined;
+
+  // Find the local human player's entry
+  const humanEntry = dialog.entries.find(
+    (entry) => entry.playerId === myPlayerId && !entry.isAi,
+  );
+
+  const cards = humanEntry
+    ? humanEntry.offers.map((upgradeId, idx) => {
+        const def = UPGRADE_POOL.find((def) => def.id === upgradeId);
+        return {
+          id: upgradeId,
+          label: def?.label ?? upgradeId,
+          description: def?.description ?? "",
+          category: def?.category ?? "",
+          focused: humanEntry.choice === null && humanEntry.focused === idx,
+          picked: humanEntry.choice === upgradeId,
+        };
+      })
+    : null;
+
+  return {
+    cards,
+    timer: dialog.timer,
+    maxTimer: UPGRADE_PICK_MAX_TIMER,
   };
 }
 

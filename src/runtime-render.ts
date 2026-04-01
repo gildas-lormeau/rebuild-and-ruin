@@ -107,6 +107,8 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       frame: runtimeState.frame,
       bannerUi,
       lifeLostDialog: runtimeState.lifeLostDialog,
+      upgradePickDialog: runtimeState.upgradePickDialog,
+      myPlayerId: runtimeState.frameCtx.myPlayerId,
       playerNames: PLAYER_NAMES,
       playerColors: PLAYER_COLORS,
       getLifeLostPanelPos: (playerId) => deps.getLifeLostPanelPos(playerId),

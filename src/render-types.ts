@@ -75,6 +75,24 @@ export interface FrameData {
   gameOver?: GameOverOverlay;
 }
 
+/** Upgrade pick card data for rendering. */
+export interface UpgradePickCard {
+  readonly id: string;
+  readonly label: string;
+  readonly description: string;
+  readonly category: string;
+  readonly focused: boolean;
+  readonly picked: boolean;
+}
+
+/** Upgrade pick dialog overlay data. */
+export interface UpgradePickOverlay {
+  /** Cards for the local human player (3 choices). Null if no human entry. */
+  cards: UpgradePickCard[] | null;
+  timer: number;
+  maxTimer: number;
+}
+
 /** Life-lost dialog overlay data shared by UIOverlay and render-composition. */
 export interface LifeLostDialogOverlay {
   entries: {
@@ -210,6 +228,7 @@ export interface UIOverlay {
     }[];
   };
   lifeLostDialog?: LifeLostDialogOverlay;
+  upgradePick?: UpgradePickOverlay;
   optionsScreen?: {
     options: OptionEntry[];
     cursor: number;
