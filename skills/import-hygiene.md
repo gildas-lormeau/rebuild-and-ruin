@@ -54,20 +54,21 @@ The layer map file. Committed to the repo. An array of named groups — position
 
 **Rule: imports must flow downward.** A file in group N can import from any group 0..N. Importing from group N+1 or higher is a violation.
 
-**Current architecture (14 groups, 0 violations, 125 files incl. server):**
+**Current architecture (14 groups, 0 violations, ~130 files incl. server):**
 
 ```
  0  leaf utilities              ai-constants, canvas-layout, game-constants, grid, jsfxr.d,
-                                platform, rng, router, utils
+                                platform, rng, router, upgrade-defs, utils
  1  geometry & pieces           ai-build-types, geometry-types, pieces
  2  core types, state & spatial ai-castle-rect, types, spatial, board-occupancy, checkpoint-data,
                                 server/protocol
  3  shared interfaces, config   ai-build-score, ai-build-fallback, phase-transition-shared,
-    & scoring                   player-config, controller-interfaces, life-lost, castle-build,
-                                phase-banner, render-theme, render-types, phantom-types, tick-context
+    & scoring                   player-config, controller-interfaces, life-lost, upgrade-pick,
+                                castle-build, phase-banner, render-theme, render-types, phantom-types,
+                                tick-context
  4  game logic                  ai-build-target, cannon-system, grunt-movement, grunt-system,
                                 battle-system, build-system, castle-generation, map-generation,
-                                phase-setup, game-engine, game-helpers, selection
+                                phase-setup, round-modifiers, game-engine, game-helpers, selection
  5  AI strategy                 ai-strategy-battle, ai-strategy-build, ai-strategy-cannon, ai-strategy
  6  controllers                 ai-phase-select, ai-phase-build, ai-phase-cannon, ai-phase-battle,
                                 controller-ai, controller-types, controller-human, controller-factory
@@ -82,7 +83,7 @@ The layer map file. Committed to the repo. An array of named groups — position
                                 online-phase-transitions, online-server-events, online-host-*,
                                 online-full-state-recovery
 12  runtime                     runtime-state, runtime-banner, runtime-camera, runtime-life-lost,
-                                runtime-lobby, runtime-options, runtime-touch-ui,
+                                runtime-upgrade-pick, runtime-lobby, runtime-options, runtime-touch-ui,
                                 runtime-game-lifecycle, runtime-human, runtime-test-globals,
                                 runtime-input, runtime-phase-ticks, runtime-render,
                                 runtime-selection, runtime-host-phase-ticks, runtime-host-battle-ticks,

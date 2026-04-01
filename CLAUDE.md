@@ -26,6 +26,14 @@ L13 is reserved for true entry points (e.g., `entry.ts`, `main.ts`, `server.ts`)
 
 ### Phase flow
 CASTLE_SELECT → WALL_BUILD → CANNON_PLACE → BATTLE → loop (+ CASTLE_RESELECT when a player loses lives)
+Modern mode inserts UPGRADE_PICK between battle end and build banner (from round 3).
+
+### Game modes
+- Classic: original Rampart rules, no modifiers or upgrades
+- Modern: environmental modifiers (wildfire, crumbling walls, grunt surge) + upgrade draft/pick each round
+- `gameMode` setting flows through GameSettings → InitMessage → GameState (immutable per match)
+- Modifier roll and upgrade offer generation happen in `enterBuildFromBattle()` using synced RNG (before BUILD_START checkpoint)
+- Upgrade effects: Master Builder (+5s build), Rapid Fire (2x ball speed), Reinforced Walls (2-hit walls via damagedWalls set)
 
 ### Game rules (non-obvious, guide correctness)
 - Territory: flood-fill from edges, interior = not-outside, not-wall
