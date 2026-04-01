@@ -363,6 +363,7 @@ export class HumanController extends BaseController implements InputReceiver {
     super.reset();
     this.cannonPlaceMode = CannonMode.NORMAL;
     this.heldActions.clear();
+    this.shouldSnapCursorNextTick = false;
   }
 }
 

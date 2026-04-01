@@ -227,7 +227,11 @@ export class AiController extends BaseController implements AiAnimatable {
 
   override reset(): void {
     super.reset();
-    this.onLifeLost();
+    resetSelectionPhase(this.selectionPhase);
+    resetBuildPhase(this._buildPhase);
+    resetCannonPhase(this._cannonPhase);
+    resetBattlePhase(this._battlePhase);
+    this.strategy.onLifeLost();
   }
 
   onCannonPhaseStart(): void {}

@@ -17,10 +17,12 @@ export function createController(
   strategySeed?: number,
   difficulty?: number,
 ): PlayerController {
-  return isAi
-    ? new AiController(
-        playerId,
-        new DefaultStrategy(undefined, strategySeed, difficulty),
-      )
-    : new HumanController(playerId, keys!);
+  if (isAi) {
+    return new AiController(
+      playerId,
+      new DefaultStrategy(undefined, strategySeed, difficulty),
+    );
+  }
+  if (!keys) throw new Error("KeyBindings required for human controller");
+  return new HumanController(playerId, keys);
 }

@@ -170,7 +170,11 @@ export function tickCannon(
     case STEP.DWELLING: {
       phase.state.timer -= dt;
       if (phase.state.timer <= 0) {
-        const target = phase.queue[0]!;
+        const target = phase.queue[0];
+        if (!target) {
+          phase.state = { step: STEP.IDLE };
+          return null;
+        }
         const targetMode = target.mode;
         if (canPlaceCannon(player, target.row, target.col, targetMode, state)) {
           placeCannon(
@@ -189,7 +193,8 @@ export function tickCannon(
         };
         return null;
       }
-      const target = phase.queue[0]!;
+      const target = phase.queue[0];
+      if (!target) return null;
       return phantomAt(host.playerId, phase, target.row, target.col, true);
     }
   }
@@ -201,8 +206,9 @@ function tickMoving(
   state: GameState,
   player: Player,
   dt: number,
-): CannonPlacementPreview {
-  const target = phase.queue[0]!;
+): CannonPlacementPreview | null {
+  const target = phase.queue[0];
+  if (!target) return null;
   const targetMode = target.mode;
   if (
     host.stepTileCursorToward(
@@ -238,8 +244,9 @@ function phantomAt(
   row: number,
   col: number,
   valid: boolean,
-): CannonPlacementPreview {
-  const target = phase.queue[0]!;
+): CannonPlacementPreview | null {
+  const target = phase.queue[0];
+  if (!target) return null;
   const targetMode = target.mode;
   return {
     row,
