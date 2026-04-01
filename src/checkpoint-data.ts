@@ -45,6 +45,8 @@ export interface SerializedPlayer {
   score: number;
   /** Active upgrades: [upgradeId, stackCount][] (modern mode). */
   upgrades?: [string, number][];
+  /** Wall tiles that absorbed one hit (reinforced walls). */
+  damagedWalls?: number[];
 }
 
 export interface SerializedBurningPit {

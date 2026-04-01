@@ -196,6 +196,8 @@ export function serializePlayers(state: GameState) {
     score: player.score,
     upgrades:
       player.upgrades.size > 0 ? [...player.upgrades.entries()] : undefined,
+    damagedWalls:
+      player.damagedWalls.size > 0 ? [...player.damagedWalls] : undefined,
   }));
 }
 
@@ -308,6 +310,7 @@ export function applyPlayersCheckpoint(
     player.eliminated = sp.eliminated;
     player.score = sp.score;
     player.upgrades = new Map((sp.upgrades ?? []) as [UpgradeId, number][]);
+    player.damagedWalls = new Set(sp.damagedWalls ?? []);
     // Rebuild castle geometry from home tower (deterministic from map)
     player.castle = player.homeTower
       ? createCastle(player.homeTower, state.map.tiles, state.map.towers)

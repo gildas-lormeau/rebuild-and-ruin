@@ -170,6 +170,9 @@ export interface Player {
   castleWallTiles: ReadonlySet<number>;
   /** Active upgrades for this player (modern mode only). Key = upgrade id, value = stack count. */
   upgrades: Map<UpgradeId, number>;
+  /** Wall tiles that have absorbed one hit (reinforced walls upgrade).
+   *  Cleared at build phase start. Second hit destroys normally. */
+  damagedWalls: Set<number>;
 }
 
 export interface Grunt extends TilePos {

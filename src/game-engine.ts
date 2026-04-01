@@ -75,6 +75,7 @@ export function createGameState(
       defaultFacing: 0,
       castleWallTiles: new Set(),
       upgrades: new Map(),
+      damagedWalls: new Set(),
     });
   }
 

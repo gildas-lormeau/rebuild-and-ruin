@@ -176,6 +176,7 @@ export function parseBoard(ascii: string, playerId = 0): ParseResult {
     defaultFacing: 0,
     castleWallTiles: new Set(),
     upgrades: new Map(),
+    damagedWalls: new Set(),
   };
 
   const map: GameMap = {

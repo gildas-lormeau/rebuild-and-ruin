@@ -528,7 +528,9 @@ function launchCannonball(
     y: startY,
     targetX: tX,
     targetY: tY,
-    speed: BALL_SPEED,
+    speed:
+      BALL_SPEED *
+      (1 + (state.players[playerId]?.upgrades.get("rapid_fire") ?? 0)),
     playerId,
     scoringPlayerId,
     incendiary: isSuperCannon(cannon) ? true : undefined,
@@ -601,6 +603,14 @@ function collectWallImpacts(
   for (const player of state.players) {
     if (player.walls.has(key)) {
       hitWall = true;
+      // Reinforced Walls: first hit is absorbed, wall survives
+      if (
+        player.upgrades.get("reinforced_walls") &&
+        !player.damagedWalls.has(key)
+      ) {
+        player.damagedWalls.add(key);
+        continue;
+      }
       events.push({
         type: MESSAGE.WALL_DESTROYED,
         row,

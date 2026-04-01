@@ -70,6 +70,8 @@ import { generateUpgradeOffers } from "./upgrade-pick.ts";
 
 /** Grunts spawned per player on first battle when nobody fires. */
 const IDLE_FIRST_BATTLE_GRUNTS = 2;
+/** Extra build seconds per Master Builder upgrade stack. */
+const MASTER_BUILDER_BONUS = 5;
 
 /** Rebuild a player's home castle from scratch (used when continuing after losing a life). */
 export function rebuildHomeCastle(state: GameState, player: Player): void {
@@ -257,9 +259,18 @@ export function enterBuildFromBattle(state: GameState): void {
   state.activeModifier = rollModifier(state);
   state.pendingUpgradeOffers = generateUpgradeOffers(state);
 
+  // Clear reinforced-wall damage tracking for the new round
+  for (const player of state.players) player.damagedWalls.clear();
+
   replenishBonusSquares(state);
   setPhase(state, Phase.WALL_BUILD);
-  state.timer = state.buildTimer;
+  // Master Builder: +5s per stack across all players
+  const masterBuilderBonus =
+    state.players.reduce(
+      (sum, pl) => sum + (pl.upgrades.get("master_builder") ?? 0),
+      0,
+    ) * MASTER_BUILDER_BONUS;
+  state.timer = state.buildTimer + masterBuilderBonus;
   startOfBuildPhaseHousekeeping(state);
 
   // Modern mode: apply build-start modifiers (after housekeeping so territory is fresh)
