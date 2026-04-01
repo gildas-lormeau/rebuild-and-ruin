@@ -102,6 +102,9 @@ interface PhaseTicksDeps
   onBeginBattle?: () => void;
   sound: SoundSystem;
   haptics: HapticsSystem;
+  /** Try to show upgrade pick overlay. Returns true if shown (caller should
+   *  defer Mode.GAME). `onDone` is called when all picks are resolved. */
+  tryShowUpgradePick?: (onDone: () => void) => boolean;
 }
 
 export interface PhaseTicksSystem {
@@ -363,10 +366,15 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       },
       onBattlePhaseEnded: () => {
         deps.saveBattleCrosshair?.();
+        const enterGame = () => {
+          runtimeState.mode = Mode.GAME;
+        };
         executeTransition(BUILD_START_STEPS, {
           showBanner: () =>
             showBuildPhaseBanner(deps.showBanner, BANNER_BUILD, () => {
-              runtimeState.mode = Mode.GAME;
+              // After banner: show upgrade picks if available, else go to game
+              if (deps.tryShowUpgradePick?.(enterGame)) return;
+              enterGame();
             }),
           applyCheckpoint: () => {
             nextPhase(runtimeState.state);

@@ -108,6 +108,10 @@ interface InputSystemDeps {
     toggleFocus: (playerId: number) => void;
     confirmChoice: (playerId: number) => void;
   };
+  readonly upgradePick: {
+    moveFocus: (playerId: number, dir: number) => void;
+    confirmChoice: (playerId: number) => void;
+  };
   readonly selection: {
     highlight: (idx: number, zone: number, pid: number) => void;
     confirmAndStartBuild: (pid: number, isReselect?: boolean) => boolean;
@@ -491,6 +495,19 @@ function buildOverlayActionDeps(deps: InputSystemDeps) {
       confirm: () => {
         const human = firstHuman();
         if (human) lifeLost.confirmChoice(human.playerId);
+      },
+    },
+    upgradePick: {
+      isActive: () =>
+        runtimeState.mode === Mode.UPGRADE_PICK &&
+        runtimeState.upgradePickDialog !== null,
+      toggleFocus: () => {
+        const human = firstHuman();
+        if (human) deps.upgradePick.moveFocus(human.playerId, 1);
+      },
+      confirm: () => {
+        const human = firstHuman();
+        if (human) deps.upgradePick.confirmChoice(human.playerId);
       },
     },
     gameOver: {

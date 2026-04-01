@@ -71,6 +71,10 @@ import {
   type GameRuntime,
   type RuntimeConfig,
 } from "./runtime-types.ts";
+import {
+  createUpgradePickSystem,
+  type UpgradePickSystem,
+} from "./runtime-upgrade-pick.ts";
 import { createSoundSystem } from "./sound-system.ts";
 import { Mode, Phase } from "./types.ts";
 import { fireOnce } from "./utils.ts";
@@ -187,7 +191,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       [Mode.BALLOON_ANIM]: (dt: number) => phaseTicks.tickBalloonAnim(dt),
       [Mode.CASTLE_BUILD]: (dt: number) => selection.tickCastleBuild(dt),
       [Mode.LIFE_LOST]: (dt: number) => lifeLost.tick(dt),
-      [Mode.UPGRADE_PICK]: () => render(),
+      [Mode.UPGRADE_PICK]: (dt: number) => upgradePick.tick(dt),
       [Mode.GAME]: (dt: number) => phaseTicks.tickGame(dt),
     };
 
@@ -369,6 +373,17 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
 
   // -------------------------------------------------------------------------
+  // Upgrade pick sub-system (delegated to runtime-upgrade-pick.ts)
+  // -------------------------------------------------------------------------
+
+  const upgradePick: UpgradePickSystem = createUpgradePickSystem({
+    runtimeState,
+    log: config.log,
+    render: () => render(),
+    firstHuman,
+  });
+
+  // -------------------------------------------------------------------------
   // Phase ticks sub-system (delegated to runtime-phase-ticks.ts)
   // -------------------------------------------------------------------------
 
@@ -394,6 +409,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     onBeginBattle: IS_TOUCH_DEVICE ? camera.aimAtEnemyCastle : undefined,
     sound,
     haptics,
+    tryShowUpgradePick: (onDone) => upgradePick.tryShow(onDone),
   });
 
   // -------------------------------------------------------------------------
@@ -478,6 +494,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     lobby,
     options,
     lifeLost,
+    upgradePick,
     selection,
     camera,
     sound,

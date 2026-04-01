@@ -47,7 +47,8 @@ const BATTLE: UpgradeCategory = "battle";
 const BUILD: UpgradeCategory = "build";
 const STRATEGIC: UpgradeCategory = "strategic";
 const ONE_USE: UpgradeCategory = "one_use";
-const UPGRADE_POOL: readonly UpgradeDef[] = [
+const poolComplete: PoolComplete = true;
+export const UPGRADE_POOL: readonly UpgradeDef[] = [
   // Battle
   {
     id: "scatter_shot",
@@ -188,6 +189,5 @@ const UPGRADE_POOL: readonly UpgradeDef[] = [
     stackable: false,
   },
 ];
-const poolComplete: PoolComplete = true;
 
 void poolComplete;

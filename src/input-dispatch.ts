@@ -59,6 +59,11 @@ export interface OverlayActionDeps {
     toggleFocus: () => void;
     confirm: () => void;
   };
+  upgradePick?: {
+    isActive: () => boolean;
+    toggleFocus: () => void;
+    confirm: () => void;
+  };
   gameOver?: {
     isActive: () => boolean;
     toggleFocus: () => void;
@@ -304,6 +309,17 @@ export function dispatchOverlayAction(
     }
     if (action === Action.CONFIRM) {
       deps.lifeLost.confirm();
+      return true;
+    }
+    return false;
+  }
+  if (deps.upgradePick?.isActive()) {
+    if (action === Action.LEFT || action === Action.RIGHT) {
+      deps.upgradePick.toggleFocus();
+      return true;
+    }
+    if (action === Action.CONFIRM) {
+      deps.upgradePick.confirm();
       return true;
     }
     return false;
