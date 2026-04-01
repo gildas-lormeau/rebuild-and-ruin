@@ -52,6 +52,7 @@ import type {
   CombinedCannonResult,
   GameState,
 } from "./types.ts";
+import { UID } from "./upgrade-defs.ts";
 
 /** Result of tickCannonballs: impact positions (for VFX) + detailed events (for network). */
 interface CannonballUpdateResult {
@@ -530,7 +531,7 @@ function launchCannonball(
     targetY: tY,
     speed:
       BALL_SPEED *
-      (1 + (state.players[playerId]?.upgrades.get("rapid_fire") ?? 0)),
+      (1 + (state.players[playerId]?.upgrades.get(UID.RAPID_FIRE) ?? 0)),
     playerId,
     scoringPlayerId,
     incendiary: isSuperCannon(cannon) ? true : undefined,
@@ -602,15 +603,15 @@ function collectWallImpacts(
   let hitWall = false;
   for (const player of state.players) {
     if (player.walls.has(key)) {
-      hitWall = true;
-      // Reinforced Walls: first hit is absorbed, wall survives
+      // Reinforced Walls: first hit is absorbed, wall survives (no pit either)
       if (
-        player.upgrades.get("reinforced_walls") &&
+        player.upgrades.get(UID.REINFORCED_WALLS) &&
         !player.damagedWalls.has(key)
       ) {
         player.damagedWalls.add(key);
         continue;
       }
+      hitWall = true;
       events.push({
         type: MESSAGE.WALL_DESTROYED,
         row,

@@ -66,6 +66,7 @@ import {
   Phase,
   type Player,
 } from "./types.ts";
+import { UID } from "./upgrade-defs.ts";
 import { generateUpgradeOffers } from "./upgrade-pick.ts";
 
 /** Grunts spawned per player on first battle when nobody fires. */
@@ -266,10 +267,12 @@ export function enterBuildFromBattle(state: GameState): void {
   setPhase(state, Phase.WALL_BUILD);
   // Master Builder: +5s per stack across all players
   const masterBuilderBonus =
-    state.players.reduce(
-      (sum, pl) => sum + (pl.upgrades.get("master_builder") ?? 0),
-      0,
-    ) * MASTER_BUILDER_BONUS;
+    state.players
+      .filter((pl) => !pl.eliminated)
+      .reduce(
+        (sum, pl) => sum + (pl.upgrades.get(UID.MASTER_BUILDER) ?? 0),
+        0,
+      ) * MASTER_BUILDER_BONUS;
   state.timer = state.buildTimer + masterBuilderBonus;
   startOfBuildPhaseHousekeeping(state);
 
