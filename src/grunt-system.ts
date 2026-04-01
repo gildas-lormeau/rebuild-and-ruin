@@ -226,7 +226,7 @@ export function gruntAttackTowers(
 ): GruntAttackEvent[] {
   const events: GruntAttackEvent[] = [];
   for (const grunt of state.grunts) {
-    // Wall attack: blocked grunts that decided to attack a wall
+    // Wall attack: executing decision made by rollGruntWallAttacks() at battle start
     if (grunt.wallAttack) {
       const target = getGruntTargetTower(state, grunt);
       const bestWallKey = pickAdjacentWallKeyForAttack(
@@ -290,7 +290,7 @@ export function updateGruntBlockedBattles(state: GameState): void {
     } else {
       grunt.blockedBattles += 1;
     }
-    // Clear wall attack state for next round
+    // Clear wall attack state (decision does not persist across rounds)
     grunt.wallAttack = false;
   }
 }
@@ -299,6 +299,8 @@ export function updateGruntBlockedBattles(state: GameState): void {
  * Called at start of battle: blocked grunts (≥2 battles) with alive target
  * have 1/4 chance to attack an adjacent wall.
  */
+/** wallAttack lifecycle: rollGruntWallAttacks (set) → gruntAttackTowers (execute) →
+ *  updateGruntBlockedBattles (clear). All three run during BATTLE phase only. */
 export function rollGruntWallAttacks(state: GameState): void {
   for (const grunt of state.grunts) {
     if (!canAttemptWallAttack(state, grunt)) continue;

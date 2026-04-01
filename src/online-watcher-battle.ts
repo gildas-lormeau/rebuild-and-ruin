@@ -12,7 +12,7 @@ import { BATTLE_TIMER } from "./game-constants.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import {
   REMOTE_CROSSHAIR_MULT,
-  startWatcherPhaseTimer,
+  setWatcherPhaseTimer,
   type WatcherTimingState,
 } from "./online-types.ts";
 import {
@@ -143,7 +143,7 @@ export function tickWatcherTimers(
 
     frame.announcement = getCountdownAnnouncement(state.battleCountdown);
     if (!frame.announcement) {
-      startWatcherPhaseTimer(
+      setWatcherPhaseTimer(
         timing,
         timing.countdownStartTime + timing.countdownDuration * 1000,
         BATTLE_TIMER,

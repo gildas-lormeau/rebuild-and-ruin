@@ -52,12 +52,19 @@ interface CameraDeps {
 // State is accessed via deps.getState(), deps.getCtx(), etc. throughout.
 export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // --- Internal state ---
+  //
+  // CAMERA STATE MACHINE — viewport priority (highest to lowest):
+  //   castleBuildVp  — during castle build phase (mobile auto-zoom to player zone)
+  //   pinchVp        — user pinch gesture (mobile, persists per-phase via phasePinch)
+  //   cameraZone     — follow player zone or crosshair (mobile auto-zoom)
+  //   fullMapVp      — default (entire map, desktop)
+  // updateViewport() lerps currentVp toward the highest-priority non-null target.
 
   // Platform & session flags
   let mobileZoomEnabled = false;
   let zoomActivated = false;
 
-  // Zoom targets (priority in updateViewport: castleBuildVp > pinchVp > cameraZone > fullMap)
+  // Zoom targets (see priority comment above)
   let cameraZone: number | null = null;
   let pinchVp: Viewport | null = null;
   let castleBuildVp: Viewport | null = null;

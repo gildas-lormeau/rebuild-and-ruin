@@ -84,7 +84,11 @@ Deno.serve({ port: PORT }, (req) => {
  *  (CREATE_ROOM, JOIN_ROOM, SELECT_SLOT, PING) that require server-side
  *  responses. All other messages fall through to RoomManager→GameRoom which
  *  validates and relays using set-based gates (HOST_ONLY, PHASE_GATES,
- *  RATE_LIMITED_TYPES). */
+ *  RATE_LIMITED_TYPES).
+ *
+ *  Two-tier dispatch: lobby/room-management messages use this simple switch;
+ *  in-game messages use game-room.ts's multi-stage validation pipeline.
+ *  New game-state messages go in game-room.ts, not here. */
 function handleMessage(
   socket: WebSocket,
   msg: Record<string, unknown>,

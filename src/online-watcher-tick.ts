@@ -16,8 +16,8 @@ import type { PixelPos } from "./geometry-types.ts";
 import { tickGrunts } from "./grunt-movement.ts";
 import type { DedupMaps, OnlineSession } from "./online-session.ts";
 import {
+  clearWatcherPhaseTimer,
   interpolateToward,
-  resetWatcherPhaseTimer,
   type WatcherNetworkState,
   type WatcherTimingState,
 } from "./online-types.ts";
@@ -82,7 +82,7 @@ export function resetWatcherState(watcherState: WatcherState): void {
   watcherState.crosshairPos.clear();
   watcherState.idlePhases.clear();
   watcherState.orbitParams.clear();
-  resetWatcherPhaseTimer(watcherState.timing);
+  clearWatcherPhaseTimer(watcherState.timing);
   watcherState.timing.countdownStartTime = 0;
   watcherState.timing.countdownDuration = 0;
   watcherState.migrationTimer = 0;
@@ -97,7 +97,7 @@ export function resetWatcherState(watcherState: WatcherState): void {
 export function resetWatcherTimingForHostPromotion(
   watcherState: WatcherState,
 ): void {
-  resetWatcherPhaseTimer(watcherState.timing);
+  clearWatcherPhaseTimer(watcherState.timing);
   watcherState.timing.countdownStartTime = 0;
   watcherState.timing.countdownDuration = 0;
   watcherState.idlePhases.clear();

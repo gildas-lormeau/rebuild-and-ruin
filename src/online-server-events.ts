@@ -231,11 +231,13 @@ function handleTowerSelected(
     selectionState.highlighted = msg.towerIdx;
     deps.syncSelectionOverlay();
     if (msg.confirmed && deps.session.isHost) {
+      // Host: immediately finalize selection for the remote player
       deps.confirmSelectionAndStartBuild(
         msg.playerId,
         deps.isCastleReselectPhase(),
       );
     } else if (msg.confirmed) {
+      // Non-host watcher: mark confirmed locally; host's next checkpoint drives phase change
       selectionState.confirmed = true;
     }
   }
@@ -404,6 +406,8 @@ function handlePiecePhantom(
   if (state && !validPid(msg.playerId, state)) return DROPPED;
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
+  // Replace existing phantom for this player (latest preview wins, not accumulated).
+  // filter() removes the old entry; push() adds the new one.
   const updated = deps.watcher.remotePiecePhantoms.filter(
     (entry) => entry.playerId !== msg.playerId,
   );

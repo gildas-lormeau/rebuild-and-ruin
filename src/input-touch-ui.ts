@@ -422,7 +422,11 @@ function handleDpadAction(deps: DpadDeps): void {
   });
 }
 
-/** Wire d-pad arrow buttons with key-repeat (placement) and hold-to-move (battle).
+/** Wire d-pad arrow buttons with context-dependent behavior:
+ *  - PLACEMENT PHASES: key-repeat (short initial delay, fast repeat interval)
+ *  - BATTLE: hold-to-move (battleKeyDown on touchstart, battleKeyUp on touchend)
+ *  Phase is checked live via isBattlePhase() on each touch, not at wiring time.
+ *  repeatTimer is a closure variable shared across all four arrow buttons.
  *  Returns handles needed by the parent for phase updates and rotate wiring. */
 function wireDpadArrows(
   deps: DpadDeps,

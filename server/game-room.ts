@@ -64,7 +64,9 @@ const RATE_LIMITED_TYPES: ReadonlySet<string> = new Set([
   MESSAGE.AIM_UPDATE,
 ]);
 
-// Messages only the host socket can send
+// Messages only the host socket can send.
+// Invariant: HOST_ONLY and PHASE_GATES are disjoint — host-only messages skip phase
+// checks (host sends when appropriate). Do NOT add a message to both sets.
 const HOST_ONLY: Set<string> = new Set([
   MESSAGE.INIT,
   MESSAGE.SELECT_START,

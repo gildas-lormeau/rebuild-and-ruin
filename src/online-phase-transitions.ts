@@ -12,7 +12,7 @@ import type { RGB } from "./geometry-types.ts";
 import { TILE_COUNT } from "./grid.ts";
 import type { OnlineSession } from "./online-session.ts";
 import {
-  startWatcherPhaseTimer,
+  setWatcherPhaseTimer,
   type WatcherTimingState,
 } from "./online-types.ts";
 import {
@@ -237,7 +237,7 @@ export function handleCannonStartTransition(
       showCannonPhaseBanner(
         transitionCtx.ui.showBanner,
         () => {
-          startWatcherPhaseTimer(
+          setWatcherPhaseTimer(
             transitionCtx.ui.watcherTiming,
             transitionCtx.now(),
             state.timer,
@@ -323,7 +323,7 @@ export function handleBuildStartTransition(
           transitionCtx.ui.showBanner,
           BANNER_REPAIR_ONLINE,
           () => {
-            startWatcherPhaseTimer(
+            setWatcherPhaseTimer(
               transitionCtx.ui.watcherTiming,
               bannerStartedAt + transitionCtx.ui.bannerDuration * 1000,
               state.timer,

@@ -306,7 +306,7 @@ export interface SelectionState {
   /** True once the user has tapped/clicked the highlighted tower once,
    *  enabling confirmation on the second tap. Reset on pointer-move to a
    *  different tower. Used by touch input to require a deliberate double-tap. */
-  secondTapReady?: boolean;
+  towerAlreadyHighlighted?: boolean;
 }
 
 export interface FrameContext {

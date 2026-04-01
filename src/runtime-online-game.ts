@@ -43,7 +43,7 @@ import {
   serializePlayers,
 } from "./online-serialize.ts";
 import { resetSessionState } from "./online-session.ts";
-import { startWatcherPhaseTimer } from "./online-types.ts";
+import { setWatcherPhaseTimer } from "./online-types.ts";
 import type { WatcherTickContext } from "./online-watcher-tick.ts";
 import {
   tickMigrationAnnouncement as tickMigrationAnnouncementFn,
@@ -473,7 +473,7 @@ function restoreFullState(msg: FullStateMessage): void {
     result.balloonFlights,
   );
 
-  startWatcherPhaseTimer(ctx.watcher.timing, performance.now(), state.timer);
+  setWatcherPhaseTimer(ctx.watcher.timing, performance.now(), state.timer);
   if (state.battleCountdown > 0) {
     ctx.watcher.timing.countdownStartTime = performance.now();
     ctx.watcher.timing.countdownDuration = state.battleCountdown;

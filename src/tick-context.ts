@@ -26,11 +26,11 @@
  *
  * Within a single frame: APPLY → TICK → CHECKPOINT (if phase change).
  *
- * Phase completion terminology (used interchangeably across the codebase):
- *   "done" — controller query: isCannonPhaseDone() checks if slots are exhausted or timer expired
- *   "finalize" — engine action: finalizeBuildPhase() runs end-of-phase cleanup and scoring
- *   "ended" — callback: onBattlePhaseEnded() signals the tick system that battle is over
- * These are not interchangeable — each has a specific role in the phase lifecycle.
+ * Phase completion terminology (three distinct terms, NOT interchangeable):
+ *   "done" — query: "is this phase finished?" (e.g. isCannonPhaseDone checks slots/timer)
+ *   "finalize" — action: run end-of-phase cleanup and scoring (e.g. finalizeBuildPhase)
+ *   "ended" — callback: signal that phase is over (e.g. onBattlePhaseEnded notifies tick system)
+ * Use the term that matches the operation: query → done, cleanup → finalize, signal → ended.
  */
 
 import type { ControllerIdentity } from "./controller-interfaces.ts";

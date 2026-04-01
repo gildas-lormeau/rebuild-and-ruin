@@ -59,7 +59,7 @@ export function initTowerSelection(
   selectionStates.set(playerId, {
     highlighted: towerIdx,
     confirmed: false,
-    secondTapReady: true,
+    towerAlreadyHighlighted: true,
   });
   const tower = state.map.towers[towerIdx];
   if (tower) selectPlayerTower(player, tower);

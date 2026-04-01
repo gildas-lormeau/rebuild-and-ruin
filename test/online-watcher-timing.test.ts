@@ -1,5 +1,5 @@
 /**
- * Watcher timing tests: startWatcherPhaseTimer, resetWatcherPhaseTimer.
+ * Watcher timing tests: setWatcherPhaseTimer, clearWatcherPhaseTimer.
  *
  * Verifies that watcher-side phase timer reconstruction from wall-clock
  * produces correct values and handles edge cases.
@@ -8,8 +8,8 @@
  */
 
 import {
-  resetWatcherPhaseTimer,
-  startWatcherPhaseTimer,
+  clearWatcherPhaseTimer,
+  setWatcherPhaseTimer,
   type WatcherTimingState,
 } from "../src/online-types.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
@@ -35,12 +35,12 @@ function reconstructTimer(timing: WatcherTimingState, now: number): number {
 }
 
 // ---------------------------------------------------------------------------
-// startWatcherPhaseTimer
+// setWatcherPhaseTimer
 // ---------------------------------------------------------------------------
 
-test("startWatcherPhaseTimer sets phaseStartTime and phaseDuration", () => {
+test("setWatcherPhaseTimer sets phaseStartTime and phaseDuration", () => {
   const timing = freshTiming();
-  startWatcherPhaseTimer(timing, 1000, 30000);
+  setWatcherPhaseTimer(timing, 1000, 30000);
 
   assert(timing.phaseStartTime === 1000, `expected phaseStartTime=1000, got ${timing.phaseStartTime}`);
   assert(timing.phaseDuration === 30000, `expected phaseDuration=30000, got ${timing.phaseDuration}`);
@@ -48,7 +48,7 @@ test("startWatcherPhaseTimer sets phaseStartTime and phaseDuration", () => {
 
 test("watcher timer reconstruction at various elapsed times", () => {
   const timing = freshTiming();
-  startWatcherPhaseTimer(timing, 1000, 30000);
+  setWatcherPhaseTimer(timing, 1000, 30000);
 
   // At start: 0ms elapsed → timer = 30000
   const t0 = reconstructTimer(timing, 1000);
@@ -69,17 +69,17 @@ test("watcher timer reconstruction at various elapsed times", () => {
 
 test("watcher timer does not go negative past phase end", () => {
   const timing = freshTiming();
-  startWatcherPhaseTimer(timing, 1000, 15000);
+  setWatcherPhaseTimer(timing, 1000, 15000);
 
   // 20 seconds past start (5s over) → clamped to 0
   const t = reconstructTimer(timing, 21000);
   assert(t === 0, `expected 0 (clamped), got ${t}`);
 });
 
-test("startWatcherPhaseTimer overwrites previous phase", () => {
+test("setWatcherPhaseTimer overwrites previous phase", () => {
   const timing = freshTiming();
-  startWatcherPhaseTimer(timing, 1000, 30000);
-  startWatcherPhaseTimer(timing, 5000, 15000);
+  setWatcherPhaseTimer(timing, 1000, 30000);
+  setWatcherPhaseTimer(timing, 5000, 15000);
 
   assert(timing.phaseStartTime === 5000, `expected phaseStartTime=5000, got ${timing.phaseStartTime}`);
   assert(timing.phaseDuration === 15000, `expected phaseDuration=15000, got ${timing.phaseDuration}`);
@@ -90,24 +90,24 @@ test("startWatcherPhaseTimer overwrites previous phase", () => {
 });
 
 // ---------------------------------------------------------------------------
-// resetWatcherPhaseTimer
+// clearWatcherPhaseTimer
 // ---------------------------------------------------------------------------
 
-test("resetWatcherPhaseTimer zeros out phase timing", () => {
+test("clearWatcherPhaseTimer zeros out phase timing", () => {
   const timing = freshTiming();
-  startWatcherPhaseTimer(timing, 5000, 30000);
-  resetWatcherPhaseTimer(timing);
+  setWatcherPhaseTimer(timing, 5000, 30000);
+  clearWatcherPhaseTimer(timing);
 
   assert(timing.phaseStartTime === 0, `expected phaseStartTime=0, got ${timing.phaseStartTime}`);
   assert(timing.phaseDuration === 0, `expected phaseDuration=0, got ${timing.phaseDuration}`);
 });
 
-test("resetWatcherPhaseTimer leaves countdown fields untouched", () => {
+test("clearWatcherPhaseTimer leaves countdown fields untouched", () => {
   const timing = freshTiming();
   timing.countdownStartTime = 2000;
   timing.countdownDuration = 5000;
-  startWatcherPhaseTimer(timing, 5000, 30000);
-  resetWatcherPhaseTimer(timing);
+  setWatcherPhaseTimer(timing, 5000, 30000);
+  clearWatcherPhaseTimer(timing);
 
   assert(timing.countdownStartTime === 2000, `countdown start should be preserved, got ${timing.countdownStartTime}`);
   assert(timing.countdownDuration === 5000, `countdown duration should be preserved, got ${timing.countdownDuration}`);
@@ -115,8 +115,8 @@ test("resetWatcherPhaseTimer leaves countdown fields untouched", () => {
 
 test("reconstructTimer returns 0 after reset", () => {
   const timing = freshTiming();
-  startWatcherPhaseTimer(timing, 1000, 30000);
-  resetWatcherPhaseTimer(timing);
+  setWatcherPhaseTimer(timing, 1000, 30000);
+  clearWatcherPhaseTimer(timing);
 
   const t = reconstructTimer(timing, 5000);
   assert(t === 0, `expected 0 after reset, got ${t}`);
@@ -128,7 +128,7 @@ test("reconstructTimer returns 0 after reset", () => {
 
 test("zero-duration phase timer reads as 0 immediately", () => {
   const timing = freshTiming();
-  startWatcherPhaseTimer(timing, 1000, 0);
+  setWatcherPhaseTimer(timing, 1000, 0);
 
   const t = reconstructTimer(timing, 1000);
   assert(t === 0, `zero-duration phase should have timer=0, got ${t}`);
@@ -137,7 +137,7 @@ test("zero-duration phase timer reads as 0 immediately", () => {
 test("very large phase duration works correctly", () => {
   const timing = freshTiming();
   const duration = 600000; // 10 minutes
-  startWatcherPhaseTimer(timing, 0, duration);
+  setWatcherPhaseTimer(timing, 0, duration);
 
   const t = reconstructTimer(timing, 300000); // 5 min elapsed
   assert(t === 300000, `expected 300000, got ${t}`);

@@ -25,6 +25,14 @@
  *
  * For new sub-systems, prefer the standard `runtimeState` + inline deps pattern.
  * Only use all-getters if the sub-system's state is mutated externally (e.g. host migration).
+ *
+ * ### Overlay mutation patterns
+ *
+ * Three patterns exist for updating the render overlay:
+ *   PERSISTENT (game overlays): mutate `runtimeState.overlay` in-place, call render().
+ *   TRANSIENT (lobby, options): construct a fresh overlay via factory, pass to renderFrame().
+ *   INPUT-DELEGATED: input handlers call dispatch functions that internally call render.
+ * For new UI, use persistent for game-phase overlays and transient for modal screens.
  */
 
 import type { GameMessage, ServerMessage } from "../server/protocol.ts";

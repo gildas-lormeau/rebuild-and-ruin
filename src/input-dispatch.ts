@@ -213,12 +213,12 @@ export function dispatchTowerSelect(
       const alreadyHighlighted = selectionState.highlighted === idx;
       if (
         alreadyHighlighted &&
-        (!requireSecondTapToConfirm || selectionState.secondTapReady)
+        (!requireSecondTapToConfirm || selectionState.towerAlreadyHighlighted)
       ) {
         gameAction.confirmSelectionAndStartBuild(human.playerId, isReselect);
       } else {
         gameAction.highlightTowerForPlayer(idx, zone, human.playerId);
-        selectionState.secondTapReady = alreadyHighlighted;
+        selectionState.towerAlreadyHighlighted = alreadyHighlighted;
       }
     }
   });
@@ -444,7 +444,7 @@ export function dispatchPointerMove(
         state.map.towers[idx]?.zone === zone
       ) {
         gameAction.highlightTowerForPlayer(idx, zone, human.playerId);
-        selectionState.secondTapReady = false;
+        selectionState.towerAlreadyHighlighted = false;
       }
     } else if (state.phase === Phase.WALL_BUILD) {
       const { row, col } = coords.pixelToTile(x, y);

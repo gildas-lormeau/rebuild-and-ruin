@@ -124,7 +124,13 @@ const CROSSHAIR_COLORS: RGB[] = [
   [255, 200, 30], // P3 gold
 ];
 
-/** Draw phantom piece/cannon previews (AI and human). */
+/** Draw phantom piece/cannon previews (AI and human).
+ *  Draw order is load-bearing (affects visual layering):
+ *    1. AI cannon phantoms (behind everything)
+ *    2. Primary human piece phantom
+ *    3. All human piece phantoms (multi-human build)
+ *    4. AI piece phantoms (on top)
+ *  Do not reorder without checking the visual result. */
 export function drawPhantoms(
   overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,

@@ -2,6 +2,10 @@
  * Host-side crosshair networking — broadcasts local AI crosshairs and
  * merges remote human crosshairs into the frame.
  *
+ * Host uses simple linear interpolation for remote crosshairs (interpolateToward).
+ * Watcher adds orbital wobble for idle AI crosshairs — see online-watcher-battle.ts
+ * updateOrbitCrosshair(). Do not add orbital wobble here.
+ *
  * Extracted from online-client.ts to keep that file focused on wiring.
  */
 

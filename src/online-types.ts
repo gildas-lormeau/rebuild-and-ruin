@@ -28,7 +28,7 @@ export const REMOTE_CROSSHAIR_MULT = 2;
 
 /** Start tracking a new phase timer. Call at the moment a phase begins on the watcher side.
  *  The watcher reconstructs `state.timer` each frame from `(now - phaseStartTime)`. */
-export function startWatcherPhaseTimer(
+export function setWatcherPhaseTimer(
   timing: WatcherTimingState,
   now: number,
   phaseDuration: number,
@@ -38,7 +38,7 @@ export function startWatcherPhaseTimer(
 }
 
 /** Reset phase timing to idle (no active phase timer). */
-export function resetWatcherPhaseTimer(timing: WatcherTimingState): void {
+export function clearWatcherPhaseTimer(timing: WatcherTimingState): void {
   timing.phaseStartTime = 0;
   timing.phaseDuration = 0;
 }
