@@ -97,12 +97,15 @@ const rejectFatWalls: ScoringRule = {
 const rejectTinyPockets: ScoringRule = {
   name: "reject-tiny-pockets",
   apply(candidate, env, ctx) {
-    if (!ctx.skill.tinyPocketReject || env.pocketDelta <= 0) return 0;
-    // Hard reject: placement creates a new pocket too small to be useful
-    // (< SMALL_POCKET_MAX_SIZE = 9 tiles). Tiny pockets (≤ 3 tiles) are
-    // rejected even when filling gaps; larger small pockets only when not.
+    if (!ctx.skill.tinyPocketReject) return 0;
+    // Hard reject: placement results in a tiny pocket (≤ 3 tiles) —
+    // always reject regardless of net pocketDelta, because a new tiny
+    // pocket is wasteful even if another pocket was eliminated elsewhere.
     if (env.pocketInfo.smallestPocket <= TINY_POCKET_MAX_SIZE) return null;
+    // Larger small pockets (< 9 tiles): only reject when net pocket waste
+    // increased and no gaps are being filled.
     if (
+      env.pocketDelta > 0 &&
       env.pocketInfo.smallestPocket < SMALL_POCKET_MAX_SIZE &&
       candidate.gapsFilled === 0
     )

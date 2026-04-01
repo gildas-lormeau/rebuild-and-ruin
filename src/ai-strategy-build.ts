@@ -44,7 +44,6 @@ import {
 } from "./ai-castle-rect.ts";
 import { hasGruntAt } from "./board-occupancy.ts";
 import { canPlacePiece } from "./build-system.ts";
-import { isCannonEnclosed } from "./cannon-system.ts";
 import type { TileRect } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { type PieceShape, rotateCW } from "./pieces.ts";
@@ -52,8 +51,6 @@ import {
   computeOutside,
   DIRS_4,
   hasPitAt,
-  isBalloonCannon,
-  isCannonAlive,
   isCannonTile,
   isGrass,
   isTowerEnclosed,
@@ -589,24 +586,11 @@ export function pickPlacement(
     evaluated: bestCandidateEvaluated,
   } = scoreTopCandidates(topCandidates, scoringCtx);
 
-  // All enclosed, no gaps, no towers to build toward — keep going only if
-  // there are enemy grunts or unenclosed cannons on outside tiles worth
-  // enclosing, or if the scoring found a placement with positive territory gain.
-  if (noBuildTargets) {
-    const hasOutsideGrunts = state.grunts.some(
-      (grunt) =>
-        grunt.targetPlayerId === playerId &&
-        outside.has(packTile(grunt.row, grunt.col)),
-    );
-    const hasUnenclosedCannons = player.cannons.some(
-      (cannon) =>
-        isCannonAlive(cannon) &&
-        !isBalloonCannon(cannon) &&
-        !isCannonEnclosed(cannon, player),
-    );
-    if ((!hasOutsideGrunts && !hasUnenclosedCannons) || bestScore <= 0)
-      return null;
-  }
+  // All enclosed, no gaps, no towers to build toward — still allow
+  // expansion if scoring found a positive placement (new large enclosure).
+  // rejectTinyPockets already filtered out small-pocket candidates at
+  // skill ≥ 3, so bestScore > 0 means genuinely useful territory gain.
+  if (noBuildTargets && bestScore <= 0) return null;
 
   // Gap-filling was the priority but territory gain was ≤ 0 — still use the
   // best gap-filler by first-pass score (closing the ring IS the goal).

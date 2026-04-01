@@ -43,7 +43,7 @@ interface GameExpectation {
 const EXPECTED: readonly GameExpectation[] = [
   {
     seed: 52,
-    totalRounds: 25,
+    totalRounds: 38,
     winner: 0,
     checkpoints: [
       {
@@ -55,18 +55,18 @@ const EXPECTED: readonly GameExpectation[] = [
         ],
       },
       {
-        round: 25,
+        round: 38,
         players: [
-          { lives: 3, score: 45508, walls: 144, cannons: 17, interior: 98, eliminated: false },
-          { lives: 0, score: 36856, walls: 0, cannons: 0, interior: 0, eliminated: true },
-          { lives: 0, score: 8682, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 2, score: 69290, walls: 30, cannons: 0, interior: 35, eliminated: false },
+          { lives: 0, score: 62420, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 0, score: 4928, walls: 0, cannons: 0, interior: 0, eliminated: true },
         ],
       },
     ],
   },
   {
     seed: 66,
-    totalRounds: 48,
+    totalRounds: 32,
     winner: 1,
     checkpoints: [
       {
@@ -78,19 +78,19 @@ const EXPECTED: readonly GameExpectation[] = [
         ],
       },
       {
-        round: 48,
+        round: 32,
         players: [
-          { lives: 0, score: 71094, walls: 0, cannons: 0, interior: 0, eliminated: true },
-          { lives: 2, score: 87818, walls: 177, cannons: 18, interior: 144, eliminated: false },
-          { lives: 0, score: 16388, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 0, score: 41458, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 2, score: 59938, walls: 162, cannons: 21, interior: 134, eliminated: false },
+          { lives: 0, score: 14596, walls: 0, cannons: 0, interior: 0, eliminated: true },
         ],
       },
     ],
   },
   {
     seed: 65,
-    totalRounds: 17,
-    winner: 2,
+    totalRounds: 26,
+    winner: 0,
     checkpoints: [
       {
         round: 5,
@@ -101,18 +101,18 @@ const EXPECTED: readonly GameExpectation[] = [
         ],
       },
       {
-        round: 17,
+        round: 26,
         players: [
-          { lives: 0, score: 21414, walls: 0, cannons: 0, interior: 0, eliminated: true },
-          { lives: 0, score: 12890, walls: 0, cannons: 0, interior: 0, eliminated: true },
-          { lives: 2, score: 27350, walls: 109, cannons: 19, interior: 78, eliminated: false },
+          { lives: 1, score: 40390, walls: 159, cannons: 15, interior: 130, eliminated: false },
+          { lives: 0, score: 10168, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 0, score: 39932, walls: 0, cannons: 0, interior: 0, eliminated: true },
         ],
       },
     ],
   },
   {
     seed: 56,
-    totalRounds: 19,
+    totalRounds: 21,
     winner: 0,
     checkpoints: [
       {
@@ -124,18 +124,18 @@ const EXPECTED: readonly GameExpectation[] = [
         ],
       },
       {
-        round: 19,
+        round: 21,
         players: [
-          { lives: 3, score: 30406, walls: 173, cannons: 14, interior: 73, eliminated: false },
-          { lives: 0, score: 5620, walls: 0, cannons: 0, interior: 0, eliminated: true },
-          { lives: 0, score: 25172, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 1, score: 32898, walls: 33, cannons: 0, interior: 32, eliminated: false },
+          { lives: 0, score: 4398, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 0, score: 29084, walls: 0, cannons: 0, interior: 0, eliminated: true },
         ],
       },
     ],
   },
   {
     seed: 2,
-    totalRounds: 35,
+    totalRounds: 24,
     winner: 1,
     checkpoints: [
       {
@@ -147,11 +147,11 @@ const EXPECTED: readonly GameExpectation[] = [
         ],
       },
       {
-        round: 35,
+        round: 24,
         players: [
-          { lives: 0, score: 8082, walls: 0, cannons: 0, interior: 0, eliminated: true },
-          { lives: 1, score: 61362, walls: 156, cannons: 19, interior: 119, eliminated: false },
-          { lives: 0, score: 46502, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 0, score: 8704, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 3, score: 45080, walls: 144, cannons: 19, interior: 108, eliminated: false },
+          { lives: 0, score: 30910, walls: 0, cannons: 0, interior: 0, eliminated: true },
         ],
       },
     ],
