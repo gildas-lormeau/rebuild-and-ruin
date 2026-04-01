@@ -216,6 +216,7 @@ export function parseBoard(ascii: string, playerId = 0): ParseResult {
     gameMode: "classic",
     activeModifier: null,
     lastModifierId: null,
+    pendingUpgradeOffers: null,
   };
 
   claimTerritory(state);

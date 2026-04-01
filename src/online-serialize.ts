@@ -54,6 +54,9 @@ export function createBuildStartMessage(state: GameState) {
     rngSeed: state.rng.seed,
     activeModifier: state.activeModifier,
     lastModifierId: state.lastModifierId,
+    pendingUpgradeOffers: state.pendingUpgradeOffers
+      ? [...state.pendingUpgradeOffers.entries()]
+      : null,
   };
 }
 
@@ -128,6 +131,9 @@ export function createFullStateMessage(
     gameMode: state.gameMode,
     activeModifier: state.activeModifier,
     lastModifierId: state.lastModifierId,
+    pendingUpgradeOffers: state.pendingUpgradeOffers
+      ? [...state.pendingUpgradeOffers.entries()]
+      : null,
     towerPendingRevive: [...state.towerPendingRevive],
     capturedCannons: state.capturedCannons.map((cc) => ({
       victimId: cc.victimId,
@@ -221,6 +227,14 @@ export function restoreFullStateSnapshot(
     (msg.activeModifier as GameState["activeModifier"]) ?? null;
   state.lastModifierId =
     (msg.lastModifierId as GameState["lastModifierId"]) ?? null;
+  state.pendingUpgradeOffers = msg.pendingUpgradeOffers
+    ? new Map(
+        msg.pendingUpgradeOffers.map(([pid, offers]) => [
+          pid,
+          offers as [UpgradeId, UpgradeId, UpgradeId],
+        ]),
+      )
+    : null;
   state.burningPits = msg.burningPits.map((pit) => ({
     row: pit.row,
     col: pit.col,

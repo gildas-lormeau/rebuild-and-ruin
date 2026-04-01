@@ -256,6 +256,10 @@ export interface GameState {
   activeModifier: ModifierId | null;
   /** Previous round's modifier id (for no-repeat rule). null = none. */
   lastModifierId: ModifierId | null;
+  /** Pre-generated upgrade offers per player for the current round (modern mode).
+   *  Generated in enterBuildFromBattle using synced RNG, consumed by the upgrade pick dialog.
+   *  null in classic mode or before UPGRADE_FIRST_ROUND. */
+  pendingUpgradeOffers: Map<number, [UpgradeId, UpgradeId, UpgradeId]> | null;
 }
 
 /** Battle animation state — territory/wall snapshots and in-flight effects. */

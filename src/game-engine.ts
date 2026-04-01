@@ -107,6 +107,7 @@ export function createGameState(
     gameMode: GAME_MODE_CLASSIC,
     activeModifier: null,
     lastModifierId: null,
+    pendingUpgradeOffers: null,
   };
 }
 

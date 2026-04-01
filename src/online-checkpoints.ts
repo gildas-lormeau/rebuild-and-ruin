@@ -15,6 +15,7 @@ import {
 } from "./online-serialize.ts";
 import { towerCenterPx } from "./spatial.ts";
 import type { GameState } from "./types.ts";
+import type { UpgradeId } from "./upgrade-defs.ts";
 
 export interface CheckpointBattleAnim {
   territory: Set<number>[];
@@ -122,6 +123,14 @@ export function applyBuildStartCheckpoint(
     (data.activeModifier as typeof deps.state.activeModifier) ?? null;
   deps.state.lastModifierId =
     (data.lastModifierId as typeof deps.state.lastModifierId) ?? null;
+  deps.state.pendingUpgradeOffers = data.pendingUpgradeOffers
+    ? new Map(
+        data.pendingUpgradeOffers.map(([pid, offers]) => [
+          pid,
+          offers as [UpgradeId, UpgradeId, UpgradeId],
+        ]),
+      )
+    : null;
   clearBattleProjectiles(deps);
   deps.accum.grunt = 0;
   resetCannonFacings(deps.state);

@@ -277,6 +277,7 @@ export interface FullStateMessage {
   gameMode: string;
   activeModifier: string | null;
   lastModifierId: string | null;
+  pendingUpgradeOffers?: [number, [string, string, string]][] | null;
   towerPendingRevive: number[];
   capturedCannons: {
     victimId: number;

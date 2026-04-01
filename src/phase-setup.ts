@@ -66,6 +66,7 @@ import {
   Phase,
   type Player,
 } from "./types.ts";
+import { generateUpgradeOffers } from "./upgrade-pick.ts";
 
 /** Grunts spawned per player on first battle when nobody fires. */
 const IDLE_FIRST_BATTLE_GRUNTS = 2;
@@ -250,9 +251,11 @@ export function enterBuildFromBattle(state: GameState): void {
   claimTerritory(state);
   state.round++;
 
-  // Modern mode: roll modifier for the upcoming round
+  // Modern mode: roll modifier and generate upgrade offers (RNG consumed
+  // before BUILD_START checkpoint so host/watcher/headless all agree)
   state.lastModifierId = state.activeModifier;
   state.activeModifier = rollModifier(state);
+  state.pendingUpgradeOffers = generateUpgradeOffers(state);
 
   replenishBonusSquares(state);
   setPhase(state, Phase.WALL_BUILD);

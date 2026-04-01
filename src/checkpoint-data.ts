@@ -99,4 +99,5 @@ export interface BuildStartData {
   rngSeed: number;
   activeModifier?: string | null;
   lastModifierId?: string | null;
+  pendingUpgradeOffers?: [number, [string, string, string]][] | null;
 }
