@@ -24,6 +24,8 @@ import {
   applyCrumblingWalls,
   applyGruntSurge,
   applyWildfire,
+  BANNER_PHASE_CANNON,
+  modifierBannerText,
   rollModifier,
 } from "../src/round-modifiers.ts";
 import {
@@ -35,7 +37,14 @@ import { handleServerIncrementalMessage } from "../src/online-server-events.ts";
 import type { WatcherNetworkState } from "../src/online-types.ts";
 import type { SelectionState } from "../src/types.ts";
 import { type UpgradeId, UID } from "../src/upgrade-defs.ts";
-import { applyUpgradePicks, generateUpgradeOffers } from "../src/upgrade-pick.ts";
+import {
+  applyUpgradePicks,
+  createUpgradePickDialog,
+  generateUpgradeOffers,
+  tickUpgradePickDialog,
+  UPGRADE_PICK_AI_DELAY,
+  UPGRADE_PICK_MAX_TIMER,
+} from "../src/upgrade-pick.ts";
 import { createScenario } from "./scenario-helpers.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
 
@@ -796,6 +805,126 @@ test("host ignores UPGRADE_PICK for already-resolved entry", () => {
     dialog.entries[0]!.choice === UID.MASTER_BUILDER,
     "choice should remain unchanged",
   );
+});
+
+// ---------------------------------------------------------------------------
+// Coverage gaps: banner text, dialog create/tick, AI scoring
+// ---------------------------------------------------------------------------
+
+test("modifierBannerText returns text for cannon-announced modifiers", () => {
+  assert(
+    modifierBannerText("wildfire", BANNER_PHASE_CANNON) !== undefined,
+    "wildfire should announce on cannon phase",
+  );
+  assert(
+    modifierBannerText("grunt_surge", BANNER_PHASE_CANNON) !== undefined,
+    "grunt surge should announce on cannon phase",
+  );
+  assert(
+    modifierBannerText("crumbling_walls", BANNER_PHASE_CANNON) === undefined,
+    "crumbling walls should NOT announce on cannon phase",
+  );
+  assert(
+    modifierBannerText(null, BANNER_PHASE_CANNON) === undefined,
+    "null modifier should return undefined",
+  );
+});
+
+test("createUpgradePickDialog returns dialog from pending offers", () => {
+  const s = createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  s.state.round = 3;
+  s.state.pendingUpgradeOffers = generateUpgradeOffers(s.state);
+
+  const dialog = createUpgradePickDialog({
+    state: s.state,
+    isHost: true,
+    myPlayerId: 0,
+    remoteHumanSlots: new Set(),
+    isHumanController: () => false,
+  });
+
+  assert(dialog !== null, "dialog should be created from pending offers");
+  assert(
+    dialog!.entries.length > 0,
+    "dialog should have entries",
+  );
+  // All entries should be AI (no human controller)
+  for (const entry of dialog!.entries) {
+    assert(entry.isAi, `P${entry.playerId} should be AI`);
+    assert(entry.offers.length === 3, "each entry should have 3 offers");
+    assert(entry.choice === null, "choice should start null");
+  }
+});
+
+test("createUpgradePickDialog returns null in classic mode", () => {
+  const s = createScenario(42);
+  // Classic mode, no pending offers
+  const dialog = createUpgradePickDialog({
+    state: s.state,
+    isHost: true,
+    myPlayerId: 0,
+    remoteHumanSlots: new Set(),
+    isHumanController: () => false,
+  });
+  assert(dialog === null, "classic mode should return null");
+});
+
+test("tickUpgradePickDialog resolves AI picks after delay", () => {
+  const s = createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  s.state.round = 3;
+  s.state.pendingUpgradeOffers = generateUpgradeOffers(s.state);
+
+  const dialog = createUpgradePickDialog({
+    state: s.state,
+    isHost: true,
+    myPlayerId: -1,
+    remoteHumanSlots: new Set(),
+    isHumanController: () => false,
+  })!;
+
+  assert(dialog !== null, "dialog should exist");
+
+  // Tick less than AI delay — not resolved
+  let resolved = tickUpgradePickDialog(dialog, 0.5, UPGRADE_PICK_AI_DELAY, UPGRADE_PICK_MAX_TIMER, s.state);
+  assert(!resolved, "should not be resolved before AI delay");
+
+  // Tick past AI delay
+  resolved = tickUpgradePickDialog(dialog, UPGRADE_PICK_AI_DELAY, UPGRADE_PICK_AI_DELAY, UPGRADE_PICK_MAX_TIMER, s.state);
+  assert(resolved, "should be resolved after AI delay");
+
+  // All entries should have choices
+  for (const entry of dialog.entries) {
+    assert(
+      entry.choice !== null,
+      `P${entry.playerId} should have picked, got null`,
+    );
+  }
+});
+
+test("tickUpgradePickDialog force-picks on max timer", () => {
+  const s = createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  s.state.round = 3;
+  s.state.pendingUpgradeOffers = generateUpgradeOffers(s.state);
+
+  const dialog = createUpgradePickDialog({
+    state: s.state,
+    isHost: true,
+    myPlayerId: 0,
+    remoteHumanSlots: new Set(),
+    isHumanController: (pid) => pid === 0, // player 0 is human
+  })!;
+
+  // Human entry won't auto-pick on AI delay
+  const humanEntry = dialog.entries.find((en) => en.playerId === 0);
+  assert(humanEntry !== undefined && !humanEntry.isAi, "P0 should be human");
+
+  // Tick past max timer — human gets force-picked
+  const resolved = tickUpgradePickDialog(dialog, UPGRADE_PICK_MAX_TIMER + 1, UPGRADE_PICK_AI_DELAY, UPGRADE_PICK_MAX_TIMER, s.state);
+  assert(resolved, "should be resolved after max timer");
+  assert(humanEntry!.choice !== null, "human should have been force-picked");
 });
 
 // ---------------------------------------------------------------------------
