@@ -57,8 +57,10 @@ import {
 } from "./grunt-system.ts";
 import {
   applyCrumblingWalls,
+  applyFrozenRiver,
   applyGruntSurge,
   applyWildfire,
+  clearFrozenRiver,
   rollModifier,
 } from "./round-modifiers.ts";
 import { isBalloonCannon, packTile } from "./spatial.ts";
@@ -229,9 +231,12 @@ export function enterBattleFromCannon(state: GameState): void {
   }
   const allWalls = collectAllWalls(state);
   removeBonusSquaresCoveredByWalls(state, allWalls);
+  // Thaw frozen river from previous round (before applying new modifier)
+  clearFrozenRiver(state);
   // Modern mode: apply battle-start modifiers
   if (state.activeModifier === "wildfire") applyWildfire(state);
   if (state.activeModifier === "grunt_surge") applyGruntSurge(state);
+  if (state.activeModifier === "frozen_river") applyFrozenRiver(state);
 
   rollGruntWallAttacks(state);
   setPhase(state, Phase.BATTLE);

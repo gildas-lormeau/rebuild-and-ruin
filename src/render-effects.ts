@@ -57,7 +57,7 @@ import {
   TEXT_WHITE,
 } from "./render-theme.ts";
 import type { MapData, RenderOverlay } from "./render-types.ts";
-import { facingToCardinal } from "./spatial.ts";
+import { facingToCardinal, unpackTile } from "./spatial.ts";
 import { type CannonMode, isBalloonMode, isSuperMode } from "./types.ts";
 
 // Water wave animation parameters — tuned for natural-looking tile-scale ripples
@@ -229,9 +229,12 @@ export function drawWaterAnimation(
   const rows = map.tiles.length;
   const cols = map.tiles[0]!.length;
 
+  const frozen = overlay?.entities?.frozenTiles;
   for (let r = 1; r < rows - 1; r++) {
     for (let c = 1; c < cols - 1; c++) {
       if (map.tiles[r]![c] !== TILE_WATER) continue;
+      // Skip frozen tiles (ice, no waves)
+      if (frozen?.has(r * cols + c)) continue;
       // Skip water tiles adjacent to grass (bank transition zone)
       if (
         map.tiles[r - 1]![c] !== TILE_WATER ||
@@ -309,6 +312,47 @@ export function drawBurningPits(
       overlayCtx.arc(px + mid, py + mid, radius, 0, Math.PI * 2);
       overlayCtx.fill();
     }
+  }
+  overlayCtx.restore();
+}
+
+/** Draw ice overlay on frozen river tiles.
+ *  @param now — injectable timestamp in ms (performance.now() scale). */
+export function drawFrozenTiles(
+  overlayCtx: CanvasRenderingContext2D,
+  overlay?: RenderOverlay,
+  now?: number,
+): void {
+  const frozen = overlay?.entities?.frozenTiles;
+  if (!frozen || frozen.size === 0) return;
+  overlayCtx.save();
+  const time = (now ?? performance.now()) / 1000;
+
+  for (const key of frozen) {
+    const { r, c } = unpackTile(key);
+    const px = c * TILE_SIZE;
+    const py = r * TILE_SIZE;
+
+    // Base ice fill: semi-transparent light blue over water
+    overlayCtx.fillStyle = "rgba(180, 220, 240, 0.75)";
+    overlayCtx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+
+    // Frost crack lines (deterministic from tile position)
+    const seed = r * SEED_ROW + c * SEED_COL;
+    overlayCtx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+    overlayCtx.lineWidth = 0.5;
+    overlayCtx.beginPath();
+    overlayCtx.moveTo(px + (seed % 7) + 1, py + 1);
+    overlayCtx.lineTo(
+      px + TILE_SIZE - ((seed >> 3) % 5) - 1,
+      py + TILE_SIZE - 1,
+    );
+    overlayCtx.stroke();
+
+    // Subtle shimmer — slow-moving highlight
+    const shimmer = Math.sin(time * 1.5 + r * 0.3 + c * 0.5) * 0.5 + 0.5;
+    overlayCtx.fillStyle = `rgba(220, 240, 255, ${(0.05 + shimmer * 0.1).toFixed(3)})`;
+    overlayCtx.fillRect(px + 2, py + 2, TILE_SIZE - 4, TILE_SIZE - 4);
   }
   overlayCtx.restore();
 }

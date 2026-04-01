@@ -18,21 +18,26 @@ import type { OrbitParams } from "../src/controller-interfaces.ts";
 import type { PixelPos } from "../src/geometry-types.ts";
 import { nextPhase } from "../src/game-engine.ts";
 import {
+  applyBattleStartCheckpoint,
   applyBuildStartCheckpoint,
   type CheckpointAccums,
   type CheckpointBattleAnim,
   type CheckpointDeps,
 } from "../src/online-checkpoints.ts";
 import {
+  createBattleStartMessage,
   createBuildStartMessage,
   createFullStateMessage,
   restoreFullStateSnapshot,
 } from "../src/online-serialize.ts";
+import { isGruntBlocked, tickGrunts } from "../src/grunt-movement.ts";
 import {
   applyCrumblingWalls,
+  applyFrozenRiver,
   applyGruntSurge,
   applyWildfire,
   BANNER_PHASE_CANNON,
+  clearFrozenRiver,
   modifierBannerText,
   rollModifier,
 } from "../src/round-modifiers.ts";
@@ -43,7 +48,7 @@ import {
 import { MESSAGE } from "../server/protocol.ts";
 import { handleServerIncrementalMessage } from "../src/online-server-events.ts";
 import type { WatcherNetworkState } from "../src/online-types.ts";
-import type { SelectionState } from "../src/types.ts";
+import { emptyFreshInterior, type SelectionState } from "../src/types.ts";
 import { type UpgradeId, UID } from "../src/upgrade-defs.ts";
 import {
   applyUpgradePicks,
@@ -1025,6 +1030,203 @@ test("combos are per-player independent", () => {
     tracker.players[1]!.wallStreak === 1,
     `P1 should have 1-streak, got ${tracker.players[1]!.wallStreak}`,
   );
+});
+
+// ---------------------------------------------------------------------------
+// Frozen river modifier
+// ---------------------------------------------------------------------------
+
+test("applyFrozenRiver freezes all water tiles", () => {
+  const s = createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  applyFrozenRiver(s.state);
+
+  assert(s.state.frozenTiles !== null, "frozenTiles should be set");
+  assert(s.state.frozenTiles!.size > 0, "frozenTiles should not be empty");
+
+  // Every frozen tile should be a water tile, and every water tile should be frozen
+  let waterCount = 0;
+  for (let r = 0; r < 28; r++) {
+    for (let c = 0; c < 44; c++) {
+      if (s.state.map.tiles[r]![c] === 1) {
+        waterCount++;
+        assert(
+          s.state.frozenTiles!.has(r * 44 + c),
+          `water tile (${r},${c}) should be frozen`,
+        );
+      }
+    }
+  }
+  assert(
+    s.state.frozenTiles!.size === waterCount,
+    `frozen count ${s.state.frozenTiles!.size} should equal water count ${waterCount}`,
+  );
+});
+
+test("isGruntBlocked allows frozen water tiles", () => {
+  const s = createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  applyFrozenRiver(s.state);
+
+  const key = s.state.frozenTiles!.values().next().value!;
+  const r = Math.floor(key / 44);
+  const c = key % 44;
+  assert(!isGruntBlocked(s.state, r, c), `frozen tile (${r},${c}) should be passable`);
+
+  // Remove from frozen set — should block again
+  s.state.frozenTiles!.delete(key);
+  assert(isGruntBlocked(s.state, r, c), `unfrozen water (${r},${c}) should be blocked`);
+});
+
+test("frozen river: grunts retarget cross-zone and walk onto ice", () => {
+  const runtime = createHeadlessRuntime(42);
+  const state = runtime.state;
+  state.gameMode = GAME_MODE_MODERN;
+
+  // Find interior grass tiles adjacent to water in player 0's zone
+  const zone1 = state.players[0]!.homeTower!.zone;
+  const bankTiles: { row: number; col: number }[] = [];
+  for (let r = 2; r < 26; r++) {
+    for (let c = 2; c < 42; c++) {
+      if (state.map.tiles[r]![c] !== 0 || state.map.zones[r]![c] !== zone1) continue;
+      for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as const) {
+        if (state.map.tiles[r + dr]![c + dc] === 1) {
+          bankTiles.push({ row: r, col: c });
+          break;
+        }
+      }
+    }
+  }
+  assert(bankTiles.length > 0, `should find bank tiles in zone ${zone1}`);
+
+  // Clear all walls so grunts can reach the river
+  for (const player of state.players) {
+    player.walls.clear();
+    player.interior = emptyFreshInterior();
+  }
+
+  // Place grunts on bank tiles
+  state.grunts = [];
+  const count = Math.min(3, bankTiles.length);
+  for (let i = 0; i < count; i++) {
+    state.grunts.push({
+      row: bankTiles[i]!.row,
+      col: bankTiles[i]!.col,
+      targetPlayerId: state.players[0]!.id,
+      blockedBattles: 0,
+    });
+  }
+
+  applyFrozenRiver(state);
+  tickGrunts(state);
+
+  // All grunts should target towers outside zone1
+  for (const g of state.grunts) {
+    assert(g.targetTowerIdx !== undefined, "grunt should have a target");
+    const tz = state.map.towers[g.targetTowerIdx!]!.zone;
+    assert(tz !== zone1, `grunt should target cross-zone, got zone ${tz}`);
+  }
+
+  // Tick more — at least one grunt should step onto frozen water
+  let onIce = false;
+  for (let t = 0; t < 20 && !onIce; t++) {
+    tickGrunts(state);
+    for (const g of state.grunts) {
+      if (state.map.tiles[g.row]![g.col] === 1) onIce = true;
+    }
+  }
+  assert(onIce, "at least one grunt should move onto frozen water within 20 ticks");
+});
+
+test("clearFrozenRiver kills grunts stranded on water", () => {
+  const s = createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  applyFrozenRiver(s.state);
+
+  // Place a grunt on a frozen water tile
+  const key = s.state.frozenTiles!.values().next().value!;
+  const r = Math.floor(key / 44);
+  const c = key % 44;
+  s.state.grunts.push({
+    row: r,
+    col: c,
+    targetPlayerId: 0,
+    blockedBattles: 0,
+  });
+  const before = s.state.grunts.length;
+
+  clearFrozenRiver(s.state);
+
+  assert(s.state.frozenTiles === null, "frozenTiles should be null after thaw");
+  assert(
+    s.state.grunts.length < before,
+    `grunt on water should be killed: ${s.state.grunts.length} should be < ${before}`,
+  );
+});
+
+test("frozen river persists through build phase, thaws at next battle", () => {
+  const s = createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  s.state.activeModifier = "frozen_river";
+  applyFrozenRiver(s.state);
+  assert(s.state.frozenTiles !== null, "should have frozen tiles");
+
+  // Verify clearFrozenRiver thaws correctly
+  clearFrozenRiver(s.state);
+  assert(s.state.frozenTiles === null, "clearFrozenRiver should null frozenTiles");
+});
+
+test("online checkpoint round-trip preserves frozen state", () => {
+  const runtime = createHeadlessRuntime(42);
+  setModern(runtime);
+  applyFrozenRiver(runtime.state);
+  assert(runtime.state.frozenTiles !== null, "host should have frozen tiles");
+
+  const msg = createBattleStartMessage(runtime.state);
+  const watcher = createHeadlessRuntime(42);
+  setModern(watcher);
+  const deps = makeDeps(watcher);
+
+  applyBattleStartCheckpoint(msg, deps);
+  assert(deps.state.frozenTiles !== null, "watcher should have frozen tiles");
+  assert(
+    deps.state.frozenTiles!.size === runtime.state.frozenTiles!.size,
+    `watcher frozen size ${deps.state.frozenTiles!.size} !== host ${runtime.state.frozenTiles!.size}`,
+  );
+});
+
+test("FULL_STATE checkpoint preserves frozen state", () => {
+  const runtime = createHeadlessRuntime(42);
+  setModern(runtime);
+  runtime.state.cannonLimits = runtime.state.players.map(() => 3);
+  runtime.state.playerZones = runtime.state.players.map((_, idx) => idx);
+  applyFrozenRiver(runtime.state);
+
+  const msg = createFullStateMessage(runtime.state, 1);
+  const runtime2 = createHeadlessRuntime(42);
+  restoreFullStateSnapshot(runtime2.state, msg);
+
+  assert(runtime2.state.frozenTiles !== null, "restored should have frozen tiles");
+  assert(
+    runtime2.state.frozenTiles!.size === runtime.state.frozenTiles!.size,
+    "restored frozen tile count should match",
+  );
+});
+
+test("modifier no-repeat applies to frozen_river", () => {
+  const s = createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  s.state.lastModifierId = "frozen_river";
+  let rolledFrozen = false;
+  for (let i = 0; i < 50; i++) {
+    s.state.round = MODIFIER_FIRST_ROUND + i;
+    const mod = rollModifier(s.state);
+    if (mod === "frozen_river") {
+      rolledFrozen = true;
+      break;
+    }
+  }
+  assert(!rolledFrozen, "frozen_river should not appear when lastModifierId is frozen_river");
 });
 
 // ---------------------------------------------------------------------------

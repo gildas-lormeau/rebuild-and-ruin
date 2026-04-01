@@ -86,6 +86,8 @@ export interface BattleStartData {
   towerAlive: boolean[];
   /** Balloon flight paths (for animation). */
   flights?: { startX: number; startY: number; endX: number; endY: number }[];
+  /** Frozen river tiles (packed keys) for cross-zone grunt movement. */
+  frozenTiles?: number[];
 }
 
 /** Data needed to sync state at build phase start. */
@@ -102,4 +104,6 @@ export interface BuildStartData {
   activeModifier?: string | null;
   lastModifierId?: string | null;
   pendingUpgradeOffers?: [number, [string, string, string]][] | null;
+  /** Frozen river tiles persisting from previous battle (packed keys). */
+  frozenTiles?: number[];
 }

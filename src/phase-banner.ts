@@ -123,6 +123,7 @@ export function snapshotEntities(state: GameState): EntityOverlay {
     towerAlive: [...state.towerAlive],
     burningPits: state.burningPits.map((pit) => ({ ...pit })),
     bonusSquares: state.bonusSquares.map((bonus) => ({ ...bonus })),
+    frozenTiles: state.frozenTiles ? new Set(state.frozenTiles) : undefined,
   };
 }
 

@@ -19,8 +19,9 @@ import {
   MODIFIER_ROLL_CHANCE,
   type ModifierId,
 } from "./game-constants.ts";
+import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { spawnGruntSurgeOnZone } from "./grunt-system.ts";
-import { DIRS_4, isGrass, packTile, unpackTile } from "./spatial.ts";
+import { DIRS_4, isGrass, isWater, packTile, unpackTile } from "./spatial.ts";
 import { type BurningPit, type GameState, isPlayerSeated } from "./types.ts";
 
 interface ModifierDef {
@@ -52,6 +53,12 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
   {
     id: "grunt_surge",
     label: "Grunt Surge",
+    weight: 2,
+    announcePhase: ANNOUNCE_BEFORE_CANNON,
+  },
+  {
+    id: "frozen_river",
+    label: "Frozen River",
     weight: 2,
     announcePhase: ANNOUNCE_BEFORE_CANNON,
   },
@@ -267,4 +274,34 @@ export function applyGruntSurge(state: GameState): void {
   for (const player of state.players.filter(isPlayerSeated)) {
     spawnGruntSurgeOnZone(state, player.id, extraCount);
   }
+}
+
+/** Apply frozen river: freeze the entire river, allowing grunts to walk
+ *  across zones and target any tower. Lasts through battle + build phase. */
+export function applyFrozenRiver(state: GameState): void {
+  const frozen = new Set<number>();
+  const tiles = state.map.tiles;
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      if (isWater(tiles, r, c)) frozen.add(packTile(r, c));
+    }
+  }
+  if (frozen.size === 0) return;
+  state.frozenTiles = frozen;
+
+  // Force all grunts to re-lock targets with zones open — grunts near the
+  // river will pick cross-zone towers, grunts far away keep same-zone targets.
+  for (const grunt of state.grunts) {
+    grunt.targetTowerIdx = undefined;
+  }
+}
+
+/** Thaw frozen river: kill grunts stranded on water, clear frozen state. */
+export function clearFrozenRiver(state: GameState): void {
+  if (state.frozenTiles) {
+    state.grunts = state.grunts.filter(
+      (gr) => !state.frozenTiles!.has(packTile(gr.row, gr.col)),
+    );
+  }
+  state.frozenTiles = null;
 }

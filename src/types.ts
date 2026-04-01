@@ -275,6 +275,9 @@ export interface GameState {
    *  Generated in enterBuildFromBattle using synced RNG, consumed by the upgrade pick dialog.
    *  null in classic mode or before UPGRADE_FIRST_ROUND. */
   pendingUpgradeOffers: Map<number, [UpgradeId, UpgradeId, UpgradeId]> | null;
+  /** Frozen river tiles (packed tile keys) — water tiles that grunts can cross.
+   *  Set during battle when frozen_river modifier is active, null otherwise. */
+  frozenTiles: Set<number> | null;
 }
 
 /** Battle animation state — territory/wall snapshots and in-flight effects. */

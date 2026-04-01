@@ -219,6 +219,7 @@ export function parseBoard(ascii: string, playerId = 0): ParseResult {
     activeModifier: null,
     lastModifierId: null,
     pendingUpgradeOffers: null,
+    frozenTiles: null,
   };
 
   claimTerritory(state);

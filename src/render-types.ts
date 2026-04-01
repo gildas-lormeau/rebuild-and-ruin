@@ -143,6 +143,8 @@ export interface EntityOverlay {
   bonusSquares?: TilePos[];
   /** Tower index → owner player id for home towers. */
   homeTowers?: Map<number, number>;
+  /** Frozen river tiles for rendering ice overlay. */
+  frozenTiles?: ReadonlySet<number>;
 }
 
 /** Piece phantom shape shared by AI, human, and primary piece overlays. */

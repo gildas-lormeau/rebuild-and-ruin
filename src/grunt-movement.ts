@@ -91,17 +91,36 @@ function lockGruntTarget(state: GameState, grunt: Grunt): void {
   if (grunt.targetTowerIdx !== undefined) return;
 
   const gruntZone = state.map.zones[grunt.row]?.[grunt.col] ?? -1;
+  const frozenActive = state.frozenTiles !== null;
+
   let bestDist = Infinity;
   let bestIdx: number | null = null;
 
   for (let i = 0; i < state.map.towers.length; i++) {
     const tower = state.map.towers[i]!;
     if (!state.towerAlive[i]) continue;
-    if (tower.zone !== gruntZone) continue;
+    // Frozen river: flee to enemy territory (skip own zone)
+    // Normal: stay in own zone
+    if (frozenActive ? tower.zone === gruntZone : tower.zone !== gruntZone)
+      continue;
     const dist = distanceToTower(tower, grunt.row, grunt.col);
     if (dist < bestDist) {
       bestDist = dist;
       bestIdx = i;
+    }
+  }
+
+  // Fallback: if frozen but no cross-zone tower alive, target same-zone
+  if (frozenActive && bestIdx === null) {
+    for (let i = 0; i < state.map.towers.length; i++) {
+      const tower = state.map.towers[i]!;
+      if (!state.towerAlive[i]) continue;
+      if (tower.zone !== gruntZone) continue;
+      const dist = distanceToTower(tower, grunt.row, grunt.col);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = i;
+      }
     }
   }
 
@@ -341,7 +360,10 @@ export function isGruntBlocked(
   c: number,
 ): boolean {
   if (!inBounds(r, c)) return true;
-  if (!isGrass(state.map.tiles, r, c)) return true;
+  // Water tiles are passable when frozen
+  if (!isGrass(state.map.tiles, r, c)) {
+    if (!state.frozenTiles?.has(packTile(r, c))) return true;
+  }
   if (hasCannonAt(state, r, c)) return true;
   if (hasAliveHouseAt(state, r, c)) return true;
   if (hasTowerAt(state, r, c)) return true;

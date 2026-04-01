@@ -9,6 +9,7 @@ import {
   drawBattleEffects,
   drawBonusSquares,
   drawBurningPits,
+  drawFrozenTiles,
   drawGrunts,
   drawHouses,
   drawPhantoms,
@@ -174,6 +175,7 @@ export function drawMap(
   // Draw the new (target) scene — layers that change between phases
   drawTerrain(overlayCtx, W, H, map, overlay);
   drawWaterAnimation(overlayCtx, map, overlay);
+  drawFrozenTiles(overlayCtx, overlay);
   drawCastles(overlayCtx, overlay);
   drawBonusSquares(overlayCtx, overlay, now);
   drawHouses(overlayCtx, overlay);
@@ -362,6 +364,7 @@ function drawBannerOldScene(
     tmpCtx.clearRect(0, 0, W, H);
     drawTerrain(tmpCtx, W, H, map, oldOverlay);
     drawWaterAnimation(tmpCtx, map, oldOverlay);
+    drawFrozenTiles(tmpCtx, oldOverlay);
     drawCastles(tmpCtx, oldOverlay);
     drawBonusSquares(tmpCtx, oldOverlay, now);
     drawHouses(tmpCtx, oldOverlay);

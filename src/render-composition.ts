@@ -356,6 +356,7 @@ export function createOnlineOverlay(params: {
       burningPits: state.burningPits,
       bonusSquares: state.bonusSquares,
       homeTowers: homeTowers.size > 0 ? homeTowers : undefined,
+      frozenTiles: state.frozenTiles ?? undefined,
     },
     battle: {
       inBattle: !!battleTerritory,

@@ -96,6 +96,9 @@ export function applyBattleStartCheckpoint(
     }
   }
 
+  // Restore frozen river state (matches host's applyFrozenRiver in enterBattleFromCannon)
+  deps.state.frozenTiles = data.frozenTiles ? new Set(data.frozenTiles) : null;
+
   clearBattleProjectiles(deps);
   deps.state.timer = BATTLE_TIMER;
   // Create combo tracker on watcher (matches host's enterBattleFromCannon)
@@ -136,6 +139,8 @@ export function applyBuildStartCheckpoint(
         ]),
       )
     : null;
+  // Frozen river persists through build phase (thawed at next battle start)
+  deps.state.frozenTiles = data.frozenTiles ? new Set(data.frozenTiles) : null;
   clearBattleProjectiles(deps);
   deps.accum.grunt = 0;
   resetCannonFacings(deps.state);

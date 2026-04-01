@@ -7,7 +7,11 @@
 export type GameMode = "classic" | "modern";
 
 /** Identifier for a round modifier (modern mode only). */
-export type ModifierId = "wildfire" | "crumbling_walls" | "grunt_surge";
+export type ModifierId =
+  | "wildfire"
+  | "crumbling_walls"
+  | "grunt_surge"
+  | "frozen_river";
 
 export const GAME_MODE_CLASSIC: GameMode = "classic";
 export const GAME_MODE_MODERN: GameMode = "modern";

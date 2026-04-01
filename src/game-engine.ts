@@ -110,6 +110,7 @@ export function createGameState(
     activeModifier: null,
     lastModifierId: null,
     pendingUpgradeOffers: null,
+    frozenTiles: null,
   };
 }
 
