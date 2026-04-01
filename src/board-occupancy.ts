@@ -70,6 +70,7 @@ export const HOUSE_SPAWN_BLOCKED = {
   includeInterior: true,
   includeCannons: true,
   includeGrunts: true,
+  includePits: true,
 } as const;
 
 export function isTileOwnedByPlayer(
