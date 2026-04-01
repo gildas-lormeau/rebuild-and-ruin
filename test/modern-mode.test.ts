@@ -30,6 +30,10 @@ import {
   createHeadlessRuntime,
   type HeadlessRuntime,
 } from "../src/runtime-headless.ts";
+import { MESSAGE } from "../server/protocol.ts";
+import { handleServerIncrementalMessage } from "../src/online-server-events.ts";
+import type { WatcherNetworkState } from "../src/online-types.ts";
+import type { SelectionState } from "../src/types.ts";
 import { type UpgradeId, UID } from "../src/upgrade-defs.ts";
 import { applyUpgradePicks, generateUpgradeOffers } from "../src/upgrade-pick.ts";
 import { createScenario } from "./scenario-helpers.ts";
@@ -664,6 +668,134 @@ test("two modern games with same seed produce identical state", () => {
       `seed ${seed}: pit count ${s1.state.burningPits.length} vs ${s2.state.burningPits.length}`,
     );
   }
+});
+
+// ---------------------------------------------------------------------------
+// Online message handlers (no WebSocket needed)
+// ---------------------------------------------------------------------------
+
+function makeIncrementalDeps(overrides: {
+  isHost: boolean;
+  upgradePickDialog?: { entries: { playerId: number; choice: string | null; offers: readonly string[] }[] } | null;
+  earlyUpgradePickChoices?: Map<number, string>;
+}) {
+  const emptyWatcher: WatcherNetworkState = {
+    remoteCrosshairs: new Map(),
+    remoteCannonPhantoms: [],
+    remotePiecePhantoms: [],
+    orbitParams: new Map(),
+  };
+  return {
+    log: () => {},
+    session: {
+      isHost: overrides.isHost,
+      remoteHumanSlots: new Set<number>([1]),
+      earlyLifeLostChoices: new Map(),
+      earlyUpgradePickChoices: overrides.earlyUpgradePickChoices ?? new Map<number, string>(),
+    },
+    watcher: emptyWatcher,
+    getState: () => undefined,
+    selectionStates: new Map<number, SelectionState>(),
+    syncSelectionOverlay: () => {},
+    isCastleReselectPhase: () => false,
+    confirmSelectionAndStartBuild: () => {},
+    allSelectionsConfirmed: () => false,
+    finishReselection: () => {},
+    finishSelection: () => {},
+    getLifeLostDialog: () => null,
+    getUpgradePickDialog: () => overrides.upgradePickDialog ?? null,
+  };
+}
+
+test("host applies UPGRADE_PICK message to active dialog", () => {
+  const dialog = {
+    entries: [
+      { playerId: 1, choice: null as string | null, offers: [UID.MASTER_BUILDER, UID.RAPID_FIRE, UID.REINFORCED_WALLS] },
+    ],
+  };
+  const deps = makeIncrementalDeps({ isHost: true, upgradePickDialog: dialog });
+
+  const result = handleServerIncrementalMessage(
+    { type: MESSAGE.UPGRADE_PICK, playerId: 1, choice: UID.RAPID_FIRE } as Parameters<typeof handleServerIncrementalMessage>[0],
+    deps,
+  );
+
+  assert(result !== null && result.applied, "should apply the pick");
+  assert(
+    dialog.entries[0]!.choice === UID.RAPID_FIRE,
+    `entry choice should be rapid_fire, got ${dialog.entries[0]!.choice}`,
+  );
+});
+
+test("host rejects UPGRADE_PICK with invalid choice (not in offers)", () => {
+  const dialog = {
+    entries: [
+      { playerId: 1, choice: null as string | null, offers: [UID.MASTER_BUILDER, UID.RAPID_FIRE, UID.REINFORCED_WALLS] },
+    ],
+  };
+  const deps = makeIncrementalDeps({ isHost: true, upgradePickDialog: dialog });
+
+  const result = handleServerIncrementalMessage(
+    { type: MESSAGE.UPGRADE_PICK, playerId: 1, choice: UID.SCATTER_SHOT } as Parameters<typeof handleServerIncrementalMessage>[0],
+    deps,
+  );
+
+  assert(result !== null && !result.applied, "should reject invalid choice");
+  assert(
+    dialog.entries[0]!.choice === null,
+    "entry choice should remain null",
+  );
+});
+
+test("host buffers UPGRADE_PICK when dialog not yet created", () => {
+  const earlyPicks = new Map<number, string>();
+  const deps = makeIncrementalDeps({
+    isHost: true,
+    upgradePickDialog: null,
+    earlyUpgradePickChoices: earlyPicks,
+  });
+
+  const result = handleServerIncrementalMessage(
+    { type: MESSAGE.UPGRADE_PICK, playerId: 1, choice: UID.MASTER_BUILDER } as Parameters<typeof handleServerIncrementalMessage>[0],
+    deps,
+  );
+
+  assert(result !== null && result.applied, "should buffer the early pick");
+  assert(
+    earlyPicks.get(1) === UID.MASTER_BUILDER,
+    `buffered pick should be master_builder, got ${earlyPicks.get(1)}`,
+  );
+});
+
+test("watcher drops UPGRADE_PICK message (only host processes)", () => {
+  const deps = makeIncrementalDeps({ isHost: false });
+
+  const result = handleServerIncrementalMessage(
+    { type: MESSAGE.UPGRADE_PICK, playerId: 1, choice: UID.RAPID_FIRE } as Parameters<typeof handleServerIncrementalMessage>[0],
+    deps,
+  );
+
+  assert(result !== null && !result.applied, "watcher should drop the pick");
+});
+
+test("host ignores UPGRADE_PICK for already-resolved entry", () => {
+  const dialog = {
+    entries: [
+      { playerId: 1, choice: UID.MASTER_BUILDER as string | null, offers: [UID.MASTER_BUILDER, UID.RAPID_FIRE, UID.REINFORCED_WALLS] },
+    ],
+  };
+  const deps = makeIncrementalDeps({ isHost: true, upgradePickDialog: dialog });
+
+  const result = handleServerIncrementalMessage(
+    { type: MESSAGE.UPGRADE_PICK, playerId: 1, choice: UID.RAPID_FIRE } as Parameters<typeof handleServerIncrementalMessage>[0],
+    deps,
+  );
+
+  assert(result !== null && !result.applied, "should drop pick for resolved entry");
+  assert(
+    dialog.entries[0]!.choice === UID.MASTER_BUILDER,
+    "choice should remain unchanged",
+  );
 });
 
 // ---------------------------------------------------------------------------
