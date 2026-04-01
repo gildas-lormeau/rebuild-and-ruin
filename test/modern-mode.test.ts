@@ -595,7 +595,7 @@ test("applyUpgradePicks stacks on repeated picks", () => {
     entries: [
       {
         playerId: 0,
-        offers: [UID.MASTER_BUILDER, UID.RAPID_FIRE, UID.REINFORCED_WALLS] as any,
+        offers: [UID.MASTER_BUILDER, UID.RAPID_FIRE, UID.REINFORCED_WALLS] as [UpgradeId, UpgradeId, UpgradeId],
         choice: UID.MASTER_BUILDER as UpgradeId,
         isAi: true,
         aiTimer: 0,
