@@ -150,7 +150,7 @@ export function pickPlacement(
   );
 
   // Enclosure detection must match territory's computeOutside (no water
-  // barriers) so the AI and claimTerritory agree on which towers are enclosed.
+  // barriers) so the AI and recheckTerritory agree on which towers are enclosed.
   // Water-as-barrier made the AI think bank-adjacent castles were closed when
   // territory's plain flood could still enter through the bank.
   const walls = player.walls;

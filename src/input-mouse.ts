@@ -22,6 +22,10 @@ const CLICK_EVENT = "click";
 // Note: keyboard checks mode in per-handler switches (different keys per mode).
 // Mouse checks mode at event-handler level because all mouse actions share the
 // same guard: no game state → no-op, lobby active → lobby hit-test only.
+//
+// Touch-suppression: all mouse click handlers MUST call isTouchSuppressed()
+// before dispatching — see markTouchTime() pairing in input-dispatch.ts.
+// This prevents synthetic click events that mobile browsers fire after touchend.
 export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
   const { renderer, getState, getMode, coords } = deps;
 

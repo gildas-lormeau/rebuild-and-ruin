@@ -22,7 +22,7 @@ import type { Castle, GameMap, Tower } from "../src/geometry-types.ts";
 import type { GameState, Player } from "../src/types.ts";
 import { emptyFreshInterior, Phase } from "../src/types.ts";
 import { pickPlacementStandalone as pickPlacement } from "../src/ai-strategy.ts";
-import { placePiece, claimTerritory } from "../src/build-system.ts";
+import { placePiece, recheckTerritory } from "../src/build-system.ts";
 import type { PieceShape } from "../src/pieces.ts";
 import { Rng } from "../src/rng.ts";
 import process from "node:process";
@@ -222,7 +222,7 @@ export function parseBoard(ascii: string, playerId = 0): ParseResult {
     frozenTiles: null,
   };
 
-  claimTerritory(state);
+  recheckTerritory(state);
 
   return { state, castle, offsetR: OFFSET_R, offsetC: OFFSET_C, rows: lines.length, cols: maxCols, originalChars };
 }

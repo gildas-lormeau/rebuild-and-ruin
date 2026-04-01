@@ -9,7 +9,7 @@
  */
 
 import { fireCannon, resolveBalloons, tickCannonballs } from "../src/battle-system.ts";
-import { claimTerritory, placePiece } from "../src/build-system.ts";
+import { recheckTerritory, placePiece } from "../src/build-system.ts";
 import { placeCannon, resetCannonFacings } from "../src/cannon-system.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/grid.ts";
 import type { PlayerController } from "../src/controller-interfaces.ts";
@@ -295,7 +295,7 @@ export function createScenario(seed = 42): Scenario {
       player.walls.delete(key);
       removed++;
     }
-    claimTerritory(state);
+    recheckTerritory(state);
     return removed;
   }
 

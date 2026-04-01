@@ -30,11 +30,17 @@ import {
   type UpgradePickDialogState,
 } from "./types.ts";
 
+/** Mutable runtime state bag for the game loop.
+ *
+ *  SENTINEL GUARD: `state` and `frameCtx` are initialized via Proxy sentinels
+ *  that throw on ANY property access before startGame() runs. This means:
+ *    - Always check `isStateReady(runtimeState)` before accessing `.state` or `.frameCtx`
+ *    - Use `safeState(runtimeState)` in code paths that may run before init (render, input)
+ *    - Both fields are initialized together — if one is ready, both are ready
+ *  All other fields are safe to access immediately after createRuntimeState(). */
 export interface RuntimeState {
   // Core game
-  /** The current game state. IMPORTANT: guarded by an uninitialized sentinel
-   *  before startGame() assigns a real value. Always check `isStateReady(runtimeState)`
-   *  or use `safeState(runtimeState)` before accessing — direct access throws if uninitialized. */
+  /** Guarded by sentinel — throws on access before startGame(). See RuntimeState docs. */
   state: GameState;
   overlay: RenderOverlay;
   controllers: PlayerController[];

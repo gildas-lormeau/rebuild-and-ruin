@@ -18,8 +18,8 @@ import {
   sweepIsolatedWalls,
 } from "./board-occupancy.ts";
 import {
-  claimTerritory,
-  claimTerritoryEndOfBuild,
+  finalizeTerritory,
+  recheckTerritory,
   removeBonusSquaresCoveredByWalls,
   replenishBonusSquares,
 } from "./build-system.ts";
@@ -98,7 +98,7 @@ export function rebuildHomeCastle(state: GameState, player: Player): void {
   }
   // Remove bonus squares under new walls
   removeBonusSquaresCoveredByWalls(state, player.walls);
-  claimTerritory(state);
+  recheckTerritory(state);
 }
 
 /**
@@ -110,13 +110,13 @@ export function finalizeBuildPhase(state: GameState): {
   eliminated: number[];
 } {
   sweepAllPlayersWalls(state);
-  claimTerritoryEndOfBuild(state);
+  finalizeTerritory(state);
   return applyLifePenalties(state);
 }
 
 /** Finalize castle construction — claim territory, refill houses, replenish bonus squares. */
 export function finalizeCastleConstruction(state: GameState): void {
-  claimTerritory(state);
+  recheckTerritory(state);
   startOfBuildPhaseHousekeeping(state);
   replenishBonusSquares(state);
 }
@@ -218,7 +218,7 @@ export function enterBattleFromCannon(state: GameState): void {
   state.burningPits = state.burningPits.filter((pit) => pit.roundsLeft > 0);
 
   sweepAllPlayersWalls(state);
-  claimTerritory(state);
+  recheckTerritory(state);
   // From round 2+, each player has a chance to get grunts spawned on their zone
   if (state.round >= FIRST_GRUNT_SPAWN_ROUND) {
     for (const player of state.players.filter(isPlayerSeated)) {
@@ -275,7 +275,7 @@ export function enterBuildFromBattle(state: GameState): void {
       spawnGruntGroupOnZone(state, player.id, IDLE_FIRST_BATTLE_GRUNTS);
     }
   }
-  claimTerritory(state);
+  recheckTerritory(state);
   state.round++;
 
   // Modern mode: roll modifier and generate upgrade offers (RNG consumed
@@ -303,7 +303,7 @@ export function enterBuildFromBattle(state: GameState): void {
   // Modern mode: apply build-start modifiers (after housekeeping so territory is fresh)
   if (state.activeModifier === "crumbling_walls") {
     applyCrumblingWalls(state);
-    claimTerritory(state);
+    recheckTerritory(state);
   }
 }
 
@@ -399,7 +399,7 @@ function autoBuildCastles(state: GameState): void {
     addPlayerWalls(player, plan.tiles);
     player.castleWallTiles = new Set(plan.tiles);
   }
-  claimTerritory(state);
+  recheckTerritory(state);
   for (const player of state.players) {
     if (player.homeTower) spawnHousesInZone(state, player.homeTower.zone);
   }

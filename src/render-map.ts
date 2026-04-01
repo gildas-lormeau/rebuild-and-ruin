@@ -54,7 +54,7 @@ interface TerrainImageCache {
 
 type BannerCacheEntry = {
   map: MapData;
-  castles: CastleData[];
+  castles: readonly CastleData[];
   territory: Set<number>[] | undefined;
   walls: Set<number>[] | undefined;
 };
@@ -391,21 +391,21 @@ function clearBannerCache(): void {
   bannerCache = null;
 }
 
-/** Check if the banner scene cache is still valid (all 4 reference-equality checks).
- *  When adding a new cached field, update both this function and the bannerCache assignment. */
+/** Check if the banner scene cache is still valid (reference-equality on all fields).
+ *  Type-safe: BannerCacheEntry keys drive the comparison — adding a field to the type
+ *  without updating this function causes a compile error via the `key in` iteration. */
 function isBannerCacheValid(
   map: MapData,
   castles: readonly CastleData[],
   territory: Set<number>[] | undefined,
   walls: Set<number>[] | undefined,
 ): boolean {
-  return (
-    bannerCache !== null &&
-    bannerCache.map === map &&
-    bannerCache.castles === castles &&
-    bannerCache.territory === territory &&
-    bannerCache.walls === walls
-  );
+  if (!bannerCache) return false;
+  const candidate: BannerCacheEntry = { map, castles, territory, walls };
+  for (const key of Object.keys(candidate) as (keyof BannerCacheEntry)[]) {
+    if (bannerCache[key] !== candidate[key]) return false;
+  }
+  return true;
 }
 
 /** Build SDF for water/grass boundaries, blur it, and paint terrain pixels. */

@@ -48,6 +48,8 @@ export interface CheckpointDeps {
 }
 
 /** Apply a cannon-start checkpoint received from the host.
+ *  @sideeffect Clears all watcher visualization state (crosshairs, phantoms, idle phases)
+ *  via resetWatcherCrosshairs(). Also clears in-flight cannonballs and impacts.
  *  @param data — Checkpoint payload (players, grunts, houses, limits, etc.)
  *  @param deps — Mutable game state + watcher crosshair maps to reset. */
 export function applyCannonStartCheckpoint(
@@ -68,6 +70,9 @@ export function applyCannonStartCheckpoint(
 }
 
 /** Apply a battle-start checkpoint received from the host.
+ *  @sideeffect Clears all watcher visualization state (crosshairs, phantoms, idle phases)
+ *  via resetWatcherCrosshairs(), then re-initializes crosshair positions from home towers.
+ *  Also clears in-flight cannonballs and impacts.
  *  @param data — Checkpoint payload (players, grunts, captured cannons, flights, etc.)
  *  @param deps — Mutable game state + battle animation state to reset. */
 export function applyBattleStartCheckpoint(
@@ -113,6 +118,8 @@ export function applyBattleStartCheckpoint(
 }
 
 /** Apply a build-start checkpoint received from the host.
+ *  @sideeffect Clears in-flight cannonballs and impacts. Resets grunt accumulator
+ *  and cannon facings. Does NOT reset watcher crosshairs (build phase has no crosshairs).
  *  @param data — Checkpoint payload (players, grunts, houses, bonus squares, etc.)
  *  @param deps — Mutable game state + accumulators to reset. */
 export function applyBuildStartCheckpoint(

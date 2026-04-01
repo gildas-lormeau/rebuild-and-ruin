@@ -16,7 +16,7 @@
  *
  * Never call player.walls.add/delete/clear directly.
  *
- * After any dirty-marking mutation, call claimTerritory(state) before reading
+ * After any dirty-marking mutation, call recheckTerritory(state) before reading
  * player.interior. assertInteriorFresh(player) throws if this is skipped.
  */
 
@@ -325,7 +325,7 @@ export function addPlayerWalls(player: Player, keys: Iterable<number>): void {
 }
 
 /** Delete a wall during battle. Intentionally skips markWallsDirty — interior is
- *  stale during battle by design; claimTerritory runs at the next phase start. */
+ *  stale during battle by design; recheckTerritory runs at the next phase start. */
 export function deletePlayerWallBattle(player: Player, key: number): void {
   player.walls.delete(key);
 }
@@ -364,14 +364,14 @@ export function markWallsDirty(player: Player): void {
 }
 
 /** Mark a player's interior as freshly recomputed and brand the set.
- *  Called by recomputeInterior inside claimTerritory — do NOT call from other code. */
+ *  Called by recomputeInterior inside recheckTerritory — do NOT call from other code. */
 export function markInteriorFresh(player: Player): FreshInterior {
   interiorEpoch.set(player, wallsEpoch.get(player) ?? 0);
   return player.interior;
 }
 
 /** Assert that a player's interior is not stale (walls haven't changed since
- *  the last claimTerritory). Throws if stale — this is a programming error,
+ *  the last recheckTerritory). Throws if stale — this is a programming error,
  *  not a runtime condition. No-op if epochs were never initialized (e.g. tests
  *  that don't call markWallsDirty). */
 export function assertInteriorFresh(player: Player): void {
@@ -381,7 +381,7 @@ export function assertInteriorFresh(player: Player): void {
   if (ie < we) {
     throw new Error(
       `Stale interior for player ${player.id}: walls epoch ${we} > interior epoch ${ie}. ` +
-        `Call claimTerritory() after wall mutations before reading interior.`,
+        `Call recheckTerritory() after wall mutations before reading interior.`,
     );
   }
 }

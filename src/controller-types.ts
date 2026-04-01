@@ -37,6 +37,12 @@ import {
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
 const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
 
+/** Abstract base class implementing shared controller logic.
+ *
+ *  TEMPLATE METHOD PATTERN: Public lifecycle methods (startBuild, finalizeBuildPhase,
+ *  initBattleState) run base initialization then delegate to protected hooks.
+ *  Subclasses MUST override the hooks (onStartBuild, onFinalizeBuildPhase, onResetBattle),
+ *  NEVER the public template methods — otherwise base initialization is skipped. */
 export abstract class BaseController implements PlayerController {
   readonly playerId: number;
   abstract readonly kind: "human" | "ai";
@@ -66,9 +72,11 @@ export abstract class BaseController implements PlayerController {
   }
 
   /** Draw the next piece from the bag.
-   *  @param _placed — must be `true`; enforces that callers only advance
-   *  after a successful placement. Advancing without placing skips a piece
-   *  and desynchronizes the bag with the board state. */
+   *  @param _placed — must be literal `true`. This is a compile-time guard:
+   *  callers can only pass `true` (not a variable), ensuring advanceBag is
+   *  only called after a verified successful placement. Advancing without
+   *  placing would skip a piece and desynchronize the bag with the board state.
+   *  Do NOT remove this parameter or widen its type. */
   advanceBag(_placed: true): void {
     if (!this.bag) {
       console.warn("advanceBag called with null bag — likely a desync");
