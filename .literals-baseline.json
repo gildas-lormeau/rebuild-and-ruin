@@ -1,5 +1,45 @@
 [
   {
+    "type": "string",
+    "key": "flaming_walls"
+  },
+  {
+    "type": "string",
+    "key": "foundations"
+  },
+  {
+    "type": "string",
+    "key": "large_pieces"
+  },
+  {
+    "type": "string",
+    "key": "master_builder"
+  },
+  {
+    "type": "string",
+    "key": "mortar"
+  },
+  {
+    "type": "string",
+    "key": "rapid_fire"
+  },
+  {
+    "type": "string",
+    "key": "reinforced_walls"
+  },
+  {
+    "type": "string",
+    "key": "salvage"
+  },
+  {
+    "type": "string",
+    "key": "scatter_shot"
+  },
+  {
+    "type": "string",
+    "key": "scout_tower"
+  },
+  {
     "type": "number",
     "key": "100"
   },

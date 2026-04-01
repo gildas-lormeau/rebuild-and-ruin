@@ -70,6 +70,7 @@ export function tickUpgradePickDialog(
   dt: number,
   aiDelay: number,
   maxTimer: number,
+  state?: GameState,
 ): boolean {
   dialog.timer += dt;
 
@@ -79,7 +80,7 @@ export function tickUpgradePickDialog(
     if (entry.isAi) {
       entry.aiTimer += dt;
       if (entry.aiTimer >= aiDelay) {
-        entry.choice = entry.offers[0];
+        entry.choice = aiPickUpgrade(entry.offers, entry.playerId, state);
       }
     }
   }
@@ -88,7 +89,7 @@ export function tickUpgradePickDialog(
   if (dialog.timer >= maxTimer) {
     for (const entry of dialog.entries) {
       if (entry.choice === null) {
-        entry.choice = entry.offers[0];
+        entry.choice = aiPickUpgrade(entry.offers, entry.playerId, state);
       }
     }
   }
@@ -148,4 +149,94 @@ function drawOffers(state: GameState): [UpgradeId, UpgradeId, UpgradeId] {
   }
 
   return picked as [UpgradeId, UpgradeId, UpgradeId];
+}
+
+/** AI picks the highest-scored offer. Falls back to first offer if no state. */
+function aiPickUpgrade(
+  offers: readonly [UpgradeId, UpgradeId, UpgradeId],
+  playerId: number,
+  state?: GameState,
+): UpgradeId {
+  if (!state) return offers[0];
+
+  const player = state.players[playerId];
+  if (!player) return offers[0];
+
+  // Count grunts targeting this player
+  const gruntCount = state.grunts.filter(
+    (gr) => gr.targetPlayerId === playerId,
+  ).length;
+
+  // Territory ratio: how much of the zone this player controls (0-1)
+  const totalGrass = 200; // rough estimate, avoids scanning the full map
+  const territoryRatio = Math.min(1, player.interior.size / totalGrass);
+
+  let bestId = offers[0];
+  let bestScore = -1;
+  for (const id of offers) {
+    const sc = scoreUpgrade(id, player, gruntCount, territoryRatio);
+    if (sc > bestScore) {
+      bestScore = sc;
+      bestId = id;
+    }
+  }
+  return bestId;
+}
+
+/** Score an upgrade for a given player based on game context. Higher = better. */
+function scoreUpgrade(
+  id: UpgradeId,
+  player: {
+    id: number;
+    cannons: { length: number };
+    interior: ReadonlySet<number>;
+    upgrades: Map<UpgradeId, number>;
+  },
+  gruntCount: number,
+  territoryRatio: number,
+): number {
+  const has = (uid: UpgradeId) => (player.upgrades.get(uid) ?? 0) > 0;
+
+  switch (id) {
+    // Defensive — valuable when under grunt pressure or small territory
+    case "reinforced_walls":
+      return has("reinforced_walls") ? 1 : 5 + gruntCount * 2;
+    case "master_builder":
+      return 4 + (1 - territoryRatio) * 6;
+    case "foundations":
+      return has("foundations") ? 1 : 3;
+    case "large_pieces":
+      return has("large_pieces") ? 1 : 4;
+
+    // Offensive — valuable when the player has many cannons
+    case "rapid_fire":
+      return 3 + player.cannons.length * 1.5;
+    case "scatter_shot":
+      return has("scatter_shot") ? 1 : 3 + player.cannons.length;
+    case "mortar":
+      return has("mortar") ? 1 : 4;
+    case "flaming_walls":
+      return has("flaming_walls") ? 1 : 3;
+
+    // Strategic
+    case "scout_tower":
+      return has("scout_tower") ? 1 : 3;
+    case "mercenaries":
+      return 4;
+    case "fortify":
+      return 2 + gruntCount;
+    case "salvage":
+      return has("salvage") ? 1 : 3;
+
+    // One-use
+    case "earthquake":
+      return 3;
+    case "ceasefire":
+      return territoryRatio < 0.3 ? 6 : 2;
+    case "supply_drop":
+      return 4;
+
+    default:
+      return 3;
+  }
 }

@@ -83,6 +83,7 @@ export function createUpgradePickSystem(
       dt,
       UPGRADE_PICK_AI_DELAY,
       UPGRADE_PICK_MAX_TIMER,
+      runtimeState.state,
     );
 
     deps.render();
