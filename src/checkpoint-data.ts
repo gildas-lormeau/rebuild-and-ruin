@@ -43,6 +43,8 @@ export interface SerializedPlayer {
   lives: number;
   eliminated: boolean;
   score: number;
+  /** Active upgrades: [upgradeId, stackCount][] (modern mode). */
+  upgrades?: [string, number][];
 }
 
 export interface SerializedBurningPit {

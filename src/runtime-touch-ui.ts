@@ -135,6 +135,14 @@ const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
     zoom: HUMAN,
     quit: true,
   },
+  [Mode.UPGRADE_PICK]: {
+    dpad: HUMAN,
+    confirm: HUMAN,
+    rotate: false,
+    placementValidity: false,
+    zoom: false,
+    quit: true,
+  },
   [Mode.GAME]: {
     dpad: HUMAN,
     confirm: HUMAN,

@@ -91,6 +91,11 @@ function skipPendingAnimations(): void {
       _runtime.runtimeState.mode = Mode.GAME;
       devLog("Skipped banner/animation → game mode");
       break;
+    case Mode.UPGRADE_PICK:
+      _runtime.runtimeState.upgradePickDialog = null;
+      _runtime.runtimeState.mode = Mode.GAME;
+      devLog("Cleared upgrade pick dialog → game mode");
+      break;
     case Mode.GAME:
     case Mode.LOBBY:
     case Mode.OPTIONS:

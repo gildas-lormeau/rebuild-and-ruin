@@ -187,6 +187,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       [Mode.BALLOON_ANIM]: (dt: number) => phaseTicks.tickBalloonAnim(dt),
       [Mode.CASTLE_BUILD]: (dt: number) => selection.tickCastleBuild(dt),
       [Mode.LIFE_LOST]: (dt: number) => lifeLost.tick(dt),
+      [Mode.UPGRADE_PICK]: () => render(),
       [Mode.GAME]: (dt: number) => phaseTicks.tickGame(dt),
     };
 

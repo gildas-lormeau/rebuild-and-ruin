@@ -103,6 +103,7 @@ export function createGameLifecycle(
     runtimeState.accum = createTimerAccums();
     runtimeState.banner = createBannerState();
     runtimeState.lifeLostDialog = null;
+    runtimeState.upgradePickDialog = null;
     runtimeState.paused = false;
     runtimeState.quitPending = false;
     runtimeState.optionsReturnMode = null;

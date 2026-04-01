@@ -5,6 +5,7 @@
 import type { GameMode, ModifierId } from "./game-constants.ts";
 import type { Castle, GameMap, TilePos, Tower } from "./geometry-types.ts";
 import type { Rng } from "./rng.ts";
+import type { UpgradeId } from "./upgrade-defs.ts";
 
 export enum Phase {
   CASTLE_SELECT = "CASTLE_SELECT",
@@ -44,6 +45,7 @@ export enum Mode {
   BALLOON_ANIM,
   CASTLE_BUILD,
   LIFE_LOST,
+  UPGRADE_PICK,
   GAME,
   STOPPED,
 }
@@ -166,6 +168,8 @@ export interface Player {
   defaultFacing: number;
   /** Castle wall tiles (including clumsy extras) — protected from debris sweep. */
   castleWallTiles: ReadonlySet<number>;
+  /** Active upgrades for this player (modern mode only). Key = upgrade id, value = stack count. */
+  upgrades: Map<UpgradeId, number>;
 }
 
 export interface Grunt extends TilePos {
@@ -332,6 +336,21 @@ export interface LifeLostEntry {
 
 export interface LifeLostDialogState {
   entries: LifeLostEntry[];
+  timer: number;
+}
+
+export interface UpgradePickEntry {
+  playerId: number;
+  offers: readonly [UpgradeId, UpgradeId, UpgradeId];
+  choice: UpgradeId | null;
+  isAi: boolean;
+  aiTimer: number;
+  /** Which offer card is focused (0, 1, or 2). */
+  focused: number;
+}
+
+export interface UpgradePickDialogState {
+  entries: UpgradePickEntry[];
   timer: number;
 }
 

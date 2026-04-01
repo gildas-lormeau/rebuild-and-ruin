@@ -18,6 +18,7 @@ import {
   type GameState,
   Phase,
 } from "./types.ts";
+import type { UpgradeId } from "./upgrade-defs.ts";
 
 interface FullStateResult {
   balloonFlights?: {
@@ -187,6 +188,8 @@ export function serializePlayers(state: GameState) {
     lives: player.lives,
     eliminated: player.eliminated,
     score: player.score,
+    upgrades:
+      player.upgrades.size > 0 ? [...player.upgrades.entries()] : undefined,
   }));
 }
 
@@ -290,6 +293,7 @@ export function applyPlayersCheckpoint(
     player.lives = sp.lives;
     player.eliminated = sp.eliminated;
     player.score = sp.score;
+    player.upgrades = new Map((sp.upgrades ?? []) as [UpgradeId, number][]);
     // Rebuild castle geometry from home tower (deterministic from map)
     player.castle = player.homeTower
       ? createCastle(player.homeTower, state.map.tiles, state.map.towers)

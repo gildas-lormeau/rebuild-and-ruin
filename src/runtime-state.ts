@@ -27,6 +27,7 @@ import {
   type LobbyState,
   Mode,
   type SelectionState,
+  type UpgradePickDialogState,
 } from "./types.ts";
 
 export interface RuntimeState {
@@ -45,6 +46,7 @@ export interface RuntimeState {
   castleBuilds: CastleBuildState[];
   castleBuildOnDone: (() => void) | null;
   lifeLostDialog: LifeLostDialogState | null;
+  upgradePickDialog: UpgradePickDialogState | null;
 
   // Timers / accumulators
   accum: TimerAccums;
@@ -119,6 +121,7 @@ export function createRuntimeState(): RuntimeState {
     castleBuilds: [],
     castleBuildOnDone: null,
     lifeLostDialog: null,
+    upgradePickDialog: null,
 
     accum: createTimerAccums(),
     lastTime: 0,

@@ -10,6 +10,7 @@
       "src/platform.ts",
       "src/rng.ts",
       "src/router.ts",
+      "src/upgrade-defs.ts",
       "src/utils.ts"
     ]
   },
