@@ -2,6 +2,7 @@
  * Core types, interfaces, and constants for the game engine.
  */
 
+import type { GameMode, ModifierId } from "./game-constants.ts";
 import type { Castle, GameMap, TilePos, Tower } from "./geometry-types.ts";
 import type { Rng } from "./rng.ts";
 
@@ -245,6 +246,12 @@ export interface GameState {
    *  Phase-dependent: only meaningful when `state.phase === Phase.CANNON_PLACE`.
    *  Always guard: `if (state.phase === Phase.CANNON_PLACE) { ... state.cannonLimits ... }` */
   cannonLimits: number[];
+  /** Game mode: classic (original rules) or modern (environmental modifiers). Immutable for the match. */
+  gameMode: GameMode;
+  /** Active modifier for the current round (modern mode only). null = none. */
+  activeModifier: ModifierId | null;
+  /** Previous round's modifier id (for no-repeat rule). null = none. */
+  lastModifierId: ModifierId | null;
 }
 
 /** Battle animation state — territory/wall snapshots and in-flight effects. */

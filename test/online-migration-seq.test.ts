@@ -34,6 +34,9 @@ function makeFullState(migrationSeq: number): FullStateMessage {
     capturedCannons: [],
     balloonHits: [],
     cannonballs: [],
+    gameMode: "classic",
+    activeModifier: null,
+    lastModifierId: null,
   };
 }
 
@@ -52,6 +55,7 @@ test("lifecycle drops stale full_state after host migration", () => {
       lobbyWaitTimer: 0,
       roomBattleLength: 0,
       roomCannonMaxHp: 3,
+      roomGameMode: "classic",
       lobbyStartTime: 0,
       occupiedSlots: new Set<number>(),
       remoteHumanSlots: new Set<number>(),

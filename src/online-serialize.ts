@@ -7,6 +7,7 @@ import { type FullStateMessage, MESSAGE } from "../server/protocol.ts";
 import { recomputeTerritoryFromWalls } from "./build-system.ts";
 import { createCastle } from "./castle-generation.ts";
 import type { SerializedGrunt, SerializedPlayer } from "./checkpoint-data.ts";
+import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "./game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "./grid.ts";
 import { toCannonMode } from "./online-types.ts";
 import { setPhase } from "./phase-setup.ts";
@@ -50,6 +51,8 @@ export function createBuildStartMessage(state: GameState) {
     towerAlive: [...state.towerAlive],
     burningPits: serializeBurningPits(state),
     rngSeed: state.rng.seed,
+    activeModifier: state.activeModifier,
+    lastModifierId: state.lastModifierId,
   };
 }
 
@@ -121,6 +124,9 @@ export function createFullStateMessage(
     cannonLimits: [...state.cannonLimits],
     playerZones: [...state.playerZones],
     activePlayer: state.activePlayer,
+    gameMode: state.gameMode,
+    activeModifier: state.activeModifier,
+    lastModifierId: state.lastModifierId,
     towerPendingRevive: [...state.towerPendingRevive],
     capturedCannons: state.capturedCannons.map((cc) => ({
       victimId: cc.victimId,
@@ -206,6 +212,12 @@ export function restoreFullStateSnapshot(
   state.activePlayer = msg.activePlayer;
   state.towerPendingRevive = new Set(msg.towerPendingRevive);
   state.towerAlive = msg.towerAlive;
+  state.gameMode =
+    msg.gameMode === GAME_MODE_MODERN ? GAME_MODE_MODERN : GAME_MODE_CLASSIC;
+  state.activeModifier =
+    (msg.activeModifier as GameState["activeModifier"]) ?? null;
+  state.lastModifierId =
+    (msg.lastModifierId as GameState["lastModifierId"]) ?? null;
   state.burningPits = msg.burningPits.map((pit) => ({
     row: pit.row,
     col: pit.col,

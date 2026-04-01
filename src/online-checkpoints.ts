@@ -118,6 +118,10 @@ export function applyBuildStartCheckpoint(
   deps.state.burningPits = data.burningPits;
   deps.state.round = data.round;
   deps.state.timer = data.timer;
+  deps.state.activeModifier =
+    (data.activeModifier as typeof deps.state.activeModifier) ?? null;
+  deps.state.lastModifierId =
+    (data.lastModifierId as typeof deps.state.lastModifierId) ?? null;
   clearBattleProjectiles(deps);
   deps.accum.grunt = 0;
   resetCannonFacings(deps.state);

@@ -8,6 +8,7 @@ interface LobbyElements {
   rounds: HTMLSelectElement;
   hp: HTMLSelectElement;
   wait: HTMLSelectElement;
+  gameMode: HTMLSelectElement;
   seed: HTMLInputElement;
   joinCodeInput: HTMLInputElement;
   createError: HTMLElement;
@@ -86,6 +87,7 @@ export function initLobbyUi({
             cannonMaxHp: Number(elements.hp.value),
             waitTimerSec: Number(elements.wait.value),
             seed: Number.isFinite(seedNum) ? seedNum : undefined,
+            gameMode: elements.gameMode.value,
           },
         });
         setIsHost(true);

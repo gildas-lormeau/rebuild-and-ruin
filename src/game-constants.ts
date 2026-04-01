@@ -2,8 +2,19 @@
  * Pure numeric/string/array game constants — no type dependencies.
  */
 
-/** Default hits needed to destroy a cannon. */
+/** Game mode: classic (original Rampart rules) or modern (environmental modifiers). */
 
+export type GameMode = "classic" | "modern";
+
+/** Identifier for a round modifier (modern mode only). */
+export type ModifierId = "wildfire" | "crumbling_walls" | "grunt_surge";
+
+export const GAME_MODE_CLASSIC: GameMode = "classic";
+export const GAME_MODE_MODERN: GameMode = "modern";
+/** First round that can roll a modifier (modern mode). */
+export const MODIFIER_FIRST_ROUND = 3;
+/** Probability that any modifier fires on an eligible round. */
+export const MODIFIER_ROLL_CHANCE = 0.65;
 export const CANNON_MAX_HP = 3;
 /** How many cannon slots a super gun costs. */
 export const SUPER_GUN_COST = 4;

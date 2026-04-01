@@ -212,6 +212,9 @@ export function parseBoard(ascii: string, playerId = 0): ParseResult {
     buildTimer: 25,
     cannonPlaceTimer: 15,
     firstRoundCannons: 3,
+    gameMode: "classic",
+    activeModifier: null,
+    lastModifierId: null,
   };
 
   claimTerritory(state);

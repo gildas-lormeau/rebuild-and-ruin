@@ -20,6 +20,7 @@ export const CANNON_HP_OPTIONS = [
 export const HAPTICS_LABELS = ["Off", "Phase changes", "All"];
 export const SOUND_LABELS = ["Off", "Phase changes", "All"];
 export const DPAD_LABELS = ["Right-handed", "Left-handed"];
+export const GAME_MODE_LABELS = ["Classic", "Modern"];
 export const OPTION_NAMES = [
   "Difficulty",
   "Rounds",
@@ -29,4 +30,5 @@ export const OPTION_NAMES = [
   "Controls",
   "D-Pad",
   "Sound",
+  "Game Mode",
 ];

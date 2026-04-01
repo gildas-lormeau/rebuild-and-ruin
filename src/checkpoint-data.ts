@@ -95,4 +95,6 @@ export interface BuildStartData {
   towerAlive: boolean[];
   burningPits: SerializedBurningPit[];
   rngSeed: number;
+  activeModifier?: string | null;
+  lastModifierId?: string | null;
 }

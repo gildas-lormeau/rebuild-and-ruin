@@ -18,6 +18,7 @@ import {
   CANNON_MAX_HP,
   CANNON_PLACE_TIMER,
   FIRST_ROUND_CANNONS,
+  GAME_MODE_CLASSIC,
   STARTING_LIVES,
 } from "./game-constants.ts";
 import type { GameMap, Tower } from "./geometry-types.ts";
@@ -102,6 +103,9 @@ export function createGameState(
     reselectedPlayers: new Set(),
     playerZones: [],
     cannonLimits: [],
+    gameMode: GAME_MODE_CLASSIC,
+    activeModifier: null,
+    lastModifierId: null,
   };
 }
 

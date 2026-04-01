@@ -4,13 +4,18 @@
  */
 
 import type { ControlsState } from "./controller-interfaces.ts";
-import { LOBBY_SKIP_LOCKOUT, LOBBY_SKIP_STEP } from "./game-constants.ts";
+import {
+  GAME_MODE_MODERN,
+  LOBBY_SKIP_LOCKOUT,
+  LOBBY_SKIP_STEP,
+} from "./game-constants.ts";
 import { createLobbyConfirmKeys, formatKeyHint } from "./game-helpers.ts";
 import { formatKeyName, saveSettings } from "./game-ui-settings.ts";
 import {
   CANNON_HP_OPTIONS,
   DIFFICULTY_LABELS,
   DPAD_LABELS,
+  GAME_MODE_LABELS,
   HAPTICS_LABELS,
   OPTION_NAMES,
   ROUNDS_OPTIONS,
@@ -82,15 +87,15 @@ export function createOptionsOverlay(frameCtx: UIContext): {
         value: optionValue(frameCtx, i),
         editable: false,
       };
-    // Online: Rounds, Cannon HP, Seed are locked by room host
-    if (frameCtx.isOnline && (i === 1 || i === 2))
+    // Online: Rounds, Cannon HP, Game Mode, Seed are locked by room host
+    if (frameCtx.isOnline && (i === 1 || i === 2 || i === 8))
       return {
         name: OPTION_NAMES[i]!,
         value: optionValue(frameCtx, i),
         editable: false,
       };
-    // In-game: Difficulty and Cannon HP are locked (only Rounds, Haptics, D-Pad remain editable)
-    if (readOnly && (i === 0 || i === 2))
+    // In-game: Difficulty, Cannon HP, Game Mode are locked
+    if (readOnly && (i === 0 || i === 2 || i === 8))
       return {
         name: OPTION_NAMES[i]!,
         value: optionValue(frameCtx, i),
@@ -267,10 +272,10 @@ export function lobbySkipStep(frameCtx: UIContext): boolean {
 }
 
 export function visibleOptions(frameCtx: UIContext): number[] {
-  // 0=Difficulty, 1=Rounds, 2=Cannon HP, 3=Haptics, 4=Seed, 5=Controls, 6=D-Pad, 7=Sound
+  // 0=Difficulty, 1=Rounds, 2=Cannon HP, 3=Haptics, 4=Seed, 5=Controls, 6=D-Pad, 7=Sound, 8=Game Mode
   if (frameCtx.isOnline)
-    return IS_TOUCH_DEVICE ? [1, 2, 3, 7, 4, 5, 6] : [1, 2, 7, 4, 5];
-  return IS_TOUCH_DEVICE ? [0, 1, 2, 3, 7, 4, 5, 6] : [0, 1, 2, 7, 4, 5];
+    return IS_TOUCH_DEVICE ? [1, 2, 8, 3, 7, 4, 5, 6] : [1, 2, 8, 7, 4, 5];
+  return IS_TOUCH_DEVICE ? [0, 1, 2, 8, 3, 7, 4, 5, 6] : [0, 1, 2, 8, 7, 4, 5];
 }
 
 function optionValue(frameCtx: UIContext, idx: number): string {
@@ -295,5 +300,7 @@ function optionValue(frameCtx: UIContext, idx: number): string {
     return settings.seedMode === SEED_CUSTOM ? settings.seed || "_" : "Random";
   }
   if (idx === 6) return DPAD_LABELS[settings.leftHanded ? 1 : 0]!;
+  if (idx === 8)
+    return GAME_MODE_LABELS[settings.gameMode === GAME_MODE_MODERN ? 1 : 0]!;
   return "";
 }

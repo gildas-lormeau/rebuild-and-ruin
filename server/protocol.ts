@@ -80,6 +80,7 @@ export interface RoomSettings {
   cannonMaxHp: number; // 3, 6, 9, or 12
   waitTimerSec: number; // lobby wait duration before auto-start (seconds)
   seed?: number; // optional map seed (server generates random if omitted)
+  gameMode?: string; // "classic" or "modern" (default "classic")
 }
 
 const VALID_BATTLE_LENGTHS = [0, 3, 5, 8, 12];
@@ -87,12 +88,15 @@ const VALID_CANNON_HP = [3, 6, 9, 12];
 const MAX_WAIT_TIMER_SEC = 120;
 const DEFAULT_WAIT_TIMER_SEC = 60;
 
+const VALID_GAME_MODES = ["classic", "modern"];
+
 /** Clamp untrusted client settings to valid ranges. */
 export function sanitizeRoomSettings(raw: Partial<RoomSettings>): RoomSettings {
   const bl = Number(raw.battleLength);
   const hp = Number(raw.cannonMaxHp);
   const wait = Number(raw.waitTimerSec);
   const seed = raw.seed != null ? Math.floor(Number(raw.seed)) : undefined;
+  const gm = String(raw.gameMode ?? "classic");
   return {
     battleLength: VALID_BATTLE_LENGTHS.includes(bl) ? bl : 0,
     cannonMaxHp: VALID_CANNON_HP.includes(hp) ? hp : 3,
@@ -101,6 +105,7 @@ export function sanitizeRoomSettings(raw: Partial<RoomSettings>): RoomSettings {
         ? Math.min(wait, MAX_WAIT_TIMER_SEC)
         : DEFAULT_WAIT_TIMER_SEC,
     seed: Number.isFinite(seed) ? seed : undefined,
+    gameMode: VALID_GAME_MODES.includes(gm) ? gm : "classic",
   };
 }
 
@@ -133,6 +138,7 @@ export interface InitMessage {
     buildTimer: number;
     cannonPlaceTimer: number;
     firstRoundCannons: number;
+    gameMode: string;
   };
 }
 
@@ -268,6 +274,9 @@ export interface FullStateMessage {
   cannonLimits: number[];
   playerZones: number[];
   activePlayer: number;
+  gameMode: string;
+  activeModifier: string | null;
+  lastModifierId: string | null;
   towerPendingRevive: number[];
   capturedCannons: {
     victimId: number;

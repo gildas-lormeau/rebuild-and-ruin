@@ -4,6 +4,7 @@
  * Keep player names, colors, and bindings in one place so they cannot drift.
  */
 
+import type { GameMode } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 
 export interface KeyBindings {
@@ -33,6 +34,7 @@ export interface GameSettings {
   seedMode: SeedMode;
   keyBindings: KeyBindings[];
   leftHanded: boolean; // true = d-pad on right, action buttons on left
+  gameMode: GameMode;
 }
 
 export const KEY_UP = "ArrowUp";

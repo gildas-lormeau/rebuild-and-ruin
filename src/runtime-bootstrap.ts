@@ -1,5 +1,6 @@
 import { createController } from "./controller-factory.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
+import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "./game-constants.ts";
 import { createGameFromSeed } from "./game-engine.ts";
 import type { GameMap } from "./geometry-types.ts";
 import { generateMap } from "./map-generation.ts";
@@ -65,6 +66,8 @@ interface InitGameDeps {
   buildTimer: number;
   cannonPlaceTimer: number;
   firstRoundCannons: number;
+  /** Game mode: "classic" or "modern". */
+  gameMode: string;
   /** Which slots are human (true = human, false/missing = AI). */
   humanSlots: readonly boolean[];
   /** Per-slot key bindings (only used for human slots). */
@@ -261,6 +264,8 @@ export function bootstrapGame(deps: InitGameDeps): void {
   state.buildTimer = deps.buildTimer;
   state.cannonPlaceTimer = deps.cannonPlaceTimer;
   state.firstRoundCannons = deps.firstRoundCannons;
+  state.gameMode =
+    deps.gameMode === GAME_MODE_MODERN ? GAME_MODE_MODERN : GAME_MODE_CLASSIC;
 
   deps.log(
     `initGame: ${playerCount} players, seed=${deps.seed}, battleLength=${state.battleLength}`,

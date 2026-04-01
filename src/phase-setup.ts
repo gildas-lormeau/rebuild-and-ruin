@@ -50,6 +50,12 @@ import {
   spawnGruntOnZone,
   updateGruntBlockedBattles,
 } from "./grunt-system.ts";
+import {
+  applyCrumblingWalls,
+  applyGruntSurge,
+  applyWildfire,
+  rollModifier,
+} from "./round-modifiers.ts";
 import { isBalloonCannon, packTile } from "./spatial.ts";
 import {
   CannonMode,
@@ -214,6 +220,10 @@ export function enterBattleFromCannon(state: GameState): void {
   }
   const allWalls = collectAllWalls(state);
   removeBonusSquaresCoveredByWalls(state, allWalls);
+  // Modern mode: apply battle-start modifiers
+  if (state.activeModifier === "wildfire") applyWildfire(state);
+  if (state.activeModifier === "grunt_surge") applyGruntSurge(state);
+
   rollGruntWallAttacks(state);
   setPhase(state, Phase.BATTLE);
   state.timer = BATTLE_TIMER;
@@ -239,10 +249,21 @@ export function enterBuildFromBattle(state: GameState): void {
   }
   claimTerritory(state);
   state.round++;
+
+  // Modern mode: roll modifier for the upcoming round
+  state.lastModifierId = state.activeModifier;
+  state.activeModifier = rollModifier(state);
+
   replenishBonusSquares(state);
   setPhase(state, Phase.WALL_BUILD);
   state.timer = state.buildTimer;
   startOfBuildPhaseHousekeeping(state);
+
+  // Modern mode: apply build-start modifiers (after housekeeping so territory is fresh)
+  if (state.activeModifier === "crumbling_walls") {
+    applyCrumblingWalls(state);
+    claimTerritory(state);
+  }
 }
 
 /**

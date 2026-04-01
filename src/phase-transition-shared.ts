@@ -71,12 +71,15 @@ export const BUILD_START_STEPS = [
   INIT_CTRL,
 ] as const;
 
-/** Show the "Place Cannons" banner with its canonical subtitle. */
+/** Show the "Place Cannons" banner with its canonical subtitle.
+ *  When `modifierText` is provided, it replaces the default subtitle. */
 export function showCannonPhaseBanner(
   show: BannerShow,
   onDone: () => void,
+  modifierText?: string,
 ): void {
-  show(BANNER_PLACE_CANNONS, onDone, true, undefined, BANNER_PLACE_CANNONS_SUB);
+  const subtitle = modifierText ?? BANNER_PLACE_CANNONS_SUB;
+  show(BANNER_PLACE_CANNONS, onDone, true, undefined, subtitle);
 }
 
 /** Show the battle-start banner with its canonical subtitle.
@@ -90,13 +93,16 @@ export function showBattlePhaseBanner(
 }
 
 /** Show the build/repair banner with its canonical subtitle.
- *  `text` varies by context (e.g. "Repair walls" vs "Repair!"). */
+ *  `text` varies by context (e.g. "Repair walls" vs "Repair!").
+ *  When `modifierText` is provided, it replaces the default subtitle. */
 export function showBuildPhaseBanner(
   show: BannerShow,
   text: string,
   onDone: () => void,
+  modifierText?: string,
 ): void {
-  show(text, onDone, true, undefined, BANNER_BUILD_SUB);
+  const subtitle = modifierText ?? BANNER_BUILD_SUB;
+  show(text, onDone, true, undefined, subtitle);
 }
 
 /** Execute a phase transition recipe: run each named step in declared order.

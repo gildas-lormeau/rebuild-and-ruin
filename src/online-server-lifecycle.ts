@@ -12,6 +12,7 @@ import {
   MESSAGE,
   type ServerMessage,
 } from "../server/protocol.ts";
+import { GAME_MODE_CLASSIC } from "./game-constants.ts";
 import type { OnlineSession } from "./online-session.ts";
 import type { GameState } from "./types.ts";
 
@@ -27,6 +28,7 @@ interface HandleServerLifecycleDeps {
     | "lobbyWaitTimer"
     | "roomBattleLength"
     | "roomCannonMaxHp"
+    | "roomGameMode"
     | "lobbyStartTime"
     | "occupiedSlots"
     | "remoteHumanSlots"
@@ -109,6 +111,7 @@ export function handleServerLifecycleMessage(
       deps.session.lobbyWaitTimer = msg.settings.waitTimerSec;
       deps.session.roomBattleLength = msg.settings.battleLength;
       deps.session.roomCannonMaxHp = msg.settings.cannonMaxHp;
+      deps.session.roomGameMode = msg.settings.gameMode ?? GAME_MODE_CLASSIC;
       deps.lobby.showWaitingRoom(msg.code, msg.seed);
       return true;
 
@@ -116,6 +119,7 @@ export function handleServerLifecycleMessage(
       deps.session.lobbyWaitTimer = msg.settings.waitTimerSec;
       deps.session.roomBattleLength = msg.settings.battleLength;
       deps.session.roomCannonMaxHp = msg.settings.cannonMaxHp;
+      deps.session.roomGameMode = msg.settings.gameMode ?? GAME_MODE_CLASSIC;
       deps.lobby.showWaitingRoom(msg.code, msg.seed);
       deps.session.lobbyStartTime = deps.now() - msg.elapsedSec * 1000;
       for (const player of msg.players) {

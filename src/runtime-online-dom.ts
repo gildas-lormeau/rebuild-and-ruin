@@ -26,6 +26,9 @@ export const createHp = document.getElementById(
 export const createWait = document.getElementById(
   "create-wait",
 ) as HTMLSelectElement;
+export const createGameMode = document.getElementById(
+  "create-game-mode",
+) as HTMLSelectElement;
 export const createSeed = document.getElementById(
   "create-seed",
 ) as HTMLInputElement;

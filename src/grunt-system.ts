@@ -30,6 +30,7 @@ import {
 } from "./grunt-movement.ts";
 import {
   DIRS_4,
+  distanceToTower,
   inBounds,
   isGrass,
   isWater,
@@ -157,6 +158,65 @@ export function spawnGruntGroupOnZone(
       queue.push({ row: nr, col: nc });
       if (placed >= count) break;
     }
+  }
+}
+
+/** Spawn grunts distributed evenly across alive towers in a player's zone.
+ *  Each grunt spawns at a bank/edge tile (normal spawn rules) closest to
+ *  its assigned tower, so grunts spread across all towers with short paths. */
+export function spawnGruntSurgeOnZone(
+  state: GameState,
+  playerId: number,
+  totalCount: number,
+): void {
+  const player = state.players[playerId];
+  if (!isPlayerSeated(player)) return;
+  const zone = player.homeTower.zone;
+
+  // Collect alive towers in this zone
+  const zoneTowers: { idx: number; row: number; col: number }[] = [];
+  for (let i = 0; i < state.map.towers.length; i++) {
+    const tower = state.map.towers[i]!;
+    if (tower.zone !== zone || !state.towerAlive[i]) continue;
+    zoneTowers.push({ idx: i, row: tower.row, col: tower.col });
+  }
+  if (zoneTowers.length === 0) return;
+
+  // Collect bank/edge spawn candidates (same rules as normal spawning)
+  const blocked = collectOccupiedTiles(state, GRUNT_SPAWN_BLOCKED);
+  const candidates: { row: number; col: number; key: number }[] = [];
+  for (let r = 1; r < GRID_ROWS - 1; r++) {
+    for (let c = 1; c < GRID_COLS - 1; c++) {
+      if (!isValidSpawnCandidate(state, r, c, zone, blocked)) continue;
+      candidates.push({ row: r, col: c, key: packTile(r, c) });
+    }
+  }
+  if (candidates.length === 0) return;
+
+  // Round-robin towers, for each pick the nearest unused candidate
+  const used = new Set<number>();
+  let placed = 0;
+  for (let gi = 0; gi < totalCount && used.size < candidates.length; gi++) {
+    const tower = zoneTowers[gi % zoneTowers.length]!;
+
+    // Sort remaining candidates by distance to this tower
+    let bestIdx = -1;
+    let bestDist = Infinity;
+    for (let ci = 0; ci < candidates.length; ci++) {
+      const cand = candidates[ci]!;
+      if (used.has(cand.key)) continue;
+      const dist = distanceToTower(tower, cand.row, cand.col);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = ci;
+      }
+    }
+    if (bestIdx < 0) break;
+
+    const pick = candidates[bestIdx]!;
+    used.add(pick.key);
+    addGrunt(state, pick.row, pick.col, playerId);
+    placed++;
   }
 }
 

@@ -155,6 +155,7 @@ const runtime: GameRuntime = createGameRuntime({
         buildTimer: diffParams.buildTimer,
         cannonPlaceTimer: diffParams.cannonPlaceTimer,
         firstRoundCannons: diffParams.firstRoundCannons,
+        gameMode: ctx.session.roomGameMode,
       },
     };
     send(initMsg);
@@ -399,6 +400,7 @@ function initFromServer(msg: InitMessage): void {
     buildTimer: msg.settings.buildTimer,
     cannonPlaceTimer: msg.settings.cannonPlaceTimer,
     firstRoundCannons: msg.settings.firstRoundCannons,
+    gameMode: msg.settings.gameMode,
     humanSlots,
     keyBindings,
     difficulty: settings.difficulty,

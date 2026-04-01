@@ -11,7 +11,7 @@ import {
   MESSAGE,
   type ServerMessage,
 } from "../server/protocol.ts";
-import { LOBBY_TIMER } from "./game-constants.ts";
+import { GAME_MODE_CLASSIC, LOBBY_TIMER } from "./game-constants.ts";
 import { dedupChanged } from "./phantom-types.ts";
 import type { LifeLostChoice } from "./types.ts";
 
@@ -31,6 +31,7 @@ export interface OnlineSession {
   roomSeed: number;
   roomBattleLength: number;
   roomCannonMaxHp: number;
+  roomGameMode: string;
   keepaliveTimer: ReturnType<typeof setInterval> | null;
   lobbyStartTime: number;
   earlyLifeLostChoices: Map<number, LifeLostChoice>;
@@ -68,6 +69,7 @@ export function createSession(): OnlineSession {
     roomSeed: 0,
     roomBattleLength: 0,
     roomCannonMaxHp: 3,
+    roomGameMode: GAME_MODE_CLASSIC,
     keepaliveTimer: null,
     lobbyStartTime: 0,
     earlyLifeLostChoices: new Map(),

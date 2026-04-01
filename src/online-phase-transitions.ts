@@ -36,6 +36,7 @@ import {
   showBuildPhaseBanner,
   showCannonPhaseBanner,
 } from "./phase-transition-shared.ts";
+import { BANNER_PHASE_CANNON, modifierBannerText } from "./round-modifiers.ts";
 import {
   FOCUS_REMATCH,
   type GameOverFocus,
@@ -228,14 +229,18 @@ export function handleCannonStartTransition(
     },
     initControllers: initLocalController,
     showBanner: () =>
-      showCannonPhaseBanner(transitionCtx.ui.showBanner, () => {
-        startWatcherPhaseTimer(
-          transitionCtx.ui.watcherTiming,
-          transitionCtx.now(),
-          state.timer,
-        );
-        transitionCtx.setMode(Mode.GAME);
-      }),
+      showCannonPhaseBanner(
+        transitionCtx.ui.showBanner,
+        () => {
+          startWatcherPhaseTimer(
+            transitionCtx.ui.watcherTiming,
+            transitionCtx.now(),
+            state.timer,
+          );
+          transitionCtx.setMode(Mode.GAME);
+        },
+        modifierBannerText(state.activeModifier, BANNER_PHASE_CANNON),
+      ),
   });
 }
 

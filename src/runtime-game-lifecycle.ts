@@ -150,6 +150,7 @@ export function createGameLifecycle(
       buildTimer,
       cannonPlaceTimer,
       firstRoundCannons,
+      gameMode: runtimeState.settings.gameMode,
       log: deps.log,
       clearFrameData: deps.clearFrameData,
       setState: (state: GameState) => {

@@ -47,6 +47,7 @@ import {
   showBuildPhaseBanner,
   showCannonPhaseBanner,
 } from "./phase-transition-shared.ts";
+import { BANNER_PHASE_CANNON, modifierBannerText } from "./round-modifiers.ts";
 import {
   beginHostBattle,
   startHostBattleLifecycle,
@@ -158,7 +159,14 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       showBanner: () => {
         if (onBannerDone) {
           // Banner captures oldCastles (with old facings) before checkpoint runs.
-          showCannonPhaseBanner(deps.showBanner, onBannerDone);
+          showCannonPhaseBanner(
+            deps.showBanner,
+            onBannerDone,
+            modifierBannerText(
+              runtimeState.state.activeModifier,
+              BANNER_PHASE_CANNON,
+            ),
+          );
         }
       },
       applyCheckpoint: () => {

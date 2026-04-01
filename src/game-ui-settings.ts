@@ -3,6 +3,7 @@
  * Extracted from game-ui-types.ts to keep that file pure types/constants.
  */
 
+import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "./game-constants.ts";
 import {
   CANNON_HP_OPTIONS,
   DIFFICULTY_LABELS,
@@ -34,6 +35,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   seedMode: SEED_RANDOM,
   keyBindings: [],
   leftHanded: false,
+  gameMode: GAME_MODE_CLASSIC,
 };
 
 /** Compute the game seed from current settings (custom seed or random). */
@@ -59,6 +61,10 @@ export function loadSettings(): GameSettings {
         seed: saved.seed ?? DEFAULT_SETTINGS.seed,
         seedMode: saved.seedMode === SEED_CUSTOM ? SEED_CUSTOM : SEED_RANDOM,
         leftHanded: saved.leftHanded ?? DEFAULT_SETTINGS.leftHanded,
+        gameMode:
+          saved.gameMode === GAME_MODE_MODERN
+            ? GAME_MODE_MODERN
+            : GAME_MODE_CLASSIC,
         keyBindings:
           Array.isArray(saved.keyBindings) &&
           saved.keyBindings.length === MAX_PLAYERS
@@ -139,6 +145,12 @@ export function cycleOption(
   } else if (optionsCursor === 7) {
     settings.sound =
       (settings.sound + dir + SOUND_LABELS.length) % SOUND_LABELS.length;
+  } else if (optionsCursor === 8) {
+    if (optionsReturnMode !== null || isOnline) return; // locked in-game and online
+    settings.gameMode =
+      settings.gameMode === GAME_MODE_MODERN
+        ? GAME_MODE_CLASSIC
+        : GAME_MODE_MODERN;
   }
   // optionsCursor === 4 (Seed) — handled via direct keyboard input in options handler
   // optionsCursor === 5 (Controls) — no left/right value, opened via confirm
