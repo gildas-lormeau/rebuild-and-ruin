@@ -148,7 +148,6 @@ export function applyPiecePlacement(
     (b) => !pieceKeys.has(packTile(b.row, b.col)),
   );
   claimTerritory(state);
-  replenishBonusSquares(state);
   for (const pos of destroyedHousePositions) {
     spawnGruntNearPos(state, playerId, pos.row, pos.col);
   }
@@ -200,8 +199,15 @@ export function replenishBonusSquares(state: GameState): void {
   const { map } = state;
   const { tiles, zones } = map;
 
-  // Identify the 3 main zones
-  const mainZones = topZonesBySize(map, 3).map(({ zone }) => zone);
+  // Identify the 3 main zones, skip zones of eliminated players
+  const eliminatedZones = new Set(
+    state.players
+      .filter((player) => player.eliminated)
+      .map((player) => state.playerZones[player.id]),
+  );
+  const mainZones = topZonesBySize(map, 3)
+    .map(({ zone }) => zone)
+    .filter((zone) => !eliminatedZones.has(zone));
 
   // Build sets of enclosed and occupied tiles
   const enclosed = collectAllInterior(state);
