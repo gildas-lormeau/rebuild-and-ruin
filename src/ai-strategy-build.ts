@@ -427,6 +427,45 @@ export function pickPlacement(
       }
     }
 
+    // All towers enclosed, no gaps — try expanding territory outward.
+    // Compute bounding box of existing walls, expand by 2, and treat
+    // the expanded ring as gaps to fill over multiple rounds.
+    if (targetGaps.size === 0 && allCastlesEnclosed) {
+      let minR = GRID_ROWS,
+        maxR = 0,
+        minC = GRID_COLS,
+        maxC = 0;
+      for (const key of player.walls) {
+        const { r, c } = unpackTile(key);
+        if (r < minR) minR = r;
+        if (r > maxR) maxR = r;
+        if (c < minC) minC = c;
+        if (c > maxC) maxC = c;
+      }
+      const EXPAND = 2;
+      const expandRect: TileRect = {
+        top: Math.max(1, minR + 1),
+        bottom: Math.min(GRID_ROWS - 2, maxR - 1 + EXPAND),
+        left: Math.max(1, minC + 1),
+        right: Math.min(GRID_COLS - 2, maxC - 1 + EXPAND),
+      };
+      if (
+        expandRect.top <= expandRect.bottom &&
+        expandRect.left <= expandRect.right
+      ) {
+        const gaps = computeFillableGaps(
+          expandRect,
+          player,
+          state,
+          bankHugging,
+        );
+        if (gaps.size > 0) {
+          targetGaps = gaps;
+          targetRect = expandRect;
+        }
+      }
+    }
+
     return { targetGaps, targetRect };
   }
 
