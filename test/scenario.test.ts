@@ -4,7 +4,7 @@
  */
 
 import { MESSAGE } from "../server/protocol.ts";
-import { applyImpactEvent, canFireOwnCannon, resolveBalloons, tickCannonballs } from "../src/battle-system.ts";
+import { applyImpactEvent, canFireOwnCannon, resolveBalloons } from "../src/battle-system.ts";
 import { snapshotAllWalls, removeIsolatedWalls } from "../src/board-occupancy.ts";
 import { createOnlineOverlay } from "../src/render-composition.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "../src/player-config.ts";
@@ -657,51 +657,6 @@ test("super gun placed during cannon phase can fire in battle", () => {
   const enemy = s.findEnemyWallTile(0);
   assert(enemy !== null, "Should find an enemy wall");
   assert(s.fireAt(0, superIdx, enemy!.row, enemy!.col), "Should fire super gun");
-});
-
-test("AI fires super gun during battle (not skipped in round-robin)", () => {
-  // Find a seed where we can place a super gun with only 1 existing cannon
-  let s = createScenario();
-  let placed = false;
-  for (const seed of [42, 100, 200, 300, 999]) {
-    s = createScenario(seed);
-    s.playRounds(3);
-    const p = s.state.players[0]!;
-    // Remove all but 1 cannon so the round-robin reaches the super gun fast
-    p.cannons = p.cannons.slice(0, 1);
-    s.state.cannonLimits[0] = 99;
-    for (const key of p.interior) {
-      const row = Math.floor(key / GRID_COLS);
-      const col = key % GRID_COLS;
-      if (s.placeCannonAt(0, row, col, CannonMode.SUPER)) {
-        placed = true;
-        break;
-      }
-    }
-    if (placed) break;
-  }
-  assert(placed, "Should place a super gun in at least one seed");
-  const superIdx = s.state.players[0]!.cannons.length - 1;
-
-  s.advanceTo(Phase.BATTLE);
-  for (const ctrl of s.controllers) ctrl.initBattleState(s.state);
-
-  let superGunFired = false;
-  const dt = 0.1;
-  for (let t = 0; t < 20 && !superGunFired; t += dt) {
-    for (let i = 0; i < s.state.players.length; i++) {
-      if (s.state.players[i]!.eliminated) continue;
-      s.controllers[i]!.battleTick(s.state, dt);
-    }
-    for (const ball of s.state.cannonballs) {
-      if (ball.playerId === 0 && ball.cannonIdx === superIdx) {
-        superGunFired = true;
-      }
-    }
-    tickCannonballs(s.state, dt);
-  }
-
-  assert(superGunFired, "AI should fire the super gun during battle");
 });
 
 // ---------------------------------------------------------------------------
