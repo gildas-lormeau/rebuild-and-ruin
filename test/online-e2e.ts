@@ -42,6 +42,7 @@ const MOBILE = process.argv.includes("--mobile");
 const HEADLESS = process.argv.includes("--headless");
 const RECORD = process.argv.includes("--record");
 const FAST = process.argv.includes("--fast");
+const COVERAGE = process.argv.includes("--coverage");
 const SEED = (() => {
   const idx = process.argv.indexOf("--seed");
   return idx >= 0 && process.argv[idx + 1] ? process.argv[idx + 1]! : "";
@@ -122,6 +123,25 @@ const GAME_TIMEOUT_MS = 600_000; // 10 minutes — enough for "To The Death"
 const ONLINE_ROUND_OPTIONS = new Set([1, 3, 5, 8, 12]);
 const ONLINE_SELECTED_ROUNDS = ONLINE_ROUND_OPTIONS.has(NUM_ROUNDS) ? String(NUM_ROUNDS) : "3";
 const PLAYER_NAMES = ["Red", "Blue", "Gold"];
+const REPO_ROOT = process.cwd().replace(/\\/g, "/");
+
+interface CoverageRange {
+  start: number;
+  end: number;
+}
+
+interface JsCoverageEntry {
+  url: string;
+  text: string;
+  ranges: CoverageRange[];
+}
+
+interface CoverageSummary {
+  path: string;
+  executedBytes: number;
+  totalBytes: number;
+  pct: number;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -293,10 +313,14 @@ async function newPage(browser: Browser): Promise<Page> {
       viewport: { width: MOBILE_DEVICE.viewport.height, height: MOBILE_DEVICE.viewport.width },
       recordVideo,
     });
-    return ctx.newPage();
+    const page = await ctx.newPage();
+    await startCoverage(page);
+    return page;
   }
   const ctx = await browser.newContext({ recordVideo });
-  return ctx.newPage();
+  const page = await ctx.newPage();
+  await startCoverage(page);
+  return page;
 }
 
 function collectLogs(page: Page, prefix: string, logs: string[]): void {
@@ -304,6 +328,128 @@ function collectLogs(page: Page, prefix: string, logs: string[]): void {
     logs.push(`${ts()} [${prefix} ${m.type()}] ${m.text()}`));
   page.on("pageerror", (err: Error) =>
     logs.push(`${ts()} [${prefix} ERROR] ${err.message}`));
+}
+
+async function startCoverage(page: Page): Promise<void> {
+  if (!COVERAGE) return;
+  await page.coverage.startJSCoverage({ resetOnNavigation: false });
+}
+
+async function stopCoverage(page: Page): Promise<JsCoverageEntry[]> {
+  if (!COVERAGE || page.isClosed()) return [];
+  const entries = await page.coverage.stopJSCoverage();
+  return entries.map((entry) => ({
+    url: entry.url,
+    text: entry.source ?? "",
+    ranges: entry.functions.flatMap((fn) =>
+      fn.ranges
+        .filter((range) => range.count > 0)
+        .map((range) => ({ start: range.startOffset, end: range.endOffset })),
+    ),
+  }));
+}
+
+function mergeRanges(ranges: readonly CoverageRange[]): CoverageRange[] {
+  if (ranges.length === 0) return [];
+  const sorted = [...ranges].sort((left, right) => left.start - right.start);
+  const merged: CoverageRange[] = [{ start: sorted[0]!.start, end: sorted[0]!.end }];
+  for (let i = 1; i < sorted.length; i++) {
+    const current = sorted[i]!;
+    const last = merged[merged.length - 1]!;
+    if (current.start <= last.end) {
+      last.end = Math.max(last.end, current.end);
+    } else {
+      merged.push({ start: current.start, end: current.end });
+    }
+  }
+  return merged;
+}
+
+function countCoveredBytes(ranges: readonly CoverageRange[]): number {
+  return mergeRanges(ranges).reduce((total, range) => total + Math.max(0, range.end - range.start), 0);
+}
+
+function normalizeCoveragePath(url: string): string | null {
+  if (!url || url.startsWith("extensions::") || url.startsWith("devtools://")) return null;
+  try {
+    const parsed = new URL(url);
+    let path = decodeURIComponent(parsed.pathname);
+    if (path.includes("/@fs/")) {
+      path = path.slice(path.indexOf("/@fs/") + 5);
+    }
+    if (path.startsWith(REPO_ROOT)) {
+      path = path.slice(REPO_ROOT.length);
+    }
+    if (path.startsWith("/")) path = path.slice(1);
+    if (!path.startsWith("src/") && !path.startsWith("test/") && !path.startsWith("server/")) {
+      return null;
+    }
+    return path;
+  } catch {
+    return null;
+  }
+}
+
+function summarizeCoverage(entries: readonly JsCoverageEntry[]): CoverageSummary[] {
+  const aggregated = new Map<string, { totalBytes: number; ranges: CoverageRange[] }>();
+  for (const entry of entries) {
+    const path = normalizeCoveragePath(entry.url);
+    if (!path) continue;
+    const current = aggregated.get(path);
+    if (current) {
+      current.ranges.push(...entry.ranges);
+      current.totalBytes = Math.max(current.totalBytes, entry.text.length);
+    } else {
+      aggregated.set(path, {
+        totalBytes: entry.text.length,
+        ranges: [...entry.ranges],
+      });
+    }
+  }
+  return [...aggregated.entries()]
+    .map(([path, value]) => {
+      const executedBytes = countCoveredBytes(value.ranges);
+      const totalBytes = value.totalBytes;
+      return {
+        path,
+        executedBytes,
+        totalBytes,
+        pct: totalBytes === 0 ? 0 : Number(((executedBytes / totalBytes) * 100).toFixed(2)),
+      };
+    })
+    .sort((left, right) => right.pct - left.pct || right.executedBytes - left.executedBytes || left.path.localeCompare(right.path));
+}
+
+function printCoverageReport(entries: readonly JsCoverageEntry[], label: string): void {
+  if (!COVERAGE) return;
+  const summaries = summarizeCoverage(entries);
+  mkdirSync("logs", { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 23);
+  const outPath = `logs/e2e-coverage-${label}-${stamp}.json`;
+  writeFileSync(outPath, JSON.stringify(summaries, null, 2));
+
+  const interestingPatterns = [
+    /^src\/online-/,
+    /^src\/controller-human\.ts$/,
+    /^src\/input-/,
+    /^src\/runtime-camera\.ts$/,
+    /^src\/runtime-.*\.ts$/,
+  ];
+  const interesting = summaries.filter((summary) => interestingPatterns.some((pattern) => pattern.test(summary.path)));
+  const topInteresting = interesting
+    .sort((left, right) => right.executedBytes - left.executedBytes || right.pct - left.pct)
+    .slice(0, 20);
+
+  console.log(`\n=== E2E COVERAGE (${label}) ===`);
+  console.log(`  modules: ${summaries.length}`);
+  console.log(`  report: ${outPath}`);
+  if (topInteresting.length === 0) {
+    console.log("  no src/ browser modules were captured");
+    return;
+  }
+  for (const summary of topInteresting) {
+    console.log(`  ${summary.path}: ${summary.pct}% (${summary.executedBytes}/${summary.totalBytes} bytes)`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -633,6 +779,7 @@ async function runLocal() {
 
     analyzeResults([], [logs], [], ["LOCAL"], `replay`);
     logsFlushed = true;
+    printCoverageReport(await stopCoverage(page), "replay");
     await printHapticSummary(page);
     printAssertSummary();
     await page.close();
@@ -765,6 +912,7 @@ async function runLocal() {
     `local-${NUM_HUMANS}h`,
   );
   logsFlushed = true; // analyzeResults already saved the log file
+  printCoverageReport(await stopCoverage(page), `local-${NUM_HUMANS}h`);
 
   await printHapticSummary(page);
   if (RECORD) {
@@ -922,6 +1070,9 @@ async function runOnline() {
       console.log(`\n=== ALL CRITICAL MESSAGES RECEIVED BY ${clientLabels[i]} ===`);
     }
   }
+
+  const coverageEntries = (await Promise.all(clientPages.map((page) => stopCoverage(page)))).flat();
+  printCoverageReport(coverageEntries, `online-${NUM_HUMANS}h`);
 
   await printHapticSummary(hostPage);
   printAssertSummary();

@@ -16,6 +16,7 @@
     "test:e2e:local": "npx tsx test/online-e2e.ts local 0",
     "test:e2e:local:quick": "npx tsx test/online-e2e.ts local 0 --headless '' 1",
     "test:e2e:mobile": "npx tsx test/online-e2e.ts local 0 --mobile --screenshot",
+    "test:e2e:online:coverage:build-start": "npx tsx test/online-e2e.ts online 1 \"\" 1 --headless --coverage --action \"phase:WALL_BUILD exit\"",
     "test:territory": "timeout 10 bun test/territory.test.ts",
     "test:reselect": "timeout 10 bun test/reselect-clumsy.test.ts",
     "test:all": "npm run test:scenario && npm run test:determinism && npm run test:headless && npm run test:territory && npm run test:reselect && npm run test:build-ai && npm run test:online && npm run test:e2e:local:quick",
