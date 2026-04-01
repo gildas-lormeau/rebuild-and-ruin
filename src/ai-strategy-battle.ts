@@ -5,7 +5,7 @@
  * and chain attack logic used by DefaultStrategy.
  */
 
-import { SMALL_POCKET_MAX_SIZE, traitLookup } from "./ai-constants.ts";
+import { traitLookup } from "./ai-constants.ts";
 import { canFireOwnCannon } from "./battle-system.ts";
 import {
   computeCardinalObstacleMask,
@@ -41,6 +41,10 @@ type TargetCandidate = PrioritizedTilePos;
 const GRUNT_SWEEP_THRESHOLD = 15;
 /** Skip charity sweep if the enemy has more usable cannons than this. */
 const CHARITY_CANNON_THRESHOLD = 6;
+/** Pockets smaller than this are worth destroying — can't fit a 2×2 cannon.
+ *  Distinct from DESTROY_POCKET_MAX_SIZE (build scoring) which is higher (9)
+ *  because build prevention is stricter than battle destruction. */
+const DESTROY_POCKET_MAX_SIZE = 4;
 /** Minimum number of small pockets before pocket destruction triggers. */
 const POCKET_COUNT_THRESHOLD = 5;
 /** Maximum wall tiles targeted in a single pocket destruction chain. */
@@ -130,8 +134,8 @@ export function planPocketDestruction(
       }
     }
     if (
-      component.length < SMALL_POCKET_MAX_SIZE ||
-      (component.length === SMALL_POCKET_MAX_SIZE && !is2x2(component))
+      component.length < DESTROY_POCKET_MAX_SIZE ||
+      (component.length === DESTROY_POCKET_MAX_SIZE && !is2x2(component))
     ) {
       pockets.push(component);
     }

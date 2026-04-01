@@ -43,7 +43,7 @@ interface GameExpectation {
 const EXPECTED: readonly GameExpectation[] = [
   {
     seed: 52,
-    totalRounds: 41,
+    totalRounds: 25,
     winner: 0,
     checkpoints: [
       {
@@ -55,11 +55,11 @@ const EXPECTED: readonly GameExpectation[] = [
         ],
       },
       {
-        round: 41,
+        round: 25,
         players: [
-          { lives: 3, score: 80800, walls: 128, cannons: 19, interior: 120, eliminated: false },
-          { lives: 0, score: 59354, walls: 0, cannons: 0, interior: 0, eliminated: true },
-          { lives: 0, score: 9896, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 3, score: 45508, walls: 144, cannons: 17, interior: 98, eliminated: false },
+          { lives: 0, score: 36856, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 0, score: 8682, walls: 0, cannons: 0, interior: 0, eliminated: true },
         ],
       },
     ],
@@ -112,8 +112,8 @@ const EXPECTED: readonly GameExpectation[] = [
   },
   {
     seed: 56,
-    totalRounds: 40,
-    winner: 2,
+    totalRounds: 19,
+    winner: 0,
     checkpoints: [
       {
         round: 5,
@@ -124,18 +124,18 @@ const EXPECTED: readonly GameExpectation[] = [
         ],
       },
       {
-        round: 40,
+        round: 19,
         players: [
-          { lives: 0, score: 66538, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 3, score: 30406, walls: 173, cannons: 14, interior: 73, eliminated: false },
           { lives: 0, score: 5620, walls: 0, cannons: 0, interior: 0, eliminated: true },
-          { lives: 1, score: 59692, walls: 138, cannons: 6, interior: 74, eliminated: false },
+          { lives: 0, score: 25172, walls: 0, cannons: 0, interior: 0, eliminated: true },
         ],
       },
     ],
   },
   {
     seed: 2,
-    totalRounds: 42,
+    totalRounds: 35,
     winner: 1,
     checkpoints: [
       {
@@ -147,11 +147,11 @@ const EXPECTED: readonly GameExpectation[] = [
         ],
       },
       {
-        round: 42,
+        round: 35,
         players: [
           { lives: 0, score: 8082, walls: 0, cannons: 0, interior: 0, eliminated: true },
-          { lives: 1, score: 76526, walls: 150, cannons: 22, interior: 63, eliminated: false },
-          { lives: 0, score: 55658, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 1, score: 61362, walls: 156, cannons: 19, interior: 119, eliminated: false },
+          { lives: 0, score: 46502, walls: 0, cannons: 0, interior: 0, eliminated: true },
         ],
       },
     ],
