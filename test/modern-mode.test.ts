@@ -5,7 +5,7 @@
  * Run with: bun test/modern-mode.test.ts
  */
 
-import { GAME_MODE_MODERN, MODIFIER_FIRST_ROUND } from "../src/game-constants.ts";
+import { BALL_SPEED, GAME_MODE_MODERN, MODIFIER_FIRST_ROUND } from "../src/game-constants.ts";
 import type { OrbitParams } from "../src/controller-interfaces.ts";
 import type { PixelPos } from "../src/geometry-types.ts";
 import { nextPhase } from "../src/game-engine.ts";
@@ -20,13 +20,18 @@ import {
   createFullStateMessage,
   restoreFullStateSnapshot,
 } from "../src/online-serialize.ts";
-import { rollModifier } from "../src/round-modifiers.ts";
+import {
+  applyCrumblingWalls,
+  applyGruntSurge,
+  applyWildfire,
+  rollModifier,
+} from "../src/round-modifiers.ts";
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,
 } from "../src/runtime-headless.ts";
-import { UID } from "../src/upgrade-defs.ts";
-import { generateUpgradeOffers } from "../src/upgrade-pick.ts";
+import { type UpgradeId, UID } from "../src/upgrade-defs.ts";
+import { applyUpgradePicks, generateUpgradeOffers } from "../src/upgrade-pick.ts";
 import { createScenario } from "./scenario-helpers.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
 
@@ -200,7 +205,7 @@ test("Master Builder adds +5s to build timer per stack", () => {
   s.state.gameMode = GAME_MODE_MODERN;
   const baseBuildTimer = s.state.buildTimer;
 
-  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as any, 1);
+  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
 
   // Run a full round — playRound ends in WALL_BUILD after enterBuildFromBattle
   const result = s.playRound();
@@ -217,8 +222,8 @@ test("Master Builder stacks across multiple players", () => {
   s.state.gameMode = GAME_MODE_MODERN;
   const baseBuildTimer = s.state.buildTimer;
 
-  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as any, 1);
-  s.state.players[1]!.upgrades.set(UID.MASTER_BUILDER as any, 1);
+  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
+  s.state.players[1]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
 
   const result = s.playRound();
   if (result.needsReselect.length > 0) s.processReselection(result.needsReselect);
@@ -234,9 +239,9 @@ test("Master Builder ignores eliminated players", () => {
   s.state.gameMode = GAME_MODE_MODERN;
   const baseBuildTimer = s.state.buildTimer;
 
-  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as any, 1);
+  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
   s.eliminatePlayer(1);
-  s.state.players[1]!.upgrades.set(UID.MASTER_BUILDER as any, 1);
+  s.state.players[1]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
 
   const result = s.playRound();
   if (result.needsReselect.length > 0) s.processReselection(result.needsReselect);
@@ -250,7 +255,7 @@ test("Master Builder ignores eliminated players", () => {
 test("Reinforced Walls: first hit absorbed, second destroys", () => {
   const s = createScenario(42);
   const player = s.state.players[0]!;
-  player.upgrades.set(UID.REINFORCED_WALLS as any, 1);
+  player.upgrades.set(UID.REINFORCED_WALLS as UpgradeId, 1);
 
   const wallKey = [...player.walls][0];
   assert(wallKey !== undefined, "player should have walls");
@@ -267,7 +272,7 @@ test("damagedWalls cleared at build phase start", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   const player = s.state.players[0]!;
-  player.upgrades.set(UID.REINFORCED_WALLS as any, 1);
+  player.upgrades.set(UID.REINFORCED_WALLS as UpgradeId, 1);
 
   // Add some damaged walls
   const wallKey = [...player.walls][0];
@@ -298,8 +303,8 @@ test("BUILD_START checkpoint preserves modern mode fields", () => {
   // Set modern-mode specific state
   host.state.activeModifier = "wildfire";
   host.state.lastModifierId = "grunt_surge";
-  host.state.players[0]!.upgrades.set(UID.REINFORCED_WALLS as any, 2);
-  host.state.players[1]!.upgrades.set(UID.RAPID_FIRE as any, 1);
+  host.state.players[0]!.upgrades.set(UID.REINFORCED_WALLS as UpgradeId, 2);
+  host.state.players[1]!.upgrades.set(UID.RAPID_FIRE as UpgradeId, 1);
   host.state.players[0]!.damagedWalls.add(100);
   host.state.players[0]!.damagedWalls.add(200);
 
@@ -327,11 +332,11 @@ test("BUILD_START checkpoint preserves modern mode fields", () => {
 
   // Verify upgrades
   assert(
-    watcher.state.players[0]!.upgrades.get(UID.REINFORCED_WALLS as any) === 2,
+    watcher.state.players[0]!.upgrades.get(UID.REINFORCED_WALLS as UpgradeId) === 2,
     "P0 reinforced_walls should be 2",
   );
   assert(
-    watcher.state.players[1]!.upgrades.get(UID.RAPID_FIRE as any) === 1,
+    watcher.state.players[1]!.upgrades.get(UID.RAPID_FIRE as UpgradeId) === 1,
     "P1 rapid_fire should be 1",
   );
 
@@ -362,7 +367,7 @@ test("FULL_STATE checkpoint preserves modern mode fields", () => {
   setModern(host);
   host.state.activeModifier = "crumbling_walls";
   host.state.lastModifierId = "wildfire";
-  host.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as any, 3);
+  host.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 3);
   // cannonLimits + playerZones must be populated for full-state validation
   host.state.cannonLimits = host.state.players.map(() => 3);
   host.state.playerZones = host.state.players.map((_, idx) => idx);
@@ -386,7 +391,7 @@ test("FULL_STATE checkpoint preserves modern mode fields", () => {
     "lastModifierId should survive full-state round-trip",
   );
   assert(
-    watcher.state.players[0]!.upgrades.get(UID.MASTER_BUILDER as any) === 3,
+    watcher.state.players[0]!.upgrades.get(UID.MASTER_BUILDER as UpgradeId) === 3,
     "upgrades should survive full-state round-trip",
   );
   assert(
@@ -436,6 +441,228 @@ test("modern headless game runs to completion without violations", () => {
         assert(player.lives === 0, `eliminated P${player.id} has lives > 0`);
       }
     }
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Modifier effects — direct application
+// ---------------------------------------------------------------------------
+
+test("applyWildfire creates burning pits", () => {
+  const s = createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  const pitsBefore = s.state.burningPits.length;
+
+  applyWildfire(s.state);
+
+  assert(
+    s.state.burningPits.length > pitsBefore,
+    `wildfire should create pits: before=${pitsBefore} after=${s.state.burningPits.length}`,
+  );
+});
+
+test("applyCrumblingWalls destroys outer walls but protects castle walls", () => {
+  const s = createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  // Play a round so players have built walls beyond their castle
+  s.playRounds(1);
+  const player = s.state.players[0]!;
+  const wallsBefore = player.walls.size;
+  let castleWallsBefore = 0;
+  for (const key of player.castleWallTiles) {
+    if (player.walls.has(key)) castleWallsBefore++;
+  }
+
+  applyCrumblingWalls(s.state);
+
+  assert(
+    player.walls.size < wallsBefore,
+    `crumbling should remove walls: before=${wallsBefore} after=${player.walls.size}`,
+  );
+  // Castle walls should all still exist
+  let castleWallsSurvived = 0;
+  for (const key of player.castleWallTiles) {
+    if (player.walls.has(key)) castleWallsSurvived++;
+  }
+  assert(
+    castleWallsSurvived === castleWallsBefore,
+    `castle walls should be protected: expected ${castleWallsBefore}, found ${castleWallsSurvived}`,
+  );
+});
+
+test("applyGruntSurge spawns extra grunts", () => {
+  const s = createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  s.state.round = 3; // past FIRST_GRUNT_SPAWN_ROUND
+  const gruntsBefore = s.state.grunts.length;
+
+  applyGruntSurge(s.state);
+
+  assert(
+    s.state.grunts.length > gruntsBefore,
+    `grunt surge should add grunts: before=${gruntsBefore} after=${s.state.grunts.length}`,
+  );
+  // Should add at least 8 per alive player (GRUNT_SURGE_MIN=8, 3 players)
+  const added = s.state.grunts.length - gruntsBefore;
+  const aliveCount = s.state.players.filter(
+    (pl) => !pl.eliminated && pl.homeTower,
+  ).length;
+  assert(
+    added >= 8 * aliveCount,
+    `should add at least ${8 * aliveCount} grunts, added ${added}`,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Rapid Fire — ball speed
+// ---------------------------------------------------------------------------
+
+test("Rapid Fire multiplies cannonball speed", () => {
+  const s = createScenario(42);
+  // Run cannon phase so AI places cannons, then enter battle
+  s.runCannon();
+  s.runBattle(0.1);
+  const player = s.state.players[0]!;
+  assert(player.cannons.length > 0, "player should have cannons");
+
+  // Fire using scenario helper — check ball speed in state
+  const target = s.findEnemyWallTile(0);
+  if (target) {
+    s.fireAt(0, 0, target.row, target.col);
+    assert(
+      s.state.cannonballs.length > 0,
+      "should have a cannonball in flight",
+    );
+    assert(
+      s.state.cannonballs[0]!.speed === BALL_SPEED,
+      `without upgrade: expected ${BALL_SPEED}, got ${s.state.cannonballs[0]!.speed}`,
+    );
+
+    // Clear and fire with Rapid Fire
+    s.state.cannonballs = [];
+    player.upgrades.set(UID.RAPID_FIRE as UpgradeId, 1);
+    s.fireAt(0, 0, target.row, target.col);
+    assert(
+      s.state.cannonballs[0]!.speed === BALL_SPEED * 2,
+      `with 1 stack: expected ${BALL_SPEED * 2}, got ${s.state.cannonballs[0]!.speed}`,
+    );
+  }
+});
+
+// ---------------------------------------------------------------------------
+// applyUpgradePicks
+// ---------------------------------------------------------------------------
+
+test("applyUpgradePicks writes choices to Player.upgrades", () => {
+  const s = createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  s.state.round = 3;
+
+  const offers = generateUpgradeOffers(s.state);
+  assert(offers !== null, "should have offers");
+
+  // Build a fake dialog with choices
+  const dialog = {
+    entries: [...offers!.entries()].map(([playerId, offerList]) => ({
+      playerId,
+      offers: offerList,
+      choice: offerList[0] as UpgradeId, // pick first offer
+      isAi: true,
+      aiTimer: 0,
+      focused: 0,
+    })),
+    timer: 0,
+  };
+
+  applyUpgradePicks(s.state, dialog);
+
+  for (const [playerId, offerList] of offers!) {
+    const player = s.state.players[playerId]!;
+    const picked = offerList[0];
+    assert(
+      player.upgrades.get(picked) === 1,
+      `P${playerId} should have 1 stack of ${picked}, got ${player.upgrades.get(picked)}`,
+    );
+  }
+});
+
+test("applyUpgradePicks stacks on repeated picks", () => {
+  const s = createScenario(42);
+  const player = s.state.players[0]!;
+  player.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
+
+  const dialog = {
+    entries: [
+      {
+        playerId: 0,
+        offers: [UID.MASTER_BUILDER, UID.RAPID_FIRE, UID.REINFORCED_WALLS] as any,
+        choice: UID.MASTER_BUILDER as UpgradeId,
+        isAi: true,
+        aiTimer: 0,
+        focused: 0,
+      },
+    ],
+    timer: 0,
+  };
+
+  applyUpgradePicks(s.state, dialog);
+  assert(
+    player.upgrades.get(UID.MASTER_BUILDER as UpgradeId) === 2,
+    `should stack to 2, got ${player.upgrades.get(UID.MASTER_BUILDER as UpgradeId)}`,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Modern mode determinism
+// ---------------------------------------------------------------------------
+
+test("two modern games with same seed produce identical state", () => {
+  for (let seed = 1; seed <= 3; seed++) {
+    const s1 = createScenario(seed);
+    s1.state.gameMode = GAME_MODE_MODERN;
+    s1.playRounds(6);
+
+    const s2 = createScenario(seed);
+    s2.state.gameMode = GAME_MODE_MODERN;
+    s2.playRounds(6);
+
+    // Compare key state
+    assert(
+      s1.state.round === s2.state.round,
+      `seed ${seed}: rounds differ ${s1.state.round} vs ${s2.state.round}`,
+    );
+    assert(
+      s1.state.activeModifier === s2.state.activeModifier,
+      `seed ${seed}: activeModifier differs`,
+    );
+    for (let pi = 0; pi < s1.state.players.length; pi++) {
+      const p1 = s1.state.players[pi]!;
+      const p2 = s2.state.players[pi]!;
+      assert(
+        p1.score === p2.score,
+        `seed ${seed} P${pi}: score ${p1.score} vs ${p2.score}`,
+      );
+      assert(
+        p1.walls.size === p2.walls.size,
+        `seed ${seed} P${pi}: walls ${p1.walls.size} vs ${p2.walls.size}`,
+      );
+      assert(
+        p1.lives === p2.lives,
+        `seed ${seed} P${pi}: lives ${p1.lives} vs ${p2.lives}`,
+      );
+      assert(
+        p1.upgrades.size === p2.upgrades.size,
+        `seed ${seed} P${pi}: upgrade count ${p1.upgrades.size} vs ${p2.upgrades.size}`,
+      );
+    }
+    assert(
+      s1.state.grunts.length === s2.state.grunts.length,
+      `seed ${seed}: grunt count ${s1.state.grunts.length} vs ${s2.state.grunts.length}`,
+    );
+    assert(
+      s1.state.burningPits.length === s2.state.burningPits.length,
+      `seed ${seed}: pit count ${s1.state.burningPits.length} vs ${s2.state.burningPits.length}`,
+    );
   }
 });
 
