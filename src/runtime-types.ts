@@ -154,7 +154,7 @@ export interface RuntimeConfig {
   /** Room code for lobby overlay. */
   roomCode?: string;
   /** Optional hook called when a game ends (before frame payload is set). */
-  onEndGame?: (winner: { id: number } | null, state: GameState) => void;
+  onEndGame?: (winner: { id: number }, state: GameState) => void;
 }
 
 export interface CameraSystem {

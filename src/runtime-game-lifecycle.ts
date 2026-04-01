@@ -14,7 +14,6 @@ import {
   DIFFICULTY_PARAMS,
   getPlayerColor,
   MAX_PLAYERS,
-  NO_WINNER_NAME,
   PLAYER_KEY_BINDINGS,
   PLAYER_NAMES,
 } from "./player-config.ts";
@@ -38,10 +37,7 @@ interface GameLifecycleDeps {
   // Config / networking
   readonly log: (msg: string) => void;
   readonly showLobby: () => void;
-  readonly onEndGame?: (
-    winner: { id: number } | null,
-    state: GameState,
-  ) => void;
+  readonly onEndGame?: (winner: { id: number }, state: GameState) => void;
 
   // Sub-systems
   readonly camera: Pick<CameraSystem, "resetCamera" | "clearAllZoomState">;
@@ -60,7 +56,7 @@ interface GameLifecycleSystem {
   resetGameStats: () => void;
   resetUIState: () => void;
   startGame: () => void;
-  endGame: (winner: { id: number } | null) => void;
+  endGame: (winner: { id: number }) => void;
   rematch: () => void;
   returnToLobby: () => void;
   gameOverClick: (canvasX: number, canvasY: number) => void;
@@ -174,16 +170,14 @@ export function createGameLifecycle(
   // End / rematch / return to lobby
   // -------------------------------------------------------------------------
 
-  function endGame(winner: { id: number } | null) {
+  function endGame(winner: { id: number }) {
     runtimeState.scoreDeltaOnDone = null;
     runtimeState.lifeLostDialog = null;
     camera.clearAllZoomState();
     deps.onEndGame?.(winner, runtimeState.state);
     sound.reset();
     sound.gameOver();
-    const name = winner
-      ? (PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`)
-      : NO_WINNER_NAME;
+    const name = PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`;
     runtimeState.frame.gameOver = {
       winner: name,
       scores: runtimeState.state.players.map((player) => ({

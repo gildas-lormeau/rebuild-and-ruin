@@ -36,7 +36,6 @@ import {
   showBuildPhaseBanner,
   showCannonPhaseBanner,
 } from "./phase-transition-shared.ts";
-import { NO_WINNER_NAME } from "./player-config.ts";
 import {
   FOCUS_REMATCH,
   type GameOverFocus,
@@ -391,7 +390,7 @@ export function handleGameOverTransition(
 ): void {
   if (msg.type !== MESSAGE.GAME_OVER) return;
   transitionCtx.endPhase.setGameOverFrame({
-    winner: msg.winner ?? NO_WINNER_NAME,
+    winner: msg.winner,
     scores: msg.scores.map((score, i) => ({
       ...score,
       color:

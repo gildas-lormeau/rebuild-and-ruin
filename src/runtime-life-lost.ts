@@ -42,7 +42,7 @@ interface LifeLostSystemDeps {
 
   render: () => void;
   firstHuman: () => (PlayerController & InputReceiver) | null;
-  endGame: (winner: { id: number } | null) => void;
+  endGame: (winner: { id: number }) => void;
   startReselection: () => void;
   advanceToCannonPhase: () => void;
 }

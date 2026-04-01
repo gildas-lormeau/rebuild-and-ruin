@@ -10,7 +10,6 @@ import type { SerializedGrunt, SerializedPlayer } from "./checkpoint-data.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "./grid.ts";
 import { toCannonMode } from "./online-types.ts";
 import { setPhase } from "./phase-setup.ts";
-import { NO_WINNER_NAME } from "./player-config.ts";
 import { Rng } from "./rng.ts";
 import {
   type BalloonFlight,
@@ -296,18 +295,16 @@ export function applyGruntsCheckpoint(
 }
 
 export function createGameOverPayload(
-  winner: { id: number } | null,
+  winner: { id: number },
   state: GameState,
   playerNames: ReadonlyArray<string>,
 ) {
-  const winnerName = winner
-    ? (playerNames[winner.id] ?? `Player ${winner.id + 1}`)
-    : NO_WINNER_NAME;
+  const winnerName = playerNames[winner.id] ?? `Player ${winner.id + 1}`;
   return {
     winnerName,
     serverPayload: {
       type: MESSAGE.GAME_OVER,
-      winner: winner ? winnerName : null,
+      winner: winnerName,
       scores: state.players.map((player) => ({
         name: playerNames[player.id] ?? `P${player.id + 1}`,
         score: player.score,

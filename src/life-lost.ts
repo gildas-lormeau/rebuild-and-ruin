@@ -37,7 +37,7 @@ interface CreateLifeLostDialogDeps {
 interface ResolveAfterLifeLostDeps {
   state: GameState;
   continuing: readonly number[];
-  onEndGame: (winner: { id: number } | null) => void;
+  onEndGame: (winner: { id: number }) => void;
   onStartReselection: (continuing: readonly number[]) => void;
   onAdvanceToCannonPhase: () => void;
 }

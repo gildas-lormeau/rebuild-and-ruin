@@ -230,7 +230,7 @@ export interface BuildEndMessage {
 /** Game over. */
 export interface GameOverMessage {
   type: "game_over";
-  winner: string | null;
+  winner: string;
   scores: { name: string; score: number; eliminated: boolean }[];
 }
 
