@@ -158,7 +158,13 @@ export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
 
   const alive = state.players.filter((player) => !player.eliminated);
   if (alive.length <= 1) {
-    onEndGame(alive[0] ?? null);
+    // If all players eliminated simultaneously, the winner is the one with the highest score
+    const winner =
+      alive[0] ??
+      state.players.reduce((best, player) =>
+        player.score > best.score ? player : best,
+      );
+    onEndGame(winner);
     return true;
   }
 
