@@ -18,6 +18,7 @@ import type {
   Scored,
 } from "./ai-build-types.ts";
 import { floodPocket } from "./ai-castle-rect.ts";
+import { SMALL_POCKET_MAX_SIZE } from "./ai-constants.ts";
 import { TOWER_SIZE } from "./game-constants.ts";
 import type { Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
@@ -32,8 +33,6 @@ import {
 import type { GameState } from "./types.ts";
 
 const MIN_FREE_INTERIOR = 6;
-/** Enclosures with at least this many tiles are considered viable (not wasted). */
-const MIN_VIABLE_ENCLOSURE = 9;
 
 export function pickFallbackPlacement(
   scored: readonly Scored[],
@@ -91,58 +90,9 @@ export function pickFallbackPlacement(
   if (totalFree < MIN_FREE_INTERIOR && unenclosedTowers.length === 0)
     return { placement: null, reason: "interior-full" };
 
-  const createsSmallEnclosure = (candidate: Candidate): boolean => {
-    const simulatedWalls = createSimulatedWalls(walls, candidate);
-    const simulatedOutside = computeOutside(simulatedWalls);
-    const visited = new Set<number>();
-    for (let r = 0; r < GRID_ROWS; r++) {
-      for (let c = 0; c < GRID_COLS; c++) {
-        const k = packTile(r, c);
-        if (visited.has(k) || simulatedOutside.has(k) || simulatedWalls.has(k))
-          continue;
-        const pocket = floodPocket(
-          k,
-          visited,
-          simulatedWalls,
-          simulatedOutside,
-        );
-        if (pocket.length >= MIN_VIABLE_ENCLOSURE) continue;
-        let preExisting = true;
-        for (const pocketKey of pocket) {
-          if (outside.has(pocketKey)) {
-            preExisting = false;
-            break;
-          }
-        }
-        if (preExisting) continue;
-        let hasOccupant = false;
-        for (const pocketKey of pocket) {
-          const { r: pr, c: pc } = unpackTile(pocketKey);
-          for (const tower of state.map.towers) {
-            if (isTowerTile(tower, pr, pc)) {
-              hasOccupant = true;
-              break;
-            }
-          }
-          if (!hasOccupant && !isGrass(state.map.tiles, pr, pc))
-            hasOccupant = true;
-          if (!hasOccupant) {
-            for (const grunt of state.grunts) {
-              if (grunt.row === pr && grunt.col === pc) {
-                hasOccupant = true;
-                break;
-              }
-            }
-          }
-          if (hasOccupant) break;
-        }
-        if (!hasOccupant) return true;
-      }
-    }
-    return false;
-  };
-
-  const createsSmallEnclosureCached = memoize(createsSmallEnclosure);
+  const createsSmallEnclosureCached = memoize((candidate: Candidate) =>
+    createsSmallEnclosure(candidate, walls, outside, state),
+  );
 
   const insideEnclosure = (candidate: Candidate): boolean => {
     for (const [dr, dc] of candidate.rotation.offsets) {
@@ -192,6 +142,60 @@ export function pickFallbackPlacement(
     }
     return { placement: null, reason: "discard-all-fat" };
   }
+}
+
+/** Would placing this candidate create a new small (< 9 tile) pocket that
+ *  has no tower, grunt, or terrain occupant? Used to reject wasteful placements
+ *  in both the primary discard path and the fallback discard path. */
+export function createsSmallEnclosure(
+  candidate: Candidate,
+  walls: ReadonlySet<number>,
+  outside: ReadonlySet<number>,
+  state: GameState,
+): boolean {
+  const simulatedWalls = createSimulatedWalls(walls, candidate);
+  const simulatedOutside = computeOutside(simulatedWalls);
+  const visited = new Set<number>();
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      const k = packTile(r, c);
+      if (visited.has(k) || simulatedOutside.has(k) || simulatedWalls.has(k))
+        continue;
+      const pocket = floodPocket(k, visited, simulatedWalls, simulatedOutside);
+      if (pocket.length >= SMALL_POCKET_MAX_SIZE) continue;
+      let preExisting = true;
+      for (const pocketKey of pocket) {
+        if (outside.has(pocketKey)) {
+          preExisting = false;
+          break;
+        }
+      }
+      if (preExisting) continue;
+      let hasOccupant = false;
+      for (const pocketKey of pocket) {
+        const { r: pr, c: pc } = unpackTile(pocketKey);
+        for (const tower of state.map.towers) {
+          if (isTowerTile(tower, pr, pc)) {
+            hasOccupant = true;
+            break;
+          }
+        }
+        if (!hasOccupant && !isGrass(state.map.tiles, pr, pc))
+          hasOccupant = true;
+        if (!hasOccupant) {
+          for (const grunt of state.grunts) {
+            if (grunt.row === pr && grunt.col === pc) {
+              hasOccupant = true;
+              break;
+            }
+          }
+        }
+        if (hasOccupant) break;
+      }
+      if (!hasOccupant) return true;
+    }
+  }
+  return false;
 }
 
 /** Create a memoized version of a function (Map-based cache). */

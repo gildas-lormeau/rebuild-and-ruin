@@ -97,18 +97,14 @@ const rejectFatWalls: ScoringRule = {
 const rejectTinyPockets: ScoringRule = {
   name: "reject-tiny-pockets",
   apply(candidate, env, ctx) {
+    if (!ctx.skill.tinyPocketReject || env.pocketDelta <= 0) return 0;
+    // Hard reject: placement creates a new pocket too small to be useful
+    // (< SMALL_POCKET_MAX_SIZE = 9 tiles). Tiny pockets (≤ 3 tiles) are
+    // rejected even when filling gaps; larger small pockets only when not.
+    if (env.pocketInfo.smallestPocket <= TINY_POCKET_MAX_SIZE) return null;
     if (
-      ctx.skill.tinyPocketReject &&
-      env.pocketDelta > 0 &&
-      env.pocketInfo.smallestPocket <= TINY_POCKET_MAX_SIZE &&
+      env.pocketInfo.smallestPocket < SMALL_POCKET_MAX_SIZE &&
       candidate.gapsFilled === 0
-    )
-      return null;
-    if (
-      ctx.skill.tinyPocketReject &&
-      ctx.allCastlesEnclosed &&
-      env.pocketDelta > 0 &&
-      env.pocketInfo.smallestPocket < SMALL_POCKET_MAX_SIZE
     )
       return null;
     return 0;
@@ -716,7 +712,7 @@ export function countSmallPocketTiles(
 
 /** Build the simulated wall set for a candidate. */
 export function createSimulatedWalls(
-  walls: Set<number>,
+  walls: ReadonlySet<number>,
   candidate: Candidate,
 ): Set<number> {
   const simulatedWalls = new Set(walls);

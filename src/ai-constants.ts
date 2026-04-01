@@ -8,11 +8,13 @@
 
 /** Look up a value from a 3-element table indexed by a 1-3 trait level. */
 
-/** Interior pockets smaller than this are targeted for wall destruction / penalized in placement. */
+/** Interior pockets smaller than this are wasteful — too small to place cannons in.
+ *  Used by scoring to hard-reject or heavily penalize placements that create them.
+ *  Aligned with MIN_VIABLE_ENCLOSURE in ai-build-fallback.ts (same concept). */
 
-export const SMALL_POCKET_MAX_SIZE = 4;
+export const SMALL_POCKET_MAX_SIZE = 9;
 /** Pockets this small or smaller block placement when no gaps are being filled (skill ≥3). */
-export const TINY_POCKET_MAX_SIZE = 2;
+export const TINY_POCKET_MAX_SIZE = 3;
 /** Shared step discriminant values for all AI phase state machines. */
 export const STEP = {
   IDLE: "idle",

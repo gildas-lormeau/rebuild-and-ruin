@@ -10,7 +10,11 @@
  * Castle rectangle and gap analysis live in ai-castle-rect.ts.
  */
 
-import { memoize, pickFallbackPlacement } from "./ai-build-fallback.ts";
+import {
+  createsSmallEnclosure,
+  memoize,
+  pickFallbackPlacement,
+} from "./ai-build-fallback.ts";
 import {
   candidateToPlacement,
   checkFatWall,
@@ -500,11 +504,14 @@ export function pickPlacement(
     if (noBuildTargets) {
       return null;
     }
-    const compareByFatBlockCount = (a: Candidate, b: Candidate): number =>
-      fatBlockCountFor(a) - fatBlockCountFor(b);
+    const noSmallEnclosure = (c: Candidate): boolean =>
+      !createsSmallEnclosure(c, walls, outside, state);
 
     const open = allCandidates.filter(
-      (c) => c.wallAdjacent === 0 && fatBlockCountFor(c) === 0,
+      (c) =>
+        c.wallAdjacent === 0 &&
+        fatBlockCountFor(c) === 0 &&
+        noSmallEnclosure(c),
     );
     if (open.length > 0) {
       open.sort((a, b) =>
@@ -517,12 +524,20 @@ export function pickPlacement(
       );
       return candidateToPlacement(open[0]!);
     }
-    // Allow fat-free first, fall back to least fat
-    const noFat = allCandidates.filter((c) => fatBlockCountFor(c) === 0);
+    // Allow fat-free first, fall back to least fat — still reject small enclosures
+    const noFat = allCandidates.filter(
+      (c) => fatBlockCountFor(c) === 0 && noSmallEnclosure(c),
+    );
     if (noFat.length > 0) {
       return candidateToPlacement(noFat[0]!);
     }
-    const least = [...allCandidates].sort(compareByFatBlockCount);
+    // Last resort: least fat, prefer no small enclosure
+    const least = [...allCandidates].sort((a, b) => {
+      const aEncloses = createsSmallEnclosure(a, walls, outside, state) ? 1 : 0;
+      const bEncloses = createsSmallEnclosure(b, walls, outside, state) ? 1 : 0;
+      if (aEncloses !== bEncloses) return aEncloses - bEncloses;
+      return fatBlockCountFor(a) - fatBlockCountFor(b);
+    });
     return candidateToPlacement(least[0]!);
   }
 
