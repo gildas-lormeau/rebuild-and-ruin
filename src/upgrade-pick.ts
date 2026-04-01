@@ -11,7 +11,7 @@ import type {
   UpgradePickDialogState,
   UpgradePickEntry,
 } from "./types.ts";
-import { UPGRADE_POOL, type UpgradeId } from "./upgrade-defs.ts";
+import { UID, UPGRADE_POOL, type UpgradeId } from "./upgrade-defs.ts";
 
 interface CreateUpgradePickDeps {
   readonly state: GameState;
@@ -199,41 +199,41 @@ function scoreUpgrade(
 
   switch (id) {
     // Defensive — valuable when under grunt pressure or small territory
-    case "reinforced_walls":
-      return has("reinforced_walls") ? 1 : 5 + gruntCount * 2;
-    case "master_builder":
+    case UID.REINFORCED_WALLS:
+      return has(UID.REINFORCED_WALLS) ? 1 : 5 + gruntCount * 2;
+    case UID.MASTER_BUILDER:
       return 4 + (1 - territoryRatio) * 6;
-    case "foundations":
-      return has("foundations") ? 1 : 3;
-    case "large_pieces":
-      return has("large_pieces") ? 1 : 4;
+    case UID.FOUNDATIONS:
+      return has(UID.FOUNDATIONS) ? 1 : 3;
+    case UID.LARGE_PIECES:
+      return has(UID.LARGE_PIECES) ? 1 : 4;
 
     // Offensive — valuable when the player has many cannons
-    case "rapid_fire":
+    case UID.RAPID_FIRE:
       return 3 + player.cannons.length * 1.5;
-    case "scatter_shot":
-      return has("scatter_shot") ? 1 : 3 + player.cannons.length;
-    case "mortar":
-      return has("mortar") ? 1 : 4;
-    case "flaming_walls":
-      return has("flaming_walls") ? 1 : 3;
+    case UID.SCATTER_SHOT:
+      return has(UID.SCATTER_SHOT) ? 1 : 3 + player.cannons.length;
+    case UID.MORTAR:
+      return has(UID.MORTAR) ? 1 : 4;
+    case UID.FLAMING_WALLS:
+      return has(UID.FLAMING_WALLS) ? 1 : 3;
 
     // Strategic
-    case "scout_tower":
-      return has("scout_tower") ? 1 : 3;
-    case "mercenaries":
+    case UID.SCOUT_TOWER:
+      return has(UID.SCOUT_TOWER) ? 1 : 3;
+    case UID.MERCENARIES:
       return 4;
-    case "fortify":
+    case UID.FORTIFY:
       return 2 + gruntCount;
-    case "salvage":
-      return has("salvage") ? 1 : 3;
+    case UID.SALVAGE:
+      return has(UID.SALVAGE) ? 1 : 3;
 
     // One-use
-    case "earthquake":
+    case UID.EARTHQUAKE:
       return 3;
-    case "ceasefire":
+    case UID.CEASEFIRE:
       return territoryRatio < 0.3 ? 6 : 2;
-    case "supply_drop":
+    case UID.SUPPLY_DROP:
       return 4;
 
     default:

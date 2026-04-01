@@ -48,6 +48,24 @@ const BUILD: UpgradeCategory = "build";
 const STRATEGIC: UpgradeCategory = "strategic";
 const ONE_USE: UpgradeCategory = "one_use";
 const poolComplete: PoolComplete = true;
+/** Named constants for upgrade IDs — use these instead of raw string literals. */
+export const UID = {
+  SCATTER_SHOT: "scatter_shot",
+  MORTAR: "mortar",
+  RAPID_FIRE: "rapid_fire",
+  FLAMING_WALLS: "flaming_walls",
+  REINFORCED_WALLS: "reinforced_walls",
+  MASTER_BUILDER: "master_builder",
+  LARGE_PIECES: "large_pieces",
+  FOUNDATIONS: "foundations",
+  SCOUT_TOWER: "scout_tower",
+  MERCENARIES: "mercenaries",
+  FORTIFY: "fortify",
+  SALVAGE: "salvage",
+  EARTHQUAKE: "earthquake",
+  CEASEFIRE: "ceasefire",
+  SUPPLY_DROP: "supply_drop",
+} as const satisfies Record<string, UpgradeId>;
 export const UPGRADE_POOL: readonly UpgradeDef[] = [
   // Battle
   {
