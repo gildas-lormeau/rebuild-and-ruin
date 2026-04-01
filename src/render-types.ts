@@ -85,10 +85,19 @@ export interface UpgradePickCard {
   readonly picked: boolean;
 }
 
+/** Per-player upgrade pick entry for rendering. */
+export interface UpgradePickPlayerEntry {
+  readonly playerName: string;
+  readonly color: RGB;
+  readonly cards: UpgradePickCard[];
+  readonly resolved: boolean;
+}
+
 /** Upgrade pick dialog overlay data. */
 export interface UpgradePickOverlay {
-  /** Cards for the local human player (3 choices). Null if no human entry. */
-  cards: UpgradePickCard[] | null;
+  entries: UpgradePickPlayerEntry[];
+  /** Index of the local human's entry in `entries`, or -1 if spectating. */
+  humanIdx: number;
   timer: number;
   maxTimer: number;
 }

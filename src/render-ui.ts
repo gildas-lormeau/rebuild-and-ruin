@@ -340,7 +340,7 @@ export function drawLifeLostDialog(
   }
 }
 
-/** Draw upgrade pick cards (3 choices for the local human player). */
+/** Draw upgrade pick cards — one row of 3 cards per player, stacked vertically. */
 export function drawUpgradePick(
   overlayCtx: CanvasRenderingContext2D,
   W: number,
@@ -350,7 +350,7 @@ export function drawUpgradePick(
 ): void {
   if (!overlay?.ui?.upgradePick) return;
   const pick = overlay.ui.upgradePick;
-  if (!pick.cards) return;
+  if (pick.entries.length === 0) return;
 
   // Semi-transparent backdrop
   overlayCtx.fillStyle = SHADOW_COLOR_HEAVY;
@@ -361,110 +361,130 @@ export function drawUpgradePick(
   overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
   overlayCtx.font = FONT_TITLE;
   overlayCtx.fillStyle = GOLD_LIGHT;
-  overlayCtx.fillText("CHOOSE UPGRADE", W / 2, H * 0.12);
-
-  // Card dimensions
-  const cardW = 130;
-  const cardH = 120;
-  const gap = 16;
-  const totalW = pick.cards.length * cardW + (pick.cards.length - 1) * gap;
-  const startX = (W - totalW) / 2;
-  const cardY = H * 0.25;
+  overlayCtx.fillText("CHOOSE UPGRADE", W / 2, H * 0.08);
 
   const time = now ?? Date.now();
+  const cardW = 120;
+  const cardH = 100;
+  const cardGap = 10;
+  const rowGap = 8;
+  const cardsPerRow = 3;
+  const rowW = cardsPerRow * cardW + (cardsPerRow - 1) * cardGap;
+  const nameH = 18;
+  const entryH = nameH + cardH + rowGap;
 
-  for (let i = 0; i < pick.cards.length; i++) {
-    const card = pick.cards[i]!;
-    const cx = startX + i * (cardW + gap);
+  const totalH = pick.entries.length * entryH - rowGap;
+  const startY = Math.max(H * 0.14, (H - totalH - 30) / 2);
 
-    // Card background
-    const isFocused = card.focused && flashOn(BUTTON_FLASH_MS, time);
-    const borderColor = card.picked
-      ? GOLD_LIGHT
-      : card.focused
-        ? GOLD
-        : SHADOW_COLOR;
-    drawPanel(
-      overlayCtx,
-      cx,
-      cardY,
-      cardW,
-      cardH,
-      card.picked ? GOLD_BG(OP_ACTIVE) : PANEL_BG(BG_OVERLAY),
-      borderColor,
-    );
+  for (let ei = 0; ei < pick.entries.length; ei++) {
+    const entry = pick.entries[ei]!;
+    const isHumanRow = ei === pick.humanIdx;
+    const rowX = (W - rowW) / 2;
+    const rowY = startY + ei * entryH;
 
-    // Focus indicator (pulsing border)
-    if (isFocused) {
-      overlayCtx.strokeStyle = GOLD_LIGHT;
-      overlayCtx.lineWidth = 2;
-      overlayCtx.strokeRect(cx - 1, cardY - 1, cardW + 2, cardH + 2);
-    }
-
-    const cardCx = cx + cardW / 2;
-
-    // Category badge
-    overlayCtx.font = FONT_SMALL;
-    overlayCtx.fillStyle = TEXT_DIM;
-    overlayCtx.fillText(card.category.toUpperCase(), cardCx, cardY + 14);
-
-    // Separator
-    overlayCtx.fillStyle = GOLD;
-    overlayCtx.fillRect(cx + INSET, cardY + 22, cardW - INSET_X2, 1);
-
-    // Upgrade name
+    // Player name
     overlayCtx.font = FONT_BODY;
-    overlayCtx.fillStyle =
-      card.focused || card.picked ? TEXT_WHITE : GOLD_LIGHT;
-    overlayCtx.fillText(card.label, cardCx, cardY + 40);
+    overlayCtx.fillStyle = rgb(entry.color);
+    overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+    overlayCtx.fillText(entry.playerName, W / 2, rowY + nameH / 2);
 
-    // Description (word-wrapped manually for short lines)
-    overlayCtx.font = FONT_SMALL;
-    overlayCtx.fillStyle = card.focused ? GOLD_LIGHT : TEXT_MUTED;
-    const words = card.description.split(" ");
-    const lines: string[] = [];
-    let line = "";
-    for (const word of words) {
-      const test = line ? `${line} ${word}` : word;
-      if (overlayCtx.measureText(test).width > cardW - INSET_X2) {
-        lines.push(line);
-        line = word;
-      } else {
-        line = test;
+    const cardsY = rowY + nameH;
+
+    for (let ci = 0; ci < entry.cards.length; ci++) {
+      const card = entry.cards[ci]!;
+      const cx = rowX + ci * (cardW + cardGap);
+
+      // Card background
+      const isFocused =
+        isHumanRow && card.focused && flashOn(BUTTON_FLASH_MS, time);
+      const borderColor = card.picked
+        ? rgb(entry.color)
+        : card.focused && isHumanRow
+          ? GOLD
+          : SHADOW_COLOR;
+      drawPanel(
+        overlayCtx,
+        cx,
+        cardsY,
+        cardW,
+        cardH,
+        card.picked ? GOLD_BG(OP_ACTIVE) : PANEL_BG(BG_OVERLAY),
+        borderColor,
+      );
+
+      // Focus indicator (pulsing border)
+      if (isFocused) {
+        overlayCtx.strokeStyle = GOLD_LIGHT;
+        overlayCtx.lineWidth = 2;
+        overlayCtx.strokeRect(cx - 1, cardsY - 1, cardW + 2, cardH + 2);
       }
-    }
-    if (line) lines.push(line);
-    for (let li = 0; li < lines.length; li++) {
-      overlayCtx.fillText(lines[li]!, cardCx, cardY + 58 + li * 13);
-    }
 
-    // "Picked" label
-    if (card.picked) {
+      const cardCx = cx + cardW / 2;
+
+      // Category badge
+      overlayCtx.font = FONT_SMALL;
+      overlayCtx.fillStyle = TEXT_DIM;
+      overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+      overlayCtx.fillText(card.category.toUpperCase(), cardCx, cardsY + 12);
+
+      // Upgrade name
       overlayCtx.font = FONT_BODY;
-      overlayCtx.fillStyle = GOLD_LIGHT;
-      overlayCtx.fillText("\u2713", cardCx, cardY + cardH - 12);
+      overlayCtx.fillStyle =
+        card.focused || card.picked ? TEXT_WHITE : GOLD_LIGHT;
+      overlayCtx.fillText(card.label, cardCx, cardsY + 30);
+
+      // Description (word-wrapped)
+      overlayCtx.font = FONT_SMALL;
+      overlayCtx.fillStyle = card.focused ? GOLD_LIGHT : TEXT_MUTED;
+      const maxTextW = cardW - INSET_X2;
+      const words = card.description.split(" ");
+      const lines: string[] = [];
+      let line = "";
+      for (const word of words) {
+        const test = line ? `${line} ${word}` : word;
+        if (overlayCtx.measureText(test).width > maxTextW) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = test;
+        }
+      }
+      if (line) lines.push(line);
+      for (let li = 0; li < lines.length; li++) {
+        overlayCtx.fillText(lines[li]!, cardCx, cardsY + 46 + li * 12);
+      }
+
+      // Checkmark for picked card
+      if (card.picked) {
+        overlayCtx.font = FONT_BODY;
+        overlayCtx.fillStyle = rgb(entry.color);
+        overlayCtx.fillText("\u2713", cardCx, cardsY + cardH - 10);
+      }
     }
   }
 
-  // Timer bar at the bottom
-  const barW = totalW;
+  // Timer bar
+  const barW = rowW;
   const barH = 4;
-  const barX = startX;
-  const barY = cardY + cardH + 12;
+  const barX = (W - rowW) / 2;
+  const barY = startY + totalH + 10;
   const progress = Math.max(0, 1 - pick.timer / pick.maxTimer);
   overlayCtx.fillStyle = SHADOW_COLOR;
   overlayCtx.fillRect(barX, barY, barW, barH);
   overlayCtx.fillStyle = progress > 0.25 ? GOLD : ELIMINATED_RED;
   overlayCtx.fillRect(barX, barY, barW * progress, barH);
 
-  // Hint
-  overlayCtx.font = FONT_HINT;
-  overlayCtx.fillStyle = TEXT_DIM;
-  overlayCtx.fillText(
-    "\u2190 \u2192 to browse  |  Enter to pick",
-    W / 2,
-    H * 0.88,
-  );
+  // Hint (only if human is picking)
+  if (pick.humanIdx >= 0) {
+    overlayCtx.font = FONT_HINT;
+    overlayCtx.fillStyle = TEXT_DIM;
+    overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+    overlayCtx.fillText(
+      "\u2190 \u2192 to browse  |  Enter to pick",
+      W / 2,
+      H * 0.94,
+    );
+  }
 }
 
 /** Draw the player selection lobby screen. */

@@ -366,28 +366,31 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       },
       onBattlePhaseEnded: () => {
         deps.saveBattleCrosshair?.();
-        const enterGame = () => {
-          runtimeState.mode = Mode.GAME;
+
+        // Step 1: apply checkpoint (nextPhase generates offers + modifier)
+        nextPhase(runtimeState.state);
+        if (runtimeState.frameCtx.isHost && deps.hostNetworking) {
+          deps.send(
+            deps.hostNetworking.createBuildStartMessage(runtimeState.state),
+          );
+        }
+
+        // Step 2→3→4: upgrade pick (if any) → build banner → game
+        const showBannerAndEnterBuild = () => {
+          executeTransition(BUILD_START_STEPS, {
+            showBanner: () =>
+              showBuildPhaseBanner(deps.showBanner, BANNER_BUILD, () => {
+                runtimeState.mode = Mode.GAME;
+              }),
+            applyCheckpoint: () => {
+              // Already applied above — no-op
+            },
+            initControllers: () => startBuildPhase(),
+          });
         };
-        executeTransition(BUILD_START_STEPS, {
-          showBanner: () =>
-            showBuildPhaseBanner(deps.showBanner, BANNER_BUILD, () => {
-              // After banner: show upgrade picks if available, else go to game
-              if (deps.tryShowUpgradePick?.(enterGame)) return;
-              enterGame();
-            }),
-          applyCheckpoint: () => {
-            nextPhase(runtimeState.state);
-            if (runtimeState.frameCtx.isHost && deps.hostNetworking) {
-              deps.send(
-                deps.hostNetworking.createBuildStartMessage(runtimeState.state),
-              );
-            }
-          },
-          // Runs immediately (during banner), not deferred to onDone.
-          // Safe: build phase doesn't tick until Mode.GAME is set in the callback.
-          initControllers: () => startBuildPhase(),
-        });
+
+        if (deps.tryShowUpgradePick?.(showBannerAndEnterBuild)) return;
+        showBannerAndEnterBuild();
       },
       net: {
         remoteHumanSlots: runtimeState.frameCtx.remoteHumanSlots,

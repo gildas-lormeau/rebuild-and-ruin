@@ -63,7 +63,6 @@ export function createUpgradePickSystem(
 
     if (!dialog) return false;
 
-    // If all entries are AI (no humans to interact), tick will resolve quickly
     runtimeState.upgradePickDialog = dialog;
     runtimeState.mode = Mode.UPGRADE_PICK;
     resolveCallback = onDone;

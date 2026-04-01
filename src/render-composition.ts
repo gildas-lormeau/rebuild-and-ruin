@@ -389,7 +389,12 @@ export function createOnlineOverlay(params: {
         LIFE_LOST_MAX_TIMER,
         getLifeLostPanelPos,
       ),
-      upgradePick: buildUpgradePickUi(upgradePickDialog, myPlayerId),
+      upgradePick: buildUpgradePickUi(
+        upgradePickDialog,
+        myPlayerId,
+        playerNames,
+        playerColors,
+      ),
     },
   };
 }
@@ -606,30 +611,35 @@ function buildLifeLostDialogUi(
 function buildUpgradePickUi(
   dialog: UpgradePickDialogState | null,
   myPlayerId: number,
+  playerNames: ReadonlyArray<string>,
+  playerColors: ReadonlyArray<{ wall: RGB }>,
 ): UpgradePickOverlay | undefined {
   if (!dialog) return undefined;
 
-  // Find the local human player's entry
-  const humanEntry = dialog.entries.find(
-    (entry) => entry.playerId === myPlayerId && !entry.isAi,
-  );
-
-  const cards = humanEntry
-    ? humanEntry.offers.map((upgradeId, idx) => {
-        const def = UPGRADE_POOL.find((def) => def.id === upgradeId);
+  let humanIdx = -1;
+  const entries = dialog.entries.map((entry, idx) => {
+    if (entry.playerId === myPlayerId && !entry.isAi) humanIdx = idx;
+    return {
+      playerName: playerNames[entry.playerId] ?? `P${entry.playerId + 1}`,
+      color: playerColors[entry.playerId % playerColors.length]!.wall,
+      resolved: entry.choice !== null,
+      cards: entry.offers.map((upgradeId, ci) => {
+        const def = UPGRADE_POOL.find((ud) => ud.id === upgradeId);
         return {
           id: upgradeId,
           label: def?.label ?? upgradeId,
           description: def?.description ?? "",
           category: def?.category ?? "",
-          focused: humanEntry.choice === null && humanEntry.focused === idx,
-          picked: humanEntry.choice === upgradeId,
+          focused: entry.choice === null && entry.focused === ci,
+          picked: entry.choice === upgradeId,
         };
-      })
-    : null;
+      }),
+    };
+  });
 
   return {
-    cards,
+    entries,
+    humanIdx,
     timer: dialog.timer,
     maxTimer: UPGRADE_PICK_MAX_TIMER,
   };
