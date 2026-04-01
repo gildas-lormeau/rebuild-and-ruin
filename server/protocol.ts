@@ -20,6 +20,7 @@ export const MESSAGE = {
   JOIN_ROOM: "join_room",
   SELECT_SLOT: "select_slot",
   LIFE_LOST_CHOICE: "life_lost_choice",
+  UPGRADE_PICK: "upgrade_pick",
   PING: "ping",
   // Lobby
   ROOM_CREATED: "room_created",
@@ -121,6 +122,7 @@ export type ClientMessage =
   | { type: "select_slot"; slotId: number }
   // In-game
   | { type: "life_lost_choice"; choice: ResolvedChoice; playerId?: number }
+  | { type: "upgrade_pick"; playerId: number; choice: string }
   | { type: "ping" };
 
 // ---------------------------------------------------------------------------
@@ -452,6 +454,13 @@ export interface LifeLostChoiceForwardedMessage {
   choice: ResolvedChoice;
 }
 
+/** Upgrade pick choice forwarded from a non-host client to the host. */
+export interface UpgradePickForwardedMessage {
+  type: "upgrade_pick";
+  playerId: number;
+  choice: string;
+}
+
 /** Crosshair position update (for spectator rendering, not validated). */
 export interface AimUpdateMessage {
   type: "aim_update";
@@ -520,6 +529,7 @@ export type ServerMessage =
   | AimUpdateMessage
   // Forwarded client messages
   | LifeLostChoiceForwardedMessage
+  | UpgradePickForwardedMessage
   // Host migration
   | HostLeftMessage
   | FullStateMessage;

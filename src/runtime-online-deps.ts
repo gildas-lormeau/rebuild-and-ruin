@@ -108,6 +108,7 @@ function buildIncrementalDeps() {
     finishSelection: () => _g.runtime.selection.finish(),
     onFirstEnclosure: (pid: number) => _g.runtime.sound.chargeFanfare(pid),
     getLifeLostDialog: () => _g.runtime.lifeLost.get(),
+    getUpgradePickDialog: () => _g.runtime.runtimeState.upgradePickDialog,
   };
 }
 
@@ -125,6 +126,11 @@ function buildUiDeps() {
       _g.runtime.lifeLost.set(null);
     },
     isLifeLostMode: () => _g.runtime.runtimeState.mode === Mode.LIFE_LOST,
+    getUpgradePickDialog: () => _g.runtime.runtimeState.upgradePickDialog,
+    clearUpgradePickDialog: () => {
+      _g.runtime.runtimeState.upgradePickDialog = null;
+    },
+    isUpgradePickMode: () => _g.runtime.runtimeState.mode === Mode.UPGRADE_PICK,
     setModeToGame: () => {
       _g.runtime.runtimeState.mode = Mode.GAME;
     },

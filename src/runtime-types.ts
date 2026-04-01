@@ -53,6 +53,7 @@ import {
   Mode,
   Phase,
   type SelectionState,
+  type UpgradePickDialogState,
 } from "./types.ts";
 
 export type { FrameContext } from "./types.ts";
@@ -270,6 +271,10 @@ export interface GameRuntime {
   // --- Sub-system handles ---
   selection: RuntimeSelection;
   lifeLost: RuntimeLifeLost;
+  upgradePick: {
+    tryShow: (onDone: () => void) => boolean;
+    get: () => UpgradePickDialogState | null;
+  };
   sound: SoundSystem;
   haptics: HapticsSystem;
   lobby: RuntimeLobby;

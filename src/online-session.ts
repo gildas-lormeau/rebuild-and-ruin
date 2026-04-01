@@ -35,6 +35,7 @@ export interface OnlineSession {
   keepaliveTimer: ReturnType<typeof setInterval> | null;
   lobbyStartTime: number;
   earlyLifeLostChoices: Map<number, LifeLostChoice>;
+  earlyUpgradePickChoices: Map<number, string>;
 }
 
 /** Network deduplication maps — tracks the last-sent value per player for each
@@ -73,6 +74,7 @@ export function createSession(): OnlineSession {
     keepaliveTimer: null,
     lobbyStartTime: 0,
     earlyLifeLostChoices: new Map(),
+    earlyUpgradePickChoices: new Map(),
   };
 }
 
@@ -99,6 +101,7 @@ export function resetSessionState(session: OnlineSession): void {
   session.occupiedSlots.clear();
   session.remoteHumanSlots.clear();
   session.earlyLifeLostChoices.clear();
+  session.earlyUpgradePickChoices.clear();
 }
 
 export function sendAimUpdate(

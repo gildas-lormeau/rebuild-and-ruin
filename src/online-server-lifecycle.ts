@@ -43,6 +43,9 @@ interface HandleServerLifecycleDeps {
     getLifeLostDialog: () => unknown;
     clearLifeLostDialog: () => void;
     isLifeLostMode: () => boolean;
+    getUpgradePickDialog: () => unknown;
+    clearUpgradePickDialog: () => void;
+    isUpgradePickMode: () => boolean;
     setModeToGame: () => void;
     setAnnouncement: (msg: string) => void;
     createErrorEl: HTMLElement;
@@ -91,19 +94,25 @@ export function handleServerLifecycleMessage(
     }
   };
 
-  // Dismiss stale life-lost dialog when a phase transition arrives from host.
-  if (
+  // Dismiss stale dialogs when a phase transition arrives from host.
+  const isPhaseTransition =
     !deps.session.isHost &&
-    deps.ui.getLifeLostDialog() &&
     (msg.type === MESSAGE.CANNON_START ||
       msg.type === MESSAGE.BATTLE_START ||
       msg.type === MESSAGE.BUILD_START ||
       msg.type === MESSAGE.SELECT_START ||
-      msg.type === MESSAGE.CASTLE_WALLS)
-  ) {
+      msg.type === MESSAGE.CASTLE_WALLS);
+  if (isPhaseTransition && deps.ui.getLifeLostDialog()) {
     deps.log("dismissing stale life-lost dialog (phase transition received)");
     deps.ui.clearLifeLostDialog();
     if (deps.ui.isLifeLostMode()) deps.ui.setModeToGame();
+  }
+  if (isPhaseTransition && deps.ui.getUpgradePickDialog()) {
+    deps.log(
+      "dismissing stale upgrade pick dialog (phase transition received)",
+    );
+    deps.ui.clearUpgradePickDialog();
+    if (deps.ui.isUpgradePickMode()) deps.ui.setModeToGame();
   }
 
   switch (msg.type) {

@@ -55,11 +55,24 @@ interface LifeLostChoiceDialog {
   entries: LifeLostChoiceEntry[];
 }
 
+interface UpgradePickChoiceEntry {
+  playerId: number;
+  choice: string | null;
+  offers: readonly string[];
+}
+
+interface UpgradePickChoiceDialog {
+  entries: UpgradePickChoiceEntry[];
+}
+
 interface HandleServerIncrementalDeps {
   log: (msg: string) => void;
   session: Pick<
     OnlineSession,
-    "isHost" | "remoteHumanSlots" | "earlyLifeLostChoices"
+    | "isHost"
+    | "remoteHumanSlots"
+    | "earlyLifeLostChoices"
+    | "earlyUpgradePickChoices"
   >;
   watcher: WatcherNetworkState;
   getState: () => GameState | undefined;
@@ -75,6 +88,7 @@ interface HandleServerIncrementalDeps {
   finishSelection: () => void;
   onFirstEnclosure?: (playerId: number) => void;
   getLifeLostDialog: () => LifeLostChoiceDialog | null;
+  getUpgradePickDialog: () => UpgradePickChoiceDialog | null;
 }
 
 type TowerSelectedMsg = Extract<
@@ -140,6 +154,11 @@ interface HandleResult {
   applied: boolean;
 }
 
+type UpgradePickMsg = Extract<
+  ServerMessage,
+  { type: typeof MESSAGE.UPGRADE_PICK }
+>;
+
 const APPLIED: HandleResult = { applied: true };
 const DROPPED: HandleResult = { applied: false };
 
@@ -185,6 +204,8 @@ export function handleServerIncrementalMessage(
       return handleCannonPhantom(msg, state, deps);
     case MESSAGE.LIFE_LOST_CHOICE:
       return handleLifeLostChoice(msg, deps);
+    case MESSAGE.UPGRADE_PICK:
+      return handleUpgradePick(msg, deps);
     default:
       return null;
   }
@@ -448,6 +469,32 @@ function parseLifeLostChoice(raw: unknown): ResolvedChoice | null {
   if (raw === LifeLostChoice.CONTINUE) return LifeLostChoice.CONTINUE;
   if (raw === LifeLostChoice.ABANDON) return LifeLostChoice.ABANDON;
   return null;
+}
+
+function handleUpgradePick(
+  msg: UpgradePickMsg,
+  deps: HandleServerIncrementalDeps,
+): HandleResult {
+  if (!deps.session.isHost) return DROPPED;
+  deps.log(
+    `upgrade_pick from P${msg.playerId}: ${msg.choice} (dialog=${deps.getUpgradePickDialog() ? "active" : "null"})`,
+  );
+  const dialog = deps.getUpgradePickDialog();
+  if (dialog) {
+    const entry = dialog.entries.find(
+      (en) =>
+        en.playerId === msg.playerId &&
+        en.choice === null &&
+        en.offers.includes(msg.choice),
+    );
+    if (entry) {
+      entry.choice = msg.choice;
+      return APPLIED;
+    }
+    return DROPPED;
+  }
+  deps.session.earlyUpgradePickChoices.set(msg.playerId, msg.choice);
+  return APPLIED;
 }
 
 /** Watchers accept all remote messages; hosts only accept from remote humans. */

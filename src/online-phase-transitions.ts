@@ -153,6 +153,11 @@ export interface TransitionContext {
     }) => void;
     playerColors: ReadonlyArray<{ wall: RGB }>;
   };
+
+  // ── Upgrade pick (modern mode) ──
+  upgradePick?: {
+    tryShow: (onDone: () => void) => boolean;
+  };
 }
 
 /** Watcher-only: processes CASTLE_WALLS from host (triggers castle build animation). */
@@ -305,33 +310,42 @@ export function handleBuildStartTransition(
   // Pre-capture old scene before checkpoint replaces state (banner ??= keeps it)
   transitionCtx.ui.banner.oldEntities = snapshotEntities(state);
 
-  executeTransition(BUILD_START_STEPS, {
-    showBanner: () =>
-      showBuildPhaseBanner(
-        transitionCtx.ui.showBanner,
-        BANNER_REPAIR_ONLINE,
-        () => {
-          startWatcherPhaseTimer(
-            transitionCtx.ui.watcherTiming,
-            buildReceivedAt + transitionCtx.ui.bannerDuration * 1000,
-            state.timer,
-          );
-          transitionCtx.setMode(Mode.GAME);
-        },
-      ),
-    applyCheckpoint: () => {
-      transitionCtx.checkpoint.applyBuildStart(msg);
-      setPhase(state, Phase.WALL_BUILD);
-    },
-    initControllers: () => {
-      if (myPlayerId >= 0) {
-        const player = state.players[myPlayerId];
-        if (player && !player.eliminated) {
-          transitionCtx.getControllers()[myPlayerId]?.startBuild(state);
+  // Step 1: apply checkpoint (deserializes offers, modifier, players)
+  transitionCtx.checkpoint.applyBuildStart(msg);
+  setPhase(state, Phase.WALL_BUILD);
+
+  // Step 2→3: upgrade pick (if any) → build banner → game
+  const showBannerAndEnterBuild = () => {
+    executeTransition(BUILD_START_STEPS, {
+      showBanner: () =>
+        showBuildPhaseBanner(
+          transitionCtx.ui.showBanner,
+          BANNER_REPAIR_ONLINE,
+          () => {
+            startWatcherPhaseTimer(
+              transitionCtx.ui.watcherTiming,
+              buildReceivedAt + transitionCtx.ui.bannerDuration * 1000,
+              state.timer,
+            );
+            transitionCtx.setMode(Mode.GAME);
+          },
+        ),
+      applyCheckpoint: () => {
+        // Already applied above — no-op
+      },
+      initControllers: () => {
+        if (myPlayerId >= 0) {
+          const player = state.players[myPlayerId];
+          if (player && !player.eliminated) {
+            transitionCtx.getControllers()[myPlayerId]?.startBuild(state);
+          }
         }
-      }
-    },
-  });
+      },
+    });
+  };
+
+  if (transitionCtx.upgradePick?.tryShow(showBannerAndEnterBuild)) return;
+  showBannerAndEnterBuild();
 }
 
 /** Handle BUILD_END: apply player checkpoint, show score deltas, then life-lost dialog.

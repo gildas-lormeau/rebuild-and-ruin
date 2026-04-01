@@ -97,6 +97,28 @@ const transitionCtx: TransitionContext = {
   selection: buildTransitionSelectionCtx(),
   battle: buildTransitionBattleCtx(),
   endPhase: buildTransitionEndPhaseCtx(),
+  upgradePick: {
+    tryShow: (onDone) => {
+      const shown = runtime.upgradePick.tryShow(onDone);
+      // Drain early picks (race: watcher sent pick before host created dialog)
+      if (shown) {
+        const dialog = runtime.upgradePick.get();
+        if (dialog) {
+          for (const [pid, choice] of ctx.session.earlyUpgradePickChoices) {
+            const entry = dialog.entries.find(
+              (en) =>
+                en.playerId === pid &&
+                en.choice === null &&
+                en.offers.includes(choice as never),
+            );
+            if (entry) entry.choice = choice as never;
+          }
+          ctx.session.earlyUpgradePickChoices.clear();
+        }
+      }
+      return shown;
+    },
+  },
 };
 // ── Watcher tick context ────────────────────────────────────────────
 const watcherTickCtx: WatcherTickContext = {

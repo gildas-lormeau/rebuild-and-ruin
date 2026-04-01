@@ -381,6 +381,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     log: config.log,
     render: () => render(),
     firstHuman,
+    send: config.isOnline ? config.send : undefined,
   });
 
   // -------------------------------------------------------------------------
@@ -529,6 +530,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       startCannonPhase: phaseTicks.startCannonPhase,
       beginBattle: phaseTicks.beginBattle,
     },
+
+    upgradePick,
 
     // Cross-cutting orchestration
     mainLoop,

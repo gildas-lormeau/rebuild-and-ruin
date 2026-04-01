@@ -6,6 +6,7 @@
  * and input handling (keyboard/mouse).
  */
 
+import { type GameMessage, MESSAGE } from "../server/protocol.ts";
 import {
   type InputReceiver,
   isHuman,
@@ -26,6 +27,7 @@ interface UpgradePickSystemDeps {
   readonly log: (msg: string) => void;
   readonly render: () => void;
   readonly firstHuman: () => (PlayerController & InputReceiver) | null;
+  readonly send?: (msg: GameMessage) => void;
 }
 
 export interface UpgradePickSystem {
@@ -107,7 +109,13 @@ export function createUpgradePickSystem(
   function confirmChoice(playerId: number): void {
     const entry = findPendingEntry(playerId);
     if (!entry) return;
-    entry.choice = entry.offers[entry.focused]!;
+    const choice = entry.offers[entry.focused]!;
+    entry.choice = choice;
+    deps.send?.({
+      type: MESSAGE.UPGRADE_PICK,
+      playerId,
+      choice,
+    });
   }
 
   function findPendingEntry(playerId: number) {

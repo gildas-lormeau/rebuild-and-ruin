@@ -177,6 +177,8 @@ function validatePayload(msg: Record<string, unknown>): boolean {
       );
     case MESSAGE.LIFE_LOST_CHOICE:
       return hasValidPlayer(msg) && VALID_CHOICES.has(msg.choice as string);
+    case MESSAGE.UPGRADE_PICK:
+      return hasValidPlayer(msg) && typeof msg.choice === "string";
     case MESSAGE.AIM_UPDATE:
       return hasValidPlayer(msg) && isFinite(msg.x) && isFinite(msg.y);
     case MESSAGE.OPPONENT_PHANTOM:
