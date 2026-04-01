@@ -268,6 +268,8 @@ export interface GameState {
       gruntStreak: number;
       roundWalls: number;
     }[];
+    /** Combo events for floating text display. Aged by the renderer, removed when expired. */
+    events: { text: string; age: number }[];
   } | null;
   /** Pre-generated upgrade offers per player for the current round (modern mode).
    *  Generated in enterBuildFromBattle using synced RNG, consumed by the upgrade pick dialog.

@@ -16,6 +16,7 @@ import {
   isCannonEnclosed,
 } from "./cannon-system.ts";
 import {
+  ageComboEvents,
   comboOnCannonKill,
   comboOnGruntKill,
   comboOnWallDestroyed,
@@ -262,6 +263,7 @@ export function tickCannonballs(
   }
 
   state.cannonballs = remaining;
+  if (state.comboTracker) ageComboEvents(state.comboTracker, dt);
   return { impacts, events };
 }
 

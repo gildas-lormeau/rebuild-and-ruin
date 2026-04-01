@@ -236,6 +236,7 @@ export interface UIOverlay {
       eliminated: boolean;
     }[];
   };
+  comboFloats?: readonly { text: string; age: number }[];
   lifeLostDialog?: LifeLostDialogOverlay;
   upgradePick?: UpgradePickOverlay;
   optionsScreen?: {

@@ -28,6 +28,8 @@ const GRUNT_STREAK_BONUS = 75;
 /** Bonus for destroying 5+ walls in one battle round. */
 const DEMOLITION_THRESHOLD = 5;
 const DEMOLITION_BONUS = 150;
+/** Lifetime of a combo floating text in seconds. */
+const COMBO_EVENT_LIFETIME = 2;
 
 export function createComboTracker(playerCount: number): ComboTracker {
   const players: ComboPlayerState[] = [];
@@ -40,7 +42,7 @@ export function createComboTracker(playerCount: number): ComboTracker {
       roundWalls: 0,
     });
   }
-  return { players };
+  return { players, events: [] };
 }
 
 /** Process an impact event for combo tracking. Returns bonus score to add.
@@ -65,6 +67,10 @@ export function comboOnWallDestroyed(
 
   // Wall streak bonus
   if (ps.wallStreak >= WALL_STREAK_MIN) {
+    tracker.events.push({
+      text: `Wall Streak x${ps.wallStreak}! +${WALL_STREAK_BONUS}`,
+      age: 0,
+    });
     return WALL_STREAK_BONUS;
   }
   return 0;
@@ -76,6 +82,10 @@ export function comboOnCannonKill(
 ): number {
   const ps = tracker.players[shooterId];
   if (!ps) return 0;
+  tracker.events.push({
+    text: `Cannon Kill! +${CANNON_KILL_BONUS}`,
+    age: 0,
+  });
   return CANNON_KILL_BONUS;
 }
 
@@ -95,6 +105,10 @@ export function comboOnGruntKill(
   ps.lastGruntKillTime = battleTime;
 
   if (ps.gruntStreak >= GRUNT_STREAK_MIN) {
+    tracker.events.push({
+      text: `Grunt Sniper x${ps.gruntStreak}! +${GRUNT_STREAK_BONUS}`,
+      age: 0,
+    });
     return GRUNT_STREAK_BONUS;
   }
   return 0;
@@ -105,6 +119,12 @@ export function comboDemolitionBonus(tracker: ComboTracker): number[] {
   return tracker.players.map((ps) =>
     ps.roundWalls >= DEMOLITION_THRESHOLD ? DEMOLITION_BONUS : 0,
   );
+}
+
+/** Age combo events by dt seconds, remove expired ones (> 2s). */
+export function ageComboEvents(tracker: ComboTracker, dt: number): void {
+  for (const ev of tracker.events) ev.age += dt;
+  tracker.events = tracker.events.filter((ev) => ev.age < COMBO_EVENT_LIFETIME);
 }
 
 /** Check if combo scoring is active for this game. */

@@ -26,6 +26,7 @@ import type {
 import {
   drawAnnouncement,
   drawBanner,
+  drawComboFloats,
   drawGameOver,
   drawLifeLostDialog,
   drawPlayerSelect,
@@ -187,6 +188,7 @@ export function drawMap(
   drawPhantoms(overlayCtx, overlay);
   drawBattleEffects(overlayCtx, map, overlay);
   drawScoreDeltas(overlayCtx, overlay);
+  drawComboFloats(overlayCtx, W, H, overlay);
   drawAnnouncement(overlayCtx, W, H, overlay);
   drawBanner(overlayCtx, W, H, overlay);
   drawGameOver(overlayCtx, W, H, overlay);

@@ -5,6 +5,7 @@ import type {
   BuildStartData,
   CannonStartData,
 } from "./checkpoint-data.ts";
+import { createComboTracker, isCombosEnabled } from "./combo-system.ts";
 import type { OrbitParams } from "./controller-interfaces.ts";
 import { BATTLE_TIMER } from "./game-constants.ts";
 import type { PixelPos } from "./geometry-types.ts";
@@ -97,6 +98,10 @@ export function applyBattleStartCheckpoint(
 
   clearBattleProjectiles(deps);
   deps.state.timer = BATTLE_TIMER;
+  // Create combo tracker on watcher (matches host's enterBattleFromCannon)
+  deps.state.comboTracker = isCombosEnabled(deps.state)
+    ? createComboTracker(deps.state.players.length)
+    : null;
   resetWatcherCrosshairs(deps);
   for (const player of deps.state.players) {
     if (player.eliminated || !player.homeTower) continue;

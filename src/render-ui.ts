@@ -340,6 +340,29 @@ export function drawLifeLostDialog(
   }
 }
 
+/** Draw combo floating text (gold text that rises and fades out). */
+export function drawComboFloats(
+  overlayCtx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  overlay?: RenderOverlay,
+): void {
+  const floats = overlay?.ui?.comboFloats;
+  if (!floats || floats.length === 0) return;
+
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
+  overlayCtx.font = FONT_BODY;
+
+  for (let i = 0; i < floats.length; i++) {
+    const ev = floats[i]!;
+    const alpha = Math.max(0, 1 - ev.age / 2);
+    const rise = ev.age * 20;
+    overlayCtx.fillStyle = `rgba(255, 215, 100, ${alpha})`;
+    overlayCtx.fillText(ev.text, W / 2, H * 0.35 - rise + i * 16);
+  }
+}
+
 /** Draw upgrade pick cards — one row of 3 cards per player, stacked vertically. */
 export function drawUpgradePick(
   overlayCtx: CanvasRenderingContext2D,
