@@ -259,6 +259,16 @@ export interface GameState {
   activeModifier: ModifierId | null;
   /** Previous round's modifier id (for no-repeat rule). null = none. */
   lastModifierId: ModifierId | null;
+  /** Combo scoring tracker (modern mode, transient during battle, not serialized). */
+  comboTracker: {
+    players: {
+      lastWallHitTime: number;
+      wallStreak: number;
+      lastGruntKillTime: number;
+      gruntStreak: number;
+      roundWalls: number;
+    }[];
+  } | null;
   /** Pre-generated upgrade offers per player for the current round (modern mode).
    *  Generated in enterBuildFromBattle using synced RNG, consumed by the upgrade pick dialog.
    *  null in classic mode or before UPGRADE_FIRST_ROUND. */

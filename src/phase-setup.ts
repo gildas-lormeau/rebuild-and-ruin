@@ -37,6 +37,11 @@ import {
   spawnHousesInZone,
   startOfBuildPhaseHousekeeping,
 } from "./castle-generation.ts";
+import {
+  comboDemolitionBonus,
+  createComboTracker,
+  isCombosEnabled,
+} from "./combo-system.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import {
   BATTLE_TIMER,
@@ -233,11 +238,25 @@ export function enterBattleFromCannon(state: GameState): void {
   state.timer = BATTLE_TIMER;
   state.cannonballs = [];
   state.shotsFired = 0;
+  // Modern mode: create combo tracker for this battle
+  state.comboTracker = isCombosEnabled(state)
+    ? createComboTracker(state.players.length)
+    : null;
 }
 
 /** Enter build from battle — cleans up battle state (balloons, captured cannons, grunts).
  *  Callers must call initBuildPhaseControllers() afterwards to init controllers. */
 export function enterBuildFromBattle(state: GameState): void {
+  // Modern mode: award demolition bonuses before clearing battle state
+  if (state.comboTracker) {
+    const bonuses = comboDemolitionBonus(state.comboTracker);
+    for (let i = 0; i < bonuses.length; i++) {
+      if (bonuses[i]! > 0 && !state.players[i]!.eliminated) {
+        state.players[i]!.score += bonuses[i]!;
+      }
+    }
+    state.comboTracker = null;
+  }
   updateGruntBlockedBattles(state);
   cleanupBalloonHitTrackingAfterBattle(state);
   state.capturedCannons = [];

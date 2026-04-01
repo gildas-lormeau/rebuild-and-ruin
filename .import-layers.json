@@ -63,6 +63,7 @@
       "src/castle-generation.ts",
       "src/map-generation.ts",
       "src/phase-setup.ts",
+      "src/combo-system.ts",
       "src/round-modifiers.ts",
       "src/game-engine.ts",
       "src/game-helpers.ts",

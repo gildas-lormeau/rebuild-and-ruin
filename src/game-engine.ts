@@ -106,6 +106,7 @@ export function createGameState(
     playerZones: [],
     cannonLimits: [],
     gameMode: GAME_MODE_CLASSIC,
+    comboTracker: null,
     activeModifier: null,
     lastModifierId: null,
     pendingUpgradeOffers: null,

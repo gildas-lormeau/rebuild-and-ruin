@@ -215,6 +215,7 @@ export function parseBoard(ascii: string, playerId = 0): ParseResult {
     cannonPlaceTimer: 15,
     firstRoundCannons: 3,
     gameMode: "classic",
+    comboTracker: null,
     activeModifier: null,
     lastModifierId: null,
     pendingUpgradeOffers: null,

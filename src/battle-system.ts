@@ -16,8 +16,14 @@ import {
   isCannonEnclosed,
 } from "./cannon-system.ts";
 import {
+  comboOnCannonKill,
+  comboOnGruntKill,
+  comboOnWallDestroyed,
+} from "./combo-system.ts";
+import {
   BALL_SPEED,
   BALLOON_HITS_NEEDED,
+  BATTLE_TIMER,
   BURNING_PIT_DURATION,
   DESTROY_CANNON_POINTS,
   DESTROY_GRUNT_POINTS,
@@ -312,8 +318,16 @@ export function applyImpactEvent(
       if (player) {
         deletePlayerWallBattle(player, packTile(event.row, event.col));
         const shooter = sid !== undefined ? state.players[sid] : undefined;
-        if (shooter && event.playerId !== sid)
+        if (shooter && event.playerId !== sid) {
           shooter.score += DESTROY_WALL_POINTS;
+          if (state.comboTracker && sid !== undefined) {
+            shooter.score += comboOnWallDestroyed(
+              state.comboTracker,
+              sid,
+              BATTLE_TIMER - state.timer,
+            );
+          }
+        }
       }
       break;
     }
@@ -323,8 +337,12 @@ export function applyImpactEvent(
         cannon.hp = event.newHp;
         if (!isCannonAlive(cannon)) {
           const shooter = sid !== undefined ? state.players[sid] : undefined;
-          if (shooter && event.playerId !== sid)
+          if (shooter && event.playerId !== sid) {
             shooter.score += DESTROY_CANNON_POINTS;
+            if (state.comboTracker && sid !== undefined) {
+              shooter.score += comboOnCannonKill(state.comboTracker, sid);
+            }
+          }
         }
       }
       break;
@@ -356,7 +374,16 @@ export function applyImpactEvent(
       state.grunts = state.grunts.filter(
         (grunt) => !isAtTile(grunt, event.row, event.col),
       );
-      if (shooter) shooter.score += DESTROY_GRUNT_POINTS;
+      if (shooter) {
+        shooter.score += DESTROY_GRUNT_POINTS;
+        if (state.comboTracker && sid !== undefined) {
+          shooter.score += comboOnGruntKill(
+            state.comboTracker,
+            sid,
+            BATTLE_TIMER - state.timer,
+          );
+        }
+      }
       break;
     }
   }
