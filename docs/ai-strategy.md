@@ -150,8 +150,7 @@ The AI decides which castle/tower to repair, in priority order:
 1. **Home castle not enclosed** and gaps are small (<=5 tiles): repair home castle gaps.
 2. **Home castle was broken last round** and other towers are unenclosed: skip home, target those towers instead.
 3. **Any unenclosed towers**: build walls around them.
-4. **All towers enclosed, enemy grunts outside territory**: keep placing walls to enclose grunts (only if the scoring simulation finds positive territory gain).
-5. **All towers enclosed, no outside grunts**: stop building.
+4. **All towers enclosed**: expand territory outward. Computes the bounding box of existing walls, expands it by 2 tiles, and treats the expanded ring as gaps to fill. This gives the AI a multi-round expansion goal — each piece fills part of the ring, and once closed the AI gains a new territory enclosure (~10 tiles). Uses the existing gap-filling pipeline (`computeFillableGaps` filters water/pits). If scoring finds no positive placement (`bestScore <= 0`), the AI stops building.
 
 ### Enclosure Detection
 
