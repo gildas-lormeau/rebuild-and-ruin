@@ -98,6 +98,21 @@ The `players[]` array in checkpoint messages uses `SerializedPlayer` (`src/check
 
 `interior` and `ownedTowers` are recomputed from `walls` on the receiver (flood-fill + tower enclosure check). House positions are deterministic from the seed — only `housesAlive: boolean[]` is sent.
 
+#### Serialized Grunt Shape
+
+The `grunts[]` array in checkpoint messages uses `SerializedGrunt` (`src/checkpoint-data.ts`):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `row` | `number` | Grid row |
+| `col` | `number` | Grid column |
+| `targetPlayerId` | `number` | Player being attacked |
+| `targetTowerIdx?` | `number` | Specific tower target |
+| `attackTimer?` | `number` | Wall-attack progress timer |
+| `blockedBattles?` | `number` | Rounds spent blocked by walls |
+| `wallAttack?` | `boolean` | Currently attacking a wall |
+| `facing?` | `number` | Sprite facing direction |
+
 ### Host → All (Incremental Events)
 
 Streamed during gameplay phases. Battle impact events (`wall_destroyed` through `tower_killed`) are **host-only** — only the host can send them.
@@ -119,6 +134,13 @@ Streamed during gameplay phases. Battle impact events (`wall_destroyed` through 
 | `tower_killed` | BATTLE | A tower was destroyed by grunts (host-only) |
 | `aim_update` | BATTLE | Crosshair position + orbit params |
 | `life_lost_choice` | Any | Forwarded from non-host client to all (playerId + choice) |
+
+#### Battle Event Unions
+
+The battle impact messages are grouped into type aliases in `server/protocol.ts` for type-safe handling:
+
+- **`ImpactEvent`** = `wall_destroyed` | `cannon_damaged` | `house_destroyed` | `grunt_killed` | `grunt_spawned` | `pit_created` — host-only effects from cannonball impacts and secondary consequences.
+- **`BattleEvent`** = `cannon_fired` | `tower_killed` | `ImpactEvent` — all events emitted during battle. Discriminated on `type`.
 
 ## Game Phases
 
@@ -147,7 +169,7 @@ The relay server validates without running game logic:
 - **Host-only enforcement**: only the host socket can send checkpoints (`init`, `cannon_start`, `battle_start`, `build_start`, `build_end`, `game_over`, `full_state`, `select_start`, `castle_walls`) and battle impact events (`wall_destroyed`, `cannon_damaged`, `house_destroyed`, `grunt_killed`, `grunt_spawned`, `pit_created`, `tower_killed`)
 - **Identity**: players can only send messages with their own `playerId` (host exempt — sends on behalf of AI players)
 - **Phase gating**: `cannon_fired` rejected outside BATTLE, `opponent_piece_placed` rejected outside WALL_BUILD, `opponent_cannon_placed` rejected outside CANNON_PLACE, `opponent_tower_selected` rejected outside SELECTION, etc.
-- **Rate limiting**: cosmetic messages (`opponent_phantom`, `opponent_cannon_phantom`, `aim_update`) capped at 100/s per type. Game-state messages (`opponent_piece_placed`, `opponent_cannon_placed`, `cannon_fired`, `opponent_tower_selected`, `life_lost_choice`) are **not** rate-limited — they are low-frequency and must never be silently dropped
+- **Rate limiting**: cosmetic messages (`opponent_phantom`, `opponent_cannon_phantom`, `aim_update`) capped at 100/s per socket per message type. Game-state messages (`opponent_piece_placed`, `opponent_cannon_placed`, `cannon_fired`, `opponent_tower_selected`, `life_lost_choice`) are **not** rate-limited — they are low-frequency and must never be silently dropped
 - **Payload validation**: bounds-checking on `playerId`, grid coordinates, pixel coordinates, cannon modes, piece offsets, and choice values
 
 ## Bandwidth
