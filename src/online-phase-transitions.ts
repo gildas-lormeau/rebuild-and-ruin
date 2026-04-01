@@ -305,7 +305,6 @@ export function handleBuildStartTransition(
   if (msg.type !== MESSAGE.BUILD_START) return;
   const state = transitionCtx.getState();
   const myPlayerId = transitionCtx.session.myPlayerId;
-  const buildReceivedAt = transitionCtx.now();
 
   // Pre-capture old scene before checkpoint replaces state (banner ??= keeps it)
   transitionCtx.ui.banner.oldEntities = snapshotEntities(state);
@@ -316,6 +315,8 @@ export function handleBuildStartTransition(
 
   // Step 2→3: upgrade pick (if any) → build banner → game
   const showBannerAndEnterBuild = () => {
+    // Compute timer start NOW (after upgrade pick resolved, not at message receipt)
+    const bannerStartedAt = transitionCtx.now();
     executeTransition(BUILD_START_STEPS, {
       showBanner: () =>
         showBuildPhaseBanner(
@@ -324,7 +325,7 @@ export function handleBuildStartTransition(
           () => {
             startWatcherPhaseTimer(
               transitionCtx.ui.watcherTiming,
-              buildReceivedAt + transitionCtx.ui.bannerDuration * 1000,
+              bannerStartedAt + transitionCtx.ui.bannerDuration * 1000,
               state.timer,
             );
             transitionCtx.setMode(Mode.GAME);
