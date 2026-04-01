@@ -146,8 +146,12 @@ function handleTouchStart(
     }
   }
 
-  // Update cursor/crosshair position on touch down
-  dispatchPointerMove(x, y, state, deps);
+  // Update cursor/crosshair position on touch down (skip during transitions —
+  // the viewport may still be lerping from a different zone, so screen-to-tile
+  // conversion would place the cursor at wrong coordinates).
+  if (isInteractiveMode(getMode())) {
+    dispatchPointerMove(x, y, state, deps);
+  }
 }
 
 function handleTouchMove(
@@ -178,6 +182,10 @@ function handleTouchMove(
   const { x, y } = canvasCoords(touch, renderer);
   const state = getState();
   if (!state || deps.lobby.isActive()) return;
+
+  // Skip during transitions — viewport may still be lerping from a different
+  // zone (e.g. enemy zone after battle), causing wrong cursor placement.
+  if (!isInteractiveMode(deps.getMode())) return;
 
   dispatchPointerMove(x, y, state, deps);
 }
