@@ -142,7 +142,6 @@ export function canPlaceCannon(
   mode: CannonMode,
   state: GameState,
 ): boolean {
-  if (player.eliminated) return false;
   const interior = getInterior(player);
   const size = cannonSize(mode);
   // Cannon footprints are square: cannonSize() returns width=height (1 for normal, 2 for balloon/super).
@@ -170,6 +169,7 @@ export function applyCannonPlacement(
   mode: CannonMode,
   state: GameState,
 ): void {
+  if (player.eliminated) return;
   player.cannons.push({
     row,
     col,

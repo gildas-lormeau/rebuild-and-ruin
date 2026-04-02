@@ -41,9 +41,9 @@ import {
   cannonSlotsUsed,
   canPlaceCannon,
 } from "./cannon-system.ts";
-import { selectPlayerTower } from "./game-engine.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { toCannonMode, type WatcherNetworkState } from "./online-types.ts";
+import { highlightTowerSelection } from "./selection.ts";
 import { inBoundsStrict, packTile } from "./spatial.ts";
 import { isHostInContext, isRemoteHuman } from "./tick-context.ts";
 import {
@@ -222,25 +222,31 @@ function handleTowerSelected(
   if (msg.towerIdx < 0 || msg.towerIdx >= state.map.towers.length)
     return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
-  const tower = state.map.towers[msg.towerIdx];
-  const expectedZone: number | undefined = state.playerZones[msg.playerId];
-  if (!tower || expectedZone === undefined || tower.zone !== expectedZone)
-    return DROPPED;
-  const player = state.players[msg.playerId]!;
-  selectPlayerTower(player, tower);
-  const selectionState = deps.selectionStates.get(msg.playerId);
-  if (selectionState && !selectionState.confirmed) {
-    selectionState.highlighted = msg.towerIdx;
-    deps.syncSelectionOverlay();
-    if (msg.confirmed && isHostInContext(deps.session)) {
-      // Host: immediately finalize selection for the remote player
-      deps.confirmSelectionAndStartBuild(
-        msg.playerId,
-        deps.isCastleReselectPhase(),
-      );
-    } else if (msg.confirmed) {
-      // Non-host watcher: mark confirmed locally; host's next checkpoint drives phase change
-      selectionState.confirmed = true;
+  const expectedZone = state.playerZones[msg.playerId];
+  if (expectedZone === undefined) return DROPPED;
+
+  // Route through the selection system — validates zone, confirmed, same-idx
+  const changed = highlightTowerSelection(
+    state,
+    deps.selectionStates,
+    msg.towerIdx,
+    expectedZone,
+    msg.playerId,
+  );
+  if (changed) deps.syncSelectionOverlay();
+
+  // Handle confirmation (separate from highlighting — confirm even if same tower)
+  if (msg.confirmed) {
+    const selectionState = deps.selectionStates.get(msg.playerId);
+    if (selectionState && !selectionState.confirmed) {
+      if (isHostInContext(deps.session)) {
+        deps.confirmSelectionAndStartBuild(
+          msg.playerId,
+          deps.isCastleReselectPhase(),
+        );
+      } else {
+        selectionState.confirmed = true;
+      }
     }
   }
   return APPLIED;
