@@ -13,81 +13,118 @@ Complements `/code-review` which works per-pass on a scoped file set.
 ## Domain clusters
 
 Each domain is a group of tightly related files that share responsibility for a subsystem.
+Domains map to the 15 layer groups in `.import-layers.json` (L0–L14), with small layers
+combined and large layers (>10 files) split into sub-domains at audit time.
 
-### 1. Input (7 files)
+### 1. Leaf utilities — L0 (11 files)
 ```
-src/input.ts, src/input-dispatch.ts, src/input-keyboard.ts,
-src/input-mouse.ts, src/input-touch-canvas.ts, src/input-touch-ui.ts,
-src/input-recorder.ts
-```
-
-### 2. Online client — core wiring (7 files)
-```
-src/online-client.ts, src/online-client-stores.ts, src/online-client-runtime.ts,
-src/online-client-deps.ts, src/online-client-promote.ts, src/online-client-ws.ts,
-src/online-client-lobby.ts
+src/ai-constants.ts, src/canvas-layout.ts, src/game-constants.ts,
+src/grid.ts, src/jsfxr.d.ts, src/platform.ts, src/rng.ts,
+src/router.ts, src/online-dom.ts, src/upgrade-defs.ts, src/utils.ts
 ```
 
-### 3. Online client — game logic (9 files)
+### 2. Core types, geometry & spatial — L1 + L2 (9 files)
 ```
-src/online-phase-transitions.ts, src/online-checkpoints.ts,
-src/online-host-promotion.ts, src/online-host-crosshairs.ts,
-src/online-watcher-tick.ts, src/online-watcher-battle.ts,
-src/online-send-actions.ts, src/online-server-events.ts,
-src/online-full-state-recovery.ts
+src/ai-build-types.ts, src/geometry-types.ts, src/pieces.ts,
+src/ai-castle-rect.ts, src/types.ts, src/spatial.ts,
+src/board-occupancy.ts, src/checkpoint-data.ts, server/protocol.ts
 ```
 
-### 4. Online client — infrastructure (5 files)
+### 3. Shared interfaces, config & scoring — L3 (13 files)
 ```
-src/online-config.ts, src/online-types.ts, src/online-lobby-ui.ts,
-src/online-server-lifecycle.ts, src/online-session.ts, src/online-serialize.ts
-```
-
-### 5. Phase transitions & game engine (5 files)
-```
-src/game-engine.ts, src/runtime-phase-ticks.ts,
-src/runtime-host-phase-ticks.ts, src/runtime-host-battle-ticks.ts,
-src/tick-context.ts
+src/ai-build-score.ts, src/ai-build-fallback.ts,
+src/phase-transition-shared.ts, src/player-config.ts,
+src/controller-interfaces.ts, src/life-lost.ts, src/upgrade-pick.ts,
+src/castle-build.ts, src/phase-banner.ts, src/render-theme.ts,
+src/render-types.ts, src/phantom-types.ts, src/tick-context.ts
 ```
 
-### 6. Controllers (4 files)
+### 4. Game logic — L4 (14 files)
 ```
-src/controller-interfaces.ts, src/controller-types.ts,
+src/ai-build-target.ts, src/cannon-system.ts, src/grunt-movement.ts,
+src/grunt-system.ts, src/battle-system.ts, src/build-system.ts,
+src/castle-generation.ts, src/map-generation.ts, src/phase-setup.ts,
+src/combo-system.ts, src/round-modifiers.ts, src/game-engine.ts,
+src/selection.ts, src/host-phase-ticks.ts
+```
+
+### 5. AI strategy — L5 (4 files)
+```
+src/ai-strategy-battle.ts, src/ai-strategy-build.ts,
+src/ai-strategy-cannon.ts, src/ai-strategy.ts
+```
+
+### 6. Controllers — L6 (8 files)
+```
+src/ai-phase-select.ts, src/ai-phase-build.ts,
+src/ai-phase-cannon.ts, src/ai-phase-battle.ts,
+src/controller-ai.ts, src/controller-types.ts,
 src/controller-human.ts, src/controller-factory.ts
 ```
 
-### 7. Rendering (10 files)
+### 7. Input & sound — L7 (9 files)
 ```
-src/render-map.ts, src/render-effects.ts, src/render-composition.ts,
-src/render-theme.ts, src/render-canvas.ts, src/render-loupe.ts,
-src/render-sprites.ts, src/render-towers.ts, src/render-ui.ts,
-src/render-types.ts
-```
-
-### 8. Runtime sub-systems (10 files)
-```
-src/runtime.ts, src/runtime-state.ts, src/runtime-types.ts,
-src/runtime-camera.ts, src/runtime-selection.ts, src/runtime-life-lost.ts,
-src/runtime-lobby.ts, src/runtime-options.ts, src/runtime-input.ts,
-src/runtime-game-lifecycle.ts
+src/haptics-system.ts, src/input-recorder.ts, src/input-dispatch.ts,
+src/input-touch-ui.ts, src/input-touch-canvas.ts, src/input-mouse.ts,
+src/input-keyboard.ts, src/input.ts, src/sound-system.ts
 ```
 
-### 9. Game systems (5 files)
+### 8. Render — L8 (10 files)
 ```
-src/battle-system.ts, src/build-system.ts, src/cannon-system.ts,
-src/grunt-system.ts, src/board-occupancy.ts
+src/render-sprites.ts, src/render-loupe.ts, src/render-effects.ts,
+src/render-towers.ts, src/render-composition.ts, src/render-ui-theme.ts,
+src/render-ui.ts, src/render-ui-settings.ts, src/render-map.ts,
+src/render-canvas.ts
 ```
 
-### 10. Server (3 files)
+### 9. Game UI & runtime support — L9 + L10 (6 files)
 ```
-server/server.ts, server/game-room.ts, server/room-manager.ts
+src/game-ui-types.ts, src/game-ui-screens.ts, src/game-ui-settings.ts,
+src/runtime-bootstrap.ts, src/runtime-headless.ts, src/runtime-touch-ui.ts
+```
+
+### 10. Online infrastructure — L11 (5 files)
+```
+src/online-config.ts, src/online-types.ts, src/online-lobby-ui.ts,
+src/online-server-lifecycle.ts, src/online-session.ts
+```
+
+### 11. Online logic — L12 (12 files)
+```
+src/online-serialize.ts, src/online-full-state-recovery.ts,
+src/online-send-actions.ts, src/online-checkpoints.ts,
+src/online-watcher-battle.ts, src/online-watcher-tick.ts,
+src/online-phase-transitions.ts, src/online-server-events.ts,
+src/online-host-crosshairs.ts, src/online-host-promotion.ts,
+src/online-host-battle-ticks.ts, src/online-stores.ts
+```
+
+### 12. Runtime — L13 (21 files)
+```
+src/runtime-state.ts, src/runtime-banner.ts, src/runtime-camera.ts,
+src/runtime-life-lost.ts, src/runtime-upgrade-pick.ts,
+src/runtime-lobby.ts, src/runtime-options.ts,
+src/runtime-game-lifecycle.ts, src/runtime-human.ts,
+src/runtime-test-globals.ts, src/runtime-input.ts,
+src/runtime-phase-ticks.ts, src/runtime-render.ts,
+src/runtime-selection.ts, src/runtime-types.ts, src/runtime.ts,
+src/runtime-online-game.ts, src/runtime-online-deps.ts,
+src/runtime-online-promote.ts, src/runtime-online-ws.ts,
+src/runtime-online-lobby.ts
+```
+
+### 13. Entry points & server — L14 (8 files)
+```
+src/entry.ts, src/main.ts, src/online-client.ts,
+server/send-utils.ts, server/game-room.ts, server/room-manager.ts,
+server/server.ts
 ```
 
 ## Execution
 
 ### Phase 1: Parallel domain audits
 
-Spawn one Explore sub-agent per domain (up to 10 in parallel). Each agent receives this prompt template:
+Spawn one Explore sub-agent per domain (up to 13 in parallel; split domains with >10 files into sub-domains first). Each agent receives this prompt template:
 
 ```
 Read ALL files in this domain completely:
@@ -135,7 +172,7 @@ genuinely help an LLM agent write better code.
 ### Phase 2: Cross-domain audit
 
 After all domain agents complete, spawn one Explore agent with all domain reports combined.
-Online client is split into 3 sub-domains (core wiring, game logic, infrastructure) to keep each under 10 files:
+Domains 3 (13 files), 4 (14 files), 11 (12 files), and 12 (21 files) should be split into sub-domains at audit time to keep each agent under 10 files:
 
 ```
 Given these domain audit findings:
@@ -188,6 +225,6 @@ Ask the user which findings to fix. Then fix them one domain at a time, running 
 ## Tips
 
 - Skip domains that were recently audited and had no findings
-- The online client domains (#2–#4) are highest risk — they mirror local runtime logic and drift silently
+- The online domains (#10–#11) and runtime (#12) are highest risk — they mirror local logic and drift silently
 - Cross-domain findings are often more impactful than within-domain ones
 - If a domain has >10 files, split it into sub-domains for the audit
