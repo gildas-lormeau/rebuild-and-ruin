@@ -5,8 +5,6 @@
  * `lobbyReady` — the single public API consumed by entry.ts.
  */
 
-import { initLobbyUi } from "./online-lobby-ui.ts";
-import { loadAtlas } from "./runtime-bootstrap.ts";
 import {
   btnCreateConfirm,
   btnJoinConfirm,
@@ -19,8 +17,10 @@ import {
   joinCodeInput,
   joinError,
   pageOnline,
-} from "./runtime-online-dom.ts";
-import { ctx, send } from "./runtime-online-stores.ts";
+} from "./online-dom.ts";
+import { initLobbyUi } from "./online-lobby-ui.ts";
+import { ctx, send } from "./online-stores.ts";
+import { loadAtlas } from "./runtime-bootstrap.ts";
 import { connect } from "./runtime-online-ws.ts";
 
 const lobbyElements = {

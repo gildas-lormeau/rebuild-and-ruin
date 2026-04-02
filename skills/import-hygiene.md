@@ -54,11 +54,11 @@ The layer map file. Committed to the repo. An array of named groups — position
 
 **Rule: imports must flow downward.** A file in group N can import from any group 0..N. Importing from group N+1 or higher is a violation.
 
-**Current architecture (14 groups, 0 violations, ~130 files incl. server):**
+**Current architecture (15 groups, 0 violations, ~130 files incl. server):**
 
 ```
  0  leaf utilities              ai-constants, canvas-layout, game-constants, grid, jsfxr.d,
-                                platform, rng, router, upgrade-defs, utils
+                                platform, rng, router, online-dom, upgrade-defs, utils
  1  geometry & pieces           ai-build-types, geometry-types, pieces
  2  core types, state & spatial ai-castle-rect, types, spatial, board-occupancy, checkpoint-data,
                                 server/protocol
@@ -68,7 +68,8 @@ The layer map file. Committed to the repo. An array of named groups — position
                                 tick-context
  4  game logic                  ai-build-target, cannon-system, grunt-movement, grunt-system,
                                 battle-system, build-system, castle-generation, map-generation,
-                                phase-setup, round-modifiers, game-engine, game-helpers, selection
+                                phase-setup, combo-system, round-modifiers, game-engine, selection,
+                                host-phase-ticks
  5  AI strategy                 ai-strategy-battle, ai-strategy-build, ai-strategy-cannon, ai-strategy
  6  controllers                 ai-phase-select, ai-phase-build, ai-phase-cannon, ai-phase-battle,
                                 controller-ai, controller-types, controller-human, controller-factory
@@ -77,21 +78,20 @@ The layer map file. Committed to the repo. An array of named groups — position
                                 render-composition, render-ui-theme, render-ui, render-ui-settings,
                                 render-map, render-canvas  ← canvas-using files
  9  game UI                     game-ui-types, game-ui-screens, game-ui-settings
-10  online infrastructure       online-config, online-types, online-lobby-ui, online-server-lifecycle,
+10  runtime support             runtime-bootstrap, runtime-headless, runtime-touch-ui
+11  online infrastructure       online-config, online-types, online-lobby-ui, online-server-lifecycle,
                                 online-session
-11  online logic                online-serialize, online-send-actions, online-checkpoints, online-watcher-*,
+12  online logic                online-serialize, online-send-actions, online-checkpoints, online-watcher-*,
                                 online-phase-transitions, online-server-events, online-host-*,
-                                online-full-state-recovery
-12  runtime                     runtime-state, runtime-banner, runtime-camera, runtime-life-lost,
-                                runtime-upgrade-pick, runtime-lobby, runtime-options, runtime-touch-ui,
+                                online-full-state-recovery, online-stores
+13  runtime                     runtime-state, runtime-banner, runtime-camera, runtime-life-lost,
+                                runtime-upgrade-pick, runtime-lobby, runtime-options,
                                 runtime-game-lifecycle, runtime-human, runtime-test-globals,
                                 runtime-input, runtime-phase-ticks, runtime-render,
-                                runtime-selection, runtime-host-phase-ticks, runtime-host-battle-ticks,
-                                runtime-types, runtime-bootstrap, runtime, runtime-headless,
-                                runtime-online-dom, runtime-online-stores, runtime-online-game,
-                                runtime-online-deps, runtime-online-promote, runtime-online-ws,
-                                runtime-online-lobby
-13  entry points                entry, main, online-client, send-utils, game-room, room-manager, server
+                                runtime-selection, runtime-types, runtime,
+                                runtime-online-game, runtime-online-deps, runtime-online-promote,
+                                runtime-online-ws, runtime-online-lobby
+14  entry points                entry, main, online-client, send-utils, game-room, room-manager, server
 ```
 
 When a new file is added but not yet in `.import-layers.json`, `--check` warns and treats it as layer 0 (maximally strict). Regenerate to pick up new files, then move them to the right group.

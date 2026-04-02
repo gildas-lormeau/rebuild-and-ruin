@@ -30,7 +30,7 @@ Formal violations (upward edges) are already caught by `--check`. Look instead f
 
 | Smell | Example | Why it matters |
 |---|---|---|
-| High layer → low layer (unexpected) | Online logic (L11) → render (L8) | Networking code shouldn't know about canvas types |
+| High layer → low layer (unexpected) | Online logic (L12) → render (L8) | Networking code shouldn't know about canvas types |
 | Entry point bypassing runtime | `online-client` → `ai-strategy` directly | Should go through the runtime layer |
 | Cross-domain edges | Input layer imports game UI layer | Input should be usable independently of UI |
 | File group name doesn't match files inside | `render-theme.ts` in "config & interfaces" | Name drift signals a misclassified file |
@@ -142,3 +142,8 @@ Rename groups in `.import-layers.json` to match reality. **Naming is the analysi
 | `tick-context.ts` over-classified in L4 | Reclassified to L3 — max dep is controller-interfaces (freed by game-engine extraction) |
 | `phase-transition-shared.ts` over-classified in L4 | Reclassified to L3 — max dep is phase-banner |
 | `input & sound` → `game logic` (L7→L4) | Reconciled duplicate `BattleEvent`/`ImpactEvent`/`CannonFiredEvent`/`TowerKilledEvent` types from `battle-system.ts` with identical `*Message` types already in `protocol.ts` (L2); added `ImpactEvent` and `BattleEvent` union aliases to protocol; consumers import from protocol |
+| `runtime-online-dom.ts` over-classified in "runtime" | Reclassified to L0 "leaf utilities" — zero imports; renamed to `online-dom.ts` |
+| `runtime-host-phase-ticks.ts` over-classified in "runtime" | Reclassified to L4 "game logic" — max dep is L3; renamed to `host-phase-ticks.ts` |
+| `runtime-host-battle-ticks.ts` over-classified in "runtime" | Reclassified to "online logic" — max dep is online-types (L11); renamed to `online-host-battle-ticks.ts` |
+| `runtime-online-stores.ts` over-classified in "runtime" | Reclassified to "online logic" — max dep is online-watcher-tick (same group); renamed to `online-stores.ts` |
+| `runtime` → `controllers` (L13→L6) | Created L10 "runtime support" group; moved `runtime-bootstrap.ts`, `runtime-headless.ts`, `runtime-touch-ui.ts` (max deps L8/L6/L8); eliminated the edge |

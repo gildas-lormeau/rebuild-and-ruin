@@ -10,6 +10,7 @@
       "src/platform.ts",
       "src/rng.ts",
       "src/router.ts",
+      "src/online-dom.ts",
       "src/upgrade-defs.ts",
       "src/utils.ts"
     ]
@@ -66,7 +67,8 @@
       "src/combo-system.ts",
       "src/round-modifiers.ts",
       "src/game-engine.ts",
-      "src/selection.ts"
+      "src/selection.ts",
+      "src/host-phase-ticks.ts"
     ]
   },
   {
@@ -129,6 +131,14 @@
     ]
   },
   {
+    "name": "runtime support",
+    "files": [
+      "src/runtime-bootstrap.ts",
+      "src/runtime-headless.ts",
+      "src/runtime-touch-ui.ts"
+    ]
+  },
+  {
     "name": "online infrastructure",
     "files": [
       "src/online-config.ts",
@@ -150,7 +160,9 @@
       "src/online-phase-transitions.ts",
       "src/online-server-events.ts",
       "src/online-host-crosshairs.ts",
-      "src/online-host-promotion.ts"
+      "src/online-host-promotion.ts",
+      "src/online-host-battle-ticks.ts",
+      "src/online-stores.ts"
     ]
   },
   {
@@ -163,7 +175,6 @@
       "src/runtime-upgrade-pick.ts",
       "src/runtime-lobby.ts",
       "src/runtime-options.ts",
-      "src/runtime-touch-ui.ts",
       "src/runtime-game-lifecycle.ts",
       "src/runtime-human.ts",
       "src/runtime-test-globals.ts",
@@ -171,14 +182,8 @@
       "src/runtime-phase-ticks.ts",
       "src/runtime-render.ts",
       "src/runtime-selection.ts",
-      "src/runtime-host-phase-ticks.ts",
-      "src/runtime-host-battle-ticks.ts",
       "src/runtime-types.ts",
-      "src/runtime-bootstrap.ts",
       "src/runtime.ts",
-      "src/runtime-headless.ts",
-      "src/runtime-online-dom.ts",
-      "src/runtime-online-stores.ts",
       "src/runtime-online-game.ts",
       "src/runtime-online-deps.ts",
       "src/runtime-online-promote.ts",

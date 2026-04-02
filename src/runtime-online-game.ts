@@ -23,6 +23,7 @@ import {
   applyCannonStartCheckpoint,
   type CheckpointDeps,
 } from "./online-checkpoints.ts";
+import { canvas, pageOnline, roomCodeOverlay } from "./online-dom.ts";
 import { restoreFullStateUiRecovery } from "./online-full-state-recovery.ts";
 import {
   broadcastLocalCrosshair,
@@ -43,6 +44,17 @@ import {
   serializePlayers,
 } from "./online-serialize.ts";
 import { resetSessionState } from "./online-session.ts";
+import {
+  clearReconnect,
+  ctx,
+  devLog,
+  devLogThrottled,
+  maybeSendAimUpdate,
+  RESET_SCOPE_DEDUP,
+  RESET_SCOPE_NEW_GAME,
+  resetNetworking,
+  send,
+} from "./online-stores.ts";
 import { setWatcherPhaseTimer } from "./online-types.ts";
 import {
   tickMigrationAnnouncement,
@@ -68,19 +80,7 @@ import {
   initWaitingRoom,
 } from "./runtime-bootstrap.ts";
 import { initDeps } from "./runtime-online-deps.ts";
-import { canvas, pageOnline, roomCodeOverlay } from "./runtime-online-dom.ts";
 import { initPromote } from "./runtime-online-promote.ts";
-import {
-  clearReconnect,
-  ctx,
-  devLog,
-  devLogThrottled,
-  maybeSendAimUpdate,
-  RESET_SCOPE_DEDUP,
-  RESET_SCOPE_NEW_GAME,
-  resetNetworking,
-  send,
-} from "./runtime-online-stores.ts";
 import { initWs } from "./runtime-online-ws.ts";
 import { isHostInContext } from "./tick-context.ts";
 import { LifeLostChoice, Mode } from "./types.ts";

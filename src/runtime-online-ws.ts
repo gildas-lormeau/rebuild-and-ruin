@@ -7,7 +7,6 @@
 
 import { computeWsUrl } from "./online-config.ts";
 import { connectWebSocket } from "./online-session.ts";
-import { handleServerMessage } from "./runtime-online-deps.ts";
 import {
   clearReconnect,
   ctx,
@@ -15,7 +14,8 @@ import {
   isReconnecting,
   MAX_RECONNECT_ATTEMPTS,
   RECONNECT_BASE_DELAY_MS,
-} from "./runtime-online-stores.ts";
+} from "./online-stores.ts";
+import { handleServerMessage } from "./runtime-online-deps.ts";
 import { isHostInContext } from "./tick-context.ts";
 import { Mode } from "./types.ts";
 

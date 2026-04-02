@@ -31,6 +31,15 @@ import { nextPhase, tickGameCore } from "./game-engine.ts";
 import { tickGrunts } from "./grunt-movement.ts";
 import { gruntAttackTowers } from "./grunt-system.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
+import { tickHostBuildPhase, tickHostCannonPhase } from "./host-phase-ticks.ts";
+import {
+  beginHostBattle,
+  LOCAL_BATTLE_START_NET,
+  startHostBattleLifecycle,
+  tickHostBalloonAnim,
+  tickHostBattleCountdown,
+  tickHostBattlePhase,
+} from "./online-host-battle-ticks.ts";
 import { NOOP_DEDUP_CHANNEL } from "./phantom-types.ts";
 import { BANNER_BUILD } from "./phase-banner.ts";
 import {
@@ -51,18 +60,6 @@ import {
   BANNER_PHASE_CANNON,
   modifierBannerText,
 } from "./round-modifiers.ts";
-import {
-  beginHostBattle,
-  LOCAL_BATTLE_START_NET,
-  startHostBattleLifecycle,
-  tickHostBalloonAnim,
-  tickHostBattleCountdown,
-  tickHostBattlePhase,
-} from "./runtime-host-battle-ticks.ts";
-import {
-  tickHostBuildPhase,
-  tickHostCannonPhase,
-} from "./runtime-host-phase-ticks.ts";
 import { assertStateReady, type RuntimeState } from "./runtime-state.ts";
 import type {
   RuntimeConfig,

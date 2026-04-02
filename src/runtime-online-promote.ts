@@ -15,14 +15,14 @@ import {
   syncAccumulatorsFromTimer,
 } from "./online-host-promotion.ts";
 import { createFullStateMessage } from "./online-serialize.ts";
-import { createAiController } from "./runtime-bootstrap.ts";
 import {
   ctx,
   devLog,
   RESET_SCOPE_HOST_PROMOTION,
   resetNetworking,
   send,
-} from "./runtime-online-stores.ts";
+} from "./online-stores.ts";
+import { createAiController } from "./runtime-bootstrap.ts";
 import type { GameRuntime } from "./runtime-types.ts";
 import { Mode } from "./types.ts";
 import { assertNever } from "./utils.ts";

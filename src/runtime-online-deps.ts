@@ -22,6 +22,7 @@ import type {
   ServerMessage,
 } from "../server/protocol.ts";
 import { MIGRATION_ANNOUNCEMENT_DURATION } from "./game-constants.ts";
+import { createError, joinError } from "./online-dom.ts";
 import type { TransitionContext } from "./online-phase-transitions.ts";
 import {
   handleBattleStartTransition,
@@ -33,10 +34,9 @@ import {
 } from "./online-phase-transitions.ts";
 import { handleServerIncrementalMessage } from "./online-server-events.ts";
 import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
+import { ctx, devLog } from "./online-stores.ts";
 import { PLAYER_NAMES } from "./player-config.ts";
-import { createError, joinError } from "./runtime-online-dom.ts";
 import { promoteToHost } from "./runtime-online-promote.ts";
-import { ctx, devLog } from "./runtime-online-stores.ts";
 import type { GameRuntime } from "./runtime-types.ts";
 import { isReselectPhase, Mode } from "./types.ts";
 
