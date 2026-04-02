@@ -17,6 +17,7 @@ import {
   type UIContext,
   visibleOptions,
 } from "./game-ui-screens.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
 import { dispatchPointerMove } from "./input-dispatch.ts";
@@ -32,7 +33,10 @@ import {
   type FloatingActionsHandle,
 } from "./input-touch-ui.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
-import { handleLifeLostDialogClick } from "./render-composition.ts";
+import {
+  handleLifeLostDialogClick,
+  handleUpgradePickClick,
+} from "./render-composition.ts";
 import type { LoupeHandle } from "./render-loupe.ts";
 import type { RendererInterface } from "./render-types.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
@@ -113,6 +117,7 @@ interface InputSystemDeps {
   readonly upgradePick: {
     moveFocus: (playerId: number, dir: number) => void;
     confirmChoice: (playerId: number) => void;
+    pickDirect: (playerId: number, cardIdx: number) => void;
   };
   readonly selection: {
     highlight: (idx: number, zone: number, pid: number) => void;
@@ -376,6 +381,23 @@ function buildInputDeps(
         const pp = deps.pointerPlayer();
         if (pp && hit.playerId !== pp.playerId) return;
         lifeLost.applyChoice(hit.playerId, hit.choice);
+      },
+    },
+    upgradePick: {
+      get: () => runtimeState.upgradePickDialog,
+      click: (x: number, y: number) => {
+        if (!runtimeState.upgradePickDialog) return;
+        const hit = handleUpgradePickClick({
+          W: GRID_COLS * TILE_SIZE,
+          H: GRID_ROWS * TILE_SIZE,
+          dialog: runtimeState.upgradePickDialog,
+          screenX: x,
+          screenY: y,
+        });
+        if (!hit) return;
+        const pp = deps.pointerPlayer();
+        if (pp && hit.playerId !== pp.playerId) return;
+        deps.upgradePick.pickDirect(hit.playerId, hit.cardIdx);
       },
     },
     gameOver: {

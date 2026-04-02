@@ -45,6 +45,7 @@ import {
   Mode,
   Phase,
   type SelectionState,
+  type UpgradePickDialogState,
 } from "./types.ts";
 
 export interface OverlayActionDeps {
@@ -146,6 +147,10 @@ export function dispatchModeTap(
       get: () => LifeLostDialogState | null;
       click: (x: number, y: number) => void;
     };
+    upgradePick: {
+      get: () => UpgradePickDialogState | null;
+      click: (x: number, y: number) => void;
+    };
     lobby: {
       isActive: () => boolean;
       click: (x: number, y: number) => boolean;
@@ -167,6 +172,10 @@ export function dispatchModeTap(
   }
   if (mode === Mode.LIFE_LOST && lifeLost.get()) {
     lifeLost.click(x, y);
+    return true;
+  }
+  if (mode === Mode.UPGRADE_PICK && deps.upgradePick.get()) {
+    deps.upgradePick.click(x, y);
     return true;
   }
   if (lobby.isActive()) {

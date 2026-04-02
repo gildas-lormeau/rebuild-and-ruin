@@ -35,6 +35,7 @@ import type {
   GameState,
   LifeLostDialogState,
   Mode,
+  UpgradePickDialogState,
 } from "./types.ts";
 
 export interface RegisterOnlineInputDeps {
@@ -114,6 +115,12 @@ export interface RegisterOnlineInputDeps {
   // --- Life-lost dialog (click + get) ---
   lifeLost: {
     get: () => LifeLostDialogState | null;
+    click: (x: number, y: number) => void;
+  };
+
+  // --- Upgrade pick dialog (click + get) ---
+  upgradePick: {
+    get: () => UpgradePickDialogState | null;
     click: (x: number, y: number) => void;
   };
 

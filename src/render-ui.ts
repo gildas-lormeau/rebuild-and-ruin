@@ -15,6 +15,9 @@ import {
   gameOverLayout,
   lifeLostButtonLayout,
   SCOREBOARD_COL_RATIOS,
+  UPGRADE_CARD_GAP,
+  UPGRADE_CARD_H,
+  UPGRADE_CARD_W,
 } from "./render-composition.ts";
 import {
   BANNER_HEIGHT_RATIO,
@@ -391,9 +394,9 @@ export function drawUpgradePick(
   overlayCtx.fillText("CHOOSE UPGRADE", W / 2, H * 0.08);
 
   const time = now ?? Date.now();
-  const cardW = 120;
-  const cardH = 100;
-  const cardGap = 10;
+  const cardW = UPGRADE_CARD_W;
+  const cardH = UPGRADE_CARD_H;
+  const cardGap = UPGRADE_CARD_GAP;
   const rowGap = 8;
   const cardsPerRow = 3;
   const rowW = cardsPerRow * cardW + (cardsPerRow - 1) * cardGap;

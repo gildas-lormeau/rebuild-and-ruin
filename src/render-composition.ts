@@ -71,12 +71,22 @@ const GAMEOVER_PANEL_W_RATIO = 0.65;
 const GEAR_X = GRID_COLS * TILE_SIZE - 32;
 const GEAR_Y = 4;
 const GEAR_SIZE = 28;
+const UPGRADE_ROW_GAP = 8;
+const UPGRADE_CARDS_PER_ROW = 3;
+const UPGRADE_NAME_H = 18;
 /** Per-player snapshot of previous interior, used to detect newly enclosed tiles. */
 export const GAMEOVER_ROW_H = 14;
 export const GAMEOVER_HEADER_H = 36;
 export const GAMEOVER_BTN_H = 20;
 /** Scoreboard column X positions as ratios of panel width: Score, Walls, Cannons, Territory. */
 export const SCOREBOARD_COL_RATIOS = [0.38, 0.56, 0.74, 0.92] as const;
+/** Card layout constants — must match drawUpgradePick in render-ui.ts. */
+export const UPGRADE_CARD_W = 120;
+export const UPGRADE_CARD_H = 100;
+export const UPGRADE_CARD_GAP = 10;
+const UPGRADE_ROW_W =
+  UPGRADE_CARDS_PER_ROW * UPGRADE_CARD_W +
+  (UPGRADE_CARDS_PER_ROW - 1) * UPGRADE_CARD_GAP;
 
 export function createRenderSummaryMessage(params: {
   phaseName: string;
@@ -255,6 +265,40 @@ export function lifeLostButtonLayout(
     contX: px + PANEL_W / 2 - BTN_W - 5,
     abX: px + PANEL_W / 2 + 5,
   };
+}
+
+/** Pure spatial hit-test for upgrade pick cards.
+ *  Returns the playerId and card index of the clicked card, or null. */
+export function handleUpgradePickClick(params: {
+  W: number;
+  H: number;
+  dialog: UpgradePickDialogState;
+  screenX: number;
+  screenY: number;
+}): { playerId: number; cardIdx: number } | null {
+  const { W, H, dialog, screenX, screenY } = params;
+  const entryH = upgradePickEntryH();
+  const startY = upgradePickStartY(H, dialog.entries.length);
+  const rowX = (W - UPGRADE_ROW_W) / 2;
+
+  for (let ei = 0; ei < dialog.entries.length; ei++) {
+    const entry = dialog.entries[ei]!;
+    if (entry.choice !== null) continue;
+    const cardsY = startY + ei * entryH + UPGRADE_NAME_H;
+
+    for (let ci = 0; ci < UPGRADE_CARDS_PER_ROW; ci++) {
+      const cx = rowX + ci * (UPGRADE_CARD_W + UPGRADE_CARD_GAP);
+      if (
+        screenX >= cx &&
+        screenX <= cx + UPGRADE_CARD_W &&
+        screenY >= cardsY &&
+        screenY <= cardsY + UPGRADE_CARD_H
+      ) {
+        return { playerId: entry.playerId, cardIdx: ci };
+      }
+    }
+  }
+  return null;
 }
 
 /** Position the life-lost dialog panel centered over the player's zone towers.
@@ -545,6 +589,15 @@ export function computeLobbyLayout(W: number, H: number, count: number) {
     H * (touch ? LOBBY_RECT_Y_RATIO_TOUCH : LOBBY_RECT_Y_RATIO),
   );
   return { gap, rectW, rectH, rectY };
+}
+
+function upgradePickStartY(H: number, entryCount: number): number {
+  const totalH = entryCount * upgradePickEntryH() - UPGRADE_ROW_GAP;
+  return Math.max(H * 0.14, (H - totalH - 30) / 2);
+}
+
+function upgradePickEntryH(): number {
+  return UPGRADE_NAME_H + UPGRADE_CARD_H + UPGRADE_ROW_GAP;
 }
 
 function buildCastleOverlay(

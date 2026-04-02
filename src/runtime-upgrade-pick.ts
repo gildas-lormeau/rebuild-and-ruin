@@ -38,6 +38,8 @@ export interface UpgradePickSystem {
   moveFocus: (playerId: number, dir: number) => void;
   /** Confirm the currently focused choice. */
   confirmChoice: (playerId: number) => void;
+  /** Pick a specific card directly (e.g. from a click). */
+  pickDirect: (playerId: number, cardIdx: number) => void;
 }
 
 export function createUpgradePickSystem(
@@ -114,6 +116,20 @@ export function createUpgradePickSystem(
     });
   }
 
+  /** Pick a specific card directly (e.g. from a click on a card). */
+  function pickDirect(playerId: number, cardIdx: number): void {
+    const entry = findPendingEntry(playerId);
+    if (!entry || cardIdx < 0 || cardIdx >= entry.offers.length) return;
+    entry.focused = cardIdx;
+    const choice = entry.offers[cardIdx]!;
+    entry.choice = choice;
+    deps.send?.({
+      type: MESSAGE.UPGRADE_PICK,
+      playerId,
+      choice,
+    });
+  }
+
   function findPendingEntry(playerId: number) {
     return runtimeState.upgradePickDialog?.entries.find(
       (entry) => entry.playerId === playerId && entry.choice === null,
@@ -129,5 +145,6 @@ export function createUpgradePickSystem(
     },
     moveFocus,
     confirmChoice,
+    pickDirect,
   };
 }
