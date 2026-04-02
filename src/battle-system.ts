@@ -108,6 +108,7 @@ export function fireCannon(
   targetRow: number,
   targetCol: number,
 ): boolean {
+  if (state.players[playerId]?.eliminated) return false;
   if (!canFireOwnCannon(state, playerId, cannonIdx)) return false;
   const cannon = state.players[playerId]!.cannons[cannonIdx]!;
   launchCannonball(state, cannon, cannonIdx, playerId, targetRow, targetCol);
@@ -503,8 +504,6 @@ export function collectLocalCrosshairs<
 
   for (const ctrl of controllers) {
     if (skipController?.(ctrl.playerId)) continue;
-    const player = state.players[ctrl.playerId]!;
-    if (player.eliminated) continue;
     // Check if any cannon (own or captured) can fire right now
     const readyCannon = nextReadyCombined(state, ctrl.playerId);
     // If none ready, check if any ball is in flight (own or captured) — still reloading

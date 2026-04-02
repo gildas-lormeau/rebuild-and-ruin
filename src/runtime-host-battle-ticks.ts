@@ -36,7 +36,7 @@ import {
   type HostNetContext,
   isHostInContext,
   isRemoteHuman,
-  localActiveControllers,
+  localControllers,
 } from "./tick-context.ts";
 import type {
   BalloonFlight,
@@ -148,11 +148,7 @@ export function tickHostBattleCountdown(
   const remoteHumanSlots = getRemoteSlots(deps.net);
 
   state.battleCountdown = Math.max(0, state.battleCountdown - dt);
-  for (const ctrl of localActiveControllers(
-    controllers,
-    remoteHumanSlots,
-    state,
-  )) {
+  for (const ctrl of localControllers(controllers, remoteHumanSlots)) {
     ctrl.battleTick(state, dt);
   }
 
@@ -232,6 +228,8 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
 
   if (state.timer > 0 || state.cannonballs.length > 0) return false;
 
+  // NOTE: Intentionally includes eliminated players — they need battle state
+  // cleanup (clear fire targets, etc.) for potential castle reselection.
   for (const ctrl of controllers) {
     if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) continue;
     ctrl.endBattle();
@@ -308,11 +306,7 @@ export function beginHostBattle(deps: BeginHostBattleDeps): void {
   const { state, controllers, accum, battleCountdown, setModeGame } = deps;
   const remoteHumanSlots = getRemoteSlots(deps.net);
 
-  for (const ctrl of localActiveControllers(
-    controllers,
-    remoteHumanSlots,
-    state,
-  )) {
+  for (const ctrl of localControllers(controllers, remoteHumanSlots)) {
     ctrl.initBattleState(state);
   }
 
@@ -337,11 +331,7 @@ function tickControllersAndCollectFires(
   sendMessage: ((msg: GameMessage) => void) | undefined,
 ): CannonFiredMessage[] {
   const ballsBefore = state.cannonballs.length;
-  for (const ctrl of localActiveControllers(
-    controllers,
-    remoteHumanSlots,
-    state,
-  )) {
+  for (const ctrl of localControllers(controllers, remoteHumanSlots)) {
     ctrl.battleTick(state, dt);
   }
   const fireEvents: CannonFiredMessage[] = [];

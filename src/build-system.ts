@@ -50,6 +50,7 @@ export function placePiece(
   row: number,
   col: number,
 ): boolean {
+  if (state.players[playerId]?.eliminated) return false;
   if (!canPlacePiece(state, playerId, piece, row, col)) return false;
   applyPiecePlacement(state, playerId, piece.offsets, row, col);
   return true;
@@ -133,6 +134,7 @@ export function applyPiecePlacement(
   row: number,
   col: number,
 ): void {
+  if (state.players[playerId]?.eliminated) return;
   const player = state.players[playerId]!;
   const destroyedHousePositions: TilePos[] = [];
   const pieceKeys = new Set(

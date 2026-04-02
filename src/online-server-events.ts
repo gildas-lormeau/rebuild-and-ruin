@@ -1,18 +1,26 @@
 /**
- * Incremental message validation patterns (host vs watcher):
+ * Incremental message validation patterns (host vs watcher).
  *
- * SELECTION, PLACEMENT, AIM_UPDATE:
- *   Host validates remote-human actions (guards against invalid input).
- *   Watcher applies them directly (trusts host-relayed events).
+ * Three handler categories:
  *
- * IMPACTS (WALL_DESTROYED, TOWER_HIT, etc.):
- *   Host computes these locally — drops incoming impact messages.
- *   Watcher applies them (host is authoritative for battle outcomes).
+ * 1. Remote player actions (canonical):
+ *    handleTowerSelected, handlePiecePlaced, handleCannonPlaced,
+ *    handleCannonFired, handleAimUpdate
+ *    Pattern: validPid → eliminated check → isRemoteHumanAction guard → apply.
+ *    Host validates remote-human actions (guards against invalid input).
+ *    Watcher applies them directly (trusts host-relayed events).
  *
- * PHANTOM UPDATES:
- *   No validation needed — UI-only, no state mutation.
+ * 2. Host-authoritative events (inverted):
+ *    handleImpactEvent, handleTowerKilled, handleLifeLostChoice,
+ *    handleUpgradePick
+ *    Pattern: isHostInContext → DROPPED (watcher-only).
+ *    Host computes these locally — drops incoming messages.
+ *    Watcher applies them (host is authoritative for battle outcomes).
  *
- * Rule of thumb: if (isHostInContext(session)) { validate then apply }; if not host { apply directly }.
+ * 3. UI-only messages (lighter):
+ *    handlePiecePhantom, handleCannonPhantom
+ *    Pattern: validPid → isRemoteHumanAction → update phantom map.
+ *    Crosshairs/phantoms only — no game state mutation.
  *
  * NOTE: session.isHost is VOLATILE — it can flip from false to true during
  * host promotion (see OnlineSession in online-session.ts). All reads go
@@ -36,7 +44,6 @@ import {
 import { selectPlayerTower } from "./game-engine.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { toCannonMode, type WatcherNetworkState } from "./online-types.ts";
-import { isSelectionPending } from "./selection.ts";
 import { inBoundsStrict, packTile } from "./spatial.ts";
 import { isHostInContext, isRemoteHuman } from "./tick-context.ts";
 import {
@@ -164,15 +171,8 @@ const APPLIED: HandleResult = { applied: true };
 const DROPPED: HandleResult = { applied: false };
 
 /** Dispatch incremental game messages from the server.
- *  Each case follows the same pattern: validate → isRemoteHumanAction guard → apply.
  *  Returns `{ applied }` for observability; returns `null` if unrecognized.
- *
- *  Case groups:
- *    Selection:  OPPONENT_TOWER_SELECTED
- *    Placement:  OPPONENT_PIECE_PLACED, OPPONENT_CANNON_PLACED
- *    Battle:     CANNON_FIRED, impact events (WALL_DESTROYED etc.), AIM_UPDATE, TOWER_KILLED
- *    Phantoms:   OPPONENT_PHANTOM, OPPONENT_CANNON_PHANTOM
- *    Life-lost:  LIFE_LOST_CHOICE */
+ *  See file header for the three handler categories and their validation patterns. */
 export function handleServerIncrementalMessage(
   msg: ServerMessage,
   deps: HandleServerIncrementalDeps,
@@ -196,7 +196,7 @@ export function handleServerIncrementalMessage(
     case MESSAGE.PIT_CREATED:
       return handleImpactEvent(msg, state, deps);
     case MESSAGE.AIM_UPDATE:
-      return handleAimUpdate(msg, deps);
+      return handleAimUpdate(msg, state, deps);
     case MESSAGE.TOWER_KILLED:
       return handleTowerKilled(msg, state, deps);
     case MESSAGE.OPPONENT_PHANTOM:
@@ -218,6 +218,7 @@ function handleTowerSelected(
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
   if (!state || !validPid(msg.playerId, state)) return DROPPED;
+  if (state.players[msg.playerId]!.eliminated) return DROPPED;
   if (msg.towerIdx < 0 || msg.towerIdx >= state.map.towers.length)
     return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
@@ -228,7 +229,7 @@ function handleTowerSelected(
   const player = state.players[msg.playerId]!;
   selectPlayerTower(player, tower);
   const selectionState = deps.selectionStates.get(msg.playerId);
-  if (isSelectionPending(selectionState)) {
+  if (selectionState && !selectionState.confirmed) {
     selectionState.highlighted = msg.towerIdx;
     deps.syncSelectionOverlay();
     if (msg.confirmed && isHostInContext(deps.session)) {
@@ -251,6 +252,7 @@ function handlePiecePlaced(
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
   if (!state || !validPid(msg.playerId, state)) return DROPPED;
+  if (state.players[msg.playerId]!.eliminated) return DROPPED;
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
@@ -278,6 +280,7 @@ function handleCannonPlaced(
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
   if (!state || !validPid(msg.playerId, state)) return DROPPED;
+  if (state.players[msg.playerId]!.eliminated) return DROPPED;
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!CANNON_MODES.has(msg.mode)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
@@ -316,6 +319,7 @@ function handleCannonFired(
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
   if (!state || !validPid(msg.playerId, state)) return DROPPED;
+  if (state.players[msg.playerId]!.eliminated) return DROPPED;
   if (!Number.isFinite(msg.speed) || msg.speed <= 0) return DROPPED;
   if (
     !Number.isFinite(msg.startX) ||
@@ -378,9 +382,12 @@ function handleImpactEvent(
 
 function handleAimUpdate(
   msg: AimUpdateMsg,
+  state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
   if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return DROPPED;
+  if (state && !validPid(msg.playerId, state)) return DROPPED;
+  if (state?.players[msg.playerId]?.eliminated) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
   deps.watcher.remoteCrosshairs.set(msg.playerId, { x: msg.x, y: msg.y });
   if (msg.orbit) deps.watcher.orbitParams.set(msg.playerId, msg.orbit);

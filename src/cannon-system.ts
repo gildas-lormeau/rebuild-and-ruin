@@ -117,6 +117,7 @@ export function placeCannon(
   mode: CannonMode,
   state: GameState,
 ): boolean {
+  if (player.eliminated) return false;
   const used = cannonSlotsUsed(player);
   const cost = cannonSlotCost(mode);
   if (used + cost > maxCannons) return false;
@@ -141,6 +142,7 @@ export function canPlaceCannon(
   mode: CannonMode,
   state: GameState,
 ): boolean {
+  if (player.eliminated) return false;
   const interior = getInterior(player);
   const size = cannonSize(mode);
   // Cannon footprints are square: cannonSize() returns width=height (1 for normal, 2 for balloon/super).

@@ -78,7 +78,7 @@ export function highlightTowerSelection(
   if (!tower || tower.zone !== zone) return false;
 
   const selectionState = selectionStates.get(playerId);
-  if (!selectionState) return false;
+  if (!selectionState || selectionState.confirmed) return false;
   if (selectionState.highlighted === idx) return false;
   selectionState.highlighted = idx;
 
@@ -154,13 +154,10 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
 
   if (!isHost && isActiveOnlinePlayer(onlinePlayerId)) {
     if (accum.select >= selectTimer) {
-      const selectionState = selectionStates.get(onlinePlayerId);
-      if (isSelectionPending(selectionState)) {
-        confirmSelectionAndStartBuild(
-          onlinePlayerId,
-          isReselectPhase(state.phase),
-        );
-      }
+      confirmSelectionAndStartBuild(
+        onlinePlayerId,
+        isReselectPhase(state.phase),
+      );
     }
     render();
     return;
@@ -217,13 +214,6 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
   }
 }
 
-/** True when a selection exists and is not yet confirmed — the player can still change it. */
-export function isSelectionPending(
-  state: SelectionState | undefined,
-): state is SelectionState {
-  return state !== undefined && !state.confirmed;
-}
-
 export function allSelectionsConfirmed(
   selectionStates: Map<number, SelectionState>,
 ): boolean {
@@ -241,6 +231,13 @@ export function finishSelectionPhase(
   if (state.phase !== Phase.CASTLE_SELECT) return false;
   selectionStates.clear();
   return true;
+}
+
+/** True when a selection exists and is not yet confirmed — the player can still change it. */
+function isSelectionPending(
+  state: SelectionState | undefined,
+): state is SelectionState {
+  return state !== undefined && !state.confirmed;
 }
 
 function zoneTowerIndices(state: GameState, zone: number): number[] {

@@ -290,7 +290,8 @@ export abstract class BaseController implements PlayerController {
   /** Fire one cannon at the current crosshair position (public entry point).
    *  Converts pixel crosshair to tile coords and delegates to fireNextCannon(). */
   fire(state: GameState): void {
-    if (state.timer <= 0) return;
+    if (state.players[this.playerId]?.eliminated) return;
+    if (state.timer <= 0 || state.battleCountdown > 0) return;
     const targetRow = pxToTile(this.crosshair.y);
     const targetCol = pxToTile(this.crosshair.x);
     this.fireNextCannon(state, targetRow, targetCol);

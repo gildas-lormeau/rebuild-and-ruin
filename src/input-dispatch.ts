@@ -13,10 +13,10 @@
  *
  * ### Selection-confirmed guard convention
  *
- * All selection/dispatch handlers MUST skip if already confirmed.
- * Use `isSelectionPending(selectionState)` (from selection.ts).
- * Once a player confirms their tower choice, further selection
- * actions are no-ops. Omitting this guard causes double-processing.
+ * The selection system self-guards: highlightTowerSelection() and
+ * confirmTowerSelection() both early-return when already confirmed.
+ * Caller-side `isSelectionPending()` checks are redundant safety nets
+ * but kept for defense-in-depth.
  *
  * ### Touch-suppression pairing
  *
@@ -33,7 +33,6 @@ import {
   type PlayerController,
 } from "./controller-interfaces.ts";
 import type { WorldPos } from "./geometry-types.ts";
-import { isSelectionPending } from "./selection.ts";
 import { findNearestTower, towerAtPixel } from "./spatial.ts";
 import type { ControlsState } from "./types.ts";
 import {
@@ -210,7 +209,7 @@ export function dispatchTowerSelect(
   if (gameAction.isSelectionReady && !gameAction.isSelectionReady()) return;
   deps.withPointerPlayer((human) => {
     const selectionState = gameAction.getSelectionStates().get(human.playerId);
-    if (!isSelectionPending(selectionState)) return;
+    if (!selectionState) return;
     const zone = state.playerZones[human.playerId] ?? 0;
     const idx = towerAtPixel(state.map.towers, wx, wy);
     if (idx !== null && state.map.towers[idx]?.zone === zone) {
@@ -259,12 +258,7 @@ export function dispatchBattleFire(
     gameAction: Pick<GameActionDeps, "fireAndSend">;
   },
 ): void {
-  if (
-    state.phase !== Phase.BATTLE ||
-    state.timer <= 0 ||
-    state.battleCountdown > 0
-  )
-    return;
+  if (state.phase !== Phase.BATTLE) return;
   deps.withPointerPlayer((human) => {
     const w = deps.coords.screenToWorld(x, y);
     human.setCrosshair(w.wx, w.wy);
@@ -336,7 +330,7 @@ export function dispatchGameAction(
   if (isSelectionPhase(state.phase)) {
     if (deps.isSelectionReady && !deps.isSelectionReady()) return false;
     const selectionState = deps.getSelectionStates().get(ctrl.playerId);
-    if (!isSelectionPending(selectionState)) return false;
+    if (!selectionState) return false;
     if (isMovementAction(action)) {
       const zone = state.playerZones[ctrl.playerId] ?? 0;
       const next = findNearestTower(
@@ -374,11 +368,7 @@ export function dispatchGameAction(
       ctrl.handleKeyDown(action);
       return true;
     }
-    if (
-      action === Action.CONFIRM &&
-      state.battleCountdown <= 0 &&
-      state.timer > 0
-    ) {
+    if (action === Action.CONFIRM) {
       deps.fireAndSend(ctrl, state);
       return true;
     }
@@ -417,7 +407,7 @@ export function dispatchPointerMove(
       const selectionState = gameAction
         .getSelectionStates()
         .get(human.playerId);
-      if (!isSelectionPending(selectionState)) return;
+      if (!selectionState) return;
       const zone = state.playerZones[human.playerId] ?? 0;
       const w = coords.screenToWorld(x, y);
       const idx = towerAtPixel(state.map.towers, w.wx, w.wy);

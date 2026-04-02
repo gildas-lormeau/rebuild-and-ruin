@@ -36,7 +36,7 @@ import {
   type HostNetContext,
   isHostInContext,
   isRemoteHuman,
-  localActiveControllers,
+  localControllers,
   tickGruntsIfDue,
 } from "./tick-context.ts";
 import { CannonMode, type GameState } from "./types.ts";
@@ -174,11 +174,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   }
   frame.phantoms = { cannonPhantoms: [], defaultFacings };
   // ── PASS 1: Tick local controllers (process input & AI decisions) ──
-  for (const ctrl of localActiveControllers(
-    controllers,
-    remoteHumanSlots,
-    state,
-  )) {
+  for (const ctrl of localControllers(controllers, remoteHumanSlots)) {
     const cannonsBefore = state.players[ctrl.playerId]!.cannons.length;
     const phantom = ctrl.cannonTick(state, dt);
 
@@ -242,6 +238,8 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   // Local controllers (AI + local human): call finalizeCannonPhase() which flushes then inits.
   // Using the wrong method corrupts cannon state — finalizeCannonPhase on a remote
   // double-flushes; initCannons on a local skips the flush entirely.
+  // NOTE: Intentionally includes eliminated players — they need cannon state
+  // cleanup (flush + round-1 init) for potential castle reselection.
   for (const ctrl of controllers) {
     const max = state.cannonLimits[ctrl.playerId] ?? 0;
     if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) {
@@ -299,11 +297,7 @@ function processControllerBuildActions(
   const sendOpponentPhantom = deps.net?.sendOpponentPhantom;
 
   // ── PASS 1: Tick local controllers (process input & AI decisions) ──
-  for (const ctrl of localActiveControllers(
-    controllers,
-    remoteHumanSlots,
-    state,
-  )) {
+  for (const ctrl of localControllers(controllers, remoteHumanSlots)) {
     const player = state.players[ctrl.playerId];
     if (!player) continue;
     const hadInterior = getInterior(player).size > 0;
@@ -461,6 +455,8 @@ function finalizeBuildAndShowDialogs(
   // Remote humans: call initBag() only (their build was finalized client-side).
   // Local controllers (AI + local human): call finalizeBuildPhase() which flushes then inits.
   // Using the wrong method corrupts piece-bag state.
+  // NOTE: Intentionally includes eliminated players — they need state cleanup
+  // (bag/piece nulling) for potential castle reselection.
   for (const ctrl of controllers) {
     if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) continue;
     ctrl.finalizeBuildPhase(state);

@@ -130,18 +130,14 @@ export function tickGruntsIfDue(
   }
 }
 
-/** Filter controllers to only local (non-remote) players that are still alive. */
-export function localActiveControllers<
+/** Filter controllers to only local (non-remote) players.
+ *  Does NOT filter eliminated players — game systems (fire, placePiece, etc.)
+ *  self-guard against eliminated players at the mutation boundary. */
+export function localControllers<
   T extends ControllerIdentity = ControllerIdentity,
->(
-  controllers: readonly T[],
-  remoteHumanSlots: ReadonlySet<number>,
-  state: GameState,
-): T[] {
+>(controllers: readonly T[], remoteHumanSlots: ReadonlySet<number>): T[] {
   return controllers.filter(
-    (ctrl) =>
-      !isRemoteHuman(ctrl.playerId, remoteHumanSlots) &&
-      !state.players[ctrl.playerId]?.eliminated,
+    (ctrl) => !isRemoteHuman(ctrl.playerId, remoteHumanSlots),
   );
 }
 
