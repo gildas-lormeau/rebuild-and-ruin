@@ -29,7 +29,7 @@ npm run refactor find-symbol <name>
 npm run refactor find-symbol --symbol <name>
 ```
 
-Best for: finding which file owns a symbol before running `move-export` or `rename-symbol`.
+Best for: finding which file owns a symbol before running `move-export` or `rename-symbol`. Also finds class members (methods, properties, abstract members) — reported as `ClassName.MemberKind`.
 
 ### `list-exports` — List all exports from a file
 
@@ -80,7 +80,7 @@ npm run refactor move-export --from <from> --to <to> --symbol <name1> --symbol <
 
 Positional arg order is auto-detected: `move-export <name> <from> <to>` also works (the tool detects when the first arg looks like a symbol rather than a file path).
 
-Best for: moving a constant, function, type, or interface to a more appropriate module. Use multiple `--symbol` flags to move related declarations together (e.g., a type and its companion helper).
+Best for: moving a constant, function, type, or interface to a more appropriate module. Use multiple `--symbol` flags to move related declarations together (e.g., a type and its companion helper). Detects re-exports (`export type { X } from "..."`) and points to the canonical source instead of silently breaking.
 
 ### `rename-prop` — Rename an interface/type property
 
