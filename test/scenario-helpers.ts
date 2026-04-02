@@ -134,13 +134,13 @@ export interface Scenario {
 }
 
 export interface TransitionTestDeps {
-  onlinePlayerId: number;
+  myPlayerId: number;
 }
 
 export interface CameraTestDeps {
   mode: Mode;
   phase: Phase;
-  onlinePlayerId: number;
+  myPlayerId: number;
   isSelectionReady: boolean;
   humanIsReselecting: boolean;
   mobileAutoZoom: boolean;
@@ -406,7 +406,7 @@ export function createScenario(seed = 42): Scenario {
     const defaults: CameraTestDeps = {
       mode: Mode.GAME,
       phase: state.phase,
-      onlinePlayerId: 0,
+      myPlayerId: 0,
       isSelectionReady: false,
       humanIsReselecting: false,
       mobileAutoZoom: true,
@@ -423,7 +423,7 @@ export function createScenario(seed = 42): Scenario {
         hasLifeLostDialog: false,
         isSelectionReady: deps.isSelectionReady,
         humanIsReselecting: deps.humanIsReselecting,
-        onlinePlayerId: deps.onlinePlayerId,
+        myPlayerId: deps.myPlayerId,
         hostAtFrameStart: true,
         remoteHumanSlots: new Set(),
         mobileAutoZoom: deps.mobileAutoZoom,
@@ -473,7 +473,7 @@ export function createScenario(seed = 42): Scenario {
       eliminated,
       state,
       hostAtFrameStart: true,
-      onlinePlayerId: 0,
+      myPlayerId: 0,
       remoteHumanSlots: new Set(),
       isHumanController: () => false,
     });
@@ -495,7 +495,7 @@ export function createScenario(seed = 42): Scenario {
   function doCreateTransitionContext(
     overrides: Partial<TransitionTestDeps> = {},
   ): TransitionContext {
-    const onlinePlayerId = overrides.onlinePlayerId ?? 0;
+    const myPlayerId = overrides.myPlayerId ?? 0;
     const banner = createBannerState();
     const battleAnim = createBattleAnimState();
     const watcherTiming: WatcherTimingState = {
@@ -518,7 +518,7 @@ export function createScenario(seed = 42): Scenario {
 
     return {
       getState: () => state,
-      session: { onlinePlayerId },
+      session: { myPlayerId },
       getControllers: () => controllers,
       setMode: () => {},
       now: () => performance.now(),

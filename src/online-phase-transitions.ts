@@ -53,7 +53,7 @@ import {
 export interface TransitionContext {
   // ── Core state access ──
   getState: () => GameState;
-  session: Pick<OnlineSession, "onlinePlayerId">;
+  session: Pick<OnlineSession, "myPlayerId">;
   getControllers: () => PlayerController[];
   /** Set the UI rendering mode. Valid transitions from phase handlers:
    *  - CASTLE_BUILD — castle wall animation playing
@@ -206,7 +206,7 @@ export function handleCastleWallsTransition(
   transitionCtx.selection.clearSelectionOverlay();
   // Zoom to the local player's castle on mobile
   const myPlan = plans.find(
-    (plan) => plan.playerId === transitionCtx.session.onlinePlayerId,
+    (plan) => plan.playerId === transitionCtx.session.myPlayerId,
   );
   if (myPlan) transitionCtx.selection.setCastleBuildViewport([myPlan]);
 
@@ -223,7 +223,7 @@ export function handleCannonStartTransition(
 ): void {
   if (msg.type !== MESSAGE.CANNON_START) return;
   const state = transitionCtx.getState();
-  const onlinePlayerId = transitionCtx.session.onlinePlayerId;
+  const myPlayerId = transitionCtx.session.myPlayerId;
   transitionCtx.selection.clearSelectionOverlay();
 
   // oldCastles is already pre-captured in handleBuildEndTransition (pre-sweep walls).
@@ -232,8 +232,8 @@ export function handleCannonStartTransition(
   });
 
   const initLocalController = () => {
-    if (isActiveOnlinePlayer(onlinePlayerId)) {
-      const ctrl = transitionCtx.getControllers()[onlinePlayerId];
+    if (isActiveOnlinePlayer(myPlayerId)) {
+      const ctrl = transitionCtx.getControllers()[myPlayerId];
       if (ctrl) initControllerForCannonPhase(ctrl, state);
     }
   };
@@ -322,7 +322,7 @@ export function handleBuildStartTransition(
 ): void {
   if (msg.type !== MESSAGE.BUILD_START) return;
   const state = transitionCtx.getState();
-  const onlinePlayerId = transitionCtx.session.onlinePlayerId;
+  const myPlayerId = transitionCtx.session.myPlayerId;
 
   // Step 1: apply checkpoint (deserializes offers, modifier, players)
   transitionCtx.checkpoint.applyBuildStart(msg, () => {
@@ -353,12 +353,10 @@ export function handleBuildStartTransition(
         // Already applied above — no-op
       },
       initControllers: () => {
-        if (isActiveOnlinePlayer(onlinePlayerId)) {
-          const player = state.players[onlinePlayerId];
+        if (isActiveOnlinePlayer(myPlayerId)) {
+          const player = state.players[myPlayerId];
           if (player && !player.eliminated) {
-            transitionCtx
-              .getControllers()
-              [onlinePlayerId]?.startBuildPhase(state);
+            transitionCtx.getControllers()[myPlayerId]?.startBuildPhase(state);
           }
         }
       },
@@ -406,15 +404,14 @@ export function handleBuildEndTransition(
   // Shared build-end sequence: score deltas → onLifeLost → dialog.
   // Without the score-delta delay, non-host sends life_lost_choice before
   // host creates its dialog.
-  const onlinePlayerId = transitionCtx.session.onlinePlayerId;
+  const myPlayerId = transitionCtx.session.myPlayerId;
   runBuildEndSequence({
     needsReselect: msg.needsReselect,
     eliminated: msg.eliminated,
     showScoreDeltas: (onDone) =>
       transitionCtx.endPhase.showScoreDeltas(preScores, onDone),
     notifyLifeLost: (pid) => {
-      if (pid === onlinePlayerId)
-        transitionCtx.getControllers()[pid]?.onLifeLost();
+      if (pid === myPlayerId) transitionCtx.getControllers()[pid]?.onLifeLost();
     },
     showLifeLostDialog: transitionCtx.endPhase.showLifeLostDialog,
     // No afterLifeLostResolved — watcher waits for host's next phase message

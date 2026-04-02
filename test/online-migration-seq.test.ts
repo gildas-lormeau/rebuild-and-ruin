@@ -50,7 +50,7 @@ test("lifecycle drops stale full_state after host migration", () => {
     now: () => 0,
     session: {
       isHost: false,
-      onlinePlayerId: 0,
+      myPlayerId: 0,
       get hostMigrationSeq() { return migrationSeq; },
       set hostMigrationSeq(seq: number) { migrationSeq = seq; },
       roomWaitTimerSec: 0,

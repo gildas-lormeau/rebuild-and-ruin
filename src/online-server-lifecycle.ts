@@ -24,7 +24,7 @@ interface HandleServerLifecycleDeps {
   session: Pick<
     OnlineSession,
     | "isHost"
-    | "onlinePlayerId"
+    | "myPlayerId"
     | "hostMigrationSeq"
     | "roomWaitTimerSec"
     | "roomMaxRounds"
@@ -94,7 +94,7 @@ export function handleServerLifecycleMessage(
   const occupyLobbySlot = (playerId: number) => {
     deps.lobby.joined[playerId] = true;
     deps.session.occupiedSlots.add(playerId);
-    if (playerId !== deps.session.onlinePlayerId) {
+    if (playerId !== deps.session.myPlayerId) {
       deps.session.remoteHumanSlots.add(playerId);
     } else {
       deps.session.remoteHumanSlots.delete(playerId);
@@ -150,12 +150,12 @@ export function handleServerLifecycleMessage(
       ) {
         clearLobbySlot(msg.previousPlayerId);
       } else {
-        const currentPlayerId = deps.session.onlinePlayerId;
+        const currentPlayerId = deps.session.myPlayerId;
         if (currentPlayerId >= 0 && currentPlayerId !== msg.playerId) {
           clearLobbySlot(currentPlayerId);
         }
       }
-      deps.session.onlinePlayerId = msg.playerId;
+      deps.session.myPlayerId = msg.playerId;
       occupyLobbySlot(msg.playerId);
       return true;
 
@@ -226,7 +226,7 @@ export function handleServerLifecycleMessage(
         `host_left: new host is P${msg.newHostPlayerId} (previous: P${msg.disconnectedPlayerId})`,
       );
       deps.session.hostMigrationSeq++;
-      if (msg.newHostPlayerId === deps.session.onlinePlayerId) {
+      if (msg.newHostPlayerId === deps.session.myPlayerId) {
         deps.migration.promoteToHost();
         deps.ui.setAnnouncement("You are now the host");
       } else {

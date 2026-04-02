@@ -190,7 +190,7 @@ test("camera stays unzoomed during AI-only reselection", () => {
   const handle = s.createCamera({
     mode: Mode.SELECTION,
     phase: Phase.CASTLE_RESELECT,
-    onlinePlayerId: 0,
+    myPlayerId: 0,
     isSelectionReady: false,
     mobileAutoZoom: true,
   });
@@ -299,7 +299,7 @@ test("camera zooms to human zone when human IS reselecting", () => {
   const handle = s.createCamera({
     mode: Mode.SELECTION,
     phase: Phase.CASTLE_RESELECT,
-    onlinePlayerId: 0,
+    myPlayerId: 0,
     isSelectionReady: false,
     humanIsReselecting: true,
     mobileAutoZoom: true,
@@ -555,7 +555,7 @@ test("resetSessionState closes WebSocket and resets all fields", () => {
   let closeCalled = false;
   session.socket = { close: () => { closeCalled = true; } } as unknown as WebSocket;
   session.isHost = true; // eslint-disable-line no-restricted-syntax -- test setup
-  session.onlinePlayerId = 2;
+  session.myPlayerId = 2;
   session.hostMigrationSeq = 3;
   session.occupiedSlots = new Set([0, 1, 2]);
   session.remoteHumanSlots.add(1);
@@ -566,7 +566,7 @@ test("resetSessionState closes WebSocket and resets all fields", () => {
   assert(closeCalled, "socket.close() should be called");
   assert(session.socket === null, "socket should be null after reset");
   assert(!session.isHost, "isHost should be false"); // eslint-disable-line no-restricted-syntax -- test assertion
-  assert(session.onlinePlayerId === -1, "onlinePlayerId should be -1");
+  assert(session.myPlayerId === -1, "myPlayerId should be -1");
   assert(session.hostMigrationSeq === 0, "hostMigrationSeq should be 0");
   assert(session.occupiedSlots.size === 0, "occupiedSlots should be empty");
   assert(session.remoteHumanSlots.size === 0, "remoteHumanSlots should be empty");

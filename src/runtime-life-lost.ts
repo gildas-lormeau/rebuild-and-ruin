@@ -80,7 +80,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       eliminated,
       state: runtimeState.state,
       hostAtFrameStart: runtimeState.frameCtx.hostAtFrameStart,
-      onlinePlayerId: runtimeState.frameCtx.onlinePlayerId,
+      myPlayerId: runtimeState.frameCtx.myPlayerId,
       remoteHumanSlots,
       isHumanController: (playerId) =>
         isHuman(runtimeState.controllers[playerId]!),

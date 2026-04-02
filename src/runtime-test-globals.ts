@@ -12,7 +12,7 @@ import { Mode, Phase } from "./types.ts";
 /** Expose mode, phase, and targeting data for E2E test automation (dev only). */
 export function exposeTestGlobals(
   runtimeState: RuntimeState,
-  config: Pick<RuntimeConfig, "getOnlinePlayerId">,
+  config: Pick<RuntimeConfig, "getMyPlayerId">,
 ): void {
   if (typeof window === "undefined") return;
   const w = globalThis as unknown as Record<string, unknown>;
@@ -21,7 +21,7 @@ export function exposeTestGlobals(
     ? Phase[runtimeState.state.phase]
     : "";
   w.__testTimer = isStateReady(runtimeState) ? runtimeState.state.timer : 0;
-  const myPid = config.getOnlinePlayerId();
+  const myPid = config.getMyPlayerId();
   if (isStateReady(runtimeState) && myPid >= 0) {
     const enemies: { x: number; y: number }[] = [];
     for (const player of runtimeState.state.players) {

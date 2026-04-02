@@ -97,7 +97,7 @@ export interface FrameContextInputs {
   hasLifeLostDialog: boolean;
   isSelectionReady: boolean;
   humanIsReselecting: boolean;
-  onlinePlayerId: OnlinePlayerId;
+  myPlayerId: OnlinePlayerId;
   hostAtFrameStart: boolean;
   remoteHumanSlots: ReadonlySet<number>;
   mobileAutoZoom: boolean;
@@ -115,7 +115,7 @@ export interface RuntimeConfig {
   getIsHost: () => boolean;
   /** This client's player slot in online mode, or -1 in local (shared-screen) mode.
    *  Only meaningful for online play — local consumers should use povPlayerId instead. */
-  getOnlinePlayerId: () => OnlinePlayerId;
+  getMyPlayerId: () => OnlinePlayerId;
   /** () => emptySet for local. */
   getRemoteHumanSlots: () => Set<number>;
   /** noop for local. */
@@ -342,7 +342,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     hasLifeLostDialog,
     isSelectionReady,
     humanIsReselecting,
-    onlinePlayerId,
+    myPlayerId,
     hostAtFrameStart,
     remoteHumanSlots,
     mobileAutoZoom,
@@ -359,12 +359,12 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
 
   const shouldUnzoom = uiBlocking || phaseEnding;
 
-  const povPlayerId: ValidPlayerSlot = isActiveOnlinePlayer(onlinePlayerId)
-    ? onlinePlayerId
+  const povPlayerId: ValidPlayerSlot = isActiveOnlinePlayer(myPlayerId)
+    ? myPlayerId
     : (0 as ValidPlayerSlot);
 
   return {
-    onlinePlayerId,
+    myPlayerId,
     povPlayerId,
     hostAtFrameStart,
     remoteHumanSlots,

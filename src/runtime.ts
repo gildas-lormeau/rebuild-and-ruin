@@ -170,7 +170,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       humanIsReselecting: runtimeState.reselectQueue.includes(
         pointerPlayer()?.playerId ?? -1,
       ),
-      onlinePlayerId: config.getOnlinePlayerId(),
+      myPlayerId: config.getMyPlayerId(),
       hostAtFrameStart: config.getIsHost(),
       remoteHumanSlots: config.getRemoteHumanSlots(),
       mobileAutoZoom: camera.isMobileAutoZoom(),

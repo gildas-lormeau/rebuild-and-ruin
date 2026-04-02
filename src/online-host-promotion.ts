@@ -22,11 +22,11 @@ const SEED_SLOT_MULTIPLIER = 0x9e3779b9;
 export function rebuildControllersForPhase(
   state: GameState,
   controllers: PlayerController[],
-  onlinePlayerId: number,
+  myPlayerId: number,
   createAiController: (id: number, seed: number) => PlayerController,
 ): void {
   for (let i = 0; i < controllers.length; i++) {
-    if (i === onlinePlayerId) continue;
+    if (i === myPlayerId) continue;
     const player = state.players[i];
     if (!isPlayerAlive(player)) continue;
 

@@ -46,7 +46,7 @@ interface WatcherBattleDeps {
   frame: WatcherBattleFrame;
   battleAnim: WatcherBattleAnimState;
   dt: number;
-  onlinePlayerId: number;
+  myPlayerId: number;
   localController: PlayerController | null;
   remoteCrosshairs: Map<number, PixelPos>;
   watcherCrosshairPos: Map<number, PixelPos>;
@@ -83,7 +83,7 @@ interface TickWatcherCannonPhantomsDeps {
   state: GameState;
   frame: WatcherPhantomFrame;
   dt: number;
-  onlinePlayerId: number;
+  myPlayerId: number;
   localController: PlayerController | null;
   remoteCannonPhantoms: readonly CannonPhantom[];
   lastSentCannonPhantom: DedupChannel;
@@ -157,7 +157,7 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     frame,
     battleAnim,
     dt,
-    onlinePlayerId,
+    myPlayerId,
     localController,
     remoteCrosshairs,
     watcherCrosshairPos,
@@ -225,7 +225,7 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     state,
     frame,
     dt,
-    onlinePlayerId,
+    myPlayerId,
     localController,
     nextReadyCombined,
     maybeSendAimUpdate,
@@ -240,7 +240,7 @@ export function tickWatcherCannonPhantomsPhase(
     state,
     frame,
     dt,
-    onlinePlayerId,
+    myPlayerId,
     localController,
     remoteCannonPhantoms,
     lastSentCannonPhantom,
@@ -262,12 +262,10 @@ export function tickWatcherCannonPhantomsPhase(
   if (!phantom) return;
 
   frame.phantoms.cannonPhantoms!.push(phantom);
-  if (
-    !lastSentCannonPhantom.shouldSend(onlinePlayerId, cannonPhantomKey(phantom))
-  )
+  if (!lastSentCannonPhantom.shouldSend(myPlayerId, cannonPhantomKey(phantom)))
     return;
   sendOpponentCannonPhantom({
-    playerId: onlinePlayerId,
+    playerId: myPlayerId,
     row: phantom.row,
     col: phantom.col,
     mode: phantomWireMode(phantom),
@@ -360,7 +358,7 @@ function tickLocalBattle(
   state: GameState,
   frame: WatcherBattleFrame,
   dt: number,
-  onlinePlayerId: number,
+  myPlayerId: number,
   localController: PlayerController | null,
   nextReadyCombined: (state: GameState, playerId: number) => unknown,
   maybeSendAimUpdate: (x: number, y: number) => void,
@@ -377,16 +375,16 @@ function tickLocalBattle(
   localController.battleTick(state, dt);
   const ch = localController.getCrosshair();
 
-  if (canPlayerFire(state, onlinePlayerId)) {
-    const readyCannon = nextReadyCombined(state, onlinePlayerId);
+  if (canPlayerFire(state, myPlayerId)) {
+    const readyCannon = nextReadyCombined(state, myPlayerId);
     frame.crosshairs.push({
       x: ch.x,
       y: ch.y,
-      playerId: onlinePlayerId,
+      playerId: myPlayerId,
       cannonReady: state.battleCountdown <= 0 && !!readyCannon,
     });
   }
 
   maybeSendAimUpdate(ch.x, ch.y);
-  aimCannons(state, onlinePlayerId, ch.x, ch.y, dt);
+  aimCannons(state, myPlayerId, ch.x, ch.y, dt);
 }

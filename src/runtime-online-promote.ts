@@ -52,7 +52,7 @@ export function promoteToHost(): void {
   rebuildControllersForPhase(
     _runtime.runtimeState.state,
     _runtime.runtimeState.controllers,
-    ctx.session.onlinePlayerId,
+    ctx.session.myPlayerId,
     (id, seed) =>
       createAiController(id, seed, _runtime.runtimeState.settings.difficulty),
   );

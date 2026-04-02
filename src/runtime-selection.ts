@@ -134,7 +134,7 @@ export function createSelectionSystem(
     enterTowerSelectionImpl({
       state: runtimeState.state,
       isHost: runtimeState.frameCtx.hostAtFrameStart,
-      onlinePlayerId: runtimeState.frameCtx.onlinePlayerId,
+      myPlayerId: runtimeState.frameCtx.myPlayerId,
       remoteHumanSlots: runtimeState.frameCtx.remoteHumanSlots,
       controllers: runtimeState.controllers,
       selectionStates: runtimeState.selectionStates,
@@ -270,7 +270,7 @@ export function createSelectionSystem(
       dt,
       state: runtimeState.state,
       isHost: runtimeState.frameCtx.hostAtFrameStart,
-      onlinePlayerId: runtimeState.frameCtx.onlinePlayerId,
+      myPlayerId: runtimeState.frameCtx.myPlayerId,
       selectTimer: SELECT_TIMER,
       accum: runtimeState.accum,
       selectionStates: runtimeState.selectionStates,

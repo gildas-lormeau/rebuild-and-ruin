@@ -87,11 +87,11 @@ export function devLog(msg: string): void {
   if (!DEV) return;
   const modeStr = isHostInContext(ctx.session)
     ? "host"
-    : isActiveOnlinePlayer(ctx.session.onlinePlayerId)
+    : isActiveOnlinePlayer(ctx.session.myPlayerId)
       ? "player"
       : "watcher";
   console.log(
-    `[online] (mode=${modeStr} pid=${ctx.session.onlinePlayerId}) ${msg}`,
+    `[online] (mode=${modeStr} pid=${ctx.session.myPlayerId}) ${msg}`,
   );
 }
 

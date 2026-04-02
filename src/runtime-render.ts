@@ -115,7 +115,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       povPlayerId: runtimeState.frameCtx.povPlayerId,
       upgradePickInteractiveId: computeUpgradePickInteractiveId(
         runtimeState.upgradePickDialog,
-        runtimeState.frameCtx.onlinePlayerId,
+        runtimeState.frameCtx.myPlayerId,
       ),
       playerNames: PLAYER_NAMES,
       playerColors: PLAYER_COLORS,
@@ -174,11 +174,11 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
  *  Returns the player ID, or -1 if no local player is picking. */
 function computeUpgradePickInteractiveId(
   dialog: UpgradePickDialogState | null,
-  onlinePlayerId: number,
+  myPlayerId: number,
 ): number {
   if (!dialog) return -1;
   const entry = dialog.entries.find(
-    (e) => e.playerId === onlinePlayerId && !e.autoResolve,
+    (e) => e.playerId === myPlayerId && !e.autoResolve,
   );
   return entry ? entry.playerId : -1;
 }

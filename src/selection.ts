@@ -20,7 +20,7 @@ interface TickSelectionPhaseDeps {
   dt: number;
   state: GameState;
   isHost: boolean;
-  onlinePlayerId: number;
+  myPlayerId: number;
   selectTimer: number;
   /** Mutable — tickSelectionPhase is a blessed mutation site (see MutableAccums in tick-context.ts). */
   accum: { select: number; selectAnnouncement: number };
@@ -117,7 +117,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     dt,
     state,
     isHost,
-    onlinePlayerId,
+    myPlayerId,
     selectTimer,
     accum,
     selectionStates,
@@ -147,17 +147,14 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     accum.select += dt;
     state.timer = Math.max(0, selectTimer - accum.select);
   }
-  if (!isHost && !isActiveOnlinePlayer(onlinePlayerId)) {
+  if (!isHost && !isActiveOnlinePlayer(myPlayerId)) {
     render();
     return;
   }
 
-  if (!isHost && isActiveOnlinePlayer(onlinePlayerId)) {
+  if (!isHost && isActiveOnlinePlayer(myPlayerId)) {
     if (accum.select >= selectTimer) {
-      confirmSelectionAndStartBuild(
-        onlinePlayerId,
-        isReselectPhase(state.phase),
-      );
+      confirmSelectionAndStartBuild(myPlayerId, isReselectPhase(state.phase));
     }
     render();
     return;

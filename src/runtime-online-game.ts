@@ -147,7 +147,7 @@ const runtime: GameRuntime = createGameRuntime({
   send,
   // eslint-disable-next-line no-restricted-syntax -- bridge to runtime layer
   getIsHost: () => ctx.session.isHost,
-  getOnlinePlayerId: () => ctx.session.onlinePlayerId,
+  getMyPlayerId: () => ctx.session.myPlayerId,
   getRemoteHumanSlots: () => ctx.session.remoteHumanSlots,
   log: devLog,
   logThrottled: devLogThrottled,
@@ -424,10 +424,10 @@ function initFromServer(msg: InitMessage): void {
   const playerCount = Math.min(Math.max(1, msg.playerCount), MAX_PLAYERS);
   const humanSlots = Array.from(
     { length: playerCount },
-    (_, i) => i === ctx.session.onlinePlayerId,
+    (_, i) => i === ctx.session.myPlayerId,
   );
   const keyBindings = Array.from({ length: playerCount }, (_, i) =>
-    i === ctx.session.onlinePlayerId ? settings.keyBindings[0] : undefined,
+    i === ctx.session.myPlayerId ? settings.keyBindings[0] : undefined,
   );
   bootstrapGame({
     seed: msg.seed,
