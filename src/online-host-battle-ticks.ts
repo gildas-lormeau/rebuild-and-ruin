@@ -52,7 +52,7 @@ interface TickHostBattleCountdownDeps {
   state: GameState;
   frame: { announcement?: string };
   controllers: BattleCapable[];
-  syncCrosshairs: (canFireNow: boolean, dt: number) => void;
+  syncCrosshairs: (battleCountdownExpired: boolean, dt: number) => void;
   render: () => void;
   /** Network context. Pass LOCAL_NET for local play, full context for online. */
   net: Pick<HostNetContext, "remoteHumanSlots">;
@@ -73,7 +73,7 @@ interface TickHostBattlePhaseDeps {
   controllers: BattleCapable[];
   battleAnim: { impacts: Impact[] };
   render: () => void;
-  syncCrosshairs: (canFireNow: boolean, dt: number) => void;
+  syncCrosshairs: (battleCountdownExpired: boolean, dt: number) => void;
   collectTowerEvents: (state: GameState, dt: number) => Array<BattleEvent>;
   tickCannonballsWithEvents: (
     state: GameState,
@@ -154,8 +154,8 @@ export function tickHostBattleCountdown(
 
   frame.announcement = getCountdownAnnouncement(state.battleCountdown);
 
-  const canFireNow = false; // countdown — weapons not yet active
-  syncCrosshairs(canFireNow, dt);
+  const battleCountdownExpired = false; // countdown — weapons not yet active
+  syncCrosshairs(battleCountdownExpired, dt);
   render();
 }
 
@@ -223,7 +223,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     if (allEvents.length > 0) onBattleEvents(allEvents);
   }
 
-  syncCrosshairs(/* canFireNow */ true, dt);
+  syncCrosshairs(/* battleCountdownExpired */ true, dt);
   render();
 
   if (state.timer > 0 || state.cannonballs.length > 0) return false;

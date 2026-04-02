@@ -30,7 +30,7 @@
 
 import { IMPACT_FLASH_DURATION } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
-import { TILE_SIZE, TILE_WATER } from "./grid.ts";
+import { TILE_SIZE } from "./grid.ts";
 import { getPlayerColor } from "./player-config.ts";
 import { drawSprite } from "./render-sprites.ts";
 import {
@@ -49,7 +49,7 @@ import {
   TEXT_WHITE,
 } from "./render-theme.ts";
 import type { MapData, RenderOverlay } from "./render-types.ts";
-import { facingToCardinal, unpackTile } from "./spatial.ts";
+import { facingToCardinal, isWater, unpackTile } from "./spatial.ts";
 import { type CannonMode, isBalloonMode, isSuperMode } from "./types.ts";
 
 // Water wave animation parameters — tuned for natural-looking tile-scale ripples
@@ -209,15 +209,15 @@ export function drawWaterAnimation(
   const frozen = overlay?.entities?.frozenTiles;
   for (let r = 1; r < rows - 1; r++) {
     for (let c = 1; c < cols - 1; c++) {
-      if (map.tiles[r]![c] !== TILE_WATER) continue;
+      if (!isWater(map.tiles, r, c)) continue;
       // Skip frozen tiles (ice, no waves)
       if (frozen?.has(r * cols + c)) continue;
       // Skip water tiles adjacent to grass (bank transition zone)
       if (
-        map.tiles[r - 1]![c] !== TILE_WATER ||
-        map.tiles[r + 1]![c] !== TILE_WATER ||
-        map.tiles[r]![c - 1] !== TILE_WATER ||
-        map.tiles[r]![c + 1] !== TILE_WATER
+        !isWater(map.tiles, r - 1, c) ||
+        !isWater(map.tiles, r + 1, c) ||
+        !isWater(map.tiles, r, c - 1) ||
+        !isWater(map.tiles, r, c + 1)
       )
         continue;
       const px = c * TILE_SIZE;

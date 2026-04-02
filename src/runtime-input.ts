@@ -12,11 +12,8 @@ import type {
   PlayerController,
 } from "./controller-interfaces.ts";
 import { isHuman } from "./controller-interfaces.ts";
-import {
-  OPTION_CONTROLS,
-  type UIContext,
-  visibleOptions,
-} from "./game-ui-screens.ts";
+import { type UIContext, visibleOptions } from "./game-ui-screens.ts";
+import { OPT_CONTROLS } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
@@ -326,7 +323,7 @@ function buildInputDeps(
       getCount: () => visibleOptions(uiCtx).length,
       getRealIdx: options.visibleToActualOptionIdx,
       confirmOption: () => {
-        if (options.visibleToActualOptionIdx() === OPTION_CONTROLS)
+        if (options.visibleToActualOptionIdx() === OPT_CONTROLS)
           options.showControls();
         else options.closeOptions();
       },
@@ -543,7 +540,7 @@ function buildOverlayActionDeps(
       },
       changeValue: (dir: -1 | 1) => options.changeOption(dir),
       confirm: () => {
-        if (options.visibleToActualOptionIdx() === OPTION_CONTROLS)
+        if (options.visibleToActualOptionIdx() === OPT_CONTROLS)
           options.showControls();
         else options.closeOptions();
       },

@@ -119,7 +119,7 @@ export interface PhaseTicksSystem {
   tickBattlePhase: (dt: number) => boolean;
   tickBuildPhase: (dt: number) => boolean;
   tickGame: (dt: number) => void;
-  syncCrosshairs: (canFireNow: boolean, dt?: number) => void;
+  syncCrosshairs: (battleCountdownExpired: boolean, dt?: number) => void;
 }
 
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
@@ -134,12 +134,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // Crosshairs
   // -------------------------------------------------------------------------
 
-  function syncCrosshairs(canFireNow: boolean, dt = 0): void {
+  function syncCrosshairs(battleCountdownExpired: boolean, dt = 0): void {
     const remoteHumanSlots = runtimeState.frameCtx.remoteHumanSlots;
     runtimeState.frame.crosshairs = collectLocalCrosshairs({
       state: runtimeState.state,
       controllers: runtimeState.controllers,
-      canFireNow,
+      canFireNow: battleCountdownExpired,
       skipController: (pid) => isRemoteHuman(pid, remoteHumanSlots),
       onCrosshairCollected: deps.onLocalCrosshairCollected,
     });

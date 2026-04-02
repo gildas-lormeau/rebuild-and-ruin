@@ -34,12 +34,12 @@ interface BattleHost {
   ): CombinedCannonResult | null;
 }
 
-/** Pre-battle idle orbit parameters (randomized once per countdown). */
-type IdleOrbit = { rx: number; ry: number; speed: number };
+/** Pre-battle countdown orbit parameters (randomized once per countdown). */
+type CountdownOrbit = { rx: number; ry: number; speed: number };
 
 type BattleState =
   | { step: typeof STEP.IDLE }
-  | { step: typeof STEP.COUNTDOWN; orbit: IdleOrbit | null }
+  | { step: typeof STEP.COUNTDOWN; orbit: CountdownOrbit | null }
   | { step: typeof STEP.CHAIN_MOVING }
   | { step: typeof STEP.CHAIN_DWELLING; timer: number }
   | { step: typeof STEP.THINKING; timer: number }
@@ -197,6 +197,8 @@ export function tickBattle(
       tickDwelling(host, phase, state, dt);
       break;
     default:
+      // IDLE and COUNTDOWN are handled by early returns above (lines 126–154).
+      // If a new BattleState step is added, add its case here.
       break;
   }
 }

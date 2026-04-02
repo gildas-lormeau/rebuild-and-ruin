@@ -30,6 +30,8 @@ export const STEP = {
   PICKING: "picking",
 } as const;
 
+/** Look up a value from a 3-element table indexed by 1-based trait level.
+ *  Level 1 → values[0], level 2 → values[1], level 3 → values[2]. */
 export function traitLookup<T>(level: number, values: readonly [T, T, T]): T {
   return values[level - 1]!;
 }

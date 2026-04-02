@@ -11,19 +11,14 @@ import {
 } from "./board-occupancy.ts";
 import { HOUSE_MIN_DISTANCE } from "./game-constants.ts";
 import type { Castle, House, Tower } from "./geometry-types.ts";
-import {
-  GRID_COLS,
-  GRID_ROWS,
-  TILE_GRASS,
-  TILE_WATER,
-  type Tile,
-} from "./grid.ts";
+import { GRID_COLS, GRID_ROWS, type Tile } from "./grid.ts";
 import type { Rng } from "./rng.ts";
 import {
   DIRS_4,
   forEachTowerTile,
   inBounds,
   isGrass,
+  isWater,
   manhattanDistance,
   packTile,
   unpackTile,
@@ -105,7 +100,7 @@ export function createCastle(
         // Off-map = blocked
         if (!inBounds(r, c)) return false;
         // Water = blocked
-        if (tiles[r]![c] === TILE_WATER) return false;
+        if (isWater(tiles, r, c)) return false;
         // Other tower = blocked (wall ring and interior must not overlap another tower)
         if (otherTowerTiles.has(packTile(r, c))) return false;
       }
@@ -137,10 +132,7 @@ export function createCastle(
 
       if (isHorizontal) {
         if (wallPos < 0 || wallPos >= GRID_COLS) return gap;
-        if (
-          tiles[tr]![wallPos] === TILE_WATER ||
-          tiles[tr + 1]![wallPos] === TILE_WATER
-        )
+        if (isWater(tiles, tr, wallPos) || isWater(tiles, tr + 1, wallPos))
           return gap;
         if (
           otherTowerTiles.has(packTile(tr, wallPos)) ||
@@ -149,10 +141,7 @@ export function createCastle(
           return gap;
       } else {
         if (wallPos < 0 || wallPos >= GRID_ROWS) return gap;
-        if (
-          tiles[wallPos]![tc] === TILE_WATER ||
-          tiles[wallPos]![tc + 1] === TILE_WATER
-        )
+        if (isWater(tiles, wallPos, tc) || isWater(tiles, wallPos, tc + 1))
           return gap;
         if (
           otherTowerTiles.has(packTile(wallPos, tc)) ||
@@ -215,7 +204,7 @@ export function computeCastleWallTiles(
       // Is this on the wall ring (not interior)?
       if (r >= top && r <= bottom && c >= left && c <= right) continue;
       // Only place walls on grass
-      if (tiles[r]![c] !== TILE_GRASS) continue;
+      if (!isGrass(tiles, r, c)) continue;
       wallTiles.push([r, c]);
     }
   }
@@ -460,13 +449,13 @@ function isValidHousePos(
   c: number,
   zoneId: number,
 ): boolean {
-  if (tiles[r]![c] !== TILE_GRASS) return false;
+  if (!isGrass(tiles, r, c)) return false;
   if (zones[r]![c] !== zoneId) return false;
   if (towerTiles.has(packTile(r, c))) return false;
   // All 8 neighbors must be grass (1-tile margin from water/edge)
   for (let dr = -1; dr <= 1; dr++)
     for (let dc = -1; dc <= 1; dc++)
-      if (tiles[r + dr]![c + dc] !== TILE_GRASS) return false;
+      if (!isGrass(tiles, r + dr, c + dc)) return false;
   // Not adjacent to a tower (1 tile gap)
   for (let dr = -1; dr <= 1; dr++)
     for (let dc = -1; dc <= 1; dc++)

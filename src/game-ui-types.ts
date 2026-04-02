@@ -32,3 +32,13 @@ export const OPTION_NAMES = [
   "Sound",
   "Game Mode",
 ];
+/** Option indices — positions in the OPTION_NAMES / visible-options arrays. */
+export const OPT_DIFFICULTY = 0;
+export const OPT_ROUNDS = 1;
+export const OPT_CANNON_HP = 2;
+export const OPT_HAPTICS = 3;
+export const OPT_SEED = 4;
+export const OPT_CONTROLS = 5;
+export const OPT_DPAD = 6;
+export const OPT_SOUND = 7;
+export const OPT_GAME_MODE = 8;

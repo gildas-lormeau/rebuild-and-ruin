@@ -11,14 +11,13 @@ import {
   closeOptions as closeOptionsShared,
   createControlsOverlay,
   createOptionsOverlay,
-  OPTION_CONTROLS,
-  OPTION_SEED,
   showControls as showControlsShared,
   showOptions as showOptionsShared,
   togglePause as togglePauseShared,
   visibleOptions,
 } from "./game-ui-screens.ts";
 import { cycleOption } from "./game-ui-settings.ts";
+import { OPT_CONTROLS, OPT_SEED } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import { CURSOR_DEFAULT, CURSOR_POINTER, IS_TOUCH_DEVICE } from "./platform.ts";
@@ -217,10 +216,10 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     // Move cursor to the tapped row
     runtimeState.optionsCursor = hit.index;
     const realIdx = visible[hit.index] ?? hit.index;
-    if (realIdx === OPTION_CONTROLS) {
+    if (realIdx === OPT_CONTROLS) {
       blurSeedInput();
       showControls();
-    } else if (realIdx === OPTION_SEED) {
+    } else if (realIdx === OPT_SEED) {
       focusSeedInput();
     } else {
       blurSeedInput();

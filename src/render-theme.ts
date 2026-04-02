@@ -44,11 +44,16 @@ export const STATUSBAR_HEIGHT = 32;
 // In-world effect timings
 export const BONUS_FLASH_MS = 300;
 export const TOWER_FLASH_MS = 120;
-// Crosshair animation
+// Crosshair animation (used with flashOn() and sine-wave arm pulsation)
+/** Crosshair blink cycle divisor (ms) — faster blink when ready to fire. */
 export const CROSSHAIR_READY_FREQ = 16;
+/** Crosshair blink cycle divisor (ms) — slower blink when idle. */
 export const CROSSHAIR_IDLE_FREQ = 4;
+/** Crosshair arm length in pixels when ready to fire. */
 export const CROSSHAIR_ARM_READY = 14;
+/** Crosshair arm length in pixels when idle. */
 export const CROSSHAIR_ARM_IDLE = 10;
+/** Crosshair arm pulsation amplitude in pixels (oscillates ± this value). */
 export const CROSSHAIR_ARM_PULSE = 3;
 // UI button/cursor flash
 export const BUTTON_FLASH_MS = 400;

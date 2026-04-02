@@ -12,15 +12,9 @@
 
 import { TOWER_SIZE } from "./game-constants.ts";
 import type { GameMap, PixelPos, Tower } from "./geometry-types.ts";
-import {
-  GRID_COLS,
-  GRID_ROWS,
-  TILE_GRASS,
-  TILE_WATER,
-  type Tile,
-} from "./grid.ts";
+import { GRID_COLS, GRID_ROWS, Tile } from "./grid.ts";
 import { Rng } from "./rng.ts";
-import { packTile, unpackTile } from "./spatial.ts";
+import { isGrass, isWater, packTile, unpackTile } from "./spatial.ts";
 
 interface ZoneStats {
   minRow: number;
@@ -59,7 +53,7 @@ export function generateMap(seed?: number): GameMap {
   const rng = new Rng(seed ?? Date.now());
 
   const tiles: Tile[][] = Array.from({ length: GRID_ROWS }, () =>
-    new Array(GRID_COLS).fill(TILE_GRASS),
+    new Array(GRID_COLS).fill(Tile.Grass),
   );
 
   let junction!: PixelPos;
@@ -160,7 +154,7 @@ export function topZonesBySize(
   const counts = new Map<number, number>();
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
-      if (map.tiles[r]![c] === TILE_GRASS) {
+      if (isGrass(map.tiles, r, c)) {
         const zone = map.zones[r]![c]!;
         counts.set(zone, (counts.get(zone) ?? 0) + 1);
       }
@@ -273,7 +267,7 @@ function buildRiverDistanceGrid(tiles: readonly Tile[][]): number[][] {
   // Seed BFS from all river tiles
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
-      if (tiles[r]![c] === TILE_WATER) {
+      if (isWater(tiles, r, c)) {
         dist[r]![c] = 0;
         queue.push(packTile(r, c));
       }
@@ -471,7 +465,7 @@ function generateRiverAndZones(
 function resetTilesToGrass(tiles: readonly Tile[][]): void {
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
-      tiles[r]![c] = TILE_GRASS;
+      tiles[r]![c] = Tile.Grass;
     }
   }
 }
@@ -488,7 +482,7 @@ function paintRiver(
 ): void {
   const setWater = (x: number, y: number) => {
     if (x >= 0 && x < GRID_COLS && y >= 0 && y < GRID_ROWS) {
-      tiles[y]![x] = TILE_WATER;
+      tiles[y]![x] = Tile.Water;
     }
   };
 
@@ -601,14 +595,14 @@ function smoothRiver(tiles: readonly Tile[][]): void {
     changed = false;
     for (let r = 0; r < GRID_ROWS; r++) {
       for (let c = 0; c < GRID_COLS; c++) {
-        if (tiles[r]![c] !== TILE_GRASS) continue;
+        if (!isGrass(tiles, r, c)) continue;
         let gn = 0;
-        if (r > 0 && tiles[r - 1]![c] === TILE_GRASS) gn++;
-        if (r < GRID_ROWS - 1 && tiles[r + 1]![c] === TILE_GRASS) gn++;
-        if (c > 0 && tiles[r]![c - 1] === TILE_GRASS) gn++;
-        if (c < GRID_COLS - 1 && tiles[r]![c + 1] === TILE_GRASS) gn++;
+        if (r > 0 && isGrass(tiles, r - 1, c)) gn++;
+        if (r < GRID_ROWS - 1 && isGrass(tiles, r + 1, c)) gn++;
+        if (c > 0 && isGrass(tiles, r, c - 1)) gn++;
+        if (c < GRID_COLS - 1 && isGrass(tiles, r, c + 1)) gn++;
         if (gn <= 1) {
-          tiles[r]![c] = TILE_WATER;
+          tiles[r]![c] = Tile.Water;
           changed = true;
         }
       }
@@ -623,14 +617,14 @@ function smoothRiver(tiles: readonly Tile[][]): void {
 function removeIsolatedWater(tiles: readonly Tile[][]): void {
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
-      if (tiles[r]![c] !== TILE_WATER) continue;
+      if (!isWater(tiles, r, c)) continue;
       let wn = 0;
-      if (r > 0 && tiles[r - 1]![c] === TILE_WATER) wn++;
-      if (r < GRID_ROWS - 1 && tiles[r + 1]![c] === TILE_WATER) wn++;
-      if (c > 0 && tiles[r]![c - 1] === TILE_WATER) wn++;
-      if (c < GRID_COLS - 1 && tiles[r]![c + 1] === TILE_WATER) wn++;
+      if (r > 0 && isWater(tiles, r - 1, c)) wn++;
+      if (r < GRID_ROWS - 1 && isWater(tiles, r + 1, c)) wn++;
+      if (c > 0 && isWater(tiles, r, c - 1)) wn++;
+      if (c < GRID_COLS - 1 && isWater(tiles, r, c + 1)) wn++;
       if (wn <= 1) {
-        tiles[r]![c] = TILE_GRASS;
+        tiles[r]![c] = Tile.Grass;
       }
     }
   }
@@ -655,7 +649,7 @@ function floodFillZones(tiles: readonly Tile[][]): {
       c >= 0 &&
       c < GRID_COLS &&
       zones[r]![c] === 0 &&
-      tiles[r]![c] === TILE_GRASS
+      isGrass(tiles, r, c)
     ) {
       zones[r]![c] = rid;
       queue.push(packTile(r, c));
@@ -664,7 +658,7 @@ function floodFillZones(tiles: readonly Tile[][]): {
 
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
-      if (zones[r]![c] !== 0 || tiles[r]![c] !== TILE_GRASS) continue;
+      if (zones[r]![c] !== 0 || !isGrass(tiles, r, c)) continue;
 
       regionId++;
       queue.length = 0;

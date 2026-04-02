@@ -15,6 +15,15 @@ import {
   DPAD_LABELS,
   GAME_MODE_LABELS,
   HAPTICS_LABELS,
+  OPT_CANNON_HP,
+  OPT_CONTROLS,
+  OPT_DIFFICULTY,
+  OPT_DPAD,
+  OPT_GAME_MODE,
+  OPT_HAPTICS,
+  OPT_ROUNDS,
+  OPT_SEED,
+  OPT_SOUND,
   OPTION_NAMES,
   ROUNDS_OPTIONS,
   SOUND_LABELS,
@@ -68,9 +77,6 @@ const CONTROL_ACTION_NAMES: readonly string[] = [
   "Confirm",
   "Rotate",
 ];
-/** Raw option indices — positions in the options list. */
-export const OPTION_SEED = 4;
-export const OPTION_CONTROLS = 5;
 
 export function createOptionsOverlay(frameCtx: UIContext): {
   map: GameMap;
@@ -81,21 +87,27 @@ export function createOptionsOverlay(frameCtx: UIContext): {
   const visible = visibleOptions(frameCtx);
   const options: OptionEntry[] = visible.map((i) => {
     // Seed is typed, Controls is opened via confirm — neither uses left/right cycling
-    if (i === 4 || i === 5)
+    if (i === OPT_SEED || i === OPT_CONTROLS)
       return {
         name: OPTION_NAMES[i]!,
         value: optionValue(frameCtx, i),
         editable: false,
       };
-    // Online: Rounds, Cannon HP, Game Mode, Seed are locked by room host
-    if (frameCtx.isOnline && (i === 1 || i === 2 || i === 8))
+    // Online: Rounds, Cannon HP, Game Mode are locked by room host
+    if (
+      frameCtx.isOnline &&
+      (i === OPT_ROUNDS || i === OPT_CANNON_HP || i === OPT_GAME_MODE)
+    )
       return {
         name: OPTION_NAMES[i]!,
         value: optionValue(frameCtx, i),
         editable: false,
       };
     // In-game: Difficulty, Cannon HP, Game Mode are locked
-    if (readOnly && (i === 0 || i === 2 || i === 8))
+    if (
+      readOnly &&
+      (i === OPT_DIFFICULTY || i === OPT_CANNON_HP || i === OPT_GAME_MODE)
+    )
       return {
         name: OPTION_NAMES[i]!,
         value: optionValue(frameCtx, i),
@@ -270,35 +282,72 @@ export function lobbySkipStep(frameCtx: UIContext): boolean {
 }
 
 export function visibleOptions(frameCtx: UIContext): number[] {
-  // 0=Difficulty, 1=Rounds, 2=Cannon HP, 3=Haptics, 4=Seed, 5=Controls, 6=D-Pad, 7=Sound, 8=Game Mode
   if (frameCtx.isOnline)
-    return IS_TOUCH_DEVICE ? [1, 2, 8, 3, 7, 4, 5, 6] : [1, 2, 8, 7, 4, 5];
-  return IS_TOUCH_DEVICE ? [0, 1, 2, 8, 3, 7, 4, 5, 6] : [0, 1, 2, 8, 7, 4, 5];
+    return IS_TOUCH_DEVICE
+      ? [
+          OPT_ROUNDS,
+          OPT_CANNON_HP,
+          OPT_GAME_MODE,
+          OPT_HAPTICS,
+          OPT_SOUND,
+          OPT_SEED,
+          OPT_CONTROLS,
+          OPT_DPAD,
+        ]
+      : [
+          OPT_ROUNDS,
+          OPT_CANNON_HP,
+          OPT_GAME_MODE,
+          OPT_SOUND,
+          OPT_SEED,
+          OPT_CONTROLS,
+        ];
+  return IS_TOUCH_DEVICE
+    ? [
+        OPT_DIFFICULTY,
+        OPT_ROUNDS,
+        OPT_CANNON_HP,
+        OPT_GAME_MODE,
+        OPT_HAPTICS,
+        OPT_SOUND,
+        OPT_SEED,
+        OPT_CONTROLS,
+        OPT_DPAD,
+      ]
+    : [
+        OPT_DIFFICULTY,
+        OPT_ROUNDS,
+        OPT_CANNON_HP,
+        OPT_GAME_MODE,
+        OPT_SOUND,
+        OPT_SEED,
+        OPT_CONTROLS,
+      ];
 }
 
 function optionValue(frameCtx: UIContext, idx: number): string {
   const settings = frameCtx.settings;
   const state = frameCtx.getState();
-  if (idx === 0) return DIFFICULTY_LABELS[settings.difficulty]!;
-  if (idx === 1) {
+  if (idx === OPT_DIFFICULTY) return DIFFICULTY_LABELS[settings.difficulty]!;
+  if (idx === OPT_ROUNDS) {
     const opt = ROUNDS_OPTIONS[settings.rounds]!;
     if (frameCtx.getOptionsReturnMode() !== null && state) {
       return `${opt.label} (round ${state.round})`;
     }
     return opt.label;
   }
-  if (idx === 2) return CANNON_HP_OPTIONS[settings.cannonHp]!.label;
-  if (idx === 3) return HAPTICS_LABELS[settings.haptics] ?? "All";
-  if (idx === 7) return SOUND_LABELS[settings.sound] ?? "All";
-  if (idx === 4) {
+  if (idx === OPT_CANNON_HP) return CANNON_HP_OPTIONS[settings.cannonHp]!.label;
+  if (idx === OPT_HAPTICS) return HAPTICS_LABELS[settings.haptics] ?? "All";
+  if (idx === OPT_SOUND) return SOUND_LABELS[settings.sound] ?? "All";
+  if (idx === OPT_SEED) {
     if (frameCtx.isOnline) return settings.seed || "—";
     if (frameCtx.getOptionsReturnMode() !== null && state) {
       return String(state.rng.seed);
     }
     return settings.seedMode === SEED_CUSTOM ? settings.seed || "_" : "Random";
   }
-  if (idx === 6) return DPAD_LABELS[settings.leftHanded ? 1 : 0]!;
-  if (idx === 8)
+  if (idx === OPT_DPAD) return DPAD_LABELS[settings.leftHanded ? 1 : 0]!;
+  if (idx === OPT_GAME_MODE)
     return GAME_MODE_LABELS[settings.gameMode === GAME_MODE_MODERN ? 1 : 0]!;
   return "";
 }

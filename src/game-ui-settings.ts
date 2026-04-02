@@ -8,6 +8,13 @@ import {
   CANNON_HP_OPTIONS,
   DIFFICULTY_LABELS,
   HAPTICS_LABELS,
+  OPT_CANNON_HP,
+  OPT_DIFFICULTY,
+  OPT_DPAD,
+  OPT_GAME_MODE,
+  OPT_HAPTICS,
+  OPT_ROUNDS,
+  OPT_SOUND,
   ROUNDS_OPTIONS,
   SOUND_LABELS,
 } from "./game-ui-types.ts";
@@ -107,12 +114,12 @@ export function cycleOption(
   state: { round: number; maxRounds: number } | null,
   isOnline?: boolean,
 ): void {
-  if (optionsCursor === 0) {
+  if (optionsCursor === OPT_DIFFICULTY) {
     if (optionsReturnMode !== null) return; // locked in-game
     settings.difficulty =
       (settings.difficulty + dir + DIFFICULTY_LABELS.length) %
       DIFFICULTY_LABELS.length;
-  } else if (optionsCursor === 1) {
+  } else if (optionsCursor === OPT_ROUNDS) {
     if (isOnline) return; // set by room host
     let next =
       (settings.rounds + dir + ROUNDS_OPTIONS.length) % ROUNDS_OPTIONS.length;
@@ -132,20 +139,20 @@ export function cycleOption(
       const val = ROUNDS_OPTIONS[settings.rounds]!.value;
       state.maxRounds = val > 0 ? val : Infinity;
     }
-  } else if (optionsCursor === 2) {
+  } else if (optionsCursor === OPT_CANNON_HP) {
     if (optionsReturnMode !== null || isOnline) return; // locked in-game and online
     settings.cannonHp =
       (settings.cannonHp + dir + CANNON_HP_OPTIONS.length) %
       CANNON_HP_OPTIONS.length;
-  } else if (optionsCursor === 3) {
+  } else if (optionsCursor === OPT_HAPTICS) {
     settings.haptics =
       (settings.haptics + dir + HAPTICS_LABELS.length) % HAPTICS_LABELS.length;
-  } else if (optionsCursor === 6) {
+  } else if (optionsCursor === OPT_DPAD) {
     settings.leftHanded = !settings.leftHanded;
-  } else if (optionsCursor === 7) {
+  } else if (optionsCursor === OPT_SOUND) {
     settings.sound =
       (settings.sound + dir + SOUND_LABELS.length) % SOUND_LABELS.length;
-  } else if (optionsCursor === 8) {
+  } else if (optionsCursor === OPT_GAME_MODE) {
     if (optionsReturnMode !== null || isOnline) return; // locked in-game and online
     settings.gameMode =
       settings.gameMode === GAME_MODE_MODERN

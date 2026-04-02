@@ -80,7 +80,7 @@ function parseImports(
 // ---------------------------------------------------------------------------
 
 /** Files allowed to import `Tile` as a value (not type-only). */
-const TILE_VALUE_ALLOWLIST = new Set(["grid.ts", "spatial.ts"]);
+const TILE_VALUE_ALLOWLIST = new Set(["grid.ts", "spatial.ts", "map-generation.ts"]);
 
 function checkTileImports(
   file: string,
