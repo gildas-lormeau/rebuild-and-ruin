@@ -4,6 +4,12 @@
  * These are pure functions that operate on tile coordinates and grid keys.
  * Centralised here to avoid scattering utilities across types.ts,
  * phase-build.ts, and other domain-specific modules.
+ *
+ * ## Tile encoding convention
+ *
+ * All Set<number> tile collections (walls, interior, frozenTiles, burningPits, etc.)
+ * use flat-index encoding: `key = row * GRID_COLS + col`.
+ * Always use packTile(r, c) / unpackTile(key) — never encode manually.
  */
 
 import {
@@ -525,7 +531,8 @@ function forEachSquareTile(
   }
 }
 
-/** Pack row/column coordinates into a tile key. */
+/** Pack row/column into a flat tile key (row * GRID_COLS + col).
+ *  Used for all Set<number> tile collections. See unpackTile() for reverse. */
 export function packTile(r: number, c: number): number {
   return r * GRID_COLS + c;
 }

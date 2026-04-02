@@ -375,6 +375,11 @@ export function createSelectionSystem(
   }
 
   function showBuildScoreDeltas(onDone: () => void): void {
+    // Guard: prevent re-entrancy (onDone callbacks must not restart the display)
+    if (runtimeState.scoreDeltaTimer > 0) {
+      onDone();
+      return;
+    }
     // Compute score deltas from the build phase (with display coordinates)
     runtimeState.scoreDeltas = runtimeState.state.players
       .map((player, i) => {
