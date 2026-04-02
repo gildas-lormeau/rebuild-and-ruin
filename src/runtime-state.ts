@@ -55,7 +55,13 @@ export interface RuntimeState {
   controllers: PlayerController[];
 
   // Phase / selection
+  /** Players awaiting reselection UI (queued by life-lost resolution).
+   *  Drained one-by-one as each player's selection dialog completes.
+   *  Set in runtime-life-lost, consumed in runtime-selection. */
   reselectQueue: number[];
+  /** Snapshot of player IDs currently in the reselection flow (copied from
+   *  reselectQueue at reselection start). Used by camera/render to know which
+   *  players are reselecting. Cleared when reselection completes. */
   reselectionPids: number[];
   selectionStates: Map<number, SelectionState>;
   castleBuilds: CastleBuildState[];

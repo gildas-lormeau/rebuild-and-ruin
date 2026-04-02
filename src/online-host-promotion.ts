@@ -31,11 +31,7 @@ export function rebuildControllersForPhase(
     if (!isPlayerAlive(player)) continue;
 
     const pid = i as ValidPlayerSlot;
-    const strategySeed =
-      (state.rng.seed +
-        state.round * SEED_ROUND_MULTIPLIER +
-        pid * SEED_SLOT_MULTIPLIER) >>>
-      0;
+    const strategySeed = deriveAiStrategySeed(state.rng.seed, state.round, pid);
     controllers[i] = createAiController(pid, strategySeed);
 
     // Initialize AI for the current phase
@@ -96,4 +92,18 @@ export function syncAccumulatorsFromTimer(
   } else if (state.phase === Phase.BATTLE) {
     accum.battle = BATTLE_TIMER - state.timer;
   }
+}
+
+/** Derive a deterministic AI strategy seed from the base RNG seed, round, and player slot.
+ *  Both multipliers must be used together — they ensure seeds are uncorrelated
+ *  across rounds (large prime) and across slots (golden ratio hash). */
+function deriveAiStrategySeed(
+  baseSeed: number,
+  round: number,
+  slot: number,
+): number {
+  return (
+    (baseSeed + round * SEED_ROUND_MULTIPLIER + slot * SEED_SLOT_MULTIPLIER) >>>
+    0
+  );
 }

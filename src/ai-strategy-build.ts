@@ -61,6 +61,8 @@ import {
 } from "./spatial.ts";
 import type { GameState } from "./types.ts";
 
+type BuildSkillConfig = (typeof BUILD_SKILL_TABLE)[number];
+
 /** Max gap tiles in home castle before AI skips it for other towers. */
 const HOME_GAP_REPAIR_THRESHOLD = 5;
 /** Score weight per gap tile filled by a placement. */
@@ -144,7 +146,7 @@ export function pickPlacement(
   //   pocketScale:      multiplier on pocket delta penalty
   //   fatPenaltyScale:  multiplier on fat wall scoring penalty
   //   tinyPocketReject: whether tiny-pocket hard reject is active
-  const skill = BUILD_SKILL_TABLE[buildSkill - 1]!;
+  const skill = getBuildSkillConfig(buildSkill);
   const zoneTowers = state.map.towers.filter(
     (tower) => tower.zone === castle.tower.zone,
   );
@@ -700,6 +702,11 @@ export function pickPlacement(
     row: bestCandidate.row,
     col: bestCandidate.col,
   };
+}
+
+/** Look up skill config by 1-based buildSkill level (1=clumsy, 5=clean). */
+function getBuildSkillConfig(buildSkill: number): BuildSkillConfig {
+  return BUILD_SKILL_TABLE[buildSkill - 1]!;
 }
 
 /** Enumerate all valid placements for a piece, scoring adjacency/gap metrics. */

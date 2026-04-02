@@ -214,12 +214,16 @@ const towerProximityRule: ScoringRule = {
     );
   },
 };
-/** Ordered scoring rules. Hard-rejects first (return null), then score contributions.
- *  Order within score contributions does not affect the result (they're summed). */
-const SCORING_RULES: readonly ScoringRule[] = [
+/** Hard-reject rules — return null to reject a candidate outright.
+ *  Evaluated first; if any rejects, score contributions are skipped. */
+const HARD_REJECT_RULES: readonly ScoringRule[] = [
   rejectIsolatedGapTiles,
   rejectFatWalls,
   rejectTinyPockets,
+];
+/** Score contribution rules — return a number to add to the candidate's score.
+ *  Order does not matter (they're summed). */
+const SCORE_CONTRIBUTION_RULES: readonly ScoringRule[] = [
   usefulGainRule,
   gapClosureRule,
   innerObstacleRule,
@@ -230,6 +234,11 @@ const SCORING_RULES: readonly ScoringRule[] = [
   sweepSafeRule,
   cursorProximityRule,
   towerProximityRule,
+];
+/** All scoring rules: hard-rejects first, then score contributions. */
+const SCORING_RULES: readonly ScoringRule[] = [
+  ...HARD_REJECT_RULES,
+  ...SCORE_CONTRIBUTION_RULES,
 ];
 /** Penalty per tile that would create a 2x2 fat wall block. */
 export const FAT_WALL_TILE_PENALTY = 5;

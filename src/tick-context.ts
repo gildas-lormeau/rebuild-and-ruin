@@ -76,6 +76,8 @@ export interface TimerAccums {
  *  - advancePhaseTimer() in tick-context.ts — canonical phase timer advancement
  *  - tickGruntsIfDue() in tick-context.ts — cross-phase grunt spawn interval
  *  - tickSelectionPhase() in selection.ts — selection phase has custom timer logic
+ *  - syncAccumulatorsFromTimer() in online-host-promotion.ts — bulk reset during
+ *    host migration (resyncs accumulators to match the phase timer's current value)
  *  Everywhere else, pass TimerAccums (readonly) to prevent accidental mutation. */
 export type MutableAccums = { -readonly [K in keyof TimerAccums]: number };
 
