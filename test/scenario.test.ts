@@ -10,7 +10,8 @@ import { createOnlineOverlay } from "../src/render-composition.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "../src/player-config.ts";
 import { isCannonEnclosed } from "../src/cannon-system.ts";
 import { nextPhase } from "../src/game-engine.ts";
-import { initControllerForCannonPhase } from "../src/phase-setup.ts";
+import { enterCannonPlacePhase } from "../src/game-engine.ts";
+import { initControllerForCannonPhase, prepareCannonPhase } from "../src/phase-setup.ts";
 import { GRID_COLS } from "../src/grid.ts";
 import {
   handleBattleStartTransition,
@@ -789,16 +790,19 @@ test("cannon-start: watcher uses same initControllerForCannonPhase as host", () 
   s.finalizeBuild();
 
   // Serialize cannon-start message as host would send it
+  // (must be done before entering cannon phase — checkpoint captures current state)
   const msg = createCannonStartMessage(s.state);
 
-  // --- Host path: init controller directly ---
+  // --- Host path: enter cannon phase then init controller ---
+  prepareCannonPhase(s.state);
+  enterCannonPlacePhase(s.state);
   const hostCtrl = s.controllers[0]!;
   initControllerForCannonPhase(hostCtrl, s.state);
   const hostCursor = { ...hostCtrl.cannonCursor };
 
-  // --- Watcher path: reset cursor and apply transition ---
+  // --- Watcher path: reset cursor and phase, then apply transition ---
   hostCtrl.cannonCursor = { row: 0, col: 0 }; // deliberately wrong
-  s.state.phase = Phase.WALL_BUILD; // reset so transition runs banner
+  s.state.phase = Phase.WALL_BUILD; // reset so transition runs full path
   const ctx = s.createTransitionContext();
   handleCannonStartTransition(msg, ctx);
   const watcherCursor = { ...hostCtrl.cannonCursor };
