@@ -29,7 +29,7 @@ interface CreateLifeLostDialogDeps {
   eliminated: readonly number[];
   state: GameState;
   isHost: boolean;
-  myPlayerId: number;
+  onlinePlayerId: number;
   remoteHumanSlots: ReadonlySet<number>;
   isHumanController: (playerId: number) => boolean;
 }
@@ -117,7 +117,7 @@ export function createLifeLostDialogState(
     eliminated,
     state,
     isHost,
-    myPlayerId,
+    onlinePlayerId,
     remoteHumanSlots,
     isHumanController,
   } = deps;
@@ -127,7 +127,7 @@ export function createLifeLostDialogState(
     lives: state.players[playerId]!.lives,
     isAi: isHost
       ? !isHumanController(playerId) && !remoteHumanSlots.has(playerId)
-      : playerId !== myPlayerId,
+      : playerId !== onlinePlayerId,
     choice: LifeLostChoice.PENDING,
     aiTimer: 0,
     focused: 0,

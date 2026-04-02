@@ -76,7 +76,7 @@ interface SelectionSystemDeps {
 
   // Sibling systems / parent callbacks
   render: () => void;
-  firstHuman: () => (PlayerController & InputReceiver) | null;
+  pointerPlayer: () => (PlayerController & InputReceiver) | null;
   startCannonPhase: (onBannerDone?: () => void) => void;
 
   /**
@@ -135,7 +135,7 @@ export function createSelectionSystem(
     enterTowerSelectionImpl({
       state: runtimeState.state,
       isHost: runtimeState.frameCtx.isHost,
-      myPlayerId: runtimeState.frameCtx.onlinePlayerId,
+      onlinePlayerId: runtimeState.frameCtx.onlinePlayerId,
       remoteHumanSlots: runtimeState.frameCtx.remoteHumanSlots,
       controllers: runtimeState.controllers,
       selectionStates: runtimeState.selectionStates,
@@ -190,7 +190,7 @@ export function createSelectionSystem(
       () => deps.render(),
     );
     // Auto-zoom to the highlighted tower on mobile (human player only, own zone)
-    const human = deps.firstHuman();
+    const human = deps.pointerPlayer();
     if (human && pid === human.playerId) {
       const tower = runtimeState.state.map.towers[idx];
       if (tower && tower.zone === zone)
@@ -250,7 +250,7 @@ export function createSelectionSystem(
       dt,
       state: runtimeState.state,
       isHost: runtimeState.frameCtx.isHost,
-      myPlayerId: runtimeState.frameCtx.onlinePlayerId,
+      onlinePlayerId: runtimeState.frameCtx.onlinePlayerId,
       selectTimer: SELECT_TIMER,
       accum: runtimeState.accum,
       selectionStates: runtimeState.selectionStates,
@@ -312,7 +312,7 @@ export function createSelectionSystem(
     const plan = prepareCastleWallsForPlayer(runtimeState.state, playerId);
     if (!plan) return;
     deps.send({ type: MESSAGE.CASTLE_WALLS, plans: [plan] });
-    const human = deps.firstHuman();
+    const human = deps.pointerPlayer();
     runtimeState.castleBuilds.push(createCastleBuildState([plan]));
     // Only zoom to the human player's castle build
     if (human && playerId === human.playerId) {
@@ -322,7 +322,7 @@ export function createSelectionSystem(
 
   function tickAllCastleBuilds(dt: number): void {
     let anyPlaced = false;
-    const humanPid = deps.firstHuman()?.playerId ?? -1;
+    const humanPid = deps.pointerPlayer()?.playerId ?? -1;
     let humanBuildDone = false;
     for (let i = runtimeState.castleBuilds.length - 1; i >= 0; i--) {
       const build = runtimeState.castleBuilds[i]!;

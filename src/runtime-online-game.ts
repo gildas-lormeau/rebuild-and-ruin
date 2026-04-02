@@ -142,7 +142,7 @@ const runtime: GameRuntime = createGameRuntime({
   isOnline: true,
   send,
   getIsHost: () => ctx.session.isHost,
-  getOnlinePlayerId: () => ctx.session.myPlayerId,
+  getOnlinePlayerId: () => ctx.session.onlinePlayerId,
   getRemoteHumanSlots: () => ctx.session.remoteHumanSlots,
   log: devLog,
   logThrottled: devLogThrottled,
@@ -409,10 +409,10 @@ function initFromServer(msg: InitMessage): void {
   const playerCount = Math.min(Math.max(1, msg.playerCount), MAX_PLAYERS);
   const humanSlots = Array.from(
     { length: playerCount },
-    (_, i) => i === ctx.session.myPlayerId,
+    (_, i) => i === ctx.session.onlinePlayerId,
   );
   const keyBindings = Array.from({ length: playerCount }, (_, i) =>
-    i === ctx.session.myPlayerId ? settings.keyBindings[0] : undefined,
+    i === ctx.session.onlinePlayerId ? settings.keyBindings[0] : undefined,
   );
   bootstrapGame({
     seed: msg.seed,

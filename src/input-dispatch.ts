@@ -5,10 +5,10 @@
  * Used by mouse input (input.ts), touch input (input-touch-canvas.ts),
  * and touch UI controls (touch-ui.ts).
  *
- * ### First-human-player convention
+ * ### Pointer-player convention
  *
- * Touch and mouse dispatchers target the first human player only
- * (via `withFirstHuman`). Keyboard input loops over ALL controllers
+ * Touch and mouse dispatchers target the pointer player only
+ * (via `withPointerPlayer`). Keyboard input loops over ALL controllers
  * to support local multiplayer with distinct key bindings.
  *
  * ### Selection-confirmed guard convention
@@ -54,16 +54,10 @@ export interface OverlayActionDeps {
     changeValue: (dir: -1 | 1) => void;
     confirm: () => void;
   };
-  lifeLost?: {
-    isActive: () => boolean;
-    toggleFocus: () => void;
-    confirm: () => void;
-  };
-  upgradePick?: {
-    isActive: () => boolean;
-    toggleFocus: () => void;
-    confirm: () => void;
-  };
+  /** Centralized per-player dialog action (life-lost, upgrade pick).
+   *  The caller resolves the playerId upstream (pointer player for touch,
+   *  matched controller for keyboard). Returns true if consumed. */
+  dialogAction?: (action: Action) => boolean;
   gameOver?: {
     isActive: () => boolean;
     toggleFocus: () => void;
@@ -189,7 +183,7 @@ export function dispatchTowerSelect(
   state: GameState,
   isReselect: boolean,
   deps: {
-    withFirstHuman: (
+    withPointerPlayer: (
       action: (human: PlayerController & InputReceiver) => void,
     ) => void;
     gameAction: Pick<
@@ -204,7 +198,7 @@ export function dispatchTowerSelect(
 ): void {
   const { gameAction } = deps;
   if (gameAction.isSelectionReady && !gameAction.isSelectionReady()) return;
-  deps.withFirstHuman((human) => {
+  deps.withPointerPlayer((human) => {
     const selectionState = gameAction.getSelectionStates().get(human.playerId);
     if (!selectionState || selectionState.confirmed) return;
     const zone = state.playerZones[human.playerId] ?? 0;
@@ -224,11 +218,11 @@ export function dispatchTowerSelect(
   });
 }
 
-/** Shared placement dispatch — place piece or cannon for the first human player. */
+/** Shared placement dispatch — place piece or cannon for the pointer player. */
 export function dispatchPlacement(
   state: GameState,
   deps: {
-    withFirstHuman: (
+    withPointerPlayer: (
       action: (human: PlayerController & InputReceiver) => void,
     ) => void;
     gameAction: Pick<
@@ -237,18 +231,18 @@ export function dispatchPlacement(
     >;
   },
 ): void {
-  deps.withFirstHuman((human) => {
+  deps.withPointerPlayer((human) => {
     dispatchPlacementConfirm(human, state, deps.gameAction);
   });
 }
 
-/** Shared battle-fire dispatch — aim and fire for the first human player. */
+/** Shared battle-fire dispatch — aim and fire for the pointer player. */
 export function dispatchBattleFire(
   x: number,
   y: number,
   state: GameState,
   deps: {
-    withFirstHuman: (
+    withPointerPlayer: (
       action: (human: PlayerController & InputReceiver) => void,
     ) => void;
     coords: { screenToWorld: (x: number, y: number) => WorldPos };
@@ -261,7 +255,7 @@ export function dispatchBattleFire(
     state.battleCountdown > 0
   )
     return;
-  deps.withFirstHuman((human) => {
+  deps.withPointerPlayer((human) => {
     const w = deps.coords.screenToWorld(x, y);
     human.setCrosshair(w.wx, w.wy);
     deps.gameAction.fireAndSend(human, state);
@@ -302,28 +296,7 @@ export function dispatchOverlayAction(
     }
     return false;
   }
-  if (deps.lifeLost?.isActive()) {
-    if (action === Action.LEFT || action === Action.RIGHT) {
-      deps.lifeLost.toggleFocus();
-      return true;
-    }
-    if (action === Action.CONFIRM) {
-      deps.lifeLost.confirm();
-      return true;
-    }
-    return false;
-  }
-  if (deps.upgradePick?.isActive()) {
-    if (action === Action.LEFT || action === Action.RIGHT) {
-      deps.upgradePick.toggleFocus();
-      return true;
-    }
-    if (action === Action.CONFIRM) {
-      deps.upgradePick.confirm();
-      return true;
-    }
-    return false;
-  }
+  if (deps.dialogAction?.(action)) return true;
   if (deps.gameOver?.isActive()) {
     if (action === Action.LEFT || action === Action.RIGHT) {
       deps.gameOver.toggleFocus();
@@ -411,7 +384,7 @@ export function dispatchPointerMove(
   y: number,
   state: GameState,
   deps: {
-    withFirstHuman: (
+    withPointerPlayer: (
       action: (human: PlayerController & InputReceiver) => void,
     ) => void;
     coords: {
@@ -429,7 +402,7 @@ export function dispatchPointerMove(
   if (isSelectionPhase(state.phase)) {
     if (gameAction.isSelectionReady && !gameAction.isSelectionReady()) return;
   }
-  deps.withFirstHuman((human) => {
+  deps.withPointerPlayer((human) => {
     if (isSelectionPhase(state.phase)) {
       const selectionState = gameAction
         .getSelectionStates()

@@ -43,9 +43,9 @@ interface CameraDeps {
   getCtx: () => FrameContext;
   getFrameDt: () => number;
   setFrameAnnouncement: (text: string) => void;
-  getFirstHumanCrosshair?: () => { x: number; y: number } | null;
-  /** Set the first human's crosshair position (for battle targeting). */
-  setFirstHumanCrosshair?: (x: number, y: number) => void;
+  getPointerPlayerCrosshair?: () => { x: number; y: number } | null;
+  /** Set the pointer player's crosshair position (for battle targeting). */
+  setPointerPlayerCrosshair?: (x: number, y: number) => void;
 }
 
 // Note: unlike other sub-systems, CameraDeps is all getters — no runtimeState to destructure.
@@ -285,7 +285,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   /** Derive camera zone from the human crosshair position (enemy zones only). */
   function crosshairZone(): number | null {
-    const ch = deps.getFirstHumanCrosshair?.();
+    const ch = deps.getPointerPlayerCrosshair?.();
     if (!ch) return null;
     const zone = zoneAtPixel(ch.x, ch.y);
     if (zone === null || zone === getMyZone()) return null;
@@ -691,7 +691,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function aimAtEnemyCastle(): void {
     const state = deps.getState();
     if (!state) return;
-    if (!deps.setFirstHumanCrosshair) return;
+    if (!deps.setPointerPlayerCrosshair) return;
     if (!(mobileZoomEnabled && zoomActivated)) return;
 
     // Subsequent battle: restore last position if targeted opponent is alive
@@ -706,7 +706,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
           pid !== povPlayerId() &&
           !state.players[pid]?.eliminated
         ) {
-          deps.setFirstHumanCrosshair(
+          deps.setPointerPlayerCrosshair(
             lastBattleCrosshair.x,
             lastBattleCrosshair.y,
           );
@@ -723,12 +723,12 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     const tower = pid >= 0 ? state.players[pid]?.homeTower : null;
     if (!tower) return;
     const px = towerCenterPx(tower);
-    deps.setFirstHumanCrosshair(px.x, px.y);
+    deps.setPointerPlayerCrosshair(px.x, px.y);
     lastBattleCrosshair = { x: px.x, y: px.y };
   }
 
   function saveBattleCrosshair(): void {
-    const ch = deps.getFirstHumanCrosshair?.();
+    const ch = deps.getPointerPlayerCrosshair?.();
     if (ch) lastBattleCrosshair = { x: ch.x, y: ch.y };
   }
 

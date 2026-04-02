@@ -15,7 +15,7 @@ export interface HapticsSystem {
   phaseChange: () => void;
   battleEvents: (
     events: ReadonlyArray<BattleEvent>,
-    myPlayerId: number,
+    povPlayerId: number,
   ) => void;
 }
 
@@ -46,15 +46,15 @@ export function createHapticsSystem(): HapticsSystem {
   /** Process battle events and trigger appropriate haptics for the local player. */
   function battleEvents(
     events: ReadonlyArray<BattleEvent>,
-    myPlayerId: number,
+    povPlayerId: number,
   ): void {
     if (!CAN_VIBRATE || hapticsLevel < 2) return;
     for (const evt of events) {
-      if (evt.type === MESSAGE.WALL_DESTROYED && evt.playerId === myPlayerId) {
+      if (evt.type === MESSAGE.WALL_DESTROYED && evt.playerId === povPlayerId) {
         vibrate(HAPTIC_WALL_HIT_MS, 2);
       } else if (
         evt.type === MESSAGE.CANNON_DAMAGED &&
-        evt.playerId === myPlayerId
+        evt.playerId === povPlayerId
       ) {
         if (evt.newHp === 0) vibrate(HAPTIC_CANNON_DESTROYED_MS, 2);
         else vibrate(80, 2);
@@ -62,7 +62,7 @@ export function createHapticsSystem(): HapticsSystem {
         vibrate(200, 2);
       } else if (
         evt.type === MESSAGE.CANNON_FIRED &&
-        evt.playerId === myPlayerId
+        evt.playerId === povPlayerId
       ) {
         vibrate(15, 2);
       }

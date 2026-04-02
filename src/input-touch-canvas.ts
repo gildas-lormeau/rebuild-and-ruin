@@ -136,7 +136,7 @@ function handleTouchStart(
   if (isPlacementPhase(state.phase) && isInteractiveMode(getMode())) {
     const tile = coords.pixelToTile(x, y);
     let hit = false;
-    deps.withFirstHuman((human) => {
+    deps.withPointerPlayer((human) => {
       hit = isOnPhantom(human, state.phase, tile.row, tile.col);
     });
     if (hit) {

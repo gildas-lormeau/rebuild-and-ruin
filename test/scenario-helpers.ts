@@ -135,14 +135,13 @@ export interface Scenario {
 }
 
 export interface TransitionTestDeps {
-  myPlayerId: number;
+  onlinePlayerId: number;
 }
 
 export interface CameraTestDeps {
   mode: Mode;
   phase: Phase;
-  myPlayerId: number;
-  firstHumanPlayerId: number;
+  onlinePlayerId: number;
   isSelectionReady: boolean;
   humanIsReselecting: boolean;
   mobileAutoZoom: boolean;
@@ -408,8 +407,7 @@ export function createScenario(seed = 42): Scenario {
     const defaults: CameraTestDeps = {
       mode: Mode.GAME,
       phase: state.phase,
-      myPlayerId: 0,
-      firstHumanPlayerId: 0,
+      onlinePlayerId: 0,
       isSelectionReady: false,
       humanIsReselecting: false,
       mobileAutoZoom: true,
@@ -426,8 +424,7 @@ export function createScenario(seed = 42): Scenario {
         hasLifeLostDialog: false,
         isSelectionReady: deps.isSelectionReady,
         humanIsReselecting: deps.humanIsReselecting,
-        onlinePlayerId: deps.myPlayerId,
-        firstHumanPlayerId: deps.firstHumanPlayerId,
+        onlinePlayerId: deps.onlinePlayerId,
         isHost: true,
         remoteHumanSlots: new Set(),
         mobileAutoZoom: deps.mobileAutoZoom,
@@ -477,7 +474,7 @@ export function createScenario(seed = 42): Scenario {
       eliminated,
       state,
       isHost: true,
-      myPlayerId: 0,
+      onlinePlayerId: 0,
       remoteHumanSlots: new Set(),
       isHumanController: () => false,
     });
@@ -507,7 +504,7 @@ export function createScenario(seed = 42): Scenario {
   function doCreateTransitionContext(
     overrides: Partial<TransitionTestDeps> = {},
   ): TransitionContext {
-    const myPlayerId = overrides.myPlayerId ?? 0;
+    const onlinePlayerId = overrides.onlinePlayerId ?? 0;
     const banner = createBannerState();
     const battleAnim = createBattleAnimState();
     const watcherTiming: WatcherTimingState = {
@@ -530,7 +527,7 @@ export function createScenario(seed = 42): Scenario {
 
     return {
       getState: () => state,
-      session: { myPlayerId },
+      session: { onlinePlayerId },
       getControllers: () => controllers,
       setMode: () => {},
       now: () => performance.now(),

@@ -38,7 +38,7 @@ interface InitWaitingRoomDeps {
 interface EnterTowerSelectionDeps {
   state: GameState;
   isHost: boolean;
-  myPlayerId: number;
+  onlinePlayerId: number;
   remoteHumanSlots: ReadonlySet<number>;
   controllers: PlayerController[];
   selectionStates: Map<number, SelectionState>;
@@ -158,7 +158,7 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
   const {
     state,
     isHost,
-    myPlayerId,
+    onlinePlayerId,
     remoteHumanSlots,
     controllers,
     selectionStates,
@@ -179,9 +179,9 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
     `enterTowerSelection (phase=${Phase[state.phase]}, round=${state.round})`,
   );
 
-  // Watcher (non-host, no player slot). Note: isHost && myPlayerId < 0 is
+  // Watcher (non-host, no player slot). Note: isHost && onlinePlayerId < 0 is
   // impossible — watcher-to-host promotion always assigns a player slot first.
-  if (!isHost && myPlayerId < 0) {
+  if (!isHost && onlinePlayerId < 0) {
     selectionStates.clear();
     for (let i = 0; i < state.players.length; i++) {
       initTowerSelection(i, state.playerZones[i]!);
@@ -196,7 +196,7 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
     return;
   }
 
-  if (!isHost && myPlayerId >= 0) {
+  if (!isHost && onlinePlayerId >= 0) {
     const needsCastleReselect = state.phase !== Phase.CASTLE_SELECT;
     if (needsCastleReselect && !isReselectPhase(state.phase)) {
       enterCastleReselectPhase(state);
@@ -204,7 +204,7 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
     selectionStates.clear();
     for (let i = 0; i < state.players.length; i++) {
       const zone = state.playerZones[i]!;
-      if (i === myPlayerId) {
+      if (i === onlinePlayerId) {
         controllers[i]!.selectTower(state, zone);
       }
       initTowerSelection(i, zone);

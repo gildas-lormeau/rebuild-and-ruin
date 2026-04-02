@@ -2,16 +2,12 @@
  * Upgrade pick dialog sub-system factory.
  *
  * Follows the same factory-with-deps pattern as runtime-life-lost.ts.
- * Owns the dialog lifecycle: create, tick (AI auto-pick), resolve,
- * and input handling (keyboard/mouse).
+ * Owns the dialog lifecycle: create, tick (AI auto-pick), resolve.
+ * Input handling lives in the input layer (runtime-input.ts).
  */
 
 import { type GameMessage, MESSAGE } from "../server/protocol.ts";
-import {
-  type InputReceiver,
-  isHuman,
-  type PlayerController,
-} from "./controller-interfaces.ts";
+import { isHuman } from "./controller-interfaces.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import { Mode, type UpgradePickDialogState } from "./types.ts";
 import {
@@ -26,7 +22,6 @@ interface UpgradePickSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly log: (msg: string) => void;
   readonly render: () => void;
-  readonly firstHuman: () => (PlayerController & InputReceiver) | null;
   readonly send?: (msg: GameMessage) => void;
 }
 
@@ -57,7 +52,7 @@ export function createUpgradePickSystem(
     const dialog = createUpgradePickDialog({
       state: runtimeState.state,
       isHost: runtimeState.frameCtx.isHost,
-      myPlayerId: runtimeState.frameCtx.onlinePlayerId,
+      onlinePlayerId: runtimeState.frameCtx.onlinePlayerId,
       remoteHumanSlots: runtimeState.frameCtx.remoteHumanSlots,
       isHumanController: (playerId) =>
         isHuman(runtimeState.controllers[playerId]!),

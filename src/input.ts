@@ -29,12 +29,12 @@ import type { GameActionDeps } from "./input-dispatch.ts";
 import type { KeyBindings, SeedMode } from "./player-config.ts";
 import type { RendererInterface } from "./render-types.ts";
 import type {
+  Action,
   ControlsState,
   GameOverFocus,
   GameState,
   LifeLostDialogState,
   Mode,
-  ResolvedChoice,
 } from "./types.ts";
 
 export interface RegisterOnlineInputDeps {
@@ -53,11 +53,11 @@ export interface RegisterOnlineInputDeps {
   // --- Controllers ---
   getControllers: () => PlayerController[];
   isHuman: (ctrl: PlayerController) => ctrl is PlayerController & InputReceiver;
-  /** Execute an action with the first human-controlled player.
+  /** Execute an action with the pointer player (mouse/touch target).
    *  IMPORTANT: The callback is NOT invoked if no human players exist
    *  (e.g., all-AI game or spectator mode). Callers must not rely on
    *  side effects — the action may silently not run. */
-  withFirstHuman: (
+  withPointerPlayer: (
     action: (human: PlayerController & InputReceiver) => void,
   ) => void;
 
@@ -105,11 +105,16 @@ export interface RegisterOnlineInputDeps {
     getControlsState: () => ControlsState;
   };
 
-  // --- Life-lost dialog ---
+  // --- Per-player dialogs (life-lost, upgrade pick) ---
+  /** Dispatch a player action to whichever per-player dialog is active.
+   *  Returns true if consumed. Input handlers resolve the playerId upstream
+   *  (keyboard: match key → controller, mouse/touch: pointer player). */
+  dialogAction: (playerId: number, action: Action) => boolean;
+
+  // --- Life-lost dialog (click + get) ---
   lifeLost: {
     get: () => LifeLostDialogState | null;
     click: (x: number, y: number) => void;
-    sendChoice: (choice: ResolvedChoice, playerId: number) => void;
   };
 
   // --- Game over ---

@@ -138,7 +138,7 @@ export function createBannerUi(
 export function createStatusBar(
   state: GameState,
   playerColors: readonly { interiorLight: RGB }[],
-  myPlayerId?: number,
+  onlinePlayerId?: number,
 ) {
   // Modifier label (modern mode only)
   const modifier = state.activeModifier
@@ -147,8 +147,8 @@ export function createStatusBar(
 
   // Local player's active upgrade labels
   let upgrades: string[] | undefined;
-  if (myPlayerId !== undefined && myPlayerId >= 0) {
-    const player = state.players[myPlayerId];
+  if (onlinePlayerId !== undefined && onlinePlayerId >= 0) {
+    const player = state.players[onlinePlayerId];
     if (player && player.upgrades.size > 0) {
       upgrades = [];
       for (const [id, count] of player.upgrades) {
@@ -326,7 +326,7 @@ export function createOnlineOverlay(params: {
   bannerUi?: { text: string; subtitle?: string; y: number };
   lifeLostDialog: LifeLostDialogState | null;
   upgradePickDialog: UpgradePickDialogState | null;
-  myPlayerId: number;
+  onlinePlayerId: number;
   playerNames: ReadonlyArray<string>;
   playerColors: ReadonlyArray<{ wall: RGB }>;
   getLifeLostPanelPos: (playerId: number) => { px: number; py: number };
@@ -340,7 +340,7 @@ export function createOnlineOverlay(params: {
     bannerUi,
     lifeLostDialog,
     upgradePickDialog,
-    myPlayerId,
+    onlinePlayerId,
     playerNames,
     playerColors,
     getLifeLostPanelPos,
@@ -405,14 +405,14 @@ export function createOnlineOverlay(params: {
         getLifeLostPanelPos,
       ),
       comboFloats:
-        myPlayerId < 0
+        onlinePlayerId < 0
           ? state.comboTracker?.events
           : state.comboTracker?.events.filter(
-              (ev) => ev.playerId === myPlayerId,
+              (ev) => ev.playerId === onlinePlayerId,
             ),
       upgradePick: buildUpgradePickUi(
         upgradePickDialog,
-        myPlayerId,
+        onlinePlayerId,
         playerNames,
         playerColors,
       ),
@@ -599,7 +599,7 @@ function buildLifeLostDialogUi(
 
 function buildUpgradePickUi(
   dialog: UpgradePickDialogState | null,
-  myPlayerId: number,
+  onlinePlayerId: number,
   playerNames: ReadonlyArray<string>,
   playerColors: ReadonlyArray<{ wall: RGB }>,
 ): UpgradePickOverlay | undefined {
@@ -607,7 +607,7 @@ function buildUpgradePickUi(
 
   let humanIdx = -1;
   const entries = dialog.entries.map((entry, idx) => {
-    if (entry.playerId === myPlayerId && !entry.isAi) humanIdx = idx;
+    if (entry.playerId === onlinePlayerId && !entry.isAi) humanIdx = idx;
     return {
       playerName: playerNames[entry.playerId] ?? `P${entry.playerId + 1}`,
       color: playerColors[entry.playerId % playerColors.length]!.wall,

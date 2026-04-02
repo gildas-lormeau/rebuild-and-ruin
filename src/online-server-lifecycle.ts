@@ -23,7 +23,7 @@ interface HandleServerLifecycleDeps {
   session: Pick<
     OnlineSession,
     | "isHost"
-    | "myPlayerId"
+    | "onlinePlayerId"
     | "hostMigrationSeq"
     | "lobbyWaitTimer"
     | "roomBattleLength"
@@ -87,7 +87,7 @@ export function handleServerLifecycleMessage(
   const occupyLobbySlot = (playerId: number) => {
     deps.lobby.joined[playerId] = true;
     deps.session.occupiedSlots.add(playerId);
-    if (playerId !== deps.session.myPlayerId) {
+    if (playerId !== deps.session.onlinePlayerId) {
       deps.session.remoteHumanSlots.add(playerId);
     } else {
       deps.session.remoteHumanSlots.delete(playerId);
@@ -134,7 +134,7 @@ export function handleServerLifecycleMessage(
       for (const player of msg.players) {
         deps.lobby.joined[player.playerId] = true;
         deps.session.occupiedSlots.add(player.playerId);
-        if (player.playerId !== deps.session.myPlayerId) {
+        if (player.playerId !== deps.session.onlinePlayerId) {
           deps.session.remoteHumanSlots.add(player.playerId);
         }
       }
@@ -147,12 +147,12 @@ export function handleServerLifecycleMessage(
       ) {
         clearLobbySlot(msg.previousPlayerId);
       } else {
-        const currentPlayerId = deps.session.myPlayerId;
+        const currentPlayerId = deps.session.onlinePlayerId;
         if (currentPlayerId >= 0 && currentPlayerId !== msg.playerId) {
           clearLobbySlot(currentPlayerId);
         }
       }
-      deps.session.myPlayerId = msg.playerId;
+      deps.session.onlinePlayerId = msg.playerId;
       occupyLobbySlot(msg.playerId);
       return true;
 
@@ -225,7 +225,7 @@ export function handleServerLifecycleMessage(
         `host_left: new host is P${msg.newHostPlayerId} (previous: P${msg.previousHostPlayerId})`,
       );
       deps.session.hostMigrationSeq++;
-      if (msg.newHostPlayerId === deps.session.myPlayerId) {
+      if (msg.newHostPlayerId === deps.session.onlinePlayerId) {
         deps.migration.promoteToHost();
         deps.ui.setAnnouncement("You are now the host");
       } else {

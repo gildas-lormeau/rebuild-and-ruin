@@ -18,7 +18,7 @@ import type { LifeLostChoice } from "./types.ts";
 export interface OnlineSession {
   socket: WebSocket | null;
   /** This player's slot id. -1 = watcher/spectator (not an active player). */
-  myPlayerId: number;
+  onlinePlayerId: number;
   /** Whether this client is the current host.
    *  VOLATILE: Can flip from false to true during host promotion (see online-host-promotion.ts).
    *  Never cache across tick boundaries, awaits, or phase transitions — always re-read from session.
@@ -61,7 +61,7 @@ const KEEPALIVE_MS = 30_000;
 export function createSession(): OnlineSession {
   return {
     socket: null,
-    myPlayerId: -1,
+    onlinePlayerId: -1,
     isHost: false,
     hostMigrationSeq: 0,
     occupiedSlots: new Set(),
@@ -97,7 +97,7 @@ export function resetSessionState(session: OnlineSession): void {
   session.socket = null;
   session.isHost = false;
   session.hostMigrationSeq = 0;
-  session.myPlayerId = -1;
+  session.onlinePlayerId = -1;
   session.occupiedSlots.clear();
   session.remoteHumanSlots.clear();
   session.earlyLifeLostChoices.clear();
@@ -111,7 +111,7 @@ export function sendAimUpdate(
   y: number,
   playerId?: number,
 ): void {
-  const pid = playerId ?? session.myPlayerId;
+  const pid = playerId ?? session.onlinePlayerId;
   const key = `${Math.round(x)},${Math.round(y)}`;
   if (!dedupChanged(dedup.aimTarget, pid, key)) return;
   sendMessage(session, { type: MESSAGE.AIM_UPDATE, playerId: pid, x, y });

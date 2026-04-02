@@ -77,7 +77,6 @@ export interface FrameContextInputs {
   isSelectionReady: boolean;
   humanIsReselecting: boolean;
   onlinePlayerId: number;
-  firstHumanPlayerId: number;
   isHost: boolean;
   remoteHumanSlots: ReadonlySet<number>;
   mobileAutoZoom: boolean;
@@ -92,8 +91,7 @@ export interface RuntimeConfig {
   /** () => true for local. */
   getIsHost: () => boolean;
   /** This client's player slot in online mode, or -1 in local (shared-screen) mode.
-   *  Only meaningful for online play — local consumers should skip per-player filtering
-   *  or fall back to firstHumanPlayerId. */
+   *  Only meaningful for online play — local consumers should use povPlayerId instead. */
   getOnlinePlayerId: () => number;
   /** () => emptySet for local. */
   getRemoteHumanSlots: () => Set<number>;
@@ -257,7 +255,6 @@ export interface RuntimeLifeLost {
   tick: (dt: number) => void;
   afterResolved: (continuing?: readonly number[]) => boolean;
   panelPos: (playerId: number) => { px: number; py: number };
-  click: (canvasX: number, canvasY: number) => void;
 }
 
 export interface RuntimeLobby {
@@ -323,7 +320,6 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     isSelectionReady,
     humanIsReselecting,
     onlinePlayerId,
-    firstHumanPlayerId,
     isHost,
     remoteHumanSlots,
     mobileAutoZoom,
@@ -340,16 +336,10 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
 
   const shouldUnzoom = uiBlocking || phaseEnding;
 
-  const povPlayerId =
-    onlinePlayerId >= 0
-      ? onlinePlayerId
-      : firstHumanPlayerId >= 0
-        ? firstHumanPlayerId
-        : 0;
+  const povPlayerId = onlinePlayerId >= 0 ? onlinePlayerId : 0;
 
   return {
     onlinePlayerId,
-    firstHumanPlayerId,
     povPlayerId,
     isHost,
     remoteHumanSlots,

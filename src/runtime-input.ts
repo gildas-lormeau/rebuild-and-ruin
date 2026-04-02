@@ -32,6 +32,7 @@ import {
   type FloatingActionsHandle,
 } from "./input-touch-ui.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
+import { handleLifeLostDialogClick } from "./render-composition.ts";
 import type { LoupeHandle } from "./render-loupe.ts";
 import type { RendererInterface } from "./render-types.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
@@ -39,6 +40,7 @@ import type { CameraSystem } from "./runtime-types.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import { towerCenterPx } from "./spatial.ts";
 import {
+  Action,
   FOCUS_MENU,
   FOCUS_REMATCH,
   type GameOverFocus,
@@ -103,10 +105,10 @@ interface InputSystemDeps {
     togglePause: () => boolean;
   };
   readonly lifeLost: {
-    click: (canvasX: number, canvasY: number) => void;
     sendLifeLostChoice: (choice: ResolvedChoice, playerId: number) => void;
     toggleFocus: (playerId: number) => void;
     confirmChoice: (playerId: number) => void;
+    applyChoice: (playerId: number, choice: ResolvedChoice) => void;
   };
   readonly upgradePick: {
     moveFocus: (playerId: number, dir: number) => void;
@@ -136,8 +138,8 @@ interface InputSystemDeps {
   readonly haptics: Pick<HapticsSystem, "tap">;
 
   // Sibling callbacks
-  readonly firstHuman: () => (PlayerController & InputReceiver) | null;
-  readonly withFirstHuman: (
+  readonly pointerPlayer: () => (PlayerController & InputReceiver) | null;
+  readonly withPointerPlayer: (
     action: (human: PlayerController & InputReceiver) => void,
   ) => void;
   readonly isSelectionReady: () => boolean;
@@ -174,7 +176,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     options,
     lifeLost,
     selection,
-    withFirstHuman,
+    withPointerPlayer,
     isSelectionReady,
     render,
     rematch,
@@ -223,7 +225,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       uiCtx,
       options,
       lifeLost,
-      withFirstHuman,
+      withPointerPlayer,
       render,
       rematch,
       returnToLobby,
@@ -273,7 +275,7 @@ function buildInputDeps(
   uiCtx: UIContext,
   options: InputSystemDeps["options"],
   lifeLost: InputSystemDeps["lifeLost"],
-  withFirstHuman: InputSystemDeps["withFirstHuman"],
+  withPointerPlayer: InputSystemDeps["withPointerPlayer"],
   render: () => void,
   rematch: () => void,
   returnToLobby: () => void,
@@ -293,7 +295,7 @@ function buildInputDeps(
     settings: runtimeState.settings,
     getControllers: () => runtimeState.controllers,
     isHuman,
-    withFirstHuman,
+    withPointerPlayer,
     showLobby: returnToLobby,
     rematch,
     maybeSendAimUpdate: deps.maybeSendAimUpdate ?? (() => {}),
@@ -330,10 +332,51 @@ function buildInputDeps(
       togglePause: options.togglePause,
       getControlsState: () => runtimeState.controlsState,
     },
+    dialogAction: (playerId: number, action: Action) => {
+      if (runtimeState.mode === Mode.LIFE_LOST && runtimeState.lifeLostDialog) {
+        if (action === Action.LEFT || action === Action.RIGHT) {
+          lifeLost.toggleFocus(playerId);
+          return true;
+        }
+        if (action === Action.CONFIRM) {
+          lifeLost.confirmChoice(playerId);
+          return true;
+        }
+      }
+      if (
+        runtimeState.mode === Mode.UPGRADE_PICK &&
+        runtimeState.upgradePickDialog
+      ) {
+        if (action === Action.LEFT) {
+          deps.upgradePick.moveFocus(playerId, -1);
+          return true;
+        }
+        if (action === Action.RIGHT) {
+          deps.upgradePick.moveFocus(playerId, 1);
+          return true;
+        }
+        if (action === Action.CONFIRM) {
+          deps.upgradePick.confirmChoice(playerId);
+          return true;
+        }
+      }
+      return false;
+    },
     lifeLost: {
       get: () => runtimeState.lifeLostDialog,
-      click: lifeLost.click,
-      sendChoice: lifeLost.sendLifeLostChoice,
+      click: (x: number, y: number) => {
+        if (!runtimeState.lifeLostDialog) return;
+        const hit = handleLifeLostDialogClick({
+          state: runtimeState.state,
+          lifeLostDialog: runtimeState.lifeLostDialog,
+          screenX: x,
+          screenY: y,
+        });
+        if (!hit) return;
+        const pp = deps.pointerPlayer();
+        if (pp && hit.playerId !== pp.playerId) return;
+        lifeLost.applyChoice(hit.playerId, hit.choice);
+      },
     },
     gameOver: {
       getFocused: () => runtimeState.frame.gameOver?.focused ?? FOCUS_REMATCH,
@@ -418,7 +461,7 @@ function setupDpadAndActions(
     haptics,
     lobby,
     selection,
-    withFirstHuman,
+    withPointerPlayer,
     isSelectionReady,
   } = deps;
   const {
@@ -426,13 +469,13 @@ function setupDpadAndActions(
     tryPlaceCannonAndSend: placeCannonAction,
   } = inputDeps.gameAction;
 
-  const overlayActionDeps = buildOverlayActionDeps(deps);
+  const overlayActionDeps = buildOverlayActionDeps(deps, inputDeps);
 
   touch.dpad = createDpad(
     {
       getState: () => safeState(runtimeState),
       getMode: () => runtimeState.mode,
-      withFirstHuman,
+      withPointerPlayer,
       onHapticTap: haptics.tap,
       isHost: deps.getIsHost,
       lobbyAction: () =>
@@ -458,18 +501,15 @@ function setupDpadAndActions(
   touch.dpad.update(null); // initial state: d-pad + rotate disabled
 }
 
-/** Build overlay action deps for touch d-pad (options, life-lost, game-over). */
-function buildOverlayActionDeps(deps: InputSystemDeps) {
-  const {
-    runtimeState,
-    uiCtx,
-    options,
-    lifeLost,
-    render,
-    rematch,
-    returnToLobby,
-  } = deps;
-  const firstHuman = deps.firstHuman;
+/** Build overlay action deps for touch d-pad (options, dialogs, game-over).
+ *  Per-player dialogs (life-lost, upgrade pick) route through dialogAction
+ *  with the pointer player's id — same path as keyboard dispatch. */
+function buildOverlayActionDeps(
+  deps: InputSystemDeps,
+  inputDeps: RegisterOnlineInputDeps,
+) {
+  const { runtimeState, uiCtx, options, render, rematch, returnToLobby } = deps;
+  const pointerPlayer = deps.pointerPlayer;
   return {
     options: {
       isActive: () => runtimeState.mode === Mode.OPTIONS,
@@ -484,31 +524,10 @@ function buildOverlayActionDeps(deps: InputSystemDeps) {
         else options.closeOptions();
       },
     },
-    lifeLost: {
-      isActive: () =>
-        runtimeState.mode === Mode.LIFE_LOST &&
-        runtimeState.lifeLostDialog !== null,
-      toggleFocus: () => {
-        const human = firstHuman();
-        if (human) lifeLost.toggleFocus(human.playerId);
-      },
-      confirm: () => {
-        const human = firstHuman();
-        if (human) lifeLost.confirmChoice(human.playerId);
-      },
-    },
-    upgradePick: {
-      isActive: () =>
-        runtimeState.mode === Mode.UPGRADE_PICK &&
-        runtimeState.upgradePickDialog !== null,
-      toggleFocus: () => {
-        const human = firstHuman();
-        if (human) deps.upgradePick.moveFocus(human.playerId, 1);
-      },
-      confirm: () => {
-        const human = firstHuman();
-        if (human) deps.upgradePick.confirmChoice(human.playerId);
-      },
+    dialogAction: (action: Action) => {
+      const pp = pointerPlayer();
+      if (!pp) return false;
+      return inputDeps.dialogAction(pp.playerId, action);
     },
     gameOver: {
       isActive: () =>
@@ -563,7 +582,7 @@ function setupZoomButtons(touch: TouchHandles, deps: InputSystemDeps): void {
 /** Build zoom button deps for touch controls (home/enemy zone zoom). */
 function buildZoomDeps(deps: InputSystemDeps) {
   const { runtimeState, camera } = deps;
-  const firstHuman = deps.firstHuman;
+  const pointerPlayer = deps.pointerPlayer;
   return {
     getState: () => safeState(runtimeState),
     getCameraZone: camera.getCameraZone,
@@ -572,7 +591,7 @@ function buildZoomDeps(deps: InputSystemDeps) {
     getEnemyZones: camera.getEnemyZones,
     aimAtZone: (zone: number) => {
       if (!runtimeState.state) return;
-      const human = firstHuman();
+      const human = pointerPlayer();
       if (!human) return;
       const pid = runtimeState.state.playerZones.indexOf(zone);
       const tower =
@@ -595,7 +614,7 @@ function setupFloatingActions(
     gameContainer,
     sound,
     haptics,
-    withFirstHuman,
+    withPointerPlayer,
   } = deps;
   const {
     tryPlacePieceAndSend: placePieceAction,
@@ -608,7 +627,7 @@ function setupFloatingActions(
     touch.floatingActions = createFloatingActions(
       {
         getState: () => safeState(runtimeState),
-        withFirstHuman,
+        withPointerPlayer,
         tryPlacePieceAndSend: placePieceAction,
         tryPlaceCannonAndSend: placeCannonAction,
         onPieceRotated: sound.pieceRotated,

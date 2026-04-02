@@ -46,7 +46,7 @@ export interface WatcherTickContext {
   getAccum: () => TimerAccums;
   getBattleAnim: () => BattleAnimState;
   getControllers: () => PlayerController[];
-  session: Pick<OnlineSession, "myPlayerId">;
+  session: Pick<OnlineSession, "onlinePlayerId">;
   dedup: Pick<DedupMaps, "cannonPhantom" | "piecePhantom">;
   send: (msg: { type: string; [key: string]: unknown }) => void;
   logThrottled: (key: string, msg: string) => void;
@@ -140,11 +140,11 @@ export function tickWatcher(
 
   tickWatcherTimers(state, frame, watcherState.timing, transitionCtx.now);
 
-  const myPlayerId = transitionCtx.session.myPlayerId;
+  const onlinePlayerId = transitionCtx.session.onlinePlayerId;
   const myHuman = getLocalHuman(
     state,
     transitionCtx.getControllers(),
-    myPlayerId,
+    onlinePlayerId,
   );
 
   if (state.phase === Phase.BATTLE) {
@@ -153,7 +153,7 @@ export function tickWatcher(
       frame,
       battleAnim: transitionCtx.getBattleAnim(),
       dt,
-      myPlayerId,
+      onlinePlayerId,
       myHuman,
       remoteCrosshairs: watcherState.remoteCrosshairs,
       watcherCrosshairPos: watcherState.crosshairPos,
@@ -171,7 +171,7 @@ export function tickWatcher(
       state,
       frame,
       dt,
-      myPlayerId,
+      onlinePlayerId,
       myHuman,
       remoteCannonPhantoms: watcherState.remoteCannonPhantoms,
       lastSentCannonPhantom: transitionCtx.dedup.cannonPhantom,
@@ -205,9 +205,10 @@ export function tickWatcher(
 function getLocalHuman(
   state: GameState,
   controllers: readonly PlayerController[],
-  myPlayerId: number,
+  onlinePlayerId: number,
 ): PlayerController | null {
-  if (myPlayerId < 0 || state.players[myPlayerId]?.eliminated) return null;
-  const ctrl = controllers[myPlayerId];
+  if (onlinePlayerId < 0 || state.players[onlinePlayerId]?.eliminated)
+    return null;
+  const ctrl = controllers[onlinePlayerId];
   return ctrl && isHuman(ctrl) ? ctrl : null;
 }

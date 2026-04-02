@@ -52,7 +52,7 @@ import {
 export interface TransitionContext {
   // ── Core state access ──
   getState: () => GameState;
-  session: Pick<OnlineSession, "myPlayerId">;
+  session: Pick<OnlineSession, "onlinePlayerId">;
   getControllers: () => PlayerController[];
   /** Set the UI rendering mode. Valid transitions from phase handlers:
    *  - CASTLE_BUILD — castle wall animation playing
@@ -191,7 +191,7 @@ export function handleCastleWallsTransition(
   transitionCtx.selection.clearSelectionOverlay();
   // Zoom to the local player's castle on mobile
   const myPlan = plans.find(
-    (plan) => plan.playerId === transitionCtx.session.myPlayerId,
+    (plan) => plan.playerId === transitionCtx.session.onlinePlayerId,
   );
   if (myPlan) transitionCtx.selection.setCastleBuildViewport([myPlan]);
 
@@ -208,7 +208,7 @@ export function handleCannonStartTransition(
 ): void {
   if (msg.type !== MESSAGE.CANNON_START) return;
   const state = transitionCtx.getState();
-  const myPlayerId = transitionCtx.session.myPlayerId;
+  const onlinePlayerId = transitionCtx.session.onlinePlayerId;
   transitionCtx.selection.clearSelectionOverlay();
 
   // Pre-capture old entities before checkpoint spawns new ones.
@@ -218,8 +218,8 @@ export function handleCannonStartTransition(
   transitionCtx.checkpoint.applyCannonStart(msg);
 
   const initLocalController = () => {
-    if (myPlayerId >= 0) {
-      const ctrl = transitionCtx.getControllers()[myPlayerId];
+    if (onlinePlayerId >= 0) {
+      const ctrl = transitionCtx.getControllers()[onlinePlayerId];
       if (ctrl) initControllerForCannonPhase(ctrl, state);
     }
   };
@@ -308,7 +308,7 @@ export function handleBuildStartTransition(
 ): void {
   if (msg.type !== MESSAGE.BUILD_START) return;
   const state = transitionCtx.getState();
-  const myPlayerId = transitionCtx.session.myPlayerId;
+  const onlinePlayerId = transitionCtx.session.onlinePlayerId;
 
   // Pre-capture old scene before checkpoint replaces state (banner ??= keeps it)
   transitionCtx.ui.banner.oldEntities = snapshotEntities(state);
@@ -340,10 +340,10 @@ export function handleBuildStartTransition(
         // Already applied above — no-op
       },
       initControllers: () => {
-        if (myPlayerId >= 0) {
-          const player = state.players[myPlayerId];
+        if (onlinePlayerId >= 0) {
+          const player = state.players[onlinePlayerId];
           if (player && !player.eliminated) {
-            transitionCtx.getControllers()[myPlayerId]?.startBuild(state);
+            transitionCtx.getControllers()[onlinePlayerId]?.startBuild(state);
           }
         }
       },
@@ -395,14 +395,15 @@ export function handleBuildEndTransition(
   // Shared build-end sequence: score deltas → onLifeLost → dialog.
   // Without the score-delta delay, non-host sends life_lost_choice before
   // host creates its dialog.
-  const myPlayerId = transitionCtx.session.myPlayerId;
+  const onlinePlayerId = transitionCtx.session.onlinePlayerId;
   runBuildEndSequence({
     needsReselect: msg.needsReselect,
     eliminated: msg.eliminated,
     showScoreDeltas: (onDone) =>
       transitionCtx.endPhase.showScoreDeltas(preScores, onDone),
     notifyLifeLost: (pid) => {
-      if (pid === myPlayerId) transitionCtx.getControllers()[pid]?.onLifeLost();
+      if (pid === onlinePlayerId)
+        transitionCtx.getControllers()[pid]?.onLifeLost();
     },
     showLifeLostDialog: transitionCtx.endPhase.showLifeLostDialog,
     // No afterLifeLostResolved — watcher waits for host's next phase message

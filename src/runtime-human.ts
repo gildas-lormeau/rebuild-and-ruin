@@ -1,8 +1,10 @@
 /**
- * Human-player lookup — cached per-frame lookup of the first human controller.
+ * Pointer-player lookup — cached per-frame lookup of the player that
+ * receives mouse/touch input.
  *
- * Used by nearly every sub-system (camera, selection, input, phase-ticks,
- * life-lost) so it lives in its own module rather than inline in runtime.ts.
+ * On touch devices there is always exactly one human. On desktop,
+ * pointer input goes to the player who joined via mouse click
+ * (mouseJoinedSlot), falling back to the first human controller.
  */
 
 import {
@@ -12,23 +14,24 @@ import {
 } from "./controller-interfaces.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
-interface HumanLookup {
-  /** Return the first non-eliminated human controller (prefers mouse-joined slot). */
-  firstHuman: () => (PlayerController & InputReceiver) | null;
-  /** Run `action` with the first human controller. No-op if no human exists
-   *  (e.g. all-AI game) — the action callback will NOT be called. */
-  withFirstHuman: (
+interface PointerPlayerLookup {
+  /** Return the human controller that owns mouse/touch input, or null in demo mode. */
+  pointerPlayer: () => (PlayerController & InputReceiver) | null;
+  /** Run `action` with the pointer player. No-op in demo mode (all-AI). */
+  withPointerPlayer: (
     action: (human: PlayerController & InputReceiver) => void,
   ) => void;
   /** Clear the per-frame cache. Must be called at the start of each frame. */
   clearCache: () => void;
 }
 
-export function createHumanLookup(runtimeState: RuntimeState): HumanLookup {
-  let cachedFirstHuman: (PlayerController & InputReceiver) | null | undefined;
+export function createPointerPlayerLookup(
+  runtimeState: RuntimeState,
+): PointerPlayerLookup {
+  let cached: (PlayerController & InputReceiver) | null | undefined;
 
-  function firstHuman(): (PlayerController & InputReceiver) | null {
-    if (cachedFirstHuman !== undefined) return cachedFirstHuman;
+  function pointerPlayer(): (PlayerController & InputReceiver) | null {
+    if (cached !== undefined) return cached;
     // Prefer the player who joined via mouse/trackpad
     if (runtimeState.mouseJoinedSlot !== null) {
       const ctrl = runtimeState.controllers.find(
@@ -39,29 +42,29 @@ export function createHumanLookup(runtimeState: RuntimeState): HumanLookup {
         isHuman(ctrl) &&
         !runtimeState.state.players[ctrl.playerId]?.eliminated
       )
-        return (cachedFirstHuman = ctrl);
+        return (cached = ctrl);
     }
     for (const ctrl of runtimeState.controllers) {
       if (
         isHuman(ctrl) &&
         !runtimeState.state.players[ctrl.playerId]?.eliminated
       )
-        return (cachedFirstHuman = ctrl);
+        return (cached = ctrl);
     }
-    return (cachedFirstHuman = null);
+    return (cached = null);
   }
 
-  function withFirstHuman(
+  function withPointerPlayer(
     action: (human: PlayerController & InputReceiver) => void,
   ): void {
-    const human = firstHuman();
-    if (!human) return;
-    action(human);
+    const pp = pointerPlayer();
+    if (!pp) return;
+    action(pp);
   }
 
   function clearCache(): void {
-    cachedFirstHuman = undefined;
+    cached = undefined;
   }
 
-  return { firstHuman, withFirstHuman, clearCache };
+  return { pointerPlayer, withPointerPlayer, clearCache };
 }

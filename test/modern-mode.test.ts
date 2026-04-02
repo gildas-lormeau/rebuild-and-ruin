@@ -633,7 +633,7 @@ test("createUpgradePickDialog returns dialog from pending offers", () => {
   const dialog = createUpgradePickDialog({
     state: s.state,
     isHost: true,
-    myPlayerId: 0,
+    onlinePlayerId: 0,
     remoteHumanSlots: new Set(),
     isHumanController: () => false,
   });

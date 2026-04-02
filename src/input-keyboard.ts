@@ -1,14 +1,5 @@
-import type {
-  InputReceiver,
-  PlayerController,
-} from "./controller-interfaces.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
-import {
-  dispatchGameAction,
-  dispatchOverlayAction,
-  dispatchQuit,
-  type OverlayActionDeps,
-} from "./input-dispatch.ts";
+import { dispatchGameAction, dispatchQuit } from "./input-dispatch.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
   ACTION_KEYS,
@@ -31,9 +22,6 @@ import {
   isGameplayMode,
   isInteractiveMode,
   isPlacementPhase,
-  LIFE_LOST_FOCUS_ABANDON,
-  LIFE_LOST_FOCUS_CONTINUE,
-  LifeLostChoice,
   Mode,
 } from "./types.ts";
 
@@ -72,10 +60,7 @@ export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
 
     const state = getState();
     if (!state) return;
-    if (mode === Mode.LIFE_LOST && deps.lifeLost.get()) {
-      handleKeyLifeLost(e, deps);
-      return;
-    }
+    if (handleKeyDialog(e, deps)) return;
     if ((e.key === "p" || e.key === "P") && deps.options.togglePause()) {
       e.preventDefault();
       return;
@@ -299,66 +284,24 @@ function handleKeyOptionsNavigation(
   }
 }
 
-function handleKeyLifeLost(
+/** Per-player dialog keyboard dispatch. Iterates all human controllers,
+ *  matches the key to each player's bindings, and delegates to the
+ *  centralized dialogAction(playerId, action). */
+function handleKeyDialog(
   e: KeyboardEvent,
   deps: RegisterOnlineInputDeps,
-): void {
+): boolean {
+  let consumed = false;
   for (const ctrl of deps.getControllers()) {
     if (!deps.isHuman(ctrl)) continue;
     const action = ctrl.matchKey(e.key);
     if (!action) continue;
-    if (dispatchOverlayAction(action, buildLifeLostOverlayDeps(ctrl, deps))) {
+    if (deps.dialogAction(ctrl.playerId, action)) {
       e.preventDefault();
+      consumed = true;
     }
   }
-}
-
-function buildLifeLostOverlayDeps(
-  ctrl: PlayerController & InputReceiver,
-  deps: RegisterOnlineInputDeps,
-): OverlayActionDeps {
-  return {
-    lifeLost: {
-      isActive: () => {
-        const dialog = deps.lifeLost.get();
-        return (
-          dialog?.entries.some(
-            (en) =>
-              en.playerId === ctrl.playerId &&
-              en.choice === LifeLostChoice.PENDING,
-          ) ?? false
-        );
-      },
-      toggleFocus: () => {
-        const dialog = deps.lifeLost.get();
-        const entry = dialog?.entries.find(
-          (en) =>
-            en.playerId === ctrl.playerId &&
-            en.choice === LifeLostChoice.PENDING,
-        );
-        if (entry)
-          entry.focused =
-            entry.focused === LIFE_LOST_FOCUS_CONTINUE
-              ? LIFE_LOST_FOCUS_ABANDON
-              : LIFE_LOST_FOCUS_CONTINUE;
-      },
-      confirm: () => {
-        const dialog = deps.lifeLost.get();
-        const entry = dialog?.entries.find(
-          (en) =>
-            en.playerId === ctrl.playerId &&
-            en.choice === LifeLostChoice.PENDING,
-        );
-        if (entry) {
-          entry.choice =
-            entry.focused === LIFE_LOST_FOCUS_CONTINUE
-              ? LifeLostChoice.CONTINUE
-              : LifeLostChoice.ABANDON;
-          deps.lifeLost.sendChoice(entry.choice, entry.playerId);
-        }
-      },
-    },
-  };
+  return consumed;
 }
 
 function handleKeyGame(

@@ -19,7 +19,7 @@ export interface SoundSystem {
   // Battle (level 2)
   battleEvents: (
     events: ReadonlyArray<BattleEvent>,
-    myPlayerId: number,
+    povPlayerId: number,
   ) => void;
 
   // Player actions (level 2)
@@ -373,7 +373,7 @@ export function createSoundSystem(): SoundSystem {
       speed: number;
       playerId: number;
     },
-    myPlayerId: number,
+    povPlayerId: number,
   ): void {
     if (activeWhistles >= MAX_WHISTLES) return;
     const audioCtx = getCtx();
@@ -384,7 +384,7 @@ export function createSoundSystem(): SoundSystem {
     const dist = Math.sqrt(dx * dx + dy * dy);
     const dur = Math.min(3, Math.max(0.3, dist / evt.speed));
 
-    const mine = evt.playerId === myPlayerId;
+    const mine = evt.playerId === povPlayerId;
     const jitter = 1 + (Math.random() - 0.5) * 0.15;
     const startHz = mine ? 2600 * jitter : 2500 * jitter;
     const endHz = mine ? 3600 * jitter : 1600 * jitter;
@@ -540,25 +540,25 @@ export function createSoundSystem(): SoundSystem {
       play("phaseStart", 1);
     },
 
-    battleEvents(events, myPlayerId) {
+    battleEvents(events, povPlayerId) {
       if (soundLevel < 2) return;
       for (const evt of events) {
         if (evt.type === MESSAGE.CANNON_FIRED) {
           cannonBoom();
-          cannonWhistle(evt, myPlayerId);
+          cannonWhistle(evt, povPlayerId);
         } else if (
           evt.type === MESSAGE.WALL_DESTROYED &&
-          evt.playerId === myPlayerId
+          evt.playerId === povPlayerId
         ) {
           impact();
         } else if (
           evt.type === MESSAGE.CANNON_DAMAGED &&
           evt.newHp !== 0 &&
-          evt.playerId === myPlayerId
+          evt.playerId === povPlayerId
         ) {
           impact();
         }
-        const key = battleEventSound(evt, myPlayerId);
+        const key = battleEventSound(evt, povPlayerId);
         if (key) play(key, 2);
       }
     },
@@ -884,8 +884,11 @@ function drumVolume(elapsed: number): number {
   );
 }
 
-function battleEventSound(evt: BattleEvent, myPlayerId: number): SfxKey | null {
-  if (evt.type === MESSAGE.CANNON_DAMAGED && evt.playerId === myPlayerId)
+function battleEventSound(
+  evt: BattleEvent,
+  povPlayerId: number,
+): SfxKey | null {
+  if (evt.type === MESSAGE.CANNON_DAMAGED && evt.playerId === povPlayerId)
     return evt.newHp === 0 ? "cannonKilled" : null;
   if (evt.type === MESSAGE.GRUNT_SPAWNED) return "gruntSpawned";
   if (evt.type === MESSAGE.GRUNT_KILLED) return "gruntKilled";

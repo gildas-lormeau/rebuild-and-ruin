@@ -57,7 +57,7 @@ interface TouchControlsDeps {
   directTouchActive: boolean;
   clearDirectTouch: () => void;
   leftHanded: boolean;
-  firstHuman: () => (PlayerController & InputReceiver) | null;
+  pointerPlayer: () => (PlayerController & InputReceiver) | null;
   dpad: Dpad | null;
   floatingActions: FloatingActions | null;
   homeZoomButton: ZoomButton | null;
@@ -174,7 +174,7 @@ function updateLoupe(deps: TouchControlsDeps): void {
   const loupeVisible =
     deps.mode === Mode.GAME &&
     (isPlacementPhase(phase) || phase === Phase.BATTLE);
-  const human = deps.firstHuman();
+  const human = deps.pointerPlayer();
   let wx = 0;
   let wy = 0;
   if (human && phase === Phase.BATTLE) {
@@ -194,7 +194,7 @@ function updateLoupe(deps: TouchControlsDeps): void {
 }
 
 function updateButtons(deps: TouchControlsDeps): void {
-  const hasHuman = deps.firstHuman() !== null;
+  const hasHuman = deps.pointerPlayer() !== null;
   const bs = TOUCH_BUTTON_STATES[deps.mode];
   const on = (rule: TouchBtnRule) =>
     rule === true || (rule === HUMAN && hasHuman);
@@ -215,8 +215,11 @@ function updateButtons(deps: TouchControlsDeps): void {
       on(bs.placementValidity)
     ) {
       deps.dpad.setConfirmValid(
-        humanPhantomValid(deps.state.phase, deps.firstHuman(), deps.phantoms) ??
-          true,
+        humanPhantomValid(
+          deps.state.phase,
+          deps.pointerPlayer(),
+          deps.phantoms,
+        ) ?? true,
       );
     } else {
       deps.dpad.setConfirmValid(true);
@@ -232,7 +235,7 @@ function updateButtons(deps: TouchControlsDeps): void {
 function updateFloatingActions(deps: TouchControlsDeps): void {
   if (!deps.floatingActions) return;
   const phase = deps.state?.phase;
-  const human = deps.firstHuman();
+  const human = deps.pointerPlayer();
   const hasPhantom =
     humanPhantomValid(phase, human, deps.phantoms) !== undefined;
   // Reset direct-touch flag when leaving placement phases so it doesn't
@@ -276,7 +279,7 @@ function updateFloatingActions(deps: TouchControlsDeps): void {
   );
 }
 
-/** Phantom validity for the first human in the current placement phase. */
+/** Phantom validity for the pointer player in the current placement phase. */
 function humanPhantomValid(
   phase: Phase | undefined,
   human: PlayerController | null,

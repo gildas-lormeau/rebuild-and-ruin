@@ -6,11 +6,7 @@
  */
 
 import { type GameMessage, MESSAGE } from "../server/protocol.ts";
-import {
-  type InputReceiver,
-  isHuman,
-  type PlayerController,
-} from "./controller-interfaces.ts";
+import { isHuman } from "./controller-interfaces.ts";
 import { LIFE_LOST_AI_DELAY, LIFE_LOST_MAX_TIMER } from "./game-constants.ts";
 import {
   createLifeLostDialogState,
@@ -19,10 +15,7 @@ import {
   tickLifeLostDialogRuntime,
 } from "./life-lost.ts";
 import { eliminatePlayer } from "./phase-setup.ts";
-import {
-  handleLifeLostDialogClick as handleLifeLostDialogClickShared,
-  lifeLostPanelPos as lifeLostPanelPosShared,
-} from "./render-composition.ts";
+import { lifeLostPanelPos as lifeLostPanelPosShared } from "./render-composition.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { RuntimeLifeLost } from "./runtime-types.ts";
 import {
@@ -41,7 +34,6 @@ interface LifeLostSystemDeps {
   log: (msg: string) => void;
 
   render: () => void;
-  firstHuman: () => (PlayerController & InputReceiver) | null;
   endGame: (winner: { id: number }) => void;
   startReselection: () => void;
   advanceToCannonPhase: () => void;
@@ -52,8 +44,10 @@ export type LifeLostSystem = RuntimeLifeLost & {
   sendLifeLostChoice: (choice: ResolvedChoice, playerId: number) => void;
   /** Toggle continue/abandon focus for a player's pending entry. */
   toggleFocus: (playerId: number) => void;
-  /** Confirm the currently focused choice for a player. */
+  /** Confirm the currently focused choice for a player (applies the focused option). */
   confirmChoice: (playerId: number) => void;
+  /** Apply a direct choice (e.g. from spatial click on a specific button). */
+  applyChoice: (playerId: number, choice: ResolvedChoice) => void;
 };
 
 export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
@@ -86,7 +80,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       eliminated,
       state: runtimeState.state,
       isHost: runtimeState.frameCtx.isHost,
-      myPlayerId: runtimeState.frameCtx.onlinePlayerId,
+      onlinePlayerId: runtimeState.frameCtx.onlinePlayerId,
       remoteHumanSlots,
       isHumanController: (playerId) =>
         isHuman(runtimeState.controllers[playerId]!),
@@ -188,23 +182,13 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     sendLifeLostChoice(entry.choice, entry.playerId);
   }
 
-  function lifeLostDialogClick(canvasX: number, canvasY: number) {
-    if (!runtimeState.lifeLostDialog) return;
-
-    const choice = handleLifeLostDialogClickShared({
-      state: runtimeState.state,
-      lifeLostDialog: runtimeState.lifeLostDialog,
-      screenX: canvasX,
-      screenY: canvasY,
-    });
-    if (!choice) return;
-
-    // Apply the choice to the dialog entry (mutation owned by game runtime, not render-composition)
-    const entry = runtimeState.lifeLostDialog.entries.find(
-      (e) => e.playerId === choice.playerId,
-    );
-    if (entry) entry.choice = choice.choice;
-    sendLifeLostChoice(choice.choice, choice.playerId);
+  /** Apply a direct choice (e.g. from a mouse click on a specific button).
+   *  Unlike confirmChoice, this sets the choice directly without reading focus. */
+  function applyChoice(playerId: number, choice: ResolvedChoice): void {
+    const entry = findPendingEntry(playerId);
+    if (!entry) return;
+    entry.choice = choice;
+    sendLifeLostChoice(choice, playerId);
   }
 
   return {
@@ -216,10 +200,10 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     tick: tickLifeLostDialog,
     afterResolved: afterLifeLostResolved,
     panelPos: lifeLostPanelPos,
-    click: lifeLostDialogClick,
     // Extra — needed by game-runtime internals
     sendLifeLostChoice,
     toggleFocus,
     confirmChoice,
+    applyChoice,
   };
 }

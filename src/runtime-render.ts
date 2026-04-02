@@ -43,7 +43,7 @@ interface RenderSystemDeps {
     py: number;
   };
   readonly updateViewport: () => Viewport | null;
-  readonly firstHuman: () => (PlayerController & InputReceiver) | null;
+  readonly pointerPlayer: () => (PlayerController & InputReceiver) | null;
   readonly getTouch: () => {
     dpad: Dpad | null;
     floatingActions: FloatingActions | null;
@@ -111,7 +111,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       bannerUi,
       lifeLostDialog: runtimeState.lifeLostDialog,
       upgradePickDialog: runtimeState.upgradePickDialog,
-      myPlayerId: runtimeState.frameCtx.onlinePlayerId,
+      onlinePlayerId: runtimeState.frameCtx.onlinePlayerId,
       playerNames: PLAYER_NAMES,
       playerColors: PLAYER_COLORS,
       getLifeLostPanelPos: (playerId) => deps.getLifeLostPanelPos(playerId),
@@ -150,7 +150,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
         runtimeState.directTouchActive = false;
       },
       leftHanded: runtimeState.settings.leftHanded,
-      firstHuman: deps.firstHuman,
+      pointerPlayer: deps.pointerPlayer,
       dpad: touch.dpad,
       floatingActions: touch.floatingActions,
       homeZoomButton: touch.homeZoomButton,

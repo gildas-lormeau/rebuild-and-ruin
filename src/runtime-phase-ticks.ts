@@ -89,7 +89,7 @@ interface PhaseTicksDeps
 
   // Sibling systems / parent callbacks
   render: () => void;
-  firstHuman: () => (PlayerController & InputReceiver) | null;
+  pointerPlayer: () => (PlayerController & InputReceiver) | null;
   showBanner: (
     text: string,
     onDone: () => void,

@@ -17,7 +17,7 @@ import { IMPLEMENTED_UPGRADES, type UpgradeId } from "./upgrade-defs.ts";
 interface CreateUpgradePickDeps {
   readonly state: GameState;
   readonly isHost: boolean;
-  readonly myPlayerId: number;
+  readonly onlinePlayerId: number;
   readonly remoteHumanSlots: ReadonlySet<number>;
   readonly isHumanController: (playerId: number) => boolean;
 }
@@ -48,7 +48,7 @@ export function createUpgradePickDialog(
     const isAi = deps.isHost
       ? !deps.isHumanController(playerId) &&
         !deps.remoteHumanSlots.has(playerId)
-      : playerId !== deps.myPlayerId;
+      : playerId !== deps.onlinePlayerId;
 
     entries.push({
       playerId,

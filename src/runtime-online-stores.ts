@@ -79,11 +79,11 @@ export function devLog(msg: string): void {
   if (!DEV) return;
   const modeStr = ctx.session.isHost
     ? "host"
-    : ctx.session.myPlayerId >= 0
+    : ctx.session.onlinePlayerId >= 0
       ? "player"
       : "watcher";
   console.log(
-    `[online] (mode=${modeStr} pid=${ctx.session.myPlayerId}) ${msg}`,
+    `[online] (mode=${modeStr} pid=${ctx.session.onlinePlayerId}) ${msg}`,
   );
 }
 

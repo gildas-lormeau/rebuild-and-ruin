@@ -43,7 +43,7 @@ import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { createGameLifecycle } from "./runtime-game-lifecycle.ts";
-import { createHumanLookup } from "./runtime-human.ts";
+import { createPointerPlayerLookup } from "./runtime-human.ts";
 import { createInputSystem } from "./runtime-input.ts";
 import {
   createLifeLostSystem,
@@ -170,10 +170,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       hasLifeLostDialog: runtimeState.lifeLostDialog !== null,
       isSelectionReady: isSelectionReady(),
       humanIsReselecting: runtimeState.reselectQueue.includes(
-        firstHuman()?.playerId ?? -1,
+        pointerPlayer()?.playerId ?? -1,
       ),
       onlinePlayerId: config.getOnlinePlayerId(),
-      firstHumanPlayerId: firstHuman()?.playerId ?? -1,
       isHost: config.getIsHost(),
       remoteHumanSlots: config.getRemoteHumanSlots(),
       mobileAutoZoom: camera.isMobileAutoZoom(),
@@ -251,10 +250,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   const {
-    firstHuman,
-    withFirstHuman,
+    pointerPlayer,
+    withPointerPlayer,
     clearCache: clearHumanCache,
-  } = createHumanLookup(runtimeState);
+  } = createPointerPlayerLookup(runtimeState);
 
   // -------------------------------------------------------------------------
   // Camera / zoom (delegated to runtime-camera.ts)
@@ -267,14 +266,14 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     setFrameAnnouncement: (text) => {
       runtimeState.frame.announcement = text;
     },
-    getFirstHumanCrosshair: () => {
-      const h = firstHuman();
+    getPointerPlayerCrosshair: () => {
+      const h = pointerPlayer();
       if (!h) return null;
       const ch = h.getCrosshair();
       return { x: ch.x, y: ch.y };
     },
-    setFirstHumanCrosshair: (x, y) => {
-      const h = firstHuman();
+    setPointerPlayerCrosshair: (x, y) => {
+      const h = pointerPlayer();
       if (h) h.setCrosshair(x, y);
     },
   });
@@ -305,7 +304,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     camera,
     sound,
     render: () => render(),
-    firstHuman,
+    pointerPlayer,
     startCannonPhase: (onDone) => phaseTicks.startCannonPhase(onDone),
     requestFrame: () => {
       if (runtimeState.mode === Mode.STOPPED) requestAnimationFrame(mainLoop);
@@ -324,7 +323,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     syncCrosshairs: (expired) => phaseTicks.syncCrosshairs(expired),
     getLifeLostPanelPos: (pid) => lifeLost.panelPos(pid),
     updateViewport,
-    firstHuman,
+    pointerPlayer,
     getTouch: () => input.touch,
     worldToScreen: camera.worldToScreen,
     screenToContainerCSS: renderer.screenToContainerCSS,
@@ -366,7 +365,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     send: config.send,
     log: config.log,
     render: () => render(),
-    firstHuman,
     endGame: lifecycle.endGame,
     startReselection: selection.startReselection,
     advanceToCannonPhase: selection.advanceToCannonPhase,
@@ -380,7 +378,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     log: config.log,
     render: () => render(),
-    firstHuman,
     send: config.isOnline ? config.send : undefined,
   });
 
@@ -399,7 +396,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     tickNonHost: config.tickNonHost,
     everyTick: config.everyTick,
     render: () => render(),
-    firstHuman,
+    pointerPlayer,
     showBanner,
     lifeLost,
     selection,
@@ -500,8 +497,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     camera,
     sound,
     haptics,
-    firstHuman,
-    withFirstHuman,
+    pointerPlayer,
+    withPointerPlayer,
     isSelectionReady,
     render,
     rematch: lifecycle.rematch,

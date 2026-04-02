@@ -41,7 +41,7 @@ import {
 interface DpadDeps {
   getState: () => GameState | undefined;
   getMode: () => Mode;
-  withFirstHuman: (
+  withPointerPlayer: (
     action: (human: PlayerController & InputReceiver) => void,
   ) => void;
   onHapticTap?: () => void;
@@ -81,7 +81,7 @@ interface ZoomButtonDeps {
 
 interface FloatingActionsDeps {
   getState: () => GameState | undefined;
-  withFirstHuman: (
+  withPointerPlayer: (
     action: (human: PlayerController & InputReceiver) => void,
   ) => void;
   tryPlacePieceAndSend: (
@@ -360,7 +360,7 @@ export function createFloatingActions(
     deps.onHapticTap?.();
     const state = deps.getState();
     if (!state) return;
-    deps.withFirstHuman((human) => {
+    deps.withPointerPlayer((human) => {
       dispatchRotateForCtrl(human, state, deps.onPieceRotated);
     });
   }
@@ -369,7 +369,7 @@ export function createFloatingActions(
     deps.onHapticTap?.();
     const state = deps.getState();
     if (!state) return;
-    deps.withFirstHuman((human) => {
+    deps.withPointerPlayer((human) => {
       dispatchPlacementConfirm(human, state, deps);
     });
   }
@@ -417,7 +417,7 @@ function handleDpadAction(deps: DpadDeps): void {
   }
   const state = deps.getState();
   if (!state || !isInteractiveMode(mode)) return;
-  deps.withFirstHuman((human) => {
+  deps.withPointerPlayer((human) => {
     dispatchGameAction(human, Action.CONFIRM, state, deps.gameAction);
   });
 }
@@ -469,7 +469,7 @@ function wireDpadArrows(
     if (dispatchOverlayAction(action, deps.overlay)) return;
     const state = deps.getState();
     if (!state || !isInteractiveMode(deps.getMode())) return;
-    deps.withFirstHuman((human) => {
+    deps.withPointerPlayer((human) => {
       dispatchGameAction(human, action, state, deps.gameAction);
     });
   }
@@ -480,11 +480,11 @@ function wireDpadArrows(
 
   function battleKeyDown(action: Action) {
     deps.onHapticTap?.();
-    deps.withFirstHuman((human) => human.handleKeyDown(action));
+    deps.withPointerPlayer((human) => human.handleKeyDown(action));
   }
 
   function battleKeyUp(action: Action) {
-    deps.withFirstHuman((human) => human.handleKeyUp(action));
+    deps.withPointerPlayer((human) => human.handleKeyUp(action));
   }
 
   function wireArrow(btn: HTMLButtonElement, action: Action) {
@@ -568,7 +568,7 @@ function wireRotateButtons(
     if (!isInteractiveMode(deps.getMode())) return;
     const state = deps.getState();
     if (!state) return;
-    deps.withFirstHuman((human) => {
+    deps.withPointerPlayer((human) => {
       dispatchGameAction(human, Action.ROTATE, state, deps.gameAction);
     });
   }
