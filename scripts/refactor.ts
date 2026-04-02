@@ -28,8 +28,27 @@ import path from "node:path";
 
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
-const filteredArgs = args.filter((a) => !a.startsWith("--"));
-const [command, ...commandArgs] = filteredArgs;
+
+// Parse --key value pairs into a map, collect bare positional args separately.
+// Repeated flags (e.g. --symbol A --symbol B) are collected into flagMulti.
+const flagMap = new Map<string, string>();
+const flagMulti = new Map<string, string[]>();
+const positionalArgs: string[] = [];
+for (let i = 0; i < args.length; i++) {
+  const a = args[i]!;
+  if (a === "--dry-run") continue;
+  if (a.startsWith("--") && i + 1 < args.length) {
+    const key = a.slice(2);
+    const val = args[++i]!;
+    flagMap.set(key, val);
+    const arr = flagMulti.get(key);
+    if (arr) arr.push(val);
+    else flagMulti.set(key, [val]);
+  } else if (!a.startsWith("--")) {
+    positionalArgs.push(a);
+  }
+}
+const [command, ...commandArgs] = positionalArgs;
 
 if (!command) {
   printUsage();
@@ -601,6 +620,178 @@ function findNextDeclarationIdentifier(sf: SourceFile, name: string): Identifier
 }
 
 // ---------------------------------------------------------------------------
+// find-symbol: locate where a symbol is declared across the project
+// ---------------------------------------------------------------------------
+
+function findSymbol(name: string): void {
+  const project = createProject();
+  addAllSources(project);
+
+  const results: { file: string; line: number; kind: string; exported: boolean }[] = [];
+
+  for (const sf of project.getSourceFiles()) {
+    const relPath = path.relative(process.cwd(), sf.getFilePath());
+
+    // Check exported declarations
+    const exported = sf.getExportedDeclarations().get(name);
+    if (exported) {
+      for (const decl of exported) {
+        results.push({
+          file: relPath,
+          line: decl.getStartLineNumber(),
+          kind: decl.getKindName(),
+          exported: true,
+        });
+      }
+    }
+
+    // Check non-exported top-level declarations (functions, variables, interfaces, types, enums)
+    for (const fn of sf.getFunctions()) {
+      if (fn.getName() === name && !fn.isExported()) {
+        results.push({ file: relPath, line: fn.getStartLineNumber(), kind: "FunctionDeclaration", exported: false });
+      }
+    }
+    for (const vs of sf.getVariableStatements()) {
+      if (vs.isExported()) continue;
+      for (const vd of vs.getDeclarations()) {
+        if (vd.getName() === name) {
+          results.push({ file: relPath, line: vd.getStartLineNumber(), kind: "VariableDeclaration", exported: false });
+        }
+      }
+    }
+    for (const iface of sf.getInterfaces()) {
+      if (iface.getName() === name && !iface.isExported()) {
+        results.push({ file: relPath, line: iface.getStartLineNumber(), kind: "InterfaceDeclaration", exported: false });
+      }
+    }
+    for (const alias of sf.getTypeAliases()) {
+      if (alias.getName() === name && !alias.isExported()) {
+        results.push({ file: relPath, line: alias.getStartLineNumber(), kind: "TypeAliasDeclaration", exported: false });
+      }
+    }
+    for (const en of sf.getEnums()) {
+      if (en.getName() === name && !en.isExported()) {
+        results.push({ file: relPath, line: en.getStartLineNumber(), kind: "EnumDeclaration", exported: false });
+      }
+    }
+  }
+
+  if (results.length === 0) {
+    console.error(`❌ Symbol "${name}" not found in any project file`);
+    process.exit(1);
+  }
+
+  // Deduplicate (exported search may overlap with top-level search)
+  const seen = new Set<string>();
+  const unique = results.filter((r) => {
+    const key = `${r.file}:${r.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  for (const r of unique) {
+    const tag = r.exported ? "exported" : "private";
+    console.log(`  ${r.file}:${r.line}  ${r.kind} (${tag})`);
+  }
+  console.log(`\nFound ${unique.length} declaration(s) of "${name}"`);
+}
+
+// ---------------------------------------------------------------------------
+// list-exports: list all exported symbols from a file
+// ---------------------------------------------------------------------------
+
+function listExports(filePath: string): void {
+  const project = createProject();
+  addAllSources(project);
+
+  const sf = project.getSourceFileOrThrow(resolve(filePath));
+  const exportedDecls = sf.getExportedDeclarations();
+
+  if (exportedDecls.size === 0) {
+    console.log(`No exports in ${filePath}`);
+    return;
+  }
+
+  const entries: { name: string; kind: string; line: number }[] = [];
+
+  for (const [name, decls] of exportedDecls) {
+    for (const decl of decls) {
+      entries.push({
+        name,
+        kind: simplifyKind(decl.getKindName()),
+        line: decl.getStartLineNumber(),
+      });
+    }
+  }
+
+  // Sort by line number
+  entries.sort((a, b) => a.line - b.line);
+
+  for (const e of entries) {
+    console.log(`  :${e.line}  ${e.kind.padEnd(12)} ${e.name}`);
+  }
+  console.log(`\n${entries.length} export(s) in ${filePath}`);
+}
+
+function simplifyKind(kind: string): string {
+  const map: Record<string, string> = {
+    FunctionDeclaration: "function",
+    VariableDeclaration: "const",
+    InterfaceDeclaration: "interface",
+    TypeAliasDeclaration: "type",
+    EnumDeclaration: "enum",
+    ClassDeclaration: "class",
+  };
+  return map[kind] ?? kind;
+}
+
+// ---------------------------------------------------------------------------
+// list-references: show all files that import a symbol from a file
+// ---------------------------------------------------------------------------
+
+function listReferences(filePath: string, symbolName: string): void {
+  const project = createProject();
+  addAllSources(project);
+
+  const targetFile = project.getSourceFileOrThrow(resolve(filePath));
+  const targetPath = targetFile.getFilePath();
+
+  const importers: { file: string; line: number; typeOnly: boolean }[] = [];
+
+  for (const sf of project.getSourceFiles()) {
+    if (sf === targetFile) continue;
+
+    for (const imp of sf.getImportDeclarations()) {
+      const resolvedModule = imp.getModuleSpecifierSourceFile();
+      if (resolvedModule?.getFilePath() !== targetPath) continue;
+
+      const namedImport = findNamedImport(imp, symbolName);
+      if (!namedImport) continue;
+
+      importers.push({
+        file: path.relative(process.cwd(), sf.getFilePath()),
+        line: imp.getStartLineNumber(),
+        typeOnly: namedImport.isTypeOnly() || imp.isTypeOnly(),
+      });
+    }
+  }
+
+  if (importers.length === 0) {
+    console.log(`No files import "${symbolName}" from ${filePath}`);
+    return;
+  }
+
+  importers.sort((a, b) => a.file.localeCompare(b.file));
+
+  for (const r of importers) {
+    const tag = r.typeOnly ? " (type-only)" : "";
+    console.log(`  ${r.file}:${r.line}${tag}`);
+  }
+  console.log(`\n${importers.length} file(s) import "${symbolName}" from ${filePath}`);
+}
+
+// ---------------------------------------------------------------------------
 // CLI dispatch
 // ---------------------------------------------------------------------------
 
@@ -608,10 +799,13 @@ function printUsage(): void {
   console.log(`AST-based refactoring CLI
 
 Commands:
-  rename-symbol <file> <name> <newName>        Rename a symbol across all files
-  move-export   <from> <to> <name>             Move an export between files
-  rename-prop   <typeName> <prop> <newProp>     Rename a type/interface property
+  rename-symbol  <file> <name> <newName>       Rename a symbol across all files
+  move-export    <from> <to> <name>            Move export(s) between files
+  rename-prop    <typeName> <prop> <newProp>    Rename a type/interface property
   rename-in-file <name> <newName> <file...>    Rename all declarations in specific files
+  find-symbol    <name>                        Find where a symbol is declared
+  list-exports   <file>                        List all exports from a file
+  list-references <file> <name>                Show all files that import a symbol
 
 Options:
   --dry-run    Show what would change without writing
@@ -619,13 +813,19 @@ Options:
 Examples:
   npx tsx scripts/refactor.ts rename-symbol src/types.ts Phase GamePhase
   npx tsx scripts/refactor.ts move-export src/types.ts src/spatial.ts TILE_SIZE
+  npx tsx scripts/refactor.ts move-export --from src/types.ts --to src/spatial.ts --symbol TILE_SIZE --symbol FOO
   npx tsx scripts/refactor.ts rename-prop Player score totalScore
+  npx tsx scripts/refactor.ts find-symbol GameState
+  npx tsx scripts/refactor.ts list-exports src/types.ts
+  npx tsx scripts/refactor.ts list-references src/types.ts GameState
   npx tsx scripts/refactor.ts rename-symbol src/render-effects.ts overlayCtx canvasCtx --dry-run`);
 }
 
 switch (command) {
   case "rename-symbol": {
-    const [file, name, newName] = commandArgs;
+    const file = flagMap.get("file") ?? commandArgs[0];
+    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? commandArgs[1];
+    const newName = flagMap.get("new-name") ?? flagMap.get("newName") ?? commandArgs[2];
     if (!file || !name || !newName) {
       console.error("Usage: rename-symbol <file> <name> <newName>");
       process.exit(1);
@@ -634,16 +834,23 @@ switch (command) {
     break;
   }
   case "move-export": {
-    const [from, to, name] = commandArgs;
-    if (!from || !to || !name) {
-      console.error("Usage: move-export <from> <to> <name>");
+    const from = flagMap.get("from") ?? commandArgs[0];
+    const to = flagMap.get("to") ?? commandArgs[1];
+    // Support multiple symbols: --symbol A --symbol B, or single positional
+    const symbols = flagMulti.get("symbol") ?? flagMulti.get("name") ?? (commandArgs[2] ? [commandArgs[2]] : []);
+    if (!from || !to || symbols.length === 0) {
+      console.error("Usage: move-export <from> <to> <name> OR --from <from> --to <to> --symbol <name> [--symbol <name2>]");
       process.exit(1);
     }
-    moveExport(from, to, name);
+    for (const name of symbols) {
+      moveExport(from, to, name);
+    }
     break;
   }
   case "rename-prop": {
-    const [typeName, prop, newProp] = commandArgs;
+    const typeName = flagMap.get("type") ?? flagMap.get("typeName") ?? commandArgs[0];
+    const prop = flagMap.get("prop") ?? commandArgs[1];
+    const newProp = flagMap.get("new-prop") ?? flagMap.get("newProp") ?? commandArgs[2];
     if (!typeName || !prop || !newProp) {
       console.error("Usage: rename-prop <typeName> <prop> <newProp>");
       process.exit(1);
@@ -652,13 +859,43 @@ switch (command) {
     break;
   }
   case "rename-in-file": {
-    const [name, newName, ...files] = commandArgs;
+    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? commandArgs[0];
+    const newName = flagMap.get("new-name") ?? flagMap.get("newName") ?? commandArgs[1];
+    const files = flagMap.has("files") ? flagMap.get("files")!.split(",") : commandArgs.slice(2);
     if (!name || !newName || files.length === 0) {
       console.error("Usage: rename-in-file <name> <newName> <file...>");
       process.exit(1);
     }
     console.log(`Renaming all "${name}" → "${newName}" in ${files.length} file(s)`);
     renameInFile(name, newName, files);
+    break;
+  }
+  case "find-symbol": {
+    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? commandArgs[0];
+    if (!name) {
+      console.error("Usage: find-symbol <name>");
+      process.exit(1);
+    }
+    findSymbol(name);
+    break;
+  }
+  case "list-exports": {
+    const file = flagMap.get("file") ?? commandArgs[0];
+    if (!file) {
+      console.error("Usage: list-exports <file>");
+      process.exit(1);
+    }
+    listExports(file);
+    break;
+  }
+  case "list-references": {
+    const file = flagMap.get("file") ?? flagMap.get("from") ?? commandArgs[0];
+    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? commandArgs[1];
+    if (!file || !name) {
+      console.error("Usage: list-references <file> <name>");
+      process.exit(1);
+    }
+    listReferences(file, name);
     break;
   }
   default:

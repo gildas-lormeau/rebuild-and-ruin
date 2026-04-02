@@ -1,21 +1,59 @@
 ---
 name: refactor
-description: AST-based refactoring via scripts/refactor.ts. Use when renaming symbols, moving exports, or renaming properties across files.
+description: AST-based refactoring via scripts/refactor.ts. Use for renaming symbols, moving exports, renaming properties, and discovering declarations/exports/references across files.
 user-invocable: true
 ---
 
 # AST Refactoring Tool
 
-Reliable multi-file refactoring via ts-morph AST transforms. Use instead of manual multi-step Edit calls for renames, moves, and property renames.
+Reliable multi-file refactoring via ts-morph AST transforms. Use instead of manual multi-step Edit calls for renames, moves, and property renames. Also provides read-only discovery commands for planning refactors.
+
+All commands support both positional args and named flags (`--flag value`).
 
 ## When to use
 
+- **Discovery**: finding where a symbol is declared, what a file exports, or which files import a symbol
 - Renaming a symbol (function, const, variable) that has references across files
-- Moving an exported declaration from one file to another (rewrites all imports)
+- Moving exported declarations from one file to another (rewrites all imports)
 - Renaming an interface/type property across all usage sites
 - Renaming a local parameter/variable name across multiple functions in specific files
 
-## Commands
+## Discovery commands
+
+### `find-symbol` — Locate where a symbol is declared
+
+Searches all project files for declarations of the given name. Reports file, line, kind, and whether it's exported.
+
+```bash
+npm run refactor find-symbol <name>
+npm run refactor find-symbol --symbol <name>
+```
+
+Best for: finding which file owns a symbol before running `move-export` or `rename-symbol`.
+
+### `list-exports` — List all exports from a file
+
+Shows every exported symbol with its kind (function, const, type, interface, enum) and line number.
+
+```bash
+npm run refactor list-exports <file>
+npm run refactor list-exports --file <file>
+```
+
+Best for: surveying a file's public API before planning moves or splits.
+
+### `list-references` — Show all files that import a symbol
+
+Lists every file that imports the given symbol from the specified file, with line numbers and type-only annotations.
+
+```bash
+npm run refactor list-references <file> <name>
+npm run refactor list-references --file <file> --symbol <name>
+```
+
+Best for: assessing blast radius before renaming or moving a symbol.
+
+## Refactoring commands
 
 ### `rename-symbol` — Rename a single exported/declared symbol
 
@@ -23,21 +61,24 @@ Finds the declaration in the specified file and renames it + all references acro
 
 ```bash
 npm run refactor rename-symbol <file> <name> <newName> [--dry-run]
+npm run refactor rename-symbol --file <file> --symbol <name> --new-name <newName> [--dry-run]
 ```
 
 Best for: exported functions, constants, types, enums — anything with one declaration and many references.
 
 Handles shorthand property fixups automatically (`{ oldName }` → `{ newName: oldName }` when the local variable isn't renamed).
 
-### `move-export` — Move a declaration between files
+### `move-export` — Move declarations between files
 
-Removes the export from the source file, adds it to the target file, carries over needed imports, and rewrites all consumer imports across the project.
+Removes the export from the source file, adds it to the target file, carries over needed imports, and rewrites all consumer imports across the project. Supports moving multiple symbols at once with repeated `--symbol` flags.
 
 ```bash
 npm run refactor move-export <from> <to> <name> [--dry-run]
+npm run refactor move-export --from <from> --to <to> --symbol <name> [--dry-run]
+npm run refactor move-export --from <from> --to <to> --symbol <name1> --symbol <name2> [--dry-run]
 ```
 
-Best for: moving a constant, function, type, or interface to a more appropriate module.
+Best for: moving a constant, function, type, or interface to a more appropriate module. Use multiple `--symbol` flags to move related declarations together (e.g., a type and its companion helper).
 
 ### `rename-prop` — Rename an interface/type property
 
@@ -45,6 +86,7 @@ Finds the property on the named interface or type alias and renames it + all acc
 
 ```bash
 npm run refactor rename-prop <typeName> <prop> <newProp> [--dry-run]
+npm run refactor rename-prop --type <typeName> --prop <prop> --new-prop <newProp> [--dry-run]
 ```
 
 Best for: renaming a field on a widely-used interface (cascades to all `.prop` accesses and destructuring).
@@ -55,6 +97,7 @@ Iteratively finds every declaration (parameter, variable, property) of the given
 
 ```bash
 npm run refactor rename-in-file <name> <newName> <file1> <file2> ... [--dry-run]
+npm run refactor rename-in-file --symbol <name> --new-name <newName> <file1> <file2> ... [--dry-run]
 ```
 
 Best for: renaming a commonly-used parameter name (like `ctx`) that appears in many functions within specific files, where each function has its own declaration.
@@ -63,8 +106,10 @@ Handles the case where both a property and its local variable are renamed — co
 
 ## Tips
 
+- Use `find-symbol` + `list-exports` + `list-references` to plan before refactoring
 - Always `--dry-run` first to preview the scope of changes
 - Run `tsc --noEmit` after to verify (the tool doesn't type-check)
 - Run `npx biome check --write <files>` after if import ordering matters
 - For interface property renames that should cascade everywhere, prefer `rename-prop` over `rename-in-file`
 - For bulk parameter renames scoped to specific files, prefer `rename-in-file` over running `rename-symbol` N times
+- Move related symbols together with `--symbol A --symbol B` to avoid broken intermediate states
