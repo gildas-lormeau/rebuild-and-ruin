@@ -118,7 +118,11 @@ export interface CannonController {
   /** Cannon cursor position (set by the game at cannon phase start). */
   cannonCursor: TilePos;
 
-  /** Place cannons. AI places all immediately. Human sets up UI. */
+  /** Place cannons. Mode selection differs by controller type:
+   *  - AI: pre-plans all placements in one batch (super/balloon/normal decided by strategy).
+   *  - Human: selects mode interactively; downgradeCannonModeIfNeeded() reverts to NORMAL
+   *    each tick if remaining slots can't afford the current mode.
+   *  When adding a new cannon mode, update both ai-strategy-cannon.ts and controller-human.ts. */
   placeCannons(state: GameState, maxSlots: number): void;
 
   /** Whether the player has placed all their cannons. */
