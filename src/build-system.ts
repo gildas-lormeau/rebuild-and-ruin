@@ -9,6 +9,7 @@ import {
   BONUS_PLACEMENT_BLOCKED,
   collectAllInterior,
   collectOccupiedTiles,
+  getInterior,
   hasCannonAt,
   hasGruntAt,
   hasTowerAt,
@@ -40,7 +41,12 @@ import {
   manhattanDistance,
   packTile,
 } from "./spatial.ts";
-import { type GameState, isPlayerSeated, type Player } from "./types.ts";
+import {
+  type FreshInterior,
+  type GameState,
+  isPlayerSeated,
+  type Player,
+} from "./types.ts";
 
 /** Validate + apply piece placement. Returns true if placed. */
 export function placePiece(
@@ -170,10 +176,11 @@ export function recheckTerritory(state: GameState): void {
     // 2. updateOwnedTowers: claims towers inside fresh interior
     // 3–5. grunt/house/bonus operations use ownedTowers + interior
     recomputeInterior(state, player);
+    const interior = getInterior(player);
     updateOwnedTowers(state, player);
-    removeEnclosedGruntsAndRespawn(state, player);
-    destroyEnclosedHousesAndSpawnGrunts(state, player);
-    captureEnclosedBonusSquares(state, player);
+    removeEnclosedGruntsAndRespawn(state, player, interior);
+    destroyEnclosedHousesAndSpawnGrunts(state, player, interior);
+    captureEnclosedBonusSquares(state, player, interior);
   }
   sweepMisplacedGrunts(state);
 }
@@ -187,12 +194,13 @@ export function finalizeTerritoryWithScoring(state: GameState): void {
   // ── Per-player territory claims (loop above) ──
   for (const player of state.players) {
     recomputeInterior(state, player);
+    const interior = getInterior(player);
     updateOwnedTowers(state, player);
     reviveEnclosedTowers(state, player);
-    removeEnclosedGruntsAndRespawn(state, player);
-    destroyEnclosedHousesAndSpawnGrunts(state, player);
-    captureEnclosedBonusSquares(state, player);
-    awardEndOfBuildPoints(state, player, player.interior.size);
+    removeEnclosedGruntsAndRespawn(state, player, interior);
+    destroyEnclosedHousesAndSpawnGrunts(state, player, interior);
+    captureEnclosedBonusSquares(state, player, interior);
+    awardEndOfBuildPoints(state, player, interior.size);
   }
   // ── Post-loop: global finalization ──
   sweepMisplacedGrunts(state);
@@ -341,11 +349,12 @@ function countCastleBonusUnits(state: GameState, player: Player): number {
 function destroyEnclosedHousesAndSpawnGrunts(
   state: GameState,
   player: Player,
+  interior: FreshInterior,
 ): void {
   for (const house of state.map.houses) {
     if (!house.alive) continue;
     const hKey = packTile(house.row, house.col);
-    if (!player.interior.has(hKey)) continue;
+    if (!interior.has(hKey)) continue;
 
     house.alive = false;
     for (const enemy of state.players) {
@@ -358,11 +367,12 @@ function destroyEnclosedHousesAndSpawnGrunts(
 function removeEnclosedGruntsAndRespawn(
   state: GameState,
   player: Player,
+  interior: FreshInterior,
 ): void {
   const kept: typeof state.grunts = [];
   const enclosed: typeof state.grunts = [];
   for (const grunt of state.grunts) {
-    if (player.interior.has(packTile(grunt.row, grunt.col))) {
+    if (interior.has(packTile(grunt.row, grunt.col))) {
       enclosed.push(grunt);
     } else {
       kept.push(grunt);
@@ -450,11 +460,15 @@ function reviveEnclosedTowers(state: GameState, player: Player): void {
 }
 
 /** Award bonus square points for squares enclosed by a player's territory. */
-function captureEnclosedBonusSquares(state: GameState, player: Player): void {
-  const territorySize = player.interior.size;
+function captureEnclosedBonusSquares(
+  state: GameState,
+  player: Player,
+  interior: FreshInterior,
+): void {
+  const territorySize = interior.size;
   state.bonusSquares = state.bonusSquares.filter((bs) => {
     const bKey = packTile(bs.row, bs.col);
-    if (player.interior.has(bKey)) {
+    if (interior.has(bKey)) {
       player.score += territoryBonusSquarePoints(territorySize);
       return false;
     }
