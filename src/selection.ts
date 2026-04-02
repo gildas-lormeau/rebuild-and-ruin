@@ -2,7 +2,7 @@ import type {
   ControllerIdentity,
   SelectionController,
 } from "./controller-interfaces.ts";
-import { isActiveOnlinePlayer } from "./game-constants.ts";
+import { isActivePlayer } from "./game-constants.ts";
 import { selectPlayerTower } from "./game-engine.ts";
 import { BANNER_SELECT } from "./phase-banner.ts";
 import { isRemoteHuman } from "./tick-context.ts";
@@ -147,12 +147,12 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     accum.select += dt;
     state.timer = Math.max(0, selectTimer - accum.select);
   }
-  if (!isHost && !isActiveOnlinePlayer(myPlayerId)) {
+  if (!isHost && !isActivePlayer(myPlayerId)) {
     render();
     return;
   }
 
-  if (!isHost && isActiveOnlinePlayer(myPlayerId)) {
+  if (!isHost && isActivePlayer(myPlayerId)) {
     if (accum.select >= selectTimer) {
       confirmSelectionAndStartBuild(myPlayerId, isReselectPhase(state.phase));
     }

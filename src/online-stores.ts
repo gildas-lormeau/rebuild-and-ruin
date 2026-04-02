@@ -11,7 +11,7 @@
  */
 
 import type { GameMessage } from "../server/protocol.ts";
-import { isActiveOnlinePlayer } from "./game-constants.ts";
+import { isActivePlayer } from "./game-constants.ts";
 import {
   createDedupMaps,
   createSession,
@@ -87,7 +87,7 @@ export function devLog(msg: string): void {
   if (!DEV) return;
   const modeStr = isHostInContext(ctx.session)
     ? "host"
-    : isActiveOnlinePlayer(ctx.session.myPlayerId)
+    : isActivePlayer(ctx.session.myPlayerId)
       ? "player"
       : "watcher";
   console.log(

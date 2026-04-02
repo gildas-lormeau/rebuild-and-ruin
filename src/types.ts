@@ -2,7 +2,7 @@
  * Core types, interfaces, and constants for the game engine.
  */
 
-import type { GameMode, ModifierId, OnlinePlayerId } from "./game-constants.ts";
+import type { GameMode, ModifierId, PlayerSlotId } from "./game-constants.ts";
 import type { Castle, GameMap, TilePos, Tower } from "./geometry-types.ts";
 import type { Rng } from "./rng.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
@@ -318,7 +318,7 @@ export interface SelectionState {
 
 export interface FrameContext {
   // Identity
-  readonly myPlayerId: OnlinePlayerId;
+  readonly myPlayerId: PlayerSlotId;
   /** Point-of-view player for camera, sound, and haptics.
    *  Online: myPlayerId. Local: pointer player slot. Demo: 0. */
   readonly povPlayerId: number;

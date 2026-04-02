@@ -14,10 +14,10 @@ export type ModifierId =
   | "frozen_river";
 
 /** A player's slot id in an online session, or SPECTATOR_SLOT (-1) for watchers.
- *  Always check with `isActiveOnlinePlayer()` before using as an array index. */
-export type OnlinePlayerId = number;
+ *  Always check with `isActivePlayer()` before using as an array index. */
+export type PlayerSlotId = number;
 
-/** Narrowed OnlinePlayerId that passed the `isActiveOnlinePlayer()` guard (>= 0).
+/** Narrowed PlayerSlotId that passed the `isActivePlayer()` guard (>= 0).
  *  Safe to use as an index into `state.players` or `controllers`. */
 export type ValidPlayerSlot = number & { readonly __validSlot: true };
 
@@ -182,9 +182,9 @@ export const TOWER_SIZE = 2;
 export const SPECTATOR_SLOT = -1;
 
 /** Type guard: true if this is a valid player slot (not spectating).
- *  Narrows `OnlinePlayerId` to `ValidPlayerSlot` in the true branch. */
-export function isActiveOnlinePlayer(
-  playerId: OnlinePlayerId,
+ *  Narrows `PlayerSlotId` to `ValidPlayerSlot` in the true branch. */
+export function isActivePlayer(
+  playerId: PlayerSlotId,
 ): playerId is ValidPlayerSlot {
   return playerId >= 0;
 }

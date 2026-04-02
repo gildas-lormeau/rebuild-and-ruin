@@ -14,7 +14,7 @@ import {
 import {
   GAME_MODE_CLASSIC,
   LOBBY_TIMER,
-  type OnlinePlayerId,
+  type PlayerSlotId,
   SPECTATOR_SLOT,
 } from "./game-constants.ts";
 import { createDedupChannel, type DedupChannel } from "./phantom-types.ts";
@@ -23,8 +23,8 @@ import type { LifeLostChoice } from "./types.ts";
 export interface OnlineSession {
   socket: WebSocket | null;
   /** This player's slot id. SPECTATOR_SLOT (-1) = watcher/spectator.
-   *  Use `isActiveOnlinePlayer(myPlayerId)` to check, not raw comparisons. */
-  myPlayerId: OnlinePlayerId;
+   *  Use `isActivePlayer(myPlayerId)` to check, not raw comparisons. */
+  myPlayerId: PlayerSlotId;
   /** Whether this client is the current host.
    *  VOLATILE: Can flip from false to true during host promotion (see online-host-promotion.ts).
    *  Never cache across tick boundaries, awaits, or phase transitions.

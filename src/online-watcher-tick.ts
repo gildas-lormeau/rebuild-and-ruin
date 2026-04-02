@@ -8,7 +8,7 @@
 import { MESSAGE } from "../server/protocol.ts";
 import { aimCannons, nextReadyCombined } from "./battle-system.ts";
 import { isHuman, type PlayerController } from "./controller-interfaces.ts";
-import { isActiveOnlinePlayer } from "./game-constants.ts";
+import { isActivePlayer } from "./game-constants.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { tickGrunts } from "./grunt-movement.ts";
 import type { DedupMaps, OnlineSession } from "./online-session.ts";
@@ -203,10 +203,7 @@ function getLocalController(
   controllers: readonly PlayerController[],
   myPlayerId: number,
 ): PlayerController | null {
-  if (
-    !isActiveOnlinePlayer(myPlayerId) ||
-    state.players[myPlayerId]?.eliminated
-  )
+  if (!isActivePlayer(myPlayerId) || state.players[myPlayerId]?.eliminated)
     return null;
   const ctrl = controllers[myPlayerId];
   return ctrl && isHuman(ctrl) ? ctrl : null;

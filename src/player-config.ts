@@ -4,7 +4,7 @@
  * Keep player names, colors, and bindings in one place so they cannot drift.
  */
 
-import type { GameMode, OnlinePlayerId } from "./game-constants.ts";
+import type { GameMode, PlayerSlotId } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 
 export interface KeyBindings {
@@ -39,7 +39,7 @@ export interface GameSettings {
 
 export interface AutoResolveDeps {
   readonly hostAtFrameStart: boolean;
-  readonly myPlayerId: OnlinePlayerId;
+  readonly myPlayerId: PlayerSlotId;
   readonly remoteHumanSlots: ReadonlySet<number>;
   readonly isHumanController: (playerId: number) => boolean;
 }

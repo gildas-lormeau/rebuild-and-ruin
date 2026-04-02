@@ -3,7 +3,7 @@ import type { PlayerController } from "./controller-interfaces.ts";
 import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
-  isActiveOnlinePlayer,
+  isActivePlayer,
 } from "./game-constants.ts";
 import { createGameFromSeed } from "./game-engine.ts";
 import type { GameMap } from "./geometry-types.ts";
@@ -184,9 +184,9 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
     `enterTowerSelection (phase=${Phase[state.phase]}, round=${state.round})`,
   );
 
-  // Watcher (non-host, no player slot). Note: isHost && !isActiveOnlinePlayer is
+  // Watcher (non-host, no player slot). Note: isHost && !isActivePlayer is
   // impossible — watcher-to-host promotion always assigns a player slot first.
-  if (!isHost && !isActiveOnlinePlayer(myPlayerId)) {
+  if (!isHost && !isActivePlayer(myPlayerId)) {
     selectionStates.clear();
     for (let i = 0; i < state.players.length; i++) {
       initTowerSelection(i, state.playerZones[i]!);
@@ -201,7 +201,7 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
     return;
   }
 
-  if (!isHost && isActiveOnlinePlayer(myPlayerId)) {
+  if (!isHost && isActivePlayer(myPlayerId)) {
     const needsCastleReselect = state.phase !== Phase.CASTLE_SELECT;
     if (needsCastleReselect && !isReselectPhase(state.phase)) {
       enterCastleReselectPhase(state);
