@@ -130,9 +130,9 @@ export function tickBuild(
       return [];
 
     case STEP.THINKING: {
-      const bs = phase.state;
-      if (bs.timer > 0) {
-        bs.timer -= dt;
+      const ps = phase.state;
+      if (ps.timer > 0) {
+        ps.timer -= dt;
         return [phantomAtCursor(host, state)];
       }
       // Timer expired — compute next placement
@@ -154,7 +154,7 @@ export function tickBuild(
     }
 
     case STEP.GAVE_UP: {
-      const bs = phase.state;
+      const ps = phase.state;
       const home = player.homeTower
         ? towerCenter(player.homeTower)
         : host.buildCursor;
@@ -166,8 +166,8 @@ export function tickBuild(
         Infinity,
         dt,
       );
-      bs.retryTimer -= dt;
-      if (bs.retryTimer <= 0) {
+      ps.retryTimer -= dt;
+      if (ps.retryTimer <= 0) {
         const target = computeNextPlacement(host, state);
         if (target) {
           phase.state = {
@@ -176,7 +176,7 @@ export function tickBuild(
             rotation: buildRotationFor(host, target),
           };
         } else {
-          bs.retryTimer = 1.0;
+          ps.retryTimer = 1.0;
         }
       }
       return [phantomAtCursor(host, state)];
@@ -186,15 +186,15 @@ export function tickBuild(
       return tickMoving(host, phase, state, dt);
 
     case STEP.DWELLING: {
-      const bs = phase.state;
-      bs.timer -= dt;
-      if (bs.timer <= 0) {
+      const ps = phase.state;
+      ps.timer -= dt;
+      if (ps.timer <= 0) {
         const placed = placePiece(
           state,
           host.playerId,
-          bs.target.piece,
-          bs.target.row,
-          bs.target.col,
+          ps.target.piece,
+          ps.target.row,
+          ps.target.col,
         );
         if (placed) {
           host.advanceBag(true);
@@ -205,9 +205,9 @@ export function tickBuild(
           return [];
         }
         // Placement blocked (e.g. grunt moved onto target)
-        if (!bs.retried) {
-          bs.retried = true;
-          bs.timer = 1.0;
+        if (!ps.retried) {
+          ps.retried = true;
+          ps.timer = 1.0;
         } else {
           phase.state = { step: STEP.THINKING, timer: 0.1 };
         }
@@ -216,9 +216,9 @@ export function tickBuild(
       return [
         makePhantom(
           host.playerId,
-          bs.target.piece,
-          bs.target.row,
-          bs.target.col,
+          ps.target.piece,
+          ps.target.row,
+          ps.target.col,
           true,
         ),
       ];
@@ -233,8 +233,8 @@ function tickMoving(
   state: GameState,
   dt: number,
 ): PiecePlacementPreview[] {
-  const bs = phase.state as Extract<BuildState, { step: typeof STEP.MOVING }>;
-  const { target, rotation } = bs;
+  const ps = phase.state as Extract<BuildState, { step: typeof STEP.MOVING }>;
+  const { target, rotation } = ps;
 
   // Tick rotation animation concurrently with movement
   if (rotation.idx < rotation.seq.length) {

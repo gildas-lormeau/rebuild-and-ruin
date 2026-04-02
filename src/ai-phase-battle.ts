@@ -219,7 +219,7 @@ function tickCountdown(
   }
   if (!phase.crosshairTarget) return;
 
-  const bs = phase.state as Extract<
+  const ps = phase.state as Extract<
     BattleState,
     { step: typeof STEP.COUNTDOWN }
   >;
@@ -237,7 +237,7 @@ function tickCountdown(
         dt,
       );
     } else {
-      if (!bs.orbit) {
+      if (!ps.orbit) {
         const strategic = !!phase.crosshairTarget.strategic;
         const boost = strategic ? 1.2 : 1;
         const rng = host.strategy.rng;
@@ -246,7 +246,7 @@ function tickCountdown(
           : ORBIT_SPEED_DEFAULT_BASE;
         const baseSpeed =
           Math.PI * (speedBase + rng.next() * ORBIT_SPEED_RANGE);
-        bs.orbit = {
+        ps.orbit = {
           rx: (ORBIT_RADIUS_BASE + rng.next() * ORBIT_RADIUS_RANGE) * boost,
           ry: (ORBIT_RADIUS_BASE + rng.next() * ORBIT_RADIUS_RANGE) * boost,
           speed: baseSpeed * (rng.bool() ? 1 : -1),
@@ -258,11 +258,11 @@ function tickCountdown(
           host.crosshair.x - phase.crosshairTarget.x,
         );
       }
-      phase.idlePhase += bs.orbit.speed * dt;
+      phase.idlePhase += ps.orbit.speed * dt;
       host.crosshair.x =
-        phase.crosshairTarget.x + Math.cos(phase.idlePhase) * bs.orbit.rx;
+        phase.crosshairTarget.x + Math.cos(phase.idlePhase) * ps.orbit.rx;
       host.crosshair.y =
-        phase.crosshairTarget.y + Math.sin(phase.idlePhase) * bs.orbit.ry;
+        phase.crosshairTarget.y + Math.sin(phase.idlePhase) * ps.orbit.ry;
     }
   } else {
     host.stepCrosshairToward(
@@ -325,12 +325,12 @@ function tickChainDwelling(
   state: GameState,
   dt: number,
 ): void {
-  const bs = phase.state as Extract<
+  const ps = phase.state as Extract<
     BattleState,
     { step: typeof STEP.CHAIN_DWELLING }
   >;
-  bs.timer -= dt;
-  if (bs.timer > 0) return;
+  ps.timer -= dt;
+  if (ps.timer > 0) return;
 
   if (!phase.chainTargets || phase.chainIdx >= phase.chainTargets.length) {
     phase.state = { step: STEP.PICKING };
@@ -349,7 +349,7 @@ function tickChainDwelling(
     }
   } else {
     // No cannon ready — wait a bit longer
-    bs.timer = 0.05;
+    ps.timer = 0.05;
   }
 }
 
@@ -360,16 +360,16 @@ function tickDwelling(
   state: GameState,
   dt: number,
 ): void {
-  const bs = phase.state as Extract<
+  const ps = phase.state as Extract<
     BattleState,
     { step: typeof STEP.DWELLING }
   >;
-  bs.timer -= dt;
-  if (bs.timer > 0) return;
+  ps.timer -= dt;
+  if (ps.timer > 0) return;
 
   const ready = nextReadyCombined(state, host.playerId, host.cannonRotationIdx);
   if (!ready) {
-    bs.timer = 0.05;
+    ps.timer = 0.05;
     return;
   }
   host.fire(state);

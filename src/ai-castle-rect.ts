@@ -29,8 +29,7 @@ import {
 } from "./spatial.ts";
 import type { BurningPit, GameState } from "./types.ts";
 
-// Constants used by scoreBuildTowerTarget — duplicated from ai-strategy-build.ts
-// to avoid circular imports. These are scoring weights, not game rules.
+// Scoring weights for scoreBuildTowerTarget — tower ranking during build targeting.
 /** Weight given to wall-ring completion progress when ranking towers to build. */
 const TOWER_PROGRESS_WEIGHT = 100;
 /** Score penalty applied to dead towers — prefer live towers but still consider dead ones. */
