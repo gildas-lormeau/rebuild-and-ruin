@@ -34,11 +34,10 @@ import {
   canPlaceCannon,
 } from "./cannon-system.ts";
 import { selectPlayerTower } from "./game-engine.ts";
-import { GRID_COLS } from "./grid.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { toCannonMode, type WatcherNetworkState } from "./online-types.ts";
 import { isSelectionPending } from "./selection.ts";
-import { inBoundsStrict } from "./spatial.ts";
+import { inBoundsStrict, packTile } from "./spatial.ts";
 import { isHostInContext } from "./tick-context.ts";
 import {
   CANNON_MODES,
@@ -363,7 +362,7 @@ function handleImpactEvent(
     return DROPPED;
   if ("playerId" in msg && !validPid(msg.playerId, state)) return DROPPED;
   if (msg.type === MESSAGE.WALL_DESTROYED) {
-    const wallKey = msg.row * GRID_COLS + msg.col;
+    const wallKey = packTile(msg.row, msg.col);
     const owner = state.players.find((player) => player.walls.has(wallKey));
     deps.log(
       `wall_destroyed: (${msg.row},${msg.col}) owner=P${owner?.id ?? "?"} shooter=P${msg.shooterId ?? "?"}`,

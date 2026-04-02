@@ -49,6 +49,7 @@ import {
   isBalloonCannon,
   isCannonAlive,
   isSuperCannon,
+  packTile,
   pxToTile,
   unpackTile,
 } from "./spatial.ts";
@@ -856,19 +857,19 @@ function drawWallBevels(
   lightEdge: string,
   shadowEdge: string,
 ): void {
-  if (!walls.has((r - 1) * GRID_COLS + c)) {
+  if (!walls.has(packTile(r - 1, c))) {
     overlayCtx.fillStyle = lightEdge;
     overlayCtx.fillRect(px, py, TILE_SIZE, 2);
   }
-  if (!walls.has((r + 1) * GRID_COLS + c)) {
+  if (!walls.has(packTile(r + 1, c))) {
     overlayCtx.fillStyle = shadowEdge;
     overlayCtx.fillRect(px, py + TILE_SIZE - 2, TILE_SIZE, 2);
   }
-  if (!walls.has(r * GRID_COLS + (c - 1))) {
+  if (!walls.has(packTile(r, c - 1))) {
     overlayCtx.fillStyle = lightEdge;
     overlayCtx.fillRect(px, py, 2, TILE_SIZE);
   }
-  if (!walls.has(r * GRID_COLS + (c + 1))) {
+  if (!walls.has(packTile(r, c + 1))) {
     overlayCtx.fillStyle = shadowEdge;
     overlayCtx.fillRect(px + TILE_SIZE - 2, py, 2, TILE_SIZE);
   }

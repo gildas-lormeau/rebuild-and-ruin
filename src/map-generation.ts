@@ -20,6 +20,7 @@ import {
   type Tile,
 } from "./grid.ts";
 import { Rng } from "./rng.ts";
+import { packTile } from "./spatial.ts";
 
 interface ZoneStats {
   minRow: number;
@@ -266,7 +267,7 @@ function buildRiverDistanceGrid(tiles: readonly Tile[][]): number[][] {
   const dist: number[][] = Array.from({ length: GRID_ROWS }, () =>
     new Array(GRID_COLS).fill(Infinity),
   );
-  // Flat-index BFS queue avoids tuple allocations (encode as r * GRID_COLS + c)
+  // Flat-index BFS queue avoids tuple allocations (encode as packTile(r, c))
   const queue: number[] = [];
 
   // Seed BFS from all river tiles
@@ -274,7 +275,7 @@ function buildRiverDistanceGrid(tiles: readonly Tile[][]): number[][] {
     for (let c = 0; c < GRID_COLS; c++) {
       if (tiles[r]![c] === TILE_WATER) {
         dist[r]![c] = 0;
-        queue.push(r * GRID_COLS + c);
+        queue.push(packTile(r, c));
       }
     }
   }
@@ -658,7 +659,7 @@ function floodFillZones(tiles: readonly Tile[][]): {
       tiles[r]![c] === TILE_GRASS
     ) {
       zones[r]![c] = rid;
-      queue.push(r * GRID_COLS + c);
+      queue.push(packTile(r, c));
     }
   };
 
@@ -669,7 +670,7 @@ function floodFillZones(tiles: readonly Tile[][]): {
       regionId++;
       queue.length = 0;
       zones[r]![c] = regionId;
-      queue.push(r * GRID_COLS + c);
+      queue.push(packTile(r, c));
       let size = 0;
       let head = 0;
 
