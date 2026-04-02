@@ -165,10 +165,16 @@ export function createSelectionSystem(
   function syncSelectionOverlay(): void {
     const announcementDone =
       runtimeState.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION;
+    const visible = new Set<number>();
+    if (announcementDone) {
+      for (const ctrl of runtimeState.controllers) {
+        if (isHuman(ctrl)) visible.add(ctrl.playerId);
+      }
+    }
     syncSelectionOverlayImpl(
       runtimeState.overlay,
       runtimeState.selectionStates,
-      (pid) => isHuman(runtimeState.controllers[pid]!) && announcementDone,
+      visible,
     );
   }
 

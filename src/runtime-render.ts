@@ -27,7 +27,7 @@ import {
   updateTouchControls,
   type ZoomButton,
 } from "./runtime-touch-ui.ts";
-import { Phase } from "./types.ts";
+import { Phase, type UpgradePickDialogState } from "./types.ts";
 
 interface RenderSystemDeps {
   readonly runtimeState: RuntimeState;
@@ -111,7 +111,11 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       bannerUi,
       lifeLostDialog: runtimeState.lifeLostDialog,
       upgradePickDialog: runtimeState.upgradePickDialog,
-      onlinePlayerId: runtimeState.frameCtx.onlinePlayerId,
+      povPlayerId: runtimeState.frameCtx.povPlayerId,
+      upgradePickHumanIdx: computeUpgradePickHumanIdx(
+        runtimeState.upgradePickDialog,
+        runtimeState.frameCtx.onlinePlayerId,
+      ),
       playerNames: PLAYER_NAMES,
       playerColors: PLAYER_COLORS,
       getLifeLostPanelPos: (playerId) => deps.getLifeLostPanelPos(playerId),
@@ -122,7 +126,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       runtimeState.overlay.ui.statusBar = createStatusBar(
         runtimeState.state,
         PLAYER_COLORS,
-        runtimeState.frameCtx.onlinePlayerId,
+        runtimeState.frameCtx.povPlayerId,
       );
     }
 
@@ -162,4 +166,16 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       containerHeight: deps.getContainerHeight(),
     });
   };
+}
+
+/** Compute which upgrade pick entry belongs to the local human player.
+ *  Returns the entry index, or -1 if no local human is picking. */
+function computeUpgradePickHumanIdx(
+  dialog: UpgradePickDialogState | null,
+  onlinePlayerId: number,
+): number {
+  if (!dialog) return -1;
+  return dialog.entries.findIndex(
+    (e) => e.playerId === onlinePlayerId && !e.isAi,
+  );
 }

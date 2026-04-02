@@ -138,17 +138,17 @@ export function createBannerUi(
 export function createStatusBar(
   state: GameState,
   playerColors: readonly { interiorLight: RGB }[],
-  onlinePlayerId?: number,
+  povPlayerId?: number,
 ) {
   // Modifier label (modern mode only)
   const modifier = state.activeModifier
     ? modifierLabel(state.activeModifier)
     : undefined;
 
-  // Local player's active upgrade labels
+  // POV player's active upgrade labels
   let upgrades: string[] | undefined;
-  if (onlinePlayerId !== undefined && onlinePlayerId >= 0) {
-    const player = state.players[onlinePlayerId];
+  if (povPlayerId !== undefined && povPlayerId >= 0) {
+    const player = state.players[povPlayerId];
     if (player && player.upgrades.size > 0) {
       upgrades = [];
       for (const [id, count] of player.upgrades) {
@@ -178,11 +178,13 @@ export function createStatusBar(
   };
 }
 
-/** Writes selection highlights into overlay.selection (mutates in-place). */
+/** Writes selection highlights into overlay.selection (mutates in-place).
+ *  @param visiblePlayers — set of player IDs whose highlights should be shown.
+ *  If omitted, all unconfirmed players are shown. */
 export function updateSelectionOverlay(
   overlay: RenderOverlay,
   selectionStates: Map<number, SelectionState>,
-  isLocalHuman?: (pid: number) => boolean,
+  visiblePlayers?: ReadonlySet<number>,
 ): void {
   if (!overlay.selection) {
     overlay.selection = { highlighted: null, selected: null };
@@ -190,7 +192,7 @@ export function updateSelectionOverlay(
   overlay.selection.highlights = [];
   for (const [pid, selectionState] of selectionStates) {
     if (selectionState.confirmed) continue;
-    if (isLocalHuman && !isLocalHuman(pid)) continue;
+    if (visiblePlayers && !visiblePlayers.has(pid)) continue;
     overlay.selection.highlights.push({
       towerIdx: selectionState.highlighted,
       playerId: pid,
@@ -213,7 +215,7 @@ export function handleLifeLostDialogClick(params: {
   const gameY = screenY / SCALE;
 
   for (const entry of lifeLostDialog.entries) {
-    if (entry.choice !== LifeLostChoice.PENDING || entry.isAi) continue;
+    if (entry.choice !== LifeLostChoice.PENDING) continue;
 
     const { px, py } = lifeLostPanelPos(state, entry.playerId);
     const { btnY, contX, abX } = lifeLostButtonLayout(px, py);
@@ -326,7 +328,10 @@ export function createOnlineOverlay(params: {
   bannerUi?: { text: string; subtitle?: string; y: number };
   lifeLostDialog: LifeLostDialogState | null;
   upgradePickDialog: UpgradePickDialogState | null;
-  onlinePlayerId: number;
+  /** POV player for filtering per-player UI (combos, status bar upgrades). -1 = show all. */
+  povPlayerId: number;
+  /** Index into upgrade pick entries for the local human's row (-1 = none). */
+  upgradePickHumanIdx: number;
   playerNames: ReadonlyArray<string>;
   playerColors: ReadonlyArray<{ wall: RGB }>;
   getLifeLostPanelPos: (playerId: number) => { px: number; py: number };
@@ -340,7 +345,8 @@ export function createOnlineOverlay(params: {
     bannerUi,
     lifeLostDialog,
     upgradePickDialog,
-    onlinePlayerId,
+    povPlayerId,
+    upgradePickHumanIdx,
     playerNames,
     playerColors,
     getLifeLostPanelPos,
@@ -405,14 +411,14 @@ export function createOnlineOverlay(params: {
         getLifeLostPanelPos,
       ),
       comboFloats:
-        onlinePlayerId < 0
+        povPlayerId < 0
           ? state.comboTracker?.events
           : state.comboTracker?.events.filter(
-              (ev) => ev.playerId === onlinePlayerId,
+              (ev) => ev.playerId === povPlayerId,
             ),
       upgradePick: buildUpgradePickUi(
         upgradePickDialog,
-        onlinePlayerId,
+        upgradePickHumanIdx,
         playerNames,
         playerColors,
       ),
@@ -599,15 +605,13 @@ function buildLifeLostDialogUi(
 
 function buildUpgradePickUi(
   dialog: UpgradePickDialogState | null,
-  onlinePlayerId: number,
+  humanIdx: number,
   playerNames: ReadonlyArray<string>,
   playerColors: ReadonlyArray<{ wall: RGB }>,
 ): UpgradePickOverlay | undefined {
   if (!dialog) return undefined;
 
-  let humanIdx = -1;
-  const entries = dialog.entries.map((entry, idx) => {
-    if (entry.playerId === onlinePlayerId && !entry.isAi) humanIdx = idx;
+  const entries = dialog.entries.map((entry) => {
     return {
       playerName: playerNames[entry.playerId] ?? `P${entry.playerId + 1}`,
       color: playerColors[entry.playerId % playerColors.length]!.wall,
