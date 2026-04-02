@@ -607,7 +607,7 @@ function is2x2(keys: readonly number[]): boolean {
 
 /** Random walk to find up to maxLength connected wall tiles. */
 function findConnectedWalls(
-  walls: Set<number>,
+  walls: ReadonlySet<number>,
   startKey: number,
   maxLength: number,
   rng: Rng,

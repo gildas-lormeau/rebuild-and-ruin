@@ -47,7 +47,7 @@ export type Scored = {
 
 /** Shared context for fallback placement decisions — avoids threading 9 params. */
 export interface FallbackContext {
-  walls: Set<number>;
+  walls: ReadonlySet<number>;
   outside: Set<number>;
   interior: ReadonlySet<number>;
   castle: { tower: Tower };
@@ -88,7 +88,7 @@ export interface ScoringRule {
 /** Shared context for the scoring loop — avoids threading 15+ params through closures. */
 export type ScoringContext = {
   state: import("./types.ts").GameState;
-  walls: Set<number>;
+  walls: ReadonlySet<number>;
   outside: Set<number>;
   targetGaps: Set<number>;
   castle: TileRect;

@@ -17,7 +17,7 @@ import {
   recheckTerritory,
   finalizeTerritoryWithScoring,
 } from "../src/build-system.ts";
-import { markWallsDirty } from "../src/board-occupancy.ts";
+import { addPlayerWall, deletePlayerWallBattle, markWallsDirty } from "../src/board-occupancy.ts";
 import { packTile } from "../src/spatial.ts";
 import { parseBoard, assert, test, runTests } from "./test-helpers.ts";
 
@@ -308,7 +308,7 @@ test("pending revive cleared when tower becomes unenclosed", () => {
   state.towerPendingRevive.add(towerIdx);
   // Break the ring so tower is no longer enclosed
   const wallKey = packTile(state.map.towers[0]!.row - 1, state.map.towers[0]!.col);
-  state.players[0]!.walls.delete(wallKey);
+  deletePlayerWallBattle(state.players[0]!, wallKey);
   for (const player of state.players) markWallsDirty(player);
   finalizeTerritoryWithScoring(state);
   assert(!state.towerPendingRevive.has(towerIdx), "pending should be cleared when unenclosed");
@@ -375,7 +375,7 @@ test("closing a gap reclaims territory", () => {
   assert(player.interior.size === 0, "gap means no interior initially");
   // Close the gap by adding the missing wall
   const gapKey = packTile(offsetR, offsetC + 3);
-  player.walls.add(gapKey);
+  addPlayerWall(player, gapKey);
   reclaimTerritory(state);
   assert(player.interior.size > 0, "closing gap should create interior");
   assert(player.ownedTowers.length === 1, "tower should now be owned");
@@ -394,7 +394,7 @@ test("breaking a wall loses territory", () => {
   assert(initialInterior > 0, "should start with interior");
   // Remove a wall tile to break the ring
   const wallKey = packTile(offsetR, offsetC + 3);
-  player.walls.delete(wallKey);
+  deletePlayerWallBattle(player, wallKey);
   reclaimTerritory(state);
   assert(player.interior.size === 0, "breaking ring should lose all interior");
   assert(player.ownedTowers.length === 0, "tower should no longer be owned");

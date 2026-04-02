@@ -707,7 +707,7 @@ function enumerateCandidates(
   state: GameState,
   playerId: number,
   piece: PieceShape,
-  walls: Set<number>,
+  walls: ReadonlySet<number>,
   outside: Set<number>,
   targetGaps: Set<number>,
   interiorExcludingGaps: Set<number>,
@@ -780,7 +780,7 @@ function scoreCandidateGapMetrics(
   row: number,
   col: number,
   offsets: ReadonlyArray<readonly [number, number]>,
-  walls: Set<number>,
+  walls: ReadonlySet<number>,
   targetGaps: Set<number>,
 ): {
   gapsFilled: number;

@@ -277,7 +277,7 @@ export function candidateToPlacement(candidate: Candidate): AiPlacement {
 }
 
 export function isFatFreeCandidate(
-  walls: Set<number>,
+  walls: ReadonlySet<number>,
   candidate: Candidate,
 ): boolean {
   return countFatBlocks(walls, candidate) === 0;
@@ -285,7 +285,7 @@ export function isFatFreeCandidate(
 
 /** Count 2×2 all-wall blocks a candidate would create (no exemptions). */
 export function countFatBlocks(
-  walls: Set<number>,
+  walls: ReadonlySet<number>,
   candidate: Candidate,
 ): number {
   const { addedKeys, isWall } = buildCandidateWallInfo(
@@ -304,7 +304,7 @@ export function countFatBlocks(
 
 /** Cheap fat-wall check — no Set copy, just checks if placing creates 2×2 blocks. */
 export function checkFatWall(
-  walls: Set<number>,
+  walls: ReadonlySet<number>,
   candidate: Candidate,
 ): { hasFatWall: boolean; gapClosingFat: boolean } {
   const { addedKeys, isWall } = buildCandidateWallInfo(
@@ -598,7 +598,7 @@ function shouldRejectForFatWalls(
 
 /** Build the added-key set and wall predicate for a candidate placement. */
 function buildCandidateWallInfo(
-  walls: Set<number>,
+  walls: ReadonlySet<number>,
   offsets: readonly (readonly [number, number])[],
   row: number,
   col: number,
@@ -692,7 +692,7 @@ function computeCandidateEnv(
 }
 
 export function countSmallPocketTiles(
-  walls: Set<number>,
+  walls: ReadonlySet<number>,
   outsideSet: Set<number>,
 ): { wasted: number; smallestPocket: number } {
   let wasted = 0;

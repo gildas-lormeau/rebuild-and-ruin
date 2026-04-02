@@ -172,8 +172,8 @@ export function isTowerEnclosed(
  */
 export function towerReachesOutsideCardinal(
   tower: Tower,
-  walls: Set<number>,
-  targets?: Set<number>,
+  walls: ReadonlySet<number>,
+  targets?: ReadonlySet<number>,
 ): boolean {
   const start = packTile(tower.row, tower.col);
   const visited = new Set<number>([start]);
@@ -236,7 +236,7 @@ export function hasPitAt(
 
 /** Count orthogonal wall neighbors of a tile key in a wall set. */
 export function countWallNeighbors(
-  walls: Set<number>,
+  walls: ReadonlySet<number>,
   r: number,
   c: number,
 ): number {
@@ -431,8 +431,8 @@ export function waterKeys(tiles: readonly (readonly Tile[])[]): Set<number> {
 /** Flood-fill from map edges to find all "outside" tiles (not enclosed by walls).
  *  `extraBarriers` (e.g. water keys) are treated as impassable, like walls. */
 export function computeOutside(
-  walls: Set<number>,
-  extraBarriers?: Set<number>,
+  walls: ReadonlySet<number>,
+  extraBarriers?: ReadonlySet<number>,
 ): Set<number> {
   const outside = new Set<number>();
   const queue: number[] = [];

@@ -149,8 +149,10 @@ export interface Player {
   castle: Castle | null;
   /** All towers currently enclosed by this player's walls. */
   ownedTowers: Tower[];
-  /** Wall tiles owned by this player (row,col pairs encoded as row*COLS+col). */
-  walls: Set<number>;
+  /** Wall tiles owned by this player (row,col pairs encoded as row*COLS+col).
+   *  ReadonlySet at the type level — mutations must go through board-occupancy
+   *  helpers (addPlayerWall, clearPlayerWalls, etc.) which maintain epoch tracking. */
+  walls: ReadonlySet<number>;
   /** All tiles fully enclosed by walls (flood-fill). Used for territory scoring,
    *  cannon placement eligibility, and grunt blocking. Encoded as row*COLS+col.
    *  Branded as FreshInterior — only recomputeInterior(), resetCastle(),

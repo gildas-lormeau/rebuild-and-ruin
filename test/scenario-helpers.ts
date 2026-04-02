@@ -9,6 +9,7 @@
  */
 
 import { fireCannon, resolveBalloons, tickCannonballs } from "../src/battle-system.ts";
+import { clearPlayerWalls, deletePlayerWallBattle } from "../src/board-occupancy.ts";
 import { recheckTerritory, placePiece } from "../src/build-system.ts";
 import { placeCannon, resetCannonFacings } from "../src/cannon-system.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/grid.ts";
@@ -257,7 +258,7 @@ export function createScenario(seed = 42): Scenario {
   }
 
   function clearWalls(playerId: number) {
-    state.players[playerId]!.walls.clear();
+    clearPlayerWalls(state.players[playerId]!);
     state.players[playerId]!.interior = emptyFreshInterior();
   }
 
@@ -290,7 +291,7 @@ export function createScenario(seed = 42): Scenario {
     let removed = 0;
     for (const key of player.walls) {
       if (removed >= count) break;
-      player.walls.delete(key);
+      deletePlayerWallBattle(player, key);
       removed++;
     }
     recheckTerritory(state);

@@ -7,6 +7,7 @@
  */
 
 import {
+  deletePlayerWallsBatch,
   getInterior,
   hasCannonAt,
   hasTowerAt,
@@ -268,9 +269,7 @@ export function applyCrumblingWalls(state: GameState): void {
 
     // Shuffle and pick first `count`
     state.rng.shuffle(destructible);
-    for (let i = 0; i < count; i++) {
-      player.walls.delete(destructible[i]!);
-    }
+    deletePlayerWallsBatch(player, destructible.slice(0, count));
   }
 }
 

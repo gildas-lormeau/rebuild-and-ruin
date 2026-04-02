@@ -266,7 +266,7 @@ export function replenishBonusSquares(state: GameState): void {
 /** Remove bonus squares that are covered by walls. */
 export function removeBonusSquaresCoveredByWalls(
   state: GameState,
-  walls: Set<number>,
+  walls: ReadonlySet<number>,
 ): void {
   state.bonusSquares = state.bonusSquares.filter(
     (bonusSquare) => !walls.has(packTile(bonusSquare.row, bonusSquare.col)),

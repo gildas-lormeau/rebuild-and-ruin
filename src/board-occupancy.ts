@@ -14,7 +14,8 @@
  *   - sweepIsolatedWalls            — debris sweep at phase transitions (marks dirty)
  *   - deletePlayerWallBattle        — battle destruction (intentionally no mark)
  *
- * Never call player.walls.add/delete/clear directly.
+ * Player.walls is ReadonlySet at the type level — the compiler prevents
+ * direct .add/.delete/.clear outside these helpers.
  *
  * After any dirty-marking mutation, call recheckTerritory(state) before reading
  * player.interior. assertInteriorFresh(player) throws if this is skipped.
@@ -314,11 +315,8 @@ export function filterActiveEnemies(state: GameState, playerId: number) {
   );
 }
 
-/** Add a wall key and mark dirty. Ensures the freshness invariant is maintained.
- *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
- *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
 export function addPlayerWall(player: Player, key: number): void {
-  player.walls.add(key);
+  mutableWalls(player).add(key);
   markWallsDirty(player);
 }
 
@@ -326,7 +324,8 @@ export function addPlayerWall(player: Player, key: number): void {
  *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
  *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
 export function addPlayerWalls(player: Player, keys: Iterable<number>): void {
-  for (const key of keys) player.walls.add(key);
+  const walls = mutableWalls(player);
+  for (const key of keys) walls.add(key);
   markWallsDirty(player);
 }
 
@@ -334,14 +333,24 @@ export function addPlayerWalls(player: Player, keys: Iterable<number>): void {
  *  stale during battle by design; recheckTerritory runs at the next phase start.
  *  WARNING: Leaves interior stale. No recheckTerritory needed until next build phase. */
 export function deletePlayerWallBattle(player: Player, key: number): void {
-  player.walls.delete(key);
+  mutableWalls(player).delete(key);
+}
+
+/** Batch-delete wall keys during a modifier (e.g. crumbling walls).
+ *  Intentionally skips markWallsDirty — modifier runs between phases. */
+export function deletePlayerWallsBatch(
+  player: Player,
+  keys: readonly number[],
+): void {
+  const walls = mutableWalls(player);
+  for (const key of keys) walls.delete(key);
 }
 
 /** Clear all walls and mark dirty. Used when resetting a player's board state.
  *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
  *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
 export function clearPlayerWalls(player: Player): void {
-  player.walls.clear();
+  mutableWalls(player).clear();
   markWallsDirty(player);
 }
 
@@ -350,7 +359,7 @@ export function clearPlayerWalls(player: Player): void {
  *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
  *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
 export function sweepIsolatedWalls(player: Player): void {
-  removeIsolatedWalls(player.walls);
+  removeIsolatedWalls(mutableWalls(player));
   markWallsDirty(player);
 }
 
@@ -419,6 +428,14 @@ export function assertInteriorFresh(player: Player): void {
         `Call recheckTerritory() after wall mutations before reading interior.`,
     );
   }
+}
+
+/** Add a wall key and mark dirty. Ensures the freshness invariant is maintained.
+ *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
+ *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
+/** Cast ReadonlySet → Set for internal mutation. Only used by wall helpers in this file. */
+function mutableWalls(player: Player): Set<number> {
+  return player.walls as Set<number>;
 }
 
 function hasWallMatching(

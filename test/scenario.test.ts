@@ -91,10 +91,10 @@ test("isolated walls are swept before battle banner captures newWalls", () => {
     if (isolatedKey >= 0) break;
   }
   assert(isolatedKey >= 0, "Should find an open tile for isolated wall");
-  player.walls.add(isolatedKey);
+  (player.walls as Set<number>).add(isolatedKey);
 
   // Verify it's truly isolated (0-1 neighbors)
-  removeIsolatedWalls(player.walls);
+  removeIsolatedWalls(player.walls as Set<number>);
   assert(
     !player.walls.has(isolatedKey),
     "Isolated wall tile should be swept by removeIsolatedWalls",
@@ -102,7 +102,7 @@ test("isolated walls are swept before battle banner captures newWalls", () => {
 
   // Restore for the real test: advance through cannon phase to battle
   player.walls = wallsBefore;
-  player.walls.add(isolatedKey);
+  (player.walls as Set<number>).add(isolatedKey);
 
   // The battle transition (nextPhase from CANNON_PLACE) sweeps walls.
   // After that, snapshotAllWalls should NOT contain the isolated tile.
@@ -394,7 +394,7 @@ test("online handleCannonStartTransition stashes pre-checkpoint walls on banner"
     if (isolatedKey >= 0) break;
   }
   assert(isolatedKey >= 0, "Should find tile for isolated wall");
-  player.walls.add(isolatedKey);
+  (player.walls as Set<number>).add(isolatedKey);
 
   // Reset phase so the transition handler runs its banner logic
   s.state.phase = Phase.WALL_BUILD;

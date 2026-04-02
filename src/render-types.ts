@@ -30,7 +30,7 @@ export type { RenderCannonPhantom, RenderPiecePhantom };
 /** A cannon captured by a propaganda balloon — fires for the balloon owner during battle. */
 export interface CastleData {
   /** Wall tile positions encoded as row*GRID_COLS+col. */
-  walls: Set<number>;
+  walls: ReadonlySet<number>;
   /** Enclosed territory: grass tiles fully surrounded by walls (inverse flood-fill).
    *  Encoded as row*GRID_COLS+col. Used for cannon eligibility, grunt blocking, and scoring. */
   interior: FreshInterior;

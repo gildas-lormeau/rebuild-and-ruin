@@ -598,7 +598,7 @@ function upgradePickEntryH(): number {
 
 function buildCastleOverlay(
   state: GameState,
-  wallsBeforeSweep?: readonly Set<number>[],
+  wallsBeforeSweep?: readonly ReadonlySet<number>[],
 ): CastleData[] {
   return state.players
     .filter((player) => player.castle)

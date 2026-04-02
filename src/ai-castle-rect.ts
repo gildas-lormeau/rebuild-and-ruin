@@ -43,7 +43,7 @@ const OBSTRUCTION_PENALTY = 60;
  */
 export function computeFillableGaps(
   rect: TileRect,
-  walls: Set<number>,
+  walls: ReadonlySet<number>,
   interior: FreshInterior,
   state: GameState,
   bankHugging: boolean,
@@ -65,7 +65,7 @@ export function computeFillableGaps(
 export function scoreBuildTowerTarget(
   tower: Tower,
   state: GameState,
-  player: { id: number; walls: Set<number> },
+  player: { id: number; walls: ReadonlySet<number> },
   currentRow: number,
   currentCol: number,
   castleMargin: number,
@@ -110,8 +110,8 @@ export function scoreBuildTowerTarget(
 export function hasMeaningfulHomeRingGaps(
   homeTowerEnclosed: boolean,
   castle: TileRect & { tower: Tower },
-  walls: Set<number>,
-  outside: Set<number>,
+  walls: ReadonlySet<number>,
+  outside: ReadonlySet<number>,
   state: GameState,
   interior: ReadonlySet<number>,
 ): boolean {
@@ -154,8 +154,8 @@ export function filterUnfillableGaps(
 export function floodPocket(
   startKey: number,
   visited: Set<number>,
-  walls: Set<number>,
-  outside: Set<number>,
+  walls: ReadonlySet<number>,
+  outside: ReadonlySet<number>,
 ): number[] {
   const pocket: number[] = [startKey];
   visited.add(startKey);
@@ -180,7 +180,7 @@ export function floodPocket(
  */
 export function findGapTiles(
   castle: TileRect,
-  walls: Set<number>,
+  walls: ReadonlySet<number>,
 ): Set<number> {
   const gaps = new Set<number>();
   const wallTop = castle.top - 1;
@@ -404,7 +404,7 @@ export function castleRect(
 function addBankPlugGaps(
   gaps: Set<number>,
   rect: TileRect,
-  walls: Set<number>,
+  walls: ReadonlySet<number>,
   tiles: readonly (readonly Tile[])[],
   burningPits?: readonly BurningPit[],
   includeWater = true,
@@ -476,7 +476,7 @@ function countRingTiles(rect: TileRect): number {
 function countCastleRectObstructions(
   rect: TileRect,
   state: GameState,
-  player: { id: number; walls: Set<number> },
+  player: { id: number; walls: ReadonlySet<number> },
 ): { obstructions: number; area: number } {
   let obstructions = 0;
   const rTop = rect.top - 1;

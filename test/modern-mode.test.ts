@@ -5,6 +5,7 @@
  * Run with: bun test/modern-mode.test.ts
  */
 
+import { clearPlayerWalls } from "../src/board-occupancy.ts";
 import { BALL_SPEED, GAME_MODE_MODERN, MODIFIER_FIRST_ROUND } from "../src/game-constants.ts";
 import {
   comboDemolitionBonus,
@@ -803,7 +804,7 @@ test("frozen river: grunts retarget cross-zone and walk onto ice", () => {
 
   // Clear all walls so grunts can reach the river
   for (const player of state.players) {
-    player.walls.clear();
+    clearPlayerWalls(player);
     player.interior = emptyFreshInterior();
   }
 

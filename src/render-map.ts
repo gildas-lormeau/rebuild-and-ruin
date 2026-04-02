@@ -849,7 +849,7 @@ function drawDamagedWallCracks(
 /** Draw 2px bevels on wall edges that have no neighbor. */
 function drawWallBevels(
   overlayCtx: CanvasRenderingContext2D,
-  walls: Set<number>,
+  walls: ReadonlySet<number>,
   r: number,
   c: number,
   px: number,
