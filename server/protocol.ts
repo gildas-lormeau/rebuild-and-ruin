@@ -119,7 +119,7 @@ export type ClientMessage =
   | { type: "create_room"; settings: RoomSettings }
   | { type: "join_room"; code: string }
   // Lobby (in room)
-  | { type: "select_slot"; slotId: number }
+  | { type: "select_slot"; playerId: number }
   // In-game
   | { type: "life_lost_choice"; choice: ResolvedChoice; playerId?: number }
   | { type: "upgrade_pick"; playerId: number; choice: string }

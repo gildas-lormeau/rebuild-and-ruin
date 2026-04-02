@@ -33,11 +33,11 @@ export interface RoomEntry {
 }
 
 interface SlotSelectionResult {
-  slotId: number;
+  playerId: number;
   /** The slot this socket previously occupied, or null if this is their first
    *  slot selection (new player joining). Used by the caller to broadcast
    *  a previousPlayerId so clients can clean up the vacated slot's UI. */
-  previousSlotId: number | null;
+  previousPlayerId: number | null;
 }
 
 export class RoomManager {
@@ -106,27 +106,27 @@ export class RoomManager {
   }
 
   /** Player selects a color/position slot, which becomes their playerId.
-   *  Note: slotId ≡ playerId — the 0-indexed player position used as the
-   *  player's identity for the entire session across all game messages.
+   *  playerId = 0-indexed player position used as the player's identity
+   *  for the entire session across all game messages.
    *  Updates slotAssignments (shared with GameRoom for identity enforcement).
-   *  Returns null if: slot taken by another player, invalid slotId, or game already started. */
-  selectSlot(socket: WebSocket, slotId: number): SlotSelectionResult | null {
+   *  Returns null if: slot taken by another player, invalid playerId, or game already started. */
+  selectSlot(socket: WebSocket, playerId: number): SlotSelectionResult | null {
     const entry = this.socketToRoom.get(socket);
     if (!entry || entry.started) return null;
-    if (slotId < 0 || slotId >= MAX_PLAYERS) return null;
+    if (playerId < 0 || playerId >= MAX_PLAYERS) return null;
 
     // Check if slot is already taken by another socket
     for (const [otherSocket, otherId] of entry.slotAssignments) {
-      if (otherId === slotId && otherSocket !== socket) return null;
+      if (otherId === playerId && otherSocket !== socket) return null;
     }
 
-    const previousSlotId = entry.slotAssignments.get(socket) ?? null;
+    const previousPlayerId = entry.slotAssignments.get(socket) ?? null;
     // Release previous slot if this socket had one
     entry.slotAssignments.delete(socket);
     // Assign new slot (shared map — GameRoom sees this immediately)
-    entry.slotAssignments.set(socket, slotId);
+    entry.slotAssignments.set(socket, playerId);
 
-    return { slotId, previousSlotId };
+    return { playerId, previousPlayerId };
   }
 
   /** Mark room as started: stop wait timer, add spectators. Game init is driven by host client. */
@@ -241,7 +241,7 @@ export class RoomManager {
     let newHostSocket: WebSocket | null = null;
     let newHostPlayerId: number | null = null;
 
-    // Prefer lowest-slotId player
+    // Prefer lowest-playerId player
     for (const [sock, sid] of entry.slotAssignments) {
       if (
         sock.readyState === WebSocket.OPEN &&

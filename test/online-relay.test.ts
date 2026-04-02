@@ -100,7 +100,7 @@ test("relay matches current lobby, checkpoint, and migration protocol", async ()
     const code = roomCreated.code as string;
     expect(typeof code).toBe("string");
 
-    send(host.ws, { type: MESSAGE.SELECT_SLOT, slotId: 0 });
+    send(host.ws, { type: MESSAGE.SELECT_SLOT, playerId: 0 });
     const hostJoined = await host.waitFor(MESSAGE.JOINED);
     expect(hostJoined.playerId).toBe(0);
 
@@ -108,7 +108,7 @@ test("relay matches current lobby, checkpoint, and migration protocol", async ()
     const playerRoomJoined = await player.waitFor(MESSAGE.ROOM_JOINED);
     expect(playerRoomJoined.code).toBe(code);
 
-    send(player.ws, { type: MESSAGE.SELECT_SLOT, slotId: 1 });
+    send(player.ws, { type: MESSAGE.SELECT_SLOT, playerId: 1 });
     const playerJoined = await player.waitFor(MESSAGE.JOINED);
     expect(playerJoined.playerId).toBe(1);
     const hostSawPlayer = await host.waitFor(

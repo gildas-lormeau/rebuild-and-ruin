@@ -142,25 +142,25 @@ function handleMessage(
     }
 
     case MESSAGE.SELECT_SLOT: {
-      const selection = rooms.selectSlot(socket, msg.slotId as number);
+      const selection = rooms.selectSlot(socket, msg.playerId as number);
       if (!selection) break;
       const entry = rooms.getEntry(socket);
       if (!entry) break;
       const previousPlayerId =
-        selection.previousSlotId !== null &&
-        selection.previousSlotId !== selection.slotId
-          ? selection.previousSlotId
+        selection.previousPlayerId !== null &&
+        selection.previousPlayerId !== selection.playerId
+          ? selection.previousPlayerId
           : undefined;
       send(socket, {
         type: MESSAGE.JOINED,
-        playerId: selection.slotId,
+        playerId: selection.playerId,
         previousPlayerId,
       });
       // Notify all in room about the updated slot assignments
       rooms.broadcastToRoom(entry, {
         type: MESSAGE.PLAYER_JOINED,
-        playerId: selection.slotId,
-        name: PLAYER_NAMES[selection.slotId] ?? `P${selection.slotId + 1}`,
+        playerId: selection.playerId,
+        name: PLAYER_NAMES[selection.playerId] ?? `P${selection.playerId + 1}`,
         previousPlayerId,
       });
       break;

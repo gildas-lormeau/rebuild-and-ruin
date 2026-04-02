@@ -160,7 +160,7 @@ const runtime: GameRuntime = createGameRuntime({
     ),
   showLobby,
   onLobbySlotJoined: (pid) => {
-    send({ type: MESSAGE.SELECT_SLOT, slotId: pid });
+    send({ type: MESSAGE.SELECT_SLOT, playerId: pid });
   },
   onCloseOptions: () => {
     if (runtime.runtimeState.optionsReturnMode === null) {
