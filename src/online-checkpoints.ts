@@ -59,13 +59,7 @@ export function applyCannonStartCheckpoint(
   deps: CheckpointDeps,
   beforeApply?: () => void,
 ): void {
-  beforeApply?.();
-  applyPlayersCheckpoint(deps.state, data.players);
-  applyGruntsCheckpoint(deps.state, data.grunts);
-  applyHousesAlive(deps.state, data.housesAlive);
-  deps.state.bonusSquares = data.bonusSquares;
-  deps.state.towerAlive = data.towerAlive;
-  deps.state.burningPits = data.burningPits;
+  applyCommonCheckpoint(data, deps, beforeApply);
   deps.state.cannonLimits = data.limits;
   deps.state.timer = data.timer;
   clearBattleProjectiles(deps);
@@ -136,13 +130,7 @@ export function applyBuildStartCheckpoint(
   deps: CheckpointDeps,
   beforeApply?: () => void,
 ): void {
-  beforeApply?.();
-  applyPlayersCheckpoint(deps.state, data.players);
-  applyGruntsCheckpoint(deps.state, data.grunts);
-  applyHousesAlive(deps.state, data.housesAlive);
-  deps.state.bonusSquares = data.bonusSquares;
-  deps.state.towerAlive = data.towerAlive;
-  deps.state.burningPits = data.burningPits;
+  applyCommonCheckpoint(data, deps, beforeApply);
   deps.state.round = data.round;
   deps.state.timer = data.timer;
   deps.state.activeModifier =
@@ -178,6 +166,31 @@ export function applyBuildEndCheckpoint(
   for (let i = 0; i < state.players.length; i++) {
     state.players[i]!.score = scores[i] ?? state.players[i]!.score;
   }
+}
+
+/** Shared preamble for cannon-start and build-start checkpoints:
+ *  runs beforeApply hook, then restores players, grunts, houses, bonus squares,
+ *  tower liveness, and burning pits from the checkpoint data. */
+function applyCommonCheckpoint(
+  data: Pick<
+    CannonStartData,
+    | "players"
+    | "grunts"
+    | "housesAlive"
+    | "bonusSquares"
+    | "towerAlive"
+    | "burningPits"
+  >,
+  deps: CheckpointDeps,
+  beforeApply?: () => void,
+): void {
+  beforeApply?.();
+  applyPlayersCheckpoint(deps.state, data.players);
+  applyGruntsCheckpoint(deps.state, data.grunts);
+  applyHousesAlive(deps.state, data.housesAlive);
+  deps.state.bonusSquares = data.bonusSquares;
+  deps.state.towerAlive = data.towerAlive;
+  deps.state.burningPits = data.burningPits;
 }
 
 /** Clear in-flight cannonballs and visual impacts.
