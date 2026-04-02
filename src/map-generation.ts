@@ -20,7 +20,7 @@ import {
   type Tile,
 } from "./grid.ts";
 import { Rng } from "./rng.ts";
-import { packTile } from "./spatial.ts";
+import { packTile, unpackTile } from "./spatial.ts";
 
 interface ZoneStats {
   minRow: number;
@@ -284,8 +284,7 @@ function buildRiverDistanceGrid(tiles: readonly Tile[][]): number[][] {
   let head = 0;
   while (head < queue.length) {
     const idx = queue[head++]!;
-    const r = (idx / GRID_COLS) | 0;
-    const c = idx % GRID_COLS;
+    const { r, c } = unpackTile(idx);
     const d1 = dist[r]![c]! + 1;
     if (r > 0 && dist[r - 1]![c]! > d1) {
       dist[r - 1]![c] = d1;
@@ -676,8 +675,7 @@ function floodFillZones(tiles: readonly Tile[][]): {
 
       while (head < queue.length) {
         const idx = queue[head++]!;
-        const cr = (idx / GRID_COLS) | 0;
-        const cc = idx % GRID_COLS;
+        const { r: cr, c: cc } = unpackTile(idx);
         size++;
         tryEnqueue(cr - 1, cc, regionId);
         tryEnqueue(cr + 1, cc, regionId);
