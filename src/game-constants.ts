@@ -13,6 +13,13 @@ export type ModifierId =
   | "grunt_surge"
   | "frozen_river";
 
+/** Human-readable labels for modifier IDs (used by HUD and banners). */
+const MODIFIER_LABELS: Record<ModifierId, string> = {
+  wildfire: "Wildfire",
+  crumbling_walls: "Crumbling Walls",
+  grunt_surge: "Grunt Surge",
+  frozen_river: "Frozen River",
+};
 /** Named constants for modifier IDs — use these instead of raw string literals. */
 export const MID = {
   WILDFIRE: "wildfire",
@@ -161,3 +168,8 @@ export const VIEWPORT_SNAP_THRESHOLD = 0.5;
 export const HOUSE_MIN_DISTANCE = 3;
 /** Tower footprint size in tiles (towers are 2×2). */
 export const TOWER_SIZE = 2;
+
+/** Human-readable label for a modifier id. */
+export function modifierLabel(id: ModifierId): string {
+  return MODIFIER_LABELS[id];
+}

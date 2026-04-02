@@ -6,7 +6,7 @@
  * object for readability at the call site.
  */
 
-import { LIFE_LOST_MAX_TIMER } from "./game-constants.ts";
+import { LIFE_LOST_MAX_TIMER, modifierLabel } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import type { BannerState } from "./phase-banner.ts";
@@ -29,7 +29,6 @@ import {
   type RenderOverlay,
   type UpgradePickOverlay,
 } from "./render-types.ts";
-import { modifierLabel } from "./round-modifiers.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,

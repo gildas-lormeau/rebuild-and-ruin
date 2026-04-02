@@ -132,6 +132,31 @@ export function applyKeyRebinding(
   (kb as unknown as Record<string, string>)[actionKey] = newKey;
 }
 
+/** Format a key binding as a short hint string (e.g. "Arrows + N (B rotate)"). */
+export function formatKeyHint(kb: KeyBindings): string {
+  const arrows =
+    kb.up === KEY_UP
+      ? "Arrows"
+      : kb.up.toUpperCase() +
+        kb.left.toUpperCase() +
+        kb.down.toUpperCase() +
+        kb.right.toUpperCase();
+  return `${arrows} + ${kb.confirm.toUpperCase()} (${kb.rotate.toUpperCase()} rotate)`;
+}
+
+/** Build a map from confirm key → player slot index for lobby joining. */
+export function createLobbyConfirmKeys(
+  keyBindings: readonly KeyBindings[],
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (let i = 0; i < keyBindings.length; i++) {
+    const kb = keyBindings[i]!;
+    map.set(kb.confirm, i);
+    map.set(kb.confirm.toUpperCase(), i);
+  }
+  return map;
+}
+
 if (
   PLAYER_COLORS.length !== PLAYER_NAMES.length ||
   PLAYER_KEY_BINDINGS.length !== PLAYER_NAMES.length

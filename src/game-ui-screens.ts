@@ -8,7 +8,6 @@ import {
   LOBBY_SKIP_LOCKOUT,
   LOBBY_SKIP_STEP,
 } from "./game-constants.ts";
-import { createLobbyConfirmKeys, formatKeyHint } from "./game-helpers.ts";
 import { formatKeyName, saveSettings } from "./game-ui-settings.ts";
 import {
   CANNON_HP_OPTIONS,
@@ -21,11 +20,12 @@ import {
   SOUND_LABELS,
 } from "./game-ui-types.ts";
 import type { GameMap } from "./geometry-types.ts";
-import { generateMap } from "./map-generation.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
-import type { GameSettings } from "./player-config.ts";
 import {
   ACTION_KEYS,
+  createLobbyConfirmKeys,
+  formatKeyHint,
+  type GameSettings,
   getPlayerColor,
   type KeyBindings,
   PLAYER_NAMES,
@@ -76,7 +76,7 @@ export function createOptionsOverlay(frameCtx: UIContext): {
   map: GameMap;
   overlay: RenderOverlay;
 } {
-  const lobbyMap = frameCtx.lobby.map ?? generateMap(frameCtx.lobby.seed);
+  const lobbyMap = frameCtx.lobby.map!;
   const readOnly = frameCtx.getOptionsReturnMode() !== null;
   const visible = visibleOptions(frameCtx);
   const options: OptionEntry[] = visible.map((i) => {
@@ -160,7 +160,7 @@ export function createControlsOverlay(frameCtx: UIContext): {
   map: GameMap;
   overlay: RenderOverlay;
 } {
-  const lobbyMap = frameCtx.lobby.map ?? generateMap(frameCtx.lobby.seed);
+  const lobbyMap = frameCtx.lobby.map!;
   const cs = frameCtx.controlsState;
   const playerCount = IS_TOUCH_DEVICE ? 1 : PLAYER_NAMES.length;
   const players = PLAYER_NAMES.slice(0, playerCount).map((name, player) => {
@@ -240,9 +240,7 @@ export function createLobbyOverlay(frameCtx: UIContext): {
       },
     },
   };
-  if (!frameCtx.lobby.map)
-    frameCtx.lobby.map = generateMap(frameCtx.lobby.seed);
-  return { map: frameCtx.getState()?.map ?? frameCtx.lobby.map, overlay };
+  return { map: frameCtx.getState()?.map ?? frameCtx.lobby.map!, overlay };
 }
 
 /** Handle a lobby key press — resolve slot from key bindings, call `onJoin` if valid. */

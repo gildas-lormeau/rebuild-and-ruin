@@ -82,12 +82,6 @@ const CRUMBLE_MAX = 12;
 export const BANNER_PHASE_CANNON = "cannon" as const;
 export const BANNER_PHASE_BUILD = "build" as const;
 
-/** Human-readable label for a modifier id (used by HUD). */
-export function modifierLabel(id: ModifierId): string {
-  const def = MODIFIER_POOL.find((mod) => mod.id === id);
-  return def?.label ?? id;
-}
-
 /** Roll a modifier for the current round. Returns null if no modifier fires.
  *  Must be called at a deterministic point using state.rng for online sync. */
 export function rollModifier(state: GameState): ModifierId | null {
