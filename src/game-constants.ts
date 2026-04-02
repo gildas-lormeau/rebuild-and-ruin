@@ -131,8 +131,6 @@ export const LOBBY_SKIP_LOCKOUT = 3;
 export const LOBBY_SKIP_STEP = 1;
 /** Interval between each wall tile during castle construction animation (ms). */
 export const WALL_BUILD_INTERVAL = 160;
-/** Delay (ms) before newly enclosed territory appears visually after a wall piece is placed. */
-export const ENCLOSURE_REVEAL_DELAY_MS = 100;
 /** AI auto-continue delay in the life-lost dialog (seconds). */
 export const LIFE_LOST_AI_DELAY = 2.0;
 /** Maximum time before the life-lost dialog auto-resolves (seconds). */

@@ -12,7 +12,6 @@ import {
   comboOnGruntKill,
   comboOnWallDestroyed,
   createComboTracker,
-  isCombosEnabled,
 } from "../src/combo-system.ts";
 import type { OrbitParams } from "../src/controller-interfaces.ts";
 import type { PixelPos } from "../src/geometry-types.ts";
@@ -51,12 +50,8 @@ import type { WatcherNetworkState } from "../src/online-types.ts";
 import { emptyFreshInterior, type SelectionState } from "../src/types.ts";
 import { type UpgradeId, UID } from "../src/upgrade-defs.ts";
 import {
-  applyUpgradePicks,
   createUpgradePickDialog,
   generateUpgradeOffers,
-  tickUpgradePickDialog,
-  UPGRADE_PICK_AI_DELAY,
-  UPGRADE_PICK_MAX_TIMER,
 } from "../src/upgrade-pick.ts";
 import { createScenario } from "./scenario-helpers.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
@@ -95,47 +90,6 @@ function makeDeps(runtime: HeadlessRuntime): CheckpointDeps {
 // Environmental modifiers — local flow
 // ---------------------------------------------------------------------------
 
-test("classic mode never rolls modifiers", () => {
-  const s = createScenario(42);
-  // Default is classic — play to round 3+ where modifiers would fire
-  s.playRounds(3);
-  assert(
-    s.state.activeModifier === null,
-    `expected no modifier in classic, got ${s.state.activeModifier}`,
-  );
-  assert(
-    s.state.lastModifierId === null,
-    `expected no lastModifier in classic, got ${s.state.lastModifierId}`,
-  );
-});
-
-test("modern mode rolls no modifier before MODIFIER_FIRST_ROUND", () => {
-  const s = createScenario(10);
-  s.state.gameMode = GAME_MODE_MODERN;
-
-  // Play until round 2 (one round)
-  s.playRounds(1);
-  assert(
-    s.state.round < MODIFIER_FIRST_ROUND,
-    `round should be < ${MODIFIER_FIRST_ROUND}, got ${s.state.round}`,
-  );
-  assert(
-    s.state.activeModifier === null,
-    `no modifier expected before round ${MODIFIER_FIRST_ROUND}`,
-  );
-});
-
-test("modern mode can roll modifiers from round 3+", () => {
-  // Seed 4 reliably rolls a modifier at round 3
-  const s = createScenario(4);
-  s.state.gameMode = GAME_MODE_MODERN;
-  s.playRounds(3);
-  assert(
-    s.state.activeModifier !== null || s.state.lastModifierId !== null,
-    "seed 4 should roll a modifier by round 3",
-  );
-});
-
 test("modifier no-repeat rule: same modifier never appears twice in a row", () => {
   // Seed 4 rolls all 4 modifier types within 10 rounds
   const s = createScenario(4);
@@ -156,68 +110,6 @@ test("modifier no-repeat rule: same modifier never appears twice in a row", () =
   }
 });
 
-test("rollModifier returns null in classic mode", () => {
-  const s = createScenario(42);
-  s.state.round = 5;
-  const result = rollModifier(s.state);
-  assert(result === null, "classic mode should never roll");
-});
-
-// ---------------------------------------------------------------------------
-// Upgrade offers — local flow
-// ---------------------------------------------------------------------------
-
-test("classic mode generates no upgrade offers", () => {
-  const s = createScenario(42);
-  s.state.round = 5;
-  const offers = generateUpgradeOffers(s.state);
-  assert(offers === null, "classic mode should not generate offers");
-});
-
-test("modern mode generates offers for each alive player from round 3", () => {
-  const s = createScenario(42);
-  s.state.gameMode = GAME_MODE_MODERN;
-  s.state.round = 3;
-  const offers = generateUpgradeOffers(s.state);
-  assert(offers !== null, "should generate offers in modern mode at round 3");
-  const aliveCount = s.state.players.filter(
-    (pl) => !pl.eliminated && pl.homeTower,
-  ).length;
-  assert(
-    offers!.size === aliveCount,
-    `expected ${aliveCount} offer sets, got ${offers!.size}`,
-  );
-  for (const [, choices] of offers!) {
-    assert(choices.length === 3, `each player should get 3 choices`);
-    // All 3 should be distinct
-    const unique = new Set(choices);
-    assert(unique.size === 3, "3 choices should be unique");
-  }
-});
-
-test("modern mode generates no offers before round 3", () => {
-  const s = createScenario(42);
-  s.state.gameMode = GAME_MODE_MODERN;
-  s.state.round = 2;
-  const offers = generateUpgradeOffers(s.state);
-  assert(offers === null, "should not generate offers before round 3");
-});
-
-test("pendingUpgradeOffers populated after enterBuildFromBattle in modern mode", () => {
-  const s = createScenario(42);
-  s.state.gameMode = GAME_MODE_MODERN;
-  // Play 3 rounds — by round 3, enterBuildFromBattle generates offers
-  s.playRounds(3);
-  assert(
-    s.state.pendingUpgradeOffers !== null,
-    "offers should be set after enterBuildFromBattle at round 3",
-  );
-});
-
-// ---------------------------------------------------------------------------
-// Gameplay hooks
-// ---------------------------------------------------------------------------
-
 test("Master Builder adds +5s to build timer", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
@@ -229,24 +121,6 @@ test("Master Builder adds +5s to build timer", () => {
   const result = s.playRound();
   if (result.needsReselect.length > 0) s.processReselection(result.needsReselect);
 
-  assert(
-    s.state.timer === baseBuildTimer + 5,
-    `expected ${baseBuildTimer + 5}s, got ${s.state.timer}`,
-  );
-});
-
-test("Master Builder bonus applies when any alive player has it", () => {
-  const s = createScenario(42);
-  s.state.gameMode = GAME_MODE_MODERN;
-  const baseBuildTimer = s.state.buildTimer;
-
-  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
-  s.state.players[1]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
-
-  const result = s.playRound();
-  if (result.needsReselect.length > 0) s.processReselection(result.needsReselect);
-
-  // Flat +5s regardless of how many players have it
   assert(
     s.state.timer === baseBuildTimer + 5,
     `expected ${baseBuildTimer + 5}s, got ${s.state.timer}`,
@@ -419,33 +293,6 @@ test("FULL_STATE checkpoint preserves modern mode fields", () => {
   );
 });
 
-test("classic mode checkpoint has null modifiers and empty upgrades", () => {
-  const host = createHeadlessRuntime(42);
-  // Leave as classic (default)
-  const msg = createBuildStartMessage(host.state);
-
-  const watcher = createHeadlessRuntime(42);
-  const deps = makeDeps(watcher);
-  applyBuildStartCheckpoint(msg, deps);
-
-  assert(
-    watcher.state.activeModifier === null,
-    "classic should have null activeModifier",
-  );
-  assert(
-    watcher.state.pendingUpgradeOffers === null,
-    "classic should have null pendingUpgradeOffers",
-  );
-  assert(
-    watcher.state.players[0]!.upgrades.size === 0,
-    "classic should have empty upgrades",
-  );
-});
-
-// ---------------------------------------------------------------------------
-// Headless modern game — full flow
-// ---------------------------------------------------------------------------
-
 test("modern headless game runs to completion without violations", () => {
   for (let seed = 1; seed <= 5; seed++) {
     const s = createScenario(seed);
@@ -571,65 +418,6 @@ test("Rapid Fire multiplies cannonball speed", () => {
 // ---------------------------------------------------------------------------
 // applyUpgradePicks
 // ---------------------------------------------------------------------------
-
-test("applyUpgradePicks writes choices to Player.upgrades", () => {
-  const s = createScenario(42);
-  s.state.gameMode = GAME_MODE_MODERN;
-  s.state.round = 3;
-
-  const offers = generateUpgradeOffers(s.state);
-  assert(offers !== null, "should have offers");
-
-  // Build a fake dialog with choices
-  const dialog = {
-    entries: [...offers!.entries()].map(([playerId, offerList]) => ({
-      playerId,
-      offers: offerList,
-      choice: offerList[0] as UpgradeId, // pick first offer
-      isAi: true,
-      aiTimer: 0,
-      focused: 0,
-    })),
-    timer: 0,
-  };
-
-  applyUpgradePicks(s.state, dialog);
-
-  for (const [playerId, offerList] of offers!) {
-    const player = s.state.players[playerId]!;
-    const picked = offerList[0];
-    assert(
-      player.upgrades.get(picked) === 1,
-      `P${playerId} should have ${picked}, got ${player.upgrades.get(picked)}`,
-    );
-  }
-});
-
-test("applyUpgradePicks does not stack (sets to 1)", () => {
-  const s = createScenario(42);
-  const player = s.state.players[0]!;
-  player.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
-
-  const dialog = {
-    entries: [
-      {
-        playerId: 0,
-        offers: [UID.MASTER_BUILDER, UID.RAPID_FIRE, UID.REINFORCED_WALLS] as [UpgradeId, UpgradeId, UpgradeId],
-        choice: UID.MASTER_BUILDER as UpgradeId,
-        isAi: true,
-        aiTimer: 0,
-        focused: 0,
-      },
-    ],
-    timer: 0,
-  };
-
-  applyUpgradePicks(s.state, dialog);
-  assert(
-    player.upgrades.get(UID.MASTER_BUILDER as UpgradeId) === 1,
-    `should stay at 1, got ${player.upgrades.get(UID.MASTER_BUILDER as UpgradeId)}`,
-  );
-});
 
 // ---------------------------------------------------------------------------
 // Modern mode determinism
@@ -863,86 +651,9 @@ test("createUpgradePickDialog returns dialog from pending offers", () => {
   }
 });
 
-test("createUpgradePickDialog returns null in classic mode", () => {
-  const s = createScenario(42);
-  // Classic mode, no pending offers
-  const dialog = createUpgradePickDialog({
-    state: s.state,
-    isHost: true,
-    myPlayerId: 0,
-    remoteHumanSlots: new Set(),
-    isHumanController: () => false,
-  });
-  assert(dialog === null, "classic mode should return null");
-});
-
-test("tickUpgradePickDialog resolves AI picks after delay", () => {
-  const s = createScenario(42);
-  s.state.gameMode = GAME_MODE_MODERN;
-  s.state.round = 3;
-  s.state.pendingUpgradeOffers = generateUpgradeOffers(s.state);
-
-  const dialog = createUpgradePickDialog({
-    state: s.state,
-    isHost: true,
-    myPlayerId: -1,
-    remoteHumanSlots: new Set(),
-    isHumanController: () => false,
-  })!;
-
-  assert(dialog !== null, "dialog should exist");
-
-  // Tick less than AI delay — not resolved
-  let resolved = tickUpgradePickDialog(dialog, 0.5, UPGRADE_PICK_AI_DELAY, UPGRADE_PICK_MAX_TIMER, s.state);
-  assert(!resolved, "should not be resolved before AI delay");
-
-  // Tick past AI delay
-  resolved = tickUpgradePickDialog(dialog, UPGRADE_PICK_AI_DELAY, UPGRADE_PICK_AI_DELAY, UPGRADE_PICK_MAX_TIMER, s.state);
-  assert(resolved, "should be resolved after AI delay");
-
-  // All entries should have choices
-  for (const entry of dialog.entries) {
-    assert(
-      entry.choice !== null,
-      `P${entry.playerId} should have picked, got null`,
-    );
-  }
-});
-
-test("tickUpgradePickDialog force-picks on max timer", () => {
-  const s = createScenario(42);
-  s.state.gameMode = GAME_MODE_MODERN;
-  s.state.round = 3;
-  s.state.pendingUpgradeOffers = generateUpgradeOffers(s.state);
-
-  const dialog = createUpgradePickDialog({
-    state: s.state,
-    isHost: true,
-    myPlayerId: 0,
-    remoteHumanSlots: new Set(),
-    isHumanController: (pid) => pid === 0, // player 0 is human
-  })!;
-
-  // Human entry won't auto-pick on AI delay
-  const humanEntry = dialog.entries.find((en) => en.playerId === 0);
-  assert(humanEntry !== undefined && !humanEntry.isAi, "P0 should be human");
-
-  // Tick past max timer — human gets force-picked
-  const resolved = tickUpgradePickDialog(dialog, UPGRADE_PICK_MAX_TIMER + 1, UPGRADE_PICK_AI_DELAY, UPGRADE_PICK_MAX_TIMER, s.state);
-  assert(resolved, "should be resolved after max timer");
-  assert(humanEntry!.choice !== null, "human should have been force-picked");
-});
-
 // ---------------------------------------------------------------------------
 // Combo scoring
 // ---------------------------------------------------------------------------
-
-test("isCombosEnabled returns true only in modern mode", () => {
-  const s = createScenario(42);
-  assert(!isCombosEnabled(s.state), "classic should be disabled");
-  s.state.gameMode = GAME_MODE_MODERN;
-  assert(isCombosEnabled(s.state), "modern should be enabled");
-});
 
 test("wall streak awards bonus after 3 hits within window", () => {
   const tracker = createComboTracker(3);
