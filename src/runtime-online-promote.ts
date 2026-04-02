@@ -38,6 +38,7 @@ export function initPromote(rt: GameRuntime): void {
  *  5. Broadcast full state (must be last — state must be coherent first)
  */
 export function promoteToHost(): void {
+  if (!_runtime) throw new Error("promoteToHost() called before initPromote()");
   devLog("PROMOTING TO HOST");
   // Re-read isHost (volatile — can flip during host promotion)
   ctx.session.isHost = true;

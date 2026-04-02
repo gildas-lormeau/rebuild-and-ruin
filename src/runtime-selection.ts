@@ -313,7 +313,7 @@ export function createSelectionSystem(
     if (!plan) return;
     deps.send({ type: MESSAGE.CASTLE_WALLS, plans: [plan] });
     const human = deps.firstHuman();
-    runtimeState.castleBuilds.push(createCastleBuildState([plan], () => {}));
+    runtimeState.castleBuilds.push(createCastleBuildState([plan]));
     // Only zoom to the human player's castle build
     if (human && playerId === human.playerId) {
       deps.camera.setCastleBuildViewport([plan]);

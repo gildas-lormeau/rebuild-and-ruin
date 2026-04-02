@@ -63,6 +63,7 @@ export function initDeps(init: DepsInit): void {
 }
 
 export function handleServerMessage(msg: ServerMessage): void {
+  if (!_g) throw new Error("handleServerMessage() called before initDeps()");
   devLog(`received: ${msg.type}`);
   if (handleServerLifecycleMessage(msg, _lifecycleDeps)) return;
   const result = handleServerIncrementalMessage(msg, _incrementalDeps);

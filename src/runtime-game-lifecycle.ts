@@ -123,7 +123,7 @@ export function createGameLifecycle(
 
   function startGame() {
     const seed = runtimeState.lobby.seed;
-    console.log("[game] seed:", seed);
+    deps.log(`[game] seed: ${seed}`);
 
     const diffParams =
       DIFFICULTY_PARAMS[runtimeState.settings.difficulty] ??

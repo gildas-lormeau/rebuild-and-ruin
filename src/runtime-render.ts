@@ -19,7 +19,7 @@ import {
 } from "./render-composition.ts";
 import type { LoupeHandle } from "./render-loupe.ts";
 import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 import {
   type Dpad,
   type FloatingActions,
@@ -70,11 +70,12 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
     // Summary log: crosshairs, phantoms, impacts per frame (throttled 1/s)
     const chList = runtimeState.frame.crosshairs ?? [];
     const selH = runtimeState.overlay.selection?.highlights;
+    const stateReady = isStateReady(runtimeState);
     deps.logThrottled(
       "render-summary",
       createRenderSummaryMessage({
-        phaseName: Phase[runtimeState.state.phase],
-        timer: runtimeState.state.timer,
+        phaseName: stateReady ? Phase[runtimeState.state.phase] : "NONE",
+        timer: stateReady ? runtimeState.state.timer : 0,
         crosshairs: chList,
         aiPhantomsCount: runtimeState.frame.phantoms?.aiPhantoms?.length ?? 0,
         humanPhantomsCount:
@@ -82,7 +83,9 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
         aiCannonPhantomsCount:
           runtimeState.frame.phantoms?.aiCannonPhantoms?.length ?? 0,
         impactsCount: runtimeState.battleAnim.impacts.length,
-        cannonballsCount: runtimeState.state.cannonballs.length,
+        cannonballsCount: stateReady
+          ? runtimeState.state.cannonballs.length
+          : 0,
         selectionHighlights: selH,
       }),
     );

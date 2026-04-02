@@ -80,6 +80,7 @@ import {
 } from "./runtime-online-stores.ts";
 import { initWs } from "./runtime-online-ws.ts";
 import { LifeLostChoice, Mode } from "./types.ts";
+import type { UpgradeId } from "./upgrade-defs.ts";
 
 // ── DOM singletons (from centralized boundary) ─────────────────────
 const renderer = createCanvasRenderer(canvas);
@@ -109,9 +110,9 @@ const transitionCtx: TransitionContext = {
               (en) =>
                 en.playerId === pid &&
                 en.choice === null &&
-                en.offers.includes(choice as never),
+                en.offers.includes(choice as UpgradeId),
             );
-            if (entry) entry.choice = choice as never;
+            if (entry) entry.choice = choice as UpgradeId;
           }
           ctx.session.earlyUpgradePickChoices.clear();
         }
@@ -307,7 +308,6 @@ function buildTransitionSelectionCtx(): TransitionContext["selection"] {
         maxTiles,
         tileIdx: 0,
         accum: 0,
-        onDone,
       });
       runtime.runtimeState.castleBuildOnDone = onDone;
     },
@@ -406,16 +406,17 @@ function initFromServer(msg: InitMessage): void {
   roomCodeOverlay.style.display = "none";
   runtime.runtimeState.lobby.active = false;
   const settings = runtime.runtimeState.settings;
+  const playerCount = Math.min(Math.max(1, msg.playerCount), MAX_PLAYERS);
   const humanSlots = Array.from(
-    { length: msg.playerCount },
+    { length: playerCount },
     (_, i) => i === ctx.session.myPlayerId,
   );
-  const keyBindings = Array.from({ length: msg.playerCount }, (_, i) =>
+  const keyBindings = Array.from({ length: playerCount }, (_, i) =>
     i === ctx.session.myPlayerId ? settings.keyBindings[0] : undefined,
   );
   bootstrapGame({
     seed: msg.seed,
-    maxPlayers: msg.playerCount,
+    maxPlayers: playerCount,
     existingMap: runtime.runtimeState.lobby.map ?? undefined,
     battleLength: msg.settings.battleLength,
     cannonMaxHp: msg.settings.cannonMaxHp,

@@ -179,6 +179,8 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
     `enterTowerSelection (phase=${Phase[state.phase]}, round=${state.round})`,
   );
 
+  // Watcher (non-host, no player slot). Note: isHost && myPlayerId < 0 is
+  // impossible — watcher-to-host promotion always assigns a player slot first.
   if (!isHost && myPlayerId < 0) {
     selectionStates.clear();
     for (let i = 0; i < state.players.length; i++) {
@@ -238,8 +240,8 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
   requestFrame();
 }
 
-/** Create an AI-only controller (no key bindings). Used during host promotion
- *  to rebuild controllers for vacant slots. */
+/** Create an AI-only controller (no key bindings). Used during initial game
+ *  setup and host promotion to rebuild controllers for vacant slots. */
 export function createAiController(
   id: number,
   seed: number,

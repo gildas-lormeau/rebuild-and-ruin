@@ -16,26 +16,22 @@ export interface CastleBuildState {
   maxTiles: number;
   tileIdx: number;
   accum: number;
-  onDone: () => void;
 }
 
 /** Create the initial animation state for a castle-build sequence. */
 export function createCastleBuildState(
   wallPlans: readonly CastleWallPlan[],
-  onDone: () => void,
 ): CastleBuildState {
   return {
     wallPlans,
     maxTiles: Math.max(...wallPlans.map((plan) => plan.tiles.length), 0),
     tileIdx: 0,
     accum: 0,
-    onDone,
   };
 }
 
 /** Advance the castle-build animation by dt seconds.
- *  Returns { next, onDone } — next is null when the animation is finished,
- *  and onDone (if present) should be invoked by the caller. */
+ *  Returns { next } — next is null when the animation is finished. */
 export function tickCastleBuildAnimation(params: {
   castleBuild: CastleBuildState | null;
   dt: number;
@@ -43,7 +39,7 @@ export function tickCastleBuildAnimation(params: {
   state: GameState;
   render: () => void;
   onWallsPlaced?: () => void;
-}): { next: CastleBuildState | null; onDone?: () => void } {
+}): { next: CastleBuildState | null } {
   const { castleBuild, dt, wallBuildIntervalMs, state, render, onWallsPlaced } =
     params;
   if (!castleBuild) return { next: null };
@@ -74,5 +70,5 @@ export function tickCastleBuildAnimation(params: {
     return { next: castleBuild };
   }
 
-  return { next: null, onDone: castleBuild.onDone };
+  return { next: null };
 }
