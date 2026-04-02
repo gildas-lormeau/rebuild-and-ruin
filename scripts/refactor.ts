@@ -214,12 +214,25 @@ function renameProp(typeName: string, prop: string, newProp: string): void {
       }
     }
 
-    // Check type aliases with object literal types
+    // Check type aliases with object literal types (including intersection members)
     for (const alias of sf.getTypeAliases()) {
       if (alias.getName() === typeName) {
         const typeNode = alias.getTypeNode();
-        if (typeNode && typeNode.isKind(SyntaxKind.TypeLiteral)) {
-          const member = typeNode.getProperty(prop);
+        if (!typeNode) continue;
+
+        const literals: import("ts-morph").TypeLiteralNode[] = [];
+        if (typeNode.isKind(SyntaxKind.TypeLiteral)) {
+          literals.push(typeNode);
+        } else if (typeNode.isKind(SyntaxKind.IntersectionType)) {
+          for (const member of typeNode.getTypeNodes()) {
+            if (member.isKind(SyntaxKind.TypeLiteral)) {
+              literals.push(member);
+            }
+          }
+        }
+
+        for (const lit of literals) {
+          const member = lit.getProperty(prop);
           if (member) {
             console.log(`Renaming ${typeName}.${prop} → ${newProp} (defined in ${sf.getFilePath()})`);
             member.rename(newProp);
