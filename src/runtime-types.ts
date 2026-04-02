@@ -48,7 +48,11 @@ import type {
   ControllerIdentity,
   InputReceiver,
 } from "./controller-interfaces.ts";
-import { isActiveOnlinePlayer } from "./game-constants.ts";
+import {
+  isActiveOnlinePlayer,
+  type OnlinePlayerId,
+  type ValidPlayerSlot,
+} from "./game-constants.ts";
 import type { Crosshair, WorldPos } from "./geometry-types.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import type { WatcherTimingState } from "./online-types.ts";
@@ -84,7 +88,7 @@ export interface FrameContextInputs {
   hasLifeLostDialog: boolean;
   isSelectionReady: boolean;
   humanIsReselecting: boolean;
-  onlinePlayerId: number;
+  onlinePlayerId: OnlinePlayerId;
   hostAtFrameStart: boolean;
   remoteHumanSlots: ReadonlySet<number>;
   mobileAutoZoom: boolean;
@@ -102,7 +106,7 @@ export interface RuntimeConfig {
   getIsHost: () => boolean;
   /** This client's player slot in online mode, or -1 in local (shared-screen) mode.
    *  Only meaningful for online play — local consumers should use povPlayerId instead. */
-  getOnlinePlayerId: () => number;
+  getOnlinePlayerId: () => OnlinePlayerId;
   /** () => emptySet for local. */
   getRemoteHumanSlots: () => Set<number>;
   /** noop for local. */
@@ -346,7 +350,9 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
 
   const shouldUnzoom = uiBlocking || phaseEnding;
 
-  const povPlayerId = isActiveOnlinePlayer(onlinePlayerId) ? onlinePlayerId : 0;
+  const povPlayerId: ValidPlayerSlot = isActiveOnlinePlayer(onlinePlayerId)
+    ? onlinePlayerId
+    : (0 as ValidPlayerSlot);
 
   return {
     onlinePlayerId,

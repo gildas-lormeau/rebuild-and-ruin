@@ -13,6 +13,14 @@ export type ModifierId =
   | "grunt_surge"
   | "frozen_river";
 
+/** A player's slot id in an online session, or SPECTATOR_SLOT (-1) for watchers.
+ *  Always check with `isActiveOnlinePlayer()` before using as an array index. */
+export type OnlinePlayerId = number;
+
+/** Narrowed OnlinePlayerId that passed the `isActiveOnlinePlayer()` guard (>= 0).
+ *  Safe to use as an index into `state.players` or `controllers`. */
+export type ValidPlayerSlot = number & { readonly __validSlot: true };
+
 /** Human-readable labels for modifier IDs (used by HUD and banners). */
 const MODIFIER_LABELS: Record<ModifierId, string> = {
   wildfire: "Wildfire",
@@ -173,9 +181,11 @@ export const TOWER_SIZE = 2;
  *  (original host disconnects), all players become AI. */
 export const SPECTATOR_SLOT = -1;
 
-/** True if this client is an active player (not a spectator/watcher).
- *  onlinePlayerId >= 0 means a valid player slot; SPECTATOR_SLOT (-1) means spectating. */
-export function isActiveOnlinePlayer(onlinePlayerId: number): boolean {
+/** Type guard: true if this is a valid player slot (not spectating).
+ *  Narrows `OnlinePlayerId` to `ValidPlayerSlot` in the true branch. */
+export function isActiveOnlinePlayer(
+  onlinePlayerId: OnlinePlayerId,
+): onlinePlayerId is ValidPlayerSlot {
   return onlinePlayerId >= 0;
 }
 
