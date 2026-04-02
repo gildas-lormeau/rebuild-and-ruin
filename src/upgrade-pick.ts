@@ -11,7 +11,7 @@ import type {
   UpgradePickDialogState,
   UpgradePickEntry,
 } from "./types.ts";
-import { IMPLEMENTED_UPGRADES, UID, type UpgradeId } from "./upgrade-defs.ts";
+import { IMPLEMENTED_UPGRADES, type UpgradeId } from "./upgrade-defs.ts";
 
 interface CreateUpgradePickDeps {
   readonly state: GameState;
@@ -151,62 +151,12 @@ function drawOffers(state: GameState): [UpgradeId, UpgradeId, UpgradeId] {
   return picked as [UpgradeId, UpgradeId, UpgradeId];
 }
 
-/** AI picks the highest-scored offer. Falls back to first offer if no state. */
+/** AI picks a random offer using the synced RNG. */
 function aiPickUpgrade(
   offers: readonly [UpgradeId, UpgradeId, UpgradeId],
-  playerId: number,
+  _playerId: number,
   state?: GameState,
 ): UpgradeId {
   if (!state) return offers[0];
-
-  const player = state.players[playerId];
-  if (!player) return offers[0];
-
-  // Count grunts targeting this player
-  const gruntCount = state.grunts.filter(
-    (gr) => gr.targetPlayerId === playerId,
-  ).length;
-
-  // Territory ratio: how much of the zone this player controls (0-1)
-  const totalGrass = 200; // rough estimate, avoids scanning the full map
-  const territoryRatio = Math.min(1, player.interior.size / totalGrass);
-
-  let bestId = offers[0];
-  let bestScore = -1;
-  for (const id of offers) {
-    const sc = scoreUpgrade(id, player, gruntCount, territoryRatio);
-    if (sc > bestScore) {
-      bestScore = sc;
-      bestId = id;
-    }
-  }
-  return bestId;
-}
-
-/** Score an upgrade for a given player based on game context. Higher = better. */
-function scoreUpgrade(
-  id: UpgradeId,
-  player: {
-    id: number;
-    cannons: { length: number };
-    interior: ReadonlySet<number>;
-    upgrades: Map<UpgradeId, number>;
-  },
-  gruntCount: number,
-  territoryRatio: number,
-): number {
-  switch (id) {
-    // Defensive — valuable when under grunt pressure or small territory
-    case UID.REINFORCED_WALLS:
-      return 5 + gruntCount * 2;
-    case UID.MASTER_BUILDER:
-      return 4 + (1 - territoryRatio) * 6;
-
-    // Offensive — valuable when the player has many cannons
-    case UID.RAPID_FIRE:
-      return 3 + player.cannons.length * 1.5;
-
-    default:
-      return 3;
-  }
+  return offers[Math.floor(state.rng.next() * offers.length)]!;
 }
