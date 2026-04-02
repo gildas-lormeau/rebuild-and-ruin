@@ -151,6 +151,17 @@ function moveExport(fromPath: string, toPath: string, name: string): void {
 
   const decl = declarations[0]!;
 
+  // Detect re-exports: the actual declaration lives in a different file
+  const declSourceFile = decl.getSourceFile();
+  if (declSourceFile.getFilePath() !== fromFile.getFilePath()) {
+    const canonicalPath = path.relative(process.cwd(), declSourceFile.getFilePath());
+    console.error(`❌ "${name}" in ${fromPath} is a re-export from ${canonicalPath}`);
+    console.error(
+      `   Move it from the canonical source instead: move-export --from ${canonicalPath} --to ${toPath} --symbol ${name}`,
+    );
+    process.exit(1);
+  }
+
   // Get the full text including JSDoc and export keyword
   const fullText = getDeclarationFullText(decl);
 
@@ -705,6 +716,22 @@ function findSymbol(name: string): void {
     for (const en of sf.getEnums()) {
       if (en.getName() === name && !en.isExported()) {
         results.push({ file: relPath, line: en.getStartLineNumber(), kind: "EnumDeclaration", exported: false });
+      }
+    }
+
+    // Check class members (methods, properties, abstract members)
+    for (const cls of sf.getClasses()) {
+      for (const member of cls.getMembers()) {
+        if ("getName" in member && typeof member.getName === "function") {
+          if (member.getName() === name) {
+            results.push({
+              file: relPath,
+              line: member.getStartLineNumber(),
+              kind: `${cls.getName()}.${member.getKindName()}`,
+              exported: cls.isExported(),
+            });
+          }
+        }
       }
     }
   }
