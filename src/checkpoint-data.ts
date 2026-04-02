@@ -25,7 +25,7 @@ export interface SerializedCannon {
 export interface SerializedGrunt {
   row: number;
   col: number;
-  targetPlayerId: number;
+  defendingPlayerId: number;
   targetTowerIdx?: number;
   attackTimer?: number;
   blockedBattles?: number;

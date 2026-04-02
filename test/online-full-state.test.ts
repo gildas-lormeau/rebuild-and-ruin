@@ -124,8 +124,8 @@ test("full-state round-trip preserves cannons with modes and facings", () => {
 test("full-state round-trip preserves grunts", () => {
   const { host, watcher } = createPair(42);
   host.state.grunts = [
-    { row: 10, col: 15, targetPlayerId: 0, targetTowerIdx: 1, attackTimer: 0.5, blockedBattles: 1, wallAttack: true, facing: 2 },
-    { row: 20, col: 25, targetPlayerId: 1, blockedBattles: 0 },
+    { row: 10, col: 15, defendingPlayerId: 0, targetTowerIdx: 1, attackTimer: 0.5, blockedBattles: 1, wallAttack: true, facing: 2 },
+    { row: 20, col: 25, defendingPlayerId: 1, blockedBattles: 0 },
   ];
 
   const msg = createFullStateMessage(host.state, 1);
@@ -136,7 +136,7 @@ test("full-state round-trip preserves grunts", () => {
   assert(watcher.state.grunts[0]!.row === 10, "grunt 0 row");
   assert(watcher.state.grunts[0]!.targetTowerIdx === 1, "grunt 0 targetTowerIdx");
   assert(watcher.state.grunts[0]!.wallAttack === true, "grunt 0 wallAttack");
-  assert(watcher.state.grunts[1]!.targetPlayerId === 1, "grunt 1 targetPlayerId");
+  assert(watcher.state.grunts[1]!.defendingPlayerId === 1, "grunt 1 defendingPlayerId");
 });
 
 // ---------------------------------------------------------------------------
@@ -431,7 +431,7 @@ test("full-state rejects non-finite rngState", () => {
 test("full-state rejects out-of-bounds grunt position", () => {
   const { host, watcher } = createPair(42);
   const msg = createFullStateMessage(host.state, 1);
-  msg.grunts.push({ row: -1, col: 0, targetPlayerId: 0 });
+  msg.grunts.push({ row: -1, col: 0, defendingPlayerId: 0 });
 
   const result = restoreFullStateSnapshot(watcher.state, msg);
   assert(result === null, "should reject negative grunt row");

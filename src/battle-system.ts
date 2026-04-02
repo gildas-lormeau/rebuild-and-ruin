@@ -293,7 +293,7 @@ export function applyImpactEvent(
       state.grunts.push({
         row: event.row,
         col: event.col,
-        targetPlayerId: event.targetPlayerId,
+        defendingPlayerId: event.defendingPlayerId,
         blockedBattles: 0,
       });
       break;
@@ -814,7 +814,7 @@ function collectHouseImpacts(
             type: MESSAGE.GRUNT_SPAWNED,
             row: spawnPos.row,
             col: spawnPos.col,
-            targetPlayerId: shooterId,
+            defendingPlayerId: shooterId,
           });
         }
       }

@@ -348,7 +348,7 @@ test("grunt on owned tile (interior) is swept", () => {
   state.grunts.push({
     row: offsetR + 1,
     col: offsetC + 1,
-    targetPlayerId: 0,
+    defendingPlayerId: 0,
     targetTowerIdx: 0,
     facing: 0,
     blockedBattles: 0,

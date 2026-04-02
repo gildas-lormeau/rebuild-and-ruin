@@ -120,7 +120,7 @@ test("cannon-start checkpoint preserves timer and limits", () => {
 test("cannon-start checkpoint preserves grunts", () => {
   const host = createHeadlessRuntime(42);
   // Add a grunt manually
-  host.state.grunts.push({ row: 5, col: 10, targetPlayerId: 0, blockedBattles: 0 });
+  host.state.grunts.push({ row: 5, col: 10, defendingPlayerId: 0, blockedBattles: 0 });
   const msg = createCannonStartMessage(host.state);
 
   const watcher = createHeadlessRuntime(42);
@@ -132,7 +132,7 @@ test("cannon-start checkpoint preserves grunts", () => {
     `grunt count: expected ${host.state.grunts.length}, got ${watcher.state.grunts.length}`);
   const last = watcher.state.grunts[watcher.state.grunts.length - 1]!;
   assert(last.row === 5 && last.col === 10, "injected grunt position lost");
-  assert(last.targetPlayerId === 0, "injected grunt targetPlayerId lost");
+  assert(last.defendingPlayerId === 0, "injected grunt defendingPlayerId lost");
 });
 
 test("cannon-start checkpoint preserves bonus squares and burning pits", () => {

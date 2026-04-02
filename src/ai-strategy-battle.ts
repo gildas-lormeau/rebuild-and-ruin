@@ -383,11 +383,11 @@ function collectGruntBlockingWallTargets(
 ): TilePos[] {
   const gruntWalls: TilePos[] = [];
   for (const grunt of state.grunts) {
-    if (grunt.targetPlayerId === playerId) continue;
+    if (grunt.defendingPlayerId === playerId) continue;
     if (grunt.targetTowerIdx == null) continue;
     const tower = state.map.towers[grunt.targetTowerIdx];
     if (!tower) continue;
-    const enemy = state.players[grunt.targetPlayerId];
+    const enemy = state.players[grunt.defendingPlayerId];
     if (!enemy || enemy.eliminated) continue;
     let bestTowerRow = tower.row,
       bestTowerCol = tower.col,
@@ -564,15 +564,16 @@ function jitterWithinTile(
   };
 }
 
-/** Target grunts attacking a specific player, ordered by nearest neighbor from a random start. */
+/** Target grunts attacking a specific player, ordered by nearest neighbor from a random start.
+ *  @param defendingPlayerId — the player whose territory the grunts are attacking (not the AI). */
 function planGruntTargets(
   state: GameState,
-  targetPlayerId: number,
+  defendingPlayerId: number,
   readyCount: number,
   rng: Rng,
 ): TilePos[] | null {
   const grunts = state.grunts.filter(
-    (grunt) => grunt.targetPlayerId === targetPlayerId,
+    (grunt) => grunt.defendingPlayerId === defendingPlayerId,
   );
   const mod = state.activeModifier;
   const threshold =

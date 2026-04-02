@@ -814,7 +814,7 @@ test("frozen river: grunts retarget cross-zone and walk onto ice", () => {
     state.grunts.push({
       row: bankTiles[i]!.row,
       col: bankTiles[i]!.col,
-      targetPlayerId: state.players[0]!.id,
+      defendingPlayerId: state.players[0]!.id,
       blockedBattles: 0,
     });
   }
@@ -852,7 +852,7 @@ test("clearFrozenRiver kills grunts stranded on water", () => {
   s.state.grunts.push({
     row: r,
     col: c,
-    targetPlayerId: 0,
+    defendingPlayerId: 0,
     blockedBattles: 0,
   });
   const before = s.state.grunts.length;
