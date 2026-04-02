@@ -367,7 +367,7 @@ function updateOrbitCrosshair(
   return phase;
 }
 
-/** Tick the local human player's battle crosshair and send aim updates. */
+/** Tick the local player's battle crosshair and send aim updates. */
 function tickLocalBattle(
   state: GameState,
   frame: WatcherBattleFrame,
