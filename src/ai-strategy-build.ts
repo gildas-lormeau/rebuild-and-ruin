@@ -254,8 +254,8 @@ export function pickPlacement(
               break;
             }
           }
-          for (const player of state.players) {
-            for (const cannon of player.cannons) {
+          for (const other of state.players) {
+            for (const cannon of other.cannons) {
               if (isCannonTile(cannon, r, c)) {
                 occupiedInterior++;
                 break;

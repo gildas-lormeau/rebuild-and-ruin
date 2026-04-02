@@ -108,7 +108,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     const dialog = runtimeState.lifeLostDialog;
     if (!dialog) return;
 
-    const allResolved = tickLifeLostDialog(
+    const dialogResolved = tickLifeLostDialog(
       dialog,
       dt,
       LIFE_LOST_AUTO_DELAY,
@@ -117,7 +117,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
     deps.render();
 
-    if (!allResolved) return;
+    if (!dialogResolved) return;
 
     deps.log(
       `lifeLostDialog resolved: ${dialog.entries.map((e) => `P${e.playerId}=${e.choice}(auto=${e.autoResolve})`).join(", ")} timer=${dialog.timer.toFixed(1)}s`,
