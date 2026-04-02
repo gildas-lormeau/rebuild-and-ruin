@@ -28,11 +28,11 @@ export type PiecePhantom = {
 };
 
 /** Opaque dedup tracker — wraps a per-player map of last-sent serialized keys.
- *  Use `changed()` to check + update atomically; `clear()` on reset. */
+ *  Use `shouldSend()` to check + update atomically; `clear()` on reset. */
 export interface DedupChannel {
-  /** Returns true if the value changed (caller should send).
-   *  Atomically updates the internal map — no separate step needed. */
-  changed(playerId: number, key: string): boolean;
+  /** Check-then-update: returns true if the key differs from the last call
+   *  (caller should send). MUTATES internal state — stores the new key. */
+  shouldSend(playerId: number, key: string): boolean;
   /** Clear all tracked values (call on phase transition or host promotion). */
   clear(): void;
 }
@@ -40,7 +40,7 @@ export interface DedupChannel {
 /** Sentinel channel for local play — never blocks sends (always returns true).
  *  Used as a fallback when networking deps are absent. */
 export const NOOP_DEDUP_CHANNEL: DedupChannel = {
-  changed: () => true,
+  shouldSend: () => true,
   clear: () => {},
 };
 
@@ -54,7 +54,7 @@ export function phantomWireMode(phantom: CannonPhantom): CannonMode {
 export function createDedupChannel(): DedupChannel {
   const map = new Map<number, string>();
   return {
-    changed(playerId: number, key: string): boolean {
+    shouldSend(playerId: number, key: string): boolean {
       if (map.get(playerId) === key) return false;
       map.set(playerId, key);
       return true;

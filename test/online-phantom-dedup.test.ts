@@ -2,7 +2,7 @@
  * Phantom dedup tests: cannonPhantomKey, piecePhantomKey, DedupChannel.
  *
  * Verifies that the dedup key functions produce stable keys and that
- * DedupChannel.changed() correctly detects first sends, duplicates, and changes.
+ * DedupChannel.shouldSend() correctly detects first sends, duplicates, and changes.
  *
  * Run with: bun test/online-phantom-dedup.test.ts
  */
@@ -90,47 +90,47 @@ test("piecePhantomKey differs by valid flag", () => {
 // DedupChannel
 // ---------------------------------------------------------------------------
 
-test("DedupChannel.changed returns true on first send", () => {
+test("DedupChannel.shouldSend returns true on first send", () => {
   const ch = createDedupChannel();
-  assert(ch.changed(0, "5,3,normal") === true, "first send should return true");
+  assert(ch.shouldSend(0, "5,3,normal") === true, "first send should return true");
 });
 
-test("DedupChannel.changed returns false on duplicate", () => {
+test("DedupChannel.shouldSend returns false on duplicate", () => {
   const ch = createDedupChannel();
-  ch.changed(0, "5,3,normal");
-  assert(ch.changed(0, "5,3,normal") === false, "duplicate should return false");
+  ch.shouldSend(0, "5,3,normal");
+  assert(ch.shouldSend(0, "5,3,normal") === false, "duplicate should return false");
 });
 
-test("DedupChannel.changed returns true when key changes", () => {
+test("DedupChannel.shouldSend returns true when key changes", () => {
   const ch = createDedupChannel();
-  ch.changed(0, "5,3,normal");
-  assert(ch.changed(0, "6,3,normal") === true, "changed key should return true");
+  ch.shouldSend(0, "5,3,normal");
+  assert(ch.shouldSend(0, "6,3,normal") === true, "changed key should return true");
 });
 
-test("DedupChannel.changed tracks players independently", () => {
+test("DedupChannel.shouldSend tracks players independently", () => {
   const ch = createDedupChannel();
-  ch.changed(0, "5,3,normal");
-  assert(ch.changed(1, "5,3,normal") === true, "different player same key should return true");
-  assert(ch.changed(0, "5,3,normal") === false, "player 0 unchanged should return false");
+  ch.shouldSend(0, "5,3,normal");
+  assert(ch.shouldSend(1, "5,3,normal") === true, "different player same key should return true");
+  assert(ch.shouldSend(0, "5,3,normal") === false, "player 0 unchanged should return false");
 });
 
-test("DedupChannel.changed updates stored key on change", () => {
+test("DedupChannel.shouldSend updates stored key on change", () => {
   const ch = createDedupChannel();
-  ch.changed(0, "first");
-  ch.changed(0, "second");
+  ch.shouldSend(0, "first");
+  ch.shouldSend(0, "second");
   // After two changes, a third call with "second" should be a dup
-  assert(ch.changed(0, "second") === false, "stored key should be 'second' after change");
+  assert(ch.shouldSend(0, "second") === false, "stored key should be 'second' after change");
   // And "first" should now be seen as changed
-  assert(ch.changed(0, "first") === true, "reverting to 'first' should be a change");
+  assert(ch.shouldSend(0, "first") === true, "reverting to 'first' should be a change");
 });
 
 test("DedupChannel.clear resets all tracked state", () => {
   const ch = createDedupChannel();
-  ch.changed(0, "key-a");
-  ch.changed(1, "key-b");
+  ch.shouldSend(0, "key-a");
+  ch.shouldSend(1, "key-b");
   ch.clear();
-  assert(ch.changed(0, "key-a") === true, "after clear, same key should return true again");
-  assert(ch.changed(1, "key-b") === true, "after clear, same key should return true again");
+  assert(ch.shouldSend(0, "key-a") === true, "after clear, same key should return true again");
+  assert(ch.shouldSend(1, "key-b") === true, "after clear, same key should return true again");
 });
 
 // ---------------------------------------------------------------------------

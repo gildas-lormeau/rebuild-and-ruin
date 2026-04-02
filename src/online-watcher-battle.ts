@@ -262,7 +262,9 @@ export function tickWatcherCannonPhantomsPhase(
   if (!phantom) return;
 
   frame.phantoms.cannonPhantoms!.push(phantom);
-  if (!lastSentCannonPhantom.changed(onlinePlayerId, cannonPhantomKey(phantom)))
+  if (
+    !lastSentCannonPhantom.shouldSend(onlinePlayerId, cannonPhantomKey(phantom))
+  )
     return;
   sendOpponentCannonPhantom({
     playerId: onlinePlayerId,
@@ -303,7 +305,10 @@ export function tickWatcherBuildPhantomsPhase(
     });
 
     if (
-      !lastSentPiecePhantom.changed(phantom.playerId, piecePhantomKey(phantom))
+      !lastSentPiecePhantom.shouldSend(
+        phantom.playerId,
+        piecePhantomKey(phantom),
+      )
     )
       continue;
     sendOpponentPiecePhantom({

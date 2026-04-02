@@ -59,7 +59,7 @@ const _throttleTimestamps = new Map<string, number>();
  *      remote crosshairs & phantoms the new host still needs)
  *
  *  INVARIANT: dedup maps must always be checked BEFORE calling send() for
- *  phantom/aim messages. The pattern is: if key changed → send → update map.
+ *  phantom/aim messages. The pattern is: if shouldSend() → send (map updated atomically).
  *  Sending without checking causes redundant network traffic; checking without
  *  resetting after state changes causes missed updates. */
 export const RESET_SCOPE_DEDUP = "dedup" as const;

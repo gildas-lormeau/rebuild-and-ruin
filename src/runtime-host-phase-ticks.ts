@@ -201,7 +201,10 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
     if (!isHostInContext(deps.net) || !sendOpponentCannonPhantom) continue;
 
     if (
-      !lastSentCannonPhantom.changed(ctrl.playerId, cannonPhantomKey(phantom))
+      !lastSentCannonPhantom.shouldSend(
+        ctrl.playerId,
+        cannonPhantomKey(phantom),
+      )
     )
       continue;
     sendOpponentCannonPhantom({
@@ -384,7 +387,10 @@ function collectBuildPhantoms(
 
     if (!isHost || !sendOpponentPhantom) continue;
     if (
-      !lastSentPiecePhantom.changed(phantom.playerId, piecePhantomKey(phantom))
+      !lastSentPiecePhantom.shouldSend(
+        phantom.playerId,
+        piecePhantomKey(phantom),
+      )
     )
       continue;
     sendOpponentPhantom({

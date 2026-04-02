@@ -51,7 +51,7 @@ export interface OnlineSession {
  *  Cleared on session reset and host promotion.
  *
  *  Each channel is an opaque DedupChannel (see phantom-types.ts) — the raw Map is
- *  hidden so callers must use `channel.changed(id, key)` to check + update atomically. */
+ *  hidden so callers must use `channel.shouldSend(id, key)` to check + update atomically. */
 export interface DedupMaps {
   aimTarget: DedupChannel;
   piecePhantom: DedupChannel;
@@ -121,7 +121,7 @@ export function sendAimUpdate(
 ): void {
   const pid = playerId ?? session.onlinePlayerId;
   const value = `${Math.round(x)},${Math.round(y)}`;
-  if (!dedup.aimTarget.changed(pid, value)) return;
+  if (!dedup.aimTarget.shouldSend(pid, value)) return;
   sendMessage(session, {
     type: MESSAGE.AIM_UPDATE,
     playerId: pid,
