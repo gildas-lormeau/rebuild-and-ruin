@@ -33,8 +33,6 @@ interface UpgradeDef {
   readonly weight: number;
   /** Whether this upgrade is consumed after one use. */
   readonly oneUse: boolean;
-  /** Whether picking this again increases the effect (stacking). */
-  readonly stackable: boolean;
   /** Whether gameplay code exists for this upgrade.
    *  Unimplemented upgrades are kept in the pool type system but excluded
    *  from draft offers so players never pick a no-op upgrade. */
@@ -79,7 +77,6 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: BATTLE,
     weight: 3,
     oneUse: false,
-    stackable: false,
     implemented: false,
   },
   {
@@ -89,7 +86,6 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: BATTLE,
     weight: 2,
     oneUse: false,
-    stackable: false,
     implemented: false,
   },
   {
@@ -99,7 +95,6 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: BATTLE,
     weight: 3,
     oneUse: false,
-    stackable: true,
     implemented: true,
   },
   {
@@ -109,18 +104,16 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: BATTLE,
     weight: 3,
     oneUse: false,
-    stackable: false,
     implemented: false,
   },
   // Build
   {
     id: "reinforced_walls",
     label: "Reinforced Walls",
-    description: "New walls take 2 hits to destroy",
+    description: "Walls take 2 hits to destroy (one battle)",
     category: BUILD,
     weight: 3,
-    oneUse: false,
-    stackable: false,
+    oneUse: true,
     implemented: true,
   },
   {
@@ -130,7 +123,6 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: BUILD,
     weight: 3,
     oneUse: false,
-    stackable: true,
     implemented: true,
   },
   {
@@ -140,7 +132,6 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: BUILD,
     weight: 2,
     oneUse: false,
-    stackable: false,
     implemented: false,
   },
   {
@@ -150,7 +141,6 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: BUILD,
     weight: 2,
     oneUse: false,
-    stackable: false,
     implemented: false,
   },
   // Strategic
@@ -161,7 +151,6 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: STRATEGIC,
     weight: 2,
     oneUse: false,
-    stackable: false,
     implemented: false,
   },
   {
@@ -171,7 +160,6 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: STRATEGIC,
     weight: 2,
     oneUse: false,
-    stackable: false,
     implemented: false,
   },
   {
@@ -181,7 +169,6 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: STRATEGIC,
     weight: 2,
     oneUse: false,
-    stackable: false,
     implemented: false,
   },
   {
@@ -191,7 +178,6 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: STRATEGIC,
     weight: 2,
     oneUse: false,
-    stackable: false,
     implemented: false,
   },
   // One-use
@@ -202,7 +188,6 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: ONE_USE,
     weight: 1,
     oneUse: true,
-    stackable: false,
     implemented: false,
   },
   {
@@ -212,7 +197,6 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: ONE_USE,
     weight: 1,
     oneUse: true,
-    stackable: false,
     implemented: false,
   },
   {
@@ -222,7 +206,6 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: ONE_USE,
     weight: 1,
     oneUse: true,
-    stackable: false,
     implemented: false,
   },
 ];

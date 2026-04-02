@@ -106,8 +106,7 @@ export function applyUpgradePicks(
     if (entry.choice === null) continue;
     const player = state.players[entry.playerId];
     if (!player) continue;
-    const current = player.upgrades.get(entry.choice) ?? 0;
-    player.upgrades.set(entry.choice, current + 1);
+    player.upgrades.set(entry.choice, 1);
   }
 }
 

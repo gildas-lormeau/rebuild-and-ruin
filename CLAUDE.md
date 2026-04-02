@@ -33,7 +33,7 @@ Modern mode inserts UPGRADE_PICK between battle end and build banner (from round
 - Modern: environmental modifiers (wildfire, crumbling walls, grunt surge, frozen river) + upgrade draft/pick each round
 - `gameMode` setting flows through GameSettings → InitMessage → GameState (immutable per match)
 - Modifier roll and upgrade offer generation happen in `enterBuildFromBattle()` using synced RNG (before BUILD_START checkpoint)
-- Upgrade effects: Master Builder (+5s build), Rapid Fire (2x ball speed), Reinforced Walls (2-hit walls via damagedWalls set)
+- Upgrade effects (all reset after one round): Master Builder (+5s build), Rapid Fire (2x ball speed), Reinforced Walls (2-hit walls via damagedWalls set)
 
 ### Game rules (non-obvious, guide correctness)
 - Territory: flood-fill from edges, interior = not-outside, not-wall

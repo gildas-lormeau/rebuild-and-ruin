@@ -285,20 +285,20 @@ export function enterBuildFromBattle(state: GameState): void {
   state.activeModifier = rollModifier(state);
   state.pendingUpgradeOffers = generateUpgradeOffers(state);
 
-  // Clear reinforced-wall damage tracking for the new round
-  for (const player of state.players) player.damagedWalls.clear();
-
   replenishBonusSquares(state);
   setPhase(state, Phase.WALL_BUILD);
-  // Master Builder: +5s per stack — use highest stack count among alive players
-  // so one player's pick doesn't compound with others on the shared timer
-  const masterBuilderStacks = state.players
-    .filter((pl) => !pl.eliminated)
-    .reduce(
-      (best, pl) => Math.max(best, pl.upgrades.get(UID.MASTER_BUILDER) ?? 0),
-      0,
-    );
-  state.timer = state.buildTimer + masterBuilderStacks * MASTER_BUILDER_BONUS;
+  // Master Builder: +5s if any alive player has it (check before clearing)
+  const hasMasterBuilder = state.players.some(
+    (pl) => !pl.eliminated && pl.upgrades.get(UID.MASTER_BUILDER),
+  );
+  state.timer =
+    state.buildTimer + (hasMasterBuilder ? MASTER_BUILDER_BONUS : 0);
+
+  // All upgrades last one round — clear after timer is computed
+  for (const player of state.players) {
+    player.damagedWalls.clear();
+    player.upgrades.clear();
+  }
   startOfBuildPhaseHousekeeping(state);
 
   // Modern mode: apply build-start modifiers (after housekeeping so territory is fresh)

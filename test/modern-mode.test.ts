@@ -218,7 +218,7 @@ test("pendingUpgradeOffers populated after enterBuildFromBattle in modern mode",
 // Gameplay hooks
 // ---------------------------------------------------------------------------
 
-test("Master Builder adds +5s to build timer per stack", () => {
+test("Master Builder adds +5s to build timer", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   const baseBuildTimer = s.state.buildTimer;
@@ -235,21 +235,21 @@ test("Master Builder adds +5s to build timer per stack", () => {
   );
 });
 
-test("Master Builder uses max stacks across players (not sum)", () => {
+test("Master Builder bonus applies when any alive player has it", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   const baseBuildTimer = s.state.buildTimer;
 
-  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 2);
+  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
   s.state.players[1]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
 
   const result = s.playRound();
   if (result.needsReselect.length > 0) s.processReselection(result.needsReselect);
 
-  // Max stacks = 2 → +10s (not sum 3 → +15s)
+  // Flat +5s regardless of how many players have it
   assert(
-    s.state.timer === baseBuildTimer + 10,
-    `expected ${baseBuildTimer + 10}s, got ${s.state.timer}`,
+    s.state.timer === baseBuildTimer + 5,
+    `expected ${baseBuildTimer + 5}s, got ${s.state.timer}`,
   );
 });
 
@@ -563,7 +563,7 @@ test("Rapid Fire multiplies cannonball speed", () => {
     s.fireAt(0, 0, target.row, target.col);
     assert(
       s.state.cannonballs[0]!.speed === BALL_SPEED * 2,
-      `with 1 stack: expected ${BALL_SPEED * 2}, got ${s.state.cannonballs[0]!.speed}`,
+      `with upgrade: expected ${BALL_SPEED * 2}, got ${s.state.cannonballs[0]!.speed}`,
     );
   }
 });
@@ -600,12 +600,12 @@ test("applyUpgradePicks writes choices to Player.upgrades", () => {
     const picked = offerList[0];
     assert(
       player.upgrades.get(picked) === 1,
-      `P${playerId} should have 1 stack of ${picked}, got ${player.upgrades.get(picked)}`,
+      `P${playerId} should have ${picked}, got ${player.upgrades.get(picked)}`,
     );
   }
 });
 
-test("applyUpgradePicks stacks on repeated picks", () => {
+test("applyUpgradePicks does not stack (sets to 1)", () => {
   const s = createScenario(42);
   const player = s.state.players[0]!;
   player.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
@@ -626,8 +626,8 @@ test("applyUpgradePicks stacks on repeated picks", () => {
 
   applyUpgradePicks(s.state, dialog);
   assert(
-    player.upgrades.get(UID.MASTER_BUILDER as UpgradeId) === 2,
-    `should stack to 2, got ${player.upgrades.get(UID.MASTER_BUILDER as UpgradeId)}`,
+    player.upgrades.get(UID.MASTER_BUILDER as UpgradeId) === 1,
+    `should stay at 1, got ${player.upgrades.get(UID.MASTER_BUILDER as UpgradeId)}`,
   );
 });
 

@@ -565,7 +565,7 @@ function launchCannonball(
     targetY: tY,
     speed:
       BALL_SPEED *
-      (1 + (state.players[playerId]?.upgrades.get(UID.RAPID_FIRE) ?? 0)),
+      (state.players[playerId]?.upgrades.get(UID.RAPID_FIRE) ? 2 : 1),
     playerId,
     scoringPlayerId,
     incendiary: isSuperCannon(cannon) ? true : undefined,
