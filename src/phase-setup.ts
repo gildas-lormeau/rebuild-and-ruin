@@ -158,11 +158,17 @@ export function prepareCannonPhase(state: GameState): void {
 
 /** Initialize a single controller for the cannon phase: place cannons, snap
  *  cursor to nearest valid position near home tower, fire startCannonPhase.
- *  Used by both host (startCannonPhase loop) and watcher (handleCannonStartTransition). */
+ *  Used by both host (startCannonPhase loop) and watcher (handleCannonStartTransition).
+ *  PRECONDITION: phase must already be CANNON_PLACE (set by enterCannonPlacePhase). */
 export function initControllerForCannonPhase(
   ctrl: PlayerController,
   state: GameState,
 ): void {
+  if (state.phase !== Phase.CANNON_PLACE) {
+    throw new Error(
+      `initControllerForCannonPhase called in ${Phase[state.phase]} — must be CANNON_PLACE`,
+    );
+  }
   const player = state.players[ctrl.playerId];
   if (!isPlayerAlive(player)) return;
   const max = state.cannonLimits[player.id] ?? 0;
@@ -189,12 +195,18 @@ export function computeCannonLimitsForPhase(state: GameState): void {
   state.reselectedPlayers.clear();
 }
 
-/** Initialize build phase controllers — reset facings, clear accumulators. */
+/** Initialize build phase controllers — reset facings, clear accumulators.
+ *  PRECONDITION: phase must already be WALL_BUILD (set by enterBuildFrom*). */
 export function initBuildPhaseControllers(
   state: GameState,
   controllers: readonly PlayerController[],
   skipController?: (playerId: number) => boolean,
 ): void {
+  if (state.phase !== Phase.WALL_BUILD) {
+    throw new Error(
+      `initBuildPhaseControllers called in ${Phase[state.phase]} — must be WALL_BUILD`,
+    );
+  }
   resetCannonFacings(state);
   for (const ctrl of controllers) {
     if (skipController?.(ctrl.playerId)) continue;
