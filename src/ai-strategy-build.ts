@@ -675,7 +675,7 @@ export function pickPlacement(
   }
 
   return {
-    piece: bestCandidate.rotation,
+    piece: bestCandidate.piece,
     row: bestCandidate.row,
     col: bestCandidate.col,
   };
@@ -739,7 +739,7 @@ function enumerateCandidates(
         candidates.push({
           row: r,
           col: c,
-          rotation: rotated,
+          piece: rotated,
           gapsFilled,
           wallAdjacent,
           connectedTiles,

@@ -96,7 +96,7 @@ export function pickFallbackPlacement(
   );
 
   const insideEnclosure = (candidate: Candidate): boolean => {
-    for (const [dr, dc] of candidate.rotation.offsets) {
+    for (const [dr, dc] of candidate.piece.offsets) {
       const k = packTile(candidate.row + dr, candidate.col + dc);
       for (const player of state.players) {
         if (getInterior(player).has(k)) return true;
@@ -352,7 +352,7 @@ function candidateRingDistanceForTower(
   const ringRight = lastCol + castleMargin + 1;
 
   let tooClose = false;
-  for (const [dr, dc] of candidate.rotation.offsets) {
+  for (const [dr, dc] of candidate.piece.offsets) {
     const pr = candidate.row + dr;
     const pc = candidate.col + dc;
     if (

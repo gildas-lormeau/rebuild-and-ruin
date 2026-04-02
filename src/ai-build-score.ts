@@ -63,8 +63,7 @@ const SWEEP_SAFE_BONUS = 2;
 const rejectIsolatedGapTiles: ScoringRule = {
   name: "reject-isolated-gap-tiles",
   apply(candidate, _env, ctx) {
-    const nonGapCount =
-      candidate.rotation.offsets.length - candidate.gapsFilled;
+    const nonGapCount = candidate.piece.offsets.length - candidate.gapsFilled;
     if (
       !ctx.homeWasBroken &&
       !ctx.homeTowerEnclosed &&
@@ -271,7 +270,7 @@ export function candidateObstacleHits(
 
 export function candidateToPlacement(candidate: Candidate): AiPlacement {
   return {
-    piece: candidate.rotation,
+    piece: candidate.piece,
     row: candidate.row,
     col: candidate.col,
   };
@@ -291,7 +290,7 @@ export function countFatBlocks(
 ): number {
   const { addedKeys, isWall } = buildCandidateWallInfo(
     walls,
-    candidate.rotation.offsets,
+    candidate.piece.offsets,
     candidate.row,
     candidate.col,
   );
@@ -310,7 +309,7 @@ export function checkFatWall(
 ): { hasFatWall: boolean; gapClosingFat: boolean } {
   const { addedKeys, isWall } = buildCandidateWallInfo(
     walls,
-    candidate.rotation.offsets,
+    candidate.piece.offsets,
     candidate.row,
     candidate.col,
   );
@@ -439,7 +438,7 @@ function computeTowerProximityBonus(
   let towerProximityBonus = 0;
   for (const tower of zoneTowers) {
     if (ownedTowers.includes(tower)) continue;
-    for (const [dr, dc] of candidate.rotation.offsets) {
+    for (const [dr, dc] of candidate.piece.offsets) {
       const distance =
         Math.abs(candidate.row + dr - (tower.row + 0.5)) +
         Math.abs(candidate.col + dc - (tower.col + 0.5));
@@ -461,7 +460,7 @@ function computeSweepSafeBonus(
   if (candidate.gapsFilled <= 0) return 0;
 
   let sweepSafeBonus = 0;
-  for (const [dr, dc] of candidate.rotation.offsets) {
+  for (const [dr, dc] of candidate.piece.offsets) {
     const key = packTile(candidate.row + dr, candidate.col + dc);
     if (!targetGaps.has(key)) continue;
     let cardinalCount = 0;
@@ -488,12 +487,12 @@ function computeCursorProximityBonus(
   if (anyHasWallAdjacent || candidate.gapsFilled <= 0 || !cursorPos) return 0;
 
   let avgDistance = 0;
-  for (const [dr, dc] of candidate.rotation.offsets) {
+  for (const [dr, dc] of candidate.piece.offsets) {
     avgDistance +=
       Math.abs(candidate.row + dr - cursorPos.row) +
       Math.abs(candidate.col + dc - cursorPos.col);
   }
-  avgDistance /= candidate.rotation.offsets.length;
+  avgDistance /= candidate.piece.offsets.length;
   return (
     Math.max(0, CURSOR_PROXIMITY_MAX - avgDistance) *
     CURSOR_PROXIMITY_MULTIPLIER
@@ -509,7 +508,7 @@ function computeInnerObstacleBonus(
   if (candidate.gapsFilled < 2) return 0;
 
   let hasInnerObstacle = false;
-  for (const [dr, dc] of candidate.rotation.offsets) {
+  for (const [dr, dc] of candidate.piece.offsets) {
     const pr = candidate.row + dr;
     const pc = candidate.col + dc;
     const key = packTile(pr, pc);
@@ -544,11 +543,11 @@ function computeDifficultyBonus(
   state: GameState,
   candidate: Candidate,
 ): number {
-  if (candidate.rotation.offsets.length !== 1 || candidate.gapsFilled !== 1)
+  if (candidate.piece.offsets.length !== 1 || candidate.gapsFilled !== 1)
     return 0;
 
-  const pr = candidate.row + candidate.rotation.offsets[0]![0];
-  const pc = candidate.col + candidate.rotation.offsets[0]![1];
+  const pr = candidate.row + candidate.piece.offsets[0]![0];
+  const pc = candidate.col + candidate.piece.offsets[0]![1];
   // Track obstacle directions: [north, south, west, east]
   const obstacles = computeCardinalObstacleMask(state, pr, pc);
   const total = obstacles.filter(Boolean).length;
@@ -644,7 +643,7 @@ function countNonGapTilesInCastle(
 ): { inside: number; outside: number } {
   let inside = 0;
   let outside = 0;
-  for (const [dr, dc] of candidate.rotation.offsets) {
+  for (const [dr, dc] of candidate.piece.offsets) {
     const pr = candidate.row + dr;
     const pc = candidate.col + dc;
     if (targetGaps.has(packTile(pr, pc))) continue;
@@ -675,7 +674,7 @@ function computeCandidateEnv(
   const simulatedWalls = createSimulatedWalls(ctx.walls, candidate);
   const newOutside = computeOutside(simulatedWalls);
   const rawGain = ctx.baselineOutside - newOutside.size;
-  const pieceTiles = candidate.rotation.offsets.length;
+  const pieceTiles = candidate.piece.offsets.length;
   const usefulGain = rawGain - pieceTiles;
   const pocketInfo = countSmallPocketTiles(simulatedWalls, newOutside);
   const pocketDelta = pocketInfo.wasted - ctx.baselinePocketWaste;
@@ -719,7 +718,7 @@ export function createSimulatedWalls(
   candidate: Candidate,
 ): Set<number> {
   const simulatedWalls = new Set(walls);
-  for (const [dr, dc] of candidate.rotation.offsets) {
+  for (const [dr, dc] of candidate.piece.offsets) {
     simulatedWalls.add(packTile(candidate.row + dr, candidate.col + dc));
   }
   return simulatedWalls;

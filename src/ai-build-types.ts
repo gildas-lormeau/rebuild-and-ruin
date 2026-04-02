@@ -27,7 +27,7 @@ export interface AiPlacement {
 }
 
 export type Candidate = TilePos & {
-  rotation: PieceShape;
+  piece: PieceShape;
   gapsFilled: number;
   wallAdjacent: number;
   connectedTiles: number;
