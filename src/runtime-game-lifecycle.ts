@@ -11,6 +11,7 @@ import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { createBannerState } from "./phase-banner.ts";
 import {
+  DEFAULT_DIFFICULTY,
   DIFFICULTY_PARAMS,
   getPlayerColor,
   MAX_PLAYERS,
@@ -127,7 +128,7 @@ export function createGameLifecycle(
 
     const diffParams =
       DIFFICULTY_PARAMS[runtimeState.settings.difficulty] ??
-      DIFFICULTY_PARAMS[1]!;
+      DIFFICULTY_PARAMS[DEFAULT_DIFFICULTY]!;
     const { buildTimer, cannonPlaceTimer, firstRoundCannons } = diffParams;
     const roundsParam =
       typeof location !== "undefined"

@@ -51,11 +51,14 @@ export const KEY_RIGHT = "ArrowRight";
 export const KEY_ENTER = "Enter";
 export const KEY_ESCAPE = "Escape";
 export const DIFFICULTY_PARAMS = [
-  { buildTimer: 30, cannonPlaceTimer: 20, firstRoundCannons: 4 }, // Easy
-  { buildTimer: 25, cannonPlaceTimer: 15, firstRoundCannons: 3 }, // Normal
-  { buildTimer: 20, cannonPlaceTimer: 12, firstRoundCannons: 2 }, // Hard
-  { buildTimer: 15, cannonPlaceTimer: 10, firstRoundCannons: 1 }, // Very Hard
+  { buildTimer: 30, cannonPlaceTimer: 20, firstRoundCannons: 4 }, // 0 = Easy
+  { buildTimer: 25, cannonPlaceTimer: 15, firstRoundCannons: 3 }, // 1 = Normal
+  { buildTimer: 20, cannonPlaceTimer: 12, firstRoundCannons: 2 }, // 2 = Hard
+  { buildTimer: 15, cannonPlaceTimer: 10, firstRoundCannons: 1 }, // 3 = Very Hard
 ];
+/** Default difficulty index used as fallback when settings.difficulty is out of range. */
+export const DEFAULT_DIFFICULTY = 1;
+// Normal
 export const PLAYER_NAMES = ["Red", "Blue", "Gold"] as const;
 // Player castle colors: wall and interior (checkerboard light/dark)
 export const PLAYER_COLORS: readonly PlayerColor[] = [

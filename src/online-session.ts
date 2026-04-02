@@ -142,7 +142,7 @@ export function connectWebSocket(
   wsUrl: string,
   handlers: ConnectHandlers,
 ): void {
-  if (!shouldReconnect(session)) return;
+  if (!isSocketDisconnected(session)) return;
   session.socket = new WebSocket(wsUrl);
   session.socket.onmessage = (e) => {
     try {
@@ -183,14 +183,14 @@ function sendIfChanged<T extends GameMessage>(
 }
 
 /** True when the socket is fully connected and can transmit.
- *  Use for send guards. Contrast with `shouldReconnect()`. */
+ *  Use for send guards. Contrast with `isSocketDisconnected()`. */
 function isSocketOpen(session: OnlineSession): boolean {
   return session.socket?.readyState === WebSocket.OPEN;
 }
 
 /** True when the socket is closed/closing and a reconnect attempt is appropriate.
  *  readyState > OPEN means CLOSING(2) or CLOSED(3).
- *  Contrast with `canSend()` which checks === OPEN only. */
-function shouldReconnect(session: OnlineSession): boolean {
+ *  Contrast with `isSocketOpen()` which checks === OPEN only. */
+function isSocketDisconnected(session: OnlineSession): boolean {
   return !session.socket || session.socket.readyState > WebSocket.OPEN;
 }

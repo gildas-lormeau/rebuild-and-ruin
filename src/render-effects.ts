@@ -198,8 +198,8 @@ export function drawGrunts(
 }
 
 /** Draw animated wave shimmer over water tiles during battle.
- *  @param now — injectable timestamp in ms (performance.now() scale). Falls back
- *  to performance.now() when omitted. Pass a fixed value in tests for determinism. */
+ *  @param now — injectable timestamp in ms (performance.now() scale, cosmetic-only).
+ *  Falls back to performance.now() when omitted. Not Date.now() — see time convention above. */
 export function drawWaterAnimation(
   overlayCtx: CanvasRenderingContext2D,
   map: MapData,
@@ -266,8 +266,8 @@ export function drawBattleEffects(
 }
 
 /** Draw burning pit ember glows.
- *  @param now — injectable timestamp in ms (performance.now() scale). Falls back
- *  to performance.now() when omitted. Pass a fixed value in tests for determinism. */
+ *  @param now — injectable timestamp in ms (performance.now() scale, cosmetic-only).
+ *  Falls back to performance.now() when omitted. Not Date.now() — see time convention above. */
 export function drawBurningPits(
   overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
@@ -300,7 +300,8 @@ export function drawBurningPits(
 }
 
 /** Draw ice overlay on frozen river tiles.
- *  @param now — injectable timestamp in ms (performance.now() scale). */
+ *  @param now — injectable timestamp in ms (performance.now() scale, cosmetic-only).
+ *  Not Date.now() — see time convention above. */
 export function drawFrozenTiles(
   overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,

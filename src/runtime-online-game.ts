@@ -50,6 +50,7 @@ import {
   tickWatcher as tickWatcherFn,
 } from "./online-watcher-tick.ts";
 import {
+  DEFAULT_DIFFICULTY,
   DIFFICULTY_PARAMS,
   MAX_PLAYERS,
   PLAYER_COLORS,
@@ -169,7 +170,7 @@ const runtime: GameRuntime = createGameRuntime({
     if (!ctx.session.isHost) return;
     const diffParams =
       DIFFICULTY_PARAMS[runtime.runtimeState.settings.difficulty] ??
-      DIFFICULTY_PARAMS[1]!;
+      DIFFICULTY_PARAMS[DEFAULT_DIFFICULTY]!;
     const initMsg: InitMessage = {
       type: MESSAGE.INIT,
       seed: ctx.session.roomSeed,
