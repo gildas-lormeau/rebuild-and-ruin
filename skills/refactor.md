@@ -29,7 +29,7 @@ npm run refactor find-symbol <name>
 npm run refactor find-symbol --symbol <name>
 ```
 
-Best for: finding which file owns a symbol before running `move-export` or `rename-symbol`. Also finds class members (methods, properties, abstract members) — reported as `ClassName.MemberKind`.
+Best for: finding which file owns a symbol before running `move-export` or `rename-symbol`. Also finds class members, interface properties, and type alias properties — reported as `OwnerName.MemberKind`.
 
 ### `list-exports` — List all exports from a file
 

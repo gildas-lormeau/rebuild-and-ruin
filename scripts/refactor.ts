@@ -732,6 +732,42 @@ function findSymbol(name: string): void {
       }
     }
 
+    // Check interface/type alias properties
+    for (const iface of sf.getInterfaces()) {
+      const prop = iface.getProperty(name);
+      if (prop) {
+        results.push({
+          file: relPath,
+          line: prop.getStartLineNumber(),
+          kind: `${iface.getName()}.PropertySignature`,
+          exported: iface.isExported(),
+        });
+      }
+    }
+    for (const alias of sf.getTypeAliases()) {
+      const typeNode = alias.getTypeNode();
+      if (!typeNode) continue;
+      const literals: import("ts-morph").TypeLiteralNode[] = [];
+      if (typeNode.isKind(SyntaxKind.TypeLiteral)) {
+        literals.push(typeNode);
+      } else if (typeNode.isKind(SyntaxKind.IntersectionType)) {
+        for (const member of typeNode.getTypeNodes()) {
+          if (member.isKind(SyntaxKind.TypeLiteral)) literals.push(member);
+        }
+      }
+      for (const lit of literals) {
+        const prop = lit.getProperty(name);
+        if (prop) {
+          results.push({
+            file: relPath,
+            line: prop.getStartLineNumber(),
+            kind: `${alias.getName()}.PropertySignature`,
+            exported: alias.isExported(),
+          });
+        }
+      }
+    }
+
     // Check class members (methods, properties, abstract members)
     for (const cls of sf.getClasses()) {
       for (const member of cls.getMembers()) {
