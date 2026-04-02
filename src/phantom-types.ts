@@ -27,32 +27,42 @@ export type PiecePhantom = {
   valid: boolean;
 };
 
+/** Opaque dedup tracker — wraps a per-player map of last-sent serialized keys.
+ *  Use `changed()` to check + update atomically; `clear()` on reset. */
+export interface DedupChannel {
+  /** Returns true if the value changed (caller should send).
+   *  Atomically updates the internal map — no separate step needed. */
+  changed(playerId: number, key: string): boolean;
+  /** Clear all tracked values (call on phase transition or host promotion). */
+  clear(): void;
+}
+
+/** Sentinel channel for local play — never blocks sends (always returns true).
+ *  Used as a fallback when networking deps are absent. */
+export const NOOP_DEDUP_CHANNEL: DedupChannel = {
+  changed: () => true,
+  clear: () => {},
+};
+
 /** Return the cannon mode for network transmission. Currently identity (returns
  *  phantom.mode directly), but provides an abstraction point if wire format diverges. */
 export function phantomWireMode(phantom: CannonPhantom): CannonMode {
   return phantom.mode;
 }
 
-/** Check if a value has changed since last send, updating the dedup map.
- *  **Side effect**: updates `map[playerId] = key` on change.
- *  Returns true if the value changed (caller should send).
- *  Returns false if unchanged (caller should skip sending).
- *
- *  Dedup invariant (used across online-session.ts, online-host-crosshairs.ts,
- *  online-watcher-battle.ts): always follow the three-step sequence:
- *    1. Call `dedupChanged(map, id, key)` — returns true if value changed
- *    2. Send the network message (only if step 1 returned true)
- *    3. Map is already updated by step 1 (no separate update needed)
- *  Skipping step 1 wastes bandwidth; calling send without step 1 breaks dedup.
- *  Usage: `if (!dedupChanged(map, playerId, key)) return;` */
-export function dedupChanged(
-  map: Map<number, string>,
-  playerId: number,
-  key: string,
-): boolean {
-  if (map.get(playerId) === key) return false;
-  map.set(playerId, key);
-  return true;
+/** Create a new dedup channel (empty — all first sends will pass). */
+export function createDedupChannel(): DedupChannel {
+  const map = new Map<number, string>();
+  return {
+    changed(playerId: number, key: string): boolean {
+      if (map.get(playerId) === key) return false;
+      map.set(playerId, key);
+      return true;
+    },
+    clear(): void {
+      map.clear();
+    },
+  };
 }
 
 /** Filter remote phantoms to only those from non-eliminated players.

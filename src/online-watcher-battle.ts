@@ -14,7 +14,7 @@ import {
 import {
   type CannonPhantom,
   cannonPhantomKey,
-  dedupChanged,
+  type DedupChannel,
   filterAlivePhantoms,
   type PiecePhantom,
   phantomWireMode,
@@ -86,7 +86,7 @@ interface TickWatcherCannonPhantomsDeps {
   onlinePlayerId: number;
   localController: PlayerController | null;
   remoteCannonPhantoms: readonly CannonPhantom[];
-  lastSentCannonPhantom: Map<number, string>;
+  lastSentCannonPhantom: DedupChannel;
   sendOpponentCannonPhantom: (msg: {
     playerId: number;
     row: number;
@@ -102,7 +102,7 @@ interface TickWatcherBuildPhantomsDeps {
   dt: number;
   localController: PlayerController | null;
   remotePiecePhantoms: readonly PiecePhantom[];
-  lastSentPiecePhantom: Map<number, string>;
+  lastSentPiecePhantom: DedupChannel;
   sendOpponentPiecePhantom: (msg: {
     playerId: number;
     row: number;
@@ -262,13 +262,7 @@ export function tickWatcherCannonPhantomsPhase(
   if (!phantom) return;
 
   frame.phantoms.cannonPhantoms!.push(phantom);
-  if (
-    !dedupChanged(
-      lastSentCannonPhantom,
-      onlinePlayerId,
-      cannonPhantomKey(phantom),
-    )
-  )
+  if (!lastSentCannonPhantom.changed(onlinePlayerId, cannonPhantomKey(phantom)))
     return;
   sendOpponentCannonPhantom({
     playerId: onlinePlayerId,
@@ -309,11 +303,7 @@ export function tickWatcherBuildPhantomsPhase(
     });
 
     if (
-      !dedupChanged(
-        lastSentPiecePhantom,
-        phantom.playerId,
-        piecePhantomKey(phantom),
-      )
+      !lastSentPiecePhantom.changed(phantom.playerId, piecePhantomKey(phantom))
     )
       continue;
     sendOpponentPiecePhantom({

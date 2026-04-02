@@ -31,6 +31,7 @@ import { nextPhase, tickGameCore } from "./game-engine.ts";
 import { tickGrunts } from "./grunt-movement.ts";
 import { gruntAttackTowers } from "./grunt-system.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
+import { NOOP_DEDUP_CHANNEL } from "./phantom-types.ts";
 import { BANNER_BUILD } from "./phase-banner.ts";
 import {
   finalizeBuildPhase,
@@ -311,7 +312,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         isHost: runtimeState.frameCtx.hostAtFrameStart,
         remoteCannonPhantoms: deps.hostNetworking?.remoteCannonPhantoms() ?? [],
         lastSentCannonPhantom:
-          deps.hostNetworking?.lastSentCannonPhantom() ?? new Map(),
+          deps.hostNetworking?.lastSentCannonPhantom() ?? NOOP_DEDUP_CHANNEL,
         sendOpponentCannonPlaced: (msg) =>
           deps.send({ type: MESSAGE.OPPONENT_CANNON_PLACED, ...msg }),
         sendOpponentCannonPhantom: (msg) =>
@@ -436,7 +437,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         isHost: runtimeState.frameCtx.hostAtFrameStart,
         remotePiecePhantoms: deps.hostNetworking?.remotePiecePhantoms() ?? [],
         lastSentPiecePhantom:
-          deps.hostNetworking?.lastSentPiecePhantom() ?? new Map(),
+          deps.hostNetworking?.lastSentPiecePhantom() ?? NOOP_DEDUP_CHANNEL,
         serializePlayers: deps.hostNetworking?.serializePlayers,
         sendOpponentPiecePlaced: (msg) =>
           deps.send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...msg }),

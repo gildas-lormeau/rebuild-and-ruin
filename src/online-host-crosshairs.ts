@@ -21,11 +21,11 @@ import {
 } from "./controller-interfaces.ts";
 import type { Crosshair, PixelPos } from "./geometry-types.ts";
 import { interpolateToward, REMOTE_CROSSHAIR_SPEED } from "./online-types.ts";
-import { dedupChanged } from "./phantom-types.ts";
+import type { DedupChannel } from "./phantom-types.ts";
 import { type GameState, isPlayerAlive } from "./types.ts";
 
 interface BroadcastDeps {
-  lastSentAimTarget: Map<number, string>;
+  lastSentAimTarget: DedupChannel;
   send: (msg: GameMessage) => void;
 }
 
@@ -46,7 +46,7 @@ export function broadcastLocalCrosshair(
     (isAiAnimatable(ctrl) ? ctrl.getCrosshairTarget() : null) ?? ch;
   const orbit = isAiAnimatable(ctrl) ? ctrl.getOrbitParams() : null;
   const key = `${Math.round(target.x)},${Math.round(target.y)},${orbit ? "o" : ""}`;
-  if (!dedupChanged(deps.lastSentAimTarget, ctrl.playerId, key)) return;
+  if (!deps.lastSentAimTarget.changed(ctrl.playerId, key)) return;
   deps.send({
     type: MESSAGE.AIM_UPDATE,
     playerId: ctrl.playerId,

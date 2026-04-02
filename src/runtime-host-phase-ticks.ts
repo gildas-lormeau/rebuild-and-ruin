@@ -18,8 +18,9 @@ import type { PlayerController } from "./controller-interfaces.ts";
 import {
   type CannonPhantom,
   cannonPhantomKey,
-  dedupChanged,
+  type DedupChannel,
   filterAlivePhantoms,
+  NOOP_DEDUP_CHANNEL,
   type PiecePhantom,
   phantomWireMode,
   piecePhantomKey,
@@ -43,7 +44,7 @@ import { CannonMode, type GameState } from "./types.ts";
  *  with no-op networking (no broadcasts, no remote phantom merging). */
 interface CannonPhaseNet extends HostNetContext {
   remoteCannonPhantoms: readonly CannonPhantom[];
-  lastSentCannonPhantom: Map<number, string>;
+  lastSentCannonPhantom: DedupChannel;
   sendOpponentCannonPlaced: (msg: {
     playerId: number;
     row: number;
@@ -63,7 +64,7 @@ interface CannonPhaseNet extends HostNetContext {
  *  Optional (`net?`) — when omitted, defaults to local-play no-ops. */
 interface BuildPhaseNet extends HostNetContext {
   remotePiecePhantoms: readonly PiecePhantom[];
-  lastSentPiecePhantom: Map<number, string>;
+  lastSentPiecePhantom: DedupChannel;
   serializePlayers?: (state: GameState) => SerializedPlayer[];
   sendOpponentPiecePlaced: (msg: {
     playerId: number;
@@ -131,8 +132,9 @@ interface TickHostBuildPhaseDeps {
   net: BuildPhaseNet;
 }
 
-/** Sentinel empty map — never mutated (dedupChanged short-circuits on empty maps). */
-const EMPTY_MAP = new Map<number, string>();
+/** Sentinel channel for local play — never blocks sends.
+ *  Used as fallback when networking deps are absent. */
+const LOCAL_CHANNEL = NOOP_DEDUP_CHANNEL;
 /** Protocol placeholder — broadcastNewWalls sends absolute tile positions in `offsets`,
  *  so `row`/`col` are unused. This constant documents the intent. */
 const PLACEHOLDER_ORIGIN = { row: 0, col: 0 } as const;
@@ -158,7 +160,8 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   const remoteHumanSlots = getRemoteSlots(deps.net);
   const isHost = isHostInContext(deps.net);
   const remoteCannonPhantoms = deps.net?.remoteCannonPhantoms ?? [];
-  const lastSentCannonPhantom = deps.net?.lastSentCannonPhantom ?? EMPTY_MAP;
+  const lastSentCannonPhantom =
+    deps.net?.lastSentCannonPhantom ?? LOCAL_CHANNEL;
   const sendOpponentCannonPlaced = deps.net?.sendOpponentCannonPlaced;
   const sendOpponentCannonPhantom = deps.net?.sendOpponentCannonPhantom;
 
@@ -197,11 +200,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
     if (!isHost || !sendOpponentCannonPhantom) continue;
 
     if (
-      !dedupChanged(
-        lastSentCannonPhantom,
-        ctrl.playerId,
-        cannonPhantomKey(phantom),
-      )
+      !lastSentCannonPhantom.changed(ctrl.playerId, cannonPhantomKey(phantom))
     )
       continue;
     sendOpponentCannonPhantom({
@@ -291,7 +290,7 @@ function processControllerBuildActions(
 ): void {
   const { state, dt, controllers } = deps;
   const isHost = isHostInContext(deps.net);
-  const lastSentPiecePhantom = deps.net?.lastSentPiecePhantom ?? EMPTY_MAP;
+  const lastSentPiecePhantom = deps.net?.lastSentPiecePhantom ?? LOCAL_CHANNEL;
   const sendOpponentPiecePlaced = deps.net?.sendOpponentPiecePlaced;
   const sendOpponentPhantom = deps.net?.sendOpponentPhantom;
 
@@ -362,7 +361,7 @@ function collectBuildPhantoms(
   phantoms: readonly (PiecePhantom & { valid?: boolean })[],
   frame: HostFrame,
   isHost: boolean,
-  lastSentPiecePhantom: Map<number, string>,
+  lastSentPiecePhantom: DedupChannel,
   sendOpponentPhantom:
     | ((msg: {
         playerId: number;
@@ -384,11 +383,7 @@ function collectBuildPhantoms(
 
     if (!isHost || !sendOpponentPhantom) continue;
     if (
-      !dedupChanged(
-        lastSentPiecePhantom,
-        phantom.playerId,
-        piecePhantomKey(phantom),
-      )
+      !lastSentPiecePhantom.changed(phantom.playerId, piecePhantomKey(phantom))
     )
       continue;
     sendOpponentPhantom({

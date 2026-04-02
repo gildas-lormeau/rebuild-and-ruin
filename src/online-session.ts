@@ -12,7 +12,7 @@ import {
   type ServerMessage,
 } from "../server/protocol.ts";
 import { GAME_MODE_CLASSIC, LOBBY_TIMER } from "./game-constants.ts";
-import { dedupChanged } from "./phantom-types.ts";
+import { createDedupChannel, type DedupChannel } from "./phantom-types.ts";
 import type { LifeLostChoice } from "./types.ts";
 
 export interface OnlineSession {
@@ -45,12 +45,12 @@ export interface OnlineSession {
  *  message type. If the new value matches, the send is skipped to reduce bandwidth.
  *  Cleared on session reset and host promotion.
  *
- *  Dedup invariant: always use `dedupChanged(map, id, key)` before sending.
- *  That function both checks AND updates the map atomically — see phantom-types.ts. */
+ *  Each channel is an opaque DedupChannel (see phantom-types.ts) — the raw Map is
+ *  hidden so callers must use `channel.changed(id, key)` to check + update atomically. */
 export interface DedupMaps {
-  aimTarget: Map<number, string>;
-  piecePhantom: Map<number, string>;
-  cannonPhantom: Map<number, string>;
+  aimTarget: DedupChannel;
+  piecePhantom: DedupChannel;
+  cannonPhantom: DedupChannel;
 }
 
 interface ConnectHandlers {
@@ -83,9 +83,9 @@ export function createSession(): OnlineSession {
 
 export function createDedupMaps(): DedupMaps {
   return {
-    aimTarget: new Map(),
-    piecePhantom: new Map(),
-    cannonPhantom: new Map(),
+    aimTarget: createDedupChannel(),
+    piecePhantom: createDedupChannel(),
+    cannonPhantom: createDedupChannel(),
   };
 }
 
@@ -116,18 +116,13 @@ export function sendAimUpdate(
 ): void {
   const pid = playerId ?? session.onlinePlayerId;
   const value = `${Math.round(x)},${Math.round(y)}`;
-  sendIfChanged(
-    dedup.aimTarget,
-    pid,
-    value,
-    {
-      type: MESSAGE.AIM_UPDATE,
-      playerId: pid,
-      x,
-      y,
-    },
-    (msg) => sendMessage(session, msg),
-  );
+  if (!dedup.aimTarget.changed(pid, value)) return;
+  sendMessage(session, {
+    type: MESSAGE.AIM_UPDATE,
+    playerId: pid,
+    x,
+    y,
+  });
 }
 
 export function sendMessage(session: OnlineSession, msg: GameMessage): void {
@@ -172,17 +167,6 @@ export function connectWebSocket(
   session.socket.onerror = () => {
     handlers.onError();
   };
-}
-
-/** Send a message only if the dedup key changed. Enforces the check-then-send ordering invariant. */
-function sendIfChanged<T extends GameMessage>(
-  dedupMap: Map<number, string>,
-  key: number,
-  value: string,
-  msg: T,
-  send: (msg: GameMessage) => void,
-): void {
-  if (dedupChanged(dedupMap, key, value)) send(msg);
 }
 
 /** True when the socket is fully connected and can transmit.

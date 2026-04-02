@@ -52,7 +52,11 @@ import { isActiveOnlinePlayer } from "./game-constants.ts";
 import type { Crosshair, WorldPos } from "./geometry-types.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import type { WatcherTimingState } from "./online-types.ts";
-import type { CannonPhantom, PiecePhantom } from "./phantom-types.ts";
+import type {
+  CannonPhantom,
+  DedupChannel,
+  PiecePhantom,
+} from "./phantom-types.ts";
 import type { RendererInterface, Viewport } from "./render-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { SoundSystem } from "./sound-system.ts";
@@ -141,11 +145,11 @@ export interface RuntimeConfig {
     createBuildStartMessage: (state: GameState) => ServerMessage;
     remoteCannonPhantoms: () => readonly CannonPhantom[];
     remotePiecePhantoms: () => readonly PiecePhantom[];
-    /** Getter returning the dedup map — wraps the direct Map property from
+    /** Getter returning the dedup channel — wraps the DedupChannel from
      *  WatcherTickContext/CannonPhaseNet so the runtime doesn't hold a stale reference. */
-    lastSentCannonPhantom: () => Map<number, string>;
-    /** Getter returning the dedup map — same late-binding pattern as lastSentCannonPhantom. */
-    lastSentPiecePhantom: () => Map<number, string>;
+    lastSentCannonPhantom: () => DedupChannel;
+    /** Getter returning the dedup channel — same late-binding pattern as lastSentCannonPhantom. */
+    lastSentPiecePhantom: () => DedupChannel;
   };
   /** Watcher timing state (for non-host battle). */
   watcherTiming?: WatcherTimingState;

@@ -1,8 +1,8 @@
 /**
- * Phantom dedup tests: cannonPhantomKey, piecePhantomKey, dedupChanged.
+ * Phantom dedup tests: cannonPhantomKey, piecePhantomKey, DedupChannel.
  *
  * Verifies that the dedup key functions produce stable keys and that
- * dedupChanged correctly detects first sends, duplicates, and changes.
+ * DedupChannel.changed() correctly detects first sends, duplicates, and changes.
  *
  * Run with: bun test/online-phantom-dedup.test.ts
  */
@@ -11,7 +11,7 @@ import { interpolateToward, toCannonMode } from "../src/online-types.ts";
 import {
   cannonPhantomKey,
   type CannonPhantom,
-  dedupChanged,
+  createDedupChannel,
   filterAlivePhantoms,
   piecePhantomKey,
   type PiecePhantom,
@@ -87,38 +87,50 @@ test("piecePhantomKey differs by valid flag", () => {
 });
 
 // ---------------------------------------------------------------------------
-// dedupChanged
+// DedupChannel
 // ---------------------------------------------------------------------------
 
-test("dedupChanged returns true on first send", () => {
-  const map = new Map<number, string>();
-  assert(dedupChanged(map, 0, "5,3,normal") === true, "first send should return true");
+test("DedupChannel.changed returns true on first send", () => {
+  const ch = createDedupChannel();
+  assert(ch.changed(0, "5,3,normal") === true, "first send should return true");
 });
 
-test("dedupChanged returns false on duplicate", () => {
-  const map = new Map<number, string>();
-  dedupChanged(map, 0, "5,3,normal");
-  assert(dedupChanged(map, 0, "5,3,normal") === false, "duplicate should return false");
+test("DedupChannel.changed returns false on duplicate", () => {
+  const ch = createDedupChannel();
+  ch.changed(0, "5,3,normal");
+  assert(ch.changed(0, "5,3,normal") === false, "duplicate should return false");
 });
 
-test("dedupChanged returns true when key changes", () => {
-  const map = new Map<number, string>();
-  dedupChanged(map, 0, "5,3,normal");
-  assert(dedupChanged(map, 0, "6,3,normal") === true, "changed key should return true");
+test("DedupChannel.changed returns true when key changes", () => {
+  const ch = createDedupChannel();
+  ch.changed(0, "5,3,normal");
+  assert(ch.changed(0, "6,3,normal") === true, "changed key should return true");
 });
 
-test("dedupChanged tracks players independently", () => {
-  const map = new Map<number, string>();
-  dedupChanged(map, 0, "5,3,normal");
-  assert(dedupChanged(map, 1, "5,3,normal") === true, "different player same key should return true");
-  assert(dedupChanged(map, 0, "5,3,normal") === false, "player 0 unchanged should return false");
+test("DedupChannel.changed tracks players independently", () => {
+  const ch = createDedupChannel();
+  ch.changed(0, "5,3,normal");
+  assert(ch.changed(1, "5,3,normal") === true, "different player same key should return true");
+  assert(ch.changed(0, "5,3,normal") === false, "player 0 unchanged should return false");
 });
 
-test("dedupChanged updates stored key on change", () => {
-  const map = new Map<number, string>();
-  dedupChanged(map, 0, "first");
-  dedupChanged(map, 0, "second");
-  assert(map.get(0) === "second", `stored key should be "second", got "${map.get(0)}"`);
+test("DedupChannel.changed updates stored key on change", () => {
+  const ch = createDedupChannel();
+  ch.changed(0, "first");
+  ch.changed(0, "second");
+  // After two changes, a third call with "second" should be a dup
+  assert(ch.changed(0, "second") === false, "stored key should be 'second' after change");
+  // And "first" should now be seen as changed
+  assert(ch.changed(0, "first") === true, "reverting to 'first' should be a change");
+});
+
+test("DedupChannel.clear resets all tracked state", () => {
+  const ch = createDedupChannel();
+  ch.changed(0, "key-a");
+  ch.changed(1, "key-b");
+  ch.clear();
+  assert(ch.changed(0, "key-a") === true, "after clear, same key should return true again");
+  assert(ch.changed(1, "key-b") === true, "after clear, same key should return true again");
 });
 
 // ---------------------------------------------------------------------------
