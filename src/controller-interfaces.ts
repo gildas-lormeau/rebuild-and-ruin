@@ -23,7 +23,7 @@ export type OrbitParams = {
   rx: number;
   ry: number;
   speed: number;
-  phase: number;
+  phaseAngle: number;
 };
 
 /** Visual preview of a piece the player is about to place (not yet committed to game state). */

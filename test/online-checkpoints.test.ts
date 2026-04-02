@@ -49,7 +49,7 @@ function makeDeps(runtime: HeadlessRuntime): CheckpointDeps {
     remoteCrosshairs: new Map<number, PixelPos>(),
     watcherCrosshairPos: new Map<number, PixelPos>(),
     watcherOrbitParams: new Map<number, OrbitParams>(),
-    watcherOrbitPhases: new Map<number, number>(),
+    watcherOrbitAngles: new Map<number, number>(),
     snapshotTerritory: () =>
       runtime.state.players.map((p) => new Set(p.interior)),
   };
@@ -158,8 +158,8 @@ test("cannon-start checkpoint clears watcher crosshairs", () => {
   const deps = makeDeps(watcher);
   deps.remoteCrosshairs.set(0, { x: 100, y: 200 });
   deps.watcherCrosshairPos.set(0, { x: 100, y: 200 });
-  deps.watcherOrbitParams.set(0, { rx: 10, ry: 10, speed: 1, phase: 0 } as OrbitParams);
-  deps.watcherOrbitPhases.set(0, 5);
+  deps.watcherOrbitParams.set(0, { rx: 10, ry: 10, speed: 1, phaseAngle: 0 } as OrbitParams);
+  deps.watcherOrbitAngles.set(0, 5);
 
   const msg = createCannonStartMessage(watcher.state);
   applyCannonStartCheckpoint(msg, deps);
@@ -167,7 +167,7 @@ test("cannon-start checkpoint clears watcher crosshairs", () => {
   assert(deps.remoteCrosshairs.size === 0, "remoteCrosshairs not cleared");
   assert(deps.watcherCrosshairPos.size === 0, "watcherCrosshairPos not cleared");
   assert(deps.watcherOrbitParams.size === 0, "watcherOrbitParams not cleared");
-  assert(deps.watcherOrbitPhases.size === 0, "watcherOrbitPhases not cleared");
+  assert(deps.watcherOrbitAngles.size === 0, "watcherOrbitAngles not cleared");
 });
 
 test("cannon-start checkpoint clears cannonballs and impacts", () => {

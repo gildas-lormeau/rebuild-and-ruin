@@ -511,7 +511,7 @@ export function createScenario(seed = 42): Scenario {
       remoteCrosshairs: new Map(),
       watcherCrosshairPos: new Map(),
       watcherOrbitParams: new Map(),
-      watcherOrbitPhases: new Map(),
+      watcherOrbitAngles: new Map(),
       snapshotTerritory: () =>
         state.players.map((p) => new Set(p.interior)),
     };

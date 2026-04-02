@@ -363,7 +363,7 @@ function buildCheckpointDeps(): CheckpointDeps {
     remoteCrosshairs: ctx.watcher.remoteCrosshairs,
     watcherCrosshairPos: ctx.watcher.watcherCrosshairPos,
     watcherOrbitParams: ctx.watcher.orbitParams,
-    watcherOrbitPhases: ctx.watcher.watcherOrbitPhases,
+    watcherOrbitAngles: ctx.watcher.watcherOrbitAngles,
     snapshotTerritory: () => runtime.snapshotTerritory(),
   };
 }

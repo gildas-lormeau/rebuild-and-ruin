@@ -91,7 +91,7 @@ export class AiController extends BaseController implements AiAnimatable {
         rx: orbit.rx,
         ry: orbit.ry,
         speed: orbit.speed,
-        phase: bp.idlePhase,
+        phaseAngle: bp.idlePhase,
       };
     }
     return null;

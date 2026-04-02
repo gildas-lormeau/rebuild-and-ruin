@@ -50,7 +50,7 @@ interface WatcherBattleDeps {
   localController: PlayerController | null;
   remoteCrosshairs: Map<number, PixelPos>;
   watcherCrosshairPos: Map<number, PixelPos>;
-  watcherOrbitPhases: Map<number, number>;
+  watcherOrbitAngles: Map<number, number>;
   watcherOrbitParams: Map<number, OrbitParams>;
   logThrottled: (key: string, msg: string) => void;
   interpolateToward: (
@@ -161,7 +161,7 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     localController,
     remoteCrosshairs,
     watcherCrosshairPos,
-    watcherOrbitPhases,
+    watcherOrbitAngles,
     watcherOrbitParams,
     logThrottled,
     interpolateToward,
@@ -200,16 +200,16 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
 
     const orbitParams =
       state.battleCountdown > 0 ? watcherOrbitParams.get(pid) : undefined;
-    const newPhase = updateOrbitCrosshair(
+    const newAngle = updateOrbitCrosshair(
       visualPos,
       target,
       orbitParams,
-      watcherOrbitPhases.get(pid) ?? orbitParams?.phase ?? 0,
+      watcherOrbitAngles.get(pid) ?? orbitParams?.phaseAngle ?? 0,
       dt,
       REMOTE_CROSSHAIR_SPEED,
       interpolateToward,
     );
-    if (orbitParams) watcherOrbitPhases.set(pid, newPhase);
+    if (orbitParams) watcherOrbitAngles.set(pid, newAngle);
 
     frame.crosshairs.push({
       x: visualPos.x,
@@ -321,12 +321,13 @@ export function tickWatcherBuildPhantomsPhase(
   }
 }
 
-/** Interpolate a crosshair toward its target, applying orbital wobble when orbit params are present. */
+/** Interpolate a crosshair toward its target, applying orbital wobble when orbit params are present.
+ *  @param angle — orbital phase angle in radians (NOT a game Phase enum). */
 function updateOrbitCrosshair(
   visualPos: PixelPos,
   target: PixelPos,
   orbitParams: OrbitParams | undefined,
-  phase: number,
+  angle: number,
   dt: number,
   speed: number,
   interpolateToward: (
@@ -338,20 +339,20 @@ function updateOrbitCrosshair(
   ) => void,
 ): number {
   if (orbitParams) {
-    const rx = orbitParams.rx + Math.sin(phase * ORBIT_FREQ_X);
-    const ry = orbitParams.ry + Math.sin(phase * ORBIT_FREQ_Y);
-    const next = phase + orbitParams.speed * dt;
+    const rx = orbitParams.rx + Math.sin(angle * ORBIT_FREQ_X);
+    const ry = orbitParams.ry + Math.sin(angle * ORBIT_FREQ_Y);
+    const nextAngle = angle + orbitParams.speed * dt;
     interpolateToward(
       visualPos,
-      target.x + Math.cos(next) * rx,
-      target.y + Math.sin(next) * ry,
+      target.x + Math.cos(nextAngle) * rx,
+      target.y + Math.sin(nextAngle) * ry,
       speed,
       dt,
     );
-    return next;
+    return nextAngle;
   }
   interpolateToward(visualPos, target.x, target.y, speed, dt);
-  return phase;
+  return angle;
 }
 
 /** Tick the local player's battle crosshair and send aim updates. */

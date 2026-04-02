@@ -469,7 +469,7 @@ export interface AimUpdateMessage {
   x: number;
   y: number;
   /** Optional orbit parameters (sent once at countdown start). */
-  orbit?: { rx: number; ry: number; speed: number; phase: number };
+  orbit?: { rx: number; ry: number; speed: number; phaseAngle: number };
 }
 
 // ---------------------------------------------------------------------------
