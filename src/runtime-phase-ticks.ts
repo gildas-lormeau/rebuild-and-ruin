@@ -3,15 +3,10 @@
  * tick functions from runtime-host-battle-ticks.ts, runtime-host-phase-ticks.ts, etc.
  *
  * Network wiring convention:
- *   When building deps for tick functions, always pass:
- *     net: deps.hostNetworking ? { ...networking fields... } : undefined
- *   Omitting `net` silently falls back to local-play behavior (all players local,
- *   no broadcasts). This is correct for local play but a silent bug if forgotten
- *   when adding a new online tick call.
- *
- *   Guard: createPhaseTicksSystem asserts that hostNetworking is present whenever
- *   tickNonHost is configured (online mode), so the fallback can only trigger
- *   in local play where it is correct.
+ *   `net` is REQUIRED on all tick deps interfaces. For online play, pass the
+ *   full networking context. For local play, pass LOCAL_BATTLE_START_NET or
+ *   build the net object with no-op sends and empty remote slots.
+ *   This prevents accidental omission — the compiler enforces the choice.
  */
 
 import { type BattleEvent, MESSAGE } from "../server/protocol.ts";
@@ -57,6 +52,7 @@ import {
 } from "./round-modifiers.ts";
 import {
   beginHostBattle,
+  LOCAL_BATTLE_START_NET,
   startHostBattleLifecycle,
   tickHostBalloonAnim,
   tickHostBattleCountdown,
@@ -234,7 +230,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
               );
             },
           }
-        : undefined,
+        : LOCAL_BATTLE_START_NET,
     });
   }
 

@@ -102,9 +102,8 @@ interface TickHostCannonPhaseDeps {
   controllers: PlayerController[];
   render: () => void;
   startBattle: () => void;
-  /** Network context. REQUIRED for online play — omitting silently falls back to local-play
-   *  behavior (no broadcasts, all players treated as local). */
-  net?: CannonPhaseNet;
+  /** Network context. Pass LOCAL_NET (spread with cannon-phase stubs) for local play. */
+  net: CannonPhaseNet;
 }
 
 interface TickHostBuildPhaseDeps {
@@ -128,9 +127,8 @@ interface TickHostBuildPhaseDeps {
   afterLifeLostResolved: () => boolean;
   showScoreDeltas: (onDone: () => void) => void;
   onFirstEnclosure?: (playerId: number) => void;
-  /** Network context. REQUIRED for online play — omitting silently falls back to local-play
-   *  behavior (no broadcasts, all players treated as local). */
-  net?: BuildPhaseNet;
+  /** Network context. Pass LOCAL_NET (spread with build-phase stubs) for local play. */
+  net: BuildPhaseNet;
 }
 
 /** Sentinel empty map — never mutated (dedupChanged short-circuits on empty maps). */

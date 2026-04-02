@@ -53,9 +53,8 @@ interface TickHostBattleCountdownDeps {
   controllers: BattleCapable[];
   syncCrosshairs: (canFireNow: boolean, dt: number) => void;
   render: () => void;
-  /** Network context. REQUIRED for online play — omitting silently falls back to local-play
-   *  behavior (no broadcasts, all players treated as local). */
-  net?: Pick<HostNetContext, "remoteHumanSlots">;
+  /** Network context. Pass LOCAL_NET for local play, full context for online. */
+  net: Pick<HostNetContext, "remoteHumanSlots">;
 }
 
 /** Networking context for the battle phase.
@@ -84,13 +83,11 @@ interface TickHostBattlePhaseDeps {
   };
   onBattlePhaseEnded: () => void;
   onBattleEvents?: (events: ReadonlyArray<BattleEvent>) => void;
-  /** Network context. REQUIRED for online play — omitting silently falls back to local-play
-   *  behavior (no broadcasts, all players treated as local). */
-  net?: BattlePhaseNet;
+  /** Network context. Pass LOCAL_NET (spread with sendMessage no-op) for local play. */
+  net: BattlePhaseNet;
 }
 
-/** Networking context for starting battle.
- *  Optional — when omitted, balloon flights are not broadcast. */
+/** Networking context for starting battle. */
 interface BattleStartNet {
   isHost: boolean;
   sendBattleStart: (flights: readonly BalloonFlight[]) => void;
@@ -109,9 +106,8 @@ interface StartHostBattleLifecycleDeps {
   nextPhase: (state: GameState) => void;
   setModeBalloonAnim: () => void;
   beginBattle: () => void;
-  /** Network context. REQUIRED for online play — omitting silently falls back to local-play
-   *  behavior (no broadcasts, balloon flights not sent to peers). */
-  net?: BattleStartNet;
+  /** Network context. Pass LOCAL_BATTLE_START_NET for local play. */
+  net: BattleStartNet;
 }
 
 interface TickHostBalloonAnimDeps {
@@ -134,10 +130,15 @@ interface BeginHostBattleDeps {
   accum: { battle: number };
   battleCountdown: number;
   setModeGame: () => void;
-  /** Network context. REQUIRED for online play — omitting silently falls back to local-play
-   *  behavior (no broadcasts, all players treated as local). */
-  net?: BattleBeginNet;
+  /** Network context. Pass LOCAL_NET (spread with watcherTiming/now stubs) for local play. */
+  net: BattleBeginNet;
 }
+
+/** Local-play stub for BattleStartNet. No-op broadcast, always host. */
+export const LOCAL_BATTLE_START_NET: BattleStartNet = {
+  isHost: true,
+  sendBattleStart: () => {},
+};
 
 export function tickHostBattleCountdown(
   deps: TickHostBattleCountdownDeps,
