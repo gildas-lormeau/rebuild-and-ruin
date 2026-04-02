@@ -43,7 +43,7 @@ type CannonCandidate = { row: number; col: number; score: number };
 const CENTROID_TOWER_PROBABILITY = 2 / 3;
 /** Tiles from map edge before border penalty kicks in. */
 const BORDER_DISTANCE_THRESHOLD = 2;
-/** Score penalty per edge-proximity tier (lower = worse placement). */
+/** Score penalty per edge-proximity tier. */
 const BORDER_PENALTY_MULTIPLIER = 10;
 /** How far (in tiles) to scan for nearby water around each cannon tile. */
 const WATER_SEARCH_RANGE = 2;
@@ -207,7 +207,7 @@ function findBestNormalCannonPosition(
   towerCenters: readonly TilePos[],
 ): TilePos | null {
   let bestPosition: TilePos | null = null;
-  let bestScore = Infinity;
+  let bestScore = -Infinity;
   for (const key of getInterior(player)) {
     const { r, c } = unpackTile(key);
     if (!canPlaceCannon(player, r, c, CannonMode.NORMAL, state)) continue;
@@ -221,7 +221,7 @@ function findBestNormalCannonPosition(
       noiseScale,
       towerCenters,
     );
-    if (score < bestScore) {
+    if (score > bestScore) {
       bestScore = score;
       bestPosition = { row: r, col: c };
     }
@@ -281,12 +281,12 @@ function collectCannonCandidates(
       ),
     });
   }
-  candidates.sort((a, b) => a.score - b.score);
+  candidates.sort((a, b) => b.score - a.score);
   return candidates;
 }
 
 /**
- * Score a cannon placement position. Lower = better.
+ * Score a cannon placement position. Higher = better (same convention as build scoring).
  * Penalizes: proximity to map edges, proximity to water, wasted interior tiles.
  */
 function scoreCannonPosition(
@@ -346,7 +346,7 @@ function scoreCannonPosition(
 
   score += rng.next() * SCORE_NOISE_RANGE * noiseScale;
 
-  return score;
+  return -score;
 }
 
 function scoreCannonTileLocalPenalty(
