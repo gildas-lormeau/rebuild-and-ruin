@@ -93,12 +93,20 @@ function lockGruntTarget(state: GameState, grunt: Grunt): void {
   const gruntZone = state.map.zones[grunt.row]?.[grunt.col] ?? -1;
   const frozenActive = state.frozenTiles !== null;
 
+  // Zones owned by eliminated players — never target their towers
+  const deadZones = new Set(
+    state.players
+      .filter((pl) => pl.eliminated && pl.homeTower)
+      .map((pl) => pl.homeTower!.zone),
+  );
+
   let bestDist = Infinity;
   let bestIdx: number | null = null;
 
   for (let i = 0; i < state.map.towers.length; i++) {
     const tower = state.map.towers[i]!;
     if (!state.towerAlive[i]) continue;
+    if (deadZones.has(tower.zone)) continue;
     // Frozen river: flee to enemy territory (skip own zone)
     // Normal: stay in own zone
     if (frozenActive ? tower.zone === gruntZone : tower.zone !== gruntZone)
@@ -115,6 +123,7 @@ function lockGruntTarget(state: GameState, grunt: Grunt): void {
     for (let i = 0; i < state.map.towers.length; i++) {
       const tower = state.map.towers[i]!;
       if (!state.towerAlive[i]) continue;
+      if (deadZones.has(tower.zone)) continue;
       if (tower.zone !== gruntZone) continue;
       const dist = distanceToTower(tower, grunt.row, grunt.col);
       if (dist < bestDist) {
