@@ -98,42 +98,12 @@ export function getCountdownAnnouncement(
   return undefined;
 }
 
-/**
- * Fire a cannonball from a player's cannon toward a target tile (row, col).
- */
-export function fireCannon(
-  state: GameState,
-  playerId: number,
-  cannonIdx: number,
-  targetRow: number,
-  targetCol: number,
-): boolean {
-  if (state.players[playerId]?.eliminated) return false;
-  if (!canFireOwnCannon(state, playerId, cannonIdx)) return false;
-  const cannon = state.players[playerId]!.cannons[cannonIdx]!;
-  launchCannonball(state, cannon, cannonIdx, playerId, targetRow, targetCol);
-  state.shotsFired++;
-  return true;
-}
-
 /** Whether a player has a cannon ready to fire or a cannonball in flight. */
 export function canPlayerFire(state: GameState, playerId: number): boolean {
   if (nextReadyCombined(state, playerId)) return true;
   return state.cannonballs.some(
     (b) => b.playerId === playerId || b.scoringPlayerId === playerId,
   );
-}
-
-/**
- * Fire a single captured cannon at a target tile. Returns true if fired.
- */
-export function fireSingleCaptured(
-  state: GameState,
-  cc: CapturedCannon,
-  targetRow: number,
-  targetCol: number,
-): boolean {
-  return fireCapturedCannon(state, cc, targetRow, targetCol);
 }
 
 /** Point all of a player's live cannons toward a crosshair position (pixels).
@@ -529,6 +499,47 @@ export function collectLocalCrosshairs<
 }
 
 /**
+ * Fire the next ready cannon in round-robin order and return the result.
+ * Combines nextReadyCombined lookup + fire dispatch into a single call.
+ * @param rotationIdx — current round-robin position (null = start from 0)
+ * @returns fired result with updated rotation index, or null if no cannon ready.
+ */
+export function fireNextReadyCannon(
+  state: GameState,
+  playerId: number,
+  rotationIdx: number | null,
+  targetRow: number,
+  targetCol: number,
+): { result: CombinedCannonResult; rotationIdx: number } | null {
+  const result = nextReadyCombined(state, playerId, rotationIdx);
+  if (!result) return null;
+  if (result.type === "own") {
+    fireCannon(state, playerId, result.ownIdx, targetRow, targetCol);
+  } else {
+    fireSingleCaptured(state, result.cc, targetRow, targetCol);
+  }
+  return { result, rotationIdx: result.combinedIdx };
+}
+
+/**
+ * Fire a cannonball from a player's cannon toward a target tile (row, col).
+ */
+export function fireCannon(
+  state: GameState,
+  playerId: number,
+  cannonIdx: number,
+  targetRow: number,
+  targetCol: number,
+): boolean {
+  if (state.players[playerId]?.eliminated) return false;
+  if (!canFireOwnCannon(state, playerId, cannonIdx)) return false;
+  const cannon = state.players[playerId]!.cannons[cannonIdx]!;
+  launchCannonball(state, cannon, cannonIdx, playerId, targetRow, targetCol);
+  state.shotsFired++;
+  return true;
+}
+
+/**
  * Round-robin through own cannons + captured cannons (captured appended at end).
  * Returns the next ready cannon after `after` in the combined index space, or null.
  */
@@ -589,6 +600,18 @@ export function canFireOwnCannon(
   return !state.cannonballs.some(
     (b) => b.playerId === playerId && b.cannonIdx === cannonIdx,
   );
+}
+
+/**
+ * Fire a single captured cannon at a target tile. Returns true if fired.
+ */
+function fireSingleCaptured(
+  state: GameState,
+  cc: CapturedCannon,
+  targetRow: number,
+  targetCol: number,
+): boolean {
+  return fireCapturedCannon(state, cc, targetRow, targetCol);
 }
 
 /** The player who gets credit for this cannonball's effects.

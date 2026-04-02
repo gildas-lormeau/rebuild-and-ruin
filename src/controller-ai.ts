@@ -223,8 +223,6 @@ export class AiController extends BaseController implements AiAnimatable {
     this.strategy.onLifeLost();
   }
 
-  endBattle(): void {}
-
   override reset(): void {
     super.reset();
     resetSelectionPhase(this.selectionPhase);
@@ -233,8 +231,6 @@ export class AiController extends BaseController implements AiAnimatable {
     resetBattlePhase(this._battlePhase);
     this.strategy.onLifeLost();
   }
-
-  startCannonPhase(): void {}
 
   // -----------------------------------------------------------------------
   // Movement helpers

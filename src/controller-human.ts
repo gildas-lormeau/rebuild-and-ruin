@@ -347,7 +347,7 @@ export class HumanController extends BaseController implements InputReceiver {
    *  Called via finalizeCannonPhase() which guarantees flush→init order. */
   flushCannons(_state: GameState, _maxSlots: number): void {}
 
-  endBattle(): void {
+  override endBattle(): void {
     this.heldActions.clear();
   }
 
@@ -356,10 +356,6 @@ export class HumanController extends BaseController implements InputReceiver {
     this.cannonPlaceMode = CannonMode.NORMAL;
     this.heldActions.clear();
     this.shouldSnapCannonCursorNextTick = false;
-  }
-
-  startCannonPhase(_state: GameState): void {
-    // cannon cursor is set by the game in phase-setup
   }
 
   /** Reset state for new game. */

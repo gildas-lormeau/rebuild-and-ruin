@@ -234,6 +234,11 @@ export function nextPiece(bag: BagState): PieceShape {
   return normalizeOrientation(bag.queue.pop()!);
 }
 
+/** Check if two pieces have the same shape (ignoring position). */
+export function sameShape(a: PieceShape, b: PieceShape): boolean {
+  return pieceKey(a) === pieceKey(b);
+}
+
 /** Ensure the piece is oriented with its longest side horizontal. */
 function normalizeOrientation(piece: PieceShape): PieceShape {
   if (hasPortraitOrientation(piece)) {
@@ -256,6 +261,17 @@ export function rotateCW(piece: PieceShape): PieceShape {
     height: piece.width,
     pivot: [piece.pivot[1], h - 1 - piece.pivot[0]],
   };
+}
+
+/** Normalized key for a piece shape (origin-independent). */
+function pieceKey(pieceShape: PieceShape): string {
+  const minR = Math.min(...pieceShape.offsets.map((offset) => offset[0]));
+  const minC = Math.min(...pieceShape.offsets.map((offset) => offset[1]));
+  return [...pieceShape.offsets]
+    .map(([r, c]) => [r - minR, c - minC] as [number, number])
+    .sort((a, b) => a[0] - b[0] || a[1] - b[1])
+    .map((offset) => `${offset[0]},${offset[1]}`)
+    .join(";");
 }
 
 function hasPortraitOrientation(piece: PieceShape): boolean {

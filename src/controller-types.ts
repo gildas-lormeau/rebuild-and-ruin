@@ -5,12 +5,8 @@
  * implementation that depends on battle-system, pieces, spatial, etc.
  */
 
-import { autoPlaceCannonsBalanced } from "./ai-strategy.ts";
-import {
-  fireCannon,
-  fireSingleCaptured,
-  nextReadyCombined,
-} from "./battle-system.ts";
+import { fireNextReadyCannon } from "./battle-system.ts";
+import { autoPlaceRound1Cannons } from "./cannon-system.ts";
 import type {
   CannonPlacementPreview,
   PiecePlacementPreview,
@@ -27,12 +23,7 @@ import {
 } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
 import { pxToTile, towerCenter } from "./spatial.ts";
-import {
-  Action,
-  type CombinedCannonResult,
-  type GameState,
-  isPlayerAlive,
-} from "./types.ts";
+import { Action, type CombinedCannonResult, type GameState } from "./types.ts";
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
 const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
@@ -46,7 +37,6 @@ const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
  *
  *  Naming: public methods use imperative verbs (startBuildPhase, finalizeBuildPhase).
  *  Protected hooks use on*() prefix (onStartBuildPhase, onFinalizeBuildPhase).
- *  Abstract methods (startCannonPhase) have no hook — subclasses override directly.
  *  When adding a new public lifecycle method, add a corresponding protected hook. */
 export abstract class BaseController implements PlayerController {
   readonly playerId: number;
@@ -195,13 +185,10 @@ export abstract class BaseController implements PlayerController {
    *  Contrast with initBuildPhase which is private — it's an internal step of
    *  the startBuildPhase template method and never called externally. */
   initCannons(state: GameState, maxSlots: number): void {
-    if (state.round !== 1) return;
-    const player = state.players[this.playerId];
-    if (!isPlayerAlive(player) || player.cannons.length > 0) return;
-    autoPlaceCannonsBalanced(player, maxSlots, state);
+    autoPlaceRound1Cannons(state, this.playerId, maxSlots);
   }
-  /** Called at the end of the battle phase (e.g. clear AI fire targets). */
-  abstract endBattle(): void;
+  /** Called at the end of the battle phase (e.g. clear held input actions). */
+  endBattle(): void {}
   onLifeLost(): void {
     this.cannonRotationIdx = null;
     this.bag = null;
@@ -218,8 +205,8 @@ export abstract class BaseController implements PlayerController {
     this.bag = null;
     this.currentPiece = null;
   }
-  /** Called at start of cannon phase. Should reset cannon cursor and mode. */
-  abstract startCannonPhase(state: GameState): void;
+  /** Called at start of cannon phase. Override to reset cannon cursor/mode. */
+  startCannonPhase(_state: GameState): void {}
 
   /** Base returns false (human never auto-confirms — confirmation is driven by UI).
    *  AI overrides to return true after its selection animation completes. */
@@ -304,18 +291,15 @@ export abstract class BaseController implements PlayerController {
     targetRow: number,
     targetCol: number,
   ): CombinedCannonResult | null {
-    const result = nextReadyCombined(
+    const fired = fireNextReadyCannon(
       state,
       this.playerId,
       this.cannonRotationIdx,
+      targetRow,
+      targetCol,
     );
-    if (!result) return null;
-    this.cannonRotationIdx = result.combinedIdx;
-    if (result.type === "own") {
-      fireCannon(state, this.playerId, result.ownIdx, targetRow, targetCol);
-    } else {
-      fireSingleCaptured(state, result.cc, targetRow, targetCol);
-    }
-    return result;
+    if (!fired) return null;
+    this.cannonRotationIdx = fired.rotationIdx;
+    return fired.result;
   }
 }

@@ -12,7 +12,7 @@ import { canPlacePiece, placePiece } from "./build-system.ts";
 import type { PiecePlacementPreview } from "./controller-interfaces.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
-import { type PieceShape, rotateCW } from "./pieces.ts";
+import { type PieceShape, rotateCW, sameShape } from "./pieces.ts";
 import { towerCenter } from "./spatial.ts";
 import { type GameState, isPlayerAlive } from "./types.ts";
 
@@ -365,20 +365,4 @@ function computeNextPlacement(
   return result
     ? { piece: result.piece, row: result.row, col: result.col }
     : null;
-}
-
-/** Check if two pieces have the same shape (ignoring position). */
-function sameShape(a: PieceShape, b: PieceShape): boolean {
-  return pieceKey(a) === pieceKey(b);
-}
-
-/** Normalized key for a piece shape (origin-independent). */
-function pieceKey(pieceShape: PieceShape): string {
-  const minR = Math.min(...pieceShape.offsets.map((offset) => offset[0]));
-  const minC = Math.min(...pieceShape.offsets.map((offset) => offset[1]));
-  return [...pieceShape.offsets]
-    .map(([r, c]) => [r - minR, c - minC] as [number, number])
-    .sort((a, b) => a[0] - b[0] || a[1] - b[1])
-    .map((offset) => `${offset[0]},${offset[1]}`)
-    .join(";");
 }

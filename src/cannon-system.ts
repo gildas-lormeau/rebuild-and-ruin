@@ -32,6 +32,7 @@ import type { Cannon, GameState, Player } from "./types.ts";
 import {
   CannonMode,
   isBalloonMode,
+  isPlayerAlive,
   isPlayerSeated,
   isSuperMode,
 } from "./types.ts";
@@ -108,6 +109,138 @@ export function findNearestValidCannonPlacement(
   return best;
 }
 
+/**
+ * Compute the total cannon slot limit for a player this round.
+ * Three paths: reselection (fixed budget based on lives lost),
+ * round 1 (firstRoundCannons), or normal (tower-based: 2 for home + 1 per other).
+ */
+export function cannonSlotsForRound(player: Player, state: GameState): number {
+  const existingSlots = cannonSlotsUsed(player);
+  let newSlots: number;
+  if (state.reselectedPlayers.has(player.id)) {
+    // Reselection: compensate for lives lost, capped at MAX_CANNON_LIMIT_ON_RESELECT
+    newSlots = Math.min(
+      state.firstRoundCannons + (STARTING_LIVES - player.lives),
+      MAX_CANNON_LIMIT_ON_RESELECT,
+    );
+  } else if (state.round === 1) {
+    newSlots = state.firstRoundCannons;
+  } else {
+    const aliveTowers = filterAliveOwnedTowers(player, state);
+    const ownsHome =
+      player.homeTower &&
+      aliveTowers.some((tower) => tower === player.homeTower);
+    const otherCount = aliveTowers.length - (ownsHome ? 1 : 0);
+    newSlots = (ownsHome ? 2 : 0) + otherCount;
+  }
+  return existingSlots + newSlots;
+}
+
+/**
+ * Reset cannon facings to point toward the average enemy position.
+ * Convenience wrapper: computes defaultFacing + applies to all cannons.
+ * Call at the start of the build phase and in online checkpoints.
+ */
+export function resetCannonFacings(state: GameState): void {
+  computeDefaultFacings(state);
+  applyDefaultFacings(state);
+}
+
+/**
+ * Compute each player's defaultFacing toward the average enemy position.
+ * Does NOT update existing cannon facings — call resetCannonFacings or
+ * applyDefaultFacings for that.  Separated so that new cannons placed by
+ * AI controllers pick up the right defaultFacing before the banner
+ * captures old cannon facings for the old-scene overlay.
+ */
+export function computeDefaultFacings(state: GameState): void {
+  for (const player of state.players) {
+    if (!isPlayerSeated(player)) continue;
+    const pc = towerCenter(player.homeTower);
+    let ex = 0,
+      ey = 0,
+      count = 0;
+    for (const other of state.players) {
+      if (other.id === player.id || !isPlayerSeated(other)) continue;
+      const oc = towerCenter(other.homeTower);
+      ex += oc.col;
+      ey += oc.row;
+      count++;
+    }
+    if (count > 0) {
+      const avgEx = ex / count;
+      const avgEy = ey / count;
+      const dx = avgEx - pc.col;
+      const dy = avgEy - pc.row;
+      player.defaultFacing = snapAngle(Math.atan2(dx, -dy), FACING_90_STEP);
+    } else {
+      player.defaultFacing = 0;
+    }
+  }
+}
+
+/** Apply each player's defaultFacing to all their existing cannons. */
+export function applyDefaultFacings(state: GameState): void {
+  for (const player of state.players) {
+    if (!isPlayerSeated(player)) continue;
+    for (const cannon of player.cannons) {
+      cannon.facing = player.defaultFacing;
+    }
+  }
+}
+
+/** Return a player's alive cannons that can fire (excludes balloons and dead cannons). */
+export function filterActiveFiringCannons(player: Player): Cannon[] {
+  return player.cannons.filter((c) => isCannonAlive(c) && !isBalloonCannon(c));
+}
+
+/** Auto-place normal cannons for round-1 if none were placed.
+ *  Safety net — ensures every player starts with cannons even if they
+ *  skipped placement. Picks evenly spaced valid interior positions. */
+export function autoPlaceRound1Cannons(
+  state: GameState,
+  playerId: number,
+  maxSlots: number,
+): void {
+  if (state.round !== 1) return;
+  const player = state.players[playerId];
+  if (!isPlayerAlive(player) || player.cannons.length > 0) return;
+
+  const interior = getInterior(player);
+  const candidates: { row: number; col: number }[] = [];
+  for (const key of interior) {
+    const { r, c } = unpackTile(key);
+    if (canPlaceCannon(player, r, c, CannonMode.NORMAL, state)) {
+      candidates.push({ row: r, col: c });
+    }
+  }
+  if (candidates.length === 0) return;
+
+  // Evenly space placements across candidates for spread
+  const needed = maxSlots - cannonSlotsUsed(player);
+  const stride = Math.max(
+    1,
+    Math.floor(candidates.length / Math.max(1, needed)),
+  );
+  for (
+    let i = 0;
+    i < candidates.length && cannonSlotsUsed(player) < maxSlots;
+    i += stride
+  ) {
+    const pos = candidates[i]!;
+    placeCannon(player, pos.row, pos.col, maxSlots, CannonMode.NORMAL, state);
+  }
+  // Fill remaining slots from any skipped candidates
+  for (
+    let i = 0;
+    i < candidates.length && cannonSlotsUsed(player) < maxSlots;
+    i++
+  ) {
+    const pos = candidates[i]!;
+    placeCannon(player, pos.row, pos.col, maxSlots, CannonMode.NORMAL, state);
+  }
+}
+
 /** Validate + apply cannon placement. Returns true if placed. */
 export function placeCannon(
   player: Player,
@@ -179,33 +312,6 @@ export function applyCannonPlacement(
   });
 }
 
-/**
- * Compute the total cannon slot limit for a player this round.
- * Three paths: reselection (fixed budget based on lives lost),
- * round 1 (firstRoundCannons), or normal (tower-based: 2 for home + 1 per other).
- */
-export function cannonSlotsForRound(player: Player, state: GameState): number {
-  const existingSlots = cannonSlotsUsed(player);
-  let newSlots: number;
-  if (state.reselectedPlayers.has(player.id)) {
-    // Reselection: compensate for lives lost, capped at MAX_CANNON_LIMIT_ON_RESELECT
-    newSlots = Math.min(
-      state.firstRoundCannons + (STARTING_LIVES - player.lives),
-      MAX_CANNON_LIMIT_ON_RESELECT,
-    );
-  } else if (state.round === 1) {
-    newSlots = state.firstRoundCannons;
-  } else {
-    const aliveTowers = filterAliveOwnedTowers(player, state);
-    const ownsHome =
-      player.homeTower &&
-      aliveTowers.some((tower) => tower === player.homeTower);
-    const otherCount = aliveTowers.length - (ownsHome ? 1 : 0);
-    newSlots = (ownsHome ? 2 : 0) + otherCount;
-  }
-  return existingSlots + newSlots;
-}
-
 /** Count how many cannon slots are used by a player. Normal = 1, super = SUPER_GUN_COST, balloon = BALLOON_COST. */
 export function cannonSlotsUsed(player: Player): number {
   let slots = 0;
@@ -214,64 +320,6 @@ export function cannonSlotsUsed(player: Player): number {
     slots += cannonSlotCost(cannon.mode);
   }
   return slots;
-}
-
-/**
- * Reset cannon facings to point toward the average enemy position.
- * Convenience wrapper: computes defaultFacing + applies to all cannons.
- * Call at the start of the build phase and in online checkpoints.
- */
-export function resetCannonFacings(state: GameState): void {
-  computeDefaultFacings(state);
-  applyDefaultFacings(state);
-}
-
-/**
- * Compute each player's defaultFacing toward the average enemy position.
- * Does NOT update existing cannon facings — call resetCannonFacings or
- * applyDefaultFacings for that.  Separated so that new cannons placed by
- * AI controllers pick up the right defaultFacing before the banner
- * captures old cannon facings for the old-scene overlay.
- */
-export function computeDefaultFacings(state: GameState): void {
-  for (const player of state.players) {
-    if (!isPlayerSeated(player)) continue;
-    const pc = towerCenter(player.homeTower);
-    let ex = 0,
-      ey = 0,
-      count = 0;
-    for (const other of state.players) {
-      if (other.id === player.id || !isPlayerSeated(other)) continue;
-      const oc = towerCenter(other.homeTower);
-      ex += oc.col;
-      ey += oc.row;
-      count++;
-    }
-    if (count > 0) {
-      const avgEx = ex / count;
-      const avgEy = ey / count;
-      const dx = avgEx - pc.col;
-      const dy = avgEy - pc.row;
-      player.defaultFacing = snapAngle(Math.atan2(dx, -dy), FACING_90_STEP);
-    } else {
-      player.defaultFacing = 0;
-    }
-  }
-}
-
-/** Apply each player's defaultFacing to all their existing cannons. */
-export function applyDefaultFacings(state: GameState): void {
-  for (const player of state.players) {
-    if (!isPlayerSeated(player)) continue;
-    for (const cannon of player.cannons) {
-      cannon.facing = player.defaultFacing;
-    }
-  }
-}
-
-/** Return a player's alive cannons that can fire (excludes balloons and dead cannons). */
-export function filterActiveFiringCannons(player: Player): Cannon[] {
-  return player.cannons.filter((c) => isCannonAlive(c) && !isBalloonCannon(c));
 }
 
 export function cannonSlotCost(mode: CannonMode): number {

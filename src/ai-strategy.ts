@@ -35,7 +35,7 @@ import type {
   Tower,
 } from "./geometry-types.ts";
 import type { PieceShape } from "./pieces.ts";
-import { MAX_UINT32, Rng } from "./rng.ts";
+import { Rng } from "./rng.ts";
 import { computeOutside, isTowerEnclosed, waterKeys } from "./spatial.ts";
 import {
   brandFreshInterior,
@@ -529,16 +529,6 @@ export class DefaultStrategy implements AiStrategy {
     this.onLifeLost();
     this.shotCounts = new WeakMap();
   }
-}
-
-/** Auto-place cannons directly on the player at scored positions inside their castle.
- *  Uses balanced traits (no personality variance) for deterministic fallback behavior. */
-export function autoPlaceCannonsBalanced(
-  player: Player,
-  count: number,
-  state: GameState,
-): void {
-  autoPlaceCannons(player, count, state, new Rng(state.rng.int(0, MAX_UINT32)));
 }
 
 /** Standalone pickPlacement wrapper for headless tests / external callers. */
