@@ -6,6 +6,7 @@
  * No runtime or rendering dependencies.
  */
 
+import { GAME_MODE_MODERN } from "./game-constants.ts";
 import type {
   GameState,
   UpgradePickDialogState,
@@ -116,7 +117,7 @@ export function applyUpgradePicks(
 export function generateUpgradeOffers(
   state: GameState,
 ): Map<number, [UpgradeId, UpgradeId, UpgradeId]> | null {
-  if (state.gameMode !== "modern") return null;
+  if (state.gameMode !== GAME_MODE_MODERN) return null;
   if (state.round < UPGRADE_FIRST_ROUND) return null;
 
   const offers = new Map<number, [UpgradeId, UpgradeId, UpgradeId]>();

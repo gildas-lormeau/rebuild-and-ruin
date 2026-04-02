@@ -551,13 +551,17 @@ export function drawPlayerSelect(
 
     const cx = rx + rectW / 2;
     const touch = IS_TOUCH_DEVICE;
-    overlayCtx.font = touch ? FONT_HEADING : FONT_BODY;
-    overlayCtx.fillStyle = rgb(c);
-    overlayCtx.fillText(player.name, cx, rectY + (touch ? 34 : 30));
-    const btnW = rectW - (touch ? 12 : 16);
+    const nameFont = touch ? FONT_HEADING : FONT_BODY;
+    const nameY = touch ? 34 : 30;
+    const btnMarginX = touch ? 6 : 8;
+    const btnMarginBottom = touch ? 8 : 12;
+    const btnW = rectW - btnMarginX * 2;
     const btnH = touch ? 36 : 24;
-    const btnX = rx + (touch ? 6 : 8);
-    const btnY = rectY + rectH - btnH - (touch ? 8 : 12);
+    const btnX = rx + btnMarginX;
+    const btnY = rectY + rectH - btnH - btnMarginBottom;
+    overlayCtx.font = nameFont;
+    overlayCtx.fillStyle = rgb(c);
+    overlayCtx.fillText(player.name, cx, rectY + nameY);
 
     if (player.joined) {
       drawButton(

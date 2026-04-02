@@ -75,6 +75,8 @@ const CANNON_ROTATE_SPEED = Math.PI * 3;
  *    > 3s → "Ready"   |   1–3s → "Aim"   |   ≤ 1s → "FIRE!" */
 const COUNTDOWN_READY = 3;
 const COUNTDOWN_AIM = 1;
+/** Cannonball speed multiplier when the Rapid Fire upgrade is active. */
+const RAPID_FIRE_SPEED_MULT = 2;
 
 /** Map battleCountdown to the corresponding announcement text. */
 export function getCountdownAnnouncement(
@@ -565,7 +567,9 @@ function launchCannonball(
     targetY: tY,
     speed:
       BALL_SPEED *
-      (state.players[playerId]?.upgrades.get(UID.RAPID_FIRE) ? 2 : 1),
+      (state.players[playerId]?.upgrades.get(UID.RAPID_FIRE)
+        ? RAPID_FIRE_SPEED_MULT
+        : 1),
     playerId,
     scoringPlayerId,
     incendiary: isSuperCannon(cannon) ? true : undefined,

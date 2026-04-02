@@ -70,6 +70,10 @@ const GRUNT_SURGE_MIN = 8;
 const GRUNT_SURGE_MAX = 12;
 /** Spine length for wildfire scar (fattened neighbors bring total to ~10). */
 const WILDFIRE_SPINE_LENGTH = 4;
+/** Wildfire: probability the fire continues in its main direction (vs random). */
+const WILDFIRE_MAIN_DIR_BIAS = 0.7;
+/** Wildfire: probability each spine-neighbor tile catches fire during fattening. */
+const WILDFIRE_FATTEN_CHANCE = 0.35;
 /** Crumbling walls: fraction of outer walls destroyed. */
 const CRUMBLE_FRACTION = 0.18;
 const CRUMBLE_MIN = 3;
@@ -170,7 +174,7 @@ export function applyWildfire(state: GameState): void {
   let attempts = 0;
   while (spine.length < WILDFIRE_SPINE_LENGTH && attempts++ < maxAttempts) {
     // 70% chance to keep the main direction — produces a clear line
-    const dirIdx = state.rng.bool(0.7)
+    const dirIdx = state.rng.bool(WILDFIRE_MAIN_DIR_BIAS)
       ? mainDir
       : state.rng.int(0, DIRS_4.length - 1);
     const [dr, dc] = DIRS_4[dirIdx]!;
@@ -196,7 +200,7 @@ export function applyWildfire(state: GameState): void {
       const nc = tile.col + dc;
       if (scar.has(packTile(nr, nc))) continue;
       if (!canBurn(nr, nc)) continue;
-      if (state.rng.bool(0.35)) {
+      if (state.rng.bool(WILDFIRE_FATTEN_CHANCE)) {
         scar.add(packTile(nr, nc));
       }
     }
