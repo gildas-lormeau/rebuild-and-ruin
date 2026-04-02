@@ -14,7 +14,7 @@ import {
   applyUpgradePicks,
   createUpgradePickDialog,
   tickUpgradePickDialog,
-  UPGRADE_PICK_AI_DELAY,
+  UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
 } from "./upgrade-pick.ts";
 
@@ -78,7 +78,7 @@ export function createUpgradePickSystem(
     const allResolved = tickUpgradePickDialog(
       dialog,
       dt,
-      UPGRADE_PICK_AI_DELAY,
+      UPGRADE_PICK_AUTO_DELAY,
       UPGRADE_PICK_MAX_TIMER,
       runtimeState.state,
     );

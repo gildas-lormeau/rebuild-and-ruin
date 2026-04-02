@@ -46,6 +46,7 @@ import type { PlayerController } from "./controller-interfaces.ts";
 import {
   BATTLE_TIMER,
   FIRST_GRUNT_SPAWN_ROUND,
+  GAME_MODE_MODERN,
   INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
   INTERBATTLE_GRUNT_SPAWN_CHANCE,
   MID,
@@ -74,13 +75,16 @@ import {
   Phase,
   type Player,
 } from "./types.ts";
-import { UID } from "./upgrade-defs.ts";
-import { generateUpgradeOffers } from "./upgrade-pick.ts";
+import { IMPLEMENTED_UPGRADES, UID, type UpgradeId } from "./upgrade-defs.ts";
 
 /** Grunts spawned per player on first battle when nobody fires. */
 const IDLE_FIRST_BATTLE_GRUNTS = 2;
 /** Extra build seconds per Master Builder upgrade stack. */
 const MASTER_BUILDER_BONUS = 5;
+/** Number of upgrade choices offered per pick. */
+const OFFER_COUNT = 3;
+/** First round that triggers upgrade picks (modern mode). */
+const UPGRADE_FIRST_ROUND = 3;
 
 /** Rebuild a player's home castle from scratch (used when continuing after losing a life). */
 export function rebuildHomeCastle(state: GameState, player: Player): void {
@@ -320,6 +324,23 @@ export function setPhase(state: GameState, phase: Phase): void {
   state.phase = phase;
 }
 
+/** Generate upgrade offers for all alive players. Uses state.rng for determinism.
+ *  Called from enterBuildFromBattle so the RNG is consumed before the
+ *  BUILD_START checkpoint is sent. Returns null if not applicable. */
+export function generateUpgradeOffers(
+  state: GameState,
+): Map<number, [UpgradeId, UpgradeId, UpgradeId]> | null {
+  if (state.gameMode !== GAME_MODE_MODERN) return null;
+  if (state.round < UPGRADE_FIRST_ROUND) return null;
+
+  const offers = new Map<number, [UpgradeId, UpgradeId, UpgradeId]>();
+  for (const player of state.players) {
+    if (player.eliminated || !player.homeTower) continue;
+    offers.set(player.id, drawOffers(state));
+  }
+  return offers.size > 0 ? offers : null;
+}
+
 function sweepAllPlayersWalls(state: GameState): void {
   for (const player of state.players) {
     sweepIsolatedWalls(player);
@@ -454,4 +475,27 @@ export function prepareCastleWallsForPlayer(
     state.rng,
   );
   return { playerId: player.id, tiles: ordered };
+}
+
+/** Draw N unique upgrades from the implemented pool using state.rng. */
+function drawOffers(state: GameState): [UpgradeId, UpgradeId, UpgradeId] {
+  const pool = [...IMPLEMENTED_UPGRADES];
+  const picked: UpgradeId[] = [];
+
+  for (let i = 0; i < OFFER_COUNT && pool.length > 0; i++) {
+    const totalWeight = pool.reduce((sum, def) => sum + def.weight, 0);
+    let roll = state.rng.next() * totalWeight;
+    let chosenIdx = pool.length - 1;
+    for (let ci = 0; ci < pool.length; ci++) {
+      roll -= pool[ci]!.weight;
+      if (roll <= 0) {
+        chosenIdx = ci;
+        break;
+      }
+    }
+    picked.push(pool[chosenIdx]!.id);
+    pool.splice(chosenIdx, 1);
+  }
+
+  return picked as [UpgradeId, UpgradeId, UpgradeId];
 }

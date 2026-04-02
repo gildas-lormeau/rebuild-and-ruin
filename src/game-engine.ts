@@ -39,6 +39,14 @@ import {
 } from "./types.ts";
 import { assertNever } from "./utils.ts";
 
+interface ResolveAfterLifeLostDeps {
+  state: GameState;
+  continuing: readonly number[];
+  onGameOver: (winner: { id: number }) => void;
+  onReselect: (continuing: readonly number[]) => void;
+  onContinue: () => void;
+}
+
 /** Create a game from a seed: generate map, pick zones, create state.
  *  Pass an existing map to reuse it (avoids regeneration + keeps terrain cache warm). */
 export function createGameFromSeed(
@@ -167,4 +175,39 @@ export function nextPhase(state: GameState): void {
 export function enterCannonPlacePhase(state: GameState): void {
   setPhase(state, Phase.CANNON_PLACE);
   state.timer = 0;
+}
+
+/** Determine the game outcome after the life-lost dialog resolves.
+ *  Checks win conditions (last player standing, round limit) and
+ *  dispatches to the appropriate callback. */
+export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
+  const { state, continuing, onGameOver, onReselect, onContinue } = deps;
+
+  const alive = state.players.filter((player) => !player.eliminated);
+  if (alive.length <= 1) {
+    const winner =
+      alive[0] ??
+      state.players.reduce((best, player) =>
+        player.score > best.score ? player : best,
+      );
+    onGameOver(winner);
+    return true;
+  }
+
+  if (state.round > state.battleLength) {
+    const winner = alive.reduce(
+      (best, player) => (player.score > best.score ? player : best),
+      alive[0]!,
+    );
+    onGameOver(winner);
+    return true;
+  }
+
+  if (continuing.length > 0) {
+    onReselect(continuing);
+    return true;
+  }
+
+  onContinue();
+  return true;
 }

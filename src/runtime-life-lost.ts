@@ -7,12 +7,12 @@
 
 import { type GameMessage, MESSAGE } from "../server/protocol.ts";
 import { isHuman } from "./controller-interfaces.ts";
-import { LIFE_LOST_AI_DELAY, LIFE_LOST_MAX_TIMER } from "./game-constants.ts";
+import { LIFE_LOST_AUTO_DELAY, LIFE_LOST_MAX_TIMER } from "./game-constants.ts";
+import { resolveAfterLifeLost } from "./game-engine.ts";
 import {
+  continuingPlayers,
   createLifeLostDialogState,
-  resolveAfterLifeLost,
-  resolveLifeLostDialogRuntime,
-  tickLifeLostDialogRuntime,
+  tickLifeLostDialog,
 } from "./life-lost.ts";
 import { eliminatePlayer } from "./phase-setup.ts";
 import { lifeLostPanelPos as lifeLostPanelPosShared } from "./render-composition.ts";
@@ -97,55 +97,53 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   }
 
   /**
-   * Tick life-lost dialog — delegates resolution to one of two paths:
+   * Tick life-lost dialog — resolution follows one of two paths:
    *
-   * - **Host**: resolveHostDialog eliminates abandoned players, then calls
-   *   afterLifeLostResolved which decides: end game, start reselection, or
-   *   advance to cannon phase.
-   * - **Non-host**: onNonHostResolved eliminates abandoned players locally and
-   *   returns to Mode.GAME, waiting for the server to drive the next phase.
-   *
-   * Both paths use eliminateAbandoned for player removal; only the host
-   * triggers downstream phase transitions.
+   * - **Host**: eliminates abandoned players, then afterLifeLostResolved
+   *   decides: end game, start reselection, or advance to cannon phase.
+   * - **Non-host**: eliminates abandoned players locally and returns to
+   *   Mode.GAME, waiting for the server to drive the next phase.
    */
-  function tickLifeLostDialog(dt: number) {
-    runtimeState.lifeLostDialog = tickLifeLostDialogRuntime({
+  function tickLifeLostDialogSystem(dt: number) {
+    const dialog = runtimeState.lifeLostDialog;
+    if (!dialog) return;
+
+    const allResolved = tickLifeLostDialog(
+      dialog,
       dt,
-      lifeLostDialog: runtimeState.lifeLostDialog,
-      lifeLostAiDelay: LIFE_LOST_AI_DELAY,
-      lifeLostMaxTimer: LIFE_LOST_MAX_TIMER,
-      isHost: runtimeState.frameCtx.isHost,
-      render: deps.render,
-      logResolved: (dialog) => {
-        deps.log(
-          `lifeLostDialog resolved: ${dialog.entries.map((e) => `P${e.playerId}=${e.choice}(ai=${e.isAi})`).join(", ")} timer=${dialog.timer.toFixed(1)}s`,
-        );
-      },
-      resolveHostDialog: (dialog) => {
-        eliminateAbandoned(dialog);
-        return resolveLifeLostDialogRuntime({
-          lifeLostDialog: dialog,
-          afterLifeLostResolved,
-        });
-      },
-      onNonHostResolved: (dialog) => {
-        eliminateAbandoned(dialog);
-        runtimeState.mode = Mode.GAME;
-      },
-    });
+      LIFE_LOST_AUTO_DELAY,
+      LIFE_LOST_MAX_TIMER,
+    );
+
+    deps.render();
+
+    if (!allResolved) return;
+
+    deps.log(
+      `lifeLostDialog resolved: ${dialog.entries.map((e) => `P${e.playerId}=${e.choice}(auto=${e.autoResolve})`).join(", ")} timer=${dialog.timer.toFixed(1)}s`,
+    );
+
+    eliminateAbandoned(dialog);
+
+    if (runtimeState.frameCtx.isHost) {
+      afterLifeLostResolved(continuingPlayers(dialog));
+    } else {
+      runtimeState.mode = Mode.GAME;
+    }
+    runtimeState.lifeLostDialog = null;
   }
 
   function afterLifeLostResolved(continuing: readonly number[] = []): boolean {
     return resolveAfterLifeLost({
       state: runtimeState.state,
       continuing,
-      onEndGame: deps.endGame,
-      onStartReselection: (players) => {
+      onGameOver: deps.endGame,
+      onReselect: (players) => {
         runtimeState.reselectQueue = [...players];
         deps.startReselection();
         runtimeState.mode = Mode.SELECTION;
       },
-      onAdvanceToCannonPhase: deps.advanceToCannonPhase,
+      onContinue: deps.advanceToCannonPhase,
     });
   }
 
@@ -197,7 +195,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       runtimeState.lifeLostDialog = dialog;
     },
     show: showLifeLostDialog,
-    tick: tickLifeLostDialog,
+    tick: tickLifeLostDialogSystem,
     afterResolved: afterLifeLostResolved,
     panelPos: lifeLostPanelPos,
     // Extra — needed by game-runtime internals

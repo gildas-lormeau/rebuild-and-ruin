@@ -13,25 +13,7 @@ import type {
 } from "./controller-interfaces.ts";
 import { KEY_UP, type KeyBindings } from "./player-config.ts";
 import { packTile } from "./spatial.ts";
-import {
-  type GameState,
-  type Impact,
-  isGameplayMode,
-  Mode,
-  Phase,
-  type Player,
-} from "./types.ts";
-
-/** Run the shared main loop tick: quit countdown, pause check, mode dispatch.
- *  Returns false if the loop should NOT reschedule (Mode.STOPPED). */
-/** Modes that have tick handlers. STOPPED is handled by early-return. */
-type TickableMode = Exclude<Mode, Mode.STOPPED>;
-
-/**
- * Tick dispatch table — mapped type forces every tickable Mode to have
- * a handler.  Adding a new Mode without a handler is a compile error.
- */
-type TickDispatch = { readonly [M in TickableMode]: (dt: number) => void };
+import { type GameState, type Impact, Phase, type Player } from "./types.ts";
 
 /** Format a key binding as a short hint string (e.g. "Arrows + N (B rotate)"). */
 export function formatKeyHint(kb: KeyBindings): string {
@@ -158,46 +140,6 @@ export function tickGameCore(params: {
   } else if (state.phase === Phase.WALL_BUILD) {
     tickBuildPhase(dt);
   }
-}
-
-export function tickMainLoop(params: {
-  readonly dt: number;
-  readonly mode: Mode;
-  readonly paused: boolean;
-  readonly quitPending: boolean;
-  readonly quitTimer: number;
-  readonly quitMessage?: string;
-  readonly frame: { announcement?: string };
-  readonly setQuitPending: (quitPending: boolean) => void;
-  readonly setQuitTimer: (quitTimer: number) => void;
-  readonly render: () => void;
-  readonly ticks: TickDispatch;
-}): boolean {
-  const { dt, mode, frame, ticks } = params;
-
-  // Tick ESC-to-quit countdown
-  if (params.quitPending) {
-    const next = params.quitTimer - dt;
-    if (next <= 0) {
-      params.setQuitPending(false);
-    } else {
-      params.setQuitTimer(next);
-      if (params.quitMessage) frame.announcement = params.quitMessage;
-    }
-  }
-
-  // Pause: keep rendering but skip all game ticks
-  if (params.paused && isGameplayMode(mode)) {
-    if (!frame.announcement) frame.announcement = "PAUSED";
-    params.render();
-    return true;
-  }
-
-  if (mode === Mode.STOPPED) return false;
-
-  ticks[mode](dt);
-
-  return true;
 }
 
 /** Process the reselection queue. Returns players still needing UI interaction.

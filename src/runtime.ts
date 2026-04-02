@@ -29,10 +29,7 @@ import {
   MAX_FRAME_DT,
   SELECT_ANNOUNCEMENT_DURATION,
 } from "./game-constants.ts";
-import {
-  snapshotTerritory as snapshotTerritoryImpl,
-  tickMainLoop,
-} from "./game-helpers.ts";
+import { snapshotTerritory as snapshotTerritoryImpl } from "./game-helpers.ts";
 import type { UIContext } from "./game-ui-screens.ts";
 import { computeGameSeed } from "./game-ui-settings.ts";
 import { createHapticsSystem } from "./haptics-system.ts";
@@ -64,6 +61,7 @@ import {
   createRuntimeState,
   isStateReady,
   safeState,
+  tickMainLoop,
 } from "./runtime-state.ts";
 import { exposeTestGlobals } from "./runtime-test-globals.ts";
 import {

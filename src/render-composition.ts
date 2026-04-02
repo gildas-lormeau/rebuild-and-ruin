@@ -92,9 +92,8 @@ export function createRenderSummaryMessage(params: {
   phaseName: string;
   timer: number;
   crosshairs: Array<{ x: number; y: number; playerId: number }>;
-  aiPhantomsCount: number;
-  humanPhantomsCount: number;
-  aiCannonPhantomsCount: number;
+  piecePhantomsCount: number;
+  cannonPhantomsCount: number;
   impactsCount: number;
   cannonballsCount: number;
   selectionHighlights?: Array<{
@@ -107,9 +106,8 @@ export function createRenderSummaryMessage(params: {
     phaseName,
     timer,
     crosshairs,
-    aiPhantomsCount,
-    humanPhantomsCount,
-    aiCannonPhantomsCount,
+    piecePhantomsCount,
+    cannonPhantomsCount,
     impactsCount,
     cannonballsCount,
     selectionHighlights,
@@ -118,8 +116,7 @@ export function createRenderSummaryMessage(params: {
   const crosshairDetail = crosshairs
     .map((c) => `P${c.playerId}(${Math.round(c.x)},${Math.round(c.y)})`)
     .join(",");
-  const phantomCount =
-    aiPhantomsCount + humanPhantomsCount + aiCannonPhantomsCount;
+  const phantomCount = piecePhantomsCount + cannonPhantomsCount;
   const selectionDetail = selectionHighlights
     ? ` sel=[${selectionHighlights.map((h) => `P${h.playerId}:T${h.towerIdx}${h.confirmed ? "✓" : ""}`).join(",")}]`
     : "";
@@ -372,10 +369,12 @@ export function createOnlineOverlay(params: {
   bannerUi?: { text: string; subtitle?: string; y: number };
   lifeLostDialog: LifeLostDialogState | null;
   upgradePickDialog: UpgradePickDialogState | null;
+  /** True when the game is in battle phase — controls which battle-specific data to include. */
+  inBattle: boolean;
   /** POV player for filtering per-player UI (combos, status bar upgrades). -1 = show all. */
   povPlayerId: number;
-  /** Index into upgrade pick entries for the local human's row (-1 = none). */
-  upgradePickHumanIdx: number;
+  /** Player ID whose upgrade pick entry accepts local input (-1 = none). */
+  upgradePickInteractiveId: number;
   playerNames: ReadonlyArray<string>;
   playerColors: ReadonlyArray<{ wall: RGB }>;
   getLifeLostPanelPos: (playerId: number) => { px: number; py: number };
@@ -387,10 +386,11 @@ export function createOnlineOverlay(params: {
     battleAnim,
     frame,
     bannerUi,
+    inBattle,
     lifeLostDialog,
     upgradePickDialog,
     povPlayerId,
-    upgradePickHumanIdx,
+    upgradePickInteractiveId,
     playerNames,
     playerColors,
     getLifeLostPanelPos,
@@ -400,13 +400,13 @@ export function createOnlineOverlay(params: {
   const battleTerritory =
     banner.active && banner.newTerritory
       ? banner.newTerritory
-      : state.phase === Phase.BATTLE
+      : inBattle
         ? battleAnim.territory
         : undefined;
   const battleWalls =
     banner.active && banner.newTerritory
       ? banner.newWalls
-      : state.phase === Phase.BATTLE
+      : inBattle
         ? battleAnim.walls
         : undefined;
 
@@ -426,18 +426,15 @@ export function createOnlineOverlay(params: {
       inBattle: !!battleTerritory,
       battleTerritory,
       battleWalls,
-      cannonballs: buildBattleCannonballsPayload(
-        state.phase === Phase.BATTLE,
-        state.cannonballs,
-      ),
-      impacts: state.phase === Phase.BATTLE ? battleAnim.impacts : undefined,
-      crosshairs: state.phase === Phase.BATTLE ? frame.crosshairs : undefined,
+      cannonballs: buildBattleCannonballsPayload(inBattle, state.cannonballs),
+      impacts: inBattle ? battleAnim.impacts : undefined,
+      crosshairs: inBattle ? frame.crosshairs : undefined,
       balloons: buildBattleBalloonsPayload(battleAnim.flights),
     },
     phantoms: frame.phantoms,
     ui: {
       timer:
-        state.phase !== Phase.BATTLE && !banner.active && state.timer > 0
+        !inBattle && !banner.active && state.timer > 0
           ? state.timer
           : undefined,
       banner: bannerUi,
@@ -462,7 +459,7 @@ export function createOnlineOverlay(params: {
             ),
       upgradePick: buildUpgradePickUi(
         upgradePickDialog,
-        upgradePickHumanIdx,
+        upgradePickInteractiveId,
         playerNames,
         playerColors,
       ),
@@ -658,7 +655,7 @@ function buildLifeLostDialogUi(
 
 function buildUpgradePickUi(
   dialog: UpgradePickDialogState | null,
-  humanIdx: number,
+  interactivePlayerId: number,
   playerNames: ReadonlyArray<string>,
   playerColors: ReadonlyArray<{ wall: RGB }>,
 ): UpgradePickOverlay | undefined {
@@ -669,6 +666,7 @@ function buildUpgradePickUi(
       playerName: playerNames[entry.playerId] ?? `P${entry.playerId + 1}`,
       color: playerColors[entry.playerId % playerColors.length]!.wall,
       resolved: entry.choice !== null,
+      interactive: entry.playerId === interactivePlayerId,
       cards: entry.offers.map((upgradeId, ci) => {
         const def = UPGRADE_POOL.find((ud) => ud.id === upgradeId);
         return {
@@ -685,7 +683,6 @@ function buildUpgradePickUi(
 
   return {
     entries,
-    humanIdx,
     timer: dialog.timer,
     maxTimer: UPGRADE_PICK_MAX_TIMER,
   };

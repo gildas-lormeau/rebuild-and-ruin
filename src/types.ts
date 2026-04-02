@@ -351,9 +351,10 @@ export type ResolvedChoice = LifeLostChoice.CONTINUE | LifeLostChoice.ABANDON;
 export interface LifeLostEntry {
   playerId: number;
   lives: number;
-  isAi: boolean;
+  /** True when this entry auto-resolves (no local human input needed). */
+  autoResolve: boolean;
   choice: LifeLostChoice;
-  aiTimer: number;
+  autoTimer: number;
   /** Which button is focused: LIFE_LOST_FOCUS_CONTINUE (0) or LIFE_LOST_FOCUS_ABANDON (1). */
   focused: number;
 }
@@ -367,8 +368,9 @@ export interface UpgradePickEntry {
   playerId: number;
   offers: readonly [UpgradeId, UpgradeId, UpgradeId];
   choice: UpgradeId | null;
-  isAi: boolean;
-  aiTimer: number;
+  /** True when this entry auto-resolves (no local human input needed). */
+  autoResolve: boolean;
+  autoTimer: number;
   /** Which offer card is focused (0, 1, or 2). */
   focused: number;
 }

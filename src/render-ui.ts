@@ -408,7 +408,7 @@ export function drawUpgradePick(
 
   for (let ei = 0; ei < pick.entries.length; ei++) {
     const entry = pick.entries[ei]!;
-    const isHumanRow = ei === pick.humanIdx;
+    const isInteractive = entry.interactive;
     const rowX = (W - rowW) / 2;
     const rowY = startY + ei * entryH;
 
@@ -426,10 +426,10 @@ export function drawUpgradePick(
 
       // Card background
       const isFocused =
-        isHumanRow && card.focused && flashOn(BUTTON_FLASH_MS, time);
+        isInteractive && card.focused && flashOn(BUTTON_FLASH_MS, time);
       const borderColor = card.picked
         ? rgb(entry.color)
-        : card.focused && isHumanRow
+        : card.focused && isInteractive
           ? GOLD
           : SHADOW_COLOR;
       drawPanel(
@@ -504,8 +504,8 @@ export function drawUpgradePick(
   overlayCtx.fillStyle = progress > 0.25 ? GOLD : ELIMINATED_RED;
   overlayCtx.fillRect(barX, barY, barW * progress, barH);
 
-  // Hint (only if human is picking)
-  if (pick.humanIdx >= 0) {
+  // Hint (only if a local player is picking)
+  if (pick.entries.some((e) => e.interactive)) {
     overlayCtx.font = FONT_HINT;
     overlayCtx.fillStyle = TEXT_DIM;
     overlayCtx.textAlign = TEXT_ALIGN_CENTER;

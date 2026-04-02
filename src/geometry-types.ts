@@ -24,6 +24,13 @@ export interface TileRect {
   right: number;
 }
 
+export interface Crosshair {
+  x: number;
+  y: number;
+  playerId: number;
+  cannonReady?: boolean;
+}
+
 export type StrategicPixelPos = PixelPos & { strategic?: boolean };
 
 export type PrioritizedTilePos = TilePos & { priority: boolean };

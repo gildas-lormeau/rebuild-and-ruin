@@ -49,10 +49,8 @@ import { handleServerIncrementalMessage } from "../src/online-server-events.ts";
 import type { WatcherNetworkState } from "../src/online-types.ts";
 import { emptyFreshInterior, type SelectionState } from "../src/types.ts";
 import { type UpgradeId, UID } from "../src/upgrade-defs.ts";
-import {
-  createUpgradePickDialog,
-  generateUpgradeOffers,
-} from "../src/upgrade-pick.ts";
+import { generateUpgradeOffers } from "../src/phase-setup.ts";
+import { createUpgradePickDialog } from "../src/upgrade-pick.ts";
 import { createScenario } from "./scenario-helpers.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
 
@@ -643,9 +641,9 @@ test("createUpgradePickDialog returns dialog from pending offers", () => {
     dialog!.entries.length > 0,
     "dialog should have entries",
   );
-  // All entries should be AI (no human controller)
+  // All entries should auto-resolve (no human controller)
   for (const entry of dialog!.entries) {
-    assert(entry.isAi, `P${entry.playerId} should be AI`);
+    assert(entry.autoResolve, `P${entry.playerId} should auto-resolve`);
     assert(entry.offers.length === 3, "each entry should have 3 offers");
     assert(entry.choice === null, "choice should start null");
   }

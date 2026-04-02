@@ -6,28 +6,23 @@
  * No runtime or rendering dependencies.
  */
 
-import { GAME_MODE_MODERN } from "./game-constants.ts";
+import {
+  type AutoResolveDeps,
+  shouldAutoResolve,
+} from "./controller-interfaces.ts";
 import type {
   GameState,
   UpgradePickDialogState,
   UpgradePickEntry,
 } from "./types.ts";
-import { IMPLEMENTED_UPGRADES, type UpgradeId } from "./upgrade-defs.ts";
+import type { UpgradeId } from "./upgrade-defs.ts";
 
-interface CreateUpgradePickDeps {
+interface CreateUpgradePickDeps extends AutoResolveDeps {
   readonly state: GameState;
-  readonly isHost: boolean;
-  readonly onlinePlayerId: number;
-  readonly remoteHumanSlots: ReadonlySet<number>;
-  readonly isHumanController: (playerId: number) => boolean;
 }
 
-/** Number of upgrade choices offered per pick. */
-const OFFER_COUNT = 3;
-/** First round that triggers upgrade picks (modern mode). */
-const UPGRADE_FIRST_ROUND = 3;
-/** AI delay before auto-picking (seconds). */
-export const UPGRADE_PICK_AI_DELAY = 1.5;
+/** Auto-resolve delay before auto-picking (seconds). */
+export const UPGRADE_PICK_AUTO_DELAY = 1.5;
 /** Max time before force-picking for pending players (seconds). */
 export const UPGRADE_PICK_MAX_TIMER = 15;
 
@@ -45,17 +40,14 @@ export function createUpgradePickDialog(
 
   const entries: UpgradePickEntry[] = [];
   for (const [playerId, offers] of state.pendingUpgradeOffers) {
-    const isAi = deps.isHost
-      ? !deps.isHumanController(playerId) &&
-        !deps.remoteHumanSlots.has(playerId)
-      : playerId !== deps.onlinePlayerId;
+    const autoResolve = shouldAutoResolve(playerId, deps);
 
     entries.push({
       playerId,
       offers,
       choice: null,
-      isAi,
-      aiTimer: 0,
+      autoResolve,
+      autoTimer: 0,
       focused: 0,
     });
   }
@@ -64,24 +56,25 @@ export function createUpgradePickDialog(
   return { entries, timer: 0 };
 }
 
-/** Tick the upgrade pick dialog. AI players auto-pick after a delay.
- *  Returns the dialog (still active) or null (all resolved). */
+/** Tick the upgrade pick dialog. Auto-resolve entries pick after a delay;
+ *  max timer force-picks for all remaining entries.
+ *  Returns true when all entries are resolved. */
 export function tickUpgradePickDialog(
   dialog: UpgradePickDialogState,
   dt: number,
-  aiDelay: number,
+  autoDelay: number,
   maxTimer: number,
   state?: GameState,
 ): boolean {
   dialog.timer += dt;
 
-  // AI auto-pick
+  // Auto-resolve pending entries
   for (const entry of dialog.entries) {
     if (entry.choice !== null) continue;
-    if (entry.isAi) {
-      entry.aiTimer += dt;
-      if (entry.aiTimer >= aiDelay) {
-        entry.choice = aiPickUpgrade(entry.offers, entry.playerId, state);
+    if (entry.autoResolve) {
+      entry.autoTimer += dt;
+      if (entry.autoTimer >= autoDelay) {
+        entry.choice = randomPickUpgrade(entry.offers, state);
       }
     }
   }
@@ -90,7 +83,7 @@ export function tickUpgradePickDialog(
   if (dialog.timer >= maxTimer) {
     for (const entry of dialog.entries) {
       if (entry.choice === null) {
-        entry.choice = aiPickUpgrade(entry.offers, entry.playerId, state);
+        entry.choice = randomPickUpgrade(entry.offers, state);
       }
     }
   }
@@ -111,50 +104,9 @@ export function applyUpgradePicks(
   }
 }
 
-/** Generate upgrade offers for all alive players. Uses state.rng for determinism.
- *  Called from enterBuildFromBattle (game-engine layer) so the RNG is consumed
- *  before the BUILD_START checkpoint is sent. Returns null if not applicable. */
-export function generateUpgradeOffers(
-  state: GameState,
-): Map<number, [UpgradeId, UpgradeId, UpgradeId]> | null {
-  if (state.gameMode !== GAME_MODE_MODERN) return null;
-  if (state.round < UPGRADE_FIRST_ROUND) return null;
-
-  const offers = new Map<number, [UpgradeId, UpgradeId, UpgradeId]>();
-  for (const player of state.players) {
-    if (player.eliminated || !player.homeTower) continue;
-    offers.set(player.id, drawOffers(state));
-  }
-  return offers.size > 0 ? offers : null;
-}
-
-/** Draw N unique upgrades from the implemented pool using state.rng. */
-function drawOffers(state: GameState): [UpgradeId, UpgradeId, UpgradeId] {
-  const pool = [...IMPLEMENTED_UPGRADES];
-  const picked: UpgradeId[] = [];
-
-  for (let i = 0; i < OFFER_COUNT && pool.length > 0; i++) {
-    const totalWeight = pool.reduce((sum, def) => sum + def.weight, 0);
-    let roll = state.rng.next() * totalWeight;
-    let chosenIdx = pool.length - 1;
-    for (let ci = 0; ci < pool.length; ci++) {
-      roll -= pool[ci]!.weight;
-      if (roll <= 0) {
-        chosenIdx = ci;
-        break;
-      }
-    }
-    picked.push(pool[chosenIdx]!.id);
-    pool.splice(chosenIdx, 1);
-  }
-
-  return picked as [UpgradeId, UpgradeId, UpgradeId];
-}
-
-/** AI picks a random offer using the synced RNG. */
-function aiPickUpgrade(
+/** Pick a random offer using the synced RNG. */
+function randomPickUpgrade(
   offers: readonly [UpgradeId, UpgradeId, UpgradeId],
-  _playerId: number,
   state?: GameState,
 ): UpgradeId {
   if (!state) return offers[0];

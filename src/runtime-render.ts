@@ -77,11 +77,10 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
         phaseName: stateReady ? Phase[runtimeState.state.phase] : "NONE",
         timer: stateReady ? runtimeState.state.timer : 0,
         crosshairs: chList,
-        aiPhantomsCount: runtimeState.frame.phantoms?.aiPhantoms?.length ?? 0,
-        humanPhantomsCount:
-          runtimeState.frame.phantoms?.humanPhantoms?.length ?? 0,
-        aiCannonPhantomsCount:
-          runtimeState.frame.phantoms?.aiCannonPhantoms?.length ?? 0,
+        piecePhantomsCount:
+          runtimeState.frame.phantoms?.piecePhantoms?.length ?? 0,
+        cannonPhantomsCount:
+          runtimeState.frame.phantoms?.cannonPhantoms?.length ?? 0,
         impactsCount: runtimeState.battleAnim.impacts.length,
         cannonballsCount: stateReady
           ? runtimeState.state.cannonballs.length
@@ -109,10 +108,11 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       battleAnim: runtimeState.battleAnim,
       frame: runtimeState.frame,
       bannerUi,
+      inBattle: runtimeState.state.phase === Phase.BATTLE,
       lifeLostDialog: runtimeState.lifeLostDialog,
       upgradePickDialog: runtimeState.upgradePickDialog,
       povPlayerId: runtimeState.frameCtx.povPlayerId,
-      upgradePickHumanIdx: computeUpgradePickHumanIdx(
+      upgradePickInteractiveId: computeUpgradePickInteractiveId(
         runtimeState.upgradePickDialog,
         runtimeState.frameCtx.onlinePlayerId,
       ),
@@ -168,14 +168,15 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
   };
 }
 
-/** Compute which upgrade pick entry belongs to the local human player.
- *  Returns the entry index, or -1 if no local human is picking. */
-function computeUpgradePickHumanIdx(
+/** Compute which player's upgrade pick entry accepts local input.
+ *  Returns the player ID, or -1 if no local player is picking. */
+function computeUpgradePickInteractiveId(
   dialog: UpgradePickDialogState | null,
   onlinePlayerId: number,
 ): number {
   if (!dialog) return -1;
-  return dialog.entries.findIndex(
-    (e) => e.playerId === onlinePlayerId && !e.isAi,
+  const entry = dialog.entries.find(
+    (e) => e.playerId === onlinePlayerId && !e.autoResolve,
   );
+  return entry ? entry.playerId : -1;
 }

@@ -131,8 +131,8 @@ export const LOBBY_SKIP_LOCKOUT = 3;
 export const LOBBY_SKIP_STEP = 1;
 /** Interval between each wall tile during castle construction animation (ms). */
 export const WALL_BUILD_INTERVAL = 160;
-/** AI auto-continue delay in the life-lost dialog (seconds). */
-export const LIFE_LOST_AI_DELAY = 2.0;
+/** Auto-resolve delay in the life-lost dialog (seconds). */
+export const LIFE_LOST_AUTO_DELAY = 2.0;
 /** Maximum time before the life-lost dialog auto-resolves (seconds). */
 export const LIFE_LOST_MAX_TIMER = 10.0;
 /** Maximum frame delta time in seconds (caps large frame gaps). */

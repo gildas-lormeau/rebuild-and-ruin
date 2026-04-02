@@ -354,10 +354,8 @@ function drawBannerOldScene(
       },
       // Suppress phase-specific phantoms in old scene
       phantoms: {
-        phantomPiece: null,
-        humanPhantoms: undefined,
-        aiPhantoms: undefined,
-        aiCannonPhantoms: undefined,
+        piecePhantoms: undefined,
+        cannonPhantoms: undefined,
       },
     };
     const tmpCtx = bannerSceneCtx;

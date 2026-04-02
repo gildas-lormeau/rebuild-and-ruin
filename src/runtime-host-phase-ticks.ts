@@ -88,9 +88,8 @@ interface BuildPhaseNet extends HostNetContext {
 
 interface HostFrame {
   phantoms: {
-    aiCannonPhantoms?: CannonPhantom[];
-    aiPhantoms?: PiecePhantom[];
-    humanPhantoms?: PiecePhantom[];
+    cannonPhantoms?: CannonPhantom[];
+    piecePhantoms?: PiecePhantom[];
     defaultFacings?: ReadonlyMap<number, number>;
   };
 }
@@ -163,13 +162,11 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
 
   advancePhaseTimer(accum, "cannon", state, dt, state.cannonPlaceTimer);
 
-  // Cannon phase phantom contract: { aiCannonPhantoms: CannonPhantom[] }
-  // (only AI cannon phantoms — human cannon previews come from cannonTick return value)
   const defaultFacings = new Map<number, number>();
   for (const player of state.players) {
     defaultFacings.set(player.id, player.defaultFacing);
   }
-  frame.phantoms = { aiCannonPhantoms: [], defaultFacings };
+  frame.phantoms = { cannonPhantoms: [], defaultFacings };
   // ── PASS 1: Tick local controllers (process input & AI decisions) ──
   for (const ctrl of localActiveControllers(
     controllers,
@@ -194,7 +191,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
 
     if (!phantom) continue;
 
-    frame.phantoms.aiCannonPhantoms!.push(phantom);
+    frame.phantoms.cannonPhantoms!.push(phantom);
     if (!isHost || !sendOpponentCannonPhantom) continue;
 
     if (
@@ -215,7 +212,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   }
 
   if (remoteCannonPhantoms.length > 0) {
-    frame.phantoms.aiCannonPhantoms!.push(
+    frame.phantoms.cannonPhantoms!.push(
       ...filterAlivePhantoms(remoteCannonPhantoms, state.players).filter(
         (player) => !remoteHumanSlots.has(player.playerId),
       ),
@@ -270,9 +267,7 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   tickGruntsIfDue(accum, dt, state, deps.tickGrunts);
 
   // --- Process each controller's build actions, collect phantoms ---
-  // Build phase phantom contract: { aiPhantoms: PiecePhantom[], humanPhantoms: PiecePhantom[] }
-  // (AI and human phantoms tracked separately for network broadcast)
-  frame.phantoms = { aiPhantoms: [], humanPhantoms: [] };
+  frame.phantoms = { piecePhantoms: [] };
   processControllerBuildActions(deps, frame, remoteHumanSlots);
 
   // --- Merge remote phantoms from non-host players ---
@@ -323,7 +318,6 @@ function processControllerBuildActions(
 
     collectBuildPhantoms(
       phantoms,
-      deps.isHuman(ctrl),
       frame,
       isHost,
       lastSentPiecePhantom,
@@ -364,7 +358,6 @@ function buildTickWithWallBroadcast(
 /** Collect build-phase phantoms into the frame and broadcast new ones to peers. */
 function collectBuildPhantoms(
   phantoms: readonly (PiecePhantom & { valid?: boolean })[],
-  isHumanCtrl: boolean,
   frame: HostFrame,
   isHost: boolean,
   lastSentPiecePhantom: Map<number, string>,
@@ -379,23 +372,13 @@ function collectBuildPhantoms(
     | undefined,
 ): void {
   for (const phantom of phantoms) {
-    if (isHumanCtrl) {
-      frame.phantoms.humanPhantoms!.push({
-        offsets: phantom.offsets,
-        row: phantom.row,
-        col: phantom.col,
-        valid: phantom.valid ?? true,
-        playerId: phantom.playerId,
-      });
-    } else {
-      frame.phantoms.aiPhantoms!.push({
-        offsets: phantom.offsets,
-        row: phantom.row,
-        col: phantom.col,
-        playerId: phantom.playerId,
-        valid: phantom.valid ?? true,
-      });
-    }
+    frame.phantoms.piecePhantoms!.push({
+      offsets: phantom.offsets,
+      row: phantom.row,
+      col: phantom.col,
+      playerId: phantom.playerId,
+      valid: phantom.valid ?? true,
+    });
 
     if (!isHost || !sendOpponentPhantom) continue;
     if (
@@ -451,7 +434,7 @@ function mergeRemotePiecePhantoms(
 ): void {
   const remotePiecePhantoms = net?.remotePiecePhantoms ?? [];
   if (remotePiecePhantoms.length > 0) {
-    frame.phantoms.aiPhantoms!.push(
+    frame.phantoms.piecePhantoms!.push(
       ...filterAlivePhantoms(remotePiecePhantoms, state.players).filter(
         (player) => !remoteHumanSlots.has(player.playerId),
       ),

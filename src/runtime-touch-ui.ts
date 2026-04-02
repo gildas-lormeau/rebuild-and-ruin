@@ -12,7 +12,7 @@ import { TILE_SIZE } from "./grid.ts";
 import type { LoupeHandle } from "./render-loupe.ts";
 import { isPlacementPhase, Mode, Phase } from "./types.ts";
 
-type TouchBtnRule = boolean | typeof HUMAN;
+type TouchBtnRule = boolean | typeof INTERACTIVE;
 
 interface TouchButtonState {
   dpad: TouchBtnRule;
@@ -51,8 +51,8 @@ interface TouchControlsDeps {
   mode: Mode;
   state: { phase: Phase };
   phantoms: {
-    humanPhantoms?: { valid: boolean }[];
-    aiCannonPhantoms?: { playerId: number; valid: boolean }[];
+    piecePhantoms?: { playerId: number; valid: boolean }[];
+    cannonPhantoms?: { playerId: number; valid: boolean }[];
   };
   directTouchActive: boolean;
   clearDirectTouch: () => void;
@@ -69,7 +69,7 @@ interface TouchControlsDeps {
   containerHeight: number;
 }
 
-const HUMAN = "human" as const;
+const INTERACTIVE = "interactive" as const;
 const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
   [Mode.LOBBY]: {
     dpad: false,
@@ -96,11 +96,11 @@ const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
     quit: false,
   },
   [Mode.SELECTION]: {
-    dpad: HUMAN,
-    confirm: HUMAN,
+    dpad: INTERACTIVE,
+    confirm: INTERACTIVE,
     rotate: false,
     placementValidity: false,
-    zoom: HUMAN,
+    zoom: INTERACTIVE,
     quit: true,
   },
   [Mode.BANNER]: {
@@ -108,7 +108,7 @@ const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
     confirm: false,
     rotate: false,
     placementValidity: false,
-    zoom: HUMAN,
+    zoom: INTERACTIVE,
     quit: true,
   },
   [Mode.BALLOON_ANIM]: {
@@ -116,7 +116,7 @@ const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
     confirm: false,
     rotate: false,
     placementValidity: false,
-    zoom: HUMAN,
+    zoom: INTERACTIVE,
     quit: true,
   },
   [Mode.CASTLE_BUILD]: {
@@ -124,36 +124,36 @@ const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
     confirm: false,
     rotate: false,
     placementValidity: false,
-    zoom: HUMAN,
+    zoom: INTERACTIVE,
     quit: true,
   },
   [Mode.LIFE_LOST]: {
-    dpad: HUMAN,
-    confirm: HUMAN,
+    dpad: INTERACTIVE,
+    confirm: INTERACTIVE,
     rotate: false,
     placementValidity: false,
-    zoom: HUMAN,
+    zoom: INTERACTIVE,
     quit: true,
   },
   [Mode.UPGRADE_PICK]: {
-    dpad: HUMAN,
-    confirm: HUMAN,
+    dpad: INTERACTIVE,
+    confirm: INTERACTIVE,
     rotate: false,
     placementValidity: false,
     zoom: false,
     quit: true,
   },
   [Mode.GAME]: {
-    dpad: HUMAN,
-    confirm: HUMAN,
-    rotate: HUMAN,
-    placementValidity: HUMAN,
-    zoom: HUMAN,
+    dpad: INTERACTIVE,
+    confirm: INTERACTIVE,
+    rotate: INTERACTIVE,
+    placementValidity: INTERACTIVE,
+    zoom: INTERACTIVE,
     quit: true,
   },
   [Mode.STOPPED]: {
-    dpad: HUMAN,
-    confirm: HUMAN,
+    dpad: INTERACTIVE,
+    confirm: INTERACTIVE,
     rotate: false,
     placementValidity: false,
     zoom: false,
@@ -194,10 +194,10 @@ function updateLoupe(deps: TouchControlsDeps): void {
 }
 
 function updateButtons(deps: TouchControlsDeps): void {
-  const hasHuman = deps.pointerPlayer() !== null;
+  const hasPointerPlayer = deps.pointerPlayer() !== null;
   const bs = TOUCH_BUTTON_STATES[deps.mode];
   const on = (rule: TouchBtnRule) =>
-    rule === true || (rule === HUMAN && hasHuman);
+    rule === true || (rule === INTERACTIVE && hasPointerPlayer);
 
   // D-pad, rotate, confirm — pass current phase to dpad so it can decide
   // which buttons to show (e.g. rotate is hidden during selection).
@@ -215,7 +215,7 @@ function updateButtons(deps: TouchControlsDeps): void {
       on(bs.placementValidity)
     ) {
       deps.dpad.setConfirmValid(
-        humanPhantomValid(
+        pointerPhantomValid(
           deps.state.phase,
           deps.pointerPlayer(),
           deps.phantoms,
@@ -237,7 +237,7 @@ function updateFloatingActions(deps: TouchControlsDeps): void {
   const phase = deps.state?.phase;
   const human = deps.pointerPlayer();
   const hasPhantom =
-    humanPhantomValid(phase, human, deps.phantoms) !== undefined;
+    pointerPhantomValid(phase, human, deps.phantoms) !== undefined;
   // Reset direct-touch flag when leaving placement phases so it doesn't
   // carry over into the next placement phase.
   if (!isPlacementPhase(phase) && deps.directTouchActive) {
@@ -275,24 +275,26 @@ function updateFloatingActions(deps: TouchControlsDeps): void {
   const nearTop = cssY < deps.containerHeight * 0.15;
   deps.floatingActions.update(true, cssX, cssY, nearTop, deps.leftHanded);
   deps.floatingActions.setConfirmValid(
-    humanPhantomValid(phase, human, deps.phantoms) ?? false,
+    pointerPhantomValid(phase, human, deps.phantoms) ?? false,
   );
 }
 
 /** Phantom validity for the pointer player in the current placement phase. */
-function humanPhantomValid(
+function pointerPhantomValid(
   phase: Phase | undefined,
   human: PlayerController | null,
   phantoms: {
-    humanPhantoms?: { valid: boolean }[];
-    aiCannonPhantoms?: { playerId: number; valid: boolean }[];
+    piecePhantoms?: { playerId: number; valid: boolean }[];
+    cannonPhantoms?: { playerId: number; valid: boolean }[];
   },
 ): boolean | undefined {
   if (!human) return undefined;
   if (phase === Phase.WALL_BUILD) {
-    return phantoms.humanPhantoms?.[0]?.valid;
+    return phantoms.piecePhantoms?.find(
+      (phantom) => phantom.playerId === human.playerId,
+    )?.valid;
   }
-  return phantoms.aiCannonPhantoms?.find(
+  return phantoms.cannonPhantoms?.find(
     (phantom) => phantom.playerId === human.playerId,
   )?.valid;
 }

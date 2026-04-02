@@ -124,47 +124,24 @@ const CROSSHAIR_COLORS: RGB[] = [
   [255, 200, 30], // P3 gold
 ];
 
-/** Draw phantom piece/cannon previews (AI and human).
- *  Draw order is load-bearing (affects visual layering):
- *    1. AI cannon phantoms (behind everything)
- *    2. Primary human piece phantom
- *    3. All human piece phantoms (multi-human build)
- *    4. AI piece phantoms (on top)
- *  Do not reorder without checking the visual result. */
+/** Draw phantom piece/cannon previews.
+ *  Draw order: cannon phantoms (behind), then piece phantoms (on top).
+ *  Callers control within-category ordering via array position. */
 export function drawPhantoms(
   overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
 ): void {
   overlayCtx.save();
-  // AI cannon phantoms
-  if (overlay?.phantoms?.aiCannonPhantoms) {
+  if (overlay?.phantoms?.cannonPhantoms) {
     const facings = overlay.phantoms.defaultFacings;
-    for (const phantom of overlay.phantoms.aiCannonPhantoms) {
+    for (const phantom of overlay.phantoms.cannonPhantoms) {
       drawPhantomCannon(overlayCtx, phantom, facings);
     }
   }
 
-  // Primary human phantom piece
-  if (overlay?.phantoms?.phantomPiece) {
-    const { offsets, row, col, valid, playerId } =
-      overlay.phantoms.phantomPiece;
-    const wall = getPlayerColor(playerId ?? 0).wall;
-    drawPiecePhantom(overlayCtx, offsets, row, col, wall, valid);
-  }
-
-  // All human phantom pieces (multi-human build phase)
-  if (overlay?.phantoms?.humanPhantoms) {
-    for (const phantom of overlay.phantoms.humanPhantoms) {
+  if (overlay?.phantoms?.piecePhantoms) {
+    for (const phantom of overlay.phantoms.piecePhantoms) {
       const { offsets, row, col, valid, playerId } = phantom;
-      const wall = getPlayerColor(playerId).wall;
-      drawPiecePhantom(overlayCtx, offsets, row, col, wall, valid);
-    }
-  }
-
-  // AI phantom piece previews
-  if (overlay?.phantoms?.aiPhantoms) {
-    for (const phantom of overlay.phantoms.aiPhantoms) {
-      const { offsets, row, col, playerId, valid } = phantom;
       const wall = getPlayerColor(playerId).wall;
       drawPiecePhantom(overlayCtx, offsets, row, col, wall, valid);
     }

@@ -84,7 +84,7 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
       .filter((player) => player.castle)
       .map((player) => ({
         walls: pendingWalls?.[player.id] ?? new Set(player.walls),
-        interior: new Set(player.interior),
+        interior: player.interior,
         cannons: player.cannons.map((c) => ({ ...c })),
         playerId: player.id,
       }));

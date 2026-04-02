@@ -16,7 +16,7 @@ import type { PlayerController } from "../src/controller-interfaces.ts";
 import {
   BATTLE_TIMER,
   BUILD_TIMER,
-  LIFE_LOST_AI_DELAY,
+  LIFE_LOST_AUTO_DELAY,
   LIFE_LOST_MAX_TIMER,
 } from "../src/game-constants.ts";
 import { nextPhase } from "../src/game-engine.ts";
@@ -29,8 +29,7 @@ import { tickGrunts } from "../src/grunt-movement.ts";
 import { gruntAttackTowers } from "../src/grunt-system.ts";
 import {
   createLifeLostDialogState,
-  resolveLifeLostDialogRuntime,
-  tickLifeLostDialogRuntime,
+  tickLifeLostDialog,
 } from "../src/life-lost.ts";
 import type {
   BattleStartData,
@@ -484,21 +483,13 @@ export function createScenario(seed = 42): Scenario {
     dialog: LifeLostDialogState,
     dt: number,
   ): LifeLostDialogState | null {
-    return tickLifeLostDialogRuntime({
+    const allResolved = tickLifeLostDialog(
+      dialog,
       dt,
-      lifeLostDialog: dialog,
-      lifeLostAiDelay: LIFE_LOST_AI_DELAY,
-      lifeLostMaxTimer: LIFE_LOST_MAX_TIMER,
-      isHost: true,
-      render: () => {},
-      logResolved: () => {},
-      resolveHostDialog: (d) =>
-        resolveLifeLostDialogRuntime({
-          lifeLostDialog: d,
-          afterLifeLostResolved: () => true,
-        }),
-      onNonHostResolved: () => {},
-    });
+      LIFE_LOST_AUTO_DELAY,
+      LIFE_LOST_MAX_TIMER,
+    );
+    return allResolved ? null : dialog;
   }
 
   function doCreateTransitionContext(

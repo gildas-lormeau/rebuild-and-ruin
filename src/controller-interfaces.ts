@@ -13,10 +13,12 @@
  *   PlayerController    — full intersection (backward-compatible)
  */
 
-import type { PixelPos, TilePos } from "./geometry-types.ts";
+import type { Crosshair, PixelPos, TilePos } from "./geometry-types.ts";
 import type { PieceShape } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
 import { Action, CannonMode, type GameState } from "./types.ts";
+
+export type { Crosshair } from "./geometry-types.ts";
 
 /** Orbit animation parameters for AI countdown idle animation. */
 export type OrbitParams = {
@@ -45,13 +47,6 @@ export interface CannonPlacementPreview {
   /** Cannon variant (normal, super, or balloon). */
   mode: CannonMode;
   playerId: number;
-}
-
-export interface Crosshair {
-  x: number;
-  y: number;
-  playerId: number;
-  cannonReady?: boolean;
 }
 
 /** Identity, lifecycle, and cursor centering — the minimal slice every consumer needs. */
@@ -230,6 +225,13 @@ export interface AiAnimatable {
   getOrbitParams(): OrbitParams | null;
 }
 
+export interface AutoResolveDeps {
+  readonly isHost: boolean;
+  readonly onlinePlayerId: number;
+  readonly remoteHumanSlots: ReadonlySet<number>;
+  readonly isHumanController: (playerId: number) => boolean;
+}
+
 /** Battle crosshair movement speed in pixels per second. */
 export const CROSSHAIR_SPEED = 80;
 
@@ -275,4 +277,15 @@ export function isAiAnimatable(
   ctrl: ControllerIdentity,
 ): ctrl is ControllerIdentity & AiAnimatable {
   return ctrl.kind === "ai";
+}
+
+/** True when this player's dialog entry should auto-resolve (no local input needed).
+ *  Host checks controller identity; non-host only resolves its own slot. */
+export function shouldAutoResolve(
+  playerId: number,
+  deps: AutoResolveDeps,
+): boolean {
+  return deps.isHost
+    ? !deps.isHumanController(playerId) && !deps.remoteHumanSlots.has(playerId)
+    : playerId !== deps.onlinePlayerId;
 }

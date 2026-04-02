@@ -78,9 +78,8 @@ interface WatcherBattleDeps {
 
 interface WatcherPhantomFrame {
   phantoms: {
-    aiCannonPhantoms?: CannonPhantom[];
-    aiPhantoms?: PiecePhantom[];
-    humanPhantoms?: PiecePhantom[];
+    cannonPhantoms?: CannonPhantom[];
+    piecePhantoms?: PiecePhantom[];
     defaultFacings?: ReadonlyMap<number, number>;
   };
 }
@@ -259,7 +258,7 @@ export function tickWatcherCannonPhantomsPhase(
     defaultFacings.set(player.id, player.defaultFacing);
   }
   frame.phantoms = {
-    aiCannonPhantoms: filterAlivePhantoms(remoteCannonPhantoms, state.players),
+    cannonPhantoms: filterAlivePhantoms(remoteCannonPhantoms, state.players),
     defaultFacings,
   };
 
@@ -268,7 +267,7 @@ export function tickWatcherCannonPhantomsPhase(
   const phantom = localController.cannonTick(state, dt);
   if (!phantom) return;
 
-  frame.phantoms.aiCannonPhantoms!.push(phantom);
+  frame.phantoms.cannonPhantoms!.push(phantom);
   if (
     !dedupChanged(
       lastSentCannonPhantom,
@@ -300,15 +299,14 @@ export function tickWatcherBuildPhantomsPhase(
   } = deps;
 
   frame.phantoms = {
-    aiPhantoms: filterAlivePhantoms(remotePiecePhantoms, state.players),
-    humanPhantoms: [],
+    piecePhantoms: filterAlivePhantoms(remotePiecePhantoms, state.players),
   };
 
   if (!localController) return;
 
   const phantoms = localController.buildTick(state, dt);
   for (const phantom of phantoms) {
-    frame.phantoms.humanPhantoms!.push({
+    frame.phantoms.piecePhantoms!.push({
       offsets: phantom.offsets,
       row: phantom.row,
       col: phantom.col,

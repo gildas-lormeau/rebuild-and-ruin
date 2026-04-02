@@ -3,17 +3,29 @@
  * circular dependencies between render-map and render-effects/towers/ui.
  */
 
-import type { Crosshair } from "./controller-interfaces.ts";
-import type { House, PixelPos, RGB, TilePos, Tower } from "./geometry-types.ts";
+import type {
+  Crosshair,
+  House,
+  PixelPos,
+  RGB,
+  TilePos,
+  Tower,
+} from "./geometry-types.ts";
+import type {
+  CannonPhantom as RenderCannonPhantom,
+  PiecePhantom as RenderPiecePhantom,
+} from "./phantom-types.ts";
 import {
   type BurningPit,
   type Cannon,
-  CannonMode,
+  type FreshInterior,
   type GameOverFocus,
   type Grunt,
   type Impact,
   type LifeLostChoice,
 } from "./types.ts";
+
+export type { RenderCannonPhantom, RenderPiecePhantom };
 
 /** A cannon captured by a propaganda balloon — fires for the balloon owner during battle. */
 export interface CastleData {
@@ -21,7 +33,7 @@ export interface CastleData {
   walls: Set<number>;
   /** Enclosed territory: grass tiles fully surrounded by walls (inverse flood-fill).
    *  Encoded as row*GRID_COLS+col. Used for cannon eligibility, grunt blocking, and scoring. */
-  interior: ReadonlySet<number>;
+  interior: FreshInterior;
   /** Cannon positions (top-left of 2×2 or 3×3 super) with HP. */
   cannons: Cannon[];
   /** Player index (for color). */
@@ -68,10 +80,8 @@ export interface GameOverOverlay {
 export interface FrameData {
   crosshairs: Crosshair[];
   phantoms: {
-    aiPhantoms?: RenderPiecePhantom[];
-    humanPhantoms?: RenderPiecePhantom[];
-    aiCannonPhantoms?: RenderCannonPhantom[];
-    phantomPiece?: (RenderPiecePhantom & { playerId?: number }) | null;
+    piecePhantoms?: RenderPiecePhantom[];
+    cannonPhantoms?: RenderCannonPhantom[];
     defaultFacings?: ReadonlyMap<number, number>;
   };
   announcement?: string;
@@ -94,13 +104,13 @@ export interface UpgradePickPlayerEntry {
   readonly color: RGB;
   readonly cards: UpgradePickCard[];
   readonly resolved: boolean;
+  /** True for the entry that accepts local input (focus flash, keyboard hint). */
+  readonly interactive: boolean;
 }
 
 /** Upgrade pick dialog overlay data. */
 export interface UpgradePickOverlay {
   entries: UpgradePickPlayerEntry[];
-  /** Index of the local human's entry in `entries`, or -1 if spectating. */
-  humanIdx: number;
   timer: number;
   maxTimer: number;
 }
@@ -150,34 +160,14 @@ export interface EntityOverlay {
   frozenTiles?: ReadonlySet<number>;
 }
 
-/** Piece phantom shape shared by AI, human, and primary piece overlays. */
-export interface RenderPiecePhantom {
-  offsets: [number, number][];
-  row: number;
-  col: number;
-  valid: boolean;
-  playerId: number;
-}
-
-/** Cannon phantom shape for render overlays. */
-export interface RenderCannonPhantom {
-  row: number;
-  col: number;
-  valid: boolean;
-  mode: CannonMode;
-  playerId: number;
-}
-
 /** Build/cannon phase — piece and cannon placement previews.
  *
  *  `valid` field (on all phantom types):
  *  true = placement is legal (rendered at normal color/alpha).
  *  false = illegal placement (rendered dark gray at reduced alpha). */
 export interface PhantomOverlay {
-  phantomPiece?: (RenderPiecePhantom & { playerId?: number }) | null;
-  humanPhantoms?: RenderPiecePhantom[];
-  aiPhantoms?: RenderPiecePhantom[];
-  aiCannonPhantoms?: RenderCannonPhantom[];
+  piecePhantoms?: RenderPiecePhantom[];
+  cannonPhantoms?: RenderCannonPhantom[];
   /** Default cannon facing per player — used by cannon phantom rendering. */
   defaultFacings?: ReadonlyMap<number, number>;
 }

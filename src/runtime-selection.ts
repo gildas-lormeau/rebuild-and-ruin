@@ -178,23 +178,30 @@ export function createSelectionSystem(
     );
   }
 
-  /** Highlight a tower for a player's selection UI.
-   *  Side effects: sends network message (via deps.send) and auto-zooms camera on mobile. */
+  /** Highlight a tower for a player's selection UI. */
   function highlightTowerForPlayer(
     idx: number,
     zone: number,
     pid: number,
   ): void {
-    highlightTowerSelection(
+    const changed = highlightTowerSelection(
       runtimeState.state,
       runtimeState.selectionStates,
       idx,
       zone,
       pid,
-      deps.send,
-      () => syncSelectionOverlay(),
-      () => deps.render(),
     );
+    if (!changed) return;
+
+    deps.send({
+      type: MESSAGE.OPPONENT_TOWER_SELECTED,
+      playerId: pid,
+      towerIdx: idx,
+      confirmed: false,
+    });
+    syncSelectionOverlay();
+    deps.render();
+
     // Auto-zoom to the highlighted tower on mobile (human player only, own zone)
     const human = deps.pointerPlayer();
     if (human && pid === human.playerId) {
@@ -219,24 +226,32 @@ export function createSelectionSystem(
     pid: number,
     isReselect = false,
   ): boolean {
-    const selectionState = runtimeState.selectionStates.get(pid);
-    const alreadyConfirmed = selectionState?.confirmed ?? true;
-    const allDone = confirmTowerSelection(
+    const result = confirmTowerSelection(
       runtimeState.state,
       runtimeState.selectionStates,
       runtimeState.controllers,
       pid,
       isReselect,
-      deps.send,
-      (reselectPid) => {
-        markPlayerReselected(runtimeState.state, reselectPid);
-        runtimeState.reselectionPids.push(reselectPid);
-      },
-      () => syncSelectionOverlay(),
-      () => deps.render(),
     );
-    if (!alreadyConfirmed) startPlayerCastleBuild(pid);
-    return allDone;
+    if (!result)
+      return allSelectionsConfirmedImpl(runtimeState.selectionStates);
+
+    deps.send({
+      type: MESSAGE.OPPONENT_TOWER_SELECTED,
+      playerId: pid,
+      towerIdx: result.towerIdx,
+      confirmed: true,
+    });
+
+    if (result.isReselect) {
+      markPlayerReselected(runtimeState.state, pid);
+      runtimeState.reselectionPids.push(pid);
+    }
+
+    syncSelectionOverlay();
+    deps.render();
+    startPlayerCastleBuild(pid);
+    return result.allDone;
   }
 
   /** Alias for allSelectionsConfirmed() — returns true when every player's selection is confirmed.
@@ -305,12 +320,10 @@ export function createSelectionSystem(
   }
 
   function finishSelection() {
-    finishSelectionPhase({
-      state: runtimeState.state,
-      selectionStates: runtimeState.selectionStates,
-      resetOverlaySelection,
-      finalizeAndAdvance,
-    });
+    if (!finishSelectionPhase(runtimeState.state, runtimeState.selectionStates))
+      return;
+    resetOverlaySelection();
+    finalizeAndAdvance();
   }
 
   function startPlayerCastleBuild(playerId: number): void {

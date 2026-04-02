@@ -377,7 +377,7 @@ export function handleBuildEndTransition(
     .filter((player) => player.castle)
     .map((player) => ({
       walls: new Set(player.walls),
-      interior: new Set(player.interior),
+      interior: player.interior,
       cannons: player.cannons.map((cn) => ({ ...cn })),
       playerId: player.id,
     }));

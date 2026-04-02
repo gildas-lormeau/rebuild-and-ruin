@@ -1,4 +1,3 @@
-import { MESSAGE } from "../server/protocol.ts";
 import type {
   ControllerIdentity,
   SelectionController,
@@ -65,84 +64,52 @@ export function initTowerSelection(
   if (tower) selectPlayerTower(player, tower);
 }
 
+/** Highlight a tower for selection. Returns true if the highlight changed. */
 export function highlightTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
   idx: number,
   zone: number,
   playerId: number,
-  send: (msg: {
-    type: "opponent_tower_selected";
-    playerId: number;
-    towerIdx: number;
-    confirmed: boolean;
-  }) => void,
-  onOverlayChanged: () => void,
-  render: () => void,
-): void {
+): boolean {
   const tower = state.map.towers[idx];
-  if (!tower || tower.zone !== zone) return;
+  if (!tower || tower.zone !== zone) return false;
 
   const selectionState = selectionStates.get(playerId);
-  if (!selectionState) return;
-  if (selectionState.highlighted === idx) return;
+  if (!selectionState) return false;
+  if (selectionState.highlighted === idx) return false;
   selectionState.highlighted = idx;
 
   const player = state.players[playerId]!;
   selectPlayerTower(player, tower);
-
-  send({
-    type: MESSAGE.OPPONENT_TOWER_SELECTED,
-    playerId,
-    towerIdx: idx,
-    confirmed: false,
-  });
-
-  onOverlayChanged();
-  render();
+  return true;
 }
 
+/** Confirm a player's tower selection. Returns null if already confirmed,
+ *  otherwise returns the confirmed tower index and whether all players are done. */
 export function confirmTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
   controllers: readonly SelectionCapable[],
   playerId: number,
   isReselect: boolean,
-  send: (msg: {
-    type: "opponent_tower_selected";
-    playerId: number;
-    towerIdx: number;
-    confirmed: boolean;
-  }) => void,
-  onReselectConfirmed: (playerId: number) => void,
-  onOverlayChanged: () => void,
-  render: () => void,
-): boolean {
+): { towerIdx: number; allDone: boolean; isReselect: boolean } | null {
   const selectionState = selectionStates.get(playerId);
   // Selection-confirmed guard (see input-dispatch.ts header for convention):
   // once confirmed, all further selection actions are no-ops.
-  if (!selectionState || selectionState.confirmed)
-    return allSelectionsConfirmed(selectionStates);
+  if (!selectionState || selectionState.confirmed) return null;
   selectionState.confirmed = true;
-
-  send({
-    type: MESSAGE.OPPONENT_TOWER_SELECTED,
-    playerId,
-    towerIdx: selectionState.highlighted,
-    confirmed: true,
-  });
 
   const player = state.players[playerId]!;
   if (player.homeTower) {
     controllers[playerId]!.centerOn(player.homeTower.row, player.homeTower.col);
-    if (isReselect) {
-      onReselectConfirmed(playerId);
-    }
   }
 
-  onOverlayChanged();
-  render();
-  return allSelectionsConfirmed(selectionStates);
+  return {
+    towerIdx: selectionState.highlighted,
+    allDone: allSelectionsConfirmed(selectionStates),
+    isReselect,
+  };
 }
 
 export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
@@ -257,20 +224,14 @@ export function allSelectionsConfirmed(
   return true;
 }
 
-export function finishSelectionPhase(deps: {
-  state: GameState;
-  selectionStates: Map<number, SelectionState>;
-  resetOverlaySelection: () => void;
-  finalizeAndAdvance: () => void;
-}): void {
-  const { state, selectionStates, resetOverlaySelection, finalizeAndAdvance } =
-    deps;
-
-  if (state.phase !== Phase.CASTLE_SELECT) return;
-
+/** Clear selection state if in CASTLE_SELECT phase. Returns true if cleared. */
+export function finishSelectionPhase(
+  state: GameState,
+  selectionStates: Map<number, SelectionState>,
+): boolean {
+  if (state.phase !== Phase.CASTLE_SELECT) return false;
   selectionStates.clear();
-  resetOverlaySelection();
-  finalizeAndAdvance();
+  return true;
 }
 
 function zoneTowerIndices(state: GameState, zone: number): number[] {
