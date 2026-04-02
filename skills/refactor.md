@@ -78,6 +78,8 @@ npm run refactor move-export --from <from> --to <to> --symbol <name> [--dry-run]
 npm run refactor move-export --from <from> --to <to> --symbol <name1> --symbol <name2> [--dry-run]
 ```
 
+Positional arg order is auto-detected: `move-export <name> <from> <to>` also works (the tool detects when the first arg looks like a symbol rather than a file path).
+
 Best for: moving a constant, function, type, or interface to a more appropriate module. Use multiple `--symbol` flags to move related declarations together (e.g., a type and its companion helper).
 
 ### `rename-prop` — Rename an interface/type property
