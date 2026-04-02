@@ -27,7 +27,7 @@ import {
   towerReachesOutsideCardinal,
   unpackTile,
 } from "./spatial.ts";
-import type { BurningPit, GameState } from "./types.ts";
+import type { BurningPit, FreshInterior, GameState } from "./types.ts";
 
 // Scoring weights for scoreBuildTowerTarget — tower ranking during build targeting.
 /** Weight given to wall-ring completion progress when ranking towers to build. */
@@ -43,17 +43,18 @@ const OBSTRUCTION_PENALTY = 60;
  */
 export function computeFillableGaps(
   rect: TileRect,
-  player: { walls: Set<number>; interior: ReadonlySet<number> },
+  walls: Set<number>,
+  interior: FreshInterior,
   state: GameState,
   bankHugging: boolean,
 ): Set<number> {
-  const gaps = findGapTiles(rect, player.walls);
-  filterUnfillableGaps(gaps, state, player.interior);
+  const gaps = findGapTiles(rect, walls);
+  filterUnfillableGaps(gaps, state, interior);
   // Pit plugs always needed; water plugs only when bankHugging
   addBankPlugGaps(
     gaps,
     rect,
-    player.walls,
+    walls,
     state.map.tiles,
     state.burningPits,
     bankHugging,

@@ -11,7 +11,7 @@ import { canPlacePiece } from "./build-system.ts";
 import type { TileRect } from "./geometry-types.ts";
 import { ALL_PIECE_SHAPES, type PieceShape, rotateCW } from "./pieces.ts";
 import { DIRS_8, isGrass, packTile, unpackTile } from "./spatial.ts";
-import type { GameState } from "./types.ts";
+import type { FreshInterior, GameState } from "./types.ts";
 
 export function canPieceFillAnyGap(
   state: GameState,
@@ -36,12 +36,13 @@ export function plugUnreachableGaps(
   rect: TileRect | null,
   state: GameState,
   playerId: number,
-  player: { walls: Set<number>; interior: ReadonlySet<number> },
+  walls: ReadonlySet<number>,
+  interior: FreshInterior,
 ): boolean {
   if (!rect || gaps.size === 0) return false;
   const unreachable: number[] = [];
   for (const gk of gaps) {
-    if (!isGapFillableByAnyShape(state, playerId, player.interior, gk, rect)) {
+    if (!isGapFillableByAnyShape(state, playerId, interior, gk, rect)) {
       unreachable.push(gk);
     }
   }
@@ -61,12 +62,12 @@ export function plugUnreachableGaps(
       )
         continue;
       const nk = packTile(nr, nc);
-      if (player.walls.has(nk)) continue;
+      if (walls.has(nk)) continue;
       if (!isGrass(state.map.tiles, nr, nc)) continue;
       gaps.add(nk);
     }
   }
-  filterUnfillableGaps(gaps, state, player.interior);
+  filterUnfillableGaps(gaps, state, interior);
   return true;
 }
 

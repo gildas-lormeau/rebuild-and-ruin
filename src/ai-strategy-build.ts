@@ -344,7 +344,14 @@ export function pickPlacement(
     ) {
       // Try plugging structurally unreachable gaps (e.g. thick walls from + pieces)
       if (
-        !plugUnreachableGaps(targetGaps, targetRect, state, playerId, player) ||
+        !plugUnreachableGaps(
+          targetGaps,
+          targetRect,
+          state,
+          playerId,
+          player.walls,
+          getInterior(player),
+        ) ||
         !canPieceFillAnyGap(
           state,
           playerId,
@@ -388,7 +395,13 @@ export function pickPlacement(
           !bankHugging,
         );
         const totalGaps = findGapTiles(rect, player.walls).size;
-        const gaps = computeFillableGaps(rect, player, state, bankHugging);
+        const gaps = computeFillableGaps(
+          rect,
+          player.walls,
+          getInterior(player),
+          state,
+          bankHugging,
+        );
         // Accept if there are fillable gaps, or if the ring was already complete
         if (gaps.size > 0 || totalGaps === 0) {
           // If the current piece can't fill this tower's gaps, try the next tower
@@ -407,7 +420,14 @@ export function pickPlacement(
           ) {
             // Try plugging structurally unreachable gaps before deferring
             if (
-              !plugUnreachableGaps(gaps, rect, state, playerId, player) ||
+              !plugUnreachableGaps(
+                gaps,
+                rect,
+                state,
+                playerId,
+                player.walls,
+                getInterior(player),
+              ) ||
               !canPieceFillAnyGap(
                 state,
                 playerId,
@@ -455,7 +475,8 @@ export function pickPlacement(
       ) {
         const gaps = computeFillableGaps(
           expandRect,
-          player,
+          player.walls,
+          getInterior(player),
           state,
           bankHugging,
         );
