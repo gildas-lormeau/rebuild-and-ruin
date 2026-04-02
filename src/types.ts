@@ -322,7 +322,7 @@ export interface FrameContext {
   /** Point-of-view player for camera, sound, and haptics.
    *  Online: onlinePlayerId. Local: pointer player slot. Demo: 0. */
   readonly povPlayerId: number;
-  readonly isHost: boolean;
+  readonly hostAtFrameStart: boolean;
   readonly remoteHumanSlots: ReadonlySet<number>;
 
   // Mode / Phase

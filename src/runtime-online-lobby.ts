@@ -47,7 +47,7 @@ const initDomLobby = () =>
     send,
     getSocket: () => ctx.session.socket,
     setIsHost: (value) => {
-      ctx.session.isHost = value;
+      ctx.session.isHost = value; // eslint-disable-line no-restricted-syntax -- lobby host assignment
     },
     isVisible: () => !pageOnline.hidden,
   });

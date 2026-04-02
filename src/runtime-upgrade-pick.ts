@@ -53,7 +53,7 @@ export function createUpgradePickSystem(
   function tryShow(onDone: () => void): boolean {
     const dialog = createUpgradePickDialog({
       state: runtimeState.state,
-      isHost: runtimeState.frameCtx.isHost,
+      hostAtFrameStart: runtimeState.frameCtx.hostAtFrameStart,
       onlinePlayerId: runtimeState.frameCtx.onlinePlayerId,
       remoteHumanSlots: runtimeState.frameCtx.remoteHumanSlots,
       isHumanController: (playerId) =>

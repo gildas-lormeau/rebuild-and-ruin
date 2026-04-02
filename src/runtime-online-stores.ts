@@ -28,6 +28,7 @@ import {
   type WatcherState,
 } from "./online-watcher-tick.ts";
 import { IS_DEV } from "./platform.ts";
+import { isHostInContext } from "./tick-context.ts";
 
 type ResetScope =
   | typeof RESET_SCOPE_DEDUP
@@ -84,7 +85,7 @@ export function devLogThrottled(key: string, msg: string): void {
 
 export function devLog(msg: string): void {
   if (!DEV) return;
-  const modeStr = ctx.session.isHost
+  const modeStr = isHostInContext(ctx.session)
     ? "host"
     : isActiveOnlinePlayer(ctx.session.onlinePlayerId)
       ? "player"

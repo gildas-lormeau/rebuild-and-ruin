@@ -79,7 +79,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       needsReselect,
       eliminated,
       state: runtimeState.state,
-      isHost: runtimeState.frameCtx.isHost,
+      hostAtFrameStart: runtimeState.frameCtx.hostAtFrameStart,
       onlinePlayerId: runtimeState.frameCtx.onlinePlayerId,
       remoteHumanSlots,
       isHumanController: (playerId) =>
@@ -125,7 +125,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
     eliminateAbandoned(dialog);
 
-    if (runtimeState.frameCtx.isHost) {
+    if (runtimeState.frameCtx.hostAtFrameStart) {
       afterLifeLostResolved(continuingPlayers(dialog));
     } else {
       runtimeState.mode = Mode.GAME;

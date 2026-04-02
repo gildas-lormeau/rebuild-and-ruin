@@ -132,7 +132,7 @@ export function createSelectionSystem(
     resetSelectionState();
     enterTowerSelectionImpl({
       state: runtimeState.state,
-      isHost: runtimeState.frameCtx.isHost,
+      isHost: runtimeState.frameCtx.hostAtFrameStart,
       onlinePlayerId: runtimeState.frameCtx.onlinePlayerId,
       remoteHumanSlots: runtimeState.frameCtx.remoteHumanSlots,
       controllers: runtimeState.controllers,
@@ -268,7 +268,7 @@ export function createSelectionSystem(
     tickSelectionPhase({
       dt,
       state: runtimeState.state,
-      isHost: runtimeState.frameCtx.isHost,
+      isHost: runtimeState.frameCtx.hostAtFrameStart,
       onlinePlayerId: runtimeState.frameCtx.onlinePlayerId,
       selectTimer: SELECT_TIMER,
       accum: runtimeState.accum,
@@ -325,7 +325,7 @@ export function createSelectionSystem(
   }
 
   function startPlayerCastleBuild(playerId: number): void {
-    if (!runtimeState.frameCtx.isHost) return; // non-host builds via castle_walls message
+    if (!runtimeState.frameCtx.hostAtFrameStart) return; // non-host builds via castle_walls message
     const plan = prepareCastleWallsForPlayer(runtimeState.state, playerId);
     if (!plan) return;
     deps.send({ type: MESSAGE.CASTLE_WALLS, plans: [plan] });
@@ -451,7 +451,7 @@ export function createSelectionSystem(
       runtimeState.state.timer = SELECT_TIMER;
       runtimeState.mode = Mode.SELECTION;
       deps.sound.drumsStart();
-      if (runtimeState.frameCtx.isHost) {
+      if (runtimeState.frameCtx.hostAtFrameStart) {
         deps.send({ type: MESSAGE.SELECT_START, timer: SELECT_TIMER });
       }
     } else {

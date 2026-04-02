@@ -1,10 +1,10 @@
 /**
  * Server lifecycle message handlers — room join, slot selection, phase transitions.
  *
- * NOTE: deps.session.isHost is VOLATILE (can flip during host promotion).
- * All reads here are inline (not cached), which is safe.
- * The `!deps.session.isHost` guards on phase-transition cases ensure that
- * only watchers apply host-sent checkpoints — the host computes its own. */
+ * NOTE: session.isHost is VOLATILE (can flip during host promotion).
+ * All reads go through isHostInContext() from tick-context.ts (enforced by ESLint).
+ * The host-check guards on phase-transition cases ensure that only watchers
+ * apply host-sent checkpoints — the host computes its own. */
 
 import {
   type FullStateMessage,
@@ -14,6 +14,7 @@ import {
 } from "../server/protocol.ts";
 import { GAME_MODE_CLASSIC } from "./game-constants.ts";
 import type { OnlineSession } from "./online-session.ts";
+import { isHostInContext } from "./tick-context.ts";
 import type { GameState } from "./types.ts";
 
 interface HandleServerLifecycleDeps {
@@ -102,7 +103,7 @@ export function handleServerLifecycleMessage(
 
   // Dismiss stale dialogs when a phase transition arrives from host.
   const isPhaseTransition =
-    !deps.session.isHost &&
+    !isHostInContext(deps.session) &&
     (msg.type === MESSAGE.CANNON_START ||
       msg.type === MESSAGE.BATTLE_START ||
       msg.type === MESSAGE.BUILD_START ||
@@ -196,32 +197,32 @@ export function handleServerLifecycleMessage(
       return true;
 
     case MESSAGE.CASTLE_WALLS:
-      if (!deps.session.isHost && deps.game.getState())
+      if (!isHostInContext(deps.session) && deps.game.getState())
         deps.transitions.onCastleWalls(msg);
       return true;
 
     case MESSAGE.CANNON_START:
-      if (!deps.session.isHost && deps.game.getState())
+      if (!isHostInContext(deps.session) && deps.game.getState())
         deps.transitions.onCannonStart(msg);
       return true;
 
     case MESSAGE.BATTLE_START:
-      if (!deps.session.isHost && deps.game.getState())
+      if (!isHostInContext(deps.session) && deps.game.getState())
         deps.transitions.onBattleStart(msg);
       return true;
 
     case MESSAGE.BUILD_START:
-      if (!deps.session.isHost && deps.game.getState())
+      if (!isHostInContext(deps.session) && deps.game.getState())
         deps.transitions.onBuildStart(msg);
       return true;
 
     case MESSAGE.BUILD_END:
-      if (!deps.session.isHost && deps.game.getState())
+      if (!isHostInContext(deps.session) && deps.game.getState())
         deps.transitions.onBuildEnd(msg);
       return true;
 
     case MESSAGE.GAME_OVER:
-      if (!deps.session.isHost) deps.transitions.onGameOver(msg);
+      if (!isHostInContext(deps.session)) deps.transitions.onGameOver(msg);
       return true;
 
     case MESSAGE.HOST_LEFT: {
@@ -243,7 +244,7 @@ export function handleServerLifecycleMessage(
     }
 
     case MESSAGE.FULL_STATE:
-      if (!deps.session.isHost && deps.game.getState()) {
+      if (!isHostInContext(deps.session) && deps.game.getState()) {
         const incomingSeq = msg.migrationSeq ?? 0;
         if (incomingSeq < deps.session.hostMigrationSeq) {
           deps.log(

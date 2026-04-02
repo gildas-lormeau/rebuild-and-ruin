@@ -82,6 +82,7 @@ import {
   send,
 } from "./runtime-online-stores.ts";
 import { initWs } from "./runtime-online-ws.ts";
+import { isHostInContext } from "./tick-context.ts";
 import { LifeLostChoice, Mode } from "./types.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 
@@ -144,6 +145,7 @@ const runtime: GameRuntime = createGameRuntime({
   renderer,
   isOnline: true,
   send,
+  // eslint-disable-next-line no-restricted-syntax -- bridge to runtime layer
   getIsHost: () => ctx.session.isHost,
   getOnlinePlayerId: () => ctx.session.onlinePlayerId,
   getRemoteHumanSlots: () => ctx.session.remoteHumanSlots,
@@ -166,8 +168,7 @@ const runtime: GameRuntime = createGameRuntime({
     }
   },
   onTickLobbyExpired: () => {
-    // Re-read isHost (volatile — can flip during host promotion)
-    if (!ctx.session.isHost) return;
+    if (!isHostInContext(ctx.session)) return;
     const diffParams =
       DIFFICULTY_PARAMS[runtime.runtimeState.settings.difficulty] ??
       DIFFICULTY_PARAMS[DEFAULT_DIFFICULTY]!;
@@ -194,8 +195,7 @@ const runtime: GameRuntime = createGameRuntime({
   everyTick: (dt) =>
     tickMigrationAnnouncement(ctx.watcher, runtime.runtimeState.frame, dt),
   onLocalCrosshairCollected: (ctrl, crosshair) => {
-    // isHost is volatile — re-read each tick (safe: inline, not cached)
-    if (ctx.session.isHost)
+    if (isHostInContext(ctx.session))
       broadcastLocalCrosshair(ctrl, crosshair, {
         lastSentAimTarget: ctx.dedup.aimTarget,
         send,
@@ -230,7 +230,7 @@ const runtime: GameRuntime = createGameRuntime({
     devLog(
       `endGame winner=${payloads.winnerName} round=${gameState.round} maxRounds=${gameState.maxRounds}`,
     );
-    if (ctx.session.isHost) send(payloads.serverPayload); // volatile — re-read (safe: inline)
+    if (isHostInContext(ctx.session)) send(payloads.serverPayload);
   },
 });
 

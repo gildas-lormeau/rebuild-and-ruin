@@ -424,7 +424,7 @@ export function createScenario(seed = 42): Scenario {
         isSelectionReady: deps.isSelectionReady,
         humanIsReselecting: deps.humanIsReselecting,
         onlinePlayerId: deps.onlinePlayerId,
-        isHost: true,
+        hostAtFrameStart: true,
         remoteHumanSlots: new Set(),
         mobileAutoZoom: deps.mobileAutoZoom,
       };
@@ -472,7 +472,7 @@ export function createScenario(seed = 42): Scenario {
       needsReselect,
       eliminated,
       state,
-      isHost: true,
+      hostAtFrameStart: true,
       onlinePlayerId: 0,
       remoteHumanSlots: new Set(),
       isHumanController: () => false,

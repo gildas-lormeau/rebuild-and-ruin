@@ -21,10 +21,11 @@ export interface OnlineSession {
   onlinePlayerId: number;
   /** Whether this client is the current host.
    *  VOLATILE: Can flip from false to true during host promotion (see online-host-promotion.ts).
-   *  Never cache across tick boundaries, awaits, or phase transitions — always re-read from session.
+   *  Never cache across tick boundaries, awaits, or phase transitions.
    *  Host promotion triggers: original host disconnects → server sends HOST_MIGRATION → this flips.
-   *  WRONG: `const isHost = session.isHost; ... if (isHost)` — value may be stale.
-   *  RIGHT: `if (session.isHost)` — always reads current value inline. */
+   *
+   *  READ via `isHostInContext(session)` from tick-context.ts (enforced by ESLint).
+   *  WRITE only in session init/reset/promotion (with eslint-disable). */
   isHost: boolean;
   hostMigrationSeq: number;
   occupiedSlots: Set<number>;
@@ -97,7 +98,7 @@ export function resetDedupMaps(dedup: DedupMaps): void {
 export function resetSessionState(session: OnlineSession): void {
   session.socket?.close();
   session.socket = null;
-  session.isHost = false;
+  session.isHost = false; // eslint-disable-line no-restricted-syntax -- session reset
   session.hostMigrationSeq = 0;
   session.onlinePlayerId = -1;
   session.occupiedSlots.clear();

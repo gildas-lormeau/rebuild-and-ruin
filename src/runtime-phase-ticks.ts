@@ -181,7 +181,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         applyDefaultFacings(runtimeState.state);
         (runtimeState.accum as MutableAccums).cannon = 0;
         runtimeState.state.timer = runtimeState.state.cannonPlaceTimer;
-        if (runtimeState.frameCtx.isHost && deps.hostNetworking) {
+        if (runtimeState.frameCtx.hostAtFrameStart && deps.hostNetworking) {
           deps.send(
             deps.hostNetworking.createCannonStartMessage(runtimeState.state),
           );
@@ -220,7 +220,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       beginBattle,
       net: deps.hostNetworking
         ? {
-            isHost: runtimeState.frameCtx.isHost,
+            isHost: runtimeState.frameCtx.hostAtFrameStart,
             sendBattleStart: (flights) => {
               deps.send(
                 deps.hostNetworking!.createBattleStartMessage(
@@ -255,7 +255,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       },
       net: {
         remoteHumanSlots: runtimeState.frameCtx.remoteHumanSlots,
-        isHost: runtimeState.frameCtx.isHost,
+        isHost: runtimeState.frameCtx.hostAtFrameStart,
         watcherTiming: deps.watcherTiming ?? {
           phaseStartTime: 0,
           phaseDuration: 0,
@@ -308,7 +308,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       startBattle,
       net: {
         remoteHumanSlots: runtimeState.frameCtx.remoteHumanSlots,
-        isHost: runtimeState.frameCtx.isHost,
+        isHost: runtimeState.frameCtx.hostAtFrameStart,
         remoteCannonPhantoms: deps.hostNetworking?.remoteCannonPhantoms() ?? [],
         lastSentCannonPhantom:
           deps.hostNetworking?.lastSentCannonPhantom() ?? new Map(),
@@ -369,7 +369,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
         // Step 1: apply checkpoint (nextPhase generates offers + modifier)
         nextPhase(runtimeState.state);
-        if (runtimeState.frameCtx.isHost && deps.hostNetworking) {
+        if (runtimeState.frameCtx.hostAtFrameStart && deps.hostNetworking) {
           deps.send(
             deps.hostNetworking.createBuildStartMessage(runtimeState.state),
           );
@@ -402,7 +402,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       },
       net: {
         remoteHumanSlots: runtimeState.frameCtx.remoteHumanSlots,
-        isHost: runtimeState.frameCtx.isHost,
+        isHost: runtimeState.frameCtx.hostAtFrameStart,
         sendMessage: deps.send,
       },
     });
@@ -433,7 +433,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       onFirstEnclosure: deps.sound.chargeFanfare,
       net: {
         remoteHumanSlots: runtimeState.frameCtx.remoteHumanSlots,
-        isHost: runtimeState.frameCtx.isHost,
+        isHost: runtimeState.frameCtx.hostAtFrameStart,
         remotePiecePhantoms: deps.hostNetworking?.remotePiecePhantoms() ?? [],
         lastSentPiecePhantom:
           deps.hostNetworking?.lastSentPiecePhantom() ?? new Map(),
@@ -455,7 +455,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
    *  so a single assertion covers cannon, battle, build, and balloon ticks. */
   function tickGame(dt: number) {
     assertStateReady(runtimeState);
-    if (runtimeState.frameCtx.isHost) {
+    if (runtimeState.frameCtx.hostAtFrameStart) {
       tickGameCore({
         dt,
         state: runtimeState.state,

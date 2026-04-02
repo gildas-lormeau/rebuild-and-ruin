@@ -12,12 +12,11 @@
  * PHANTOM UPDATES:
  *   No validation needed — UI-only, no state mutation.
  *
- * Rule of thumb: if (session.isHost) { validate then apply }; if (!session.isHost) { apply directly }.
+ * Rule of thumb: if (isHostInContext(session)) { validate then apply }; if not host { apply directly }.
  *
  * NOTE: session.isHost is VOLATILE — it can flip from false to true during
- * host promotion (see OnlineSession in online-session.ts). All reads in
- * this file are inline (no caching), which is correct. Never store
- * session.isHost in a local variable that persists across message handling.
+ * host promotion (see OnlineSession in online-session.ts). All reads go
+ * through isHostInContext() from tick-context.ts (enforced by ESLint).
  */
 
 import {
@@ -39,6 +38,7 @@ import type { OnlineSession } from "./online-session.ts";
 import { toCannonMode, type WatcherNetworkState } from "./online-types.ts";
 import { isSelectionPending } from "./selection.ts";
 import { inBoundsStrict } from "./spatial.ts";
+import { isHostInContext } from "./tick-context.ts";
 import {
   CANNON_MODES,
   type GameState,
@@ -231,7 +231,7 @@ function handleTowerSelected(
   if (isSelectionPending(selectionState)) {
     selectionState.highlighted = msg.towerIdx;
     deps.syncSelectionOverlay();
-    if (msg.confirmed && deps.session.isHost) {
+    if (msg.confirmed && isHostInContext(deps.session)) {
       // Host: immediately finalize selection for the remote player
       deps.confirmSelectionAndStartBuild(
         msg.playerId,
@@ -255,7 +255,7 @@ function handlePiecePlaced(
   if (!Array.isArray(msg.offsets) || msg.offsets.length === 0) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
   if (
-    deps.session.isHost &&
+    isHostInContext(deps.session) &&
     !canPlacePieceOffsets(state, msg.playerId, msg.offsets, msg.row, msg.col)
   ) {
     deps.log(`piece_placed: rejected invalid placement for P${msg.playerId}`);
@@ -281,7 +281,7 @@ function handleCannonPlaced(
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
   if (!CANNON_MODES.has(msg.mode)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
-  if (deps.session.isHost) {
+  if (isHostInContext(deps.session)) {
     const player = state.players[msg.playerId];
     if (!player) return DROPPED;
     const maxCannons = state.cannonLimits[msg.playerId] ?? 0;
@@ -357,7 +357,7 @@ function handleImpactEvent(
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
-  if (deps.session.isHost || !state) return DROPPED;
+  if (isHostInContext(deps.session) || !state) return DROPPED;
   if ("row" in msg && "col" in msg && !inBoundsStrict(msg.row, msg.col))
     return DROPPED;
   if ("playerId" in msg && !validPid(msg.playerId, state)) return DROPPED;
@@ -392,7 +392,7 @@ function handleTowerKilled(
   state: GameState | undefined,
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
-  if (deps.session.isHost || !state) return DROPPED;
+  if (isHostInContext(deps.session) || !state) return DROPPED;
   if (msg.towerIdx < 0 || msg.towerIdx >= state.towerAlive.length)
     return DROPPED;
   state.towerAlive[msg.towerIdx] = false;
@@ -449,7 +449,7 @@ function handleLifeLostChoice(
   msg: LifeLostChoiceMsg,
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
-  if (!deps.session.isHost) return DROPPED;
+  if (!isHostInContext(deps.session)) return DROPPED;
   deps.log(
     `life_lost_choice from P${msg.playerId}: ${msg.choice} (dialog=${deps.getLifeLostDialog() ? "active" : "null"})`,
   );
@@ -480,7 +480,7 @@ function handleUpgradePick(
   msg: UpgradePickMsg,
   deps: HandleServerIncrementalDeps,
 ): HandleResult {
-  if (!deps.session.isHost) return DROPPED;
+  if (!isHostInContext(deps.session)) return DROPPED;
   deps.log(
     `upgrade_pick from P${msg.playerId}: ${msg.choice} (dialog=${deps.getUpgradePickDialog() ? "active" : "null"})`,
   );
@@ -507,7 +507,9 @@ function isRemoteHumanAction(
   pid: number,
   deps: Pick<HandleServerIncrementalDeps, "session">,
 ): boolean {
-  return !deps.session.isHost || deps.session.remoteHumanSlots.has(pid);
+  return (
+    !isHostInContext(deps.session) || deps.session.remoteHumanSlots.has(pid)
+  );
 }
 
 function validPid(pid: number, state: GameState): boolean {

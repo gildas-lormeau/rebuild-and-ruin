@@ -81,7 +81,7 @@ export interface FrameContextInputs {
   isSelectionReady: boolean;
   humanIsReselecting: boolean;
   onlinePlayerId: number;
-  isHost: boolean;
+  hostAtFrameStart: boolean;
   remoteHumanSlots: ReadonlySet<number>;
   mobileAutoZoom: boolean;
 }
@@ -324,7 +324,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     isSelectionReady,
     humanIsReselecting,
     onlinePlayerId,
-    isHost,
+    hostAtFrameStart,
     remoteHumanSlots,
     mobileAutoZoom,
   } = inputs;
@@ -345,7 +345,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
   return {
     onlinePlayerId,
     povPlayerId,
-    isHost,
+    hostAtFrameStart,
     remoteHumanSlots,
     mode,
     phase,

@@ -38,7 +38,7 @@ export interface GameSettings {
 }
 
 export interface AutoResolveDeps {
-  readonly isHost: boolean;
+  readonly hostAtFrameStart: boolean;
   readonly onlinePlayerId: number;
   readonly remoteHumanSlots: ReadonlySet<number>;
   readonly isHumanController: (playerId: number) => boolean;
@@ -173,7 +173,7 @@ export function shouldAutoResolve(
   playerId: number,
   deps: AutoResolveDeps,
 ): boolean {
-  return deps.isHost
+  return deps.hostAtFrameStart
     ? !deps.isHumanController(playerId) && !deps.remoteHumanSlots.has(playerId)
     : playerId !== deps.onlinePlayerId;
 }

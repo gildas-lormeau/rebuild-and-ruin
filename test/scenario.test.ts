@@ -554,7 +554,7 @@ test("resetSessionState closes WebSocket and resets all fields", () => {
   const session = createSession();
   let closeCalled = false;
   session.socket = { close: () => { closeCalled = true; } } as unknown as WebSocket;
-  session.isHost = true;
+  session.isHost = true; // eslint-disable-line no-restricted-syntax -- test setup
   session.onlinePlayerId = 2;
   session.hostMigrationSeq = 3;
   session.occupiedSlots = new Set([0, 1, 2]);
@@ -565,7 +565,7 @@ test("resetSessionState closes WebSocket and resets all fields", () => {
 
   assert(closeCalled, "socket.close() should be called");
   assert(session.socket === null, "socket should be null after reset");
-  assert(!session.isHost, "isHost should be false");
+  assert(!session.isHost, "isHost should be false"); // eslint-disable-line no-restricted-syntax -- test assertion
   assert(session.onlinePlayerId === -1, "onlinePlayerId should be -1");
   assert(session.hostMigrationSeq === 0, "hostMigrationSeq should be 0");
   assert(session.occupiedSlots.size === 0, "occupiedSlots should be empty");

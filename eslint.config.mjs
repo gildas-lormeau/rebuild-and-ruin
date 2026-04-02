@@ -42,11 +42,12 @@ export default [
       "no-restricted-syntax": [
         "error",
         {
-          // isHostInContext(net) is the canonical helper (tick-context.ts)
-          selector:
-            "LogicalExpression[operator='??'][right.value=true]:has(MemberExpression[property.name='isHost'])",
+          // isHost is VOLATILE — can flip during host promotion.
+          // All reads must go through isHostInContext() (tick-context.ts).
+          // All writes are restricted to session init/reset/promotion.
+          selector: "MemberExpression[property.name='isHost']",
           message:
-            "Use isHostInContext(net) from tick-context.ts instead of net?.isHost ?? true.",
+            "Direct .isHost access is banned (volatile field). Read via isHostInContext(session) from tick-context.ts; write only in session init/reset/promotion with eslint-disable.",
         },
       ],
 

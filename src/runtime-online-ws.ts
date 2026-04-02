@@ -16,6 +16,7 @@ import {
   MAX_RECONNECT_ATTEMPTS,
   RECONNECT_BASE_DELAY_MS,
 } from "./runtime-online-stores.ts";
+import { isHostInContext } from "./tick-context.ts";
 import { Mode } from "./types.ts";
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -57,10 +58,14 @@ export function connect(onConnectError?: () => void): void {
       const mode = _rt.getMode();
       // Mode[mode] is TypeScript's reverse enum mapping (numeric → string name)
       devLog(
+        // eslint-disable-next-line no-restricted-syntax -- diagnostic logging
         `WebSocket closed (mode=${Mode[mode]} isHost=${ctx.session.isHost})`,
       );
-      // Re-read isHost (volatile — can flip during host promotion)
-      if (ctx.session.isHost || mode === Mode.STOPPED || mode === Mode.LOBBY)
+      if (
+        isHostInContext(ctx.session) ||
+        mode === Mode.STOPPED ||
+        mode === Mode.LOBBY
+      )
         return;
       if (ctx.reconnect.count < MAX_RECONNECT_ATTEMPTS) {
         ctx.reconnect.count++;

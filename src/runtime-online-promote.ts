@@ -46,8 +46,7 @@ export function initPromote(rt: GameRuntime): void {
 export function promoteToHost(): void {
   if (!_runtime) throw new Error("promoteToHost() called before initPromote()");
   devLog("PROMOTING TO HOST");
-  // Re-read isHost (volatile — can flip during host promotion)
-  ctx.session.isHost = true;
+  ctx.session.isHost = true; // eslint-disable-line no-restricted-syntax -- host promotion
 
   resetNetworking(RESET_SCOPE_HOST_PROMOTION);
   rebuildControllersForPhase(
