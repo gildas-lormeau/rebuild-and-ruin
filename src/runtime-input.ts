@@ -651,6 +651,7 @@ function setupFloatingActions(
     touch.floatingActions = createFloatingActions(
       {
         getState: () => safeState(runtimeState),
+        getMode: () => runtimeState.mode,
         withPointerPlayer,
         tryPlacePieceAndSend: placePieceAction,
         tryPlaceCannonAndSend: placeCannonAction,

@@ -81,6 +81,7 @@ interface ZoomButtonDeps {
 
 interface FloatingActionsDeps {
   getState: () => GameState | undefined;
+  getMode: () => Mode;
   withPointerPlayer: (
     action: (human: PlayerController & InputReceiver) => void,
   ) => void;
@@ -359,7 +360,7 @@ export function createFloatingActions(
   function handleRotate() {
     deps.onHapticTap?.();
     const state = deps.getState();
-    if (!state) return;
+    if (!state || !isInteractiveMode(deps.getMode())) return;
     deps.withPointerPlayer((human) => {
       dispatchRotateForCtrl(human, state, deps.onPieceRotated);
     });
@@ -368,7 +369,7 @@ export function createFloatingActions(
   function handleConfirm() {
     deps.onHapticTap?.();
     const state = deps.getState();
-    if (!state) return;
+    if (!state || !isInteractiveMode(deps.getMode())) return;
     deps.withPointerPlayer((human) => {
       dispatchPlacementConfirm(human, state, deps);
     });
