@@ -48,6 +48,7 @@ import {
   FIRST_GRUNT_SPAWN_ROUND,
   INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
   INTERBATTLE_GRUNT_SPAWN_CHANCE,
+  MID,
 } from "./game-constants.ts";
 import {
   rollGruntWallAttacks,
@@ -234,9 +235,9 @@ export function enterBattleFromCannon(state: GameState): void {
   // Thaw frozen river from previous round (before applying new modifier)
   clearFrozenRiver(state);
   // Modern mode: apply battle-start modifiers
-  if (state.activeModifier === "wildfire") applyWildfire(state);
-  if (state.activeModifier === "grunt_surge") applyGruntSurge(state);
-  if (state.activeModifier === "frozen_river") applyFrozenRiver(state);
+  if (state.activeModifier === MID.WILDFIRE) applyWildfire(state);
+  if (state.activeModifier === MID.GRUNT_SURGE) applyGruntSurge(state);
+  if (state.activeModifier === MID.FROZEN_RIVER) applyFrozenRiver(state);
 
   rollGruntWallAttacks(state);
   setPhase(state, Phase.BATTLE);
@@ -289,19 +290,19 @@ export function enterBuildFromBattle(state: GameState): void {
 
   replenishBonusSquares(state);
   setPhase(state, Phase.WALL_BUILD);
-  // Master Builder: +5s per stack across all players
-  const masterBuilderBonus =
-    state.players
-      .filter((pl) => !pl.eliminated)
-      .reduce(
-        (sum, pl) => sum + (pl.upgrades.get(UID.MASTER_BUILDER) ?? 0),
-        0,
-      ) * MASTER_BUILDER_BONUS;
-  state.timer = state.buildTimer + masterBuilderBonus;
+  // Master Builder: +5s per stack — use highest stack count among alive players
+  // so one player's pick doesn't compound with others on the shared timer
+  const masterBuilderStacks = state.players
+    .filter((pl) => !pl.eliminated)
+    .reduce(
+      (best, pl) => Math.max(best, pl.upgrades.get(UID.MASTER_BUILDER) ?? 0),
+      0,
+    );
+  state.timer = state.buildTimer + masterBuilderStacks * MASTER_BUILDER_BONUS;
   startOfBuildPhaseHousekeeping(state);
 
   // Modern mode: apply build-start modifiers (after housekeeping so territory is fresh)
-  if (state.activeModifier === "crumbling_walls") {
+  if (state.activeModifier === MID.CRUMBLING_WALLS) {
     applyCrumblingWalls(state);
     recheckTerritory(state);
   }

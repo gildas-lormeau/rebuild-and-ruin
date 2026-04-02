@@ -228,7 +228,11 @@ export function drawStatusBar(
   // Left: round + phase + timer
   overlayCtx.textAlign = TEXT_ALIGN_LEFT;
   overlayCtx.fillStyle = STATUS_TEXT_COLOR;
-  overlayCtx.fillText(`${sb.round}  ${sb.phase}  ${sb.timer}`, PAD, cy);
+  let leftText = `${sb.round}  ${sb.phase}  ${sb.timer}`;
+  if (sb.modifier) leftText += `  \u26a0 ${sb.modifier}`;
+  if (sb.upgrades && sb.upgrades.length > 0)
+    leftText += `  \u2726 ${sb.upgrades.join(", ")}`;
+  overlayCtx.fillText(leftText, PAD, cy);
 
   // Right: player stats
   overlayCtx.textAlign = TEXT_ALIGN_RIGHT;

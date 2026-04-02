@@ -36,7 +36,11 @@ import {
   showBuildPhaseBanner,
   showCannonPhaseBanner,
 } from "./phase-transition-shared.ts";
-import { BANNER_PHASE_CANNON, modifierBannerText } from "./round-modifiers.ts";
+import {
+  BANNER_PHASE_BUILD,
+  BANNER_PHASE_CANNON,
+  modifierBannerText,
+} from "./round-modifiers.ts";
 import {
   FOCUS_REMATCH,
   type GameOverFocus,
@@ -330,6 +334,7 @@ export function handleBuildStartTransition(
             );
             transitionCtx.setMode(Mode.GAME);
           },
+          modifierBannerText(state.activeModifier, BANNER_PHASE_BUILD),
         ),
       applyCheckpoint: () => {
         // Already applied above — no-op

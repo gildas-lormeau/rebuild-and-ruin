@@ -32,6 +32,7 @@ import {
   type RenderOverlay,
   type UpgradePickOverlay,
 } from "./render-types.ts";
+import { modifierLabel } from "./round-modifiers.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
@@ -143,7 +144,27 @@ export function createBannerUi(
 export function createStatusBar(
   state: GameState,
   playerColors: readonly { interiorLight: RGB }[],
+  myPlayerId?: number,
 ) {
+  // Modifier label (modern mode only)
+  const modifier = state.activeModifier
+    ? modifierLabel(state.activeModifier)
+    : undefined;
+
+  // Local player's active upgrade labels
+  let upgrades: string[] | undefined;
+  if (myPlayerId !== undefined && myPlayerId >= 0) {
+    const player = state.players[myPlayerId];
+    if (player && player.upgrades.size > 0) {
+      upgrades = [];
+      for (const [id, count] of player.upgrades) {
+        const def = UPGRADE_POOL.find((up) => up.id === id);
+        const label = def?.label ?? id;
+        upgrades.push(count > 1 ? `${label} x${count}` : label);
+      }
+    }
+  }
+
   return {
     round:
       state.battleLength === Infinity
@@ -151,6 +172,8 @@ export function createStatusBar(
         : `R${state.round}/${state.battleLength}`,
     phase: PHASE_LABELS.get(state.phase) ?? "",
     timer: state.timer > 0 ? `${Math.ceil(state.timer)}s` : "",
+    modifier,
+    upgrades,
     players: state.players.map((player, i) => ({
       score: player.score,
       cannons: player.cannons.filter((c) => c.hp > 0).length,
@@ -568,6 +591,8 @@ function buildCastleOverlay(
         interior: displayInterior,
         cannons: player.cannons,
         playerId: player.id,
+        damagedWalls:
+          player.damagedWalls.size > 0 ? player.damagedWalls : undefined,
       };
     });
 }

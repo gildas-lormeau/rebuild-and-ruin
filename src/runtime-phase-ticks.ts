@@ -47,7 +47,11 @@ import {
   showBuildPhaseBanner,
   showCannonPhaseBanner,
 } from "./phase-transition-shared.ts";
-import { BANNER_PHASE_CANNON, modifierBannerText } from "./round-modifiers.ts";
+import {
+  BANNER_PHASE_BUILD,
+  BANNER_PHASE_CANNON,
+  modifierBannerText,
+} from "./round-modifiers.ts";
 import {
   beginHostBattle,
   startHostBattleLifecycle,
@@ -379,9 +383,17 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         const showBannerAndEnterBuild = () => {
           executeTransition(BUILD_START_STEPS, {
             showBanner: () =>
-              showBuildPhaseBanner(deps.showBanner, BANNER_BUILD, () => {
-                runtimeState.mode = Mode.GAME;
-              }),
+              showBuildPhaseBanner(
+                deps.showBanner,
+                BANNER_BUILD,
+                () => {
+                  runtimeState.mode = Mode.GAME;
+                },
+                modifierBannerText(
+                  runtimeState.state.activeModifier,
+                  BANNER_PHASE_BUILD,
+                ),
+              ),
             applyCheckpoint: () => {
               // Already applied above — no-op
             },

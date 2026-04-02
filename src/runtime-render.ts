@@ -122,6 +122,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       runtimeState.overlay.ui.statusBar = createStatusBar(
         runtimeState.state,
         PLAYER_COLORS,
+        runtimeState.frameCtx.myPlayerId,
       );
     }
 

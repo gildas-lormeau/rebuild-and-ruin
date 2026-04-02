@@ -808,7 +808,35 @@ function drawCastleWalls(
       lightEdge,
       shadowEdge,
     );
+    // Crack overlay for walls that absorbed a hit (Reinforced Walls upgrade)
+    if (castle.damagedWalls?.has(key)) {
+      drawDamagedWallCracks(overlayCtx, px, py);
+    }
   }
+}
+
+/** Draw diagonal cracks on a damaged wall tile. */
+function drawDamagedWallCracks(
+  overlayCtx: CanvasRenderingContext2D,
+  px: number,
+  py: number,
+): void {
+  overlayCtx.save();
+  overlayCtx.strokeStyle = "rgba(0, 0, 0, 0.45)";
+  overlayCtx.lineWidth = 1;
+  // Main diagonal crack
+  overlayCtx.beginPath();
+  overlayCtx.moveTo(px + 3, py + 2);
+  overlayCtx.lineTo(px + 8, py + 7);
+  overlayCtx.lineTo(px + 6, py + 10);
+  overlayCtx.lineTo(px + 12, py + 14);
+  overlayCtx.stroke();
+  // Branch crack
+  overlayCtx.beginPath();
+  overlayCtx.moveTo(px + 8, py + 7);
+  overlayCtx.lineTo(px + 12, py + 5);
+  overlayCtx.stroke();
+  overlayCtx.restore();
 }
 
 /** Draw 2px bevels on wall edges that have no neighbor. */

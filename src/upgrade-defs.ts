@@ -35,6 +35,10 @@ interface UpgradeDef {
   readonly oneUse: boolean;
   /** Whether picking this again increases the effect (stacking). */
   readonly stackable: boolean;
+  /** Whether gameplay code exists for this upgrade.
+   *  Unimplemented upgrades are kept in the pool type system but excluded
+   *  from draft offers so players never pick a no-op upgrade. */
+  readonly implemented: boolean;
 }
 
 /** Compile-time check: every UpgradeId must appear in the pool.
@@ -76,6 +80,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: 3,
     oneUse: false,
     stackable: false,
+    implemented: false,
   },
   {
     id: "mortar",
@@ -85,15 +90,17 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: 2,
     oneUse: false,
     stackable: false,
+    implemented: false,
   },
   {
     id: "rapid_fire",
     label: "Rapid Fire",
-    description: "2× reload speed, half damage per shot",
+    description: "Cannonballs travel 2× faster",
     category: BATTLE,
     weight: 3,
     oneUse: false,
     stackable: true,
+    implemented: true,
   },
   {
     id: "flaming_walls",
@@ -103,6 +110,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: 3,
     oneUse: false,
     stackable: false,
+    implemented: false,
   },
   // Build
   {
@@ -113,6 +121,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: 3,
     oneUse: false,
     stackable: false,
+    implemented: true,
   },
   {
     id: "master_builder",
@@ -122,6 +131,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: 3,
     oneUse: false,
     stackable: true,
+    implemented: true,
   },
   {
     id: "large_pieces",
@@ -131,6 +141,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: 2,
     oneUse: false,
     stackable: false,
+    implemented: false,
   },
   {
     id: "foundations",
@@ -140,6 +151,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: 2,
     oneUse: false,
     stackable: false,
+    implemented: false,
   },
   // Strategic
   {
@@ -150,6 +162,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: 2,
     oneUse: false,
     stackable: false,
+    implemented: false,
   },
   {
     id: "mercenaries",
@@ -159,6 +172,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: 2,
     oneUse: false,
     stackable: false,
+    implemented: false,
   },
   {
     id: "fortify",
@@ -168,6 +182,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: 2,
     oneUse: false,
     stackable: false,
+    implemented: false,
   },
   {
     id: "salvage",
@@ -177,6 +192,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: 2,
     oneUse: false,
     stackable: false,
+    implemented: false,
   },
   // One-use
   {
@@ -187,6 +203,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: 1,
     oneUse: true,
     stackable: false,
+    implemented: false,
   },
   {
     id: "ceasefire",
@@ -196,6 +213,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: 1,
     oneUse: true,
     stackable: false,
+    implemented: false,
   },
   {
     id: "supply_drop",
@@ -205,7 +223,12 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: 1,
     oneUse: true,
     stackable: false,
+    implemented: false,
   },
 ];
+/** Draft-eligible upgrades — only those with gameplay code. */
+export const IMPLEMENTED_UPGRADES: readonly UpgradeDef[] = UPGRADE_POOL.filter(
+  (def) => def.implemented,
+);
 
 void poolComplete;

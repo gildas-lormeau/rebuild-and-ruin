@@ -12,7 +12,7 @@ import {
   filterActiveEnemies,
 } from "./board-occupancy.ts";
 import { filterActiveFiringCannons } from "./cannon-system.ts";
-import { TOWER_SIZE } from "./game-constants.ts";
+import { MID, TOWER_SIZE } from "./game-constants.ts";
 import type {
   PixelPos,
   PrioritizedTilePos,
@@ -37,8 +37,11 @@ import { type Cannon, type Cannonball, type GameState } from "./types.ts";
 
 type TargetCandidate = PrioritizedTilePos;
 
-/** Minimum grunts targeting a player before a grunt sweep is considered. */
+/** Minimum grunts targeting a player before a grunt sweep is considered.
+ *  Lowered during grunt-heavy modifiers (grunt_surge, frozen_river) so the
+ *  AI reacts sooner to the increased threat. */
 const GRUNT_SWEEP_THRESHOLD = 15;
+const GRUNT_SWEEP_THRESHOLD_MODIFIER = 8;
 /** Skip charity sweep if the enemy has more usable cannons than this. */
 const CHARITY_CANNON_THRESHOLD = 6;
 /** Pockets smaller than this are worth destroying — can't fit a 2×2 cannon.
@@ -565,7 +568,12 @@ function planGruntTargets(
   const grunts = state.grunts.filter(
     (grunt) => grunt.targetPlayerId === targetPlayerId,
   );
-  if (grunts.length <= GRUNT_SWEEP_THRESHOLD) return null;
+  const mod = state.activeModifier;
+  const threshold =
+    mod === MID.GRUNT_SURGE || mod === MID.FROZEN_RIVER
+      ? GRUNT_SWEEP_THRESHOLD_MODIFIER
+      : GRUNT_SWEEP_THRESHOLD;
+  if (grunts.length <= threshold) return null;
   const positions = grunts.map((grunt) => ({ row: grunt.row, col: grunt.col }));
   // Random starting point
   const startIndex = rng.int(0, positions.length - 1);

@@ -26,6 +26,9 @@ export interface CastleData {
   cannons: Cannon[];
   /** Player index (for color). */
   playerId: number;
+  /** Wall tiles that absorbed one hit from Reinforced Walls upgrade.
+   *  Rendered with a crack overlay so players can see which walls are weakened. */
+  damagedWalls?: ReadonlySet<number>;
 }
 
 /** A single row in the options screen. */
@@ -230,6 +233,10 @@ export interface UIOverlay {
     round: string;
     phase: string;
     timer: string;
+    /** Active environmental modifier label (modern mode). */
+    modifier?: string;
+    /** Local player's active upgrade labels (modern mode). */
+    upgrades?: string[];
     players: {
       score: number;
       cannons: number;

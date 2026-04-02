@@ -11,7 +11,7 @@ import type {
   UpgradePickDialogState,
   UpgradePickEntry,
 } from "./types.ts";
-import { UID, UPGRADE_POOL, type UpgradeId } from "./upgrade-defs.ts";
+import { IMPLEMENTED_UPGRADES, UID, type UpgradeId } from "./upgrade-defs.ts";
 
 interface CreateUpgradePickDeps {
   readonly state: GameState;
@@ -128,24 +128,24 @@ export function generateUpgradeOffers(
   return offers.size > 0 ? offers : null;
 }
 
-/** Draw N unique upgrades from the weighted pool using state.rng. */
+/** Draw N unique upgrades from the implemented pool using state.rng. */
 function drawOffers(state: GameState): [UpgradeId, UpgradeId, UpgradeId] {
-  const available = [...UPGRADE_POOL];
+  const pool = [...IMPLEMENTED_UPGRADES];
   const picked: UpgradeId[] = [];
 
-  for (let i = 0; i < OFFER_COUNT && available.length > 0; i++) {
-    const totalWeight = available.reduce((sum, def) => sum + def.weight, 0);
+  for (let i = 0; i < OFFER_COUNT && pool.length > 0; i++) {
+    const totalWeight = pool.reduce((sum, def) => sum + def.weight, 0);
     let roll = state.rng.next() * totalWeight;
-    let chosenIdx = available.length - 1;
-    for (let ci = 0; ci < available.length; ci++) {
-      roll -= available[ci]!.weight;
+    let chosenIdx = pool.length - 1;
+    for (let ci = 0; ci < pool.length; ci++) {
+      roll -= pool[ci]!.weight;
       if (roll <= 0) {
         chosenIdx = ci;
         break;
       }
     }
-    picked.push(available[chosenIdx]!.id);
-    available.splice(chosenIdx, 1);
+    picked.push(pool[chosenIdx]!.id);
+    pool.splice(chosenIdx, 1);
   }
 
   return picked as [UpgradeId, UpgradeId, UpgradeId];
@@ -195,46 +195,16 @@ function scoreUpgrade(
   gruntCount: number,
   territoryRatio: number,
 ): number {
-  const has = (uid: UpgradeId) => (player.upgrades.get(uid) ?? 0) > 0;
-
   switch (id) {
     // Defensive — valuable when under grunt pressure or small territory
     case UID.REINFORCED_WALLS:
-      return has(UID.REINFORCED_WALLS) ? 1 : 5 + gruntCount * 2;
+      return 5 + gruntCount * 2;
     case UID.MASTER_BUILDER:
       return 4 + (1 - territoryRatio) * 6;
-    case UID.FOUNDATIONS:
-      return has(UID.FOUNDATIONS) ? 1 : 3;
-    case UID.LARGE_PIECES:
-      return has(UID.LARGE_PIECES) ? 1 : 4;
 
     // Offensive — valuable when the player has many cannons
     case UID.RAPID_FIRE:
       return 3 + player.cannons.length * 1.5;
-    case UID.SCATTER_SHOT:
-      return has(UID.SCATTER_SHOT) ? 1 : 3 + player.cannons.length;
-    case UID.MORTAR:
-      return has(UID.MORTAR) ? 1 : 4;
-    case UID.FLAMING_WALLS:
-      return has(UID.FLAMING_WALLS) ? 1 : 3;
-
-    // Strategic
-    case UID.SCOUT_TOWER:
-      return has(UID.SCOUT_TOWER) ? 1 : 3;
-    case UID.MERCENARIES:
-      return 4;
-    case UID.FORTIFY:
-      return 2 + gruntCount;
-    case UID.SALVAGE:
-      return has(UID.SALVAGE) ? 1 : 3;
-
-    // One-use
-    case UID.EARTHQUAKE:
-      return 3;
-    case UID.CEASEFIRE:
-      return territoryRatio < 0.3 ? 6 : 2;
-    case UID.SUPPLY_DROP:
-      return 4;
 
     default:
       return 3;

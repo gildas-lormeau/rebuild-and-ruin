@@ -13,6 +13,13 @@ export type ModifierId =
   | "grunt_surge"
   | "frozen_river";
 
+/** Named constants for modifier IDs — use these instead of raw string literals. */
+export const MID = {
+  WILDFIRE: "wildfire",
+  CRUMBLING_WALLS: "crumbling_walls",
+  GRUNT_SURGE: "grunt_surge",
+  FROZEN_RIVER: "frozen_river",
+} as const satisfies Record<string, ModifierId>;
 export const GAME_MODE_CLASSIC: GameMode = "classic";
 export const GAME_MODE_MODERN: GameMode = "modern";
 /** First round that can roll a modifier (modern mode). */

@@ -235,17 +235,18 @@ test("Master Builder adds +5s to build timer per stack", () => {
   );
 });
 
-test("Master Builder stacks across multiple players", () => {
+test("Master Builder uses max stacks across players (not sum)", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   const baseBuildTimer = s.state.buildTimer;
 
-  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
+  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 2);
   s.state.players[1]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
 
   const result = s.playRound();
   if (result.needsReselect.length > 0) s.processReselection(result.needsReselect);
 
+  // Max stacks = 2 → +10s (not sum 3 → +15s)
   assert(
     s.state.timer === baseBuildTimer + 10,
     `expected ${baseBuildTimer + 10}s, got ${s.state.timer}`,
