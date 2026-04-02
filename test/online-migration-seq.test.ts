@@ -37,6 +37,7 @@ function makeFullState(migrationSeq: number): FullStateMessage {
     gameMode: "classic",
     activeModifier: null,
     lastModifierId: null,
+    frozenTiles: null,
   };
 }
 

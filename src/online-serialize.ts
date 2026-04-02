@@ -57,7 +57,7 @@ export function createBuildStartMessage(state: GameState) {
     pendingUpgradeOffers: state.pendingUpgradeOffers
       ? [...state.pendingUpgradeOffers.entries()]
       : null,
-    frozenTiles: state.frozenTiles ? [...state.frozenTiles] : undefined,
+    frozenTiles: state.frozenTiles ? [...state.frozenTiles] : null,
   };
 }
 
@@ -99,7 +99,7 @@ export function createBattleStartMessage(
             endY: flight.endY,
           }))
         : undefined,
-    frozenTiles: state.frozenTiles ? [...state.frozenTiles] : undefined,
+    frozenTiles: state.frozenTiles ? [...state.frozenTiles] : null,
   };
 }
 
@@ -136,7 +136,7 @@ export function createFullStateMessage(
     pendingUpgradeOffers: state.pendingUpgradeOffers
       ? [...state.pendingUpgradeOffers.entries()]
       : null,
-    frozenTiles: state.frozenTiles ? [...state.frozenTiles] : undefined,
+    frozenTiles: state.frozenTiles ? [...state.frozenTiles] : null,
     towerPendingRevive: [...state.towerPendingRevive],
     capturedCannons: state.capturedCannons.map((cc) => ({
       victimId: cc.victimId,

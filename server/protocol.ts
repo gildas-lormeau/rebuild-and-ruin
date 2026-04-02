@@ -280,7 +280,7 @@ export interface FullStateMessage {
   activeModifier: string | null;
   lastModifierId: string | null;
   pendingUpgradeOffers?: [number, [string, string, string]][] | null;
-  frozenTiles?: number[];
+  frozenTiles: number[] | null;
   towerPendingRevive: number[];
   capturedCannons: {
     victimId: number;
