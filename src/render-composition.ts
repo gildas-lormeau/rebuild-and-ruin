@@ -67,9 +67,9 @@ const PHASE_LABELS = new Map<Phase, string>([
   [Phase.BATTLE, "Battle"],
 ]);
 const GAMEOVER_PANEL_W_RATIO = 0.65;
-const GEAR_X = GRID_COLS * TILE_SIZE - 32;
-const GEAR_Y = 4;
-const GEAR_SIZE = 28;
+const SETTINGS_GEAR_X = GRID_COLS * TILE_SIZE - 32;
+const SETTINGS_GEAR_Y = 4;
+const SETTINGS_GEAR_SIZE = 28;
 const UPGRADE_ROW_GAP = 8;
 const UPGRADE_CARDS_PER_ROW = 3;
 const UPGRADE_NAME_H = 18;
@@ -555,10 +555,10 @@ export function lobbyClickHitTest(params: {
   const y = canvasY * (tsH / canvasH);
 
   if (
-    x >= GEAR_X &&
-    x <= GEAR_X + GEAR_SIZE &&
-    y >= GEAR_Y &&
-    y <= GEAR_Y + GEAR_SIZE
+    x >= SETTINGS_GEAR_X &&
+    x <= SETTINGS_GEAR_X + SETTINGS_GEAR_SIZE &&
+    y >= SETTINGS_GEAR_Y &&
+    y <= SETTINGS_GEAR_Y + SETTINGS_GEAR_SIZE
   ) {
     return { type: "gear" };
   }

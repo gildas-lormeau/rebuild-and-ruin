@@ -203,7 +203,7 @@ const runtime: GameRuntime = createGameRuntime({
   extendCrosshairs: (crosshairs, dt) =>
     extendWithRemoteCrosshairs(crosshairs, runtime.runtimeState.state, dt, {
       remoteCrosshairs: ctx.watcher.remoteCrosshairs,
-      watcherCrosshairPos: ctx.watcher.crosshairPos,
+      watcherCrosshairPos: ctx.watcher.watcherCrosshairPos,
       remoteHumanSlots: ctx.session.remoteHumanSlots,
       logThrottled: devLogThrottled,
     }),
@@ -360,7 +360,7 @@ function buildCheckpointDeps(): CheckpointDeps {
     battleAnim: runtime.runtimeState.battleAnim,
     accum: runtime.runtimeState.accum,
     remoteCrosshairs: ctx.watcher.remoteCrosshairs,
-    watcherCrosshairPos: ctx.watcher.crosshairPos,
+    watcherCrosshairPos: ctx.watcher.watcherCrosshairPos,
     watcherOrbitParams: ctx.watcher.orbitParams,
     watcherIdlePhases: ctx.watcher.idlePhases,
     snapshotTerritory: () => runtime.snapshotTerritory(),

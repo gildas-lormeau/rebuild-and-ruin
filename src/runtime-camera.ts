@@ -331,8 +331,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Per-frame tick ---
 
-  let wasPaused = false;
-  let wasQuitPending = false;
+  let prevFramePaused = false;
+  let prevFrameQuitPending = false;
 
   function tickCamera(): void {
     const state = deps.getState();
@@ -369,13 +369,13 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   ): void {
     if (
       mobileAuto &&
-      ((wasPaused && !frameCtx.paused) ||
-        (wasQuitPending && !frameCtx.quitPending))
+      ((prevFramePaused && !frameCtx.paused) ||
+        (prevFrameQuitPending && !frameCtx.quitPending))
     ) {
       autoZoom(state.phase);
     }
-    wasPaused = frameCtx.paused;
-    wasQuitPending = frameCtx.quitPending;
+    prevFramePaused = frameCtx.paused;
+    prevFrameQuitPending = frameCtx.quitPending;
   }
 
   /** Auto-zoom to selection after announcement finishes. */

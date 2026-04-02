@@ -30,7 +30,7 @@ import { type BattleAnimState, type GameState, Phase } from "./types.ts";
 export interface WatcherState extends WatcherNetworkState {
   timing: WatcherTimingState;
   /** Interpolated visual positions shown to the watcher (smoothed toward remoteCrosshairs). */
-  crosshairPos: Map<number, PixelPos>;
+  watcherCrosshairPos: Map<number, PixelPos>;
   idlePhases: Map<number, number>;
   migrationTimer: number;
   migrationText: string;
@@ -61,7 +61,7 @@ export function createWatcherState(): WatcherState {
     },
     remoteCrosshairs: new Map(),
     remoteCannonPhantoms: [],
-    crosshairPos: new Map(),
+    watcherCrosshairPos: new Map(),
     idlePhases: new Map(),
     orbitParams: new Map(),
     remotePiecePhantoms: [],
@@ -75,7 +75,7 @@ export function resetWatcherState(watcherState: WatcherState): void {
   watcherState.remoteCrosshairs.clear();
   watcherState.remoteCannonPhantoms = [];
   watcherState.remotePiecePhantoms = [];
-  watcherState.crosshairPos.clear();
+  watcherState.watcherCrosshairPos.clear();
   watcherState.idlePhases.clear();
   watcherState.orbitParams.clear();
   clearWatcherPhaseTimer(watcherState.timing);
@@ -152,7 +152,7 @@ export function tickWatcher(
       onlinePlayerId,
       localController,
       remoteCrosshairs: watcherState.remoteCrosshairs,
-      watcherCrosshairPos: watcherState.crosshairPos,
+      watcherCrosshairPos: watcherState.watcherCrosshairPos,
       watcherIdlePhases: watcherState.idlePhases,
       watcherOrbitParams: watcherState.orbitParams,
       logThrottled: transitionCtx.logThrottled,

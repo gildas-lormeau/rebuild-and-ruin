@@ -661,20 +661,20 @@ function drawGameOverScores(
 ): void {
   const statsH = hasStats ? GAMEOVER_ROW_H : 0;
   const tableTop = py + GAMEOVER_HEADER_H;
-  const colName = px + INSET;
-  const colScore = px + panelW * SCOREBOARD_COL_RATIOS[0];
-  const colWalls = px + panelW * SCOREBOARD_COL_RATIOS[1];
-  const colCannons = px + panelW * SCOREBOARD_COL_RATIOS[2];
-  const colTerritory = px + panelW * SCOREBOARD_COL_RATIOS[3];
+  const colNameX = px + INSET;
+  const colScoreX = px + panelW * SCOREBOARD_COL_RATIOS[0];
+  const colWallsX = px + panelW * SCOREBOARD_COL_RATIOS[1];
+  const colCannonsX = px + panelW * SCOREBOARD_COL_RATIOS[2];
+  const colTerritoryX = px + panelW * SCOREBOARD_COL_RATIOS[3];
 
   if (hasStats) {
     overlayCtx.font = FONT_FLOAT_XS;
     overlayCtx.fillStyle = TEXT_MUTED;
     overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
-    overlayCtx.fillText("Score", colScore, tableTop + PAD);
-    overlayCtx.fillText("Walls", colWalls, tableTop + PAD);
-    overlayCtx.fillText("Cannons", colCannons, tableTop + PAD);
-    overlayCtx.fillText("Land", colTerritory, tableTop + PAD);
+    overlayCtx.fillText("Score", colScoreX, tableTop + PAD);
+    overlayCtx.fillText("Walls", colWallsX, tableTop + PAD);
+    overlayCtx.fillText("Cannons", colCannonsX, tableTop + PAD);
+    overlayCtx.fillText("Land", colTerritoryX, tableTop + PAD);
   }
 
   overlayCtx.font = FONT_LABEL;
@@ -685,14 +685,14 @@ function drawGameOverScores(
     const alpha = entry.eliminated ? OP_ACCENT : 1;
     overlayCtx.fillStyle = rgb(c, alpha);
     overlayCtx.textAlign = TEXT_ALIGN_LEFT;
-    overlayCtx.fillText(entry.name, colName, y);
+    overlayCtx.fillText(entry.name, colNameX, y);
     overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
-    overlayCtx.fillText(`${entry.score}`, colScore, y);
+    overlayCtx.fillText(`${entry.score}`, colScoreX, y);
     if (entry.stats) {
       overlayCtx.fillStyle = rgb(c, alpha * OP_SECONDARY);
-      overlayCtx.fillText(`${entry.stats.wallsDestroyed}`, colWalls, y);
-      overlayCtx.fillText(`${entry.stats.cannonsKilled}`, colCannons, y);
-      overlayCtx.fillText(`${entry.territory ?? 0}`, colTerritory, y);
+      overlayCtx.fillText(`${entry.stats.wallsDestroyed}`, colWallsX, y);
+      overlayCtx.fillText(`${entry.stats.cannonsKilled}`, colCannonsX, y);
+      overlayCtx.fillText(`${entry.territory ?? 0}`, colTerritoryX, y);
     }
   }
 }
