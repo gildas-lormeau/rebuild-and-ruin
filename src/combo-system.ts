@@ -70,6 +70,7 @@ export function comboOnWallDestroyed(
     tracker.events.push({
       text: `Wall Streak x${ps.wallStreak}! +${WALL_STREAK_BONUS}`,
       age: 0,
+      playerId: shooterId,
     });
     return WALL_STREAK_BONUS;
   }
@@ -85,6 +86,7 @@ export function comboOnCannonKill(
   tracker.events.push({
     text: `Cannon Kill! +${CANNON_KILL_BONUS}`,
     age: 0,
+    playerId: shooterId,
   });
   return CANNON_KILL_BONUS;
 }
@@ -108,6 +110,7 @@ export function comboOnGruntKill(
     tracker.events.push({
       text: `Grunt Sniper x${ps.gruntStreak}! +${GRUNT_STREAK_BONUS}`,
       age: 0,
+      playerId: shooterId,
     });
     return GRUNT_STREAK_BONUS;
   }

@@ -407,7 +407,12 @@ export function createOnlineOverlay(params: {
         LIFE_LOST_MAX_TIMER,
         getLifeLostPanelPos,
       ),
-      comboFloats: state.comboTracker?.events,
+      comboFloats:
+        myPlayerId < 0
+          ? state.comboTracker?.events
+          : state.comboTracker?.events.filter(
+              (ev) => ev.playerId === myPlayerId,
+            ),
       upgradePick: buildUpgradePickUi(
         upgradePickDialog,
         myPlayerId,
