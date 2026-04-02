@@ -183,9 +183,9 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
     `enterTowerSelection (phase=${Phase[state.phase]}, round=${state.round})`,
   );
 
-  // Watcher (non-host, no player slot). Note: isHost && onlinePlayerId < 0 is
+  // Watcher (non-host, no player slot). Note: isHost && !isActiveOnlinePlayer is
   // impossible — watcher-to-host promotion always assigns a player slot first.
-  if (!isHost && onlinePlayerId < 0) {
+  if (!isHost && !isActiveOnlinePlayer(onlinePlayerId)) {
     selectionStates.clear();
     for (let i = 0; i < state.players.length; i++) {
       initTowerSelection(i, state.playerZones[i]!);

@@ -11,13 +11,18 @@ import {
   MESSAGE,
   type ServerMessage,
 } from "../server/protocol.ts";
-import { GAME_MODE_CLASSIC, LOBBY_TIMER } from "./game-constants.ts";
+import {
+  GAME_MODE_CLASSIC,
+  LOBBY_TIMER,
+  SPECTATOR_SLOT,
+} from "./game-constants.ts";
 import { createDedupChannel, type DedupChannel } from "./phantom-types.ts";
 import type { LifeLostChoice } from "./types.ts";
 
 export interface OnlineSession {
   socket: WebSocket | null;
-  /** This player's slot id. -1 = watcher/spectator (not an active player). */
+  /** This player's slot id. SPECTATOR_SLOT (-1) = watcher/spectator.
+   *  Use `isActiveOnlinePlayer(onlinePlayerId)` to check, not raw comparisons. */
   onlinePlayerId: number;
   /** Whether this client is the current host.
    *  VOLATILE: Can flip from false to true during host promotion (see online-host-promotion.ts).
@@ -64,7 +69,7 @@ const KEEPALIVE_MS = 30_000;
 export function createSession(): OnlineSession {
   return {
     socket: null,
-    onlinePlayerId: -1,
+    onlinePlayerId: SPECTATOR_SLOT,
     isHost: false,
     hostMigrationSeq: 0,
     occupiedSlots: new Set(),
@@ -100,7 +105,7 @@ export function resetSessionState(session: OnlineSession): void {
   session.socket = null;
   session.isHost = false; // eslint-disable-line no-restricted-syntax -- session reset
   session.hostMigrationSeq = 0;
-  session.onlinePlayerId = -1;
+  session.onlinePlayerId = SPECTATOR_SLOT;
   session.occupiedSlots.clear();
   session.remoteHumanSlots.clear();
   session.earlyLifeLostChoices.clear();

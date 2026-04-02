@@ -168,9 +168,13 @@ export const VIEWPORT_SNAP_THRESHOLD = 0.5;
 export const HOUSE_MIN_DISTANCE = 3;
 /** Tower footprint size in tiles (towers are 2×2). */
 export const TOWER_SIZE = 2;
+/** Sentinel value for onlinePlayerId: client joined but did not select a slot.
+ *  Spectators can watch the game but not control any player. If promoted to host
+ *  (original host disconnects), all players become AI. */
+export const SPECTATOR_SLOT = -1;
 
 /** True if this client is an active player (not a spectator/watcher).
- *  onlinePlayerId >= 0 means a valid player slot; < 0 means spectating. */
+ *  onlinePlayerId >= 0 means a valid player slot; SPECTATOR_SLOT (-1) means spectating. */
 export function isActiveOnlinePlayer(onlinePlayerId: number): boolean {
   return onlinePlayerId >= 0;
 }
