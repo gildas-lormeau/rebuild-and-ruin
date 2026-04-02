@@ -7,6 +7,7 @@
  */
 
 import { type GameMessage, MESSAGE } from "../server/protocol.ts";
+import { getInterior } from "./board-occupancy.ts";
 import { recheckTerritory } from "./build-system.ts";
 import {
   createCastleBuildState,
@@ -283,7 +284,9 @@ export function createSelectionSystem(
         runtimeState.castleBuilds.length === 0 &&
         runtimeState.state.players.every(
           (player) =>
-            !player.homeTower || player.interior.size > 0 || player.eliminated,
+            !player.homeTower ||
+            getInterior(player).size > 0 ||
+            player.eliminated,
         ),
       tickActiveBuilds: tickAllCastleBuilds,
       announcementDuration: SELECT_ANNOUNCEMENT_DURATION,

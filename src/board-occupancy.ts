@@ -388,6 +388,15 @@ export function markInteriorFresh(
   return player.interior;
 }
 
+/** Return a player's interior after asserting it's fresh.
+ *  Use this instead of reading `player.interior` directly in game logic — it
+ *  guarantees the set reflects the current wall state.
+ *  Render code may read `player.interior` directly (stale data = visual glitch, not logic bug). */
+export function getInterior(player: Player): FreshInterior {
+  assertInteriorFresh(player);
+  return player.interior;
+}
+
 /** Assert that a player's interior is not stale (walls haven't changed since
  *  the last recheckTerritory). Throws if stale — this is a programming error,
  *  not a runtime condition. No-op if epochs were never initialized (e.g. tests

@@ -5,6 +5,7 @@
 import {
   assertInteriorFresh,
   filterAliveOwnedTowers,
+  getInterior,
   hasWallAt,
 } from "./board-occupancy.ts";
 import {
@@ -71,7 +72,8 @@ export function hasAnyCannonPlacement(
   mode: CannonMode,
   state: GameState,
 ): boolean {
-  for (const key of player.interior) {
+  const interior = getInterior(player);
+  for (const key of interior) {
     const { r, c } = unpackTile(key);
     if (canPlaceCannon(player, r, c, mode, state)) return true;
   }
@@ -139,6 +141,7 @@ export function canPlaceCannon(
   mode: CannonMode,
   state: GameState,
 ): boolean {
+  const interior = getInterior(player);
   const size = cannonSize(mode);
   // Cannon footprints are square: cannonSize() returns width=height (1 for normal, 2 for balloon/super).
   for (let dr = 0; dr < size; dr++) {
@@ -147,7 +150,7 @@ export function canPlaceCannon(
       const c = col + dc;
       if (!inBounds(r, c)) return false;
       const key = packTile(r, c);
-      if (!player.interior.has(key)) return false;
+      if (!interior.has(key)) return false;
       if (hasWallAt(state, r, c)) return false;
       if (overlapsOwnedTower(player.ownedTowers, r, c)) return false;
       if (overlapsExistingCannon(player.cannons, r, c)) return false;

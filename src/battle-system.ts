@@ -10,6 +10,7 @@ import {
 import {
   deletePlayerWallBattle,
   filterActiveEnemies,
+  getInterior,
 } from "./board-occupancy.ts";
 import {
   filterActiveFiringCannons,
@@ -468,7 +469,7 @@ export function createCannonFiredMsg(ball: {
 /** Snapshot per-player territory (interior + walls) for battle rendering. */
 export function snapshotTerritory(players: readonly Player[]): Set<number>[] {
   return players.map((player) => {
-    const combined = new Set(player.interior);
+    const combined = new Set(getInterior(player));
     for (const key of player.walls) combined.add(key);
     return combined;
   });

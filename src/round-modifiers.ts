@@ -7,6 +7,7 @@
  */
 
 import {
+  getInterior,
   hasCannonAt,
   hasTowerAt,
   removeWallFromAllPlayers,
@@ -233,6 +234,7 @@ export function applyCrumblingWalls(state: GameState): void {
     if (player.eliminated || player.walls.size === 0) continue;
 
     // Outer walls: wall tiles with at least one non-wall non-interior neighbor
+    const interior = getInterior(player);
     const outerWalls: number[] = [];
     for (const key of player.walls) {
       const r = Math.floor(key / cols);
@@ -245,7 +247,7 @@ export function applyCrumblingWalls(state: GameState): void {
       ];
       const isOuter = neighbors.some(([nr, nc]) => {
         const nk = nr! * cols + nc!;
-        return !player.walls.has(nk) && !player.interior.has(nk);
+        return !player.walls.has(nk) && !interior.has(nk);
       });
       if (isOuter) outerWalls.push(key);
     }

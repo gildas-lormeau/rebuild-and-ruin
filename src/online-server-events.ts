@@ -25,6 +25,7 @@ import {
   type ServerMessage,
 } from "../server/protocol.ts";
 import { applyImpactEvent } from "./battle-system.ts";
+import { getInterior } from "./board-occupancy.ts";
 import { applyPiecePlacement, canPlacePieceOffsets } from "./build-system.ts";
 import {
   applyCannonPlacement,
@@ -264,9 +265,9 @@ function handlePiecePlaced(
   deps.log(
     `applying piece placement for P${msg.playerId} (${msg.offsets.length} tiles)`,
   );
-  const hadInterior = state.players[msg.playerId]!.interior.size > 0;
+  const hadInterior = getInterior(state.players[msg.playerId]!).size > 0;
   applyPiecePlacement(state, msg.playerId, msg.offsets, msg.row, msg.col);
-  if (!hadInterior && state.players[msg.playerId]!.interior.size > 0) {
+  if (!hadInterior && getInterior(state.players[msg.playerId]!).size > 0) {
     deps.onFirstEnclosure?.(msg.playerId);
   }
   return APPLIED;

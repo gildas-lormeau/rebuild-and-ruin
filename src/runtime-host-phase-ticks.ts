@@ -12,7 +12,7 @@
  * Always destructure net at the top of each tick function for consistency.
  */
 
-import { snapshotAllWalls } from "./board-occupancy.ts";
+import { getInterior, snapshotAllWalls } from "./board-occupancy.ts";
 import type { SerializedPlayer } from "./checkpoint-data.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import {
@@ -302,7 +302,7 @@ function processControllerBuildActions(
   )) {
     const player = state.players[ctrl.playerId];
     if (!player) continue;
-    const hadInterior = player.interior.size > 0;
+    const hadInterior = getInterior(player).size > 0;
 
     const phantoms = buildTickWithWallBroadcast(
       ctrl,
@@ -313,7 +313,7 @@ function processControllerBuildActions(
       sendOpponentPiecePlaced,
     );
 
-    if (!hadInterior && player.interior.size > 0) {
+    if (!hadInterior && getInterior(player).size > 0) {
       deps.onFirstEnclosure?.(ctrl.playerId);
     }
 
