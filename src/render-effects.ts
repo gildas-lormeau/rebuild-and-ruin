@@ -11,19 +11,11 @@
  *
  * ### Time parameter convention (applies across all render-* files)
  *
- * Two timestamp sources are used in the render domain:
- *
- * 1. `now?: number` (Date.now() scale) — used for TESTABLE animations
- *    (bonus squares, score deltas). Caller can inject a fixed timestamp in tests.
- *    Falls back to `Date.now()` when omitted.
- *
- * 2. `performance.now()` — called inline for REAL-TIME visual effects that are
- *    never tested in isolation (water shimmer, burning pits, crosshair pulse).
- *    Higher resolution than Date.now() but not injectable.
- *
- * **Rule**: new render functions should accept `now?: number` (Date.now scale)
- * unless the animation is purely cosmetic and will never be snapshot-tested.
- * Never mix the two in a single function — pick one source and stick with it.
+ * All render functions receive `now` (ms, monotonic) from the frame entry
+ * point (`drawMap`), which gets it from `performance.now()` at frame start.
+ * **Never call `Date.now()` or `performance.now()` inside render code** —
+ * use the threaded `now` value.  Tests inject any number they want.
+ * Functions that divide by 1000 (water, pits, frozen) convert to seconds locally.
  *
  * ### Canvas save/restore convention (applies across all render-* files)
  *
@@ -157,11 +149,10 @@ export function drawPhantoms(
 export function drawBonusSquares(
   overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
-  now?: number,
+  now: number = performance.now(),
 ): void {
   if (!overlay?.entities?.bonusSquares || overlay.battle?.inBattle) return;
-  const alphaScale =
-    Math.sin((now ?? Date.now()) / BONUS_FLASH_MS) * 0.15 + 0.85;
+  const alphaScale = Math.sin(now / BONUS_FLASH_MS) * 0.15 + 0.85;
   overlayCtx.save();
   overlayCtx.globalAlpha = alphaScale;
   for (const bs of overlay.entities.bonusSquares) {
@@ -202,17 +193,16 @@ export function drawGrunts(
 }
 
 /** Draw animated wave shimmer over water tiles during battle.
- *  @param now — injectable timestamp in ms (performance.now() scale, cosmetic-only).
- *  Falls back to performance.now() when omitted. Not Date.now() — see time convention above. */
+ *  @param now — frame timestamp in ms (from drawMap entry point). */
 export function drawWaterAnimation(
   overlayCtx: CanvasRenderingContext2D,
   map: MapData,
   overlay?: RenderOverlay,
-  now?: number,
+  now: number = performance.now(),
 ): void {
   if (!overlay?.battle?.inBattle) return; // only during battle
   overlayCtx.save();
-  const time = (now ?? performance.now()) / 1000;
+  const time = now / 1000;
   const rows = map.tiles.length;
   const cols = map.tiles[0]!.length;
 
@@ -260,26 +250,26 @@ export function drawWaterAnimation(
 export function drawBattleEffects(
   overlayCtx: CanvasRenderingContext2D,
   map: MapData,
-  overlay?: RenderOverlay,
+  overlay: RenderOverlay | undefined,
+  now: number,
 ): void {
   drawImpacts(overlayCtx, overlay);
   drawCannonballs(overlayCtx, overlay);
   drawBalloons(overlayCtx, overlay);
-  drawCrosshairs(overlayCtx, overlay);
+  drawCrosshairs(overlayCtx, overlay, now);
   drawPhaseTimer(overlayCtx, map, overlay);
 }
 
 /** Draw burning pit ember glows.
- *  @param now — injectable timestamp in ms (performance.now() scale, cosmetic-only).
- *  Falls back to performance.now() when omitted. Not Date.now() — see time convention above. */
+ *  @param now — frame timestamp in ms (from drawMap entry point). */
 export function drawBurningPits(
   overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
-  now?: number,
+  now: number = performance.now(),
 ): void {
   if (!overlay?.entities?.burningPits) return;
   overlayCtx.save();
-  const time = (now ?? performance.now()) / 1000;
+  const time = now / 1000;
   for (const pit of overlay.entities.burningPits) {
     const px = pit.col * TILE_SIZE;
     const py = pit.row * TILE_SIZE;
@@ -304,17 +294,16 @@ export function drawBurningPits(
 }
 
 /** Draw ice overlay on frozen river tiles.
- *  @param now — injectable timestamp in ms (performance.now() scale, cosmetic-only).
- *  Not Date.now() — see time convention above. */
+ *  @param now — frame timestamp in ms (from drawMap entry point). */
 export function drawFrozenTiles(
   overlayCtx: CanvasRenderingContext2D,
   overlay?: RenderOverlay,
-  now?: number,
+  now: number = performance.now(),
 ): void {
   const frozen = overlay?.entities?.frozenTiles;
   if (!frozen || frozen.size === 0) return;
   overlayCtx.save();
-  const time = (now ?? performance.now()) / 1000;
+  const time = now / 1000;
 
   for (const key of frozen) {
     const { r, c } = unpackTile(key);
@@ -496,11 +485,12 @@ function drawBalloons(
 
 function drawCrosshairs(
   overlayCtx: CanvasRenderingContext2D,
-  overlay?: RenderOverlay,
+  overlay: RenderOverlay | undefined,
+  now: number,
 ): void {
   if (!overlay?.battle?.crosshairs) return;
   overlayCtx.save();
-  const time = performance.now() / 1000;
+  const time = now / 1000;
   for (const ch of overlay.battle.crosshairs) {
     const cx = Math.round(ch.x) + 0.5;
     const cy = Math.round(ch.y) + 0.5;

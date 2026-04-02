@@ -160,8 +160,8 @@ export function drawMap(
   canvas: HTMLCanvasElement,
   overlay?: RenderOverlay,
   viewport?: Viewport | null,
+  now: number = performance.now(),
 ): void {
-  const now = Date.now();
   const canvasCtx = getMainCtx(canvas);
   const W = GRID_COLS * TILE_SIZE;
   const H = GRID_ROWS * TILE_SIZE;
@@ -182,13 +182,13 @@ export function drawMap(
 
   // Draw the new (target) scene — layers that change between phases
   drawTerrain(overlayCtx, W, H, map, overlay);
-  drawWaterAnimation(overlayCtx, map, overlay);
-  drawFrozenTiles(overlayCtx, overlay);
+  drawWaterAnimation(overlayCtx, map, overlay, now);
+  drawFrozenTiles(overlayCtx, overlay, now);
   drawCastles(overlayCtx, overlay);
   drawBonusSquares(overlayCtx, overlay, now);
   drawHouses(overlayCtx, overlay);
   drawTowers(overlayCtx, map, overlay, now);
-  drawBurningPits(overlayCtx, overlay);
+  drawBurningPits(overlayCtx, overlay, now);
   drawGrunts(overlayCtx, overlay);
 
   // If banner is active with old data, composite the old scene below the banner.
@@ -196,7 +196,7 @@ export function drawMap(
 
   // Layers that don't change between phases — draw once on top
   drawPhantoms(overlayCtx, overlay);
-  drawBattleEffects(overlayCtx, map, overlay);
+  drawBattleEffects(overlayCtx, map, overlay, now);
   drawScoreDeltas(overlayCtx, overlay);
   drawComboFloats(overlayCtx, W, H, overlay);
   drawAnnouncement(overlayCtx, W, H, overlay);
@@ -369,13 +369,13 @@ function drawBannerOldScene(
     const tmpCtx = bannerSceneCtx;
     tmpCtx.clearRect(0, 0, W, H);
     drawTerrain(tmpCtx, W, H, map, oldOverlay);
-    drawWaterAnimation(tmpCtx, map, oldOverlay);
-    drawFrozenTiles(tmpCtx, oldOverlay);
+    drawWaterAnimation(tmpCtx, map, oldOverlay, now);
+    drawFrozenTiles(tmpCtx, oldOverlay, now);
     drawCastles(tmpCtx, oldOverlay);
     drawBonusSquares(tmpCtx, oldOverlay, now);
     drawHouses(tmpCtx, oldOverlay);
     drawTowers(tmpCtx, map, oldOverlay, now);
-    drawBurningPits(tmpCtx, oldOverlay);
+    drawBurningPits(tmpCtx, oldOverlay, now);
     drawGrunts(tmpCtx, oldOverlay);
     bannerCache = {
       map,

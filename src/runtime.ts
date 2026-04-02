@@ -224,7 +224,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     overlay: RenderOverlay | undefined,
     viewport?: Viewport | null,
   ): void {
-    renderer.drawFrame(map, overlay, viewport);
+    renderer.drawFrame(map, overlay, viewport, performance.now());
   }
 
   /** True once the selection announcement has finished playing and input is unblocked.
@@ -316,7 +316,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const render = createRenderSystem({
     runtimeState,
     drawFrame: (map, overlay, viewport) =>
-      renderer.drawFrame(map, overlay, viewport),
+      renderer.drawFrame(map, overlay, viewport, performance.now()),
     logThrottled: config.logThrottled,
     syncCrosshairs: (expired) => phaseTicks.syncCrosshairs(expired),
     getLifeLostPanelPos: (pid) => lifeLost.panelPos(pid),

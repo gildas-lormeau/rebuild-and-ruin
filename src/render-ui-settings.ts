@@ -109,7 +109,7 @@ export function drawOptionsScreen(
   W: number,
   H: number,
   overlay?: RenderOverlay,
-  now?: number,
+  now: number = performance.now(),
 ): void {
   if (!overlay?.ui?.optionsScreen) return;
   const opts = overlay.ui.optionsScreen;
@@ -137,7 +137,7 @@ export function drawOptionsScreen(
 
     // Arrow indicators for selected editable row
     if (selected && opt.editable) {
-      const time = now ?? Date.now();
+      const time = now;
       const flash = flashOn(BUTTON_FLASH_MS, time);
       overlayCtx.font = FONT_BODY;
       overlayCtx.fillStyle = flash ? GOLD_LIGHT : GOLD;
@@ -172,11 +172,7 @@ export function drawOptionsScreen(
       !opts.readOnly;
     const displayValue =
       opt.value +
-      (showCursor
-        ? flashOn(CURSOR_BLINK_MS, now ?? Date.now())
-          ? "_"
-          : " "
-        : "");
+      (showCursor ? (flashOn(CURSOR_BLINK_MS, now) ? "_" : " ") : "");
     overlayCtx.fillText(displayValue, px + panelW - INSET_X2, oy + optH / 2);
   }
 
@@ -254,7 +250,7 @@ export function drawControlsScreen(
   W: number,
   H: number,
   overlay?: RenderOverlay,
-  now?: number,
+  now: number = performance.now(),
 ): void {
   if (!overlay?.ui?.controlsScreen) return;
   const ctrl = overlay.ui.controlsScreen;
@@ -418,7 +414,7 @@ function drawControlsTable(
   startY: number,
   rowH: number,
   rowCount: number,
-  now?: number,
+  now: number = performance.now(),
 ): void {
   for (let a = 0; a < rowCount; a++) {
     const oy = startY + a * rowH;
@@ -496,12 +492,12 @@ function drawControlsKeyCell(
   cx: number,
   oy: number,
   rowH: number,
-  now?: number,
+  now: number = performance.now(),
 ): void {
   const cy = oy + rowH / 2;
   if (isSelected && rebinding) {
     // Flashing "Press key..." cell
-    const flash = flashOn(REBIND_FLASH_MS, now ?? Date.now());
+    const flash = flashOn(REBIND_FLASH_MS, now);
     overlayCtx.fillStyle = flash ? GOLD_BG(OP_ACTIVE) : GOLD_BG(OP_GHOST);
     overlayCtx.fillRect(cellX, oy + 1, cellW, rowH - 2);
     overlayCtx.strokeStyle = GOLD_LIGHT;

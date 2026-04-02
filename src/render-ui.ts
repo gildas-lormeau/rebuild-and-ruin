@@ -1,9 +1,8 @@
 /**
  * UI overlay rendering — announcement, banner, game over, player select.
  *
- * Time parameter convention: `now?: number` uses Date.now() scale (milliseconds
- * since epoch). Allows deterministic testing by injecting a fixed timestamp.
- * See render-effects.ts for the full convention documentation.
+ * Time parameter convention: `now` is the frame timestamp from `performance.now()`,
+ * threaded from drawMap. See render-effects.ts for the full convention.
  */
 
 import { IS_TOUCH_DEVICE } from "./platform.ts";
@@ -297,7 +296,7 @@ export function drawLifeLostDialog(
   _W: number,
   _H: number,
   overlay?: RenderOverlay,
-  now?: number,
+  now: number = performance.now(),
 ): void {
   if (!overlay?.ui?.lifeLostDialog) return;
   const dlg = overlay.ui.lifeLostDialog;
@@ -376,7 +375,7 @@ export function drawUpgradePick(
   W: number,
   H: number,
   overlay?: RenderOverlay,
-  now?: number,
+  now: number = performance.now(),
 ): void {
   if (!overlay?.ui?.upgradePick) return;
   const pick = overlay.ui.upgradePick;
@@ -393,7 +392,7 @@ export function drawUpgradePick(
   overlayCtx.fillStyle = GOLD_LIGHT;
   overlayCtx.fillText("CHOOSE UPGRADE", W / 2, H * 0.08);
 
-  const time = now ?? Date.now();
+  const time = now;
   const cardW = UPGRADE_CARD_W;
   const cardH = UPGRADE_CARD_H;
   const cardGap = UPGRADE_CARD_GAP;
@@ -523,7 +522,7 @@ export function drawPlayerSelect(
   W: number,
   H: number,
   overlay?: RenderOverlay,
-  now?: number,
+  now: number = performance.now(),
 ): void {
   if (!overlay?.ui?.playerSelect) return;
   const selectData = overlay.ui.playerSelect;
@@ -583,7 +582,7 @@ export function drawPlayerSelect(
         "Please wait...",
       );
     } else {
-      const flash = flashOn(CURSOR_BLINK_MS, now ?? Date.now());
+      const flash = flashOn(CURSOR_BLINK_MS, now);
       drawButton(
         overlayCtx,
         btnX,
@@ -757,7 +756,7 @@ function drawLifeLostEntry(
   px: number,
   py: number,
   cx: number,
-  now?: number,
+  now: number = performance.now(),
 ): void {
   if (entry.choice === LifeLostChoice.PENDING && entry.lives > 0) {
     // Continue / Abandon buttons with focus highlight
@@ -768,7 +767,7 @@ function drawLifeLostEntry(
     const abFocused = entry.focused === LIFE_LOST_FOCUS_ABANDON;
 
     // Continue button
-    const time = now ?? Date.now();
+    const time = now;
     const contFlash = contFocused && flashOn(BUTTON_FLASH_MS, time);
     drawButton(
       ctx,

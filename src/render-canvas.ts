@@ -15,8 +15,8 @@ export function createCanvasRenderer(
 ): RendererInterface {
   const container = canvas.parentElement as HTMLElement;
   return {
-    drawFrame: (map, overlay, viewport) =>
-      drawMap(map, canvas, overlay, viewport),
+    drawFrame: (map, overlay, viewport, now) =>
+      drawMap(map, canvas, overlay, viewport, now),
     clientToSurface: (cx, cy) => clientToCanvas(cx, cy, canvas),
     screenToContainerCSS: (sx, sy) => {
       const rect = canvas.getBoundingClientRect();

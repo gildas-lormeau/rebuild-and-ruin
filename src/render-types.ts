@@ -294,11 +294,15 @@ export interface Viewport {
  * `clientToSurface` converts 1→2.  `screenToContainerCSS` converts 3→4.
  */
 export interface RendererInterface {
-  /** Draw one frame using whatever rendering backend is active. */
+  /** Draw one frame using whatever rendering backend is active.
+   *  @param now — Frame timestamp from `performance.now()`. Threaded through to all
+   *    render functions for animations (flashing, waves, cursors). Never call
+   *    `Date.now()` or `performance.now()` inside render code — use this value. */
   drawFrame(
     map: MapData,
     overlay: RenderOverlay | undefined,
-    viewport?: Viewport | null,
+    viewport: Viewport | null | undefined,
+    now: number,
   ): void;
   /** Convert pointer event client coordinates (MouseEvent.clientX/Y) to
    *  surface world-pixel coordinates (tile grid at TILE_SIZE scale).

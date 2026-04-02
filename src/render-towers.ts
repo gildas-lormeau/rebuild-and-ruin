@@ -1,9 +1,8 @@
 /**
  * Tower rendering — drawTowers layer and tower highlight overlay.
  *
- * Time parameter convention: `now?: number` uses Date.now() scale (milliseconds
- * since epoch). Allows deterministic testing by injecting a fixed timestamp.
- * See render-effects.ts for the full convention documentation.
+ * Time parameter convention: `now` is the frame timestamp from `performance.now()`,
+ * threaded from drawMap. See render-effects.ts for the full convention.
  */
 
 import { TILE_SIZE } from "./grid.ts";
@@ -24,7 +23,7 @@ export function drawTowers(
   overlayCtx: CanvasRenderingContext2D,
   map: MapData,
   overlay?: RenderOverlay,
-  now?: number,
+  now: number = performance.now(),
 ): void {
   for (let i = 0; i < map.towers.length; i++) {
     const tower = map.towers[i]!;
@@ -89,7 +88,7 @@ function drawTowerHighlight(
   cx: number,
   cy: number,
   color?: string,
-  now?: number,
+  now: number = performance.now(),
 ): void {
   const margin = 4 + TILE_SIZE / 2;
   const bx = cx - 15 - margin;
@@ -100,7 +99,7 @@ function drawTowerHighlight(
   const thickness = 4;
 
   // Slow flash: alpha pulses between 0.4 and 1.0 over ~1.5s cycle
-  const flash = 0.7 + 0.3 * Math.sin((now ?? Date.now()) / TOWER_FLASH_MS);
+  const flash = 0.7 + 0.3 * Math.sin(now / TOWER_FLASH_MS);
   overlayCtx.save();
   overlayCtx.globalAlpha = flash;
   overlayCtx.fillStyle = color ?? "#ffcc00";

@@ -34,7 +34,8 @@ interface RenderSystemDeps {
   readonly drawFrame: (
     map: MapData,
     overlay: RenderOverlay | undefined,
-    viewport?: Viewport | null,
+    viewport: Viewport | null | undefined,
+    now: number,
   ) => void;
   readonly logThrottled: (key: string, msg: string) => void;
   readonly syncCrosshairs: (battleCountdownExpired: boolean) => void;
@@ -141,6 +142,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       runtimeState.state.map,
       runtimeState.overlay,
       deps.updateViewport(),
+      performance.now(),
     );
 
     // Update touch controls (loupe, d-pad, zoom, quit, floating actions)
