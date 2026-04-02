@@ -98,7 +98,7 @@ export function createBattleStartMessage(
             endX: flight.endX,
             endY: flight.endY,
           }))
-        : undefined,
+        : null,
     frozenTiles: state.frozenTiles ? [...state.frozenTiles] : null,
   };
 }

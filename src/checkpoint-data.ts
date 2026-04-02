@@ -84,8 +84,10 @@ export interface BattleStartData {
   }[];
   burningPits: SerializedBurningPit[];
   towerAlive: boolean[];
-  /** Balloon flight paths (for animation). */
-  flights?: { startX: number; startY: number; endX: number; endY: number }[];
+  /** Balloon flight paths (for animation). null = no balloon shots this round. */
+  flights:
+    | { startX: number; startY: number; endX: number; endY: number }[]
+    | null;
   /** Frozen river tiles (packed keys) for cross-zone grunt movement. null = no frozen river. */
   frozenTiles: number[] | null;
 }
