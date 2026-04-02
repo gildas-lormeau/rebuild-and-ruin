@@ -6,7 +6,11 @@
  */
 
 import { traitLookup } from "./ai-constants.ts";
-import { filterActiveEnemies, hasTowerAt } from "./board-occupancy.ts";
+import {
+  filterActiveEnemies,
+  getInterior,
+  hasTowerAt,
+} from "./board-occupancy.ts";
 import {
   cannonSlotsUsed,
   canPlaceCannon,
@@ -204,7 +208,7 @@ function findBestNormalCannonPosition(
 ): TilePos | null {
   let bestPosition: TilePos | null = null;
   let bestScore = Infinity;
-  for (const key of player.interior) {
+  for (const key of getInterior(player)) {
     const { r, c } = unpackTile(key);
     if (!canPlaceCannon(player, r, c, CannonMode.NORMAL, state)) continue;
     const score = scoreCannonPosition(
@@ -259,7 +263,7 @@ function collectCannonCandidates(
   towerCenters: readonly TilePos[],
 ): CannonCandidate[] {
   const candidates: CannonCandidate[] = [];
-  for (const key of player.interior) {
+  for (const key of getInterior(player)) {
     const { r, c } = unpackTile(key);
     if (!canPlaceCannon(player, r, c, mode, state)) continue;
     candidates.push({
@@ -317,6 +321,7 @@ function scoreCannonPosition(
   for (const cannon of player.cannons) {
     for (const key of computeCannonTileSet(cannon)) occupied.add(key);
   }
+  const interior = getInterior(player);
   const checked = new Set<number>();
   for (let dr = -1; dr <= size; dr++) {
     for (let dc = -1; dc <= size; dc++) {
@@ -325,18 +330,13 @@ function scoreCannonPosition(
       const c = col + dc;
       if (!inBounds(r, c)) continue;
       const key = packTile(r, c);
-      if (checked.has(key) || !player.interior.has(key) || occupied.has(key))
-        continue;
+      if (checked.has(key) || !interior.has(key) || occupied.has(key)) continue;
       if (player.walls.has(key)) continue;
       checked.add(key);
       let freeNeighbors = 0;
       for (const [dr2, dc2] of DIRS_4) {
         const nk = packTile(r + dr2, c + dc2);
-        if (
-          player.interior.has(nk) &&
-          !occupied.has(nk) &&
-          !player.walls.has(nk)
-        ) {
+        if (interior.has(nk) && !occupied.has(nk) && !player.walls.has(nk)) {
           freeNeighbors++;
         }
       }

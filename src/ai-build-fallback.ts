@@ -19,6 +19,7 @@ import type {
 } from "./ai-build-types.ts";
 import { floodPocket } from "./ai-castle-rect.ts";
 import { SMALL_POCKET_MAX_SIZE } from "./ai-constants.ts";
+import { getInterior } from "./board-occupancy.ts";
 import { TOWER_SIZE } from "./game-constants.ts";
 import type { Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
@@ -98,7 +99,7 @@ export function pickFallbackPlacement(
     for (const [dr, dc] of candidate.rotation.offsets) {
       const k = packTile(candidate.row + dr, candidate.col + dc);
       for (const player of state.players) {
-        if (player.interior.has(k)) return true;
+        if (getInterior(player).has(k)) return true;
       }
     }
     return false;

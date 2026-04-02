@@ -110,12 +110,19 @@ export function planCharitySweep(
   return null;
 }
 
-/** Plan pocket destruction: find small enclosures (< 2x2) and non-square 4-tile pockets, target one wall per pocket. */
+/** Plan pocket destruction: find small enclosures (< 2x2) and non-square 4-tile pockets, target one wall per pocket.
+ *
+ *  Reads player.interior directly (NOT via getInterior()) because interior is
+ *  intentionally stale during battle — walls destroyed by cannonballs are not
+ *  reflected until the next build phase. This is correct: pocket detection uses
+ *  the last-known enclosure state to pick wall targets. Do NOT copy this pattern
+ *  to build-phase or cannon-phase code; use getInterior(player) there instead. */
 export function planPocketDestruction(
   state: GameState,
   playerId: number,
 ): TilePos[] | null {
   const player = state.players[playerId]!;
+  // Stale-by-design: see JSDoc above.
   if (player.interior.size === 0) return null;
   const visited = new Set<number>();
   const pockets: number[][] = [];
