@@ -37,7 +37,7 @@ export function createHeadlessRuntime(seed: number): HeadlessRuntime {
 
   // Auto-select towers for all players.
   for (let i = 0; i < playerCount; i++) {
-    controllers[i]!.selectTower(state, zones[i]!);
+    controllers[i]!.selectInitialTower(state, zones[i]!);
   }
 
   // CASTLE_SELECT -> WALL_BUILD (auto-builds castles) -> CANNON_PLACE
@@ -90,7 +90,7 @@ export function processHeadlessReselection(
     const zone = zones[pid];
     if (zone === undefined) continue;
     const player = state.players[pid]!;
-    controllers[pid]!.reselect(state, zone);
+    controllers[pid]!.selectReplacementTower(state, zone);
     if (player.homeTower) {
       rebuildHomeCastle(state, player);
       markPlayerReselected(state, pid);

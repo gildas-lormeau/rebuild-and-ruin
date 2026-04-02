@@ -1,6 +1,10 @@
 import { createController } from "./controller-factory.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
-import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "./game-constants.ts";
+import {
+  GAME_MODE_CLASSIC,
+  GAME_MODE_MODERN,
+  isActiveOnlinePlayer,
+} from "./game-constants.ts";
 import { createGameFromSeed } from "./game-engine.ts";
 import type { GameMap } from "./geometry-types.ts";
 import { generateMap } from "./map-generation.ts";
@@ -196,7 +200,7 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
     return;
   }
 
-  if (!isHost && onlinePlayerId >= 0) {
+  if (!isHost && isActiveOnlinePlayer(onlinePlayerId)) {
     const needsCastleReselect = state.phase !== Phase.CASTLE_SELECT;
     if (needsCastleReselect && !isReselectPhase(state.phase)) {
       enterCastleReselectPhase(state);
@@ -205,7 +209,7 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
     for (let i = 0; i < state.players.length; i++) {
       const zone = state.playerZones[i]!;
       if (i === onlinePlayerId) {
-        controllers[i]!.selectTower(state, zone);
+        controllers[i]!.selectInitialTower(state, zone);
       }
       initTowerSelection(i, zone);
     }
@@ -224,7 +228,7 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
   selectionStates.clear();
   for (let i = 0; i < state.players.length; i++) {
     if (remoteHumanSlots.has(i)) continue;
-    controllers[i]!.selectTower(state, zones[i]!);
+    controllers[i]!.selectInitialTower(state, zones[i]!);
     initTowerSelection(i, zones[i]!);
   }
   for (const pid of remoteHumanSlots) {

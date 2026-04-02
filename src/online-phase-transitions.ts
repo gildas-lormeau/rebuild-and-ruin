@@ -8,6 +8,7 @@ import type {
   SerializedPlayer,
 } from "./checkpoint-data.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
+import { isActiveOnlinePlayer } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 import { TILE_COUNT } from "./grid.ts";
 import type { OnlineSession } from "./online-session.ts";
@@ -218,7 +219,7 @@ export function handleCannonStartTransition(
   transitionCtx.checkpoint.applyCannonStart(msg);
 
   const initLocalController = () => {
-    if (onlinePlayerId >= 0) {
+    if (isActiveOnlinePlayer(onlinePlayerId)) {
       const ctrl = transitionCtx.getControllers()[onlinePlayerId];
       if (ctrl) initControllerForCannonPhase(ctrl, state);
     }
@@ -340,7 +341,7 @@ export function handleBuildStartTransition(
         // Already applied above — no-op
       },
       initControllers: () => {
-        if (onlinePlayerId >= 0) {
+        if (isActiveOnlinePlayer(onlinePlayerId)) {
           const player = state.players[onlinePlayerId];
           if (player && !player.eliminated) {
             transitionCtx.getControllers()[onlinePlayerId]?.startBuild(state);

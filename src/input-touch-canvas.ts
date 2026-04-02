@@ -48,7 +48,7 @@ interface GestureState {
   touchStartY: number;
   touchStartTime: number;
   /** Set when touchstart lands directly on the current phantom (tap confirms placement). */
-  tappedPlacementPhantom: boolean;
+  shouldDirectlyPlaceOnTap: boolean;
   pinchActive: boolean;
   pinchStartDist: number;
   /** Suppress single-finger events until all fingers lift (avoids ghost taps after pinch). */
@@ -89,7 +89,7 @@ function createGestureState(): GestureState {
     touchStartX: 0,
     touchStartY: 0,
     touchStartTime: 0,
-    tappedPlacementPhantom: false,
+    shouldDirectlyPlaceOnTap: false,
     pinchActive: false,
     pinchStartDist: 0,
     suppressSingleTouch: false,
@@ -102,7 +102,7 @@ function handleTouchStart(
   deps: RegisterOnlineInputDeps,
 ): void {
   e.preventDefault();
-  gs.tappedPlacementPhantom = false;
+  gs.shouldDirectlyPlaceOnTap = false;
   const { renderer, getState, getMode, coords } = deps;
 
   // Two-finger pinch start (minimum 2 fingers to distinguish from single-touch pan)
@@ -140,7 +140,7 @@ function handleTouchStart(
       hit = isOnPhantom(human, state.phase, tile.row, tile.col);
     });
     if (hit) {
-      gs.tappedPlacementPhantom = true;
+      gs.shouldDirectlyPlaceOnTap = true;
       deps.setDirectTouchActive?.(true);
       return;
     }
@@ -240,7 +240,7 @@ function handleTouchEnd(
   }
 
   // Build / Cannon: tap on phantom places directly; otherwise tap-to-place when no floating buttons
-  if (tap && (gs.tappedPlacementPhantom || !deps.isDirectTouchActive?.())) {
+  if (tap && (gs.shouldDirectlyPlaceOnTap || !deps.isDirectTouchActive?.())) {
     dispatchPlacement(state, deps);
   }
 

@@ -190,7 +190,7 @@ export function tickCannonballs(
     const hit = advanceCannonball(ball, dt);
     if (hit) {
       // Ball has arrived — compute and apply impact
-      const shooterId = getCannonballShooter(ball);
+      const shooterId = getCannonballScorer(ball);
       const impactEvents = computeImpact(
         state,
         hit.row,
@@ -244,7 +244,7 @@ export function advanceCannonball(
  *
  * IMPORTANT: This function does NOT recompute territory/interior after wall
  * destruction. Interior is intentionally left stale during battle — it will
- * be recomputed at the next phase boundary (recheckTerritory / finalizeTerritory).
+ * be recomputed at the next phase boundary (recheckTerritory / finalizeTerritoryWithScoring).
  * Do not add interior recomputation here.
  *
  * @param shooterId — fallback owner for scoring when event lacks embedded shooterId
@@ -256,7 +256,7 @@ export function applyImpactEvent(
   shooterId?: number,
 ): void {
   // Interior is intentionally left stale during battle — recomputed at the next
-  // phase boundary (recheckTerritory / finalizeTerritory). This function does NOT
+  // phase boundary (recheckTerritory / finalizeTerritoryWithScoring). This function does NOT
   // recompute territory, so impacts during non-battle phases (e.g. test harness,
   // watcher replaying host events) won't corrupt interior unless callers assume
   // interior is fresh afterward. Do not add interior recomputation here.
@@ -591,7 +591,7 @@ export function canFireOwnCannon(
 
 /** The player who gets credit for this cannonball's effects.
  *  For captured cannons, scoringPlayerId is the capturer (not the cannon's original owner). */
-function getCannonballShooter(ball: {
+function getCannonballScorer(ball: {
   playerId: number;
   scoringPlayerId?: number;
 }): number {

@@ -128,7 +128,7 @@ export function sendAimUpdate(
 }
 
 export function sendMessage(session: OnlineSession, msg: GameMessage): void {
-  if (canSend(session)) {
+  if (isSocketOpen(session)) {
     session.socket!.send(JSON.stringify(msg));
   }
 }
@@ -154,7 +154,7 @@ export function connectWebSocket(
   session.socket.onopen = () => {
     if (session.keepaliveTimer) clearInterval(session.keepaliveTimer);
     session.keepaliveTimer = setInterval(() => {
-      if (canSend(session)) {
+      if (isSocketOpen(session)) {
         session.socket!.send(JSON.stringify({ type: MESSAGE.PING }));
       }
     }, KEEPALIVE_MS);
@@ -184,7 +184,7 @@ function sendIfChanged<T extends GameMessage>(
 
 /** True when the socket is fully connected and can transmit.
  *  Use for send guards. Contrast with `shouldReconnect()`. */
-function canSend(session: OnlineSession): boolean {
+function isSocketOpen(session: OnlineSession): boolean {
   return session.socket?.readyState === WebSocket.OPEN;
 }
 

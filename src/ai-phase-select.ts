@@ -48,7 +48,7 @@ export function initSelection(
 ): void {
   const player = state.players[host.playerId];
   if (!player) return;
-  const chosenTower = host.strategy.selectTower(state.map, zone);
+  const chosenTower = host.strategy.chooseBestTower(state.map, zone);
 
   // Build browse queue: visit 1-3 random zone towers before the chosen one
   const zoneTowers = state.map.towers.filter((tower) => tower.zone === zone);

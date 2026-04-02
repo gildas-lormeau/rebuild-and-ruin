@@ -11,6 +11,7 @@
  */
 
 import type { GameMessage } from "../server/protocol.ts";
+import { isActiveOnlinePlayer } from "./game-constants.ts";
 import {
   createDedupMaps,
   createSession,
@@ -29,9 +30,9 @@ import {
 import { IS_DEV } from "./platform.ts";
 
 type ResetScope =
-  | typeof RESET_DEDUP
-  | typeof RESET_NEW_GAME
-  | typeof RESET_HOST_PROMOTION;
+  | typeof RESET_SCOPE_DEDUP
+  | typeof RESET_SCOPE_NEW_GAME
+  | typeof RESET_SCOPE_HOST_PROMOTION;
 
 interface OnlineContext {
   readonly session: OnlineSession;
@@ -60,9 +61,9 @@ const _throttleTimestamps = new Map<string, number>();
  *  phantom/aim messages. The pattern is: if key changed → send → update map.
  *  Sending without checking causes redundant network traffic; checking without
  *  resetting after state changes causes missed updates. */
-export const RESET_DEDUP = "dedup" as const;
-export const RESET_NEW_GAME = "new-game" as const;
-export const RESET_HOST_PROMOTION = "host-promotion" as const;
+export const RESET_SCOPE_DEDUP = "dedup" as const;
+export const RESET_SCOPE_NEW_GAME = "new-game" as const;
+export const RESET_SCOPE_HOST_PROMOTION = "host-promotion" as const;
 export const ctx: OnlineContext = createOnlineContext();
 export const MAX_RECONNECT_ATTEMPTS = 3;
 export const RECONNECT_BASE_DELAY_MS = 1000;
@@ -85,7 +86,7 @@ export function devLog(msg: string): void {
   if (!DEV) return;
   const modeStr = ctx.session.isHost
     ? "host"
-    : ctx.session.onlinePlayerId >= 0
+    : isActiveOnlinePlayer(ctx.session.onlinePlayerId)
       ? "player"
       : "watcher";
   console.log(

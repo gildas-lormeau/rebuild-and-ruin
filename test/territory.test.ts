@@ -1,7 +1,7 @@
 /**
  * Unit tests for the territory claiming pipeline.
  *
- * Tests recheckTerritory() and finalizeTerritory() — the most
+ * Tests recheckTerritory() and finalizeTerritoryWithScoring() — the most
  * bug-prone logic in the game engine. Covers:
  *   - Interior computation (inverse flood-fill)
  *   - Tower ownership
@@ -15,7 +15,7 @@
 
 import {
   recheckTerritory,
-  finalizeTerritory,
+  finalizeTerritoryWithScoring,
 } from "../src/build-system.ts";
 import { markWallsDirty } from "../src/board-occupancy.ts";
 import { packTile } from "../src/spatial.ts";
@@ -257,7 +257,7 @@ test("dead tower with pending revive is revived at end of build", () => {
   state.towerAlive[towerIdx] = false;
   state.towerPendingRevive.add(towerIdx);
   for (const player of state.players) markWallsDirty(player);
-  finalizeTerritory(state);
+  finalizeTerritoryWithScoring(state);
   assert(state.towerAlive[towerIdx], "tower should be revived");
   assert(!state.towerPendingRevive.has(towerIdx), "pending flag should be cleared");
 });
@@ -274,7 +274,7 @@ test("dead tower enclosed for first time gets pending flag only", () => {
   // Kill the tower but don't set pending
   state.towerAlive[towerIdx] = false;
   for (const player of state.players) markWallsDirty(player);
-  finalizeTerritory(state);
+  finalizeTerritoryWithScoring(state);
   assert(state.towerAlive[towerIdx] === false, "tower should NOT be revived yet");
   assert(state.towerPendingRevive.has(towerIdx), "pending flag should be set");
 });
@@ -290,7 +290,7 @@ test("dead tower not enclosed stays dead and not pending", () => {
   const towerIdx = state.map.towers[0]!.index;
   state.towerAlive[towerIdx] = false;
   for (const player of state.players) markWallsDirty(player);
-  finalizeTerritory(state);
+  finalizeTerritoryWithScoring(state);
   assert(state.towerAlive[towerIdx] === false, "unenclosed dead tower stays dead");
   assert(!state.towerPendingRevive.has(towerIdx), "no pending flag for unenclosed tower");
 });
@@ -310,7 +310,7 @@ test("pending revive cleared when tower becomes unenclosed", () => {
   const wallKey = packTile(state.map.towers[0]!.row - 1, state.map.towers[0]!.col);
   state.players[0]!.walls.delete(wallKey);
   for (const player of state.players) markWallsDirty(player);
-  finalizeTerritory(state);
+  finalizeTerritoryWithScoring(state);
   assert(!state.towerPendingRevive.has(towerIdx), "pending should be cleared when unenclosed");
 });
 
@@ -328,7 +328,7 @@ test("end-of-build awards territory points", () => {
 ########`);
   state.players[0]!.score = 0;
   for (const player of state.players) markWallsDirty(player);
-  finalizeTerritory(state);
+  finalizeTerritoryWithScoring(state);
   assert(state.players[0]!.score > 0, "should award territory points");
 });
 

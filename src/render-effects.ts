@@ -85,9 +85,9 @@ const PHANTOM_SATURATION = 2.5;
 /** 3D bevel inset width in pixels. */
 const BEVEL_W = 2;
 /** How much brighter the top/left bevel highlight is (0–255 additive). */
-const BEVEL_HIGHLIGHT = 80;
+const BEVEL_HIGHLIGHT_ADD = 80;
 /** How much darker the bottom/right bevel shadow is (0–1 multiplicative). */
-const BEVEL_SHADOW = 0.45;
+const BEVEL_SHADOW_MULT = 0.45;
 // Spatial hash multipliers for per-tile visual noise
 const SEED_ROW = 41;
 const SEED_COL = 17;
@@ -494,6 +494,7 @@ function drawCrosshairs(
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.battle?.crosshairs) return;
+  overlayCtx.save();
   const time = performance.now() / 1000;
   for (const ch of overlay.battle.crosshairs) {
     const cx = Math.round(ch.x) + 0.5;
@@ -539,6 +540,7 @@ function drawCrosshairs(
     drawArm(cx - gap, cy, cx - arm, cy, wColor);
     drawArm(cx + gap, cy, cx + arm, cy, wColor);
   }
+  overlayCtx.restore();
 }
 
 function drawPhaseTimer(
@@ -655,14 +657,14 @@ function drawPiecePhantom(
         Math.round(face[2] * 0.15),
       ];
   const hi: RGB = [
-    Math.min(255, base[0] + BEVEL_HIGHLIGHT),
-    Math.min(255, base[1] + BEVEL_HIGHLIGHT),
-    Math.min(255, base[2] + BEVEL_HIGHLIGHT),
+    Math.min(255, base[0] + BEVEL_HIGHLIGHT_ADD),
+    Math.min(255, base[1] + BEVEL_HIGHLIGHT_ADD),
+    Math.min(255, base[2] + BEVEL_HIGHLIGHT_ADD),
   ];
   const sh: RGB = [
-    Math.round(base[0] * BEVEL_SHADOW),
-    Math.round(base[1] * BEVEL_SHADOW),
-    Math.round(base[2] * BEVEL_SHADOW),
+    Math.round(base[0] * BEVEL_SHADOW_MULT),
+    Math.round(base[1] * BEVEL_SHADOW_MULT),
+    Math.round(base[2] * BEVEL_SHADOW_MULT),
   ];
   for (const [dr, dc] of offsets) {
     const x = (col + dc) * TILE_SIZE;

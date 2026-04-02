@@ -48,6 +48,7 @@ import type {
   ControllerIdentity,
   InputReceiver,
 } from "./controller-interfaces.ts";
+import { isActiveOnlinePlayer } from "./game-constants.ts";
 import type { Crosshair, WorldPos } from "./geometry-types.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import type { WatcherTimingState } from "./online-types.ts";
@@ -339,7 +340,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
 
   const shouldUnzoom = uiBlocking || phaseEnding;
 
-  const povPlayerId = onlinePlayerId >= 0 ? onlinePlayerId : 0;
+  const povPlayerId = isActiveOnlinePlayer(onlinePlayerId) ? onlinePlayerId : 0;
 
   return {
     onlinePlayerId,

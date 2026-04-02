@@ -213,6 +213,17 @@ const PHASE_GATES: Record<string, Set<ServerPhase>> = {
   [MESSAGE.AIM_UPDATE]: new Set([Phase.BATTLE]),
 };
 
+// Runtime assertion: HOST_ONLY and PHASE_GATES must be disjoint.
+// Host-only messages skip phase checks; adding a message to both sets
+// would silently bypass phase gating for non-host senders.
+for (const type of HOST_ONLY) {
+  if (type in PHASE_GATES) {
+    throw new Error(
+      `SERVER BUG: "${type}" is in both HOST_ONLY and PHASE_GATES — these sets must be disjoint`,
+    );
+  }
+}
+
 export class GameRoom {
   /** Shared read-only references to RoomEntry's maps — single source of truth
    *  owned by RoomManager. GameRoom reads for validation and relay; only

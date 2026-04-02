@@ -65,7 +65,7 @@ export interface AiStrategy {
   readonly rng: Rng;
 
   /** Pick a home tower for the AI player. Returns the chosen tower or null. */
-  selectTower(map: GameMap, zone: number): Tower | null;
+  chooseBestTower(map: GameMap, zone: number): Tower | null;
 
   /** Pick the best placement for the current piece. */
   pickPlacement(
@@ -321,7 +321,7 @@ export class DefaultStrategy implements AiStrategy {
   // Tower selection
   // -----------------------------------------------------------------------
 
-  selectTower(map: GameMap, zone: number): Tower | null {
+  chooseBestTower(map: GameMap, zone: number): Tower | null {
     return autoSelectTower(map, zone, this.rng, this.spatialAwareness);
   }
 

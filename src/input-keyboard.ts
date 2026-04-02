@@ -217,8 +217,9 @@ function handleKeyOptionsSeedMode(
   deps: RegisterOnlineInputDeps,
 ): boolean {
   const { options, settings } = deps;
-  const readOnly = options.getReturnMode() !== null;
-  if (readOnly || deps.isOnline || options.getRealIdx() !== 4) return false;
+  const isSeedEditDisabled = options.getReturnMode() !== null;
+  if (isSeedEditDisabled || deps.isOnline || options.getRealIdx() !== 4)
+    return false;
 
   if (e.key === KEY_LEFT || e.key === KEY_RIGHT) {
     if (settings.seedMode === SEED_RANDOM) {

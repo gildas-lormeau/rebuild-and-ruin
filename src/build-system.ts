@@ -160,7 +160,7 @@ export function applyPiecePlacement(
  *  Sub-functions: recomputeInterior → updateOwnedTowers → removeEnclosedGrunts →
  *  destroyEnclosedHouses → captureEnclosedBonusSquares → sweepMisplacedGrunts.
  *  Call after each piece placement or wall change during build phase.
- *  Do NOT use at end-of-build — use finalizeTerritory() instead (adds tower revival + scoring). */
+ *  Do NOT use at end-of-build — use finalizeTerritoryWithScoring() instead (adds tower revival + scoring). */
 export function recheckTerritory(state: GameState): void {
   for (const player of state.players) {
     recomputeInterior(state, player);
@@ -177,7 +177,7 @@ export function recheckTerritory(state: GameState): void {
  *  - Resolves pending tower revives (towerPendingRevive → alive if still enclosed)
  *  - Clears unenclosed pending revives
  *  Called exactly once at end of build phase from finalizeBuildPhase(). */
-export function finalizeTerritory(state: GameState): void {
+export function finalizeTerritoryWithScoring(state: GameState): void {
   // ── Per-player territory claims (loop above) ──
   for (const player of state.players) {
     recomputeInterior(state, player);

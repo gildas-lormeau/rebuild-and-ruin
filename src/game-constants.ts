@@ -169,6 +169,12 @@ export const HOUSE_MIN_DISTANCE = 3;
 /** Tower footprint size in tiles (towers are 2×2). */
 export const TOWER_SIZE = 2;
 
+/** True if this client is an active player (not a spectator/watcher).
+ *  onlinePlayerId >= 0 means a valid player slot; < 0 means spectating. */
+export function isActiveOnlinePlayer(onlinePlayerId: number): boolean {
+  return onlinePlayerId >= 0;
+}
+
 /** Human-readable label for a modifier id. */
 export function modifierLabel(id: ModifierId): string {
   return MODIFIER_LABELS[id];

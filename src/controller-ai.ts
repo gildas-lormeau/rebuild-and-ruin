@@ -150,7 +150,7 @@ export class AiController extends BaseController implements AiAnimatable {
   // Selection phase
   // -----------------------------------------------------------------------
 
-  override selectTower(state: GameState, zone: number): void {
+  override selectInitialTower(state: GameState, zone: number): void {
     initSelection(this, this.selectionPhase, state, zone);
   }
 
@@ -158,7 +158,7 @@ export class AiController extends BaseController implements AiAnimatable {
     return tickSelection(this, this.selectionPhase, dt, state);
   }
 
-  override reselect(state: GameState, zone: number): void {
+  override selectReplacementTower(state: GameState, zone: number): void {
     initSelection(this, this.selectionPhase, state, zone);
   }
 

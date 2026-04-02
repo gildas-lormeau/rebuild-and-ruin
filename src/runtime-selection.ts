@@ -431,7 +431,7 @@ export function createSelectionSystem(
       initTowerSelection: initPlayerTowerSelection,
       processPlayer: (pid, ctrl, zone) => {
         if (remoteHumanSlots.has(pid)) return "pending" as const;
-        ctrl.reselect(runtimeState.state, zone);
+        ctrl.selectReplacementTower(runtimeState.state, zone);
         // AI confirms via selectionTick(); humans need UI interaction
         return "pending" as const;
       },

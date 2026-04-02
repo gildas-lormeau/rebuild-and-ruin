@@ -18,7 +18,7 @@ import {
   sweepIsolatedWalls,
 } from "./board-occupancy.ts";
 import {
-  finalizeTerritory,
+  finalizeTerritoryWithScoring,
   recheckTerritory,
   removeBonusSquaresCoveredByWalls,
   replenishBonusSquares,
@@ -119,7 +119,7 @@ export function finalizeBuildPhase(state: GameState): {
   eliminated: number[];
 } {
   sweepAllPlayersWalls(state);
-  finalizeTerritory(state);
+  finalizeTerritoryWithScoring(state);
   return applyLifePenalties(state);
 }
 

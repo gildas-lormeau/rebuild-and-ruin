@@ -19,7 +19,7 @@ import { createAiController } from "./runtime-bootstrap.ts";
 import {
   ctx,
   devLog,
-  RESET_HOST_PROMOTION,
+  RESET_SCOPE_HOST_PROMOTION,
   resetNetworking,
   send,
 } from "./runtime-online-stores.ts";
@@ -49,7 +49,7 @@ export function promoteToHost(): void {
   // Re-read isHost (volatile — can flip during host promotion)
   ctx.session.isHost = true;
 
-  resetNetworking(RESET_HOST_PROMOTION);
+  resetNetworking(RESET_SCOPE_HOST_PROMOTION);
   rebuildControllersForPhase(
     _runtime.runtimeState.state,
     _runtime.runtimeState.controllers,

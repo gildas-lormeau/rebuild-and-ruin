@@ -104,9 +104,9 @@ export abstract class BaseController implements PlayerController {
 
   updateBindings(_keys: KeyBindings): void {}
   /** Pick a tower. Must set buildCursor/crosshair to the chosen tower. */
-  abstract selectTower(state: GameState, zone: number): void;
-  /** Pick a tower for reselection. Same contract as selectTower. */
-  abstract reselect(state: GameState, zone: number): void;
+  abstract selectInitialTower(state: GameState, zone: number): void;
+  /** Pick a tower for reselection. Same contract as selectInitialTower. */
+  abstract selectReplacementTower(state: GameState, zone: number): void;
   /** Place cannons. AI places all immediately; Human sets up cursor/mode. */
   abstract placeCannons(state: GameState, maxSlots: number): void;
   /** Whether the player has placed all their cannons (slots exhausted or timer expired). */
@@ -135,8 +135,8 @@ export abstract class BaseController implements PlayerController {
     this.clampBuildCursor(this.currentPiece);
   }
 
-  /** Template method — subclasses MUST override onStartBuild(), NOT startBuild().
-   *  startBuild() runs base initialization (bag + cursor) then delegates to the hook. */
+  /** @final Template method — do NOT override. Override onStartBuild() instead.
+   *  Runs base initialization (bag + cursor) then delegates to the hook. */
   startBuild(state: GameState): void {
     this.initBuildPhase(state);
     this.onStartBuild(state);
@@ -147,8 +147,8 @@ export abstract class BaseController implements PlayerController {
   /** Called each frame during build. Returns placement previews for rendering. */
   abstract buildTick(state: GameState, dt: number): PiecePlacementPreview[];
 
-  /** Template method — subclasses MUST override onFinalizeBuildPhase(), NOT finalizeBuildPhase().
-   *  finalizeBuildPhase() calls the hook then clears bag/piece. */
+  /** @final Template method — do NOT override. Override onFinalizeBuildPhase() instead.
+   *  Calls the hook then clears bag/piece. */
   finalizeBuildPhase(state: GameState): void {
     this.onFinalizeBuildPhase(state);
     this.bag = null;
@@ -161,9 +161,8 @@ export abstract class BaseController implements PlayerController {
   /** Called each frame during battle. Should call this.fire(state) to fire cannons. */
   abstract battleTick(state: GameState, dt: number): void;
 
-  /** Initialize battle-phase state (cannonRotationIdx, cursors), then call subclass hook.
-   *  Template method — subclasses override onResetBattle() instead of this method,
-   *  so the base init is always guaranteed to run.
+  /** @final Template method — do NOT override. Override onResetBattle() instead.
+   *  Initializes battle-phase state (cannonRotationIdx, cursors), then calls hook.
    *  Scope: cannonRotationIdx + cursor centering only — not a full game reset (see reset()). */
   initBattleState(state?: GameState): void {
     this.cannonRotationIdx = null;
