@@ -389,11 +389,19 @@ export function markInteriorFresh(
 }
 
 /** Return a player's interior after asserting it's fresh.
- *  Use this instead of reading `player.interior` directly in game logic — it
- *  guarantees the set reflects the current wall state.
- *  Render code may read `player.interior` directly (stale data = visual glitch, not logic bug). */
+ *  Use this in build/cannon game logic — it guarantees the set reflects the
+ *  current wall state. During battle, use `getBattleInterior()` instead
+ *  (interior is intentionally stale while walls are being destroyed). */
 export function getInterior(player: Player): FreshInterior {
   assertInteriorFresh(player);
+  return player.interior;
+}
+
+/** Return a player's interior WITHOUT freshness assertion.
+ *  Battle-phase only: interior is intentionally stale during battle because
+ *  walls destroyed by cannonballs are not reflected until the next build phase.
+ *  Do NOT use outside battle code — use `getInterior()` everywhere else. */
+export function getBattleInterior(player: Player): ReadonlySet<number> {
   return player.interior;
 }
 

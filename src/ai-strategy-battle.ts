@@ -10,6 +10,7 @@ import { canFireOwnCannon } from "./battle-system.ts";
 import {
   computeCardinalObstacleMask,
   filterActiveEnemies,
+  getBattleInterior,
 } from "./board-occupancy.ts";
 import { filterActiveFiringCannons } from "./cannon-system.ts";
 import { MID, TOWER_SIZE } from "./game-constants.ts";
@@ -112,21 +113,19 @@ export function planCharitySweep(
 
 /** Plan pocket destruction: find small enclosures (< 2x2) and non-square 4-tile pockets, target one wall per pocket.
  *
- *  Reads player.interior directly (NOT via getInterior()) because interior is
- *  intentionally stale during battle — walls destroyed by cannonballs are not
- *  reflected until the next build phase. This is correct: pocket detection uses
- *  the last-known enclosure state to pick wall targets. Do NOT copy this pattern
- *  to build-phase or cannon-phase code; use getInterior(player) there instead. */
+ *  Uses getBattleInterior() — interior is intentionally stale during battle
+ *  (walls destroyed by cannonballs are not reflected until the next build phase).
+ *  Pocket detection uses the last-known enclosure state to pick wall targets. */
 export function planPocketDestruction(
   state: GameState,
   playerId: number,
 ): TilePos[] | null {
   const player = state.players[playerId]!;
-  // Stale-by-design: see JSDoc above.
-  if (player.interior.size === 0) return null;
+  const interior = getBattleInterior(player);
+  if (interior.size === 0) return null;
   const visited = new Set<number>();
   const pockets: number[][] = [];
-  for (const key of player.interior) {
+  for (const key of interior) {
     if (visited.has(key)) continue;
     const component: number[] = [];
     const queue = [key];
@@ -137,7 +136,7 @@ export function planPocketDestruction(
       const { r, c } = unpackTile(current);
       for (const [dr, dc] of DIRS_4) {
         const nk = packTile(r + dr, c + dc);
-        if (!visited.has(nk) && player.interior.has(nk)) {
+        if (!visited.has(nk) && interior.has(nk)) {
           visited.add(nk);
           queue.push(nk);
         }
@@ -175,7 +174,7 @@ export function planPocketDestruction(
           const ar = nr + dr2;
           const ac = nc + dc2;
           const ak = packTile(ar, ac);
-          if (player.interior.has(ak) && !pocketTiles.has(ak)) {
+          if (interior.has(ak) && !pocketTiles.has(ak)) {
             bordersLarge = true;
             break;
           }
