@@ -73,7 +73,7 @@ interface ZoomButtonDeps {
   getState: () => GameState | undefined;
   getCameraZone: () => number | null;
   setCameraZone: (zone: number | null) => void;
-  myPlayerId: () => number;
+  povPlayerId: () => number;
   getEnemyZones: () => number[];
   /** Move the human crosshair to a zone's home tower (battle auto-zoom). */
   aimAtZone?: (zone: number) => void;
@@ -227,7 +227,7 @@ export function createHomeZoomButton(
   function getMyZone(): number | null {
     const state = deps.getState();
     if (!state) return null;
-    const pid = deps.myPlayerId();
+    const pid = deps.povPlayerId();
     if (pid < 0) return null;
     return state.playerZones[pid] ?? null;
   }
@@ -255,7 +255,7 @@ export function createHomeZoomButton(
     const myZone = getMyZone();
     const isHome = current === myZone && myZone !== null;
     const bg = zoomButtonBg(
-      isHome ? -1 : deps.myPlayerId(),
+      isHome ? -1 : deps.povPlayerId(),
       TOUCH_ZOOM_HOME_BG,
     );
     for (const btn of buttons) btn.style.background = bg;

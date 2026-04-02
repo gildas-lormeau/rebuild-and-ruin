@@ -142,7 +142,7 @@ const runtime: GameRuntime = createGameRuntime({
   isOnline: true,
   send,
   getIsHost: () => ctx.session.isHost,
-  getMyPlayerId: () => ctx.session.myPlayerId,
+  getOnlinePlayerId: () => ctx.session.myPlayerId,
   getRemoteHumanSlots: () => ctx.session.remoteHumanSlots,
   log: devLog,
   logThrottled: devLogThrottled,

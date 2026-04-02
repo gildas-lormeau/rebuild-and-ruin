@@ -426,7 +426,7 @@ export function createScenario(seed = 42): Scenario {
         hasLifeLostDialog: false,
         isSelectionReady: deps.isSelectionReady,
         humanIsReselecting: deps.humanIsReselecting,
-        myPlayerId: deps.myPlayerId,
+        onlinePlayerId: deps.myPlayerId,
         firstHumanPlayerId: deps.firstHumanPlayerId,
         isHost: true,
         remoteHumanSlots: new Set(),

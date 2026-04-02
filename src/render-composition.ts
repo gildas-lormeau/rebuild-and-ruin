@@ -206,17 +206,14 @@ export function handleLifeLostDialogClick(params: {
   screenX: number;
   /** Canvas-pixel Y coordinate (divided by SCALE internally for game-space hit testing). */
   screenY: number;
-  firstHumanPlayerId: number;
 }): { playerId: number; choice: ResolvedChoice } | null {
-  const { state, lifeLostDialog, screenX, screenY, firstHumanPlayerId } =
-    params;
+  const { state, lifeLostDialog, screenX, screenY } = params;
 
   const gameX = screenX / SCALE;
   const gameY = screenY / SCALE;
 
   for (const entry of lifeLostDialog.entries) {
     if (entry.choice !== LifeLostChoice.PENDING || entry.isAi) continue;
-    if (entry.playerId !== firstHumanPlayerId) continue;
 
     const { px, py } = lifeLostPanelPos(state, entry.playerId);
     const { btnY, contX, abX } = lifeLostButtonLayout(px, py);

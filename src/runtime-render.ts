@@ -111,7 +111,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       bannerUi,
       lifeLostDialog: runtimeState.lifeLostDialog,
       upgradePickDialog: runtimeState.upgradePickDialog,
-      myPlayerId: runtimeState.frameCtx.myPlayerId,
+      myPlayerId: runtimeState.frameCtx.onlinePlayerId,
       playerNames: PLAYER_NAMES,
       playerColors: PLAYER_COLORS,
       getLifeLostPanelPos: (playerId) => deps.getLifeLostPanelPos(playerId),
@@ -122,7 +122,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       runtimeState.overlay.ui.statusBar = createStatusBar(
         runtimeState.state,
         PLAYER_COLORS,
-        runtimeState.frameCtx.myPlayerId,
+        runtimeState.frameCtx.onlinePlayerId,
       );
     }
 

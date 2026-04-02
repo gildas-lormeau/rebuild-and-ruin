@@ -346,12 +346,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       collectTowerEvents: gruntAttackTowers,
       tickCannonballsWithEvents: tickCannonballs,
       onBattleEvents: (events: ReadonlyArray<BattleEvent>) => {
-        const pid = runtimeState.frameCtx.myPlayerId;
-        const localPid = pid >= 0 ? pid : (deps.firstHuman()?.playerId ?? -1);
-        if (localPid >= 0) {
-          deps.haptics.battleEvents(events, localPid);
-          deps.sound.battleEvents(events, localPid);
-        }
+        const pov = runtimeState.frameCtx.povPlayerId;
+        deps.haptics.battleEvents(events, pov);
+        deps.sound.battleEvents(events, pov);
         for (const evt of events) {
           if (evt.type === MESSAGE.WALL_DESTROYED) {
             const stats =

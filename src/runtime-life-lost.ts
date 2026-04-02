@@ -86,7 +86,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       eliminated,
       state: runtimeState.state,
       isHost: runtimeState.frameCtx.isHost,
-      myPlayerId: runtimeState.frameCtx.myPlayerId,
+      myPlayerId: runtimeState.frameCtx.onlinePlayerId,
       remoteHumanSlots,
       isHumanController: (playerId) =>
         isHuman(runtimeState.controllers[playerId]!),
@@ -190,15 +190,12 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
   function lifeLostDialogClick(canvasX: number, canvasY: number) {
     if (!runtimeState.lifeLostDialog) return;
-    const mousePlayer = deps.firstHuman();
-    if (!mousePlayer) return;
 
     const choice = handleLifeLostDialogClickShared({
       state: runtimeState.state,
       lifeLostDialog: runtimeState.lifeLostDialog,
       screenX: canvasX,
       screenY: canvasY,
-      firstHumanPlayerId: mousePlayer.playerId,
     });
     if (!choice) return;
 

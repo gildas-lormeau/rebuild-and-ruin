@@ -172,7 +172,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       humanIsReselecting: runtimeState.reselectQueue.includes(
         firstHuman()?.playerId ?? -1,
       ),
-      myPlayerId: config.getMyPlayerId(),
+      onlinePlayerId: config.getOnlinePlayerId(),
       firstHumanPlayerId: firstHuman()?.playerId ?? -1,
       isHost: config.getIsHost(),
       remoteHumanSlots: config.getRemoteHumanSlots(),

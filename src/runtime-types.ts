@@ -76,7 +76,7 @@ export interface FrameContextInputs {
   hasLifeLostDialog: boolean;
   isSelectionReady: boolean;
   humanIsReselecting: boolean;
-  myPlayerId: number;
+  onlinePlayerId: number;
   firstHumanPlayerId: number;
   isHost: boolean;
   remoteHumanSlots: ReadonlySet<number>;
@@ -91,8 +91,10 @@ export interface RuntimeConfig {
   send: (msg: GameMessage) => void;
   /** () => true for local. */
   getIsHost: () => boolean;
-  /** () => -1 for local. */
-  getMyPlayerId: () => number;
+  /** This client's player slot in online mode, or -1 in local (shared-screen) mode.
+   *  Only meaningful for online play — local consumers should skip per-player filtering
+   *  or fall back to firstHumanPlayerId. */
+  getOnlinePlayerId: () => number;
   /** () => emptySet for local. */
   getRemoteHumanSlots: () => Set<number>;
   /** noop for local. */
@@ -183,7 +185,7 @@ export interface CameraSystem {
   onPinchEnd: () => void;
 
   // Zone queries
-  myPlayerId: () => number;
+  povPlayerId: () => number;
   getMyZone: () => number | null;
   getBestEnemyZone: () => number | null;
   getEnemyZones: () => number[];
@@ -320,7 +322,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     hasLifeLostDialog,
     isSelectionReady,
     humanIsReselecting,
-    myPlayerId,
+    onlinePlayerId,
     firstHumanPlayerId,
     isHost,
     remoteHumanSlots,
@@ -338,9 +340,17 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
 
   const shouldUnzoom = uiBlocking || phaseEnding;
 
+  const povPlayerId =
+    onlinePlayerId >= 0
+      ? onlinePlayerId
+      : firstHumanPlayerId >= 0
+        ? firstHumanPlayerId
+        : 0;
+
   return {
-    myPlayerId,
+    onlinePlayerId,
     firstHumanPlayerId,
+    povPlayerId,
     isHost,
     remoteHumanSlots,
     mode,

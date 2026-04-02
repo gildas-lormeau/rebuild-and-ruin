@@ -106,24 +106,20 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Helpers ---
 
-  function myPlayerId(): number {
-    const frameCtx = deps.getCtx();
-    const pid = frameCtx.myPlayerId;
-    return pid >= 0 ? pid : frameCtx.firstHumanPlayerId;
+  function povPlayerId(): number {
+    return deps.getCtx().povPlayerId;
   }
 
   function getMyZone(): number | null {
     const state = deps.getState();
     if (!state) return null;
-    const pid = myPlayerId();
-    if (pid < 0) return null;
-    return state.playerZones[pid] ?? null;
+    return state.playerZones[povPlayerId()] ?? null;
   }
 
   function getBestEnemyZone(): number | null {
     const state = deps.getState();
     if (!state) return null;
-    const myPid = myPlayerId();
+    const myPid = povPlayerId();
     let bestPid = -1,
       bestScore = -1;
     for (let i = 0; i < state.players.length; i++) {
@@ -140,7 +136,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function getEnemyZones(): number[] {
     const state = deps.getState();
     if (!state) return [];
-    const myPid = myPlayerId();
+    const myPid = povPlayerId();
     const zones: number[] = [];
     for (let i = 0; i < state.players.length; i++) {
       if (i === myPid || state.players[i]!.eliminated) continue;
@@ -240,7 +236,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     wallPlans: readonly { playerId: number; tiles: number[] }[],
   ): Viewport {
     const state = deps.getState()!;
-    const myPid = myPlayerId();
+    const myPid = povPlayerId();
     const plan =
       wallPlans.find((plan) => plan.playerId === myPid) ?? wallPlans[0];
     if (!plan || plan.tiles.length === 0) return fullMapVp;
@@ -298,7 +294,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   function autoZoom(phase: Phase): void {
     // No auto-zoom when spectating (no human player)
-    if (myPlayerId() < 0) return;
+    if (povPlayerId() < 0) return;
     if (phase === Phase.BATTLE) {
       swapPinchViewport(true);
       // If pinch points at own zone, reset — always pick enemy
@@ -707,7 +703,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
         const pid = state.playerZones.indexOf(zone);
         if (
           pid >= 0 &&
-          pid !== myPlayerId() &&
+          pid !== povPlayerId() &&
           !state.players[pid]?.eliminated
         ) {
           deps.setFirstHumanCrosshair(
@@ -752,7 +748,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     onPinchStart,
     onPinchUpdate,
     onPinchEnd,
-    myPlayerId,
+    povPlayerId,
     getMyZone,
     getBestEnemyZone,
     getEnemyZones,

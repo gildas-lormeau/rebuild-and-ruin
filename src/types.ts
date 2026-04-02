@@ -311,8 +311,11 @@ export interface SelectionState {
 
 export interface FrameContext {
   // Identity
-  readonly myPlayerId: number;
+  readonly onlinePlayerId: number;
   readonly firstHumanPlayerId: number;
+  /** Point-of-view player for camera, sound, and haptics.
+   *  Online: onlinePlayerId. Local: firstHumanPlayerId. Demo: 0. */
+  readonly povPlayerId: number;
   readonly isHost: boolean;
   readonly remoteHumanSlots: ReadonlySet<number>;
 

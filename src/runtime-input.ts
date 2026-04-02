@@ -123,7 +123,7 @@ interface InputSystemDeps {
     | "onPinchStart"
     | "onPinchUpdate"
     | "onPinchEnd"
-    | "myPlayerId"
+    | "povPlayerId"
     | "getEnemyZones"
     | "getCameraZone"
     | "setCameraZone"
@@ -568,7 +568,7 @@ function buildZoomDeps(deps: InputSystemDeps) {
     getState: () => safeState(runtimeState),
     getCameraZone: camera.getCameraZone,
     setCameraZone: camera.setCameraZone,
-    myPlayerId: camera.myPlayerId,
+    povPlayerId: camera.povPlayerId,
     getEnemyZones: camera.getEnemyZones,
     aimAtZone: (zone: number) => {
       if (!runtimeState.state) return;

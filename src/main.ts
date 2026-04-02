@@ -20,7 +20,7 @@ const runtime = createGameRuntime({
   renderer,
   send: () => {},
   getIsHost: () => true,
-  getMyPlayerId: () => -1,
+  getOnlinePlayerId: () => -1,
   getRemoteHumanSlots: () => emptySet,
   // @ts-ignore — import.meta.env is Vite-specific
   log: import.meta.env?.DEV
