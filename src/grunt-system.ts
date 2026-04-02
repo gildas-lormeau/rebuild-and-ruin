@@ -475,10 +475,11 @@ function pickAdjacentWallKeyForAttack(
   col: number,
   target: TilePos | null,
 ): number {
+  const walls = adjacentWallKeys(state, row, col);
+  if (!target) return walls[0] ?? -1;
   let bestWallKey = -1;
   let bestDist = Infinity;
-  for (const wallKey of adjacentWallKeys(state, row, col)) {
-    if (!target) return wallKey;
+  for (const wallKey of walls) {
     const { r: nr, c: nc } = unpackTile(wallKey);
     const distance = manhattanDistance(nr, nc, target.row, target.col);
     if (distance < bestDist) {

@@ -416,10 +416,7 @@ function recomputeInterior(state: GameState, player: Player): void {
       }
     }
   }
-  // Assign new set then brand via epoch update — markInteriorFresh
-  // records the epoch and returns the branded FreshInterior reference.
-  (player as unknown as { interior: Set<number> }).interior = fresh;
-  player.interior = markInteriorFresh(player);
+  player.interior = markInteriorFresh(player, fresh);
 }
 
 /** Find towers enclosed by a player's territory and update ownedTowers list. */
@@ -465,7 +462,7 @@ function territoryBonusSquarePoints(territorySize: number): number {
   return Math.max(100, Math.min(1000, raw));
 }
 
-/** Remove grunts that landed on any player's territory during processing. */
+/** Check if all tiles in a tower's footprint are owned by the given player. */
 function isTowerOwnedByPlayer(
   tower: TilePos,
   player: Pick<Player, "id" | "interior" | "walls">,
@@ -482,6 +479,7 @@ function isTowerOwnedByPlayer(
   return true;
 }
 
+/** Remove grunts that landed on any player's territory during processing. */
 function sweepMisplacedGrunts(state: GameState): void {
   state.grunts = state.grunts.filter((grunt) => {
     const gKey = packTile(grunt.row, grunt.col);

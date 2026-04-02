@@ -364,8 +364,15 @@ export function markWallsDirty(player: Player): void {
 }
 
 /** Mark a player's interior as freshly recomputed and brand the set.
- *  Called by recomputeInterior inside recheckTerritory — do NOT call from other code. */
-export function markInteriorFresh(player: Player): FreshInterior {
+ *  Called by recomputeInterior inside recheckTerritory — do NOT call from other code.
+ *  When `fresh` is provided, assigns it as the new interior (handles branded-type cast). */
+export function markInteriorFresh(
+  player: Player,
+  fresh?: Set<number>,
+): FreshInterior {
+  if (fresh !== undefined) {
+    (player as unknown as { interior: Set<number> }).interior = fresh;
+  }
   interiorEpoch.set(player, wallsEpoch.get(player) ?? 0);
   return player.interior;
 }
