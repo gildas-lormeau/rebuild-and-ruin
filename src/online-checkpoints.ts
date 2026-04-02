@@ -50,16 +50,16 @@ export interface CheckpointDeps {
 }
 
 /** Apply a cannon-start checkpoint received from the host.
- *  @param beforeApply — Runs BEFORE applyPlayersCheckpoint overwrites player state.
+ *  @param captureBeforeApply — Runs BEFORE applyPlayersCheckpoint overwrites player state.
  *    Use this to capture pre-state (walls, entities, scores) for banner animations.
  *  @sideeffect Clears all watcher visualization state (crosshairs, phantoms, idle phases)
  *  via resetWatcherCrosshairs(). Also clears in-flight cannonballs and impacts. */
 export function applyCannonStartCheckpoint(
   data: CannonStartData,
   deps: CheckpointDeps,
-  beforeApply?: () => void,
+  captureBeforeApply?: () => void,
 ): void {
-  applyCommonCheckpoint(data, deps, beforeApply);
+  applyCommonCheckpoint(data, deps, captureBeforeApply);
   deps.state.cannonLimits = data.limits;
   deps.state.timer = data.timer;
   clearBattleProjectiles(deps);
@@ -68,16 +68,16 @@ export function applyCannonStartCheckpoint(
 }
 
 /** Apply a battle-start checkpoint received from the host.
- *  @param beforeApply — Runs BEFORE applyPlayersCheckpoint overwrites player state.
+ *  @param captureBeforeApply — Runs BEFORE applyPlayersCheckpoint overwrites player state.
  *    Use this to capture pre-state (walls, entities, scores) for banner animations.
  *  @sideeffect Clears watcher crosshairs via resetWatcherCrosshairs(), re-initializes
  *  crosshair positions from home towers. Clears in-flight cannonballs and impacts. */
 export function applyBattleStartCheckpoint(
   data: BattleStartData,
   deps: CheckpointDeps,
-  beforeApply?: () => void,
+  captureBeforeApply?: () => void,
 ): void {
-  beforeApply?.();
+  captureBeforeApply?.();
   applyPlayersCheckpoint(deps.state, data.players);
   applyGruntsCheckpoint(deps.state, data.grunts);
   deps.state.burningPits = data.burningPits;
@@ -121,16 +121,16 @@ export function applyBattleStartCheckpoint(
 }
 
 /** Apply a build-start checkpoint received from the host.
- *  @param beforeApply — Runs BEFORE applyPlayersCheckpoint overwrites player state.
+ *  @param captureBeforeApply — Runs BEFORE applyPlayersCheckpoint overwrites player state.
  *    Use this to capture pre-state (walls, entities, scores) for banner animations.
  *  @sideeffect Clears in-flight cannonballs and impacts. Resets grunt accumulator
  *  and cannon facings. Does NOT reset watcher crosshairs (build phase has no crosshairs). */
 export function applyBuildStartCheckpoint(
   data: BuildStartData,
   deps: CheckpointDeps,
-  beforeApply?: () => void,
+  captureBeforeApply?: () => void,
 ): void {
-  applyCommonCheckpoint(data, deps, beforeApply);
+  applyCommonCheckpoint(data, deps, captureBeforeApply);
   deps.state.round = data.round;
   deps.state.timer = data.timer;
   deps.state.activeModifier =
@@ -153,15 +153,15 @@ export function applyBuildStartCheckpoint(
 }
 
 /** Apply a build-end checkpoint: players + host-computed scores.
- *  @param beforeApply — Runs BEFORE applyPlayersCheckpoint overwrites player state.
+ *  @param captureBeforeApply — Runs BEFORE applyPlayersCheckpoint overwrites player state.
  *    Use this to capture pre-state (walls, scores, castles) for banner animations. */
 export function applyBuildEndCheckpoint(
   state: GameState,
   players: readonly SerializedPlayer[],
   scores: readonly number[],
-  beforeApply?: () => void,
+  captureBeforeApply?: () => void,
 ): void {
-  beforeApply?.();
+  captureBeforeApply?.();
   applyPlayersCheckpoint(state, players);
   for (let i = 0; i < state.players.length; i++) {
     state.players[i]!.score = scores[i] ?? state.players[i]!.score;
@@ -169,7 +169,7 @@ export function applyBuildEndCheckpoint(
 }
 
 /** Shared preamble for cannon-start and build-start checkpoints:
- *  runs beforeApply hook, then restores players, grunts, houses, bonus squares,
+ *  runs captureBeforeApply hook, then restores players, grunts, houses, bonus squares,
  *  tower liveness, and burning pits from the checkpoint data. */
 function applyCommonCheckpoint(
   data: Pick<
@@ -182,9 +182,9 @@ function applyCommonCheckpoint(
     | "burningPits"
   >,
   deps: CheckpointDeps,
-  beforeApply?: () => void,
+  captureBeforeApply?: () => void,
 ): void {
-  beforeApply?.();
+  captureBeforeApply?.();
   applyPlayersCheckpoint(deps.state, data.players);
   applyGruntsCheckpoint(deps.state, data.grunts);
   applyHousesAlive(deps.state, data.housesAlive);

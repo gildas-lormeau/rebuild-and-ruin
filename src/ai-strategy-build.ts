@@ -42,7 +42,7 @@ import {
   hasMeaningfulHomeRingGaps,
   scoreBuildTowerTarget,
 } from "./ai-castle-rect.ts";
-import { hasGruntAt } from "./board-occupancy.ts";
+import { getInterior, hasGruntAt } from "./board-occupancy.ts";
 import { canPlacePiece } from "./build-system.ts";
 import type { TileRect } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
@@ -176,7 +176,7 @@ export function pickPlacement(
           !bankHugging,
         );
         const ringGaps = findGapTiles(rect, player.walls);
-        filterUnfillableGaps(ringGaps, state, player.interior);
+        filterUnfillableGaps(ringGaps, state, getInterior(player));
         if (ringGaps.size > 0) return true; // real gaps need filling
         return false;
       }
@@ -210,7 +210,7 @@ export function pickPlacement(
     player.walls,
     outside,
     state,
-    player.interior,
+    getInterior(player),
   );
 
   // Step 1: determine which rectangle to build/repair
@@ -327,7 +327,7 @@ export function pickPlacement(
         }
       }
       targetGaps = findGapTiles({ top, bottom, left, right }, player.walls);
-      filterUnfillableGaps(targetGaps, state, player.interior);
+      filterUnfillableGaps(targetGaps, state, getInterior(player));
       targetRect = { top, bottom, left, right };
     }
 
@@ -337,7 +337,7 @@ export function pickPlacement(
         state,
         playerId,
         piece,
-        player.interior,
+        getInterior(player),
         targetGaps,
         targetRect,
       )
@@ -349,7 +349,7 @@ export function pickPlacement(
           state,
           playerId,
           piece,
-          player.interior,
+          getInterior(player),
           targetGaps,
           targetRect,
         )
@@ -400,7 +400,7 @@ export function pickPlacement(
               state,
               playerId,
               piece,
-              player.interior,
+              getInterior(player),
               gaps,
               rect,
             )
@@ -412,7 +412,7 @@ export function pickPlacement(
                 state,
                 playerId,
                 piece,
-                player.interior,
+                getInterior(player),
                 gaps,
                 rect,
               )
@@ -479,7 +479,7 @@ export function pickPlacement(
   // Interior minus target gaps and target castle rect — gaps are holes in the ring
   // that need filling, and the castle rect interior belongs to an open (gapped)
   // enclosure where the AI should be free to extend pieces while closing the ring.
-  const interiorExcludingGaps = new Set(player.interior);
+  const interiorExcludingGaps = new Set(getInterior(player));
   for (const gk of targetGaps) interiorExcludingGaps.delete(gk);
   if (targetRect) {
     for (let r = targetRect.top; r <= targetRect.bottom; r++) {
@@ -663,7 +663,7 @@ export function pickPlacement(
     const fb = pickFallbackPlacement(scored, state, {
       walls: player.walls,
       outside,
-      interior: player.interior,
+      interior: getInterior(player),
       castle,
       castleMargin,
       homeWasBroken: !!homeWasBroken,

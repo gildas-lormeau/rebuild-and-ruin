@@ -139,11 +139,7 @@ export function handleServerLifecycleMessage(
       deps.lobby.showWaitingRoom(msg.code, msg.seed);
       deps.session.lobbyStartTime = deps.now() - msg.elapsedSec * 1000;
       for (const player of msg.players) {
-        deps.lobby.joined[player.playerId] = true;
-        deps.session.occupiedSlots.add(player.playerId);
-        if (player.playerId !== deps.session.onlinePlayerId) {
-          deps.session.remoteHumanSlots.add(player.playerId);
-        }
+        occupyLobbySlot(player.playerId);
       }
       return true;
 

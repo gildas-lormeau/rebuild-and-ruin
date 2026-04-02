@@ -284,12 +284,24 @@ function buildTransitionUiCtx(): TransitionContext["ui"] {
 
 function buildTransitionCheckpointCtx(): TransitionContext["checkpoint"] {
   return {
-    applyCannonStart: (data, beforeApply) =>
-      applyCannonStartCheckpoint(data, buildCheckpointDeps(), beforeApply),
-    applyBattleStart: (data, beforeApply) =>
-      applyBattleStartCheckpoint(data, buildCheckpointDeps(), beforeApply),
-    applyBuildStart: (data, beforeApply) =>
-      applyBuildStartCheckpoint(data, buildCheckpointDeps(), beforeApply),
+    applyCannonStart: (data, captureBeforeApply) =>
+      applyCannonStartCheckpoint(
+        data,
+        buildCheckpointDeps(),
+        captureBeforeApply,
+      ),
+    applyBattleStart: (data, captureBeforeApply) =>
+      applyBattleStartCheckpoint(
+        data,
+        buildCheckpointDeps(),
+        captureBeforeApply,
+      ),
+    applyBuildStart: (data, captureBeforeApply) =>
+      applyBuildStartCheckpoint(
+        data,
+        buildCheckpointDeps(),
+        captureBeforeApply,
+      ),
     applyBuildEnd: applyBuildEndCheckpoint,
   };
 }

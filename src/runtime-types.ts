@@ -37,6 +37,15 @@
  *
  * When adding a new UI modal, use the TRANSIENT pattern. Only game-phase overlays
  * that need to persist across ticks should use PERSISTENT.
+ *
+ * ### Sentinel state guard (all runtime-*.ts sub-systems)
+ *
+ * `runtimeState.state` and `runtimeState.frameCtx` start as SENTINEL objects
+ * (see runtime-state.ts). They are replaced with real values only after
+ * `startGame()`. Sub-system methods (returned by create*System) are called
+ * exclusively from game-loop code that runs after startGame(), so they may
+ * safely access runtimeState.state/frameCtx without null checks.
+ * Do NOT call sub-system methods before startGame() completes.
  */
 
 import type { GameMessage, ServerMessage } from "../server/protocol.ts";

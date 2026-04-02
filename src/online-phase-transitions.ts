@@ -93,18 +93,27 @@ export interface TransitionContext {
   };
 
   // ── Checkpoint application ──
-  // Each method accepts an optional `beforeApply` callback that runs BEFORE
+  // Each method accepts an optional `captureBeforeApply` callback that runs BEFORE
   // applyPlayersCheckpoint mutates state. Use it to capture pre-state (walls,
   // scores, entities) needed for banner animations — the ordering is guaranteed.
   checkpoint: {
-    applyCannonStart: (data: CannonStartData, beforeApply?: () => void) => void;
-    applyBattleStart: (data: BattleStartData, beforeApply?: () => void) => void;
-    applyBuildStart: (data: BuildStartData, beforeApply?: () => void) => void;
+    applyCannonStart: (
+      data: CannonStartData,
+      captureBeforeApply?: () => void,
+    ) => void;
+    applyBattleStart: (
+      data: BattleStartData,
+      captureBeforeApply?: () => void,
+    ) => void;
+    applyBuildStart: (
+      data: BuildStartData,
+      captureBeforeApply?: () => void,
+    ) => void;
     applyBuildEnd: (
       state: GameState,
       players: readonly SerializedPlayer[],
       scores: readonly number[],
-      beforeApply?: () => void,
+      captureBeforeApply?: () => void,
     ) => void;
   };
 

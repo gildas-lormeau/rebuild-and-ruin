@@ -205,9 +205,14 @@ export interface BattleOverlay {
 export interface UIOverlay {
   announcement?: string;
   banner?: { text: string; subtitle?: string; y: number };
+  /** Snapshot of castle state captured at banner start — immutable during animation.
+   *  Used to render the "old" scene behind the banner while live state updates. */
   bannerOldCastles?: CastleData[];
+  /** Territory snapshot at banner start — do not mutate during animation. */
   bannerOldBattleTerritory?: Set<number>[];
+  /** Walls snapshot at banner start — do not mutate during animation. */
   bannerOldBattleWalls?: Set<number>[];
+  /** Entity state snapshot at banner start — do not mutate during animation. */
   bannerOldEntities?: EntityOverlay;
   gameOver?: GameOverOverlay;
   timer?: number;
