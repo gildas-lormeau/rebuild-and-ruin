@@ -111,7 +111,8 @@ Handles the case where both a property and its local variable are renamed — co
 - Use `find-symbol` + `list-exports` + `list-references` to plan before refactoring
 - Always `--dry-run` first to preview the scope of changes
 - Run `tsc --noEmit` after to verify (the tool doesn't type-check)
-- Run `npx biome check --write <files>` after if import ordering matters
+- Run `npx biome check --write <files>` after to fix import ordering
 - For interface property renames that should cascade everywhere, prefer `rename-prop` over `rename-in-file`
 - For bulk parameter renames scoped to specific files, prefer `rename-in-file` over running `rename-symbol` N times
 - Move related symbols together with `--symbol A --symbol B` to avoid broken intermediate states
+- `move-export` handles self-imports (skips), `import type` vs value imports (splits), and `.ts` extensions (appends) automatically
