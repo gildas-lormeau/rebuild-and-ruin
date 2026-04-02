@@ -10,6 +10,7 @@ import { STEP } from "./ai-constants.ts";
 import type { AiStrategy, CannonPlacement } from "./ai-strategy.ts";
 import { canPlaceCannon, placeCannon } from "./cannon-system.ts";
 import type { CannonPlacementPreview } from "./controller-interfaces.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { TilePos } from "./geometry-types.ts";
 import {
   CannonMode,
@@ -20,7 +21,7 @@ import {
 
 /** Subset of AiController accessed by cannon-phase logic. */
 interface CannonHost {
-  readonly playerId: number;
+  readonly playerId: ValidPlayerSlot;
   readonly strategy: AiStrategy;
   cannonCursor: TilePos;
   readonly cannonCursorSpeed: number;
@@ -239,7 +240,7 @@ function tickMoving(
 }
 
 function phantomAt(
-  playerId: number,
+  playerId: ValidPlayerSlot,
   phase: CannonPhase,
   row: number,
   col: number,

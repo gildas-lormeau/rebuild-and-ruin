@@ -12,7 +12,7 @@ import type {
   PiecePlacementPreview,
   PlayerController,
 } from "./controller-interfaces.ts";
-import { NORMAL_CANNON_SIZE } from "./game-constants.ts";
+import { NORMAL_CANNON_SIZE, type ValidPlayerSlot } from "./game-constants.ts";
 import type { Crosshair } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import {
@@ -39,7 +39,7 @@ const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
  *  Protected hooks use on*() prefix (onStartBuildPhase, onFinalizeBuildPhase).
  *  When adding a new public lifecycle method, add a corresponding protected hook. */
 export abstract class BaseController implements PlayerController {
-  readonly playerId: number;
+  readonly playerId: ValidPlayerSlot;
   abstract readonly kind: "human" | "ai";
   buildCursor = { row: DEFAULT_CURSOR_ROW, col: DEFAULT_CURSOR_COL };
   cannonCursor = { row: DEFAULT_CURSOR_ROW, col: DEFAULT_CURSOR_COL };
@@ -56,7 +56,7 @@ export abstract class BaseController implements PlayerController {
   /** Current piece drawn from the bag. */
   currentPiece: PieceShape | null = null;
 
-  constructor(playerId: number) {
+  constructor(playerId: ValidPlayerSlot) {
     this.playerId = playerId;
   }
 

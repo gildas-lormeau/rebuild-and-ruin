@@ -19,7 +19,11 @@ import {
   type PiecePlacementPreview,
 } from "./controller-interfaces.ts";
 import { BaseController } from "./controller-types.ts";
-import { BALLOON_COST, SUPER_GUN_COST } from "./game-constants.ts";
+import {
+  BALLOON_COST,
+  SUPER_GUN_COST,
+  type ValidPlayerSlot,
+} from "./game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import { rotateCW } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
@@ -50,7 +54,7 @@ export class HumanController extends BaseController implements InputReceiver {
   /** Actions currently held for continuous crosshair movement. */
   private readonly heldActions = new Set<Action>();
 
-  constructor(playerId: number, keys: KeyBindings) {
+  constructor(playerId: ValidPlayerSlot, keys: KeyBindings) {
     super(playerId);
     this.keyMap = buildKeyMap(keys);
   }

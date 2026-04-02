@@ -7,12 +7,13 @@
 
 import { STEP } from "./ai-constants.ts";
 import type { AiStrategy } from "./ai-strategy.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import { selectPlayerTower } from "./game-engine.ts";
 import type { GameState } from "./types.ts";
 
 /** Subset of AiController accessed by selection-phase logic. */
 interface SelectionHost {
-  readonly playerId: number;
+  readonly playerId: ValidPlayerSlot;
   readonly strategy: AiStrategy;
   scaledDelay(base: number, spread: number): number;
 }

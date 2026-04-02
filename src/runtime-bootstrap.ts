@@ -4,6 +4,7 @@ import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
   isActivePlayer,
+  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import { createGameFromSeed } from "./game-engine.ts";
 import type { GameMap } from "./geometry-types.ts";
@@ -248,7 +249,7 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
 /** Create an AI-only controller (no key bindings). Used during initial game
  *  setup and host promotion to rebuild controllers for vacant slots. */
 export function createAiController(
-  id: number,
+  id: ValidPlayerSlot,
   seed: number,
   difficulty?: number,
 ): PlayerController {
@@ -284,7 +285,7 @@ export function bootstrapGame(deps: InitGameDeps): void {
     const strategySeed = isAi ? state.rng.int(0, MAX_UINT32) : undefined;
     nextControllers.push(
       createController(
-        i,
+        i as ValidPlayerSlot,
         isAi,
         deps.keyBindings[i],
         strategySeed,

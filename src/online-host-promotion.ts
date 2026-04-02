@@ -4,7 +4,7 @@
  */
 
 import type { PlayerController } from "./controller-interfaces.ts";
-import { BATTLE_TIMER } from "./game-constants.ts";
+import { BATTLE_TIMER, type ValidPlayerSlot } from "./game-constants.ts";
 import { enterCannonPlacePhase } from "./game-engine.ts";
 import { finalizeCastleConstruction } from "./phase-setup.ts";
 import type { MutableAccums } from "./tick-context.ts";
@@ -23,19 +23,20 @@ export function rebuildControllersForPhase(
   state: GameState,
   controllers: PlayerController[],
   myPlayerId: number,
-  createAiController: (id: number, seed: number) => PlayerController,
+  createAiController: (id: ValidPlayerSlot, seed: number) => PlayerController,
 ): void {
   for (let i = 0; i < controllers.length; i++) {
     if (i === myPlayerId) continue;
     const player = state.players[i];
     if (!isPlayerAlive(player)) continue;
 
+    const pid = i as ValidPlayerSlot;
     const strategySeed =
       (state.rng.seed +
         state.round * SEED_ROUND_MULTIPLIER +
-        i * SEED_SLOT_MULTIPLIER) >>>
+        pid * SEED_SLOT_MULTIPLIER) >>>
       0;
-    controllers[i] = createAiController(i, strategySeed);
+    controllers[i] = createAiController(pid, strategySeed);
 
     // Initialize AI for the current phase
     if (state.phase === Phase.WALL_BUILD) {

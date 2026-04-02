@@ -4,6 +4,7 @@
 
 import { createController } from "./controller-factory.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import {
   createGameState,
   enterCastleReselectPhase,
@@ -32,7 +33,12 @@ export function createHeadlessRuntime(seed: number): HeadlessRuntime {
   const state = createGameState(map, playerCount, seed);
   state.playerZones = zones;
   const controllers = Array.from({ length: playerCount }, (_, i) =>
-    createController(i, true, undefined, state.rng.int(0, MAX_UINT32)),
+    createController(
+      i as ValidPlayerSlot,
+      true,
+      undefined,
+      state.rng.int(0, MAX_UINT32),
+    ),
   );
 
   // Auto-select towers for all players.
@@ -66,10 +72,11 @@ export function createMixedRuntime(
 
   const humanSet = new Set(humanSlots);
   const controllers = Array.from({ length: playerCount }, (_, i) => {
+    const pid = i as ValidPlayerSlot;
     if (humanSet.has(i)) {
-      return createController(i, false, PLAYER_KEY_BINDINGS[0]);
+      return createController(pid, false, PLAYER_KEY_BINDINGS[0]);
     }
-    return createController(i, true, undefined, state.rng.int(0, MAX_UINT32));
+    return createController(pid, true, undefined, state.rng.int(0, MAX_UINT32));
   });
 
   return { state, controllers, zones, playerCount };

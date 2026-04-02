@@ -8,10 +8,11 @@ import { DefaultStrategy } from "./ai-strategy.ts";
 import { AiController } from "./controller-ai.ts";
 import { HumanController } from "./controller-human.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { KeyBindings } from "./player-config.ts";
 
 export function createController(
-  playerId: number,
+  playerId: ValidPlayerSlot,
   isAi: boolean,
   keys?: KeyBindings,
   strategySeed?: number,

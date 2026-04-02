@@ -13,6 +13,7 @@
  *   PlayerController    — full intersection (backward-compatible)
  */
 
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { Crosshair, PixelPos, TilePos } from "./geometry-types.ts";
 import type { PieceShape } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
@@ -33,7 +34,7 @@ export interface PiecePlacementPreview {
   col: number;
   /** true = placement is legal at this position. */
   valid: boolean;
-  playerId: number;
+  playerId: ValidPlayerSlot;
 }
 
 /** Visual preview of a cannon the player is about to place (not yet committed to game state). */
@@ -44,12 +45,12 @@ export interface CannonPlacementPreview {
   valid: boolean;
   /** Cannon variant (normal, super, or balloon). */
   mode: CannonMode;
-  playerId: number;
+  playerId: ValidPlayerSlot;
 }
 
 /** Identity, lifecycle, and cursor centering — the minimal slice every consumer needs. */
 export interface ControllerIdentity {
-  readonly playerId: number;
+  readonly playerId: ValidPlayerSlot;
   /** Discriminant for isHuman/isAiAnimatable type guards (string union, not enum — only two values). */
   readonly kind: "human" | "ai";
 

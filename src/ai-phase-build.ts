@@ -10,6 +10,7 @@ import { STEP } from "./ai-constants.ts";
 import type { AiStrategy } from "./ai-strategy.ts";
 import { canPlacePiece, placePiece } from "./build-system.ts";
 import type { PiecePlacementPreview } from "./controller-interfaces.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { type PieceShape, rotateCW, sameShape } from "./pieces.ts";
@@ -18,7 +19,7 @@ import { type GameState, isPlayerAlive } from "./types.ts";
 
 /** Subset of AiController accessed by build-phase logic. */
 interface BuildHost {
-  readonly playerId: number;
+  readonly playerId: ValidPlayerSlot;
   readonly strategy: AiStrategy;
   buildCursor: TilePos;
   currentPiece: PieceShape | null;
@@ -339,7 +340,7 @@ function phantomAtCursor(
 }
 
 function makePhantom(
-  playerId: number,
+  playerId: ValidPlayerSlot,
   shape: PieceShape,
   row: number,
   col: number,

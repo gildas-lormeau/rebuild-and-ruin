@@ -9,6 +9,7 @@
 import { STEP } from "./ai-constants.ts";
 import { type AiStrategy, CHAIN, type ChainType } from "./ai-strategy.ts";
 import { aimCannons, nextReadyCombined } from "./battle-system.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { StrategicPixelPos, TilePos } from "./geometry-types.ts";
 import { packTile, tileCenterPx } from "./spatial.ts";
 import {
@@ -19,7 +20,7 @@ import {
 
 /** Subset of AiController accessed by battle-phase logic. */
 interface BattleHost {
-  readonly playerId: number;
+  readonly playerId: ValidPlayerSlot;
   readonly strategy: AiStrategy;
   crosshair: { x: number; y: number };
   readonly cannonRotationIdx: number | null;

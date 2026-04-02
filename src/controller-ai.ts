@@ -49,6 +49,7 @@ import type {
 } from "./controller-interfaces.ts";
 import { CROSSHAIR_SPEED } from "./controller-interfaces.ts";
 import { BaseController } from "./controller-types.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { PixelPos, TilePos } from "./geometry-types.ts";
 import type { GameState } from "./types.ts";
 
@@ -69,7 +70,7 @@ export class AiController extends BaseController implements AiAnimatable {
   /** Fixed perpendicular jitter offset (tiles), set once per movement. */
   private tileJitterOffset = 0;
 
-  constructor(playerId: number, strategy?: AiStrategy) {
+  constructor(playerId: ValidPlayerSlot, strategy?: AiStrategy) {
     super(playerId);
     this.strategy = strategy ?? new DefaultStrategy();
     this._battlePhase.idlePhase = this.strategy.rng.next() * Math.PI * 2;
