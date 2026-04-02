@@ -235,7 +235,10 @@ export function enterBattleFromCannon(state: GameState): void {
   // Thaw frozen river from previous round (before applying new modifier)
   clearFrozenRiver(state);
   // Modern mode: apply battle-start modifiers
-  if (state.activeModifier === MID.WILDFIRE) applyWildfire(state);
+  if (state.activeModifier === MID.WILDFIRE) {
+    applyWildfire(state);
+    recheckTerritory(state);
+  }
   if (state.activeModifier === MID.GRUNT_SURGE) applyGruntSurge(state);
   if (state.activeModifier === MID.FROZEN_RIVER) applyFrozenRiver(state);
 
