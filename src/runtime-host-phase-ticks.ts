@@ -7,9 +7,10 @@
  *
  * Net destructuring convention (shared with runtime-host-battle-ticks.ts):
  *   const remoteHumanSlots = getRemoteSlots(deps.net);
- *   const isHost = isHostInContext(deps.net);
  *   const sendXxx = deps.net?.sendXxx;          // optional send callbacks
  * Always destructure net at the top of each tick function for consistency.
+ * Use isHostInContext(deps.net) inline — never cache in a local variable
+ * (isHost is volatile during host promotion; see online-session.ts).
  */
 
 import { getInterior, snapshotAllWalls } from "./board-occupancy.ts";
@@ -159,7 +160,6 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   const { dt, state, accum, frame, controllers, render, startBattle } = deps;
   // Networking defaults (no-op for local play)
   const remoteHumanSlots = getRemoteSlots(deps.net);
-  const isHost = isHostInContext(deps.net);
   const remoteCannonPhantoms = deps.net?.remoteCannonPhantoms ?? [];
   const lastSentCannonPhantom =
     deps.net?.lastSentCannonPhantom ?? LOCAL_CHANNEL;
@@ -182,7 +182,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
     const cannonsBefore = state.players[ctrl.playerId]!.cannons.length;
     const phantom = ctrl.cannonTick(state, dt);
 
-    if (isHost && sendOpponentCannonPlaced) {
+    if (isHostInContext(deps.net) && sendOpponentCannonPlaced) {
       const cannonsAfter = state.players[ctrl.playerId]!.cannons.length;
       for (let ci = cannonsBefore; ci < cannonsAfter; ci++) {
         const c = state.players[ctrl.playerId]!.cannons[ci]!;
@@ -198,7 +198,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
     if (!phantom) continue;
 
     frame.phantoms.cannonPhantoms!.push(phantom);
-    if (!isHost || !sendOpponentCannonPhantom) continue;
+    if (!isHostInContext(deps.net) || !sendOpponentCannonPhantom) continue;
 
     if (
       !lastSentCannonPhantom.changed(ctrl.playerId, cannonPhantomKey(phantom))
@@ -262,7 +262,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
  *      remote clients finalize their own controllers independently. */
 export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   const { dt, state, accum, frame, controllers, render } = deps;
-  // Networking defaults (no-op for local play) — isHost extracted inside processControllerBuildActions
+  // Networking defaults (no-op for local play)
   const remoteHumanSlots = getRemoteSlots(deps.net);
 
   // --- Timer + grunt tick ---
@@ -291,7 +291,6 @@ function processControllerBuildActions(
   remoteHumanSlots: ReadonlySet<number>,
 ): void {
   const { state, dt, controllers } = deps;
-  const isHost = isHostInContext(deps.net);
   const lastSentPiecePhantom = deps.net?.lastSentPiecePhantom ?? LOCAL_CHANNEL;
   const sendOpponentPiecePlaced = deps.net?.sendOpponentPiecePlaced;
   const sendOpponentPhantom = deps.net?.sendOpponentPhantom;
@@ -311,7 +310,7 @@ function processControllerBuildActions(
       player,
       state,
       dt,
-      isHost && !deps.isHuman(ctrl),
+      isHostInContext(deps.net) && !deps.isHuman(ctrl),
       sendOpponentPiecePlaced,
     );
 
@@ -322,7 +321,7 @@ function processControllerBuildActions(
     collectBuildPhantoms(
       phantoms,
       frame,
-      isHost,
+      isHostInContext(deps.net),
       lastSentPiecePhantom,
       sendOpponentPhantom,
     );
@@ -448,7 +447,6 @@ function finalizeBuildAndShowDialogs(
   remoteHumanSlots: ReadonlySet<number>,
 ): void {
   const { state } = deps;
-  const isHost = isHostInContext(deps.net);
   const serializePlayers = deps.net?.serializePlayers ?? (() => []);
   const sendBuildEnd = deps.net?.sendBuildEnd;
 
@@ -469,7 +467,7 @@ function finalizeBuildAndShowDialogs(
     snapshotThenFinalize(state, deps.finalizeBuildPhase);
   deps.banner.wallsBeforeSweep = wallsBeforeSweep;
   deps.banner.oldEntities = oldEntities;
-  if (isHost && sendBuildEnd) {
+  if (isHostInContext(deps.net) && sendBuildEnd) {
     sendBuildEnd({
       needsReselect,
       eliminated,

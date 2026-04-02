@@ -192,7 +192,6 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     onBattleEvents,
   } = deps;
   const remoteHumanSlots = getRemoteSlots(deps.net);
-  const isHost = isHostInContext(deps.net);
   const sendMessage = deps.net?.sendMessage;
 
   advancePhaseTimer(accum, "battle", state, dt, battleTimer);
@@ -207,11 +206,11 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
     dt,
     controllers,
     remoteHumanSlots,
-    isHost,
+    isHostInContext(deps.net),
     sendMessage,
   );
   const towerEvents = collectTowerEvents(state, dt);
-  if (isHost && sendMessage) {
+  if (isHostInContext(deps.net) && sendMessage) {
     for (const evt of towerEvents) sendMessage(evt);
   }
   const impactEvents = tickCannonballsAndRecordImpacts(
@@ -254,7 +253,6 @@ export function startHostBattleLifecycle(
     setModeBalloonAnim,
     beginBattle,
   } = deps;
-  const isHost = isHostInContext(deps.net);
   const sendBattleStart = deps.net?.sendBattleStart;
 
   const flights = resolveBalloons(state);
@@ -275,7 +273,8 @@ export function startHostBattleLifecycle(
     applyCheckpoint: () => {
       nextPhase(state);
       battleAnim.impacts = [];
-      if (isHost && sendBattleStart) sendBattleStart(flights);
+      if (isHostInContext(deps.net) && sendBattleStart)
+        sendBattleStart(flights);
     },
     snapshotForBanner: () => {
       const postTerritory = snapshotTerritory();
@@ -308,7 +307,6 @@ export function tickHostBalloonAnim(deps: TickHostBalloonAnimDeps): void {
 export function beginHostBattle(deps: BeginHostBattleDeps): void {
   const { state, controllers, accum, battleCountdown, setModeGame } = deps;
   const remoteHumanSlots = getRemoteSlots(deps.net);
-  const isHost = isHostInContext(deps.net);
 
   for (const ctrl of localActiveControllers(
     controllers,
@@ -320,7 +318,7 @@ export function beginHostBattle(deps: BeginHostBattleDeps): void {
 
   state.battleCountdown = battleCountdown;
   accum.battle = 0;
-  if (!isHost && deps.net) {
+  if (!isHostInContext(deps.net) && deps.net) {
     const { watcherTiming, now } = deps.net;
     watcherTiming.countdownStartTime = now();
     watcherTiming.countdownDuration = battleCountdown;
