@@ -96,7 +96,9 @@ export interface RuntimeConfig {
   isOnline?: boolean;
   /** noop for local, ws.send for online. */
   send: (msg: GameMessage) => void;
-  /** () => true for local. */
+  /** Config-level host check: () => true for local play, () => session.isHost for online.
+   *  Used at frame start to snapshot hostAtFrameStart. For runtime volatile checks in
+   *  tick/handler code, use isHostInContext(net) from tick-context.ts instead. */
   getIsHost: () => boolean;
   /** This client's player slot in online mode, or -1 in local (shared-screen) mode.
    *  Only meaningful for online play — local consumers should use povPlayerId instead. */

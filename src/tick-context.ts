@@ -140,9 +140,18 @@ export function localActiveControllers<
 ): T[] {
   return controllers.filter(
     (ctrl) =>
-      !remoteHumanSlots.has(ctrl.playerId) &&
+      !isRemoteHuman(ctrl.playerId, remoteHumanSlots) &&
       !state.players[ctrl.playerId]?.eliminated,
   );
+}
+
+/** True if this player slot is controlled by a remote human (not local).
+ *  Use this instead of inline `remoteHumanSlots.has(pid)` to make intent explicit. */
+export function isRemoteHuman(
+  playerId: number,
+  remoteHumanSlots: ReadonlySet<number>,
+): boolean {
+  return remoteHumanSlots.has(playerId);
 }
 
 export function createTimerAccums(): TimerAccums {

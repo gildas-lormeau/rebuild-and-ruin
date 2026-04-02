@@ -35,6 +35,7 @@ import {
   getRemoteSlots,
   type HostNetContext,
   isHostInContext,
+  isRemoteHuman,
   localActiveControllers,
 } from "./tick-context.ts";
 import type {
@@ -233,7 +234,7 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
   if (state.timer > 0 || state.cannonballs.length > 0) return false;
 
   for (const ctrl of controllers) {
-    if (remoteHumanSlots.has(ctrl.playerId)) continue;
+    if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) continue;
     ctrl.endBattle();
   }
   onBattlePhaseEnded();

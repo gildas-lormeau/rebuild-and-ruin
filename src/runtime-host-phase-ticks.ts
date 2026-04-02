@@ -261,6 +261,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
  *      remote clients finalize their own controllers independently. */
 export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   const { dt, state, accum, frame, controllers, render } = deps;
+  // Networking defaults (no-op for local play) — isHost extracted inside processControllerBuildActions
   const remoteHumanSlots = getRemoteSlots(deps.net);
 
   // --- Timer + grunt tick ---

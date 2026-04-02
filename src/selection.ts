@@ -202,6 +202,8 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
   render();
 
   if (accum.select >= selectTimer) {
+    // Guard: only pending (unconfirmed) selections get auto-confirmed on timer expiry.
+    // Equivalent to isSelectionPending() — uses loop-level check for iteration efficiency.
     for (const [pid, selectionState] of selectionStates) {
       if (selectionState.confirmed) continue;
       confirmSelectionAndStartBuild(pid, isReselect);

@@ -83,8 +83,10 @@ const COUNTDOWN_READY = 3;
 const COUNTDOWN_AIM = 1;
 /** Cannonball speed multiplier when the Rapid Fire upgrade is active. */
 const RAPID_FIRE_SPEED_MULT = 2;
-/** Sentinel value: no target found (used for victimId/cannonIdx lookups). */
+/** Sentinel: no target found (used for victimId lookups). */
 const NO_TARGET = -1;
+/** Sentinel: cannon index not found in victim's array. Exported for checkpoint code. */
+export const CANNON_NOT_FOUND = -1;
 
 /** Map battleCountdown to the corresponding announcement text. */
 export function getCountdownAnnouncement(
@@ -663,7 +665,7 @@ function launchCannonball(
  *  - No "already captured" check (it IS the captured entry) */
 function canFireCapturedCannon(state: GameState, cc: CapturedCannon): boolean {
   if (!isCannonAlive(cc.cannon)) return false;
-  if (cc.cannonIdx < 0) return false;
+  if (cc.cannonIdx === CANNON_NOT_FOUND) return false;
   return !state.cannonballs.some(
     (b) => b.playerId === cc.victimId && b.cannonIdx === cc.cannonIdx,
   );
@@ -884,7 +886,8 @@ function resolveBalloonCaptures(
         }
       }
       const winnerId = state.rng.pick(hit.capturerIds);
-      const cannonIdx = state.players[victimId]?.cannons.indexOf(cannon) ?? -1;
+      const cannonIdx =
+        state.players[victimId]?.cannons.indexOf(cannon) ?? CANNON_NOT_FOUND;
       state.capturedCannons.push({
         cannon,
         cannonIdx,

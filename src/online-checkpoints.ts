@@ -1,3 +1,4 @@
+import { CANNON_NOT_FOUND } from "./battle-system.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import { resetCannonFacings } from "./cannon-system.ts";
 import type {
@@ -94,7 +95,11 @@ export function applyBattleStartCheckpoint(
   if (data.capturedCannons) {
     for (const cc of data.capturedCannons) {
       const victim = deps.state.players[cc.victimId];
-      if (victim && cc.cannonIdx >= 0 && cc.cannonIdx < victim.cannons.length) {
+      if (
+        victim &&
+        cc.cannonIdx !== CANNON_NOT_FOUND &&
+        cc.cannonIdx < victim.cannons.length
+      ) {
         deps.state.capturedCannons.push({
           cannon: victim.cannons[cc.cannonIdx]!,
           cannonIdx: cc.cannonIdx,

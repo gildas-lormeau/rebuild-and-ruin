@@ -65,7 +65,7 @@ export interface Cannon extends TilePos {
 export interface CapturedCannon {
   /** The captured cannon reference. */
   cannon: Cannon;
-  /** Index of the cannon in the victim's cannons array. */
+  /** Index of the cannon in the victim's cannons array, or CANNON_NOT_FOUND (-1). */
   cannonIdx: number;
   /** The player who owns the captured cannon (victim). */
   victimId: number;
