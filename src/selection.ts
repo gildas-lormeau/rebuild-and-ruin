@@ -5,6 +5,7 @@ import type {
 import { isActiveOnlinePlayer } from "./game-constants.ts";
 import { selectPlayerTower } from "./game-engine.ts";
 import { BANNER_SELECT } from "./phase-banner.ts";
+import { isRemoteHuman } from "./tick-context.ts";
 import {
   type GameState,
   isReselectPhase,
@@ -178,7 +179,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
   const isReselect = isReselectPhase(state.phase);
   for (const [pid, selectionState] of selectionStates) {
     if (selectionState.confirmed) continue;
-    if (remoteHumanSlots.has(pid)) continue;
+    if (isRemoteHuman(pid, remoteHumanSlots)) continue;
 
     const towerBefore = state.players[pid]!.homeTower;
     if (controllers[pid]!.selectionTick(dt, state)) {

@@ -22,6 +22,7 @@ import {
 import type { Crosshair, PixelPos } from "./geometry-types.ts";
 import { interpolateToward, REMOTE_CROSSHAIR_SPEED } from "./online-types.ts";
 import type { DedupChannel } from "./phantom-types.ts";
+import { isRemoteHuman } from "./tick-context.ts";
 import { type GameState, isPlayerAlive } from "./types.ts";
 
 interface BroadcastDeps {
@@ -68,7 +69,7 @@ export function extendWithRemoteCrosshairs(
     `collectCrosshairs: localCh=${crosshairs.length} remoteCrosshairs keys=[${[...deps.remoteCrosshairs.keys()]}] cannons=[${state.players.map((player, i) => `P${i}:${player.cannons.length}`).join(",")}]`,
   );
   for (const [pid, target] of deps.remoteCrosshairs) {
-    if (!deps.remoteHumanSlots.has(pid)) continue;
+    if (!isRemoteHuman(pid, deps.remoteHumanSlots)) continue;
     const player = state.players[pid];
     if (!isPlayerAlive(player)) continue;
     if (!canPlayerFire(state, pid)) continue;

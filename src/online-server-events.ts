@@ -38,7 +38,7 @@ import type { OnlineSession } from "./online-session.ts";
 import { toCannonMode, type WatcherNetworkState } from "./online-types.ts";
 import { isSelectionPending } from "./selection.ts";
 import { inBoundsStrict, packTile } from "./spatial.ts";
-import { isHostInContext } from "./tick-context.ts";
+import { isHostInContext, isRemoteHuman } from "./tick-context.ts";
 import {
   CANNON_MODES,
   type GameState,
@@ -508,7 +508,8 @@ function isRemoteHumanAction(
   deps: Pick<HandleServerIncrementalDeps, "session">,
 ): boolean {
   return (
-    !isHostInContext(deps.session) || deps.session.remoteHumanSlots.has(pid)
+    !isHostInContext(deps.session) ||
+    isRemoteHuman(pid, deps.session.remoteHumanSlots)
   );
 }
 

@@ -34,6 +34,7 @@ import {
   getRemoteSlots,
   type HostNetContext,
   isHostInContext,
+  isRemoteHuman,
   localActiveControllers,
   tickGruntsIfDue,
 } from "./tick-context.ts";
@@ -215,7 +216,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   if (remoteCannonPhantoms.length > 0) {
     frame.phantoms.cannonPhantoms!.push(
       ...filterAlivePhantoms(remoteCannonPhantoms, state.players).filter(
-        (player) => !remoteHumanSlots.has(player.playerId),
+        (player) => !isRemoteHuman(player.playerId, remoteHumanSlots),
       ),
     );
   }
@@ -223,7 +224,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   render();
 
   const allDone = controllers.every((ctrl) => {
-    if (remoteHumanSlots.has(ctrl.playerId)) return true;
+    if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) return true;
     const player = state.players[ctrl.playerId]!;
     if (player.eliminated) return true;
     const max = state.cannonLimits[player.id] ?? 0;
@@ -240,7 +241,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   // double-flushes; initCannons on a local skips the flush entirely.
   for (const ctrl of controllers) {
     const max = state.cannonLimits[ctrl.playerId] ?? 0;
-    if (remoteHumanSlots.has(ctrl.playerId)) {
+    if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) {
       ctrl.initCannons(state, max);
       continue;
     }
@@ -434,7 +435,7 @@ function mergeRemotePiecePhantoms(
   if (remotePiecePhantoms.length > 0) {
     frame.phantoms.piecePhantoms!.push(
       ...filterAlivePhantoms(remotePiecePhantoms, state.players).filter(
-        (player) => !remoteHumanSlots.has(player.playerId),
+        (player) => !isRemoteHuman(player.playerId, remoteHumanSlots),
       ),
     );
   }
@@ -457,7 +458,7 @@ function finalizeBuildAndShowDialogs(
   // Local controllers (AI + local human): call finalizeBuildPhase() which flushes then inits.
   // Using the wrong method corrupts piece-bag state.
   for (const ctrl of controllers) {
-    if (remoteHumanSlots.has(ctrl.playerId)) continue;
+    if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) continue;
     ctrl.finalizeBuildPhase(state);
   }
 
@@ -482,7 +483,7 @@ function finalizeBuildAndShowDialogs(
     eliminated,
     showScoreDeltas: deps.showScoreDeltas,
     notifyLifeLost: (pid) => {
-      if (!remoteHumanSlots.has(pid)) controllers[pid]!.onLifeLost();
+      if (!isRemoteHuman(pid, remoteHumanSlots)) controllers[pid]!.onLifeLost();
     },
     showLifeLostDialog: deps.showLifeLostDialog,
     afterLifeLostResolved: deps.afterLifeLostResolved,

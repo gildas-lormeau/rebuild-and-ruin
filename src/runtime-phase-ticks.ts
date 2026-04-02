@@ -70,7 +70,7 @@ import type {
   RuntimeSelection,
 } from "./runtime-types.ts";
 import type { SoundSystem } from "./sound-system.ts";
-import type { MutableAccums } from "./tick-context.ts";
+import { isRemoteHuman, type MutableAccums } from "./tick-context.ts";
 import { Mode } from "./types.ts";
 
 interface PhaseTicksDeps
@@ -143,7 +143,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       state: runtimeState.state,
       controllers: runtimeState.controllers,
       canFireNow,
-      skipController: (pid) => remoteHumanSlots.has(pid),
+      skipController: (pid) => isRemoteHuman(pid, remoteHumanSlots),
       onCrosshairCollected: deps.onLocalCrosshairCollected,
     });
     if (deps.extendCrosshairs) {
@@ -190,7 +190,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       },
       initControllers: () => {
         for (const ctrl of runtimeState.controllers) {
-          if (remoteHumanSlots.has(ctrl.playerId)) continue;
+          if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) continue;
           initControllerForCannonPhase(ctrl, runtimeState.state);
         }
       },
@@ -286,7 +286,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       runtimeState.state,
       runtimeState.controllers,
       (pid) =>
-        remoteHumanSlots.has(pid) ||
+        isRemoteHuman(pid, remoteHumanSlots) ||
         !!runtimeState.state.players[pid]?.eliminated,
     );
     runtimeState.battleAnim.impacts = [];

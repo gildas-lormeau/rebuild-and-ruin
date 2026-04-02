@@ -53,7 +53,7 @@ import {
 } from "./selection.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import { towerCenterPx } from "./spatial.ts";
-import type { MutableAccums } from "./tick-context.ts";
+import { isRemoteHuman, type MutableAccums } from "./tick-context.ts";
 import { Mode } from "./types.ts";
 import { fireOnce } from "./utils.ts";
 
@@ -433,7 +433,7 @@ export function createSelectionSystem(
       controllers: runtimeState.controllers,
       initTowerSelection: initPlayerTowerSelection,
       processPlayer: (pid, ctrl, zone) => {
-        if (remoteHumanSlots.has(pid)) return "pending" as const;
+        if (isRemoteHuman(pid, remoteHumanSlots)) return "pending" as const;
         ctrl.selectReplacementTower(runtimeState.state, zone);
         // AI confirms via selectionTick(); humans need UI interaction
         return "pending" as const;

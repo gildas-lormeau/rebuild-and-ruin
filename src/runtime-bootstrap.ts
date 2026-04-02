@@ -13,6 +13,7 @@ import { precomputeTerrainCache } from "./render-map.ts";
 import { GOLD, PANEL_BG } from "./render-theme.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { GAME_CONTAINER_ACTIVE } from "./router.ts";
+import { isRemoteHuman } from "./tick-context.ts";
 import {
   type GameState,
   isReselectPhase,
@@ -227,7 +228,7 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
 
   selectionStates.clear();
   for (let i = 0; i < state.players.length; i++) {
-    if (remoteHumanSlots.has(i)) continue;
+    if (isRemoteHuman(i, remoteHumanSlots)) continue;
     controllers[i]!.selectInitialTower(state, zones[i]!);
     initTowerSelection(i, zones[i]!);
   }
