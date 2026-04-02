@@ -39,7 +39,7 @@ export function rebuildControllersForPhase(
 
     // Initialize AI for the current phase
     if (state.phase === Phase.WALL_BUILD) {
-      controllers[i]!.startBuild(state);
+      controllers[i]!.startBuildPhase(state);
     } else if (state.phase === Phase.CANNON_PLACE) {
       const max = state.cannonLimits[i] ?? 0;
       controllers[i]!.placeCannons(state, max);
@@ -49,7 +49,7 @@ export function rebuildControllersForPhase(
           col: player.homeTower.col,
         };
       }
-      controllers[i]!.onCannonPhaseStart(state);
+      controllers[i]!.startCannonPhase(state);
     } else if (state.phase === Phase.BATTLE) {
       controllers[i]!.initBattleState(state);
     }

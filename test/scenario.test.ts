@@ -811,10 +811,10 @@ test("cannon-start: watcher uses same initControllerForCannonPhase as host", () 
 });
 
 // ---------------------------------------------------------------------------
-// 26. Build-start: watcher calls startBuild on local controller
+// 26. Build-start: watcher calls startBuildPhase on local controller
 // ---------------------------------------------------------------------------
 
-test("build-start: watcher calls startBuild on local controller", () => {
+test("build-start: watcher calls startBuildPhase on local controller", () => {
   const s = createScenario();
   s.runCannon();
   s.runBattle();
@@ -822,18 +822,18 @@ test("build-start: watcher calls startBuild on local controller", () => {
   // Serialize build-start message as host would send it
   const msg = createBuildStartMessage(s.state);
 
-  let startBuildCalled = false;
+  let buildPhaseStartCalled = false;
   const ctrl = s.controllers[0]!;
-  const origStartBuild = ctrl.startBuild.bind(ctrl);
-  ctrl.startBuild = (state) => {
-    startBuildCalled = true;
-    origStartBuild(state);
+  const origOnBuildPhaseStart = ctrl.startBuildPhase.bind(ctrl);
+  ctrl.startBuildPhase = (...args) => {
+    buildPhaseStartCalled = true;
+    origOnBuildPhaseStart(...args);
   };
 
   const ctx = s.createTransitionContext();
   handleBuildStartTransition(msg as any, ctx);
 
-  assert(startBuildCalled, "Watcher should call startBuild on local controller");
+  assert(buildPhaseStartCalled, "Watcher should call startBuildPhase on local controller");
   assertPhase(s, Phase.WALL_BUILD);
 });
 

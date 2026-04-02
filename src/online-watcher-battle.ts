@@ -50,7 +50,7 @@ interface WatcherBattleDeps {
   localController: PlayerController | null;
   remoteCrosshairs: Map<number, PixelPos>;
   watcherCrosshairPos: Map<number, PixelPos>;
-  watcherIdlePhases: Map<number, number>;
+  watcherOrbitPhases: Map<number, number>;
   watcherOrbitParams: Map<number, OrbitParams>;
   logThrottled: (key: string, msg: string) => void;
   interpolateToward: (
@@ -161,7 +161,7 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     localController,
     remoteCrosshairs,
     watcherCrosshairPos,
-    watcherIdlePhases,
+    watcherOrbitPhases,
     watcherOrbitParams,
     logThrottled,
     interpolateToward,
@@ -204,12 +204,12 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
       visualPos,
       target,
       orbitParams,
-      watcherIdlePhases.get(pid) ?? orbitParams?.phase ?? 0,
+      watcherOrbitPhases.get(pid) ?? orbitParams?.phase ?? 0,
       dt,
       REMOTE_CROSSHAIR_SPEED,
       interpolateToward,
     );
-    if (orbitParams) watcherIdlePhases.set(pid, newPhase);
+    if (orbitParams) watcherOrbitPhases.set(pid, newPhase);
 
     frame.crosshairs.push({
       x: visualPos.x,

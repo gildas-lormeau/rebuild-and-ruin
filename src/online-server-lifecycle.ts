@@ -25,8 +25,8 @@ interface HandleServerLifecycleDeps {
     | "isHost"
     | "onlinePlayerId"
     | "hostMigrationSeq"
-    | "lobbyWaitTimer"
-    | "roomBattleLength"
+    | "roomWaitTimerSec"
+    | "roomMaxRounds"
     | "roomCannonMaxHp"
     | "roomGameMode"
     | "lobbyStartTime"
@@ -123,16 +123,16 @@ export function handleServerLifecycleMessage(
 
   switch (msg.type) {
     case MESSAGE.ROOM_CREATED:
-      deps.session.lobbyWaitTimer = msg.settings.waitTimerSec;
-      deps.session.roomBattleLength = msg.settings.battleLength;
+      deps.session.roomWaitTimerSec = msg.settings.waitTimerSec;
+      deps.session.roomMaxRounds = msg.settings.maxRounds;
       deps.session.roomCannonMaxHp = msg.settings.cannonMaxHp;
       deps.session.roomGameMode = msg.settings.gameMode ?? GAME_MODE_CLASSIC;
       deps.lobby.showWaitingRoom(msg.code, msg.seed);
       return true;
 
     case MESSAGE.ROOM_JOINED:
-      deps.session.lobbyWaitTimer = msg.settings.waitTimerSec;
-      deps.session.roomBattleLength = msg.settings.battleLength;
+      deps.session.roomWaitTimerSec = msg.settings.waitTimerSec;
+      deps.session.roomMaxRounds = msg.settings.maxRounds;
       deps.session.roomCannonMaxHp = msg.settings.cannonMaxHp;
       deps.session.roomGameMode = msg.settings.gameMode ?? GAME_MODE_CLASSIC;
       deps.lobby.showWaitingRoom(msg.code, msg.seed);

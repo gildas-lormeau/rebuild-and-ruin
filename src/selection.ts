@@ -96,9 +96,7 @@ export function confirmTowerSelection(
   isReselect: boolean,
 ): { towerIdx: number; allDone: boolean; isReselect: boolean } | null {
   const selectionState = selectionStates.get(playerId);
-  // Selection-confirmed guard (see input-dispatch.ts header for convention):
-  // once confirmed, all further selection actions are no-ops.
-  if (!selectionState || selectionState.confirmed) return null;
+  if (!isSelectionPending(selectionState)) return null;
   selectionState.confirmed = true;
 
   const player = state.players[playerId]!;
@@ -156,7 +154,7 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
   if (!isHost && isActiveOnlinePlayer(onlinePlayerId)) {
     if (accum.select >= selectTimer) {
       const selectionState = selectionStates.get(onlinePlayerId);
-      if (selectionState && !selectionState.confirmed) {
+      if (isSelectionPending(selectionState)) {
         confirmSelectionAndStartBuild(
           onlinePlayerId,
           isReselectPhase(state.phase),
@@ -214,6 +212,13 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
     if (isReselect) finishReselection();
     else finishSelection();
   }
+}
+
+/** True when a selection exists and is not yet confirmed — the player can still change it. */
+export function isSelectionPending(
+  state: SelectionState | undefined,
+): state is SelectionState {
+  return state !== undefined && !state.confirmed;
 }
 
 export function allSelectionsConfirmed(

@@ -65,7 +65,7 @@ interface InitGameDeps {
   /** Reuse an existing map (e.g. from lobby) to avoid regeneration and keep terrain cache warm. */
   existingMap?: GameMap;
   /** Game settings to apply after state creation. */
-  battleLength: number;
+  maxRounds: number;
   cannonMaxHp: number;
   buildTimer: number;
   cannonPlaceTimer: number;
@@ -265,7 +265,7 @@ export function bootstrapGame(deps: InitGameDeps): void {
     deps.maxPlayers,
     deps.existingMap,
   );
-  state.battleLength = deps.battleLength > 0 ? deps.battleLength : Infinity;
+  state.maxRounds = deps.maxRounds > 0 ? deps.maxRounds : Infinity;
   state.cannonMaxHp = deps.cannonMaxHp;
   state.buildTimer = deps.buildTimer;
   state.cannonPlaceTimer = deps.cannonPlaceTimer;
@@ -274,7 +274,7 @@ export function bootstrapGame(deps: InitGameDeps): void {
     deps.gameMode === GAME_MODE_MODERN ? GAME_MODE_MODERN : GAME_MODE_CLASSIC;
 
   deps.log(
-    `initGame: ${playerCount} players, seed=${deps.seed}, battleLength=${state.battleLength}`,
+    `initGame: ${playerCount} players, seed=${deps.seed}, maxRounds=${state.maxRounds}`,
   );
 
   const nextControllers: PlayerController[] = [];

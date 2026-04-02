@@ -193,7 +193,7 @@ export function parseBoard(ascii: string, playerId = 0): ParseResult {
     map,
     phase: Phase.WALL_BUILD,
     round: 2,
-    battleLength: 5,
+    maxRounds: 5,
     cannonMaxHp: 3,
     players: [player],
     activePlayer: 0,

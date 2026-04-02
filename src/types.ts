@@ -202,7 +202,7 @@ export interface GameState {
   phase: Phase;
   round: number;
   /** Max rounds before the game ends (3, 5, 8, 12, or Infinity for "To The Death"). */
-  battleLength: number;
+  maxRounds: number;
   /** Hits needed to destroy a cannon (configurable: 3, 6, 9, or 12). */
   cannonMaxHp: number;
   /** Duration of the wall-build/repair phase in seconds (difficulty-scaled). */

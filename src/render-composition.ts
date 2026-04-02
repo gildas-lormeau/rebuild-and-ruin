@@ -167,9 +167,9 @@ export function createStatusBar(
 
   return {
     round:
-      state.battleLength === Infinity
+      state.maxRounds === Infinity
         ? `R${state.round}`
-        : `R${state.round}/${state.battleLength}`,
+        : `R${state.round}/${state.maxRounds}`,
     phase: PHASE_LABELS.get(state.phase) ?? "",
     timer: state.timer > 0 ? `${Math.ceil(state.timer)}s` : "",
     modifier,

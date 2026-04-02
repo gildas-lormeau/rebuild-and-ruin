@@ -344,7 +344,9 @@ export function handleBuildStartTransition(
         if (isActiveOnlinePlayer(onlinePlayerId)) {
           const player = state.players[onlinePlayerId];
           if (player && !player.eliminated) {
-            transitionCtx.getControllers()[onlinePlayerId]?.startBuild(state);
+            transitionCtx
+              .getControllers()
+              [onlinePlayerId]?.startBuildPhase(state);
           }
         }
       },

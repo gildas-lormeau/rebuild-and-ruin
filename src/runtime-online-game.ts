@@ -29,9 +29,9 @@ import {
 } from "./online-host-crosshairs.ts";
 import type { TransitionContext } from "./online-phase-transitions.ts";
 import {
-  fireAndSend as fireAndSendAction,
-  tryPlaceCannonAndSend as tryPlaceCannonAndSendAction,
-  tryPlacePieceAndSend as tryPlacePieceAndSendAction,
+  fireAndSend,
+  tryPlaceCannonAndSend,
+  tryPlacePieceAndSend,
 } from "./online-send-actions.ts";
 import {
   applyPlayersCheckpoint,
@@ -44,10 +44,10 @@ import {
 } from "./online-serialize.ts";
 import { resetSessionState } from "./online-session.ts";
 import { setWatcherPhaseTimer } from "./online-types.ts";
-import type { WatcherTickContext } from "./online-watcher-tick.ts";
 import {
-  tickMigrationAnnouncement as tickMigrationAnnouncementFn,
-  tickWatcher as tickWatcherFn,
+  tickMigrationAnnouncement,
+  tickWatcher,
+  type WatcherTickContext,
 } from "./online-watcher-tick.ts";
 import {
   DEFAULT_DIFFICULTY,
@@ -152,7 +152,7 @@ const runtime: GameRuntime = createGameRuntime({
   getLobbyRemaining: () =>
     Math.max(
       0,
-      ctx.session.lobbyWaitTimer -
+      ctx.session.roomWaitTimerSec -
         1 -
         (performance.now() - ctx.session.lobbyStartTime) / 1000,
     ),
@@ -176,7 +176,7 @@ const runtime: GameRuntime = createGameRuntime({
       seed: ctx.session.roomSeed,
       playerCount: MAX_PLAYERS,
       settings: {
-        battleLength: ctx.session.roomBattleLength,
+        maxRounds: ctx.session.roomMaxRounds,
         cannonMaxHp: ctx.session.roomCannonMaxHp,
         buildTimer: diffParams.buildTimer,
         cannonPlaceTimer: diffParams.cannonPlaceTimer,
@@ -190,9 +190,9 @@ const runtime: GameRuntime = createGameRuntime({
   },
 
   // ── Networking callbacks ──
-  tickNonHost: (dt) => tickWatcherFn(ctx.watcher, dt, watcherTickCtx),
+  tickNonHost: (dt) => tickWatcher(ctx.watcher, dt, watcherTickCtx),
   everyTick: (dt) =>
-    tickMigrationAnnouncementFn(ctx.watcher, runtime.runtimeState.frame, dt),
+    tickMigrationAnnouncement(ctx.watcher, runtime.runtimeState.frame, dt),
   onLocalCrosshairCollected: (ctrl, crosshair) => {
     // isHost is volatile — re-read each tick (safe: inline, not cached)
     if (ctx.session.isHost)
@@ -221,14 +221,14 @@ const runtime: GameRuntime = createGameRuntime({
   watcherTiming: ctx.watcher.timing,
   maybeSendAimUpdate,
   tryPlaceCannonAndSend: (ctrl, state, maxSlots) =>
-    tryPlaceCannonAndSendAction(ctrl, state, maxSlots, send),
+    tryPlaceCannonAndSend(ctrl, state, maxSlots, send),
   tryPlacePieceAndSend: (ctrl, state) =>
-    tryPlacePieceAndSendAction(ctrl, state, send),
-  fireAndSend: (ctrl, state) => fireAndSendAction(ctrl, state, send),
+    tryPlacePieceAndSend(ctrl, state, send),
+  fireAndSend: (ctrl, state) => fireAndSend(ctrl, state, send),
   onEndGame: (winner, gameState) => {
     const payloads = createGameOverPayload(winner, gameState, PLAYER_NAMES);
     devLog(
-      `endGame winner=${payloads.winnerName} round=${gameState.round} battleLength=${gameState.battleLength}`,
+      `endGame winner=${payloads.winnerName} round=${gameState.round} maxRounds=${gameState.maxRounds}`,
     );
     if (ctx.session.isHost) send(payloads.serverPayload); // volatile — re-read (safe: inline)
   },
@@ -363,7 +363,7 @@ function buildCheckpointDeps(): CheckpointDeps {
     remoteCrosshairs: ctx.watcher.remoteCrosshairs,
     watcherCrosshairPos: ctx.watcher.watcherCrosshairPos,
     watcherOrbitParams: ctx.watcher.orbitParams,
-    watcherIdlePhases: ctx.watcher.idlePhases,
+    watcherOrbitPhases: ctx.watcher.watcherOrbitPhases,
     snapshotTerritory: () => runtime.snapshotTerritory(),
   };
 }
@@ -421,7 +421,7 @@ function initFromServer(msg: InitMessage): void {
     seed: msg.seed,
     maxPlayers: playerCount,
     existingMap: runtime.runtimeState.lobby.map ?? undefined,
-    battleLength: msg.settings.battleLength,
+    maxRounds: msg.settings.maxRounds,
     cannonMaxHp: msg.settings.cannonMaxHp,
     buildTimer: msg.settings.buildTimer,
     cannonPlaceTimer: msg.settings.cannonPlaceTimer,

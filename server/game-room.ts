@@ -57,7 +57,10 @@ type ServerPhase = Phase | "LOBBY" | "CASTLE_BUILD";
 const RATE_LIMIT_PER_SEC = 100; // ~60fps × 4 players phantom updates; generous but blocks flooding
 const RATE_LIMIT_WINDOW_MS = 1000;
 /** Exhaustive set of message types subject to rate limiting.
- *  All other types pass through without rate checks. */
+ *  All other types pass through without rate checks.
+ *  CRITICAL: Only cosmetic/display messages belong here. Adding a game-state message
+ *  (piece_placed, cannon_placed, fired, tower_selected, life_lost_choice) = DESYNC BUG
+ *  because silently dropped game-state messages cause host/watcher divergence. */
 const RATE_LIMITED_TYPES: ReadonlySet<string> = new Set([
   MESSAGE.OPPONENT_PHANTOM,
   MESSAGE.OPPONENT_CANNON_PHANTOM,

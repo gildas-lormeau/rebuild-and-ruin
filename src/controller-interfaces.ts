@@ -90,7 +90,7 @@ export interface BuildController {
   buildCursor: TilePos;
 
   /** Called once at the start of the build phase. */
-  startBuild(state: GameState): void;
+  startBuildPhase(state: GameState): void;
 
   /** Called each frame during build phase. Returns piece placement previews for rendering.
    *  Returns empty array when no preview is active.
@@ -139,7 +139,7 @@ export interface CannonController {
   setCannonCursor(row: number, col: number): void;
 
   /** Called at start of cannon phase. */
-  onCannonPhaseStart(state: GameState): void;
+  startCannonPhase(state: GameState): void;
 
   /** Flush any remaining auto-placement queue (cannon timer expired).
    *  Do NOT call directly — use finalizeCannonPhase() which guarantees flush->init order. */

@@ -83,7 +83,7 @@ export function initLobbyUi({
         send({
           type: MESSAGE.CREATE_ROOM,
           settings: {
-            battleLength: roundCount,
+            maxRounds: roundCount,
             cannonMaxHp: Number(elements.hp.value),
             waitTimerSec: Number(elements.wait.value),
             seed: Number.isFinite(seedNum) ? seedNum : undefined,
@@ -137,7 +137,7 @@ export function initLobbyUi({
       rooms: readonly {
         code: string;
         players: number;
-        settings: { battleLength: number; cannonMaxHp: number };
+        settings: { maxRounds: number; cannonMaxHp: number };
         elapsedSec: number;
       }[],
     ) => {
@@ -162,7 +162,7 @@ export function initLobbyUi({
         info.append(
           `${r.players}/${MAX_PLAYERS} players · ${ageLabel(r.elapsedSec)}`,
           doc.createElement("br"),
-          `${roundsLabel(r.settings.battleLength)} · ${r.settings.cannonMaxHp} HP`,
+          `${roundsLabel(r.settings.maxRounds)} · ${r.settings.cannonMaxHp} HP`,
         );
         item.appendChild(info);
         item.addEventListener(CLICK_EVENT, () => joinViaCode(r.code));

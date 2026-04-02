@@ -118,7 +118,7 @@ export function createFullStateMessage(
     round: state.round,
     timer: state.timer,
     battleCountdown: state.battleCountdown,
-    battleLength: state.battleLength,
+    maxRounds: state.maxRounds,
     shotsFired: state.shotsFired,
     rngState: state.rng.getState(),
     players: serializePlayers(state),
@@ -219,7 +219,7 @@ export function restoreFullStateSnapshot(
   state.round = msg.round;
   state.timer = msg.timer;
   state.battleCountdown = msg.battleCountdown;
-  state.battleLength = msg.battleLength;
+  state.maxRounds = msg.maxRounds;
   state.shotsFired = msg.shotsFired;
   state.cannonLimits = msg.cannonLimits;
   state.playerZones = msg.playerZones;

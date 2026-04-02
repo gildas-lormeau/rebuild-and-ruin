@@ -31,7 +31,7 @@ export interface WatcherState extends WatcherNetworkState {
   timing: WatcherTimingState;
   /** Interpolated visual positions shown to the watcher (smoothed toward remoteCrosshairs). */
   watcherCrosshairPos: Map<number, PixelPos>;
-  idlePhases: Map<number, number>;
+  watcherOrbitPhases: Map<number, number>;
   migrationTimer: number;
   migrationText: string;
 }
@@ -62,7 +62,7 @@ export function createWatcherState(): WatcherState {
     remoteCrosshairs: new Map(),
     remoteCannonPhantoms: [],
     watcherCrosshairPos: new Map(),
-    idlePhases: new Map(),
+    watcherOrbitPhases: new Map(),
     orbitParams: new Map(),
     remotePiecePhantoms: [],
     migrationTimer: 0,
@@ -76,7 +76,7 @@ export function resetWatcherState(watcherState: WatcherState): void {
   watcherState.remoteCannonPhantoms = [];
   watcherState.remotePiecePhantoms = [];
   watcherState.watcherCrosshairPos.clear();
-  watcherState.idlePhases.clear();
+  watcherState.watcherOrbitPhases.clear();
   watcherState.orbitParams.clear();
   clearWatcherPhaseTimer(watcherState.timing);
   watcherState.timing.countdownStartTime = 0;
@@ -96,7 +96,7 @@ export function resetWatcherTimingForHostPromotion(
   clearWatcherPhaseTimer(watcherState.timing);
   watcherState.timing.countdownStartTime = 0;
   watcherState.timing.countdownDuration = 0;
-  watcherState.idlePhases.clear();
+  watcherState.watcherOrbitPhases.clear();
   watcherState.orbitParams.clear();
 }
 
@@ -153,7 +153,7 @@ export function tickWatcher(
       localController,
       remoteCrosshairs: watcherState.remoteCrosshairs,
       watcherCrosshairPos: watcherState.watcherCrosshairPos,
-      watcherIdlePhases: watcherState.idlePhases,
+      watcherOrbitPhases: watcherState.watcherOrbitPhases,
       watcherOrbitParams: watcherState.orbitParams,
       logThrottled: transitionCtx.logThrottled,
       interpolateToward,

@@ -76,10 +76,14 @@ const WAVE_COL_LAYER_VAR = 0.15;
 const WAVE_PHASE_OFFSET = 2.1;
 // Phantom rendering
 const DARK_METAL = "#111";
-/** Shared phantom opacity for valid placement previews. */
-const PHANTOM_ALPHA = 0.85;
-/** Reduced opacity for invalid placement previews. */
-const PHANTOM_INVALID_ALPHA = 0.55;
+/** Piece phantom opacity for valid placement (saturated color + 3D bevel). */
+const PHANTOM_PIECE_ALPHA = 0.85;
+/** Piece phantom opacity for invalid placement. */
+const PHANTOM_PIECE_INVALID_ALPHA = 0.55;
+/** Cannon phantom opacity for valid placement (sprite-based, monochrome). */
+const PHANTOM_CANNON_ALPHA = 0.7;
+/** Cannon phantom opacity for invalid placement. */
+const PHANTOM_CANNON_INVALID_ALPHA = 0.5;
 /** Saturation boost for valid phantom wall colors. */
 const PHANTOM_SATURATION = 2.5;
 /** 3D bevel inset width in pixels. */
@@ -605,7 +609,9 @@ function drawPhantomCannon(
   const mid = size / 2;
 
   canvasCtx.save();
-  canvasCtx.globalAlpha = valid ? 0.7 : 0.5;
+  canvasCtx.globalAlpha = valid
+    ? PHANTOM_CANNON_ALPHA
+    : PHANTOM_CANNON_INVALID_ALPHA;
 
   if (isBalloonMode(mode)) {
     drawBalloonPhantom(canvasCtx, cx, cy, size, valid);
@@ -648,7 +654,9 @@ function drawPiecePhantom(
 ): void {
   const face = saturateRgb(wall, PHANTOM_SATURATION);
   overlayCtx.save();
-  overlayCtx.globalAlpha = valid ? PHANTOM_ALPHA : PHANTOM_INVALID_ALPHA;
+  overlayCtx.globalAlpha = valid
+    ? PHANTOM_PIECE_ALPHA
+    : PHANTOM_PIECE_INVALID_ALPHA;
 
   const base: RGB = valid
     ? face

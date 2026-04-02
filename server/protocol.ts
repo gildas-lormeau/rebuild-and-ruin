@@ -77,14 +77,14 @@ import type {
 // ---------------------------------------------------------------------------
 
 export interface RoomSettings {
-  battleLength: number; // 0 (unlimited), 3, 5, 8, or 12
+  maxRounds: number; // 0 (unlimited), 3, 5, 8, or 12
   cannonMaxHp: number; // 3, 6, 9, or 12
   waitTimerSec: number; // lobby wait duration before auto-start (seconds)
   seed?: number; // optional map seed (server generates random if omitted)
   gameMode?: string; // "classic" or "modern" (default "classic")
 }
 
-const VALID_BATTLE_LENGTHS = [0, 3, 5, 8, 12];
+const VALID_MAX_ROUNDS = [0, 3, 5, 8, 12];
 const VALID_CANNON_HP = [3, 6, 9, 12];
 const MAX_WAIT_TIMER_SEC = 120;
 const DEFAULT_WAIT_TIMER_SEC = 60;
@@ -93,13 +93,13 @@ const VALID_GAME_MODES = ["classic", "modern"];
 
 /** Clamp untrusted client settings to valid ranges. */
 export function sanitizeRoomSettings(raw: Partial<RoomSettings>): RoomSettings {
-  const bl = Number(raw.battleLength);
+  const bl = Number(raw.maxRounds);
   const hp = Number(raw.cannonMaxHp);
   const wait = Number(raw.waitTimerSec);
   const seed = raw.seed != null ? Math.floor(Number(raw.seed)) : undefined;
   const gm = String(raw.gameMode ?? "classic");
   return {
-    battleLength: VALID_BATTLE_LENGTHS.includes(bl) ? bl : 0,
+    maxRounds: VALID_MAX_ROUNDS.includes(bl) ? bl : 0,
     cannonMaxHp: VALID_CANNON_HP.includes(hp) ? hp : 3,
     waitTimerSec:
       Number.isFinite(wait) && wait >= 0
@@ -135,7 +135,7 @@ export interface InitMessage {
   seed: number;
   playerCount: number;
   settings: {
-    battleLength: number;
+    maxRounds: number;
     cannonMaxHp: number;
     buildTimer: number;
     cannonPlaceTimer: number;
@@ -264,7 +264,7 @@ export interface FullStateMessage {
   round: number;
   timer: number;
   battleCountdown: number;
-  battleLength: number;
+  maxRounds: number;
   shotsFired: number;
   rngState: number;
   players: SerializedPlayer[];

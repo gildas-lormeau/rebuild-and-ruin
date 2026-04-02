@@ -37,6 +37,7 @@ import { selectPlayerTower } from "./game-engine.ts";
 import { GRID_COLS } from "./grid.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { toCannonMode, type WatcherNetworkState } from "./online-types.ts";
+import { isSelectionPending } from "./selection.ts";
 import { inBoundsStrict } from "./spatial.ts";
 import {
   CANNON_MODES,
@@ -227,7 +228,7 @@ function handleTowerSelected(
   const player = state.players[msg.playerId]!;
   selectPlayerTower(player, tower);
   const selectionState = deps.selectionStates.get(msg.playerId);
-  if (selectionState && !selectionState.confirmed) {
+  if (isSelectionPending(selectionState)) {
     selectionState.highlighted = msg.towerIdx;
     deps.syncSelectionOverlay();
     if (msg.confirmed && deps.session.isHost) {

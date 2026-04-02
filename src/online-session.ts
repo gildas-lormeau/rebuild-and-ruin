@@ -22,14 +22,16 @@ export interface OnlineSession {
   /** Whether this client is the current host.
    *  VOLATILE: Can flip from false to true during host promotion (see online-host-promotion.ts).
    *  Never cache across tick boundaries, awaits, or phase transitions — always re-read from session.
-   *  Host promotion triggers: original host disconnects → server sends HOST_MIGRATION → this flips. */
+   *  Host promotion triggers: original host disconnects → server sends HOST_MIGRATION → this flips.
+   *  WRONG: `const isHost = session.isHost; ... if (isHost)` — value may be stale.
+   *  RIGHT: `if (session.isHost)` — always reads current value inline. */
   isHost: boolean;
   hostMigrationSeq: number;
   occupiedSlots: Set<number>;
   remoteHumanSlots: Set<number>;
-  lobbyWaitTimer: number;
+  roomWaitTimerSec: number;
   roomSeed: number;
-  roomBattleLength: number;
+  roomMaxRounds: number;
   roomCannonMaxHp: number;
   roomGameMode: string;
   keepaliveTimer: ReturnType<typeof setInterval> | null;
@@ -66,9 +68,9 @@ export function createSession(): OnlineSession {
     hostMigrationSeq: 0,
     occupiedSlots: new Set(),
     remoteHumanSlots: new Set(),
-    lobbyWaitTimer: LOBBY_TIMER,
+    roomWaitTimerSec: LOBBY_TIMER,
     roomSeed: 0,
-    roomBattleLength: 0,
+    roomMaxRounds: 0,
     roomCannonMaxHp: 3,
     roomGameMode: GAME_MODE_CLASSIC,
     keepaliveTimer: null,

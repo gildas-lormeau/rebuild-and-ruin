@@ -43,7 +43,7 @@ export interface CheckpointDeps {
   remoteCrosshairs: Map<number, PixelPos>;
   watcherCrosshairPos: Map<number, PixelPos>;
   watcherOrbitParams: Map<number, OrbitParams>;
-  watcherIdlePhases: Map<number, number>;
+  watcherOrbitPhases: Map<number, number>;
   snapshotTerritory: () => Set<number>[];
 }
 
@@ -172,5 +172,5 @@ function resetWatcherCrosshairs(deps: CheckpointDeps): void {
   deps.remoteCrosshairs.clear();
   deps.watcherCrosshairPos.clear();
   deps.watcherOrbitParams.clear();
-  deps.watcherIdlePhases.clear();
+  deps.watcherOrbitPhases.clear();
 }

@@ -28,7 +28,7 @@ export interface RoomEntry {
    *  No new players can join after this point. */
   started: boolean;
   cleanupTimer: ReturnType<typeof setTimeout> | null;
-  waitTimer: ReturnType<typeof setTimeout> | null;
+  autoStartTimer: ReturnType<typeof setTimeout> | null;
   createdAt: number;
 }
 
@@ -77,7 +77,7 @@ export class RoomManager {
       slotAssignments,
       started: false,
       cleanupTimer: null,
-      waitTimer: null,
+      autoStartTimer: null,
       createdAt: Date.now(),
     };
     // Step 3: Register in lookup maps
@@ -88,7 +88,7 @@ export class RoomManager {
 
     // Step 5: Start wait timer
     const waitSec = room.settings.waitTimerSec;
-    entry.waitTimer = setTimeout(() => {
+    entry.autoStartTimer = setTimeout(() => {
       if (!entry.started) this.doStartGame(entry);
     }, waitSec * 1000);
 
@@ -133,9 +133,9 @@ export class RoomManager {
   private doStartGame(entry: RoomEntry): void {
     if (entry.started) return;
     entry.started = true;
-    if (entry.waitTimer) {
-      clearTimeout(entry.waitTimer);
-      entry.waitTimer = null;
+    if (entry.autoStartTimer) {
+      clearTimeout(entry.autoStartTimer);
+      entry.autoStartTimer = null;
     }
     // All sockets are already spectators (added on join/create)
     console.log(
@@ -202,9 +202,9 @@ export class RoomManager {
 
   /** Host left before game start — delete the room immediately. */
   private teardownUnstartedRoom(entry: RoomEntry): void {
-    if (entry.waitTimer) {
-      clearTimeout(entry.waitTimer);
-      entry.waitTimer = null;
+    if (entry.autoStartTimer) {
+      clearTimeout(entry.autoStartTimer);
+      entry.autoStartTimer = null;
     }
     for (const s of entry.connectedSockets) {
       this.socketToRoom.delete(s);

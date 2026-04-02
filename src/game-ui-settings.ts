@@ -104,7 +104,7 @@ export function cycleOption(
   optionsCursor: number,
   settings: GameSettings,
   optionsReturnMode: unknown,
-  state: { round: number; battleLength: number } | null,
+  state: { round: number; maxRounds: number } | null,
   isOnline?: boolean,
 ): void {
   if (optionsCursor === 0) {
@@ -130,7 +130,7 @@ export function cycleOption(
     // Apply immediately to the live game
     if (optionsReturnMode !== null && state) {
       const val = ROUNDS_OPTIONS[settings.rounds]!.value;
-      state.battleLength = val > 0 ? val : Infinity;
+      state.maxRounds = val > 0 ? val : Infinity;
     }
   } else if (optionsCursor === 2) {
     if (optionsReturnMode !== null || isOnline) return; // locked in-game and online

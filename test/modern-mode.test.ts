@@ -78,7 +78,7 @@ function makeDeps(runtime: HeadlessRuntime): CheckpointDeps {
     remoteCrosshairs: new Map<number, PixelPos>(),
     watcherCrosshairPos: new Map<number, PixelPos>(),
     watcherOrbitParams: new Map<number, OrbitParams>(),
-    watcherIdlePhases: new Map<number, number>(),
+    watcherOrbitPhases: new Map<number, number>(),
     snapshotTerritory: () =>
       runtime.state.players.map((pl) => new Set(pl.interior)),
   };

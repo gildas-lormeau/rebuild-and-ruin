@@ -93,7 +93,7 @@ export function createGameState(
     map,
     phase: Phase.CASTLE_SELECT,
     round: 1,
-    battleLength: Infinity,
+    maxRounds: Infinity,
     cannonMaxHp: CANNON_MAX_HP,
     buildTimer: BUILD_TIMER,
     cannonPlaceTimer: CANNON_PLACE_TIMER,
@@ -195,7 +195,7 @@ export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
     return true;
   }
 
-  if (state.round > state.battleLength) {
+  if (state.round > state.maxRounds) {
     const winner = alive.reduce(
       (best, player) => (player.score > best.score ? player : best),
       alive[0]!,

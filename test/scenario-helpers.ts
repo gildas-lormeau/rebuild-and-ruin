@@ -204,7 +204,7 @@ export function createScenario(seed = 42): Scenario {
   function runBuild(durationSec = BUILD_TIMER + 1): void {
     for (let i = 0; i < playerCount; i++) {
       if (state.players[i]!.eliminated) continue;
-      controllers[i]!.startBuild(state);
+      controllers[i]!.startBuildPhase(state);
     }
 
     let t = 0;
@@ -511,7 +511,7 @@ export function createScenario(seed = 42): Scenario {
       remoteCrosshairs: new Map(),
       watcherCrosshairPos: new Map(),
       watcherOrbitParams: new Map(),
-      watcherIdlePhases: new Map(),
+      watcherOrbitPhases: new Map(),
       snapshotTerritory: () =>
         state.players.map((p) => new Set(p.interior)),
     };

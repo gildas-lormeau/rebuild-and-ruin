@@ -144,7 +144,7 @@ export function createGameLifecycle(
       seed,
       maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),
       existingMap: runtimeState.lobby.map ?? undefined,
-      battleLength: roundsVal,
+      maxRounds: roundsVal,
       cannonMaxHp: (
         CANNON_HP_OPTIONS[runtimeState.settings.cannonHp] ??
         CANNON_HP_OPTIONS[0]!

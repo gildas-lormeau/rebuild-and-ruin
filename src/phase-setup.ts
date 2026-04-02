@@ -157,7 +157,7 @@ export function prepareCannonPhase(state: GameState): void {
 }
 
 /** Initialize a single controller for the cannon phase: place cannons, snap
- *  cursor to nearest valid position near home tower, fire onCannonPhaseStart.
+ *  cursor to nearest valid position near home tower, fire startCannonPhase.
  *  Used by both host (startCannonPhase loop) and watcher (handleCannonStartTransition). */
 export function initControllerForCannonPhase(
   ctrl: PlayerController,
@@ -178,7 +178,7 @@ export function initControllerForCannonPhase(
     );
     ctrl.cannonCursor = snapped ?? { row: tower.row, col: tower.col };
   }
-  ctrl.onCannonPhaseStart(state);
+  ctrl.startCannonPhase(state);
 }
 
 /** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
@@ -200,7 +200,7 @@ export function initBuildPhaseControllers(
     if (skipController?.(ctrl.playerId)) continue;
     const player = state.players[ctrl.playerId];
     if (player?.eliminated) continue;
-    ctrl.startBuild(state);
+    ctrl.startBuildPhase(state);
   }
 }
 

@@ -654,7 +654,12 @@ function launchCannonball(
   });
 }
 
-/** Check if a captured cannon is ready to fire (not destroyed, no ball in flight). */
+/** Check if a captured cannon is ready to fire (not destroyed, no ball in flight).
+ *  Fewer checks than canFireOwnCannon() because captured cannons are pre-validated at capture time:
+ *  - No player/cannon existence check (CapturedCannon holds direct references)
+ *  - No balloon check (balloons can't be captured)
+ *  - No enclosure check (irrelevant — capturer fires from victim's position)
+ *  - No "already captured" check (it IS the captured entry) */
 function canFireCapturedCannon(state: GameState, cc: CapturedCannon): boolean {
   if (!isCannonAlive(cc.cannon)) return false;
   if (cc.cannonIdx < 0) return false;

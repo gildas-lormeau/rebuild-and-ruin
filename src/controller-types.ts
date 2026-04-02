@@ -39,13 +39,14 @@ const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
 
 /** Abstract base class implementing shared controller logic.
  *
- *  TEMPLATE METHOD PATTERN: Public lifecycle methods (startBuild, finalizeBuildPhase,
+ *  TEMPLATE METHOD PATTERN: Public lifecycle methods (startBuildPhase, finalizeBuildPhase,
  *  initBattleState) run base initialization then delegate to protected hooks.
- *  Subclasses MUST override the hooks (onStartBuild, onFinalizeBuildPhase, onResetBattle),
+ *  Subclasses MUST override the hooks (onStartBuildPhase, onFinalizeBuildPhase, onResetBattle),
  *  NEVER the public template methods — otherwise base initialization is skipped.
  *
- *  Hook naming convention: protected on*() mirrors public *().
- *  Subclasses override hooks, never public methods.
+ *  Naming: public methods use imperative verbs (startBuildPhase, finalizeBuildPhase).
+ *  Protected hooks use on*() prefix (onStartBuildPhase, onFinalizeBuildPhase).
+ *  Abstract methods (startCannonPhase) have no hook — subclasses override directly.
  *  When adding a new public lifecycle method, add a corresponding protected hook. */
 export abstract class BaseController implements PlayerController {
   readonly playerId: number;
@@ -120,7 +121,7 @@ export abstract class BaseController implements PlayerController {
     dt: number,
   ): CannonPlacementPreview | null;
   /** Shared build-phase init: bag + cursor on home tower.
-   *  Private — only called as an internal step of the startBuild() template method.
+   *  Private — only called as an internal step of the startBuildPhase() template method.
    *  Contrast with initCannons() which is public for remote-controller use. */
   private initBuildPhase(state: GameState): void {
     this.initBag(state.round, state.rng);
@@ -135,15 +136,15 @@ export abstract class BaseController implements PlayerController {
     this.clampBuildCursor(this.currentPiece);
   }
 
-  /** @final Template method — do NOT override. Override onStartBuild() instead.
+  /** @final Template method — do NOT override. Override onStartBuildPhase() instead.
    *  Runs base initialization (bag + cursor) then delegates to the hook. */
-  startBuild(state: GameState): void {
+  startBuildPhase(state: GameState): void {
     this.initBuildPhase(state);
-    this.onStartBuild(state);
+    this.onStartBuildPhase(state);
   }
 
   /** Subclass hook called after bag/cursor are initialized. Override for AI targeting etc. */
-  protected onStartBuild(_state: GameState): void {}
+  protected onStartBuildPhase(_state: GameState): void {}
   /** Called each frame during build. Returns placement previews for rendering. */
   abstract buildTick(state: GameState, dt: number): PiecePlacementPreview[];
 
@@ -192,7 +193,7 @@ export abstract class BaseController implements PlayerController {
    *  Public because remote controllers call it directly (their client handles
    *  flush locally, so the host only runs initCannons for them).
    *  Contrast with initBuildPhase which is private — it's an internal step of
-   *  the startBuild template method and never called externally. */
+   *  the startBuildPhase template method and never called externally. */
   initCannons(state: GameState, maxSlots: number): void {
     if (state.round !== 1) return;
     const player = state.players[this.playerId];
@@ -218,7 +219,7 @@ export abstract class BaseController implements PlayerController {
     this.currentPiece = null;
   }
   /** Called at start of cannon phase. Should reset cannon cursor and mode. */
-  abstract onCannonPhaseStart(state: GameState): void;
+  abstract startCannonPhase(state: GameState): void;
 
   /** Base returns false (human never auto-confirms — confirmation is driven by UI).
    *  AI overrides to return true after its selection animation completes. */

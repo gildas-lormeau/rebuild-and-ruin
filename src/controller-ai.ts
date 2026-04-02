@@ -166,7 +166,7 @@ export class AiController extends BaseController implements AiAnimatable {
   // Build phase
   // -----------------------------------------------------------------------
 
-  protected override onStartBuild(state: GameState): void {
+  protected override onStartBuildPhase(state: GameState): void {
     initBuild(this, this._buildPhase, state);
   }
 
@@ -234,7 +234,7 @@ export class AiController extends BaseController implements AiAnimatable {
     this.strategy.onLifeLost();
   }
 
-  onCannonPhaseStart(): void {}
+  startCannonPhase(): void {}
 
   // -----------------------------------------------------------------------
   // Movement helpers

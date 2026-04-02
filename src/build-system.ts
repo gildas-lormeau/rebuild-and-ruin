@@ -163,6 +163,10 @@ export function applyPiecePlacement(
  *  Do NOT use at end-of-build — use finalizeTerritoryWithScoring() instead (adds tower revival + scoring). */
 export function recheckTerritory(state: GameState): void {
   for (const player of state.players) {
+    // Order is load-bearing — each step depends on the previous:
+    // 1. recomputeInterior: flood-fill determines which tiles are enclosed
+    // 2. updateOwnedTowers: claims towers inside fresh interior
+    // 3–5. grunt/house/bonus operations use ownedTowers + interior
     recomputeInterior(state, player);
     updateOwnedTowers(state, player);
     removeEnclosedGruntsAndRespawn(state, player);

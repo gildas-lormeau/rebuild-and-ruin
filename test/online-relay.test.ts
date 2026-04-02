@@ -94,7 +94,7 @@ test("relay matches current lobby, checkpoint, and migration protocol", async ()
   try {
     send(host.ws, {
       type: MESSAGE.CREATE_ROOM,
-      settings: { battleLength: 3, cannonMaxHp: 3, waitTimerSec: 1 },
+      settings: { maxRounds: 3, cannonMaxHp: 3, waitTimerSec: 1 },
     });
     const roomCreated = await host.waitFor(MESSAGE.ROOM_CREATED);
     const code = roomCreated.code as string;
@@ -127,7 +127,7 @@ test("relay matches current lobby, checkpoint, and migration protocol", async ()
       seed: 123,
       playerCount: 3,
       settings: {
-        battleLength: 3,
+        maxRounds: 3,
         cannonMaxHp: 3,
         buildTimer: 25,
         cannonPlaceTimer: 15,

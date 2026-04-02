@@ -197,8 +197,8 @@ export class HumanController extends BaseController implements InputReceiver {
     super.setBuildCursor(row, col, this.currentPiece);
   }
 
-  // startBuild: uses base class template (initBuildPhase + onStartBuild)
-  // No onStartBuild override needed — human has no AI targeting setup.
+  // startBuildPhase: uses base class template (initBuildPhase + onStartBuildPhase)
+  // No onStartBuildPhase override needed — human has no AI targeting setup.
 
   buildTick(state: GameState, _dt: number): PiecePlacementPreview[] {
     const player = state.players[this.playerId];
@@ -358,8 +358,8 @@ export class HumanController extends BaseController implements InputReceiver {
     this.shouldSnapCannonCursorNextTick = false;
   }
 
-  onCannonPhaseStart(_state: GameState): void {
-    // cannon cursor is set by the game in startCannonPhase
+  startCannonPhase(_state: GameState): void {
+    // cannon cursor is set by the game in phase-setup
   }
 
   /** Reset state for new game. */

@@ -53,12 +53,12 @@ function createPair(seed: number): { host: HeadlessRuntime; watcher: HeadlessRun
 // Basic round-trip
 // ---------------------------------------------------------------------------
 
-test("full-state round-trip preserves phase, round, timer, battleLength", () => {
+test("full-state round-trip preserves phase, round, timer, maxRounds", () => {
   const { host, watcher } = createPair(42);
   host.state.round = 4;
   host.state.timer = 8.5;
   host.state.battleCountdown = 3;
-  host.state.battleLength = 7;
+  host.state.maxRounds = 7;
   host.state.shotsFired = 12;
 
   const msg = createFullStateMessage(host.state, 1);
@@ -72,7 +72,7 @@ test("full-state round-trip preserves phase, round, timer, battleLength", () => 
   assert(watcher.state.round === 4, `round: expected 4, got ${watcher.state.round}`);
   assert(watcher.state.timer === 8.5, `timer: expected 8.5, got ${watcher.state.timer}`);
   assert(watcher.state.battleCountdown === 3, `battleCountdown: expected 3, got ${watcher.state.battleCountdown}`);
-  assert(watcher.state.battleLength === 7, `battleLength: expected 7, got ${watcher.state.battleLength}`);
+  assert(watcher.state.maxRounds === 7, `maxRounds: expected 7, got ${watcher.state.maxRounds}`);
   assert(watcher.state.shotsFired === 12, `shotsFired: expected 12, got ${watcher.state.shotsFired}`);
 });
 
