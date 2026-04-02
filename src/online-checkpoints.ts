@@ -4,6 +4,7 @@ import type {
   BattleStartData,
   BuildStartData,
   CannonStartData,
+  SerializedPlayer,
 } from "./checkpoint-data.ts";
 import { createComboTracker, isCombosEnabled } from "./combo-system.ts";
 import type { OrbitParams } from "./controller-interfaces.ts";
@@ -48,16 +49,16 @@ export interface CheckpointDeps {
 }
 
 /** Apply a cannon-start checkpoint received from the host.
- *  IMPORTANT: Capture any pre-state (scores, walls, entities) BEFORE calling this —
- *  applyPlayersCheckpoint overwrites player state in-place.
+ *  @param beforeApply — Runs BEFORE applyPlayersCheckpoint overwrites player state.
+ *    Use this to capture pre-state (walls, entities, scores) for banner animations.
  *  @sideeffect Clears all watcher visualization state (crosshairs, phantoms, idle phases)
- *  via resetWatcherCrosshairs(). Also clears in-flight cannonballs and impacts.
- *  @param data — Checkpoint payload (players, grunts, houses, limits, etc.)
- *  @param deps — Mutable game state + watcher crosshair maps to reset. */
+ *  via resetWatcherCrosshairs(). Also clears in-flight cannonballs and impacts. */
 export function applyCannonStartCheckpoint(
   data: CannonStartData,
   deps: CheckpointDeps,
+  beforeApply?: () => void,
 ): void {
+  beforeApply?.();
   applyPlayersCheckpoint(deps.state, data.players);
   applyGruntsCheckpoint(deps.state, data.grunts);
   applyHousesAlive(deps.state, data.housesAlive);
@@ -72,17 +73,16 @@ export function applyCannonStartCheckpoint(
 }
 
 /** Apply a battle-start checkpoint received from the host.
- *  @sideeffect Clears all watcher visualization state (crosshairs, phantoms, idle phases)
- *  IMPORTANT: Capture any pre-state (scores, walls, entities) BEFORE calling this —
- *  applyPlayersCheckpoint overwrites player state in-place.
+ *  @param beforeApply — Runs BEFORE applyPlayersCheckpoint overwrites player state.
+ *    Use this to capture pre-state (walls, entities, scores) for banner animations.
  *  @sideeffect Clears watcher crosshairs via resetWatcherCrosshairs(), re-initializes
- *  crosshair positions from home towers. Clears in-flight cannonballs and impacts.
- *  @param data — Checkpoint payload (players, grunts, captured cannons, flights, etc.)
- *  @param deps — Mutable game state + battle animation state to reset. */
+ *  crosshair positions from home towers. Clears in-flight cannonballs and impacts. */
 export function applyBattleStartCheckpoint(
   data: BattleStartData,
   deps: CheckpointDeps,
+  beforeApply?: () => void,
 ): void {
+  beforeApply?.();
   applyPlayersCheckpoint(deps.state, data.players);
   applyGruntsCheckpoint(deps.state, data.grunts);
   deps.state.burningPits = data.burningPits;
@@ -122,16 +122,16 @@ export function applyBattleStartCheckpoint(
 }
 
 /** Apply a build-start checkpoint received from the host.
- *  IMPORTANT: Capture any pre-state (scores, walls, entities) BEFORE calling this —
- *  applyPlayersCheckpoint overwrites player state in-place.
+ *  @param beforeApply — Runs BEFORE applyPlayersCheckpoint overwrites player state.
+ *    Use this to capture pre-state (walls, entities, scores) for banner animations.
  *  @sideeffect Clears in-flight cannonballs and impacts. Resets grunt accumulator
- *  and cannon facings. Does NOT reset watcher crosshairs (build phase has no crosshairs).
- *  @param data — Checkpoint payload (players, grunts, houses, bonus squares, etc.)
- *  @param deps — Mutable game state + accumulators to reset. */
+ *  and cannon facings. Does NOT reset watcher crosshairs (build phase has no crosshairs). */
 export function applyBuildStartCheckpoint(
   data: BuildStartData,
   deps: CheckpointDeps,
+  beforeApply?: () => void,
 ): void {
+  beforeApply?.();
   applyPlayersCheckpoint(deps.state, data.players);
   applyGruntsCheckpoint(deps.state, data.grunts);
   applyHousesAlive(deps.state, data.housesAlive);
@@ -157,6 +157,22 @@ export function applyBuildStartCheckpoint(
   clearBattleProjectiles(deps);
   deps.accum.grunt = 0;
   resetCannonFacings(deps.state);
+}
+
+/** Apply a build-end checkpoint: players + host-computed scores.
+ *  @param beforeApply — Runs BEFORE applyPlayersCheckpoint overwrites player state.
+ *    Use this to capture pre-state (walls, scores, castles) for banner animations. */
+export function applyBuildEndCheckpoint(
+  state: GameState,
+  players: readonly SerializedPlayer[],
+  scores: readonly number[],
+  beforeApply?: () => void,
+): void {
+  beforeApply?.();
+  applyPlayersCheckpoint(state, players);
+  for (let i = 0; i < state.players.length; i++) {
+    state.players[i]!.score = scores[i] ?? state.players[i]!.score;
+  }
 }
 
 /** Clear in-flight cannonballs and visual impacts.

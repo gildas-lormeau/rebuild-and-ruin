@@ -18,6 +18,7 @@ import { MESSAGE } from "../server/protocol.ts";
 import { BANNER_DURATION, SELECT_TIMER } from "./game-constants.ts";
 import {
   applyBattleStartCheckpoint,
+  applyBuildEndCheckpoint,
   applyBuildStartCheckpoint,
   applyCannonStartCheckpoint,
   type CheckpointDeps,
@@ -34,7 +35,6 @@ import {
   tryPlacePieceAndSend,
 } from "./online-send-actions.ts";
 import {
-  applyPlayersCheckpoint,
   createBattleStartMessage,
   createBuildStartMessage,
   createCannonStartMessage,
@@ -284,13 +284,13 @@ function buildTransitionUiCtx(): TransitionContext["ui"] {
 
 function buildTransitionCheckpointCtx(): TransitionContext["checkpoint"] {
   return {
-    applyCannonStart: (data) =>
-      applyCannonStartCheckpoint(data, buildCheckpointDeps()),
-    applyBattleStart: (data) =>
-      applyBattleStartCheckpoint(data, buildCheckpointDeps()),
-    applyBuildStart: (data) =>
-      applyBuildStartCheckpoint(data, buildCheckpointDeps()),
-    applyPlayersCheckpoint,
+    applyCannonStart: (data, beforeApply) =>
+      applyCannonStartCheckpoint(data, buildCheckpointDeps(), beforeApply),
+    applyBattleStart: (data, beforeApply) =>
+      applyBattleStartCheckpoint(data, buildCheckpointDeps(), beforeApply),
+    applyBuildStart: (data, beforeApply) =>
+      applyBuildStartCheckpoint(data, buildCheckpointDeps(), beforeApply),
+    applyBuildEnd: applyBuildEndCheckpoint,
   };
 }
 

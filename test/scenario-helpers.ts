@@ -43,7 +43,7 @@ import {
   type CheckpointDeps,
 } from "../src/online-checkpoints.ts";
 import type { TransitionContext } from "../src/online-phase-transitions.ts";
-import { applyPlayersCheckpoint } from "../src/online-serialize.ts";
+import { applyBuildEndCheckpoint } from "../src/online-checkpoints.ts";
 import type { WatcherTimingState } from "../src/online-types.ts";
 import {
   type BannerState,
@@ -542,13 +542,13 @@ export function createScenario(seed = 42): Scenario {
         bannerDuration: 3,
       },
       checkpoint: {
-        applyCannonStart: (data: CannonStartData) =>
-          applyCannonStartCheckpoint(data, checkpointDeps),
-        applyBattleStart: (data: BattleStartData) =>
-          applyBattleStartCheckpoint(data, checkpointDeps),
-        applyBuildStart: (data: BuildStartData) =>
-          applyBuildStartCheckpoint(data, checkpointDeps),
-        applyPlayersCheckpoint,
+        applyCannonStart: (data: CannonStartData, beforeApply?: () => void) =>
+          applyCannonStartCheckpoint(data, checkpointDeps, beforeApply),
+        applyBattleStart: (data: BattleStartData, beforeApply?: () => void) =>
+          applyBattleStartCheckpoint(data, checkpointDeps, beforeApply),
+        applyBuildStart: (data: BuildStartData, beforeApply?: () => void) =>
+          applyBuildStartCheckpoint(data, checkpointDeps, beforeApply),
+        applyBuildEnd: applyBuildEndCheckpoint,
       },
       selection: {
         clearSelectionOverlay: () => {},

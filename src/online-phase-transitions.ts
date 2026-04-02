@@ -93,13 +93,18 @@ export interface TransitionContext {
   };
 
   // ── Checkpoint application ──
+  // Each method accepts an optional `beforeApply` callback that runs BEFORE
+  // applyPlayersCheckpoint mutates state. Use it to capture pre-state (walls,
+  // scores, entities) needed for banner animations — the ordering is guaranteed.
   checkpoint: {
-    applyCannonStart: (data: CannonStartData) => void;
-    applyBattleStart: (data: BattleStartData) => void;
-    applyBuildStart: (data: BuildStartData) => void;
-    applyPlayersCheckpoint: (
+    applyCannonStart: (data: CannonStartData, beforeApply?: () => void) => void;
+    applyBattleStart: (data: BattleStartData, beforeApply?: () => void) => void;
+    applyBuildStart: (data: BuildStartData, beforeApply?: () => void) => void;
+    applyBuildEnd: (
       state: GameState,
       players: readonly SerializedPlayer[],
+      scores: readonly number[],
+      beforeApply?: () => void,
     ) => void;
   };
 
@@ -212,11 +217,10 @@ export function handleCannonStartTransition(
   const onlinePlayerId = transitionCtx.session.onlinePlayerId;
   transitionCtx.selection.clearSelectionOverlay();
 
-  // Pre-capture old entities before checkpoint spawns new ones.
   // oldCastles is already pre-captured in handleBuildEndTransition (pre-sweep walls).
-  transitionCtx.ui.banner.oldEntities = snapshotEntities(state);
-
-  transitionCtx.checkpoint.applyCannonStart(msg);
+  transitionCtx.checkpoint.applyCannonStart(msg, () => {
+    transitionCtx.ui.banner.oldEntities = snapshotEntities(state);
+  });
 
   const initLocalController = () => {
     if (isActiveOnlinePlayer(onlinePlayerId)) {
@@ -311,11 +315,10 @@ export function handleBuildStartTransition(
   const state = transitionCtx.getState();
   const onlinePlayerId = transitionCtx.session.onlinePlayerId;
 
-  // Pre-capture old scene before checkpoint replaces state (banner ??= keeps it)
-  transitionCtx.ui.banner.oldEntities = snapshotEntities(state);
-
   // Step 1: apply checkpoint (deserializes offers, modifier, players)
-  transitionCtx.checkpoint.applyBuildStart(msg);
+  transitionCtx.checkpoint.applyBuildStart(msg, () => {
+    transitionCtx.ui.banner.oldEntities = snapshotEntities(state);
+  });
   setPhase(state, Phase.WALL_BUILD);
 
   // Step 2→3: upgrade pick (if any) → build banner → game
@@ -359,7 +362,6 @@ export function handleBuildStartTransition(
 
 /** Handle BUILD_END: apply player checkpoint, show score deltas, then life-lost dialog.
  *
- *  IMPORTANT: `preScores` must be captured BEFORE `applyPlayersCheckpoint` overwrites player state.
  *  The score-delta animation relies on comparing old scores against the new ones the host
  *  computed. Without the delta delay, the non-host would send life_lost_choice before the
  *  host has created its dialog, causing the choice to be silently dropped. */
@@ -370,27 +372,24 @@ export function handleBuildEndTransition(
   if (msg.type !== MESSAGE.BUILD_END) return;
   const state = transitionCtx.getState();
 
-  // Pre-capture old scene before checkpoint applies the wall sweep.
-  // The host stashes wallsBeforeSweep before sweeping; the watcher must
-  // do the same so walls stay visible until the cannon-start banner.
-  transitionCtx.ui.banner.wallsBeforeSweep = state.players.map(
-    (player) => new Set(player.walls),
-  );
-  transitionCtx.ui.banner.oldCastles = state.players
-    .filter((player) => player.castle)
-    .map((player) => ({
-      walls: new Set(player.walls),
-      interior: player.interior,
-      cannons: player.cannons.map((cn) => ({ ...cn })),
-      playerId: player.id,
-    }));
-
-  // Capture pre-scores before checkpoint overwrites them (needed for score delta animation)
-  const preScores = state.players.map((player) => player.score);
-  transitionCtx.checkpoint.applyPlayersCheckpoint(state, msg.players);
-  for (let i = 0; i < state.players.length; i++) {
-    state.players[i]!.score = msg.scores[i] ?? state.players[i]!.score;
-  }
+  let preScores: number[] = [];
+  transitionCtx.checkpoint.applyBuildEnd(state, msg.players, msg.scores, () => {
+    // Pre-capture old scene before checkpoint applies the wall sweep.
+    // The host stashes wallsBeforeSweep before sweeping; the watcher must
+    // do the same so walls stay visible until the cannon-start banner.
+    transitionCtx.ui.banner.wallsBeforeSweep = state.players.map(
+      (player) => new Set(player.walls),
+    );
+    transitionCtx.ui.banner.oldCastles = state.players
+      .filter((player) => player.castle)
+      .map((player) => ({
+        walls: new Set(player.walls),
+        interior: player.interior,
+        cannons: player.cannons.map((cn) => ({ ...cn })),
+        playerId: player.id,
+      }));
+    preScores = state.players.map((player) => player.score);
+  });
   for (const pid of [...msg.needsReselect, ...msg.eliminated]) {
     const zone = state.playerZones[pid];
     if (zone !== undefined) resetZoneState(state, zone);
