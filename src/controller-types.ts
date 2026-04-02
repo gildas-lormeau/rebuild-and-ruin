@@ -242,15 +242,16 @@ export abstract class BaseController implements PlayerController {
   }
 
   moveBuildCursor(direction: Action, piece?: PieceShape | null): void {
+    const h = piece ? piece.height : 1;
+    const w = piece ? piece.width : 1;
     if (direction === Action.UP)
       this.buildCursor.row = Math.max(0, this.buildCursor.row - 1);
     else if (direction === Action.DOWN)
-      this.buildCursor.row = Math.min(GRID_ROWS - 1, this.buildCursor.row + 1);
+      this.buildCursor.row = Math.min(GRID_ROWS - h, this.buildCursor.row + 1);
     else if (direction === Action.LEFT)
       this.buildCursor.col = Math.max(0, this.buildCursor.col - 1);
     else if (direction === Action.RIGHT)
-      this.buildCursor.col = Math.min(GRID_COLS - 1, this.buildCursor.col + 1);
-    if (piece) this.clampBuildCursor(piece);
+      this.buildCursor.col = Math.min(GRID_COLS - w, this.buildCursor.col + 1);
   }
 
   /** @param size — footprint size for grid-boundary clamping. Callers MUST

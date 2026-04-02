@@ -230,19 +230,8 @@ export interface AiAnimatable {
   getOrbitParams(): OrbitParams | null;
 }
 
-/** Mutable state for the controls-rebinding screen. */
-export interface ControlsState {
-  playerIdx: number;
-  actionIdx: number;
-  rebinding: boolean;
-}
-
 /** Battle crosshair movement speed in pixels per second. */
 export const CROSSHAIR_SPEED = 80;
-
-export function createControlsState(): ControlsState {
-  return { playerIdx: 0, actionIdx: 0, rebinding: false };
-}
 
 /** True if the action is a directional movement. */
 export function isMovementAction(action: Action): boolean {

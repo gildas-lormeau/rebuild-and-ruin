@@ -376,6 +376,13 @@ export interface UpgradePickDialogState {
   timer: number;
 }
 
+/** Mutable state for the controls-rebinding screen. */
+export interface ControlsState {
+  playerIdx: number;
+  actionIdx: number;
+  rebinding: boolean;
+}
+
 /** Which button is focused in the life-lost dialog. */
 export const LIFE_LOST_FOCUS_CONTINUE = 0;
 export const LIFE_LOST_FOCUS_ABANDON = 1;
@@ -462,6 +469,10 @@ export function isGameplayMode(mode: Mode): boolean {
     mode !== Mode.CONTROLS &&
     mode !== Mode.STOPPED
   );
+}
+
+export function createControlsState(): ControlsState {
+  return { playerIdx: 0, actionIdx: 0, rebinding: false };
 }
 
 /** True if the mode is a non-interactive transition (banner, balloon anim, castle build). */

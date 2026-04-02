@@ -28,13 +28,13 @@
  */
 
 import {
-  type ControlsState,
   type InputReceiver,
   isMovementAction,
   type PlayerController,
 } from "./controller-interfaces.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import { findNearestTower, towerAtPixel } from "./spatial.ts";
+import type { ControlsState } from "./types.ts";
 import {
   Action,
   type GameState,

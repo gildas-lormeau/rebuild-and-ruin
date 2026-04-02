@@ -3,7 +3,6 @@
  * Used by both main.ts and online-client.ts.
  */
 
-import type { ControlsState } from "./controller-interfaces.ts";
 import {
   GAME_MODE_MODERN,
   LOBBY_SKIP_LOCKOUT,
@@ -33,6 +32,7 @@ import {
   SEED_CUSTOM,
 } from "./player-config.ts";
 import type { OptionEntry, RenderOverlay } from "./render-types.ts";
+import type { ControlsState } from "./types.ts";
 import {
   type GameState,
   isInteractiveMode,
