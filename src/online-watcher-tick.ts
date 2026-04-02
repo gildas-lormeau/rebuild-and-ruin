@@ -141,7 +141,7 @@ export function tickWatcher(
   tickWatcherTimers(state, frame, watcherState.timing, transitionCtx.now);
 
   const onlinePlayerId = transitionCtx.session.onlinePlayerId;
-  const myHuman = getLocalHuman(
+  const localController = getLocalController(
     state,
     transitionCtx.getControllers(),
     onlinePlayerId,
@@ -154,7 +154,7 @@ export function tickWatcher(
       battleAnim: transitionCtx.getBattleAnim(),
       dt,
       onlinePlayerId,
-      myHuman,
+      localController,
       remoteCrosshairs: watcherState.remoteCrosshairs,
       watcherCrosshairPos: watcherState.crosshairPos,
       watcherIdlePhases: watcherState.idlePhases,
@@ -172,7 +172,7 @@ export function tickWatcher(
       frame,
       dt,
       onlinePlayerId,
-      myHuman,
+      localController,
       remoteCannonPhantoms: watcherState.remoteCannonPhantoms,
       lastSentCannonPhantom: transitionCtx.dedup.cannonPhantom,
       sendOpponentCannonPhantom: (msg) => {
@@ -184,7 +184,7 @@ export function tickWatcher(
       state,
       frame,
       dt,
-      myHuman,
+      localController,
       remotePiecePhantoms: watcherState.remotePiecePhantoms,
       lastSentPiecePhantom: transitionCtx.dedup.piecePhantom,
       sendOpponentPiecePhantom: (msg) => {
@@ -201,8 +201,8 @@ export function tickWatcher(
   transitionCtx.render();
 }
 
-/** Get the local human controller, or null if eliminated/watcher. */
-function getLocalHuman(
+/** Get the local player's controller, or null if eliminated/spectator. */
+function getLocalController(
   state: GameState,
   controllers: readonly PlayerController[],
   onlinePlayerId: number,
