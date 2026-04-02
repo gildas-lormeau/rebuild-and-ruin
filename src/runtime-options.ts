@@ -58,7 +58,7 @@ interface OptionsSystemDeps {
 }
 
 export interface OptionsSystem {
-  realOptionIdx: () => number;
+  visibleToActualOptionIdx: () => number;
   changeOption: (dir: number) => void;
   clickOptions: (canvasX: number, canvasY: number) => void;
   clickControls: (canvasX: number, canvasY: number) => void;
@@ -134,7 +134,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   /** Map cursor row to real option index. */
-  function realOptionIdx(): number {
+  function visibleToActualOptionIdx(): number {
     return (
       visibleOptionsForCtx()[runtimeState.optionsCursor] ??
       runtimeState.optionsCursor
@@ -144,7 +144,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   function changeOption(dir: number): void {
     cycleOption(
       dir,
-      realOptionIdx(),
+      visibleToActualOptionIdx(),
       runtimeState.settings,
       runtimeState.optionsReturnMode,
       safeState(runtimeState) ?? null,
@@ -279,7 +279,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   return {
-    realOptionIdx,
+    visibleToActualOptionIdx,
     changeOption,
     clickOptions,
     clickControls,

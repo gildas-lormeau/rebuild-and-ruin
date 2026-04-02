@@ -9,11 +9,11 @@ import { safeSendRaw } from "./send-utils.ts";
 
 const MAX_ROOMS = 50;
 /** Grace period before destroying a room after game over — allows clients to see final screen. */
-const ROOM_CLEANUP_DELAY_MS = 60_000;
+const ROOM_CLEANUP_DELAY_MS = 60_000; // 60s: allow clients to fetch final screen state before cleanup
 /** Uppercase letters excluding I and O to avoid confusion with 1 and 0. */
 const ROOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 /** 4 chars from 24-letter alphabet ≈ 330K combinations — sufficient for concurrent rooms. */
-const ROOM_CODE_LENGTH = 4;
+const ROOM_CODE_LENGTH = 4; // 24^4 = 331,776 combinations
 
 export interface RoomEntry {
   room: GameRoom;
@@ -236,7 +236,7 @@ export class RoomManager {
   /** Promote the lowest-slot player to host; falls back to any open socket. */
   private migrateHost(
     entry: RoomEntry,
-    previousHostPlayerId: number | undefined,
+    disconnectedPlayerId: number | undefined,
   ): void {
     let newHostSocket: WebSocket | null = null;
     let newHostPlayerId: number | null = null;
@@ -267,7 +267,7 @@ export class RoomManager {
       this.broadcastToRoom(entry, {
         type: MESSAGE.HOST_LEFT,
         newHostPlayerId,
-        previousHostPlayerId: previousHostPlayerId ?? null,
+        disconnectedPlayerId: disconnectedPlayerId ?? null,
       });
       console.log(
         `[rooms] Room ${entry.code}: host migrated to P${newHostPlayerId}`,

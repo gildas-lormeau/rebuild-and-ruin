@@ -17,12 +17,11 @@ import {
 } from "./battle-system.ts";
 import {
   type ControllerIdentity,
-  CROSSHAIR_SPEED,
   type Crosshair,
   isAiAnimatable,
 } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
-import { interpolateToward, REMOTE_CROSSHAIR_MULT } from "./online-types.ts";
+import { interpolateToward, REMOTE_CROSSHAIR_SPEED } from "./online-types.ts";
 import { dedupChanged } from "./phantom-types.ts";
 import { type GameState, isPlayerAlive } from "./types.ts";
 
@@ -75,25 +74,25 @@ export function extendWithRemoteCrosshairs(
     if (!isPlayerAlive(player)) continue;
     if (!canPlayerFire(state, pid)) continue;
     const readyCannon = nextReadyCombined(state, pid);
-    let vis = deps.watcherCrosshairPos.get(pid);
-    if (!vis) {
-      vis = { x: target.x, y: target.y };
-      deps.watcherCrosshairPos.set(pid, vis);
+    let visualPos = deps.watcherCrosshairPos.get(pid);
+    if (!visualPos) {
+      visualPos = { x: target.x, y: target.y };
+      deps.watcherCrosshairPos.set(pid, visualPos);
     }
     interpolateToward(
-      vis,
+      visualPos,
       target.x,
       target.y,
-      CROSSHAIR_SPEED * REMOTE_CROSSHAIR_MULT,
+      REMOTE_CROSSHAIR_SPEED,
       dt,
     );
     crosshairs.push({
-      x: vis.x,
-      y: vis.y,
+      x: visualPos.x,
+      y: visualPos.y,
       playerId: pid,
       cannonReady: !!readyCannon,
     });
-    aimCannons(state, pid, vis.x, vis.y, dt);
+    aimCannons(state, pid, visualPos.x, visualPos.y, dt);
   }
   return crosshairs;
 }

@@ -238,6 +238,7 @@ export function gruntAttackTowers(
       if (bestWallKey >= 0) {
         if (tickGruntAttackTimer(grunt, dt)) {
           // Destroy wall but stay in place
+          // Interior intentionally stale during battle; recheckTerritory() runs at next build phase.
           removeWallFromAllPlayers(state, bestWallKey);
           grunt.wallAttack = false;
         }

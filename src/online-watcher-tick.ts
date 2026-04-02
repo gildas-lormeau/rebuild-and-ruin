@@ -7,11 +7,7 @@
 
 import { MESSAGE } from "../server/protocol.ts";
 import { aimCannons, nextReadyCombined } from "./battle-system.ts";
-import {
-  CROSSHAIR_SPEED,
-  isHuman,
-  type PlayerController,
-} from "./controller-interfaces.ts";
+import { isHuman, type PlayerController } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { tickGrunts } from "./grunt-movement.ts";
 import type { DedupMaps, OnlineSession } from "./online-session.ts";
@@ -159,7 +155,6 @@ export function tickWatcher(
       watcherCrosshairPos: watcherState.crosshairPos,
       watcherIdlePhases: watcherState.idlePhases,
       watcherOrbitParams: watcherState.orbitParams,
-      crosshairSpeed: CROSSHAIR_SPEED,
       logThrottled: transitionCtx.logThrottled,
       interpolateToward,
       nextReadyCombined,

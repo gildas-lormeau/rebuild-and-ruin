@@ -103,7 +103,7 @@ test("lifecycle drops stale full_state after host migration", () => {
     {
       type: MESSAGE.HOST_LEFT,
       newHostPlayerId: 1,
-      previousHostPlayerId: 0,
+      disconnectedPlayerId: 0,
     } as ServerMessage,
     deps,
   );

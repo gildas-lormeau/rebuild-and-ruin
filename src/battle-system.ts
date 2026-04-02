@@ -327,6 +327,7 @@ export function applyImpactEvent(
     case MESSAGE.WALL_DESTROYED: {
       const player = state.players[event.playerId];
       if (player) {
+        // Interior intentionally stale during battle; recheckTerritory() runs at next build phase.
         deletePlayerWallBattle(player, packTile(event.row, event.col));
         const shooter = sid !== undefined ? state.players[sid] : undefined;
         if (shooter && event.playerId !== sid) {
@@ -777,6 +778,7 @@ function findBestBalloonTarget(
       const roundHits = balloonCountPerTarget.get(cannon) ?? 0;
       if (prevHits + roundHits >= needed) continue;
       if (!isCannonEnclosed(cannon, other)) continue;
+      // Threat score: super guns ~10x boost via SUPER_GUN_THREAT_WEIGHT, tie-broken by HP.
       const score =
         (isSuperCannon(cannon) ? SUPER_GUN_THREAT_WEIGHT : 0) + cannon.hp;
       if (score > bestScore) {

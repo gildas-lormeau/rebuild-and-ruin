@@ -252,7 +252,7 @@ export interface HostLeftMessage {
   /** PlayerId of the promoted player, or null if no human available (watcher fallback). */
   newHostPlayerId: number | null;
   /** PlayerId of the departed host, or null if the host never selected a slot. */
-  previousHostPlayerId: number | null;
+  disconnectedPlayerId: number | null;
 }
 
 /** Full game state snapshot sent by new host after promotion for watcher reconciliation. */

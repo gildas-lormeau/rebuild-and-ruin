@@ -37,6 +37,8 @@ import {
 } from "./spatial.ts";
 import type { FreshInterior, GameState, Grunt, Player } from "./types.ts";
 
+/** Epoch tracking is lazy: undefined = not active for this player.
+ *  Initialized on first markWallsDirty() call. */
 const wallsEpoch = new WeakMap<Player, number>();
 const interiorEpoch = new WeakMap<Player, number>();
 /** Preset: tiles that block grunt spawning (zone-based).

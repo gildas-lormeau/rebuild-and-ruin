@@ -42,7 +42,11 @@ const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
  *  TEMPLATE METHOD PATTERN: Public lifecycle methods (startBuild, finalizeBuildPhase,
  *  initBattleState) run base initialization then delegate to protected hooks.
  *  Subclasses MUST override the hooks (onStartBuild, onFinalizeBuildPhase, onResetBattle),
- *  NEVER the public template methods — otherwise base initialization is skipped. */
+ *  NEVER the public template methods — otherwise base initialization is skipped.
+ *
+ *  Hook naming convention: protected on*() mirrors public *().
+ *  Subclasses override hooks, never public methods.
+ *  When adding a new public lifecycle method, add a corresponding protected hook. */
 export abstract class BaseController implements PlayerController {
   readonly playerId: number;
   abstract readonly kind: "human" | "ai";

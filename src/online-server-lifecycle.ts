@@ -226,7 +226,7 @@ export function handleServerLifecycleMessage(
 
     case MESSAGE.HOST_LEFT: {
       deps.log(
-        `host_left: new host is P${msg.newHostPlayerId} (previous: P${msg.previousHostPlayerId})`,
+        `host_left: new host is P${msg.newHostPlayerId} (previous: P${msg.disconnectedPlayerId})`,
       );
       deps.session.hostMigrationSeq++;
       if (msg.newHostPlayerId === deps.session.onlinePlayerId) {

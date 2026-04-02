@@ -140,6 +140,7 @@ export function canPlaceCannon(
   state: GameState,
 ): boolean {
   const size = cannonSize(mode);
+  // Cannon footprints are square: cannonSize() returns width=height (1 for normal, 2 for balloon/super).
   for (let dr = 0; dr < size; dr++) {
     for (let dc = 0; dc < size; dc++) {
       const r = row + dr;

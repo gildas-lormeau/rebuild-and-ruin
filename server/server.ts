@@ -12,7 +12,8 @@ const rooms = new RoomManager();
 /** Reject messages larger than 64 KB (full_state worst case is ~30 KB). */
 const MAX_MESSAGE_SIZE = 65_536;
 
-const PORT = parseInt(Deno.env.get("PORT") ?? "8001");
+const DEFAULT_PORT = 8001;
+const PORT = parseInt(Deno.env.get("PORT") ?? String(DEFAULT_PORT));
 
 Deno.serve({ port: PORT }, (req) => {
   const url = new URL(req.url);

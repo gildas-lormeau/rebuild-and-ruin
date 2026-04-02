@@ -104,8 +104,10 @@ export class HumanController extends BaseController implements InputReceiver {
   //   snapCannonCursorIfNeeded    — nudge to nearest valid tile after mouse/touch
   //   clampCannonCursorToMode     — keep footprint within grid bounds
 
-  /** Atomically downgrades cannon mode if needed, snaps cursor, and validates placement.
-   *  Ensures downgrade always runs before validation. */
+  /** Atomically resolves cannon placement in order:
+   *  1. Downgrade mode if insufficient slots (must run before validation).
+   *  2. Snap cursor to nearest valid tile (must run before validation).
+   *  3. Validate placement at current cursor. */
   private resolveCannonPlacement(
     remaining: number,
     player: Player,
@@ -165,6 +167,7 @@ export class HumanController extends BaseController implements InputReceiver {
    *  Offsets by floor(cannonSize/2) so the clicked tile lands at the phantom's center.
    *  Uses floor (not round) to bias top-left for even-sized cannons.
    *  Contrast with setBuildCursor() which offsets by the piece's pivot point instead. */
+  // Offsets by floor(size/2) — cannons are symmetric squares, bias top-left for even sizes.
   override setCannonCursor(row: number, col: number): void {
     const sz = cannonSize(this.cannonPlaceMode);
     // Floor (not round) to bias top-left for even sizes, keeping the click inside the phantom
@@ -184,6 +187,7 @@ export class HumanController extends BaseController implements InputReceiver {
   /** Set build cursor from absolute position (mouse/touch click).
    *  Offsets by the current piece's pivot so the clicked tile aligns with the piece's visual center.
    *  Contrast with setCannonCursor() which offsets by floor(cannonSize/2) instead. */
+  // Offsets by piece pivot — pieces have asymmetric shapes with a defined rotation center.
   override setBuildCursor(row: number, col: number): void {
     if (this.currentPiece) {
       const [pr, pc] = this.currentPiece.pivot;

@@ -1,6 +1,6 @@
 /** Shared types and utilities for online multiplayer sub-modules. */
 
-import type { OrbitParams } from "./controller-interfaces.ts";
+import { CROSSHAIR_SPEED, type OrbitParams } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import type { CannonPhantom, PiecePhantom } from "./phantom-types.ts";
 import { CANNON_MODES, CannonMode } from "./types.ts";
@@ -24,7 +24,9 @@ export interface WatcherTimingState {
 
 /** Speed multiplier for interpolating remote crosshairs (faster than local to reduce visual lag).
  *  Shared between host (online-host-crosshairs) and watcher (online-watcher-battle). */
-export const REMOTE_CROSSHAIR_MULT = 2;
+const REMOTE_CROSSHAIR_MULT = 2;
+/** Pre-computed remote crosshair speed (base speed × remote multiplier). */
+export const REMOTE_CROSSHAIR_SPEED = CROSSHAIR_SPEED * REMOTE_CROSSHAIR_MULT;
 
 /** Start tracking a new phase timer. Call at the moment a phase begins on the watcher side.
  *  The watcher reconstructs `state.timer` each frame from `(now - phaseStartTime)`. */

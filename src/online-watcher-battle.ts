@@ -11,7 +11,7 @@ import type {
 import { BATTLE_TIMER } from "./game-constants.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import {
-  REMOTE_CROSSHAIR_MULT,
+  REMOTE_CROSSHAIR_SPEED,
   setWatcherPhaseTimer,
   type WatcherTimingState,
 } from "./online-types.ts";
@@ -56,10 +56,9 @@ interface WatcherBattleDeps {
   watcherCrosshairPos: Map<number, PixelPos>;
   watcherIdlePhases: Map<number, number>;
   watcherOrbitParams: Map<number, OrbitParams>;
-  crosshairSpeed: number;
   logThrottled: (key: string, msg: string) => void;
   interpolateToward: (
-    vis: PixelPos,
+    visualPos: PixelPos,
     tx: number,
     ty: number,
     speed: number,
@@ -168,7 +167,6 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     watcherCrosshairPos,
     watcherIdlePhases,
     watcherOrbitParams,
-    crosshairSpeed,
     logThrottled,
     interpolateToward,
     nextReadyCombined,
@@ -198,33 +196,33 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     if (!isPlayerAlive(player)) continue;
     if (!canPlayerFire(state, pid)) continue;
 
-    let vis = watcherCrosshairPos.get(pid);
-    if (!vis) {
-      vis = { x: target.x, y: target.y };
-      watcherCrosshairPos.set(pid, vis);
+    let visualPos = watcherCrosshairPos.get(pid);
+    if (!visualPos) {
+      visualPos = { x: target.x, y: target.y };
+      watcherCrosshairPos.set(pid, visualPos);
     }
 
-    const op =
+    const orbitParams =
       state.battleCountdown > 0 ? watcherOrbitParams.get(pid) : undefined;
     const newPhase = updateOrbitCrosshair(
-      vis,
+      visualPos,
       target,
-      op,
-      watcherIdlePhases.get(pid) ?? op?.phase ?? 0,
+      orbitParams,
+      watcherIdlePhases.get(pid) ?? orbitParams?.phase ?? 0,
       dt,
-      crosshairSpeed * REMOTE_CROSSHAIR_MULT,
+      REMOTE_CROSSHAIR_SPEED,
       interpolateToward,
     );
-    if (op) watcherIdlePhases.set(pid, newPhase);
+    if (orbitParams) watcherIdlePhases.set(pid, newPhase);
 
     frame.crosshairs.push({
-      x: vis.x,
-      y: vis.y,
+      x: visualPos.x,
+      y: visualPos.y,
       playerId: pid,
       cannonReady:
         state.battleCountdown <= 0 && !!nextReadyCombined(state, pid),
     });
-    aimCannons(state, pid, vis.x, vis.y, dt);
+    aimCannons(state, pid, visualPos.x, visualPos.y, dt);
   }
 
   tickLocalBattle(
@@ -334,26 +332,26 @@ export function tickWatcherBuildPhantomsPhase(
 
 /** Interpolate a crosshair toward its target, applying orbital wobble when orbit params are present. */
 function updateOrbitCrosshair(
-  vis: PixelPos,
+  visualPos: PixelPos,
   target: PixelPos,
-  op: OrbitParams | undefined,
+  orbitParams: OrbitParams | undefined,
   phase: number,
   dt: number,
   speed: number,
   interpolateToward: (
-    vis: PixelPos,
+    visualPos: PixelPos,
     tx: number,
     ty: number,
     speed: number,
     dt: number,
   ) => void,
 ): number {
-  if (op) {
-    const rx = op.rx + Math.sin(phase * ORBIT_FREQ_X);
-    const ry = op.ry + Math.sin(phase * ORBIT_FREQ_Y);
-    const next = phase + op.speed * dt;
+  if (orbitParams) {
+    const rx = orbitParams.rx + Math.sin(phase * ORBIT_FREQ_X);
+    const ry = orbitParams.ry + Math.sin(phase * ORBIT_FREQ_Y);
+    const next = phase + orbitParams.speed * dt;
     interpolateToward(
-      vis,
+      visualPos,
       target.x + Math.cos(next) * rx,
       target.y + Math.sin(next) * ry,
       speed,
@@ -361,7 +359,7 @@ function updateOrbitCrosshair(
     );
     return next;
   }
-  interpolateToward(vis, target.x, target.y, speed, dt);
+  interpolateToward(visualPos, target.x, target.y, speed, dt);
   return phase;
 }
 

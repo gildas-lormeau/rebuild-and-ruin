@@ -54,7 +54,7 @@ type ServerPhase = Phase | "LOBBY" | "CASTLE_BUILD";
 /** Per-socket, per-message-type sliding window rate limit.
  *  Each (socket, messageType) pair has its own bucket — types do not compete for quota.
  *  100 messages per 1-second window; the window slides on each incoming message. */
-const RATE_LIMIT_PER_SEC = 100;
+const RATE_LIMIT_PER_SEC = 100; // ~60fps × 4 players phantom updates; generous but blocks flooding
 const RATE_LIMIT_WINDOW_MS = 1000;
 /** Exhaustive set of message types subject to rate limiting.
  *  All other types pass through without rate checks. */

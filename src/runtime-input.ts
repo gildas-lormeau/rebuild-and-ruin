@@ -105,7 +105,7 @@ interface InputSystemDeps {
     showControls: () => void;
     closeControls: () => void;
     changeOption: (dir: number) => void;
-    realOptionIdx: () => number;
+    visibleToActualOptionIdx: () => number;
     togglePause: () => boolean;
   };
   readonly lifeLost: {
@@ -324,9 +324,10 @@ function buildInputDeps(
         runtimeState.optionsCursor = c;
       },
       getCount: () => visibleOptions(uiCtx).length,
-      getRealIdx: options.realOptionIdx,
+      getRealIdx: options.visibleToActualOptionIdx,
       confirmOption: () => {
-        if (options.realOptionIdx() === OPTION_CONTROLS) options.showControls();
+        if (options.visibleToActualOptionIdx() === OPTION_CONTROLS)
+          options.showControls();
         else options.closeOptions();
       },
       getReturnMode: () => runtimeState.optionsReturnMode,
@@ -542,7 +543,8 @@ function buildOverlayActionDeps(
       },
       changeValue: (dir: -1 | 1) => options.changeOption(dir),
       confirm: () => {
-        if (options.realOptionIdx() === OPTION_CONTROLS) options.showControls();
+        if (options.visibleToActualOptionIdx() === OPTION_CONTROLS)
+          options.showControls();
         else options.closeOptions();
       },
     },

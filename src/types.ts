@@ -151,8 +151,8 @@ export interface Player {
   ownedTowers: Tower[];
   /** Wall tiles owned by this player (row,col pairs encoded as row*COLS+col). */
   walls: Set<number>;
-  /** Enclosed territory: grass tiles fully surrounded by walls (inverse flood-fill),
-   *  encoded as row*COLS+col. Determines cannon eligibility, grunt blocking, and scoring.
+  /** All tiles fully enclosed by walls (flood-fill). Used for territory scoring,
+   *  cannon placement eligibility, and grunt blocking. Encoded as row*COLS+col.
    *  Branded as FreshInterior — only recomputeInterior(), resetCastle(),
    *  and checkpoint deserialization may write to it. */
   interior: FreshInterior;
@@ -166,7 +166,9 @@ export interface Player {
   score: number;
   /** Default cannon facing (radians, 0 = up) — toward enemies, set at castle creation. */
   defaultFacing: number;
-  /** Castle wall tiles (including clumsy extras) — protected from debris sweep. */
+  /** Wall tiles forming the home castle perimeter (from castle construction).
+   *  Used for tower revival and rebuild. Distinct from interior — these are wall
+   *  tiles, not enclosed grass. Includes clumsy extras; protected from debris sweep. */
   castleWallTiles: ReadonlySet<number>;
   /** Active upgrades for this player (modern mode only). Key = upgrade id, value = stack count. */
   upgrades: Map<UpgradeId, number>;
@@ -212,7 +214,9 @@ export interface GameState {
   players: Player[];
   /** Index of the player whose turn it is (for sequential phases). */
   activePlayer: number;
-  /** Remaining time in seconds for timed phases (counts DOWN from phase max to 0).
+  /** Active phase timer (counts down in build, cannon, selection). Not used during
+   *  battle — see battleCountdown. Remaining time in seconds (counts DOWN from
+   *  phase max to 0).
    *
    *  Host: computed by advancePhaseTimer() as `timer = max - elapsed`, where elapsed
    *  is accumulated in TimerAccums per frame. This is the authoritative source.
@@ -244,8 +248,8 @@ export interface GameState {
   balloonHits: Map<Cannon, { count: number; capturerIds: number[] }>;
   /** Bonus squares on the map (3 per zone). */
   bonusSquares: BonusSquare[];
-  /** Countdown before battle starts (Ready/Aim/Fire). 0 = battle active.
-   *  Phase-dependent: only meaningful when `state.phase === Phase.BATTLE`. */
+  /** Pre-battle countdown (Ready/Aim/Fire). Only meaningful during BATTLE phase.
+   *  Separate from timer. 0 = battle active. */
   battleCountdown: number;
   /** Players who reselected a castle since the last cannon phase setup. */
   reselectedPlayers: Set<number>;
