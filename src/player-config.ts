@@ -37,6 +37,13 @@ export interface GameSettings {
   gameMode: GameMode;
 }
 
+export interface AutoResolveDeps {
+  readonly isHost: boolean;
+  readonly onlinePlayerId: number;
+  readonly remoteHumanSlots: ReadonlySet<number>;
+  readonly isHumanController: (playerId: number) => boolean;
+}
+
 export const KEY_UP = "ArrowUp";
 export const KEY_DOWN = "ArrowDown";
 export const KEY_LEFT = "ArrowLeft";
@@ -155,6 +162,17 @@ export function createLobbyConfirmKeys(
     map.set(kb.confirm.toUpperCase(), i);
   }
   return map;
+}
+
+/** True when this player's dialog entry should auto-resolve (no local input needed).
+ *  Host checks controller identity; non-host only resolves its own slot. */
+export function shouldAutoResolve(
+  playerId: number,
+  deps: AutoResolveDeps,
+): boolean {
+  return deps.isHost
+    ? !deps.isHumanController(playerId) && !deps.remoteHumanSlots.has(playerId)
+    : playerId !== deps.onlinePlayerId;
 }
 
 if (

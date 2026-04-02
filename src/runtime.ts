@@ -25,11 +25,11 @@
  *   `renderFrame(map, overlay)` — these don't persist in `runtimeState.overlay`.
  */
 
+import { snapshotTerritory as snapshotTerritoryImpl } from "./battle-system.ts";
 import {
   MAX_FRAME_DT,
   SELECT_ANNOUNCEMENT_DURATION,
 } from "./game-constants.ts";
-import { snapshotTerritory as snapshotTerritoryImpl } from "./game-helpers.ts";
 import type { UIContext } from "./game-ui-screens.ts";
 import { computeGameSeed } from "./game-ui-settings.ts";
 import { createHapticsSystem } from "./haptics-system.ts";

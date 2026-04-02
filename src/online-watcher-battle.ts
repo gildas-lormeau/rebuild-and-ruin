@@ -3,13 +3,9 @@ import {
   canPlayerFire,
   getCountdownAnnouncement,
 } from "./battle-system.ts";
-import type {
-  Crosshair,
-  OrbitParams,
-  PlayerController,
-} from "./controller-interfaces.ts";
+import type { OrbitParams, PlayerController } from "./controller-interfaces.ts";
 import { BATTLE_TIMER } from "./game-constants.ts";
-import type { PixelPos } from "./geometry-types.ts";
+import type { Crosshair, PixelPos } from "./geometry-types.ts";
 import {
   REMOTE_CROSSHAIR_SPEED,
   setWatcherPhaseTimer,

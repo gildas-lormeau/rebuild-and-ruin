@@ -1,15 +1,4 @@
-/**
- * Upgrade pick dialog — create, tick, and resolve logic.
- * L3 (shared interfaces), mirrors life-lost.ts pattern.
- *
- * Pure functions operating on UpgradePickDialogState.
- * No runtime or rendering dependencies.
- */
-
-import {
-  type AutoResolveDeps,
-  shouldAutoResolve,
-} from "./controller-interfaces.ts";
+import { type AutoResolveDeps, shouldAutoResolve } from "./player-config.ts";
 import type {
   GameState,
   UpgradePickDialogState,

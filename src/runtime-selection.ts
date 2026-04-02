@@ -29,16 +29,14 @@ import {
   markPlayerReselected,
   nextPhase,
 } from "./game-engine.ts";
-import {
-  completeReselection,
-  processReselectionQueue,
-} from "./game-helpers.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { snapshotEntities } from "./phase-banner.ts";
 import {
   advanceToCannonPlacePhase,
+  completeReselection,
   finalizeCastleConstruction,
   prepareCastleWallsForPlayer,
+  processReselectionQueue,
 } from "./phase-setup.ts";
 import { updateSelectionOverlay as syncSelectionOverlayImpl } from "./render-composition.ts";
 import { enterTowerSelection as enterTowerSelectionImpl } from "./runtime-bootstrap.ts";

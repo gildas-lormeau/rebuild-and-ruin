@@ -1,7 +1,4 @@
-import {
-  type AutoResolveDeps,
-  shouldAutoResolve,
-} from "./controller-interfaces.ts";
+import { type AutoResolveDeps, shouldAutoResolve } from "./player-config.ts";
 import {
   type GameState,
   LifeLostChoice,

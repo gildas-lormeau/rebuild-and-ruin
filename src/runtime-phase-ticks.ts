@@ -15,7 +15,11 @@
  */
 
 import { type BattleEvent, MESSAGE } from "../server/protocol.ts";
-import { resolveBalloons, tickCannonballs } from "./battle-system.ts";
+import {
+  collectLocalCrosshairs,
+  resolveBalloons,
+  tickCannonballs,
+} from "./battle-system.ts";
 import { applyDefaultFacings } from "./cannon-system.ts";
 import {
   type InputReceiver,
@@ -28,8 +32,7 @@ import {
   BATTLE_TIMER,
   IMPACT_FLASH_DURATION,
 } from "./game-constants.ts";
-import { nextPhase } from "./game-engine.ts";
-import { collectLocalCrosshairs, tickGameCore } from "./game-helpers.ts";
+import { nextPhase, tickGameCore } from "./game-engine.ts";
 import { tickGrunts } from "./grunt-movement.ts";
 import { gruntAttackTowers } from "./grunt-system.ts";
 import type { HapticsSystem } from "./haptics-system.ts";

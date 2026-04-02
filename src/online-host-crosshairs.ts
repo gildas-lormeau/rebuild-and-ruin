@@ -17,10 +17,9 @@ import {
 } from "./battle-system.ts";
 import {
   type ControllerIdentity,
-  type Crosshair,
   isAiAnimatable,
 } from "./controller-interfaces.ts";
-import type { PixelPos } from "./geometry-types.ts";
+import type { Crosshair, PixelPos } from "./geometry-types.ts";
 import { interpolateToward, REMOTE_CROSSHAIR_SPEED } from "./online-types.ts";
 import { dedupChanged } from "./phantom-types.ts";
 import { type GameState, isPlayerAlive } from "./types.ts";

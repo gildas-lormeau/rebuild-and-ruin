@@ -34,6 +34,7 @@ import { Rng } from "./rng.ts";
 import {
   emptyFreshInterior,
   type GameState,
+  type Impact,
   Phase,
   type Player,
 } from "./types.ts";
@@ -210,4 +211,45 @@ export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
 
   onContinue();
   return true;
+}
+
+/** Tick game core: age impacts, dispatch to phase handlers. */
+export function tickGameCore(params: {
+  dt: number;
+  state: GameState;
+  battleAnim: { impacts: Impact[] };
+  impactFlashDuration: number;
+  tickCannonPhase: (dt: number) => void;
+  tickBattleCountdown: (dt: number) => void;
+  tickBattlePhase: (dt: number) => void;
+  tickBuildPhase: (dt: number) => void;
+}): void {
+  const {
+    dt,
+    state,
+    battleAnim,
+    impactFlashDuration,
+    tickCannonPhase,
+    tickBattleCountdown,
+    tickBattlePhase,
+    tickBuildPhase,
+  } = params;
+
+  // Age and filter impact flashes regardless of phase
+  for (const imp of battleAnim.impacts) imp.age += dt;
+  battleAnim.impacts = battleAnim.impacts.filter(
+    (imp) => imp.age < impactFlashDuration,
+  );
+
+  if (state.phase === Phase.CANNON_PLACE) {
+    tickCannonPhase(dt);
+  } else if (state.phase === Phase.BATTLE) {
+    if (state.battleCountdown > 0) {
+      tickBattleCountdown(dt);
+    } else {
+      tickBattlePhase(dt);
+    }
+  } else if (state.phase === Phase.WALL_BUILD) {
+    tickBuildPhase(dt);
+  }
 }

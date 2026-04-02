@@ -42,7 +42,11 @@ import {
   createComboTracker,
   isCombosEnabled,
 } from "./combo-system.ts";
-import type { PlayerController } from "./controller-interfaces.ts";
+import type {
+  ControllerIdentity,
+  PlayerController,
+  SelectionController,
+} from "./controller-interfaces.ts";
 import {
   BATTLE_TIMER,
   FIRST_GRUNT_SPAWN_ROUND,
@@ -339,6 +343,74 @@ export function generateUpgradeOffers(
     offers.set(player.id, drawOffers(state));
   }
   return offers.size > 0 ? offers : null;
+}
+
+/** Process the reselection queue. Returns players still needing UI interaction.
+ *  `processPlayer` returns: "done" (AI picked), "pending" (needs UI), or "remote" (remote human). */
+export function processReselectionQueue<
+  T extends ControllerIdentity & SelectionController = ControllerIdentity &
+    SelectionController,
+>(params: {
+  reselectQueue: number[];
+  state: GameState;
+  controllers: T[];
+  initTowerSelection: (pid: number, zone: number) => void;
+  processPlayer: (pid: number, ctrl: T, zone: number) => "done" | "pending";
+  onDone: (pid: number, ctrl: T) => void;
+}): {
+  remaining: number[] /** True if any player still needs interactive castle selection. */;
+  needsUI: boolean;
+} {
+  const remaining: number[] = [];
+  let needsUI = false;
+  for (const pid of params.reselectQueue) {
+    const ctrl = params.controllers[pid]!;
+    const zone = params.state.playerZones[pid] ?? 0;
+    const result = params.processPlayer(pid, ctrl, zone);
+    if (result === "done") {
+      params.onDone(pid, ctrl);
+    } else {
+      remaining.push(pid);
+      needsUI = true;
+      params.initTowerSelection(pid, zone);
+    }
+  }
+  return { remaining, needsUI };
+}
+
+/** Finish reselection — clear selection state, reset reselecting players, animate castles. */
+export function completeReselection(params: {
+  state: GameState;
+  selectionStates: Map<number, { highlighted: number; confirmed: boolean }>;
+  resetOverlaySelection: () => void;
+  reselectQueue: { length: number };
+  reselectionPids: number[];
+  finalizeAndAdvance: () => void;
+}): void {
+  const { state, selectionStates, resetOverlaySelection, reselectionPids } =
+    params;
+  selectionStates.clear();
+  resetOverlaySelection();
+  (params.reselectQueue as number[]).length = 0;
+
+  // The castle build animation already placed walls (including clumsy extras)
+  // via addPlayerWall. Don't rebuild — just do cleanup.
+  const pids = new Set(reselectionPids);
+  for (const pid of pids) {
+    const player = state.players[pid]!;
+    if (!player.homeTower) continue;
+    // Protect animated walls from debris sweep
+    player.castleWallTiles = new Set(player.walls);
+    // Destroy houses under rebuilt castle walls
+    for (const house of state.map.houses) {
+      if (!house.alive) continue;
+      if (player.walls.has(packTile(house.row, house.col))) {
+        house.alive = false;
+      }
+    }
+  }
+
+  params.finalizeAndAdvance();
 }
 
 function sweepAllPlayersWalls(state: GameState): void {

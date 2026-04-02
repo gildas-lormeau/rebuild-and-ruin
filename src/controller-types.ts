@@ -13,11 +13,11 @@ import {
 } from "./battle-system.ts";
 import type {
   CannonPlacementPreview,
-  Crosshair,
   PiecePlacementPreview,
   PlayerController,
 } from "./controller-interfaces.ts";
 import { NORMAL_CANNON_SIZE } from "./game-constants.ts";
+import type { Crosshair } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import {
   type BagState,

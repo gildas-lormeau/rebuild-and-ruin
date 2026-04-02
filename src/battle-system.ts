@@ -21,6 +21,10 @@ import {
   comboOnGruntKill,
   comboOnWallDestroyed,
 } from "./combo-system.ts";
+import type {
+  BattleController,
+  ControllerIdentity,
+} from "./controller-interfaces.ts";
 import {
   BALL_SPEED,
   BALLOON_HITS_NEEDED,
@@ -33,7 +37,7 @@ import {
   SUPER_BALLOON_HITS_NEEDED,
   SUPER_GUN_THREAT_WEIGHT,
 } from "./game-constants.ts";
-import type { TilePos } from "./geometry-types.ts";
+import type { Crosshair, TilePos } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { findGruntSpawnNear } from "./grunt-system.ts";
 import {
@@ -58,6 +62,7 @@ import type {
   CapturedCannon,
   CombinedCannonResult,
   GameState,
+  Player,
 } from "./types.ts";
 import { UID } from "./upgrade-defs.ts";
 
@@ -112,69 +117,6 @@ export function canPlayerFire(state: GameState, playerId: number): boolean {
   if (nextReadyCombined(state, playerId)) return true;
   return state.cannonballs.some(
     (b) => b.playerId === playerId || b.scoringPlayerId === playerId,
-  );
-}
-
-/**
- * Round-robin through own cannons + captured cannons (captured appended at end).
- * Returns the next ready cannon after `after` in the combined index space, or null.
- */
-export function nextReadyCombined(
-  state: GameState,
-  playerId: number,
-  after: number | null = null,
-): CombinedCannonResult | null {
-  const player = state.players[playerId];
-  if (!player) return null;
-  const ownCount = player.cannons.length;
-  const captured = state.capturedCannons.filter(
-    (cc) => cc.capturerId === playerId,
-  );
-  const total = ownCount + captured.length;
-  if (total === 0) return null;
-
-  const start = after === null ? 0 : (after + 1) % total;
-  for (let j = 0; j < total; j++) {
-    const i = (start + j) % total;
-    if (i < ownCount) {
-      if (canFireOwnCannon(state, playerId, i)) {
-        return { type: "own", combinedIdx: i, ownIdx: i };
-      }
-    } else {
-      const cc = captured[i - ownCount]!;
-      if (canFireCapturedCannon(state, cc)) {
-        return { type: "captured", combinedIdx: i, cc };
-      }
-    }
-  }
-  return null;
-}
-
-/**
- * Check if a cannon is ready to fire (no ball currently in flight from it).
- */
-export function canFireOwnCannon(
-  state: GameState,
-  playerId: number,
-  cannonIdx: number,
-): boolean {
-  const player = state.players[playerId];
-  if (!player) return false;
-  const cannon = player.cannons[cannonIdx];
-  if (!cannon || !isCannonAlive(cannon)) return false;
-  if (isBalloonCannon(cannon)) return false;
-  // Captured cannons cannot be fired by their original owner
-  if (
-    state.capturedCannons.some(
-      (cc) => cc.cannon === cannon && cc.victimId === playerId,
-    )
-  )
-    return false;
-  // Cannon must be inside enclosed territory
-  if (!isCannonEnclosed(cannon, player)) return false;
-  // Check no ball in flight from this cannon
-  return !state.cannonballs.some(
-    (b) => b.playerId === playerId && b.cannonIdx === cannonIdx,
   );
 }
 
@@ -521,6 +463,130 @@ export function createCannonFiredMsg(ball: {
     speed: ball.speed,
     incendiary: ball.incendiary ? true : undefined,
   };
+}
+
+/** Snapshot per-player territory (interior + walls) for battle rendering. */
+export function snapshotTerritory(players: readonly Player[]): Set<number>[] {
+  return players.map((player) => {
+    const combined = new Set(player.interior);
+    for (const key of player.walls) combined.add(key);
+    return combined;
+  });
+}
+
+/** Collect crosshairs from local controllers. */
+export function collectLocalCrosshairs<
+  T extends ControllerIdentity & BattleController = ControllerIdentity &
+    BattleController,
+>(params: {
+  state: GameState;
+  controllers: T[];
+  canFireNow: boolean;
+  skipController?: (playerId: number) => boolean;
+  onCrosshairCollected?: (
+    ctrl: T,
+    ch: { x: number; y: number },
+    readyCannon: boolean,
+  ) => void;
+}): Crosshair[] {
+  const {
+    state,
+    controllers,
+    canFireNow,
+    skipController,
+    onCrosshairCollected,
+  } = params;
+  const crosshairs: Crosshair[] = [];
+
+  for (const ctrl of controllers) {
+    if (skipController?.(ctrl.playerId)) continue;
+    const player = state.players[ctrl.playerId]!;
+    if (player.eliminated) continue;
+    // Check if any cannon (own or captured) can fire right now
+    const readyCannon = nextReadyCombined(state, ctrl.playerId);
+    // If none ready, check if any ball is in flight (own or captured) — still reloading
+    const anyReloading =
+      !readyCannon &&
+      state.cannonballs.some(
+        (b) =>
+          b.playerId === ctrl.playerId || b.scoringPlayerId === ctrl.playerId,
+      );
+    // Hide crosshair only when nothing can fire and nothing is reloading
+    if (!readyCannon && !anyReloading) continue;
+    const ch = ctrl.getCrosshair();
+    crosshairs.push({
+      x: ch.x,
+      y: ch.y,
+      playerId: ctrl.playerId,
+      cannonReady: canFireNow && !!readyCannon,
+    });
+    onCrosshairCollected?.(ctrl, ch, !!readyCannon);
+  }
+
+  return crosshairs;
+}
+
+/**
+ * Round-robin through own cannons + captured cannons (captured appended at end).
+ * Returns the next ready cannon after `after` in the combined index space, or null.
+ */
+export function nextReadyCombined(
+  state: GameState,
+  playerId: number,
+  after: number | null = null,
+): CombinedCannonResult | null {
+  const player = state.players[playerId];
+  if (!player) return null;
+  const ownCount = player.cannons.length;
+  const captured = state.capturedCannons.filter(
+    (cc) => cc.capturerId === playerId,
+  );
+  const total = ownCount + captured.length;
+  if (total === 0) return null;
+
+  const start = after === null ? 0 : (after + 1) % total;
+  for (let j = 0; j < total; j++) {
+    const i = (start + j) % total;
+    if (i < ownCount) {
+      if (canFireOwnCannon(state, playerId, i)) {
+        return { type: "own", combinedIdx: i, ownIdx: i };
+      }
+    } else {
+      const cc = captured[i - ownCount]!;
+      if (canFireCapturedCannon(state, cc)) {
+        return { type: "captured", combinedIdx: i, cc };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Check if a cannon is ready to fire (no ball currently in flight from it).
+ */
+export function canFireOwnCannon(
+  state: GameState,
+  playerId: number,
+  cannonIdx: number,
+): boolean {
+  const player = state.players[playerId];
+  if (!player) return false;
+  const cannon = player.cannons[cannonIdx];
+  if (!cannon || !isCannonAlive(cannon)) return false;
+  if (isBalloonCannon(cannon)) return false;
+  // Captured cannons cannot be fired by their original owner
+  if (
+    state.capturedCannons.some(
+      (cc) => cc.cannon === cannon && cc.victimId === playerId,
+    )
+  )
+    return false;
+  // Cannon must be inside enclosed territory
+  if (!isCannonEnclosed(cannon, player)) return false;
+  // Check no ball in flight from this cannon
+  return !state.cannonballs.some(
+    (b) => b.playerId === playerId && b.cannonIdx === cannonIdx,
+  );
 }
 
 /** The player who gets credit for this cannonball's effects.

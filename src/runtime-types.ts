@@ -46,10 +46,9 @@ import type {
   BuildController,
   CannonController,
   ControllerIdentity,
-  Crosshair,
   InputReceiver,
 } from "./controller-interfaces.ts";
-import type { WorldPos } from "./geometry-types.ts";
+import type { Crosshair, WorldPos } from "./geometry-types.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import type { WatcherTimingState } from "./online-types.ts";
 import type { CannonPhantom, PiecePhantom } from "./phantom-types.ts";
