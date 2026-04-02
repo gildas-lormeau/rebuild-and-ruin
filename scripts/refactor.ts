@@ -404,7 +404,15 @@ function collectDeclImports(decl: ExportedDeclarations, sourceFile: SourceFile):
 }
 
 function addImportsToFile(targetFile: SourceFile, imports: ImportInfo[], _fromFile: SourceFile): void {
+  const targetPath = targetFile.getFilePath();
   for (const imp of imports) {
+    // Skip self-imports: if the module resolves to the target file itself,
+    // the symbols are already local — no import needed.
+    const resolved = targetFile.getProject().getSourceFile(
+      path.resolve(path.dirname(targetFile.getFilePath()), imp.moduleSpecifier.replace(/\.ts$/, "") + ".ts"),
+    );
+    if (resolved?.getFilePath() === targetPath) continue;
+
     // Check if target already has an import from this module
     const existing = targetFile
       .getImportDeclarations()
@@ -481,7 +489,9 @@ function rewriteImports(
       }
 
       // Add to new import from toFile
-      const newModuleSpec = sf.getRelativePathAsModuleSpecifierTo(toFile);
+      // Append .ts extension — this project uses explicit .ts imports everywhere.
+      const rawSpec = sf.getRelativePathAsModuleSpecifierTo(toFile);
+      const newModuleSpec = rawSpec.endsWith(".ts") ? rawSpec : rawSpec + ".ts";
       const existingToImport = sf
         .getImportDeclarations()
         .find((d) => d.getModuleSpecifierSourceFile()?.getFilePath() === toFile.getFilePath());
@@ -491,7 +501,21 @@ function rewriteImports(
           .getNamedImports()
           .some((n) => n.getName() === symbolName);
         if (!alreadyImported) {
-          existingToImport.addNamedImport(importText);
+          const existingIsTypeOnly = existingToImport.isTypeOnly();
+          if (existingIsTypeOnly && !isTypeImport) {
+            // Can't add a value import to an `import type` declaration —
+            // create a separate value import instead.
+            sf.addImportDeclaration({
+              moduleSpecifier: newModuleSpec,
+              namedImports: [importText],
+              isTypeOnly: false,
+            });
+          } else {
+            // Strip redundant `type ` prefix when adding to an `import type` declaration
+            // (the declaration-level `type` already covers it).
+            const cleanText = existingIsTypeOnly ? importText.replace(/^type\s+/, "") : importText;
+            existingToImport.addNamedImport(cleanText);
+          }
         }
       } else {
         sf.addImportDeclaration({
