@@ -128,7 +128,16 @@ function moveExport(fromPath: string, toPath: string, name: string): void {
   const project = createProject();
   addAllSources(project);
 
-  const fromFile = project.getSourceFileOrThrow(resolve(fromPath));
+  let fromFile: SourceFile;
+  try {
+    fromFile = project.getSourceFileOrThrow(resolve(fromPath));
+  } catch {
+    console.error(`❌ Source file not found: ${fromPath}`);
+    console.error(
+      `   If "${fromPath}" is a symbol name, use: move-export --from <file> --to <file> --symbol ${fromPath}`,
+    );
+    process.exit(1);
+  }
   const toFile = getOrCreateSourceFile(project, resolve(toPath));
 
   // Find the exported declaration
@@ -800,7 +809,7 @@ function printUsage(): void {
 
 Commands:
   rename-symbol  <file> <name> <newName>       Rename a symbol across all files
-  move-export    <from> <to> <name>            Move export(s) between files
+  move-export    <from> <to> <name>            Move export(s) between files (auto-detects arg order)
   rename-prop    <typeName> <prop> <newProp>    Rename a type/interface property
   rename-in-file <name> <newName> <file...>    Rename all declarations in specific files
   find-symbol    <name>                        Find where a symbol is declared
@@ -834,10 +843,24 @@ switch (command) {
     break;
   }
   case "move-export": {
-    const from = flagMap.get("from") ?? commandArgs[0];
-    const to = flagMap.get("to") ?? commandArgs[1];
+    let from = flagMap.get("from") ?? commandArgs[0];
+    let to = flagMap.get("to") ?? commandArgs[1];
     // Support multiple symbols: --symbol A --symbol B, or single positional
-    const symbols = flagMulti.get("symbol") ?? flagMulti.get("name") ?? (commandArgs[2] ? [commandArgs[2]] : []);
+    let symbols = flagMulti.get("symbol") ?? flagMulti.get("name") ?? (commandArgs[2] ? [commandArgs[2]] : []);
+
+    // Smart reorder: if 'from' doesn't look like a file path, assume user passed <name> <from> <to>
+    if (from && !from.includes("/") && !from.endsWith(".ts") && commandArgs.length >= 3) {
+      const reorderedFrom = commandArgs[1]!;
+      const reorderedTo = commandArgs[2]!;
+      const reorderedSymbol = commandArgs[0]!;
+      // Only reorder if the swapped values look like paths
+      if (reorderedFrom.includes("/") || reorderedFrom.endsWith(".ts")) {
+        from = reorderedFrom;
+        to = reorderedTo;
+        symbols = [reorderedSymbol];
+      }
+    }
+
     if (!from || !to || symbols.length === 0) {
       console.error("Usage: move-export <from> <to> <name> OR --from <from> --to <to> --symbol <name> [--symbol <name2>]");
       process.exit(1);
