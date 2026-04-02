@@ -579,9 +579,16 @@ function buildCastleOverlay(
 
       let displayInterior: ReadonlySet<number> = player.interior;
       if (pendingReveal.size > 0) {
+        // Build pit key set so burning pits always show interior background
+        let pitKeys: Set<number> | undefined;
+        if (state.burningPits.length > 0) {
+          pitKeys = new Set<number>();
+          for (const pit of state.burningPits)
+            pitKeys.add(pit.row * GRID_COLS + pit.col);
+        }
         const filtered = new Set<number>();
         for (const key of player.interior) {
-          if (!pendingReveal.has(key)) filtered.add(key);
+          if (!pendingReveal.has(key) || pitKeys?.has(key)) filtered.add(key);
         }
         displayInterior = filtered;
       }
