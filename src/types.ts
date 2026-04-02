@@ -237,7 +237,10 @@ export interface GameState {
   burningPits: BurningPit[];
   /** Cannons captured by propaganda balloons this round (lasts one battle). */
   capturedCannons: CapturedCannon[];
-  /** Persistent balloon hit counts — accumulates across battles, removed after capture or cannon destruction. */
+  /** Persistent balloon hit counts — accumulates across battles, removed after capture or cannon destruction.
+   *  Hit count persists across battles (cumulative toward capture threshold).
+   *  capturerIds resets each battle — tracks which players contributed hits this round.
+   *  Cleared by cleanupBalloonHitTrackingAfterBattle() at battle end. */
   balloonHits: Map<Cannon, { count: number; capturerIds: number[] }>;
   /** Bonus squares on the map (3 per zone). */
   bonusSquares: BonusSquare[];

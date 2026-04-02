@@ -75,6 +75,8 @@ import {
   devLog,
   devLogThrottled,
   maybeSendAimUpdate,
+  RESET_DEDUP,
+  RESET_NEW_GAME,
   resetNetworking,
   send,
 } from "./runtime-online-stores.ts";
@@ -437,7 +439,7 @@ function initFromServer(msg: InitMessage): void {
     },
     resetUIState: () => {
       runtime.lifecycle.resetUIState();
-      resetNetworking("new-game");
+      resetNetworking(RESET_NEW_GAME);
     },
     enterSelection: () => runtime.selection.enter(),
   });
@@ -485,5 +487,5 @@ function resetSession(): void {
   clearReconnect();
   resetSessionState(ctx.session);
   runtime.runtimeState.settings.seed = "";
-  resetNetworking("dedup");
+  resetNetworking(RESET_DEDUP);
 }

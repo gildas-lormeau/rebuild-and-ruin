@@ -16,7 +16,13 @@ import {
 } from "./online-host-promotion.ts";
 import { createFullStateMessage } from "./online-serialize.ts";
 import { createAiController } from "./runtime-bootstrap.ts";
-import { ctx, devLog, resetNetworking, send } from "./runtime-online-stores.ts";
+import {
+  ctx,
+  devLog,
+  RESET_HOST_PROMOTION,
+  resetNetworking,
+  send,
+} from "./runtime-online-stores.ts";
 import type { GameRuntime } from "./runtime-types.ts";
 import { Mode } from "./types.ts";
 import { assertNever } from "./utils.ts";
@@ -43,7 +49,7 @@ export function promoteToHost(): void {
   // Re-read isHost (volatile — can flip during host promotion)
   ctx.session.isHost = true;
 
-  resetNetworking("host-promotion");
+  resetNetworking(RESET_HOST_PROMOTION);
   rebuildControllersForPhase(
     _runtime.runtimeState.state,
     _runtime.runtimeState.controllers,

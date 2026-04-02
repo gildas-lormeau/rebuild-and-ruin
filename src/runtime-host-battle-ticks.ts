@@ -53,6 +53,8 @@ interface TickHostBattleCountdownDeps {
   controllers: BattleCapable[];
   syncCrosshairs: (canFireNow: boolean, dt: number) => void;
   render: () => void;
+  /** Network context. REQUIRED for online play — omitting silently falls back to local-play
+   *  behavior (no broadcasts, all players treated as local). */
   net?: Pick<HostNetContext, "remoteHumanSlots">;
 }
 
@@ -82,6 +84,8 @@ interface TickHostBattlePhaseDeps {
   };
   onBattlePhaseEnded: () => void;
   onBattleEvents?: (events: ReadonlyArray<BattleEvent>) => void;
+  /** Network context. REQUIRED for online play — omitting silently falls back to local-play
+   *  behavior (no broadcasts, all players treated as local). */
   net?: BattlePhaseNet;
 }
 
@@ -105,6 +109,8 @@ interface StartHostBattleLifecycleDeps {
   nextPhase: (state: GameState) => void;
   setModeBalloonAnim: () => void;
   beginBattle: () => void;
+  /** Network context. REQUIRED for online play — omitting silently falls back to local-play
+   *  behavior (no broadcasts, balloon flights not sent to peers). */
   net?: BattleStartNet;
 }
 
@@ -128,6 +134,8 @@ interface BeginHostBattleDeps {
   accum: { battle: number };
   battleCountdown: number;
   setModeGame: () => void;
+  /** Network context. REQUIRED for online play — omitting silently falls back to local-play
+   *  behavior (no broadcasts, all players treated as local). */
   net?: BattleBeginNet;
 }
 

@@ -123,8 +123,8 @@ export function canPlacePieceOffsets(
 }
 
 /** Apply a piece placement to the board. Marks walls dirty after mutation.
- *  IMPORTANT: Interior is stale after this call — caller must call recheckTerritory()
- *  before reading player.interior to get correct enclosed-territory data.
+ *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
+ *  any code reads player.interior. Enforced at runtime by assertInteriorFresh().
  *  Used by host and watcher (no validation). */
 export function applyPiecePlacement(
   state: GameState,

@@ -77,6 +77,8 @@ const COUNTDOWN_READY = 3;
 const COUNTDOWN_AIM = 1;
 /** Cannonball speed multiplier when the Rapid Fire upgrade is active. */
 const RAPID_FIRE_SPEED_MULT = 2;
+/** Sentinel value: no target found (used for victimId/cannonIdx lookups). */
+const NO_TARGET = -1;
 
 /** Map battleCountdown to the corresponding announcement text. */
 export function getCountdownAnnouncement(
@@ -246,7 +248,7 @@ export function tickCannonballs(
     const hit = advanceCannonball(ball, dt);
     if (hit) {
       // Ball has arrived — compute and apply impact
-      const shooterId = ball.scoringPlayerId ?? ball.playerId;
+      const shooterId = getCannonballShooter(ball);
       const impactEvents = computeImpact(
         state,
         hit.row,
@@ -520,6 +522,15 @@ export function createCannonFiredMsg(ball: {
   };
 }
 
+/** The player who gets credit for this cannonball's effects.
+ *  For captured cannons, scoringPlayerId is the capturer (not the cannon's original owner). */
+function getCannonballShooter(ball: {
+  playerId: number;
+  scoringPlayerId?: number;
+}): number {
+  return ball.scoringPlayerId ?? ball.playerId;
+}
+
 function fireCapturedCannon(
   state: GameState,
   cc: CapturedCannon,
@@ -756,7 +767,7 @@ function findBestBalloonTarget(
   balloonCountPerTarget: Map<Cannon, number>,
 ): { cannon: Cannon; victimId: number } | null {
   let bestCannon: Cannon | null = null;
-  let bestVictimId = -1; // sentinel: no target found yet
+  let bestVictimId = NO_TARGET;
   let bestScore = -1;
 
   for (const other of filterActiveEnemies(state, ownerId)) {
@@ -789,8 +800,8 @@ function resolveBalloonCaptures(
     const needed = balloonHitThreshold(cannon);
     if (hit.count >= needed) {
       const target = thisRoundTargets.get(cannon);
-      let victimId = target?.victimId ?? -1;
-      if (victimId < 0) {
+      let victimId = target?.victimId ?? NO_TARGET;
+      if (victimId === NO_TARGET) {
         for (const player of state.players) {
           if (player.cannons.includes(cannon)) {
             victimId = player.id;

@@ -1,5 +1,13 @@
 /**
  * Map Renderer — browser-side ES module for rendering game maps on a canvas.
+ *
+ * Coordinate naming conventions across render-*.ts files:
+ *   - row/col: tile-grid coordinates (integers)
+ *   - px/py: pixel position within tile-space (row * TILE_SIZE, col * TILE_SIZE)
+ *   - cx/cy: center-based pixel position (e.g., tower center)
+ *   - sx/sy: screen-space pixels (after camera/viewport transform)
+ *   - wx/wy: world-space pixels (same as px/py but typed as WorldPos)
+ *   - W/H: canvas dimensions in tile-space pixels (GRID_COLS * TILE_SIZE, GRID_ROWS * TILE_SIZE)
  */
 
 import type { RGB } from "./geometry-types.ts";

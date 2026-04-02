@@ -112,9 +112,19 @@ export function sendAimUpdate(
   playerId?: number,
 ): void {
   const pid = playerId ?? session.onlinePlayerId;
-  const key = `${Math.round(x)},${Math.round(y)}`;
-  if (!dedupChanged(dedup.aimTarget, pid, key)) return;
-  sendMessage(session, { type: MESSAGE.AIM_UPDATE, playerId: pid, x, y });
+  const value = `${Math.round(x)},${Math.round(y)}`;
+  sendIfChanged(
+    dedup.aimTarget,
+    pid,
+    value,
+    {
+      type: MESSAGE.AIM_UPDATE,
+      playerId: pid,
+      x,
+      y,
+    },
+    (msg) => sendMessage(session, msg),
+  );
 }
 
 export function sendMessage(session: OnlineSession, msg: GameMessage): void {
@@ -159,6 +169,17 @@ export function connectWebSocket(
   session.socket.onerror = () => {
     handlers.onError();
   };
+}
+
+/** Send a message only if the dedup key changed. Enforces the check-then-send ordering invariant. */
+function sendIfChanged<T extends GameMessage>(
+  dedupMap: Map<number, string>,
+  key: number,
+  value: string,
+  msg: T,
+  send: (msg: GameMessage) => void,
+): void {
+  if (dedupChanged(dedupMap, key, value)) send(msg);
 }
 
 /** True when the socket is fully connected and can transmit.

@@ -296,6 +296,21 @@ export class GameRoom {
 
   // In-game message validation pipeline. Contrast with server.ts which uses
   // a simple switch for lobby/room-management messages.
+  //
+  // Game-state message validation pipeline (anti-cheat):
+  //   1. HOST_ONLY check — reject if sender is not host
+  //   2. Identity check — reject if playerId doesn't match sender's slot (host exempt)
+  //   3. Phase gate — reject if current phase doesn't accept this message type
+  //   4. Payload validation — reject if values are out of bounds
+  //   5. Rate limiting — reject if sender exceeds RATE_LIMIT_PER_SEC
+  //   6. Relay — broadcast to other clients
+  //
+  // When adding a new message type:
+  //   - Add to PHASE_GATES if it's phase-restricted
+  //   - Add to HOST_ONLY_TYPES if only the host may send it
+  //   - Add validation in validatePayload()
+  //   - Add to RATE_LIMITED_TYPES if it can be sent rapidly
+  //   - Lobby/room messages go in server.ts, not here
 
   /** Validate and relay an in-game message.
    *  Validation pipeline — order is security-critical (each stage may early-return):

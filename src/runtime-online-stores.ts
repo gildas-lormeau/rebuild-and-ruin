@@ -28,19 +28,10 @@ import {
 } from "./online-watcher-tick.ts";
 import { IS_DEV } from "./platform.ts";
 
-/** Network reset scope — forces callers to declare intent, preventing
- *  accidental use of the wrong reset level. Each scope clears a different
- *  subset of networking state:
- *  - "dedup"     — mid-game phase transitions: clears dedup maps only
- *  - "new-game"  — INIT or full-state recovery: dedup + full watcher reset
- *  - "host-promotion" — host migration: dedup + watcher timing/AI (keeps
- *      remote crosshairs & phantoms the new host still needs)
- *
- *  INVARIANT: dedup maps must always be checked BEFORE calling send() for
- *  phantom/aim messages. The pattern is: if key changed → send → update map.
- *  Sending without checking causes redundant network traffic; checking without
- *  resetting after state changes causes missed updates. */
-type ResetScope = "dedup" | "new-game" | "host-promotion";
+type ResetScope =
+  | typeof RESET_DEDUP
+  | typeof RESET_NEW_GAME
+  | typeof RESET_HOST_PROMOTION;
 
 interface OnlineContext {
   readonly session: OnlineSession;
@@ -57,6 +48,21 @@ const DEV = IS_DEV;
 const LOG_THROTTLE_MS = 1000;
 // ── Private state ──────────────────────────────────────────────────
 const _throttleTimestamps = new Map<string, number>();
+/** Network reset scope — forces callers to declare intent, preventing
+ *  accidental use of the wrong reset level. Each scope clears a different
+ *  subset of networking state:
+ *  - "dedup"     — mid-game phase transitions: clears dedup maps only
+ *  - "new-game"  — INIT or full-state recovery: dedup + full watcher reset
+ *  - "host-promotion" — host migration: dedup + watcher timing/AI (keeps
+ *      remote crosshairs & phantoms the new host still needs)
+ *
+ *  INVARIANT: dedup maps must always be checked BEFORE calling send() for
+ *  phantom/aim messages. The pattern is: if key changed → send → update map.
+ *  Sending without checking causes redundant network traffic; checking without
+ *  resetting after state changes causes missed updates. */
+export const RESET_DEDUP = "dedup" as const;
+export const RESET_NEW_GAME = "new-game" as const;
+export const RESET_HOST_PROMOTION = "host-promotion" as const;
 export const ctx: OnlineContext = createOnlineContext();
 export const MAX_RECONNECT_ATTEMPTS = 3;
 export const RECONNECT_BASE_DELAY_MS = 1000;

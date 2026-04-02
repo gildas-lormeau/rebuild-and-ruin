@@ -29,6 +29,16 @@ import {
   type UpgradePickDialogState,
 } from "./types.ts";
 
+/**
+ * Runtime state access patterns:
+ *
+ * - Safe path (render, input): `safeState(runtimeState)` → GameState | undefined
+ * - Tick path (game logic):    `assertStateReady(runtimeState)` → throws if uninitialized
+ * - Guard check:               `isStateReady(runtimeState)` before direct .state access
+ *
+ * Both `state` and `frameCtx` are guarded by Proxy sentinels that throw on any
+ * property access before startGame() runs. Once one is ready, both are ready.
+ */
 /** Mutable runtime state bag for the game loop.
  *
  *  SENTINEL GUARD: `state` and `frameCtx` are initialized via Proxy sentinels

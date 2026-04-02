@@ -138,6 +138,15 @@ export interface RegisterOnlineInputDeps {
   maybeSendAimUpdate: (x: number, y: number) => void;
 
   // --- Direct touch state ---
+  /**
+   * Direct-touch state lifecycle:
+   *   - Enabled by: touch canvas on phantom tap (input-touch-canvas.ts)
+   *   - Disabled by: d-pad arrow press (input-touch-ui.ts), keyboard placement (input-keyboard.ts)
+   *   - Checked by: touch canvas to suppress tap-to-place when using d-pad
+   *
+   * When directTouchActive is true, floating action buttons are hidden and
+   * taps on the canvas directly confirm placement.
+   */
   /** Enable or disable direct-touch mode (finger on screen = cursor follows touch).
    *  Keyboard disables this when entering placement phase.
    *  Touch canvas enables it when user touches during placement.

@@ -29,10 +29,14 @@
  * ### Overlay mutation patterns
  *
  * Three patterns exist for updating the render overlay:
- *   PERSISTENT (game overlays): mutate `runtimeState.overlay` in-place, call render().
- *   TRANSIENT (lobby, options): construct a fresh overlay via factory, pass to renderFrame().
+ *   PERSISTENT (game phases): Mutate runtimeState.overlay.X in-place, then call render().
+ *     Examples: selection highlighting, phase banners, battle overlays.
+ *   TRANSIENT (modal screens): Create a fresh overlay via factory, pass to renderFrame().
+ *     Examples: lobby, options, controls screens.
  *   INPUT-DELEGATED: input handlers call dispatch functions that internally call render.
- * For new UI, use persistent for game-phase overlays and transient for modal screens.
+ *
+ * When adding a new UI modal, use the TRANSIENT pattern. Only game-phase overlays
+ * that need to persist across ticks should use PERSISTENT.
  */
 
 import type { GameMessage, ServerMessage } from "../server/protocol.ts";

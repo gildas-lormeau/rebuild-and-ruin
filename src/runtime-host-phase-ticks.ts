@@ -102,6 +102,8 @@ interface TickHostCannonPhaseDeps {
   controllers: PlayerController[];
   render: () => void;
   startBattle: () => void;
+  /** Network context. REQUIRED for online play — omitting silently falls back to local-play
+   *  behavior (no broadcasts, all players treated as local). */
   net?: CannonPhaseNet;
 }
 
@@ -126,6 +128,8 @@ interface TickHostBuildPhaseDeps {
   afterLifeLostResolved: () => boolean;
   showScoreDeltas: (onDone: () => void) => void;
   onFirstEnclosure?: (playerId: number) => void;
+  /** Network context. REQUIRED for online play — omitting silently falls back to local-play
+   *  behavior (no broadcasts, all players treated as local). */
   net?: BuildPhaseNet;
 }
 
@@ -492,7 +496,11 @@ function finalizeBuildAndShowDialogs(
 }
 
 /** Snapshot all walls THEN finalize the build phase. Enforces the invariant
- *  that the snapshot is captured before sweepAllPlayersWalls deletes isolated walls. */
+ *  that the snapshot is captured before sweepAllPlayersWalls deletes isolated walls.
+ *
+ *  INVARIANT: Snapshot MUST precede finalizeBuildPhase(). Wall sweeping deletes
+ *  isolated walls during finalization — snapshotting after would show post-sweep state
+ *  in the banner, hiding destroyed walls from the player. */
 function snapshotThenFinalize(
   state: GameState,
   finalizeBuildPhase: (state: GameState) => {

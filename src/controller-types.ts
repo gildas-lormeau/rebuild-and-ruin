@@ -174,8 +174,7 @@ export abstract class BaseController implements PlayerController {
 
   /** Subclass hook called after base battle state is reset. Override for AI battle planning etc. */
   protected onResetBattle(_state?: GameState): void {}
-  /** Flush remaining auto-placement queue when cannon timer expires.
-   *  Do NOT call directly — use finalizeCannonPhase() which guarantees flush→init order. */
+  /** @internal Called only from finalizeCannonPhase(). Do NOT call directly. */
   abstract flushCannons(state: GameState, maxSlots: number): void;
 
   /** End-of-cannon-phase finalization: flush remaining placements, then auto-place

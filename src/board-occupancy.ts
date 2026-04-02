@@ -312,32 +312,41 @@ export function filterActiveEnemies(state: GameState, playerId: number) {
   );
 }
 
-/** Add a wall key and mark dirty. Ensures the freshness invariant is maintained. */
+/** Add a wall key and mark dirty. Ensures the freshness invariant is maintained.
+ *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
+ *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
 export function addPlayerWall(player: Player, key: number): void {
   player.walls.add(key);
   markWallsDirty(player);
 }
 
-/** Batch-add wall keys and mark dirty once. Use instead of a loop of .add() calls. */
+/** Batch-add wall keys and mark dirty once. Use instead of a loop of .add() calls.
+ *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
+ *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
 export function addPlayerWalls(player: Player, keys: Iterable<number>): void {
   for (const key of keys) player.walls.add(key);
   markWallsDirty(player);
 }
 
 /** Delete a wall during battle. Intentionally skips markWallsDirty — interior is
- *  stale during battle by design; recheckTerritory runs at the next phase start. */
+ *  stale during battle by design; recheckTerritory runs at the next phase start.
+ *  WARNING: Leaves interior stale. No recheckTerritory needed until next build phase. */
 export function deletePlayerWallBattle(player: Player, key: number): void {
   player.walls.delete(key);
 }
 
-/** Clear all walls and mark dirty. Used when resetting a player's board state. */
+/** Clear all walls and mark dirty. Used when resetting a player's board state.
+ *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
+ *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
 export function clearPlayerWalls(player: Player): void {
   player.walls.clear();
   markWallsDirty(player);
 }
 
 /** Remove isolated debris walls (≤1 orthogonal neighbor) and mark dirty.
- *  Used during wall sweep at build phase transitions. */
+ *  Used during wall sweep at build phase transitions.
+ *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
+ *  any code reads player.interior. Enforced at runtime by assertInteriorFresh(). */
 export function sweepIsolatedWalls(player: Player): void {
   removeIsolatedWalls(player.walls);
   markWallsDirty(player);

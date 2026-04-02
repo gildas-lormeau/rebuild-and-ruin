@@ -78,12 +78,18 @@ export function handleServerLifecycleMessage(
   msg: ServerMessage,
   deps: HandleServerLifecycleDeps,
 ): boolean {
+  /** Atomically update all three slot-tracking structures (clear).
+   *  Invariant: occupiedSlots, remoteHumanSlots, and lobby.joined must always
+   *  be mutated together to avoid phantom entries or orphaned lobby data. */
   const clearLobbySlot = (playerId: number) => {
     deps.lobby.joined[playerId] = false;
     deps.session.occupiedSlots.delete(playerId);
     deps.session.remoteHumanSlots.delete(playerId);
   };
 
+  /** Atomically update all three slot-tracking structures (occupy).
+   *  Invariant: occupiedSlots, remoteHumanSlots, and lobby.joined must always
+   *  be mutated together to avoid phantom entries or orphaned lobby data. */
   const occupyLobbySlot = (playerId: number) => {
     deps.lobby.joined[playerId] = true;
     deps.session.occupiedSlots.add(playerId);
@@ -170,9 +176,7 @@ export function handleServerLifecycleMessage(
       const name =
         deps.migration.playerNames[msg.playerId] ??
         `Player ${msg.playerId + 1}`;
-      deps.lobby.joined[msg.playerId] = false;
-      deps.session.occupiedSlots.delete(msg.playerId);
-      deps.session.remoteHumanSlots.delete(msg.playerId);
+      clearLobbySlot(msg.playerId);
       deps.ui.setAnnouncement(`${name} disconnected`);
       deps.log(`player_left: ${name} (pid=${msg.playerId})`);
       return true;
