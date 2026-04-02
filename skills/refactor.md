@@ -62,6 +62,7 @@ Finds the declaration in the specified file and renames it + all references acro
 ```bash
 npm run refactor rename-symbol <file> <name> <newName> [--dry-run]
 npm run refactor rename-symbol --file <file> --symbol <name> --new-name <newName> [--dry-run]
+npm run refactor rename-symbol --file <file> --old <name> --new <newName> [--dry-run]
 ```
 
 Best for: exported functions, constants, types, enums — anything with one declaration and many references.
@@ -89,9 +90,12 @@ Finds the property on the named interface or type alias and renames it + all acc
 ```bash
 npm run refactor rename-prop <typeName> <prop> <newProp> [--dry-run]
 npm run refactor rename-prop --type <typeName> --prop <prop> --new-prop <newProp> [--dry-run]
+npm run refactor rename-prop --type <typeName> --old <prop> --new <newProp> [--dry-run]
 ```
 
-Best for: renaming a field on a widely-used interface (cascades to all `.prop` accesses and destructuring).
+Works on both interfaces and type aliases — including intersection types (`type Foo = Bar & { prop: ... }`).
+
+Best for: renaming a field on a widely-used interface or type alias (cascades to all `.prop` accesses and destructuring).
 
 ### `rename-in-file` — Rename ALL declarations of a name in specific files
 
@@ -99,7 +103,8 @@ Iteratively finds every declaration (parameter, variable, property) of the given
 
 ```bash
 npm run refactor rename-in-file <name> <newName> <file1> <file2> ... [--dry-run]
-npm run refactor rename-in-file --symbol <name> --new-name <newName> <file1> <file2> ... [--dry-run]
+npm run refactor rename-in-file --symbol <name> --new-name <newName> --files <file1>,<file2> [--dry-run]
+npm run refactor rename-in-file --old <name> --new <newName> --files <file1>,<file2> [--dry-run]
 ```
 
 Best for: renaming a commonly-used parameter name (like `ctx`) that appears in many functions within specific files, where each function has its own declaration.

@@ -897,8 +897,8 @@ Examples:
 switch (command) {
   case "rename-symbol": {
     const file = flagMap.get("file") ?? commandArgs[0];
-    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? commandArgs[1];
-    const newName = flagMap.get("new-name") ?? flagMap.get("newName") ?? commandArgs[2];
+    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? flagMap.get("old") ?? commandArgs[1];
+    const newName = flagMap.get("new-name") ?? flagMap.get("newName") ?? flagMap.get("new") ?? commandArgs[2];
     if (!file || !name || !newName) {
       console.error("Usage: rename-symbol <file> <name> <newName>");
       process.exit(1);
@@ -936,8 +936,8 @@ switch (command) {
   }
   case "rename-prop": {
     const typeName = flagMap.get("type") ?? flagMap.get("typeName") ?? commandArgs[0];
-    const prop = flagMap.get("prop") ?? commandArgs[1];
-    const newProp = flagMap.get("new-prop") ?? flagMap.get("newProp") ?? commandArgs[2];
+    const prop = flagMap.get("prop") ?? flagMap.get("old") ?? commandArgs[1];
+    const newProp = flagMap.get("new-prop") ?? flagMap.get("newProp") ?? flagMap.get("new") ?? commandArgs[2];
     if (!typeName || !prop || !newProp) {
       console.error("Usage: rename-prop <typeName> <prop> <newProp>");
       process.exit(1);
@@ -946,8 +946,8 @@ switch (command) {
     break;
   }
   case "rename-in-file": {
-    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? commandArgs[0];
-    const newName = flagMap.get("new-name") ?? flagMap.get("newName") ?? commandArgs[1];
+    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? flagMap.get("old") ?? commandArgs[0];
+    const newName = flagMap.get("new-name") ?? flagMap.get("newName") ?? flagMap.get("new") ?? commandArgs[1];
     const files = flagMap.has("files") ? flagMap.get("files")!.split(",") : commandArgs.slice(2);
     if (!name || !newName || files.length === 0) {
       console.error("Usage: rename-in-file <name> <newName> <file...>");
