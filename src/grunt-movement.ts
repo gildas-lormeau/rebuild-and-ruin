@@ -77,7 +77,9 @@ export function tickGrunts(state: GameState): boolean {
 export function getDeadZones(state: GameState): ReadonlySet<number> {
   const zones = new Set<number>();
   for (const pl of state.players) {
-    if (pl.eliminated && pl.homeTower) zones.add(pl.homeTower.zone);
+    if (!pl.eliminated) continue;
+    const zone = state.playerZones[pl.id];
+    if (zone !== undefined) zones.add(zone);
   }
   return zones;
 }
