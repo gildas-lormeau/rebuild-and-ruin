@@ -428,12 +428,12 @@ export interface HouseDestroyedMessage {
 }
 
 /** A grunt was spawned (from house destruction or inter-battle).
- *  defendingPlayerId = the player whose territory the grunt targets (not the attacker). */
+ *  victimPlayerId = the player whose territory the grunt targets (not the attacker). */
 export interface GruntSpawnedMessage {
   type: "grunt_spawned";
   row: number;
   col: number;
-  defendingPlayerId: number;
+  victimPlayerId: number;
 }
 
 /** A burning pit was created by an incendiary cannonball. */

@@ -87,8 +87,8 @@ function validateGameState(
         fail(`Grunt on alive house tile (${grunt.row}, ${grunt.col})`);
     }
 
-    if (!state.players[grunt.defendingPlayerId])
-      fail(`Grunt has invalid defendingPlayerId=${grunt.defendingPlayerId}`);
+    if (!state.players[grunt.victimPlayerId])
+      fail(`Grunt has invalid victimPlayerId=${grunt.victimPlayerId}`);
     if (
       grunt.row < 0 ||
       grunt.row >= GRID_ROWS ||

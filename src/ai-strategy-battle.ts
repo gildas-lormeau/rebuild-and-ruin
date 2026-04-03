@@ -386,11 +386,11 @@ function collectGruntBlockingWallTargets(
 ): TilePos[] {
   const gruntWalls: TilePos[] = [];
   for (const grunt of state.grunts) {
-    if (grunt.defendingPlayerId === playerId) continue;
+    if (grunt.victimPlayerId === playerId) continue;
     if (grunt.targetTowerIdx == null) continue;
     const tower = state.map.towers[grunt.targetTowerIdx];
     if (!tower) continue;
-    const enemy = state.players[grunt.defendingPlayerId];
+    const enemy = state.players[grunt.victimPlayerId];
     if (!enemy || enemy.eliminated) continue;
     let bestTowerRow = tower.row,
       bestTowerCol = tower.col,
@@ -573,18 +573,18 @@ function jitterWithinTile(
 }
 
 /** Target grunts attacking a specific player, ordered by nearest neighbor from a random start.
- *  @param defendingPlayerId — the player whose territory the grunts are attacking (not the AI).
+ *  @param victimPlayerId — the player whose territory the grunts are attacking (not the AI).
  *  During frozen river, skip grunts heading cross-zone (they're attacking the enemy, not us). */
 function planGruntTargets(
   state: GameState,
-  defendingPlayerId: number,
+  victimPlayerId: number,
   readyCount: number,
   rng: Rng,
 ): TilePos[] | null {
   const frozenActive = state.frozenTiles !== null;
-  const defenderZone = state.playerZones[defendingPlayerId];
+  const defenderZone = state.playerZones[victimPlayerId];
   const grunts = state.grunts.filter((grunt) => {
-    if (grunt.defendingPlayerId !== defendingPlayerId) return false;
+    if (grunt.victimPlayerId !== victimPlayerId) return false;
     // Frozen river: grunts in the defender's own zone will cross to attack the enemy —
     // don't kill them. Only target grunts that are already in enemy territory heading back.
     if (frozenActive) {

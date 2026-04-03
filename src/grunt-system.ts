@@ -324,11 +324,11 @@ function addGrunt(
   state: GameState,
   row: number,
   col: number,
-  defendingPlayerId: number,
+  victimPlayerId: number,
 ): void {
   if (!inBounds(row, col) || !isGrass(state.map.tiles, row, col)) return;
-  // defendingPlayerId is provisional at spawn — corrected in lockGruntTarget() to match actual zone owner
-  state.grunts.push({ row, col, defendingPlayerId, blockedBattles: 0 });
+  // victimPlayerId is provisional at spawn — corrected in lockGruntTarget() to match actual zone owner
+  state.grunts.push({ row, col, victimPlayerId, blockedBattles: 0 });
 }
 
 function enqueueUnvisitedTile(

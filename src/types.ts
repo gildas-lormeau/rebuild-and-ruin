@@ -185,8 +185,8 @@ export interface Player {
 }
 
 export interface Grunt extends TilePos {
-  /** Which player's territory this grunt is attacking. */
-  defendingPlayerId: number;
+  /** The player whose territory this grunt is attacking (the victim, not the grunt owner). */
+  victimPlayerId: number;
   /** Locked target tower index. Stays until the tower is destroyed. */
   targetTowerIdx?: number;
   /** Countdown (seconds) before killing an adjacent tower or wall. Starts at 3 when adjacent. */

@@ -434,7 +434,7 @@ function gruntWireFields(grunt: SerializedGrunt): SerializedGrunt {
   return {
     row: grunt.row,
     col: grunt.col,
-    defendingPlayerId: grunt.defendingPlayerId,
+    victimPlayerId: grunt.victimPlayerId,
     targetTowerIdx: grunt.targetTowerIdx,
     attackTimer: grunt.attackTimer,
     blockedBattles: grunt.blockedBattles,
