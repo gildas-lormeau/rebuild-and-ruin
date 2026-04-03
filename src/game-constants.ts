@@ -18,7 +18,13 @@ export type ModifierId =
 export type PlayerSlotId = number;
 
 /** Narrowed PlayerSlotId that passed the `isActivePlayer()` guard (>= 0).
- *  Safe to use as an index into `state.players` or `controllers`. */
+ *  Safe to use as an index into `state.players` or `controllers`.
+ *
+ *  `as ValidPlayerSlot` casts are acceptable in three cases:
+ *  1. Loop index bounded by playerCount: `for (let i = 0; i < playerCount; i++)`
+ *  2. Server-validated message field: `msg.playerId as ValidPlayerSlot`
+ *  3. Value just checked locally: `if (id >= 0) … id as ValidPlayerSlot`
+ *  Prefer `isActivePlayer()` type guard when possible. */
 export type ValidPlayerSlot = number & { readonly __validSlot: true };
 
 /** Human-readable labels for modifier IDs (used by HUD and banners). */
