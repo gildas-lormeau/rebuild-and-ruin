@@ -93,6 +93,8 @@ npm run refactor rename-prop --type <typeName> --prop <prop> --new-prop <newProp
 npm run refactor rename-prop --type <typeName> --old <prop> --new <newProp> [--dry-run]
 ```
 
+Positional arg order is auto-detected: `rename-prop <file> <typeName> <prop> <newProp>` also works (the tool detects when the first arg looks like a file path and shifts).
+
 Works on both interfaces and type aliases — including intersection types (`type Foo = Bar & { prop: ... }`).
 
 Best for: renaming a field on a widely-used interface or type alias (cascades to all `.prop` accesses and destructuring).
@@ -106,6 +108,8 @@ npm run refactor rename-in-file <name> <newName> <file1> <file2> ... [--dry-run]
 npm run refactor rename-in-file --symbol <name> --new-name <newName> --files <file1>,<file2> [--dry-run]
 npm run refactor rename-in-file --old <name> --new <newName> --files <file1>,<file2> [--dry-run]
 ```
+
+Positional arg order is auto-detected: `rename-in-file <file...> <name> <newName>` also works (the tool detects when leading args look like file paths and reorders).
 
 Best for: renaming a commonly-used parameter name (like `ctx`) that appears in many functions within specific files, where each function has its own declaration.
 

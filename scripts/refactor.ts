@@ -4,8 +4,8 @@
  * Commands:
  *   rename-symbol  <file> <name> <newName>   — Rename a symbol across all files
  *   move-export    <from> <to> <name>        — Move an exported declaration between files
- *   rename-prop    <typeName> <prop> <newProp> — Rename an interface/type property across all files
- *   rename-in-file <name> <newName> <file...> — Rename ALL declarations of a name within specific files
+ *   rename-prop    <typeName> <prop> <newProp> — Rename an interface/type property across all files (also accepts <file> <typeName> <prop> <newProp>)
+ *   rename-in-file <name> <newName> <file...> — Rename ALL declarations of a name within specific files (also accepts <file...> <name> <newName>)
  *
  * Usage: npx tsx scripts/refactor.ts <command> [...args] [--dry-run]
  */
@@ -910,8 +910,8 @@ function printUsage(): void {
 Commands:
   rename-symbol  <file> <name> <newName>       Rename a symbol across all files
   move-export    <from> <to> <name>            Move export(s) between files (auto-detects arg order)
-  rename-prop    <typeName> <prop> <newProp>    Rename a type/interface property
-  rename-in-file <name> <newName> <file...>    Rename all declarations in specific files
+  rename-prop    <typeName> <prop> <newProp>    Rename a type/interface property (auto-detects file-first arg order)
+  rename-in-file <name> <newName> <file...>    Rename all declarations in specific files (auto-detects file-first arg order)
   find-symbol    <name>                        Find where a symbol is declared
   list-exports   <file>                        List all exports from a file
   list-references <file> <name>                Show all files that import a symbol
@@ -971,9 +971,17 @@ switch (command) {
     break;
   }
   case "rename-prop": {
-    const typeName = flagMap.get("type") ?? flagMap.get("typeName") ?? commandArgs[0];
-    const prop = flagMap.get("prop") ?? flagMap.get("old") ?? commandArgs[1];
-    const newProp = flagMap.get("new-prop") ?? flagMap.get("newProp") ?? flagMap.get("new") ?? commandArgs[2];
+    let typeName = flagMap.get("type") ?? flagMap.get("typeName") ?? commandArgs[0];
+    let prop = flagMap.get("prop") ?? flagMap.get("old") ?? commandArgs[1];
+    let newProp = flagMap.get("new-prop") ?? flagMap.get("newProp") ?? flagMap.get("new") ?? commandArgs[2];
+
+    // Smart reorder: if first arg looks like a file path, assume user passed <file> <type> <prop> <newProp>
+    if (typeName && (typeName.includes("/") || typeName.endsWith(".ts")) && commandArgs.length >= 4) {
+      typeName = commandArgs[1];
+      prop = commandArgs[2];
+      newProp = commandArgs[3];
+    }
+
     if (!typeName || !prop || !newProp) {
       console.error("Usage: rename-prop <typeName> <prop> <newProp>");
       process.exit(1);
@@ -982,9 +990,21 @@ switch (command) {
     break;
   }
   case "rename-in-file": {
-    const name = flagMap.get("name") ?? flagMap.get("symbol") ?? flagMap.get("old") ?? commandArgs[0];
-    const newName = flagMap.get("new-name") ?? flagMap.get("newName") ?? flagMap.get("new") ?? commandArgs[1];
-    const files = flagMap.has("files") ? flagMap.get("files")!.split(",") : commandArgs.slice(2);
+    let name = flagMap.get("name") ?? flagMap.get("symbol") ?? flagMap.get("old") ?? commandArgs[0];
+    let newName = flagMap.get("new-name") ?? flagMap.get("newName") ?? flagMap.get("new") ?? commandArgs[1];
+    let files = flagMap.has("files") ? flagMap.get("files")!.split(",") : commandArgs.slice(2);
+
+    // Smart reorder: if first arg looks like a file path, assume user passed <file...> <name> <newName>
+    if (name && (name.includes("/") || name.endsWith(".ts")) && !flagMap.has("name") && !flagMap.has("symbol") && !flagMap.has("old")) {
+      // Find where file paths end and identifiers begin
+      let firstNonFile = commandArgs.findIndex((a) => !a.includes("/") && !a.endsWith(".ts"));
+      if (firstNonFile >= 0 && firstNonFile + 1 < commandArgs.length) {
+        files = commandArgs.slice(0, firstNonFile);
+        name = commandArgs[firstNonFile];
+        newName = commandArgs[firstNonFile + 1];
+      }
+    }
+
     if (!name || !newName || files.length === 0) {
       console.error("Usage: rename-in-file <name> <newName> <file...>");
       process.exit(1);
