@@ -185,59 +185,34 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
     `enterTowerSelection (phase=${Phase[state.phase]}, round=${state.round})`,
   );
 
-  // Watcher (non-host, no player slot). Note: isHost && !isActivePlayer is
-  // impossible — watcher-to-host promotion always assigns a player slot first.
-  if (!isHost && !isActivePlayer(myPlayerId)) {
-    selectionStates.clear();
-    for (let i = 0; i < state.players.length; i++) {
-      initTowerSelection(i as ValidPlayerSlot, state.playerZones[i]!);
-    }
-    setOverlaySelection();
-    syncSelectionOverlay();
-    accum.select = 0;
-    state.timer = selectTimer;
-    setModeSelection();
-    setLastTime(now());
-    requestFrame();
-    return;
-  }
+  const isWatcher = !isHost && !isActivePlayer(myPlayerId);
 
+  // Non-host active player joining mid-game needs reselect phase
   if (!isHost && isActivePlayer(myPlayerId)) {
     const needsCastleReselect = state.phase !== Phase.CASTLE_SELECT;
     if (needsCastleReselect && !isReselectPhase(state.phase)) {
       enterCastleReselectPhase(state);
     }
-    selectionStates.clear();
-    for (let i = 0; i < state.players.length; i++) {
-      const pid = i as ValidPlayerSlot;
-      const zone = state.playerZones[i]!;
-      if (pid === myPlayerId) {
-        controllers[i]!.selectInitialTower(state, zone);
-      }
-      initTowerSelection(pid, zone);
-    }
-    setOverlaySelection();
-    syncSelectionOverlay();
-    accum.select = 0;
-    state.timer = selectTimer;
-    setModeSelection();
-    setLastTime(now());
-    requestFrame();
-    return;
   }
 
-  const zones = state.playerZones;
+  // Determine which players need selectInitialTower:
+  //   Watcher: nobody — just observing
+  //   Non-host player: only myPlayerId — remote players handled by host
+  //   Host: all non-remote-humans — host drives AI + local player
+  const shouldSelect = (pid: ValidPlayerSlot): boolean => {
+    if (isWatcher) return false;
+    if (!isHost) return pid === myPlayerId;
+    return !isRemoteHuman(pid, remoteHumanSlots);
+  };
 
   selectionStates.clear();
   for (let i = 0; i < state.players.length; i++) {
     const pid = i as ValidPlayerSlot;
-    if (isRemoteHuman(pid, remoteHumanSlots)) continue;
-    controllers[i]!.selectInitialTower(state, zones[i]!);
-    initTowerSelection(pid, zones[i]!);
-  }
-  for (const rawPid of remoteHumanSlots) {
-    const pid = rawPid as ValidPlayerSlot;
-    initTowerSelection(pid, zones[pid]!);
+    const zone = state.playerZones[i]!;
+    if (shouldSelect(pid)) {
+      controllers[i]!.selectInitialTower(state, zone);
+    }
+    initTowerSelection(pid, zone);
   }
 
   setOverlaySelection();
