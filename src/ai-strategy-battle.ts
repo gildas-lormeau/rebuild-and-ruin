@@ -483,7 +483,12 @@ function collectEnemyTargets(
 
     for (const key of other.walls) {
       const { r: wallRow, c: wallCol } = unpackTile(key);
-      targets.push({ row: wallRow, col: wallCol, priority: false });
+      // Prioritize already-damaged reinforced walls (one more hit destroys them)
+      targets.push({
+        row: wallRow,
+        col: wallCol,
+        priority: other.damagedWalls.has(key),
+      });
     }
   }
 
@@ -568,16 +573,25 @@ function jitterWithinTile(
 }
 
 /** Target grunts attacking a specific player, ordered by nearest neighbor from a random start.
- *  @param defendingPlayerId — the player whose territory the grunts are attacking (not the AI). */
+ *  @param defendingPlayerId — the player whose territory the grunts are attacking (not the AI).
+ *  During frozen river, skip grunts heading cross-zone (they're attacking the enemy, not us). */
 function planGruntTargets(
   state: GameState,
   defendingPlayerId: number,
   readyCount: number,
   rng: Rng,
 ): TilePos[] | null {
-  const grunts = state.grunts.filter(
-    (grunt) => grunt.defendingPlayerId === defendingPlayerId,
-  );
+  const frozenActive = state.frozenTiles !== null;
+  const defenderZone = state.playerZones[defendingPlayerId];
+  const grunts = state.grunts.filter((grunt) => {
+    if (grunt.defendingPlayerId !== defendingPlayerId) return false;
+    // Frozen river: skip grunts whose target is in another zone (they're crossing to attack enemy)
+    if (frozenActive && grunt.targetTowerIdx !== undefined) {
+      const targetZone = state.map.towers[grunt.targetTowerIdx]?.zone;
+      if (targetZone !== undefined && targetZone !== defenderZone) return false;
+    }
+    return true;
+  });
   const mod = state.activeModifier;
   const threshold =
     mod === MID.GRUNT_SURGE || mod === MID.FROZEN_RIVER
