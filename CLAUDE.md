@@ -60,6 +60,7 @@ Modern mode inserts UPGRADE_PICK between battle end and build banner (from round
 - Check git history for context before analyzing code. Start analysis immediately — do not spend excessive time on file discovery/glob calls.
 
 ### Conventions
+- ESLint enforces min 2-char identifiers. When fixing a 1-letter name, choose an expressive name (e.g. `player`, `tower`), never a 2-letter abbreviation (`pl`, `tw`).
 - File order: imports → types → constants → exported functions → private functions (enforced by pre-commit)
 - Always check `.import-layers.json` before placing new code in a file
 - Use `npx biome check --write <files>` for import sorting, never reorder manually

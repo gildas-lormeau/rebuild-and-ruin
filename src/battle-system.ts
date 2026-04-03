@@ -816,7 +816,7 @@ function collectHouseImpacts(
         if (spawnPos) {
           const zone = state.map.zones[spawnPos.row]?.[spawnPos.col] ?? -1;
           const zoneOwner = state.players.find(
-            (pl) => pl.homeTower?.zone === zone,
+            (player) => player.homeTower?.zone === zone,
           );
           events.push({
             type: MESSAGE.GRUNT_SPAWNED,
