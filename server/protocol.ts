@@ -85,7 +85,7 @@ export interface RoomSettings {
   gameMode?: string; // "classic" or "modern" (default "classic")
 }
 
-const VALID_MAX_ROUNDS = [0, 3, 5, 8, 12];
+const VALID_MAX_ROUNDS = [0, 1, 3, 5, 8, 12];
 const VALID_CANNON_HP = [3, 6, 9, 12];
 export const DEFAULT_CANNON_HP = 3;
 const MAX_WAIT_TIMER_SEC = 120;
