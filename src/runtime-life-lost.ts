@@ -74,13 +74,13 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     }
   }
 
-  function showLifeLostDialog(
+  function tryShow(
     needsReselect: readonly ValidPlayerSlot[],
     eliminated: readonly ValidPlayerSlot[],
-  ) {
+  ): boolean {
     const remoteHumanSlots = runtimeState.frameCtx.remoteHumanSlots;
     deps.log(
-      `showLifeLostDialog: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
+      `tryShow lifeLost: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
     );
     const dialog = createLifeLostDialogState({
       needsReselect,
@@ -94,13 +94,14 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     });
     // Skip dialog if all entries are already resolved (e.g. only eliminations)
     if (allResolved(dialog)) {
-      deps.log("showLifeLostDialog: all pre-resolved, skipping dialog");
+      deps.log("tryShow lifeLost: all pre-resolved, skipping dialog");
       eliminateAbandoned(dialog);
       afterLifeLostResolved();
-      return;
+      return false;
     }
     runtimeState.lifeLostDialog = dialog;
     runtimeState.mode = Mode.LIFE_LOST;
+    return true;
   }
 
   /**
@@ -212,7 +213,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     set: (dialog: LifeLostDialogState | null) => {
       runtimeState.lifeLostDialog = dialog;
     },
-    show: showLifeLostDialog,
+    tryShow,
     tick: tickLifeLostDialogSystem,
     afterResolved: afterLifeLostResolved,
     panelPos: lifeLostPanelPos,

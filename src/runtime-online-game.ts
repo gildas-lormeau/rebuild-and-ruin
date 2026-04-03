@@ -348,7 +348,7 @@ function buildTransitionBattleCtx(): TransitionContext["battle"] {
 function buildTransitionEndPhaseCtx(): TransitionContext["endPhase"] {
   return {
     showLifeLostDialog: (needsReselect, eliminated) => {
-      runtime.lifeLost.show(needsReselect, eliminated);
+      runtime.lifeLost.tryShow(needsReselect, eliminated);
       const dialog = runtime.lifeLost.get();
       if (dialog) {
         for (const [pid, choice] of ctx.session.earlyLifeLostChoices) {

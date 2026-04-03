@@ -94,7 +94,7 @@ interface PhaseTicksDeps
     newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
     subtitle?: string,
   ) => void;
-  lifeLost: Pick<RuntimeLifeLost, "show" | "afterResolved">;
+  lifeLost: Pick<RuntimeLifeLost, "tryShow" | "afterResolved">;
   selection: Pick<RuntimeSelection, "showBuildScoreDeltas">;
   snapshotTerritory: () => Set<number>[];
   /** Save human crosshair at end of battle so it can be restored next battle. */
@@ -424,7 +424,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       finalizeBuildPhase,
       showLifeLostDialog: (needsReselect, eliminated) => {
         deps.sound.lifeLost();
-        deps.lifeLost.show(needsReselect, eliminated);
+        deps.lifeLost.tryShow(needsReselect, eliminated);
       },
       afterLifeLostResolved: deps.lifeLost.afterResolved,
       showScoreDeltas: deps.selection.showBuildScoreDeltas,

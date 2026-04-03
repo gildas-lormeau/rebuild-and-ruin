@@ -272,13 +272,22 @@ export interface RuntimeSelection {
 export interface RuntimeLifeLost {
   get: () => LifeLostDialogState | null;
   set: (d: LifeLostDialogState | null) => void;
-  show: (
+  /** Show life-lost dialog. Returns false if all entries were pre-resolved (dialog skipped). */
+  tryShow: (
     needsReselect: readonly ValidPlayerSlot[],
     eliminated: readonly ValidPlayerSlot[],
-  ) => void;
+  ) => boolean;
   tick: (dt: number) => void;
   afterResolved: (continuing?: readonly ValidPlayerSlot[]) => boolean;
   panelPos: (playerId: ValidPlayerSlot) => { px: number; py: number };
+}
+
+export interface RuntimeUpgradePick {
+  /** Show upgrade pick dialog. Returns false if no offers (dialog skipped). */
+  tryShow: (onDone: () => void) => boolean;
+  tick: (dt: number) => void;
+  get: () => UpgradePickDialogState | null;
+  set: (dialog: UpgradePickDialogState | null) => void;
 }
 
 export interface RuntimeLobby {
@@ -302,10 +311,7 @@ export interface GameRuntime {
   // --- Sub-system handles ---
   selection: RuntimeSelection;
   lifeLost: RuntimeLifeLost;
-  upgradePick: {
-    tryShow: (onDone: () => void) => boolean;
-    get: () => UpgradePickDialogState | null;
-  };
+  upgradePick: RuntimeUpgradePick;
   sound: SoundSystem;
   haptics: HapticsSystem;
   lobby: RuntimeLobby;
