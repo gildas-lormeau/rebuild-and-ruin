@@ -67,7 +67,7 @@ function createProject(): Project {
 }
 
 function addAllSources(project: Project): void {
-  project.addSourceFilesAtPaths(["src/**/*.ts", "server/**/*.ts"]);
+  project.addSourceFilesAtPaths(["src/**/*.ts", "server/**/*.ts", "test/**/*.ts"]);
 }
 
 function resolve(filePath: string): string {
