@@ -71,7 +71,7 @@ export interface CandidateEnv {
   fatBlocks: number;
   /** True when ANY candidate in the current batch has wallAdjacent or connectedTiles > 0.
    *  Batch-level flag — same for all candidates, computed once per scoring pass. */
-  anyHasWallAdjacent: boolean;
+  batchHasWallAdjacent: boolean;
 }
 
 /** A named scoring rule: returns a score contribution, or null to hard-reject.

@@ -10,6 +10,7 @@ import type {
   PlayerController,
 } from "./controller-interfaces.ts";
 import {
+  type PlayerSlotId,
   SCORE_DELTA_DISPLAY_TIME,
   type ValidPlayerSlot,
 } from "./game-constants.ts";
@@ -41,7 +42,7 @@ interface RenderSystemDeps {
     now: number,
   ) => void;
   readonly logThrottled: (key: string, msg: string) => void;
-  readonly syncCrosshairs: (battleCountdownExpired: boolean) => void;
+  readonly syncCrosshairs: (weaponsActive: boolean) => void;
   readonly getLifeLostPanelPos: (playerId: ValidPlayerSlot) => {
     px: number;
     py: number;
@@ -179,7 +180,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
  *  Returns the player ID, or -1 if no local player is picking. */
 function computeUpgradePickInteractiveId(
   dialog: UpgradePickDialogState | null,
-  myPlayerId: number,
+  myPlayerId: PlayerSlotId,
 ): number {
   if (!dialog) return -1;
   const entry = dialog.entries.find(

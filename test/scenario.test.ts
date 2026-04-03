@@ -280,7 +280,7 @@ test("online cannon banner uses preserveOldScene=true for progressive scene tran
   });
 
   assert(
-    banner.oldCastles !== undefined,
+    banner.prevCastles !== undefined,
     "Cannon banner should capture old scene for progressive transition",
   );
 });
@@ -432,7 +432,7 @@ test("online handleCannonStartTransition stashes pre-checkpoint walls on banner"
 
   // The banner old scene uses current (post-checkpoint) walls — no reintroduction
   const banner = ctx.ui.banner as BannerState;
-  const oldWalls = banner.oldCastles?.find((c) => c.playerId === 0)?.walls;
+  const oldWalls = banner.prevCastles?.find((c) => c.playerId === 0)?.walls;
   assert(
     !(oldWalls?.has(isolatedKey) ?? false),
     "Banner old scene should NOT reintroduce pre-checkpoint wall",
@@ -1113,7 +1113,7 @@ test("watcher: wall debris visible in render overlay after WALL_DESTROYED", () =
     inBattle: w.state.phase === Phase.BATTLE,
     lifeLostDialog: null,
     upgradePickDialog: null,
-    povPlayerId: 0,
+    povPlayerId: 0 as ValidPlayerSlot,
     hasPointerPlayer: true,
     upgradePickInteractiveId: -1,
     playerNames: PLAYER_NAMES,
@@ -1255,7 +1255,7 @@ test("burning pits visible in overlay during cannon-to-battle banner", () => {
     inBattle: s.state.phase === Phase.BATTLE,
     lifeLostDialog: null,
     upgradePickDialog: null,
-    povPlayerId: 0,
+    povPlayerId: 0 as ValidPlayerSlot,
     hasPointerPlayer: true,
     upgradePickInteractiveId: -1,
     playerNames: PLAYER_NAMES,

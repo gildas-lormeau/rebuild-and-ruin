@@ -65,7 +65,7 @@ const GRUNT_SPAWN_MIN_DISTANCE = 2;
  *  (the grunt would have no valid target tower and sit idle). */
 export function spawnGruntNearPos(
   state: GameState,
-  excludePlayerId: number,
+  excludePlayerId: ValidPlayerSlot,
   posRow: number,
   posCol: number,
 ): void {

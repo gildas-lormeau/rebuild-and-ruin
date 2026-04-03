@@ -283,10 +283,10 @@ export function zoneOwnerIdAt(
   state: GameState,
   row: number,
   col: number,
-): number {
+): ValidPlayerSlot {
   const zone = state.map.zones[row]?.[col] ?? -1;
   const owner = state.players.find((player) => player.homeTower?.zone === zone);
-  return owner?.id ?? 0;
+  return owner?.id ?? (0 as ValidPlayerSlot);
 }
 
 export function hasTowerAt(state: GameState, r: number, c: number): boolean {

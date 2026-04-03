@@ -4,7 +4,11 @@ import {
   getCountdownAnnouncement,
 } from "./battle-system.ts";
 import type { OrbitParams, PlayerController } from "./controller-interfaces.ts";
-import { BATTLE_TIMER, type ValidPlayerSlot } from "./game-constants.ts";
+import {
+  BATTLE_TIMER,
+  type PlayerSlotId,
+  type ValidPlayerSlot,
+} from "./game-constants.ts";
 import type { Crosshair, PixelPos } from "./geometry-types.ts";
 import {
   REMOTE_CROSSHAIR_SPEED,
@@ -46,7 +50,7 @@ interface WatcherBattleDeps {
   frame: WatcherBattleFrame;
   battleAnim: WatcherBattleAnimState;
   dt: number;
-  myPlayerId: number;
+  myPlayerId: PlayerSlotId;
   localController: PlayerController | null;
   remoteCrosshairs: Map<number, PixelPos>;
   watcherCrosshairPos: Map<number, PixelPos>;
@@ -83,7 +87,7 @@ interface TickWatcherCannonPhantomsDeps {
   state: GameState;
   frame: WatcherPhantomFrame;
   dt: number;
-  myPlayerId: number;
+  myPlayerId: PlayerSlotId;
   localController: PlayerController | null;
   remoteCannonPhantoms: readonly CannonPhantom[];
   lastSentCannonPhantom: DedupChannel;
@@ -364,7 +368,7 @@ function tickLocalBattle(
   state: GameState,
   frame: WatcherBattleFrame,
   dt: number,
-  myPlayerId: number,
+  myPlayerId: PlayerSlotId,
   localController: PlayerController | null,
   nextReadyCombined: (state: GameState, playerId: ValidPlayerSlot) => unknown,
   maybeSendAimUpdate: (x: number, y: number) => void,

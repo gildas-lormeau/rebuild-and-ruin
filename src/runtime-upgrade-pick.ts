@@ -101,14 +101,14 @@ export function createUpgradePickSystem(
   function moveFocus(playerId: ValidPlayerSlot, dir: number): void {
     const entry = findPendingEntry(playerId);
     if (!entry) return;
-    entry.focused =
-      (entry.focused + dir + entry.offers.length) % entry.offers.length;
+    entry.focusedCard =
+      (entry.focusedCard + dir + entry.offers.length) % entry.offers.length;
   }
 
   function confirmChoice(playerId: ValidPlayerSlot): void {
     const entry = findPendingEntry(playerId);
     if (!entry) return;
-    const choice = entry.offers[entry.focused]!;
+    const choice = entry.offers[entry.focusedCard]!;
     entry.choice = choice;
     deps.send?.({
       type: MESSAGE.UPGRADE_PICK,
@@ -121,7 +121,7 @@ export function createUpgradePickSystem(
   function pickDirect(playerId: ValidPlayerSlot, cardIdx: number): void {
     const entry = findPendingEntry(playerId);
     if (!entry || cardIdx < 0 || cardIdx >= entry.offers.length) return;
-    entry.focused = cardIdx;
+    entry.focusedCard = cardIdx;
     const choice = entry.offers[cardIdx]!;
     entry.choice = choice;
     deps.send?.({

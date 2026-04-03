@@ -37,7 +37,7 @@ export function createUpgradePickDialog(
       choice: null,
       autoResolve,
       autoTimer: 0,
-      focused: 0,
+      focusedCard: 0,
     });
   }
 

@@ -150,7 +150,10 @@ export interface InitMessage {
 export interface JoinedMessage {
   type: "joined";
   playerId: ValidPlayerSlot;
-  previousPlayerId?: number;
+  /** Slot the player occupied before this selection, or undefined if this is
+   *  their first slot pick. Set to undefined in broadcasts when the player
+   *  reselected the same slot (avoids UI thrashing on no-op reselections). */
+  previousPlayerId?: ValidPlayerSlot;
 }
 
 // ---------------------------------------------------------------------------
@@ -183,7 +186,9 @@ export interface PlayerJoinedMessage {
   type: "player_joined";
   playerId: ValidPlayerSlot;
   name: string;
-  previousPlayerId?: number;
+  /** Slot the player occupied before this selection, or undefined if this is
+   *  their first slot pick. Undefined when reselecting the same slot. */
+  previousPlayerId?: ValidPlayerSlot;
 }
 
 /** A player left the room. */
@@ -252,9 +257,9 @@ export interface GameOverMessage {
 export interface HostLeftMessage {
   type: "host_left";
   /** PlayerId of the promoted player, or null if no human available (watcher fallback). */
-  newHostPlayerId: number | null;
+  newHostPlayerId: ValidPlayerSlot | null;
   /** PlayerId of the departed host, or null if the host never selected a slot. */
-  disconnectedPlayerId: number | null;
+  disconnectedPlayerId: ValidPlayerSlot | null;
 }
 
 /** Full game state snapshot sent by new host after promotion for watcher reconciliation. */
@@ -433,7 +438,7 @@ export interface GruntSpawnedMessage {
   type: "grunt_spawned";
   row: number;
   col: number;
-  victimPlayerId: number;
+  victimPlayerId: ValidPlayerSlot;
 }
 
 /** A burning pit was created by an incendiary cannonball. */

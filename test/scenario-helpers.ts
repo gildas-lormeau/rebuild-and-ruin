@@ -19,6 +19,7 @@ import {
   BUILD_TIMER,
   LIFE_LOST_AUTO_DELAY,
   LIFE_LOST_MAX_TIMER,
+  type PlayerSlotId,
   type ValidPlayerSlot,
 } from "../src/game-constants.ts";
 import { nextPhase } from "../src/game-engine.ts";
@@ -136,13 +137,13 @@ export interface Scenario {
 }
 
 export interface TransitionTestDeps {
-  myPlayerId: number;
+  myPlayerId: PlayerSlotId;
 }
 
 export interface CameraTestDeps {
   mode: Mode;
   phase: Phase;
-  myPlayerId: number;
+  myPlayerId: PlayerSlotId;
   isSelectionReady: boolean;
   humanIsReselecting: boolean;
   mobileAutoZoom: boolean;

@@ -855,7 +855,7 @@ test("clearFrozenRiver kills grunts stranded on water", () => {
   s.state.grunts.push({
     row: r,
     col: c,
-    victimPlayerId: 0,
+    victimPlayerId: 0 as ValidPlayerSlot,
     blockedBattles: 0,
   });
   const before = s.state.grunts.length;

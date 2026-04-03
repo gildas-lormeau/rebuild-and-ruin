@@ -257,7 +257,7 @@ export function pickTarget(
   state: GameState,
   playerId: ValidPlayerSlot,
   crosshair: PixelPos,
-  focusFirePlayerId: number | null,
+  focusFirePlayerId: ValidPlayerSlot | null,
   shotCounts: WeakMap<Cannon, number>,
   wallsOnly?: boolean,
   battleTactics = 2,
@@ -372,7 +372,7 @@ export function trackShot(
 function collectStrategicWallTargets(
   state: GameState,
   playerId: ValidPlayerSlot,
-  focusFirePlayerId: number | null,
+  focusFirePlayerId: ValidPlayerSlot | null,
 ): TilePos[] {
   const strategic: TilePos[] = [];
   for (const other of filterActiveEnemies(state, playerId)) {
@@ -468,7 +468,7 @@ function ballTargeting(
 function collectEnemyTargets(
   state: GameState,
   playerId: ValidPlayerSlot,
-  focusFirePlayerId: number | null,
+  focusFirePlayerId: ValidPlayerSlot | null,
   switchTarget: boolean,
   shotCounts: WeakMap<Cannon, number>,
   wallsOnly?: boolean,
@@ -513,7 +513,7 @@ function collectEnemyTargets(
 
 function isEnemyEligibleForFocus(
   enemyId: number,
-  focusFirePlayerId: number | null,
+  focusFirePlayerId: ValidPlayerSlot | null,
   switchTarget: boolean,
 ): boolean {
   if (focusFirePlayerId == null) return true;
@@ -593,7 +593,7 @@ function jitterWithinTile(
  *  During frozen river, skip grunts heading cross-zone (they're attacking the enemy, not us). */
 function planGruntTargets(
   state: GameState,
-  victimPlayerId: number,
+  victimPlayerId: ValidPlayerSlot,
   usableCannonCount: number,
   rng: Rng,
 ): TilePos[] | null {

@@ -4,7 +4,11 @@
  */
 
 import type { PlayerController } from "./controller-interfaces.ts";
-import { BATTLE_TIMER, type ValidPlayerSlot } from "./game-constants.ts";
+import {
+  BATTLE_TIMER,
+  type PlayerSlotId,
+  type ValidPlayerSlot,
+} from "./game-constants.ts";
 import { enterCannonPlacePhase } from "./game-engine.ts";
 import { finalizeCastleConstruction } from "./phase-setup.ts";
 import type { MutableAccums } from "./tick-context.ts";
@@ -22,7 +26,7 @@ const SEED_SLOT_MULTIPLIER = 0x9e3779b9;
 export function rebuildControllersForPhase(
   state: GameState,
   controllers: PlayerController[],
-  myPlayerId: number,
+  myPlayerId: PlayerSlotId,
   createAiController: (id: ValidPlayerSlot, seed: number) => PlayerController,
 ): void {
   for (let i = 0; i < controllers.length; i++) {

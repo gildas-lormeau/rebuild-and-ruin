@@ -113,7 +113,7 @@ interface TickHostCannonPhaseDeps {
 interface TickHostBuildPhaseDeps {
   dt: number;
   state: GameState;
-  banner: { wallsBeforeSweep?: Set<number>[]; oldEntities?: EntityOverlay };
+  banner: { wallsBeforeSweep?: Set<number>[]; prevEntities?: EntityOverlay };
   accum: { build: number; grunt: number };
   frame: HostFrame;
   controllers: PlayerController[];
@@ -474,10 +474,10 @@ function finalizeBuildAndShowDialogs(
   // Snapshot MUST precede finalize — finalize calls sweepAllPlayersWalls
   // (deletes isolated walls) and reviveEnclosedTowers (mutates towerAlive).
   // The banner needs pre-finalize snapshots for both.
-  const { wallsBeforeSweep, oldEntities, needsReselect, eliminated } =
+  const { wallsBeforeSweep, prevEntities, needsReselect, eliminated } =
     snapshotThenFinalize(state, deps.finalizeBuildPhase);
   deps.banner.wallsBeforeSweep = wallsBeforeSweep;
-  deps.banner.oldEntities = oldEntities;
+  deps.banner.prevEntities = prevEntities;
   if (isHostInContext(deps.net) && sendBuildEnd) {
     sendBuildEnd({
       needsReselect,
@@ -513,12 +513,12 @@ function snapshotThenFinalize(
   },
 ): {
   wallsBeforeSweep: Set<number>[];
-  oldEntities: EntityOverlay;
+  prevEntities: EntityOverlay;
   needsReselect: ValidPlayerSlot[];
   eliminated: ValidPlayerSlot[];
 } {
   const wallsBeforeSweep = snapshotAllWalls(state);
-  const oldEntities = snapshotEntities(state);
+  const prevEntities = snapshotEntities(state);
   const { needsReselect, eliminated } = finalizeBuildPhase(state);
-  return { wallsBeforeSweep, oldEntities, needsReselect, eliminated };
+  return { wallsBeforeSweep, prevEntities, needsReselect, eliminated };
 }

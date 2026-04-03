@@ -197,7 +197,7 @@ const cursorProximityRule: ScoringRule = {
   apply(candidate, env, ctx) {
     return computeCursorProximityBonus(
       candidate,
-      env.anyHasWallAdjacent,
+      env.batchHasWallAdjacent,
       ctx.cursorPos,
     );
   },
@@ -343,7 +343,7 @@ export function scoreTopCandidates(
   topCandidates: readonly Scored[],
   ctx: ScoringContext,
 ): { bestCandidate: Candidate; bestScore: number; evaluated: boolean } {
-  const anyHasWallAdjacent = topCandidates.some(
+  const batchHasWallAdjacent = topCandidates.some(
     (sc) => sc.candidate.wallAdjacent > 0 || sc.candidate.connectedTiles > 0,
   );
 
@@ -363,7 +363,7 @@ export function scoreTopCandidates(
       gapClosingFat,
       hasFatWall,
       fatBlocks,
-      anyHasWallAdjacent,
+      batchHasWallAdjacent,
     );
 
     let score = 0;
@@ -492,10 +492,10 @@ function computeSweepSafeBonus(
 
 function computeCursorProximityBonus(
   candidate: Candidate,
-  anyHasWallAdjacent: boolean,
+  batchHasWallAdjacent: boolean,
   cursorPos?: TilePos,
 ): number {
-  if (anyHasWallAdjacent || candidate.gapsFilled <= 0 || !cursorPos) return 0;
+  if (batchHasWallAdjacent || candidate.gapsFilled <= 0 || !cursorPos) return 0;
 
   let avgDistance = 0;
   for (const [dr, dc] of candidate.piece.offsets) {
@@ -680,7 +680,7 @@ function computeCandidateEnv(
   gapClosingFat: boolean,
   hasFatWall: boolean,
   fatBlocks: number,
-  anyHasWallAdjacent: boolean,
+  batchHasWallAdjacent: boolean,
 ): CandidateEnv {
   const simulatedWalls = createSimulatedWalls(ctx.walls, candidate);
   const simulatedOutside = computeOutside(simulatedWalls);
@@ -698,7 +698,7 @@ function computeCandidateEnv(
     gapClosingFat,
     hasFatWall,
     fatBlocks,
-    anyHasWallAdjacent,
+    batchHasWallAdjacent,
   };
 }
 

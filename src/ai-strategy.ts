@@ -262,7 +262,7 @@ export class DefaultStrategy implements AiStrategy {
   /** Shot count per cannon — tracks hits to know when to stop targeting. */
   private shotCounts = new WeakMap<Cannon, number>();
   /** Focus fire on this player during battle. */
-  private focusFirePlayerId: number | null = null;
+  private focusFirePlayerId: ValidPlayerSlot | null = null;
   /** Whether home tower was not enclosed at the end of last build phase. */
   private _homeWasBroken = false;
 

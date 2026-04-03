@@ -62,7 +62,7 @@ export function createLifeLostDialogState(
     autoResolve: shouldAutoResolve(playerId, deps),
     choice: LifeLostChoice.PENDING,
     autoTimer: 0,
-    focused: 0,
+    focusedButton: 0,
   }));
 
   for (const playerId of eliminated) {
@@ -72,7 +72,7 @@ export function createLifeLostDialogState(
       autoResolve: true,
       choice: LifeLostChoice.ABANDON,
       autoTimer: 0,
-      focused: 0,
+      focusedButton: 0,
     });
   }
 

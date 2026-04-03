@@ -7,6 +7,7 @@
  */
 
 import { type BattleEvent, MESSAGE } from "../server/protocol.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import { CAN_VIBRATE } from "./platform.ts";
 import { HAPTICS_ALL, HAPTICS_PHASE_ONLY } from "./player-config.ts";
 
@@ -16,7 +17,7 @@ export interface HapticsSystem {
   phaseChange: () => void;
   battleEvents: (
     events: ReadonlyArray<BattleEvent>,
-    povPlayerId: number,
+    povPlayerId: ValidPlayerSlot,
   ) => void;
 }
 
@@ -55,7 +56,7 @@ export function createHapticsSystem(): HapticsSystem {
   /** Process battle events and trigger appropriate haptics for the local player. */
   function battleEvents(
     events: ReadonlyArray<BattleEvent>,
-    povPlayerId: number,
+    povPlayerId: ValidPlayerSlot,
   ): void {
     if (!CAN_VIBRATE || hapticsLevel < HAPTICS_ALL) return;
     for (const evt of events) {

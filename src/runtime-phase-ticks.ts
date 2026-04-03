@@ -119,7 +119,7 @@ export interface PhaseTicksSystem {
   tickBattlePhase: (dt: number) => boolean;
   tickBuildPhase: (dt: number) => boolean;
   tickGame: (dt: number) => void;
-  syncCrosshairs: (battleCountdownExpired: boolean, dt?: number) => void;
+  syncCrosshairs: (weaponsActive: boolean, dt?: number) => void;
 }
 
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
@@ -134,12 +134,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // Crosshairs
   // -------------------------------------------------------------------------
 
-  function syncCrosshairs(battleCountdownExpired: boolean, dt = 0): void {
+  function syncCrosshairs(weaponsActive: boolean, dt = 0): void {
     const remoteHumanSlots = runtimeState.frameCtx.remoteHumanSlots;
     runtimeState.frame.crosshairs = collectLocalCrosshairs({
       state: runtimeState.state,
       controllers: runtimeState.controllers,
-      canFireNow: battleCountdownExpired,
+      canFireNow: weaponsActive,
       skipController: (pid) => isRemoteHuman(pid, remoteHumanSlots),
       onCrosshairCollected: deps.onLocalCrosshairCollected,
     });
@@ -162,7 +162,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     executeTransition(CANNON_START_STEPS, {
       showBanner: () => {
         if (onBannerDone) {
-          // INVARIANT: Banner captures oldCastles BEFORE applyCheckpoint mutates state.
+          // INVARIANT: Banner captures prevCastles BEFORE applyCheckpoint mutates state.
           // executeTransition guarantees this ordering via CANNON_START_STEPS.
           showCannonPhaseBanner(
             deps.showBanner,

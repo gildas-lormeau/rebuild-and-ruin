@@ -2,7 +2,11 @@ import type {
   ControllerIdentity,
   SelectionController,
 } from "./controller-interfaces.ts";
-import { isActivePlayer, type ValidPlayerSlot } from "./game-constants.ts";
+import {
+  isActivePlayer,
+  type PlayerSlotId,
+  type ValidPlayerSlot,
+} from "./game-constants.ts";
 import { selectPlayerTower } from "./game-engine.ts";
 import { BANNER_SELECT } from "./phase-banner.ts";
 import { isRemoteHuman } from "./tick-context.ts";
@@ -20,7 +24,7 @@ interface TickSelectionPhaseDeps {
   dt: number;
   state: GameState;
   isHost: boolean;
-  myPlayerId: number;
+  myPlayerId: PlayerSlotId;
   selectTimer: number;
   /** Mutable — tickSelectionPhase is a blessed mutation site (see MutableAccums in tick-context.ts). */
   accum: { select: number; selectAnnouncement: number };

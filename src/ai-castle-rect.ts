@@ -323,12 +323,15 @@ export function castleRect(
 
   // For each axis, distribute margin per side. If one side is constrained,
   // shift the surplus to the opposite side (capped by its own limit).
-  const distribute = (capNeg: number, capPos: number): [number, number] => {
-    if (capNeg >= margin && capPos >= margin) return [margin, margin];
-    const neg = Math.min(margin, capNeg);
-    const pos = Math.min(capPos, margin + (margin - neg));
-    const negFinal = Math.min(capNeg, margin + (margin - pos));
-    return [negFinal, pos];
+  const distribute = (
+    capBefore: number,
+    capAfter: number,
+  ): [number, number] => {
+    if (capBefore >= margin && capAfter >= margin) return [margin, margin];
+    const before = Math.min(margin, capBefore);
+    const after = Math.min(capAfter, margin + (margin - before));
+    const beforeFinal = Math.min(capBefore, margin + (margin - after));
+    return [beforeFinal, after];
   };
 
   let [growthTop, growthBottom] = distribute(capTop, capBottom);

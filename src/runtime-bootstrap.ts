@@ -4,6 +4,7 @@ import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
   isActivePlayer,
+  type PlayerSlotId,
   type ValidPlayerSlot,
 } from "./game-constants.ts";
 import { createGameFromSeed } from "./game-engine.ts";
@@ -44,7 +45,7 @@ interface InitWaitingRoomDeps {
 interface EnterTowerSelectionDeps {
   state: GameState;
   isHost: boolean;
-  myPlayerId: number;
+  myPlayerId: PlayerSlotId;
   remoteHumanSlots: ReadonlySet<number>;
   controllers: PlayerController[];
   selectionStates: Map<number, SelectionState>;

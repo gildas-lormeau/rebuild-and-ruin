@@ -108,7 +108,7 @@ export function parseBoard(ascii: string, playerId = 0 as ValidPlayerSlot): Pars
 
   const walls = new Set<number>();
   const towers: Tower[] = [];
-  const grunts: { row: number; col: number; victimPlayerId: number; blockedBattles: number }[] = [];
+  const grunts: { row: number; col: number; victimPlayerId: ValidPlayerSlot; blockedBattles: number }[] = [];
   const burningPits: { row: number; col: number; roundsLeft: number }[] = [];
   const originalChars = new Map<number, string>();
 

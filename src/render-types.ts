@@ -124,7 +124,7 @@ export interface LifeLostDialogOverlay {
     lives: number;
     color: RGB;
     choice: LifeLostChoice;
-    focused: number;
+    focusedButton: number;
     px: number;
     py: number;
   }[];

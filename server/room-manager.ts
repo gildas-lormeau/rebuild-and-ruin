@@ -38,7 +38,7 @@ interface SlotSelectionResult {
   /** The slot this socket previously occupied, or null if this is their first
    *  slot selection (new player joining). Used by the caller to broadcast
    *  a previousPlayerId so clients can clean up the vacated slot's UI. */
-  previousPlayerId: number | null;
+  previousPlayerId: ValidPlayerSlot | null;
 }
 
 export class RoomManager {

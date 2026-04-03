@@ -192,7 +192,7 @@ export interface Player {
 
 export interface Grunt extends TilePos {
   /** The player whose territory this grunt is attacking. Grunts are ownerless hazards. */
-  victimPlayerId: number;
+  victimPlayerId: ValidPlayerSlot;
   /** Locked target tower index. Stays until the tower is destroyed. */
   targetTowerIdx?: number;
   /** Countdown (seconds) before killing an adjacent tower or wall. Starts at 3 when adjacent. */
@@ -336,7 +336,7 @@ export interface FrameContext {
   readonly myPlayerId: PlayerSlotId;
   /** Point-of-view player for camera, sound, and haptics.
    *  Online: myPlayerId. Local: pointer player slot. Demo: 0. */
-  readonly povPlayerId: number;
+  readonly povPlayerId: ValidPlayerSlot;
   readonly hostAtFrameStart: boolean;
   readonly remoteHumanSlots: ReadonlySet<number>;
 
@@ -383,7 +383,7 @@ export interface LifeLostEntry {
   choice: LifeLostChoice;
   autoTimer: number;
   /** Which button is focused: LIFE_LOST_FOCUS_CONTINUE (0) or LIFE_LOST_FOCUS_ABANDON (1). */
-  focused: number;
+  focusedButton: number;
 }
 
 export interface LifeLostDialogState {
@@ -399,7 +399,7 @@ export interface UpgradePickEntry {
   autoResolve: boolean;
   autoTimer: number;
   /** Which offer card is focused (0, 1, or 2). */
-  focused: number;
+  focusedCard: number;
 }
 
 export interface UpgradePickDialogState {

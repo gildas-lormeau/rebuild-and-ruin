@@ -9,13 +9,13 @@ export interface BannerState {
   subtitle?: string;
   callback: (() => void) | null;
   /** Scene snapshots for banner crossfade animation:
-   *  old* = frozen before checkpoint applies, new* = revealed after banner lifts. */
-  oldCastles?: CastleData[];
-  oldTerritory?: Set<number>[];
-  oldWalls?: Set<number>[];
+   *  prev* = frozen before checkpoint applies, new* = revealed after banner lifts. */
+  prevCastles?: CastleData[];
+  prevTerritory?: Set<number>[];
+  prevWalls?: Set<number>[];
   /** Snapshot of all map entities at banner start — used to keep the scene
    *  stable while applyCheckpoint mutates live state behind the banner. */
-  oldEntities?: EntityOverlay;
+  prevEntities?: EntityOverlay;
   newTerritory?: Set<number>[];
   newWalls?: Set<number>[];
   /** Pre-sweep wall snapshot; consumed by showBannerTransition for the old scene. */
@@ -82,7 +82,7 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
   banner.wallsBeforeSweep = undefined;
 
   if (preserveOldScene) {
-    banner.oldCastles ??= state.players
+    banner.prevCastles ??= state.players
       .filter((player) => player.castle)
       .map((player) => ({
         walls: pendingWalls?.[player.id] ?? new Set(player.walls),
@@ -90,20 +90,20 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
         cannons: player.cannons.map((c) => ({ ...c })),
         playerId: player.id,
       }));
-    banner.oldTerritory =
+    banner.prevTerritory =
       state.phase === Phase.BATTLE
         ? battleAnim.territory?.map((territory) => new Set(territory))
         : undefined;
-    banner.oldWalls =
+    banner.prevWalls =
       state.phase === Phase.BATTLE
         ? battleAnim.walls?.map((wall) => new Set(wall))
         : undefined;
-    banner.oldEntities ??= snapshotEntities(state);
+    banner.prevEntities ??= snapshotEntities(state);
   } else {
-    banner.oldCastles = undefined;
-    banner.oldTerritory = undefined;
-    banner.oldWalls = undefined;
-    banner.oldEntities = undefined;
+    banner.prevCastles = undefined;
+    banner.prevTerritory = undefined;
+    banner.prevWalls = undefined;
+    banner.prevEntities = undefined;
   }
 
   banner.newTerritory = newBattle?.territory;
@@ -140,10 +140,10 @@ export function tickBannerTransition(
 
   if (banner.progress < 1) return;
 
-  banner.oldCastles = undefined;
-  banner.oldTerritory = undefined;
-  banner.oldWalls = undefined;
-  banner.oldEntities = undefined;
+  banner.prevCastles = undefined;
+  banner.prevTerritory = undefined;
+  banner.prevWalls = undefined;
+  banner.prevEntities = undefined;
   banner.newTerritory = undefined;
   banner.newWalls = undefined;
   banner.active = false;

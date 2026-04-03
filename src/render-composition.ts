@@ -9,6 +9,7 @@
 import {
   LIFE_LOST_MAX_TIMER,
   modifierLabel,
+  type PlayerSlotId,
   type ValidPlayerSlot,
 } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
@@ -344,10 +345,10 @@ export function createOnlineOverlay(params: {
   banner: Pick<
     BannerState,
     | "active"
-    | "oldCastles"
-    | "oldTerritory"
-    | "oldWalls"
-    | "oldEntities"
+    | "prevCastles"
+    | "prevTerritory"
+    | "prevWalls"
+    | "prevEntities"
     | "newTerritory"
     | "newWalls"
     | "wallsBeforeSweep"
@@ -378,7 +379,7 @@ export function createOnlineOverlay(params: {
   /** True when the game is in battle phase — controls which battle-specific data to include. */
   inBattle: boolean;
   /** POV player for filtering per-player UI (combos, status bar upgrades). -1 = show all. */
-  povPlayerId: number;
+  povPlayerId: ValidPlayerSlot;
   /** When false (all-AI / spectator), skip combo floating text. */
   hasPointerPlayer: boolean;
   /** Player ID whose upgrade pick entry accepts local input (-1 = none). */
@@ -450,10 +451,12 @@ export function createOnlineOverlay(params: {
           ? state.timer
           : undefined,
       banner: bannerUi,
-      bannerOldCastles: banner.active ? banner.oldCastles : undefined,
-      bannerOldBattleTerritory: banner.active ? banner.oldTerritory : undefined,
-      bannerOldBattleWalls: banner.active ? banner.oldWalls : undefined,
-      bannerOldEntities: banner.active ? banner.oldEntities : undefined,
+      bannerOldCastles: banner.active ? banner.prevCastles : undefined,
+      bannerOldBattleTerritory: banner.active
+        ? banner.prevTerritory
+        : undefined,
+      bannerOldBattleWalls: banner.active ? banner.prevWalls : undefined,
+      bannerOldEntities: banner.active ? banner.prevEntities : undefined,
       announcement: frame.announcement,
       gameOver: frame.gameOver,
       lifeLostDialog: buildLifeLostDialogUi(
@@ -656,7 +659,7 @@ function buildLifeLostDialogUi(
         lives: e.lives,
         color: playerColors[e.playerId % playerColors.length]!.wall,
         choice: e.choice,
-        focused: e.focused,
+        focusedButton: e.focusedButton,
         px,
         py,
       };
@@ -668,7 +671,7 @@ function buildLifeLostDialogUi(
 
 function buildUpgradePickUi(
   dialog: UpgradePickDialogState | null,
-  interactivePlayerId: number,
+  interactivePlayerId: PlayerSlotId,
   playerNames: ReadonlyArray<string>,
   playerColors: ReadonlyArray<{ wall: RGB }>,
 ): UpgradePickOverlay | undefined {
@@ -687,7 +690,7 @@ function buildUpgradePickUi(
           label: def?.label ?? upgradeId,
           description: def?.description ?? "",
           category: def?.category ?? "",
-          focused: entry.choice === null && entry.focused === ci,
+          focused: entry.choice === null && entry.focusedCard === ci,
           picked: entry.choice === upgradeId,
         };
       }),

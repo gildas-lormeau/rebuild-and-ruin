@@ -99,14 +99,14 @@ export function createSelectionSystem(
   /** Clear all selection tracking state — call before entering a new selection
    *  round (initial selection or reselection). Resets selectionStates map,
    *  reselectionPids, overlay selection display, and stale banner snapshots
-   *  (wallsBeforeSweep / oldCastles captured at BUILD_END become invalid
+   *  (wallsBeforeSweep / prevCastles captured at BUILD_END become invalid
    *  when a player's zone is reset after losing a life). */
   function resetSelectionState(): void {
     runtimeState.selectionStates.clear();
     runtimeState.reselectionPids = [];
     resetOverlaySelection();
     runtimeState.banner.wallsBeforeSweep = undefined;
-    runtimeState.banner.oldCastles = undefined;
+    runtimeState.banner.prevCastles = undefined;
   }
 
   // -------------------------------------------------------------------------
@@ -314,7 +314,7 @@ export function createSelectionSystem(
   }
 
   function finalizeAndAdvance(): void {
-    runtimeState.banner.oldEntities = snapshotEntities(runtimeState.state);
+    runtimeState.banner.prevEntities = snapshotEntities(runtimeState.state);
     finalizeCastleConstruction(runtimeState.state);
     enterCannonPlacePhase(runtimeState.state);
     deps.camera.clearCastleBuildViewport();

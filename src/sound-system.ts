@@ -21,7 +21,7 @@ export interface SoundSystem {
   // Battle (level 2)
   battleEvents: (
     events: ReadonlyArray<BattleEvent>,
-    povPlayerId: number,
+    povPlayerId: ValidPlayerSlot,
   ) => void;
 
   // Player actions (level 2)
@@ -376,7 +376,7 @@ export function createSoundSystem(): SoundSystem {
       speed: number;
       playerId: ValidPlayerSlot;
     },
-    povPlayerId: number,
+    povPlayerId: ValidPlayerSlot,
   ): void {
     if (activeWhistles >= MAX_WHISTLES) return;
     const audioCtx = getCtx();
@@ -889,7 +889,7 @@ function drumVolume(elapsed: number): number {
 
 function battleEventSound(
   evt: BattleEvent,
-  povPlayerId: number,
+  povPlayerId: ValidPlayerSlot,
 ): SfxKey | null {
   if (evt.type === MESSAGE.CANNON_DAMAGED && evt.playerId === povPlayerId)
     return evt.newHp === 0 ? "cannonKilled" : null;

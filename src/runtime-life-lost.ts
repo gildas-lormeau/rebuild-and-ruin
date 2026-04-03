@@ -180,8 +180,8 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   function toggleFocus(playerId: ValidPlayerSlot): void {
     const entry = findPendingEntry(playerId);
     if (entry)
-      entry.focused =
-        entry.focused === LIFE_LOST_FOCUS_CONTINUE
+      entry.focusedButton =
+        entry.focusedButton === LIFE_LOST_FOCUS_CONTINUE
           ? LIFE_LOST_FOCUS_ABANDON
           : LIFE_LOST_FOCUS_CONTINUE;
   }
@@ -190,7 +190,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     const entry = findPendingEntry(playerId);
     if (!entry) return;
     entry.choice =
-      entry.focused === LIFE_LOST_FOCUS_CONTINUE
+      entry.focusedButton === LIFE_LOST_FOCUS_CONTINUE
         ? LifeLostChoice.CONTINUE
         : LifeLostChoice.ABANDON;
     sendLifeLostChoice(entry.choice, entry.playerId);

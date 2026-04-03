@@ -8,7 +8,7 @@
 import { MESSAGE } from "../server/protocol.ts";
 import { aimCannons, nextReadyCombined } from "./battle-system.ts";
 import { isHuman, type PlayerController } from "./controller-interfaces.ts";
-import { isActivePlayer } from "./game-constants.ts";
+import { isActivePlayer, type PlayerSlotId } from "./game-constants.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { tickGrunts } from "./grunt-movement.ts";
 import type { DedupMaps, OnlineSession } from "./online-session.ts";
@@ -201,7 +201,7 @@ export function tickWatcher(
 function getLocalController(
   state: GameState,
   controllers: readonly PlayerController[],
-  myPlayerId: number,
+  myPlayerId: PlayerSlotId,
 ): PlayerController | null {
   if (!isActivePlayer(myPlayerId) || state.players[myPlayerId]?.eliminated)
     return null;

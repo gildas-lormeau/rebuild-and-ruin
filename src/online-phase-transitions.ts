@@ -81,7 +81,7 @@ export interface TransitionContext {
     banner: {
       newTerritory?: Set<number>[];
       newWalls?: Set<number>[];
-      oldCastles?: {
+      prevCastles?: {
         walls: ReadonlySet<number>;
         interior: ReadonlySet<number>;
         cannons: readonly {
@@ -93,7 +93,7 @@ export interface TransitionContext {
         }[];
         playerId: ValidPlayerSlot;
       }[];
-      oldEntities?: import("./render-types.ts").EntityOverlay;
+      prevEntities?: import("./render-types.ts").EntityOverlay;
       wallsBeforeSweep?: Set<number>[];
     };
     render: () => void;
@@ -235,9 +235,9 @@ export function handleCannonStartTransition(
   const myPlayerId = transitionCtx.session.myPlayerId;
   transitionCtx.selection.clearSelectionOverlay();
 
-  // oldCastles is already pre-captured in handleBuildEndTransition (pre-sweep walls).
+  // prevCastles is already pre-captured in handleBuildEndTransition (pre-sweep walls).
   transitionCtx.checkpoint.applyCannonStart(msg, () => {
-    transitionCtx.ui.banner.oldEntities = snapshotEntities(state);
+    transitionCtx.ui.banner.prevEntities = snapshotEntities(state);
   });
 
   const initLocalController = () => {
@@ -289,7 +289,7 @@ export function handleBattleStartTransition(
   const battleFlights = msg.flights;
 
   // Pre-capture old scene before checkpoint replaces state (banner ??= keeps it)
-  transitionCtx.ui.banner.oldEntities = snapshotEntities(state);
+  transitionCtx.ui.banner.prevEntities = snapshotEntities(state);
 
   executeTransition(BATTLE_START_STEPS, {
     showBanner: () =>
@@ -338,7 +338,7 @@ export function handleBuildStartTransition(
 
   // Step 1: apply checkpoint (deserializes offers, modifier, players)
   transitionCtx.checkpoint.applyBuildStart(msg, () => {
-    transitionCtx.ui.banner.oldEntities = snapshotEntities(state);
+    transitionCtx.ui.banner.prevEntities = snapshotEntities(state);
   });
   setPhase(state, Phase.WALL_BUILD);
 
@@ -403,7 +403,7 @@ export function handleBuildEndTransition(
     transitionCtx.ui.banner.wallsBeforeSweep = state.players.map(
       (player) => new Set(player.walls),
     );
-    transitionCtx.ui.banner.oldCastles = state.players
+    transitionCtx.ui.banner.prevCastles = state.players
       .filter((player) => player.castle)
       .map((player) => ({
         walls: new Set(player.walls),

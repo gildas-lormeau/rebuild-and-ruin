@@ -752,7 +752,7 @@ function drawLifeLostEntry(
   entry: {
     readonly lives: number;
     readonly choice: LifeLostChoice;
-    readonly focused: number;
+    readonly focusedButton: number;
     readonly px: number;
     readonly py: number;
   },
@@ -766,8 +766,8 @@ function drawLifeLostEntry(
     const btnW = BTN_W;
     const btnH = BTN_H;
     const { btnY, contX, abX } = lifeLostButtonLayout(px, py);
-    const contFocused = entry.focused === LIFE_LOST_FOCUS_CONTINUE;
-    const abFocused = entry.focused === LIFE_LOST_FOCUS_ABANDON;
+    const contFocused = entry.focusedButton === LIFE_LOST_FOCUS_CONTINUE;
+    const abFocused = entry.focusedButton === LIFE_LOST_FOCUS_ABANDON;
 
     // Continue button
     const time = now;
