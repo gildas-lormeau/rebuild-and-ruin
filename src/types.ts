@@ -2,11 +2,12 @@
  * Core types, interfaces, and constants for the game engine.
  */
 
-import type {
-  GameMode,
-  ModifierId,
-  PlayerSlotId,
-  ValidPlayerSlot,
+import {
+  GAME_MODE_MODERN,
+  type GameMode,
+  type ModifierId,
+  type PlayerSlotId,
+  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import type { Castle, GameMap, TilePos, Tower } from "./geometry-types.ts";
 import type { Rng } from "./rng.ts";
@@ -284,6 +285,13 @@ export interface GameState {
 export type UpgradeOfferTuple = [UpgradeId, UpgradeId, UpgradeId];
 
 /** State exclusive to modern mode. null on GameState in classic mode. */
+/** Floating combo text event — aged by the renderer, removed when expired. */
+export interface ComboEvent {
+  text: string;
+  age: number;
+  playerId: ValidPlayerSlot;
+}
+
 export interface ModernState {
   /** Active modifier for the current round. null = none this round. */
   activeModifier: ModifierId | null;
@@ -299,8 +307,7 @@ export interface ModernState {
       gruntStreak: number;
       wallsDestroyedThisRound: number;
     }[];
-    /** Combo events for floating text display. Aged by the renderer, removed when expired. */
-    events: { text: string; age: number; playerId: ValidPlayerSlot }[];
+    events: ComboEvent[];
   } | null;
   /** Pre-generated upgrade offers per player for the current round.
    *  Generated in enterBuildFromBattle using synced RNG, consumed by the upgrade pick dialog.
@@ -433,6 +440,13 @@ export const CANNON_MODES: ReadonlySet<CannonMode> = new Set([
   CannonMode.SUPER,
   CannonMode.BALLOON,
 ]);
+
+/** Set gameMode and modern atomically — prevents divergence between the two fields. */
+export function setGameMode(state: GameState, mode: GameMode): void {
+  state.gameMode = mode;
+  state.modern =
+    mode === GAME_MODE_MODERN ? (state.modern ?? createModernState()) : null;
+}
 
 /** Create a fresh ModernState with all fields at their initial null values. */
 export function createModernState(): ModernState {

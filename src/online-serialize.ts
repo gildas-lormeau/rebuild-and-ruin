@@ -19,9 +19,9 @@ import { Rng } from "./rng.ts";
 import {
   type BalloonFlight,
   type Cannonball,
-  createModernState,
   type GameState,
   Phase,
+  setGameMode,
   type UpgradeOfferTuple,
 } from "./types.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
@@ -236,12 +236,10 @@ export function restoreFullStateSnapshot(
   state.playerZones = msg.playerZones;
   state.towerPendingRevive = new Set(msg.towerPendingRevive);
   state.towerAlive = msg.towerAlive;
-  state.gameMode =
-    msg.gameMode === GAME_MODE_MODERN ? GAME_MODE_MODERN : GAME_MODE_CLASSIC;
-  state.modern =
-    state.gameMode === GAME_MODE_MODERN
-      ? (state.modern ?? createModernState())
-      : null;
+  setGameMode(
+    state,
+    msg.gameMode === GAME_MODE_MODERN ? GAME_MODE_MODERN : GAME_MODE_CLASSIC,
+  );
   if (state.modern) {
     state.modern.activeModifier =
       (msg.activeModifier as NonNullable<

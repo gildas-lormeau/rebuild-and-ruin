@@ -5,7 +5,7 @@
  * Transient state: lives only during battle, not serialized or checkpointed.
  */
 
-import { GAME_MODE_MODERN, type ValidPlayerSlot } from "./game-constants.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { GameState, ModernState } from "./types.ts";
 
 /** Inferred from ModernState.comboTracker — defined inline in types.ts to avoid circular deps. */
@@ -132,5 +132,5 @@ export function ageComboEvents(tracker: ComboTracker, dt: number): void {
 
 /** Check if combo scoring is active for this game. */
 export function isCombosEnabled(state: GameState): boolean {
-  return state.gameMode === GAME_MODE_MODERN;
+  return state.modern !== null;
 }

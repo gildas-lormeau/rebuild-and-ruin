@@ -470,7 +470,7 @@ export function createOnlineOverlay(params: {
         ? povPlayerId < 0
           ? state.modern?.comboTracker?.events
           : state.modern?.comboTracker?.events.filter(
-              (ev: { playerId: number }) => ev.playerId === povPlayerId,
+              (ev) => ev.playerId === povPlayerId,
             )
         : undefined,
       upgradePick: buildUpgradePickUi(
