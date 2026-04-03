@@ -40,12 +40,18 @@
  *
  * ### Sentinel state guard (all runtime-*.ts sub-systems)
  *
- * `runtimeState.state` and `runtimeState.frameCtx` start as SENTINEL objects
- * (see runtime-state.ts). They are replaced with real values only after
- * `startGame()`. Sub-system methods (returned by create*System) are called
- * exclusively from game-loop code that runs after startGame(), so they may
- * safely access runtimeState.state/frameCtx without null checks.
- * Do NOT call sub-system methods before startGame() completes.
+ * `runtimeState.state` and `runtimeState.frameCtx` start as SENTINEL Proxy
+ * objects that throw on ANY property access (see runtime-state.ts).
+ * They are replaced with real values only after `startGame()`.
+ *
+ * Sub-system methods run exclusively from game-loop code after startGame(),
+ * so they safely access runtimeState.state/frameCtx without null checks.
+ * Do NOT call sub-system methods before startGame() completes — the sentinel
+ * will throw "runtimeState.state accessed before initialization".
+ *
+ * For code that MAY run before init (render, input), use:
+ *   - `safeState(runtimeState)` → GameState | undefined
+ *   - `isStateReady(runtimeState)` → boolean guard
  */
 
 import type { GameMessage, ServerMessage } from "../server/protocol.ts";
