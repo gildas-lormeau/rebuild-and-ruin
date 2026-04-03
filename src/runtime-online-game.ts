@@ -47,19 +47,7 @@ import {
   restoreFullStateSnapshot,
   serializePlayers,
 } from "./online-serialize.ts";
-import { resetSessionState } from "./online-session.ts";
-import {
-  clearReconnect,
-  ctx,
-  defaultClient,
-  devLog,
-  devLogThrottled,
-  maybeSendAimUpdate,
-  RESET_SCOPE_DEDUP,
-  RESET_SCOPE_NEW_GAME,
-  resetNetworking,
-  send,
-} from "./online-stores.ts";
+import { defaultClient, RESET_SCOPE_NEW_GAME } from "./online-stores.ts";
 import { setWatcherPhaseTimer } from "./online-types.ts";
 import {
   tickMigrationAnnouncement,
@@ -91,6 +79,9 @@ import { isHostInContext } from "./tick-context.ts";
 import { LifeLostChoice, Mode } from "./types.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 
+// ── Client shorthand ───────────────────────────────────────────────
+const { ctx, send, devLog, devLogThrottled, maybeSendAimUpdate } =
+  defaultClient;
 // ── DOM singletons (from centralized boundary) ─────────────────────
 const renderer = createCanvasRenderer(canvas);
 // ── Assemble transition context ─────────────────────────────────────
@@ -449,7 +440,7 @@ function initFromServer(msg: InitMessage): void {
     },
     resetUIState: () => {
       runtime.lifecycle.resetUIState();
-      resetNetworking(RESET_SCOPE_NEW_GAME);
+      defaultClient.resetNetworking(RESET_SCOPE_NEW_GAME);
     },
     enterSelection: () => runtime.selection.enter(),
   });
@@ -494,8 +485,6 @@ function restoreFullState(msg: FullStateMessage): void {
 }
 
 function resetSession(): void {
-  clearReconnect();
-  resetSessionState(ctx.session);
+  defaultClient.destroy();
   runtime.runtimeState.settings.seed = "";
-  resetNetworking(RESET_SCOPE_DEDUP);
 }

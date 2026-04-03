@@ -1,13 +1,10 @@
 /**
- * Online mutable state — owned by a single OnlineClient instance.
- *
- * All mutable online state (session, dedup, watcher, reconnect) is bundled
- * into one context object so that ownership is explicit and visible.
+ * Online client factory and default instance.
  *
  * `createOnlineClient()` builds a fully isolated client — each instance owns
- * its own OnlineContext and utility closures.  A default instance is created
- * at module scope; the thin bridge exports (`ctx`, `send`, `devLog`, ...)
- * delegate to it so that existing consumers work unchanged (Phase 1).
+ * its own OnlineContext (session, dedup, watcher, reconnect) and utility
+ * closures (send, devLog, etc.).  `defaultClient` is the singleton used by
+ * the online runtime; consumers receive it via init injection or direct import.
  *
  * NOTE: devLog() and devLogThrottled() are dev-only (gated by IS_DEV).
  * They produce no output in production builds. Do not rely on them
@@ -22,6 +19,7 @@ import {
   type DedupMaps,
   type OnlineSession,
   resetDedupMaps,
+  resetSessionState,
   sendAimUpdate,
   sendMessage,
 } from "./online-session.ts";
@@ -58,15 +56,14 @@ export interface OnlineClient {
   devLog(msg: string): void;
   devLogThrottled(key: string, msg: string): void;
   isReconnecting(): boolean;
+  /** Tear down networking state: cancel reconnect timers, close the socket,
+   *  and reset session + dedup maps.  Caller handles runtime-level cleanup. */
+  destroy(): void;
 }
 
 // ── Constants ──────────────────────────────────────────────────────
 const DEV = IS_DEV;
 const LOG_THROTTLE_MS = 1000;
-// ── Default instance & module-scope bridge ─────────────────────────
-// Consumers still `import { ctx, send, ... } from "./online-stores.ts"`.
-// Phase 2 will inject the client directly; Phase 3 removes this bridge.
-export const defaultClient = createOnlineClient();
 /** Network reset scope — forces callers to declare intent, preventing
  *  accidental use of the wrong reset level. Each scope clears a different
  *  subset of networking state:
@@ -79,12 +76,13 @@ export const defaultClient = createOnlineClient();
  *  phantom/aim messages. The pattern is: if shouldSend() -> send (map updated atomically).
  *  Sending without checking causes redundant network traffic; checking without
  *  resetting after state changes causes missed updates. */
-export const RESET_SCOPE_DEDUP = "dedup" as const;
+const RESET_SCOPE_DEDUP = "dedup" as const;
+// ── Default instance ───────────────────────────────────────────────
+export const defaultClient = createOnlineClient();
 export const RESET_SCOPE_NEW_GAME = "new-game" as const;
 export const RESET_SCOPE_HOST_PROMOTION = "host-promotion" as const;
 export const MAX_RECONNECT_ATTEMPTS = 3;
 export const RECONNECT_BASE_DELAY_MS = 1000;
-export const ctx = defaultClient.ctx;
 
 function createOnlineClient(): OnlineClient {
   const context: OnlineContext = {
@@ -143,35 +141,14 @@ function createOnlineClient(): OnlineClient {
       clientDevLog(msg);
     },
     isReconnecting: () => context.reconnect.count > 0,
+    destroy: () => {
+      context.reconnect.count = 0;
+      if (context.reconnect.timer) {
+        clearTimeout(context.reconnect.timer);
+        context.reconnect.timer = null;
+      }
+      resetSessionState(context.session);
+      resetDedupMaps(context.dedup);
+    },
   };
-}
-
-export function devLogThrottled(key: string, msg: string): void {
-  defaultClient.devLogThrottled(key, msg);
-}
-
-export function devLog(msg: string): void {
-  defaultClient.devLog(msg);
-}
-
-export function send(msg: GameMessage): void {
-  defaultClient.send(msg);
-}
-
-export function maybeSendAimUpdate(
-  x: number,
-  y: number,
-  playerId?: number,
-): void {
-  defaultClient.maybeSendAimUpdate(x, y, playerId);
-}
-
-/** Reset networking state for the given scope. */
-export function resetNetworking(scope: ResetScope): void {
-  defaultClient.resetNetworking(scope);
-}
-
-/** Zero out reconnect state — call after successful reconnect or when giving up. */
-export function clearReconnect(): void {
-  defaultClient.clearReconnect();
 }
