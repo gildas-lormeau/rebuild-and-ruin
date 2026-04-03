@@ -95,24 +95,24 @@ export function countUsableCannons(
 export function planGruntSweep(
   state: GameState,
   playerId: ValidPlayerSlot,
-  readyCount: number,
+  usableCannonCount: number,
   rng: Rng,
 ): TilePos[] | null {
-  return planGruntTargets(state, playerId, readyCount, rng);
+  return planGruntTargets(state, playerId, usableCannonCount, rng);
 }
 
 /** Plan a charity sweep: kill grunts on an enemy's territory when they can't. */
 export function planCharitySweep(
   state: GameState,
   playerId: ValidPlayerSlot,
-  readyCount: number,
+  usableCannonCount: number,
   rng: Rng,
 ): TilePos[] | null {
   for (const enemy of state.players) {
     if (enemy.id === playerId || enemy.eliminated) continue;
     if (filterActiveFiringCannons(enemy).length > CHARITY_CANNON_THRESHOLD)
       continue;
-    const targets = planGruntTargets(state, enemy.id, readyCount, rng);
+    const targets = planGruntTargets(state, enemy.id, usableCannonCount, rng);
     if (targets) return targets;
   }
   return null;
@@ -203,10 +203,15 @@ export function planPocketDestruction(
 export function planSuperAttack(
   state: GameState,
   playerId: ValidPlayerSlot,
-  readyCount: number,
+  usableCannonCount: number,
   rng: Rng,
 ): TilePos[] | null {
-  const segment = planWallDemolition(state, playerId, readyCount * 2, rng);
+  const segment = planWallDemolition(
+    state,
+    playerId,
+    usableCannonCount * 2,
+    rng,
+  );
   if (!segment) return null;
   // Keep every other tile
   const strided = segment.filter((_, i) => i % 2 === 0);
@@ -217,7 +222,7 @@ export function planSuperAttack(
 export function planWallDemolition(
   state: GameState,
   playerId: ValidPlayerSlot,
-  readyCount: number,
+  usableCannonCount: number,
   rng: Rng,
 ): TilePos[] | null {
   const enemies = filterActiveEnemies(state, playerId);
@@ -226,11 +231,16 @@ export function planWallDemolition(
     if (enemy.walls.size < MIN_WALL_SEGMENT_LENGTH) continue;
     const wallKeys = [...enemy.walls];
     const startKey = rng.pick(wallKeys);
-    const segment = findConnectedWalls(enemy.walls, startKey, readyCount, rng);
+    const segment = findConnectedWalls(
+      enemy.walls,
+      startKey,
+      usableCannonCount,
+      rng,
+    );
     if (segment.length >= MIN_WALL_SEGMENT_LENGTH) {
       const maxLength = Math.min(
         segment.length,
-        readyCount,
+        usableCannonCount,
         MAX_WALL_DEMOLITION_TARGETS,
       );
       const length = rng.int(MIN_WALL_SEGMENT_LENGTH, maxLength);
@@ -582,7 +592,7 @@ function jitterWithinTile(
 function planGruntTargets(
   state: GameState,
   victimPlayerId: number,
-  readyCount: number,
+  usableCannonCount: number,
   rng: Rng,
 ): TilePos[] | null {
   const frozenActive = state.frozenTiles !== null;
@@ -610,7 +620,7 @@ function planGruntTargets(
     positions[startIndex]!,
     positions[0]!,
   ];
-  return orderByNearest(positions, readyCount);
+  return orderByNearest(positions, usableCannonCount);
 }
 
 /** Check if a 4-tile pocket forms a 2x2 square (can fit a cannon). */

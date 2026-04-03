@@ -422,14 +422,14 @@ export class DefaultStrategy implements AiStrategy {
     let chainTargets: TilePos[] | null = null;
     let chainType: ChainType = CHAIN.WALL;
 
-    const readyCount = countUsableCannons(state, playerId);
+    const usableCannonCount = countUsableCannons(state, playerId);
 
     // Grunt sweep: enough grunts targeting us and enough usable cannons
-    if (readyCount > CHAIN_ATTACK_MIN_CANNONS) {
+    if (usableCannonCount > CHAIN_ATTACK_MIN_CANNONS) {
       const gruntTargets = planGruntSweep(
         state,
         playerId,
-        readyCount,
+        usableCannonCount,
         this.rng,
       );
       if (gruntTargets) {
@@ -446,13 +446,13 @@ export class DefaultStrategy implements AiStrategy {
     ]);
     if (
       !chainTargets &&
-      readyCount > CHAIN_ATTACK_MIN_CANNONS &&
+      usableCannonCount > CHAIN_ATTACK_MIN_CANNONS &&
       this.rng.bool(charityProb)
     ) {
       const charityTargets = planCharitySweep(
         state,
         playerId,
-        readyCount,
+        usableCannonCount,
         this.rng,
       );
       if (charityTargets) {
@@ -478,10 +478,15 @@ export class DefaultStrategy implements AiStrategy {
     ]);
     if (
       !chainTargets &&
-      readyCount >= CHAIN_ATTACK_MIN_CANNONS &&
+      usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
       this.rng.bool(demolitionProb)
     ) {
-      chainTargets = planWallDemolition(state, playerId, readyCount, this.rng);
+      chainTargets = planWallDemolition(
+        state,
+        playerId,
+        usableCannonCount,
+        this.rng,
+      );
       chainType = CHAIN.WALL;
     }
 
@@ -493,10 +498,15 @@ export class DefaultStrategy implements AiStrategy {
     ]);
     if (
       !chainTargets &&
-      readyCount >= CHAIN_ATTACK_MIN_CANNONS &&
+      usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
       this.rng.bool(superAtkProb)
     ) {
-      chainTargets = planSuperAttack(state, playerId, readyCount, this.rng);
+      chainTargets = planSuperAttack(
+        state,
+        playerId,
+        usableCannonCount,
+        this.rng,
+      );
       chainType = CHAIN.WALL;
     }
 
