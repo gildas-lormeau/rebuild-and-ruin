@@ -14,7 +14,7 @@ import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { type PieceShape, rotateCW, sameShape } from "./pieces.ts";
-import { towerCenter } from "./spatial.ts";
+import { towerCenterTile } from "./spatial.ts";
 import { type GameState, isPlayerAlive } from "./types.ts";
 
 /** Subset of AiController accessed by build-phase logic. */
@@ -157,12 +157,12 @@ export function tickBuild(
     case STEP.GAVE_UP: {
       const ps = phase.state;
       const home = player.homeTower
-        ? towerCenter(player.homeTower)
+        ? towerCenterTile(player.homeTower)
         : host.buildCursor;
       host.stepTileCursorToward(
         host.buildCursor,
-        Math.round(home.row),
-        Math.round(home.col),
+        home.row,
+        home.col,
         host.buildCursorSpeed,
         Infinity,
         dt,

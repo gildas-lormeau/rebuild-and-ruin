@@ -19,6 +19,10 @@
  *
  * After any dirty-marking mutation, call recheckTerritory(state) before reading
  * player.interior. assertInteriorFresh(player) throws if this is skipped.
+ *
+ * EXCEPTION: during battle phase, interior is intentionally stale (walls can be
+ * destroyed without recomputing). Use getBattleInterior() for stale-safe reads.
+ * Interior becomes fresh again at the next recheckTerritory() call (build phase entry).
  */
 
 import type { ValidPlayerSlot } from "./game-constants.ts";

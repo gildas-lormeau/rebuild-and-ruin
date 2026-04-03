@@ -614,7 +614,7 @@ function is2x2(keys: readonly number[]): boolean {
   const tiles = keys.map((key) => unpackTile(key));
   const minRow = Math.min(...tiles.map((tile) => tile.r));
   const minCol = Math.min(...tiles.map((tile) => tile.c));
-  const expected = new Set([
+  const expected: Set<number> = new Set([
     packTile(minRow, minCol),
     packTile(minRow, minCol + 1),
     packTile(minRow + 1, minCol),

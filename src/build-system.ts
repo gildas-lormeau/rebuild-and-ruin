@@ -347,6 +347,8 @@ function countCastleBonusUnits(state: GameState, player: Player): number {
   return castleUnits;
 }
 
+/** Destroy houses enclosed by a player's territory and spawn a grunt per enemy.
+ *  PRECONDITION: interior must be fresh (via recomputeInterior). */
 function destroyEnclosedHousesAndSpawnGrunts(
   state: GameState,
   player: Player,
@@ -365,6 +367,9 @@ function destroyEnclosedHousesAndSpawnGrunts(
   }
 }
 
+/** Remove grunts enclosed by a player's territory (awards points).
+ *  Each enclosed grunt has 50% chance to respawn on an enemy's zone.
+ *  PRECONDITION: interior must be fresh (via recomputeInterior). */
 function removeEnclosedGruntsAndRespawn(
   state: GameState,
   player: Player,
@@ -399,6 +404,8 @@ function removeEnclosedGruntsAndRespawn(
   }
 }
 
+/** Remove tower indices from towerPendingRevive if no longer enclosed by any player.
+ *  Called at end of build to prevent reviving towers that lost enclosure. */
 function clearUnenclosedPendingRevives(state: GameState): void {
   const toRemove: number[] = [];
   for (const ti of state.towerPendingRevive) {
@@ -414,12 +421,9 @@ function clearUnenclosedPendingRevives(state: GameState): void {
   for (const ti of toRemove) state.towerPendingRevive.delete(ti);
 }
 
-/**
- * Claim territory via inverse flood-fill. For each player, flood from map edges
- * to find tiles NOT reachable through non-wall tiles. Unreachable grass tiles
- * become interior (territory).
- */
-/** Recompute a player's interior via inverse flood-fill. */
+/** Recompute a player's interior via inverse flood-fill from map edges.
+ *  Grass tiles not reachable through non-wall tiles become interior (territory).
+ *  Calls markInteriorFresh() — after this, getInterior(player) is safe. */
 function recomputeInterior(state: GameState, player: Player): void {
   const fresh = new Set<number>();
   const outside = computeOutside(player.walls);

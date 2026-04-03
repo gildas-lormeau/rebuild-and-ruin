@@ -22,7 +22,7 @@ import {
   type PieceShape,
 } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
-import { pxToTile, towerCenter } from "./spatial.ts";
+import { pxToTile, towerCenter, towerCenterTile } from "./spatial.ts";
 import { Action, type CombinedCannonResult, type GameState } from "./types.ts";
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
@@ -81,11 +81,9 @@ export abstract class BaseController implements PlayerController {
   }
 
   centerOn(row: number, col: number): void {
+    const tile = towerCenterTile({ row, col });
+    this.buildCursor = { row: tile.row, col: tile.col };
     const center = towerCenter({ row, col });
-    this.buildCursor = {
-      row: Math.round(center.row),
-      col: Math.round(center.col),
-    };
     this.crosshair = { x: center.col * TILE_SIZE, y: center.row * TILE_SIZE };
   }
 
@@ -117,11 +115,7 @@ export abstract class BaseController implements PlayerController {
     this.initBag(state.round, state.rng);
     const player = state.players[this.playerId];
     if (player?.homeTower) {
-      const center = towerCenter(player.homeTower);
-      this.buildCursor = {
-        row: Math.round(center.row),
-        col: Math.round(center.col),
-      };
+      this.buildCursor = towerCenterTile(player.homeTower);
     }
     this.clampBuildCursor(this.currentPiece);
   }

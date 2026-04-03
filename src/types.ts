@@ -137,6 +137,12 @@ export interface BonusSquare extends TilePos {
   zone: number;
 }
 
+/** Branded number proving a value was produced by packTile(row, col).
+ *  Assignable to `number` (so existing Set<number> / Map<number,…> still work),
+ *  but a raw number literal cannot be assigned to TileKey without packTile().
+ *  Use packTile() to create, unpackTile() to destructure back to row/col. */
+export type TileKey = number & { readonly __brand: "TileKey" };
+
 /** Branded ReadonlySet<number> proving that interior was recomputed after the
  *  last wall mutation. Only produced by `markInteriorFresh` (board-occupancy)
  *  and `emptyFreshInterior` (initial construction / deserialization).

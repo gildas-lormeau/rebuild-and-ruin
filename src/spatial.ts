@@ -10,6 +10,7 @@
  * All Set<number> tile collections (walls, interior, frozenTiles, burningPits, etc.)
  * use flat-index encoding: `key = row * GRID_COLS + col`.
  * Always use packTile(r, c) / unpackTile(key) — never encode manually.
+ * packTile() returns the branded type TileKey (see types.ts) for compile-time safety.
  */
 
 import {
@@ -27,6 +28,7 @@ import {
   CannonMode,
   isBalloonMode,
   isSuperMode,
+  type TileKey,
 } from "./types.ts";
 
 /** 45° angle step (π/4 radians) — used for 8-direction snapping. */
@@ -128,7 +130,17 @@ export function cannonCenter(
   };
 }
 
-/** Center of a tower footprint (between the tiles). */
+/** Center of a tower footprint as INTEGER tile coordinates (rounded).
+ *  Use for cursor positioning, packTile(), and grid lookups.
+ *  For float math (distance/angle), use towerCenter() instead. */
+export function towerCenterTile(tilePos: TilePos): TilePos {
+  const center = towerCenter(tilePos);
+  return { row: Math.round(center.row), col: Math.round(center.col) };
+}
+
+/** Center of a tower footprint as FLOAT tile coordinates (for distance/angle calculations).
+ *  For a 2×2 tower at (r,c), returns { row: r+0.5, col: c+0.5 }.
+ *  NOT valid as tile indices — use towerCenterTile() if you need integer coordinates. */
 export function towerCenter(tilePos: TilePos): {
   row: number;
   col: number;
@@ -465,7 +477,8 @@ export function computeOutside(
   return outside;
 }
 
-/** Convert a packed tile key to row/column coordinates. */
+/** Convert a packed tile key back to row/column coordinates.
+ *  Accepts plain number (from Set iteration) or TileKey (from packTile). */
 export function unpackTile(key: number): { r: number; c: number } {
   return { r: Math.floor(key / GRID_COLS), c: key % GRID_COLS };
 }
@@ -532,9 +545,10 @@ function forEachSquareTile(
 }
 
 /** Pack row/column into a flat tile key (row * GRID_COLS + col).
+ *  Returns a branded TileKey — use this instead of manual encoding.
  *  Used for all Set<number> tile collections. See unpackTile() for reverse. */
-export function packTile(r: number, c: number): number {
-  return r * GRID_COLS + c;
+export function packTile(r: number, c: number): TileKey {
+  return (r * GRID_COLS + c) as TileKey;
 }
 
 /** True if tile is on the outer map border. */
