@@ -670,7 +670,7 @@ test("super gun placed during cannon phase can fire in battle", () => {
   const superCannon = player.cannons[superIdx]!;
   assert(superCannon.mode === CannonMode.SUPER, "Last cannon should be super");
 
-  // Advance to battle (sweepAllPlayersWalls + recheckTerritory runs)
+  // Advance to battle (sweepAllPlayersWalls + recheckTerritoryOnly runs)
   s.advanceTo(Phase.BATTLE);
   for (const ctrl of s.controllers) ctrl.initBattleState(s.state);
 
@@ -984,8 +984,8 @@ test("battle-start: host and watcher produce same phase and territory snapshot",
   let watcherTerritory: Set<number>[] | undefined;
   let bannerNewTerritory: Set<number>[] | undefined;
   // Intercept snapshotTerritory and banner to capture what the watcher produces
-  const origSnapshot = wCtx.battle.snapshotTerritory;
-  wCtx.battle.snapshotTerritory = () => {
+  const origSnapshot = wCtx.battleLifecycle.snapshotTerritory;
+  wCtx.battleLifecycle.snapshotTerritory = () => {
     watcherTerritory = origSnapshot();
     return watcherTerritory;
   };

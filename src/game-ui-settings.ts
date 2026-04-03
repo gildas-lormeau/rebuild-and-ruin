@@ -8,7 +8,6 @@ import {
   CANNON_HP_DEFAULT_INDEX,
   CANNON_HP_OPTIONS,
   DIFFICULTY_LABELS,
-  HAPTICS_ALL,
   HAPTICS_LABELS,
   OPT_CANNON_HP,
   OPT_DIFFICULTY,
@@ -20,11 +19,11 @@ import {
   ROUNDS_OPTIONS,
   ROUNDS_TO_THE_DEATH_INDEX,
   SOUND_LABELS,
-  SOUND_OFF,
 } from "./game-ui-types.ts";
 import {
   DIFFICULTY_NORMAL,
   type GameSettings,
+  HAPTICS_ALL,
   KEY_DOWN,
   KEY_LEFT,
   KEY_RIGHT,
@@ -34,6 +33,7 @@ import {
   PLAYER_KEY_BINDINGS,
   SEED_CUSTOM,
   SEED_RANDOM,
+  SOUND_OFF,
 } from "./player-config.ts";
 
 const SETTINGS_KEY = "castles99_settings";
@@ -111,6 +111,8 @@ export function formatKeyName(key: string): string {
   return key;
 }
 
+/** Cycle a settings option value left/right.
+ *  @param optionsReturnMode — null = lobby (editable), non-null = in-game (read-only for some options). */
 export function cycleOption(
   dir: number,
   optionsCursor: number,

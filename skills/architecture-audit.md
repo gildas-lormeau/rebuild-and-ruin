@@ -235,7 +235,7 @@ The following conventions are already well-documented in code comments. Agents s
 NOT flag these as findings — they have been verified and the existing documentation is
 sufficient for LLM agents to follow correctly.
 
-1. **recheckTerritory vs finalizeTerritoryWithScoring** — build-system.ts:172 and 189-193
+1. **recheckTerritoryOnly vs finalizeTerritoryWithScoring** — build-system.ts:172 and 189-193
    explain the difference and when to use each. cannon-system.ts:269 documents the precondition.
 
 2. **canPlaceCannon vs canPlacePiece validation difference** — build-system.ts:92-95 has
@@ -260,8 +260,10 @@ sufficient for LLM agents to follow correctly.
 8. **Canvas ctx.save()/ctx.restore() convention** — render-effects.ts:20-28 documents the full
    convention with code example. Applies across all render-* files.
 
-9. **Checkpoint validation boundary** — online-checkpoints.ts:52-55 JSDoc explains
-   captureBeforeApply and the checkpoint lifecycle at each function.
+9. **Checkpoint `capturePreState` ordering invariant** — online-checkpoints.ts:52-55 JSDoc
+   explains capturePreState and the lifecycle at each function. online-phase-transitions.ts:105-107
+   documents the ordering guarantee. runtime-phase-ticks.ts:165-166 has INVARIANT comment
+   reinforcing that banner captures oldCastles BEFORE applyCheckpoint mutates state.
 
 10. **`net` required on all tick deps interfaces** — runtime-phase-ticks.ts:5-9 documents
     `net is REQUIRED on all tick deps interfaces...the compiler enforces the choice.`
@@ -329,3 +331,27 @@ sufficient for LLM agents to follow correctly.
 26. **Coordinate system params are already named by space** — render-composition.ts uses
     `screenX`/`screenY` (canvas-pixel, with JSDoc), `canvasX`/`canvasY` (canvas-pixel),
     and `tileX`/`tileY` (game-space) consistently. Conversions are explicit inline.
+
+27. **Phantom vs crosshair dedup strategies differ by design** — phantoms use explicit
+    filter+push array replacement (online-server-events.ts:416 JSDoc). Crosshairs use
+    DedupChannel's atomic shouldSend() via makeCrosshairDedupKey() (online-host-crosshairs.ts:41).
+    Do not unify — they serve different network patterns (accumulated vs fire-and-forget).
+
+28. **`optionsReturnMode` null=lobby (editable), non-null=in-game (read-only)** —
+    runtime-state.ts:94-96 JSDoc documents the inverse semantics. game-ui-settings.ts:114
+    @param JSDoc repeats it. The value when non-null is the Mode to return to on close.
+
+29. **`modeTickers` is exhaustively typed via `satisfies`** — runtime.ts:184 uses
+    `satisfies Record<Exclude<Mode, Mode.STOPPED>, ...>` ensuring all tickable modes have
+    a ticker. STOPPED is excluded by design (tickMainLoop returns early for it).
+    Adding a new Mode without a corresponding ticker entry is a compile error.
+
+30. **Two-tier server dispatch: lobby switch vs game validation pipeline** —
+    server.ts:84-93 JSDoc explains lobby/room messages use a simple switch.
+    game-room.ts:329-336 JSDoc explains in-game messages use a 6-stage validation
+    pipeline. New game-state messages go in game-room.ts, not server.ts.
+
+31. **Touch-suppression pairing: all click handlers MUST check `isTouchSuppressed()`** —
+    input-mouse.ts:25-28 documents the convention. input-dispatch.ts:8-27 documents
+    markTouchTime() pairing. Prevents synthetic click events that mobile browsers fire
+    after touchend.

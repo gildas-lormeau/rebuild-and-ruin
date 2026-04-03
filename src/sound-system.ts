@@ -10,6 +10,7 @@
 import { sfxr } from "jsfxr";
 import { type BattleEvent, MESSAGE } from "../server/protocol.ts";
 import type { ValidPlayerSlot } from "./game-constants.ts";
+import { SOUND_ALL, SOUND_PHASE_ONLY } from "./player-config.ts";
 
 export interface SoundSystem {
   setLevel: (level: number) => void;
@@ -225,14 +226,11 @@ const DRUM_DROP_SECONDS = 0.8;
 const SINE: OscillatorType = "sine";
 const LOWPASS: BiquadFilterType = "lowpass";
 const BANDPASS: BiquadFilterType = "bandpass";
-/** Sound level thresholds: 0=off, 1=phase changes only, 2=all effects. */
-const SOUND_PHASE_ONLY = 1;
-const SOUND_ALL = 2;
 
 export function createSoundSystem(): SoundSystem {
   // ── Mutable state (closure-scoped) ─────────────────────────────────
 
-  let soundLevel = 2;
+  let soundLevel = SOUND_ALL;
   let audioCtx: AudioContext | null = null;
 
   // jsfxr pools

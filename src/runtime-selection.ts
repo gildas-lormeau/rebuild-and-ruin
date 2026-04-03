@@ -8,7 +8,7 @@
 
 import { type GameMessage, MESSAGE } from "../server/protocol.ts";
 import { getInterior } from "./board-occupancy.ts";
-import { recheckTerritory } from "./build-system.ts";
+import { recheckTerritoryOnly } from "./build-system.ts";
 import {
   createCastleBuildState,
   tickCastleBuildAnimation,
@@ -367,7 +367,7 @@ export function createSelectionSystem(
         runtimeState.castleBuilds[i] = result.next;
       }
     }
-    if (anyPlaced) recheckTerritory(runtimeState.state);
+    if (anyPlaced) recheckTerritoryOnly(runtimeState.state);
     // Unzoom once human player's castle build animation finishes
     if (humanBuildDone) {
       deps.camera.clearCastleBuildViewport();

@@ -413,6 +413,9 @@ function handleTowerKilled(
   return APPLIED;
 }
 
+/** Phantoms use explicit filter+push array replacement for dedup (latest preview wins).
+ *  Contrast with crosshairs in online-host-crosshairs.ts which use DedupChannel's
+ *  atomic shouldSend() mechanism — crosshairs are fire-and-forget, phantoms accumulate. */
 function handlePiecePhantom(
   msg: PiecePhantomMsg,
   state: GameState | undefined,

@@ -222,7 +222,7 @@ export function advanceCannonball(
  *
  * IMPORTANT: This function does NOT recompute territory/interior after wall
  * destruction. Interior is intentionally left stale during battle — it will
- * be recomputed at the next phase boundary (recheckTerritory / finalizeTerritoryWithScoring).
+ * be recomputed at the next phase boundary (recheckTerritoryOnly / finalizeTerritoryWithScoring).
  * Do not add interior recomputation here.
  *
  * @param shooterId — fallback owner for scoring when event lacks embedded shooterId
@@ -234,7 +234,7 @@ export function applyImpactEvent(
   shooterId?: number,
 ): void {
   // Interior is intentionally left stale during battle — recomputed at the next
-  // phase boundary (recheckTerritory / finalizeTerritoryWithScoring). This function does NOT
+  // phase boundary (recheckTerritoryOnly / finalizeTerritoryWithScoring). This function does NOT
   // recompute territory, so impacts during non-battle phases (e.g. test harness,
   // watcher replaying host events) won't corrupt interior unless callers assume
   // interior is fresh afterward. Do not add interior recomputation here.
@@ -248,7 +248,7 @@ export function applyImpactEvent(
     case MESSAGE.WALL_DESTROYED: {
       const player = state.players[event.playerId];
       if (player) {
-        // Interior intentionally stale during battle; recheckTerritory() runs at next build phase.
+        // Interior intentionally stale during battle; recheckTerritoryOnly() runs at next build phase.
         deletePlayerWallBattle(player, packTile(event.row, event.col));
         const shooter = sid !== undefined ? state.players[sid] : undefined;
         if (shooter && event.playerId !== sid) {

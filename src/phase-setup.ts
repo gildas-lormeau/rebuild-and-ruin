@@ -19,7 +19,7 @@ import {
 } from "./board-occupancy.ts";
 import {
   finalizeTerritoryWithScoring,
-  recheckTerritory,
+  recheckTerritoryOnly,
   removeBonusSquaresCoveredByWalls,
   replenishBonusSquares,
 } from "./build-system.ts";
@@ -108,7 +108,7 @@ export function rebuildHomeCastle(state: GameState, player: Player): void {
   }
   // Remove bonus squares under new walls
   removeBonusSquaresCoveredByWalls(state, player.walls);
-  recheckTerritory(state);
+  recheckTerritoryOnly(state);
 }
 
 /**
@@ -126,7 +126,7 @@ export function finalizeBuildPhase(state: GameState): {
 
 /** Finalize castle construction — claim territory, refill houses, replenish bonus squares. */
 export function finalizeCastleConstruction(state: GameState): void {
-  recheckTerritory(state);
+  recheckTerritoryOnly(state);
   startOfBuildPhaseHousekeeping(state);
   replenishBonusSquares(state);
 }
@@ -240,7 +240,7 @@ export function enterBattleFromCannon(state: GameState): void {
   state.burningPits = state.burningPits.filter((pit) => pit.roundsLeft > 0);
 
   sweepAllPlayersWalls(state);
-  recheckTerritory(state);
+  recheckTerritoryOnly(state);
   // From round 2+, each player has a chance to get grunts spawned on their zone
   if (state.round >= FIRST_GRUNT_SPAWN_ROUND) {
     for (const player of state.players.filter(isPlayerSeated)) {
@@ -258,7 +258,7 @@ export function enterBattleFromCannon(state: GameState): void {
   // Modern mode: apply battle-start modifiers
   if (state.activeModifier === MODIFIER_ID.WILDFIRE) {
     applyWildfire(state);
-    recheckTerritory(state);
+    recheckTerritoryOnly(state);
   }
   if (state.activeModifier === MODIFIER_ID.GRUNT_SURGE) applyGruntSurge(state);
   if (state.activeModifier === MODIFIER_ID.FROZEN_RIVER)
@@ -301,7 +301,7 @@ export function enterBuildFromBattle(state: GameState): void {
       spawnGruntGroupOnZone(state, player.id, IDLE_FIRST_BATTLE_GRUNTS);
     }
   }
-  recheckTerritory(state);
+  recheckTerritoryOnly(state);
   state.round++;
 
   // ── RNG consumption (BEFORE checkpoint — order is load-bearing for online sync) ──
@@ -330,7 +330,7 @@ export function enterBuildFromBattle(state: GameState): void {
   // Modern mode: apply build-start modifiers (after housekeeping so territory is fresh)
   if (state.activeModifier === MODIFIER_ID.CRUMBLING_WALLS) {
     applyCrumblingWalls(state);
-    recheckTerritory(state);
+    recheckTerritoryOnly(state);
   }
 }
 
@@ -520,7 +520,7 @@ function autoBuildCastles(state: GameState): void {
     addPlayerWalls(player, plan.tiles);
     player.castleWallTiles = new Set(plan.tiles);
   }
-  recheckTerritory(state);
+  recheckTerritoryOnly(state);
   for (const player of state.players) {
     if (player.homeTower) spawnHousesInZone(state, player.homeTower.zone);
   }

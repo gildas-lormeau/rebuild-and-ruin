@@ -104,7 +104,7 @@ const transitionCtx: TransitionContext = {
   ui: buildTransitionUiCtx(),
   checkpoint: buildTransitionCheckpointCtx(),
   selection: buildTransitionSelectionCtx(),
-  battle: buildTransitionBattleCtx(),
+  battleLifecycle: buildTransitionBattleCtx(),
   endPhase: buildTransitionEndPhaseCtx(),
   upgradePick: {
     tryShow: (onDone) => {
@@ -288,24 +288,12 @@ function buildTransitionUiCtx(): TransitionContext["ui"] {
 
 function buildTransitionCheckpointCtx(): TransitionContext["checkpoint"] {
   return {
-    applyCannonStart: (data, captureBeforeApply) =>
-      applyCannonStartCheckpoint(
-        data,
-        buildCheckpointDeps(),
-        captureBeforeApply,
-      ),
-    applyBattleStart: (data, captureBeforeApply) =>
-      applyBattleStartCheckpoint(
-        data,
-        buildCheckpointDeps(),
-        captureBeforeApply,
-      ),
-    applyBuildStart: (data, captureBeforeApply) =>
-      applyBuildStartCheckpoint(
-        data,
-        buildCheckpointDeps(),
-        captureBeforeApply,
-      ),
+    applyCannonStart: (data, capturePreState) =>
+      applyCannonStartCheckpoint(data, buildCheckpointDeps(), capturePreState),
+    applyBattleStart: (data, capturePreState) =>
+      applyBattleStartCheckpoint(data, buildCheckpointDeps(), capturePreState),
+    applyBuildStart: (data, capturePreState) =>
+      applyBuildStartCheckpoint(data, buildCheckpointDeps(), capturePreState),
     applyBuildEnd: applyBuildEndCheckpoint,
   };
 }
@@ -335,7 +323,7 @@ function buildTransitionSelectionCtx(): TransitionContext["selection"] {
   };
 }
 
-function buildTransitionBattleCtx(): TransitionContext["battle"] {
+function buildTransitionBattleCtx(): TransitionContext["battleLifecycle"] {
   return {
     setFlights: (flights) => {
       runtime.runtimeState.battleAnim.flights = flights;

@@ -22,9 +22,7 @@ export const CANNON_HP_OPTIONS = [
 /** Index into CANNON_HP_OPTIONS (not the HP value itself — value is 3 hits). */
 export const CANNON_HP_DEFAULT_INDEX = 0;
 export const HAPTICS_LABELS = ["Off", "Phase changes", "All"];
-export const HAPTICS_ALL = 2;
 export const SOUND_LABELS = ["Off", "Phase changes", "All"];
-export const SOUND_OFF = 0;
 export const DPAD_LABELS = ["Right-handed", "Left-handed"];
 export const GAME_MODE_LABELS = ["Classic", "Modern"];
 export const OPTION_NAMES = [

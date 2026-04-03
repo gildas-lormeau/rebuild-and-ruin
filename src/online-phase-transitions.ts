@@ -102,27 +102,27 @@ export interface TransitionContext {
   };
 
   // ── Checkpoint application ──
-  // Each method accepts an optional `captureBeforeApply` callback that runs BEFORE
+  // Each method accepts an optional `capturePreState` callback that runs BEFORE
   // applyPlayersCheckpoint mutates state. Use it to capture pre-state (walls,
   // scores, entities) needed for banner animations — the ordering is guaranteed.
   checkpoint: {
     applyCannonStart: (
       data: CannonStartData,
-      captureBeforeApply?: () => void,
+      capturePreState?: () => void,
     ) => void;
     applyBattleStart: (
       data: BattleStartData,
-      captureBeforeApply?: () => void,
+      capturePreState?: () => void,
     ) => void;
     applyBuildStart: (
       data: BuildStartData,
-      captureBeforeApply?: () => void,
+      capturePreState?: () => void,
     ) => void;
     applyBuildEnd: (
       state: GameState,
       players: readonly SerializedPlayer[],
       scores: readonly number[],
-      captureBeforeApply?: () => void,
+      capturePreState?: () => void,
     ) => void;
   };
 
@@ -141,7 +141,7 @@ export interface TransitionContext {
   };
 
   // ── Battle lifecycle ──
-  battle: {
+  battleLifecycle: {
     setFlights: (
       value: readonly {
         flight: {
@@ -295,7 +295,7 @@ export function handleBattleStartTransition(
         BANNER_BATTLE_ONLINE,
         () => {
           if (battleFlights && battleFlights.length > 0) {
-            transitionCtx.battle.setFlights(
+            transitionCtx.battleLifecycle.setFlights(
               battleFlights.map((flight) => ({
                 flight: {
                   startX: flight.startX,
@@ -308,7 +308,7 @@ export function handleBattleStartTransition(
             );
             transitionCtx.setMode(Mode.BALLOON_ANIM);
           } else {
-            transitionCtx.battle.beginBattle();
+            transitionCtx.battleLifecycle.beginBattle();
           }
         },
       ),
@@ -318,7 +318,7 @@ export function handleBattleStartTransition(
     },
     snapshotForBanner: () => {
       transitionCtx.ui.banner.newTerritory =
-        transitionCtx.battle.snapshotTerritory();
+        transitionCtx.battleLifecycle.snapshotTerritory();
       transitionCtx.ui.banner.newWalls = snapshotAllWalls(state);
     },
   });

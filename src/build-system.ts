@@ -131,7 +131,7 @@ export function canPlacePieceOffsets(
 }
 
 /** Apply a piece placement to the board. Marks walls dirty after mutation.
- *  WARNING: Leaves interior stale. Caller MUST call recheckTerritory(state) before
+ *  WARNING: Leaves interior stale. Caller MUST call recheckTerritoryOnly(state) before
  *  any code reads player.interior. Enforced at runtime by assertInteriorFresh().
  *  Used by host and watcher (no validation). */
 export function applyPiecePlacement(
@@ -159,7 +159,7 @@ export function applyPiecePlacement(
   state.bonusSquares = state.bonusSquares.filter(
     (b) => !pieceKeys.has(packTile(b.row, b.col)),
   );
-  recheckTerritory(state);
+  recheckTerritoryOnly(state);
   for (const pos of destroyedHousePositions) {
     spawnGruntNearPos(state, playerId, pos.row, pos.col);
   }
@@ -170,7 +170,7 @@ export function applyPiecePlacement(
  *  destroyEnclosedHouses → captureEnclosedBonusSquares → sweepMisplacedGrunts.
  *  Call after each piece placement or wall change during build phase.
  *  Do NOT use at end-of-build — use finalizeTerritoryWithScoring() instead (adds tower revival + scoring). */
-export function recheckTerritory(state: GameState): void {
+export function recheckTerritoryOnly(state: GameState): void {
   for (const player of state.players) {
     // Order is load-bearing — each step depends on the previous:
     // 1. recomputeInterior: flood-fill determines which tiles are enclosed
@@ -186,7 +186,7 @@ export function recheckTerritory(state: GameState): void {
   sweepMisplacedGrunts(state);
 }
 
-/** End-of-build territory finalization. Same as recheckTerritory() plus:
+/** End-of-build territory finalization. Same as recheckTerritoryOnly() plus:
  *  - Awards territory/enclosure scoring points
  *  - Resolves pending tower revives (towerPendingRevive → alive if still enclosed)
  *  - Clears unenclosed pending revives

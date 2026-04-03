@@ -54,13 +54,24 @@ export const KEY_LEFT = "ArrowLeft";
 export const KEY_RIGHT = "ArrowRight";
 export const KEY_ENTER = "Enter";
 export const KEY_ESCAPE = "Escape";
+/** Indices into DIFFICULTY_PARAMS — not difficulty values, but array positions. */
+export const DIFFICULTY_EASY = 0;
 export const DIFFICULTY_NORMAL = 1;
+export const DIFFICULTY_HARD = 2;
+export const DIFFICULTY_VERY_HARD = 3;
 export const DIFFICULTY_PARAMS = [
   { buildTimer: 30, cannonPlaceTimer: 20, firstRoundCannons: 4 }, // DIFFICULTY_EASY
   { buildTimer: 25, cannonPlaceTimer: 15, firstRoundCannons: 3 }, // DIFFICULTY_NORMAL
   { buildTimer: 20, cannonPlaceTimer: 12, firstRoundCannons: 2 }, // DIFFICULTY_HARD
   { buildTimer: 15, cannonPlaceTimer: 10, firstRoundCannons: 1 }, // DIFFICULTY_VERY_HARD
 ];
+/** Haptics/sound level encoding shared across settings UI and subsystems.
+ *  0=off (implicit — handled by >= checks), 1=phase changes only, 2=all. */
+export const HAPTICS_PHASE_ONLY = 1;
+export const HAPTICS_ALL = 2;
+export const SOUND_OFF = 0;
+export const SOUND_PHASE_ONLY = 1;
+export const SOUND_ALL = 2;
 export const PLAYER_NAMES = ["Red", "Blue", "Gold"] as const;
 // Player castle colors: wall and interior (checkerboard light/dark)
 export const PLAYER_COLORS: readonly PlayerColor[] = [

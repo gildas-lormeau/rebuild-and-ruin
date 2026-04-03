@@ -8,6 +8,7 @@
 
 import { type BattleEvent, MESSAGE } from "../server/protocol.ts";
 import { CAN_VIBRATE } from "./platform.ts";
+import { HAPTICS_ALL, HAPTICS_PHASE_ONLY } from "./player-config.ts";
 
 export interface HapticsSystem {
   setLevel: (level: number) => void;
@@ -28,9 +29,12 @@ const HAPTIC_TOWER_KILLED_MS = 200;
 const HAPTIC_CANNON_FIRED_MS = 15;
 
 export function createHapticsSystem(): HapticsSystem {
-  let hapticsLevel = 2;
+  let hapticsLevel = HAPTICS_ALL;
 
-  function vibrate(ms: number, minLevel: number): void {
+  function vibrate(
+    ms: number,
+    minLevel: typeof HAPTICS_PHASE_ONLY | typeof HAPTICS_ALL,
+  ): void {
     if (CAN_VIBRATE && hapticsLevel >= minLevel) navigator.vibrate(ms);
   }
 
@@ -40,12 +44,12 @@ export function createHapticsSystem(): HapticsSystem {
 
   /** Light tap for d-pad / button presses. */
   function tap(): void {
-    vibrate(HAPTIC_TAP_MS, 2);
+    vibrate(HAPTIC_TAP_MS, HAPTICS_ALL);
   }
 
   /** Phase transition banner. */
   function phaseChange(): void {
-    vibrate(HAPTIC_PHASE_CHANGE_MS, 1);
+    vibrate(HAPTIC_PHASE_CHANGE_MS, HAPTICS_PHASE_ONLY);
   }
 
   /** Process battle events and trigger appropriate haptics for the local player. */
@@ -53,23 +57,23 @@ export function createHapticsSystem(): HapticsSystem {
     events: ReadonlyArray<BattleEvent>,
     povPlayerId: number,
   ): void {
-    if (!CAN_VIBRATE || hapticsLevel < 2) return;
+    if (!CAN_VIBRATE || hapticsLevel < HAPTICS_ALL) return;
     for (const evt of events) {
       if (evt.type === MESSAGE.WALL_DESTROYED && evt.playerId === povPlayerId) {
-        vibrate(HAPTIC_WALL_HIT_MS, 2);
+        vibrate(HAPTIC_WALL_HIT_MS, HAPTICS_ALL);
       } else if (
         evt.type === MESSAGE.CANNON_DAMAGED &&
         evt.playerId === povPlayerId
       ) {
-        if (evt.newHp === 0) vibrate(HAPTIC_CANNON_DESTROYED_MS, 2);
-        else vibrate(HAPTIC_CANNON_DAMAGED_MS, 2);
+        if (evt.newHp === 0) vibrate(HAPTIC_CANNON_DESTROYED_MS, HAPTICS_ALL);
+        else vibrate(HAPTIC_CANNON_DAMAGED_MS, HAPTICS_ALL);
       } else if (evt.type === MESSAGE.TOWER_KILLED) {
-        vibrate(HAPTIC_TOWER_KILLED_MS, 2);
+        vibrate(HAPTIC_TOWER_KILLED_MS, HAPTICS_ALL);
       } else if (
         evt.type === MESSAGE.CANNON_FIRED &&
         evt.playerId === povPlayerId
       ) {
-        vibrate(HAPTIC_CANNON_FIRED_MS, 2);
+        vibrate(HAPTIC_CANNON_FIRED_MS, HAPTICS_ALL);
       }
     }
   }

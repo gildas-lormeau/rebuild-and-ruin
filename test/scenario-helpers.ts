@@ -10,7 +10,7 @@
 
 import { fireCannon, resolveBalloons, tickCannonballs } from "../src/battle-system.ts";
 import { clearPlayerWalls, deletePlayerWallBattle } from "../src/board-occupancy.ts";
-import { recheckTerritory, placePiece } from "../src/build-system.ts";
+import { recheckTerritoryOnly, placePiece } from "../src/build-system.ts";
 import { placeCannon, resetCannonFacings } from "../src/cannon-system.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/grid.ts";
 import type { PlayerController } from "../src/controller-interfaces.ts";
@@ -296,7 +296,7 @@ export function createScenario(seed = 42): Scenario {
       deletePlayerWallBattle(player, key);
       removed++;
     }
-    recheckTerritory(state);
+    recheckTerritoryOnly(state);
     return removed;
   }
 
@@ -549,12 +549,12 @@ export function createScenario(seed = 42): Scenario {
         bannerDuration: 3,
       },
       checkpoint: {
-        applyCannonStart: (data: CannonStartData, captureBeforeApply?: () => void) =>
-          applyCannonStartCheckpoint(data, checkpointDeps, captureBeforeApply),
-        applyBattleStart: (data: BattleStartData, captureBeforeApply?: () => void) =>
-          applyBattleStartCheckpoint(data, checkpointDeps, captureBeforeApply),
-        applyBuildStart: (data: BuildStartData, captureBeforeApply?: () => void) =>
-          applyBuildStartCheckpoint(data, checkpointDeps, captureBeforeApply),
+        applyCannonStart: (data: CannonStartData, capturePreState?: () => void) =>
+          applyCannonStartCheckpoint(data, checkpointDeps, capturePreState),
+        applyBattleStart: (data: BattleStartData, capturePreState?: () => void) =>
+          applyBattleStartCheckpoint(data, checkpointDeps, capturePreState),
+        applyBuildStart: (data: BuildStartData, capturePreState?: () => void) =>
+          applyBuildStartCheckpoint(data, checkpointDeps, capturePreState),
         applyBuildEnd: applyBuildEndCheckpoint,
       },
       selection: {
@@ -563,7 +563,7 @@ export function createScenario(seed = 42): Scenario {
         setCastleBuildFromPlans: () => {},
         setCastleBuildViewport: () => {},
       },
-      battle: {
+      battleLifecycle: {
         setFlights: () => {},
         snapshotTerritory: () =>
           state.players.map((p) => new Set(p.interior)),

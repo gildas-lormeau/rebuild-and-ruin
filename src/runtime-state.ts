@@ -91,6 +91,9 @@ export interface RuntimeState {
   quitPending: boolean;
   quitTimer: number;
   quitMessage: string;
+  /** If non-null, options screen is open during gameplay and settings are read-only.
+   *  Value is the Mode to return to when options close.
+   *  null = options opened from lobby (settings are editable). */
   optionsReturnMode: Mode | null;
   optionsCursor: number;
 

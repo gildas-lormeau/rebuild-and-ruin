@@ -1,7 +1,7 @@
 /**
  * Unit tests for the territory claiming pipeline.
  *
- * Tests recheckTerritory() and finalizeTerritoryWithScoring() — the most
+ * Tests recheckTerritoryOnly() and finalizeTerritoryWithScoring() — the most
  * bug-prone logic in the game engine. Covers:
  *   - Interior computation (inverse flood-fill)
  *   - Tower ownership
@@ -14,7 +14,7 @@
  */
 
 import {
-  recheckTerritory,
+  recheckTerritoryOnly,
   finalizeTerritoryWithScoring,
 } from "../src/build-system.ts";
 import { addPlayerWall, deletePlayerWallBattle, markWallsDirty } from "../src/board-occupancy.ts";
@@ -25,10 +25,10 @@ import { parseBoard, assert, test, runTests } from "./test-helpers.ts";
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Re-run recheckTerritory after modifying walls. */
-function reclaimTerritory(state: Parameters<typeof recheckTerritory>[0]): void {
+/** Re-run recheckTerritoryOnly after modifying walls. */
+function reclaimTerritory(state: Parameters<typeof recheckTerritoryOnly>[0]): void {
   for (const player of state.players) markWallsDirty(player);
-  recheckTerritory(state);
+  recheckTerritoryOnly(state);
 }
 
 /** Check if a tile (relative to parse offset) is in player's interior. */
@@ -165,7 +165,7 @@ test("grunt inside enclosed territory is removed", () => {
 # TT   #
 #      #
 ########`);
-  // parseBoard calls recheckTerritory which removes enclosed grunts
+  // parseBoard calls recheckTerritoryOnly which removes enclosed grunts
   assert(state.grunts.length === 0, `expected 0 grunts, got ${state.grunts.length}`);
 });
 

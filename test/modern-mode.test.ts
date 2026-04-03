@@ -6,7 +6,7 @@
  */
 
 import { clearPlayerWalls } from "../src/board-occupancy.ts";
-import { recheckTerritory } from "../src/build-system.ts";
+import { recheckTerritoryOnly } from "../src/build-system.ts";
 import { BALL_SPEED, GAME_MODE_MODERN, MODIFIER_FIRST_ROUND } from "../src/game-constants.ts";
 import type { ValidPlayerSlot } from "../src/game-constants.ts";
 import {
@@ -808,7 +808,7 @@ test("frozen river: grunts retarget cross-zone and walk onto ice", () => {
   for (const player of state.players) {
     clearPlayerWalls(player);
   }
-  recheckTerritory(state);
+  recheckTerritoryOnly(state);
 
   // Place grunts on bank tiles
   state.grunts = [];

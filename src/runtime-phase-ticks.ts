@@ -162,7 +162,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     executeTransition(CANNON_START_STEPS, {
       showBanner: () => {
         if (onBannerDone) {
-          // Banner captures oldCastles (with old facings) before checkpoint runs.
+          // INVARIANT: Banner captures oldCastles BEFORE applyCheckpoint mutates state.
+          // executeTransition guarantees this ordering via CANNON_START_STEPS.
           showCannonPhaseBanner(
             deps.showBanner,
             onBannerDone,

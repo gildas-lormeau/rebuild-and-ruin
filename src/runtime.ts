@@ -181,6 +181,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     tickCamera();
     tickScoreDeltaDisplay(dt);
 
+    // TickDispatch (runtime-state.ts) is Record<TickableMode, ...> where
+    // TickableMode = Exclude<Mode, Mode.STOPPED>. Adding a new Mode without
+    // a corresponding ticker entry here is a compile error.
     const modeTickers = {
       [Mode.LOBBY]: (dt: number) => lobby.tickLobby(dt),
       [Mode.OPTIONS]: () => options.renderOptions(),
@@ -192,7 +195,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       [Mode.LIFE_LOST]: (dt: number) => lifeLost.tick(dt),
       [Mode.UPGRADE_PICK]: (dt: number) => upgradePick.tick(dt),
       [Mode.GAME]: (dt: number) => phaseTicks.tickGame(dt),
-    };
+    } satisfies Record<Exclude<Mode, Mode.STOPPED>, (dt: number) => void>;
 
     const shouldContinue = tickMainLoop({
       dt,

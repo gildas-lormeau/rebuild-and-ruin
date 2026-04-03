@@ -36,6 +36,12 @@ import type {
   Tower,
 } from "./geometry-types.ts";
 import type { PieceShape } from "./pieces.ts";
+import {
+  DIFFICULTY_EASY,
+  DIFFICULTY_HARD,
+  DIFFICULTY_NORMAL,
+  DIFFICULTY_VERY_HARD,
+} from "./player-config.ts";
 import { Rng } from "./rng.ts";
 import { computeOutside, isTowerEnclosed, waterKeys } from "./spatial.ts";
 import {
@@ -278,12 +284,12 @@ export class DefaultStrategy implements AiStrategy {
   /**
    * @param archetype — force a specific archetype, or undefined to roll randomly
    * @param seed — PRNG seed for reproducibility
-   * @param difficulty — 0=Easy, 1=Normal, 2=Hard, 3=Very Hard; clamps trait ranges
+   * @param difficulty — DIFFICULTY_EASY..DIFFICULTY_VERY_HARD; clamps trait ranges
    */
   constructor(
     archetype?: ArchetypeType,
     seed?: number,
-    difficulty: number = 1,
+    difficulty: number = DIFFICULTY_NORMAL,
   ) {
     this.rng = new Rng(seed);
     this.archetype = archetype ?? rollArchetype(this.rng);
@@ -295,9 +301,11 @@ export class DefaultStrategy implements AiStrategy {
     //   Hard(2):      roll uniformly in [lo, hi] — original behavior, varied and strong
     //   Very Hard(3): hi end plus 1 (capped) — exceeds archetype limits
     const bias = (range: [number, number], cap: number): number => {
-      if (difficulty <= 0) return Math.max(1, range[0] - 1);
-      if (difficulty === 1) return range[0];
-      if (difficulty >= 3) return Math.min(cap, range[1] + 1);
+      if (difficulty <= DIFFICULTY_EASY) return Math.max(1, range[0] - 1);
+      if (difficulty === DIFFICULTY_NORMAL) return range[0];
+      if (difficulty === DIFFICULTY_HARD) return this.rng.int(...range);
+      if (difficulty >= DIFFICULTY_VERY_HARD)
+        return Math.min(cap, range[1] + 1);
       return this.rng.int(...range);
     };
 

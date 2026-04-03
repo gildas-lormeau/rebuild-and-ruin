@@ -47,7 +47,7 @@ export function broadcastLocalCrosshair(
   const target =
     (isAiAnimatable(ctrl) ? ctrl.getCrosshairTarget() : null) ?? ch;
   const orbit = isAiAnimatable(ctrl) ? ctrl.getOrbitParams() : null;
-  const key = `${Math.round(target.x)},${Math.round(target.y)},${orbit ? "o" : ""}`;
+  const key = makeCrosshairDedupKey(target, orbit);
   if (!deps.lastSentAimTarget.shouldSend(ctrl.playerId, key)) return;
   deps.send({
     type: MESSAGE.AIM_UPDATE,
@@ -97,4 +97,17 @@ export function extendWithRemoteCrosshairs(
     aimCannons(state, pid, visualPos.x, visualPos.y, dt);
   }
   return crosshairs;
+}
+
+/**
+ * Build dedup key for crosshair network sends.
+ * Format: "roundedX,roundedY,orbitFlag" — field order is load-bearing for dedup.
+ * Crosshairs use DedupChannel's atomic shouldSend() mechanism (no array rebuild).
+ * Contrast with phantoms in online-server-events.ts which use explicit filter+push.
+ */
+function makeCrosshairDedupKey(
+  target: { x: number; y: number },
+  orbit: unknown,
+): string {
+  return `${Math.round(target.x)},${Math.round(target.y)},${orbit ? "o" : ""}`;
 }
