@@ -736,7 +736,7 @@ function computeImpact(
   }
 
   // Step 4: houses and grunts (independent — towers NOT damaged by cannonballs)
-  collectHouseImpacts(state, events, row, col, shooterId);
+  collectHouseImpacts(state, events, row, col);
   collectGruntImpacts(state, events, row, col, shooterId);
 
   return events;
@@ -806,7 +806,6 @@ function collectHouseImpacts(
   events: ImpactEvent[],
   row: number,
   col: number,
-  shooterId: number,
 ): void {
   for (const house of state.map.houses) {
     if (house.alive && isAtTile(house, row, col)) {
@@ -815,11 +814,15 @@ function collectHouseImpacts(
       if (state.rng.bool(HOUSE_GRUNT_SPAWN_CHANCE)) {
         const spawnPos = findGruntSpawnNear(state, row, col);
         if (spawnPos) {
+          const zone = state.map.zones[spawnPos.row]?.[spawnPos.col] ?? -1;
+          const zoneOwner = state.players.find(
+            (pl) => pl.homeTower?.zone === zone,
+          );
           events.push({
             type: MESSAGE.GRUNT_SPAWNED,
             row: spawnPos.row,
             col: spawnPos.col,
-            victimPlayerId: shooterId,
+            victimPlayerId: zoneOwner?.id ?? 0,
           });
         }
       }

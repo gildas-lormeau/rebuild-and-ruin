@@ -428,7 +428,7 @@ export interface HouseDestroyedMessage {
 }
 
 /** A grunt was spawned (from house destruction or inter-battle).
- *  victimPlayerId = the player whose territory the grunt targets (not the attacker). */
+ *  victimPlayerId = the zone owner where the grunt spawned. */
 export interface GruntSpawnedMessage {
   type: "grunt_spawned";
   row: number;

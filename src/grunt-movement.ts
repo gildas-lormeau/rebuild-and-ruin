@@ -153,7 +153,8 @@ function lockGruntTarget(
   if (bestIdx === null) return;
   grunt.targetTowerIdx = bestIdx;
 
-  // Correct victimPlayerId to match zone owner (in case of mismatch from spawn)
+  // Ensure victimPlayerId matches the target tower's zone owner
+  // (frozen river can redirect grunts cross-zone, changing the victim)
   const towerZone = state.map.towers[bestIdx]!.zone;
   const zoneOwner = state.players.find(
     (player) => player.homeTower?.zone === towerZone,
@@ -208,9 +209,8 @@ export function isAdjacentToLivingTower(
   row: number,
   col: number,
   towerIndex: number,
-  deadZones?: ReadonlySet<number>,
 ): boolean {
-  return adjacentLivingTowerIndex(state, row, col, deadZones) === towerIndex;
+  return adjacentLivingTowerIndex(state, row, col) === towerIndex;
 }
 
 export function adjacentLivingTowerIndex(

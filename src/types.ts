@@ -191,7 +191,7 @@ export interface Player {
 }
 
 export interface Grunt extends TilePos {
-  /** The player whose territory this grunt is attacking (the victim, not the grunt owner). */
+  /** The player whose territory this grunt is attacking. Grunts are ownerless hazards. */
   victimPlayerId: number;
   /** Locked target tower index. Stays until the tower is destroyed. */
   targetTowerIdx?: number;

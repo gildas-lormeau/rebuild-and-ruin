@@ -64,18 +64,18 @@ const GRUNT_SPAWN_MIN_DISTANCE = 2;
 
 export function spawnGruntNearPos(
   state: GameState,
-  destroyerId: number,
+  excludePlayerId: number,
   posRow: number,
   posCol: number,
 ): void {
   if (
     state.players.every(
-      (player) => player.id === destroyerId || player.eliminated,
+      (player) => player.id === excludePlayerId || player.eliminated,
     )
   )
     return;
   const pos = findGruntSpawnNear(state, posRow, posCol);
-  if (pos) addGrunt(state, pos.row, pos.col, destroyerId);
+  if (pos) addGrunt(state, pos.row, pos.col);
 }
 
 /** Find the nearest free grass tile for a grunt spawn (BFS from position). Returns null if none found. */
@@ -119,7 +119,7 @@ export function spawnGruntOnZone(
   if (!isPlayerSeated(player)) return;
   const spawnPos = findGruntSpawnPositions(state, player, 1);
   for (const pos of spawnPos) {
-    addGrunt(state, pos.row, pos.col, playerId);
+    addGrunt(state, pos.row, pos.col);
   }
 }
 
@@ -142,7 +142,7 @@ export function spawnGruntGroupOnZone(
 
   const pushGrunt = (r: number, c: number) => {
     occupied.add(packTile(r, c));
-    addGrunt(state, r, c, playerId);
+    addGrunt(state, r, c);
     placed++;
   };
   pushGrunt(anchor.row, anchor.col);
@@ -220,7 +220,7 @@ export function spawnGruntSurgeOnZone(
 
     const pick = candidates[bestIdx]!;
     used.add(pick.key);
-    addGrunt(state, pick.row, pick.col, playerId);
+    addGrunt(state, pick.row, pick.col);
     placed++;
   }
 }
@@ -319,16 +319,22 @@ export function rollGruntWallAttacks(state: GameState): void {
   }
 }
 
-/** Add a grunt at (row, col). Validates position is in-bounds and on passable grass. */
-function addGrunt(
-  state: GameState,
-  row: number,
-  col: number,
-  victimPlayerId: number,
-): void {
+/** Add a grunt at (row, col). Validates position is in-bounds and on passable grass.
+ *  victimPlayerId is derived from the zone owner at spawn.
+ *  lockGruntTarget() is the source of truth — it reassigns victimPlayerId
+ *  based on the actual target tower's zone (e.g. during frozen river crossings). */
+function addGrunt(state: GameState, row: number, col: number): void {
   if (!inBounds(row, col) || !isGrass(state.map.tiles, row, col)) return;
-  // victimPlayerId is provisional at spawn — corrected in lockGruntTarget() to match actual zone owner
-  state.grunts.push({ row, col, victimPlayerId, blockedBattles: 0 });
+  const zone = state.map.zones[row]?.[col] ?? -1;
+  const zoneOwner = state.players.find(
+    (player) => player.homeTower?.zone === zone,
+  );
+  state.grunts.push({
+    row,
+    col,
+    victimPlayerId: zoneOwner?.id ?? 0,
+    blockedBattles: 0,
+  });
 }
 
 function enqueueUnvisitedTile(
