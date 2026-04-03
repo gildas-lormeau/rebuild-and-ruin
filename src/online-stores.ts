@@ -144,7 +144,7 @@ function createOnlineClient(): OnlineClient {
     destroy: () => {
       client.clearReconnect();
       resetSessionState(context.session);
-      resetDedupMaps(context.dedup);
+      client.resetNetworking("new-game");
     },
   };
   return client;
