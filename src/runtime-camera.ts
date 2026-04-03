@@ -601,10 +601,13 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // --- Lifecycle commands ---
 
   /** Clear current zoom but preserve per-phase pinch memory (battle↔build).
-   *  Use for phase transitions where the player may return to the same zoom. */
+   *  Use for phase transitions where the player may return to the same zoom.
+   *  Resets lastAutoZoomPhase so handlePhaseChangeZoom re-fires autoZoom
+   *  when the next interactive mode begins (fixes upgrade-pick → banner → build). */
   function clearPhaseZoom(): void {
     cameraZone = null;
     pinchVp = null;
+    lastAutoZoomPhase = null;
   }
 
   /** Clear all zoom state including per-phase pinch memory.
