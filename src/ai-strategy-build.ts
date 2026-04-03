@@ -391,7 +391,7 @@ function selectBestPlacement(
 
   // If no territory gain: discard or build toward unenclosed towers
   if (bestScore <= 0) {
-    const fb = pickFallbackPlacement(scored, state, {
+    const fb = pickFallbackPlacement(sortedScored, state, {
       walls: player.walls,
       outside,
       playerInterior: getInterior(player),
