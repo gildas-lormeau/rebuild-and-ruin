@@ -47,18 +47,6 @@ import type { FreshInterior, GameState, Grunt, Player } from "./types.ts";
  *  Initialized on first markWallsDirty() call. */
 const wallsEpoch = new WeakMap<Player, number>();
 const interiorEpoch = new WeakMap<Player, number>();
-/** Preset: tiles that block grunt spawning (zone-based).
- *  Includes interior: grunts must spawn OUTSIDE enclosed territory.
- *  Does NOT include bonusSquares: grunts can spawn on bonus tiles. */
-export const GRUNT_SPAWN_BLOCKED = {
-  includeWalls: true,
-  includeInterior: true,
-  includeCannons: true,
-  includeTowers: true,
-  includeHouses: true,
-  includeGrunts: true,
-  includePits: true,
-} as const;
 /** Preset: tiles that block bonus square placement.
  *  Does NOT include interior: bonus squares CAN appear inside territory
  *  (the separate `enclosed` check in replenishBonusSquares filters those).

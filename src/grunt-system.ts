@@ -6,8 +6,6 @@
 
 import { MESSAGE } from "../server/protocol.ts";
 import {
-  collectOccupiedTiles,
-  GRUNT_SPAWN_BLOCKED,
   hasGruntAt,
   hasInteriorAt,
   hasWallAt,
@@ -28,7 +26,6 @@ import {
   getGruntTargetTower,
   getLiveTargetTower,
   isAdjacentToLivingTower,
-  isGruntBlocked,
   isGruntPassableTile,
 } from "./grunt-movement.ts";
 import {
@@ -95,14 +92,7 @@ export function findGruntSpawnNear(
   while (queue.length > 0) {
     const { row: r, col: c } = queue.shift()!;
 
-    const tileKey = packTile(r, c);
-    if (
-      inBounds(r, c) &&
-      isGrass(state.map.tiles, r, c) &&
-      isGruntPassableTile(state, r, c) &&
-      !hasInteriorAt(state, tileKey) &&
-      !hasGruntAt(state, r, c)
-    ) {
+    if (isValidGruntSpawnTile(state, r, c)) {
       return { row: r, col: c };
     }
 
@@ -193,11 +183,11 @@ export function spawnGruntSurgeOnZone(
   if (zoneTowers.length === 0) return;
 
   // Collect bank/edge spawn candidates (same rules as normal spawning)
-  const blocked = collectOccupiedTiles(state, GRUNT_SPAWN_BLOCKED);
   const candidates: { row: number; col: number; key: number }[] = [];
   for (let r = 1; r < GRID_ROWS - 1; r++) {
     for (let c = 1; c < GRID_COLS - 1; c++) {
-      if (!isValidSpawnCandidate(state, r, c, zone, blocked)) continue;
+      if (state.map.zones[r]![c] !== zone) continue;
+      if (!isValidGruntSpawnTile(state, r, c)) continue;
       candidates.push({ row: r, col: c, key: packTile(r, c) });
     }
   }
@@ -354,19 +344,14 @@ function enqueueUnvisitedTile(
 function canUseGroupSpawnTile(
   state: GameState,
   zone: number,
-  occupied: Set<number>,
+  occupied: ReadonlySet<number>,
   row: number,
   col: number,
   key: number,
 ): boolean {
-  if (!inBounds(row, col)) return false;
-  if (!isGrass(state.map.tiles, row, col)) return false;
-  if (state.map.zones[row]![col] !== zone) return false;
-  if (!isGruntPassableTile(state, row, col)) return false;
   if (occupied.has(key)) return false;
-  if (hasGruntAt(state, row, col)) return false;
-  if (hasInteriorAt(state, key)) return false;
-  return true;
+  if (state.map.zones[row]?.[col] !== zone) return false;
+  return isValidGruntSpawnTile(state, row, col);
 }
 
 /** Find spawn positions for grunts in an enemy's zone, along the river bank. */
@@ -378,8 +363,6 @@ function findGruntSpawnPositions(
   const zone = enemy.homeTower?.zone;
   if (zone === undefined) return [];
 
-  const blocked = collectOccupiedTiles(state, GRUNT_SPAWN_BLOCKED);
-
   // Collect available grass tiles in zone, sorted by proximity to water
   const candidates: {
     row: number;
@@ -389,7 +372,8 @@ function findGruntSpawnPositions(
   }[] = [];
   for (let r = 1; r < GRID_ROWS - 1; r++) {
     for (let c = 1; c < GRID_COLS - 1; c++) {
-      if (!isValidSpawnCandidate(state, r, c, zone, blocked)) continue;
+      if (state.map.zones[r]![c] !== zone) continue;
+      if (!isValidGruntSpawnTile(state, r, c)) continue;
 
       const waterDist = minWaterDistance(state, r, c);
       const borderDist = Math.min(r, c, GRID_ROWS - 1 - r, GRID_COLS - 1 - c);
@@ -417,20 +401,20 @@ function findGruntSpawnPositions(
   return result;
 }
 
-/** Spawn-specific tile check (stricter than isGruntPassableTile for movement).
- *  isGrass rejects frozen water — grunts can walk on ice but can't spawn there. */
-function isValidSpawnCandidate(
+/** Core validity check for grunt spawning. Rejects frozen water (grunts
+ *  walk on ice but cannot spawn there), walls, interior territory, existing
+ *  grunts, and all blocking obstacles (cannons, houses, towers, pits).
+ *  Zone filtering and batch-dedup are layered on top by callers. */
+function isValidGruntSpawnTile(
   state: GameState,
   row: number,
   col: number,
-  zone: number,
-  occupied: ReadonlySet<number>,
 ): boolean {
+  if (!inBounds(row, col)) return false;
   if (!isGrass(state.map.tiles, row, col)) return false;
-  if (state.map.zones[row]![col] !== zone) return false;
-  if (isGruntBlocked(state, row, col)) return false;
-  if (occupied.has(packTile(row, col))) return false;
-  return true;
+  if (!isGruntPassableTile(state, row, col)) return false;
+  if (hasInteriorAt(state, packTile(row, col))) return false;
+  return !hasGruntAt(state, row, col);
 }
 
 function minWaterDistance(state: GameState, row: number, col: number): number {
