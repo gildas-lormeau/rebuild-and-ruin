@@ -11,14 +11,18 @@ export const ROUNDS_OPTIONS = [
   { value: 12, label: "12" },
   { value: 0, label: "To The Death" },
 ];
+export const ROUNDS_TO_THE_DEATH = 4;
 export const CANNON_HP_OPTIONS = [
   { value: 3, label: "3 hits" },
   { value: 6, label: "6 hits" },
   { value: 9, label: "9 hits" },
   { value: 12, label: "12 hits" },
 ];
+export const CANNON_HP_DEFAULT = 0;
 export const HAPTICS_LABELS = ["Off", "Phase changes", "All"];
+export const HAPTICS_ALL = 2;
 export const SOUND_LABELS = ["Off", "Phase changes", "All"];
+export const SOUND_OFF = 0;
 export const DPAD_LABELS = ["Right-handed", "Left-handed"];
 export const GAME_MODE_LABELS = ["Classic", "Modern"];
 export const OPTION_NAMES = [
