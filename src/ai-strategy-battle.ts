@@ -585,10 +585,11 @@ function planGruntTargets(
   const defenderZone = state.playerZones[defendingPlayerId];
   const grunts = state.grunts.filter((grunt) => {
     if (grunt.defendingPlayerId !== defendingPlayerId) return false;
-    // Frozen river: skip grunts whose target is in another zone (they're crossing to attack enemy)
-    if (frozenActive && grunt.targetTowerIdx !== undefined) {
-      const targetZone = state.map.towers[grunt.targetTowerIdx]?.zone;
-      if (targetZone !== undefined && targetZone !== defenderZone) return false;
+    // Frozen river: grunts in the defender's own zone will cross to attack the enemy —
+    // don't kill them. Only target grunts that are already in enemy territory heading back.
+    if (frozenActive) {
+      const gruntZone = state.map.zones[grunt.row]?.[grunt.col];
+      if (gruntZone === defenderZone) return false;
     }
     return true;
   });
