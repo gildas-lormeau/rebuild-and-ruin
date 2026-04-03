@@ -88,8 +88,6 @@ export function getLiveTargetTower(
  * Call once per grunt before any sorting or movement.
  */
 function lockGruntTarget(state: GameState, grunt: Grunt): void {
-  if (grunt.targetTowerIdx !== undefined) return;
-
   const gruntZone = state.map.zones[grunt.row]?.[grunt.col] ?? -1;
   const frozenActive = state.frozenTiles !== null;
 
@@ -99,6 +97,16 @@ function lockGruntTarget(state: GameState, grunt: Grunt): void {
       .filter((pl) => pl.eliminated && pl.homeTower)
       .map((pl) => pl.homeTower!.zone),
   );
+
+  // Drop stale target if it points at an eliminated player's zone
+  if (grunt.targetTowerIdx !== undefined) {
+    const targetZone = state.map.towers[grunt.targetTowerIdx]?.zone;
+    if (targetZone !== undefined && deadZones.has(targetZone)) {
+      grunt.targetTowerIdx = undefined;
+    } else {
+      return;
+    }
+  }
 
   let bestDist = Infinity;
   let bestIdx: number | null = null;
