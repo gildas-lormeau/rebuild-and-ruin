@@ -5,6 +5,7 @@
  * threaded from drawMap. See render-effects.ts for the full convention.
  */
 
+import type { RGB } from "./geometry-types.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
   computeLobbyLayout,
@@ -63,7 +64,11 @@ import {
   TEXT_BASELINE_MIDDLE,
   TEXT_WHITE,
 } from "./render-theme.ts";
-import { type GameOverOverlay, type RenderOverlay } from "./render-types.ts";
+import {
+  type GameOverOverlay,
+  type RenderOverlay,
+  type UpgradePickCard,
+} from "./render-types.ts";
 import {
   BG_BANNER,
   BG_OVERLAY,
@@ -423,75 +428,17 @@ export function drawUpgradePick(
     const cardsY = rowY + nameH;
 
     for (let ci = 0; ci < entry.cards.length; ci++) {
-      const card = entry.cards[ci]!;
-      const cx = rowX + ci * (cardW + cardGap);
-
-      // Card background
-      const isFocused =
-        isInteractive && card.focused && flashOn(BUTTON_FLASH_MS, time);
-      const borderColor = card.picked
-        ? rgb(entry.color)
-        : card.focused && isInteractive
-          ? GOLD
-          : SHADOW_COLOR;
-      drawPanel(
+      drawUpgradeCard(
         overlayCtx,
-        cx,
+        entry.cards[ci]!,
+        rowX + ci * (cardW + cardGap),
         cardsY,
         cardW,
         cardH,
-        card.picked ? GOLD_BG(OP_ACTIVE) : PANEL_BG(BG_OVERLAY),
-        borderColor,
+        isInteractive,
+        entry.color,
+        time,
       );
-
-      // Focus indicator (pulsing border)
-      if (isFocused) {
-        overlayCtx.strokeStyle = GOLD_LIGHT;
-        overlayCtx.lineWidth = 2;
-        overlayCtx.strokeRect(cx - 1, cardsY - 1, cardW + 2, cardH + 2);
-      }
-
-      const cardCx = cx + cardW / 2;
-
-      // Category badge
-      overlayCtx.font = FONT_SMALL;
-      overlayCtx.fillStyle = TEXT_DIM;
-      overlayCtx.textAlign = TEXT_ALIGN_CENTER;
-      overlayCtx.fillText(card.category.toUpperCase(), cardCx, cardsY + 12);
-
-      // Upgrade name
-      overlayCtx.font = FONT_BODY;
-      overlayCtx.fillStyle =
-        card.focused || card.picked ? TEXT_WHITE : GOLD_LIGHT;
-      overlayCtx.fillText(card.label, cardCx, cardsY + 30);
-
-      // Description (word-wrapped)
-      overlayCtx.font = FONT_SMALL;
-      overlayCtx.fillStyle = card.focused ? GOLD_LIGHT : TEXT_MUTED;
-      const maxTextW = cardW - INSET_X2;
-      const words = card.description.split(" ");
-      const lines: string[] = [];
-      let line = "";
-      for (const word of words) {
-        const test = line ? `${line} ${word}` : word;
-        if (overlayCtx.measureText(test).width > maxTextW) {
-          lines.push(line);
-          line = word;
-        } else {
-          line = test;
-        }
-      }
-      if (line) lines.push(line);
-      for (let li = 0; li < lines.length; li++) {
-        overlayCtx.fillText(lines[li]!, cardCx, cardsY + 46 + li * 12);
-      }
-
-      // Checkmark for picked card
-      if (card.picked) {
-        overlayCtx.font = FONT_BODY;
-        overlayCtx.fillStyle = rgb(entry.color);
-        overlayCtx.fillText("\u2713", cardCx, cardsY + cardH - 10);
-      }
     }
   }
 
@@ -821,5 +768,83 @@ function drawLifeLostEntry(
         py + PANEL_H - 18,
       );
     }
+  }
+}
+
+/** Draw a single upgrade card: background, focus indicator, category, name,
+ *  word-wrapped description, and picked checkmark. */
+function drawUpgradeCard(
+  ctx: CanvasRenderingContext2D,
+  card: UpgradePickCard,
+  cx: number,
+  cy: number,
+  cardW: number,
+  cardH: number,
+  isInteractive: boolean,
+  playerColor: RGB,
+  time: number,
+): void {
+  const isFocused =
+    isInteractive && card.focused && flashOn(BUTTON_FLASH_MS, time);
+  const borderColor = card.picked
+    ? rgb(playerColor)
+    : card.focused && isInteractive
+      ? GOLD
+      : SHADOW_COLOR;
+  drawPanel(
+    ctx,
+    cx,
+    cy,
+    cardW,
+    cardH,
+    card.picked ? GOLD_BG(OP_ACTIVE) : PANEL_BG(BG_OVERLAY),
+    borderColor,
+  );
+
+  if (isFocused) {
+    ctx.strokeStyle = GOLD_LIGHT;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cx - 1, cy - 1, cardW + 2, cardH + 2);
+  }
+
+  const cardCx = cx + cardW / 2;
+
+  // Category badge
+  ctx.font = FONT_SMALL;
+  ctx.fillStyle = TEXT_DIM;
+  ctx.textAlign = TEXT_ALIGN_CENTER;
+  ctx.fillText(card.category.toUpperCase(), cardCx, cy + 12);
+
+  // Upgrade name
+  ctx.font = FONT_BODY;
+  ctx.fillStyle = card.focused || card.picked ? TEXT_WHITE : GOLD_LIGHT;
+  ctx.fillText(card.label, cardCx, cy + 30);
+
+  // Description (word-wrapped)
+  ctx.font = FONT_SMALL;
+  ctx.fillStyle = card.focused ? GOLD_LIGHT : TEXT_MUTED;
+  const maxTextW = cardW - INSET_X2;
+  const words = card.description.split(" ");
+  const lines: string[] = [];
+  let line = "";
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxTextW) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  for (let li = 0; li < lines.length; li++) {
+    ctx.fillText(lines[li]!, cardCx, cy + 46 + li * 12);
+  }
+
+  // Checkmark for picked card
+  if (card.picked) {
+    ctx.font = FONT_BODY;
+    ctx.fillStyle = rgb(playerColor);
+    ctx.fillText("\u2713", cardCx, cy + cardH - 10);
   }
 }
