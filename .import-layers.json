@@ -12,7 +12,8 @@
       "src/router.ts",
       "src/online-dom.ts",
       "src/upgrade-defs.ts",
-      "src/utils.ts"
+      "src/utils.ts",
+      "server/send-utils.ts"
     ]
   },
   {
@@ -135,7 +136,8 @@
     "files": [
       "src/runtime-bootstrap.ts",
       "src/runtime-headless.ts",
-      "src/runtime-touch-ui.ts"
+      "src/runtime-touch-ui.ts",
+      "src/runtime-state.ts"
     ]
   },
   {
@@ -145,7 +147,8 @@
       "src/online-types.ts",
       "src/online-lobby-ui.ts",
       "src/online-server-lifecycle.ts",
-      "src/online-session.ts"
+      "src/online-session.ts",
+      "server/game-room.ts"
     ]
   },
   {
@@ -168,7 +171,6 @@
   {
     "name": "runtime",
     "files": [
-      "src/runtime-state.ts",
       "src/runtime-banner.ts",
       "src/runtime-camera.ts",
       "src/runtime-life-lost.ts",
@@ -197,8 +199,6 @@
       "src/entry.ts",
       "src/main.ts",
       "src/online-client.ts",
-      "server/send-utils.ts",
-      "server/game-room.ts",
       "server/room-manager.ts",
       "server/server.ts"
     ]
