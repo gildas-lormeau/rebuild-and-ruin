@@ -317,3 +317,15 @@ sufficient for LLM agents to follow correctly.
 23. **Eliminated-player guard in keyboard dispatch is NOT missing** — keyboard's
     `handleKeyGame` calls `dispatchGameAction` (input-dispatch.ts:336) which has the
     eliminated check built in. Do not report this as a missing guard.
+
+24. **Slot mutation atomicity is already enforced** — online-server-lifecycle.ts:82-101
+    defines `clearLobbySlot()` and `occupyLobbySlot()` helpers with explicit invariant
+    comments. All incremental slot mutations go through these helpers.
+
+25. **Player-check guard order is documented and consistent** — online-server-events.ts:1-28
+    documents three handler categories with explicit patterns (validPid → eliminated →
+    isRemoteHumanAction). Every handler in the file follows the documented pattern.
+
+26. **Coordinate system params are already named by space** — render-composition.ts uses
+    `screenX`/`screenY` (canvas-pixel, with JSDoc), `canvasX`/`canvasY` (canvas-pixel),
+    and `tileX`/`tileY` (game-space) consistently. Conversions are explicit inline.
