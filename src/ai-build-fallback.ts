@@ -43,7 +43,7 @@ export function pickFallbackPlacement(
   const {
     walls,
     outside,
-    interior,
+    playerInterior,
     castle,
     castleMargin,
     homeWasBroken,
@@ -66,7 +66,7 @@ export function pickFallbackPlacement(
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       const k = packTile(r, c);
-      if (!interior.has(k)) continue;
+      if (!playerInterior.has(k)) continue;
       if (walls.has(k)) continue;
       let blocked = false;
       for (const tower of state.map.towers) {

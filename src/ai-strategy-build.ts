@@ -669,7 +669,7 @@ export function pickPlacement(
     const fb = pickFallbackPlacement(scored, state, {
       walls: player.walls,
       outside,
-      interior: getInterior(player),
+      playerInterior: getInterior(player),
       castle,
       castleMargin,
       homeWasBroken: !!homeWasBroken,

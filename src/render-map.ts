@@ -315,7 +315,7 @@ function drawBannerOldScene(
   overlay: RenderOverlay | undefined,
   now: number,
 ): void {
-  if (!overlay?.ui?.banner || !overlay.ui.bannerOldCastles) {
+  if (!overlay?.ui?.banner || !overlay.ui.bannerPrevCastles) {
     clearBannerCache();
     return;
   }
@@ -324,9 +324,9 @@ function drawBannerOldScene(
   const clipY = Math.round(overlay.ui.banner.y - bannerH / 2);
   if (clipY >= H) return;
 
-  const oldCastles = overlay.ui.bannerOldCastles;
-  const oldTerritory = overlay.ui.bannerOldBattleTerritory;
-  const oldWalls = overlay.ui.bannerOldBattleWalls;
+  const oldCastles = overlay.ui.bannerPrevCastles;
+  const oldTerritory = overlay.ui.bannerPrevBattleTerritory;
+  const oldWalls = overlay.ui.bannerPrevBattleWalls;
   const needsBannerRender = !isBannerCacheValid(
     map,
     oldCastles,
@@ -340,9 +340,9 @@ function drawBannerOldScene(
       // Suppress selection highlights — they belong to the new phase
       selection: { highlighted: null, selected: null },
       castles: oldCastles,
-      entities: overlay.ui.bannerOldEntities
+      entities: overlay.ui.bannerPrevEntities
         ? {
-            ...overlay.ui.bannerOldEntities,
+            ...overlay.ui.bannerPrevEntities,
             homeTowers: overlay.entities?.homeTowers,
           }
         : overlay.entities,
@@ -359,7 +359,7 @@ function drawBannerOldScene(
         ...overlay.ui,
         banner: undefined,
         announcement: undefined,
-        bannerOldCastles: undefined,
+        bannerPrevCastles: undefined,
       },
       // Suppress phase-specific phantoms in old scene
       phantoms: {

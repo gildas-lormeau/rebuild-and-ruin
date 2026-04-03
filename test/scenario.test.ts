@@ -1271,11 +1271,11 @@ test("burning pits visible in overlay during cannon-to-battle banner", () => {
 
   // Old scene (above sweep) preserves pits via the snapshot
   assert(
-    overlay.ui!.bannerOldEntities !== undefined,
+    overlay.ui!.bannerPrevEntities !== undefined,
     "banner should have old entities snapshot",
   );
   assert(
-    overlay.ui!.bannerOldEntities!.burningPits!.length > 0,
+    overlay.ui!.bannerPrevEntities!.burningPits!.length > 0,
     "old scene should still show burning pits during the banner transition",
   );
 });

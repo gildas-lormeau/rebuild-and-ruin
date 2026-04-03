@@ -49,7 +49,7 @@ export type Scored = {
 export interface FallbackContext {
   walls: ReadonlySet<number>;
   outside: Set<number>;
-  interior: ReadonlySet<number>;
+  playerInterior: ReadonlySet<number>;
   castle: { tower: Tower };
   castleMargin: number;
   homeWasBroken: boolean;

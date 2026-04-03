@@ -451,12 +451,12 @@ export function createOnlineOverlay(params: {
           ? state.timer
           : undefined,
       banner: bannerUi,
-      bannerOldCastles: banner.active ? banner.prevCastles : undefined,
-      bannerOldBattleTerritory: banner.active
+      bannerPrevCastles: banner.active ? banner.prevCastles : undefined,
+      bannerPrevBattleTerritory: banner.active
         ? banner.prevTerritory
         : undefined,
-      bannerOldBattleWalls: banner.active ? banner.prevWalls : undefined,
-      bannerOldEntities: banner.active ? banner.prevEntities : undefined,
+      bannerPrevBattleWalls: banner.active ? banner.prevWalls : undefined,
+      bannerPrevEntities: banner.active ? banner.prevEntities : undefined,
       announcement: frame.announcement,
       gameOver: frame.gameOver,
       lifeLostDialog: buildLifeLostDialogUi(
