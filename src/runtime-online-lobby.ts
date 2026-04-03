@@ -19,7 +19,7 @@ import {
   pageOnline,
 } from "./online-dom.ts";
 import { initLobbyUi } from "./online-lobby-ui.ts";
-import { ctx, send } from "./online-stores.ts";
+import { defaultClient } from "./online-stores.ts";
 import { loadAtlas } from "./runtime-bootstrap.ts";
 import { connect } from "./runtime-online-ws.ts";
 
@@ -44,10 +44,10 @@ const initDomLobby = () =>
         lobbyElements.createError.textContent = msg;
         lobbyElements.joinError.textContent = msg;
       }),
-    send,
-    getSocket: () => ctx.session.socket,
+    send: defaultClient.send,
+    getSocket: () => defaultClient.ctx.session.socket,
     setIsHost: (value) => {
-      ctx.session.isHost = value; // eslint-disable-line no-restricted-syntax -- lobby host assignment
+      defaultClient.ctx.session.isHost = value; // eslint-disable-line no-restricted-syntax -- lobby host assignment
     },
     isVisible: () => !pageOnline.hidden,
   });
