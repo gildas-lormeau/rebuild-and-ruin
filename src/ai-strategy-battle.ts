@@ -597,7 +597,7 @@ function planGruntTargets(
   usableCannonCount: number,
   rng: Rng,
 ): TilePos[] | null {
-  const frozenActive = state.frozenTiles !== null;
+  const frozenActive = state.modern?.frozenTiles != null;
   const defenderZone = state.playerZones[victimPlayerId];
   const grunts = state.grunts.filter((grunt) => {
     if (grunt.victimPlayerId !== victimPlayerId) return false;
@@ -609,7 +609,7 @@ function planGruntTargets(
     }
     return true;
   });
-  const mod = state.activeModifier;
+  const mod = state.modern?.activeModifier;
   const threshold =
     mod === MODIFIER_ID.GRUNT_SURGE || mod === MODIFIER_ID.FROZEN_RIVER
       ? GRUNT_SWEEP_THRESHOLD_MODIFIER

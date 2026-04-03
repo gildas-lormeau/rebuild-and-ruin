@@ -92,7 +92,7 @@ export function rollModifier(state: GameState): ModifierId | null {
   if (!state.rng.bool(MODIFIER_ROLL_CHANCE)) return null;
 
   const candidates = MODIFIER_POOL.filter(
-    (mod) => mod.id !== state.lastModifierId,
+    (mod) => mod.id !== state.modern?.lastModifierId,
   );
   if (candidates.length === 0) return null;
 
@@ -199,7 +199,7 @@ export function applyFrozenRiver(state: GameState): void {
     }
   }
   if (frozen.size === 0) return;
-  state.frozenTiles = frozen;
+  state.modern!.frozenTiles = frozen;
 
   // Force all grunts to re-lock targets with zones open — grunts near the
   // river will pick cross-zone towers, grunts far away keep same-zone targets.
@@ -210,12 +210,13 @@ export function applyFrozenRiver(state: GameState): void {
 
 /** Thaw frozen river: kill grunts stranded on water, clear frozen state. */
 export function clearFrozenRiver(state: GameState): void {
-  if (state.frozenTiles) {
+  if (!state.modern) return;
+  if (state.modern.frozenTiles) {
     state.grunts = state.grunts.filter(
-      (gr) => !state.frozenTiles!.has(packTile(gr.row, gr.col)),
+      (gr) => !state.modern!.frozenTiles!.has(packTile(gr.row, gr.col)),
     );
   }
-  state.frozenTiles = null;
+  state.modern.frozenTiles = null;
 }
 
 /** Generate the scar shape: random-walk a cardinal spine, then fatten it.

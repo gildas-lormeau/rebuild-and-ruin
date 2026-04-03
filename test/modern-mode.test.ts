@@ -50,7 +50,7 @@ import {
 import { MESSAGE } from "../server/protocol.ts";
 import { handleServerIncrementalMessage } from "../src/online-server-events.ts";
 import type { WatcherNetworkState } from "../src/online-types.ts";
-import { type SelectionState } from "../src/types.ts";
+import { type ModernState, type SelectionState } from "../src/types.ts";
 import { type UpgradeId, UID } from "../src/upgrade-defs.ts";
 import { generateUpgradeOffers } from "../src/phase-setup.ts";
 import { createUpgradePickDialog } from "../src/upgrade-pick.ts";
@@ -61,8 +61,19 @@ import { assert, runTests, test } from "./test-helpers.ts";
 // Helpers
 // ---------------------------------------------------------------------------
 
+function emptyModernState(): ModernState {
+  return {
+    activeModifier: null,
+    lastModifierId: null,
+    comboTracker: null,
+    pendingUpgradeOffers: null,
+    frozenTiles: null,
+  };
+}
+
 function setModern(runtime: HeadlessRuntime): void {
   runtime.state.gameMode = GAME_MODE_MODERN;
+  runtime.state.modern = emptyModernState();
 }
 
 function freshAccums(): CheckpointAccums {
@@ -95,12 +106,13 @@ test("modifier no-repeat rule: same modifier never appears twice in a row", () =
   // Seed 4 rolls all 4 modifier types within 10 rounds
   const s = createScenario(4);
   s.state.gameMode = GAME_MODE_MODERN;
+  s.state.modern = emptyModernState();
   let prev: string | null = null;
   for (let round = 0; round < 10; round++) {
     s.state.round = MODIFIER_FIRST_ROUND + round;
-    s.state.lastModifierId = s.state.activeModifier;
-    s.state.activeModifier = rollModifier(s.state);
-    const current = s.state.activeModifier;
+    s.state.modern!.lastModifierId = s.state.modern!.activeModifier;
+    s.state.modern!.activeModifier = rollModifier(s.state);
+    const current = s.state.modern!.activeModifier;
     if (current !== null && prev !== null) {
       assert(
         current !== prev,
@@ -114,6 +126,7 @@ test("modifier no-repeat rule: same modifier never appears twice in a row", () =
 test("Master Builder adds +5s to build timer", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
+  s.state.modern = emptyModernState();
   const baseBuildTimer = s.state.buildTimer;
 
   s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
@@ -131,6 +144,7 @@ test("Master Builder adds +5s to build timer", () => {
 test("Master Builder ignores eliminated players", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
+  s.state.modern = emptyModernState();
   const baseBuildTimer = s.state.buildTimer;
 
   s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
@@ -165,6 +179,7 @@ test("Reinforced Walls: first hit absorbed, second destroys", () => {
 test("damagedWalls cleared at build phase start", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
+  s.state.modern = emptyModernState();
   const player = s.state.players[0]!;
   player.upgrades.set(UID.REINFORCED_WALLS as UpgradeId, 1);
 
@@ -195,8 +210,8 @@ test("BUILD_START checkpoint preserves modern mode fields", () => {
   setModern(host);
 
   // Set modern-mode specific state
-  host.state.activeModifier = "wildfire";
-  host.state.lastModifierId = "grunt_surge";
+  host.state.modern!.activeModifier = "wildfire";
+  host.state.modern!.lastModifierId = "grunt_surge";
   host.state.players[0]!.upgrades.set(UID.REINFORCED_WALLS as UpgradeId, 2);
   host.state.players[1]!.upgrades.set(UID.RAPID_FIRE as UpgradeId, 1);
   host.state.players[0]!.damagedWalls.add(100);
@@ -204,7 +219,7 @@ test("BUILD_START checkpoint preserves modern mode fields", () => {
 
   // Generate pending offers
   host.state.round = 3;
-  host.state.pendingUpgradeOffers = generateUpgradeOffers(host.state);
+  host.state.modern!.pendingUpgradeOffers = generateUpgradeOffers(host.state);
 
   const msg = createBuildStartMessage(host.state);
 
@@ -216,12 +231,12 @@ test("BUILD_START checkpoint preserves modern mode fields", () => {
 
   // Verify modifier state
   assert(
-    watcher.state.activeModifier === "wildfire",
-    `activeModifier: expected wildfire, got ${watcher.state.activeModifier}`,
+    watcher.state.modern!.activeModifier === "wildfire",
+    `activeModifier: expected wildfire, got ${watcher.state.modern!.activeModifier}`,
   );
   assert(
-    watcher.state.lastModifierId === "grunt_surge",
-    `lastModifierId: expected grunt_surge, got ${watcher.state.lastModifierId}`,
+    watcher.state.modern!.lastModifierId === "grunt_surge",
+    `lastModifierId: expected grunt_surge, got ${watcher.state.modern!.lastModifierId}`,
   );
 
   // Verify upgrades
@@ -246,12 +261,12 @@ test("BUILD_START checkpoint preserves modern mode fields", () => {
 
   // Verify pending offers
   assert(
-    watcher.state.pendingUpgradeOffers !== null,
+    watcher.state.modern!.pendingUpgradeOffers !== null,
     "pendingUpgradeOffers should be restored",
   );
   assert(
-    watcher.state.pendingUpgradeOffers!.size ===
-      host.state.pendingUpgradeOffers!.size,
+    watcher.state.modern!.pendingUpgradeOffers!.size ===
+      host.state.modern!.pendingUpgradeOffers!.size,
     "offer count should match",
   );
 });
@@ -259,15 +274,15 @@ test("BUILD_START checkpoint preserves modern mode fields", () => {
 test("FULL_STATE checkpoint preserves modern mode fields", () => {
   const host = createHeadlessRuntime(77);
   setModern(host);
-  host.state.activeModifier = "crumbling_walls";
-  host.state.lastModifierId = "wildfire";
+  host.state.modern!.activeModifier = "crumbling_walls";
+  host.state.modern!.lastModifierId = "wildfire";
   host.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 3);
   // cannonLimits + playerZones must be populated for full-state validation
   host.state.cannonLimits = host.state.players.map(() => 3);
   host.state.playerZones = host.state.players.map((_, idx) => idx);
 
   host.state.round = 4;
-  host.state.pendingUpgradeOffers = generateUpgradeOffers(host.state);
+  host.state.modern!.pendingUpgradeOffers = generateUpgradeOffers(host.state);
 
   const msg = createFullStateMessage(host.state, 1);
 
@@ -277,11 +292,11 @@ test("FULL_STATE checkpoint preserves modern mode fields", () => {
   assert(result !== null, "full state restore should succeed");
 
   assert(
-    watcher.state.activeModifier === "crumbling_walls",
+    watcher.state.modern!.activeModifier === "crumbling_walls",
     "activeModifier should survive full-state round-trip",
   );
   assert(
-    watcher.state.lastModifierId === "wildfire",
+    watcher.state.modern!.lastModifierId === "wildfire",
     "lastModifierId should survive full-state round-trip",
   );
   assert(
@@ -289,7 +304,7 @@ test("FULL_STATE checkpoint preserves modern mode fields", () => {
     "upgrades should survive full-state round-trip",
   );
   assert(
-    watcher.state.pendingUpgradeOffers !== null,
+    watcher.state.modern!.pendingUpgradeOffers !== null,
     "pendingUpgradeOffers should survive full-state round-trip",
   );
 });
@@ -298,6 +313,7 @@ test("modern headless game runs to completion without violations", () => {
   for (let seed = 1; seed <= 5; seed++) {
     const s = createScenario(seed);
     s.state.gameMode = GAME_MODE_MODERN;
+    s.state.modern = emptyModernState();
     // Play 8 rounds — exercises modifiers, offers, and potentially all 3 upgrade effects
     s.playRounds(8);
 
@@ -318,6 +334,7 @@ test("modern headless game runs to completion without violations", () => {
 test("applyWildfire creates burning pits", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
+  s.state.modern = emptyModernState();
   const pitsBefore = s.state.burningPits.length;
 
   applyWildfire(s.state);
@@ -331,6 +348,7 @@ test("applyWildfire creates burning pits", () => {
 test("applyCrumblingWalls destroys outer walls but protects castle walls", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
+  s.state.modern = emptyModernState();
   // Play a round so players have built walls beyond their castle
   s.playRounds(1);
   const player = s.state.players[0]!;
@@ -360,6 +378,7 @@ test("applyCrumblingWalls destroys outer walls but protects castle walls", () =>
 test("applyGruntSurge spawns extra grunts", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
+  s.state.modern = emptyModernState();
   s.state.round = 3; // past FIRST_GRUNT_SPAWN_ROUND
   const gruntsBefore = s.state.grunts.length;
 
@@ -428,10 +447,12 @@ test("two modern games with same seed produce identical state", () => {
   for (let seed = 1; seed <= 3; seed++) {
     const s1 = createScenario(seed);
     s1.state.gameMode = GAME_MODE_MODERN;
+    s1.state.modern = emptyModernState();
     s1.playRounds(6);
 
     const s2 = createScenario(seed);
     s2.state.gameMode = GAME_MODE_MODERN;
+    s2.state.modern = emptyModernState();
     s2.playRounds(6);
 
     // Compare key state
@@ -440,7 +461,7 @@ test("two modern games with same seed produce identical state", () => {
       `seed ${seed}: rounds differ ${s1.state.round} vs ${s2.state.round}`,
     );
     assert(
-      s1.state.activeModifier === s2.state.activeModifier,
+      s1.state.modern!.activeModifier === s2.state.modern!.activeModifier,
       `seed ${seed}: activeModifier differs`,
     );
     for (let pi = 0; pi < s1.state.players.length; pi++) {
@@ -628,8 +649,9 @@ test("modifierBannerText returns text for cannon-announced modifiers", () => {
 test("createUpgradePickDialog returns dialog from pending offers", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
+  s.state.modern = emptyModernState();
   s.state.round = 3;
-  s.state.pendingUpgradeOffers = generateUpgradeOffers(s.state);
+  s.state.modern!.pendingUpgradeOffers = generateUpgradeOffers(s.state);
 
   const dialog = createUpgradePickDialog({
     state: s.state,
@@ -702,7 +724,8 @@ test("demolition bonus for 5+ walls in a round", () => {
 test("combo tracker is created at battle start in modern mode", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
-  assert(s.state.comboTracker === null, "no tracker before battle");
+  s.state.modern = emptyModernState();
+  assert(s.state.modern!.comboTracker === null, "no tracker before battle");
   s.runCannon();
   s.runBattle(0.1);
   // After runBattle calls nextPhase(CANNON→BATTLE), comboTracker should exist
@@ -710,13 +733,14 @@ test("combo tracker is created at battle start in modern mode", () => {
   // So we check during a shorter flow: just enter battle
   const s2 = createScenario(42);
   s2.state.gameMode = GAME_MODE_MODERN;
+  s2.state.modern = emptyModernState();
   s2.runCannon();
   // runBattle calls nextPhase which enters BATTLE and creates tracker
   // then ticks battle, then nextPhase to BUILD which clears tracker
   // We can't inspect mid-battle, but we can verify it was created and cleared
   s2.runBattle(0.1);
   // After battle→build transition, tracker should be null (cleared in enterBuildFromBattle)
-  assert(s2.state.comboTracker === null, "tracker cleared after battle");
+  assert(s2.state.modern!.comboTracker === null, "tracker cleared after battle");
 });
 
 test("combos are per-player independent", () => {
@@ -744,10 +768,11 @@ test("combos are per-player independent", () => {
 test("applyFrozenRiver freezes all water tiles", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
+  s.state.modern = emptyModernState();
   applyFrozenRiver(s.state);
 
-  assert(s.state.frozenTiles !== null, "frozenTiles should be set");
-  assert(s.state.frozenTiles!.size > 0, "frozenTiles should not be empty");
+  assert(s.state.modern!.frozenTiles !== null, "frozenTiles should be set");
+  assert(s.state.modern!.frozenTiles!.size > 0, "frozenTiles should not be empty");
 
   // Every frozen tile should be a water tile, and every water tile should be frozen
   let waterCount = 0;
@@ -756,30 +781,31 @@ test("applyFrozenRiver freezes all water tiles", () => {
       if (s.state.map.tiles[r]![c] === 1) {
         waterCount++;
         assert(
-          s.state.frozenTiles!.has(r * 44 + c),
+          s.state.modern!.frozenTiles!.has(r * 44 + c),
           `water tile (${r},${c}) should be frozen`,
         );
       }
     }
   }
   assert(
-    s.state.frozenTiles!.size === waterCount,
-    `frozen count ${s.state.frozenTiles!.size} should equal water count ${waterCount}`,
+    s.state.modern!.frozenTiles!.size === waterCount,
+    `frozen count ${s.state.modern!.frozenTiles!.size} should equal water count ${waterCount}`,
   );
 });
 
 test("isGruntBlocked allows frozen water tiles", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
+  s.state.modern = emptyModernState();
   applyFrozenRiver(s.state);
 
-  const key = s.state.frozenTiles!.values().next().value!;
+  const key = s.state.modern!.frozenTiles!.values().next().value!;
   const r = Math.floor(key / 44);
   const c = key % 44;
   assert(!isGruntBlocked(s.state, r, c), `frozen tile (${r},${c}) should be passable`);
 
   // Remove from frozen set — should block again
-  s.state.frozenTiles!.delete(key);
+  s.state.modern!.frozenTiles!.delete(key);
   assert(isGruntBlocked(s.state, r, c), `unfrozen water (${r},${c}) should be blocked`);
 });
 
@@ -787,6 +813,7 @@ test("frozen river: grunts retarget cross-zone and walk onto ice", () => {
   const runtime = createHeadlessRuntime(42);
   const state = runtime.state;
   state.gameMode = GAME_MODE_MODERN;
+  state.modern = emptyModernState();
 
   // Find interior grass tiles adjacent to water in player 0's zone
   const zone1 = state.players[0]!.homeTower!.zone;
@@ -846,10 +873,11 @@ test("frozen river: grunts retarget cross-zone and walk onto ice", () => {
 test("clearFrozenRiver kills grunts stranded on water", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
+  s.state.modern = emptyModernState();
   applyFrozenRiver(s.state);
 
   // Place a grunt on a frozen water tile
-  const key = s.state.frozenTiles!.values().next().value!;
+  const key = s.state.modern!.frozenTiles!.values().next().value!;
   const r = Math.floor(key / 44);
   const c = key % 44;
   s.state.grunts.push({
@@ -862,7 +890,7 @@ test("clearFrozenRiver kills grunts stranded on water", () => {
 
   clearFrozenRiver(s.state);
 
-  assert(s.state.frozenTiles === null, "frozenTiles should be null after thaw");
+  assert(s.state.modern!.frozenTiles === null, "frozenTiles should be null after thaw");
   assert(
     s.state.grunts.length < before,
     `grunt on water should be killed: ${s.state.grunts.length} should be < ${before}`,
@@ -872,20 +900,21 @@ test("clearFrozenRiver kills grunts stranded on water", () => {
 test("frozen river persists through build phase, thaws at next battle", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
-  s.state.activeModifier = "frozen_river";
+  s.state.modern = emptyModernState();
+  s.state.modern!.activeModifier = "frozen_river";
   applyFrozenRiver(s.state);
-  assert(s.state.frozenTiles !== null, "should have frozen tiles");
+  assert(s.state.modern!.frozenTiles !== null, "should have frozen tiles");
 
   // Verify clearFrozenRiver thaws correctly
   clearFrozenRiver(s.state);
-  assert(s.state.frozenTiles === null, "clearFrozenRiver should null frozenTiles");
+  assert(s.state.modern!.frozenTiles === null, "clearFrozenRiver should null frozenTiles");
 });
 
 test("online checkpoint round-trip preserves frozen state", () => {
   const runtime = createHeadlessRuntime(42);
   setModern(runtime);
   applyFrozenRiver(runtime.state);
-  assert(runtime.state.frozenTiles !== null, "host should have frozen tiles");
+  assert(runtime.state.modern!.frozenTiles !== null, "host should have frozen tiles");
 
   const msg = createBattleStartMessage(runtime.state);
   const watcher = createHeadlessRuntime(42);
@@ -893,10 +922,10 @@ test("online checkpoint round-trip preserves frozen state", () => {
   const deps = makeDeps(watcher);
 
   applyBattleStartCheckpoint(msg, deps);
-  assert(deps.state.frozenTiles !== null, "watcher should have frozen tiles");
+  assert(deps.state.modern!.frozenTiles !== null, "watcher should have frozen tiles");
   assert(
-    deps.state.frozenTiles!.size === runtime.state.frozenTiles!.size,
-    `watcher frozen size ${deps.state.frozenTiles!.size} !== host ${runtime.state.frozenTiles!.size}`,
+    deps.state.modern!.frozenTiles!.size === runtime.state.modern!.frozenTiles!.size,
+    `watcher frozen size ${deps.state.modern!.frozenTiles!.size} !== host ${runtime.state.modern!.frozenTiles!.size}`,
   );
 });
 
@@ -909,11 +938,12 @@ test("FULL_STATE checkpoint preserves frozen state", () => {
 
   const msg = createFullStateMessage(runtime.state, 1);
   const runtime2 = createHeadlessRuntime(42);
+  setModern(runtime2);
   restoreFullStateSnapshot(runtime2.state, msg);
 
-  assert(runtime2.state.frozenTiles !== null, "restored should have frozen tiles");
+  assert(runtime2.state.modern!.frozenTiles !== null, "restored should have frozen tiles");
   assert(
-    runtime2.state.frozenTiles!.size === runtime.state.frozenTiles!.size,
+    runtime2.state.modern!.frozenTiles!.size === runtime.state.modern!.frozenTiles!.size,
     "restored frozen tile count should match",
   );
 });
@@ -921,7 +951,8 @@ test("FULL_STATE checkpoint preserves frozen state", () => {
 test("modifier no-repeat applies to frozen_river", () => {
   const s = createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
-  s.state.lastModifierId = "frozen_river";
+  s.state.modern = emptyModernState();
+  s.state.modern!.lastModifierId = "frozen_river";
   let rolledFrozen = false;
   for (let i = 0; i < 50; i++) {
     s.state.round = MODIFIER_FIRST_ROUND + i;

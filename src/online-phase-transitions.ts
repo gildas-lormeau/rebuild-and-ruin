@@ -274,7 +274,10 @@ export function handleCannonStartTransition(
           );
           transitionCtx.setMode(Mode.GAME);
         },
-        modifierBannerText(state.activeModifier, BANNER_PHASE_CANNON),
+        modifierBannerText(
+          state.modern?.activeModifier ?? null,
+          BANNER_PHASE_CANNON,
+        ),
       ),
   });
 }
@@ -363,7 +366,10 @@ export function handleBuildStartTransition(
             );
             transitionCtx.setMode(Mode.GAME);
           },
-          modifierBannerText(state.activeModifier, BANNER_PHASE_BUILD),
+          modifierBannerText(
+            state.modern?.activeModifier ?? null,
+            BANNER_PHASE_BUILD,
+          ),
         ),
       applyCheckpoint: () => {
         // Already applied above — no-op

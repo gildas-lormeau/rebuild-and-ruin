@@ -168,7 +168,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
             deps.showBanner,
             onBannerDone,
             modifierBannerText(
-              runtimeState.state.activeModifier,
+              runtimeState.state.modern?.activeModifier ?? null,
               BANNER_PHASE_CANNON,
             ),
           );
@@ -385,7 +385,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
                   runtimeState.mode = Mode.GAME;
                 },
                 modifierBannerText(
-                  runtimeState.state.activeModifier,
+                  runtimeState.state.modern?.activeModifier ?? null,
                   BANNER_PHASE_BUILD,
                 ),
               ),

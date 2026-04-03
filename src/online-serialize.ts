@@ -21,6 +21,7 @@ import {
   type Cannonball,
   type GameState,
   Phase,
+  type UpgradeOfferTuple,
 } from "./types.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 
@@ -56,12 +57,14 @@ export function createBuildStartMessage(state: GameState) {
     towerAlive: [...state.towerAlive],
     burningPits: serializeBurningPits(state),
     rngSeed: state.rng.seed,
-    activeModifier: state.activeModifier,
-    lastModifierId: state.lastModifierId,
-    pendingUpgradeOffers: state.pendingUpgradeOffers
-      ? [...state.pendingUpgradeOffers.entries()]
+    activeModifier: state.modern?.activeModifier ?? null,
+    lastModifierId: state.modern?.lastModifierId ?? null,
+    pendingUpgradeOffers: state.modern?.pendingUpgradeOffers
+      ? [...state.modern.pendingUpgradeOffers.entries()]
       : null,
-    frozenTiles: state.frozenTiles ? [...state.frozenTiles] : null,
+    frozenTiles: state.modern?.frozenTiles
+      ? [...state.modern.frozenTiles]
+      : null,
   };
 }
 
@@ -103,7 +106,9 @@ export function createBattleStartMessage(
             endY: flight.endY,
           }))
         : null,
-    frozenTiles: state.frozenTiles ? [...state.frozenTiles] : null,
+    frozenTiles: state.modern?.frozenTiles
+      ? [...state.modern.frozenTiles]
+      : null,
   };
 }
 
@@ -134,12 +139,14 @@ export function createFullStateMessage(
     cannonLimits: [...state.cannonLimits],
     playerZones: [...state.playerZones],
     gameMode: state.gameMode,
-    activeModifier: state.activeModifier,
-    lastModifierId: state.lastModifierId,
-    pendingUpgradeOffers: state.pendingUpgradeOffers
-      ? [...state.pendingUpgradeOffers.entries()]
+    activeModifier: state.modern?.activeModifier ?? null,
+    lastModifierId: state.modern?.lastModifierId ?? null,
+    pendingUpgradeOffers: state.modern?.pendingUpgradeOffers
+      ? [...state.modern.pendingUpgradeOffers.entries()]
       : null,
-    frozenTiles: state.frozenTiles ? [...state.frozenTiles] : null,
+    frozenTiles: state.modern?.frozenTiles
+      ? [...state.modern.frozenTiles]
+      : null,
     towerPendingRevive: [...state.towerPendingRevive],
     capturedCannons: state.capturedCannons.map((cc) => ({
       victimId: cc.victimId,
@@ -230,19 +237,27 @@ export function restoreFullStateSnapshot(
   state.towerAlive = msg.towerAlive;
   state.gameMode =
     msg.gameMode === GAME_MODE_MODERN ? GAME_MODE_MODERN : GAME_MODE_CLASSIC;
-  state.activeModifier =
-    (msg.activeModifier as GameState["activeModifier"]) ?? null;
-  state.lastModifierId =
-    (msg.lastModifierId as GameState["lastModifierId"]) ?? null;
-  state.pendingUpgradeOffers = msg.pendingUpgradeOffers
-    ? new Map(
-        msg.pendingUpgradeOffers.map(([pid, offers]) => [
-          pid as ValidPlayerSlot,
-          offers as [UpgradeId, UpgradeId, UpgradeId],
-        ]),
-      )
-    : null;
-  state.frozenTiles = msg.frozenTiles ? new Set(msg.frozenTiles) : null;
+  if (state.modern) {
+    state.modern.activeModifier =
+      (msg.activeModifier as NonNullable<
+        GameState["modern"]
+      >["activeModifier"]) ?? null;
+    state.modern.lastModifierId =
+      (msg.lastModifierId as NonNullable<
+        GameState["modern"]
+      >["lastModifierId"]) ?? null;
+    state.modern.pendingUpgradeOffers = msg.pendingUpgradeOffers
+      ? new Map(
+          msg.pendingUpgradeOffers.map(([pid, offers]) => [
+            pid as ValidPlayerSlot,
+            offers as UpgradeOfferTuple,
+          ]),
+        )
+      : null;
+    state.modern.frozenTiles = msg.frozenTiles
+      ? new Set(msg.frozenTiles)
+      : null;
+  }
   state.burningPits = msg.burningPits.map((pit) => ({
     row: pit.row,
     col: pit.col,

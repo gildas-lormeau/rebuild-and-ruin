@@ -79,6 +79,7 @@ import {
   isPlayerSeated,
   Phase,
   type Player,
+  type UpgradeOfferTuple,
 } from "./types.ts";
 import { IMPLEMENTED_UPGRADES, UID, type UpgradeId } from "./upgrade-defs.ts";
 
@@ -246,9 +247,11 @@ export function enterBattleFromCannon(state: GameState): void {
   state.timer = BATTLE_TIMER;
   state.cannonballs = [];
   state.shotsFired = 0;
-  state.comboTracker = isCombosEnabled(state)
-    ? createComboTracker(state.players.length)
-    : null;
+  if (state.modern) {
+    state.modern.comboTracker = isCombosEnabled(state)
+      ? createComboTracker(state.players.length)
+      : null;
+  }
 }
 
 /** Enter build from battle — cleans up battle state (balloons, captured cannons, grunts).
@@ -265,9 +268,11 @@ export function enterBuildFromBattle(state: GameState): void {
   // is created. Do NOT insert RNG calls after this block or move these after setPhase.
   // Assignment order matters: save current modifier BEFORE rolling, because
   // rollModifier filters out lastModifierId to prevent back-to-back repeats.
-  state.lastModifierId = state.activeModifier;
-  state.activeModifier = rollModifier(state);
-  state.pendingUpgradeOffers = generateUpgradeOffers(state);
+  if (state.modern) {
+    state.modern.lastModifierId = state.modern.activeModifier;
+    state.modern.activeModifier = rollModifier(state);
+    state.modern.pendingUpgradeOffers = generateUpgradeOffers(state);
+  }
 
   replenishBonusSquares(state);
   setPhase(state, Phase.WALL_BUILD);
@@ -296,11 +301,11 @@ export function setPhase(state: GameState, phase: Phase): void {
  *  BUILD_START checkpoint is sent. Returns null if not applicable. */
 export function generateUpgradeOffers(
   state: GameState,
-): Map<ValidPlayerSlot, [UpgradeId, UpgradeId, UpgradeId]> | null {
+): Map<ValidPlayerSlot, UpgradeOfferTuple> | null {
   if (state.gameMode !== GAME_MODE_MODERN) return null;
   if (state.round < UPGRADE_FIRST_ROUND) return null;
 
-  const offers = new Map<ValidPlayerSlot, [UpgradeId, UpgradeId, UpgradeId]>();
+  const offers = new Map<ValidPlayerSlot, UpgradeOfferTuple>();
   for (const player of state.players) {
     if (player.eliminated || !player.homeTower) continue;
     offers.set(player.id, drawOffers(state));
@@ -542,25 +547,26 @@ function spawnInterbattleGrunts(state: GameState): void {
 
 /** Modern mode: apply environmental modifiers at battle start. */
 function applyBattleStartModifiers(state: GameState): void {
-  if (state.activeModifier === MODIFIER_ID.WILDFIRE) {
+  const mod = state.modern?.activeModifier;
+  if (mod === MODIFIER_ID.WILDFIRE) {
     applyWildfire(state);
     recheckTerritoryOnly(state);
   }
-  if (state.activeModifier === MODIFIER_ID.GRUNT_SURGE) applyGruntSurge(state);
-  if (state.activeModifier === MODIFIER_ID.FROZEN_RIVER)
-    applyFrozenRiver(state);
+  if (mod === MODIFIER_ID.GRUNT_SURGE) applyGruntSurge(state);
+  if (mod === MODIFIER_ID.FROZEN_RIVER) applyFrozenRiver(state);
 }
 
 /** Award combo demolition bonuses and clear the tracker. */
 function awardComboBonuses(state: GameState): void {
-  if (!state.comboTracker) return;
-  const bonuses = comboDemolitionBonus(state.comboTracker);
+  const tracker = state.modern?.comboTracker;
+  if (!tracker) return;
+  const bonuses = comboDemolitionBonus(tracker);
   for (let i = 0; i < bonuses.length; i++) {
     if (bonuses[i]! > 0 && !state.players[i]!.eliminated) {
       state.players[i]!.score += bonuses[i]!;
     }
   }
-  state.comboTracker = null;
+  state.modern!.comboTracker = null;
 }
 
 /** Clean up transient battle state: grunts, balloons, captured cannons. */
@@ -593,7 +599,7 @@ function resetPlayerUpgrades(state: GameState): void {
 
 /** Modern mode: apply environmental modifiers at build start. */
 function applyBuildStartModifiers(state: GameState): void {
-  if (state.activeModifier === MODIFIER_ID.CRUMBLING_WALLS) {
+  if (state.modern?.activeModifier === MODIFIER_ID.CRUMBLING_WALLS) {
     applyCrumblingWalls(state);
     recheckTerritoryOnly(state);
   }

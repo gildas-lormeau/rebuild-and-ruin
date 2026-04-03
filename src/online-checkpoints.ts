@@ -17,8 +17,7 @@ import {
   applyPlayersCheckpoint,
 } from "./online-serialize.ts";
 import { towerCenterPx } from "./spatial.ts";
-import type { GameState } from "./types.ts";
-import type { UpgradeId } from "./upgrade-defs.ts";
+import type { GameState, ModernState, UpgradeOfferTuple } from "./types.ts";
 
 export interface CheckpointBattleAnim {
   territory: Set<number>[];
@@ -88,14 +87,20 @@ export function applyBattleStartCheckpoint(
   applyCapturedCannons(deps.state, data.capturedCannons);
 
   // Restore frozen river state (matches host's applyFrozenRiver in enterBattleFromCannon)
-  deps.state.frozenTiles = data.frozenTiles ? new Set(data.frozenTiles) : null;
+  if (deps.state.modern) {
+    deps.state.modern.frozenTiles = data.frozenTiles
+      ? new Set(data.frozenTiles)
+      : null;
+  }
 
   clearBattleProjectiles(deps);
   deps.state.timer = BATTLE_TIMER;
   // Create combo tracker on watcher (matches host's enterBattleFromCannon)
-  deps.state.comboTracker = isCombosEnabled(deps.state)
-    ? createComboTracker(deps.state.players.length)
-    : null;
+  if (deps.state.modern) {
+    deps.state.modern.comboTracker = isCombosEnabled(deps.state)
+      ? createComboTracker(deps.state.players.length)
+      : null;
+  }
   resetWatcherCrosshairs(deps);
   for (const player of deps.state.players) {
     if (player.eliminated || !player.homeTower) continue;
@@ -116,20 +121,24 @@ export function applyBuildStartCheckpoint(
   applyCommonCheckpoint(data, deps, capturePreState);
   deps.state.round = data.round;
   deps.state.timer = data.timer;
-  deps.state.activeModifier =
-    (data.activeModifier as typeof deps.state.activeModifier) ?? null;
-  deps.state.lastModifierId =
-    (data.lastModifierId as typeof deps.state.lastModifierId) ?? null;
-  deps.state.pendingUpgradeOffers = data.pendingUpgradeOffers
-    ? new Map(
-        data.pendingUpgradeOffers.map(([pid, offers]) => [
-          pid as ValidPlayerSlot,
-          offers as [UpgradeId, UpgradeId, UpgradeId],
-        ]),
-      )
-    : null;
-  // Frozen river persists through build phase (thawed at next battle start)
-  deps.state.frozenTiles = data.frozenTiles ? new Set(data.frozenTiles) : null;
+  if (deps.state.modern) {
+    deps.state.modern.activeModifier =
+      (data.activeModifier as ModernState["activeModifier"]) ?? null;
+    deps.state.modern.lastModifierId =
+      (data.lastModifierId as ModernState["lastModifierId"]) ?? null;
+    deps.state.modern.pendingUpgradeOffers = data.pendingUpgradeOffers
+      ? new Map(
+          data.pendingUpgradeOffers.map(([pid, offers]) => [
+            pid as ValidPlayerSlot,
+            offers as UpgradeOfferTuple,
+          ]),
+        )
+      : null;
+    // Frozen river persists through build phase (thawed at next battle start)
+    deps.state.modern.frozenTiles = data.frozenTiles
+      ? new Set(data.frozenTiles)
+      : null;
+  }
   clearBattleProjectiles(deps);
   deps.accum.grunt = 0;
   resetCannonFacings(deps.state);

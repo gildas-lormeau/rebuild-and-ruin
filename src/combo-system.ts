@@ -6,10 +6,10 @@
  */
 
 import { GAME_MODE_MODERN, type ValidPlayerSlot } from "./game-constants.ts";
-import type { GameState } from "./types.ts";
+import type { GameState, ModernState } from "./types.ts";
 
-/** Inferred from GameState.comboTracker — defined inline in types.ts to avoid circular deps. */
-type ComboTracker = NonNullable<GameState["comboTracker"]>;
+/** Inferred from ModernState.comboTracker — defined inline in types.ts to avoid circular deps. */
+type ComboTracker = NonNullable<ModernState["comboTracker"]>;
 
 type ComboPlayerState = ComboTracker["players"][number];
 

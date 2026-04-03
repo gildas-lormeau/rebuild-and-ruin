@@ -25,10 +25,10 @@ export function createUpgradePickDialog(
   deps: CreateUpgradePickDeps,
 ): UpgradePickDialogState | null {
   const { state } = deps;
-  if (!state.pendingUpgradeOffers) return null;
+  if (!state.modern?.pendingUpgradeOffers) return null;
 
   const entries: UpgradePickEntry[] = [];
-  for (const [playerId, offers] of state.pendingUpgradeOffers) {
+  for (const [playerId, offers] of state.modern.pendingUpgradeOffers) {
     const autoResolve = shouldAutoResolve(playerId, deps);
 
     entries.push({

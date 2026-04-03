@@ -115,7 +115,7 @@ function lockGruntTarget(
   }
 
   const gruntZone = state.map.zones[grunt.row]?.[grunt.col] ?? -1;
-  const frozenActive = state.frozenTiles !== null;
+  const frozenActive = state.modern?.frozenTiles != null;
 
   let bestDist = Infinity;
   let bestIdx: number | null = null;
@@ -394,7 +394,7 @@ export function isGruntBlocked(
   if (!inBounds(r, c)) return true;
   // Water tiles are passable when frozen
   if (!isGrass(state.map.tiles, r, c)) {
-    if (!state.frozenTiles?.has(packTile(r, c))) return true;
+    if (!state.modern?.frozenTiles?.has(packTile(r, c))) return true;
   }
   if (hasCannonAt(state, r, c)) return true;
   if (hasAliveHouseAt(state, r, c)) return true;

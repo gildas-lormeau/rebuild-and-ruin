@@ -274,11 +274,23 @@ export interface GameState {
   cannonLimits: number[];
   /** Game mode: classic (original rules) or modern (environmental modifiers). Immutable for the match. */
   gameMode: GameMode;
-  /** Active modifier for the current round (modern mode only). null = none. */
+  /** Modern-mode state (modifiers, combos, upgrades, terrain effects).
+   *  null in classic mode — guard with `if (state.modern)` at entry points.
+   *  Inner fields carry phase-specific nullability (e.g. frozenTiles is null between battles). */
+  modern: ModernState | null;
+}
+
+/** Upgrade offer triple — 3 unique upgrade choices offered to a player. */
+export type UpgradeOfferTuple = [UpgradeId, UpgradeId, UpgradeId];
+
+/** State exclusive to modern mode. null on GameState in classic mode. */
+export interface ModernState {
+  /** Active modifier for the current round. null = none this round. */
   activeModifier: ModifierId | null;
   /** Previous round's modifier id (for no-repeat rule). null = none. */
   lastModifierId: ModifierId | null;
-  /** Combo scoring tracker (modern mode, transient during battle, not serialized). */
+  /** Combo scoring tracker (transient during battle, not serialized).
+   *  Created at battle start, cleared at battle end. */
   comboTracker: {
     players: {
       lastWallHitTime: number;
@@ -290,13 +302,10 @@ export interface GameState {
     /** Combo events for floating text display. Aged by the renderer, removed when expired. */
     events: { text: string; age: number; playerId: ValidPlayerSlot }[];
   } | null;
-  /** Pre-generated upgrade offers per player for the current round (modern mode).
+  /** Pre-generated upgrade offers per player for the current round.
    *  Generated in enterBuildFromBattle using synced RNG, consumed by the upgrade pick dialog.
-   *  null in classic mode or before UPGRADE_FIRST_ROUND. */
-  pendingUpgradeOffers: Map<
-    ValidPlayerSlot,
-    [UpgradeId, UpgradeId, UpgradeId]
-  > | null;
+   *  null before UPGRADE_FIRST_ROUND. */
+  pendingUpgradeOffers: Map<ValidPlayerSlot, UpgradeOfferTuple> | null;
   /** Frozen river tiles (packed tile keys) — water tiles that grunts can cross.
    *  Set during battle when frozen_river modifier is active, null otherwise. */
   frozenTiles: Set<number> | null;

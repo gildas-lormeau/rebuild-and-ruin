@@ -155,8 +155,8 @@ export function createStatusBar(
   hasPointerPlayer?: boolean,
 ) {
   // Modifier label (modern mode only)
-  const modifier = state.activeModifier
-    ? modifierLabel(state.activeModifier)
+  const modifier = state.modern?.activeModifier
+    ? modifierLabel(state.modern.activeModifier)
     : undefined;
 
   // POV player's active upgrade labels (skip when no human is playing)
@@ -433,7 +433,7 @@ export function createOnlineOverlay(params: {
       burningPits: state.burningPits,
       bonusSquares: state.bonusSquares,
       homeTowers: homeTowers.size > 0 ? homeTowers : undefined,
-      frozenTiles: state.frozenTiles ?? undefined,
+      frozenTiles: state.modern?.frozenTiles ?? undefined,
     },
     battle: {
       inBattle: !!battleTerritory,
@@ -468,9 +468,9 @@ export function createOnlineOverlay(params: {
       ),
       comboFloats: hasPointerPlayer
         ? povPlayerId < 0
-          ? state.comboTracker?.events
-          : state.comboTracker?.events.filter(
-              (ev) => ev.playerId === povPlayerId,
+          ? state.modern?.comboTracker?.events
+          : state.modern?.comboTracker?.events.filter(
+              (ev: { playerId: number }) => ev.playerId === povPlayerId,
             )
         : undefined,
       upgradePick: buildUpgradePickUi(

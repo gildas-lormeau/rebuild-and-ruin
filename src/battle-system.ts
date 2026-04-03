@@ -188,7 +188,7 @@ export function tickCannonballs(
   }
 
   state.cannonballs = remaining;
-  if (state.comboTracker) ageComboEvents(state.comboTracker, dt);
+  if (state.modern?.comboTracker) ageComboEvents(state.modern.comboTracker, dt);
   return { impacts, events };
 }
 
@@ -254,9 +254,9 @@ export function applyImpactEvent(
         const shooter = sid !== undefined ? state.players[sid] : undefined;
         if (shooter && event.playerId !== sid) {
           shooter.score += DESTROY_WALL_POINTS;
-          if (state.comboTracker && sid !== undefined) {
+          if (state.modern?.comboTracker && sid !== undefined) {
             shooter.score += comboOnWallDestroyed(
-              state.comboTracker,
+              state.modern!.comboTracker,
               sid,
               BATTLE_TIMER - state.timer,
             );
@@ -273,8 +273,11 @@ export function applyImpactEvent(
           const shooter = sid !== undefined ? state.players[sid] : undefined;
           if (shooter && event.playerId !== sid) {
             shooter.score += DESTROY_CANNON_POINTS;
-            if (state.comboTracker && sid !== undefined) {
-              shooter.score += comboOnCannonKill(state.comboTracker, sid);
+            if (state.modern?.comboTracker && sid !== undefined) {
+              shooter.score += comboOnCannonKill(
+                state.modern!.comboTracker,
+                sid,
+              );
             }
           }
         }
@@ -310,9 +313,9 @@ export function applyImpactEvent(
       );
       if (shooter) {
         shooter.score += DESTROY_GRUNT_POINTS;
-        if (state.comboTracker && sid !== undefined) {
+        if (state.modern?.comboTracker && sid !== undefined) {
           shooter.score += comboOnGruntKill(
-            state.comboTracker,
+            state.modern!.comboTracker,
             sid,
             BATTLE_TIMER - state.timer,
           );
