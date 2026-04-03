@@ -6,6 +6,7 @@
  */
 
 import { clearPlayerWalls } from "../src/board-occupancy.ts";
+import { recheckTerritory } from "../src/build-system.ts";
 import { BALL_SPEED, GAME_MODE_MODERN, MODIFIER_FIRST_ROUND } from "../src/game-constants.ts";
 import type { ValidPlayerSlot } from "../src/game-constants.ts";
 import {
@@ -49,7 +50,7 @@ import {
 import { MESSAGE } from "../server/protocol.ts";
 import { handleServerIncrementalMessage } from "../src/online-server-events.ts";
 import type { WatcherNetworkState } from "../src/online-types.ts";
-import { emptyFreshInterior, type SelectionState } from "../src/types.ts";
+import { type SelectionState } from "../src/types.ts";
 import { type UpgradeId, UID } from "../src/upgrade-defs.ts";
 import { generateUpgradeOffers } from "../src/phase-setup.ts";
 import { createUpgradePickDialog } from "../src/upgrade-pick.ts";
@@ -806,8 +807,8 @@ test("frozen river: grunts retarget cross-zone and walk onto ice", () => {
   // Clear all walls so grunts can reach the river
   for (const player of state.players) {
     clearPlayerWalls(player);
-    player.interior = emptyFreshInterior();
   }
+  recheckTerritory(state);
 
   // Place grunts on bank tiles
   state.grunts = [];
