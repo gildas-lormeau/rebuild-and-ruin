@@ -434,6 +434,17 @@ export const CANNON_MODES: ReadonlySet<CannonMode> = new Set([
   CannonMode.BALLOON,
 ]);
 
+/** Create a fresh ModernState with all fields at their initial null values. */
+export function createModernState(): ModernState {
+  return {
+    activeModifier: null,
+    lastModifierId: null,
+    comboTracker: null,
+    pendingUpgradeOffers: null,
+    frozenTiles: null,
+  };
+}
+
 /** Create a branded empty interior set. Use at Player creation. */
 export function emptyFreshInterior(): FreshInterior {
   return new Set<number>() as unknown as FreshInterior;

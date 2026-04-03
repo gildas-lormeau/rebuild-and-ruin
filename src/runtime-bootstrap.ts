@@ -17,6 +17,7 @@ import { MAX_UINT32 } from "./rng.ts";
 import { GAME_CONTAINER_ACTIVE } from "./router.ts";
 import { isRemoteHuman } from "./tick-context.ts";
 import {
+  createModernState,
   type GameState,
   isReselectPhase,
   type LobbyState,
@@ -253,6 +254,8 @@ export function bootstrapGame(deps: InitGameDeps): void {
   state.firstRoundCannons = deps.firstRoundCannons;
   state.gameMode =
     deps.gameMode === GAME_MODE_MODERN ? GAME_MODE_MODERN : GAME_MODE_CLASSIC;
+  state.modern =
+    state.gameMode === GAME_MODE_MODERN ? createModernState() : null;
 
   deps.log(
     `initGame: ${playerCount} players, seed=${deps.seed}, maxRounds=${state.maxRounds}`,
