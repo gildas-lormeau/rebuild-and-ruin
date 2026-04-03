@@ -226,7 +226,6 @@ export interface GameState {
   firstRoundCannons: number;
   players: Player[];
   /** Index of the player whose turn it is (for sequential phases). */
-  activePlayer: number;
   /** Active phase timer (counts down in build, cannon, selection). Not used during
    *  battle — see battleCountdown. Remaining time in seconds (counts DOWN from
    *  phase max to 0).

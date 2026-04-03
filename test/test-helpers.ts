@@ -197,7 +197,6 @@ export function parseBoard(ascii: string, playerId = 0 as ValidPlayerSlot): Pars
     maxRounds: 5,
     cannonMaxHp: 3,
     players: [player],
-    activePlayer: 0,
     timer: 30,
     cannonballs: [],
     shotsFired: 0,

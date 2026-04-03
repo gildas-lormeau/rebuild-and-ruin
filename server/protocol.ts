@@ -276,7 +276,6 @@ export interface FullStateMessage {
   burningPits: SerializedBurningPit[];
   cannonLimits: number[];
   playerZones: number[];
-  activePlayer: number;
   gameMode: string;
   activeModifier: string | null;
   lastModifierId: string | null;

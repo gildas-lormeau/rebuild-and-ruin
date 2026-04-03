@@ -29,7 +29,6 @@ function makeFullState(migrationSeq: number): FullStateMessage {
     burningPits: [],
     cannonLimits: [],
     playerZones: [],
-    activePlayer: 0,
     towerPendingRevive: [],
     capturedCannons: [],
     balloonHits: [],

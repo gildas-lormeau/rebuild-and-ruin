@@ -355,3 +355,9 @@ sufficient for LLM agents to follow correctly.
     input-mouse.ts:25-28 documents the convention. input-dispatch.ts:8-27 documents
     markTouchTime() pairing. Prevents synthetic click events that mobile browsers fire
     after touchend.
+
+32. **`towerPendingRevive` naming is correct — "pending" means awaiting a condition** —
+    types.ts:251 JSDoc explains the two-phase rule. build-system.ts:452-454 JSDoc on
+    `reviveEnclosedTowers` documents the mechanic. CLAUDE.md line 40 repeats it.
+    "Pending" = awaiting one more build phase of enclosure, not awaiting user action.
+    Do not rename to `towersAwaitingRevive` or `towersEligibleForRevive`.

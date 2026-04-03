@@ -164,15 +164,13 @@ test("full-state round-trip preserves RNG state", () => {
 });
 
 // ---------------------------------------------------------------------------
-// cannonLimits, playerZones, activePlayer, towerPendingRevive
+// cannonLimits, playerZones, towerPendingRevive
 // ---------------------------------------------------------------------------
 
 test("full-state round-trip preserves cannonLimits and playerZones", () => {
   const { host, watcher } = createPair(42);
   host.state.cannonLimits = [5, 3, 7];
   host.state.playerZones = [1, 2, 3];
-  host.state.activePlayer = 2;
-
   const msg = createFullStateMessage(host.state, 1);
   restoreFullStateSnapshot(watcher.state, msg);
 
@@ -182,7 +180,6 @@ test("full-state round-trip preserves cannonLimits and playerZones", () => {
     assert(watcher.state.playerZones[i] === host.state.playerZones[i],
       `playerZones[${i}]: expected ${host.state.playerZones[i]}, got ${watcher.state.playerZones[i]}`);
   }
-  assert(watcher.state.activePlayer === 2, `activePlayer: expected 2, got ${watcher.state.activePlayer}`);
 });
 
 test("full-state round-trip preserves towerPendingRevive", () => {

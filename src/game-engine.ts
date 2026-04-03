@@ -100,7 +100,6 @@ export function createGameState(
     cannonPlaceTimer: CANNON_PLACE_TIMER,
     firstRoundCannons: FIRST_ROUND_CANNONS,
     players,
-    activePlayer: 0,
     timer: 0,
     cannonballs: [],
     shotsFired: 0,

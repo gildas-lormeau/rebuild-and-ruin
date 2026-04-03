@@ -133,7 +133,6 @@ export function createFullStateMessage(
     burningPits: serializeBurningPits(state),
     cannonLimits: [...state.cannonLimits],
     playerZones: [...state.playerZones],
-    activePlayer: state.activePlayer,
     gameMode: state.gameMode,
     activeModifier: state.activeModifier,
     lastModifierId: state.lastModifierId,
@@ -227,7 +226,6 @@ export function restoreFullStateSnapshot(
   state.shotsFired = msg.shotsFired;
   state.cannonLimits = msg.cannonLimits;
   state.playerZones = msg.playerZones;
-  state.activePlayer = msg.activePlayer;
   state.towerPendingRevive = new Set(msg.towerPendingRevive);
   state.towerAlive = msg.towerAlive;
   state.gameMode =
@@ -434,9 +432,6 @@ function validateFullState(
     if (ti < 0 || ti >= tc)
       return `towerPendingRevive index ${ti} out of bounds`;
   }
-
-  if (msg.activePlayer < -1 || msg.activePlayer >= pc)
-    return `activePlayer ${msg.activePlayer} out of bounds`;
 
   return null;
 }
