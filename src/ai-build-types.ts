@@ -8,6 +8,41 @@
 import type { TilePos, TileRect, Tower } from "./geometry-types.ts";
 import type { PieceShape } from "./pieces.ts";
 
+/** Result of enclosure analysis — which towers need walling, skip-home logic, etc. */
+export interface EnclosureAnalysis {
+  outside: Set<number>;
+  homeTowerEnclosed: boolean;
+  zoneTowers: Tower[];
+  unenclosedTowers: Tower[];
+  otherUnenclosed: Tower[];
+  allCastlesEnclosed: boolean;
+  effectiveSkipHome: boolean;
+  homeHasRingGaps: boolean;
+}
+
+/** Result of target selection — which gaps to fill and the bounding rect. */
+export type TargetResult = {
+  targetGaps: Set<number>;
+  targetRect: TileRect | null;
+};
+
+/** Context for the target-selection pipeline (home repair → secondary → expand). */
+export interface TargetContext {
+  state: import("./types.ts").GameState;
+  playerId: import("./game-constants.ts").ValidPlayerSlot;
+  player: import("./types.ts").Player;
+  castle: import("./geometry-types.ts").Castle;
+  piece: PieceShape;
+  castleMargin: number;
+  bankHugging: boolean;
+  cursorPos: TilePos | undefined;
+  effectiveSkipHome: boolean;
+  homeHasRingGaps: boolean;
+  allCastlesEnclosed: boolean;
+  unenclosedTowers: Tower[];
+  otherUnenclosed: Tower[];
+}
+
 /** Optional AI personality / context parameters for placement. */
 export interface PlacementOptions {
   cursorPos?: TilePos;
