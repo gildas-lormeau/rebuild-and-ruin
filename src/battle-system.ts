@@ -86,8 +86,8 @@ const COUNTDOWN_AIM_SEC = 1;
 const RAPID_FIRE_SPEED_MULT = 2;
 /** Sentinel: no target found (used for victimId lookups). */
 const VICTIM_ID_UNKNOWN = -1;
-/** Sentinel: cannon index not found in victim's array. Exported for checkpoint code. */
-export const CANNON_NOT_FOUND = -1;
+/** Sentinel: cannon index not found in victim's array. */
+const CANNON_NOT_FOUND = -1;
 
 /** Map battleCountdown to the corresponding announcement text. */
 export function getCountdownAnnouncement(

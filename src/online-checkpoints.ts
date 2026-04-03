@@ -1,4 +1,3 @@
-import { CANNON_NOT_FOUND } from "./battle-system.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import { resetCannonFacings } from "./cannon-system.ts";
 import type {
@@ -12,6 +11,7 @@ import type { OrbitParams } from "./controller-interfaces.ts";
 import { BATTLE_TIMER, type ValidPlayerSlot } from "./game-constants.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import {
+  applyCapturedCannons,
   applyGruntsCheckpoint,
   applyHousesAlive,
   applyPlayersCheckpoint,
@@ -85,24 +85,7 @@ export function applyBattleStartCheckpoint(
   deps.battleAnim.territory = deps.snapshotTerritory();
   deps.battleAnim.walls = snapshotAllWalls(deps.state);
 
-  deps.state.capturedCannons = [];
-  if (data.capturedCannons) {
-    for (const cc of data.capturedCannons) {
-      const victim = deps.state.players[cc.victimId];
-      if (
-        victim &&
-        cc.cannonIdx !== CANNON_NOT_FOUND &&
-        cc.cannonIdx < victim.cannons.length
-      ) {
-        deps.state.capturedCannons.push({
-          cannon: victim.cannons[cc.cannonIdx]!,
-          cannonIdx: cc.cannonIdx,
-          victimId: cc.victimId,
-          capturerId: cc.capturerId,
-        });
-      }
-    }
-  }
+  applyCapturedCannons(deps.state, data.capturedCannons);
 
   // Restore frozen river state (matches host's applyFrozenRiver in enterBattleFromCannon)
   deps.state.frozenTiles = data.frozenTiles ? new Set(data.frozenTiles) : null;

@@ -275,7 +275,7 @@ export function restoreFullStateSnapshot(
   }
 
   restoreCannonballs(state, msg);
-  restoreCapturedCannons(state, msg);
+  applyCapturedCannons(state, msg.capturedCannons);
   restoreBalloonHits(state, msg);
 
   return {
@@ -353,6 +353,31 @@ export function createGameOverPayload(
       })),
     },
   };
+}
+
+/** Restore captured cannon object references from serialized indices.
+ *  Shared by both full-state recovery and battle-start checkpoint apply.
+ *  Validates victimId bounds and cannonIdx before resolving object references. */
+export function applyCapturedCannons(
+  state: GameState,
+  entries: readonly {
+    victimId: number;
+    capturerId: number;
+    cannonIdx: number;
+  }[],
+): void {
+  state.capturedCannons = [];
+  for (const cc of entries) {
+    if (cc.victimId < 0 || cc.victimId >= state.players.length) continue;
+    const victim = state.players[cc.victimId]!;
+    if (cc.cannonIdx < 0 || cc.cannonIdx >= victim.cannons.length) continue;
+    state.capturedCannons.push({
+      cannon: victim.cannons[cc.cannonIdx]!,
+      cannonIdx: cc.cannonIdx,
+      victimId: cc.victimId as ValidPlayerSlot,
+      capturerId: cc.capturerId as ValidPlayerSlot,
+    });
+  }
 }
 
 /**
@@ -489,25 +514,6 @@ function copyCannonballCore(b: Cannonball): Omit<Cannonball, "incendiary"> {
     playerId: b.playerId,
     scoringPlayerId: b.scoringPlayerId,
   };
-}
-
-/** Restore captured cannon object references from serialized indices. */
-function restoreCapturedCannons(state: GameState, msg: FullStateMessage): void {
-  state.capturedCannons = msg.capturedCannons
-    .filter((cc) => cc.victimId >= 0 && cc.victimId < state.players.length)
-    .map((cc) => {
-      const victim = state.players[cc.victimId]!;
-      const cannon = victim.cannons[cc.cannonIdx];
-      return cannon
-        ? {
-            cannon,
-            cannonIdx: cc.cannonIdx,
-            victimId: cc.victimId,
-            capturerId: cc.capturerId as ValidPlayerSlot,
-          }
-        : null;
-    })
-    .filter((cc) => cc !== null);
 }
 
 /** Restore balloon hit map, reconstructing Cannon object references as Map keys. */
