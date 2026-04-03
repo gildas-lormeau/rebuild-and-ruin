@@ -257,7 +257,7 @@ export function pickTarget(
   state: GameState,
   playerId: ValidPlayerSlot,
   crosshair: PixelPos,
-  focusPlayerId: number | null,
+  focusFirePlayerId: number | null,
   shotCounts: WeakMap<Cannon, number>,
   wallsOnly?: boolean,
   battleTactics = 2,
@@ -267,12 +267,14 @@ export function pickTarget(
   // Second half of battle: 1/4 chance to switch to the other enemy
   const secondHalf = state.timer <= BATTLE_SECOND_HALF_TIMER;
   const switchTarget =
-    secondHalf && focusPlayerId != null && rand() < TARGET_SWITCH_PROBABILITY;
+    secondHalf &&
+    focusFirePlayerId != null &&
+    rand() < TARGET_SWITCH_PROBABILITY;
 
   const targets = collectEnemyTargets(
     state,
     playerId,
-    focusPlayerId,
+    focusFirePlayerId,
     switchTarget,
     shotCounts,
     wallsOnly,
@@ -297,7 +299,7 @@ export function pickTarget(
     const strategic = collectStrategicWallTargets(
       state,
       playerId,
-      focusPlayerId,
+      focusFirePlayerId,
     );
     if (strategic.length > 0) {
       // Prefer closer strategic targets
@@ -370,11 +372,11 @@ export function trackShot(
 function collectStrategicWallTargets(
   state: GameState,
   playerId: ValidPlayerSlot,
-  focusPlayerId: number | null,
+  focusFirePlayerId: number | null,
 ): TilePos[] {
   const strategic: TilePos[] = [];
   for (const other of filterActiveEnemies(state, playerId)) {
-    if (focusPlayerId != null && other.id !== focusPlayerId) continue;
+    if (focusFirePlayerId != null && other.id !== focusFirePlayerId) continue;
     for (const key of other.walls) {
       const { r: wallRow, c: wallCol } = unpackTile(key);
       // Skip walls already targeted by a cannonball in flight
@@ -466,14 +468,14 @@ function ballTargeting(
 function collectEnemyTargets(
   state: GameState,
   playerId: ValidPlayerSlot,
-  focusPlayerId: number | null,
+  focusFirePlayerId: number | null,
   switchTarget: boolean,
   shotCounts: WeakMap<Cannon, number>,
   wallsOnly?: boolean,
 ): TargetCandidate[] {
   const targets: TargetCandidate[] = [];
   for (const other of filterActiveEnemies(state, playerId)) {
-    if (!isEnemyEligibleForFocus(other.id, focusPlayerId, switchTarget))
+    if (!isEnemyEligibleForFocus(other.id, focusFirePlayerId, switchTarget))
       continue;
 
     if (!wallsOnly) {
@@ -511,12 +513,12 @@ function collectEnemyTargets(
 
 function isEnemyEligibleForFocus(
   enemyId: number,
-  focusPlayerId: number | null,
+  focusFirePlayerId: number | null,
   switchTarget: boolean,
 ): boolean {
-  if (focusPlayerId == null) return true;
-  if (!switchTarget) return enemyId === focusPlayerId;
-  return enemyId !== focusPlayerId;
+  if (focusFirePlayerId == null) return true;
+  if (!switchTarget) return enemyId === focusFirePlayerId;
+  return enemyId !== focusFirePlayerId;
 }
 
 function pickSweetSpotTarget(

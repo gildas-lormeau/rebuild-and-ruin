@@ -376,3 +376,9 @@ sufficient for LLM agents to follow correctly.
     runtime.ts:10-16 documents the convention. Each createXSystem(deps) factory
     destructures only frequently-used deps at the top; rarely-used deps are accessed
     inline as `deps.X`. The inconsistency reflects actual usage, not drift.
+
+35. **`comboTracker` lifecycle is transient during battle** — types.ts:281 JSDoc says
+    "transient during battle, not serialized". Created in `enterBattleFromCannon`
+    (phase-setup.ts:273), nulled after awarding bonuses in `enterBuildFromBattle`
+    (phase-setup.ts:289). Both sites are in the same file. The `| null` type enforces
+    null checks at all access sites. Do not report the lifecycle as undocumented.

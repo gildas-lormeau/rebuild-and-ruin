@@ -151,8 +151,8 @@ function buildUiDeps() {
       _g.runtime.runtimeState.mode = Mode.GAME;
     },
     setAnnouncement: (text: string) => {
-      ctx.watcher.migrationText = text;
-      ctx.watcher.migrationTimer = MIGRATION_ANNOUNCEMENT_DURATION;
+      ctx.watcher.hostMigrationText = text;
+      ctx.watcher.hostMigrationTimer = MIGRATION_ANNOUNCEMENT_DURATION;
     },
     createErrorEl: createError,
     joinErrorEl: joinError,

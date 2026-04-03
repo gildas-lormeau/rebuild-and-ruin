@@ -262,7 +262,7 @@ export class DefaultStrategy implements AiStrategy {
   /** Shot count per cannon — tracks hits to know when to stop targeting. */
   private shotCounts = new WeakMap<Cannon, number>();
   /** Focus fire on this player during battle. */
-  private focusPlayerId: number | null = null;
+  private focusFirePlayerId: number | null = null;
   /** Whether home tower was not enclosed at the end of last build phase. */
   private _homeWasBroken = false;
 
@@ -418,12 +418,12 @@ export class DefaultStrategy implements AiStrategy {
           (a, b) =>
             a.ownedTowers.length - b.ownedTowers.length || a.score - b.score,
         );
-        this.focusPlayerId = enemies[0]!.id;
+        this.focusFirePlayerId = enemies[0]!.id;
       } else {
-        this.focusPlayerId = null;
+        this.focusFirePlayerId = null;
       }
     } else {
-      this.focusPlayerId = null;
+      this.focusFirePlayerId = null;
     }
 
     // Chain attacks
@@ -531,7 +531,7 @@ export class DefaultStrategy implements AiStrategy {
       state,
       playerId,
       crosshair,
-      this.focusPlayerId,
+      this.focusFirePlayerId,
       this.shotCounts,
       wallsOnly,
       this.battleTactics,
@@ -548,7 +548,7 @@ export class DefaultStrategy implements AiStrategy {
   }
 
   onLifeLost(): void {
-    this.focusPlayerId = null;
+    this.focusFirePlayerId = null;
     this._homeWasBroken = false;
   }
 

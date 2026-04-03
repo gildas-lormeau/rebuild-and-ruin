@@ -54,7 +54,7 @@ type ServerPhase = Phase | "LOBBY" | "CASTLE_BUILD";
 /** Per-socket, per-message-type sliding window rate limit.
  *  Each (socket, messageType) pair has its own bucket — types do not compete for quota.
  *  100 messages per 1-second window; the window slides on each incoming message. */
-const RATE_LIMIT_PER_SEC = 100; // ~60fps × 4 players phantom updates; generous but blocks flooding
+const RATE_LIMIT_PER_WINDOW = 100; // ~60fps × 4 players phantom updates; generous but blocks flooding
 const RATE_LIMIT_WINDOW_MS = 1000;
 /** Exhaustive set of message types subject to rate limiting.
  *  All other types pass through without rate checks.
@@ -316,7 +316,7 @@ export class GameRoom {
   //   2. Identity check — reject if playerId doesn't match sender's slot (host exempt)
   //   3. Phase gate — reject if current phase doesn't accept this message type
   //   4. Payload validation — reject if values are out of bounds
-  //   5. Rate limiting — reject if sender exceeds RATE_LIMIT_PER_SEC
+  //   5. Rate limiting — reject if sender exceeds RATE_LIMIT_PER_WINDOW
   //   6. Relay — broadcast to other clients
   //
   // When adding a new message type:
@@ -382,7 +382,7 @@ export class GameRoom {
         bucket = { count: 0, windowStart: now };
         socketLimits.set(type, bucket);
       }
-      if (bucket.count >= RATE_LIMIT_PER_SEC) return;
+      if (bucket.count >= RATE_LIMIT_PER_WINDOW) return;
       bucket.count++;
     }
 

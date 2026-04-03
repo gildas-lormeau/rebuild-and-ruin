@@ -41,8 +41,8 @@ import {
   CROSSHAIR_ARM_IDLE,
   CROSSHAIR_ARM_PULSE,
   CROSSHAIR_ARM_READY,
-  CROSSHAIR_IDLE_FREQ,
-  CROSSHAIR_READY_FREQ,
+  CROSSHAIR_IDLE_CYCLE_MS,
+  CROSSHAIR_READY_CYCLE_MS,
   drawShadowText,
   FONT_TIMER,
   rgb,
@@ -571,11 +571,11 @@ function crosshairGeometry(
   time: number,
 ): { alpha: number; arm: number; diag: number; gap: number } {
   const alpha = ready
-    ? 0.7 + 0.3 * Math.sin(time * CROSSHAIR_READY_FREQ)
-    : 0.35 + 0.15 * Math.sin(time * CROSSHAIR_IDLE_FREQ);
+    ? 0.7 + 0.3 * Math.sin(time * CROSSHAIR_READY_CYCLE_MS)
+    : 0.35 + 0.15 * Math.sin(time * CROSSHAIR_IDLE_CYCLE_MS);
   const arm = ready
     ? CROSSHAIR_ARM_READY +
-      Math.sin(time * CROSSHAIR_READY_FREQ) * CROSSHAIR_ARM_PULSE
+      Math.sin(time * CROSSHAIR_READY_CYCLE_MS) * CROSSHAIR_ARM_PULSE
     : CROSSHAIR_ARM_IDLE;
   const diag = Math.round(arm * 0.7);
   const gap = ready ? 5 : 3;

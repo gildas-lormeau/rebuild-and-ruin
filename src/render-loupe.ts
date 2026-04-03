@@ -83,14 +83,14 @@ export function createLoupe(
     const w = pw;
     const h = ph;
     const bw = Math.round(LOUPE_BORDER_WIDTH * dpr);
-    const r = Math.round(LOUPE_RADIUS * dpr);
+    const radius = Math.round(LOUPE_RADIUS * dpr);
 
     // Inner viewport
     const ix = bw;
     const iy = bw;
     const iw = w - bw * 2;
     const ih = h - bw * 2;
-    const ir = Math.max(0, r - bw);
+    const ir = Math.max(0, radius - bw);
 
     // Source rect on sceneCanvas (tile-pixel space)
     const sceneW = GRID_COLS * TILE_SIZE;
@@ -106,7 +106,7 @@ export function createLoupe(
     canvasCtx.clearRect(0, 0, w, h);
 
     // Stone border
-    roundedRect(canvasCtx, 0, 0, w, h, r);
+    roundedRect(canvasCtx, 0, 0, w, h, radius);
     canvasCtx.fillStyle = LOUPE_STONE_COLOR;
     canvasCtx.fill();
 
@@ -125,7 +125,7 @@ export function createLoupe(
     canvasCtx.stroke();
 
     // Outer border
-    roundedRect(canvasCtx, 0, 0, w, h, r);
+    roundedRect(canvasCtx, 0, 0, w, h, radius);
     canvasCtx.lineWidth = 2 * dpr;
     canvasCtx.strokeStyle = LOUPE_STONE_LIGHT;
     canvasCtx.stroke();
@@ -178,17 +178,17 @@ function roundedRect(
   y: number,
   w: number,
   h: number,
-  r: number,
+  radius: number,
 ): void {
   canvasCtx.beginPath();
-  canvasCtx.moveTo(x + r, y);
-  canvasCtx.lineTo(x + w - r, y);
-  canvasCtx.arcTo(x + w, y, x + w, y + r, r);
-  canvasCtx.lineTo(x + w, y + h - r);
-  canvasCtx.arcTo(x + w, y + h, x + w - r, y + h, r);
-  canvasCtx.lineTo(x + r, y + h);
-  canvasCtx.arcTo(x, y + h, x, y + h - r, r);
-  canvasCtx.lineTo(x, y + r);
-  canvasCtx.arcTo(x, y, x + r, y, r);
+  canvasCtx.moveTo(x + radius, y);
+  canvasCtx.lineTo(x + w - radius, y);
+  canvasCtx.arcTo(x + w, y, x + w, y + radius, radius);
+  canvasCtx.lineTo(x + w, y + h - radius);
+  canvasCtx.arcTo(x + w, y + h, x + w - radius, y + h, radius);
+  canvasCtx.lineTo(x + radius, y + h);
+  canvasCtx.arcTo(x, y + h, x, y + h - radius, radius);
+  canvasCtx.lineTo(x, y + radius);
+  canvasCtx.arcTo(x, y, x + radius, y, radius);
   canvasCtx.closePath();
 }
