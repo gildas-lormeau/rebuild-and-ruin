@@ -6,7 +6,11 @@
 import { type FullStateMessage, MESSAGE } from "../server/protocol.ts";
 import { recomputeTerritoryFromWalls } from "./build-system.ts";
 import { createCastle } from "./castle-generation.ts";
-import type { SerializedGrunt, SerializedPlayer } from "./checkpoint-data.ts";
+import type {
+  SerializedGrunt,
+  SerializedHouse,
+  SerializedPlayer,
+} from "./checkpoint-data.ts";
 import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
@@ -36,23 +40,18 @@ interface FullStateResult {
 /** Returned when validation fails — no state was mutated. */
 type FullStateApplyResult = FullStateResult | null;
 
-/** Update house alive status from a boolean array (positions are deterministic from seed). */
-export function applyHousesAlive(
-  state: GameState,
-  alive: readonly boolean[],
-): void {
-  for (let i = 0; i < state.map.houses.length && i < alive.length; i++) {
-    state.map.houses[i]!.alive = alive[i]!;
-  }
-}
-
 export function createBuildStartMessage(state: GameState) {
   return {
     type: MESSAGE.BUILD_START,
     round: state.round,
     timer: state.timer,
     players: serializePlayers(state),
-    housesAlive: state.map.houses.map((h) => h.alive),
+    houses: state.map.houses.map((h) => ({
+      row: h.row,
+      col: h.col,
+      zone: h.zone,
+      alive: h.alive,
+    })),
     grunts: serializeGrunts(state),
     bonusSquares: serializeBonusSquares(state),
     towerAlive: [...state.towerAlive],
@@ -79,7 +78,12 @@ export function createCannonStartMessage(state: GameState) {
     bonusSquares: serializeBonusSquares(state),
     towerAlive: [...state.towerAlive],
     burningPits: serializeBurningPits(state),
-    housesAlive: state.map.houses.map((h) => h.alive),
+    houses: state.map.houses.map((h) => ({
+      row: h.row,
+      col: h.col,
+      zone: h.zone,
+      alive: h.alive,
+    })),
   };
 }
 
@@ -133,7 +137,12 @@ export function createFullStateMessage(
     rngState: state.rng.getState(),
     players: serializePlayers(state),
     grunts: serializeGrunts(state),
-    housesAlive: state.map.houses.map((h) => h.alive),
+    houses: state.map.houses.map((h) => ({
+      row: h.row,
+      col: h.col,
+      zone: h.zone,
+      alive: h.alive,
+    })),
     bonusSquares: serializeBonusSquares(state),
     towerAlive: [...state.towerAlive],
     burningPits: serializeBurningPits(state),
@@ -281,14 +290,7 @@ export function restoreFullStateSnapshot(
   applyPlayersCheckpoint(state, msg.players);
   applyGruntsCheckpoint(state, msg.grunts);
 
-  // Houses are map data — only alive status changes
-  for (
-    let i = 0;
-    i < msg.housesAlive.length && i < state.map.houses.length;
-    i++
-  ) {
-    state.map.houses[i]!.alive = msg.housesAlive[i]!;
-  }
+  applyHousesCheckpoint(state, msg.houses);
 
   restoreCannonballs(state, msg);
   applyCapturedCannons(state, msg.capturedCannons);
@@ -305,6 +307,19 @@ export function restoreFullStateSnapshot(
       progress: flight.progress,
     })),
   };
+}
+
+/** Replace the full houses array from checkpoint data. */
+export function applyHousesCheckpoint(
+  state: GameState,
+  houses: readonly SerializedHouse[],
+): void {
+  state.map.houses = houses.map((h) => ({
+    row: h.row,
+    col: h.col,
+    zone: h.zone,
+    alive: h.alive,
+  }));
 }
 
 export function applyPlayersCheckpoint(

@@ -20,6 +20,13 @@ export interface SerializedCannon {
   facing?: number;
 }
 
+export interface SerializedHouse {
+  row: number;
+  col: number;
+  zone: number;
+  alive: boolean;
+}
+
 export interface SerializedGrunt {
   row: number;
   col: number;
@@ -68,7 +75,7 @@ export interface CannonStartData {
   bonusSquares: SerializedBonusSquare[];
   towerAlive: boolean[];
   burningPits: SerializedBurningPit[];
-  housesAlive: boolean[];
+  houses: SerializedHouse[];
 }
 
 /** Data needed to sync state at battle start. */
@@ -95,7 +102,7 @@ export interface BuildStartData {
   round: number;
   timer: number;
   players: SerializedPlayer[];
-  housesAlive: boolean[];
+  houses: SerializedHouse[];
   grunts: SerializedGrunt[];
   bonusSquares: SerializedBonusSquare[];
   towerAlive: boolean[];

@@ -24,7 +24,7 @@ function makeFullState(migrationSeq: number): FullStateMessage {
     rngState: 123,
     players: [],
     grunts: [],
-    housesAlive: [],
+    houses: [],
     bonusSquares: [],
     towerAlive: [],
     burningPits: [],

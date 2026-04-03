@@ -13,7 +13,7 @@ import type { PixelPos } from "./geometry-types.ts";
 import {
   applyCapturedCannons,
   applyGruntsCheckpoint,
-  applyHousesAlive,
+  applyHousesCheckpoint,
   applyPlayersCheckpoint,
 } from "./online-serialize.ts";
 import { towerCenterPx } from "./spatial.ts";
@@ -168,7 +168,7 @@ function applyCommonCheckpoint(
     CannonStartData,
     | "players"
     | "grunts"
-    | "housesAlive"
+    | "houses"
     | "bonusSquares"
     | "towerAlive"
     | "burningPits"
@@ -179,7 +179,7 @@ function applyCommonCheckpoint(
   capturePreState?.();
   applyPlayersCheckpoint(deps.state, data.players);
   applyGruntsCheckpoint(deps.state, data.grunts);
-  applyHousesAlive(deps.state, data.housesAlive);
+  applyHousesCheckpoint(deps.state, data.houses);
   deps.state.bonusSquares = data.bonusSquares;
   deps.state.towerAlive = data.towerAlive;
   deps.state.burningPits = data.burningPits;

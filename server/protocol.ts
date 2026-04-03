@@ -70,6 +70,7 @@ import type {
   SerializedBonusSquare,
   SerializedBurningPit,
   SerializedGrunt,
+  SerializedHouse,
   SerializedPlayer,
 } from "../src/checkpoint-data.ts";
 
@@ -276,7 +277,7 @@ export interface FullStateMessage {
   rngState: number;
   players: SerializedPlayer[];
   grunts: SerializedGrunt[];
-  housesAlive: boolean[];
+  houses: SerializedHouse[];
   bonusSquares: SerializedBonusSquare[];
   towerAlive: boolean[];
   burningPits: SerializedBurningPit[];
