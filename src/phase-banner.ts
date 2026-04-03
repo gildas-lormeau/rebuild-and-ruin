@@ -8,6 +8,8 @@ export interface BannerState {
   text: string;
   subtitle?: string;
   callback: (() => void) | null;
+  /** Scene snapshots for banner crossfade animation:
+   *  old* = frozen before checkpoint applies, new* = revealed after banner lifts. */
   oldCastles?: CastleData[];
   oldTerritory?: Set<number>[];
   oldWalls?: Set<number>[];
