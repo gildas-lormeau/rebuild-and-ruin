@@ -466,9 +466,14 @@ function applyLifePenalties(state: GameState): {
 }
 
 export function resetZoneState(state: GameState, zone: number): void {
-  state.grunts = state.grunts.filter(
-    (grunt) => state.map.zones[grunt.row]?.[grunt.col] !== zone,
-  );
+  state.grunts = state.grunts.filter((grunt) => {
+    if (state.map.zones[grunt.row]?.[grunt.col] === zone) return false;
+    // Remove grunts stuck en route to towers in this zone (e.g. frozen river crossings)
+    if (grunt.targetTowerIdx !== undefined) {
+      if (state.map.towers[grunt.targetTowerIdx]?.zone === zone) return false;
+    }
+    return true;
+  });
   state.map.houses = state.map.houses.filter((house) => house.zone !== zone);
   state.bonusSquares = state.bonusSquares.filter((bs) => bs.zone !== zone);
   state.burningPits = state.burningPits.filter(
