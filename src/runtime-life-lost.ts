@@ -78,7 +78,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     needsReselect: readonly ValidPlayerSlot[],
     eliminated: readonly ValidPlayerSlot[],
   ): boolean {
-    const remoteHumanSlots = runtimeState.frameCtx.remoteHumanSlots;
+    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
     deps.log(
       `tryShow lifeLost: needsReselect=[${needsReselect}] eliminated=[${eliminated}]`,
     );
@@ -86,8 +86,8 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       needsReselect,
       eliminated,
       state: runtimeState.state,
-      hostAtFrameStart: runtimeState.frameCtx.hostAtFrameStart,
-      myPlayerId: runtimeState.frameCtx.myPlayerId,
+      hostAtFrameStart: runtimeState.frameMeta.hostAtFrameStart,
+      myPlayerId: runtimeState.frameMeta.myPlayerId,
       remoteHumanSlots,
       isHumanController: (playerId) =>
         isHuman(runtimeState.controllers[playerId]!),
@@ -133,7 +133,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
     eliminateAbandoned(dialog);
 
-    if (runtimeState.frameCtx.hostAtFrameStart) {
+    if (runtimeState.frameMeta.hostAtFrameStart) {
       afterLifeLostResolved(continuingPlayers(dialog));
     } else {
       runtimeState.mode = Mode.GAME;

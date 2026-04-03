@@ -135,7 +135,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function syncCrosshairs(weaponsActive: boolean, dt = 0): void {
-    const remoteHumanSlots = runtimeState.frameCtx.remoteHumanSlots;
+    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
     runtimeState.frame.crosshairs = collectLocalCrosshairs({
       state: runtimeState.state,
       controllers: runtimeState.controllers,
@@ -157,7 +157,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   function startCannonPhase(onBannerDone?: () => void) {
     deps.sound.drumsQuiet();
-    const remoteHumanSlots = runtimeState.frameCtx.remoteHumanSlots;
+    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
     deps.log(`startCannonPhase (round=${runtimeState.state.round})`);
     executeTransition(CANNON_START_STEPS, {
       showBanner: () => {
@@ -180,7 +180,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         applyDefaultFacings(runtimeState.state);
         (runtimeState.accum as MutableAccums).cannon = 0;
         runtimeState.state.timer = runtimeState.state.cannonPlaceTimer;
-        if (runtimeState.frameCtx.hostAtFrameStart && deps.hostNetworking) {
+        if (runtimeState.frameMeta.hostAtFrameStart && deps.hostNetworking) {
           deps.send(
             deps.hostNetworking.createCannonStartMessage(runtimeState.state),
           );
@@ -219,7 +219,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       beginBattle,
       net: deps.hostNetworking
         ? {
-            isHost: runtimeState.frameCtx.hostAtFrameStart,
+            isHost: runtimeState.frameMeta.hostAtFrameStart,
             sendBattleStart: (flights) => {
               deps.send(
                 deps.hostNetworking!.createBattleStartMessage(
@@ -253,8 +253,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         runtimeState.mode = Mode.GAME;
       },
       net: {
-        remoteHumanSlots: runtimeState.frameCtx.remoteHumanSlots,
-        isHost: runtimeState.frameCtx.hostAtFrameStart,
+        remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,
+        isHost: runtimeState.frameMeta.hostAtFrameStart,
         watcherTiming: deps.watcherTiming ?? {
           phaseStartTime: 0,
           phaseDuration: 0,
@@ -272,7 +272,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function startBuildPhase() {
-    const remoteHumanSlots = runtimeState.frameCtx.remoteHumanSlots;
+    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
     deps.log(`startBuildPhase (round=${runtimeState.state.round})`);
     runtimeState.preScores = runtimeState.state.players.map(
       (player) => player.score,
@@ -306,8 +306,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       render: deps.render,
       startBattle,
       net: {
-        remoteHumanSlots: runtimeState.frameCtx.remoteHumanSlots,
-        isHost: runtimeState.frameCtx.hostAtFrameStart,
+        remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,
+        isHost: runtimeState.frameMeta.hostAtFrameStart,
         remoteCannonPhantoms: deps.hostNetworking?.remoteCannonPhantoms() ?? [],
         lastSentCannonPhantom:
           deps.hostNetworking?.lastSentCannonPhantom() ?? NOOP_DEDUP_CHANNEL,
@@ -327,7 +327,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       controllers: runtimeState.controllers,
       syncCrosshairs,
       render: deps.render,
-      net: { remoteHumanSlots: runtimeState.frameCtx.remoteHumanSlots },
+      net: { remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots },
     });
   }
 
@@ -344,7 +344,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       collectTowerEvents: gruntAttackTowers,
       tickCannonballsWithEvents: tickCannonballs,
       onBattleEvents: (events: ReadonlyArray<BattleEvent>) => {
-        const pov = runtimeState.frameCtx.povPlayerId;
+        const pov = runtimeState.frameMeta.povPlayerId;
         deps.haptics.battleEvents(events, pov);
         deps.sound.battleEvents(events, pov);
         for (const evt of events) {
@@ -368,7 +368,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
         // Step 1: apply checkpoint (nextPhase generates offers + modifier)
         nextPhase(runtimeState.state);
-        if (runtimeState.frameCtx.hostAtFrameStart && deps.hostNetworking) {
+        if (runtimeState.frameMeta.hostAtFrameStart && deps.hostNetworking) {
           deps.send(
             deps.hostNetworking.createBuildStartMessage(runtimeState.state),
           );
@@ -400,8 +400,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         showBannerAndEnterBuild();
       },
       net: {
-        remoteHumanSlots: runtimeState.frameCtx.remoteHumanSlots,
-        isHost: runtimeState.frameCtx.hostAtFrameStart,
+        remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,
+        isHost: runtimeState.frameMeta.hostAtFrameStart,
         sendMessage: deps.send,
       },
     });
@@ -431,8 +431,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       showScoreDeltas: deps.selection.showBuildScoreDeltas,
       onFirstEnclosure: deps.sound.chargeFanfare,
       net: {
-        remoteHumanSlots: runtimeState.frameCtx.remoteHumanSlots,
-        isHost: runtimeState.frameCtx.hostAtFrameStart,
+        remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,
+        isHost: runtimeState.frameMeta.hostAtFrameStart,
         remotePiecePhantoms: deps.hostNetworking?.remotePiecePhantoms() ?? [],
         lastSentPiecePhantom:
           deps.hostNetworking?.lastSentPiecePhantom() ?? NOOP_DEDUP_CHANNEL,
@@ -454,7 +454,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
    *  so a single assertion covers cannon, battle, build, and balloon ticks. */
   function tickGame(dt: number) {
     assertStateReady(runtimeState);
-    if (runtimeState.frameCtx.hostAtFrameStart) {
+    if (runtimeState.frameMeta.hostAtFrameStart) {
       tickGameCore({
         dt,
         state: runtimeState.state,

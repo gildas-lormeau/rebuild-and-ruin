@@ -81,7 +81,7 @@ export interface RuntimeState {
   /** Per-frame context (dt, mode, etc.). IMPORTANT: guarded by an uninitialized
    *  sentinel before the first mainLoop tick. Same rules as `state` — check
    *  `isStateReady(runtimeState)` before accessing. */
-  frameCtx: FrameContext;
+  frameMeta: FrameContext;
   frame: FrameData;
   lobby: LobbyState;
 
@@ -161,7 +161,7 @@ export function createRuntimeState(): RuntimeState {
 
     battleAnim: createBattleAnimState(),
     banner: createBannerState(),
-    frameCtx: uninitializedSentinel<FrameContext>("ctx"),
+    frameMeta: uninitializedSentinel<FrameContext>("ctx"),
     frame: { crosshairs: [], phantoms: {} },
     lobby: {
       joined: new Array(MAX_PLAYERS).fill(false),

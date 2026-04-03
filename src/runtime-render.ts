@@ -116,11 +116,11 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       inBattle: runtimeState.state.phase === Phase.BATTLE,
       lifeLostDialog: runtimeState.lifeLostDialog,
       upgradePickDialog: runtimeState.upgradePickDialog,
-      povPlayerId: runtimeState.frameCtx.povPlayerId,
-      hasPointerPlayer: runtimeState.frameCtx.hasPointerPlayer,
+      povPlayerId: runtimeState.frameMeta.povPlayerId,
+      hasPointerPlayer: runtimeState.frameMeta.hasPointerPlayer,
       upgradePickInteractiveId: computeUpgradePickInteractiveId(
         runtimeState.upgradePickDialog,
-        runtimeState.frameCtx.myPlayerId,
+        runtimeState.frameMeta.myPlayerId,
       ),
       playerNames: PLAYER_NAMES,
       playerColors: PLAYER_COLORS,
@@ -132,8 +132,8 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       runtimeState.overlay.ui.statusBar = createStatusBar(
         runtimeState.state,
         PLAYER_COLORS,
-        runtimeState.frameCtx.povPlayerId,
-        runtimeState.frameCtx.hasPointerPlayer,
+        runtimeState.frameMeta.povPlayerId,
+        runtimeState.frameMeta.hasPointerPlayer,
       );
     }
 

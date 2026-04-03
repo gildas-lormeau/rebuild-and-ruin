@@ -134,9 +134,9 @@ export function createSelectionSystem(
     resetSelectionState();
     enterTowerSelectionImpl({
       state: runtimeState.state,
-      isHost: runtimeState.frameCtx.hostAtFrameStart,
-      myPlayerId: runtimeState.frameCtx.myPlayerId,
-      remoteHumanSlots: runtimeState.frameCtx.remoteHumanSlots,
+      isHost: runtimeState.frameMeta.hostAtFrameStart,
+      myPlayerId: runtimeState.frameMeta.myPlayerId,
+      remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,
       controllers: runtimeState.controllers,
       selectionStates: runtimeState.selectionStates,
       initTowerSelection: initPlayerTowerSelection,
@@ -266,12 +266,12 @@ export function createSelectionSystem(
   // -------------------------------------------------------------------------
 
   function tickSelection(dt: number) {
-    const remoteHumanSlots = runtimeState.frameCtx.remoteHumanSlots;
+    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
     tickSelectionPhase({
       dt,
       state: runtimeState.state,
-      isHost: runtimeState.frameCtx.hostAtFrameStart,
-      myPlayerId: runtimeState.frameCtx.myPlayerId,
+      isHost: runtimeState.frameMeta.hostAtFrameStart,
+      myPlayerId: runtimeState.frameMeta.myPlayerId,
       selectTimer: SELECT_TIMER,
       accum: runtimeState.accum,
       selectionStates: runtimeState.selectionStates,
@@ -329,7 +329,7 @@ export function createSelectionSystem(
   }
 
   function startPlayerCastleBuild(playerId: ValidPlayerSlot): void {
-    if (!runtimeState.frameCtx.hostAtFrameStart) return; // non-host builds via castle_walls message
+    if (!runtimeState.frameMeta.hostAtFrameStart) return; // non-host builds via castle_walls message
     const plan = prepareCastleWallsForPlayer(runtimeState.state, playerId);
     if (!plan) return;
     deps.send({ type: MESSAGE.CASTLE_WALLS, plans: [plan] });
@@ -429,7 +429,7 @@ export function createSelectionSystem(
   // -------------------------------------------------------------------------
 
   function startReselection() {
-    const remoteHumanSlots = runtimeState.frameCtx.remoteHumanSlots;
+    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
     enterCastleReselectPhase(runtimeState.state);
     resetSelectionState();
 
@@ -460,7 +460,7 @@ export function createSelectionSystem(
       runtimeState.state.timer = SELECT_TIMER;
       runtimeState.mode = Mode.SELECTION;
       deps.sound.drumsStart();
-      if (runtimeState.frameCtx.hostAtFrameStart) {
+      if (runtimeState.frameMeta.hostAtFrameStart) {
         deps.send({ type: MESSAGE.SELECT_START, timer: SELECT_TIMER });
       }
     } else {
