@@ -132,6 +132,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
         runtimeState.state,
         PLAYER_COLORS,
         runtimeState.frameCtx.povPlayerId,
+        runtimeState.frameCtx.hasPointerPlayer,
       );
     }
 

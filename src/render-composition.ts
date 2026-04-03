@@ -151,15 +151,16 @@ export function createStatusBar(
   state: GameState,
   playerColors: readonly { interiorLight: RGB }[],
   povPlayerId?: number,
+  hasPointerPlayer?: boolean,
 ) {
   // Modifier label (modern mode only)
   const modifier = state.activeModifier
     ? modifierLabel(state.activeModifier)
     : undefined;
 
-  // POV player's active upgrade labels
+  // POV player's active upgrade labels (skip when no human is playing)
   let upgrades: string[] | undefined;
-  if (povPlayerId !== undefined && povPlayerId >= 0) {
+  if (hasPointerPlayer && povPlayerId !== undefined && povPlayerId >= 0) {
     const player = state.players[povPlayerId];
     if (player && player.upgrades.size > 0) {
       upgrades = [];
