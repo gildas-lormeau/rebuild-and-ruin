@@ -59,7 +59,9 @@ export function initTowerSelection(
 ): void {
   const player = state.players[playerId]!;
   const towerIdx = player.homeTower
-    ? state.map.towers.findIndex((tower) => tower === player.homeTower)
+    ? // Identity check (===) is safe: tower refs are stable within a game session.
+      // Online mode uses indices for serialization (see online-phase-transitions.ts).
+      state.map.towers.findIndex((tower) => tower === player.homeTower)
     : (zoneTowerIndices(state, zone)[0] ?? 0);
   selectionStates.set(playerId, {
     highlighted: towerIdx,

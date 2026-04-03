@@ -382,3 +382,66 @@ sufficient for LLM agents to follow correctly.
     (phase-setup.ts:273), nulled after awarding bonuses in `enterBuildFromBattle`
     (phase-setup.ts:289). Both sites are in the same file. The `| null` type enforces
     null checks at all access sites. Do not report the lifecycle as undocumented.
+
+36. **MODIFIER_LABELS and MODIFIER_ID must stay in sync** — game-constants.ts:30-37
+    documents the invariant on both objects. Adding a modifier requires entries in both.
+
+37. **Interior exclusion set in AI pickPlacement is intentional** —
+    ai-strategy-build.ts:485 documents why gaps and castle-rect tiles are excluded
+    from the interior set during candidate scoring. Prevents penalizing gap-filling.
+
+38. **`withPointerPlayer` callback may silently not execute** — input.ts:58-61 JSDoc
+    explicitly warns that the callback is NOT invoked if no human players exist.
+
+39. **`>>> 0` uint32 coercion in deriveAiStrategySeed** —
+    online-host-promotion.ts:111 inline comment explains the idiom.
+
+40. **Preset option sets for collectOccupiedTiles are documented** —
+    board-occupancy.ts:50-52 explains the preset pattern and its relationship
+    to the collectOccupiedTiles function.
+
+41. **`victimPlayerId` naming reflects the grunt's perspective** —
+    ai-strategy-battle.ts:591-593 JSDoc explains the parameter is the player
+    being attacked, not the AI. The name is intentional.
+
+42. **Tower identity check (===) in selection is intentional** —
+    selection.ts:62-63 documents that tower refs are stable within a session.
+    Online mode uses indices for serialization.
+
+43. **Selection tick takes optional `state?` by design** — ai-phase-select.ts:89
+    documents that selection can tick without state during initial lobby setup.
+
+44. **Socket validation inlined in online-lobby-ui.ts mirrors online-session.ts** —
+    online-lobby-ui.ts:55 comment documents the parallel with isSocketOpen().
+
+45. **Life-lost and upgrade-pick dialog ticks have parallel structure** —
+    life-lost.ts:19 and upgrade-pick.ts cross-reference each other. Both loop
+    entries for auto-resolve + force-resolve. The duplication is intentional.
+
+46. **drawPanel/drawButton mutate canvas state — callers must save/restore** —
+    render-ui-theme.ts JSDoc on both functions documents the convention.
+
+47. **HOME_GAP_REPAIR_THRESHOLD vs MANAGEABLE_GAP_LIMIT serve different decisions** —
+    ai-strategy-build.ts:68 and :76 JSDoc explains: threshold = deprioritize home tower,
+    limit = skip target entirely. Both are gap counts but at different decision points.
+
+48. **Modifier tuning constants are playtesting-calibrated** —
+    round-modifiers.ts:71 block comment warns against adjusting multiple simultaneously.
+
+49. **Fanfare note frequencies are musical constants** — sound-system.ts:587 comment
+    documents G4=392, C5=523, E5=659, G5=784 Hz.
+
+50. **isCannonPhaseDone measures different things per controller type** —
+    controller-interfaces.ts:129-130 JSDoc documents that Human checks remaining
+    slots, AI checks internal phase step. Both are correct.
+
+51. **Canvas coordinate spaces documented in render-effects.ts** —
+    render-effects.ts:20+ documents that all render-* positions are canvas-space
+    unless parameter names indicate otherwise (screenX/Y, tileX/Y).
+
+52. **pointerPhantomValid() three-way return is documented** —
+    runtime-touch-ui.ts JSDoc: true=valid, false=invalid, undefined=no phantom.
+
+53. **Host interface pattern (SelectionHost, BuildHost, etc.) is documented** —
+    ai-phase-select.ts JSDoc above SelectionHost explains the convention:
+    each ai-phase-*.ts defines a minimal Host interface for decoupling.

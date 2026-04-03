@@ -27,14 +27,16 @@ export type PlayerSlotId = number;
  *  Prefer `isActivePlayer()` type guard when possible. */
 export type ValidPlayerSlot = number & { readonly __validSlot: true };
 
-/** Human-readable labels for modifier IDs (used by HUD and banners). */
+/** Human-readable labels — MUST stay in sync with MODIFIER_ID.
+ *  Adding a new modifier requires an entry in both objects. */
 const MODIFIER_LABELS: Record<ModifierId, string> = {
   wildfire: "Wildfire",
   crumbling_walls: "Crumbling Walls",
   grunt_surge: "Grunt Surge",
   frozen_river: "Frozen River",
 };
-/** Named constants for modifier IDs — use these instead of raw string literals. */
+/** String identifiers — MUST stay in sync with MODIFIER_LABELS above.
+ *  Adding a new modifier requires an entry in both objects. */
 export const MODIFIER_ID = {
   WILDFIRE: "wildfire",
   CRUMBLING_WALLS: "crumbling_walls",

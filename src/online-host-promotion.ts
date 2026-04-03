@@ -108,6 +108,6 @@ function deriveAiStrategySeed(
 ): number {
   return (
     (baseSeed + round * SEED_ROUND_MULTIPLIER + slot * SEED_SLOT_MULTIPLIER) >>>
-    0
+    0 // >>> 0 coerces to uint32 (consistent seed behavior across platforms)
   );
 }

@@ -11,7 +11,9 @@ import type { ValidPlayerSlot } from "./game-constants.ts";
 import { selectPlayerTower } from "./game-engine.ts";
 import type { GameState } from "./types.ts";
 
-/** Subset of AiController accessed by selection-phase logic. */
+/** Minimal subset of AiController needed by this phase module.
+ *  Convention: each ai-phase-*.ts defines its own Host interface to decouple
+ *  phase logic from the full controller, keeping modules independently testable. */
 interface SelectionHost {
   readonly playerId: ValidPlayerSlot;
   readonly strategy: AiStrategy;
@@ -86,6 +88,7 @@ export function tickSelection(
   host: SelectionHost,
   phase: SelectionPhase,
   dt: number,
+  // Optional: selection phase can tick without state during initial lobby setup.
   state?: GameState,
 ): boolean {
   switch (phase.state.step) {

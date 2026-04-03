@@ -280,7 +280,7 @@ function updateFloatingActions(deps: TouchControlsDeps): void {
   );
 }
 
-/** Phantom validity for the pointer player in the current placement phase. */
+/** @returns true if phantom valid, false if invalid, undefined if no phantom for this phase. */
 function pointerPhantomValid(
   phase: Phase | undefined,
   human: PlayerController | null,

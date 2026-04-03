@@ -52,6 +52,7 @@ export function initLobbyUi({
     pendingAction = action;
     connect();
     const socket = getSocket();
+    // Inline readyState check — mirrors isSocketOpen() in online-session.ts.
     if (socket?.readyState === WebSocket.OPEN) {
       pendingAction = null;
       action();

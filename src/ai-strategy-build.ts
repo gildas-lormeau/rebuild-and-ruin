@@ -64,7 +64,7 @@ import type { GameState } from "./types.ts";
 
 type BuildSkillConfig = (typeof BUILD_SKILL_TABLE)[number];
 
-/** Max gap tiles in home castle before AI skips it for other towers. */
+/** Max gap tiles before AI deprioritizes home tower in favor of other unenclosed towers. */
 const HOME_GAP_REPAIR_THRESHOLD = 5;
 /** Score weight per gap tile filled by a placement. */
 const GAP_FILLED_WEIGHT = 100;
@@ -72,7 +72,7 @@ const GAP_FILLED_WEIGHT = 100;
 const GAP_ADJACENT_WEIGHT = 20;
 /** Score weight per tile connected to existing walls. */
 const CONNECTED_TILES_WEIGHT = 10;
-/** Max gap tiles the AI considers manageable for a single build turn. */
+/** Max gap tiles the AI considers evaluable in a single build turn. Beyond this, the target is skipped. */
 const MANAGEABLE_GAP_LIMIT = 8;
 /** How far the castle rect can expand to route around blocked tiles.
  *  Indexed by interior utilization: >60% → 2, >30% → 3, >10% → 4, else 5. */
@@ -482,9 +482,9 @@ export function pickPlacement(
   // Step 2: score candidates
   const baselineOutside = outside.size;
 
-  // Interior minus target gaps and target castle rect — gaps are holes in the ring
-  // that need filling, and the castle rect interior belongs to an open (gapped)
-  // enclosure where the AI should be free to extend pieces while closing the ring.
+  // Interior excluding gaps and castle-rect tiles — lets the AI place pieces
+  // freely inside an open (gapped) enclosure. Without this exclusion, scoring
+  // would penalize placements near gaps that need filling.
   const interiorExcludingGaps = new Set(getInterior(player));
   for (const gk of targetGaps) interiorExcludingGaps.delete(gk);
   if (targetRect) {

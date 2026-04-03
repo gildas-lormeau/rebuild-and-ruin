@@ -585,6 +585,7 @@ export function createSoundSystem(): SoundSystem {
       audioCtx.resume().catch(() => {});
 
       const pitch = FANFARE_PITCH[playerId] ?? 1;
+      // Musical note frequencies (Hz): G4=392, C5=523, E5=659, G5=784
       const G4 = 392 * pitch;
       const C5 = 523 * pitch;
       const E5 = 659 * pitch;

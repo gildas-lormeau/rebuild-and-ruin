@@ -17,6 +17,12 @@
  * use the threaded `now` value.  Tests inject any number they want.
  * Functions that divide by 1000 (water, pits, frozen) convert to seconds locally.
  *
+ * ### Coordinate spaces
+ *
+ * All positions in render-* files are canvas-space (pixels from canvas origin)
+ * unless parameter names indicate otherwise (screenX/Y, tileX/Y). World-space
+ * conversions happen at call sites in render-composition.ts.
+ *
  * ### Canvas save/restore convention (applies across all render-* files)
  *
  * CONVENTION: All exported render functions that mutate canvas context state

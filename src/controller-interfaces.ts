@@ -126,7 +126,9 @@ export interface CannonController {
    *  When adding a new cannon mode, update both ai-strategy-cannon.ts and controller-human.ts. */
   placeCannons(state: GameState, maxSlots: number): void;
 
-  /** Whether the player has placed all their cannons. */
+  /** Whether the player has finished cannon placement. Human: checks remaining
+   *  slots. AI: checks internal phase step. Both are correct — they measure
+   *  different completion criteria. */
   isCannonPhaseDone(state: GameState, maxSlots: number): boolean;
 
   /** Called each frame during cannon phase. Returns a placement preview for rendering,

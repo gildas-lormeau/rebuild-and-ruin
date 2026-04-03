@@ -56,7 +56,8 @@ export const BTN_MENU = {
   strokeFocused: "#ccf",
 };
 
-/** Draw a panel: filled rect + inset border stroke. */
+/** Draw a panel: filled rect + inset border stroke.
+ *  Helper — mutates fillStyle/strokeStyle. Caller must wrap in save()/restore(). */
 export function drawPanel(
   overlayCtx: CanvasRenderingContext2D,
   x: number,
@@ -73,7 +74,8 @@ export function drawPanel(
   overlayCtx.strokeRect(x + 1, y + 1, w - 2, h - 2);
 }
 
-/** Draw a styled button: filled rect + border + centered label. */
+/** Draw a styled button: filled rect + border + centered label.
+ *  Helper — mutates fillStyle/strokeStyle. Caller must wrap in save()/restore(). */
 export function drawButton(
   overlayCtx: CanvasRenderingContext2D,
   x: number,

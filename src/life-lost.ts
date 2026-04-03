@@ -16,6 +16,7 @@ interface CreateLifeLostDialogDeps extends AutoResolveDeps {
 /** Tick the life-lost dialog. Auto-resolve entries tick their timers;
  *  max timer force-resolves all pending entries.
  *  Returns true when all entries are resolved. */
+// Parallel structure with tickUpgradePickDialog (upgrade-pick.ts) — both loop entries for auto-resolve + force-resolve.
 export function tickLifeLostDialog(
   dialog: LifeLostDialogState,
   dt: number,
