@@ -51,6 +51,7 @@ import { resetSessionState } from "./online-session.ts";
 import {
   clearReconnect,
   ctx,
+  defaultClient,
   devLog,
   devLogThrottled,
   maybeSendAimUpdate,
@@ -253,7 +254,7 @@ export function initOnlineRuntime(): void {
     render: () => runtime.render(),
   });
 
-  initPromote(runtime);
+  initPromote(runtime, defaultClient);
 
   initDeps({
     runtime,

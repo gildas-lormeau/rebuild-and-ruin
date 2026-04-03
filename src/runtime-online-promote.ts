@@ -16,11 +16,8 @@ import {
 } from "./online-host-promotion.ts";
 import { createFullStateMessage } from "./online-serialize.ts";
 import {
-  ctx,
-  devLog,
+  type OnlineClient,
   RESET_SCOPE_HOST_PROMOTION,
-  resetNetworking,
-  send,
 } from "./online-stores.ts";
 import { createAiController } from "./runtime-bootstrap.ts";
 import type { GameRuntime } from "./runtime-types.ts";
@@ -29,11 +26,13 @@ import { assertNever } from "./utils.ts";
 
 // ── Late-bound state ───────────────────────────────────────────────
 let _runtime: GameRuntime;
+let _client: OnlineClient;
 
 /** Bind the GameRuntime reference. Called once from runtime-online-game.ts
  *  after the GameRuntime is created. */
-export function initPromote(rt: GameRuntime): void {
+export function initPromote(rt: GameRuntime, client: OnlineClient): void {
   _runtime = rt;
+  _client = client;
 }
 
 /** Promote this client to host. Order matters:
@@ -45,14 +44,14 @@ export function initPromote(rt: GameRuntime): void {
  */
 export function promoteToHost(): void {
   if (!_runtime) throw new Error("promoteToHost() called before initPromote()");
-  devLog("PROMOTING TO HOST");
-  ctx.session.isHost = true; // eslint-disable-line no-restricted-syntax -- host promotion
+  _client.devLog("PROMOTING TO HOST");
+  _client.ctx.session.isHost = true; // eslint-disable-line no-restricted-syntax -- host promotion
 
-  resetNetworking(RESET_SCOPE_HOST_PROMOTION);
+  _client.resetNetworking(RESET_SCOPE_HOST_PROMOTION);
   rebuildControllersForPhase(
     _runtime.runtimeState.state,
     _runtime.runtimeState.controllers,
-    ctx.session.myPlayerId,
+    _client.ctx.session.myPlayerId,
     (id, seed) =>
       createAiController(id, seed, _runtime.runtimeState.settings.difficulty),
   );
@@ -62,14 +61,14 @@ export function promoteToHost(): void {
   );
   skipPendingAnimations();
 
-  send(
+  _client.send(
     createFullStateMessage(
       _runtime.runtimeState.state,
-      ctx.session.hostMigrationSeq,
+      _client.ctx.session.hostMigrationSeq,
       _runtime.runtimeState.battleAnim.flights,
     ),
   );
-  devLog("Promotion complete, now running as host");
+  _client.devLog("Promotion complete, now running as host");
 }
 
 /**
@@ -85,22 +84,22 @@ function skipPendingAnimations(): void {
       skipCastleBuildAnimation(state);
       _runtime.phaseTicks.startCannonPhase();
       _runtime.runtimeState.mode = Mode.GAME;
-      devLog("Skipped castle build animation → cannon phase");
+      _client.devLog("Skipped castle build animation → cannon phase");
       break;
     case Mode.LIFE_LOST:
       _runtime.lifeLost.set(null);
       _runtime.runtimeState.mode = Mode.GAME;
-      devLog("Cleared life-lost dialog → game mode");
+      _client.devLog("Cleared life-lost dialog → game mode");
       break;
     case Mode.BANNER:
     case Mode.BALLOON_ANIM:
       _runtime.runtimeState.mode = Mode.GAME;
-      devLog("Skipped banner/animation → game mode");
+      _client.devLog("Skipped banner/animation → game mode");
       break;
     case Mode.UPGRADE_PICK:
       _runtime.runtimeState.upgradePickDialog = null;
       _runtime.runtimeState.mode = Mode.GAME;
-      devLog("Cleared upgrade pick dialog → game mode");
+      _client.devLog("Cleared upgrade pick dialog → game mode");
       break;
     case Mode.GAME:
     case Mode.LOBBY:

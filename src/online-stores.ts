@@ -49,7 +49,7 @@ interface OnlineContext {
   };
 }
 
-interface OnlineClient {
+export interface OnlineClient {
   readonly ctx: OnlineContext;
   send(msg: GameMessage): void;
   maybeSendAimUpdate(x: number, y: number, playerId?: number): void;
@@ -66,7 +66,7 @@ const LOG_THROTTLE_MS = 1000;
 // ── Default instance & module-scope bridge ─────────────────────────
 // Consumers still `import { ctx, send, ... } from "./online-stores.ts"`.
 // Phase 2 will inject the client directly; Phase 3 removes this bridge.
-const _defaultClient = createOnlineClient();
+export const defaultClient = createOnlineClient();
 /** Network reset scope — forces callers to declare intent, preventing
  *  accidental use of the wrong reset level. Each scope clears a different
  *  subset of networking state:
@@ -84,7 +84,7 @@ export const RESET_SCOPE_NEW_GAME = "new-game" as const;
 export const RESET_SCOPE_HOST_PROMOTION = "host-promotion" as const;
 export const MAX_RECONNECT_ATTEMPTS = 3;
 export const RECONNECT_BASE_DELAY_MS = 1000;
-export const ctx = _defaultClient.ctx;
+export const ctx = defaultClient.ctx;
 
 function createOnlineClient(): OnlineClient {
   const context: OnlineContext = {
@@ -147,19 +147,19 @@ function createOnlineClient(): OnlineClient {
 }
 
 export function isReconnecting(): boolean {
-  return _defaultClient.isReconnecting();
+  return defaultClient.isReconnecting();
 }
 
 export function devLogThrottled(key: string, msg: string): void {
-  _defaultClient.devLogThrottled(key, msg);
+  defaultClient.devLogThrottled(key, msg);
 }
 
 export function devLog(msg: string): void {
-  _defaultClient.devLog(msg);
+  defaultClient.devLog(msg);
 }
 
 export function send(msg: GameMessage): void {
-  _defaultClient.send(msg);
+  defaultClient.send(msg);
 }
 
 export function maybeSendAimUpdate(
@@ -167,15 +167,15 @@ export function maybeSendAimUpdate(
   y: number,
   playerId?: number,
 ): void {
-  _defaultClient.maybeSendAimUpdate(x, y, playerId);
+  defaultClient.maybeSendAimUpdate(x, y, playerId);
 }
 
 /** Reset networking state for the given scope. */
 export function resetNetworking(scope: ResetScope): void {
-  _defaultClient.resetNetworking(scope);
+  defaultClient.resetNetworking(scope);
 }
 
 /** Zero out reconnect state — call after successful reconnect or when giving up. */
 export function clearReconnect(): void {
-  _defaultClient.clearReconnect();
+  defaultClient.clearReconnect();
 }
