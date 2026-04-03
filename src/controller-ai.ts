@@ -73,7 +73,7 @@ export class AiController extends BaseController implements AiAnimatable {
   constructor(playerId: ValidPlayerSlot, strategy?: AiStrategy) {
     super(playerId);
     this.strategy = strategy ?? new DefaultStrategy();
-    this._battlePhase.idlePhase = this.strategy.rng.next() * Math.PI * 2;
+    this._battlePhase.orbitAngle = this.strategy.rng.next() * Math.PI * 2;
   }
 
   // -----------------------------------------------------------------------
@@ -92,7 +92,7 @@ export class AiController extends BaseController implements AiAnimatable {
         rx: orbit.rx,
         ry: orbit.ry,
         speed: orbit.speed,
-        phaseAngle: bp.idlePhase,
+        phaseAngle: bp.orbitAngle,
       };
     }
     return null;

@@ -53,7 +53,7 @@ import {
   GAME_MODE_MODERN,
   INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
   INTERBATTLE_GRUNT_SPAWN_CHANCE,
-  MID,
+  MODIFIER_ID,
   type ValidPlayerSlot,
 } from "./game-constants.ts";
 import {
@@ -85,7 +85,7 @@ import { IMPLEMENTED_UPGRADES, UID, type UpgradeId } from "./upgrade-defs.ts";
 /** Grunts spawned per player on first battle when nobody fires. */
 const IDLE_FIRST_BATTLE_GRUNTS = 2;
 /** Extra build seconds per Master Builder upgrade stack. */
-const MASTER_BUILDER_BONUS = 5;
+const MASTER_BUILDER_BONUS_SECONDS = 5;
 /** Number of upgrade choices offered per pick. */
 const OFFER_COUNT = 3;
 /** First round that triggers upgrade picks (modern mode). */
@@ -256,12 +256,13 @@ export function enterBattleFromCannon(state: GameState): void {
   // Thaw frozen river from previous round (before applying new modifier)
   clearFrozenRiver(state);
   // Modern mode: apply battle-start modifiers
-  if (state.activeModifier === MID.WILDFIRE) {
+  if (state.activeModifier === MODIFIER_ID.WILDFIRE) {
     applyWildfire(state);
     recheckTerritory(state);
   }
-  if (state.activeModifier === MID.GRUNT_SURGE) applyGruntSurge(state);
-  if (state.activeModifier === MID.FROZEN_RIVER) applyFrozenRiver(state);
+  if (state.activeModifier === MODIFIER_ID.GRUNT_SURGE) applyGruntSurge(state);
+  if (state.activeModifier === MODIFIER_ID.FROZEN_RIVER)
+    applyFrozenRiver(state);
 
   rollGruntWallAttacks(state);
   setPhase(state, Phase.BATTLE);
@@ -316,7 +317,7 @@ export function enterBuildFromBattle(state: GameState): void {
     (pl) => !pl.eliminated && pl.upgrades.get(UID.MASTER_BUILDER),
   );
   state.timer =
-    state.buildTimer + (hasMasterBuilder ? MASTER_BUILDER_BONUS : 0);
+    state.buildTimer + (hasMasterBuilder ? MASTER_BUILDER_BONUS_SECONDS : 0);
 
   // All upgrades last one round — clear after timer is computed
   for (const player of state.players) {
@@ -326,7 +327,7 @@ export function enterBuildFromBattle(state: GameState): void {
   startOfBuildPhaseHousekeeping(state);
 
   // Modern mode: apply build-start modifiers (after housekeeping so territory is fresh)
-  if (state.activeModifier === MID.CRUMBLING_WALLS) {
+  if (state.activeModifier === MODIFIER_ID.CRUMBLING_WALLS) {
     applyCrumblingWalls(state);
     recheckTerritory(state);
   }

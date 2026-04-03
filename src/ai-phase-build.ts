@@ -50,7 +50,7 @@ type BuildState =
       step: typeof STEP.DWELLING;
       target: BuildTarget;
       timer: number;
-      retried: boolean;
+      hasRetried: boolean;
     }
   | { step: typeof STEP.GAVE_UP; retryTimer: number };
 
@@ -206,8 +206,8 @@ export function tickBuild(
           return [];
         }
         // Placement blocked (e.g. grunt moved onto target)
-        if (!ps.retried) {
-          ps.retried = true;
+        if (!ps.hasRetried) {
+          ps.hasRetried = true;
           ps.timer = 1.0;
         } else {
           phase.state = { step: STEP.THINKING, timer: 0.1 };
@@ -263,7 +263,7 @@ function tickMoving(
       step: STEP.DWELLING,
       target,
       timer: host.scaledDelay(0.2, 0.3),
-      retried: false,
+      hasRetried: false,
     };
   }
 

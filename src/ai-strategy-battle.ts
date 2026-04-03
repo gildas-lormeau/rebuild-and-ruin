@@ -13,7 +13,11 @@ import {
   getBattleInterior,
 } from "./board-occupancy.ts";
 import { filterActiveFiringCannons } from "./cannon-system.ts";
-import { MID, TOWER_SIZE, type ValidPlayerSlot } from "./game-constants.ts";
+import {
+  MODIFIER_ID,
+  TOWER_SIZE,
+  type ValidPlayerSlot,
+} from "./game-constants.ts";
 import type {
   PixelPos,
   PrioritizedTilePos,
@@ -595,7 +599,7 @@ function planGruntTargets(
   });
   const mod = state.activeModifier;
   const threshold =
-    mod === MID.GRUNT_SURGE || mod === MID.FROZEN_RIVER
+    mod === MODIFIER_ID.GRUNT_SURGE || mod === MODIFIER_ID.FROZEN_RIVER
       ? GRUNT_SWEEP_THRESHOLD_MODIFIER
       : GRUNT_SWEEP_THRESHOLD;
   if (grunts.length <= threshold) return null;

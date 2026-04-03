@@ -286,7 +286,7 @@ export interface GameState {
       wallStreak: number;
       lastGruntKillTime: number;
       gruntStreak: number;
-      roundWalls: number;
+      wallsDestroyedThisRound: number;
     }[];
     /** Combo events for floating text display. Aged by the renderer, removed when expired. */
     events: { text: string; age: number; playerId: ValidPlayerSlot }[];

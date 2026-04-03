@@ -89,7 +89,7 @@ const PIECE_POOL_START_ROUND = 2;
 /** Round at which piece pool interpolation ends. */
 const PIECE_POOL_END_ROUND = 8;
 /** Chance that a simple piece gets scattered into the harder section as relief. */
-const RELIEF_CHANCE = 0.3;
+const SIMPLE_PIECE_SCATTER_CHANCE = 0.3;
 export const PIECE_1x1: PieceShape = {
   name: "1x1",
   offsets: [[0, 0]],
@@ -313,7 +313,7 @@ function piecePool(round: number, rng: Rng): PieceShape[] {
   const harderCount = buckets[2]!.length + buckets[1]!.length;
   if (harderCount > 0) {
     for (let i = queue.length - 1; i >= harderCount; i--) {
-      if (rng.bool(RELIEF_CHANCE)) {
+      if (rng.bool(SIMPLE_PIECE_SCATTER_CHANCE)) {
         const target = rng.int(0, harderCount - 1);
         const tmp = queue[i]!;
         queue[i] = queue[target]!;

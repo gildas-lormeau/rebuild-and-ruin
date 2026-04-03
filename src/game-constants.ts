@@ -29,7 +29,7 @@ const MODIFIER_LABELS: Record<ModifierId, string> = {
   frozen_river: "Frozen River",
 };
 /** Named constants for modifier IDs — use these instead of raw string literals. */
-export const MID = {
+export const MODIFIER_ID = {
   WILDFIRE: "wildfire",
   CRUMBLING_WALLS: "crumbling_walls",
   GRUNT_SURGE: "grunt_surge",

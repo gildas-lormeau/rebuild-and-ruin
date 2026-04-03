@@ -46,7 +46,7 @@ type CannonState =
 
 interface CannonPhase {
   state: CannonState;
-  queue: CannonPlacement[];
+  plannedPlacements: CannonPlacement[];
   maxSlots: number;
   displayedMode: CannonMode | undefined;
 }
@@ -58,7 +58,7 @@ export const CANNON_CURSOR_SPEEDS = [3, 4, 5] as const;
 export function createCannonPhase(): CannonPhase {
   return {
     state: { step: STEP.IDLE },
-    queue: [],
+    plannedPlacements: [],
     maxSlots: 0,
     displayedMode: undefined,
   };
@@ -66,7 +66,7 @@ export function createCannonPhase(): CannonPhase {
 
 export function resetCannonPhase(phase: CannonPhase): void {
   phase.state = { step: STEP.IDLE };
-  phase.queue = [];
+  phase.plannedPlacements = [];
   phase.maxSlots = 0;
 }
 
@@ -79,7 +79,7 @@ export function initCannon(
 ): void {
   const player = state.players[host.playerId];
   if (!isPlayerAlive(player)) return;
-  phase.queue = host.strategy.placeCannons(player, maxSlots, state);
+  phase.plannedPlacements = host.strategy.placeCannons(player, maxSlots, state);
   phase.maxSlots = maxSlots;
   phase.displayedMode = undefined;
   phase.state = {
@@ -89,7 +89,7 @@ export function initCannon(
 }
 
 export function isCannonDone(phase: CannonPhase): boolean {
-  return phase.queue.length === 0 && phase.state.step === STEP.IDLE;
+  return phase.plannedPlacements.length === 0 && phase.state.step === STEP.IDLE;
 }
 
 /** Place all remaining queued cannons instantly (timer expired). */
@@ -101,13 +101,13 @@ export function flushCannon(
 ): void {
   const player = state.players[playerId];
   if (!isPlayerAlive(player)) return;
-  for (const target of phase.queue) {
+  for (const target of phase.plannedPlacements) {
     const mode = target.mode;
     if (canPlaceCannon(player, target.row, target.col, mode, state)) {
       placeCannon(player, target.row, target.col, maxSlots, mode, state);
     }
   }
-  phase.queue = [];
+  phase.plannedPlacements = [];
   phase.state = { step: STEP.IDLE };
 }
 
@@ -127,12 +127,12 @@ export function tickCannon(
     case STEP.THINKING: {
       phase.state.timer -= dt;
       if (phase.state.timer > 0) return null;
-      if (phase.queue.length === 0) {
+      if (phase.plannedPlacements.length === 0) {
         phase.state = { step: STEP.IDLE };
         return null;
       }
       // Check if mode switch is needed
-      const target = phase.queue[0]!;
+      const target = phase.plannedPlacements[0]!;
       if (target.mode !== phase.displayedMode) {
         phase.displayedMode = target.mode;
         phase.state = {
@@ -171,7 +171,7 @@ export function tickCannon(
     case STEP.DWELLING: {
       phase.state.timer -= dt;
       if (phase.state.timer <= 0) {
-        const target = phase.queue[0];
+        const target = phase.plannedPlacements[0];
         if (!target) {
           phase.state = { step: STEP.IDLE };
           return null;
@@ -187,14 +187,14 @@ export function tickCannon(
             state,
           );
         }
-        phase.queue.shift();
+        phase.plannedPlacements.shift();
         phase.state = {
           step: STEP.THINKING,
           timer: host.scaledDelay(0.3, 0.4),
         };
         return null;
       }
-      const target = phase.queue[0];
+      const target = phase.plannedPlacements[0];
       if (!target) return null;
       return phantomAt(host.playerId, phase, target.row, target.col, true);
     }
@@ -208,7 +208,7 @@ function tickMoving(
   player: Player,
   dt: number,
 ): CannonPlacementPreview | null {
-  const target = phase.queue[0];
+  const target = phase.plannedPlacements[0];
   if (!target) return null;
   const targetMode = target.mode;
   if (
@@ -246,7 +246,7 @@ function phantomAt(
   col: number,
   valid: boolean,
 ): CannonPlacementPreview | null {
-  const target = phase.queue[0];
+  const target = phase.plannedPlacements[0];
   if (!target) return null;
   const targetMode = target.mode;
   return {

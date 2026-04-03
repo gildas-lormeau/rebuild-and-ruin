@@ -68,8 +68,8 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
 /** Extra grunts per player during a grunt surge.
  *  Baseline is ~15 grunts per territory in a typical game,
  *  so 8-12 extra is a serious but not overwhelming spike. */
-const GRUNT_SURGE_MIN = 8;
-const GRUNT_SURGE_MAX = 12;
+const GRUNT_SURGE_COUNT_MIN = 8;
+const GRUNT_SURGE_COUNT_MAX = 12;
 /** Spine length for wildfire scar (fattened neighbors bring total to ~10). */
 const WILDFIRE_SPINE_LENGTH = 4;
 /** Wildfire: probability the fire continues in its main direction (vs random). */
@@ -276,7 +276,10 @@ export function applyCrumblingWalls(state: GameState): void {
 /** Apply grunt surge: spawn extra grunts distributed across all alive towers. */
 export function applyGruntSurge(state: GameState): void {
   if (state.round < FIRST_GRUNT_SPAWN_ROUND) return;
-  const extraCount = state.rng.int(GRUNT_SURGE_MIN, GRUNT_SURGE_MAX);
+  const extraCount = state.rng.int(
+    GRUNT_SURGE_COUNT_MIN,
+    GRUNT_SURGE_COUNT_MAX,
+  );
   for (const player of state.players.filter(isPlayerSeated)) {
     spawnGruntSurgeOnZone(state, player.id, extraCount);
   }

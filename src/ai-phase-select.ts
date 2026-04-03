@@ -23,8 +23,8 @@ type AiSelectionState =
   | {
       step: typeof STEP.BROWSING;
       queue: number[];
-      dwell: number;
-      confirmDelay: number;
+      browseTimer: number;
+      confirmInitialDelay: number;
     }
   | { step: typeof STEP.CONFIRMING; timer: number };
 
@@ -69,8 +69,8 @@ export function initSelection(
   phase.state = {
     step: STEP.BROWSING,
     queue,
-    dwell: host.scaledDelay(0.8, 0.6),
-    confirmDelay: host.scaledDelay(1.0, 0.6),
+    browseTimer: host.scaledDelay(0.8, 0.6),
+    confirmInitialDelay: host.scaledDelay(1.0, 0.6),
   };
 
   // Start at first tower in browse queue
@@ -92,10 +92,10 @@ export function tickSelection(
       return false;
     case STEP.BROWSING: {
       const bs = phase.state;
-      bs.dwell -= dt;
-      if (bs.dwell <= 0 && bs.queue.length > 1) {
+      bs.browseTimer -= dt;
+      if (bs.browseTimer <= 0 && bs.queue.length > 1) {
         bs.queue.shift();
-        bs.dwell = host.scaledDelay(0.8, 0.6);
+        bs.browseTimer = host.scaledDelay(0.8, 0.6);
         if (state) {
           const nextIdx = bs.queue[0];
           const nextTower =
@@ -107,7 +107,7 @@ export function tickSelection(
         return false;
       }
       if (bs.queue.length <= 1) {
-        phase.state = { step: STEP.CONFIRMING, timer: bs.confirmDelay };
+        phase.state = { step: STEP.CONFIRMING, timer: bs.confirmInitialDelay };
       }
       return false;
     }

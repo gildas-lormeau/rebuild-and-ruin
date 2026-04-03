@@ -55,7 +55,7 @@ interface BattlePhase {
   chainIdx: number;
   chainType: ChainType;
   /** Persistent orbit phase — accumulated across battles for natural variation. */
-  idlePhase: number;
+  orbitAngle: number;
 }
 
 /** Pixel distance at which countdown orbit engages (stop approaching, start circling). */
@@ -78,11 +78,11 @@ export function createBattlePhase(): BattlePhase {
     chainTargets: null,
     chainIdx: 0,
     chainType: CHAIN.WALL,
-    idlePhase: 0,
+    orbitAngle: 0,
   };
 }
 
-/** Reset battle state for life-lost / new-game. Does NOT reset idlePhase
+/** Reset battle state for life-lost / new-game. Does NOT reset orbitAngle
  *  (it persists across battles for natural variation). */
 export function resetBattlePhase(phase: BattlePhase): void {
   phase.state = { step: STEP.IDLE };
@@ -256,16 +256,16 @@ function tickCountdown(
         };
         // Seed the phase from the current approach angle so the orbit
         // starts where the crosshair already is (no visible jump).
-        phase.idlePhase = Math.atan2(
+        phase.orbitAngle = Math.atan2(
           host.crosshair.y - phase.crosshairTarget.y,
           host.crosshair.x - phase.crosshairTarget.x,
         );
       }
-      phase.idlePhase += ps.orbit.speed * dt;
+      phase.orbitAngle += ps.orbit.speed * dt;
       host.crosshair.x =
-        phase.crosshairTarget.x + Math.cos(phase.idlePhase) * ps.orbit.rx;
+        phase.crosshairTarget.x + Math.cos(phase.orbitAngle) * ps.orbit.rx;
       host.crosshair.y =
-        phase.crosshairTarget.y + Math.sin(phase.idlePhase) * ps.orbit.ry;
+        phase.crosshairTarget.y + Math.sin(phase.orbitAngle) * ps.orbit.ry;
     }
   } else {
     host.stepCrosshairToward(

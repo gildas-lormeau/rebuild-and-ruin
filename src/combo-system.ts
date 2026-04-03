@@ -39,7 +39,7 @@ export function createComboTracker(playerCount: number): ComboTracker {
       wallStreak: 0,
       lastGruntKillTime: -Infinity,
       gruntStreak: 0,
-      roundWalls: 0,
+      wallsDestroyedThisRound: 0,
     });
   }
   return { players, events: [] };
@@ -55,7 +55,7 @@ export function comboOnWallDestroyed(
   const ps = tracker.players[shooterId];
   if (!ps) return 0;
 
-  ps.roundWalls++;
+  ps.wallsDestroyedThisRound++;
 
   // Check if within streak window
   if (battleTime - ps.lastWallHitTime <= STREAK_WINDOW) {
@@ -120,7 +120,7 @@ export function comboOnGruntKill(
 /** Called at end of battle to award demolition bonuses. Returns total bonus per player. */
 export function comboDemolitionBonus(tracker: ComboTracker): number[] {
   return tracker.players.map((ps) =>
-    ps.roundWalls >= DEMOLITION_THRESHOLD ? DEMOLITION_BONUS : 0,
+    ps.wallsDestroyedThisRound >= DEMOLITION_THRESHOLD ? DEMOLITION_BONUS : 0,
   );
 }
 
