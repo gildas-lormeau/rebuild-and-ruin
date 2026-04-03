@@ -98,6 +98,7 @@ export function findGruntSpawnNear(
     const tileKey = packTile(r, c);
     if (
       inBounds(r, c) &&
+      isGrass(state.map.tiles, r, c) &&
       isGruntPassableTile(state, r, c) &&
       !hasInteriorAt(state, tileKey) &&
       !hasGruntAt(state, r, c)
@@ -416,6 +417,8 @@ function findGruntSpawnPositions(
   return result;
 }
 
+/** Spawn-specific tile check (stricter than isGruntPassableTile for movement).
+ *  isGrass rejects frozen water — grunts can walk on ice but can't spawn there. */
 function isValidSpawnCandidate(
   state: GameState,
   row: number,

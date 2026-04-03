@@ -264,6 +264,9 @@ sufficient for LLM agents to follow correctly.
    explains capturePreState and the lifecycle at each function. online-phase-transitions.ts:105-107
    documents the ordering guarantee. runtime-phase-ticks.ts:165 has INVARIANT comment
    reinforcing that banner captures oldCastles BEFORE applyCheckpoint mutates state.
+   Individual checkpoint apply functions have NO payload validation by design — the host
+   is authoritative. Only full-state recovery (validateFullState in online-serialize.ts)
+   validates, because that payload crosses a trust boundary during host promotion.
 
 10. **`net` required on all tick deps interfaces** — runtime-phase-ticks.ts:5-9 documents
     `net is REQUIRED on all tick deps interfaces...the compiler enforces the choice.`
@@ -361,3 +364,10 @@ sufficient for LLM agents to follow correctly.
     `reviveEnclosedTowers` documents the mechanic. CLAUDE.md line 40 repeats it.
     "Pending" = awaiting one more build phase of enclosure, not awaiting user action.
     Do not rename to `towersAwaitingRevive` or `towersEligibleForRevive`.
+
+33. **`FreshInterior` vs `ReadonlySet<number>` for interior is intentional** —
+    `FreshInterior` (branded type, types.ts:151) proves the interior was recomputed
+    after the last wall mutation. `ReadonlySet<number>` is used in AI build code
+    (ai-build-types.ts, ai-build-target.ts, ai-castle-rect.ts) for simulated/hypothetical
+    interiors constructed during candidate scoring. Do not unify — branding simulated
+    interiors as fresh would defeat the type safety.
