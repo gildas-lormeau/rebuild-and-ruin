@@ -146,10 +146,6 @@ function createOnlineClient(): OnlineClient {
   };
 }
 
-export function isReconnecting(): boolean {
-  return defaultClient.isReconnecting();
-}
-
 export function devLogThrottled(key: string, msg: string): void {
   defaultClient.devLogThrottled(key, msg);
 }

@@ -243,16 +243,19 @@ const runtime: GameRuntime = createGameRuntime({
 /** Wire runtime into ws/promote/deps modules and register input + exit
  *  handlers. Called once from online-client.ts after module evaluation. */
 export function initOnlineRuntime(): void {
-  initWs({
-    getMode: () => runtime.runtimeState.mode,
-    setMode: (mode) => {
-      runtime.runtimeState.mode = mode;
+  initWs(
+    {
+      getMode: () => runtime.runtimeState.mode,
+      setMode: (mode) => {
+        runtime.runtimeState.mode = mode;
+      },
+      setAnnouncement: (text) => {
+        runtime.runtimeState.frame.announcement = text;
+      },
+      render: () => runtime.render(),
     },
-    setAnnouncement: (text) => {
-      runtime.runtimeState.frame.announcement = text;
-    },
-    render: () => runtime.render(),
-  });
+    defaultClient,
+  );
 
   initPromote(runtime, defaultClient);
 

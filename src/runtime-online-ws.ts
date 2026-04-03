@@ -8,11 +8,8 @@
 import { computeWsUrl } from "./online-config.ts";
 import { connectWebSocket } from "./online-session.ts";
 import {
-  clearReconnect,
-  ctx,
-  devLog,
-  isReconnecting,
   MAX_RECONNECT_ATTEMPTS,
+  type OnlineClient,
   RECONNECT_BASE_DELAY_MS,
 } from "./online-stores.ts";
 import { handleServerMessage } from "./runtime-online-deps.ts";
@@ -34,55 +31,59 @@ const ANNOUNCEMENT_DISCONNECTED = "Disconnected from server";
 
 // ── Late-bound state ───────────────────────────────────────────────
 let _rt: WsRuntimeDeps;
+let _client: OnlineClient;
 /** Stashed from the first call so reconnect retries reuse it. */
 let _onConnectError: (() => void) | undefined;
 
 /** Bind runtime-dependent callbacks. Called once from runtime-online-game.ts
  *  after the GameRuntime is created. */
-export function initWs(deps: WsRuntimeDeps): void {
+export function initWs(deps: WsRuntimeDeps, client: OnlineClient): void {
   _rt = deps;
+  _client = client;
 }
 
 export function connect(onConnectError?: () => void): void {
   if (!_rt) throw new Error("connect() called before initWs()");
   if (onConnectError) _onConnectError = onConnectError;
-  connectWebSocket(ctx.session, computeWsUrl(), {
+  connectWebSocket(_client.ctx.session, computeWsUrl(), {
     onMessage: (msg) => {
-      if (isReconnecting()) {
-        devLog(`reconnected after ${ctx.reconnect.count} attempt(s)`);
-        clearReconnect();
+      if (_client.isReconnecting()) {
+        _client.devLog(
+          `reconnected after ${_client.ctx.reconnect.count} attempt(s)`,
+        );
+        _client.clearReconnect();
       }
       handleServerMessage(msg);
     },
     onClose: () => {
       const mode = _rt.getMode();
       // Mode[mode] is TypeScript's reverse enum mapping (numeric → string name)
-      devLog(
+      _client.devLog(
         // eslint-disable-next-line no-restricted-syntax -- diagnostic logging
-        `WebSocket closed (mode=${Mode[mode]} isHost=${ctx.session.isHost})`,
+        `WebSocket closed (mode=${Mode[mode]} isHost=${_client.ctx.session.isHost})`,
       );
       if (
-        isHostInContext(ctx.session) ||
+        isHostInContext(_client.ctx.session) ||
         mode === Mode.STOPPED ||
         mode === Mode.LOBBY
       )
         return;
-      if (ctx.reconnect.count < MAX_RECONNECT_ATTEMPTS) {
-        ctx.reconnect.count++;
+      if (_client.ctx.reconnect.count < MAX_RECONNECT_ATTEMPTS) {
+        _client.ctx.reconnect.count++;
         // Exponential backoff: base × 2^(attempt-1) via bit-shift
         const delay =
-          RECONNECT_BASE_DELAY_MS * (1 << (ctx.reconnect.count - 1));
+          RECONNECT_BASE_DELAY_MS * (1 << (_client.ctx.reconnect.count - 1));
         _rt.setAnnouncement(ANNOUNCEMENT_RECONNECTING);
         _rt.render();
-        devLog(
-          `reconnect attempt ${ctx.reconnect.count}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`,
+        _client.devLog(
+          `reconnect attempt ${_client.ctx.reconnect.count}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`,
         );
-        ctx.reconnect.timer = setTimeout(() => {
-          ctx.reconnect.timer = null;
+        _client.ctx.reconnect.timer = setTimeout(() => {
+          _client.ctx.reconnect.timer = null;
           connect();
         }, delay);
       } else {
-        clearReconnect();
+        _client.clearReconnect();
         _rt.setAnnouncement(ANNOUNCEMENT_DISCONNECTED);
         _rt.render();
         _rt.setMode(Mode.STOPPED);
