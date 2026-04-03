@@ -8,7 +8,7 @@
 import { clearPlayerWalls } from "../src/board-occupancy.ts";
 import { recheckTerritoryOnly } from "../src/build-system.ts";
 import { BALL_SPEED, GAME_MODE_MODERN, MODIFIER_FIRST_ROUND } from "../src/game-constants.ts";
-import type { ValidPlayerSlot } from "../src/game-constants.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "../src/game-constants.ts";
 import {
   comboDemolitionBonus,
   comboOnCannonKill,
@@ -634,7 +634,7 @@ test("createUpgradePickDialog returns dialog from pending offers", () => {
   const dialog = createUpgradePickDialog({
     state: s.state,
     hostAtFrameStart: true,
-    myPlayerId: 0,
+    myPlayerId: 0 as PlayerSlotId,
     remoteHumanSlots: new Set(),
     isHumanController: () => false,
   });

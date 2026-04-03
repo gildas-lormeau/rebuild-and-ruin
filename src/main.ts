@@ -6,7 +6,7 @@
  * lobby with direct slot joining, and the loadAtlas entry point.
  */
 
-import { LOBBY_TIMER } from "./game-constants.ts";
+import { LOBBY_TIMER, SPECTATOR_SLOT } from "./game-constants.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./router.ts";
 import { createGameRuntime } from "./runtime.ts";
@@ -20,7 +20,7 @@ const runtime = createGameRuntime({
   renderer,
   send: () => {},
   getIsHost: () => true,
-  getMyPlayerId: () => -1,
+  getMyPlayerId: () => SPECTATOR_SLOT,
   getRemoteHumanSlots: () => emptySet,
   // @ts-ignore — import.meta.env is Vite-specific
   log: import.meta.env?.DEV

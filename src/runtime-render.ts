@@ -12,6 +12,7 @@ import type {
 import {
   type PlayerSlotId,
   SCORE_DELTA_DISPLAY_TIME,
+  SPECTATOR_SLOT,
   type ValidPlayerSlot,
 } from "./game-constants.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
@@ -181,10 +182,10 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
 function computeUpgradePickInteractiveId(
   dialog: UpgradePickDialogState | null,
   myPlayerId: PlayerSlotId,
-): number {
-  if (!dialog) return -1;
+): PlayerSlotId {
+  if (!dialog) return SPECTATOR_SLOT;
   const entry = dialog.entries.find(
     (e) => e.playerId === myPlayerId && !e.autoResolve,
   );
-  return entry ? entry.playerId : -1;
+  return entry ? (entry.playerId as PlayerSlotId) : SPECTATOR_SLOT;
 }

@@ -410,7 +410,7 @@ export function createScenario(seed = 42): Scenario {
     const defaults: CameraTestDeps = {
       mode: Mode.GAME,
       phase: state.phase,
-      myPlayerId: 0,
+      myPlayerId: 0 as PlayerSlotId,
       isSelectionReady: false,
       humanIsReselecting: false,
       mobileAutoZoom: true,
@@ -503,7 +503,7 @@ export function createScenario(seed = 42): Scenario {
   function doCreateTransitionContext(
     overrides: Partial<TransitionTestDeps> = {},
   ): TransitionContext {
-    const myPlayerId = overrides.myPlayerId ?? 0;
+    const myPlayerId = overrides.myPlayerId ?? (0 as PlayerSlotId);
     const banner = createBannerState();
     const battleAnim = createBattleAnimState();
     const watcherTiming: WatcherTimingState = {

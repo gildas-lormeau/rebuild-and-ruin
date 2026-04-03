@@ -8,6 +8,7 @@
 import { MESSAGE, type FullStateMessage, type ServerMessage } from "../server/protocol.ts";
 import type { GameState } from "../src/types.ts";
 import { handleServerLifecycleMessage } from "../src/online-server-lifecycle.ts";
+import type { PlayerSlotId } from "../src/game-constants.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
 
 function makeFullState(migrationSeq: number): FullStateMessage {
@@ -49,7 +50,7 @@ test("lifecycle drops stale full_state after host migration", () => {
     now: () => 0,
     session: {
       isHost: false,
-      myPlayerId: 0,
+      myPlayerId: 0 as PlayerSlotId,
       get hostMigrationSeq() { return migrationSeq; },
       set hostMigrationSeq(seq: number) { migrationSeq = seq; },
       roomWaitTimerSec: 0,

@@ -383,7 +383,7 @@ export function createOnlineOverlay(params: {
   /** When false (all-AI / spectator), skip combo floating text. */
   hasPointerPlayer: boolean;
   /** Player ID whose upgrade pick entry accepts local input (-1 = none). */
-  upgradePickInteractiveId: number;
+  upgradePickInteractiveId: PlayerSlotId;
   playerNames: ReadonlyArray<string>;
   playerColors: ReadonlyArray<{ wall: RGB }>;
   getLifeLostPanelPos: (playerId: ValidPlayerSlot) => {

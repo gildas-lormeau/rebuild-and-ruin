@@ -3,7 +3,7 @@
  * Run with: bun test/scenario.test.ts
  */
 
-import type { ValidPlayerSlot } from "../src/game-constants.ts";
+import { SPECTATOR_SLOT, type PlayerSlotId, type ValidPlayerSlot } from "../src/game-constants.ts";
 import { MESSAGE } from "../server/protocol.ts";
 import { applyImpactEvent, canFireOwnCannon, resolveBalloons } from "../src/battle-system.ts";
 import { snapshotAllWalls, removeIsolatedWalls } from "../src/board-occupancy.ts";
@@ -192,7 +192,7 @@ test("camera stays unzoomed during AI-only reselection", () => {
   const handle = s.createCamera({
     mode: Mode.SELECTION,
     phase: Phase.CASTLE_RESELECT,
-    myPlayerId: 0,
+    myPlayerId: 0 as PlayerSlotId,
     isSelectionReady: false,
     mobileAutoZoom: true,
   });
@@ -301,7 +301,7 @@ test("camera zooms to human zone when human IS reselecting", () => {
   const handle = s.createCamera({
     mode: Mode.SELECTION,
     phase: Phase.CASTLE_RESELECT,
-    myPlayerId: 0,
+    myPlayerId: 0 as PlayerSlotId,
     isSelectionReady: false,
     humanIsReselecting: true,
     mobileAutoZoom: true,
@@ -327,7 +327,7 @@ test("camera stays unzoomed when no human player exists", () => {
   const handle = s.createCamera({
     mode: Mode.GAME,
     phase: Phase.WALL_BUILD,
-    myPlayerId: 0,
+    myPlayerId: 0 as PlayerSlotId,
     mobileAutoZoom: true,
     hasPointerPlayer: false,
   });
@@ -583,7 +583,7 @@ test("resetSessionState closes WebSocket and resets all fields", () => {
   let closeCalled = false;
   session.socket = { close: () => { closeCalled = true; } } as unknown as WebSocket;
   session.isHost = true; // eslint-disable-line no-restricted-syntax -- test setup
-  session.myPlayerId = 2;
+  session.myPlayerId = 2 as PlayerSlotId;
   session.hostMigrationSeq = 3;
   session.occupiedSlots = new Set([0, 1, 2]);
   session.remoteHumanSlots.add(1);
@@ -1115,7 +1115,7 @@ test("watcher: wall debris visible in render overlay after WALL_DESTROYED", () =
     upgradePickDialog: null,
     povPlayerId: 0 as ValidPlayerSlot,
     hasPointerPlayer: true,
-    upgradePickInteractiveId: -1,
+    upgradePickInteractiveId: SPECTATOR_SLOT,
     playerNames: PLAYER_NAMES,
     playerColors: PLAYER_COLORS,
     getLifeLostPanelPos: () => ({ px: 0, py: 0 }),
@@ -1257,7 +1257,7 @@ test("burning pits visible in overlay during cannon-to-battle banner", () => {
     upgradePickDialog: null,
     povPlayerId: 0 as ValidPlayerSlot,
     hasPointerPlayer: true,
-    upgradePickInteractiveId: -1,
+    upgradePickInteractiveId: SPECTATOR_SLOT,
     playerNames: PLAYER_NAMES,
     playerColors: PLAYER_COLORS,
     getLifeLostPanelPos: () => ({ px: 0, py: 0 }),
