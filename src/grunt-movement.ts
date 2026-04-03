@@ -50,10 +50,11 @@ const GRUNT_BLOCKED_NEARBY_DISTANCE = 2;
  */
 export function tickGrunts(state: GameState): boolean {
   let anyMoved = false;
+  const deadZones = getDeadZones(state);
 
   // Pass 1: Lock all targets before sorting — all mutation happens here, once per grunt
   for (const grunt of state.grunts) {
-    lockGruntTarget(state, grunt);
+    lockGruntTarget(state, grunt, deadZones);
   }
 
   // Sort grunts by distance to their target (closest first) so they don't block each other
@@ -72,6 +73,15 @@ export function tickGrunts(state: GameState): boolean {
   return anyMoved;
 }
 
+/** Zones owned by eliminated players — grunts must never target or attack their towers. */
+export function getDeadZones(state: GameState): ReadonlySet<number> {
+  const zones = new Set<number>();
+  for (const pl of state.players) {
+    if (pl.eliminated && pl.homeTower) zones.add(pl.homeTower.zone);
+  }
+  return zones;
+}
+
 export function getLiveTargetTower(
   state: GameState,
   grunt: Pick<Grunt, "targetTowerIdx">,
@@ -87,17 +97,11 @@ export function getLiveTargetTower(
  * Mutates grunt.targetTowerIdx and grunt.defendingPlayerId.
  * Call once per grunt before any sorting or movement.
  */
-function lockGruntTarget(state: GameState, grunt: Grunt): void {
-  const gruntZone = state.map.zones[grunt.row]?.[grunt.col] ?? -1;
-  const frozenActive = state.frozenTiles !== null;
-
-  // Zones owned by eliminated players — never target their towers
-  const deadZones = new Set(
-    state.players
-      .filter((pl) => pl.eliminated && pl.homeTower)
-      .map((pl) => pl.homeTower!.zone),
-  );
-
+function lockGruntTarget(
+  state: GameState,
+  grunt: Grunt,
+  deadZones: ReadonlySet<number>,
+): void {
   // Drop stale target if it points at an eliminated player's zone
   if (grunt.targetTowerIdx !== undefined) {
     const targetZone = state.map.towers[grunt.targetTowerIdx]?.zone;
@@ -107,6 +111,9 @@ function lockGruntTarget(state: GameState, grunt: Grunt): void {
       return;
     }
   }
+
+  const gruntZone = state.map.zones[grunt.row]?.[grunt.col] ?? -1;
+  const frozenActive = state.frozenTiles !== null;
 
   let bestDist = Infinity;
   let bestIdx: number | null = null;
@@ -199,18 +206,22 @@ export function isAdjacentToLivingTower(
   row: number,
   col: number,
   towerIndex: number,
+  deadZones?: ReadonlySet<number>,
 ): boolean {
-  return adjacentLivingTowerIndex(state, row, col) === towerIndex;
+  return adjacentLivingTowerIndex(state, row, col, deadZones) === towerIndex;
 }
 
 export function adjacentLivingTowerIndex(
   state: GameState,
   row: number,
   col: number,
+  deadZones?: ReadonlySet<number>,
 ): number | null {
   for (const [dr, dc] of DIRS_4) {
     const towerIndex = findLivingTowerIndexAt(state, row + dr, col + dc);
-    if (towerIndex !== null) return towerIndex;
+    if (towerIndex === null) continue;
+    if (deadZones?.has(state.map.towers[towerIndex]!.zone)) continue;
+    return towerIndex;
   }
   return null;
 }

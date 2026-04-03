@@ -23,6 +23,7 @@ import type { TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import {
   adjacentLivingTowerIndex,
+  getDeadZones,
   getGruntTargetTower,
   getLiveTargetTower,
   isAdjacentToLivingTower,
@@ -228,6 +229,7 @@ export function gruntAttackTowers(
   state: GameState,
   dt: number,
 ): GruntAttackEvent[] {
+  const deadZones = getDeadZones(state);
   const events: GruntAttackEvent[] = [];
   for (const grunt of state.grunts) {
     // Wall attack: executing decision made by rollGruntWallAttacks() at battle start
@@ -252,11 +254,12 @@ export function gruntAttackTowers(
       grunt.wallAttack = false;
     }
 
-    // Check if adjacent to an alive tower
+    // Check if adjacent to an alive tower (skip eliminated players)
     const adjacentTowerIndex = adjacentLivingTowerIndex(
       state,
       grunt.row,
       grunt.col,
+      deadZones,
     );
     if (adjacentTowerIndex !== null) {
       if (tickGruntAttackTimer(grunt, dt)) {
