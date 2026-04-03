@@ -239,6 +239,10 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   // Local controllers (AI + local human): call finalizeCannonPhase() which flushes then inits.
   // Using the wrong method corrupts cannon state — finalizeCannonPhase on a remote
   // double-flushes; initCannons on a local skips the flush entirely.
+  // CONTRAST with build finalization (finalizeBuildEnd, ~line 454): build skips remote
+  // humans entirely because bag state is re-initialized via startBuildPhase at the start
+  // of the next build phase. Cannon has no equivalent re-init step, so initCannons must
+  // run here explicitly.
   // NOTE: Intentionally includes eliminated players — they need cannon state
   // cleanup (flush + round-1 init) for potential castle reselection.
   for (const ctrl of controllers) {
@@ -453,9 +457,13 @@ function finalizeBuildAndShowDialogs(
 
   // ── PASS 2: Finalize all controllers for phase transition ──
   // Controller finalization — load-bearing split:
-  // Remote humans: call initBag() only (their build was finalized client-side).
+  // Remote humans: skipped (their build was finalized client-side; bag state is
+  // re-initialized at the start of the next build phase via startBuildPhase).
   // Local controllers (AI + local human): call finalizeBuildPhase() which flushes then inits.
   // Using the wrong method corrupts piece-bag state.
+  // CONTRAST with cannon finalization (~line 236): cannon calls initCannons() on remote
+  // humans because cannon state must be ready for the immediate battle transition —
+  // there is no "startCannonPhase" re-init step.
   // NOTE: Intentionally includes eliminated players — they need state cleanup
   // (bag/piece nulling) for potential castle reselection.
   for (const ctrl of controllers) {

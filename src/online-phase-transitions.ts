@@ -264,6 +264,9 @@ export function handleCannonStartTransition(
       showCannonPhaseBanner(
         transitionCtx.ui.showBanner,
         () => {
+          // Timer starts at banner-end wall clock. Safe to use now() because
+          // no intermediate dialog (unlike build, which has upgrade-pick) can
+          // delay the callback after the banner animation begins.
           setWatcherPhaseTimer(
             transitionCtx.ui.watcherTiming,
             transitionCtx.now(),
@@ -341,7 +344,11 @@ export function handleBuildStartTransition(
 
   // Step 2→3: upgrade pick (if any) → build banner → game
   const showBannerAndEnterBuild = () => {
-    // Compute timer start NOW (after upgrade pick resolved, not at message receipt)
+    // Compute timer start NOW (after upgrade pick resolved, not at message receipt).
+    // CONTRAST with cannon (handleCannonStartTransition): cannon uses now() inside
+    // the banner callback because no dialog precedes it. Here, an upgrade-pick dialog
+    // may delay showBannerAndEnterBuild, so we capture bannerStartedAt when the banner
+    // actually begins and add its duration to get the phase-timer origin.
     const bannerStartedAt = transitionCtx.now();
     executeTransition(BUILD_START_STEPS, {
       showBanner: () =>

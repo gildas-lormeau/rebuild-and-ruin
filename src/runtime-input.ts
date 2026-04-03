@@ -175,23 +175,8 @@ interface InputSystem {
 }
 
 export function createInputSystem(deps: InputSystemDeps): InputSystem {
-  const {
-    runtimeState,
-    renderer,
-    uiCtx,
-    camera,
-    sound,
-    lobby,
-    options,
-    lifeLost,
-    selection,
-    withPointerPlayer,
-    isSelectionReady,
-    render,
-    rematch,
-    returnToLobby,
-    gameOverClick,
-  } = deps;
+  const { runtimeState, camera, sound, lobby, selection, isSelectionReady } =
+    deps;
 
   const touch: TouchHandles = {
     dpad: null,
@@ -229,16 +214,6 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     // ── Combined input deps: assembles all subsystem deps ──
     const inputDeps = buildInputDeps(
       deps,
-      runtimeState,
-      renderer,
-      uiCtx,
-      options,
-      lifeLost,
-      withPointerPlayer,
-      render,
-      rematch,
-      returnToLobby,
-      gameOverClick,
       coordsDeps,
       lobbyDeps,
       gameActionDeps,
@@ -279,20 +254,11 @@ function setupTouchControls(
 
 function buildInputDeps(
   deps: InputSystemDeps,
-  runtimeState: RuntimeState,
-  renderer: RendererInterface,
-  uiCtx: UIContext,
-  options: InputSystemDeps["options"],
-  lifeLost: InputSystemDeps["lifeLost"],
-  withPointerPlayer: InputSystemDeps["withPointerPlayer"],
-  render: () => void,
-  rematch: () => void,
-  returnToLobby: () => void,
-  gameOverClick: (canvasX: number, canvasY: number) => void,
   coordsDeps: ReturnType<typeof buildCoordsDeps>,
   lobbyDeps: ReturnType<typeof buildLobbyDeps>,
   gameActionDeps: ReturnType<typeof buildGameActionDeps>,
 ): RegisterOnlineInputDeps {
+  const { runtimeState, renderer, withPointerPlayer } = deps;
   return {
     renderer,
     getState: () => safeState(runtimeState),
@@ -305,8 +271,8 @@ function buildInputDeps(
     getControllers: () => runtimeState.controllers,
     isHuman,
     withPointerPlayer,
-    showLobby: returnToLobby,
-    rematch,
+    showLobby: deps.returnToLobby,
+    rematch: deps.rematch,
     maybeSendAimUpdate: deps.maybeSendAimUpdate ?? (() => {}),
     setDirectTouchActive: (active) => {
       runtimeState.directTouchActive = active;
@@ -314,119 +280,177 @@ function buildInputDeps(
     isDirectTouchActive: () => runtimeState.directTouchActive,
     coords: coordsDeps,
     lobby: lobbyDeps,
-    options: {
-      show: options.showOptions,
-      click: options.clickOptions,
-      clickControls: options.clickControls,
-      cursorAt: options.cursorAt,
-      controlsCursorAt: options.controlsCursorAt,
-      close: options.closeOptions,
-      showControls: options.showControls,
-      closeControls: options.closeControls,
-      getCursor: () => runtimeState.optionsCursor,
-      setCursor: (c: number) => {
-        runtimeState.optionsCursor = c;
-      },
-      getCount: () => visibleOptions(uiCtx).length,
-      getRealIdx: options.visibleToActualOptionIdx,
-      confirmOption: () => {
-        if (options.visibleToActualOptionIdx() === OPT_CONTROLS)
-          options.showControls();
-        else options.closeOptions();
-      },
-      getReturnMode: () => runtimeState.optionsReturnMode,
-      setReturnMode: (mode: unknown) => {
-        runtimeState.optionsReturnMode = mode as Mode | null;
-      },
-      changeValue: options.changeOption,
-      togglePause: options.togglePause,
-      getControlsState: () => runtimeState.controlsState,
-    },
-    dialogAction: (playerId: ValidPlayerSlot, action: Action) => {
-      if (runtimeState.mode === Mode.LIFE_LOST && runtimeState.lifeLostDialog) {
-        if (action === Action.LEFT || action === Action.RIGHT) {
-          lifeLost.toggleFocus(playerId);
-          return true;
-        }
-        if (action === Action.CONFIRM) {
-          lifeLost.confirmChoice(playerId);
-          return true;
-        }
-      }
-      if (
-        runtimeState.mode === Mode.UPGRADE_PICK &&
-        runtimeState.upgradePickDialog
-      ) {
-        if (action === Action.LEFT) {
-          deps.upgradePick.moveFocus(playerId, -1);
-          return true;
-        }
-        if (action === Action.RIGHT) {
-          deps.upgradePick.moveFocus(playerId, 1);
-          return true;
-        }
-        if (action === Action.CONFIRM) {
-          deps.upgradePick.confirmChoice(playerId);
-          return true;
-        }
-      }
-      return false;
-    },
-    lifeLost: {
-      get: () => runtimeState.lifeLostDialog,
-      click: (x: number, y: number) => {
-        if (!runtimeState.lifeLostDialog) return;
-        const hit = handleLifeLostDialogClick({
-          state: runtimeState.state,
-          lifeLostDialog: runtimeState.lifeLostDialog,
-          screenX: x,
-          screenY: y,
-        });
-        if (!hit) return;
-        const pp = deps.pointerPlayer();
-        if (pp && hit.playerId !== pp.playerId) return;
-        lifeLost.applyChoice(hit.playerId, hit.choice);
-      },
-    },
-    upgradePick: {
-      get: () => runtimeState.upgradePickDialog,
-      click: (x: number, y: number) => {
-        if (!runtimeState.upgradePickDialog) return;
-        const hit = handleUpgradePickClick({
-          W: GRID_COLS * TILE_SIZE,
-          H: GRID_ROWS * TILE_SIZE,
-          dialog: runtimeState.upgradePickDialog,
-          screenX: x,
-          screenY: y,
-        });
-        if (!hit) return;
-        const pp = deps.pointerPlayer();
-        if (pp && hit.playerId !== pp.playerId) return;
-        deps.upgradePick.pickDirect(hit.playerId, hit.cardIdx);
-      },
-    },
-    gameOver: {
-      getFocused: () => runtimeState.frame.gameOver?.focused ?? FOCUS_REMATCH,
-      setFocused: (focused: GameOverFocus) => {
-        if (runtimeState.frame.gameOver) {
-          runtimeState.frame.gameOver.focused = focused;
-          render();
-        }
-      },
-      click: gameOverClick,
-    },
+    options: buildOptionsDeps(runtimeState, deps.options, deps.uiCtx),
+    dialogAction: buildDialogActionHandler(
+      runtimeState,
+      deps.lifeLost,
+      deps.upgradePick,
+    ),
+    lifeLost: buildLifeLostClickDeps(
+      runtimeState,
+      deps.pointerPlayer,
+      deps.lifeLost,
+    ),
+    upgradePick: buildUpgradePickClickDeps(
+      runtimeState,
+      deps.pointerPlayer,
+      deps.upgradePick,
+    ),
+    gameOver: buildGameOverDeps(runtimeState, deps.render, deps.gameOverClick),
     gameAction: gameActionDeps,
-    quit: {
-      getPending: () => runtimeState.quitPending,
-      setPending: (quitPending: boolean) => {
-        runtimeState.quitPending = quitPending;
-      },
-      setTimer: (quitTimer: number) => {
-        runtimeState.quitTimer = quitTimer;
-      },
-      setMessage: (quitMessage: string) => {
-        runtimeState.quitMessage = quitMessage;
-      },
+    quit: buildQuitDeps(runtimeState),
+  };
+}
+
+function buildOptionsDeps(
+  runtimeState: RuntimeState,
+  options: InputSystemDeps["options"],
+  uiCtx: UIContext,
+): RegisterOnlineInputDeps["options"] {
+  return {
+    show: options.showOptions,
+    click: options.clickOptions,
+    clickControls: options.clickControls,
+    cursorAt: options.cursorAt,
+    controlsCursorAt: options.controlsCursorAt,
+    close: options.closeOptions,
+    showControls: options.showControls,
+    closeControls: options.closeControls,
+    getCursor: () => runtimeState.optionsCursor,
+    setCursor: (cursor: number) => {
+      runtimeState.optionsCursor = cursor;
+    },
+    getCount: () => visibleOptions(uiCtx).length,
+    getRealIdx: options.visibleToActualOptionIdx,
+    confirmOption: () => {
+      if (options.visibleToActualOptionIdx() === OPT_CONTROLS)
+        options.showControls();
+      else options.closeOptions();
+    },
+    getReturnMode: () => runtimeState.optionsReturnMode,
+    setReturnMode: (mode: unknown) => {
+      runtimeState.optionsReturnMode = mode as Mode | null;
+    },
+    changeValue: options.changeOption,
+    togglePause: options.togglePause,
+    getControlsState: () => runtimeState.controlsState,
+  };
+}
+
+function buildDialogActionHandler(
+  runtimeState: RuntimeState,
+  lifeLost: InputSystemDeps["lifeLost"],
+  upgradePick: InputSystemDeps["upgradePick"],
+): RegisterOnlineInputDeps["dialogAction"] {
+  return (playerId: ValidPlayerSlot, action: Action) => {
+    if (runtimeState.mode === Mode.LIFE_LOST && runtimeState.lifeLostDialog) {
+      if (action === Action.LEFT || action === Action.RIGHT) {
+        lifeLost.toggleFocus(playerId);
+        return true;
+      }
+      if (action === Action.CONFIRM) {
+        lifeLost.confirmChoice(playerId);
+        return true;
+      }
+    }
+    if (
+      runtimeState.mode === Mode.UPGRADE_PICK &&
+      runtimeState.upgradePickDialog
+    ) {
+      if (action === Action.LEFT) {
+        upgradePick.moveFocus(playerId, -1);
+        return true;
+      }
+      if (action === Action.RIGHT) {
+        upgradePick.moveFocus(playerId, 1);
+        return true;
+      }
+      if (action === Action.CONFIRM) {
+        upgradePick.confirmChoice(playerId);
+        return true;
+      }
+    }
+    return false;
+  };
+}
+
+function buildLifeLostClickDeps(
+  runtimeState: RuntimeState,
+  pointerPlayer: InputSystemDeps["pointerPlayer"],
+  lifeLost: InputSystemDeps["lifeLost"],
+): RegisterOnlineInputDeps["lifeLost"] {
+  return {
+    get: () => runtimeState.lifeLostDialog,
+    click: (x: number, y: number) => {
+      if (!runtimeState.lifeLostDialog) return;
+      const hit = handleLifeLostDialogClick({
+        state: runtimeState.state,
+        lifeLostDialog: runtimeState.lifeLostDialog,
+        screenX: x,
+        screenY: y,
+      });
+      if (!hit) return;
+      const pp = pointerPlayer();
+      if (pp && hit.playerId !== pp.playerId) return;
+      lifeLost.applyChoice(hit.playerId, hit.choice);
+    },
+  };
+}
+
+function buildUpgradePickClickDeps(
+  runtimeState: RuntimeState,
+  pointerPlayer: InputSystemDeps["pointerPlayer"],
+  upgradePick: InputSystemDeps["upgradePick"],
+): RegisterOnlineInputDeps["upgradePick"] {
+  return {
+    get: () => runtimeState.upgradePickDialog,
+    click: (x: number, y: number) => {
+      if (!runtimeState.upgradePickDialog) return;
+      const hit = handleUpgradePickClick({
+        W: GRID_COLS * TILE_SIZE,
+        H: GRID_ROWS * TILE_SIZE,
+        dialog: runtimeState.upgradePickDialog,
+        screenX: x,
+        screenY: y,
+      });
+      if (!hit) return;
+      const pp = pointerPlayer();
+      if (pp && hit.playerId !== pp.playerId) return;
+      upgradePick.pickDirect(hit.playerId, hit.cardIdx);
+    },
+  };
+}
+
+function buildGameOverDeps(
+  runtimeState: RuntimeState,
+  render: () => void,
+  gameOverClick: (canvasX: number, canvasY: number) => void,
+): RegisterOnlineInputDeps["gameOver"] {
+  return {
+    getFocused: () => runtimeState.frame.gameOver?.focused ?? FOCUS_REMATCH,
+    setFocused: (focused: GameOverFocus) => {
+      if (runtimeState.frame.gameOver) {
+        runtimeState.frame.gameOver.focused = focused;
+        render();
+      }
+    },
+    click: gameOverClick,
+  };
+}
+
+function buildQuitDeps(
+  runtimeState: RuntimeState,
+): RegisterOnlineInputDeps["quit"] {
+  return {
+    getPending: () => runtimeState.quitPending,
+    setPending: (quitPending: boolean) => {
+      runtimeState.quitPending = quitPending;
+    },
+    setTimer: (quitTimer: number) => {
+      runtimeState.quitTimer = quitTimer;
+    },
+    setMessage: (quitMessage: string) => {
+      runtimeState.quitMessage = quitMessage;
     },
   };
 }

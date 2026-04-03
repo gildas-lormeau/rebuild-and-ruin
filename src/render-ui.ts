@@ -357,6 +357,7 @@ export function drawComboFloats(
   const floats = overlay?.ui?.comboFloats;
   if (!floats || floats.length === 0) return;
 
+  overlayCtx.save();
   overlayCtx.textAlign = TEXT_ALIGN_CENTER;
   overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
   overlayCtx.font = FONT_BODY;
@@ -368,6 +369,7 @@ export function drawComboFloats(
     overlayCtx.fillStyle = `rgba(255, 215, 100, ${alpha})`;
     overlayCtx.fillText(ev.text, W / 2, H * 0.35 - rise + i * 16);
   }
+  overlayCtx.restore();
 }
 
 /** Draw upgrade pick cards — one row of 3 cards per player, stacked vertically. */
