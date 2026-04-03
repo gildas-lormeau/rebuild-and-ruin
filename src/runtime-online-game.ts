@@ -265,6 +265,7 @@ export function initOnlineRuntime(): void {
     restoreFullState,
     showWaitingRoom,
     transitionCtx,
+    client: defaultClient,
   });
 
   runtime.registerInputHandlers();

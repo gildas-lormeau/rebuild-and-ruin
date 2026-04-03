@@ -37,7 +37,7 @@ import {
 } from "./online-phase-transitions.ts";
 import { handleServerIncrementalMessage } from "./online-server-events.ts";
 import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
-import { ctx, devLog } from "./online-stores.ts";
+import type { OnlineClient } from "./online-stores.ts";
 import { PLAYER_NAMES } from "./player-config.ts";
 import { promoteToHost } from "./runtime-online-promote.ts";
 import type { GameRuntime } from "./runtime-types.ts";
@@ -50,6 +50,7 @@ interface DepsInit {
   readonly restoreFullState: (msg: FullStateMessage) => void;
   readonly showWaitingRoom: (code: string, seed: number) => void;
   readonly transitionCtx: TransitionContext;
+  readonly client: OnlineClient;
 }
 
 // ── Late-bound state ───────────────────────────────────────────────
@@ -60,6 +61,7 @@ interface DepsInit {
 // This avoids circular imports between the composition root (runtime-online-game.ts)
 // and domain modules. All three init functions are called once from createOnlineGame().
 let _g: DepsInit;
+let _client: OnlineClient;
 let _lifecycleDeps: ReturnType<typeof buildLifecycleDeps>;
 let _incrementalDeps: ReturnType<typeof buildIncrementalDeps>;
 
@@ -67,16 +69,17 @@ let _incrementalDeps: ReturnType<typeof buildIncrementalDeps>;
  *  runtime-online-game.ts after the GameRuntime is created. */
 export function initDeps(init: DepsInit): void {
   _g = init;
+  _client = init.client;
   _lifecycleDeps = buildLifecycleDeps();
   _incrementalDeps = buildIncrementalDeps();
 }
 
 export function handleServerMessage(msg: ServerMessage): void {
   if (!_g) throw new Error("handleServerMessage() called before initDeps()");
-  devLog(`received: ${msg.type}`);
+  _client.devLog(`received: ${msg.type}`);
   if (handleServerLifecycleMessage(msg, _lifecycleDeps)) return;
   const result = handleServerIncrementalMessage(msg, _incrementalDeps);
-  if (!result) devLog(`unhandled incremental message: ${msg.type}`);
+  if (!result) _client.devLog(`unhandled incremental message: ${msg.type}`);
 }
 
 /** Deps for server lifecycle messages (join, start, phase transitions, migration).
@@ -84,9 +87,9 @@ export function handleServerMessage(msg: ServerMessage): void {
  *  Each sub-builder is a private function below — keeps this composer readable. */
 function buildLifecycleDeps() {
   return {
-    log: devLog,
+    log: _client.devLog,
     now: () => performance.now(),
-    session: ctx.session,
+    session: _client.ctx.session,
     lobby: buildLobbyDeps(),
     ui: buildUiDeps(),
     game: buildGameDeps(),
@@ -102,9 +105,9 @@ function buildLifecycleDeps() {
  *  consumers (lifecycle handler) always access one sub-group at a time. */
 function buildIncrementalDeps() {
   return {
-    log: devLog,
-    session: ctx.session,
-    watcher: ctx.watcher,
+    log: _client.devLog,
+    session: _client.ctx.session,
+    watcher: _client.ctx.watcher,
     getState: () => _g.runtime.runtimeState.state,
     selectionStates: _g.runtime.selection.getStates(),
     syncSelectionOverlay: () => _g.runtime.selection.syncOverlay(),
@@ -151,8 +154,8 @@ function buildUiDeps() {
       _g.runtime.runtimeState.mode = Mode.GAME;
     },
     setAnnouncement: (text: string) => {
-      ctx.watcher.hostMigrationText = text;
-      ctx.watcher.hostMigrationTimer = MIGRATION_ANNOUNCEMENT_DURATION;
+      _client.ctx.watcher.hostMigrationText = text;
+      _client.ctx.watcher.hostMigrationTimer = MIGRATION_ANNOUNCEMENT_DURATION;
     },
     createErrorEl: createError,
     joinErrorEl: joinError,
