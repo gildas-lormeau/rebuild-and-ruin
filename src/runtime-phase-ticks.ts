@@ -135,10 +135,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function syncCrosshairs(battleCountdownExpired: boolean, dt = 0): void {
-    if (!runtimeState.frameCtx.hasPointerPlayer) {
-      runtimeState.frame.crosshairs = [];
-      return;
-    }
     const remoteHumanSlots = runtimeState.frameCtx.remoteHumanSlots;
     runtimeState.frame.crosshairs = collectLocalCrosshairs({
       state: runtimeState.state,
