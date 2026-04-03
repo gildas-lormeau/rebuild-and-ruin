@@ -105,7 +105,7 @@ function createOnlineClient(): OnlineClient {
     );
   }
 
-  return {
+  const client: OnlineClient = {
     ctx: context,
     send: (msg) => sendMessage(context.session, msg),
     maybeSendAimUpdate: (x, y, playerId?) =>
@@ -142,13 +142,10 @@ function createOnlineClient(): OnlineClient {
     },
     isReconnecting: () => context.reconnect.count > 0,
     destroy: () => {
-      context.reconnect.count = 0;
-      if (context.reconnect.timer) {
-        clearTimeout(context.reconnect.timer);
-        context.reconnect.timer = null;
-      }
+      client.clearReconnect();
       resetSessionState(context.session);
       resetDedupMaps(context.dedup);
     },
   };
+  return client;
 }
