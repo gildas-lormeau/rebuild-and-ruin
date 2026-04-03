@@ -233,7 +233,10 @@ export class HumanController extends BaseController implements InputReceiver {
     aimCannons(state, this.playerId, this.crosshair.x, this.crosshair.y, dt);
   }
 
-  /** Apply held directional keys to crosshair position (sprint when ROTATE held). */
+  /** Apply held directional keys to crosshair position (sprint when ROTATE held).
+   *  NOTE: Human uses pixel-velocity movement (Cartesian, all-axis simultaneous).
+   *  AI uses tile-step movement (Manhattan, one axis at a time with jitter).
+   *  Do NOT copy between controller-human.ts and controller-ai.ts. */
   private moveCrosshairFromInput(dt: number): void {
     if (this.heldActions.size === 0) return;
     const speed =

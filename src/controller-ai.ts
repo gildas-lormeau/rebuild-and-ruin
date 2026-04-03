@@ -14,7 +14,7 @@ import { STEP } from "./ai-constants.ts";
 import {
   createBattlePhase,
   initBattle,
-  resetBattlePhase,
+  resetBattlePhaseKeepOrbit,
   tickBattle,
 } from "./ai-phase-battle.ts";
 import {
@@ -52,6 +52,14 @@ import { BaseController } from "./controller-types.ts";
 import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { PixelPos, TilePos } from "./geometry-types.ts";
 import type { GameState } from "./types.ts";
+
+// ── Tile-cursor movement tuning ──
+/** Manhattan distance below which cursor snaps to target (tiles). */
+const TILE_ARRIVAL_TOLERANCE = 0.05;
+/** Rate at which perpendicular jitter decays toward target (1/seconds). */
+const JITTER_DECAY_RATE = 4;
+/** Maximum perpendicular jitter amplitude (tiles). */
+const JITTER_MAX_AMPLITUDE = 0.6;
 
 export class AiController extends BaseController implements AiAnimatable {
   override readonly kind = "ai" as const;
@@ -220,7 +228,7 @@ export class AiController extends BaseController implements AiAnimatable {
     resetSelectionPhase(this.selectionPhase);
     resetBuildPhase(this._buildPhase);
     resetCannonPhase(this._cannonPhase);
-    resetBattlePhase(this._battlePhase);
+    resetBattlePhaseKeepOrbit(this._battlePhase);
     this.strategy.onLifeLost();
   }
 
@@ -229,7 +237,7 @@ export class AiController extends BaseController implements AiAnimatable {
     resetSelectionPhase(this.selectionPhase);
     resetBuildPhase(this._buildPhase);
     resetCannonPhase(this._cannonPhase);
-    resetBattlePhase(this._battlePhase);
+    resetBattlePhaseKeepOrbit(this._battlePhase);
     this.strategy.onLifeLost();
   }
 
@@ -238,7 +246,10 @@ export class AiController extends BaseController implements AiAnimatable {
   // -----------------------------------------------------------------------
 
   /** Move a tile cursor one step toward (targetRow, targetCol).
-   *  Moves one axis at a time (like arrow keys) with slight perpendicular jitter. */
+   *  Moves one axis at a time (like arrow keys) with slight perpendicular jitter.
+   *  NOTE: AI uses tile-step movement (Manhattan, one axis at a time with jitter).
+   *  Human uses pixel-velocity movement (Cartesian, all-axis simultaneous).
+   *  Do NOT copy between controller-ai.ts and controller-human.ts. */
   stepTileCursorToward(
     cursor: TilePos,
     targetRow: number,
@@ -250,7 +261,7 @@ export class AiController extends BaseController implements AiAnimatable {
     const dr = targetRow - cursor.row;
     const dc = targetCol - cursor.col;
     const dist = Math.abs(dr) + Math.abs(dc);
-    if (dist < 0.05) {
+    if (dist < TILE_ARRIVAL_TOLERANCE) {
       cursor.row = targetRow;
       cursor.col = targetCol;
       return true;
@@ -261,7 +272,8 @@ export class AiController extends BaseController implements AiAnimatable {
     // Randomize axis priority and jitter offset when starting a new movement
     if (Math.abs(dr) > 0.5 && Math.abs(dc) > 0.5) {
       this.tileMoveRowFirst = this.strategy.rng.bool(0.5);
-      this.tileJitterOffset = (this.strategy.rng.next() - 0.5) * 0.6;
+      this.tileJitterOffset =
+        (this.strategy.rng.next() - 0.5) * JITTER_MAX_AMPLITUDE;
     }
     const rowFirst = this.tileMoveRowFirst;
     const d1 = rowFirst ? dr : dc;
@@ -277,7 +289,8 @@ export class AiController extends BaseController implements AiAnimatable {
         const perpTarget =
           (rowFirst ? targetCol : targetRow) + this.tileJitterOffset;
         const perpCurrent = rowFirst ? cursor.col : cursor.row;
-        const nudge = (perpTarget - perpCurrent) * Math.min(1, 4 * dt);
+        const nudge =
+          (perpTarget - perpCurrent) * Math.min(1, JITTER_DECAY_RATE * dt);
         if (rowFirst) cursor.col += nudge;
         else cursor.row += nudge;
       }

@@ -683,15 +683,15 @@ function computeCandidateEnv(
   anyHasWallAdjacent: boolean,
 ): CandidateEnv {
   const simulatedWalls = createSimulatedWalls(ctx.walls, candidate);
-  const newOutside = computeOutside(simulatedWalls);
-  const rawGain = ctx.baselineOutside - newOutside.size;
+  const simulatedOutside = computeOutside(simulatedWalls);
+  const rawGain = ctx.baselineOutside - simulatedOutside.size;
   const pieceTiles = candidate.piece.offsets.length;
   const usefulGain = rawGain - pieceTiles;
-  const pocketInfo = countSmallPocketTiles(simulatedWalls, newOutside);
+  const pocketInfo = countSmallPocketTiles(simulatedWalls, simulatedOutside);
   const pocketDelta = pocketInfo.wasted - ctx.baselinePocketWaste;
   return {
     simulatedWalls,
-    newOutside,
+    simulatedOutside,
     usefulGain,
     pocketDelta,
     pocketInfo,

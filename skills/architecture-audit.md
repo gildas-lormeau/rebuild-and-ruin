@@ -294,3 +294,26 @@ sufficient for LLM agents to follow correctly.
 
 17. **Mode-setting timing in watcher phase transitions** — online-phase-transitions.ts:53-61
     documents when setMode is called immediately vs inside banner callback for each phase type.
+
+18. **AI vs human cursor movement models differ by design** — controller-ai.ts:248-252
+    and controller-human.ts:236-239 both warn not to copy between the two files.
+    AI uses tile-step (Manhattan + jitter), human uses pixel-velocity (Cartesian).
+
+19. **ROUNDS_TO_THE_DEATH_INDEX and CANNON_HP_DEFAULT_INDEX are array indices** —
+    game-ui-types.ts documents both with JSDoc explaining they are indices into their
+    respective option arrays, not the option values themselves.
+
+20. **`simulatedOutside` naming is consistent across ai-build files** —
+    ai-build-fallback.ts and ai-build-score.ts both use `simulatedOutside` for the
+    outside set computed after simulating a candidate placement. CandidateEnv field matches.
+
+21. **`resetBattlePhaseKeepOrbit` name clarifies orbit preservation** —
+    ai-phase-battle.ts:87 name makes clear that orbitAngle persists across resets.
+    Contrast with `initBattle` which resets everything including chain state.
+
+22. **AI tile-cursor movement constants are named** — controller-ai.ts defines
+    TILE_ARRIVAL_TOLERANCE, JITTER_DECAY_RATE, and JITTER_MAX_AMPLITUDE as named constants.
+
+23. **Eliminated-player guard in keyboard dispatch is NOT missing** — keyboard's
+    `handleKeyGame` calls `dispatchGameAction` (input-dispatch.ts:336) which has the
+    eliminated check built in. Do not report this as a missing guard.

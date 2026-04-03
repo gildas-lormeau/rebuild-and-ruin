@@ -62,7 +62,7 @@ export interface FallbackContext {
  *  candidate after cheap pre-filter checks pass, then passed to each rule. */
 export interface CandidateEnv {
   simulatedWalls: Set<number>;
-  newOutside: Set<number>;
+  simulatedOutside: Set<number>;
   usefulGain: number;
   pocketDelta: number;
   pocketInfo: { wasted: number; smallestPocket: number };

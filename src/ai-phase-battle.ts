@@ -84,7 +84,7 @@ export function createBattlePhase(): BattlePhase {
 
 /** Reset battle state for life-lost / new-game. Does NOT reset orbitAngle
  *  (it persists across battles for natural variation). */
-export function resetBattlePhase(phase: BattlePhase): void {
+export function resetBattlePhaseKeepOrbit(phase: BattlePhase): void {
   phase.state = { step: STEP.IDLE };
   phase.crosshairTarget = null;
   phase.chainTargets = null;

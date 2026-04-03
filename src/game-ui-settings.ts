@@ -5,7 +5,7 @@
 
 import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "./game-constants.ts";
 import {
-  CANNON_HP_DEFAULT,
+  CANNON_HP_DEFAULT_INDEX,
   CANNON_HP_OPTIONS,
   DIFFICULTY_LABELS,
   HAPTICS_ALL,
@@ -18,7 +18,7 @@ import {
   OPT_ROUNDS,
   OPT_SOUND,
   ROUNDS_OPTIONS,
-  ROUNDS_TO_THE_DEATH,
+  ROUNDS_TO_THE_DEATH_INDEX,
   SOUND_LABELS,
   SOUND_OFF,
 } from "./game-ui-types.ts";
@@ -39,8 +39,8 @@ import {
 const SETTINGS_KEY = "castles99_settings";
 const DEFAULT_SETTINGS: GameSettings = {
   difficulty: DIFFICULTY_NORMAL,
-  rounds: ROUNDS_TO_THE_DEATH,
-  cannonHp: CANNON_HP_DEFAULT,
+  rounds: ROUNDS_TO_THE_DEATH_INDEX,
+  cannonHp: CANNON_HP_DEFAULT_INDEX,
   haptics: HAPTICS_ALL,
   sound: SOUND_OFF,
   seed: "",
