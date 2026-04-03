@@ -11,6 +11,7 @@ import {
   deletePlayerWallBattle,
   filterActiveEnemies,
   getInterior,
+  zoneOwnerIdAt,
 } from "./board-occupancy.ts";
 import {
   filterActiveFiringCannons,
@@ -814,15 +815,11 @@ function collectHouseImpacts(
       if (state.rng.bool(HOUSE_GRUNT_SPAWN_CHANCE)) {
         const spawnPos = findGruntSpawnNear(state, row, col);
         if (spawnPos) {
-          const zone = state.map.zones[spawnPos.row]?.[spawnPos.col] ?? -1;
-          const zoneOwner = state.players.find(
-            (player) => player.homeTower?.zone === zone,
-          );
           events.push({
             type: MESSAGE.GRUNT_SPAWNED,
             row: spawnPos.row,
             col: spawnPos.col,
-            victimPlayerId: zoneOwner?.id ?? 0,
+            victimPlayerId: zoneOwnerIdAt(state, spawnPos.row, spawnPos.col),
           });
         }
       }

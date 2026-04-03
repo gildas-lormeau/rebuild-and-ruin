@@ -290,6 +290,17 @@ export function computeCardinalObstacleMask(
   return obstacles;
 }
 
+/** Return the player id that owns the zone at (row, col), or 0 if no owner found. */
+export function zoneOwnerIdAt(
+  state: GameState,
+  row: number,
+  col: number,
+): number {
+  const zone = state.map.zones[row]?.[col] ?? -1;
+  const owner = state.players.find((player) => player.homeTower?.zone === zone);
+  return owner?.id ?? 0;
+}
+
 export function hasTowerAt(state: GameState, r: number, c: number): boolean {
   return state.map.towers.some((tower) => isTowerTile(tower, r, c));
 }

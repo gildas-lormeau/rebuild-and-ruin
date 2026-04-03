@@ -12,6 +12,7 @@ import {
   hasInteriorAt,
   hasWallAt,
   removeWallFromAllPlayers,
+  zoneOwnerIdAt,
 } from "./board-occupancy.ts";
 import {
   GRUNT_ATTACK_DURATION,
@@ -62,6 +63,9 @@ const WATER_SEARCH_RADIUS = 5;
 /** Minimum Manhattan distance between spawn candidates so grunts don't cluster on arrival. */
 const GRUNT_SPAWN_MIN_DISTANCE = 2;
 
+/** Spawn a grunt near (posRow, posCol) if there is at least one other alive player.
+ *  Optimization: skips the spawn if excludePlayerId is the only non-eliminated player
+ *  (the grunt would have no valid target tower and sit idle). */
 export function spawnGruntNearPos(
   state: GameState,
   excludePlayerId: number,
@@ -325,14 +329,10 @@ export function rollGruntWallAttacks(state: GameState): void {
  *  based on the actual target tower's zone (e.g. during frozen river crossings). */
 function addGrunt(state: GameState, row: number, col: number): void {
   if (!inBounds(row, col) || !isGrass(state.map.tiles, row, col)) return;
-  const zone = state.map.zones[row]?.[col] ?? -1;
-  const zoneOwner = state.players.find(
-    (player) => player.homeTower?.zone === zone,
-  );
   state.grunts.push({
     row,
     col,
-    victimPlayerId: zoneOwner?.id ?? 0,
+    victimPlayerId: zoneOwnerIdAt(state, row, col),
     blockedBattles: 0,
   });
 }

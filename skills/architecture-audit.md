@@ -235,7 +235,7 @@ The following conventions are already well-documented in code comments. Agents s
 NOT flag these as findings — they have been verified and the existing documentation is
 sufficient for LLM agents to follow correctly.
 
-1. **recheckTerritoryOnly vs finalizeTerritoryWithScoring** — build-system.ts:172 and 189-193
+1. **recheckTerritoryOnly vs finalizeTerritoryWithScoring** — build-system.ts:173 and 189-193
    explain the difference and when to use each. cannon-system.ts:269 documents the precondition.
 
 2. **canPlaceCannon vs canPlacePiece validation difference** — build-system.ts:92-95 has
@@ -260,9 +260,9 @@ sufficient for LLM agents to follow correctly.
 8. **Canvas ctx.save()/ctx.restore() convention** — render-effects.ts:20-28 documents the full
    convention with code example. Applies across all render-* files.
 
-9. **Checkpoint `capturePreState` ordering invariant** — online-checkpoints.ts:52-55 JSDoc
+9. **Checkpoint `capturePreState` ordering invariant** — online-checkpoints.ts:53 JSDoc
    explains capturePreState and the lifecycle at each function. online-phase-transitions.ts:105-107
-   documents the ordering guarantee. runtime-phase-ticks.ts:165-166 has INVARIANT comment
+   documents the ordering guarantee. runtime-phase-ticks.ts:165 has INVARIANT comment
    reinforcing that banner captures oldCastles BEFORE applyCheckpoint mutates state.
 
 10. **`net` required on all tick deps interfaces** — runtime-phase-ticks.ts:5-9 documents
