@@ -216,281 +216,261 @@ export function pickPlacement(
     getInterior(player),
   );
 
-  // Step 1: determine which rectangle to build/repair
-  function selectTarget(): {
-    targetGaps: Set<number>;
-    targetRect: TileRect | null;
-  } {
-    let targetGaps: Set<number> = new Set();
-    let targetRect: TileRect | null = null;
-    const hasManageableGaps = (): boolean =>
-      targetGaps.size > 0 && targetGaps.size <= MANAGEABLE_GAP_LIMIT;
+  // Step 1: determine which rectangle to build/repair.
+  // Pipeline: tryRepairHomeCastle → trySecondaryTower → tryExpandTerritory
+  // Each phase only runs if the previous one found no gaps.
 
-    if (
-      !effectiveSkipHome &&
-      homeHasRingGaps &&
-      castle.top <= castle.bottom &&
-      castle.left <= castle.right
-    ) {
-      // Home castle: always use original bounds from buildCastle — existing walls
-      // match this ring, so repair targets the actual gaps instead of upgrading
-      const homeRect = castle;
-      let { top, bottom, left, right } = homeRect;
+  type TargetResult = { targetGaps: Set<number>; targetRect: TileRect | null };
+  const NO_TARGET: TargetResult = {
+    targetGaps: new Set(),
+    targetRect: null,
+  };
 
-      let totalInterior = 0;
-      let occupiedInterior = 0;
-      for (let r = homeRect.top; r <= homeRect.bottom; r++) {
-        for (let c = homeRect.left; c <= homeRect.right; c++) {
-          totalInterior++;
-          const k = packTile(r, c);
-          if (player.walls.has(k)) {
+  /** Try plugging structurally unreachable gaps (e.g. thick walls from + pieces)
+   *  then re-check whether the current piece can fill any gap.
+   *  Returns true if the piece can fill at least one gap after plugging. */
+  function canFillAfterPlugging(
+    gaps: Set<number>,
+    rect: TileRect | null,
+  ): boolean {
+    const interior = getInterior(player);
+    if (canPieceFillAnyGap(state, playerId, piece, interior, gaps, rect))
+      return true;
+    return (
+      plugUnreachableGaps(
+        gaps,
+        rect,
+        state,
+        playerId,
+        player.walls,
+        interior,
+      ) && canPieceFillAnyGap(state, playerId, piece, interior, gaps, rect)
+    );
+  }
+
+  /** Phase 1: repair the home castle ring, expanding around temporary blockers. */
+  function tryRepairHomeCastle(): TargetResult {
+    if (effectiveSkipHome || !homeHasRingGaps) return NO_TARGET;
+    if (castle.top > castle.bottom || castle.left > castle.right)
+      return NO_TARGET;
+
+    // Home castle: always use original bounds from buildCastle — existing walls
+    // match this ring, so repair targets the actual gaps instead of upgrading
+    const homeRect = castle;
+    let { top, bottom, left, right } = homeRect;
+
+    let totalInterior = 0;
+    let occupiedInterior = 0;
+    for (let r = homeRect.top; r <= homeRect.bottom; r++) {
+      for (let c = homeRect.left; c <= homeRect.right; c++) {
+        totalInterior++;
+        const k = packTile(r, c);
+        if (player.walls.has(k)) {
+          occupiedInterior++;
+          continue;
+        }
+        if (!isGrass(state.map.tiles, r, c)) {
+          occupiedInterior++;
+          continue;
+        }
+        for (const tower of state.map.towers) {
+          if (isTowerTile(tower, r, c)) {
             occupiedInterior++;
-            continue;
+            break;
           }
-          if (!isGrass(state.map.tiles, r, c)) {
-            occupiedInterior++;
-            continue;
-          }
-          for (const tower of state.map.towers) {
-            if (isTowerTile(tower, r, c)) {
+        }
+        for (const other of state.players) {
+          for (const cannon of other.cannons) {
+            if (isCannonTile(cannon, r, c)) {
               occupiedInterior++;
               break;
             }
           }
-          for (const other of state.players) {
-            for (const cannon of other.cannons) {
-              if (isCannonTile(cannon, r, c)) {
-                occupiedInterior++;
-                break;
-              }
-            }
-          }
-        }
-      }
-      const freeRatio =
-        totalInterior > 0 ? 1 - occupiedInterior / totalInterior : 1;
-      const MAX_EXPAND =
-        EXPANSION_TIERS.find((tier) => freeRatio > tier.minFreeRatio)
-          ?.maxExpand ?? EXPANSION_DEFAULT_MAX;
-
-      for (let attempt = 0; attempt < MAX_EXPAND; attempt++) {
-        const gaps = findGapTiles({ top, bottom, left, right }, player.walls);
-        const wallRingTop = top - 1,
-          wallRingBottom = bottom + 1,
-          wallRingLeft = left - 1,
-          wallRingRight = right + 1;
-        let expanded = false;
-
-        for (const key of gaps) {
-          const { r, c } = unpackTile(key);
-          // Only expand for temporary blockers (grunts, burning pits).
-          // Water is permanent terrain — expanding just creates more water gaps.
-          if (!isGrass(state.map.tiles, r, c)) continue;
-          const blocked =
-            hasGruntAt(state, r, c) || hasPitAt(state.burningPits, r, c);
-          if (!blocked) continue;
-
-          if (
-            r === wallRingTop &&
-            top - 1 >= homeRect.top - MAX_EXPAND &&
-            top - 1 >= 1
-          ) {
-            top--;
-            expanded = true;
-          }
-          if (
-            r === wallRingBottom &&
-            bottom + 1 <= homeRect.bottom + MAX_EXPAND &&
-            bottom + 1 < GRID_ROWS - 1
-          ) {
-            bottom++;
-            expanded = true;
-          }
-          if (
-            c === wallRingLeft &&
-            left - 1 >= homeRect.left - MAX_EXPAND &&
-            left - 1 >= 1
-          ) {
-            left--;
-            expanded = true;
-          }
-          if (
-            c === wallRingRight &&
-            right + 1 <= homeRect.right + MAX_EXPAND &&
-            right + 1 < GRID_COLS - 1
-          ) {
-            right++;
-            expanded = true;
-          }
-        }
-
-        if (!expanded) {
-          targetGaps = gaps;
-          break;
-        }
-      }
-      targetGaps = findGapTiles({ top, bottom, left, right }, player.walls);
-      filterUnfillableGaps(targetGaps, state, getInterior(player));
-      targetRect = { top, bottom, left, right };
-    }
-
-    if (
-      hasManageableGaps() &&
-      !canPieceFillAnyGap(
-        state,
-        playerId,
-        piece,
-        getInterior(player),
-        targetGaps,
-        targetRect,
-      )
-    ) {
-      // Try plugging structurally unreachable gaps (e.g. thick walls from + pieces)
-      if (
-        !plugUnreachableGaps(
-          targetGaps,
-          targetRect,
-          state,
-          playerId,
-          player.walls,
-          getInterior(player),
-        ) ||
-        !canPieceFillAnyGap(
-          state,
-          playerId,
-          piece,
-          getInterior(player),
-          targetGaps,
-          targetRect,
-        )
-      ) {
-        targetGaps = new Set();
-        targetRect = null;
-      }
-    }
-
-    const buildTowers = effectiveSkipHome ? otherUnenclosed : unenclosedTowers;
-
-    if (targetGaps.size === 0 && buildTowers.length > 0) {
-      const currentRow = cursorPos?.row ?? castle.tower.row;
-      const currentCol = cursorPos?.col ?? castle.tower.col;
-
-      // Score all towers, then try them in order — skip towers whose ring is unfillable
-      const towerScores = buildTowers.map((tower) =>
-        scoreBuildTowerTarget(
-          tower,
-          state,
-          player,
-          currentRow,
-          currentCol,
-          castleMargin,
-          bankHugging,
-        ),
-      );
-      towerScores.sort(compareByNumericScoreDesc);
-
-      for (const { tower: bestTower } of towerScores) {
-        const rect = castleRect(
-          bestTower,
-          state.map.tiles,
-          state.map.towers,
-          castleMargin,
-          !bankHugging,
-        );
-        const totalGaps = findGapTiles(rect, player.walls).size;
-        const gaps = computeFillableGaps(
-          rect,
-          player.walls,
-          getInterior(player),
-          state,
-          bankHugging,
-        );
-        // Accept if there are fillable gaps, or if the ring was already complete
-        if (gaps.size > 0 || totalGaps === 0) {
-          // If the current piece can't fill this tower's gaps, try the next tower
-          // but keep building toward secondary targets instead of giving up
-          if (
-            gaps.size > 0 &&
-            gaps.size <= MANAGEABLE_GAP_LIMIT &&
-            !canPieceFillAnyGap(
-              state,
-              playerId,
-              piece,
-              getInterior(player),
-              gaps,
-              rect,
-            )
-          ) {
-            // Try plugging structurally unreachable gaps before deferring
-            if (
-              !plugUnreachableGaps(
-                gaps,
-                rect,
-                state,
-                playerId,
-                player.walls,
-                getInterior(player),
-              ) ||
-              !canPieceFillAnyGap(
-                state,
-                playerId,
-                piece,
-                getInterior(player),
-                gaps,
-                rect,
-              )
-            ) {
-              continue;
-            }
-          }
-          targetGaps = gaps;
-          targetRect = rect;
-          break;
         }
       }
     }
+    const freeRatio =
+      totalInterior > 0 ? 1 - occupiedInterior / totalInterior : 1;
+    const MAX_EXPAND =
+      EXPANSION_TIERS.find((tier) => freeRatio > tier.minFreeRatio)
+        ?.maxExpand ?? EXPANSION_DEFAULT_MAX;
 
-    // All towers enclosed, no gaps — try expanding territory outward.
-    // Compute bounding box of existing walls, expand by 2, and treat
-    // the expanded ring as gaps to fill over multiple rounds.
-    if (targetGaps.size === 0 && allCastlesEnclosed) {
-      let minR = GRID_ROWS,
-        maxR = 0,
-        minC = GRID_COLS,
-        maxC = 0;
-      for (const key of player.walls) {
+    let targetGaps: Set<number> = new Set();
+    for (let attempt = 0; attempt < MAX_EXPAND; attempt++) {
+      const gaps = findGapTiles({ top, bottom, left, right }, player.walls);
+      const wallRingTop = top - 1,
+        wallRingBottom = bottom + 1,
+        wallRingLeft = left - 1,
+        wallRingRight = right + 1;
+      let expanded = false;
+
+      for (const key of gaps) {
         const { r, c } = unpackTile(key);
-        if (r < minR) minR = r;
-        if (r > maxR) maxR = r;
-        if (c < minC) minC = c;
-        if (c > maxC) maxC = c;
-      }
-      const EXPAND = 2;
-      const expandRect: TileRect = {
-        top: Math.max(1, minR + 1),
-        bottom: Math.min(GRID_ROWS - 2, maxR - 1 + EXPAND),
-        left: Math.max(1, minC + 1),
-        right: Math.min(GRID_COLS - 2, maxC - 1 + EXPAND),
-      };
-      if (
-        expandRect.top <= expandRect.bottom &&
-        expandRect.left <= expandRect.right
-      ) {
-        const gaps = computeFillableGaps(
-          expandRect,
-          player.walls,
-          getInterior(player),
-          state,
-          bankHugging,
-        );
-        if (gaps.size > 0) {
-          targetGaps = gaps;
-          targetRect = expandRect;
+        // Only expand for temporary blockers (grunts, burning pits).
+        // Water is permanent terrain — expanding just creates more water gaps.
+        if (!isGrass(state.map.tiles, r, c)) continue;
+        const blocked =
+          hasGruntAt(state, r, c) || hasPitAt(state.burningPits, r, c);
+        if (!blocked) continue;
+
+        if (
+          r === wallRingTop &&
+          top - 1 >= homeRect.top - MAX_EXPAND &&
+          top - 1 >= 1
+        ) {
+          top--;
+          expanded = true;
+        }
+        if (
+          r === wallRingBottom &&
+          bottom + 1 <= homeRect.bottom + MAX_EXPAND &&
+          bottom + 1 < GRID_ROWS - 1
+        ) {
+          bottom++;
+          expanded = true;
+        }
+        if (
+          c === wallRingLeft &&
+          left - 1 >= homeRect.left - MAX_EXPAND &&
+          left - 1 >= 1
+        ) {
+          left--;
+          expanded = true;
+        }
+        if (
+          c === wallRingRight &&
+          right + 1 <= homeRect.right + MAX_EXPAND &&
+          right + 1 < GRID_COLS - 1
+        ) {
+          right++;
+          expanded = true;
         }
       }
-    }
 
+      if (!expanded) {
+        targetGaps = gaps;
+        break;
+      }
+    }
+    targetGaps = findGapTiles({ top, bottom, left, right }, player.walls);
+    filterUnfillableGaps(targetGaps, state, getInterior(player));
+    const targetRect: TileRect = { top, bottom, left, right };
+
+    // Verify the piece can actually fill these gaps (try plugging if needed)
+    if (
+      targetGaps.size > 0 &&
+      targetGaps.size <= MANAGEABLE_GAP_LIMIT &&
+      !canFillAfterPlugging(targetGaps, targetRect)
+    ) {
+      return NO_TARGET;
+    }
     return { targetGaps, targetRect };
+  }
+
+  /** Phase 2: score unenclosed towers and pick the best one the current piece can fill. */
+  function trySecondaryTower(): TargetResult {
+    const buildTowers = effectiveSkipHome ? otherUnenclosed : unenclosedTowers;
+    if (buildTowers.length === 0) return NO_TARGET;
+
+    const currentRow = cursorPos?.row ?? castle.tower.row;
+    const currentCol = cursorPos?.col ?? castle.tower.col;
+
+    // Score all towers, then try them in order — skip towers whose ring is unfillable
+    const towerScores = buildTowers.map((tower) =>
+      scoreBuildTowerTarget(
+        tower,
+        state,
+        player,
+        currentRow,
+        currentCol,
+        castleMargin,
+        bankHugging,
+      ),
+    );
+    towerScores.sort(compareByNumericScoreDesc);
+
+    for (const { tower: bestTower } of towerScores) {
+      const rect = castleRect(
+        bestTower,
+        state.map.tiles,
+        state.map.towers,
+        castleMargin,
+        !bankHugging,
+      );
+      const totalGaps = findGapTiles(rect, player.walls).size;
+      const gaps = computeFillableGaps(
+        rect,
+        player.walls,
+        getInterior(player),
+        state,
+        bankHugging,
+      );
+      // Accept if there are fillable gaps, or if the ring was already complete
+      if (gaps.size > 0 || totalGaps === 0) {
+        // If the current piece can't fill this tower's gaps, try the next tower
+        if (
+          gaps.size > 0 &&
+          gaps.size <= MANAGEABLE_GAP_LIMIT &&
+          !canFillAfterPlugging(gaps, rect)
+        ) {
+          continue;
+        }
+        return { targetGaps: gaps, targetRect: rect };
+      }
+    }
+    return NO_TARGET;
+  }
+
+  /** Phase 3: all towers enclosed — expand territory outward.
+   *  Compute bounding box of existing walls, expand by 2, and treat
+   *  the expanded ring as gaps to fill over multiple rounds. */
+  function tryExpandTerritory(): TargetResult {
+    if (!allCastlesEnclosed) return NO_TARGET;
+
+    let minR = GRID_ROWS,
+      maxR = 0,
+      minC = GRID_COLS,
+      maxC = 0;
+    for (const key of player.walls) {
+      const { r, c } = unpackTile(key);
+      if (r < minR) minR = r;
+      if (r > maxR) maxR = r;
+      if (c < minC) minC = c;
+      if (c > maxC) maxC = c;
+    }
+    const EXPAND = 2;
+    const expandRect: TileRect = {
+      top: Math.max(1, minR + 1),
+      bottom: Math.min(GRID_ROWS - 2, maxR - 1 + EXPAND),
+      left: Math.max(1, minC + 1),
+      right: Math.min(GRID_COLS - 2, maxC - 1 + EXPAND),
+    };
+    if (
+      expandRect.top > expandRect.bottom ||
+      expandRect.left > expandRect.right
+    ) {
+      return NO_TARGET;
+    }
+    const gaps = computeFillableGaps(
+      expandRect,
+      player.walls,
+      getInterior(player),
+      state,
+      bankHugging,
+    );
+    if (gaps.size > 0) return { targetGaps: gaps, targetRect: expandRect };
+    return NO_TARGET;
+  }
+
+  function selectTarget(): TargetResult {
+    // Phase 1: repair home castle ring
+    const home = tryRepairHomeCastle();
+    if (home.targetGaps.size > 0) return home;
+    // Phase 2: build toward best unenclosed secondary tower
+    const secondary = trySecondaryTower();
+    if (secondary.targetGaps.size > 0) return secondary;
+    // Phase 3: expand territory when all towers are enclosed
+    return tryExpandTerritory();
   }
 
   const { targetGaps, targetRect } = selectTarget();
