@@ -234,42 +234,18 @@ export function enterBuildFromReselect(state: GameState): void {
 }
 
 export function enterBattleFromCannon(state: GameState): void {
-  // Decay burning pits at the start of each battle (not after — so pits
-  // created during a battle remain at full intensity through repair/cannon)
-  for (const pit of state.burningPits) pit.roundsLeft--;
-  state.burningPits = state.burningPits.filter((pit) => pit.roundsLeft > 0);
-
+  decayBurningPits(state);
   sweepAllPlayersWalls(state);
   recheckTerritoryOnly(state);
-  // From round 2+, each player has a chance to get grunts spawned on their zone
-  if (state.round >= FIRST_GRUNT_SPAWN_ROUND) {
-    for (const player of state.players.filter(isPlayerSeated)) {
-      for (let i = 0; i < INTERBATTLE_GRUNT_SPAWN_ATTEMPTS; i++) {
-        if (state.rng.bool(INTERBATTLE_GRUNT_SPAWN_CHANCE)) {
-          spawnGruntOnZone(state, player.id);
-        }
-      }
-    }
-  }
-  const allWalls = collectAllWalls(state);
-  removeBonusSquaresCoveredByWalls(state, allWalls);
-  // Thaw frozen river from previous round (before applying new modifier)
+  spawnInterbattleGrunts(state);
+  removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
   clearFrozenRiver(state);
-  // Modern mode: apply battle-start modifiers
-  if (state.activeModifier === MODIFIER_ID.WILDFIRE) {
-    applyWildfire(state);
-    recheckTerritoryOnly(state);
-  }
-  if (state.activeModifier === MODIFIER_ID.GRUNT_SURGE) applyGruntSurge(state);
-  if (state.activeModifier === MODIFIER_ID.FROZEN_RIVER)
-    applyFrozenRiver(state);
-
+  applyBattleStartModifiers(state);
   rollGruntWallAttacks(state);
   setPhase(state, Phase.BATTLE);
   state.timer = BATTLE_TIMER;
   state.cannonballs = [];
   state.shotsFired = 0;
-  // Modern mode: create combo tracker for this battle
   state.comboTracker = isCombosEnabled(state)
     ? createComboTracker(state.players.length)
     : null;
@@ -278,29 +254,9 @@ export function enterBattleFromCannon(state: GameState): void {
 /** Enter build from battle — cleans up battle state (balloons, captured cannons, grunts).
  *  Callers must call initBuildPhaseControllers() afterwards to init controllers. */
 export function enterBuildFromBattle(state: GameState): void {
-  // Modern mode: award demolition bonuses before clearing battle state
-  if (state.comboTracker) {
-    const bonuses = comboDemolitionBonus(state.comboTracker);
-    for (let i = 0; i < bonuses.length; i++) {
-      if (bonuses[i]! > 0 && !state.players[i]!.eliminated) {
-        state.players[i]!.score += bonuses[i]!;
-      }
-    }
-    state.comboTracker = null;
-  }
-  updateGruntBlockedBattles(state);
-  cleanupBalloonHitTrackingAfterBattle(state);
-  state.capturedCannons = [];
-  // Remove all balloon bases (they disappear after battle)
-  for (const player of state.players) {
-    player.cannons = player.cannons.filter((c) => !isBalloonCannon(c));
-  }
-  // First battle with no shots fired (nobody playing): spawn grouped grunts per player
-  if (state.round === 1 && state.shotsFired === 0) {
-    for (const player of state.players.filter(isPlayerSeated)) {
-      spawnGruntGroupOnZone(state, player.id, IDLE_FIRST_BATTLE_GRUNTS);
-    }
-  }
+  awardComboBonuses(state);
+  cleanupBattleArtifacts(state);
+  spawnIdleFirstBattleGrunts(state);
   recheckTerritoryOnly(state);
   state.round++;
 
@@ -315,25 +271,15 @@ export function enterBuildFromBattle(state: GameState): void {
 
   replenishBonusSquares(state);
   setPhase(state, Phase.WALL_BUILD);
-  // Master Builder: +5s if any alive player has it (check before clearing)
+  // Master Builder: +5s if any alive player has it (check before clearing upgrades)
   const hasMasterBuilder = state.players.some(
     (pl) => !pl.eliminated && pl.upgrades.get(UID.MASTER_BUILDER),
   );
   state.timer =
     state.buildTimer + (hasMasterBuilder ? MASTER_BUILDER_BONUS_SECONDS : 0);
-
-  // All upgrades last one round — clear after timer is computed
-  for (const player of state.players) {
-    player.damagedWalls.clear();
-    player.upgrades.clear();
-  }
+  resetPlayerUpgrades(state);
   startOfBuildPhaseHousekeeping(state);
-
-  // Modern mode: apply build-start modifiers (after housekeeping so territory is fresh)
-  if (state.activeModifier === MODIFIER_ID.CRUMBLING_WALLS) {
-    applyCrumblingWalls(state);
-    recheckTerritoryOnly(state);
-  }
+  applyBuildStartModifiers(state);
 }
 
 /**
@@ -573,6 +519,84 @@ export function prepareCastleWallsForPlayer(
     state.rng,
   );
   return { playerId: player.id, tiles: ordered };
+}
+
+/** Decay burning pits at battle start — pits created during a battle
+ *  remain at full intensity through repair/cannon phases. */
+function decayBurningPits(state: GameState): void {
+  for (const pit of state.burningPits) pit.roundsLeft--;
+  state.burningPits = state.burningPits.filter((pit) => pit.roundsLeft > 0);
+}
+
+/** From round 2+, each seated player has a chance to get grunts spawned on their zone. */
+function spawnInterbattleGrunts(state: GameState): void {
+  if (state.round < FIRST_GRUNT_SPAWN_ROUND) return;
+  for (const player of state.players.filter(isPlayerSeated)) {
+    for (let i = 0; i < INTERBATTLE_GRUNT_SPAWN_ATTEMPTS; i++) {
+      if (state.rng.bool(INTERBATTLE_GRUNT_SPAWN_CHANCE)) {
+        spawnGruntOnZone(state, player.id);
+      }
+    }
+  }
+}
+
+/** Modern mode: apply environmental modifiers at battle start. */
+function applyBattleStartModifiers(state: GameState): void {
+  if (state.activeModifier === MODIFIER_ID.WILDFIRE) {
+    applyWildfire(state);
+    recheckTerritoryOnly(state);
+  }
+  if (state.activeModifier === MODIFIER_ID.GRUNT_SURGE) applyGruntSurge(state);
+  if (state.activeModifier === MODIFIER_ID.FROZEN_RIVER)
+    applyFrozenRiver(state);
+}
+
+/** Award combo demolition bonuses and clear the tracker. */
+function awardComboBonuses(state: GameState): void {
+  if (!state.comboTracker) return;
+  const bonuses = comboDemolitionBonus(state.comboTracker);
+  for (let i = 0; i < bonuses.length; i++) {
+    if (bonuses[i]! > 0 && !state.players[i]!.eliminated) {
+      state.players[i]!.score += bonuses[i]!;
+    }
+  }
+  state.comboTracker = null;
+}
+
+/** Clean up transient battle state: grunts, balloons, captured cannons. */
+function cleanupBattleArtifacts(state: GameState): void {
+  updateGruntBlockedBattles(state);
+  cleanupBalloonHitTrackingAfterBattle(state);
+  state.capturedCannons = [];
+  for (const player of state.players) {
+    player.cannons = player.cannons.filter(
+      (cannon) => !isBalloonCannon(cannon),
+    );
+  }
+}
+
+/** First battle with no shots fired: spawn grouped grunts as punishment. */
+function spawnIdleFirstBattleGrunts(state: GameState): void {
+  if (state.round !== 1 || state.shotsFired !== 0) return;
+  for (const player of state.players.filter(isPlayerSeated)) {
+    spawnGruntGroupOnZone(state, player.id, IDLE_FIRST_BATTLE_GRUNTS);
+  }
+}
+
+/** All upgrades last one round — clear damaged-wall markers and upgrade maps. */
+function resetPlayerUpgrades(state: GameState): void {
+  for (const player of state.players) {
+    player.damagedWalls.clear();
+    player.upgrades.clear();
+  }
+}
+
+/** Modern mode: apply environmental modifiers at build start. */
+function applyBuildStartModifiers(state: GameState): void {
+  if (state.activeModifier === MODIFIER_ID.CRUMBLING_WALLS) {
+    applyCrumblingWalls(state);
+    recheckTerritoryOnly(state);
+  }
 }
 
 /** Draw N unique upgrades from the implemented pool using state.rng. */
