@@ -31,7 +31,8 @@ export const STEP = {
 } as const;
 
 /** Look up a value from a 3-element table indexed by 1-based trait level.
- *  Level 1 → values[0], level 2 → values[1], level 3 → values[2]. */
+ *  Level 1 → values[0], level 2 → values[1], level 3 → values[2].
+ *  @param level — 1-based skill level (1–3). NOT 0-based. */
 export function traitLookup<T>(level: number, values: readonly [T, T, T]): T {
   return values[level - 1]!;
 }

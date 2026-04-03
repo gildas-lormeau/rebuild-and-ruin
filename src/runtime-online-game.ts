@@ -66,7 +66,7 @@ import {
   type WatcherTickContext,
 } from "./online-watcher-tick.ts";
 import {
-  DEFAULT_DIFFICULTY,
+  DIFFICULTY_NORMAL,
   DIFFICULTY_PARAMS,
   MAX_PLAYERS,
   PLAYER_COLORS,
@@ -175,7 +175,7 @@ const runtime: GameRuntime = createGameRuntime({
     if (!isHostInContext(ctx.session)) return;
     const diffParams =
       DIFFICULTY_PARAMS[runtime.runtimeState.settings.difficulty] ??
-      DIFFICULTY_PARAMS[DEFAULT_DIFFICULTY]!;
+      DIFFICULTY_PARAMS[DIFFICULTY_NORMAL]!;
     const initMsg: InitMessage = {
       type: MESSAGE.INIT,
       seed: ctx.session.roomSeed,

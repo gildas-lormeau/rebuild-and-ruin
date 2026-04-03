@@ -19,8 +19,13 @@ export interface HapticsSystem {
   ) => void;
 }
 
+const HAPTIC_TAP_MS = 8;
+const HAPTIC_PHASE_CHANGE_MS = 40;
 const HAPTIC_WALL_HIT_MS = 30;
+const HAPTIC_CANNON_DAMAGED_MS = 80;
 const HAPTIC_CANNON_DESTROYED_MS = 150;
+const HAPTIC_TOWER_KILLED_MS = 200;
+const HAPTIC_CANNON_FIRED_MS = 15;
 
 export function createHapticsSystem(): HapticsSystem {
   let hapticsLevel = 2;
@@ -35,12 +40,12 @@ export function createHapticsSystem(): HapticsSystem {
 
   /** Light tap for d-pad / button presses. */
   function tap(): void {
-    vibrate(8, 2);
+    vibrate(HAPTIC_TAP_MS, 2);
   }
 
   /** Phase transition banner. */
   function phaseChange(): void {
-    vibrate(40, 1);
+    vibrate(HAPTIC_PHASE_CHANGE_MS, 1);
   }
 
   /** Process battle events and trigger appropriate haptics for the local player. */
@@ -57,14 +62,14 @@ export function createHapticsSystem(): HapticsSystem {
         evt.playerId === povPlayerId
       ) {
         if (evt.newHp === 0) vibrate(HAPTIC_CANNON_DESTROYED_MS, 2);
-        else vibrate(80, 2);
+        else vibrate(HAPTIC_CANNON_DAMAGED_MS, 2);
       } else if (evt.type === MESSAGE.TOWER_KILLED) {
-        vibrate(200, 2);
+        vibrate(HAPTIC_TOWER_KILLED_MS, 2);
       } else if (
         evt.type === MESSAGE.CANNON_FIRED &&
         evt.playerId === povPlayerId
       ) {
-        vibrate(15, 2);
+        vibrate(HAPTIC_CANNON_FIRED_MS, 2);
       }
     }
   }

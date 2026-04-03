@@ -75,7 +75,10 @@ export interface CandidateEnv {
 }
 
 /** A named scoring rule: returns a score contribution, or null to hard-reject.
- *  Positive = bonus, negative = penalty. */
+ *  - Return `null` to hard-reject the candidate (skips remaining rules).
+ *  - Return `0` for "no opinion" (candidate is NOT rejected).
+ *  - Return positive for bonus, negative for penalty.
+ *  IMPORTANT: `null` and `0` have different meanings — don't confuse them. */
 export interface ScoringRule {
   readonly name: string;
   apply(

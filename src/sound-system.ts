@@ -225,6 +225,9 @@ const DRUM_DROP_SECONDS = 0.8;
 const SINE: OscillatorType = "sine";
 const LOWPASS: BiquadFilterType = "lowpass";
 const BANDPASS: BiquadFilterType = "bandpass";
+/** Sound level thresholds: 0=off, 1=phase changes only, 2=all effects. */
+const SOUND_PHASE_ONLY = 1;
+const SOUND_ALL = 2;
 
 export function createSoundSystem(): SoundSystem {
   // ── Mutable state (closure-scoped) ─────────────────────────────────
@@ -291,7 +294,7 @@ export function createSoundSystem(): SoundSystem {
     if (now - last < COOLDOWN_MS) return;
     lastPlayTime.set(key, now);
     const audio = getPooledAudio(key);
-    audio.volume = soundLevel === 1 ? 0.5 : 1;
+    audio.volume = soundLevel === SOUND_PHASE_ONLY ? 0.5 : 1;
     audio.play().catch(() => {});
   }
 
@@ -302,7 +305,8 @@ export function createSoundSystem(): SoundSystem {
     const audioCtx = getCtx();
     audioCtx.resume().catch(() => {});
     const time = audioCtx.currentTime + 0.01;
-    const volume = CANNON_BOOM_VOL * (soundLevel === 1 ? 0.5 : 1);
+    const volume =
+      CANNON_BOOM_VOL * (soundLevel === SOUND_PHASE_ONLY ? 0.5 : 1);
 
     const blastLen = Math.ceil(audioCtx.sampleRate * 0.5);
     const blastBuf = audioCtx.createBuffer(1, blastLen, audioCtx.sampleRate);
@@ -392,7 +396,7 @@ export function createSoundSystem(): SoundSystem {
 
     const attack = dur * 0.3;
     const release = dur * 0.15;
-    const volScale = soundLevel === 1 ? 0.5 : 1;
+    const volScale = soundLevel === SOUND_PHASE_ONLY ? 0.5 : 1;
     const peakVol = 0.15 * volScale;
 
     const time = audioCtx.currentTime + 0.02;
@@ -443,7 +447,7 @@ export function createSoundSystem(): SoundSystem {
     const audioCtx = getCtx();
     audioCtx.resume().catch(() => {});
     const time = audioCtx.currentTime + 0.01;
-    const volume = soundLevel === 1 ? 0.5 : 1;
+    const volume = soundLevel === SOUND_PHASE_ONLY ? 0.5 : 1;
 
     const thud = audioCtx.createOscillator();
     thud.type = SINE;
@@ -542,7 +546,7 @@ export function createSoundSystem(): SoundSystem {
     },
 
     battleEvents(events, povPlayerId) {
-      if (soundLevel < 2) return;
+      if (soundLevel < SOUND_ALL) return;
       for (const evt of events) {
         if (evt.type === MESSAGE.CANNON_FIRED) {
           cannonBoom();
@@ -578,7 +582,7 @@ export function createSoundSystem(): SoundSystem {
     },
 
     chargeFanfare(playerId = 0) {
-      if (soundLevel < 1) return;
+      if (soundLevel < SOUND_PHASE_ONLY) return;
       const audioCtx = getCtx();
       audioCtx.resume().catch(() => {});
 
@@ -588,7 +592,7 @@ export function createSoundSystem(): SoundSystem {
       const E5 = 659 * pitch;
       const G5 = 784 * pitch;
       const noteStep = 0.147;
-      const volScale = soundLevel === 1 ? 0.5 : 1;
+      const volScale = soundLevel === SOUND_PHASE_ONLY ? 0.5 : 1;
 
       const score: [number, number, number, boolean][] = [
         [G4, noteStep, 0.28, false],
@@ -614,7 +618,7 @@ export function createSoundSystem(): SoundSystem {
     },
 
     drumsStart() {
-      if (soundLevel < 2) return;
+      if (soundLevel < SOUND_ALL) return;
       drumsStopInternal();
       const audioCtx = getCtx();
       audioCtx.resume().catch(() => {});
@@ -623,7 +627,7 @@ export function createSoundSystem(): SoundSystem {
       drumGainNode.gain.setValueAtTime(1, audioCtx.currentTime);
       drumGainNode.connect(audioCtx.destination);
 
-      const maxVol = soundLevel === 1 ? 0.5 : 1;
+      const maxVol = soundLevel === SOUND_PHASE_ONLY ? 0.5 : 1;
       const t0 = audioCtx.currentTime + 0.05;
       let time = t0;
       const end = time + DRUM_MAX_DURATION;

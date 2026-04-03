@@ -48,6 +48,10 @@ const RIVER_EXIT_MARGIN_V = 6;
 const JUNCTION_MARGIN_X = 16;
 /** Vertical margin for river junction placement. */
 const JUNCTION_MARGIN_Y = 11;
+const EDGE_TOP = 0;
+const EDGE_RIGHT = 1;
+const EDGE_BOTTOM = 2;
+const EDGE_LEFT = 3;
 
 export function generateMap(seed?: number): GameMap {
   const rng = new Rng(seed ?? Date.now());
@@ -216,28 +220,28 @@ function collectZoneStats(
 }
 
 function pickExits(rng: Rng): PixelPos[] {
-  const edges = [0, 1, 2, 3]; // top, right, bottom, left
+  const edges = [EDGE_TOP, EDGE_RIGHT, EDGE_BOTTOM, EDGE_LEFT];
   rng.shuffle(edges);
   const chosen = edges.slice(0, 3);
 
   return chosen.map((edge) => {
     switch (edge) {
-      case 0:
+      case EDGE_TOP:
         return {
           x: rng.int(RIVER_EXIT_MARGIN_H, GRID_COLS - RIVER_EXIT_MARGIN_H - 1),
           y: -1,
         };
-      case 1:
+      case EDGE_RIGHT:
         return {
           x: GRID_COLS,
           y: rng.int(RIVER_EXIT_MARGIN_V, GRID_ROWS - RIVER_EXIT_MARGIN_V - 1),
         };
-      case 2:
+      case EDGE_BOTTOM:
         return {
           x: rng.int(RIVER_EXIT_MARGIN_H, GRID_COLS - RIVER_EXIT_MARGIN_H - 1),
           y: GRID_ROWS,
         };
-      case 3:
+      case EDGE_LEFT:
         return {
           x: -1,
           y: rng.int(RIVER_EXIT_MARGIN_V, GRID_ROWS - RIVER_EXIT_MARGIN_V - 1),

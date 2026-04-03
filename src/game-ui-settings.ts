@@ -18,8 +18,9 @@ import {
   ROUNDS_OPTIONS,
   SOUND_LABELS,
 } from "./game-ui-types.ts";
-import type { GameSettings } from "./player-config.ts";
 import {
+  DIFFICULTY_NORMAL,
+  type GameSettings,
   KEY_DOWN,
   KEY_LEFT,
   KEY_RIGHT,
@@ -33,11 +34,11 @@ import {
 
 const SETTINGS_KEY = "castles99_settings";
 const DEFAULT_SETTINGS: GameSettings = {
-  difficulty: 1,
-  rounds: 4,
-  cannonHp: 0,
-  haptics: 2, // default: all
-  sound: 0, // default: off (experimental)
+  difficulty: DIFFICULTY_NORMAL, // index into DIFFICULTY_PARAMS
+  rounds: 4, // index into ROUNDS_OPTIONS (4 = "To The Death")
+  cannonHp: 0, // index into CANNON_HP_OPTIONS (0 = 3 hits)
+  haptics: 2, // 0=off, 1=phase changes, 2=all
+  sound: 0, // 0=off, 1=phase changes, 2=all (experimental)
   seed: "",
   seedMode: SEED_RANDOM,
   keyBindings: [],
