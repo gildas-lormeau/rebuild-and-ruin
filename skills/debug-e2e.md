@@ -12,6 +12,7 @@ When a bug is reported, **delegate the investigation to a sub-agent** using the 
 
 Spawn a general-purpose sub-agent with:
 - `isolation: "worktree"` — mandatory, prevents source modification in the main repo
+- `model: "sonnet"` — this is mechanical work (add logs, run tests, read output), Sonnet is faster and equally capable
 - A prompt that includes the bug description, relevant file paths, and the investigation instructions below
 
 Tell the sub-agent: **"Do NOT fix the bug. Only investigate and report back."**
@@ -25,6 +26,8 @@ CRITICAL RULES:
 - DO NOT fix the bug — only investigate and report.
 - You ARE running in an isolated worktree. You CAN freely modify src/ files to add logs.
   Changes here do not affect the main repo.
+- DO NOT form a theory about the bug until you have read log output from a test run.
+  Your job is to add dumb, mechanical logs, run the test, and let the output tell you what happened.
 - After finding one cause, check if the same data is modified by other code paths too.
 
 ## Bug description
@@ -35,14 +38,27 @@ CRITICAL RULES:
 
 ## Investigation process
 
-### Step 1: Read the code
-Read the relevant source files. Identify the conditional branches and data flow where the bug could occur.
+### Step 1: Read the code for STRUCTURE ONLY
+Read the relevant source files. Map out:
+- Which functions are involved
+- Where branches and state mutations happen
+- What data flows through
 
-### Step 2: Add targeted logs to source files
-Add console.log at decision points in the source files. Log:
-- Function name
-- Key variable values (actual numbers/states, not just booleans)
-- Which branch was taken
+DO NOT try to understand why the bug happens. DO NOT form a hypothesis.
+You are only building a list of locations where logs need to go.
+
+### Step 2: Add DUMB logs at every branch and mutation
+Add console.log at EVERY decision point and state mutation in the relevant functions.
+Not just the ones you think matter — ALL of them.
+
+Log mechanically:
+- Function entry with argument values
+- Every if/else/switch branch: which branch was taken and the condition values
+- Every state mutation: variable name, old value, new value
+- Function exit with return value
+
+DO NOT skip a code path because you think it's unrelated. You don't know what's
+related yet — that's what the logs will tell you.
 
 ### Step 3: Write a test that triggers the bug
 Create a test file in test/. Use this template:
@@ -82,9 +98,11 @@ await runTests("Bug investigation");
 
 Run with: bun test/your-file.ts
 
-### Step 4: Read the log output
-Parse the console output. Check which branches were taken and whether the data was correct.
-If logs don't have enough info, add more and re-run. NEVER guess.
+### Step 4: Read the log output — NOW you can analyze
+Only now, with log output in front of you, trace what actually happened.
+Check which branches were taken, what values were present, where things diverged from expected.
+If logs don't cover the area where things went wrong, add more and re-run.
+NEVER guess — if the logs don't explain it, add more logs.
 
 ### Step 5: Report findings
 Return:
