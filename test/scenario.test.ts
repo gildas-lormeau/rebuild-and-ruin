@@ -317,6 +317,32 @@ test("camera zooms to human zone when human IS reselecting", () => {
 });
 
 // ---------------------------------------------------------------------------
+// 7b. No auto-zoom without a human player (demo / spectator)
+// ---------------------------------------------------------------------------
+
+test("camera stays unzoomed when no human player exists", () => {
+  const s = createScenario();
+  s.state.phase = Phase.WALL_BUILD;
+
+  const handle = s.createCamera({
+    mode: Mode.GAME,
+    phase: Phase.WALL_BUILD,
+    myPlayerId: 0,
+    mobileAutoZoom: true,
+    hasPointerPlayer: false,
+  });
+
+  handle.tick();
+  assertCameraZone(handle, null);
+
+  // Transition to battle — still no zoom
+  s.state.phase = Phase.BATTLE;
+  handle.setCtx({ phase: Phase.BATTLE });
+  handle.tick();
+  assertCameraZone(handle, null);
+});
+
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // 10. Scripted player actions work

@@ -4,12 +4,12 @@
  * Usage:
  *   npx tsx test/online-e2e.ts local             # local mode: 3 AI, no server needed
  *   npx tsx test/online-e2e.ts local 1           # local mode: 1 human + 2 AI
- *   npx tsx test/online-e2e.ts online            # online mode: 2 humans (default)
+ *   npx tsx test/online-e2e.ts local 0 "" 1      # local, 1 round (any positive integer)
+ *   npx tsx test/online-e2e.ts online            # online mode: 2 humans, local server (default)
  *   npx tsx test/online-e2e.ts online 0          # online mode: 0 humans (3 AI demo)
  *   npx tsx test/online-e2e.ts online 1          # online mode: 1 human + 2 AI + watcher
- *   npx tsx test/online-e2e.ts online 3   # online mode: 3 humans + watcher
+ *   npx tsx test/online-e2e.ts online 3          # online mode: 3 humans + watcher
  *   npx tsx test/online-e2e.ts online 1 https://example.deno.dev  # remote server
- *   npx tsx test/online-e2e.ts local 0 "" 1   # local, 1 round (any positive integer)
  *   npx tsx test/online-e2e.ts local 0 --screenshot  # capture screenshots at phase transitions
  *   npx tsx test/online-e2e.ts local 0 --mobile     # emulate mobile (Pixel 7, landscape)
  *   npx tsx test/online-e2e.ts local 0 --mobile --screenshot  # both
@@ -27,9 +27,10 @@
  *   4. Save to recordings/ folder
  *   5. Replay with --replay <path>
  *
- * Online mode requires: deno task server (port 8001) + npm run dev (port 5173)
- *   — or pass a remote URL as the 4th argument (uses that URL for both site and server)
- * Local mode requires: npm run dev (port 5173)
+ * Prerequisites:
+ *   Online mode: deno task server (port 8001) + npm run dev (port 5173)
+ *     Defaults to local server (localhost:8001). Pass a URL to use a remote server.
+ *   Local mode: npm run dev (port 5173) only
  */
 
 import { chromium, devices, type Page, type Browser } from "playwright";
@@ -115,7 +116,8 @@ const positionalArgs: string[] = [];
 }
 const MODE = positionalArgs[0] === "local" ? "local" : "online";
 const NUM_HUMANS = Math.min(3, Math.max(0, Number(positionalArgs[1] ?? (MODE === "local" ? 0 : 2))));
-const SERVER_URL = positionalArgs[2] || process.env.E2E_SERVER_URL || "";
+const LOCAL_SERVER_URL = "http://localhost:8001";
+const SERVER_URL = positionalArgs[2] || process.env.E2E_SERVER_URL || (MODE === "online" ? LOCAL_SERVER_URL : "");
 const NUM_ROUNDS = Number(positionalArgs[3] ?? 3); // number of game rounds (default 3, any positive integer)
 const BASE_URL = "http://localhost:5173/";
 const PAGE_URL = SERVER_URL ? `${BASE_URL}?server=${new URL(SERVER_URL).host}` : BASE_URL;

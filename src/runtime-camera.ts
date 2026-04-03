@@ -44,6 +44,8 @@ interface CameraDeps {
   getCtx: () => FrameContext;
   getFrameDt: () => number;
   setFrameAnnouncement: (text: string) => void;
+  /** True when a human player exists and is not eliminated (drives auto-zoom). */
+  hasPointerPlayer?: () => boolean;
   getPointerPlayerCrosshair?: () => { x: number; y: number } | null;
   /** Set the pointer player's crosshair position (for battle targeting). */
   setPointerPlayerCrosshair?: (x: number, y: number) => void;
@@ -294,8 +296,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
 
   function autoZoom(phase: Phase): void {
-    // No auto-zoom when spectating (no human player)
-    if (povPlayerId() < 0) return;
+    // No auto-zoom when there is no human player (demo / spectator / eliminated)
+    if (deps.hasPointerPlayer && !deps.hasPointerPlayer()) return;
     if (phase === Phase.BATTLE) {
       swapPinchViewport(true);
       // If pinch points at own zone, reset — always pick enemy

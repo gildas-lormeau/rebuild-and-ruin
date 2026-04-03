@@ -146,6 +146,7 @@ export interface CameraTestDeps {
   isSelectionReady: boolean;
   humanIsReselecting: boolean;
   mobileAutoZoom: boolean;
+  hasPointerPlayer: boolean;
 }
 
 export interface CameraTestHandle {
@@ -412,8 +413,10 @@ export function createScenario(seed = 42): Scenario {
       isSelectionReady: false,
       humanIsReselecting: false,
       mobileAutoZoom: true,
+      hasPointerPlayer: true,
     };
-    let ctx: FrameContext = buildFrameCtx({ ...defaults, ...overrides });
+    let merged = { ...defaults, ...overrides };
+    let ctx: FrameContext = buildFrameCtx(merged);
 
     function buildFrameCtx(deps: CameraTestDeps): FrameContext {
       const inputs: FrameContextInputs = {
@@ -438,6 +441,7 @@ export function createScenario(seed = 42): Scenario {
       getCtx: () => ctx,
       getFrameDt: () => 1 / 60,
       setFrameAnnouncement: () => {},
+      hasPointerPlayer: () => merged.hasPointerPlayer,
     });
     camera.enableMobileZoom();
 
@@ -448,7 +452,8 @@ export function createScenario(seed = 42): Scenario {
         camera.updateViewport();
       },
       setCtx: (o) => {
-        ctx = buildFrameCtx({ ...defaults, ...overrides, ...o });
+        merged = { ...defaults, ...overrides, ...o };
+        ctx = buildFrameCtx(merged);
       },
     };
   }

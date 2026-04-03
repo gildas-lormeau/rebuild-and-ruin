@@ -265,6 +265,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     setFrameAnnouncement: (text) => {
       runtimeState.frame.announcement = text;
     },
+    hasPointerPlayer: () => pointerPlayer() !== null,
     getPointerPlayerCrosshair: () => {
       const h = pointerPlayer();
       if (!h) return null;

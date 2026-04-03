@@ -123,7 +123,9 @@ function buildIncrementalDeps() {
 function buildLobbyDeps() {
   return {
     showWaitingRoom: _g.showWaitingRoom,
-    joined: _g.runtime.runtimeState.lobby.joined,
+    get joined() {
+      return _g.runtime.runtimeState.lobby.joined;
+    },
   };
 }
 
