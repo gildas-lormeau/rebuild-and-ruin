@@ -124,106 +124,9 @@ export function modifierBannerText(
 /** Apply wildfire: burn an elongated scar of ~10 tiles via random walk.
  *  Only targets zones owned by alive players, avoids towers and cannons. */
 export function applyWildfire(state: GameState): void {
-  const tiles = state.map.tiles;
-  const zones = state.map.zones;
-
-  // Zones that belong to alive players
-  const activeZones = new Set(
-    state.players.filter(isPlayerSeated).map((pl) => pl.homeTower.zone),
-  );
-
-  const burningSet = new Set(
-    state.burningPits.map((pit) => packTile(pit.row, pit.col)),
-  );
-
-  // Valid tile for wildfire: grass, in active zone, not burning, not tower/cannon
-  const canBurn = (row: number, col: number): boolean => {
-    if (!isGrass(tiles, row, col)) return false;
-    const zone = zones[row]?.[col];
-    if (zone === undefined || !activeZones.has(zone)) return false;
-    if (burningSet.has(packTile(row, col))) return false;
-    if (hasTowerAt(state, row, col)) return false;
-    if (hasCannonAt(state, row, col)) return false;
-    return true;
-  };
-
-  // Collect seed candidates
-  const candidates: { row: number; col: number }[] = [];
-  for (let r = 1; r < tiles.length - 1; r++) {
-    for (let c = 1; c < tiles[0]!.length - 1; c++) {
-      if (canBurn(r, c)) candidates.push({ row: r, col: c });
-    }
-  }
-  if (candidates.length === 0) return;
-
-  // Phase 1: walk a cardinal-only spine (~6 tiles, no diagonals)
-  const seed = state.rng.pick(candidates);
-  const spine: { row: number; col: number }[] = [seed];
-  const scar = new Set<number>();
-  scar.add(packTile(seed.row, seed.col));
-  let cr = seed.row;
-  let cc = seed.col;
-  // Pick a dominant cardinal direction for this fire
-  let mainDir = state.rng.int(0, DIRS_4.length - 1);
-
-  const maxAttempts = WILDFIRE_SPINE_LENGTH * 8;
-  let attempts = 0;
-  while (spine.length < WILDFIRE_SPINE_LENGTH && attempts++ < maxAttempts) {
-    // 70% chance to keep the main direction — produces a clear line
-    const dirIdx = state.rng.bool(WILDFIRE_MAIN_DIR_BIAS)
-      ? mainDir
-      : state.rng.int(0, DIRS_4.length - 1);
-    const [dr, dc] = DIRS_4[dirIdx]!;
-    const nr = cr + dr;
-    const nc = cc + dc;
-
-    if (canBurn(nr, nc) && !scar.has(packTile(nr, nc))) {
-      scar.add(packTile(nr, nc));
-      spine.push({ row: nr, col: nc });
-      cr = nr;
-      cc = nc;
-    } else {
-      // Blocked — try rotating the main direction
-      mainDir = (mainDir + (state.rng.bool() ? 1 : 3)) % DIRS_4.length;
-    }
-  }
-
-  // Phase 2: fatten the spine — each spine tile gets 0-2 cardinal
-  // neighbors burned (50% chance per neighbor), giving a 2-3 tile wide scar
-  for (const tile of spine) {
-    for (const [dr, dc] of DIRS_4) {
-      const nr = tile.row + dr;
-      const nc = tile.col + dc;
-      if (scar.has(packTile(nr, nc))) continue;
-      if (!canBurn(nr, nc)) continue;
-      if (state.rng.bool(WILDFIRE_FATTEN_CHANCE)) {
-        scar.add(packTile(nr, nc));
-      }
-    }
-  }
-
-  // Apply the scar — destroy everything on the burned tiles
-  const newPits: BurningPit[] = [];
-  for (const key of scar) {
-    const { r, c } = unpackTile(key);
-    newPits.push({ row: r, col: c, roundsLeft: BURNING_PIT_DURATION });
-    removeWallFromAllPlayers(state, key);
-    // Destroy houses on this tile
-    for (const house of state.map.houses) {
-      if (house.alive && house.row === r && house.col === c) {
-        house.alive = false;
-      }
-    }
-  }
-  // Kill grunts standing on burned tiles
-  state.grunts = state.grunts.filter(
-    (gr) => !scar.has(packTile(gr.row, gr.col)),
-  );
-  // Remove bonus squares on burned tiles
-  state.bonusSquares = state.bonusSquares.filter(
-    (bs) => !scar.has(packTile(bs.row, bs.col)),
-  );
-  state.burningPits.push(...newPits);
+  const scar = generateWildfireScar(state);
+  if (scar.size === 0) return;
+  applyWildfireScar(state, scar);
 }
 
 /** Apply crumbling walls: destroy a fraction of each player's outermost walls. */
@@ -313,4 +216,108 @@ export function clearFrozenRiver(state: GameState): void {
     );
   }
   state.frozenTiles = null;
+}
+
+/** Generate the scar shape: random-walk a cardinal spine, then fatten it.
+ *  Returns the set of tile keys to burn (empty if no valid seed found). */
+function generateWildfireScar(state: GameState): Set<number> {
+  const canBurn = buildCanBurnPredicate(state);
+
+  // Collect seed candidates (interior tiles only — skip map border)
+  const candidates: { row: number; col: number }[] = [];
+  for (let r = 1; r < state.map.tiles.length - 1; r++) {
+    for (let c = 1; c < state.map.tiles[0]!.length - 1; c++) {
+      if (canBurn(r, c)) candidates.push({ row: r, col: c });
+    }
+  }
+  if (candidates.length === 0) return new Set();
+
+  // Walk a cardinal-only spine (~4 tiles, biased in one direction)
+  const seed = state.rng.pick(candidates);
+  const spine: { row: number; col: number }[] = [seed];
+  const scar = new Set<number>();
+  scar.add(packTile(seed.row, seed.col));
+  let cr = seed.row;
+  let cc = seed.col;
+  let mainDir = state.rng.int(0, DIRS_4.length - 1);
+
+  const maxAttempts = WILDFIRE_SPINE_LENGTH * 8;
+  let attempts = 0;
+  while (spine.length < WILDFIRE_SPINE_LENGTH && attempts++ < maxAttempts) {
+    const dirIdx = state.rng.bool(WILDFIRE_MAIN_DIR_BIAS)
+      ? mainDir
+      : state.rng.int(0, DIRS_4.length - 1);
+    const [dr, dc] = DIRS_4[dirIdx]!;
+    const nr = cr + dr;
+    const nc = cc + dc;
+
+    if (canBurn(nr, nc) && !scar.has(packTile(nr, nc))) {
+      scar.add(packTile(nr, nc));
+      spine.push({ row: nr, col: nc });
+      cr = nr;
+      cc = nc;
+    } else {
+      mainDir = (mainDir + (state.rng.bool() ? 1 : 3)) % DIRS_4.length;
+    }
+  }
+
+  // Fatten: each spine tile gets 0-2 cardinal neighbors, giving a 2-3 tile wide scar
+  for (const tile of spine) {
+    for (const [dr, dc] of DIRS_4) {
+      const nr = tile.row + dr;
+      const nc = tile.col + dc;
+      if (scar.has(packTile(nr, nc))) continue;
+      if (!canBurn(nr, nc)) continue;
+      if (state.rng.bool(WILDFIRE_FATTEN_CHANCE)) {
+        scar.add(packTile(nr, nc));
+      }
+    }
+  }
+
+  return scar;
+}
+
+/** Build a predicate for whether a tile can burn (grass, active zone, not occupied). */
+function buildCanBurnPredicate(
+  state: GameState,
+): (row: number, col: number) => boolean {
+  const tiles = state.map.tiles;
+  const zones = state.map.zones;
+  const activeZones = new Set(
+    state.players.filter(isPlayerSeated).map((pl) => pl.homeTower.zone),
+  );
+  const burningSet = new Set(
+    state.burningPits.map((pit) => packTile(pit.row, pit.col)),
+  );
+  return (row: number, col: number): boolean => {
+    if (!isGrass(tiles, row, col)) return false;
+    const zone = zones[row]?.[col];
+    if (zone === undefined || !activeZones.has(zone)) return false;
+    if (burningSet.has(packTile(row, col))) return false;
+    if (hasTowerAt(state, row, col)) return false;
+    if (hasCannonAt(state, row, col)) return false;
+    return true;
+  };
+}
+
+/** Destroy walls, houses, grunts, and bonus squares on all scar tiles; create burning pits. */
+function applyWildfireScar(state: GameState, scar: ReadonlySet<number>): void {
+  const newPits: BurningPit[] = [];
+  for (const key of scar) {
+    const { r, c } = unpackTile(key);
+    newPits.push({ row: r, col: c, roundsLeft: BURNING_PIT_DURATION });
+    removeWallFromAllPlayers(state, key);
+    for (const house of state.map.houses) {
+      if (house.alive && house.row === r && house.col === c) {
+        house.alive = false;
+      }
+    }
+  }
+  state.grunts = state.grunts.filter(
+    (gr) => !scar.has(packTile(gr.row, gr.col)),
+  );
+  state.bonusSquares = state.bonusSquares.filter(
+    (bs) => !scar.has(packTile(bs.row, bs.col)),
+  );
+  state.burningPits.push(...newPits);
 }
