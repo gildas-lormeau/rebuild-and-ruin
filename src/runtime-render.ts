@@ -9,7 +9,10 @@ import type {
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
-import { SCORE_DELTA_DISPLAY_TIME } from "./game-constants.ts";
+import {
+  SCORE_DELTA_DISPLAY_TIME,
+  type ValidPlayerSlot,
+} from "./game-constants.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
 import {
   createBannerUi,
@@ -39,7 +42,7 @@ interface RenderSystemDeps {
   ) => void;
   readonly logThrottled: (key: string, msg: string) => void;
   readonly syncCrosshairs: (battleCountdownExpired: boolean) => void;
-  readonly getLifeLostPanelPos: (playerId: number) => {
+  readonly getLifeLostPanelPos: (playerId: ValidPlayerSlot) => {
     px: number;
     py: number;
   };

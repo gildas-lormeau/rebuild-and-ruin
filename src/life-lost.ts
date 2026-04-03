@@ -1,3 +1,4 @@
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import { type AutoResolveDeps, shouldAutoResolve } from "./player-config.ts";
 import {
   type GameState,
@@ -7,8 +8,8 @@ import {
 } from "./types.ts";
 
 interface CreateLifeLostDialogDeps extends AutoResolveDeps {
-  needsReselect: readonly number[];
-  eliminated: readonly number[];
+  needsReselect: readonly ValidPlayerSlot[];
+  eliminated: readonly ValidPlayerSlot[];
   state: GameState;
 }
 
@@ -42,7 +43,9 @@ export function tickLifeLostDialog(
 }
 
 /** Extract the player IDs that chose CONTINUE from a resolved dialog. */
-export function continuingPlayers(dialog: LifeLostDialogState): number[] {
+export function continuingPlayers(
+  dialog: LifeLostDialogState,
+): ValidPlayerSlot[] {
   return dialog.entries
     .filter((e) => e.choice === LifeLostChoice.CONTINUE)
     .map((e) => e.playerId);

@@ -29,6 +29,7 @@ import { snapshotTerritory as snapshotTerritoryImpl } from "./battle-system.ts";
 import {
   MAX_FRAME_DT,
   SELECT_ANNOUNCEMENT_DURATION,
+  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import type { UIContext } from "./game-ui-screens.ts";
 import { computeGameSeed } from "./game-ui-settings.ts";
@@ -168,7 +169,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       hasLifeLostDialog: runtimeState.lifeLostDialog !== null,
       isSelectionReady: isSelectionReady(),
       humanIsReselecting: runtimeState.reselectQueue.includes(
-        pointerPlayer()?.playerId ?? -1,
+        (pointerPlayer()?.playerId ?? -1) as ValidPlayerSlot,
       ),
       myPlayerId: config.getMyPlayerId(),
       hostAtFrameStart: config.getIsHost(),

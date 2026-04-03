@@ -43,7 +43,7 @@
  */
 
 import type { ControllerIdentity } from "./controller-interfaces.ts";
-import { GRUNT_TICK_INTERVAL } from "./game-constants.ts";
+import { GRUNT_TICK_INTERVAL, type ValidPlayerSlot } from "./game-constants.ts";
 import type { GameState } from "./types.ts";
 
 /** Base networking context shared by all phase ticks.
@@ -146,7 +146,7 @@ export function localControllers<
 /** True if this player slot is controlled by a remote human (not local).
  *  Use this instead of inline `remoteHumanSlots.has(pid)` to make intent explicit. */
 export function isRemoteHuman(
-  playerId: number,
+  playerId: ValidPlayerSlot,
   remoteHumanSlots: ReadonlySet<number>,
 ): boolean {
   return remoteHumanSlots.has(playerId);

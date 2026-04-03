@@ -13,7 +13,7 @@ import {
   getBattleInterior,
 } from "./board-occupancy.ts";
 import { filterActiveFiringCannons } from "./cannon-system.ts";
-import { MID, TOWER_SIZE } from "./game-constants.ts";
+import { MID, TOWER_SIZE, type ValidPlayerSlot } from "./game-constants.ts";
 import type {
   PixelPos,
   PrioritizedTilePos,
@@ -75,7 +75,10 @@ const SWEET_SPOT_MIN_DISTANCE = 0;
 const SWEET_SPOT_DISTANCE_RANGE = 5;
 
 /** Count cannons that are alive and enclosed (usable for firing). */
-export function countUsableCannons(state: GameState, playerId: number): number {
+export function countUsableCannons(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+): number {
   const player = state.players[playerId]!;
   let count = 0;
   for (let i = 0; i < player.cannons.length; i++) {
@@ -87,7 +90,7 @@ export function countUsableCannons(state: GameState, playerId: number): number {
 /** Plan a grunt sweep: chain-fire at enemy grunts on our territory. */
 export function planGruntSweep(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   readyCount: number,
   rng: Rng,
 ): TilePos[] | null {
@@ -97,7 +100,7 @@ export function planGruntSweep(
 /** Plan a charity sweep: kill grunts on an enemy's territory when they can't. */
 export function planCharitySweep(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   readyCount: number,
   rng: Rng,
 ): TilePos[] | null {
@@ -118,7 +121,7 @@ export function planCharitySweep(
  *  Pocket detection uses the last-known enclosure state to pick wall targets. */
 export function planPocketDestruction(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
 ): TilePos[] | null {
   const player = state.players[playerId]!;
   const interior = getBattleInterior(player);
@@ -195,7 +198,7 @@ export function planPocketDestruction(
 /** Plan a super attack: like wall demolition but hit every other tile (stride of 2). */
 export function planSuperAttack(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   readyCount: number,
   rng: Rng,
 ): TilePos[] | null {
@@ -209,7 +212,7 @@ export function planSuperAttack(
 /** Plan a wall demolition run: find connected enemy wall segment. */
 export function planWallDemolition(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   readyCount: number,
   rng: Rng,
 ): TilePos[] | null {
@@ -238,7 +241,7 @@ export function planWallDemolition(
 
 export function pickTarget(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   crosshair: PixelPos,
   focusPlayerId: number | null,
   shotCounts: WeakMap<Cannon, number>,
@@ -333,7 +336,7 @@ export function pickTarget(
 
 export function trackShot(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   crosshair: PixelPos,
   shotCounts: WeakMap<Cannon, number>,
 ): void {
@@ -352,7 +355,7 @@ export function trackShot(
 
 function collectStrategicWallTargets(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   focusPlayerId: number | null,
 ): TilePos[] {
   const strategic: TilePos[] = [];
@@ -379,7 +382,7 @@ function collectStrategicWallTargets(
 
 function collectGruntBlockingWallTargets(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
 ): TilePos[] {
   const gruntWalls: TilePos[] = [];
   for (const grunt of state.grunts) {
@@ -448,7 +451,7 @@ function ballTargeting(
 
 function collectEnemyTargets(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   focusPlayerId: number | null,
   switchTarget: boolean,
   shotCounts: WeakMap<Cannon, number>,

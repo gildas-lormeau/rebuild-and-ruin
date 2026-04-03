@@ -7,6 +7,7 @@
  * and the watcher (online-phase-transitions).
  */
 
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import {
   BANNER_BATTLE_SUB,
   BANNER_BUILD_SUB,
@@ -16,18 +17,18 @@ import {
 } from "./phase-banner.ts";
 
 interface BuildEndSequenceDeps {
-  readonly needsReselect: readonly number[];
-  readonly eliminated: readonly number[];
+  readonly needsReselect: readonly ValidPlayerSlot[];
+  readonly eliminated: readonly ValidPlayerSlot[];
   /** Display score deltas, then call onDone when animation finishes. */
   showScoreDeltas: (onDone: () => void) => void;
   /** Notify a controller that its player lost a life.
    *  Callers filter to locally-owned controllers (host skips remote, watcher
    *  skips AI — but the *sequence* of iterate-then-dialog is shared). */
-  notifyLifeLost: (playerId: number) => void;
+  notifyLifeLost: (playerId: ValidPlayerSlot) => void;
   /** Show the life-lost continue/abandon dialog. */
   showLifeLostDialog: (
-    needsReselect: readonly number[],
-    eliminated: readonly number[],
+    needsReselect: readonly ValidPlayerSlot[],
+    eliminated: readonly ValidPlayerSlot[],
   ) => void;
   /** Advance to next phase when no players need reselection.
    *  Host-only — watchers omit this (they wait for the host's next message). */

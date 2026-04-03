@@ -6,7 +6,11 @@
  * object for readability at the call site.
  */
 
-import { LIFE_LOST_MAX_TIMER, modifierLabel } from "./game-constants.ts";
+import {
+  LIFE_LOST_MAX_TIMER,
+  modifierLabel,
+  type ValidPlayerSlot,
+} from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import type { BannerState } from "./phase-banner.ts";
@@ -46,7 +50,9 @@ import { UPGRADE_POOL } from "./upgrade-defs.ts";
 import { UPGRADE_PICK_MAX_TIMER } from "./upgrade-pick.ts";
 
 /** Result of a lobby click hit-test. */
-export type LobbyHit = { type: "gear" } | { type: "slot"; slotId: number };
+export type LobbyHit =
+  | { type: "gear" }
+  | { type: "slot"; slotId: ValidPlayerSlot };
 
 interface GameOverLayout {
   panelW: number;
@@ -90,13 +96,13 @@ const UPGRADE_ROW_W =
 export function createRenderSummaryMessage(params: {
   phaseName: string;
   timer: number;
-  crosshairs: Array<{ x: number; y: number; playerId: number }>;
+  crosshairs: Array<{ x: number; y: number; playerId: ValidPlayerSlot }>;
   piecePhantomsCount: number;
   cannonPhantomsCount: number;
   impactsCount: number;
   cannonballsCount: number;
   selectionHighlights?: Array<{
-    playerId: number;
+    playerId: ValidPlayerSlot;
     towerIdx: number;
     confirmed?: boolean;
   }>;
@@ -201,7 +207,7 @@ export function updateSelectionOverlay(
     if (visiblePlayers && !visiblePlayers.has(pid)) continue;
     overlay.selection.highlights.push({
       towerIdx: selectionState.highlighted,
-      playerId: pid,
+      playerId: pid as ValidPlayerSlot,
       confirmed: false,
     });
   }
@@ -214,7 +220,7 @@ export function handleLifeLostDialogClick(params: {
   screenX: number;
   /** Canvas-pixel Y coordinate (divided by SCALE internally for game-space hit testing). */
   screenY: number;
-}): { playerId: number; choice: ResolvedChoice } | null {
+}): { playerId: ValidPlayerSlot; choice: ResolvedChoice } | null {
   const { state, lifeLostDialog, screenX, screenY } = params;
 
   const gameX = screenX / SCALE;
@@ -271,7 +277,7 @@ export function handleUpgradePickClick(params: {
   dialog: UpgradePickDialogState;
   screenX: number;
   screenY: number;
-}): { playerId: number; cardIdx: number } | null {
+}): { playerId: ValidPlayerSlot; cardIdx: number } | null {
   const { W, H, dialog, screenX, screenY } = params;
   const entryH = upgradePickEntryH();
   const startY = upgradePickStartY(H, dialog.entries.length);
@@ -302,7 +308,7 @@ export function handleUpgradePickClick(params: {
  *  Result is clamped to keep the panel 2px inside the tile-space edges. */
 export function lifeLostPanelPos(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
 ): { px: number; py: number } {
   const zone = state.playerZones[playerId] ?? 0;
   const zoneTowers = state.map.towers.filter((tower) => tower.zone === zone);
@@ -358,7 +364,7 @@ export function createOnlineOverlay(params: {
     crosshairs: Array<{
       x: number;
       y: number;
-      playerId: number;
+      playerId: ValidPlayerSlot;
       cannonReady?: boolean;
     }>;
     phantoms: RenderOverlay["phantoms"];
@@ -376,7 +382,10 @@ export function createOnlineOverlay(params: {
   upgradePickInteractiveId: number;
   playerNames: ReadonlyArray<string>;
   playerColors: ReadonlyArray<{ wall: RGB }>;
-  getLifeLostPanelPos: (playerId: number) => { px: number; py: number };
+  getLifeLostPanelPos: (playerId: ValidPlayerSlot) => {
+    px: number;
+    py: number;
+  };
 }): RenderOverlay {
   const {
     previousSelection,
@@ -567,7 +576,7 @@ export function lobbyClickHitTest(params: {
   for (let i = 0; i < slotCount; i++) {
     const rx = gap + i * (rectW + gap);
     if (x >= rx && x <= rx + rectW && y >= rectY && y <= rectY + rectH) {
-      return { type: "slot", slotId: i };
+      return { type: "slot", slotId: i as ValidPlayerSlot };
     }
   }
   return null;
@@ -629,7 +638,7 @@ function buildLifeLostDialogUi(
   playerNames: ReadonlyArray<string>,
   playerColors: ReadonlyArray<{ wall: RGB }>,
   maxTimer: number,
-  getPanelPos: (playerId: number) => { px: number; py: number },
+  getPanelPos: (playerId: ValidPlayerSlot) => { px: number; py: number },
 ): LifeLostDialogOverlay | undefined {
   if (!dialog) return undefined;
 

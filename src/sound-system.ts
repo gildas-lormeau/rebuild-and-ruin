@@ -9,6 +9,7 @@
 
 import { sfxr } from "jsfxr";
 import { type BattleEvent, MESSAGE } from "../server/protocol.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 
 export interface SoundSystem {
   setLevel: (level: number) => void;
@@ -371,7 +372,7 @@ export function createSoundSystem(): SoundSystem {
       targetX: number;
       targetY: number;
       speed: number;
-      playerId: number;
+      playerId: ValidPlayerSlot;
     },
     povPlayerId: number,
   ): void {

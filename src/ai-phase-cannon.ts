@@ -96,7 +96,7 @@ export function isCannonDone(phase: CannonPhase): boolean {
 export function flushCannon(
   phase: CannonPhase,
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   maxSlots: number,
 ): void {
   const player = state.players[playerId];

@@ -2,7 +2,7 @@ import type {
   ControllerIdentity,
   SelectionController,
 } from "./controller-interfaces.ts";
-import { isActivePlayer } from "./game-constants.ts";
+import { isActivePlayer, type ValidPlayerSlot } from "./game-constants.ts";
 import { selectPlayerTower } from "./game-engine.ts";
 import { BANNER_SELECT } from "./phase-banner.ts";
 import { isRemoteHuman } from "./tick-context.ts";
@@ -29,7 +29,7 @@ interface TickSelectionPhaseDeps {
   controllers: SelectionCapable[];
   render: () => void;
   confirmSelectionAndStartBuild: (
-    playerId: number,
+    playerId: ValidPlayerSlot,
     isReselect?: boolean,
   ) => void;
   allSelectionsConfirmed: () => boolean;
@@ -41,7 +41,7 @@ interface TickSelectionPhaseDeps {
   finishSelection: () => void;
   syncSelectionOverlay: () => void;
   sendOpponentTowerSelected: (
-    playerId: number,
+    playerId: ValidPlayerSlot,
     towerIdx: number,
     confirmed: boolean,
   ) => void;
@@ -50,7 +50,7 @@ interface TickSelectionPhaseDeps {
 export function initTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   zone: number,
 ): void {
   const player = state.players[playerId]!;
@@ -72,7 +72,7 @@ export function highlightTowerSelection(
   selectionStates: Map<number, SelectionState>,
   idx: number,
   zone: number,
-  playerId: number,
+  playerId: ValidPlayerSlot,
 ): boolean {
   const tower = state.map.towers[idx];
   if (!tower || tower.zone !== zone) return false;
@@ -93,7 +93,7 @@ export function confirmTowerSelection(
   state: GameState,
   selectionStates: Map<number, SelectionState>,
   controllers: readonly SelectionCapable[],
-  playerId: number,
+  playerId: ValidPlayerSlot,
   isReselect: boolean,
 ): { towerIdx: number; allDone: boolean; isReselect: boolean } | null {
   const selectionState = selectionStates.get(playerId);
@@ -171,7 +171,8 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
   }
 
   const isReselect = isReselectPhase(state.phase);
-  for (const [pid, selectionState] of selectionStates) {
+  for (const [rawPid, selectionState] of selectionStates) {
+    const pid = rawPid as ValidPlayerSlot;
     if (selectionState.confirmed) continue;
     if (isRemoteHuman(pid, remoteHumanSlots)) continue;
 
@@ -199,9 +200,9 @@ export function tickSelectionPhase(deps: TickSelectionPhaseDeps): void {
   if (accum.select >= selectTimer) {
     // Guard: only pending (unconfirmed) selections get auto-confirmed on timer expiry.
     // Equivalent to isSelectionPending() — uses loop-level check for iteration efficiency.
-    for (const [pid, selectionState] of selectionStates) {
+    for (const [rawPid, selectionState] of selectionStates) {
       if (selectionState.confirmed) continue;
-      confirmSelectionAndStartBuild(pid, isReselect);
+      confirmSelectionAndStartBuild(rawPid as ValidPlayerSlot, isReselect);
     }
   }
 

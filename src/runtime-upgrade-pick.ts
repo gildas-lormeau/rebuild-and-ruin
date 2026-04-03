@@ -8,6 +8,7 @@
 
 import { type GameMessage, MESSAGE } from "../server/protocol.ts";
 import { isHuman } from "./controller-interfaces.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import { Mode, type UpgradePickDialogState } from "./types.ts";
 import {
@@ -35,11 +36,11 @@ export interface UpgradePickSystem {
   /** Set the dialog state (for online watcher). */
   set: (dialog: UpgradePickDialogState | null) => void;
   /** Navigate focus left/right. */
-  moveFocus: (playerId: number, dir: number) => void;
+  moveFocus: (playerId: ValidPlayerSlot, dir: number) => void;
   /** Confirm the currently focused choice. */
-  confirmChoice: (playerId: number) => void;
+  confirmChoice: (playerId: ValidPlayerSlot) => void;
   /** Pick a specific card directly (e.g. from a click). */
-  pickDirect: (playerId: number, cardIdx: number) => void;
+  pickDirect: (playerId: ValidPlayerSlot, cardIdx: number) => void;
 }
 
 export function createUpgradePickSystem(
@@ -97,14 +98,14 @@ export function createUpgradePickSystem(
     }
   }
 
-  function moveFocus(playerId: number, dir: number): void {
+  function moveFocus(playerId: ValidPlayerSlot, dir: number): void {
     const entry = findPendingEntry(playerId);
     if (!entry) return;
     entry.focused =
       (entry.focused + dir + entry.offers.length) % entry.offers.length;
   }
 
-  function confirmChoice(playerId: number): void {
+  function confirmChoice(playerId: ValidPlayerSlot): void {
     const entry = findPendingEntry(playerId);
     if (!entry) return;
     const choice = entry.offers[entry.focused]!;
@@ -117,7 +118,7 @@ export function createUpgradePickSystem(
   }
 
   /** Pick a specific card directly (e.g. from a click on a card). */
-  function pickDirect(playerId: number, cardIdx: number): void {
+  function pickDirect(playerId: ValidPlayerSlot, cardIdx: number): void {
     const entry = findPendingEntry(playerId);
     if (!entry || cardIdx < 0 || cardIdx >= entry.offers.length) return;
     entry.focused = cardIdx;
@@ -130,7 +131,7 @@ export function createUpgradePickSystem(
     });
   }
 
-  function findPendingEntry(playerId: number) {
+  function findPendingEntry(playerId: ValidPlayerSlot) {
     return runtimeState.upgradePickDialog?.entries.find(
       (entry) => entry.playerId === playerId && entry.choice === null,
     );

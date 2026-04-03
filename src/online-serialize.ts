@@ -7,7 +7,11 @@ import { type FullStateMessage, MESSAGE } from "../server/protocol.ts";
 import { recomputeTerritoryFromWalls } from "./build-system.ts";
 import { createCastle } from "./castle-generation.ts";
 import type { SerializedGrunt, SerializedPlayer } from "./checkpoint-data.ts";
-import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "./game-constants.ts";
+import {
+  GAME_MODE_CLASSIC,
+  GAME_MODE_MODERN,
+  type ValidPlayerSlot,
+} from "./game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "./grid.ts";
 import { toCannonMode } from "./online-types.ts";
 import { setPhase } from "./phase-setup.ts";
@@ -145,7 +149,7 @@ export function createFullStateMessage(
     })),
     balloonHits: (() => {
       const hits: {
-        playerId: number;
+        playerId: ValidPlayerSlot;
         cannonIdx: number;
         count: number;
         capturerIds: number[];
@@ -235,7 +239,7 @@ export function restoreFullStateSnapshot(
   state.pendingUpgradeOffers = msg.pendingUpgradeOffers
     ? new Map(
         msg.pendingUpgradeOffers.map(([pid, offers]) => [
-          pid,
+          pid as ValidPlayerSlot,
           offers as [UpgradeId, UpgradeId, UpgradeId],
         ]),
       )
@@ -499,7 +503,7 @@ function restoreCapturedCannons(state: GameState, msg: FullStateMessage): void {
             cannon,
             cannonIdx: cc.cannonIdx,
             victimId: cc.victimId,
-            capturerId: cc.capturerId,
+            capturerId: cc.capturerId as ValidPlayerSlot,
           }
         : null;
     })

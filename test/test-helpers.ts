@@ -17,6 +17,7 @@
  *   import { parseBoard, assertPlacement, test, runTests } from "./test-helpers.ts";
  */
 
+import type { ValidPlayerSlot } from "../src/game-constants.ts";
 import { GRID_ROWS, GRID_COLS, Tile } from "../src/grid.ts";
 import type { Castle, GameMap, Tower } from "../src/geometry-types.ts";
 import type { GameState, Player } from "../src/types.ts";
@@ -82,7 +83,7 @@ export interface ParseResult {
   originalChars: Map<number, string>;
 }
 
-export function parseBoard(ascii: string, playerId = 0): ParseResult {
+export function parseBoard(ascii: string, playerId = 0 as ValidPlayerSlot): ParseResult {
   const lines = parseAsciiLines(ascii);
 
   // Place the ascii block at (2,2) to leave room for flood-fill from edges.
@@ -302,7 +303,7 @@ export function assertPlacement(
   parsed: ParseResult,
   piece: PieceShape,
   expectedAscii: string,
-  playerId = 0,
+  playerId = 0 as ValidPlayerSlot,
 ): void {
   const result = pickPlacement(state, playerId, piece);
   const expected = normalizeExpected(expectedAscii);
@@ -337,7 +338,7 @@ export function assertPlacementOneOf(
   parsed: ParseResult,
   piece: PieceShape,
   expectedAsciiOptions: string[],
-  playerId = 0,
+  playerId = 0 as ValidPlayerSlot,
 ): void {
   const expectedOptions = expectedAsciiOptions.map(normalizeExpected);
   const result = pickPlacement(state, playerId, piece);
@@ -374,7 +375,7 @@ export function assertNotPlacedAt(
   parsed: ParseResult,
   piece: PieceShape,
   forbiddenAscii: string,
-  playerId = 0,
+  playerId = 0 as ValidPlayerSlot,
 ): void {
   const lines = parseAsciiLines(forbiddenAscii);
   const { offsetR, offsetC } = parsed;

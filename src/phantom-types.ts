@@ -7,6 +7,7 @@
  * so they live in a shared layer to avoid pulling online code into the runtime chunk.
  */
 
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import { CannonMode } from "./types.ts";
 
 /** Cannon phantom sent over the network. `valid` controls placement coloring (green/red). */
@@ -15,7 +16,7 @@ export type CannonPhantom = {
   col: number;
   valid: boolean;
   mode: CannonMode;
-  playerId: number;
+  playerId: ValidPlayerSlot;
 };
 
 /** Remote AI piece phantom (no `valid` — always drawn as neutral; no local validation). */
@@ -23,7 +24,7 @@ export type PiecePhantom = {
   offsets: [number, number][];
   row: number;
   col: number;
-  playerId: number;
+  playerId: ValidPlayerSlot;
   valid: boolean;
 };
 
@@ -32,7 +33,7 @@ export type PiecePhantom = {
 export interface DedupChannel {
   /** Check-then-update: returns true if the key differs from the last call
    *  (caller should send). MUTATES internal state — stores the new key. */
-  shouldSend(playerId: number, key: string): boolean;
+  shouldSend(playerId: ValidPlayerSlot, key: string): boolean;
   /** Clear all tracked values (call on phase transition or host promotion). */
   clear(): void;
 }
@@ -54,7 +55,7 @@ export function phantomWireMode(phantom: CannonPhantom): CannonMode {
 export function createDedupChannel(): DedupChannel {
   const map = new Map<number, string>();
   return {
-    shouldSend(playerId: number, key: string): boolean {
+    shouldSend(playerId: ValidPlayerSlot, key: string): boolean {
       if (map.get(playerId) === key) return false;
       map.set(playerId, key);
       return true;
@@ -68,7 +69,7 @@ export function createDedupChannel(): DedupChannel {
 /** Filter remote phantoms to only those from non-eliminated players.
  *  Shared between host (mergeRemotePiecePhantoms) and watcher to prevent
  *  drift in the eliminated-player exclusion logic. */
-export function filterAlivePhantoms<T extends { playerId: number }>(
+export function filterAlivePhantoms<T extends { playerId: ValidPlayerSlot }>(
   phantoms: readonly T[],
   players: readonly { eliminated?: boolean }[],
 ): T[] {

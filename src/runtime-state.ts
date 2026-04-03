@@ -9,6 +9,7 @@
 
 import type { CastleBuildState } from "./castle-build.ts";
 import { type PlayerController } from "./controller-interfaces.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import { loadSettings } from "./game-ui-settings.ts";
 import { type BannerState, createBannerState } from "./phase-banner.ts";
 import { type GameSettings, MAX_PLAYERS } from "./player-config.ts";
@@ -58,11 +59,11 @@ export interface RuntimeState {
   /** Players awaiting reselection UI (queued by life-lost resolution).
    *  Drained one-by-one as each player's selection dialog completes.
    *  Set in runtime-life-lost, consumed in runtime-selection. */
-  reselectQueue: number[];
+  reselectQueue: ValidPlayerSlot[];
   /** Snapshot of player IDs currently in the reselection flow (copied from
    *  reselectQueue at reselection start). Used by camera/render to know which
    *  players are reselecting. Cleared when reselection completes. */
-  reselectionPids: number[];
+  reselectionPids: ValidPlayerSlot[];
   selectionStates: Map<number, SelectionState>;
   castleBuilds: CastleBuildState[];
   castleBuildOnDone: (() => void) | null;
@@ -99,7 +100,7 @@ export interface RuntimeState {
 
   // Score display
   scoreDeltas: {
-    playerId: number;
+    playerId: ValidPlayerSlot;
     delta: number;
     total: number;
     cx: number;

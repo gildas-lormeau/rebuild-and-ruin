@@ -8,6 +8,7 @@
  */
 
 import type { OrbitParams } from "../src/controller-interfaces.ts";
+import { type ValidPlayerSlot } from "../src/game-constants.ts";
 import type { PixelPos } from "../src/geometry-types.ts";
 import {
   applyBattleStartCheckpoint,
@@ -174,7 +175,7 @@ test("cannon-start checkpoint clears cannonballs and impacts", () => {
   const watcher = createHeadlessRuntime(42);
   const deps = makeDeps(watcher);
   // Pollute state
-  deps.state.cannonballs = [{ cannonIdx: 0, startX: 0, startY: 0, x: 5, y: 5, targetX: 10, targetY: 10, speed: 1, playerId: 0, scoringPlayerId: 0, incendiary: false }];
+  deps.state.cannonballs = [{ cannonIdx: 0, startX: 0, startY: 0, x: 5, y: 5, targetX: 10, targetY: 10, speed: 1, playerId: 0 as ValidPlayerSlot, scoringPlayerId: 0 as ValidPlayerSlot, incendiary: false }];
   deps.battleAnim.impacts = [{ row: 1, col: 1, age: 0.5 }];
 
   const msg = createCannonStartMessage(watcher.state);
@@ -228,8 +229,8 @@ test("battle-start checkpoint preserves captured cannons", () => {
     host.state.capturedCannons = [{
       cannon: victim.cannons[0]!,
       cannonIdx: 0,
-      victimId: 1,
-      capturerId: 0,
+      victimId: 1 as ValidPlayerSlot,
+      capturerId: 0 as ValidPlayerSlot,
     }];
   }
   const msg = createBattleStartMessage(host.state);

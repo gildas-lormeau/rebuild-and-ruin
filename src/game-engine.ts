@@ -20,6 +20,7 @@ import {
   FIRST_ROUND_CANNONS,
   GAME_MODE_CLASSIC,
   STARTING_LIVES,
+  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import type { GameMap, Tower } from "./geometry-types.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
@@ -42,9 +43,9 @@ import { assertNever } from "./utils.ts";
 
 interface ResolveAfterLifeLostDeps {
   state: GameState;
-  continuing: readonly number[];
-  onGameOver: (winner: { id: number }) => void;
-  onReselect: (continuing: readonly number[]) => void;
+  continuing: readonly ValidPlayerSlot[];
+  onGameOver: (winner: { id: ValidPlayerSlot }) => void;
+  onReselect: (continuing: readonly ValidPlayerSlot[]) => void;
   onContinue: () => void;
 }
 
@@ -71,7 +72,7 @@ export function createGameState(
   const players: Player[] = [];
   for (let i = 0; i < playerCount; i++) {
     players.push({
-      id: i,
+      id: i as ValidPlayerSlot,
       homeTower: null,
       castle: null,
       ownedTowers: [],
@@ -135,7 +136,10 @@ export function selectPlayerTower(player: Player, tower: Tower): void {
 }
 
 /** Mark a player as having reselected a castle this round. */
-export function markPlayerReselected(state: GameState, playerId: number): void {
+export function markPlayerReselected(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+): void {
   state.reselectedPlayers.add(playerId);
 }
 

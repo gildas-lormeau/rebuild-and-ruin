@@ -7,6 +7,7 @@
  * Run with: bun test/online-phantom-dedup.test.ts
  */
 
+import type { ValidPlayerSlot } from "../src/game-constants.ts";
 import { interpolateToward, toCannonMode } from "../src/online-types.ts";
 import {
   cannonPhantomKey,
@@ -24,13 +25,13 @@ import { assert, runTests, test } from "./test-helpers.ts";
 // ---------------------------------------------------------------------------
 
 test("cannonPhantomKey produces row,col,mode,valid format", () => {
-  const phantom: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 };
+  const phantom: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 as ValidPlayerSlot };
   const key = cannonPhantomKey(phantom);
   assert(key === "5,3,normal,1", `expected "5,3,normal,1", got "${key}"`);
 });
 
 test("cannonPhantomKey differs by mode", () => {
-  const base: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 };
+  const base: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 as ValidPlayerSlot };
   const superP: CannonPhantom = { ...base, mode: CannonMode.SUPER };
   const balloonP: CannonPhantom = { ...base, mode: CannonMode.BALLOON };
   assert(cannonPhantomKey(base) !== cannonPhantomKey(superP), "NORMAL and SUPER should produce different keys");
@@ -39,7 +40,7 @@ test("cannonPhantomKey differs by mode", () => {
 });
 
 test("cannonPhantomKey differs by position", () => {
-  const a: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 };
+  const a: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 as ValidPlayerSlot };
   const b: CannonPhantom = { ...a, row: 6 };
   const c: CannonPhantom = { ...a, col: 4 };
   assert(cannonPhantomKey(a) !== cannonPhantomKey(b), "different row should produce different key");
@@ -47,14 +48,14 @@ test("cannonPhantomKey differs by position", () => {
 });
 
 test("cannonPhantomKey differs by valid flag", () => {
-  const a: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 };
+  const a: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 as ValidPlayerSlot };
   const b: CannonPhantom = { ...a, valid: false };
   assert(cannonPhantomKey(a) !== cannonPhantomKey(b), "different valid should produce different key");
 });
 
 test("cannonPhantomKey ignores playerId", () => {
-  const a: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 };
-  const b: CannonPhantom = { ...a, playerId: 2 };
+  const a: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 as ValidPlayerSlot };
+  const b: CannonPhantom = { ...a, playerId: 2 as ValidPlayerSlot };
   assert(cannonPhantomKey(a) === cannonPhantomKey(b), "playerId should not affect key");
 });
 
@@ -63,26 +64,26 @@ test("cannonPhantomKey ignores playerId", () => {
 // ---------------------------------------------------------------------------
 
 test("piecePhantomKey encodes position and offsets", () => {
-  const phantom: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0], [1, 0], [0, 1]], playerId: 0, valid: true };
+  const phantom: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0], [1, 0], [0, 1]], playerId: 0 as ValidPlayerSlot, valid: true };
   const key = piecePhantomKey(phantom);
   assert(key === "10,20,1,0:0;1:0;0:1", `expected "10,20,1,0:0;1:0;0:1", got "${key}"`);
 });
 
 test("piecePhantomKey differs by offset shape", () => {
-  const a: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0], [1, 0]], playerId: 0, valid: true };
-  const b: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0], [0, 1]], playerId: 0, valid: true };
+  const a: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0], [1, 0]], playerId: 0 as ValidPlayerSlot, valid: true };
+  const b: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0], [0, 1]], playerId: 0 as ValidPlayerSlot, valid: true };
   assert(piecePhantomKey(a) !== piecePhantomKey(b), "different offsets should produce different keys");
 });
 
 test("piecePhantomKey differs by position", () => {
-  const a: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0]], playerId: 0, valid: true };
-  const b: PiecePhantom = { row: 11, col: 20, offsets: [[0, 0]], playerId: 0, valid: true };
+  const a: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0]], playerId: 0 as ValidPlayerSlot, valid: true };
+  const b: PiecePhantom = { row: 11, col: 20, offsets: [[0, 0]], playerId: 0 as ValidPlayerSlot, valid: true };
   assert(piecePhantomKey(a) !== piecePhantomKey(b), "different position should produce different key");
 });
 
 test("piecePhantomKey differs by valid flag", () => {
-  const a: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0]], playerId: 0, valid: true };
-  const b: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0]], playerId: 0, valid: false };
+  const a: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0]], playerId: 0 as ValidPlayerSlot, valid: true };
+  const b: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0]], playerId: 0 as ValidPlayerSlot, valid: false };
   assert(piecePhantomKey(a) !== piecePhantomKey(b), "different valid flag should produce different key");
 });
 
@@ -92,45 +93,45 @@ test("piecePhantomKey differs by valid flag", () => {
 
 test("DedupChannel.shouldSend returns true on first send", () => {
   const ch = createDedupChannel();
-  assert(ch.shouldSend(0, "5,3,normal") === true, "first send should return true");
+  assert(ch.shouldSend(0 as ValidPlayerSlot, "5,3,normal") === true, "first send should return true");
 });
 
 test("DedupChannel.shouldSend returns false on duplicate", () => {
   const ch = createDedupChannel();
-  ch.shouldSend(0, "5,3,normal");
-  assert(ch.shouldSend(0, "5,3,normal") === false, "duplicate should return false");
+  ch.shouldSend(0 as ValidPlayerSlot, "5,3,normal");
+  assert(ch.shouldSend(0 as ValidPlayerSlot, "5,3,normal") === false, "duplicate should return false");
 });
 
 test("DedupChannel.shouldSend returns true when key changes", () => {
   const ch = createDedupChannel();
-  ch.shouldSend(0, "5,3,normal");
-  assert(ch.shouldSend(0, "6,3,normal") === true, "changed key should return true");
+  ch.shouldSend(0 as ValidPlayerSlot, "5,3,normal");
+  assert(ch.shouldSend(0 as ValidPlayerSlot, "6,3,normal") === true, "changed key should return true");
 });
 
 test("DedupChannel.shouldSend tracks players independently", () => {
   const ch = createDedupChannel();
-  ch.shouldSend(0, "5,3,normal");
-  assert(ch.shouldSend(1, "5,3,normal") === true, "different player same key should return true");
-  assert(ch.shouldSend(0, "5,3,normal") === false, "player 0 unchanged should return false");
+  ch.shouldSend(0 as ValidPlayerSlot, "5,3,normal");
+  assert(ch.shouldSend(1 as ValidPlayerSlot, "5,3,normal") === true, "different player same key should return true");
+  assert(ch.shouldSend(0 as ValidPlayerSlot, "5,3,normal") === false, "player 0 unchanged should return false");
 });
 
 test("DedupChannel.shouldSend updates stored key on change", () => {
   const ch = createDedupChannel();
-  ch.shouldSend(0, "first");
-  ch.shouldSend(0, "second");
+  ch.shouldSend(0 as ValidPlayerSlot, "first");
+  ch.shouldSend(0 as ValidPlayerSlot, "second");
   // After two changes, a third call with "second" should be a dup
-  assert(ch.shouldSend(0, "second") === false, "stored key should be 'second' after change");
+  assert(ch.shouldSend(0 as ValidPlayerSlot, "second") === false, "stored key should be 'second' after change");
   // And "first" should now be seen as changed
-  assert(ch.shouldSend(0, "first") === true, "reverting to 'first' should be a change");
+  assert(ch.shouldSend(0 as ValidPlayerSlot, "first") === true, "reverting to 'first' should be a change");
 });
 
 test("DedupChannel.clear resets all tracked state", () => {
   const ch = createDedupChannel();
-  ch.shouldSend(0, "key-a");
-  ch.shouldSend(1, "key-b");
+  ch.shouldSend(0 as ValidPlayerSlot, "key-a");
+  ch.shouldSend(1 as ValidPlayerSlot, "key-b");
   ch.clear();
-  assert(ch.shouldSend(0, "key-a") === true, "after clear, same key should return true again");
-  assert(ch.shouldSend(1, "key-b") === true, "after clear, same key should return true again");
+  assert(ch.shouldSend(0 as ValidPlayerSlot, "key-a") === true, "after clear, same key should return true again");
+  assert(ch.shouldSend(1 as ValidPlayerSlot, "key-b") === true, "after clear, same key should return true again");
 });
 
 // ---------------------------------------------------------------------------
@@ -155,9 +156,9 @@ test("toCannonMode defaults to NORMAL for invalid input", () => {
 
 test("filterAlivePhantoms removes eliminated player phantoms", () => {
   const phantoms = [
-    { playerId: 0, row: 1, col: 1 },
-    { playerId: 1, row: 2, col: 2 },
-    { playerId: 2, row: 3, col: 3 },
+    { playerId: 0 as ValidPlayerSlot, row: 1, col: 1 },
+    { playerId: 1 as ValidPlayerSlot, row: 2, col: 2 },
+    { playerId: 2 as ValidPlayerSlot, row: 3, col: 3 },
   ];
   const players = [
     { eliminated: false },
@@ -171,7 +172,7 @@ test("filterAlivePhantoms removes eliminated player phantoms", () => {
 });
 
 test("filterAlivePhantoms keeps all when none eliminated", () => {
-  const phantoms = [{ playerId: 0, row: 1, col: 1 }, { playerId: 1, row: 2, col: 2 }];
+  const phantoms = [{ playerId: 0 as ValidPlayerSlot, row: 1, col: 1 }, { playerId: 1 as ValidPlayerSlot, row: 2, col: 2 }];
   const players = [{ eliminated: false }, { eliminated: false }];
   const result = filterAlivePhantoms(phantoms, players);
   assert(result.length === 2, "all phantoms should be kept");

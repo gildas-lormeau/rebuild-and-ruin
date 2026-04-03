@@ -7,6 +7,7 @@ import {
   GAME_MODE_MODERN,
   LOBBY_SKIP_LOCKOUT,
   LOBBY_SKIP_STEP,
+  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import { formatKeyName, saveSettings } from "./game-ui-settings.ts";
 import {
@@ -179,7 +180,7 @@ export function createControlsOverlay(frameCtx: UIContext): {
     const kb = frameCtx.settings.keyBindings[player]!;
     return {
       name: name!,
-      color: getPlayerColor(player).wall,
+      color: getPlayerColor(player as ValidPlayerSlot).wall,
       bindings: ACTION_KEYS.map((key) =>
         formatKeyName(kb[key as keyof KeyBindings]),
       ),
@@ -242,7 +243,7 @@ export function createLobbyOverlay(frameCtx: UIContext): {
       playerSelect: {
         players: PLAYER_NAMES.map((name, i) => ({
           name: `${name} Player`,
-          color: getPlayerColor(i).wall,
+          color: getPlayerColor(i as ValidPlayerSlot).wall,
           joined: frameCtx.lobby.joined[i]!,
           keyHint: frameCtx.settings.keyBindings[i]
             ? formatKeyHint(frameCtx.settings.keyBindings[i])
@@ -259,7 +260,7 @@ export function createLobbyOverlay(frameCtx: UIContext): {
 export function lobbyKeyJoin(
   frameCtx: UIContext,
   key: string,
-  onJoin: (pid: number) => void,
+  onJoin: (pid: ValidPlayerSlot) => void,
 ): boolean {
   if (!frameCtx.lobby.active) return false;
   const map = createLobbyConfirmKeys(frameCtx.settings.keyBindings);
@@ -269,7 +270,7 @@ export function lobbyKeyJoin(
     lobbySkipStep(frameCtx);
     return true;
   }
-  onJoin(pid);
+  onJoin(pid as ValidPlayerSlot);
   return true;
 }
 

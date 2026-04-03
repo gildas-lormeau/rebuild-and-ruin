@@ -8,6 +8,7 @@
  * reference rarely-used deps inline as deps.X to avoid clutter.
  */
 
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { UIContext } from "./game-ui-screens.ts";
 import {
   createLobbyOverlay,
@@ -38,7 +39,7 @@ interface LobbySystemDeps {
   showOptions: () => void;
   isOnline: boolean;
   onTickLobbyExpired: () => void;
-  onLobbySlotJoined: (pid: number) => void;
+  onLobbySlotJoined: (pid: ValidPlayerSlot) => void;
 }
 
 interface LobbySystem {
@@ -66,7 +67,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     });
   }
 
-  function onLobbyJoin(pid: number): void {
+  function onLobbyJoin(pid: ValidPlayerSlot): void {
     deps.onLobbySlotJoined(pid);
     renderLobby();
     // On touch devices in local mode, start immediately after joining

@@ -4,7 +4,7 @@ import {
   getCountdownAnnouncement,
 } from "./battle-system.ts";
 import type { OrbitParams, PlayerController } from "./controller-interfaces.ts";
-import { BATTLE_TIMER } from "./game-constants.ts";
+import { BATTLE_TIMER, type ValidPlayerSlot } from "./game-constants.ts";
 import type { Crosshair, PixelPos } from "./geometry-types.ts";
 import {
   REMOTE_CROSSHAIR_SPEED,
@@ -60,11 +60,11 @@ interface WatcherBattleDeps {
     speed: number,
     dt: number,
   ) => void;
-  nextReadyCombined: (state: GameState, playerId: number) => unknown;
+  nextReadyCombined: (state: GameState, playerId: ValidPlayerSlot) => unknown;
   maybeSendAimUpdate: (x: number, y: number) => void;
   aimCannons: (
     state: GameState,
-    playerId: number,
+    playerId: ValidPlayerSlot,
     x: number,
     y: number,
     dt: number,
@@ -88,7 +88,7 @@ interface TickWatcherCannonPhantomsDeps {
   remoteCannonPhantoms: readonly CannonPhantom[];
   lastSentCannonPhantom: DedupChannel;
   sendOpponentCannonPhantom: (msg: {
-    playerId: number;
+    playerId: ValidPlayerSlot;
     row: number;
     col: number;
     mode: CannonMode;
@@ -104,7 +104,7 @@ interface TickWatcherBuildPhantomsDeps {
   remotePiecePhantoms: readonly PiecePhantom[];
   lastSentPiecePhantom: DedupChannel;
   sendOpponentPiecePhantom: (msg: {
-    playerId: number;
+    playerId: ValidPlayerSlot;
     row: number;
     col: number;
     offsets: [number, number][];
@@ -187,7 +187,8 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     `tickWatcher battle: remoteCrosshairs keys=[${[...remoteCrosshairs.keys()]}] cannons=[${state.players.map((player, i) => `P${i}:${player.cannons.length}`).join(",")}]`,
   );
 
-  for (const [pid, target] of remoteCrosshairs) {
+  for (const [rawPid, target] of remoteCrosshairs) {
+    const pid = rawPid as ValidPlayerSlot;
     const player = state.players[pid];
     if (!isPlayerAlive(player)) continue;
     if (!canPlayerFire(state, pid)) continue;
@@ -262,10 +263,15 @@ export function tickWatcherCannonPhantomsPhase(
   if (!phantom) return;
 
   frame.phantoms.cannonPhantoms!.push(phantom);
-  if (!lastSentCannonPhantom.shouldSend(myPlayerId, cannonPhantomKey(phantom)))
+  if (
+    !lastSentCannonPhantom.shouldSend(
+      myPlayerId as ValidPlayerSlot,
+      cannonPhantomKey(phantom),
+    )
+  )
     return;
   sendOpponentCannonPhantom({
-    playerId: myPlayerId,
+    playerId: myPlayerId as ValidPlayerSlot,
     row: phantom.row,
     col: phantom.col,
     mode: phantomWireMode(phantom),
@@ -360,11 +366,11 @@ function tickLocalBattle(
   dt: number,
   myPlayerId: number,
   localController: PlayerController | null,
-  nextReadyCombined: (state: GameState, playerId: number) => unknown,
+  nextReadyCombined: (state: GameState, playerId: ValidPlayerSlot) => unknown,
   maybeSendAimUpdate: (x: number, y: number) => void,
   aimCannons: (
     state: GameState,
-    playerId: number,
+    playerId: ValidPlayerSlot,
     x: number,
     y: number,
     dt: number,
@@ -375,16 +381,17 @@ function tickLocalBattle(
   localController.battleTick(state, dt);
   const ch = localController.getCrosshair();
 
-  if (canPlayerFire(state, myPlayerId)) {
-    const readyCannon = nextReadyCombined(state, myPlayerId);
+  const pid = myPlayerId as ValidPlayerSlot;
+  if (canPlayerFire(state, pid)) {
+    const readyCannon = nextReadyCombined(state, pid);
     frame.crosshairs.push({
       x: ch.x,
       y: ch.y,
-      playerId: myPlayerId,
+      playerId: pid,
       cannonReady: state.battleCountdown <= 0 && !!readyCannon,
     });
   }
 
   maybeSendAimUpdate(ch.x, ch.y);
-  aimCannons(state, myPlayerId, ch.x, ch.y, dt);
+  aimCannons(state, pid, ch.x, ch.y, dt);
 }

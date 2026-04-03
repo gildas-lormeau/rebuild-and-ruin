@@ -88,7 +88,7 @@ export function createMixedRuntime(
  */
 export function processHeadlessReselection(
   runtime: HeadlessRuntime,
-  needsReselect: readonly number[],
+  needsReselect: readonly ValidPlayerSlot[],
 ): void {
   const { state, controllers, zones } = runtime;
 

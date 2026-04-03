@@ -9,6 +9,7 @@ import {
   MAX_ZOOM_VIEWPORT_RATIO,
   MIN_ZOOM_RATIO,
   PINCH_FULL_MAP_SNAP,
+  type ValidPlayerSlot,
   VIEWPORT_SNAP_THRESHOLD,
   ZONE_PAD_NO_WALLS,
   ZONE_PAD_SELECTION,
@@ -233,7 +234,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
 
   function computeCastleBuildViewport(
-    wallPlans: readonly { playerId: number; tiles: number[] }[],
+    wallPlans: readonly { playerId: ValidPlayerSlot; tiles: number[] }[],
   ): Viewport {
     const state = deps.getState()!;
     const myPid = povPlayerId();
@@ -663,7 +664,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
 
   function setCastleBuildViewport(
-    wallPlans: readonly { playerId: number; tiles: number[] }[],
+    wallPlans: readonly { playerId: ValidPlayerSlot; tiles: number[] }[],
   ): void {
     castleBuildVp = computeCastleBuildViewport(wallPlans);
   }

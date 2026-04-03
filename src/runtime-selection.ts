@@ -22,6 +22,7 @@ import {
   SCORE_DELTA_DISPLAY_TIME,
   SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,
+  type ValidPlayerSlot,
   WALL_BUILD_INTERVAL,
 } from "./game-constants.ts";
 import {
@@ -112,7 +113,7 @@ export function createSelectionSystem(
   // Tower selection helpers
   // -------------------------------------------------------------------------
 
-  function initPlayerTowerSelection(pid: number, zone: number): void {
+  function initPlayerTowerSelection(pid: ValidPlayerSlot, zone: number): void {
     initTowerSelectionImpl(
       runtimeState.state,
       runtimeState.selectionStates,
@@ -181,7 +182,7 @@ export function createSelectionSystem(
   function highlightTowerForPlayer(
     idx: number,
     zone: number,
-    pid: number,
+    pid: ValidPlayerSlot,
   ): void {
     const changed = highlightTowerSelection(
       runtimeState.state,
@@ -222,7 +223,7 @@ export function createSelectionSystem(
    *     clears overlay state, finalizes castle construction, and advances to cannon phase.
    */
   function confirmSelectionAndStartBuild(
-    pid: number,
+    pid: ValidPlayerSlot,
     isReselect = false,
   ): boolean {
     const result = confirmTowerSelection(
@@ -327,7 +328,7 @@ export function createSelectionSystem(
     finalizeAndAdvance();
   }
 
-  function startPlayerCastleBuild(playerId: number): void {
+  function startPlayerCastleBuild(playerId: ValidPlayerSlot): void {
     if (!runtimeState.frameCtx.hostAtFrameStart) return; // non-host builds via castle_walls message
     const plan = prepareCastleWallsForPlayer(runtimeState.state, playerId);
     if (!plan) return;
@@ -386,7 +387,7 @@ export function createSelectionSystem(
         const ht = player.homeTower;
         const px = ht ? towerCenterPx(ht) : { x: 0, y: 0 };
         return {
-          playerId: i,
+          playerId: i as ValidPlayerSlot,
           delta: player.score - (runtimeState.preScores[i] ?? 0),
           total: player.score,
           cx: px.x,
@@ -495,7 +496,7 @@ export function createSelectionSystem(
     advanceToCannonPhase,
     tickCastleBuild,
     setCastleBuildViewport: (
-      plans: readonly { playerId: number; tiles: number[] }[],
+      plans: readonly { playerId: ValidPlayerSlot; tiles: number[] }[],
     ) => deps.camera.setCastleBuildViewport(plans),
     startReselection,
     finishReselection,

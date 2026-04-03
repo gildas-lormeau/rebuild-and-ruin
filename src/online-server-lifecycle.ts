@@ -12,7 +12,7 @@ import {
   MESSAGE,
   type ServerMessage,
 } from "../server/protocol.ts";
-import { GAME_MODE_CLASSIC } from "./game-constants.ts";
+import { GAME_MODE_CLASSIC, type ValidPlayerSlot } from "./game-constants.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { isHostInContext } from "./tick-context.ts";
 import type { GameState } from "./types.ts";
@@ -82,7 +82,7 @@ export function handleServerLifecycleMessage(
   /** Atomically update all three slot-tracking structures (clear).
    *  Invariant: occupiedSlots, remoteHumanSlots, and lobby.joined must always
    *  be mutated together to avoid phantom entries or orphaned lobby data. */
-  const clearLobbySlot = (playerId: number) => {
+  const clearLobbySlot = (playerId: ValidPlayerSlot) => {
     deps.lobby.joined[playerId] = false;
     deps.session.occupiedSlots.delete(playerId);
     deps.session.remoteHumanSlots.delete(playerId);
@@ -91,7 +91,7 @@ export function handleServerLifecycleMessage(
   /** Atomically update all three slot-tracking structures (occupy).
    *  Invariant: occupiedSlots, remoteHumanSlots, and lobby.joined must always
    *  be mutated together to avoid phantom entries or orphaned lobby data. */
-  const occupyLobbySlot = (playerId: number) => {
+  const occupyLobbySlot = (playerId: ValidPlayerSlot) => {
     deps.lobby.joined[playerId] = true;
     deps.session.occupiedSlots.add(playerId);
     if (playerId !== deps.session.myPlayerId) {
@@ -148,15 +148,15 @@ export function handleServerLifecycleMessage(
         msg.previousPlayerId !== undefined &&
         msg.previousPlayerId !== msg.playerId
       ) {
-        clearLobbySlot(msg.previousPlayerId);
+        clearLobbySlot(msg.previousPlayerId as ValidPlayerSlot);
       } else {
         const currentPlayerId = deps.session.myPlayerId;
         if (currentPlayerId >= 0 && currentPlayerId !== msg.playerId) {
-          clearLobbySlot(currentPlayerId);
+          clearLobbySlot(currentPlayerId as ValidPlayerSlot);
         }
       }
       deps.session.myPlayerId = msg.playerId;
-      occupyLobbySlot(msg.playerId);
+      occupyLobbySlot(msg.playerId as ValidPlayerSlot);
       return true;
 
     case MESSAGE.PLAYER_JOINED:
@@ -164,9 +164,9 @@ export function handleServerLifecycleMessage(
         msg.previousPlayerId !== undefined &&
         msg.previousPlayerId !== msg.playerId
       ) {
-        clearLobbySlot(msg.previousPlayerId);
+        clearLobbySlot(msg.previousPlayerId as ValidPlayerSlot);
       }
-      occupyLobbySlot(msg.playerId);
+      occupyLobbySlot(msg.playerId as ValidPlayerSlot);
       return true;
 
     case MESSAGE.PLAYER_LEFT: {

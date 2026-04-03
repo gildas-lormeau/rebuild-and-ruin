@@ -11,6 +11,7 @@ import {
   hasGruntAt,
   hasTowerAt,
 } from "./board-occupancy.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { TileRect, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type Tile } from "./grid.ts";
 import {
@@ -65,7 +66,7 @@ export function computeFillableGaps(
 export function scoreBuildTowerTarget(
   tower: Tower,
   state: GameState,
-  player: { id: number; walls: ReadonlySet<number> },
+  player: { id: ValidPlayerSlot; walls: ReadonlySet<number> },
   currentRow: number,
   currentCol: number,
   castleMargin: number,
@@ -476,7 +477,7 @@ function countRingTiles(rect: TileRect): number {
 function countCastleRectObstructions(
   rect: TileRect,
   state: GameState,
-  player: { id: number; walls: ReadonlySet<number> },
+  player: { id: ValidPlayerSlot; walls: ReadonlySet<number> },
 ): { obstructions: number; area: number } {
   let obstructions = 0;
   const rTop = rect.top - 1;

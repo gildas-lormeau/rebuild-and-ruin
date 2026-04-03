@@ -8,6 +8,7 @@
 
 import { filterUnfillableGaps } from "./ai-castle-rect.ts";
 import { canPlacePiece } from "./build-system.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { TileRect } from "./geometry-types.ts";
 import { ALL_PIECE_SHAPES, type PieceShape, rotateCW } from "./pieces.ts";
 import { DIRS_8, isGrass, packTile, unpackTile } from "./spatial.ts";
@@ -15,7 +16,7 @@ import type { FreshInterior, GameState } from "./types.ts";
 
 export function canPieceFillAnyGap(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   piece: PieceShape,
   interior: ReadonlySet<number>,
   gaps: Set<number>,
@@ -35,7 +36,7 @@ export function plugUnreachableGaps(
   gaps: Set<number>,
   rect: TileRect | null,
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   walls: ReadonlySet<number>,
   interior: FreshInterior,
 ): boolean {
@@ -74,7 +75,7 @@ export function plugUnreachableGaps(
 /** Check if ANY standard piece shape (in any rotation) could fill a single gap tile. */
 function isGapFillableByAnyShape(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   interior: ReadonlySet<number>,
   gapKey: number,
   rect?: TileRect | null,
@@ -118,7 +119,7 @@ function canAnyRotationFillGap(
   gaps: Set<number>,
   adjusted: ReadonlySet<number>,
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
 ): boolean {
   for (const shape of pieces) {
     let rot = shape;

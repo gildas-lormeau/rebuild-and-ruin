@@ -13,6 +13,7 @@ import {
   MAX_CANNON_LIMIT_ON_RESELECT,
   STARTING_LIVES,
   SUPER_GUN_COST,
+  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import {
   cannonSize,
@@ -199,7 +200,7 @@ export function filterActiveFiringCannons(player: Player): Cannon[] {
  *  skipped placement. Picks evenly spaced valid interior positions. */
 export function autoPlaceRound1Cannons(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   maxSlots: number,
 ): void {
   if (state.round !== 1) return;

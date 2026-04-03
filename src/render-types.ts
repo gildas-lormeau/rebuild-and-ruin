@@ -3,6 +3,7 @@
  * circular dependencies between render-map and render-effects/towers/ui.
  */
 
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type {
   Crosshair,
   House,
@@ -37,7 +38,7 @@ export interface CastleData {
   /** Cannon positions (top-left of 2×2 or 3×3 super) with HP. */
   cannons: Cannon[];
   /** Player index (for color). */
-  playerId: number;
+  playerId: ValidPlayerSlot;
   /** Wall tiles that absorbed one hit from Reinforced Walls upgrade.
    *  Rendered with a crack overlay so players can see which walls are weakened. */
   damagedWalls?: ReadonlySet<number>;
@@ -118,7 +119,7 @@ export interface UpgradePickOverlay {
 /** Life-lost dialog overlay data shared by UIOverlay and render-composition. */
 export interface LifeLostDialogOverlay {
   entries: {
-    playerId: number;
+    playerId: ValidPlayerSlot;
     name: string;
     lives: number;
     color: RGB;
@@ -144,7 +145,11 @@ export interface SelectionOverlay {
   /** Tower index in map.towers that is selected (confirmed). */
   selected: number | null;
   /** Per-player tower highlights for parallel castle selection. */
-  highlights?: { towerIdx: number; playerId: number; confirmed?: boolean }[];
+  highlights?: {
+    towerIdx: number;
+    playerId: ValidPlayerSlot;
+    confirmed?: boolean;
+  }[];
 }
 
 /** Map entities — present in all phases. */
@@ -186,7 +191,7 @@ export interface BattleOverlay {
   crosshairs?: {
     x: number;
     y: number;
-    playerId: number;
+    playerId: ValidPlayerSlot;
     cannonReady?: boolean;
   }[];
   impacts?: Impact[];
@@ -217,7 +222,7 @@ export interface UIOverlay {
   gameOver?: GameOverOverlay;
   timer?: number;
   scoreDeltas?: {
-    playerId: number;
+    playerId: ValidPlayerSlot;
     delta: number;
     total: number;
     cx: number;

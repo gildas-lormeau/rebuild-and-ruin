@@ -32,6 +32,7 @@ import {
   isMovementAction,
   type PlayerController,
 } from "./controller-interfaces.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import { findNearestTower, towerAtPixel } from "./spatial.ts";
 import type { ControlsState } from "./types.ts";
@@ -68,8 +69,15 @@ export interface OverlayActionDeps {
 
 export interface GameActionDeps {
   getSelectionStates: () => Map<number, SelectionState>;
-  highlightTowerForPlayer: (idx: number, zone: number, pid: number) => void;
-  confirmSelectionAndStartBuild: (pid: number, isReselect?: boolean) => boolean;
+  highlightTowerForPlayer: (
+    idx: number,
+    zone: number,
+    pid: ValidPlayerSlot,
+  ) => void;
+  confirmSelectionAndStartBuild: (
+    pid: ValidPlayerSlot,
+    isReselect?: boolean,
+  ) => boolean;
   isSelectionReady?: () => boolean;
   tryPlacePieceAndSend: (
     ctrl: PlayerController & InputReceiver,

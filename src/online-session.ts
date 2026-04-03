@@ -16,6 +16,7 @@ import {
   LOBBY_TIMER,
   type PlayerSlotId,
   SPECTATOR_SLOT,
+  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import { createDedupChannel, type DedupChannel } from "./phantom-types.ts";
 import type { LifeLostChoice } from "./types.ts";
@@ -118,9 +119,9 @@ export function sendAimUpdate(
   dedup: DedupMaps,
   x: number,
   y: number,
-  playerId?: number,
+  playerId?: ValidPlayerSlot,
 ): void {
-  const pid = playerId ?? session.myPlayerId;
+  const pid = playerId ?? (session.myPlayerId as ValidPlayerSlot);
   const value = `${Math.round(x)},${Math.round(y)}`;
   if (!dedup.aimTarget.shouldSend(pid, value)) return;
   sendMessage(session, {

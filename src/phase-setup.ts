@@ -54,6 +54,7 @@ import {
   INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
   INTERBATTLE_GRUNT_SPAWN_CHANCE,
   MID,
+  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import {
   rollGruntWallAttacks,
@@ -115,8 +116,8 @@ export function rebuildHomeCastle(state: GameState, player: Player): void {
  * Owns wall sweeping, territory/tower revival, and the life check.
  */
 export function finalizeBuildPhase(state: GameState): {
-  needsReselect: number[];
-  eliminated: number[];
+  needsReselect: ValidPlayerSlot[];
+  eliminated: ValidPlayerSlot[];
 } {
   sweepAllPlayersWalls(state);
   finalizeTerritoryWithScoring(state);
@@ -200,7 +201,7 @@ export function computeCannonLimitsForPhase(state: GameState): void {
 export function initBuildPhaseControllers(
   state: GameState,
   controllers: readonly PlayerController[],
-  skipController?: (playerId: number) => boolean,
+  skipController?: (playerId: ValidPlayerSlot) => boolean,
 ): void {
   if (state.phase !== Phase.WALL_BUILD) {
     throw new Error(
@@ -345,11 +346,11 @@ export function setPhase(state: GameState, phase: Phase): void {
  *  BUILD_START checkpoint is sent. Returns null if not applicable. */
 export function generateUpgradeOffers(
   state: GameState,
-): Map<number, [UpgradeId, UpgradeId, UpgradeId]> | null {
+): Map<ValidPlayerSlot, [UpgradeId, UpgradeId, UpgradeId]> | null {
   if (state.gameMode !== GAME_MODE_MODERN) return null;
   if (state.round < UPGRADE_FIRST_ROUND) return null;
 
-  const offers = new Map<number, [UpgradeId, UpgradeId, UpgradeId]>();
+  const offers = new Map<ValidPlayerSlot, [UpgradeId, UpgradeId, UpgradeId]>();
   for (const player of state.players) {
     if (player.eliminated || !player.homeTower) continue;
     offers.set(player.id, drawOffers(state));
@@ -363,17 +364,21 @@ export function processReselectionQueue<
   T extends ControllerIdentity & SelectionController = ControllerIdentity &
     SelectionController,
 >(params: {
-  reselectQueue: number[];
+  reselectQueue: ValidPlayerSlot[];
   state: GameState;
   controllers: T[];
-  initTowerSelection: (pid: number, zone: number) => void;
-  processPlayer: (pid: number, ctrl: T, zone: number) => "done" | "pending";
-  onDone: (pid: number, ctrl: T) => void;
+  initTowerSelection: (pid: ValidPlayerSlot, zone: number) => void;
+  processPlayer: (
+    pid: ValidPlayerSlot,
+    ctrl: T,
+    zone: number,
+  ) => "done" | "pending";
+  onDone: (pid: ValidPlayerSlot, ctrl: T) => void;
 }): {
-  remaining: number[] /** True if any player still needs interactive castle selection. */;
+  remaining: ValidPlayerSlot[] /** True if any player still needs interactive castle selection. */;
   needsUI: boolean;
 } {
-  const remaining: number[] = [];
+  const remaining: ValidPlayerSlot[] = [];
   let needsUI = false;
   for (const pid of params.reselectQueue) {
     const ctrl = params.controllers[pid]!;
@@ -396,7 +401,7 @@ export function completeReselection(params: {
   selectionStates: Map<number, { highlighted: number; confirmed: boolean }>;
   resetOverlaySelection: () => void;
   reselectQueue: { length: number };
-  reselectionPids: number[];
+  reselectionPids: ValidPlayerSlot[];
   finalizeAndAdvance: () => void;
 }): void {
   const { state, selectionStates, resetOverlaySelection, reselectionPids } =
@@ -436,11 +441,11 @@ function sweepAllPlayersWalls(state: GameState): void {
  * Returns { needsReselect, eliminated } — caller handles controller notifications.
  */
 function applyLifePenalties(state: GameState): {
-  needsReselect: number[];
-  eliminated: number[];
+  needsReselect: ValidPlayerSlot[];
+  eliminated: ValidPlayerSlot[];
 } {
-  const needsReselect: number[] = [];
-  const eliminated: number[] = [];
+  const needsReselect: ValidPlayerSlot[] = [];
+  const eliminated: ValidPlayerSlot[] = [];
   for (const player of state.players) {
     if (player.eliminated) continue;
     const hasAliveTower = filterAliveOwnedTowers(player, state).length > 0;
@@ -516,8 +521,8 @@ function autoBuildCastles(state: GameState): void {
 
 function prepareCastleWalls(
   state: GameState,
-): { playerId: number; tiles: number[] }[] {
-  const result: { playerId: number; tiles: number[] }[] = [];
+): { playerId: ValidPlayerSlot; tiles: number[] }[] {
+  const result: { playerId: ValidPlayerSlot; tiles: number[] }[] = [];
   for (const player of state.players) {
     const plan = prepareCastleWallsForPlayer(state, player.id);
     if (plan) result.push(plan);
@@ -529,8 +534,8 @@ function prepareCastleWalls(
  *  for animated construction. Sets castle but does NOT add walls or interior. */
 export function prepareCastleWallsForPlayer(
   state: GameState,
-  playerId: number,
-): { playerId: number; tiles: number[] } | null {
+  playerId: ValidPlayerSlot,
+): { playerId: ValidPlayerSlot; tiles: number[] } | null {
   const player = state.players[playerId];
   if (!player?.homeTower) return null;
   const castle = createCastle(

@@ -24,6 +24,7 @@ import type {
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import type { GameActionDeps } from "./input-dispatch.ts";
 import type { KeyBindings, SeedMode } from "./player-config.ts";
@@ -110,7 +111,7 @@ export interface RegisterOnlineInputDeps {
   /** Dispatch a player action to whichever per-player dialog is active.
    *  Returns true if consumed. Input handlers resolve the playerId upstream
    *  (keyboard: match key → controller, mouse/touch: pointer player). */
-  dialogAction: (playerId: number, action: Action) => boolean;
+  dialogAction: (playerId: ValidPlayerSlot, action: Action) => boolean;
 
   // --- Life-lost dialog (click + get) ---
   lifeLost: {

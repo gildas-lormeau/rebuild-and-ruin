@@ -41,6 +41,7 @@ import {
   cannonSlotsUsed,
   canPlaceCannon,
 } from "./cannon-system.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { toCannonMode, type WatcherNetworkState } from "./online-types.ts";
 import { highlightTowerSelection } from "./selection.ts";
@@ -55,7 +56,7 @@ import {
 } from "./types.ts";
 
 interface LifeLostChoiceEntry {
-  playerId: number;
+  playerId: ValidPlayerSlot;
   choice: LifeLostChoice;
 }
 
@@ -64,7 +65,7 @@ interface LifeLostChoiceDialog {
 }
 
 interface UpgradePickChoiceEntry {
-  playerId: number;
+  playerId: ValidPlayerSlot;
   choice: string | null;
   offers: readonly string[];
 }
@@ -88,13 +89,13 @@ interface HandleServerIncrementalDeps {
   syncSelectionOverlay: () => void;
   isCastleReselectPhase: () => boolean;
   confirmSelectionAndStartBuild: (
-    playerId: number,
+    playerId: ValidPlayerSlot,
     isReselect: boolean,
   ) => void;
   allSelectionsConfirmed: () => boolean;
   finishReselection: () => void;
   finishSelection: () => void;
-  onFirstEnclosure?: (playerId: number) => void;
+  onFirstEnclosure?: (playerId: ValidPlayerSlot) => void;
   getLifeLostDialog: () => LifeLostChoiceDialog | null;
   getUpgradePickDialog: () => UpgradePickChoiceDialog | null;
 }
@@ -517,7 +518,7 @@ function handleUpgradePick(
 
 /** Watchers accept all remote messages; hosts only accept from remote humans. */
 function isRemoteHumanAction(
-  pid: number,
+  pid: ValidPlayerSlot,
   deps: Pick<HandleServerIncrementalDeps, "session">,
 ): boolean {
   return (

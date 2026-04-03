@@ -19,6 +19,7 @@ import {
   BUILD_TIMER,
   LIFE_LOST_AUTO_DELAY,
   LIFE_LOST_MAX_TIMER,
+  type ValidPlayerSlot,
 } from "../src/game-constants.ts";
 import { nextPhase } from "../src/game-engine.ts";
 import {
@@ -92,38 +93,38 @@ export interface Scenario {
   runCannon(): void;
   runBattle(durationSec?: number): void;
   runBuild(durationSec?: number): void;
-  finalizeBuild(): { needsReselect: number[]; eliminated: number[] };
-  processReselection(needsReselect: readonly number[]): void;
-  playRound(): { needsReselect: number[]; eliminated: number[] };
+  finalizeBuild(): { needsReselect: ValidPlayerSlot[]; eliminated: ValidPlayerSlot[] };
+  processReselection(needsReselect: readonly ValidPlayerSlot[]): void;
+  playRound(): { needsReselect: ValidPlayerSlot[]; eliminated: ValidPlayerSlot[] };
   playRounds(n: number): void;
 
   // State inspection
   describe(): string;
 
   // State manipulation
-  setLives(playerId: number, lives: number): void;
-  clearWalls(playerId: number): void;
-  eliminatePlayer(playerId: number): void;
-  destroyWalls(playerId: number, count: number): number;
-  destroyCannon(playerId: number, cannonIdx: number): void;
+  setLives(playerId: ValidPlayerSlot, lives: number): void;
+  clearWalls(playerId: ValidPlayerSlot): void;
+  eliminatePlayer(playerId: ValidPlayerSlot): void;
+  destroyWalls(playerId: ValidPlayerSlot, count: number): number;
+  destroyCannon(playerId: ValidPlayerSlot, cannonIdx: number): void;
 
   // Tile finders
-  findGrassTile(playerId: number): { row: number; col: number } | null;
-  findInteriorTile(playerId: number): { row: number; col: number } | null;
-  findEnemyWallTile(playerId: number): { row: number; col: number; owner: number } | null;
+  findGrassTile(playerId: ValidPlayerSlot): { row: number; col: number } | null;
+  findInteriorTile(playerId: ValidPlayerSlot): { row: number; col: number } | null;
+  findEnemyWallTile(playerId: ValidPlayerSlot): { row: number; col: number; owner: ValidPlayerSlot } | null;
 
   // Scripted player actions
-  placeCannonAt(playerId: number, row: number, col: number, mode?: CannonMode): boolean;
-  placePieceAt(playerId: number, piece: PieceShape, row: number, col: number): boolean;
-  fireAt(playerId: number, cannonIdx: number, row: number, col: number): boolean;
+  placeCannonAt(playerId: ValidPlayerSlot, row: number, col: number, mode?: CannonMode): boolean;
+  placePieceAt(playerId: ValidPlayerSlot, piece: PieceShape, row: number, col: number): boolean;
+  fireAt(playerId: ValidPlayerSlot, cannonIdx: number, row: number, col: number): boolean;
 
   // Sub-system creation for isolated testing
   createCamera(overrides?: Partial<CameraTestDeps>): CameraTestHandle;
   createBanner(): BannerState;
   createBattleAnim(): BattleAnimState;
   createLifeLostDialog(
-    needsReselect: number[],
-    eliminated?: number[],
+    needsReselect: ValidPlayerSlot[],
+    eliminated?: ValidPlayerSlot[],
   ): LifeLostDialogState;
   tickLifeLostDialog(
     dialog: LifeLostDialogState,
@@ -230,7 +231,7 @@ export function createScenario(seed = 42): Scenario {
     return finalizeBuildPhase(state);
   }
 
-  function doProcessReselection(needsReselect: readonly number[]) {
+  function doProcessReselection(needsReselect: readonly ValidPlayerSlot[]) {
     processHeadlessReselection(runtime, needsReselect);
   }
 
@@ -253,16 +254,16 @@ export function createScenario(seed = 42): Scenario {
     }
   }
 
-  function setLives(playerId: number, lives: number) {
+  function setLives(playerId: ValidPlayerSlot, lives: number) {
     state.players[playerId]!.lives = lives;
   }
 
-  function clearWalls(playerId: number) {
+  function clearWalls(playerId: ValidPlayerSlot) {
     clearPlayerWalls(state.players[playerId]!);
     state.players[playerId]!.interior = emptyFreshInterior();
   }
 
-  function doEliminatePlayer(playerId: number) {
+  function doEliminatePlayer(playerId: ValidPlayerSlot) {
     eliminatePlayer(state.players[playerId]!);
   }
 
@@ -286,7 +287,7 @@ export function createScenario(seed = 42): Scenario {
     return parts.join(" | ");
   }
 
-  function doDestroyWalls(playerId: number, count: number): number {
+  function doDestroyWalls(playerId: ValidPlayerSlot, count: number): number {
     const player = state.players[playerId]!;
     let removed = 0;
     for (const key of player.walls) {
@@ -298,13 +299,13 @@ export function createScenario(seed = 42): Scenario {
     return removed;
   }
 
-  function doDestroyCannon(playerId: number, cannonIdx: number): void {
+  function doDestroyCannon(playerId: ValidPlayerSlot, cannonIdx: number): void {
     const cannon = state.players[playerId]?.cannons[cannonIdx];
     if (cannon) cannon.hp = 0;
   }
 
   function doPlaceCannonAt(
-    playerId: number,
+    playerId: ValidPlayerSlot,
     row: number,
     col: number,
     mode: CannonMode = CannonMode.NORMAL,
@@ -315,7 +316,7 @@ export function createScenario(seed = 42): Scenario {
   }
 
   function doPlacePieceAt(
-    playerId: number,
+    playerId: ValidPlayerSlot,
     piece: PieceShape,
     row: number,
     col: number,
@@ -324,7 +325,7 @@ export function createScenario(seed = 42): Scenario {
   }
 
   function doFireAt(
-    playerId: number,
+    playerId: ValidPlayerSlot,
     cannonIdx: number,
     row: number,
     col: number,
@@ -348,7 +349,7 @@ export function createScenario(seed = 42): Scenario {
   }
 
   function doFindGrassTile(
-    playerId: number,
+    playerId: ValidPlayerSlot,
   ): { row: number; col: number } | null {
     const zone = state.playerZones[playerId];
     const blocked = buildEntityBlockedSet();
@@ -373,7 +374,7 @@ export function createScenario(seed = 42): Scenario {
   }
 
   function doFindInteriorTile(
-    playerId: number,
+    playerId: ValidPlayerSlot,
   ): { row: number; col: number } | null {
     const player = state.players[playerId]!;
     const blocked = buildEntityBlockedSet();
@@ -386,8 +387,8 @@ export function createScenario(seed = 42): Scenario {
   }
 
   function doFindEnemyWallTile(
-    playerId: number,
-  ): { row: number; col: number; owner: number } | null {
+    playerId: ValidPlayerSlot,
+  ): { row: number; col: number; owner: ValidPlayerSlot } | null {
     for (let i = 0; i < state.players.length; i++) {
       if (i === playerId) continue;
       const enemy = state.players[i]!;
@@ -395,7 +396,7 @@ export function createScenario(seed = 42): Scenario {
       for (const key of enemy.walls) {
         const row = Math.floor(key / GRID_COLS);
         const col = key % GRID_COLS;
-        return { row, col, owner: i };
+        return { row, col, owner: i as ValidPlayerSlot };
       }
     }
     return null;
@@ -466,15 +467,15 @@ export function createScenario(seed = 42): Scenario {
   }
 
   function doCreateLifeLostDialog(
-    needsReselect: number[],
-    eliminated: number[] = [],
+    needsReselect: ValidPlayerSlot[],
+    eliminated: ValidPlayerSlot[] = [],
   ): LifeLostDialogState {
     return createLifeLostDialogState({
       needsReselect,
       eliminated,
       state,
       hostAtFrameStart: true,
-      myPlayerId: 0,
+      myPlayerId: 0 as ValidPlayerSlot,
       remoteHumanSlots: new Set(),
       isHumanController: () => false,
     });
@@ -618,7 +619,7 @@ export function assertPhase(s: Scenario, expected: Phase): void {
 
 export function assertLives(
   s: Scenario,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   expected: number,
 ): void {
   const actual = s.state.players[playerId]!.lives;
@@ -628,28 +629,28 @@ export function assertLives(
   );
 }
 
-export function assertEliminated(s: Scenario, playerId: number): void {
+export function assertEliminated(s: Scenario, playerId: ValidPlayerSlot): void {
   assert(
     s.state.players[playerId]!.eliminated,
     `Expected player ${playerId} to be eliminated`,
   );
 }
 
-export function assertNotEliminated(s: Scenario, playerId: number): void {
+export function assertNotEliminated(s: Scenario, playerId: ValidPlayerSlot): void {
   assert(
     !s.state.players[playerId]!.eliminated,
     `Expected player ${playerId} to NOT be eliminated`,
   );
 }
 
-export function assertHasWalls(s: Scenario, playerId: number): void {
+export function assertHasWalls(s: Scenario, playerId: ValidPlayerSlot): void {
   assert(
     s.state.players[playerId]!.walls.size > 0,
     `Expected player ${playerId} to have walls`,
   );
 }
 
-export function assertNoWalls(s: Scenario, playerId: number): void {
+export function assertNoWalls(s: Scenario, playerId: ValidPlayerSlot): void {
   assert(
     s.state.players[playerId]!.walls.size === 0,
     `Expected player ${playerId} to have no walls`,

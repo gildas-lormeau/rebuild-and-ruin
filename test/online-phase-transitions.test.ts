@@ -7,6 +7,7 @@
  * Run with: bun test/online-phase-transitions.test.ts
  */
 
+import { type ValidPlayerSlot } from "../src/game-constants.ts";
 import {
   BATTLE_START_STEPS,
   BUILD_START_STEPS,
@@ -94,8 +95,8 @@ test("runBuildEndSequence notifies life-lost for each affected player", () => {
   let dialogShown = false;
 
   runBuildEndSequence({
-    needsReselect: [0, 2],
-    eliminated: [1],
+    needsReselect: [0 as ValidPlayerSlot, 2 as ValidPlayerSlot],
+    eliminated: [1 as ValidPlayerSlot],
     showScoreDeltas: (onDone) => onDone(),
     notifyLifeLost: (pid) => notified.push(pid),
     showLifeLostDialog: () => {
@@ -114,7 +115,7 @@ test("runBuildEndSequence does not call afterLifeLostResolved when dialog is sho
   let resolved = false;
 
   runBuildEndSequence({
-    needsReselect: [0],
+    needsReselect: [0 as ValidPlayerSlot],
     eliminated: [],
     showScoreDeltas: (onDone) => onDone(),
     notifyLifeLost: () => {},
@@ -129,11 +130,11 @@ test("runBuildEndSequence does not call afterLifeLostResolved when dialog is sho
 
 test("runBuildEndSequence shows dialog for eliminated-only (no reselect)", () => {
   let dialogShown = false;
-  const notified: number[] = [];
+  const notified: ValidPlayerSlot[] = [];
 
   runBuildEndSequence({
     needsReselect: [],
-    eliminated: [2],
+    eliminated: [2 as ValidPlayerSlot],
     showScoreDeltas: (onDone) => onDone(),
     notifyLifeLost: (pid) => notified.push(pid),
     showLifeLostDialog: (reselect, elim) => {

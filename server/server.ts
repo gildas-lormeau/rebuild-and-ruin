@@ -3,6 +3,7 @@
  * Serves the /ws/play WebSocket endpoint for online play with room management.
  */
 
+import type { ValidPlayerSlot } from "../src/game-constants.ts";
 import { PLAYER_NAMES } from "../src/player-config.ts";
 import { MESSAGE, type RoomSettings } from "./protocol.ts";
 import { RoomManager } from "./room-manager.ts";
@@ -142,7 +143,10 @@ function handleMessage(
     }
 
     case MESSAGE.SELECT_SLOT: {
-      const selection = rooms.selectSlot(socket, msg.playerId as number);
+      const selection = rooms.selectSlot(
+        socket,
+        msg.playerId as ValidPlayerSlot,
+      );
       if (!selection) break;
       const entry = rooms.getEntry(socket);
       if (!entry) break;

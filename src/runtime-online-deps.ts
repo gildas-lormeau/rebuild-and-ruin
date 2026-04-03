@@ -21,7 +21,10 @@ import type {
   InitMessage,
   ServerMessage,
 } from "../server/protocol.ts";
-import { MIGRATION_ANNOUNCEMENT_DURATION } from "./game-constants.ts";
+import {
+  MIGRATION_ANNOUNCEMENT_DURATION,
+  type ValidPlayerSlot,
+} from "./game-constants.ts";
 import { createError, joinError } from "./online-dom.ts";
 import type { TransitionContext } from "./online-phase-transitions.ts";
 import {
@@ -101,13 +104,17 @@ function buildIncrementalDeps() {
     syncSelectionOverlay: () => _g.runtime.selection.syncOverlay(),
     isCastleReselectPhase: () =>
       isReselectPhase(_g.runtime.runtimeState.state.phase),
-    confirmSelectionAndStartBuild: (playerId: number, isReselect: boolean) => {
+    confirmSelectionAndStartBuild: (
+      playerId: ValidPlayerSlot,
+      isReselect: boolean,
+    ) => {
       _g.runtime.selection.confirmAndStartBuild(playerId, isReselect);
     },
     allSelectionsConfirmed: () => _g.runtime.selection.allConfirmed(),
     finishReselection: () => _g.runtime.selection.finishReselection(),
     finishSelection: () => _g.runtime.selection.finish(),
-    onFirstEnclosure: (pid: number) => _g.runtime.sound.chargeFanfare(pid),
+    onFirstEnclosure: (pid: ValidPlayerSlot) =>
+      _g.runtime.sound.chargeFanfare(pid),
     getLifeLostDialog: () => _g.runtime.lifeLost.get(),
     getUpgradePickDialog: () => _g.runtime.runtimeState.upgradePickDialog,
   };

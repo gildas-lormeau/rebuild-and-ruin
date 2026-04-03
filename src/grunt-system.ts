@@ -17,6 +17,7 @@ import {
   GRUNT_ATTACK_DURATION,
   GRUNT_WALL_ATTACK_CHANCE,
   GRUNT_WALL_ATTACK_MIN_BATTLES,
+  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
@@ -109,7 +110,10 @@ export function findGruntSpawnNear(
 }
 
 /** Spawn a single grunt immediately on the given player's zone. */
-export function spawnGruntOnZone(state: GameState, playerId: number): void {
+export function spawnGruntOnZone(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+): void {
   const player = state.players[playerId];
   if (!isPlayerSeated(player)) return;
   const spawnPos = findGruntSpawnPositions(state, player, 1);
@@ -121,7 +125,7 @@ export function spawnGruntOnZone(state: GameState, playerId: number): void {
 /** Spawn a group of grunts on a player's zone, clustered together so they naturally target the same tower. */
 export function spawnGruntGroupOnZone(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   count: number,
 ): void {
   const player = state.players[playerId];
@@ -166,7 +170,7 @@ export function spawnGruntGroupOnZone(
  *  its assigned tower, so grunts spread across all towers with short paths. */
 export function spawnGruntSurgeOnZone(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   totalCount: number,
 ): void {
   const player = state.players[playerId];

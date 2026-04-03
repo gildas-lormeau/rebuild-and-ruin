@@ -8,7 +8,7 @@ import type {
   SerializedPlayer,
 } from "./checkpoint-data.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
-import { isActivePlayer } from "./game-constants.ts";
+import { isActivePlayer, type ValidPlayerSlot } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 import { TILE_COUNT } from "./grid.ts";
 import type { OnlineSession } from "./online-session.ts";
@@ -82,7 +82,7 @@ export interface TransitionContext {
           mode: string;
           facing?: number;
         }[];
-        playerId: number;
+        playerId: ValidPlayerSlot;
       }[];
       oldEntities?: import("./render-types.ts").EntityOverlay;
       wallsBeforeSweep?: Set<number>[];
@@ -122,12 +122,12 @@ export interface TransitionContext {
     clearSelectionOverlay: () => void;
     getStates: () => Map<number, { highlighted: number; confirmed: boolean }>;
     setCastleBuildFromPlans: (
-      plans: readonly { playerId: number; tiles: number[] }[],
+      plans: readonly { playerId: ValidPlayerSlot; tiles: number[] }[],
       maxTiles: number,
       onDone: () => void,
     ) => void;
     setCastleBuildViewport: (
-      plans: readonly { playerId: number; tiles: number[] }[],
+      plans: readonly { playerId: ValidPlayerSlot; tiles: number[] }[],
     ) => void;
   };
 
@@ -154,8 +154,8 @@ export interface TransitionContext {
   // ── End-of-phase (life-lost, scoring, game over) ──
   endPhase: {
     showLifeLostDialog: (
-      needsReselect: readonly number[],
-      eliminated: readonly number[],
+      needsReselect: readonly ValidPlayerSlot[],
+      eliminated: readonly ValidPlayerSlot[],
     ) => void;
     showScoreDeltas: (preScores: readonly number[], onDone: () => void) => void;
     setGameOverFrame: (payload: {

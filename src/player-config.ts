@@ -4,7 +4,11 @@
  * Keep player names, colors, and bindings in one place so they cannot drift.
  */
 
-import type { GameMode, PlayerSlotId } from "./game-constants.ts";
+import type {
+  GameMode,
+  PlayerSlotId,
+  ValidPlayerSlot,
+} from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 
 export interface KeyBindings {
@@ -41,7 +45,7 @@ export interface AutoResolveDeps {
   readonly hostAtFrameStart: boolean;
   readonly myPlayerId: PlayerSlotId;
   readonly remoteHumanSlots: ReadonlySet<number>;
-  readonly isHumanController: (playerId: number) => boolean;
+  readonly isHumanController: (playerId: ValidPlayerSlot) => boolean;
 }
 
 export const KEY_UP = "ArrowUp";
@@ -121,7 +125,7 @@ export const SEED_CUSTOM = "custom" as const;
 export const MAX_SEED_LENGTH = 9;
 
 /** Get player color with safe modulo wrapping. */
-export function getPlayerColor(playerId: number): PlayerColor {
+export function getPlayerColor(playerId: ValidPlayerSlot): PlayerColor {
   return PLAYER_COLORS[playerId % PLAYER_COLORS.length]!;
 }
 
@@ -170,7 +174,7 @@ export function createLobbyConfirmKeys(
 /** True when this player's dialog entry should auto-resolve (no local input needed).
  *  Host checks controller identity; non-host only resolves its own slot. */
 export function shouldAutoResolve(
-  playerId: number,
+  playerId: ValidPlayerSlot,
   deps: AutoResolveDeps,
 ): boolean {
   return deps.hostAtFrameStart

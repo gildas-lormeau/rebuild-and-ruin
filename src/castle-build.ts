@@ -4,10 +4,11 @@
  */
 
 import { addPlayerWall } from "./board-occupancy.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { GameState } from "./types.ts";
 
 export interface CastleWallPlan {
-  playerId: number;
+  playerId: ValidPlayerSlot;
   tiles: number[];
 }
 

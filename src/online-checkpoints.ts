@@ -9,7 +9,7 @@ import type {
 } from "./checkpoint-data.ts";
 import { createComboTracker, isCombosEnabled } from "./combo-system.ts";
 import type { OrbitParams } from "./controller-interfaces.ts";
-import { BATTLE_TIMER } from "./game-constants.ts";
+import { BATTLE_TIMER, type ValidPlayerSlot } from "./game-constants.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import {
   applyGruntsCheckpoint,
@@ -140,7 +140,7 @@ export function applyBuildStartCheckpoint(
   deps.state.pendingUpgradeOffers = data.pendingUpgradeOffers
     ? new Map(
         data.pendingUpgradeOffers.map(([pid, offers]) => [
-          pid,
+          pid as ValidPlayerSlot,
           offers as [UpgradeId, UpgradeId, UpgradeId],
         ]),
       )

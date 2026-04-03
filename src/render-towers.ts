@@ -5,6 +5,7 @@
  * threaded from drawMap. See render-effects.ts for the full convention.
  */
 
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
 import { drawSpriteCentered } from "./render-sprites.ts";
@@ -52,7 +53,7 @@ export function drawTowers(
       // Player name label above home tower (battle phase only, semi-transparent)
       if (ownerId !== undefined && inBattle) {
         const name = PLAYER_NAMES[ownerId] ?? `P${ownerId + 1}`;
-        const c = getPlayerColor(ownerId).interiorLight;
+        const c = getPlayerColor(ownerId as ValidPlayerSlot).interiorLight;
         overlayCtx.save();
         overlayCtx.globalAlpha = 0.7;
         overlayCtx.font = FONT_FLOAT_LG;

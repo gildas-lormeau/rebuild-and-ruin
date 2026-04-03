@@ -19,6 +19,7 @@ import {
   type ControllerIdentity,
   isAiAnimatable,
 } from "./controller-interfaces.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { Crosshair, PixelPos } from "./geometry-types.ts";
 import { interpolateToward, REMOTE_CROSSHAIR_SPEED } from "./online-types.ts";
 import type { DedupChannel } from "./phantom-types.ts";
@@ -68,7 +69,8 @@ export function extendWithRemoteCrosshairs(
     "host-ch-remote",
     `collectCrosshairs: localCh=${crosshairs.length} remoteCrosshairs keys=[${[...deps.remoteCrosshairs.keys()]}] cannons=[${state.players.map((player, i) => `P${i}:${player.cannons.length}`).join(",")}]`,
   );
-  for (const [pid, target] of deps.remoteCrosshairs) {
+  for (const [rawPid, target] of deps.remoteCrosshairs) {
+    const pid = rawPid as ValidPlayerSlot;
     if (!isRemoteHuman(pid, deps.remoteHumanSlots)) continue;
     const player = state.players[pid];
     if (!isPlayerAlive(player)) continue;

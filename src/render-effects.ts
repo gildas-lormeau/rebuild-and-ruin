@@ -28,7 +28,10 @@
  *   ctx.restore();
  */
 
-import { IMPACT_FLASH_DURATION } from "./game-constants.ts";
+import {
+  IMPACT_FLASH_DURATION,
+  type ValidPlayerSlot,
+} from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { getPlayerColor } from "./player-config.ts";
@@ -131,7 +134,11 @@ export function drawPhantoms(
   if (overlay?.phantoms?.cannonPhantoms) {
     const facings = overlay.phantoms.defaultFacings;
     for (const phantom of overlay.phantoms.cannonPhantoms) {
-      drawPhantomCannon(overlayCtx, phantom, facings);
+      drawPhantomCannon(
+        overlayCtx,
+        phantom,
+        facings as ReadonlyMap<ValidPlayerSlot, number> | undefined,
+      );
     }
   }
 
@@ -586,9 +593,9 @@ function drawPhantomCannon(
     readonly col: number;
     readonly valid: boolean;
     readonly mode: CannonMode;
-    readonly playerId: number;
+    readonly playerId: ValidPlayerSlot;
   },
-  defaultFacings?: ReadonlyMap<number, number>,
+  defaultFacings?: ReadonlyMap<ValidPlayerSlot, number>,
 ): void {
   const { row, col, valid, mode, playerId } = phantom;
   const facing = defaultFacings?.get(playerId) ?? 0;

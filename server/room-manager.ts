@@ -2,6 +2,7 @@
  * Room manager — creates, tracks, and cleans up game rooms.
  */
 
+import type { ValidPlayerSlot } from "../src/game-constants.ts";
 import { MAX_PLAYERS, PLAYER_NAMES } from "../src/player-config.ts";
 import { GameRoom } from "./game-room.ts";
 import { MESSAGE, type RoomSettings, type ServerMessage } from "./protocol.ts";
@@ -23,7 +24,7 @@ export interface RoomEntry {
   /** socket → playerId. A player's slot choice (color/position, 0-indexed)
    *  determines their playerId for the entire session. Only set for sockets
    *  that have picked a slot; spectators are in connectedSockets but not here. */
-  slotAssignments: Map<WebSocket, number>;
+  slotAssignments: Map<WebSocket, ValidPlayerSlot>;
   /** True once the game has started (wait timer fired or manual start).
    *  No new players can join after this point. */
   started: boolean;
@@ -33,7 +34,7 @@ export interface RoomEntry {
 }
 
 interface SlotSelectionResult {
-  playerId: number;
+  playerId: ValidPlayerSlot;
   /** The slot this socket previously occupied, or null if this is their first
    *  slot selection (new player joining). Used by the caller to broadcast
    *  a previousPlayerId so clients can clean up the vacated slot's UI. */
@@ -62,7 +63,7 @@ export class RoomManager {
     // Step 2: Create room + entry (shared maps passed to GameRoom)
     const code = this.generateCode();
     const connectedSockets = new Set([hostSocket]);
-    const slotAssignments = new Map<WebSocket, number>();
+    const slotAssignments = new Map<WebSocket, ValidPlayerSlot>();
     const room = new GameRoom(
       slotAssignments,
       connectedSockets,
@@ -110,7 +111,10 @@ export class RoomManager {
    *  for the entire session across all game messages.
    *  Updates slotAssignments (shared with GameRoom for identity enforcement).
    *  Returns null if: slot taken by another player, invalid playerId, or game already started. */
-  selectSlot(socket: WebSocket, playerId: number): SlotSelectionResult | null {
+  selectSlot(
+    socket: WebSocket,
+    playerId: ValidPlayerSlot,
+  ): SlotSelectionResult | null {
     const entry = this.socketToRoom.get(socket);
     if (!entry || entry.started) return null;
     if (playerId < 0 || playerId >= MAX_PLAYERS) return null;
@@ -221,7 +225,7 @@ export class RoomManager {
   private handlePlayerLeftMidGame(
     entry: RoomEntry,
     socket: WebSocket,
-    playerId: number | undefined,
+    playerId: ValidPlayerSlot | undefined,
     wasHost: boolean,
   ): void {
     entry.room.clearRateLimits(socket);
@@ -236,10 +240,10 @@ export class RoomManager {
   /** Promote the lowest-slot player to host; falls back to any open socket. */
   private migrateHost(
     entry: RoomEntry,
-    disconnectedPlayerId: number | undefined,
+    disconnectedPlayerId: ValidPlayerSlot | undefined,
   ): void {
     let newHostSocket: WebSocket | null = null;
-    let newHostPlayerId: number | null = null;
+    let newHostPlayerId: ValidPlayerSlot | null = null;
 
     // Prefer lowest-playerId player
     for (const [sock, sid] of entry.slotAssignments) {
@@ -284,8 +288,10 @@ export class RoomManager {
   }
 
   /** Get list of players who have selected a slot. */
-  getSlottedPlayers(entry: RoomEntry): { playerId: number; name: string }[] {
-    const result: { playerId: number; name: string }[] = [];
+  getSlottedPlayers(
+    entry: RoomEntry,
+  ): { playerId: ValidPlayerSlot; name: string }[] {
+    const result: { playerId: ValidPlayerSlot; name: string }[] = [];
     for (const [, pid] of entry.slotAssignments) {
       if (pid >= 0) {
         result.push({

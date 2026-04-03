@@ -2,7 +2,12 @@
  * Core types, interfaces, and constants for the game engine.
  */
 
-import type { GameMode, ModifierId, PlayerSlotId } from "./game-constants.ts";
+import type {
+  GameMode,
+  ModifierId,
+  PlayerSlotId,
+  ValidPlayerSlot,
+} from "./game-constants.ts";
 import type { Castle, GameMap, TilePos, Tower } from "./geometry-types.ts";
 import type { Rng } from "./rng.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
@@ -68,9 +73,9 @@ export interface CapturedCannon {
   /** Index of the cannon in the victim's cannons array, or CANNON_NOT_FOUND (-1). */
   cannonIdx: number;
   /** The player who owns the captured cannon (victim). */
-  victimId: number;
+  victimId: ValidPlayerSlot;
   /** The player who owns the balloon (capturer). */
-  capturerId: number;
+  capturerId: ValidPlayerSlot;
 }
 
 /** Result from nextReadyCombined — either an own cannon or a captured one. */
@@ -105,7 +110,7 @@ export interface Cannonball {
   /** Owner player id — the player whose cannon fired this ball.
    *  Used for in-flight tracking (index into this player's cannons array).
    *  NOT necessarily who gets scoring credit — see scoringPlayerId. */
-  playerId: number;
+  playerId: ValidPlayerSlot;
   /** Player who receives scoring credit for this cannonball's impacts.
    *  Set to capturerId when this cannon was captured by a propaganda balloon.
    *  When undefined, defaults to playerId (normal cannon fire).
@@ -142,7 +147,7 @@ export type FreshInterior = ReadonlySet<number> & {
 };
 
 export interface Player {
-  id: number;
+  id: ValidPlayerSlot;
   /** The tower this player selected as home castle. */
   homeTower: Tower | null;
   /** The castle built around the home tower. */
@@ -278,12 +283,15 @@ export interface GameState {
       roundWalls: number;
     }[];
     /** Combo events for floating text display. Aged by the renderer, removed when expired. */
-    events: { text: string; age: number; playerId: number }[];
+    events: { text: string; age: number; playerId: ValidPlayerSlot }[];
   } | null;
   /** Pre-generated upgrade offers per player for the current round (modern mode).
    *  Generated in enterBuildFromBattle using synced RNG, consumed by the upgrade pick dialog.
    *  null in classic mode or before UPGRADE_FIRST_ROUND. */
-  pendingUpgradeOffers: Map<number, [UpgradeId, UpgradeId, UpgradeId]> | null;
+  pendingUpgradeOffers: Map<
+    ValidPlayerSlot,
+    [UpgradeId, UpgradeId, UpgradeId]
+  > | null;
   /** Frozen river tiles (packed tile keys) — water tiles that grunts can cross.
    *  Set during battle when frozen_river modifier is active, null otherwise. */
   frozenTiles: Set<number> | null;
@@ -358,7 +366,7 @@ export enum LifeLostChoice {
 export type ResolvedChoice = LifeLostChoice.CONTINUE | LifeLostChoice.ABANDON;
 
 export interface LifeLostEntry {
-  playerId: number;
+  playerId: ValidPlayerSlot;
   lives: number;
   /** True when this entry auto-resolves (no local human input needed). */
   autoResolve: boolean;
@@ -374,7 +382,7 @@ export interface LifeLostDialogState {
 }
 
 export interface UpgradePickEntry {
-  playerId: number;
+  playerId: ValidPlayerSlot;
   offers: readonly [UpgradeId, UpgradeId, UpgradeId];
   choice: UpgradeId | null;
   /** True when this entry auto-resolves (no local human input needed). */

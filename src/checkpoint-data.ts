@@ -10,9 +10,7 @@
  * describe the shape of game state for sync, not protocol framing.
  */
 
-// ---------------------------------------------------------------------------
-// Serialized sub-types
-// ---------------------------------------------------------------------------
+import type { ValidPlayerSlot } from "./game-constants.ts";
 
 export interface SerializedCannon {
   row: number;
@@ -78,8 +76,8 @@ export interface BattleStartData {
   players: SerializedPlayer[];
   grunts: SerializedGrunt[];
   capturedCannons: {
-    victimId: number;
-    capturerId: number;
+    victimId: ValidPlayerSlot;
+    capturerId: ValidPlayerSlot;
     cannonIdx: number;
   }[];
   burningPits: SerializedBurningPit[];

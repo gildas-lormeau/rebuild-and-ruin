@@ -2,6 +2,7 @@
  * Shared lightweight geometry/data shapes used by strategy and controller code.
  */
 
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { Tile } from "./grid.ts";
 
 /** RGB color tuple. */
@@ -27,7 +28,7 @@ export interface TileRect {
 export interface Crosshair {
   x: number;
   y: number;
-  playerId: number;
+  playerId: ValidPlayerSlot;
   cannonReady?: boolean;
 }
 

@@ -8,6 +8,7 @@
  * - Local execution on client for build/cannon (zero-latency input)
  */
 
+import type { ValidPlayerSlot } from "../src/game-constants.ts";
 import type { CannonMode, ResolvedChoice } from "../src/types.ts";
 
 // ---------------------------------------------------------------------------
@@ -119,10 +120,10 @@ export type ClientMessage =
   | { type: "create_room"; settings: RoomSettings }
   | { type: "join_room"; code: string }
   // Lobby (in room)
-  | { type: "select_slot"; playerId: number }
+  | { type: "select_slot"; playerId: ValidPlayerSlot }
   // In-game
   | { type: "life_lost_choice"; choice: ResolvedChoice; playerId?: number }
-  | { type: "upgrade_pick"; playerId: number; choice: string }
+  | { type: "upgrade_pick"; playerId: ValidPlayerSlot; choice: string }
   | { type: "ping" };
 
 // ---------------------------------------------------------------------------
@@ -147,7 +148,7 @@ export interface InitMessage {
 /** Sent when a player joins and is assigned a slot. */
 export interface JoinedMessage {
   type: "joined";
-  playerId: number;
+  playerId: ValidPlayerSlot;
   previousPlayerId?: number;
 }
 
@@ -167,7 +168,7 @@ export interface RoomCreatedMessage {
 export interface RoomJoinedMessage {
   type: "room_joined";
   code: string;
-  players: { playerId: number; name: string }[];
+  players: { playerId: ValidPlayerSlot; name: string }[];
   settings: RoomSettings;
   /** PlayerId of the host, or null if the host hasn't selected a slot yet. */
   hostId: number | null;
@@ -179,7 +180,7 @@ export interface RoomJoinedMessage {
 /** Another player joined the room. */
 export interface PlayerJoinedMessage {
   type: "player_joined";
-  playerId: number;
+  playerId: ValidPlayerSlot;
   name: string;
   previousPlayerId?: number;
 }
@@ -187,7 +188,7 @@ export interface PlayerJoinedMessage {
 /** A player left the room. */
 export interface PlayerLeftMessage {
   type: "player_left";
-  playerId: number;
+  playerId: ValidPlayerSlot;
 }
 
 /** Lobby error (room not found, full, etc.). */
@@ -229,8 +230,8 @@ export interface BuildStartMessage extends BuildStartData {
 /** End of build phase — results of wall sweep, territory claim, life check. */
 export interface BuildEndMessage {
   type: "build_end";
-  needsReselect: number[];
-  eliminated: number[];
+  needsReselect: ValidPlayerSlot[];
+  eliminated: ValidPlayerSlot[];
   scores: number[];
   players: SerializedPlayer[];
 }
@@ -283,12 +284,12 @@ export interface FullStateMessage {
   frozenTiles: number[] | null;
   towerPendingRevive: number[];
   capturedCannons: {
-    victimId: number;
+    victimId: ValidPlayerSlot;
     capturerId: number;
     cannonIdx: number;
   }[];
   balloonHits: {
-    playerId: number;
+    playerId: ValidPlayerSlot;
     cannonIdx: number;
     count: number;
     capturerIds: number[];
@@ -302,7 +303,7 @@ export interface FullStateMessage {
     targetX: number;
     targetY: number;
     speed: number;
-    playerId: number;
+    playerId: ValidPlayerSlot;
     scoringPlayerId?: number;
     incendiary?: boolean;
   }[];
@@ -323,7 +324,7 @@ export interface FullStateMessage {
 /** An opponent (AI) placed a wall piece. */
 export interface OpponentPiecePlacedMessage {
   type: "opponent_piece_placed";
-  playerId: number;
+  playerId: ValidPlayerSlot;
   row: number;
   col: number;
   offsets: [number, number][];
@@ -332,7 +333,7 @@ export interface OpponentPiecePlacedMessage {
 /** An opponent's phantom piece position (for rendering ghost). */
 export interface OpponentPhantomMessage {
   type: "opponent_phantom";
-  playerId: number;
+  playerId: ValidPlayerSlot;
   row: number;
   col: number;
   offsets: [number, number][];
@@ -342,7 +343,7 @@ export interface OpponentPhantomMessage {
 /** An opponent (AI) placed a cannon. */
 export interface OpponentCannonPlacedMessage {
   type: "opponent_cannon_placed";
-  playerId: number;
+  playerId: ValidPlayerSlot;
   row: number;
   col: number;
   mode: CannonMode;
@@ -351,7 +352,7 @@ export interface OpponentCannonPlacedMessage {
 /** An opponent's phantom cannon position (for rendering ghost). */
 export interface OpponentCannonPhantomMessage {
   type: "opponent_cannon_phantom";
-  playerId: number;
+  playerId: ValidPlayerSlot;
   row: number;
   col: number;
   mode: CannonMode;
@@ -361,7 +362,7 @@ export interface OpponentCannonPhantomMessage {
 /** An opponent confirmed their tower selection. */
 export interface OpponentTowerSelectedMessage {
   type: "opponent_tower_selected";
-  playerId: number;
+  playerId: ValidPlayerSlot;
   towerIdx: number;
   confirmed?: boolean;
 }
@@ -373,7 +374,7 @@ export interface OpponentTowerSelectedMessage {
 /** Ordered wall tiles for castle construction animation (round 1 / reselection). */
 export interface CastleWallsMessage {
   type: "castle_walls";
-  plans: { playerId: number; tiles: number[] }[];
+  plans: { playerId: ValidPlayerSlot; tiles: number[] }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -383,7 +384,7 @@ export interface CastleWallsMessage {
 /** A cannon was fired (own or opponent). Client creates local cannonball. */
 export interface CannonFiredMessage {
   type: "cannon_fired";
-  playerId: number;
+  playerId: ValidPlayerSlot;
   cannonIdx: number;
   startX: number;
   startY: number;
@@ -398,14 +399,14 @@ export interface WallDestroyedMessage {
   type: "wall_destroyed";
   row: number;
   col: number;
-  playerId: number;
+  playerId: ValidPlayerSlot;
   shooterId?: number;
 }
 
 /** A cannon took damage (destroyed when newHp <= 0). */
 export interface CannonDamagedMessage {
   type: "cannon_damaged";
-  playerId: number;
+  playerId: ValidPlayerSlot;
   cannonIdx: number;
   newHp: number;
   shooterId?: number;
@@ -452,21 +453,21 @@ export interface TowerKilledMessage {
 /** Life-lost choice forwarded from a non-host client to the host. */
 export interface LifeLostChoiceForwardedMessage {
   type: "life_lost_choice";
-  playerId: number;
+  playerId: ValidPlayerSlot;
   choice: ResolvedChoice;
 }
 
 /** Upgrade pick choice forwarded from a non-host client to the host. */
 export interface UpgradePickForwardedMessage {
   type: "upgrade_pick";
-  playerId: number;
+  playerId: ValidPlayerSlot;
   choice: string;
 }
 
 /** Crosshair position update (for spectator rendering, not validated). */
 export interface AimUpdateMessage {
   type: "aim_update";
-  playerId: number;
+  playerId: ValidPlayerSlot;
   x: number;
   y: number;
   /** Optional orbit parameters (sent once at countdown start). */

@@ -7,6 +7,7 @@
 
 import { clearPlayerWalls } from "../src/board-occupancy.ts";
 import { BALL_SPEED, GAME_MODE_MODERN, MODIFIER_FIRST_ROUND } from "../src/game-constants.ts";
+import type { ValidPlayerSlot } from "../src/game-constants.ts";
 import {
   comboDemolitionBonus,
   comboOnCannonKill,
@@ -132,7 +133,7 @@ test("Master Builder ignores eliminated players", () => {
   const baseBuildTimer = s.state.buildTimer;
 
   s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
-  s.eliminatePlayer(1);
+  s.eliminatePlayer(1 as ValidPlayerSlot);
   s.state.players[1]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
 
   const result = s.playRound();
@@ -391,9 +392,9 @@ test("Rapid Fire multiplies cannonball speed", () => {
   assert(player.cannons.length > 0, "player should have cannons");
 
   // Fire using scenario helper — check ball speed in state
-  const target = s.findEnemyWallTile(0);
+  const target = s.findEnemyWallTile(0 as ValidPlayerSlot);
   if (target) {
-    s.fireAt(0, 0, target.row, target.col);
+    s.fireAt(0 as ValidPlayerSlot, 0, target.row, target.col);
     assert(
       s.state.cannonballs.length > 0,
       "should have a cannonball in flight",
@@ -406,7 +407,7 @@ test("Rapid Fire multiplies cannonball speed", () => {
     // Clear and fire with Rapid Fire
     s.state.cannonballs = [];
     player.upgrades.set(UID.RAPID_FIRE as UpgradeId, 1);
-    s.fireAt(0, 0, target.row, target.col);
+    s.fireAt(0 as ValidPlayerSlot, 0, target.row, target.col);
     assert(
       s.state.cannonballs[0]!.speed === BALL_SPEED * 2,
       `with upgrade: expected ${BALL_SPEED * 2}, got ${s.state.cannonballs[0]!.speed}`,
@@ -478,8 +479,8 @@ test("two modern games with same seed produce identical state", () => {
 
 function makeIncrementalDeps(overrides: {
   isHost: boolean;
-  upgradePickDialog?: { entries: { playerId: number; choice: string | null; offers: readonly string[] }[] } | null;
-  earlyUpgradePickChoices?: Map<number, string>;
+  upgradePickDialog?: { entries: { playerId: ValidPlayerSlot; choice: string | null; offers: readonly string[] }[] } | null;
+  earlyUpgradePickChoices?: Map<ValidPlayerSlot, string>;
 }) {
   const emptyWatcher: WatcherNetworkState = {
     remoteCrosshairs: new Map(),
@@ -512,13 +513,13 @@ function makeIncrementalDeps(overrides: {
 test("host applies UPGRADE_PICK message to active dialog", () => {
   const dialog = {
     entries: [
-      { playerId: 1, choice: null as string | null, offers: [UID.MASTER_BUILDER, UID.RAPID_FIRE, UID.REINFORCED_WALLS] },
+      { playerId: 1 as ValidPlayerSlot, choice: null as string | null, offers: [UID.MASTER_BUILDER, UID.RAPID_FIRE, UID.REINFORCED_WALLS] },
     ],
   };
   const deps = makeIncrementalDeps({ isHost: true, upgradePickDialog: dialog });
 
   const result = handleServerIncrementalMessage(
-    { type: MESSAGE.UPGRADE_PICK, playerId: 1, choice: UID.RAPID_FIRE } as Parameters<typeof handleServerIncrementalMessage>[0],
+    { type: MESSAGE.UPGRADE_PICK, playerId: 1 as ValidPlayerSlot, choice: UID.RAPID_FIRE } as Parameters<typeof handleServerIncrementalMessage>[0],
     deps,
   );
 
@@ -532,13 +533,13 @@ test("host applies UPGRADE_PICK message to active dialog", () => {
 test("host rejects UPGRADE_PICK with invalid choice (not in offers)", () => {
   const dialog = {
     entries: [
-      { playerId: 1, choice: null as string | null, offers: [UID.MASTER_BUILDER, UID.RAPID_FIRE, UID.REINFORCED_WALLS] },
+      { playerId: 1 as ValidPlayerSlot, choice: null as string | null, offers: [UID.MASTER_BUILDER, UID.RAPID_FIRE, UID.REINFORCED_WALLS] },
     ],
   };
   const deps = makeIncrementalDeps({ isHost: true, upgradePickDialog: dialog });
 
   const result = handleServerIncrementalMessage(
-    { type: MESSAGE.UPGRADE_PICK, playerId: 1, choice: UID.SCATTER_SHOT } as Parameters<typeof handleServerIncrementalMessage>[0],
+    { type: MESSAGE.UPGRADE_PICK, playerId: 1 as ValidPlayerSlot, choice: UID.SCATTER_SHOT } as Parameters<typeof handleServerIncrementalMessage>[0],
     deps,
   );
 
@@ -550,7 +551,7 @@ test("host rejects UPGRADE_PICK with invalid choice (not in offers)", () => {
 });
 
 test("host buffers UPGRADE_PICK when dialog not yet created", () => {
-  const earlyPicks = new Map<number, string>();
+  const earlyPicks = new Map<ValidPlayerSlot, string>();
   const deps = makeIncrementalDeps({
     isHost: true,
     upgradePickDialog: null,
@@ -558,14 +559,14 @@ test("host buffers UPGRADE_PICK when dialog not yet created", () => {
   });
 
   const result = handleServerIncrementalMessage(
-    { type: MESSAGE.UPGRADE_PICK, playerId: 1, choice: UID.MASTER_BUILDER } as Parameters<typeof handleServerIncrementalMessage>[0],
+    { type: MESSAGE.UPGRADE_PICK, playerId: 1 as ValidPlayerSlot, choice: UID.MASTER_BUILDER } as Parameters<typeof handleServerIncrementalMessage>[0],
     deps,
   );
 
   assert(result !== null && result.applied, "should buffer the early pick");
   assert(
-    earlyPicks.get(1) === UID.MASTER_BUILDER,
-    `buffered pick should be master_builder, got ${earlyPicks.get(1)}`,
+    earlyPicks.get(1 as ValidPlayerSlot) === UID.MASTER_BUILDER,
+    `buffered pick should be master_builder, got ${earlyPicks.get(1 as ValidPlayerSlot)}`,
   );
 });
 
@@ -573,7 +574,7 @@ test("watcher drops UPGRADE_PICK message (only host processes)", () => {
   const deps = makeIncrementalDeps({ isHost: false });
 
   const result = handleServerIncrementalMessage(
-    { type: MESSAGE.UPGRADE_PICK, playerId: 1, choice: UID.RAPID_FIRE } as Parameters<typeof handleServerIncrementalMessage>[0],
+    { type: MESSAGE.UPGRADE_PICK, playerId: 1 as ValidPlayerSlot, choice: UID.RAPID_FIRE } as Parameters<typeof handleServerIncrementalMessage>[0],
     deps,
   );
 
@@ -583,13 +584,13 @@ test("watcher drops UPGRADE_PICK message (only host processes)", () => {
 test("host ignores UPGRADE_PICK for already-resolved entry", () => {
   const dialog = {
     entries: [
-      { playerId: 1, choice: UID.MASTER_BUILDER as string | null, offers: [UID.MASTER_BUILDER, UID.RAPID_FIRE, UID.REINFORCED_WALLS] },
+      { playerId: 1 as ValidPlayerSlot, choice: UID.MASTER_BUILDER as string | null, offers: [UID.MASTER_BUILDER, UID.RAPID_FIRE, UID.REINFORCED_WALLS] },
     ],
   };
   const deps = makeIncrementalDeps({ isHost: true, upgradePickDialog: dialog });
 
   const result = handleServerIncrementalMessage(
-    { type: MESSAGE.UPGRADE_PICK, playerId: 1, choice: UID.RAPID_FIRE } as Parameters<typeof handleServerIncrementalMessage>[0],
+    { type: MESSAGE.UPGRADE_PICK, playerId: 1 as ValidPlayerSlot, choice: UID.RAPID_FIRE } as Parameters<typeof handleServerIncrementalMessage>[0],
     deps,
   );
 
@@ -657,39 +658,39 @@ test("createUpgradePickDialog returns dialog from pending offers", () => {
 test("wall streak awards bonus after 3 hits within window", () => {
   const tracker = createComboTracker(3);
   // 3 hits at time 0, 0.5, 1.0 — all within 1.5s window
-  assert(comboOnWallDestroyed(tracker, 0, 0) === 0, "hit 1: no bonus");
-  assert(comboOnWallDestroyed(tracker, 0, 0.5) === 0, "hit 2: no bonus");
-  assert(comboOnWallDestroyed(tracker, 0, 1.0) === 50, "hit 3: streak bonus");
-  assert(comboOnWallDestroyed(tracker, 0, 1.4) === 50, "hit 4: continued streak");
+  assert(comboOnWallDestroyed(tracker, 0 as ValidPlayerSlot, 0) === 0, "hit 1: no bonus");
+  assert(comboOnWallDestroyed(tracker, 0 as ValidPlayerSlot, 0.5) === 0, "hit 2: no bonus");
+  assert(comboOnWallDestroyed(tracker, 0 as ValidPlayerSlot, 1.0) === 50, "hit 3: streak bonus");
+  assert(comboOnWallDestroyed(tracker, 0 as ValidPlayerSlot, 1.4) === 50, "hit 4: continued streak");
 });
 
 test("wall streak resets after time window expires", () => {
   const tracker = createComboTracker(3);
-  comboOnWallDestroyed(tracker, 0, 0);
-  comboOnWallDestroyed(tracker, 0, 0.5);
+  comboOnWallDestroyed(tracker, 0 as ValidPlayerSlot, 0);
+  comboOnWallDestroyed(tracker, 0 as ValidPlayerSlot, 0.5);
   // Gap > 1.5s — streak resets
-  assert(comboOnWallDestroyed(tracker, 0, 3.0) === 0, "streak should reset after gap");
-  assert(comboOnWallDestroyed(tracker, 0, 3.5) === 0, "only 2 hits in new window");
+  assert(comboOnWallDestroyed(tracker, 0 as ValidPlayerSlot, 3.0) === 0, "streak should reset after gap");
+  assert(comboOnWallDestroyed(tracker, 0 as ValidPlayerSlot, 3.5) === 0, "only 2 hits in new window");
 });
 
 test("cannon kill always awards bonus", () => {
   const tracker = createComboTracker(3);
-  assert(comboOnCannonKill(tracker, 0) === 100, "cannon kill bonus");
-  assert(comboOnCannonKill(tracker, 0) === 100, "second cannon kill bonus");
+  assert(comboOnCannonKill(tracker, 0 as ValidPlayerSlot) === 100, "cannon kill bonus");
+  assert(comboOnCannonKill(tracker, 0 as ValidPlayerSlot) === 100, "second cannon kill bonus");
 });
 
 test("grunt sniper awards bonus after 2 kills within window", () => {
   const tracker = createComboTracker(3);
-  assert(comboOnGruntKill(tracker, 0, 0) === 0, "kill 1: no bonus");
-  assert(comboOnGruntKill(tracker, 0, 1.0) === 75, "kill 2: sniper bonus");
-  assert(comboOnGruntKill(tracker, 0, 1.5) === 75, "kill 3: continued streak");
+  assert(comboOnGruntKill(tracker, 0 as ValidPlayerSlot, 0) === 0, "kill 1: no bonus");
+  assert(comboOnGruntKill(tracker, 0 as ValidPlayerSlot, 1.0) === 75, "kill 2: sniper bonus");
+  assert(comboOnGruntKill(tracker, 0 as ValidPlayerSlot, 1.5) === 75, "kill 3: continued streak");
 });
 
 test("demolition bonus for 5+ walls in a round", () => {
   const tracker = createComboTracker(3);
   // Player 0 destroys 5 walls, player 1 destroys 3
-  for (let i = 0; i < 5; i++) comboOnWallDestroyed(tracker, 0, i * 0.5);
-  for (let i = 0; i < 3; i++) comboOnWallDestroyed(tracker, 1, i * 0.5);
+  for (let i = 0; i < 5; i++) comboOnWallDestroyed(tracker, 0 as ValidPlayerSlot, i * 0.5);
+  for (let i = 0; i < 3; i++) comboOnWallDestroyed(tracker, 1 as ValidPlayerSlot, i * 0.5);
 
   const bonuses = comboDemolitionBonus(tracker);
   assert(bonuses[0] === 150, `P0 should get demolition bonus, got ${bonuses[0]}`);
@@ -720,11 +721,11 @@ test("combo tracker is created at battle start in modern mode", () => {
 test("combos are per-player independent", () => {
   const tracker = createComboTracker(3);
   // Player 0 builds a wall streak
-  comboOnWallDestroyed(tracker, 0, 0);
-  comboOnWallDestroyed(tracker, 0, 0.5);
-  comboOnWallDestroyed(tracker, 0, 1.0);
+  comboOnWallDestroyed(tracker, 0 as ValidPlayerSlot, 0);
+  comboOnWallDestroyed(tracker, 0 as ValidPlayerSlot, 0.5);
+  comboOnWallDestroyed(tracker, 0 as ValidPlayerSlot, 1.0);
   // Player 1 has only 1 hit — no streak
-  comboOnWallDestroyed(tracker, 1, 0.5);
+  comboOnWallDestroyed(tracker, 1 as ValidPlayerSlot, 0.5);
   assert(
     tracker.players[0]!.wallStreak === 3,
     `P0 should have 3-streak, got ${tracker.players[0]!.wallStreak}`,

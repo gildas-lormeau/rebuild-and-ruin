@@ -15,7 +15,11 @@ import type {
   InitMessage,
 } from "../server/protocol.ts";
 import { MESSAGE } from "../server/protocol.ts";
-import { BANNER_DURATION, SELECT_TIMER } from "./game-constants.ts";
+import {
+  BANNER_DURATION,
+  SELECT_TIMER,
+  type ValidPlayerSlot,
+} from "./game-constants.ts";
 import {
   applyBattleStartCheckpoint,
   applyBuildEndCheckpoint,
@@ -159,7 +163,7 @@ const runtime: GameRuntime = createGameRuntime({
         (performance.now() - ctx.session.lobbyStartTime) / 1000,
     ),
   showLobby,
-  onLobbySlotJoined: (pid) => {
+  onLobbySlotJoined: (pid: ValidPlayerSlot) => {
     send({ type: MESSAGE.SELECT_SLOT, playerId: pid });
   },
   onCloseOptions: () => {

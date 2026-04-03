@@ -8,6 +8,7 @@
  * Run with: bun test/online-full-state.test.ts
  */
 
+import type { ValidPlayerSlot } from "../src/game-constants.ts";
 import {
   restoreFullStateSnapshot,
   createFullStateMessage,
@@ -266,8 +267,8 @@ test("full-state round-trip preserves cannonballs", () => {
       x: 150, y: 250,
       targetX: 300, targetY: 400,
       speed: 5,
-      playerId: 0,
-      scoringPlayerId: 0,
+      playerId: 0 as ValidPlayerSlot,
+      scoringPlayerId: 0 as ValidPlayerSlot,
       incendiary: false,
     }, {
       cannonIdx: 0,
@@ -275,8 +276,8 @@ test("full-state round-trip preserves cannonballs", () => {
       x: 160, y: 260,
       targetX: 310, targetY: 410,
       speed: 5,
-      playerId: 0,
-      scoringPlayerId: 0,
+      playerId: 0 as ValidPlayerSlot,
+      scoringPlayerId: 0 as ValidPlayerSlot,
       incendiary: true,
     }];
 
@@ -303,7 +304,7 @@ test("full-state drops cannonballs with stale cannon references", () => {
     cannonIdx: 99, // doesn't exist
     startX: 0, startY: 0, x: 0, y: 0,
     targetX: 100, targetY: 100,
-    speed: 5, playerId: 0, scoringPlayerId: 0, incendiary: false,
+    speed: 5, playerId: 0 as ValidPlayerSlot, scoringPlayerId: 0 as ValidPlayerSlot, incendiary: false,
   }];
 
   const msg = createFullStateMessage(host.state, 1);
@@ -324,8 +325,8 @@ test("full-state round-trip preserves captured cannons", () => {
     host.state.capturedCannons = [{
       cannon: victim.cannons[0]!,
       cannonIdx: 0,
-      victimId: 1,
-      capturerId: 0,
+      victimId: 1 as ValidPlayerSlot,
+      capturerId: 0 as ValidPlayerSlot,
     }];
 
     const msg = createFullStateMessage(host.state, 1);

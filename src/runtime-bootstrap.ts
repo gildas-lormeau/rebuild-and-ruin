@@ -48,7 +48,7 @@ interface EnterTowerSelectionDeps {
   remoteHumanSlots: ReadonlySet<number>;
   controllers: PlayerController[];
   selectionStates: Map<number, SelectionState>;
-  initTowerSelection: (playerId: number, zone: number) => void;
+  initTowerSelection: (playerId: ValidPlayerSlot, zone: number) => void;
   syncSelectionOverlay: () => void;
   setOverlaySelection: () => void;
   selectTimer: number;
@@ -190,7 +190,7 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
   if (!isHost && !isActivePlayer(myPlayerId)) {
     selectionStates.clear();
     for (let i = 0; i < state.players.length; i++) {
-      initTowerSelection(i, state.playerZones[i]!);
+      initTowerSelection(i as ValidPlayerSlot, state.playerZones[i]!);
     }
     setOverlaySelection();
     syncSelectionOverlay();
@@ -209,11 +209,12 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
     }
     selectionStates.clear();
     for (let i = 0; i < state.players.length; i++) {
+      const pid = i as ValidPlayerSlot;
       const zone = state.playerZones[i]!;
-      if (i === myPlayerId) {
+      if (pid === myPlayerId) {
         controllers[i]!.selectInitialTower(state, zone);
       }
-      initTowerSelection(i, zone);
+      initTowerSelection(pid, zone);
     }
     setOverlaySelection();
     syncSelectionOverlay();
@@ -229,11 +230,13 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
 
   selectionStates.clear();
   for (let i = 0; i < state.players.length; i++) {
-    if (isRemoteHuman(i, remoteHumanSlots)) continue;
+    const pid = i as ValidPlayerSlot;
+    if (isRemoteHuman(pid, remoteHumanSlots)) continue;
     controllers[i]!.selectInitialTower(state, zones[i]!);
-    initTowerSelection(i, zones[i]!);
+    initTowerSelection(pid, zones[i]!);
   }
-  for (const pid of remoteHumanSlots) {
+  for (const rawPid of remoteHumanSlots) {
+    const pid = rawPid as ValidPlayerSlot;
     initTowerSelection(pid, zones[pid]!);
   }
 

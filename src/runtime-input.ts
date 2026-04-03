@@ -12,6 +12,7 @@ import type {
   PlayerController,
 } from "./controller-interfaces.ts";
 import { isHuman } from "./controller-interfaces.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import { type UIContext, visibleOptions } from "./game-ui-screens.ts";
 import { OPT_CONTROLS } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
@@ -106,19 +107,25 @@ interface InputSystemDeps {
     togglePause: () => boolean;
   };
   readonly lifeLost: {
-    sendLifeLostChoice: (choice: ResolvedChoice, playerId: number) => void;
-    toggleFocus: (playerId: number) => void;
-    confirmChoice: (playerId: number) => void;
-    applyChoice: (playerId: number, choice: ResolvedChoice) => void;
+    sendLifeLostChoice: (
+      choice: ResolvedChoice,
+      playerId: ValidPlayerSlot,
+    ) => void;
+    toggleFocus: (playerId: ValidPlayerSlot) => void;
+    confirmChoice: (playerId: ValidPlayerSlot) => void;
+    applyChoice: (playerId: ValidPlayerSlot, choice: ResolvedChoice) => void;
   };
   readonly upgradePick: {
-    moveFocus: (playerId: number, dir: number) => void;
-    confirmChoice: (playerId: number) => void;
-    pickDirect: (playerId: number, cardIdx: number) => void;
+    moveFocus: (playerId: ValidPlayerSlot, dir: number) => void;
+    confirmChoice: (playerId: ValidPlayerSlot) => void;
+    pickDirect: (playerId: ValidPlayerSlot, cardIdx: number) => void;
   };
   readonly selection: {
-    highlight: (idx: number, zone: number, pid: number) => void;
-    confirmAndStartBuild: (pid: number, isReselect?: boolean) => boolean;
+    highlight: (idx: number, zone: number, pid: ValidPlayerSlot) => void;
+    confirmAndStartBuild: (
+      pid: ValidPlayerSlot,
+      isReselect?: boolean,
+    ) => boolean;
   };
   readonly camera: Pick<
     CameraSystem,
@@ -335,7 +342,7 @@ function buildInputDeps(
       togglePause: options.togglePause,
       getControlsState: () => runtimeState.controlsState,
     },
-    dialogAction: (playerId: number, action: Action) => {
+    dialogAction: (playerId: ValidPlayerSlot, action: Action) => {
       if (runtimeState.mode === Mode.LIFE_LOST && runtimeState.lifeLostDialog) {
         if (action === Action.LEFT || action === Action.RIGHT) {
           lifeLost.toggleFocus(playerId);

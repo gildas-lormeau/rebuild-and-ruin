@@ -25,6 +25,7 @@ import {
   ENCLOSED_GRUNT_RESPAWN_CHANCE,
   TERRITORY_POINT_TIERS,
   TOWER_SIZE,
+  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type Tile } from "./grid.ts";
@@ -51,7 +52,7 @@ import {
 /** Validate + apply piece placement. Returns true if placed. */
 export function placePiece(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   piece: PieceShape,
   row: number,
   col: number,
@@ -68,7 +69,7 @@ export function placePiece(
  */
 export function canPlacePiece(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   piece: PieceShape,
   row: number,
   col: number,
@@ -96,7 +97,7 @@ export function canPlacePiece(
  *  Same as canPlacePiece but accepts raw offsets — used when no PieceShape is available (e.g. network validation). */
 export function canPlacePieceOffsets(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   offsets: readonly [number, number][],
   row: number,
   col: number,
@@ -135,7 +136,7 @@ export function canPlacePieceOffsets(
  *  Used by host and watcher (no validation). */
 export function applyPiecePlacement(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   offsets: readonly [number, number][],
   row: number,
   col: number,

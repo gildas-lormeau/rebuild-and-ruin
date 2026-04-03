@@ -3,6 +3,7 @@
  * Run with: bun test/scenario.test.ts
  */
 
+import type { ValidPlayerSlot } from "../src/game-constants.ts";
 import { MESSAGE } from "../server/protocol.ts";
 import { applyImpactEvent, canFireOwnCannon, resolveBalloons } from "../src/battle-system.ts";
 import { snapshotAllWalls, removeIsolatedWalls } from "../src/board-occupancy.ts";
@@ -55,7 +56,7 @@ test("frame.gameOver is undefined after game ends and lobby is requested", () =>
 
   // Simulate game ending: eliminate all but player 0
   for (let i = 1; i < s.state.players.length; i++) {
-    s.eliminatePlayer(i);
+    s.eliminatePlayer(i as ValidPlayerSlot);
   }
 
   // Simulate what endGame does: set frame.gameOver
@@ -214,10 +215,10 @@ test("eliminated player entry has lives=0 and ABANDON choice", () => {
   const s = createScenario();
 
   // Set player 2 to 0 lives (will be auto-eliminated)
-  s.setLives(2, 0);
+  s.setLives(2 as ValidPlayerSlot, 0);
 
   // Create dialog with player 1 needing reselect, player 2 eliminated
-  const dialog = s.createLifeLostDialog([1], [2]);
+  const dialog = s.createLifeLostDialog([1 as ValidPlayerSlot], [2 as ValidPlayerSlot]);
 
   // Find player 2's entry
   const entry = dialog.entries.find((e) => e.playerId === 2);
@@ -235,7 +236,7 @@ test("eliminated player entry has lives=0 and ABANDON choice", () => {
 test("continuing player entry shows Continuing label", () => {
   const s = createScenario();
 
-  const dialog = s.createLifeLostDialog([0, 1]);
+  const dialog = s.createLifeLostDialog([0 as ValidPlayerSlot, 1 as ValidPlayerSlot]);
 
   // Tick until all AI resolve (they auto-continue after delay)
   let d: LifeLostDialogState | null = dialog;
@@ -293,8 +294,8 @@ test("camera zooms to human zone when human IS reselecting", () => {
   s.playRound();
 
   // Human (player 0) needs reselection
-  s.setLives(0, 2);
-  s.clearWalls(0);
+  s.setLives(0 as ValidPlayerSlot, 2);
+  s.clearWalls(0 as ValidPlayerSlot);
   s.state.phase = Phase.CASTLE_RESELECT;
 
   const handle = s.createCamera({
@@ -337,7 +338,7 @@ test("placeCannonAt places a cannon at the given position", () => {
   for (const key of interior) {
     const row = Math.floor(key / GRID_COLS);
     const col = key % GRID_COLS;
-    if (s.placeCannonAt(0, row, col)) {
+    if (s.placeCannonAt(0 as ValidPlayerSlot, row, col)) {
       placed = true;
       break;
     }
@@ -359,7 +360,7 @@ test("fireAt launches a cannonball at the target", () => {
   assert(aliveCannon >= 0, "Player should have an alive cannon");
 
   const shotsBefore = s.state.shotsFired;
-  const fired = s.fireAt(0, aliveCannon, 20, 20);
+  const fired = s.fireAt(0 as ValidPlayerSlot, aliveCannon, 20, 20);
   assert(fired, "fireAt should succeed for alive cannon");
   assert(s.state.shotsFired === shotsBefore + 1, "shotsFired should increase");
 });
@@ -459,7 +460,7 @@ test("describe() returns a compact state summary", () => {
   assert(desc.includes("round:"), "Should include round");
 
   // After elimination, should show 'elim'
-  s.eliminatePlayer(2);
+  s.eliminatePlayer(2 as ValidPlayerSlot);
   const desc2 = s.describe();
   assert(desc2.includes("P2:elim"), "Should show eliminated player as 'elim'");
 });
@@ -474,7 +475,7 @@ test("destroyWalls removes walls and reclaims territory", () => {
   const wallsBefore = player.walls.size;
   assert(wallsBefore > 0, "Player should have walls");
 
-  const removed = s.destroyWalls(0, 5);
+  const removed = s.destroyWalls(0 as ValidPlayerSlot, 5);
   assert(removed > 0, "Should remove at least one wall");
   assert(player.walls.size === wallsBefore - removed, "Wall count should decrease");
 });
@@ -486,7 +487,7 @@ test("destroyCannon sets cannon HP to 0", () => {
   const aliveBefore = player.cannons.filter((c) => c.hp > 0).length;
   assert(aliveBefore > 0, "Should have alive cannons");
 
-  s.destroyCannon(0, 0);
+  s.destroyCannon(0 as ValidPlayerSlot, 0);
   assert(player.cannons[0]!.hp === 0, "Cannon HP should be 0");
   const aliveAfter = player.cannons.filter((c) => c.hp > 0).length;
   assert(aliveAfter === aliveBefore - 1, "One fewer alive cannon");
@@ -522,7 +523,7 @@ test("playRounds advances multiple rounds with reselection handling", () => {
 test("tile finders return valid positions", () => {
   const s = createScenario();
 
-  const grass = s.findGrassTile(0);
+  const grass = s.findGrassTile(0 as ValidPlayerSlot);
   assert(grass !== null, "Should find a grass tile in player 0's zone");
   assert(
     !s.state.players.some(
@@ -531,14 +532,14 @@ test("tile finders return valid positions", () => {
     "Grass tile should not be occupied",
   );
 
-  const interior = s.findInteriorTile(0);
+  const interior = s.findInteriorTile(0 as ValidPlayerSlot);
   assert(interior !== null, "Should find an interior tile for player 0");
   assert(
     s.state.players[0]!.interior.has(interior!.row * GRID_COLS + interior!.col),
     "Interior tile should be in player's interior set",
   );
 
-  const enemy = s.findEnemyWallTile(0);
+  const enemy = s.findEnemyWallTile(0 as ValidPlayerSlot);
   assert(enemy !== null, "Should find an enemy wall tile");
   assert(enemy!.owner !== 0, "Enemy wall should not belong to player 0");
   assert(
@@ -631,7 +632,7 @@ test("super gun placed during cannon phase can fire in battle", () => {
   for (const key of p.interior) {
     const row = Math.floor(key / GRID_COLS);
     const col = key % GRID_COLS;
-    if (s.placeCannonAt(0, row, col, CannonMode.SUPER)) {
+    if (s.placeCannonAt(0 as ValidPlayerSlot, row, col, CannonMode.SUPER)) {
       placed = true;
       break;
     }
@@ -648,14 +649,14 @@ test("super gun placed during cannon phase can fire in battle", () => {
   for (const ctrl of s.controllers) ctrl.initBattleState(s.state);
 
   const enclosed = isCannonEnclosed(superCannon, player);
-  const fireable = canFireOwnCannon(s.state, 0, superIdx);
+  const fireable = canFireOwnCannon(s.state, 0 as ValidPlayerSlot, superIdx);
   assert(enclosed, "Super gun should still be enclosed after battle transition");
   assert(fireable, "Super gun should be fireable immediately in battle");
 
   // Actually fire it
-  const enemy = s.findEnemyWallTile(0);
+  const enemy = s.findEnemyWallTile(0 as ValidPlayerSlot);
   assert(enemy !== null, "Should find an enemy wall");
-  assert(s.fireAt(0, superIdx, enemy!.row, enemy!.col), "Should fire super gun");
+  assert(s.fireAt(0 as ValidPlayerSlot, superIdx, enemy!.row, enemy!.col), "Should fire super gun");
 });
 
 // ---------------------------------------------------------------------------
@@ -666,8 +667,8 @@ test("runBuildEndSequence notifies all affected players", () => {
   const notified: number[] = [];
   let dialogShown = false;
   runBuildEndSequence({
-    needsReselect: [0, 2],
-    eliminated: [1],
+    needsReselect: [0 as ValidPlayerSlot, 2 as ValidPlayerSlot],
+    eliminated: [1 as ValidPlayerSlot],
     showScoreDeltas: (onDone) => onDone(),
     notifyLifeLost: (pid) => notified.push(pid),
     showLifeLostDialog: () => { dialogShown = true; },
@@ -701,16 +702,16 @@ test("host and watcher build-end both notify affected controller via shared sequ
   s.playRounds(2);
 
   // Destroy P0's walls so they need reselect after build phase
-  s.clearWalls(0);
+  s.clearWalls(0 as ValidPlayerSlot);
   s.advanceTo(Phase.WALL_BUILD);
   const { needsReselect } = s.finalizeBuild();
-  assert(needsReselect.includes(0), "P0 should need reselect after losing all walls");
+  assert(needsReselect.includes(0 as ValidPlayerSlot), "P0 should need reselect after losing all walls");
 
   // --- Host path: capture who gets notified ---
   const hostNotified: number[] = [];
   runBuildEndSequence({
     needsReselect,
-    eliminated: [],
+    eliminated: [] as ValidPlayerSlot[],
     showScoreDeltas: (onDone) => onDone(),
     notifyLifeLost: (pid) => hostNotified.push(pid),
     showLifeLostDialog: () => {},
@@ -1032,7 +1033,7 @@ test("watcher: wall debris visible in render overlay after WALL_DESTROYED", () =
   assert(battleAnim.walls.length > 0, "battleAnim.walls should be set after checkpoint");
 
   // Find a wall to destroy
-  let targetPid = -1;
+  let targetPid = -1 as ValidPlayerSlot;
   let targetWallKey = -1;
   let targetRow = -1;
   let targetCol = -1;
@@ -1167,7 +1168,7 @@ test("burning pits visible in overlay during cannon-to-battle banner", () => {
   const s = createScenario();
 
   // Inject a burning pit with roundsLeft=1 so enterBattleFromCannon will expire it
-  const wallTile = s.findEnemyWallTile(0);
+  const wallTile = s.findEnemyWallTile(0 as ValidPlayerSlot);
   assert(wallTile !== null, "need an enemy wall tile for pit placement");
   s.state.burningPits.push({ row: wallTile!.row, col: wallTile!.col, roundsLeft: 1 });
   assert(s.state.burningPits.length > 0, "pit should exist before transition");

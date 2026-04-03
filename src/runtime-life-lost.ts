@@ -7,7 +7,11 @@
 
 import { type GameMessage, MESSAGE } from "../server/protocol.ts";
 import { isHuman } from "./controller-interfaces.ts";
-import { LIFE_LOST_AUTO_DELAY, LIFE_LOST_MAX_TIMER } from "./game-constants.ts";
+import {
+  LIFE_LOST_AUTO_DELAY,
+  LIFE_LOST_MAX_TIMER,
+  type ValidPlayerSlot,
+} from "./game-constants.ts";
 import { resolveAfterLifeLost } from "./game-engine.ts";
 import {
   continuingPlayers,
@@ -41,13 +45,16 @@ interface LifeLostSystemDeps {
 
 /** Extended return type: RuntimeLifeLost + extras for game-runtime wiring. */
 export type LifeLostSystem = RuntimeLifeLost & {
-  sendLifeLostChoice: (choice: ResolvedChoice, playerId: number) => void;
+  sendLifeLostChoice: (
+    choice: ResolvedChoice,
+    playerId: ValidPlayerSlot,
+  ) => void;
   /** Toggle continue/abandon focus for a player's pending entry. */
-  toggleFocus: (playerId: number) => void;
+  toggleFocus: (playerId: ValidPlayerSlot) => void;
   /** Confirm the currently focused choice for a player (applies the focused option). */
-  confirmChoice: (playerId: number) => void;
+  confirmChoice: (playerId: ValidPlayerSlot) => void;
   /** Apply a direct choice (e.g. from spatial click on a specific button). */
-  applyChoice: (playerId: number, choice: ResolvedChoice) => void;
+  applyChoice: (playerId: ValidPlayerSlot, choice: ResolvedChoice) => void;
 };
 
 export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
@@ -68,8 +75,8 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   }
 
   function showLifeLostDialog(
-    needsReselect: readonly number[],
-    eliminated: readonly number[],
+    needsReselect: readonly ValidPlayerSlot[],
+    eliminated: readonly ValidPlayerSlot[],
   ) {
     const remoteHumanSlots = runtimeState.frameCtx.remoteHumanSlots;
     deps.log(
@@ -133,7 +140,9 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     runtimeState.lifeLostDialog = null;
   }
 
-  function afterLifeLostResolved(continuing: readonly number[] = []): boolean {
+  function afterLifeLostResolved(
+    continuing: readonly ValidPlayerSlot[] = [],
+  ): boolean {
     return resolveAfterLifeLost({
       state: runtimeState.state,
       continuing,
@@ -147,21 +156,27 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     });
   }
 
-  function lifeLostPanelPos(playerId: number): { px: number; py: number } {
+  function lifeLostPanelPos(playerId: ValidPlayerSlot): {
+    px: number;
+    py: number;
+  } {
     return lifeLostPanelPosShared(runtimeState.state, playerId);
   }
 
-  function sendLifeLostChoice(choice: ResolvedChoice, playerId: number) {
+  function sendLifeLostChoice(
+    choice: ResolvedChoice,
+    playerId: ValidPlayerSlot,
+  ) {
     deps.send({ type: MESSAGE.LIFE_LOST_CHOICE, choice, playerId });
   }
 
-  function findPendingEntry(playerId: number) {
+  function findPendingEntry(playerId: ValidPlayerSlot) {
     return runtimeState.lifeLostDialog?.entries.find(
       (e) => e.playerId === playerId && e.choice === LifeLostChoice.PENDING,
     );
   }
 
-  function toggleFocus(playerId: number): void {
+  function toggleFocus(playerId: ValidPlayerSlot): void {
     const entry = findPendingEntry(playerId);
     if (entry)
       entry.focused =
@@ -170,7 +185,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
           : LIFE_LOST_FOCUS_CONTINUE;
   }
 
-  function confirmChoice(playerId: number): void {
+  function confirmChoice(playerId: ValidPlayerSlot): void {
     const entry = findPendingEntry(playerId);
     if (!entry) return;
     entry.choice =
@@ -182,7 +197,10 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
   /** Apply a direct choice (e.g. from a mouse click on a specific button).
    *  Unlike confirmChoice, this sets the choice directly without reading focus. */
-  function applyChoice(playerId: number, choice: ResolvedChoice): void {
+  function applyChoice(
+    playerId: ValidPlayerSlot,
+    choice: ResolvedChoice,
+  ): void {
     const entry = findPendingEntry(playerId);
     if (!entry) return;
     entry.choice = choice;

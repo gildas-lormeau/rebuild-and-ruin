@@ -21,6 +21,7 @@
  * player.interior. assertInteriorFresh(player) throws if this is skipped.
  */
 
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import {
   computeCannonTileSet,
   countWallNeighbors,
@@ -195,7 +196,7 @@ export function hasWallAt(state: GameState, r: number, c: number): boolean {
 
 export function hasEnemyWallAt(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   r: number,
   c: number,
 ): boolean {
@@ -309,7 +310,10 @@ export function filterAliveOwnedTowers(player: Player, state: GameState) {
 }
 
 /** Return all players that are not `playerId` and not eliminated. */
-export function filterActiveEnemies(state: GameState, playerId: number) {
+export function filterActiveEnemies(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+) {
   return state.players.filter(
     (player) => player.id !== playerId && !player.eliminated,
   );

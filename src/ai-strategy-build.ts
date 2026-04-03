@@ -44,6 +44,7 @@ import {
 } from "./ai-castle-rect.ts";
 import { getInterior, hasGruntAt } from "./board-occupancy.ts";
 import { canPlacePiece } from "./build-system.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { TileRect } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { type PieceShape, rotateCW } from "./pieces.ts";
@@ -122,7 +123,7 @@ const BUILD_SKILL_TABLE = [
 
 export function pickPlacement(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   piece: PieceShape,
   options?: PlacementOptions,
 ): AiPlacement | null {
@@ -712,7 +713,7 @@ function getBuildSkillConfig(buildSkill: number): BuildSkillConfig {
 /** Enumerate all valid placements for a piece, scoring adjacency/gap metrics. */
 function enumerateCandidates(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   piece: PieceShape,
   walls: ReadonlySet<number>,
   outside: Set<number>,

@@ -11,7 +11,7 @@
  */
 
 import type { GameMessage } from "../server/protocol.ts";
-import { isActivePlayer } from "./game-constants.ts";
+import { isActivePlayer, type ValidPlayerSlot } from "./game-constants.ts";
 import {
   createDedupMaps,
   createSession,
@@ -104,7 +104,13 @@ export function maybeSendAimUpdate(
   y: number,
   playerId?: number,
 ): void {
-  sendAimUpdate(ctx.session, ctx.dedup, x, y, playerId);
+  sendAimUpdate(
+    ctx.session,
+    ctx.dedup,
+    x,
+    y,
+    playerId as ValidPlayerSlot | undefined,
+  );
 }
 
 /** Reset networking state for the given scope. */

@@ -5,7 +5,7 @@
  * Transient state: lives only during battle, not serialized or checkpointed.
  */
 
-import { GAME_MODE_MODERN } from "./game-constants.ts";
+import { GAME_MODE_MODERN, type ValidPlayerSlot } from "./game-constants.ts";
 import type { GameState } from "./types.ts";
 
 /** Inferred from GameState.comboTracker — defined inline in types.ts to avoid circular deps. */
@@ -49,7 +49,7 @@ export function createComboTracker(playerCount: number): ComboTracker {
  *  `battleTime` is elapsed seconds since battle start (monotonic). */
 export function comboOnWallDestroyed(
   tracker: ComboTracker,
-  shooterId: number,
+  shooterId: ValidPlayerSlot,
   battleTime: number,
 ): number {
   const ps = tracker.players[shooterId];
@@ -79,7 +79,7 @@ export function comboOnWallDestroyed(
 
 export function comboOnCannonKill(
   tracker: ComboTracker,
-  shooterId: number,
+  shooterId: ValidPlayerSlot,
 ): number {
   const ps = tracker.players[shooterId];
   if (!ps) return 0;
@@ -93,7 +93,7 @@ export function comboOnCannonKill(
 
 export function comboOnGruntKill(
   tracker: ComboTracker,
-  shooterId: number,
+  shooterId: ValidPlayerSlot,
   battleTime: number,
 ): number {
   const ps = tracker.players[shooterId];

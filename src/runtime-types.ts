@@ -127,7 +127,7 @@ export interface RuntimeConfig {
   /** Each mode provides its own. */
   showLobby: () => void;
   /** local: set joined; online: send select_slot. */
-  onLobbySlotJoined: (pid: number) => void;
+  onLobbySlotJoined: (pid: ValidPlayerSlot) => void;
   /** Optional extra action on close (e.g., reset timer). */
   onCloseOptions?: () => void;
   /** local: startGame; online: host sends init. */
@@ -229,7 +229,7 @@ export interface CameraSystem {
   // Castle build viewport
   setSelectionViewport: (towerRow: number, towerCol: number) => void;
   setCastleBuildViewport: (
-    wallPlans: readonly { playerId: number; tiles: number[] }[],
+    wallPlans: readonly { playerId: ValidPlayerSlot; tiles: number[] }[],
   ) => void;
   clearCastleBuildViewport: () => void;
 
@@ -248,18 +248,18 @@ export interface CameraSystem {
 
 export interface RuntimeSelection {
   getStates: () => Map<number, SelectionState>;
-  init: (pid: number, zone: number) => void;
+  init: (pid: ValidPlayerSlot, zone: number) => void;
   enter: () => void;
   syncOverlay: () => void;
-  highlight: (idx: number, zone: number, pid: number) => void;
-  confirmAndStartBuild: (pid: number, isReselect?: boolean) => boolean;
+  highlight: (idx: number, zone: number, pid: ValidPlayerSlot) => void;
+  confirmAndStartBuild: (pid: ValidPlayerSlot, isReselect?: boolean) => boolean;
   allConfirmed: () => boolean;
   tick: (dt: number) => void;
   finish: () => void;
   advanceToCannonPhase: () => void;
   tickCastleBuild: (dt: number) => void;
   setCastleBuildViewport: (
-    plans: readonly { playerId: number; tiles: number[] }[],
+    plans: readonly { playerId: ValidPlayerSlot; tiles: number[] }[],
   ) => void;
   startReselection: () => void;
   finishReselection: () => void;
@@ -272,12 +272,12 @@ export interface RuntimeLifeLost {
   get: () => LifeLostDialogState | null;
   set: (d: LifeLostDialogState | null) => void;
   show: (
-    needsReselect: readonly number[],
-    eliminated: readonly number[],
+    needsReselect: readonly ValidPlayerSlot[],
+    eliminated: readonly ValidPlayerSlot[],
   ) => void;
   tick: (dt: number) => void;
-  afterResolved: (continuing?: readonly number[]) => boolean;
-  panelPos: (playerId: number) => { px: number; py: number };
+  afterResolved: (continuing?: readonly ValidPlayerSlot[]) => boolean;
+  panelPos: (playerId: ValidPlayerSlot) => { px: number; py: number };
 }
 
 export interface RuntimeLobby {

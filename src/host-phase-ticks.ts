@@ -16,6 +16,7 @@
 import { getInterior, snapshotAllWalls } from "./board-occupancy.ts";
 import type { SerializedPlayer } from "./checkpoint-data.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import {
   type CannonPhantom,
   cannonPhantomKey,
@@ -48,13 +49,13 @@ interface CannonPhaseNet extends HostNetContext {
   remoteCannonPhantoms: readonly CannonPhantom[];
   lastSentCannonPhantom: DedupChannel;
   sendOpponentCannonPlaced: (msg: {
-    playerId: number;
+    playerId: ValidPlayerSlot;
     row: number;
     col: number;
     mode: CannonMode;
   }) => void;
   sendOpponentCannonPhantom: (msg: {
-    playerId: number;
+    playerId: ValidPlayerSlot;
     row: number;
     col: number;
     mode: CannonMode;
@@ -69,21 +70,21 @@ interface BuildPhaseNet extends HostNetContext {
   lastSentPiecePhantom: DedupChannel;
   serializePlayers?: (state: GameState) => SerializedPlayer[];
   sendOpponentPiecePlaced: (msg: {
-    playerId: number;
+    playerId: ValidPlayerSlot;
     row: number;
     col: number;
     offsets: [number, number][];
   }) => void;
   sendOpponentPhantom: (msg: {
-    playerId: number;
+    playerId: ValidPlayerSlot;
     row: number;
     col: number;
     offsets: [number, number][];
     valid: boolean;
   }) => void;
   sendBuildEnd: (msg: {
-    needsReselect: number[];
-    eliminated: number[];
+    needsReselect: ValidPlayerSlot[];
+    eliminated: ValidPlayerSlot[];
     scores: number[];
     players: SerializedPlayer[];
   }) => void;
@@ -120,16 +121,16 @@ interface TickHostBuildPhaseDeps {
   tickGrunts: (state: GameState) => void;
   isHuman: (controller: PlayerController) => boolean;
   finalizeBuildPhase: (state: GameState) => {
-    needsReselect: number[];
-    eliminated: number[];
+    needsReselect: ValidPlayerSlot[];
+    eliminated: ValidPlayerSlot[];
   };
   showLifeLostDialog: (
-    needsReselect: readonly number[],
-    eliminated: readonly number[],
+    needsReselect: readonly ValidPlayerSlot[],
+    eliminated: readonly ValidPlayerSlot[],
   ) => void;
   afterLifeLostResolved: () => boolean;
   showScoreDeltas: (onDone: () => void) => void;
-  onFirstEnclosure?: (playerId: number) => void;
+  onFirstEnclosure?: (playerId: ValidPlayerSlot) => void;
   /** Network context. Pass LOCAL_NET (spread with build-phase stubs) for local play. */
   net: BuildPhaseNet;
 }
@@ -335,7 +336,7 @@ function buildTickWithWallBroadcast(
   dt: number,
   shouldSnapshot: boolean,
   sendOpponentPiecePlaced?: (msg: {
-    playerId: number;
+    playerId: ValidPlayerSlot;
     row: number;
     col: number;
     offsets: [number, number][];
@@ -362,7 +363,7 @@ function collectBuildPhantoms(
   lastSentPiecePhantom: DedupChannel,
   sendOpponentPhantom:
     | ((msg: {
-        playerId: number;
+        playerId: ValidPlayerSlot;
         row: number;
         col: number;
         offsets: [number, number][];
@@ -400,10 +401,10 @@ function collectBuildPhantoms(
 /** Detect walls added by an AI controller tick and broadcast them. */
 function broadcastNewWalls(
   state: GameState,
-  playerId: number,
+  playerId: ValidPlayerSlot,
   wallSnapshot: ReadonlySet<number>,
   sendOpponentPiecePlaced: (msg: {
-    playerId: number;
+    playerId: ValidPlayerSlot;
     row: number;
     col: number;
     offsets: [number, number][];
@@ -499,14 +500,14 @@ function finalizeBuildAndShowDialogs(
 function snapshotThenFinalize(
   state: GameState,
   finalizeBuildPhase: (state: GameState) => {
-    needsReselect: number[];
-    eliminated: number[];
+    needsReselect: ValidPlayerSlot[];
+    eliminated: ValidPlayerSlot[];
   },
 ): {
   wallsBeforeSweep: Set<number>[];
   oldEntities: EntityOverlay;
-  needsReselect: number[];
-  eliminated: number[];
+  needsReselect: ValidPlayerSlot[];
+  eliminated: ValidPlayerSlot[];
 } {
   const wallsBeforeSweep = snapshotAllWalls(state);
   const oldEntities = snapshotEntities(state);

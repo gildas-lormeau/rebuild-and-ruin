@@ -8,6 +8,7 @@ import type {
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
+import type { ValidPlayerSlot } from "./game-constants.ts";
 import { TILE_SIZE } from "./grid.ts";
 import type { LoupeHandle } from "./render-loupe.ts";
 import { isPlacementPhase, Mode, Phase } from "./types.ts";
@@ -51,8 +52,8 @@ interface TouchControlsDeps {
   mode: Mode;
   state: { phase: Phase };
   phantoms: {
-    piecePhantoms?: { playerId: number; valid: boolean }[];
-    cannonPhantoms?: { playerId: number; valid: boolean }[];
+    piecePhantoms?: { playerId: ValidPlayerSlot; valid: boolean }[];
+    cannonPhantoms?: { playerId: ValidPlayerSlot; valid: boolean }[];
   };
   directTouchActive: boolean;
   clearDirectTouch: () => void;
@@ -284,8 +285,8 @@ function pointerPhantomValid(
   phase: Phase | undefined,
   human: PlayerController | null,
   phantoms: {
-    piecePhantoms?: { playerId: number; valid: boolean }[];
-    cannonPhantoms?: { playerId: number; valid: boolean }[];
+    piecePhantoms?: { playerId: ValidPlayerSlot; valid: boolean }[];
+    cannonPhantoms?: { playerId: ValidPlayerSlot; valid: boolean }[];
   },
 ): boolean | undefined {
   if (!human) return undefined;
