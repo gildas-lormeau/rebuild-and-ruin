@@ -347,6 +347,11 @@ export interface FrameContext {
   /** True when the local human player is in the reselect queue. */
   readonly humanIsReselecting: boolean;
 
+  // Player presence
+  /** True when a local human player exists and is not eliminated.
+   *  Gates auto-zoom, crosshair rendering, and combo floating text. */
+  readonly hasPointerPlayer: boolean;
+
   // Composite guards
   /** UI overlay suppresses gameplay (pause, quit dialog, life-lost). */
   readonly uiBlocking: boolean;

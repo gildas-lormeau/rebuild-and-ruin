@@ -97,6 +97,7 @@ export interface FrameContextInputs {
   hasLifeLostDialog: boolean;
   isSelectionReady: boolean;
   humanIsReselecting: boolean;
+  hasPointerPlayer: boolean;
   myPlayerId: PlayerSlotId;
   hostAtFrameStart: boolean;
   remoteHumanSlots: ReadonlySet<number>;
@@ -342,6 +343,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     hasLifeLostDialog,
     isSelectionReady,
     humanIsReselecting,
+    hasPointerPlayer,
     myPlayerId,
     hostAtFrameStart,
     remoteHumanSlots,
@@ -375,6 +377,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     hasLifeLostDialog,
     isSelectionReady,
     humanIsReselecting,
+    hasPointerPlayer,
     uiBlocking,
     phaseEnding,
     shouldUnzoom,

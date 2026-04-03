@@ -171,6 +171,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       humanIsReselecting: runtimeState.reselectQueue.includes(
         (pointerPlayer()?.playerId ?? -1) as ValidPlayerSlot,
       ),
+      hasPointerPlayer: pointerPlayer() !== null,
       myPlayerId: config.getMyPlayerId(),
       hostAtFrameStart: config.getIsHost(),
       remoteHumanSlots: config.getRemoteHumanSlots(),
@@ -265,7 +266,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     setFrameAnnouncement: (text) => {
       runtimeState.frame.announcement = text;
     },
-    hasPointerPlayer: () => pointerPlayer() !== null,
     getPointerPlayerCrosshair: () => {
       const h = pointerPlayer();
       if (!h) return null;

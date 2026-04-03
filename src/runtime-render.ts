@@ -116,6 +116,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       lifeLostDialog: runtimeState.lifeLostDialog,
       upgradePickDialog: runtimeState.upgradePickDialog,
       povPlayerId: runtimeState.frameCtx.povPlayerId,
+      hasPointerPlayer: runtimeState.frameCtx.hasPointerPlayer,
       upgradePickInteractiveId: computeUpgradePickInteractiveId(
         runtimeState.upgradePickDialog,
         runtimeState.frameCtx.myPlayerId,

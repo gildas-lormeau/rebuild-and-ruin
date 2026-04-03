@@ -378,6 +378,8 @@ export function createOnlineOverlay(params: {
   inBattle: boolean;
   /** POV player for filtering per-player UI (combos, status bar upgrades). -1 = show all. */
   povPlayerId: number;
+  /** When false (all-AI / spectator), skip combo floating text. */
+  hasPointerPlayer: boolean;
   /** Player ID whose upgrade pick entry accepts local input (-1 = none). */
   upgradePickInteractiveId: number;
   playerNames: ReadonlyArray<string>;
@@ -398,6 +400,7 @@ export function createOnlineOverlay(params: {
     lifeLostDialog,
     upgradePickDialog,
     povPlayerId,
+    hasPointerPlayer,
     upgradePickInteractiveId,
     playerNames,
     playerColors,
@@ -459,12 +462,13 @@ export function createOnlineOverlay(params: {
         LIFE_LOST_MAX_TIMER,
         getLifeLostPanelPos,
       ),
-      comboFloats:
-        povPlayerId < 0
+      comboFloats: hasPointerPlayer
+        ? povPlayerId < 0
           ? state.comboTracker?.events
           : state.comboTracker?.events.filter(
               (ev) => ev.playerId === povPlayerId,
-            ),
+            )
+        : undefined,
       upgradePick: buildUpgradePickUi(
         upgradePickDialog,
         upgradePickInteractiveId,

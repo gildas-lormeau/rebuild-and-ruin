@@ -428,6 +428,7 @@ export function createScenario(seed = 42): Scenario {
         hasLifeLostDialog: false,
         isSelectionReady: deps.isSelectionReady,
         humanIsReselecting: deps.humanIsReselecting,
+        hasPointerPlayer: deps.hasPointerPlayer,
         myPlayerId: deps.myPlayerId,
         hostAtFrameStart: true,
         remoteHumanSlots: new Set(),
@@ -441,7 +442,6 @@ export function createScenario(seed = 42): Scenario {
       getCtx: () => ctx,
       getFrameDt: () => 1 / 60,
       setFrameAnnouncement: () => {},
-      hasPointerPlayer: () => merged.hasPointerPlayer,
     });
     camera.enableMobileZoom();
 
