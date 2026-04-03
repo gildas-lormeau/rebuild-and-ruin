@@ -87,6 +87,7 @@ export interface RoomSettings {
 
 const VALID_MAX_ROUNDS = [0, 3, 5, 8, 12];
 const VALID_CANNON_HP = [3, 6, 9, 12];
+export const DEFAULT_CANNON_HP = 3;
 const MAX_WAIT_TIMER_SEC = 120;
 const DEFAULT_WAIT_TIMER_SEC = 60;
 
@@ -101,7 +102,7 @@ export function sanitizeRoomSettings(raw: Partial<RoomSettings>): RoomSettings {
   const gm = String(raw.gameMode ?? "classic");
   return {
     maxRounds: VALID_MAX_ROUNDS.includes(bl) ? bl : 0,
-    cannonMaxHp: VALID_CANNON_HP.includes(hp) ? hp : 3,
+    cannonMaxHp: VALID_CANNON_HP.includes(hp) ? hp : DEFAULT_CANNON_HP,
     waitTimerSec:
       Number.isFinite(wait) && wait >= 0
         ? Math.min(wait, MAX_WAIT_TIMER_SEC)

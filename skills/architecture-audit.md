@@ -371,3 +371,8 @@ sufficient for LLM agents to follow correctly.
     (ai-build-types.ts, ai-build-target.ts, ai-castle-rect.ts) for simulated/hypothetical
     interiors constructed during candidate scoring. Do not unify — branding simulated
     interiors as fresh would defeat the type safety.
+
+34. **`runtimeState` destructuring is intentionally non-uniform across sub-systems** —
+    runtime.ts:10-16 documents the convention. Each createXSystem(deps) factory
+    destructures only frequently-used deps at the top; rarely-used deps are accessed
+    inline as `deps.X`. The inconsistency reflects actual usage, not drift.

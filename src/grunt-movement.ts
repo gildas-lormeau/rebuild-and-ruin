@@ -301,11 +301,13 @@ function isSidewaysAxisAllowed(
   toCol: number,
   stepRow: number,
 ): boolean {
-  const rowDist = Math.max(0, target.row - fromRow, fromRow - (target.row + 1));
-  const colDist = Math.max(0, target.col - fromCol, fromCol - (target.col + 1));
+  const lastTowerRow = target.row + TOWER_SIZE - 1;
+  const lastTowerCol = target.col + TOWER_SIZE - 1;
+  const rowDist = Math.max(0, target.row - fromRow, fromRow - lastTowerRow);
+  const colDist = Math.max(0, target.col - fromCol, fromCol - lastTowerCol);
   const movingRow = stepRow !== 0;
-  const nRowDist = Math.max(0, target.row - toRow, toRow - (target.row + 1));
-  const nColDist = Math.max(0, target.col - toCol, toCol - (target.col + 1));
+  const nRowDist = Math.max(0, target.row - toRow, toRow - lastTowerRow);
+  const nColDist = Math.max(0, target.col - toCol, toCol - lastTowerCol);
   const axisAway = movingRow ? nRowDist > rowDist : nColDist > colDist;
   const axisDistZero = movingRow ? rowDist === 0 : colDist === 0;
   return !axisAway || axisDistZero;

@@ -7,6 +7,7 @@
  */
 
 import {
+  DEFAULT_CANNON_HP,
   type GameMessage,
   MESSAGE,
   type ServerMessage,
@@ -79,7 +80,7 @@ export function createSession(): OnlineSession {
     roomWaitTimerSec: LOBBY_TIMER,
     roomSeed: 0,
     roomMaxRounds: 0,
-    roomCannonMaxHp: 3,
+    roomCannonMaxHp: DEFAULT_CANNON_HP,
     roomGameMode: GAME_MODE_CLASSIC,
     keepaliveTimer: null,
     lobbyStartTime: 0,

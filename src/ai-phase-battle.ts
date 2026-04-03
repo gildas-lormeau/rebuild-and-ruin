@@ -25,6 +25,7 @@ interface BattleHost {
   crosshair: { x: number; y: number };
   readonly cannonRotationIdx: number | null;
   readonly anticipatesTarget: boolean;
+  /** Returns `(base + rng * spread) * delayScale` — humanizes AI timing per difficulty. */
   scaledDelay(base: number, spread: number): number;
   stepCrosshairToward(tx: number, ty: number, dt: number): boolean;
   fire(state: GameState): void;

@@ -25,6 +25,7 @@ interface BuildHost {
   currentPiece: PieceShape | null;
   readonly buildCursorSpeed: number;
   readonly boostThreshold: number;
+  /** Returns `(base + rng * spread) * delayScale` — humanizes AI timing per difficulty. */
   scaledDelay(base: number, spread: number): number;
   advanceBag(_placed: true): void;
   clampBuildCursor(piece: PieceShape | null): void;

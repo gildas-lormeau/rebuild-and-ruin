@@ -130,6 +130,8 @@ export function pickPlacement(
   const {
     cursorPos,
     homeWasBroken,
+    /** Tile margin around the home tower for castle ring placement.
+     *  Derived from AI aggressiveness (2 or 3). Default 3 = widest ring. */
     castleMargin = 3,
     bankHugging = false,
     caresAboutHouses = true,

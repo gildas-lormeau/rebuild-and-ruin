@@ -26,6 +26,7 @@ interface CannonHost {
   cannonCursor: TilePos;
   readonly cannonCursorSpeed: number;
   readonly boostThreshold: number;
+  /** Returns `(base + rng * spread) * delayScale` — humanizes AI timing per difficulty. */
   scaledDelay(base: number, spread: number): number;
   stepTileCursorToward(
     cursor: TilePos,

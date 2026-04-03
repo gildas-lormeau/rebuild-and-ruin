@@ -15,6 +15,7 @@ import type { GameState } from "./types.ts";
 interface SelectionHost {
   readonly playerId: ValidPlayerSlot;
   readonly strategy: AiStrategy;
+  /** Returns `(base + rng * spread) * delayScale` — humanizes AI timing per difficulty. */
   scaledDelay(base: number, spread: number): number;
 }
 
