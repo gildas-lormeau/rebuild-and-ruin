@@ -304,8 +304,9 @@ export function enterBuildFromBattle(state: GameState): void {
   recheckTerritory(state);
   state.round++;
 
-  // Modern mode: roll modifier and generate upgrade offers (RNG consumed
-  // before BUILD_START checkpoint so host/watcher/headless all agree)
+  // ── RNG consumption (BEFORE checkpoint — order is load-bearing for online sync) ──
+  // host/watcher/headless must consume RNG identically before BUILD_START checkpoint
+  // is created. Do NOT insert RNG calls after this block or move these after setPhase.
   state.lastModifierId = state.activeModifier;
   state.activeModifier = rollModifier(state);
   state.pendingUpgradeOffers = generateUpgradeOffers(state);

@@ -288,7 +288,8 @@ function collectCannonCandidates(
 /**
  * Score a cannon placement position. Higher = better (same convention as build scoring).
  * Penalizes: proximity to map edges, proximity to water, wasted interior tiles.
- */
+ * Internally accumulates penalties as positive values, then negates on return
+ * so callers see higher = better. */
 function scoreCannonPosition(
   player: Player,
   row: number,

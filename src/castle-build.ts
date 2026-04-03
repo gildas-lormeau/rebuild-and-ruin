@@ -32,9 +32,11 @@ export function createCastleBuildState(
 }
 
 /** Advance the castle-build animation by dt seconds.
- *  Returns { next } — next is null when the animation is finished. */
+ *  Returns { next } — next is null when the animation is finished.
+ *  @param dt — delta time in SECONDS (converted to ms internally via ×1000). */
 export function tickCastleBuildAnimation(params: {
   castleBuild: CastleBuildState | null;
+  /** Delta time in seconds (not ms). */
   dt: number;
   wallBuildIntervalMs: number;
   state: GameState;
@@ -45,7 +47,7 @@ export function tickCastleBuildAnimation(params: {
     params;
   if (!castleBuild) return { next: null };
 
-  castleBuild.accum += dt * 1000;
+  castleBuild.accum += dt * 1000; // dt is seconds; accum and wallBuildIntervalMs are ms
 
   let placed = false;
   while (

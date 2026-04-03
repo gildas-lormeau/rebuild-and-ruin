@@ -53,6 +53,12 @@ interface DepsInit {
 }
 
 // ── Late-bound state ───────────────────────────────────────────────
+// Pattern shared with runtime-online-promote.ts and runtime-online-ws.ts:
+//  1. Declare module-level `let _ref: Type` (no initial value)
+//  2. Export `initXxx(value)` that assigns _ref and builds any closures
+//  3. Guard with `if (!_ref) throw "called before initXxx()"` in public API
+// This avoids circular imports between the composition root (runtime-online-game.ts)
+// and domain modules. All three init functions are called once from createOnlineGame().
 let _g: DepsInit;
 let _lifecycleDeps: ReturnType<typeof buildLifecycleDeps>;
 let _incrementalDeps: ReturnType<typeof buildIncrementalDeps>;

@@ -368,6 +368,8 @@ export function scoreTopCandidates(
 
     let score = 0;
     let rejected = false;
+    // null = hard-reject (skip remaining rules), 0 = no opinion, number = bonus/penalty.
+    // See ScoringRule in ai-build-types.ts — null and 0 have different meanings.
     for (const rule of SCORING_RULES) {
       const contribution = rule.apply(candidate, env, ctx);
       if (contribution === null) {

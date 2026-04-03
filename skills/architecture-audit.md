@@ -228,3 +228,69 @@ Ask the user which findings to fix. Then fix them one domain at a time, running 
 - The online domains (#10–#11) and runtime (#12) are highest risk — they mirror local logic and drift silently
 - Cross-domain findings are often more impactful than within-domain ones
 - If a domain has >10 files, split it into sub-domains for the audit
+
+## Known-documented patterns (do NOT report)
+
+The following conventions are already well-documented in code comments. Agents should
+NOT flag these as findings — they have been verified and the existing documentation is
+sufficient for LLM agents to follow correctly.
+
+1. **recheckTerritory vs finalizeTerritoryWithScoring** — build-system.ts:172 and 189-193
+   explain the difference and when to use each. cannon-system.ts:269 documents the precondition.
+
+2. **canPlaceCannon vs canPlacePiece validation difference** — build-system.ts:92-95 has
+   `CONTRAST with canPlaceCannon()...Copying validation from one to the other produces wrong results.`
+   cannon-system.ts:264-266 mirrors it. Both sides documented.
+
+3. **RATE_LIMITED_TYPES cosmetic-only invariant** — game-room.ts:59-63 has
+   `CRITICAL: Only cosmetic/display messages belong here. Adding a game-state message = DESYNC BUG`.
+
+4. **HOST_ONLY and PHASE_GATES disjoint invariant** — game-room.ts:70-72 documents
+   `Invariant: HOST_ONLY and PHASE_GATES are disjoint...Do NOT add a message to both sets.`
+
+5. **applyImpactEvent leaves interior stale during battle** — battle-system.ts:222-226 JSDoc
+   and lines 236-240 inline comment both explain this. grunt-system.ts:247 reinforces it.
+
+6. **Wall snapshot MUST precede finalizeBuildPhase** — host-phase-ticks.ts:466-468 documents it;
+   snapshotThenFinalize() at line 494-498 enforces it structurally with a full INVARIANT JSDoc.
+
+7. **advancePhaseTimer is the ONLY way to advance phase timers** — tick-context.ts:101-108
+   has `INVARIANT: All phase timers MUST use this function. Never manually write accum.X += dt.`
+
+8. **Canvas ctx.save()/ctx.restore() convention** — render-effects.ts:20-28 documents the full
+   convention with code example. Applies across all render-* files.
+
+9. **Checkpoint validation boundary** — online-checkpoints.ts:52-55 JSDoc explains
+   captureBeforeApply and the checkpoint lifecycle at each function.
+
+10. **`net` required on all tick deps interfaces** — runtime-phase-ticks.ts:5-9 documents
+    `net is REQUIRED on all tick deps interfaces...the compiler enforces the choice.`
+
+11. **`session.isHost` is volatile — never cache, always read via `isHostInContext()`** —
+    online-session.ts:29-35 marks the field `VOLATILE` with full explanation of when it flips
+    and how to read/write it. tick-context.ts:87-88 repeats `VOLATILE...Never cache` on the
+    accessor. host-phase-ticks.ts:12-13 says `never cache in a local variable`.
+    online-server-events.ts:25-27 repeats the warning. ESLint `no-restricted-syntax` rule
+    enforces all direct `.isHost` reads require an explicit disable comment.
+
+12. **RNG consumption order before checkpoint is load-bearing for online sync** —
+    phase-setup.ts:307 marks the block with `RNG consumption (BEFORE checkpoint — order is
+    load-bearing for online sync)` and warns not to insert RNG calls after it.
+
+13. **ScoringRule null vs 0 semantics** — ai-build-types.ts:77-81 documents the interface
+    contract (`null` = hard-reject, `0` = no opinion). ai-build-score.ts:371 repeats the
+    convention inline at the scoring loop.
+
+14. **scoreCannonPosition returns negated score** — ai-strategy-cannon.ts:291 JSDoc explains
+    penalties are accumulated positive and negated on return so callers see higher = better.
+
+15. **castle-build dt is in seconds, accum/interval are in ms** — castle-build.ts:37 JSDoc
+    annotates `@param dt — delta time in SECONDS`, the `dt` field has an inline doc comment,
+    and line 48 has an inline comment explaining the ×1000 conversion.
+
+16. **Late-binding closure pattern (initDeps/initPromote/initWs)** —
+    runtime-online-deps.ts:56-60 documents the 3-step pattern (declare, init, guard) and
+    explains it avoids circular imports. All three init files follow the same structure.
+
+17. **Mode-setting timing in watcher phase transitions** — online-phase-transitions.ts:53-61
+    documents when setMode is called immediately vs inside banner callback for each phase type.

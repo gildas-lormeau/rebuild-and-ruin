@@ -50,6 +50,15 @@ import {
   Phase,
 } from "./types.ts";
 
+/**
+ * Mode-setting timing convention across transition handlers:
+ *  - CASTLE_BUILD: setMode immediately (animation starts without banner)
+ *  - CANNON_PLACE / WALL_BUILD: setMode inside banner onComplete callback
+ *    (game resumes only after banner finishes)
+ *  - BATTLE: setMode via BALLOON_ANIM or beginBattle() inside banner callback
+ *    (balloon flight plays first if there are flights, otherwise battle begins directly)
+ *  - STOPPED (game over): setMode immediately after building game-over frame
+ */
 export interface TransitionContext {
   // ── Core state access ──
   getState: () => GameState;
