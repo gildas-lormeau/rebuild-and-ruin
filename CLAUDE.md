@@ -46,6 +46,19 @@ Modern mode inserts UPGRADE_PICK between battle end and build banner (from round
 - Grunt distance: computed to nearest tile of 2x2 tower (not top-left corner)
 - Zones fully isolated by rivers; no cross-zone interaction for grunts, walls, pieces (only cannonballs cross)
 
+## Debugging
+- ALWAYS prove the root cause with logs/evidence before attempting a fix. Never guess at fixes or skip reproduction steps.
+
+## Bug Fixes
+- Fix edge cases in the FIRST attempt. Before committing a fix, enumerate all callers/consumers and check: nulled references, execution order dependencies, and eliminated-player states.
+
+## Refactoring
+- When making type/rename refactors, always grep for the old name in Pick<>, local variables, comments, interfaces, and type aliases after the refactor tool runs. Run a full build to catch missed sites.
+- After any multi-file rename or type change, run a full build (`tsc --noEmit` or equivalent) AND knip/lint before committing. Fix all propagation errors in the same commit.
+
+## Architecture Audits
+- Check git history for context before analyzing code. Start analysis immediately — do not spend excessive time on file discovery/glob calls.
+
 ### Conventions
 - File order: imports → types → constants → exported functions → private functions (enforced by pre-commit)
 - Always check `.import-layers.json` before placing new code in a file
