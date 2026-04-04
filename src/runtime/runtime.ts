@@ -193,7 +193,22 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Main loop
   // -------------------------------------------------------------------------
 
-  const DEV = IS_DEV;
+  // TickDispatch (runtime-state.ts) is Record<TickableMode, ...> where
+  // TickableMode = Exclude<Mode, Mode.STOPPED>. Adding a new Mode without
+  // a corresponding ticker entry here is a compile error.
+  // Hoisted outside mainLoop — closures are stable, avoids per-frame allocation.
+  const modeTickers = {
+    [Mode.LOBBY]: (dt: number) => lobby.tickLobby(dt),
+    [Mode.OPTIONS]: () => options.renderOptions(),
+    [Mode.CONTROLS]: () => options.renderControls(),
+    [Mode.SELECTION]: (dt: number) => selection.tick(dt),
+    [Mode.BANNER]: (dt: number) => tickBanner(dt),
+    [Mode.BALLOON_ANIM]: (dt: number) => phaseTicks.tickBalloonAnim(dt),
+    [Mode.CASTLE_BUILD]: (dt: number) => selection.tickCastleBuild(dt),
+    [Mode.LIFE_LOST]: (dt: number) => lifeLost.tick(dt),
+    [Mode.UPGRADE_PICK]: (dt: number) => upgradePick.tick(dt),
+    [Mode.GAME]: (dt: number) => phaseTicks.tickGame(dt),
+  } satisfies Record<Exclude<Mode, Mode.STOPPED>, (dt: number) => void>;
 
   function mainLoop(now: number): void {
     const dt = clampedFrameDt(now);
@@ -223,22 +238,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     tickCamera();
     scoreDelta.tick(dt);
 
-    // TickDispatch (runtime-state.ts) is Record<TickableMode, ...> where
-    // TickableMode = Exclude<Mode, Mode.STOPPED>. Adding a new Mode without
-    // a corresponding ticker entry here is a compile error.
-    const modeTickers = {
-      [Mode.LOBBY]: (dt: number) => lobby.tickLobby(dt),
-      [Mode.OPTIONS]: () => options.renderOptions(),
-      [Mode.CONTROLS]: () => options.renderControls(),
-      [Mode.SELECTION]: (dt: number) => selection.tick(dt),
-      [Mode.BANNER]: tickBanner,
-      [Mode.BALLOON_ANIM]: (dt: number) => phaseTicks.tickBalloonAnim(dt),
-      [Mode.CASTLE_BUILD]: (dt: number) => selection.tickCastleBuild(dt),
-      [Mode.LIFE_LOST]: (dt: number) => lifeLost.tick(dt),
-      [Mode.UPGRADE_PICK]: (dt: number) => upgradePick.tick(dt),
-      [Mode.GAME]: (dt: number) => phaseTicks.tickGame(dt),
-    } satisfies Record<Exclude<Mode, Mode.STOPPED>, (dt: number) => void>;
-
     const shouldContinue = tickMainLoop({
       dt,
       mode: runtimeState.mode,
@@ -257,7 +256,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       ticks: modeTickers,
     });
 
-    if (DEV) exposeTestGlobals(runtimeState, config);
+    if (IS_DEV) exposeTestGlobals(runtimeState, config);
     if (shouldContinue && runtimeState.mode !== Mode.STOPPED)
       requestAnimationFrame(mainLoop);
   }
