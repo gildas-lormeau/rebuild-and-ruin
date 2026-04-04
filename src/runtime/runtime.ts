@@ -360,6 +360,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     log: config.log,
     camera,
     sound,
+    now: () => performance.now(),
     syncSelectionOverlay: updateSelectionOverlay,
     render: () => render(),
     pointerPlayer,
@@ -451,7 +452,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     bootstrapNewGame,
 
-    scheduleTimeout: (cb, ms) => setTimeout(cb, ms) as unknown as number,
+    scheduleTimeout: (cb, ms) => window.setTimeout(cb, ms),
     cancelTimeout: (id) => clearTimeout(id),
 
     setGameOverFrame: (winner) => {
@@ -596,6 +597,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     onBeginBattle: IS_TOUCH_DEVICE ? camera.aimAtEnemyCastle : undefined,
     sound,
     haptics,
+    now: () => performance.now(),
     tryShowUpgradePick: (onDone) => upgradePick.tryShow(onDone),
   });
 

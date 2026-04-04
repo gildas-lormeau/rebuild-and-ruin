@@ -71,6 +71,8 @@ interface SelectionSystemDeps {
     | "setSelectionViewport"
   >;
   sound: Pick<SoundSystem, "drumsStart" | "chargeFanfare">;
+  /** Monotonic timestamp source (injected for testability). */
+  now: () => number;
 
   /** Render-domain: sync overlay highlights from selectionStates (injected from composition root). */
   syncSelectionOverlay: (
@@ -149,7 +151,7 @@ export function createSelectionSystem(
       selectTimer: SELECT_TIMER,
       accum: runtimeState.accum,
       enterCastleReselectPhase,
-      now: () => performance.now(),
+      now: deps.now,
       setModeSelection: () => {
         runtimeState.mode = Mode.SELECTION;
         deps.sound.drumsStart();

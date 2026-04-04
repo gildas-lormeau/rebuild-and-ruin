@@ -112,6 +112,8 @@ interface PhaseTicksDeps
   onBeginBattle?: () => void;
   sound: SoundSystem;
   haptics: HapticsSystem;
+  /** Monotonic timestamp source (injected for testability). */
+  now: () => number;
   /** Try to show upgrade pick overlay. Returns true if shown (caller should
    *  defer Mode.GAME). `onDone` is called when all picks are resolved. */
   tryShowUpgradePick?: (onDone: () => void) => boolean;
@@ -268,7 +270,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           countdownStartTime: 0,
           countdownDuration: 0,
         },
-        now: () => performance.now(),
+        now: deps.now,
       },
     });
     deps.onBeginBattle?.();
