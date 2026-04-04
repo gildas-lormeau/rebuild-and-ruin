@@ -916,7 +916,11 @@ function renameFile(oldPath: string, newPath: string): void {
   addAllSources(project);
 
   const absOld = resolve(oldPath);
-  const absNew = resolve(newPath);
+  // If newPath is a bare filename (no directory separators), resolve relative
+  // to the source file's directory — not CWD.
+  const absNew = newPath.includes("/") || path.isAbsolute(newPath)
+    ? resolve(newPath)
+    : path.resolve(path.dirname(absOld), newPath);
 
   const sourceFile = project.getSourceFile(absOld);
   if (!sourceFile) {
@@ -930,7 +934,8 @@ function renameFile(oldPath: string, newPath: string): void {
     process.exit(1);
   }
 
-  console.log(`Renaming ${oldPath} → ${newPath}`);
+  const relNew = path.relative(process.cwd(), absNew);
+  console.log(`Renaming ${oldPath} → ${relNew}`);
 
   // ts-morph's move() renames the file and updates all import specifiers
   sourceFile.move(absNew);
