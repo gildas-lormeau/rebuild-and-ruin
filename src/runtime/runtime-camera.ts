@@ -18,7 +18,6 @@ import {
 import {
   isInteractiveMode,
   isReselectPhase,
-  isTransitionMode,
   Mode,
   Phase,
 } from "../shared/game-phase.ts";
@@ -343,7 +342,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     unzoomForOverlays(state, frameCtx);
     restoreZoomAfterModal(mobileAuto, state, frameCtx);
     handleSelectionZoom(mobileAuto, state, frameCtx);
-    const notTransition = isNotTransitionMode(frameCtx);
+    const notTransition = isNotTransition(frameCtx);
     handlePhaseChangeZoom(mobileAuto, state, frameCtx, notTransition);
     followCrosshairInBattle(mobileAuto, state, frameCtx, notTransition);
   }
@@ -407,8 +406,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     }
   }
 
-  function isNotTransitionMode(frameCtx: FrameContext): boolean {
-    return !isTransitionMode(frameCtx.mode);
+  function isNotTransition(frameCtx: FrameContext): boolean {
+    return !frameCtx.isTransition;
   }
 
   /** Auto-zoom when the game phase changes (mobile only, skip during transitions). */

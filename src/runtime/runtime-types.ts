@@ -70,7 +70,12 @@ import type {
   LifeLostDialogState,
   UpgradePickDialogState,
 } from "../shared/dialog-types.ts";
-import { isPlacementPhase, Mode, Phase } from "../shared/game-phase.ts";
+import {
+  isPlacementPhase,
+  isTransitionMode,
+  Mode,
+  Phase,
+} from "../shared/game-phase.ts";
 import type {
   Crosshair,
   Viewport,
@@ -366,8 +371,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     mobileAutoZoom,
   } = inputs;
 
-  const uiBlocking =
-    paused || quitPending || hasLifeLostDialog || mode === Mode.UPGRADE_PICK;
+  const uiBlocking = paused || quitPending || hasLifeLostDialog;
 
   const timedPhase = isPlacementPhase(phase) || phase === Phase.BATTLE;
   const phaseEnding =
@@ -377,6 +381,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     timedPhase;
 
   const shouldUnzoom = uiBlocking || phaseEnding;
+  const isTransition = isTransitionMode(mode);
 
   const povPlayerId: ValidPlayerSlot = isActivePlayer(myPlayerId)
     ? myPlayerId
@@ -398,5 +403,6 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     uiBlocking,
     phaseEnding,
     shouldUnzoom,
+    isTransition,
   };
 }

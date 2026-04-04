@@ -247,12 +247,14 @@ export interface FrameContext {
   readonly hasPointerPlayer: boolean;
 
   // Composite guards
-  /** UI overlay suppresses gameplay (pause, quit dialog, life-lost, upgrade pick). */
+  /** UI overlay suppresses gameplay (pause, quit dialog, life-lost). */
   readonly uiBlocking: boolean;
   /** Phase timer about to expire (< PHASE_ENDING_THRESHOLD) on non-touch. */
   readonly phaseEnding: boolean;
   /** Camera should unzoom (uiBlocking OR phaseEnding). */
   readonly shouldUnzoom: boolean;
+  /** Non-interactive transition — camera suppresses auto-zoom. */
+  readonly isTransition: boolean;
 }
 
 export interface BonusSquare extends TilePos {

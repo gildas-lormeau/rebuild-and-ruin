@@ -66,11 +66,12 @@ export function isInteractiveMode(mode: Mode): boolean {
   return mode === Mode.GAME || mode === Mode.SELECTION;
 }
 
-/** True if the mode is a non-interactive transition (banner, balloon anim, castle build). */
+/** True if the mode is a non-interactive transition (banner, balloon anim, castle build, upgrade pick). */
 export function isTransitionMode(mode: Mode): boolean {
   return (
     mode === Mode.BANNER ||
     mode === Mode.BALLOON_ANIM ||
-    mode === Mode.CASTLE_BUILD
+    mode === Mode.CASTLE_BUILD ||
+    mode === Mode.UPGRADE_PICK
   );
 }

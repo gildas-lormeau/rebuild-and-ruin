@@ -52,6 +52,7 @@ import type { WatcherNetworkState } from "../src/online/online-types.ts";
 import { createModernState, type SelectionState } from "../src/shared/types.ts";
 import { type UpgradeId, UID } from "../src/shared/upgrade-defs.ts";
 import { generateUpgradeOffers } from "../src/game/phase-setup.ts";
+import { showUpgradePickBanner } from "../src/game/phase-transition-shared.ts";
 import { createUpgradePickDialog } from "../src/game/upgrade-pick.ts";
 import { createScenario } from "./scenario-helpers.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
@@ -634,6 +635,59 @@ test("modifierBannerText returns text for cannon-announced modifiers", () => {
     modifierBannerText(null, BANNER_PHASE_CANNON) === undefined,
     "null modifier should return undefined",
   );
+});
+
+test("upgrade pick banner is shown before upgrade pick dialog", () => {
+  const s = createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  s.state.modern = createModernState();
+  s.state.round = 3;
+  s.state.modern!.pendingUpgradeOffers = generateUpgradeOffers(s.state);
+
+  assert(
+    s.state.modern!.pendingUpgradeOffers !== null,
+    "offers should exist at round 3",
+  );
+
+  const log: string[] = [];
+  let bannerOnDone: (() => void) | null = null;
+
+  const mockShowBanner = (text: string, onDone: () => void) => {
+    log.push(`banner:${text}`);
+    bannerOnDone = onDone;
+  };
+
+  const mockTryShowUpgradePick = (onDone: () => void): boolean => {
+    const dialog = createUpgradePickDialog({
+      state: s.state,
+      hostAtFrameStart: true,
+      myPlayerId: 0 as PlayerSlotId,
+      remoteHumanSlots: new Set(),
+      isHumanController: () => false,
+    });
+    if (!dialog) return false;
+    log.push("upgradePick:shown");
+    // Simulate immediate resolve for test
+    onDone();
+    return true;
+  };
+
+  // Simulate the flow: check offers → show banner → on done → show dialog
+  if (s.state.modern?.pendingUpgradeOffers) {
+    showUpgradePickBanner(mockShowBanner, () => {
+      if (!mockTryShowUpgradePick(() => log.push("buildBanner"))) {
+        log.push("buildBanner");
+      }
+    });
+  }
+
+  assert(log.length === 1, `banner should be shown first, log=${log.join(",")}`);
+  assert(log[0] === "banner:Choose Upgrade", `first should be upgrade banner, got ${log[0]}`);
+
+  // Simulate banner completion
+  bannerOnDone!();
+  assert(log[1] === "upgradePick:shown", `second should be upgrade pick dialog, got ${log[1]}`);
+  assert(log[2] === "buildBanner", `third should be build banner, got ${log[2]}`);
 });
 
 test("createUpgradePickDialog returns dialog from pending offers", () => {

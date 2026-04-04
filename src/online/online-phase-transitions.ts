@@ -22,6 +22,7 @@ import {
   showBattlePhaseBanner,
   showBuildPhaseBanner,
   showCannonPhaseBanner,
+  showUpgradePickBanner,
 } from "../game/phase-transition-shared.ts";
 import {
   BANNER_PHASE_BUILD,
@@ -380,7 +381,14 @@ export function handleBuildStartTransition(
     });
   };
 
-  if (transitionCtx.upgradePick?.tryShow(showBannerAndEnterBuild)) return;
+  if (transitionCtx.upgradePick && state.modern?.pendingUpgradeOffers) {
+    showUpgradePickBanner(transitionCtx.ui.showBanner, () => {
+      if (!transitionCtx.upgradePick!.tryShow(showBannerAndEnterBuild)) {
+        showBannerAndEnterBuild();
+      }
+    });
+    return;
+  }
   showBannerAndEnterBuild();
 }
 

@@ -27,6 +27,7 @@ import {
   showBattlePhaseBanner,
   showBuildPhaseBanner,
   showCannonPhaseBanner,
+  showUpgradePickBanner,
 } from "../src/game/phase-transition-shared.ts";
 import { createSession, resetSessionState } from "../src/online/online-session.ts";
 import { type BannerState, showBannerTransition } from "../src/game/phase-banner.ts";
@@ -797,6 +798,33 @@ test("showBuildPhaseBanner passes subtitle to showBanner", () => {
   showBuildPhaseBanner(mockShow, "Repair!", () => {});
   assert(capturedSubtitle !== undefined, "Should pass subtitle");
   assert(capturedSubtitle!.length > 0, "Subtitle should be non-empty");
+});
+
+test("showUpgradePickBanner passes text and subtitle to showBanner", () => {
+  let capturedText: string | undefined;
+  let capturedSubtitle: string | undefined;
+  let capturedPreserve: boolean | undefined;
+  const mockShow = (text: string, _cb: () => void, preserve?: boolean, _nb?: any, sub?: string) => {
+    capturedText = text;
+    capturedPreserve = preserve;
+    capturedSubtitle = sub;
+  };
+  showUpgradePickBanner(mockShow, () => {});
+  assert(capturedText === "Choose Upgrade", `Expected 'Choose Upgrade', got '${capturedText}'`);
+  assert(capturedSubtitle !== undefined, "Should pass subtitle");
+  assert(capturedSubtitle!.length > 0, "Subtitle should be non-empty");
+  assert(capturedPreserve === true, "Should preserve prev scene");
+});
+
+test("showUpgradePickBanner fires onDone callback", () => {
+  let doneFired = false;
+  const mockShow = (_t: string, onDone: () => void) => {
+    onDone();
+  };
+  showUpgradePickBanner(mockShow, () => {
+    doneFired = true;
+  });
+  assert(doneFired, "onDone should have been called");
 });
 
 // ---------------------------------------------------------------------------

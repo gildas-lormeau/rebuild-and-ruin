@@ -51,6 +51,8 @@ export const BANNER_BATTLE = "Prepare for Battle";
 export const BANNER_BATTLE_SUB = "Shoot at enemy walls";
 export const BANNER_BUILD = "Build & Repair";
 export const BANNER_BUILD_SUB = "Surround castles, repair walls";
+export const BANNER_UPGRADE_PICK = "Choose Upgrade";
+export const BANNER_UPGRADE_PICK_SUB = "Pick one upgrade per player";
 export const BANNER_SELECT = "Select your home castle";
 /** Online-specific variants — shorter text for multi-player context. */
 export const BANNER_BATTLE_ONLINE = "Battle!";

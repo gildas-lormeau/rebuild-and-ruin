@@ -44,6 +44,7 @@ import {
   executeTransition,
   showBuildPhaseBanner,
   showCannonPhaseBanner,
+  showUpgradePickBanner,
 } from "../game/phase-transition-shared.ts";
 import {
   BANNER_PHASE_BUILD,
@@ -385,7 +386,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           );
         }
 
-        // Step 2→3→4: upgrade pick (if any) → build banner → game
+        // Step 2→3→4: upgrade pick banner + dialog (if any) → build banner �� game
         const showBannerAndEnterBuild = () => {
           executeTransition(BUILD_START_STEPS, {
             showBanner: () =>
@@ -407,7 +408,17 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           });
         };
 
-        if (deps.tryShowUpgradePick?.(showBannerAndEnterBuild)) return;
+        if (
+          deps.tryShowUpgradePick &&
+          runtimeState.state.modern?.pendingUpgradeOffers
+        ) {
+          showUpgradePickBanner(deps.showBanner, () => {
+            if (!deps.tryShowUpgradePick!(showBannerAndEnterBuild)) {
+              showBannerAndEnterBuild();
+            }
+          });
+          return;
+        }
         showBannerAndEnterBuild();
       },
       net: {

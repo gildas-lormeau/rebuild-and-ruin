@@ -4,6 +4,8 @@ import {
   BANNER_BUILD_SUB,
   BANNER_PLACE_CANNONS,
   BANNER_PLACE_CANNONS_SUB,
+  BANNER_UPGRADE_PICK,
+  BANNER_UPGRADE_PICK_SUB,
   type BannerShow,
 } from "./phase-banner.ts";
 
@@ -82,6 +84,14 @@ export function showBattlePhaseBanner(
   onDone: () => void,
 ): void {
   show(text, onDone, true, undefined, BANNER_BATTLE_SUB);
+}
+
+/** Show the upgrade pick banner with its canonical subtitle. */
+export function showUpgradePickBanner(
+  show: BannerShow,
+  onDone: () => void,
+): void {
+  show(BANNER_UPGRADE_PICK, onDone, true, undefined, BANNER_UPGRADE_PICK_SUB);
 }
 
 /** Show the build/repair banner with its canonical subtitle.
