@@ -24,11 +24,11 @@ import type {
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import type { GameActionDeps } from "./input-dispatch.ts";
 import type { RendererInterface } from "./overlay-types.ts";
 import type { KeyBindings, SeedMode } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import type {
   Action,
   ControlsState,

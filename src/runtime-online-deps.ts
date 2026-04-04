@@ -21,12 +21,8 @@ import type {
   InitMessage,
   ServerMessage,
 } from "../server/protocol.ts";
-import {
-  MIGRATION_ANNOUNCEMENT_DURATION,
-  type ValidPlayerSlot,
-} from "./game-constants.ts";
+import { MIGRATION_ANNOUNCEMENT_DURATION } from "./game-constants.ts";
 import { createError, joinError } from "./online-dom.ts";
-import type { TransitionContext } from "./online-phase-transitions.ts";
 import {
   handleBattleStartTransition,
   handleBuildEndTransition,
@@ -34,11 +30,13 @@ import {
   handleCannonStartTransition,
   handleCastleWallsTransition,
   handleGameOverTransition,
+  type TransitionContext,
 } from "./online-phase-transitions.ts";
 import { handleServerIncrementalMessage } from "./online-server-events.ts";
 import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
 import type { OnlineClient } from "./online-stores.ts";
 import { PLAYER_NAMES } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { promoteToHost } from "./runtime-online-promote.ts";
 import type { GameRuntime } from "./runtime-types.ts";
 import { isReselectPhase, Mode } from "./types.ts";

@@ -23,7 +23,6 @@ import {
   optionsScreenHitTest,
 } from "./render-ui-settings.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
-import type { UIContext } from "./screen-builders.ts";
 import {
   closeControls as closeControlsShared,
   closeOptions as closeOptionsShared,
@@ -32,6 +31,7 @@ import {
   showControls as showControlsShared,
   showOptions as showOptionsShared,
   togglePause as togglePauseShared,
+  type UIContext,
   visibleOptions,
 } from "./screen-builders.ts";
 import { OPT_CONTROLS, OPT_SEED } from "./settings-defs.ts";

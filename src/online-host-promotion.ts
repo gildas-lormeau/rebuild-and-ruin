@@ -4,13 +4,10 @@
  */
 
 import type { PlayerController } from "./controller-interfaces.ts";
-import {
-  BATTLE_TIMER,
-  type PlayerSlotId,
-  type ValidPlayerSlot,
-} from "./game-constants.ts";
+import { BATTLE_TIMER } from "./game-constants.ts";
 import { enterCannonPlacePhase } from "./game-engine.ts";
 import { finalizeCastleConstruction } from "./phase-setup.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
 import type { MutableAccums } from "./tick-context.ts";
 import { type GameState, isPlayerAlive, Phase } from "./types.ts";
 

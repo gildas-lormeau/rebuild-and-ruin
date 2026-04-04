@@ -4,11 +4,7 @@ import {
   getCountdownAnnouncement,
 } from "./battle-system.ts";
 import type { OrbitParams, PlayerController } from "./controller-interfaces.ts";
-import {
-  BATTLE_TIMER,
-  type PlayerSlotId,
-  type ValidPlayerSlot,
-} from "./game-constants.ts";
+import { BATTLE_TIMER } from "./game-constants.ts";
 import type { Crosshair, PixelPos } from "./geometry-types.ts";
 import {
   REMOTE_CROSSHAIR_SPEED,
@@ -23,6 +19,7 @@ import {
   phantomWireMode,
   piecePhantomKey,
 } from "./phantom-types.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
 import {
   type CannonMode,
   type GameState,

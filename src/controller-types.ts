@@ -12,7 +12,7 @@ import type {
   PiecePlacementPreview,
   PlayerController,
 } from "./controller-interfaces.ts";
-import { NORMAL_CANNON_SIZE, type ValidPlayerSlot } from "./game-constants.ts";
+import { NORMAL_CANNON_SIZE } from "./game-constants.ts";
 import type { Crosshair } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import {
@@ -22,6 +22,7 @@ import {
   type PieceShape,
 } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { pxToTile, towerCenter, towerCenterTile } from "./spatial.ts";
 import { Action, type CombinedCannonResult, type GameState } from "./types.ts";
 

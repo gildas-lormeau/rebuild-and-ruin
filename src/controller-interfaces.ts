@@ -1,22 +1,7 @@
-/**
- * Pure controller interfaces and types — no runtime imports.
- *
- * Extracted from controller-types.ts so that modules needing only the
- * PlayerController interface don't transitively depend on battle-system.
- *
- * Phase-scoped sub-interfaces let consumers import only the slice they need:
- *   ControllerIdentity  — identity, lifecycle, cursor centering
- *   SelectionController — tower selection phase
- *   BuildController     — wall build phase
- *   CannonController    — cannon placement phase
- *   BattleController    — battle phase
- *   PlayerController    — full intersection (backward-compatible)
- */
-
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { Crosshair, PixelPos, TilePos } from "./geometry-types.ts";
 import type { PieceShape } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { Action, CannonMode, type GameState } from "./types.ts";
 
 /** Orbit animation parameters for AI countdown idle animation. */

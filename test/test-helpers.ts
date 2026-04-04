@@ -1,32 +1,12 @@
-/**
- * Shared helpers for AI build-phase placement tests.
- *
- * Legend (input maps):
- *      = grass (space)
- *   #  = wall (player 0)
- *   T  = tower (2x2, marks top-left)
- *   B  = burning pit
- *   G  = grunt
- *   ~  = water
- *   X  = generic obstacle (water — blocks placement, neutral)
- *
- * Legend (expected maps only):
- *   *  = newly placed wall
- *
- * Usage:
- *   import { parseBoard, assertPlacement, test, runTests } from "./test-helpers.ts";
- */
-
-import type { ValidPlayerSlot } from "../src/game-constants.ts";
 import { GRID_ROWS, GRID_COLS, Tile } from "../src/grid.ts";
 import type { Castle, GameMap, Tower } from "../src/geometry-types.ts";
-import type { GameState, Player } from "../src/types.ts";
-import { emptyFreshInterior, Phase } from "../src/types.ts";
 import { pickPlacementStandalone as pickPlacement } from "../src/ai-strategy.ts";
 import { placePiece, recheckTerritoryOnly } from "../src/build-system.ts";
 import type { PieceShape } from "../src/pieces.ts";
 import { Rng } from "../src/rng.ts";
 import process from "node:process";
+import type { ValidPlayerSlot } from "../src/player-slot.ts";
+import { emptyFreshInterior, Phase, type GameState, type Player } from "../src/types.ts";
 
 // ---------------------------------------------------------------------------
 // ASCII helpers

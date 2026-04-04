@@ -1,14 +1,3 @@
-/**
- * Full-state round-trip tests: createFullStateMessage → restoreFullStateSnapshot.
- *
- * This is the most complex serialization path, used during host migration.
- * Covers players, grunts, cannonballs, captured cannons, balloon hits,
- * RNG state, towerPendingRevive, houses, and balloon flights.
- *
- * Run with: bun test/online-full-state.test.ts
- */
-
-import type { ValidPlayerSlot } from "../src/game-constants.ts";
 import {
   restoreFullStateSnapshot,
   createFullStateMessage,
@@ -19,6 +8,7 @@ import {
 } from "../src/runtime-headless.ts";
 import { CannonMode, emptyFreshInterior, Phase } from "../src/types.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
+import type { ValidPlayerSlot } from "../src/player-slot.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers

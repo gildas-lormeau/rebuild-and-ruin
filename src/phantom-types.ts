@@ -1,13 +1,4 @@
-/**
- * Phantom visualization types and dedup utilities.
- *
- * Phantoms represent remote players' placement previews (cannons, wall pieces)
- * shown on the local client during online play. The types and utilities here
- * are used by both runtime (host tick logic) and online (watcher battle) layers,
- * so they live in a shared layer to avoid pulling online code into the runtime chunk.
- */
-
-import type { ValidPlayerSlot } from "./game-constants.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { CannonMode } from "./types.ts";
 
 /** Cannon phantom sent over the network. `valid` controls placement coloring (green/red). */

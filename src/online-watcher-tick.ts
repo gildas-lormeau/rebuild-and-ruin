@@ -8,7 +8,6 @@
 import { MESSAGE } from "../server/protocol.ts";
 import { aimCannons, nextReadyCombined } from "./battle-system.ts";
 import { isHuman, type PlayerController } from "./controller-interfaces.ts";
-import { isActivePlayer, type PlayerSlotId } from "./game-constants.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { tickGrunts } from "./grunt-movement.ts";
 import type { DedupMaps, OnlineSession } from "./online-session.ts";
@@ -24,6 +23,7 @@ import {
   tickWatcherTimers,
 } from "./online-watcher-battle.ts";
 import type { FrameData } from "./overlay-types.ts";
+import { isActivePlayer, type PlayerSlotId } from "./player-slot.ts";
 import { type TimerAccums, tickGruntsIfDue } from "./tick-context.ts";
 import {
   type BattleAnimState,

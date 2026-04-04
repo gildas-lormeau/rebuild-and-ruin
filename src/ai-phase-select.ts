@@ -7,8 +7,8 @@
 
 import { STEP } from "./ai-constants.ts";
 import type { AiStrategy } from "./ai-strategy.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import { selectPlayerTower } from "./game-engine.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { GameState } from "./types.ts";
 
 /** Minimal subset of AiController needed by this phase module.

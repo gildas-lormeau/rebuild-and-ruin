@@ -1,13 +1,3 @@
-/**
- * Phase transition recipe tests: executeTransition ordering, runBuildEndSequence.
- *
- * Verifies that the shared transition recipes run steps in the correct order
- * and that the build-end sequence correctly dispatches life-lost notifications.
- *
- * Run with: bun test/online-phase-transitions.test.ts
- */
-
-import { type ValidPlayerSlot } from "../src/game-constants.ts";
 import {
   BATTLE_START_STEPS,
   BUILD_START_STEPS,
@@ -16,6 +6,7 @@ import {
   runBuildEndSequence,
 } from "../src/phase-transition-shared.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
+import type { ValidPlayerSlot } from "../src/player-slot.ts";
 
 // ---------------------------------------------------------------------------
 // executeTransition step ordering

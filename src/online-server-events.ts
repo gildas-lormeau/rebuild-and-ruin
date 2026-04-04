@@ -41,9 +41,9 @@ import {
   cannonSlotsUsed,
   canPlaceCannon,
 } from "./cannon-system.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { toCannonMode, type WatcherNetworkState } from "./online-types.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { highlightTowerSelection } from "./selection.ts";
 import { inBoundsStrict, packTile } from "./spatial.ts";
 import { isHostInContext, isRemoteHuman } from "./tick-context.ts";

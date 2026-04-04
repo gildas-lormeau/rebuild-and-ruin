@@ -11,14 +11,11 @@ import type {
   SerializedHouse,
   SerializedPlayer,
 } from "./checkpoint-data.ts";
-import {
-  GAME_MODE_CLASSIC,
-  GAME_MODE_MODERN,
-  type ValidPlayerSlot,
-} from "./game-constants.ts";
+import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "./game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "./grid.ts";
 import { toCannonMode } from "./online-types.ts";
 import { setPhase } from "./phase-setup.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { Rng } from "./rng.ts";
 import {
   type BalloonFlight,

@@ -1,17 +1,9 @@
-/**
- * Scenario tests — reproduce bugs fixed in this session.
- * Run with: bun test/scenario.test.ts
- */
-
-import { SPECTATOR_SLOT, type PlayerSlotId, type ValidPlayerSlot } from "../src/game-constants.ts";
 import { MESSAGE } from "../server/protocol.ts";
 import { applyImpactEvent, canFireOwnCannon, resolveBalloons } from "../src/battle-system.ts";
 import { snapshotAllWalls, removeIsolatedWalls } from "../src/board-occupancy.ts";
 import { createOnlineOverlay } from "../src/render-composition.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "../src/player-config.ts";
 import { isCannonEnclosed } from "../src/cannon-system.ts";
-import { nextPhase } from "../src/game-engine.ts";
-import { enterCannonPlacePhase } from "../src/game-engine.ts";
 import { initControllerForCannonPhase, prepareCannonPhase } from "../src/phase-setup.ts";
 import { GRID_COLS } from "../src/grid.ts";
 import {
@@ -46,6 +38,8 @@ import {
   createScenario,
 } from "./scenario-helpers.ts";
 import { assert, test, runTests } from "./test-helpers.ts";
+import { enterCannonPlacePhase, nextPhase } from "../src/game-engine.ts";
+import { SPECTATOR_SLOT, type PlayerSlotId, type ValidPlayerSlot } from "../src/player-slot.ts";
 
 // ---------------------------------------------------------------------------
 // 1. Game-over overlay cleared on returnToLobby

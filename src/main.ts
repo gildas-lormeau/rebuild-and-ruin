@@ -6,8 +6,9 @@
  * lobby with direct slot joining, and the loadAtlas entry point.
  */
 
-import { LOBBY_TIMER, SPECTATOR_SLOT } from "./game-constants.ts";
+import { LOBBY_TIMER } from "./game-constants.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
+import { SPECTATOR_SLOT } from "./player-slot.ts";
 import { createCanvasRenderer } from "./render-canvas.ts";
 import { loadAtlas } from "./render-sprites.ts";
 import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./router.ts";

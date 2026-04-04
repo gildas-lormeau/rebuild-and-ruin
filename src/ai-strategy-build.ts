@@ -47,10 +47,10 @@ import {
 } from "./ai-castle-rect.ts";
 import { getInterior, hasGruntAt } from "./board-occupancy.ts";
 import { canPlacePiece } from "./build-system.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { Castle, TileRect, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { type PieceShape, rotateCW } from "./pieces.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
   computeOutside,
   DIRS_4,

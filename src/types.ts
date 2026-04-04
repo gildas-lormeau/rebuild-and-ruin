@@ -6,10 +6,9 @@ import {
   GAME_MODE_MODERN,
   type GameMode,
   type ModifierId,
-  type PlayerSlotId,
-  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import type { Castle, GameMap, TilePos, Tower } from "./geometry-types.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
 import type { Rng } from "./rng.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 

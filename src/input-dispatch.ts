@@ -32,12 +32,12 @@ import {
   isMovementAction,
   type PlayerController,
 } from "./controller-interfaces.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { WorldPos } from "./geometry-types.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { findNearestTower, towerAtPixel } from "./spatial.ts";
-import type { ControlsState } from "./types.ts";
 import {
   Action,
+  type ControlsState,
   type GameState,
   isPlacementPhase,
   isReselectPhase,

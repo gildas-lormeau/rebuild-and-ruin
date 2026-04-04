@@ -6,12 +6,7 @@
  * object for readability at the call site.
  */
 
-import {
-  LIFE_LOST_MAX_TIMER,
-  modifierLabel,
-  type PlayerSlotId,
-  type ValidPlayerSlot,
-} from "./game-constants.ts";
+import { LIFE_LOST_MAX_TIMER, modifierLabel } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import {
@@ -22,6 +17,7 @@ import {
 } from "./overlay-types.ts";
 import type { BannerState } from "./phase-banner.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
 import {
   BANNER_HEIGHT_RATIO,
   LIFE_LOST_BTN_H as BTN_H,

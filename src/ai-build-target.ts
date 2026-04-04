@@ -8,9 +8,9 @@
 
 import { filterUnfillableGaps } from "./ai-castle-rect.ts";
 import { canPlacePiece } from "./build-system.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { TileRect } from "./geometry-types.ts";
 import { ALL_PIECE_SHAPES, type PieceShape, rotateCW } from "./pieces.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { DIRS_8, isGrass, packTile, unpackTile } from "./spatial.ts";
 import type { FreshInterior, GameState } from "./types.ts";
 

@@ -10,8 +10,8 @@ import { STEP } from "./ai-constants.ts";
 import type { AiStrategy, CannonPlacement } from "./ai-strategy.ts";
 import { canPlaceCannon, placeCannon } from "./cannon-system.ts";
 import type { CannonPlacementPreview } from "./controller-interfaces.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { TilePos } from "./geometry-types.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
   CannonMode,
   type GameState,

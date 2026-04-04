@@ -11,18 +11,10 @@ import {
   collectAllWalls,
 } from "../src/board-occupancy.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/grid.ts";
-import {
-  cannonSize,
-  forEachTowerTile,
-  isCannonAlive,
-  isGrass,
-  packTile,
-  unpackTile,
-} from "../src/spatial.ts";
-import { computeOutside, waterKeys } from "../src/spatial.ts";
 import type { GameState } from "../src/types.ts";
 import { createScenario } from "./scenario-helpers.ts";
 import process from "node:process";
+import { cannonSize, computeOutside, forEachTowerTile, isCannonAlive, isGrass, packTile, unpackTile, waterKeys } from "../src/spatial.ts";
 
 // ---------------------------------------------------------------------------
 // Config

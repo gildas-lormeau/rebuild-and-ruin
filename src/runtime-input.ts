@@ -1,18 +1,8 @@
-/**
- * Input registration sub-system — wires keyboard, mouse, touch, and
- * d-pad handlers.  Extracted from runtime.ts.
- *
- * Deps convention (shared across all runtime-*.ts sub-systems):
- * destructure frequently-used deps (runtimeState, renderer, camera, etc.) at the
- * factory top; reference rarely-used deps inline as deps.X.
- */
-
-import type {
-  InputReceiver,
-  PlayerController,
+import {
+  type InputReceiver,
+  isHuman,
+  type PlayerController,
 } from "./controller-interfaces.ts";
-import { isHuman } from "./controller-interfaces.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
@@ -30,6 +20,7 @@ import {
 } from "./input-touch-ui.ts";
 import type { LoupeHandle, RendererInterface } from "./overlay-types.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
   handleLifeLostDialogClick,
   handleUpgradePickClick,

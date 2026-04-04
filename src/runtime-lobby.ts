@@ -1,31 +1,21 @@
-/**
- * Lobby sub-system factory.
- *
- * Extracted from runtime.ts. Follows the factory-with-deps pattern.
- *
- * Deps convention (shared across all runtime-*.ts sub-systems):
- * destructure frequently-used deps (runtimeState, uiCtx) at the factory top;
- * reference rarely-used deps inline as deps.X to avoid clutter.
- */
-
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { GameMap, Viewport } from "./geometry-types.ts";
 import { CANVAS_H, CANVAS_W, TILE_SIZE } from "./grid.ts";
 import type { RenderOverlay } from "./overlay-types.ts";
 import { CURSOR_DEFAULT, CURSOR_POINTER, IS_TOUCH_DEVICE } from "./platform.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
   computeLobbyLayout,
   type LobbyHit,
   lobbyClickHitTest,
 } from "./render-composition.ts";
 import type { RuntimeState } from "./runtime-state.ts";
-import type { UIContext } from "./screen-builders.ts";
 import {
   createLobbyOverlay,
   lobbyKeyJoin as lobbyKeyJoinShared,
   lobbySkipStep,
   tickLobby as tickLobbyShared,
+  type UIContext,
 } from "./screen-builders.ts";
 
 interface LobbySystemDeps {

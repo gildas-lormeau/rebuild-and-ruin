@@ -8,10 +8,9 @@ import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
   type GameMode,
-  type PlayerSlotId,
-  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
 
 export interface KeyBindings {
   up: string;

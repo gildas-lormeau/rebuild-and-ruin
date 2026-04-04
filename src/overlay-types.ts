@@ -1,9 +1,3 @@
-/**
- * Shared overlay and renderer interface types consumed by both
- * render-* modules and runtime-* modules.
- */
-
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type {
   Crosshair,
   GameMap,
@@ -16,6 +10,7 @@ import type {
   CannonPhantom as RenderCannonPhantom,
   PiecePhantom as RenderPiecePhantom,
 } from "./phantom-types.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
   type BurningPit,
   type CastleData,

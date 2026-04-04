@@ -22,7 +22,6 @@ import {
   SCORE_DELTA_DISPLAY_TIME,
   SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,
-  type ValidPlayerSlot,
   WALL_BUILD_INTERVAL,
 } from "./game-constants.ts";
 import {
@@ -40,6 +39,7 @@ import {
   prepareCastleWallsForPlayer,
   processReselectionQueue,
 } from "./phase-setup.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { updateSelectionOverlay as syncSelectionOverlayImpl } from "./render-composition.ts";
 import { enterTowerSelection as enterTowerSelectionImpl } from "./runtime-bootstrap.ts";
 import type { RuntimeState } from "./runtime-state.ts";

@@ -10,10 +10,10 @@ import { STEP } from "./ai-constants.ts";
 import type { AiStrategy } from "./ai-strategy.ts";
 import { canPlacePiece, placePiece } from "./build-system.ts";
 import type { PiecePlacementPreview } from "./controller-interfaces.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { type PieceShape, rotateCW, sameShape } from "./pieces.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { towerCenterTile } from "./spatial.ts";
 import { type GameState, isPlayerAlive } from "./types.ts";
 

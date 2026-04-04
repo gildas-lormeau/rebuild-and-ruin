@@ -13,8 +13,8 @@ import {
   MAX_CANNON_LIMIT_ON_RESELECT,
   STARTING_LIVES,
   SUPER_GUN_COST,
-  type ValidPlayerSlot,
 } from "./game-constants.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
   cannonSize,
   FACING_90_STEP,
@@ -29,13 +29,15 @@ import {
   towerCenter,
   unpackTile,
 } from "./spatial.ts";
-import type { Cannon, GameState, Player } from "./types.ts";
 import {
+  type Cannon,
   CannonMode,
+  type GameState,
   isBalloonMode,
   isPlayerAlive,
   isPlayerSeated,
   isSuperMode,
+  type Player,
 } from "./types.ts";
 
 /** Max search radius when snapping cannon placement to a valid tile. */

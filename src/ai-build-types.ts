@@ -29,7 +29,7 @@ export type TargetResult = {
 /** Context for the target-selection pipeline (home repair → secondary → expand). */
 export interface TargetContext {
   state: import("./types.ts").GameState;
-  playerId: import("./game-constants.ts").ValidPlayerSlot;
+  playerId: import("./player-slot.ts").ValidPlayerSlot;
   player: import("./types.ts").Player;
   castle: import("./geometry-types.ts").Castle;
   piece: PieceShape;

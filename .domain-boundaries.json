@@ -1,8 +1,6 @@
-[
-  {
-    "name": "leaf utilities",
-    "files": [
-      "src/ai-constants.ts",
+{
+  "domains": {
+    "shared": [
       "src/canvas-layout.ts",
       "src/game-constants.ts",
       "src/grid.ts",
@@ -10,71 +8,24 @@
       "src/platform.ts",
       "src/rng.ts",
       "src/router.ts",
-      "src/online-dom.ts",
-      "src/upgrade-defs.ts",
-      "src/settings-defs.ts",
-      "src/player-slot.ts",
       "src/utils.ts",
-      "server/send-utils.ts"
-    ]
-  },
-  {
-    "name": "geometry types",
-    "files": [
-      "src/geometry-types.ts"
-    ]
-  },
-  {
-    "name": "pieces",
-    "files": [
-      "src/pieces.ts"
-    ]
-  },
-  {
-    "name": "core types, state & spatial",
-    "files": [
-      "src/ai-build-types.ts",
-      "src/ai-castle-rect.ts",
+      "src/geometry-types.ts",
+      "src/pieces.ts",
       "src/types.ts",
       "src/spatial.ts",
       "src/board-occupancy.ts",
       "src/checkpoint-data.ts",
-      "server/protocol.ts"
-    ]
-  },
-  {
-    "name": "shared types & config",
-    "files": [
-      "src/ai-build-score.ts",
-      "src/ai-build-fallback.ts",
-      "src/phase-transition-shared.ts",
       "src/player-config.ts",
       "src/controller-interfaces.ts",
-      "src/life-lost.ts",
-      "src/upgrade-pick.ts",
-      "src/castle-build.ts",
-      "src/phase-banner.ts",
-      "src/theme.ts",
       "src/overlay-types.ts",
+      "src/theme.ts",
       "src/phantom-types.ts",
-      "src/tick-context.ts"
-    ]
-  },
-  {
-    "name": "runtime primitives",
-    "files": [
-      "src/settings-ui.ts",
-      "src/screen-builders.ts",
-      "src/runtime-touch-ui.ts",
-      "src/runtime-state.ts",
-      "src/runtime-banner.ts",
-      "src/runtime-human.ts"
-    ]
-  },
-  {
-    "name": "game logic",
-    "files": [
-      "src/ai-build-target.ts",
+      "src/tick-context.ts",
+      "src/player-slot.ts",
+      "src/upgrade-defs.ts",
+      "server/protocol.ts"
+    ],
+    "game": [
       "src/cannon-system.ts",
       "src/grunt-movement.ts",
       "src/grunt-system.ts",
@@ -87,34 +38,36 @@
       "src/round-modifiers.ts",
       "src/game-engine.ts",
       "src/selection.ts",
-      "src/host-phase-ticks.ts"
-    ]
-  },
-  {
-    "name": "AI strategy",
-    "files": [
+      "src/host-phase-ticks.ts",
+      "src/life-lost.ts",
+      "src/phase-banner.ts",
+      "src/phase-transition-shared.ts",
+      "src/castle-build.ts",
+      "src/upgrade-pick.ts"
+    ],
+    "ai": [
+      "src/ai-constants.ts",
+      "src/ai-build-types.ts",
+      "src/ai-castle-rect.ts",
+      "src/ai-build-score.ts",
+      "src/ai-build-fallback.ts",
+      "src/ai-build-target.ts",
       "src/ai-strategy-battle.ts",
       "src/ai-strategy-build.ts",
       "src/ai-strategy-cannon.ts",
-      "src/ai-strategy.ts"
-    ]
-  },
-  {
-    "name": "controllers",
-    "files": [
+      "src/ai-strategy.ts",
       "src/ai-phase-select.ts",
       "src/ai-phase-build.ts",
       "src/ai-phase-cannon.ts",
       "src/ai-phase-battle.ts",
-      "src/controller-ai.ts",
+      "src/controller-ai.ts"
+    ],
+    "player": [
       "src/controller-types.ts",
       "src/controller-human.ts",
       "src/controller-factory.ts"
-    ]
-  },
-  {
-    "name": "input & sound",
-    "files": [
+    ],
+    "input": [
       "src/haptics-system.ts",
       "src/input-recorder.ts",
       "src/input-dispatch.ts",
@@ -122,13 +75,12 @@
       "src/input-touch-canvas.ts",
       "src/input-mouse.ts",
       "src/input-keyboard.ts",
-      "src/input.ts",
+      "src/input.ts"
+    ],
+    "sound": [
       "src/sound-system.ts"
-    ]
-  },
-  {
-    "name": "render",
-    "files": [
+    ],
+    "render": [
       "src/render-sprites.ts",
       "src/render-loupe.ts",
       "src/render-effects.ts",
@@ -138,33 +90,20 @@
       "src/render-ui.ts",
       "src/render-ui-settings.ts",
       "src/render-map.ts",
-      "src/render-canvas.ts"
-    ]
-  },
-  {
-    "name": "runtime support",
-    "files": [
-      "src/runtime-bootstrap.ts",
-      "src/runtime-headless.ts",
-      "src/runtime-types.ts",
-      "src/runtime-camera.ts",
-      "src/runtime-test-globals.ts"
-    ]
-  },
-  {
-    "name": "online infrastructure",
-    "files": [
+      "src/render-canvas.ts",
+      "src/settings-defs.ts"
+    ],
+    "settings": [
+      "src/settings-ui.ts",
+      "src/screen-builders.ts"
+    ],
+    "online": [
+      "src/online-dom.ts",
       "src/online-config.ts",
       "src/online-types.ts",
       "src/online-lobby-ui.ts",
       "src/online-server-lifecycle.ts",
       "src/online-session.ts",
-      "server/game-room.ts"
-    ]
-  },
-  {
-    "name": "online logic",
-    "files": [
       "src/online-serialize.ts",
       "src/online-full-state-recovery.ts",
       "src/online-send-actions.ts",
@@ -177,12 +116,25 @@
       "src/online-host-promotion.ts",
       "src/online-host-battle-ticks.ts",
       "src/online-stores.ts",
+      "src/runtime-online-game.ts",
+      "src/runtime-online-deps.ts",
+      "src/runtime-online-promote.ts",
+      "src/runtime-online-ws.ts",
+      "src/runtime-online-lobby.ts",
+      "server/send-utils.ts",
+      "server/game-room.ts",
       "server/room-manager.ts"
-    ]
-  },
-  {
-    "name": "local runtime",
-    "files": [
+    ],
+    "runtime": [
+      "src/runtime-touch-ui.ts",
+      "src/runtime-state.ts",
+      "src/runtime-banner.ts",
+      "src/runtime-human.ts",
+      "src/runtime-bootstrap.ts",
+      "src/runtime-headless.ts",
+      "src/runtime-types.ts",
+      "src/runtime-camera.ts",
+      "src/runtime-test-globals.ts",
       "src/runtime-life-lost.ts",
       "src/runtime-upgrade-pick.ts",
       "src/runtime-lobby.ts",
@@ -193,25 +145,25 @@
       "src/runtime-render.ts",
       "src/runtime-selection.ts",
       "src/runtime.ts"
-    ]
-  },
-  {
-    "name": "online runtime",
-    "files": [
-      "src/runtime-online-game.ts",
-      "src/runtime-online-deps.ts",
-      "src/runtime-online-promote.ts",
-      "src/runtime-online-ws.ts",
-      "src/runtime-online-lobby.ts"
-    ]
-  },
-  {
-    "name": "entry points",
-    "files": [
+    ],
+    "entry": [
       "src/entry.ts",
       "src/main.ts",
       "src/online-client.ts",
       "server/server.ts"
     ]
+  },
+  "allowed": {
+    "shared":   ["shared"],
+    "game":     ["shared"],
+    "ai":       ["shared", "game", "player"],
+    "player":   ["shared", "game", "ai"],
+    "input":    ["shared", "game"],
+    "sound":    ["shared"],
+    "render":   ["shared", "game"],
+    "settings": ["shared", "game", "render"],
+    "online":   ["shared", "game", "render", "runtime"],
+    "runtime":  ["shared", "game", "player", "input", "sound", "render", "settings", "online"],
+    "entry":    ["shared", "game", "player", "input", "sound", "render", "settings", "online", "runtime", "entry"]
   }
-]
+}

@@ -9,15 +9,15 @@ import type {
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
-import {
-  type PlayerSlotId,
-  SCORE_DELTA_DISPLAY_TIME,
-  SPECTATOR_SLOT,
-  type ValidPlayerSlot,
-} from "./game-constants.ts";
+import { SCORE_DELTA_DISPLAY_TIME } from "./game-constants.ts";
 import type { GameMap, Viewport } from "./geometry-types.ts";
 import type { LoupeHandle, RenderOverlay } from "./overlay-types.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
+import {
+  type PlayerSlotId,
+  SPECTATOR_SLOT,
+  type ValidPlayerSlot,
+} from "./player-slot.ts";
 import {
   createBannerUi,
   createOnlineOverlay,

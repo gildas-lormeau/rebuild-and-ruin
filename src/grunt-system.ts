@@ -16,7 +16,6 @@ import {
   GRUNT_ATTACK_DURATION,
   GRUNT_WALL_ATTACK_CHANCE,
   GRUNT_WALL_ATTACK_MIN_BATTLES,
-  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
@@ -28,6 +27,7 @@ import {
   isAdjacentToLivingTower,
   isGruntPassableTile,
 } from "./grunt-movement.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
   DIRS_4,
   distanceToTower,

@@ -4,7 +4,6 @@
 
 import { createController } from "./controller-factory.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import {
   createGameState,
   enterCastleReselectPhase,
@@ -14,6 +13,7 @@ import {
 import { generateMap } from "./map-generation.ts";
 import { rebuildHomeCastle } from "./phase-setup.ts";
 import { PLAYER_KEY_BINDINGS } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import type { GameState } from "./types.ts";
 

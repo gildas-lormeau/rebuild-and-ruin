@@ -8,7 +8,7 @@
 
 import { type GameMessage, MESSAGE } from "../server/protocol.ts";
 import { isHuman } from "./controller-interfaces.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import { Mode, type UpgradePickDialogState } from "./types.ts";
 import {

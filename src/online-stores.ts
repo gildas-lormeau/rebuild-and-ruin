@@ -12,7 +12,6 @@
  */
 
 import type { GameMessage } from "../server/protocol.ts";
-import { isActivePlayer, type ValidPlayerSlot } from "./game-constants.ts";
 import {
   createDedupMaps,
   createSession,
@@ -30,6 +29,7 @@ import {
   type WatcherState,
 } from "./online-watcher-tick.ts";
 import { IS_DEV } from "./platform.ts";
+import { isActivePlayer, type ValidPlayerSlot } from "./player-slot.ts";
 import { isHostInContext } from "./tick-context.ts";
 
 type ResetScope =

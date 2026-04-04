@@ -54,7 +54,6 @@ import {
   INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
   INTERBATTLE_GRUNT_SPAWN_CHANCE,
   MODIFIER_ID,
-  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import {
   rollGruntWallAttacks,
@@ -62,6 +61,7 @@ import {
   spawnGruntOnZone,
   updateGruntBlockedBattles,
 } from "./grunt-system.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
   applyCrumblingWalls,
   applyFrozenRiver,

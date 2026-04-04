@@ -20,7 +20,6 @@ import {
   FIRST_ROUND_CANNONS,
   GAME_MODE_CLASSIC,
   STARTING_LIVES,
-  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import type { GameMap, Tower } from "./geometry-types.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
@@ -31,6 +30,7 @@ import {
   enterBuildFromSelect,
   setPhase,
 } from "./phase-setup.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { Rng } from "./rng.ts";
 import {
   emptyFreshInterior,

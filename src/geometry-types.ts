@@ -1,9 +1,5 @@
-/**
- * Shared lightweight geometry/data shapes used by strategy and controller code.
- */
-
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { Tile } from "./grid.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 
 /** RGB color tuple. */
 export type RGB = [number, number, number];

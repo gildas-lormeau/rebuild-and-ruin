@@ -63,11 +63,6 @@ import type {
   ControllerIdentity,
   InputReceiver,
 } from "./controller-interfaces.ts";
-import {
-  isActivePlayer,
-  type PlayerSlotId,
-  type ValidPlayerSlot,
-} from "./game-constants.ts";
 import type { Crosshair, Viewport, WorldPos } from "./geometry-types.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import type { RendererInterface } from "./overlay-types.ts";
@@ -76,6 +71,11 @@ import type {
   DedupChannel,
   PiecePhantom,
 } from "./phantom-types.ts";
+import {
+  isActivePlayer,
+  type PlayerSlotId,
+  type ValidPlayerSlot,
+} from "./player-slot.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import {

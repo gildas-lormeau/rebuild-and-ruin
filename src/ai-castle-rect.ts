@@ -11,9 +11,9 @@ import {
   hasGruntAt,
   hasTowerAt,
 } from "./board-occupancy.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { TileRect, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type Tile } from "./grid.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
   DIRS_4,
   DIRS_8,

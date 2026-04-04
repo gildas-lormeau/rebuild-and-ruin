@@ -1,13 +1,3 @@
-/**
- * Shared phase-transition helpers consumed by both local runtime and online client.
- *
- * Owns the canonical *ordering* and *what* of each phase transition —
- * callers supply the *how* via dependency injection.  This prevents
- * silent drift between the host (runtime-host-phase-ticks / runtime-selection)
- * and the watcher (online-phase-transitions).
- */
-
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import {
   BANNER_BATTLE_SUB,
   BANNER_BUILD_SUB,
@@ -15,6 +5,7 @@ import {
   BANNER_PLACE_CANNONS_SUB,
   type BannerShow,
 } from "./phase-banner.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 
 interface BuildEndSequenceDeps {
   readonly needsReselect: readonly ValidPlayerSlot[];

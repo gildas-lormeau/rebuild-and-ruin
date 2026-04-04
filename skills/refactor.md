@@ -127,6 +127,22 @@ Best for: renaming a commonly-used parameter name (like `ctx`) that appears in m
 
 Handles the case where both a property and its local variable are renamed — collapses redundant `{ newName: newName }` back to shorthand `{ newName }`.
 
+### `merge-imports` — Merge duplicate imports from the same module
+
+When multiple import declarations reference the same module specifier, merges them into a single declaration.
+
+```bash
+npm run refactor merge-imports <file...> [--dry-run]
+npm run refactor merge-imports --all [--dry-run]
+```
+
+Merge rules:
+- `import type { A }` + `import { B }` → `import { B, type A }` (inline type modifier)
+- `import type { A }` + `import type { B }` → `import type { A, B }`
+- `import { A }` + `import { B }` → `import { A, B }`
+
+Best for: cleaning up after `move-export` operations that create separate type and value imports from the same module. Run `merge-imports --all` after large refactors.
+
 ## Tips
 
 - Use `find-symbol` + `list-exports` + `list-references` to plan before refactoring

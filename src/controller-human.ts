@@ -19,23 +19,21 @@ import {
   type PiecePlacementPreview,
 } from "./controller-interfaces.ts";
 import { BaseController } from "./controller-types.ts";
-import {
-  BALLOON_COST,
-  SUPER_GUN_COST,
-  type ValidPlayerSlot,
-} from "./game-constants.ts";
+import { BALLOON_COST, SUPER_GUN_COST } from "./game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import { rotateCW } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { cannonSize } from "./spatial.ts";
-import type { GameState, Player } from "./types.ts";
 import {
   Action,
   CannonMode,
+  type GameState,
   isBalloonMode,
   isNormalMode,
   isPlayerAlive,
   isSuperMode,
+  type Player,
 } from "./types.ts";
 
 /** Speed multiplier when ROTATE (sprint) key is held during battle crosshair movement. */

@@ -9,8 +9,8 @@
 
 import { sfxr } from "jsfxr";
 import { type BattleEvent, MESSAGE } from "../server/protocol.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import { SOUND_ALL, SOUND_PHASE_ONLY } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 
 export interface SoundSystem {
   setLevel: (level: number) => void;

@@ -27,7 +27,6 @@ import {
 import { pickPlacement } from "./ai-strategy-build.ts";
 import { autoPlaceCannons, autoSelectTower } from "./ai-strategy-cannon.ts";
 import { filterActiveEnemies } from "./board-occupancy.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type {
   GameMap,
   PixelPos,
@@ -42,6 +41,7 @@ import {
   DIFFICULTY_NORMAL,
   DIFFICULTY_VERY_HARD,
 } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { Rng } from "./rng.ts";
 import { computeOutside, isTowerEnclosed, waterKeys } from "./spatial.ts";
 import {

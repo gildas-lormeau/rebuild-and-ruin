@@ -2,13 +2,13 @@ import type {
   ControllerIdentity,
   SelectionController,
 } from "./controller-interfaces.ts";
+import { selectPlayerTower } from "./game-engine.ts";
+import { BANNER_SELECT } from "./phase-banner.ts";
 import {
   isActivePlayer,
   type PlayerSlotId,
   type ValidPlayerSlot,
-} from "./game-constants.ts";
-import { selectPlayerTower } from "./game-engine.ts";
-import { BANNER_SELECT } from "./phase-banner.ts";
+} from "./player-slot.ts";
 import { isRemoteHuman } from "./tick-context.ts";
 import {
   type GameState,

@@ -1,16 +1,4 @@
-/**
- * Game-layer checkpoint data types — protocol-free contracts for state sync.
- *
- * These interfaces define what data the game needs to synchronize at each
- * phase transition.  Protocol messages (WebSocket, NCP, etc.) extend them
- * with a `type` discriminant; checkpoint apply functions accept these types
- * so they never depend on the wire format.
- *
- * Serialized sub-types (SerializedPlayer, etc.) also live here because they
- * describe the shape of game state for sync, not protocol framing.
- */
-
-import type { ValidPlayerSlot } from "./game-constants.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 
 export interface SerializedCannon {
   row: number;

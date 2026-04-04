@@ -8,7 +8,6 @@ import type {
   SerializedPlayer,
 } from "./checkpoint-data.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
-import { isActivePlayer, type ValidPlayerSlot } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 import { TILE_COUNT } from "./grid.ts";
 import type { OnlineSession } from "./online-session.ts";
@@ -36,6 +35,7 @@ import {
   showBuildPhaseBanner,
   showCannonPhaseBanner,
 } from "./phase-transition-shared.ts";
+import { isActivePlayer, type ValidPlayerSlot } from "./player-slot.ts";
 import {
   BANNER_PHASE_BUILD,
   BANNER_PHASE_CANNON,

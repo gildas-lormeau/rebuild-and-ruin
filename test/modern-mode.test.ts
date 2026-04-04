@@ -8,7 +8,6 @@
 import { clearPlayerWalls } from "../src/board-occupancy.ts";
 import { recheckTerritoryOnly } from "../src/build-system.ts";
 import { BALL_SPEED, GAME_MODE_MODERN, MODIFIER_FIRST_ROUND } from "../src/game-constants.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "../src/game-constants.ts";
 import {
   comboDemolitionBonus,
   comboOnCannonKill,
@@ -56,6 +55,7 @@ import { generateUpgradeOffers } from "../src/phase-setup.ts";
 import { createUpgradePickDialog } from "../src/upgrade-pick.ts";
 import { createScenario } from "./scenario-helpers.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "../src/player-slot.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers

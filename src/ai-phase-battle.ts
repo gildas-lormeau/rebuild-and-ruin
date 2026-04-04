@@ -9,8 +9,8 @@
 import { STEP } from "./ai-constants.ts";
 import { type AiStrategy, CHAIN, type ChainType } from "./ai-strategy.ts";
 import { aimCannons, nextReadyCombined } from "./battle-system.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { StrategicPixelPos, TilePos } from "./geometry-types.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { packTile, tileCenterPx } from "./spatial.ts";
 import {
   type CombinedCannonResult,

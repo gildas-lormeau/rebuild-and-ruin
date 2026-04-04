@@ -34,14 +34,12 @@
  *   ctx.restore();
  */
 
-import {
-  IMPACT_FLASH_DURATION,
-  type ValidPlayerSlot,
-} from "./game-constants.ts";
+import { IMPACT_FLASH_DURATION } from "./game-constants.ts";
 import type { GameMap, RGB } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import type { RenderOverlay } from "./overlay-types.ts";
 import { getPlayerColor } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { drawSprite } from "./render-sprites.ts";
 import { facingToCardinal, isWater, unpackTile } from "./spatial.ts";
 import {

@@ -7,9 +7,9 @@
  */
 
 import { type BattleEvent, MESSAGE } from "../server/protocol.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import { CAN_VIBRATE } from "./platform.ts";
 import { HAPTICS_ALL, HAPTICS_PHASE_ONLY } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 
 export interface HapticsSystem {
   setLevel: (level: number) => void;

@@ -8,7 +8,7 @@ import type {
 } from "./checkpoint-data.ts";
 import { createComboTracker, isCombosEnabled } from "./combo-system.ts";
 import type { OrbitParams } from "./controller-interfaces.ts";
-import { BATTLE_TIMER, type ValidPlayerSlot } from "./game-constants.ts";
+import { BATTLE_TIMER } from "./game-constants.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import {
   applyCapturedCannons,
@@ -16,6 +16,7 @@ import {
   applyHousesCheckpoint,
   applyPlayersCheckpoint,
 } from "./online-serialize.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { towerCenterPx } from "./spatial.ts";
 import type { GameState, ModernState, UpgradeOfferTuple } from "./types.ts";
 

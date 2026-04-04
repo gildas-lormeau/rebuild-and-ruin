@@ -1,16 +1,15 @@
 import { createController } from "./controller-factory.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
-import {
-  GAME_MODE_CLASSIC,
-  GAME_MODE_MODERN,
-  isActivePlayer,
-  type PlayerSlotId,
-  type ValidPlayerSlot,
-} from "./game-constants.ts";
+import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "./game-constants.ts";
 import { createGameFromSeed } from "./game-engine.ts";
 import type { GameMap } from "./geometry-types.ts";
 import { generateMap } from "./map-generation.ts";
 import type { KeyBindings } from "./player-config.ts";
+import {
+  isActivePlayer,
+  type PlayerSlotId,
+  type ValidPlayerSlot,
+} from "./player-slot.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { GAME_CONTAINER_ACTIVE } from "./router.ts";
 import { GOLD, PANEL_BG } from "./theme.ts";

@@ -1,10 +1,5 @@
-/**
- * Rebuild & Ruin — Deno Deploy server entry point.
- * Serves the /ws/play WebSocket endpoint for online play with room management.
- */
-
-import type { ValidPlayerSlot } from "../src/game-constants.ts";
 import { PLAYER_NAMES } from "../src/player-config.ts";
+import type { ValidPlayerSlot } from "../src/player-slot.ts";
 import { MESSAGE, type RoomSettings } from "./protocol.ts";
 import { RoomManager } from "./room-manager.ts";
 

@@ -1,25 +1,10 @@
-/**
- * Online runtime wiring.
- *
- * Creates the GameRuntime with all online-specific callbacks and defines
- * functions that close over `runtime`.
- *
- * The TransitionContext and networking config are assembled from focused
- * builder functions (one per concern) to keep each section small and
- * colocated with its domain logic.
- */
-
-import type {
-  FullStateMessage,
-  GameMessage,
-  InitMessage,
-} from "../server/protocol.ts";
-import { MESSAGE } from "../server/protocol.ts";
 import {
-  BANNER_DURATION,
-  SELECT_TIMER,
-  type ValidPlayerSlot,
-} from "./game-constants.ts";
+  type FullStateMessage,
+  type GameMessage,
+  type InitMessage,
+  MESSAGE,
+} from "../server/protocol.ts";
+import { BANNER_DURATION, SELECT_TIMER } from "./game-constants.ts";
 import {
   applyBattleStartCheckpoint,
   applyBuildEndCheckpoint,
@@ -61,6 +46,7 @@ import {
   PLAYER_COLORS,
   PLAYER_NAMES,
 } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { createCanvasRenderer } from "./render-canvas.ts";
 import { precomputeTerrainCache } from "./render-map.ts";
 import {

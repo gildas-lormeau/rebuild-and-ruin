@@ -13,11 +13,7 @@ import {
   getBattleInterior,
 } from "./board-occupancy.ts";
 import { filterActiveFiringCannons } from "./cannon-system.ts";
-import {
-  MODIFIER_ID,
-  TOWER_SIZE,
-  type ValidPlayerSlot,
-} from "./game-constants.ts";
+import { MODIFIER_ID, TOWER_SIZE } from "./game-constants.ts";
 import type {
   PixelPos,
   PrioritizedTilePos,
@@ -25,6 +21,7 @@ import type {
   TilePos,
 } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { Rng } from "./rng.ts";
 import {
   cannonSize,

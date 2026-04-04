@@ -19,10 +19,10 @@ import {
   type ControllerIdentity,
   isAiAnimatable,
 } from "./controller-interfaces.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { Crosshair, PixelPos } from "./geometry-types.ts";
 import { interpolateToward, REMOTE_CROSSHAIR_SPEED } from "./online-types.ts";
 import type { DedupChannel } from "./phantom-types.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { isRemoteHuman } from "./tick-context.ts";
 import { type GameState, isPlayerAlive } from "./types.ts";
 

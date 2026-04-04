@@ -25,13 +25,13 @@ import {
   ENCLOSED_GRUNT_RESPAWN_CHANCE,
   TERRITORY_POINT_TIERS,
   TOWER_SIZE,
-  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import type { TilePos } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type Tile } from "./grid.ts";
 import { spawnGruntNearPos, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
 import type { PieceShape } from "./pieces.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
   computeOutside,
   DIRS_8,

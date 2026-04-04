@@ -1,31 +1,4 @@
-/**
- * Shared board occupancy queries used by gameplay systems.
- *
- * These helpers centralize state-based tile checks so build, grunt, and AI
- * logic do not each re-implement the same scans across walls, units, houses,
- * towers, and cannons.
- *
- * ## Epoch tracking (stale-interior detection)
- *
- * Wall mutations and interior recomputation are tracked via epoch counters.
- * ALL wall mutations must go through the centralized helpers:
- *   - addPlayerWall / addPlayerWalls — build phase (marks dirty)
- *   - clearPlayerWalls              — board reset (marks dirty)
- *   - sweepIsolatedWalls            — debris sweep at phase transitions (marks dirty)
- *   - deletePlayerWallBattle        — battle destruction (intentionally no mark)
- *
- * Player.walls is ReadonlySet at the type level — the compiler prevents
- * direct .add/.delete/.clear outside these helpers.
- *
- * After any dirty-marking mutation, call recheckTerritoryOnly(state) before reading
- * player.interior. assertInteriorFresh(player) throws if this is skipped.
- *
- * EXCEPTION: during battle phase, interior is intentionally stale (walls can be
- * destroyed without recomputing). Use getBattleInterior() for stale-safe reads.
- * Interior becomes fresh again at the next recheckTerritoryOnly() call (build phase entry).
- */
-
-import type { ValidPlayerSlot } from "./game-constants.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
   computeCannonTileSet,
   countWallNeighbors,

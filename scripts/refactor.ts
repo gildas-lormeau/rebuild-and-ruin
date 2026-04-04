@@ -7,6 +7,7 @@
  *   rename-prop    <typeName> <prop> <newProp> — Rename an interface/type property across all files (also accepts <file> <typeName> <prop> <newProp>)
  *   rename-in-file <name> <newName> <file...> — Rename ALL declarations of a name within specific files (also accepts <file...> <name> <newName>)
  *   rename-file    <oldPath> <newPath>        — Rename/move a file and update all imports
+ *   merge-imports  <file...> | --all         — Merge duplicate imports from same module specifier
  *
  * Usage: npx tsx scripts/refactor.ts <command> [...args] [--dry-run]
  */
@@ -30,6 +31,7 @@ import process from "node:process";
 
 const args = process.argv.slice(2);
 const dryRun = args.includes("--dry-run");
+const allFlag = args.includes("--all");
 
 // Parse --key value pairs into a map, collect bare positional args separately.
 // Repeated flags (e.g. --symbol A --symbol B) are collected into flagMulti.
@@ -38,7 +40,7 @@ const flagMulti = new Map<string, string[]>();
 const positionalArgs: string[] = [];
 for (let i = 0; i < args.length; i++) {
   const a = args[i]!;
-  if (a === "--dry-run") continue;
+  if (a === "--dry-run" || a === "--all") continue;
   if (a.startsWith("--") && i + 1 < args.length) {
     const key = a.slice(2);
     const val = args[++i]!;
@@ -544,9 +546,12 @@ function rewriteImports(
           }
         }
       } else {
+        // Strip redundant `type ` prefix from named import text when the new
+        // declaration itself is `import type` (otherwise TS2206).
+        const cleanText = isTypeImport ? importText.replace(/^type\s+/, "") : importText;
         sf.addImportDeclaration({
           moduleSpecifier: newModuleSpec,
-          namedImports: [importText],
+          namedImports: [cleanText],
           isTypeOnly: isTypeImport,
         });
       }
@@ -953,6 +958,130 @@ function renameFile(oldPath: string, newPath: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// merge-imports: merge duplicate imports from the same module specifier
+// ---------------------------------------------------------------------------
+
+function mergeImports(files: string[]): void {
+  const project = createProject();
+  if (files.length === 0) {
+    addAllSources(project);
+  } else {
+    for (const file of files) {
+      project.addSourceFileAtPath(resolve(file));
+    }
+  }
+
+  let totalMerged = 0;
+  const filesToProcess = files.length > 0
+    ? files.map((file) => project.getSourceFileOrThrow(resolve(file)))
+    : project.getSourceFiles();
+
+  for (const sf of filesToProcess) {
+    totalMerged += mergeImportsInFile(sf);
+  }
+
+  if (totalMerged === 0) {
+    console.log("No duplicate imports found");
+    return;
+  }
+
+  const changedFiles = saveChanges(project);
+  console.log(`✅ Merged ${totalMerged} duplicate import(s) across ${changedFiles} file(s)`);
+}
+
+/**
+ * Merge duplicate import declarations from the same module specifier in a
+ * single source file. Returns the number of duplicate declarations removed.
+ */
+function mergeImportsInFile(sf: SourceFile): number {
+  const imports = sf.getImportDeclarations();
+
+  // Group imports by resolved module specifier text
+  const groups = new Map<string, ImportDeclaration[]>();
+  for (const imp of imports) {
+    // Skip namespace imports (import * as X from "...") and bare side-effect imports
+    if (imp.getNamespaceImport() || imp.getDefaultImport()) continue;
+    if (imp.getNamedImports().length === 0) continue;
+
+    const spec = imp.getModuleSpecifierValue();
+    const existing = groups.get(spec);
+    if (existing) existing.push(imp);
+    else groups.set(spec, [imp]);
+  }
+
+  let merged = 0;
+
+  for (const [spec, decls] of groups) {
+    if (decls.length < 2) continue;
+
+    // Determine if all declarations are type-only
+    const allTypeOnly = decls.every((imp) => imp.isTypeOnly());
+    // Determine if any declaration is a value (non-type-only) import
+    const hasValueImport = decls.some((imp) => !imp.isTypeOnly());
+
+    // Collect all named import specifiers with their type information
+    const specifiers: { name: string; alias: string | undefined; isType: boolean }[] = [];
+    const seen = new Set<string>();
+
+    for (const imp of decls) {
+      const declIsTypeOnly = imp.isTypeOnly();
+      for (const named of imp.getNamedImports()) {
+        const name = named.getName();
+        const alias = named.getAliasNode()?.getText();
+        const key = alias ? `${name} as ${alias}` : name;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        // A specifier is type-only if:
+        // - It has an explicit `type` modifier on the specifier itself, OR
+        // - Its parent declaration is `import type { ... }`
+        const isType = named.isTypeOnly() || declIsTypeOnly;
+        specifiers.push({ name, alias, isType });
+      }
+    }
+
+    // Sort: value imports first, then type imports; alphabetical within each group
+    specifiers.sort((aa, bb) => {
+      if (aa.isType !== bb.isType) return aa.isType ? 1 : -1;
+      const aText = aa.alias ?? aa.name;
+      const bText = bb.alias ?? bb.name;
+      return aText.localeCompare(bText);
+    });
+
+    // Build the merged import declaration structure
+    const mergedIsTypeOnly = allTypeOnly;
+    const namedImports = specifiers.map((sp) => {
+      const base = sp.alias ? `${sp.name} as ${sp.alias}` : sp.name;
+      // Add inline `type` modifier when merging type specifiers into a value import
+      if (sp.isType && hasValueImport && !mergedIsTypeOnly) {
+        return `type ${base}`;
+      }
+      return base;
+    });
+
+    const relPath = path.relative(process.cwd(), sf.getFilePath());
+    console.log(`  ${relPath}: merging ${decls.length} imports from "${spec}"`);
+
+    // Remove all existing declarations for this specifier (in reverse order
+    // to avoid index shifting)
+    for (let idx = decls.length - 1; idx >= 0; idx--) {
+      decls[idx]!.remove();
+    }
+
+    // Add the merged import
+    sf.addImportDeclaration({
+      moduleSpecifier: spec,
+      namedImports,
+      isTypeOnly: mergedIsTypeOnly,
+    });
+
+    merged += decls.length - 1; // count how many duplicates were eliminated
+  }
+
+  return merged;
+}
+
+// ---------------------------------------------------------------------------
 // CLI dispatch
 // ---------------------------------------------------------------------------
 
@@ -965,6 +1094,7 @@ Commands:
   rename-prop    <typeName> <prop> <newProp>    Rename a type/interface property (auto-detects file-first arg order)
   rename-in-file <name> <newName> <file...>    Rename all declarations in specific files (auto-detects file-first arg order)
   rename-file    <oldPath> <newPath>           Rename/move a file and update all imports
+  merge-imports  <file...> | --all             Merge duplicate imports from same module
   find-symbol    <name>                        Find where a symbol is declared
   list-exports   <file>                        List all exports from a file
   list-references <file> <name>                Show all files that import a symbol
@@ -981,7 +1111,9 @@ Examples:
   npx tsx scripts/refactor.ts find-symbol GameState
   npx tsx scripts/refactor.ts list-exports src/types.ts
   npx tsx scripts/refactor.ts list-references src/types.ts GameState
-  npx tsx scripts/refactor.ts rename-symbol src/render-effects.ts overlayCtx canvasCtx --dry-run`);
+  npx tsx scripts/refactor.ts rename-symbol src/render-effects.ts overlayCtx canvasCtx --dry-run
+  npx tsx scripts/refactor.ts merge-imports src/game-state.ts src/types.ts
+  npx tsx scripts/refactor.ts merge-imports --all --dry-run`);
 }
 
 switch (command) {
@@ -1075,6 +1207,15 @@ switch (command) {
       process.exit(1);
     }
     renameFile(oldFile, newFile);
+    break;
+  }
+  case "merge-imports": {
+    const files = allFlag ? [] : commandArgs;
+    if (!allFlag && files.length === 0) {
+      console.error("Usage: merge-imports <file...> | --all [--dry-run]");
+      process.exit(1);
+    }
+    mergeImports(files);
     break;
   }
   case "find-symbol": {

@@ -1,15 +1,8 @@
-/**
- * Tower rendering — drawTowers layer and tower highlight overlay.
- *
- * Time parameter convention: `now` is the frame timestamp from `performance.now()`,
- * threaded from drawMap. See render-effects.ts for the full convention.
- */
-
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { GameMap } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import type { RenderOverlay } from "./overlay-types.ts";
 import { getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { drawSpriteCentered } from "./render-sprites.ts";
 import { towerCenterPx } from "./spatial.ts";
 import {

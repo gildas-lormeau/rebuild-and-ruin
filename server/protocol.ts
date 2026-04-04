@@ -1,14 +1,3 @@
-/**
- * WebSocket protocol — event-based message types.
- * No runtime code, only type definitions.
- *
- * Architecture:
- * - Checkpoints at phase transitions (full state for reconciliation)
- * - Events during phases (incremental updates)
- * - Local execution on client for build/cannon (zero-latency input)
- */
-
-import type { ValidPlayerSlot } from "../src/game-constants.ts";
 import type { CannonMode, ResolvedChoice } from "../src/types.ts";
 
 // ---------------------------------------------------------------------------
@@ -73,6 +62,7 @@ import type {
   SerializedHouse,
   SerializedPlayer,
 } from "../src/checkpoint-data.ts";
+import type { ValidPlayerSlot } from "../src/player-slot.ts";
 
 // ---------------------------------------------------------------------------
 // Room settings

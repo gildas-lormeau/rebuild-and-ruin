@@ -9,7 +9,6 @@ import {
   MAX_ZOOM_VIEWPORT_RATIO,
   MIN_ZOOM_RATIO,
   PINCH_FULL_MAP_SNAP,
-  type ValidPlayerSlot,
   VIEWPORT_SNAP_THRESHOLD,
   ZONE_PAD_NO_WALLS,
   ZONE_PAD_SELECTION,
@@ -25,6 +24,7 @@ import {
   SCALE,
   TILE_SIZE,
 } from "./grid.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { CameraSystem, FrameContext } from "./runtime-types.ts";
 import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
 import {

@@ -4,7 +4,7 @@
  */
 
 import { addPlayerWall } from "./board-occupancy.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { GameState } from "./types.ts";
 
 export interface CastleWallPlan {

@@ -1,11 +1,4 @@
-/**
- * Combo scoring system — rewards skilled play during battle (modern mode only).
- *
- * Tracks per-player hit streaks within a time window and awards bonus score.
- * Transient state: lives only during battle, not serialized or checkpointed.
- */
-
-import type { ValidPlayerSlot } from "./game-constants.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { GameState, ModernState } from "./types.ts";
 
 /** Inferred from ModernState.comboTracker — defined inline in types.ts to avoid circular deps. */

@@ -18,9 +18,7 @@ import {
   BATTLE_TIMER,
   BUILD_TIMER,
   LIFE_LOST_AUTO_DELAY,
-  LIFE_LOST_MAX_TIMER,
-  type PlayerSlotId,
-  type ValidPlayerSlot,
+  LIFE_LOST_MAX_TIMER
 } from "../src/game-constants.ts";
 import { nextPhase } from "../src/game-engine.ts";
 import {
@@ -39,14 +37,7 @@ import type {
   BuildStartData,
   CannonStartData,
 } from "../src/checkpoint-data.ts";
-import {
-  applyBattleStartCheckpoint,
-  applyBuildStartCheckpoint,
-  applyCannonStartCheckpoint,
-  type CheckpointDeps,
-} from "../src/online-checkpoints.ts";
 import type { TransitionContext } from "../src/online-phase-transitions.ts";
-import { applyBuildEndCheckpoint } from "../src/online-checkpoints.ts";
 import {
   type BannerState,
   createBannerState,
@@ -77,6 +68,8 @@ import {
   Phase, type WatcherTimingState } from "../src/types.ts";
 import { isGrass, packTile } from "../src/spatial.ts";
 import { assert } from "./test-helpers.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "../src/player-slot.ts";
+import { applyBattleStartCheckpoint, applyBuildEndCheckpoint, applyBuildStartCheckpoint, applyCannonStartCheckpoint, type CheckpointDeps } from "../src/online-checkpoints.ts";
 
 // ---------------------------------------------------------------------------
 // Scenario factory

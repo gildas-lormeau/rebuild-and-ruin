@@ -1,13 +1,3 @@
-/**
- * Phantom dedup tests: cannonPhantomKey, piecePhantomKey, DedupChannel.
- *
- * Verifies that the dedup key functions produce stable keys and that
- * DedupChannel.shouldSend() correctly detects first sends, duplicates, and changes.
- *
- * Run with: bun test/online-phantom-dedup.test.ts
- */
-
-import type { ValidPlayerSlot } from "../src/game-constants.ts";
 import { interpolateToward, toCannonMode } from "../src/online-types.ts";
 import {
   cannonPhantomKey,
@@ -19,6 +9,7 @@ import {
 } from "../src/phantom-types.ts";
 import { CannonMode } from "../src/types.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
+import type { ValidPlayerSlot } from "../src/player-slot.ts";
 
 // ---------------------------------------------------------------------------
 // cannonPhantomKey

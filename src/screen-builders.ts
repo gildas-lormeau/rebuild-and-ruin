@@ -7,7 +7,6 @@ import {
   GAME_MODE_MODERN,
   LOBBY_SKIP_LOCKOUT,
   LOBBY_SKIP_STEP,
-  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import type { GameMap } from "./geometry-types.ts";
 import type { OptionEntry, RenderOverlay } from "./overlay-types.ts";
@@ -23,6 +22,7 @@ import {
   SEED_CUSTOM,
   saveSettings,
 } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
   CANNON_HP_OPTIONS,
   DIFFICULTY_LABELS,
@@ -43,8 +43,8 @@ import {
   SOUND_LABELS,
 } from "./settings-defs.ts";
 import { formatKeyName } from "./settings-ui.ts";
-import type { ControlsState } from "./types.ts";
 import {
+  type ControlsState,
   type GameState,
   isInteractiveMode,
   type LobbyState,

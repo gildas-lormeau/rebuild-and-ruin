@@ -29,7 +29,6 @@ import { snapshotTerritory as snapshotTerritoryImpl } from "./battle-system.ts";
 import {
   MAX_FRAME_DT,
   SELECT_ANNOUNCEMENT_DURATION,
-  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import type { GameMap, Viewport } from "./geometry-types.ts";
 import { createHapticsSystem } from "./haptics-system.ts";
@@ -37,6 +36,7 @@ import { generateMap } from "./map-generation.ts";
 import type { RenderOverlay } from "./overlay-types.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "./platform.ts";
 import { computeGameSeed } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { precomputeTerrainCache } from "./render-map.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
 import { createCameraSystem } from "./runtime-camera.ts";

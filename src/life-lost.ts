@@ -1,5 +1,5 @@
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import { type AutoResolveDeps, shouldAutoResolve } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
   type GameState,
   LifeLostChoice,

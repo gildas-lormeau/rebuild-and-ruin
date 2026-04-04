@@ -7,11 +7,7 @@
 
 import { type GameMessage, MESSAGE } from "../server/protocol.ts";
 import { isHuman } from "./controller-interfaces.ts";
-import {
-  LIFE_LOST_AUTO_DELAY,
-  LIFE_LOST_MAX_TIMER,
-  type ValidPlayerSlot,
-} from "./game-constants.ts";
+import { LIFE_LOST_AUTO_DELAY, LIFE_LOST_MAX_TIMER } from "./game-constants.ts";
 import { resolveAfterLifeLost } from "./game-engine.ts";
 import {
   continuingPlayers,
@@ -19,6 +15,7 @@ import {
   tickLifeLostDialog,
 } from "./life-lost.ts";
 import { eliminatePlayer } from "./phase-setup.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { lifeLostPanelPos as lifeLostPanelPosShared } from "./render-composition.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { RuntimeLifeLost } from "./runtime-types.ts";

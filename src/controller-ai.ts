@@ -41,16 +41,16 @@ import {
   tickSelection,
 } from "./ai-phase-select.ts";
 import { type AiStrategy, DefaultStrategy } from "./ai-strategy.ts";
-import type {
-  AiAnimatable,
-  CannonPlacementPreview,
-  OrbitParams,
-  PiecePlacementPreview,
+import {
+  type AiAnimatable,
+  type CannonPlacementPreview,
+  CROSSHAIR_SPEED,
+  type OrbitParams,
+  type PiecePlacementPreview,
 } from "./controller-interfaces.ts";
-import { CROSSHAIR_SPEED } from "./controller-interfaces.ts";
 import { BaseController } from "./controller-types.ts";
-import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { PixelPos, TilePos } from "./geometry-types.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { GameState } from "./types.ts";
 
 // ── Tile-cursor movement tuning ──

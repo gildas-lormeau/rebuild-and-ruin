@@ -38,11 +38,11 @@ import {
   HOUSE_GRUNT_SPAWN_CHANCE,
   SUPER_BALLOON_HITS_NEEDED,
   SUPER_GUN_THREAT_WEIGHT,
-  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import type { Crosshair, TilePos } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { findGruntSpawnNear } from "./grunt-system.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
   cannonCenter,
   computeFacing45,

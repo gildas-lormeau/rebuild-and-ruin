@@ -8,7 +8,6 @@
  */
 
 import type { OrbitParams } from "../src/controller-interfaces.ts";
-import { type ValidPlayerSlot } from "../src/game-constants.ts";
 import type { PixelPos } from "../src/geometry-types.ts";
 import {
   applyBattleStartCheckpoint,
@@ -29,6 +28,7 @@ import {
 } from "../src/runtime-headless.ts";
 import { CannonMode, emptyFreshInterior } from "../src/types.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
+import type { ValidPlayerSlot } from "../src/player-slot.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers

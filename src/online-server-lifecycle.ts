@@ -12,8 +12,9 @@ import {
   MESSAGE,
   type ServerMessage,
 } from "../server/protocol.ts";
-import { GAME_MODE_CLASSIC, type ValidPlayerSlot } from "./game-constants.ts";
+import { GAME_MODE_CLASSIC } from "./game-constants.ts";
 import type { OnlineSession } from "./online-session.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import { isHostInContext } from "./tick-context.ts";
 import type { GameState } from "./types.ts";
 

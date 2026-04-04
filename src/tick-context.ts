@@ -43,7 +43,8 @@
  */
 
 import type { ControllerIdentity } from "./controller-interfaces.ts";
-import { GRUNT_TICK_INTERVAL, type ValidPlayerSlot } from "./game-constants.ts";
+import { GRUNT_TICK_INTERVAL } from "./game-constants.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { GameState } from "./types.ts";
 
 /** Base networking context shared by all phase ticks.
