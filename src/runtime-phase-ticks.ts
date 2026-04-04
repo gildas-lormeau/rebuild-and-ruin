@@ -435,7 +435,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         deps.sound.lifeLost();
         deps.lifeLost.tryShow(needsReselect, eliminated);
       },
-      afterLifeLostResolved: deps.lifeLost.onResolved,
+      onLifeLostResolved: deps.lifeLost.onResolved,
       showScoreDeltas: deps.selection.showBuildScoreDeltas,
       onFirstEnclosure: deps.sound.chargeFanfare,
       net: {

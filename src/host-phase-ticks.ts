@@ -135,7 +135,7 @@ interface TickHostBuildPhaseDeps {
     needsReselect: readonly ValidPlayerSlot[],
     eliminated: readonly ValidPlayerSlot[],
   ) => void;
-  afterLifeLostResolved: () => boolean;
+  onLifeLostResolved: () => boolean;
   showScoreDeltas: (onDone: () => void) => void;
   onFirstEnclosure?: (playerId: ValidPlayerSlot) => void;
   /** Network context. Pass LOCAL_NET (spread with build-phase stubs) for local play. */
@@ -502,7 +502,7 @@ function finalizeBuildAndShowDialogs(
       if (!isRemoteHuman(pid, remoteHumanSlots)) controllers[pid]!.onLifeLost();
     },
     showLifeLostDialog: deps.showLifeLostDialog,
-    afterLifeLostResolved: deps.afterLifeLostResolved,
+    onLifeLostResolved: deps.onLifeLostResolved,
   });
 }
 

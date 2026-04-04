@@ -424,7 +424,7 @@ export function handleBuildEndTransition(
       if (pid === myPlayerId) transitionCtx.getControllers()[pid]?.onLifeLost();
     },
     showLifeLostDialog: transitionCtx.endPhase.showLifeLostDialog,
-    // No afterLifeLostResolved — watcher waits for host's next phase message
+    // No onLifeLostResolved — watcher waits for host's next phase message
   });
 }
 

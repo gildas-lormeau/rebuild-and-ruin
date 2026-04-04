@@ -702,7 +702,7 @@ test("runBuildEndSequence notifies all affected players", () => {
   assert(dialogShown, "Should show life-lost dialog");
 });
 
-test("runBuildEndSequence calls afterLifeLostResolved when no affected players", () => {
+test("runBuildEndSequence calls onLifeLostResolved when no affected players", () => {
   let resolved = false;
   runBuildEndSequence({
     needsReselect: [],
@@ -710,9 +710,9 @@ test("runBuildEndSequence calls afterLifeLostResolved when no affected players",
     showScoreDeltas: (onDone) => onDone(),
     notifyLifeLost: () => { throw new Error("should not notify"); },
     showLifeLostDialog: () => { throw new Error("should not show dialog"); },
-    afterLifeLostResolved: () => { resolved = true; },
+    onLifeLostResolved: () => { resolved = true; },
   });
-  assert(resolved, "Should call afterLifeLostResolved when no affected players");
+  assert(resolved, "Should call onLifeLostResolved when no affected players");
 });
 
 // ---------------------------------------------------------------------------
@@ -737,7 +737,7 @@ test("host and watcher build-end both notify affected controller via shared sequ
     showScoreDeltas: (onDone) => onDone(),
     notifyLifeLost: (pid) => hostNotified.push(pid),
     showLifeLostDialog: () => {},
-    afterLifeLostResolved: () => {},
+    onLifeLostResolved: () => {},
   });
 
   // --- Watcher path: build a BUILD_END message and run through the transition ---

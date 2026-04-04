@@ -23,7 +23,7 @@ interface BuildEndSequenceDeps {
   ) => void;
   /** Advance to next phase when no players need reselection.
    *  Host-only — watchers omit this (they wait for the host's next message). */
-  afterLifeLostResolved?: () => void;
+  onLifeLostResolved?: () => void;
 }
 
 type TransitionStep =
@@ -125,6 +125,6 @@ export function runBuildEndSequence(deps: BuildEndSequenceDeps): void {
       return;
     }
 
-    deps.afterLifeLostResolved?.();
+    deps.onLifeLostResolved?.();
   });
 }

@@ -55,7 +55,7 @@ test("BUILD_START_STEPS executes in order: banner, checkpoint, controllers", () 
 // runBuildEndSequence
 // ---------------------------------------------------------------------------
 
-test("runBuildEndSequence calls afterLifeLostResolved when no players need action", () => {
+test("runBuildEndSequence calls onLifeLostResolved when no players need action", () => {
   let resolved = false;
   let scoresDone = false;
 
@@ -72,13 +72,13 @@ test("runBuildEndSequence calls afterLifeLostResolved when no players need actio
     showLifeLostDialog: () => {
       throw new Error("should not show dialog when no players need action");
     },
-    afterLifeLostResolved: () => {
+    onLifeLostResolved: () => {
       resolved = true;
     },
   });
 
   assert(scoresDone, "showScoreDeltas should have been called");
-  assert(resolved, "afterLifeLostResolved should have been called");
+  assert(resolved, "onLifeLostResolved should have been called");
 });
 
 test("runBuildEndSequence notifies life-lost for each affected player", () => {
@@ -102,7 +102,7 @@ test("runBuildEndSequence notifies life-lost for each affected player", () => {
   assert(dialogShown, "life-lost dialog should have been shown");
 });
 
-test("runBuildEndSequence does not call afterLifeLostResolved when dialog is shown", () => {
+test("runBuildEndSequence does not call onLifeLostResolved when dialog is shown", () => {
   let resolved = false;
 
   runBuildEndSequence({
@@ -111,12 +111,12 @@ test("runBuildEndSequence does not call afterLifeLostResolved when dialog is sho
     showScoreDeltas: (onDone) => onDone(),
     notifyLifeLost: () => {},
     showLifeLostDialog: () => {},
-    afterLifeLostResolved: () => {
+    onLifeLostResolved: () => {
       resolved = true;
     },
   });
 
-  assert(!resolved, "afterLifeLostResolved should NOT be called when dialog is shown");
+  assert(!resolved, "onLifeLostResolved should NOT be called when dialog is shown");
 });
 
 test("runBuildEndSequence shows dialog for eliminated-only (no reselect)", () => {
@@ -140,15 +140,15 @@ test("runBuildEndSequence shows dialog for eliminated-only (no reselect)", () =>
   assert(dialogShown, "dialog should be shown for elimination");
 });
 
-test("runBuildEndSequence works without afterLifeLostResolved (watcher mode)", () => {
-  // Watchers omit afterLifeLostResolved — should not throw
+test("runBuildEndSequence works without onLifeLostResolved (watcher mode)", () => {
+  // Watchers omit onLifeLostResolved — should not throw
   runBuildEndSequence({
     needsReselect: [],
     eliminated: [],
     showScoreDeltas: (onDone) => onDone(),
     notifyLifeLost: () => {},
     showLifeLostDialog: () => {},
-    // no afterLifeLostResolved
+    // no onLifeLostResolved
   });
   // If we reach here without error, the test passes
 });

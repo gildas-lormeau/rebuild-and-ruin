@@ -134,8 +134,9 @@ const runtime: GameRuntime = createGameRuntime({
   getRemoteHumanSlots: () => ctx.session.remoteHumanSlots,
   log: devLog,
   logThrottled: devLogThrottled,
-  // -1 grace: ensures client timer reaches 0 before the server auto-starts,
-  // preventing a race where the UI still shows "1" as the game begins.
+  // -1 grace: server fires setTimeout(waitSec * 1000) exactly at waitSec.
+  // Subtracting 1 ensures the client shows 0 one second early, so the UI
+  // never displays "1" while the server is already starting the game.
   getLobbyRemaining: () =>
     Math.max(
       0,

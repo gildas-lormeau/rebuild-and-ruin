@@ -332,7 +332,7 @@ export function createSoundSystem(): SoundSystem {
     blast.buffer = blastBuf;
     const blastGain = audioCtx.createGain();
     blastGain.gain.setValueAtTime(volume, time);
-    blastGain.gain.setValueAtTime(volume * 0.6, time + 0.05);
+    blastGain.gain.setValueAtTime(volume * 0.6, time + 0.05); // initial punch → 60% sustain
     blastGain.gain.exponentialRampToValueAtTime(
       GAIN_SILENT,
       time + CANNON_BLAST_DURATION,
@@ -344,7 +344,10 @@ export function createSoundSystem(): SoundSystem {
     const bass = audioCtx.createOscillator();
     bass.type = SINE;
     bass.frequency.setValueAtTime(CANNON_BASS_START_HZ, time);
-    bass.frequency.exponentialRampToValueAtTime(CANNON_BASS_END_HZ, time + 0.3);
+    bass.frequency.exponentialRampToValueAtTime(
+      CANNON_BASS_END_HZ,
+      time + 0.3, // bass sweep duration
+    );
     const bassGain = audioCtx.createGain();
     bassGain.gain.setValueAtTime(volume * 0.9, time);
     bassGain.gain.exponentialRampToValueAtTime(
@@ -358,10 +361,16 @@ export function createSoundSystem(): SoundSystem {
     const mid = audioCtx.createOscillator();
     mid.type = SINE;
     mid.frequency.setValueAtTime(CANNON_MID_START_HZ, time);
-    mid.frequency.exponentialRampToValueAtTime(CANNON_MID_END_HZ, time + 0.15);
+    mid.frequency.exponentialRampToValueAtTime(
+      CANNON_MID_END_HZ,
+      time + 0.15, // fast mid-frequency sweep
+    );
     const midGain = audioCtx.createGain();
     midGain.gain.setValueAtTime(volume * 0.5, time);
-    midGain.gain.exponentialRampToValueAtTime(GAIN_SILENT, time + 0.2);
+    midGain.gain.exponentialRampToValueAtTime(
+      GAIN_SILENT,
+      time + 0.2, // mid voice is short — dies before blast/bass
+    );
     mid.connect(midGain).connect(audioCtx.destination);
     mid.start(time);
     mid.stop(time + 0.2);
@@ -373,7 +382,7 @@ export function createSoundSystem(): SoundSystem {
     const tail = audioCtx.createBufferSource();
     tail.buffer = tailBuf;
     const tailGain = audioCtx.createGain();
-    tailGain.gain.setValueAtTime(volume * 0.3, time + 0.1);
+    tailGain.gain.setValueAtTime(volume * 0.3, time + 0.1); // delayed start — rumble after initial blast
     tailGain.gain.exponentialRampToValueAtTime(
       GAIN_SILENT,
       time + CANNON_TAIL_DURATION,

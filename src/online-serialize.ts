@@ -3,12 +3,12 @@
  * Pure functions that read/write GameState — no module-level state.
  *
  * Null vs undefined convention for optional fields:
- *   - `null`  — field is always present in the message schema (modern-mode state
- *     like activeModifier, frozenTiles, pendingUpgradeOffers). Receivers can rely
- *     on the key existing.
- *   - `undefined` — field is omitted from JSON when empty (per-entity enrichments
- *     like incendiary, upgrades, damagedWalls, balloonFlights). Saves bandwidth;
- *     receivers must use `?? defaultValue`.
+ *   - `null`  — key is always present in the JSON object; receivers can rely on
+ *     it existing (e.g., homeTowerIdx, activeModifier, frozenTiles,
+ *     pendingUpgradeOffers). Use for fields where "absent" is a meaningful state.
+ *   - `undefined` — key is omitted from JSON when empty/default, saving bandwidth
+ *     (e.g., incendiary, upgrades, damagedWalls, balloonFlights). Receivers must
+ *     use `?? defaultValue`.
  */
 
 import { type FullStateMessage, MESSAGE } from "../server/protocol.ts";

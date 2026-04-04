@@ -675,33 +675,36 @@ function saturateRgb(c: RGB, factor: number): RGB {
 
 /** Draw balloon base phantom — sprite with red tint overlay if invalid. */
 function drawBalloonPhantom(
-  ctx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   x: number,
   y: number,
   size: number,
   valid: boolean,
 ): void {
-  drawSprite(ctx, "balloon_base", x, y);
+  drawSprite(overlayCtx, "balloon_base", x, y);
   if (!valid) {
-    ctx.fillStyle = "rgba(170, 34, 34, 0.4)";
-    ctx.fillRect(x, y, size, size);
+    overlayCtx.fillStyle = "rgba(170, 34, 34, 0.4)";
+    overlayCtx.fillRect(x, y, size, size);
   }
 }
 
 /** Draw super gun phantom footprint — symmetric around current transform origin. */
-function drawSuperPhantom(ctx: CanvasRenderingContext2D, valid: boolean): void {
-  ctx.fillStyle = valid ? "#1a1a1a" : "#3a1111";
-  ctx.fillRect(-14, -8, 28, 24);
-  ctx.fillStyle = valid ? "#333" : "#553333";
-  ctx.fillRect(-18, -6, 5, 11);
-  ctx.fillRect(13, -6, 5, 11);
-  ctx.fillStyle = valid ? "#2a2a2a" : "#4a2222";
-  ctx.fillRect(-16, -2, 32, 2);
-  ctx.fillStyle = valid ? "#444" : "#884444";
-  ctx.fillRect(-4, -18, 8, 27);
-  ctx.fillStyle = valid ? DARK_METAL : "#331111";
-  ctx.fillRect(-1, -18, 2, 3);
-  ctx.fillStyle = valid ? "#a33" : "#cc4444";
-  ctx.fillRect(-5, -11, 10, 2);
-  ctx.fillRect(-5, -5, 10, 2);
+function drawSuperPhantom(
+  overlayCtx: CanvasRenderingContext2D,
+  valid: boolean,
+): void {
+  overlayCtx.fillStyle = valid ? "#1a1a1a" : "#3a1111";
+  overlayCtx.fillRect(-14, -8, 28, 24);
+  overlayCtx.fillStyle = valid ? "#333" : "#553333";
+  overlayCtx.fillRect(-18, -6, 5, 11);
+  overlayCtx.fillRect(13, -6, 5, 11);
+  overlayCtx.fillStyle = valid ? "#2a2a2a" : "#4a2222";
+  overlayCtx.fillRect(-16, -2, 32, 2);
+  overlayCtx.fillStyle = valid ? "#444" : "#884444";
+  overlayCtx.fillRect(-4, -18, 8, 27);
+  overlayCtx.fillStyle = valid ? DARK_METAL : "#331111";
+  overlayCtx.fillRect(-1, -18, 2, 3);
+  overlayCtx.fillStyle = valid ? "#a33" : "#cc4444";
+  overlayCtx.fillRect(-5, -11, 10, 2);
+  overlayCtx.fillRect(-5, -5, 10, 2);
 }
