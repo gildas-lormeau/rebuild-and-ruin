@@ -694,56 +694,65 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     renderer,
     gameContainer,
-    dispatchPointerMove,
-    registerKeyboardHandlers,
-    registerMouseHandlers,
-    registerTouchHandlers,
-    createDpad,
-    createQuitButton,
-    createHomeZoomButton,
-    createEnemyZoomButton,
-    createFloatingActions,
-    lifeLostDialogClick: (screenX, screenY) => {
-      if (!runtimeState.lifeLostDialog) return null;
-      return handleLifeLostDialogClick({
-        state: runtimeState.state,
-        lifeLostDialog: runtimeState.lifeLostDialog,
-        screenX,
-        screenY,
-      });
+    hitTests: {
+      lifeLostDialogClick: (screenX, screenY) => {
+        if (!runtimeState.lifeLostDialog) return null;
+        return handleLifeLostDialogClick({
+          state: runtimeState.state,
+          lifeLostDialog: runtimeState.lifeLostDialog,
+          screenX,
+          screenY,
+        });
+      },
+      upgradePickClick: (screenX, screenY) => {
+        if (!runtimeState.upgradePickDialog) return null;
+        return handleUpgradePickClick({
+          W: GRID_COLS * TILE_SIZE,
+          H: GRID_ROWS * TILE_SIZE,
+          dialog: runtimeState.upgradePickDialog,
+          screenX,
+          screenY,
+        });
+      },
+      visibleOptionCount: () => visibleOptions(uiCtx).length,
     },
-    upgradePickClick: (screenX, screenY) => {
-      if (!runtimeState.upgradePickDialog) return null;
-      return handleUpgradePickClick({
-        W: GRID_COLS * TILE_SIZE,
-        H: GRID_ROWS * TILE_SIZE,
-        dialog: runtimeState.upgradePickDialog,
-        screenX,
-        screenY,
-      });
+    network: {
+      isOnline: config.isOnline,
+      maybeSendAimUpdate: config.maybeSendAimUpdate,
+      tryPlaceCannonAndSend: config.tryPlaceCannonAndSend,
+      tryPlacePieceAndSend: config.tryPlacePieceAndSend,
+      fireAndSend: config.fireAndSend,
+      getIsHost: config.getIsHost,
     },
-    visibleOptionCount: () => visibleOptions(uiCtx).length,
-    isOnline: config.isOnline,
-    maybeSendAimUpdate: config.maybeSendAimUpdate,
-    tryPlaceCannonAndSend: config.tryPlaceCannonAndSend,
-    tryPlacePieceAndSend: config.tryPlacePieceAndSend,
-    fireAndSend: config.fireAndSend,
-    getIsHost: config.getIsHost,
     lobby,
     options,
     lifeLost,
     upgradePick,
-    selection,
+    selection: { ...selection, isReady: isSelectionReady },
     camera,
     sound,
     haptics,
+    inputHandlers: {
+      dispatchPointerMove,
+      registerKeyboard: registerKeyboardHandlers,
+      registerMouse: registerMouseHandlers,
+      registerTouch: registerTouchHandlers,
+    },
+    touchFactories: {
+      createDpad,
+      createQuitButton,
+      createHomeZoomButton,
+      createEnemyZoomButton,
+      createFloatingActions,
+    },
+    lifecycle: {
+      render,
+      rematch: lifecycle.rematch,
+      returnToLobby: lifecycle.returnToLobby,
+      gameOverClick: lifecycle.gameOverClick,
+    },
     pointerPlayer,
     withPointerPlayer,
-    isSelectionReady,
-    render,
-    rematch: lifecycle.rematch,
-    returnToLobby: lifecycle.returnToLobby,
-    gameOverClick: lifecycle.gameOverClick,
   });
 
   // -------------------------------------------------------------------------

@@ -16,7 +16,6 @@ import {
 import { MAX_UINT32 } from "../shared/rng.ts";
 import { GAME_CONTAINER_ACTIVE } from "../shared/router.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
-import { GOLD, PANEL_BG } from "../shared/theme.ts";
 import { isRemoteHuman } from "../shared/tick-context.ts";
 import {
   type GameState,
@@ -26,15 +25,11 @@ import {
 } from "../shared/types.ts";
 
 interface InitWaitingRoomDeps {
-  code: string;
   seed: number;
   lobbyEl: HTMLElement;
   container: HTMLElement;
-  roomCodeOverlay: HTMLElement;
   lobby: LobbyState;
   maxPlayers: number;
-  /** Build a join URL for the given room code (injected for testability). */
-  buildJoinUrl: (code: string) => string;
   now: () => number;
   setLobbyStartTime: (timeMs: number) => void;
   setModeLobby: () => void;
@@ -92,11 +87,9 @@ interface InitGameDeps {
 
 export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
   const {
-    code,
     seed,
     lobbyEl,
     container,
-    roomCodeOverlay,
     lobby,
     maxPlayers,
     now,
@@ -108,45 +101,6 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
 
   lobbyEl.hidden = true;
   container.classList.add(GAME_CONTAINER_ACTIVE);
-
-  roomCodeOverlay.style.display = "block";
-  roomCodeOverlay.innerHTML = "";
-  const joinUrl = deps.buildJoinUrl(code);
-  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(joinUrl)}`;
-  const wrapper = document.createElement("div");
-  Object.assign(wrapper.style, {
-    position: "fixed",
-    top: "12px",
-    left: "50%",
-    transform: "translateX(-50%)",
-    background: PANEL_BG(0.9),
-    padding: "12px 24px",
-    borderRadius: "6px",
-    border: `2px solid ${GOLD}`,
-    color: GOLD,
-    fontSize: "24px",
-    letterSpacing: "6px",
-    fontWeight: "bold",
-    zIndex: "10",
-    textAlign: "center",
-  });
-  wrapper.textContent = code;
-  const qr = document.createElement("img");
-  qr.src = qrSrc;
-  qr.alt = "QR";
-  Object.assign(qr.style, {
-    display: "block",
-    margin: "8px auto 0",
-    width: "120px",
-    height: "120px",
-    imageRendering: "pixelated",
-    borderRadius: "4px",
-  });
-  qr.addEventListener("error", () => {
-    qr.style.display = "none";
-  });
-  wrapper.appendChild(qr);
-  roomCodeOverlay.appendChild(wrapper);
 
   lobby.seed = seed;
   console.log("[online] seed:", seed);

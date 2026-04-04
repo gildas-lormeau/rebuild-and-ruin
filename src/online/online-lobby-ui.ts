@@ -1,5 +1,6 @@
 import { type ClientMessage, MESSAGE } from "../../server/protocol.ts";
 import { MAX_PLAYERS } from "../shared/player-config.ts";
+import { GOLD, PANEL_BG } from "../shared/theme.ts";
 import { computeApiUrl } from "./online-config.ts";
 
 interface LobbyElements {
@@ -200,4 +201,54 @@ export function initLobbyUi({
     );
   }
   return { joinRoom: doJoin };
+}
+
+export function hideRoomCodeOverlay(overlay: HTMLElement): void {
+  overlay.style.display = "none";
+}
+
+/** Populate the room-code overlay with a styled code badge and QR image. */
+export function buildRoomCodeOverlay(
+  overlay: HTMLElement,
+  code: string,
+  joinUrl: string,
+  doc: Document = document,
+): void {
+  overlay.style.display = "block";
+  overlay.innerHTML = "";
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(joinUrl)}`;
+  const wrapper = doc.createElement("div");
+  Object.assign(wrapper.style, {
+    position: "fixed",
+    top: "12px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    background: PANEL_BG(0.9),
+    padding: "12px 24px",
+    borderRadius: "6px",
+    border: `2px solid ${GOLD}`,
+    color: GOLD,
+    fontSize: "24px",
+    letterSpacing: "6px",
+    fontWeight: "bold",
+    zIndex: "10",
+    textAlign: "center",
+  });
+  wrapper.textContent = code;
+  const qr = doc.createElement("img");
+  qr.src = qrSrc;
+  qr.alt = "QR";
+  Object.assign(qr.style, {
+    display: "block",
+    margin: "8px auto 0",
+    width: "120px",
+    height: "120px",
+    imageRendering: "pixelated",
+    borderRadius: "4px",
+  });
+  qr.addEventListener("error", () => {
+    qr.style.display = "none";
+  });
+  wrapper.appendChild(qr);
+  overlay.appendChild(wrapper);
 }

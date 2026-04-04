@@ -42,6 +42,10 @@ import {
   broadcastLocalCrosshair,
   extendWithRemoteCrosshairs,
 } from "./online-host-crosshairs.ts";
+import {
+  buildRoomCodeOverlay,
+  hideRoomCodeOverlay,
+} from "./online-lobby-ui.ts";
 import type { TransitionContext } from "./online-phase-transitions.ts";
 import {
   fireAndSend,
@@ -261,7 +265,7 @@ export function initOnlineRuntime(): void {
   document.addEventListener(GAME_EXIT_EVENT, () => {
     runtime.runtimeState.mode = Mode.STOPPED;
     runtime.runtimeState.lobby.active = false;
-    roomCodeOverlay.style.display = "none";
+    hideRoomCodeOverlay(roomCodeOverlay);
     resetSession();
   });
 }
@@ -372,7 +376,7 @@ function showLobby(): void {
   runtime.runtimeState.mode = Mode.STOPPED;
   runtime.runtimeState.lobby.active = false;
   renderer.container.classList.remove(GAME_CONTAINER_ACTIVE);
-  roomCodeOverlay.style.display = "none";
+  hideRoomCodeOverlay(roomCodeOverlay);
   navigateTo("/online");
   resetSession();
 }
@@ -380,16 +384,14 @@ function showLobby(): void {
 function showWaitingRoom(code: string, seed: number): void {
   ctx.session.roomSeed = seed;
   runtime.runtimeState.settings.seed = String(seed);
+  const joinUrl = `${location.origin}${location.pathname}?server=${location.host}&join=${code}`;
+  buildRoomCodeOverlay(roomCodeOverlay, code, joinUrl);
   initWaitingRoom({
-    code,
     seed,
     lobbyEl: pageOnline,
     container: renderer.container,
-    roomCodeOverlay,
     lobby: runtime.runtimeState.lobby,
     maxPlayers: MAX_PLAYERS,
-    buildJoinUrl: (roomCode) =>
-      `${location.origin}${location.pathname}?server=${location.host}&join=${roomCode}`,
     now: () => performance.now(),
     setLobbyStartTime: (timestamp: number) => {
       ctx.session.lobbyStartTime = timestamp;
@@ -408,7 +410,7 @@ function showWaitingRoom(code: string, seed: number): void {
 }
 
 function initFromServer(msg: InitMessage): void {
-  roomCodeOverlay.style.display = "none";
+  hideRoomCodeOverlay(roomCodeOverlay);
   runtime.runtimeState.lobby.active = false;
   const settings = runtime.runtimeState.settings;
   const playerCount = Math.min(Math.max(1, msg.playerCount), MAX_PLAYERS);

@@ -58,30 +58,34 @@ interface InputSystemDeps {
   readonly gameContainer: HTMLElement;
 
   // Render-layer hit tests (injected from composition root, not imported directly)
-  readonly lifeLostDialogClick: (
-    screenX: number,
-    screenY: number,
-  ) => { playerId: ValidPlayerSlot; choice: ResolvedChoice } | null;
-  readonly upgradePickClick: (
-    screenX: number,
-    screenY: number,
-  ) => { playerId: ValidPlayerSlot; cardIdx: number } | null;
-  readonly visibleOptionCount: () => number;
+  readonly hitTests: {
+    readonly lifeLostDialogClick: (
+      screenX: number,
+      screenY: number,
+    ) => { playerId: ValidPlayerSlot; choice: ResolvedChoice } | null;
+    readonly upgradePickClick: (
+      screenX: number,
+      screenY: number,
+    ) => { playerId: ValidPlayerSlot; cardIdx: number } | null;
+    readonly visibleOptionCount: () => number;
+  };
 
   // Config / networking
-  readonly isOnline?: boolean;
-  readonly maybeSendAimUpdate?: (x: number, y: number) => void;
-  readonly tryPlaceCannonAndSend?: (
-    ctrl: PlayerController & InputReceiver,
-    gs: GameState,
-    max: number,
-  ) => boolean;
-  readonly tryPlacePieceAndSend?: (
-    ctrl: PlayerController & InputReceiver,
-    gs: GameState,
-  ) => boolean;
-  readonly fireAndSend?: (ctrl: PlayerController, gs: GameState) => void;
-  readonly getIsHost: () => boolean;
+  readonly network: {
+    readonly isOnline?: boolean;
+    readonly maybeSendAimUpdate?: (x: number, y: number) => void;
+    readonly tryPlaceCannonAndSend?: (
+      ctrl: PlayerController & InputReceiver,
+      gs: GameState,
+      max: number,
+    ) => boolean;
+    readonly tryPlacePieceAndSend?: (
+      ctrl: PlayerController & InputReceiver,
+      gs: GameState,
+    ) => boolean;
+    readonly fireAndSend?: (ctrl: PlayerController, gs: GameState) => void;
+    readonly getIsHost: () => boolean;
+  };
 
   // Sub-systems (inline signatures to avoid cross-sub-system imports)
   readonly lobby: {
@@ -122,6 +126,7 @@ interface InputSystemDeps {
       pid: ValidPlayerSlot,
       isReselect?: boolean,
     ) => boolean;
+    isReady: () => boolean;
   };
   readonly camera: Pick<
     CameraSystem,
@@ -142,27 +147,36 @@ interface InputSystemDeps {
   >;
   readonly haptics: Pick<HapticsSystem, "tap">;
 
-  // Input-domain functions (injected from composition root)
-  readonly dispatchPointerMove: DispatchPointerMoveFn;
-  readonly registerKeyboardHandlers: RegisterKeyboardHandlersFn;
-  readonly registerMouseHandlers: RegisterMouseHandlersFn;
-  readonly registerTouchHandlers: RegisterTouchHandlersFn;
-  readonly createDpad: CreateDpadFn;
-  readonly createQuitButton: CreateQuitButtonFn;
-  readonly createHomeZoomButton: CreateHomeZoomButtonFn;
-  readonly createEnemyZoomButton: CreateEnemyZoomButtonFn;
-  readonly createFloatingActions: CreateFloatingActionsFn;
+  // Input handler registration + pointer dispatch
+  readonly inputHandlers: {
+    readonly dispatchPointerMove: DispatchPointerMoveFn;
+    readonly registerKeyboard: RegisterKeyboardHandlersFn;
+    readonly registerMouse: RegisterMouseHandlersFn;
+    readonly registerTouch: RegisterTouchHandlersFn;
+  };
+
+  // Touch UI element factories (only consumed when IS_TOUCH_DEVICE)
+  readonly touchFactories: {
+    readonly createDpad: CreateDpadFn;
+    readonly createQuitButton: CreateQuitButtonFn;
+    readonly createHomeZoomButton: CreateHomeZoomButtonFn;
+    readonly createEnemyZoomButton: CreateEnemyZoomButtonFn;
+    readonly createFloatingActions: CreateFloatingActionsFn;
+  };
+
+  // Lifecycle / navigation callbacks
+  readonly lifecycle: {
+    readonly render: () => void;
+    readonly rematch: () => void;
+    readonly returnToLobby: () => void;
+    readonly gameOverClick: (canvasX: number, canvasY: number) => void;
+  };
 
   // Sibling callbacks
   readonly pointerPlayer: () => (PlayerController & InputReceiver) | null;
   readonly withPointerPlayer: (
     action: (human: PlayerController & InputReceiver) => void,
   ) => void;
-  readonly isSelectionReady: () => boolean;
-  readonly render: () => void;
-  readonly rematch: () => void;
-  readonly returnToLobby: () => void;
-  readonly gameOverClick: (canvasX: number, canvasY: number) => void;
 }
 
 type PlacePieceFn = (
@@ -182,8 +196,7 @@ export interface InputSystem {
 }
 
 export function createInputSystem(deps: InputSystemDeps): InputSystem {
-  const { runtimeState, camera, sound, lobby, selection, isSelectionReady } =
-    deps;
+  const { runtimeState, camera, sound, lobby, selection } = deps;
 
   const touch: TouchHandles = {
     dpad: null,
@@ -197,12 +210,13 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
   function register(): void {
     // ── Wrapped placement handlers ──
     const placeCannon = wrapCannonPlace(
-      deps.tryPlaceCannonAndSend ??
+      deps.network.tryPlaceCannonAndSend ??
         ((ctrl, gs, max) => ctrl.tryPlaceCannon(gs, max)),
       sound,
     );
     const placePieceWrapped = wrapPiecePlace(
-      deps.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
+      deps.network.tryPlacePieceAndSend ??
+        ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
       sound,
     );
 
@@ -222,11 +236,10 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     const gameActionDeps = buildGameActionDeps(
       runtimeState,
       selection,
-      isSelectionReady,
       placeCannon,
       placePieceWrapped,
       sound,
-      deps.fireAndSend,
+      deps.network.fireAndSend,
     );
 
     // ── Combined input deps: assembles all subsystem deps ──
@@ -237,9 +250,9 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       gameActionDeps,
     );
 
-    deps.registerMouseHandlers(inputDeps);
-    deps.registerKeyboardHandlers(inputDeps);
-    deps.registerTouchHandlers({
+    deps.inputHandlers.registerMouse(inputDeps);
+    deps.inputHandlers.registerKeyboard(inputDeps);
+    deps.inputHandlers.registerTouch({
       ...inputDeps,
       lobby: { ...inputDeps.lobby, keyJoin: undefined },
     });
@@ -284,14 +297,14 @@ function buildInputDeps(
     setMode: (mode) => {
       runtimeState.mode = mode;
     },
-    isOnline: deps.isOnline,
+    isOnline: deps.network.isOnline,
     settings: runtimeState.settings,
     getControllers: () => runtimeState.controllers,
     isHuman,
     withPointerPlayer,
-    showLobby: deps.returnToLobby,
-    rematch: deps.rematch,
-    maybeSendAimUpdate: deps.maybeSendAimUpdate ?? (() => {}),
+    showLobby: deps.lifecycle.returnToLobby,
+    rematch: deps.lifecycle.rematch,
+    maybeSendAimUpdate: deps.network.maybeSendAimUpdate ?? (() => {}),
     setDirectTouchActive: (active) => {
       runtimeState.inputTracking.directTouchActive = active;
     },
@@ -301,7 +314,7 @@ function buildInputDeps(
     options: buildOptionsDeps(
       runtimeState,
       deps.options,
-      deps.visibleOptionCount,
+      deps.hitTests.visibleOptionCount,
     ),
     dialogAction: buildDialogActionHandler(
       runtimeState,
@@ -312,15 +325,19 @@ function buildInputDeps(
       runtimeState,
       deps.pointerPlayer,
       deps.lifeLost,
-      deps.lifeLostDialogClick,
+      deps.hitTests.lifeLostDialogClick,
     ),
     upgradePick: buildUpgradePickClickDeps(
       runtimeState,
       deps.pointerPlayer,
       deps.upgradePick,
-      deps.upgradePickClick,
+      deps.hitTests.upgradePickClick,
     ),
-    gameOver: buildGameOverDeps(runtimeState, deps.render, deps.gameOverClick),
+    gameOver: buildGameOverDeps(
+      runtimeState,
+      deps.lifecycle.render,
+      deps.lifecycle.gameOverClick,
+    ),
     gameAction: gameActionDeps,
     quit: buildQuitDeps(runtimeState),
   };
@@ -402,7 +419,7 @@ function buildLifeLostClickDeps(
   runtimeState: RuntimeState,
   pointerPlayer: InputSystemDeps["pointerPlayer"],
   lifeLost: InputSystemDeps["lifeLost"],
-  hitTest: InputSystemDeps["lifeLostDialogClick"],
+  hitTest: InputSystemDeps["hitTests"]["lifeLostDialogClick"],
 ): RegisterOnlineInputDeps["lifeLost"] {
   return {
     get: () => runtimeState.lifeLostDialog,
@@ -420,7 +437,7 @@ function buildUpgradePickClickDeps(
   runtimeState: RuntimeState,
   pointerPlayer: InputSystemDeps["pointerPlayer"],
   upgradePick: InputSystemDeps["upgradePick"],
-  hitTest: InputSystemDeps["upgradePickClick"],
+  hitTest: InputSystemDeps["hitTests"]["upgradePickClick"],
 ): RegisterOnlineInputDeps["upgradePick"] {
   return {
     get: () => runtimeState.upgradePickDialog,
@@ -471,17 +488,16 @@ function buildQuitDeps(
 function buildGameActionDeps(
   runtimeState: RuntimeState,
   selection: InputSystemDeps["selection"],
-  isSelectionReady: () => boolean,
   placeCannon: PlaceCannonFn,
   placePiece: PlacePieceFn,
   sound: InputSystemDeps["sound"],
-  fireAndSend: InputSystemDeps["fireAndSend"],
+  fireAndSend: InputSystemDeps["network"]["fireAndSend"],
 ) {
   return {
     getSelectionStates: () => runtimeState.selectionStates,
     highlightTowerForPlayer: selection.highlight,
     confirmSelectionAndStartBuild: selection.confirmAndStartBuild,
-    isSelectionReady,
+    isSelectionReady: selection.isReady,
     tryPlaceCannonAndSend: placeCannon,
     tryPlacePieceAndSend: placePiece,
     onPieceRotated: sound.pieceRotated,
@@ -504,7 +520,6 @@ function setupDpadAndActions(
     lobby,
     selection,
     withPointerPlayer,
-    isSelectionReady,
   } = deps;
   const {
     tryPlacePieceAndSend: placePieceAction,
@@ -513,13 +528,13 @@ function setupDpadAndActions(
 
   const overlayActionDeps = buildOverlayActionDeps(deps, inputDeps);
 
-  touch.dpad = deps.createDpad(
+  touch.dpad = deps.touchFactories.createDpad(
     {
       getState: () => safeState(runtimeState),
       getMode: () => runtimeState.mode,
       withPointerPlayer,
       onHapticTap: haptics.tap,
-      isHost: deps.getIsHost,
+      isHost: deps.network.getIsHost,
       lobbyAction: () =>
         lobby.lobbyKeyJoin(runtimeState.settings.keyBindings[0]!.confirm),
       getLeftHanded: () => runtimeState.settings.leftHanded,
@@ -530,7 +545,7 @@ function setupDpadAndActions(
         getSelectionStates: () => runtimeState.selectionStates,
         highlightTowerForPlayer: selection.highlight,
         confirmSelectionAndStartBuild: selection.confirmAndStartBuild,
-        isSelectionReady,
+        isSelectionReady: selection.isReady,
         tryPlacePieceAndSend: placePieceAction,
         tryPlaceCannonAndSend: placeCannonAction,
         onPieceRotated: sound.pieceRotated,
@@ -550,13 +565,14 @@ function buildOverlayActionDeps(
   deps: InputSystemDeps,
   inputDeps: RegisterOnlineInputDeps,
 ) {
-  const { runtimeState, options, render, rematch, returnToLobby } = deps;
+  const { runtimeState, options } = deps;
+  const { render, rematch, returnToLobby } = deps.lifecycle;
   const pointerPlayer = deps.pointerPlayer;
   return {
     options: {
       isActive: () => runtimeState.mode === Mode.OPTIONS,
       moveCursor: (dir: -1 | 1) => {
-        const count = deps.visibleOptionCount();
+        const count = deps.hitTests.visibleOptionCount();
         runtimeState.optionsUI.cursor =
           (runtimeState.optionsUI.cursor + dir + count) % count;
       },
@@ -594,10 +610,10 @@ function buildOverlayActionDeps(
 }
 
 function setupZoomButtons(touch: TouchHandles, deps: InputSystemDeps): void {
-  const { runtimeState, gameContainer, returnToLobby } = deps;
+  const { runtimeState, gameContainer } = deps;
   const zoomDeps = buildZoomDeps(deps);
 
-  touch.quitButton = deps.createQuitButton(
+  touch.quitButton = deps.touchFactories.createQuitButton(
     {
       getQuitPending: () => runtimeState.quit.pending,
       setQuitPending: (quitPending: boolean) => {
@@ -609,15 +625,21 @@ function setupZoomButtons(touch: TouchHandles, deps: InputSystemDeps): void {
       setQuitMessage: (msg: string) => {
         runtimeState.quit.message = msg;
       },
-      showLobby: returnToLobby,
+      showLobby: deps.lifecycle.returnToLobby,
       getControllers: () => runtimeState.controllers,
       isHuman,
     },
     gameContainer,
   );
   touch.quitButton.update(null); // initial state: hidden
-  touch.homeZoomButton = deps.createHomeZoomButton(zoomDeps, gameContainer);
-  touch.enemyZoomButton = deps.createEnemyZoomButton(zoomDeps, gameContainer);
+  touch.homeZoomButton = deps.touchFactories.createHomeZoomButton(
+    zoomDeps,
+    gameContainer,
+  );
+  touch.enemyZoomButton = deps.touchFactories.createEnemyZoomButton(
+    zoomDeps,
+    gameContainer,
+  );
   touch.homeZoomButton.update(false); // initial state: disabled
   touch.enemyZoomButton.update(false);
 }
@@ -667,7 +689,7 @@ function setupFloatingActions(
   const floatingEl =
     gameContainer.querySelector<HTMLElement>("#floating-actions");
   if (floatingEl) {
-    touch.floatingActions = deps.createFloatingActions(
+    touch.floatingActions = deps.touchFactories.createFloatingActions(
       {
         getState: () => safeState(runtimeState),
         getMode: () => runtimeState.mode,
@@ -680,7 +702,7 @@ function setupFloatingActions(
           const state = runtimeState.state;
           if (!state) return;
           const { x, y } = renderer.clientToSurface(clientX, clientY);
-          deps.dispatchPointerMove(x, y, state, inputDeps);
+          deps.inputHandlers.dispatchPointerMove(x, y, state, inputDeps);
         },
       },
       floatingEl,
