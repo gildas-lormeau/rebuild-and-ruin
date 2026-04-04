@@ -69,7 +69,7 @@ export function createWatcherState(): WatcherState {
     remoteCannonPhantoms: [],
     watcherCrosshairPos: new Map(),
     watcherOrbitAngles: new Map(),
-    orbitParams: new Map(),
+    watcherOrbitParams: new Map(),
     remotePiecePhantoms: [],
     hostMigrationTimer: 0,
     hostMigrationText: "",
@@ -83,7 +83,7 @@ export function resetWatcherState(watcherState: WatcherState): void {
   watcherState.remotePiecePhantoms = [];
   watcherState.watcherCrosshairPos.clear();
   watcherState.watcherOrbitAngles.clear();
-  watcherState.orbitParams.clear();
+  watcherState.watcherOrbitParams.clear();
   clearWatcherPhaseTimer(watcherState.timing);
   watcherState.timing.countdownStartTime = 0;
   watcherState.timing.countdownDuration = 0;
@@ -103,7 +103,7 @@ export function resetWatcherTimingForHostPromotion(
   watcherState.timing.countdownStartTime = 0;
   watcherState.timing.countdownDuration = 0;
   watcherState.watcherOrbitAngles.clear();
-  watcherState.orbitParams.clear();
+  watcherState.watcherOrbitParams.clear();
 }
 
 /** Tick the migration announcement timer. Two announcement channels exist:
@@ -160,7 +160,7 @@ export function tickWatcher(
       remoteCrosshairs: watcherState.remoteCrosshairs,
       watcherCrosshairPos: watcherState.watcherCrosshairPos,
       watcherOrbitAngles: watcherState.watcherOrbitAngles,
-      watcherOrbitParams: watcherState.orbitParams,
+      watcherOrbitParams: watcherState.watcherOrbitParams,
       logThrottled: transitionCtx.logThrottled,
       interpolateToward,
       nextReadyCombined,

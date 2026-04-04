@@ -498,7 +498,7 @@ function makeIncrementalDeps(overrides: {
     remoteCrosshairs: new Map(),
     remoteCannonPhantoms: [],
     remotePiecePhantoms: [],
-    orbitParams: new Map(),
+    watcherOrbitParams: new Map(),
   };
   return {
     log: () => {},

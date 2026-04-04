@@ -13,7 +13,7 @@ export interface WatcherNetworkState {
   remoteCrosshairs: Map<number, PixelPos>;
   remoteCannonPhantoms: readonly CannonPhantom[];
   remotePiecePhantoms: readonly PiecePhantom[];
-  orbitParams: Map<number, OrbitParams>;
+  watcherOrbitParams: Map<number, OrbitParams>;
 }
 
 /** Speed multiplier for interpolating remote crosshairs (faster than local to reduce visual lag).

@@ -69,7 +69,7 @@ import type { ValidPlayerSlot } from "../src/player-slot.ts";
 // ---------------------------------------------------------------------------
 
 export interface RoomSettings {
-  maxRounds: number; // 0 (unlimited), 3, 5, 8, or 12
+  maxRounds: number; // 0 (unlimited), 1 (e2e testing), 3, 5, 8, or 12
   cannonMaxHp: number; // 3, 6, 9, or 12
   waitTimerSec: number; // lobby wait duration before auto-start (seconds)
   seed?: number; // optional map seed (server generates random if omitted)

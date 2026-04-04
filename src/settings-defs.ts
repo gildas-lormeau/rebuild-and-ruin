@@ -23,7 +23,7 @@ export const GAME_MODE_LABELS = ["Classic", "Modern"];
 export const OPTION_NAMES = [
   "Difficulty",
   "Rounds",
-  "Cannon Kill",
+  "Cannon HP",
   "Haptics",
   "Seed",
   "Controls",

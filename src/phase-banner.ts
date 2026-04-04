@@ -164,6 +164,9 @@ export function snapshotEntities(state: GameState): EntityOverlay {
   };
 }
 
+/** Advance banner animation progress and trigger render.
+ *  @param dt — delta time in SECONDS
+ *  @param bannerDuration — total animation duration in SECONDS */
 export function tickBannerTransition(
   banner: BannerState,
   dt: number,

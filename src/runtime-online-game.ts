@@ -132,6 +132,8 @@ const runtime: GameRuntime = createGameRuntime({
   getRemoteHumanSlots: () => ctx.session.remoteHumanSlots,
   log: devLog,
   logThrottled: devLogThrottled,
+  // -1 grace: ensures client timer reaches 0 before the server auto-starts,
+  // preventing a race where the UI still shows "1" as the game begins.
   getLobbyRemaining: () =>
     Math.max(
       0,
@@ -349,7 +351,7 @@ function buildCheckpointDeps(): CheckpointDeps {
     accum: runtime.runtimeState.accum,
     remoteCrosshairs: ctx.watcher.remoteCrosshairs,
     watcherCrosshairPos: ctx.watcher.watcherCrosshairPos,
-    watcherOrbitParams: ctx.watcher.orbitParams,
+    watcherOrbitParams: ctx.watcher.watcherOrbitParams,
     watcherOrbitAngles: ctx.watcher.watcherOrbitAngles,
     snapshotTerritory: () => runtime.snapshotTerritory(),
   };
