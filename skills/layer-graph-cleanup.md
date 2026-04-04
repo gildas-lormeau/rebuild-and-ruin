@@ -1,17 +1,20 @@
 ---
 name: layer-graph-cleanup
-description: Use the collapsed layer graph to find and remove architecturally undesirable cross-layer edges — even when there are zero formal violations. Run after import-hygiene, or periodically as the codebase grows.
+description: Two-axis architecture analysis — vertical (layer graph edges) and horizontal (domain boundaries, coupling metrics, natural clustering). Finds misplaced code, cross-domain violations, and pain points. Run after import-hygiene, or periodically as the codebase grows.
 user-invocable: true
 ---
 
-# Layer Graph Cleanup
+# Architecture Cleanup
 
-`import-hygiene` fixes formal violations (upward imports). This skill goes further: it uses the *collapsed* layer graph to spot edges that are technically valid but architecturally wrong — e.g., online networking logic importing from the render layer.
+Two complementary analyses:
+1. **Layer graph** (vertical) — spot undesirable cross-layer edges
+2. **Architecture health** (horizontal) — coupling pain points, domain boundary violations, natural clustering mismatches
 
 ## When to use
 
 - After a round of `import-hygiene` (no violations, but the graph still has unexpected edges)
 - After a major refactor that moved files between layers
+- Periodically to detect coupling drift (pain points increasing, domain mismatches appearing)
 - When a new architectural boundary is desired (e.g., "input should not know about render")
 
 ## Step 1 — Generate the collapsed graph
@@ -118,6 +121,67 @@ After moving files, check that group names still describe their contents:
 
 Rename groups in `.import-layers.json` to match reality. **Naming is the analysis** — a mismatch is always a signal.
 
+## Step 7 — Run architecture health analysis
+
+The layer graph catches vertical problems. The health report catches horizontal ones.
+
+```bash
+npx tsx scripts/architecture-health.ts
+```
+
+Three analyses, zero hand-written rules:
+
+### Coupling metrics (Robert Martin)
+
+For each file: Ca (dependents), Ce (dependencies), Instability = Ce/(Ca+Ce), Pain = Ca × stability × concreteness.
+
+**What to look for:**
+- **High Pain** (≥10): concrete file with many dependents and low instability. Any change cascades. Ask: does this file mix unrelated exports that could be split?
+- **High Ca + zero deps**: foundational type file — high Pain is expected and acceptable if the file is abstract (types/interfaces only).
+- **High Ce + low Ca**: composition root — should be at the top of the layer stack, not mid-graph.
+
+**Fix pattern:** Extract widely-used types from god files into dedicated zero-dep modules (e.g., `PlayerSlotId` from `game-constants.ts` → `player-slot.ts` dropped Pain from 82 to 40).
+
+### Domain boundary lint
+
+```bash
+npx tsx scripts/lint-domain-boundaries.ts
+```
+
+Checks that imports stay within allowed domain boundaries defined in `.domain-boundaries.json`. 11 domains: shared, game, ai, player, input, sound, render, settings, online, runtime, entry.
+
+**What to look for:**
+- Violations mean a file imports from a domain it shouldn't know about.
+- A blanket permission (e.g., `online → render`) that only 3 of 26 online files actually need — the rule is too permissive.
+
+**Fix pattern:** Move the shared type/interface to a lower domain, or tighten the allowed rules with per-file exceptions.
+
+### Natural clustering (Louvain)
+
+The health report discovers "natural" domains from actual coupling using community detection. It diffs computed clusters against declared domains.
+
+**What to look for:**
+- **Mismatches**: file declared in domain X but clusters with domain Y. The file has stronger coupling to Y than X.
+- **Large mixed clusters**: two declared domains that the algorithm merges into one — they're tightly coupled in practice.
+- **Singletons**: file in its own cluster — it's an outlier with weak coupling to everything.
+
+**Fix pattern:** If a file consistently clusters with the wrong domain, either move it to the right domain (if its responsibilities match), or extract the cross-domain dependency that pulls it toward the wrong cluster.
+
+## Step 8 — Iterate: the full workflow
+
+The systematic workflow for a clean architecture session:
+
+1. `npx tsx scripts/generate-import-layers.ts --check --server` — fix any formal violations first
+2. `npx tsx scripts/layer-graph.ts` — read the collapsed graph, fix suspicious edges (Steps 1–6)
+3. `npx tsx scripts/architecture-health.ts` — read the health report:
+   - Fix the highest Pain points by extracting widely-used exports into dedicated modules
+   - Run `npx tsx scripts/lint-domain-boundaries.ts` — fix cross-domain violations
+   - Compare natural clusters vs declared domains — investigate mismatches
+4. Re-run the health report after each fix to measure improvement (Pain should decrease)
+5. Stop when: no formal violations, no domain violations, no Pain points that represent misplaced code (high Pain on abstract type files is acceptable)
+
+Rename groups in `.import-layers.json` to match reality. **Naming is the analysis** — a mismatch is always a signal.
+
 ## Patterns from this codebase
 
 | Edge removed | How |
@@ -163,3 +227,8 @@ Rename groups in `.import-layers.json` to match reality. **Naming is the analysi
 | `runtime-state.ts`, `runtime-touch-ui.ts` over-classified | Reclassified to L4 "runtime primitives" — max dep L3 |
 | `runtime-banner.ts`, `runtime-human.ts` over-classified | Reclassified to L4 "runtime primitives" — max dep L3, no runtime-types dep |
 | L3 "shared interfaces, config & scoring" bloated (19 files) | Split into L3 "shared types & config" (13 files) + L4 "runtime primitives" (6 files) |
+| "geometry & pieces" bundled unrelated concerns | Split into L1 "geometry types" + L2 "pieces" — eliminates false edge (input → pieces) |
+| L14 "runtime" mixed local + online (15 files) | Split into L14 "local runtime" (10 files) + L15 "online runtime" (5 files) |
+| `server/room-manager.ts` over-classified in entry points | Reclassified to L13 "online logic" — max dep is L12 (online infrastructure) |
+| `game-constants.ts` Pain=82 (82 dependents) | Extracted `PlayerSlotId`, `ValidPlayerSlot`, `SPECTATOR_SLOT`, `isActivePlayer` to `player-slot.ts` (L0) — Pain dropped to 40 |
+| `upgrade-defs.ts` in game domain, imported by `types.ts` (shared) | Reclassified to shared domain — zero-dep option constants |
