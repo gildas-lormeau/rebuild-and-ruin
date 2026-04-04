@@ -50,6 +50,8 @@ import { type RuntimeState, safeState } from "./runtime-state.ts";
 interface OptionsSystemDeps {
   runtimeState: RuntimeState;
   uiCtx: UIContext;
+  /** Monotonic timestamp source (injected for testability). */
+  now: () => number;
   renderFrame: (
     map: GameMap,
     overlay: RenderOverlay | undefined,
@@ -192,7 +194,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     const wasInGame = runtimeState.optionsReturnMode !== null;
     deps.closeOptionsShared(uiCtx);
     if (wasInGame) {
-      runtimeState.lastTime = performance.now(); // avoid huge dt on first frame back
+      runtimeState.lastTime = deps.now(); // avoid huge dt on first frame back
     } else {
       deps.refreshLobbySeed(); // regenerate map preview with (possibly changed) seed
       deps.updateDpad(false); // back to lobby — disable d-pad

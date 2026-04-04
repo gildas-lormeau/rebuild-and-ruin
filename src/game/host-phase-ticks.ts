@@ -37,6 +37,7 @@ import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { unpackTile } from "../shared/spatial.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
 import {
+  ACCUM_CANNON,
   advancePhaseTimer,
   getRemoteSlots,
   type HostNetContext,
@@ -174,7 +175,7 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   const sendOpponentCannonPlaced = deps.net?.sendOpponentCannonPlaced;
   const sendOpponentCannonPhantom = deps.net?.sendOpponentCannonPhantom;
 
-  advancePhaseTimer(accum, "cannon", state, dt, state.cannonPlaceTimer);
+  advancePhaseTimer(accum, ACCUM_CANNON, state, dt, state.cannonPlaceTimer);
 
   const defaultFacings = new Map<number, number>();
   for (const player of state.players) {

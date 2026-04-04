@@ -109,6 +109,8 @@ export interface RuntimeConfig {
   logThrottled: (key: string, msg: string) => void;
   /** Different formula per mode. */
   getLobbyRemaining: () => number;
+  /** URL-based rounds override (e.g. ?rounds=3). 0 = no override. Injected for testability. */
+  getUrlRoundsOverride: () => number;
   /** Each mode provides its own. */
   showLobby: () => void;
   /** local: set joined; online: send select_slot. */

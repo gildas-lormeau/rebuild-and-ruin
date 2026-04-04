@@ -33,6 +33,8 @@ interface InitWaitingRoomDeps {
   roomCodeOverlay: HTMLElement;
   lobby: LobbyState;
   maxPlayers: number;
+  /** Build a join URL for the given room code (injected for testability). */
+  buildJoinUrl: (code: string) => string;
   now: () => number;
   setLobbyStartTime: (timeMs: number) => void;
   setModeLobby: () => void;
@@ -109,7 +111,7 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
 
   roomCodeOverlay.style.display = "block";
   roomCodeOverlay.innerHTML = "";
-  const joinUrl = `${location.origin}${location.pathname}?server=${location.host}&join=${code}`;
+  const joinUrl = deps.buildJoinUrl(code);
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(joinUrl)}`;
   const wrapper = document.createElement("div");
   Object.assign(wrapper.style, {

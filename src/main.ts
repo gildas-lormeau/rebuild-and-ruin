@@ -45,6 +45,10 @@ const runtime = createGameRuntime({
   // because the server provides an absolute countdown and elapsed offset.
   getLobbyRemaining: () =>
     Math.max(0, LOBBY_TIMER - (runtime.runtimeState.lobby.timerAccum ?? 0)),
+  getUrlRoundsOverride: () => {
+    const param = new URL(location.href).searchParams.get("rounds");
+    return param ? Number(param) : 0;
+  },
   showLobby,
   onLobbySlotJoined: (pid) => {
     runtime.runtimeState.lobby.joined[pid] = true;

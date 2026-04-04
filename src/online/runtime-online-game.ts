@@ -147,6 +147,10 @@ const runtime: GameRuntime = createGameRuntime({
         1 -
         (performance.now() - ctx.session.lobbyStartTime) / 1000,
     ),
+  getUrlRoundsOverride: () => {
+    const param = new URL(location.href).searchParams.get("rounds");
+    return param ? Number(param) : 0;
+  },
   showLobby,
   onLobbySlotJoined: (pid: ValidPlayerSlot) => {
     send({ type: MESSAGE.SELECT_SLOT, playerId: pid });
@@ -384,6 +388,8 @@ function showWaitingRoom(code: string, seed: number): void {
     roomCodeOverlay,
     lobby: runtime.runtimeState.lobby,
     maxPlayers: MAX_PLAYERS,
+    buildJoinUrl: (roomCode) =>
+      `${location.origin}${location.pathname}?server=${location.host}&join=${roomCode}`,
     now: () => performance.now(),
     setLobbyStartTime: (timestamp: number) => {
       ctx.session.lobbyStartTime = timestamp;

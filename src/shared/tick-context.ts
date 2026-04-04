@@ -90,6 +90,8 @@ export interface WatcherTimingState {
 
 /** Empty set used as default when no remote players exist (local play). */
 const NO_REMOTE_SLOTS: ReadonlySet<number> = Object.freeze(new Set<number>());
+/** Timer accumulator key for the cannon placement phase. */
+export const ACCUM_CANNON = "cannon" satisfies keyof TimerAccums;
 
 /** True if this client is the host. Defaults to true when net is omitted (local play).
  *  VOLATILE: result can change between frames (host promotion). Never cache. */

@@ -66,7 +66,11 @@ import {
   type PlayerController,
   type SoundSystem,
 } from "../shared/system-interfaces.ts";
-import { isRemoteHuman, resetAccum } from "../shared/tick-context.ts";
+import {
+  ACCUM_CANNON,
+  isRemoteHuman,
+  resetAccum,
+} from "../shared/tick-context.ts";
 import { assertStateReady, type RuntimeState } from "./runtime-state.ts";
 import type { RuntimeConfig, RuntimeLifeLost } from "./runtime-types.ts";
 
@@ -183,7 +187,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         prepareCannonPhase(runtimeState.state);
         // Apply reset facings — hidden behind the banner overlay.
         applyDefaultFacings(runtimeState.state);
-        resetAccum(runtimeState.accum, "cannon");
+        resetAccum(runtimeState.accum, ACCUM_CANNON);
         runtimeState.state.timer = runtimeState.state.cannonPlaceTimer;
         if (runtimeState.frameMeta.hostAtFrameStart && deps.hostNetworking) {
           deps.send(

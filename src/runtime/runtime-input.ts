@@ -206,8 +206,19 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       sound,
     );
 
-    const coordsDeps = buildCoordsDeps(camera);
-    const lobbyDeps = buildLobbyDeps(runtimeState, lobby);
+    const coordsDeps: RegisterOnlineInputDeps["coords"] = {
+      pixelToTile: camera.pixelToTile,
+      screenToWorld: camera.screenToWorld,
+      onPinchStart: camera.onPinchStart,
+      onPinchUpdate: camera.onPinchUpdate,
+      onPinchEnd: camera.onPinchEnd,
+    };
+    const lobbyDeps: RegisterOnlineInputDeps["lobby"] = {
+      isActive: () => runtimeState.lobby.active,
+      keyJoin: lobby.lobbyKeyJoin,
+      click: lobby.lobbyClick,
+      cursorAt: lobby.cursorAt,
+    };
     const gameActionDeps = buildGameActionDeps(
       runtimeState,
       selection,
@@ -454,28 +465,6 @@ function buildQuitDeps(
     setMessage: (quitMessage: string) => {
       runtimeState.quitMessage = quitMessage;
     },
-  };
-}
-
-function buildCoordsDeps(camera: InputSystemDeps["camera"]) {
-  return {
-    pixelToTile: camera.pixelToTile,
-    screenToWorld: camera.screenToWorld,
-    onPinchStart: camera.onPinchStart,
-    onPinchUpdate: camera.onPinchUpdate,
-    onPinchEnd: camera.onPinchEnd,
-  };
-}
-
-function buildLobbyDeps(
-  runtimeState: RuntimeState,
-  lobby: InputSystemDeps["lobby"],
-) {
-  return {
-    isActive: () => runtimeState.lobby.active,
-    keyJoin: (key: string) => lobby.lobbyKeyJoin(key),
-    click: (x: number, y: number) => lobby.lobbyClick(x, y),
-    cursorAt: (x: number, y: number) => lobby.cursorAt(x, y),
   };
 }
 

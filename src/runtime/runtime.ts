@@ -379,8 +379,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     createOnlineOverlay,
     createRenderSummaryMessage,
     createStatusBar,
-    drawFrame: (map, overlay, viewport) =>
-      renderer.drawFrame(map, overlay, viewport, performance.now()),
+    now: () => performance.now(),
+    drawFrame: (map, overlay, viewport, now) =>
+      renderer.drawFrame(map, overlay, viewport, now),
     logThrottled: config.logThrottled,
     syncCrosshairs: (expired) => phaseTicks.syncCrosshairs(expired),
     getLifeLostPanelPos: (pid) => lifeLost.panelPos(pid),
@@ -410,10 +411,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       DIFFICULTY_PARAMS[runtimeState.settings.difficulty] ??
       DIFFICULTY_PARAMS[DIFFICULTY_NORMAL]!;
     const { buildTimer, cannonPlaceTimer, firstRoundCannons } = diffParams;
-    const roundsParam =
-      typeof location !== "undefined"
-        ? Number(new URL(location.href).searchParams.get("rounds"))
-        : 0;
+    const roundsParam = config.getUrlRoundsOverride();
     const roundsVal =
       roundsParam > 0
         ? roundsParam
@@ -452,6 +450,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     log: config.log,
 
     bootstrapNewGame,
+
+    scheduleTimeout: (cb, ms) => setTimeout(cb, ms) as unknown as number,
+    cancelTimeout: (id) => clearTimeout(id),
 
     setGameOverFrame: (winner) => {
       const name = PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`;
@@ -637,6 +638,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   options = createOptionsSystem({
     runtimeState,
     uiCtx,
+    now: () => performance.now(),
     renderFrame,
     // Bridge boolean enable to dpad's Phase|null API (WALL_BUILD = any non-selection phase)
     updateDpad: (enabled) =>
