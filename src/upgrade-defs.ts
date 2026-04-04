@@ -39,12 +39,19 @@ interface UpgradeDef {
   readonly implemented: boolean;
 }
 
-/** Compile-time check: every UpgradeId must appear in the pool.
- *  If a new id is added to UpgradeId but not to UPGRADE_POOL, this fails. */
+/** Compile-time exhaustiveness check: every UpgradeId must appear in UPGRADE_POOL.
+ *  PoolIds extracts all ids from the pool; PoolComplete resolves to `true` only if
+ *  UpgradeId ⊆ PoolIds. Adding an UpgradeId without a matching pool entry causes a
+ *  type error on `const poolComplete: PoolComplete = true`. The `void poolComplete`
+ *  at the end of the file suppresses the unused-variable lint warning. */
 type PoolIds = (typeof UPGRADE_POOL)[number]["id"];
 
 type PoolComplete = UpgradeId extends PoolIds ? true : never;
 
+/** Draft pool weights: higher = more likely to appear in offers. */
+const WEIGHT_COMMON = 3;
+const WEIGHT_UNCOMMON = 2;
+const WEIGHT_RARE = 1;
 const BATTLE: UpgradeCategory = "battle";
 const BUILD: UpgradeCategory = "build";
 const STRATEGIC: UpgradeCategory = "strategic";
@@ -75,7 +82,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Scatter Shot",
     description: "Cannons fire 3 weaker balls in a cone",
     category: BATTLE,
-    weight: 3,
+    weight: WEIGHT_COMMON,
     oneUse: false,
     implemented: false,
   },
@@ -84,7 +91,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Mortar",
     description: "Slow cannon, 3×3 splash, creates burning pits",
     category: BATTLE,
-    weight: 2,
+    weight: WEIGHT_UNCOMMON,
     oneUse: false,
     implemented: false,
   },
@@ -93,7 +100,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Rapid Fire",
     description: "Cannonballs travel 2× faster",
     category: BATTLE,
-    weight: 3,
+    weight: WEIGHT_COMMON,
     oneUse: false,
     implemented: true,
   },
@@ -102,7 +109,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Flaming Walls",
     description: "Your destroyed walls leave burning pits",
     category: BATTLE,
-    weight: 3,
+    weight: WEIGHT_COMMON,
     oneUse: false,
     implemented: false,
   },
@@ -112,7 +119,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Reinforced Walls",
     description: "Walls take 2 hits to destroy (one battle)",
     category: BUILD,
-    weight: 3,
+    weight: WEIGHT_COMMON,
     oneUse: true,
     implemented: true,
   },
@@ -121,7 +128,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Master Builder",
     description: "+5 seconds build timer",
     category: BUILD,
-    weight: 3,
+    weight: WEIGHT_COMMON,
     oneUse: false,
     implemented: true,
   },
@@ -130,7 +137,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Large Pieces",
     description: "Unlock extra large tetromino shapes",
     category: BUILD,
-    weight: 2,
+    weight: WEIGHT_UNCOMMON,
     oneUse: false,
     implemented: false,
   },
@@ -139,7 +146,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Foundations",
     description: "Walls can be placed on burning pits",
     category: BUILD,
-    weight: 2,
+    weight: WEIGHT_UNCOMMON,
     oneUse: false,
     implemented: false,
   },
@@ -149,7 +156,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Scout Tower",
     description: "See enemy cannon placements",
     category: STRATEGIC,
-    weight: 2,
+    weight: WEIGHT_UNCOMMON,
     oneUse: false,
     implemented: false,
   },
@@ -158,7 +165,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Mercenaries",
     description: "Spawn 3 grunts on a chosen enemy zone",
     category: STRATEGIC,
-    weight: 2,
+    weight: WEIGHT_UNCOMMON,
     oneUse: false,
     implemented: false,
   },
@@ -167,7 +174,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Fortify",
     description: "One tower immune to grunts for 2 rounds",
     category: STRATEGIC,
-    weight: 2,
+    weight: WEIGHT_UNCOMMON,
     oneUse: false,
     implemented: false,
   },
@@ -176,7 +183,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Salvage",
     description: "Destroying enemy cannons gives +1 slot",
     category: STRATEGIC,
-    weight: 2,
+    weight: WEIGHT_UNCOMMON,
     oneUse: false,
     implemented: false,
   },
@@ -186,7 +193,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Earthquake",
     description: "Crumble one enemy's outer walls",
     category: ONE_USE,
-    weight: 1,
+    weight: WEIGHT_RARE,
     oneUse: true,
     implemented: false,
   },
@@ -195,7 +202,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Ceasefire",
     description: "Skip the next battle phase",
     category: ONE_USE,
-    weight: 1,
+    weight: WEIGHT_RARE,
     oneUse: true,
     implemented: false,
   },
@@ -204,7 +211,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Supply Drop",
     description: "2 free cannons bypassing slot limit",
     category: ONE_USE,
-    weight: 1,
+    weight: WEIGHT_RARE,
     oneUse: true,
     implemented: false,
   },
