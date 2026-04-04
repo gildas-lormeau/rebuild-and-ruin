@@ -15,10 +15,15 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 - Server: `deno task server` (port 8001); type-check with `deno check server/server.ts` (NOT tsc)
 - Test: `bun test/headless.test.ts`, `bun test/determinism.test.ts`, `bun test/scenario.test.ts`, `bun test/online-*.test.ts`
 - Debug: use `/debug-e2e` skill — spawns a sub-agent that adds logs, runs tests, reports root cause. Never guess at bugs.
-- Refactor: `npm run refactor` — AST CLI (rename-symbol, move-export, rename-prop, rename-in-file)
+- Refactor: `npm run refactor` — AST CLI (rename-symbol, move-export, rename-prop, rename-in-file, rename-file)
 - Skills live in `skills/` (not ~/.claude/skills/)
 
 ## Architecture
+
+### Directory structure
+`src/` is organized into 8 domain directories matching `.domain-boundaries.json`:
+`shared/` (types, constants, config) · `game/` (systems, phase logic) · `ai/` (strategy, AI controllers) · `player/` (human controller, factory) · `input/` (input, sound, haptics) · `render/` (canvas, sprites, UI) · `online/` (multiplayer, checkpoints, online runtime) · `runtime/` (game loop, state, lifecycle).
+Entry points (`entry.ts`, `main.ts`, `online-client.ts`) stay at `src/` root. `server/` is separate (Deno Deploy target).
 
 ### Module layers (17 groups, `.import-layers.json`)
 L0 leaf utils → L1 geometry types → L2 pieces → L3 core types, state & spatial → L4 shared types & config → L5 runtime primitives → L6 game logic → L7 AI strategy → L8 controllers → L9 input & sound → L10 render → L11 runtime support → L12 online infrastructure → L13 online logic → L14 local runtime → L15 online runtime → L16 entry points (client & server). Imports must flow downward.

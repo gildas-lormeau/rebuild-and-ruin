@@ -111,6 +111,8 @@ npm run refactor rename-file --from <oldPath> --to <newPath> [--dry-run]
 
 Best for: renaming or relocating a module without manually fixing dozens of import paths. Always `--dry-run` first to see the blast radius.
 
+**Note:** `rename-file` preserves whatever import extension style exists at each import site. If an import says `from "./foo"` (no `.ts`), the rewritten path will also lack `.ts`. Ensure imports have `.ts` extensions *before* moving if you want them in the result.
+
 ### `rename-in-file` — Rename ALL declarations of a name in specific files
 
 Iteratively finds every declaration (parameter, variable, property) of the given name in the listed files and renames each one. References cascade to other files via ts-morph.
