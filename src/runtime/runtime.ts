@@ -68,21 +68,12 @@ import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
 import type { RenderOverlay } from "../shared/overlay-types.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform.ts";
-import {
-  computeGameSeed,
-  DIFFICULTY_PARAMS,
-  getPlayerColor,
-  MAX_PLAYERS,
-  PLAYER_KEY_BINDINGS,
-  PLAYER_NAMES,
-} from "../shared/player-config.ts";
-import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "../shared/settings-defs.ts";
-import type { PlayerController } from "../shared/system-interfaces.ts";
-import type { GameState } from "../shared/types.ts";
+import { computeGameSeed } from "../shared/player-config.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
-import { bootstrapGame } from "./runtime-bootstrap.ts";
+import { bootstrapNewGameFromSettings } from "./runtime-bootstrap.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import {
+  buildLifecycleDeps,
   createGameLifecycle,
   GAME_OVER_MENU,
   GAME_OVER_REMATCH,
@@ -106,7 +97,6 @@ import {
   computeFrameContext,
   createRuntimeState,
   isStateReady,
-  resetTransientState,
   safeState,
   setMode,
   tickMainLoop,
@@ -373,126 +363,52 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Game lifecycle (delegated to runtime-game-lifecycle.ts)
   // -------------------------------------------------------------------------
 
-  function bootstrapNewGame(): void {
-    const seed = runtimeState.lobby.seed;
-    config.log(`[game] seed: ${seed}`);
-    const { buildTimer, cannonPlaceTimer, firstRoundCannons } =
-      DIFFICULTY_PARAMS[runtimeState.settings.difficulty]!;
-    const roundsParam = config.getUrlRoundsOverride();
-    const roundsVal =
-      roundsParam > 0
-        ? roundsParam
-        : ROUNDS_OPTIONS[runtimeState.settings.rounds]!.value;
-    bootstrapGame({
-      seed,
-      maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),
-      existingMap: runtimeState.lobby.map ?? undefined,
-      maxRounds: roundsVal,
-      cannonMaxHp: CANNON_HP_OPTIONS[runtimeState.settings.cannonHp]!.value,
-      buildTimer,
-      cannonPlaceTimer,
-      firstRoundCannons,
-      gameMode: runtimeState.settings.gameMode,
-      log: config.log,
-      clearFrameData,
-      setState: (state: GameState) => {
-        runtimeState.state = state;
+  const lifecycle = createGameLifecycle(
+    buildLifecycleDeps({
+      runtimeState,
+      config,
+      render,
+      requestMainLoop: () => requestAnimationFrame(mainLoop),
+      bootstrapNewGame: () =>
+        bootstrapNewGameFromSettings(
+          runtimeState,
+          config.log,
+          config.getUrlRoundsOverride,
+          {
+            clearFrameData,
+            resetUIState: () => lifecycle.resetUIState(),
+            enterSelection: selection.enter,
+          },
+        ),
+      selection,
+      banner: { reset: resetBanner },
+      camera,
+      getLifeLost: () => lifeLost,
+      getUpgradePick: () => upgradePick,
+      scoreDelta,
+      sound,
+      input,
+      resolveGameOverAction: (canvasX, canvasY) => {
+        const gameOver = runtimeState.frame.gameOver;
+        if (!gameOver) return null;
+        const hit = gameOverButtonHitTest(
+          canvasX / SCALE,
+          canvasY / SCALE,
+          MAP_PX_W,
+          MAP_PX_H,
+          gameOver,
+        );
+        if (hit === FOCUS_REMATCH) return GAME_OVER_REMATCH;
+        if (hit === FOCUS_MENU) return GAME_OVER_MENU;
+        // Touch: tap-anywhere confirms the focused button (no hover cursor).
+        // Mouse: miss returns null so accidental clicks are ignored.
+        if (!IS_TOUCH_DEVICE) return null;
+        return gameOver.focused === FOCUS_REMATCH
+          ? GAME_OVER_REMATCH
+          : GAME_OVER_MENU;
       },
-      setControllers: (controller: readonly PlayerController[]) => {
-        runtimeState.controllers = [...controller];
-      },
-      humanSlots: runtimeState.lobby.joined,
-      keyBindings: runtimeState.settings.keyBindings,
-      difficulty: runtimeState.settings.difficulty,
-      resetUIState: () => lifecycle.resetUIState(),
-      enterSelection: selection.enter,
-    });
-  }
-
-  const lifecycle = createGameLifecycle({
-    log: config.log,
-
-    bootstrapNewGame,
-
-    setGameOverFrame: (winner) => {
-      const name = PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`;
-      runtimeState.frame.gameOver = {
-        winner: name,
-        scores: runtimeState.state.players.map((player) => ({
-          name: PLAYER_NAMES[player.id] ?? `P${player.id + 1}`,
-          score: player.score,
-          color: getPlayerColor(player.id).wall,
-          eliminated: player.eliminated,
-          territory: player.interior.size,
-          stats: runtimeState.scoreDisplay.gameStats[player.id],
-        })),
-        focused: FOCUS_REMATCH,
-      };
-    },
-    onEndGame: config.onlineConfig?.onEndGame
-      ? (winner) => config.onlineConfig!.onEndGame(winner, runtimeState.state)
-      : undefined,
-    isAllAi: () => runtimeState.lobby.joined.every((j) => !j),
-    isModeStopped: () => runtimeState.mode === Mode.STOPPED,
-
-    setModeStopped: () => {
-      setMode(runtimeState, Mode.STOPPED);
-    },
-    clearGameOver: () => {
-      runtimeState.frame.gameOver = undefined;
-    },
-
-    resetAll: () => {
-      selection.reset();
-      resetBanner();
-      resetTransientState(runtimeState);
-      lifeLost.set(null);
-      upgradePick.set(null);
-      scoreDelta.reset();
-      camera.resetBattleCrosshair();
-      runtimeState.scoreDisplay.gameStats = Array.from(
-        { length: MAX_PLAYERS },
-        () => ({ wallsDestroyed: 0, cannonsKilled: 0 }),
-      );
-      camera.resetCamera();
-      sound.reset();
-    },
-    resetScoreDeltas: scoreDelta.reset,
-    resetDialogs: () => {
-      lifeLost.set(null);
-      upgradePick.set(null);
-    },
-    resetLifeLostDialog: () => lifeLost.set(null),
-    clearAllZoomState: camera.clearAllZoomState,
-    resetInputForLobby: input.resetForLobby,
-
-    soundReset: sound.reset,
-    soundGameOver: sound.gameOver,
-
-    render,
-    requestMainLoop: () => requestAnimationFrame(mainLoop),
-    showLobby: config.showLobby,
-
-    resolveGameOverAction: (canvasX, canvasY) => {
-      const gameOver = runtimeState.frame.gameOver;
-      if (!gameOver) return null;
-      const hit = gameOverButtonHitTest(
-        canvasX / SCALE,
-        canvasY / SCALE,
-        MAP_PX_W,
-        MAP_PX_H,
-        gameOver,
-      );
-      if (hit === FOCUS_REMATCH) return GAME_OVER_REMATCH;
-      if (hit === FOCUS_MENU) return GAME_OVER_MENU;
-      // Touch: tap-anywhere confirms the focused button (no hover cursor).
-      // Mouse: miss returns null so accidental clicks are ignored.
-      if (!IS_TOUCH_DEVICE) return null;
-      return gameOver.focused === FOCUS_REMATCH
-        ? GAME_OVER_REMATCH
-        : GAME_OVER_MENU;
-    },
-  });
+    }),
+  );
 
   // -------------------------------------------------------------------------
   // Life-lost sub-system (delegated to runtime-life-lost.ts)

@@ -3,7 +3,7 @@
  *
  * Follows the same factory-with-deps pattern as runtime-life-lost.ts.
  * Owns the dialog lifecycle: create, tick (AI auto-pick), resolve.
- * Input handling lives in the input layer (runtime-input.ts).
+ * Input handling lives in runtime-input.ts (keyboard/touch dispatch).
  */
 
 import { type GameMessage, MESSAGE } from "../../server/protocol.ts";

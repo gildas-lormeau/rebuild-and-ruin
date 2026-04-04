@@ -17,8 +17,11 @@
  * State access patterns by sub-system:
  *   STANDARD (destructure runtimeState at top):
  *     runtime-selection.ts, runtime-input.ts, runtime-life-lost.ts,
- *     runtime-lobby.ts, runtime-options.ts, runtime-game-lifecycle.ts,
- *     runtime-banner.ts, runtime-render.ts, runtime-phase-ticks.ts
+ *     runtime-lobby.ts, runtime-options.ts, runtime-banner.ts,
+ *     runtime-render.ts, runtime-phase-ticks.ts
+ *   BUILDER (runtimeState passed to dep-builder, not to orchestrator):
+ *     runtime-game-lifecycle.ts — buildLifecycleDeps receives runtimeState,
+ *     createGameLifecycle only sees its deps interface.
  *   ALL-GETTERS (no runtimeState access — late-bind everything):
  *     runtime-camera.ts — camera state can change during host migration,
  *     so every field must be re-read via getter to avoid stale values.

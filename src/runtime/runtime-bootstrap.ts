@@ -7,7 +7,12 @@ import {
 } from "../shared/game-constants.ts";
 import { isReselectPhase, Phase } from "../shared/game-phase.ts";
 import type { GameMap } from "../shared/geometry-types.ts";
-import type { KeyBindings } from "../shared/player-config.ts";
+import {
+  DIFFICULTY_PARAMS,
+  type KeyBindings,
+  MAX_PLAYERS,
+  PLAYER_KEY_BINDINGS,
+} from "../shared/player-config.ts";
 import {
   isActivePlayer,
   type PlayerSlotId,
@@ -15,6 +20,7 @@ import {
 } from "../shared/player-slot.ts";
 import { MAX_UINT32 } from "../shared/rng.ts";
 import { GAME_CONTAINER_ACTIVE } from "../shared/router.ts";
+import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "../shared/settings-defs.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
 import { isRemoteHuman } from "../shared/tick-context.ts";
 import {
@@ -23,6 +29,7 @@ import {
   type SelectionState,
   setGameMode,
 } from "../shared/types.ts";
+import type { RuntimeState } from "./runtime-state.ts";
 
 interface InitWaitingRoomDeps {
   seed: number;
@@ -83,6 +90,12 @@ interface InitGameDeps {
   resetUIState: () => void;
   /** Called after state + controllers are ready. Enters tower selection. */
   enterSelection: () => void;
+}
+
+interface BootstrapFromSettingsDeps {
+  readonly clearFrameData: () => void;
+  readonly resetUIState: () => void;
+  readonly enterSelection: () => void;
 }
 
 export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
@@ -186,6 +199,49 @@ export function createAiController(
   difficulty?: number,
 ): PlayerController {
   return createController(id, true, undefined, seed, difficulty);
+}
+
+/** High-level bootstrap: resolves settings → params, then calls bootstrapGame.
+ *  Used by the composition root (runtime.ts) for local startGame. */
+export function bootstrapNewGameFromSettings(
+  runtimeState: RuntimeState,
+  log: (msg: string) => void,
+  getUrlRoundsOverride: () => number,
+  deps: BootstrapFromSettingsDeps,
+): void {
+  const seed = runtimeState.lobby.seed;
+  log(`[game] seed: ${seed}`);
+  const { buildTimer, cannonPlaceTimer, firstRoundCannons } =
+    DIFFICULTY_PARAMS[runtimeState.settings.difficulty]!;
+  const roundsParam = getUrlRoundsOverride();
+  const roundsVal =
+    roundsParam > 0
+      ? roundsParam
+      : ROUNDS_OPTIONS[runtimeState.settings.rounds]!.value;
+  bootstrapGame({
+    seed,
+    maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),
+    existingMap: runtimeState.lobby.map ?? undefined,
+    maxRounds: roundsVal,
+    cannonMaxHp: CANNON_HP_OPTIONS[runtimeState.settings.cannonHp]!.value,
+    buildTimer,
+    cannonPlaceTimer,
+    firstRoundCannons,
+    gameMode: runtimeState.settings.gameMode,
+    log,
+    clearFrameData: deps.clearFrameData,
+    setState: (state) => {
+      runtimeState.state = state;
+    },
+    setControllers: (controllers) => {
+      runtimeState.controllers = [...controllers];
+    },
+    humanSlots: runtimeState.lobby.joined,
+    keyBindings: runtimeState.settings.keyBindings,
+    difficulty: runtimeState.settings.difficulty,
+    resetUIState: deps.resetUIState,
+    enterSelection: deps.enterSelection,
+  });
 }
 
 /** Shared game init — used by both local startGame and online initFromServer.

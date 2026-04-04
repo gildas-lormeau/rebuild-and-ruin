@@ -139,8 +139,8 @@
       "src/runtime/runtime-lobby.ts",
       "src/runtime/runtime-options.ts",
       "src/runtime/runtime-game-lifecycle.ts",
-      "src/runtime/runtime-input.ts",
-      "src/runtime/runtime-phase-ticks.ts",
+
+      "src/runtime/runtime-phase-ticks.ts",      "src/runtime/runtime-input.ts",
       "src/runtime/runtime-render.ts",
       "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-selection.ts",
