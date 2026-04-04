@@ -717,7 +717,7 @@ function setupFloatingActions(
         onPieceRotated: sound.pieceRotated,
         onHapticTap: haptics.tap,
         onDrag: (clientX, clientY) => {
-          const state = runtimeState.state;
+          const state = safeState(runtimeState);
           if (!state) return;
           const { x, y } = renderer.clientToSurface(clientX, clientY);
           deps.inputHandlers.dispatchPointerMove(x, y, state, inputDeps);
