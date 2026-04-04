@@ -45,7 +45,9 @@
     "reorder": "npx tsx scripts/reorder-file.ts",
     "reorder:changed": "git diff --cached --name-only --diff-filter=ACM -- 'src/*.ts' | xargs -I{} npx tsx scripts/reorder-file.ts {}",
     "readonly-params": "npx tsx scripts/add-readonly-params.ts",
-    "refactor": "npx tsx scripts/refactor.ts"
+    "refactor": "npx tsx scripts/refactor.ts",
+    "graph": "npx tsx scripts/layer-graph.ts",
+    "graph:files": "npx tsx scripts/file-graph.ts --layout fdp"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.8",
