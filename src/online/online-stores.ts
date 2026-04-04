@@ -32,10 +32,7 @@ import {
   type WatcherState,
 } from "./online-watcher-tick.ts";
 
-type ResetScope =
-  | typeof RESET_SCOPE_DEDUP
-  | typeof RESET_SCOPE_NEW_GAME
-  | typeof RESET_SCOPE_HOST_PROMOTION;
+type ResetScope = "dedup" | "new-game" | "host-promotion";
 
 interface OnlineContext {
   readonly session: OnlineSession;
@@ -76,11 +73,10 @@ const LOG_THROTTLE_MS = 1000;
  *  phantom/aim messages. The pattern is: if shouldSend() -> send (map updated atomically).
  *  Sending without checking causes redundant network traffic; checking without
  *  resetting after state changes causes missed updates. */
-const RESET_SCOPE_DEDUP = "dedup" as const;
 // ── Default instance ───────────────────────────────────────────────
 export const defaultClient = createOnlineClient();
-export const RESET_SCOPE_NEW_GAME = "new-game" as const;
-export const RESET_SCOPE_HOST_PROMOTION = "host-promotion" as const;
+export const RESET_SCOPE_NEW_GAME = "new-game";
+export const RESET_SCOPE_HOST_PROMOTION = "host-promotion";
 export const MAX_RECONNECT_ATTEMPTS = 3;
 export const RECONNECT_BASE_DELAY_MS = 1000;
 

@@ -27,7 +27,7 @@ interface PlayerColor {
   interiorDark: RGB;
 }
 
-export type SeedMode = typeof SEED_RANDOM | typeof SEED_CUSTOM;
+export type SeedMode = "random" | "custom";
 
 export interface GameSettings {
   difficulty: number;
@@ -127,7 +127,7 @@ export const PLAYER_KEY_BINDINGS: readonly KeyBindings[] = [
 ];
 export const MAX_PLAYERS = PLAYER_NAMES.length;
 /** Ordered action keys for the controls screen (matches KeyBindings fields). */
-export const ACTION_CONFIRM = "confirm" as const;
+export const ACTION_CONFIRM = "confirm";
 export const ACTION_KEYS: readonly (keyof KeyBindings)[] = [
   "up",
   "down",
@@ -136,7 +136,7 @@ export const ACTION_KEYS: readonly (keyof KeyBindings)[] = [
   ACTION_CONFIRM,
   "rotate",
 ];
-export const SEED_RANDOM = "random" as const;
+export const SEED_RANDOM = "random";
 const DEFAULT_SETTINGS: GameSettings = {
   difficulty: DIFFICULTY_NORMAL,
   rounds: ROUNDS_TO_THE_DEATH_INDEX,
@@ -149,7 +149,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   leftHanded: false,
   gameMode: GAME_MODE_CLASSIC,
 };
-export const SEED_CUSTOM = "custom" as const;
+export const SEED_CUSTOM = "custom";
 /** Maximum character length for user-entered seeds. */
 export const MAX_SEED_LENGTH = 9;
 

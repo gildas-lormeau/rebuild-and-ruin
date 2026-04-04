@@ -44,5 +44,5 @@ export const OPT_SOUND = 7;
 export const OPT_GAME_MODE = 8;
 /** Hit-test discriminators for options/controls screens.
  *  Shared between render (producer) and runtime (consumer). */
-export const HIT_CLOSE = "close" as const;
-export const HIT_ARROW = "arrow" as const;
+export const HIT_CLOSE = "close";
+export const HIT_ARROW = "arrow";

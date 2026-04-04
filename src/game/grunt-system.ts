@@ -51,7 +51,7 @@ import {
  * Called each battle tick with dt in seconds.
  */
 interface GruntAttackEvent {
-  type: typeof MESSAGE.TOWER_KILLED;
+  type: "tower_killed";
   towerIdx: number;
 }
 

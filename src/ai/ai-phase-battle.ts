@@ -37,14 +37,14 @@ interface BattleHost {
 type CountdownOrbit = { rx: number; ry: number; speed: number };
 
 type BattleState =
-  | { step: typeof STEP.IDLE }
-  | { step: typeof STEP.COUNTDOWN; orbit: CountdownOrbit | null }
-  | { step: typeof STEP.CHAIN_MOVING }
-  | { step: typeof STEP.CHAIN_DWELLING; timer: number }
-  | { step: typeof STEP.THINKING; timer: number }
-  | { step: typeof STEP.PICKING }
-  | { step: typeof STEP.MOVING }
-  | { step: typeof STEP.DWELLING; timer: number };
+  | { step: "idle" }
+  | { step: "countdown"; orbit: CountdownOrbit | null }
+  | { step: "chain_moving" }
+  | { step: "chain_dwelling"; timer: number }
+  | { step: "thinking"; timer: number }
+  | { step: "picking" }
+  | { step: "moving" }
+  | { step: "dwelling"; timer: number };
 
 interface BattlePhase {
   state: BattleState;
@@ -220,10 +220,7 @@ function tickCountdown(
   }
   if (!phase.crosshairTarget) return;
 
-  const ps = phase.state as Extract<
-    BattleState,
-    { step: typeof STEP.COUNTDOWN }
-  >;
+  const ps = phase.state as Extract<BattleState, { step: "countdown" }>;
 
   if (state.battleCountdown > 0) {
     // During countdown, move to target then orbit around it
@@ -326,10 +323,7 @@ function tickChainDwelling(
   state: GameState,
   dt: number,
 ): void {
-  const ps = phase.state as Extract<
-    BattleState,
-    { step: typeof STEP.CHAIN_DWELLING }
-  >;
+  const ps = phase.state as Extract<BattleState, { step: "chain_dwelling" }>;
   ps.timer -= dt;
   if (ps.timer > 0) return;
 
@@ -361,10 +355,7 @@ function tickDwelling(
   state: GameState,
   dt: number,
 ): void {
-  const ps = phase.state as Extract<
-    BattleState,
-    { step: typeof STEP.DWELLING }
-  >;
+  const ps = phase.state as Extract<BattleState, { step: "dwelling" }>;
   ps.timer -= dt;
   if (ps.timer > 0) return;
 

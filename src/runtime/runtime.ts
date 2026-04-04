@@ -108,7 +108,7 @@ import {
   GAME_OVER_REMATCH,
 } from "./runtime-game-lifecycle.ts";
 import { createPointerPlayerLookup } from "./runtime-human.ts";
-import { createInputSystem } from "./runtime-input.ts";
+import { createInputSystem, type InputSystem } from "./runtime-input.ts";
 import {
   createLifeLostSystem,
   type LifeLostSystem,
@@ -162,7 +162,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // deno-lint-ignore prefer-const
   let options: OptionsSystem;
   // deno-lint-ignore prefer-const
-  let input: ReturnType<typeof createInputSystem>;
+  let input: InputSystem;
 
   /** Refresh lobby seed + map preview only if the seed changed. */
   function refreshLobbySeed(): void {

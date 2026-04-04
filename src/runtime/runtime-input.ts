@@ -176,7 +176,7 @@ type PlaceCannonFn = (
   max: number,
 ) => boolean;
 
-interface InputSystem {
+export interface InputSystem {
   register(): void;
   readonly touch: TouchHandles;
 }
@@ -261,9 +261,9 @@ function setupTouchControls(
 
 function buildInputDeps(
   deps: InputSystemDeps,
-  coordsDeps: ReturnType<typeof buildCoordsDeps>,
-  lobbyDeps: ReturnType<typeof buildLobbyDeps>,
-  gameActionDeps: ReturnType<typeof buildGameActionDeps>,
+  coordsDeps: RegisterOnlineInputDeps["coords"],
+  lobbyDeps: RegisterOnlineInputDeps["lobby"],
+  gameActionDeps: RegisterOnlineInputDeps["gameAction"],
 ): RegisterOnlineInputDeps {
   const { runtimeState, renderer, withPointerPlayer } = deps;
   return {

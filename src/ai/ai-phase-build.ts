@@ -44,16 +44,16 @@ type BuildTarget = { piece: PieceShape } & TilePos;
 type BuildRotation = { seq: PieceShape[]; idx: number; timer: number };
 
 type BuildState =
-  | { step: typeof STEP.IDLE }
-  | { step: typeof STEP.THINKING; timer: number }
-  | { step: typeof STEP.MOVING; target: BuildTarget; rotation: BuildRotation }
+  | { step: "idle" }
+  | { step: "thinking"; timer: number }
+  | { step: "moving"; target: BuildTarget; rotation: BuildRotation }
   | {
-      step: typeof STEP.DWELLING;
+      step: "dwelling";
       target: BuildTarget;
       timer: number;
       hasRetried: boolean;
     }
-  | { step: typeof STEP.GAVE_UP; retryTimer: number };
+  | { step: "gave_up"; retryTimer: number };
 
 interface BuildPhase {
   state: BuildState;
@@ -235,7 +235,7 @@ function tickMoving(
   state: GameState,
   dt: number,
 ): PiecePlacementPreview[] {
-  const ps = phase.state as Extract<BuildState, { step: typeof STEP.MOVING }>;
+  const ps = phase.state as Extract<BuildState, { step: "moving" }>;
   const { target, rotation } = ps;
 
   // Tick rotation animation concurrently with movement

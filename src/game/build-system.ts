@@ -43,6 +43,7 @@ import {
 import {
   type FreshInterior,
   type GameState,
+  type Grunt,
   isPlayerSeated,
   type Player,
 } from "../shared/types.ts";
@@ -375,8 +376,8 @@ function removeEnclosedGruntsAndRespawn(
   player: Player,
   interior: FreshInterior,
 ): void {
-  const kept: typeof state.grunts = [];
-  const enclosed: typeof state.grunts = [];
+  const kept: Grunt[] = [];
+  const enclosed: Grunt[] = [];
   for (const grunt of state.grunts) {
     if (interior.has(packTile(grunt.row, grunt.col))) {
       enclosed.push(grunt);

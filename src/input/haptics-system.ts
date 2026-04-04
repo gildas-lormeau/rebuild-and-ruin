@@ -32,10 +32,7 @@ const HAPTIC_CANNON_FIRED_MS = 15;
 export function createHapticsSystem(): HapticsSystem {
   let hapticsLevel = HAPTICS_ALL;
 
-  function vibrate(
-    ms: number,
-    minLevel: typeof HAPTICS_PHASE_ONLY | typeof HAPTICS_ALL,
-  ): void {
+  function vibrate(ms: number, minLevel: 1 | 2): void {
     if (CAN_VIBRATE && hapticsLevel >= minLevel) navigator.vibrate(ms);
   }
 

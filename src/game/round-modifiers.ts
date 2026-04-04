@@ -38,14 +38,10 @@ interface ModifierDef {
   readonly label: string;
   readonly weight: number;
   /** When to show the banner subtitle. */
-  readonly announcePhase:
-    | typeof ANNOUNCE_BEFORE_CANNON
-    | "before_build"
-    | typeof ANNOUNCE_NONE;
+  readonly announcePhase: "before_cannon" | "before_build" | "none";
 }
 
-const ANNOUNCE_BEFORE_CANNON = "before_cannon" as const;
-const ANNOUNCE_NONE = "none" as const;
+const ANNOUNCE_BEFORE_CANNON = "before_cannon";
 const MODIFIER_POOL: readonly ModifierDef[] = [
   {
     id: "wildfire",
@@ -88,8 +84,8 @@ const CRUMBLE_FRACTION = 0.18;
 const CRUMBLE_MIN = 3;
 const CRUMBLE_MAX = 12;
 /** Banner phase constants for modifierBannerText callers. */
-export const BANNER_PHASE_CANNON = "cannon" as const;
-export const BANNER_PHASE_BUILD = "build" as const;
+export const BANNER_PHASE_CANNON = "cannon";
+export const BANNER_PHASE_BUILD = "build";
 
 /** Roll a modifier for the current round. Returns null if no modifier fires.
  *  Must be called at a deterministic point using state.rng for online sync. */
@@ -115,7 +111,7 @@ export function rollModifier(state: GameState): ModifierId | null {
 /** Returns banner subtitle for the given phase, or undefined if no announcement. */
 export function modifierBannerText(
   modifierId: ModifierId | null,
-  bannerPhase: typeof BANNER_PHASE_CANNON | "build",
+  bannerPhase: "cannon" | "build",
 ): string | undefined {
   if (!modifierId) return undefined;
   const def = MODIFIER_POOL.find((mod) => mod.id === modifierId);

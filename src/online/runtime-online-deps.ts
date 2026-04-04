@@ -36,8 +36,14 @@ import {
   handleGameOverTransition,
   type TransitionContext,
 } from "./online-phase-transitions.ts";
-import { handleServerIncrementalMessage } from "./online-server-events.ts";
-import { handleServerLifecycleMessage } from "./online-server-lifecycle.ts";
+import {
+  type HandleServerIncrementalDeps,
+  handleServerIncrementalMessage,
+} from "./online-server-events.ts";
+import {
+  type HandleServerLifecycleDeps,
+  handleServerLifecycleMessage,
+} from "./online-server-lifecycle.ts";
 import type { OnlineClient } from "./online-stores.ts";
 import { promoteToHost } from "./runtime-online-promote.ts";
 
@@ -60,8 +66,8 @@ interface DepsInit {
 // and domain modules. All three init functions are called once from createOnlineGame().
 let _g: DepsInit;
 let _client: OnlineClient;
-let _lifecycleDeps: ReturnType<typeof buildLifecycleDeps>;
-let _incrementalDeps: ReturnType<typeof buildIncrementalDeps>;
+let _lifecycleDeps: HandleServerLifecycleDeps;
+let _incrementalDeps: HandleServerIncrementalDeps;
 
 /** Bind runtime-dependent values and build deps objects. Called once from
  *  runtime-online-game.ts after the GameRuntime is created. */

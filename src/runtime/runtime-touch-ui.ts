@@ -13,7 +13,7 @@ import { TILE_SIZE } from "../shared/grid.ts";
 import type { LoupeHandle } from "../shared/overlay-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 
-type TouchBtnRule = boolean | typeof INTERACTIVE;
+type TouchBtnRule = boolean | "interactive";
 
 interface TouchButtonState {
   dpad: TouchBtnRule;
@@ -70,7 +70,7 @@ interface TouchControlsDeps {
   containerHeight: number;
 }
 
-const INTERACTIVE = "interactive" as const;
+const INTERACTIVE = "interactive";
 const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
   [Mode.LOBBY]: {
     dpad: false,

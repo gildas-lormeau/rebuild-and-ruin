@@ -22,14 +22,14 @@ interface SelectionHost {
 }
 
 type AiSelectionState =
-  | { step: typeof STEP.IDLE }
+  | { step: "idle" }
   | {
-      step: typeof STEP.BROWSING;
+      step: "browsing";
       queue: number[];
       browseTimer: number;
       confirmInitialDelay: number;
     }
-  | { step: typeof STEP.CONFIRMING; timer: number };
+  | { step: "confirming"; timer: number };
 
 interface SelectionPhase {
   state: AiSelectionState;

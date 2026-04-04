@@ -43,15 +43,15 @@ import {
 
 /** Hit-test result for a tap/click on the options screen. */
 export type OptionsHit =
-  | { type: typeof HIT_CLOSE }
-  | { type: typeof HIT_ROW; index: number }
-  | { type: typeof HIT_ARROW; index: number; dir: -1 | 1 }
+  | { type: "close" }
+  | { type: "row"; index: number }
+  | { type: "arrow"; index: number; dir: -1 | 1 }
   | null;
 
 /** Hit-test result for a tap/click on the controls screen. */
 export type ControlsHit =
-  | { type: typeof HIT_CLOSE }
-  | { type: typeof HIT_CELL; playerIdx: number; actionIdx: number }
+  | { type: "close" }
+  | { type: "cell"; playerIdx: number; actionIdx: number }
   | null;
 
 export type OptionsScreenHitTestFn = (
@@ -71,8 +71,8 @@ export type ControlsScreenHitTestFn = (
   rowCount: number,
 ) => ControlsHit;
 
-const HIT_ROW = "row" as const;
-const HIT_CELL = "cell" as const;
+const HIT_ROW = "row";
+const HIT_CELL = "cell";
 // Options screen layout constants
 const OPT_ROW_H = 28;
 const CLOSE_BTN_SIZE = 24;

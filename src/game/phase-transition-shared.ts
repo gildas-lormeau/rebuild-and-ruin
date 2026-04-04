@@ -29,10 +29,10 @@ interface BuildEndSequenceDeps {
 }
 
 type TransitionStep =
-  | typeof SHOW_BANNER
-  | typeof APPLY_CHECKPOINT
-  | typeof SNAPSHOT
-  | typeof INIT_CTRL;
+  | "showBanner"
+  | "applyCheckpoint"
+  | "snapshotForBanner"
+  | "initControllers";
 
 /** Named steps in a phase transition. The recipe declares their ordering;
  *  host and watcher supply different adapter implementations for each step.
@@ -42,10 +42,10 @@ type TransitionStep =
  *  - initControllers: Prepare controllers for the new phase (cannon setup, build init).
  *  - showBanner: Display the phase-transition banner animation.
  *  - snapshotForBanner: Capture post-transition territory/walls for the banner overlay. */
-const SHOW_BANNER = "showBanner" as const;
-const APPLY_CHECKPOINT = "applyCheckpoint" as const;
-const SNAPSHOT = "snapshotForBanner" as const;
-const INIT_CTRL = "initControllers" as const;
+const SHOW_BANNER = "showBanner";
+const APPLY_CHECKPOINT = "applyCheckpoint";
+const SNAPSHOT = "snapshotForBanner";
+const INIT_CTRL = "initControllers";
 /** Ordered steps for the build→cannon transition: banner first (hides new houses/bonus), then checkpoint, then controllers. */
 export const CANNON_START_STEPS = [
   SHOW_BANNER,

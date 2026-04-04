@@ -73,7 +73,7 @@ interface UpgradePickChoiceDialog {
   entries: UpgradePickChoiceEntry[];
 }
 
-interface HandleServerIncrementalDeps {
+export interface HandleServerIncrementalDeps {
   log: (msg: string) => void;
   session: Pick<
     OnlineSession,
@@ -101,58 +101,43 @@ interface HandleServerIncrementalDeps {
 
 type TowerSelectedMsg = Extract<
   ServerMessage,
-  { type: typeof MESSAGE.OPPONENT_TOWER_SELECTED }
+  { type: "opponent_tower_selected" }
 >;
 
-type PiecePlacedMsg = Extract<
-  ServerMessage,
-  { type: typeof MESSAGE.OPPONENT_PIECE_PLACED }
->;
+type PiecePlacedMsg = Extract<ServerMessage, { type: "opponent_piece_placed" }>;
 
 type CannonPlacedMsg = Extract<
   ServerMessage,
-  { type: typeof MESSAGE.OPPONENT_CANNON_PLACED }
+  { type: "opponent_cannon_placed" }
 >;
 
-type CannonFiredMsg = Extract<
-  ServerMessage,
-  { type: typeof MESSAGE.CANNON_FIRED }
->;
+type CannonFiredMsg = Extract<ServerMessage, { type: "cannon_fired" }>;
 
 type ImpactMsg = Extract<
   ServerMessage,
   {
     type:
-      | typeof MESSAGE.WALL_DESTROYED
-      | typeof MESSAGE.CANNON_DAMAGED
-      | typeof MESSAGE.HOUSE_DESTROYED
-      | typeof MESSAGE.GRUNT_KILLED
-      | typeof MESSAGE.GRUNT_SPAWNED
-      | typeof MESSAGE.PIT_CREATED;
+      | "wall_destroyed"
+      | "cannon_damaged"
+      | "house_destroyed"
+      | "grunt_killed"
+      | "grunt_spawned"
+      | "pit_created";
   }
 >;
 
-type AimUpdateMsg = Extract<ServerMessage, { type: typeof MESSAGE.AIM_UPDATE }>;
+type AimUpdateMsg = Extract<ServerMessage, { type: "aim_update" }>;
 
-type TowerKilledMsg = Extract<
-  ServerMessage,
-  { type: typeof MESSAGE.TOWER_KILLED }
->;
+type TowerKilledMsg = Extract<ServerMessage, { type: "tower_killed" }>;
 
-type PiecePhantomMsg = Extract<
-  ServerMessage,
-  { type: typeof MESSAGE.OPPONENT_PHANTOM }
->;
+type PiecePhantomMsg = Extract<ServerMessage, { type: "opponent_phantom" }>;
 
 type CannonPhantomMsg = Extract<
   ServerMessage,
-  { type: typeof MESSAGE.OPPONENT_CANNON_PHANTOM }
+  { type: "opponent_cannon_phantom" }
 >;
 
-type LifeLostChoiceMsg = Extract<
-  ServerMessage,
-  { type: typeof MESSAGE.LIFE_LOST_CHOICE }
->;
+type LifeLostChoiceMsg = Extract<ServerMessage, { type: "life_lost_choice" }>;
 
 /** Result of handling a server message.
  *  `applied` = true when the message mutated game state.
@@ -162,10 +147,7 @@ interface HandleResult {
   applied: boolean;
 }
 
-type UpgradePickMsg = Extract<
-  ServerMessage,
-  { type: typeof MESSAGE.UPGRADE_PICK }
->;
+type UpgradePickMsg = Extract<ServerMessage, { type: "upgrade_pick" }>;
 
 const APPLIED: HandleResult = { applied: true };
 const DROPPED: HandleResult = { applied: false };

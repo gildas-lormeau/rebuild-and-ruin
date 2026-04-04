@@ -3,7 +3,7 @@ import {
   canPlayerFire,
   getCountdownAnnouncement,
 } from "../game/battle-system.ts";
-import type { CannonMode, Impact } from "../shared/battle-types.ts";
+import type { Cannonball, CannonMode, Impact } from "../shared/battle-types.ts";
 import type {
   OrbitParams,
   PlayerController,
@@ -169,7 +169,7 @@ export function tickWatcherBattlePhase(deps: WatcherBattleDeps): void {
     aimCannons,
   } = deps;
 
-  const remaining: typeof state.cannonballs = [];
+  const remaining: Cannonball[] = [];
   for (const ball of state.cannonballs) {
     const hit = advanceCannonball(ball, dt);
     if (hit) {

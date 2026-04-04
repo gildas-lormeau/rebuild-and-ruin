@@ -18,7 +18,7 @@ import { isHostInContext } from "../shared/tick-context.ts";
 import type { GameState } from "../shared/types.ts";
 import type { OnlineSession } from "./online-session.ts";
 
-interface HandleServerLifecycleDeps {
+export interface HandleServerLifecycleDeps {
   log: (msg: string) => void;
   now: () => number;
 

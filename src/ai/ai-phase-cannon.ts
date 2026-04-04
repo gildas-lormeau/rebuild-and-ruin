@@ -35,11 +35,11 @@ interface CannonHost {
 }
 
 type CannonState =
-  | { step: typeof STEP.IDLE }
-  | { step: typeof STEP.THINKING; timer: number }
-  | { step: typeof STEP.MODE_SWITCHING; timer: number }
-  | { step: typeof STEP.MOVING }
-  | { step: typeof STEP.DWELLING; timer: number };
+  | { step: "idle" }
+  | { step: "thinking"; timer: number }
+  | { step: "mode_switching"; timer: number }
+  | { step: "moving" }
+  | { step: "dwelling"; timer: number };
 
 interface CannonPhase {
   state: CannonState;

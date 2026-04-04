@@ -10,7 +10,7 @@
 
 /** How long to show the winner screen before auto-returning to lobby in demo mode. */
 
-type GameOverAction = typeof GAME_OVER_REMATCH | typeof GAME_OVER_MENU | null;
+type GameOverAction = "rematch" | "menu" | null;
 
 interface GameLifecycleDeps {
   readonly log: (msg: string) => void;
@@ -65,8 +65,8 @@ interface GameLifecycleSystem {
 
 const DEMO_RETURN_DELAY_MS = 10_000;
 /** Game-over action constants shared with composition root (resolveGameOverAction). */
-export const GAME_OVER_REMATCH = "rematch" as const;
-export const GAME_OVER_MENU = "menu" as const;
+export const GAME_OVER_REMATCH = "rematch";
+export const GAME_OVER_MENU = "menu";
 
 export function createGameLifecycle(
   deps: GameLifecycleDeps,
