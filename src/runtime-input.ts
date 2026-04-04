@@ -13,8 +13,6 @@ import type {
 } from "./controller-interfaces.ts";
 import { isHuman } from "./controller-interfaces.ts";
 import type { ValidPlayerSlot } from "./game-constants.ts";
-import { type UIContext, visibleOptions } from "./game-ui-screens.ts";
-import { OPT_CONTROLS } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
@@ -30,15 +28,16 @@ import {
   createQuitButton,
   type FloatingActionsHandle,
 } from "./input-touch-ui.ts";
+import type { LoupeHandle, RendererInterface } from "./overlay-types.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
   handleLifeLostDialogClick,
   handleUpgradePickClick,
 } from "./render-composition.ts";
-import type { LoupeHandle } from "./render-loupe.ts";
-import type { RendererInterface } from "./render-types.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
 import type { CameraSystem } from "./runtime-types.ts";
+import { type UIContext, visibleOptions } from "./screen-builders.ts";
+import { OPT_CONTROLS } from "./settings-defs.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import { towerCenterPx } from "./spatial.ts";
 import {

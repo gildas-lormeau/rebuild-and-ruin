@@ -5,6 +5,21 @@
  * hit-test logic consumed by runtime-options.ts.
  */
 
+import type { ControlsPlayer, RenderOverlay } from "./overlay-types.ts";
+import {
+  beginModalScreen,
+  INSET,
+  INSET_X2,
+  OP_ACTIVE,
+  OP_GHOST,
+  OP_IDLE,
+  OP_SECONDARY,
+  OP_SUBTLE,
+  PAD,
+  TEXT_DIM,
+  TEXT_DISABLED,
+  TEXT_MUTED,
+} from "./render-ui-theme.ts";
 import {
   BUTTON_FLASH_MS,
   CURSOR_BLINK_MS,
@@ -23,22 +38,7 @@ import {
   TEXT_ALIGN_LEFT,
   TEXT_ALIGN_RIGHT,
   TEXT_WHITE,
-} from "./render-theme.ts";
-import type { ControlsPlayer, RenderOverlay } from "./render-types.ts";
-import {
-  beginModalScreen,
-  INSET,
-  INSET_X2,
-  OP_ACTIVE,
-  OP_GHOST,
-  OP_IDLE,
-  OP_SECONDARY,
-  OP_SUBTLE,
-  PAD,
-  TEXT_DIM,
-  TEXT_DISABLED,
-  TEXT_MUTED,
-} from "./render-ui-theme.ts";
+} from "./theme.ts";
 
 /** Hit-test result for a tap/click on the options screen. */
 type OptionsHit =

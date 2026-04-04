@@ -1,16 +1,16 @@
 /**
- * Shared render overlay types — extracted from render-map.ts to break
- * circular dependencies between render-map and render-effects/towers/ui.
+ * Shared overlay and renderer interface types consumed by both
+ * render-* modules and runtime-* modules.
  */
 
 import type { ValidPlayerSlot } from "./game-constants.ts";
 import type {
   Crosshair,
+  GameMap,
   House,
-  PixelPos,
   RGB,
   TilePos,
-  Tower,
+  Viewport,
 } from "./geometry-types.ts";
 import type {
   CannonPhantom as RenderCannonPhantom,
@@ -23,6 +23,7 @@ import {
   type Grunt,
   type Impact,
   type LifeLostChoice,
+  type PlayerStats,
 } from "./types.ts";
 
 export type { RenderCannonPhantom, RenderPiecePhantom };
@@ -39,11 +40,6 @@ export interface ControlsPlayer {
   name: string;
   color: RGB;
   bindings: string[];
-}
-
-export interface PlayerStats {
-  wallsDestroyed: number;
-  cannonsKilled: number;
 }
 
 /** Game-over overlay data shared by FrameData and UIOverlay. */
@@ -113,12 +109,6 @@ export interface LifeLostDialogOverlay {
   }[];
   timer: number;
   maxTimer: number;
-}
-
-export interface MapData {
-  tiles: number[][];
-  towers: Tower[];
-  junction: PixelPos;
 }
 
 /** Castle selection phase — tower highlighting and confirmation. */
@@ -265,14 +255,6 @@ export interface RenderOverlay {
   ui?: UIOverlay;
 }
 
-/** Viewport rect in tile-pixel coordinates (before SCALE). null = full map. */
-export interface Viewport {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
 /**
  * Renderer abstraction — decouples game-runtime from Canvas 2D specifics.
  * Implement this interface to swap in a WebGL / 3D renderer.
@@ -292,7 +274,7 @@ export interface RendererInterface {
    *    render functions for animations (flashing, waves, cursors). Never call
    *    `Date.now()` or `performance.now()` inside render code — use this value. */
   drawFrame(
-    map: MapData,
+    map: GameMap,
     overlay: RenderOverlay | undefined,
     viewport: Viewport | null | undefined,
     now: number,
@@ -318,4 +300,9 @@ export interface RendererInterface {
   createLoupe?: (container: HTMLElement) => {
     update(visible: boolean, worldX: number, worldY: number): void;
   };
+}
+
+export interface LoupeHandle {
+  /** Update the loupe content — call from render(). */
+  update: (visible: boolean, worldX: number, worldY: number) => void;
 }

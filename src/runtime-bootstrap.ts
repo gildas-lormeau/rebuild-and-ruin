@@ -11,10 +11,9 @@ import { createGameFromSeed } from "./game-engine.ts";
 import type { GameMap } from "./geometry-types.ts";
 import { generateMap } from "./map-generation.ts";
 import type { KeyBindings } from "./player-config.ts";
-import { precomputeTerrainCache } from "./render-map.ts";
-import { GOLD, PANEL_BG } from "./render-theme.ts";
 import { MAX_UINT32 } from "./rng.ts";
 import { GAME_CONTAINER_ACTIVE } from "./router.ts";
+import { GOLD, PANEL_BG } from "./theme.ts";
 import { isRemoteHuman } from "./tick-context.ts";
 import {
   type GameState,
@@ -24,9 +23,6 @@ import {
   type SelectionState,
   setGameMode,
 } from "./types.ts";
-
-export { createCanvasRenderer } from "./render-canvas.ts";
-export { loadAtlas } from "./render-sprites.ts";
 
 interface InitWaitingRoomDeps {
   code: string;
@@ -152,7 +148,6 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
   lobby.seed = seed;
   console.log("[online] seed:", seed);
   lobby.map = generateMap(seed);
-  precomputeTerrainCache(lobby.map);
   lobby.joined = new Array(maxPlayers).fill(false);
   lobby.active = true;
   const time = now();

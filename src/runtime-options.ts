@@ -5,7 +5,25 @@
  * pattern as runtime-camera.ts and runtime-lobby.ts.
  */
 
-import type { UIContext } from "./game-ui-screens.ts";
+import type { GameMap, Viewport } from "./geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
+import type { HapticsSystem } from "./haptics-system.ts";
+import type { RenderOverlay } from "./overlay-types.ts";
+import { CURSOR_DEFAULT, CURSOR_POINTER, IS_TOUCH_DEVICE } from "./platform.ts";
+import {
+  ACTION_KEYS,
+  MAX_PLAYERS,
+  MAX_SEED_LENGTH,
+  SEED_CUSTOM,
+} from "./player-config.ts";
+import {
+  controlsScreenHitTest,
+  HIT_ARROW,
+  HIT_CLOSE,
+  optionsScreenHitTest,
+} from "./render-ui-settings.ts";
+import { type RuntimeState, safeState } from "./runtime-state.ts";
+import type { UIContext } from "./screen-builders.ts";
 import {
   closeControls as closeControlsShared,
   closeOptions as closeOptionsShared,
@@ -15,33 +33,16 @@ import {
   showOptions as showOptionsShared,
   togglePause as togglePauseShared,
   visibleOptions,
-} from "./game-ui-screens.ts";
-import { cycleOption } from "./game-ui-settings.ts";
-import { OPT_CONTROLS, OPT_SEED } from "./game-ui-types.ts";
-import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
-import type { HapticsSystem } from "./haptics-system.ts";
-import { CURSOR_DEFAULT, CURSOR_POINTER, IS_TOUCH_DEVICE } from "./platform.ts";
-import {
-  ACTION_KEYS,
-  MAX_PLAYERS,
-  MAX_SEED_LENGTH,
-  SEED_CUSTOM,
-} from "./player-config.ts";
-import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
-import {
-  controlsScreenHitTest,
-  HIT_ARROW,
-  HIT_CLOSE,
-  optionsScreenHitTest,
-} from "./render-ui-settings.ts";
-import { type RuntimeState, safeState } from "./runtime-state.ts";
+} from "./screen-builders.ts";
+import { OPT_CONTROLS, OPT_SEED } from "./settings-defs.ts";
+import { cycleOption } from "./settings-ui.ts";
 import type { SoundSystem } from "./sound-system.ts";
 
 interface OptionsSystemDeps {
   runtimeState: RuntimeState;
   uiCtx: UIContext;
   renderFrame: (
-    map: MapData,
+    map: GameMap,
     overlay: RenderOverlay | undefined,
     viewport?: Viewport | null,
   ) => void;

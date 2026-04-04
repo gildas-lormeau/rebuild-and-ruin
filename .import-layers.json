@@ -12,6 +12,7 @@
       "src/router.ts",
       "src/online-dom.ts",
       "src/upgrade-defs.ts",
+      "src/settings-defs.ts",
       "src/utils.ts",
       "server/send-utils.ts"
     ]
@@ -36,7 +37,7 @@
     ]
   },
   {
-    "name": "shared interfaces, config & scoring",
+    "name": "shared types & config",
     "files": [
       "src/ai-build-score.ts",
       "src/ai-build-fallback.ts",
@@ -47,10 +48,21 @@
       "src/upgrade-pick.ts",
       "src/castle-build.ts",
       "src/phase-banner.ts",
-      "src/render-theme.ts",
-      "src/render-types.ts",
+      "src/theme.ts",
+      "src/overlay-types.ts",
       "src/phantom-types.ts",
       "src/tick-context.ts"
+    ]
+  },
+  {
+    "name": "runtime primitives",
+    "files": [
+      "src/settings-ui.ts",
+      "src/screen-builders.ts",
+      "src/runtime-touch-ui.ts",
+      "src/runtime-state.ts",
+      "src/runtime-banner.ts",
+      "src/runtime-human.ts"
     ]
   },
   {
@@ -124,20 +136,13 @@
     ]
   },
   {
-    "name": "game UI",
-    "files": [
-      "src/game-ui-types.ts",
-      "src/game-ui-screens.ts",
-      "src/game-ui-settings.ts"
-    ]
-  },
-  {
     "name": "runtime support",
     "files": [
       "src/runtime-bootstrap.ts",
       "src/runtime-headless.ts",
-      "src/runtime-touch-ui.ts",
-      "src/runtime-state.ts"
+      "src/runtime-types.ts",
+      "src/runtime-camera.ts",
+      "src/runtime-test-globals.ts"
     ]
   },
   {
@@ -171,20 +176,15 @@
   {
     "name": "runtime",
     "files": [
-      "src/runtime-banner.ts",
-      "src/runtime-camera.ts",
       "src/runtime-life-lost.ts",
       "src/runtime-upgrade-pick.ts",
       "src/runtime-lobby.ts",
       "src/runtime-options.ts",
       "src/runtime-game-lifecycle.ts",
-      "src/runtime-human.ts",
-      "src/runtime-test-globals.ts",
       "src/runtime-input.ts",
       "src/runtime-phase-ticks.ts",
       "src/runtime-render.ts",
       "src/runtime-selection.ts",
-      "src/runtime-types.ts",
       "src/runtime.ts",
       "src/runtime-online-game.ts",
       "src/runtime-online-deps.ts",

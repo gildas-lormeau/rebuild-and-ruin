@@ -16,7 +16,7 @@ import {
   ZONE_PAD_WITH_WALLS,
   ZOOM_LERP_SPEED,
 } from "./game-constants.ts";
-import type { TilePos, WorldPos } from "./geometry-types.ts";
+import type { TilePos, Viewport, WorldPos } from "./geometry-types.ts";
 import {
   CANVAS_H,
   CANVAS_W,
@@ -25,7 +25,6 @@ import {
   SCALE,
   TILE_SIZE,
 } from "./grid.ts";
-import type { Viewport } from "./render-types.ts";
 import type { CameraSystem, FrameContext } from "./runtime-types.ts";
 import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
 import {

@@ -9,10 +9,10 @@
 
 import {
   clearWatcherPhaseTimer,
-  setWatcherPhaseTimer,
-  type WatcherTimingState,
+  setWatcherPhaseTimer
 } from "../src/online-types.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
+import type { WatcherTimingState } from "../src/types.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers

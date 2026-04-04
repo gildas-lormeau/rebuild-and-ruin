@@ -9,7 +9,20 @@ import {
   LOBBY_SKIP_STEP,
   type ValidPlayerSlot,
 } from "./game-constants.ts";
-import { formatKeyName, saveSettings } from "./game-ui-settings.ts";
+import type { GameMap } from "./geometry-types.ts";
+import type { OptionEntry, RenderOverlay } from "./overlay-types.ts";
+import { IS_TOUCH_DEVICE } from "./platform.ts";
+import {
+  ACTION_KEYS,
+  createLobbyConfirmKeys,
+  formatKeyHint,
+  type GameSettings,
+  getPlayerColor,
+  type KeyBindings,
+  PLAYER_NAMES,
+  SEED_CUSTOM,
+  saveSettings,
+} from "./player-config.ts";
 import {
   CANNON_HP_OPTIONS,
   DIFFICULTY_LABELS,
@@ -28,20 +41,8 @@ import {
   OPTION_NAMES,
   ROUNDS_OPTIONS,
   SOUND_LABELS,
-} from "./game-ui-types.ts";
-import type { GameMap } from "./geometry-types.ts";
-import { IS_TOUCH_DEVICE } from "./platform.ts";
-import {
-  ACTION_KEYS,
-  createLobbyConfirmKeys,
-  formatKeyHint,
-  type GameSettings,
-  getPlayerColor,
-  type KeyBindings,
-  PLAYER_NAMES,
-  SEED_CUSTOM,
-} from "./player-config.ts";
-import type { OptionEntry, RenderOverlay } from "./render-types.ts";
+} from "./settings-defs.ts";
+import { formatKeyName } from "./settings-ui.ts";
 import type { ControlsState } from "./types.ts";
 import {
   type GameState,

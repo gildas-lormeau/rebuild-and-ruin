@@ -61,17 +61,15 @@ import {
   PLAYER_COLORS,
   PLAYER_NAMES,
 } from "./player-config.ts";
+import { createCanvasRenderer } from "./render-canvas.ts";
+import { precomputeTerrainCache } from "./render-map.ts";
 import {
   GAME_CONTAINER_ACTIVE,
   GAME_EXIT_EVENT,
   navigateTo,
 } from "./router.ts";
 import { createGameRuntime, type GameRuntime } from "./runtime.ts";
-import {
-  bootstrapGame,
-  createCanvasRenderer,
-  initWaitingRoom,
-} from "./runtime-bootstrap.ts";
+import { bootstrapGame, initWaitingRoom } from "./runtime-bootstrap.ts";
 import { initDeps } from "./runtime-online-deps.ts";
 import { initPromote } from "./runtime-online-promote.ts";
 import { initWs } from "./runtime-online-ws.ts";
@@ -405,6 +403,7 @@ function showWaitingRoom(code: string, seed: number): void {
       requestAnimationFrame(runtime.mainLoop);
     },
   });
+  precomputeTerrainCache(runtime.runtimeState.lobby.map!);
 }
 
 function initFromServer(msg: InitMessage): void {

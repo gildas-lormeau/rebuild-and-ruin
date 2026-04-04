@@ -38,10 +38,12 @@ import {
   IMPACT_FLASH_DURATION,
   type ValidPlayerSlot,
 } from "./game-constants.ts";
-import type { RGB } from "./geometry-types.ts";
+import type { GameMap, RGB } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
+import type { RenderOverlay } from "./overlay-types.ts";
 import { getPlayerColor } from "./player-config.ts";
 import { drawSprite } from "./render-sprites.ts";
+import { facingToCardinal, isWater, unpackTile } from "./spatial.ts";
 import {
   BONUS_FLASH_MS,
   CROSSHAIR_ARM_IDLE,
@@ -56,9 +58,7 @@ import {
   TEXT_ALIGN_CENTER,
   TEXT_BASELINE_MIDDLE,
   TEXT_WHITE,
-} from "./render-theme.ts";
-import type { MapData, RenderOverlay } from "./render-types.ts";
-import { facingToCardinal, isWater, unpackTile } from "./spatial.ts";
+} from "./theme.ts";
 import { type CannonMode, isBalloonMode, isSuperMode } from "./types.ts";
 
 // Water wave animation parameters — tuned for natural-looking tile-scale ripples
@@ -209,7 +209,7 @@ export function drawGrunts(
  *  @param now — frame timestamp in ms (from drawMap entry point). */
 export function drawWaterAnimation(
   overlayCtx: CanvasRenderingContext2D,
-  map: MapData,
+  map: GameMap,
   overlay?: RenderOverlay,
   now: number = performance.now(),
 ): void {
@@ -262,7 +262,7 @@ export function drawWaterAnimation(
 /** Draw impact flashes, cannonballs, balloons, crosshairs, and timer. */
 export function drawBattleEffects(
   overlayCtx: CanvasRenderingContext2D,
-  map: MapData,
+  map: GameMap,
   overlay: RenderOverlay | undefined,
   now: number,
 ): void {
@@ -553,7 +553,7 @@ function drawCrosshairs(
 
 function drawPhaseTimer(
   overlayCtx: CanvasRenderingContext2D,
-  map: MapData,
+  map: GameMap,
   overlay?: RenderOverlay,
 ): void {
   if (overlay?.ui?.timer == null || overlay.ui.timer < 0) return;

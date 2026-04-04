@@ -7,7 +7,6 @@
  */
 
 import type { PlayerController } from "./controller-interfaces.ts";
-import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "./game-ui-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { createBannerState } from "./phase-banner.ts";
 import {
@@ -22,6 +21,7 @@ import { gameOverButtonHitTest } from "./render-composition.ts";
 import { bootstrapGame } from "./runtime-bootstrap.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { CameraSystem } from "./runtime-types.ts";
+import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "./settings-defs.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import { createTimerAccums } from "./tick-context.ts";
 import {

@@ -21,7 +21,7 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 ## Architecture
 
 ### Module layers (15 groups, `.import-layers.json`)
-L0 leaf utils → L1 geometry & pieces → L2 core types, state & spatial → L3 shared interfaces, config & scoring → L4 game logic → L5 AI strategy → L6 controllers → L7 input & sound → L8 render → L9 game UI → L10 runtime support → L11 online infrastructure → L12 online logic → L13 runtime → L14 entry points (client & server). Imports must flow downward.
+L0 leaf utils → L1 geometry & pieces → L2 core types, state & spatial → L3 shared types & config → L4 runtime primitives → L5 game logic → L6 AI strategy → L7 controllers → L8 input & sound → L9 render → L10 runtime support → L11 online infrastructure → L12 online logic → L13 runtime → L14 entry points (client & server). Imports must flow downward.
 L14 is reserved for true entry points (e.g., `entry.ts`, `main.ts`, `server.ts`). Orchestration modules belong in L13 — don't add files to L14 unless they have no in-project importers or use dynamic imports for code splitting.
 
 ### Phase flow

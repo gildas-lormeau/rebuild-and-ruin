@@ -10,7 +10,7 @@ import type {
 } from "./controller-interfaces.ts";
 import type { ValidPlayerSlot } from "./game-constants.ts";
 import { TILE_SIZE } from "./grid.ts";
-import type { LoupeHandle } from "./render-loupe.ts";
+import type { LoupeHandle } from "./overlay-types.ts";
 import { isPlacementPhase, Mode, Phase } from "./types.ts";
 
 type TouchBtnRule = boolean | typeof INTERACTIVE;

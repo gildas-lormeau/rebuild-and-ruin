@@ -6,6 +6,11 @@
  */
 
 import type { RGB } from "./geometry-types.ts";
+import {
+  type GameOverOverlay,
+  type RenderOverlay,
+  type UpgradePickCard,
+} from "./overlay-types.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
   computeLobbyLayout,
@@ -20,6 +25,34 @@ import {
   UPGRADE_CARD_W,
   UPGRADE_ROW_GAP,
 } from "./render-composition.ts";
+import {
+  BG_BANNER,
+  BG_OVERLAY,
+  BTN_ABANDON,
+  BTN_CONTINUE,
+  BTN_MENU,
+  beginModalScreen,
+  drawButton,
+  drawPanel,
+  ELIMINATED_RED,
+  INSET,
+  INSET_X2,
+  OP_ACCENT,
+  OP_ACTIVE,
+  OP_FOCUS,
+  OP_GHOST,
+  OP_IDLE,
+  OP_SECONDARY,
+  OP_SUBTLE,
+  OP_VIVID,
+  PAD,
+  TEXT_DIM,
+  TEXT_DISABLED,
+  TEXT_FAINT,
+  TEXT_LIGHT,
+  TEXT_MUTED,
+  TEXT_SOFT,
+} from "./render-ui-theme.ts";
 import {
   BANNER_HEIGHT_RATIO,
   LIFE_LOST_BTN_H as BTN_H,
@@ -63,40 +96,7 @@ import {
   TEXT_ALIGN_RIGHT,
   TEXT_BASELINE_MIDDLE,
   TEXT_WHITE,
-} from "./render-theme.ts";
-import {
-  type GameOverOverlay,
-  type RenderOverlay,
-  type UpgradePickCard,
-} from "./render-types.ts";
-import {
-  BG_BANNER,
-  BG_OVERLAY,
-  BTN_ABANDON,
-  BTN_CONTINUE,
-  BTN_MENU,
-  beginModalScreen,
-  drawButton,
-  drawPanel,
-  ELIMINATED_RED,
-  INSET,
-  INSET_X2,
-  OP_ACCENT,
-  OP_ACTIVE,
-  OP_FOCUS,
-  OP_GHOST,
-  OP_IDLE,
-  OP_SECONDARY,
-  OP_SUBTLE,
-  OP_VIVID,
-  PAD,
-  TEXT_DIM,
-  TEXT_DISABLED,
-  TEXT_FAINT,
-  TEXT_LIGHT,
-  TEXT_MUTED,
-  TEXT_SOFT,
-} from "./render-ui-theme.ts";
+} from "./theme.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,

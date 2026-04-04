@@ -14,6 +14,12 @@ import {
 } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
+import {
+  type GameOverOverlay,
+  type LifeLostDialogOverlay,
+  type RenderOverlay,
+  type UpgradePickOverlay,
+} from "./overlay-types.ts";
 import type { BannerState } from "./phase-banner.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
 import {
@@ -26,13 +32,7 @@ import {
   LOBBY_RECT_Y_RATIO_TOUCH,
   LIFE_LOST_PANEL_H as PANEL_H,
   LIFE_LOST_PANEL_W as PANEL_W,
-} from "./render-theme.ts";
-import {
-  type GameOverOverlay,
-  type LifeLostDialogOverlay,
-  type RenderOverlay,
-  type UpgradePickOverlay,
-} from "./render-types.ts";
+} from "./theme.ts";
 import {
   type CastleData,
   FOCUS_MENU,

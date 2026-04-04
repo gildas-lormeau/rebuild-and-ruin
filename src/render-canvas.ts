@@ -6,9 +6,9 @@
  */
 
 import { clientToCanvas, computeLetterboxLayout } from "./canvas-layout.ts";
+import type { RendererInterface } from "./overlay-types.ts";
 import { createLoupe } from "./render-loupe.ts";
 import { drawMap, sceneCanvas } from "./render-map.ts";
-import type { RendererInterface } from "./render-types.ts";
 
 export function createCanvasRenderer(
   canvas: HTMLCanvasElement,

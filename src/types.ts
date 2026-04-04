@@ -446,6 +446,18 @@ export interface CastleData {
   damagedWalls?: ReadonlySet<number>;
 }
 
+export interface PlayerStats {
+  wallsDestroyed: number;
+  cannonsKilled: number;
+}
+
+export interface WatcherTimingState {
+  phaseStartTime: number;
+  phaseDuration: number;
+  countdownStartTime: number;
+  countdownDuration: number;
+}
+
 /** Which button is focused in the life-lost dialog. */
 export const LIFE_LOST_FOCUS_CONTINUE = 0;
 export const LIFE_LOST_FOCUS_ABANDON = 1;

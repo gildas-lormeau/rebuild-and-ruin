@@ -17,6 +17,7 @@ import { getInterior, snapshotAllWalls } from "./board-occupancy.ts";
 import type { SerializedPlayer } from "./checkpoint-data.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import type { ValidPlayerSlot } from "./game-constants.ts";
+import type { EntityOverlay } from "./overlay-types.ts";
 import {
   type CannonPhantom,
   cannonPhantomKey,
@@ -29,7 +30,6 @@ import {
 } from "./phantom-types.ts";
 import { snapshotEntities } from "./phase-banner.ts";
 import { runBuildEndSequence } from "./phase-transition-shared.ts";
-import type { EntityOverlay } from "./render-types.ts";
 import { unpackTile } from "./spatial.ts";
 import {
   advancePhaseTimer,

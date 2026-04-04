@@ -20,8 +20,9 @@ import {
   type SourceFile,
   SyntaxKind,
 } from "ts-morph";
-import process from "node:process";
+import { existsSync, unlinkSync } from "node:fs";
 import path from "node:path";
+import process from "node:process";
 
 // ---------------------------------------------------------------------------
 // CLI
@@ -929,7 +930,25 @@ function renameFile(oldPath: string, newPath: string): void {
   // ts-morph's move() renames the file and updates all import specifiers
   sourceFile.move(absNew);
 
+  // ts-morph may generate extensionless specifiers — ensure all imports
+  // pointing to the moved file end with .ts (project convention).
+  for (const sf of project.getSourceFiles()) {
+    for (const imp of sf.getImportDeclarations()) {
+      if (imp.getModuleSpecifierSourceFile()?.getFilePath() !== absNew) continue;
+      const spec = imp.getModuleSpecifierValue();
+      if (!spec.endsWith(".ts")) {
+        imp.setModuleSpecifier(spec + ".ts");
+      }
+    }
+  }
+
   const changedFiles = saveChanges(project);
+
+  // ts-morph's move() creates the new file but doesn't delete the old one on disk.
+  if (!dryRun && existsSync(absOld)) {
+    unlinkSync(absOld);
+  }
+
   console.log(`✅ Renamed file — ${changedFiles} file(s) changed`);
 }
 

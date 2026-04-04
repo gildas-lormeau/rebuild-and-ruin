@@ -58,40 +58,40 @@ The layer map file. Committed to the repo. An array of named groups — position
 
 ```
  0  leaf utilities              ai-constants, canvas-layout, game-constants, grid, jsfxr.d,
-                                platform, rng, router, online-dom, upgrade-defs, utils
+                                platform, rng, router, online-dom, upgrade-defs, settings-defs, utils
  1  geometry & pieces           ai-build-types, geometry-types, pieces
  2  core types, state & spatial ai-castle-rect, types, spatial, board-occupancy, checkpoint-data,
                                 server/protocol
- 3  shared interfaces, config   ai-build-score, ai-build-fallback, phase-transition-shared,
-    & scoring                   player-config, controller-interfaces, life-lost, upgrade-pick,
-                                castle-build, phase-banner, render-theme, render-types, phantom-types,
+ 3  shared types & config       ai-build-score, ai-build-fallback, phase-transition-shared,
+                                player-config, controller-interfaces, life-lost, upgrade-pick,
+                                castle-build, phase-banner, theme, overlay-types, phantom-types,
                                 tick-context
- 4  game logic                  ai-build-target, cannon-system, grunt-movement, grunt-system,
+ 4  runtime primitives          settings-ui, screen-builders, runtime-touch-ui, runtime-state,
+                                runtime-banner, runtime-human
+ 5  game logic                  ai-build-target, cannon-system, grunt-movement, grunt-system,
                                 battle-system, build-system, castle-generation, map-generation,
                                 phase-setup, combo-system, round-modifiers, game-engine, selection,
                                 host-phase-ticks
- 5  AI strategy                 ai-strategy-battle, ai-strategy-build, ai-strategy-cannon, ai-strategy
- 6  controllers                 ai-phase-select, ai-phase-build, ai-phase-cannon, ai-phase-battle,
+ 6  AI strategy                 ai-strategy-battle, ai-strategy-build, ai-strategy-cannon, ai-strategy
+ 7  controllers                 ai-phase-select, ai-phase-build, ai-phase-cannon, ai-phase-battle,
                                 controller-ai, controller-types, controller-human, controller-factory
- 7  input & sound               input-*, haptics-system, sound-system
- 8  render                      render-sprites, render-loupe, render-effects, render-towers,
+ 8  input & sound               input-*, haptics-system, sound-system
+ 9  render                      render-sprites, render-loupe, render-effects, render-towers,
                                 render-composition, render-ui-theme, render-ui, render-ui-settings,
                                 render-map, render-canvas  ← canvas-using files
- 9  game UI                     game-ui-types, game-ui-screens, game-ui-settings
-10  runtime support             runtime-bootstrap, runtime-headless, runtime-touch-ui
+10  runtime support             runtime-bootstrap, runtime-headless, runtime-types, runtime-camera,
+                                runtime-test-globals
 11  online infrastructure       online-config, online-types, online-lobby-ui, online-server-lifecycle,
-                                online-session
+                                online-session, server/game-room
 12  online logic                online-serialize, online-send-actions, online-checkpoints, online-watcher-*,
                                 online-phase-transitions, online-server-events, online-host-*,
                                 online-full-state-recovery, online-stores
-13  runtime                     runtime-state, runtime-banner, runtime-camera, runtime-life-lost,
-                                runtime-upgrade-pick, runtime-lobby, runtime-options,
-                                runtime-game-lifecycle, runtime-human, runtime-test-globals,
-                                runtime-input, runtime-phase-ticks, runtime-render,
-                                runtime-selection, runtime-types, runtime,
+13  runtime                     runtime-life-lost, runtime-upgrade-pick, runtime-lobby, runtime-options,
+                                runtime-game-lifecycle, runtime-input, runtime-phase-ticks,
+                                runtime-render, runtime-selection, runtime,
                                 runtime-online-game, runtime-online-deps, runtime-online-promote,
                                 runtime-online-ws, runtime-online-lobby
-14  entry points                entry, main, online-client, send-utils, game-room, room-manager, server
+14  entry points                entry, main, online-client, room-manager, server
 ```
 
 When a new file is added but not yet in `.import-layers.json`, `--check` warns and treats it as layer 0 (maximally strict). Regenerate to pick up new files, then move them to the right group.

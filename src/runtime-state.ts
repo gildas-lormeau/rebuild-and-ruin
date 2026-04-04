@@ -10,10 +10,13 @@
 import type { CastleBuildState } from "./castle-build.ts";
 import { type PlayerController } from "./controller-interfaces.ts";
 import type { ValidPlayerSlot } from "./game-constants.ts";
-import { loadSettings } from "./game-ui-settings.ts";
+import type { FrameData, RenderOverlay } from "./overlay-types.ts";
 import { type BannerState, createBannerState } from "./phase-banner.ts";
-import { type GameSettings, MAX_PLAYERS } from "./player-config.ts";
-import type { FrameData, PlayerStats, RenderOverlay } from "./render-types.ts";
+import {
+  type GameSettings,
+  loadSettings,
+  MAX_PLAYERS,
+} from "./player-config.ts";
 import { createTimerAccums, type TimerAccums } from "./tick-context.ts";
 import {
   type BattleAnimState,
@@ -26,6 +29,7 @@ import {
   type LifeLostDialogState,
   type LobbyState,
   Mode,
+  type PlayerStats,
   type SelectionState,
   type UpgradePickDialogState,
 } from "./types.ts";

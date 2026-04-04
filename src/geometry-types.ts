@@ -71,3 +71,11 @@ export interface GameMap {
   junction: PixelPos;
   exits: PixelPos[];
 }
+
+/** Viewport rect in tile-pixel coordinates (before SCALE). null = full map. */
+export interface Viewport {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}

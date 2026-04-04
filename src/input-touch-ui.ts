@@ -28,7 +28,7 @@ import {
   TOUCH_ZOOM_ENEMY_BG,
   TOUCH_ZOOM_HOME_BG,
   ZOOM_BUTTON_ALPHA,
-} from "./render-theme.ts";
+} from "./theme.ts";
 import {
   Action,
   type GameState,

@@ -9,14 +9,9 @@
  */
 
 import type { ValidPlayerSlot } from "./game-constants.ts";
-import type { UIContext } from "./game-ui-screens.ts";
-import {
-  createLobbyOverlay,
-  lobbyKeyJoin as lobbyKeyJoinShared,
-  lobbySkipStep,
-  tickLobby as tickLobbyShared,
-} from "./game-ui-screens.ts";
+import type { GameMap, Viewport } from "./geometry-types.ts";
 import { CANVAS_H, CANVAS_W, TILE_SIZE } from "./grid.ts";
+import type { RenderOverlay } from "./overlay-types.ts";
 import { CURSOR_DEFAULT, CURSOR_POINTER, IS_TOUCH_DEVICE } from "./platform.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 import {
@@ -24,14 +19,20 @@ import {
   type LobbyHit,
   lobbyClickHitTest,
 } from "./render-composition.ts";
-import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
+import type { UIContext } from "./screen-builders.ts";
+import {
+  createLobbyOverlay,
+  lobbyKeyJoin as lobbyKeyJoinShared,
+  lobbySkipStep,
+  tickLobby as tickLobbyShared,
+} from "./screen-builders.ts";
 
 interface LobbySystemDeps {
   runtimeState: RuntimeState;
   uiCtx: UIContext;
   renderFrame: (
-    map: MapData,
+    map: GameMap,
     overlay: RenderOverlay | undefined,
     viewport?: Viewport | null,
   ) => void;

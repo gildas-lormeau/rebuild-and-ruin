@@ -68,7 +68,7 @@ Then classify:
 If a file's actual imports are all below layer N, it can be moved to layer N in `.import-layers.json` regardless of its filename prefix:
 
 ```json
-{ "name": "shared types & config", "files": ["src/render-theme.ts", "src/render-types.ts", ...] }
+{ "name": "shared types & config", "files": ["src/theme.ts", "src/overlay-types.ts", ...] }
 ```
 
 Check: does the file import from anything in its current group or higher? If not, it can move down freely.
@@ -147,3 +147,19 @@ Rename groups in `.import-layers.json` to match reality. **Naming is the analysi
 | `runtime-host-battle-ticks.ts` over-classified in "runtime" | Reclassified to "online logic" — max dep is online-types (L11); renamed to `online-host-battle-ticks.ts` |
 | `runtime-online-stores.ts` over-classified in "runtime" | Reclassified to "online logic" — max dep is online-watcher-tick (same group); renamed to `online-stores.ts` |
 | `runtime` → `controllers` (L13→L6) | Created L10 "runtime support" group; moved `runtime-bootstrap.ts`, `runtime-headless.ts`, `runtime-touch-ui.ts` (max deps L8/L6/L8); eliminated the edge |
+| `MapData` duplicate of `GameMap` in `render-types.ts` | Eliminated `MapData`; renderer uses `GameMap` from `geometry-types.ts` directly |
+| `Viewport` misplaced in `render-types.ts` | Moved to `geometry-types.ts` — pure geometry rect `{x,y,w,h}` |
+| `loadSettings`/`saveSettings`/`computeGameSeed` in `game-ui-settings.ts` | Moved to `player-config.ts` — settings persistence belongs with `GameSettings` type |
+| `game-ui-types.ts` zero imports at L9 | Reclassified to L0; renamed to `settings-defs.ts` (option labels & constants) |
+| `game-ui-settings.ts` over-classified at L9 | Reclassified to L3; renamed to `settings-ui.ts` (cycleOption, formatKeyName) |
+| `game-ui-screens.ts` over-classified at L9 | Reclassified to L3; renamed to `screen-builders.ts` (max dep L3) |
+| L9 "game UI" eliminated | All 3 files cascaded to L0/L3; layer group removed |
+| `render-types.ts` name mismatch at L3 | Renamed to `overlay-types.ts`; `PlayerStats` moved to `types.ts` |
+| `render-theme.ts` name mismatch at L3 | Renamed to `theme.ts` — pure constants, no canvas deps |
+| `runtime support` → `render` (L10→L8) | Moved `LoupeHandle` to `overlay-types.ts`; removed re-exports from `runtime-bootstrap.ts`; hoisted `precomputeTerrainCache` to caller |
+| `WatcherTimingState` in `online-types.ts` (L10) | Moved to `types.ts` (L2) — pure interface, zero deps; unlocked `runtime-types.ts` cascade |
+| `runtime-types.ts` over-classified in "runtime" | Reclassified to "runtime support" — max dep L7 (haptics, sound) |
+| `runtime-camera.ts`, `runtime-test-globals.ts` over-classified | Reclassified to "runtime support" — max dep L2/L3 + runtime-types |
+| `runtime-state.ts`, `runtime-touch-ui.ts` over-classified | Reclassified to L4 "runtime primitives" — max dep L3 |
+| `runtime-banner.ts`, `runtime-human.ts` over-classified | Reclassified to L4 "runtime primitives" — max dep L3, no runtime-types dep |
+| L3 "shared interfaces, config & scoring" bloated (19 files) | Split into L3 "shared types & config" (13 files) + L4 "runtime primitives" (6 files) |

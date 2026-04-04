@@ -27,8 +27,8 @@ import type {
 import type { ValidPlayerSlot } from "./game-constants.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import type { GameActionDeps } from "./input-dispatch.ts";
+import type { RendererInterface } from "./overlay-types.ts";
 import type { KeyBindings, SeedMode } from "./player-config.ts";
-import type { RendererInterface } from "./render-types.ts";
 import type {
   Action,
   ControlsState,

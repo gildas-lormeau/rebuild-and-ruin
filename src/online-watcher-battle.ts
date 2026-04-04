@@ -13,7 +13,6 @@ import type { Crosshair, PixelPos } from "./geometry-types.ts";
 import {
   REMOTE_CROSSHAIR_SPEED,
   setWatcherPhaseTimer,
-  type WatcherTimingState,
 } from "./online-types.ts";
 import {
   type CannonPhantom,
@@ -31,6 +30,7 @@ import {
   isPlacementPhase,
   isPlayerAlive,
   Phase,
+  type WatcherTimingState,
 } from "./types.ts";
 
 interface WatcherFrameAnnouncement {

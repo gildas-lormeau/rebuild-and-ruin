@@ -68,15 +68,14 @@ import {
   type PlayerSlotId,
   type ValidPlayerSlot,
 } from "./game-constants.ts";
-import type { Crosshair, WorldPos } from "./geometry-types.ts";
+import type { Crosshair, Viewport, WorldPos } from "./geometry-types.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
-import type { WatcherTimingState } from "./online-types.ts";
+import type { RendererInterface } from "./overlay-types.ts";
 import type {
   CannonPhantom,
   DedupChannel,
   PiecePhantom,
 } from "./phantom-types.ts";
-import type { RendererInterface, Viewport } from "./render-types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import {
@@ -89,6 +88,7 @@ import {
   Phase,
   type SelectionState,
   type UpgradePickDialogState,
+  type WatcherTimingState,
 } from "./types.ts";
 
 export type { FrameContext } from "./types.ts";

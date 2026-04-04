@@ -10,8 +10,9 @@
  *   - W/H: canvas dimensions in tile-space pixels (GRID_COLS * TILE_SIZE, GRID_ROWS * TILE_SIZE)
  */
 
-import type { RGB } from "./geometry-types.ts";
+import type { GameMap, RGB, Viewport } from "./geometry-types.ts";
 import { CANVAS_H, CANVAS_W, GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
+import type { RenderOverlay } from "./overlay-types.ts";
 import { getPlayerColor } from "./player-config.ts";
 import {
   drawBattleEffects,
@@ -24,9 +25,7 @@ import {
   drawWaterAnimation,
 } from "./render-effects.ts";
 import { drawSprite } from "./render-sprites.ts";
-import { BANNER_HEIGHT_RATIO, rgb, STATUSBAR_HEIGHT } from "./render-theme.ts";
 import { drawTowers } from "./render-towers.ts";
-import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import {
   drawAnnouncement,
   drawBanner,
@@ -48,6 +47,7 @@ import {
   pxToTile,
   unpackTile,
 } from "./spatial.ts";
+import { BANNER_HEIGHT_RATIO, rgb, STATUSBAR_HEIGHT } from "./theme.ts";
 import type { CastleData } from "./types.ts";
 
 interface TerrainImageCache {
@@ -58,7 +58,7 @@ interface TerrainImageCache {
 }
 
 type BannerCacheEntry = {
-  map: MapData;
+  map: GameMap;
   castles: readonly CastleData[];
   territory: Set<number>[] | undefined;
   walls: Set<number>[] | undefined;
@@ -134,11 +134,11 @@ const bannerSceneCanvas = document.createElement("canvas");
 const bannerSceneCtx = bannerSceneCanvas.getContext("2d", {
   willReadFrequently: true,
 })!;
-/** WeakMap so terrain caches auto-cleanup when a MapData is GC'd (e.g., lobby map change).
+/** WeakMap so terrain caches auto-cleanup when a GameMap is GC'd (e.g., lobby map change).
  *  Banner cache below uses module-level variables + manual clearBannerCache() instead,
  *  because the banner scene combines data from multiple sources (castles, territory, walls)
  *  that aren't keyed by a single object. */
-const terrainImageCache = new WeakMap<MapData, TerrainImageCache>();
+const terrainImageCache = new WeakMap<GameMap, TerrainImageCache>();
 
 /** Cached main-canvas context — avoids per-frame getContext overhead on Chrome mobile. */
 let mainCtxCache: {
@@ -153,7 +153,7 @@ export function sceneCanvas(): HTMLCanvasElement {
 }
 
 export function drawMap(
-  map: MapData,
+  map: GameMap,
   canvas: HTMLCanvasElement,
   overlay?: RenderOverlay,
   viewport?: Viewport | null,
@@ -233,7 +233,7 @@ export function drawMap(
 
 /** Pre-compute both terrain variants (normal + battle) so the first
  *  render of each doesn't stall the frame. Call during game init. */
-export function precomputeTerrainCache(map: MapData): void {
+export function precomputeTerrainCache(map: GameMap): void {
   const W = GRID_COLS * TILE_SIZE;
   const H = GRID_ROWS * TILE_SIZE;
   const cache = getTerrainCache(map, W, H);
@@ -307,7 +307,7 @@ function drawBannerOldScene(
   overlayCtx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  map: MapData,
+  map: GameMap,
   overlay: RenderOverlay | undefined,
   now: number,
 ): void {
@@ -398,7 +398,7 @@ function clearBannerCache(): void {
  *  Type-safe: BannerCacheEntry keys drive the comparison — adding a field to the type
  *  without updating this function causes a compile error via the `key in` iteration. */
 function isBannerCacheValid(
-  map: MapData,
+  map: GameMap,
   castles: readonly CastleData[],
   territory: Set<number>[] | undefined,
   walls: Set<number>[] | undefined,
@@ -416,7 +416,7 @@ function drawTerrain(
   overlayCtx: CanvasRenderingContext2D,
   W: number,
   H: number,
-  map: MapData,
+  map: GameMap,
   overlay?: RenderOverlay,
 ): void {
   const inBattle = !!overlay?.battle?.inBattle;
@@ -442,7 +442,7 @@ function drawTerrain(
 function computeSignedDistanceField(
   W: number,
   H: number,
-  map: MapData,
+  map: GameMap,
 ): Float32Array {
   const distFromWater = initDistanceField(W, H, map, 1);
   propagateDistances(distFromWater, W, H);
@@ -457,7 +457,7 @@ function computeSignedDistanceField(
 function initDistanceField(
   W: number,
   H: number,
-  map: MapData,
+  map: GameMap,
   seedTile: number,
 ): Float32Array {
   const dist = new Float32Array(W * H);
@@ -579,7 +579,7 @@ function renderTerrainPixels(
   sdf: Float32Array,
   W: number,
   H: number,
-  map: MapData,
+  map: GameMap,
   inBattle: boolean,
 ): void {
   const data = imgData.data;
@@ -685,7 +685,7 @@ function selectTerrainColor(
 }
 
 function getTerrainCache(
-  map: MapData,
+  map: GameMap,
   width: number,
   height: number,
 ): TerrainImageCache {
@@ -698,7 +698,7 @@ function getTerrainCache(
   return next;
 }
 
-function tileAt(map: MapData, r: number, c: number): number {
+function tileAt(map: GameMap, r: number, c: number): number {
   if (r < 0 || r >= GRID_ROWS || c < 0 || c >= GRID_COLS) return -1;
   return map.tiles[r]![c]!;
 }

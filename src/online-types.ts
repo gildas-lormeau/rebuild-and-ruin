@@ -3,7 +3,7 @@
 import { CROSSHAIR_SPEED, type OrbitParams } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import type { CannonPhantom, PiecePhantom } from "./phantom-types.ts";
-import { CANNON_MODES, CannonMode } from "./types.ts";
+import { CANNON_MODES, CannonMode, type WatcherTimingState } from "./types.ts";
 
 /** Subset of watcher state containing network-received data (phantoms, crosshairs).
  *  Defined here (L10) so both "online infrastructure" and "online logic" consumers
@@ -13,13 +13,6 @@ export interface WatcherNetworkState {
   remoteCannonPhantoms: readonly CannonPhantom[];
   remotePiecePhantoms: readonly PiecePhantom[];
   orbitParams: Map<number, OrbitParams>;
-}
-
-export interface WatcherTimingState {
-  phaseStartTime: number;
-  phaseDuration: number;
-  countdownStartTime: number;
-  countdownDuration: number;
 }
 
 /** Speed multiplier for interpolating remote crosshairs (faster than local to reduce visual lag).

@@ -47,7 +47,6 @@ import {
 } from "../src/online-checkpoints.ts";
 import type { TransitionContext } from "../src/online-phase-transitions.ts";
 import { applyBuildEndCheckpoint } from "../src/online-checkpoints.ts";
-import type { WatcherTimingState } from "../src/online-types.ts";
 import {
   type BannerState,
   createBannerState,
@@ -75,8 +74,7 @@ import {
   type LifeLostDialogState,
   LifeLostChoice,
   Mode,
-  Phase,
-} from "../src/types.ts";
+  Phase, type WatcherTimingState } from "../src/types.ts";
 import { isGrass, packTile } from "../src/spatial.ts";
 import { assert } from "./test-helpers.ts";
 

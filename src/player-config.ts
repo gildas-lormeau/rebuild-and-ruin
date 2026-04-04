@@ -4,10 +4,12 @@
  * Keep player names, colors, and bindings in one place so they cannot drift.
  */
 
-import type {
-  GameMode,
-  PlayerSlotId,
-  ValidPlayerSlot,
+import {
+  GAME_MODE_CLASSIC,
+  GAME_MODE_MODERN,
+  type GameMode,
+  type PlayerSlotId,
+  type ValidPlayerSlot,
 } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 
@@ -48,6 +50,12 @@ export interface AutoResolveDeps {
   readonly isHumanController: (playerId: ValidPlayerSlot) => boolean;
 }
 
+const SOUND_OFF = 0;
+/** Index into ROUNDS_OPTIONS (not the value itself — value is 0 = infinite). */
+const ROUNDS_TO_THE_DEATH_INDEX = 4;
+/** Index into CANNON_HP_OPTIONS (not the HP value itself — value is 3 hits). */
+const CANNON_HP_DEFAULT_INDEX = 0;
+const SETTINGS_KEY = "castles99_settings";
 export const KEY_UP = "ArrowUp";
 export const KEY_DOWN = "ArrowDown";
 export const KEY_LEFT = "ArrowLeft";
@@ -69,7 +77,6 @@ export const DIFFICULTY_PARAMS = [
  *  0=off (implicit — handled by >= checks), 1=phase changes only, 2=all. */
 export const HAPTICS_PHASE_ONLY = 1;
 export const HAPTICS_ALL = 2;
-export const SOUND_OFF = 0;
 export const SOUND_PHASE_ONLY = 1;
 export const SOUND_ALL = 2;
 export const PLAYER_NAMES = ["Red", "Blue", "Gold"] as const;
@@ -129,6 +136,18 @@ export const ACTION_KEYS: readonly (keyof KeyBindings)[] = [
   "rotate",
 ];
 export const SEED_RANDOM = "random" as const;
+const DEFAULT_SETTINGS: GameSettings = {
+  difficulty: DIFFICULTY_NORMAL,
+  rounds: ROUNDS_TO_THE_DEATH_INDEX,
+  cannonHp: CANNON_HP_DEFAULT_INDEX,
+  haptics: HAPTICS_ALL,
+  sound: SOUND_OFF,
+  seed: "",
+  seedMode: SEED_RANDOM,
+  keyBindings: [],
+  leftHanded: false,
+  gameMode: GAME_MODE_CLASSIC,
+};
 export const SEED_CUSTOM = "custom" as const;
 /** Maximum character length for user-entered seeds. */
 export const MAX_SEED_LENGTH = 9;
@@ -191,6 +210,57 @@ export function shouldAutoResolve(
     : playerId !== deps.myPlayerId;
 }
 
+/** Compute the game seed from current settings (custom seed or random). */
+export function computeGameSeed(settings: GameSettings): number {
+  if (settings.seedMode === SEED_CUSTOM && settings.seed) {
+    const parsed = parseInt(settings.seed, 10);
+    if (!isNaN(parsed)) return parsed;
+  }
+  return Math.floor(Math.random() * 1000000);
+}
+
+export function loadSettings(): GameSettings {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw) as Partial<GameSettings>;
+      return {
+        difficulty: saved.difficulty ?? DEFAULT_SETTINGS.difficulty,
+        rounds: saved.rounds ?? DEFAULT_SETTINGS.rounds,
+        cannonHp: saved.cannonHp ?? DEFAULT_SETTINGS.cannonHp,
+        haptics: saved.haptics ?? DEFAULT_SETTINGS.haptics,
+        sound: saved.sound ?? DEFAULT_SETTINGS.sound,
+        seed: saved.seed ?? DEFAULT_SETTINGS.seed,
+        seedMode: saved.seedMode === SEED_CUSTOM ? SEED_CUSTOM : SEED_RANDOM,
+        leftHanded: saved.leftHanded ?? DEFAULT_SETTINGS.leftHanded,
+        gameMode:
+          saved.gameMode === GAME_MODE_MODERN
+            ? GAME_MODE_MODERN
+            : GAME_MODE_CLASSIC,
+        keyBindings:
+          Array.isArray(saved.keyBindings) &&
+          saved.keyBindings.length === MAX_PLAYERS
+            ? saved.keyBindings.map((kb) => ({
+                ...PLAYER_KEY_BINDINGS[0]!,
+                ...kb,
+              }))
+            : deepCopyBindings(),
+      };
+    }
+  } catch {
+    /* ignore corrupt data */
+  }
+  return { ...DEFAULT_SETTINGS, keyBindings: deepCopyBindings() };
+}
+
+export function saveSettings(settings: GameSettings): void {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    /* storage full or unavailable */
+  }
+}
+
 if (
   PLAYER_COLORS.length !== PLAYER_NAMES.length ||
   PLAYER_KEY_BINDINGS.length !== PLAYER_NAMES.length
@@ -198,4 +268,8 @@ if (
   throw new Error(
     "PLAYER_NAMES / PLAYER_COLORS / PLAYER_KEY_BINDINGS must have the same length",
   );
+}
+
+function deepCopyBindings(): KeyBindings[] {
+  return PLAYER_KEY_BINDINGS.map((kb) => ({ ...kb }));
 }

@@ -15,6 +15,8 @@ import {
   SPECTATOR_SLOT,
   type ValidPlayerSlot,
 } from "./game-constants.ts";
+import type { GameMap, Viewport } from "./geometry-types.ts";
+import type { LoupeHandle, RenderOverlay } from "./overlay-types.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
 import {
   createBannerUi,
@@ -22,8 +24,6 @@ import {
   createRenderSummaryMessage,
   createStatusBar,
 } from "./render-composition.ts";
-import type { LoupeHandle } from "./render-loupe.ts";
-import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 import {
   type Dpad,
@@ -37,7 +37,7 @@ import { Phase, type UpgradePickDialogState } from "./types.ts";
 interface RenderSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly drawFrame: (
-    map: MapData,
+    map: GameMap,
     overlay: RenderOverlay | undefined,
     viewport: Viewport | null | undefined,
     now: number,

@@ -10,6 +10,7 @@
  */
 
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
+import type { LoupeHandle } from "./overlay-types.ts";
 import {
   LOUPE_BORDER_WIDTH,
   LOUPE_CROSSHAIR_COLOR,
@@ -21,12 +22,7 @@ import {
   LOUPE_STONE_COLOR,
   LOUPE_STONE_LIGHT,
   LOUPE_ZOOM,
-} from "./render-theme.ts";
-
-export interface LoupeHandle {
-  /** Update the loupe content — call from render(). */
-  update: (visible: boolean, worldX: number, worldY: number) => void;
-}
+} from "./theme.ts";
 
 /**
  * Find all loupe canvases within a container and return a handle

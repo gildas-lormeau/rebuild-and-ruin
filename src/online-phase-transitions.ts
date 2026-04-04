@@ -12,10 +12,7 @@ import { isActivePlayer, type ValidPlayerSlot } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 import { TILE_COUNT } from "./grid.ts";
 import type { OnlineSession } from "./online-session.ts";
-import {
-  setWatcherPhaseTimer,
-  type WatcherTimingState,
-} from "./online-types.ts";
+import { setWatcherPhaseTimer } from "./online-types.ts";
 import {
   BANNER_BATTLE_ONLINE,
   BANNER_REPAIR_ONLINE,
@@ -51,6 +48,7 @@ import {
   type GameState,
   Mode,
   Phase,
+  type WatcherTimingState,
 } from "./types.ts";
 
 /**
@@ -87,7 +85,7 @@ export interface TransitionContext {
       prevCastles?: CastleData[];
       prevTerritory?: Set<number>[];
       prevWalls?: Set<number>[];
-      prevEntities?: import("./render-types.ts").EntityOverlay;
+      prevEntities?: import("./overlay-types").EntityOverlay;
       wallsBeforeSweep?: Set<number>[];
     };
     render: () => void;

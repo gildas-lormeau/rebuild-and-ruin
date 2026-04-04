@@ -1,11 +1,17 @@
 /**
- * Settings persistence and option mutation helpers.
- * Extracted from game-ui-types.ts to keep that file pure types/constants.
+ * Option mutation helpers for the settings UI.
+ * Settings persistence (load/save) lives in player-config.ts alongside GameSettings.
  */
 
 import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "./game-constants.ts";
 import {
-  CANNON_HP_DEFAULT_INDEX,
+  type GameSettings,
+  KEY_DOWN,
+  KEY_LEFT,
+  KEY_RIGHT,
+  KEY_UP,
+} from "./player-config.ts";
+import {
   CANNON_HP_OPTIONS,
   DIFFICULTY_LABELS,
   HAPTICS_LABELS,
@@ -17,89 +23,8 @@ import {
   OPT_ROUNDS,
   OPT_SOUND,
   ROUNDS_OPTIONS,
-  ROUNDS_TO_THE_DEATH_INDEX,
   SOUND_LABELS,
-} from "./game-ui-types.ts";
-import {
-  DIFFICULTY_NORMAL,
-  type GameSettings,
-  HAPTICS_ALL,
-  KEY_DOWN,
-  KEY_LEFT,
-  KEY_RIGHT,
-  KEY_UP,
-  type KeyBindings,
-  MAX_PLAYERS,
-  PLAYER_KEY_BINDINGS,
-  SEED_CUSTOM,
-  SEED_RANDOM,
-  SOUND_OFF,
-} from "./player-config.ts";
-
-const SETTINGS_KEY = "castles99_settings";
-const DEFAULT_SETTINGS: GameSettings = {
-  difficulty: DIFFICULTY_NORMAL,
-  rounds: ROUNDS_TO_THE_DEATH_INDEX,
-  cannonHp: CANNON_HP_DEFAULT_INDEX,
-  haptics: HAPTICS_ALL,
-  sound: SOUND_OFF,
-  seed: "",
-  seedMode: SEED_RANDOM,
-  keyBindings: [],
-  leftHanded: false,
-  gameMode: GAME_MODE_CLASSIC,
-};
-
-/** Compute the game seed from current settings (custom seed or random). */
-export function computeGameSeed(settings: GameSettings): number {
-  if (settings.seedMode === SEED_CUSTOM && settings.seed) {
-    const parsed = parseInt(settings.seed, 10);
-    if (!isNaN(parsed)) return parsed;
-  }
-  return Math.floor(Math.random() * 1000000);
-}
-
-export function loadSettings(): GameSettings {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) {
-      const saved = JSON.parse(raw) as Partial<GameSettings>;
-      return {
-        difficulty: saved.difficulty ?? DEFAULT_SETTINGS.difficulty,
-        rounds: saved.rounds ?? DEFAULT_SETTINGS.rounds,
-        cannonHp: saved.cannonHp ?? DEFAULT_SETTINGS.cannonHp,
-        haptics: saved.haptics ?? DEFAULT_SETTINGS.haptics,
-        sound: saved.sound ?? DEFAULT_SETTINGS.sound,
-        seed: saved.seed ?? DEFAULT_SETTINGS.seed,
-        seedMode: saved.seedMode === SEED_CUSTOM ? SEED_CUSTOM : SEED_RANDOM,
-        leftHanded: saved.leftHanded ?? DEFAULT_SETTINGS.leftHanded,
-        gameMode:
-          saved.gameMode === GAME_MODE_MODERN
-            ? GAME_MODE_MODERN
-            : GAME_MODE_CLASSIC,
-        keyBindings:
-          Array.isArray(saved.keyBindings) &&
-          saved.keyBindings.length === MAX_PLAYERS
-            ? saved.keyBindings.map((kb) => ({
-                ...PLAYER_KEY_BINDINGS[0]!,
-                ...kb,
-              }))
-            : deepCopyBindings(),
-      };
-    }
-  } catch {
-    /* ignore corrupt data */
-  }
-  return { ...DEFAULT_SETTINGS, keyBindings: deepCopyBindings() };
-}
-
-export function saveSettings(settings: GameSettings): void {
-  try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  } catch {
-    /* storage full or unavailable */
-  }
-}
+} from "./settings-defs.ts";
 
 export function formatKeyName(key: string): string {
   if (key === KEY_UP) return "\u2191";
@@ -168,8 +93,4 @@ export function cycleOption(
   }
   // optionsCursor === 4 (Seed) — handled via direct keyboard input in options handler
   // optionsCursor === 5 (Controls) — no left/right value, opened via confirm
-}
-
-function deepCopyBindings(): KeyBindings[] {
-  return PLAYER_KEY_BINDINGS.map((kb) => ({ ...kb }));
 }

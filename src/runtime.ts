@@ -31,13 +31,13 @@ import {
   SELECT_ANNOUNCEMENT_DURATION,
   type ValidPlayerSlot,
 } from "./game-constants.ts";
-import type { UIContext } from "./game-ui-screens.ts";
-import { computeGameSeed } from "./game-ui-settings.ts";
+import type { GameMap, Viewport } from "./geometry-types.ts";
 import { createHapticsSystem } from "./haptics-system.ts";
 import { generateMap } from "./map-generation.ts";
+import type { RenderOverlay } from "./overlay-types.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "./platform.ts";
+import { computeGameSeed } from "./player-config.ts";
 import { precomputeTerrainCache } from "./render-map.ts";
-import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { createGameLifecycle } from "./runtime-game-lifecycle.ts";
@@ -74,6 +74,7 @@ import {
   createUpgradePickSystem,
   type UpgradePickSystem,
 } from "./runtime-upgrade-pick.ts";
+import type { UIContext } from "./screen-builders.ts";
 import { createSoundSystem } from "./sound-system.ts";
 import { Mode, Phase } from "./types.ts";
 import { fireOnce } from "./utils.ts";
@@ -225,7 +226,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   function renderFrame(
-    map: MapData,
+    map: GameMap,
     overlay: RenderOverlay | undefined,
     viewport?: Viewport | null,
   ): void {

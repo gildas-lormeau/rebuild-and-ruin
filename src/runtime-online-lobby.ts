@@ -20,7 +20,7 @@ import {
 } from "./online-dom.ts";
 import { initLobbyUi } from "./online-lobby-ui.ts";
 import { defaultClient } from "./online-stores.ts";
-import { loadAtlas } from "./runtime-bootstrap.ts";
+import { loadAtlas } from "./render-sprites.ts";
 import { connect } from "./runtime-online-ws.ts";
 
 const lobbyElements = {

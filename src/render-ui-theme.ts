@@ -2,11 +2,7 @@
  * Shared constants, types, and drawing primitives for render-ui*.ts files.
  */
 
-import {
-  PANEL_BG,
-  TEXT_ALIGN_CENTER,
-  TEXT_BASELINE_MIDDLE,
-} from "./render-theme.ts";
+import { PANEL_BG, TEXT_ALIGN_CENTER, TEXT_BASELINE_MIDDLE } from "./theme.ts";
 
 interface ButtonStyle {
   fill: string;

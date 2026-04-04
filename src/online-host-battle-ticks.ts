@@ -23,7 +23,6 @@ import type {
   ControllerIdentity,
 } from "./controller-interfaces.ts";
 import type { TilePos } from "./geometry-types.ts";
-import type { WatcherTimingState } from "./online-types.ts";
 import { BANNER_BATTLE, type BannerShow } from "./phase-banner.ts";
 import {
   BATTLE_START_STEPS,
@@ -43,6 +42,7 @@ import type {
   BattleAnimState,
   GameState,
   Impact,
+  WatcherTimingState,
 } from "./types.ts";
 
 type BattleCapable = ControllerIdentity & BattleController;

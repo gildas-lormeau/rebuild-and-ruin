@@ -6,23 +6,24 @@
  */
 
 import type { ValidPlayerSlot } from "./game-constants.ts";
+import type { GameMap } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
+import type { RenderOverlay } from "./overlay-types.ts";
 import { getPlayerColor, PLAYER_NAMES } from "./player-config.ts";
 import { drawSpriteCentered } from "./render-sprites.ts";
+import { towerCenterPx } from "./spatial.ts";
 import {
   FONT_FLOAT_LG,
   rgb,
   SHADOW_COLOR_DENSE,
   TEXT_ALIGN_CENTER,
   TOWER_FLASH_MS,
-} from "./render-theme.ts";
-import type { MapData, RenderOverlay } from "./render-types.ts";
-import { towerCenterPx } from "./spatial.ts";
+} from "./theme.ts";
 
 /** Draw towers (alive, destroyed, highlighted, selected). */
 export function drawTowers(
   overlayCtx: CanvasRenderingContext2D,
-  map: MapData,
+  map: GameMap,
   overlay?: RenderOverlay,
   now: number = performance.now(),
 ): void {

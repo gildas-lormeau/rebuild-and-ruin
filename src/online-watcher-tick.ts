@@ -16,7 +16,6 @@ import {
   clearWatcherPhaseTimer,
   interpolateToward,
   type WatcherNetworkState,
-  type WatcherTimingState,
 } from "./online-types.ts";
 import {
   tickWatcherBattlePhase,
@@ -24,9 +23,14 @@ import {
   tickWatcherCannonPhantomsPhase,
   tickWatcherTimers,
 } from "./online-watcher-battle.ts";
-import type { FrameData } from "./render-types.ts";
+import type { FrameData } from "./overlay-types.ts";
 import { type TimerAccums, tickGruntsIfDue } from "./tick-context.ts";
-import { type BattleAnimState, type GameState, Phase } from "./types.ts";
+import {
+  type BattleAnimState,
+  type GameState,
+  Phase,
+  type WatcherTimingState,
+} from "./types.ts";
 
 export interface WatcherState extends WatcherNetworkState {
   timing: WatcherTimingState;
