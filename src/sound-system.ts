@@ -221,8 +221,27 @@ const CANNON_BLAST_DURATION = 0.5;
 const CANNON_TAIL_DURATION = 0.8;
 const CANNON_TAIL_FILTER_START_HZ = 800;
 const CANNON_TAIL_FILTER_END_HZ = 150;
+// Cannon boom voice mix ratios (fraction of base volume) and per-voice timing
+const CANNON_BLAST_SUSTAIN_RATIO = 0.6;
+const CANNON_BLAST_DECAY_TIME = 0.05;
+const CANNON_BASS_MIX = 0.9;
+const CANNON_BASS_SWEEP = 0.3;
+const CANNON_MID_MIX = 0.5;
+const CANNON_MID_SWEEP = 0.15;
+const CANNON_MID_DURATION = 0.2;
+const CANNON_TAIL_MIX = 0.3;
+const CANNON_TAIL_DELAY = 0.1;
+// Cannonball whistle — pitch-shifted sine wave per cannonball
 const WHISTLE_MIN_DURATION = 0.3;
 const WHISTLE_MAX_DURATION = 3;
+const WHISTLE_JITTER_SCALE = 0.15;
+const WHISTLE_OWN_START_HZ = 2600;
+const WHISTLE_OWN_END_HZ = 3600;
+const WHISTLE_ENEMY_START_HZ = 2500;
+const WHISTLE_ENEMY_END_HZ = 1600;
+const WHISTLE_ATTACK_FRACTION = 0.3;
+const WHISTLE_RELEASE_FRACTION = 0.15;
+const WHISTLE_PEAK_VOL = 0.15;
 /** Fanfare tempo: ~408 BPM sixteenth note. */
 const FANFARE_NOTE_STEP = 0.147;
 const MAX_BOOMS = 4;
@@ -323,7 +342,6 @@ export function createSoundSystem(): SoundSystem {
     const volume =
       CANNON_BOOM_VOL * (soundLevel === SOUND_PHASE_ONLY ? 0.5 : 1);
 
-    // Voice mix ratios: blast 100→60%, bass 90%, mid 50%, tail 30%
     const blastLen = Math.ceil(audioCtx.sampleRate * CANNON_BLAST_DURATION);
     const blastBuf = audioCtx.createBuffer(1, blastLen, audioCtx.sampleRate);
     const blastData = blastBuf.getChannelData(0);
@@ -332,7 +350,10 @@ export function createSoundSystem(): SoundSystem {
     blast.buffer = blastBuf;
     const blastGain = audioCtx.createGain();
     blastGain.gain.setValueAtTime(volume, time);
-    blastGain.gain.setValueAtTime(volume * 0.6, time + 0.05); // initial punch → 60% sustain
+    blastGain.gain.setValueAtTime(
+      volume * CANNON_BLAST_SUSTAIN_RATIO,
+      time + CANNON_BLAST_DECAY_TIME,
+    );
     blastGain.gain.exponentialRampToValueAtTime(
       GAIN_SILENT,
       time + CANNON_BLAST_DURATION,
@@ -346,10 +367,10 @@ export function createSoundSystem(): SoundSystem {
     bass.frequency.setValueAtTime(CANNON_BASS_START_HZ, time);
     bass.frequency.exponentialRampToValueAtTime(
       CANNON_BASS_END_HZ,
-      time + 0.3, // bass sweep duration
+      time + CANNON_BASS_SWEEP,
     );
     const bassGain = audioCtx.createGain();
-    bassGain.gain.setValueAtTime(volume * 0.9, time);
+    bassGain.gain.setValueAtTime(volume * CANNON_BASS_MIX, time);
     bassGain.gain.exponentialRampToValueAtTime(
       GAIN_SILENT,
       time + CANNON_BLAST_DURATION,
@@ -363,17 +384,17 @@ export function createSoundSystem(): SoundSystem {
     mid.frequency.setValueAtTime(CANNON_MID_START_HZ, time);
     mid.frequency.exponentialRampToValueAtTime(
       CANNON_MID_END_HZ,
-      time + 0.15, // fast mid-frequency sweep
+      time + CANNON_MID_SWEEP,
     );
     const midGain = audioCtx.createGain();
-    midGain.gain.setValueAtTime(volume * 0.5, time);
+    midGain.gain.setValueAtTime(volume * CANNON_MID_MIX, time);
     midGain.gain.exponentialRampToValueAtTime(
       GAIN_SILENT,
-      time + 0.2, // mid voice is short — dies before blast/bass
+      time + CANNON_MID_DURATION,
     );
     mid.connect(midGain).connect(audioCtx.destination);
     mid.start(time);
-    mid.stop(time + 0.2);
+    mid.stop(time + CANNON_MID_DURATION);
 
     const tailLen = Math.ceil(audioCtx.sampleRate * CANNON_TAIL_DURATION);
     const tailBuf = audioCtx.createBuffer(1, tailLen, audioCtx.sampleRate);
@@ -382,7 +403,10 @@ export function createSoundSystem(): SoundSystem {
     const tail = audioCtx.createBufferSource();
     tail.buffer = tailBuf;
     const tailGain = audioCtx.createGain();
-    tailGain.gain.setValueAtTime(volume * 0.3, time + 0.1); // delayed start — rumble after initial blast
+    tailGain.gain.setValueAtTime(
+      volume * CANNON_TAIL_MIX,
+      time + CANNON_TAIL_DELAY,
+    );
     tailGain.gain.exponentialRampToValueAtTime(
       GAIN_SILENT,
       time + CANNON_TAIL_DURATION,
@@ -430,14 +454,18 @@ export function createSoundSystem(): SoundSystem {
     );
 
     const mine = evt.playerId === povPlayerId;
-    const jitter = 1 + (Math.random() - 0.5) * 0.15;
-    const startHz = mine ? 2600 * jitter : 2500 * jitter;
-    const endHz = mine ? 3600 * jitter : 1600 * jitter;
+    const jitter = 1 + (Math.random() - 0.5) * WHISTLE_JITTER_SCALE;
+    const startHz = mine
+      ? WHISTLE_OWN_START_HZ * jitter
+      : WHISTLE_ENEMY_START_HZ * jitter;
+    const endHz = mine
+      ? WHISTLE_OWN_END_HZ * jitter
+      : WHISTLE_ENEMY_END_HZ * jitter;
 
-    const attack = dur * 0.3;
-    const release = dur * 0.15;
+    const attack = dur * WHISTLE_ATTACK_FRACTION;
+    const release = dur * WHISTLE_RELEASE_FRACTION;
     const volScale = soundLevel === SOUND_PHASE_ONLY ? 0.5 : 1;
-    const peakVol = 0.15 * volScale;
+    const peakVol = WHISTLE_PEAK_VOL * volScale;
 
     const time = audioCtx.currentTime + 0.02;
 
