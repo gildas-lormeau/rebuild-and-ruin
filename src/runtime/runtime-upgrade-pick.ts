@@ -14,10 +14,10 @@ import {
   UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
 } from "../game/upgrade-pick.ts";
-import { isHuman } from "../shared/controller-interfaces.ts";
 import type { UpgradePickDialogState } from "../shared/dialog-types.ts";
 import { Mode } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isHuman } from "../shared/system-interfaces.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
 interface UpgradePickSystemDeps {

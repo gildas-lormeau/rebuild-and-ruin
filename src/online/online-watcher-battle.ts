@@ -4,10 +4,6 @@ import {
   getCountdownAnnouncement,
 } from "../game/battle-system.ts";
 import type { Cannonball, CannonMode, Impact } from "../shared/battle-types.ts";
-import type {
-  OrbitParams,
-  PlayerController,
-} from "../shared/controller-interfaces.ts";
 import { BATTLE_TIMER } from "../shared/game-constants.ts";
 import { isPlacementPhase, Phase } from "../shared/game-phase.ts";
 import type { Crosshair, PixelPos } from "../shared/geometry-types.ts";
@@ -21,6 +17,10 @@ import {
   piecePhantomKey,
 } from "../shared/phantom-types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
+import type {
+  OrbitParams,
+  PlayerController,
+} from "../shared/system-interfaces.ts";
 import type { WatcherTimingState } from "../shared/tick-context.ts";
 import { type GameState, isPlayerAlive } from "../shared/types.ts";
 import {

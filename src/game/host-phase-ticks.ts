@@ -22,7 +22,6 @@
 import { CannonMode } from "../shared/battle-types.ts";
 import { getInterior, snapshotAllWalls } from "../shared/board-occupancy.ts";
 import type { SerializedPlayer } from "../shared/checkpoint-data.ts";
-import type { PlayerController } from "../shared/controller-interfaces.ts";
 import type { EntityOverlay } from "../shared/overlay-types.ts";
 import {
   type CannonPhantom,
@@ -36,6 +35,7 @@ import {
 } from "../shared/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { unpackTile } from "../shared/spatial.ts";
+import type { PlayerController } from "../shared/system-interfaces.ts";
 import {
   advancePhaseTimer,
   getRemoteSlots,

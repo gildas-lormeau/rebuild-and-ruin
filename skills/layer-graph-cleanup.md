@@ -238,3 +238,11 @@ at the time of each change (some have since been renamed or moved into domain di
 | `server/room-manager.ts` over-classified in entry points | Reclassified to L13 "online logic" — max dep is L12 (online infrastructure) |
 | `game-constants.ts` Pain=82 (82 dependents) | Extracted `PlayerSlotId`, `ValidPlayerSlot`, `SPECTATOR_SLOT`, `isActivePlayer` to `player-slot.ts` (L0) — Pain dropped to 40 |
 | `upgrade-defs.ts` in game domain, imported by `types.ts` (shared) | Reclassified to shared domain — zero-dep option constants |
+| `runtime support` → `input & sound` (L11→L9) | Extracted `HapticsSystem` and `SoundSystem` interfaces from `haptics-system.ts`/`sound-system.ts` to `system-interfaces.ts` (L4); runtime-types.ts no longer imports from input |
+| `runtime-types.ts` over-classified in "runtime support" (L11) | After interface extraction, max dep dropped to L5 (runtime-state); reclassified to "runtime primitives" |
+| `runtime-camera.ts`, `runtime-test-globals.ts` over-classified in L11 | Max dep is runtime-types (now L5); reclassified to "runtime primitives" |
+| `runtime-score-deltas.ts`, `runtime-upgrade-pick.ts`, `runtime-game-lifecycle.ts` over-classified in L14 | Max dep is L5 (runtime-state) or zero imports; reclassified to "runtime primitives" |
+| L11 "runtime support" renamed to "game bootstrap" | After cascade, only runtime-bootstrap.ts and runtime-headless.ts remained (factory/setup files) |
+| `runtime-phase-ticks.ts`, `runtime-life-lost.ts` over-classified in L14 | After interface extraction freed them from L9 dep, max dep dropped to L6 (game logic); created L7 "phase orchestration" group |
+| Layer ordering: input/render artificially inflated | Input (max dep L4) and render (max dep L4) sat between controllers (L8) and game bootstrap (L11), forcing cross-cutting runtime files above render. Reordered: phase orchestration (L7) → AI (L8) → controllers (L9) → game bootstrap (L10) → input (L11) → render (L12) |
+| `controller-interfaces.ts` name mismatch | After adding HapticsSystem/SoundSystem interfaces, renamed to `system-interfaces.ts` — now hosts all sub-system contracts (controllers + haptics + sound) |

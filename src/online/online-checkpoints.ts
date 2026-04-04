@@ -7,11 +7,11 @@ import type {
   CannonStartData,
   SerializedPlayer,
 } from "../shared/checkpoint-data.ts";
-import type { OrbitParams } from "../shared/controller-interfaces.ts";
 import { BATTLE_TIMER } from "../shared/game-constants.ts";
 import type { PixelPos } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { towerCenterPx } from "../shared/spatial.ts";
+import type { OrbitParams } from "../shared/system-interfaces.ts";
 import type {
   GameState,
   ModernState,

@@ -25,9 +25,9 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 `shared/` (types, constants, config) · `game/` (systems, phase logic) · `ai/` (strategy, AI controllers) · `player/` (human controller, factory) · `input/` (input, sound, haptics) · `render/` (canvas, sprites, UI) · `online/` (multiplayer, checkpoints, online runtime) · `runtime/` (game loop, state, lifecycle).
 Entry points (`entry.ts`, `main.ts`, `online-client.ts`) stay at `src/` root. `server/` is separate (Deno Deploy target).
 
-### Module layers (17 groups, `.import-layers.json`)
-L0 leaf utils → L1 geometry types → L2 pieces → L3 core types, state & spatial → L4 shared types & config → L5 runtime primitives → L6 game logic → L7 AI strategy → L8 controllers → L9 input & sound → L10 render → L11 runtime support → L12 online infrastructure → L13 online logic → L14 local runtime → L15 online runtime → L16 entry points (client & server). Imports must flow downward.
-L16 is reserved for true entry points (e.g., `entry.ts`, `main.ts`, `server.ts`). Orchestration modules belong in L14/L15 — don't add files to L16 unless they have no in-project importers or use dynamic imports for code splitting.
+### Module layers (18 groups, `.import-layers.json`)
+L0 leaf utils → L1 geometry types → L2 pieces → L3 core types, state & spatial → L4 shared types & config → L5 runtime primitives → L6 game logic → L7 phase orchestration → L8 AI strategy → L9 controllers → L10 game bootstrap → L11 input & sound → L12 render → L13 online infrastructure → L14 online logic → L15 local runtime → L16 online runtime → L17 entry points (client & server). Imports must flow downward.
+L17 is reserved for true entry points (e.g., `entry.ts`, `main.ts`, `server.ts`). Orchestration modules belong in L15/L16 — don't add files to L17 unless they have no in-project importers or use dynamic imports for code splitting.
 
 ### Phase flow
 CASTLE_SELECT → WALL_BUILD → CANNON_PLACE → BATTLE → loop (+ CASTLE_RESELECT when a player loses lives)

@@ -13,7 +13,7 @@ Complements `/code-review` which works per-pass on a scoped file set.
 ## Domain clusters
 
 Each domain is a group of tightly related files that share responsibility for a subsystem.
-Domains map to the 17 layer groups in `.import-layers.json` (L0–L16), with small layers
+Domains map to the 18 layer groups in `.import-layers.json` (L0–L17), with small layers
 combined and large layers (>10 files) split into sub-domains at audit time.
 
 ### 1. Leaf utilities — L0 (15 files)
@@ -36,15 +36,18 @@ server/protocol.ts
 ### 3. Shared types & config — L4 (11 files)
 ```
 src/game/phase-transition-shared.ts, src/shared/player-config.ts,
-src/shared/controller-interfaces.ts, src/game/life-lost.ts, src/game/upgrade-pick.ts,
+src/shared/system-interfaces.ts, src/game/life-lost.ts, src/game/upgrade-pick.ts,
 src/game/castle-build.ts, src/game/phase-banner.ts, src/shared/theme.ts,
 src/shared/overlay-types.ts, src/shared/phantom-types.ts, src/shared/tick-context.ts
 ```
 
-### 4. Runtime primitives — L5 (6 files)
+### 4. Runtime primitives — L5 (12 files)
 ```
 src/render/settings-ui.ts, src/render/screen-builders.ts, src/runtime/runtime-touch-ui.ts,
-src/runtime/runtime-state.ts, src/runtime/runtime-banner.ts, src/runtime/runtime-human.ts
+src/runtime/runtime-state.ts, src/runtime/runtime-banner.ts, src/runtime/runtime-human.ts,
+src/runtime/runtime-types.ts, src/runtime/runtime-camera.ts,
+src/runtime/runtime-test-globals.ts, src/runtime/runtime-score-deltas.ts,
+src/runtime/runtime-upgrade-pick.ts, src/runtime/runtime-game-lifecycle.ts
 ```
 
 ### 5. Game logic — L6 (14 files)
@@ -56,7 +59,12 @@ src/game/combo-system.ts, src/game/round-modifiers.ts, src/game/game-engine.ts,
 src/game/selection.ts, src/game/host-phase-ticks.ts, src/game/host-battle-ticks.ts
 ```
 
-### 6. AI strategy — L7 (9 files)
+### 6. Phase orchestration — L7 (2 files)
+```
+src/runtime/runtime-phase-ticks.ts, src/runtime/runtime-life-lost.ts
+```
+
+### 7. AI strategy — L8 (9 files)
 ```
 src/ai/ai-build-types.ts, src/ai/ai-castle-rect.ts, src/ai/ai-build-score.ts,
 src/ai/ai-build-fallback.ts, src/ai/ai-build-target.ts,
@@ -64,7 +72,7 @@ src/ai/ai-strategy-battle.ts, src/ai/ai-strategy-build.ts,
 src/ai/ai-strategy-cannon.ts, src/ai/ai-strategy.ts
 ```
 
-### 7. Controllers — L8 (8 files)
+### 8. Controllers — L9 (8 files)
 ```
 src/ai/ai-phase-select.ts, src/ai/ai-phase-build.ts,
 src/ai/ai-phase-cannon.ts, src/ai/ai-phase-battle.ts,
@@ -72,14 +80,19 @@ src/ai/controller-ai.ts, src/player/controller-types.ts,
 src/player/controller-human.ts, src/player/controller-factory.ts
 ```
 
-### 8. Input & sound — L9 (9 files)
+### 9. Game bootstrap — L10 (2 files)
+```
+src/runtime/runtime-bootstrap.ts, src/runtime/runtime-headless.ts
+```
+
+### 10. Input & sound — L11 (9 files)
 ```
 src/input/haptics-system.ts, src/input/input-recorder.ts, src/input/input-dispatch.ts,
 src/input/input-touch-ui.ts, src/input/input-touch-canvas.ts, src/input/input-mouse.ts,
 src/input/input-keyboard.ts, src/input/input.ts, src/input/sound-system.ts
 ```
 
-### 9. Render — L10 (10 files)
+### 11. Render — L12 (10 files)
 ```
 src/render/render-sprites.ts, src/render/render-loupe.ts, src/render/render-effects.ts,
 src/render/render-towers.ts, src/render/render-composition.ts, src/render/render-ui-theme.ts,
@@ -87,20 +100,14 @@ src/render/render-ui.ts, src/render/render-ui-settings.ts, src/render/render-map
 src/render/render-canvas.ts
 ```
 
-### 10. Runtime support — L11 (5 files)
-```
-src/runtime/runtime-bootstrap.ts, src/runtime/runtime-headless.ts,
-src/runtime/runtime-types.ts, src/runtime/runtime-camera.ts, src/runtime/runtime-test-globals.ts
-```
-
-### 11. Online infrastructure — L12 (6 files)
+### 12. Online infrastructure — L13 (6 files)
 ```
 src/online/online-config.ts, src/online/online-types.ts, src/online/online-lobby-ui.ts,
 src/online/online-server-lifecycle.ts, src/online/online-session.ts,
 server/game-room.ts
 ```
 
-### 12. Online logic — L13 (12 files)
+### 13. Online logic — L14 (12 files)
 ```
 src/online/online-serialize.ts, src/online/online-full-state-recovery.ts,
 src/online/online-send-actions.ts, src/online/online-checkpoints.ts,
@@ -110,23 +117,21 @@ src/online/online-host-crosshairs.ts, src/online/online-host-promotion.ts,
 src/online/online-stores.ts, server/room-manager.ts
 ```
 
-### 13. Local runtime — L14 (10 files)
+### 14. Local runtime — L15 (6 files)
 ```
-src/runtime/runtime-life-lost.ts, src/runtime/runtime-upgrade-pick.ts,
 src/runtime/runtime-lobby.ts, src/runtime/runtime-options.ts,
-src/runtime/runtime-game-lifecycle.ts, src/runtime/runtime-input.ts,
-src/runtime/runtime-phase-ticks.ts, src/runtime/runtime-render.ts,
+src/runtime/runtime-input.ts, src/runtime/runtime-render.ts,
 src/runtime/runtime-selection.ts, src/runtime/runtime.ts
 ```
 
-### 14. Online runtime — L15 (5 files)
+### 15. Online runtime — L16 (5 files)
 ```
 src/online/runtime-online-game.ts, src/online/runtime-online-deps.ts,
 src/online/runtime-online-promote.ts, src/online/runtime-online-ws.ts,
 src/online/runtime-online-lobby.ts
 ```
 
-### 15. Entry points & server — L16 (4 files)
+### 16. Entry points & server — L17 (4 files)
 ```
 src/entry.ts, src/main.ts, src/online-client.ts,
 server/server.ts
@@ -184,7 +189,7 @@ genuinely help an LLM agent write better code.
 ### Phase 2: Cross-domain audit
 
 After all domain agents complete, spawn one Explore agent with all domain reports combined.
-Domains 2 (9 files), 5 (14 files), 6 (9 files), 12 (12 files), and 13 (10 files) should be split into sub-domains at audit time to keep each agent under 10 files:
+Domains 2 (9 files), 5 (14 files), 4 (12 files), 13 (12 files), and 7 (9 files) should be split into sub-domains at audit time to keep each agent under 10 files:
 
 ```
 Given these domain audit findings:
@@ -237,7 +242,7 @@ Ask the user which findings to fix. Then fix them one domain at a time, running 
 ## Tips
 
 - Skip domains that were recently audited and had no findings
-- The online domains (#10–#11) and runtime (#12) are highest risk — they mirror local logic and drift silently
+- The online domains (#12–#13) and runtime (#14) are highest risk — they mirror local logic and drift silently
 - Cross-domain findings are often more impactful than within-domain ones
 - If a domain has >10 files, split it into sub-domains for the audit
 
@@ -444,7 +449,7 @@ sufficient for LLM agents to follow correctly.
     documents G4=392, C5=523, E5=659, G5=784 Hz.
 
 50. **isCannonPhaseDone measures different things per controller type** —
-    shared/controller-interfaces.ts:129-130 JSDoc documents that Human checks remaining
+    shared/system-interfaces.ts:129-130 JSDoc documents that Human checks remaining
     slots, AI checks internal phase step. Both are correct.
 
 51. **Canvas coordinate spaces documented in render/render-effects.ts** —

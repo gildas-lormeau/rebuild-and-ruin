@@ -11,7 +11,7 @@ import {
   type InputReceiver,
   isHuman,
   type PlayerController,
-} from "../shared/controller-interfaces.ts";
+} from "../shared/system-interfaces.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
 interface PointerPlayerLookup {

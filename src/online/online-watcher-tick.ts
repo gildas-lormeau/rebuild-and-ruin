@@ -9,14 +9,11 @@ import { MESSAGE } from "../../server/protocol.ts";
 import { aimCannons, nextReadyCombined } from "../game/battle-system.ts";
 import { tickGrunts } from "../game/grunt-movement.ts";
 import type { BattleAnimState } from "../shared/battle-types.ts";
-import {
-  isHuman,
-  type PlayerController,
-} from "../shared/controller-interfaces.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { PixelPos } from "../shared/geometry-types.ts";
 import type { FrameData } from "../shared/overlay-types.ts";
 import { isActivePlayer, type PlayerSlotId } from "../shared/player-slot.ts";
+import { isHuman, type PlayerController } from "../shared/system-interfaces.ts";
 import {
   type TimerAccums,
   tickGruntsIfDue,

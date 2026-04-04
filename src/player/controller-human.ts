@@ -18,12 +18,6 @@ import {
   isNormalMode,
   isSuperMode,
 } from "../shared/battle-types.ts";
-import {
-  type CannonPlacementPreview,
-  CROSSHAIR_SPEED,
-  type InputReceiver,
-  type PiecePlacementPreview,
-} from "../shared/controller-interfaces.ts";
 import { BALLOON_COST, SUPER_GUN_COST } from "../shared/game-constants.ts";
 import { Action } from "../shared/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
@@ -31,6 +25,12 @@ import { rotateCW } from "../shared/pieces.ts";
 import type { KeyBindings } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { cannonSize } from "../shared/spatial.ts";
+import {
+  type CannonPlacementPreview,
+  CROSSHAIR_SPEED,
+  type InputReceiver,
+  type PiecePlacementPreview,
+} from "../shared/system-interfaces.ts";
 import { type GameState, isPlayerAlive, type Player } from "../shared/types.ts";
 import { BaseController } from "./controller-types.ts";
 

@@ -20,10 +20,6 @@ import {
   getInterior,
   zoneOwnerIdAt,
 } from "../shared/board-occupancy.ts";
-import type {
-  BattleController,
-  ControllerIdentity,
-} from "../shared/controller-interfaces.ts";
 import {
   BALL_SPEED,
   BALLOON_HITS_NEEDED,
@@ -54,6 +50,10 @@ import {
   rotateToward,
   TILE_CENTER_OFFSET,
 } from "../shared/spatial.ts";
+import type {
+  BattleController,
+  ControllerIdentity,
+} from "../shared/system-interfaces.ts";
 import type { GameState, Player } from "../shared/types.ts";
 import { UID } from "../shared/upgrade-defs.ts";
 import {

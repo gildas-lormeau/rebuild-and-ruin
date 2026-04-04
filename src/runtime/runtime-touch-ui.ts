@@ -4,14 +4,14 @@
  * Extracted from runtime.ts render() to keep it high-level.
  */
 
-import type {
-  InputReceiver,
-  PlayerController,
-} from "../shared/controller-interfaces.ts";
 import { isPlacementPhase, Mode, Phase } from "../shared/game-phase.ts";
 import { TILE_SIZE } from "../shared/grid.ts";
 import type { LoupeHandle } from "../shared/overlay-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import type {
+  InputReceiver,
+  PlayerController,
+} from "../shared/system-interfaces.ts";
 
 type TouchBtnRule = boolean | "interactive";
 

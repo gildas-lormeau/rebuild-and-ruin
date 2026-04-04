@@ -5,8 +5,6 @@
  * pattern as runtime-camera.ts and runtime-lobby.ts.
  */
 
-import type { HapticsSystem } from "../input/haptics-system.ts";
-import type { SoundSystem } from "../input/sound-system.ts";
 import type {
   ControlsScreenHitTestFn,
   OptionsScreenHitTestFn,
@@ -43,6 +41,10 @@ import {
   OPT_CONTROLS,
   OPT_SEED,
 } from "../shared/settings-defs.ts";
+import type {
+  HapticsSystem,
+  SoundSystem,
+} from "../shared/system-interfaces.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
 
 interface OptionsSystemDeps {

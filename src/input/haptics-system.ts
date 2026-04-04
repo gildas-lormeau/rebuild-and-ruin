@@ -10,16 +10,7 @@ import { type BattleEvent, MESSAGE } from "../../server/protocol.ts";
 import { CAN_VIBRATE } from "../shared/platform.ts";
 import { HAPTICS_ALL, HAPTICS_PHASE_ONLY } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-
-export interface HapticsSystem {
-  setLevel: (level: number) => void;
-  tap: () => void;
-  phaseChange: () => void;
-  battleEvents: (
-    events: ReadonlyArray<BattleEvent>,
-    povPlayerId: ValidPlayerSlot,
-  ) => void;
-}
+import type { HapticsSystem } from "../shared/system-interfaces.ts";
 
 const HAPTIC_TAP_MS = 8;
 const HAPTIC_PHASE_CHANGE_MS = 40;

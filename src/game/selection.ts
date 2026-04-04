@@ -1,7 +1,3 @@
-import type {
-  ControllerIdentity,
-  SelectionController,
-} from "../shared/controller-interfaces.ts";
 import {
   isReselectPhase,
   isSelectionPhase,
@@ -12,6 +8,10 @@ import {
   type PlayerSlotId,
   type ValidPlayerSlot,
 } from "../shared/player-slot.ts";
+import type {
+  ControllerIdentity,
+  SelectionController,
+} from "../shared/system-interfaces.ts";
 import { isRemoteHuman } from "../shared/tick-context.ts";
 import { type GameState, type SelectionState } from "../shared/types.ts";
 import { selectPlayerTower } from "./game-engine.ts";

@@ -8,10 +8,6 @@
  * Right panel: quit + zoom + rotate + confirm
  */
 
-import type {
-  InputReceiver,
-  PlayerController,
-} from "../shared/controller-interfaces.ts";
 import {
   Action,
   isInteractiveMode,
@@ -20,6 +16,10 @@ import {
   Phase,
 } from "../shared/game-phase.ts";
 import { ACTION_CONFIRM, PLAYER_COLORS } from "../shared/player-config.ts";
+import type {
+  InputReceiver,
+  PlayerController,
+} from "../shared/system-interfaces.ts";
 import {
   rgb,
   TOUCH_ZOOM_ENEMY_BG,

@@ -13,7 +13,7 @@ import { clearPlayerWalls, deletePlayerWallBattle } from "../src/shared/board-oc
 import { recheckTerritoryOnly, placePiece } from "../src/game/build-system.ts";
 import { placeCannon, resetCannonFacings } from "../src/game/cannon-system.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/shared/grid.ts";
-import type { PlayerController } from "../src/shared/controller-interfaces.ts";
+import type { PlayerController } from "../src/shared/system-interfaces.ts";
 import {
   BATTLE_TIMER,
   BUILD_TIMER,

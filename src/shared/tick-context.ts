@@ -42,9 +42,9 @@
  * skips prerequisites (e.g. flush before init, sweep before score).
  */
 
-import type { ControllerIdentity } from "./controller-interfaces.ts";
 import { GRUNT_TICK_INTERVAL } from "./game-constants.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
+import type { ControllerIdentity } from "./system-interfaces.ts";
 import type { GameState } from "./types.ts";
 
 /** Base networking context shared by all phase ticks.

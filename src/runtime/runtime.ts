@@ -75,7 +75,6 @@ import {
 } from "../render/screen-builders.ts";
 import { cycleOption } from "../render/settings-ui.ts";
 import { createBattleAnimState } from "../shared/battle-types.ts";
-import type { PlayerController } from "../shared/controller-interfaces.ts";
 import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/dialog-types.ts";
 import {
   MAX_FRAME_DT,
@@ -97,6 +96,7 @@ import {
 } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "../shared/settings-defs.ts";
+import type { PlayerController } from "../shared/system-interfaces.ts";
 import { createTimerAccums } from "../shared/tick-context.ts";
 import type { GameState } from "../shared/types.ts";
 import { createBannerSystem } from "./runtime-banner.ts";

@@ -51,13 +51,6 @@ import {
   BANNER_PHASE_CANNON,
   modifierBannerText,
 } from "../game/round-modifiers.ts";
-import type { HapticsSystem } from "../input/haptics-system.ts";
-import type { SoundSystem } from "../input/sound-system.ts";
-import {
-  type InputReceiver,
-  isHuman,
-  type PlayerController,
-} from "../shared/controller-interfaces.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,
@@ -66,6 +59,13 @@ import {
 } from "../shared/game-constants.ts";
 import { Mode } from "../shared/game-phase.ts";
 import { NOOP_DEDUP_CHANNEL } from "../shared/phantom-types.ts";
+import {
+  type HapticsSystem,
+  type InputReceiver,
+  isHuman,
+  type PlayerController,
+  type SoundSystem,
+} from "../shared/system-interfaces.ts";
 import { isRemoteHuman, type MutableAccums } from "../shared/tick-context.ts";
 import { assertStateReady, type RuntimeState } from "./runtime-state.ts";
 import type { RuntimeConfig, RuntimeLifeLost } from "./runtime-types.ts";

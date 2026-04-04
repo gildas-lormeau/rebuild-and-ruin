@@ -4,7 +4,6 @@ import {
   type BattleAnimState,
   createBattleAnimState,
 } from "../shared/battle-types.ts";
-import { type PlayerController } from "../shared/controller-interfaces.ts";
 import {
   type ControlsState,
   createControlsState,
@@ -23,6 +22,7 @@ import {
   MAX_PLAYERS,
 } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { type PlayerController } from "../shared/system-interfaces.ts";
 import { createTimerAccums, type TimerAccums } from "../shared/tick-context.ts";
 import {
   type FrameContext,

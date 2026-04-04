@@ -34,13 +34,7 @@ import {
   initTowerSelection as initTowerSelectionImpl,
   tickSelectionPhase,
 } from "../game/selection.ts";
-import type { SoundSystem } from "../input/sound-system.ts";
 import { getInterior } from "../shared/board-occupancy.ts";
-import {
-  type InputReceiver,
-  isHuman,
-  type PlayerController,
-} from "../shared/controller-interfaces.ts";
 import {
   SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,
@@ -49,6 +43,12 @@ import {
 import { Mode } from "../shared/game-phase.ts";
 import type { RenderOverlay } from "../shared/overlay-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import {
+  type InputReceiver,
+  isHuman,
+  type PlayerController,
+  type SoundSystem,
+} from "../shared/system-interfaces.ts";
 import { isRemoteHuman, type MutableAccums } from "../shared/tick-context.ts";
 import type { SelectionState } from "../shared/types.ts";
 import { fireOnce } from "../shared/utils.ts";

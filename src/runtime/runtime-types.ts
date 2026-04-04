@@ -55,17 +55,8 @@
  */
 
 import type { GameMessage, ServerMessage } from "../../server/protocol.ts";
-import type { HapticsSystem } from "../input/haptics-system.ts";
-import type { SoundSystem } from "../input/sound-system.ts";
 import type { BalloonFlight } from "../shared/battle-types.ts";
 import type { SerializedPlayer } from "../shared/checkpoint-data.ts";
-import type {
-  BattleController,
-  BuildController,
-  CannonController,
-  ControllerIdentity,
-  InputReceiver,
-} from "../shared/controller-interfaces.ts";
 import type {
   LifeLostDialogState,
   UpgradePickDialogState,
@@ -92,6 +83,15 @@ import {
   type PlayerSlotId,
   type ValidPlayerSlot,
 } from "../shared/player-slot.ts";
+import type {
+  BattleController,
+  BuildController,
+  CannonController,
+  ControllerIdentity,
+  HapticsSystem,
+  InputReceiver,
+  SoundSystem,
+} from "../shared/system-interfaces.ts";
 import type { WatcherTimingState } from "../shared/tick-context.ts";
 import {
   type FrameContext,

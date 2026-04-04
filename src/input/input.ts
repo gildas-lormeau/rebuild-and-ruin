@@ -21,10 +21,6 @@
  */
 
 import type {
-  InputReceiver,
-  PlayerController,
-} from "../shared/controller-interfaces.ts";
-import type {
   ControlsState,
   GameOverFocus,
   LifeLostDialogState,
@@ -35,6 +31,10 @@ import type { WorldPos } from "../shared/geometry-types.ts";
 import type { RendererInterface } from "../shared/overlay-types.ts";
 import type { KeyBindings, SeedMode } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import type {
+  InputReceiver,
+  PlayerController,
+} from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
 import type { GameActionDeps } from "./input-dispatch.ts";
 

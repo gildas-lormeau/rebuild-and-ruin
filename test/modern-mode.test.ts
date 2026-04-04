@@ -15,7 +15,7 @@ import {
   comboOnWallDestroyed,
   createComboTracker,
 } from "../src/game/combo-system.ts";
-import type { OrbitParams } from "../src/shared/controller-interfaces.ts";
+import type { OrbitParams } from "../src/shared/system-interfaces.ts";
 import type { PixelPos } from "../src/shared/geometry-types.ts";
 import { nextPhase } from "../src/game/game-engine.ts";
 import {

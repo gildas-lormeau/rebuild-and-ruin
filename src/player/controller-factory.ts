@@ -6,9 +6,9 @@
 
 import { DefaultStrategy } from "../ai/ai-strategy.ts";
 import { AiController } from "../ai/controller-ai.ts";
-import type { PlayerController } from "../shared/controller-interfaces.ts";
 import type { KeyBindings } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { PlayerController } from "../shared/system-interfaces.ts";
 import { HumanController } from "./controller-human.ts";
 
 export function createController(

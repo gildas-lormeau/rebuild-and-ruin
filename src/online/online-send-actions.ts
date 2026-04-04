@@ -6,7 +6,7 @@ import type {
   CannonController,
   ControllerIdentity,
   InputReceiver,
-} from "../shared/controller-interfaces.ts";
+} from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
 
 export function tryPlacePieceAndSend(

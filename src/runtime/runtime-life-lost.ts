@@ -13,7 +13,6 @@ import {
   tickLifeLostDialog,
 } from "../game/life-lost.ts";
 import { eliminatePlayer } from "../game/phase-setup.ts";
-import { isHuman } from "../shared/controller-interfaces.ts";
 import {
   LIFE_LOST_FOCUS_ABANDON,
   LIFE_LOST_FOCUS_CONTINUE,
@@ -27,6 +26,7 @@ import {
 } from "../shared/game-constants.ts";
 import { Mode } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isHuman } from "../shared/system-interfaces.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { RuntimeLifeLost } from "./runtime-types.ts";
 

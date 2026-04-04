@@ -5,10 +5,10 @@
 
 import { enterCannonPlacePhase } from "../game/game-engine.ts";
 import { finalizeCastleConstruction } from "../game/phase-setup.ts";
-import type { PlayerController } from "../shared/controller-interfaces.ts";
 import { BATTLE_TIMER } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { PlayerController } from "../shared/system-interfaces.ts";
 import type { MutableAccums } from "../shared/tick-context.ts";
 import { type GameState, isPlayerAlive } from "../shared/types.ts";
 

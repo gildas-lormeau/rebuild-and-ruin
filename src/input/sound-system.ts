@@ -11,46 +11,7 @@ import { sfxr } from "jsfxr";
 import { type BattleEvent, MESSAGE } from "../../server/protocol.ts";
 import { SOUND_ALL, SOUND_PHASE_ONLY } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-
-/** Sound level guard convention:
- *  - Methods using play(): guarded internally by `play(key, minLevel)`.
- *  - Methods using Web Audio directly (chargeFanfare, drumsStart): guard at
- *    method entry with `if (soundLevel < SOUND_*) return;`.
- *  - Internal Web Audio helpers (cannonBoom, cannonWhistle, impact): no guard —
- *    called only from battleEvents() which guards at entry. */
-export interface SoundSystem {
-  setLevel: (level: number) => void;
-
-  // Phase transitions (level 1+)
-  phaseStart: () => void;
-
-  // Battle (level 2)
-  battleEvents: (
-    events: ReadonlyArray<BattleEvent>,
-    povPlayerId: ValidPlayerSlot,
-  ) => void;
-
-  // Player actions (level 2)
-  piecePlaced: () => void;
-  pieceFailed: () => void;
-  pieceRotated: () => void;
-  cannonPlaced: () => void;
-
-  // Castle enclosure (level 1+)
-  chargeFanfare: (playerId?: number) => void;
-
-  // Life events (level 1+)
-  lifeLost: () => void;
-  gameOver: () => void;
-
-  // War drums lifecycle
-  drumsStart: () => void;
-  drumsQuiet: () => void;
-  drumsStop: () => void;
-
-  /** Stop all playing audio and reset internal state (rematch). */
-  reset: () => void;
-}
+import type { SoundSystem } from "../shared/system-interfaces.ts";
 
 type SfxKey = keyof typeof SFX_DEFS;
 

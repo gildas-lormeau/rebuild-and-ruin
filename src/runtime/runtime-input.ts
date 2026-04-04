@@ -1,4 +1,3 @@
-import type { HapticsSystem } from "../input/haptics-system.ts";
 import type { RegisterOnlineInputDeps } from "../input/input.ts";
 import type { DispatchPointerMoveFn } from "../input/input-dispatch.ts";
 import type { RegisterKeyboardHandlersFn } from "../input/input-keyboard.ts";
@@ -12,12 +11,6 @@ import type {
   CreateQuitButtonFn,
   FloatingActionsHandle,
 } from "../input/input-touch-ui.ts";
-import type { SoundSystem } from "../input/sound-system.ts";
-import {
-  type InputReceiver,
-  isHuman,
-  type PlayerController,
-} from "../shared/controller-interfaces.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
@@ -33,6 +26,13 @@ import { IS_TOUCH_DEVICE } from "../shared/platform.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { OPT_CONTROLS } from "../shared/settings-defs.ts";
 import { towerCenterPx } from "../shared/spatial.ts";
+import {
+  type HapticsSystem,
+  type InputReceiver,
+  isHuman,
+  type PlayerController,
+  type SoundSystem,
+} from "../shared/system-interfaces.ts";
 import { type GameState } from "../shared/types.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
 import type { CameraSystem } from "./runtime-types.ts";

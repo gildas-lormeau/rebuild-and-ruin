@@ -1,18 +1,13 @@
 /**
  * BaseController — abstract base class implementing shared controller logic.
  *
- * Pure interfaces live in controller-interfaces.ts. This file contains the
+ * Pure interfaces live in system-interfaces.ts. This file contains the
  * implementation that depends on battle-system, pieces, spatial, etc.
  */
 
 import { fireNextReadyCannon } from "../game/battle-system.ts";
 import { autoPlaceRound1Cannons } from "../game/cannon-system.ts";
 import type { CombinedCannonResult } from "../shared/battle-types.ts";
-import type {
-  CannonPlacementPreview,
-  PiecePlacementPreview,
-  PlayerController,
-} from "../shared/controller-interfaces.ts";
 import { NORMAL_CANNON_SIZE } from "../shared/game-constants.ts";
 import { Action } from "../shared/game-phase.ts";
 import type { Crosshair } from "../shared/geometry-types.ts";
@@ -26,6 +21,11 @@ import {
 import type { KeyBindings } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { pxToTile, towerCenter, towerCenterTile } from "../shared/spatial.ts";
+import type {
+  CannonPlacementPreview,
+  PiecePlacementPreview,
+  PlayerController,
+} from "../shared/system-interfaces.ts";
 import { type GameState } from "../shared/types.ts";
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);

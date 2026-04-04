@@ -19,11 +19,11 @@ import type {
   Impact,
 } from "../shared/battle-types.ts";
 import { snapshotAllWalls } from "../shared/board-occupancy.ts";
+import type { TilePos } from "../shared/geometry-types.ts";
 import type {
   BattleController,
   ControllerIdentity,
-} from "../shared/controller-interfaces.ts";
-import type { TilePos } from "../shared/geometry-types.ts";
+} from "../shared/system-interfaces.ts";
 import {
   advancePhaseTimer,
   getRemoteSlots,

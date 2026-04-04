@@ -1,3 +1,4 @@
+import type { BattleEvent } from "../../server/protocol.ts";
 import { CannonMode } from "./battle-types.ts";
 import { Action } from "./game-phase.ts";
 import type { Crosshair, PixelPos, TilePos } from "./geometry-types.ts";
@@ -215,6 +216,52 @@ export interface AiAnimatable {
 
   /** AI's orbit parameters for countdown animation (null if not orbiting). */
   getOrbitParams(): OrbitParams | null;
+}
+
+/** Haptic feedback contract — vibration patterns for game events. */
+export interface HapticsSystem {
+  setLevel: (level: number) => void;
+  tap: () => void;
+  phaseChange: () => void;
+  battleEvents: (
+    events: ReadonlyArray<BattleEvent>,
+    povPlayerId: ValidPlayerSlot,
+  ) => void;
+}
+
+/** Sound effects contract — jsfxr one-shots + Web Audio layered sounds. */
+export interface SoundSystem {
+  setLevel: (level: number) => void;
+
+  // Phase transitions (level 1+)
+  phaseStart: () => void;
+
+  // Battle (level 2)
+  battleEvents: (
+    events: ReadonlyArray<BattleEvent>,
+    povPlayerId: ValidPlayerSlot,
+  ) => void;
+
+  // Player actions (level 2)
+  piecePlaced: () => void;
+  pieceFailed: () => void;
+  pieceRotated: () => void;
+  cannonPlaced: () => void;
+
+  // Castle enclosure (level 1+)
+  chargeFanfare: (playerId?: number) => void;
+
+  // Life events (level 1+)
+  lifeLost: () => void;
+  gameOver: () => void;
+
+  // War drums lifecycle
+  drumsStart: () => void;
+  drumsQuiet: () => void;
+  drumsStop: () => void;
+
+  /** Stop all playing audio and reset internal state (rematch). */
+  reset: () => void;
 }
 
 /** Battle crosshair movement speed in pixels per second. */

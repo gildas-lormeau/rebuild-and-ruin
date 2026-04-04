@@ -48,7 +48,7 @@
     "files": [
       "src/game/phase-transition-shared.ts",
       "src/shared/player-config.ts",
-      "src/shared/controller-interfaces.ts",
+      "src/shared/system-interfaces.ts",
       "src/game/life-lost.ts",
       "src/game/upgrade-pick.ts",
       "src/game/castle-build.ts",
@@ -67,7 +67,13 @@
       "src/runtime/runtime-touch-ui.ts",
       "src/runtime/runtime-state.ts",
       "src/runtime/runtime-banner.ts",
-      "src/runtime/runtime-human.ts"
+      "src/runtime/runtime-human.ts",
+      "src/runtime/runtime-types.ts",
+      "src/runtime/runtime-camera.ts",
+      "src/runtime/runtime-test-globals.ts",
+      "src/runtime/runtime-score-deltas.ts",
+      "src/runtime/runtime-upgrade-pick.ts",
+      "src/runtime/runtime-game-lifecycle.ts"
     ]
   },
   {
@@ -87,6 +93,13 @@
       "src/game/selection.ts",
       "src/game/host-phase-ticks.ts",
       "src/game/host-battle-ticks.ts"
+    ]
+  },
+  {
+    "name": "phase orchestration",
+    "files": [
+      "src/runtime/runtime-phase-ticks.ts",
+      "src/runtime/runtime-life-lost.ts"
     ]
   },
   {
@@ -117,6 +130,13 @@
     ]
   },
   {
+    "name": "game bootstrap",
+    "files": [
+      "src/runtime/runtime-bootstrap.ts",
+      "src/runtime/runtime-headless.ts"
+    ]
+  },
+  {
     "name": "input & sound",
     "files": [
       "src/input/haptics-system.ts",
@@ -143,16 +163,6 @@
       "src/render/render-ui-settings.ts",
       "src/render/render-map.ts",
       "src/render/render-canvas.ts"
-    ]
-  },
-  {
-    "name": "runtime support",
-    "files": [
-      "src/runtime/runtime-bootstrap.ts",
-      "src/runtime/runtime-headless.ts",
-      "src/runtime/runtime-types.ts",
-      "src/runtime/runtime-camera.ts",
-      "src/runtime/runtime-test-globals.ts"
     ]
   },
   {
@@ -186,15 +196,10 @@
   {
     "name": "local runtime",
     "files": [
-      "src/runtime/runtime-life-lost.ts",
-      "src/runtime/runtime-upgrade-pick.ts",
       "src/runtime/runtime-lobby.ts",
       "src/runtime/runtime-options.ts",
-      "src/runtime/runtime-game-lifecycle.ts",
       "src/runtime/runtime-input.ts",
-      "src/runtime/runtime-phase-ticks.ts",
       "src/runtime/runtime-render.ts",
-      "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-selection.ts",
       "src/runtime/runtime.ts"
     ]

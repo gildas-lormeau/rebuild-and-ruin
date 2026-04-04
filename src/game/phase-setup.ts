@@ -17,11 +17,6 @@ import {
   filterAliveOwnedTowers,
   sweepIsolatedWalls,
 } from "../shared/board-occupancy.ts";
-import type {
-  ControllerIdentity,
-  PlayerController,
-  SelectionController,
-} from "../shared/controller-interfaces.ts";
 import {
   BATTLE_TIMER,
   FIRST_GRUNT_SPAWN_ROUND,
@@ -33,6 +28,11 @@ import {
 import { Phase } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isBalloonCannon, packTile } from "../shared/spatial.ts";
+import type {
+  ControllerIdentity,
+  PlayerController,
+  SelectionController,
+} from "../shared/system-interfaces.ts";
 import {
   emptyFreshInterior,
   type GameState,

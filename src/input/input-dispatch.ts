@@ -27,11 +27,6 @@
  * mouse handler without the suppression check causes ghost clicks.
  */
 
-import {
-  type InputReceiver,
-  isMovementAction,
-  type PlayerController,
-} from "../shared/controller-interfaces.ts";
 import type {
   ControlsState,
   LifeLostDialogState,
@@ -48,6 +43,11 @@ import {
 import type { WorldPos } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { findNearestTower, towerAtPixel } from "../shared/spatial.ts";
+import {
+  type InputReceiver,
+  isMovementAction,
+  type PlayerController,
+} from "../shared/system-interfaces.ts";
 import { type GameState, type SelectionState } from "../shared/types.ts";
 
 export interface OverlayActionDeps {

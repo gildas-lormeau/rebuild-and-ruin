@@ -11,10 +11,6 @@ import type {
   CreateRenderSummaryMessageFn,
   CreateStatusBarFn,
 } from "../render/render-composition.ts";
-import type {
-  InputReceiver,
-  PlayerController,
-} from "../shared/controller-interfaces.ts";
 import type { UpgradePickDialogState } from "../shared/dialog-types.ts";
 import { SCORE_DELTA_DISPLAY_TIME } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
@@ -26,6 +22,10 @@ import {
   SPECTATOR_SLOT,
   type ValidPlayerSlot,
 } from "../shared/player-slot.ts";
+import type {
+  InputReceiver,
+  PlayerController,
+} from "../shared/system-interfaces.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 import {
   type Dpad,

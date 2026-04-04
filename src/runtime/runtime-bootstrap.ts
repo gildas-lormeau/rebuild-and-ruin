@@ -1,7 +1,6 @@
 import { createGameFromSeed } from "../game/game-engine.ts";
 import { generateMap } from "../game/map-generation.ts";
 import { createController } from "../player/controller-factory.ts";
-import type { PlayerController } from "../shared/controller-interfaces.ts";
 import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
@@ -16,6 +15,7 @@ import {
 } from "../shared/player-slot.ts";
 import { MAX_UINT32 } from "../shared/rng.ts";
 import { GAME_CONTAINER_ACTIVE } from "../shared/router.ts";
+import type { PlayerController } from "../shared/system-interfaces.ts";
 import { GOLD, PANEL_BG } from "../shared/theme.ts";
 import { isRemoteHuman } from "../shared/tick-context.ts";
 import {

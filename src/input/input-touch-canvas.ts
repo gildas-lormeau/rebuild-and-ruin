@@ -16,10 +16,6 @@
  * While suppressSingleTouch is true, all single-finger events early-return.
  */
 
-import type {
-  InputReceiver,
-  PlayerController,
-} from "../shared/controller-interfaces.ts";
 import {
   isInteractiveMode,
   isPlacementPhase,
@@ -28,6 +24,10 @@ import {
   Phase,
 } from "../shared/game-phase.ts";
 import { cannonSize } from "../shared/spatial.ts";
+import type {
+  InputReceiver,
+  PlayerController,
+} from "../shared/system-interfaces.ts";
 import {
   type RegisterOnlineInputDeps,
   TAP_MAX_DIST,

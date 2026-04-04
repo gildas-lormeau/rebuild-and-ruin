@@ -11,15 +11,15 @@
  */
 
 import { BaseController } from "../player/controller-types.ts";
+import type { PixelPos, TilePos } from "../shared/geometry-types.ts";
+import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
   type AiAnimatable,
   type CannonPlacementPreview,
   CROSSHAIR_SPEED,
   type OrbitParams,
   type PiecePlacementPreview,
-} from "../shared/controller-interfaces.ts";
-import type { PixelPos, TilePos } from "../shared/geometry-types.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+} from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
 import { STEP } from "./ai-constants.ts";
 import {
