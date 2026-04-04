@@ -42,9 +42,9 @@ import {
   BUILD_START_STEPS,
   CANNON_START_STEPS,
   executeTransition,
+  gateUpgradePick,
   showBuildPhaseBanner,
   showCannonPhaseBanner,
-  showUpgradePickBanner,
 } from "../game/phase-transition-shared.ts";
 import {
   BANNER_PHASE_BUILD,
@@ -68,11 +68,7 @@ import { Mode } from "../shared/game-phase.ts";
 import { NOOP_DEDUP_CHANNEL } from "../shared/phantom-types.ts";
 import { isRemoteHuman, type MutableAccums } from "../shared/tick-context.ts";
 import { assertStateReady, type RuntimeState } from "./runtime-state.ts";
-import type {
-  RuntimeConfig,
-  RuntimeLifeLost,
-  RuntimeSelection,
-} from "./runtime-types.ts";
+import type { RuntimeConfig, RuntimeLifeLost } from "./runtime-types.ts";
 
 interface PhaseTicksDeps
   extends Pick<
@@ -99,7 +95,12 @@ interface PhaseTicksDeps
     subtitle?: string,
   ) => void;
   lifeLost: Pick<RuntimeLifeLost, "tryShow" | "onResolved">;
-  selection: Pick<RuntimeSelection, "showBuildScoreDeltas">;
+  scoreDelta: {
+    capturePreScores: () => void;
+    show: (onDone: () => void) => void;
+    isActive: () => boolean;
+    reset: () => void;
+  };
   snapshotTerritory: () => Set<number>[];
   /** Save human crosshair at end of battle so it can be restored next battle. */
   saveBattleCrosshair?: () => void;
@@ -206,9 +207,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   function startBattle() {
     deps.sound.drumsStop();
     deps.log(`startBattle (round=${runtimeState.state.round})`);
-    runtimeState.scoreDeltas = [];
-    runtimeState.scoreDeltaTimer = 0;
-    runtimeState.scoreDeltaOnDone = null;
+    deps.scoreDelta.reset();
     startHostBattleLifecycle({
       state: runtimeState.state,
       battleAnim: runtimeState.battleAnim,
@@ -278,12 +277,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   function startBuildPhase() {
     const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
     deps.log(`startBuildPhase (round=${runtimeState.state.round})`);
-    runtimeState.preScores = runtimeState.state.players.map(
-      (player) => player.score,
-    );
-    runtimeState.scoreDeltas = [];
-    runtimeState.scoreDeltaTimer = 0;
-    runtimeState.scoreDeltaOnDone = null;
+    deps.scoreDelta.reset();
+    deps.scoreDelta.capturePreScores();
     initBuildPhaseControllers(
       runtimeState.state,
       runtimeState.controllers,
@@ -408,18 +403,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           });
         };
 
-        if (
-          deps.tryShowUpgradePick &&
-          runtimeState.state.modern?.pendingUpgradeOffers
-        ) {
-          showUpgradePickBanner(deps.showBanner, () => {
-            if (!deps.tryShowUpgradePick!(showBannerAndEnterBuild)) {
-              showBannerAndEnterBuild();
-            }
-          });
-          return;
-        }
-        showBannerAndEnterBuild();
+        gateUpgradePick(
+          deps.showBanner,
+          deps.tryShowUpgradePick,
+          !!runtimeState.state.modern?.pendingUpgradeOffers,
+          showBannerAndEnterBuild,
+        );
       },
       net: {
         remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,
@@ -430,7 +419,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function tickBuildPhase(dt: number): boolean {
-    if (runtimeState.scoreDeltaOnDone) {
+    if (deps.scoreDelta.isActive()) {
       deps.render();
       return false;
     }
@@ -450,7 +439,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         deps.lifeLost.tryShow(needsReselect, eliminated);
       },
       onLifeLostResolved: deps.lifeLost.onResolved,
-      showScoreDeltas: deps.selection.showBuildScoreDeltas,
+      showScoreDeltas: deps.scoreDelta.show,
       onFirstEnclosure: deps.sound.chargeFanfare,
       net: {
         remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,

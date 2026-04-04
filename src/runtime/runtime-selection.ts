@@ -43,15 +43,12 @@ import {
   type PlayerController,
 } from "../shared/controller-interfaces.ts";
 import {
-  SCORE_DELTA_DISPLAY_TIME,
   SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,
   WALL_BUILD_INTERVAL,
 } from "../shared/game-constants.ts";
 import { Mode } from "../shared/game-phase.ts";
-import { TILE_SIZE } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { towerCenterPx } from "../shared/spatial.ts";
 import { isRemoteHuman, type MutableAccums } from "../shared/tick-context.ts";
 import { fireOnce } from "../shared/utils.ts";
 import { enterTowerSelection as enterTowerSelectionImpl } from "./runtime-bootstrap.ts";
@@ -86,10 +83,7 @@ interface SelectionSystemDeps {
   requestFrame: () => void;
 }
 
-/** Extended return: RuntimeSelection + extras needed by game-runtime internals. */
-export type SelectionSystem = RuntimeSelection & {
-  showBuildScoreDeltas: (onDone: () => void) => void;
-};
+type SelectionSystem = RuntimeSelection;
 
 export function createSelectionSystem(
   deps: SelectionSystemDeps,
@@ -375,40 +369,6 @@ export function createSelectionSystem(
     }
   }
 
-  function showBuildScoreDeltas(onDone: () => void): void {
-    // Guard: prevent re-entrancy (onDone callbacks must not restart the display)
-    if (runtimeState.scoreDeltaTimer > 0) {
-      onDone();
-      return;
-    }
-    // Compute score deltas from the build phase (with display coordinates)
-    runtimeState.scoreDeltas = runtimeState.state.players
-      .map((player, i) => {
-        const ht = player.homeTower;
-        const px = ht ? towerCenterPx(ht) : { x: 0, y: 0 };
-        return {
-          playerId: i as ValidPlayerSlot,
-          delta: player.score - (runtimeState.preScores[i] ?? 0),
-          total: player.score,
-          cx: px.x,
-          cy: px.y - TILE_SIZE, // just above the tower
-        };
-      })
-      .filter(
-        (scoreDelta) =>
-          scoreDelta.delta > 0 &&
-          !runtimeState.state.players[scoreDelta.playerId]!.eliminated,
-      );
-
-    if (runtimeState.scoreDeltas.length > 0) {
-      deps.camera.clearPhaseZoom();
-      runtimeState.scoreDeltaTimer = SCORE_DELTA_DISPLAY_TIME;
-      runtimeState.scoreDeltaOnDone = onDone;
-    } else {
-      onDone();
-    }
-  }
-
   function advanceToCannonPhase(): void {
     advanceToCannonPlacePhase(runtimeState.state, nextPhase);
     deps.startCannonPhase(() => {
@@ -480,7 +440,7 @@ export function createSelectionSystem(
   }
 
   // ---------------------------------------------------------------------------
-  // Public API (matches RuntimeSelection + extras)
+  // Public API (matches RuntimeSelection)
   // ---------------------------------------------------------------------------
 
   return {
@@ -500,6 +460,5 @@ export function createSelectionSystem(
     ) => deps.camera.setCastleBuildViewport(plans),
     startReselection,
     finishReselection,
-    showBuildScoreDeltas,
   };
 }

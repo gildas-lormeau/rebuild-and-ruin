@@ -41,7 +41,6 @@ import type { RenderOverlay } from "../shared/overlay-types.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform.ts";
 import { computeGameSeed } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { fireOnce } from "../shared/utils.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { createGameLifecycle } from "./runtime-game-lifecycle.ts";
@@ -58,10 +57,8 @@ import {
   type PhaseTicksSystem,
 } from "./runtime-phase-ticks.ts";
 import { createRenderSystem } from "./runtime-render.ts";
-import {
-  createSelectionSystem,
-  type SelectionSystem,
-} from "./runtime-selection.ts";
+import { createScoreDeltaSystem } from "./runtime-score-deltas.ts";
+import { createSelectionSystem } from "./runtime-selection.ts";
 import {
   createRuntimeState,
   isStateReady,
@@ -132,22 +129,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     return dt;
   }
 
-  /** Tick the score delta display timer (mode-independent — counts during banner/castle-build).
-   *  Lifecycle: showBuildScoreDeltas sets deltas+timer+onDone → this ticks down →
-   *  clears deltas and fires onDone exactly once when the timer expires.
-   *  Re-entrancy: onDone must NOT call showBuildScoreDeltas() — that would restart
-   *  the timer and create an infinite display loop. */
-  function tickScoreDeltaDisplay(dt: number): void {
-    if (runtimeState.scoreDeltaTimer <= 0) return;
-    runtimeState.scoreDeltaTimer -= dt;
-    if (runtimeState.scoreDeltaTimer <= 0) {
-      runtimeState.scoreDeltas = [];
-      runtimeState.scoreDeltaTimer = 0;
-      // fireOnce: invokes runtimeState.scoreDeltaOnDone at most once, then clears it
-      fireOnce(runtimeState, "scoreDeltaOnDone");
-    }
-  }
-
   // -------------------------------------------------------------------------
   // Main loop
   // -------------------------------------------------------------------------
@@ -180,7 +161,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     });
 
     tickCamera();
-    tickScoreDeltaDisplay(dt);
+    scoreDelta.tick(dt);
 
     // TickDispatch (runtime-state.ts) is Record<TickableMode, ...> where
     // TickableMode = Exclude<Mode, Mode.STOPPED>. Adding a new Mode without
@@ -285,6 +266,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const { tickCamera, updateViewport } = camera;
 
   // -------------------------------------------------------------------------
+  // Score delta sub-system (delegated to runtime-score-deltas.ts)
+  // -------------------------------------------------------------------------
+
+  const scoreDelta = createScoreDeltaSystem({
+    runtimeState,
+    clearPhaseZoom: camera.clearPhaseZoom,
+  });
+
+  // -------------------------------------------------------------------------
   // Banner sub-system (delegated to runtime-banner.ts)
   // -------------------------------------------------------------------------
 
@@ -301,7 +291,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Selection sub-system (delegated to runtime-selection.ts)
   // -------------------------------------------------------------------------
 
-  const selection: SelectionSystem = createSelectionSystem({
+  const selection = createSelectionSystem({
     runtimeState,
     send: config.send,
     log: config.log,
@@ -358,6 +348,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       input.touch.loupeHandle?.update(false, 0, 0);
     },
     resetBattleCrosshair: camera.resetBattleCrosshair,
+    resetScoreDeltas: scoreDelta.reset,
   });
 
   // -------------------------------------------------------------------------
@@ -403,7 +394,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     pointerPlayer,
     showBanner,
     lifeLost,
-    selection,
+    scoreDelta,
     snapshotTerritory,
     saveBattleCrosshair: IS_TOUCH_DEVICE
       ? camera.saveBattleCrosshair
@@ -533,6 +524,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     },
 
     upgradePick,
+    scoreDelta: {
+      show: scoreDelta.show,
+      setPreScores: scoreDelta.setPreScores,
+    },
 
     // Cross-cutting orchestration
     mainLoop,

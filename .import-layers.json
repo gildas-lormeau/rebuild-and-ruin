@@ -194,6 +194,7 @@
       "src/runtime/runtime-input.ts",
       "src/runtime/runtime-phase-ticks.ts",
       "src/runtime/runtime-render.ts",
+      "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-selection.ts",
       "src/runtime/runtime.ts"
     ]

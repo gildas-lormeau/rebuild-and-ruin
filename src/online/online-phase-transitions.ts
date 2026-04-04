@@ -18,11 +18,11 @@ import {
   BUILD_START_STEPS,
   CANNON_START_STEPS,
   executeTransition,
+  gateUpgradePick,
   runBuildEndSequence,
   showBattlePhaseBanner,
   showBuildPhaseBanner,
   showCannonPhaseBanner,
-  showUpgradePickBanner,
 } from "../game/phase-transition-shared.ts";
 import {
   BANNER_PHASE_BUILD,
@@ -381,15 +381,12 @@ export function handleBuildStartTransition(
     });
   };
 
-  if (transitionCtx.upgradePick && state.modern?.pendingUpgradeOffers) {
-    showUpgradePickBanner(transitionCtx.ui.showBanner, () => {
-      if (!transitionCtx.upgradePick!.tryShow(showBannerAndEnterBuild)) {
-        showBannerAndEnterBuild();
-      }
-    });
-    return;
-  }
-  showBannerAndEnterBuild();
+  gateUpgradePick(
+    transitionCtx.ui.showBanner,
+    transitionCtx.upgradePick?.tryShow,
+    !!state.modern?.pendingUpgradeOffers,
+    showBannerAndEnterBuild,
+  );
 }
 
 /** Handle BUILD_END: apply player checkpoint, show score deltas, then life-lost dialog.

@@ -339,8 +339,8 @@ function buildTransitionEndPhaseCtx(): TransitionContext["endPhase"] {
       ctx.session.earlyLifeLostChoices.clear();
     },
     showScoreDeltas: (preScores, onDone) => {
-      runtime.runtimeState.preScores = preScores;
-      runtime.selection.showBuildScoreDeltas(onDone);
+      runtime.scoreDelta.setPreScores(preScores);
+      runtime.scoreDelta.show(onDone);
     },
     setGameOverFrame: (gameOver) => {
       runtime.runtimeState.frame.gameOver = gameOver;

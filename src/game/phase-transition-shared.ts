@@ -86,14 +86,6 @@ export function showBattlePhaseBanner(
   show(text, onDone, true, undefined, BANNER_BATTLE_SUB);
 }
 
-/** Show the upgrade pick banner with its canonical subtitle. */
-export function showUpgradePickBanner(
-  show: BannerShow,
-  onDone: () => void,
-): void {
-  show(BANNER_UPGRADE_PICK, onDone, true, undefined, BANNER_UPGRADE_PICK_SUB);
-}
-
 /** Show the build/repair banner with its canonical subtitle.
  *  `text` varies by context (e.g. "Repair walls" vs "Repair!").
  *  When `modifierText` is provided, it replaces the default subtitle. */
@@ -117,6 +109,34 @@ export function executeTransition<S extends TransitionStep>(
   for (const step of steps) {
     adapters[step]();
   }
+}
+
+/** Gate a callback behind the upgrade-pick dialog (modern mode).
+ *  If there are pending offers and the dialog is shown, `onDone` runs after
+ *  all picks resolve. Otherwise `onDone` runs immediately.
+ *  Used by both host (runtime-phase-ticks) and watcher (online-phase-transitions)
+ *  to share the banner → dialog → proceed sequence. */
+export function gateUpgradePick(
+  show: BannerShow,
+  tryShow: ((onDone: () => void) => boolean) | undefined,
+  hasPendingOffers: boolean,
+  onDone: () => void,
+): void {
+  if (tryShow && hasPendingOffers) {
+    showUpgradePickBanner(show, () => {
+      if (!tryShow(onDone)) onDone();
+    });
+    return;
+  }
+  onDone();
+}
+
+/** Show the upgrade pick banner with its canonical subtitle. */
+export function showUpgradePickBanner(
+  show: BannerShow,
+  onDone: () => void,
+): void {
+  show(BANNER_UPGRADE_PICK, onDone, true, undefined, BANNER_UPGRADE_PICK_SUB);
 }
 
 /** Canonical post-build-end sequence shared by host and watcher.

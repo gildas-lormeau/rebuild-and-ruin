@@ -48,6 +48,7 @@ interface GameLifecycleDeps {
   readonly requestMainLoop: () => void;
   readonly resetTouchForLobby: () => void;
   readonly resetBattleCrosshair: () => void;
+  readonly resetScoreDeltas: () => void;
 }
 
 interface GameLifecycleSystem {
@@ -108,11 +109,8 @@ export function createGameLifecycle(
     runtimeState.castleBuilds = [];
     runtimeState.castleBuildOnDone = null;
     runtimeState.selectionStates.clear();
-    runtimeState.scoreDeltas = [];
-    runtimeState.scoreDeltaTimer = 0;
-    runtimeState.scoreDeltaOnDone = null;
+    deps.resetScoreDeltas();
     runtimeState.directTouchActive = false;
-    runtimeState.preScores = [];
     deps.resetBattleCrosshair();
     resetGameStats();
     camera.resetCamera();
@@ -171,7 +169,7 @@ export function createGameLifecycle(
   // -------------------------------------------------------------------------
 
   function endGame(winner: { id: number }) {
-    runtimeState.scoreDeltaOnDone = null;
+    deps.resetScoreDeltas();
     runtimeState.lifeLostDialog = null;
     camera.clearAllZoomState();
     deps.onEndGame?.(winner, runtimeState.state);
@@ -216,7 +214,7 @@ export function createGameLifecycle(
 
   function returnToLobby(): void {
     clearDemoTimer();
-    runtimeState.scoreDeltaOnDone = null;
+    deps.resetScoreDeltas();
     camera.clearAllZoomState();
     runtimeState.frame.gameOver = undefined;
     runtimeState.mouseJoinedSlot = null;

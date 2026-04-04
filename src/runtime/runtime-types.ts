@@ -279,9 +279,14 @@ export interface RuntimeSelection {
   ) => void;
   startReselection: () => void;
   finishReselection: () => void;
+}
+
+export interface RuntimeScoreDelta {
   /** Show animated score deltas after build phase. `onDone` is invoked exactly once
    *  when the animation finishes (or immediately if there are no deltas to show). */
-  showBuildScoreDeltas: (onDone: () => void) => void;
+  show: (onDone: () => void) => void;
+  /** Set pre-scores directly (online watcher receives them from host). */
+  setPreScores: (scores: readonly number[]) => void;
 }
 
 export interface RuntimeLifeLost {
@@ -327,6 +332,7 @@ export interface GameRuntime {
   selection: RuntimeSelection;
   lifeLost: RuntimeLifeLost;
   upgradePick: RuntimeUpgradePick;
+  scoreDelta: RuntimeScoreDelta;
   sound: SoundSystem;
   haptics: HapticsSystem;
   lobby: RuntimeLobby;

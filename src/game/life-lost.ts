@@ -16,6 +16,14 @@ interface CreateLifeLostDialogDeps extends AutoResolveDeps {
   state: GameState;
 }
 
+interface ResolveAfterLifeLostDeps {
+  state: GameState;
+  continuing: readonly ValidPlayerSlot[];
+  onGameOver: (winner: { id: ValidPlayerSlot }) => void;
+  onReselect: (continuing: readonly ValidPlayerSlot[]) => void;
+  onContinue: () => void;
+}
+
 /** Tick the life-lost dialog. Auto-resolve entries tick their timers;
  *  max timer force-resolves all pending entries.
  *  Returns true when all entries are resolved. */
@@ -81,4 +89,39 @@ export function createLifeLostDialogState(
   }
 
   return { entries, timer: 0 };
+}
+
+/** Determine the game outcome after the life-lost dialog resolves.
+ *  Checks win conditions (last player standing, round limit) and
+ *  dispatches to the appropriate callback. */
+export function resolveAfterLifeLost(deps: ResolveAfterLifeLostDeps): boolean {
+  const { state, continuing, onGameOver, onReselect, onContinue } = deps;
+
+  const alive = state.players.filter((player) => !player.eliminated);
+  if (alive.length <= 1) {
+    const winner =
+      alive[0] ??
+      state.players.reduce((best, player) =>
+        player.score > best.score ? player : best,
+      );
+    onGameOver(winner);
+    return true;
+  }
+
+  if (state.round > state.maxRounds) {
+    const winner = alive.reduce(
+      (best, player) => (player.score > best.score ? player : best),
+      alive[0]!,
+    );
+    onGameOver(winner);
+    return true;
+  }
+
+  if (continuing.length > 0) {
+    onReselect(continuing);
+    return true;
+  }
+
+  onContinue();
+  return true;
 }

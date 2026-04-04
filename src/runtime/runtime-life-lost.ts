@@ -6,10 +6,10 @@
  */
 
 import { type GameMessage, MESSAGE } from "../../server/protocol.ts";
-import { resolveAfterLifeLost } from "../game/game-engine.ts";
 import {
   continuingPlayers,
   createLifeLostDialogState,
+  resolveAfterLifeLost,
   tickLifeLostDialog,
 } from "../game/life-lost.ts";
 import { eliminatePlayer } from "../game/phase-setup.ts";
