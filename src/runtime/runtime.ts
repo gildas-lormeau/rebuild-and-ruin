@@ -123,7 +123,7 @@ export type { GameRuntime } from "./runtime-types.ts";
 export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const { renderer } = config;
   const { container: gameContainer } = renderer;
-  const isOnline = !!config.isOnline;
+  const isOnline = !!config.onlineConfig;
 
   // -------------------------------------------------------------------------
   // Mutable state (shared bag — see runtime-state.ts)
@@ -429,8 +429,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         focused: FOCUS_REMATCH,
       };
     },
-    onEndGame: config.onEndGame
-      ? (winner) => config.onEndGame!(winner, runtimeState.state)
+    onEndGame: config.onlineConfig?.onEndGame
+      ? (winner) => config.onlineConfig!.onEndGame(winner, runtimeState.state)
       : undefined,
     isAllAi: () => runtimeState.lobby.joined.every((j) => !j),
     isModeStopped: () => runtimeState.mode === Mode.STOPPED,
@@ -528,12 +528,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     send: config.send,
     log: config.log,
-    hostNetworking: config.hostNetworking,
-    watcherTiming: config.watcherTiming,
-    extendCrosshairs: config.extendCrosshairs,
-    onLocalCrosshairCollected: config.onLocalCrosshairCollected,
-    tickNonHost: config.tickNonHost,
-    everyTick: config.everyTick,
+    hostNetworking: config.onlineConfig?.hostNetworking,
+    watcherTiming: config.onlineConfig?.watcherTiming,
+    extendCrosshairs: config.onlineConfig?.extendCrosshairs,
+    onLocalCrosshairCollected: config.onlineConfig?.onLocalCrosshairCollected,
+    tickNonHost: config.onlineConfig?.tickNonHost,
+    everyTick: config.onlineConfig?.everyTick,
     render,
     pointerPlayer,
     showBanner,
@@ -665,10 +665,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       },
       network: {
         isOnline,
-        maybeSendAimUpdate: config.maybeSendAimUpdate,
-        tryPlaceCannonAndSend: config.tryPlaceCannonAndSend,
-        tryPlacePieceAndSend: config.tryPlacePieceAndSend,
-        fireAndSend: config.fireAndSend,
+        maybeSendAimUpdate: config.onlineConfig?.maybeSendAimUpdate,
+        tryPlaceCannonAndSend: config.onlineConfig?.tryPlaceCannonAndSend,
+        tryPlacePieceAndSend: config.onlineConfig?.tryPlacePieceAndSend,
+        fireAndSend: config.onlineConfig?.fireAndSend,
         getIsHost: config.getIsHost,
       },
       lobby,

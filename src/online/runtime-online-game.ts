@@ -134,7 +134,6 @@ const watcherTickCtx: WatcherTickContext = {
 // ── Runtime creation ────────────────────────────────────────────────
 const runtime: GameRuntime = createGameRuntime({
   renderer,
-  isOnline: true,
   send,
   // eslint-disable-next-line no-restricted-syntax -- bridge to runtime layer
   getIsHost: () => ctx.session.isHost,
@@ -188,47 +187,48 @@ const runtime: GameRuntime = createGameRuntime({
     send({ type: MESSAGE.SELECT_START, timer: SELECT_TIMER });
   },
 
-  // ── Networking callbacks ──
-  tickNonHost: (dt) => tickWatcher(ctx.watcher, dt, watcherTickCtx),
-  everyTick: (dt) =>
-    tickMigrationAnnouncement(ctx.watcher, runtime.runtimeState.frame, dt),
-  onLocalCrosshairCollected: (ctrl, crosshair) => {
-    if (isHostInContext(ctx.session))
-      broadcastLocalCrosshair(ctrl, crosshair, {
-        lastSentAimTarget: ctx.dedup.aimTarget,
-        send,
-      });
-  },
-  extendCrosshairs: (crosshairs, dt) =>
-    extendWithRemoteCrosshairs(crosshairs, runtime.runtimeState.state, dt, {
-      remoteCrosshairs: ctx.watcher.remoteCrosshairs,
-      watcherCrosshairPos: ctx.watcher.watcherCrosshairPos,
-      remoteHumanSlots: ctx.session.remoteHumanSlots,
-      logThrottled: devLogThrottled,
-    }),
-  hostNetworking: {
-    serializePlayers,
-    createCannonStartMessage,
-    createBattleStartMessage,
-    createBuildStartMessage,
-    remoteCannonPhantoms: () => ctx.watcher.remoteCannonPhantoms,
-    remotePiecePhantoms: () => ctx.watcher.remotePiecePhantoms,
-    lastSentCannonPhantom: () => ctx.dedup.cannonPhantom,
-    lastSentPiecePhantom: () => ctx.dedup.piecePhantom,
-  },
-  watcherTiming: ctx.watcher.timing,
-  maybeSendAimUpdate,
-  tryPlaceCannonAndSend: (ctrl, state, maxSlots) =>
-    tryPlaceCannonAndSend(ctrl, state, maxSlots, send),
-  tryPlacePieceAndSend: (ctrl, state) =>
-    tryPlacePieceAndSend(ctrl, state, send),
-  fireAndSend: (ctrl, state) => fireAndSend(ctrl, state, send),
-  onEndGame: (winner, gameState) => {
-    const payloads = createGameOverPayload(winner, gameState, PLAYER_NAMES);
-    devLog(
-      `endGame winner=${payloads.winnerName} round=${gameState.round} maxRounds=${gameState.maxRounds}`,
-    );
-    if (isHostInContext(ctx.session)) send(payloads.serverPayload);
+  onlineConfig: {
+    tickNonHost: (dt) => tickWatcher(ctx.watcher, dt, watcherTickCtx),
+    everyTick: (dt) =>
+      tickMigrationAnnouncement(ctx.watcher, runtime.runtimeState.frame, dt),
+    onLocalCrosshairCollected: (ctrl, crosshair) => {
+      if (isHostInContext(ctx.session))
+        broadcastLocalCrosshair(ctrl, crosshair, {
+          lastSentAimTarget: ctx.dedup.aimTarget,
+          send,
+        });
+    },
+    extendCrosshairs: (crosshairs, dt) =>
+      extendWithRemoteCrosshairs(crosshairs, runtime.runtimeState.state, dt, {
+        remoteCrosshairs: ctx.watcher.remoteCrosshairs,
+        watcherCrosshairPos: ctx.watcher.watcherCrosshairPos,
+        remoteHumanSlots: ctx.session.remoteHumanSlots,
+        logThrottled: devLogThrottled,
+      }),
+    hostNetworking: {
+      serializePlayers,
+      createCannonStartMessage,
+      createBattleStartMessage,
+      createBuildStartMessage,
+      remoteCannonPhantoms: () => ctx.watcher.remoteCannonPhantoms,
+      remotePiecePhantoms: () => ctx.watcher.remotePiecePhantoms,
+      lastSentCannonPhantom: () => ctx.dedup.cannonPhantom,
+      lastSentPiecePhantom: () => ctx.dedup.piecePhantom,
+    },
+    watcherTiming: ctx.watcher.timing,
+    maybeSendAimUpdate,
+    tryPlaceCannonAndSend: (ctrl, state, maxSlots) =>
+      tryPlaceCannonAndSend(ctrl, state, maxSlots, send),
+    tryPlacePieceAndSend: (ctrl, state) =>
+      tryPlacePieceAndSend(ctrl, state, send),
+    fireAndSend: (ctrl, state) => fireAndSend(ctrl, state, send),
+    onEndGame: (winner, gameState) => {
+      const payloads = createGameOverPayload(winner, gameState, PLAYER_NAMES);
+      devLog(
+        `endGame winner=${payloads.winnerName} round=${gameState.round} maxRounds=${gameState.maxRounds}`,
+      );
+      if (isHostInContext(ctx.session)) send(payloads.serverPayload);
+    },
   },
 });
 

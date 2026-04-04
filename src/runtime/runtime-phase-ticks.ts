@@ -78,20 +78,25 @@ import {
   type RuntimeState,
   setMode,
 } from "./runtime-state.ts";
-import type { RuntimeConfig, RuntimeLifeLost } from "./runtime-types.ts";
+import type {
+  OnlineRuntimeConfig,
+  RuntimeConfig,
+  RuntimeLifeLost,
+} from "./runtime-types.ts";
 
 interface PhaseTicksDeps
-  extends Pick<
-    RuntimeConfig,
-    | "send"
-    | "log"
-    | "hostNetworking"
-    | "watcherTiming"
-    | "extendCrosshairs"
-    | "onLocalCrosshairCollected"
-    | "tickNonHost"
-    | "everyTick"
-  > {
+  extends Pick<RuntimeConfig, "send" | "log">,
+    Partial<
+      Pick<
+        OnlineRuntimeConfig,
+        | "hostNetworking"
+        | "watcherTiming"
+        | "extendCrosshairs"
+        | "onLocalCrosshairCollected"
+        | "tickNonHost"
+        | "everyTick"
+      >
+    > {
   runtimeState: RuntimeState;
 
   // Sibling systems / parent callbacks

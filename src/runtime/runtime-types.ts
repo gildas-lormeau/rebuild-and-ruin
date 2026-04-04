@@ -88,10 +88,67 @@ import type { RuntimeState } from "./runtime-state.ts";
 
 export type { FrameContext } from "../shared/types.ts";
 
+/** Online-only networking deps — bundled into a single object so the
+ *  local/online split is structurally enforced. All fields are required:
+ *  if you're online, you need the full networking surface. */
+export interface OnlineRuntimeConfig {
+  // Phase-tick networking (consumed by runtime-phase-ticks.ts)
+
+  /** Called after local crosshairs are collected; returns extended list (e.g., adds remote human crosshairs). */
+  extendCrosshairs: (crosshairs: Crosshair[], dt: number) => Crosshair[];
+  /** Called per controller during crosshair collection (e.g., sends aim_update to watchers). */
+  onLocalCrosshairCollected: (
+    ctrl: ControllerIdentity,
+    ch: { x: number; y: number },
+    readyCannon: boolean,
+  ) => void;
+  /** Non-host tick handler (watcher logic). */
+  tickNonHost: (dt: number) => void;
+  /** Called every frame regardless of host/non-host (e.g., timed announcements). */
+  everyTick: (dt: number) => void;
+  /** Host-only networking state for tick functions (phantom merging, checkpoints). */
+  hostNetworking: {
+    serializePlayers: (state: GameState) => SerializedPlayer[];
+    createCannonStartMessage: (state: GameState) => ServerMessage;
+    createBattleStartMessage: (
+      state: GameState,
+      flights: readonly BalloonFlight[],
+    ) => ServerMessage;
+    createBuildStartMessage: (state: GameState) => ServerMessage;
+    remoteCannonPhantoms: () => readonly CannonPhantom[];
+    remotePiecePhantoms: () => readonly PiecePhantom[];
+    /** Getter returning the dedup channel — wraps the DedupChannel from
+     *  WatcherTickContext/CannonPhaseNet so the runtime doesn't hold a stale reference. */
+    lastSentCannonPhantom: () => DedupChannel;
+    /** Getter returning the dedup channel — same late-binding pattern as lastSentCannonPhantom. */
+    lastSentPiecePhantom: () => DedupChannel;
+  };
+  /** Watcher timing state (for non-host battle). */
+  watcherTiming: WatcherTimingState;
+
+  // Input networking (consumed by runtime-input.ts via network bag)
+
+  /** Send aim_update for mouse movement. */
+  maybeSendAimUpdate: (x: number, y: number) => void;
+  /** Try to place cannon and send to server. */
+  tryPlaceCannonAndSend: (
+    ctrl: ControllerIdentity & CannonController & InputReceiver,
+    gameState: GameState,
+    max: number,
+  ) => boolean;
+  /** Try to place piece and send to server. */
+  tryPlacePieceAndSend: (
+    ctrl: ControllerIdentity & BuildController & InputReceiver,
+    gameState: GameState,
+  ) => boolean;
+  /** Fire and send to server. */
+  fireAndSend: (ctrl: BattleController, gameState: GameState) => void;
+  /** Hook called when a game ends (before frame payload is set). */
+  onEndGame: (winner: { id: number }, state: GameState) => void;
+}
+
 export interface RuntimeConfig {
   renderer: RendererInterface;
-  /** true for online mode. */
-  isOnline?: boolean;
   /** noop for local, ws.send for online. */
   send: (msg: GameMessage) => void;
   /** Config-level host check: () => true for local play, () => session.isHost for online.
@@ -120,60 +177,8 @@ export interface RuntimeConfig {
   /** local: startGame; online: host sends init. */
   onTickLobbyExpired: () => void;
 
-  // -----------------------------------------------------------------------
-  // Optional networking deps for tick functions (online-host-phases, etc.)
-  // -----------------------------------------------------------------------
-
-  /** Called after local crosshairs are collected; returns extended list (e.g., adds remote human crosshairs). */
-  extendCrosshairs?: (crosshairs: Crosshair[], dt: number) => Crosshair[];
-  /** Called per controller during crosshair collection (e.g., sends aim_update to watchers). */
-  onLocalCrosshairCollected?: (
-    ctrl: ControllerIdentity,
-    ch: { x: number; y: number },
-    readyCannon: boolean,
-  ) => void;
-  /** Optional non-host tick handler (watcher logic). */
-  tickNonHost?: (dt: number) => void;
-  /** Called every frame regardless of host/non-host (e.g., timed announcements). */
-  everyTick?: (dt: number) => void;
-  /** Host-only networking state for tick functions (phantom merging, checkpoints). */
-  hostNetworking?: {
-    serializePlayers: (state: GameState) => SerializedPlayer[];
-    createCannonStartMessage: (state: GameState) => ServerMessage;
-    createBattleStartMessage: (
-      state: GameState,
-      flights: readonly BalloonFlight[],
-    ) => ServerMessage;
-    createBuildStartMessage: (state: GameState) => ServerMessage;
-    remoteCannonPhantoms: () => readonly CannonPhantom[];
-    remotePiecePhantoms: () => readonly PiecePhantom[];
-    /** Getter returning the dedup channel — wraps the DedupChannel from
-     *  WatcherTickContext/CannonPhaseNet so the runtime doesn't hold a stale reference. */
-    lastSentCannonPhantom: () => DedupChannel;
-    /** Getter returning the dedup channel — same late-binding pattern as lastSentCannonPhantom. */
-    lastSentPiecePhantom: () => DedupChannel;
-  };
-  /** Watcher timing state (for non-host battle). */
-  watcherTiming?: WatcherTimingState;
-  /** Send aim_update for mouse movement. */
-  maybeSendAimUpdate?: (x: number, y: number) => void;
-  /** Try to place cannon and send to server. */
-  tryPlaceCannonAndSend?: (
-    ctrl: ControllerIdentity & CannonController & InputReceiver,
-    gameState: GameState,
-    max: number,
-  ) => boolean;
-  /** Try to place piece and send to server. */
-  tryPlacePieceAndSend?: (
-    ctrl: ControllerIdentity & BuildController & InputReceiver,
-    gameState: GameState,
-  ) => boolean;
-  /** Fire and send to server. */
-  fireAndSend?: (ctrl: BattleController, gameState: GameState) => void;
-  /** Room code for lobby overlay. */
-  roomCode?: string;
-  /** Optional hook called when a game ends (before frame payload is set). */
-  onEndGame?: (winner: { id: number }, state: GameState) => void;
+  /** Online networking deps — presence implies online mode (replaces isOnline boolean). */
+  onlineConfig?: OnlineRuntimeConfig;
 }
 
 export interface CameraSystem {
