@@ -16,9 +16,10 @@
  *
  * State access patterns by sub-system:
  *   STANDARD (destructure runtimeState at top):
- *     runtime-selection.ts, runtime-input.ts, runtime-life-lost.ts,
- *     runtime-lobby.ts, runtime-options.ts, runtime-banner.ts,
- *     runtime-render.ts, runtime-phase-ticks.ts
+ *     runtime-banner.ts, runtime-human.ts, runtime-input.ts,
+ *     runtime-life-lost.ts, runtime-lobby.ts, runtime-options.ts,
+ *     runtime-phase-ticks.ts, runtime-render.ts, runtime-score-deltas.ts,
+ *     runtime-selection.ts, runtime-upgrade-pick.ts
  *   BUILDER (runtimeState passed to dep-builder, not to orchestrator):
  *     runtime-game-lifecycle.ts — buildLifecycleDeps receives runtimeState,
  *     createGameLifecycle only sees its deps interface.
