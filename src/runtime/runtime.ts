@@ -31,6 +31,7 @@ import { createHapticsSystem } from "../input/haptics-system.ts";
 import { createSoundSystem } from "../input/sound-system.ts";
 import { precomputeTerrainCache } from "../render/render-map.ts";
 import type { UIContext } from "../render/screen-builders.ts";
+import { createBattleAnimState } from "../shared/battle-types.ts";
 import {
   MAX_FRAME_DT,
   SELECT_ANNOUNCEMENT_DURATION,
@@ -41,6 +42,7 @@ import type { RenderOverlay } from "../shared/overlay-types.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform.ts";
 import { computeGameSeed } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { createTimerAccums } from "../shared/tick-context.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { createGameLifecycle } from "./runtime-game-lifecycle.ts";
@@ -278,7 +280,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Banner sub-system (delegated to runtime-banner.ts)
   // -------------------------------------------------------------------------
 
-  const { showBanner, tickBanner } = createBannerSystem({
+  const {
+    showBanner,
+    tickBanner,
+    reset: resetBanner,
+  } = createBannerSystem({
     runtimeState,
     clearPhaseZoom: camera.clearPhaseZoom,
     log: config.log,
@@ -336,6 +342,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     camera,
     sound,
     selection,
+    banner: { reset: resetBanner },
     render: () => render(),
     clearFrameData,
     requestMainLoop: () => requestAnimationFrame(mainLoop),
@@ -352,6 +359,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     resetDialogs: () => {
       lifeLost.set(null);
       upgradePick.set(null);
+    },
+    resetPhaseState: () => {
+      runtimeState.battleAnim = createBattleAnimState();
+      runtimeState.accum = createTimerAccums();
+    },
+    resetUIMode: () => {
+      runtimeState.paused = false;
+      runtimeState.quitPending = false;
+      runtimeState.optionsReturnMode = null;
+      runtimeState.directTouchActive = false;
     },
   });
 

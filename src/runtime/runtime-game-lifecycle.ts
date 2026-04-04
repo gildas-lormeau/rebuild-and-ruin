@@ -4,12 +4,13 @@
  *
  * Extracted from runtime.ts to keep it a pure composition root.
  * Follows the factory-with-deps pattern used by other runtime-*.ts files.
+ *
+ * This file delegates ALL state mutations through subsystem reset methods
+ * or named deps — it never writes runtimeState fields directly.
  */
 
-import { createBannerState } from "../game/phase-banner.ts";
 import type { SoundSystem } from "../input/sound-system.ts";
 import { gameOverButtonHitTest } from "../render/render-composition.ts";
-import { createBattleAnimState } from "../shared/battle-types.ts";
 import type { PlayerController } from "../shared/controller-interfaces.ts";
 import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/dialog-types.ts";
 import { Mode } from "../shared/game-phase.ts";
@@ -23,7 +24,6 @@ import {
   PLAYER_NAMES,
 } from "../shared/player-config.ts";
 import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "../shared/settings-defs.ts";
-import { createTimerAccums } from "../shared/tick-context.ts";
 import { type GameState } from "../shared/types.ts";
 import { bootstrapGame } from "./runtime-bootstrap.ts";
 import type { RuntimeState } from "./runtime-state.ts";
@@ -37,12 +37,13 @@ interface GameLifecycleDeps {
   readonly showLobby: () => void;
   readonly onEndGame?: (winner: { id: number }, state: GameState) => void;
 
-  // Sub-systems
+  // Sub-systems (created before lifecycle — passed directly)
   readonly camera: Pick<CameraSystem, "resetCamera" | "clearAllZoomState">;
   readonly sound: Pick<SoundSystem, "reset" | "gameOver">;
   readonly selection: { enter: () => void; reset: () => void };
+  readonly banner: { reset: () => void };
 
-  // Late-bound callbacks (resolved at call time via closures)
+  // Late-bound subsystem resets (closures — resolved at call time)
   readonly render: () => void;
   readonly clearFrameData: () => void;
   readonly requestMainLoop: () => void;
@@ -50,6 +51,8 @@ interface GameLifecycleDeps {
   readonly resetBattleCrosshair: () => void;
   readonly resetScoreDeltas: () => void;
   readonly resetDialogs: () => void;
+  readonly resetPhaseState: () => void;
+  readonly resetUIMode: () => void;
 }
 
 interface GameLifecycleSystem {
@@ -68,7 +71,7 @@ const DEMO_RETURN_DELAY_MS = 10_000;
 export function createGameLifecycle(
   deps: GameLifecycleDeps,
 ): GameLifecycleSystem {
-  const { runtimeState, camera, sound, selection } = deps;
+  const { runtimeState, camera, sound, selection, banner } = deps;
 
   // -------------------------------------------------------------------------
   // Game stats
@@ -98,15 +101,11 @@ export function createGameLifecycle(
   function resetUIState(): void {
     clearDemoTimer();
     selection.reset();
-    runtimeState.battleAnim = createBattleAnimState();
-    runtimeState.accum = createTimerAccums();
-    runtimeState.banner = createBannerState();
+    banner.reset();
+    deps.resetPhaseState();
     deps.resetDialogs();
-    runtimeState.paused = false;
-    runtimeState.quitPending = false;
-    runtimeState.optionsReturnMode = null;
+    deps.resetUIMode();
     deps.resetScoreDeltas();
-    runtimeState.directTouchActive = false;
     deps.resetBattleCrosshair();
     resetGameStats();
     camera.resetCamera();

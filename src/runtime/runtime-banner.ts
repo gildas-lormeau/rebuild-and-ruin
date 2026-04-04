@@ -6,6 +6,7 @@
  */
 
 import {
+  createBannerState,
   showBannerTransition,
   tickBannerTransition,
 } from "../game/phase-banner.ts";
@@ -37,6 +38,8 @@ interface BannerSystem {
     subtitle?: string,
   ) => void;
   tickBanner: (dt: number) => void;
+  /** Reset banner state for game restart / rematch. */
+  reset: () => void;
 }
 
 export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
@@ -77,5 +80,9 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     tickBannerTransition(runtimeState.banner, dt, BANNER_DURATION, render);
   }
 
-  return { showBanner, tickBanner };
+  function reset(): void {
+    runtimeState.banner = createBannerState();
+  }
+
+  return { showBanner, tickBanner, reset };
 }
