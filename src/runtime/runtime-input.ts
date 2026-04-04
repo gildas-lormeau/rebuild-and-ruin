@@ -385,7 +385,6 @@ function buildLifeLostClickDeps(
   return {
     get: () => runtimeState.lifeLostDialog,
     click: (x: number, y: number) => {
-      if (!runtimeState.lifeLostDialog) return;
       const hit = hitTest(x, y);
       if (!hit) return;
       const pp = pointerPlayer();
@@ -404,7 +403,6 @@ function buildUpgradePickClickDeps(
   return {
     get: () => runtimeState.upgradePickDialog,
     click: (x: number, y: number) => {
-      if (!runtimeState.upgradePickDialog) return;
       const hit = hitTest(x, y);
       if (!hit) return;
       const pp = pointerPlayer();
