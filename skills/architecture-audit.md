@@ -357,8 +357,8 @@ sufficient for LLM agents to follow correctly.
     DedupChannel's atomic shouldSend() via makeCrosshairDedupKey() (online/online-host-crosshairs.ts:41).
     Do not unify — they serve different network patterns (accumulated vs fire-and-forget).
 
-28. **`optionsReturnMode` null=lobby (editable), non-null=in-game (read-only)** —
-    runtime/runtime-state.ts:94-96 JSDoc documents the inverse semantics. render/settings-ui.ts:114
+28. **`optionsUI.returnMode` null=lobby (editable), non-null=in-game (read-only)** —
+    runtime/runtime-state.ts OptionsUIState JSDoc documents the inverse semantics. render/settings-ui.ts:114
     @param JSDoc repeats it. The value when non-null is the Mode to return to on close.
 
 29. **`modeTickers` is exhaustively typed via `satisfies`** — runtime/runtime.ts:184 uses
