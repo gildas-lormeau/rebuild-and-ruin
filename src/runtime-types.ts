@@ -284,7 +284,7 @@ export interface RuntimeLifeLost {
     eliminated: readonly ValidPlayerSlot[],
   ) => boolean;
   tick: (dt: number) => void;
-  afterResolved: (continuing?: readonly ValidPlayerSlot[]) => boolean;
+  onResolved: (continuing?: readonly ValidPlayerSlot[]) => boolean;
   panelPos: (playerId: ValidPlayerSlot) => { px: number; py: number };
 }
 

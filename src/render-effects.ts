@@ -555,7 +555,7 @@ function crosshairGeometry(
  *  cannon phantoms use per-rect color pairs because they're procedurally drawn
  *  with multiple shapes. Each shape has a normal color and a red-tinted invalid variant. */
 function drawPhantomCannon(
-  canvasCtx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   phantom: {
     readonly row: number;
     readonly col: number;
@@ -573,39 +573,39 @@ function drawPhantomCannon(
   const size = TILE_SIZE * sz;
   const mid = size / 2;
 
-  canvasCtx.save();
-  canvasCtx.globalAlpha = valid
+  overlayCtx.save();
+  overlayCtx.globalAlpha = valid
     ? PHANTOM_CANNON_ALPHA
     : PHANTOM_CANNON_INVALID_ALPHA;
 
   if (isBalloonMode(mode)) {
-    drawBalloonPhantom(canvasCtx, cx, cy, size, valid);
-    canvasCtx.restore();
+    drawBalloonPhantom(overlayCtx, cx, cy, size, valid);
+    overlayCtx.restore();
     return;
   }
 
   // Draw actual cannon sprite at alpha, tinted red if invalid
-  canvasCtx.translate(cx + mid, cy + mid);
-  canvasCtx.rotate(facing);
+  overlayCtx.translate(cx + mid, cy + mid);
+  overlayCtx.rotate(facing);
   if (isSuperMode(mode)) {
-    drawSuperPhantom(canvasCtx, valid);
+    drawSuperPhantom(overlayCtx, valid);
   } else {
     // Normal cannon phantom — symmetric around (0,0)
-    canvasCtx.fillStyle = valid ? "#1a1a1a" : "#3a1111";
-    canvasCtx.fillRect(-10, -5, 20, 16);
-    canvasCtx.fillStyle = valid ? "#333" : "#553333";
-    canvasCtx.fillRect(-12, -3, 4, 8);
-    canvasCtx.fillRect(8, -3, 4, 8);
-    canvasCtx.fillStyle = valid ? "#2a2a2a" : "#4a2222";
-    canvasCtx.fillRect(-10, 0, 20, 2);
-    canvasCtx.fillStyle = valid ? "#555" : "#884444";
-    canvasCtx.fillRect(-2, -11, 4, 17);
-    canvasCtx.fillStyle = valid ? DARK_METAL : "#331111";
-    canvasCtx.fillRect(-1, -11, 2, 2);
-    canvasCtx.fillStyle = valid ? "#777" : "#aa4444";
-    canvasCtx.fillRect(-3, -6, 6, 2);
+    overlayCtx.fillStyle = valid ? "#1a1a1a" : "#3a1111";
+    overlayCtx.fillRect(-10, -5, 20, 16);
+    overlayCtx.fillStyle = valid ? "#333" : "#553333";
+    overlayCtx.fillRect(-12, -3, 4, 8);
+    overlayCtx.fillRect(8, -3, 4, 8);
+    overlayCtx.fillStyle = valid ? "#2a2a2a" : "#4a2222";
+    overlayCtx.fillRect(-10, 0, 20, 2);
+    overlayCtx.fillStyle = valid ? "#555" : "#884444";
+    overlayCtx.fillRect(-2, -11, 4, 17);
+    overlayCtx.fillStyle = valid ? DARK_METAL : "#331111";
+    overlayCtx.fillRect(-1, -11, 2, 2);
+    overlayCtx.fillStyle = valid ? "#777" : "#aa4444";
+    overlayCtx.fillRect(-3, -6, 6, 2);
   }
-  canvasCtx.restore();
+  overlayCtx.restore();
 }
 
 /** Draw a single phantom piece — 3D bevel when valid, red tint + red outline when invalid. */

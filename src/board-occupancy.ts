@@ -82,7 +82,7 @@ export function collectOccupiedTiles(
 
   if (options?.includeCannons) {
     for (const key of collectAllCannonTiles(state, {
-      excludeBalloon: options.excludeBalloonCannons,
+      excludeBalloonCannons: options.excludeBalloonCannons,
     })) {
       occupied.add(key);
     }
@@ -142,12 +142,12 @@ export function collectAllInterior(state: GameState): Set<number> {
 
 export function collectAllCannonTiles(
   state: GameState,
-  options?: { excludeBalloon?: boolean },
+  options?: { excludeBalloonCannons?: boolean },
 ): Set<number> {
   const cannonTiles = new Set<number>();
   for (const player of state.players) {
     for (const cannon of player.cannons) {
-      if (options?.excludeBalloon && isBalloonCannon(cannon)) continue;
+      if (options?.excludeBalloonCannons && isBalloonCannon(cannon)) continue;
       for (const key of computeCannonTileSet(cannon)) cannonTiles.add(key);
     }
   }
@@ -241,7 +241,7 @@ export function computeCardinalObstacleMask(
     }
     if (
       hasCannonAt(state, nr, nc, {
-        excludeBalloon: options?.excludeBalloonCannons,
+        excludeBalloonCannons: options?.excludeBalloonCannons,
       })
     ) {
       obstacles[di] = true;
@@ -270,11 +270,12 @@ export function hasCannonAt(
   state: GameState,
   r: number,
   c: number,
-  options?: { excludeBalloon?: boolean },
+  options?: { excludeBalloonCannons?: boolean },
 ): boolean {
   return state.players.some((player) =>
     player.cannons.some((cannon) => {
-      if (options?.excludeBalloon && isBalloonCannon(cannon)) return false;
+      if (options?.excludeBalloonCannons && isBalloonCannon(cannon))
+        return false;
       return isCannonTile(cannon, r, c);
     }),
   );

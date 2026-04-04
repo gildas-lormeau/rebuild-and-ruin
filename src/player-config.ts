@@ -31,7 +31,9 @@ export type SeedMode = typeof SEED_RANDOM | typeof SEED_CUSTOM;
 
 export interface GameSettings {
   difficulty: number;
+  /** Index into ROUNDS_OPTIONS — not the round-count value itself. */
   rounds: number;
+  /** Index into CANNON_HP_OPTIONS — not the HP value itself. */
   cannonHp: number;
   haptics: number; // 0=off, 1=phase changes only, 2=all
   sound: number; // 0=off, 1=phase changes only, 2=all

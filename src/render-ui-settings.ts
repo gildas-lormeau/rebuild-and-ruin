@@ -463,20 +463,20 @@ function drawControlsTable(
 
 /** Draw the close button (✕) shared by options and controls screens. */
 function drawCloseButton(
-  ctx: CanvasRenderingContext2D,
+  overlayCtx: CanvasRenderingContext2D,
   x: number,
   y: number,
   size: number,
 ): void {
-  ctx.fillStyle = GOLD_BG(OP_IDLE);
-  ctx.fillRect(x, y, size, size);
-  ctx.strokeStyle = GOLD;
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x, y, size, size);
-  ctx.font = FONT_BODY;
-  ctx.fillStyle = GOLD_LIGHT;
-  ctx.textAlign = TEXT_ALIGN_CENTER;
-  ctx.fillText("\u2715", x + size / 2, y + size / 2);
+  overlayCtx.fillStyle = GOLD_BG(OP_IDLE);
+  overlayCtx.fillRect(x, y, size, size);
+  overlayCtx.strokeStyle = GOLD;
+  overlayCtx.lineWidth = 1;
+  overlayCtx.strokeRect(x, y, size, size);
+  overlayCtx.font = FONT_BODY;
+  overlayCtx.fillStyle = GOLD_LIGHT;
+  overlayCtx.textAlign = TEXT_ALIGN_CENTER;
+  overlayCtx.fillText("\u2715", x + size / 2, y + size / 2);
 }
 
 /** Draw a single key cell in the controls table.

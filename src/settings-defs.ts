@@ -31,7 +31,8 @@ export const OPTION_NAMES = [
   "Sound",
   "Game Mode",
 ];
-/** Option indices — positions in the OPTION_NAMES / visible-options arrays. */
+/** Option indices — positions in the OPTION_NAMES / visible-options arrays.
+ *  INVARIANT: Indices must match the order in OPTION_NAMES above. */
 export const OPT_DIFFICULTY = 0;
 export const OPT_ROUNDS = 1;
 export const OPT_CANNON_HP = 2;

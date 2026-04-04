@@ -212,7 +212,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     },
     tryShow,
     tick: tickLifeLostDialogSystem,
-    afterResolved: afterLifeLostResolved,
+    onResolved: afterLifeLostResolved,
     panelPos: lifeLostPanelPos,
     // Extra — needed by game-runtime internals
     sendLifeLostChoice,

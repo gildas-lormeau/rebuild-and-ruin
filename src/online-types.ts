@@ -18,9 +18,10 @@ export interface WatcherNetworkState {
 
 /** Speed multiplier for interpolating remote crosshairs (faster than local to reduce visual lag).
  *  Shared between host (online-host-crosshairs) and watcher (online-watcher-battle). */
-const REMOTE_CROSSHAIR_MULT = 2;
+const REMOTE_CROSSHAIR_MULTIPLIER = 2;
 /** Pre-computed remote crosshair speed (base speed × remote multiplier). */
-export const REMOTE_CROSSHAIR_SPEED = CROSSHAIR_SPEED * REMOTE_CROSSHAIR_MULT;
+export const REMOTE_CROSSHAIR_SPEED =
+  CROSSHAIR_SPEED * REMOTE_CROSSHAIR_MULTIPLIER;
 
 /** Start tracking a new phase timer. Call at the moment a phase begins on the watcher side.
  *  The watcher reconstructs `state.timer` each frame from `(now - phaseStartTime)`. */

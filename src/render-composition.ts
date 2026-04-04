@@ -4,6 +4,11 @@
  * Parameter convention: functions with ≤3 closely-related args use positional
  * parameters; functions with >3 args or heterogeneous config use a `params`
  * object for readability at the call site.
+ *
+ * Coordinate spaces (parameter naming convention across all render-* files):
+ *   - screenX / screenY — raw canvas pixels (CSS × devicePixelRatio)
+ *   - tileX / tileY    — game-grid tile indices (after ÷ TILE_SIZE)
+ *   - overlayCtx       — canvas 2D context for overlay drawing
  */
 
 import type { Impact } from "./battle-types.ts";
