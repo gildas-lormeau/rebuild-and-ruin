@@ -341,7 +341,7 @@ function buildOptionsDeps(
       else options.closeOptions();
     },
     getReturnMode: () => runtimeState.optionsReturnMode,
-    setReturnMode: (mode: unknown) => {
+    setReturnMode: (mode: number | null) => {
       runtimeState.optionsReturnMode = mode as Mode | null;
     },
     changeValue: options.changeOption,

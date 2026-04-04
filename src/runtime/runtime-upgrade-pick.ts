@@ -14,7 +14,10 @@ import {
   UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
 } from "../game/upgrade-pick.ts";
-import type { UpgradePickDialogState } from "../shared/dialog-types.ts";
+import type {
+  UpgradePickDialogState,
+  UpgradePickEntry,
+} from "../shared/dialog-types.ts";
 import { Mode } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isHuman } from "../shared/system-interfaces.ts";
@@ -106,30 +109,27 @@ export function createUpgradePickSystem(
       (entry.focusedCard + dir + entry.offers.length) % entry.offers.length;
   }
 
-  function confirmChoice(playerId: ValidPlayerSlot): void {
-    const entry = findPendingEntry(playerId);
-    if (!entry) return;
-    const choice = entry.offers[entry.focusedCard]!;
+  function resolveEntry(entry: UpgradePickEntry, cardIdx: number): void {
+    entry.focusedCard = cardIdx;
+    const choice = entry.offers[cardIdx]!;
     entry.choice = choice;
     deps.send?.({
       type: MESSAGE.UPGRADE_PICK,
-      playerId,
+      playerId: entry.playerId,
       choice,
     });
+  }
+
+  function confirmChoice(playerId: ValidPlayerSlot): void {
+    const entry = findPendingEntry(playerId);
+    if (entry) resolveEntry(entry, entry.focusedCard);
   }
 
   /** Pick a specific card directly (e.g. from a click on a card). */
   function pickDirect(playerId: ValidPlayerSlot, cardIdx: number): void {
     const entry = findPendingEntry(playerId);
     if (!entry || cardIdx < 0 || cardIdx >= entry.offers.length) return;
-    entry.focusedCard = cardIdx;
-    const choice = entry.offers[cardIdx]!;
-    entry.choice = choice;
-    deps.send?.({
-      type: MESSAGE.UPGRADE_PICK,
-      playerId,
-      choice,
-    });
+    resolveEntry(entry, cardIdx);
   }
 
   function findPendingEntry(playerId: ValidPlayerSlot) {

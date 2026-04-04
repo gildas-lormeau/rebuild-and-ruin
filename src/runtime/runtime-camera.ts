@@ -342,7 +342,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     unzoomForOverlays(state, frameCtx);
     restoreZoomAfterModal(mobileAuto, state, frameCtx);
     handleSelectionZoom(mobileAuto, state, frameCtx);
-    const notTransition = isNotTransition(frameCtx);
+    const notTransition = !frameCtx.isTransition;
     handlePhaseChangeZoom(mobileAuto, state, frameCtx, notTransition);
     followCrosshairInBattle(mobileAuto, state, frameCtx, notTransition);
   }
@@ -404,10 +404,6 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       );
       selectionZoom.pendingVp = null;
     }
-  }
-
-  function isNotTransition(frameCtx: FrameContext): boolean {
-    return !frameCtx.isTransition;
   }
 
   /** Auto-zoom when the game phase changes (mobile only, skip during transitions). */

@@ -237,8 +237,7 @@ function updateFloatingActions(deps: TouchControlsDeps): void {
   if (!deps.floatingActions) return;
   const phase = deps.state?.phase;
   const human = deps.pointerPlayer();
-  const hasPhantom =
-    pointerPhantomValid(phase, human, deps.phantoms) !== undefined;
+  const phantomValid = pointerPhantomValid(phase, human, deps.phantoms);
   // Reset direct-touch flag when leaving placement phases so it doesn't
   // carry over into the next placement phase.
   if (!isPlacementPhase(phase) && deps.directTouchActive) {
@@ -249,7 +248,7 @@ function updateFloatingActions(deps: TouchControlsDeps): void {
     human !== null &&
     deps.mode === Mode.GAME &&
     isPlacementPhase(phase) &&
-    hasPhantom;
+    phantomValid !== undefined;
   if (!visible) {
     deps.floatingActions.update(false, 0, 0, false, false);
     return;
@@ -275,9 +274,7 @@ function updateFloatingActions(deps: TouchControlsDeps): void {
   const { x: cssX, y: cssY } = deps.screenToContainerCSS(sx, sy);
   const nearTop = cssY < deps.containerHeight * 0.15;
   deps.floatingActions.update(true, cssX, cssY, nearTop, deps.leftHanded);
-  deps.floatingActions.setConfirmValid(
-    pointerPhantomValid(phase, human, deps.phantoms) ?? false,
-  );
+  deps.floatingActions.setConfirmValid(phantomValid ?? false);
 }
 
 /** @returns true if phantom valid, false if invalid, undefined if no phantom for this phase. */
