@@ -40,6 +40,9 @@ const runtime = createGameRuntime({
         };
       })()
     : () => {},
+  // Local lobby timer: accumulator counting UP, remaining = max - accum.
+  // Online lobby timer (runtime-online-game.ts) uses wall-clock subtraction instead,
+  // because the server provides an absolute countdown and elapsed offset.
   getLobbyRemaining: () =>
     Math.max(0, LOBBY_TIMER - (runtime.runtimeState.lobby.timerAccum ?? 0)),
   showLobby,

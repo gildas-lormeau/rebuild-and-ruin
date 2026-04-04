@@ -38,6 +38,14 @@ export interface CheckpointAccums {
   grunt: number;
 }
 
+/** Shared deps for all checkpoint apply functions.
+ *
+ *  capturePreState callback pattern (two variants, both call BEFORE player state is overwritten):
+ *    1. Delegated: applyCannonStart / applyBuildStart pass capturePreState into
+ *       applyCommonCheckpoint, which calls it before applyPlayersCheckpoint.
+ *    2. Direct: applyBattleStart / applyBuildEnd call capturePreState?.() inline
+ *       because they have custom post-player-apply logic (territory snapshots, scores).
+ *  Both guarantee: capturePreState runs before any player mutation. */
 export interface CheckpointDeps {
   state: GameState;
   battleAnim: CheckpointBattleAnim;

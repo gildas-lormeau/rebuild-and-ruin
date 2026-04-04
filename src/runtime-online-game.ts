@@ -65,6 +65,8 @@ import { isHostInContext } from "./tick-context.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 
 // ── Client shorthand ───────────────────────────────────────────────
+// Destructured from defaultClient singleton for brevity. All five names
+// reference the same client instance — used throughout this module.
 const { ctx, send, devLog, devLogThrottled, maybeSendAimUpdate } =
   defaultClient;
 // ── DOM singletons (from centralized boundary) ─────────────────────

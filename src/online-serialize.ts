@@ -214,7 +214,7 @@ export function serializePlayers(state: GameState) {
       col: c.col,
       hp: c.hp,
       mode: c.mode,
-      facing: c.facing,
+      facing: c.facing ?? 0,
     })),
     homeTowerIdx: player.homeTower?.index ?? null,
     castleWallTiles: [...player.castleWallTiles],

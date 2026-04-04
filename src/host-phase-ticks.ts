@@ -11,6 +11,12 @@
  * Always destructure net at the top of each tick function for consistency.
  * Use isHostInContext(deps.net) inline — never cache in a local variable
  * (isHost is volatile during host promotion; see online-session.ts).
+ *
+ * PASS 1 / PASS 2 pattern (tickHostCannonPhase & tickHostBuildPhase):
+ *   PASS 1 (per-frame): tick LOCAL controllers only — remote human placements arrive
+ *     via network messages and are applied by the server-event handler, not here.
+ *   PASS 2 (phase end): finalize ALL controllers for phase transition. The finalization
+ *     method differs by role and phase — see CONTRAST comments inside each function.
  */
 
 import { CannonMode } from "./battle-types.ts";

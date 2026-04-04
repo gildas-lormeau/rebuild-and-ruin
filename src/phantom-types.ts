@@ -68,6 +68,7 @@ export function filterAlivePhantoms<T extends { playerId: ValidPlayerSlot }>(
 }
 
 /** Dedup key for cannon phantom network sends. Covers all fields that affect display.
+ *  Format: `"row,col,mode,valid"` where valid is `1` (true) or `0` (false).
  *  Same pattern as piecePhantomKey — both are `(phantom: T) => string` dedup keys
  *  used by dedupChanged() to suppress redundant network sends. */
 export function cannonPhantomKey(phantom: CannonPhantom): string {
@@ -75,6 +76,8 @@ export function cannonPhantomKey(phantom: CannonPhantom): string {
 }
 
 /** Dedup key for piece phantom network sends. Covers position + shape + validity.
+ *  Format: `"row,col,valid,r0:c0;r1:c1;..."` — offsets joined by `:` (within pair)
+ *  and `;` (between pairs). Valid is `1`/`0`.
  *  Same pattern as cannonPhantomKey — more complex key due to variable-length offsets. */
 export function piecePhantomKey(phantom: PiecePhantom): string {
   return `${phantom.row},${phantom.col},${phantom.valid ? 1 : 0},${phantom.offsets.map((offset) => offset.join(":")).join(";")}`;

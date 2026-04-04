@@ -151,6 +151,12 @@ export class AiController extends BaseController implements AiAnimatable {
     return this.strategy.cursorSkill >= 2;
   }
 
+  /** Humanize AI timing: `(base + rng * spread) * delayScale`.
+   *  Typical ranges by phase (before delayScale):
+   *    Selection: 0.8–1.0s base (slow, mimics browsing)
+   *    Build/Cannon: 0.2–0.3s base (fast placement decisions)
+   *    Battle: 0.1–0.2s base (reactive targeting)
+   *  delayScale: ~1.4× easy, 1.0× normal, ~0.65× hard. */
   scaledDelay(base: number, spread: number): number {
     return (base + this.strategy.rng.next() * spread) * this.delayScale;
   }

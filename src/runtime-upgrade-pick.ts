@@ -141,7 +141,9 @@ export function createUpgradePickSystem(
   return {
     tryShow,
     tick,
+    /** Read current dialog state. Used by watcher-mode to sync overlay display. */
     get: () => runtimeState.upgradePickDialog,
+    /** Replace dialog state. Used by watcher-mode to apply host-broadcast state. */
     set: (dialog) => {
       runtimeState.upgradePickDialog = dialog;
     },

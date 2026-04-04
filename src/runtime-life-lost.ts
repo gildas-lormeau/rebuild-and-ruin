@@ -206,7 +206,9 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   }
 
   return {
+    /** Read current dialog state. Used by watcher-mode to sync overlay display. */
     get: () => runtimeState.lifeLostDialog,
+    /** Replace dialog state. Used by watcher-mode to apply host-broadcast state. */
     set: (dialog: LifeLostDialogState | null) => {
       runtimeState.lifeLostDialog = dialog;
     },
