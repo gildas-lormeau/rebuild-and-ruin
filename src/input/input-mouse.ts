@@ -17,6 +17,9 @@ import {
   isTouchSuppressed,
 } from "./input-dispatch.ts";
 
+// Function type export — consumed as type-only import by runtime/
+export type RegisterMouseHandlersFn = (deps: RegisterOnlineInputDeps) => void;
+
 const CLICK_EVENT = "click";
 
 // Note: keyboard checks mode in per-handler switches (different keys per mode).

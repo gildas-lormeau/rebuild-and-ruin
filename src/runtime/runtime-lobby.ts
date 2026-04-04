@@ -1,14 +1,14 @@
-import {
-  computeLobbyLayout,
-  type LobbyHit,
-  lobbyClickHitTest,
+import type {
+  ComputeLobbyLayoutFn,
+  LobbyClickHitTestFn,
+  LobbyHit,
 } from "../render/render-composition.ts";
-import {
-  createLobbyOverlay,
-  lobbyKeyJoin as lobbyKeyJoinShared,
-  lobbySkipStep,
-  tickLobby as tickLobbyShared,
-  type UIContext,
+import type {
+  CreateLobbyOverlayFn,
+  LobbyKeyJoinFn,
+  LobbySkipStepFn,
+  TickLobbyFn,
+  UIContext,
 } from "../render/screen-builders.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import { CANVAS_H, CANVAS_W, TILE_SIZE } from "../shared/grid.ts";
@@ -35,6 +35,14 @@ interface LobbySystemDeps {
   isOnline: boolean;
   onTickLobbyExpired: () => void;
   onLobbySlotJoined: (pid: ValidPlayerSlot) => void;
+
+  // Render-domain functions (injected from composition root)
+  createLobbyOverlay: CreateLobbyOverlayFn;
+  lobbyKeyJoin: LobbyKeyJoinFn;
+  lobbySkipStep: LobbySkipStepFn;
+  tickLobby: TickLobbyFn;
+  computeLobbyLayout: ComputeLobbyLayoutFn;
+  lobbyClickHitTest: LobbyClickHitTestFn;
 }
 
 interface LobbySystem {
@@ -50,14 +58,14 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
 
   function renderLobby(): void {
     if (!runtimeState.lobby.map) deps.refreshLobbySeed();
-    const { map, overlay } = createLobbyOverlay(uiCtx);
+    const { map, overlay } = deps.createLobbyOverlay(uiCtx);
     deps.renderFrame(map, overlay);
   }
 
   function tickLobby(dt: number): void {
     runtimeState.lobby.timerAccum = (runtimeState.lobby.timerAccum ?? 0) + dt;
     renderLobby();
-    tickLobbyShared(uiCtx, () => {
+    deps.tickLobby(uiCtx, () => {
       deps.onTickLobbyExpired();
     });
   }
@@ -73,19 +81,19 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
   }
 
   function lobbyKeyJoin(key: string): boolean {
-    return lobbyKeyJoinShared(uiCtx, key, onLobbyJoin);
+    return deps.lobbyKeyJoin(uiCtx, key, onLobbyJoin);
   }
 
   function lobbyClick(canvasX: number, canvasY: number): boolean {
     if (!runtimeState.lobby.active) return false;
-    const hit: LobbyHit | null = lobbyClickHitTest({
+    const hit: LobbyHit | null = deps.lobbyClickHitTest({
       canvasX,
       canvasY,
       canvasW: CANVAS_W,
       canvasH: CANVAS_H,
       tileSize: TILE_SIZE,
       slotCount: MAX_PLAYERS,
-      computeLayout: computeLobbyLayout,
+      computeLayout: deps.computeLobbyLayout,
     });
     if (!hit) return false;
     if (hit.type === "gear") {
@@ -94,7 +102,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     }
     // Mouse/trackpad can only join one slot (keyboard can join additional slots)
     if (runtimeState.mouseJoinedSlot !== null) {
-      lobbySkipStep(uiCtx);
+      deps.lobbySkipStep(uiCtx);
       return true;
     }
     if (!runtimeState.lobby.joined[hit.slotId]) {
@@ -106,14 +114,14 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
 
   function cursorAt(canvasX: number, canvasY: number): string {
     if (!runtimeState.lobby.active) return CURSOR_DEFAULT;
-    const hit = lobbyClickHitTest({
+    const hit = deps.lobbyClickHitTest({
       canvasX,
       canvasY,
       canvasW: CANVAS_W,
       canvasH: CANVAS_H,
       tileSize: TILE_SIZE,
       slotCount: MAX_PLAYERS,
-      computeLayout: computeLobbyLayout,
+      computeLayout: deps.computeLobbyLayout,
     });
     return hit ? CURSOR_POINTER : CURSOR_DEFAULT;
   }

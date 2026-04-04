@@ -163,5 +163,11 @@
     "online":   ["shared", "game", "render", "runtime"],
     "runtime":  ["shared", "game", "player", "input", "render", "online"],
     "entry":    ["shared", "game", "player", "input", "render", "online", "runtime", "entry"]
-  }
+  },
+  "typeOnlyFrom": {
+    "runtime": ["input", "render"]
+  },
+  "typeOnlyExempt": [
+    "src/runtime/runtime.ts"
+  ]
 }

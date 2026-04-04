@@ -55,6 +55,9 @@ interface GestureState {
   suppressSingleTouch: boolean;
 }
 
+// Function type export — consumed as type-only import by runtime/
+export type RegisterTouchHandlersFn = (deps: RegisterOnlineInputDeps) => void;
+
 export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   const { renderer, coords } = deps;
   const gs = createGestureState();

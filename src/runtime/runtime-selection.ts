@@ -35,7 +35,6 @@ import {
   tickSelectionPhase,
 } from "../game/selection.ts";
 import type { SoundSystem } from "../input/sound-system.ts";
-import { updateSelectionOverlay as syncSelectionOverlayImpl } from "../render/render-composition.ts";
 import { getInterior } from "../shared/board-occupancy.ts";
 import {
   type InputReceiver,
@@ -48,8 +47,10 @@ import {
   WALL_BUILD_INTERVAL,
 } from "../shared/game-constants.ts";
 import { Mode } from "../shared/game-phase.ts";
+import type { RenderOverlay } from "../shared/overlay-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isRemoteHuman, type MutableAccums } from "../shared/tick-context.ts";
+import type { SelectionState } from "../shared/types.ts";
 import { fireOnce } from "../shared/utils.ts";
 import { enterTowerSelection as enterTowerSelectionImpl } from "./runtime-bootstrap.ts";
 import type { RuntimeState } from "./runtime-state.ts";
@@ -70,6 +71,13 @@ interface SelectionSystemDeps {
     | "setSelectionViewport"
   >;
   sound: Pick<SoundSystem, "drumsStart" | "chargeFanfare">;
+
+  /** Render-domain: sync overlay highlights from selectionStates (injected from composition root). */
+  syncSelectionOverlay: (
+    overlay: RenderOverlay,
+    selectionStates: Map<number, SelectionState>,
+    visiblePlayers?: ReadonlySet<number>,
+  ) => void;
 
   // Sibling systems / parent callbacks
   render: () => void;
@@ -163,7 +171,7 @@ export function createSelectionSystem(
         if (isHuman(ctrl)) visible.add(ctrl.playerId);
       }
     }
-    syncSelectionOverlayImpl(
+    deps.syncSelectionOverlay(
       runtimeState.overlay,
       runtimeState.selectionStates,
       visible,

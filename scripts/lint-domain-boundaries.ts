@@ -11,7 +11,7 @@
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { Project } from "ts-morph";
+import { Project, type SourceFile } from "ts-morph";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const CONFIG_PATH = path.join(ROOT, ".domain-boundaries.json");
@@ -19,6 +19,10 @@ const CONFIG_PATH = path.join(ROOT, ".domain-boundaries.json");
 interface Config {
   domains: Record<string, string[]>;
   allowed: Record<string, string[]>;
+  /** Domain pairs where only type-only imports are permitted. */
+  typeOnlyFrom?: Record<string, string[]>;
+  /** Files exempt from typeOnlyFrom (e.g. composition roots). */
+  typeOnlyExempt?: string[];
 }
 
 const config: Config = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
@@ -56,6 +60,39 @@ for (const files of Object.values(config.domains)) {
   }
 }
 
+interface ModuleRef {
+  specifier: string;
+  resolved: SourceFile | undefined;
+  typeOnly: boolean;
+}
+
+/** Collect cross-module references from both imports and re-exports. */
+function getModuleRefs(sf: SourceFile): ModuleRef[] {
+  const refs: ModuleRef[] = [];
+  for (const imp of sf.getImportDeclarations()) {
+    refs.push({
+      specifier: imp.getModuleSpecifierValue(),
+      resolved: imp.getModuleSpecifierSourceFile(),
+      typeOnly:
+        imp.isTypeOnly() ||
+        imp.getNamedImports().every((ni) => ni.isTypeOnly()),
+    });
+  }
+  for (const exp of sf.getExportDeclarations()) {
+    const specifier = exp.getModuleSpecifierValue();
+    if (!specifier) continue; // not a re-export
+    refs.push({
+      specifier,
+      resolved: exp.getModuleSpecifierSourceFile(),
+      typeOnly:
+        exp.isTypeOnly() ||
+        (!exp.isNamespaceExport() &&
+          exp.getNamedExports().every((ne) => ne.isTypeOnly())),
+    });
+  }
+  return refs;
+}
+
 interface Violation {
   file: string;
   fileDomain: string;
@@ -80,13 +117,10 @@ for (const sf of project.getSourceFiles()) {
   const allowed = allowedDeps.get(fileDomain);
   if (!allowed) continue;
 
-  for (const imp of sf.getImportDeclarations()) {
-    const specifier = imp.getModuleSpecifierValue();
-    // Resolve to a project file
-    const resolved = imp.getModuleSpecifierSourceFile();
-    if (!resolved) continue; // external module
+  for (const ref of getModuleRefs(sf)) {
+    if (!ref.resolved) continue; // external module
 
-    const depAbs = resolved.getFilePath();
+    const depAbs = ref.resolved.getFilePath();
     const depRel = path.relative(ROOT, depAbs);
     const depDomain = fileToDomain.get(depRel);
 
@@ -96,24 +130,73 @@ for (const sf of project.getSourceFiles()) {
     // Same-domain imports are always allowed
     if (depDomain === fileDomain) continue;
 
-    const typeOnly = imp.isTypeOnly() ||
-      imp.getNamedImports().every((ni) => ni.isTypeOnly());
-
     if (!allowed.has(depDomain)) {
       violations.push({
         file: relFile,
         fileDomain,
         dep: depRel,
         depDomain,
-        specifier,
-        typeOnly,
+        specifier: ref.specifier,
+        typeOnly: ref.typeOnly,
       });
     }
   }
 }
 
+// ---------------------------------------------------------------------------
+// typeOnlyFrom check: flag value imports across type-only domain boundaries
+// ---------------------------------------------------------------------------
+
+const typeOnlyFrom = new Map<string, Set<string>>();
+if (config.typeOnlyFrom) {
+  for (const [domain, deps] of Object.entries(config.typeOnlyFrom)) {
+    typeOnlyFrom.set(domain, new Set(deps));
+  }
+}
+const typeOnlyExempt = new Set(config.typeOnlyExempt ?? []);
+
+interface TypeOnlyViolation {
+  file: string;
+  fileDomain: string;
+  dep: string;
+  depDomain: string;
+  specifier: string;
+}
+
+const typeOnlyViolations: TypeOnlyViolation[] = [];
+
+for (const sf of project.getSourceFiles()) {
+  const absFile = sf.getFilePath();
+  const relFile = path.relative(ROOT, absFile);
+  const fileDomain = fileToDomain.get(relFile);
+
+  if (!fileDomain) continue;
+  if (typeOnlyExempt.has(relFile)) continue;
+
+  const restricted = typeOnlyFrom.get(fileDomain);
+  if (!restricted) continue;
+
+  for (const ref of getModuleRefs(sf)) {
+    if (!ref.resolved) continue;
+
+    const depRel = path.relative(ROOT, ref.resolved.getFilePath());
+    const depDomain = fileToDomain.get(depRel);
+    if (!depDomain || depDomain === fileDomain) continue;
+    if (!restricted.has(depDomain)) continue;
+    if (ref.typeOnly) continue;
+
+    typeOnlyViolations.push({
+      file: relFile,
+      fileDomain,
+      dep: depRel,
+      depDomain,
+      specifier: ref.specifier,
+    });
+  }
+}
+
 // Report
-if (violations.length === 0) {
+if (violations.length === 0 && typeOnlyViolations.length === 0) {
   console.log(
     `\n✔ No domain boundary violations (${checkedFiles} files, ${checkedImports} imports checked)\n`,
   );
@@ -129,25 +212,47 @@ if (violations.length === 0) {
     for (const f of unassigned) console.log(`  ${f}`);
   }
 } else {
-  // Group by file domain → dep domain
-  const grouped = new Map<string, Violation[]>();
-  for (const violation of violations) {
-    const key = `${violation.fileDomain} → ${violation.depDomain}`;
-    const list = grouped.get(key) ?? [];
-    list.push(violation);
-    grouped.set(key, list);
+  if (violations.length > 0) {
+    const grouped = new Map<string, Violation[]>();
+    for (const violation of violations) {
+      const key = `${violation.fileDomain} → ${violation.depDomain}`;
+      const list = grouped.get(key) ?? [];
+      list.push(violation);
+      grouped.set(key, list);
+    }
+
+    console.log(
+      `\n✘ ${violations.length} domain boundary violation(s) found:\n`,
+    );
+    for (const [edge, items] of [...grouped.entries()].sort()) {
+      console.log(`  ${edge}:`);
+      for (const item of items) {
+        const tag = item.typeOnly ? " (type-only)" : "";
+        console.log(`    ${item.file} → ${item.dep}${tag}`);
+      }
+      console.log();
+    }
   }
 
-  console.log(
-    `\n✘ ${violations.length} domain boundary violation(s) found:\n`,
-  );
-  for (const [edge, items] of [...grouped.entries()].sort()) {
-    console.log(`  ${edge}:`);
-    for (const item of items) {
-      const tag = item.typeOnly ? " (type-only)" : "";
-      console.log(`    ${item.file} → ${item.dep}${tag}`);
+  if (typeOnlyViolations.length > 0) {
+    const grouped = new Map<string, TypeOnlyViolation[]>();
+    for (const violation of typeOnlyViolations) {
+      const key = `${violation.fileDomain} → ${violation.depDomain}`;
+      const list = grouped.get(key) ?? [];
+      list.push(violation);
+      grouped.set(key, list);
     }
-    console.log();
+
+    console.log(
+      `\n✘ ${typeOnlyViolations.length} typeOnlyFrom violation(s) — value imports where only type imports are allowed:\n`,
+    );
+    for (const [edge, items] of [...grouped.entries()].sort()) {
+      console.log(`  ${edge} (type-only required):`);
+      for (const item of items) {
+        console.log(`    ${item.file} → ${item.dep}`);
+      }
+      console.log();
+    }
   }
 
   console.log(

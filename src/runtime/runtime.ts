@@ -28,15 +28,52 @@
 import { snapshotTerritory as snapshotTerritoryImpl } from "../game/battle-system.ts";
 import { generateMap } from "../game/map-generation.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
+import { dispatchPointerMove } from "../input/input-dispatch.ts";
+import { registerKeyboardHandlers } from "../input/input-keyboard.ts";
+import { registerMouseHandlers } from "../input/input-mouse.ts";
+import { registerTouchHandlers } from "../input/input-touch-canvas.ts";
+import {
+  createDpad,
+  createEnemyZoomButton,
+  createFloatingActions,
+  createHomeZoomButton,
+  createQuitButton,
+} from "../input/input-touch-ui.ts";
 import { createSoundSystem } from "../input/sound-system.ts";
 import {
+  computeLobbyLayout,
+  createBannerUi,
+  createOnlineOverlay,
+  createRenderSummaryMessage,
+  createStatusBar,
   gameOverButtonHitTest,
   handleLifeLostDialogClick,
   handleUpgradePickClick,
   lifeLostPanelPos,
+  lobbyClickHitTest,
+  updateSelectionOverlay,
 } from "../render/render-composition.ts";
 import { precomputeTerrainCache } from "../render/render-map.ts";
-import { type UIContext, visibleOptions } from "../render/screen-builders.ts";
+import {
+  controlsScreenHitTest,
+  optionsScreenHitTest,
+} from "../render/render-ui-settings.ts";
+import {
+  closeControls,
+  closeOptions,
+  createControlsOverlay,
+  createLobbyOverlay,
+  createOptionsOverlay,
+  lobbyKeyJoin,
+  lobbySkipStep,
+  showControls,
+  showOptions,
+  tickLobby,
+  togglePause,
+  type UIContext,
+  visibleOptions,
+} from "../render/screen-builders.ts";
+import { cycleOption } from "../render/settings-ui.ts";
 import { createBattleAnimState } from "../shared/battle-types.ts";
 import type { PlayerController } from "../shared/controller-interfaces.ts";
 import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/dialog-types.ts";
@@ -327,6 +364,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     log: config.log,
     camera,
     sound,
+    syncSelectionOverlay: updateSelectionOverlay,
     render: () => render(),
     pointerPlayer,
     startCannonPhase: (onDone) => phaseTicks.startCannonPhase(onDone),
@@ -341,6 +379,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const render = createRenderSystem({
     runtimeState,
+    createBannerUi,
+    createOnlineOverlay,
+    createRenderSummaryMessage,
+    createStatusBar,
     drawFrame: (map, overlay, viewport) =>
       renderer.drawFrame(map, overlay, viewport, performance.now()),
     logThrottled: config.logThrottled,
@@ -616,6 +658,17 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     isOnline: !!config.isOnline,
     getRemoteHumanSlots: config.getRemoteHumanSlots,
     onCloseOptions: config.onCloseOptions,
+    controlsScreenHitTest,
+    optionsScreenHitTest,
+    closeControlsShared: closeControls,
+    closeOptionsShared: closeOptions,
+    createControlsOverlay,
+    createOptionsOverlay,
+    showControlsShared: showControls,
+    showOptionsShared: showOptions,
+    togglePauseShared: togglePause,
+    visibleOptions,
+    cycleOption,
   });
 
   // Initialize lobby system (needs options.showOptions)
@@ -628,6 +681,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     isOnline: !!config.isOnline,
     onTickLobbyExpired: config.onTickLobbyExpired,
     onLobbySlotJoined: config.onLobbySlotJoined,
+    createLobbyOverlay,
+    lobbyKeyJoin,
+    lobbySkipStep,
+    tickLobby,
+    computeLobbyLayout,
+    lobbyClickHitTest,
   });
 
   // -------------------------------------------------------------------------
@@ -638,6 +697,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     renderer,
     gameContainer,
+    dispatchPointerMove,
+    registerKeyboardHandlers,
+    registerMouseHandlers,
+    registerTouchHandlers,
+    createDpad,
+    createQuitButton,
+    createHomeZoomButton,
+    createEnemyZoomButton,
+    createFloatingActions,
     lifeLostDialogClick: (screenX, screenY) => {
       if (!runtimeState.lifeLostDialog) return null;
       return handleLifeLostDialogClick({

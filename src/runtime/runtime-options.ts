@@ -7,24 +7,22 @@
 
 import type { HapticsSystem } from "../input/haptics-system.ts";
 import type { SoundSystem } from "../input/sound-system.ts";
-import {
-  controlsScreenHitTest,
-  HIT_ARROW,
-  HIT_CLOSE,
-  optionsScreenHitTest,
+import type {
+  ControlsScreenHitTestFn,
+  OptionsScreenHitTestFn,
 } from "../render/render-ui-settings.ts";
-import {
-  closeControls as closeControlsShared,
-  closeOptions as closeOptionsShared,
-  createControlsOverlay,
-  createOptionsOverlay,
-  showControls as showControlsShared,
-  showOptions as showOptionsShared,
-  togglePause as togglePauseShared,
-  type UIContext,
-  visibleOptions,
+import type {
+  CloseControlsFn,
+  CloseOptionsFn,
+  CreateControlsOverlayFn,
+  CreateOptionsOverlayFn,
+  ShowControlsFn,
+  ShowOptionsFn,
+  TogglePauseFn,
+  UIContext,
+  VisibleOptionsFn,
 } from "../render/screen-builders.ts";
-import { cycleOption } from "../render/settings-ui.ts";
+import type { CycleOptionFn } from "../render/settings-ui.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "../shared/grid.ts";
 import type { RenderOverlay } from "../shared/overlay-types.ts";
@@ -39,7 +37,12 @@ import {
   MAX_SEED_LENGTH,
   SEED_CUSTOM,
 } from "../shared/player-config.ts";
-import { OPT_CONTROLS, OPT_SEED } from "../shared/settings-defs.ts";
+import {
+  HIT_ARROW,
+  HIT_CLOSE,
+  OPT_CONTROLS,
+  OPT_SEED,
+} from "../shared/settings-defs.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
 
 interface OptionsSystemDeps {
@@ -59,6 +62,19 @@ interface OptionsSystemDeps {
   isOnline: boolean;
   getRemoteHumanSlots: () => ReadonlySet<number>;
   onCloseOptions?: () => void;
+
+  // Render-domain functions (injected from composition root)
+  controlsScreenHitTest: ControlsScreenHitTestFn;
+  optionsScreenHitTest: OptionsScreenHitTestFn;
+  closeControlsShared: CloseControlsFn;
+  closeOptionsShared: CloseOptionsFn;
+  createControlsOverlay: CreateControlsOverlayFn;
+  createOptionsOverlay: CreateOptionsOverlayFn;
+  showControlsShared: ShowControlsFn;
+  showOptionsShared: ShowOptionsFn;
+  togglePauseShared: TogglePauseFn;
+  visibleOptions: VisibleOptionsFn;
+  cycleOption: CycleOptionFn;
 }
 
 export interface OptionsSystem {
@@ -134,7 +150,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function visibleOptionsForCtx(): number[] {
-    return visibleOptions(uiCtx);
+    return deps.visibleOptions(uiCtx);
   }
 
   /** Map cursor row to real option index. */
@@ -146,7 +162,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function changeOption(dir: number): void {
-    cycleOption(
+    deps.cycleOption(
       dir,
       visibleToActualOptionIdx(),
       runtimeState.settings,
@@ -160,19 +176,19 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function renderOptions(): void {
-    const { map, overlay } = createOptionsOverlay(uiCtx);
+    const { map, overlay } = deps.createOptionsOverlay(uiCtx);
     deps.renderFrame(map, overlay);
   }
 
   function showOptions(): void {
-    showOptionsShared(uiCtx);
+    deps.showOptionsShared(uiCtx);
     deps.updateDpad(true);
   }
 
   function closeOptions(): void {
     blurSeedInput();
     const wasInGame = runtimeState.optionsReturnMode !== null;
-    closeOptionsShared(uiCtx);
+    deps.closeOptionsShared(uiCtx);
     if (wasInGame) {
       runtimeState.lastTime = performance.now(); // avoid huge dt on first frame back
     } else {
@@ -183,12 +199,12 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function renderControls(): void {
-    const { map, overlay } = createControlsOverlay(uiCtx);
+    const { map, overlay } = deps.createControlsOverlay(uiCtx);
     deps.renderFrame(map, overlay);
   }
 
   function showControls(): void {
-    showControlsShared(uiCtx);
+    deps.showControlsShared(uiCtx);
     deps.updateDpad(true);
   }
 
@@ -199,14 +215,14 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
         if (kb) ctrl.updateBindings(kb);
       }
     }
-    closeControlsShared(uiCtx);
+    deps.closeControlsShared(uiCtx);
   }
 
   function clickOptions(canvasX: number, canvasY: number): void {
     const W = GRID_COLS * TILE_SIZE;
     const H = GRID_ROWS * TILE_SIZE;
     const visible = visibleOptionsForCtx();
-    const hit = optionsScreenHitTest(
+    const hit = deps.optionsScreenHitTest(
       canvasX / SCALE,
       canvasY / SCALE,
       W,
@@ -235,7 +251,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   function cursorAt(canvasX: number, canvasY: number): string {
     const W = GRID_COLS * TILE_SIZE;
     const H = GRID_ROWS * TILE_SIZE;
-    const hit = optionsScreenHitTest(
+    const hit = deps.optionsScreenHitTest(
       canvasX / SCALE,
       canvasY / SCALE,
       W,
@@ -248,7 +264,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   function controlsHitTest(canvasX: number, canvasY: number) {
     const W = GRID_COLS * TILE_SIZE;
     const H = GRID_ROWS * TILE_SIZE;
-    return controlsScreenHitTest(
+    return deps.controlsScreenHitTest(
       canvasX / SCALE,
       canvasY / SCALE,
       W,
@@ -279,7 +295,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   function togglePause(): boolean {
     // Disable pause when other human players are connected
     if (deps.getRemoteHumanSlots().size > 0) return false;
-    return togglePauseShared(uiCtx);
+    return deps.togglePauseShared(uiCtx);
   }
 
   return {

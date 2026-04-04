@@ -1,16 +1,16 @@
 import type { HapticsSystem } from "../input/haptics-system.ts";
 import type { RegisterOnlineInputDeps } from "../input/input.ts";
-import { dispatchPointerMove } from "../input/input-dispatch.ts";
-import { registerKeyboardHandlers } from "../input/input-keyboard.ts";
-import { registerMouseHandlers } from "../input/input-mouse.ts";
-import { registerTouchHandlers } from "../input/input-touch-canvas.ts";
-import {
-  createDpad,
-  createEnemyZoomButton,
-  createFloatingActions,
-  createHomeZoomButton,
-  createQuitButton,
-  type FloatingActionsHandle,
+import type { DispatchPointerMoveFn } from "../input/input-dispatch.ts";
+import type { RegisterKeyboardHandlersFn } from "../input/input-keyboard.ts";
+import type { RegisterMouseHandlersFn } from "../input/input-mouse.ts";
+import type { RegisterTouchHandlersFn } from "../input/input-touch-canvas.ts";
+import type {
+  CreateDpadFn,
+  CreateEnemyZoomButtonFn,
+  CreateFloatingActionsFn,
+  CreateHomeZoomButtonFn,
+  CreateQuitButtonFn,
+  FloatingActionsHandle,
 } from "../input/input-touch-ui.ts";
 import type { SoundSystem } from "../input/sound-system.ts";
 import {
@@ -37,11 +37,11 @@ import { type GameState } from "../shared/types.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
 import type { CameraSystem } from "./runtime-types.ts";
 
-type DpadHandle = ReturnType<typeof createDpad>;
+type DpadHandle = ReturnType<CreateDpadFn>;
 
-type ZoomButtonHandle = ReturnType<typeof createHomeZoomButton>;
+type ZoomButtonHandle = ReturnType<CreateHomeZoomButtonFn>;
 
-type QuitButtonHandle = ReturnType<typeof createQuitButton>;
+type QuitButtonHandle = ReturnType<CreateQuitButtonFn>;
 
 interface TouchHandles {
   dpad: DpadHandle | null;
@@ -142,6 +142,17 @@ interface InputSystemDeps {
   >;
   readonly haptics: Pick<HapticsSystem, "tap">;
 
+  // Input-domain functions (injected from composition root)
+  readonly dispatchPointerMove: DispatchPointerMoveFn;
+  readonly registerKeyboardHandlers: RegisterKeyboardHandlersFn;
+  readonly registerMouseHandlers: RegisterMouseHandlersFn;
+  readonly registerTouchHandlers: RegisterTouchHandlersFn;
+  readonly createDpad: CreateDpadFn;
+  readonly createQuitButton: CreateQuitButtonFn;
+  readonly createHomeZoomButton: CreateHomeZoomButtonFn;
+  readonly createEnemyZoomButton: CreateEnemyZoomButtonFn;
+  readonly createFloatingActions: CreateFloatingActionsFn;
+
   // Sibling callbacks
   readonly pointerPlayer: () => (PlayerController & InputReceiver) | null;
   readonly withPointerPlayer: (
@@ -215,9 +226,9 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       gameActionDeps,
     );
 
-    registerMouseHandlers(inputDeps);
-    registerKeyboardHandlers(inputDeps);
-    registerTouchHandlers({
+    deps.registerMouseHandlers(inputDeps);
+    deps.registerKeyboardHandlers(inputDeps);
+    deps.registerTouchHandlers({
       ...inputDeps,
       lobby: { ...inputDeps.lobby, keyJoin: undefined },
     });
@@ -513,7 +524,7 @@ function setupDpadAndActions(
 
   const overlayActionDeps = buildOverlayActionDeps(deps, inputDeps);
 
-  touch.dpad = createDpad(
+  touch.dpad = deps.createDpad(
     {
       getState: () => safeState(runtimeState),
       getMode: () => runtimeState.mode,
@@ -597,7 +608,7 @@ function setupZoomButtons(touch: TouchHandles, deps: InputSystemDeps): void {
   const { runtimeState, gameContainer, returnToLobby } = deps;
   const zoomDeps = buildZoomDeps(deps);
 
-  touch.quitButton = createQuitButton(
+  touch.quitButton = deps.createQuitButton(
     {
       getQuitPending: () => runtimeState.quitPending,
       setQuitPending: (quitPending: boolean) => {
@@ -616,8 +627,8 @@ function setupZoomButtons(touch: TouchHandles, deps: InputSystemDeps): void {
     gameContainer,
   );
   touch.quitButton.update(null); // initial state: hidden
-  touch.homeZoomButton = createHomeZoomButton(zoomDeps, gameContainer);
-  touch.enemyZoomButton = createEnemyZoomButton(zoomDeps, gameContainer);
+  touch.homeZoomButton = deps.createHomeZoomButton(zoomDeps, gameContainer);
+  touch.enemyZoomButton = deps.createEnemyZoomButton(zoomDeps, gameContainer);
   touch.homeZoomButton.update(false); // initial state: disabled
   touch.enemyZoomButton.update(false);
 }
@@ -667,7 +678,7 @@ function setupFloatingActions(
   const floatingEl =
     gameContainer.querySelector<HTMLElement>("#floating-actions");
   if (floatingEl) {
-    touch.floatingActions = createFloatingActions(
+    touch.floatingActions = deps.createFloatingActions(
       {
         getState: () => safeState(runtimeState),
         getMode: () => runtimeState.mode,
@@ -680,7 +691,7 @@ function setupFloatingActions(
           const state = runtimeState.state;
           if (!state) return;
           const { x, y } = renderer.clientToSurface(clientX, clientY);
-          dispatchPointerMove(x, y, state, inputDeps);
+          deps.dispatchPointerMove(x, y, state, inputDeps);
         },
       },
       floatingEl,

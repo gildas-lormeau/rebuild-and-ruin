@@ -6,6 +6,7 @@
  */
 
 import type { ControlsPlayer, RenderOverlay } from "../shared/overlay-types.ts";
+import { HIT_ARROW, HIT_CLOSE } from "../shared/settings-defs.ts";
 import {
   BUTTON_FLASH_MS,
   CURSOR_BLINK_MS,
@@ -41,17 +42,34 @@ import {
 } from "./render-ui-theme.ts";
 
 /** Hit-test result for a tap/click on the options screen. */
-type OptionsHit =
+export type OptionsHit =
   | { type: typeof HIT_CLOSE }
   | { type: typeof HIT_ROW; index: number }
   | { type: typeof HIT_ARROW; index: number; dir: -1 | 1 }
   | null;
 
 /** Hit-test result for a tap/click on the controls screen. */
-type ControlsHit =
+export type ControlsHit =
   | { type: typeof HIT_CLOSE }
   | { type: typeof HIT_CELL; playerIdx: number; actionIdx: number }
   | null;
+
+export type OptionsScreenHitTestFn = (
+  x: number,
+  y: number,
+  W: number,
+  H: number,
+  optionCount: number,
+) => OptionsHit;
+
+export type ControlsScreenHitTestFn = (
+  x: number,
+  y: number,
+  W: number,
+  H: number,
+  colCount: number,
+  rowCount: number,
+) => ControlsHit;
 
 const HIT_ROW = "row" as const;
 const HIT_CELL = "cell" as const;
@@ -61,9 +79,6 @@ const CLOSE_BTN_SIZE = 24;
 const CLOSE_BTN_MARGIN = 6;
 /** Width of the tap target around each arrow indicator (◀ / ▶). */
 const ARROW_TAP_W = 28;
-// Options/controls hit-test discriminators
-export const HIT_CLOSE = "close" as const;
-export const HIT_ARROW = "arrow" as const;
 
 /** Hit-test the options screen. Coordinates in tile-pixel space (W×H). */
 export function optionsScreenHitTest(

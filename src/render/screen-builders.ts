@@ -67,6 +67,43 @@ export interface UIContext {
   isOnline?: boolean;
 }
 
+export type CreateOptionsOverlayFn = (ctx: UIContext) => {
+  map: GameMap;
+  overlay: RenderOverlay;
+};
+
+export type ShowOptionsFn = (ctx: UIContext) => void;
+
+export type CloseOptionsFn = (ctx: UIContext) => void;
+
+export type CreateControlsOverlayFn = (ctx: UIContext) => {
+  map: GameMap;
+  overlay: RenderOverlay;
+};
+
+export type ShowControlsFn = (ctx: UIContext) => void;
+
+export type CloseControlsFn = (ctx: UIContext) => void;
+
+export type TogglePauseFn = (ctx: UIContext) => boolean;
+
+export type VisibleOptionsFn = (ctx: UIContext) => number[];
+
+export type CreateLobbyOverlayFn = (ctx: UIContext) => {
+  map: GameMap;
+  overlay: RenderOverlay;
+};
+
+export type LobbyKeyJoinFn = (
+  ctx: UIContext,
+  key: string,
+  onJoin: (pid: ValidPlayerSlot) => void,
+) => boolean;
+
+export type LobbySkipStepFn = (ctx: UIContext) => boolean;
+
+export type TickLobbyFn = (ctx: UIContext, onExpired: () => void) => void;
+
 const CONTROL_ACTION_NAMES: readonly string[] = [
   "Up",
   "Down",

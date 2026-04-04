@@ -5,11 +5,11 @@
  * Extracted from runtime.ts to reduce composition-root fan-out.
  */
 
-import {
-  createBannerUi,
-  createOnlineOverlay,
-  createRenderSummaryMessage,
-  createStatusBar,
+import type {
+  CreateBannerUiFn,
+  CreateOnlineOverlayFn,
+  CreateRenderSummaryMessageFn,
+  CreateStatusBarFn,
 } from "../render/render-composition.ts";
 import type {
   InputReceiver,
@@ -37,6 +37,13 @@ import {
 
 interface RenderSystemDeps {
   readonly runtimeState: RuntimeState;
+
+  // Render-domain functions (injected from composition root, not imported directly)
+  readonly createBannerUi: CreateBannerUiFn;
+  readonly createOnlineOverlay: CreateOnlineOverlayFn;
+  readonly createRenderSummaryMessage: CreateRenderSummaryMessageFn;
+  readonly createStatusBar: CreateStatusBarFn;
+
   readonly drawFrame: (
     map: GameMap,
     overlay: RenderOverlay | undefined,
@@ -80,7 +87,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
     const stateReady = isStateReady(runtimeState);
     deps.logThrottled(
       "render-summary",
-      createRenderSummaryMessage({
+      deps.createRenderSummaryMessage({
         phaseName: stateReady ? Phase[runtimeState.state.phase] : "NONE",
         timer: stateReady ? runtimeState.state.timer : 0,
         crosshairs: chList,
@@ -101,14 +108,14 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       deps.syncCrosshairs(runtimeState.state.battleCountdown <= 0);
     }
 
-    const bannerUi = createBannerUi(
+    const bannerUi = deps.createBannerUi(
       runtimeState.banner.active,
       runtimeState.banner.text,
       runtimeState.banner.progress,
       runtimeState.banner.subtitle,
     );
 
-    runtimeState.overlay = createOnlineOverlay({
+    runtimeState.overlay = deps.createOnlineOverlay({
       previousSelection: runtimeState.overlay.selection,
       state: runtimeState.state,
       banner: runtimeState.banner,
@@ -131,7 +138,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
 
     // Status bar (rendered inside canvas)
     if (runtimeState.overlay.ui) {
-      runtimeState.overlay.ui.statusBar = createStatusBar(
+      runtimeState.overlay.ui.statusBar = deps.createStatusBar(
         runtimeState.state,
         PLAYER_COLORS,
         runtimeState.frameMeta.povPlayerId,

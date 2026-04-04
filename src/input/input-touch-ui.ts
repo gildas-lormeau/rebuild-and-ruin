@@ -38,7 +38,7 @@ import {
   type OverlayActionDeps,
 } from "./input-dispatch.ts";
 
-interface DpadDeps {
+export interface DpadDeps {
   getState: () => GameState | undefined;
   getMode: () => Mode;
   withPointerPlayer: (
@@ -59,7 +59,7 @@ interface DpadDeps {
   overlay: OverlayActionDeps;
 }
 
-interface QuitButtonDeps {
+export interface QuitButtonDeps {
   getQuitPending: () => boolean;
   setQuitPending: (quitPending: boolean) => void;
   setQuitTimer: (quitTimer: number) => void;
@@ -69,7 +69,7 @@ interface QuitButtonDeps {
   isHuman: (ctrl: PlayerController) => boolean;
 }
 
-interface ZoomButtonDeps {
+export interface ZoomButtonDeps {
   getState: () => GameState | undefined;
   getCameraZone: () => number | null;
   setCameraZone: (zone: number | null) => void;
@@ -79,7 +79,7 @@ interface ZoomButtonDeps {
   aimAtZone?: (zone: number) => void;
 }
 
-interface FloatingActionsDeps {
+export interface FloatingActionsDeps {
   getState: () => GameState | undefined;
   getMode: () => Mode;
   withPointerPlayer: (
@@ -112,6 +112,35 @@ export interface FloatingActionsHandle {
   /** Toggle the confirm button's disabled look based on placement validity. */
   setConfirmValid: (valid: boolean) => void;
 }
+
+export type CreateDpadFn = (
+  deps: DpadDeps,
+  container: HTMLElement,
+) => {
+  update: (phase: Phase | null, disableRotate?: boolean) => void;
+  setLeftHanded: (lh: boolean) => void;
+  setConfirmValid: (valid: boolean) => void;
+};
+
+export type CreateQuitButtonFn = (
+  deps: QuitButtonDeps,
+  container: HTMLElement,
+) => { update: (phase?: Phase | null) => void };
+
+export type CreateHomeZoomButtonFn = (
+  deps: ZoomButtonDeps,
+  container: HTMLElement,
+) => { update: (active?: boolean) => void };
+
+export type CreateEnemyZoomButtonFn = (
+  deps: ZoomButtonDeps,
+  container: HTMLElement,
+) => { update: (active?: boolean) => void };
+
+export type CreateFloatingActionsFn = (
+  deps: FloatingActionsDeps,
+  el: HTMLElement,
+) => FloatingActionsHandle;
 
 const CLS_DISABLED = "disabled";
 const CLS_HIDDEN = "hidden";

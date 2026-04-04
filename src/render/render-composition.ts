@@ -69,6 +69,122 @@ interface GameOverLayout {
   menuX: number;
 }
 
+export type CreateBannerUiFn = (
+  active: boolean,
+  text: string,
+  progress: number,
+  subtitle?: string,
+) => { text: string; subtitle?: string; y: number } | undefined;
+
+export type CreateOnlineOverlayFn = (
+  params: OnlineOverlayParams,
+) => RenderOverlay;
+
+/** Parameter object for createOnlineOverlay — extracted so consumers can import the type. */
+export interface OnlineOverlayParams {
+  previousSelection: RenderOverlay["selection"];
+  state: GameState;
+  banner: Pick<
+    BannerState,
+    | "active"
+    | "prevCastles"
+    | "prevTerritory"
+    | "prevWalls"
+    | "prevEntities"
+    | "newTerritory"
+    | "newWalls"
+    | "wallsBeforeSweep"
+  >;
+  battleAnim: {
+    territory: Set<number>[];
+    walls: Set<number>[];
+    flights: ReadonlyArray<{
+      flight: { startX: number; startY: number; endX: number; endY: number };
+      progress: number;
+    }>;
+    impacts: Impact[];
+  };
+  frame: {
+    crosshairs: Array<{
+      x: number;
+      y: number;
+      playerId: ValidPlayerSlot;
+      cannonReady?: boolean;
+    }>;
+    phantoms: RenderOverlay["phantoms"];
+    announcement?: string;
+    gameOver?: GameOverOverlay;
+  };
+  bannerUi?: { text: string; subtitle?: string; y: number };
+  lifeLostDialog: LifeLostDialogState | null;
+  upgradePickDialog: UpgradePickDialogState | null;
+  inBattle: boolean;
+  povPlayerId: ValidPlayerSlot;
+  hasPointerPlayer: boolean;
+  upgradePickInteractiveId: PlayerSlotId;
+  playerNames: ReadonlyArray<string>;
+  playerColors: ReadonlyArray<{ wall: RGB }>;
+  getLifeLostPanelPos: (playerId: ValidPlayerSlot) => {
+    px: number;
+    py: number;
+  };
+}
+
+export type CreateRenderSummaryMessageFn = (params: {
+  phaseName: string;
+  timer: number;
+  crosshairs: Array<{ x: number; y: number; playerId: ValidPlayerSlot }>;
+  piecePhantomsCount: number;
+  cannonPhantomsCount: number;
+  impactsCount: number;
+  cannonballsCount: number;
+  selectionHighlights?: Array<{
+    playerId: ValidPlayerSlot;
+    towerIdx: number;
+    confirmed?: boolean;
+  }>;
+}) => string;
+
+export type CreateStatusBarFn = (
+  state: GameState,
+  playerColors: readonly { interiorLight: RGB }[],
+  povPlayerId?: number,
+  hasPointerPlayer?: boolean,
+) => {
+  round: string;
+  phase: string;
+  timer: string;
+  modifier: string | undefined;
+  upgrades: string[] | undefined;
+  players: {
+    score: number;
+    cannons: number;
+    lives: number;
+    color: RGB;
+    eliminated: boolean;
+  }[];
+};
+
+export type ComputeLobbyLayoutFn = (
+  W: number,
+  H: number,
+  count: number,
+) => { gap: number; rectW: number; rectH: number; rectY: number };
+
+export type LobbyClickHitTestFn = (params: {
+  canvasX: number;
+  canvasY: number;
+  canvasW: number;
+  canvasH: number;
+  tileSize: number;
+  slotCount: number;
+  computeLayout: (
+    W: number,
+    H: number,
+    count: number,
+  ) => { gap: number; rectW: number; rectH: number; rectY: number };
+}) => LobbyHit | null;
+
 const PHASE_LABELS = new Map<Phase, string>([
   [Phase.CASTLE_SELECT, "Select"],
   [Phase.CASTLE_RESELECT, "Select"],
@@ -342,58 +458,9 @@ export function lifeLostPanelPos(
   };
 }
 
-export function createOnlineOverlay(params: {
-  previousSelection: RenderOverlay["selection"];
-  state: GameState;
-  banner: Pick<
-    BannerState,
-    | "active"
-    | "prevCastles"
-    | "prevTerritory"
-    | "prevWalls"
-    | "prevEntities"
-    | "newTerritory"
-    | "newWalls"
-    | "wallsBeforeSweep"
-  >;
-  battleAnim: {
-    territory: Set<number>[];
-    walls: Set<number>[];
-    flights: ReadonlyArray<{
-      flight: { startX: number; startY: number; endX: number; endY: number };
-      progress: number;
-    }>;
-    impacts: Impact[];
-  };
-  frame: {
-    crosshairs: Array<{
-      x: number;
-      y: number;
-      playerId: ValidPlayerSlot;
-      cannonReady?: boolean;
-    }>;
-    phantoms: RenderOverlay["phantoms"];
-    announcement?: string;
-    gameOver?: GameOverOverlay;
-  };
-  bannerUi?: { text: string; subtitle?: string; y: number };
-  lifeLostDialog: LifeLostDialogState | null;
-  upgradePickDialog: UpgradePickDialogState | null;
-  /** True when the game is in battle phase — controls which battle-specific data to include. */
-  inBattle: boolean;
-  /** POV player for filtering per-player UI (combos, status bar upgrades). -1 = show all. */
-  povPlayerId: ValidPlayerSlot;
-  /** When false (all-AI / spectator), skip combo floating text. */
-  hasPointerPlayer: boolean;
-  /** Player ID whose upgrade pick entry accepts local input (-1 = none). */
-  upgradePickInteractiveId: PlayerSlotId;
-  playerNames: ReadonlyArray<string>;
-  playerColors: ReadonlyArray<{ wall: RGB }>;
-  getLifeLostPanelPos: (playerId: ValidPlayerSlot) => {
-    px: number;
-    py: number;
-  };
-}): RenderOverlay {
+export function createOnlineOverlay(
+  params: OnlineOverlayParams,
+): RenderOverlay {
   const {
     previousSelection,
     state,

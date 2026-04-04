@@ -103,6 +103,28 @@ interface QuitFlowDeps {
   isHuman: (ctrl: PlayerController) => boolean;
 }
 
+export interface PointerMoveDeps {
+  withPointerPlayer: (
+    action: (human: PlayerController & InputReceiver) => void,
+  ) => void;
+  coords: {
+    screenToWorld: (x: number, y: number) => WorldPos;
+    pixelToTile: (x: number, y: number) => { row: number; col: number };
+  };
+  gameAction: Pick<
+    GameActionDeps,
+    "getSelectionStates" | "highlightTowerForPlayer" | "isSelectionReady"
+  >;
+  maybeSendAimUpdate: (x: number, y: number) => void;
+}
+
+export type DispatchPointerMoveFn = (
+  x: number,
+  y: number,
+  state: GameState,
+  deps: PointerMoveDeps,
+) => void;
+
 const TOUCH_CLICK_SUPPRESS_MS = 500;
 /** Seconds to wait before second ESC/✕ actually quits.
  *  Used by both keyboard (input-keyboard.ts) and touch (input-touch-ui.ts). */
@@ -392,20 +414,7 @@ export function dispatchPointerMove(
   x: number,
   y: number,
   state: GameState,
-  deps: {
-    withPointerPlayer: (
-      action: (human: PlayerController & InputReceiver) => void,
-    ) => void;
-    coords: {
-      screenToWorld: (x: number, y: number) => WorldPos;
-      pixelToTile: (x: number, y: number) => { row: number; col: number };
-    };
-    gameAction: Pick<
-      GameActionDeps,
-      "getSelectionStates" | "highlightTowerForPlayer" | "isSelectionReady"
-    >;
-    maybeSendAimUpdate: (x: number, y: number) => void;
-  },
+  deps: PointerMoveDeps,
 ): void {
   const { coords, gameAction, maybeSendAimUpdate } = deps;
   if (isSelectionPhase(state.phase)) {

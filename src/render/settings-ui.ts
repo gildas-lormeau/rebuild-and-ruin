@@ -29,6 +29,15 @@ import {
   SOUND_LABELS,
 } from "../shared/settings-defs.ts";
 
+export type CycleOptionFn = (
+  dir: number,
+  optionsCursor: number,
+  settings: GameSettings,
+  optionsReturnMode: unknown,
+  state: { round: number; maxRounds: number } | null,
+  isOnline?: boolean,
+) => void;
+
 export function formatKeyName(key: string): string {
   if (key === KEY_UP) return "\u2191";
   if (key === KEY_DOWN) return "\u2193";
