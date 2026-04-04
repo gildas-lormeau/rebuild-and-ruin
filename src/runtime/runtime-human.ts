@@ -12,7 +12,7 @@ import {
   isHuman,
   type PlayerController,
 } from "../shared/system-interfaces.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 
 interface PointerPlayerLookup {
   /** Return the human controller that owns mouse/touch input, or null in demo mode. */
@@ -32,6 +32,7 @@ export function createPointerPlayerLookup(
 
   function pointerPlayer(): (PlayerController & InputReceiver) | null {
     if (cached !== undefined) return cached;
+    if (!isStateReady(runtimeState)) return (cached = null);
     // Prefer the player who joined via mouse/trackpad
     if (runtimeState.mouseJoinedSlot !== null) {
       const ctrl = runtimeState.controllers.find(

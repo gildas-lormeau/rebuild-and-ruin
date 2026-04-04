@@ -606,6 +606,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     cameraZone = null;
     pinchVp = null;
     lastAutoZoomPhase = null;
+    cachedZoneBounds.clear();
   }
 
   /** Clear all zoom state including per-phase pinch memory.

@@ -481,14 +481,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     setModeStopped: () => {
       runtimeState.mode = Mode.STOPPED;
     },
-    setModeSelection: () => {
-      runtimeState.mode = Mode.SELECTION;
-    },
     clearGameOver: () => {
       runtimeState.frame.gameOver = undefined;
-    },
-    resetLastTime: () => {
-      runtimeState.lastTime = performance.now();
     },
 
     resetAll: () => {

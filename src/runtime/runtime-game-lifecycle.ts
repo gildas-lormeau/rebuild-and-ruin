@@ -26,9 +26,7 @@ interface GameLifecycleDeps {
 
   // Atomic state transitions
   readonly setModeStopped: () => void;
-  readonly setModeSelection: () => void;
   readonly clearGameOver: () => void;
-  readonly resetLastTime: () => void;
 
   // Subsystem resets
   readonly resetAll: () => void;
@@ -121,8 +119,8 @@ export function createGameLifecycle(
     clearDemoTimer();
     deps.clearGameOver();
     startGame();
-    deps.setModeSelection();
-    deps.resetLastTime();
+    // startGame() → enterTowerSelection() already sets mode=SELECTION and
+    // lastTime, but its requestFrame guard skips rAF when mode ≠ STOPPED.
     deps.requestMainLoop();
   }
 

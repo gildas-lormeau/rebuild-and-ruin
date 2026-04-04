@@ -81,24 +81,23 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
   const { runtimeState } = deps;
 
   return function render() {
+    if (!isStateReady(runtimeState)) return;
+
     // Summary log: crosshairs, phantoms, impacts per frame (throttled 1/s)
     const chList = runtimeState.frame.crosshairs ?? [];
     const selH = runtimeState.overlay.selection?.highlights;
-    const stateReady = isStateReady(runtimeState);
     deps.logThrottled(
       "render-summary",
       deps.createRenderSummaryMessage({
-        phaseName: stateReady ? Phase[runtimeState.state.phase] : "NONE",
-        timer: stateReady ? runtimeState.state.timer : 0,
+        phaseName: Phase[runtimeState.state.phase],
+        timer: runtimeState.state.timer,
         crosshairs: chList,
         piecePhantomsCount:
           runtimeState.frame.phantoms?.piecePhantoms?.length ?? 0,
         cannonPhantomsCount:
           runtimeState.frame.phantoms?.cannonPhantoms?.length ?? 0,
         impactsCount: runtimeState.battleAnim.impacts.length,
-        cannonballsCount: stateReady
-          ? runtimeState.state.cannonballs.length
-          : 0,
+        cannonballsCount: runtimeState.state.cannonballs.length,
         selectionHighlights: selH,
       }),
     );
