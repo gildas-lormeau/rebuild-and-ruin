@@ -34,9 +34,9 @@ export function createPointerPlayerLookup(
     if (cached !== undefined) return cached;
     if (!isStateReady(runtimeState)) return (cached = null);
     // Prefer the player who joined via mouse/trackpad
-    if (runtimeState.mouseJoinedSlot !== null) {
+    if (runtimeState.inputTracking.mouseJoinedSlot !== null) {
       const ctrl = runtimeState.controllers.find(
-        (c) => c.playerId === runtimeState.mouseJoinedSlot,
+        (c) => c.playerId === runtimeState.inputTracking.mouseJoinedSlot,
       );
       if (
         ctrl &&

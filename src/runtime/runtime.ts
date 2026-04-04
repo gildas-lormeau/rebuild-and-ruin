@@ -222,7 +222,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         : Phase.CASTLE_SELECT,
       timer: isStateReady(runtimeState) ? runtimeState.state.timer : 0,
       paused: runtimeState.paused,
-      quitPending: runtimeState.quitPending,
+      quitPending: runtimeState.quit.pending,
       hasLifeLostDialog: runtimeState.lifeLostDialog !== null,
       isSelectionReady: isSelectionReady(),
       humanIsReselecting: runtimeState.reselectQueue.includes(
@@ -242,15 +242,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       dt,
       mode: runtimeState.mode,
       paused: runtimeState.paused,
-      quitPending: runtimeState.quitPending,
-      quitTimer: runtimeState.quitTimer,
-      quitMessage: runtimeState.quitMessage,
+      quitPending: runtimeState.quit.pending,
+      quitTimer: runtimeState.quit.timer,
+      quitMessage: runtimeState.quit.message,
       frame: runtimeState.frame,
       setQuitPending: (quitPending: boolean) => {
-        runtimeState.quitPending = quitPending;
+        runtimeState.quit.pending = quitPending;
       },
       setQuitTimer: (quitTimer: number) => {
-        runtimeState.quitTimer = quitTimer;
+        runtimeState.quit.timer = quitTimer;
       },
       render,
       ticks: modeTickers,
@@ -399,10 +399,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   function resetGameStats(): void {
-    runtimeState.gameStats = Array.from({ length: MAX_PLAYERS }, () => ({
-      wallsDestroyed: 0,
-      cannonsKilled: 0,
-    }));
+    runtimeState.scoreDisplay.gameStats = Array.from(
+      { length: MAX_PLAYERS },
+      () => ({
+        wallsDestroyed: 0,
+        cannonsKilled: 0,
+      }),
+    );
   }
 
   function bootstrapNewGame(): void {
@@ -465,7 +468,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
           color: getPlayerColor(player.id).wall,
           eliminated: player.eliminated,
           territory: player.interior.size,
-          stats: runtimeState.gameStats[player.id],
+          stats: runtimeState.scoreDisplay.gameStats[player.id],
         })),
         focused: FOCUS_REMATCH,
       };
@@ -491,9 +494,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       lifeLost.set(null);
       upgradePick.set(null);
       runtimeState.paused = false;
-      runtimeState.quitPending = false;
-      runtimeState.optionsReturnMode = null;
-      runtimeState.directTouchActive = false;
+      runtimeState.quit.pending = false;
+      runtimeState.optionsUI.returnMode = null;
+      runtimeState.inputTracking.directTouchActive = false;
       scoreDelta.reset();
       camera.resetBattleCrosshair();
       resetGameStats();
@@ -508,8 +511,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     resetLifeLostDialog: () => lifeLost.set(null),
     clearAllZoomState: camera.clearAllZoomState,
     resetInputForLobby: () => {
-      runtimeState.mouseJoinedSlot = null;
-      runtimeState.directTouchActive = false;
+      runtimeState.inputTracking.mouseJoinedSlot = null;
+      runtimeState.inputTracking.directTouchActive = false;
       input.touch.floatingActions?.update(false, 0, 0, false, false);
       input.touch.dpad?.update(null);
       input.touch.quitButton?.update(null);
@@ -619,16 +622,16 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     },
     optionsCursor: {
       get value() {
-        return runtimeState.optionsCursor;
+        return runtimeState.optionsUI.cursor;
       },
       set value(value) {
-        runtimeState.optionsCursor = value;
+        runtimeState.optionsUI.cursor = value;
       },
     },
     controlsState: runtimeState.controlsState,
-    getOptionsReturnMode: () => runtimeState.optionsReturnMode,
+    getOptionsReturnMode: () => runtimeState.optionsUI.returnMode,
     setOptionsReturnMode: (mode) => {
-      runtimeState.optionsReturnMode = mode;
+      runtimeState.optionsUI.returnMode = mode;
     },
     lobby: runtimeState.lobby,
     getFrame: () => runtimeState.frame,

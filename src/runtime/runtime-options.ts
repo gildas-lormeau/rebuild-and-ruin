@@ -142,7 +142,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
 
   function focusSeedInput(): void {
     if (!IS_TOUCH_DEVICE || deps.isOnline) return;
-    if (runtimeState.optionsReturnMode !== null) return; // read-only in-game
+    if (runtimeState.optionsUI.returnMode !== null) return; // read-only in-game
     const el = ensureSeedInput();
     el.value = runtimeState.settings.seed;
     runtimeState.settings.seedMode = SEED_CUSTOM;
@@ -160,8 +160,8 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   /** Map cursor row to real option index. */
   function visibleToActualOptionIdx(): number {
     return (
-      visibleOptionsForCtx()[runtimeState.optionsCursor] ??
-      runtimeState.optionsCursor
+      visibleOptionsForCtx()[runtimeState.optionsUI.cursor] ??
+      runtimeState.optionsUI.cursor
     );
   }
 
@@ -170,7 +170,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
       dir,
       visibleToActualOptionIdx(),
       runtimeState.settings,
-      runtimeState.optionsReturnMode,
+      runtimeState.optionsUI.returnMode,
       safeState(runtimeState) ?? null,
       deps.isOnline,
     );
@@ -191,7 +191,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
 
   function closeOptions(): void {
     blurSeedInput();
-    const wasInGame = runtimeState.optionsReturnMode !== null;
+    const wasInGame = runtimeState.optionsUI.returnMode !== null;
     deps.closeOptionsShared(uiCtx);
     if (wasInGame) {
       runtimeState.lastTime = deps.now(); // avoid huge dt on first frame back
@@ -213,7 +213,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function closeControls(): void {
-    if (runtimeState.optionsReturnMode !== null) {
+    if (runtimeState.optionsUI.returnMode !== null) {
       for (const ctrl of runtimeState.controllers) {
         const kb = runtimeState.settings.keyBindings[ctrl.playerId];
         if (kb) ctrl.updateBindings(kb);
@@ -239,7 +239,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
       return;
     }
     // Move cursor to the tapped row
-    runtimeState.optionsCursor = hit.index;
+    runtimeState.optionsUI.cursor = hit.index;
     const realIdx = visible[hit.index] ?? hit.index;
     if (realIdx === OPT_CONTROLS) {
       blurSeedInput();

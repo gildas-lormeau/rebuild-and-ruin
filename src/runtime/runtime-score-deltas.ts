@@ -12,7 +12,7 @@ import { TILE_SIZE } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { towerCenterPx } from "../shared/spatial.ts";
 import { fireOnce } from "../shared/utils.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import type { RuntimeState, ScoreDisplayState } from "./runtime-state.ts";
 
 interface ScoreDeltaDeps {
   readonly runtimeState: RuntimeState;
@@ -37,31 +37,30 @@ interface ScoreDeltaSystem {
 
 export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
   const { runtimeState } = deps;
+  const sd = (): ScoreDisplayState => runtimeState.scoreDisplay;
 
   function capturePreScores(): void {
-    runtimeState.preScores = runtimeState.state.players.map(
-      (player) => player.score,
-    );
+    sd().preScores = runtimeState.state.players.map((player) => player.score);
   }
 
   function setPreScores(scores: readonly number[]): void {
-    runtimeState.preScores = scores;
+    sd().preScores = scores;
   }
 
   function show(onDone: () => void): void {
     // Guard: prevent re-entrancy (onDone callbacks must not restart the display)
-    if (runtimeState.scoreDeltaTimer > 0) {
+    if (sd().deltaTimer > 0) {
       onDone();
       return;
     }
     // Compute score deltas from the build phase (with display coordinates)
-    runtimeState.scoreDeltas = runtimeState.state.players
+    sd().deltas = runtimeState.state.players
       .map((player, i) => {
         const ht = player.homeTower;
         const px = ht ? towerCenterPx(ht) : { x: 0, y: 0 };
         return {
           playerId: i as ValidPlayerSlot,
-          delta: player.score - (runtimeState.preScores[i] ?? 0),
+          delta: player.score - (sd().preScores[i] ?? 0),
           total: player.score,
           cx: px.x,
           cy: px.y - TILE_SIZE, // just above the tower
@@ -73,10 +72,10 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
           !runtimeState.state.players[scoreDelta.playerId]!.eliminated,
       );
 
-    if (runtimeState.scoreDeltas.length > 0) {
+    if (sd().deltas.length > 0) {
       deps.clearPhaseZoom();
-      runtimeState.scoreDeltaTimer = SCORE_DELTA_DISPLAY_TIME;
-      runtimeState.scoreDeltaOnDone = onDone;
+      sd().deltaTimer = SCORE_DELTA_DISPLAY_TIME;
+      sd().deltaOnDone = onDone;
     } else {
       onDone();
     }
@@ -88,25 +87,25 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
    *  Re-entrancy: onDone must NOT call show() — that would restart
    *  the timer and create an infinite display loop. */
   function tick(dt: number): void {
-    if (runtimeState.scoreDeltaTimer <= 0) return;
-    runtimeState.scoreDeltaTimer -= dt;
-    if (runtimeState.scoreDeltaTimer <= 0) {
-      runtimeState.scoreDeltas = [];
-      runtimeState.scoreDeltaTimer = 0;
-      // fireOnce: invokes runtimeState.scoreDeltaOnDone at most once, then clears it
-      fireOnce(runtimeState, "scoreDeltaOnDone");
+    if (sd().deltaTimer <= 0) return;
+    sd().deltaTimer -= dt;
+    if (sd().deltaTimer <= 0) {
+      sd().deltas = [];
+      sd().deltaTimer = 0;
+      // fireOnce: invokes scoreDisplay.deltaOnDone at most once, then clears it
+      fireOnce(runtimeState.scoreDisplay, "deltaOnDone");
     }
   }
 
   function isActive(): boolean {
-    return runtimeState.scoreDeltaOnDone !== null;
+    return sd().deltaOnDone !== null;
   }
 
   function reset(): void {
-    runtimeState.scoreDeltas = [];
-    runtimeState.scoreDeltaTimer = 0;
-    runtimeState.scoreDeltaOnDone = null;
-    runtimeState.preScores = [];
+    sd().deltas = [];
+    sd().deltaTimer = 0;
+    sd().deltaOnDone = null;
+    sd().preScores = [];
   }
 
   return { capturePreScores, setPreScores, show, tick, isActive, reset };

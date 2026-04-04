@@ -42,16 +42,41 @@ import {
   type SelectionState,
 } from "../shared/types.ts";
 
-/**
- * Runtime state access patterns:
- *
- * - Safe path (render, input): `safeState(runtimeState)` → GameState | undefined
- * - Tick path (game logic):    `assertStateReady(runtimeState)` → throws if uninitialized
- * - Guard check:               `isStateReady(runtimeState)` before direct .state access
- *
- * Both `state` and `frameCtx` are guarded by Proxy sentinels that throw on any
- * property access before startGame() runs. Once one is ready, both are ready.
- */
+export interface ScoreDisplayState {
+  deltas: {
+    playerId: ValidPlayerSlot;
+    delta: number;
+    total: number;
+    cx: number;
+    cy: number;
+  }[];
+  deltaTimer: number;
+  deltaOnDone: (() => void) | null;
+  preScores: readonly number[];
+  gameStats: PlayerStats[];
+}
+
+export interface QuitState {
+  pending: boolean;
+  timer: number;
+  message: string;
+}
+
+export interface OptionsUIState {
+  /** If non-null, options screen is open during gameplay and settings are read-only.
+   *  Value is the Mode to return to when options close.
+   *  null = options opened from lobby (settings are editable). */
+  returnMode: Mode | null;
+  cursor: number;
+}
+
+export interface InputTrackingState {
+  /** Player slot joined by mouse/trackpad, or null if none joined yet. */
+  mouseJoinedSlot: number | null;
+  /** True when the player is using direct touch on the canvas (not d-pad). */
+  directTouchActive: boolean;
+}
+
 /** Mutable runtime state bag for the game loop.
  *
  *  SENTINEL GUARD: `state` and `frameCtx` are initialized via Proxy sentinels
@@ -100,37 +125,18 @@ export interface RuntimeState {
   // UI / mode
   mode: Mode;
   paused: boolean;
-  quitPending: boolean;
-  quitTimer: number;
-  quitMessage: string;
-  /** If non-null, options screen is open during gameplay and settings are read-only.
-   *  Value is the Mode to return to when options close.
-   *  null = options opened from lobby (settings are editable). */
-  optionsReturnMode: Mode | null;
-  optionsCursor: number;
+  quit: QuitState;
+  optionsUI: OptionsUIState;
 
   // Settings (mutable object, never reassigned after init)
   settings: GameSettings;
   controlsState: ControlsState;
 
   // Score display
-  scoreDeltas: {
-    playerId: ValidPlayerSlot;
-    delta: number;
-    total: number;
-    cx: number;
-    cy: number;
-  }[];
-  scoreDeltaTimer: number;
-  scoreDeltaOnDone: (() => void) | null;
-  preScores: readonly number[];
-  gameStats: PlayerStats[];
+  scoreDisplay: ScoreDisplayState;
 
   // Input tracking
-  /** Player slot joined by mouse/trackpad, or null if none joined yet. */
-  mouseJoinedSlot: number | null;
-  /** True when the player is using direct touch on the canvas (not d-pad). */
-  directTouchActive: boolean;
+  inputTracking: InputTrackingState;
 }
 
 /** Modes that have tick handlers. STOPPED is handled by early-return. */
@@ -202,23 +208,21 @@ export function createRuntimeState(): RuntimeState {
 
     mode: Mode.STOPPED,
     paused: false,
-    quitPending: false,
-    quitTimer: 0,
-    quitMessage: "",
-    optionsReturnMode: null,
-    optionsCursor: 0,
+    quit: { pending: false, timer: 0, message: "" },
+    optionsUI: { returnMode: null, cursor: 0 },
 
     settings: loadSettings(),
     controlsState: createControlsState(),
 
-    scoreDeltas: [],
-    scoreDeltaTimer: 0,
-    scoreDeltaOnDone: null,
-    preScores: [],
-    gameStats: [],
+    scoreDisplay: {
+      deltas: [],
+      deltaTimer: 0,
+      deltaOnDone: null,
+      preScores: [],
+      gameStats: [],
+    },
 
-    mouseJoinedSlot: null,
-    directTouchActive: false,
+    inputTracking: { mouseJoinedSlot: null, directTouchActive: false },
   };
 }
 

@@ -156,7 +156,7 @@ const runtime: GameRuntime = createGameRuntime({
     send({ type: MESSAGE.SELECT_SLOT, playerId: pid });
   },
   onCloseOptions: () => {
-    if (runtime.runtimeState.optionsReturnMode === null) {
+    if (runtime.runtimeState.optionsUI.returnMode === null) {
       ctx.session.lobbyStartTime = performance.now();
     }
   },

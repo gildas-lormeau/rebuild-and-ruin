@@ -148,10 +148,13 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
     }
 
     // Add score deltas to overlay (shown briefly before Place Cannons banner)
-    if (runtimeState.scoreDeltas.length > 0 && runtimeState.overlay.ui) {
-      runtimeState.overlay.ui.scoreDeltas = runtimeState.scoreDeltas;
+    if (
+      runtimeState.scoreDisplay.deltas.length > 0 &&
+      runtimeState.overlay.ui
+    ) {
+      runtimeState.overlay.ui.scoreDeltas = runtimeState.scoreDisplay.deltas;
       runtimeState.overlay.ui.scoreDeltaProgress =
-        1 - runtimeState.scoreDeltaTimer / SCORE_DELTA_DISPLAY_TIME;
+        1 - runtimeState.scoreDisplay.deltaTimer / SCORE_DELTA_DISPLAY_TIME;
     }
 
     deps.drawFrame(
@@ -167,9 +170,9 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       mode: runtimeState.mode,
       state: runtimeState.state,
       phantoms: runtimeState.frame.phantoms,
-      directTouchActive: runtimeState.directTouchActive,
+      directTouchActive: runtimeState.inputTracking.directTouchActive,
       clearDirectTouch: () => {
-        runtimeState.directTouchActive = false;
+        runtimeState.inputTracking.directTouchActive = false;
       },
       leftHanded: runtimeState.settings.leftHanded,
       pointerPlayer: deps.pointerPlayer,

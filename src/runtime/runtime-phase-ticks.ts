@@ -356,13 +356,13 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           if (evt.type === MESSAGE.WALL_DESTROYED) {
             const stats =
               evt.shooterId !== undefined
-                ? runtimeState.gameStats[evt.shooterId]
+                ? runtimeState.scoreDisplay.gameStats[evt.shooterId]
                 : undefined;
             if (stats) stats.wallsDestroyed++;
           } else if (evt.type === MESSAGE.CANNON_DAMAGED && evt.newHp === 0) {
             const stats =
               evt.shooterId !== undefined
-                ? runtimeState.gameStats[evt.shooterId]
+                ? runtimeState.scoreDisplay.gameStats[evt.shooterId]
                 : undefined;
             if (stats) stats.cannonsKilled++;
           }

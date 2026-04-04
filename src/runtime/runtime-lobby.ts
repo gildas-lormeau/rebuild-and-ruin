@@ -101,12 +101,12 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
       return true;
     }
     // Mouse/trackpad can only join one slot (keyboard can join additional slots)
-    if (runtimeState.mouseJoinedSlot !== null) {
+    if (runtimeState.inputTracking.mouseJoinedSlot !== null) {
       deps.lobbySkipStep(uiCtx);
       return true;
     }
     if (!runtimeState.lobby.joined[hit.slotId]) {
-      runtimeState.mouseJoinedSlot = hit.slotId;
+      runtimeState.inputTracking.mouseJoinedSlot = hit.slotId;
       onLobbyJoin(hit.slotId);
     }
     return true;

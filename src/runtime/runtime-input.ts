@@ -293,9 +293,9 @@ function buildInputDeps(
     rematch: deps.rematch,
     maybeSendAimUpdate: deps.maybeSendAimUpdate ?? (() => {}),
     setDirectTouchActive: (active) => {
-      runtimeState.directTouchActive = active;
+      runtimeState.inputTracking.directTouchActive = active;
     },
-    isDirectTouchActive: () => runtimeState.directTouchActive,
+    isDirectTouchActive: () => runtimeState.inputTracking.directTouchActive,
     coords: coordsDeps,
     lobby: lobbyDeps,
     options: buildOptionsDeps(
@@ -340,9 +340,9 @@ function buildOptionsDeps(
     close: options.closeOptions,
     showControls: options.showControls,
     closeControls: options.closeControls,
-    getCursor: () => runtimeState.optionsCursor,
+    getCursor: () => runtimeState.optionsUI.cursor,
     setCursor: (cursor: number) => {
-      runtimeState.optionsCursor = cursor;
+      runtimeState.optionsUI.cursor = cursor;
     },
     getCount: visibleOptionCount,
     getRealIdx: options.visibleToActualOptionIdx,
@@ -351,9 +351,9 @@ function buildOptionsDeps(
         options.showControls();
       else options.closeOptions();
     },
-    getReturnMode: () => runtimeState.optionsReturnMode,
+    getReturnMode: () => runtimeState.optionsUI.returnMode,
     setReturnMode: (mode: number | null) => {
-      runtimeState.optionsReturnMode = mode as Mode | null;
+      runtimeState.optionsUI.returnMode = mode as Mode | null;
     },
     changeValue: options.changeOption,
     togglePause: options.togglePause,
@@ -455,15 +455,15 @@ function buildQuitDeps(
   runtimeState: RuntimeState,
 ): RegisterOnlineInputDeps["quit"] {
   return {
-    getPending: () => runtimeState.quitPending,
+    getPending: () => runtimeState.quit.pending,
     setPending: (quitPending: boolean) => {
-      runtimeState.quitPending = quitPending;
+      runtimeState.quit.pending = quitPending;
     },
     setTimer: (quitTimer: number) => {
-      runtimeState.quitTimer = quitTimer;
+      runtimeState.quit.timer = quitTimer;
     },
     setMessage: (quitMessage: string) => {
-      runtimeState.quitMessage = quitMessage;
+      runtimeState.quit.message = quitMessage;
     },
   };
 }
@@ -524,7 +524,7 @@ function setupDpadAndActions(
         lobby.lobbyKeyJoin(runtimeState.settings.keyBindings[0]!.confirm),
       getLeftHanded: () => runtimeState.settings.leftHanded,
       clearDirectTouch: () => {
-        runtimeState.directTouchActive = false;
+        runtimeState.inputTracking.directTouchActive = false;
       },
       gameAction: {
         getSelectionStates: () => runtimeState.selectionStates,
@@ -557,8 +557,8 @@ function buildOverlayActionDeps(
       isActive: () => runtimeState.mode === Mode.OPTIONS,
       moveCursor: (dir: -1 | 1) => {
         const count = deps.visibleOptionCount();
-        runtimeState.optionsCursor =
-          (runtimeState.optionsCursor + dir + count) % count;
+        runtimeState.optionsUI.cursor =
+          (runtimeState.optionsUI.cursor + dir + count) % count;
       },
       changeValue: (dir: -1 | 1) => options.changeOption(dir),
       confirm: () => {
@@ -599,15 +599,15 @@ function setupZoomButtons(touch: TouchHandles, deps: InputSystemDeps): void {
 
   touch.quitButton = deps.createQuitButton(
     {
-      getQuitPending: () => runtimeState.quitPending,
+      getQuitPending: () => runtimeState.quit.pending,
       setQuitPending: (quitPending: boolean) => {
-        runtimeState.quitPending = quitPending;
+        runtimeState.quit.pending = quitPending;
       },
       setQuitTimer: (quitTimer: number) => {
-        runtimeState.quitTimer = quitTimer;
+        runtimeState.quit.timer = quitTimer;
       },
       setQuitMessage: (msg: string) => {
-        runtimeState.quitMessage = msg;
+        runtimeState.quit.message = msg;
       },
       showLobby: returnToLobby,
       getControllers: () => runtimeState.controllers,

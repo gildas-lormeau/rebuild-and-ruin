@@ -84,8 +84,8 @@ function showLobby(): void {
   lobby.active = true;
   lobby.timerAccum = 0;
   lobby.map = null; // force fresh seed + map preview
-  runtime.runtimeState.quitPending = false;
-  runtime.runtimeState.optionsReturnMode = null;
+  runtime.runtimeState.quit.pending = false;
+  runtime.runtimeState.optionsUI.returnMode = null;
   runtime.lobby.renderLobby();
   runtime.runtimeState.mode = Mode.LOBBY;
   runtime.runtimeState.lastTime = performance.now();
