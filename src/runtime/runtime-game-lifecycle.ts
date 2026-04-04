@@ -2,61 +2,59 @@
  * Game lifecycle sub-system — owns game start, reset, end, rematch,
  * and return-to-lobby transitions.
  *
- * Extracted from runtime.ts to keep it a pure composition root.
- * Follows the factory-with-deps pattern used by other runtime-*.ts files.
- *
- * This file delegates ALL state mutations through subsystem reset methods
- * or named deps — it never writes runtimeState fields directly.
+ * Pure orchestrator: sequences dep calls without accessing runtimeState
+ * or importing domain constants. All state mutations and domain knowledge
+ * (settings resolution, score rendering, coordinate math) live in the
+ * composition root (runtime.ts) and are injected via deps.
  */
 
-import type { SoundSystem } from "../input/sound-system.ts";
-import { gameOverButtonHitTest } from "../render/render-composition.ts";
-import type { PlayerController } from "../shared/controller-interfaces.ts";
-import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/dialog-types.ts";
-import { Mode } from "../shared/game-phase.ts";
-import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "../shared/grid.ts";
-import {
-  DIFFICULTY_NORMAL,
-  DIFFICULTY_PARAMS,
-  getPlayerColor,
-  MAX_PLAYERS,
-  PLAYER_KEY_BINDINGS,
-  PLAYER_NAMES,
-} from "../shared/player-config.ts";
-import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "../shared/settings-defs.ts";
-import { type GameState } from "../shared/types.ts";
-import { bootstrapGame } from "./runtime-bootstrap.ts";
-import type { RuntimeState } from "./runtime-state.ts";
-import type { CameraSystem } from "./runtime-types.ts";
+/** How long to show the winner screen before auto-returning to lobby in demo mode. */
+
+type GameOverAction = typeof GAME_OVER_REMATCH | typeof GAME_OVER_MENU | null;
 
 interface GameLifecycleDeps {
-  readonly runtimeState: RuntimeState;
-
-  // Config / networking
   readonly log: (msg: string) => void;
-  readonly showLobby: () => void;
-  readonly onEndGame?: (winner: { id: number }, state: GameState) => void;
 
-  // Sub-systems (created before lifecycle — passed directly)
-  readonly camera: Pick<CameraSystem, "resetCamera" | "clearAllZoomState">;
-  readonly sound: Pick<SoundSystem, "reset" | "gameOver">;
-  readonly selection: { enter: () => void; reset: () => void };
-  readonly banner: { reset: () => void };
+  // Game start — composition root resolves settings and calls bootstrapGame
+  readonly bootstrapNewGame: () => void;
 
-  // Late-bound subsystem resets (closures — resolved at call time)
-  readonly render: () => void;
-  readonly clearFrameData: () => void;
-  readonly requestMainLoop: () => void;
-  readonly resetTouchForLobby: () => void;
-  readonly resetBattleCrosshair: () => void;
+  // Game end
+  readonly setGameOverFrame: (winner: { id: number }) => void;
+  readonly onEndGame?: (winner: { id: number }) => void;
+  readonly isAllAi: () => boolean;
+  readonly isModeStopped: () => boolean;
+
+  // Atomic state transitions
+  readonly setModeStopped: () => void;
+  readonly setModeSelection: () => void;
+  readonly clearGameOver: () => void;
+  readonly resetLastTime: () => void;
+
+  // Subsystem resets
+  readonly resetAll: () => void;
   readonly resetScoreDeltas: () => void;
   readonly resetDialogs: () => void;
-  readonly resetPhaseState: () => void;
-  readonly resetUIMode: () => void;
+  readonly clearAllZoomState: () => void;
+  readonly resetCamera: () => void;
+  readonly resetInputForLobby: () => void;
+
+  // Sound
+  readonly soundReset: () => void;
+  readonly soundGameOver: () => void;
+
+  // Rendering / navigation
+  readonly render: () => void;
+  readonly requestMainLoop: () => void;
+  readonly showLobby: () => void;
+
+  // Game over interaction — returns GAME_OVER_REMATCH, GAME_OVER_MENU, or null
+  readonly resolveGameOverAction: (
+    canvasX: number,
+    canvasY: number,
+  ) => GameOverAction;
 }
 
 interface GameLifecycleSystem {
-  resetGameStats: () => void;
   resetUIState: () => void;
   startGame: () => void;
   endGame: (winner: { id: number }) => void;
@@ -65,30 +63,18 @@ interface GameLifecycleSystem {
   gameOverClick: (canvasX: number, canvasY: number) => void;
 }
 
-/** How long to show the winner screen before auto-returning to lobby in demo mode. */
 const DEMO_RETURN_DELAY_MS = 10_000;
+/** Game-over action constants shared with composition root (resolveGameOverAction). */
+export const GAME_OVER_REMATCH = "rematch" as const;
+export const GAME_OVER_MENU = "menu" as const;
 
 export function createGameLifecycle(
   deps: GameLifecycleDeps,
 ): GameLifecycleSystem {
-  const { runtimeState, camera, sound, selection, banner } = deps;
-
   // -------------------------------------------------------------------------
-  // Game stats
+  // Demo timer (lifecycle-local state — not runtimeState)
   // -------------------------------------------------------------------------
 
-  function resetGameStats() {
-    runtimeState.gameStats = Array.from({ length: MAX_PLAYERS }, () => ({
-      wallsDestroyed: 0,
-      cannonsKilled: 0,
-    }));
-  }
-
-  // -------------------------------------------------------------------------
-  // Reset / init
-  // -------------------------------------------------------------------------
-
-  /** Timer for auto-return to lobby in demo mode (all-AI games). */
   let demoReturnTimer: ReturnType<typeof setTimeout> | null = null;
 
   function clearDemoTimer(): void {
@@ -98,149 +84,65 @@ export function createGameLifecycle(
     }
   }
 
+  // -------------------------------------------------------------------------
+  // Lifecycle operations
+  // -------------------------------------------------------------------------
+
   function resetUIState(): void {
     clearDemoTimer();
-    selection.reset();
-    banner.reset();
-    deps.resetPhaseState();
-    deps.resetDialogs();
-    deps.resetUIMode();
-    deps.resetScoreDeltas();
-    deps.resetBattleCrosshair();
-    resetGameStats();
-    camera.resetCamera();
-    sound.reset();
+    deps.resetAll();
   }
 
-  function startGame() {
-    const seed = runtimeState.lobby.seed;
-    deps.log(`[game] seed: ${seed}`);
-
-    const diffParams =
-      DIFFICULTY_PARAMS[runtimeState.settings.difficulty] ??
-      DIFFICULTY_PARAMS[DIFFICULTY_NORMAL]!;
-    const { buildTimer, cannonPlaceTimer, firstRoundCannons } = diffParams;
-    const roundsParam =
-      typeof location !== "undefined"
-        ? Number(new URL(location.href).searchParams.get("rounds"))
-        : 0;
-    const roundsVal =
-      roundsParam > 0
-        ? roundsParam
-        : (ROUNDS_OPTIONS[runtimeState.settings.rounds] ?? ROUNDS_OPTIONS[0]!)
-            .value;
-
-    bootstrapGame({
-      seed,
-      maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),
-      existingMap: runtimeState.lobby.map ?? undefined,
-      maxRounds: roundsVal,
-      cannonMaxHp: (
-        CANNON_HP_OPTIONS[runtimeState.settings.cannonHp] ??
-        CANNON_HP_OPTIONS[0]!
-      ).value,
-      buildTimer,
-      cannonPlaceTimer,
-      firstRoundCannons,
-      gameMode: runtimeState.settings.gameMode,
-      log: deps.log,
-      clearFrameData: deps.clearFrameData,
-      setState: (state: GameState) => {
-        runtimeState.state = state;
-      },
-      setControllers: (controller: readonly PlayerController[]) => {
-        runtimeState.controllers = [...controller];
-      },
-      humanSlots: runtimeState.lobby.joined,
-      keyBindings: runtimeState.settings.keyBindings,
-      difficulty: runtimeState.settings.difficulty,
-      resetUIState,
-      enterSelection: selection.enter,
-    });
+  function startGame(): void {
+    deps.bootstrapNewGame();
   }
 
-  // -------------------------------------------------------------------------
-  // End / rematch / return to lobby
-  // -------------------------------------------------------------------------
-
-  function endGame(winner: { id: number }) {
+  function endGame(winner: { id: number }): void {
     deps.resetScoreDeltas();
     deps.resetDialogs();
-    camera.clearAllZoomState();
-    deps.onEndGame?.(winner, runtimeState.state);
-    sound.reset();
-    sound.gameOver();
-    const name = PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`;
-    runtimeState.frame.gameOver = {
-      winner: name,
-      scores: runtimeState.state.players.map((player) => ({
-        name: PLAYER_NAMES[player.id] ?? `P${player.id + 1}`,
-        score: player.score,
-        color: getPlayerColor(player.id).wall,
-        eliminated: player.eliminated,
-        territory: player.interior.size,
-        stats: runtimeState.gameStats[player.id],
-      })),
-      focused: FOCUS_REMATCH,
-    };
+    deps.clearAllZoomState();
+    deps.onEndGame?.(winner);
+    deps.soundReset();
+    deps.soundGameOver();
+    deps.setGameOverFrame(winner);
     deps.render();
-    runtimeState.mode = Mode.STOPPED;
+    deps.setModeStopped();
 
-    // Demo mode: auto-return to lobby after 10s when all players are AI
     clearDemoTimer();
-    const allAi = runtimeState.lobby.joined.every((j) => !j);
-    if (allAi) {
+    if (deps.isAllAi()) {
       demoReturnTimer = setTimeout(() => {
         demoReturnTimer = null;
-        if (runtimeState.mode === Mode.STOPPED) returnToLobby();
+        if (deps.isModeStopped()) returnToLobby();
       }, DEMO_RETURN_DELAY_MS);
     }
   }
 
-  function rematch() {
+  function rematch(): void {
     clearDemoTimer();
-    camera.resetCamera();
-    runtimeState.frame.gameOver = undefined;
+    deps.resetCamera();
+    deps.clearGameOver();
     startGame();
-    runtimeState.mode = Mode.SELECTION;
-    runtimeState.lastTime = performance.now();
+    deps.setModeSelection();
+    deps.resetLastTime();
     deps.requestMainLoop();
   }
 
   function returnToLobby(): void {
     clearDemoTimer();
     deps.resetScoreDeltas();
-    camera.clearAllZoomState();
-    runtimeState.frame.gameOver = undefined;
-    runtimeState.mouseJoinedSlot = null;
-    runtimeState.directTouchActive = false;
-    deps.resetTouchForLobby();
+    deps.clearAllZoomState();
+    deps.clearGameOver();
+    deps.resetInputForLobby();
     deps.showLobby();
   }
 
   function gameOverClick(canvasX: number, canvasY: number): void {
-    const gameOver = runtimeState.frame.gameOver;
-    if (!gameOver) return;
-    const W = GRID_COLS * TILE_SIZE;
-    const H = GRID_ROWS * TILE_SIZE;
-    const hit = gameOverButtonHitTest(
-      canvasX / SCALE,
-      canvasY / SCALE,
-      W,
-      H,
-      gameOver,
-    );
-    if (hit === FOCUS_REMATCH) rematch();
-    else if (hit === FOCUS_MENU) returnToLobby();
-    else {
-      // Tap outside buttons — use current focus
-      if (gameOver.focused === FOCUS_REMATCH) rematch();
-      else returnToLobby();
-    }
+    const action = deps.resolveGameOverAction(canvasX, canvasY);
+    if (action === GAME_OVER_REMATCH) rematch();
+    else if (action === GAME_OVER_MENU) returnToLobby();
   }
 
   return {
-    resetGameStats,
     resetUIState,
     startGame,
     endGame,

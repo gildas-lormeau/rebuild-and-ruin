@@ -29,23 +29,42 @@ import { snapshotTerritory as snapshotTerritoryImpl } from "../game/battle-syste
 import { generateMap } from "../game/map-generation.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
 import { createSoundSystem } from "../input/sound-system.ts";
+import { gameOverButtonHitTest } from "../render/render-composition.ts";
 import { precomputeTerrainCache } from "../render/render-map.ts";
 import type { UIContext } from "../render/screen-builders.ts";
 import { createBattleAnimState } from "../shared/battle-types.ts";
+import type { PlayerController } from "../shared/controller-interfaces.ts";
+import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/dialog-types.ts";
 import {
   MAX_FRAME_DT,
   SELECT_ANNOUNCEMENT_DURATION,
 } from "../shared/game-constants.ts";
 import { Mode, Phase } from "../shared/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "../shared/grid.ts";
 import type { RenderOverlay } from "../shared/overlay-types.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform.ts";
-import { computeGameSeed } from "../shared/player-config.ts";
+import {
+  computeGameSeed,
+  DIFFICULTY_NORMAL,
+  DIFFICULTY_PARAMS,
+  getPlayerColor,
+  MAX_PLAYERS,
+  PLAYER_KEY_BINDINGS,
+  PLAYER_NAMES,
+} from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "../shared/settings-defs.ts";
 import { createTimerAccums } from "../shared/tick-context.ts";
+import type { GameState } from "../shared/types.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
+import { bootstrapGame } from "./runtime-bootstrap.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
-import { createGameLifecycle } from "./runtime-game-lifecycle.ts";
+import {
+  createGameLifecycle,
+  GAME_OVER_MENU,
+  GAME_OVER_REMATCH,
+} from "./runtime-game-lifecycle.ts";
 import { createPointerPlayerLookup } from "./runtime-human.ts";
 import { createInputSystem } from "./runtime-input.ts";
 import {
@@ -334,19 +353,124 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Game lifecycle (delegated to runtime-game-lifecycle.ts)
   // -------------------------------------------------------------------------
 
+  function resetGameStats(): void {
+    runtimeState.gameStats = Array.from({ length: MAX_PLAYERS }, () => ({
+      wallsDestroyed: 0,
+      cannonsKilled: 0,
+    }));
+  }
+
+  function bootstrapNewGame(): void {
+    const seed = runtimeState.lobby.seed;
+    config.log(`[game] seed: ${seed}`);
+    const diffParams =
+      DIFFICULTY_PARAMS[runtimeState.settings.difficulty] ??
+      DIFFICULTY_PARAMS[DIFFICULTY_NORMAL]!;
+    const { buildTimer, cannonPlaceTimer, firstRoundCannons } = diffParams;
+    const roundsParam =
+      typeof location !== "undefined"
+        ? Number(new URL(location.href).searchParams.get("rounds"))
+        : 0;
+    const roundsVal =
+      roundsParam > 0
+        ? roundsParam
+        : (ROUNDS_OPTIONS[runtimeState.settings.rounds] ?? ROUNDS_OPTIONS[0]!)
+            .value;
+    bootstrapGame({
+      seed,
+      maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),
+      existingMap: runtimeState.lobby.map ?? undefined,
+      maxRounds: roundsVal,
+      cannonMaxHp: (
+        CANNON_HP_OPTIONS[runtimeState.settings.cannonHp] ??
+        CANNON_HP_OPTIONS[0]!
+      ).value,
+      buildTimer,
+      cannonPlaceTimer,
+      firstRoundCannons,
+      gameMode: runtimeState.settings.gameMode,
+      log: config.log,
+      clearFrameData,
+      setState: (state: GameState) => {
+        runtimeState.state = state;
+      },
+      setControllers: (controller: readonly PlayerController[]) => {
+        runtimeState.controllers = [...controller];
+      },
+      humanSlots: runtimeState.lobby.joined,
+      keyBindings: runtimeState.settings.keyBindings,
+      difficulty: runtimeState.settings.difficulty,
+      resetUIState: () => lifecycle.resetUIState(),
+      enterSelection: () => selection.enter(),
+    });
+  }
+
   const lifecycle = createGameLifecycle({
-    runtimeState,
     log: config.log,
-    showLobby: config.showLobby,
-    onEndGame: config.onEndGame,
-    camera,
-    sound,
-    selection,
-    banner: { reset: resetBanner },
-    render: () => render(),
-    clearFrameData,
-    requestMainLoop: () => requestAnimationFrame(mainLoop),
-    resetTouchForLobby: () => {
+
+    bootstrapNewGame,
+
+    setGameOverFrame: (winner) => {
+      const name = PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`;
+      runtimeState.frame.gameOver = {
+        winner: name,
+        scores: runtimeState.state.players.map((player) => ({
+          name: PLAYER_NAMES[player.id] ?? `P${player.id + 1}`,
+          score: player.score,
+          color: getPlayerColor(player.id).wall,
+          eliminated: player.eliminated,
+          territory: player.interior.size,
+          stats: runtimeState.gameStats[player.id],
+        })),
+        focused: FOCUS_REMATCH,
+      };
+    },
+    onEndGame: config.onEndGame
+      ? (winner) => config.onEndGame!(winner, runtimeState.state)
+      : undefined,
+    isAllAi: () => runtimeState.lobby.joined.every((j) => !j),
+    isModeStopped: () => runtimeState.mode === Mode.STOPPED,
+
+    setModeStopped: () => {
+      runtimeState.mode = Mode.STOPPED;
+    },
+    setModeSelection: () => {
+      runtimeState.mode = Mode.SELECTION;
+    },
+    clearGameOver: () => {
+      runtimeState.frame.gameOver = undefined;
+    },
+    resetLastTime: () => {
+      runtimeState.lastTime = performance.now();
+    },
+
+    resetAll: () => {
+      selection.reset();
+      resetBanner();
+      runtimeState.battleAnim = createBattleAnimState();
+      runtimeState.accum = createTimerAccums();
+      lifeLost.set(null);
+      upgradePick.set(null);
+      runtimeState.paused = false;
+      runtimeState.quitPending = false;
+      runtimeState.optionsReturnMode = null;
+      runtimeState.directTouchActive = false;
+      scoreDelta.reset();
+      camera.resetBattleCrosshair();
+      resetGameStats();
+      camera.resetCamera();
+      sound.reset();
+    },
+    resetScoreDeltas: scoreDelta.reset,
+    resetDialogs: () => {
+      lifeLost.set(null);
+      upgradePick.set(null);
+    },
+    clearAllZoomState: camera.clearAllZoomState,
+    resetCamera: camera.resetCamera,
+    resetInputForLobby: () => {
+      runtimeState.mouseJoinedSlot = null;
+      runtimeState.directTouchActive = false;
       input.touch.floatingActions?.update(false, 0, 0, false, false);
       input.touch.dpad?.update(null);
       input.touch.quitButton?.update(null);
@@ -354,21 +478,31 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       input.touch.enemyZoomButton?.update(false);
       input.touch.loupeHandle?.update(false, 0, 0);
     },
-    resetBattleCrosshair: camera.resetBattleCrosshair,
-    resetScoreDeltas: scoreDelta.reset,
-    resetDialogs: () => {
-      lifeLost.set(null);
-      upgradePick.set(null);
-    },
-    resetPhaseState: () => {
-      runtimeState.battleAnim = createBattleAnimState();
-      runtimeState.accum = createTimerAccums();
-    },
-    resetUIMode: () => {
-      runtimeState.paused = false;
-      runtimeState.quitPending = false;
-      runtimeState.optionsReturnMode = null;
-      runtimeState.directTouchActive = false;
+
+    soundReset: sound.reset,
+    soundGameOver: sound.gameOver,
+
+    render: () => render(),
+    requestMainLoop: () => requestAnimationFrame(mainLoop),
+    showLobby: config.showLobby,
+
+    resolveGameOverAction: (canvasX, canvasY) => {
+      const gameOver = runtimeState.frame.gameOver;
+      if (!gameOver) return null;
+      const W = GRID_COLS * TILE_SIZE;
+      const H = GRID_ROWS * TILE_SIZE;
+      const hit = gameOverButtonHitTest(
+        canvasX / SCALE,
+        canvasY / SCALE,
+        W,
+        H,
+        gameOver,
+      );
+      if (hit === FOCUS_REMATCH) return GAME_OVER_REMATCH;
+      if (hit === FOCUS_MENU) return GAME_OVER_MENU;
+      return gameOver.focused === FOCUS_REMATCH
+        ? GAME_OVER_REMATCH
+        : GAME_OVER_MENU;
     },
   });
 
