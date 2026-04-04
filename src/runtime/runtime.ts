@@ -29,9 +29,14 @@ import { snapshotTerritory as snapshotTerritoryImpl } from "../game/battle-syste
 import { generateMap } from "../game/map-generation.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
 import { createSoundSystem } from "../input/sound-system.ts";
-import { gameOverButtonHitTest } from "../render/render-composition.ts";
+import {
+  gameOverButtonHitTest,
+  handleLifeLostDialogClick,
+  handleUpgradePickClick,
+  lifeLostPanelPos,
+} from "../render/render-composition.ts";
 import { precomputeTerrainCache } from "../render/render-map.ts";
-import type { UIContext } from "../render/screen-builders.ts";
+import { type UIContext, visibleOptions } from "../render/screen-builders.ts";
 import { createBattleAnimState } from "../shared/battle-types.ts";
 import type { PlayerController } from "../shared/controller-interfaces.ts";
 import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/dialog-types.ts";
@@ -515,6 +520,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     send: config.send,
     log: config.log,
     render: () => render(),
+    panelPos: (pid) => lifeLostPanelPos(runtimeState.state, pid),
     endGame: lifecycle.endGame,
     startReselection: selection.startReselection,
     advanceToCannonPhase: selection.advanceToCannonPhase,
@@ -632,7 +638,26 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     renderer,
     gameContainer,
-    uiCtx,
+    lifeLostDialogClick: (screenX, screenY) => {
+      if (!runtimeState.lifeLostDialog) return null;
+      return handleLifeLostDialogClick({
+        state: runtimeState.state,
+        lifeLostDialog: runtimeState.lifeLostDialog,
+        screenX,
+        screenY,
+      });
+    },
+    upgradePickClick: (screenX, screenY) => {
+      if (!runtimeState.upgradePickDialog) return null;
+      return handleUpgradePickClick({
+        W: GRID_COLS * TILE_SIZE,
+        H: GRID_ROWS * TILE_SIZE,
+        dialog: runtimeState.upgradePickDialog,
+        screenX,
+        screenY,
+      });
+    },
+    visibleOptionCount: () => visibleOptions(uiCtx).length,
     isOnline: config.isOnline,
     maybeSendAimUpdate: config.maybeSendAimUpdate,
     tryPlaceCannonAndSend: config.tryPlaceCannonAndSend,

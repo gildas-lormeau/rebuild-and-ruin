@@ -14,11 +14,6 @@ import {
 } from "../input/input-touch-ui.ts";
 import type { SoundSystem } from "../input/sound-system.ts";
 import {
-  handleLifeLostDialogClick,
-  handleUpgradePickClick,
-} from "../render/render-composition.ts";
-import { type UIContext, visibleOptions } from "../render/screen-builders.ts";
-import {
   type InputReceiver,
   isHuman,
   type PlayerController,
@@ -30,7 +25,6 @@ import {
   type ResolvedChoice,
 } from "../shared/dialog-types.ts";
 import { Action, Mode } from "../shared/game-phase.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
 import type {
   LoupeHandle,
   RendererInterface,
@@ -62,7 +56,17 @@ interface InputSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly renderer: RendererInterface;
   readonly gameContainer: HTMLElement;
-  readonly uiCtx: UIContext;
+
+  // Render-layer hit tests (injected from composition root, not imported directly)
+  readonly lifeLostDialogClick: (
+    screenX: number,
+    screenY: number,
+  ) => { playerId: ValidPlayerSlot; choice: ResolvedChoice } | null;
+  readonly upgradePickClick: (
+    screenX: number,
+    screenY: number,
+  ) => { playerId: ValidPlayerSlot; cardIdx: number } | null;
+  readonly visibleOptionCount: () => number;
 
   // Config / networking
   readonly isOnline?: boolean;
@@ -272,7 +276,11 @@ function buildInputDeps(
     isDirectTouchActive: () => runtimeState.directTouchActive,
     coords: coordsDeps,
     lobby: lobbyDeps,
-    options: buildOptionsDeps(runtimeState, deps.options, deps.uiCtx),
+    options: buildOptionsDeps(
+      runtimeState,
+      deps.options,
+      deps.visibleOptionCount,
+    ),
     dialogAction: buildDialogActionHandler(
       runtimeState,
       deps.lifeLost,
@@ -282,11 +290,13 @@ function buildInputDeps(
       runtimeState,
       deps.pointerPlayer,
       deps.lifeLost,
+      deps.lifeLostDialogClick,
     ),
     upgradePick: buildUpgradePickClickDeps(
       runtimeState,
       deps.pointerPlayer,
       deps.upgradePick,
+      deps.upgradePickClick,
     ),
     gameOver: buildGameOverDeps(runtimeState, deps.render, deps.gameOverClick),
     gameAction: gameActionDeps,
@@ -297,7 +307,7 @@ function buildInputDeps(
 function buildOptionsDeps(
   runtimeState: RuntimeState,
   options: InputSystemDeps["options"],
-  uiCtx: UIContext,
+  visibleOptionCount: () => number,
 ): RegisterOnlineInputDeps["options"] {
   return {
     show: options.showOptions,
@@ -312,7 +322,7 @@ function buildOptionsDeps(
     setCursor: (cursor: number) => {
       runtimeState.optionsCursor = cursor;
     },
-    getCount: () => visibleOptions(uiCtx).length,
+    getCount: visibleOptionCount,
     getRealIdx: options.visibleToActualOptionIdx,
     confirmOption: () => {
       if (options.visibleToActualOptionIdx() === OPT_CONTROLS)
@@ -370,17 +380,13 @@ function buildLifeLostClickDeps(
   runtimeState: RuntimeState,
   pointerPlayer: InputSystemDeps["pointerPlayer"],
   lifeLost: InputSystemDeps["lifeLost"],
+  hitTest: InputSystemDeps["lifeLostDialogClick"],
 ): RegisterOnlineInputDeps["lifeLost"] {
   return {
     get: () => runtimeState.lifeLostDialog,
     click: (x: number, y: number) => {
       if (!runtimeState.lifeLostDialog) return;
-      const hit = handleLifeLostDialogClick({
-        state: runtimeState.state,
-        lifeLostDialog: runtimeState.lifeLostDialog,
-        screenX: x,
-        screenY: y,
-      });
+      const hit = hitTest(x, y);
       if (!hit) return;
       const pp = pointerPlayer();
       if (pp && hit.playerId !== pp.playerId) return;
@@ -393,18 +399,13 @@ function buildUpgradePickClickDeps(
   runtimeState: RuntimeState,
   pointerPlayer: InputSystemDeps["pointerPlayer"],
   upgradePick: InputSystemDeps["upgradePick"],
+  hitTest: InputSystemDeps["upgradePickClick"],
 ): RegisterOnlineInputDeps["upgradePick"] {
   return {
     get: () => runtimeState.upgradePickDialog,
     click: (x: number, y: number) => {
       if (!runtimeState.upgradePickDialog) return;
-      const hit = handleUpgradePickClick({
-        W: GRID_COLS * TILE_SIZE,
-        H: GRID_ROWS * TILE_SIZE,
-        dialog: runtimeState.upgradePickDialog,
-        screenX: x,
-        screenY: y,
-      });
+      const hit = hitTest(x, y);
       if (!hit) return;
       const pp = pointerPlayer();
       if (pp && hit.playerId !== pp.playerId) return;
@@ -551,13 +552,13 @@ function buildOverlayActionDeps(
   deps: InputSystemDeps,
   inputDeps: RegisterOnlineInputDeps,
 ) {
-  const { runtimeState, uiCtx, options, render, rematch, returnToLobby } = deps;
+  const { runtimeState, options, render, rematch, returnToLobby } = deps;
   const pointerPlayer = deps.pointerPlayer;
   return {
     options: {
       isActive: () => runtimeState.mode === Mode.OPTIONS,
       moveCursor: (dir: -1 | 1) => {
-        const count = visibleOptions(uiCtx).length;
+        const count = deps.visibleOptionCount();
         runtimeState.optionsCursor =
           (runtimeState.optionsCursor + dir + count) % count;
       },

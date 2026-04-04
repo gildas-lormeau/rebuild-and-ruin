@@ -13,7 +13,6 @@ import {
   tickLifeLostDialog,
 } from "../game/life-lost.ts";
 import { eliminatePlayer } from "../game/phase-setup.ts";
-import { lifeLostPanelPos as lifeLostPanelPosShared } from "../render/render-composition.ts";
 import { isHuman } from "../shared/controller-interfaces.ts";
 import {
   LIFE_LOST_FOCUS_ABANDON,
@@ -38,6 +37,7 @@ interface LifeLostSystemDeps {
   log: (msg: string) => void;
 
   render: () => void;
+  panelPos: (playerId: ValidPlayerSlot) => { px: number; py: number };
   endGame: (winner: { id: number }) => void;
   startReselection: () => void;
   advanceToCannonPhase: () => void;
@@ -157,13 +157,6 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     });
   }
 
-  function lifeLostPanelPos(playerId: ValidPlayerSlot): {
-    px: number;
-    py: number;
-  } {
-    return lifeLostPanelPosShared(runtimeState.state, playerId);
-  }
-
   function sendLifeLostChoice(
     choice: ResolvedChoice,
     playerId: ValidPlayerSlot,
@@ -218,7 +211,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     tryShow,
     tick: tickLifeLostDialogSystem,
     onResolved: afterLifeLostResolved,
-    panelPos: lifeLostPanelPos,
+    panelPos: deps.panelPos,
     // Extra — needed by game-runtime internals
     sendLifeLostChoice,
     toggleFocus,
