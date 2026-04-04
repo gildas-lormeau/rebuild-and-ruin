@@ -17,6 +17,7 @@ All commands support both positional args and named flags (`--flag value`).
 - Moving exported declarations from one file to another (rewrites all imports)
 - Renaming an interface/type property across all usage sites
 - Renaming a local parameter/variable name across multiple functions in specific files
+- Renaming/moving a file and updating all import paths across the project
 
 ## Discovery commands
 
@@ -98,6 +99,17 @@ Positional arg order is auto-detected: `rename-prop <file> <typeName> <prop> <ne
 Works on both interfaces and type aliases — including intersection types (`type Foo = Bar & { prop: ... }`).
 
 Best for: renaming a field on a widely-used interface or type alias (cascades to all `.prop` accesses and destructuring).
+
+### `rename-file` — Rename/move a file and update all imports
+
+Renames a source file and rewrites every import specifier across the project that referenced the old path.
+
+```bash
+npm run refactor rename-file <oldPath> <newPath> [--dry-run]
+npm run refactor rename-file --from <oldPath> --to <newPath> [--dry-run]
+```
+
+Best for: renaming or relocating a module without manually fixing dozens of import paths. Always `--dry-run` first to see the blast radius.
 
 ### `rename-in-file` — Rename ALL declarations of a name in specific files
 

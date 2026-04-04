@@ -6,6 +6,7 @@
  *   move-export    <from> <to> <name>        — Move an exported declaration between files
  *   rename-prop    <typeName> <prop> <newProp> — Rename an interface/type property across all files (also accepts <file> <typeName> <prop> <newProp>)
  *   rename-in-file <name> <newName> <file...> — Rename ALL declarations of a name within specific files (also accepts <file...> <name> <newName>)
+ *   rename-file    <oldPath> <newPath>        — Rename/move a file and update all imports
  *
  * Usage: npx tsx scripts/refactor.ts <command> [...args] [--dry-run]
  */
@@ -901,6 +902,38 @@ function listReferences(filePath: string, symbolName: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// rename-file: rename/move a file and update all imports across the project
+// ---------------------------------------------------------------------------
+
+function renameFile(oldPath: string, newPath: string): void {
+  const project = createProject();
+  addAllSources(project);
+
+  const absOld = resolve(oldPath);
+  const absNew = resolve(newPath);
+
+  const sourceFile = project.getSourceFile(absOld);
+  if (!sourceFile) {
+    console.error(`❌ File not found: ${oldPath}`);
+    process.exit(1);
+  }
+
+  // Check that target doesn't already exist
+  if (project.getSourceFile(absNew)) {
+    console.error(`❌ Target file already exists: ${newPath}`);
+    process.exit(1);
+  }
+
+  console.log(`Renaming ${oldPath} → ${newPath}`);
+
+  // ts-morph's move() renames the file and updates all import specifiers
+  sourceFile.move(absNew);
+
+  const changedFiles = saveChanges(project);
+  console.log(`✅ Renamed file — ${changedFiles} file(s) changed`);
+}
+
+// ---------------------------------------------------------------------------
 // CLI dispatch
 // ---------------------------------------------------------------------------
 
@@ -912,6 +945,7 @@ Commands:
   move-export    <from> <to> <name>            Move export(s) between files (auto-detects arg order)
   rename-prop    <typeName> <prop> <newProp>    Rename a type/interface property (auto-detects file-first arg order)
   rename-in-file <name> <newName> <file...>    Rename all declarations in specific files (auto-detects file-first arg order)
+  rename-file    <oldPath> <newPath>           Rename/move a file and update all imports
   find-symbol    <name>                        Find where a symbol is declared
   list-exports   <file>                        List all exports from a file
   list-references <file> <name>                Show all files that import a symbol
@@ -924,6 +958,7 @@ Examples:
   npx tsx scripts/refactor.ts move-export src/types.ts src/spatial.ts TILE_SIZE
   npx tsx scripts/refactor.ts move-export --from src/types.ts --to src/spatial.ts --symbol TILE_SIZE --symbol FOO
   npx tsx scripts/refactor.ts rename-prop Player score totalScore
+  npx tsx scripts/refactor.ts rename-file src/old-name.ts src/new-name.ts
   npx tsx scripts/refactor.ts find-symbol GameState
   npx tsx scripts/refactor.ts list-exports src/types.ts
   npx tsx scripts/refactor.ts list-references src/types.ts GameState
@@ -1011,6 +1046,16 @@ switch (command) {
     }
     console.log(`Renaming all "${name}" → "${newName}" in ${files.length} file(s)`);
     renameInFile(name, newName, files);
+    break;
+  }
+  case "rename-file": {
+    const oldFile = flagMap.get("from") ?? flagMap.get("old") ?? commandArgs[0];
+    const newFile = flagMap.get("to") ?? flagMap.get("new") ?? commandArgs[1];
+    if (!oldFile || !newFile) {
+      console.error("Usage: rename-file <oldPath> <newPath>");
+      process.exit(1);
+    }
+    renameFile(oldFile, newFile);
     break;
   }
   case "find-symbol": {
