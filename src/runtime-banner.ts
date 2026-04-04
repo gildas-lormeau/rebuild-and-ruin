@@ -23,13 +23,13 @@ interface BannerSystem {
   /** Show a phase transition banner.
    *  @param text — Banner text
    *  @param onDone — Called once when banner animation completes
-   *  @param preserveOldScene — If true, render old scene behind the banner (for before/after comparison)
-   *  @param newBattle — Battle territory/walls snapshot for the "after" scene. Only used when preserveOldScene is true; ignored otherwise.
+   *  @param preservePrevScene — If true, render old scene behind the banner (for before/after comparison)
+   *  @param newBattle — Battle territory/walls snapshot for the "after" scene. Only used when preservePrevScene is true; ignored otherwise.
    *  @param subtitle — Optional smaller text below the main banner */
   showBanner: (
     text: string,
     onDone: () => void,
-    preserveOldScene?: boolean,
+    preservePrevScene?: boolean,
     newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
     subtitle?: string,
   ) => void;
@@ -42,7 +42,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
   function showBanner(
     text: string,
     onDone: () => void,
-    preserveOldScene = false,
+    preservePrevScene = false,
     newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
     subtitle?: string,
   ) {
@@ -60,7 +60,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       text,
       subtitle,
       onDone,
-      preserveOldScene,
+      preservePrevScene,
       newBattle,
       setModeBanner: () => {
         runtimeState.mode = Mode.BANNER;

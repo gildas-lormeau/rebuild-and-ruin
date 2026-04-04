@@ -20,7 +20,7 @@ import {
   BANNER_BATTLE_ONLINE,
   BANNER_REPAIR_ONLINE,
   type BannerShow,
-  captureOldBattleScene,
+  capturePrevBattleScene,
   snapshotEntities,
 } from "./phase-banner.ts";
 import {
@@ -337,7 +337,7 @@ export function handleBuildStartTransition(
   const myPlayerId = transitionCtx.session.myPlayerId;
 
   // Pre-capture old battle scene before checkpoint mutates state
-  captureOldBattleScene(
+  capturePrevBattleScene(
     transitionCtx.ui.banner,
     state,
     transitionCtx.battleLifecycle.getTerritory(),

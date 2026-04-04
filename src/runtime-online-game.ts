@@ -271,8 +271,8 @@ export function initOnlineRuntime(): void {
 
 function buildTransitionUiCtx(): TransitionContext["ui"] {
   return {
-    showBanner: (text, onDone, preserveOldScene?, newBattle?, subtitle?) =>
-      runtime.showBanner(text, onDone, preserveOldScene, newBattle, subtitle),
+    showBanner: (text, onDone, preservePrevScene?, newBattle?, subtitle?) =>
+      runtime.showBanner(text, onDone, preservePrevScene, newBattle, subtitle),
     get banner() {
       return runtime.runtimeState.banner;
     },

@@ -41,7 +41,7 @@ import {
   tickHostBattlePhase,
 } from "./online-host-battle-ticks.ts";
 import { NOOP_DEDUP_CHANNEL } from "./phantom-types.ts";
-import { BANNER_BUILD, captureOldBattleScene } from "./phase-banner.ts";
+import { BANNER_BUILD, capturePrevBattleScene } from "./phase-banner.ts";
 import {
   finalizeBuildPhase,
   initBuildPhaseControllers,
@@ -90,7 +90,7 @@ interface PhaseTicksDeps
   showBanner: (
     text: string,
     onDone: () => void,
-    preserveOldScene?: boolean,
+    preservePrevScene?: boolean,
     newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
     subtitle?: string,
   ) => void;
@@ -367,7 +367,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         deps.saveBattleCrosshair?.();
 
         // Pre-capture old battle scene before nextPhase mutates state
-        captureOldBattleScene(
+        capturePrevBattleScene(
           runtimeState.banner,
           runtimeState.state,
           runtimeState.battleAnim.territory,

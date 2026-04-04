@@ -31,7 +31,7 @@ interface ShowBannerDeps {
   onDone: () => void;
   /** When true, snapshot old castles/territory/walls before transitioning
    *  so the banner can show a before/after visual comparison. */
-  preserveOldScene?: boolean;
+  preservePrevScene?: boolean;
   newBattle?: { territory: Set<number>[]; walls: Set<number>[] };
   setModeBanner: () => void;
 }
@@ -39,7 +39,7 @@ interface ShowBannerDeps {
 export type BannerShow = (
   text: string,
   onDone: () => void,
-  preserveOldScene?: boolean,
+  preservePrevScene?: boolean,
   newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
   subtitle?: string,
 ) => void;
@@ -72,7 +72,7 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
     text,
     subtitle,
     onDone,
-    preserveOldScene = false,
+    preservePrevScene = false,
     newBattle,
     setModeBanner,
   } = deps;
@@ -81,7 +81,7 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
   const pendingWalls = banner.wallsBeforeSweep;
   banner.wallsBeforeSweep = undefined;
 
-  if (preserveOldScene) {
+  if (preservePrevScene) {
     banner.prevCastles ??= state.players
       .filter((player) => player.castle)
       .map((player) => ({
@@ -119,7 +119,7 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
 /** Pre-capture old battle scene into banner state before nextPhase/checkpoint
  *  mutates the game state.  Must be called while state.phase is still BATTLE.
  *  showBannerTransition uses ??= so these pre-set values survive intact. */
-export function captureOldBattleScene(
+export function capturePrevBattleScene(
   banner: {
     prevCastles?: CastleData[];
     prevTerritory?: Set<number>[];

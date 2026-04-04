@@ -334,7 +334,7 @@ export interface GameRuntime {
   showBanner: (
     text: string,
     onDone: () => void,
-    preserveOldScene?: boolean,
+    preservePrevScene?: boolean,
     newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
     subtitle?: string,
   ) => void;

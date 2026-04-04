@@ -255,19 +255,19 @@ test("continuing player entry shows Continuing label", () => {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// 8. Online watcher: cannon banner missing preserveOldScene
+// 8. Online watcher: cannon banner missing preservePrevScene
 // ---------------------------------------------------------------------------
 
-test("online cannon banner uses preserveOldScene=true for progressive scene transition", () => {
-  // Both local and online paths should use preserveOldScene=true for the cannon banner.
-  // The fix added preserveOldScene=true to handleCannonStartTransition.
+test("online cannon banner uses preservePrevScene=true for progressive scene transition", () => {
+  // Both local and online paths should use preservePrevScene=true for the cannon banner.
+  // The fix added preservePrevScene=true to handleCannonStartTransition.
   const s = createScenario();
   s.runCannon();
   s.runBattle();
   s.runBuild();
   s.finalizeBuild();
 
-  // Simulate what both paths now do: preserveOldScene=true
+  // Simulate what both paths now do: preservePrevScene=true
   const banner = s.createBanner();
   showBannerTransition({
     banner,
@@ -275,7 +275,7 @@ test("online cannon banner uses preserveOldScene=true for progressive scene tran
     battleAnim: s.createBattleAnim(),
     text: "Place Cannons",
     onDone: () => {},
-    preserveOldScene: true,
+    preservePrevScene: true,
     setModeBanner: () => {},
   });
 
@@ -1210,7 +1210,7 @@ test("burning pits visible in overlay during cannon-to-battle banner", () => {
   executeTransition(BATTLE_START_STEPS, {
     showBanner: () =>
       showBattlePhaseBanner(
-        (text, onDone, preserveOldScene?, newBattle?, subtitle?) => {
+        (text, onDone, preservePrevScene?, newBattle?, subtitle?) => {
           showBannerTransition({
             banner,
             state: s.state,
@@ -1218,7 +1218,7 @@ test("burning pits visible in overlay during cannon-to-battle banner", () => {
             text,
             subtitle,
             onDone,
-            preserveOldScene,
+            preservePrevScene,
             newBattle,
             setModeBanner: () => {},
           });
