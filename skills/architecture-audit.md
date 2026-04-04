@@ -457,3 +457,73 @@ sufficient for LLM agents to follow correctly.
 53. **Host interface pattern (SelectionHost, BuildHost, etc.) is documented** —
     ai-phase-select.ts JSDoc above SelectionHost explains the convention:
     each ai-phase-*.ts defines a minimal Host interface for decoupling.
+
+54. **capturePreState two-variant pattern in checkpoints** —
+    online-checkpoints.ts:41-49 JSDoc documents both variants (delegated via
+    applyCommonCheckpoint, and direct inline call). Both guarantee capturePreState
+    runs before any player mutation.
+
+55. **scaledDelay convention and typical ranges per phase** —
+    controller-ai.ts:154-161 JSDoc documents `(base + rng * spread) * delayScale`
+    with typical ranges: selection 0.8–1.0s, build/cannon 0.2–0.3s, battle 0.1–0.2s.
+
+56. **Null vs undefined convention in online-serialize** —
+    online-serialize.ts:1-12 file header documents: `null` = always-present modern-mode
+    fields, `undefined` = bandwidth-saving omitted per-entity enrichments.
+
+57. **PASS 1 / PASS 2 controller dispatch pattern** —
+    host-phase-ticks.ts:8-14 documents PASS 1 (per-frame, local only) vs PASS 2
+    (phase end, all controllers). Finalization method differs by role and phase.
+
+58. **Phantom key format (comma-separated, 1/0 booleans, : and ; separators)** —
+    phantom-types.ts:70-81 JSDoc documents exact format for cannonPhantomKey
+    (`row,col,mode,valid`) and piecePhantomKey (`row,col,valid,r0:c0;r1:c1;...`).
+
+59. **Sound level guard convention (play() internal vs Web Audio entry)** —
+    sound-system.ts:15-19 JSDoc documents three tiers: play() guards internally,
+    Web Audio public methods guard at entry, internal helpers rely on caller guard.
+
+60. **Upgrade weight constants (WEIGHT_COMMON/UNCOMMON/RARE)** —
+    upgrade-defs.ts:51-54 defines WEIGHT_COMMON=3, WEIGHT_UNCOMMON=2, WEIGHT_RARE=1.
+    All UPGRADE_POOL entries use these constants.
+
+61. **poolComplete compile-time exhaustiveness check** —
+    upgrade-defs.ts:42-49 JSDoc explains the PoolIds/PoolComplete pattern and the
+    `void poolComplete` idiom for suppressing unused-variable warnings.
+
+62. **Cannon boom voice mix ratios and named frequency constants** —
+    sound-system.ts:209-221 defines CANNON_BASS_END_HZ, CANNON_MID_START/END_HZ,
+    CANNON_BLAST_DURATION, CANNON_TAIL_DURATION, etc. Voice mix comment at line 312.
+
+63. **Dialog get/set methods are for watcher-mode synchronization** —
+    runtime-life-lost.ts:209-212 and runtime-upgrade-pick.ts:144-147 JSDoc explains
+    get() reads state for watcher overlay, set() applies host-broadcast state.
+
+64. **`onResolved` naming for dialog completion callbacks** —
+    runtime-types.ts:287 uses `onResolved` (life-lost) matching the `on*` prefix
+    convention. upgrade-pick uses `onDone` (passed at tryShow time, different lifecycle).
+
+65. **Coordinate spaces documented in render-composition.ts** —
+    render-composition.ts:8-12 documents screenX/screenY (canvas pixels),
+    tileX/tileY (grid indices), and overlayCtx naming convention.
+
+66. **OPTION_NAMES must match OPT_* constant order** —
+    settings-defs.ts:34-35 INVARIANT comment links OPTION_NAMES array to OPT_*
+    constants. Reordering one without the other silently breaks UI display.
+
+67. **`excludeBalloonCannons` is the canonical parameter name** —
+    board-occupancy.ts uses `excludeBalloonCannons` consistently across all public
+    and internal functions. Do not use the abbreviation `excludeBalloon`.
+
+68. **`REMOTE_CROSSHAIR_MULTIPLIER` follows the `_MULTIPLIER` suffix convention** —
+    online-types.ts:21 uses `REMOTE_CROSSHAIR_MULTIPLIER` matching the rest of the
+    codebase (CROSSHAIR_SPRINT_MULTIPLIER, CURSOR_PROXIMITY_MULTIPLIER, etc.).
+
+69. **`ctx` shorthand destructuring from defaultClient is documented** —
+    runtime-online-game.ts:67-69 comment explains the five destructured names
+    reference the same defaultClient singleton used throughout the module.
+
+70. **Lobby timer: local uses accumulator, online uses wall-clock subtraction** —
+    main.ts:43-45 documents the local path (timerAccum counting up). The online
+    path (runtime-online-game.ts:135-141) uses server-provided countdown minus a
+    -1 grace offset to prevent UI/server race.
