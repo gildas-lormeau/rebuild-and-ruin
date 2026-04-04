@@ -349,6 +349,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     },
     resetBattleCrosshair: camera.resetBattleCrosshair,
     resetScoreDeltas: scoreDelta.reset,
+    resetDialogs: () => {
+      lifeLost.set(null);
+      upgradePick.set(null);
+    },
   });
 
   // -------------------------------------------------------------------------

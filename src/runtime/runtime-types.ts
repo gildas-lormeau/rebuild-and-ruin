@@ -279,6 +279,8 @@ export interface RuntimeSelection {
   ) => void;
   startReselection: () => void;
   finishReselection: () => void;
+  /** Full reset for game restart / rematch. */
+  reset: () => void;
 }
 
 export interface RuntimeScoreDelta {

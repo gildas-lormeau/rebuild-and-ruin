@@ -40,7 +40,7 @@ interface GameLifecycleDeps {
   // Sub-systems
   readonly camera: Pick<CameraSystem, "resetCamera" | "clearAllZoomState">;
   readonly sound: Pick<SoundSystem, "reset" | "gameOver">;
-  readonly selection: { enter: () => void };
+  readonly selection: { enter: () => void; reset: () => void };
 
   // Late-bound callbacks (resolved at call time via closures)
   readonly render: () => void;
@@ -49,6 +49,7 @@ interface GameLifecycleDeps {
   readonly resetTouchForLobby: () => void;
   readonly resetBattleCrosshair: () => void;
   readonly resetScoreDeltas: () => void;
+  readonly resetDialogs: () => void;
 }
 
 interface GameLifecycleSystem {
@@ -96,19 +97,14 @@ export function createGameLifecycle(
 
   function resetUIState(): void {
     clearDemoTimer();
-    runtimeState.reselectQueue = [];
-    runtimeState.reselectionPids = [];
+    selection.reset();
     runtimeState.battleAnim = createBattleAnimState();
     runtimeState.accum = createTimerAccums();
     runtimeState.banner = createBannerState();
-    runtimeState.lifeLostDialog = null;
-    runtimeState.upgradePickDialog = null;
+    deps.resetDialogs();
     runtimeState.paused = false;
     runtimeState.quitPending = false;
     runtimeState.optionsReturnMode = null;
-    runtimeState.castleBuilds = [];
-    runtimeState.castleBuildOnDone = null;
-    runtimeState.selectionStates.clear();
     deps.resetScoreDeltas();
     runtimeState.directTouchActive = false;
     deps.resetBattleCrosshair();
@@ -170,7 +166,7 @@ export function createGameLifecycle(
 
   function endGame(winner: { id: number }) {
     deps.resetScoreDeltas();
-    runtimeState.lifeLostDialog = null;
+    deps.resetDialogs();
     camera.clearAllZoomState();
     deps.onEndGame?.(winner, runtimeState.state);
     sound.reset();

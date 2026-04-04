@@ -83,11 +83,9 @@ interface SelectionSystemDeps {
   requestFrame: () => void;
 }
 
-type SelectionSystem = RuntimeSelection;
-
 export function createSelectionSystem(
   deps: SelectionSystemDeps,
-): SelectionSystem {
+): RuntimeSelection {
   const { runtimeState } = deps;
 
   /** Clear all selection tracking state — call before entering a new selection
@@ -439,6 +437,17 @@ export function createSelectionSystem(
     });
   }
 
+  /** Full reset for game restart / rematch. Clears all selection, reselection,
+   *  and castle-build state. Distinct from resetSelectionState() which only
+   *  clears per-round selection tracking for the next selection phase. */
+  function reset(): void {
+    runtimeState.reselectQueue = [];
+    runtimeState.reselectionPids = [];
+    runtimeState.castleBuilds = [];
+    runtimeState.castleBuildOnDone = null;
+    runtimeState.selectionStates.clear();
+  }
+
   // ---------------------------------------------------------------------------
   // Public API (matches RuntimeSelection)
   // ---------------------------------------------------------------------------
@@ -460,5 +469,6 @@ export function createSelectionSystem(
     ) => deps.camera.setCastleBuildViewport(plans),
     startReselection,
     finishReselection,
+    reset,
   };
 }
