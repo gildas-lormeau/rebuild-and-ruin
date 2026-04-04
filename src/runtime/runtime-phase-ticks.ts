@@ -66,7 +66,7 @@ import {
   type PlayerController,
   type SoundSystem,
 } from "../shared/system-interfaces.ts";
-import { isRemoteHuman, type MutableAccums } from "../shared/tick-context.ts";
+import { isRemoteHuman, resetAccum } from "../shared/tick-context.ts";
 import { assertStateReady, type RuntimeState } from "./runtime-state.ts";
 import type { RuntimeConfig, RuntimeLifeLost } from "./runtime-types.ts";
 
@@ -183,7 +183,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         prepareCannonPhase(runtimeState.state);
         // Apply reset facings — hidden behind the banner overlay.
         applyDefaultFacings(runtimeState.state);
-        (runtimeState.accum as MutableAccums).cannon = 0;
+        resetAccum(runtimeState.accum, "cannon");
         runtimeState.state.timer = runtimeState.state.cannonPlaceTimer;
         if (runtimeState.frameMeta.hostAtFrameStart && deps.hostNetworking) {
           deps.send(
@@ -287,8 +287,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         !!runtimeState.state.players[pid]?.eliminated,
     );
     runtimeState.battleAnim.impacts = [];
-    (runtimeState.accum as MutableAccums).grunt = 0;
-    (runtimeState.accum as MutableAccums).build = 0;
+    resetAccum(runtimeState.accum, "grunt");
+    resetAccum(runtimeState.accum, "build");
   }
 
   // -------------------------------------------------------------------------

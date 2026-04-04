@@ -73,12 +73,11 @@ export interface TimerAccums {
   readonly grunt: number;
 }
 
-/** Mutable view of TimerAccums — use ONLY inside these blessed mutation sites:
- *  - advancePhaseTimer() in tick-context.ts — canonical phase timer advancement
- *  - tickGruntsIfDue() in tick-context.ts — cross-phase grunt spawn interval
- *  - tickSelectionPhase() in selection.ts — selection phase has custom timer logic
- *  - syncAccumulatorsFromTimer() in online-host-promotion.ts — bulk reset during
- *    host migration (resyncs accumulators to match the phase timer's current value)
+/** Mutable view of TimerAccums — use ONLY inside blessed mutation sites:
+ *  - advancePhaseTimer() / tickGruntsIfDue() in tick-context.ts
+ *  - tickSelectionPhase() in selection.ts
+ *  - syncAccumulatorsFromTimer() in online-host-promotion.ts (host migration)
+ *  - resetAccum() below — phase-boundary resets in runtime sub-systems
  *  Everywhere else, pass TimerAccums (readonly) to prevent accidental mutation. */
 export type MutableAccums = { -readonly [K in keyof TimerAccums]: number };
 
@@ -169,4 +168,10 @@ export function createTimerAccums(): TimerAccums {
     build: 0,
     grunt: 0,
   };
+}
+
+/** Reset a single accumulator to 0. Encapsulates the MutableAccums cast
+ *  so callers don't need to import MutableAccums or write the cast inline. */
+export function resetAccum(accum: TimerAccums, key: keyof TimerAccums): void {
+  (accum as MutableAccums)[key] = 0;
 }
