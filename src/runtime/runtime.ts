@@ -88,7 +88,7 @@ import {
   GAME_OVER_REMATCH,
 } from "./runtime-game-lifecycle.ts";
 import { createPointerPlayerLookup } from "./runtime-human.ts";
-import { createInputSystem, type TouchHandles } from "./runtime-input.ts";
+import { createInputSystem } from "./runtime-input.ts";
 import {
   createLifeLostSystem,
   type LifeLostSystem,
@@ -135,17 +135,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const sound = createSoundSystem();
   sound.setLevel(runtimeState.settings.sound);
 
-  // Touch handles live outside the input sub-system so that options,
-  // render, and lifecycle can reference them directly — no forward
-  // declaration needed for `input`.
-  const touch: TouchHandles = {
-    dpad: null,
-    floatingActions: null,
-    homeZoomButton: null,
-    enemyZoomButton: null,
-    quitButton: null,
-    loupeHandle: null,
-  };
+  // Input system owns touch handles — created early so render, options,
+  // and lifecycle can read via input.getTouch(). Event handler registration
+  // is deferred to registerInputHandlers() once all deps are available.
+  const input = createInputSystem();
 
   /** Refresh lobby seed + map preview only if the seed changed. */
   function refreshLobbySeed(): void {
@@ -370,7 +363,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getLifeLostPanelPos: (pid) => lifeLost.panelPos(pid),
     updateViewport,
     pointerPlayer,
-    getTouch: () => touch,
+    getTouch: input.getTouch,
     worldToScreen: camera.worldToScreen,
     screenToContainerCSS: renderer.screenToContainerCSS,
     getContainerHeight: () => gameContainer.clientHeight,
@@ -471,16 +464,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     },
     resetLifeLostDialog: () => lifeLost.set(null),
     clearAllZoomState: camera.clearAllZoomState,
-    resetInputForLobby: () => {
-      runtimeState.inputTracking.mouseJoinedSlot = null;
-      runtimeState.inputTracking.directTouchActive = false;
-      touch.floatingActions?.update(false, 0, 0, false, false);
-      touch.dpad?.update(null);
-      touch.quitButton?.update(null);
-      touch.homeZoomButton?.update(false);
-      touch.enemyZoomButton?.update(false);
-      touch.loupeHandle?.update(false, 0, 0);
-    },
+    resetInputForLobby: input.resetForLobby,
 
     soundReset: sound.reset,
     soundGameOver: sound.gameOver,
@@ -609,8 +593,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     renderFrame,
     // Bridge boolean enable to dpad's Phase|null API (WALL_BUILD = any non-selection phase)
     updateDpad: (enabled) =>
-      touch.dpad?.update(enabled ? Phase.WALL_BUILD : null),
-    setDpadLeftHanded: (left) => touch.dpad?.setLeftHanded(left),
+      input.getTouch().dpad?.update(enabled ? Phase.WALL_BUILD : null),
+    setDpadLeftHanded: (left) => input.getTouch().dpad?.setLeftHanded(left),
     refreshLobbySeed,
     sound,
     haptics,
@@ -649,74 +633,74 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
 
   // -------------------------------------------------------------------------
-  // Input sub-system (delegated to runtime-input.ts)
+  // Input registration closure (all deps available, deferred to caller)
   // -------------------------------------------------------------------------
 
-  const input = createInputSystem({
-    touch,
-    runtimeState,
-    renderer,
-    gameContainer,
-    hitTests: {
-      lifeLostDialogClick: (screenX, screenY) => {
-        if (!runtimeState.lifeLostDialog) return null;
-        return handleLifeLostDialogClick({
-          state: runtimeState.state,
-          lifeLostDialog: runtimeState.lifeLostDialog,
-          screenX,
-          screenY,
-        });
+  const registerInputHandlers = () =>
+    input.register({
+      runtimeState,
+      renderer,
+      gameContainer,
+      hitTests: {
+        lifeLostDialogClick: (screenX, screenY) => {
+          if (!runtimeState.lifeLostDialog) return null;
+          return handleLifeLostDialogClick({
+            state: runtimeState.state,
+            lifeLostDialog: runtimeState.lifeLostDialog,
+            screenX,
+            screenY,
+          });
+        },
+        upgradePickClick: (screenX, screenY) => {
+          if (!runtimeState.upgradePickDialog) return null;
+          return handleUpgradePickClick({
+            W: MAP_PX_W,
+            H: MAP_PX_H,
+            dialog: runtimeState.upgradePickDialog,
+            screenX,
+            screenY,
+          });
+        },
+        visibleOptionCount: () => visibleOptions(uiCtx).length,
       },
-      upgradePickClick: (screenX, screenY) => {
-        if (!runtimeState.upgradePickDialog) return null;
-        return handleUpgradePickClick({
-          W: MAP_PX_W,
-          H: MAP_PX_H,
-          dialog: runtimeState.upgradePickDialog,
-          screenX,
-          screenY,
-        });
+      network: {
+        isOnline,
+        maybeSendAimUpdate: config.maybeSendAimUpdate,
+        tryPlaceCannonAndSend: config.tryPlaceCannonAndSend,
+        tryPlacePieceAndSend: config.tryPlacePieceAndSend,
+        fireAndSend: config.fireAndSend,
+        getIsHost: config.getIsHost,
       },
-      visibleOptionCount: () => visibleOptions(uiCtx).length,
-    },
-    network: {
-      isOnline,
-      maybeSendAimUpdate: config.maybeSendAimUpdate,
-      tryPlaceCannonAndSend: config.tryPlaceCannonAndSend,
-      tryPlacePieceAndSend: config.tryPlacePieceAndSend,
-      fireAndSend: config.fireAndSend,
-      getIsHost: config.getIsHost,
-    },
-    lobby,
-    options,
-    lifeLost,
-    upgradePick,
-    selection: { ...selection, isReady: isSelectionReady },
-    camera,
-    sound,
-    haptics,
-    inputHandlers: {
-      dispatchPointerMove,
-      registerKeyboard: registerKeyboardHandlers,
-      registerMouse: registerMouseHandlers,
-      registerTouch: registerTouchHandlers,
-    },
-    touchFactories: {
-      createDpad,
-      createQuitButton,
-      createHomeZoomButton,
-      createEnemyZoomButton,
-      createFloatingActions,
-    },
-    lifecycle: {
-      render,
-      rematch: lifecycle.rematch,
-      returnToLobby: lifecycle.returnToLobby,
-      gameOverClick: lifecycle.gameOverClick,
-    },
-    pointerPlayer,
-    withPointerPlayer,
-  });
+      lobby,
+      options,
+      lifeLost,
+      upgradePick,
+      selection: { ...selection, isReady: isSelectionReady },
+      camera,
+      sound,
+      haptics,
+      inputHandlers: {
+        dispatchPointerMove,
+        registerKeyboard: registerKeyboardHandlers,
+        registerMouse: registerMouseHandlers,
+        registerTouch: registerTouchHandlers,
+      },
+      touchFactories: {
+        createDpad,
+        createQuitButton,
+        createHomeZoomButton,
+        createEnemyZoomButton,
+        createFloatingActions,
+      },
+      lifecycle: {
+        render,
+        rematch: lifecycle.rematch,
+        returnToLobby: lifecycle.returnToLobby,
+        gameOverClick: lifecycle.gameOverClick,
+      },
+      pointerPlayer,
+      withPointerPlayer,
+    });
 
   // -------------------------------------------------------------------------
   // Return the runtime object
@@ -750,7 +734,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     mainLoop,
     clearFrameData,
     render,
-    registerInputHandlers: input.register,
+    registerInputHandlers,
     showBanner,
     snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     aimAtEnemyCastle: camera.aimAtEnemyCastle,

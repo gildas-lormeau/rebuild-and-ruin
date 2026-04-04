@@ -43,7 +43,7 @@ type ZoomButtonHandle = ReturnType<CreateHomeZoomButtonFn>;
 
 type QuitButtonHandle = ReturnType<CreateQuitButtonFn>;
 
-export interface TouchHandles {
+interface TouchHandles {
   dpad: DpadHandle | null;
   floatingActions: FloatingActionsHandle | null;
   homeZoomButton: ZoomButtonHandle | null;
@@ -56,7 +56,6 @@ interface InputSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly renderer: RendererInterface;
   readonly gameContainer: HTMLElement;
-  readonly touch: TouchHandles;
 
   // Render-layer hit tests (injected from composition root, not imported directly)
   readonly hitTests: {
@@ -192,15 +191,32 @@ type PlaceCannonFn = (
 ) => boolean;
 
 interface InputSystem {
-  register(): void;
+  register(deps: InputSystemDeps): void;
+  getTouch(): TouchHandles;
+  resetForLobby(): void;
 }
 
 const NOOP = () => {};
 
-export function createInputSystem(deps: InputSystemDeps): InputSystem {
-  const { runtimeState, camera, sound, lobby, selection, touch } = deps;
+export function createInputSystem(): InputSystem {
+  // Touch handles are owned by the input system. They start null and are
+  // populated during register() when the DOM is wired up.
+  const touch: TouchHandles = {
+    dpad: null,
+    floatingActions: null,
+    homeZoomButton: null,
+    enemyZoomButton: null,
+    quitButton: null,
+    loupeHandle: null,
+  };
 
-  function register(): void {
+  let runtimeState: RuntimeState | undefined;
+
+  function register(deps: InputSystemDeps): void {
+    runtimeState = deps.runtimeState;
+    const rs = deps.runtimeState;
+    const { camera, sound, lobby, selection } = deps;
+
     // ── Wrapped placement handlers ──
     const placeCannon = wrapCannonPlace(
       deps.network.tryPlaceCannonAndSend ??
@@ -221,13 +237,13 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
       onPinchEnd: camera.onPinchEnd,
     };
     const lobbyDeps: RegisterOnlineInputDeps["lobby"] = {
-      isActive: () => runtimeState.lobby.active,
+      isActive: () => rs.lobby.active,
       keyJoin: lobby.lobbyKeyJoin,
       click: lobby.lobbyClick,
       cursorAt: lobby.cursorAt,
     };
     const gameActionDeps = buildGameActionDeps(
-      runtimeState,
+      rs,
       selection,
       placeCannon,
       placePieceWrapped,
@@ -253,7 +269,23 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     }
   }
 
-  return { register };
+  function getTouch(): TouchHandles {
+    return touch;
+  }
+
+  function resetForLobby(): void {
+    if (!runtimeState) return;
+    runtimeState.inputTracking.mouseJoinedSlot = null;
+    runtimeState.inputTracking.directTouchActive = false;
+    touch.floatingActions?.update(false, 0, 0, false, false);
+    touch.dpad?.update(null);
+    touch.quitButton?.update(null);
+    touch.homeZoomButton?.update(false);
+    touch.enemyZoomButton?.update(false);
+    touch.loupeHandle?.update(false, 0, 0);
+  }
+
+  return { register, getTouch, resetForLobby };
 }
 
 function setupTouchControls(

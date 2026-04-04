@@ -113,10 +113,15 @@ function checkSubSystem(file: string, violations: Violation[]): void {
     return;
   }
 
-  // Check 2: Factory must accept a single deps parameter (not loose args)
+  // Check 2: Factory must accept a single deps parameter (not loose args).
+  // Two-phase factories (zero-param constructor, deps passed to register())
+  // are allowed for files that need early creation before deps are available.
+  const TWO_PHASE_FACTORIES = new Set(["createInputSystem"]);
+
   for (const fn of factories) {
     const params = fn.params.trim();
     if (!params) {
+      if (TWO_PHASE_FACTORIES.has(fn.name)) continue;
       violations.push({
         file,
         message: `${fn.name}() has no parameters — expected a deps object`,
