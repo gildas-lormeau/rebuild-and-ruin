@@ -12,7 +12,7 @@ import {
 } from "../game/phase-banner.ts";
 import { BANNER_DURATION } from "../shared/game-constants.ts";
 import { Mode } from "../shared/game-phase.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import { type RuntimeState, setMode } from "./runtime-state.ts";
 
 interface BannerSystemDeps {
   readonly runtimeState: RuntimeState;
@@ -69,7 +69,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
       preservePrevScene,
       newBattle,
       setModeBanner: () => {
-        runtimeState.mode = Mode.BANNER;
+        setMode(runtimeState, Mode.BANNER);
       },
     });
     haptics.phaseChange();

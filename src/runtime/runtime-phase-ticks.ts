@@ -71,7 +71,11 @@ import {
   isRemoteHuman,
   resetAccum,
 } from "../shared/tick-context.ts";
-import { assertStateReady, type RuntimeState } from "./runtime-state.ts";
+import {
+  assertStateReady,
+  type RuntimeState,
+  setMode,
+} from "./runtime-state.ts";
 import type { RuntimeConfig, RuntimeLifeLost } from "./runtime-types.ts";
 
 interface PhaseTicksDeps
@@ -223,7 +227,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       showBanner: deps.showBanner,
       nextPhase,
       setModeBalloonAnim: () => {
-        runtimeState.mode = Mode.BALLOON_ANIM;
+        setMode(runtimeState, Mode.BALLOON_ANIM);
       },
       beginBattle,
       net: deps.hostNetworking
@@ -259,7 +263,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       accum: runtimeState.accum,
       battleCountdown: BATTLE_COUNTDOWN,
       setModeGame: () => {
-        runtimeState.mode = Mode.GAME;
+        setMode(runtimeState, Mode.GAME);
       },
       net: {
         remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,
@@ -395,7 +399,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
                 deps.showBanner,
                 BANNER_BUILD,
                 () => {
-                  runtimeState.mode = Mode.GAME;
+                  setMode(runtimeState, Mode.GAME);
                 },
                 modifierBannerText(
                   runtimeState.state.modern?.activeModifier ?? null,

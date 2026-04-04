@@ -34,7 +34,7 @@ import {
   type SoundSystem,
 } from "../shared/system-interfaces.ts";
 import { type GameState } from "../shared/types.ts";
-import { type RuntimeState, safeState } from "./runtime-state.ts";
+import { type RuntimeState, safeState, setMode } from "./runtime-state.ts";
 import type { CameraSystem } from "./runtime-types.ts";
 
 type DpadHandle = ReturnType<CreateDpadFn>;
@@ -286,7 +286,7 @@ function buildInputDeps(
     getState: () => safeState(runtimeState),
     getMode: () => runtimeState.mode,
     setMode: (mode) => {
-      runtimeState.mode = mode;
+      setMode(runtimeState, mode);
     },
     isOnline: deps.network.isOnline,
     settings: runtimeState.settings,

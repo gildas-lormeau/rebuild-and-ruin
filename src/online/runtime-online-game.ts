@@ -11,6 +11,7 @@ import {
   bootstrapGame,
   initWaitingRoom,
 } from "../runtime/runtime-bootstrap.ts";
+import { setMode } from "../runtime/runtime-state.ts";
 import { LifeLostChoice } from "../shared/dialog-types.ts";
 import { BANNER_DURATION, SELECT_TIMER } from "../shared/game-constants.ts";
 import { Mode } from "../shared/game-phase.ts";
@@ -84,7 +85,7 @@ const transitionCtx: TransitionContext = {
   session: ctx.session,
   getControllers: () => runtime.runtimeState.controllers,
   setMode: (mode: Mode) => {
-    runtime.runtimeState.mode = mode;
+    setMode(runtime.runtimeState, mode);
   },
   now: () => performance.now(),
   ui: buildTransitionUiCtx(),
@@ -239,7 +240,7 @@ export function initOnlineRuntime(): void {
     {
       getMode: () => runtime.runtimeState.mode,
       setMode: (mode) => {
-        runtime.runtimeState.mode = mode;
+        setMode(runtime.runtimeState, mode);
       },
       setAnnouncement: (text) => {
         runtime.runtimeState.frame.announcement = text;
@@ -263,7 +264,7 @@ export function initOnlineRuntime(): void {
   runtime.registerInputHandlers();
 
   document.addEventListener(GAME_EXIT_EVENT, () => {
-    runtime.runtimeState.mode = Mode.STOPPED;
+    setMode(runtime.runtimeState, Mode.STOPPED);
     runtime.runtimeState.lobby.active = false;
     hideRoomCodeOverlay(roomCodeOverlay);
     resetSession();
@@ -373,7 +374,7 @@ function buildCheckpointDeps(): CheckpointDeps {
 
 // ── Functions that close over runtime ───────────────────────────────
 function showLobby(): void {
-  runtime.runtimeState.mode = Mode.STOPPED;
+  setMode(runtime.runtimeState, Mode.STOPPED);
   runtime.runtimeState.lobby.active = false;
   renderer.container.classList.remove(GAME_CONTAINER_ACTIVE);
   hideRoomCodeOverlay(roomCodeOverlay);
@@ -397,7 +398,7 @@ function showWaitingRoom(code: string, seed: number): void {
       ctx.session.lobbyStartTime = timestamp;
     },
     setModeLobby: () => {
-      runtime.runtimeState.mode = Mode.LOBBY;
+      setMode(runtime.runtimeState, Mode.LOBBY);
     },
     setLastTime: (timestamp: number) => {
       runtime.runtimeState.lastTime = timestamp;
@@ -458,7 +459,7 @@ function restoreFullState(msg: FullStateMessage): void {
   restoreFullStateUiRecovery(
     {
       setMode: (mode) => {
-        runtime.runtimeState.mode = mode;
+        setMode(runtime.runtimeState, mode);
       },
       onModeSet: (mode) => {
         if (mode === Mode.SELECTION) runtime.sound.drumsStart();

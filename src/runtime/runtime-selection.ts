@@ -53,7 +53,7 @@ import { isRemoteHuman, resetAccum } from "../shared/tick-context.ts";
 import type { SelectionState } from "../shared/types.ts";
 import { fireOnce } from "../shared/utils.ts";
 import { enterTowerSelection as enterTowerSelectionImpl } from "./runtime-bootstrap.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import { type RuntimeState, setMode } from "./runtime-state.ts";
 import type { CameraSystem, RuntimeSelection } from "./runtime-types.ts";
 
 interface SelectionSystemDeps {
@@ -153,7 +153,7 @@ export function createSelectionSystem(
       enterCastleReselectPhase,
       now: deps.now,
       setModeSelection: () => {
-        runtimeState.mode = Mode.SELECTION;
+        setMode(runtimeState, Mode.SELECTION);
         deps.sound.drumsStart();
       },
       setLastTime: (timestamp) => {
@@ -379,7 +379,7 @@ export function createSelectionSystem(
   function advanceToCannonPhase(): void {
     advanceToCannonPlacePhase(runtimeState.state, nextPhase);
     deps.startCannonPhase(() => {
-      runtimeState.mode = Mode.GAME;
+      setMode(runtimeState, Mode.GAME);
     });
   }
 
@@ -425,7 +425,7 @@ export function createSelectionSystem(
       syncSelectionOverlay();
       resetAccum(runtimeState.accum, "select");
       runtimeState.state.timer = SELECT_TIMER;
-      runtimeState.mode = Mode.SELECTION;
+      setMode(runtimeState, Mode.SELECTION);
       deps.sound.drumsStart();
       if (runtimeState.frameMeta.hostAtFrameStart) {
         deps.send({ type: MESSAGE.SELECT_START, timer: SELECT_TIMER });

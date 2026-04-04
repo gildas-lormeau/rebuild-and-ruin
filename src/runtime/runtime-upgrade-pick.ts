@@ -21,7 +21,7 @@ import type {
 import { Mode } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isHuman } from "../shared/system-interfaces.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import { type RuntimeState, setMode } from "./runtime-state.ts";
 
 interface UpgradePickSystemDeps {
   readonly runtimeState: RuntimeState;
@@ -68,7 +68,7 @@ export function createUpgradePickSystem(
     if (!dialog) return false;
 
     runtimeState.upgradePickDialog = dialog;
-    runtimeState.mode = Mode.UPGRADE_PICK;
+    setMode(runtimeState, Mode.UPGRADE_PICK);
     resolveCallback = onDone;
     deps.log(
       `upgrade pick: ${dialog.entries.length} players, round=${runtimeState.state.round}`,

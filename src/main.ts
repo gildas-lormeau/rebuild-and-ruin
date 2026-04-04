@@ -9,6 +9,7 @@
 import { createCanvasRenderer } from "./render/render-canvas.ts";
 import { loadAtlas } from "./render/render-sprites.ts";
 import { createGameRuntime } from "./runtime/runtime.ts";
+import { setMode } from "./runtime/runtime-state.ts";
 import { LOBBY_TIMER } from "./shared/game-constants.ts";
 import { Mode } from "./shared/game-phase.ts";
 import { MAX_PLAYERS } from "./shared/player-config.ts";
@@ -59,7 +60,7 @@ const runtime = createGameRuntime({
   },
   onTickLobbyExpired: () => {
     runtime.lifecycle.startGame();
-    runtime.runtimeState.mode = Mode.SELECTION;
+    setMode(runtime.runtimeState, Mode.SELECTION);
   },
 });
 const atlasReady = loadAtlas().catch((e) => {
@@ -75,7 +76,7 @@ export function enterLocalLobby(): void {
 runtime.registerInputHandlers();
 
 document.addEventListener(GAME_EXIT_EVENT, () => {
-  runtime.runtimeState.mode = Mode.STOPPED;
+  setMode(runtime.runtimeState, Mode.STOPPED);
 });
 
 function showLobby(): void {
@@ -87,7 +88,7 @@ function showLobby(): void {
   runtime.runtimeState.quit.pending = false;
   runtime.runtimeState.optionsUI.returnMode = null;
   runtime.lobby.renderLobby();
-  runtime.runtimeState.mode = Mode.LOBBY;
+  setMode(runtime.runtimeState, Mode.LOBBY);
   runtime.runtimeState.lastTime = performance.now();
   requestAnimationFrame(runtime.mainLoop);
 }

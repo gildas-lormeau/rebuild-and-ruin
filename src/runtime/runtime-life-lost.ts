@@ -27,7 +27,7 @@ import {
 import { Mode } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isHuman } from "../shared/system-interfaces.ts";
-import type { RuntimeState } from "./runtime-state.ts";
+import { type RuntimeState, setMode } from "./runtime-state.ts";
 import type { RuntimeLifeLost } from "./runtime-types.ts";
 
 interface LifeLostSystemDeps {
@@ -100,7 +100,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       return false;
     }
     runtimeState.lifeLostDialog = dialog;
-    runtimeState.mode = Mode.LIFE_LOST;
+    setMode(runtimeState, Mode.LIFE_LOST);
     return true;
   }
 
@@ -136,7 +136,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     if (runtimeState.frameMeta.hostAtFrameStart) {
       afterLifeLostResolved(continuingPlayers(dialog));
     } else {
-      runtimeState.mode = Mode.GAME;
+      setMode(runtimeState, Mode.GAME);
     }
     runtimeState.lifeLostDialog = null;
   }
@@ -151,7 +151,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       onReselect: (players) => {
         runtimeState.reselectQueue = [...players];
         deps.startReselection();
-        runtimeState.mode = Mode.SELECTION;
+        setMode(runtimeState, Mode.SELECTION);
       },
       onContinue: deps.advanceToCannonPhase,
     });

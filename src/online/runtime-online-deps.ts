@@ -21,6 +21,7 @@ import type {
   InitMessage,
   ServerMessage,
 } from "../../server/protocol.ts";
+import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import { MIGRATION_ANNOUNCEMENT_DURATION } from "../shared/game-constants.ts";
 import { isReselectPhase, Mode } from "../shared/game-phase.ts";
@@ -155,7 +156,7 @@ function buildUiDeps() {
     },
     isUpgradePickMode: () => _g.runtime.runtimeState.mode === Mode.UPGRADE_PICK,
     setModeToGame: () => {
-      _g.runtime.runtimeState.mode = Mode.GAME;
+      setMode(_g.runtime.runtimeState, Mode.GAME);
     },
     setAnnouncement: (text: string) => {
       _client.ctx.watcher.hostMigrationText = text;

@@ -74,7 +74,6 @@ import {
   visibleOptions,
 } from "../render/screen-builders.ts";
 import { cycleOption } from "../render/settings-ui.ts";
-import { createBattleAnimState } from "../shared/battle-types.ts";
 import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/dialog-types.ts";
 import {
   MAX_FRAME_DT,
@@ -97,7 +96,6 @@ import {
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "../shared/settings-defs.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
-import { createTimerAccums } from "../shared/tick-context.ts";
 import type { GameState } from "../shared/types.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
 import { bootstrapGame } from "./runtime-bootstrap.ts";
@@ -126,7 +124,9 @@ import {
   computeFrameContext,
   createRuntimeState,
   isStateReady,
+  resetTransientState,
   safeState,
+  setMode,
   tickMainLoop,
 } from "./runtime-state.ts";
 import { exposeTestGlobals } from "./runtime-test-globals.ts";
@@ -483,7 +483,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     isModeStopped: () => runtimeState.mode === Mode.STOPPED,
 
     setModeStopped: () => {
-      runtimeState.mode = Mode.STOPPED;
+      setMode(runtimeState, Mode.STOPPED);
     },
     clearGameOver: () => {
       runtimeState.frame.gameOver = undefined;
@@ -492,14 +492,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     resetAll: () => {
       selection.reset();
       resetBanner();
-      runtimeState.battleAnim = createBattleAnimState();
-      runtimeState.accum = createTimerAccums();
+      resetTransientState(runtimeState);
       lifeLost.set(null);
       upgradePick.set(null);
-      runtimeState.paused = false;
-      runtimeState.quit.pending = false;
-      runtimeState.optionsUI.returnMode = null;
-      runtimeState.inputTracking.directTouchActive = false;
       scoreDelta.reset();
       camera.resetBattleCrosshair();
       resetGameStats();
@@ -617,7 +612,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     settings: runtimeState.settings,
     getMode: () => runtimeState.mode,
     setMode: (mode) => {
-      runtimeState.mode = mode;
+      setMode(runtimeState, mode);
     },
     getPaused: () => runtimeState.paused,
     setPaused: (paused) => {

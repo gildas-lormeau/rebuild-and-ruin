@@ -176,6 +176,24 @@ const SENTINEL = Symbol("uninitialized");
 /** Create initial runtime state. `state` and `ctx` are sentinel-guarded:
  * they throw on any property access until startGame() assigns real values.
  * All other fields are safe to access immediately. */
+/** Centralized mode transition — all mode changes MUST go through this function.
+ * Single mutation point makes the state machine traceable and validatable. */
+export function setMode(runtimeState: RuntimeState, mode: Mode): void {
+  runtimeState.mode = mode;
+}
+
+/** Reset transient RuntimeState fields between games (restart / rematch).
+ * Does NOT reset subsystem-owned state (selection, camera, sound, etc.)
+ * or settings — those are the caller's responsibility. */
+export function resetTransientState(runtimeState: RuntimeState): void {
+  runtimeState.battleAnim = createBattleAnimState();
+  runtimeState.accum = createTimerAccums();
+  runtimeState.paused = false;
+  runtimeState.quit.pending = false;
+  runtimeState.optionsUI.returnMode = null;
+  runtimeState.inputTracking.directTouchActive = false;
+}
+
 export function createRuntimeState(): RuntimeState {
   return {
     state: uninitializedSentinel<GameState>("state"),

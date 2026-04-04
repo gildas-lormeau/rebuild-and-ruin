@@ -10,6 +10,7 @@
  */
 
 import { createAiController } from "../runtime/runtime-bootstrap.ts";
+import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
 import { Mode } from "../shared/game-phase.ts";
 import { assertNever } from "../shared/utils.ts";
@@ -83,22 +84,22 @@ function skipPendingAnimations(): void {
       _runtime.runtimeState.castleBuilds = [];
       skipCastleBuildAnimation(state);
       _runtime.phaseTicks.startCannonPhase();
-      _runtime.runtimeState.mode = Mode.GAME;
+      setMode(_runtime.runtimeState, Mode.GAME);
       _client.devLog("Skipped castle build animation → cannon phase");
       break;
     case Mode.LIFE_LOST:
       _runtime.lifeLost.set(null);
-      _runtime.runtimeState.mode = Mode.GAME;
+      setMode(_runtime.runtimeState, Mode.GAME);
       _client.devLog("Cleared life-lost dialog → game mode");
       break;
     case Mode.BANNER:
     case Mode.BALLOON_ANIM:
-      _runtime.runtimeState.mode = Mode.GAME;
+      setMode(_runtime.runtimeState, Mode.GAME);
       _client.devLog("Skipped banner/animation → game mode");
       break;
     case Mode.UPGRADE_PICK:
       _runtime.runtimeState.upgradePickDialog = null;
-      _runtime.runtimeState.mode = Mode.GAME;
+      setMode(_runtime.runtimeState, Mode.GAME);
       _client.devLog("Cleared upgrade pick dialog → game mode");
       break;
     case Mode.GAME:
