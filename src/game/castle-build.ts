@@ -40,7 +40,7 @@ export function tickCastleBuildAnimation(params: {
   dt: number;
   wallBuildIntervalMs: number;
   state: GameState;
-  render: () => void;
+  render?: () => void;
   onWallsPlaced?: () => void;
 }): { next: CastleBuildState | null } {
   const { castleBuild, dt, wallBuildIntervalMs, state, render, onWallsPlaced } =
@@ -67,7 +67,7 @@ export function tickCastleBuildAnimation(params: {
   }
 
   if (placed) onWallsPlaced?.();
-  render();
+  render?.();
 
   if (castleBuild.tileIdx < castleBuild.maxTiles) {
     return { next: castleBuild };

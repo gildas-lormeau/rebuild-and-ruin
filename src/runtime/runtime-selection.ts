@@ -352,7 +352,6 @@ export function createSelectionSystem(
         dt,
         wallBuildIntervalMs: WALL_BUILD_INTERVAL,
         state: runtimeState.state,
-        render: () => {},
         onWallsPlaced: () => {
           anyPlaced = true;
         },
