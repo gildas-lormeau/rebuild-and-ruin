@@ -2,8 +2,7 @@
  * Architecture lint — verify runtime sub-system conventions.
  *
  * Checks:
- * 1. Every runtime-*.ts sub-system file (excluding runtime.ts, runtime-types.ts,
- *    runtime-state.ts, runtime-headless.ts, runtime-bootstrap.ts) must export
+ * 1. Every runtime-*.ts sub-system file (excluding exempt files) must export
  *    exactly one factory function (create*) or entry function (update*).
  * 2. That factory/entry must accept a single deps/config parameter (not loose args).
  * 3. Sub-system files must not import from other sub-system files
@@ -17,11 +16,12 @@
  * (no flags) Same as --check
  */
 
-import { readdirSync, readFileSync } from "fs";
-import { join } from "path";
+import { readdirSync, readFileSync, statSync } from "fs";
+import { join, basename, relative } from "path";
 import process from "node:process";
 
 const SRC = join(process.cwd(), "src");
+const RUNTIME_DIR = join(SRC, "runtime");
 
 /** Files that are part of the runtime layer but are NOT sub-systems. */
 const EXEMPT = new Set([
@@ -55,8 +55,16 @@ interface Violation {
 }
 
 function getSubSystemFiles(): string[] {
-  return readdirSync(SRC)
-    .filter((f) => f.startsWith("runtime-") && f.endsWith(".ts") && !EXEMPT.has(f) && !EXEMPT_PREFIXES.some((p) => f.startsWith(p)))
+  if (!statSync(RUNTIME_DIR, { throwIfNoEntry: false })?.isDirectory())
+    return [];
+  return readdirSync(RUNTIME_DIR)
+    .filter(
+      (f) =>
+        f.startsWith("runtime-") &&
+        f.endsWith(".ts") &&
+        !EXEMPT.has(f) &&
+        !EXEMPT_PREFIXES.some((p) => f.startsWith(p)),
+    )
     .sort();
 }
 
@@ -69,7 +77,9 @@ function getImports(content: string): string[] {
   return imports;
 }
 
-function getExportedFunctions(content: string): { name: string; params: string }[] {
+function getExportedFunctions(
+  content: string,
+): { name: string; params: string }[] {
   const fns: { name: string; params: string }[] = [];
   // Match multiline: find "export function name(" then collect until balanced ")"
   const re = /^export function (\w+)\(/gm;
@@ -90,7 +100,7 @@ function getExportedFunctions(content: string): { name: string; params: string }
 }
 
 function checkSubSystem(file: string, violations: Violation[]): void {
-  const content = readFileSync(join(SRC, file), "utf-8");
+  const content = readFileSync(join(RUNTIME_DIR, file), "utf-8");
   const fns = getExportedFunctions(content);
 
   // Check 1: Must export at least one factory/entry function
@@ -136,10 +146,7 @@ function checkSubSystem(file: string, violations: Violation[]): void {
   // Check 3: Must not import from other sub-system files
   const imports = getImports(content);
   for (const imp of imports) {
-    if (
-      imp.startsWith("./runtime-") &&
-      !ALLOWED_RUNTIME_IMPORTS.has(imp)
-    ) {
+    if (imp.startsWith("./runtime-") && !ALLOWED_RUNTIME_IMPORTS.has(imp)) {
       const target = imp.replace("./", "");
       violations.push({
         file,
@@ -149,26 +156,45 @@ function checkSubSystem(file: string, violations: Violation[]): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// File scanning
+// ---------------------------------------------------------------------------
+
+function collectAllTsFiles(dir: string): string[] {
+  const results: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) {
+      results.push(...collectAllTsFiles(full));
+    } else if (entry.endsWith(".ts") && !entry.endsWith(".d.ts")) {
+      results.push(full);
+    }
+  }
+  return results;
+}
+
 function checkConsumers(violations: Violation[]): void {
-  const subSystemModules = new Set(
-    getSubSystemFiles().map((f) => `./${f}`),
-  );
+  const subSystemBaseNames = new Set(getSubSystemFiles());
 
   // Check 4: Only runtime.ts may import from sub-system files
-  const allTs = readdirSync(SRC).filter(
-    (f) => f.endsWith(".ts") && f !== "runtime.ts",
-  );
-  for (const file of allTs) {
+  const allTs = collectAllTsFiles(SRC);
+  for (const filePath of allTs) {
+    const base = basename(filePath);
+    // runtime.ts is the composition root — it's allowed to import everything
+    if (base === "runtime.ts") continue;
     // Sub-systems themselves are checked above (allowed to import runtime-types/state)
-    if (file.startsWith("runtime-")) continue;
+    if (base.startsWith("runtime-")) continue;
 
-    const content = readFileSync(join(SRC, file), "utf-8");
+    const content = readFileSync(filePath, "utf-8");
     const imports = getImports(content);
     for (const imp of imports) {
-      if (subSystemModules.has(imp)) {
+      // Check if the import target basename is a sub-system file
+      const importBase = basename(imp);
+      if (subSystemBaseNames.has(importBase)) {
+        const relPath = relative(process.cwd(), filePath);
         violations.push({
-          file,
-          message: `Imports from sub-system ${imp.replace("./", "")} — only runtime.ts should import sub-systems`,
+          file: relPath,
+          message: `Imports from sub-system ${importBase} — only runtime.ts should import sub-systems`,
         });
       }
     }
@@ -187,10 +213,12 @@ function main(): void {
   checkConsumers(violations);
 
   if (violations.length === 0) {
-    console.log(`\u2714 No architecture violations (${subSystems.length} sub-systems checked)\n`);
+    console.log(
+      `\u2714 No architecture violations (${subSystems.length} sub-systems checked)\n`,
+    );
     console.log("Sub-systems:");
     for (const f of subSystems) {
-      const content = readFileSync(join(SRC, f), "utf-8");
+      const content = readFileSync(join(RUNTIME_DIR, f), "utf-8");
       const fns = getExportedFunctions(content)
         .filter((fn) => /^(create|update)\w+/.test(fn.name))
         .map((fn) => fn.name);
@@ -199,7 +227,9 @@ function main(): void {
     process.exit(0);
   }
 
-  console.log(`\u2718 ${violations.length} architecture violation(s) found:\n`);
+  console.log(
+    `\u2718 ${violations.length} architecture violation(s) found:\n`,
+  );
   for (const v of violations) {
     console.log(`  ${v.file}: ${v.message}`);
   }

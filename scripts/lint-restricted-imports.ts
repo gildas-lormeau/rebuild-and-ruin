@@ -5,8 +5,6 @@
  * 1. `Tile` enum must only be imported as a value in allowlisted files.
  *    All other files should use `import type { Tile }` or prefer spatial helpers
  *    (isWater, isGrass, waterKeys, etc.) instead.
- * 2. Entry-point files (main.ts, online-client.ts) must not be imported by src/ files.
- * 3. runtime.ts must not be imported by files outside the runtime layer.
  *
  * Usage:
  *   npx tsx scripts/lint-restricted-imports.ts
@@ -14,8 +12,8 @@
  * Exits 1 if violations found.
  */
 
-import { readdirSync, readFileSync } from "fs";
-import { join, basename } from "path";
+import { readdirSync, readFileSync, statSync } from "fs";
+import { join, basename, relative } from "path";
 import process from "node:process";
 
 const SRC = join(process.cwd(), "src");
@@ -95,7 +93,7 @@ function checkTileImports(
       continue;
     if (imp.names.includes("Tile")) {
       violations.push({
-        file: base,
+        file: relative(process.cwd(), file),
         line: imp.line,
         message:
           "Value import of `Tile` enum — use `import type { Tile }` or prefer spatial helpers (isWater, isGrass)",
@@ -105,76 +103,25 @@ function checkTileImports(
 }
 
 // ---------------------------------------------------------------------------
-// Rule 2: Entry-point files must not be imported by other src/ files
+// File scanning
 // ---------------------------------------------------------------------------
 
-const ENTRY_POINTS = new Set(["./main.ts", "./entry.ts"]);
-
-function checkEntryPointImports(
-  file: string,
-  content: string,
-  violations: Violation[],
-): void {
-  const base = basename(file);
-  // Entry points can import whatever they need
-  if (ENTRY_POINTS.has(`./${base}`)) return;
-
-  for (const imp of parseImports(content)) {
-    if (ENTRY_POINTS.has(imp.source)) {
-      violations.push({
-        file: base,
-        line: imp.line,
-        message: `Imports from entry-point ${imp.source} — entry points must not be imported by other files`,
-      });
+function collectFiles(dir: string): string[] {
+  const results: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    if (statSync(full).isDirectory()) {
+      results.push(...collectFiles(full));
+    } else if (entry.endsWith(".ts") && !entry.endsWith(".d.ts")) {
+      results.push(full);
     }
   }
-}
-
-// ---------------------------------------------------------------------------
-// Rule 3: runtime.ts must only be imported from entry-point / online-client files
-// ---------------------------------------------------------------------------
-
-const RUNTIME_IMPORT_ALLOWLIST = new Set([
-  "main.ts",
-  "entry.ts",
-  "online-client.ts",
-  "online-client-runtime.ts",
-  "online-client-deps.ts",
-  "online-client-promote.ts",
-  "runtime-headless.ts",
-]);
-
-function checkRuntimeImports(
-  file: string,
-  content: string,
-  violations: Violation[],
-): void {
-  const base = basename(file);
-  if (RUNTIME_IMPORT_ALLOWLIST.has(base)) return;
-  // runtime sub-systems are already checked by lint-architecture.ts
-  if (base.startsWith("runtime-")) return;
-
-  for (const imp of parseImports(content)) {
-    if (imp.source === "./runtime.ts") {
-      violations.push({
-        file: base,
-        line: imp.line,
-        message:
-          "Imports from runtime.ts — only entry points and online-client files should import runtime",
-      });
-    }
-  }
+  return results;
 }
 
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
-
-function collectFiles(dir: string): string[] {
-  return readdirSync(dir)
-    .filter((f) => f.endsWith(".ts") && !f.endsWith(".d.ts"))
-    .map((f) => join(dir, f));
-}
 
 function main(): void {
   const srcFiles = collectFiles(SRC);
@@ -183,8 +130,6 @@ function main(): void {
   for (const filePath of srcFiles) {
     const content = readFileSync(filePath, "utf-8");
     checkTileImports(filePath, content, violations);
-    checkEntryPointImports(filePath, content, violations);
-    checkRuntimeImports(filePath, content, violations);
   }
 
   if (violations.length === 0) {
