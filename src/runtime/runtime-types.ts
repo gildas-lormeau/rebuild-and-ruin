@@ -366,7 +366,8 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     mobileAutoZoom,
   } = inputs;
 
-  const uiBlocking = paused || quitPending || hasLifeLostDialog;
+  const uiBlocking =
+    paused || quitPending || hasLifeLostDialog || mode === Mode.UPGRADE_PICK;
 
   const timedPhase = isPlacementPhase(phase) || phase === Phase.BATTLE;
   const phaseEnding =

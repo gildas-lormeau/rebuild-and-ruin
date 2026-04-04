@@ -247,7 +247,7 @@ export interface FrameContext {
   readonly hasPointerPlayer: boolean;
 
   // Composite guards
-  /** UI overlay suppresses gameplay (pause, quit dialog, life-lost). */
+  /** UI overlay suppresses gameplay (pause, quit dialog, life-lost, upgrade pick). */
   readonly uiBlocking: boolean;
   /** Phase timer about to expire (< PHASE_ENDING_THRESHOLD) on non-touch. */
   readonly phaseEnding: boolean;
