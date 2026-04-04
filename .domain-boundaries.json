@@ -26,6 +26,7 @@
       "src/battle-types.ts",
       "src/dialog-types.ts",
       "src/upgrade-defs.ts",
+      "src/settings-defs.ts",
       "server/protocol.ts"
     ],
     "game": [
@@ -79,9 +80,7 @@
       "src/input-touch-canvas.ts",
       "src/input-mouse.ts",
       "src/input-keyboard.ts",
-      "src/input.ts"
-    ],
-    "sound": [
+      "src/input.ts",
       "src/sound-system.ts"
     ],
     "render": [
@@ -95,9 +94,6 @@
       "src/render-ui-settings.ts",
       "src/render-map.ts",
       "src/render-canvas.ts",
-      "src/settings-defs.ts"
-    ],
-    "settings": [
       "src/settings-ui.ts",
       "src/screen-builders.ts"
     ],
@@ -162,11 +158,9 @@
     "ai":       ["shared", "game", "player"],
     "player":   ["shared", "game", "ai"],
     "input":    ["shared", "game"],
-    "sound":    ["shared"],
     "render":   ["shared", "game"],
-    "settings": ["shared", "game", "render"],
     "online":   ["shared", "game", "render", "runtime"],
-    "runtime":  ["shared", "game", "player", "input", "sound", "render", "settings", "online"],
-    "entry":    ["shared", "game", "player", "input", "sound", "render", "settings", "online", "runtime", "entry"]
+    "runtime":  ["shared", "game", "player", "input", "render", "online"],
+    "entry":    ["shared", "game", "player", "input", "render", "online", "runtime", "entry"]
   }
 }
