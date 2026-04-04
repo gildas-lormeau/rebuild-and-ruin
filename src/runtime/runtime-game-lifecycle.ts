@@ -34,8 +34,8 @@ interface GameLifecycleDeps {
   readonly resetAll: () => void;
   readonly resetScoreDeltas: () => void;
   readonly resetDialogs: () => void;
+  readonly resetLifeLostDialog: () => void;
   readonly clearAllZoomState: () => void;
-  readonly resetCamera: () => void;
   readonly resetInputForLobby: () => void;
 
   // Sound
@@ -99,7 +99,7 @@ export function createGameLifecycle(
 
   function endGame(winner: { id: number }): void {
     deps.resetScoreDeltas();
-    deps.resetDialogs();
+    deps.resetLifeLostDialog();
     deps.clearAllZoomState();
     deps.onEndGame?.(winner);
     deps.soundReset();
@@ -119,7 +119,6 @@ export function createGameLifecycle(
 
   function rematch(): void {
     clearDemoTimer();
-    deps.resetCamera();
     deps.clearGameOver();
     startGame();
     deps.setModeSelection();

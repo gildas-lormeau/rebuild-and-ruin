@@ -401,7 +401,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       keyBindings: runtimeState.settings.keyBindings,
       difficulty: runtimeState.settings.difficulty,
       resetUIState: () => lifecycle.resetUIState(),
-      enterSelection: () => selection.enter(),
+      enterSelection: selection.enter,
     });
   }
 
@@ -466,8 +466,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       lifeLost.set(null);
       upgradePick.set(null);
     },
+    resetLifeLostDialog: () => lifeLost.set(null),
     clearAllZoomState: camera.clearAllZoomState,
-    resetCamera: camera.resetCamera,
     resetInputForLobby: () => {
       runtimeState.mouseJoinedSlot = null;
       runtimeState.directTouchActive = false;
