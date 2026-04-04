@@ -1,5 +1,5 @@
+import { CannonMode } from "./battle-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
-import { CannonMode } from "./types.ts";
 
 /** Cannon phantom sent over the network. `valid` controls placement coloring (green/red). */
 export type CannonPhantom = {

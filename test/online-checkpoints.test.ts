@@ -26,9 +26,10 @@ import {
   createHeadlessRuntime,
   type HeadlessRuntime,
 } from "../src/runtime-headless.ts";
-import { CannonMode, emptyFreshInterior } from "../src/types.ts";
+import { emptyFreshInterior } from "../src/types.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
 import type { ValidPlayerSlot } from "../src/player-slot.ts";
+import { CannonMode } from "../src/battle-types.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers

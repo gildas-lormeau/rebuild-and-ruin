@@ -7,8 +7,16 @@
 
 import { type GameMessage, MESSAGE } from "../server/protocol.ts";
 import { isHuman } from "./controller-interfaces.ts";
+import {
+  LIFE_LOST_FOCUS_ABANDON,
+  LIFE_LOST_FOCUS_CONTINUE,
+  LifeLostChoice,
+  type LifeLostDialogState,
+  type ResolvedChoice,
+} from "./dialog-types.ts";
 import { LIFE_LOST_AUTO_DELAY, LIFE_LOST_MAX_TIMER } from "./game-constants.ts";
 import { resolveAfterLifeLost } from "./game-engine.ts";
+import { Mode } from "./game-phase.ts";
 import {
   continuingPlayers,
   createLifeLostDialogState,
@@ -19,14 +27,6 @@ import type { ValidPlayerSlot } from "./player-slot.ts";
 import { lifeLostPanelPos as lifeLostPanelPosShared } from "./render-composition.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { RuntimeLifeLost } from "./runtime-types.ts";
-import {
-  LIFE_LOST_FOCUS_ABANDON,
-  LIFE_LOST_FOCUS_CONTINUE,
-  LifeLostChoice,
-  type LifeLostDialogState,
-  Mode,
-  type ResolvedChoice,
-} from "./types.ts";
 
 interface LifeLostSystemDeps {
   runtimeState: RuntimeState;

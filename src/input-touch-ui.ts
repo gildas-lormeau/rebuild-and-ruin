@@ -12,6 +12,13 @@ import type {
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
+import {
+  Action,
+  isInteractiveMode,
+  isSelectionPhase,
+  Mode,
+  Phase,
+} from "./game-phase.ts";
 import { TAP_MAX_DIST } from "./input.ts";
 import {
   dispatchGameAction,
@@ -29,14 +36,7 @@ import {
   TOUCH_ZOOM_HOME_BG,
   ZOOM_BUTTON_ALPHA,
 } from "./theme.ts";
-import {
-  Action,
-  type GameState,
-  isInteractiveMode,
-  isSelectionPhase,
-  Mode,
-  Phase,
-} from "./types.ts";
+import { type GameState } from "./types.ts";
 
 interface DpadDeps {
   getState: () => GameState | undefined;

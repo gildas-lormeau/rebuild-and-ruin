@@ -12,6 +12,7 @@ import {
   MESSAGE,
   type ServerMessage,
 } from "../server/protocol.ts";
+import type { LifeLostChoice } from "./dialog-types.ts";
 import { GAME_MODE_CLASSIC, LOBBY_TIMER } from "./game-constants.ts";
 import { createDedupChannel, type DedupChannel } from "./phantom-types.ts";
 import {
@@ -19,7 +20,6 @@ import {
   SPECTATOR_SLOT,
   type ValidPlayerSlot,
 } from "./player-slot.ts";
-import type { LifeLostChoice } from "./types.ts";
 
 export interface OnlineSession {
   socket: WebSocket | null;

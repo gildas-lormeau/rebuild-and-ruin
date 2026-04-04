@@ -8,10 +8,13 @@ import type {
   SerializedPlayer,
 } from "./checkpoint-data.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
+import { FOCUS_REMATCH, type GameOverFocus } from "./dialog-types.ts";
+import { Mode, Phase } from "./game-phase.ts";
 import type { RGB } from "./geometry-types.ts";
 import { TILE_COUNT } from "./grid.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { setWatcherPhaseTimer } from "./online-types.ts";
+import type { CastleData } from "./overlay-types.ts";
 import {
   BANNER_BATTLE_ONLINE,
   BANNER_REPAIR_ONLINE,
@@ -41,15 +44,8 @@ import {
   BANNER_PHASE_CANNON,
   modifierBannerText,
 } from "./round-modifiers.ts";
-import {
-  type CastleData,
-  FOCUS_REMATCH,
-  type GameOverFocus,
-  type GameState,
-  Mode,
-  Phase,
-  type WatcherTimingState,
-} from "./types.ts";
+import type { WatcherTimingState } from "./tick-context.ts";
+import { type GameState } from "./types.ts";
 
 /**
  * Mode-setting timing convention across transition handlers:

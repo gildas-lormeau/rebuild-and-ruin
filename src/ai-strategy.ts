@@ -26,6 +26,7 @@ import {
 } from "./ai-strategy-battle.ts";
 import { pickPlacement } from "./ai-strategy-build.ts";
 import { autoPlaceCannons, autoSelectTower } from "./ai-strategy-cannon.ts";
+import { type Cannon, CannonMode } from "./battle-types.ts";
 import { filterActiveEnemies } from "./board-occupancy.ts";
 import type {
   GameMap,
@@ -44,13 +45,7 @@ import {
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import { Rng } from "./rng.ts";
 import { computeOutside, isTowerEnclosed, waterKeys } from "./spatial.ts";
-import {
-  brandFreshInterior,
-  type Cannon,
-  CannonMode,
-  type GameState,
-  type Player,
-} from "./types.ts";
+import { brandFreshInterior, type GameState, type Player } from "./types.ts";
 
 export type ChainType = (typeof CHAIN)[keyof typeof CHAIN];
 

@@ -4,6 +4,7 @@
  */
 
 import { type FullStateMessage, MESSAGE } from "../server/protocol.ts";
+import type { BalloonFlight, Cannonball } from "./battle-types.ts";
 import { recomputeTerritoryFromWalls } from "./build-system.ts";
 import { createCastle } from "./castle-generation.ts";
 import type {
@@ -12,16 +13,14 @@ import type {
   SerializedPlayer,
 } from "./checkpoint-data.ts";
 import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "./game-constants.ts";
+import { Phase } from "./game-phase.ts";
 import { GRID_COLS, GRID_ROWS, TILE_COUNT } from "./grid.ts";
 import { toCannonMode } from "./online-types.ts";
 import { setPhase } from "./phase-setup.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import { Rng } from "./rng.ts";
 import {
-  type BalloonFlight,
-  type Cannonball,
   type GameState,
-  Phase,
   setGameMode,
   type UpgradeOfferTuple,
 } from "./types.ts";

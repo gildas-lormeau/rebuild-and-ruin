@@ -14,22 +14,22 @@
  */
 
 import {
-  BALLOON_SIZE,
-  NORMAL_CANNON_SIZE,
-  SUPER_GUN_SIZE,
-  TOWER_SIZE,
-} from "./game-constants.ts";
-import type { PixelPos, TilePos, Tower } from "./geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
-import {
-  Action,
   type BurningPit,
   type Cannon,
   CannonMode,
   isBalloonMode,
   isSuperMode,
-  type TileKey,
-} from "./types.ts";
+} from "./battle-types.ts";
+import {
+  BALLOON_SIZE,
+  NORMAL_CANNON_SIZE,
+  SUPER_GUN_SIZE,
+  TOWER_SIZE,
+} from "./game-constants.ts";
+import { Action } from "./game-phase.ts";
+import type { PixelPos, TilePos, Tower } from "./geometry-types.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
+import { type TileKey } from "./types.ts";
 
 /** 45° angle step (π/4 radians) — used for 8-direction snapping. */
 const FACING_45_STEP = Math.PI / 4;

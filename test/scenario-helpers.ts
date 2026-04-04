@@ -58,18 +58,16 @@ import {
   type FrameContextInputs,
 } from "../src/runtime-types.ts";
 import {
-  type BattleAnimState,
-  CannonMode,
   emptyFreshInterior,
-  type GameState,
-  type LifeLostDialogState,
-  LifeLostChoice,
-  Mode,
-  Phase, type WatcherTimingState } from "../src/types.ts";
+  type GameState } from "../src/types.ts";
 import { isGrass, packTile } from "../src/spatial.ts";
 import { assert } from "./test-helpers.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../src/player-slot.ts";
 import { applyBattleStartCheckpoint, applyBuildEndCheckpoint, applyBuildStartCheckpoint, applyCannonStartCheckpoint, type CheckpointDeps } from "../src/online-checkpoints.ts";
+import { Phase, Mode } from "../src/game-phase.ts";
+import { LifeLostChoice, type LifeLostDialogState } from "../src/dialog-types.ts";
+import { CannonMode, type BattleAnimState } from "../src/battle-types.ts";
+import type { WatcherTimingState } from "../src/tick-context.ts";
 
 // ---------------------------------------------------------------------------
 // Scenario factory

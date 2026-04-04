@@ -24,20 +24,19 @@ import type {
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
+import type {
+  ControlsState,
+  GameOverFocus,
+  LifeLostDialogState,
+  UpgradePickDialogState,
+} from "./dialog-types.ts";
+import type { Action, Mode } from "./game-phase.ts";
 import type { WorldPos } from "./geometry-types.ts";
 import type { GameActionDeps } from "./input-dispatch.ts";
 import type { RendererInterface } from "./overlay-types.ts";
 import type { KeyBindings, SeedMode } from "./player-config.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
-import type {
-  Action,
-  ControlsState,
-  GameOverFocus,
-  GameState,
-  LifeLostDialogState,
-  Mode,
-  UpgradePickDialogState,
-} from "./types.ts";
+import type { GameState } from "./types.ts";
 
 export interface RegisterOnlineInputDeps {
   // --- Core (used by all handlers) ---

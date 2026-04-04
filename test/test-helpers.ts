@@ -6,7 +6,8 @@ import type { PieceShape } from "../src/pieces.ts";
 import { Rng } from "../src/rng.ts";
 import process from "node:process";
 import type { ValidPlayerSlot } from "../src/player-slot.ts";
-import { emptyFreshInterior, Phase, type GameState, type Player } from "../src/types.ts";
+import { emptyFreshInterior, type GameState, type Player } from "../src/types.ts";
+import { Phase } from "../src/game-phase.ts";
 
 // ---------------------------------------------------------------------------
 // ASCII helpers

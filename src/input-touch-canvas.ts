@@ -21,6 +21,13 @@ import type {
   PlayerController,
 } from "./controller-interfaces.ts";
 import {
+  isInteractiveMode,
+  isPlacementPhase,
+  isReselectPhase,
+  isSelectionPhase,
+  Phase,
+} from "./game-phase.ts";
+import {
   type RegisterOnlineInputDeps,
   TAP_MAX_DIST,
   TAP_MAX_TIME,
@@ -34,13 +41,6 @@ import {
   markTouchTime,
 } from "./input-dispatch.ts";
 import { cannonSize } from "./spatial.ts";
-import {
-  isInteractiveMode,
-  isPlacementPhase,
-  isReselectPhase,
-  isSelectionPhase,
-  Phase,
-} from "./types.ts";
 
 /** Mutable gesture-tracking state shared across touch handlers. */
 interface GestureState {

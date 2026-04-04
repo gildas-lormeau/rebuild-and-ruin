@@ -1,3 +1,11 @@
+import {
+  isInteractiveMode,
+  isPlacementPhase,
+  isReselectPhase,
+  isSelectionPhase,
+  Mode,
+  Phase,
+} from "./game-phase.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
 import {
   dispatchBattleFire,
@@ -8,14 +16,6 @@ import {
   isTouchSuppressed,
 } from "./input-dispatch.ts";
 import { CURSOR_DEFAULT, CURSOR_POINTER } from "./platform.ts";
-import {
-  isInteractiveMode,
-  isPlacementPhase,
-  isReselectPhase,
-  isSelectionPhase,
-  Mode,
-  Phase,
-} from "./types.ts";
 
 const CLICK_EVENT = "click";
 

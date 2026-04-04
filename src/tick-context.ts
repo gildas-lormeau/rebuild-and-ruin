@@ -82,6 +82,13 @@ export interface TimerAccums {
  *  Everywhere else, pass TimerAccums (readonly) to prevent accidental mutation. */
 export type MutableAccums = { -readonly [K in keyof TimerAccums]: number };
 
+export interface WatcherTimingState {
+  phaseStartTime: number;
+  phaseDuration: number;
+  countdownStartTime: number;
+  countdownDuration: number;
+}
+
 /** Empty set used as default when no remote players exist (local play). */
 const NO_REMOTE_SLOTS: ReadonlySet<number> = Object.freeze(new Set<number>());
 

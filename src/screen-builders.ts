@@ -3,11 +3,13 @@
  * Used by both main.ts and online-client.ts.
  */
 
+import type { ControlsState } from "./dialog-types.ts";
 import {
   GAME_MODE_MODERN,
   LOBBY_SKIP_LOCKOUT,
   LOBBY_SKIP_STEP,
 } from "./game-constants.ts";
+import { isInteractiveMode, Mode } from "./game-phase.ts";
 import type { GameMap } from "./geometry-types.ts";
 import type { OptionEntry, RenderOverlay } from "./overlay-types.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
@@ -43,13 +45,7 @@ import {
   SOUND_LABELS,
 } from "./settings-defs.ts";
 import { formatKeyName } from "./settings-ui.ts";
-import {
-  type ControlsState,
-  type GameState,
-  isInteractiveMode,
-  type LobbyState,
-  Mode,
-} from "./types.ts";
+import { type GameState, type LobbyState } from "./types.ts";
 
 export interface UIContext {
   getState: () => GameState | undefined;

@@ -3,6 +3,12 @@
  */
 
 import {
+  type Cannon,
+  CannonMode,
+  isBalloonMode,
+  isSuperMode,
+} from "./battle-types.ts";
+import {
   assertInteriorFresh,
   filterAliveOwnedTowers,
   getInterior,
@@ -30,13 +36,9 @@ import {
   unpackTile,
 } from "./spatial.ts";
 import {
-  type Cannon,
-  CannonMode,
   type GameState,
-  isBalloonMode,
   isPlayerAlive,
   isPlayerSeated,
-  isSuperMode,
   type Player,
 } from "./types.ts";
 

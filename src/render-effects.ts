@@ -1,39 +1,4 @@
-/**
- * Visual effects rendering — impacts, cannonballs, balloons, burning pits,
- * crosshairs, phantoms, bonus squares, houses, grunts.
- *
- * ### Parameter convention (shared with render-composition.ts, render-map.ts)
- *
- * Exported functions with ≤3 closely-related args use positional parameters;
- * exported functions with >3 args or heterogeneous config use a `params` object.
- * Private helpers are exempt — they use positional args for brevity since
- * they're called from one place and readability is local.
- *
- * ### Time parameter convention (applies across all render-* files)
- *
- * All render functions receive `now` (ms, monotonic) from the frame entry
- * point (`drawMap`), which gets it from `performance.now()` at frame start.
- * **Never call `Date.now()` or `performance.now()` inside render code** —
- * use the threaded `now` value.  Tests inject any number they want.
- * Functions that divide by 1000 (water, pits, frozen) convert to seconds locally.
- *
- * ### Coordinate spaces
- *
- * All positions in render-* files are canvas-space (pixels from canvas origin)
- * unless parameter names indicate otherwise (screenX/Y, tileX/Y). World-space
- * conversions happen at call sites in render-composition.ts.
- *
- * ### Canvas save/restore convention (applies across all render-* files)
- *
- * CONVENTION: All exported render functions that mutate canvas context state
- * (globalAlpha, fillStyle, transform, etc.) MUST call ctx.save() at entry
- * and ctx.restore() before returning. This prevents style leaks between draw calls.
- * The pattern is:
- *   ctx.save();
- *   // ... mutations + drawing ...
- *   ctx.restore();
- */
-
+import { type CannonMode, isBalloonMode, isSuperMode } from "./battle-types.ts";
 import { IMPACT_FLASH_DURATION } from "./game-constants.ts";
 import type { GameMap, RGB } from "./geometry-types.ts";
 import { TILE_SIZE } from "./grid.ts";
@@ -57,7 +22,6 @@ import {
   TEXT_BASELINE_MIDDLE,
   TEXT_WHITE,
 } from "./theme.ts";
-import { type CannonMode, isBalloonMode, isSuperMode } from "./types.ts";
 
 // Water wave animation parameters — tuned for natural-looking tile-scale ripples
 const WAVE_TIME_BASE = 0.8;

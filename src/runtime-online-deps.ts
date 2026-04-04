@@ -22,6 +22,7 @@ import type {
   ServerMessage,
 } from "../server/protocol.ts";
 import { MIGRATION_ANNOUNCEMENT_DURATION } from "./game-constants.ts";
+import { isReselectPhase, Mode } from "./game-phase.ts";
 import { createError, joinError } from "./online-dom.ts";
 import {
   handleBattleStartTransition,
@@ -39,7 +40,6 @@ import { PLAYER_NAMES } from "./player-config.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import { promoteToHost } from "./runtime-online-promote.ts";
 import type { GameRuntime } from "./runtime-types.ts";
-import { isReselectPhase, Mode } from "./types.ts";
 
 // ── Types ──────────────────────────────────────────────────────────
 interface DepsInit {

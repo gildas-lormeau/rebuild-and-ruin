@@ -10,6 +10,7 @@
  */
 
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
+import { CannonMode } from "./battle-types.ts";
 import {
   addPlayerWalls,
   clearPlayerWalls,
@@ -55,6 +56,7 @@ import {
   INTERBATTLE_GRUNT_SPAWN_CHANCE,
   MODIFIER_ID,
 } from "./game-constants.ts";
+import { Phase } from "./game-phase.ts";
 import {
   rollGruntWallAttacks,
   spawnGruntGroupOnZone,
@@ -72,12 +74,10 @@ import {
 } from "./round-modifiers.ts";
 import { isBalloonCannon, packTile } from "./spatial.ts";
 import {
-  CannonMode,
   emptyFreshInterior,
   type GameState,
   isPlayerAlive,
   isPlayerSeated,
-  Phase,
   type Player,
   type UpgradeOfferTuple,
 } from "./types.ts";

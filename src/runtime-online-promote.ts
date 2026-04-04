@@ -9,6 +9,7 @@
  * injected via initPromote() to avoid initialization coupling.
  */
 
+import { Mode } from "./game-phase.ts";
 import {
   rebuildControllersForPhase,
   skipCastleBuildAnimation,
@@ -21,7 +22,6 @@ import {
 } from "./online-stores.ts";
 import { createAiController } from "./runtime-bootstrap.ts";
 import type { GameRuntime } from "./runtime-types.ts";
-import { Mode } from "./types.ts";
 import { assertNever } from "./utils.ts";
 
 // ── Late-bound state ───────────────────────────────────────────────

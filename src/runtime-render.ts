@@ -9,7 +9,9 @@ import type {
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
+import type { UpgradePickDialogState } from "./dialog-types.ts";
 import { SCORE_DELTA_DISPLAY_TIME } from "./game-constants.ts";
+import { Phase } from "./game-phase.ts";
 import type { GameMap, Viewport } from "./geometry-types.ts";
 import type { LoupeHandle, RenderOverlay } from "./overlay-types.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "./player-config.ts";
@@ -32,7 +34,6 @@ import {
   updateTouchControls,
   type ZoomButton,
 } from "./runtime-touch-ui.ts";
-import { Phase, type UpgradePickDialogState } from "./types.ts";
 
 interface RenderSystemDeps {
   readonly runtimeState: RuntimeState;

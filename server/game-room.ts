@@ -15,9 +15,11 @@
  * there is a single source of truth — no dual-tracking desync risk.
  */
 
+import { CANNON_MODES } from "../src/battle-types.ts";
+import { LifeLostChoice } from "../src/dialog-types.ts";
+import { Phase } from "../src/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/grid.ts";
 import { MAX_PLAYERS } from "../src/player-config.ts";
-import { CANNON_MODES, LifeLostChoice, Phase } from "../src/types.ts";
 import {
   MESSAGE,
   type RoomSettings,

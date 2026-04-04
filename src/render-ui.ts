@@ -5,6 +5,13 @@
  * threaded from drawMap. See render-effects.ts for the full convention.
  */
 
+import {
+  FOCUS_MENU,
+  FOCUS_REMATCH,
+  LIFE_LOST_FOCUS_ABANDON,
+  LIFE_LOST_FOCUS_CONTINUE,
+  LifeLostChoice,
+} from "./dialog-types.ts";
 import type { RGB } from "./geometry-types.ts";
 import {
   type GameOverOverlay,
@@ -97,13 +104,6 @@ import {
   TEXT_BASELINE_MIDDLE,
   TEXT_WHITE,
 } from "./theme.ts";
-import {
-  FOCUS_MENU,
-  FOCUS_REMATCH,
-  LIFE_LOST_FOCUS_ABANDON,
-  LIFE_LOST_FOCUS_CONTINUE,
-  LifeLostChoice,
-} from "./types.ts";
 
 type ScoreEntry = GameOverOverlay["scores"][number];
 

@@ -1,9 +1,9 @@
-import { type AutoResolveDeps, shouldAutoResolve } from "./player-config.ts";
 import type {
-  GameState,
   UpgradePickDialogState,
   UpgradePickEntry,
-} from "./types.ts";
+} from "./dialog-types.ts";
+import { type AutoResolveDeps, shouldAutoResolve } from "./player-config.ts";
+import type { GameState } from "./types.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 
 interface CreateUpgradePickDeps extends AutoResolveDeps {

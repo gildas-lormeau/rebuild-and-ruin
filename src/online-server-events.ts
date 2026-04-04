@@ -33,6 +33,7 @@ import {
   type ServerMessage,
 } from "../server/protocol.ts";
 import { applyImpactEvent } from "./battle-system.ts";
+import { CANNON_MODES } from "./battle-types.ts";
 import { getInterior } from "./board-occupancy.ts";
 import { applyPiecePlacement, canPlacePieceOffsets } from "./build-system.ts";
 import {
@@ -41,19 +42,14 @@ import {
   cannonSlotsUsed,
   canPlaceCannon,
 } from "./cannon-system.ts";
+import { LifeLostChoice, type ResolvedChoice } from "./dialog-types.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { toCannonMode, type WatcherNetworkState } from "./online-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import { highlightTowerSelection } from "./selection.ts";
 import { inBoundsStrict, packTile } from "./spatial.ts";
 import { isHostInContext, isRemoteHuman } from "./tick-context.ts";
-import {
-  CANNON_MODES,
-  type GameState,
-  LifeLostChoice,
-  type ResolvedChoice,
-  type SelectionState,
-} from "./types.ts";
+import { type GameState, type SelectionState } from "./types.ts";
 
 interface LifeLostChoiceEntry {
   playerId: ValidPlayerSlot;

@@ -6,6 +6,7 @@
  */
 
 import { traitLookup } from "./ai-constants.ts";
+import { CannonMode } from "./battle-types.ts";
 import {
   filterActiveEnemies,
   getInterior,
@@ -35,7 +36,7 @@ import {
   towerCenter,
   unpackTile,
 } from "./spatial.ts";
-import { CannonMode, type GameState, type Player } from "./types.ts";
+import { type GameState, type Player } from "./types.ts";
 
 type CannonCandidate = { row: number; col: number; score: number };
 

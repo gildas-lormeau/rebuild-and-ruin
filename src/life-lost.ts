@@ -1,11 +1,11 @@
-import { type AutoResolveDeps, shouldAutoResolve } from "./player-config.ts";
-import type { ValidPlayerSlot } from "./player-slot.ts";
 import {
-  type GameState,
   LifeLostChoice,
   type LifeLostDialogState,
   type LifeLostEntry,
-} from "./types.ts";
+} from "./dialog-types.ts";
+import { type AutoResolveDeps, shouldAutoResolve } from "./player-config.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
+import { type GameState } from "./types.ts";
 
 interface CreateLifeLostDialogDeps extends AutoResolveDeps {
   needsReselect: readonly ValidPlayerSlot[];

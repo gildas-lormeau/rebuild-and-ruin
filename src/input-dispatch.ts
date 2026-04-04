@@ -32,22 +32,23 @@ import {
   isMovementAction,
   type PlayerController,
 } from "./controller-interfaces.ts";
-import type { WorldPos } from "./geometry-types.ts";
-import type { ValidPlayerSlot } from "./player-slot.ts";
-import { findNearestTower, towerAtPixel } from "./spatial.ts";
+import type {
+  ControlsState,
+  LifeLostDialogState,
+  UpgradePickDialogState,
+} from "./dialog-types.ts";
 import {
   Action,
-  type ControlsState,
-  type GameState,
   isPlacementPhase,
   isReselectPhase,
   isSelectionPhase,
-  type LifeLostDialogState,
   Mode,
   Phase,
-  type SelectionState,
-  type UpgradePickDialogState,
-} from "./types.ts";
+} from "./game-phase.ts";
+import type { WorldPos } from "./geometry-types.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
+import { findNearestTower, towerAtPixel } from "./spatial.ts";
+import { type GameState, type SelectionState } from "./types.ts";
 
 export interface OverlayActionDeps {
   options?: {

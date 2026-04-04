@@ -7,7 +7,9 @@
 
 import { MESSAGE } from "../server/protocol.ts";
 import { aimCannons, nextReadyCombined } from "./battle-system.ts";
+import type { BattleAnimState } from "./battle-types.ts";
 import { isHuman, type PlayerController } from "./controller-interfaces.ts";
+import { Phase } from "./game-phase.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import { tickGrunts } from "./grunt-movement.ts";
 import type { DedupMaps, OnlineSession } from "./online-session.ts";
@@ -24,13 +26,12 @@ import {
 } from "./online-watcher-battle.ts";
 import type { FrameData } from "./overlay-types.ts";
 import { isActivePlayer, type PlayerSlotId } from "./player-slot.ts";
-import { type TimerAccums, tickGruntsIfDue } from "./tick-context.ts";
 import {
-  type BattleAnimState,
-  type GameState,
-  Phase,
+  type TimerAccums,
+  tickGruntsIfDue,
   type WatcherTimingState,
-} from "./types.ts";
+} from "./tick-context.ts";
+import { type GameState } from "./types.ts";
 
 export interface WatcherState extends WatcherNetworkState {
   timing: WatcherTimingState;

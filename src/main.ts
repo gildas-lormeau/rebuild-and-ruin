@@ -7,13 +7,13 @@
  */
 
 import { LOBBY_TIMER } from "./game-constants.ts";
+import { Mode } from "./game-phase.ts";
 import { MAX_PLAYERS } from "./player-config.ts";
 import { SPECTATOR_SLOT } from "./player-slot.ts";
 import { createCanvasRenderer } from "./render-canvas.ts";
 import { loadAtlas } from "./render-sprites.ts";
 import { GAME_CONTAINER_ACTIVE, GAME_EXIT_EVENT } from "./router.ts";
 import { createGameRuntime } from "./runtime.ts";
-import { Mode } from "./types.ts";
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const renderer = createCanvasRenderer(canvas);

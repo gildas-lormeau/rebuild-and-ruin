@@ -1,4 +1,4 @@
-import { Mode, Phase } from "./types.ts";
+import { Mode, Phase } from "./game-phase.ts";
 
 type RecoveredBalloonFlight = {
   flight: { startX: number; startY: number; endX: number; endY: number };

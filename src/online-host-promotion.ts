@@ -6,10 +6,11 @@
 import type { PlayerController } from "./controller-interfaces.ts";
 import { BATTLE_TIMER } from "./game-constants.ts";
 import { enterCannonPlacePhase } from "./game-engine.ts";
+import { Phase } from "./game-phase.ts";
 import { finalizeCastleConstruction } from "./phase-setup.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
 import type { MutableAccums } from "./tick-context.ts";
-import { type GameState, isPlayerAlive, Phase } from "./types.ts";
+import { type GameState, isPlayerAlive } from "./types.ts";
 
 /** Large prime for deriving per-round AI strategy seeds (ensures uncorrelated rounds). */
 const SEED_ROUND_MULTIPLIER = 1000003;

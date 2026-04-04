@@ -13,6 +13,7 @@
  * (isHost is volatile during host promotion; see online-session.ts).
  */
 
+import { CannonMode } from "./battle-types.ts";
 import { getInterior, snapshotAllWalls } from "./board-occupancy.ts";
 import type { SerializedPlayer } from "./checkpoint-data.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
@@ -40,7 +41,7 @@ import {
   localControllers,
   tickGruntsIfDue,
 } from "./tick-context.ts";
-import { CannonMode, type GameState } from "./types.ts";
+import { type GameState } from "./types.ts";
 
 /** Networking context for the cannon placement phase.
  *  Optional (`net?`) — when omitted, the tick function runs in local-play mode

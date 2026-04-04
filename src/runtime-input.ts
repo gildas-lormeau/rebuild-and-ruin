@@ -3,6 +3,13 @@ import {
   isHuman,
   type PlayerController,
 } from "./controller-interfaces.ts";
+import {
+  FOCUS_MENU,
+  FOCUS_REMATCH,
+  type GameOverFocus,
+  type ResolvedChoice,
+} from "./dialog-types.ts";
+import { Action, Mode } from "./game-phase.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
@@ -31,15 +38,7 @@ import { type UIContext, visibleOptions } from "./screen-builders.ts";
 import { OPT_CONTROLS } from "./settings-defs.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import { towerCenterPx } from "./spatial.ts";
-import {
-  Action,
-  FOCUS_MENU,
-  FOCUS_REMATCH,
-  type GameOverFocus,
-  type GameState,
-  Mode,
-  type ResolvedChoice,
-} from "./types.ts";
+import { type GameState } from "./types.ts";
 
 type DpadHandle = ReturnType<typeof createDpad>;
 

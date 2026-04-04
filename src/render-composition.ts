@@ -6,10 +6,22 @@
  * object for readability at the call site.
  */
 
+import type { Impact } from "./battle-types.ts";
+import {
+  FOCUS_MENU,
+  FOCUS_REMATCH,
+  type GameOverFocus,
+  LifeLostChoice,
+  type LifeLostDialogState,
+  type ResolvedChoice,
+  type UpgradePickDialogState,
+} from "./dialog-types.ts";
 import { LIFE_LOST_MAX_TIMER, modifierLabel } from "./game-constants.ts";
+import { Phase } from "./game-phase.ts";
 import type { RGB } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import {
+  type CastleData,
   type GameOverOverlay,
   type LifeLostDialogOverlay,
   type RenderOverlay,
@@ -29,20 +41,7 @@ import {
   LIFE_LOST_PANEL_H as PANEL_H,
   LIFE_LOST_PANEL_W as PANEL_W,
 } from "./theme.ts";
-import {
-  type CastleData,
-  FOCUS_MENU,
-  FOCUS_REMATCH,
-  type GameOverFocus,
-  type GameState,
-  type Impact,
-  LifeLostChoice,
-  type LifeLostDialogState,
-  Phase,
-  type ResolvedChoice,
-  type SelectionState,
-  type UpgradePickDialogState,
-} from "./types.ts";
+import { type GameState, type SelectionState } from "./types.ts";
 import { UPGRADE_POOL } from "./upgrade-defs.ts";
 import { UPGRADE_PICK_MAX_TIMER } from "./upgrade-pick.ts";
 

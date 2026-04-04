@@ -6,6 +6,7 @@
  */
 
 import { fireNextReadyCannon } from "./battle-system.ts";
+import type { CombinedCannonResult } from "./battle-types.ts";
 import { autoPlaceRound1Cannons } from "./cannon-system.ts";
 import type {
   CannonPlacementPreview,
@@ -13,6 +14,7 @@ import type {
   PlayerController,
 } from "./controller-interfaces.ts";
 import { NORMAL_CANNON_SIZE } from "./game-constants.ts";
+import { Action } from "./game-phase.ts";
 import type { Crosshair } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
 import {
@@ -24,7 +26,7 @@ import {
 import type { KeyBindings } from "./player-config.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import { pxToTile, towerCenter, towerCenterTile } from "./spatial.ts";
-import { Action, type CombinedCannonResult, type GameState } from "./types.ts";
+import { type GameState } from "./types.ts";
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
 const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);

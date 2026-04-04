@@ -3,8 +3,10 @@ import {
   canPlayerFire,
   getCountdownAnnouncement,
 } from "./battle-system.ts";
+import type { CannonMode, Impact } from "./battle-types.ts";
 import type { OrbitParams, PlayerController } from "./controller-interfaces.ts";
 import { BATTLE_TIMER } from "./game-constants.ts";
+import { isPlacementPhase, Phase } from "./game-phase.ts";
 import type { Crosshair, PixelPos } from "./geometry-types.ts";
 import {
   REMOTE_CROSSHAIR_SPEED,
@@ -20,15 +22,8 @@ import {
   piecePhantomKey,
 } from "./phantom-types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
-import {
-  type CannonMode,
-  type GameState,
-  type Impact,
-  isPlacementPhase,
-  isPlayerAlive,
-  Phase,
-  type WatcherTimingState,
-} from "./types.ts";
+import type { WatcherTimingState } from "./tick-context.ts";
+import { type GameState, isPlayerAlive } from "./types.ts";
 
 interface WatcherFrameAnnouncement {
   announcement?: string;

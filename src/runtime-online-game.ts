@@ -4,7 +4,9 @@ import {
   type InitMessage,
   MESSAGE,
 } from "../server/protocol.ts";
+import { LifeLostChoice } from "./dialog-types.ts";
 import { BANNER_DURATION, SELECT_TIMER } from "./game-constants.ts";
+import { Mode } from "./game-phase.ts";
 import {
   applyBattleStartCheckpoint,
   applyBuildEndCheckpoint,
@@ -60,7 +62,6 @@ import { initDeps } from "./runtime-online-deps.ts";
 import { initPromote } from "./runtime-online-promote.ts";
 import { initWs } from "./runtime-online-ws.ts";
 import { isHostInContext } from "./tick-context.ts";
-import { LifeLostChoice, Mode } from "./types.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 
 // ── Client shorthand ───────────────────────────────────────────────

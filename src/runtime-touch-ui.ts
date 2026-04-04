@@ -8,10 +8,10 @@ import type {
   InputReceiver,
   PlayerController,
 } from "./controller-interfaces.ts";
+import { isPlacementPhase, Mode, Phase } from "./game-phase.ts";
 import { TILE_SIZE } from "./grid.ts";
 import type { LoupeHandle } from "./overlay-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
-import { isPlacementPhase, Mode, Phase } from "./types.ts";
 
 type TouchBtnRule = boolean | typeof INTERACTIVE;
 

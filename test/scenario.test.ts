@@ -30,7 +30,6 @@ import {
 } from "../src/phase-transition-shared.ts";
 import { createSession, resetSessionState } from "../src/online-session.ts";
 import { type BannerState, showBannerTransition } from "../src/phase-banner.ts";
-import { type LifeLostDialogState, CannonMode, LifeLostChoice, Mode, Phase } from "../src/types.ts";
 import {
   assertCameraZone,
   assertLifeLostLabel,
@@ -40,6 +39,9 @@ import {
 import { assert, test, runTests } from "./test-helpers.ts";
 import { enterCannonPlacePhase, nextPhase } from "../src/game-engine.ts";
 import { SPECTATOR_SLOT, type PlayerSlotId, type ValidPlayerSlot } from "../src/player-slot.ts";
+import { Phase, Mode } from "../src/game-phase.ts";
+import { LifeLostChoice, type LifeLostDialogState } from "../src/dialog-types.ts";
+import { CannonMode } from "../src/battle-types.ts";
 
 // ---------------------------------------------------------------------------
 // 1. Game-over overlay cleared on returnToLobby

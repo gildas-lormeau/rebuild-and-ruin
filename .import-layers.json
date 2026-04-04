@@ -14,6 +14,7 @@
       "src/upgrade-defs.ts",
       "src/settings-defs.ts",
       "src/player-slot.ts",
+      "src/game-phase.ts",
       "src/utils.ts",
       "server/send-utils.ts"
     ]
@@ -33,9 +34,9 @@
   {
     "name": "core types, state & spatial",
     "files": [
-      "src/ai-build-types.ts",
-      "src/ai-castle-rect.ts",
+      "src/battle-types.ts",
       "src/types.ts",
+      "src/dialog-types.ts",
       "src/spatial.ts",
       "src/board-occupancy.ts",
       "src/checkpoint-data.ts",
@@ -45,8 +46,6 @@
   {
     "name": "shared types & config",
     "files": [
-      "src/ai-build-score.ts",
-      "src/ai-build-fallback.ts",
       "src/phase-transition-shared.ts",
       "src/player-config.ts",
       "src/controller-interfaces.ts",
@@ -74,7 +73,6 @@
   {
     "name": "game logic",
     "files": [
-      "src/ai-build-target.ts",
       "src/cannon-system.ts",
       "src/grunt-movement.ts",
       "src/grunt-system.ts",
@@ -87,12 +85,18 @@
       "src/round-modifiers.ts",
       "src/game-engine.ts",
       "src/selection.ts",
-      "src/host-phase-ticks.ts"
+      "src/host-phase-ticks.ts",
+      "src/host-battle-ticks.ts"
     ]
   },
   {
     "name": "AI strategy",
     "files": [
+      "src/ai-build-types.ts",
+      "src/ai-castle-rect.ts",
+      "src/ai-build-score.ts",
+      "src/ai-build-fallback.ts",
+      "src/ai-build-target.ts",
       "src/ai-strategy-battle.ts",
       "src/ai-strategy-build.ts",
       "src/ai-strategy-cannon.ts",
@@ -175,7 +179,6 @@
       "src/online-server-events.ts",
       "src/online-host-crosshairs.ts",
       "src/online-host-promotion.ts",
-      "src/online-host-battle-ticks.ts",
       "src/online-stores.ts",
       "server/room-manager.ts"
     ]

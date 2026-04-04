@@ -1,3 +1,5 @@
+import type { BurningPit, Cannon, Impact } from "./battle-types.ts";
+import type { GameOverFocus, LifeLostChoice } from "./dialog-types.ts";
 import type {
   Crosshair,
   GameMap,
@@ -11,15 +13,7 @@ import type {
   PiecePhantom as RenderPiecePhantom,
 } from "./phantom-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
-import {
-  type BurningPit,
-  type CastleData,
-  type GameOverFocus,
-  type Grunt,
-  type Impact,
-  type LifeLostChoice,
-  type PlayerStats,
-} from "./types.ts";
+import type { FreshInterior, Grunt } from "./types.ts";
 
 export type { RenderCannonPhantom, RenderPiecePhantom };
 
@@ -300,4 +294,25 @@ export interface RendererInterface {
 export interface LoupeHandle {
   /** Update the loupe content — call from render(). */
   update: (visible: boolean, worldX: number, worldY: number) => void;
+}
+
+/** A cannon captured by a propaganda balloon — fires for the balloon owner during battle. */
+export interface CastleData {
+  /** Wall tile positions encoded as row*GRID_COLS+col. */
+  walls: ReadonlySet<number>;
+  /** Enclosed territory: grass tiles fully surrounded by walls (inverse flood-fill).
+   *  Encoded as row*GRID_COLS+col. Used for cannon eligibility, grunt blocking, and scoring. */
+  interior: FreshInterior;
+  /** Cannon positions (top-left of 2×2 or 3×3 super) with HP. */
+  cannons: Cannon[];
+  /** Player index (for color). */
+  playerId: ValidPlayerSlot;
+  /** Wall tiles that absorbed one hit from Reinforced Walls upgrade.
+   *  Rendered with a crack overlay so players can see which walls are weakened. */
+  damagedWalls?: ReadonlySet<number>;
+}
+
+export interface PlayerStats {
+  wallsDestroyed: number;
+  cannonsKilled: number;
 }

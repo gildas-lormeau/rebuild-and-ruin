@@ -7,9 +7,9 @@ import {
   piecePhantomKey,
   type PiecePhantom,
 } from "../src/phantom-types.ts";
-import { CannonMode } from "../src/types.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
 import type { ValidPlayerSlot } from "../src/player-slot.ts";
+import { CannonMode } from "../src/battle-types.ts";
 
 // ---------------------------------------------------------------------------
 // cannonPhantomKey

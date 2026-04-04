@@ -2,6 +2,7 @@ import { createController } from "./controller-factory.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
 import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "./game-constants.ts";
 import { createGameFromSeed } from "./game-engine.ts";
+import { isReselectPhase, Phase } from "./game-phase.ts";
 import type { GameMap } from "./geometry-types.ts";
 import { generateMap } from "./map-generation.ts";
 import type { KeyBindings } from "./player-config.ts";
@@ -16,9 +17,7 @@ import { GOLD, PANEL_BG } from "./theme.ts";
 import { isRemoteHuman } from "./tick-context.ts";
 import {
   type GameState,
-  isReselectPhase,
   type LobbyState,
-  Phase,
   type SelectionState,
   setGameMode,
 } from "./types.ts";

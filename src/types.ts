@@ -2,140 +2,22 @@
  * Core types, interfaces, and constants for the game engine.
  */
 
+import type {
+  BurningPit,
+  Cannon,
+  Cannonball,
+  CapturedCannon,
+} from "./battle-types.ts";
 import {
   GAME_MODE_MODERN,
   type GameMode,
   type ModifierId,
 } from "./game-constants.ts";
+import { type Mode, type Phase } from "./game-phase.ts";
 import type { Castle, GameMap, TilePos, Tower } from "./geometry-types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
 import type { Rng } from "./rng.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
-
-export enum Phase {
-  CASTLE_SELECT = "CASTLE_SELECT",
-  CASTLE_RESELECT = "CASTLE_RESELECT",
-  WALL_BUILD = "WALL_BUILD",
-  CANNON_PLACE = "CANNON_PLACE",
-  BATTLE = "BATTLE",
-}
-
-/** Input action names returned by matchKey / used in key dispatch.
- *  ROTATE is context-dependent: rotates piece in WALL_BUILD,
- *  cycles cannon mode in CANNON_PLACE, and sprints crosshair in BATTLE. */
-export enum Action {
-  UP = "up",
-  DOWN = "down",
-  LEFT = "left",
-  RIGHT = "right",
-  CONFIRM = "confirm",
-  /** Rotate piece (build), cycle cannon mode (cannon), sprint crosshair (battle). */
-  ROTATE = "rotate",
-}
-
-/** Cannon placement mode. */
-export enum CannonMode {
-  NORMAL = "normal",
-  SUPER = "super",
-  BALLOON = "balloon",
-}
-
-/** Top-level UI mode — controls which screen/phase main loop renders. */
-export enum Mode {
-  LOBBY,
-  OPTIONS,
-  CONTROLS,
-  SELECTION,
-  BANNER,
-  BALLOON_ANIM,
-  CASTLE_BUILD,
-  LIFE_LOST,
-  UPGRADE_PICK,
-  GAME,
-  STOPPED,
-}
-
-/** Game-over focus state — which button is highlighted on the game-over screen. */
-export type GameOverFocus = "rematch" | "menu";
-
-export interface Cannon extends TilePos {
-  /** Hits remaining before destruction. Persists across rounds. */
-  hp: number;
-  /** Cannon variant: normal (2×2), super (3×3 incendiary), or balloon (2×2 propaganda). */
-  mode: CannonMode;
-  /** Facing angle in radians (snapped to 45° increments). 0 = up. */
-  facing?: number;
-}
-
-export interface CapturedCannon {
-  /** The captured cannon reference. */
-  cannon: Cannon;
-  /** Index of the cannon in the victim's cannons array, or CANNON_NOT_FOUND (-1). */
-  cannonIdx: number;
-  /** The player who owns the captured cannon (victim). */
-  victimId: ValidPlayerSlot;
-  /** The player who owns the balloon (capturer). */
-  capturerId: ValidPlayerSlot;
-}
-
-/** Result from nextReadyCombined — either an own cannon or a captured one. */
-export type CombinedCannonResult =
-  | { type: "own"; combinedIdx: number; ownIdx: number }
-  | { type: "captured"; combinedIdx: number; cc: CapturedCannon };
-
-/** Flight path for a balloon animation. */
-export interface BalloonFlight {
-  /** Start position in pixels (balloon base center). */
-  startX: number;
-  startY: number;
-  /** Target position in pixels (captured cannon center). */
-  endX: number;
-  endY: number;
-}
-
-export interface Cannonball {
-  /** Which cannon fired this ball (index into player.cannons). */
-  cannonIdx: number;
-  /** Start position in pixels. */
-  startX: number;
-  startY: number;
-  /** Current position in pixels (sub-tile precision). */
-  x: number;
-  y: number;
-  /** Target position in pixels. */
-  targetX: number;
-  targetY: number;
-  /** Speed in pixels per second. */
-  speed: number;
-  /** Owner player id — the player whose cannon fired this ball.
-   *  Used for in-flight tracking (index into this player's cannons array).
-   *  NOT necessarily who gets scoring credit — see scoringPlayerId. */
-  playerId: ValidPlayerSlot;
-  /** Player who receives scoring credit for this cannonball's impacts.
-   *  Set to capturerId when this cannon was captured by a propaganda balloon.
-   *  When undefined, defaults to playerId (normal cannon fire).
-   *  Always use: `const shooter = ball.scoringPlayerId ?? ball.playerId`
-   *
-   *  Key distinction: playerId = cannon owner, scoringPlayerId = point receiver.
-   *  They differ only when a cannon was captured by a balloon. */
-  scoringPlayerId?: number;
-  /** If true, leaves a burning pit on impact (fired from super gun). */
-  incendiary?: boolean;
-}
-
-export interface Impact extends TilePos {
-  /** Seconds since the impact occurred. */
-  age: number;
-}
-
-export interface BurningPit extends TilePos {
-  /** Battle rounds remaining before the pit expires. */
-  roundsLeft: number;
-}
-
-export interface BonusSquare extends TilePos {
-  zone: number;
-}
 
 /** Branded number proving a value was produced by packTile(row, col).
  *  Assignable to `number` (so existing Set<number> / Map<number,…> still work),
@@ -317,14 +199,6 @@ export interface ModernState {
   frozenTiles: Set<number> | null;
 }
 
-/** Battle animation state — territory/wall snapshots and in-flight effects. */
-export interface BattleAnimState {
-  territory: Set<number>[];
-  walls: Set<number>[];
-  flights: readonly { flight: BalloonFlight; progress: number }[];
-  impacts: Impact[];
-}
-
 /** Player selection lobby state. */
 export interface LobbyState {
   joined: boolean[];
@@ -381,92 +255,9 @@ export interface FrameContext {
   readonly shouldUnzoom: boolean;
 }
 
-/** Life-lost types. */
-export enum LifeLostChoice {
-  PENDING = "pending",
-  CONTINUE = "continue",
-  ABANDON = "abandon",
+export interface BonusSquare extends TilePos {
+  zone: number;
 }
-
-export type ResolvedChoice = LifeLostChoice.CONTINUE | LifeLostChoice.ABANDON;
-
-export interface LifeLostEntry {
-  playerId: ValidPlayerSlot;
-  lives: number;
-  /** True when this entry auto-resolves (no local human input needed). */
-  autoResolve: boolean;
-  choice: LifeLostChoice;
-  autoTimer: number;
-  /** Which button is focused: LIFE_LOST_FOCUS_CONTINUE (0) or LIFE_LOST_FOCUS_ABANDON (1). */
-  focusedButton: number;
-}
-
-export interface LifeLostDialogState {
-  entries: LifeLostEntry[];
-  timer: number;
-}
-
-export interface UpgradePickEntry {
-  playerId: ValidPlayerSlot;
-  offers: readonly [UpgradeId, UpgradeId, UpgradeId];
-  choice: UpgradeId | null;
-  /** True when this entry auto-resolves (no local human input needed). */
-  autoResolve: boolean;
-  autoTimer: number;
-  /** Which offer card is focused (0, 1, or 2). */
-  focusedCard: number;
-}
-
-export interface UpgradePickDialogState {
-  entries: UpgradePickEntry[];
-  timer: number;
-}
-
-/** Mutable state for the controls-rebinding screen. */
-export interface ControlsState {
-  playerIdx: number;
-  actionIdx: number;
-  rebinding: boolean;
-}
-
-/** A cannon captured by a propaganda balloon — fires for the balloon owner during battle. */
-export interface CastleData {
-  /** Wall tile positions encoded as row*GRID_COLS+col. */
-  walls: ReadonlySet<number>;
-  /** Enclosed territory: grass tiles fully surrounded by walls (inverse flood-fill).
-   *  Encoded as row*GRID_COLS+col. Used for cannon eligibility, grunt blocking, and scoring. */
-  interior: FreshInterior;
-  /** Cannon positions (top-left of 2×2 or 3×3 super) with HP. */
-  cannons: Cannon[];
-  /** Player index (for color). */
-  playerId: ValidPlayerSlot;
-  /** Wall tiles that absorbed one hit from Reinforced Walls upgrade.
-   *  Rendered with a crack overlay so players can see which walls are weakened. */
-  damagedWalls?: ReadonlySet<number>;
-}
-
-export interface PlayerStats {
-  wallsDestroyed: number;
-  cannonsKilled: number;
-}
-
-export interface WatcherTimingState {
-  phaseStartTime: number;
-  phaseDuration: number;
-  countdownStartTime: number;
-  countdownDuration: number;
-}
-
-/** Which button is focused in the life-lost dialog. */
-export const LIFE_LOST_FOCUS_CONTINUE = 0;
-export const LIFE_LOST_FOCUS_ABANDON = 1;
-export const FOCUS_REMATCH: GameOverFocus = "rematch";
-export const FOCUS_MENU: GameOverFocus = "menu";
-export const CANNON_MODES: ReadonlySet<CannonMode> = new Set([
-  CannonMode.NORMAL,
-  CannonMode.SUPER,
-  CannonMode.BALLOON,
-]);
 
 /** Set gameMode and modern atomically — prevents divergence between the two fields. */
 export function setGameMode(state: GameState, mode: GameMode): void {
@@ -497,35 +288,6 @@ export function brandFreshInterior(set: ReadonlySet<number>): FreshInterior {
   return set as FreshInterior;
 }
 
-/** True if the cannon mode is normal. */
-export function isNormalMode(mode: CannonMode): mode is CannonMode.NORMAL {
-  return mode === CannonMode.NORMAL;
-}
-
-/** True if the cannon mode is super gun. */
-export function isSuperMode(mode: CannonMode): mode is CannonMode.SUPER {
-  return mode === CannonMode.SUPER;
-}
-
-/** True if the cannon mode is balloon. */
-export function isBalloonMode(mode: CannonMode): mode is CannonMode.BALLOON {
-  return mode === CannonMode.BALLOON;
-}
-
-/** True if the phase is castle selection (initial or reselect). */
-export function isSelectionPhase(phase: Phase): boolean {
-  return phase === Phase.CASTLE_SELECT || phase === Phase.CASTLE_RESELECT;
-}
-
-/** True if the phase is castle reselection specifically (not initial selection). */
-export function isReselectPhase(phase: Phase): boolean {
-  return phase === Phase.CASTLE_RESELECT;
-}
-
-export function createBattleAnimState(): BattleAnimState {
-  return { territory: [], walls: [], flights: [], impacts: [] };
-}
-
 /** Type guard: player exists and is not eliminated.
  *  Use this instead of the `!player || player.eliminated` pattern. */
 export function isPlayerAlive(
@@ -539,39 +301,4 @@ export function isPlayerSeated(
   player: Player | null | undefined,
 ): player is Player & { homeTower: Tower } {
   return !!player && !player.eliminated && !!player.homeTower;
-}
-
-/** True if the phase is a placement phase (walls or cannons). */
-export function isPlacementPhase(phase: Phase): boolean {
-  return phase === Phase.WALL_BUILD || phase === Phase.CANNON_PLACE;
-}
-
-/** Mode allows direct gameplay interaction (active game or tower selection).
- *  Use this instead of `mode === Mode.GAME || mode === Mode.SELECTION`. */
-export function isInteractiveMode(mode: Mode): boolean {
-  return mode === Mode.GAME || mode === Mode.SELECTION;
-}
-
-/** Mode represents an in-game screen that should be paused/ticked (not lobby/options/stopped).
- *  Use this instead of negated multi-mode checks. */
-export function isGameplayMode(mode: Mode): boolean {
-  return (
-    mode !== Mode.LOBBY &&
-    mode !== Mode.OPTIONS &&
-    mode !== Mode.CONTROLS &&
-    mode !== Mode.STOPPED
-  );
-}
-
-export function createControlsState(): ControlsState {
-  return { playerIdx: 0, actionIdx: 0, rebinding: false };
-}
-
-/** True if the mode is a non-interactive transition (banner, balloon anim, castle build). */
-export function isTransitionMode(mode: Mode): boolean {
-  return (
-    mode === Mode.BANNER ||
-    mode === Mode.BALLOON_ANIM ||
-    mode === Mode.CASTLE_BUILD
-  );
 }

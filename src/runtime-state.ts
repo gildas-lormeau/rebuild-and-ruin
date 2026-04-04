@@ -1,15 +1,14 @@
-/**
- * Mutable runtime state bag — replaces the loose closure variables
- * that used to live inside createGameRuntime().
- *
- * Exposing state as a plain object lets inner functions be extracted
- * to separate modules (they just take runtimeState: RuntimeState) and eliminates
- * the getter/setter boilerplate on the GameRuntime interface.
- */
-
+import { type BattleAnimState, createBattleAnimState } from "./battle-types.ts";
 import type { CastleBuildState } from "./castle-build.ts";
 import { type PlayerController } from "./controller-interfaces.ts";
-import type { FrameData, RenderOverlay } from "./overlay-types.ts";
+import {
+  type ControlsState,
+  createControlsState,
+  type LifeLostDialogState,
+  type UpgradePickDialogState,
+} from "./dialog-types.ts";
+import { isGameplayMode, Mode } from "./game-phase.ts";
+import type { FrameData, PlayerStats, RenderOverlay } from "./overlay-types.ts";
 import { type BannerState, createBannerState } from "./phase-banner.ts";
 import {
   type GameSettings,
@@ -19,19 +18,10 @@ import {
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import { createTimerAccums, type TimerAccums } from "./tick-context.ts";
 import {
-  type BattleAnimState,
-  type ControlsState,
-  createBattleAnimState,
-  createControlsState,
   type FrameContext,
   type GameState,
-  isGameplayMode,
-  type LifeLostDialogState,
   type LobbyState,
-  Mode,
-  type PlayerStats,
   type SelectionState,
-  type UpgradePickDialogState,
 } from "./types.ts";
 
 /**

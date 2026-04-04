@@ -6,7 +6,10 @@
  * Follows the factory-with-deps pattern used by other runtime-*.ts files.
  */
 
+import { createBattleAnimState } from "./battle-types.ts";
 import type { PlayerController } from "./controller-interfaces.ts";
+import { FOCUS_MENU, FOCUS_REMATCH } from "./dialog-types.ts";
+import { Mode } from "./game-phase.ts";
 import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "./grid.ts";
 import { createBannerState } from "./phase-banner.ts";
 import {
@@ -24,13 +27,7 @@ import type { CameraSystem } from "./runtime-types.ts";
 import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "./settings-defs.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import { createTimerAccums } from "./tick-context.ts";
-import {
-  createBattleAnimState,
-  FOCUS_MENU,
-  FOCUS_REMATCH,
-  type GameState,
-  Mode,
-} from "./types.ts";
+import { type GameState } from "./types.ts";
 
 interface GameLifecycleDeps {
   readonly runtimeState: RuntimeState;

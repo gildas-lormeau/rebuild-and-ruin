@@ -1,9 +1,10 @@
 /** Shared types and utilities for online multiplayer sub-modules. */
 
+import { CANNON_MODES, CannonMode } from "./battle-types.ts";
 import { CROSSHAIR_SPEED, type OrbitParams } from "./controller-interfaces.ts";
 import type { PixelPos } from "./geometry-types.ts";
 import type { CannonPhantom, PiecePhantom } from "./phantom-types.ts";
-import { CANNON_MODES, CannonMode, type WatcherTimingState } from "./types.ts";
+import type { WatcherTimingState } from "./tick-context.ts";
 
 /** Subset of watcher state containing network-received data (phantoms, crosshairs).
  *  Defined here (L10) so both "online infrastructure" and "online logic" consumers

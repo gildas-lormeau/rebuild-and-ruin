@@ -1,3 +1,10 @@
+import { FOCUS_MENU, FOCUS_REMATCH } from "./dialog-types.ts";
+import {
+  isGameplayMode,
+  isInteractiveMode,
+  isPlacementPhase,
+  Mode,
+} from "./game-phase.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
 import { dispatchGameAction, dispatchQuit } from "./input-dispatch.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
@@ -15,15 +22,7 @@ import {
   SEED_CUSTOM,
   SEED_RANDOM,
 } from "./player-config.ts";
-import {
-  FOCUS_MENU,
-  FOCUS_REMATCH,
-  type GameState,
-  isGameplayMode,
-  isInteractiveMode,
-  isPlacementPhase,
-  Mode,
-} from "./types.ts";
+import { type GameState } from "./types.ts";
 
 // Note: keyboard uses per-handler mode checks because different keys are valid
 // in different modes (e.g., arrows in lobby vs game, ESC always available).

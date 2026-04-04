@@ -1,8 +1,10 @@
+import { CannonMode } from "./battle-types.ts";
+import { Action } from "./game-phase.ts";
 import type { Crosshair, PixelPos, TilePos } from "./geometry-types.ts";
 import type { PieceShape } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
-import { Action, CannonMode, type GameState } from "./types.ts";
+import { type GameState } from "./types.ts";
 
 /** Orbit animation parameters for AI countdown idle animation. */
 export type OrbitParams = {

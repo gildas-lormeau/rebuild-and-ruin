@@ -30,6 +30,7 @@ import {
   markPlayerReselected,
   nextPhase,
 } from "./game-engine.ts";
+import { Mode } from "./game-phase.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { snapshotEntities } from "./phase-banner.ts";
 import {
@@ -55,7 +56,6 @@ import {
 import type { SoundSystem } from "./sound-system.ts";
 import { towerCenterPx } from "./spatial.ts";
 import { isRemoteHuman, type MutableAccums } from "./tick-context.ts";
-import { Mode } from "./types.ts";
 import { fireOnce } from "./utils.ts";
 
 interface SelectionSystemDeps {

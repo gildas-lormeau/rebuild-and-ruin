@@ -7,6 +7,7 @@
 
 import { traitLookup } from "./ai-constants.ts";
 import { canFireOwnCannon } from "./battle-system.ts";
+import type { Cannon, Cannonball } from "./battle-types.ts";
 import {
   computeCardinalObstacleMask,
   filterActiveEnemies,
@@ -35,7 +36,7 @@ import {
   pxToTile,
   unpackTile,
 } from "./spatial.ts";
-import { type Cannon, type Cannonball, type GameState } from "./types.ts";
+import { type GameState } from "./types.ts";
 
 type TargetCandidate = PrioritizedTilePos;
 

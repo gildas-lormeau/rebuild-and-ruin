@@ -6,6 +6,7 @@
  * Selection uses the synced RNG for online determinism.
  */
 
+import type { BurningPit } from "./battle-types.ts";
 import {
   deletePlayerWallsBatch,
   getInterior,
@@ -24,7 +25,7 @@ import {
 import { GRID_COLS, GRID_ROWS } from "./grid.ts";
 import { spawnGruntSurgeOnZone } from "./grunt-system.ts";
 import { DIRS_4, isGrass, isWater, packTile, unpackTile } from "./spatial.ts";
-import { type BurningPit, type GameState, isPlayerSeated } from "./types.ts";
+import { type GameState, isPlayerSeated } from "./types.ts";
 
 interface ModifierDef {
   readonly id: ModifierId;

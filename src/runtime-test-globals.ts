@@ -3,11 +3,11 @@
  * targeting data on `window` for E2E test scripts.
  */
 
+import { Mode, Phase } from "./game-phase.ts";
 import { TILE_SIZE } from "./grid.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 import type { RuntimeConfig } from "./runtime-types.ts";
 import { unpackTile } from "./spatial.ts";
-import { Mode, Phase } from "./types.ts";
 
 /** Expose mode, phase, and targeting data for E2E test automation (dev only). */
 export function exposeTestGlobals(

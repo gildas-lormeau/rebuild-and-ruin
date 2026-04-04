@@ -1,0 +1,117 @@
+import type { TilePos } from "./geometry-types.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
+
+/** Cannon placement mode. */
+export enum CannonMode {
+  NORMAL = "normal",
+  SUPER = "super",
+  BALLOON = "balloon",
+}
+
+export interface Cannon extends TilePos {
+  /** Hits remaining before destruction. Persists across rounds. */
+  hp: number;
+  /** Cannon variant: normal (2×2), super (3×3 incendiary), or balloon (2×2 propaganda). */
+  mode: CannonMode;
+  /** Facing angle in radians (snapped to 45° increments). 0 = up. */
+  facing?: number;
+}
+
+export interface Cannonball {
+  /** Which cannon fired this ball (index into player.cannons). */
+  cannonIdx: number;
+  /** Start position in pixels. */
+  startX: number;
+  startY: number;
+  /** Current position in pixels (sub-tile precision). */
+  x: number;
+  y: number;
+  /** Target position in pixels. */
+  targetX: number;
+  targetY: number;
+  /** Speed in pixels per second. */
+  speed: number;
+  /** Owner player id — the player whose cannon fired this ball.
+   *  Used for in-flight tracking (index into this player's cannons array).
+   *  NOT necessarily who gets scoring credit — see scoringPlayerId. */
+  playerId: ValidPlayerSlot;
+  /** Player who receives scoring credit for this cannonball's impacts.
+   *  Set to capturerId when this cannon was captured by a propaganda balloon.
+   *  When undefined, defaults to playerId (normal cannon fire).
+   *  Always use: `const shooter = ball.scoringPlayerId ?? ball.playerId`
+   *
+   *  Key distinction: playerId = cannon owner, scoringPlayerId = point receiver.
+   *  They differ only when a cannon was captured by a balloon. */
+  scoringPlayerId?: number;
+  /** If true, leaves a burning pit on impact (fired from super gun). */
+  incendiary?: boolean;
+}
+
+export interface CapturedCannon {
+  /** The captured cannon reference. */
+  cannon: Cannon;
+  /** Index of the cannon in the victim's cannons array, or CANNON_NOT_FOUND (-1). */
+  cannonIdx: number;
+  /** The player who owns the captured cannon (victim). */
+  victimId: ValidPlayerSlot;
+  /** The player who owns the balloon (capturer). */
+  capturerId: ValidPlayerSlot;
+}
+
+/** Result from nextReadyCombined — either an own cannon or a captured one. */
+export type CombinedCannonResult =
+  | { type: "own"; combinedIdx: number; ownIdx: number }
+  | { type: "captured"; combinedIdx: number; cc: CapturedCannon };
+
+/** Flight path for a balloon animation. */
+export interface BalloonFlight {
+  /** Start position in pixels (balloon base center). */
+  startX: number;
+  startY: number;
+  /** Target position in pixels (captured cannon center). */
+  endX: number;
+  endY: number;
+}
+
+export interface Impact extends TilePos {
+  /** Seconds since the impact occurred. */
+  age: number;
+}
+
+export interface BurningPit extends TilePos {
+  /** Battle rounds remaining before the pit expires. */
+  roundsLeft: number;
+}
+
+/** Battle animation state — territory/wall snapshots and in-flight effects. */
+export interface BattleAnimState {
+  territory: Set<number>[];
+  walls: Set<number>[];
+  flights: readonly { flight: BalloonFlight; progress: number }[];
+  impacts: Impact[];
+}
+
+export const CANNON_MODES: ReadonlySet<CannonMode> = new Set([
+  CannonMode.NORMAL,
+  CannonMode.SUPER,
+  CannonMode.BALLOON,
+]);
+
+/** True if the cannon mode is normal. */
+export function isNormalMode(mode: CannonMode): mode is CannonMode.NORMAL {
+  return mode === CannonMode.NORMAL;
+}
+
+/** True if the cannon mode is super gun. */
+export function isSuperMode(mode: CannonMode): mode is CannonMode.SUPER {
+  return mode === CannonMode.SUPER;
+}
+
+/** True if the cannon mode is balloon. */
+export function isBalloonMode(mode: CannonMode): mode is CannonMode.BALLOON {
+  return mode === CannonMode.BALLOON;
+}
+
+export function createBattleAnimState(): BattleAnimState {
+  return { territory: [], walls: [], flights: [], impacts: [] };
+}

@@ -30,6 +30,7 @@ import {
   MAX_FRAME_DT,
   SELECT_ANNOUNCEMENT_DURATION,
 } from "./game-constants.ts";
+import { Mode, Phase } from "./game-phase.ts";
 import type { GameMap, Viewport } from "./geometry-types.ts";
 import { createHapticsSystem } from "./haptics-system.ts";
 import { generateMap } from "./map-generation.ts";
@@ -76,7 +77,6 @@ import {
 } from "./runtime-upgrade-pick.ts";
 import type { UIContext } from "./screen-builders.ts";
 import { createSoundSystem } from "./sound-system.ts";
-import { Mode, Phase } from "./types.ts";
 import { fireOnce } from "./utils.ts";
 
 export type { GameRuntime } from "./runtime-types.ts";

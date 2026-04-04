@@ -17,6 +17,7 @@ import {
   createCannonFiredMsg,
   getCountdownAnnouncement,
 } from "./battle-system.ts";
+import type { BalloonFlight, BattleAnimState, Impact } from "./battle-types.ts";
 import { snapshotAllWalls } from "./board-occupancy.ts";
 import type {
   BattleController,
@@ -36,14 +37,9 @@ import {
   isHostInContext,
   isRemoteHuman,
   localControllers,
+  type WatcherTimingState,
 } from "./tick-context.ts";
-import type {
-  BalloonFlight,
-  BattleAnimState,
-  GameState,
-  Impact,
-  WatcherTimingState,
-} from "./types.ts";
+import type { GameState } from "./types.ts";
 
 type BattleCapable = ControllerIdentity & BattleController;
 

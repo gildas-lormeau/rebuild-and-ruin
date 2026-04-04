@@ -6,9 +6,9 @@
  */
 
 import { BANNER_DURATION } from "./game-constants.ts";
+import { Mode } from "./game-phase.ts";
 import { showBannerTransition, tickBannerTransition } from "./phase-banner.ts";
 import type { RuntimeState } from "./runtime-state.ts";
-import { Mode } from "./types.ts";
 
 interface BannerSystemDeps {
   readonly runtimeState: RuntimeState;

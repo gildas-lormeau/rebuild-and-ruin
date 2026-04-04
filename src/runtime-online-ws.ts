@@ -5,6 +5,7 @@
  * via initWs() to avoid initialization coupling with the composition root.
  */
 
+import { Mode } from "./game-phase.ts";
 import { computeWsUrl } from "./online-config.ts";
 import { connectWebSocket } from "./online-session.ts";
 import {
@@ -14,7 +15,6 @@ import {
 } from "./online-stores.ts";
 import { handleServerMessage } from "./runtime-online-deps.ts";
 import { isHostInContext } from "./tick-context.ts";
-import { Mode } from "./types.ts";
 
 // ── Types ──────────────────────────────────────────────────────────
 interface WsRuntimeDeps {

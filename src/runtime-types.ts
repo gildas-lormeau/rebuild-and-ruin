@@ -55,6 +55,7 @@
  */
 
 import type { GameMessage, ServerMessage } from "../server/protocol.ts";
+import type { BalloonFlight } from "./battle-types.ts";
 import type { SerializedPlayer } from "./checkpoint-data.ts";
 import type {
   BattleController,
@@ -63,6 +64,11 @@ import type {
   ControllerIdentity,
   InputReceiver,
 } from "./controller-interfaces.ts";
+import type {
+  LifeLostDialogState,
+  UpgradePickDialogState,
+} from "./dialog-types.ts";
+import { isPlacementPhase, Mode, Phase } from "./game-phase.ts";
 import type { Crosshair, Viewport, WorldPos } from "./geometry-types.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
 import type { RendererInterface } from "./overlay-types.ts";
@@ -78,17 +84,11 @@ import {
 } from "./player-slot.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { SoundSystem } from "./sound-system.ts";
+import type { WatcherTimingState } from "./tick-context.ts";
 import {
-  type BalloonFlight,
   type FrameContext,
   type GameState,
-  isPlacementPhase,
-  type LifeLostDialogState,
-  Mode,
-  Phase,
   type SelectionState,
-  type UpgradePickDialogState,
-  type WatcherTimingState,
 } from "./types.ts";
 
 export type { FrameContext } from "./types.ts";

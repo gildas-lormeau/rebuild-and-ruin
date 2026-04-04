@@ -5,6 +5,7 @@
  * and tower scoring used during the build phase.
  */
 
+import type { BurningPit } from "./battle-types.ts";
 import {
   hasCannonAt,
   hasEnemyWallAt,
@@ -28,7 +29,7 @@ import {
   towerReachesOutsideCardinal,
   unpackTile,
 } from "./spatial.ts";
-import type { BurningPit, FreshInterior, GameState } from "./types.ts";
+import type { FreshInterior, GameState } from "./types.ts";
 
 // Scoring weights for scoreBuildTowerTarget — tower ranking during build targeting.
 /** Weight given to wall-ring completion progress when ranking towers to build. */

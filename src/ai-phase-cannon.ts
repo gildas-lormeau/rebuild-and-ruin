@@ -8,16 +8,12 @@
 
 import { STEP } from "./ai-constants.ts";
 import type { AiStrategy, CannonPlacement } from "./ai-strategy.ts";
+import { CannonMode } from "./battle-types.ts";
 import { canPlaceCannon, placeCannon } from "./cannon-system.ts";
 import type { CannonPlacementPreview } from "./controller-interfaces.ts";
 import type { TilePos } from "./geometry-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
-import {
-  CannonMode,
-  type GameState,
-  isPlayerAlive,
-  type Player,
-} from "./types.ts";
+import { type GameState, isPlayerAlive, type Player } from "./types.ts";
 
 /** Subset of AiController accessed by cannon-phase logic. */
 interface CannonHost {

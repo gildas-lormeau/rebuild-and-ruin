@@ -13,6 +13,7 @@
  * Phase transition recipes live in phase-setup.ts.
  */
 
+import type { Impact } from "./battle-types.ts";
 import {
   BUILD_TIMER,
   CANNON_MAX_HP,
@@ -21,6 +22,7 @@ import {
   GAME_MODE_CLASSIC,
   STARTING_LIVES,
 } from "./game-constants.ts";
+import { Phase } from "./game-phase.ts";
 import type { GameMap, Tower } from "./geometry-types.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
 import {
@@ -32,13 +34,7 @@ import {
 } from "./phase-setup.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import { Rng } from "./rng.ts";
-import {
-  emptyFreshInterior,
-  type GameState,
-  type Impact,
-  Phase,
-  type Player,
-} from "./types.ts";
+import { emptyFreshInterior, type GameState, type Player } from "./types.ts";
 import { assertNever } from "./utils.ts";
 
 interface ResolveAfterLifeLostDeps {

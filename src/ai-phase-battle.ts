@@ -9,14 +9,11 @@
 import { STEP } from "./ai-constants.ts";
 import { type AiStrategy, CHAIN, type ChainType } from "./ai-strategy.ts";
 import { aimCannons, nextReadyCombined } from "./battle-system.ts";
+import type { CombinedCannonResult } from "./battle-types.ts";
 import type { StrategicPixelPos, TilePos } from "./geometry-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import { packTile, tileCenterPx } from "./spatial.ts";
-import {
-  type CombinedCannonResult,
-  type GameState,
-  isPlayerAlive,
-} from "./types.ts";
+import { type GameState, isPlayerAlive } from "./types.ts";
 
 /** Subset of AiController accessed by battle-phase logic. */
 interface BattleHost {

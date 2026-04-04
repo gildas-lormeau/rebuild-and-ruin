@@ -28,10 +28,10 @@ import {
   IMPACT_FLASH_DURATION,
 } from "./game-constants.ts";
 import { nextPhase, tickGameCore } from "./game-engine.ts";
+import { Mode } from "./game-phase.ts";
 import { tickGrunts } from "./grunt-movement.ts";
 import { gruntAttackTowers } from "./grunt-system.ts";
 import type { HapticsSystem } from "./haptics-system.ts";
-import { tickHostBuildPhase, tickHostCannonPhase } from "./host-phase-ticks.ts";
 import {
   beginHostBattle,
   LOCAL_BATTLE_START_NET,
@@ -39,7 +39,8 @@ import {
   tickHostBalloonAnim,
   tickHostBattleCountdown,
   tickHostBattlePhase,
-} from "./online-host-battle-ticks.ts";
+} from "./host-battle-ticks.ts";
+import { tickHostBuildPhase, tickHostCannonPhase } from "./host-phase-ticks.ts";
 import { NOOP_DEDUP_CHANNEL } from "./phantom-types.ts";
 import { BANNER_BUILD, capturePrevBattleScene } from "./phase-banner.ts";
 import {
@@ -68,7 +69,6 @@ import type {
 } from "./runtime-types.ts";
 import type { SoundSystem } from "./sound-system.ts";
 import { isRemoteHuman, type MutableAccums } from "./tick-context.ts";
-import { Mode } from "./types.ts";
 
 interface PhaseTicksDeps
   extends Pick<

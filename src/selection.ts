@@ -3,6 +3,7 @@ import type {
   SelectionController,
 } from "./controller-interfaces.ts";
 import { selectPlayerTower } from "./game-engine.ts";
+import { isReselectPhase, isSelectionPhase, Phase } from "./game-phase.ts";
 import { BANNER_SELECT } from "./phase-banner.ts";
 import {
   isActivePlayer,
@@ -10,13 +11,7 @@ import {
   type ValidPlayerSlot,
 } from "./player-slot.ts";
 import { isRemoteHuman } from "./tick-context.ts";
-import {
-  type GameState,
-  isReselectPhase,
-  isSelectionPhase,
-  Phase,
-  type SelectionState,
-} from "./types.ts";
+import { type GameState, type SelectionState } from "./types.ts";
 
 type SelectionCapable = ControllerIdentity & SelectionController;
 

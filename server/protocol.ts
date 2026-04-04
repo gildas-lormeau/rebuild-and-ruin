@@ -1,5 +1,3 @@
-import type { CannonMode, ResolvedChoice } from "../src/types.ts";
-
 // ---------------------------------------------------------------------------
 // Message type constants
 // ---------------------------------------------------------------------------
@@ -50,6 +48,7 @@ export const MESSAGE = {
   HOST_LEFT: "host_left",
 } as const;
 
+import type { CannonMode } from "../src/battle-types.ts";
 // Serialized sub-types and checkpoint data — defined in the game layer
 // (src/checkpoint-data.ts). Import here for local use in message types.
 import type {
@@ -62,6 +61,7 @@ import type {
   SerializedHouse,
   SerializedPlayer,
 } from "../src/checkpoint-data.ts";
+import type { ResolvedChoice } from "../src/dialog-types.ts";
 import type { ValidPlayerSlot } from "../src/player-slot.ts";
 
 // ---------------------------------------------------------------------------

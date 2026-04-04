@@ -15,6 +15,13 @@ import {
   ZONE_PAD_WITH_WALLS,
   ZOOM_LERP_SPEED,
 } from "./game-constants.ts";
+import {
+  isInteractiveMode,
+  isReselectPhase,
+  isTransitionMode,
+  Mode,
+  Phase,
+} from "./game-phase.ts";
 import type { TilePos, Viewport, WorldPos } from "./geometry-types.ts";
 import {
   CANVAS_H,
@@ -27,14 +34,7 @@ import {
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { CameraSystem, FrameContext } from "./runtime-types.ts";
 import { pxToTile, towerCenterPx, unpackTile } from "./spatial.ts";
-import {
-  type GameState,
-  isInteractiveMode,
-  isReselectPhase,
-  isTransitionMode,
-  Mode,
-  Phase,
-} from "./types.ts";
+import { type GameState } from "./types.ts";
 
 /** EXCEPTION: CameraDeps uses all-getter pattern (late binding) because camera state
  *  can change during host migration. Other sub-systems destructure runtimeState directly. */

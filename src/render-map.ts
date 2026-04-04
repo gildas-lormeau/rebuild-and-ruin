@@ -12,7 +12,7 @@
 
 import type { GameMap, RGB, Viewport } from "./geometry-types.ts";
 import { CANVAS_H, CANVAS_W, GRID_COLS, GRID_ROWS, TILE_SIZE } from "./grid.ts";
-import type { RenderOverlay } from "./overlay-types.ts";
+import type { CastleData, RenderOverlay } from "./overlay-types.ts";
 import { getPlayerColor } from "./player-config.ts";
 import {
   drawBattleEffects,
@@ -48,7 +48,6 @@ import {
   unpackTile,
 } from "./spatial.ts";
 import { BANNER_HEIGHT_RATIO, rgb, STATUSBAR_HEIGHT } from "./theme.ts";
-import type { CastleData } from "./types.ts";
 
 interface TerrainImageCache {
   width: number;

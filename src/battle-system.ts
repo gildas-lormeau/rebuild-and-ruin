@@ -7,6 +7,13 @@ import {
   type ImpactEvent,
   MESSAGE,
 } from "../server/protocol.ts";
+import type {
+  BalloonFlight,
+  Cannon,
+  Cannonball,
+  CapturedCannon,
+  CombinedCannonResult,
+} from "./battle-types.ts";
 import {
   deletePlayerWallBattle,
   filterActiveEnemies,
@@ -58,15 +65,7 @@ import {
   rotateToward,
   TILE_CENTER_OFFSET,
 } from "./spatial.ts";
-import type {
-  BalloonFlight,
-  Cannon,
-  Cannonball,
-  CapturedCannon,
-  CombinedCannonResult,
-  GameState,
-  Player,
-} from "./types.ts";
+import type { GameState, Player } from "./types.ts";
 import { UID } from "./upgrade-defs.ts";
 
 /** Result of tickCannonballs: impact positions (for VFX) + detailed events (for network). */
