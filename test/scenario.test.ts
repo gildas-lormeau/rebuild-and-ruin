@@ -428,9 +428,9 @@ test("online handleCannonStartTransition stashes pre-checkpoint walls on banner"
 
   // The banner old scene uses current (post-checkpoint) walls — no reintroduction
   const banner = ctx.ui.banner as BannerState;
-  const oldWalls = banner.prevCastles?.find((c) => c.playerId === 0)?.walls;
+  const prevWalls = banner.prevCastles?.find((c) => c.playerId === 0)?.walls;
   assert(
-    !(oldWalls?.has(isolatedKey) ?? false),
+    !(prevWalls?.has(isolatedKey) ?? false),
     "Banner old scene should NOT reintroduce pre-checkpoint wall",
   );
 

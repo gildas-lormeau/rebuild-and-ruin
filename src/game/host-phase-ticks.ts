@@ -511,7 +511,12 @@ function finalizeBuildAndShowDialogs(
  *
  *  INVARIANT: Snapshot MUST precede finalizeBuildPhase(). Wall sweeping deletes
  *  isolated walls during finalization — snapshotting after would show post-sweep state
- *  in the banner, hiding destroyed walls from the player. */
+ *  in the banner, hiding destroyed walls from the player.
+ *
+ *  Zone-dependent entities (grunts, houses, pits, bonuses) are re-snapshotted
+ *  AFTER finalize so that resetZoneState changes are reflected. Without this,
+ *  the banner old-scene would flash stale grunts that were already removed
+ *  before the life-lost dialog appeared. */
 function snapshotThenFinalize(
   state: GameState,
   finalizeBuildPhase: (state: GameState) => {
@@ -527,5 +532,20 @@ function snapshotThenFinalize(
   const wallsBeforeSweep = snapshotAllWalls(state);
   const prevEntities = snapshotEntities(state);
   const { needsReselect, eliminated } = finalizeBuildPhase(state);
+
+  // Re-snapshot zone-dependent entities after finalize — resetZoneState
+  // removes grunts/houses/pits/bonuses from eliminated/reselect zones,
+  // and the player already sees them gone during the life-lost dialog.
+  // Walls and towerAlive keep their pre-finalize snapshots (wall sweep
+  // and tower revival are the changes the banner should visualize).
+  if (needsReselect.length > 0 || eliminated.length > 0) {
+    prevEntities.grunts = state.grunts.map((grunt) => ({ ...grunt }));
+    prevEntities.houses = state.map.houses.map((house) => ({ ...house }));
+    prevEntities.burningPits = state.burningPits.map((pit) => ({ ...pit }));
+    prevEntities.bonusSquares = state.bonusSquares.map((bonus) => ({
+      ...bonus,
+    }));
+  }
+
   return { wallsBeforeSweep, prevEntities, needsReselect, eliminated };
 }

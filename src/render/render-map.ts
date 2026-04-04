@@ -16,6 +16,7 @@ import {
   CANVAS_W,
   GRID_COLS,
   GRID_ROWS,
+  SCALE,
   TILE_SIZE,
 } from "../shared/grid.ts";
 import type { CastleData, RenderOverlay } from "../shared/overlay-types.ts";
@@ -194,14 +195,12 @@ export function drawMap(
   drawGrunts(overlayCtx, overlay);
 
   // If banner is active with old data, composite the old scene below the banner.
-  drawBannerOldScene(overlayCtx, W, H, map, overlay, now);
+  drawBannerPrevScene(overlayCtx, W, H, map, overlay, now);
 
   // Layers that don't change between phases — draw once on top
   drawPhantoms(overlayCtx, overlay);
   drawBattleEffects(overlayCtx, map, overlay, now);
   drawScoreDeltas(overlayCtx, overlay);
-  drawComboFloats(overlayCtx, W, H, overlay);
-  drawAnnouncement(overlayCtx, W, H, overlay);
   drawBanner(overlayCtx, W, H, overlay);
   drawGameOver(overlayCtx, W, H, overlay);
   drawLifeLostDialog(overlayCtx, W, H, overlay, now);
@@ -229,6 +228,13 @@ export function drawMap(
   } else {
     canvasCtx.drawImage(offscreenScene, 0, 0, cw, gameH);
   }
+
+  // HUD text drawn at display resolution (screen-relative, not affected by zoom)
+  canvasCtx.save();
+  canvasCtx.scale(SCALE, SCALE);
+  drawComboFloats(canvasCtx, W, H, overlay);
+  drawAnnouncement(canvasCtx, W, H, overlay);
+  canvasCtx.restore();
 
   // Status bar drawn at display resolution below the game scene
   if (STATUS_BAR_H > 0) {
@@ -308,7 +314,7 @@ function ensureOffscreenSize(width: number, height: number): void {
  *  The result is cached (keyed on map + old-scene references) and composited below the
  *  banner via a clip rect. Cache is invalidated when any of the four cached references change.
  *  All four cached values must be updated atomically on a cache miss. */
-function drawBannerOldScene(
+function drawBannerPrevScene(
   overlayCtx: CanvasRenderingContext2D,
   W: number,
   H: number,
@@ -325,22 +331,22 @@ function drawBannerOldScene(
   const clipY = Math.round(overlay.ui.banner.y - bannerH / 2);
   if (clipY >= H) return;
 
-  const oldCastles = overlay.ui.bannerPrevCastles;
-  const oldTerritory = overlay.ui.bannerPrevBattleTerritory;
-  const oldWalls = overlay.ui.bannerPrevBattleWalls;
+  const prevCastles = overlay.ui.bannerPrevCastles;
+  const prevTerritory = overlay.ui.bannerPrevBattleTerritory;
+  const prevWalls = overlay.ui.bannerPrevBattleWalls;
   const needsBannerRender = !isBannerCacheValid(
     map,
-    oldCastles,
-    oldTerritory,
-    oldWalls,
+    prevCastles,
+    prevTerritory,
+    prevWalls,
   );
 
   if (needsBannerRender) {
-    const oldOverlay: RenderOverlay = {
+    const prevOverlay: RenderOverlay = {
       ...overlay,
       // Suppress selection highlights — they belong to the new phase
       selection: { highlighted: null, selected: null },
-      castles: oldCastles,
+      castles: prevCastles,
       entities: overlay.ui.bannerPrevEntities
         ? {
             ...overlay.ui.bannerPrevEntities,
@@ -349,9 +355,9 @@ function drawBannerOldScene(
         : overlay.entities,
       battle: {
         ...overlay.battle,
-        inBattle: !!oldTerritory,
-        battleTerritory: oldTerritory,
-        battleWalls: oldWalls,
+        inBattle: !!prevTerritory,
+        battleTerritory: prevTerritory,
+        battleWalls: prevWalls,
         cannonballs: undefined,
         crosshairs: undefined,
         impacts: undefined,
@@ -370,20 +376,20 @@ function drawBannerOldScene(
     };
     const tmpCtx = bannerSceneCtx;
     tmpCtx.clearRect(0, 0, W, H);
-    drawTerrain(tmpCtx, W, H, map, oldOverlay);
-    drawWaterAnimation(tmpCtx, map, oldOverlay, now);
-    drawFrozenTiles(tmpCtx, oldOverlay, now);
-    drawCastles(tmpCtx, oldOverlay);
-    drawBonusSquares(tmpCtx, oldOverlay, now);
-    drawHouses(tmpCtx, oldOverlay);
-    drawTowers(tmpCtx, map, oldOverlay, now);
-    drawBurningPits(tmpCtx, oldOverlay, now);
-    drawGrunts(tmpCtx, oldOverlay);
+    drawTerrain(tmpCtx, W, H, map, prevOverlay);
+    drawWaterAnimation(tmpCtx, map, prevOverlay, now);
+    drawFrozenTiles(tmpCtx, prevOverlay, now);
+    drawCastles(tmpCtx, prevOverlay);
+    drawBonusSquares(tmpCtx, prevOverlay, now);
+    drawHouses(tmpCtx, prevOverlay);
+    drawTowers(tmpCtx, map, prevOverlay, now);
+    drawBurningPits(tmpCtx, prevOverlay, now);
+    drawGrunts(tmpCtx, prevOverlay);
     bannerCache = {
       map,
-      castles: oldCastles,
-      territory: oldTerritory,
-      walls: oldWalls,
+      castles: prevCastles,
+      territory: prevTerritory,
+      walls: prevWalls,
     };
   }
 

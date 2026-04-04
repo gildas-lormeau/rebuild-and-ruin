@@ -287,11 +287,11 @@ export class HumanController extends BaseController implements InputReceiver {
   /** Rotate the current build piece clockwise (Tetris-style: pivot stays in place). */
   rotatePiece(): void {
     if (this.currentPiece) {
-      const oldPivot = this.currentPiece.pivot;
+      const prevPivot = this.currentPiece.pivot;
       this.currentPiece = rotateCW(this.currentPiece);
       const newPivot = this.currentPiece.pivot;
-      this.buildCursor.row += oldPivot[0] - newPivot[0];
-      this.buildCursor.col += oldPivot[1] - newPivot[1];
+      this.buildCursor.row += prevPivot[0] - newPivot[0];
+      this.buildCursor.col += prevPivot[1] - newPivot[1];
       this.clampBuildCursor(this.currentPiece);
     }
   }
