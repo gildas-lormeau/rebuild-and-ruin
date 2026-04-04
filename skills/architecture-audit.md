@@ -13,7 +13,7 @@ Complements `/code-review` which works per-pass on a scoped file set.
 ## Domain clusters
 
 Each domain is a group of tightly related files that share responsibility for a subsystem.
-Domains map to the 15 layer groups in `.import-layers.json` (L0–L14), with small layers
+Domains map to the 16 layer groups in `.import-layers.json` (L0–L15), with small layers
 combined and large layers (>10 files) split into sub-domains at audit time.
 
 ### 1. Leaf utilities — L0 (13 files)
@@ -24,14 +24,15 @@ src/router.ts, src/online-dom.ts, src/upgrade-defs.ts,
 src/settings-defs.ts, src/utils.ts, server/send-utils.ts
 ```
 
-### 2. Core types, geometry & spatial — L1 + L2 (9 files)
+### 2. Core types, geometry, pieces & spatial — L1 + L2 + L3 (10 files)
 ```
-src/ai-build-types.ts, src/geometry-types.ts, src/pieces.ts,
-src/ai-castle-rect.ts, src/types.ts, src/spatial.ts,
-src/board-occupancy.ts, src/checkpoint-data.ts, server/protocol.ts
+src/geometry-types.ts, src/pieces.ts,
+src/ai-build-types.ts, src/ai-castle-rect.ts, src/types.ts,
+src/spatial.ts, src/board-occupancy.ts, src/checkpoint-data.ts,
+server/protocol.ts
 ```
 
-### 3. Shared types & config — L3 (13 files)
+### 3. Shared types & config — L4 (13 files)
 ```
 src/ai-build-score.ts, src/ai-build-fallback.ts,
 src/phase-transition-shared.ts, src/player-config.ts,
@@ -40,13 +41,13 @@ src/castle-build.ts, src/phase-banner.ts, src/theme.ts,
 src/overlay-types.ts, src/phantom-types.ts, src/tick-context.ts
 ```
 
-### 4. Runtime primitives — L4 (6 files)
+### 4. Runtime primitives — L5 (6 files)
 ```
 src/settings-ui.ts, src/screen-builders.ts, src/runtime-touch-ui.ts,
 src/runtime-state.ts, src/runtime-banner.ts, src/runtime-human.ts
 ```
 
-### 5. Game logic — L5 (14 files)
+### 5. Game logic — L6 (14 files)
 ```
 src/ai-build-target.ts, src/cannon-system.ts, src/grunt-movement.ts,
 src/grunt-system.ts, src/battle-system.ts, src/build-system.ts,
@@ -55,13 +56,13 @@ src/combo-system.ts, src/round-modifiers.ts, src/game-engine.ts,
 src/selection.ts, src/host-phase-ticks.ts
 ```
 
-### 6. AI strategy — L6 (4 files)
+### 6. AI strategy — L7 (4 files)
 ```
 src/ai-strategy-battle.ts, src/ai-strategy-build.ts,
 src/ai-strategy-cannon.ts, src/ai-strategy.ts
 ```
 
-### 7. Controllers — L7 (8 files)
+### 7. Controllers — L8 (8 files)
 ```
 src/ai-phase-select.ts, src/ai-phase-build.ts,
 src/ai-phase-cannon.ts, src/ai-phase-battle.ts,
@@ -69,14 +70,14 @@ src/controller-ai.ts, src/controller-types.ts,
 src/controller-human.ts, src/controller-factory.ts
 ```
 
-### 8. Input & sound — L8 (9 files)
+### 8. Input & sound — L9 (9 files)
 ```
 src/haptics-system.ts, src/input-recorder.ts, src/input-dispatch.ts,
 src/input-touch-ui.ts, src/input-touch-canvas.ts, src/input-mouse.ts,
 src/input-keyboard.ts, src/input.ts, src/sound-system.ts
 ```
 
-### 9. Render — L9 (10 files)
+### 9. Render — L10 (10 files)
 ```
 src/render-sprites.ts, src/render-loupe.ts, src/render-effects.ts,
 src/render-towers.ts, src/render-composition.ts, src/render-ui-theme.ts,
@@ -84,20 +85,20 @@ src/render-ui.ts, src/render-ui-settings.ts, src/render-map.ts,
 src/render-canvas.ts
 ```
 
-### 10. Runtime support — L10 (5 files)
+### 10. Runtime support — L11 (5 files)
 ```
 src/runtime-bootstrap.ts, src/runtime-headless.ts,
 src/runtime-types.ts, src/runtime-camera.ts, src/runtime-test-globals.ts
 ```
 
-### 11. Online infrastructure — L11 (6 files)
+### 11. Online infrastructure — L12 (6 files)
 ```
 src/online-config.ts, src/online-types.ts, src/online-lobby-ui.ts,
 src/online-server-lifecycle.ts, src/online-session.ts,
 server/game-room.ts
 ```
 
-### 12. Online logic — L12 (12 files)
+### 12. Online logic — L13 (12 files)
 ```
 src/online-serialize.ts, src/online-full-state-recovery.ts,
 src/online-send-actions.ts, src/online-checkpoints.ts,
@@ -107,7 +108,7 @@ src/online-host-crosshairs.ts, src/online-host-promotion.ts,
 src/online-host-battle-ticks.ts, src/online-stores.ts
 ```
 
-### 13. Runtime — L13 (15 files)
+### 13. Runtime — L14 (15 files)
 ```
 src/runtime-life-lost.ts, src/runtime-upgrade-pick.ts,
 src/runtime-lobby.ts, src/runtime-options.ts,
@@ -119,7 +120,7 @@ src/runtime-online-promote.ts, src/runtime-online-ws.ts,
 src/runtime-online-lobby.ts
 ```
 
-### 14. Entry points & server — L14 (5 files)
+### 14. Entry points & server — L15 (5 files)
 ```
 src/entry.ts, src/main.ts, src/online-client.ts,
 server/room-manager.ts, server/server.ts

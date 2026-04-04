@@ -18,16 +18,21 @@
     ]
   },
   {
-    "name": "geometry & pieces",
+    "name": "geometry types",
     "files": [
-      "src/ai-build-types.ts",
-      "src/geometry-types.ts",
+      "src/geometry-types.ts"
+    ]
+  },
+  {
+    "name": "pieces",
+    "files": [
       "src/pieces.ts"
     ]
   },
   {
     "name": "core types, state & spatial",
     "files": [
+      "src/ai-build-types.ts",
       "src/ai-castle-rect.ts",
       "src/types.ts",
       "src/spatial.ts",
