@@ -123,17 +123,14 @@ import { createRenderSystem } from "./runtime-render.ts";
 import { createScoreDeltaSystem } from "./runtime-score-deltas.ts";
 import { createSelectionSystem } from "./runtime-selection.ts";
 import {
+  computeFrameContext,
   createRuntimeState,
   isStateReady,
   safeState,
   tickMainLoop,
 } from "./runtime-state.ts";
 import { exposeTestGlobals } from "./runtime-test-globals.ts";
-import {
-  computeFrameContext,
-  type GameRuntime,
-  type RuntimeConfig,
-} from "./runtime-types.ts";
+import { type GameRuntime, type RuntimeConfig } from "./runtime-types.ts";
 import {
   createUpgradePickSystem,
   type UpgradePickSystem,

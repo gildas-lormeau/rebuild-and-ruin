@@ -52,11 +52,10 @@ import {
 } from "../src/runtime/runtime-headless.ts";
 import type { PieceShape } from "../src/shared/pieces.ts";
 import {
-  type CameraSystem,
   computeFrameContext,
-  type FrameContext,
   type FrameContextInputs,
-} from "../src/runtime/runtime-types.ts";
+} from "../src/runtime/runtime-state.ts";
+import { type CameraSystem, type FrameContext } from "../src/runtime/runtime-types.ts";
 import {
   emptyFreshInterior,
   type GameState } from "../src/shared/types.ts";

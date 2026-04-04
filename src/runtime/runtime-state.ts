@@ -10,7 +10,14 @@ import {
   type LifeLostDialogState,
   type UpgradePickDialogState,
 } from "../shared/dialog-types.ts";
-import { isGameplayMode, Mode } from "../shared/game-phase.ts";
+import { PHASE_ENDING_THRESHOLD } from "../shared/game-constants.ts";
+import {
+  isGameplayMode,
+  isPlacementPhase,
+  isTransitionMode,
+  Mode,
+  Phase,
+} from "../shared/game-phase.ts";
 import type {
   FrameData,
   PlayerStats,
@@ -21,7 +28,11 @@ import {
   loadSettings,
   MAX_PLAYERS,
 } from "../shared/player-config.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import {
+  isActivePlayer,
+  type PlayerSlotId,
+  type ValidPlayerSlot,
+} from "../shared/player-slot.ts";
 import { type PlayerController } from "../shared/system-interfaces.ts";
 import { createTimerAccums, type TimerAccums } from "../shared/tick-context.ts";
 import {
@@ -128,6 +139,23 @@ type TickableMode = Exclude<Mode, Mode.STOPPED>;
 /** Tick dispatch table — mapped type forces every tickable Mode to have
  *  a handler.  Adding a new Mode without a handler is a compile error. */
 type TickDispatch = { readonly [M in TickableMode]: (dt: number) => void };
+
+/** Exported for headless camera testing (test/scenario-helpers.ts). */
+export interface FrameContextInputs {
+  mode: Mode;
+  phase: Phase;
+  timer: number;
+  paused: boolean;
+  quitPending: boolean;
+  hasLifeLostDialog: boolean;
+  isSelectionReady: boolean;
+  humanIsReselecting: boolean;
+  hasPointerPlayer: boolean;
+  myPlayerId: PlayerSlotId;
+  hostAtFrameStart: boolean;
+  remoteHumanSlots: ReadonlySet<number>;
+  mobileAutoZoom: boolean;
+}
 
 /** Default frame delta time (assumes 60fps). */
 const DEFAULT_FRAME_DT = 1 / 60;
@@ -259,6 +287,59 @@ export function tickMainLoop(params: {
   ticks[mode](dt);
 
   return true;
+}
+
+export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
+  const {
+    mode,
+    phase,
+    timer,
+    paused,
+    quitPending,
+    hasLifeLostDialog,
+    isSelectionReady,
+    humanIsReselecting,
+    hasPointerPlayer,
+    myPlayerId,
+    hostAtFrameStart,
+    remoteHumanSlots,
+    mobileAutoZoom,
+  } = inputs;
+
+  const uiBlocking = paused || quitPending || hasLifeLostDialog;
+
+  const timedPhase = isPlacementPhase(phase) || phase === Phase.BATTLE;
+  const phaseEnding =
+    !mobileAutoZoom &&
+    timer > 0 &&
+    timer <= PHASE_ENDING_THRESHOLD &&
+    timedPhase;
+
+  const shouldUnzoom = uiBlocking || phaseEnding;
+  const isTransition = isTransitionMode(mode);
+
+  const povPlayerId: ValidPlayerSlot = isActivePlayer(myPlayerId)
+    ? myPlayerId
+    : (0 as ValidPlayerSlot);
+
+  return {
+    myPlayerId,
+    povPlayerId,
+    hostAtFrameStart,
+    remoteHumanSlots,
+    mode,
+    phase,
+    paused,
+    quitPending,
+    hasLifeLostDialog,
+    isSelectionReady,
+    humanIsReselecting,
+    hasPointerPlayer,
+    uiBlocking,
+    phaseEnding,
+    shouldUnzoom,
+    isTransition,
+  };
 }
 
 function uninitializedSentinel<T extends object>(name: string): T {

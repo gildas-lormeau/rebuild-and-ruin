@@ -170,6 +170,8 @@ export const VIEWPORT_SNAP_THRESHOLD = 0.5;
 export const HOUSE_MIN_DISTANCE = 3;
 /** Tower footprint size in tiles (towers are 2×2). */
 export const TOWER_SIZE = 2;
+/** Seconds before timer reaches 0 to trigger unzoom (non-mobile). */
+export const PHASE_ENDING_THRESHOLD = 1.5;
 
 /** Human-readable label for a modifier id. */
 export function modifierLabel(id: ModifierId): string {

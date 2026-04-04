@@ -61,12 +61,6 @@ import type {
   LifeLostDialogState,
   UpgradePickDialogState,
 } from "../shared/dialog-types.ts";
-import {
-  isPlacementPhase,
-  isTransitionMode,
-  Mode,
-  Phase,
-} from "../shared/game-phase.ts";
 import type {
   Crosshair,
   Viewport,
@@ -78,11 +72,7 @@ import type {
   DedupChannel,
   PiecePhantom,
 } from "../shared/phantom-types.ts";
-import {
-  isActivePlayer,
-  type PlayerSlotId,
-  type ValidPlayerSlot,
-} from "../shared/player-slot.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
 import type {
   BattleController,
   BuildController,
@@ -93,31 +83,10 @@ import type {
   SoundSystem,
 } from "../shared/system-interfaces.ts";
 import type { WatcherTimingState } from "../shared/tick-context.ts";
-import {
-  type FrameContext,
-  type GameState,
-  type SelectionState,
-} from "../shared/types.ts";
+import type { GameState, SelectionState } from "../shared/types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
 export type { FrameContext } from "../shared/types.ts";
-
-/** Exported for headless camera testing (test/scenario-helpers.ts). */
-export interface FrameContextInputs {
-  mode: Mode;
-  phase: Phase;
-  timer: number;
-  paused: boolean;
-  quitPending: boolean;
-  hasLifeLostDialog: boolean;
-  isSelectionReady: boolean;
-  humanIsReselecting: boolean;
-  hasPointerPlayer: boolean;
-  myPlayerId: PlayerSlotId;
-  hostAtFrameStart: boolean;
-  remoteHumanSlots: ReadonlySet<number>;
-  mobileAutoZoom: boolean;
-}
 
 export interface RuntimeConfig {
   renderer: RendererInterface;
@@ -357,60 +326,4 @@ export interface GameRuntime {
   ) => void;
   snapshotTerritory: () => Set<number>[];
   aimAtEnemyCastle: () => void;
-}
-
-/** Seconds before timer reaches 0 to trigger unzoom. */
-const PHASE_ENDING_THRESHOLD = 1.5;
-
-export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
-  const {
-    mode,
-    phase,
-    timer,
-    paused,
-    quitPending,
-    hasLifeLostDialog,
-    isSelectionReady,
-    humanIsReselecting,
-    hasPointerPlayer,
-    myPlayerId,
-    hostAtFrameStart,
-    remoteHumanSlots,
-    mobileAutoZoom,
-  } = inputs;
-
-  const uiBlocking = paused || quitPending || hasLifeLostDialog;
-
-  const timedPhase = isPlacementPhase(phase) || phase === Phase.BATTLE;
-  const phaseEnding =
-    !mobileAutoZoom &&
-    timer > 0 &&
-    timer <= PHASE_ENDING_THRESHOLD &&
-    timedPhase;
-
-  const shouldUnzoom = uiBlocking || phaseEnding;
-  const isTransition = isTransitionMode(mode);
-
-  const povPlayerId: ValidPlayerSlot = isActivePlayer(myPlayerId)
-    ? myPlayerId
-    : (0 as ValidPlayerSlot);
-
-  return {
-    myPlayerId,
-    povPlayerId,
-    hostAtFrameStart,
-    remoteHumanSlots,
-    mode,
-    phase,
-    paused,
-    quitPending,
-    hasLifeLostDialog,
-    isSelectionReady,
-    humanIsReselecting,
-    hasPointerPlayer,
-    uiBlocking,
-    phaseEnding,
-    shouldUnzoom,
-    isTransition,
-  };
 }
