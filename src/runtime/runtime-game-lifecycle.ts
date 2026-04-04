@@ -24,11 +24,6 @@ interface GameLifecycleDeps {
   readonly isAllAi: () => boolean;
   readonly isModeStopped: () => boolean;
 
-  /** Delayed-callback scheduler (injected for testability). */
-  readonly scheduleTimeout: (cb: () => void, ms: number) => number;
-  /** Cancel a scheduled timeout (injected for testability). */
-  readonly cancelTimeout: (id: number) => void;
-
   // Atomic state transitions
   readonly setModeStopped: () => void;
   readonly clearGameOver: () => void;
@@ -82,7 +77,7 @@ export function createGameLifecycle(
 
   function clearDemoTimer(): void {
     if (demoReturnTimer !== null) {
-      deps.cancelTimeout(demoReturnTimer);
+      clearTimeout(demoReturnTimer);
       demoReturnTimer = null;
     }
   }
@@ -113,7 +108,7 @@ export function createGameLifecycle(
 
     clearDemoTimer();
     if (deps.isAllAi()) {
-      demoReturnTimer = deps.scheduleTimeout(() => {
+      demoReturnTimer = window.setTimeout(() => {
         demoReturnTimer = null;
         if (deps.isModeStopped()) returnToLobby();
       }, DEMO_RETURN_DELAY_MS);

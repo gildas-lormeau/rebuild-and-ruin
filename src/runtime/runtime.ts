@@ -1,31 +1,15 @@
 /**
  * Shared game runtime factory — composition root that wires subsystems.
  *
- * createGameRuntime(config) creates all subsystems (camera, selection,
- * life-lost, phase-ticks, lobby, options, input, lifecycle), wires
- * their deps, and returns a narrow GameRuntime handle.
+ * createGameRuntime(config) creates all subsystems (camera, score-delta,
+ * banner, selection, render, lifecycle, life-lost, upgrade-pick, phase-ticks,
+ * lobby, options, input, human-lookup), wires their deps, and returns a
+ * narrow GameRuntime handle.
  *
  * Used by both main.ts (local play) and runtime-online-game.ts (online).
- *
- * ### Sub-system deps destructuring convention
- *
- * Each createXSystem(deps) factory destructures only frequently-used deps
- * (typically `runtimeState` and `uiCtx`) at the factory top level. Rarely-used deps
- * are accessed inline as `deps.X`. This keeps closures lean while avoiding
- * verbose `deps.` prefixes on hot paths. The pattern is intentionally not
- * uniform across sub-systems — it reflects each sub-system's actual usage.
- *
- * ### Overlay mutation convention
- *
- * Two overlay patterns coexist by design:
- * - **Persistent state** (game overlays): mutated in-place via `runtimeState.overlay.X = ...`
- *   because the overlay persists across frames and is read by the main render loop.
- * - **Transient overlays** (lobby, options): created fresh via factory functions
- *   (`createLobbyOverlay`, `createOptionsOverlay`) and passed directly to
- *   `renderFrame(map, overlay)` — these don't persist in `runtimeState.overlay`.
  */
 
-import { snapshotTerritory as snapshotTerritoryImpl } from "../game/battle-system.ts";
+import { snapshotTerritory } from "../game/battle-system.ts";
 import { generateMap } from "../game/map-generation.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
 import { dispatchPointerMove } from "../input/input-dispatch.ts";
@@ -93,7 +77,6 @@ import {
   PLAYER_KEY_BINDINGS,
   PLAYER_NAMES,
 } from "../shared/player-config.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "../shared/settings-defs.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
@@ -141,6 +124,7 @@ export type { GameRuntime } from "./runtime-types.ts";
 export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const { renderer } = config;
   const { container: gameContainer } = renderer;
+  const isOnline = !!config.isOnline;
 
   // -------------------------------------------------------------------------
   // Mutable state (shared bag — see runtime-state.ts)
@@ -180,6 +164,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // -------------------------------------------------------------------------
 
   function clearFrameData(): void {
+    // gameOver persists until the player acts (rematch/menu), so it
+    // survives per-frame resets — everything else is transient.
     const { gameOver } = runtimeState.frame;
     runtimeState.frame = { crosshairs: [], phantoms: {} };
     if (gameOver) runtimeState.frame.gameOver = gameOver;
@@ -218,6 +204,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState.frameDt = dt;
     clearFrameData();
 
+    const pointer = pointerPlayer();
+
     runtimeState.frameMeta = computeFrameContext({
       mode: runtimeState.mode,
       phase: isStateReady(runtimeState)
@@ -228,10 +216,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       quitPending: runtimeState.quit.pending,
       hasLifeLostDialog: runtimeState.lifeLostDialog !== null,
       isSelectionReady: isSelectionReady(),
-      humanIsReselecting: runtimeState.reselectQueue.includes(
-        (pointerPlayer()?.playerId ?? -1) as ValidPlayerSlot,
-      ),
-      hasPointerPlayer: pointerPlayer() !== null,
+      humanIsReselecting:
+        pointer !== null &&
+        runtimeState.reselectQueue.includes(pointer.playerId),
+      hasPointerPlayer: pointer !== null,
       myPlayerId: config.getMyPlayerId(),
       hostAtFrameStart: config.getIsHost(),
       remoteHumanSlots: config.getRemoteHumanSlots(),
@@ -282,14 +270,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     return (
       runtimeState.accum.selectAnnouncement >= SELECT_ANNOUNCEMENT_DURATION
     );
-  }
-
-  // -------------------------------------------------------------------------
-  // Territory helper
-  // -------------------------------------------------------------------------
-
-  function snapshotTerritory(): Set<number>[] {
-    return snapshotTerritoryImpl(runtimeState.state.players);
   }
 
   // -------------------------------------------------------------------------
@@ -401,16 +381,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Game lifecycle (delegated to runtime-game-lifecycle.ts)
   // -------------------------------------------------------------------------
 
-  function resetGameStats(): void {
-    runtimeState.scoreDisplay.gameStats = Array.from(
-      { length: MAX_PLAYERS },
-      () => ({
-        wallsDestroyed: 0,
-        cannonsKilled: 0,
-      }),
-    );
-  }
-
   function bootstrapNewGame(): void {
     const seed = runtimeState.lobby.seed;
     config.log(`[game] seed: ${seed}`);
@@ -458,9 +428,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
     bootstrapNewGame,
 
-    scheduleTimeout: (cb, ms) => window.setTimeout(cb, ms),
-    cancelTimeout: (id) => clearTimeout(id),
-
     setGameOverFrame: (winner) => {
       const name = PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`;
       runtimeState.frame.gameOver = {
@@ -497,7 +464,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       upgradePick.set(null);
       scoreDelta.reset();
       camera.resetBattleCrosshair();
-      resetGameStats();
+      runtimeState.scoreDisplay.gameStats = Array.from(
+        { length: MAX_PLAYERS },
+        () => ({ wallsDestroyed: 0, cannonsKilled: 0 }),
+      );
       camera.resetCamera();
       sound.reset();
     },
@@ -522,7 +492,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     soundReset: sound.reset,
     soundGameOver: sound.gameOver,
 
-    render: () => render(),
+    render,
     requestMainLoop: () => requestAnimationFrame(mainLoop),
     showLobby: config.showLobby,
 
@@ -554,7 +524,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     send: config.send,
     log: config.log,
-    render: () => render(),
+    render,
     panelPos: (pid) => lifeLostPanelPos(runtimeState.state, pid),
     endGame: lifecycle.endGame,
     startReselection: selection.startReselection,
@@ -568,8 +538,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const upgradePick: UpgradePickSystem = createUpgradePickSystem({
     runtimeState,
     log: config.log,
-    render: () => render(),
-    send: config.isOnline ? config.send : undefined,
+    render,
+    send: isOnline ? config.send : undefined,
   });
 
   // -------------------------------------------------------------------------
@@ -586,12 +556,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     onLocalCrosshairCollected: config.onLocalCrosshairCollected,
     tickNonHost: config.tickNonHost,
     everyTick: config.everyTick,
-    render: () => render(),
+    render,
     pointerPlayer,
     showBanner,
     lifeLost,
     scoreDelta,
-    snapshotTerritory,
+    snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     saveBattleCrosshair: IS_TOUCH_DEVICE
       ? camera.saveBattleCrosshair
       : undefined,
@@ -634,7 +604,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     lobby: runtimeState.lobby,
     getFrame: () => runtimeState.frame,
     getLobbyRemaining: config.getLobbyRemaining,
-    isOnline: !!config.isOnline,
+    isOnline,
   };
 
   // Initialize options system first (lobby depends on showOptions)
@@ -650,7 +620,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     refreshLobbySeed,
     sound,
     haptics,
-    isOnline: !!config.isOnline,
+    isOnline,
     getRemoteHumanSlots: config.getRemoteHumanSlots,
     onCloseOptions: config.onCloseOptions,
     controlsScreenHitTest,
@@ -673,7 +643,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     renderFrame,
     refreshLobbySeed,
     showOptions: options.showOptions,
-    isOnline: !!config.isOnline,
+    isOnline,
     onTickLobbyExpired: config.onTickLobbyExpired,
     onLobbySlotJoined: config.onLobbySlotJoined,
     createLobbyOverlay,
@@ -716,7 +686,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       visibleOptionCount: () => visibleOptions(uiCtx).length,
     },
     network: {
-      isOnline: config.isOnline,
+      isOnline,
       maybeSendAimUpdate: config.maybeSendAimUpdate,
       tryPlaceCannonAndSend: config.tryPlaceCannonAndSend,
       tryPlacePieceAndSend: config.tryPlacePieceAndSend,
@@ -788,7 +758,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render,
     registerInputHandlers: input.register,
     showBanner,
-    snapshotTerritory,
+    snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     aimAtEnemyCastle: camera.aimAtEnemyCastle,
   };
 }
