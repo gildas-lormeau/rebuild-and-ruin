@@ -175,11 +175,12 @@
       "src/online-host-crosshairs.ts",
       "src/online-host-promotion.ts",
       "src/online-host-battle-ticks.ts",
-      "src/online-stores.ts"
+      "src/online-stores.ts",
+      "server/room-manager.ts"
     ]
   },
   {
-    "name": "runtime",
+    "name": "local runtime",
     "files": [
       "src/runtime-life-lost.ts",
       "src/runtime-upgrade-pick.ts",
@@ -190,7 +191,12 @@
       "src/runtime-phase-ticks.ts",
       "src/runtime-render.ts",
       "src/runtime-selection.ts",
-      "src/runtime.ts",
+      "src/runtime.ts"
+    ]
+  },
+  {
+    "name": "online runtime",
+    "files": [
       "src/runtime-online-game.ts",
       "src/runtime-online-deps.ts",
       "src/runtime-online-promote.ts",
@@ -204,7 +210,6 @@
       "src/entry.ts",
       "src/main.ts",
       "src/online-client.ts",
-      "server/room-manager.ts",
       "server/server.ts"
     ]
   }

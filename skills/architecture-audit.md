@@ -13,7 +13,7 @@ Complements `/code-review` which works per-pass on a scoped file set.
 ## Domain clusters
 
 Each domain is a group of tightly related files that share responsibility for a subsystem.
-Domains map to the 16 layer groups in `.import-layers.json` (L0–L15), with small layers
+Domains map to the 17 layer groups in `.import-layers.json` (L0–L16), with small layers
 combined and large layers (>10 files) split into sub-domains at audit time.
 
 ### 1. Leaf utilities — L0 (13 files)
@@ -108,22 +108,26 @@ src/online-host-crosshairs.ts, src/online-host-promotion.ts,
 src/online-host-battle-ticks.ts, src/online-stores.ts
 ```
 
-### 13. Runtime — L14 (15 files)
+### 13. Local runtime — L14 (10 files)
 ```
 src/runtime-life-lost.ts, src/runtime-upgrade-pick.ts,
 src/runtime-lobby.ts, src/runtime-options.ts,
 src/runtime-game-lifecycle.ts, src/runtime-input.ts,
 src/runtime-phase-ticks.ts, src/runtime-render.ts,
-src/runtime-selection.ts, src/runtime.ts,
+src/runtime-selection.ts, src/runtime.ts
+```
+
+### 14. Online runtime — L15 (5 files)
+```
 src/runtime-online-game.ts, src/runtime-online-deps.ts,
 src/runtime-online-promote.ts, src/runtime-online-ws.ts,
 src/runtime-online-lobby.ts
 ```
 
-### 14. Entry points & server — L15 (5 files)
+### 15. Entry points & server — L16 (4 files)
 ```
 src/entry.ts, src/main.ts, src/online-client.ts,
-server/room-manager.ts, server/server.ts
+server/server.ts
 ```
 
 ## Execution

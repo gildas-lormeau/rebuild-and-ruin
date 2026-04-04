@@ -54,7 +54,7 @@ The layer map file. Committed to the repo. An array of named groups — position
 
 **Rule: imports must flow downward.** A file in group N can import from any group 0..N. Importing from group N+1 or higher is a violation.
 
-**Current architecture (16 groups, 0 violations, ~130 files incl. server):**
+**Current architecture (17 groups, 0 violations, ~130 files incl. server):**
 
 ```
  0  leaf utilities              ai-constants, canvas-layout, game-constants, grid, jsfxr.d,
@@ -86,13 +86,13 @@ The layer map file. Committed to the repo. An array of named groups — position
                                 online-session, server/game-room
 13  online logic                online-serialize, online-send-actions, online-checkpoints, online-watcher-*,
                                 online-phase-transitions, online-server-events, online-host-*,
-                                online-full-state-recovery, online-stores
-14  runtime                     runtime-life-lost, runtime-upgrade-pick, runtime-lobby, runtime-options,
+                                online-full-state-recovery, online-stores, server/room-manager
+14  local runtime               runtime-life-lost, runtime-upgrade-pick, runtime-lobby, runtime-options,
                                 runtime-game-lifecycle, runtime-input, runtime-phase-ticks,
-                                runtime-render, runtime-selection, runtime,
-                                runtime-online-game, runtime-online-deps, runtime-online-promote,
+                                runtime-render, runtime-selection, runtime
+15  online runtime              runtime-online-game, runtime-online-deps, runtime-online-promote,
                                 runtime-online-ws, runtime-online-lobby
-15  entry points                entry, main, online-client, room-manager, server
+16  entry points                entry, main, online-client, server
 ```
 
 When a new file is added but not yet in `.import-layers.json`, `--check` warns and treats it as layer 0 (maximally strict). Regenerate to pick up new files, then move them to the right group.
