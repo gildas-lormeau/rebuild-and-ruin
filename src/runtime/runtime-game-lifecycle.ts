@@ -98,7 +98,7 @@ interface LifecycleWiringDeps {
   readonly getUpgradePick: () => Pick<RuntimeUpgradePick, "set">;
   readonly scoreDelta: { reset: () => void };
   readonly sound: Pick<SoundSystem, "reset" | "gameOver">;
-  readonly input: { resetForLobby: () => void };
+  readonly input: { resetForLobby: (rs: RuntimeState) => void };
 
   // Game-over UI (built by caller — needs render-layer imports)
   readonly resolveGameOverAction: (
@@ -251,7 +251,7 @@ export function buildLifecycleDeps(wd: LifecycleWiringDeps): GameLifecycleDeps {
     },
     resetLifeLostDialog: () => wd.getLifeLost().set(null),
     clearAllZoomState: wd.camera.clearAllZoomState,
-    resetInputForLobby: wd.input.resetForLobby,
+    resetInputForLobby: () => wd.input.resetForLobby(wd.runtimeState),
 
     soundReset: wd.sound.reset,
     soundGameOver: wd.sound.gameOver,

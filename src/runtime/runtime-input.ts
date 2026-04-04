@@ -193,7 +193,7 @@ type PlaceCannonFn = (
 interface InputSystem {
   register(deps: InputSystemDeps): void;
   getTouch(): TouchHandles;
-  resetForLobby(): void;
+  resetForLobby(runtimeState: RuntimeState): void;
 }
 
 const NOOP = () => {};
@@ -210,10 +210,7 @@ export function createInputSystem(): InputSystem {
     loupeHandle: null,
   };
 
-  let runtimeState: RuntimeState | undefined;
-
   function register(deps: InputSystemDeps): void {
-    runtimeState = deps.runtimeState;
     const rs = deps.runtimeState;
     const { camera, sound, lobby, selection } = deps;
 
@@ -273,8 +270,7 @@ export function createInputSystem(): InputSystem {
     return touch;
   }
 
-  function resetForLobby(): void {
-    if (!runtimeState) return;
+  function resetForLobby(runtimeState: RuntimeState): void {
     runtimeState.inputTracking.mouseJoinedSlot = null;
     runtimeState.inputTracking.directTouchActive = false;
     touch.floatingActions?.update(false, 0, 0, false, false);
