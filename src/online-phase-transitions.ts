@@ -20,6 +20,7 @@ import {
   BANNER_BATTLE_ONLINE,
   BANNER_REPAIR_ONLINE,
   type BannerShow,
+  captureOldBattleScene,
   snapshotEntities,
 } from "./phase-banner.ts";
 import {
@@ -37,6 +38,7 @@ import {
   showBuildPhaseBanner,
   showCannonPhaseBanner,
 } from "./phase-transition-shared.ts";
+import type { CastleData } from "./render-types.ts";
 import {
   BANNER_PHASE_BUILD,
   BANNER_PHASE_CANNON,
@@ -81,18 +83,9 @@ export interface TransitionContext {
     banner: {
       newTerritory?: Set<number>[];
       newWalls?: Set<number>[];
-      prevCastles?: {
-        walls: ReadonlySet<number>;
-        interior: ReadonlySet<number>;
-        cannons: readonly {
-          row: number;
-          col: number;
-          hp: number;
-          mode: string;
-          facing?: number;
-        }[];
-        playerId: ValidPlayerSlot;
-      }[];
+      prevCastles?: CastleData[];
+      prevTerritory?: Set<number>[];
+      prevWalls?: Set<number>[];
       prevEntities?: import("./render-types.ts").EntityOverlay;
       wallsBeforeSweep?: Set<number>[];
     };
@@ -154,6 +147,10 @@ export interface TransitionContext {
       }[],
     ) => void;
     snapshotTerritory: () => Set<number>[];
+    /** Battle-start territory snapshot (for banner old-scene rendering). */
+    getTerritory: () => Set<number>[];
+    /** Battle-start wall snapshot (for banner old-scene rendering). */
+    getWalls: () => Set<number>[];
     /** Initiate the battle countdown.  Goes through beginHostBattle which
      *  handles initBattleState, countdown, watcher timing, aimAtEnemyCastle, and
      *  Mode.GAME — so the banner callback doesn't need to duplicate any of it. */
@@ -339,10 +336,16 @@ export function handleBuildStartTransition(
   const state = transitionCtx.getState();
   const myPlayerId = transitionCtx.session.myPlayerId;
 
+  // Pre-capture old battle scene before checkpoint mutates state
+  captureOldBattleScene(
+    transitionCtx.ui.banner,
+    state,
+    transitionCtx.battleLifecycle.getTerritory(),
+    transitionCtx.battleLifecycle.getWalls(),
+  );
+
   // Step 1: apply checkpoint (deserializes offers, modifier, players)
-  transitionCtx.checkpoint.applyBuildStart(msg, () => {
-    transitionCtx.ui.banner.prevEntities = snapshotEntities(state);
-  });
+  transitionCtx.checkpoint.applyBuildStart(msg);
   setPhase(state, Phase.WALL_BUILD);
 
   // Step 2→3: upgrade pick (if any) → build banner → game

@@ -41,7 +41,7 @@ import {
   tickHostBattlePhase,
 } from "./online-host-battle-ticks.ts";
 import { NOOP_DEDUP_CHANNEL } from "./phantom-types.ts";
-import { BANNER_BUILD } from "./phase-banner.ts";
+import { BANNER_BUILD, captureOldBattleScene } from "./phase-banner.ts";
 import {
   finalizeBuildPhase,
   initBuildPhaseControllers,
@@ -365,6 +365,14 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       },
       onBattlePhaseEnded: () => {
         deps.saveBattleCrosshair?.();
+
+        // Pre-capture old battle scene before nextPhase mutates state
+        captureOldBattleScene(
+          runtimeState.banner,
+          runtimeState.state,
+          runtimeState.battleAnim.territory,
+          runtimeState.battleAnim.walls,
+        );
 
         // Step 1: apply checkpoint (nextPhase generates offers + modifier)
         nextPhase(runtimeState.state);

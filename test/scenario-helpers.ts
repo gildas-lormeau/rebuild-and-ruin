@@ -568,6 +568,8 @@ export function createScenario(seed = 42): Scenario {
         setFlights: () => {},
         snapshotTerritory: () =>
           state.players.map((p) => new Set(p.interior)),
+        getTerritory: () => [],
+        getWalls: () => [],
         beginBattle: () => {},
       },
       endPhase: {

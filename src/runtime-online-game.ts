@@ -325,6 +325,8 @@ function buildTransitionBattleCtx(): TransitionContext["battleLifecycle"] {
       runtime.runtimeState.battleAnim.flights = flights;
     },
     snapshotTerritory: () => runtime.snapshotTerritory(),
+    getTerritory: () => runtime.runtimeState.battleAnim.territory,
+    getWalls: () => runtime.runtimeState.battleAnim.walls,
     beginBattle: () => runtime.phaseTicks.beginBattle(),
   };
 }

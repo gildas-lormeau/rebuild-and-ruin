@@ -90,11 +90,11 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
         cannons: player.cannons.map((c) => ({ ...c })),
         playerId: player.id,
       }));
-    banner.prevTerritory =
+    banner.prevTerritory ??=
       state.phase === Phase.BATTLE
         ? battleAnim.territory?.map((territory) => new Set(territory))
         : undefined;
-    banner.prevWalls =
+    banner.prevWalls ??=
       state.phase === Phase.BATTLE
         ? battleAnim.walls?.map((wall) => new Set(wall))
         : undefined;
@@ -114,6 +114,35 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
   banner.subtitle = subtitle;
   banner.callback = onDone;
   setModeBanner();
+}
+
+/** Pre-capture old battle scene into banner state before nextPhase/checkpoint
+ *  mutates the game state.  Must be called while state.phase is still BATTLE.
+ *  showBannerTransition uses ??= so these pre-set values survive intact. */
+export function captureOldBattleScene(
+  banner: {
+    prevCastles?: CastleData[];
+    prevTerritory?: Set<number>[];
+    prevWalls?: Set<number>[];
+    prevEntities?: EntityOverlay;
+  },
+  state: GameState,
+  battleTerritory: Set<number>[] | undefined,
+  battleWalls: Set<number>[] | undefined,
+): void {
+  banner.prevCastles = state.players
+    .filter((player) => player.castle)
+    .map((player) => ({
+      walls: new Set(player.walls),
+      interior: player.interior,
+      cannons: player.cannons.map((c) => ({ ...c })),
+      playerId: player.id,
+    }));
+  banner.prevTerritory = battleTerritory?.map(
+    (territory) => new Set(territory),
+  );
+  banner.prevWalls = battleWalls?.map((wall) => new Set(wall));
+  banner.prevEntities = snapshotEntities(state);
 }
 
 /** Shallow-clone all map entities so the banner scene stays frozen while
