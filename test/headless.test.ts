@@ -9,12 +9,12 @@ import {
   collectAllCannonTiles,
   collectAllInterior,
   collectAllWalls,
-} from "../src/board-occupancy.ts";
-import { GRID_COLS, GRID_ROWS } from "../src/grid.ts";
-import type { GameState } from "../src/types.ts";
+} from "../src/shared/board-occupancy.ts";
+import { GRID_COLS, GRID_ROWS } from "../src/shared/grid.ts";
+import type { GameState } from "../src/shared/types.ts";
 import { createScenario } from "./scenario-helpers.ts";
 import process from "node:process";
-import { cannonSize, computeOutside, forEachTowerTile, isCannonAlive, isGrass, packTile, unpackTile, waterKeys } from "../src/spatial.ts";
+import { cannonSize, computeOutside, forEachTowerTile, isCannonAlive, isGrass, packTile, unpackTile, waterKeys } from "../src/shared/spatial.ts";
 
 // ---------------------------------------------------------------------------
 // Config

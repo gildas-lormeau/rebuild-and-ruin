@@ -1,5 +1,5 @@
-import { PLAYER_NAMES } from "../src/player-config.ts";
-import type { ValidPlayerSlot } from "../src/player-slot.ts";
+import { PLAYER_NAMES } from "../src/shared/player-config.ts";
+import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { MESSAGE, type RoomSettings } from "./protocol.ts";
 import { RoomManager } from "./room-manager.ts";
 

@@ -8,7 +8,7 @@
  * Run with: bun test/reselect-clumsy.test.ts
  */
 
-import { computeCastleWallTiles } from "../src/castle-generation.ts";
+import { computeCastleWallTiles } from "../src/game/castle-generation.ts";
 import { createScenario } from "./scenario-helpers.ts";
 import { assert, test, runTests } from "./test-helpers.ts";
 

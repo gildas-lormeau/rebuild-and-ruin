@@ -1,6 +1,6 @@
-import { restoreFullStateUiRecovery } from "../src/online-full-state-recovery.ts";
+import { restoreFullStateUiRecovery } from "../src/online/online-full-state-recovery.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
-import { Phase, Mode } from "../src/game-phase.ts";
+import { Phase, Mode } from "../src/shared/game-phase.ts";
 
 test("full_state recovery clears stale banner mode into game mode", () => {
   const target = {

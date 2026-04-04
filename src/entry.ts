@@ -7,14 +7,14 @@
  */
 
 import "./style.css";
-import { IS_TOUCH_DEVICE } from "./platform.ts";
+import { IS_TOUCH_DEVICE } from "./shared/platform.ts";
 import {
   GAME_CONTAINER_ACTIVE,
   GAME_EXIT_EVENT,
   initRouter,
   navigateTo,
   onRoute,
-} from "./router.ts";
+} from "./shared/router.ts";
 
 const DEFAULT_SERVER = "rebuild-and-ruin.gildas-lormeau.deno.net";
 const SERVER_STORAGE_KEY = "castles99_server";
@@ -103,7 +103,7 @@ if (autoJoinCode) {
 }
 
 if (params.has("record-inputs")) {
-  void import("./input-recorder.ts").then((module) => module.initRecorder());
+  void import("./input/input-recorder").then((module) => module.initRecorder());
 }
 
 /** Hide the game container and notify game modules to clean up. */

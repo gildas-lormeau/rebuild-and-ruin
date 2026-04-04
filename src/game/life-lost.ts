@@ -1,0 +1,84 @@
+import {
+  LifeLostChoice,
+  type LifeLostDialogState,
+  type LifeLostEntry,
+} from "../shared/dialog-types.ts";
+import {
+  type AutoResolveDeps,
+  shouldAutoResolve,
+} from "../shared/player-config.ts";
+import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { type GameState } from "../shared/types.ts";
+
+interface CreateLifeLostDialogDeps extends AutoResolveDeps {
+  needsReselect: readonly ValidPlayerSlot[];
+  eliminated: readonly ValidPlayerSlot[];
+  state: GameState;
+}
+
+/** Tick the life-lost dialog. Auto-resolve entries tick their timers;
+ *  max timer force-resolves all pending entries.
+ *  Returns true when all entries are resolved. */
+// Parallel structure with tickUpgradePickDialog (upgrade-pick.ts) — both loop entries for auto-resolve + force-resolve.
+export function tickLifeLostDialog(
+  dialog: LifeLostDialogState,
+  dt: number,
+  autoDelay: number,
+  maxTimer: number,
+): boolean {
+  dialog.timer += dt;
+
+  for (const entry of dialog.entries) {
+    if (entry.choice !== LifeLostChoice.PENDING) continue;
+    if (entry.autoResolve) {
+      entry.autoTimer += dt;
+      if (entry.autoTimer >= autoDelay) entry.choice = LifeLostChoice.CONTINUE;
+    }
+  }
+
+  if (dialog.timer >= maxTimer) {
+    for (const entry of dialog.entries) {
+      if (entry.choice === LifeLostChoice.PENDING)
+        entry.choice = LifeLostChoice.CONTINUE;
+    }
+  }
+
+  return dialog.entries.every((e) => e.choice !== LifeLostChoice.PENDING);
+}
+
+/** Extract the player IDs that chose CONTINUE from a resolved dialog. */
+export function continuingPlayers(
+  dialog: LifeLostDialogState,
+): ValidPlayerSlot[] {
+  return dialog.entries
+    .filter((e) => e.choice === LifeLostChoice.CONTINUE)
+    .map((e) => e.playerId);
+}
+
+export function createLifeLostDialogState(
+  deps: CreateLifeLostDialogDeps,
+): LifeLostDialogState {
+  const { needsReselect, eliminated, state } = deps;
+
+  const entries: LifeLostEntry[] = needsReselect.map((playerId) => ({
+    playerId,
+    lives: state.players[playerId]!.lives,
+    autoResolve: shouldAutoResolve(playerId, deps),
+    choice: LifeLostChoice.PENDING,
+    autoTimer: 0,
+    focusedButton: 0,
+  }));
+
+  for (const playerId of eliminated) {
+    entries.push({
+      playerId,
+      lives: 0,
+      autoResolve: true,
+      choice: LifeLostChoice.ABANDON,
+      autoTimer: 0,
+      focusedButton: 0,
+    });
+  }
+
+  return { entries, timer: 0 };
+}

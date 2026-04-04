@@ -1,16 +1,16 @@
 import {
   restoreFullStateSnapshot,
   createFullStateMessage,
-} from "../src/online-serialize.ts";
+} from "../src/online/online-serialize.ts";
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,
-} from "../src/runtime-headless.ts";
-import { emptyFreshInterior } from "../src/types.ts";
+} from "../src/runtime/runtime-headless.ts";
+import { emptyFreshInterior } from "../src/shared/types.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
-import type { ValidPlayerSlot } from "../src/player-slot.ts";
-import { Phase } from "../src/game-phase.ts";
-import { CannonMode } from "../src/battle-types.ts";
+import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
+import { Phase } from "../src/shared/game-phase.ts";
+import { CannonMode } from "../src/shared/battle-types.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers

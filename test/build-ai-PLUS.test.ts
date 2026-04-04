@@ -12,7 +12,7 @@ import {
   test,
   runTests,
 } from "./test-helpers.ts";
-import { PIECE_PLUS } from "../src/pieces.ts";
+import { PIECE_PLUS } from "../src/shared/pieces.ts";
 
 knownFailureTest("AI fills gap between wall segments", () => {
   const parsed = parseBoard(

@@ -1,23 +1,23 @@
 import { MESSAGE } from "../server/protocol.ts";
-import { applyImpactEvent, canFireOwnCannon, resolveBalloons } from "../src/battle-system.ts";
-import { snapshotAllWalls, removeIsolatedWalls } from "../src/board-occupancy.ts";
-import { createOnlineOverlay } from "../src/render-composition.ts";
-import { PLAYER_COLORS, PLAYER_NAMES } from "../src/player-config.ts";
-import { isCannonEnclosed } from "../src/cannon-system.ts";
-import { initControllerForCannonPhase, prepareCannonPhase } from "../src/phase-setup.ts";
-import { GRID_COLS } from "../src/grid.ts";
+import { applyImpactEvent, canFireOwnCannon, resolveBalloons } from "../src/game/battle-system.ts";
+import { snapshotAllWalls, removeIsolatedWalls } from "../src/shared/board-occupancy.ts";
+import { createOnlineOverlay } from "../src/render/render-composition.ts";
+import { PLAYER_COLORS, PLAYER_NAMES } from "../src/shared/player-config.ts";
+import { isCannonEnclosed } from "../src/game/cannon-system.ts";
+import { initControllerForCannonPhase, prepareCannonPhase } from "../src/game/phase-setup.ts";
+import { GRID_COLS } from "../src/shared/grid.ts";
 import {
   handleBattleStartTransition,
   handleBuildEndTransition,
   handleBuildStartTransition,
   handleCannonStartTransition,
-} from "../src/online-phase-transitions.ts";
+} from "../src/online/online-phase-transitions.ts";
 import {
   createBattleStartMessage,
   createBuildStartMessage,
   createCannonStartMessage,
   serializePlayers,
-} from "../src/online-serialize.ts";
+} from "../src/online/online-serialize.ts";
 import {
   BATTLE_START_STEPS,
   BUILD_START_STEPS,
@@ -27,9 +27,9 @@ import {
   showBattlePhaseBanner,
   showBuildPhaseBanner,
   showCannonPhaseBanner,
-} from "../src/phase-transition-shared.ts";
-import { createSession, resetSessionState } from "../src/online-session.ts";
-import { type BannerState, showBannerTransition } from "../src/phase-banner.ts";
+} from "../src/game/phase-transition-shared.ts";
+import { createSession, resetSessionState } from "../src/online/online-session.ts";
+import { type BannerState, showBannerTransition } from "../src/game/phase-banner.ts";
 import {
   assertCameraZone,
   assertLifeLostLabel,
@@ -37,11 +37,11 @@ import {
   createScenario,
 } from "./scenario-helpers.ts";
 import { assert, test, runTests } from "./test-helpers.ts";
-import { enterCannonPlacePhase, nextPhase } from "../src/game-engine.ts";
-import { SPECTATOR_SLOT, type PlayerSlotId, type ValidPlayerSlot } from "../src/player-slot.ts";
-import { Phase, Mode } from "../src/game-phase.ts";
-import { LifeLostChoice, type LifeLostDialogState } from "../src/dialog-types.ts";
-import { CannonMode } from "../src/battle-types.ts";
+import { enterCannonPlacePhase, nextPhase } from "../src/game/game-engine.ts";
+import { SPECTATOR_SLOT, type PlayerSlotId, type ValidPlayerSlot } from "../src/shared/player-slot.ts";
+import { Phase, Mode } from "../src/shared/game-phase.ts";
+import { LifeLostChoice, type LifeLostDialogState } from "../src/shared/dialog-types.ts";
+import { CannonMode } from "../src/shared/battle-types.ts";
 
 // ---------------------------------------------------------------------------
 // 1. Game-over overlay cleared on returnToLobby

@@ -1,5 +1,5 @@
-import { MAX_PLAYERS, PLAYER_NAMES } from "../src/player-config.ts";
-import type { ValidPlayerSlot } from "../src/player-slot.ts";
+import { MAX_PLAYERS, PLAYER_NAMES } from "../src/shared/player-config.ts";
+import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { GameRoom } from "./game-room.ts";
 import { MESSAGE, type RoomSettings, type ServerMessage } from "./protocol.ts";
 import { safeSendRaw } from "./send-utils.ts";

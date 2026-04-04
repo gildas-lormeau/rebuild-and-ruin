@@ -5,33 +5,33 @@
  * Run with: bun test/modern-mode.test.ts
  */
 
-import { clearPlayerWalls } from "../src/board-occupancy.ts";
-import { recheckTerritoryOnly } from "../src/build-system.ts";
-import { BALL_SPEED, GAME_MODE_MODERN, MODIFIER_FIRST_ROUND } from "../src/game-constants.ts";
+import { clearPlayerWalls } from "../src/shared/board-occupancy.ts";
+import { recheckTerritoryOnly } from "../src/game/build-system.ts";
+import { BALL_SPEED, GAME_MODE_MODERN, MODIFIER_FIRST_ROUND } from "../src/shared/game-constants.ts";
 import {
   comboDemolitionBonus,
   comboOnCannonKill,
   comboOnGruntKill,
   comboOnWallDestroyed,
   createComboTracker,
-} from "../src/combo-system.ts";
-import type { OrbitParams } from "../src/controller-interfaces.ts";
-import type { PixelPos } from "../src/geometry-types.ts";
-import { nextPhase } from "../src/game-engine.ts";
+} from "../src/game/combo-system.ts";
+import type { OrbitParams } from "../src/shared/controller-interfaces.ts";
+import type { PixelPos } from "../src/shared/geometry-types.ts";
+import { nextPhase } from "../src/game/game-engine.ts";
 import {
   applyBattleStartCheckpoint,
   applyBuildStartCheckpoint,
   type CheckpointAccums,
   type CheckpointBattleAnim,
   type CheckpointDeps,
-} from "../src/online-checkpoints.ts";
+} from "../src/online/online-checkpoints.ts";
 import {
   createBattleStartMessage,
   createBuildStartMessage,
   createFullStateMessage,
   restoreFullStateSnapshot,
-} from "../src/online-serialize.ts";
-import { isGruntBlocked, tickGrunts } from "../src/grunt-movement.ts";
+} from "../src/online/online-serialize.ts";
+import { isGruntBlocked, tickGrunts } from "../src/game/grunt-movement.ts";
 import {
   applyCrumblingWalls,
   applyFrozenRiver,
@@ -41,21 +41,21 @@ import {
   clearFrozenRiver,
   modifierBannerText,
   rollModifier,
-} from "../src/round-modifiers.ts";
+} from "../src/game/round-modifiers.ts";
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,
-} from "../src/runtime-headless.ts";
+} from "../src/runtime/runtime-headless.ts";
 import { MESSAGE } from "../server/protocol.ts";
-import { handleServerIncrementalMessage } from "../src/online-server-events.ts";
-import type { WatcherNetworkState } from "../src/online-types.ts";
-import { createModernState, type SelectionState } from "../src/types.ts";
-import { type UpgradeId, UID } from "../src/upgrade-defs.ts";
-import { generateUpgradeOffers } from "../src/phase-setup.ts";
-import { createUpgradePickDialog } from "../src/upgrade-pick.ts";
+import { handleServerIncrementalMessage } from "../src/online/online-server-events.ts";
+import type { WatcherNetworkState } from "../src/online/online-types.ts";
+import { createModernState, type SelectionState } from "../src/shared/types.ts";
+import { type UpgradeId, UID } from "../src/shared/upgrade-defs.ts";
+import { generateUpgradeOffers } from "../src/game/phase-setup.ts";
+import { createUpgradePickDialog } from "../src/game/upgrade-pick.ts";
 import { createScenario } from "./scenario-helpers.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "../src/player-slot.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/player-slot.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -16,9 +16,9 @@
 import {
   recheckTerritoryOnly,
   finalizeTerritoryWithScoring,
-} from "../src/build-system.ts";
-import { addPlayerWall, deletePlayerWallBattle, markWallsDirty } from "../src/board-occupancy.ts";
-import { packTile } from "../src/spatial.ts";
+} from "../src/game/build-system.ts";
+import { addPlayerWall, deletePlayerWallBattle, markWallsDirty } from "../src/shared/board-occupancy.ts";
+import { packTile } from "../src/shared/spatial.ts";
 import { parseBoard, assert, test, runTests } from "./test-helpers.ts";
 
 // ---------------------------------------------------------------------------

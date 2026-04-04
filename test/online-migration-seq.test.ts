@@ -6,10 +6,10 @@
  */
 
 import { MESSAGE, type FullStateMessage, type ServerMessage } from "../server/protocol.ts";
-import type { GameState } from "../src/types.ts";
-import { handleServerLifecycleMessage } from "../src/online-server-lifecycle.ts";
+import type { GameState } from "../src/shared/types.ts";
+import { handleServerLifecycleMessage } from "../src/online/online-server-lifecycle.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
-import type { PlayerSlotId } from "../src/player-slot.ts";
+import type { PlayerSlotId } from "../src/shared/player-slot.ts";
 
 function makeFullState(migrationSeq: number): FullStateMessage {
   return {

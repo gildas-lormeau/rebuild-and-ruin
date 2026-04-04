@@ -8,66 +8,66 @@
  * Run with: bun test/scenario.test.ts
  */
 
-import { fireCannon, resolveBalloons, tickCannonballs } from "../src/battle-system.ts";
-import { clearPlayerWalls, deletePlayerWallBattle } from "../src/board-occupancy.ts";
-import { recheckTerritoryOnly, placePiece } from "../src/build-system.ts";
-import { placeCannon, resetCannonFacings } from "../src/cannon-system.ts";
-import { GRID_COLS, GRID_ROWS } from "../src/grid.ts";
-import type { PlayerController } from "../src/controller-interfaces.ts";
+import { fireCannon, resolveBalloons, tickCannonballs } from "../src/game/battle-system.ts";
+import { clearPlayerWalls, deletePlayerWallBattle } from "../src/shared/board-occupancy.ts";
+import { recheckTerritoryOnly, placePiece } from "../src/game/build-system.ts";
+import { placeCannon, resetCannonFacings } from "../src/game/cannon-system.ts";
+import { GRID_COLS, GRID_ROWS } from "../src/shared/grid.ts";
+import type { PlayerController } from "../src/shared/controller-interfaces.ts";
 import {
   BATTLE_TIMER,
   BUILD_TIMER,
   LIFE_LOST_AUTO_DELAY,
   LIFE_LOST_MAX_TIMER
-} from "../src/game-constants.ts";
-import { nextPhase } from "../src/game-engine.ts";
+} from "../src/shared/game-constants.ts";
+import { nextPhase } from "../src/game/game-engine.ts";
 import {
   computeCannonLimitsForPhase,
   eliminatePlayer,
   finalizeBuildPhase,
-} from "../src/phase-setup.ts";
-import { tickGrunts } from "../src/grunt-movement.ts";
-import { gruntAttackTowers } from "../src/grunt-system.ts";
+} from "../src/game/phase-setup.ts";
+import { tickGrunts } from "../src/game/grunt-movement.ts";
+import { gruntAttackTowers } from "../src/game/grunt-system.ts";
 import {
   createLifeLostDialogState,
   tickLifeLostDialog,
-} from "../src/life-lost.ts";
+} from "../src/game/life-lost.ts";
 import type {
   BattleStartData,
   BuildStartData,
   CannonStartData,
-} from "../src/checkpoint-data.ts";
-import type { TransitionContext } from "../src/online-phase-transitions.ts";
+} from "../src/shared/checkpoint-data.ts";
+import type { TransitionContext } from "../src/online/online-phase-transitions.ts";
 import {
   type BannerState,
   createBannerState,
   showBannerTransition,
-} from "../src/phase-banner.ts";
-import { PLAYER_COLORS } from "../src/player-config.ts";
-import { createCameraSystem } from "../src/runtime-camera.ts";
+} from "../src/game/phase-banner.ts";
+import { PLAYER_COLORS } from "../src/shared/player-config.ts";
+import { createCameraSystem } from "../src/runtime/runtime-camera.ts";
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,
   processHeadlessReselection,
-} from "../src/runtime-headless.ts";
-import type { PieceShape } from "../src/pieces.ts";
+} from "../src/runtime/runtime-headless.ts";
+import type { PieceShape } from "../src/shared/pieces.ts";
 import {
   type CameraSystem,
   computeFrameContext,
   type FrameContext,
   type FrameContextInputs,
-} from "../src/runtime-types.ts";
+} from "../src/runtime/runtime-types.ts";
 import {
   emptyFreshInterior,
-  type GameState } from "../src/types.ts";
-import { isGrass, packTile } from "../src/spatial.ts";
+  type GameState } from "../src/shared/types.ts";
+import { isGrass, packTile } from "../src/shared/spatial.ts";
 import { assert } from "./test-helpers.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "../src/player-slot.ts";
-import { applyBattleStartCheckpoint, applyBuildEndCheckpoint, applyBuildStartCheckpoint, applyCannonStartCheckpoint, type CheckpointDeps } from "../src/online-checkpoints.ts";
-import { Phase, Mode } from "../src/game-phase.ts";
-import { LifeLostChoice, type LifeLostDialogState } from "../src/dialog-types.ts";
-import { CannonMode, type BattleAnimState } from "../src/battle-types.ts";
-import type { WatcherTimingState } from "../src/tick-context.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/player-slot.ts";
+import { applyBattleStartCheckpoint, applyBuildEndCheckpoint, applyBuildStartCheckpoint, applyCannonStartCheckpoint, type CheckpointDeps } from "../src/online/online-checkpoints.ts";
+import { Phase, Mode } from "../src/shared/game-phase.ts";
+import { LifeLostChoice, type LifeLostDialogState } from "../src/shared/dialog-types.ts";
+import { CannonMode, type BattleAnimState } from "../src/shared/battle-types.ts";
+import type { WatcherTimingState } from "../src/shared/tick-context.ts";
 
 // ---------------------------------------------------------------------------
 // Scenario factory

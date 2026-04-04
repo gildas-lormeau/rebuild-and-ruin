@@ -45,7 +45,7 @@ Ask for each edge: **"Should this layer need to know about that layer?"** If the
 Once you have a suspicious edge `A → B`, trace which specific files cause it:
 
 ```bash
-grep -rn "from.*render-" src/online-*.ts
+grep -rn "from.*render-" src/online/*.ts
 ```
 
 Then classify:
@@ -71,7 +71,7 @@ Then classify:
 If a file's actual imports are all below layer N, it can be moved to layer N in `.import-layers.json` regardless of its filename prefix:
 
 ```json
-{ "name": "shared types & config", "files": ["src/theme.ts", "src/overlay-types.ts", ...] }
+{ "name": "shared types & config", "files": ["src/shared/theme.ts", "src/shared/overlay-types.ts", ...] }
 ```
 
 Check: does the file import from anything in its current group or higher? If not, it can move down freely.
@@ -83,7 +83,7 @@ If entry point A injects function `foo` (from layer L) into runtime B, and B is 
 ```typescript
 // Before: entry-point imports foo from L5, passes to runtime
 // After: runtime imports foo from L5 directly
-import { foo } from "./ai-strategy.ts";
+import { foo } from "../ai/ai-strategy.ts";
 ```
 
 Remove `foo` from the injected config interface. Entry point no longer needs the import.
@@ -148,7 +148,7 @@ For each file: Ca (dependents), Ce (dependencies), Instability = Ce/(Ca+Ce), Pai
 npx tsx scripts/lint-domain-boundaries.ts
 ```
 
-Checks that imports stay within allowed domain boundaries defined in `.domain-boundaries.json`. 11 domains: shared, game, ai, player, input, sound, render, settings, online, runtime, entry.
+Checks that imports stay within allowed domain boundaries defined in `.domain-boundaries.json`. 9 domains: shared, game, ai, player, input, render, online, runtime, entry. Directories under `src/` match domains 1:1.
 
 **What to look for:**
 - Violations mean a file imports from a domain it shouldn't know about.
@@ -183,6 +183,9 @@ The systematic workflow for a clean architecture session:
 Rename groups in `.import-layers.json` to match reality. **Naming is the analysis** — a mismatch is always a signal.
 
 ## Patterns from this codebase
+
+Historical log of past refactoring decisions. Filenames refer to what files were called
+at the time of each change (some have since been renamed or moved into domain directories).
 
 | Edge removed | How |
 |---|---|

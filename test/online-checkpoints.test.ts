@@ -7,8 +7,8 @@
  * Run with: bun test/online-checkpoints.test.ts
  */
 
-import type { OrbitParams } from "../src/controller-interfaces.ts";
-import type { PixelPos } from "../src/geometry-types.ts";
+import type { OrbitParams } from "../src/shared/controller-interfaces.ts";
+import type { PixelPos } from "../src/shared/geometry-types.ts";
 import {
   applyBattleStartCheckpoint,
   applyBuildStartCheckpoint,
@@ -16,20 +16,20 @@ import {
   type CheckpointAccums,
   type CheckpointBattleAnim,
   type CheckpointDeps,
-} from "../src/online-checkpoints.ts";
+} from "../src/online/online-checkpoints.ts";
 import {
   createBattleStartMessage,
   createBuildStartMessage,
   createCannonStartMessage,
-} from "../src/online-serialize.ts";
+} from "../src/online/online-serialize.ts";
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,
-} from "../src/runtime-headless.ts";
-import { emptyFreshInterior } from "../src/types.ts";
+} from "../src/runtime/runtime-headless.ts";
+import { emptyFreshInterior } from "../src/shared/types.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
-import type { ValidPlayerSlot } from "../src/player-slot.ts";
-import { CannonMode } from "../src/battle-types.ts";
+import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
+import { CannonMode } from "../src/shared/battle-types.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers

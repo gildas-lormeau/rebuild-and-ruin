@@ -10,8 +10,8 @@
  *   runtime-online-lobby.ts    — lobby DOM and lobbyReady promise
  */
 
-import { initOnlineRuntime } from "./runtime-online-game.ts";
+import { initOnlineRuntime } from "./online/runtime-online-game.ts";
 
-export { lobbyReady } from "./runtime-online-lobby.ts";
+export { lobbyReady } from "./online/runtime-online-lobby.ts";
 
 initOnlineRuntime();

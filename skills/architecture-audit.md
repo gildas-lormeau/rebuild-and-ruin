@@ -18,112 +18,112 @@ combined and large layers (>10 files) split into sub-domains at audit time.
 
 ### 1. Leaf utilities — L0 (15 files)
 ```
-src/ai-constants.ts, src/canvas-layout.ts, src/game-constants.ts,
-src/grid.ts, src/jsfxr.d.ts, src/platform.ts, src/rng.ts,
-src/router.ts, src/online-dom.ts, src/upgrade-defs.ts,
-src/settings-defs.ts, src/player-slot.ts, src/game-phase.ts,
-src/utils.ts, server/send-utils.ts
+src/ai/ai-constants.ts, src/shared/canvas-layout.ts, src/shared/game-constants.ts,
+src/shared/grid.ts, src/shared/jsfxr.d.ts, src/shared/platform.ts, src/shared/rng.ts,
+src/shared/router.ts, src/online/online-dom.ts, src/shared/upgrade-defs.ts,
+src/shared/settings-defs.ts, src/shared/player-slot.ts, src/shared/game-phase.ts,
+src/shared/utils.ts, server/send-utils.ts
 ```
 
 ### 2. Core types, geometry, pieces & spatial — L1 + L2 + L3 (9 files)
 ```
-src/geometry-types.ts, src/pieces.ts,
-src/battle-types.ts, src/types.ts, src/dialog-types.ts,
-src/spatial.ts, src/board-occupancy.ts, src/checkpoint-data.ts,
+src/shared/geometry-types.ts, src/shared/pieces.ts,
+src/shared/battle-types.ts, src/shared/types.ts, src/shared/dialog-types.ts,
+src/shared/spatial.ts, src/shared/board-occupancy.ts, src/shared/checkpoint-data.ts,
 server/protocol.ts
 ```
 
 ### 3. Shared types & config — L4 (11 files)
 ```
-src/phase-transition-shared.ts, src/player-config.ts,
-src/controller-interfaces.ts, src/life-lost.ts, src/upgrade-pick.ts,
-src/castle-build.ts, src/phase-banner.ts, src/theme.ts,
-src/overlay-types.ts, src/phantom-types.ts, src/tick-context.ts
+src/game/phase-transition-shared.ts, src/shared/player-config.ts,
+src/shared/controller-interfaces.ts, src/game/life-lost.ts, src/game/upgrade-pick.ts,
+src/game/castle-build.ts, src/game/phase-banner.ts, src/shared/theme.ts,
+src/shared/overlay-types.ts, src/shared/phantom-types.ts, src/shared/tick-context.ts
 ```
 
 ### 4. Runtime primitives — L5 (6 files)
 ```
-src/settings-ui.ts, src/screen-builders.ts, src/runtime-touch-ui.ts,
-src/runtime-state.ts, src/runtime-banner.ts, src/runtime-human.ts
+src/render/settings-ui.ts, src/render/screen-builders.ts, src/runtime/runtime-touch-ui.ts,
+src/runtime/runtime-state.ts, src/runtime/runtime-banner.ts, src/runtime/runtime-human.ts
 ```
 
 ### 5. Game logic — L6 (14 files)
 ```
-src/cannon-system.ts, src/grunt-movement.ts,
-src/grunt-system.ts, src/battle-system.ts, src/build-system.ts,
-src/castle-generation.ts, src/map-generation.ts, src/phase-setup.ts,
-src/combo-system.ts, src/round-modifiers.ts, src/game-engine.ts,
-src/selection.ts, src/host-phase-ticks.ts, src/host-battle-ticks.ts
+src/game/cannon-system.ts, src/game/grunt-movement.ts,
+src/game/grunt-system.ts, src/game/battle-system.ts, src/game/build-system.ts,
+src/game/castle-generation.ts, src/game/map-generation.ts, src/game/phase-setup.ts,
+src/game/combo-system.ts, src/game/round-modifiers.ts, src/game/game-engine.ts,
+src/game/selection.ts, src/game/host-phase-ticks.ts, src/game/host-battle-ticks.ts
 ```
 
 ### 6. AI strategy — L7 (9 files)
 ```
-src/ai-build-types.ts, src/ai-castle-rect.ts, src/ai-build-score.ts,
-src/ai-build-fallback.ts, src/ai-build-target.ts,
-src/ai-strategy-battle.ts, src/ai-strategy-build.ts,
-src/ai-strategy-cannon.ts, src/ai-strategy.ts
+src/ai/ai-build-types.ts, src/ai/ai-castle-rect.ts, src/ai/ai-build-score.ts,
+src/ai/ai-build-fallback.ts, src/ai/ai-build-target.ts,
+src/ai/ai-strategy-battle.ts, src/ai/ai-strategy-build.ts,
+src/ai/ai-strategy-cannon.ts, src/ai/ai-strategy.ts
 ```
 
 ### 7. Controllers — L8 (8 files)
 ```
-src/ai-phase-select.ts, src/ai-phase-build.ts,
-src/ai-phase-cannon.ts, src/ai-phase-battle.ts,
-src/controller-ai.ts, src/controller-types.ts,
-src/controller-human.ts, src/controller-factory.ts
+src/ai/ai-phase-select.ts, src/ai/ai-phase-build.ts,
+src/ai/ai-phase-cannon.ts, src/ai/ai-phase-battle.ts,
+src/ai/controller-ai.ts, src/player/controller-types.ts,
+src/player/controller-human.ts, src/player/controller-factory.ts
 ```
 
 ### 8. Input & sound — L9 (9 files)
 ```
-src/haptics-system.ts, src/input-recorder.ts, src/input-dispatch.ts,
-src/input-touch-ui.ts, src/input-touch-canvas.ts, src/input-mouse.ts,
-src/input-keyboard.ts, src/input.ts, src/sound-system.ts
+src/input/haptics-system.ts, src/input/input-recorder.ts, src/input/input-dispatch.ts,
+src/input/input-touch-ui.ts, src/input/input-touch-canvas.ts, src/input/input-mouse.ts,
+src/input/input-keyboard.ts, src/input/input.ts, src/input/sound-system.ts
 ```
 
 ### 9. Render — L10 (10 files)
 ```
-src/render-sprites.ts, src/render-loupe.ts, src/render-effects.ts,
-src/render-towers.ts, src/render-composition.ts, src/render-ui-theme.ts,
-src/render-ui.ts, src/render-ui-settings.ts, src/render-map.ts,
-src/render-canvas.ts
+src/render/render-sprites.ts, src/render/render-loupe.ts, src/render/render-effects.ts,
+src/render/render-towers.ts, src/render/render-composition.ts, src/render/render-ui-theme.ts,
+src/render/render-ui.ts, src/render/render-ui-settings.ts, src/render/render-map.ts,
+src/render/render-canvas.ts
 ```
 
 ### 10. Runtime support — L11 (5 files)
 ```
-src/runtime-bootstrap.ts, src/runtime-headless.ts,
-src/runtime-types.ts, src/runtime-camera.ts, src/runtime-test-globals.ts
+src/runtime/runtime-bootstrap.ts, src/runtime/runtime-headless.ts,
+src/runtime/runtime-types.ts, src/runtime/runtime-camera.ts, src/runtime/runtime-test-globals.ts
 ```
 
 ### 11. Online infrastructure — L12 (6 files)
 ```
-src/online-config.ts, src/online-types.ts, src/online-lobby-ui.ts,
-src/online-server-lifecycle.ts, src/online-session.ts,
+src/online/online-config.ts, src/online/online-types.ts, src/online/online-lobby-ui.ts,
+src/online/online-server-lifecycle.ts, src/online/online-session.ts,
 server/game-room.ts
 ```
 
 ### 12. Online logic — L13 (12 files)
 ```
-src/online-serialize.ts, src/online-full-state-recovery.ts,
-src/online-send-actions.ts, src/online-checkpoints.ts,
-src/online-watcher-battle.ts, src/online-watcher-tick.ts,
-src/online-phase-transitions.ts, src/online-server-events.ts,
-src/online-host-crosshairs.ts, src/online-host-promotion.ts,
-src/online-stores.ts, server/room-manager.ts
+src/online/online-serialize.ts, src/online/online-full-state-recovery.ts,
+src/online/online-send-actions.ts, src/online/online-checkpoints.ts,
+src/online/online-watcher-battle.ts, src/online/online-watcher-tick.ts,
+src/online/online-phase-transitions.ts, src/online/online-server-events.ts,
+src/online/online-host-crosshairs.ts, src/online/online-host-promotion.ts,
+src/online/online-stores.ts, server/room-manager.ts
 ```
 
 ### 13. Local runtime — L14 (10 files)
 ```
-src/runtime-life-lost.ts, src/runtime-upgrade-pick.ts,
-src/runtime-lobby.ts, src/runtime-options.ts,
-src/runtime-game-lifecycle.ts, src/runtime-input.ts,
-src/runtime-phase-ticks.ts, src/runtime-render.ts,
-src/runtime-selection.ts, src/runtime.ts
+src/runtime/runtime-life-lost.ts, src/runtime/runtime-upgrade-pick.ts,
+src/runtime/runtime-lobby.ts, src/runtime/runtime-options.ts,
+src/runtime/runtime-game-lifecycle.ts, src/runtime/runtime-input.ts,
+src/runtime/runtime-phase-ticks.ts, src/runtime/runtime-render.ts,
+src/runtime/runtime-selection.ts, src/runtime/runtime.ts
 ```
 
 ### 14. Online runtime — L15 (5 files)
 ```
-src/runtime-online-game.ts, src/runtime-online-deps.ts,
-src/runtime-online-promote.ts, src/runtime-online-ws.ts,
-src/runtime-online-lobby.ts
+src/online/runtime-online-game.ts, src/online/runtime-online-deps.ts,
+src/online/runtime-online-promote.ts, src/online/runtime-online-ws.ts,
+src/online/runtime-online-lobby.ts
 ```
 
 ### 15. Entry points & server — L16 (4 files)
@@ -247,12 +247,12 @@ The following conventions are already well-documented in code comments. Agents s
 NOT flag these as findings — they have been verified and the existing documentation is
 sufficient for LLM agents to follow correctly.
 
-1. **recheckTerritoryOnly vs finalizeTerritoryWithScoring** — build-system.ts:173 and 189-193
-   explain the difference and when to use each. cannon-system.ts:269 documents the precondition.
+1. **recheckTerritoryOnly vs finalizeTerritoryWithScoring** — game/build-system.ts:173 and 189-193
+   explain the difference and when to use each. game/cannon-system.ts:269 documents the precondition.
 
-2. **canPlaceCannon vs canPlacePiece validation difference** — build-system.ts:92-95 has
+2. **canPlaceCannon vs canPlacePiece validation difference** — game/build-system.ts:92-95 has
    `CONTRAST with canPlaceCannon()...Copying validation from one to the other produces wrong results.`
-   cannon-system.ts:264-266 mirrors it. Both sides documented.
+   game/cannon-system.ts:264-266 mirrors it. Both sides documented.
 
 3. **RATE_LIMITED_TYPES cosmetic-only invariant** — game-room.ts:59-63 has
    `CRITICAL: Only cosmetic/display messages belong here. Adding a game-state message = DESYNC BUG`.
@@ -260,103 +260,103 @@ sufficient for LLM agents to follow correctly.
 4. **HOST_ONLY and PHASE_GATES disjoint invariant** — game-room.ts:70-72 documents
    `Invariant: HOST_ONLY and PHASE_GATES are disjoint...Do NOT add a message to both sets.`
 
-5. **applyImpactEvent leaves interior stale during battle** — battle-system.ts:222-226 JSDoc
-   and lines 236-240 inline comment both explain this. grunt-system.ts:247 reinforces it.
+5. **applyImpactEvent leaves interior stale during battle** — game/battle-system.ts:222-226 JSDoc
+   and lines 236-240 inline comment both explain this. game/grunt-system.ts:247 reinforces it.
 
-6. **Wall snapshot MUST precede finalizeBuildPhase** — host-phase-ticks.ts:466-468 documents it;
+6. **Wall snapshot MUST precede finalizeBuildPhase** — game/host-phase-ticks.ts:466-468 documents it;
    snapshotThenFinalize() at line 494-498 enforces it structurally with a full INVARIANT JSDoc.
 
-7. **advancePhaseTimer is the ONLY way to advance phase timers** — tick-context.ts:101-108
+7. **advancePhaseTimer is the ONLY way to advance phase timers** — shared/tick-context.ts:101-108
    has `INVARIANT: All phase timers MUST use this function. Never manually write accum.X += dt.`
 
-8. **Canvas ctx.save()/ctx.restore() convention** — render-effects.ts:20-28 documents the full
+8. **Canvas ctx.save()/ctx.restore() convention** — render/render-effects.ts:20-28 documents the full
    convention with code example. Applies across all render-* files.
 
-9. **Checkpoint `capturePreState` ordering invariant** — online-checkpoints.ts:53 JSDoc
-   explains capturePreState and the lifecycle at each function. online-phase-transitions.ts:105-107
-   documents the ordering guarantee. runtime-phase-ticks.ts:165 has INVARIANT comment
+9. **Checkpoint `capturePreState` ordering invariant** — online/online-checkpoints.ts:53 JSDoc
+   explains capturePreState and the lifecycle at each function. online/online-phase-transitions.ts:105-107
+   documents the ordering guarantee. runtime/runtime-phase-ticks.ts:165 has INVARIANT comment
    reinforcing that banner captures oldCastles BEFORE applyCheckpoint mutates state.
    Individual checkpoint apply functions have NO payload validation by design — the host
-   is authoritative. Only full-state recovery (validateFullState in online-serialize.ts)
+   is authoritative. Only full-state recovery (validateFullState in online/online-serialize.ts)
    validates, because that payload crosses a trust boundary during host promotion.
 
-10. **`net` required on all tick deps interfaces** — runtime-phase-ticks.ts:5-9 documents
+10. **`net` required on all tick deps interfaces** — runtime/runtime-phase-ticks.ts:5-9 documents
     `net is REQUIRED on all tick deps interfaces...the compiler enforces the choice.`
 
 11. **`session.isHost` is volatile — never cache, always read via `isHostInContext()`** —
-    online-session.ts:29-35 marks the field `VOLATILE` with full explanation of when it flips
-    and how to read/write it. tick-context.ts:87-88 repeats `VOLATILE...Never cache` on the
-    accessor. host-phase-ticks.ts:12-13 says `never cache in a local variable`.
-    online-server-events.ts:25-27 repeats the warning. ESLint `no-restricted-syntax` rule
+    online/online-session.ts:29-35 marks the field `VOLATILE` with full explanation of when it flips
+    and how to read/write it. shared/tick-context.ts:87-88 repeats `VOLATILE...Never cache` on the
+    accessor. game/host-phase-ticks.ts:12-13 says `never cache in a local variable`.
+    online/online-server-events.ts:25-27 repeats the warning. ESLint `no-restricted-syntax` rule
     enforces all direct `.isHost` reads require an explicit disable comment.
 
 12. **RNG consumption order before checkpoint is load-bearing for online sync** —
-    phase-setup.ts:307 marks the block with `RNG consumption (BEFORE checkpoint — order is
+    game/phase-setup.ts:307 marks the block with `RNG consumption (BEFORE checkpoint — order is
     load-bearing for online sync)` and warns not to insert RNG calls after it.
 
-13. **ScoringRule null vs 0 semantics** — ai-build-types.ts:77-81 documents the interface
-    contract (`null` = hard-reject, `0` = no opinion). ai-build-score.ts:371 repeats the
+13. **ScoringRule null vs 0 semantics** — ai/ai-build-types.ts:77-81 documents the interface
+    contract (`null` = hard-reject, `0` = no opinion). ai/ai-build-score.ts:371 repeats the
     convention inline at the scoring loop.
 
-14. **scoreCannonPosition returns negated score** — ai-strategy-cannon.ts:291 JSDoc explains
+14. **scoreCannonPosition returns negated score** — ai/ai-strategy-cannon.ts:291 JSDoc explains
     penalties are accumulated positive and negated on return so callers see higher = better.
 
-15. **castle-build dt is in seconds, accum/interval are in ms** — castle-build.ts:37 JSDoc
+15. **castle-build dt is in seconds, accum/interval are in ms** — game/castle-build.ts:37 JSDoc
     annotates `@param dt — delta time in SECONDS`, the `dt` field has an inline doc comment,
     and line 48 has an inline comment explaining the ×1000 conversion.
 
 16. **Late-binding closure pattern (initDeps/initPromote/initWs)** —
-    runtime-online-deps.ts:56-60 documents the 3-step pattern (declare, init, guard) and
+    online/runtime-online-deps.ts:56-60 documents the 3-step pattern (declare, init, guard) and
     explains it avoids circular imports. All three init files follow the same structure.
 
-17. **Mode-setting timing in watcher phase transitions** — online-phase-transitions.ts:53-61
+17. **Mode-setting timing in watcher phase transitions** — online/online-phase-transitions.ts:53-61
     documents when setMode is called immediately vs inside banner callback for each phase type.
 
-18. **AI vs human cursor movement models differ by design** — controller-ai.ts:248-252
-    and controller-human.ts:236-239 both warn not to copy between the two files.
+18. **AI vs human cursor movement models differ by design** — ai/controller-ai.ts:248-252
+    and player/controller-human.ts:236-239 both warn not to copy between the two files.
     AI uses tile-step (Manhattan + jitter), human uses pixel-velocity (Cartesian).
 
 19. **ROUNDS_TO_THE_DEATH_INDEX and CANNON_HP_DEFAULT_INDEX are array indices** —
-    game-ui-types.ts documents both with JSDoc explaining they are indices into their
+    shared/settings-defs.ts documents both with JSDoc explaining they are indices into their
     respective option arrays, not the option values themselves.
 
 20. **`simulatedOutside` naming is consistent across ai-build files** —
-    ai-build-fallback.ts and ai-build-score.ts both use `simulatedOutside` for the
+    ai/ai-build-fallback.ts and ai/ai-build-score.ts both use `simulatedOutside` for the
     outside set computed after simulating a candidate placement. CandidateEnv field matches.
 
 21. **`resetBattlePhaseKeepOrbit` name clarifies orbit preservation** —
-    ai-phase-battle.ts:87 name makes clear that orbitAngle persists across resets.
+    ai/ai-phase-battle.ts:87 name makes clear that orbitAngle persists across resets.
     Contrast with `initBattle` which resets everything including chain state.
 
-22. **AI tile-cursor movement constants are named** — controller-ai.ts defines
+22. **AI tile-cursor movement constants are named** — ai/controller-ai.ts defines
     TILE_ARRIVAL_TOLERANCE, JITTER_DECAY_RATE, and JITTER_MAX_AMPLITUDE as named constants.
 
 23. **Eliminated-player guard in keyboard dispatch is NOT missing** — keyboard's
-    `handleKeyGame` calls `dispatchGameAction` (input-dispatch.ts:336) which has the
+    `handleKeyGame` calls `dispatchGameAction` (input/input-dispatch.ts:336) which has the
     eliminated check built in. Do not report this as a missing guard.
 
-24. **Slot mutation atomicity is already enforced** — online-server-lifecycle.ts:82-101
+24. **Slot mutation atomicity is already enforced** — online/online-server-lifecycle.ts:82-101
     defines `clearLobbySlot()` and `occupyLobbySlot()` helpers with explicit invariant
     comments. All incremental slot mutations go through these helpers.
 
-25. **Player-check guard order is documented and consistent** — online-server-events.ts:1-28
+25. **Player-check guard order is documented and consistent** — online/online-server-events.ts:1-28
     documents three handler categories with explicit patterns (validPid → eliminated →
     isRemoteHumanAction). Every handler in the file follows the documented pattern.
 
-26. **Coordinate system params are already named by space** — render-composition.ts uses
+26. **Coordinate system params are already named by space** — render/render-composition.ts uses
     `screenX`/`screenY` (canvas-pixel, with JSDoc), `canvasX`/`canvasY` (canvas-pixel),
     and `tileX`/`tileY` (game-space) consistently. Conversions are explicit inline.
 
 27. **Phantom vs crosshair dedup strategies differ by design** — phantoms use explicit
-    filter+push array replacement (online-server-events.ts:416 JSDoc). Crosshairs use
-    DedupChannel's atomic shouldSend() via makeCrosshairDedupKey() (online-host-crosshairs.ts:41).
+    filter+push array replacement (online/online-server-events.ts:416 JSDoc). Crosshairs use
+    DedupChannel's atomic shouldSend() via makeCrosshairDedupKey() (online/online-host-crosshairs.ts:41).
     Do not unify — they serve different network patterns (accumulated vs fire-and-forget).
 
 28. **`optionsReturnMode` null=lobby (editable), non-null=in-game (read-only)** —
-    runtime-state.ts:94-96 JSDoc documents the inverse semantics. game-ui-settings.ts:114
+    runtime/runtime-state.ts:94-96 JSDoc documents the inverse semantics. render/settings-ui.ts:114
     @param JSDoc repeats it. The value when non-null is the Mode to return to on close.
 
-29. **`modeTickers` is exhaustively typed via `satisfies`** — runtime.ts:184 uses
+29. **`modeTickers` is exhaustively typed via `satisfies`** — runtime/runtime.ts:184 uses
     `satisfies Record<Exclude<Mode, Mode.STOPPED>, ...>` ensuring all tickable modes have
     a ticker. STOPPED is excluded by design (tickMainLoop returns early for it).
     Adding a new Mode without a corresponding ticker entry is a compile error.
@@ -367,163 +367,163 @@ sufficient for LLM agents to follow correctly.
     pipeline. New game-state messages go in game-room.ts, not server.ts.
 
 31. **Touch-suppression pairing: all click handlers MUST check `isTouchSuppressed()`** —
-    input-mouse.ts:25-28 documents the convention. input-dispatch.ts:8-27 documents
+    input/input-mouse.ts:25-28 documents the convention. input/input-dispatch.ts:8-27 documents
     markTouchTime() pairing. Prevents synthetic click events that mobile browsers fire
     after touchend.
 
 32. **`towerPendingRevive` naming is correct — "pending" means awaiting a condition** —
-    types.ts:251 JSDoc explains the two-phase rule. build-system.ts:452-454 JSDoc on
+    shared/types.ts:251 JSDoc explains the two-phase rule. game/build-system.ts:452-454 JSDoc on
     `reviveEnclosedTowers` documents the mechanic. CLAUDE.md line 40 repeats it.
     "Pending" = awaiting one more build phase of enclosure, not awaiting user action.
     Do not rename to `towersAwaitingRevive` or `towersEligibleForRevive`.
 
 33. **`FreshInterior` vs `ReadonlySet<number>` for interior is intentional** —
-    `FreshInterior` (branded type, types.ts:151) proves the interior was recomputed
+    `FreshInterior` (branded type, shared/types.ts:151) proves the interior was recomputed
     after the last wall mutation. `ReadonlySet<number>` is used in AI build code
-    (ai-build-types.ts, ai-build-target.ts, ai-castle-rect.ts) for simulated/hypothetical
+    (ai/ai-build-types.ts, ai/ai-build-target.ts, ai/ai-castle-rect.ts) for simulated/hypothetical
     interiors constructed during candidate scoring. Do not unify — branding simulated
     interiors as fresh would defeat the type safety.
 
 34. **`runtimeState` destructuring is intentionally non-uniform across sub-systems** —
-    runtime.ts:10-16 documents the convention. Each createXSystem(deps) factory
+    runtime/runtime.ts:10-16 documents the convention. Each createXSystem(deps) factory
     destructures only frequently-used deps at the top; rarely-used deps are accessed
     inline as `deps.X`. The inconsistency reflects actual usage, not drift.
 
-35. **`comboTracker` lifecycle is transient during battle** — types.ts:281 JSDoc says
+35. **`comboTracker` lifecycle is transient during battle** — shared/types.ts:281 JSDoc says
     "transient during battle, not serialized". Created in `enterBattleFromCannon`
-    (phase-setup.ts:273), nulled after awarding bonuses in `enterBuildFromBattle`
-    (phase-setup.ts:289). Both sites are in the same file. The `| null` type enforces
+    (game/phase-setup.ts:273), nulled after awarding bonuses in `enterBuildFromBattle`
+    (game/phase-setup.ts:289). Both sites are in the same file. The `| null` type enforces
     null checks at all access sites. Do not report the lifecycle as undocumented.
 
-36. **MODIFIER_LABELS and MODIFIER_ID must stay in sync** — game-constants.ts:30-37
+36. **MODIFIER_LABELS and MODIFIER_ID must stay in sync** — shared/game-constants.ts:30-37
     documents the invariant on both objects. Adding a modifier requires entries in both.
 
 37. **Interior exclusion set in AI pickPlacement is intentional** —
-    ai-strategy-build.ts:485 documents why gaps and castle-rect tiles are excluded
+    ai/ai-strategy-build.ts:485 documents why gaps and castle-rect tiles are excluded
     from the interior set during candidate scoring. Prevents penalizing gap-filling.
 
-38. **`withPointerPlayer` callback may silently not execute** — input.ts:58-61 JSDoc
+38. **`withPointerPlayer` callback may silently not execute** — input/input.ts:58-61 JSDoc
     explicitly warns that the callback is NOT invoked if no human players exist.
 
 39. **`>>> 0` uint32 coercion in deriveAiStrategySeed** —
-    online-host-promotion.ts:111 inline comment explains the idiom.
+    online/online-host-promotion.ts:111 inline comment explains the idiom.
 
 40. **Preset option sets for collectOccupiedTiles are documented** —
-    board-occupancy.ts:50-52 explains the preset pattern and its relationship
+    shared/board-occupancy.ts:50-52 explains the preset pattern and its relationship
     to the collectOccupiedTiles function.
 
 41. **`victimPlayerId` naming reflects the grunt's perspective** —
-    ai-strategy-battle.ts:591-593 JSDoc explains the parameter is the player
+    ai/ai-strategy-battle.ts:591-593 JSDoc explains the parameter is the player
     being attacked, not the AI. The name is intentional.
 
 42. **Tower identity check (===) in selection is intentional** —
-    selection.ts:62-63 documents that tower refs are stable within a session.
+    game/selection.ts:62-63 documents that tower refs are stable within a session.
     Online mode uses indices for serialization.
 
-43. **Selection tick takes optional `state?` by design** — ai-phase-select.ts:89
+43. **Selection tick takes optional `state?` by design** — ai/ai-phase-select.ts:89
     documents that selection can tick without state during initial lobby setup.
 
-44. **Socket validation inlined in online-lobby-ui.ts mirrors online-session.ts** —
-    online-lobby-ui.ts:55 comment documents the parallel with isSocketOpen().
+44. **Socket validation inlined in online/online-lobby-ui.ts mirrors online/online-session.ts** —
+    online/online-lobby-ui.ts:55 comment documents the parallel with isSocketOpen().
 
 45. **Life-lost and upgrade-pick dialog ticks have parallel structure** —
-    life-lost.ts:19 and upgrade-pick.ts cross-reference each other. Both loop
+    game/life-lost.ts:19 and game/upgrade-pick.ts cross-reference each other. Both loop
     entries for auto-resolve + force-resolve. The duplication is intentional.
 
 46. **drawPanel/drawButton mutate canvas state — callers must save/restore** —
-    render-ui-theme.ts JSDoc on both functions documents the convention.
+    render-ui-shared/theme.ts JSDoc on both functions documents the convention.
 
 47. **HOME_GAP_REPAIR_THRESHOLD vs MANAGEABLE_GAP_LIMIT serve different decisions** —
-    ai-strategy-build.ts:68 and :76 JSDoc explains: threshold = deprioritize home tower,
+    ai/ai-strategy-build.ts:68 and :76 JSDoc explains: threshold = deprioritize home tower,
     limit = skip target entirely. Both are gap counts but at different decision points.
 
 48. **Modifier tuning constants are playtesting-calibrated** —
-    round-modifiers.ts:71 block comment warns against adjusting multiple simultaneously.
+    game/round-modifiers.ts:71 block comment warns against adjusting multiple simultaneously.
 
-49. **Fanfare note frequencies are musical constants** — sound-system.ts:587 comment
+49. **Fanfare note frequencies are musical constants** — input/sound-system.ts:587 comment
     documents G4=392, C5=523, E5=659, G5=784 Hz.
 
 50. **isCannonPhaseDone measures different things per controller type** —
-    controller-interfaces.ts:129-130 JSDoc documents that Human checks remaining
+    shared/controller-interfaces.ts:129-130 JSDoc documents that Human checks remaining
     slots, AI checks internal phase step. Both are correct.
 
-51. **Canvas coordinate spaces documented in render-effects.ts** —
-    render-effects.ts:20+ documents that all render-* positions are canvas-space
+51. **Canvas coordinate spaces documented in render/render-effects.ts** —
+    render/render-effects.ts:20+ documents that all render-* positions are canvas-space
     unless parameter names indicate otherwise (screenX/Y, tileX/Y).
 
 52. **pointerPhantomValid() three-way return is documented** —
-    runtime-touch-ui.ts JSDoc: true=valid, false=invalid, undefined=no phantom.
+    runtime/runtime-touch-ui.ts JSDoc: true=valid, false=invalid, undefined=no phantom.
 
 53. **Host interface pattern (SelectionHost, BuildHost, etc.) is documented** —
-    ai-phase-select.ts JSDoc above SelectionHost explains the convention:
+    ai/ai-phase-select.ts JSDoc above SelectionHost explains the convention:
     each ai-phase-*.ts defines a minimal Host interface for decoupling.
 
 54. **capturePreState two-variant pattern in checkpoints** —
-    online-checkpoints.ts:41-49 JSDoc documents both variants (delegated via
+    online/online-checkpoints.ts:41-49 JSDoc documents both variants (delegated via
     applyCommonCheckpoint, and direct inline call). Both guarantee capturePreState
     runs before any player mutation.
 
 55. **scaledDelay convention and typical ranges per phase** —
-    controller-ai.ts:154-161 JSDoc documents `(base + rng * spread) * delayScale`
+    ai/controller-ai.ts:154-161 JSDoc documents `(base + rng * spread) * delayScale`
     with typical ranges: selection 0.8–1.0s, build/cannon 0.2–0.3s, battle 0.1–0.2s.
 
 56. **Null vs undefined convention in online-serialize** —
-    online-serialize.ts:1-12 file header documents: `null` = always-present modern-mode
+    online/online-serialize.ts:1-12 file header documents: `null` = always-present modern-mode
     fields, `undefined` = bandwidth-saving omitted per-entity enrichments.
 
 57. **PASS 1 / PASS 2 controller dispatch pattern** —
-    host-phase-ticks.ts:8-14 documents PASS 1 (per-frame, local only) vs PASS 2
+    game/host-phase-ticks.ts:8-14 documents PASS 1 (per-frame, local only) vs PASS 2
     (phase end, all controllers). Finalization method differs by role and phase.
 
 58. **Phantom key format (comma-separated, 1/0 booleans, : and ; separators)** —
-    phantom-types.ts:70-81 JSDoc documents exact format for cannonPhantomKey
+    shared/shared/phantom-types.ts:70-81 JSDoc documents exact format for cannonPhantomKey
     (`row,col,mode,valid`) and piecePhantomKey (`row,col,valid,r0:c0;r1:c1;...`).
 
 59. **Sound level guard convention (play() internal vs Web Audio entry)** —
-    sound-system.ts:15-19 JSDoc documents three tiers: play() guards internally,
+    input/sound-system.ts:15-19 JSDoc documents three tiers: play() guards internally,
     Web Audio public methods guard at entry, internal helpers rely on caller guard.
 
 60. **Upgrade weight constants (WEIGHT_COMMON/UNCOMMON/RARE)** —
-    upgrade-defs.ts:51-54 defines WEIGHT_COMMON=3, WEIGHT_UNCOMMON=2, WEIGHT_RARE=1.
+    shared/upgrade-defs.ts:51-54 defines WEIGHT_COMMON=3, WEIGHT_UNCOMMON=2, WEIGHT_RARE=1.
     All UPGRADE_POOL entries use these constants.
 
 61. **poolComplete compile-time exhaustiveness check** —
-    upgrade-defs.ts:42-49 JSDoc explains the PoolIds/PoolComplete pattern and the
+    shared/upgrade-defs.ts:42-49 JSDoc explains the PoolIds/PoolComplete pattern and the
     `void poolComplete` idiom for suppressing unused-variable warnings.
 
 62. **Cannon boom voice mix ratios and named frequency constants** —
-    sound-system.ts:209-221 defines CANNON_BASS_END_HZ, CANNON_MID_START/END_HZ,
+    input/sound-system.ts:209-221 defines CANNON_BASS_END_HZ, CANNON_MID_START/END_HZ,
     CANNON_BLAST_DURATION, CANNON_TAIL_DURATION, etc. Voice mix comment at line 312.
 
 63. **Dialog get/set methods are for watcher-mode synchronization** —
-    runtime-life-lost.ts:209-212 and runtime-upgrade-pick.ts:144-147 JSDoc explains
+    runtime-game/life-lost.ts:209-212 and runtime-game/upgrade-pick.ts:144-147 JSDoc explains
     get() reads state for watcher overlay, set() applies host-broadcast state.
 
 64. **`onResolved` naming for dialog completion callbacks** —
-    runtime-types.ts:287 uses `onResolved` (life-lost) matching the `on*` prefix
+    runtime/runtime-types.ts:287 uses `onResolved` (life-lost) matching the `on*` prefix
     convention. upgrade-pick uses `onDone` (passed at tryShow time, different lifecycle).
 
-65. **Coordinate spaces documented in render-composition.ts** —
-    render-composition.ts:8-12 documents screenX/screenY (canvas pixels),
+65. **Coordinate spaces documented in render/render-composition.ts** —
+    render/render-composition.ts:8-12 documents screenX/screenY (canvas pixels),
     tileX/tileY (grid indices), and overlayCtx naming convention.
 
 66. **OPTION_NAMES must match OPT_* constant order** —
-    settings-defs.ts:34-35 INVARIANT comment links OPTION_NAMES array to OPT_*
+    shared/settings-defs.ts:34-35 INVARIANT comment links OPTION_NAMES array to OPT_*
     constants. Reordering one without the other silently breaks UI display.
 
 67. **`excludeBalloonCannons` is the canonical parameter name** —
-    board-occupancy.ts uses `excludeBalloonCannons` consistently across all public
+    shared/board-occupancy.ts uses `excludeBalloonCannons` consistently across all public
     and internal functions. Do not use the abbreviation `excludeBalloon`.
 
 68. **`REMOTE_CROSSHAIR_MULTIPLIER` follows the `_MULTIPLIER` suffix convention** —
-    online-types.ts:21 uses `REMOTE_CROSSHAIR_MULTIPLIER` matching the rest of the
+    online/online-types.ts:21 uses `REMOTE_CROSSHAIR_MULTIPLIER` matching the rest of the
     codebase (CROSSHAIR_SPRINT_MULTIPLIER, CURSOR_PROXIMITY_MULTIPLIER, etc.).
 
 69. **`ctx` shorthand destructuring from defaultClient is documented** —
-    runtime-online-game.ts:67-69 comment explains the five destructured names
+    online/runtime-online-game.ts:67-69 comment explains the five destructured names
     reference the same defaultClient singleton used throughout the module.
 
 70. **Lobby timer: local uses accumulator, online uses wall-clock subtraction** —
     main.ts:43-45 documents the local path (timerAccum counting up). The online
-    path (runtime-online-game.ts:135-141) uses server-provided countdown minus a
+    path (online/runtime-online-game.ts:135-141) uses server-provided countdown minus a
     -1 grace offset to prevent UI/server race.

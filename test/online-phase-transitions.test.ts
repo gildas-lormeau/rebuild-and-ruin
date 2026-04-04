@@ -4,9 +4,9 @@ import {
   CANNON_START_STEPS,
   executeTransition,
   runBuildEndSequence,
-} from "../src/phase-transition-shared.ts";
+} from "../src/game/phase-transition-shared.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
-import type { ValidPlayerSlot } from "../src/player-slot.ts";
+import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
 
 // ---------------------------------------------------------------------------
 // executeTransition step ordering

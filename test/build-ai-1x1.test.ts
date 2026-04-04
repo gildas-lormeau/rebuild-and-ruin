@@ -12,7 +12,7 @@ import {
   test,
   runTests,
 } from "./test-helpers.ts";
-import { PIECE_1x1 } from "../src/pieces.ts";
+import { PIECE_1x1 } from "../src/shared/pieces.ts";
 
 test("AI closes a 1-tile gap in the wall ring", () => {
   const parsed = parseBoard(

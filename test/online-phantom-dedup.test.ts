@@ -1,4 +1,4 @@
-import { interpolateToward, toCannonMode } from "../src/online-types.ts";
+import { interpolateToward, toCannonMode } from "../src/online/online-types.ts";
 import {
   cannonPhantomKey,
   type CannonPhantom,
@@ -6,10 +6,10 @@ import {
   filterAlivePhantoms,
   piecePhantomKey,
   type PiecePhantom,
-} from "../src/phantom-types.ts";
+} from "../src/shared/phantom-types.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
-import type { ValidPlayerSlot } from "../src/player-slot.ts";
-import { CannonMode } from "../src/battle-types.ts";
+import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
+import { CannonMode } from "../src/shared/battle-types.ts";
 
 // ---------------------------------------------------------------------------
 // cannonPhantomKey

@@ -1,13 +1,13 @@
-import { GRID_ROWS, GRID_COLS, Tile } from "../src/grid.ts";
-import type { Castle, GameMap, Tower } from "../src/geometry-types.ts";
-import { pickPlacementStandalone as pickPlacement } from "../src/ai-strategy.ts";
-import { placePiece, recheckTerritoryOnly } from "../src/build-system.ts";
-import type { PieceShape } from "../src/pieces.ts";
-import { Rng } from "../src/rng.ts";
+import { GRID_ROWS, GRID_COLS, Tile } from "../src/shared/grid.ts";
+import type { Castle, GameMap, Tower } from "../src/shared/geometry-types.ts";
+import { pickPlacementStandalone as pickPlacement } from "../src/ai/ai-strategy.ts";
+import { placePiece, recheckTerritoryOnly } from "../src/game/build-system.ts";
+import type { PieceShape } from "../src/shared/pieces.ts";
+import { Rng } from "../src/shared/rng.ts";
 import process from "node:process";
-import type { ValidPlayerSlot } from "../src/player-slot.ts";
-import { emptyFreshInterior, type GameState, type Player } from "../src/types.ts";
-import { Phase } from "../src/game-phase.ts";
+import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
+import { emptyFreshInterior, type GameState, type Player } from "../src/shared/types.ts";
+import { Phase } from "../src/shared/game-phase.ts";
 
 // ---------------------------------------------------------------------------
 // ASCII helpers
