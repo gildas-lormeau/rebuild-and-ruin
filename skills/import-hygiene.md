@@ -54,39 +54,43 @@ The layer map file. Committed to the repo. An array of named groups — position
 
 **Rule: imports must flow downward.** A file in group N can import from any group 0..N. Importing from group N+1 or higher is a violation.
 
-**Current architecture (17 groups, 0 violations, ~130 files incl. server):**
+**Current architecture (17 groups, 0 violations, ~133 files incl. server):**
 
 ```
  0  leaf utilities              ai-constants, canvas-layout, game-constants, grid, jsfxr.d,
-                                platform, rng, router, online-dom, upgrade-defs, settings-defs, utils
+                                platform, rng, router, online-dom, upgrade-defs, settings-defs,
+                                player-slot, game-phase, utils, server/send-utils
  1  geometry types              geometry-types
  2  pieces                      pieces
- 3  core types, state & spatial ai-build-types, ai-castle-rect, types, spatial, board-occupancy,
+ 3  core types, state & spatial battle-types, types, dialog-types, spatial, board-occupancy,
                                 checkpoint-data, server/protocol
- 4  shared types & config       ai-build-score, ai-build-fallback, phase-transition-shared,
-                                player-config, controller-interfaces, life-lost, upgrade-pick,
-                                castle-build, phase-banner, theme, overlay-types, phantom-types,
-                                tick-context
+ 4  shared types & config       phase-transition-shared, player-config, controller-interfaces,
+                                life-lost, upgrade-pick, castle-build, phase-banner, theme,
+                                overlay-types, phantom-types, tick-context
  5  runtime primitives          settings-ui, screen-builders, runtime-touch-ui, runtime-state,
                                 runtime-banner, runtime-human
- 6  game logic                  ai-build-target, cannon-system, grunt-movement, grunt-system,
-                                battle-system, build-system, castle-generation, map-generation,
-                                phase-setup, combo-system, round-modifiers, game-engine, selection,
-                                host-phase-ticks
- 7  AI strategy                 ai-strategy-battle, ai-strategy-build, ai-strategy-cannon, ai-strategy
+ 6  game logic                  cannon-system, grunt-movement, grunt-system, battle-system,
+                                build-system, castle-generation, map-generation, phase-setup,
+                                combo-system, round-modifiers, game-engine, selection,
+                                host-phase-ticks, host-battle-ticks
+ 7  AI strategy                 ai-build-types, ai-castle-rect, ai-build-score, ai-build-fallback,
+                                ai-build-target, ai-strategy-battle, ai-strategy-build,
+                                ai-strategy-cannon, ai-strategy
  8  controllers                 ai-phase-select, ai-phase-build, ai-phase-cannon, ai-phase-battle,
                                 controller-ai, controller-types, controller-human, controller-factory
- 9  input & sound               input-*, haptics-system, sound-system
+ 9  input & sound               haptics-system, input-recorder, input-dispatch, input-touch-ui,
+                                input-touch-canvas, input-mouse, input-keyboard, input, sound-system
 10  render                      render-sprites, render-loupe, render-effects, render-towers,
                                 render-composition, render-ui-theme, render-ui, render-ui-settings,
-                                render-map, render-canvas  ← canvas-using files
+                                render-map, render-canvas
 11  runtime support             runtime-bootstrap, runtime-headless, runtime-types, runtime-camera,
                                 runtime-test-globals
 12  online infrastructure       online-config, online-types, online-lobby-ui, online-server-lifecycle,
                                 online-session, server/game-room
-13  online logic                online-serialize, online-send-actions, online-checkpoints, online-watcher-*,
-                                online-phase-transitions, online-server-events, online-host-*,
-                                online-full-state-recovery, online-stores, server/room-manager
+13  online logic                online-serialize, online-full-state-recovery, online-send-actions,
+                                online-checkpoints, online-watcher-battle, online-watcher-tick,
+                                online-phase-transitions, online-server-events, online-host-crosshairs,
+                                online-host-promotion, online-stores, server/room-manager
 14  local runtime               runtime-life-lost, runtime-upgrade-pick, runtime-lobby, runtime-options,
                                 runtime-game-lifecycle, runtime-input, runtime-phase-ticks,
                                 runtime-render, runtime-selection, runtime

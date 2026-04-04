@@ -16,25 +16,25 @@ Each domain is a group of tightly related files that share responsibility for a 
 Domains map to the 17 layer groups in `.import-layers.json` (L0–L16), with small layers
 combined and large layers (>10 files) split into sub-domains at audit time.
 
-### 1. Leaf utilities — L0 (13 files)
+### 1. Leaf utilities — L0 (15 files)
 ```
 src/ai-constants.ts, src/canvas-layout.ts, src/game-constants.ts,
 src/grid.ts, src/jsfxr.d.ts, src/platform.ts, src/rng.ts,
 src/router.ts, src/online-dom.ts, src/upgrade-defs.ts,
-src/settings-defs.ts, src/utils.ts, server/send-utils.ts
+src/settings-defs.ts, src/player-slot.ts, src/game-phase.ts,
+src/utils.ts, server/send-utils.ts
 ```
 
-### 2. Core types, geometry, pieces & spatial — L1 + L2 + L3 (10 files)
+### 2. Core types, geometry, pieces & spatial — L1 + L2 + L3 (9 files)
 ```
 src/geometry-types.ts, src/pieces.ts,
-src/ai-build-types.ts, src/ai-castle-rect.ts, src/types.ts,
+src/battle-types.ts, src/types.ts, src/dialog-types.ts,
 src/spatial.ts, src/board-occupancy.ts, src/checkpoint-data.ts,
 server/protocol.ts
 ```
 
-### 3. Shared types & config — L4 (13 files)
+### 3. Shared types & config — L4 (11 files)
 ```
-src/ai-build-score.ts, src/ai-build-fallback.ts,
 src/phase-transition-shared.ts, src/player-config.ts,
 src/controller-interfaces.ts, src/life-lost.ts, src/upgrade-pick.ts,
 src/castle-build.ts, src/phase-banner.ts, src/theme.ts,
@@ -49,15 +49,17 @@ src/runtime-state.ts, src/runtime-banner.ts, src/runtime-human.ts
 
 ### 5. Game logic — L6 (14 files)
 ```
-src/ai-build-target.ts, src/cannon-system.ts, src/grunt-movement.ts,
+src/cannon-system.ts, src/grunt-movement.ts,
 src/grunt-system.ts, src/battle-system.ts, src/build-system.ts,
 src/castle-generation.ts, src/map-generation.ts, src/phase-setup.ts,
 src/combo-system.ts, src/round-modifiers.ts, src/game-engine.ts,
-src/selection.ts, src/host-phase-ticks.ts
+src/selection.ts, src/host-phase-ticks.ts, src/host-battle-ticks.ts
 ```
 
-### 6. AI strategy — L7 (4 files)
+### 6. AI strategy — L7 (9 files)
 ```
+src/ai-build-types.ts, src/ai-castle-rect.ts, src/ai-build-score.ts,
+src/ai-build-fallback.ts, src/ai-build-target.ts,
 src/ai-strategy-battle.ts, src/ai-strategy-build.ts,
 src/ai-strategy-cannon.ts, src/ai-strategy.ts
 ```
@@ -105,7 +107,7 @@ src/online-send-actions.ts, src/online-checkpoints.ts,
 src/online-watcher-battle.ts, src/online-watcher-tick.ts,
 src/online-phase-transitions.ts, src/online-server-events.ts,
 src/online-host-crosshairs.ts, src/online-host-promotion.ts,
-src/online-host-battle-ticks.ts, src/online-stores.ts
+src/online-stores.ts, server/room-manager.ts
 ```
 
 ### 13. Local runtime — L14 (10 files)
@@ -182,7 +184,7 @@ genuinely help an LLM agent write better code.
 ### Phase 2: Cross-domain audit
 
 After all domain agents complete, spawn one Explore agent with all domain reports combined.
-Domains 3 (13 files), 4 (14 files), 11 (12 files), and 12 (21 files) should be split into sub-domains at audit time to keep each agent under 10 files:
+Domains 2 (9 files), 5 (14 files), 6 (9 files), 12 (12 files), and 13 (10 files) should be split into sub-domains at audit time to keep each agent under 10 files:
 
 ```
 Given these domain audit findings:
