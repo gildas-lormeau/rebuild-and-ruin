@@ -81,7 +81,7 @@ interface OptionsSystemDeps {
   cycleOption: CycleOptionFn;
 }
 
-export interface OptionsSystem {
+interface OptionsSystem {
   visibleToActualOptionIdx: () => number;
   changeOption: (dir: number) => void;
   clickOptions: (canvasX: number, canvasY: number) => void;

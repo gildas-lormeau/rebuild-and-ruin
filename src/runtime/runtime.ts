@@ -108,13 +108,13 @@ import {
   GAME_OVER_REMATCH,
 } from "./runtime-game-lifecycle.ts";
 import { createPointerPlayerLookup } from "./runtime-human.ts";
-import { createInputSystem, type InputSystem } from "./runtime-input.ts";
+import { createInputSystem, type TouchHandles } from "./runtime-input.ts";
 import {
   createLifeLostSystem,
   type LifeLostSystem,
 } from "./runtime-life-lost.ts";
 import { createLobbySystem } from "./runtime-lobby.ts";
-import { createOptionsSystem, type OptionsSystem } from "./runtime-options.ts";
+import { createOptionsSystem } from "./runtime-options.ts";
 import {
   createPhaseTicksSystem,
   type PhaseTicksSystem,
@@ -152,14 +152,17 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const sound = createSoundSystem();
   sound.setLevel(runtimeState.settings.sound);
 
-  // Forward-declared: options must exist before lobby (lobby triggers
-  // showOptions), and input must exist before the game-lifecycle system
-  // (lifecycle registers cleanup). Both are assigned immediately after
-  // their factory calls below — the `let` is required by declaration order.
-  // deno-lint-ignore prefer-const
-  let options: OptionsSystem;
-  // deno-lint-ignore prefer-const
-  let input: InputSystem;
+  // Touch handles live outside the input sub-system so that options,
+  // render, and lifecycle can reference them directly — no forward
+  // declaration needed for `input`.
+  const touch: TouchHandles = {
+    dpad: null,
+    floatingActions: null,
+    homeZoomButton: null,
+    enemyZoomButton: null,
+    quitButton: null,
+    loupeHandle: null,
+  };
 
   /** Refresh lobby seed + map preview only if the seed changed. */
   function refreshLobbySeed(): void {
@@ -388,7 +391,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getLifeLostPanelPos: (pid) => lifeLost.panelPos(pid),
     updateViewport,
     pointerPlayer,
-    getTouch: () => input.touch,
+    getTouch: () => touch,
     worldToScreen: camera.worldToScreen,
     screenToContainerCSS: renderer.screenToContainerCSS,
     getContainerHeight: () => gameContainer.clientHeight,
@@ -513,12 +516,12 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     resetInputForLobby: () => {
       runtimeState.inputTracking.mouseJoinedSlot = null;
       runtimeState.inputTracking.directTouchActive = false;
-      input.touch.floatingActions?.update(false, 0, 0, false, false);
-      input.touch.dpad?.update(null);
-      input.touch.quitButton?.update(null);
-      input.touch.homeZoomButton?.update(false);
-      input.touch.enemyZoomButton?.update(false);
-      input.touch.loupeHandle?.update(false, 0, 0);
+      touch.floatingActions?.update(false, 0, 0, false, false);
+      touch.dpad?.update(null);
+      touch.quitButton?.update(null);
+      touch.homeZoomButton?.update(false);
+      touch.enemyZoomButton?.update(false);
+      touch.loupeHandle?.update(false, 0, 0);
     },
 
     soundReset: sound.reset,
@@ -640,15 +643,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   };
 
   // Initialize options system first (lobby depends on showOptions)
-  options = createOptionsSystem({
+  const options = createOptionsSystem({
     runtimeState,
     uiCtx,
     now: () => performance.now(),
     renderFrame,
     // Bridge boolean enable to dpad's Phase|null API (WALL_BUILD = any non-selection phase)
     updateDpad: (enabled) =>
-      input.touch.dpad?.update(enabled ? Phase.WALL_BUILD : null),
-    setDpadLeftHanded: (left) => input.touch.dpad?.setLeftHanded(left),
+      touch.dpad?.update(enabled ? Phase.WALL_BUILD : null),
+    setDpadLeftHanded: (left) => touch.dpad?.setLeftHanded(left),
     refreshLobbySeed,
     sound,
     haptics,
@@ -690,7 +693,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Input sub-system (delegated to runtime-input.ts)
   // -------------------------------------------------------------------------
 
-  input = createInputSystem({
+  const input = createInputSystem({
+    touch,
     runtimeState,
     renderer,
     gameContainer,

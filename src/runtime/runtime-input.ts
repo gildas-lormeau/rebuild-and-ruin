@@ -43,7 +43,7 @@ type ZoomButtonHandle = ReturnType<CreateHomeZoomButtonFn>;
 
 type QuitButtonHandle = ReturnType<CreateQuitButtonFn>;
 
-interface TouchHandles {
+export interface TouchHandles {
   dpad: DpadHandle | null;
   floatingActions: FloatingActionsHandle | null;
   homeZoomButton: ZoomButtonHandle | null;
@@ -56,6 +56,7 @@ interface InputSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly renderer: RendererInterface;
   readonly gameContainer: HTMLElement;
+  readonly touch: TouchHandles;
 
   // Render-layer hit tests (injected from composition root, not imported directly)
   readonly hitTests: {
@@ -190,22 +191,12 @@ type PlaceCannonFn = (
   max: number,
 ) => boolean;
 
-export interface InputSystem {
+interface InputSystem {
   register(): void;
-  readonly touch: TouchHandles;
 }
 
 export function createInputSystem(deps: InputSystemDeps): InputSystem {
-  const { runtimeState, camera, sound, lobby, selection } = deps;
-
-  const touch: TouchHandles = {
-    dpad: null,
-    floatingActions: null,
-    homeZoomButton: null,
-    enemyZoomButton: null,
-    quitButton: null,
-    loupeHandle: null,
-  };
+  const { runtimeState, camera, sound, lobby, selection, touch } = deps;
 
   function register(): void {
     // ── Wrapped placement handlers ──
@@ -263,7 +254,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     }
   }
 
-  return { register, touch };
+  return { register };
 }
 
 function setupTouchControls(
