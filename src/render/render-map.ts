@@ -7,7 +7,7 @@
  *   - cx/cy: center-based pixel position (e.g., tower center)
  *   - sx/sy: screen-space pixels (after camera/viewport transform)
  *   - wx/wy: world-space pixels (same as px/py but typed as WorldPos)
- *   - W/H: canvas dimensions in tile-space pixels (GRID_COLS * TILE_SIZE, GRID_ROWS * TILE_SIZE)
+ *   - W/H: canvas dimensions in tile-space pixels (MAP_PX_W, MAP_PX_H)
  */
 
 import type { GameMap, RGB, Viewport } from "../shared/geometry-types.ts";
@@ -16,6 +16,8 @@ import {
   CANVAS_W,
   GRID_COLS,
   GRID_ROWS,
+  MAP_PX_H,
+  MAP_PX_W,
   SCALE,
   TILE_SIZE,
 } from "../shared/grid.ts";
@@ -166,8 +168,8 @@ export function drawMap(
   now: number = performance.now(),
 ): void {
   const canvasCtx = getMainCtx(canvas);
-  const W = GRID_COLS * TILE_SIZE;
-  const H = GRID_ROWS * TILE_SIZE;
+  const W = MAP_PX_W;
+  const H = MAP_PX_H;
 
   const STATUS_BAR_H = overlay?.ui?.statusBar ? STATUSBAR_HEIGHT : 0;
   const cw = CANVAS_W;
@@ -245,8 +247,8 @@ export function drawMap(
 /** Pre-compute both terrain variants (normal + battle) so the first
  *  render of each doesn't stall the frame. Call during game init. */
 export function precomputeTerrainCache(map: GameMap): void {
-  const W = GRID_COLS * TILE_SIZE;
-  const H = GRID_ROWS * TILE_SIZE;
+  const W = MAP_PX_W;
+  const H = MAP_PX_H;
   const cache = getTerrainCache(map, W, H);
   if (cache.normal && cache.battle) return;
 

@@ -9,7 +9,7 @@
  * This module finds them and draws to whichever is currently visible.
  */
 
-import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
+import { MAP_PX_H, MAP_PX_W } from "../shared/grid.ts";
 import type { LoupeHandle } from "../shared/overlay-types.ts";
 import {
   LOUPE_BORDER_WIDTH,
@@ -89,14 +89,12 @@ export function createLoupe(
     const ir = Math.max(0, radius - bw);
 
     // Source rect on sceneCanvas (tile-pixel space)
-    const sceneW = GRID_COLS * TILE_SIZE;
-    const sceneH = GRID_ROWS * TILE_SIZE;
     const srcW = iw / (dpr * LOUPE_ZOOM);
     const srcH = ih / (dpr * LOUPE_ZOOM);
     let srcX = worldX - srcW / 2;
     let srcY = worldY - srcH / 2;
-    srcX = Math.max(0, Math.min(sceneW - srcW, srcX));
-    srcY = Math.max(0, Math.min(sceneH - srcH, srcY));
+    srcX = Math.max(0, Math.min(MAP_PX_W - srcW, srcX));
+    srcY = Math.max(0, Math.min(MAP_PX_H - srcH, srcY));
 
     // Clear
     canvasCtx.clearRect(0, 0, w, h);

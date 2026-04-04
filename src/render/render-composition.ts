@@ -29,7 +29,14 @@ import {
 } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { RGB } from "../shared/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "../shared/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  MAP_PX_H,
+  MAP_PX_W,
+  SCALE,
+  TILE_SIZE,
+} from "../shared/grid.ts";
 import {
   type CastleData,
   type GameOverOverlay,
@@ -193,7 +200,7 @@ const PHASE_LABELS = new Map<Phase, string>([
   [Phase.BATTLE, "Battle"],
 ]);
 const GAMEOVER_PANEL_W_RATIO = 0.65;
-const SETTINGS_GEAR_X = GRID_COLS * TILE_SIZE - 32;
+const SETTINGS_GEAR_X = MAP_PX_W - 32;
 const SETTINGS_GEAR_Y = 4;
 const SETTINGS_GEAR_SIZE = 28;
 const UPGRADE_CARDS_PER_ROW = 3;
@@ -256,7 +263,7 @@ export function createBannerUi(
   subtitle?: string,
 ): { text: string; subtitle?: string; y: number } | undefined {
   if (!active) return undefined;
-  const h = GRID_ROWS * TILE_SIZE;
+  const h = MAP_PX_H;
   const bannerH = h * BANNER_HEIGHT_RATIO;
   const startY = -bannerH / 2;
   const endY = h + bannerH / 2;
@@ -433,9 +440,6 @@ export function lifeLostPanelPos(
 ): { px: number; py: number } {
   const zone = state.playerZones[playerId] ?? 0;
   const zoneTowers = state.map.towers.filter((tower) => tower.zone === zone);
-  const tsW = GRID_COLS * TILE_SIZE;
-  const tsH = GRID_ROWS * TILE_SIZE;
-
   // Tower centroid (+1 offset for 2×2 tower center), or map center as fallback
   const cx =
     zoneTowers.length > 0
@@ -443,18 +447,24 @@ export function lifeLostPanelPos(
           zoneTowers.length +
           1) *
         TILE_SIZE
-      : tsW / 2;
+      : MAP_PX_W / 2;
   const cy =
     zoneTowers.length > 0
       ? (zoneTowers.reduce((sum, tower) => sum + tower.row, 0) /
           zoneTowers.length +
           1) *
         TILE_SIZE
-      : tsH / 2;
+      : MAP_PX_H / 2;
 
   return {
-    px: Math.max(2, Math.min(tsW - PANEL_W - 2, Math.round(cx - PANEL_W / 2))),
-    py: Math.max(2, Math.min(tsH - PANEL_H - 2, Math.round(cy - PANEL_H / 2))),
+    px: Math.max(
+      2,
+      Math.min(MAP_PX_W - PANEL_W - 2, Math.round(cx - PANEL_W / 2)),
+    ),
+    py: Math.max(
+      2,
+      Math.min(MAP_PX_H - PANEL_H - 2, Math.round(cy - PANEL_H / 2)),
+    ),
   };
 }
 

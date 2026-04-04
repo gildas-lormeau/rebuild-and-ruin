@@ -202,11 +202,7 @@ function updateButtons(deps: TouchControlsDeps): void {
 
   // D-pad, rotate, confirm — pass current phase to dpad so it can decide
   // which buttons to show (e.g. rotate is hidden during selection).
-  // Fallback to WALL_BUILD if state is unexpectedly missing (defensive only).
-  deps.dpad?.update(
-    on(bs.dpad) ? (deps.state?.phase ?? Phase.WALL_BUILD) : null,
-    !on(bs.rotate),
-  );
+  deps.dpad?.update(on(bs.dpad) ? deps.state.phase : null, !on(bs.rotate));
   if (deps.dpad) {
     if (!on(bs.confirm)) {
       deps.dpad.setConfirmValid(false);
@@ -235,7 +231,7 @@ function updateButtons(deps: TouchControlsDeps): void {
 
 function updateFloatingActions(deps: TouchControlsDeps): void {
   if (!deps.floatingActions) return;
-  const phase = deps.state?.phase;
+  const phase = deps.state.phase;
   const human = deps.pointerPlayer();
   const phantomValid = pointerPhantomValid(phase, human, deps.phantoms);
   // Reset direct-touch flag when leaving placement phases so it doesn't

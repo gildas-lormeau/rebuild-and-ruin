@@ -22,7 +22,7 @@ import type {
 } from "../render/screen-builders.ts";
 import type { CycleOptionFn } from "../render/settings-ui.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "../shared/grid.ts";
+import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
 import type { RenderOverlay } from "../shared/overlay-types.ts";
 import {
   CURSOR_DEFAULT,
@@ -223,14 +223,12 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function clickOptions(canvasX: number, canvasY: number): void {
-    const W = GRID_COLS * TILE_SIZE;
-    const H = GRID_ROWS * TILE_SIZE;
     const visible = visibleOptionsForCtx();
     const hit = deps.optionsScreenHitTest(
       canvasX / SCALE,
       canvasY / SCALE,
-      W,
-      H,
+      MAP_PX_W,
+      MAP_PX_H,
       visible.length,
     );
     if (!hit) return;
@@ -253,26 +251,22 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function cursorAt(canvasX: number, canvasY: number): string {
-    const W = GRID_COLS * TILE_SIZE;
-    const H = GRID_ROWS * TILE_SIZE;
     const hit = deps.optionsScreenHitTest(
       canvasX / SCALE,
       canvasY / SCALE,
-      W,
-      H,
+      MAP_PX_W,
+      MAP_PX_H,
       visibleOptionsForCtx().length,
     );
     return hit ? CURSOR_POINTER : CURSOR_DEFAULT;
   }
 
   function controlsHitTest(canvasX: number, canvasY: number) {
-    const W = GRID_COLS * TILE_SIZE;
-    const H = GRID_ROWS * TILE_SIZE;
     return deps.controlsScreenHitTest(
       canvasX / SCALE,
       canvasY / SCALE,
-      W,
-      H,
+      MAP_PX_W,
+      MAP_PX_H,
       IS_TOUCH_DEVICE ? 1 : MAX_PLAYERS,
       ACTION_KEYS.length,
     );

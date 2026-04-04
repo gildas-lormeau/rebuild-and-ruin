@@ -195,6 +195,8 @@ interface InputSystem {
   register(): void;
 }
 
+const NOOP = () => {};
+
 export function createInputSystem(deps: InputSystemDeps): InputSystem {
   const { runtimeState, camera, sound, lobby, selection, touch } = deps;
 
@@ -243,10 +245,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
 
     deps.inputHandlers.registerMouse(inputDeps);
     deps.inputHandlers.registerKeyboard(inputDeps);
-    deps.inputHandlers.registerTouch({
-      ...inputDeps,
-      lobby: { ...inputDeps.lobby, keyJoin: undefined },
-    });
+    deps.inputHandlers.registerTouch(inputDeps);
 
     // Touch controls: wire static DOM elements from index.html
     if (IS_TOUCH_DEVICE) {
@@ -295,7 +294,7 @@ function buildInputDeps(
     withPointerPlayer,
     showLobby: deps.lifecycle.returnToLobby,
     rematch: deps.lifecycle.rematch,
-    maybeSendAimUpdate: deps.network.maybeSendAimUpdate ?? (() => {}),
+    maybeSendAimUpdate: deps.network.maybeSendAimUpdate ?? NOOP,
     setDirectTouchActive: (active) => {
       runtimeState.inputTracking.directTouchActive = active;
     },
@@ -646,12 +645,12 @@ function buildZoomDeps(deps: InputSystemDeps) {
     povPlayerId: camera.povPlayerId,
     getEnemyZones: camera.getEnemyZones,
     aimAtZone: (zone: number) => {
-      if (!runtimeState.state) return;
+      const state = safeState(runtimeState);
+      if (!state) return;
       const human = pointerPlayer();
       if (!human) return;
-      const pid = runtimeState.state.playerZones.indexOf(zone);
-      const tower =
-        pid >= 0 ? runtimeState.state.players[pid]?.homeTower : null;
+      const pid = state.playerZones.indexOf(zone);
+      const tower = pid >= 0 ? state.players[pid]?.homeTower : null;
       if (!tower) return;
       const px = towerCenterPx(tower);
       human.setCrosshair(px.x, px.y);

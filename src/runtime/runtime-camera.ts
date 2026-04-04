@@ -27,6 +27,8 @@ import {
   CANVAS_W,
   GRID_COLS,
   GRID_ROWS,
+  MAP_PX_H,
+  MAP_PX_W,
   SCALE,
   TILE_SIZE,
 } from "../shared/grid.ts";
@@ -90,15 +92,15 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     applied: false,
     pendingVp: null,
   };
-  const MIN_ZOOM_W = GRID_COLS * TILE_SIZE * MIN_ZOOM_RATIO;
+  const MIN_ZOOM_W = MAP_PX_W * MIN_ZOOM_RATIO;
   const cachedZoneBounds: Map<number, { vp: Viewport; wallCount: number }> =
     new Map();
 
   const fullMapVp: Viewport = {
     x: 0,
     y: 0,
-    w: GRID_COLS * TILE_SIZE,
-    h: GRID_ROWS * TILE_SIZE,
+    w: MAP_PX_W,
+    h: MAP_PX_H,
   };
   const currentVp: Viewport = { ...fullMapVp };
   let lastVp: Viewport | null = null;
@@ -156,8 +158,8 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     maxR = Math.min(GRID_ROWS - 1, maxR + pad);
     minC = Math.max(0, minC - pad);
     maxC = Math.min(GRID_COLS - 1, maxC + pad);
-    const fullW = GRID_COLS * TILE_SIZE,
-      fullH = GRID_ROWS * TILE_SIZE;
+    const fullW = MAP_PX_W,
+      fullH = MAP_PX_H;
     const maxW = fullW * MAX_ZOOM_VIEWPORT_RATIO,
       maxH = fullH * MAX_ZOOM_VIEWPORT_RATIO;
     const targetAspect = GRID_COLS / GRID_ROWS;

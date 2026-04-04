@@ -20,7 +20,7 @@ import {
 } from "../shared/battle-types.ts";
 import { BALLOON_COST, SUPER_GUN_COST } from "../shared/game-constants.ts";
 import { Action } from "../shared/game-phase.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
+import { GRID_COLS, GRID_ROWS, MAP_PX_H, MAP_PX_W } from "../shared/grid.ts";
 import { rotateCW } from "../shared/pieces.ts";
 import type { KeyBindings } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -239,16 +239,14 @@ export class HumanController extends BaseController implements InputReceiver {
       CROSSHAIR_SPEED *
       (this.heldActions.has(Action.ROTATE) ? CROSSHAIR_SPRINT_MULTIPLIER : 1) *
       dt;
-    const W = GRID_COLS * TILE_SIZE;
-    const H = GRID_ROWS * TILE_SIZE;
     if (this.heldActions.has(Action.UP))
       this.crosshair.y = Math.max(0, this.crosshair.y - speed);
     if (this.heldActions.has(Action.DOWN))
-      this.crosshair.y = Math.min(H, this.crosshair.y + speed);
+      this.crosshair.y = Math.min(MAP_PX_H, this.crosshair.y + speed);
     if (this.heldActions.has(Action.LEFT))
       this.crosshair.x = Math.max(0, this.crosshair.x - speed);
     if (this.heldActions.has(Action.RIGHT))
-      this.crosshair.x = Math.min(W, this.crosshair.x + speed);
+      this.crosshair.x = Math.min(MAP_PX_W, this.crosshair.x + speed);
   }
 
   /** Try to place a cannon at the current cursor position. Returns true on success. */

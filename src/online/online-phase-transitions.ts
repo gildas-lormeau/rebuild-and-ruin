@@ -19,6 +19,7 @@ import {
   CANNON_START_STEPS,
   executeTransition,
   gateUpgradePick,
+  NOOP_STEP,
   runBuildEndSequence,
   showBattlePhaseBanner,
   showBuildPhaseBanner,
@@ -367,9 +368,7 @@ export function handleBuildStartTransition(
             BANNER_PHASE_BUILD,
           ),
         ),
-      applyCheckpoint: () => {
-        // Already applied above — no-op
-      },
+      applyCheckpoint: NOOP_STEP,
       initControllers: () => {
         if (isActivePlayer(myPlayerId)) {
           const player = state.players[myPlayerId];

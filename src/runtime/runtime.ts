@@ -65,12 +65,11 @@ import {
 } from "../shared/game-constants.ts";
 import { Mode, Phase } from "../shared/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, SCALE, TILE_SIZE } from "../shared/grid.ts";
+import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
 import type { RenderOverlay } from "../shared/overlay-types.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform.ts";
 import {
   computeGameSeed,
-  DIFFICULTY_NORMAL,
   DIFFICULTY_PARAMS,
   getPlayerColor,
   MAX_PLAYERS,
@@ -384,25 +383,19 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   function bootstrapNewGame(): void {
     const seed = runtimeState.lobby.seed;
     config.log(`[game] seed: ${seed}`);
-    const diffParams =
-      DIFFICULTY_PARAMS[runtimeState.settings.difficulty] ??
-      DIFFICULTY_PARAMS[DIFFICULTY_NORMAL]!;
-    const { buildTimer, cannonPlaceTimer, firstRoundCannons } = diffParams;
+    const { buildTimer, cannonPlaceTimer, firstRoundCannons } =
+      DIFFICULTY_PARAMS[runtimeState.settings.difficulty]!;
     const roundsParam = config.getUrlRoundsOverride();
     const roundsVal =
       roundsParam > 0
         ? roundsParam
-        : (ROUNDS_OPTIONS[runtimeState.settings.rounds] ?? ROUNDS_OPTIONS[0]!)
-            .value;
+        : ROUNDS_OPTIONS[runtimeState.settings.rounds]!.value;
     bootstrapGame({
       seed,
       maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),
       existingMap: runtimeState.lobby.map ?? undefined,
       maxRounds: roundsVal,
-      cannonMaxHp: (
-        CANNON_HP_OPTIONS[runtimeState.settings.cannonHp] ??
-        CANNON_HP_OPTIONS[0]!
-      ).value,
+      cannonMaxHp: CANNON_HP_OPTIONS[runtimeState.settings.cannonHp]!.value,
       buildTimer,
       cannonPlaceTimer,
       firstRoundCannons,
@@ -499,17 +492,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     resolveGameOverAction: (canvasX, canvasY) => {
       const gameOver = runtimeState.frame.gameOver;
       if (!gameOver) return null;
-      const W = GRID_COLS * TILE_SIZE;
-      const H = GRID_ROWS * TILE_SIZE;
       const hit = gameOverButtonHitTest(
         canvasX / SCALE,
         canvasY / SCALE,
-        W,
-        H,
+        MAP_PX_W,
+        MAP_PX_H,
         gameOver,
       );
       if (hit === FOCUS_REMATCH) return GAME_OVER_REMATCH;
       if (hit === FOCUS_MENU) return GAME_OVER_MENU;
+      // Touch: tap-anywhere confirms the focused button (no hover cursor).
+      // Mouse: miss returns null so accidental clicks are ignored.
+      if (!IS_TOUCH_DEVICE) return null;
       return gameOver.focused === FOCUS_REMATCH
         ? GAME_OVER_REMATCH
         : GAME_OVER_MENU;
@@ -676,8 +670,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       upgradePickClick: (screenX, screenY) => {
         if (!runtimeState.upgradePickDialog) return null;
         return handleUpgradePickClick({
-          W: GRID_COLS * TILE_SIZE,
-          H: GRID_ROWS * TILE_SIZE,
+          W: MAP_PX_W,
+          H: MAP_PX_H,
           dialog: runtimeState.upgradePickDialog,
           screenX,
           screenY,

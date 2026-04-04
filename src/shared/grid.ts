@@ -19,6 +19,9 @@ export const TILE_COUNT = GRID_ROWS * GRID_COLS;
 export const TILE_SIZE = 16;
 /** Canvas display scale factor (pixel-art 2× upscale). */
 export const SCALE = 2;
+/** Map dimensions in world-pixels (unscaled). */
+export const MAP_PX_W = GRID_COLS * TILE_SIZE;
+export const MAP_PX_H = GRID_ROWS * TILE_SIZE;
 /** Full canvas backing-store dimensions (pixels). */
-export const CANVAS_W = GRID_COLS * TILE_SIZE * SCALE;
-export const CANVAS_H = GRID_ROWS * TILE_SIZE * SCALE;
+export const CANVAS_W = MAP_PX_W * SCALE;
+export const CANVAS_H = MAP_PX_H * SCALE;

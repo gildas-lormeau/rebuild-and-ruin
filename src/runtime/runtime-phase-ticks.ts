@@ -43,6 +43,7 @@ import {
   CANNON_START_STEPS,
   executeTransition,
   gateUpgradePick,
+  NOOP_STEP,
   showBuildPhaseBanner,
   showCannonPhaseBanner,
 } from "../game/phase-transition-shared.ts";
@@ -70,6 +71,7 @@ import {
   ACCUM_CANNON,
   isRemoteHuman,
   resetAccum,
+  type WatcherTimingState,
 } from "../shared/tick-context.ts";
 import {
   assertStateReady,
@@ -136,6 +138,14 @@ export interface PhaseTicksSystem {
   tickGame: (dt: number) => void;
   syncCrosshairs: (weaponsActive: boolean, dt?: number) => void;
 }
+
+/** Zeroed watcher timing for local play (no server-driven phase timing). */
+const LOCAL_WATCHER_TIMING: WatcherTimingState = {
+  phaseStartTime: 0,
+  phaseDuration: 0,
+  countdownStartTime: 0,
+  countdownDuration: 0,
+};
 
 export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   if (deps.tickNonHost && !deps.hostNetworking) {
@@ -268,12 +278,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       net: {
         remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,
         isHost: runtimeState.frameMeta.hostAtFrameStart,
-        watcherTiming: deps.watcherTiming ?? {
-          phaseStartTime: 0,
-          phaseDuration: 0,
-          countdownStartTime: 0,
-          countdownDuration: 0,
-        },
+        watcherTiming: deps.watcherTiming ?? LOCAL_WATCHER_TIMING,
         now: deps.now,
       },
     });
@@ -406,9 +411,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
                   BANNER_PHASE_BUILD,
                 ),
               ),
-            applyCheckpoint: () => {
-              // Already applied above — no-op
-            },
+            applyCheckpoint: NOOP_STEP,
             initControllers: () => startBuildPhase(),
           });
         };

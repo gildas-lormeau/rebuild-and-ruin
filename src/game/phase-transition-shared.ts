@@ -64,6 +64,10 @@ export const BUILD_START_STEPS = [
   APPLY_CHECKPOINT,
   INIT_CTRL,
 ] as const;
+/** Explicit no-op adapter for transition steps already handled before the
+ *  recipe runs.  Prefer this over an inline `() => {}` so the intent is clear
+ *  and grep-able. */
+export const NOOP_STEP = (): void => {};
 
 /** Show the "Place Cannons" banner with its canonical subtitle.
  *  When `modifierText` is provided, it replaces the default subtitle. */
@@ -101,7 +105,11 @@ export function showBuildPhaseBanner(
 
 /** Execute a phase transition recipe: run each named step in declared order.
  *  Host and watcher provide different adapter implementations; the recipe
- *  ensures both follow the same step ordering. */
+ *  ensures both follow the same step ordering.
+ *
+ *  All steps in the recipe MUST have an adapter — this is enforced at compile
+ *  time so that adding a new step without a handler is a type error.  When a
+ *  step was already performed before the transition, pass `NOOP_STEP`. */
 export function executeTransition<S extends TransitionStep>(
   steps: readonly S[],
   adapters: Readonly<Record<S, () => void>>,
