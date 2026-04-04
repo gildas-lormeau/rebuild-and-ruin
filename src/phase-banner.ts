@@ -1,5 +1,5 @@
-import type { CastleData, EntityOverlay } from "./render-types.ts";
-import { type GameState, Phase } from "./types.ts";
+import type { EntityOverlay } from "./render-types.ts";
+import { type CastleData, type GameState, Phase } from "./types.ts";
 import { fireOnce } from "./utils.ts";
 
 export interface BannerState {
@@ -82,14 +82,7 @@ export function showBannerTransition(deps: ShowBannerDeps): void {
   banner.wallsBeforeSweep = undefined;
 
   if (preservePrevScene) {
-    banner.prevCastles ??= state.players
-      .filter((player) => player.castle)
-      .map((player) => ({
-        walls: pendingWalls?.[player.id] ?? new Set(player.walls),
-        interior: player.interior,
-        cannons: player.cannons.map((c) => ({ ...c })),
-        playerId: player.id,
-      }));
+    banner.prevCastles ??= snapshotCastles(state, pendingWalls);
     banner.prevTerritory ??=
       state.phase === Phase.BATTLE
         ? battleAnim.territory?.map((territory) => new Set(territory))
@@ -130,19 +123,29 @@ export function capturePrevBattleScene(
   battleTerritory: Set<number>[] | undefined,
   battleWalls: Set<number>[] | undefined,
 ): void {
-  banner.prevCastles = state.players
-    .filter((player) => player.castle)
-    .map((player) => ({
-      walls: new Set(player.walls),
-      interior: player.interior,
-      cannons: player.cannons.map((c) => ({ ...c })),
-      playerId: player.id,
-    }));
+  banner.prevCastles = snapshotCastles(state);
   banner.prevTerritory = battleTerritory?.map(
     (territory) => new Set(territory),
   );
   banner.prevWalls = battleWalls?.map((wall) => new Set(wall));
   banner.prevEntities = snapshotEntities(state);
+}
+
+/** Snapshot castle data for all players with a castle.
+ *  @param wallOverrides — Per-player wall sets (e.g. pre-sweep walls); falls
+ *    back to player.walls when the slot is missing or the array is undefined. */
+export function snapshotCastles(
+  state: GameState,
+  wallOverrides?: readonly Set<number>[],
+): CastleData[] {
+  return state.players
+    .filter((player) => player.castle)
+    .map((player) => ({
+      walls: wallOverrides?.[player.id] ?? new Set(player.walls),
+      interior: player.interior,
+      cannons: player.cannons.map((c) => ({ ...c })),
+      playerId: player.id,
+    }));
 }
 
 /** Shallow-clone all map entities so the banner scene stays frozen while

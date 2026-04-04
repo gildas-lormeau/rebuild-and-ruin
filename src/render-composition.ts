@@ -28,13 +28,13 @@ import {
   LIFE_LOST_PANEL_W as PANEL_W,
 } from "./render-theme.ts";
 import {
-  type CastleData,
   type GameOverOverlay,
   type LifeLostDialogOverlay,
   type RenderOverlay,
   type UpgradePickOverlay,
 } from "./render-types.ts";
 import {
+  type CastleData,
   FOCUS_MENU,
   FOCUS_REMATCH,
   type GameOverFocus,

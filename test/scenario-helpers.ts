@@ -554,8 +554,8 @@ export function createScenario(seed = 42): Scenario {
           applyCannonStartCheckpoint(data, checkpointDeps, capturePreState),
         applyBattleStart: (data: BattleStartData, capturePreState?: () => void) =>
           applyBattleStartCheckpoint(data, checkpointDeps, capturePreState),
-        applyBuildStart: (data: BuildStartData, capturePreState?: () => void) =>
-          applyBuildStartCheckpoint(data, checkpointDeps, capturePreState),
+        applyBuildStart: (data: BuildStartData) =>
+          applyBuildStartCheckpoint(data, checkpointDeps),
         applyBuildEnd: applyBuildEndCheckpoint,
       },
       selection: {

@@ -18,8 +18,7 @@ import type {
 } from "./phantom-types.ts";
 import {
   type BurningPit,
-  type Cannon,
-  type FreshInterior,
+  type CastleData,
   type GameOverFocus,
   type Grunt,
   type Impact,
@@ -27,22 +26,6 @@ import {
 } from "./types.ts";
 
 export type { RenderCannonPhantom, RenderPiecePhantom };
-
-/** A cannon captured by a propaganda balloon — fires for the balloon owner during battle. */
-export interface CastleData {
-  /** Wall tile positions encoded as row*GRID_COLS+col. */
-  walls: ReadonlySet<number>;
-  /** Enclosed territory: grass tiles fully surrounded by walls (inverse flood-fill).
-   *  Encoded as row*GRID_COLS+col. Used for cannon eligibility, grunt blocking, and scoring. */
-  interior: FreshInterior;
-  /** Cannon positions (top-left of 2×2 or 3×3 super) with HP. */
-  cannons: Cannon[];
-  /** Player index (for color). */
-  playerId: ValidPlayerSlot;
-  /** Wall tiles that absorbed one hit from Reinforced Walls upgrade.
-   *  Rendered with a crack overlay so players can see which walls are weakened. */
-  damagedWalls?: ReadonlySet<number>;
-}
 
 /** A single row in the options screen. */
 export interface OptionEntry {

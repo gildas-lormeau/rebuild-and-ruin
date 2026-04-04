@@ -109,16 +109,13 @@ export function applyBattleStartCheckpoint(
 }
 
 /** Apply a build-start checkpoint received from the host.
- *  @param capturePreState — Runs BEFORE applyPlayersCheckpoint overwrites player state.
- *    Use this to capture pre-state (walls, entities, scores) for banner animations.
  *  @sideeffect Clears in-flight cannonballs and impacts. Resets grunt accumulator
  *  and cannon facings. Does NOT reset watcher crosshairs (build phase has no crosshairs). */
 export function applyBuildStartCheckpoint(
   data: BuildStartData,
   deps: CheckpointDeps,
-  capturePreState?: () => void,
 ): void {
-  applyCommonCheckpoint(data, deps, capturePreState);
+  applyCommonCheckpoint(data, deps);
   deps.state.round = data.round;
   deps.state.timer = data.timer;
   if (deps.state.modern) {

@@ -26,12 +26,7 @@ import {
 import { drawSprite } from "./render-sprites.ts";
 import { BANNER_HEIGHT_RATIO, rgb, STATUSBAR_HEIGHT } from "./render-theme.ts";
 import { drawTowers } from "./render-towers.ts";
-import type {
-  CastleData,
-  MapData,
-  RenderOverlay,
-  Viewport,
-} from "./render-types.ts";
+import type { MapData, RenderOverlay, Viewport } from "./render-types.ts";
 import {
   drawAnnouncement,
   drawBanner,
@@ -53,6 +48,7 @@ import {
   pxToTile,
   unpackTile,
 } from "./spatial.ts";
+import type { CastleData } from "./types.ts";
 
 interface TerrainImageCache {
   width: number;
@@ -299,7 +295,7 @@ function ensureOffscreenSize(width: number, height: number): void {
  *  The old scene is cached (by reference identity) to avoid re-rendering each frame. */
 /** Render the "old scene" behind the phase-transition banner.
  *
- *  When a banner has preserveOldScene=true, showBannerTransition captures pre-transition
+ *  When a banner has preservePrevScene=true, showBannerTransition captures pre-transition
  *  state (castles, territory, walls, houses, bonus squares). This function reconstructs
  *  a full RenderOverlay from that snapshot, suppressing phase-specific elements (phantoms,
  *  battle effects, crosshairs) so the old scene looks clean beneath the banner.

@@ -21,6 +21,7 @@ import {
   BANNER_REPAIR_ONLINE,
   type BannerShow,
   capturePrevBattleScene,
+  snapshotCastles,
   snapshotEntities,
 } from "./phase-banner.ts";
 import {
@@ -38,13 +39,13 @@ import {
   showBuildPhaseBanner,
   showCannonPhaseBanner,
 } from "./phase-transition-shared.ts";
-import type { CastleData } from "./render-types.ts";
 import {
   BANNER_PHASE_BUILD,
   BANNER_PHASE_CANNON,
   modifierBannerText,
 } from "./round-modifiers.ts";
 import {
+  type CastleData,
   FOCUS_REMATCH,
   type GameOverFocus,
   type GameState,
@@ -107,10 +108,7 @@ export interface TransitionContext {
       data: BattleStartData,
       capturePreState?: () => void,
     ) => void;
-    applyBuildStart: (
-      data: BuildStartData,
-      capturePreState?: () => void,
-    ) => void;
+    applyBuildStart: (data: BuildStartData) => void;
     applyBuildEnd: (
       state: GameState,
       players: readonly SerializedPlayer[],
@@ -412,14 +410,7 @@ export function handleBuildEndTransition(
     transitionCtx.ui.banner.wallsBeforeSweep = state.players.map(
       (player) => new Set(player.walls),
     );
-    transitionCtx.ui.banner.prevCastles = state.players
-      .filter((player) => player.castle)
-      .map((player) => ({
-        walls: new Set(player.walls),
-        interior: player.interior,
-        cannons: player.cannons.map((cn) => ({ ...cn })),
-        playerId: player.id,
-      }));
+    transitionCtx.ui.banner.prevCastles = snapshotCastles(state);
     preScores = state.players.map((player) => player.score);
   });
   for (const pid of [...msg.needsReselect, ...msg.eliminated]) {

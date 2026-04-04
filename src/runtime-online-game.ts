@@ -288,8 +288,8 @@ function buildTransitionCheckpointCtx(): TransitionContext["checkpoint"] {
       applyCannonStartCheckpoint(data, buildCheckpointDeps(), capturePreState),
     applyBattleStart: (data, capturePreState) =>
       applyBattleStartCheckpoint(data, buildCheckpointDeps(), capturePreState),
-    applyBuildStart: (data, capturePreState) =>
-      applyBuildStartCheckpoint(data, buildCheckpointDeps(), capturePreState),
+    applyBuildStart: (data) =>
+      applyBuildStartCheckpoint(data, buildCheckpointDeps()),
     applyBuildEnd: applyBuildEndCheckpoint,
   };
 }
