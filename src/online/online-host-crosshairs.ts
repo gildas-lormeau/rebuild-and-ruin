@@ -20,11 +20,11 @@ import type { DedupChannel } from "../shared/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerAlive } from "../shared/player-types.ts";
 import {
+  type BattleViewState,
   type ControllerIdentity,
   isAiAnimatable,
 } from "../shared/system-interfaces.ts";
 import { isRemoteHuman } from "../shared/tick-context.ts";
-import type { GameState } from "../shared/types.ts";
 import { interpolateToward, REMOTE_CROSSHAIR_SPEED } from "./online-types.ts";
 
 interface BroadcastDeps {
@@ -62,7 +62,7 @@ export function broadcastLocalCrosshair(
 /** Collect interpolated remote-human crosshairs and return them merged with local ones. */
 export function extendWithRemoteCrosshairs(
   crosshairs: readonly Crosshair[],
-  state: GameState,
+  state: BattleViewState,
   dt: number,
   deps: ExtendDeps,
 ): Crosshair[] {

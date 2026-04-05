@@ -4,7 +4,7 @@
  */
 
 import { aimCannons } from "../game/battle-system.ts";
-import { canPlacePiece, placePiece } from "../game/build-system.ts";
+import { canPlacePiece } from "../game/build-system.ts";
 import {
   cannonSlotsUsed,
   canPlaceCannon,
@@ -32,12 +32,16 @@ import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerAlive, type Player } from "../shared/player-types.ts";
 import { cannonSize } from "../shared/spatial.ts";
 import {
+  type BattleViewState,
+  type BuildViewState,
   type CannonPlacementPreview,
+  type CannonViewState,
   CROSSHAIR_SPEED,
+  type GameViewState,
   type InputReceiver,
   type PiecePlacementPreview,
+  type PlacePieceIntent,
 } from "../shared/system-interfaces.ts";
-import type { GameState } from "../shared/types.ts";
 import { BaseController } from "./controller-types.ts";
 
 /** Speed multiplier when ROTATE (sprint) key is held during battle crosshair movement. */
@@ -63,26 +67,29 @@ export class HumanController extends BaseController implements InputReceiver {
     this.keyMap = buildKeyMap(keys);
   }
 
-  selectInitialTower(_state: GameState, _zone: number): void {
+  selectInitialTower(_state: GameViewState, _zone: number): void {
     // Human selects via UI — selectionTick() drives confirmation
   }
 
-  selectReplacementTower(_state: GameState, _zone: number): void {
+  selectReplacementTower(_state: GameViewState, _zone: number): void {
     // Same as selectInitialTower — human reselects via UI
   }
 
-  placeCannons(_state: GameState, _maxSlots: number): void {
+  placeCannons(_state: CannonViewState, _maxSlots: number): void {
     // Human places cannons interactively — nothing to do here
     this.cannonPlaceMode = CannonMode.NORMAL;
   }
 
-  isCannonPhaseDone(state: GameState, maxSlots: number): boolean {
+  isCannonPhaseDone(state: CannonViewState, maxSlots: number): boolean {
     const player = state.players[this.playerId];
     if (!isPlayerAlive(player)) return true;
     return cannonSlotsUsed(player) >= maxSlots;
   }
 
-  cannonTick(state: GameState, _dt: number): CannonPlacementPreview | null {
+  cannonTick(
+    state: CannonViewState,
+    _dt: number,
+  ): CannonPlacementPreview | null {
     const player = state.players[this.playerId];
     if (!isPlayerAlive(player)) return null;
     const maxSlots = state.cannonLimits[this.playerId] ?? 0;
@@ -110,7 +117,7 @@ export class HumanController extends BaseController implements InputReceiver {
   private resolveCannonPlacement(
     remaining: number,
     player: Player,
-    state: GameState,
+    state: CannonViewState,
   ): boolean {
     this.downgradeCannonModeIfNeeded(remaining);
     return canPlaceCannon(
@@ -189,7 +196,7 @@ export class HumanController extends BaseController implements InputReceiver {
   // startBuildPhase: uses base class template (initBuildPhase + onStartBuildPhase)
   // No onStartBuildPhase override needed — human has no AI targeting setup.
 
-  buildTick(state: GameState, _dt: number): PiecePlacementPreview[] {
+  buildTick(state: BuildViewState, _dt: number): PiecePlacementPreview[] {
     const player = state.players[this.playerId];
     if (!isPlayerAlive(player)) return [];
     if (!this.currentPiece) return [];
@@ -211,7 +218,7 @@ export class HumanController extends BaseController implements InputReceiver {
     ];
   }
 
-  battleTick(state: GameState, dt: number): void {
+  battleTick(state: BattleViewState, dt: number): void {
     const player = state.players[this.playerId];
     if (!isPlayerAlive(player)) return;
     this.moveCrosshairFromInput(dt);
@@ -239,7 +246,7 @@ export class HumanController extends BaseController implements InputReceiver {
   }
 
   /** Try to place a cannon at the current cursor position. Returns true on success. */
-  tryPlaceCannon(state: GameState, maxSlots: number): boolean {
+  tryPlaceCannon(state: CannonViewState, maxSlots: number): boolean {
     const player = state.players[this.playerId];
     if (!isPlayerAlive(player)) return false;
     const placed = placeCannon(
@@ -253,21 +260,25 @@ export class HumanController extends BaseController implements InputReceiver {
     return placed;
   }
 
-  /** Try to place the current build piece at the build cursor. */
-  tryPlacePiece(state: GameState): boolean {
-    if (!this.currentPiece || !this.bag) return false;
-    const placed = placePiece(
+  /** Compute a place-piece intent at the build cursor.
+   *  Returns null if placement is invalid. The orchestrator executes the
+   *  mutation via placePiece() then calls ctrl.advanceBag(true). */
+  tryPlacePiece(state: BuildViewState): PlacePieceIntent | null {
+    if (!this.currentPiece || !this.bag) return null;
+    const valid = canPlacePiece(
       state,
       this.playerId,
       this.currentPiece,
       this.buildCursor.row,
       this.buildCursor.col,
     );
-    if (placed) {
-      this.advanceBag(true);
-      this.clampBuildCursor(this.currentPiece);
-    }
-    return placed;
+    if (!valid) return null;
+    return {
+      playerId: this.playerId,
+      piece: this.currentPiece,
+      row: this.buildCursor.row,
+      col: this.buildCursor.col,
+    };
   }
 
   /** Rotate the current build piece clockwise (Tetris-style: pivot stays in place). */
@@ -285,7 +296,7 @@ export class HumanController extends BaseController implements InputReceiver {
   /** Cycle cannon placement mode: NORMAL → SUPER → BALLOON → NORMAL.
    *  Skips modes whose slot cost exceeds remaining slots.
    *  Also re-clamps the cursor so the new cannon size stays within the grid. */
-  cycleCannonMode(state: GameState, maxSlots: number): void {
+  cycleCannonMode(state: CannonViewState, maxSlots: number): void {
     const player = state.players[this.playerId];
     if (!isPlayerAlive(player)) return;
     const used = cannonSlotsUsed(player);
@@ -334,7 +345,7 @@ export class HumanController extends BaseController implements InputReceiver {
   /** Human: no-op — auto-placement for humans with 0 cannons is handled by the game engine.
    *  AI overrides this to process its remaining queued placements from strategy.
    *  Called via finalizeCannonPhase() which guarantees flush→init order. */
-  flushCannons(_state: GameState, _maxSlots: number): void {}
+  flushCannons(_state: CannonViewState, _maxSlots: number): void {}
 
   override endBattle(): void {
     this.heldActions.clear();

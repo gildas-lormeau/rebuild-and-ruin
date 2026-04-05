@@ -104,7 +104,10 @@ export function getCountdownAnnouncement(
 
 /** Whether a player has a cannon ready to fire or a cannonball in flight. */
 export function canPlayerFire(
-  state: GameState,
+  state: GameViewState & {
+    readonly capturedCannons: readonly CapturedCannon[];
+    readonly cannonballs: readonly Cannonball[];
+  },
   playerId: ValidPlayerSlot,
 ): boolean {
   if (nextReadyCombined(state, playerId)) return true;
@@ -117,7 +120,9 @@ export function canPlayerFire(
  *  Also aims any cannons this player has captured via propaganda balloons.
  *  When dt > 0, rotation is smooth; when dt <= 0, rotation snaps instantly. */
 export function aimCannons(
-  state: GameState,
+  state: GameViewState & {
+    readonly capturedCannons: readonly CapturedCannon[];
+  },
   playerId: ValidPlayerSlot,
   cx: number,
   cy: number,
@@ -558,7 +563,10 @@ export function fireCannon(
  * Returns the next ready cannon after `after` in the combined index space, or null.
  */
 export function nextReadyCombined(
-  state: GameState,
+  state: GameViewState & {
+    readonly capturedCannons: readonly CapturedCannon[];
+    readonly cannonballs: readonly Cannonball[];
+  },
   playerId: ValidPlayerSlot,
   after?: number,
 ): CombinedCannonResult | null {
@@ -702,7 +710,10 @@ function launchCannonball(
  *  - No balloon check (balloons can't be captured)
  *  - No enclosure check (irrelevant — capturer fires from victim's position)
  *  - No "already captured" check (it IS the captured entry) */
-function canFireCapturedCannon(state: GameState, cc: CapturedCannon): boolean {
+function canFireCapturedCannon(
+  state: { readonly cannonballs: readonly Cannonball[] },
+  cc: CapturedCannon,
+): boolean {
   if (!isCannonAlive(cc.cannon)) return false;
   if (cc.cannonIdx === CANNON_NOT_FOUND) return false;
   return !state.cannonballs.some(

@@ -4,6 +4,8 @@ import {
   type InitMessage,
   MESSAGE,
 } from "../../server/protocol.ts";
+import { fireNextReadyCannon } from "../game/battle-system.ts";
+import { placePiece } from "../game/build-system.ts";
 import { createCanvasRenderer } from "../render/render-canvas.ts";
 import { precomputeTerrainCache } from "../render/render-map.ts";
 import {
@@ -223,8 +225,45 @@ const runtime: GameRuntime = createGameRuntime({
     tryPlaceCannonAndSend: (ctrl, state, maxSlots) =>
       tryPlaceCannonAndSend(ctrl, state, maxSlots, send),
     tryPlacePieceAndSend: (ctrl, state) =>
-      tryPlacePieceAndSend(ctrl, state, send),
-    fireAndSend: (ctrl, state) => fireAndSend(ctrl, state, send),
+      tryPlacePieceAndSend(
+        ctrl,
+        state,
+        (intent) => {
+          const gs = runtime.runtimeState.state;
+          const placed = placePiece(
+            gs,
+            intent.playerId,
+            intent.piece,
+            intent.row,
+            intent.col,
+          );
+          if (placed) {
+            ctrl.advanceBag(true);
+            ctrl.clampBuildCursor(intent.piece);
+          }
+          return placed;
+        },
+        send,
+      ),
+    fireAndSend: (ctrl, state) =>
+      fireAndSend(
+        ctrl,
+        state,
+        (intent) => {
+          const gs = runtime.runtimeState.state;
+          const fired = fireNextReadyCannon(
+            gs,
+            intent.playerId,
+            ctrl.cannonRotationIdx,
+            intent.targetRow,
+            intent.targetCol,
+          );
+          if (!fired) return null;
+          ctrl.cannonRotationIdx = fired.rotationIdx;
+          return gs.cannonballs[gs.cannonballs.length - 1]!;
+        },
+        send,
+      ),
     onEndGame: (winner, gameState) => {
       const payloads = createGameOverPayload(winner, gameState, PLAYER_NAMES);
       devLog(

@@ -43,6 +43,9 @@ import { Action } from "../shared/input-action.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { findNearestTower, towerAtPixel } from "../shared/spatial.ts";
 import {
+  type BattleViewState,
+  type BuildViewState,
+  type CannonViewState,
   type InputReceiver,
   isMovementAction,
   type PlayerController,
@@ -82,15 +85,15 @@ export interface GameActionDeps {
   isSelectionReady?: () => boolean;
   tryPlacePieceAndSend: (
     ctrl: PlayerController & InputReceiver,
-    state: GameState,
+    state: BuildViewState,
   ) => void;
   tryPlaceCannonAndSend: (
     ctrl: PlayerController & InputReceiver,
-    state: GameState,
+    state: CannonViewState,
     max: number,
   ) => void;
   onPieceRotated?: () => void;
-  fireAndSend: (ctrl: PlayerController, state: GameState) => void;
+  fireAndSend: (ctrl: PlayerController, state: BattleViewState) => void;
 }
 
 interface QuitFlowDeps {

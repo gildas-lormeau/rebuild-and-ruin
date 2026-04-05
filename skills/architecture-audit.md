@@ -33,10 +33,10 @@ src/shared/geometry-types.ts, src/shared/theme.ts, src/shared/player-config.ts,
 src/shared/settings-ui.ts, src/shared/pieces.ts
 ```
 
-### 3. Core game types — L3 (4 files)
+### 3. Core game types — L3 (5 files)
 ```
-src/shared/battle-types.ts, src/shared/types.ts, src/shared/phantom-types.ts,
-server/protocol.ts
+src/shared/battle-types.ts, src/shared/types.ts, src/shared/player-types.ts,
+src/shared/phantom-types.ts, server/protocol.ts
 ```
 
 ### 4. Game state & orchestration — L4 (11 files)
@@ -596,3 +596,35 @@ sufficient for LLM agents to follow correctly.
     ScoreDelta stores onDone on runtimeState (mode-independent tick), LifeLost exposes
     onResolved as a method (multi-path resolution), UpgradePick uses a local closure
     (single-path, transient). Each factory file header cross-references runtime-types.ts.
+
+82. **ViewState interfaces are read-only projections of GameState** —
+    system-interfaces.ts defines `GameViewState` (phase + players + map), `BuildViewState`,
+    `CannonViewState`, `BattleViewState`. GameState structurally satisfies all of them.
+    Controllers and AI strategy modules accept ViewStates; game/ mutation functions accept
+    full GameState. Do not add mutable fields to ViewState interfaces.
+
+83. **Controllers return intent objects, orchestrators execute mutations** —
+    `BattleController.fire()` returns `FireIntent | null` (not void). `InputReceiver.tryPlacePiece()`
+    returns `PlacePieceIntent | null` (not boolean). The orchestrator (runtime.ts, runtime-online-game.ts,
+    controller-ai.ts battleTick) calls `fireNextReadyCannon()` or `placePiece()` with mutable GameState.
+    `tryPlaceCannon` does NOT follow this pattern — `placeCannon` already accepts structural types.
+    Do not add mutation calls inside controller methods.
+
+84. **`executeFire` callback pattern in AI battle tick** —
+    ai/ai-phase-battle.ts `tickBattle` receives `executeFire: (intent: FireIntent) => boolean`.
+    controller-ai.ts builds the closure from mutable GameState and updates `cannonRotationIdx`.
+    The AI constructs `FireIntent` inline for chain attacks (target row/col known).
+    Do not make AI phase modules import `fireNextReadyCannon` directly.
+
+85. **`advanceBag` must be called by the orchestrator after `tryPlacePiece`** —
+    HumanController.tryPlacePiece() returns intent without advancing the bag.
+    The orchestrator calls `ctrl.advanceBag(true)` after confirming placement via `placePiece()`.
+    All three execution sites (runtime.ts, runtime-online-game.ts, ai-phase-build.ts) do this.
+
+86. **`FreshInterior` and `Player` live in `player-types.ts`, not `types.ts`** —
+    Extracted to break the system-interfaces → types.ts coupling chain. `types.ts` re-imports
+    Player for GameState's `players` field. Consumers that only need Player/FreshInterior
+    should import from `player-types.ts`, not `types.ts`.
+
+87. **`TileKey` branded type lives in `spatial.ts`, not `types.ts`** —
+    Moved alongside its constructor `packTile()`. Only `spatial.ts` produces TileKey values.

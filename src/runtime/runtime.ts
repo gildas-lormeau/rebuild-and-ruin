@@ -9,7 +9,11 @@
  * Used by both main.ts (local play) and runtime-online-game.ts (online).
  */
 
-import { snapshotTerritory } from "../game/battle-system.ts";
+import {
+  fireNextReadyCannon,
+  snapshotTerritory,
+} from "../game/battle-system.ts";
+import { placePiece } from "../game/build-system.ts";
 import { generateMap } from "../game/map-generation.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
 import { dispatchPointerMove } from "../input/input-dispatch.ts";
@@ -584,8 +588,38 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       isOnline,
       maybeSendAimUpdate: config.onlineConfig?.maybeSendAimUpdate,
       tryPlaceCannonAndSend: config.onlineConfig?.tryPlaceCannonAndSend,
-      tryPlacePieceAndSend: config.onlineConfig?.tryPlacePieceAndSend,
-      fireAndSend: config.onlineConfig?.fireAndSend,
+      tryPlacePieceAndSend:
+        config.onlineConfig?.tryPlacePieceAndSend ??
+        ((ctrl, gs) => {
+          const intent = ctrl.tryPlacePiece(gs);
+          if (!intent) return false;
+          const placed = placePiece(
+            runtimeState.state,
+            intent.playerId,
+            intent.piece,
+            intent.row,
+            intent.col,
+          );
+          if (placed) {
+            ctrl.advanceBag(true);
+            ctrl.clampBuildCursor(intent.piece);
+          }
+          return placed;
+        }),
+      fireAndSend:
+        config.onlineConfig?.fireAndSend ??
+        ((ctrl, gs) => {
+          const intent = ctrl.fire(gs);
+          if (!intent) return;
+          const fired = fireNextReadyCannon(
+            runtimeState.state,
+            intent.playerId,
+            ctrl.cannonRotationIdx,
+            intent.targetRow,
+            intent.targetCol,
+          );
+          if (fired) ctrl.cannonRotationIdx = fired.rotationIdx;
+        }),
       getIsHost: config.getIsHost,
     },
     lobby,

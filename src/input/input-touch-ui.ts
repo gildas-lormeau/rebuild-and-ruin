@@ -12,6 +12,8 @@ import { isSelectionPhase, Phase } from "../shared/game-phase.ts";
 import { Action } from "../shared/input-action.ts";
 import { PLAYER_COLORS } from "../shared/player-config.ts";
 import type {
+  BuildViewState,
+  CannonViewState,
   InputReceiver,
   PlayerController,
 } from "../shared/system-interfaces.ts";
@@ -82,11 +84,11 @@ export interface FloatingActionsDeps {
   ) => void;
   tryPlacePieceAndSend: (
     human: PlayerController & InputReceiver,
-    state: GameState,
+    state: BuildViewState,
   ) => void;
   tryPlaceCannonAndSend: (
     human: PlayerController & InputReceiver,
-    state: GameState,
+    state: CannonViewState,
     max: number,
   ) => void;
   onPieceRotated?: () => void;

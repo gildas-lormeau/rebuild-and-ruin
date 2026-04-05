@@ -7,7 +7,7 @@
 
 import { selectPlayerTower } from "../game/game-engine.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { GameState } from "../shared/types.ts";
+import type { GameViewState } from "../shared/system-interfaces.ts";
 import { STEP } from "./ai-constants.ts";
 import type { AiStrategy } from "./ai-strategy.ts";
 
@@ -47,7 +47,7 @@ export function resetSelectionPhase(phase: SelectionPhase): void {
 export function initSelection(
   host: SelectionHost,
   phase: SelectionPhase,
-  state: GameState,
+  state: GameViewState,
   zone: number,
 ): void {
   const player = state.players[host.playerId];
@@ -89,7 +89,7 @@ export function tickSelection(
   phase: SelectionPhase,
   dt: number,
   // Optional: selection phase can tick without state during initial lobby setup.
-  state?: GameState,
+  state?: GameViewState,
 ): boolean {
   switch (phase.state.step) {
     case STEP.IDLE:

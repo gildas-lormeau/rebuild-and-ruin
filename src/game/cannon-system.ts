@@ -215,7 +215,7 @@ export function autoPlaceRound1Cannons(
   state: GameViewState & {
     readonly burningPits: readonly BurningPit[];
     readonly cannonMaxHp: number;
-    readonly round: number;
+    readonly round?: number;
   },
   playerId: ValidPlayerSlot,
   maxSlots: number,

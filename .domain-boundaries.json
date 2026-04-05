@@ -16,6 +16,7 @@
       "src/shared/checkpoint-data.ts",
       "src/shared/player-config.ts",
       "src/shared/system-interfaces.ts",
+      "src/shared/player-types.ts",
       "src/shared/overlay-types.ts",
       "src/shared/theme.ts",
       "src/shared/phantom-types.ts",

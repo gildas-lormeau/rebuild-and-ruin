@@ -7,14 +7,20 @@
  */
 
 import { aimCannons, nextReadyCombined } from "../game/battle-system.ts";
-import type { CombinedCannonResult } from "../shared/battle-types.ts";
 import type { StrategicPixelPos, TilePos } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerAlive } from "../shared/player-types.ts";
 import { packTile, tileCenterPx } from "../shared/spatial.ts";
-import type { GameState } from "../shared/types.ts";
+import type {
+  BattleViewState,
+  FireIntent,
+} from "../shared/system-interfaces.ts";
 import { STEP } from "./ai-constants.ts";
 import { type AiStrategy, CHAIN, type ChainType } from "./ai-strategy.ts";
+
+/** Callback that executes a fire intent against mutable game state.
+ *  Returns true if a cannon actually fired. */
+type ExecuteFireFn = (intent: FireIntent) => boolean;
 
 /** Subset of AiController accessed by battle-phase logic. */
 interface BattleHost {
@@ -26,12 +32,7 @@ interface BattleHost {
   /** Returns `(base + rng * spread) * delayScale` — humanizes AI timing per difficulty. */
   scaledDelay(base: number, spread: number): number;
   stepCrosshairToward(tx: number, ty: number, dt: number): boolean;
-  fire(state: GameState): void;
-  fireNextCannon(
-    state: GameState,
-    targetRow: number,
-    targetCol: number,
-  ): CombinedCannonResult | null;
+  fire(state: BattleViewState): FireIntent | null;
 }
 
 /** Pre-battle countdown orbit parameters (randomized once per countdown). */
@@ -106,7 +107,7 @@ export function resetBattlePhaseKeepOrbit(phase: BattlePhase): void {
 export function initBattle(
   host: BattleHost,
   phase: BattlePhase,
-  state?: GameState,
+  state?: BattleViewState,
 ): void {
   phase.crosshairTarget = null;
   phase.chainTargets = undefined;
@@ -123,8 +124,9 @@ export function initBattle(
 export function tickBattle(
   host: BattleHost,
   phase: BattlePhase,
-  state: GameState,
+  state: BattleViewState,
   dt: number,
+  executeFire: ExecuteFireFn,
 ): void {
   const player = state.players[host.playerId];
   if (!isPlayerAlive(player)) return;
@@ -169,7 +171,7 @@ export function tickBattle(
       tickChainMoving(host, phase, state, dt);
       break;
     case STEP.CHAIN_DWELLING:
-      tickChainDwelling(host, phase, state, dt);
+      tickChainDwelling(host, phase, state, dt, executeFire);
       break;
     case STEP.THINKING:
       phase.state.timer -= dt;
@@ -205,7 +207,7 @@ export function tickBattle(
       }
       break;
     case STEP.DWELLING:
-      tickDwelling(host, phase, state, dt);
+      tickDwelling(host, phase, state, dt, executeFire);
       break;
     default:
       // IDLE and COUNTDOWN are handled by early returns above (lines 126–154).
@@ -218,7 +220,7 @@ export function tickBattle(
 function tickCountdown(
   host: BattleHost,
   phase: BattlePhase,
-  state: GameState,
+  state: BattleViewState,
   dt: number,
 ): void {
   const player = state.players[host.playerId];
@@ -289,7 +291,7 @@ function tickCountdown(
 function tickChainMoving(
   host: BattleHost,
   phase: BattlePhase,
-  state: GameState,
+  state: BattleViewState,
   dt: number,
 ): void {
   if (!phase.chainTargets || phase.chainIdx >= phase.chainTargets.length) {
@@ -334,8 +336,9 @@ function tickChainMoving(
 function tickChainDwelling(
   host: BattleHost,
   phase: BattlePhase,
-  state: GameState,
+  _state: BattleViewState,
   dt: number,
+  executeFire: ExecuteFireFn,
 ): void {
   const ps = phase.state as Extract<BattleState, { step: "chain_dwelling" }>;
   ps.timer -= dt;
@@ -346,8 +349,12 @@ function tickChainDwelling(
     return;
   }
   const target = phase.chainTargets[phase.chainIdx]!;
-  const result = host.fireNextCannon(state, target.row, target.col);
-  if (result) {
+  const intent: FireIntent = {
+    playerId: host.playerId,
+    targetRow: target.row,
+    targetCol: target.col,
+  };
+  if (executeFire(intent)) {
     phase.chainIdx++;
     if (phase.chainIdx >= phase.chainTargets.length) {
       phase.chainTargets = undefined;
@@ -366,19 +373,20 @@ function tickChainDwelling(
 function tickDwelling(
   host: BattleHost,
   phase: BattlePhase,
-  state: GameState,
+  state: BattleViewState,
   dt: number,
+  executeFire: ExecuteFireFn,
 ): void {
   const ps = phase.state as Extract<BattleState, { step: "dwelling" }>;
   ps.timer -= dt;
   if (ps.timer > 0) return;
 
-  const ready = nextReadyCombined(state, host.playerId, host.cannonRotationIdx);
-  if (!ready) {
+  const intent = host.fire(state);
+  if (!intent) {
     ps.timer = CANNON_RETRY_WAIT_SEC;
     return;
   }
-  host.fire(state);
+  executeFire(intent);
   host.strategy.trackShot(state, host.playerId, host.crosshair);
   // Random thinking delay before picking next target
   const thinkTime = host.scaledDelay(

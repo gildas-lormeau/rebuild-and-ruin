@@ -1,30 +1,35 @@
 import { type GameMessage, MESSAGE } from "../../server/protocol.ts";
 import { createCannonFiredMsg } from "../game/battle-system.ts";
+import type { Cannonball } from "../shared/battle-types.ts";
 import type {
   BattleController,
+  BattleViewState,
   BuildController,
+  BuildViewState,
   CannonController,
+  CannonViewState,
   ControllerIdentity,
+  FireIntent,
   InputReceiver,
+  PlacePieceIntent,
 } from "../shared/system-interfaces.ts";
-import type { GameState } from "../shared/types.ts";
 
 export function tryPlacePieceAndSend(
   ctrl: ControllerIdentity & BuildController & InputReceiver,
-  gameState: GameState,
+  gameState: BuildViewState,
+  executePlacePiece: (intent: PlacePieceIntent) => boolean,
   send: (msg: GameMessage) => void,
 ): boolean {
-  const piece = ctrl.getCurrentPiece();
-  const row = ctrl.buildCursor.row;
-  const col = ctrl.buildCursor.col;
-  const placed = ctrl.tryPlacePiece(gameState);
-  if (placed && piece) {
+  const intent = ctrl.tryPlacePiece(gameState);
+  if (!intent) return false;
+  const placed = executePlacePiece(intent);
+  if (placed) {
     send({
       type: MESSAGE.OPPONENT_PIECE_PLACED,
-      playerId: ctrl.playerId,
-      row,
-      col,
-      offsets: piece.offsets,
+      playerId: intent.playerId,
+      row: intent.row,
+      col: intent.col,
+      offsets: intent.piece.offsets,
     });
   }
   return placed;
@@ -32,7 +37,7 @@ export function tryPlacePieceAndSend(
 
 export function tryPlaceCannonAndSend(
   ctrl: ControllerIdentity & CannonController & InputReceiver,
-  gameState: GameState,
+  gameState: CannonViewState,
   max: number,
   send: (msg: GameMessage) => void,
 ): boolean {
@@ -54,17 +59,12 @@ export function tryPlaceCannonAndSend(
 
 export function fireAndSend(
   ctrl: BattleController,
-  gameState: GameState,
+  gameState: BattleViewState,
+  executeFire: (intent: FireIntent) => Cannonball | null,
   send: (msg: GameMessage) => void,
 ): void {
-  const ballsBefore = gameState.cannonballs.length;
-  ctrl.fire(gameState);
-
-  if (gameState.cannonballs.length > ballsBefore) {
-    send(
-      createCannonFiredMsg(
-        gameState.cannonballs[gameState.cannonballs.length - 1]!,
-      ),
-    );
-  }
+  const intent = ctrl.fire(gameState);
+  if (!intent) return;
+  const ball = executeFire(intent);
+  if (ball) send(createCannonFiredMsg(ball));
 }

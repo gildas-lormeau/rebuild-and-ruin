@@ -10,6 +10,7 @@
  *   ai-phase-battle.ts  — targeting, chain attacks, orbit & fire
  */
 
+import { fireNextReadyCannon } from "../game/battle-system.ts";
 import { BaseController } from "../player/controller-types.ts";
 import type { PixelPos, TilePos } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -17,6 +18,7 @@ import {
   type AiAnimatable,
   type CannonPlacementPreview,
   CROSSHAIR_SPEED,
+  type FireIntent,
   type OrbitParams,
   type PiecePlacementPreview,
 } from "../shared/system-interfaces.ts";
@@ -222,7 +224,19 @@ export class AiController extends BaseController implements AiAnimatable {
   }
 
   battleTick(state: GameState, dt: number): void {
-    tickBattle(this, this._battlePhase, state, dt);
+    const executeFire = (intent: FireIntent): boolean => {
+      const fired = fireNextReadyCannon(
+        state,
+        intent.playerId,
+        this.cannonRotationIdx,
+        intent.targetRow,
+        intent.targetCol,
+      );
+      if (!fired) return false;
+      this.cannonRotationIdx = fired.rotationIdx;
+      return true;
+    };
+    tickBattle(this, this._battlePhase, state, dt, executeFire);
   }
 
   // -----------------------------------------------------------------------

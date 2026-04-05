@@ -82,8 +82,11 @@ import type {
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
 import type {
   BattleController,
+  BattleViewState,
   BuildController,
+  BuildViewState,
   CannonController,
+  CannonViewState,
   ControllerIdentity,
   HapticsSystem,
   InputReceiver,
@@ -145,16 +148,16 @@ export interface OnlineRuntimeConfig {
   /** Try to place cannon and send to server. */
   tryPlaceCannonAndSend: (
     ctrl: ControllerIdentity & CannonController & InputReceiver,
-    gameState: GameState,
+    gameState: CannonViewState,
     max: number,
   ) => boolean;
   /** Try to place piece and send to server. */
   tryPlacePieceAndSend: (
     ctrl: ControllerIdentity & BuildController & InputReceiver,
-    gameState: GameState,
+    gameState: BuildViewState,
   ) => boolean;
   /** Fire and send to server. */
-  fireAndSend: (ctrl: BattleController, gameState: GameState) => void;
+  fireAndSend: (ctrl: BattleController, gameState: BattleViewState) => void;
   /** Hook called when a game ends (before frame payload is set). */
   onEndGame: (winner: { id: number }, state: GameState) => void;
 }

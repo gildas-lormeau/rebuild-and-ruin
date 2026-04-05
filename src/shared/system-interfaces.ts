@@ -7,6 +7,7 @@ import {
   type Grunt,
 } from "./battle-types.ts";
 import type { ModifierId } from "./game-constants.ts";
+import type { Phase } from "./game-phase.ts";
 import type {
   BonusSquare,
   Crosshair,
@@ -31,6 +32,7 @@ import type { Rng } from "./rng.ts";
  *  allows this. All real call sites pass GameState, so the gap is theoretical.
  *  The views document the actual field contract per phase — not a runtime guard. */
 export interface GameViewState {
+  readonly phase: Phase;
   readonly players: readonly Player[];
   readonly map: GameMap;
 }
@@ -81,6 +83,21 @@ export type OrbitParams = {
   speed: number;
   phaseAngle: number;
 };
+
+/** Intent to fire a cannon — returned by BattleController.fire() for the orchestrator to execute. */
+export interface FireIntent {
+  readonly playerId: ValidPlayerSlot;
+  readonly targetRow: number;
+  readonly targetCol: number;
+}
+
+/** Intent to place a build piece — returned by InputReceiver.tryPlacePiece() for the orchestrator to execute. */
+export interface PlacePieceIntent {
+  readonly playerId: ValidPlayerSlot;
+  readonly piece: PieceShape;
+  readonly row: number;
+  readonly col: number;
+}
 
 /** Visual preview of a piece the player is about to place (not yet committed to game state). */
 export interface PiecePlacementPreview {
@@ -171,6 +188,13 @@ export interface BuildController {
 
   /** Get the current build piece (for sending placement data). */
   getCurrentPiece(): PieceShape | undefined;
+
+  /** Draw the next piece from the bag after a successful placement.
+   *  @param _placed — must be literal `true` (compile-time guard). */
+  advanceBag(_placed: true): void;
+
+  /** Clamp build cursor so the entire piece stays within the grid. */
+  clampBuildCursor(piece: PieceShape | undefined): void;
 }
 
 /** Cannon placement phase. */
@@ -220,12 +244,17 @@ export interface CannonController {
 
 /** Battle phase. */
 export interface BattleController {
+  /** Round-robin index into combined cannon list. undefined = no cannon fired yet this round.
+   *  Written by the orchestrator after executing a FireIntent. */
+  cannonRotationIdx: number | undefined;
+
   /** Called each frame during battle. Uses state.battleCountdown and state.timer to decide behavior. */
   battleTick(state: BattleViewState, dt: number): void;
 
-  /** Fire one cannon at the current crosshair position (public entry point).
-   *  Delegates to the protected round-robin method fireNextCannon(). */
-  fire(state: BattleViewState): void;
+  /** Compute a fire intent at the current crosshair position.
+   *  Returns null if the player can't fire (eliminated, timer, no cannon ready).
+   *  The orchestrator executes the actual mutation via fireNextReadyCannon(). */
+  fire(state: BattleViewState): FireIntent | null;
 
   /** Current crosshair for rendering. */
   getCrosshair(): Crosshair;
@@ -266,8 +295,10 @@ export interface InputReceiver {
   /** Rotate the current build piece clockwise. */
   rotatePiece(): void;
 
-  /** Try to place the current build piece at the cursor. */
-  tryPlacePiece(state: BuildViewState): boolean;
+  /** Compute a place-piece intent at the cursor.
+   *  Returns null if placement is invalid. The orchestrator executes the
+   *  mutation via placePiece() then calls ctrl.advanceBag(true). */
+  tryPlacePiece(state: BuildViewState): PlacePieceIntent | null;
 
   /** Try to place a cannon at the cursor. */
   tryPlaceCannon(state: CannonViewState, maxSlots: number): boolean;

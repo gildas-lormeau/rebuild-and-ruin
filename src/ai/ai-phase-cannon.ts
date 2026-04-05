@@ -11,8 +11,10 @@ import { CannonMode } from "../shared/battle-types.ts";
 import type { TilePos } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerAlive, type Player } from "../shared/player-types.ts";
-import type { CannonPlacementPreview } from "../shared/system-interfaces.ts";
-import type { GameState } from "../shared/types.ts";
+import type {
+  CannonPlacementPreview,
+  CannonViewState,
+} from "../shared/system-interfaces.ts";
 import { STEP } from "./ai-constants.ts";
 import type { AiStrategy, CannonPlacement } from "./ai-strategy.ts";
 
@@ -81,7 +83,7 @@ export function resetCannonPhase(phase: CannonPhase): void {
 export function initCannon(
   host: CannonHost,
   phase: CannonPhase,
-  state: GameState,
+  state: CannonViewState,
   maxSlots: number,
 ): void {
   const player = state.players[host.playerId];
@@ -102,7 +104,7 @@ export function isCannonDone(phase: CannonPhase): boolean {
 /** Place all remaining queued cannons instantly (timer expired). */
 export function flushCannon(
   phase: CannonPhase,
-  state: GameState,
+  state: CannonViewState,
   playerId: ValidPlayerSlot,
   maxSlots: number,
 ): void {
@@ -121,7 +123,7 @@ export function flushCannon(
 export function tickCannon(
   host: CannonHost,
   phase: CannonPhase,
-  state: GameState,
+  state: CannonViewState,
   dt: number,
 ): CannonPlacementPreview | null {
   const player = state.players[host.playerId];
@@ -214,7 +216,7 @@ export function tickCannon(
 function tickMoving(
   host: CannonHost,
   phase: CannonPhase,
-  state: GameState,
+  state: CannonViewState,
   player: Player,
   dt: number,
 ): CannonPlacementPreview | null {

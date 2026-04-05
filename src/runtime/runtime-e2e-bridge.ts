@@ -15,8 +15,7 @@ import {
   getRenderSpyLog,
 } from "../shared/render-spy.ts";
 import { unpackTile } from "../shared/spatial.ts";
-import { isHuman } from "../shared/system-interfaces.ts";
-import type { GameState } from "../shared/types.ts";
+import { type GameViewState, isHuman } from "../shared/system-interfaces.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 import type { RuntimeConfig } from "./runtime-types.ts";
@@ -416,7 +415,7 @@ function snapshotUI(rs: RuntimeState): E2EUISnapshot {
   };
 }
 
-function snapshotPlayers(state: GameState): E2EPlayerSnapshot[] {
+function snapshotPlayers(state: GameViewState): E2EPlayerSnapshot[] {
   return state.players.map((pl) => ({
     id: pl.id,
     score: pl.score,
@@ -450,7 +449,7 @@ function snapshotController(
 /** Populate targeting data for battle simulation (enemy cannons + walls). */
 function populateTargeting(
   target: E2EBridge,
-  state: GameState,
+  state: GameViewState,
   myPid: number,
 ): void {
   const enemies: { x: number; y: number }[] = [];

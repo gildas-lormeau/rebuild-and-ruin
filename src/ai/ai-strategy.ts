@@ -36,7 +36,12 @@ import {
   isTowerEnclosed,
   waterKeys,
 } from "../shared/spatial.ts";
-import type { GameState } from "../shared/types.ts";
+import type {
+  BattleViewState,
+  BuildViewState,
+  CannonViewState,
+  GameViewState,
+} from "../shared/system-interfaces.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
 import { traitLookup } from "./ai-constants.ts";
 import {
@@ -76,14 +81,14 @@ export interface AiStrategy {
 
   /** Pick the best placement for the current piece. */
   pickPlacement(
-    state: GameState,
+    state: BuildViewState,
     playerId: ValidPlayerSlot,
     piece: PieceShape,
     cursorPos?: TilePos,
   ): AiPlacement | null;
 
   /** Called at the end of the build phase — assess home tower status. */
-  assessBuildEnd(state: GameState, playerId: ValidPlayerSlot): void;
+  assessBuildEnd(state: GameViewState, playerId: ValidPlayerSlot): void;
 
   /** Whether home tower was not enclosed at the end of last build phase. */
   readonly homeWasBroken: boolean;
@@ -92,15 +97,15 @@ export interface AiStrategy {
   placeCannons(
     player: Player,
     count: number,
-    state: GameState,
+    state: CannonViewState,
   ): CannonPlacement[];
 
   /** Plan the battle: pick focus target, decide chain attacks. */
-  planBattle(state: GameState, playerId: ValidPlayerSlot): BattlePlan;
+  planBattle(state: BattleViewState, playerId: ValidPlayerSlot): BattlePlan;
 
   /** Pick a target to fire at. strategic = wall between obstacles. wallsOnly = skip cannon targets. */
   pickTarget(
-    state: GameState,
+    state: BattleViewState,
     playerId: ValidPlayerSlot,
     crosshair: PixelPos,
     wallsOnly?: boolean,
@@ -108,7 +113,7 @@ export interface AiStrategy {
 
   /** Record a shot at whatever cannon is at the crosshair position. */
   trackShot(
-    state: GameState,
+    state: BattleViewState,
     playerId: ValidPlayerSlot,
     crosshair: PixelPos,
   ): void;
@@ -343,7 +348,7 @@ export class DefaultStrategy implements AiStrategy {
   // -----------------------------------------------------------------------
 
   pickPlacement(
-    state: GameState,
+    state: BuildViewState,
     playerId: ValidPlayerSlot,
     piece: PieceShape,
     cursorPos?: TilePos,
@@ -359,7 +364,7 @@ export class DefaultStrategy implements AiStrategy {
     });
   }
 
-  assessBuildEnd(state: GameState, playerId: ValidPlayerSlot): void {
+  assessBuildEnd(state: GameViewState, playerId: ValidPlayerSlot): void {
     const player = state.players[playerId]!;
     this._homeWasBroken = false;
     if (player.homeTower) {
@@ -375,7 +380,7 @@ export class DefaultStrategy implements AiStrategy {
   placeCannons(
     player: Player,
     count: number,
-    state: GameState,
+    state: CannonViewState,
   ): CannonPlacement[] {
     const planningPlayer: Player = {
       ...player,
@@ -404,7 +409,7 @@ export class DefaultStrategy implements AiStrategy {
   // Battle
   // -----------------------------------------------------------------------
 
-  planBattle(state: GameState, playerId: ValidPlayerSlot): BattlePlan {
+  planBattle(state: BattleViewState, playerId: ValidPlayerSlot): BattlePlan {
     // Focus fire probability scales with battleTactics
     const focusProb = traitLookup(this.battleTactics, [
       0.2,
@@ -516,7 +521,7 @@ export class DefaultStrategy implements AiStrategy {
   }
 
   pickTarget(
-    state: GameState,
+    state: BattleViewState,
     playerId: ValidPlayerSlot,
     crosshair: PixelPos,
     wallsOnly?: boolean,
@@ -534,7 +539,7 @@ export class DefaultStrategy implements AiStrategy {
   }
 
   trackShot(
-    state: GameState,
+    state: BattleViewState,
     playerId: ValidPlayerSlot,
     crosshair: PixelPos,
   ): void {
@@ -554,7 +559,7 @@ export class DefaultStrategy implements AiStrategy {
 
 /** Standalone pickPlacement wrapper for headless tests / external callers. */
 export function pickPlacementStandalone(
-  state: GameState,
+  state: BuildViewState,
   playerId: ValidPlayerSlot,
   piece: PieceShape,
   cursorPos?: TilePos,

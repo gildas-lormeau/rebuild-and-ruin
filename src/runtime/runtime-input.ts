@@ -27,13 +27,15 @@ import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { OPT_CONTROLS } from "../shared/settings-defs.ts";
 import { towerCenterPx } from "../shared/spatial.ts";
 import {
+  type BattleViewState,
+  type BuildViewState,
+  type CannonViewState,
   type HapticsSystem,
   type InputReceiver,
   isHuman,
   type PlayerController,
   type SoundSystem,
 } from "../shared/system-interfaces.ts";
-import { type GameState } from "../shared/types.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { type RuntimeState, safeState, setMode } from "./runtime-state.ts";
 import type { CameraSystem } from "./runtime-types.ts";
@@ -69,14 +71,14 @@ interface InputSystemDeps {
     readonly maybeSendAimUpdate?: (x: number, y: number) => void;
     readonly tryPlaceCannonAndSend?: (
       ctrl: PlayerController & InputReceiver,
-      gs: GameState,
+      gs: CannonViewState,
       max: number,
     ) => boolean;
-    readonly tryPlacePieceAndSend?: (
+    readonly tryPlacePieceAndSend: (
       ctrl: PlayerController & InputReceiver,
-      gs: GameState,
+      gs: BuildViewState,
     ) => boolean;
-    readonly fireAndSend?: (ctrl: PlayerController, gs: GameState) => void;
+    readonly fireAndSend: (ctrl: PlayerController, gs: BattleViewState) => void;
     readonly getIsHost: () => boolean;
   };
 
@@ -174,12 +176,12 @@ interface InputSystemDeps {
 
 type PlacePieceFn = (
   ctrl: PlayerController & InputReceiver,
-  gs: GameState,
+  gs: BuildViewState,
 ) => boolean;
 
 type PlaceCannonFn = (
   ctrl: PlayerController & InputReceiver,
-  gs: GameState,
+  gs: CannonViewState,
   max: number,
 ) => boolean;
 
@@ -210,7 +212,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     sound,
   );
   const placePieceWrapped = wrapPiecePlace(
-    deps.network.tryPlacePieceAndSend ?? ((ctrl, gs) => ctrl.tryPlacePiece(gs)),
+    deps.network.tryPlacePieceAndSend,
     sound,
   );
 
@@ -503,9 +505,7 @@ function buildGameActionDeps(
     tryPlaceCannonAndSend: placeCannon,
     tryPlacePieceAndSend: placePiece,
     onPieceRotated: sound.pieceRotated,
-    fireAndSend:
-      fireAndSend ??
-      ((ctrl: PlayerController, gameState: GameState) => ctrl.fire(gameState)),
+    fireAndSend,
   };
 }
 
