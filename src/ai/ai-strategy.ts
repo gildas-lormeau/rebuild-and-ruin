@@ -59,7 +59,7 @@ export type ChainType = (typeof CHAIN)[keyof typeof CHAIN];
 
 /** Result of planBattle — tells the controller what chain attack to execute. */
 export interface BattlePlan {
-  chainTargets: TilePos[] | null;
+  chainTargets: TilePos[] | undefined;
   chainType: ChainType;
 }
 
@@ -265,7 +265,7 @@ export class DefaultStrategy implements AiStrategy {
   /** Shot count per cannon — tracks hits to know when to stop targeting. */
   private shotCounts = new WeakMap<Cannon, number>();
   /** Focus fire on this player during battle. */
-  private focusFirePlayerId: ValidPlayerSlot | null = null;
+  private focusFirePlayerId: ValidPlayerSlot | undefined;
   /** Whether home tower was not enclosed at the end of last build phase. */
   private _homeWasBroken = false;
 
@@ -423,14 +423,14 @@ export class DefaultStrategy implements AiStrategy {
         );
         this.focusFirePlayerId = enemies[0]!.id;
       } else {
-        this.focusFirePlayerId = null;
+        this.focusFirePlayerId = undefined;
       }
     } else {
-      this.focusFirePlayerId = null;
+      this.focusFirePlayerId = undefined;
     }
 
     // Chain attacks
-    let chainTargets: TilePos[] | null = null;
+    let chainTargets: TilePos[] | undefined;
     let chainType: ChainType = CHAIN.WALL;
 
     const usableCannonCount = countUsableCannons(state, playerId);
@@ -492,12 +492,9 @@ export class DefaultStrategy implements AiStrategy {
       usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
       this.rng.bool(demolitionProb)
     ) {
-      chainTargets = planWallDemolition(
-        state,
-        playerId,
-        usableCannonCount,
-        this.rng,
-      );
+      chainTargets =
+        planWallDemolition(state, playerId, usableCannonCount, this.rng) ??
+        undefined;
       chainType = CHAIN.WALL;
     }
 
@@ -512,12 +509,9 @@ export class DefaultStrategy implements AiStrategy {
       usableCannonCount >= CHAIN_ATTACK_MIN_CANNONS &&
       this.rng.bool(superAtkProb)
     ) {
-      chainTargets = planSuperAttack(
-        state,
-        playerId,
-        usableCannonCount,
-        this.rng,
-      );
+      chainTargets =
+        planSuperAttack(state, playerId, usableCannonCount, this.rng) ??
+        undefined;
       chainType = CHAIN.WALL;
     }
 
@@ -551,7 +545,7 @@ export class DefaultStrategy implements AiStrategy {
   }
 
   onLifeLost(): void {
-    this.focusFirePlayerId = null;
+    this.focusFirePlayerId = undefined;
     this._homeWasBroken = false;
   }
 

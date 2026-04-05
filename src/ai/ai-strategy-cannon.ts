@@ -206,8 +206,8 @@ function findBestNormalCannonPosition(
   rng: Rng,
   noiseScale: number,
   towerCenters: readonly TilePos[],
-): TilePos | null {
-  let bestPosition: TilePos | null = null;
+): TilePos | undefined {
+  let bestPosition: TilePos | undefined;
   let bestScore = -Infinity;
   for (const key of getInterior(player)) {
     const { r, c } = unpackTile(key);

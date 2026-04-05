@@ -34,7 +34,7 @@ for (const seed of SEEDS) {
     }[];
   }[] = [];
   let finalRound = 0;
-  let winner: number | null = null;
+  let winner: number | undefined;
 
   while (s.state.round <= MAX_ROUNDS) {
     const { needsReselect } = s.playRound();
@@ -58,7 +58,7 @@ for (const seed of SEEDS) {
 
     const alive = s.state.players.filter((p) => !p.eliminated);
     if (alive.length <= 1) {
-      winner = alive[0]?.id ?? null;
+      winner = alive[0]?.id;
       checkpoints.push({ round, players: snap() });
       break;
     }
@@ -67,7 +67,7 @@ for (const seed of SEEDS) {
   console.log(`  {`);
   console.log(`    seed: ${seed},`);
   console.log(`    totalRounds: ${finalRound},`);
-  console.log(`    winner: ${winner === null ? "null" : winner},`);
+  console.log(`    winner: ${winner === undefined ? "null" : winner},`);
   console.log(`    checkpoints: [`);
   for (const cp of checkpoints) {
     console.log(`      {`);

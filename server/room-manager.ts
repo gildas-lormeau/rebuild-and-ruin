@@ -238,14 +238,14 @@ export class RoomManager {
     entry: RoomEntry,
     disconnectedPlayerId: ValidPlayerSlot | undefined,
   ): void {
-    let newHostSocket: WebSocket | null = null;
-    let newHostPlayerId: ValidPlayerSlot | null = null;
+    let newHostSocket: WebSocket | undefined;
+    let newHostPlayerId: ValidPlayerSlot | undefined;
 
     // Prefer lowest-playerId player
     for (const [sock, sid] of entry.slotAssignments) {
       if (
         sock.readyState === WebSocket.OPEN &&
-        (newHostPlayerId === null || sid < newHostPlayerId)
+        (newHostPlayerId === undefined || sid < newHostPlayerId)
       ) {
         newHostSocket = sock;
         newHostPlayerId = sid;
@@ -266,7 +266,7 @@ export class RoomManager {
       entry.room.setHost(newHostSocket);
       this.broadcastToRoom(entry, {
         type: MESSAGE.HOST_LEFT,
-        newHostPlayerId,
+        newHostPlayerId: newHostPlayerId ?? null,
         disconnectedPlayerId: disconnectedPlayerId ?? null,
       });
       console.log(

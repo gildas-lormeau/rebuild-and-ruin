@@ -228,7 +228,7 @@ export function createSoundSystem(): SoundSystem {
   // ── Mutable state (closure-scoped) ─────────────────────────────────
 
   let soundLevel = SOUND_ALL;
-  let audioCtx: AudioContext | null = null;
+  let audioCtx: AudioContext | undefined;
 
   // jsfxr pools
   const wavCache = new Map<SfxKey, string>();
@@ -242,7 +242,7 @@ export function createSoundSystem(): SoundSystem {
 
   // War drums state
   let drumNodes: StoppableNode[] = [];
-  let drumGainNode: GainNode | null = null;
+  let drumGainNode: GainNode | undefined;
 
   // ── Internal helpers ───────────────────────────────────────────────
 
@@ -556,7 +556,7 @@ export function createSoundSystem(): SoundSystem {
         }
       }
       drumNodes = [];
-      drumGainNode = null;
+      drumGainNode = undefined;
       return;
     }
     stopNodes(drumNodes);

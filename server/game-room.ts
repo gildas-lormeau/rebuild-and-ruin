@@ -236,7 +236,7 @@ export class GameRoom {
   private readonly players: ReadonlyMap<WebSocket, number>;
   private readonly broadcastRecipients: ReadonlySet<WebSocket>;
   /** Current host socket. Can change mid-game due to host migration (see RoomManager.migrateHost). */
-  private hostSocket: WebSocket | null = null;
+  private hostSocket: WebSocket | undefined;
 
   /** Current phase, tracked from checkpoint messages.
    * Uses Phase enum values for game phases + server-only string literals:

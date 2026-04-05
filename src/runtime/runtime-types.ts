@@ -193,10 +193,10 @@ export interface RuntimeConfig {
 export interface CameraSystem {
   // Per-frame lifecycle
   tickCamera: () => void;
-  updateViewport: () => Viewport | null;
+  updateViewport: () => Viewport | undefined;
 
   // Coordinate conversion
-  getViewport: () => Viewport | null;
+  getViewport: () => Viewport | undefined;
   screenToWorld: (x: number, y: number) => WorldPos;
   worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
   pixelToTile: (x: number, y: number) => { row: number; col: number };
@@ -216,8 +216,8 @@ export interface CameraSystem {
   computeZoneBounds: (zoneId: number) => Viewport;
 
   // Zoom state
-  getCameraZone: () => number | null;
-  setCameraZone: (zone: number | null) => void;
+  getCameraZone: () => number | undefined;
+  setCameraZone: (zone: number | undefined) => void;
 
   // Lifecycle commands
   /** Phase unzoom: clear cameraZone + pinchVp only (preserves per-phase memory for autoZoom restore). */

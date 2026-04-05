@@ -88,7 +88,7 @@ export function hasAnyCannonPlacement(
 
 /**
  * Find the nearest valid cannon placement within `maxRadius` tiles of (row, col).
- * Returns the snapped position, or null if nothing valid is nearby.
+ * Returns the snapped position, or undefined if nothing valid is nearby.
  */
 export function findNearestValidCannonPlacement(
   player: Player,
@@ -97,9 +97,9 @@ export function findNearestValidCannonPlacement(
   mode: CannonMode,
   state: GameState,
   maxRadius = CANNON_SNAP_RADIUS,
-): { row: number; col: number } | null {
+): { row: number; col: number } | undefined {
   let bestDist = Infinity;
-  let best: { row: number; col: number } | null = null;
+  let best: { row: number; col: number } | undefined;
   for (let dr = -maxRadius; dr <= maxRadius; dr++) {
     for (let dc = -maxRadius; dc <= maxRadius; dc++) {
       if (dr === 0 && dc === 0) continue;

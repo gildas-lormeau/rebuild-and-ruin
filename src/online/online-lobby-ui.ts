@@ -34,7 +34,7 @@ const CLICK_EVENT = "click";
 const SUBMIT_EVENT = "submit";
 
 /** Stored interval so repeated initLobbyUi calls don't leak timers. */
-let roomPollTimer: ReturnType<typeof setInterval> | null = null;
+let roomPollTimer: ReturnType<typeof setInterval> | undefined;
 
 export function initLobbyUi({
   elements,
@@ -47,7 +47,7 @@ export function initLobbyUi({
 }: InitLobbyUiDeps): { joinRoom: (code: string) => void } {
   // Pending action replaces any previous one so rapid clicks / Create→Join
   // sequences don't stack multiple "open" listeners on the same socket.
-  let pendingAction: (() => void) | null = null;
+  let pendingAction: (() => void) | undefined;
 
   const scheduleOnOpen = (action: () => void) => {
     pendingAction = action;
@@ -55,7 +55,7 @@ export function initLobbyUi({
     const socket = getSocket();
     // Inline readyState check — mirrors isSocketOpen() in online-session.ts.
     if (socket?.readyState === WebSocket.OPEN) {
-      pendingAction = null;
+      pendingAction = undefined;
       action();
     } else {
       socket?.addEventListener(
@@ -63,7 +63,7 @@ export function initLobbyUi({
         () => {
           if (!pendingAction) return;
           const a = pendingAction;
-          pendingAction = null;
+          pendingAction = undefined;
           a();
         },
         { once: true },
@@ -194,7 +194,7 @@ export function initLobbyUi({
       () => {
         if (roomPollTimer) {
           clearInterval(roomPollTimer);
-          roomPollTimer = null;
+          roomPollTimer = undefined;
         }
       },
       { once: true },

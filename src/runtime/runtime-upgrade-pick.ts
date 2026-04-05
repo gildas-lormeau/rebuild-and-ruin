@@ -56,7 +56,7 @@ export function createUpgradePickSystem(
   const { runtimeState } = deps;
 
   /** Callback to invoke when all picks are resolved. */
-  let resolveCallback: (() => void) | null = null;
+  let resolveCallback: (() => void) | undefined;
 
   /** Ensure the dialog exists on runtimeState, creating it if needed. */
   function ensureDialog(): UpgradePickDialogState | null {
@@ -116,7 +116,7 @@ export function createUpgradePickSystem(
       applyUpgradePicks(runtimeState.state, dialog);
       runtimeState.upgradePickDialog = null;
       const cb = resolveCallback;
-      resolveCallback = null;
+      resolveCallback = undefined;
       cb?.();
     }
   }

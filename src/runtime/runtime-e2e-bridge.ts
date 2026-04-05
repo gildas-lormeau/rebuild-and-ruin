@@ -126,7 +126,7 @@ interface E2EBridge {
 
   // Camera
   camera: {
-    viewport: { x: number; y: number; w: number; h: number } | null;
+    viewport: { x: number; y: number; w: number; h: number } | undefined;
   };
 
   // Coord conversion (callable from page.evaluate)
@@ -159,7 +159,9 @@ interface E2EBridgeDeps {
   config: Pick<RuntimeConfig, "getMyPlayerId">;
   camera: {
     worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
-    getViewport: () => { x: number; y: number; w: number; h: number } | null;
+    getViewport: () =>
+      | { x: number; y: number; w: number; h: number }
+      | undefined;
   };
   renderer: {
     eventTarget: HTMLElement;
@@ -198,7 +200,7 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
       },
       players: [],
       controller: null,
-      camera: { viewport: null },
+      camera: { viewport: undefined },
       worldToClient,
       tileToClient: makeTileToClient(worldToClient),
       enableRenderSpy,

@@ -52,12 +52,12 @@ export abstract class BaseController implements PlayerController {
   };
   /** Round-robin index into combined cannon list. null = no cannon fired yet this round.
    *  Reset in initBattleState() and onLifeLost(). */
-  cannonRotationIdx: number | null = null;
+  cannonRotationIdx: number | undefined;
 
   /** Piece bag for the build phase (shared by AI and Human). */
-  protected bag: BagState | null = null;
+  protected bag: BagState | undefined;
   /** Current piece drawn from the bag. */
-  currentPiece: PieceShape | null = null;
+  currentPiece: PieceShape | undefined;
 
   constructor(playerId: ValidPlayerSlot) {
     this.playerId = playerId;
@@ -139,8 +139,8 @@ export abstract class BaseController implements PlayerController {
    *  Calls the hook then clears bag/piece. */
   finalizeBuildPhase(state: GameState): void {
     this.onFinalizeBuildPhase(state);
-    this.bag = null;
-    this.currentPiece = null;
+    this.bag = undefined;
+    this.currentPiece = undefined;
   }
 
   /** Subclass hook called before bag/piece are cleared. Override for AI cleanup etc. */
@@ -153,7 +153,7 @@ export abstract class BaseController implements PlayerController {
    *  Initializes battle-phase state (cannonRotationIdx, cursors), then calls hook.
    *  Scope: cannonRotationIdx + cursor centering only — not a full game reset (see reset()). */
   initBattleState(state?: GameState): void {
-    this.cannonRotationIdx = null;
+    this.cannonRotationIdx = undefined;
     if (state) {
       const player = state.players[this.playerId];
       if (player?.homeTower) {
@@ -187,9 +187,9 @@ export abstract class BaseController implements PlayerController {
   /** Called at the end of the battle phase (e.g. clear held input actions). */
   endBattle(): void {}
   onLifeLost(): void {
-    this.cannonRotationIdx = null;
-    this.bag = null;
-    this.currentPiece = null;
+    this.cannonRotationIdx = undefined;
+    this.bag = undefined;
+    this.currentPiece = undefined;
   }
   reset(): void {
     this.buildCursor = { row: DEFAULT_CURSOR_ROW, col: DEFAULT_CURSOR_COL };
@@ -198,9 +198,9 @@ export abstract class BaseController implements PlayerController {
       x: DEFAULT_CURSOR_COL * TILE_SIZE,
       y: DEFAULT_CURSOR_ROW * TILE_SIZE,
     };
-    this.cannonRotationIdx = null;
-    this.bag = null;
-    this.currentPiece = null;
+    this.cannonRotationIdx = undefined;
+    this.bag = undefined;
+    this.currentPiece = undefined;
   }
   /** Called at start of cannon phase. Override to reset cannon cursor/mode. */
   startCannonPhase(_state: GameState): void {}
@@ -211,12 +211,12 @@ export abstract class BaseController implements PlayerController {
     return false;
   }
 
-  getCurrentPiece(): PieceShape | null {
+  getCurrentPiece(): PieceShape | undefined {
     return this.currentPiece;
   }
 
   /** Clamp build cursor so the entire piece stays within the grid. */
-  clampBuildCursor(piece: PieceShape | null): void {
+  clampBuildCursor(piece: PieceShape | undefined): void {
     if (!piece) return;
     this.buildCursor.row = Math.max(
       0,
@@ -228,7 +228,7 @@ export abstract class BaseController implements PlayerController {
     );
   }
 
-  moveBuildCursor(direction: Action, piece?: PieceShape | null): void {
+  moveBuildCursor(direction: Action, piece?: PieceShape | undefined): void {
     const h = piece ? piece.height : 1;
     const w = piece ? piece.width : 1;
     if (direction === Action.UP)
@@ -260,7 +260,11 @@ export abstract class BaseController implements PlayerController {
       );
   }
 
-  setBuildCursor(row: number, col: number, piece?: PieceShape | null): void {
+  setBuildCursor(
+    row: number,
+    col: number,
+    piece?: PieceShape | undefined,
+  ): void {
     this.buildCursor = { row, col };
     if (piece) this.clampBuildCursor(piece);
   }

@@ -66,10 +66,10 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   let zoomActivated = false;
 
   // Zoom targets (see priority comment above)
-  let cameraZone: number | null = null;
-  let pinchVp: Viewport | null = null;
-  let castleBuildVp: Viewport | null = null;
-  let lastAutoZoomPhase: Phase | null = null;
+  let cameraZone: number | undefined;
+  let pinchVp: Viewport | undefined;
+  let castleBuildVp: Viewport | undefined;
+  let lastAutoZoomPhase: Phase | undefined;
 
   // Pinch gesture — transient state, non-null only during an active two-finger gesture
   interface ActivePinch {
@@ -77,20 +77,23 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     startMidX: number;
     startMidY: number;
   }
-  let activePinch: ActivePinch | null = null;
+  let activePinch: ActivePinch | undefined;
 
   // Per-phase pinch memory — saved/restored on phase transitions so each phase
   // remembers its own user-chosen zoom level independently
-  const phasePinch: { build: Viewport | null; battle: Viewport | null } = {
-    build: null,
-    battle: null,
+  const phasePinch: {
+    build: Viewport | undefined;
+    battle: Viewport | undefined;
+  } = {
+    build: undefined,
+    battle: undefined,
   };
 
   // Selection zoom lifecycle — tracks the one-time deferred zoom to the
   // player's home tower after the "Select your castle" announcement finishes
-  const selectionZoom: { applied: boolean; pendingVp: TilePos | null } = {
+  const selectionZoom: { applied: boolean; pendingVp: TilePos | undefined } = {
     applied: false,
-    pendingVp: null,
+    pendingVp: undefined,
   };
   const MIN_ZOOM_W = MAP_PX_W * MIN_ZOOM_RATIO;
   const cachedZoneBounds: Map<number, { vp: Viewport; wallCount: number }> =
@@ -103,7 +106,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     h: MAP_PX_H,
   };
   const currentVp: Viewport = { ...fullMapVp };
-  let lastVp: Viewport | null = null;
+  let lastVp: Viewport | undefined;
 
   // --- Helpers ---
 
@@ -272,7 +275,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function swapPinchViewport(enteringBattle: boolean): void {
     savePinchForCurrentPhase(!enteringBattle);
     const candidate = enteringBattle ? phasePinch.battle : phasePinch.build;
-    pinchVp = candidate ? { ...candidate } : null;
+    pinchVp = candidate ? { ...candidate } : undefined;
   }
 
   /** Derive map zone from a world-pixel position. */
@@ -310,22 +313,22 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
           cy >= zb.y &&
           cy <= zb.y + zb.h
         ) {
-          pinchVp = null;
-          phasePinch.battle = null;
+          pinchVp = undefined;
+          phasePinch.battle = undefined;
         }
       }
       if (pinchVp) {
-        cameraZone = null;
+        cameraZone = undefined;
       } else {
         // Camera follows crosshair zone; fall back to best enemy
-        cameraZone = crosshairZone() ?? getBestEnemyZone();
+        cameraZone = crosshairZone() ?? getBestEnemyZone() ?? undefined;
       }
     } else {
       swapPinchViewport(false);
       if (pinchVp) {
-        cameraZone = null;
+        cameraZone = undefined;
       } else {
-        cameraZone = getMyZone();
+        cameraZone = getMyZone() ?? undefined;
       }
     }
   }
@@ -353,13 +356,15 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function unzoomForOverlays(state: GameState, frameCtx: FrameContext): void {
     if (
       !frameCtx.shouldUnzoom ||
-      (cameraZone === null && pinchVp === null && castleBuildVp === null)
+      (cameraZone === undefined &&
+        pinchVp === undefined &&
+        castleBuildVp === undefined)
     )
       return;
     savePinchForCurrentPhase(state.phase === Phase.BATTLE);
-    cameraZone = null;
-    pinchVp = null;
-    castleBuildVp = null;
+    cameraZone = undefined;
+    pinchVp = undefined;
+    castleBuildVp = undefined;
   }
 
   /** Re-engage auto-zoom when pause or quit dialog is dismissed (mobile only). */
@@ -404,7 +409,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
         selectionZoom.pendingVp.col + 1,
         ZONE_PAD_SELECTION,
       );
-      selectionZoom.pendingVp = null;
+      selectionZoom.pendingVp = undefined;
     }
   }
 
@@ -423,7 +428,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       }
     } else if (
       mobileAuto &&
-      !(frameCtx.mode === Mode.SELECTION && lastAutoZoomPhase === null)
+      !(frameCtx.mode === Mode.SELECTION && lastAutoZoomPhase === undefined)
     ) {
       autoZoom(state.phase);
     }
@@ -453,7 +458,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
   // --- Viewport lerp ---
 
-  function updateViewport(): Viewport | null {
+  function updateViewport(): Viewport | undefined {
     const { mode } = deps.getCtx();
     let target: Viewport;
     if (
@@ -465,7 +470,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       target = castleBuildVp;
     } else if (pinchVp) {
       target = pinchVp;
-    } else if (cameraZone !== null) {
+    } else if (cameraZone !== undefined) {
       target = computeZoneBounds(cameraZone);
     } else {
       target = fullMapVp;
@@ -495,14 +500,14 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       currentVp.w === fullMapVp.w &&
       currentVp.h === fullMapVp.h
     ) {
-      lastVp = null;
+      lastVp = undefined;
     } else {
       lastVp = currentVp;
     }
     return lastVp;
   }
 
-  function getViewport(): Viewport | null {
+  function getViewport(): Viewport | undefined {
     return lastVp;
   }
 
@@ -575,16 +580,16 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     currentVp.w = newW;
     currentVp.h = newH;
     lastVp = currentVp;
-    cameraZone = null;
+    cameraZone = undefined;
     zoomActivated = true;
   }
 
   function onPinchEnd(): void {
     const state = deps.getState();
-    activePinch = null;
+    activePinch = undefined;
     if (!pinchVp) return;
     if (pinchVp.w >= fullMapVp.w * PINCH_FULL_MAP_SNAP) {
-      pinchVp = null;
+      pinchVp = undefined;
       return;
     }
     if (state && state.phase === Phase.BATTLE) {
@@ -601,30 +606,30 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
    *  Resets lastAutoZoomPhase so handlePhaseChangeZoom re-fires autoZoom
    *  when the next interactive mode begins (fixes upgrade-pick → banner → build). */
   function clearPhaseZoom(): void {
-    cameraZone = null;
-    pinchVp = null;
-    lastAutoZoomPhase = null;
+    cameraZone = undefined;
+    pinchVp = undefined;
+    lastAutoZoomPhase = undefined;
     cachedZoneBounds.clear();
   }
 
   /** Clear all zoom state including per-phase pinch memory.
    *  Use for full resets (rematch, return to lobby). */
   function clearAllZoomState(): void {
-    cameraZone = null;
-    pinchVp = null;
-    phasePinch.build = null;
-    phasePinch.battle = null;
+    cameraZone = undefined;
+    pinchVp = undefined;
+    phasePinch.build = undefined;
+    phasePinch.battle = undefined;
   }
 
   function resetCamera(): void {
-    cameraZone = null;
-    pinchVp = null;
-    phasePinch.build = null;
-    phasePinch.battle = null;
-    castleBuildVp = null;
-    lastAutoZoomPhase = null;
+    cameraZone = undefined;
+    pinchVp = undefined;
+    phasePinch.build = undefined;
+    phasePinch.battle = undefined;
+    castleBuildVp = undefined;
+    lastAutoZoomPhase = undefined;
     selectionZoom.applied = false;
-    selectionZoom.pendingVp = null;
+    selectionZoom.pendingVp = undefined;
     cachedZoneBounds.clear();
     // Snap viewport to full map so there's no lerp animation on game start
     currentVp.x = fullMapVp.x;
@@ -633,15 +638,15 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     currentVp.h = fullMapVp.h;
   }
 
-  function setCameraZone(zone: number | null): void {
+  function setCameraZone(zone: number | undefined): void {
     const state = deps.getState();
     cameraZone = zone;
-    zoomActivated = zone !== null;
-    pinchVp = null;
+    zoomActivated = zone !== undefined;
+    pinchVp = undefined;
     if (state && state.phase === Phase.BATTLE) {
-      phasePinch.battle = null;
+      phasePinch.battle = undefined;
     } else {
-      phasePinch.build = null;
+      phasePinch.build = undefined;
     }
   }
 
@@ -649,11 +654,11 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function setSelectionViewport(towerRow: number, towerCol: number): void {
     if (!mobileZoomEnabled || !zoomActivated) return;
     // Block until the "Select your home castle" banner delay has elapsed
-    if (!selectionZoom.applied || lastAutoZoomPhase === null) {
+    if (!selectionZoom.applied || lastAutoZoomPhase === undefined) {
       selectionZoom.pendingVp = { row: towerRow, col: towerCol };
       return;
     }
-    selectionZoom.pendingVp = null;
+    selectionZoom.pendingVp = undefined;
     castleBuildVp = boundsToViewport(
       towerRow,
       towerRow + 1,
@@ -670,7 +675,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
 
   function clearCastleBuildViewport(): void {
-    castleBuildVp = null;
+    castleBuildVp = undefined;
   }
 
   function enableMobileZoom(): void {
@@ -681,7 +686,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // --- Touch battle targeting ---
 
   /** Crosshair position from the previous battle (null = first battle). */
-  let lastBattleCrosshair: { x: number; y: number } | null = null;
+  let lastBattleCrosshair: { x: number; y: number } | undefined;
 
   /**
    * Position the human crosshair at the start of battle (touch devices).
@@ -734,7 +739,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   }
 
   function resetBattleCrosshair(): void {
-    lastBattleCrosshair = null;
+    lastBattleCrosshair = undefined;
   }
 
   // --- Return public API ---

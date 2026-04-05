@@ -270,7 +270,7 @@ for (let i = 0; i < SEEDS.length; i++) {
   };
 
   let rounds = 0;
-  let winner: number | null = null;
+  let winner: number | undefined;
 
   while (s.state.round <= MAX_ROUNDS) {
     const { needsReselect } = s.playRound();
@@ -284,7 +284,7 @@ for (let i = 0; i < SEEDS.length; i++) {
 
     const alive = s.state.players.filter((p) => !p.eliminated);
     if (alive.length <= 1) {
-      winner = alive[0]?.id ?? null;
+      winner = alive[0]?.id;
       break;
     }
     rounds = s.state.round;

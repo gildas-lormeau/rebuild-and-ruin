@@ -654,7 +654,7 @@ export function assertNoWalls(s: Scenario, playerId: ValidPlayerSlot): void {
 
 export function assertCameraZone(
   handle: CameraTestHandle,
-  expected: number | null,
+  expected: number | undefined,
 ): void {
   const actual = handle.camera.getCameraZone();
   assert(

@@ -96,10 +96,14 @@ export interface BuildController {
   /** Set build cursor to absolute position (mouse/touch).
    *  HumanController overrides to offset by the piece pivot so the clicked tile
    *  aligns with the piece's visual center. Piece-aware clamping when provided. */
-  setBuildCursor(row: number, col: number, piece?: PieceShape | null): void;
+  setBuildCursor(
+    row: number,
+    col: number,
+    piece?: PieceShape | undefined,
+  ): void;
 
   /** Get the current build piece (for sending placement data). */
-  getCurrentPiece(): PieceShape | null;
+  getCurrentPiece(): PieceShape | undefined;
 }
 
 /** Cannon placement phase. */

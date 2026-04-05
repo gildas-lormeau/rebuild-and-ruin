@@ -316,12 +316,12 @@ export function towerAtPixel(
   towers: readonly TilePos[],
   worldX: number,
   worldY: number,
-): number | null {
+): number | undefined {
   const tileCol = pxToTile(worldX);
   const tileRow = pxToTile(worldY);
 
   const HIT_RADIUS = 2;
-  let bestIdx: number | null = null;
+  let bestIdx: number | undefined;
   let bestDist = Infinity;
 
   for (let i = 0; i < towers.length; i++) {

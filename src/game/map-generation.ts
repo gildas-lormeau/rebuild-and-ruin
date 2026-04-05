@@ -358,7 +358,7 @@ function placeTowers(
     // Remaining towers: farthest from existing zone towers
     const zoneTowerStart = towers.length - 1; // index of first tower in this zone
     for (let tower = 1; tower < TOWERS_PER_ZONE; tower++) {
-      let bestPos: [number, number] | null = null;
+      let bestPos: [number, number] | undefined;
       let bestMinDist = -1;
 
       for (const [c, r] of validPositions) {

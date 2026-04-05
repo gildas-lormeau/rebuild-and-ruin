@@ -197,7 +197,7 @@ for (const expected of EXPECTED) {
     const s = createScenario(expected.seed);
     const checkpointsByRound = new Map(expected.checkpoints.map((cp) => [cp.round, cp]));
     let finalRound = 0;
-    let winner: number | null = null;
+    let winner: number | undefined;
 
     while (s.state.round <= MAX_ROUNDS) {
       const { needsReselect } = s.playRound();
@@ -216,7 +216,7 @@ for (const expected of EXPECTED) {
 
       const alive = s.state.players.filter((p) => !p.eliminated);
       if (alive.length <= 1) {
-        winner = alive[0]?.id ?? null;
+        winner = alive[0]?.id;
         break;
       }
     }

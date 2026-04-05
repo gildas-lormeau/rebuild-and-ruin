@@ -515,7 +515,7 @@ export function collectLocalCrosshairs<
 export function fireNextReadyCannon(
   state: GameState,
   playerId: ValidPlayerSlot,
-  rotationIdx: number | null,
+  rotationIdx: number | undefined,
   targetRow: number,
   targetCol: number,
 ): { result: CombinedCannonResult; rotationIdx: number } | null {
@@ -554,7 +554,7 @@ export function fireCannon(
 export function nextReadyCombined(
   state: GameState,
   playerId: ValidPlayerSlot,
-  after: number | null = null,
+  after?: number,
 ): CombinedCannonResult | null {
   const player = state.players[playerId];
   if (!player) return null;
@@ -565,7 +565,7 @@ export function nextReadyCombined(
   const total = ownCount + captured.length;
   if (total === 0) return null;
 
-  const start = after === null ? 0 : (after + 1) % total;
+  const start = after === undefined ? 0 : (after + 1) % total;
   for (let j = 0; j < total; j++) {
     const i = (start + j) % total;
     if (i < ownCount) {
@@ -870,7 +870,7 @@ function findBestBalloonTarget(
   ownerId: ValidPlayerSlot,
   balloonCountPerTarget: Map<Cannon, number>,
 ): { cannon: Cannon; victimId: ValidPlayerSlot } | null {
-  let bestCannon: Cannon | null = null;
+  let bestCannon: Cannon | undefined;
   let bestVictimId = VICTIM_ID_UNKNOWN;
   let bestScore = -1;
 

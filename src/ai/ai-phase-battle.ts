@@ -20,7 +20,7 @@ interface BattleHost {
   readonly playerId: ValidPlayerSlot;
   readonly strategy: AiStrategy;
   crosshair: { x: number; y: number };
-  readonly cannonRotationIdx: number | null;
+  readonly cannonRotationIdx: number | undefined;
   readonly anticipatesTarget: boolean;
   /** Returns `(base + rng * spread) * delayScale` — humanizes AI timing per difficulty. */
   scaledDelay(base: number, spread: number): number;
@@ -49,7 +49,7 @@ type BattleState =
 interface BattlePhase {
   state: BattleState;
   crosshairTarget: StrategicPixelPos | null;
-  chainTargets: TilePos[] | null;
+  chainTargets: TilePos[] | undefined;
   chainIdx: number;
   chainType: ChainType;
   /** Persistent orbit phase — accumulated across battles for natural variation. */
@@ -73,7 +73,7 @@ export function createBattlePhase(): BattlePhase {
   return {
     state: { step: STEP.IDLE },
     crosshairTarget: null,
-    chainTargets: null,
+    chainTargets: undefined,
     chainIdx: 0,
     chainType: CHAIN.WALL,
     orbitAngle: 0,
@@ -85,7 +85,7 @@ export function createBattlePhase(): BattlePhase {
 export function resetBattlePhaseKeepOrbit(phase: BattlePhase): void {
   phase.state = { step: STEP.IDLE };
   phase.crosshairTarget = null;
-  phase.chainTargets = null;
+  phase.chainTargets = undefined;
   phase.chainIdx = 0;
   phase.chainType = CHAIN.WALL;
 }
@@ -97,7 +97,7 @@ export function initBattle(
   state?: GameState,
 ): void {
   phase.crosshairTarget = null;
-  phase.chainTargets = null;
+  phase.chainTargets = undefined;
   phase.chainIdx = 0;
   phase.chainType = CHAIN.WALL;
   if (state) {
@@ -300,7 +300,7 @@ function tickChainMoving(
     if (!wallExists) {
       phase.chainIdx++;
       if (phase.chainIdx >= phase.chainTargets.length) {
-        phase.chainTargets = null;
+        phase.chainTargets = undefined;
         phase.crosshairTarget = null;
         phase.state = { step: STEP.PICKING };
       }
@@ -336,7 +336,7 @@ function tickChainDwelling(
   if (result) {
     phase.chainIdx++;
     if (phase.chainIdx >= phase.chainTargets.length) {
-      phase.chainTargets = null;
+      phase.chainTargets = undefined;
       phase.crosshairTarget = null;
       phase.state = { step: STEP.PICKING };
     } else {

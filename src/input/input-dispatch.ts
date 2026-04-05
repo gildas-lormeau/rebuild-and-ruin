@@ -243,7 +243,7 @@ export function dispatchTowerSelect(
     if (!selectionState) return;
     const zone = state.playerZones[human.playerId] ?? 0;
     const idx = towerAtPixel(state.map.towers, wx, wy);
-    if (idx !== null && state.map.towers[idx]?.zone === zone) {
+    if (idx !== undefined && state.map.towers[idx]?.zone === zone) {
       const alreadyHighlighted = selectionState.highlighted === idx;
       if (
         alreadyHighlighted &&
@@ -430,7 +430,7 @@ export function dispatchPointerMove(
       const w = coords.screenToWorld(x, y);
       const idx = towerAtPixel(state.map.towers, w.wx, w.wy);
       if (
-        idx !== null &&
+        idx !== undefined &&
         idx !== selectionState.highlighted &&
         state.map.towers[idx]?.zone === zone
       ) {

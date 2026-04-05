@@ -118,7 +118,7 @@ function lockGruntTarget(
   const frozenActive = state.modern?.frozenTiles != null;
 
   let bestDist = Infinity;
-  let bestIdx: number | null = null;
+  let bestIdx: number | undefined;
 
   for (let i = 0; i < state.map.towers.length; i++) {
     const tower = state.map.towers[i]!;
@@ -136,7 +136,7 @@ function lockGruntTarget(
   }
 
   // Fallback: if frozen but no cross-zone tower alive, target same-zone
-  if (frozenActive && bestIdx === null) {
+  if (frozenActive && bestIdx === undefined) {
     for (let i = 0; i < state.map.towers.length; i++) {
       const tower = state.map.towers[i]!;
       if (!state.towerAlive[i]) continue;
@@ -150,7 +150,7 @@ function lockGruntTarget(
     }
   }
 
-  if (bestIdx === null) return;
+  if (bestIdx === undefined) return;
   grunt.targetTowerIdx = bestIdx;
 
   // Ensure victimPlayerId matches the target tower's zone owner

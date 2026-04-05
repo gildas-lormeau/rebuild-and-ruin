@@ -113,7 +113,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   const { runtimeState, uiCtx } = deps;
 
   // ── Hidden input for mobile virtual keyboard (seed entry) ──
-  let seedInput: HTMLInputElement | null = null;
+  let seedInput: HTMLInputElement | undefined;
 
   function ensureSeedInput(): HTMLInputElement {
     if (seedInput) return seedInput;

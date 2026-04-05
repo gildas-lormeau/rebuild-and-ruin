@@ -56,7 +56,7 @@ interface RenderSystemDeps {
     px: number;
     py: number;
   };
-  readonly updateViewport: () => Viewport | null;
+  readonly updateViewport: () => Viewport | undefined;
   readonly pointerPlayer: () => (PlayerController & InputReceiver) | null;
   readonly getTouch: () => {
     dpad: Dpad | null;

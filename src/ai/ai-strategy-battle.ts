@@ -255,7 +255,7 @@ export function pickTarget(
   state: GameState,
   playerId: ValidPlayerSlot,
   crosshair: PixelPos,
-  focusFirePlayerId: ValidPlayerSlot | null,
+  focusFirePlayerId: ValidPlayerSlot | undefined,
   shotCounts: WeakMap<Cannon, number>,
   wallsOnly?: boolean,
   battleTactics = 2,
@@ -370,7 +370,7 @@ export function trackShot(
 function collectStrategicWallTargets(
   state: GameState,
   playerId: ValidPlayerSlot,
-  focusFirePlayerId: ValidPlayerSlot | null,
+  focusFirePlayerId: ValidPlayerSlot | undefined,
 ): TilePos[] {
   const strategic: TilePos[] = [];
   for (const other of filterActiveEnemies(state, playerId)) {
@@ -466,7 +466,7 @@ function ballTargeting(
 function collectEnemyTargets(
   state: GameState,
   playerId: ValidPlayerSlot,
-  focusFirePlayerId: ValidPlayerSlot | null,
+  focusFirePlayerId: ValidPlayerSlot | undefined,
   switchTarget: boolean,
   shotCounts: WeakMap<Cannon, number>,
   wallsOnly?: boolean,
@@ -511,7 +511,7 @@ function collectEnemyTargets(
 
 function isEnemyEligibleForFocus(
   enemyId: number,
-  focusFirePlayerId: ValidPlayerSlot | null,
+  focusFirePlayerId: ValidPlayerSlot | undefined,
   switchTarget: boolean,
 ): boolean {
   if (focusFirePlayerId == null) return true;

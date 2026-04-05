@@ -70,8 +70,8 @@ export interface QuitButtonDeps {
 
 export interface ZoomButtonDeps {
   getState: () => GameState | undefined;
-  getCameraZone: () => number | null;
-  setCameraZone: (zone: number | null) => void;
+  getCameraZone: () => number | undefined;
+  setCameraZone: (zone: number | undefined) => void;
   povPlayerId: () => number;
   getEnemyZones: () => number[];
   /** Move the human crosshair to a zone's home tower (battle auto-zoom). */
@@ -177,13 +177,13 @@ export function createDpad(
 
   container.classList.toggle("left-handed", deps.getLeftHanded());
 
-  let prevPhase: Phase | null = null;
+  let prevPhase: Phase | undefined;
 
   return {
     update(phase: Phase | null, disableRotate?: boolean) {
       if (phase !== prevPhase) {
         stopRepeat();
-        prevPhase = phase;
+        prevPhase = phase ?? undefined;
       }
       const inGame = phase !== null;
       for (const dpad of dpads) dpad.classList.toggle(CLS_DISABLED, !inGame);
@@ -269,17 +269,17 @@ export function createHomeZoomButton(
   function toggle() {
     const current = deps.getCameraZone();
     const myZone = getMyZone();
-    if (current === null) {
+    if (current === undefined) {
       // Unzoomed → zoom to own zone + move cursor home
       deps.aimAtZone?.(myZone!);
-      deps.setCameraZone(myZone);
+      deps.setCameraZone(myZone ?? undefined);
     } else if (current === myZone) {
       // On own zone → unzoom
-      deps.setCameraZone(null);
+      deps.setCameraZone(undefined);
     } else {
       // On enemy zone → move cursor to own home tower (camera follows)
       deps.aimAtZone?.(myZone!);
-      deps.setCameraZone(myZone);
+      deps.setCameraZone(myZone ?? undefined);
     }
     updateLabel();
   }
@@ -334,7 +334,7 @@ export function createEnemyZoomButton(
     const enemyZones = getEnemyZones();
     if (enemyZones.length === 0) return;
     const current = deps.getCameraZone();
-    const idx = current !== null ? enemyZones.indexOf(current) : -1;
+    const idx = current !== undefined ? enemyZones.indexOf(current) : -1;
     const next = enemyZones[(idx + 1) % enemyZones.length]!;
     deps.aimAtZone?.(next);
     deps.setCameraZone(next);
@@ -344,8 +344,9 @@ export function createEnemyZoomButton(
   function updateLabel() {
     const zone = deps.getCameraZone();
     const state = deps.getState();
-    const pid = zone !== null && state ? state.playerZones.indexOf(zone) : -1;
-    const isActive = zone !== null && getEnemyZones().includes(zone);
+    const pid =
+      zone !== undefined && state ? state.playerZones.indexOf(zone) : -1;
+    const isActive = zone !== undefined && getEnemyZones().includes(zone);
     const bg = zoomButtonBg(isActive ? pid : -1, TOUCH_ZOOM_ENEMY_BG);
     for (const btn of buttons) btn.style.background = bg;
   }
@@ -486,12 +487,12 @@ function wireDpadArrows(
   // holding to slide across the grid.
   const REPEAT_DELAY = 120;
   const REPEAT_RATE = 50;
-  let repeatTimer: ReturnType<typeof setTimeout> | null = null;
+  let repeatTimer: ReturnType<typeof setTimeout> | undefined;
 
   function stopRepeat() {
-    if (repeatTimer !== null) {
+    if (repeatTimer !== undefined) {
       clearTimeout(repeatTimer);
-      repeatTimer = null;
+      repeatTimer = undefined;
     }
   }
 

@@ -153,7 +153,7 @@ export interface OnlineOverlayParams {
   };
 }
 
-export type CreateRenderSummaryMessageFn = (params: {
+export interface RenderSummaryParams {
   phaseName: string;
   timer: number;
   crosshairs: Array<{ x: number; y: number; playerId: ValidPlayerSlot }>;
@@ -166,7 +166,11 @@ export type CreateRenderSummaryMessageFn = (params: {
     towerIdx: number;
     confirmed?: boolean;
   }>;
-}) => string;
+}
+
+export type CreateRenderSummaryMessageFn = (
+  params: RenderSummaryParams,
+) => string;
 
 export type CreateStatusBarFn = (
   state: GameState,
@@ -236,20 +240,9 @@ const UPGRADE_ROW_W =
   UPGRADE_CARDS_PER_ROW * UPGRADE_CARD_W +
   (UPGRADE_CARDS_PER_ROW - 1) * UPGRADE_CARD_GAP;
 
-export function createRenderSummaryMessage(params: {
-  phaseName: string;
-  timer: number;
-  crosshairs: Array<{ x: number; y: number; playerId: ValidPlayerSlot }>;
-  piecePhantomsCount: number;
-  cannonPhantomsCount: number;
-  impactsCount: number;
-  cannonballsCount: number;
-  selectionHighlights?: Array<{
-    playerId: ValidPlayerSlot;
-    towerIdx: number;
-    confirmed?: boolean;
-  }>;
-}): string {
+export function createRenderSummaryMessage(
+  params: RenderSummaryParams,
+): string {
   const {
     phaseName,
     timer,

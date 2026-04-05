@@ -96,19 +96,19 @@ test("modifier no-repeat rule: same modifier never appears twice in a row", () =
   const s = createScenario(4);
   s.state.gameMode = GAME_MODE_MODERN;
   s.state.modern = createModernState();
-  let prev: string | null = null;
+  let prev: string | undefined;
   for (let round = 0; round < 10; round++) {
     s.state.round = MODIFIER_FIRST_ROUND + round;
     s.state.modern!.lastModifierId = s.state.modern!.activeModifier;
     s.state.modern!.activeModifier = rollModifier(s.state);
     const current = s.state.modern!.activeModifier;
-    if (current !== null && prev !== null) {
+    if (current !== null && prev !== undefined) {
       assert(
         current !== prev,
         `round ${s.state.round}: same modifier ${current} rolled twice in a row`,
       );
     }
-    prev = current;
+    prev = current ?? undefined;
   }
 });
 
@@ -624,7 +624,7 @@ test("upgrade pick banner is shown before upgrade pick dialog", () => {
   );
 
   const log: string[] = [];
-  let bannerOnDone: (() => void) | null = null;
+  let bannerOnDone: (() => void) | undefined;
 
   const mockShowBanner = (text: string, onDone: () => void) => {
     log.push(`banner:${text}`);

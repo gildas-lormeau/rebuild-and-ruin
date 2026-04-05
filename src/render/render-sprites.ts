@@ -112,7 +112,7 @@ const SPRITES: Record<string, SpriteRect> = {
 // @ts-ignore — import.meta.env is Vite-specific
 const BASE = import.meta.env?.BASE_URL ?? "/";
 
-let atlas: HTMLImageElement | null = null;
+let atlas: HTMLImageElement | undefined;
 
 export function loadAtlas(src = `${BASE}assets/sprites.png`): Promise<void> {
   return new Promise((resolve, reject) => {

@@ -150,11 +150,13 @@ const bannerSceneCtx = bannerSceneCanvas.getContext("2d", {
 const terrainImageCache = new WeakMap<GameMap, TerrainImageCache>();
 
 /** Cached main-canvas context — avoids per-frame getContext overhead on Chrome mobile. */
-let mainCtxCache: {
-  canvas: HTMLCanvasElement;
-  canvasCtx: CanvasRenderingContext2D;
-} | null = null;
-let bannerCache: BannerCacheEntry | null = null;
+let mainCtxCache:
+  | {
+      canvas: HTMLCanvasElement;
+      canvasCtx: CanvasRenderingContext2D;
+    }
+  | undefined;
+let bannerCache: BannerCacheEntry | undefined;
 
 /** Expose the offscreen scene canvas for post-processing (loupe, etc.). */
 export function sceneCanvas(): HTMLCanvasElement {
@@ -406,7 +408,7 @@ function drawBannerPrevScene(
 }
 
 function clearBannerCache(): void {
-  bannerCache = null;
+  bannerCache = undefined;
 }
 
 /** Check if the banner scene cache is still valid (reference-equality on all fields).

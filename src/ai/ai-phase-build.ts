@@ -22,13 +22,13 @@ interface BuildHost {
   readonly playerId: ValidPlayerSlot;
   readonly strategy: AiStrategy;
   buildCursor: TilePos;
-  currentPiece: PieceShape | null;
+  currentPiece: PieceShape | undefined;
   readonly buildCursorSpeed: number;
   readonly boostThreshold: number;
   /** Returns `(base + rng * spread) * delayScale` — humanizes AI timing per difficulty. */
   scaledDelay(base: number, spread: number): number;
   advanceBag(_placed: true): void;
-  clampBuildCursor(piece: PieceShape | null): void;
+  clampBuildCursor(piece: PieceShape | undefined): void;
   stepTileCursorToward(
     cursor: TilePos,
     targetRow: number,

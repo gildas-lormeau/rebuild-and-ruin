@@ -121,12 +121,12 @@ export function createGameLifecycle(
   // Demo timer (lifecycle-local state — not runtimeState)
   // -------------------------------------------------------------------------
 
-  let demoReturnTimer: number | null = null;
+  let demoReturnTimer: number | undefined;
 
   function clearDemoTimer(): void {
-    if (demoReturnTimer !== null) {
+    if (demoReturnTimer !== undefined) {
       globalThis.clearTimeout(demoReturnTimer);
-      demoReturnTimer = null;
+      demoReturnTimer = undefined;
     }
   }
 
@@ -158,7 +158,7 @@ export function createGameLifecycle(
     if (deps.isAllAi()) {
       demoReturnTimer = Number(
         globalThis.setTimeout(() => {
-          demoReturnTimer = null;
+          demoReturnTimer = undefined;
           if (deps.isModeStopped()) returnToLobby();
         }, DEMO_RETURN_DELAY_MS),
       );

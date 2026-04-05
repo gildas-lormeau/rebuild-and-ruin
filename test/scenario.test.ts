@@ -196,12 +196,12 @@ test("camera stays unzoomed during AI-only reselection", () => {
 
   // Tick camera — phase change to CASTLE_RESELECT should NOT trigger zone zoom
   handle.tick();
-  assertCameraZone(handle, null);
+  assertCameraZone(handle, undefined);
 
   // Even after isSelectionReady becomes true, should not zoom for reselect
   handle.setCtx({ isSelectionReady: true });
   handle.tick();
-  assertCameraZone(handle, null);
+  assertCameraZone(handle, undefined);
 });
 
 // ---------------------------------------------------------------------------
@@ -308,7 +308,7 @@ test("camera zooms to human zone when human IS reselecting", () => {
   handle.tick();
 
   assert(
-    handle.camera.getCameraZone() !== null,
+    handle.camera.getCameraZone() !== undefined,
     "Camera should zoom to human zone when human is reselecting",
   );
 });
@@ -330,13 +330,13 @@ test("camera stays unzoomed when no human player exists", () => {
   });
 
   handle.tick();
-  assertCameraZone(handle, null);
+  assertCameraZone(handle, undefined);
 
   // Transition to battle — still no zoom
   s.state.phase = Phase.BATTLE;
   handle.setCtx({ phase: Phase.BATTLE });
   handle.tick();
-  assertCameraZone(handle, null);
+  assertCameraZone(handle, undefined);
 });
 
 // ---------------------------------------------------------------------------
