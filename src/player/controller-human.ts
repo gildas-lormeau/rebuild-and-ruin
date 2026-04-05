@@ -8,7 +8,6 @@ import { canPlacePiece, placePiece } from "../game/build-system.ts";
 import {
   cannonSlotsUsed,
   canPlaceCannon,
-  findNearestValidCannonPlacement,
   hasAnyCannonPlacement,
   placeCannon,
 } from "../game/cannon-system.ts";
@@ -50,9 +49,6 @@ export class HumanController extends BaseController implements InputReceiver {
 
   /** Cannon placement mode. */
   private cannonPlaceMode: CannonMode = CannonMode.NORMAL;
-  /** When true, the next cannonTick() will snap the cursor to the nearest valid placement.
-   *  Set after mouse/touch cursor placement; consumed (cleared) by snapCannonCursorIfNeeded(). */
-  private shouldSnapCannonCursorNextTick = false;
   /** Actions currently held for continuous crosshair movement. */
   private readonly heldActions = new Set<Action>();
 
@@ -105,22 +101,17 @@ export class HumanController extends BaseController implements InputReceiver {
   }
 
   // --- Cannon cursor state fixups ---
-  // Three operations keep the cursor valid after mode/position changes:
+  // Two operations keep the cursor valid after mode changes:
   //   downgradeCannonModeIfNeeded — revert to NORMAL if slots insufficient
-  //   snapCannonCursorIfNeeded    — nudge to nearest valid tile after mouse/touch
   //   clampCannonCursorToMode     — keep footprint within grid bounds
 
-  /** Atomically resolves cannon placement in order:
-   *  1. Downgrade mode if insufficient slots (must run before validation).
-   *  2. Snap cursor to nearest valid tile (must run before validation).
-   *  3. Validate placement at current cursor. */
+  /** Resolves cannon placement: downgrade mode if needed, then validate. */
   private resolveCannonPlacement(
     remaining: number,
     player: Player,
     state: GameState,
   ): boolean {
     this.downgradeCannonModeIfNeeded(remaining);
-    this.snapCannonCursorIfNeeded(player, state);
     return canPlaceCannon(
       player,
       this.cannonCursor.row,
@@ -139,33 +130,6 @@ export class HumanController extends BaseController implements InputReceiver {
     }
     if (isBalloonMode(this.cannonPlaceMode) && remaining < BALLOON_COST) {
       this.cannonPlaceMode = CannonMode.NORMAL;
-    }
-  }
-
-  /** After mouse/touch cursor set, snap to nearest valid tile if current is invalid. */
-  private snapCannonCursorIfNeeded(player: Player, state: GameState): void {
-    if (!this.shouldSnapCannonCursorNextTick) return;
-    this.shouldSnapCannonCursorNextTick = false;
-    if (
-      canPlaceCannon(
-        player,
-        this.cannonCursor.row,
-        this.cannonCursor.col,
-        this.cannonPlaceMode,
-        state,
-      )
-    )
-      return;
-    const snapped = findNearestValidCannonPlacement(
-      player,
-      this.cannonCursor.row,
-      this.cannonCursor.col,
-      this.cannonPlaceMode,
-      state,
-    );
-    if (snapped) {
-      this.cannonCursor.row = snapped.row;
-      this.cannonCursor.col = snapped.col;
     }
   }
 
@@ -285,7 +249,6 @@ export class HumanController extends BaseController implements InputReceiver {
       this.cannonPlaceMode,
       state,
     );
-    if (placed) this.shouldSnapCannonCursorNextTick = true;
     return placed;
   }
 
@@ -380,7 +343,6 @@ export class HumanController extends BaseController implements InputReceiver {
     super.onLifeLost();
     this.cannonPlaceMode = CannonMode.NORMAL;
     this.heldActions.clear();
-    this.shouldSnapCannonCursorNextTick = false;
   }
 
   /** Reset state for new game. */
@@ -388,7 +350,6 @@ export class HumanController extends BaseController implements InputReceiver {
     super.reset();
     this.cannonPlaceMode = CannonMode.NORMAL;
     this.heldActions.clear();
-    this.shouldSnapCannonCursorNextTick = false;
   }
 }
 
