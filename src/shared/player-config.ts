@@ -67,6 +67,12 @@ const BLUE_INTERIOR_DARK: RGB = [10, 15, 50];
 const GOLD_WALL: RGB = [170, 145, 90];
 const GOLD_INTERIOR_LIGHT: RGB = [190, 130, 20];
 const GOLD_INTERIOR_DARK: RGB = [55, 40, 10];
+/** Ordered action keys for the controls screen (matches KeyBindings fields). */
+const ACTION_UP = "up";
+const ACTION_DOWN = "down";
+const ACTION_LEFT = "left";
+const ACTION_RIGHT = "right";
+const ACTION_ROTATE = "rotate";
 export const KEY_UP = "ArrowUp";
 export const KEY_DOWN = "ArrowDown";
 export const KEY_LEFT = "ArrowLeft";
@@ -135,15 +141,14 @@ export const PLAYER_KEY_BINDINGS: readonly KeyBindings[] = [
   },
 ];
 export const MAX_PLAYERS = PLAYER_NAMES.length;
-/** Ordered action keys for the controls screen (matches KeyBindings fields). */
 export const ACTION_CONFIRM = "confirm";
 export const ACTION_KEYS: readonly (keyof KeyBindings)[] = [
-  "up",
-  "down",
-  "left",
-  "right",
+  ACTION_UP,
+  ACTION_DOWN,
+  ACTION_LEFT,
+  ACTION_RIGHT,
   ACTION_CONFIRM,
-  "rotate",
+  ACTION_ROTATE,
 ];
 export const SEED_RANDOM = "random";
 const DEFAULT_SETTINGS: GameSettings = {
