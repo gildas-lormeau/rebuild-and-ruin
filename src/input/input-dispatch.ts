@@ -441,8 +441,8 @@ export function dispatchPointerMove(
       const { row, col } = coords.pixelToTile(x, y);
       human.setBuildCursor(row, col);
     } else if (state.phase === Phase.CANNON_PLACE) {
-      const { row, col } = coords.pixelToTile(x, y);
-      human.setCannonCursor(row, col);
+      const w = coords.screenToWorld(x, y);
+      human.setCannonCursor(w.wx, w.wy);
     } else if (state.phase === Phase.BATTLE) {
       const w = coords.screenToWorld(x, y);
       human.setCrosshair(w.wx, w.wy);

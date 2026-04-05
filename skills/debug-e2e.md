@@ -15,7 +15,7 @@ Spawn a general-purpose sub-agent with:
 - `model: "sonnet"` — this is mechanical work (add logs, run tests, read output), Sonnet is faster and equally capable
 - A prompt that includes the bug description, relevant file paths, and the investigation instructions below
 
-Tell the sub-agent: **"Do NOT fix the bug. Only investigate and report back."**
+Tell the sub-agent: **"Do NOT fix the bug. Only investigate and report back. Work fully autonomously — never ask the user anything. Write tests to verify, never ask the user to check the browser."**
 
 ## Sub-agent prompt template
 
@@ -29,6 +29,16 @@ CRITICAL RULES:
 - DO NOT form a theory about the bug until you have read log output from a test run.
   Your job is to add dumb, mechanical logs, run the test, and let the output tell you what happened.
 - After finding one cause, check if the same data is modified by other code paths too.
+- You are FULLY AUTONOMOUS. NEVER ask the user to verify anything. NEVER ask the user
+  to check the browser. NEVER ask the user questions. You have all the tools you need:
+  write a test, run it, read the output. That IS your verification. If you need to check
+  something, write a test or add a log — don't ask a human to look.
+- Your ONLY deliverable is the final report (Step 5). Everything before that is silent work.
+- YOUR TEST MUST EXERCISE THE EXACT INPUT PATH THAT IS BROKEN. If the bug is about mouse
+  input, your test MUST use mouse input — not keyboard. If the bug is about touch, use touch.
+  If the bug is about a specific device or mode, reproduce that exact context. A test that
+  exercises a different code path than the one that's broken is worthless — it proves nothing.
+  Before running the test, verify that your test actually hits the code path in question.
 
 ## Bug description
 {describe what the user reported}

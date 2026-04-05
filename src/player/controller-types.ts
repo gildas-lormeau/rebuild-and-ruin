@@ -264,8 +264,8 @@ export abstract class BaseController implements PlayerController {
     this.buildCursor = { row, col };
     if (piece) this.clampBuildCursor(piece);
   }
-  setCannonCursor(row: number, col: number): void {
-    this.cannonCursor = { row, col };
+  setCannonCursor(worldX: number, worldY: number): void {
+    this.cannonCursor = { row: pxToTile(worldY), col: pxToTile(worldX) };
   }
   setCrosshair(x: number, y: number): void {
     this.crosshair = { x, y };

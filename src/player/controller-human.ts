@@ -20,7 +20,13 @@ import {
 } from "../shared/battle-types.ts";
 import { BALLOON_COST, SUPER_GUN_COST } from "../shared/game-constants.ts";
 import { Action } from "../shared/game-phase.ts";
-import { GRID_COLS, GRID_ROWS, MAP_PX_H, MAP_PX_W } from "../shared/grid.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  MAP_PX_H,
+  MAP_PX_W,
+  TILE_SIZE,
+} from "../shared/grid.ts";
 import { rotateCW } from "../shared/pieces.ts";
 import type { KeyBindings } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -163,17 +169,35 @@ export class HumanController extends BaseController implements InputReceiver {
     }
   }
 
-  /** Set cannon cursor from absolute position (mouse/touch click).
-   *  Offsets by floor(cannonSize/2) so the clicked tile lands at the phantom's center.
-   *  Uses floor (not round) to bias top-left for even-sized cannons.
-   *  Contrast with setBuildCursor() which offsets by the piece's pivot point instead. */
-  // Offsets by floor(size/2) — cannons are symmetric squares, bias top-left for even sizes.
-  override setCannonCursor(row: number, col: number): void {
+  /** Set cannon cursor from world-pixel position.
+   *  Converts pixels to the top-left anchor so the cannon phantom is centered
+   *  on the pointer. */
+  override setCannonCursor(worldX: number, worldY: number): void {
     const sz = cannonSize(this.cannonPlaceMode);
-    // Floor (not round) to bias top-left for even sizes, keeping the click inside the phantom
-    const offset = Math.floor(sz / 2);
-    super.setCannonCursor(row - offset, col - offset);
-    this.shouldSnapCannonCursorNextTick = true;
+    const szPx = sz * TILE_SIZE;
+
+    // If the mouse is still inside the current phantom footprint, don't move
+    const left = this.cannonCursor.col * TILE_SIZE;
+    const top = this.cannonCursor.row * TILE_SIZE;
+    if (
+      worldX >= left &&
+      worldX < left + szPx &&
+      worldY >= top &&
+      worldY < top + szPx
+    ) {
+      return;
+    }
+
+    // Mouse exited — recompute anchor centered on the mouse
+    const halfPx = szPx / 2;
+    this.cannonCursor.row = Math.max(
+      0,
+      Math.min(GRID_ROWS - sz, Math.round((worldY - halfPx) / TILE_SIZE)),
+    );
+    this.cannonCursor.col = Math.max(
+      0,
+      Math.min(GRID_COLS - sz, Math.round((worldX - halfPx) / TILE_SIZE)),
+    );
   }
 
   override moveBuildCursor(direction: Action): void {

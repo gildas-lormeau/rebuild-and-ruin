@@ -1174,12 +1174,24 @@ async function simulateHumanPlayLoop(page: Page, label: string, durationMs: numb
     }
 
     if (phase === "CANNON_PLACE") {
-      await page.keyboard.press("n");
-      await page.waitForTimeout(100);
-      const dir = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"][Math.floor(Math.random() * 4)]!;
-      await page.keyboard.press(dir);
-      await page.waitForTimeout(50);
-      await page.keyboard.press("n");
+      // Alternate keyboard and mouse to exercise both cursor paths
+      if (iteration % 2 === 0) {
+        const box = await page.locator("#canvas").boundingBox();
+        if (box) {
+          const mx = box.x + 50 + Math.random() * (box.width - 100);
+          const my = box.y + 50 + Math.random() * (box.height - 100);
+          await page.mouse.move(mx, my);
+          await page.waitForTimeout(50);
+          await page.mouse.click(mx, my);
+        }
+      } else {
+        await page.keyboard.press("n");
+        await page.waitForTimeout(100);
+        const dir = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"][Math.floor(Math.random() * 4)]!;
+        await page.keyboard.press(dir);
+        await page.waitForTimeout(50);
+        await page.keyboard.press("n");
+      }
       if (iteration % 50 === 0) actions.push(`${ts()} ${label}: cannon phase iteration ${iteration}`);
       await page.waitForTimeout(200);
       continue;

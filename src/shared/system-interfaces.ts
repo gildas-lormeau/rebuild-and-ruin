@@ -128,10 +128,9 @@ export interface CannonController {
   /** Move cannon cursor one tile in a direction (keyboard). */
   moveCannonCursor(direction: Action): void;
 
-  /** Set cannon cursor to absolute position (mouse/touch).
-   *  HumanController overrides to offset by half the cannon size so the clicked
-   *  tile lands at the placement preview's center. */
-  setCannonCursor(row: number, col: number): void;
+  /** Set cannon cursor from world-pixel coordinates (mouse/touch).
+   *  HumanController overrides to center the cannon phantom on the pointer. */
+  setCannonCursor(worldX: number, worldY: number): void;
 
   /** Called at start of cannon phase. */
   startCannonPhase(state: GameState): void;
