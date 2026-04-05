@@ -132,19 +132,29 @@ async function run() {
         }, { timeout: 5000 });
 
         const spy = await getSpyLog(game);
-        const houses = countByPrefix(spy, "house");
-        const towers = countByPrefix(spy, "tower_");
-        const grunts = countByPrefix(spy, "grunt_");
+        const counts = {
+          houses: countByPrefix(spy, "house"),
+          towers: countByPrefix(spy, "tower_"),
+          grunts: countByPrefix(spy, "grunt_"),
+          cannons: countByPrefix(spy, "cannon_") + countByPrefix(spy, "super_"),
+        };
 
         console.log(
           `\n  Banner #${bannersCaught}: "${state.phase}" (round=${state.round})`,
         );
         console.log(`    sprites: ${spriteSummary(spy)}`);
 
-        // Only assert entity types that should exist (0 alive = nothing to draw)
-        if (houses > 0) check(`houses drawn`, true, `count=${houses}`);
-        check(`towers drawn`, towers > 0, `count=${towers}`);
-        if (grunts > 0) check(`grunts drawn`, true, `count=${grunts}`);
+        // Towers must always be drawn (they exist from round 1)
+        check(`towers drawn`, counts.towers > 0, `count=${counts.towers}`);
+        // Houses: always present in round 1 (none destroyed yet)
+        if (counts.houses > 0) check(`houses drawn`, true, `count=${counts.houses}`);
+        // Cannons: present from BATTLE banner onward (placed during cannon phase)
+        if (state.phase === "BATTLE" || state.phase === "WALL_BUILD") {
+          check(`cannons drawn`, counts.cannons > 0, `count=${counts.cannons}`);
+        }
+        // Walls are drawn procedurally (fillRect), not via drawSprite — can't check via spy
+        // Grunts: only from round 2+
+        if (counts.grunts > 0) check(`grunts drawn`, true, `count=${counts.grunts}`);
 
         // Wait for banner to end or game over
         await game.setFastMode(true);
@@ -162,12 +172,15 @@ async function run() {
         if (!post || post.gameOver) break;
 
         await game.setFastMode(false);
-        await game.page.waitForTimeout(50);
+        await game.page.waitForFunction(() => {
+          const e2e = (globalThis as unknown as Record<string, unknown>).__e2e as {
+            renderSpy?: unknown[] | null;
+          } | undefined;
+          return e2e?.renderSpy && e2e.renderSpy.length > 0;
+        }, { timeout: 5000 });
         const spyAfter = await getSpyLog(game);
-        const housesAfter = countByPrefix(spyAfter, "house");
         const towersAfter = countByPrefix(spyAfter, "tower_");
         console.log(`    after:   ${spriteSummary(spyAfter)}`);
-        if (housesAfter > 0) check(`houses after`, true, `count=${housesAfter}`);
         check(`towers after`, towersAfter > 0, `count=${towersAfter}`);
 
         await game.setFastMode(true);
