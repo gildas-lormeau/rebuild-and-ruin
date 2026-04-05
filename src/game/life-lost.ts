@@ -45,7 +45,7 @@ export function tickLifeLostDialog(
   if (dialog.timer >= maxTimer) {
     for (const entry of dialog.entries) {
       if (entry.choice === LifeLostChoice.PENDING)
-        entry.choice = LifeLostChoice.CONTINUE;
+        entry.choice = LifeLostChoice.ABANDON;
     }
   }
 
