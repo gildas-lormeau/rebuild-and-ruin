@@ -284,10 +284,7 @@ export class GameRoom {
    *  False for the host — it sends actions on behalf of AI players (non-host-only)
    *  and game-state events like wall_destroyed (host-only) where playerId is the
    *  affected player, not the sender. */
-  private requiresIdentityCheck(
-    senderSocket: WebSocket,
-    _type: string,
-  ): boolean {
+  private requiresIdentityCheck(senderSocket: WebSocket): boolean {
     return senderSocket !== this.hostSocket;
   }
 
@@ -355,7 +352,7 @@ export class GameRoom {
     // ── Stage 2: Identity validation ──
     // Host is exempt: it sends actions on behalf of AI players.
     // Non-host sockets may only send messages for their own playerId.
-    if ("playerId" in msg && this.requiresIdentityCheck(senderSocket, type)) {
+    if ("playerId" in msg && this.requiresIdentityCheck(senderSocket)) {
       const senderPid = this.players.get(senderSocket);
       if (senderPid === undefined) return;
       if (msg.playerId !== senderPid) return;
