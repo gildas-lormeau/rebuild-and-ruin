@@ -52,9 +52,12 @@ import {
 import { isRemoteHuman, resetAccum } from "../shared/tick-context.ts";
 import type { SelectionState } from "../shared/types.ts";
 import { fireOnce } from "../shared/utils.ts";
-import { enterTowerSelection as enterTowerSelectionImpl } from "./runtime-bootstrap.ts";
 import { type RuntimeState, setMode } from "./runtime-state.ts";
-import type { CameraSystem, RuntimeSelection } from "./runtime-types.ts";
+import type {
+  CameraSystem,
+  EnterTowerSelectionDeps,
+  RuntimeSelection,
+} from "./runtime-types.ts";
 
 interface SelectionSystemDeps {
   runtimeState: RuntimeState;
@@ -85,6 +88,10 @@ interface SelectionSystemDeps {
   render: () => void;
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
   startCannonPhase: (onBannerDone?: () => void) => void;
+  /** Tower-selection entry procedure (injected from runtime-bootstrap). */
+  enterTowerSelectionImpl: (deps: EnterTowerSelectionDeps) => void;
+  /** Clear stale banner snapshots when selection state is reset (e.g. after life lost). */
+  clearBannerSnapshots: () => void;
 
   /**
    * Called once during enterTowerSelection — kicks off the animation loop
@@ -107,8 +114,7 @@ export function createSelectionSystem(
     runtimeState.selectionStates.clear();
     runtimeState.reselectionPids = [];
     resetOverlaySelection();
-    runtimeState.banner.wallsBeforeSweep = undefined;
-    runtimeState.banner.prevCastles = undefined;
+    deps.clearBannerSnapshots();
   }
 
   // -------------------------------------------------------------------------
@@ -134,7 +140,7 @@ export function createSelectionSystem(
 
   function enterTowerSelection(): void {
     resetSelectionState();
-    enterTowerSelectionImpl({
+    deps.enterTowerSelectionImpl({
       state: runtimeState.state,
       isHost: runtimeState.frameMeta.hostAtFrameStart,
       myPlayerId: runtimeState.frameMeta.myPlayerId,

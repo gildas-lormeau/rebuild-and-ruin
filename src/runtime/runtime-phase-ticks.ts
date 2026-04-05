@@ -62,9 +62,7 @@ import { Mode } from "../shared/game-phase.ts";
 import { NOOP_DEDUP_CHANNEL } from "../shared/phantom-types.ts";
 import {
   type HapticsSystem,
-  type InputReceiver,
   isHuman,
-  type PlayerController,
   type SoundSystem,
 } from "../shared/system-interfaces.ts";
 import {
@@ -101,7 +99,6 @@ interface PhaseTicksDeps
 
   // Sibling systems / parent callbacks
   render: () => void;
-  pointerPlayer: () => (PlayerController & InputReceiver) | null;
   showBanner: (
     text: string,
     onDone: () => void,

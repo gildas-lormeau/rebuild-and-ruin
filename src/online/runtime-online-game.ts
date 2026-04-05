@@ -261,8 +261,6 @@ export function initOnlineRuntime(): void {
     client: defaultClient,
   });
 
-  runtime.registerInputHandlers();
-
   document.addEventListener(GAME_EXIT_EVENT, () => {
     setMode(runtime.runtimeState, Mode.STOPPED);
     runtime.runtimeState.lobby.active = false;
@@ -394,6 +392,7 @@ function showWaitingRoom(code: string, seed: number): void {
     lobby: runtime.runtimeState.lobby,
     maxPlayers: MAX_PLAYERS,
     now: () => performance.now(),
+    log: devLog,
     setLobbyStartTime: (timestamp: number) => {
       ctx.session.lobbyStartTime = timestamp;
     },

@@ -3,13 +3,6 @@ import type {
   LobbyClickHitTestFn,
   LobbyHit,
 } from "../render/render-composition.ts";
-import type {
-  CreateLobbyOverlayFn,
-  LobbyKeyJoinFn,
-  LobbySkipStepFn,
-  TickLobbyFn,
-  UIContext,
-} from "../render/screen-builders.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import { CANVAS_H, CANVAS_W, TILE_SIZE } from "../shared/grid.ts";
 import type { RenderOverlay } from "../shared/overlay-types.ts";
@@ -20,6 +13,13 @@ import {
 } from "../shared/platform.ts";
 import { MAX_PLAYERS } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import type {
+  CreateLobbyOverlayFn,
+  LobbyKeyJoinFn,
+  LobbySkipStepFn,
+  TickLobbyFn,
+  UIContext,
+} from "../shared/screen-builders.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
 interface LobbySystemDeps {

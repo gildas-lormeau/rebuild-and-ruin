@@ -73,8 +73,6 @@ export function enterLocalLobby(): void {
   void atlasReady.then(() => showLobby());
 }
 
-runtime.registerInputHandlers();
-
 document.addEventListener(GAME_EXIT_EVENT, () => {
   setMode(runtime.runtimeState, Mode.STOPPED);
 });

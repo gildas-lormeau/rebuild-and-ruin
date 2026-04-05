@@ -3,16 +3,16 @@
  * Used by both main.ts and online-client.ts.
  */
 
-import type { ControlsState } from "../shared/dialog-types.ts";
+import type { ControlsState } from "./dialog-types";
 import {
   GAME_MODE_MODERN,
   LOBBY_SKIP_LOCKOUT,
   LOBBY_SKIP_STEP,
-} from "../shared/game-constants.ts";
-import { isInteractiveMode, Mode } from "../shared/game-phase.ts";
-import type { GameMap } from "../shared/geometry-types.ts";
-import type { OptionEntry, RenderOverlay } from "../shared/overlay-types.ts";
-import { IS_TOUCH_DEVICE } from "../shared/platform.ts";
+} from "./game-constants";
+import { isInteractiveMode, Mode } from "./game-phase";
+import type { GameMap } from "./geometry-types";
+import type { OptionEntry, RenderOverlay } from "./overlay-types";
+import { IS_TOUCH_DEVICE } from "./platform";
 import {
   ACTION_KEYS,
   createLobbyConfirmKeys,
@@ -23,8 +23,8 @@ import {
   PLAYER_NAMES,
   SEED_CUSTOM,
   saveSettings,
-} from "../shared/player-config.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+} from "./player-config";
+import type { ValidPlayerSlot } from "./player-slot";
 import {
   CANNON_HP_OPTIONS,
   DIFFICULTY_LABELS,
@@ -43,9 +43,9 @@ import {
   OPTION_NAMES,
   ROUNDS_OPTIONS,
   SOUND_LABELS,
-} from "../shared/settings-defs.ts";
-import { type GameState, type LobbyState } from "../shared/types.ts";
-import { formatKeyName } from "./settings-ui.ts";
+} from "./settings-defs";
+import { formatKeyName } from "./settings-ui";
+import { type GameState, type LobbyState } from "./types";
 
 export interface UIContext {
   getState: () => GameState | undefined;

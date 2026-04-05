@@ -56,14 +56,14 @@
       "src/shared/theme.ts",
       "src/shared/overlay-types.ts",
       "src/shared/phantom-types.ts",
-      "src/shared/tick-context.ts"
+      "src/shared/tick-context.ts",
+      "src/shared/settings-ui.ts",
+      "src/shared/screen-builders.ts"
     ]
   },
   {
     "name": "runtime primitives",
     "files": [
-      "src/render/settings-ui.ts",
-      "src/render/screen-builders.ts",
       "src/runtime/runtime-touch-ui.ts",
       "src/runtime/runtime-state.ts",
       "src/runtime/runtime-banner.ts",
@@ -166,6 +166,16 @@
     ]
   },
   {
+    "name": "runtime sub-systems",
+    "files": [
+      "src/runtime/runtime-selection.ts",
+      "src/runtime/runtime-input.ts",
+      "src/runtime/runtime-lobby.ts",
+      "src/runtime/runtime-options.ts",
+      "src/runtime/runtime-render.ts"
+    ]
+  },
+  {
     "name": "online infrastructure",
     "files": [
       "src/online/online-config.ts",
@@ -196,11 +206,6 @@
   {
     "name": "local runtime",
     "files": [
-      "src/runtime/runtime-lobby.ts",
-      "src/runtime/runtime-options.ts",
-      "src/runtime/runtime-input.ts",
-      "src/runtime/runtime-render.ts",
-      "src/runtime/runtime-selection.ts",
       "src/runtime/runtime.ts"
     ]
   },

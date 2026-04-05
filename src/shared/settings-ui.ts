@@ -3,17 +3,14 @@
  * Settings persistence (load/save) lives in player-config.ts alongside GameSettings.
  */
 
-import {
-  GAME_MODE_CLASSIC,
-  GAME_MODE_MODERN,
-} from "../shared/game-constants.ts";
+import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "./game-constants";
 import {
   type GameSettings,
   KEY_DOWN,
   KEY_LEFT,
   KEY_RIGHT,
   KEY_UP,
-} from "../shared/player-config.ts";
+} from "./player-config";
 import {
   CANNON_HP_OPTIONS,
   DIFFICULTY_LABELS,
@@ -27,7 +24,7 @@ import {
   OPT_SOUND,
   ROUNDS_OPTIONS,
   SOUND_LABELS,
-} from "../shared/settings-defs.ts";
+} from "./settings-defs";
 
 export type CycleOptionFn = (
   dir: number,

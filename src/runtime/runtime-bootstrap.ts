@@ -13,11 +13,7 @@ import {
   MAX_PLAYERS,
   PLAYER_KEY_BINDINGS,
 } from "../shared/player-config.ts";
-import {
-  isActivePlayer,
-  type PlayerSlotId,
-  type ValidPlayerSlot,
-} from "../shared/player-slot.ts";
+import { isActivePlayer, type ValidPlayerSlot } from "../shared/player-slot.ts";
 import { MAX_UINT32 } from "../shared/rng.ts";
 import { GAME_CONTAINER_ACTIVE } from "../shared/router.ts";
 import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "../shared/settings-defs.ts";
@@ -26,10 +22,10 @@ import { isRemoteHuman } from "../shared/tick-context.ts";
 import {
   type GameState,
   type LobbyState,
-  type SelectionState,
   setGameMode,
 } from "../shared/types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
+import type { EnterTowerSelectionDeps } from "./runtime-types.ts";
 
 interface InitWaitingRoomDeps {
   seed: number;
@@ -38,30 +34,11 @@ interface InitWaitingRoomDeps {
   lobby: LobbyState;
   maxPlayers: number;
   now: () => number;
+  log: (msg: string) => void;
   setLobbyStartTime: (timeMs: number) => void;
   setModeLobby: () => void;
   setLastTime: (timeMs: number) => void;
   requestFrame: () => void;
-}
-
-interface EnterTowerSelectionDeps {
-  state: GameState;
-  isHost: boolean;
-  myPlayerId: PlayerSlotId;
-  remoteHumanSlots: ReadonlySet<number>;
-  controllers: PlayerController[];
-  selectionStates: Map<number, SelectionState>;
-  initTowerSelection: (playerId: ValidPlayerSlot, zone: number) => void;
-  syncSelectionOverlay: () => void;
-  setOverlaySelection: () => void;
-  selectTimer: number;
-  accum: { select: number };
-  enterCastleReselectPhase: (state: GameState) => void;
-  now: () => number;
-  setModeSelection: () => void;
-  setLastTime: (timeMs: number) => void;
-  requestFrame: () => void;
-  log: (msg: string) => void;
 }
 
 interface InitGameDeps {
@@ -107,6 +84,7 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
     maxPlayers,
     now,
     setLobbyStartTime,
+    log,
     setModeLobby,
     setLastTime,
     requestFrame,
@@ -116,7 +94,7 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
   container.classList.add(GAME_CONTAINER_ACTIVE);
 
   lobby.seed = seed;
-  console.log("[online] seed:", seed);
+  log(`[online] seed: ${seed}`);
   lobby.map = generateMap(seed);
   lobby.joined = new Array(maxPlayers).fill(false);
   lobby.active = true;

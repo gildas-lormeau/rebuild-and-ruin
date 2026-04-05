@@ -13,7 +13,7 @@ Complements `/code-review` which works per-pass on a scoped file set.
 ## Domain clusters
 
 Each domain is a group of tightly related files that share responsibility for a subsystem.
-Domains map to the 18 layer groups in `.import-layers.json` (L0–L17), with small layers
+Domains map to the 19 layer groups in `.import-layers.json` (L0–L18), with small layers
 combined and large layers (>10 files) split into sub-domains at audit time.
 
 ### 1. Leaf utilities — L0 (15 files)
@@ -33,18 +33,19 @@ src/shared/spatial.ts, src/shared/board-occupancy.ts, src/shared/checkpoint-data
 server/protocol.ts
 ```
 
-### 3. Shared types & config — L4 (11 files)
+### 3. Shared types & config — L4 (13 files)
 ```
 src/game/phase-transition-shared.ts, src/shared/player-config.ts,
 src/shared/system-interfaces.ts, src/game/life-lost.ts, src/game/upgrade-pick.ts,
 src/game/castle-build.ts, src/game/phase-banner.ts, src/shared/theme.ts,
-src/shared/overlay-types.ts, src/shared/phantom-types.ts, src/shared/tick-context.ts
+src/shared/overlay-types.ts, src/shared/phantom-types.ts, src/shared/tick-context.ts,
+src/shared/settings-ui.ts, src/shared/screen-builders.ts
 ```
 
-### 4. Runtime primitives — L5 (12 files)
+### 4. Runtime primitives — L5 (10 files)
 ```
-src/render/settings-ui.ts, src/render/screen-builders.ts, src/runtime/runtime-touch-ui.ts,
-src/runtime/runtime-state.ts, src/runtime/runtime-banner.ts, src/runtime/runtime-human.ts,
+src/runtime/runtime-touch-ui.ts, src/runtime/runtime-state.ts,
+src/runtime/runtime-banner.ts, src/runtime/runtime-human.ts,
 src/runtime/runtime-types.ts, src/runtime/runtime-camera.ts,
 src/runtime/runtime-test-globals.ts, src/runtime/runtime-score-deltas.ts,
 src/runtime/runtime-upgrade-pick.ts, src/runtime/runtime-game-lifecycle.ts
@@ -100,14 +101,21 @@ src/render/render-ui.ts, src/render/render-ui-settings.ts, src/render/render-map
 src/render/render-canvas.ts
 ```
 
-### 12. Online infrastructure — L13 (6 files)
+### 12. Runtime sub-systems — L13 (5 files)
+```
+src/runtime/runtime-selection.ts, src/runtime/runtime-input.ts,
+src/runtime/runtime-lobby.ts, src/runtime/runtime-options.ts,
+src/runtime/runtime-render.ts
+```
+
+### 13. Online infrastructure — L14 (6 files)
 ```
 src/online/online-config.ts, src/online/online-types.ts, src/online/online-lobby-ui.ts,
 src/online/online-server-lifecycle.ts, src/online/online-session.ts,
 server/game-room.ts
 ```
 
-### 13. Online logic — L14 (12 files)
+### 14. Online logic — L15 (12 files)
 ```
 src/online/online-serialize.ts, src/online/online-full-state-recovery.ts,
 src/online/online-send-actions.ts, src/online/online-checkpoints.ts,
@@ -117,21 +125,19 @@ src/online/online-host-crosshairs.ts, src/online/online-host-promotion.ts,
 src/online/online-stores.ts, server/room-manager.ts
 ```
 
-### 14. Local runtime — L15 (6 files)
+### 15. Local runtime — L16 (1 file)
 ```
-src/runtime/runtime-lobby.ts, src/runtime/runtime-options.ts,
-src/runtime/runtime-input.ts, src/runtime/runtime-render.ts,
-src/runtime/runtime-selection.ts, src/runtime/runtime.ts
+src/runtime/runtime.ts
 ```
 
-### 15. Online runtime — L16 (5 files)
+### 16. Online runtime — L17 (5 files)
 ```
 src/online/runtime-online-game.ts, src/online/runtime-online-deps.ts,
 src/online/runtime-online-promote.ts, src/online/runtime-online-ws.ts,
 src/online/runtime-online-lobby.ts
 ```
 
-### 16. Entry points & server — L17 (4 files)
+### 17. Entry points & server — L18 (4 files)
 ```
 src/entry.ts, src/main.ts, src/online-client.ts,
 server/server.ts
@@ -358,7 +364,7 @@ sufficient for LLM agents to follow correctly.
     Do not unify — they serve different network patterns (accumulated vs fire-and-forget).
 
 28. **`optionsUI.returnMode` null=lobby (editable), non-null=in-game (read-only)** —
-    runtime/runtime-state.ts OptionsUIState JSDoc documents the inverse semantics. render/settings-ui.ts:114
+    runtime/runtime-state.ts OptionsUIState JSDoc documents the inverse semantics. shared/settings-ui.ts:114
     @param JSDoc repeats it. The value when non-null is the Mode to return to on close.
 
 29. **`modeTickers` is exhaustively typed via `satisfies`** — runtime/runtime.ts:184 uses

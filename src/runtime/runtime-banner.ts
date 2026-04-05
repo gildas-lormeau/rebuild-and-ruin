@@ -38,6 +38,9 @@ interface BannerSystem {
     subtitle?: string,
   ) => void;
   tickBanner: (dt: number) => void;
+  /** Clear stale snapshot data (wallsBeforeSweep, prevCastles) — called
+   *  when selection state is reset (e.g. after losing a life). */
+  clearSnapshots: () => void;
   /** Reset banner state for game restart / rematch. */
   reset: () => void;
 }
@@ -80,9 +83,14 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     tickBannerTransition(runtimeState.banner, dt, BANNER_DURATION, render);
   }
 
+  function clearSnapshots(): void {
+    runtimeState.banner.wallsBeforeSweep = undefined;
+    runtimeState.banner.prevCastles = undefined;
+  }
+
   function reset(): void {
     runtimeState.banner = createBannerState();
   }
 
-  return { showBanner, tickBanner, reset };
+  return { showBanner, tickBanner, clearSnapshots, reset };
 }

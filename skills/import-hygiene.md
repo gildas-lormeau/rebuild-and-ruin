@@ -54,7 +54,7 @@ The layer map file. Committed to the repo. An array of named groups — position
 
 **Rule: imports must flow downward.** A file in group N can import from any group 0..N. Importing from group N+1 or higher is a violation.
 
-**Current architecture (18 groups, 0 violations, ~134 files incl. server):**
+**Current architecture (19 groups, 0 violations, ~134 files incl. server):**
 
 Files are organized into domain directories under `src/`: `shared/`, `game/`, `ai/`, `player/`,
 `input/`, `render/`, `online/`, `runtime/`, with entry points at `src/` root.
@@ -73,9 +73,10 @@ Files are organized into domain directories under `src/`: `shared/`, `game/`, `a
  4  shared types & config       game/phase-transition-shared, shared/player-config,
                                 shared/system-interfaces, game/life-lost, game/upgrade-pick,
                                 game/castle-build, game/phase-banner, shared/theme,
-                                shared/overlay-types, shared/phantom-types, shared/tick-context
- 5  runtime primitives          render/settings-ui, render/screen-builders, runtime/runtime-touch-ui,
-                                runtime/runtime-state, runtime/runtime-banner, runtime/runtime-human,
+                                shared/overlay-types, shared/phantom-types, shared/tick-context,
+                                shared/settings-ui, shared/screen-builders
+ 5  runtime primitives          runtime/runtime-touch-ui, runtime/runtime-state,
+                                runtime/runtime-banner, runtime/runtime-human,
                                 runtime/runtime-types, runtime/runtime-camera,
                                 runtime/runtime-test-globals, runtime/runtime-score-deltas,
                                 runtime/runtime-upgrade-pick, runtime/runtime-game-lifecycle
@@ -99,22 +100,23 @@ Files are organized into domain directories under `src/`: `shared/`, `game/`, `a
                                 render/render-towers, render/render-composition, render/render-ui-theme,
                                 render/render-ui, render/render-ui-settings, render/render-map,
                                 render/render-canvas
-13  online infrastructure       online/online-config, online/online-types, online/online-lobby-ui,
+13  runtime sub-systems         runtime/runtime-selection, runtime/runtime-input,
+                                runtime/runtime-lobby, runtime/runtime-options,
+                                runtime/runtime-render
+14  online infrastructure       online/online-config, online/online-types, online/online-lobby-ui,
                                 online/online-server-lifecycle, online/online-session,
                                 server/game-room
-14  online logic                online/online-serialize, online/online-full-state-recovery,
+15  online logic                online/online-serialize, online/online-full-state-recovery,
                                 online/online-send-actions, online/online-checkpoints,
                                 online/online-watcher-battle, online/online-watcher-tick,
                                 online/online-phase-transitions, online/online-server-events,
                                 online/online-host-crosshairs, online/online-host-promotion,
                                 online/online-stores, server/room-manager
-15  local runtime               runtime/runtime-lobby, runtime/runtime-options,
-                                runtime/runtime-input, runtime/runtime-render,
-                                runtime/runtime-selection, runtime/runtime
-16  online runtime              online/runtime-online-game, online/runtime-online-deps,
+16  local runtime               runtime/runtime
+17  online runtime              online/runtime-online-game, online/runtime-online-deps,
                                 online/runtime-online-promote, online/runtime-online-ws,
                                 online/runtime-online-lobby
-17  entry points                entry, main, online-client, server/server
+18  entry points                entry, main, online-client, server/server
 ```
 
 When a new file is added but not yet in `.import-layers.json`, `--check` warns and treats it as layer 0 (maximally strict). Regenerate to pick up new files, then move them to the right group.

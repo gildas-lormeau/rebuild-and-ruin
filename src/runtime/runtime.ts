@@ -42,6 +42,17 @@ import {
   controlsScreenHitTest,
   optionsScreenHitTest,
 } from "../render/render-ui-settings.ts";
+import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/dialog-types.ts";
+import {
+  MAX_FRAME_DT,
+  SELECT_ANNOUNCEMENT_DURATION,
+} from "../shared/game-constants.ts";
+import { Mode, Phase } from "../shared/game-phase.ts";
+import type { GameMap, Viewport } from "../shared/geometry-types.ts";
+import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
+import type { RenderOverlay } from "../shared/overlay-types.ts";
+import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform.ts";
+import { computeGameSeed } from "../shared/player-config.ts";
 import {
   closeControls,
   closeOptions,
@@ -56,21 +67,13 @@ import {
   togglePause,
   type UIContext,
   visibleOptions,
-} from "../render/screen-builders.ts";
-import { cycleOption } from "../render/settings-ui.ts";
-import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/dialog-types.ts";
-import {
-  MAX_FRAME_DT,
-  SELECT_ANNOUNCEMENT_DURATION,
-} from "../shared/game-constants.ts";
-import { Mode, Phase } from "../shared/game-phase.ts";
-import type { GameMap, Viewport } from "../shared/geometry-types.ts";
-import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
-import type { RenderOverlay } from "../shared/overlay-types.ts";
-import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform.ts";
-import { computeGameSeed } from "../shared/player-config.ts";
+} from "../shared/screen-builders.ts";
+import { cycleOption } from "../shared/settings-ui.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
-import { bootstrapNewGameFromSettings } from "./runtime-bootstrap.ts";
+import {
+  bootstrapNewGameFromSettings,
+  enterTowerSelection,
+} from "./runtime-bootstrap.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import {
   buildLifecycleDeps,
@@ -79,7 +82,7 @@ import {
   GAME_OVER_REMATCH,
 } from "./runtime-game-lifecycle.ts";
 import { createPointerPlayerLookup } from "./runtime-human.ts";
-import { createInputSystem } from "./runtime-input.ts";
+import { createInputSystem, type TouchHandles } from "./runtime-input.ts";
 import {
   createLifeLostSystem,
   type LifeLostSystem,
@@ -125,17 +128,23 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const sound = createSoundSystem();
   sound.setLevel(runtimeState.settings.sound);
 
-  // Input system owns touch handles — created early so render, options,
-  // and lifecycle can read via input.getTouch(). Event handler registration
-  // is deferred to registerInputHandlers() once all deps are available.
-  const input = createInputSystem();
+  // Touch handles created early — render, options, and lifecycle read them
+  // via closure. Populated later when createInputSystem() wires DOM handlers.
+  const touchHandles: TouchHandles = {
+    dpad: null,
+    floatingActions: null,
+    homeZoomButton: null,
+    enemyZoomButton: null,
+    quitButton: null,
+    loupeHandle: null,
+  };
 
   /** Refresh lobby seed + map preview only if the seed changed. */
   function refreshLobbySeed(): void {
     const newSeed = computeGameSeed(runtimeState.settings);
     if (newSeed !== runtimeState.lobby.seed) {
       runtimeState.lobby.seed = newSeed;
-      console.log("[lobby] seed:", newSeed);
+      config.log(`[lobby] seed: ${newSeed}`);
       runtimeState.lobby.map = generateMap(newSeed);
       precomputeTerrainCache(runtimeState.lobby.map);
     }
@@ -305,6 +314,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const {
     showBanner,
     tickBanner,
+    clearSnapshots: clearBannerSnapshots,
     reset: resetBanner,
   } = createBannerSystem({
     runtimeState,
@@ -330,6 +340,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render: () => render(),
     pointerPlayer,
     startCannonPhase: (onDone) => phaseTicks.startCannonPhase(onDone),
+    enterTowerSelectionImpl: enterTowerSelection,
+    clearBannerSnapshots,
     requestFrame: () => {
       if (runtimeState.mode === Mode.STOPPED) requestAnimationFrame(mainLoop);
     },
@@ -353,7 +365,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     getLifeLostPanelPos: (pid) => lifeLost.panelPos(pid),
     updateViewport,
     pointerPlayer,
-    getTouch: input.getTouch,
+    getTouch: () => touchHandles,
     worldToScreen: camera.worldToScreen,
     screenToContainerCSS: renderer.screenToContainerCSS,
     getContainerHeight: () => gameContainer.clientHeight,
@@ -387,7 +399,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       getUpgradePick: () => upgradePick,
       scoreDelta,
       sound,
-      input,
+      input: {
+        resetForLobby: (rs) => input.resetForLobby(rs),
+      },
       resolveGameOverAction: (canvasX, canvasY) => {
         const gameOver = runtimeState.frame.gameOver;
         if (!gameOver) return null;
@@ -451,7 +465,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     tickNonHost: config.onlineConfig?.tickNonHost,
     everyTick: config.onlineConfig?.everyTick,
     render,
-    pointerPlayer,
     showBanner,
     lifeLost,
     scoreDelta,
@@ -509,8 +522,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     renderFrame,
     // Bridge boolean enable to dpad's Phase|null API (WALL_BUILD = any non-selection phase)
     updateDpad: (enabled) =>
-      input.getTouch().dpad?.update(enabled ? Phase.WALL_BUILD : null),
-    setDpadLeftHanded: (left) => input.getTouch().dpad?.setLeftHanded(left),
+      touchHandles.dpad?.update(enabled ? Phase.WALL_BUILD : null),
+    setDpadLeftHanded: (left) => touchHandles.dpad?.setLeftHanded(left),
     refreshLobbySeed,
     sound,
     haptics,
@@ -549,74 +562,74 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
 
   // -------------------------------------------------------------------------
-  // Input registration closure (all deps available, deferred to caller)
+  // Input sub-system (all deps now available — standard factory pattern)
   // -------------------------------------------------------------------------
 
-  const registerInputHandlers = () =>
-    input.register({
-      runtimeState,
-      renderer,
-      gameContainer,
-      hitTests: {
-        lifeLostDialogClick: (screenX, screenY) => {
-          if (!runtimeState.lifeLostDialog) return null;
-          return handleLifeLostDialogClick({
-            state: runtimeState.state,
-            lifeLostDialog: runtimeState.lifeLostDialog,
-            screenX,
-            screenY,
-          });
-        },
-        upgradePickClick: (screenX, screenY) => {
-          if (!runtimeState.upgradePickDialog) return null;
-          return handleUpgradePickClick({
-            W: MAP_PX_W,
-            H: MAP_PX_H,
-            dialog: runtimeState.upgradePickDialog,
-            screenX,
-            screenY,
-          });
-        },
-        visibleOptionCount: () => visibleOptions(uiCtx).length,
+  const input = createInputSystem({
+    touchHandles,
+    runtimeState,
+    renderer,
+    gameContainer,
+    hitTests: {
+      lifeLostDialogClick: (screenX, screenY) => {
+        if (!runtimeState.lifeLostDialog) return null;
+        return handleLifeLostDialogClick({
+          state: runtimeState.state,
+          lifeLostDialog: runtimeState.lifeLostDialog,
+          screenX,
+          screenY,
+        });
       },
-      network: {
-        isOnline,
-        maybeSendAimUpdate: config.onlineConfig?.maybeSendAimUpdate,
-        tryPlaceCannonAndSend: config.onlineConfig?.tryPlaceCannonAndSend,
-        tryPlacePieceAndSend: config.onlineConfig?.tryPlacePieceAndSend,
-        fireAndSend: config.onlineConfig?.fireAndSend,
-        getIsHost: config.getIsHost,
+      upgradePickClick: (screenX, screenY) => {
+        if (!runtimeState.upgradePickDialog) return null;
+        return handleUpgradePickClick({
+          W: MAP_PX_W,
+          H: MAP_PX_H,
+          dialog: runtimeState.upgradePickDialog,
+          screenX,
+          screenY,
+        });
       },
-      lobby,
-      options,
-      lifeLost,
-      upgradePick,
-      selection: { ...selection, isReady: isSelectionReady },
-      camera,
-      sound,
-      haptics,
-      inputHandlers: {
-        dispatchPointerMove,
-        registerKeyboard: registerKeyboardHandlers,
-        registerMouse: registerMouseHandlers,
-        registerTouch: registerTouchHandlers,
-      },
-      touchFactories: {
-        createDpad,
-        createQuitButton,
-        createHomeZoomButton,
-        createEnemyZoomButton,
-        createFloatingActions,
-      },
-      lifecycle: {
-        render,
-        rematch: lifecycle.rematch,
-        returnToLobby: lifecycle.returnToLobby,
-        gameOverClick: lifecycle.gameOverClick,
-      },
-      pointerPlayer,
-      withPointerPlayer,
-    });
+      visibleOptionCount: () => visibleOptions(uiCtx).length,
+    },
+    network: {
+      isOnline,
+      maybeSendAimUpdate: config.onlineConfig?.maybeSendAimUpdate,
+      tryPlaceCannonAndSend: config.onlineConfig?.tryPlaceCannonAndSend,
+      tryPlacePieceAndSend: config.onlineConfig?.tryPlacePieceAndSend,
+      fireAndSend: config.onlineConfig?.fireAndSend,
+      getIsHost: config.getIsHost,
+    },
+    lobby,
+    options,
+    lifeLost,
+    upgradePick,
+    selection: { ...selection, isReady: isSelectionReady },
+    camera,
+    sound,
+    haptics,
+    inputHandlers: {
+      dispatchPointerMove,
+      registerKeyboard: registerKeyboardHandlers,
+      registerMouse: registerMouseHandlers,
+      registerTouch: registerTouchHandlers,
+    },
+    touchFactories: {
+      createDpad,
+      createQuitButton,
+      createHomeZoomButton,
+      createEnemyZoomButton,
+      createFloatingActions,
+    },
+    lifecycle: {
+      render,
+      rematch: lifecycle.rematch,
+      returnToLobby: lifecycle.returnToLobby,
+      gameOverClick: lifecycle.gameOverClick,
+    },
+    pointerPlayer,
+    withPointerPlayer,
+  });
 
   // -------------------------------------------------------------------------
   // Return the runtime object
@@ -650,7 +663,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     mainLoop,
     clearFrameData,
     render,
-    registerInputHandlers,
     showBanner,
     snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     aimAtEnemyCastle: camera.aimAtEnemyCastle,

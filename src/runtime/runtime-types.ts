@@ -84,6 +84,7 @@ import type {
   ControllerIdentity,
   HapticsSystem,
   InputReceiver,
+  PlayerController,
   SoundSystem,
 } from "../shared/system-interfaces.ts";
 import type { WatcherTimingState } from "../shared/tick-context.ts";
@@ -242,6 +243,29 @@ export interface CameraSystem {
   resetBattleCrosshair: () => void;
 }
 
+/** Deps bag for the tower-selection entry procedure.
+ *  Shared between runtime-bootstrap (implementation) and
+ *  runtime-selection (caller via injected dep). */
+export interface EnterTowerSelectionDeps {
+  state: GameState;
+  isHost: boolean;
+  myPlayerId: PlayerSlotId;
+  remoteHumanSlots: ReadonlySet<number>;
+  controllers: PlayerController[];
+  selectionStates: Map<number, SelectionState>;
+  initTowerSelection: (playerId: ValidPlayerSlot, zone: number) => void;
+  syncSelectionOverlay: () => void;
+  setOverlaySelection: () => void;
+  selectTimer: number;
+  accum: { select: number };
+  enterCastleReselectPhase: (state: GameState) => void;
+  now: () => number;
+  setModeSelection: () => void;
+  setLastTime: (timeMs: number) => void;
+  requestFrame: () => void;
+  log: (msg: string) => void;
+}
+
 export interface RuntimeSelection {
   getStates: () => Map<number, SelectionState>;
   init: (pid: ValidPlayerSlot, zone: number) => void;
@@ -325,7 +349,6 @@ export interface GameRuntime {
   mainLoop: (now: number) => void;
   clearFrameData: () => void;
   render: () => void;
-  registerInputHandlers: () => void;
 
   /** Show a full-screen banner. `onDone` is invoked exactly once when the banner finishes. */
   showBanner: (

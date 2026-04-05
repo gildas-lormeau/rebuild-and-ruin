@@ -27,6 +27,8 @@
       "src/shared/dialog-types.ts",
       "src/shared/upgrade-defs.ts",
       "src/shared/settings-defs.ts",
+      "src/shared/settings-ui.ts",
+      "src/shared/screen-builders.ts",
       "server/protocol.ts"
     ],
     "game": [
@@ -93,9 +95,7 @@
       "src/render/render-ui.ts",
       "src/render/render-ui-settings.ts",
       "src/render/render-map.ts",
-      "src/render/render-canvas.ts",
-      "src/render/settings-ui.ts",
-      "src/render/screen-builders.ts"
+      "src/render/render-canvas.ts"
     ],
     "online": [
       "src/online/online-dom.ts",

@@ -9,18 +9,6 @@ import type {
   ControlsScreenHitTestFn,
   OptionsScreenHitTestFn,
 } from "../render/render-ui-settings.ts";
-import type {
-  CloseControlsFn,
-  CloseOptionsFn,
-  CreateControlsOverlayFn,
-  CreateOptionsOverlayFn,
-  ShowControlsFn,
-  ShowOptionsFn,
-  TogglePauseFn,
-  UIContext,
-  VisibleOptionsFn,
-} from "../render/screen-builders.ts";
-import type { CycleOptionFn } from "../render/settings-ui.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
 import type { RenderOverlay } from "../shared/overlay-types.ts";
@@ -35,12 +23,24 @@ import {
   MAX_SEED_LENGTH,
   SEED_CUSTOM,
 } from "../shared/player-config.ts";
+import type {
+  CloseControlsFn,
+  CloseOptionsFn,
+  CreateControlsOverlayFn,
+  CreateOptionsOverlayFn,
+  ShowControlsFn,
+  ShowOptionsFn,
+  TogglePauseFn,
+  UIContext,
+  VisibleOptionsFn,
+} from "../shared/screen-builders.ts";
 import {
   HIT_ARROW,
   HIT_CLOSE,
   OPT_CONTROLS,
   OPT_SEED,
 } from "../shared/settings-defs.ts";
+import type { CycleOptionFn } from "../shared/settings-ui.ts";
 import type {
   HapticsSystem,
   SoundSystem,
@@ -130,10 +130,6 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
       el.value = digits;
       runtimeState.settings.seedMode = SEED_CUSTOM;
       runtimeState.settings.seed = digits;
-    });
-    el.addEventListener("blur", () => {
-      // If seed is empty after blur, stay in custom mode with empty seed
-      // (user can switch back to random via arrows)
     });
     document.body.appendChild(el);
     seedInput = el;
