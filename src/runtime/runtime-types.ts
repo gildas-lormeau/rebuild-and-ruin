@@ -175,7 +175,7 @@ export interface RuntimeConfig {
   logThrottled: (key: string, msg: string) => void;
   /** Different formula per mode. */
   getLobbyRemaining: () => number;
-  /** URL-based rounds override (e.g. ?rounds=3). 0 = no override. Injected for testability. */
+  /** URL-based rounds override (e.g. ?rounds=3). 0 = no override. */
   getUrlRoundsOverride: () => number;
   /** Each mode provides its own. */
   showLobby: () => void;
@@ -263,7 +263,6 @@ export interface EnterTowerSelectionDeps {
   selectTimer: number;
   accum: { select: number };
   enterCastleReselectPhase: (state: GameState) => void;
-  now: () => number;
   setModeSelection: () => void;
   setLastTime: (timeMs: number) => void;
   requestFrame: () => void;

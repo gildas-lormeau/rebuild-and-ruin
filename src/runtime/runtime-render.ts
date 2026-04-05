@@ -44,8 +44,6 @@ interface RenderSystemDeps {
   readonly createRenderSummaryMessage: CreateRenderSummaryMessageFn;
   readonly createStatusBar: CreateStatusBarFn;
 
-  /** Monotonic timestamp source (injected for testability). */
-  readonly now: () => number;
   readonly drawFrame: (
     map: GameMap,
     overlay: RenderOverlay | undefined,
@@ -162,7 +160,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       runtimeState.state.map,
       runtimeState.overlay,
       deps.updateViewport(),
-      deps.now(),
+      performance.now(),
     );
 
     // Update touch controls (loupe, d-pad, zoom, quit, floating actions)

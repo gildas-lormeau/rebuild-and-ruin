@@ -517,7 +517,6 @@ export function createScenario(seed = 42): Scenario {
       session: { myPlayerId },
       getControllers: () => controllers,
       setMode: () => {},
-      now: () => performance.now(),
       ui: {
         showBanner: (text: string, onDone: () => void, preservePrevScene?: boolean, newBattle?: { territory: Set<number>[]; walls: Set<number>[] }, subtitle?: string) => {
           showBannerTransition({

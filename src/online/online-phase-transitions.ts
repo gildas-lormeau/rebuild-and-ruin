@@ -68,7 +68,6 @@ export interface TransitionContext {
    *  Host promotion (skipPendingAnimations) may also set GAME from
    *  CASTLE_BUILD, LIFE_LOST, BANNER, or BALLOON_ANIM. */
   setMode: (mode: Mode) => void;
-  now: () => number;
 
   // ── Banner & UI ──
   ui: {
@@ -255,7 +254,7 @@ export function handleCannonStartTransition(
         // delay the callback after the banner animation begins.
         setWatcherPhaseTimer(
           transitionCtx.ui.watcherTiming,
-          transitionCtx.now(),
+          performance.now(),
           state.timer,
         );
         transitionCtx.setMode(Mode.GAME);
@@ -359,7 +358,7 @@ export function handleBuildStartTransition(
     // the banner callback because no dialog precedes it. Here, an upgrade-pick dialog
     // may delay showBannerAndEnterBuild, so we capture bannerStartedAt when the banner
     // actually begins and add its duration to get the phase-timer origin.
-    const bannerStartedAt = transitionCtx.now();
+    const bannerStartedAt = performance.now();
     executeTransition(BUILD_START_STEPS, {
       showBanner: () =>
         showBuildPhaseBanner(

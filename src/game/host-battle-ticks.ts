@@ -128,7 +128,6 @@ interface TickHostBalloonAnimDeps {
 /** Networking context for beginning battle. */
 interface BattleBeginNet extends HostNetContext {
   watcherTiming: WatcherTimingState;
-  now: () => number;
 }
 
 interface BeginHostBattleDeps {
@@ -338,8 +337,8 @@ export function beginHostBattle(deps: BeginHostBattleDeps): void {
   state.battleCountdown = battleCountdown;
   accum.battle = 0;
   if (!isHostInContext(deps.net) && deps.net) {
-    const { watcherTiming, now } = deps.net;
-    watcherTiming.countdownStartTime = now();
+    const { watcherTiming } = deps.net;
+    watcherTiming.countdownStartTime = performance.now();
     watcherTiming.countdownDuration = battleCountdown;
   }
 

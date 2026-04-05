@@ -93,7 +93,6 @@ export function handleServerMessage(msg: ServerMessage): void {
 function buildLifecycleDeps() {
   return {
     log: _client.devLog,
-    now: () => performance.now(),
     session: _client.ctx.session,
     lobby: buildLobbyDeps(),
     ui: buildUiDeps(),

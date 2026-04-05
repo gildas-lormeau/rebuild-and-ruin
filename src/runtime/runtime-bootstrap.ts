@@ -33,7 +33,6 @@ interface InitWaitingRoomDeps {
   container: HTMLElement;
   lobby: LobbyState;
   maxPlayers: number;
-  now: () => number;
   log: (msg: string) => void;
   setLobbyStartTime: (timeMs: number) => void;
   setModeLobby: () => void;
@@ -82,7 +81,6 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
     container,
     lobby,
     maxPlayers,
-    now,
     setLobbyStartTime,
     log,
     setModeLobby,
@@ -98,7 +96,7 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
   lobby.map = generateMap(seed);
   lobby.joined = new Array(maxPlayers).fill(false);
   lobby.active = true;
-  const time = now();
+  const time = performance.now();
   setLobbyStartTime(time);
   setModeLobby();
   setLastTime(time);
@@ -119,7 +117,6 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
     selectTimer,
     accum,
     enterCastleReselectPhase,
-    now,
     setModeSelection,
     setLastTime,
     requestFrame,
@@ -165,7 +162,7 @@ export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
   accum.select = 0;
   state.timer = selectTimer;
   setModeSelection();
-  setLastTime(now());
+  setLastTime(performance.now());
   requestFrame();
 }
 

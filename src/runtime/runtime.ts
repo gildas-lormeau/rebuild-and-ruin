@@ -332,7 +332,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     log: config.log,
     camera,
     sound,
-    now: () => performance.now(),
     syncSelectionOverlay: updateSelectionOverlay,
     render: () => render(),
     pointerPlayer,
@@ -354,7 +353,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     createOnlineOverlay,
     createRenderSummaryMessage,
     createStatusBar,
-    now: () => performance.now(),
     drawFrame: (map, overlay, viewport, now) =>
       renderer.drawFrame(map, overlay, viewport, now),
     logThrottled: config.logThrottled,
@@ -465,7 +463,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     onBeginBattle: IS_TOUCH_DEVICE ? camera.aimAtEnemyCastle : undefined,
     sound,
     haptics,
-    now: () => performance.now(),
     tryShowUpgradePick: (onDone) => upgradePick.tryShow(onDone),
   });
 
@@ -508,7 +505,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const options = createOptionsSystem({
     runtimeState,
     uiCtx,
-    now: () => performance.now(),
     renderFrame,
     // Bridge boolean enable to dpad's Phase|null API (WALL_BUILD = any non-selection phase)
     updateDpad: (enabled) =>

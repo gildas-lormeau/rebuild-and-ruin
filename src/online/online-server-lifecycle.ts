@@ -20,7 +20,6 @@ import type { OnlineSession } from "./online-session.ts";
 
 export interface HandleServerLifecycleDeps {
   log: (msg: string) => void;
-  now: () => number;
 
   session: Pick<
     OnlineSession,
@@ -138,7 +137,7 @@ export function handleServerLifecycleMessage(
       deps.session.roomCannonMaxHp = msg.settings.cannonMaxHp;
       deps.session.roomGameMode = msg.settings.gameMode ?? GAME_MODE_CLASSIC;
       deps.lobby.showWaitingRoom(msg.code, msg.seed);
-      deps.session.lobbyStartTime = deps.now() - msg.elapsedSec * 1000;
+      deps.session.lobbyStartTime = performance.now() - msg.elapsedSec * 1000;
       for (const player of msg.players) {
         occupyLobbySlot(player.playerId);
       }

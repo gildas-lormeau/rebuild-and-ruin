@@ -87,7 +87,6 @@ const transitionCtx: TransitionContext = {
   setMode: (mode: Mode) => {
     setMode(runtime.runtimeState, mode);
   },
-  now: () => performance.now(),
   ui: buildTransitionUiCtx(),
   checkpoint: buildTransitionCheckpointCtx(),
   selection: buildTransitionSelectionCtx(),
@@ -391,7 +390,6 @@ function showWaitingRoom(code: string, seed: number): void {
     container: renderer.container,
     lobby: runtime.runtimeState.lobby,
     maxPlayers: MAX_PLAYERS,
-    now: () => performance.now(),
     log: devLog,
     setLobbyStartTime: (timestamp: number) => {
       ctx.session.lobbyStartTime = timestamp;
