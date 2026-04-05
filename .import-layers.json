@@ -1,6 +1,6 @@
 [
   {
-    "name": "leaf utilities",
+    "name": "leaf modules",
     "files": [
       "src/ai/ai-constants.ts",
       "src/shared/canvas-layout.ts",
@@ -62,8 +62,7 @@
       "src/game/upgrade-pick.ts",
       "src/game/castle-build.ts",
       "src/game/phase-banner.ts",
-      "src/game/phase-transition-shared.ts",
-      "src/shared/screen-builders.ts"
+      "src/game/phase-transition-steps.ts"
     ]
   },
   {
@@ -79,7 +78,7 @@
   {
     "name": "runtime primitives",
     "files": [
-      "src/runtime/runtime-touch-ui.ts",
+      "src/input/input-touch-update.ts",
       "src/runtime/runtime-state.ts",
       "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-human.ts",
@@ -88,7 +87,8 @@
       "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-upgrade-pick.ts",
       "src/runtime/runtime-game-lifecycle.ts",
-      "src/runtime/runtime-e2e-bridge.ts"
+      "src/runtime/runtime-e2e-bridge.ts",
+      "src/runtime/runtime-screen-builders.ts"
     ]
   },
   {
@@ -216,11 +216,11 @@
   {
     "name": "online runtime",
     "files": [
-      "src/online/runtime-online-game.ts",
-      "src/online/runtime-online-deps.ts",
-      "src/online/runtime-online-promote.ts",
-      "src/online/runtime-online-ws.ts",
-      "src/online/runtime-online-lobby.ts"
+      "src/online/online-runtime-game.ts",
+      "src/online/online-runtime-deps.ts",
+      "src/online/online-runtime-promote.ts",
+      "src/online/online-runtime-ws.ts",
+      "src/online/online-runtime-lobby.ts"
     ]
   },
   {

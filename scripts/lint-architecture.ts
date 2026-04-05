@@ -33,11 +33,11 @@ const EXEMPT = new Set([
   "runtime-host-phase-ticks.ts", // pure tick functions, not a factory sub-system
   "runtime-host-battle-ticks.ts", // pure tick functions, not a factory sub-system
   "runtime-e2e-bridge.ts", // e2e test bridge, not a factory sub-system
-  "runtime-touch-ui.ts", // pure function, not a factory sub-system
+  "runtime-screen-builders.ts", // shared UI builders, not a factory sub-system
 ]);
 
 /** Prefixes for runtime-layer file families that are not sub-systems. */
-const EXEMPT_PREFIXES = ["runtime-online-"];
+const EXEMPT_PREFIXES = ["online-runtime-"];
 
 /** Sub-system files may import from these runtime-layer files. */
 const ALLOWED_RUNTIME_IMPORTS = new Set([
@@ -46,7 +46,7 @@ const ALLOWED_RUNTIME_IMPORTS = new Set([
   "./runtime-host-phase-ticks.ts", // consumed by runtime-phase-ticks
   "./runtime-host-battle-ticks.ts", // consumed by runtime-phase-ticks
   "./runtime-bootstrap.ts", // consumed by runtime-selection
-  "./runtime-touch-ui.ts", // consumed by runtime-render
+  "./runtime-screen-builders.ts", // consumed by runtime-lobby, runtime-options
 ]);
 
 interface Violation {

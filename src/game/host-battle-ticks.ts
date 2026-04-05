@@ -49,7 +49,7 @@ import {
   executeTransition,
   showBattlePhaseBanner,
   showModifierRevealBanner,
-} from "./phase-transition-shared.ts";
+} from "./phase-transition-steps.ts";
 
 type BattleCapable = ControllerIdentity & BattleController;
 

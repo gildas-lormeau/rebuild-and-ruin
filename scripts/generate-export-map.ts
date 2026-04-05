@@ -5,7 +5,7 @@
  * grouped by layer → file, one line per file with all exported symbols.
  *
  * Format:
- *   ## L0 — leaf utilities
+ *   ## L0 — leaf modules
  *   src/shared/grid.ts: GRID_COLS, GRID_ROWS, TILE_SIZE, Tile (enum)
  *   src/shared/rng.ts: Rng (class), createSeededRng
  *
@@ -65,7 +65,10 @@ for (let li = 0; li < layers.length; li++) {
   for (const file of layer.files) {
     layerFiles.add(file);
     const exports = byFile.get(file);
-    if (!exports || exports.length === 0) continue;
+    if (!exports || exports.length === 0) {
+      lines.push(`${file}: (no exports)`);
+      continue;
+    }
     exports.sort((a, b) => a.line - b.line);
     const symbols = exports.map(formatExport).join(", ");
     lines.push(`${file}: ${symbols}`);

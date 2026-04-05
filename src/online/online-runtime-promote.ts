@@ -5,7 +5,7 @@
  * previous host disconnects. Resets networking state, rebuilds controllers,
  * syncs accumulators, and broadcasts the authoritative full state.
  *
- * Does NOT import runtime-online-game.ts — the GameRuntime reference is
+ * Does NOT import online-runtime-game.ts — the GameRuntime reference is
  * injected via initPromote() to avoid initialization coupling.
  */
 
@@ -29,7 +29,7 @@ import {
 let _runtime: GameRuntime;
 let _client: OnlineClient;
 
-/** Bind the GameRuntime reference. Called once from runtime-online-game.ts
+/** Bind the GameRuntime reference. Called once from online-runtime-game.ts
  *  after the GameRuntime is created. */
 export function initPromote(rt: GameRuntime, client: OnlineClient): void {
   _runtime = rt;

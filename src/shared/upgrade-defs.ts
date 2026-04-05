@@ -1,6 +1,6 @@
 /**
  * Upgrade definitions — pure data, no game-type dependencies.
- * L0 (leaf utilities) so every layer can import.
+ * L0 (leaf modules) so every layer can import.
  */
 
 /** Unique identifier for a player upgrade. */

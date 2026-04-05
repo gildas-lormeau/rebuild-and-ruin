@@ -4,15 +4,15 @@
  * Extracted from runtime.ts render() to keep it high-level.
  */
 
-import { isPlacementPhase, Phase } from "../shared/game-phase.ts";
-import { TILE_SIZE } from "../shared/grid.ts";
-import type { LoupeHandle } from "../shared/overlay-types.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isPlacementPhase, Phase } from "../shared/game-phase";
+import { TILE_SIZE } from "../shared/grid";
+import type { LoupeHandle } from "../shared/overlay-types";
+import type { ValidPlayerSlot } from "../shared/player-slot";
 import type {
   InputReceiver,
   PlayerController,
-} from "../shared/system-interfaces.ts";
-import { Mode } from "../shared/ui-mode.ts";
+} from "../shared/system-interfaces";
+import { Mode } from "../shared/ui-mode";
 
 type TouchBtnRule = boolean | "interactive";
 

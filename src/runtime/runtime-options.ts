@@ -23,17 +23,6 @@ import {
   MAX_SEED_LENGTH,
   SEED_CUSTOM,
 } from "../shared/player-config.ts";
-import type {
-  CloseControlsFn,
-  CloseOptionsFn,
-  CreateControlsOverlayFn,
-  CreateOptionsOverlayFn,
-  ShowControlsFn,
-  ShowOptionsFn,
-  TogglePauseFn,
-  UIContext,
-  VisibleOptionsFn,
-} from "../shared/screen-builders.ts";
 import {
   HIT_ARROW,
   HIT_CLOSE,
@@ -45,6 +34,17 @@ import type {
   HapticsSystem,
   SoundSystem,
 } from "../shared/system-interfaces.ts";
+import type {
+  CloseControlsFn,
+  CloseOptionsFn,
+  CreateControlsOverlayFn,
+  CreateOptionsOverlayFn,
+  ShowControlsFn,
+  ShowOptionsFn,
+  TogglePauseFn,
+  UIContext,
+  VisibleOptionsFn,
+} from "./runtime-screen-builders.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
 
 interface OptionsSystemDeps {

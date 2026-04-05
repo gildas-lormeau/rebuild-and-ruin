@@ -50,7 +50,7 @@ import type { WatcherNetworkState } from "../src/online/online-types.ts";
 import { createModernState, type SelectionState } from "../src/shared/types.ts";
 import { type UpgradeId, UID } from "../src/shared/upgrade-defs.ts";
 import { generateUpgradeOffers } from "../src/game/phase-setup.ts";
-import { showUpgradePickBanner } from "../src/game/phase-transition-shared.ts";
+import { showUpgradePickBanner } from "../src/game/phase-transition-steps.ts";
 import { createUpgradePickDialog } from "../src/game/upgrade-pick.ts";
 import { createScenario } from "./scenario-helpers.ts";
 import { assert, runTests, test } from "./test-helpers.ts";

@@ -48,7 +48,7 @@ import {
 } from "../shared/tick-context.ts";
 import { type GameState } from "../shared/types.ts";
 import { snapshotEntities } from "./phase-banner.ts";
-import { runBuildEndSequence } from "./phase-transition-shared.ts";
+import { runBuildEndSequence } from "./phase-transition-steps.ts";
 
 /** Networking context for the cannon placement phase.
  *  Optional (`net?`) — when omitted, the tick function runs in local-play mode

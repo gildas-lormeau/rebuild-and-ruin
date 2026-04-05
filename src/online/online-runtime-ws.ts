@@ -1,20 +1,20 @@
 /**
  * WebSocket connection lifecycle and reconnection for online play.
  *
- * Does NOT import runtime-online-game.ts — runtime access is injected
+ * Does NOT import online-runtime-game.ts — runtime access is injected
  * via initWs() to avoid initialization coupling with the composition root.
  */
 
 import { isHostInContext } from "../shared/tick-context.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { computeWsUrl } from "./online-config.ts";
+import { handleServerMessage } from "./online-runtime-deps.ts";
 import { connectWebSocket } from "./online-session.ts";
 import {
   MAX_RECONNECT_ATTEMPTS,
   type OnlineClient,
   RECONNECT_BASE_DELAY_MS,
 } from "./online-stores.ts";
-import { handleServerMessage } from "./runtime-online-deps.ts";
 
 // ── Types ──────────────────────────────────────────────────────────
 interface WsRuntimeDeps {
@@ -35,7 +35,7 @@ let _client: OnlineClient;
 /** Stashed from the first call so reconnect retries reuse it. */
 let _onConnectError: (() => void) | undefined;
 
-/** Bind runtime-dependent callbacks. Called once from runtime-online-game.ts
+/** Bind runtime-dependent callbacks. Called once from online-runtime-game.ts
  *  after the GameRuntime is created. */
 export function initWs(deps: WsRuntimeDeps, client: OnlineClient): void {
   _rt = deps;

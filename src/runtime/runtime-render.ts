@@ -5,6 +5,13 @@
  * Extracted from runtime.ts to reduce composition-root fan-out.
  */
 
+import {
+  type Dpad,
+  type FloatingActions,
+  type QuitButton,
+  updateTouchControls,
+  type ZoomButton,
+} from "../input/input-touch-update.ts";
 import type {
   CreateBannerUiFn,
   CreateOnlineOverlayFn,
@@ -27,13 +34,6 @@ import type {
   PlayerController,
 } from "../shared/system-interfaces.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
-import {
-  type Dpad,
-  type FloatingActions,
-  type QuitButton,
-  updateTouchControls,
-  type ZoomButton,
-} from "./runtime-touch-ui.ts";
 
 interface RenderSystemDeps {
   readonly runtimeState: RuntimeState;

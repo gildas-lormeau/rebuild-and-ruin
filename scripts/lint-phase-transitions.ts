@@ -1,10 +1,10 @@
 /**
  * Phase-transition lint — enforce that banner subtitles are only set via
- * shared helpers in phase-transition-shared.ts, and that showBanner is not
+ * shared helpers in phase-transition-steps.ts, and that showBanner is not
  * called directly in online phase-transition files.
  *
  * Checks:
- * 1. BANNER_*_SUB constants must only be imported by phase-transition-shared.ts.
+ * 1. BANNER_*_SUB constants must only be imported by phase-transition-steps.ts.
  *    Any other file importing them is bypassing the shared helpers.
  * 2. Guarded files must not call showBanner directly — all banner calls should
  *    go through showCannonPhaseBanner / showBattlePhaseBanner / showBuildPhaseBanner.
@@ -20,7 +20,7 @@ import process from "node:process";
 const SRC = join(process.cwd(), "src");
 
 /** The only file allowed to import BANNER_*_SUB constants. */
-const SHARED_FILE = "phase-transition-shared.ts";
+const SHARED_FILE = "phase-transition-steps.ts";
 
 /** Files that may re-export or define BANNER_*_SUB (the source of truth). */
 const DEFINITION_FILES = new Set(["phase-banner.ts", SHARED_FILE]);

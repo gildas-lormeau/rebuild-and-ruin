@@ -108,7 +108,7 @@ export function resetWatcherTimingForHostPromotion(
 
 /** Tick the migration announcement timer. Two announcement channels exist:
  *  1. frame.announcement — general-purpose, set directly (reconnection, countdown).
- *     Cleared each frame by clearFrameData(). Used by runtime-online-ws.ts for
+ *     Cleared each frame by clearFrameData(). Used by online-runtime-ws.ts for
  *     "Reconnecting..." / "Disconnected" and by battle countdown.
  *  2. watcherState.hostMigrationText — persists across frames, copied into frame.announcement here.
  *     Used only for host-migration announcements that must survive frame clears.

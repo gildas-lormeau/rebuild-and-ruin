@@ -4,7 +4,7 @@
  * Builds the deps bags consumed by online-server-lifecycle.ts and
  * online-server-events.ts, and dispatches incoming server messages.
  *
- * Does NOT import runtime-online-game.ts — all runtime-dependent values
+ * Does NOT import online-runtime-game.ts — all runtime-dependent values
  * are injected via initDeps() to avoid initialization coupling with the
  * composition root.
  *
@@ -12,7 +12,7 @@
  * Pick<> references — consumers read fields at call time, so values are always
  * current. Runtime-dependent state still uses closures for late binding.
  * - lifecycleDeps / incrementalDeps: built once via initDeps(), reused for session lifetime.
- * - Contrast with runtime-online-game.ts where checkpointDeps are built dynamically
+ * - Contrast with online-runtime-game.ts where checkpointDeps are built dynamically
  *   on each call (because checkpoint state changes frequently during play).
  */
 
@@ -38,6 +38,7 @@ import {
   handleGameOverTransition,
   type TransitionContext,
 } from "./online-phase-transitions.ts";
+import { promoteToHost } from "./online-runtime-promote.ts";
 import {
   type HandleServerIncrementalDeps,
   handleServerIncrementalMessage,
@@ -47,7 +48,6 @@ import {
   handleServerLifecycleMessage,
 } from "./online-server-lifecycle.ts";
 import type { OnlineClient } from "./online-stores.ts";
-import { promoteToHost } from "./runtime-online-promote.ts";
 
 // ── Types ──────────────────────────────────────────────────────────
 interface DepsInit {
@@ -60,11 +60,11 @@ interface DepsInit {
 }
 
 // ── Late-bound state ───────────────────────────────────────────────
-// Pattern shared with runtime-online-promote.ts and runtime-online-ws.ts:
+// Pattern shared with online-runtime-promote.ts and online-runtime-ws.ts:
 //  1. Declare module-level `let _ref: Type` (no initial value)
 //  2. Export `initXxx(value)` that assigns _ref and builds any closures
 //  3. Guard with `if (!_ref) throw "called before initXxx()"` in public API
-// This avoids circular imports between the composition root (runtime-online-game.ts)
+// This avoids circular imports between the composition root (online-runtime-game.ts)
 // and domain modules. All three init functions are called once from createOnlineGame().
 let _g: DepsInit;
 let _client: OnlineClient;
@@ -72,7 +72,7 @@ let _lifecycleDeps: HandleServerLifecycleDeps;
 let _incrementalDeps: HandleServerIncrementalDeps;
 
 /** Bind runtime-dependent values and build deps objects. Called once from
- *  runtime-online-game.ts after the GameRuntime is created. */
+ *  online-runtime-game.ts after the GameRuntime is created. */
 export function initDeps(init: DepsInit): void {
   _g = init;
   _client = init.client;

@@ -25,7 +25,7 @@ import {
   showBuildPhaseBanner,
   showCannonPhaseBanner,
   showModifierRevealBanner,
-} from "../game/phase-transition-shared.ts";
+} from "../game/phase-transition-steps.ts";
 import { snapshotAllWalls } from "../shared/board-occupancy.ts";
 import type {
   BattleStartData,

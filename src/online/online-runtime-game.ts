@@ -53,6 +53,9 @@ import {
   hideRoomCodeOverlay,
 } from "./online-lobby-ui.ts";
 import type { TransitionContext } from "./online-phase-transitions.ts";
+import { initDeps } from "./online-runtime-deps.ts";
+import { initPromote } from "./online-runtime-promote.ts";
+import { initWs } from "./online-runtime-ws.ts";
 import {
   fireAndSend,
   tryPlaceCannonAndSend,
@@ -73,9 +76,6 @@ import {
   tickWatcher,
   type WatcherTickContext,
 } from "./online-watcher-tick.ts";
-import { initDeps } from "./runtime-online-deps.ts";
-import { initPromote } from "./runtime-online-promote.ts";
-import { initWs } from "./runtime-online-ws.ts";
 
 // ── Client shorthand ───────────────────────────────────────────────
 // Destructured from defaultClient singleton for brevity. All five names

@@ -44,7 +44,7 @@ src/shared/phantom-types.ts, server/protocol.ts
 src/shared/spatial.ts, src/shared/board-occupancy.ts, src/shared/system-interfaces.ts,
 src/shared/overlay-types.ts, src/shared/tick-context.ts, src/game/life-lost.ts,
 src/game/upgrade-pick.ts, src/game/castle-build.ts, src/game/phase-banner.ts,
-src/game/phase-transition-shared.ts, src/shared/screen-builders.ts
+src/game/phase-transition-steps.ts
 ```
 
 ### 5. Online infrastructure — L5 (5 files)
@@ -54,13 +54,14 @@ src/online/online-server-lifecycle.ts, src/online/online-session.ts,
 server/game-room.ts
 ```
 
-### 6. Runtime primitives — L6 (10 files)
+### 6. Runtime primitives — L6 (11 files)
 ```
-src/runtime/runtime-touch-ui.ts, src/runtime/runtime-state.ts,
+src/input/input-touch-update.ts, src/runtime/runtime-state.ts,
 src/runtime/runtime-banner.ts, src/runtime/runtime-human.ts,
 src/runtime/runtime-types.ts, src/runtime/runtime-camera.ts,
 src/runtime/runtime-score-deltas.ts, src/runtime/runtime-upgrade-pick.ts,
-src/runtime/runtime-game-lifecycle.ts, src/runtime/runtime-e2e-bridge.ts
+src/runtime/runtime-game-lifecycle.ts, src/runtime/runtime-e2e-bridge.ts,
+src/runtime/runtime-screen-builders.ts
 ```
 
 ### 7. Game logic — L7 (14 files)
@@ -137,9 +138,9 @@ src/runtime/runtime.ts
 
 ### 17. Online runtime — L17 (5 files)
 ```
-src/online/runtime-online-game.ts, src/online/runtime-online-deps.ts,
-src/online/runtime-online-promote.ts, src/online/runtime-online-ws.ts,
-src/online/runtime-online-lobby.ts
+src/online/online-runtime-game.ts, src/online/online-runtime-deps.ts,
+src/online/online-runtime-promote.ts, src/online/online-runtime-ws.ts,
+src/online/online-runtime-lobby.ts
 ```
 
 ### 18. Entry points & server — L18 (4 files)
@@ -322,7 +323,7 @@ sufficient for LLM agents to follow correctly.
     and line 48 has an inline comment explaining the ×1000 conversion.
 
 16. **Late-binding closure pattern (initDeps/initPromote/initWs)** —
-    online/runtime-online-deps.ts:56-60 documents the 3-step pattern (declare, init, guard) and
+    online/online-runtime-deps.ts:56-60 documents the 3-step pattern (declare, init, guard) and
     explains it avoids circular imports. All three init files follow the same structure.
 
 17. **Mode-setting timing in watcher phase transitions** — online/online-phase-transitions.ts:53-61
@@ -468,7 +469,7 @@ sufficient for LLM agents to follow correctly.
     unless parameter names indicate otherwise (screenX/Y, tileX/Y).
 
 52. **pointerPhantomValid() three-way return is documented** —
-    runtime/runtime-touch-ui.ts JSDoc: true=valid, false=invalid, undefined=no phantom.
+    input/input-touch-update.ts JSDoc: true=valid, false=invalid, undefined=no phantom.
 
 53. **Host interface pattern (SelectionHost, BuildHost, etc.) is documented** —
     ai/ai-phase-select.ts JSDoc above SelectionHost explains the convention:
@@ -536,12 +537,12 @@ sufficient for LLM agents to follow correctly.
     codebase (CROSSHAIR_SPRINT_MULTIPLIER, CURSOR_PROXIMITY_MULTIPLIER, etc.).
 
 69. **`ctx` shorthand destructuring from defaultClient is documented** —
-    online/runtime-online-game.ts:67-69 comment explains the five destructured names
+    online/online-runtime-game.ts:67-69 comment explains the five destructured names
     reference the same defaultClient singleton used throughout the module.
 
 70. **Lobby timer: local uses accumulator, online uses wall-clock subtraction** —
     main.ts:43-45 documents the local path (timerAccum counting up). The online
-    path (online/runtime-online-game.ts:135-141) uses server-provided countdown minus a
+    path (online/online-runtime-game.ts:135-141) uses server-provided countdown minus a
     -1 grace offset to prevent UI/server race.
 
 71. **Coordinate space divergence between options and lobby hit-tests is documented** —
@@ -605,7 +606,7 @@ sufficient for LLM agents to follow correctly.
 
 83. **Controllers return intent objects, orchestrators execute mutations** —
     `BattleController.fire()` returns `FireIntent | null` (not void). `InputReceiver.tryPlacePiece()`
-    returns `PlacePieceIntent | null` (not boolean). The orchestrator (runtime.ts, runtime-online-game.ts,
+    returns `PlacePieceIntent | null` (not boolean). The orchestrator (runtime.ts, online-runtime-game.ts,
     controller-ai.ts battleTick) calls `fireNextReadyCannon()` or `placePiece()` with mutable GameState.
     `tryPlaceCannon` does NOT follow this pattern — `placeCannon` already accepts structural types.
     Do not add mutation calls inside controller methods.
@@ -619,7 +620,7 @@ sufficient for LLM agents to follow correctly.
 85. **`advanceBag` must be called by the orchestrator after `tryPlacePiece`** —
     HumanController.tryPlacePiece() returns intent without advancing the bag.
     The orchestrator calls `ctrl.advanceBag(true)` after confirming placement via `placePiece()`.
-    All three execution sites (runtime.ts, runtime-online-game.ts, ai-phase-build.ts) do this.
+    All three execution sites (runtime.ts, online-runtime-game.ts, ai-phase-build.ts) do this.
 
 86. **`FreshInterior` and `Player` live in `player-types.ts`, not `types.ts`** —
     Extracted to break the system-interfaces → types.ts coupling chain. `types.ts` re-imports

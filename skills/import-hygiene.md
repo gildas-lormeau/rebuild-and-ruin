@@ -60,7 +60,7 @@ Files are organized into domain directories under `src/`: `shared/`, `game/`, `a
 `input/`, `render/`, `online/`, `runtime/`, with entry points at `src/` root.
 
 ```
- 0  leaf utilities              ai/ai-constants, shared/canvas-layout, shared/game-constants,
+ 0  leaf modules              ai/ai-constants, shared/canvas-layout, shared/game-constants,
                                 shared/grid, shared/jsfxr.d, shared/platform, shared/rng,
                                 shared/router, online/online-dom, shared/upgrade-defs,
                                 shared/settings-defs, shared/player-slot, shared/game-phase,
@@ -71,15 +71,16 @@ Files are organized into domain directories under `src/`: `shared/`, `game/`, `a
  3  core types, state & spatial shared/battle-types, shared/types, shared/dialog-types,
                                 shared/spatial, shared/board-occupancy, shared/checkpoint-data,
                                 server/protocol
- 4  shared types & config       game/phase-transition-shared, shared/player-config,
+ 4  shared types & config       game/phase-transition-steps, shared/player-config,
                                 shared/system-interfaces, game/life-lost, game/upgrade-pick,
                                 game/castle-build, game/phase-banner, shared/theme,
                                 shared/overlay-types, shared/phantom-types, shared/tick-context,
-                                shared/settings-ui, shared/screen-builders
+                                shared/settings-ui
  5  online infrastructure       online/online-types, online/online-lobby-ui,
                                 online/online-server-lifecycle, online/online-session,
                                 server/game-room
- 6  runtime primitives          runtime/runtime-touch-ui, runtime/runtime-state,
+ 6  runtime primitives          input/input-touch-update, runtime/runtime-state,
+                                runtime/runtime-screen-builders,
                                 runtime/runtime-banner, runtime/runtime-human,
                                 runtime/runtime-types, runtime/runtime-camera,
                                 runtime/runtime-score-deltas, runtime/runtime-upgrade-pick,
@@ -114,9 +115,9 @@ Files are organized into domain directories under `src/`: `shared/`, `game/`, `a
                                 online/online-host-crosshairs, online/online-host-promotion,
                                 online/online-stores, server/room-manager
 16  local runtime               runtime/runtime
-17  online runtime              online/runtime-online-game, online/runtime-online-deps,
-                                online/runtime-online-promote, online/runtime-online-ws,
-                                online/runtime-online-lobby
+17  online runtime              online/online-runtime-game, online/online-runtime-deps,
+                                online/online-runtime-promote, online/online-runtime-ws,
+                                online/online-runtime-lobby
 18  entry points                entry, main, online-client, server/server
 ```
 

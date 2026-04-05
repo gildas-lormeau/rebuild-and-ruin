@@ -20,8 +20,8 @@ import {
   pageOnline,
 } from "./online-dom.ts";
 import { initLobbyUi } from "./online-lobby-ui.ts";
+import { connect } from "./online-runtime-ws.ts";
 import { defaultClient } from "./online-stores.ts";
-import { connect } from "./runtime-online-ws.ts";
 
 const lobbyElements = {
   btnCreateConfirm,

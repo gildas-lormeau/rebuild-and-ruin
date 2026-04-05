@@ -28,7 +28,7 @@ import {
   showBuildPhaseBanner,
   showCannonPhaseBanner,
   showUpgradePickBanner,
-} from "../src/game/phase-transition-shared.ts";
+} from "../src/game/phase-transition-steps.ts";
 import { createSession, resetSessionState } from "../src/online/online-session.ts";
 import { type BannerState, showBannerTransition } from "../src/game/phase-banner.ts";
 import {

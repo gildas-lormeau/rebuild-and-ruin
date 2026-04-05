@@ -19,7 +19,7 @@ import type {
   LobbySkipStepFn,
   TickLobbyFn,
   UIContext,
-} from "../shared/screen-builders.ts";
+} from "./runtime-screen-builders.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
 interface LobbySystemDeps {

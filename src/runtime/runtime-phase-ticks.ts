@@ -46,7 +46,7 @@ import {
   NOOP_STEP,
   showBuildPhaseBanner,
   showCannonPhaseBanner,
-} from "../game/phase-transition-shared.ts";
+} from "../game/phase-transition-steps.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,

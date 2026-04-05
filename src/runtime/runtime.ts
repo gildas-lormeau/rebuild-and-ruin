@@ -6,7 +6,7 @@
  * lobby, options, input, human-lookup), wires their deps, and returns a
  * narrow GameRuntime handle.
  *
- * Used by both main.ts (local play) and runtime-online-game.ts (online).
+ * Used by both main.ts (local play) and online-runtime-game.ts (online).
  */
 
 import {
@@ -56,21 +56,6 @@ import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
 import type { RenderOverlay } from "../shared/overlay-types.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform.ts";
 import { type GameSettings, SEED_CUSTOM } from "../shared/player-config.ts";
-import {
-  closeControls,
-  closeOptions,
-  createControlsOverlay,
-  createLobbyOverlay,
-  createOptionsOverlay,
-  lobbyKeyJoin,
-  lobbySkipStep,
-  showControls,
-  showOptions,
-  tickLobby,
-  togglePause,
-  type UIContext,
-  visibleOptions,
-} from "../shared/screen-builders.ts";
 import { cycleOption } from "../shared/settings-ui.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
@@ -98,6 +83,21 @@ import {
 } from "./runtime-phase-ticks.ts";
 import { createRenderSystem } from "./runtime-render.ts";
 import { createScoreDeltaSystem } from "./runtime-score-deltas.ts";
+import {
+  closeControls,
+  closeOptions,
+  createControlsOverlay,
+  createLobbyOverlay,
+  createOptionsOverlay,
+  lobbyKeyJoin,
+  lobbySkipStep,
+  showControls,
+  showOptions,
+  tickLobby,
+  togglePause,
+  type UIContext,
+  visibleOptions,
+} from "./runtime-screen-builders.ts";
 import { createSelectionSystem } from "./runtime-selection.ts";
 import {
   computeFrameContext,

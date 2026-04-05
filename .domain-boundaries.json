@@ -28,7 +28,7 @@
       "src/shared/upgrade-defs.ts",
       "src/shared/settings-defs.ts",
       "src/shared/settings-ui.ts",
-      "src/shared/screen-builders.ts",
+
       "src/shared/render-spy.ts",
       "src/shared/ui-mode.ts",
       "src/shared/input-action.ts",
@@ -51,7 +51,7 @@
       "src/game/host-battle-ticks.ts",
       "src/game/life-lost.ts",
       "src/game/phase-banner.ts",
-      "src/game/phase-transition-shared.ts",
+      "src/game/phase-transition-steps.ts",
       "src/game/castle-build.ts",
       "src/game/upgrade-pick.ts"
     ],
@@ -82,6 +82,7 @@
       "src/input/input-recorder.ts",
       "src/input/input-dispatch.ts",
       "src/input/input-touch-ui.ts",
+      "src/input/input-touch-update.ts",
       "src/input/input-touch-canvas.ts",
       "src/input/input-mouse.ts",
       "src/input/input-keyboard.ts",
@@ -118,18 +119,20 @@
       "src/online/online-host-crosshairs.ts",
       "src/online/online-host-promotion.ts",
       "src/online/online-stores.ts",
-      "src/online/runtime-online-game.ts",
-      "src/online/runtime-online-deps.ts",
-      "src/online/runtime-online-promote.ts",
-      "src/online/runtime-online-ws.ts",
-      "src/online/runtime-online-lobby.ts",
+      "src/online/online-runtime-game.ts",
+      "src/online/online-runtime-deps.ts",
+      "src/online/online-runtime-promote.ts",
+      "src/online/online-runtime-ws.ts",
+      "src/online/online-runtime-lobby.ts",
+    ],
+    "server": [
       "server/send-utils.ts",
       "server/game-room.ts",
       "server/room-manager.ts"
     ],
     "runtime": [
       "src/runtime/router.ts",
-      "src/runtime/runtime-touch-ui.ts",
+
       "src/runtime/runtime-state.ts",
       "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-human.ts",
@@ -148,6 +151,7 @@
       "src/runtime/runtime-render.ts",
       "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-selection.ts",
+      "src/runtime/runtime-screen-builders.ts",
       "src/runtime/runtime.ts"
     ],
     "entry": [
@@ -165,8 +169,9 @@
     "input":    ["shared", "game"],
     "render":   ["shared", "game"],
     "online":   ["shared", "game", "render", "runtime"],
+    "server":   ["shared", "server"],
     "runtime":  ["shared", "game", "player", "input", "render", "online"],
-    "entry":    ["shared", "game", "player", "input", "render", "online", "runtime", "entry"]
+    "entry":    ["shared", "game", "player", "input", "render", "online", "server", "runtime", "entry"]
   },
   "typeOnlyFrom": {
     "runtime": ["input", "render"]
