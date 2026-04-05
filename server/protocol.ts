@@ -42,6 +42,7 @@ export const MESSAGE = {
   HOUSE_DESTROYED: "house_destroyed",
   GRUNT_SPAWNED: "grunt_spawned",
   PIT_CREATED: "pit_created",
+  ICE_THAWED: "ice_thawed",
   TOWER_KILLED: "tower_killed",
   AIM_UPDATE: "aim_update",
   // Host migration
@@ -440,6 +441,13 @@ export interface PitCreatedMessage {
   roundsLeft: number;
 }
 
+/** A frozen water tile was thawed by a cannonball impact. */
+export interface IceThawedMessage {
+  type: "ice_thawed";
+  row: number;
+  col: number;
+}
+
 /** A tower was destroyed by a grunt. */
 export interface TowerKilledMessage {
   type: "tower_killed";
@@ -481,7 +489,8 @@ export type ImpactEvent =
   | HouseDestroyedMessage
   | GruntKilledMessage
   | GruntSpawnedMessage
-  | PitCreatedMessage;
+  | PitCreatedMessage
+  | IceThawedMessage;
 
 /** All events emitted during battle — fire, tower kill, and impact.
  *  Discriminated on `type` (MESSAGE.* string literal). */
@@ -524,6 +533,7 @@ export type ServerMessage =
   | HouseDestroyedMessage
   | GruntSpawnedMessage
   | PitCreatedMessage
+  | IceThawedMessage
   | TowerKilledMessage
   | AimUpdateMessage
   // Forwarded client messages

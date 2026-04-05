@@ -122,7 +122,8 @@ type ImpactMsg = Extract<
       | "house_destroyed"
       | "grunt_killed"
       | "grunt_spawned"
-      | "pit_created";
+      | "pit_created"
+      | "ice_thawed";
   }
 >;
 
@@ -176,6 +177,7 @@ export function handleServerIncrementalMessage(
     case MESSAGE.GRUNT_KILLED:
     case MESSAGE.GRUNT_SPAWNED:
     case MESSAGE.PIT_CREATED:
+    case MESSAGE.ICE_THAWED:
       return handleImpactEvent(msg, state, deps);
     case MESSAGE.AIM_UPDATE:
       return handleAimUpdate(msg, state, deps);

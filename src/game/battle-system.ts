@@ -45,6 +45,7 @@ import {
   isCannonAlive,
   isCannonTile,
   isSuperCannon,
+  isWater,
   packTile,
   pxToTile,
   rotateToward,
@@ -322,6 +323,9 @@ export function applyImpactEvent(
       }
       break;
     }
+    case MESSAGE.ICE_THAWED:
+      state.modern?.frozenTiles?.delete(packTile(event.row, event.col));
+      break;
   }
 }
 
@@ -710,6 +714,7 @@ function canFireCapturedCannon(state: GameState, cc: CapturedCannon): boolean {
  *   2. collectCannonImpacts is independent
  *   3. PIT_CREATED depends on step 1's hitWall + incendiary flag
  *   4. collectHouseImpacts / collectGruntImpacts are independent
+ *   5. collectFrozenWaterImpacts is independent (modern mode only)
  * New collectors that don't depend on hitWall can go after step 3.
  */
 function computeImpact(
@@ -750,12 +755,16 @@ function computeImpact(
   const houseEvents = collectHouseImpacts(state, row, col);
   const gruntEvents = collectGruntImpacts(state, row, col, shooterId);
 
+  // Step 5: frozen water thaw (independent — modern mode only)
+  const iceEvents = collectFrozenWaterImpacts(state, row, col);
+
   return [
     ...wallEvents,
     ...cannonEvents,
     ...pitEvents,
     ...houseEvents,
     ...gruntEvents,
+    ...iceEvents,
   ];
 }
 
@@ -864,6 +873,22 @@ function collectGruntImpacts(
     }
   }
   return events;
+}
+
+/** Collect frozen water thaw events at a tile (modern mode only).
+ *  A cannonball hitting a frozen water tile thaws it, reverting it to
+ *  impassable water. Grunts standing on the tile are already killed by
+ *  collectGruntImpacts (runs earlier in the collector chain). */
+function collectFrozenWaterImpacts(
+  state: GameState,
+  row: number,
+  col: number,
+): ImpactEvent[] {
+  if (!state.modern?.frozenTiles) return [];
+  const key = packTile(row, col);
+  if (!state.modern.frozenTiles.has(key)) return [];
+  if (!isWater(state.map.tiles, row, col)) return [];
+  return [{ type: MESSAGE.ICE_THAWED, row, col }];
 }
 
 /** Collect all active balloons across all players. */
