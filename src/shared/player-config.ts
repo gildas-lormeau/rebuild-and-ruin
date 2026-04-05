@@ -69,6 +69,7 @@ const ACTION_DOWN = "down";
 const ACTION_LEFT = "left";
 const ACTION_RIGHT = "right";
 const ACTION_ROTATE = "rotate";
+const ACTION_CONFIRM = "confirm";
 export const PLAYER_NAMES = ["Red", "Blue", "Gold"] as const;
 export const PLAYER_COLORS: readonly PlayerColor[] = [
   {
@@ -114,7 +115,6 @@ export const PLAYER_KEY_BINDINGS: readonly KeyBindings[] = [
   },
 ];
 export const MAX_PLAYERS = PLAYER_NAMES.length;
-export const ACTION_CONFIRM = "confirm";
 export const ACTION_KEYS: readonly (keyof KeyBindings)[] = [
   ACTION_UP,
   ACTION_DOWN,

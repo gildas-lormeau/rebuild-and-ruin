@@ -15,7 +15,7 @@ import {
   Mode,
   Phase,
 } from "../shared/game-phase.ts";
-import { ACTION_CONFIRM, PLAYER_COLORS } from "../shared/player-config.ts";
+import { PLAYER_COLORS } from "../shared/player-config.ts";
 import type {
   InputReceiver,
   PlayerController,
@@ -160,7 +160,7 @@ export function createDpad(
 } {
   // Query all duplicated elements (landscape + portrait)
   const dpads = Array.from(container.querySelectorAll<HTMLElement>(".dpad"));
-  const btnsAction = queryAll(container, ACTION_CONFIRM);
+  const btnsAction = queryAll(container, "confirm");
   const btnsRotate = queryAll(container, "rotate");
 
   const { stopRepeat, isBattlePhase, battleKeyDown, battleKeyUp } =
