@@ -321,7 +321,7 @@ function canGruntMoveToCandidate(
   col: number,
 ): boolean {
   if (findLivingTowerIndexAt(state, row, col) !== null) return false;
-  if (hasGruntAt(state, row, col, grunt)) return false;
+  if (hasGruntAt(state.grunts, row, col, grunt)) return false;
   if (hasInteriorAt(state, packTile(row, col))) return false;
   return true;
 }
@@ -369,7 +369,7 @@ function findAdjacentSlideTarget(
       nc = grunt.col + dc;
     if (!inBounds(nr, nc)) continue;
     if (!isGruntPassableTile(state, nr, nc)) continue;
-    if (hasGruntAt(state, nr, nc, grunt)) continue;
+    if (hasGruntAt(state.grunts, nr, nc, grunt)) continue;
     if (hasInteriorAt(state, packTile(nr, nc))) continue;
     if (!isCardinalAdjacentToTower(state, nr, nc, grunt.targetTowerIdx))
       continue;

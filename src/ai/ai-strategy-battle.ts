@@ -35,7 +35,7 @@ import {
   pxToTile,
   unpackTile,
 } from "../shared/spatial.ts";
-import { type GameState } from "../shared/types.ts";
+import type { BattleViewState } from "../shared/system-interfaces.ts";
 import { traitLookup } from "./ai-constants.ts";
 
 type TargetCandidate = PrioritizedTilePos;
@@ -78,7 +78,7 @@ const SWEET_SPOT_DISTANCE_RANGE = 5;
 
 /** Count cannons that are alive and enclosed (usable for firing). */
 export function countUsableCannons(
-  state: GameState,
+  state: BattleViewState,
   playerId: ValidPlayerSlot,
 ): number {
   const player = state.players[playerId]!;
@@ -91,7 +91,7 @@ export function countUsableCannons(
 
 /** Plan a grunt sweep: chain-fire at enemy grunts on our territory. */
 export function planGruntSweep(
-  state: GameState,
+  state: BattleViewState,
   playerId: ValidPlayerSlot,
   usableCannonCount: number,
   rng: Rng,
@@ -101,7 +101,7 @@ export function planGruntSweep(
 
 /** Plan a charity sweep: kill grunts on an enemy's territory when they can't. */
 export function planCharitySweep(
-  state: GameState,
+  state: BattleViewState,
   playerId: ValidPlayerSlot,
   usableCannonCount: number,
   rng: Rng,
@@ -122,7 +122,7 @@ export function planCharitySweep(
  *  (walls destroyed by cannonballs are not reflected until the next build phase).
  *  Pocket detection uses the last-known enclosure state to pick wall targets. */
 export function planPocketDestruction(
-  state: GameState,
+  state: BattleViewState,
   playerId: ValidPlayerSlot,
 ): TilePos[] | null {
   const player = state.players[playerId]!;
@@ -199,7 +199,7 @@ export function planPocketDestruction(
 
 /** Plan a super attack: like wall demolition but hit every other tile (stride of 2). */
 export function planSuperAttack(
-  state: GameState,
+  state: BattleViewState,
   playerId: ValidPlayerSlot,
   usableCannonCount: number,
   rng: Rng,
@@ -218,7 +218,7 @@ export function planSuperAttack(
 
 /** Plan a wall demolition run: find connected enemy wall segment. */
 export function planWallDemolition(
-  state: GameState,
+  state: BattleViewState,
   playerId: ValidPlayerSlot,
   usableCannonCount: number,
   rng: Rng,
@@ -252,7 +252,7 @@ export function planWallDemolition(
 }
 
 export function pickTarget(
-  state: GameState,
+  state: BattleViewState,
   playerId: ValidPlayerSlot,
   crosshair: PixelPos,
   focusFirePlayerId: ValidPlayerSlot | undefined,
@@ -349,7 +349,7 @@ export function pickTarget(
 }
 
 export function trackShot(
-  state: GameState,
+  state: BattleViewState,
   playerId: ValidPlayerSlot,
   crosshair: PixelPos,
   shotCounts: WeakMap<Cannon, number>,
@@ -368,7 +368,7 @@ export function trackShot(
 }
 
 function collectStrategicWallTargets(
-  state: GameState,
+  state: BattleViewState,
   playerId: ValidPlayerSlot,
   focusFirePlayerId: ValidPlayerSlot | undefined,
 ): TilePos[] {
@@ -395,7 +395,7 @@ function collectStrategicWallTargets(
 }
 
 function collectGruntBlockingWallTargets(
-  state: GameState,
+  state: BattleViewState,
   playerId: ValidPlayerSlot,
 ): TilePos[] {
   const gruntWalls: TilePos[] = [];
@@ -447,7 +447,7 @@ function collectGruntBlockingWallTargets(
 
 /** True if any cannonball in flight is targeting (row, col). */
 function isTileTargetedByInFlightBall(
-  state: GameState,
+  state: BattleViewState,
   row: number,
   col: number,
 ): boolean {
@@ -464,7 +464,7 @@ function ballTargeting(
 }
 
 function collectEnemyTargets(
-  state: GameState,
+  state: BattleViewState,
   playerId: ValidPlayerSlot,
   focusFirePlayerId: ValidPlayerSlot | undefined,
   switchTarget: boolean,
@@ -590,7 +590,7 @@ function jitterWithinTile(
  *  @param victimPlayerId — the player whose territory the grunts are attacking (not the AI).
  *  During frozen river, skip grunts heading cross-zone (they're attacking the enemy, not us). */
 function planGruntTargets(
-  state: GameState,
+  state: BattleViewState,
   victimPlayerId: ValidPlayerSlot,
   usableCannonCount: number,
   rng: Rng,

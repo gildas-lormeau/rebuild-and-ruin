@@ -29,7 +29,7 @@ import {
   towerReachesOutsideCardinal,
   unpackTile,
 } from "../shared/spatial.ts";
-import type { GameState } from "../shared/types.ts";
+import type { BuildViewState } from "../shared/system-interfaces.ts";
 import {
   createsSmallEnclosure,
   memoize,
@@ -127,7 +127,7 @@ const BUILD_SKILL_TABLE = [
 const NO_TARGET: TargetResult = { targetGaps: new Set(), targetRect: null };
 
 export function pickPlacement(
-  state: GameState,
+  state: BuildViewState,
   playerId: ValidPlayerSlot,
   piece: PieceShape,
   options?: PlacementOptions,
@@ -420,7 +420,7 @@ function getBuildSkillConfig(buildSkill: number): BuildSkillConfig {
 
 /** Enumerate all valid placements for a piece, scoring adjacency/gap metrics. */
 function enumerateCandidates(
-  state: GameState,
+  state: BuildViewState,
   playerId: ValidPlayerSlot,
   piece: PieceShape,
   walls: ReadonlySet<number>,
@@ -599,7 +599,7 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
       // Water is permanent terrain — expanding just creates more water gaps.
       if (!isGrass(state.map.tiles, r, c)) continue;
       const blocked =
-        hasGruntAt(state, r, c) || hasPitAt(state.burningPits, r, c);
+        hasGruntAt(state.grunts, r, c) || hasPitAt(state.burningPits, r, c);
       if (!blocked) continue;
 
       if (
@@ -783,7 +783,7 @@ function tryExpandTerritory(ctx: TargetContext): TargetResult {
 
 /** Analyze board enclosures: which towers are open, whether to skip home, etc. */
 function analyzeEnclosures(
-  state: GameState,
+  state: BuildViewState,
   player: Player,
   castle: Castle,
   castleMargin: number,

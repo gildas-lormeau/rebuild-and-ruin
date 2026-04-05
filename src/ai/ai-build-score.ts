@@ -16,7 +16,7 @@ import {
   packTile,
   unpackTile,
 } from "../shared/spatial.ts";
-import type { GameState } from "../shared/types.ts";
+import type { BuildViewState } from "../shared/system-interfaces.ts";
 import type {
   AiPlacement,
   Candidate,
@@ -551,7 +551,7 @@ function computeInnerObstacleBonus(
 }
 
 function computeDifficultyBonus(
-  state: GameState,
+  state: BuildViewState,
   candidate: Candidate,
 ): number {
   if (candidate.piece.offsets.length !== 1 || candidate.gapsFilled !== 1)

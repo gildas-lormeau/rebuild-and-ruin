@@ -398,7 +398,7 @@ function isValidGruntSpawnTile(
   if (!isGrass(state.map.tiles, row, col)) return false;
   if (!isGruntPassableTile(state, row, col)) return false;
   if (hasInteriorAt(state, packTile(row, col))) return false;
-  return !hasGruntAt(state, row, col);
+  return !hasGruntAt(state.grunts, row, col);
 }
 
 function minWaterDistance(state: GameState, row: number, col: number): number {

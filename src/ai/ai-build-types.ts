@@ -28,7 +28,7 @@ export type TargetResult = {
 
 /** Context for the target-selection pipeline (home repair → secondary → expand). */
 export interface TargetContext {
-  state: import("../shared/types").GameState;
+  state: import("../shared/system-interfaces").BuildViewState;
   playerId: import("../shared/player-slot").ValidPlayerSlot;
   player: import("../shared/player-types").Player;
   castle: import("../shared/geometry-types").Castle;
@@ -125,7 +125,7 @@ export interface ScoringRule {
 
 /** Shared context for the scoring loop — avoids threading 15+ params through closures. */
 export type ScoringContext = {
-  state: import("../shared/types").GameState;
+  state: import("../shared/system-interfaces").BuildViewState;
   walls: ReadonlySet<number>;
   outside: Set<number>;
   targetGaps: Set<number>;

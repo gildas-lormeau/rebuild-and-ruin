@@ -34,7 +34,7 @@ L18 is reserved for true entry points (e.g., `entry.ts`, `main.ts`, `server.ts`)
 - `battle-types.ts` — Cannon, Cannonball, Grunt, BurningPit, CapturedCannon, CannonMode, BattleAnimState
 - `geometry-types.ts` — TilePos, GameMap, Tower, Castle, House, BonusSquare, Viewport
 - `types.ts` — GameState, ModernState, LobbyState, SelectionState, FrameContext, and state helpers
-- `system-interfaces.ts` — Controller interfaces use `GameView` (not GameState) to avoid coupling consumers to types.ts
+- `system-interfaces.ts` — Controller interfaces and per-phase state slices: `GameViewState` (base: players + map), `BuildViewState` (9 fields), `CannonViewState` (6), `BattleViewState` (14). Decouples controllers and AI strategy from types.ts
 
 ### Phase flow
 CASTLE_SELECT → WALL_BUILD → CANNON_PLACE → BATTLE → loop (+ CASTLE_RESELECT when a player loses lives)

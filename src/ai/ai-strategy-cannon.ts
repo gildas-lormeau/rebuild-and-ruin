@@ -36,7 +36,7 @@ import {
   towerCenter,
   unpackTile,
 } from "../shared/spatial.ts";
-import type { GameState } from "../shared/types.ts";
+import type { CannonViewState } from "../shared/system-interfaces.ts";
 import { traitLookup } from "./ai-constants.ts";
 
 type CannonCandidate = { row: number; col: number; score: number };
@@ -124,7 +124,7 @@ export function autoSelectTower(
 export function autoPlaceCannons(
   player: Player,
   count: number,
-  state: GameState,
+  state: CannonViewState,
   rng: Rng,
   aggressiveness = 2,
   defensiveness = 2,
@@ -203,7 +203,7 @@ export function autoPlaceCannons(
 
 function findBestNormalCannonPosition(
   player: Player,
-  state: GameState,
+  state: CannonViewState,
   rng: Rng,
   noiseScale: number,
   towerCenters: readonly TilePos[],
@@ -234,7 +234,7 @@ function findBestNormalCannonPosition(
 function tryPlaceSuperGun(
   player: Player,
   count: number,
-  state: GameState,
+  state: CannonViewState,
   rng: Rng,
   noiseScale: number,
   superProb: number,
@@ -259,7 +259,7 @@ function tryPlaceSuperGun(
 function collectCannonCandidates(
   player: Player,
   mode: CannonMode,
-  state: GameState,
+  state: CannonViewState,
   rng: Rng,
   noiseScale: number,
   towerCenters: readonly TilePos[],
@@ -297,7 +297,7 @@ function scoreCannonPosition(
   row: number,
   col: number,
   mode: CannonMode,
-  state: GameState,
+  state: CannonViewState,
   rng: Rng,
   noiseScale = 1,
   towerCenters: readonly TilePos[] = player.ownedTowers.map(towerCenter),
@@ -353,7 +353,7 @@ function scoreCannonPosition(
 }
 
 function scoreCannonTileLocalPenalty(
-  state: GameState,
+  state: CannonViewState,
   row: number,
   col: number,
 ): number {
@@ -410,7 +410,7 @@ function scoreCannonTileLocalPenalty(
 function tryPlaceBalloon(
   player: Player,
   count: number,
-  state: GameState,
+  state: CannonViewState,
   defensiveness: number,
   normalCandidates: readonly CannonCandidate[],
 ): void {
@@ -434,7 +434,7 @@ function tryPlaceBalloon(
 }
 
 function shouldPlaceBalloon(
-  state: GameState,
+  state: CannonViewState,
   player: Player,
   defensiveness: number,
   normalCandidateCount: number,
@@ -460,7 +460,10 @@ function enemyHasLiveCannon(enemy: Player): boolean {
   return enemy.cannons.some((c) => isCannonAlive(c));
 }
 
-function enemyHasThreateningSuperGun(state: GameState, enemy: Player): boolean {
+function enemyHasThreateningSuperGun(
+  state: CannonViewState,
+  enemy: Player,
+): boolean {
   return enemy.cannons.some((c) => {
     if (!isCannonAlive(c) || !isSuperCannon(c)) return false;
     if (state.capturedCannons.some((cc) => cc.cannon === c)) return false;

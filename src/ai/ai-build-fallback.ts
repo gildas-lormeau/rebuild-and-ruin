@@ -17,7 +17,7 @@ import {
   packTile,
   unpackTile,
 } from "../shared/spatial.ts";
-import type { GameState } from "../shared/types.ts";
+import type { BuildViewState } from "../shared/system-interfaces.ts";
 import {
   candidateObstacleHits,
   candidateToPlacement,
@@ -37,7 +37,7 @@ const MIN_FREE_INTERIOR = 6;
 
 export function pickFallbackPlacement(
   scored: readonly Scored[],
-  state: GameState,
+  state: BuildViewState,
   buildCtx: FallbackContext,
 ): { placement: AiPlacement | null; reason: string } | null {
   const {
@@ -152,7 +152,7 @@ export function createsSmallEnclosure(
   candidate: Candidate,
   walls: ReadonlySet<number>,
   outside: ReadonlySet<number>,
-  state: GameState,
+  state: BuildViewState,
 ): boolean {
   const simulatedWalls = createSimulatedWalls(walls, candidate);
   const simulatedOutside = computeOutside(simulatedWalls);

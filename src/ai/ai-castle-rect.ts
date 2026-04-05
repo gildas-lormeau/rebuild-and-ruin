@@ -30,7 +30,7 @@ import {
   towerReachesOutsideCardinal,
   unpackTile,
 } from "../shared/spatial.ts";
-import type { GameState } from "../shared/types.ts";
+import type { BuildViewState } from "../shared/system-interfaces.ts";
 
 // Scoring weights for scoreBuildTowerTarget — tower ranking during build targeting.
 /** Weight given to wall-ring completion progress when ranking towers to build. */
@@ -48,7 +48,7 @@ export function computeFillableGaps(
   rect: TileRect,
   walls: ReadonlySet<number>,
   interior: FreshInterior,
-  state: GameState,
+  state: BuildViewState,
   bankHugging: boolean,
 ): Set<number> {
   const gaps = findGapTiles(rect, walls);
@@ -67,7 +67,7 @@ export function computeFillableGaps(
 
 export function scoreBuildTowerTarget(
   tower: Tower,
-  state: GameState,
+  state: BuildViewState,
   player: { id: ValidPlayerSlot; walls: ReadonlySet<number> },
   currentRow: number,
   currentCol: number,
@@ -115,7 +115,7 @@ export function hasMeaningfulHomeRingGaps(
   castle: TileRect & { tower: Tower },
   walls: ReadonlySet<number>,
   outside: ReadonlySet<number>,
-  state: GameState,
+  state: BuildViewState,
   interior: ReadonlySet<number>,
 ): boolean {
   if (!homeTowerEnclosed) return true;
@@ -133,7 +133,7 @@ export function hasMeaningfulHomeRingGaps(
 /** Remove gaps that can't be filled (non-grass, burning pit, cannon, tower, inside interior). */
 export function filterUnfillableGaps(
   gaps: Set<number>,
-  state: GameState,
+  state: BuildViewState,
   interior?: ReadonlySet<number>,
 ): void {
   for (const key of gaps) {
@@ -481,7 +481,7 @@ function countRingTiles(rect: TileRect): number {
 
 function countCastleRectObstructions(
   rect: TileRect,
-  state: GameState,
+  state: BuildViewState,
   player: { id: ValidPlayerSlot; walls: ReadonlySet<number> },
 ): { obstructions: number; area: number } {
   let obstructions = 0;
@@ -494,7 +494,7 @@ function countCastleRectObstructions(
       if (!inBounds(r, c)) continue;
       const key = packTile(r, c);
       if (player.walls.has(key)) continue;
-      if (hasGruntAt(state, r, c)) {
+      if (hasGruntAt(state.grunts, r, c)) {
         obstructions++;
         continue;
       }

@@ -55,6 +55,7 @@ import {
 import type {
   BattleController,
   ControllerIdentity,
+  GameViewState,
 } from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
 import { UID } from "../shared/upgrade-defs.ts";
@@ -591,7 +592,10 @@ export function nextReadyCombined(
  * Check if a cannon is ready to fire (no ball currently in flight from it).
  */
 export function canFireOwnCannon(
-  state: GameState,
+  state: GameViewState & {
+    readonly capturedCannons: readonly CapturedCannon[];
+    readonly cannonballs: readonly Cannonball[];
+  },
   playerId: ValidPlayerSlot,
   cannonIdx: number,
 ): boolean {

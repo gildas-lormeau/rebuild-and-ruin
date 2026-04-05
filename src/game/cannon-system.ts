@@ -3,6 +3,7 @@
  */
 
 import {
+  type BurningPit,
   type Cannon,
   CannonMode,
   isBalloonMode,
@@ -40,7 +41,7 @@ import {
   towerCenter,
   unpackTile,
 } from "../shared/spatial.ts";
-import type { GameState } from "../shared/types.ts";
+import type { GameViewState } from "../shared/system-interfaces.ts";
 
 /** Max search radius when snapping cannon placement to a valid tile. */
 const CANNON_SNAP_RADIUS = 2;
@@ -76,7 +77,7 @@ export function isCannonEnclosed(
 export function hasAnyCannonPlacement(
   player: Player,
   mode: CannonMode,
-  state: GameState,
+  state: GameViewState & { readonly burningPits: readonly BurningPit[] },
 ): boolean {
   const interior = getInterior(player);
   for (const key of interior) {
@@ -95,7 +96,7 @@ export function findNearestValidCannonPlacement(
   row: number,
   col: number,
   mode: CannonMode,
-  state: GameState,
+  state: GameViewState & { readonly burningPits: readonly BurningPit[] },
   maxRadius = CANNON_SNAP_RADIUS,
 ): { row: number; col: number } | undefined {
   let bestDist = Infinity;
@@ -119,7 +120,15 @@ export function findNearestValidCannonPlacement(
  * Three paths: reselection (fixed budget based on lives lost),
  * round 1 (firstRoundCannons), or normal (tower-based: 2 for home + 1 per other).
  */
-export function cannonSlotsForRound(player: Player, state: GameState): number {
+export function cannonSlotsForRound(
+  player: Player,
+  state: {
+    readonly reselectedPlayers: ReadonlySet<number>;
+    readonly firstRoundCannons: number;
+    readonly round: number;
+    readonly towerAlive: readonly boolean[];
+  },
+): number {
   const existingSlots = cannonSlotsUsed(player);
   let newSlots: number;
   if (state.reselectedPlayers.has(player.id)) {
@@ -146,7 +155,7 @@ export function cannonSlotsForRound(player: Player, state: GameState): number {
  * Convenience wrapper: computes defaultFacing + applies to all cannons.
  * Call at the start of the build phase and in online checkpoints.
  */
-export function resetCannonFacings(state: GameState): void {
+export function resetCannonFacings(state: GameViewState): void {
   computeDefaultFacings(state);
   applyDefaultFacings(state);
 }
@@ -158,7 +167,7 @@ export function resetCannonFacings(state: GameState): void {
  * AI controllers pick up the right defaultFacing before the banner
  * captures old cannon facings for the old-scene overlay.
  */
-export function computeDefaultFacings(state: GameState): void {
+export function computeDefaultFacings(state: GameViewState): void {
   for (const player of state.players) {
     if (!isPlayerSeated(player)) continue;
     const pc = towerCenter(player.homeTower);
@@ -185,7 +194,7 @@ export function computeDefaultFacings(state: GameState): void {
 }
 
 /** Apply each player's defaultFacing to all their existing cannons. */
-export function applyDefaultFacings(state: GameState): void {
+export function applyDefaultFacings(state: GameViewState): void {
   for (const player of state.players) {
     if (!isPlayerSeated(player)) continue;
     for (const cannon of player.cannons) {
@@ -203,7 +212,11 @@ export function filterActiveFiringCannons(player: Player): Cannon[] {
  *  Safety net — ensures every player starts with cannons even if they
  *  skipped placement. Picks evenly spaced valid interior positions. */
 export function autoPlaceRound1Cannons(
-  state: GameState,
+  state: GameViewState & {
+    readonly burningPits: readonly BurningPit[];
+    readonly cannonMaxHp: number;
+    readonly round: number;
+  },
   playerId: ValidPlayerSlot,
   maxSlots: number,
 ): void {
@@ -253,7 +266,10 @@ export function placeCannon(
   col: number,
   maxCannons: number,
   mode: CannonMode,
-  state: GameState,
+  state: GameViewState & {
+    readonly burningPits: readonly BurningPit[];
+    readonly cannonMaxHp: number;
+  },
 ): boolean {
   if (player.eliminated) return false;
   const used = cannonSlotsUsed(player);
@@ -278,7 +294,7 @@ export function canPlaceCannon(
   row: number,
   col: number,
   mode: CannonMode,
-  state: GameState,
+  state: GameViewState & { readonly burningPits: readonly BurningPit[] },
 ): boolean {
   const interior = getInterior(player);
   const size = cannonSize(mode);
@@ -305,7 +321,7 @@ export function applyCannonPlacement(
   row: number,
   col: number,
   mode: CannonMode,
-  state: GameState,
+  state: { readonly cannonMaxHp: number },
 ): void {
   if (player.eliminated) return;
   player.cannons.push({

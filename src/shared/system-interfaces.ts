@@ -1,6 +1,14 @@
 import type { BattleEvent } from "../../server/protocol.ts";
-import { CannonMode } from "./battle-types.ts";
+import {
+  type BurningPit,
+  type Cannonball,
+  CannonMode,
+  type CapturedCannon,
+  type Grunt,
+} from "./battle-types.ts";
+import type { ModifierId } from "./game-constants.ts";
 import type {
+  BonusSquare,
   Crosshair,
   GameMap,
   PixelPos,
@@ -11,14 +19,59 @@ import type { PieceShape } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { Player } from "./player-types.ts";
+import type { Rng } from "./rng.ts";
 
 /** Minimal game-state slice used in controller method signatures.
  *  Breaks the coupling chain: consumers of controller interfaces no longer
  *  transitively depend on types.ts (GameState). GameState satisfies this
- *  structurally — no casts needed at call sites. */
-export interface GameView {
+ *  structurally — no casts needed at call sites.
+ *
+ *  BIVARIANCE NOTE: Controller implementations declare `state: GameState`
+ *  while interfaces declare the per-phase view. TypeScript's method bivariance
+ *  allows this. All real call sites pass GameState, so the gap is theoretical.
+ *  The views document the actual field contract per phase — not a runtime guard. */
+export interface GameViewState {
   readonly players: readonly Player[];
   readonly map: GameMap;
+}
+
+/** Build-phase state slice.  9 fields (vs 25 on GameState). */
+export interface BuildViewState extends GameViewState {
+  readonly round: number;
+  readonly rng: Rng;
+  readonly timer: number;
+  readonly towerAlive: readonly boolean[];
+  readonly burningPits: readonly BurningPit[];
+  readonly bonusSquares: readonly BonusSquare[];
+  readonly grunts: readonly Grunt[];
+}
+
+/** Cannon-phase state slice.  6 fields. */
+export interface CannonViewState extends GameViewState {
+  readonly cannonLimits: readonly number[];
+  readonly capturedCannons: readonly CapturedCannon[];
+  readonly burningPits: readonly BurningPit[];
+  readonly cannonMaxHp: number;
+}
+
+/** Battle-phase state slice.  14 fields.
+ *  `modern` is an inline structural subset — only the fields the battle
+ *  controller reads (frozenTiles, activeModifier).  Avoids importing
+ *  ModernState from types.ts, preserving the coupling break. */
+export interface BattleViewState extends GameViewState {
+  readonly rng: Rng;
+  readonly timer: number;
+  readonly battleCountdown: number;
+  readonly grunts: readonly Grunt[];
+  readonly cannonballs: readonly Cannonball[];
+  readonly cannonMaxHp: number;
+  readonly capturedCannons: readonly CapturedCannon[];
+  readonly burningPits: readonly BurningPit[];
+  readonly playerZones: readonly number[];
+  readonly modern: {
+    readonly frozenTiles: ReadonlySet<number> | null;
+    readonly activeModifier: ModifierId | null;
+  } | null;
 }
 
 /** Orbit animation parameters for AI countdown idle animation. */
@@ -72,19 +125,19 @@ export interface ControllerIdentity {
 /** Tower selection phase. */
 export interface SelectionController {
   /** Pick a tower. Initiates async selection — use selectionTick() to advance. */
-  selectInitialTower(state: GameView, zone: number): void;
+  selectInitialTower(state: GameViewState, zone: number): void;
 
   /** Select a new tower after losing a life (castle reselection phase).
    *  Called when the player enters CASTLE_RESELECT phase — they must pick a new
    *  home tower because their previous territory was destroyed.
    *  Not to be confused with selectInitialTower() which is for initial tower selection. */
-  selectReplacementTower(state: GameView, zone: number): void;
+  selectReplacementTower(state: GameViewState, zone: number): void;
 
   /** Tick during selection phase.
    *  Returns true when the player has confirmed their tower choice (AI auto-confirms
    *  after an animation delay; human always returns false — confirmation is driven by
    *  explicit UI input, not by the tick). */
-  selectionTick(dt: number, state?: GameView): boolean;
+  selectionTick(dt: number, state?: GameViewState): boolean;
 }
 
 /** Wall build phase. */
@@ -93,16 +146,16 @@ export interface BuildController {
   buildCursor: TilePos;
 
   /** Called once at the start of the build phase. */
-  startBuildPhase(state: GameView): void;
+  startBuildPhase(state: BuildViewState): void;
 
   /** Called each frame during build phase. Returns piece placement previews for rendering.
    *  Returns empty array when no preview is active.
    *  NOTE: Returns array (not null) because multiple piece previews can exist simultaneously.
    *  Contrast with cannonTick() which returns null when inactive. */
-  buildTick(state: GameView, dt: number): PiecePlacementPreview[];
+  buildTick(state: BuildViewState, dt: number): PiecePlacementPreview[];
 
   /** Called at the end of the build phase. */
-  finalizeBuildPhase(state: GameView): void;
+  finalizeBuildPhase(state: BuildViewState): void;
 
   /** Move build cursor one tile in a direction (keyboard). Piece-aware clamping when provided. */
   moveBuildCursor(direction: Action, piece?: PieceShape | null): void;
@@ -130,18 +183,18 @@ export interface CannonController {
    *  - Human: selects mode interactively; downgradeCannonModeIfNeeded() reverts to NORMAL
    *    each tick if remaining slots can't afford the current mode.
    *  When adding a new cannon mode, update both ai-strategy-cannon.ts and controller-human.ts. */
-  placeCannons(state: GameView, maxSlots: number): void;
+  placeCannons(state: CannonViewState, maxSlots: number): void;
 
   /** Whether the player has finished cannon placement. Human: checks remaining
    *  slots. AI: checks internal phase step. Both are correct — they measure
    *  different completion criteria. */
-  isCannonPhaseDone(state: GameView, maxSlots: number): boolean;
+  isCannonPhaseDone(state: CannonViewState, maxSlots: number): boolean;
 
   /** Called each frame during cannon phase. Returns a placement preview for rendering,
    *  or null if no preview should be shown (player eliminated, no slots remaining).
    *  NOTE: Returns null (not empty array) because at most one cannon preview exists at a time.
    *  Contrast with buildTick() which returns an array (multiple piece previews possible). */
-  cannonTick(state: GameView, dt: number): CannonPlacementPreview | null;
+  cannonTick(state: CannonViewState, dt: number): CannonPlacementPreview | null;
 
   /** Move cannon cursor one tile in a direction (keyboard). */
   moveCannonCursor(direction: Action): void;
@@ -151,28 +204,28 @@ export interface CannonController {
   setCannonCursor(worldX: number, worldY: number): void;
 
   /** Called at start of cannon phase. */
-  startCannonPhase(state: GameView): void;
+  startCannonPhase(state: CannonViewState): void;
 
   /** Flush any remaining auto-placement queue (cannon timer expired).
    *  Do NOT call directly — use finalizeCannonPhase() which guarantees flush->init order. */
-  flushCannons(state: GameView, maxSlots: number): void;
+  flushCannons(state: CannonViewState, maxSlots: number): void;
 
   /** End-of-cannon-phase finalization (flush + init). Use for LOCAL controllers.
    *  Remote controllers only need initCannons() (their client handles flush). */
-  finalizeCannonPhase(state: GameView, maxSlots: number): void;
+  finalizeCannonPhase(state: CannonViewState, maxSlots: number): void;
 
   /** Round-1 safety net: auto-place cannons if none were manually placed. No-op on round 2+. */
-  initCannons(state: GameView, maxSlots: number): void;
+  initCannons(state: CannonViewState, maxSlots: number): void;
 }
 
 /** Battle phase. */
 export interface BattleController {
   /** Called each frame during battle. Uses state.battleCountdown and state.timer to decide behavior. */
-  battleTick(state: GameView, dt: number): void;
+  battleTick(state: BattleViewState, dt: number): void;
 
   /** Fire one cannon at the current crosshair position (public entry point).
    *  Delegates to the protected round-robin method fireNextCannon(). */
-  fire(state: GameView): void;
+  fire(state: BattleViewState): void;
 
   /** Current crosshair for rendering. */
   getCrosshair(): Crosshair;
@@ -183,7 +236,7 @@ export interface BattleController {
   /** Initialize battle-phase state (cannon rotation index, crosshair position).
    *  Called once at battle start — not a full game reset (see reset() for that).
    *  Scope: resets cannonRotationIdx + centers cursors on home tower. */
-  initBattleState(state?: GameView): void;
+  initBattleState(state?: BattleViewState): void;
 
   /** Called at the end of the battle phase. */
   endBattle(): void;
@@ -214,13 +267,13 @@ export interface InputReceiver {
   rotatePiece(): void;
 
   /** Try to place the current build piece at the cursor. */
-  tryPlacePiece(state: GameView): boolean;
+  tryPlacePiece(state: BuildViewState): boolean;
 
   /** Try to place a cannon at the cursor. */
-  tryPlaceCannon(state: GameView, maxSlots: number): boolean;
+  tryPlaceCannon(state: CannonViewState, maxSlots: number): boolean;
 
   /** Cycle cannon placement mode (normal/super/balloon). */
-  cycleCannonMode(state: GameView, maxSlots: number): void;
+  cycleCannonMode(state: CannonViewState, maxSlots: number): void;
 
   /** Current cannon placement mode. */
   getCannonPlaceMode(): CannonMode;

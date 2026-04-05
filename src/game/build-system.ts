@@ -4,7 +4,7 @@
  * AI placement strategy lives in ai-strategy.ts.
  */
 
-import type { Grunt } from "../shared/battle-types.ts";
+import type { BurningPit, Grunt } from "../shared/battle-types.ts";
 import {
   addPlayerWalls,
   BONUS_PLACEMENT_BLOCKED,
@@ -46,6 +46,7 @@ import {
   manhattanDistance,
   packTile,
 } from "../shared/spatial.ts";
+import type { GameViewState } from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
 import { spawnGruntNearPos, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
@@ -69,7 +70,10 @@ export function placePiece(
  * All piece tiles must be on grass, not on any player's walls, not on towers, cannons, grunts, or burning pits.
  */
 export function canPlacePiece(
-  state: GameState,
+  state: GameViewState & {
+    readonly grunts: readonly Grunt[];
+    readonly burningPits: readonly BurningPit[];
+  },
   playerId: ValidPlayerSlot,
   piece: PieceShape,
   row: number,
@@ -97,7 +101,10 @@ export function canPlacePiece(
  *
  *  Same as canPlacePiece but accepts raw offsets — used when no PieceShape is available (e.g. network validation). */
 export function canPlacePieceOffsets(
-  state: GameState,
+  state: GameViewState & {
+    readonly grunts: readonly Grunt[];
+    readonly burningPits: readonly BurningPit[];
+  },
   playerId: ValidPlayerSlot,
   offsets: readonly [number, number][],
   row: number,
@@ -121,7 +128,7 @@ export function canPlacePieceOffsets(
     if (hasWallAt(state, r, c)) return false;
     if (hasTowerAt(state, r, c)) return false;
     if (hasCannonAt(state, r, c)) return false;
-    if (hasGruntAt(state, r, c)) return false;
+    if (hasGruntAt(state.grunts, r, c)) return false;
 
     // Check burning pits
     if (hasPitAt(state.burningPits, r, c)) return false;

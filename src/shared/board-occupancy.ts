@@ -1,4 +1,5 @@
-import type { Grunt } from "./battle-types.ts";
+import type { BurningPit, Grunt } from "./battle-types.ts";
+import type { BonusSquare } from "./geometry-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { FreshInterior, Player } from "./player-types.ts";
 import {
@@ -16,7 +17,7 @@ import {
   packTile,
   unpackTile,
 } from "./spatial.ts";
-import type { GameState } from "./types.ts";
+import type { GameViewState } from "./system-interfaces.ts";
 
 /** Epoch tracking is lazy: undefined = not active for this player.
  *  Initialized on first markWallsDirty() call. */
@@ -53,12 +54,19 @@ export function isTileOwnedByPlayer(
 }
 
 /** Remove a wall tile from all players. Used during battle (grunt attacks). */
-export function removeWallFromAllPlayers(state: GameState, key: number): void {
+export function removeWallFromAllPlayers(
+  state: GameViewState,
+  key: number,
+): void {
   for (const player of state.players) deletePlayerWallBattle(player, key);
 }
 
 export function collectOccupiedTiles(
-  state: GameState,
+  state: GameViewState & {
+    readonly burningPits: readonly BurningPit[];
+    readonly bonusSquares: readonly BonusSquare[];
+    readonly grunts: readonly Grunt[];
+  },
   options?: {
     includeWalls?: boolean;
     includeInterior?: boolean;
@@ -122,11 +130,11 @@ export function collectOccupiedTiles(
 }
 
 /** Snapshot each player's wall set (independent copies). */
-export function snapshotAllWalls(state: GameState): Set<number>[] {
+export function snapshotAllWalls(state: GameViewState): Set<number>[] {
   return state.players.map((player) => new Set(player.walls));
 }
 
-export function collectAllWalls(state: GameState): Set<number> {
+export function collectAllWalls(state: GameViewState): Set<number> {
   const allWalls = new Set<number>();
   for (const player of state.players) {
     for (const key of player.walls) allWalls.add(key);
@@ -134,7 +142,7 @@ export function collectAllWalls(state: GameState): Set<number> {
   return allWalls;
 }
 
-export function collectAllInterior(state: GameState): Set<number> {
+export function collectAllInterior(state: GameViewState): Set<number> {
   const allInterior = new Set<number>();
   for (const player of state.players) {
     for (const key of player.interior) allInterior.add(key);
@@ -143,7 +151,7 @@ export function collectAllInterior(state: GameState): Set<number> {
 }
 
 export function collectAllCannonTiles(
-  state: GameState,
+  state: GameViewState,
   options?: { excludeBalloonCannons?: boolean },
 ): Set<number> {
   const cannonTiles = new Set<number>();
@@ -156,13 +164,13 @@ export function collectAllCannonTiles(
   return cannonTiles;
 }
 
-export function hasWallAt(state: GameState, r: number, c: number): boolean {
+export function hasWallAt(state: GameViewState, r: number, c: number): boolean {
   const key = packTile(r, c);
   return hasWallMatching(state, key, () => true);
 }
 
 export function hasEnemyWallAt(
-  state: GameState,
+  state: GameViewState,
   playerId: ValidPlayerSlot,
   r: number,
   c: number,
@@ -171,7 +179,7 @@ export function hasEnemyWallAt(
   return hasWallMatching(state, key, (player) => player.id !== playerId);
 }
 
-export function hasInteriorAt(state: GameState, key: number): boolean {
+export function hasInteriorAt(state: GameViewState, key: number): boolean {
   return state.players.some((player) => {
     assertInteriorFresh(player);
     return player.interior.has(key);
@@ -179,18 +187,16 @@ export function hasInteriorAt(state: GameState, key: number): boolean {
 }
 
 export function hasGruntAt(
-  state: GameState,
+  grunts: readonly Grunt[],
   r: number,
   c: number,
   exclude?: Grunt,
 ): boolean {
-  return state.grunts.some(
-    (grunt) => grunt !== exclude && isAtTile(grunt, r, c),
-  );
+  return grunts.some((grunt) => grunt !== exclude && isAtTile(grunt, r, c));
 }
 
 export function hasAliveHouseAt(
-  state: GameState,
+  state: GameViewState,
   r: number,
   c: number,
 ): boolean {
@@ -198,7 +204,7 @@ export function hasAliveHouseAt(
 }
 
 export function findLivingTowerIndexAt(
-  state: GameState,
+  state: GameViewState & { readonly towerAlive: readonly boolean[] },
   r: number,
   c: number,
 ): number | null {
@@ -210,7 +216,7 @@ export function findLivingTowerIndexAt(
 }
 
 export function computeCardinalObstacleMask(
-  state: GameState,
+  state: GameViewState & { readonly burningPits: readonly BurningPit[] },
   row: number,
   col: number,
   options?: { excludeBalloonCannons?: boolean },
@@ -255,7 +261,7 @@ export function computeCardinalObstacleMask(
 
 /** Return the player id that owns the zone at (row, col), or 0 if no owner found. */
 export function zoneOwnerIdAt(
-  state: GameState,
+  state: GameViewState,
   row: number,
   col: number,
 ): ValidPlayerSlot {
@@ -264,12 +270,16 @@ export function zoneOwnerIdAt(
   return owner?.id ?? (0 as ValidPlayerSlot);
 }
 
-export function hasTowerAt(state: GameState, r: number, c: number): boolean {
+export function hasTowerAt(
+  state: GameViewState,
+  r: number,
+  c: number,
+): boolean {
   return state.map.towers.some((tower) => isTowerTile(tower, r, c));
 }
 
 export function hasCannonAt(
-  state: GameState,
+  state: GameViewState,
   r: number,
   c: number,
   options?: { excludeBalloonCannons?: boolean },
@@ -284,13 +294,16 @@ export function hasCannonAt(
 }
 
 /** Return a player's owned towers that are still alive. */
-export function filterAliveOwnedTowers(player: Player, state: GameState) {
+export function filterAliveOwnedTowers(
+  player: Player,
+  state: { readonly towerAlive: readonly boolean[] },
+) {
   return player.ownedTowers.filter((tower) => state.towerAlive[tower.index]!);
 }
 
 /** Return all players that are not `playerId` and not eliminated. */
 export function filterActiveEnemies(
-  state: GameState,
+  state: GameViewState,
   playerId: ValidPlayerSlot,
 ) {
   return state.players.filter(
@@ -422,7 +435,7 @@ function mutableWalls(player: Player): Set<number> {
 }
 
 function hasWallMatching(
-  state: GameState,
+  state: GameViewState,
   key: number,
   predicate: (player: Player) => boolean,
 ): boolean {
