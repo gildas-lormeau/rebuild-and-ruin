@@ -57,6 +57,16 @@ const ROUNDS_TO_THE_DEATH_INDEX = 4;
 /** Index into CANNON_HP_OPTIONS (not the HP value itself — value is 3 hits). */
 const CANNON_HP_DEFAULT_INDEX = 0;
 const SETTINGS_KEY = "castles99_settings";
+// Player castle colors: wall (stone-tinted) and interior (checkerboard light/dark)
+const RED_WALL: RGB = [150, 110, 110];
+const RED_INTERIOR_LIGHT: RGB = [170, 30, 30];
+const RED_INTERIOR_DARK: RGB = [50, 10, 10];
+const BLUE_WALL: RGB = [100, 105, 140];
+const BLUE_INTERIOR_LIGHT: RGB = [30, 50, 170];
+const BLUE_INTERIOR_DARK: RGB = [10, 15, 50];
+const GOLD_WALL: RGB = [170, 145, 90];
+const GOLD_INTERIOR_LIGHT: RGB = [190, 130, 20];
+const GOLD_INTERIOR_DARK: RGB = [55, 40, 10];
 export const KEY_UP = "ArrowUp";
 export const KEY_DOWN = "ArrowDown";
 export const KEY_LEFT = "ArrowLeft";
@@ -81,23 +91,22 @@ export const HAPTICS_ALL = 2;
 export const SOUND_PHASE_ONLY = 1;
 export const SOUND_ALL = 2;
 export const PLAYER_NAMES = ["Red", "Blue", "Gold"] as const;
-// Player castle colors: wall and interior (checkerboard light/dark)
 export const PLAYER_COLORS: readonly PlayerColor[] = [
   {
-    wall: [150, 110, 110],
-    interiorLight: [170, 30, 30],
-    interiorDark: [50, 10, 10],
-  }, // Red (stone-tinted)
+    wall: RED_WALL,
+    interiorLight: RED_INTERIOR_LIGHT,
+    interiorDark: RED_INTERIOR_DARK,
+  },
   {
-    wall: [100, 105, 140],
-    interiorLight: [30, 50, 170],
-    interiorDark: [10, 15, 50],
-  }, // Blue (stone-tinted)
+    wall: BLUE_WALL,
+    interiorLight: BLUE_INTERIOR_LIGHT,
+    interiorDark: BLUE_INTERIOR_DARK,
+  },
   {
-    wall: [170, 145, 90],
-    interiorLight: [190, 130, 20],
-    interiorDark: [55, 40, 10],
-  }, // Orange/Gold (stone-tinted)
+    wall: GOLD_WALL,
+    interiorLight: GOLD_INTERIOR_LIGHT,
+    interiorDark: GOLD_INTERIOR_DARK,
+  },
 ];
 export const PLAYER_KEY_BINDINGS: readonly KeyBindings[] = [
   {
