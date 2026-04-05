@@ -17,18 +17,18 @@
  */
 
 import {
-  Action,
-  isInteractiveMode,
   isPlacementPhase,
   isReselectPhase,
   isSelectionPhase,
   Phase,
 } from "../shared/game-phase.ts";
+import { Action } from "../shared/input-action.ts";
 import { cannonSize } from "../shared/spatial.ts";
 import type {
   InputReceiver,
   PlayerController,
 } from "../shared/system-interfaces.ts";
+import { isInteractiveMode } from "../shared/ui-mode.ts";
 import {
   type RegisterOnlineInputDeps,
   TAP_MAX_DIST,

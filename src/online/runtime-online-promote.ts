@@ -12,7 +12,7 @@
 import { createAiController } from "../runtime/runtime-bootstrap.ts";
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
-import { Mode } from "../shared/game-phase.ts";
+import { Mode } from "../shared/ui-mode.ts";
 import { assertNever } from "../shared/utils.ts";
 import {
   rebuildControllersForPhase,

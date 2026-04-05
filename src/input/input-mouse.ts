@@ -1,13 +1,12 @@
 import {
-  Action,
-  isInteractiveMode,
   isPlacementPhase,
   isReselectPhase,
   isSelectionPhase,
-  Mode,
   Phase,
 } from "../shared/game-phase.ts";
+import { Action } from "../shared/input-action.ts";
 import { CURSOR_DEFAULT, CURSOR_POINTER } from "../shared/platform.ts";
+import { isInteractiveMode, Mode } from "../shared/ui-mode.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
 import {
   dispatchBattleFire,

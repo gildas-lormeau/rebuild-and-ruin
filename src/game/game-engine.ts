@@ -14,6 +14,7 @@
  */
 
 import type { Impact } from "../shared/battle-types.ts";
+import type { ModifierDiff } from "../shared/game-constants.ts";
 import {
   BUILD_TIMER,
   CANNON_MAX_HP,
@@ -40,7 +41,6 @@ import {
   enterBuildFromSelect,
   setPhase,
 } from "./phase-setup.ts";
-import type { ModifierDiff } from "./round-modifiers.ts";
 
 /** Create a game from a seed: generate map, pick zones, create state.
  *  Pass an existing map to reuse it (avoids regeneration + keeps terrain cache warm). */

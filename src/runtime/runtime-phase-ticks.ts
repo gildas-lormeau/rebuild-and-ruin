@@ -53,7 +53,6 @@ import {
   BATTLE_TIMER,
   IMPACT_FLASH_DURATION,
 } from "../shared/game-constants.ts";
-import { Mode } from "../shared/game-phase.ts";
 import { NOOP_DEDUP_CHANNEL } from "../shared/phantom-types.ts";
 import {
   type HapticsSystem,
@@ -66,6 +65,7 @@ import {
   resetAccum,
   type WatcherTimingState,
 } from "../shared/tick-context.ts";
+import { Mode } from "../shared/ui-mode.ts";
 import {
   assertStateReady,
   type RuntimeState,

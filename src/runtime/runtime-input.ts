@@ -17,7 +17,7 @@ import {
   type GameOverFocus,
   type ResolvedChoice,
 } from "../shared/dialog-types.ts";
-import { Action, Mode } from "../shared/game-phase.ts";
+import { Action } from "../shared/input-action.ts";
 import type {
   LoupeHandle,
   RendererInterface,
@@ -34,6 +34,7 @@ import {
   type SoundSystem,
 } from "../shared/system-interfaces.ts";
 import { type GameState } from "../shared/types.ts";
+import { Mode } from "../shared/ui-mode.ts";
 import { type RuntimeState, safeState, setMode } from "./runtime-state.ts";
 import type { CameraSystem } from "./runtime-types.ts";
 

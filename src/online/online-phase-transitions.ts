@@ -34,7 +34,7 @@ import type {
   SerializedPlayer,
 } from "../shared/checkpoint-data.ts";
 import { FOCUS_REMATCH, type GameOverFocus } from "../shared/dialog-types.ts";
-import { Mode, Phase } from "../shared/game-phase.ts";
+import { Phase } from "../shared/game-phase.ts";
 import type { RGB } from "../shared/geometry-types.ts";
 import { TILE_COUNT } from "../shared/grid.ts";
 import type { CastleData } from "../shared/overlay-types.ts";
@@ -42,6 +42,7 @@ import { isActivePlayer, type ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
 import type { WatcherTimingState } from "../shared/tick-context.ts";
 import { type GameState } from "../shared/types.ts";
+import { Mode } from "../shared/ui-mode.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { setWatcherPhaseTimer } from "./online-types.ts";
 
@@ -80,7 +81,7 @@ export interface TransitionContext {
       prevWalls?: Set<number>[];
       prevEntities?: import("../shared/overlay-types").EntityOverlay;
       wallsBeforeSweep?: Set<number>[];
-      modifierDiff?: import("../game/round-modifiers.ts").ModifierDiff;
+      modifierDiff?: import("../shared/game-constants.ts").ModifierDiff;
     };
     render: () => void;
     watcherTiming: WatcherTimingState;

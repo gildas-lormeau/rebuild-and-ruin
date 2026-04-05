@@ -26,9 +26,9 @@ import {
   SUPER_GUN_SIZE,
   TOWER_SIZE,
 } from "./game-constants.ts";
-import { Action } from "./game-phase.ts";
 import type { PixelPos, TilePos, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
+import { Action } from "./input-action.ts";
 import { type TileKey } from "./types.ts";
 
 /** 45° angle step (π/4 radians) — used for 8-direction snapping. */

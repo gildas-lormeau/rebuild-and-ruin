@@ -11,13 +11,7 @@ import {
   type UpgradePickDialogState,
 } from "../shared/dialog-types.ts";
 import { PHASE_ENDING_THRESHOLD } from "../shared/game-constants.ts";
-import {
-  isGameplayMode,
-  isPlacementPhase,
-  isTransitionMode,
-  Mode,
-  Phase,
-} from "../shared/game-phase.ts";
+import { isPlacementPhase, Phase } from "../shared/game-phase.ts";
 import type {
   FrameData,
   PlayerStats,
@@ -41,6 +35,7 @@ import {
   type LobbyState,
   type SelectionState,
 } from "../shared/types.ts";
+import { isGameplayMode, isTransitionMode, Mode } from "../shared/ui-mode.ts";
 
 export interface ScoreDisplayState {
   deltas: {

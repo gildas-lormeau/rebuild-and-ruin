@@ -20,7 +20,6 @@ import {
   GAME_MODE_MODERN,
   MODIFIER_FIRST_ROUND,
   MODIFIER_ROLL_CHANCE,
-  type ModifierDiff,
   type ModifierId,
 } from "../shared/game-constants.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
@@ -33,8 +32,6 @@ import {
 } from "../shared/spatial.ts";
 import { type GameState, isPlayerSeated } from "../shared/types.ts";
 import { spawnGruntSurgeOnZone } from "./grunt-system.ts";
-
-export type { ModifierDiff };
 
 interface ModifierDef {
   readonly id: ModifierId;

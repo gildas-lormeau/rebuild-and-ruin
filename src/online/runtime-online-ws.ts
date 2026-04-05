@@ -5,8 +5,8 @@
  * via initWs() to avoid initialization coupling with the composition root.
  */
 
-import { Mode } from "../shared/game-phase.ts";
 import { isHostInContext } from "../shared/tick-context.ts";
+import { Mode } from "../shared/ui-mode.ts";
 import { computeWsUrl } from "./online-config.ts";
 import { connectWebSocket } from "./online-session.ts";
 import {

@@ -11,7 +11,7 @@ import {
   tickBannerTransition,
 } from "../game/phase-banner.ts";
 import { BANNER_DURATION } from "../shared/game-constants.ts";
-import { Mode } from "../shared/game-phase.ts";
+import { Mode } from "../shared/ui-mode.ts";
 import { type RuntimeState, setMode } from "./runtime-state.ts";
 
 interface BannerSystemDeps {

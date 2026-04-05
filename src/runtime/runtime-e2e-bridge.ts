@@ -7,7 +7,7 @@
  */
 
 import { computeLetterboxLayout } from "../shared/canvas-layout.ts";
-import { Mode, Phase } from "../shared/game-phase.ts";
+import { Phase } from "../shared/game-phase.ts";
 import { TILE_SIZE } from "../shared/grid.ts";
 import {
   clearRenderSpy,
@@ -17,6 +17,7 @@ import {
 import { unpackTile } from "../shared/spatial.ts";
 import { isHuman } from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
+import { Mode } from "../shared/ui-mode.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 import type { RuntimeConfig } from "./runtime-types.ts";
 

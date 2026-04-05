@@ -13,13 +13,13 @@ import {
   FOCUS_REMATCH,
   type GameOverFocus,
 } from "../shared/dialog-types.ts";
-import { Mode } from "../shared/game-phase.ts";
 import {
   getPlayerColor,
   MAX_PLAYERS,
   PLAYER_NAMES,
 } from "../shared/player-config.ts";
 import type { SoundSystem } from "../shared/system-interfaces.ts";
+import { Mode } from "../shared/ui-mode.ts";
 import {
   type RuntimeState,
   resetTransientState,

@@ -9,22 +9,29 @@
       "src/shared/jsfxr.d.ts",
       "src/shared/platform.ts",
       "src/shared/rng.ts",
-      "src/shared/router.ts",
+      "src/runtime/router.ts",
       "src/online/online-dom.ts",
       "src/shared/upgrade-defs.ts",
       "src/shared/settings-defs.ts",
       "src/shared/player-slot.ts",
       "src/shared/game-phase.ts",
+      "src/shared/ui-mode.ts",
+      "src/shared/input-action.ts",
       "src/shared/render-spy.ts",
       "src/shared/utils.ts",
       "src/online/online-config.ts",
+      "src/shared/dialog-types.ts",
+      "src/shared/checkpoint-data.ts",
       "server/send-utils.ts"
     ]
   },
   {
-    "name": "geometry types",
+    "name": "derived constants",
     "files": [
-      "src/shared/geometry-types.ts"
+      "src/shared/geometry-types.ts",
+      "src/shared/theme.ts",
+      "src/shared/player-config.ts",
+      "src/shared/settings-ui.ts"
     ]
   },
   {
@@ -34,32 +41,27 @@
     ]
   },
   {
-    "name": "core types, state & spatial",
+    "name": "core game types",
     "files": [
       "src/shared/battle-types.ts",
       "src/shared/types.ts",
-      "src/shared/dialog-types.ts",
-      "src/shared/spatial.ts",
-      "src/shared/board-occupancy.ts",
-      "src/shared/checkpoint-data.ts",
+      "src/shared/phantom-types.ts",
       "server/protocol.ts"
     ]
   },
   {
-    "name": "shared types & config",
+    "name": "game state & orchestration",
     "files": [
-      "src/game/phase-transition-shared.ts",
-      "src/shared/player-config.ts",
+      "src/shared/spatial.ts",
+      "src/shared/board-occupancy.ts",
       "src/shared/system-interfaces.ts",
+      "src/shared/overlay-types.ts",
+      "src/shared/tick-context.ts",
       "src/game/life-lost.ts",
       "src/game/upgrade-pick.ts",
       "src/game/castle-build.ts",
       "src/game/phase-banner.ts",
-      "src/shared/theme.ts",
-      "src/shared/overlay-types.ts",
-      "src/shared/phantom-types.ts",
-      "src/shared/tick-context.ts",
-      "src/shared/settings-ui.ts",
+      "src/game/phase-transition-shared.ts",
       "src/shared/screen-builders.ts"
     ]
   },

@@ -40,7 +40,8 @@ import {
 import { assert, test, runTests } from "./test-helpers.ts";
 import { enterCannonPlacePhase, nextPhase } from "../src/game/game-engine.ts";
 import { SPECTATOR_SLOT, type PlayerSlotId, type ValidPlayerSlot } from "../src/shared/player-slot.ts";
-import { Phase, Mode } from "../src/shared/game-phase.ts";
+import { Phase } from "../src/shared/game-phase.ts";
+import { Mode } from "../src/shared/ui-mode.ts";
 import { LifeLostChoice, type LifeLostDialogState } from "../src/shared/dialog-types.ts";
 import { CannonMode } from "../src/shared/battle-types.ts";
 

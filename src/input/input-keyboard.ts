@@ -1,10 +1,5 @@
 import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/dialog-types.ts";
-import {
-  isGameplayMode,
-  isInteractiveMode,
-  isPlacementPhase,
-  Mode,
-} from "../shared/game-phase.ts";
+import { isPlacementPhase } from "../shared/game-phase.ts";
 import {
   IS_TOUCH_DEVICE,
   KEY_DOWN,
@@ -23,6 +18,7 @@ import {
   SEED_RANDOM,
 } from "../shared/player-config.ts";
 import { type GameState } from "../shared/types.ts";
+import { isGameplayMode, isInteractiveMode, Mode } from "../shared/ui-mode.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
 import { dispatchGameAction, dispatchQuit } from "./input-dispatch.ts";
 

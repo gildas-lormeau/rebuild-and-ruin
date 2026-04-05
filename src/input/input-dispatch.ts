@@ -33,14 +33,13 @@ import type {
   UpgradePickDialogState,
 } from "../shared/dialog-types.ts";
 import {
-  Action,
   isPlacementPhase,
   isReselectPhase,
   isSelectionPhase,
-  Mode,
   Phase,
 } from "../shared/game-phase.ts";
 import type { WorldPos } from "../shared/geometry-types.ts";
+import { Action } from "../shared/input-action.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { findNearestTower, towerAtPixel } from "../shared/spatial.ts";
 import {
@@ -49,6 +48,7 @@ import {
   type PlayerController,
 } from "../shared/system-interfaces.ts";
 import { type GameState, type SelectionState } from "../shared/types.ts";
+import { Mode } from "../shared/ui-mode.ts";
 
 export interface OverlayActionDeps {
   options?: {

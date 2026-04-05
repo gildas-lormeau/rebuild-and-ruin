@@ -7,7 +7,6 @@
       "src/shared/jsfxr.d.ts",
       "src/shared/platform.ts",
       "src/shared/rng.ts",
-      "src/shared/router.ts",
       "src/shared/utils.ts",
       "src/shared/geometry-types.ts",
       "src/shared/pieces.ts",
@@ -30,6 +29,8 @@
       "src/shared/settings-ui.ts",
       "src/shared/screen-builders.ts",
       "src/shared/render-spy.ts",
+      "src/shared/ui-mode.ts",
+      "src/shared/input-action.ts",
       "server/protocol.ts"
     ],
     "game": [
@@ -126,6 +127,7 @@
       "server/room-manager.ts"
     ],
     "runtime": [
+      "src/runtime/router.ts",
       "src/runtime/runtime-touch-ui.ts",
       "src/runtime/runtime-state.ts",
       "src/runtime/runtime-banner.ts",

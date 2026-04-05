@@ -15,7 +15,6 @@ import {
 } from "../shared/player-config.ts";
 import { isActivePlayer, type ValidPlayerSlot } from "../shared/player-slot.ts";
 import { MAX_UINT32 } from "../shared/rng.ts";
-import { GAME_CONTAINER_ACTIVE } from "../shared/router.ts";
 import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "../shared/settings-defs.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
 import { isRemoteHuman } from "../shared/tick-context.ts";
@@ -24,6 +23,7 @@ import {
   type LobbyState,
   setGameMode,
 } from "../shared/types.ts";
+import { GAME_CONTAINER_ACTIVE } from "./router.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { EnterTowerSelectionDeps } from "./runtime-types.ts";
 

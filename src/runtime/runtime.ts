@@ -46,7 +46,7 @@ import {
   MAX_FRAME_DT,
   SELECT_ANNOUNCEMENT_DURATION,
 } from "../shared/game-constants.ts";
-import { Mode, Phase } from "../shared/game-phase.ts";
+import { Phase } from "../shared/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
 import type { RenderOverlay } from "../shared/overlay-types.ts";
@@ -68,6 +68,7 @@ import {
   visibleOptions,
 } from "../shared/screen-builders.ts";
 import { cycleOption } from "../shared/settings-ui.ts";
+import { Mode } from "../shared/ui-mode.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
 import {
   bootstrapNewGameFromSettings,

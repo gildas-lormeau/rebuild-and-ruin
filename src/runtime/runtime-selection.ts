@@ -40,7 +40,6 @@ import {
   SELECT_TIMER,
   WALL_BUILD_INTERVAL,
 } from "../shared/game-constants.ts";
-import { Mode } from "../shared/game-phase.ts";
 import type { RenderOverlay } from "../shared/overlay-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
@@ -51,6 +50,7 @@ import {
 } from "../shared/system-interfaces.ts";
 import { isRemoteHuman, resetAccum } from "../shared/tick-context.ts";
 import type { SelectionState } from "../shared/types.ts";
+import { Mode } from "../shared/ui-mode.ts";
 import { fireOnce } from "../shared/utils.ts";
 import { type RuntimeState, setMode } from "./runtime-state.ts";
 import type {

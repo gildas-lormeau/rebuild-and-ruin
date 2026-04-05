@@ -23,9 +23,9 @@ import type {
   UpgradePickDialogState,
   UpgradePickEntry,
 } from "../shared/dialog-types.ts";
-import { Mode } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isHuman } from "../shared/system-interfaces.ts";
+import { Mode } from "../shared/ui-mode.ts";
 import { type RuntimeState, setMode } from "./runtime-state.ts";
 
 interface UpgradePickSystemDeps {

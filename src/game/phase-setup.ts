@@ -24,6 +24,7 @@ import {
   INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
   INTERBATTLE_GRUNT_SPAWN_CHANCE,
   MODIFIER_ID,
+  type ModifierDiff,
 } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -84,7 +85,6 @@ import {
   applyGruntSurge,
   applyWildfire,
   clearFrozenRiver,
-  type ModifierDiff,
   rollModifier,
 } from "./round-modifiers.ts";
 

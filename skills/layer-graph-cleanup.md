@@ -71,7 +71,7 @@ Then classify:
 If a file's actual imports are all below layer N, it can be moved to layer N in `.import-layers.json` regardless of its filename prefix:
 
 ```json
-{ "name": "shared types & config", "files": ["src/shared/theme.ts", "src/shared/overlay-types.ts", ...] }
+{ "name": "game state & orchestration", "files": ["src/shared/spatial.ts", "src/shared/overlay-types.ts", ...] }
 ```
 
 Check: does the file import from anything in its current group or higher? If not, it can move down freely.
@@ -199,6 +199,41 @@ The systematic workflow for a clean architecture session:
 
 Rename groups in `.import-layers.json` to match reality. **Naming is the analysis** — a mismatch is always a signal.
 
+## Step 10 — Bottom-up placement audit
+
+The layer graph catches inter-layer edges; this audit catches **exports trapped at the wrong layer**. A file sits at the layer of its deepest import — but many of its exports may not need that import, meaning they're pinned higher than necessary.
+
+### Methodology
+
+Work **bottom-up** (L0 → L5). Fixes propagate upward: moving an export down can cascade, dropping consumer files to lower layers. Upper layers (L6+) are consumer-oriented with legitimate deep dependencies — diminishing returns.
+
+**Focus on L3–L5** (the "sweet spot" where organic growth traps types at higher layers than needed).
+
+### Per-file checklist
+
+For each file in the target layer:
+
+1. **List imports by layer** — which layer pins this file?
+2. **For each export** — does it actually USE the pinning import? Or could it live lower?
+3. **Check for re-exports** — a re-export from a higher layer creates dual import paths (consumers split between canonical and re-export source). Remove re-exports; point all consumers at the canonical L0 source.
+4. **Check for mixed concerns** — does one file pack enums/types from multiple domains? Split if >50% of consumers need only one subset.
+
+### Cascade protocol
+
+After moving files to lower layers:
+
+1. Re-check files in the layer above — their pinning import may have just dropped
+2. Repeat until no more files can move
+3. If an entire layer group empties, remove it and renumber
+
+### Example: L4 "shared types & config" elimination
+
+In the April 2025 audit, 8 files were moved out of L4 (dialog-types→L0, checkpoint-data→L0, theme→L1, player-config→L1, phantom-types→L3, life-lost→L3, upgrade-pick→L3, castle-build→L3). This caused all 7 remaining L4 files to cascade down (system-interfaces→L3, overlay-types→L3, settings-ui→L1, tick-context→L3, phase-banner→L3, phase-transition-shared→L3, screen-builders→L3), eliminating L4 entirely.
+
+### When NOT to move
+
+A file that *could* be at a lower layer but is semantically part of a higher group should stay. Example: online-types.ts could be L3 by imports, but belongs in "online infrastructure" (L4) because it defines online-specific state. Layer numbers enforce import direction; semantic grouping is also valuable.
+
 ## Patterns from this codebase
 
 Historical log of past refactoring decisions. Filenames refer to what files were called
@@ -270,3 +305,16 @@ at the time of each change (some have since been renamed or moved into domain di
 | L14 "online infrastructure" over-classified (max dep L4) | Moved entire group from L14 to L5 (after "shared types & config"); no L5–L13 files import from it; eliminated 9-layer gap |
 | `runtime-e2e-bridge.ts` over-classified in L13 "runtime sub-systems" | Reclassified to L6 "runtime primitives" — max dep L6 (runtime-state); dev-only bridge with no render/input deps |
 | `runtime-selection.ts` over-classified in L13 "runtime sub-systems" | Reclassified to L8 "phase orchestration" — max dep L7 (game logic); eliminated L14→L7 edge from runtime sub-systems |
+| `ModifierDiff` dual import path | Removed re-export from `round-modifiers.ts`; updated 3 consumers to import from canonical source `game-constants.ts` |
+| `game-phase.ts` mixed 3 domain concerns | Split into `game-phase.ts` (Phase enum + predicates), `ui-mode.ts` (Mode enum + predicates), `input-action.ts` (Action enum); 33 import sites updated |
+| `router.ts` stateful singleton in shared/ | Moved to `src/runtime/router.ts` — all 4 consumers in runtime/online/entry domains (can import runtime) |
+| `dialog-types.ts` over-classified in L3 | Reclassified to L0 — all imports are L0 only (player-slot, upgrade-defs) |
+| `checkpoint-data.ts` over-classified in L3 | Reclassified to L0 — pure serialization DTOs, only L0 deps (game-constants, player-slot) |
+| `theme.ts` over-classified in L4 | Reclassified to L1 — only deps are geometry-types (L1) + platform (L0) |
+| `player-config.ts` over-classified in L4 | Reclassified to L1 — only deps are game-constants (L0), geometry-types (L1), platform (L0), player-slot (L0) |
+| `settings-ui.ts` over-classified in L4 | Cascaded to L1 after player-config moved to L1 — only dep is player-config |
+| `phantom-types.ts` over-classified in L4 | Reclassified to L3 — only deps are battle-types (L3) + player-slot (L0) |
+| `life-lost.ts`, `upgrade-pick.ts`, `castle-build.ts` over-classified in L4 | Reclassified to L3 — max dep is types/board-occupancy (L3) |
+| `system-interfaces.ts`, `overlay-types.ts`, `tick-context.ts` cascade from L4 | After phantom-types/player-config moves, all L4 deps became L3; cascaded to L3 |
+| `phase-banner.ts`, `phase-transition-shared.ts`, `screen-builders.ts` cascade from L4 | After overlay-types cascaded to L3, these followed; L4 "shared types & config" fully eliminated |
+| L3 "core types, state & spatial" bloated (15 files) | Split into L3 "core game types" (battle-types, types, phantom-types, protocol) + L4 "game state & orchestration" (11 files); boundary = type definitions vs type consumers |

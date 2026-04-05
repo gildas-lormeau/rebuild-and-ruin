@@ -9,9 +9,9 @@ import { fireNextReadyCannon } from "../game/battle-system.ts";
 import { autoPlaceRound1Cannons } from "../game/cannon-system.ts";
 import type { CombinedCannonResult } from "../shared/battle-types.ts";
 import { NORMAL_CANNON_SIZE } from "../shared/game-constants.ts";
-import { Action } from "../shared/game-phase.ts";
 import type { Crosshair } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
+import { Action } from "../shared/input-action.ts";
 import {
   type BagState,
   createBag,

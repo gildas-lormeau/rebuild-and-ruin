@@ -1,7 +1,7 @@
 import type { BattleEvent } from "../../server/protocol.ts";
 import { CannonMode } from "./battle-types.ts";
-import { Action } from "./game-phase.ts";
 import type { Crosshair, PixelPos, TilePos } from "./geometry-types.ts";
+import { Action } from "./input-action.ts";
 import type { PieceShape } from "./pieces.ts";
 import type { KeyBindings } from "./player-config.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";

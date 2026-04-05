@@ -13,10 +13,11 @@ import {
   type GameMode,
   type ModifierId,
 } from "./game-constants.ts";
-import { type Mode, type Phase } from "./game-phase.ts";
+import type { Phase } from "./game-phase.ts";
 import type { Castle, GameMap, TilePos, Tower } from "./geometry-types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
 import type { Rng } from "./rng.ts";
+import type { Mode } from "./ui-mode.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 
 /** Branded number proving a value was produced by packTile(row, col).

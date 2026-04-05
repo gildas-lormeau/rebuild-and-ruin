@@ -30,9 +30,9 @@ import {
   LIFE_LOST_AUTO_DELAY,
   LIFE_LOST_MAX_TIMER,
 } from "../shared/game-constants.ts";
-import { Mode } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isHuman } from "../shared/system-interfaces.ts";
+import { Mode } from "../shared/ui-mode.ts";
 import { type RuntimeState, setMode } from "./runtime-state.ts";
 import type { RuntimeLifeLost } from "./runtime-types.ts";
 

@@ -9,7 +9,6 @@ import {
   LOBBY_SKIP_LOCKOUT,
   LOBBY_SKIP_STEP,
 } from "./game-constants";
-import { isInteractiveMode, Mode } from "./game-phase";
 import type { GameMap } from "./geometry-types";
 import type { OptionEntry, RenderOverlay } from "./overlay-types";
 import { IS_TOUCH_DEVICE, KEY_UP } from "./platform";
@@ -44,6 +43,7 @@ import {
 } from "./settings-defs";
 import { formatKeyName } from "./settings-ui";
 import { type GameState, type LobbyState } from "./types";
+import { isInteractiveMode, Mode } from "./ui-mode.ts";
 
 export interface UIContext {
   getState: () => GameState | undefined;

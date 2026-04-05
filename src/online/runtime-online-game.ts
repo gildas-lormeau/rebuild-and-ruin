@@ -6,6 +6,11 @@ import {
 } from "../../server/protocol.ts";
 import { createCanvasRenderer } from "../render/render-canvas.ts";
 import { precomputeTerrainCache } from "../render/render-map.ts";
+import {
+  GAME_CONTAINER_ACTIVE,
+  GAME_EXIT_EVENT,
+  navigateTo,
+} from "../runtime/router.ts";
 import { createGameRuntime, type GameRuntime } from "../runtime/runtime.ts";
 import {
   bootstrapGame,
@@ -19,19 +24,14 @@ import {
   DIFFICULTY_PARAMS,
   SELECT_TIMER,
 } from "../shared/game-constants.ts";
-import { Mode } from "../shared/game-phase.ts";
 import {
   MAX_PLAYERS,
   PLAYER_COLORS,
   PLAYER_NAMES,
 } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import {
-  GAME_CONTAINER_ACTIVE,
-  GAME_EXIT_EVENT,
-  navigateTo,
-} from "../shared/router.ts";
 import { isHostInContext } from "../shared/tick-context.ts";
+import { Mode } from "../shared/ui-mode.ts";
 import type { UpgradeId } from "../shared/upgrade-defs.ts";
 import {
   applyBattleStartCheckpoint,

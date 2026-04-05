@@ -26,8 +26,8 @@ import type {
   LifeLostDialogState,
   UpgradePickDialogState,
 } from "../shared/dialog-types.ts";
-import type { Action, Mode } from "../shared/game-phase.ts";
 import type { WorldPos } from "../shared/geometry-types.ts";
+import type { Action } from "../shared/input-action.ts";
 import type { RendererInterface } from "../shared/overlay-types.ts";
 import type { KeyBindings, SeedMode } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -36,6 +36,7 @@ import type {
   PlayerController,
 } from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
+import type { Mode } from "../shared/ui-mode.ts";
 import type { GameActionDeps } from "./input-dispatch.ts";
 
 export interface RegisterOnlineInputDeps {
