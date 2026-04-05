@@ -10,6 +10,7 @@ import {
   type GameMode,
 } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
+import { KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_UP } from "./platform.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
 
 export interface KeyBindings {
@@ -73,12 +74,6 @@ const ACTION_DOWN = "down";
 const ACTION_LEFT = "left";
 const ACTION_RIGHT = "right";
 const ACTION_ROTATE = "rotate";
-export const KEY_UP = "ArrowUp";
-export const KEY_DOWN = "ArrowDown";
-export const KEY_LEFT = "ArrowLeft";
-export const KEY_RIGHT = "ArrowRight";
-export const KEY_ENTER = "Enter";
-export const KEY_ESCAPE = "Escape";
 /** Indices into DIFFICULTY_PARAMS — not difficulty values, but array positions. */
 export const DIFFICULTY_EASY = 0;
 export const DIFFICULTY_NORMAL = 1;

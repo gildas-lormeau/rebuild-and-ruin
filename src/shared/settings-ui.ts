@@ -4,13 +4,8 @@
  */
 
 import { GAME_MODE_CLASSIC, GAME_MODE_MODERN } from "./game-constants";
-import {
-  type GameSettings,
-  KEY_DOWN,
-  KEY_LEFT,
-  KEY_RIGHT,
-  KEY_UP,
-} from "./player-config";
+import { KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_UP } from "./platform";
+import { type GameSettings } from "./player-config";
 import {
   CANNON_HP_OPTIONS,
   DIFFICULTY_LABELS,

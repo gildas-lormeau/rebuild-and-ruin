@@ -5,16 +5,18 @@ import {
   isPlacementPhase,
   Mode,
 } from "../shared/game-phase.ts";
-import { IS_TOUCH_DEVICE } from "../shared/platform.ts";
 import {
-  ACTION_KEYS,
-  applyKeyRebinding,
+  IS_TOUCH_DEVICE,
   KEY_DOWN,
   KEY_ENTER,
   KEY_ESCAPE,
   KEY_LEFT,
   KEY_RIGHT,
   KEY_UP,
+} from "../shared/platform.ts";
+import {
+  ACTION_KEYS,
+  applyKeyRebinding,
   MAX_PLAYERS,
   MAX_SEED_LENGTH,
   SEED_CUSTOM,
