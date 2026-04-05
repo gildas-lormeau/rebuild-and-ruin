@@ -70,6 +70,7 @@ interface TouchControlsDeps {
   containerHeight: number;
 }
 
+const NEAR_TOP_THRESHOLD = 0.15;
 const INTERACTIVE = "interactive";
 const TOUCH_BUTTON_STATES: Record<Mode, TouchButtonState> = {
   [Mode.LOBBY]: {
@@ -268,7 +269,7 @@ function updateFloatingActions(deps: TouchControlsDeps): void {
   // World-pixel → screen-pixel (camera), then → CSS relative to container
   const { sx, sy } = deps.worldToScreen(wx, wy);
   const { x: cssX, y: cssY } = deps.screenToContainerCSS(sx, sy);
-  const nearTop = cssY < deps.containerHeight * 0.15;
+  const nearTop = cssY < deps.containerHeight * NEAR_TOP_THRESHOLD;
   deps.floatingActions.update(true, cssX, cssY, nearTop, deps.leftHanded);
   deps.floatingActions.setConfirmValid(phantomValid ?? false);
 }

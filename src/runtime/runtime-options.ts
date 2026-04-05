@@ -99,6 +99,18 @@ interface OptionsSystem {
   togglePause: () => boolean;
 }
 
+const HIDDEN_INPUT_STYLE: Partial<CSSStyleDeclaration> = {
+  position: "fixed",
+  top: "0",
+  left: "0",
+  opacity: "0",
+  width: "1px",
+  height: "1px",
+  border: "none",
+  padding: "0",
+  pointerEvents: "none",
+};
+
 export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   const { runtimeState, uiCtx } = deps;
 
@@ -113,17 +125,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     el.pattern = "[0-9]*";
     el.maxLength = MAX_SEED_LENGTH;
     el.autocomplete = "off";
-    Object.assign(el.style, {
-      position: "fixed",
-      top: "0",
-      left: "0",
-      opacity: "0",
-      width: "1px",
-      height: "1px",
-      border: "none",
-      padding: "0",
-      pointerEvents: "none",
-    });
+    Object.assign(el.style, HIDDEN_INPUT_STYLE);
     el.addEventListener("input", () => {
       // Sync input value → settings.seed (strip non-digits, cap length)
       const digits = el.value.replace(/\D/g, "").slice(0, MAX_SEED_LENGTH);
