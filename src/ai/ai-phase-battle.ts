@@ -57,17 +57,28 @@ interface BattlePhase {
 }
 
 /** Pixel distance at which countdown orbit engages (stop approaching, start circling). */
-const ORBIT_ENGAGEMENT_DISTANCE = 12;
+const ORBIT_ENGAGEMENT_DISTANCE_PX = 12;
 /** Base orbit angular speed (rad/s) when targeting a strategic tile. */
-const ORBIT_SPEED_STRATEGIC_BASE = 5.5;
+const ORBIT_SPEED_STRATEGIC_RAD_S = 5.5;
 /** Base orbit angular speed (rad/s) for default targets. */
-const ORBIT_SPEED_DEFAULT_BASE = 4.5;
-/** Random variation added to orbit angular speed. */
-const ORBIT_SPEED_RANGE = 1.5;
+const ORBIT_SPEED_DEFAULT_RAD_S = 4.5;
+/** Random variation added to orbit angular speed (rad/s). */
+const ORBIT_SPEED_RANGE_RAD_S = 1.5;
 /** Base orbit ellipse radius (pixels). */
-const ORBIT_RADIUS_BASE = 5;
-/** Random variation added to orbit radius. */
-const ORBIT_RADIUS_RANGE = 3;
+const ORBIT_RADIUS_BASE_PX = 5;
+/** Random variation added to orbit radius (pixels). */
+const ORBIT_RADIUS_RANGE_PX = 3;
+/** Pause on target before firing (standard attack). */
+const PRE_FIRE_DELAY_SEC = 0.15;
+const PRE_FIRE_SPREAD_SEC = 0.1;
+/** Pause on chain target before firing (chain attack). */
+const CHAIN_DWELL_DELAY_SEC = 0.2;
+const CHAIN_DWELL_SPREAD_SEC = 0.1;
+/** Thinking delay after firing before picking the next target. */
+const POST_FIRE_THINK_SEC = 0.1;
+const POST_FIRE_THINK_SPREAD_SEC = 0.2;
+/** Retry wait when no cannon is ready to fire. */
+const CANNON_RETRY_WAIT_SEC = 0.05;
 
 export function createBattlePhase(): BattlePhase {
   return {
@@ -184,7 +195,7 @@ export function tickBattle(
         ) {
           phase.state = {
             step: STEP.DWELLING,
-            timer: host.scaledDelay(0.15, 0.1),
+            timer: host.scaledDelay(PRE_FIRE_DELAY_SEC, PRE_FIRE_SPREAD_SEC),
           };
         }
       } else {
@@ -228,7 +239,7 @@ function tickCountdown(
       phase.crosshairTarget.x - host.crosshair.x,
       phase.crosshairTarget.y - host.crosshair.y,
     );
-    if (dist > ORBIT_ENGAGEMENT_DISTANCE) {
+    if (dist > ORBIT_ENGAGEMENT_DISTANCE_PX) {
       host.stepCrosshairToward(
         phase.crosshairTarget.x,
         phase.crosshairTarget.y,
@@ -240,13 +251,15 @@ function tickCountdown(
         const boost = strategic ? 1.2 : 1;
         const rng = host.strategy.rng;
         const speedBase = strategic
-          ? ORBIT_SPEED_STRATEGIC_BASE
-          : ORBIT_SPEED_DEFAULT_BASE;
+          ? ORBIT_SPEED_STRATEGIC_RAD_S
+          : ORBIT_SPEED_DEFAULT_RAD_S;
         const baseSpeed =
-          Math.PI * (speedBase + rng.next() * ORBIT_SPEED_RANGE);
+          Math.PI * (speedBase + rng.next() * ORBIT_SPEED_RANGE_RAD_S);
         ps.orbit = {
-          rx: (ORBIT_RADIUS_BASE + rng.next() * ORBIT_RADIUS_RANGE) * boost,
-          ry: (ORBIT_RADIUS_BASE + rng.next() * ORBIT_RADIUS_RANGE) * boost,
+          rx:
+            (ORBIT_RADIUS_BASE_PX + rng.next() * ORBIT_RADIUS_RANGE_PX) * boost,
+          ry:
+            (ORBIT_RADIUS_BASE_PX + rng.next() * ORBIT_RADIUS_RANGE_PX) * boost,
           speed: baseSpeed * (rng.bool() ? 1 : -1),
         };
         // Seed the phase from the current approach angle so the orbit
@@ -311,7 +324,7 @@ function tickChainMoving(
   if (host.stepCrosshairToward(center.x, center.y, dt)) {
     phase.state = {
       step: STEP.CHAIN_DWELLING,
-      timer: host.scaledDelay(0.2, 0.1),
+      timer: host.scaledDelay(CHAIN_DWELL_DELAY_SEC, CHAIN_DWELL_SPREAD_SEC),
     };
   }
 }
@@ -344,7 +357,7 @@ function tickChainDwelling(
     }
   } else {
     // No cannon ready — wait a bit longer
-    ps.timer = 0.05;
+    ps.timer = CANNON_RETRY_WAIT_SEC;
   }
 }
 
@@ -361,13 +374,16 @@ function tickDwelling(
 
   const ready = nextReadyCombined(state, host.playerId, host.cannonRotationIdx);
   if (!ready) {
-    ps.timer = 0.05;
+    ps.timer = CANNON_RETRY_WAIT_SEC;
     return;
   }
   host.fire(state);
   host.strategy.trackShot(state, host.playerId, host.crosshair);
   // Random thinking delay before picking next target
-  const thinkTime = host.scaledDelay(0.1, 0.2);
+  const thinkTime = host.scaledDelay(
+    POST_FIRE_THINK_SEC,
+    POST_FIRE_THINK_SPREAD_SEC,
+  );
   if (host.anticipatesTarget) {
     phase.crosshairTarget = host.strategy.pickTarget(
       state,

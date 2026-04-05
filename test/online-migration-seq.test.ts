@@ -6,6 +6,7 @@
  */
 
 import { MESSAGE, type FullStateMessage, type ServerMessage } from "../server/protocol.ts";
+import type { GameMode } from "../src/shared/game-constants.ts";
 import type { GameState } from "../src/shared/types.ts";
 import { handleServerLifecycleMessage } from "../src/online/online-server-lifecycle.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
@@ -56,7 +57,7 @@ test("lifecycle drops stale full_state after host migration", () => {
       roomWaitTimerSec: 0,
       roomMaxRounds: 0,
       roomCannonMaxHp: 3,
-      roomGameMode: "classic",
+      roomGameMode: "classic" as GameMode,
       lobbyStartTime: 0,
       occupiedSlots: new Set<number>(),
       remoteHumanSlots: new Set<number>(),

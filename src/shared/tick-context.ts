@@ -81,10 +81,18 @@ export interface TimerAccums {
  *  Everywhere else, pass TimerAccums (readonly) to prevent accidental mutation. */
 export type MutableAccums = { -readonly [K in keyof TimerAccums]: number };
 
+/** Watcher phase/countdown timing state.
+ *  All timestamps are performance.now() values (ms since page load).
+ *  Sentinel: 0 = not yet started (no phase/countdown active).
+ *  Durations are in seconds. */
 export interface WatcherTimingState {
+  /** Phase start timestamp (ms). 0 = no phase timer active. */
   phaseStartTime: number;
+  /** Phase duration (seconds). 0 = no phase timer active. */
   phaseDuration: number;
+  /** Countdown start timestamp (ms). 0 = no countdown active. */
   countdownStartTime: number;
+  /** Countdown duration (seconds). 0 = no countdown active. */
   countdownDuration: number;
 }
 

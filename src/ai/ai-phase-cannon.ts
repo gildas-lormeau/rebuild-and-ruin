@@ -48,6 +48,15 @@ interface CannonPhase {
   displayedMode: CannonMode | undefined;
 }
 
+/** Pause after placing or initializing before thinking about the next cannon. */
+const POST_PLACE_DELAY_SEC = 0.3;
+const POST_PLACE_SPREAD_SEC = 0.4;
+/** Pause during cannon mode switch animation (e.g. normal → balloon). */
+const MODE_SWITCH_DELAY_SEC = 0.25;
+const MODE_SWITCH_SPREAD_SEC = 0.2;
+/** Pause on target tile before attempting placement. */
+const PRE_PLACE_DELAY_SEC = 0.2;
+const PRE_PLACE_SPREAD_SEC = 0.3;
 /** AI cannon-phase cursor speed in tiles per second, indexed by cursorSkill-1
  *  (skill 1→[0], 2→[1], 3→[2]). */
 export const CANNON_CURSOR_SPEEDS = [3, 4, 5] as const;
@@ -81,7 +90,7 @@ export function initCannon(
   phase.displayedMode = undefined;
   phase.state = {
     step: STEP.THINKING,
-    timer: host.scaledDelay(0.3, 0.4),
+    timer: host.scaledDelay(POST_PLACE_DELAY_SEC, POST_PLACE_SPREAD_SEC),
   };
 }
 
@@ -134,7 +143,10 @@ export function tickCannon(
         phase.displayedMode = target.mode;
         phase.state = {
           step: STEP.MODE_SWITCHING,
-          timer: host.scaledDelay(0.25, 0.2),
+          timer: host.scaledDelay(
+            MODE_SWITCH_DELAY_SEC,
+            MODE_SWITCH_SPREAD_SEC,
+          ),
         };
         return phantomAt(
           host.playerId,
@@ -187,7 +199,7 @@ export function tickCannon(
         phase.plannedPlacements.shift();
         phase.state = {
           step: STEP.THINKING,
-          timer: host.scaledDelay(0.3, 0.4),
+          timer: host.scaledDelay(POST_PLACE_DELAY_SEC, POST_PLACE_SPREAD_SEC),
         };
         return null;
       }
@@ -220,7 +232,7 @@ function tickMoving(
   ) {
     phase.state = {
       step: STEP.DWELLING,
-      timer: host.scaledDelay(0.2, 0.3),
+      timer: host.scaledDelay(PRE_PLACE_DELAY_SEC, PRE_PLACE_SPREAD_SEC),
     };
   }
   const curRow = Math.round(host.cannonCursor.row);

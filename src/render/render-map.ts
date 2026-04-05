@@ -188,6 +188,31 @@ export function drawMap(
   const overlayCtx = sceneCtx;
   overlayCtx.clearRect(0, 0, W, H);
 
+  // Render layers (order is load-bearing — later layers draw on top):
+  //
+  // Scene layers (drawn into offscreen canvas, affected by zoom viewport):
+  //   1. Terrain base         — grass/water/bank pixels (cached ImageData)
+  //   2. Water animation      — wave shimmer (battle only)
+  //   3. Frozen tiles         — ice overlay on frozen river
+  //   4. Castles              — wall tiles per player
+  //   5. Bonus squares        — flashing green diamonds
+  //   6. Houses               — settler tents/huts
+  //   7. Towers               — 2×2 tower sprites (alive/dead/pending)
+  //   8. Burning pits         — ember glow + sprites
+  //   9. Grunts               — directional tank sprites
+  //  10. Banner prev-scene    — composited old scene below banner line (phase transitions)
+  //  11. Phantoms             — piece/cannon placement previews
+  //  12. Battle effects       — impacts, cannonballs, balloons, crosshairs, timer
+  //  13. Score deltas         — floating score change numbers
+  //  14. Modifier highlight   — full-width flash for modifier reveal
+  //  15. Banner               — phase transition banner overlay
+  //  16. Game over / dialogs  — life-lost, upgrade-pick overlays
+  //  17. Modal screens        — player select, options, controls (opaque, drawn last)
+  //
+  // HUD layers (drawn at display resolution, NOT affected by zoom):
+  //  18. Combo floats + announcement text (scaled by SCALE)
+  //  19. Status bar (below game scene)
+
   // Draw the new (target) scene — layers that change between phases
   drawTerrain(overlayCtx, W, H, map, overlay);
   drawWaterAnimation(overlayCtx, map, overlay, now);

@@ -327,7 +327,7 @@ function drawImpacts(
     const cy = impact.row * TILE_SIZE + TILE_SIZE / 2;
     const seed = impact.row * SEED_ROW + impact.col * SEED_COL;
 
-    // Core flash — brief bright spot, shrinks quickly
+    // ── Phase 1 (0.0–0.25): Core flash — brief bright spot, shrinks quickly ──
     if (time < IMPACT_CORE_END) {
       const coreAlpha = (1 - time / IMPACT_CORE_END) * 0.6;
       const coreSize = TILE_SIZE * (0.6 - time * 1.2);
@@ -338,7 +338,7 @@ function drawImpacts(
       overlayCtx.fill();
     }
 
-    // Shockwave ring — expands outward
+    // ── Phase 2 (0.0–0.6): Shockwave ring — expands outward ──
     if (time < IMPACT_RING_END) {
       const ringR = TILE_SIZE * 0.5 + time * TILE_SIZE;
       overlayCtx.globalAlpha = (1 - time / IMPACT_RING_END) * 0.7;
@@ -349,7 +349,7 @@ function drawImpacts(
       overlayCtx.stroke();
     }
 
-    // Debris sparks — 5 particles flying outward
+    // ── Phase 3 (0.0–0.8): Debris sparks — 5 particles flying outward ──
     if (time < IMPACT_DEBRIS_END) {
       const sparkAlpha = 1 - time / IMPACT_DEBRIS_END;
       for (let i = 0; i < 5; i++) {
@@ -363,7 +363,7 @@ function drawImpacts(
       }
     }
 
-    // Smoke — dark puff rising, lingers in second half
+    // ── Phase 4 (0.2–1.0): Smoke — dark puff rising, lingers in second half ──
     if (time > IMPACT_SMOKE_START) {
       const smokeT = (time - IMPACT_SMOKE_START) / (1 - IMPACT_SMOKE_START);
       const smokeR = TILE_SIZE * 0.4 + smokeT * TILE_SIZE * 0.3;

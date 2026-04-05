@@ -50,7 +50,7 @@ export abstract class BaseController implements PlayerController {
     x: DEFAULT_CURSOR_COL * TILE_SIZE,
     y: DEFAULT_CURSOR_ROW * TILE_SIZE,
   };
-  /** Round-robin index into combined cannon list. null = no cannon fired yet this round.
+  /** Round-robin index into combined cannon list. undefined = no cannon fired yet this round.
    *  Reset in initBattleState() and onLifeLost(). */
   cannonRotationIdx: number | undefined;
 

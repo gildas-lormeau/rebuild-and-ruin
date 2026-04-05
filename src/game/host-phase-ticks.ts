@@ -164,6 +164,13 @@ const PLACEHOLDER_ORIGIN = { row: 0, col: 0 } as const;
  *   Pass 1 (per-frame): ticks LOCAL controllers only (remoteHumanSlots are skipped).
  *   Pass 2 (phase end): calls flushCannons on LOCAL only, initCannons on ALL
  *     (remote humans get initCannons only — their placements arrive via network).
+ *
+ * Remote human finalization — CONTRAST with tickHostBuildPhase:
+ *   Cannon: remote humans call initCannons() because cannon state must be ready
+ *     for the immediate battle transition — there is no "startCannonPhase" re-init.
+ *   Build: remote humans are SKIPPED entirely because bag state is re-initialized
+ *     at the start of the next build phase via startBuildPhase().
+ *   Using the wrong method corrupts state. Do NOT unify these two approaches.
  */
 export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
   const { dt, state, accum, frame, controllers, render, startBattle } = deps;
@@ -273,7 +280,12 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
  *    Per-frame: ticks LOCAL controllers only (remoteHumanSlots skipped — their
  *      placements arrive via network and are applied by the message handler).
  *    Phase end (finalizeBuildAndShowDialogs): calls finalizeBuildPhase on LOCAL only —
- *      remote clients finalize their own controllers independently. */
+ *      remote clients finalize their own controllers independently.
+ *
+ *  Remote human finalization — CONTRAST with tickHostCannonPhase:
+ *    Build: remote humans are SKIPPED (bag state is re-initialized via startBuildPhase).
+ *    Cannon: remote humans call initCannons() (no equivalent re-init step exists).
+ *    Using the wrong method corrupts state. Do NOT unify these two approaches. */
 export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   const { dt, state, accum, frame, controllers, render } = deps;
   // Networking defaults (no-op for local play)

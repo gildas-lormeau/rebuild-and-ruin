@@ -2,6 +2,12 @@
  * Score delta display sub-system — owns the lifecycle of showing
  * animated score deltas after the build phase.
  *
+ * Completion callback pattern: `onDone` is stored on runtimeState
+ * (not a local closure) because the timer ticks mode-independently
+ * — it counts down even during banner/castle-build animations.
+ * Invoked via fireOnce to guarantee single invocation.
+ * See runtime-types.ts for CONTRAST with life-lost and upgrade-pick patterns.
+ *
  * Previously scattered across runtime-selection.ts (show),
  * runtime.ts (tick), and runtime-phase-ticks.ts (guard + capture).
  * Colocated here for clarity.

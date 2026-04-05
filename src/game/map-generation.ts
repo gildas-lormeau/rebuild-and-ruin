@@ -23,6 +23,16 @@ interface ZoneStats {
   centroidRow: number;
 }
 
+// Tower placement validation — multi-layer checks (isValidTowerPos):
+//   1. Edge gap: tower footprint stays MIN_GAP_EDGE tiles from map boundary
+//   2. Safe zone: SAFE_ZONE_PAD-tile orthogonal clearance around tower (corners
+//      cut at PAD+1 Manhattan distance), must be all grass (no river)
+//   3. Tower gap: MIN_GAP_TOWER Manhattan distance between tower rect edges
+// Map generation validation (generateMap retry loop):
+//   4. Zone count: exactly 3 zones with ≥MIN_ZONE_SIZE grass tiles each
+//   5. Zone balance: largest/smallest zone ratio ≤ ZONE_BALANCE_RATIO (strict)
+//      or ZONE_BALANCE_RATIO_FALLBACK (relaxed, on second pass)
+//   6. Zone height: each zone spans ≥MIN_ZONE_HEIGHT rows (prevents thin slivers)
 const SAFE_ZONE_PAD = 3;
 // 8×8 safe zone with corners cut (3 tiles clearance orthogonally)
 const MIN_GAP_EDGE = 2;

@@ -59,14 +59,24 @@ interface BuildPhase {
   state: BuildState;
 }
 
-/** Base delay (seconds) per rotation animation frame. */
-const ROTATION_FRAME_BASE = 0.12;
+/** Base delay per rotation animation frame. */
+const ROTATION_FRAME_BASE_SEC = 0.12;
 /** Random variation added to each rotation frame delay. */
-const ROTATION_FRAME_RANGE = 0.08;
-/** Base delay (seconds) before the first rotation frame starts. */
-const ROTATION_INITIAL_BASE = 0.15;
+const ROTATION_FRAME_RANGE_SEC = 0.08;
+/** Base delay before the first rotation frame starts. */
+const ROTATION_INITIAL_BASE_SEC = 0.15;
 /** Random variation added to the initial rotation delay. */
-const ROTATION_INITIAL_RANGE = 0.1;
+const ROTATION_INITIAL_RANGE_SEC = 0.1;
+/** Pause after placing a piece before thinking about the next one. */
+const POST_PLACE_DELAY_SEC = 0.3;
+const POST_PLACE_SPREAD_SEC = 0.4;
+/** Pause on target tile before attempting placement. */
+const PRE_PLACE_DELAY_SEC = 0.2;
+const PRE_PLACE_SPREAD_SEC = 0.3;
+/** Wait time when placement is blocked and retrying. */
+const BLOCKED_RETRY_DELAY_SEC = 1.0;
+/** Minimum re-think delay after a blocked retry. */
+const QUICK_RETHINK_DELAY_SEC = 0.1;
 /** AI build-phase cursor speed in tiles per second, indexed by cursorSkill-1
  *  (skill 1→[0], 2→[1], 3→[2]).
  *  Reduced from [8,12,14] to compensate for Manhattan movement being faster
@@ -202,16 +212,19 @@ export function tickBuild(
           host.advanceBag(true);
           phase.state = {
             step: STEP.THINKING,
-            timer: host.scaledDelay(0.3, 0.4),
+            timer: host.scaledDelay(
+              POST_PLACE_DELAY_SEC,
+              POST_PLACE_SPREAD_SEC,
+            ),
           };
           return [];
         }
         // Placement blocked (e.g. grunt moved onto target)
         if (!ps.hasRetried) {
           ps.hasRetried = true;
-          ps.timer = 1.0;
+          ps.timer = BLOCKED_RETRY_DELAY_SEC;
         } else {
-          phase.state = { step: STEP.THINKING, timer: 0.1 };
+          phase.state = { step: STEP.THINKING, timer: QUICK_RETHINK_DELAY_SEC };
         }
         return [];
       }
@@ -245,7 +258,8 @@ function tickMoving(
       rotation.idx++;
       if (rotation.idx < rotation.seq.length) {
         rotation.timer =
-          ROTATION_FRAME_BASE + host.strategy.rng.next() * ROTATION_FRAME_RANGE;
+          ROTATION_FRAME_BASE_SEC +
+          host.strategy.rng.next() * ROTATION_FRAME_RANGE_SEC;
       }
     }
   }
@@ -263,7 +277,7 @@ function tickMoving(
     phase.state = {
       step: STEP.DWELLING,
       target,
-      timer: host.scaledDelay(0.2, 0.3),
+      timer: host.scaledDelay(PRE_PLACE_DELAY_SEC, PRE_PLACE_SPREAD_SEC),
       hasRetried: false,
     };
   }
@@ -320,7 +334,8 @@ function buildRotationFor(host: BuildHost, target: BuildTarget): BuildRotation {
     seq,
     idx: 0,
     timer:
-      ROTATION_INITIAL_BASE + host.strategy.rng.next() * ROTATION_INITIAL_RANGE,
+      ROTATION_INITIAL_BASE_SEC +
+      host.strategy.rng.next() * ROTATION_INITIAL_RANGE_SEC,
   };
 }
 

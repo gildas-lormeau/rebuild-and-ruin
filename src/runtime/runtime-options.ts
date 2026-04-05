@@ -218,6 +218,11 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     deps.closeControlsShared(uiCtx);
   }
 
+  // Coordinate space: canvasX/canvasY are CSS pixels (from getBoundingClientRect).
+  // Hit-test functions expect backing-store pixels, so divide by SCALE here.
+  // CONTRAST with runtime-lobby.ts which passes raw canvas coords — lobby hit-tests
+  // handle TILE_SIZE internally and expect CSS-pixel input directly.
+
   function clickOptions(canvasX: number, canvasY: number): void {
     const visible = visibleOptionsForCtx();
     const hit = deps.optionsScreenHitTest(

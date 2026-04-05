@@ -12,7 +12,7 @@ import {
   MESSAGE,
   type ServerMessage,
 } from "../../server/protocol.ts";
-import { GAME_MODE_CLASSIC } from "../shared/game-constants.ts";
+import { GAME_MODE_CLASSIC, type GameMode } from "../shared/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isHostInContext } from "../shared/tick-context.ts";
 import type { GameState } from "../shared/types.ts";
@@ -127,7 +127,8 @@ export function handleServerLifecycleMessage(
       deps.session.roomWaitTimerSec = msg.settings.waitTimerSec;
       deps.session.roomMaxRounds = msg.settings.maxRounds;
       deps.session.roomCannonMaxHp = msg.settings.cannonMaxHp;
-      deps.session.roomGameMode = msg.settings.gameMode ?? GAME_MODE_CLASSIC;
+      deps.session.roomGameMode =
+        (msg.settings.gameMode as GameMode | undefined) ?? GAME_MODE_CLASSIC;
       deps.lobby.showWaitingRoom(msg.code, msg.seed);
       return true;
 
@@ -135,7 +136,8 @@ export function handleServerLifecycleMessage(
       deps.session.roomWaitTimerSec = msg.settings.waitTimerSec;
       deps.session.roomMaxRounds = msg.settings.maxRounds;
       deps.session.roomCannonMaxHp = msg.settings.cannonMaxHp;
-      deps.session.roomGameMode = msg.settings.gameMode ?? GAME_MODE_CLASSIC;
+      deps.session.roomGameMode =
+        (msg.settings.gameMode as GameMode | undefined) ?? GAME_MODE_CLASSIC;
       deps.lobby.showWaitingRoom(msg.code, msg.seed);
       deps.session.lobbyStartTime = performance.now() - msg.elapsedSec * 1000;
       for (const player of msg.players) {

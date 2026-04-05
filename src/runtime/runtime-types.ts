@@ -292,7 +292,8 @@ export interface RuntimeSelection {
 
 export interface RuntimeScoreDelta {
   /** Show animated score deltas after build phase. `onDone` is invoked exactly once
-   *  when the animation finishes (or immediately if there are no deltas to show). */
+   *  when the animation finishes (or immediately if there are no deltas to show).
+   *  Stored on runtimeState — timer ticks mode-independently (during banner/castle-build). */
   show: (onDone: () => void) => void;
   /** Set pre-scores directly (online watcher receives them from host). */
   setPreScores: (scores: readonly number[]) => void;
@@ -307,6 +308,8 @@ export interface RuntimeLifeLost {
     eliminated: readonly ValidPlayerSlot[],
   ) => boolean;
   tick: (dt: number) => void;
+  /** Resolve life-lost outcome. Multi-path: may end game, start reselection, or advance
+   *  to cannon phase. No callback param — resolution logic is internal to the system. */
   onResolved: (continuing?: readonly ValidPlayerSlot[]) => boolean;
   panelPos: (playerId: ValidPlayerSlot) => { px: number; py: number };
 }
@@ -314,7 +317,8 @@ export interface RuntimeLifeLost {
 export interface RuntimeUpgradePick {
   /** Pre-create dialog for progressive reveal during banner sweep. */
   prepare: () => boolean;
-  /** Show upgrade pick dialog. Returns false if no offers (dialog skipped). */
+  /** Show upgrade pick dialog. Returns false if no offers (dialog skipped).
+   *  `onDone` stored in a local closure — single path (resume build-phase banner). */
   tryShow: (onDone: () => void) => boolean;
   tick: (dt: number) => void;
   get: () => UpgradePickDialogState | null;

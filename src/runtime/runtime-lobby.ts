@@ -84,6 +84,10 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     return deps.lobbyKeyJoin(uiCtx, key, onLobbyJoin);
   }
 
+  // Coordinate space: canvasX/canvasY are CSS pixels passed directly to lobbyClickHitTest.
+  // Lobby hit-tests handle TILE_SIZE scaling internally — do NOT divide by SCALE here.
+  // CONTRAST with runtime-options.ts which divides by SCALE before calling its hit-tests.
+
   function lobbyClick(canvasX: number, canvasY: number): boolean {
     if (!runtimeState.lobby.active) return false;
     const hit: LobbyHit | null = deps.lobbyClickHitTest({

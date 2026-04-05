@@ -1,6 +1,12 @@
 /**
  * Life-lost dialog sub-system factory.
  *
+ * Completion callback pattern: no onDone param — resolution is a method
+ * (`onResolved`) because life-lost has multi-path outcomes (game over,
+ * reselection, or advance to cannon). host-phase-ticks calls onResolved
+ * directly when all entries were pre-resolved at dialog creation time.
+ * See runtime-types.ts for CONTRAST with score-delta and upgrade-pick patterns.
+ *
  * Extracted from runtime.ts. Follows the same factory-with-deps
  * pattern as runtime-camera.ts and runtime-selection.ts.
  */

@@ -1,6 +1,11 @@
 /**
  * Upgrade pick dialog sub-system factory.
  *
+ * Completion callback pattern: `onDone` passed to tryShow() and stored in a
+ * local closure variable. It's a single-path callback (resume build-phase
+ * banner) and is transient per dialog instance — cleared after invocation.
+ * See runtime-types.ts for CONTRAST with life-lost and score-delta patterns.
+ *
  * Follows the same factory-with-deps pattern as runtime-life-lost.ts.
  * Owns the dialog lifecycle: create, tick (AI auto-pick), resolve.
  * Input handling lives in runtime-input.ts (keyboard/touch dispatch).

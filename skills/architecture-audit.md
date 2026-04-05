@@ -538,3 +538,56 @@ sufficient for LLM agents to follow correctly.
     main.ts:43-45 documents the local path (timerAccum counting up). The online
     path (online/runtime-online-game.ts:135-141) uses server-provided countdown minus a
     -1 grace offset to prevent UI/server race.
+
+71. **Coordinate space divergence between options and lobby hit-tests is documented** —
+    runtime/runtime-options.ts:221-224 documents that canvasX/Y are CSS pixels divided by
+    SCALE before hit-tests. runtime/runtime-lobby.ts:87-89 documents that lobby passes raw
+    CSS pixels (hit-tests handle TILE_SIZE internally). Both include CONTRAST comments.
+
+72. **Remote human finalization differs between cannon and build — documented at function level** —
+    game/host-phase-ticks.ts tickHostCannonPhase JSDoc (line 168+) and tickHostBuildPhase
+    JSDoc (line 277+) both document the CONTRAST: cannon calls initCannons() on remotes,
+    build skips remotes entirely. Inline CONTRAST comments at lines 250 and 472 reinforce.
+
+73. **Zone validation constants hierarchy is documented** —
+    game/map-generation.ts:26-35 block comment documents the 6-layer validation model
+    (edge gap, safe zone, tower gap, zone count, zone balance, zone height).
+
+74. **drawMap render layer order is documented** —
+    render/render-map.ts:191-214 block comment lists all 19 render layers in order with
+    rationale (scene layers affected by zoom, HUD layers at display resolution).
+
+75. **drawImpacts phase boundaries are documented inline** —
+    render/render-effects.ts drawImpacts() has phase markers: Phase 1 (0.0–0.25 core flash),
+    Phase 2 (0.0–0.6 shockwave ring), Phase 3 (0.0–0.8 debris), Phase 4 (0.2–1.0 smoke).
+    Constants at lines 75-78 define the thresholds.
+
+76. **AI phase timing constants have `_SEC`, `_RAD_S`, `_PX` unit suffixes** —
+    ai/ai-phase-build.ts, ai/ai-phase-cannon.ts, ai/ai-phase-battle.ts all define named
+    constants with unit suffixes (e.g. `POST_PLACE_DELAY_SEC`, `ORBIT_SPEED_STRATEGIC_RAD_S`,
+    `ORBIT_RADIUS_BASE_PX`). Each file has a header comment: "All timing constants are in
+    seconds." No inline magic numbers remain in scaledDelay calls or timer assignments.
+
+77. **`cannonRotationIdx` uses undefined (not null) for "not yet fired"** —
+    player/controller-types.ts:53-55 JSDoc says "undefined = no cannon fired yet this round".
+    Type is `number | undefined`. Consistent with the codebase's convention of `undefined`
+    for "not yet set" (see commit d339814).
+
+78. **`WatcherTimingState` zero-sentinel convention is documented** —
+    shared/tick-context.ts:84 JSDoc documents: "All timestamps are performance.now() values
+    (ms since page load). Sentinel: 0 = not yet started." Each field has inline JSDoc
+    specifying units (ms for timestamps, seconds for durations) and the 0-sentinel meaning.
+
+79. **`occupiedSlots` ⊇ `remoteHumanSlots` invariant is documented** —
+    online/online-session.ts:41-46 INVARIANT JSDoc documents the subset relationship and
+    points to clearLobbySlot/occupyLobbySlot as the only mutation sites.
+
+80. **`roomGameMode` is typed as `GameMode` (not string)** —
+    online/online-session.ts:50 uses the `GameMode` union type from game-constants.ts,
+    not a raw string. Protocol boundary uses `as GameMode` cast (server-validated).
+
+81. **Dialog completion callback patterns differ by design** —
+    runtime-types.ts:293-322 block comment documents three intentionally different patterns:
+    ScoreDelta stores onDone on runtimeState (mode-independent tick), LifeLost exposes
+    onResolved as a method (multi-path resolution), UpgradePick uses a local closure
+    (single-path, transient). Each factory file header cross-references runtime-types.ts.

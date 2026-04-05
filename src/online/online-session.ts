@@ -13,7 +13,11 @@ import {
   type ServerMessage,
 } from "../../server/protocol.ts";
 import type { LifeLostChoice } from "../shared/dialog-types.ts";
-import { GAME_MODE_CLASSIC, LOBBY_TIMER } from "../shared/game-constants.ts";
+import {
+  GAME_MODE_CLASSIC,
+  type GameMode,
+  LOBBY_TIMER,
+} from "../shared/game-constants.ts";
 import {
   createDedupChannel,
   type DedupChannel,
@@ -38,13 +42,19 @@ export interface OnlineSession {
    *  WRITE only in session init/reset/promotion (with eslint-disable). */
   isHost: boolean;
   hostMigrationSeq: number;
+  /** All player slots with a connected client (includes self + remote humans + AI slots).
+   *  INVARIANT: remoteHumanSlots ⊆ occupiedSlots (every remote human is also occupied).
+   *  Both sets are maintained atomically by clearLobbySlot/occupyLobbySlot in
+   *  online-server-lifecycle.ts — never mutate one without the other. */
   occupiedSlots: Set<number>;
+  /** Remote human player slots only (excludes self and AI-controlled slots).
+   *  INVARIANT: remoteHumanSlots ⊆ occupiedSlots. */
   remoteHumanSlots: Set<number>;
   roomWaitTimerSec: number;
   roomSeed: number;
   roomMaxRounds: number;
   roomCannonMaxHp: number;
-  roomGameMode: string;
+  roomGameMode: GameMode;
   keepaliveTimer: ReturnType<typeof setInterval> | null;
   lobbyStartTime: number;
   earlyLifeLostChoices: Map<number, LifeLostChoice>;
