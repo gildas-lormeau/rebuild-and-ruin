@@ -16,7 +16,7 @@ import {
 } from "../shared/platform.ts";
 import {
   ACTION_KEYS,
-  applyKeyRebinding,
+  type KeyBindings,
   MAX_PLAYERS,
   MAX_SEED_LENGTH,
   SEED_CUSTOM,
@@ -325,4 +325,21 @@ function handleKeyGame(
       e.preventDefault();
     }
   }
+}
+
+/** Apply a key rebinding with conflict resolution (swap conflicting key). */
+function applyKeyRebinding(
+  kb: KeyBindings,
+  actionKey: string,
+  newKey: string,
+): void {
+  for (const otherAction of ACTION_KEYS) {
+    if (otherAction === actionKey) continue;
+    if (kb[otherAction as keyof KeyBindings] === newKey) {
+      (kb as unknown as Record<string, string>)[otherAction] =
+        kb[actionKey as keyof KeyBindings];
+      break;
+    }
+  }
+  (kb as unknown as Record<string, string>)[actionKey] = newKey;
 }

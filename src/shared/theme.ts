@@ -44,17 +44,6 @@ export const STATUSBAR_HEIGHT = 32;
 // In-world effect timings
 export const BONUS_FLASH_MS = 300;
 export const TOWER_FLASH_MS = 120;
-// Crosshair animation (used with flashOn() and sine-wave arm pulsation)
-/** Crosshair blink cycle divisor (ms) — faster blink when ready to fire. */
-export const CROSSHAIR_READY_CYCLE_MS = 16;
-/** Crosshair blink cycle divisor (ms) — slower blink when idle. */
-export const CROSSHAIR_IDLE_CYCLE_MS = 4;
-/** Crosshair arm length in pixels when ready to fire. */
-export const CROSSHAIR_ARM_READY = 14;
-/** Crosshair arm length in pixels when idle. */
-export const CROSSHAIR_ARM_IDLE = 10;
-/** Crosshair arm pulsation amplitude in pixels (oscillates ± this value). */
-export const CROSSHAIR_ARM_PULSE = 3;
 // UI button/cursor flash
 export const BUTTON_FLASH_MS = 400;
 export const CURSOR_BLINK_MS = 500;
@@ -73,26 +62,6 @@ export const LOBBY_RECT_Y_RATIO_TOUCH = 0.18;
 export const ZOOM_BUTTON_ALPHA = 0.85;
 export const TOUCH_ZOOM_HOME_BG = `rgba(60, 80, 120, ${ZOOM_BUTTON_ALPHA})`;
 export const TOUCH_ZOOM_ENEMY_BG = `rgba(100, 50, 50, ${ZOOM_BUTTON_ALPHA})`;
-/** Loupe corner radius in CSS pixels (scaled by DPR internally). */
-export const LOUPE_RADIUS = 12;
-/** Loupe magnification factor relative to the scene canvas. */
-export const LOUPE_ZOOM = 2;
-/** Loupe stone border width in canvas pixels. */
-export const LOUPE_BORDER_WIDTH = 6;
-/** Loupe rivet (corner stud) radius in canvas pixels. */
-export const LOUPE_RIVET_RADIUS = 5;
-/** Loupe stone border color. */
-export const LOUPE_STONE_COLOR = "rgba(50, 40, 30, 0.92)";
-/** Loupe inner border accent color. */
-export const LOUPE_STONE_LIGHT = "rgba(90, 75, 55, 0.8)";
-/** Loupe rivet color. */
-export const LOUPE_RIVET_COLOR = "#c8a040";
-/** Loupe rivet highlight (subtle gold shine). */
-export const LOUPE_RIVET_HIGHLIGHT = "rgba(255, 240, 180, 0.6)";
-/** Loupe crosshair stroke color. */
-export const LOUPE_CROSSHAIR_COLOR = "rgba(255, 255, 255, 0.5)";
-/** Loupe crosshair center dot color. */
-export const LOUPE_CROSSHAIR_DOT = "rgba(255, 255, 255, 0.7)";
 /** Pure white — used for focused button text and primary overlay labels. */
 export const TEXT_WHITE = "#fff";
 /** Muted gold for status bar round/phase/timer text. */

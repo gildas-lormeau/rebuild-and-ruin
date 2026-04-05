@@ -145,44 +145,6 @@ export function getPlayerColor(playerId: ValidPlayerSlot): PlayerColor {
   return PLAYER_COLORS[playerId % PLAYER_COLORS.length]!;
 }
 
-/** Apply a key rebinding with conflict resolution (swap conflicting key). */
-export function applyKeyRebinding(
-  kb: KeyBindings,
-  actionKey: string,
-  newKey: string,
-): void {
-  for (const otherAction of ACTION_KEYS) {
-    if (otherAction === actionKey) continue;
-    if (kb[otherAction as keyof KeyBindings] === newKey) {
-      (kb as unknown as Record<string, string>)[otherAction] =
-        kb[actionKey as keyof KeyBindings];
-      break;
-    }
-  }
-  (kb as unknown as Record<string, string>)[actionKey] = newKey;
-}
-
-/** Format a key binding as a short hint string (e.g. "Arrows + N (B rotate)"). */
-export function formatKeyHint(kb: KeyBindings): string {
-  const arrows =
-    kb.up === KEY_UP
-      ? "Arrows"
-      : kb.up.toUpperCase() +
-        kb.left.toUpperCase() +
-        kb.down.toUpperCase() +
-        kb.right.toUpperCase();
-  return `${arrows} + ${kb.confirm.toUpperCase()} (${kb.rotate.toUpperCase()} rotate)`;
-}
-
-/** Compute the game seed from current settings (custom seed or random). */
-export function computeGameSeed(settings: GameSettings): number {
-  if (settings.seedMode === SEED_CUSTOM && settings.seed) {
-    const parsed = parseInt(settings.seed, 10);
-    if (!isNaN(parsed)) return parsed;
-  }
-  return Math.floor(Math.random() * 1000000);
-}
-
 export function loadSettings(): GameSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);

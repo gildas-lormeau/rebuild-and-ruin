@@ -51,7 +51,6 @@ import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
 import type { RenderOverlay } from "../shared/overlay-types.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform.ts";
-import { computeGameSeed } from "../shared/player-config.ts";
 import {
   closeControls,
   closeOptions,
@@ -654,4 +653,13 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     aimAtEnemyCastle: camera.aimAtEnemyCastle,
   };
+}
+
+/** Compute the game seed from current settings (custom seed or random). */
+function computeGameSeed(settings: { seedMode: string; seed: string }): number {
+  if (settings.seedMode === "custom" && settings.seed) {
+    const parsed = parseInt(settings.seed, 10);
+    if (!isNaN(parsed)) return parsed;
+  }
+  return Math.floor(Math.random() * 1000000);
 }

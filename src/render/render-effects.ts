@@ -12,11 +12,6 @@ import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { facingToCardinal, isWater, unpackTile } from "../shared/spatial.ts";
 import {
   BONUS_FLASH_MS,
-  CROSSHAIR_ARM_IDLE,
-  CROSSHAIR_ARM_PULSE,
-  CROSSHAIR_ARM_READY,
-  CROSSHAIR_IDLE_CYCLE_MS,
-  CROSSHAIR_READY_CYCLE_MS,
   drawShadowText,
   FONT_TIMER,
   rgb,
@@ -27,6 +22,12 @@ import {
 } from "../shared/theme.ts";
 import { drawSprite } from "./render-sprites.ts";
 
+// Crosshair animation constants
+const CROSSHAIR_READY_CYCLE_MS = 16;
+const CROSSHAIR_IDLE_CYCLE_MS = 4;
+const CROSSHAIR_ARM_READY = 14;
+const CROSSHAIR_ARM_IDLE = 10;
+const CROSSHAIR_ARM_PULSE = 3;
 // Water wave animation parameters — tuned for natural-looking tile-scale ripples
 const WAVE_TIME_BASE = 0.8;
 // Base drift speed

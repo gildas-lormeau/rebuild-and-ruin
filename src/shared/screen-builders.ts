@@ -12,10 +12,9 @@ import {
 import { isInteractiveMode, Mode } from "./game-phase";
 import type { GameMap } from "./geometry-types";
 import type { OptionEntry, RenderOverlay } from "./overlay-types";
-import { IS_TOUCH_DEVICE } from "./platform";
+import { IS_TOUCH_DEVICE, KEY_UP } from "./platform";
 import {
   ACTION_KEYS,
-  formatKeyHint,
   type GameSettings,
   getPlayerColor,
   type KeyBindings,
@@ -384,6 +383,18 @@ function optionValue(frameCtx: UIContext, idx: number): string {
   if (idx === OPT_GAME_MODE)
     return GAME_MODE_LABELS[settings.gameMode === GAME_MODE_MODERN ? 1 : 0]!;
   return "";
+}
+
+/** Format a key binding as a short hint string (e.g. "Arrows + N (B rotate)"). */
+function formatKeyHint(kb: KeyBindings): string {
+  const arrows =
+    kb.up === KEY_UP
+      ? "Arrows"
+      : kb.up.toUpperCase() +
+        kb.left.toUpperCase() +
+        kb.down.toUpperCase() +
+        kb.right.toUpperCase();
+  return `${arrows} + ${kb.confirm.toUpperCase()} (${kb.rotate.toUpperCase()} rotate)`;
 }
 
 /** Build a map from confirm key → player slot index for lobby joining. */

@@ -11,18 +11,18 @@
 
 import { MAP_PX_H, MAP_PX_W } from "../shared/grid.ts";
 import type { LoupeHandle } from "../shared/overlay-types.ts";
-import {
-  LOUPE_BORDER_WIDTH,
-  LOUPE_CROSSHAIR_COLOR,
-  LOUPE_CROSSHAIR_DOT,
-  LOUPE_RADIUS,
-  LOUPE_RIVET_COLOR,
-  LOUPE_RIVET_HIGHLIGHT,
-  LOUPE_RIVET_RADIUS,
-  LOUPE_STONE_COLOR,
-  LOUPE_STONE_LIGHT,
-  LOUPE_ZOOM,
-} from "../shared/theme.ts";
+
+// Loupe rendering constants
+const LOUPE_RADIUS = 12;
+const LOUPE_ZOOM = 2;
+const LOUPE_BORDER_WIDTH = 6;
+const LOUPE_RIVET_RADIUS = 5;
+const LOUPE_STONE_COLOR = "rgba(50, 40, 30, 0.92)";
+const LOUPE_STONE_LIGHT = "rgba(90, 75, 55, 0.8)";
+const LOUPE_RIVET_COLOR = "#c8a040";
+const LOUPE_RIVET_HIGHLIGHT = "rgba(255, 240, 180, 0.6)";
+const LOUPE_CROSSHAIR_COLOR = "rgba(255, 255, 255, 0.5)";
+const LOUPE_CROSSHAIR_DOT = "rgba(255, 255, 255, 0.7)";
 
 /**
  * Find all loupe canvases within a container and return a handle
