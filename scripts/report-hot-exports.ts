@@ -22,6 +22,7 @@
 
 import { Project } from "ts-morph";
 import path from "node:path";
+import fs from "node:fs";
 import process from "node:process";
 
 // ---------------------------------------------------------------------------
@@ -60,6 +61,34 @@ for (const glob of globs) project.addSourceFilesAtPaths(glob);
 
 function fileKey(absPath: string): string {
   return path.relative(process.cwd(), absPath).replace(/\\/g, "/");
+}
+
+/** Extract the domain directory from a file path (e.g. "src/render/foo.ts" → "render"). */
+function fileDomain(file: string): string {
+  if (file.startsWith("server/")) return "online";
+  const match = file.match(/^src\/([^/]+)\//);
+  if (match) return match[1]!;
+  return "entry"; // root src/ files
+}
+
+// Build file → layer index map from .import-layers.json
+const layerMap = new Map<string, number>();
+try {
+  const layers: { files: string[] }[] = JSON.parse(
+    fs.readFileSync(path.resolve(process.cwd(), ".import-layers.json"), "utf-8"),
+  );
+  for (let li = 0; li < layers.length; li++) {
+    for (const file of layers[li]!.files) {
+      layerMap.set(file, li);
+    }
+  }
+} catch {
+  // .import-layers.json not found — layer column will show "?"
+}
+
+function fileLayer(file: string): string {
+  const layer = layerMap.get(file);
+  return layer !== undefined ? `L${layer}` : "?";
 }
 
 // ---------------------------------------------------------------------------
@@ -161,12 +190,42 @@ if (shown.length === 0) {
 }
 
 const rangeLabel = maxCount < Infinity ? `${threshold}–${maxCount}` : `${threshold}+`;
+const showDomains = maxCount <= 2;
+
 console.log(`\nExports imported by ${rangeLabel} files (kinds: ${[...includeKinds].join(", ")})\n`);
-console.log(`${"Symbol".padEnd(36)} ${"Kind".padEnd(10)} ${"Files".padEnd(5)}  Defined in`);
-console.log("─".repeat(90));
+
+if (showDomains) {
+  console.log(
+    `${"Symbol".padEnd(36)} ${"Kind".padEnd(10)} ${"Files".padEnd(5)}  ${"From".padEnd(9)} ${"Src".padEnd(4)} ${"To".padEnd(9)} ${"Dst".padEnd(4)} Defined in`,
+  );
+  console.log("─".repeat(120));
+} else {
+  console.log(`${"Symbol".padEnd(36)} ${"Kind".padEnd(10)} ${"Files".padEnd(5)}  Defined in`);
+  console.log("─".repeat(90));
+}
+
+let crossDomainCount = 0;
 
 for (const { info, count, importedBy } of shown) {
-  console.log(`${info.name.padEnd(36)} ${info.kind.padEnd(10)} ${String(count).padStart(4)}   ${info.file}:${info.line}`);
+  const srcDomain = fileDomain(info.file);
+  const srcLayer = fileLayer(info.file);
+
+  if (showDomains) {
+    // For low-count reports, show consumer domains and layers inline
+    const consumerDomains = [...new Set(importedBy.map(fileDomain))];
+    const consumerLayers = [...new Set(importedBy.map(fileLayer))];
+    const toDomain = consumerDomains.length === 1 ? consumerDomains[0]! : `(${consumerDomains.join(",")})`;
+    const toLayer = consumerLayers.length === 1 ? consumerLayers[0]! : `(${consumerLayers.join(",")})`;
+    const crossDomain = consumerDomains.length > 0 && consumerDomains.some(cd => cd !== srcDomain);
+    if (crossDomain) crossDomainCount++;
+    const marker = crossDomain ? " ←" : "";
+    console.log(
+      `${info.name.padEnd(36)} ${info.kind.padEnd(10)} ${String(count).padStart(4)}   ${srcDomain.padEnd(9)} ${srcLayer.padEnd(4)} ${toDomain.padEnd(9)} ${toLayer.padEnd(4)} ${info.file}:${info.line}${marker}`,
+    );
+  } else {
+    console.log(`${info.name.padEnd(36)} ${info.kind.padEnd(10)} ${String(count).padStart(4)}   ${info.file}:${info.line}`);
+  }
+
   if (!summaryOnly) {
     for (const f of importedBy) {
       console.log(`${"".padEnd(49)} ↳ ${f}`);
@@ -174,4 +233,8 @@ for (const { info, count, importedBy } of shown) {
   }
 }
 
-console.log(`\n${shown.length} symbol(s) shown (${results.length} total above threshold).\n`);
+console.log(`\n${shown.length} symbol(s) shown (${results.length} total above threshold).`);
+if (showDomains && crossDomainCount > 0) {
+  console.log(`${crossDomainCount} cross-domain export(s) marked with ←`);
+}
+console.log();
