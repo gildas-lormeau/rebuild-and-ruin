@@ -13,6 +13,7 @@
  *
  * Options:
  *   --threshold <n>   Min file count to include (default: 5)
+ *   --max <n>         Max file count to include (default: unlimited)
  *   --top <n>         Show only top N results (default: all above threshold)
  *   --server          Include server/ files
  *   --kinds <k,k>     Comma-separated kinds to include: function,const,enum,class
@@ -32,6 +33,9 @@ const includeServer = args.includes("--server");
 
 const thresholdIdx = args.indexOf("--threshold");
 const threshold = thresholdIdx >= 0 ? Number(args[thresholdIdx + 1]) : 5;
+
+const maxIdx = args.indexOf("--max");
+const maxCount = maxIdx >= 0 ? Number(args[maxIdx + 1]) : Infinity;
 
 const topIdx = args.indexOf("--top");
 const topN = topIdx >= 0 ? Number(args[topIdx + 1]) : Infinity;
@@ -135,7 +139,7 @@ for (const [name, info] of exportMap) {
   if (!includeKinds.has(info.kind)) continue;
   const files = importers.get(name);
   const count = files?.size ?? 0;
-  if (count < threshold) continue;
+  if (count < threshold || count > maxCount) continue;
   // Exclude the file that defines the symbol
   const importedBy = [...(files ?? [])].filter(f => f !== info.file).sort();
   results.push({ info, count: importedBy.length, importedBy });
@@ -151,11 +155,13 @@ const shown = results.slice(0, topN === Infinity ? undefined : topN);
 // ---------------------------------------------------------------------------
 
 if (shown.length === 0) {
-  console.log(`\nNo exports imported by ${threshold}+ files.\n`);
+  const rangeLabel = maxCount < Infinity ? `${threshold}–${maxCount}` : `${threshold}+`;
+  console.log(`\nNo exports imported by ${rangeLabel} files.\n`);
   process.exit(0);
 }
 
-console.log(`\nHot exports — imported by ${threshold}+ files (kinds: ${[...includeKinds].join(", ")})\n`);
+const rangeLabel = maxCount < Infinity ? `${threshold}–${maxCount}` : `${threshold}+`;
+console.log(`\nExports imported by ${rangeLabel} files (kinds: ${[...includeKinds].join(", ")})\n`);
 console.log(`${"Symbol".padEnd(36)} ${"Kind".padEnd(10)} ${"Files".padEnd(5)}  Defined in`);
 console.log("─".repeat(90));
 
