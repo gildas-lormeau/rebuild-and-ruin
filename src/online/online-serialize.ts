@@ -17,6 +17,7 @@ import { createCastle } from "../game/castle-generation.ts";
 import { setPhase } from "../game/phase-setup.ts";
 import type { BalloonFlight, Cannonball } from "../shared/battle-types.ts";
 import type {
+  BattleStartData,
   SerializedGrunt,
   SerializedHouse,
   SerializedPlayer,
@@ -97,6 +98,7 @@ export function createCannonStartMessage(state: GameState) {
 export function createBattleStartMessage(
   state: GameState,
   flights?: readonly BalloonFlight[],
+  modifierDiff?: BattleStartData["modifierDiff"],
 ) {
   return {
     type: MESSAGE.BATTLE_START,
@@ -120,6 +122,14 @@ export function createBattleStartMessage(
         : null,
     frozenTiles: state.modern?.frozenTiles
       ? [...state.modern.frozenTiles]
+      : null,
+    modifierDiff: modifierDiff
+      ? {
+          id: modifierDiff.id,
+          label: modifierDiff.label,
+          changedTiles: [...modifierDiff.changedTiles],
+          gruntsSpawned: modifierDiff.gruntsSpawned,
+        }
       : null,
   };
 }

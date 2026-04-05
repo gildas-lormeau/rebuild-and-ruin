@@ -13,6 +13,16 @@ export type ModifierId =
   | "grunt_surge"
   | "frozen_river";
 
+/** Visual diff produced by a modifier apply function.
+ *  Consumed by the modifier reveal banner to progressively show map changes.
+ *  All tile keys are packed (row * GRID_COLS + col). */
+export interface ModifierDiff {
+  readonly id: ModifierId;
+  readonly label: string;
+  readonly changedTiles: readonly number[];
+  readonly gruntsSpawned: number;
+}
+
 /** Human-readable labels — MUST stay in sync with MODIFIER_ID.
  *  Adding a new modifier requires an entry in both objects. */
 const MODIFIER_LABELS: Record<ModifierId, string> = {

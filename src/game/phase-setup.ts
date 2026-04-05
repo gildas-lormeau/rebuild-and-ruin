@@ -84,6 +84,7 @@ import {
   applyGruntSurge,
   applyWildfire,
   clearFrozenRiver,
+  type ModifierDiff,
   rollModifier,
 } from "./round-modifiers.ts";
 
@@ -238,14 +239,14 @@ export function enterBuildFromReselect(state: GameState): void {
   state.timer = 0;
 }
 
-export function enterBattleFromCannon(state: GameState): void {
+export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   decayBurningPits(state);
   sweepAllPlayersWalls(state);
   recheckTerritoryOnly(state);
   spawnInterbattleGrunts(state);
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
   clearFrozenRiver(state);
-  applyBattleStartModifiers(state);
+  const diff = applyBattleStartModifiers(state);
   rollGruntWallAttacks(state);
   setPhase(state, Phase.BATTLE);
   state.timer = BATTLE_TIMER;
@@ -256,6 +257,7 @@ export function enterBattleFromCannon(state: GameState): void {
       ? createComboTracker(state.players.length)
       : null;
   }
+  return diff;
 }
 
 /** Enter build from battle — cleans up battle state (balloons, captured cannons, grunts).
@@ -288,7 +290,6 @@ export function enterBuildFromBattle(state: GameState): void {
     state.buildTimer + (hasMasterBuilder ? MASTER_BUILDER_BONUS_SECONDS : 0);
   resetPlayerUpgrades(state);
   startOfBuildPhaseHousekeeping(state);
-  applyBuildStartModifiers(state);
 }
 
 /**
@@ -549,15 +550,50 @@ function spawnInterbattleGrunts(state: GameState): void {
   }
 }
 
-/** Modern mode: apply environmental modifiers at battle start. */
-function applyBattleStartModifiers(state: GameState): void {
+/** Modern mode: apply environmental modifiers at battle start.
+ *  Returns a ModifierDiff for the reveal banner, or null if no modifier fired. */
+function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
   const mod = state.modern?.activeModifier;
+  if (!mod) return null;
   if (mod === MODIFIER_ID.WILDFIRE) {
-    applyWildfire(state);
+    const scar = applyWildfire(state);
     recheckTerritoryOnly(state);
+    return {
+      id: mod,
+      label: "Wildfire",
+      changedTiles: [...scar],
+      gruntsSpawned: 0,
+    };
   }
-  if (mod === MODIFIER_ID.GRUNT_SURGE) applyGruntSurge(state);
-  if (mod === MODIFIER_ID.FROZEN_RIVER) applyFrozenRiver(state);
+  if (mod === MODIFIER_ID.CRUMBLING_WALLS) {
+    const destroyed = applyCrumblingWalls(state);
+    recheckTerritoryOnly(state);
+    return {
+      id: mod,
+      label: "Crumbling Walls",
+      changedTiles: destroyed,
+      gruntsSpawned: 0,
+    };
+  }
+  if (mod === MODIFIER_ID.GRUNT_SURGE) {
+    const count = applyGruntSurge(state);
+    return {
+      id: mod,
+      label: "Grunt Surge",
+      changedTiles: [],
+      gruntsSpawned: count,
+    };
+  }
+  if (mod === MODIFIER_ID.FROZEN_RIVER) {
+    const frozen = applyFrozenRiver(state);
+    return {
+      id: mod,
+      label: "Frozen River",
+      changedTiles: [...frozen],
+      gruntsSpawned: 0,
+    };
+  }
+  return null;
 }
 
 /** Award combo demolition bonuses and clear the tracker. */
@@ -598,14 +634,6 @@ function resetPlayerUpgrades(state: GameState): void {
   for (const player of state.players) {
     player.damagedWalls.clear();
     player.upgrades.clear();
-  }
-}
-
-/** Modern mode: apply environmental modifiers at build start. */
-function applyBuildStartModifiers(state: GameState): void {
-  if (state.modern?.activeModifier === MODIFIER_ID.CRUMBLING_WALLS) {
-    applyCrumblingWalls(state);
-    recheckTerritoryOnly(state);
   }
 }
 

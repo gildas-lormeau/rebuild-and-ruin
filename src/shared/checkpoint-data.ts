@@ -1,3 +1,4 @@
+import type { ModifierId } from "./game-constants.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 
 export interface SerializedCannon {
@@ -83,6 +84,13 @@ export interface BattleStartData {
     | null;
   /** Frozen river tiles (packed keys) for cross-zone grunt movement. null = no frozen river. */
   frozenTiles: number[] | null;
+  /** Modifier visual diff for the reveal banner. null = no modifier this round. */
+  modifierDiff: {
+    id: ModifierId;
+    label: string;
+    changedTiles: readonly number[];
+    gruntsSpawned: number;
+  } | null;
 }
 
 /** Data needed to sync state at build phase start. */

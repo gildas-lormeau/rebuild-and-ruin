@@ -40,6 +40,7 @@ import {
   enterBuildFromSelect,
   setPhase,
 } from "./phase-setup.ts";
+import type { ModifierDiff } from "./round-modifiers.ts";
 
 /** Create a game from a seed: generate map, pick zones, create state.
  *  Pass an existing map to reuse it (avoids regeneration + keeps terrain cache warm). */
@@ -130,24 +131,23 @@ export function markPlayerReselected(
   state.reselectedPlayers.add(playerId);
 }
 
-export function nextPhase(state: GameState): void {
+export function nextPhase(state: GameState): ModifierDiff | null {
   const { phase } = state;
   switch (phase) {
     case Phase.CASTLE_SELECT:
       enterBuildFromSelect(state);
-      break;
+      return null;
     case Phase.CASTLE_RESELECT:
       enterBuildFromReselect(state);
-      break;
+      return null;
     case Phase.WALL_BUILD:
       enterCannonPlacePhase(state);
-      break;
+      return null;
     case Phase.CANNON_PLACE:
-      enterBattleFromCannon(state);
-      break;
+      return enterBattleFromCannon(state);
     case Phase.BATTLE:
       enterBuildFromBattle(state);
-      break;
+      return null;
     default:
       assertNever(phase);
   }

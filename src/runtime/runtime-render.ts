@@ -114,6 +114,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
       runtimeState.banner.text,
       runtimeState.banner.progress,
       runtimeState.banner.subtitle,
+      runtimeState.banner.modifierDiff,
     );
 
     runtimeState.overlay = deps.createOnlineOverlay({

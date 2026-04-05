@@ -12,7 +12,9 @@ import {
   LIFE_LOST_FOCUS_CONTINUE,
   LifeLostChoice,
 } from "../shared/dialog-types.ts";
+import { MODIFIER_ID } from "../shared/game-constants.ts";
 import type { RGB } from "../shared/geometry-types.ts";
+import { GRID_COLS, TILE_SIZE } from "../shared/grid.ts";
 import {
   type GameOverOverlay,
   type RenderOverlay,
@@ -170,6 +172,45 @@ export function drawBanner(
     );
   }
   overlayCtx.restore();
+}
+
+/** Highlight tiles affected by a modifier during the reveal banner.
+ *  Tiles are revealed progressively as the banner sweeps past them. */
+export function drawModifierRevealHighlight(
+  overlayCtx: CanvasRenderingContext2D,
+  H: number,
+  overlay: RenderOverlay | undefined,
+  now: number,
+): void {
+  const diff = overlay?.ui?.banner?.modifierDiff;
+  if (!diff || diff.changedTiles.length === 0) return;
+
+  const bannerY = overlay!.ui!.banner!.y;
+  const bannerH = Math.round(H * BANNER_HEIGHT_RATIO);
+  // Tiles above the banner top edge are fully revealed
+  const revealY = bannerY - bannerH / 2;
+
+  // Pulse alpha: 0.25–0.55 over 400ms
+  const pulse = 0.25 + 0.3 * (0.5 + 0.5 * Math.sin((now / 400) * Math.PI * 2));
+
+  const color =
+    diff.id === MODIFIER_ID.WILDFIRE
+      ? `rgba(255,100,20,${pulse})`
+      : diff.id === MODIFIER_ID.FROZEN_RIVER
+        ? `rgba(100,200,255,${pulse})`
+        : diff.id === MODIFIER_ID.CRUMBLING_WALLS
+          ? `rgba(180,140,80,${pulse})`
+          : `rgba(255,255,100,${pulse})`;
+
+  overlayCtx.fillStyle = color;
+  for (const key of diff.changedTiles) {
+    const row = Math.floor(key / GRID_COLS);
+    const col = key % GRID_COLS;
+    const py = row * TILE_SIZE;
+    // Only highlight tiles that the banner has already swept past
+    if (py + TILE_SIZE > revealY) continue;
+    overlayCtx.fillRect(col * TILE_SIZE, py, TILE_SIZE, TILE_SIZE);
+  }
 }
 
 /** Draw score deltas floating over each player's territory. */

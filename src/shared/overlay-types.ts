@@ -171,7 +171,18 @@ export interface BattleOverlay {
 /** UI overlays — banners, announcements, game over, player select. */
 export interface UIOverlay {
   announcement?: string;
-  banner?: { text: string; subtitle?: string; y: number };
+  banner?: {
+    text: string;
+    subtitle?: string;
+    y: number;
+    /** Modifier reveal diff — when set, the banner is a modifier reveal and
+     *  the renderer should progressively highlight changed tiles. */
+    modifierDiff?: {
+      id: string;
+      changedTiles: readonly number[];
+      gruntsSpawned: number;
+    };
+  };
   /** Snapshot of castle state captured at banner start — immutable during animation.
    *  Used to render the "old" scene behind the banner while live state updates. */
   bannerPrevCastles?: CastleData[];

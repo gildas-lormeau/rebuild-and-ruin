@@ -147,6 +147,17 @@ export function showUpgradePickBanner(
   show(BANNER_UPGRADE_PICK, onDone, true, undefined, BANNER_UPGRADE_PICK_SUB);
 }
 
+/** Show the modifier reveal banner with the modifier label as the title.
+ *  The banner sweeps across the screen, revealing the post-modifier map state
+ *  while tile highlights pulse on changed tiles (driven by banner.modifierDiff). */
+export function showModifierRevealBanner(
+  show: BannerShow,
+  label: string,
+  onDone: () => void,
+): void {
+  show(label, onDone, true);
+}
+
 /** Canonical post-build-end sequence shared by host and watcher.
  *
  *  1. Show score deltas animation

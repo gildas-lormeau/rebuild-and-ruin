@@ -1,3 +1,4 @@
+import type { ModifierDiff } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { CastleData, EntityOverlay } from "../shared/overlay-types.ts";
 import { type GameState } from "../shared/types.ts";
@@ -21,6 +22,9 @@ export interface BannerState {
   newWalls?: Set<number>[];
   /** Pre-sweep wall snapshot; consumed by showBannerTransition for the old scene. */
   wallsBeforeSweep?: Set<number>[];
+  /** Modifier reveal diff — set when showing a modifier reveal banner.
+   *  Consumed by the renderer to progressively show map changes. */
+  modifierDiff?: ModifierDiff;
 }
 
 interface ShowBannerDeps {
@@ -186,6 +190,7 @@ export function tickBannerTransition(
   banner.prevEntities = undefined;
   banner.newTerritory = undefined;
   banner.newWalls = undefined;
+  banner.modifierDiff = undefined;
   banner.active = false;
   fireOnce(banner, "callback", "banner.callback");
 }

@@ -37,9 +37,7 @@ import {
   applyFrozenRiver,
   applyGruntSurge,
   applyWildfire,
-  BANNER_PHASE_CANNON,
   clearFrozenRiver,
-  modifierBannerText,
   rollModifier,
 } from "../src/game/round-modifiers.ts";
 import {
@@ -618,24 +616,6 @@ test("host ignores UPGRADE_PICK for already-resolved entry", () => {
 // Coverage gaps: banner text, dialog create/tick, AI scoring
 // ---------------------------------------------------------------------------
 
-test("modifierBannerText returns text for cannon-announced modifiers", () => {
-  assert(
-    modifierBannerText("wildfire", BANNER_PHASE_CANNON) !== undefined,
-    "wildfire should announce on cannon phase",
-  );
-  assert(
-    modifierBannerText("grunt_surge", BANNER_PHASE_CANNON) !== undefined,
-    "grunt surge should announce on cannon phase",
-  );
-  assert(
-    modifierBannerText("crumbling_walls", BANNER_PHASE_CANNON) === undefined,
-    "crumbling walls should NOT announce on cannon phase",
-  );
-  assert(
-    modifierBannerText(null, BANNER_PHASE_CANNON) === undefined,
-    "null modifier should return undefined",
-  );
-});
 
 test("upgrade pick banner is shown before upgrade pick dialog", () => {
   const s = createScenario(42);

@@ -48,11 +48,6 @@ import {
   showCannonPhaseBanner,
 } from "../game/phase-transition-shared.ts";
 import {
-  BANNER_PHASE_BUILD,
-  BANNER_PHASE_CANNON,
-  modifierBannerText,
-} from "../game/round-modifiers.ts";
-import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,
   BATTLE_TIMER,
@@ -191,14 +186,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         if (onBannerDone) {
           // INVARIANT: Banner captures prevCastles BEFORE applyCheckpoint mutates state.
           // executeTransition guarantees this ordering via CANNON_START_STEPS.
-          showCannonPhaseBanner(
-            deps.showBanner,
-            onBannerDone,
-            modifierBannerText(
-              runtimeState.state.modern?.activeModifier ?? null,
-              BANNER_PHASE_CANNON,
-            ),
-          );
+          showCannonPhaseBanner(deps.showBanner, onBannerDone);
         }
       },
       applyCheckpoint: () => {
@@ -245,11 +233,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       net: deps.hostNetworking
         ? {
             isHost: runtimeState.frameMeta.hostAtFrameStart,
-            sendBattleStart: (flights) => {
+            sendBattleStart: (flights, diff) => {
               deps.send(
                 deps.hostNetworking!.createBattleStartMessage(
                   runtimeState.state,
                   flights,
+                  diff,
                 ),
               );
             },
@@ -402,17 +391,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         const showBannerAndEnterBuild = () => {
           executeTransition(BUILD_START_STEPS, {
             showBanner: () =>
-              showBuildPhaseBanner(
-                deps.showBanner,
-                BANNER_BUILD,
-                () => {
-                  setMode(runtimeState, Mode.GAME);
-                },
-                modifierBannerText(
-                  runtimeState.state.modern?.activeModifier ?? null,
-                  BANNER_PHASE_BUILD,
-                ),
-              ),
+              showBuildPhaseBanner(deps.showBanner, BANNER_BUILD, () => {
+                setMode(runtimeState, Mode.GAME);
+              }),
             applyCheckpoint: NOOP_STEP,
             initControllers: () => startBuildPhase(),
           });

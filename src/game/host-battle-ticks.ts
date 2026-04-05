@@ -19,6 +19,7 @@ import type {
   Impact,
 } from "../shared/battle-types.ts";
 import { snapshotAllWalls } from "../shared/board-occupancy.ts";
+import { type ModifierDiff, modifierLabel } from "../shared/game-constants.ts";
 import type { TilePos } from "../shared/geometry-types.ts";
 import type {
   BattleController,
@@ -38,11 +39,16 @@ import {
   createCannonFiredMsg,
   getCountdownAnnouncement,
 } from "./battle-system.ts";
-import { BANNER_BATTLE, type BannerShow } from "./phase-banner.ts";
+import {
+  BANNER_BATTLE,
+  type BannerShow,
+  type BannerState,
+} from "./phase-banner.ts";
 import {
   BATTLE_START_STEPS,
   executeTransition,
   showBattlePhaseBanner,
+  showModifierRevealBanner,
 } from "./phase-transition-shared.ts";
 
 type BattleCapable = ControllerIdentity & BattleController;
@@ -91,20 +97,20 @@ interface TickHostBattlePhaseDeps {
 /** Networking context for starting battle. */
 interface BattleStartNet {
   isHost: boolean;
-  sendBattleStart: (flights: readonly BalloonFlight[]) => void;
+  sendBattleStart: (
+    flights: readonly BalloonFlight[],
+    modifierDiff: ModifierDiff | null,
+  ) => void;
 }
 
 interface StartHostBattleLifecycleDeps {
   state: GameState;
   battleAnim: BattleAnimState;
-  banner: {
-    newTerritory?: Set<number>[];
-    newWalls?: Set<number>[];
-  };
+  banner: Pick<BannerState, "newTerritory" | "newWalls" | "modifierDiff">;
   resolveBalloons: (state: GameState) => BalloonFlight[];
   snapshotTerritory: () => Set<number>[];
   showBanner: BannerShow;
-  nextPhase: (state: GameState) => void;
+  nextPhase: (state: GameState) => ModifierDiff | null;
   setModeBalloonAnim: () => void;
   beginBattle: () => void;
   /** Network context. Pass LOCAL_BATTLE_START_NET for local play. */
@@ -138,7 +144,9 @@ interface BeginHostBattleDeps {
 /** Local-play stub for BattleStartNet. No-op broadcast, always host. */
 export const LOCAL_BATTLE_START_NET: BattleStartNet = {
   isHost: true,
-  sendBattleStart: () => {},
+  sendBattleStart: () => {
+    /* no network in local play */
+  },
 };
 
 export function tickHostBattleCountdown(
@@ -254,25 +262,42 @@ export function startHostBattleLifecycle(
   const sendBattleStart = deps.net?.sendBattleStart;
 
   const flights = resolveBalloons(state);
+  const activeModifier = state.modern?.activeModifier ?? null;
+
+  const proceedToBattle = () => {
+    if (flights.length > 0) {
+      battleAnim.flights = flights.map((flight) => ({
+        flight,
+        progress: 0,
+      }));
+      setModeBalloonAnim();
+    } else {
+      beginBattle();
+    }
+  };
 
   executeTransition(BATTLE_START_STEPS, {
-    showBanner: () =>
-      showBattlePhaseBanner(showBanner, BANNER_BATTLE, () => {
-        if (flights.length > 0) {
-          battleAnim.flights = flights.map((flight) => ({
-            flight,
-            progress: 0,
-          }));
-          setModeBalloonAnim();
-        } else {
-          beginBattle();
-        }
-      }),
+    showBanner: () => {
+      if (activeModifier) {
+        // Modifier reveal banner first — diff data is set during applyCheckpoint
+        // (runs while this banner animates) and picked up by the renderer.
+        showModifierRevealBanner(
+          showBanner,
+          modifierLabel(activeModifier),
+          () => {
+            showBattlePhaseBanner(showBanner, BANNER_BATTLE, proceedToBattle);
+          },
+        );
+      } else {
+        showBattlePhaseBanner(showBanner, BANNER_BATTLE, proceedToBattle);
+      }
+    },
     applyCheckpoint: () => {
-      nextPhase(state);
+      const diff = nextPhase(state);
+      if (diff) deps.banner.modifierDiff = diff;
       battleAnim.impacts = [];
       if (isHostInContext(deps.net) && sendBattleStart)
-        sendBattleStart(flights);
+        sendBattleStart(flights, diff);
     },
     snapshotForBanner: () => {
       const postTerritory = snapshotTerritory();

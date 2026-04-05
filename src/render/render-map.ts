@@ -51,6 +51,7 @@ import {
   drawComboFloats,
   drawGameOver,
   drawLifeLostDialog,
+  drawModifierRevealHighlight,
   drawPlayerSelect,
   drawScoreDeltas,
   drawStatusBar,
@@ -203,6 +204,7 @@ export function drawMap(
   drawPhantoms(overlayCtx, overlay);
   drawBattleEffects(overlayCtx, map, overlay, now);
   drawScoreDeltas(overlayCtx, overlay);
+  drawModifierRevealHighlight(overlayCtx, H, overlay, now);
   drawBanner(overlayCtx, W, H, overlay);
   drawGameOver(overlayCtx, W, H, overlay);
   drawLifeLostDialog(overlayCtx, W, H, overlay, now);

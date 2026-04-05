@@ -24,12 +24,8 @@ import {
   showBattlePhaseBanner,
   showBuildPhaseBanner,
   showCannonPhaseBanner,
+  showModifierRevealBanner,
 } from "../game/phase-transition-shared.ts";
-import {
-  BANNER_PHASE_BUILD,
-  BANNER_PHASE_CANNON,
-  modifierBannerText,
-} from "../game/round-modifiers.ts";
 import { snapshotAllWalls } from "../shared/board-occupancy.ts";
 import type {
   BattleStartData,
@@ -85,6 +81,7 @@ export interface TransitionContext {
       prevWalls?: Set<number>[];
       prevEntities?: import("../shared/overlay-types").EntityOverlay;
       wallsBeforeSweep?: Set<number>[];
+      modifierDiff?: import("../game/round-modifiers.ts").ModifierDiff;
     };
     render: () => void;
     watcherTiming: WatcherTimingState;
@@ -252,24 +249,17 @@ export function handleCannonStartTransition(
     },
     initControllers: initLocalController,
     showBanner: () =>
-      showCannonPhaseBanner(
-        transitionCtx.ui.showBanner,
-        () => {
-          // Timer starts at banner-end wall clock. Safe to use now() because
-          // no intermediate dialog (unlike build, which has upgrade-pick) can
-          // delay the callback after the banner animation begins.
-          setWatcherPhaseTimer(
-            transitionCtx.ui.watcherTiming,
-            transitionCtx.now(),
-            state.timer,
-          );
-          transitionCtx.setMode(Mode.GAME);
-        },
-        modifierBannerText(
-          state.modern?.activeModifier ?? null,
-          BANNER_PHASE_CANNON,
-        ),
-      ),
+      showCannonPhaseBanner(transitionCtx.ui.showBanner, () => {
+        // Timer starts at banner-end wall clock. Safe to use now() because
+        // no intermediate dialog (unlike build, which has upgrade-pick) can
+        // delay the callback after the banner animation begins.
+        setWatcherPhaseTimer(
+          transitionCtx.ui.watcherTiming,
+          transitionCtx.now(),
+          state.timer,
+        );
+        transitionCtx.setMode(Mode.GAME);
+      }),
   });
 }
 
@@ -285,30 +275,50 @@ export function handleBattleStartTransition(
   // Pre-capture old scene before checkpoint replaces state (banner ??= keeps it)
   transitionCtx.ui.banner.prevEntities = snapshotEntities(state);
 
+  const modifierDiff = msg.modifierDiff ?? null;
+
+  const proceedToBattle = () => {
+    if (battleFlights && battleFlights.length > 0) {
+      transitionCtx.battleLifecycle.setFlights(
+        battleFlights.map((flight) => ({
+          flight: {
+            startX: flight.startX,
+            startY: flight.startY,
+            endX: flight.endX,
+            endY: flight.endY,
+          },
+          progress: 0,
+        })),
+      );
+      transitionCtx.setMode(Mode.BALLOON_ANIM);
+    } else {
+      transitionCtx.battleLifecycle.beginBattle();
+    }
+  };
+
   executeTransition(BATTLE_START_STEPS, {
-    showBanner: () =>
-      showBattlePhaseBanner(
-        transitionCtx.ui.showBanner,
-        BANNER_BATTLE_ONLINE,
-        () => {
-          if (battleFlights && battleFlights.length > 0) {
-            transitionCtx.battleLifecycle.setFlights(
-              battleFlights.map((flight) => ({
-                flight: {
-                  startX: flight.startX,
-                  startY: flight.startY,
-                  endX: flight.endX,
-                  endY: flight.endY,
-                },
-                progress: 0,
-              })),
+    showBanner: () => {
+      if (modifierDiff) {
+        transitionCtx.ui.banner.modifierDiff = modifierDiff;
+        showModifierRevealBanner(
+          transitionCtx.ui.showBanner,
+          modifierDiff.label,
+          () => {
+            showBattlePhaseBanner(
+              transitionCtx.ui.showBanner,
+              BANNER_BATTLE_ONLINE,
+              proceedToBattle,
             );
-            transitionCtx.setMode(Mode.BALLOON_ANIM);
-          } else {
-            transitionCtx.battleLifecycle.beginBattle();
-          }
-        },
-      ),
+          },
+        );
+      } else {
+        showBattlePhaseBanner(
+          transitionCtx.ui.showBanner,
+          BANNER_BATTLE_ONLINE,
+          proceedToBattle,
+        );
+      }
+    },
     applyCheckpoint: () => {
       transitionCtx.checkpoint.applyBattleStart(msg);
       setPhase(state, Phase.BATTLE);
@@ -363,10 +373,6 @@ export function handleBuildStartTransition(
             );
             transitionCtx.setMode(Mode.GAME);
           },
-          modifierBannerText(
-            state.modern?.activeModifier ?? null,
-            BANNER_PHASE_BUILD,
-          ),
         ),
       applyCheckpoint: NOOP_STEP,
       initControllers: () => {

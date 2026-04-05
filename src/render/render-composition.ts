@@ -81,7 +81,23 @@ export type CreateBannerUiFn = (
   text: string,
   progress: number,
   subtitle?: string,
-) => { text: string; subtitle?: string; y: number } | undefined;
+  modifierDiff?: {
+    id: string;
+    changedTiles: readonly number[];
+    gruntsSpawned: number;
+  },
+) =>
+  | {
+      text: string;
+      subtitle?: string;
+      y: number;
+      modifierDiff?: {
+        id: string;
+        changedTiles: readonly number[];
+        gruntsSpawned: number;
+      };
+    }
+  | undefined;
 
 export type CreateOnlineOverlayFn = (
   params: OnlineOverlayParams,
@@ -261,7 +277,23 @@ export function createBannerUi(
   text: string,
   progress: number,
   subtitle?: string,
-): { text: string; subtitle?: string; y: number } | undefined {
+  modifierDiff?: {
+    id: string;
+    changedTiles: readonly number[];
+    gruntsSpawned: number;
+  },
+):
+  | {
+      text: string;
+      subtitle?: string;
+      y: number;
+      modifierDiff?: {
+        id: string;
+        changedTiles: readonly number[];
+        gruntsSpawned: number;
+      };
+    }
+  | undefined {
   if (!active) return undefined;
   const h = MAP_PX_H;
   const bannerH = h * BANNER_HEIGHT_RATIO;
@@ -271,6 +303,7 @@ export function createBannerUi(
     text,
     subtitle,
     y: startY + progress * (endY - startY),
+    modifierDiff,
   };
 }
 

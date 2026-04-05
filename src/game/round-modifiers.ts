@@ -20,6 +20,7 @@ import {
   GAME_MODE_MODERN,
   MODIFIER_FIRST_ROUND,
   MODIFIER_ROLL_CHANCE,
+  type ModifierDiff,
   type ModifierId,
 } from "../shared/game-constants.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
@@ -33,40 +34,19 @@ import {
 import { type GameState, isPlayerSeated } from "../shared/types.ts";
 import { spawnGruntSurgeOnZone } from "./grunt-system.ts";
 
+export type { ModifierDiff };
+
 interface ModifierDef {
   readonly id: ModifierId;
   readonly label: string;
   readonly weight: number;
-  /** When to show the banner subtitle. */
-  readonly announcePhase: "before_cannon" | "before_build" | "none";
 }
 
-const ANNOUNCE_BEFORE_CANNON = "before_cannon";
 const MODIFIER_POOL: readonly ModifierDef[] = [
-  {
-    id: "wildfire",
-    label: "Wildfire",
-    weight: 3,
-    announcePhase: ANNOUNCE_BEFORE_CANNON,
-  },
-  {
-    id: "crumbling_walls",
-    label: "Crumbling Walls",
-    weight: 3,
-    announcePhase: "before_build",
-  },
-  {
-    id: "grunt_surge",
-    label: "Grunt Surge",
-    weight: 2,
-    announcePhase: ANNOUNCE_BEFORE_CANNON,
-  },
-  {
-    id: "frozen_river",
-    label: "Frozen River",
-    weight: 2,
-    announcePhase: ANNOUNCE_BEFORE_CANNON,
-  },
+  { id: "wildfire", label: "Wildfire", weight: 3 },
+  { id: "crumbling_walls", label: "Crumbling Walls", weight: 3 },
+  { id: "grunt_surge", label: "Grunt Surge", weight: 2 },
+  { id: "frozen_river", label: "Frozen River", weight: 2 },
 ];
 /** Extra grunts per player during a grunt surge.
  *  Baseline is ~15 grunts per territory in a typical game,
@@ -83,9 +63,6 @@ const WILDFIRE_FATTEN_CHANCE = 0.35;
 const CRUMBLE_FRACTION = 0.18;
 const CRUMBLE_MIN = 3;
 const CRUMBLE_MAX = 12;
-/** Banner phase constants for modifierBannerText callers. */
-export const BANNER_PHASE_CANNON = "cannon";
-export const BANNER_PHASE_BUILD = "build";
 
 /** Roll a modifier for the current round. Returns null if no modifier fires.
  *  Must be called at a deterministic point using state.rng for online sync. */
@@ -108,34 +85,22 @@ export function rollModifier(state: GameState): ModifierId | null {
   return candidates[candidates.length - 1]!.id;
 }
 
-/** Returns banner subtitle for the given phase, or undefined if no announcement. */
-export function modifierBannerText(
-  modifierId: ModifierId | null,
-  bannerPhase: "cannon" | "build",
-): string | undefined {
-  if (!modifierId) return undefined;
-  const def = MODIFIER_POOL.find((mod) => mod.id === modifierId);
-  if (!def) return undefined;
-  const phase =
-    bannerPhase === BANNER_PHASE_CANNON
-      ? ANNOUNCE_BEFORE_CANNON
-      : "before_build";
-  if (def.announcePhase !== phase) return undefined;
-  return `${def.label} incoming!`;
-}
-
 /** Apply wildfire: burn an elongated scar of ~10 tiles via random walk.
- *  Only targets zones owned by alive players, avoids towers and cannons. */
-export function applyWildfire(state: GameState): void {
+ *  Only targets zones owned by alive players, avoids towers and cannons.
+ *  Returns the set of scar tile keys for the reveal banner. */
+export function applyWildfire(state: GameState): ReadonlySet<number> {
   const scar = generateWildfireScar(state);
-  if (scar.size === 0) return;
+  if (scar.size === 0) return scar;
   applyWildfireScar(state, scar);
+  return scar;
 }
 
-/** Apply crumbling walls: destroy a fraction of each player's outermost walls. */
-export function applyCrumblingWalls(state: GameState): void {
+/** Apply crumbling walls: destroy a fraction of each player's outermost walls.
+ *  Returns the array of destroyed wall tile keys for the reveal banner. */
+export function applyCrumblingWalls(state: GameState): readonly number[] {
   const tiles = state.map.tiles;
   const cols = tiles[0]!.length;
+  const destroyed: number[] = [];
 
   for (const player of state.players) {
     if (player.eliminated || player.walls.size === 0) continue;
@@ -175,13 +140,18 @@ export function applyCrumblingWalls(state: GameState): void {
 
     // Shuffle and pick first `count`
     state.rng.shuffle(destructible);
-    deletePlayerWallsBatch(player, destructible.slice(0, count));
+    const batch = destructible.slice(0, count);
+    deletePlayerWallsBatch(player, batch);
+    destroyed.push(...batch);
   }
+  return destroyed;
 }
 
-/** Apply grunt surge: spawn extra grunts distributed across all alive towers. */
-export function applyGruntSurge(state: GameState): void {
-  if (state.round < FIRST_GRUNT_SPAWN_ROUND) return;
+/** Apply grunt surge: spawn extra grunts distributed across all alive towers.
+ *  Returns the number of grunts spawned for the reveal banner. */
+export function applyGruntSurge(state: GameState): number {
+  if (state.round < FIRST_GRUNT_SPAWN_ROUND) return 0;
+  const gruntsBefore = state.grunts.length;
   const extraCount = state.rng.int(
     GRUNT_SURGE_COUNT_MIN,
     GRUNT_SURGE_COUNT_MAX,
@@ -189,11 +159,13 @@ export function applyGruntSurge(state: GameState): void {
   for (const player of state.players.filter(isPlayerSeated)) {
     spawnGruntSurgeOnZone(state, player.id, extraCount);
   }
+  return state.grunts.length - gruntsBefore;
 }
 
 /** Apply frozen river: freeze the entire river, allowing grunts to walk
- *  across zones and target any tower. Lasts through battle + build phase. */
-export function applyFrozenRiver(state: GameState): void {
+ *  across zones and target any tower. Lasts through battle + build phase.
+ *  Returns the set of frozen tile keys for the reveal banner. */
+export function applyFrozenRiver(state: GameState): ReadonlySet<number> {
   const frozen = new Set<number>();
   const tiles = state.map.tiles;
   for (let r = 0; r < GRID_ROWS; r++) {
@@ -201,7 +173,7 @@ export function applyFrozenRiver(state: GameState): void {
       if (isWater(tiles, r, c)) frozen.add(packTile(r, c));
     }
   }
-  if (frozen.size === 0) return;
+  if (frozen.size === 0) return frozen;
   state.modern!.frozenTiles = frozen;
 
   // Force all grunts to re-lock targets with zones open — grunts near the
@@ -209,6 +181,7 @@ export function applyFrozenRiver(state: GameState): void {
   for (const grunt of state.grunts) {
     grunt.targetTowerIdx = undefined;
   }
+  return frozen;
 }
 
 /** Thaw frozen river: kill grunts stranded on water, clear frozen state. */

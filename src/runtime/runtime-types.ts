@@ -60,7 +60,10 @@
 
 import type { GameMessage, ServerMessage } from "../../server/protocol.ts";
 import type { BalloonFlight } from "../shared/battle-types.ts";
-import type { SerializedPlayer } from "../shared/checkpoint-data.ts";
+import type {
+  BattleStartData,
+  SerializedPlayer,
+} from "../shared/checkpoint-data.ts";
 import type {
   LifeLostDialogState,
   UpgradePickDialogState,
@@ -118,6 +121,7 @@ export interface OnlineRuntimeConfig {
     createBattleStartMessage: (
       state: GameState,
       flights: readonly BalloonFlight[],
+      modifierDiff?: BattleStartData["modifierDiff"],
     ) => ServerMessage;
     createBuildStartMessage: (state: GameState) => ServerMessage;
     remoteCannonPhantoms: () => readonly CannonPhantom[];
