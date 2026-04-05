@@ -418,13 +418,9 @@ function buildLifeLostClickDeps(
 ): RegisterOnlineInputDeps["lifeLost"] {
   return {
     get: () => runtimeState.lifeLostDialog,
-    click: (x: number, y: number) => {
-      const hit = hitTest(x, y);
-      if (!hit) return;
-      const pp = pointerPlayer();
-      if (pp && hit.playerId !== pp.playerId) return;
-      lifeLost.applyChoice(hit.playerId, hit.choice);
-    },
+    click: guardedDialogClick(pointerPlayer, hitTest, (hit) =>
+      lifeLost.applyChoice(hit.playerId, hit.choice),
+    ),
   };
 }
 
@@ -436,13 +432,23 @@ function buildUpgradePickClickDeps(
 ): RegisterOnlineInputDeps["upgradePick"] {
   return {
     get: () => runtimeState.upgradePickDialog,
-    click: (x: number, y: number) => {
-      const hit = hitTest(x, y);
-      if (!hit) return;
-      const pp = pointerPlayer();
-      if (pp && hit.playerId !== pp.playerId) return;
-      upgradePick.pickDirect(hit.playerId, hit.cardIdx);
-    },
+    click: guardedDialogClick(pointerPlayer, hitTest, (hit) =>
+      upgradePick.pickDirect(hit.playerId, hit.cardIdx),
+    ),
+  };
+}
+
+function guardedDialogClick<TH extends { playerId: ValidPlayerSlot }>(
+  pointerPlayer: InputSystemDeps["pointerPlayer"],
+  hitTest: (x: number, y: number) => TH | null,
+  onHit: (hit: TH) => void,
+): (x: number, y: number) => void {
+  return (x, y) => {
+    const hit = hitTest(x, y);
+    if (!hit) return;
+    const pp = pointerPlayer();
+    if (pp && hit.playerId !== pp.playerId) return;
+    onHit(hit);
   };
 }
 
