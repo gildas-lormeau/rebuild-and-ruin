@@ -178,9 +178,14 @@ export function createDpad(
 
   container.classList.toggle("left-handed", deps.getLeftHanded());
 
+  let prevPhase: Phase | null = null;
+
   return {
     update(phase: Phase | null, disableRotate?: boolean) {
-      stopRepeat();
+      if (phase !== prevPhase) {
+        stopRepeat();
+        prevPhase = phase;
+      }
       const inGame = phase !== null;
       for (const dpad of dpads) dpad.classList.toggle(CLS_DISABLED, !inGame);
       const rotateActive =
