@@ -74,6 +74,7 @@ import {
   enterTowerSelection,
 } from "./runtime-bootstrap.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
+import { exposeE2EBridge } from "./runtime-e2e-bridge.ts";
 import {
   buildLifecycleDeps,
   createGameLifecycle,
@@ -101,7 +102,6 @@ import {
   setMode,
   tickMainLoop,
 } from "./runtime-state.ts";
-import { exposeTestGlobals } from "./runtime-test-globals.ts";
 import { type GameRuntime, type RuntimeConfig } from "./runtime-types.ts";
 import {
   createUpgradePickSystem,
@@ -235,7 +235,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       ticks: modeTickers,
     });
 
-    if (IS_DEV) exposeTestGlobals(runtimeState, config);
+    if (IS_DEV) exposeE2EBridge({ runtimeState, config, camera, renderer });
     if (shouldContinue && runtimeState.mode !== Mode.STOPPED)
       requestAnimationFrame(mainLoop);
   }

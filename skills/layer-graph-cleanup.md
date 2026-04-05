@@ -229,7 +229,7 @@ at the time of each change (some have since been renamed or moved into domain di
 | `runtime support` → `render` (L10→L8) | Moved `LoupeHandle` to `overlay-types.ts`; removed re-exports from `runtime-bootstrap.ts`; hoisted `precomputeTerrainCache` to caller |
 | `WatcherTimingState` in `online-types.ts` (L10) | Moved to `types.ts` (L2) — pure interface, zero deps; unlocked `runtime-types.ts` cascade |
 | `runtime-types.ts` over-classified in "runtime" | Reclassified to "runtime support" — max dep L7 (haptics, sound) |
-| `runtime-camera.ts`, `runtime-test-globals.ts` over-classified | Reclassified to "runtime support" — max dep L2/L3 + runtime-types |
+| `runtime-camera.ts` over-classified | Reclassified to "runtime support" — max dep L2/L3 + runtime-types |
 | `runtime-state.ts`, `runtime-touch-ui.ts` over-classified | Reclassified to L4 "runtime primitives" — max dep L3 |
 | `runtime-banner.ts`, `runtime-human.ts` over-classified | Reclassified to L4 "runtime primitives" — max dep L3, no runtime-types dep |
 | L3 "shared interfaces, config & scoring" bloated (19 files) | Split into L3 "shared types & config" (13 files) + L4 "runtime primitives" (6 files) |
@@ -240,7 +240,7 @@ at the time of each change (some have since been renamed or moved into domain di
 | `upgrade-defs.ts` in game domain, imported by `types.ts` (shared) | Reclassified to shared domain — zero-dep option constants |
 | `runtime support` → `input & sound` (L11→L9) | Extracted `HapticsSystem` and `SoundSystem` interfaces from `haptics-system.ts`/`sound-system.ts` to `system-interfaces.ts` (L4); runtime-types.ts no longer imports from input |
 | `runtime-types.ts` over-classified in "runtime support" (L11) | After interface extraction, max dep dropped to L5 (runtime-state); reclassified to "runtime primitives" |
-| `runtime-camera.ts`, `runtime-test-globals.ts` over-classified in L11 | Max dep is runtime-types (now L5); reclassified to "runtime primitives" |
+| `runtime-camera.ts` over-classified in L11 | Max dep is runtime-types (now L5); reclassified to "runtime primitives" |
 | `runtime-score-deltas.ts`, `runtime-upgrade-pick.ts`, `runtime-game-lifecycle.ts` over-classified in L14 | Max dep is L5 (runtime-state) or zero imports; reclassified to "runtime primitives" |
 | L11 "runtime support" renamed to "game bootstrap" | After cascade, only runtime-bootstrap.ts and runtime-headless.ts remained (factory/setup files) |
 | `runtime-phase-ticks.ts`, `runtime-life-lost.ts` over-classified in L14 | After interface extraction freed them from L9 dep, max dep dropped to L6 (game logic); created L7 "phase orchestration" group |

@@ -70,7 +70,6 @@
       "src/runtime/runtime-human.ts",
       "src/runtime/runtime-types.ts",
       "src/runtime/runtime-camera.ts",
-      "src/runtime/runtime-test-globals.ts",
       "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-upgrade-pick.ts",
       "src/runtime/runtime-game-lifecycle.ts"
@@ -168,6 +167,7 @@
   {
     "name": "runtime sub-systems",
     "files": [
+      "src/runtime/runtime-e2e-bridge.ts",
       "src/runtime/runtime-selection.ts",
       "src/runtime/runtime-input.ts",
       "src/runtime/runtime-lobby.ts",

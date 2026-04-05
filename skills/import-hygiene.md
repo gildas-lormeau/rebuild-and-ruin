@@ -78,7 +78,7 @@ Files are organized into domain directories under `src/`: `shared/`, `game/`, `a
  5  runtime primitives          runtime/runtime-touch-ui, runtime/runtime-state,
                                 runtime/runtime-banner, runtime/runtime-human,
                                 runtime/runtime-types, runtime/runtime-camera,
-                                runtime/runtime-test-globals, runtime/runtime-score-deltas,
+                                runtime/runtime-score-deltas,
                                 runtime/runtime-upgrade-pick, runtime/runtime-game-lifecycle
  6  game logic                  game/cannon-system, game/grunt-movement, game/grunt-system,
                                 game/battle-system, game/build-system, game/castle-generation,
@@ -100,8 +100,8 @@ Files are organized into domain directories under `src/`: `shared/`, `game/`, `a
                                 render/render-towers, render/render-composition, render/render-ui-theme,
                                 render/render-ui, render/render-ui-settings, render/render-map,
                                 render/render-canvas
-13  runtime sub-systems         runtime/runtime-selection, runtime/runtime-input,
-                                runtime/runtime-lobby, runtime/runtime-options,
+13  runtime sub-systems         runtime/runtime-e2e-bridge, runtime/runtime-selection,
+                                runtime/runtime-input, runtime/runtime-lobby, runtime/runtime-options,
                                 runtime/runtime-render
 14  online infrastructure       online/online-config, online/online-types, online/online-lobby-ui,
                                 online/online-server-lifecycle, online/online-session,

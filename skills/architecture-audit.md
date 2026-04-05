@@ -42,12 +42,12 @@ src/shared/overlay-types.ts, src/shared/phantom-types.ts, src/shared/tick-contex
 src/shared/settings-ui.ts, src/shared/screen-builders.ts
 ```
 
-### 4. Runtime primitives — L5 (10 files)
+### 4. Runtime primitives — L5 (9 files)
 ```
 src/runtime/runtime-touch-ui.ts, src/runtime/runtime-state.ts,
 src/runtime/runtime-banner.ts, src/runtime/runtime-human.ts,
 src/runtime/runtime-types.ts, src/runtime/runtime-camera.ts,
-src/runtime/runtime-test-globals.ts, src/runtime/runtime-score-deltas.ts,
+src/runtime/runtime-score-deltas.ts,
 src/runtime/runtime-upgrade-pick.ts, src/runtime/runtime-game-lifecycle.ts
 ```
 
@@ -103,8 +103,8 @@ src/render/render-canvas.ts
 
 ### 12. Runtime sub-systems — L13 (5 files)
 ```
-src/runtime/runtime-selection.ts, src/runtime/runtime-input.ts,
-src/runtime/runtime-lobby.ts, src/runtime/runtime-options.ts,
+src/runtime/runtime-e2e-bridge.ts, src/runtime/runtime-selection.ts,
+src/runtime/runtime-input.ts, src/runtime/runtime-lobby.ts, src/runtime/runtime-options.ts,
 src/runtime/runtime-render.ts
 ```
 

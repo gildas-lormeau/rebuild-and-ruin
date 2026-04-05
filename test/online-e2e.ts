@@ -854,7 +854,7 @@ async function runLocal() {
   await page.waitForFunction(
     () => {
       const w = window as unknown as Record<string, unknown>;
-      return w.__testMode !== undefined && w.__testMode !== "LOBBY";
+      return (w.__e2e as any)?.mode !== undefined && (w.__e2e as any)?.mode !== "LOBBY";
     },
     { timeout: 90_000 },
   );
@@ -872,9 +872,9 @@ async function runLocal() {
       const info = await page.evaluate(() => {
         const w = window as unknown as Record<string, unknown>;
         return {
-          mode: w.__testMode as string ?? "",
-          phase: w.__testPhase as string ?? "",
-          timer: w.__testTimer as number ?? 0,
+          mode: (w.__e2e as any)?.mode as string ?? "",
+          phase: (w.__e2e as any)?.phase as string ?? "",
+          timer: (w.__e2e as any)?.timer as number ?? 0,
         };
       }).catch(() => ({ mode: "", phase: "", timer: 0 }));
       if (info.mode === "STOPPED") {
@@ -897,7 +897,7 @@ async function runLocal() {
 
   // Check final game state
   const finalMode = await page.evaluate(() =>
-    (window as unknown as Record<string, unknown>).__testMode as string
+    ((window as unknown as Record<string, unknown>).__e2e as any)?.mode as string
   ).catch(() => "unknown");
   if (finalMode === "STOPPED") {
     logs.push(`[LOCAL] game_over — game ended normally`);
@@ -1033,9 +1033,9 @@ async function runOnline() {
       const info = await hostPage.evaluate(() => {
         const w = window as unknown as Record<string, unknown>;
         return {
-          mode: w.__testMode as string ?? "",
-          phase: w.__testPhase as string ?? "",
-          timer: w.__testTimer as number ?? 0,
+          mode: (w.__e2e as any)?.mode as string ?? "",
+          phase: (w.__e2e as any)?.phase as string ?? "",
+          timer: (w.__e2e as any)?.timer as number ?? 0,
         };
       }).catch(() => ({ mode: "", phase: "", timer: 0 }));
       if (info.mode === "STOPPED") {
@@ -1107,14 +1107,14 @@ async function simulateHumanPlayLoop(page: Page, label: string, durationMs: numb
 
     const { mode, phase } = await page.evaluate(() => {
       const w = window as unknown as Record<string, unknown>;
-      const testMode = w.__testMode as string | undefined;
+      const testMode = (w.__e2e as any)?.mode as string | undefined;
       if (!testMode) {
         const lobby = document.getElementById("lobby");
         if (lobby && lobby.style.display !== "none") return { mode: "DOM_LOBBY", phase: "" };
       }
       return {
         mode: testMode ?? "unknown",
-        phase: (w.__testPhase as string) ?? "",
+        phase: ((w.__e2e as any)?.phase as string) ?? "",
       };
     }).catch(() => ({ mode: "unknown", phase: "" }));
 
@@ -1159,7 +1159,7 @@ async function simulateHumanPlayLoop(page: Page, label: string, durationMs: numb
 
     if (mode === "SELECTION") {
       const timer = await page.evaluate(() => {
-        return (window as unknown as Record<string, unknown>).__testTimer as number ?? 10;
+        return ((window as unknown as Record<string, unknown>).__e2e as any)?.timer as number ?? 10;
       }).catch(() => 10);
 
       if (timer > 4) {
@@ -1213,8 +1213,8 @@ async function simulateHumanPlayLoop(page: Page, label: string, durationMs: numb
     if (phase === "BATTLE") {
       const aim = await page.evaluate(() => {
         const w = window as unknown as Record<string, unknown>;
-        const targets = w.__testEnemyTargets as { x: number; y: number }[] | undefined;
-        const ch = w.__testCrosshair as { x: number; y: number } | undefined;
+        const targets = (w.__e2e as any)?.targeting?.enemyTargets as { x: number; y: number }[] | undefined;
+        const ch = (w.__e2e as any)?.controller?.crosshair as { x: number; y: number } | undefined;
         if (!targets || targets.length === 0 || !ch) return null;
         let best = targets[0]!, bestDist = Infinity;
         for (const t of targets) {

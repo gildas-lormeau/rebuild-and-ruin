@@ -18,6 +18,12 @@ interface SpriteRect {
   h: number;
 }
 
+interface SpriteDraw {
+  name: string;
+  x: number;
+  y: number;
+}
+
 const SPRITES: Record<string, SpriteRect> = {
   tower_neutral: { x: 0, y: 0, w: 32, h: 32 },
   tower_home_p0: { x: 34, y: 0, w: 48, h: 48 },
@@ -115,6 +121,7 @@ const SPRITES: Record<string, SpriteRect> = {
 const BASE = import.meta.env?.BASE_URL ?? "/";
 
 let atlas: HTMLImageElement | null = null;
+let spyLog: SpriteDraw[] | undefined;
 
 export function loadAtlas(src = `${BASE}assets/sprites.png`): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -127,6 +134,21 @@ export function loadAtlas(src = `${BASE}assets/sprites.png`): Promise<void> {
       reject(new Error(`Failed to load sprite atlas: ${src}`));
     img.src = src;
   });
+}
+
+/** Enable the render spy. Call once at startup (dev only). */
+export function enableRenderSpy(): void {
+  spyLog = [];
+}
+
+/** Clear the spy log. Call at the start of each frame. */
+export function clearRenderSpy(): void {
+  if (spyLog) spyLog.length = 0;
+}
+
+/** Read the current frame's draw log. Returns undefined if spy is disabled. */
+export function getRenderSpyLog(): readonly SpriteDraw[] | undefined {
+  return spyLog;
 }
 
 /**
@@ -142,6 +164,7 @@ export function drawSprite(
 ): boolean {
   const sprite = resolveSprite(name);
   if (!sprite) return false;
+  spyLog?.push({ name, x: dx, y: dy });
   blitSprite(canvasCtx, sprite, dx, dy);
   return true;
 }
@@ -158,6 +181,7 @@ export function drawSpriteCentered(
 ): boolean {
   const sprite = resolveSprite(name);
   if (!sprite) return false;
+  spyLog?.push({ name, x: cx, y: cy });
   blitSprite(canvasCtx, sprite, cx - sprite.rect.w / 2, cy - sprite.rect.h / 2);
   return true;
 }

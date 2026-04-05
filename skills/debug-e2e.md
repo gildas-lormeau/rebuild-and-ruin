@@ -71,42 +71,46 @@ DO NOT skip a code path because you think it's unrelated. You don't know what's
 related yet — that's what the logs will tell you.
 
 ### Step 3: Write a test that triggers the bug
-Create a test file in test/. Use this template:
+Create a test file in test/. Use one of these approaches:
 
+**For state/logic bugs** — use scenario helpers:
 ```typescript
 import { createScenario } from "./scenario-helpers.ts";
-import { assert, test, runTests } from "./test-helpers.ts";
-import { Phase, Mode } from "../src/types.ts";
-
-test("describe the bug", () => {
-  const s = createScenario(42);
-
-  // Advance game to the right state
-  // Use: s.runCannon(), s.runBattle(), s.runBuild(), s.playRound(),
-  //      s.playRounds(n), s.advanceTo(Phase.X), s.finalizeBuild(),
-  //      s.processReselection([playerIds])
-
-  // Manipulate state to reproduce conditions
-  // Use: s.setLives(pid, n), s.clearWalls(pid), s.eliminatePlayer(pid),
-  //      s.destroyWalls(pid, count), s.destroyCannon(pid, idx)
-
-  // Inspect state
-  console.log(s.describe());
-
-  // Test sub-systems
-  // Banner:  const banner = s.createBanner();
-  // Camera:  const cam = s.createCamera({ mode, phase, myPlayerId });
-  // Dialog:  const dialog = s.createLifeLostDialog([reselect], [eliminated]);
-  // Transitions: const ctx = s.createTransitionContext();
-
-  // Assert the bug
-  assert(condition, "expected vs actual message");
-});
-
-await runTests("Bug investigation");
+// s.advanceTo(Phase.X), s.playRounds(n), etc.
 ```
 
-Run with: bun test/your-file.ts
+**For input/rendering/browser bugs** — use the E2E helpers:
+```typescript
+import { E2EGame } from "./e2e-helpers.ts";
+const game = await E2EGame.create({ seed: 42, humans: 1, headless: true });
+```
+
+The E2E bridge (`window.__e2e`) exposes:
+- **Game state**: `mode`, `phase`, `round`, `timer`, `players`
+- **Render overlay**: `overlay.entities` (houses, grunts, towers), `overlay.phantoms`, `overlay.banner`, `overlay.battle`
+- **Banner prev entities**: `overlay.bannerPrevEntities` (old scene during banner sweep)
+- **Controller**: `controller.cannonCursor`, `controller.buildCursor`, `controller.crosshair`
+- **Camera**: `camera.viewport`
+- **Coord conversion**: `worldToClient(wx, wy)`, `tileToClient(row, col)` — callable from page.evaluate
+- **Render spy**: call `enableRenderSpy()` on the bridge, then read `renderSpy` — array of `{name, x, y}` recording every `drawSprite` call per frame
+- **Targeting**: `targeting.enemyCannons`, `targeting.enemyTargets` — pixel positions of enemy entities
+- **Pause/step**: set `paused = true` to freeze, `step = true` to advance one frame
+
+E2EGame helpers:
+- `game.advanceTo("CANNON_PLACE")` — waits for phase (timeout derived from game constants)
+- `game.setFastMode(false)` — disable fast mode for precise mouse interaction
+- `game.mouse.moveToWorld(wx, wy)` / `game.mouse.moveToTile(row, col)` — world-coordinate mouse input
+- `game.mouse.clickTile(row, col)` / `game.mouse.rightClickWorld(wx, wy)`
+- `game.mouse.sweep(from, to, { stepPx })` — pixel-by-pixel mouse sweep
+- `game.query.state()` / `game.query.controller()` / `game.query.overlay()` — read bridge data
+- `game.keyboard.press("n")` / `game.dom.clickButton("confirm")`
+- `game.pause()` / `game.resume()` / `game.step()`
+
+Fast mode is ON by default (accelerates lobby + phase timers). Disable with
+`game.setFastMode(false)` when you need precise mouse/timing interaction.
+
+Run with: `npx tsx test/your-file.ts`
+No external `timeout` command needed — tests handle their own lifecycle.
 
 ### Step 4: Read the log output — NOW you can analyze
 Only now, with log output in front of you, trace what actually happened.
@@ -129,13 +133,14 @@ Return:
 3. Run the test again to verify
 4. Optionally keep the test as a regression guard
 
-## E2E tests (browser-required bugs only)
-
-For bugs involving pixel rendering, touch interactions, or WebSocket connections, use E2E instead of scenario tests:
+## E2E test commands
 
 ```sh
-npm run test:e2e:local:quick       # headless, fast, 1 round
-npx tsx test/online-e2e.ts local 0 "" 1 --headless --fast --seed 42
+npm run test:e2e:cannon-cursor     # cannon phantom stability (9s)
+npm run test:e2e:banner            # banner entity rendering (21s)
+npm run test:e2e:all               # all focused e2e tests
+npm run test:e2e:local:quick       # legacy full simulation (headless, 1 round)
 ```
 
-Flags: `--headless`, `--fast`, `--screenshot`, `--mobile`, `--seed N`, `--action "phase:X click:Y screenshot:label"`, `--assert "phase:X button:Y visible"`
+Flags for legacy e2e: `--headless`, `--fast`, `--seed N`, `--mobile`, `--screenshot`,
+`--action "phase:X click:Y screenshot:label"`, `--assert "phase:X button:Y visible"`

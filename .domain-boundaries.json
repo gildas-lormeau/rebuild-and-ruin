@@ -133,7 +133,7 @@
       "src/runtime/runtime-headless.ts",
       "src/runtime/runtime-types.ts",
       "src/runtime/runtime-camera.ts",
-      "src/runtime/runtime-test-globals.ts",
+      "src/runtime/runtime-e2e-bridge.ts",
       "src/runtime/runtime-life-lost.ts",
       "src/runtime/runtime-upgrade-pick.ts",
       "src/runtime/runtime-lobby.ts",

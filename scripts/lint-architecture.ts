@@ -32,7 +32,7 @@ const EXEMPT = new Set([
   "runtime-bootstrap.ts",
   "runtime-host-phase-ticks.ts", // pure tick functions, not a factory sub-system
   "runtime-host-battle-ticks.ts", // pure tick functions, not a factory sub-system
-  "runtime-test-globals.ts", // pure function, not a factory sub-system
+  "runtime-e2e-bridge.ts", // e2e test bridge, not a factory sub-system
   "runtime-touch-ui.ts", // pure function, not a factory sub-system
 ]);
 
