@@ -1,4 +1,4 @@
-import type { ValidPlayerSlot } from "./player-slot.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 
 /** Life-lost types. */
@@ -52,6 +52,13 @@ export interface ControlsState {
 /** Game-over focus state — which button is highlighted on the game-over screen. */
 export type GameOverFocus = "rematch" | "menu";
 
+export interface AutoResolveDeps {
+  readonly hostAtFrameStart: boolean;
+  readonly myPlayerId: PlayerSlotId;
+  readonly remoteHumanSlots: ReadonlySet<number>;
+  readonly isHumanController: (playerId: ValidPlayerSlot) => boolean;
+}
+
 /** Which button is focused in the life-lost dialog. */
 export const LIFE_LOST_FOCUS_CONTINUE = 0;
 export const LIFE_LOST_FOCUS_ABANDON = 1;
@@ -60,4 +67,15 @@ export const FOCUS_MENU: GameOverFocus = "menu";
 
 export function createControlsState(): ControlsState {
   return { playerIdx: 0, actionIdx: 0, rebinding: false };
+}
+
+/** True when this player's dialog entry should auto-resolve (no local input needed).
+ *  Host checks controller identity; non-host only resolves its own slot. */
+export function shouldAutoResolve(
+  playerId: ValidPlayerSlot,
+  deps: AutoResolveDeps,
+): boolean {
+  return deps.hostAtFrameStart
+    ? !deps.isHumanController(playerId) && !deps.remoteHumanSlots.has(playerId)
+    : playerId !== deps.myPlayerId;
 }

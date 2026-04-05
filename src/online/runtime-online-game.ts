@@ -13,11 +13,14 @@ import {
 } from "../runtime/runtime-bootstrap.ts";
 import { setMode } from "../runtime/runtime-state.ts";
 import { LifeLostChoice } from "../shared/dialog-types.ts";
-import { BANNER_DURATION, SELECT_TIMER } from "../shared/game-constants.ts";
-import { Mode } from "../shared/game-phase.ts";
 import {
+  BANNER_DURATION,
   DIFFICULTY_NORMAL,
   DIFFICULTY_PARAMS,
+  SELECT_TIMER,
+} from "../shared/game-constants.ts";
+import { Mode } from "../shared/game-phase.ts";
+import {
   MAX_PLAYERS,
   PLAYER_COLORS,
   PLAYER_NAMES,

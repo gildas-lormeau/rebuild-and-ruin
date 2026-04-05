@@ -1,12 +1,10 @@
 import {
+  type AutoResolveDeps,
   LifeLostChoice,
   type LifeLostDialogState,
   type LifeLostEntry,
-} from "../shared/dialog-types.ts";
-import {
-  type AutoResolveDeps,
   shouldAutoResolve,
-} from "../shared/player-config.ts";
+} from "../shared/dialog-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { type GameState } from "../shared/types.ts";
 

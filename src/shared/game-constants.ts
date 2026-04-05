@@ -182,6 +182,23 @@ export const HOUSE_MIN_DISTANCE = 3;
 export const TOWER_SIZE = 2;
 /** Seconds before timer reaches 0 to trigger unzoom (non-mobile). */
 export const PHASE_ENDING_THRESHOLD = 1.5;
+/** Indices into DIFFICULTY_PARAMS — not difficulty values, but array positions. */
+export const DIFFICULTY_EASY = 0;
+export const DIFFICULTY_NORMAL = 1;
+export const DIFFICULTY_HARD = 2;
+export const DIFFICULTY_VERY_HARD = 3;
+export const DIFFICULTY_PARAMS = [
+  { buildTimer: 30, cannonPlaceTimer: 20, firstRoundCannons: 4 }, // DIFFICULTY_EASY
+  { buildTimer: 25, cannonPlaceTimer: 15, firstRoundCannons: 3 }, // DIFFICULTY_NORMAL
+  { buildTimer: 20, cannonPlaceTimer: 12, firstRoundCannons: 2 }, // DIFFICULTY_HARD
+  { buildTimer: 15, cannonPlaceTimer: 10, firstRoundCannons: 1 }, // DIFFICULTY_VERY_HARD
+];
+/** Haptics/sound level encoding shared across settings UI and subsystems.
+ *  0=off (implicit — handled by >= checks), 1=phase changes only, 2=all. */
+export const HAPTICS_PHASE_ONLY = 1;
+export const HAPTICS_ALL = 2;
+export const SOUND_PHASE_ONLY = 1;
+export const SOUND_ALL = 2;
 
 /** Human-readable label for a modifier id. */
 export function modifierLabel(id: ModifierId): string {

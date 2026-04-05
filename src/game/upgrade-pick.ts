@@ -1,11 +1,9 @@
-import type {
-  UpgradePickDialogState,
-  UpgradePickEntry,
-} from "../shared/dialog-types.ts";
 import {
   type AutoResolveDeps,
   shouldAutoResolve,
-} from "../shared/player-config.ts";
+  type UpgradePickDialogState,
+  type UpgradePickEntry,
+} from "../shared/dialog-types.ts";
 import type { GameState } from "../shared/types.ts";
 import type { UpgradeId } from "../shared/upgrade-defs.ts";
 

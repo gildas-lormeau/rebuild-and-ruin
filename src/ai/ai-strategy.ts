@@ -14,6 +14,12 @@
 
 import { type Cannon, CannonMode } from "../shared/battle-types.ts";
 import { filterActiveEnemies } from "../shared/board-occupancy.ts";
+import {
+  DIFFICULTY_EASY,
+  DIFFICULTY_HARD,
+  DIFFICULTY_NORMAL,
+  DIFFICULTY_VERY_HARD,
+} from "../shared/game-constants.ts";
 import type {
   GameMap,
   PixelPos,
@@ -22,12 +28,6 @@ import type {
   Tower,
 } from "../shared/geometry-types.ts";
 import type { PieceShape } from "../shared/pieces.ts";
-import {
-  DIFFICULTY_EASY,
-  DIFFICULTY_HARD,
-  DIFFICULTY_NORMAL,
-  DIFFICULTY_VERY_HARD,
-} from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { Rng } from "../shared/rng.ts";
 import {

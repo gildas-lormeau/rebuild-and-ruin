@@ -2,13 +2,13 @@ import { createGameFromSeed } from "../game/game-engine.ts";
 import { generateMap } from "../game/map-generation.ts";
 import { createController } from "../player/controller-factory.ts";
 import {
+  DIFFICULTY_PARAMS,
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
 } from "../shared/game-constants.ts";
 import { isReselectPhase, Phase } from "../shared/game-phase.ts";
 import type { GameMap } from "../shared/geometry-types.ts";
 import {
-  DIFFICULTY_PARAMS,
   type KeyBindings,
   MAX_PLAYERS,
   PLAYER_KEY_BINDINGS,

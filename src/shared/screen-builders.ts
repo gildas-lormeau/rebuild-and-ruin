@@ -15,7 +15,6 @@ import type { OptionEntry, RenderOverlay } from "./overlay-types";
 import { IS_TOUCH_DEVICE } from "./platform";
 import {
   ACTION_KEYS,
-  createLobbyConfirmKeys,
   formatKeyHint,
   type GameSettings,
   getPlayerColor,
@@ -385,4 +384,17 @@ function optionValue(frameCtx: UIContext, idx: number): string {
   if (idx === OPT_GAME_MODE)
     return GAME_MODE_LABELS[settings.gameMode === GAME_MODE_MODERN ? 1 : 0]!;
   return "";
+}
+
+/** Build a map from confirm key → player slot index for lobby joining. */
+function createLobbyConfirmKeys(
+  keyBindings: readonly KeyBindings[],
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (let i = 0; i < keyBindings.length; i++) {
+    const kb = keyBindings[i]!;
+    map.set(kb.confirm, i);
+    map.set(kb.confirm.toUpperCase(), i);
+  }
+  return map;
 }

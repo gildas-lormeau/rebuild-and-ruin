@@ -5,13 +5,15 @@
  */
 
 import {
+  DIFFICULTY_NORMAL,
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
   type GameMode,
+  HAPTICS_ALL,
 } from "./game-constants.ts";
 import type { RGB } from "./geometry-types.ts";
 import { KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_UP } from "./platform.ts";
-import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
+import type { ValidPlayerSlot } from "./player-slot.ts";
 
 export interface KeyBindings {
   up: string;
@@ -45,13 +47,6 @@ export interface GameSettings {
   gameMode: GameMode;
 }
 
-export interface AutoResolveDeps {
-  readonly hostAtFrameStart: boolean;
-  readonly myPlayerId: PlayerSlotId;
-  readonly remoteHumanSlots: ReadonlySet<number>;
-  readonly isHumanController: (playerId: ValidPlayerSlot) => boolean;
-}
-
 const SOUND_OFF = 0;
 /** Index into ROUNDS_OPTIONS (not the value itself — value is 0 = infinite). */
 const ROUNDS_TO_THE_DEATH_INDEX = 4;
@@ -74,23 +69,6 @@ const ACTION_DOWN = "down";
 const ACTION_LEFT = "left";
 const ACTION_RIGHT = "right";
 const ACTION_ROTATE = "rotate";
-/** Indices into DIFFICULTY_PARAMS — not difficulty values, but array positions. */
-export const DIFFICULTY_EASY = 0;
-export const DIFFICULTY_NORMAL = 1;
-export const DIFFICULTY_HARD = 2;
-export const DIFFICULTY_VERY_HARD = 3;
-export const DIFFICULTY_PARAMS = [
-  { buildTimer: 30, cannonPlaceTimer: 20, firstRoundCannons: 4 }, // DIFFICULTY_EASY
-  { buildTimer: 25, cannonPlaceTimer: 15, firstRoundCannons: 3 }, // DIFFICULTY_NORMAL
-  { buildTimer: 20, cannonPlaceTimer: 12, firstRoundCannons: 2 }, // DIFFICULTY_HARD
-  { buildTimer: 15, cannonPlaceTimer: 10, firstRoundCannons: 1 }, // DIFFICULTY_VERY_HARD
-];
-/** Haptics/sound level encoding shared across settings UI and subsystems.
- *  0=off (implicit — handled by >= checks), 1=phase changes only, 2=all. */
-export const HAPTICS_PHASE_ONLY = 1;
-export const HAPTICS_ALL = 2;
-export const SOUND_PHASE_ONLY = 1;
-export const SOUND_ALL = 2;
 export const PLAYER_NAMES = ["Red", "Blue", "Gold"] as const;
 export const PLAYER_COLORS: readonly PlayerColor[] = [
   {
@@ -194,30 +172,6 @@ export function formatKeyHint(kb: KeyBindings): string {
         kb.down.toUpperCase() +
         kb.right.toUpperCase();
   return `${arrows} + ${kb.confirm.toUpperCase()} (${kb.rotate.toUpperCase()} rotate)`;
-}
-
-/** Build a map from confirm key → player slot index for lobby joining. */
-export function createLobbyConfirmKeys(
-  keyBindings: readonly KeyBindings[],
-): Map<string, number> {
-  const map = new Map<string, number>();
-  for (let i = 0; i < keyBindings.length; i++) {
-    const kb = keyBindings[i]!;
-    map.set(kb.confirm, i);
-    map.set(kb.confirm.toUpperCase(), i);
-  }
-  return map;
-}
-
-/** True when this player's dialog entry should auto-resolve (no local input needed).
- *  Host checks controller identity; non-host only resolves its own slot. */
-export function shouldAutoResolve(
-  playerId: ValidPlayerSlot,
-  deps: AutoResolveDeps,
-): boolean {
-  return deps.hostAtFrameStart
-    ? !deps.isHumanController(playerId) && !deps.remoteHumanSlots.has(playerId)
-    : playerId !== deps.myPlayerId;
 }
 
 /** Compute the game seed from current settings (custom seed or random). */

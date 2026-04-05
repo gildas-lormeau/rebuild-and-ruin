@@ -9,7 +9,7 @@
 
 import { sfxr } from "jsfxr";
 import { type BattleEvent, MESSAGE } from "../../server/protocol.ts";
-import { SOUND_ALL, SOUND_PHASE_ONLY } from "../shared/player-config.ts";
+import { SOUND_ALL, SOUND_PHASE_ONLY } from "../shared/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { SoundSystem } from "../shared/system-interfaces.ts";
 

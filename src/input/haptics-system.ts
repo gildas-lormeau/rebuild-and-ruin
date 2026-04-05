@@ -7,8 +7,8 @@
  */
 
 import { type BattleEvent, MESSAGE } from "../../server/protocol.ts";
+import { HAPTICS_ALL, HAPTICS_PHASE_ONLY } from "../shared/game-constants.ts";
 import { CAN_VIBRATE } from "../shared/platform.ts";
-import { HAPTICS_ALL, HAPTICS_PHASE_ONLY } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { HapticsSystem } from "../shared/system-interfaces.ts";
 
