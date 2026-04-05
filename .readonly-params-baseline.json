@@ -1,12 +1,7 @@
 {
   "mutableArrayParams": [
-    "src/game/battle-system.ts:events",
     "src/game/grunt-system.ts:queue",
-    "src/online/online-host-crosshairs.ts:crosshairs",
-    "src/online/online-host-promotion.ts:controllers",
     "src/shared/rng.ts:arr",
-
-    "src/runtime/runtime-types.ts:crosshairs",
     "src/input/sound-system.ts:nodes"
   ]
 }

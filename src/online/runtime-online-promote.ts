@@ -49,7 +49,7 @@ export function promoteToHost(): void {
   _client.ctx.session.isHost = true; // eslint-disable-line no-restricted-syntax -- host promotion
 
   _client.resetNetworking(RESET_SCOPE_HOST_PROMOTION);
-  rebuildControllersForPhase(
+  _runtime.runtimeState.controllers = rebuildControllersForPhase(
     _runtime.runtimeState.state,
     _runtime.runtimeState.controllers,
     _client.ctx.session.myPlayerId,

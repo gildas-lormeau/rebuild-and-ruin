@@ -103,7 +103,10 @@ export interface OnlineRuntimeConfig {
   // Phase-tick networking (consumed by runtime-phase-ticks.ts)
 
   /** Called after local crosshairs are collected; returns extended list (e.g., adds remote human crosshairs). */
-  extendCrosshairs: (crosshairs: Crosshair[], dt: number) => Crosshair[];
+  extendCrosshairs: (
+    crosshairs: readonly Crosshair[],
+    dt: number,
+  ) => Crosshair[];
   /** Called per controller during crosshair collection (e.g., sends aim_update to watchers). */
   onLocalCrosshairCollected: (
     ctrl: ControllerIdentity,

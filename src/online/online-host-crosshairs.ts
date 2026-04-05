@@ -58,9 +58,9 @@ export function broadcastLocalCrosshair(
   });
 }
 
-/** Append interpolated remote-human crosshairs to the local crosshair list. */
+/** Collect interpolated remote-human crosshairs and return them merged with local ones. */
 export function extendWithRemoteCrosshairs(
-  crosshairs: Crosshair[],
+  crosshairs: readonly Crosshair[],
   state: GameState,
   dt: number,
   deps: ExtendDeps,
@@ -69,6 +69,7 @@ export function extendWithRemoteCrosshairs(
     "host-ch-remote",
     `collectCrosshairs: localCh=${crosshairs.length} remoteCrosshairs keys=[${[...deps.remoteCrosshairs.keys()]}] cannons=[${state.players.map((player, i) => `P${i}:${player.cannons.length}`).join(",")}]`,
   );
+  const remote: Crosshair[] = [];
   for (const [rawPid, target] of deps.remoteCrosshairs) {
     const pid = rawPid as ValidPlayerSlot;
     if (!isRemoteHuman(pid, deps.remoteHumanSlots)) continue;
@@ -88,7 +89,7 @@ export function extendWithRemoteCrosshairs(
       REMOTE_CROSSHAIR_SPEED,
       dt,
     );
-    crosshairs.push({
+    remote.push({
       x: visualPos.x,
       y: visualPos.y,
       playerId: pid,
@@ -96,7 +97,7 @@ export function extendWithRemoteCrosshairs(
     });
     aimCannons(state, pid, visualPos.x, visualPos.y, dt);
   }
-  return crosshairs;
+  return [...crosshairs, ...remote];
 }
 
 /**

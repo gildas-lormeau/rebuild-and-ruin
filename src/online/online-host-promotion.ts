@@ -18,42 +18,43 @@ const SEED_ROUND_MULTIPLIER = 1000003;
 const SEED_SLOT_MULTIPLIER = 0x9e3779b9;
 
 /**
- * Replace non-self controllers with fresh AI and initialize them for
- * the current game phase. Called during host promotion.
+ * Return a new controller array with non-self slots replaced by fresh AI
+ * controllers initialized for the current game phase. Called during host promotion.
  */
 export function rebuildControllersForPhase(
   state: GameState,
-  controllers: PlayerController[],
+  controllers: readonly PlayerController[],
   myPlayerId: PlayerSlotId,
   createAiController: (id: ValidPlayerSlot, seed: number) => PlayerController,
-): void {
-  for (let i = 0; i < controllers.length; i++) {
-    if (i === myPlayerId) continue;
+): PlayerController[] {
+  return controllers.map((existing, i) => {
+    if (i === myPlayerId) return existing;
     const player = state.players[i];
-    if (!isPlayerAlive(player)) continue;
+    if (!isPlayerAlive(player)) return existing;
 
     const pid = i as ValidPlayerSlot;
     const strategySeed = deriveAiStrategySeed(state.rng.seed, state.round, pid);
-    controllers[i] = createAiController(pid, strategySeed);
+    const ctrl = createAiController(pid, strategySeed);
 
     // Initialize AI for the current phase
     if (state.phase === Phase.WALL_BUILD) {
-      controllers[i]!.startBuildPhase(state);
+      ctrl.startBuildPhase(state);
     } else if (state.phase === Phase.CANNON_PLACE) {
       const max = state.cannonLimits[i] ?? 0;
-      controllers[i]!.placeCannons(state, max);
+      ctrl.placeCannons(state, max);
       if (player.homeTower) {
-        controllers[i]!.cannonCursor = {
+        ctrl.cannonCursor = {
           row: player.homeTower.row,
           col: player.homeTower.col,
         };
       }
-      controllers[i]!.startCannonPhase(state);
+      ctrl.startCannonPhase(state);
     } else if (state.phase === Phase.BATTLE) {
-      controllers[i]!.initBattleState(state);
+      ctrl.initBattleState(state);
     }
     // SELECTION, CASTLE_RESELECT — AI will be driven by selection system
-  }
+    return ctrl;
+  });
 }
 
 /**

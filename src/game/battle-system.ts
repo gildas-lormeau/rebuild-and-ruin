@@ -719,41 +719,55 @@ function computeImpact(
   shooterId: number,
   incendiary?: boolean,
 ): ImpactEvent[] {
-  const events: ImpactEvent[] = [];
-  if (!inBounds(row, col)) return events;
+  if (!inBounds(row, col)) return [];
   const key = packTile(row, col);
 
   // Step 1: walls (must be first — hitWall gates incendiary pit below)
-  const hitWall = collectWallImpacts(state, events, key, row, col, shooterId);
+  const { events: wallEvents, hitWall } = collectWallImpacts(
+    state,
+    key,
+    row,
+    col,
+    shooterId,
+  );
   // Step 2: cannons (independent)
-  collectCannonImpacts(state, events, row, col, shooterId);
+  const cannonEvents = collectCannonImpacts(state, row, col, shooterId);
 
   // Step 3: incendiary pit (depends on hitWall from step 1)
-  if (incendiary && hitWall && !hasPitAt(state.burningPits, row, col)) {
-    events.push({
-      type: MESSAGE.PIT_CREATED,
-      row,
-      col,
-      roundsLeft: BURNING_PIT_DURATION,
-    });
-  }
+  const pitEvents: ImpactEvent[] =
+    incendiary && hitWall && !hasPitAt(state.burningPits, row, col)
+      ? [
+          {
+            type: MESSAGE.PIT_CREATED,
+            row,
+            col,
+            roundsLeft: BURNING_PIT_DURATION,
+          },
+        ]
+      : [];
 
   // Step 4: houses and grunts (independent — towers NOT damaged by cannonballs)
-  collectHouseImpacts(state, events, row, col);
-  collectGruntImpacts(state, events, row, col, shooterId);
+  const houseEvents = collectHouseImpacts(state, row, col);
+  const gruntEvents = collectGruntImpacts(state, row, col, shooterId);
 
-  return events;
+  return [
+    ...wallEvents,
+    ...cannonEvents,
+    ...pitEvents,
+    ...houseEvents,
+    ...gruntEvents,
+  ];
 }
 
-/** Collect wall destruction events at a tile. Returns true if any wall was hit. */
+/** Collect wall destruction events at a tile. Returns events and whether any wall was hit. */
 function collectWallImpacts(
   state: GameState,
-  events: ImpactEvent[],
   key: number,
   row: number,
   col: number,
   shooterId: number,
-): boolean {
+): { events: ImpactEvent[]; hitWall: boolean } {
+  const events: ImpactEvent[] = [];
   let hitWall = false;
   for (const player of state.players) {
     if (player.walls.has(key)) {
@@ -775,17 +789,17 @@ function collectWallImpacts(
       });
     }
   }
-  return hitWall;
+  return { events, hitWall };
 }
 
 /** Collect cannon damage events at a tile. */
 function collectCannonImpacts(
   state: GameState,
-  events: ImpactEvent[],
   row: number,
   col: number,
   shooterId: number,
-): void {
+): ImpactEvent[] {
+  const events: ImpactEvent[] = [];
   for (const player of state.players) {
     for (let ci = 0; ci < player.cannons.length; ci++) {
       const cannon = player.cannons[ci]!;
@@ -801,15 +815,16 @@ function collectCannonImpacts(
       }
     }
   }
+  return events;
 }
 
 /** Collect house destruction + grunt spawn events at a tile. */
 function collectHouseImpacts(
   state: GameState,
-  events: ImpactEvent[],
   row: number,
   col: number,
-): void {
+): ImpactEvent[] {
+  const events: ImpactEvent[] = [];
   for (const house of state.map.houses) {
     if (house.alive && isAtTile(house, row, col)) {
       events.push({ type: MESSAGE.HOUSE_DESTROYED, row, col });
@@ -827,16 +842,17 @@ function collectHouseImpacts(
       }
     }
   }
+  return events;
 }
 
 /** Collect grunt kill events at a tile. */
 function collectGruntImpacts(
   state: GameState,
-  events: ImpactEvent[],
   row: number,
   col: number,
   shooterId: number,
-): void {
+): ImpactEvent[] {
+  const events: ImpactEvent[] = [];
   for (const grunt of state.grunts) {
     if (isAtTile(grunt, row, col)) {
       events.push({
@@ -847,6 +863,7 @@ function collectGruntImpacts(
       });
     }
   }
+  return events;
 }
 
 /** Collect all active balloons across all players. */
