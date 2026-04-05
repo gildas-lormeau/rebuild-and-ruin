@@ -474,7 +474,7 @@ function dispatchPlacementAction(
     return true;
   }
   if (action === Action.ROTATE) {
-    dispatchRotateForCtrl(ctrl, state, deps.onPieceRotated);
+    rotatePlacement(ctrl, state, deps.onPieceRotated);
     return true;
   }
   if (action === Action.CONFIRM) {
@@ -482,21 +482,6 @@ function dispatchPlacementAction(
     return true;
   }
   return false;
-}
-
-/** Rotate piece or cycle cannon mode for a single controller. */
-export function dispatchRotateForCtrl(
-  ctrl: PlayerController & InputReceiver,
-  state: GameState,
-  onPieceRotated?: () => void,
-): void {
-  if (state.phase === Phase.WALL_BUILD) {
-    ctrl.rotatePiece();
-    onPieceRotated?.();
-  } else if (state.phase === Phase.CANNON_PLACE) {
-    const max = state.cannonLimits[ctrl.playerId] ?? 0;
-    ctrl.cycleCannonMode(state, max);
-  }
 }
 
 /** Place piece or cannon for a single controller. */
@@ -520,6 +505,21 @@ export function dispatchPlacementConfirm(
   } else if (state.phase === Phase.CANNON_PLACE) {
     const max = state.cannonLimits[ctrl.playerId] ?? 0;
     deps.tryPlaceCannonAndSend(ctrl, state, max);
+  }
+}
+
+/** Rotate piece or cycle cannon mode for a single controller. */
+function rotatePlacement(
+  ctrl: PlayerController & InputReceiver,
+  state: GameState,
+  onPieceRotated?: () => void,
+): void {
+  if (state.phase === Phase.WALL_BUILD) {
+    ctrl.rotatePiece();
+    onPieceRotated?.();
+  } else if (state.phase === Phase.CANNON_PLACE) {
+    const max = state.cannonLimits[ctrl.playerId] ?? 0;
+    ctrl.cycleCannonMode(state, max);
   }
 }
 

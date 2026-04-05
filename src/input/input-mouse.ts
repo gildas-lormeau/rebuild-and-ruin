@@ -1,4 +1,5 @@
 import {
+  Action,
   isInteractiveMode,
   isPlacementPhase,
   isReselectPhase,
@@ -10,6 +11,7 @@ import { CURSOR_DEFAULT, CURSOR_POINTER } from "../shared/platform.ts";
 import type { RegisterOnlineInputDeps } from "./input.ts";
 import {
   dispatchBattleFire,
+  dispatchGameAction,
   dispatchModeTap,
   dispatchPlacement,
   dispatchPointerMove,
@@ -81,5 +83,16 @@ export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
     } else {
       dispatchBattleFire(x, y, state, deps);
     }
+  });
+
+  // Right-click rotates piece / cycles cannon mode / rotates aim
+  renderer.eventTarget.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    if (isTouchSuppressed()) return;
+    const state = getState();
+    if (!state || !isInteractiveMode(getMode())) return;
+    deps.withPointerPlayer((human) => {
+      dispatchGameAction(human, Action.ROTATE, state, deps.gameAction);
+    });
   });
 }

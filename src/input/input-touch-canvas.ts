@@ -17,6 +17,7 @@
  */
 
 import {
+  Action,
   isInteractiveMode,
   isPlacementPhase,
   isReselectPhase,
@@ -35,6 +36,7 @@ import {
 } from "./input.ts";
 import {
   dispatchBattleFire,
+  dispatchGameAction,
   dispatchModeTap,
   dispatchPlacement,
   dispatchPointerMove,
@@ -51,12 +53,17 @@ interface GestureState {
   shouldDirectlyPlaceOnTap: boolean;
   pinchActive: boolean;
   pinchStartDist: number;
+  /** True once fingers moved apart during a pinch (distinguishes zoom from two-finger tap). */
+  pinchMoved: boolean;
   /** Suppress single-finger events until all fingers lift (avoids ghost taps after pinch). */
   suppressSingleTouch: boolean;
 }
 
 // Function type export — consumed as type-only import by runtime/
 export type RegisterTouchHandlersFn = (deps: RegisterOnlineInputDeps) => void;
+
+/** Minimum finger-distance change (px) to count as a real pinch vs a two-finger tap. */
+const PINCH_MOVE_THRESHOLD = 10;
 
 export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   const { renderer, coords } = deps;
@@ -95,6 +102,7 @@ function createGestureState(): GestureState {
     shouldDirectlyPlaceOnTap: false,
     pinchActive: false,
     pinchStartDist: 0,
+    pinchMoved: false,
     suppressSingleTouch: false,
   };
 }
@@ -118,6 +126,7 @@ function handleTouchStart(
       midY = (c0.y + c1.y) / 2;
     coords.onPinchStart?.(midX, midY);
     gs.pinchActive = true;
+    gs.pinchMoved = false;
     gs.suppressSingleTouch = true;
     return;
   }
@@ -170,6 +179,12 @@ function handleTouchMove(
     const c0 = canvasCoords(e.touches[0]!, renderer),
       c1 = canvasCoords(e.touches[1]!, renderer);
     const dist = Math.hypot(c1.x - c0.x, c1.y - c0.y);
+    if (
+      !gs.pinchMoved &&
+      Math.abs(dist - gs.pinchStartDist) > PINCH_MOVE_THRESHOLD
+    ) {
+      gs.pinchMoved = true;
+    }
     const midX = (c0.x + c1.x) / 2,
       midY = (c0.y + c1.y) / 2;
     // Inverted: scale > 1 = fingers closer = zoom out (viewport grows)
@@ -204,9 +219,19 @@ function handleTouchEnd(
   // Pinch end
   if (gs.pinchActive) {
     if (e.touches.length < 2) {
+      const wasTap = !gs.pinchMoved;
       gs.pinchActive = false;
       coords.onPinchEnd?.();
       if (e.touches.length === 0) gs.suppressSingleTouch = false;
+      // Two-finger tap without movement → rotate
+      if (wasTap) {
+        const state = getState();
+        if (state && isInteractiveMode(getMode())) {
+          deps.withPointerPlayer((human) => {
+            dispatchGameAction(human, Action.ROTATE, state, deps.gameAction);
+          });
+        }
+      }
     }
     return;
   }

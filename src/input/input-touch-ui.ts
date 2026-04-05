@@ -33,7 +33,6 @@ import {
   dispatchOverlayAction,
   dispatchPlacementConfirm,
   dispatchQuit,
-  dispatchRotateForCtrl,
   type GameActionDeps,
   type OverlayActionDeps,
 } from "./input-dispatch.ts";
@@ -396,7 +395,13 @@ export function createFloatingActions(
     const state = deps.getState();
     if (!state || !isInteractiveMode(deps.getMode())) return;
     deps.withPointerPlayer((human) => {
-      dispatchRotateForCtrl(human, state, deps.onPieceRotated);
+      if (state.phase === Phase.WALL_BUILD) {
+        human.rotatePiece();
+        deps.onPieceRotated?.();
+      } else if (state.phase === Phase.CANNON_PLACE) {
+        const max = state.cannonLimits[human.playerId] ?? 0;
+        human.cycleCannonMode(state, max);
+      }
     });
   }
 
