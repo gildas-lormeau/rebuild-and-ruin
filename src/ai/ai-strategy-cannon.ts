@@ -20,6 +20,7 @@ import {
 import { BALLOON_COST, SUPER_GUN_COST } from "../shared/game-constants.ts";
 import type { GameMap, TilePos, Tower } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
+import type { Player } from "../shared/player-types.ts";
 import type { Rng } from "../shared/rng.ts";
 import {
   cannonSize,
@@ -35,7 +36,7 @@ import {
   towerCenter,
   unpackTile,
 } from "../shared/spatial.ts";
-import { type GameState, type Player } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import { traitLookup } from "./ai-constants.ts";
 
 type CannonCandidate = { row: number; col: number; score: number };

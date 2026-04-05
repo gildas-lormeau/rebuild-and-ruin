@@ -29,6 +29,7 @@ import { Action } from "../shared/input-action.ts";
 import { rotateCW } from "../shared/pieces.ts";
 import type { KeyBindings } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isPlayerAlive, type Player } from "../shared/player-types.ts";
 import { cannonSize } from "../shared/spatial.ts";
 import {
   type CannonPlacementPreview,
@@ -36,7 +37,7 @@ import {
   type InputReceiver,
   type PiecePlacementPreview,
 } from "../shared/system-interfaces.ts";
-import { type GameState, isPlayerAlive, type Player } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import { BaseController } from "./controller-types.ts";
 
 /** Speed multiplier when ROTATE (sprint) key is held during battle crosshair movement. */

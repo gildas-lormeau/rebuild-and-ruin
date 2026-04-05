@@ -14,8 +14,9 @@ import {
   rotateCW,
 } from "../shared/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { FreshInterior } from "../shared/player-types.ts";
 import { DIRS_8, isGrass, packTile, unpackTile } from "../shared/spatial.ts";
-import type { FreshInterior, GameState } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import { filterUnfillableGaps } from "./ai-castle-rect.ts";
 
 export function canPieceFillAnyGap(

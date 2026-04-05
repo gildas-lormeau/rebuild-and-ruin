@@ -10,6 +10,7 @@
  * (adjacentLivingTowerIndex, getGruntTargetTower, etc.) for attack logic.
  */
 
+import type { Grunt } from "../shared/battle-types.ts";
 import {
   findLivingTowerIndexAt,
   hasAliveHouseAt,
@@ -30,7 +31,7 @@ import {
   manhattanDistance,
   packTile,
 } from "../shared/spatial.ts";
-import type { GameState, Grunt } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 
 /** Manhattan radius for checking if another grunt targeting the same tower is queued nearby. */
 const GRUNT_BLOCKED_NEARBY_DISTANCE = 2;

@@ -8,9 +8,10 @@ import { finalizeCastleConstruction } from "../game/phase-setup.ts";
 import { BATTLE_TIMER } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isPlayerAlive } from "../shared/player-types.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
 import type { MutableAccums } from "../shared/tick-context.ts";
-import { type GameState, isPlayerAlive } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 
 /** Large prime for deriving per-round AI strategy seeds (ensures uncorrelated rounds). */
 const SEED_ROUND_MULTIPLIER = 1000003;

@@ -1,4 +1,4 @@
-import type { BurningPit, Cannon, Impact } from "./battle-types.ts";
+import type { BurningPit, Cannon, Grunt, Impact } from "./battle-types.ts";
 import type { GameOverFocus, LifeLostChoice } from "./dialog-types.ts";
 import type {
   Crosshair,
@@ -13,7 +13,7 @@ import type {
   PiecePhantom as RenderPiecePhantom,
 } from "./phantom-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
-import type { FreshInterior, Grunt } from "./types.ts";
+import type { FreshInterior } from "./player-types.ts";
 
 export type { RenderCannonPhantom, RenderPiecePhantom };
 

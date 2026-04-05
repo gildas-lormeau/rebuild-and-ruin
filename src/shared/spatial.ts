@@ -10,7 +10,6 @@
  * All Set<number> tile collections (walls, interior, frozenTiles, burningPits, etc.)
  * use flat-index encoding: `key = row * GRID_COLS + col`.
  * Always use packTile(r, c) / unpackTile(key) — never encode manually.
- * packTile() returns the branded type TileKey (see types.ts) for compile-time safety.
  */
 
 import {
@@ -29,7 +28,6 @@ import {
 import type { PixelPos, TilePos, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
 import { Action } from "./input-action.ts";
-import { type TileKey } from "./types.ts";
 
 /** 45° angle step (π/4 radians) — used for 8-direction snapping. */
 const FACING_45_STEP = Math.PI / 4;
@@ -477,8 +475,7 @@ export function computeOutside(
   return outside;
 }
 
-/** Convert a packed tile key back to row/column coordinates.
- *  Accepts plain number (from Set iteration) or TileKey (from packTile). */
+/** Convert a packed tile key back to row/column coordinates. */
 export function unpackTile(key: number): { r: number; c: number } {
   return { r: Math.floor(key / GRID_COLS), c: key % GRID_COLS };
 }
@@ -545,10 +542,10 @@ function forEachSquareTile(
 }
 
 /** Pack row/column into a flat tile key (row * GRID_COLS + col).
- *  Returns a branded TileKey — use this instead of manual encoding.
+ *  Use this instead of manual encoding.
  *  Used for all Set<number> tile collections. See unpackTile() for reverse. */
-export function packTile(r: number, c: number): TileKey {
-  return (r * GRID_COLS + c) as TileKey;
+export function packTile(r: number, c: number): number {
+  return r * GRID_COLS + c;
 }
 
 /** True if tile is on the outer map border. */

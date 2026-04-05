@@ -10,8 +10,9 @@ import { aimCannons, nextReadyCombined } from "../game/battle-system.ts";
 import type { CombinedCannonResult } from "../shared/battle-types.ts";
 import type { StrategicPixelPos, TilePos } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isPlayerAlive } from "../shared/player-types.ts";
 import { packTile, tileCenterPx } from "../shared/spatial.ts";
-import { type GameState, isPlayerAlive } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import { STEP } from "./ai-constants.ts";
 import { type AiStrategy, CHAIN, type ChainType } from "./ai-strategy.ts";
 

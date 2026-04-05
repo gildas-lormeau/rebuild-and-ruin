@@ -28,20 +28,19 @@ import {
 } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import {
+  emptyFreshInterior,
+  isPlayerAlive,
+  isPlayerSeated,
+  type Player,
+} from "../shared/player-types.ts";
 import { isBalloonCannon, packTile } from "../shared/spatial.ts";
 import type {
   ControllerIdentity,
   PlayerController,
   SelectionController,
 } from "../shared/system-interfaces.ts";
-import {
-  emptyFreshInterior,
-  type GameState,
-  isPlayerAlive,
-  isPlayerSeated,
-  type Player,
-  type UpgradeOfferTuple,
-} from "../shared/types.ts";
+import { type GameState, type UpgradeOfferTuple } from "../shared/types.ts";
 import {
   IMPLEMENTED_UPGRADES,
   UID,

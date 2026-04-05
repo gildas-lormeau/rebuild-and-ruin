@@ -5,6 +5,7 @@
  */
 
 import { MESSAGE } from "../../server/protocol.ts";
+import type { Grunt } from "../shared/battle-types.ts";
 import {
   hasGruntAt,
   hasInteriorAt,
@@ -20,6 +21,7 @@ import {
 import type { TilePos } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isPlayerSeated, type Player } from "../shared/player-types.ts";
 import {
   DIRS_4,
   distanceToTower,
@@ -30,12 +32,7 @@ import {
   packTile,
   unpackTile,
 } from "../shared/spatial.ts";
-import {
-  type GameState,
-  type Grunt,
-  isPlayerSeated,
-  type Player,
-} from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import {
   adjacentLivingTowerIndex,
   getDeadZones,

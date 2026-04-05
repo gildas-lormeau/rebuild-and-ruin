@@ -30,7 +30,7 @@ export type TargetResult = {
 export interface TargetContext {
   state: import("../shared/types").GameState;
   playerId: import("../shared/player-slot").ValidPlayerSlot;
-  player: import("../shared/types").Player;
+  player: import("../shared/player-types").Player;
   castle: import("../shared/geometry-types").Castle;
   piece: PieceShape;
   castleMargin: number;

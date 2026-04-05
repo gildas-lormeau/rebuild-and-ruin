@@ -7,6 +7,7 @@ import type {
   Cannon,
   Cannonball,
   CapturedCannon,
+  Grunt,
 } from "./battle-types.ts";
 import {
   GAME_MODE_MODERN,
@@ -14,80 +15,12 @@ import {
   type ModifierId,
 } from "./game-constants.ts";
 import type { Phase } from "./game-phase.ts";
-import type { Castle, GameMap, TilePos, Tower } from "./geometry-types.ts";
+import type { BonusSquare, GameMap } from "./geometry-types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
+import type { Player } from "./player-types.ts";
 import type { Rng } from "./rng.ts";
 import type { Mode } from "./ui-mode.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
-
-/** Branded number proving a value was produced by packTile(row, col).
- *  Assignable to `number` (so existing Set<number> / Map<number,…> still work),
- *  but a raw number literal cannot be assigned to TileKey without packTile().
- *  Use packTile() to create, unpackTile() to destructure back to row/col. */
-export type TileKey = number & { readonly __brand: "TileKey" };
-
-/** Branded ReadonlySet<number> proving that interior was recomputed after the
- *  last wall mutation. Only produced by `markInteriorFresh` (board-occupancy)
- *  and `emptyFreshInterior` (initial construction / deserialization).
- *  Consumers can read `.has()` / `.size` / iterate freely — the brand carries
- *  through because FreshInterior extends ReadonlySet<number>. */
-export type FreshInterior = ReadonlySet<number> & {
-  readonly __brand: "FreshInterior";
-};
-
-export interface Player {
-  id: ValidPlayerSlot;
-  /** The tower this player selected as home castle. */
-  homeTower: Tower | null;
-  /** The castle built around the home tower. */
-  castle: Castle | null;
-  /** All towers currently enclosed by this player's walls. */
-  ownedTowers: Tower[];
-  /** Wall tiles owned by this player (row,col pairs encoded as row*COLS+col).
-   *  ReadonlySet at the type level — mutations must go through board-occupancy
-   *  helpers (addPlayerWall, clearPlayerWalls, etc.) which maintain epoch tracking. */
-  walls: ReadonlySet<number>;
-  /** All tiles fully enclosed by walls (flood-fill). Used for territory scoring,
-   *  cannon placement eligibility, and grunt blocking. Encoded as row*COLS+col.
-   *  Branded as FreshInterior — only recomputeInterior(), resetCastle(),
-   *  and checkpoint deserialization may write to it. */
-  interior: FreshInterior;
-  /** Cannon positions (top-left tile of 2x2 cannon). */
-  cannons: Cannon[];
-  /** Lives remaining (starts at 3, lose 1 when failing to enclose any tower). */
-  lives: number;
-  /** Whether the player is eliminated (lives reached 0 and didn't continue). */
-  eliminated: boolean;
-  /** Accumulated territory points (scoring). */
-  score: number;
-  /** Default cannon facing (radians, 0 = up) — toward enemies, set at castle creation. */
-  defaultFacing: number;
-  /** Wall tiles forming the home castle perimeter (from castle construction).
-   *  Used for tower revival and rebuild. Distinct from interior — these are wall
-   *  tiles, not enclosed grass. Includes clumsy extras; protected from debris sweep. */
-  castleWallTiles: ReadonlySet<number>;
-  /** Active upgrades for this player (modern mode only). Key = upgrade id, value = stack count. */
-  upgrades: Map<UpgradeId, number>;
-  /** Wall tiles that have absorbed one hit (reinforced walls upgrade).
-   *  Cleared at build phase start. Second hit destroys normally. */
-  damagedWalls: Set<number>;
-}
-
-export interface Grunt extends TilePos {
-  /** The player whose territory this grunt is attacking. Grunts are ownerless hazards. */
-  victimPlayerId: ValidPlayerSlot;
-  /** Locked target tower index. Stays until the tower is destroyed. */
-  targetTowerIdx?: number;
-  /** Countdown (seconds) before killing an adjacent tower or wall. Starts at 3 when adjacent. */
-  attackTimer?: number;
-  /** Number of consecutive battles the grunt has been blocked (not adjacent to target tower).
-   *  Initialized to 0 at spawn; incremented by updateGruntBlockedBattles at end of each battle. */
-  blockedBattles: number;
-  /** If true, this grunt is attacking a wall tile during battle (decided at battle start). */
-  wallAttack?: boolean;
-  /** Facing angle in radians (snapped to 90°). 0 = up. */
-  facing?: number;
-}
 
 export interface GameState {
   /** Shared seeded RNG for deterministic gameplay decisions.
@@ -258,10 +191,6 @@ export interface FrameContext {
   readonly isTransition: boolean;
 }
 
-export interface BonusSquare extends TilePos {
-  zone: number;
-}
-
 /** Set gameMode and modern atomically — prevents divergence between the two fields. */
 export function setGameMode(state: GameState, mode: GameMode): void {
   state.gameMode = mode;
@@ -278,30 +207,4 @@ export function createModernState(): ModernState {
     pendingUpgradeOffers: null,
     frozenTiles: null,
   };
-}
-
-/** Create a branded empty interior set. Use at Player creation. */
-export function emptyFreshInterior(): FreshInterior {
-  return new Set<number>() as unknown as FreshInterior;
-}
-
-/** Brand an existing set as fresh interior. Use at checkpoint
- *  deserialization where the set is constructed from trusted data. */
-export function brandFreshInterior(set: ReadonlySet<number>): FreshInterior {
-  return set as FreshInterior;
-}
-
-/** Type guard: player exists and is not eliminated.
- *  Use this instead of the `!player || player.eliminated` pattern. */
-export function isPlayerAlive(
-  player: Player | null | undefined,
-): player is Player {
-  return !!player && !player.eliminated;
-}
-
-/** True when a player has selected a castle and can actively participate. */
-export function isPlayerSeated(
-  player: Player | null | undefined,
-): player is Player & { homeTower: Tower } {
-  return !!player && !player.eliminated && !!player.homeTower;
 }

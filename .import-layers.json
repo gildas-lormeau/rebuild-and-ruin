@@ -44,6 +44,7 @@
     "name": "core game types",
     "files": [
       "src/shared/battle-types.ts",
+      "src/shared/player-types.ts",
       "src/shared/types.ts",
       "src/shared/phantom-types.ts",
       "server/protocol.ts"

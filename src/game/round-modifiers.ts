@@ -23,6 +23,7 @@ import {
   type ModifierId,
 } from "../shared/game-constants.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
+import { isPlayerSeated } from "../shared/player-types.ts";
 import {
   DIRS_4,
   isGrass,
@@ -30,7 +31,7 @@ import {
   packTile,
   unpackTile,
 } from "../shared/spatial.ts";
-import { type GameState, isPlayerSeated } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import { spawnGruntSurgeOnZone } from "./grunt-system.ts";
 
 interface ModifierDef {

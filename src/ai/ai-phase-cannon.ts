@@ -10,8 +10,9 @@ import { canPlaceCannon, placeCannon } from "../game/cannon-system.ts";
 import { CannonMode } from "../shared/battle-types.ts";
 import type { TilePos } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isPlayerAlive, type Player } from "../shared/player-types.ts";
 import type { CannonPlacementPreview } from "../shared/system-interfaces.ts";
-import { type GameState, isPlayerAlive, type Player } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import { STEP } from "./ai-constants.ts";
 import type { AiStrategy, CannonPlacement } from "./ai-strategy.ts";
 

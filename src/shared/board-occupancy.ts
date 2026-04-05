@@ -1,4 +1,6 @@
+import type { Grunt } from "./battle-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
+import type { FreshInterior, Player } from "./player-types.ts";
 import {
   computeCannonTileSet,
   countWallNeighbors,
@@ -14,7 +16,7 @@ import {
   packTile,
   unpackTile,
 } from "./spatial.ts";
-import type { FreshInterior, GameState, Grunt, Player } from "./types.ts";
+import type { GameState } from "./types.ts";
 
 /** Epoch tracking is lazy: undefined = not active for this player.
  *  Initialized on first markWallsDirty() call. */

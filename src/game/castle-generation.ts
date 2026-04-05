@@ -12,6 +12,7 @@ import {
 import { HOUSE_MIN_DISTANCE } from "../shared/game-constants.ts";
 import type { Castle, House, Tower } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/grid.ts";
+import { isPlayerSeated } from "../shared/player-types.ts";
 import type { Rng } from "../shared/rng.ts";
 import {
   DIRS_4,
@@ -23,7 +24,7 @@ import {
   packTile,
   unpackTile,
 } from "../shared/spatial.ts";
-import { type GameState, isPlayerSeated } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 
 type CastleSide = (typeof Side)[keyof typeof Side];
 

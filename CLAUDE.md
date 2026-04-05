@@ -29,6 +29,13 @@ Entry points (`entry.ts`, `main.ts`, `online-client.ts`) stay at `src/` root. `s
 L0 leaf utils → L1 derived constants → L2 pieces → L3 core game types → L4 game state & orchestration → L5 online infrastructure → L6 runtime primitives → L7 game logic → L8 phase orchestration → L9 AI strategy → L10 controllers → L11 game bootstrap → L12 input & sound → L13 render → L14 runtime sub-systems → L15 online logic → L16 local runtime → L17 online runtime → L18 entry points (client & server). Imports must flow downward.
 L18 is reserved for true entry points (e.g., `entry.ts`, `main.ts`, `server.ts`). Orchestration modules belong in L16/L17 — don't add files to L18 unless they have no in-project importers or use dynamic imports for code splitting.
 
+### Type file organization (L3)
+- `player-types.ts` — Player, FreshInterior, and player helpers (isPlayerAlive, isPlayerSeated, emptyFreshInterior, brandFreshInterior)
+- `battle-types.ts` — Cannon, Cannonball, Grunt, BurningPit, CapturedCannon, CannonMode, BattleAnimState
+- `geometry-types.ts` — TilePos, GameMap, Tower, Castle, House, BonusSquare, Viewport
+- `types.ts` — GameState, ModernState, LobbyState, SelectionState, FrameContext, and state helpers
+- `system-interfaces.ts` — Controller interfaces use `GameView` (not GameState) to avoid coupling consumers to types.ts
+
 ### Phase flow
 CASTLE_SELECT → WALL_BUILD → CANNON_PLACE → BATTLE → loop (+ CASTLE_RESELECT when a player loses lives)
 Modern mode inserts UPGRADE_PICK between battle end and build banner (from round 3).

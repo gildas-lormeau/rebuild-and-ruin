@@ -1,6 +1,22 @@
 import type { TilePos } from "./geometry-types.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 
+export interface Grunt extends TilePos {
+  /** The player whose territory this grunt is attacking. Grunts are ownerless hazards. */
+  victimPlayerId: ValidPlayerSlot;
+  /** Locked target tower index. Stays until the tower is destroyed. */
+  targetTowerIdx?: number;
+  /** Countdown (seconds) before killing an adjacent tower or wall. Starts at 3 when adjacent. */
+  attackTimer?: number;
+  /** Number of consecutive battles the grunt has been blocked (not adjacent to target tower).
+   *  Initialized to 0 at spawn; incremented by updateGruntBlockedBattles at end of each battle. */
+  blockedBattles: number;
+  /** If true, this grunt is attacking a wall tile during battle (decided at battle start). */
+  wallAttack?: boolean;
+  /** Facing angle in radians (snapped to 90°). 0 = up. */
+  facing?: number;
+}
+
 /** Cannon placement mode. */
 export enum CannonMode {
   NORMAL = "normal",

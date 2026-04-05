@@ -26,12 +26,9 @@ import {
 import { Phase } from "../shared/game-phase.ts";
 import type { GameMap, Tower } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { emptyFreshInterior, type Player } from "../shared/player-types.ts";
 import { Rng } from "../shared/rng.ts";
-import {
-  emptyFreshInterior,
-  type GameState,
-  type Player,
-} from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import { assertNever } from "../shared/utils.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
 import {

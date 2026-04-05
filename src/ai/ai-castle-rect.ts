@@ -15,6 +15,7 @@ import {
 import type { TileRect, Tower } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { FreshInterior } from "../shared/player-types.ts";
 import {
   DIRS_4,
   DIRS_8,
@@ -29,7 +30,7 @@ import {
   towerReachesOutsideCardinal,
   unpackTile,
 } from "../shared/spatial.ts";
-import type { FreshInterior, GameState } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 
 // Scoring weights for scoreBuildTowerTarget — tower ranking during build targeting.
 /** Weight given to wall-ring completion progress when ranking towers to build. */

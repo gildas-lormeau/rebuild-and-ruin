@@ -35,6 +35,7 @@ import {
 import type { Crosshair, TilePos } from "../shared/geometry-types.ts";
 import { TILE_SIZE } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { Player } from "../shared/player-types.ts";
 import {
   cannonCenter,
   computeFacing45,
@@ -55,7 +56,7 @@ import type {
   BattleController,
   ControllerIdentity,
 } from "../shared/system-interfaces.ts";
-import type { GameState, Player } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import { UID } from "../shared/upgrade-defs.ts";
 import {
   filterActiveFiringCannons,

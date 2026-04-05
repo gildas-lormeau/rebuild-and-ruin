@@ -6,7 +6,7 @@ import {
   createHeadlessRuntime,
   type HeadlessRuntime,
 } from "../src/runtime/runtime-headless.ts";
-import { emptyFreshInterior } from "../src/shared/types.ts";
+import { emptyFreshInterior } from "../src/shared/player-types.ts";
 import { assert, runTests, test } from "./test-helpers.ts";
 import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { Phase } from "../src/shared/game-phase.ts";

@@ -18,12 +18,13 @@ import {
 import type { Crosshair, PixelPos } from "../shared/geometry-types.ts";
 import type { DedupChannel } from "../shared/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isPlayerAlive } from "../shared/player-types.ts";
 import {
   type ControllerIdentity,
   isAiAnimatable,
 } from "../shared/system-interfaces.ts";
 import { isRemoteHuman } from "../shared/tick-context.ts";
-import { type GameState, isPlayerAlive } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import { interpolateToward, REMOTE_CROSSHAIR_SPEED } from "./online-types.ts";
 
 interface BroadcastDeps {

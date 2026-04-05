@@ -4,6 +4,7 @@
  * AI placement strategy lives in ai-strategy.ts.
  */
 
+import type { Grunt } from "../shared/battle-types.ts";
 import {
   addPlayerWalls,
   BONUS_PLACEMENT_BLOCKED,
@@ -31,6 +32,11 @@ import { GRID_COLS, GRID_ROWS, type Tile } from "../shared/grid.ts";
 import type { PieceShape } from "../shared/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
+  type FreshInterior,
+  isPlayerSeated,
+  type Player,
+} from "../shared/player-types.ts";
+import {
   computeOutside,
   DIRS_8,
   hasPitAt,
@@ -40,13 +46,7 @@ import {
   manhattanDistance,
   packTile,
 } from "../shared/spatial.ts";
-import {
-  type FreshInterior,
-  type GameState,
-  type Grunt,
-  isPlayerSeated,
-  type Player,
-} from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import { spawnGruntNearPos, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
 

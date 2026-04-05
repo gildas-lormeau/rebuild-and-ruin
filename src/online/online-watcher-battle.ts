@@ -17,12 +17,13 @@ import {
   piecePhantomKey,
 } from "../shared/phantom-types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isPlayerAlive } from "../shared/player-types.ts";
 import type {
   OrbitParams,
   PlayerController,
 } from "../shared/system-interfaces.ts";
 import type { WatcherTimingState } from "../shared/tick-context.ts";
-import { type GameState, isPlayerAlive } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import {
   REMOTE_CROSSHAIR_SPEED,
   setWatcherPhaseTimer,

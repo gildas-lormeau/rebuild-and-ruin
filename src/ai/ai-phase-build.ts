@@ -11,9 +11,10 @@ import type { TilePos } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
 import { type PieceShape, rotateCW, sameShape } from "../shared/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isPlayerAlive } from "../shared/player-types.ts";
 import { towerCenterTile } from "../shared/spatial.ts";
 import type { PiecePlacementPreview } from "../shared/system-interfaces.ts";
-import { type GameState, isPlayerAlive } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import { STEP } from "./ai-constants.ts";
 import type { AiStrategy } from "./ai-strategy.ts";
 

@@ -6,7 +6,8 @@ import type { PieceShape } from "../src/shared/pieces.ts";
 import { Rng } from "../src/shared/rng.ts";
 import process from "node:process";
 import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
-import { emptyFreshInterior, type GameState, type Player } from "../src/shared/types.ts";
+import { emptyFreshInterior, type Player } from "../src/shared/player-types.ts";
+import type { GameState } from "../src/shared/types.ts";
 import { Phase } from "../src/shared/game-phase.ts";
 
 // ---------------------------------------------------------------------------

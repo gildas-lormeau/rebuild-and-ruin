@@ -56,9 +56,8 @@ import {
   type FrameContextInputs,
 } from "../src/runtime/runtime-state.ts";
 import { type CameraSystem, type FrameContext } from "../src/runtime/runtime-types.ts";
-import {
-  emptyFreshInterior,
-  type GameState } from "../src/shared/types.ts";
+import { emptyFreshInterior } from "../src/shared/player-types.ts";
+import type { GameState } from "../src/shared/types.ts";
 import { isGrass, packTile } from "../src/shared/spatial.ts";
 import { assert } from "./test-helpers.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/player-slot.ts";

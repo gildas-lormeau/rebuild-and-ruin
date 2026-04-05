@@ -22,6 +22,11 @@ import {
 } from "../shared/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
+  isPlayerAlive,
+  isPlayerSeated,
+  type Player,
+} from "../shared/player-types.ts";
+import {
   cannonSize,
   FACING_90_STEP,
   hasPitAt,
@@ -35,12 +40,7 @@ import {
   towerCenter,
   unpackTile,
 } from "../shared/spatial.ts";
-import {
-  type GameState,
-  isPlayerAlive,
-  isPlayerSeated,
-  type Player,
-} from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 
 /** Max search radius when snapping cannon placement to a valid tile. */
 const CANNON_SNAP_RADIUS = 2;

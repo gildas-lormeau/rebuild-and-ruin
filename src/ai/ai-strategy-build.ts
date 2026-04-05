@@ -16,6 +16,7 @@ import type { Castle, TileRect, Tower } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
 import { type PieceShape, rotateCW } from "../shared/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { Player } from "../shared/player-types.ts";
 import {
   computeOutside,
   DIRS_4,
@@ -28,7 +29,7 @@ import {
   towerReachesOutsideCardinal,
   unpackTile,
 } from "../shared/spatial.ts";
-import type { GameState, Player } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import {
   createsSmallEnclosure,
   memoize,

@@ -29,17 +29,14 @@ import type {
 } from "../shared/geometry-types.ts";
 import type { PieceShape } from "../shared/pieces.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { brandFreshInterior, type Player } from "../shared/player-types.ts";
 import { Rng } from "../shared/rng.ts";
 import {
   computeOutside,
   isTowerEnclosed,
   waterKeys,
 } from "../shared/spatial.ts";
-import {
-  brandFreshInterior,
-  type GameState,
-  type Player,
-} from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
 import type { AiPlacement } from "./ai-build-types.ts";
 import { traitLookup } from "./ai-constants.ts";
 import {

@@ -75,3 +75,7 @@ export interface Viewport {
   w: number;
   h: number;
 }
+
+export interface BonusSquare extends TilePos {
+  zone: number;
+}
