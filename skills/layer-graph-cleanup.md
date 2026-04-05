@@ -121,7 +121,24 @@ After moving files, check that group names still describe their contents:
 
 Rename groups in `.import-layers.json` to match reality. **Naming is the analysis** — a mismatch is always a signal.
 
-## Step 7 — Run architecture health analysis
+## Step 7 — Find single-consumer exports crossing domains
+
+```bash
+npx tsx scripts/report-hot-exports.ts --threshold 1 --max 1 --kinds function,const --summary
+```
+
+This shows every exported function/const imported by exactly one file, with **From/To domain** and **Src/Dst layer** columns. Entries marked with `←` cross a domain boundary.
+
+**What to look for:**
+- `shared → render` or `shared → input` with a large layer gap (e.g., L0→L12) — the export may belong in or near its sole consumer
+- Functions exported from a shared module to one consumer — candidates to inline or colocate (like `createLobbyConfirmKeys` which was moved to its sole consumer `screen-builders.ts`)
+- Constants that are semantically tied to their consumer's domain (e.g., `LOUPE_*` render constants defined in `theme.ts` but consumed only by `render-loupe.ts`)
+
+**Not issues:** Most same-domain single-consumer exports are intentional modular APIs. Game balance constants in `game-constants.ts` are deliberately centralized even if consumed once.
+
+Use `--max 2` to also catch two-consumer exports that might be overexposed.
+
+## Step 8 — Run architecture health analysis
 
 The layer graph catches vertical problems. The health report catches horizontal ones.
 
@@ -167,7 +184,7 @@ The health report discovers "natural" domains from actual coupling using communi
 
 **Fix pattern:** If a file consistently clusters with the wrong domain, either move it to the right domain (if its responsibilities match), or extract the cross-domain dependency that pulls it toward the wrong cluster.
 
-## Step 8 — Iterate: the full workflow
+## Step 9 — Iterate: the full workflow
 
 The systematic workflow for a clean architecture session:
 
