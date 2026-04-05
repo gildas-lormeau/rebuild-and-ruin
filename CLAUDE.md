@@ -9,7 +9,7 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 - Format: `npm run format` (biome on src/ and server/); `npm run format:check` for CI; 2-space indent
 - Lint: `npm run lint:all` — format:check, biome, knip, madge, jscpd (min-lines 15), lint:literals (baseline-aware), lint:typeof
 - Layer linter: `npx tsx scripts/generate-import-layers.ts --check --server`; use `/import-hygiene` skill for full audit
-- Export index: `npm run export-search -- <term>` before writing new code; `npm run export-index` to regenerate
+- Export index: `npm run export-search -- <term>` before writing new code; `npm run export-index` to regenerate; `npm run export-map` for compact layer→file→symbols view
 - Literals baseline: `.literals-baseline.json`; `--update-baseline` to refresh; `--all --files <globs>` for scoped reviews
 - Pre-commit hook (.git/hooks/pre-commit, plain git): reorder, tsc, biome format, biome check, eslint, knip, madge, jscpd, layers, typeof, export-index, hot-exports, readonly-params
 - Server: `deno task server` (port 8001); type-check with `deno check server/server.ts` (NOT tsc)
@@ -26,7 +26,7 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 Entry points (`entry.ts`, `main.ts`, `online-client.ts`) stay at `src/` root. `server/` is separate (Deno Deploy target).
 
 ### Module layers (19 groups, `.import-layers.json`)
-L0 leaf utils → L1 derived constants → L2 pieces → L3 core game types → L4 game state & orchestration → L5 online infrastructure → L6 runtime primitives → L7 game logic → L8 phase orchestration → L9 AI strategy → L10 controllers → L11 game bootstrap → L12 input & sound → L13 render → L14 runtime sub-systems → L15 online logic → L16 local runtime → L17 online runtime → L18 entry points (client & server). Imports must flow downward.
+L0 leaf utils → L1 geometry & config → L2 pieces → L3 core game types → L4 game state & orchestration → L5 online infrastructure → L6 runtime primitives → L7 game logic → L8 phase orchestration → L9 AI strategy → L10 controllers → L11 game bootstrap → L12 input & sound → L13 render → L14 runtime sub-systems → L15 online logic → L16 local runtime → L17 online runtime → L18 entry points (client & server). Imports must flow downward.
 L18 is reserved for true entry points (e.g., `entry.ts`, `main.ts`, `server.ts`). Orchestration modules belong in L16/L17 — don't add files to L18 unless they have no in-project importers or use dynamic imports for code splitting.
 
 ### Type file organization (L3)

@@ -14,12 +14,7 @@ import {
   getBattleInterior,
 } from "../shared/board-occupancy.ts";
 import { MODIFIER_ID, TOWER_SIZE } from "../shared/game-constants.ts";
-import type {
-  PixelPos,
-  PrioritizedTilePos,
-  StrategicPixelPos,
-  TilePos,
-} from "../shared/geometry-types.ts";
+import type { PixelPos, TilePos } from "../shared/geometry-types.ts";
 import { TILE_SIZE } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { Rng } from "../shared/rng.ts";
@@ -36,6 +31,10 @@ import {
   unpackTile,
 } from "../shared/spatial.ts";
 import type { BattleViewState } from "../shared/system-interfaces.ts";
+import type {
+  PrioritizedTilePos,
+  StrategicPixelPos,
+} from "./ai-build-types.ts";
 import { traitLookup } from "./ai-constants.ts";
 
 type TargetCandidate = PrioritizedTilePos;

@@ -5,8 +5,19 @@
  * ai-build-score.ts, and ai-build-fallback.ts.
  */
 
-import type { TilePos, TileRect, Tower } from "../shared/geometry-types.ts";
+import type {
+  PixelPos,
+  TilePos,
+  TileRect,
+  Tower,
+} from "../shared/geometry-types.ts";
 import type { PieceShape } from "../shared/pieces.ts";
+
+/** Pixel position annotated with strategic flag (AI targeting). */
+export type StrategicPixelPos = PixelPos & { strategic?: boolean };
+
+/** Tile position annotated with priority flag (AI targeting). */
+export type PrioritizedTilePos = TilePos & { priority: boolean };
 
 /** Result of enclosure analysis — which towers need walling, skip-home logic, etc. */
 export interface EnclosureAnalysis {

@@ -59,7 +59,7 @@
  */
 
 import type { GameMessage, ServerMessage } from "../../server/protocol.ts";
-import type { BalloonFlight } from "../shared/battle-types.ts";
+import type { BalloonFlight, Crosshair } from "../shared/battle-types.ts";
 import type {
   BattleStartData,
   SerializedPlayer,
@@ -68,11 +68,7 @@ import type {
   LifeLostDialogState,
   UpgradePickDialogState,
 } from "../shared/dialog-types.ts";
-import type {
-  Crosshair,
-  Viewport,
-  WorldPos,
-} from "../shared/geometry-types.ts";
+import type { Viewport, WorldPos } from "../shared/geometry-types.ts";
 import type { RendererInterface } from "../shared/overlay-types.ts";
 import type {
   CannonPhantom,

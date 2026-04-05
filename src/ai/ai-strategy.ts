@@ -23,7 +23,6 @@ import {
 import type {
   GameMap,
   PixelPos,
-  StrategicPixelPos,
   TilePos,
   Tower,
 } from "../shared/geometry-types.ts";
@@ -42,7 +41,7 @@ import type {
   CannonViewState,
   GameViewState,
 } from "../shared/system-interfaces.ts";
-import type { AiPlacement } from "./ai-build-types.ts";
+import type { AiPlacement, StrategicPixelPos } from "./ai-build-types.ts";
 import { traitLookup } from "./ai-constants.ts";
 import {
   countUsableCannons,

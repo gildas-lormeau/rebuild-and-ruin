@@ -3,10 +3,15 @@ import {
   canPlayerFire,
   getCountdownAnnouncement,
 } from "../game/battle-system.ts";
-import type { Cannonball, CannonMode, Impact } from "../shared/battle-types.ts";
+import type {
+  Cannonball,
+  CannonMode,
+  Crosshair,
+  Impact,
+} from "../shared/battle-types.ts";
 import { BATTLE_TIMER } from "../shared/game-constants.ts";
 import { isPlacementPhase, Phase } from "../shared/game-phase.ts";
-import type { Crosshair, PixelPos } from "../shared/geometry-types.ts";
+import type { PixelPos } from "../shared/geometry-types.ts";
 import {
   type CannonPhantom,
   cannonPhantomKey,

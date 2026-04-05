@@ -11,9 +11,9 @@ import {
   type GameMode,
   HAPTICS_ALL,
 } from "./game-constants.ts";
-import type { RGB } from "./geometry-types.ts";
 import { KEY_DOWN, KEY_LEFT, KEY_RIGHT, KEY_UP } from "./platform.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
+import type { RGB } from "./theme.ts";
 
 export interface KeyBindings {
   up: string;

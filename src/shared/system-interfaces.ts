@@ -4,13 +4,13 @@ import {
   type Cannonball,
   CannonMode,
   type CapturedCannon,
+  type Crosshair,
   type Grunt,
 } from "./battle-types.ts";
 import type { ModifierId } from "./game-constants.ts";
 import type { Phase } from "./game-phase.ts";
 import type {
   BonusSquare,
-  Crosshair,
   GameMap,
   PixelPos,
   TilePos,

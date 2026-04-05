@@ -27,6 +27,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .cache
 *.tsbuildinfo
 .export-index.json
+.export-map.txt
 
 # IntelliJ based IDEs
 .idea

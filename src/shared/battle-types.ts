@@ -99,6 +99,13 @@ export interface BurningPit extends TilePos {
   roundsLeft: number;
 }
 
+export interface Crosshair {
+  x: number;
+  y: number;
+  playerId: ValidPlayerSlot;
+  cannonReady?: boolean;
+}
+
 /** Battle animation state — territory/wall snapshots and in-flight effects. */
 export interface BattleAnimState {
   territory: Set<number>[];

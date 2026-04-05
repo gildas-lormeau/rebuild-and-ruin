@@ -13,7 +13,6 @@ import {
   LifeLostChoice,
 } from "../shared/dialog-types.ts";
 import { MODIFIER_ID } from "../shared/game-constants.ts";
-import type { RGB } from "../shared/geometry-types.ts";
 import { GRID_COLS, TILE_SIZE } from "../shared/grid.ts";
 import {
   type GameOverOverlay,
@@ -21,6 +20,7 @@ import {
   type UpgradePickCard,
 } from "../shared/overlay-types.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform.ts";
+import type { RGB } from "../shared/theme.ts";
 import {
   BANNER_HEIGHT_RATIO,
   LIFE_LOST_BTN_H as BTN_H,

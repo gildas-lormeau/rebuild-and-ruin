@@ -28,7 +28,6 @@ import {
   modifierLabel,
 } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
-import type { RGB } from "../shared/geometry-types.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -46,6 +45,7 @@ import {
 } from "../shared/overlay-types.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { RGB } from "../shared/theme.ts";
 import {
   BANNER_HEIGHT_RATIO,
   LIFE_LOST_BTN_H as BTN_H,

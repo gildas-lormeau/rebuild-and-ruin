@@ -15,7 +15,8 @@ import {
   canPlayerFire,
   nextReadyCombined,
 } from "../game/battle-system.ts";
-import type { Crosshair, PixelPos } from "../shared/geometry-types.ts";
+import type { Crosshair } from "../shared/battle-types.ts";
+import type { PixelPos } from "../shared/geometry-types.ts";
 import type { DedupChannel } from "../shared/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerAlive } from "../shared/player-types.ts";

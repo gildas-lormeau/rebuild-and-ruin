@@ -13,6 +13,7 @@ import type {
   Cannonball,
   CapturedCannon,
   CombinedCannonResult,
+  Crosshair,
 } from "../shared/battle-types.ts";
 import {
   deletePlayerWallBattle,
@@ -32,7 +33,7 @@ import {
   SUPER_BALLOON_HITS_NEEDED,
   SUPER_GUN_THREAT_WEIGHT,
 } from "../shared/game-constants.ts";
-import type { Crosshair, TilePos } from "../shared/geometry-types.ts";
+import type { TilePos } from "../shared/geometry-types.ts";
 import { TILE_SIZE } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { Player } from "../shared/player-types.ts";

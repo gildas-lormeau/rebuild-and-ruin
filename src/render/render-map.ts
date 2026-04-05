@@ -10,7 +10,7 @@
  *   - W/H: canvas dimensions in tile-space pixels (MAP_PX_W, MAP_PX_H)
  */
 
-import type { GameMap, RGB, Viewport } from "../shared/geometry-types.ts";
+import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import {
   CANVAS_H,
   CANVAS_W,
@@ -32,6 +32,7 @@ import {
   pxToTile,
   unpackTile,
 } from "../shared/spatial.ts";
+import type { RGB } from "../shared/theme.ts";
 import { BANNER_HEIGHT_RATIO, rgb, STATUSBAR_HEIGHT } from "../shared/theme.ts";
 import {
   drawBattleEffects,

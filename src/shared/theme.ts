@@ -2,8 +2,10 @@
  * Shared UI theme constants for all rendering modules.
  */
 
-import type { RGB } from "./geometry-types.ts";
 import { IS_TOUCH_DEVICE } from "./platform.ts";
+
+/** RGB color tuple. */
+export type RGB = [number, number, number];
 
 /** Dark sepia panel background (0.85–0.95 alpha depending on context). */
 export const PANEL_BG = (alpha: number) => `rgba(20, 12, 8, ${alpha})`;

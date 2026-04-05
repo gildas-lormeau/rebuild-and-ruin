@@ -1,8 +1,4 @@
 import type { Tile } from "./grid.ts";
-import type { ValidPlayerSlot } from "./player-slot.ts";
-
-/** RGB color tuple. */
-export type RGB = [number, number, number];
 
 export interface TilePos {
   row: number;
@@ -20,17 +16,6 @@ export interface TileRect {
   left: number;
   right: number;
 }
-
-export interface Crosshair {
-  x: number;
-  y: number;
-  playerId: ValidPlayerSlot;
-  cannonReady?: boolean;
-}
-
-export type StrategicPixelPos = PixelPos & { strategic?: boolean };
-
-export type PrioritizedTilePos = TilePos & { priority: boolean };
 
 /** World coordinate in tile-pixel space (as opposed to screen/canvas pixels). */
 export interface WorldPos {
