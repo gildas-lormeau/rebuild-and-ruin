@@ -17,6 +17,7 @@
       "src/shared/game-phase.ts",
       "src/shared/render-spy.ts",
       "src/shared/utils.ts",
+      "src/online/online-config.ts",
       "server/send-utils.ts"
     ]
   },
@@ -63,6 +64,16 @@
     ]
   },
   {
+    "name": "online infrastructure",
+    "files": [
+      "src/online/online-types.ts",
+      "src/online/online-lobby-ui.ts",
+      "src/online/online-server-lifecycle.ts",
+      "src/online/online-session.ts",
+      "server/game-room.ts"
+    ]
+  },
+  {
     "name": "runtime primitives",
     "files": [
       "src/runtime/runtime-touch-ui.ts",
@@ -73,7 +84,8 @@
       "src/runtime/runtime-camera.ts",
       "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-upgrade-pick.ts",
-      "src/runtime/runtime-game-lifecycle.ts"
+      "src/runtime/runtime-game-lifecycle.ts",
+      "src/runtime/runtime-e2e-bridge.ts"
     ]
   },
   {
@@ -99,7 +111,8 @@
     "name": "phase orchestration",
     "files": [
       "src/runtime/runtime-phase-ticks.ts",
-      "src/runtime/runtime-life-lost.ts"
+      "src/runtime/runtime-life-lost.ts",
+      "src/runtime/runtime-selection.ts"
     ]
   },
   {
@@ -168,23 +181,10 @@
   {
     "name": "runtime sub-systems",
     "files": [
-      "src/runtime/runtime-e2e-bridge.ts",
-      "src/runtime/runtime-selection.ts",
       "src/runtime/runtime-input.ts",
       "src/runtime/runtime-lobby.ts",
       "src/runtime/runtime-options.ts",
       "src/runtime/runtime-render.ts"
-    ]
-  },
-  {
-    "name": "online infrastructure",
-    "files": [
-      "src/online/online-config.ts",
-      "src/online/online-types.ts",
-      "src/online/online-lobby-ui.ts",
-      "src/online/online-server-lifecycle.ts",
-      "src/online/online-session.ts",
-      "server/game-room.ts"
     ]
   },
   {

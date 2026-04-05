@@ -64,7 +64,8 @@ Files are organized into domain directories under `src/`: `shared/`, `game/`, `a
                                 shared/grid, shared/jsfxr.d, shared/platform, shared/rng,
                                 shared/router, online/online-dom, shared/upgrade-defs,
                                 shared/settings-defs, shared/player-slot, shared/game-phase,
-                                shared/render-spy, shared/utils, server/send-utils
+                                shared/render-spy, shared/utils, online/online-config,
+                                server/send-utils
  1  geometry types              shared/geometry-types
  2  pieces                      shared/pieces
  3  core types, state & spatial shared/battle-types, shared/types, shared/dialog-types,
@@ -75,37 +76,37 @@ Files are organized into domain directories under `src/`: `shared/`, `game/`, `a
                                 game/castle-build, game/phase-banner, shared/theme,
                                 shared/overlay-types, shared/phantom-types, shared/tick-context,
                                 shared/settings-ui, shared/screen-builders
- 5  runtime primitives          runtime/runtime-touch-ui, runtime/runtime-state,
+ 5  online infrastructure       online/online-types, online/online-lobby-ui,
+                                online/online-server-lifecycle, online/online-session,
+                                server/game-room
+ 6  runtime primitives          runtime/runtime-touch-ui, runtime/runtime-state,
                                 runtime/runtime-banner, runtime/runtime-human,
                                 runtime/runtime-types, runtime/runtime-camera,
-                                runtime/runtime-score-deltas,
-                                runtime/runtime-upgrade-pick, runtime/runtime-game-lifecycle
- 6  game logic                  game/cannon-system, game/grunt-movement, game/grunt-system,
+                                runtime/runtime-score-deltas, runtime/runtime-upgrade-pick,
+                                runtime/runtime-game-lifecycle, runtime/runtime-e2e-bridge
+ 7  game logic                  game/cannon-system, game/grunt-movement, game/grunt-system,
                                 game/battle-system, game/build-system, game/castle-generation,
                                 game/map-generation, game/phase-setup, game/combo-system,
                                 game/round-modifiers, game/game-engine, game/selection,
                                 game/host-phase-ticks, game/host-battle-ticks
- 7  phase orchestration         runtime/runtime-phase-ticks, runtime/runtime-life-lost
- 8  AI strategy                 ai/ai-build-types, ai/ai-castle-rect, ai/ai-build-score,
+ 8  phase orchestration         runtime/runtime-phase-ticks, runtime/runtime-life-lost,
+                                runtime/runtime-selection
+ 9  AI strategy                 ai/ai-build-types, ai/ai-castle-rect, ai/ai-build-score,
                                 ai/ai-build-fallback, ai/ai-build-target, ai/ai-strategy-battle,
                                 ai/ai-strategy-build, ai/ai-strategy-cannon, ai/ai-strategy
- 9  controllers                 ai/ai-phase-select, ai/ai-phase-build, ai/ai-phase-cannon,
+10  controllers                 ai/ai-phase-select, ai/ai-phase-build, ai/ai-phase-cannon,
                                 ai/ai-phase-battle, ai/controller-ai, player/controller-types,
                                 player/controller-human, player/controller-factory
-10  game bootstrap              runtime/runtime-bootstrap, runtime/runtime-headless
-11  input & sound               input/haptics-system, input/input-recorder, input/input-dispatch,
+11  game bootstrap              runtime/runtime-bootstrap, runtime/runtime-headless
+12  input & sound               input/haptics-system, input/input-recorder, input/input-dispatch,
                                 input/input-touch-ui, input/input-touch-canvas, input/input-mouse,
                                 input/input-keyboard, input/input, input/sound-system
-12  render                      render/render-sprites, render/render-loupe, render/render-effects,
+13  render                      render/render-sprites, render/render-loupe, render/render-effects,
                                 render/render-towers, render/render-composition, render/render-ui-theme,
                                 render/render-ui, render/render-ui-settings, render/render-map,
                                 render/render-canvas
-13  runtime sub-systems         runtime/runtime-e2e-bridge, runtime/runtime-selection,
-                                runtime/runtime-input, runtime/runtime-lobby, runtime/runtime-options,
-                                runtime/runtime-render
-14  online infrastructure       online/online-config, online/online-types, online/online-lobby-ui,
-                                online/online-server-lifecycle, online/online-session,
-                                server/game-room
+14  runtime sub-systems         runtime/runtime-input, runtime/runtime-lobby,
+                                runtime/runtime-options, runtime/runtime-render
 15  online logic                online/online-serialize, online/online-full-state-recovery,
                                 online/online-send-actions, online/online-checkpoints,
                                 online/online-watcher-battle, online/online-watcher-tick,

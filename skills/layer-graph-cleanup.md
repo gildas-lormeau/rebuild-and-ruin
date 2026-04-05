@@ -33,7 +33,7 @@ Formal violations (upward edges) are already caught by `--check`. Look instead f
 
 | Smell | Example | Why it matters |
 |---|---|---|
-| High layer → low layer (unexpected) | Online logic (L12) → render (L8) | Networking code shouldn't know about canvas types |
+| High layer → low layer (unexpected) | Online logic (L15) → render (L13) | Networking code shouldn't know about canvas types |
 | Entry point bypassing runtime | `online-client` → `ai-strategy` directly | Should go through the runtime layer |
 | Cross-domain edges | Input layer imports game UI layer | Input should be usable independently of UI |
 | File group name doesn't match files inside | `render-theme.ts` in "config & interfaces" | Name drift signals a misclassified file |
@@ -130,7 +130,7 @@ npx tsx scripts/report-hot-exports.ts --threshold 1 --max 1 --kinds function,con
 This shows every exported function/const imported by exactly one file, with **From/To domain** and **Src/Dst layer** columns. Entries marked with `←` cross a domain boundary.
 
 **What to look for:**
-- `shared → render` or `shared → input` with a large layer gap (e.g., L0→L12) — the export may belong in or near its sole consumer
+- `shared → render` or `shared → input` with a large layer gap (e.g., L0→L13) — the export may belong in or near its sole consumer
 - Functions exported from a shared module to one consumer — candidates to inline or colocate (like `createLobbyConfirmKeys` which was moved to its sole consumer `screen-builders.ts`)
 - Constants that are semantically tied to their consumer's domain (e.g., `LOUPE_*` render constants defined in `theme.ts` but consumed only by `render-loupe.ts`)
 
@@ -266,3 +266,7 @@ at the time of each change (some have since been renamed or moved into domain di
 | L15 "local runtime" mixed composition root + sub-systems (6 files) | Split into L13 "runtime sub-systems" (5 sub-system factories, max dep L12) + L16 "local runtime" (1 file: runtime.ts); eliminates L7 edge from sub-system group |
 | `runtime-selection.ts` → `runtime-bootstrap.ts` (L13→L10) | Injected `enterTowerSelection` via deps; moved `EnterTowerSelectionDeps` to `runtime-types.ts`; eliminated L13→L10 edge |
 | `render/settings-ui.ts`, `render/screen-builders.ts` name mismatch in L5 "runtime primitives" | Reclassified to L4 "shared types & config" (max dep L4); L5 now pure runtime files (10 files) |
+| `online-config.ts` over-classified in L14 | Reclassified to L0 "leaf utilities" — zero imports |
+| L14 "online infrastructure" over-classified (max dep L4) | Moved entire group from L14 to L5 (after "shared types & config"); no L5–L13 files import from it; eliminated 9-layer gap |
+| `runtime-e2e-bridge.ts` over-classified in L13 "runtime sub-systems" | Reclassified to L6 "runtime primitives" — max dep L6 (runtime-state); dev-only bridge with no render/input deps |
+| `runtime-selection.ts` over-classified in L13 "runtime sub-systems" | Reclassified to L8 "phase orchestration" — max dep L7 (game logic); eliminated L14→L7 edge from runtime sub-systems |
