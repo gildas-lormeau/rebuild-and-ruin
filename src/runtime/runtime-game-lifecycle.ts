@@ -64,6 +64,10 @@ interface GameLifecycleDeps {
   readonly requestMainLoop: () => void;
   readonly showLobby: () => void;
 
+  // Timer injection (testability)
+  readonly setTimeout: (cb: () => void, ms: number) => number;
+  readonly clearTimeout: (id: number) => void;
+
   // Game over interaction — returns GAME_OVER_REMATCH, GAME_OVER_MENU, or null
   readonly resolveGameOverAction: (
     canvasX: number,
@@ -123,7 +127,7 @@ export function createGameLifecycle(
 
   function clearDemoTimer(): void {
     if (demoReturnTimer !== null) {
-      clearTimeout(demoReturnTimer);
+      deps.clearTimeout(demoReturnTimer);
       demoReturnTimer = null;
     }
   }
@@ -154,7 +158,7 @@ export function createGameLifecycle(
 
     clearDemoTimer();
     if (deps.isAllAi()) {
-      demoReturnTimer = window.setTimeout(() => {
+      demoReturnTimer = deps.setTimeout(() => {
         demoReturnTimer = null;
         if (deps.isModeStopped()) returnToLobby();
       }, DEMO_RETURN_DELAY_MS);
@@ -260,6 +264,8 @@ export function buildLifecycleDeps(wd: LifecycleWiringDeps): GameLifecycleDeps {
     requestMainLoop: wd.requestMainLoop,
     showLobby: config.showLobby,
 
+    setTimeout: (cb, ms) => Number(globalThis.setTimeout(cb, ms)),
+    clearTimeout: (id) => globalThis.clearTimeout(id),
     resolveGameOverAction: wd.resolveGameOverAction,
   };
 }
