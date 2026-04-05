@@ -8,7 +8,11 @@
  * the composition root (runtime.ts) lean.
  */
 
-import { FOCUS_REMATCH } from "../shared/dialog-types.ts";
+import {
+  FOCUS_MENU,
+  FOCUS_REMATCH,
+  type GameOverFocus,
+} from "../shared/dialog-types.ts";
 import { Mode } from "../shared/game-phase.ts";
 import {
   getPlayerColor,
@@ -28,8 +32,6 @@ import type {
   RuntimeSelection,
   RuntimeUpgradePick,
 } from "./runtime-types.ts";
-
-type GameOverAction = "rematch" | "menu" | null;
 
 interface GameLifecycleDeps {
   readonly log: (msg: string) => void;
@@ -68,11 +70,13 @@ interface GameLifecycleDeps {
   readonly setTimeout: (cb: () => void, ms: number) => number;
   readonly clearTimeout: (id: number) => void;
 
-  // Game over interaction — returns GAME_OVER_REMATCH, GAME_OVER_MENU, or null
-  readonly resolveGameOverAction: (
+  // Game-over interaction
+  readonly hitTestGameOver: (
     canvasX: number,
     canvasY: number,
-  ) => GameOverAction;
+  ) => GameOverFocus | null;
+  readonly getGameOverFocused: () => GameOverFocus;
+  readonly isTouchDevice: boolean;
 }
 
 interface GameLifecycleSystem {
@@ -104,17 +108,15 @@ interface LifecycleWiringDeps {
   readonly sound: Pick<SoundSystem, "reset" | "gameOver">;
   readonly input: { resetForLobby: (rs: RuntimeState) => void };
 
-  // Game-over UI (built by caller — needs render-layer imports)
-  readonly resolveGameOverAction: (
+  // Game-over UI
+  readonly hitTestGameOver: (
     canvasX: number,
     canvasY: number,
-  ) => GameOverAction;
+  ) => GameOverFocus | null;
+  readonly isTouchDevice: boolean;
 }
 
 const DEMO_RETURN_DELAY_MS = 10_000;
-/** Game-over action constants shared with composition root (resolveGameOverAction). */
-export const GAME_OVER_REMATCH = "rematch";
-export const GAME_OVER_MENU = "menu";
 
 export function createGameLifecycle(
   deps: GameLifecycleDeps,
@@ -184,9 +186,15 @@ export function createGameLifecycle(
   }
 
   function gameOverClick(canvasX: number, canvasY: number): void {
-    const action = deps.resolveGameOverAction(canvasX, canvasY);
-    if (action === GAME_OVER_REMATCH) rematch();
-    else if (action === GAME_OVER_MENU) returnToLobby();
+    const hit = deps.hitTestGameOver(canvasX, canvasY);
+    if (hit === FOCUS_REMATCH) return rematch();
+    if (hit === FOCUS_MENU) return returnToLobby();
+    // Touch: tap-anywhere confirms the focused button (no hover cursor).
+    // Mouse: miss is ignored so accidental clicks don't trigger actions.
+    if (deps.isTouchDevice) {
+      if (deps.getGameOverFocused() === FOCUS_REMATCH) rematch();
+      else returnToLobby();
+    }
   }
 
   return {
@@ -266,6 +274,9 @@ export function buildLifecycleDeps(wd: LifecycleWiringDeps): GameLifecycleDeps {
 
     setTimeout: (cb, ms) => Number(globalThis.setTimeout(cb, ms)),
     clearTimeout: (id) => globalThis.clearTimeout(id),
-    resolveGameOverAction: wd.resolveGameOverAction,
+    hitTestGameOver: wd.hitTestGameOver,
+    getGameOverFocused: () =>
+      runtimeState.frame.gameOver?.focused ?? FOCUS_REMATCH,
+    isTouchDevice: wd.isTouchDevice,
   };
 }

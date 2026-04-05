@@ -42,7 +42,6 @@ import {
   controlsScreenHitTest,
   optionsScreenHitTest,
 } from "../render/render-ui-settings.ts";
-import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/dialog-types.ts";
 import {
   MAX_FRAME_DT,
   SELECT_ANNOUNCEMENT_DURATION,
@@ -78,8 +77,6 @@ import { createCameraSystem } from "./runtime-camera.ts";
 import {
   buildLifecycleDeps,
   createGameLifecycle,
-  GAME_OVER_MENU,
-  GAME_OVER_REMATCH,
 } from "./runtime-game-lifecycle.ts";
 import { createPointerPlayerLookup } from "./runtime-human.ts";
 import { createInputSystem, type TouchHandles } from "./runtime-input.ts";
@@ -402,25 +399,18 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       input: {
         resetForLobby: (rs) => input.resetForLobby(rs),
       },
-      resolveGameOverAction: (canvasX, canvasY) => {
+      hitTestGameOver: (canvasX, canvasY) => {
         const gameOver = runtimeState.frame.gameOver;
         if (!gameOver) return null;
-        const hit = gameOverButtonHitTest(
+        return gameOverButtonHitTest(
           canvasX / SCALE,
           canvasY / SCALE,
           MAP_PX_W,
           MAP_PX_H,
           gameOver,
         );
-        if (hit === FOCUS_REMATCH) return GAME_OVER_REMATCH;
-        if (hit === FOCUS_MENU) return GAME_OVER_MENU;
-        // Touch: tap-anywhere confirms the focused button (no hover cursor).
-        // Mouse: miss returns null so accidental clicks are ignored.
-        if (!IS_TOUCH_DEVICE) return null;
-        return gameOver.focused === FOCUS_REMATCH
-          ? GAME_OVER_REMATCH
-          : GAME_OVER_MENU;
       },
+      isTouchDevice: IS_TOUCH_DEVICE,
     }),
   );
 
