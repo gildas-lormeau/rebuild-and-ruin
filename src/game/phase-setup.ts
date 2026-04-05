@@ -246,6 +246,13 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   spawnInterbattleGrunts(state);
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
   clearFrozenRiver(state);
+  // Roll modifier at battle start so it isn't spoiled in the status bar during build.
+  // Assignment order matters: save current modifier BEFORE rolling, because
+  // rollModifier filters out lastModifierId to prevent back-to-back repeats.
+  if (state.modern) {
+    state.modern.lastModifierId = state.modern.activeModifier;
+    state.modern.activeModifier = rollModifier(state);
+  }
   const diff = applyBattleStartModifiers(state);
   rollGruntWallAttacks(state);
   setPhase(state, Phase.BATTLE);
@@ -272,11 +279,7 @@ export function enterBuildFromBattle(state: GameState): void {
   // ── RNG consumption (BEFORE checkpoint — order is load-bearing for online sync) ──
   // host/watcher/headless must consume RNG identically before BUILD_START checkpoint
   // is created. Do NOT insert RNG calls after this block or move these after setPhase.
-  // Assignment order matters: save current modifier BEFORE rolling, because
-  // rollModifier filters out lastModifierId to prevent back-to-back repeats.
   if (state.modern) {
-    state.modern.lastModifierId = state.modern.activeModifier;
-    state.modern.activeModifier = rollModifier(state);
     state.modern.pendingUpgradeOffers = generateUpgradeOffers(state);
   }
 

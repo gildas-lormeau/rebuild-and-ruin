@@ -199,8 +199,6 @@ test("BUILD_START checkpoint preserves modern mode fields", () => {
   setModern(host);
 
   // Set modern-mode specific state
-  host.state.modern!.activeModifier = "wildfire";
-  host.state.modern!.lastModifierId = "grunt_surge";
   host.state.players[0]!.upgrades.set(UID.REINFORCED_WALLS as UpgradeId, 2);
   host.state.players[1]!.upgrades.set(UID.RAPID_FIRE as UpgradeId, 1);
   host.state.players[0]!.damagedWalls.add(100);
@@ -218,14 +216,10 @@ test("BUILD_START checkpoint preserves modern mode fields", () => {
   const deps = makeDeps(watcher);
   applyBuildStartCheckpoint(msg, deps);
 
-  // Verify modifier state
+  // Modifier is rolled at battle start now, so BUILD_START clears it
   assert(
-    watcher.state.modern!.activeModifier === "wildfire",
-    `activeModifier: expected wildfire, got ${watcher.state.modern!.activeModifier}`,
-  );
-  assert(
-    watcher.state.modern!.lastModifierId === "grunt_surge",
-    `lastModifierId: expected grunt_surge, got ${watcher.state.modern!.lastModifierId}`,
+    watcher.state.modern!.activeModifier === null,
+    `activeModifier: expected null, got ${watcher.state.modern!.activeModifier}`,
   );
 
   // Verify upgrades

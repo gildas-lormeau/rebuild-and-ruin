@@ -65,8 +65,6 @@ export function createBuildStartMessage(state: GameState) {
     towerAlive: [...state.towerAlive],
     burningPits: serializeBurningPits(state),
     rngSeed: state.rng.seed,
-    activeModifier: state.modern?.activeModifier ?? null,
-    lastModifierId: state.modern?.lastModifierId ?? null,
     pendingUpgradeOffers: state.modern?.pendingUpgradeOffers
       ? [...state.modern.pendingUpgradeOffers.entries()]
       : null,

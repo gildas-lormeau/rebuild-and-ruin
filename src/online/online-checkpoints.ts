@@ -12,11 +12,7 @@ import type { PixelPos } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { towerCenterPx } from "../shared/spatial.ts";
 import type { OrbitParams } from "../shared/system-interfaces.ts";
-import type {
-  GameState,
-  ModernState,
-  UpgradeOfferTuple,
-} from "../shared/types.ts";
+import type { GameState, UpgradeOfferTuple } from "../shared/types.ts";
 import {
   applyCapturedCannons,
   applyGruntsCheckpoint,
@@ -132,10 +128,8 @@ export function applyBuildStartCheckpoint(
   deps.state.round = data.round;
   deps.state.timer = data.timer;
   if (deps.state.modern) {
-    deps.state.modern.activeModifier =
-      (data.activeModifier as ModernState["activeModifier"]) ?? null;
-    deps.state.modern.lastModifierId =
-      (data.lastModifierId as ModernState["lastModifierId"]) ?? null;
+    // Modifier is rolled at battle start now — clear it for the build phase
+    deps.state.modern.activeModifier = null;
     deps.state.modern.pendingUpgradeOffers = data.pendingUpgradeOffers
       ? new Map(
           data.pendingUpgradeOffers.map(([pid, offers]) => [

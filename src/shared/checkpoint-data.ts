@@ -104,8 +104,6 @@ export interface BuildStartData {
   towerAlive: boolean[];
   burningPits: SerializedBurningPit[];
   rngSeed: number;
-  activeModifier?: string | null;
-  lastModifierId?: string | null;
   pendingUpgradeOffers?: [number, [string, string, string]][] | null;
   /** Frozen river tiles persisting from previous battle (packed keys). null = no frozen river. */
   frozenTiles: number[] | null;
