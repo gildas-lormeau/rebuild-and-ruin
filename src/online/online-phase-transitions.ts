@@ -172,6 +172,7 @@ export interface TransitionContext {
   // ── Upgrade pick (modern mode) ──
   upgradePick?: {
     tryShow: (onDone: () => void) => boolean;
+    prepare: () => boolean;
   };
 }
 
@@ -390,6 +391,7 @@ export function handleBuildStartTransition(
     transitionCtx.upgradePick?.tryShow,
     !!state.modern?.pendingUpgradeOffers,
     showBannerAndEnterBuild,
+    transitionCtx.upgradePick?.prepare,
   );
 }
 

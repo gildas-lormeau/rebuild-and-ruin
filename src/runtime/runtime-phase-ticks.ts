@@ -118,6 +118,8 @@ interface PhaseTicksDeps
   /** Try to show upgrade pick overlay. Returns true if shown (caller should
    *  defer Mode.GAME). `onDone` is called when all picks are resolved. */
   tryShowUpgradePick?: (onDone: () => void) => boolean;
+  /** Pre-create the upgrade pick dialog for progressive reveal during banner. */
+  prepareUpgradePick?: () => boolean;
 }
 
 export interface PhaseTicksSystem {
@@ -401,6 +403,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           deps.tryShowUpgradePick,
           !!runtimeState.state.modern?.pendingUpgradeOffers,
           showBannerAndEnterBuild,
+          deps.prepareUpgradePick,
         );
       },
       net: {

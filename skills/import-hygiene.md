@@ -54,7 +54,7 @@ The layer map file. Committed to the repo. An array of named groups — position
 
 **Rule: imports must flow downward.** A file in group N can import from any group 0..N. Importing from group N+1 or higher is a violation.
 
-**Current architecture (19 groups, 0 violations, ~134 files incl. server):**
+**Current architecture (19 groups, 0 violations, ~135 files incl. server):**
 
 Files are organized into domain directories under `src/`: `shared/`, `game/`, `ai/`, `player/`,
 `input/`, `render/`, `online/`, `runtime/`, with entry points at `src/` root.
@@ -64,7 +64,7 @@ Files are organized into domain directories under `src/`: `shared/`, `game/`, `a
                                 shared/grid, shared/jsfxr.d, shared/platform, shared/rng,
                                 shared/router, online/online-dom, shared/upgrade-defs,
                                 shared/settings-defs, shared/player-slot, shared/game-phase,
-                                shared/utils, server/send-utils
+                                shared/render-spy, shared/utils, server/send-utils
  1  geometry types              shared/geometry-types
  2  pieces                      shared/pieces
  3  core types, state & spatial shared/battle-types, shared/types, shared/dialog-types,

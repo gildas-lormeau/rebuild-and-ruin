@@ -15,6 +15,7 @@
       "src/shared/settings-defs.ts",
       "src/shared/player-slot.ts",
       "src/shared/game-phase.ts",
+      "src/shared/render-spy.ts",
       "src/shared/utils.ts",
       "server/send-utils.ts"
     ]

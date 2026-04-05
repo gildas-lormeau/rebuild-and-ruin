@@ -93,6 +93,7 @@ const transitionCtx: TransitionContext = {
   battleLifecycle: buildTransitionBattleCtx(),
   endPhase: buildTransitionEndPhaseCtx(),
   upgradePick: {
+    prepare: () => runtime.upgradePick.prepare(),
     tryShow: (onDone) => {
       const shown = runtime.upgradePick.tryShow(onDone);
       // Drain early picks (race: watcher sent pick before host created dialog)

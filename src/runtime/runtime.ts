@@ -464,6 +464,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     sound,
     haptics,
     tryShowUpgradePick: (onDone) => upgradePick.tryShow(onDone),
+    prepareUpgradePick: () => upgradePick.prepare(),
   });
 
   // -------------------------------------------------------------------------

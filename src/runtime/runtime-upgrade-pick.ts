@@ -31,6 +31,9 @@ interface UpgradePickSystemDeps {
 }
 
 export interface UpgradePickSystem {
+  /** Pre-create the dialog so it can render during the banner sweep.
+   *  Does NOT set Mode.UPGRADE_PICK — call tryShow after the banner ends. */
+  prepare: () => boolean;
   /** Try to show the upgrade pick dialog. Returns true if shown, false if skipped. */
   tryShow: (onDone: () => void) => boolean;
   /** Tick the dialog (AI auto-pick, timer). */
@@ -55,7 +58,9 @@ export function createUpgradePickSystem(
   /** Callback to invoke when all picks are resolved. */
   let resolveCallback: (() => void) | null = null;
 
-  function tryShow(onDone: () => void): boolean {
+  /** Ensure the dialog exists on runtimeState, creating it if needed. */
+  function ensureDialog(): UpgradePickDialogState | null {
+    if (runtimeState.upgradePickDialog) return runtimeState.upgradePickDialog;
     const dialog = createUpgradePickDialog({
       state: runtimeState.state,
       hostAtFrameStart: runtimeState.frameMeta.hostAtFrameStart,
@@ -64,10 +69,24 @@ export function createUpgradePickSystem(
       isHumanController: (playerId) =>
         isHuman(runtimeState.controllers[playerId]!),
     });
+    if (!dialog) return null;
+    runtimeState.upgradePickDialog = dialog;
+    return dialog;
+  }
 
+  function prepare(): boolean {
+    const dialog = ensureDialog();
+    if (!dialog) return false;
+    deps.log(
+      `upgrade pick prepared: ${dialog.entries.length} players, round=${runtimeState.state.round}`,
+    );
+    return true;
+  }
+
+  function tryShow(onDone: () => void): boolean {
+    const dialog = ensureDialog();
     if (!dialog) return false;
 
-    runtimeState.upgradePickDialog = dialog;
     setMode(runtimeState, Mode.UPGRADE_PICK);
     resolveCallback = onDone;
     deps.log(
@@ -139,6 +158,7 @@ export function createUpgradePickSystem(
   }
 
   return {
+    prepare,
     tryShow,
     tick,
     /** Read current dialog state. Used by watcher-mode to sync overlay display. */

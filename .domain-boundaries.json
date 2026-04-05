@@ -29,6 +29,7 @@
       "src/shared/settings-defs.ts",
       "src/shared/settings-ui.ts",
       "src/shared/screen-builders.ts",
+      "src/shared/render-spy.ts",
       "server/protocol.ts"
     ],
     "game": [

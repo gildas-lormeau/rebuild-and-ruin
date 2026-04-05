@@ -16,13 +16,13 @@ Each domain is a group of tightly related files that share responsibility for a 
 Domains map to the 19 layer groups in `.import-layers.json` (L0–L18), with small layers
 combined and large layers (>10 files) split into sub-domains at audit time.
 
-### 1. Leaf utilities — L0 (15 files)
+### 1. Leaf utilities — L0 (16 files)
 ```
 src/ai/ai-constants.ts, src/shared/canvas-layout.ts, src/shared/game-constants.ts,
 src/shared/grid.ts, src/shared/jsfxr.d.ts, src/shared/platform.ts, src/shared/rng.ts,
 src/shared/router.ts, src/online/online-dom.ts, src/shared/upgrade-defs.ts,
 src/shared/settings-defs.ts, src/shared/player-slot.ts, src/shared/game-phase.ts,
-src/shared/utils.ts, server/send-utils.ts
+src/shared/render-spy.ts, src/shared/utils.ts, server/send-utils.ts
 ```
 
 ### 2. Core types, geometry, pieces & spatial — L1 + L2 + L3 (9 files)

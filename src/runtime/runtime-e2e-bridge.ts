@@ -6,14 +6,14 @@
  * tests. Replaces the old runtime-test-globals.ts.
  */
 
+import { computeLetterboxLayout } from "../shared/canvas-layout.ts";
+import { Mode, Phase } from "../shared/game-phase.ts";
+import { TILE_SIZE } from "../shared/grid.ts";
 import {
   clearRenderSpy,
   enableRenderSpy,
   getRenderSpyLog,
-} from "../render/render-sprites.ts";
-import { computeLetterboxLayout } from "../shared/canvas-layout.ts";
-import { Mode, Phase } from "../shared/game-phase.ts";
-import { TILE_SIZE } from "../shared/grid.ts";
+} from "../shared/render-spy.ts";
 import { unpackTile } from "../shared/spatial.ts";
 import { isHuman } from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";

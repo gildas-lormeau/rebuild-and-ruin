@@ -418,7 +418,9 @@ export function drawComboFloats(
   overlayCtx.restore();
 }
 
-/** Draw upgrade pick cards — one row of 3 cards per player, stacked vertically. */
+/** Draw upgrade pick cards — one row of 3 cards per player, stacked vertically.
+ *  When the banner is actively sweeping, the overlay is progressively revealed
+ *  above the banner line (same visual language as modifier reveals). */
 export function drawUpgradePick(
   overlayCtx: CanvasRenderingContext2D,
   W: number,
@@ -429,6 +431,18 @@ export function drawUpgradePick(
   if (!overlay?.ui?.upgradePick) return;
   const pick = overlay.ui.upgradePick;
   if (pick.entries.length === 0) return;
+
+  // Progressive reveal: clip to above the banner sweep line
+  const banner = overlay.ui?.banner;
+  const duringBanner = !!banner;
+  if (duringBanner) {
+    const bannerH = Math.round(H * BANNER_HEIGHT_RATIO);
+    const clipBottom = Math.round(banner.y - bannerH / 2);
+    overlayCtx.save();
+    overlayCtx.beginPath();
+    overlayCtx.rect(0, 0, W, clipBottom);
+    overlayCtx.clip();
+  }
 
   // Semi-transparent backdrop
   overlayCtx.fillStyle = SHADOW_COLOR_HEAVY;
@@ -483,19 +497,21 @@ export function drawUpgradePick(
     }
   }
 
-  // Timer bar
-  const barW = rowW;
-  const barH = 4;
-  const barX = (W - rowW) / 2;
-  const barY = startY + totalH + 10;
-  const progress = Math.max(0, 1 - pick.timer / pick.maxTimer);
-  overlayCtx.fillStyle = SHADOW_COLOR;
-  overlayCtx.fillRect(barX, barY, barW, barH);
-  overlayCtx.fillStyle = progress > 0.25 ? GOLD : ELIMINATED_RED;
-  overlayCtx.fillRect(barX, barY, barW * progress, barH);
+  // Timer bar — only show when interactive (not during banner preview)
+  if (!duringBanner) {
+    const barW = rowW;
+    const barH = 4;
+    const barX = (W - rowW) / 2;
+    const barY = startY + totalH + 10;
+    const progress = Math.max(0, 1 - pick.timer / pick.maxTimer);
+    overlayCtx.fillStyle = SHADOW_COLOR;
+    overlayCtx.fillRect(barX, barY, barW, barH);
+    overlayCtx.fillStyle = progress > 0.25 ? GOLD : ELIMINATED_RED;
+    overlayCtx.fillRect(barX, barY, barW * progress, barH);
+  }
 
-  // Hint (only if a local player is picking)
-  if (pick.entries.some((e) => e.interactive)) {
+  // Hint — only when interactive (not during banner preview)
+  if (!duringBanner && pick.entries.some((entry) => entry.interactive)) {
     overlayCtx.font = FONT_HINT;
     overlayCtx.fillStyle = TEXT_DIM;
     overlayCtx.textAlign = TEXT_ALIGN_CENTER;
@@ -504,6 +520,10 @@ export function drawUpgradePick(
       W / 2,
       H * 0.94,
     );
+  }
+
+  if (duringBanner) {
+    overlayCtx.restore();
   }
 }
 

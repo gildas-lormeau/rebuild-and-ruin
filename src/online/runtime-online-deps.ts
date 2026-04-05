@@ -129,7 +129,13 @@ function buildIncrementalDeps() {
     onFirstEnclosure: (pid: ValidPlayerSlot) =>
       _g.runtime.sound.chargeFanfare(pid),
     getLifeLostDialog: () => _g.runtime.lifeLost.get(),
-    getUpgradePickDialog: () => _g.runtime.runtimeState.upgradePickDialog,
+    // Only expose the dialog once Mode.UPGRADE_PICK is active — during the
+    // banner preview (prepare) the dialog exists for rendering but picks
+    // should still be buffered in earlyUpgradePickChoices.
+    getUpgradePickDialog: () =>
+      _g.runtime.runtimeState.mode === Mode.UPGRADE_PICK
+        ? _g.runtime.runtimeState.upgradePickDialog
+        : null,
   };
 }
 

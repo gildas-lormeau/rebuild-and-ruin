@@ -312,6 +312,8 @@ export interface RuntimeLifeLost {
 }
 
 export interface RuntimeUpgradePick {
+  /** Pre-create dialog for progressive reveal during banner sweep. */
+  prepare: () => boolean;
   /** Show upgrade pick dialog. Returns false if no offers (dialog skipped). */
   tryShow: (onDone: () => void) => boolean;
   tick: (dt: number) => void;

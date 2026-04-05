@@ -123,14 +123,18 @@ export function executeTransition<S extends TransitionStep>(
  *  If there are pending offers and the dialog is shown, `onDone` runs after
  *  all picks resolve. Otherwise `onDone` runs immediately.
  *  Used by both host (runtime-phase-ticks) and watcher (online-phase-transitions)
- *  to share the banner → dialog → proceed sequence. */
+ *  to share the banner → dialog → proceed sequence.
+ *  When `prepare` is provided, the dialog is pre-created before the banner
+ *  so the upgrade overlay can be progressively revealed during the sweep. */
 export function gateUpgradePick(
   show: BannerShow,
   tryShow: ((onDone: () => void) => boolean) | undefined,
   hasPendingOffers: boolean,
   onDone: () => void,
+  prepare?: () => boolean,
 ): void {
   if (tryShow && hasPendingOffers) {
+    prepare?.();
     showUpgradePickBanner(show, () => {
       if (!tryShow(onDone)) onDone();
     });
