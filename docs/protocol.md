@@ -49,10 +49,11 @@ Client                          Server                          Host
 
 | Message | Fields | Description |
 |---------|--------|-------------|
-| `create_room` | `settings` | Create a new room with battle length (0=unlimited, 3, 5, 8, 12), cannon HP, wait timer |
+| `create_room` | `settings` | Create a new room with max rounds (0=unlimited, 1, 3, 5, 8, 12), cannon HP, wait timer, game mode |
 | `join_room` | `code` | Join an existing room by 4-letter code |
-| `select_slot` | `slotId` | Pick a player slot (0-2) |
+| `select_slot` | `playerId` | Pick a player slot (0-2) |
 | `life_lost_choice` | `choice`, `playerId?` | Continue or abandon after losing a life |
+| `upgrade_pick` | `playerId`, `choice` | Pick an upgrade during modern mode draft (forwarded to host) |
 | `ping` | — | Keepalive |
 
 ### Server → Client (Lobby)
@@ -66,24 +67,36 @@ Client                          Server                          Host
 | `player_left` | `playerId` | Broadcast to all when a player disconnects |
 | `room_error` | `message` | Room not found, full, or other error |
 
+### Room Settings
+
+Sent inside `create_room`, `room_created`, and `room_joined`:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `maxRounds` | `number` | 0 (unlimited), 1 (e2e testing), 3, 5, 8, or 12 |
+| `cannonMaxHp` | `number` | 3, 6, 9, or 12 |
+| `waitTimerSec` | `number` | Lobby wait duration before auto-start (seconds, max 120) |
+| `seed?` | `number` | Optional map seed (server generates random if omitted) |
+| `gameMode?` | `string` | `"classic"` or `"modern"` (default `"classic"`) |
+
 ### Host → All (Phase Transitions / Checkpoints)
 
 These are sent by the host and relayed to all other clients. They carry full state for reconciliation.
 
 | Message | When | Key Data |
 |---------|------|----------|
-| `init` | Game start | `seed`, `playerCount`, `settings` (`battleLength`, `cannonMaxHp`, `buildTimer`, `cannonPlaceTimer`, `firstRoundCannons`) |
+| `init` | Game start | `seed`, `playerCount`, `settings` (`maxRounds`, `cannonMaxHp`, `buildTimer`, `cannonPlaceTimer`, `firstRoundCannons`, `gameMode`) |
 | `select_start` | Tower selection begins | `timer` |
 | `castle_walls` | Castle construction animation | `plans[]` (playerId + ordered wall tiles) |
-| `cannon_start` | Cannon placement begins | `timer`, `limits[]`, `players[]`, `grunts[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `housesAlive[]` |
-| `battle_start` | Battle begins | `players[]`, `grunts[]`, `capturedCannons[]`, `burningPits[]`, `towerAlive[]`, `flights[]?` |
-| `build_start` | Build/repair phase begins | `round`, `timer`, `players[]`, `housesAlive[]`, `grunts[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `rngSeed` |
+| `cannon_start` | Cannon placement begins | `timer`, `limits[]`, `players[]`, `grunts[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `houses[]` |
+| `battle_start` | Battle begins | `players[]`, `grunts[]`, `capturedCannons[]`, `burningPits[]`, `towerAlive[]`, `flights`, `frozenTiles`, `modifierDiff` |
+| `build_start` | Build/repair phase begins | `round`, `timer`, `players[]`, `houses[]`, `grunts[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `rngSeed`, `pendingUpgradeOffers?`, `frozenTiles` |
 | `build_end` | Build phase ends | `needsReselect[]`, `eliminated[]`, `scores[]`, `players[]` |
 | `game_over` | Game ends | `winner`, `scores[]` |
 
 #### Serialized Player Shape
 
-The `players[]` array in checkpoint messages uses `SerializedPlayer` (`src/checkpoint-data.ts`):
+The `players[]` array in checkpoint messages uses `SerializedPlayer` (`src/shared/checkpoint-data.ts`):
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -95,18 +108,33 @@ The `players[]` array in checkpoint messages uses `SerializedPlayer` (`src/check
 | `lives` | `number` | Lives remaining |
 | `eliminated` | `boolean` | Whether player is out |
 | `score` | `number` | Accumulated score |
+| `upgrades` | `[string, number][]?` | Active upgrades with stack count (modern mode) |
+| `damagedWalls` | `number[]?` | Wall tiles that absorbed one hit (reinforced walls upgrade) |
 
-`interior` and `ownedTowers` are recomputed from `walls` on the receiver (flood-fill + tower enclosure check). House positions are deterministic from the seed — only `housesAlive: boolean[]` is sent.
+`interior` and `ownedTowers` are recomputed from `walls` on the receiver (flood-fill + tower enclosure check).
 
-#### Serialized Grunt Shape
+#### Serialized House Shape
 
-The `grunts[]` array in checkpoint messages uses `SerializedGrunt` (`src/checkpoint-data.ts`):
+Houses are sent as `houses: SerializedHouse[]` in `cannon_start`, `battle_start`, and `build_start` checkpoints:
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `row` | `number` | Grid row |
 | `col` | `number` | Grid column |
-| `targetPlayerId` | `number` | Player being attacked |
+| `zone` | `number` | Zone index |
+| `alive` | `boolean` | Whether the house is still standing |
+
+House positions are deterministic from the seed, but alive/zone state is synced via the full `SerializedHouse` array.
+
+#### Serialized Grunt Shape
+
+The `grunts[]` array in checkpoint messages uses `SerializedGrunt` (`src/shared/checkpoint-data.ts`):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `row` | `number` | Grid row |
+| `col` | `number` | Grid column |
+| `victimPlayerId` | `number` | Player being attacked |
 | `targetTowerIdx?` | `number` | Specific tower target |
 | `attackTimer?` | `number` | Wall-attack progress timer |
 | `blockedBattles?` | `number` | Rounds spent blocked by walls |
@@ -131,15 +159,17 @@ Streamed during gameplay phases. Battle impact events (`wall_destroyed` through 
 | `house_destroyed` | BATTLE | A house was destroyed (host-only) |
 | `grunt_spawned` | BATTLE | A grunt was spawned (host-only) |
 | `pit_created` | BATTLE | Burning pit from incendiary shot (host-only) |
+| `ice_thawed` | BATTLE | Frozen water tile thawed by cannonball (host-only) |
 | `tower_killed` | BATTLE | A tower was destroyed by grunts (host-only) |
 | `aim_update` | BATTLE | Crosshair position + orbit params |
 | `life_lost_choice` | Any | Forwarded from non-host client to all (playerId + choice) |
+| `upgrade_pick` | Any | Forwarded from non-host client to host (playerId + choice) |
 
 #### Battle Event Unions
 
 The battle impact messages are grouped into type aliases in `server/protocol.ts` for type-safe handling:
 
-- **`ImpactEvent`** = `wall_destroyed` | `cannon_damaged` | `house_destroyed` | `grunt_killed` | `grunt_spawned` | `pit_created` — host-only effects from cannonball impacts and secondary consequences.
+- **`ImpactEvent`** = `wall_destroyed` | `cannon_damaged` | `house_destroyed` | `grunt_killed` | `grunt_spawned` | `pit_created` | `ice_thawed` — host-only effects from cannonball impacts and secondary consequences.
 - **`BattleEvent`** = `cannon_fired` | `tower_killed` | `ImpactEvent` — all events emitted during battle. Discriminated on `type`.
 
 ## Game Phases
@@ -151,6 +181,8 @@ CASTLE_SELECT ──> CASTLE_BUILD ──> CANNON_PLACE ──> BATTLE ──> W
       └──── (no reselect) ──> CANNON_PLACE ──> ...
 ```
 
+Modern mode inserts an upgrade draft/pick between battle end and build banner (from round 3). Upgrade offers are delivered in `build_start.pendingUpgradeOffers` and players respond with `upgrade_pick` messages.
+
 Each transition is marked by a checkpoint message from the host. Watchers apply the checkpoint to reconcile state, then render locally until the next checkpoint.
 
 ## Host Migration
@@ -159,18 +191,18 @@ When the host disconnects mid-game, the server promotes another player (lowest s
 
 | Message | Sender | Description |
 |---------|--------|-------------|
-| `host_left` | Server → All | `newHostPlayerId`, `previousHostPlayerId`. `-1` if no human available (AI fallback). |
-| `full_state` | New Host → All | Comprehensive snapshot sent after promotion for watcher reconciliation. Includes `migrationSeq?`, `phase`, `round`, `timer`, `battleCountdown`, `battleLength`, `shotsFired`, `rngState`, `players[]`, `grunts[]`, `housesAlive[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `cannonLimits[]`, `playerZones[]`, `activePlayer`, `towerPendingRevive[]`, `capturedCannons[]`, `balloonHits[]`, `cannonballs[]`, `balloonFlights[]?`. |
+| `host_left` | Server → All | `newHostPlayerId`, `disconnectedPlayerId`. `null` if no human available (watcher fallback). |
+| `full_state` | New Host → All | Comprehensive snapshot sent after promotion for watcher reconciliation. Includes `migrationSeq?`, `phase`, `round`, `timer`, `battleCountdown`, `maxRounds`, `shotsFired`, `rngState`, `gameMode`, `activeModifier`, `lastModifierId`, `pendingUpgradeOffers?`, `frozenTiles`, `players[]`, `grunts[]`, `houses[]`, `bonusSquares[]`, `towerAlive[]`, `burningPits[]`, `cannonLimits[]`, `playerZones[]`, `towerPendingRevive[]`, `capturedCannons[]`, `balloonHits[]`, `cannonballs[]`, `balloonFlights?`. |
 
 ## Anti-Cheat (Server-Side)
 
 The relay server validates without running game logic:
 
-- **Host-only enforcement**: only the host socket can send checkpoints (`init`, `cannon_start`, `battle_start`, `build_start`, `build_end`, `game_over`, `full_state`, `select_start`, `castle_walls`) and battle impact events (`wall_destroyed`, `cannon_damaged`, `house_destroyed`, `grunt_killed`, `grunt_spawned`, `pit_created`, `tower_killed`)
+- **Host-only enforcement**: only the host socket can send checkpoints (`init`, `cannon_start`, `battle_start`, `build_start`, `build_end`, `game_over`, `full_state`, `select_start`, `castle_walls`) and battle impact events (`wall_destroyed`, `cannon_damaged`, `house_destroyed`, `grunt_killed`, `grunt_spawned`, `pit_created`, `ice_thawed`, `tower_killed`)
 - **Identity**: players can only send messages with their own `playerId` (host exempt — sends on behalf of AI players)
-- **Phase gating**: `cannon_fired` rejected outside BATTLE, `opponent_piece_placed` rejected outside WALL_BUILD, `opponent_cannon_placed` rejected outside CANNON_PLACE, `opponent_tower_selected` rejected outside SELECTION, etc.
-- **Rate limiting**: cosmetic messages (`opponent_phantom`, `opponent_cannon_phantom`, `aim_update`) capped at 100/s per socket per message type. Game-state messages (`opponent_piece_placed`, `opponent_cannon_placed`, `cannon_fired`, `opponent_tower_selected`, `life_lost_choice`) are **not** rate-limited — they are low-frequency and must never be silently dropped
-- **Payload validation**: bounds-checking on `playerId`, grid coordinates, pixel coordinates, cannon modes, piece offsets, and choice values
+- **Phase gating**: `cannon_fired` and `aim_update` rejected outside BATTLE, `opponent_piece_placed` and `opponent_phantom` rejected outside WALL_BUILD, `opponent_cannon_placed` and `opponent_cannon_phantom` rejected outside CANNON_PLACE, `opponent_tower_selected` rejected outside CASTLE_SELECT
+- **Rate limiting**: cosmetic messages (`opponent_phantom`, `opponent_cannon_phantom`, `aim_update`) capped at 100/s per socket per message type. Game-state messages (`opponent_piece_placed`, `opponent_cannon_placed`, `cannon_fired`, `opponent_tower_selected`, `life_lost_choice`, `upgrade_pick`) are **not** rate-limited — they are low-frequency and must never be silently dropped
+- **Payload validation**: bounds-checking on `playerId`, grid coordinates, pixel coordinates, cannon modes, piece offsets, tower index, and choice values
 
 ## Bandwidth
 
