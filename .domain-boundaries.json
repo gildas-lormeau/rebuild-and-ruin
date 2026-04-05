@@ -123,7 +123,7 @@
       "src/online/online-runtime-deps.ts",
       "src/online/online-runtime-promote.ts",
       "src/online/online-runtime-ws.ts",
-      "src/online/online-runtime-lobby.ts",
+      "src/online/online-runtime-lobby.ts"
     ],
     "server": [
       "server/send-utils.ts",
@@ -177,6 +177,7 @@
     "runtime": ["input", "render"]
   },
   "typeOnlyExempt": [
-    "src/runtime/runtime.ts"
+    "src/runtime/runtime.ts",
+    "src/runtime/runtime-render.ts"
   ]
 }
