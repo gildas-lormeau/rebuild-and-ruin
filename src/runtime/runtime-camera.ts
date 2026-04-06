@@ -92,8 +92,10 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     pendingVp: undefined,
   };
   const MIN_ZOOM_W = MAP_PX_W * MIN_ZOOM_RATIO;
-  const cachedZoneBounds: Map<number, { vp: Viewport; wallCount: number }> =
-    new Map();
+  const cachedZoneBounds: Map<
+    number,
+    { viewport: Viewport; wallCount: number }
+  > = new Map();
 
   const fullMapVp: Viewport = {
     x: 0,
@@ -202,7 +204,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
     const cached = cachedZoneBounds.get(zoneId);
     if (cached && cached.wallCount === (player?.walls.size ?? 0))
-      return cached.vp;
+      return cached.viewport;
 
     const b = newBounds();
 
@@ -226,7 +228,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       player && player.walls.size > 0 ? ZONE_PAD_WITH_WALLS : ZONE_PAD_NO_WALLS;
     const result = boundsToViewport(b.minR, b.maxR, b.minC, b.maxC, pad);
     cachedZoneBounds.set(zoneId, {
-      vp: result,
+      viewport: result,
       wallCount: player?.walls.size ?? 0,
     });
     return result;
@@ -300,14 +302,14 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       // If pinch points at own zone, reset — always pick enemy
       const myZone = getMyZone();
       if (pinchVp && myZone !== null) {
-        const zb = computeZoneBounds(myZone);
+        const zoneBounds = computeZoneBounds(myZone);
         const cx = pinchVp.x + pinchVp.w / 2;
         const cy = pinchVp.y + pinchVp.h / 2;
         if (
-          cx >= zb.x &&
-          cx <= zb.x + zb.w &&
-          cy >= zb.y &&
-          cy <= zb.y + zb.h
+          cx >= zoneBounds.x &&
+          cx <= zoneBounds.x + zoneBounds.w &&
+          cy >= zoneBounds.y &&
+          cy <= zoneBounds.y + zoneBounds.h
         ) {
           pinchVp = undefined;
           phasePinch.battle = undefined;
@@ -510,21 +512,21 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   // --- Coordinate conversion ---
 
   function screenToWorld(x: number, y: number): WorldPos {
-    const vp = getViewport();
-    if (!vp) return { wx: x / SCALE, wy: y / SCALE };
+    const viewport = getViewport();
+    if (!viewport) return { wx: x / SCALE, wy: y / SCALE };
     return {
-      wx: vp.x + (x / CANVAS_W) * vp.w,
-      wy: vp.y + (y / CANVAS_H) * vp.h,
+      wx: viewport.x + (x / CANVAS_W) * viewport.w,
+      wy: viewport.y + (y / CANVAS_H) * viewport.h,
     };
   }
 
   /** Inverse of screenToWorld: world-pixel → canvas backing-store pixel. */
   function worldToScreen(wx: number, wy: number): { sx: number; sy: number } {
-    const vp = getViewport();
-    if (!vp) return { sx: wx * SCALE, sy: wy * SCALE };
+    const viewport = getViewport();
+    if (!viewport) return { sx: wx * SCALE, sy: wy * SCALE };
     return {
-      sx: ((wx - vp.x) / vp.w) * CANVAS_W,
-      sy: ((wy - vp.y) / vp.h) * CANVAS_H,
+      sx: ((wx - viewport.x) / viewport.w) * CANVAS_W,
+      sy: ((wy - viewport.y) / viewport.h) * CANVAS_H,
     };
   }
 

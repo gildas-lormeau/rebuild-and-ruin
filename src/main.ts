@@ -32,11 +32,11 @@ const runtime = createGameRuntime({
   // @ts-ignore — import.meta.env is Vite-specific
   logThrottled: import.meta.env?.DEV
     ? (() => {
-        const ts = new Map<string, number>();
+        const timestamps = new Map<string, number>();
         return (key: string, msg: string) => {
           const now = performance.now();
-          if (now - (ts.get(key) ?? 0) < 1000) return;
-          ts.set(key, now);
+          if (now - (timestamps.get(key) ?? 0) < 1000) return;
+          timestamps.set(key, now);
           console.log(`[local] ${msg}`);
         };
       })()

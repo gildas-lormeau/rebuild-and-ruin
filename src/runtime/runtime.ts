@@ -336,7 +336,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       scoreDelta,
       sound,
       input: {
-        resetForLobby: (rs) => input.resetForLobby(rs),
+        resetForLobby: (runtimeState) => input.resetForLobby(runtimeState),
       },
       hitTestGameOver: (canvasX, canvasY) => {
         const gameOver = runtimeState.frame.gameOver;

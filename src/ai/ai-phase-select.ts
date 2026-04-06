@@ -95,13 +95,13 @@ export function tickSelection(
     case STEP.IDLE:
       return false;
     case STEP.BROWSING: {
-      const bs = phase.state;
-      bs.browseTimer -= dt;
-      if (bs.browseTimer <= 0 && bs.queue.length > 1) {
-        bs.queue.shift();
-        bs.browseTimer = host.scaledDelay(0.8, 0.6);
+      const battleState = phase.state;
+      battleState.browseTimer -= dt;
+      if (battleState.browseTimer <= 0 && battleState.queue.length > 1) {
+        battleState.queue.shift();
+        battleState.browseTimer = host.scaledDelay(0.8, 0.6);
         if (state) {
-          const nextIdx = bs.queue[0];
+          const nextIdx = battleState.queue[0];
           const nextTower =
             nextIdx !== undefined ? state.map.towers[nextIdx] : undefined;
           const browsePlayer = state.players[host.playerId];
@@ -110,8 +110,11 @@ export function tickSelection(
         }
         return false;
       }
-      if (bs.queue.length <= 1) {
-        phase.state = { step: STEP.CONFIRMING, timer: bs.confirmInitialDelay };
+      if (battleState.queue.length <= 1) {
+        phase.state = {
+          step: STEP.CONFIRMING,
+          timer: battleState.confirmInitialDelay,
+        };
       }
       return false;
     }

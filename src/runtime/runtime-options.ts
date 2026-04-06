@@ -117,32 +117,32 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
 
   function ensureSeedInput(): HTMLInputElement {
     if (seedInput) return seedInput;
-    const el = document.createElement("input");
-    el.type = "text";
-    el.inputMode = "numeric";
-    el.pattern = "[0-9]*";
-    el.maxLength = MAX_SEED_LENGTH;
-    el.autocomplete = "off";
-    Object.assign(el.style, HIDDEN_INPUT_STYLE);
-    el.addEventListener("input", () => {
+    const element = document.createElement("input");
+    element.type = "text";
+    element.inputMode = "numeric";
+    element.pattern = "[0-9]*";
+    element.maxLength = MAX_SEED_LENGTH;
+    element.autocomplete = "off";
+    Object.assign(element.style, HIDDEN_INPUT_STYLE);
+    element.addEventListener("input", () => {
       // Sync input value → settings.seed (strip non-digits, cap length)
-      const digits = el.value.replace(/\D/g, "").slice(0, MAX_SEED_LENGTH);
-      el.value = digits;
+      const digits = element.value.replace(/\D/g, "").slice(0, MAX_SEED_LENGTH);
+      element.value = digits;
       runtimeState.settings.seedMode = SEED_CUSTOM;
       runtimeState.settings.seed = digits;
     });
-    document.body.appendChild(el);
-    seedInput = el;
-    return el;
+    document.body.appendChild(element);
+    seedInput = element;
+    return element;
   }
 
   function focusSeedInput(): void {
     if (!IS_TOUCH_DEVICE || deps.isOnline) return;
     if (runtimeState.optionsUI.returnMode !== null) return; // read-only in-game
-    const el = ensureSeedInput();
-    el.value = runtimeState.settings.seed;
+    const element = ensureSeedInput();
+    element.value = runtimeState.settings.seed;
     runtimeState.settings.seedMode = SEED_CUSTOM;
-    el.focus({ preventScroll: true });
+    element.focus({ preventScroll: true });
   }
 
   function blurSeedInput(): void {
@@ -211,8 +211,8 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   function closeControls(): void {
     if (runtimeState.optionsUI.returnMode !== null) {
       for (const ctrl of runtimeState.controllers) {
-        const kb = runtimeState.settings.keyBindings[ctrl.playerId];
-        if (kb) ctrl.updateBindings(kb);
+        const keyBindings = runtimeState.settings.keyBindings[ctrl.playerId];
+        if (keyBindings) ctrl.updateBindings(keyBindings);
       }
     }
     deps.closeControlsShared(uiCtx);
@@ -280,11 +280,11 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
       if (!runtimeState.controlsState.rebinding) closeControls();
       return;
     }
-    const cs = runtimeState.controlsState;
-    if (cs.rebinding) return; // ignore taps while waiting for key press
-    cs.playerIdx = hit.playerIdx;
-    cs.actionIdx = hit.actionIdx;
-    cs.rebinding = true;
+    const controlsState = runtimeState.controlsState;
+    if (controlsState.rebinding) return; // ignore taps while waiting for key press
+    controlsState.playerIdx = hit.playerIdx;
+    controlsState.actionIdx = hit.actionIdx;
+    controlsState.rebinding = true;
   }
 
   function controlsCursorAt(canvasX: number, canvasY: number): string {

@@ -127,8 +127,8 @@ export function aimCannons(
   if (!player) return;
   // Collect captured cannon refs so we skip them from the owner's own aiming
   const capturedByOthers = new Set<Cannon>();
-  for (const cc of state.capturedCannons) {
-    capturedByOthers.add(cc.cannon);
+  for (const captured of state.capturedCannons) {
+    capturedByOthers.add(captured.cannon);
   }
   // Infinity = snap instantly (used when dt <= 0, e.g. initial facing setup)
   const maxStep = dt > 0 ? CANNON_ROTATE_SPEED * dt : Infinity;
@@ -148,10 +148,10 @@ export function aimCannons(
     aimAt(cannon);
   }
   // Aim captured cannons toward the capturer's crosshair
-  for (const cc of state.capturedCannons) {
-    if (cc.capturerId !== playerId) continue;
-    if (!isCannonAlive(cc.cannon)) continue;
-    aimAt(cc.cannon);
+  for (const captured of state.capturedCannons) {
+    if (captured.capturerId !== playerId) continue;
+    if (!isCannonAlive(captured.cannon)) continue;
+    aimAt(captured.cannon);
   }
 }
 
@@ -396,8 +396,8 @@ export function resolveBalloons(state: GameState): BalloonFlight[] {
  */
 export function cleanupBalloonHitTrackingAfterBattle(state: GameState): void {
   // 1. Remove entries for captured cannons (capture is resolved)
-  for (const cc of state.capturedCannons) {
-    state.balloonHits.delete(cc.cannon);
+  for (const captured of state.capturedCannons) {
+    state.balloonHits.delete(captured.cannon);
   }
 
   // 2. Remove entries for destroyed cannons (no longer targetable)
@@ -513,7 +513,7 @@ export function fireNextReadyCannon(
   if (result.type === "own") {
     fireCannon(state, playerId, result.ownIdx, targetRow, targetCol);
   } else {
-    fireSingleCaptured(state, result.cc, targetRow, targetCol);
+    fireSingleCaptured(state, result.captured, targetRow, targetCol);
   }
   return { result, rotationIdx: result.combinedIdx };
 }
@@ -552,7 +552,7 @@ export function nextReadyCombined(
   if (!player) return null;
   const ownCount = player.cannons.length;
   const captured = state.capturedCannons.filter(
-    (cc) => cc.capturerId === playerId,
+    (captured) => captured.capturerId === playerId,
   );
   const total = ownCount + captured.length;
   if (total === 0) return null;
@@ -565,9 +565,9 @@ export function nextReadyCombined(
         return { type: "own", combinedIdx: i, ownIdx: i };
       }
     } else {
-      const cc = captured[i - ownCount]!;
-      if (canFireCapturedCannon(state, cc)) {
-        return { type: "captured", combinedIdx: i, cc };
+      const cannon = captured[i - ownCount]!;
+      if (canFireCapturedCannon(state, cannon)) {
+        return { type: "captured", combinedIdx: i, captured: cannon };
       }
     }
   }
@@ -593,7 +593,8 @@ export function canFireOwnCannon(
   // Captured cannons cannot be fired by their original owner
   if (
     state.capturedCannons.some(
-      (cc) => cc.cannon === cannon && cc.victimId === playerId,
+      (captured) =>
+        captured.cannon === cannon && captured.victimId === playerId,
     )
   )
     return false;
@@ -610,11 +611,11 @@ export function canFireOwnCannon(
  */
 function fireSingleCaptured(
   state: GameState,
-  cc: CapturedCannon,
+  captured: CapturedCannon,
   targetRow: number,
   targetCol: number,
 ): boolean {
-  return fireCapturedCannon(state, cc, targetRow, targetCol);
+  return fireCapturedCannon(state, captured, targetRow, targetCol);
 }
 
 /** The player who gets credit for this cannonball's effects.
@@ -628,19 +629,19 @@ function getCannonballScorer(ball: {
 
 function fireCapturedCannon(
   state: GameState,
-  cc: CapturedCannon,
+  captured: CapturedCannon,
   targetRow: number,
   targetCol: number,
 ): boolean {
-  if (!canFireCapturedCannon(state, cc)) return false;
+  if (!canFireCapturedCannon(state, captured)) return false;
   launchCannonball(
     state,
-    cc.cannon,
-    cc.cannonIdx,
-    cc.victimId,
+    captured.cannon,
+    captured.cannonIdx,
+    captured.victimId,
     targetRow,
     targetCol,
-    cc.capturerId,
+    captured.capturerId,
   );
   state.shotsFired++;
   return true;
@@ -660,17 +661,17 @@ function launchCannonball(
   scoringPlayerId?: number,
 ): void {
   const { x: startX, y: startY } = cannonCenter(cannon);
-  const tX = (targetCol + TILE_CENTER_OFFSET) * TILE_SIZE;
-  const tY = (targetRow + TILE_CENTER_OFFSET) * TILE_SIZE;
-  cannon.facing = computeFacing45(startX, startY, tX, tY);
+  const targetX = (targetCol + TILE_CENTER_OFFSET) * TILE_SIZE;
+  const targetY = (targetRow + TILE_CENTER_OFFSET) * TILE_SIZE;
+  cannon.facing = computeFacing45(startX, startY, targetX, targetY);
   state.cannonballs.push({
     cannonIdx,
     startX,
     startY,
     x: startX,
     y: startY,
-    targetX: tX,
-    targetY: tY,
+    targetX,
+    targetY,
     speed:
       BALL_SPEED *
       (state.players[playerId]?.upgrades.get(UID.RAPID_FIRE)
@@ -690,12 +691,13 @@ function launchCannonball(
  *  - No "already captured" check (it IS the captured entry) */
 function canFireCapturedCannon(
   state: { readonly cannonballs: readonly Cannonball[] },
-  cc: CapturedCannon,
+  captured: CapturedCannon,
 ): boolean {
-  if (!isCannonAlive(cc.cannon)) return false;
-  if (cc.cannonIdx === CANNON_NOT_FOUND) return false;
+  if (!isCannonAlive(captured.cannon)) return false;
+  if (captured.cannonIdx === CANNON_NOT_FOUND) return false;
   return !state.cannonballs.some(
-    (b) => b.playerId === cc.victimId && b.cannonIdx === cc.cannonIdx,
+    (b) =>
+      b.playerId === captured.victimId && b.cannonIdx === captured.cannonIdx,
   );
 }
 
@@ -804,14 +806,14 @@ function collectCannonImpacts(
 ): ImpactEvent[] {
   const events: ImpactEvent[] = [];
   for (const player of state.players) {
-    for (let ci = 0; ci < player.cannons.length; ci++) {
-      const cannon = player.cannons[ci]!;
+    for (let cannonIdx = 0; cannonIdx < player.cannons.length; cannonIdx++) {
+      const cannon = player.cannons[cannonIdx]!;
       if (!isCannonAlive(cannon) || isBalloonCannon(cannon)) continue;
       if (isCannonTile(cannon, row, col)) {
         events.push({
           type: MESSAGE.CANNON_DAMAGED,
           playerId: player.id,
-          cannonIdx: ci,
+          cannonIdx,
           newHp: cannon.hp - 1,
           shooterId,
         });

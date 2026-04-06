@@ -136,7 +136,7 @@ export type CreateEnemyZoomButtonFn = (
 
 export type CreateFloatingActionsFn = (
   deps: FloatingActionsDeps,
-  el: HTMLElement,
+  element: HTMLElement,
 ) => FloatingActionsHandle;
 
 const CLS_DISABLED = "disabled";
@@ -286,11 +286,11 @@ export function createHomeZoomButton(
     const current = deps.getCameraZone();
     const myZone = getMyZone();
     const isHome = current === myZone && myZone !== null;
-    const bg = zoomButtonBg(
+    const background = zoomButtonBg(
       isHome ? -1 : deps.povPlayerId(),
       TOUCH_ZOOM_HOME_BG,
     );
-    for (const btn of buttons) btn.style.background = bg;
+    for (const btn of buttons) btn.style.background = background;
   }
 
   for (const btn of buttons) {
@@ -345,8 +345,8 @@ export function createEnemyZoomButton(
     const pid =
       zone !== undefined && state ? state.playerZones.indexOf(zone) : -1;
     const isActive = zone !== undefined && getEnemyZones().includes(zone);
-    const bg = zoomButtonBg(isActive ? pid : -1, TOUCH_ZOOM_ENEMY_BG);
-    for (const btn of buttons) btn.style.background = bg;
+    const background = zoomButtonBg(isActive ? pid : -1, TOUCH_ZOOM_ENEMY_BG);
+    for (const btn of buttons) btn.style.background = background;
   }
 
   for (const btn of buttons) {
@@ -380,12 +380,12 @@ export function createEnemyZoomButton(
  */
 export function createFloatingActions(
   deps: FloatingActionsDeps,
-  el: HTMLElement,
+  element: HTMLElement,
 ): FloatingActionsHandle {
-  const btnRotate = el.querySelector<HTMLButtonElement>(
+  const btnRotate = element.querySelector<HTMLButtonElement>(
     '[data-action="float-rotate"]',
   )!;
-  const btnConfirm = el.querySelector<HTMLButtonElement>(
+  const btnConfirm = element.querySelector<HTMLButtonElement>(
     '[data-action="float-confirm"]',
   )!;
 
@@ -422,9 +422,9 @@ export function createFloatingActions(
 
   return {
     update(visible, x, y, nearTop, leftHanded) {
-      el.classList.toggle("visible", visible);
+      element.classList.toggle("visible", visible);
       if (!visible) return;
-      const h = el.offsetHeight;
+      const h = element.offsetHeight;
       const gap = h * 0.25;
       let left: number;
       let top: number;
@@ -436,8 +436,8 @@ export function createFloatingActions(
         left = x;
         top = y - h - gap;
       }
-      el.style.left = `${Math.round(Math.max(0, left))}px`;
-      el.style.top = `${Math.round(Math.max(0, top))}px`;
+      element.style.left = `${Math.round(Math.max(0, left))}px`;
+      element.style.top = `${Math.round(Math.max(0, top))}px`;
     },
     setConfirmValid(valid) {
       btnConfirm.classList.toggle(CLS_DISABLED, !valid);

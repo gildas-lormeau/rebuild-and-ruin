@@ -77,7 +77,7 @@ export interface CapturedCannon {
 /** Result from nextReadyCombined — either an own cannon or a captured one. */
 export type CombinedCannonResult =
   | { type: "own"; combinedIdx: number; ownIdx: number }
-  | { type: "captured"; combinedIdx: number; cc: CapturedCannon };
+  | { type: "captured"; combinedIdx: number; captured: CapturedCannon };
 
 /** Flight path for a balloon animation. */
 export interface BalloonFlight {

@@ -266,20 +266,20 @@ export function createSoundSystem(): SoundSystem {
       pool = [];
       audioPool.set(key, pool);
     }
-    for (const el of pool) {
-      if (el.ended || el.paused) {
-        el.currentTime = 0;
-        return el;
+    for (const element of pool) {
+      if (element.ended || element.paused) {
+        element.currentTime = 0;
+        return element;
       }
     }
     if (pool.length < POOL_SIZE) {
-      const el = new Audio(getWav(key));
-      pool.push(el);
-      return el;
+      const element = new Audio(getWav(key));
+      pool.push(element);
+      return element;
     }
-    const el = pool[0]!;
-    el.currentTime = 0;
-    return el;
+    const element = pool[0]!;
+    element.currentTime = 0;
+    return element;
   }
 
   function play(key: SfxKey, minLevel: number): void {
@@ -873,8 +873,8 @@ function scheduleSnareRoll(
     for (let i = 0; i < bufLen; i++) {
       const tSample = i / audioCtx.sampleRate;
       let timeSinceStroke = strokeInterval;
-      for (const st of strokeTimes) {
-        const delta = tSample - st;
+      for (const stroke of strokeTimes) {
+        const delta = tSample - stroke;
         if (delta >= 0 && delta < timeSinceStroke) timeSinceStroke = delta;
       }
       const phase = timeSinceStroke / strokeInterval;

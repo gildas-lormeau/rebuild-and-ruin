@@ -31,8 +31,8 @@ let _client: OnlineClient;
 
 /** Bind the GameRuntime reference. Called once from online-runtime-game.ts
  *  after the GameRuntime is created. */
-export function initPromote(rt: GameRuntime, client: OnlineClient): void {
-  _runtime = rt;
+export function initPromote(runtime: GameRuntime, client: OnlineClient): void {
+  _runtime = runtime;
   _client = client;
 }
 

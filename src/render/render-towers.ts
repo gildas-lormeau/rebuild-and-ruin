@@ -67,9 +67,9 @@ export function drawTowers(
       drawTowerHighlight(overlayCtx, cx, cy, undefined, now);
     }
     if (overlay?.selection?.highlights) {
-      for (const hl of overlay.selection.highlights) {
-        if (hl.towerIdx === i) {
-          const c = getPlayerColor(hl.playerId).interiorLight;
+      for (const highlight of overlay.selection.highlights) {
+        if (highlight.towerIdx === i) {
+          const c = getPlayerColor(highlight.playerId).interiorLight;
           drawTowerHighlight(overlayCtx, cx, cy, rgb(c), now);
         }
       }

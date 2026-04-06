@@ -41,8 +41,10 @@ export function createComboTracker(playerCount: number): ComboTracker {
 
 /** Called at end of battle to award demolition bonuses. Returns total bonus per player. */
 export function comboDemolitionBonus(tracker: ComboTracker): number[] {
-  return tracker.players.map((ps) =>
-    ps.wallsDestroyedThisRound >= DEMOLITION_THRESHOLD ? DEMOLITION_BONUS : 0,
+  return tracker.players.map((playerState) =>
+    playerState.wallsDestroyedThisRound >= DEMOLITION_THRESHOLD
+      ? DEMOLITION_BONUS
+      : 0,
   );
 }
 
@@ -78,23 +80,23 @@ export function comboOnWallDestroyed(
   shooterId: ValidPlayerSlot,
   battleTime: number,
 ): number {
-  const ps = tracker.players[shooterId];
-  if (!ps) return 0;
+  const playerState = tracker.players[shooterId];
+  if (!playerState) return 0;
 
-  ps.wallsDestroyedThisRound++;
+  playerState.wallsDestroyedThisRound++;
 
   // Check if within streak window
-  if (battleTime - ps.lastWallHitTime <= STREAK_WINDOW) {
-    ps.wallStreak++;
+  if (battleTime - playerState.lastWallHitTime <= STREAK_WINDOW) {
+    playerState.wallStreak++;
   } else {
-    ps.wallStreak = 1;
+    playerState.wallStreak = 1;
   }
-  ps.lastWallHitTime = battleTime;
+  playerState.lastWallHitTime = battleTime;
 
   // Wall streak bonus
-  if (ps.wallStreak >= WALL_STREAK_MIN) {
+  if (playerState.wallStreak >= WALL_STREAK_MIN) {
     tracker.events.push({
-      text: `Wall Streak x${ps.wallStreak}! +${WALL_STREAK_BONUS}`,
+      text: `Wall Streak x${playerState.wallStreak}! +${WALL_STREAK_BONUS}`,
       age: 0,
       playerId: shooterId,
     });
@@ -107,8 +109,8 @@ export function comboOnCannonKill(
   tracker: ComboTracker,
   shooterId: ValidPlayerSlot,
 ): number {
-  const ps = tracker.players[shooterId];
-  if (!ps) return 0;
+  const playerState = tracker.players[shooterId];
+  if (!playerState) return 0;
   tracker.events.push({
     text: `Cannon Kill! +${CANNON_KILL_BONUS}`,
     age: 0,
@@ -122,19 +124,19 @@ export function comboOnGruntKill(
   shooterId: ValidPlayerSlot,
   battleTime: number,
 ): number {
-  const ps = tracker.players[shooterId];
-  if (!ps) return 0;
+  const playerState = tracker.players[shooterId];
+  if (!playerState) return 0;
 
-  if (battleTime - ps.lastGruntKillTime <= STREAK_WINDOW) {
-    ps.gruntStreak++;
+  if (battleTime - playerState.lastGruntKillTime <= STREAK_WINDOW) {
+    playerState.gruntStreak++;
   } else {
-    ps.gruntStreak = 1;
+    playerState.gruntStreak = 1;
   }
-  ps.lastGruntKillTime = battleTime;
+  playerState.lastGruntKillTime = battleTime;
 
-  if (ps.gruntStreak >= GRUNT_STREAK_MIN) {
+  if (playerState.gruntStreak >= GRUNT_STREAK_MIN) {
     tracker.events.push({
-      text: `Grunt Sniper x${ps.gruntStreak}! +${GRUNT_STREAK_BONUS}`,
+      text: `Grunt Sniper x${playerState.gruntStreak}! +${GRUNT_STREAK_BONUS}`,
       age: 0,
       playerId: shooterId,
     });
@@ -150,6 +152,8 @@ export function tickComboTracking(state: GameState, dt: number): void {
 
 /** Age combo events by dt seconds, remove expired ones (> 2s). */
 function ageComboEvents(tracker: ComboTracker, dt: number): void {
-  for (const ev of tracker.events) ev.age += dt;
-  tracker.events = tracker.events.filter((ev) => ev.age < COMBO_EVENT_LIFETIME);
+  for (const event of tracker.events) event.age += dt;
+  tracker.events = tracker.events.filter(
+    (event) => event.age < COMBO_EVENT_LIFETIME,
+  );
 }

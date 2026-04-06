@@ -227,24 +227,24 @@ export function computeCardinalObstacleMask(
     false,
     false,
   ];
-  for (let di = 0; di < 4; di++) {
-    const [dr, dc] = DIRS_4[di]!;
+  for (let dirIdx = 0; dirIdx < 4; dirIdx++) {
+    const [dr, dc] = DIRS_4[dirIdx]!;
     const nr = row + dr;
     const nc = col + dc;
     if (!inBounds(nr, nc)) {
-      obstacles[di] = true;
+      obstacles[dirIdx] = true;
       continue;
     }
     if (isWater(state.map.tiles, nr, nc)) {
-      obstacles[di] = true;
+      obstacles[dirIdx] = true;
       continue;
     }
     if (hasTowerAt(state, nr, nc)) {
-      obstacles[di] = true;
+      obstacles[dirIdx] = true;
       continue;
     }
     if (hasPitAt(state.burningPits, nr, nc)) {
-      obstacles[di] = true;
+      obstacles[dirIdx] = true;
       continue;
     }
     if (
@@ -252,7 +252,7 @@ export function computeCardinalObstacleMask(
         excludeBalloonCannons: options?.excludeBalloonCannons,
       })
     ) {
-      obstacles[di] = true;
+      obstacles[dirIdx] = true;
       continue;
     }
   }
@@ -415,12 +415,12 @@ export function getBattleInterior(player: Player): ReadonlySet<number> {
  *  not a runtime condition. No-op if epochs were never initialized (e.g. tests
  *  that don't call markWallsDirty). */
 export function assertInteriorFresh(player: Player): void {
-  const we = wallsEpoch.get(player);
-  if (we === undefined) return; // epoch tracking not active for this player
-  const ie = interiorEpoch.get(player) ?? -1;
-  if (ie < we) {
+  const currentWallsEpoch = wallsEpoch.get(player);
+  if (currentWallsEpoch === undefined) return; // epoch tracking not active for this player
+  const currentInteriorEpoch = interiorEpoch.get(player) ?? -1;
+  if (currentInteriorEpoch < currentWallsEpoch) {
     throw new Error(
-      `Stale interior for player ${player.id}: walls epoch ${we} > interior epoch ${ie}. ` +
+      `Stale interior for player ${player.id}: walls epoch ${currentWallsEpoch} > interior epoch ${currentInteriorEpoch}. ` +
         `Call recheckTerritoryOnly() after wall mutations before reading interior.`,
     );
   }

@@ -87,20 +87,22 @@ const VALID_GAME_MODES = ["classic", "modern"];
 
 /** Clamp untrusted client settings to valid ranges. */
 export function sanitizeRoomSettings(raw: Partial<RoomSettings>): RoomSettings {
-  const bl = Number(raw.maxRounds);
-  const hp = Number(raw.cannonMaxHp);
+  const maxRounds = Number(raw.maxRounds);
+  const cannonMaxHp = Number(raw.cannonMaxHp);
   const wait = Number(raw.waitTimerSec);
   const seed = raw.seed != null ? Math.floor(Number(raw.seed)) : undefined;
-  const gm = String(raw.gameMode ?? "classic");
+  const gameMode = String(raw.gameMode ?? "classic");
   return {
-    maxRounds: VALID_MAX_ROUNDS.includes(bl) ? bl : 0,
-    cannonMaxHp: VALID_CANNON_HP.includes(hp) ? hp : DEFAULT_CANNON_HP,
+    maxRounds: VALID_MAX_ROUNDS.includes(maxRounds) ? maxRounds : 0,
+    cannonMaxHp: VALID_CANNON_HP.includes(cannonMaxHp)
+      ? cannonMaxHp
+      : DEFAULT_CANNON_HP,
     waitTimerSec:
       Number.isFinite(wait) && wait >= 0
         ? Math.min(wait, MAX_WAIT_TIMER_SEC)
         : DEFAULT_WAIT_TIMER_SEC,
     seed: Number.isFinite(seed) ? seed : undefined,
-    gameMode: VALID_GAME_MODES.includes(gm) ? gm : "classic",
+    gameMode: VALID_GAME_MODES.includes(gameMode) ? gameMode : "classic",
   };
 }
 

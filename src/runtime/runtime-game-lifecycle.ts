@@ -214,11 +214,13 @@ export function createGameLifecycle(
   };
 }
 
-export function buildLifecycleDeps(wd: LifecycleWiringDeps): GameLifecycleDeps {
-  const { runtimeState, config } = wd;
+export function buildLifecycleDeps(
+  wiringDeps: LifecycleWiringDeps,
+): GameLifecycleDeps {
+  const { runtimeState, config } = wiringDeps;
   return {
     log: config.log,
-    bootstrapNewGame: wd.bootstrapNewGame,
+    bootstrapNewGame: wiringDeps.bootstrapNewGame,
 
     setGameOverFrame: (winner) => {
       const name = PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`;
@@ -249,39 +251,40 @@ export function buildLifecycleDeps(wd: LifecycleWiringDeps): GameLifecycleDeps {
     },
 
     resetAll: () => {
-      wd.selection.reset();
-      wd.banner.reset();
+      wiringDeps.selection.reset();
+      wiringDeps.banner.reset();
       resetTransientState(runtimeState);
-      wd.getLifeLost().set(null);
-      wd.getUpgradePick().set(null);
-      wd.scoreDelta.reset();
-      wd.camera.resetBattleCrosshair();
+      wiringDeps.getLifeLost().set(null);
+      wiringDeps.getUpgradePick().set(null);
+      wiringDeps.scoreDelta.reset();
+      wiringDeps.camera.resetBattleCrosshair();
       runtimeState.scoreDisplay.gameStats = Array.from(
         { length: MAX_PLAYERS },
         () => ({ wallsDestroyed: 0, cannonsKilled: 0 }),
       );
-      wd.camera.resetCamera();
-      wd.sound.reset();
+      wiringDeps.camera.resetCamera();
+      wiringDeps.sound.reset();
     },
-    resetScoreDeltas: wd.scoreDelta.reset,
+    resetScoreDeltas: wiringDeps.scoreDelta.reset,
     resetDialogs: () => {
-      wd.getLifeLost().set(null);
-      wd.getUpgradePick().set(null);
+      wiringDeps.getLifeLost().set(null);
+      wiringDeps.getUpgradePick().set(null);
     },
-    resetLifeLostDialog: () => wd.getLifeLost().set(null),
-    clearAllZoomState: wd.camera.clearAllZoomState,
-    resetInputForLobby: () => wd.input.resetForLobby(wd.runtimeState),
+    resetLifeLostDialog: () => wiringDeps.getLifeLost().set(null),
+    clearAllZoomState: wiringDeps.camera.clearAllZoomState,
+    resetInputForLobby: () =>
+      wiringDeps.input.resetForLobby(wiringDeps.runtimeState),
 
-    soundReset: wd.sound.reset,
-    soundGameOver: wd.sound.gameOver,
+    soundReset: wiringDeps.sound.reset,
+    soundGameOver: wiringDeps.sound.gameOver,
 
-    render: wd.render,
-    requestMainLoop: wd.requestMainLoop,
+    render: wiringDeps.render,
+    requestMainLoop: wiringDeps.requestMainLoop,
     showLobby: config.showLobby,
 
-    hitTestGameOver: wd.hitTestGameOver,
+    hitTestGameOver: wiringDeps.hitTestGameOver,
     getGameOverFocused: () =>
       runtimeState.frame.gameOver?.focused ?? FOCUS_REMATCH,
-    isTouchDevice: wd.isTouchDevice,
+    isTouchDevice: wiringDeps.isTouchDevice,
   };
 }

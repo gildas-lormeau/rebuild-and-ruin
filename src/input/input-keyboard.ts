@@ -324,17 +324,17 @@ function handleKeyGame(
 
 /** Apply a key rebinding with conflict resolution (swap conflicting key). */
 function applyKeyRebinding(
-  kb: KeyBindings,
+  keyBindings: KeyBindings,
   actionKey: string,
   newKey: string,
 ): void {
   for (const otherAction of ACTION_KEYS) {
     if (otherAction === actionKey) continue;
-    if (kb[otherAction as keyof KeyBindings] === newKey) {
-      (kb as unknown as Record<string, string>)[otherAction] =
-        kb[actionKey as keyof KeyBindings];
+    if (keyBindings[otherAction as keyof KeyBindings] === newKey) {
+      (keyBindings as unknown as Record<string, string>)[otherAction] =
+        keyBindings[actionKey as keyof KeyBindings];
       break;
     }
   }
-  (kb as unknown as Record<string, string>)[actionKey] = newKey;
+  (keyBindings as unknown as Record<string, string>)[actionKey] = newKey;
 }

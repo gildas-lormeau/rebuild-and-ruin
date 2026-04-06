@@ -120,9 +120,9 @@ export function createUpgradePickSystem(
       );
       applyUpgradePicks(runtimeState.state, dialog);
       runtimeState.upgradePickDialog = null;
-      const cb = resolveCallback;
+      const callback = resolveCallback;
       resolveCallback = undefined;
-      cb?.();
+      callback?.();
     }
   }
 

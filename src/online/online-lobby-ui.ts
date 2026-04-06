@@ -123,7 +123,7 @@ export function initLobbyUi({
       doJoin(code.toUpperCase());
     };
 
-    const el = (tag: string, cls: string, text?: string) => {
+    const element = (tag: string, cls: string, text?: string) => {
       const e = doc.createElement(tag);
       e.className = cls;
       if (text) e.textContent = text;
@@ -132,7 +132,7 @@ export function initLobbyUi({
 
     const setMessage = (cls: string, text: string) => {
       roomListEl.innerHTML = "";
-      roomListEl.appendChild(el("div", cls, text));
+      roomListEl.appendChild(element("div", cls, text));
     };
 
     const renderRoomList = (
@@ -157,10 +157,10 @@ export function initLobbyUi({
             : `${Math.floor(sec / SECS_PER_HOUR)}h ago`;
       roomListEl.innerHTML = "";
       for (const r of rooms) {
-        const item = el("div", "room-item");
+        const item = element("div", "room-item");
         item.dataset["code"] = r.code;
-        item.appendChild(el("span", "room-code", r.code));
-        const info = el("span", "room-info");
+        item.appendChild(element("span", "room-code", r.code));
+        const info = element("span", "room-info");
         info.append(
           `${r.players}/${MAX_PLAYERS} players · ${ageLabel(r.elapsedSec)}`,
           doc.createElement("br"),
@@ -235,10 +235,10 @@ export function buildRoomCodeOverlay(
     textAlign: "center",
   });
   wrapper.textContent = code;
-  const qr = doc.createElement("img");
-  qr.src = qrSrc;
-  qr.alt = "QR";
-  Object.assign(qr.style, {
+  const qrImage = doc.createElement("img");
+  qrImage.src = qrSrc;
+  qrImage.alt = "QR";
+  Object.assign(qrImage.style, {
     display: "block",
     margin: "8px auto 0",
     width: "120px",
@@ -246,9 +246,9 @@ export function buildRoomCodeOverlay(
     imageRendering: "pixelated",
     borderRadius: "4px",
   });
-  qr.addEventListener("error", () => {
-    qr.style.display = "none";
+  qrImage.addEventListener("error", () => {
+    qrImage.style.display = "none";
   });
-  wrapper.appendChild(qr);
+  wrapper.appendChild(qrImage);
   overlay.appendChild(wrapper);
 }

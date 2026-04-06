@@ -196,8 +196,12 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
 
     if (isHostInContext(deps.net) && sendOpponentCannonPlaced) {
       const cannonsAfter = state.players[ctrl.playerId]!.cannons.length;
-      for (let ci = cannonsBefore; ci < cannonsAfter; ci++) {
-        const c = state.players[ctrl.playerId]!.cannons[ci]!;
+      for (
+        let cannonIdx = cannonsBefore;
+        cannonIdx < cannonsAfter;
+        cannonIdx++
+      ) {
+        const c = state.players[ctrl.playerId]!.cannons[cannonIdx]!;
         sendOpponentCannonPlaced({
           playerId: ctrl.playerId,
           row: c.row,

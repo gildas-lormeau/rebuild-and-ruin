@@ -158,8 +158,8 @@ export function applyPiecePlacement(
   addPlayerWalls(player, pieceKeys);
   for (const house of state.map.houses) {
     if (!house.alive) continue;
-    const hKey = packTile(house.row, house.col);
-    if (pieceKeys.has(hKey)) {
+    const houseKey = packTile(house.row, house.col);
+    if (pieceKeys.has(houseKey)) {
       house.alive = false;
       destroyedHousePositions.push({ row: house.row, col: house.col });
     }
@@ -241,7 +241,7 @@ export function replenishBonusSquares(state: GameState): void {
 
   for (const zoneId of mainZones) {
     const existing = state.bonusSquares.filter(
-      (bs) => bs.zone === zoneId,
+      (bonus) => bonus.zone === zoneId,
     ).length;
     const needed = BONUS_SQUARES_PER_ZONE - existing;
     if (needed <= 0) continue;
@@ -261,8 +261,9 @@ export function replenishBonusSquares(state: GameState): void {
       if (placed >= needed) break;
       // Ensure minimum distance from every existing bonus square
       const tooClose = state.bonusSquares.some(
-        (bs) =>
-          manhattanDistance(bs.row, bs.col, r, c) < BONUS_SQUARE_MIN_DISTANCE,
+        (bonus) =>
+          manhattanDistance(bonus.row, bonus.col, r, c) <
+          BONUS_SQUARE_MIN_DISTANCE,
       );
       if (tooClose) continue;
       occupied.add(packTile(r, c));
@@ -416,17 +417,17 @@ function removeEnclosedGruntsAndRespawn(
  *  Called at end of build to prevent reviving towers that lost enclosure. */
 function clearUnenclosedPendingRevives(state: GameState): void {
   const toRemove: number[] = [];
-  for (const ti of state.towerPendingRevive) {
-    if (ti < 0 || ti >= state.map.towers.length) {
-      toRemove.push(ti);
+  for (const towerIdx of state.towerPendingRevive) {
+    if (towerIdx < 0 || towerIdx >= state.map.towers.length) {
+      toRemove.push(towerIdx);
       continue;
     }
     const isEnclosed = state.players.some((player) =>
-      player.ownedTowers.includes(state.map.towers[ti]!),
+      player.ownedTowers.includes(state.map.towers[towerIdx]!),
     );
-    if (!isEnclosed) toRemove.push(ti);
+    if (!isEnclosed) toRemove.push(towerIdx);
   }
-  for (const ti of toRemove) state.towerPendingRevive.delete(ti);
+  for (const towerIdx of toRemove) state.towerPendingRevive.delete(towerIdx);
 }
 
 /** Recompute a player's interior via inverse flood-fill from map edges.
@@ -479,9 +480,9 @@ function captureEnclosedBonusSquares(
   interior: FreshInterior,
 ): void {
   const territorySize = interior.size;
-  state.bonusSquares = state.bonusSquares.filter((bs) => {
-    const bKey = packTile(bs.row, bs.col);
-    if (interior.has(bKey)) {
+  state.bonusSquares = state.bonusSquares.filter((bonus) => {
+    const bonusSquareKey = packTile(bonus.row, bonus.col);
+    if (interior.has(bonusSquareKey)) {
       player.score += territoryBonusSquarePoints(territorySize);
       return false;
     }
@@ -515,7 +516,9 @@ function isTowerOwnedByPlayer(
 /** Remove grunts that landed on any player's territory during processing. */
 function sweepMisplacedGrunts(state: GameState): void {
   state.grunts = state.grunts.filter((grunt) => {
-    const gKey = packTile(grunt.row, grunt.col);
-    return !state.players.some((player) => isTileOwnedByPlayer(player, gKey));
+    const gruntKey = packTile(grunt.row, grunt.col);
+    return !state.players.some((player) =>
+      isTileOwnedByPlayer(player, gruntKey),
+    );
   });
 }

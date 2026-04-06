@@ -175,7 +175,7 @@ let bridge: E2EBridge | undefined;
 export function exposeE2EBridge(deps: E2EBridgeDeps): void {
   if (typeof window === "undefined") return;
 
-  const { runtimeState: rs, config } = deps;
+  const { runtimeState: runtimeState, config } = deps;
   const win = globalThis as unknown as Record<string, unknown>;
 
   if (bridge === undefined) {
@@ -223,27 +223,27 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
   }
 
   // --- Core ---
-  bridge.mode = Mode[rs.mode];
-  const ready = isStateReady(rs);
-  bridge.phase = ready ? Phase[rs.state.phase] : "";
-  bridge.round = ready ? rs.state.round : 0;
-  bridge.timer = ready ? rs.state.timer : 0;
+  bridge.mode = Mode[runtimeState.mode];
+  const ready = isStateReady(runtimeState);
+  bridge.phase = ready ? Phase[runtimeState.state.phase] : "";
+  bridge.round = ready ? runtimeState.state.round : 0;
+  bridge.timer = ready ? runtimeState.state.timer : 0;
 
   // --- Overlay ---
-  bridge.overlay.entities = snapshotEntities(rs);
-  bridge.overlay.bannerPrevEntities = snapshotBannerPrevEntities(rs);
-  bridge.overlay.phantoms = snapshotPhantoms(rs);
-  bridge.overlay.banner = snapshotBanner(rs);
-  bridge.overlay.battle = snapshotBattle(rs);
-  bridge.overlay.ui = snapshotUI(rs);
+  bridge.overlay.entities = snapshotEntities(runtimeState);
+  bridge.overlay.bannerPrevEntities = snapshotBannerPrevEntities(runtimeState);
+  bridge.overlay.phantoms = snapshotPhantoms(runtimeState);
+  bridge.overlay.banner = snapshotBanner(runtimeState);
+  bridge.overlay.battle = snapshotBattle(runtimeState);
+  bridge.overlay.ui = snapshotUI(runtimeState);
 
   // --- Players ---
-  bridge.players = ready ? snapshotPlayers(rs.state) : [];
+  bridge.players = ready ? snapshotPlayers(runtimeState.state) : [];
 
   // --- Controller ---
   // In local mode getMyPlayerId() returns -1; fall back to slot 0 (first human)
   const myPid = config.getMyPlayerId() >= 0 ? config.getMyPlayerId() : 0;
-  bridge.controller = ready ? snapshotController(rs, myPid) : null;
+  bridge.controller = ready ? snapshotController(runtimeState, myPid) : null;
 
   // --- Camera ---
   bridge.camera.viewport = deps.camera.getViewport();
@@ -255,7 +255,7 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
 
   // --- Targeting (battle simulation) ---
   if (ready) {
-    populateTargeting(bridge, rs.state, myPid);
+    populateTargeting(bridge, runtimeState.state, myPid);
   }
 }
 
@@ -299,15 +299,17 @@ function makeTileToClient(
     worldToClient((col + 0.5) * TILE_SIZE, (row + 0.5) * TILE_SIZE);
 }
 
-function snapshotEntities(rs: RuntimeState): E2EEntitySnapshot | null {
-  const ent = rs.overlay.entities;
+function snapshotEntities(
+  runtimeState: RuntimeState,
+): E2EEntitySnapshot | null {
+  const ent = runtimeState.overlay.entities;
   return ent ? entityOverlayToSnapshot(ent) : null;
 }
 
 function snapshotBannerPrevEntities(
-  rs: RuntimeState,
+  runtimeState: RuntimeState,
 ): E2EEntitySnapshot | null {
-  const prev = rs.overlay.ui?.bannerPrevEntities;
+  const prev = runtimeState.overlay.ui?.bannerPrevEntities;
   return prev ? entityOverlayToSnapshot(prev) : null;
 }
 
@@ -334,17 +336,19 @@ function entityOverlayToSnapshot(
   };
 }
 
-function snapshotPhantoms(rs: RuntimeState): E2EPhantomSnapshot | null {
-  const ph = rs.overlay.phantoms;
-  if (!ph) return null;
+function snapshotPhantoms(
+  runtimeState: RuntimeState,
+): E2EPhantomSnapshot | null {
+  const phantoms = runtimeState.overlay.phantoms;
+  if (!phantoms) return null;
   return {
-    pieces: (ph.piecePhantoms ?? []).map((piece) => ({
+    pieces: (phantoms.piecePhantoms ?? []).map((piece) => ({
       row: piece.row,
       col: piece.col,
       valid: piece.valid,
       playerId: piece.playerId,
     })),
-    cannons: (ph.cannonPhantoms ?? []).map((cannon) => ({
+    cannons: (phantoms.cannonPhantoms ?? []).map((cannon) => ({
       row: cannon.row,
       col: cannon.col,
       valid: cannon.valid,
@@ -354,8 +358,8 @@ function snapshotPhantoms(rs: RuntimeState): E2EPhantomSnapshot | null {
   };
 }
 
-function snapshotBanner(rs: RuntimeState): E2EBannerSnapshot | null {
-  const banner = rs.overlay.ui?.banner;
+function snapshotBanner(runtimeState: RuntimeState): E2EBannerSnapshot | null {
+  const banner = runtimeState.overlay.ui?.banner;
   if (!banner) return null;
   return {
     text: banner.text,
@@ -370,8 +374,8 @@ function snapshotBanner(rs: RuntimeState): E2EBannerSnapshot | null {
   };
 }
 
-function snapshotBattle(rs: RuntimeState): E2EBattleSnapshot | null {
-  const battle = rs.overlay.battle;
+function snapshotBattle(runtimeState: RuntimeState): E2EBattleSnapshot | null {
+  const battle = runtimeState.overlay.battle;
   if (!battle) return null;
   return {
     cannonballs: battle.cannonballs?.length ?? 0,
@@ -384,8 +388,8 @@ function snapshotBattle(rs: RuntimeState): E2EBattleSnapshot | null {
   };
 }
 
-function snapshotUI(rs: RuntimeState): E2EUISnapshot {
-  const ui = rs.overlay.ui;
+function snapshotUI(runtimeState: RuntimeState): E2EUISnapshot {
+  const ui = runtimeState.overlay.ui;
   return {
     statusBar: ui?.statusBar
       ? {
@@ -398,17 +402,17 @@ function snapshotUI(rs: RuntimeState): E2EUISnapshot {
     gameOver: ui?.gameOver ? { winner: ui.gameOver.winner } : null,
     lifeLostDialog: ui?.lifeLostDialog
       ? {
-          entries: ui.lifeLostDialog.entries.map((en) => ({
-            playerId: en.playerId,
-            choice: String(en.choice),
+          entries: ui.lifeLostDialog.entries.map((entry) => ({
+            playerId: entry.playerId,
+            choice: String(entry.choice),
           })),
         }
       : null,
     upgradePick: ui?.upgradePick
       ? {
-          entries: ui.upgradePick.entries.map((en) => ({
-            playerName: en.playerName,
-            resolved: en.resolved,
+          entries: ui.upgradePick.entries.map((entry) => ({
+            playerName: entry.playerName,
+            resolved: entry.resolved,
           })),
         }
       : null,
@@ -416,22 +420,22 @@ function snapshotUI(rs: RuntimeState): E2EUISnapshot {
 }
 
 function snapshotPlayers(state: GameViewState): E2EPlayerSnapshot[] {
-  return state.players.map((pl) => ({
-    id: pl.id,
-    score: pl.score,
-    lives: pl.lives,
-    eliminated: pl.eliminated,
-    walls: pl.walls.size,
-    cannons: pl.cannons.length,
+  return state.players.map((player) => ({
+    id: player.id,
+    score: player.score,
+    lives: player.lives,
+    eliminated: player.eliminated,
+    walls: player.walls.size,
+    cannons: player.cannons.length,
   }));
 }
 
 function snapshotController(
-  rs: RuntimeState,
+  runtimeState: RuntimeState,
   myPid: number,
 ): E2EControllerSnapshot | null {
   if (myPid < 0) return null;
-  const ctrl = rs.controllers[myPid];
+  const ctrl = runtimeState.controllers[myPid];
   if (!ctrl) return null;
   const ch = ctrl.getCrosshair();
   const cannonMode = isHuman(ctrl) ? String(ctrl.getCannonPlaceMode()) : null;

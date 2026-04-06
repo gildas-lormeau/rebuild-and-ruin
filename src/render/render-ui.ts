@@ -260,7 +260,7 @@ export function drawStatusBar(
   overlay?: RenderOverlay,
 ): void {
   if (!overlay?.ui?.statusBar) return;
-  const sb = overlay.ui.statusBar;
+  const statusBar = overlay.ui.statusBar;
   const barH = STATUSBAR_HEIGHT;
   const by = H - barH;
 
@@ -277,17 +277,17 @@ export function drawStatusBar(
   // Left: round + phase + timer
   overlayCtx.textAlign = TEXT_ALIGN_LEFT;
   overlayCtx.fillStyle = STATUS_TEXT_COLOR;
-  let leftText = `${sb.round}  ${sb.phase}  ${sb.timer}`;
-  if (sb.modifier) leftText += `  \u26a0 ${sb.modifier}`;
-  if (sb.upgrades && sb.upgrades.length > 0)
-    leftText += `  \u2726 ${sb.upgrades.join(", ")}`;
+  let leftText = `${statusBar.round}  ${statusBar.phase}  ${statusBar.timer}`;
+  if (statusBar.modifier) leftText += `  \u26a0 ${statusBar.modifier}`;
+  if (statusBar.upgrades && statusBar.upgrades.length > 0)
+    leftText += `  \u2726 ${statusBar.upgrades.join(", ")}`;
   overlayCtx.fillText(leftText, PAD, cy);
 
   // Right: player stats
   overlayCtx.textAlign = TEXT_ALIGN_RIGHT;
   let rx = W - PAD;
-  for (let i = sb.players.length - 1; i >= 0; i--) {
-    const player = sb.players[i]!;
+  for (let i = statusBar.players.length - 1; i >= 0; i--) {
+    const player = statusBar.players[i]!;
     if (player.eliminated) continue;
     const c = player.color;
     // Lives
@@ -321,8 +321,8 @@ export function drawGameOver(
   const gameOverData = overlay.ui.gameOver;
   const sorted = [...gameOverData.scores].sort((a, b) => b.score - a.score);
   const hasStats = sorted.some((e) => e.stats);
-  const lo = gameOverLayout(W, H, gameOverData.scores);
-  const { panelW, panelH, px, py, btnW, btnY, rematchX, menuX } = lo;
+  const layout = gameOverLayout(W, H, gameOverData.scores);
+  const { panelW, panelH, px, py, btnW, btnY, rematchX, menuX } = layout;
 
   drawGameOverPanel(overlayCtx, W, px, py, panelW, panelH, gameOverData.winner);
   drawGameOverScores(overlayCtx, sorted, hasStats, px, py, panelW);
@@ -409,11 +409,11 @@ export function drawComboFloats(
   overlayCtx.font = FONT_BODY;
 
   for (let i = 0; i < floats.length; i++) {
-    const ev = floats[i]!;
-    const alpha = Math.max(0, 1 - ev.age / 2);
-    const rise = ev.age * 20;
+    const float = floats[i]!;
+    const alpha = Math.max(0, 1 - float.age / 2);
+    const rise = float.age * 20;
     overlayCtx.fillStyle = `rgba(255, 215, 100, ${alpha})`;
-    overlayCtx.fillText(ev.text, W / 2, H * 0.35 - rise + i * 16);
+    overlayCtx.fillText(float.text, W / 2, H * 0.35 - rise + i * 16);
   }
   overlayCtx.restore();
 }
@@ -468,11 +468,11 @@ export function drawUpgradePick(
   const totalH = pick.entries.length * entryH - rowGap;
   const startY = Math.max(H * 0.14, (H - totalH - 30) / 2);
 
-  for (let ei = 0; ei < pick.entries.length; ei++) {
-    const entry = pick.entries[ei]!;
+  for (let entryIdx = 0; entryIdx < pick.entries.length; entryIdx++) {
+    const entry = pick.entries[entryIdx]!;
     const isInteractive = entry.interactive;
     const rowX = (W - rowW) / 2;
-    const rowY = startY + ei * entryH;
+    const rowY = startY + entryIdx * entryH;
 
     // Player name
     overlayCtx.font = FONT_BODY;
@@ -482,11 +482,11 @@ export function drawUpgradePick(
 
     const cardsY = rowY + nameH;
 
-    for (let ci = 0; ci < entry.cards.length; ci++) {
+    for (let cardIdx = 0; cardIdx < entry.cards.length; cardIdx++) {
       drawUpgradeCard(
         overlayCtx,
-        entry.cards[ci]!,
-        rowX + ci * (cardW + cardGap),
+        entry.cards[cardIdx]!,
+        rowX + cardIdx * (cardW + cardGap),
         cardsY,
         cardW,
         cardH,
@@ -898,8 +898,8 @@ function drawUpgradeCard(
     }
   }
   if (line) lines.push(line);
-  for (let li = 0; li < lines.length; li++) {
-    ctx.fillText(lines[li]!, cardCx, cy + 46 + li * 12);
+  for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+    ctx.fillText(lines[lineIdx]!, cardCx, cy + 46 + lineIdx * 12);
   }
 
   // Checkmark for picked card

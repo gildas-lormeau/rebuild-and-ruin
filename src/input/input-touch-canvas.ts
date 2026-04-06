@@ -67,27 +67,27 @@ const PINCH_MOVE_THRESHOLD = 10;
 
 export function registerTouchHandlers(deps: RegisterOnlineInputDeps): void {
   const { renderer, coords } = deps;
-  const gs = createGestureState();
+  const gestureState = createGestureState();
 
   renderer.eventTarget.addEventListener(
     "touchstart",
-    (e) => handleTouchStart(e, gs, deps),
+    (e) => handleTouchStart(e, gestureState, deps),
     { passive: false },
   );
   renderer.eventTarget.addEventListener(
     "touchmove",
-    (e) => handleTouchMove(e, gs, deps),
+    (e) => handleTouchMove(e, gestureState, deps),
     { passive: false },
   );
   renderer.eventTarget.addEventListener(
     "touchend",
-    (e) => handleTouchEnd(e, gs, deps),
+    (e) => handleTouchEnd(e, gestureState, deps),
     { passive: false },
   );
   renderer.eventTarget.addEventListener("touchcancel", () => {
-    if (gs.pinchActive) coords.onPinchEnd?.();
-    gs.pinchActive = false;
-    gs.suppressSingleTouch = false;
+    if (gestureState.pinchActive) coords.onPinchEnd?.();
+    gestureState.pinchActive = false;
+    gestureState.suppressSingleTouch = false;
   });
   renderer.eventTarget.addEventListener("contextmenu", (e) =>
     e.preventDefault(),
@@ -109,11 +109,11 @@ function createGestureState(): GestureState {
 
 function handleTouchStart(
   e: TouchEvent,
-  gs: GestureState,
+  gestureState: GestureState,
   deps: RegisterOnlineInputDeps,
 ): void {
   e.preventDefault();
-  gs.shouldDirectlyPlaceOnTap = false;
+  gestureState.shouldDirectlyPlaceOnTap = false;
   const { renderer, getState, getMode, coords } = deps;
 
   // Two-finger pinch start (minimum 2 fingers to distinguish from single-touch pan)
@@ -121,23 +121,23 @@ function handleTouchStart(
   if (e.touches.length >= MIN_PINCH_FINGERS) {
     const c0 = canvasCoords(e.touches[0]!, renderer),
       c1 = canvasCoords(e.touches[1]!, renderer);
-    gs.pinchStartDist = Math.hypot(c1.x - c0.x, c1.y - c0.y);
+    gestureState.pinchStartDist = Math.hypot(c1.x - c0.x, c1.y - c0.y);
     const midX = (c0.x + c1.x) / 2,
       midY = (c0.y + c1.y) / 2;
     coords.onPinchStart?.(midX, midY);
-    gs.pinchActive = true;
-    gs.pinchMoved = false;
-    gs.suppressSingleTouch = true;
+    gestureState.pinchActive = true;
+    gestureState.pinchMoved = false;
+    gestureState.suppressSingleTouch = true;
     return;
   }
-  if (gs.suppressSingleTouch) return;
+  if (gestureState.suppressSingleTouch) return;
 
   const touch = e.touches[0];
   if (!touch) return;
 
-  gs.touchStartX = touch.clientX;
-  gs.touchStartY = touch.clientY;
-  gs.touchStartTime = performance.now();
+  gestureState.touchStartX = touch.clientX;
+  gestureState.touchStartY = touch.clientY;
+  gestureState.touchStartTime = performance.now();
 
   const { x, y } = canvasCoords(touch, renderer);
   const state = getState();
@@ -152,7 +152,7 @@ function handleTouchStart(
       hit = isOnPhantom(human, state.phase, tile.row, tile.col);
     });
     if (hit) {
-      gs.shouldDirectlyPlaceOnTap = true;
+      gestureState.shouldDirectlyPlaceOnTap = true;
       deps.setDirectTouchActive?.(true);
       return;
     }
@@ -168,31 +168,31 @@ function handleTouchStart(
 
 function handleTouchMove(
   e: TouchEvent,
-  gs: GestureState,
+  gestureState: GestureState,
   deps: RegisterOnlineInputDeps,
 ): void {
   e.preventDefault();
   const { renderer, getState, coords } = deps;
 
   // Two-finger pinch move
-  if (gs.pinchActive && e.touches.length >= 2) {
+  if (gestureState.pinchActive && e.touches.length >= 2) {
     const c0 = canvasCoords(e.touches[0]!, renderer),
       c1 = canvasCoords(e.touches[1]!, renderer);
     const dist = Math.hypot(c1.x - c0.x, c1.y - c0.y);
     if (
-      !gs.pinchMoved &&
-      Math.abs(dist - gs.pinchStartDist) > PINCH_MOVE_THRESHOLD
+      !gestureState.pinchMoved &&
+      Math.abs(dist - gestureState.pinchStartDist) > PINCH_MOVE_THRESHOLD
     ) {
-      gs.pinchMoved = true;
+      gestureState.pinchMoved = true;
     }
     const midX = (c0.x + c1.x) / 2,
       midY = (c0.y + c1.y) / 2;
     // Inverted: scale > 1 = fingers closer = zoom out (viewport grows)
-    const scale = gs.pinchStartDist / Math.max(1, dist);
+    const scale = gestureState.pinchStartDist / Math.max(1, dist);
     coords.onPinchUpdate?.(midX, midY, scale);
     return;
   }
-  if (gs.suppressSingleTouch) return;
+  if (gestureState.suppressSingleTouch) return;
 
   const touch = e.touches[0];
   if (!touch) return;
@@ -210,19 +210,19 @@ function handleTouchMove(
 
 function handleTouchEnd(
   e: TouchEvent,
-  gs: GestureState,
+  gestureState: GestureState,
   deps: RegisterOnlineInputDeps,
 ): void {
   e.preventDefault();
   const { renderer, getState, getMode, coords } = deps;
 
   // Pinch end
-  if (gs.pinchActive) {
+  if (gestureState.pinchActive) {
     if (e.touches.length < 2) {
-      const wasTap = !gs.pinchMoved;
-      gs.pinchActive = false;
+      const wasTap = !gestureState.pinchMoved;
+      gestureState.pinchActive = false;
       coords.onPinchEnd?.();
-      if (e.touches.length === 0) gs.suppressSingleTouch = false;
+      if (e.touches.length === 0) gestureState.suppressSingleTouch = false;
       // Two-finger tap without movement → rotate
       if (wasTap) {
         const state = getState();
@@ -235,8 +235,8 @@ function handleTouchEnd(
     }
     return;
   }
-  if (gs.suppressSingleTouch) {
-    if (e.touches.length === 0) gs.suppressSingleTouch = false;
+  if (gestureState.suppressSingleTouch) {
+    if (e.touches.length === 0) gestureState.suppressSingleTouch = false;
     return;
   }
 
@@ -247,7 +247,7 @@ function handleTouchEnd(
   const { x, y } = canvasCoords(touch, renderer);
   const mode = getMode();
   const state = getState();
-  const tap = isTap(touch, gs);
+  const tap = isTap(touch, gestureState);
 
   // Non-game modes: tap acts as click
   if (tap && dispatchModeTap(x, y, mode, deps)) return;
@@ -268,7 +268,10 @@ function handleTouchEnd(
   }
 
   // Build / Cannon: tap on phantom places directly; otherwise tap-to-place when no floating buttons
-  if (tap && (gs.shouldDirectlyPlaceOnTap || !deps.isDirectTouchActive?.())) {
+  if (
+    tap &&
+    (gestureState.shouldDirectlyPlaceOnTap || !deps.isDirectTouchActive?.())
+  ) {
     dispatchPlacement(state, deps);
   }
 
@@ -283,11 +286,11 @@ function canvasCoords(
   return renderer.clientToSurface(touch.clientX, touch.clientY);
 }
 
-function isTap(touch: Touch, gs: GestureState): boolean {
-  const dx = touch.clientX - gs.touchStartX;
-  const dy = touch.clientY - gs.touchStartY;
+function isTap(touch: Touch, gestureState: GestureState): boolean {
+  const dx = touch.clientX - gestureState.touchStartX;
+  const dy = touch.clientY - gestureState.touchStartY;
   const dist = Math.sqrt(dx * dx + dy * dy);
-  const duration = performance.now() - gs.touchStartTime;
+  const duration = performance.now() - gestureState.touchStartTime;
   return dist < TAP_MAX_DIST && duration < TAP_MAX_TIME;
 }
 

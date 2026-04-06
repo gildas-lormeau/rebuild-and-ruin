@@ -69,10 +69,10 @@ export function registerMouseHandlers(deps: RegisterOnlineInputDeps): void {
     if (!state || !isInteractiveMode(mode)) return;
 
     if (isSelectionPhase(state.phase)) {
-      const tw = coords.screenToWorld(x, y);
+      const worldCoords = coords.screenToWorld(x, y);
       dispatchTowerSelect(
-        tw.wx,
-        tw.wy,
+        worldCoords.wx,
+        worldCoords.wy,
         state,
         isReselectPhase(state.phase),
         deps,

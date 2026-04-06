@@ -95,14 +95,14 @@ export class AiController extends BaseController implements AiAnimatable {
   }
 
   getOrbitParams(): OrbitParams | null {
-    const bp = this._battlePhase;
-    if (bp.state.step === STEP.COUNTDOWN && bp.state.orbit) {
-      const orbit = bp.state.orbit;
+    const battlePhase = this._battlePhase;
+    if (battlePhase.state.step === STEP.COUNTDOWN && battlePhase.state.orbit) {
+      const orbit = battlePhase.state.orbit;
       return {
         rx: orbit.rx,
         ry: orbit.ry,
         speed: orbit.speed,
-        phaseAngle: bp.orbitAngle,
+        phaseAngle: battlePhase.orbitAngle,
       };
     }
     return null;

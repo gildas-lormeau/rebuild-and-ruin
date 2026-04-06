@@ -338,8 +338,12 @@ function scoreCannonPosition(
       checked.add(key);
       let freeNeighbors = 0;
       for (const [dr2, dc2] of DIRS_4) {
-        const nk = packTile(r + dr2, c + dc2);
-        if (interior.has(nk) && !occupied.has(nk) && !player.walls.has(nk)) {
+        const neighborKey = packTile(r + dr2, c + dc2);
+        if (
+          interior.has(neighborKey) &&
+          !occupied.has(neighborKey) &&
+          !player.walls.has(neighborKey)
+        ) {
           freeNeighbors++;
         }
       }

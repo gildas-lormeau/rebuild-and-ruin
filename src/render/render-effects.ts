@@ -136,9 +136,9 @@ export function drawBonusSquares(
   const alphaScale = Math.sin(now / BONUS_FLASH_MS) * 0.15 + 0.85;
   overlayCtx.save();
   overlayCtx.globalAlpha = alphaScale;
-  for (const bs of overlay.entities.bonusSquares) {
-    const bx = bs.col * TILE_SIZE;
-    const by = bs.row * TILE_SIZE;
+  for (const bonus of overlay.entities.bonusSquares) {
+    const bx = bonus.col * TILE_SIZE;
+    const by = bonus.row * TILE_SIZE;
     drawSprite(overlayCtx, "bonus_square", bx, by);
   }
   overlayCtx.restore();
@@ -475,7 +475,7 @@ function drawCrosshairs(
   for (const ch of overlay.battle.crosshairs) {
     const cx = Math.round(ch.x) + 0.5;
     const cy = Math.round(ch.y) + 0.5;
-    const [cr, cg, cb] =
+    const [cr, green, blue] =
       CROSSHAIR_COLORS[ch.playerId % CROSSHAIR_COLORS.length]!;
     const { alpha, arm, diag, gap } = crosshairGeometry(
       ch.cannonReady === true,
@@ -503,7 +503,7 @@ function drawCrosshairs(
       overlayCtx.stroke();
     };
 
-    const pColor = `rgba(${cr},${cg},${cb},${alpha})`;
+    const pColor = `rgba(${cr},${green},${blue},${alpha})`;
     const wColor = `rgba(255,255,255,${alpha})`;
 
     drawArm(cx - gap, cy - gap, cx - diag, cy - diag, pColor);

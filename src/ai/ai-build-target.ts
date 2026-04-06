@@ -47,16 +47,16 @@ export function plugUnreachableGaps(
 ): boolean {
   if (!rect || gaps.size === 0) return false;
   const unreachable: number[] = [];
-  for (const gk of gaps) {
-    if (!isGapFillableByAnyShape(state, playerId, interior, gk, rect)) {
-      unreachable.push(gk);
+  for (const gapKey of gaps) {
+    if (!isGapFillableByAnyShape(state, playerId, interior, gapKey, rect)) {
+      unreachable.push(gapKey);
     }
   }
   if (unreachable.length === 0) return false;
-  for (const gk of unreachable) gaps.delete(gk);
+  for (const gapKey of unreachable) gaps.delete(gapKey);
   // Add interior-facing grass neighbors as plug gaps (same diagonal-leak seal as water/pits)
-  for (const gk of unreachable) {
-    const { r: gr, c: gc } = unpackTile(gk);
+  for (const gapKey of unreachable) {
+    const { r: gr, c: gc } = unpackTile(gapKey);
     for (const [dr, dc] of DIRS_8) {
       const nr = gr + dr,
         nc = gc + dc;
@@ -67,10 +67,10 @@ export function plugUnreachableGaps(
         nc > rect.right
       )
         continue;
-      const nk = packTile(nr, nc);
-      if (walls.has(nk)) continue;
+      const neighborKey = packTile(nr, nc);
+      if (walls.has(neighborKey)) continue;
       if (!isGrass(state.map.tiles, nr, nc)) continue;
-      gaps.add(nk);
+      gaps.add(neighborKey);
     }
   }
   filterUnfillableGaps(gaps, state, interior);
@@ -107,7 +107,7 @@ function adjustInterior(
   rect?: TileRect | null,
 ): Set<number> {
   const adjusted = new Set(interior);
-  for (const gk of gaps) adjusted.delete(gk);
+  for (const gapKey of gaps) adjusted.delete(gapKey);
   if (rect) {
     for (let r = rect.top; r <= rect.bottom; r++) {
       for (let c = rect.left; c <= rect.right; c++) {
@@ -128,9 +128,9 @@ function canAnyRotationFillGap(
 ): boolean {
   for (const shape of pieces) {
     let rot = shape;
-    for (let ri = 0; ri < 4; ri++) {
-      for (const gk of gaps) {
-        const { r: gr, c: gc } = unpackTile(gk);
+    for (let rotIdx = 0; rotIdx < 4; rotIdx++) {
+      for (const gapKey of gaps) {
+        const { r: gr, c: gc } = unpackTile(gapKey);
         for (const [dr, dc] of rot.offsets) {
           if (canPlacePiece(state, playerId, rot, gr - dr, gc - dc, adjusted))
             return true;

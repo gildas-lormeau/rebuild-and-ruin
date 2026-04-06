@@ -181,9 +181,9 @@ const runtime: GameRuntime = createGameRuntime({
         ctrl,
         state,
         (intent) => {
-          const gs = runtime.runtimeState.state;
+          const gameState = runtime.runtimeState.state;
           const placed = placePiece(
-            gs,
+            gameState,
             intent.playerId,
             intent.piece,
             intent.row,
@@ -202,9 +202,9 @@ const runtime: GameRuntime = createGameRuntime({
         ctrl,
         state,
         (intent) => {
-          const gs = runtime.runtimeState.state;
+          const gameState = runtime.runtimeState.state;
           const fired = fireNextReadyCannon(
-            gs,
+            gameState,
             intent.playerId,
             ctrl.cannonRotationIdx,
             intent.targetRow,
@@ -212,7 +212,7 @@ const runtime: GameRuntime = createGameRuntime({
           );
           if (!fired) return null;
           ctrl.cannonRotationIdx = fired.rotationIdx;
-          return gs.cannonballs[gs.cannonballs.length - 1]!;
+          return gameState.cannonballs[gameState.cannonballs.length - 1]!;
         },
         send,
       ),

@@ -247,11 +247,11 @@ export function controlsScreenHitTest(
   for (let a = 0; a < rowCount; a++) {
     const oy = startY + a * rowH;
     if (y < oy || y > oy + rowH) continue;
-    for (let pi = 0; pi < colCount; pi++) {
-      const cellX = tableX + labelColW + pi * playerColW + PAD / 2;
+    for (let playerIdx = 0; playerIdx < colCount; playerIdx++) {
+      const cellX = tableX + labelColW + playerIdx * playerColW + PAD / 2;
       const cellW = playerColW - PAD;
       if (x >= cellX && x <= cellX + cellW) {
-        return { type: HIT_CELL, playerIdx: pi, actionIdx: a };
+        return { type: HIT_CELL, playerIdx, actionIdx: a };
       }
     }
   }

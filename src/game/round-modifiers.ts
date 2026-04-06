@@ -116,8 +116,8 @@ export function applyCrumblingWalls(state: GameState): readonly number[] {
         [r, c + 1],
       ];
       const isOuter = neighbors.some(([nr, nc]) => {
-        const nk = nr! * cols + nc!;
-        return !player.walls.has(nk) && !interior.has(nk);
+        const neighborKey = nr! * cols + nc!;
+        return !player.walls.has(neighborKey) && !interior.has(neighborKey);
       });
       if (isOuter) outerWalls.push(key);
     }
@@ -259,7 +259,7 @@ function buildCanBurnPredicate(
   const tiles = state.map.tiles;
   const zones = state.map.zones;
   const activeZones = new Set(
-    state.players.filter(isPlayerSeated).map((pl) => pl.homeTower.zone),
+    state.players.filter(isPlayerSeated).map((player) => player.homeTower.zone),
   );
   const burningSet = new Set(
     state.burningPits.map((pit) => packTile(pit.row, pit.col)),
@@ -292,7 +292,7 @@ function applyWildfireScar(state: GameState, scar: ReadonlySet<number>): void {
     (gr) => !scar.has(packTile(gr.row, gr.col)),
   );
   state.bonusSquares = state.bonusSquares.filter(
-    (bs) => !scar.has(packTile(bs.row, bs.col)),
+    (bonus) => !scar.has(packTile(bonus.row, bonus.col)),
   );
   state.burningPits.push(...newPits);
 }

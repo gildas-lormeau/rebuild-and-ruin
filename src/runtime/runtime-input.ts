@@ -71,14 +71,17 @@ interface InputSystemDeps {
     readonly maybeSendAimUpdate?: (x: number, y: number) => void;
     readonly tryPlaceCannonAndSend?: (
       ctrl: PlayerController & InputReceiver,
-      gs: CannonViewState,
+      gameState: CannonViewState,
       max: number,
     ) => boolean;
     readonly tryPlacePieceAndSend: (
       ctrl: PlayerController & InputReceiver,
-      gs: BuildViewState,
+      gameState: BuildViewState,
     ) => boolean;
-    readonly fireAndSend: (ctrl: PlayerController, gs: BattleViewState) => void;
+    readonly fireAndSend: (
+      ctrl: PlayerController,
+      gameState: BattleViewState,
+    ) => void;
     readonly getIsHost: () => boolean;
   };
 
@@ -176,12 +179,12 @@ interface InputSystemDeps {
 
 type PlacePieceFn = (
   ctrl: PlayerController & InputReceiver,
-  gs: BuildViewState,
+  gameState: BuildViewState,
 ) => boolean;
 
 type PlaceCannonFn = (
   ctrl: PlayerController & InputReceiver,
-  gs: CannonViewState,
+  gameState: CannonViewState,
   max: number,
 ) => boolean;
 
@@ -202,13 +205,13 @@ const NOOP = () => {};
 
 export function createInputSystem(deps: InputSystemDeps): InputSystem {
   const touch = deps.touchHandles;
-  const rs = deps.runtimeState;
+  const runtimeState = deps.runtimeState;
   const { camera, sound, lobby, selection } = deps;
 
   // ── Wrapped placement handlers ──
   const placeCannon = wrapCannonPlace(
     deps.network.tryPlaceCannonAndSend ??
-      ((ctrl, gs, max) => ctrl.tryPlaceCannon(gs, max)),
+      ((ctrl, gameState, max) => ctrl.tryPlaceCannon(gameState, max)),
     sound,
   );
   const placePieceWrapped = wrapPiecePlace(
@@ -224,13 +227,13 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     onPinchEnd: camera.onPinchEnd,
   };
   const lobbyDeps: RegisterOnlineInputDeps["lobby"] = {
-    isActive: () => rs.lobby.active,
+    isActive: () => runtimeState.lobby.active,
     keyJoin: lobby.lobbyKeyJoin,
     click: lobby.lobbyClick,
     cursorAt: lobby.cursorAt,
   };
   const gameActionDeps = buildGameActionDeps(
-    rs,
+    runtimeState,
     selection,
     placeCannon,
     placePieceWrapped,
@@ -449,8 +452,8 @@ function guardedDialogClick<TH extends { playerId: ValidPlayerSlot }>(
   return (x, y) => {
     const hit = hitTest(x, y);
     if (!hit) return;
-    const pp = pointerPlayer();
-    if (pp && hit.playerId !== pp.playerId) return;
+    const active = pointerPlayer();
+    if (active && hit.playerId !== active.playerId) return;
     onHit(hit);
   };
 }
@@ -586,9 +589,9 @@ function buildOverlayActionDeps(
       },
     },
     dialogAction: (action: Action) => {
-      const pp = pointerPlayer();
-      if (!pp) return false;
-      return inputDeps.dialogAction(pp.playerId, action);
+      const active = pointerPlayer();
+      if (!active) return false;
+      return inputDeps.dialogAction(active.playerId, action);
     },
     gameOver: {
       isActive: () =>
@@ -717,8 +720,8 @@ function wrapPiecePlace(
   inner: PlacePieceFn,
   sound: Pick<SoundSystem, "piecePlaced" | "pieceFailed">,
 ): PlacePieceFn {
-  return (ctrl, gs) => {
-    const ok = inner(ctrl, gs);
+  return (ctrl, gameState) => {
+    const ok = inner(ctrl, gameState);
     if (ok) sound.piecePlaced();
     else sound.pieceFailed();
     return ok;
@@ -729,8 +732,8 @@ function wrapCannonPlace(
   inner: PlaceCannonFn,
   sound: Pick<SoundSystem, "cannonPlaced">,
 ): PlaceCannonFn {
-  return (ctrl, gs, max) => {
-    const ok = inner(ctrl, gs, max);
+  return (ctrl, gameState, max) => {
+    const ok = inner(ctrl, gameState, max);
     if (ok) sound.cannonPlaced();
     return ok;
   };

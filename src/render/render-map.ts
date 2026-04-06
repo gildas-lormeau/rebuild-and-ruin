@@ -808,21 +808,21 @@ function drawCastleWalls(
 ): void {
   const colors = getPlayerColor(castle.playerId);
   const wall: RGB = battleWalls ? NEUTRAL_WALL : colors.wall;
-  const [wR, wG, wB] = wall;
+  const [wallRed, wallGreen, wallBlue] = wall;
   const lightEdge = rgb([
-    Math.min(255, wR + 35),
-    Math.min(255, wG + 35),
-    Math.min(255, wB + 35),
+    Math.min(255, wallRed + 35),
+    Math.min(255, wallGreen + 35),
+    Math.min(255, wallBlue + 35),
   ]);
   const shadowEdge = rgb([
-    Math.max(0, wR - 40),
-    Math.max(0, wG - 40),
-    Math.max(0, wB - 40),
+    Math.max(0, wallRed - 40),
+    Math.max(0, wallGreen - 40),
+    Math.max(0, wallBlue - 40),
   ]);
   const mortarStyle = rgb([
-    Math.max(0, wR - 25),
-    Math.max(0, wG - 25),
-    Math.max(0, wB - 25),
+    Math.max(0, wallRed - 25),
+    Math.max(0, wallGreen - 25),
+    Math.max(0, wallBlue - 25),
   ]);
   const wallStyle = rgb(wall);
 

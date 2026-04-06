@@ -65,9 +65,9 @@ export function pickFallbackPlacement(
   let totalFree = 0;
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
-      const k = packTile(r, c);
-      if (!playerInterior.has(k)) continue;
-      if (walls.has(k)) continue;
+      const key = packTile(r, c);
+      if (!playerInterior.has(key)) continue;
+      if (walls.has(key)) continue;
       let blocked = false;
       for (const tower of state.map.towers) {
         if (isTowerTile(tower, r, c)) {
@@ -97,9 +97,9 @@ export function pickFallbackPlacement(
 
   const insideEnclosure = (candidate: Candidate): boolean => {
     for (const [dr, dc] of candidate.piece.offsets) {
-      const k = packTile(candidate.row + dr, candidate.col + dc);
+      const key = packTile(candidate.row + dr, candidate.col + dc);
       for (const player of state.players) {
-        if (getInterior(player).has(k)) return true;
+        if (getInterior(player).has(key)) return true;
       }
     }
     return false;
@@ -159,10 +159,19 @@ export function createsSmallEnclosure(
   const visited = new Set<number>();
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
-      const k = packTile(r, c);
-      if (visited.has(k) || simulatedOutside.has(k) || simulatedWalls.has(k))
+      const key = packTile(r, c);
+      if (
+        visited.has(key) ||
+        simulatedOutside.has(key) ||
+        simulatedWalls.has(key)
+      )
         continue;
-      const pocket = floodPocket(k, visited, simulatedWalls, simulatedOutside);
+      const pocket = floodPocket(
+        key,
+        visited,
+        simulatedWalls,
+        simulatedOutside,
+      );
       if (pocket.length >= SMALL_POCKET_MAX_SIZE) continue;
       let preExisting = true;
       for (const pocketKey of pocket) {
@@ -200,11 +209,11 @@ export function createsSmallEnclosure(
 }
 
 /** Create a memoized version of a function (Map-based cache). */
-export function memoize<K, V>(fn: (key: K) => V): (key: K) => V {
+export function memoize<K, V>(func: (key: K) => V): (key: K) => V {
   const cache = new Map<K, V>();
   return (key: K): V => {
     if (cache.has(key)) return cache.get(key)!;
-    const computed = fn(key);
+    const computed = func(key);
     cache.set(key, computed);
     return computed;
   };
@@ -300,13 +309,13 @@ function isExtensionCandidateForFallback(
   createsSmallEnclosureCached: (candidate: Candidate) => boolean,
   isInsideOrFatCandidate: (candidate: Candidate) => boolean,
 ): boolean {
-  const rd = ringDistanceForFallbackTowers(
+  const ringDistance = ringDistanceForFallbackTowers(
     candidate,
     fallbackTowers,
     castleMargin,
     ringDistanceCache,
   );
-  if (rd.tooClose) return false;
+  if (ringDistance.tooClose) return false;
   if (createsSmallEnclosureCached(candidate)) return false;
   if (isInsideOrFatCandidate(candidate)) return false;
   return true;

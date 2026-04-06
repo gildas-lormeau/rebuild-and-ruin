@@ -88,13 +88,13 @@ export function createCastle(
     const intRight = tc + 1 + gap[Side.R];
     const intTop = tr - gap[Side.T];
     const intBottom = tr + 1 + gap[Side.B];
-    const wL = intLeft - 1;
-    const wR = intRight + 1;
-    const wT = intTop - 1;
-    const wB = intBottom + 1;
+    const wallLeft = intLeft - 1;
+    const wallRight = intRight + 1;
+    const wallTop = intTop - 1;
+    const wallBottom = intBottom + 1;
 
-    for (let r = wT; r <= wB; r++) {
-      for (let c = wL; c <= wR; c++) {
+    for (let r = wallTop; r <= wallBottom; r++) {
+      for (let c = wallLeft; c <= wallRight; c++) {
         // Skip interior tiles
         if (r >= intTop && r <= intBottom && c >= intLeft && c <= intRight)
           continue;
@@ -194,13 +194,13 @@ export function computeCastleWallTiles(
   const wallTiles: [number, number][] = [];
 
   // Wall ring: 1 tile outside the interior bounds
-  const wL = left - 1;
-  const wR = right + 1;
-  const wT = top - 1;
-  const wB = bottom + 1;
+  const wallLeft = left - 1;
+  const wallRight = right + 1;
+  const wallTop = top - 1;
+  const wallBottom = bottom + 1;
 
-  for (let r = wT; r <= wB; r++) {
-    for (let c = wL; c <= wR; c++) {
+  for (let r = wallTop; r <= wallBottom; r++) {
+    for (let c = wallLeft; c <= wallRight; c++) {
       if (!inBounds(r, c)) continue;
       // Is this on the wall ring (not interior)?
       if (r >= top && r <= bottom && c >= left && c <= right) continue;
@@ -229,10 +229,10 @@ export function applyClumsyBuilders(
   allTowers?: readonly Tower[],
 ): void {
   const { left, right, top, bottom } = castle;
-  const wL = left - 1;
-  const wR = right + 1;
-  const wT = top - 1;
-  const wB = bottom + 1;
+  const wallLeft = left - 1;
+  const wallRight = right + 1;
+  const wallTop = top - 1;
+  const wallBottom = bottom + 1;
 
   const towerTiles = new Set<number>();
   for (const tower of allTowers ?? [castle.tower]) {
@@ -242,7 +242,8 @@ export function applyClumsyBuilders(
 
   // Scale mistake probability with castle perimeter — small castles can't afford errors
   // Top+bottom rows counted fully, left+right columns minus corners to avoid double-counting
-  const perimeter = 2 * (wR - wL + 1) + 2 * (wB - wT - 1);
+  const perimeter =
+    2 * (wallRight - wallLeft + 1) + 2 * (wallBottom - wallTop - 1);
   // Reference perimeter (~22 for a margin-2 castle around a centroid tower).
   // Mistakes scale linearly: half-size castle → half the per-tile chance.
   const REF_PERIMETER = 22;
@@ -250,10 +251,10 @@ export function applyClumsyBuilders(
 
   // Identify the 4 corners of the wall ring
   const corners: [number, number][] = [
-    [wT, wL],
-    [wT, wR],
-    [wB, wL],
-    [wB, wR],
+    [wallTop, wallLeft],
+    [wallTop, wallRight],
+    [wallBottom, wallLeft],
+    [wallBottom, wallRight],
   ];
 
   // For each corner, ~1/12 chance (scaled) to add an extra wall tile
@@ -263,8 +264,8 @@ export function applyClumsyBuilders(
     const key = packTile(cr, cc);
     if (!walls.has(key)) continue;
     // Pick one of the two cardinal-inward neighbors (toward interior)
-    const dr = cr === wT ? 1 : -1;
-    const dc = cc === wL ? 1 : -1;
+    const dr = cr === wallTop ? 1 : -1;
+    const dc = cc === wallLeft ? 1 : -1;
     const candidates: [number, number][] = [
       [cr + dr, cc],
       [cr, cc + dc],
@@ -551,31 +552,31 @@ function buildPerimeterWalk(
   castle: Castle,
   ringSet: ReadonlySet<number>,
 ): number[] {
-  const wL = castle.left - 1,
-    wR = castle.right + 1,
-    wT = castle.top - 1,
-    wB = castle.bottom + 1;
+  const wallLeft = castle.left - 1,
+    wallRight = castle.right + 1,
+    wallTop = castle.top - 1,
+    wallBottom = castle.bottom + 1;
 
   const walk: number[] = [];
   // Top edge (left to right)
-  for (let c = wL; c <= wR; c++) {
-    const k = packTile(wT, c);
-    if (ringSet.has(k)) walk.push(k);
+  for (let c = wallLeft; c <= wallRight; c++) {
+    const key = packTile(wallTop, c);
+    if (ringSet.has(key)) walk.push(key);
   }
   // Right edge (top+1 to bottom)
-  for (let r = wT + 1; r <= wB; r++) {
-    const k = packTile(r, wR);
-    if (ringSet.has(k)) walk.push(k);
+  for (let r = wallTop + 1; r <= wallBottom; r++) {
+    const key = packTile(r, wallRight);
+    if (ringSet.has(key)) walk.push(key);
   }
   // Bottom edge (right-1 to left)
-  for (let c = wR - 1; c >= wL; c--) {
-    const k = packTile(wB, c);
-    if (ringSet.has(k)) walk.push(k);
+  for (let c = wallRight - 1; c >= wallLeft; c--) {
+    const key = packTile(wallBottom, c);
+    if (ringSet.has(key)) walk.push(key);
   }
   // Left edge (bottom-1 to top+1)
-  for (let r = wB - 1; r > wT; r--) {
-    const k = packTile(r, wL);
-    if (ringSet.has(k)) walk.push(k);
+  for (let r = wallBottom - 1; r > wallTop; r--) {
+    const key = packTile(r, wallLeft);
+    if (ringSet.has(key)) walk.push(key);
   }
   return walk;
 }
@@ -594,10 +595,10 @@ function interleaveExtras(
     placed.add(k);
     const { r, c } = unpackTile(k);
     for (const [dr, dc] of DIRS_4) {
-      const nk = packTile(r + dr, c + dc);
-      if (extras.has(nk) && !placed.has(nk)) {
-        ordered.push(nk);
-        placed.add(nk);
+      const neighborKey = packTile(r + dr, c + dc);
+      if (extras.has(neighborKey) && !placed.has(neighborKey)) {
+        ordered.push(neighborKey);
+        placed.add(neighborKey);
       }
     }
   }

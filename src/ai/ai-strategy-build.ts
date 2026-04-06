@@ -199,7 +199,7 @@ export function pickPlacement(
   // freely inside an open (gapped) enclosure. Without this exclusion, scoring
   // would penalize placements near gaps that need filling.
   const interiorExcludingGaps = new Set(getInterior(player));
-  for (const gk of targetGaps) interiorExcludingGaps.delete(gk);
+  for (const gapKey of targetGaps) interiorExcludingGaps.delete(gapKey);
   if (targetRect) {
     for (let r = targetRect.top; r <= targetRect.bottom; r++) {
       for (let c = targetRect.left; c <= targetRect.right; c++) {
@@ -392,7 +392,7 @@ function selectBestPlacement(
 
   // If no territory gain: discard or build toward unenclosed towers
   if (bestScore <= 0) {
-    const fb = pickFallbackPlacement(sortedScored, state, {
+    const fallback = pickFallbackPlacement(sortedScored, state, {
       walls: player.walls,
       outside,
       playerInterior: getInterior(player),
@@ -403,7 +403,7 @@ function selectBestPlacement(
       caresAboutHouses,
       caresAboutBonuses,
     });
-    if (fb) return fb.placement;
+    if (fallback) return fallback.placement;
   }
 
   return {
@@ -469,7 +469,11 @@ function enumerateCandidates(
             )
           )
             housesHit++;
-          if (state.bonusSquares.some((bs) => bs.row === pr && bs.col === pc))
+          if (
+            state.bonusSquares.some(
+              (bonus) => bonus.row === pr && bonus.col === pc,
+            )
+          )
             bonusHit++;
         }
 
@@ -553,8 +557,8 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
   for (let r = homeRect.top; r <= homeRect.bottom; r++) {
     for (let c = homeRect.left; c <= homeRect.right; c++) {
       totalInterior++;
-      const k = packTile(r, c);
-      if (player.walls.has(k)) {
+      const key = packTile(r, c);
+      if (player.walls.has(key)) {
         occupiedInterior++;
         continue;
       }
@@ -900,12 +904,12 @@ function scoreCandidateGapMetrics(
     let hasWallAdjacent = false;
     let hasGapAdjacent = false;
     for (const [ar, ac] of DIRS_4) {
-      const nk = packTile(pr + ar, pc + ac);
-      if (walls.has(nk)) {
+      const neighborKey = packTile(pr + ar, pc + ac);
+      if (walls.has(neighborKey)) {
         wallAdjacent++;
         hasWallAdjacent = true;
       }
-      if (targetGaps.has(nk)) hasGapAdjacent = true;
+      if (targetGaps.has(neighborKey)) hasGapAdjacent = true;
     }
     if (hasWallAdjacent) connectedTiles++;
     if (hasGapAdjacent) gapAdjacent++;

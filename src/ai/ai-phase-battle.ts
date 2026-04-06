@@ -235,7 +235,7 @@ function tickCountdown(
   }
   if (!phase.crosshairTarget) return;
 
-  const ps = phase.state as Extract<BattleState, { step: "countdown" }>;
+  const phaseState = phase.state as Extract<BattleState, { step: "countdown" }>;
 
   if (state.battleCountdown > 0) {
     // During countdown, move to target then orbit around it
@@ -250,7 +250,7 @@ function tickCountdown(
         dt,
       );
     } else {
-      if (!ps.orbit) {
+      if (!phaseState.orbit) {
         const strategic = !!phase.crosshairTarget.strategic;
         const boost = strategic ? 1.2 : 1;
         const rng = host.strategy.rng;
@@ -259,7 +259,7 @@ function tickCountdown(
           : ORBIT_SPEED_DEFAULT_RAD_S;
         const baseSpeed =
           Math.PI * (speedBase + rng.next() * ORBIT_SPEED_RANGE_RAD_S);
-        ps.orbit = {
+        phaseState.orbit = {
           rx:
             (ORBIT_RADIUS_BASE_PX + rng.next() * ORBIT_RADIUS_RANGE_PX) * boost,
           ry:
@@ -273,11 +273,13 @@ function tickCountdown(
           host.crosshair.x - phase.crosshairTarget.x,
         );
       }
-      phase.orbitAngle += ps.orbit.speed * dt;
+      phase.orbitAngle += phaseState.orbit.speed * dt;
       host.crosshair.x =
-        phase.crosshairTarget.x + Math.cos(phase.orbitAngle) * ps.orbit.rx;
+        phase.crosshairTarget.x +
+        Math.cos(phase.orbitAngle) * phaseState.orbit.rx;
       host.crosshair.y =
-        phase.crosshairTarget.y + Math.sin(phase.orbitAngle) * ps.orbit.ry;
+        phase.crosshairTarget.y +
+        Math.sin(phase.orbitAngle) * phaseState.orbit.ry;
     }
   } else {
     host.stepCrosshairToward(
@@ -341,9 +343,12 @@ function tickChainDwelling(
   dt: number,
   executeFire: ExecuteFireFn,
 ): void {
-  const ps = phase.state as Extract<BattleState, { step: "chain_dwelling" }>;
-  ps.timer -= dt;
-  if (ps.timer > 0) return;
+  const phaseState = phase.state as Extract<
+    BattleState,
+    { step: "chain_dwelling" }
+  >;
+  phaseState.timer -= dt;
+  if (phaseState.timer > 0) return;
 
   if (!phase.chainTargets || phase.chainIdx >= phase.chainTargets.length) {
     phase.state = { step: STEP.PICKING };
@@ -366,7 +371,7 @@ function tickChainDwelling(
     }
   } else {
     // No cannon ready — wait a bit longer
-    ps.timer = CANNON_RETRY_WAIT_SEC;
+    phaseState.timer = CANNON_RETRY_WAIT_SEC;
   }
 }
 
@@ -378,13 +383,13 @@ function tickDwelling(
   dt: number,
   executeFire: ExecuteFireFn,
 ): void {
-  const ps = phase.state as Extract<BattleState, { step: "dwelling" }>;
-  ps.timer -= dt;
-  if (ps.timer > 0) return;
+  const phaseState = phase.state as Extract<BattleState, { step: "dwelling" }>;
+  phaseState.timer -= dt;
+  if (phaseState.timer > 0) return;
 
   const intent = host.fire(state);
   if (!intent) {
-    ps.timer = CANNON_RETRY_WAIT_SEC;
+    phaseState.timer = CANNON_RETRY_WAIT_SEC;
     return;
   }
   executeFire(intent);

@@ -55,14 +55,14 @@ interface RuntimeInputAdapters {
     maybeSendAimUpdate?: (x: number, y: number) => void;
     tryPlaceCannonAndSend?: (
       ctrl: PlayerController & InputReceiver,
-      gs: CannonViewState,
+      gameState: CannonViewState,
       max: number,
     ) => boolean;
     tryPlacePieceAndSend: (
       ctrl: PlayerController & InputReceiver,
-      gs: BuildViewState,
+      gameState: BuildViewState,
     ) => boolean;
-    fireAndSend: (ctrl: PlayerController, gs: BattleViewState) => void;
+    fireAndSend: (ctrl: PlayerController, gameState: BattleViewState) => void;
     getIsHost: () => boolean;
   };
 }
@@ -273,8 +273,8 @@ export function createRuntimeInputAdapters(params: {
       tryPlaceCannonAndSend: config.onlineConfig?.tryPlaceCannonAndSend,
       tryPlacePieceAndSend:
         config.onlineConfig?.tryPlacePieceAndSend ??
-        ((ctrl, gs) => {
-          const intent = ctrl.tryPlacePiece(gs);
+        ((ctrl, gameState) => {
+          const intent = ctrl.tryPlacePiece(gameState);
           if (!intent) return false;
           const placed = placePiece(
             runtimeState.state,
@@ -291,8 +291,8 @@ export function createRuntimeInputAdapters(params: {
         }),
       fireAndSend:
         config.onlineConfig?.fireAndSend ??
-        ((ctrl, gs) => {
-          const intent = ctrl.fire(gs);
+        ((ctrl, gameState) => {
+          const intent = ctrl.fire(gameState);
           if (!intent) return;
           const fired = fireNextReadyCannon(
             runtimeState.state,

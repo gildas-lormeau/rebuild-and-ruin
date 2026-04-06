@@ -318,7 +318,7 @@ export function createStatusBar(
     if (player && player.upgrades.size > 0) {
       upgrades = [];
       for (const [id, count] of player.upgrades) {
-        const def = UPGRADE_POOL.find((up) => up.id === id);
+        const def = UPGRADE_POOL.find((upgrade) => upgrade.id === id);
         const label = def?.label ?? id;
         upgrades.push(count > 1 ? `${label} x${count}` : label);
       }
@@ -437,20 +437,20 @@ export function handleUpgradePickClick(params: {
   const startY = upgradePickStartY(H, dialog.entries.length);
   const rowX = (W - UPGRADE_ROW_W) / 2;
 
-  for (let ei = 0; ei < dialog.entries.length; ei++) {
-    const entry = dialog.entries[ei]!;
+  for (let entryIdx = 0; entryIdx < dialog.entries.length; entryIdx++) {
+    const entry = dialog.entries[entryIdx]!;
     if (entry.choice !== null) continue;
-    const cardsY = startY + ei * entryH + UPGRADE_NAME_H;
+    const cardsY = startY + entryIdx * entryH + UPGRADE_NAME_H;
 
-    for (let ci = 0; ci < UPGRADE_CARDS_PER_ROW; ci++) {
-      const cx = rowX + ci * (UPGRADE_CARD_W + UPGRADE_CARD_GAP);
+    for (let cardIdx = 0; cardIdx < UPGRADE_CARDS_PER_ROW; cardIdx++) {
+      const cx = rowX + cardIdx * (UPGRADE_CARD_W + UPGRADE_CARD_GAP);
       if (
         screenX >= cx &&
         screenX <= cx + UPGRADE_CARD_W &&
         screenY >= cardsY &&
         screenY <= cardsY + UPGRADE_CARD_H
       ) {
-        return { playerId: entry.playerId, cardIdx: ci };
+        return { playerId: entry.playerId, cardIdx };
       }
     }
   }
@@ -576,7 +576,7 @@ export function createOnlineOverlay(
         ? povPlayerId < 0
           ? state.modern?.comboTracker?.events
           : state.modern?.comboTracker?.events.filter(
-              (ev) => ev.playerId === povPlayerId,
+              (event) => event.playerId === povPlayerId,
             )
         : undefined,
       upgradePick: buildUpgradePickUi(
@@ -789,14 +789,16 @@ function buildUpgradePickUi(
       color: playerColors[entry.playerId % playerColors.length]!.wall,
       resolved: entry.choice !== null,
       interactive: entry.playerId === interactivePlayerId,
-      cards: entry.offers.map((upgradeId, ci) => {
-        const def = UPGRADE_POOL.find((ud) => ud.id === upgradeId);
+      cards: entry.offers.map((upgradeId, cardIdx) => {
+        const def = UPGRADE_POOL.find(
+          (upgradeDef) => upgradeDef.id === upgradeId,
+        );
         return {
           id: upgradeId,
           label: def?.label ?? upgradeId,
           description: def?.description ?? "",
           category: def?.category ?? "",
-          focused: entry.choice === null && entry.focusedCard === ci,
+          focused: entry.choice === null && entry.focusedCard === cardIdx,
           picked: entry.choice === upgradeId,
         };
       }),

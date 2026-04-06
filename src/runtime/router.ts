@@ -43,8 +43,8 @@ export function initRouter(): void {
  *  Calls the registered route handler when the route changes. */
 function applyRoute(): void {
   const route = getRoute();
-  for (const el of document.querySelectorAll<HTMLElement>(".page")) {
-    el.hidden = el.dataset["route"] !== route;
+  for (const element of document.querySelectorAll<HTMLElement>(".page")) {
+    element.hidden = element.dataset["route"] !== route;
   }
   if (route !== currentRoute) {
     currentRoute = route;

@@ -101,7 +101,7 @@ export function scoreBuildTowerTarget(
   const obstructionRatio = area > 0 ? obstructions / area : 0;
 
   return {
-    tower: tower,
+    tower,
     score:
       progress * TOWER_PROGRESS_WEIGHT -
       distance -
@@ -168,10 +168,15 @@ export function floodPocket(
       const nr = pr + dr,
         nc = pc + dc;
       if (!inBounds(nr, nc)) continue;
-      const nk = packTile(nr, nc);
-      if (visited.has(nk) || outside.has(nk) || walls.has(nk)) continue;
-      visited.add(nk);
-      pocket.push(nk);
+      const neighborKey = packTile(nr, nc);
+      if (
+        visited.has(neighborKey) ||
+        outside.has(neighborKey) ||
+        walls.has(neighborKey)
+      )
+        continue;
+      visited.add(neighborKey);
+      pocket.push(neighborKey);
     }
   }
   return pocket;
@@ -218,13 +223,13 @@ export function findGapTiles(
         const nc = c + dc;
         if (nr < wallTop || nr > wallBottom || nc < wallLeft || nc > wallRight)
           continue;
-        const nk = packTile(nr, nc);
-        if (walls.has(nk)) continue;
-        const k1 = packTile(r, nc);
-        const k2 = packTile(nr, c);
-        if (walls.has(k1) && walls.has(k2)) {
+        const neighborKey = packTile(nr, nc);
+        if (walls.has(neighborKey)) continue;
+        const key1 = packTile(r, nc);
+        const key2 = packTile(nr, c);
+        if (walls.has(key1) && walls.has(key2)) {
           gaps.add(key);
-          gaps.add(nk);
+          gaps.add(neighborKey);
         }
       }
     }
@@ -426,18 +431,18 @@ function addBankPlugGaps(
       if (!inBounds(r, c)) continue;
       // Only ring tiles (not interior)
       if (r > ringTop && r < ringBot && c > ringLeft && c < ringRight) continue;
-      const k = packTile(r, c);
-      if (walls.has(k)) continue;
+      const key = packTile(r, c);
+      if (walls.has(key)) continue;
       const onWater = includeWater && isWater(tiles, r, c);
       const onPit = burningPits != null && hasPitAt(burningPits, r, c);
       if (onWater || onPit) {
-        unfillableRing.push(k);
+        unfillableRing.push(key);
       }
     }
   }
   // For each unfillable ring tile, add interior-facing grass neighbors as plug gaps
-  for (const wk of unfillableRing) {
-    const { r: wr, c: wc } = unpackTile(wk);
+  for (const wallKey of unfillableRing) {
+    const { r: wr, c: wc } = unpackTile(wallKey);
     for (const [dr, dc] of DIRS_8) {
       const nr = wr + dr,
         nc = wc + dc;
@@ -449,10 +454,10 @@ function addBankPlugGaps(
         nc > rect.right
       )
         continue;
-      const nk = packTile(nr, nc);
-      if (walls.has(nk)) continue;
+      const neighborKey = packTile(nr, nc);
+      if (walls.has(neighborKey)) continue;
       if (!isGrass(tiles, nr, nc)) continue;
-      gaps.add(nk);
+      gaps.add(neighborKey);
     }
   }
 }

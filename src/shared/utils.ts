@@ -27,10 +27,10 @@ export function fireOnce<
   K extends string,
   T extends Record<K, (() => void) | null>,
 >(obj: T, key: K, label?: string): void {
-  const cb = obj[key] as (() => void) | null;
+  const callback = obj[key] as (() => void) | null;
   (obj as Record<K, (() => void) | null>)[key] = null;
-  if (cb) {
-    cb();
+  if (callback) {
+    callback();
   } else if (
     typeof import.meta !== "undefined" &&
     // @ts-ignore — import.meta.env is Vite-specific

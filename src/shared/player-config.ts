@@ -166,9 +166,9 @@ export function loadSettings(): GameSettings {
         keyBindings:
           Array.isArray(saved.keyBindings) &&
           saved.keyBindings.length === MAX_PLAYERS
-            ? saved.keyBindings.map((kb) => ({
+            ? saved.keyBindings.map((keyBindings) => ({
                 ...PLAYER_KEY_BINDINGS[0]!,
-                ...kb,
+                ...keyBindings,
               }))
             : deepCopyBindings(),
       };
@@ -197,5 +197,5 @@ if (
 }
 
 function deepCopyBindings(): KeyBindings[] {
-  return PLAYER_KEY_BINDINGS.map((kb) => ({ ...kb }));
+  return PLAYER_KEY_BINDINGS.map((keyBindings) => ({ ...keyBindings }));
 }

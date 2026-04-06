@@ -375,9 +375,16 @@ function placeTowers(
         if (!isValidTowerPos(c, r, riverDist, towers)) continue;
 
         let minDist = Infinity;
-        for (let ti = zoneTowerStart; ti < towers.length; ti++) {
-          const tw = towers[ti]!;
-          minDist = Math.min(minDist, towerRectDistance(c, r, tw.col, tw.row));
+        for (
+          let towerIdx = zoneTowerStart;
+          towerIdx < towers.length;
+          towerIdx++
+        ) {
+          const tower = towers[towerIdx]!;
+          minDist = Math.min(
+            minDist,
+            towerRectDistance(c, r, tower.col, tower.row),
+          );
         }
 
         if (minDist > bestMinDist) {
@@ -541,12 +548,16 @@ function paintRiver(
  * Interpolate a smooth path from `from` to `to` via an optional midpoint for curvature.
  * Returns a list of integer (col, row) center points.
  */
-function interpolatePath(from: PixelPos, to: PixelPos, rng: Rng): PixelPos[] {
+function interpolatePath(
+  from: PixelPos,
+  target: PixelPos,
+  rng: Rng,
+): PixelPos[] {
   // Add a random midpoint for gentle curvature
-  const midX = (from.x + to.x) / 2 + rng.int(-3, 3);
-  const midY = (from.y + to.y) / 2 + rng.int(-2, 2);
+  const midX = (from.x + target.x) / 2 + rng.int(-3, 3);
+  const midY = (from.y + target.y) / 2 + rng.int(-2, 2);
 
-  const controlPoints = [from, { x: midX, y: midY }, to];
+  const controlPoints = [from, { x: midX, y: midY }, target];
   const points: PixelPos[] = [];
 
   // Walk along the quadratic bezier at small steps
@@ -610,12 +621,12 @@ function smoothRiver(tiles: readonly Tile[][]): void {
     for (let r = 0; r < GRID_ROWS; r++) {
       for (let c = 0; c < GRID_COLS; c++) {
         if (!isGrass(tiles, r, c)) continue;
-        let gn = 0;
-        if (r > 0 && isGrass(tiles, r - 1, c)) gn++;
-        if (r < GRID_ROWS - 1 && isGrass(tiles, r + 1, c)) gn++;
-        if (c > 0 && isGrass(tiles, r, c - 1)) gn++;
-        if (c < GRID_COLS - 1 && isGrass(tiles, r, c + 1)) gn++;
-        if (gn <= 1) {
+        let grassNeighbors = 0;
+        if (r > 0 && isGrass(tiles, r - 1, c)) grassNeighbors++;
+        if (r < GRID_ROWS - 1 && isGrass(tiles, r + 1, c)) grassNeighbors++;
+        if (c > 0 && isGrass(tiles, r, c - 1)) grassNeighbors++;
+        if (c < GRID_COLS - 1 && isGrass(tiles, r, c + 1)) grassNeighbors++;
+        if (grassNeighbors <= 1) {
           tiles[r]![c] = Tile.Water;
           changed = true;
         }
@@ -632,12 +643,12 @@ function removeIsolatedWater(tiles: readonly Tile[][]): void {
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
       if (!isWater(tiles, r, c)) continue;
-      let wn = 0;
-      if (r > 0 && isWater(tiles, r - 1, c)) wn++;
-      if (r < GRID_ROWS - 1 && isWater(tiles, r + 1, c)) wn++;
-      if (c > 0 && isWater(tiles, r, c - 1)) wn++;
-      if (c < GRID_COLS - 1 && isWater(tiles, r, c + 1)) wn++;
-      if (wn <= 1) {
+      let waterNeighbors = 0;
+      if (r > 0 && isWater(tiles, r - 1, c)) waterNeighbors++;
+      if (r < GRID_ROWS - 1 && isWater(tiles, r + 1, c)) waterNeighbors++;
+      if (c > 0 && isWater(tiles, r, c - 1)) waterNeighbors++;
+      if (c < GRID_COLS - 1 && isWater(tiles, r, c + 1)) waterNeighbors++;
+      if (waterNeighbors <= 1) {
         tiles[r]![c] = Tile.Grass;
       }
     }

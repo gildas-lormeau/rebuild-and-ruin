@@ -62,9 +62,9 @@ export const TILE_CENTER_OFFSET = 0.5;
 /** Call `fn` for each tile of a 2×2 tower footprint. */
 export function forEachTowerTile(
   tilePos: TilePos,
-  fn: (r: number, c: number, key: number) => void,
+  callback: (r: number, c: number, key: number) => void,
 ): void {
-  forEachSquareTile(tilePos.row, tilePos.col, TOWER_SIZE, fn);
+  forEachSquareTile(tilePos.row, tilePos.col, TOWER_SIZE, callback);
 }
 
 /** True if (r,c) is within a 2×2 tower footprint. */
@@ -84,9 +84,9 @@ export function computeCannonTileSet(
 /** Call `fn` for each tile of a cannon footprint (size based on mode). */
 export function forEachCannonTile(
   cannon: Pick<Cannon, "row" | "col" | "mode">,
-  fn: (r: number, c: number, key: number) => void,
+  callback: (r: number, c: number, key: number) => void,
 ): void {
-  forEachSquareTile(cannon.row, cannon.col, cannonSize(cannon.mode), fn);
+  forEachSquareTile(cannon.row, cannon.col, cannonSize(cannon.mode), callback);
 }
 
 /** True if (r,c) is within a cannon footprint (size based on mode). */
@@ -200,10 +200,10 @@ export function towerReachesOutsideCardinal(
       const nr = kr + dr,
         nc = kc + dc;
       if (!inBounds(nr, nc)) continue;
-      const nk = packTile(nr, nc);
-      if (visited.has(nk) || walls.has(nk)) continue;
-      visited.add(nk);
-      queue.push(nk);
+      const neighborKey = packTile(nr, nc);
+      if (visited.has(neighborKey) || walls.has(neighborKey)) continue;
+      visited.add(neighborKey);
+      queue.push(neighborKey);
     }
   }
   return false;
@@ -466,10 +466,10 @@ export function computeOutside(
       const nr = r + dr,
         nc = c + dc;
       if (!inBounds(nr, nc)) continue;
-      const nk = packTile(nr, nc);
-      if (outside.has(nk) || blocked(nk)) continue;
-      outside.add(nk);
-      queue.push(nk);
+      const neighborKey = packTile(nr, nc);
+      if (outside.has(neighborKey) || blocked(neighborKey)) continue;
+      outside.add(neighborKey);
+      queue.push(neighborKey);
     }
   }
   return outside;
@@ -530,13 +530,13 @@ function forEachSquareTile(
   top: number,
   left: number,
   size: number,
-  fn: (r: number, c: number, key: number) => void,
+  callback: (r: number, c: number, key: number) => void,
 ): void {
   for (let dr = 0; dr < size; dr++) {
     for (let dc = 0; dc < size; dc++) {
       const r = top + dr;
       const c = left + dc;
-      fn(r, c, packTile(r, c));
+      callback(r, c, packTile(r, c));
     }
   }
 }

@@ -484,10 +484,10 @@ function handleUpgradePick(
   const dialog = deps.getUpgradePickDialog();
   if (dialog) {
     const entry = dialog.entries.find(
-      (en) =>
-        en.playerId === msg.playerId &&
-        en.choice === null &&
-        en.offers.includes(msg.choice),
+      (entry) =>
+        entry.playerId === msg.playerId &&
+        entry.choice === null &&
+        entry.offers.includes(msg.choice),
     );
     if (entry) {
       entry.choice = msg.choice;

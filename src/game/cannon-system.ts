@@ -170,22 +170,22 @@ export function resetCannonFacings(state: GameViewState): void {
 export function computeDefaultFacings(state: GameViewState): void {
   for (const player of state.players) {
     if (!isPlayerSeated(player)) continue;
-    const pc = towerCenter(player.homeTower);
+    const playerCenter = towerCenter(player.homeTower);
     let ex = 0,
       ey = 0,
       count = 0;
     for (const other of state.players) {
       if (other.id === player.id || !isPlayerSeated(other)) continue;
-      const oc = towerCenter(other.homeTower);
-      ex += oc.col;
-      ey += oc.row;
+      const otherCenter = towerCenter(other.homeTower);
+      ex += otherCenter.col;
+      ey += otherCenter.row;
       count++;
     }
     if (count > 0) {
       const avgEx = ex / count;
       const avgEy = ey / count;
-      const dx = avgEx - pc.col;
-      const dy = avgEy - pc.row;
+      const dx = avgEx - playerCenter.col;
+      const dy = avgEy - playerCenter.row;
       player.defaultFacing = snapAngle(Math.atan2(dx, -dy), FACING_90_STEP);
     } else {
       player.defaultFacing = 0;

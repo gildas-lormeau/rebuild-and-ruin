@@ -64,8 +64,8 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
     // Compute score deltas from the build phase (with display coordinates)
     scoreDisplay.deltas = runtimeState.state.players
       .map((player, i) => {
-        const ht = player.homeTower;
-        const px = ht ? towerCenterPx(ht) : { x: 0, y: 0 };
+        const homeTower = player.homeTower;
+        const px = homeTower ? towerCenterPx(homeTower) : { x: 0, y: 0 };
         return {
           playerId: i as ValidPlayerSlot,
           delta: player.score - (scoreDisplay.preScores[i] ?? 0),

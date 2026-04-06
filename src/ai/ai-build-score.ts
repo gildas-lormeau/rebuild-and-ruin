@@ -711,9 +711,9 @@ export function countSmallPocketTiles(
   const visited = new Set<number>();
   for (let r = 0; r < GRID_ROWS; r++) {
     for (let c = 0; c < GRID_COLS; c++) {
-      const k = packTile(r, c);
-      if (visited.has(k) || outsideSet.has(k) || walls.has(k)) continue;
-      const pocket = floodPocket(k, visited, walls, outsideSet);
+      const key = packTile(r, c);
+      if (visited.has(key) || outsideSet.has(key) || walls.has(key)) continue;
+      const pocket = floodPocket(key, visited, walls, outsideSet);
       if (pocket.length < SMALL_POCKET_MAX_SIZE) {
         wasted += pocket.length;
         if (pocket.length < smallestPocket) smallestPocket = pocket.length;

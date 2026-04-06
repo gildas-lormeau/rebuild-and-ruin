@@ -102,10 +102,10 @@ export function createBattleStartMessage(
     type: MESSAGE.BATTLE_START,
     players: serializePlayers(state),
     grunts: serializeGrunts(state),
-    capturedCannons: state.capturedCannons.map((cc) => ({
-      victimId: cc.victimId,
-      capturerId: cc.capturerId,
-      cannonIdx: cc.cannonIdx,
+    capturedCannons: state.capturedCannons.map((captured) => ({
+      victimId: captured.victimId,
+      capturerId: captured.capturerId,
+      cannonIdx: captured.cannonIdx,
     })),
     burningPits: serializeBurningPits(state),
     towerAlive: [...state.towerAlive],
@@ -173,10 +173,10 @@ export function createFullStateMessage(
       ? [...state.modern.frozenTiles]
       : null,
     towerPendingRevive: [...state.towerPendingRevive],
-    capturedCannons: state.capturedCannons.map((cc) => ({
-      victimId: cc.victimId,
-      capturerId: cc.capturerId,
-      cannonIdx: cc.cannonIdx,
+    capturedCannons: state.capturedCannons.map((captured) => ({
+      victimId: captured.victimId,
+      capturerId: captured.capturerId,
+      cannonIdx: captured.cannonIdx,
     })),
     balloonHits: (() => {
       const hits: {
@@ -341,12 +341,12 @@ export function applyPlayersCheckpoint(
   state: GameState,
   serialized: readonly SerializedPlayer[],
 ): void {
-  for (const sp of serialized) {
-    const player = state.players[sp.id];
+  for (const entry of serialized) {
+    const player = state.players[entry.id];
     if (!player) continue;
 
-    player.walls = new Set(sp.walls);
-    player.cannons = sp.cannons.map((c) => ({
+    player.walls = new Set(entry.walls);
+    player.cannons = entry.cannons.map((c) => ({
       row: c.row,
       col: c.col,
       hp: c.hp,
@@ -354,17 +354,17 @@ export function applyPlayersCheckpoint(
       facing: c.facing ?? 0,
     }));
     player.homeTower =
-      sp.homeTowerIdx !== null &&
-      sp.homeTowerIdx >= 0 &&
-      sp.homeTowerIdx < state.map.towers.length
-        ? state.map.towers[sp.homeTowerIdx]!
+      entry.homeTowerIdx !== null &&
+      entry.homeTowerIdx >= 0 &&
+      entry.homeTowerIdx < state.map.towers.length
+        ? state.map.towers[entry.homeTowerIdx]!
         : null;
-    player.castleWallTiles = new Set(sp.castleWallTiles ?? []);
-    player.lives = sp.lives;
-    player.eliminated = sp.eliminated;
-    player.score = sp.score;
-    player.upgrades = new Map((sp.upgrades ?? []) as [UpgradeId, number][]);
-    player.damagedWalls = new Set(sp.damagedWalls ?? []);
+    player.castleWallTiles = new Set(entry.castleWallTiles ?? []);
+    player.lives = entry.lives;
+    player.eliminated = entry.eliminated;
+    player.score = entry.score;
+    player.upgrades = new Map((entry.upgrades ?? []) as [UpgradeId, number][]);
+    player.damagedWalls = new Set(entry.damagedWalls ?? []);
     // Rebuild castle geometry from home tower (deterministic from map)
     player.castle = player.homeTower
       ? createCastle(player.homeTower, state.map.tiles, state.map.towers)
@@ -413,15 +413,17 @@ export function applyCapturedCannons(
   }[],
 ): void {
   state.capturedCannons = [];
-  for (const cc of entries) {
-    if (cc.victimId < 0 || cc.victimId >= state.players.length) continue;
-    const victim = state.players[cc.victimId]!;
-    if (cc.cannonIdx < 0 || cc.cannonIdx >= victim.cannons.length) continue;
+  for (const captured of entries) {
+    if (captured.victimId < 0 || captured.victimId >= state.players.length)
+      continue;
+    const victim = state.players[captured.victimId]!;
+    if (captured.cannonIdx < 0 || captured.cannonIdx >= victim.cannons.length)
+      continue;
     state.capturedCannons.push({
-      cannon: victim.cannons[cc.cannonIdx]!,
-      cannonIdx: cc.cannonIdx,
-      victimId: cc.victimId as ValidPlayerSlot,
-      capturerId: cc.capturerId as ValidPlayerSlot,
+      cannon: victim.cannons[captured.cannonIdx]!,
+      cannonIdx: captured.cannonIdx,
+      victimId: captured.victimId as ValidPlayerSlot,
+      capturerId: captured.capturerId as ValidPlayerSlot,
     });
   }
 }
@@ -438,31 +440,32 @@ function validateFullState(
     return `invalid phase "${msg.phase}"`;
   if (!Number.isFinite(msg.rngState)) return "non-finite rngState";
 
-  const pc = state.players.length;
-  const tc = state.map.towers.length;
+  const playerCount = state.players.length;
+  const towerCount = state.map.towers.length;
 
-  if (msg.players.length !== pc)
-    return `players length ${msg.players.length} != ${pc}`;
-  if (msg.cannonLimits.length !== pc)
-    return `cannonLimits length ${msg.cannonLimits.length} != ${pc}`;
-  if (msg.playerZones.length !== pc)
-    return `playerZones length ${msg.playerZones.length} != ${pc}`;
-  if (msg.towerAlive.length !== tc)
-    return `towerAlive length ${msg.towerAlive.length} != ${tc}`;
+  if (msg.players.length !== playerCount)
+    return `players length ${msg.players.length} != ${playerCount}`;
+  if (msg.cannonLimits.length !== playerCount)
+    return `cannonLimits length ${msg.cannonLimits.length} != ${playerCount}`;
+  if (msg.playerZones.length !== playerCount)
+    return `playerZones length ${msg.playerZones.length} != ${playerCount}`;
+  if (msg.towerAlive.length !== towerCount)
+    return `towerAlive length ${msg.towerAlive.length} != ${towerCount}`;
 
-  for (const sp of msg.players) {
-    if (sp.id < 0 || sp.id >= pc) return `player id ${sp.id} out of bounds`;
-    if (sp.walls.some((tile) => tile < 0 || tile >= TILE_COUNT))
-      return `player ${sp.id} wall tile out of bounds`;
-    for (const c of sp.cannons) {
+  for (const entry of msg.players) {
+    if (entry.id < 0 || entry.id >= playerCount)
+      return `player id ${entry.id} out of bounds`;
+    if (entry.walls.some((tile) => tile < 0 || tile >= TILE_COUNT))
+      return `player ${entry.id} wall tile out of bounds`;
+    for (const c of entry.cannons) {
       if (c.row < 0 || c.row >= GRID_ROWS || c.col < 0 || c.col >= GRID_COLS)
-        return `player ${sp.id} cannon at ${c.row},${c.col} out of bounds`;
+        return `player ${entry.id} cannon at ${c.row},${c.col} out of bounds`;
     }
     if (
-      sp.homeTowerIdx !== null &&
-      (sp.homeTowerIdx < 0 || sp.homeTowerIdx >= tc)
+      entry.homeTowerIdx !== null &&
+      (entry.homeTowerIdx < 0 || entry.homeTowerIdx >= towerCount)
     ) {
-      return `player ${sp.id} homeTowerIdx ${sp.homeTowerIdx} out of bounds`;
+      return `player ${entry.id} homeTowerIdx ${entry.homeTowerIdx} out of bounds`;
     }
   }
 
@@ -476,9 +479,9 @@ function validateFullState(
       return `grunt at ${grunt.row},${grunt.col} out of bounds`;
   }
 
-  for (const ti of msg.towerPendingRevive) {
-    if (ti < 0 || ti >= tc)
-      return `towerPendingRevive index ${ti} out of bounds`;
+  for (const towerIdx of msg.towerPendingRevive) {
+    if (towerIdx < 0 || towerIdx >= towerCount)
+      return `towerPendingRevive index ${towerIdx} out of bounds`;
   }
 
   return null;
@@ -562,12 +565,12 @@ function copyCannonballCore(b: Cannonball): Omit<Cannonball, "incendiary"> {
 /** Restore balloon hit map, reconstructing Cannon object references as Map keys. */
 function restoreBalloonHits(state: GameState, msg: FullStateMessage): void {
   state.balloonHits = new Map();
-  for (const bh of msg.balloonHits) {
-    const cannon = state.players[bh.playerId]?.cannons[bh.cannonIdx];
+  for (const hit of msg.balloonHits) {
+    const cannon = state.players[hit.playerId]?.cannons[hit.cannonIdx];
     if (cannon)
       state.balloonHits.set(cannon, {
-        count: bh.count,
-        capturerIds: bh.capturerIds,
+        count: hit.count,
+        capturerIds: hit.capturerIds,
       });
   }
 }

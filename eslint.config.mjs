@@ -19,7 +19,7 @@ export default [
     rules: {
       "@typescript-eslint/no-floating-promises": "error",
       "id-length": ["error", {
-          min: 2,
+          min: 3,
           exceptions: [
             "_",
             "x", "y",       // pixel/world coordinates
@@ -30,6 +30,24 @@ export default [
             "i", "j", "k",  // loop indices
             "a", "b",       // sort comparators
             "e",            // event handlers
+            "id",           // identifier (player/entity IDs)
+            "dt",           // delta time
+            "hp",           // hit points
+            "ms",           // milliseconds
+            "ok",           // boolean result
+            "ui",           // user interface (acronym)
+            "on",           // boolean helper
+            "sz",           // size (pixel math)
+            "hi",           // highlight RGB
+            "up",           // direction (key bindings)
+            "bv",           // bevel value
+          ],
+          exceptionPatterns: [
+            "^[a-z][xyrc]$", // coordinates (px, cy, dx…) and grid positions (dr, nc, tc…)
+            "^[a-z][wh]$",   // dimensions (iw, ph, bw…) and crosshair/shadow (ch, sh)
+            "^_.$",           // unused destructured vars (_r, _c, _g, _W, _H)
+            "^[a-z][0-9]$",  // numbered coords/indices (x1, r2, c0, d1, t0)
+            "^[A-G][0-9]$",  // musical note names (G4, C5, E5, G5)
           ],
         }],
 

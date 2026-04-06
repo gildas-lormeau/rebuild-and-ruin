@@ -198,20 +198,23 @@ function updateLoupe(deps: TouchControlsDeps): void {
 
 function updateButtons(deps: TouchControlsDeps): void {
   const hasPointerPlayer = deps.pointerPlayer() !== null;
-  const bs = TOUCH_BUTTON_STATES[deps.mode];
+  const buttonStates = TOUCH_BUTTON_STATES[deps.mode];
   const on = (rule: TouchBtnRule) =>
     rule === true || (rule === INTERACTIVE && hasPointerPlayer);
 
   // D-pad, rotate, confirm — pass current phase to dpad so it can decide
   // which buttons to show (e.g. rotate is hidden during selection).
-  deps.dpad?.update(on(bs.dpad) ? deps.state.phase : null, !on(bs.rotate));
+  deps.dpad?.update(
+    on(buttonStates.dpad) ? deps.state.phase : null,
+    !on(buttonStates.rotate),
+  );
   if (deps.dpad) {
-    if (!on(bs.confirm)) {
+    if (!on(buttonStates.confirm)) {
       deps.dpad.setConfirmValid(false);
     } else if (
       deps.state &&
       isPlacementPhase(deps.state.phase) &&
-      on(bs.placementValidity)
+      on(buttonStates.placementValidity)
     ) {
       deps.dpad.setConfirmValid(
         pointerPhantomValid(
@@ -226,9 +229,9 @@ function updateButtons(deps: TouchControlsDeps): void {
   }
 
   // Zoom, quit
-  deps.homeZoomButton?.update(on(bs.zoom));
-  deps.enemyZoomButton?.update(on(bs.zoom));
-  deps.quitButton?.update(bs.quit ? deps.state.phase : null);
+  deps.homeZoomButton?.update(on(buttonStates.zoom));
+  deps.enemyZoomButton?.update(on(buttonStates.zoom));
+  deps.quitButton?.update(buttonStates.quit ? deps.state.phase : null);
 }
 
 function updateFloatingActions(deps: TouchControlsDeps): void {

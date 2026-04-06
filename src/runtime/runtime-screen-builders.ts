@@ -226,15 +226,15 @@ export function createControlsOverlay(frameCtx: UIContext): {
   overlay: RenderOverlay;
 } {
   const lobbyMap = frameCtx.lobby.map!;
-  const cs = frameCtx.controlsState;
+  const controlsState = frameCtx.controlsState;
   const playerCount = IS_TOUCH_DEVICE ? 1 : PLAYER_NAMES.length;
   const players = PLAYER_NAMES.slice(0, playerCount).map((name, player) => {
-    const kb = frameCtx.settings.keyBindings[player]!;
+    const keyBinding = frameCtx.settings.keyBindings[player]!;
     return {
       name: name!,
       color: getPlayerColor(player as ValidPlayerSlot).wall,
       bindings: ACTION_KEYS.map((key) =>
-        formatKeyName(kb[key as keyof KeyBindings]),
+        formatKeyName(keyBinding[key as keyof KeyBindings]),
       ),
     };
   });
@@ -243,9 +243,9 @@ export function createControlsOverlay(frameCtx: UIContext): {
     ui: {
       controlsScreen: {
         players,
-        playerIdx: cs.playerIdx,
-        actionIdx: cs.actionIdx,
-        rebinding: cs.rebinding,
+        playerIdx: controlsState.playerIdx,
+        actionIdx: controlsState.actionIdx,
+        rebinding: controlsState.rebinding,
         actionNames: CONTROL_ACTION_NAMES,
       },
     },
@@ -417,15 +417,15 @@ function optionValue(frameCtx: UIContext, idx: number): string {
 }
 
 /** Format a key binding as a short hint string (e.g. "Arrows + N (B rotate)"). */
-function formatKeyHint(kb: KeyBindings): string {
+function formatKeyHint(keyBindings: KeyBindings): string {
   const arrows =
-    kb.up === KEY_UP
+    keyBindings.up === KEY_UP
       ? "Arrows"
-      : kb.up.toUpperCase() +
-        kb.left.toUpperCase() +
-        kb.down.toUpperCase() +
-        kb.right.toUpperCase();
-  return `${arrows} + ${kb.confirm.toUpperCase()} (${kb.rotate.toUpperCase()} rotate)`;
+      : keyBindings.up.toUpperCase() +
+        keyBindings.left.toUpperCase() +
+        keyBindings.down.toUpperCase() +
+        keyBindings.right.toUpperCase();
+  return `${arrows} + ${keyBindings.confirm.toUpperCase()} (${keyBindings.rotate.toUpperCase()} rotate)`;
 }
 
 /** Build a map from confirm key → player slot index for lobby joining. */
@@ -434,9 +434,9 @@ function createLobbyConfirmKeys(
 ): Map<string, number> {
   const map = new Map<string, number>();
   for (let i = 0; i < keyBindings.length; i++) {
-    const kb = keyBindings[i]!;
-    map.set(kb.confirm, i);
-    map.set(kb.confirm.toUpperCase(), i);
+    const keyBinding = keyBindings[i]!;
+    map.set(keyBinding.confirm, i);
+    map.set(keyBinding.confirm.toUpperCase(), i);
   }
   return map;
 }

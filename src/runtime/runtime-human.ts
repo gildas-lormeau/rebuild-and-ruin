@@ -58,9 +58,9 @@ export function createPointerPlayerLookup(
   function withPointerPlayer(
     action: (human: PlayerController & InputReceiver) => void,
   ): void {
-    const pp = pointerPlayer();
-    if (!pp) return;
-    action(pp);
+    const active = pointerPlayer();
+    if (!active) return;
+    action(active);
   }
 
   function clearCache(): void {

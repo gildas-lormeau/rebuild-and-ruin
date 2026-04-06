@@ -286,7 +286,7 @@ export function enterBuildFromBattle(state: GameState): void {
   setPhase(state, Phase.WALL_BUILD);
   // Master Builder: +5s if any alive player has it (check before clearing upgrades)
   const hasMasterBuilder = state.players.some(
-    (pl) => !pl.eliminated && pl.upgrades.get(UID.MASTER_BUILDER),
+    (player) => !player.eliminated && player.upgrades.get(UID.MASTER_BUILDER),
   );
   state.timer =
     state.buildTimer + (hasMasterBuilder ? MASTER_BUILDER_BONUS_SECONDS : 0);
@@ -437,7 +437,9 @@ export function resetZoneState(state: GameState, zone: number): void {
     return true;
   });
   state.map.houses = state.map.houses.filter((house) => house.zone !== zone);
-  state.bonusSquares = state.bonusSquares.filter((bs) => bs.zone !== zone);
+  state.bonusSquares = state.bonusSquares.filter(
+    (bonus) => bonus.zone !== zone,
+  );
   state.burningPits = state.burningPits.filter(
     (pit) => state.map.zones[pit.row]?.[pit.col] !== zone,
   );
@@ -648,10 +650,10 @@ function drawOffers(state: GameState): [UpgradeId, UpgradeId, UpgradeId] {
     const totalWeight = pool.reduce((sum, def) => sum + def.weight, 0);
     let roll = state.rng.next() * totalWeight;
     let chosenIdx = pool.length - 1;
-    for (let ci = 0; ci < pool.length; ci++) {
-      roll -= pool[ci]!.weight;
+    for (let poolIdx = 0; poolIdx < pool.length; poolIdx++) {
+      roll -= pool[poolIdx]!.weight;
       if (roll <= 0) {
-        chosenIdx = ci;
+        chosenIdx = poolIdx;
         break;
       }
     }

@@ -40,8 +40,8 @@ export class Rng {
   }
 
   /** Random integer in [lo, hi] inclusive. */
-  int(lo: number, hi: number): number {
-    return lo + Math.floor(this.next() * (hi - lo + 1));
+  int(low: number, hi: number): number {
+    return low + Math.floor(this.next() * (hi - low + 1));
   }
 
   /** Returns true with the given probability (0–1). */

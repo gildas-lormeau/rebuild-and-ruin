@@ -60,11 +60,15 @@ export function tickGrunts(state: GameState): boolean {
 
   // Sort grunts by distance to their target (closest first) so they don't block each other
   const sorted = [...state.grunts].sort((a, b) => {
-    const ta = gruntTargetPos(state, a);
-    const tb = gruntTargetPos(state, b);
-    const da = ta ? distanceToTower(ta, a.row, a.col) : Infinity;
-    const db = tb ? distanceToTower(tb, b.row, b.col) : Infinity;
-    return da - db;
+    const targetA = gruntTargetPos(state, a);
+    const targetB = gruntTargetPos(state, b);
+    const distanceA = targetA
+      ? distanceToTower(targetA, a.row, a.col)
+      : Infinity;
+    const distanceB = targetB
+      ? distanceToTower(targetB, b.row, b.col)
+      : Infinity;
+    return distanceA - distanceB;
   });
 
   for (const grunt of sorted) {
@@ -77,9 +81,9 @@ export function tickGrunts(state: GameState): boolean {
 /** Zones owned by eliminated players — grunts must never target or attack their towers. */
 export function getDeadZones(state: GameState): ReadonlySet<number> {
   const zones = new Set<number>();
-  for (const pl of state.players) {
-    if (!pl.eliminated) continue;
-    const zone = state.playerZones[pl.id];
+  for (const player of state.players) {
+    if (!player.eliminated) continue;
+    const zone = state.playerZones[player.id];
     if (zone !== undefined) zones.add(zone);
   }
   return zones;

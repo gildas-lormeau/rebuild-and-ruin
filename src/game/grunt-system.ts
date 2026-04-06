@@ -147,10 +147,11 @@ export function spawnGruntGroupOnZone(
     for (const [dr, dc] of DIRS_4) {
       const nr = r + dr,
         nc = c + dc;
-      const nKey = packTile(nr, nc);
-      if (visited.has(nKey)) continue;
-      visited.add(nKey);
-      if (!canUseGroupSpawnTile(state, zone, occupied, nr, nc, nKey)) continue;
+      const neighborKey = packTile(nr, nc);
+      if (visited.has(neighborKey)) continue;
+      visited.add(neighborKey);
+      if (!canUseGroupSpawnTile(state, zone, occupied, nr, nc, neighborKey))
+        continue;
       pushGrunt(nr, nc);
       queue.push({ row: nr, col: nc });
       if (placed >= count) break;
@@ -172,9 +173,9 @@ export function spawnGruntSurgeOnZone(
 
   // Collect alive towers in this zone
   const zoneTowers: { row: number; col: number }[] = [];
-  for (let ti = 0; ti < state.map.towers.length; ti++) {
-    const tower = state.map.towers[ti]!;
-    if (tower.zone !== zone || !state.towerAlive[ti]) continue;
+  for (let towerIdx = 0; towerIdx < state.map.towers.length; towerIdx++) {
+    const tower = state.map.towers[towerIdx]!;
+    if (tower.zone !== zone || !state.towerAlive[towerIdx]) continue;
     zoneTowers.push({ row: tower.row, col: tower.col });
   }
   if (zoneTowers.length === 0) return;
@@ -184,17 +185,17 @@ export function spawnGruntSurgeOnZone(
 
   // Round-robin towers, for each pick the nearest available position
   const used = new Set<number>();
-  for (let gi = 0; gi < positions.length; gi++) {
-    const tower = zoneTowers[gi % zoneTowers.length]!;
+  for (let gruntIdx = 0; gruntIdx < positions.length; gruntIdx++) {
+    const tower = zoneTowers[gruntIdx % zoneTowers.length]!;
     let bestIdx = -1;
     let bestDist = Infinity;
-    for (let pi = 0; pi < positions.length; pi++) {
-      if (used.has(pi)) continue;
-      const pos = positions[pi]!;
+    for (let posIdx = 0; posIdx < positions.length; posIdx++) {
+      if (used.has(posIdx)) continue;
+      const pos = positions[posIdx]!;
       const dist = distanceToTower(tower, pos.row, pos.col);
       if (dist < bestDist) {
         bestDist = dist;
-        bestIdx = pi;
+        bestIdx = posIdx;
       }
     }
     if (bestIdx < 0) break;

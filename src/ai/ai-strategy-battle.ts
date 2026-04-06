@@ -139,10 +139,10 @@ export function planPocketDestruction(
       component.push(current);
       const { r, c } = unpackTile(current);
       for (const [dr, dc] of DIRS_4) {
-        const nk = packTile(r + dr, c + dc);
-        if (!visited.has(nk) && interior.has(nk)) {
-          visited.add(nk);
-          queue.push(nk);
+        const neighborKey = packTile(r + dr, c + dc);
+        if (!visited.has(neighborKey) && interior.has(neighborKey)) {
+          visited.add(neighborKey);
+          queue.push(neighborKey);
         }
       }
     }
@@ -170,22 +170,22 @@ export function planPocketDestruction(
       for (const [dr, dc] of DIRS_4) {
         const nr = r + dr;
         const nc = c + dc;
-        const nk = packTile(nr, nc);
-        if (!player.walls.has(nk) || picked.has(nk)) continue;
+        const neighborKey = packTile(nr, nc);
+        if (!player.walls.has(neighborKey) || picked.has(neighborKey)) continue;
         // Check that this wall doesn't also border a large enclosure
         let bordersLarge = false;
         for (const [dr2, dc2] of DIRS_4) {
           const ar = nr + dr2;
           const ac = nc + dc2;
-          const ak = packTile(ar, ac);
-          if (interior.has(ak) && !pocketTiles.has(ak)) {
+          const adjacentKey = packTile(ar, ac);
+          if (interior.has(adjacentKey) && !pocketTiles.has(adjacentKey)) {
             bordersLarge = true;
             break;
           }
         }
         if (bordersLarge) continue;
         targets.push({ row: nr, col: nc });
-        picked.add(nk);
+        picked.add(neighborKey);
         found = true;
         break;
       }
@@ -435,8 +435,11 @@ function collectGruntBlockingWallTargets(
     for (const [ddr, ddc] of dirs) {
       const nr = grunt.row + ddr;
       const nc = grunt.col + ddc;
-      const nk = packTile(nr, nc);
-      if (enemy.walls.has(nk) && !isTileTargetedByInFlightBall(state, nr, nc)) {
+      const neighborKey = packTile(nr, nc);
+      if (
+        enemy.walls.has(neighborKey) &&
+        !isTileTargetedByInFlightBall(state, nr, nc)
+      ) {
         gruntWalls.push({ row: nr, col: nc });
       }
     }
@@ -654,8 +657,9 @@ function findConnectedWalls(
       const nr = r + dr;
       const nc = c + dc;
       if (!inBounds(nr, nc)) continue;
-      const nk = packTile(nr, nc);
-      if (!visited.has(nk) && walls.has(nk)) neighbors.push(nk);
+      const neighborKey = packTile(nr, nc);
+      if (!visited.has(neighborKey) && walls.has(neighborKey))
+        neighbors.push(neighborKey);
     }
     if (neighbors.length === 0) break;
     current = rng.pick(neighbors);
