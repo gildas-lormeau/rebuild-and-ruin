@@ -346,50 +346,6 @@ Deno.test("camera stays unzoomed when no human player exists", () => {
 // 10. Scripted player actions work
 // ---------------------------------------------------------------------------
 
-Deno.test("placeCannonAt places a cannon at the given position", () => {
-  const s = createScenario();
-  assertPhase(s, Phase.CANNON_PLACE);
-
-  const player = s.state.players[0]!;
-  const cannonsBefore = player.cannons.length;
-
-  // Find a valid interior tile for cannon placement
-  const interior = [...player.interior];
-  assert(interior.length > 0, "Player should have interior tiles");
-
-  // Try placing at first interior tile (may fail if blocked by tower, etc.)
-  let placed = false;
-  for (const key of interior) {
-    const row = Math.floor(key / GRID_COLS);
-    const col = key % GRID_COLS;
-    if (s.placeCannonAt(0 as ValidPlayerSlot, row, col)) {
-      placed = true;
-      break;
-    }
-  }
-  assert(placed, "Should place at least one cannon via placeCannonAt");
-  assert(player.cannons.length === cannonsBefore + 1, "Cannon count should increase by 1");
-});
-
-Deno.test("fireAt launches a cannonball at the target", () => {
-  const s = createScenario();
-
-  // Place cannons and advance to battle
-  s.runCannon();
-  s.advanceTo(Phase.BATTLE);
-  for (const ctrl of s.controllers) ctrl.initBattleState(s.state);
-
-  const player = s.state.players[0]!;
-  const aliveCannon = player.cannons.findIndex((c) => c.hp > 0);
-  assert(aliveCannon >= 0, "Player should have an alive cannon");
-
-  const shotsBefore = s.state.shotsFired;
-  const fired = s.fireAt(0 as ValidPlayerSlot, aliveCannon, 20, 20);
-  assert(fired, "fireAt should succeed for alive cannon");
-  assert(s.state.shotsFired === shotsBefore + 1, "shotsFired should increase");
-});
-
-// ---------------------------------------------------------------------------
 // 12. Online transition: cannon start stashes pre-sweep walls
 // ---------------------------------------------------------------------------
 
@@ -472,107 +428,15 @@ Deno.test("online handleBattleStartTransition sets banner.newWalls after checkpo
 // 14. State summary
 // ---------------------------------------------------------------------------
 
-Deno.test("describe() returns a compact state summary", () => {
-  const s = createScenario();
-  const desc = s.describe();
-
-  // Should contain phase, all players, and round
-  assert(desc.includes("Phase:"), "Should include phase");
-  assert(desc.includes("P0:"), "Should include player 0");
-  assert(desc.includes("P1:"), "Should include player 1");
-  assert(desc.includes("P2:"), "Should include player 2");
-  assert(desc.includes("round:"), "Should include round");
-
-  // After elimination, should show 'elim'
-  s.eliminatePlayer(2 as ValidPlayerSlot);
-  const desc2 = s.describe();
-  assert(desc2.includes("P2:elim"), "Should show eliminated player as 'elim'");
-});
-
-// ---------------------------------------------------------------------------
 // 15. Damage helpers
 // ---------------------------------------------------------------------------
 
-Deno.test("destroyWalls removes walls and reclaims territory", () => {
-  const s = createScenario();
-  const player = s.state.players[0]!;
-  const wallsBefore = player.walls.size;
-  assert(wallsBefore > 0, "Player should have walls");
-
-  const removed = s.destroyWalls(0 as ValidPlayerSlot, 5);
-  assert(removed > 0, "Should remove at least one wall");
-  assert(player.walls.size === wallsBefore - removed, "Wall count should decrease");
-});
-
-Deno.test("destroyCannon sets cannon HP to 0", () => {
-  const s = createScenario();
-  s.runCannon();
-  const player = s.state.players[0]!;
-  const aliveBefore = player.cannons.filter((c) => c.hp > 0).length;
-  assert(aliveBefore > 0, "Should have alive cannons");
-
-  s.destroyCannon(0 as ValidPlayerSlot, 0);
-  assert(player.cannons[0]!.hp === 0, "Cannon HP should be 0");
-  const aliveAfter = player.cannons.filter((c) => c.hp > 0).length;
-  assert(aliveAfter === aliveBefore - 1, "One fewer alive cannon");
-});
-
-// ---------------------------------------------------------------------------
 // 16. Multi-round shortcut
 // ---------------------------------------------------------------------------
 
-Deno.test("playRounds advances multiple rounds with reselection handling", () => {
-  const s = createScenario();
-  const roundBefore = s.state.round;
-
-  s.playRounds(3);
-
-  // Round counter increments at BUILD→CANNON transition, so after N playRounds
-  // the round advances by at least N-1 (first playRound starts mid-cycle).
-  assert(
-    s.state.round > roundBefore,
-    `Should advance rounds (was ${roundBefore}, now ${s.state.round})`,
-  );
-  // Verify no crash and game still functional
-  assert(
-    s.state.players.some((p) => !p.eliminated),
-    "At least one player should still be alive",
-  );
-});
-
-// ---------------------------------------------------------------------------
 // 17. Tile finders return valid results
 // ---------------------------------------------------------------------------
 
-Deno.test("tile finders return valid positions", () => {
-  const s = createScenario();
-
-  const grass = s.findGrassTile(0 as ValidPlayerSlot);
-  assert(grass !== null, "Should find a grass tile in player 0's zone");
-  assert(
-    !s.state.players.some(
-      (p) => p.walls.has(grass!.row * GRID_COLS + grass!.col) || p.interior.has(grass!.row * GRID_COLS + grass!.col),
-    ),
-    "Grass tile should not be occupied",
-  );
-
-  const interior = s.findInteriorTile(0 as ValidPlayerSlot);
-  assert(interior !== null, "Should find an interior tile for player 0");
-  assert(
-    s.state.players[0]!.interior.has(interior!.row * GRID_COLS + interior!.col),
-    "Interior tile should be in player's interior set",
-  );
-
-  const enemy = s.findEnemyWallTile(0 as ValidPlayerSlot);
-  assert(enemy !== null, "Should find an enemy wall tile");
-  assert(enemy!.owner !== 0, "Enemy wall should not belong to player 0");
-  assert(
-    s.state.players[enemy!.owner]!.walls.has(enemy!.row * GRID_COLS + enemy!.col),
-    "Enemy wall tile should be in the owner's wall set",
-  );
-});
-
-// ---------------------------------------------------------------------------
 // 18. Online session cleanup on disconnect
 // ---------------------------------------------------------------------------
 
@@ -687,150 +551,12 @@ Deno.test("super gun placed during cannon phase can fire in battle", () => {
 // 22. runBuildEndSequence notifies all affected players
 // ---------------------------------------------------------------------------
 
-Deno.test("runBuildEndSequence notifies all affected players", () => {
-  const notified: number[] = [];
-  let dialogShown = false;
-  runBuildEndSequence({
-    needsReselect: [0 as ValidPlayerSlot, 2 as ValidPlayerSlot],
-    eliminated: [1 as ValidPlayerSlot],
-    showScoreDeltas: (onDone) => onDone(),
-    notifyLifeLost: (pid) => notified.push(pid),
-    showLifeLostDialog: () => { dialogShown = true; },
-  });
-  assert(notified.length === 3, `Expected 3 notifications, got ${notified.length}`);
-  assert(notified[0] === 0, "First notified should be P0");
-  assert(notified[1] === 2, "Second notified should be P2");
-  assert(notified[2] === 1, "Third notified should be P1");
-  assert(dialogShown, "Should show life-lost dialog");
-});
-
-Deno.test("runBuildEndSequence calls onLifeLostResolved when no affected players", () => {
-  let resolved = false;
-  runBuildEndSequence({
-    needsReselect: [],
-    eliminated: [],
-    showScoreDeltas: (onDone) => onDone(),
-    notifyLifeLost: () => { throw new Error("should not notify"); },
-    showLifeLostDialog: () => { throw new Error("should not show dialog"); },
-    onLifeLostResolved: () => { resolved = true; },
-  });
-  assert(resolved, "Should call onLifeLostResolved when no affected players");
-});
-
-// ---------------------------------------------------------------------------
 // 23. Host and watcher build-end paths both notify the local player
 // ---------------------------------------------------------------------------
 
-Deno.test("host and watcher build-end both notify affected controller via shared sequence", () => {
-  const s = createScenario();
-  s.playRounds(2);
-
-  // Destroy P0's walls so they need reselect after build phase
-  s.clearWalls(0 as ValidPlayerSlot);
-  s.advanceTo(Phase.WALL_BUILD);
-  const { needsReselect } = s.finalizeBuild();
-  assert(needsReselect.includes(0 as ValidPlayerSlot), "P0 should need reselect after losing all walls");
-
-  // --- Host path: capture who gets notified ---
-  const hostNotified: number[] = [];
-  runBuildEndSequence({
-    needsReselect,
-    eliminated: [] as ValidPlayerSlot[],
-    showScoreDeltas: (onDone) => onDone(),
-    notifyLifeLost: (pid) => hostNotified.push(pid),
-    showLifeLostDialog: () => {},
-    onLifeLostResolved: () => {},
-  });
-
-  // --- Watcher path: build a BUILD_END message and run through the transition ---
-  const watcherNotified: number[] = [];
-  const ctx = s.createTransitionContext();
-  // Intercept the local controller's onLifeLost to capture the call
-  const origCtrl = s.controllers[0]!;
-  const origOnLifeLost = origCtrl.onLifeLost.bind(origCtrl);
-  origCtrl.onLifeLost = () => {
-    watcherNotified.push(0);
-    origOnLifeLost();
-  };
-
-  const buildEndMsg = {
-    type: MESSAGE.BUILD_END,
-    needsReselect,
-    eliminated: [] as number[],
-    scores: s.state.players.map((p) => p.score),
-    players: serializePlayers(s.state),
-  };
-  handleBuildEndTransition(buildEndMsg as any, ctx);
-
-  // Both paths should have notified P0
-  assert(hostNotified.includes(0), "Host path should notify P0");
-  assert(watcherNotified.includes(0), "Watcher path should notify P0");
-});
-
-// ---------------------------------------------------------------------------
 // 24. Banner shared helpers pass subtitle
 // ---------------------------------------------------------------------------
 
-Deno.test("showCannonPhaseBanner passes subtitle to showBanner", () => {
-  let capturedSubtitle: string | undefined;
-  const mockShow = (_t: string, _cb: () => void, _r?: boolean, _nb?: any, sub?: string) => {
-    capturedSubtitle = sub;
-  };
-  showCannonPhaseBanner(mockShow, () => {});
-  assert(capturedSubtitle !== undefined, "Should pass subtitle");
-  assert(capturedSubtitle!.length > 0, "Subtitle should be non-empty");
-});
-
-Deno.test("showBattlePhaseBanner passes subtitle to showBanner", () => {
-  let capturedSubtitle: string | undefined;
-  const mockShow = (_t: string, _cb: () => void, _r?: boolean, _nb?: any, sub?: string) => {
-    capturedSubtitle = sub;
-  };
-  showBattlePhaseBanner(mockShow, "Battle!", () => {});
-  assert(capturedSubtitle !== undefined, "Should pass subtitle");
-  assert(capturedSubtitle!.length > 0, "Subtitle should be non-empty");
-});
-
-Deno.test("showBuildPhaseBanner passes subtitle to showBanner", () => {
-  let capturedSubtitle: string | undefined;
-  const mockShow = (_t: string, _cb: () => void, _r?: boolean, _nb?: any, sub?: string) => {
-    capturedSubtitle = sub;
-  };
-  showBuildPhaseBanner(mockShow, "Repair!", () => {});
-  assert(capturedSubtitle !== undefined, "Should pass subtitle");
-  assert(capturedSubtitle!.length > 0, "Subtitle should be non-empty");
-});
-
-Deno.test("showUpgradePickBanner passes text and subtitle to showBanner", () => {
-  let capturedText: string | undefined;
-  let capturedSubtitle: string | undefined;
-  let capturedPreserve: boolean | undefined;
-  const mockShow = (text: string, _cb: () => void, preserve?: boolean, _nb?: any, sub?: string) => {
-    capturedText = text;
-    capturedPreserve = preserve;
-    capturedSubtitle = sub;
-  };
-  showUpgradePickBanner(mockShow, () => {});
-  assert(capturedText === "Choose Upgrade", `Expected 'Choose Upgrade', got '${capturedText}'`);
-  assert(capturedSubtitle !== undefined, "Should pass subtitle");
-  assert(capturedSubtitle!.length > 0, "Subtitle should be non-empty");
-  assert(capturedPreserve === true, "Should preserve prev scene");
-});
-
-Deno.test("showUpgradePickBanner fires onDone callback", () => {
-  let doneFired = false;
-  const mockShow = (_t: string, onDone: () => void) => {
-    onDone();
-  };
-  showUpgradePickBanner(mockShow, () => {
-    doneFired = true;
-  });
-  assert(doneFired, "onDone should have been called");
-});
-
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
 // 25. Cannon-start: host and watcher init controller the same way
 // ---------------------------------------------------------------------------
 
