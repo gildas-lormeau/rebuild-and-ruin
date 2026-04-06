@@ -52,11 +52,15 @@ const KEYOF_TYPEOF = /keyof\s+typeof\b/;
 /** Value-type indexed access: `(typeof X)[` */
 const INDEXED_ACCESS = /\(typeof\s+\S+\)\[/;
 
+/** Dynamic import module type: `typeof import("...")` */
+const DYNAMIC_IMPORT_TYPE = /typeof\s+import\(/;
+
 const ALLOWED_PATTERNS = [
   RUNTIME_CHECK,
   TIMER_BUILTIN,
   KEYOF_TYPEOF,
   INDEXED_ACCESS,
+  DYNAMIC_IMPORT_TYPE,
 ];
 
 // ── File scanning ─────────────────────────────────────────────────

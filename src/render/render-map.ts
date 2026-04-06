@@ -10,6 +10,7 @@
  *   - W/H: canvas dimensions in tile-space pixels (MAP_PX_W, MAP_PX_H)
  */
 
+import { tryGetSettingsMod } from "../runtime/runtime-screen-builders.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import {
   CANVAS_H,
@@ -58,7 +59,6 @@ import {
   drawStatusBar,
   drawUpgradePick,
 } from "./render-ui.ts";
-import { drawControlsScreen, drawOptionsScreen } from "./render-ui-settings.ts";
 
 interface TerrainImageCache {
   width: number;
@@ -240,8 +240,8 @@ export function drawMap(
 
   // Full-screen modal screens (opaque — drawn last, on top of everything)
   drawPlayerSelect(overlayCtx, W, H, overlay, now);
-  drawOptionsScreen(overlayCtx, W, H, overlay, now);
-  drawControlsScreen(overlayCtx, W, H, overlay, now);
+  tryGetSettingsMod()?.drawOptionsScreen(overlayCtx, W, H, overlay, now);
+  tryGetSettingsMod()?.drawControlsScreen(overlayCtx, W, H, overlay, now);
 
   // Scale up to display canvas (with optional zoom viewport)
   canvasCtx.imageSmoothingEnabled = false;

@@ -38,10 +38,6 @@ import {
   updateSelectionOverlay,
 } from "../render/render-composition.ts";
 import { precomputeTerrainCache } from "../render/render-map.ts";
-import {
-  controlsScreenHitTest,
-  optionsScreenHitTest,
-} from "../render/render-ui-settings.ts";
 import { SELECT_ANNOUNCEMENT_DURATION } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
@@ -89,6 +85,7 @@ import {
   createControlsOverlay,
   createLobbyOverlay,
   createOptionsOverlay,
+  getSettingsMod,
   lobbyKeyJoin,
   lobbySkipStep,
   showControls,
@@ -438,8 +435,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     isOnline,
     getRemoteHumanSlots: config.getRemoteHumanSlots,
     onCloseOptions: config.onCloseOptions,
-    controlsScreenHitTest,
-    optionsScreenHitTest,
+    controlsScreenHitTest: (...args) =>
+      getSettingsMod().controlsScreenHitTest(...args),
+    optionsScreenHitTest: (...args) =>
+      getSettingsMod().optionsScreenHitTest(...args),
     closeControlsShared: closeControls,
     closeOptionsShared: closeOptions,
     createControlsOverlay,

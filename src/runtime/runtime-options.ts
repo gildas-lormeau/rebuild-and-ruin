@@ -82,17 +82,17 @@ interface OptionsSystemDeps {
 interface OptionsSystem {
   visibleToActualOptionIdx: () => number;
   changeOption: (dir: number) => void;
-  clickOptions: (canvasX: number, canvasY: number) => void;
+  clickOptions: (canvasX: number, canvasY: number) => void | Promise<void>;
   clickControls: (canvasX: number, canvasY: number) => void;
   /** Returns CSS cursor for the given canvas coordinate (pointer over interactive elements). */
   cursorAt: (canvasX: number, canvasY: number) => string;
   /** Returns CSS cursor for controls screen (pointer over cells and close button). */
   controlsCursorAt: (canvasX: number, canvasY: number) => string;
   renderOptions: () => void;
-  showOptions: () => void;
+  showOptions: () => Promise<void>;
   closeOptions: () => void;
   renderControls: () => void;
-  showControls: () => void;
+  showControls: () => Promise<void>;
   closeControls: () => void;
   togglePause: () => boolean;
 }
@@ -180,8 +180,8 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     deps.renderFrame(map, overlay);
   }
 
-  function showOptions(): void {
-    deps.showOptionsShared(uiCtx);
+  async function showOptions(): Promise<void> {
+    await deps.showOptionsShared(uiCtx);
     deps.updateDpad(true);
   }
 
@@ -203,8 +203,8 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     deps.renderFrame(map, overlay);
   }
 
-  function showControls(): void {
-    deps.showControlsShared(uiCtx);
+  async function showControls(): Promise<void> {
+    await deps.showControlsShared(uiCtx);
     deps.updateDpad(true);
   }
 
@@ -223,7 +223,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   // CONTRAST with runtime-lobby.ts which passes raw canvas coords — lobby hit-tests
   // handle TILE_SIZE internally and expect CSS-pixel input directly.
 
-  function clickOptions(canvasX: number, canvasY: number): void {
+  async function clickOptions(canvasX: number, canvasY: number): Promise<void> {
     const visible = visibleOptionsForCtx();
     const hit = deps.optionsScreenHitTest(
       canvasX / SCALE,
@@ -242,7 +242,7 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
     const realIdx = visible[hit.index] ?? hit.index;
     if (realIdx === OPT_CONTROLS) {
       blurSeedInput();
-      showControls();
+      await showControls();
     } else if (realIdx === OPT_SEED) {
       focusSeedInput();
     } else {

@@ -42,8 +42,10 @@ import {
   SOUND_LABELS,
 } from "../shared/settings-defs.ts";
 import { formatKeyName } from "../shared/settings-ui.ts";
-import { type GameState, type LobbyState } from "../shared/types.ts";
+import type { GameState, LobbyState } from "../shared/types.ts";
 import { isInteractiveMode, Mode } from "../shared/ui-mode.ts";
+
+type SettingsMod = typeof import("../render/render-ui-settings.ts");
 
 export interface UIContext {
   getState: () => GameState | undefined;
@@ -70,7 +72,7 @@ export type CreateOptionsOverlayFn = (ctx: UIContext) => {
   overlay: RenderOverlay;
 };
 
-export type ShowOptionsFn = (ctx: UIContext) => void;
+export type ShowOptionsFn = (ctx: UIContext) => Promise<void>;
 
 export type CloseOptionsFn = (ctx: UIContext) => void;
 
@@ -79,7 +81,7 @@ export type CreateControlsOverlayFn = (ctx: UIContext) => {
   overlay: RenderOverlay;
 };
 
-export type ShowControlsFn = (ctx: UIContext) => void;
+export type ShowControlsFn = (ctx: UIContext) => Promise<void>;
 
 export type CloseControlsFn = (ctx: UIContext) => void;
 
@@ -113,6 +115,20 @@ const CONTROL_ACTION_NAMES: readonly string[] = [
   "Confirm",
   "Rotate",
 ];
+
+let settingsModCache: SettingsMod | undefined;
+
+/** Access the cached settings module. Only valid after ensureSettingsModuleLoaded(). */
+export function getSettingsMod(): SettingsMod {
+  if (!settingsModCache)
+    throw new Error("Settings module accessed before loading");
+  return settingsModCache;
+}
+
+/** Safe access for the render loop (returns undefined before first load). */
+export function tryGetSettingsMod(): SettingsMod | undefined {
+  return settingsModCache;
+}
 
 export function createOptionsOverlay(frameCtx: UIContext): {
   map: GameMap;
@@ -187,7 +203,8 @@ export function createOptionsOverlay(frameCtx: UIContext): {
   return { map: state?.map ?? lobbyMap, overlay };
 }
 
-export function showOptions(frameCtx: UIContext): void {
+export async function showOptions(frameCtx: UIContext): Promise<void> {
+  await ensureSettingsModuleLoaded();
   frameCtx.optionsCursor.value = 0;
   frameCtx.setMode(Mode.OPTIONS);
 }
@@ -236,7 +253,8 @@ export function createControlsOverlay(frameCtx: UIContext): {
   return { map: frameCtx.getState()?.map ?? lobbyMap, overlay };
 }
 
-export function showControls(frameCtx: UIContext): void {
+export async function showControls(frameCtx: UIContext): Promise<void> {
+  await ensureSettingsModuleLoaded();
   frameCtx.controlsState.playerIdx = 0;
   frameCtx.controlsState.actionIdx = 0;
   frameCtx.controlsState.rebinding = false;
@@ -362,6 +380,13 @@ export function visibleOptions(frameCtx: UIContext): number[] {
         OPT_SEED,
         OPT_CONTROLS,
       ];
+}
+
+/** Ensure the settings screen chunk is cached. Awaited before entering OPTIONS/CONTROLS mode. */
+async function ensureSettingsModuleLoaded(): Promise<SettingsMod> {
+  if (settingsModCache) return settingsModCache;
+  settingsModCache = await import("../render/render-ui-settings.ts");
+  return settingsModCache;
 }
 
 function optionValue(frameCtx: UIContext, idx: number): string {

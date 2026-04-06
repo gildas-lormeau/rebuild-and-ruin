@@ -31,7 +31,7 @@ interface LobbySystemDeps {
     viewport?: Viewport | null,
   ) => void;
   refreshLobbySeed: () => void;
-  showOptions: () => void;
+  showOptions: () => Promise<void>;
   isOnline: boolean;
   onTickLobbyExpired: () => void | Promise<void>;
   onLobbySlotJoined: (pid: ValidPlayerSlot) => void;
@@ -99,7 +99,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     });
     if (!hit) return false;
     if (hit.type === "gear") {
-      deps.showOptions();
+      void deps.showOptions();
       return true;
     }
     // Mouse/trackpad can only join one slot (keyboard can join additional slots)

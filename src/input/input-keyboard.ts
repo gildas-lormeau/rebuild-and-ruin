@@ -33,7 +33,7 @@ export type RegisterKeyboardHandlersFn = (
 export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
   const { getState, getMode } = deps;
 
-  document.addEventListener("keydown", (e) => {
+  document.addEventListener("keydown", async (e) => {
     if (
       e.target instanceof HTMLInputElement ||
       e.target instanceof HTMLSelectElement
@@ -41,7 +41,7 @@ export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
       return;
     const mode = getMode();
 
-    if (handleKeyF1(e, mode, deps)) return;
+    if (await handleKeyF1(e, mode, deps)) return;
     if (mode === Mode.STOPPED) {
       void handleKeyStopped(e, deps);
       return;
@@ -83,22 +83,21 @@ export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
   });
 }
 
-function handleKeyF1(
+async function handleKeyF1(
   e: KeyboardEvent,
   mode: Mode,
   deps: RegisterOnlineInputDeps,
-): boolean {
+): Promise<boolean> {
   if (e.key !== "F1") return false;
-  const { setMode } = deps;
   if (mode === Mode.LOBBY) {
-    deps.options.show();
+    await deps.options.show();
   } else if (mode === Mode.OPTIONS) {
     deps.options.close();
   } else if (mode === Mode.CONTROLS) {
     deps.options.closeControls();
   } else if (isGameplayMode(mode)) {
     deps.options.setReturnMode(mode);
-    setMode(Mode.OPTIONS);
+    await deps.options.show();
   } else {
     // Unlisted modes (e.g. STOPPED): consume F1 without action or preventDefault
     return true;
