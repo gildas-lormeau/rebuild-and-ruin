@@ -23,17 +23,6 @@ function check(label: string, ok: boolean, detail?: string) {
   }
 }
 
-function getSpyLog(
-  game: E2EGame,
-): Promise<{ name: string; x: number; y: number }[]> {
-  return game.page.evaluate(() => {
-    const e2e = (globalThis as unknown as Record<string, unknown>).__e2e as {
-      renderSpy?: { name: string; x: number; y: number }[] | null;
-    } | undefined;
-    return e2e?.renderSpy ?? [];
-  });
-}
-
 function countByPrefix(log: { name: string }[], prefix: string): number {
   return log.filter((entry) => entry.name.startsWith(prefix)).length;
 }
@@ -103,14 +92,6 @@ async function run() {
     rounds: 1,
   });
 
-  // Enable the render spy so we can read drawSprite calls
-  await game.page.evaluate(() => {
-    const e2e = (globalThis as unknown as Record<string, unknown>).__e2e as {
-      enableRenderSpy?: () => void;
-    } | undefined;
-    e2e?.enableRenderSpy?.();
-  });
-
   let bannersCaught = 0;
 
   try {
@@ -131,7 +112,7 @@ async function run() {
           return e2e?.renderSpy && e2e.renderSpy.length > 0;
         }, { timeout: 5000 });
 
-        const spy = await getSpyLog(game);
+        const spy = await game.spy.spriteDraws();
         const counts = {
           houses: countByPrefix(spy, "house"),
           towers: countByPrefix(spy, "tower_"),
@@ -178,7 +159,7 @@ async function run() {
           } | undefined;
           return e2e?.renderSpy && e2e.renderSpy.length > 0;
         }, { timeout: 5000 });
-        const spyAfter = await getSpyLog(game);
+        const spyAfter = await game.spy.spriteDraws();
         const towersAfter = countByPrefix(spyAfter, "tower_");
         console.log(`    after:   ${spriteSummary(spyAfter)}`);
         check(`towers after`, towersAfter > 0, `count=${towersAfter}`);

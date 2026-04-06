@@ -330,6 +330,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
             resetUIState: () => lifecycle.resetUIState(),
             enterSelection: selection.enter,
           },
+          config.getUrlModeOverride,
         ),
       selection,
       banner: { reset: resetBanner },

@@ -50,6 +50,8 @@ const runtime = createGameRuntime({
     const param = new URL(location.href).searchParams.get("rounds");
     return param ? Number(param) : 0;
   },
+  getUrlModeOverride: () =>
+    new URL(location.href).searchParams.get("mode") ?? "",
   showLobby,
   onLobbySlotJoined: (pid) => {
     runtime.runtimeState.lobby.joined[pid] = true;

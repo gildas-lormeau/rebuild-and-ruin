@@ -13,6 +13,8 @@ import {
   clearRenderSpy,
   enableRenderSpy,
   getRenderSpyLog,
+  getTextSpyLog,
+  type TextDraw,
 } from "../shared/render-spy.ts";
 import { unpackTile } from "../shared/spatial.ts";
 import { type GameViewState, isHuman } from "../shared/system-interfaces.ts";
@@ -68,6 +70,8 @@ interface E2EUISnapshot {
     timer: string;
     modifier?: string;
   } | null;
+  /** Master Builder lockout seconds remaining (0 = inactive). */
+  masterBuilderLockout: number;
   gameOver: { winner: string } | null;
   lifeLostDialog: {
     entries: { playerId: number; choice: string }[];
@@ -137,9 +141,10 @@ interface E2EBridge {
   paused: boolean;
   step: boolean;
 
-  // Render spy — records drawSprite calls per frame (call enableRenderSpy to start)
+  // Render spy — records drawSprite/text calls per frame (call enableRenderSpy to start)
   enableRenderSpy: () => void;
   renderSpy: { name: string; x: number; y: number }[] | null;
+  textSpy: TextDraw[] | null;
 
   // Battle targeting (computed from state for e2e battle simulation)
   targeting: {
@@ -193,6 +198,7 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
         battle: null,
         ui: {
           statusBar: null,
+          masterBuilderLockout: 0,
           gameOver: null,
           lifeLostDialog: null,
           upgradePick: null,
@@ -205,6 +211,7 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
       tileToClient: makeTileToClient(worldToClient),
       enableRenderSpy,
       renderSpy: null,
+      textSpy: null,
       targeting: { enemyCannons: [], enemyTargets: [] },
       paused: false,
       step: false,
@@ -212,10 +219,13 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
     };
     win.__e2e = bridge;
   }
+  // After init guard, bridge is guaranteed non-null
+  const ref = bridge!;
+
   // --- Pause support ---
-  if (bridge.paused) {
-    if (bridge.step) {
-      bridge.step = false;
+  if (ref.paused) {
+    if (ref.step) {
+      ref.step = false;
       // fall through to update one frame
     } else {
       return; // frozen
@@ -223,39 +233,41 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
   }
 
   // --- Core ---
-  bridge.mode = Mode[runtimeState.mode];
+  ref.mode = Mode[runtimeState.mode];
   const ready = isStateReady(runtimeState);
-  bridge.phase = ready ? Phase[runtimeState.state.phase] : "";
-  bridge.round = ready ? runtimeState.state.round : 0;
-  bridge.timer = ready ? runtimeState.state.timer : 0;
+  ref.phase = ready ? Phase[runtimeState.state.phase] : "";
+  ref.round = ready ? runtimeState.state.round : 0;
+  ref.timer = ready ? runtimeState.state.timer : 0;
 
   // --- Overlay ---
-  bridge.overlay.entities = snapshotEntities(runtimeState);
-  bridge.overlay.bannerPrevEntities = snapshotBannerPrevEntities(runtimeState);
-  bridge.overlay.phantoms = snapshotPhantoms(runtimeState);
-  bridge.overlay.banner = snapshotBanner(runtimeState);
-  bridge.overlay.battle = snapshotBattle(runtimeState);
-  bridge.overlay.ui = snapshotUI(runtimeState);
+  ref.overlay.entities = snapshotEntities(runtimeState);
+  ref.overlay.bannerPrevEntities = snapshotBannerPrevEntities(runtimeState);
+  ref.overlay.phantoms = snapshotPhantoms(runtimeState);
+  ref.overlay.banner = snapshotBanner(runtimeState);
+  ref.overlay.battle = snapshotBattle(runtimeState);
+  ref.overlay.ui = snapshotUI(runtimeState);
 
   // --- Players ---
-  bridge.players = ready ? snapshotPlayers(runtimeState.state) : [];
+  ref.players = ready ? snapshotPlayers(runtimeState.state) : [];
 
   // --- Controller ---
   // In local mode getMyPlayerId() returns -1; fall back to slot 0 (first human)
   const myPid = config.getMyPlayerId() >= 0 ? config.getMyPlayerId() : 0;
-  bridge.controller = ready ? snapshotController(runtimeState, myPid) : null;
+  ref.controller = ready ? snapshotController(runtimeState, myPid) : null;
 
   // --- Camera ---
-  bridge.camera.viewport = deps.camera.getViewport();
+  ref.camera.viewport = deps.camera.getViewport();
 
   // --- Render spy (snapshot then clear for next frame) ---
   const spyLog = getRenderSpyLog();
-  bridge.renderSpy = spyLog ? [...spyLog] : null;
+  ref.renderSpy = spyLog ? [...spyLog] : null;
+  const textLog = getTextSpyLog();
+  ref.textSpy = textLog ? [...textLog] : null;
   clearRenderSpy();
 
   // --- Targeting (battle simulation) ---
   if (ready) {
-    populateTargeting(bridge, runtimeState.state, myPid);
+    populateTargeting(ref, runtimeState.state, myPid);
   }
 }
 
@@ -399,6 +411,7 @@ function snapshotUI(runtimeState: RuntimeState): E2EUISnapshot {
           modifier: ui.statusBar.modifier,
         }
       : null,
+    masterBuilderLockout: ui?.masterBuilderLockout ?? 0,
     gameOver: ui?.gameOver ? { winner: ui.gameOver.winner } : null,
     lifeLostDialog: ui?.lifeLostDialog
       ? {

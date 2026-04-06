@@ -155,6 +155,8 @@ export interface E2EGameOptions {
   humans?: number;
   headless?: boolean;
   rounds?: number;
+  /** Game mode override (e.g. "modern"). Passed as ?mode= URL param. */
+  mode?: string;
 }
 
 export class E2EGame {
@@ -183,6 +185,7 @@ export class E2EGame {
       humans = 1,
       headless = true,
       rounds = 3,
+      mode,
     } = opts;
 
     const browser = await chromium.launch({ headless });
@@ -191,7 +194,8 @@ export class E2EGame {
     const game = new E2EGame(browser, page);
 
     const seedParam = seed !== undefined ? String(seed) : "";
-    await page.goto(`${BASE_URL}?rounds=${rounds}`);
+    const modeParam = mode ? `&mode=${mode}` : "";
+    await page.goto(`${BASE_URL}?rounds=${rounds}${modeParam}`);
 
     // Set seed via localStorage
     if (seedParam) {
@@ -210,12 +214,21 @@ export class E2EGame {
     await page.waitForSelector("#game-container.active", { timeout: 5000 });
 
     // Fast mode — always on by default, can be toggled via setFastMode()
+    // Also enables the render spy on the first frame so all phases are captured.
     await page.evaluate(() => {
       const win = globalThis as unknown as Record<string, unknown>;
       win.__e2eOriginalRAF = globalThis.requestAnimationFrame;
+      let spyEnabled = false;
       let fakeTime = performance.now();
       globalThis.requestAnimationFrame = ((cb: FrameRequestCallback) =>
         setTimeout(() => {
+          if (!spyEnabled) {
+            const e2e = win.__e2e as { enableRenderSpy?: () => void } | undefined;
+            if (e2e?.enableRenderSpy) {
+              e2e.enableRenderSpy();
+              spyEnabled = true;
+            }
+          }
           fakeTime += 100;
           cb(fakeTime);
         }, 1) as unknown) as typeof requestAnimationFrame;
@@ -400,6 +413,100 @@ export class E2EGame {
     phantoms: async (): Promise<E2EBridgeSnapshot["overlay"]["phantoms"]> => {
       const snap = await this.query.state();
       return snap.overlay.phantoms;
+    },
+  };
+
+  // --- Render spy ---
+
+  readonly spy = {
+    /** Get the current frame's text draws from the bridge. */
+    textDraws: (): Promise<
+      { text: string; color: string; x: number; y: number; scale: number }[]
+    > => {
+      return this.page.evaluate(() => {
+        const e2e = (globalThis as unknown as Record<string, unknown>)
+          .__e2e as { textSpy?: unknown[] | null } | undefined;
+        return (e2e?.textSpy ?? []) as {
+          text: string;
+          color: string;
+          x: number;
+          y: number;
+          scale: number;
+        }[];
+      });
+    },
+    /** Get the current frame's sprite draws from the bridge. */
+    spriteDraws: (): Promise<
+      { name: string; x: number; y: number }[]
+    > => {
+      return this.page.evaluate(() => {
+        const e2e = (globalThis as unknown as Record<string, unknown>)
+          .__e2e as { renderSpy?: unknown[] | null } | undefined;
+        return (e2e?.renderSpy ?? []) as { name: string; x: number; y: number }[];
+      });
+    },
+    /**
+     * Install a per-frame collector that accumulates draws matching a filter.
+     * The filter runs in page context — pass a JS expression string that
+     * receives `draw` (text draw) and `e2e` (bridge) and returns a bucket
+     * name string, or null to skip.
+     *
+     * Example:
+     *   await game.spy.collect(`
+     *     if (draw.color === "rgba(255,180,50,1)" && draw.scale > 1) return "lockout";
+     *     if (draw.color === "rgb(255,255,255)" && draw.scale === 1) return "normal";
+     *     return null;
+     *   `, { maxPerBucket: 5 });
+     *   // ... wait for game to finish ...
+     *   const results = await game.spy.collected();
+     */
+    collect: async (
+      filterBody: string,
+      opts?: { maxPerBucket?: number },
+    ): Promise<void> => {
+      const max = opts?.maxPerBucket ?? 10;
+      await this.page.evaluate(
+        ([body, limit]: [string, number]) => {
+          const win = globalThis as unknown as Record<string, unknown>;
+          const buckets: Record<string, unknown[]> = {};
+          win.__spyCollector = buckets;
+          const classify = new Function("draw", "e2e", body) as (
+            draw: unknown,
+            e2e: unknown,
+          ) => string | null;
+
+          const prevRAF = globalThis.requestAnimationFrame;
+          globalThis.requestAnimationFrame = (cb: FrameRequestCallback) =>
+            prevRAF((time: number) => {
+              cb(time);
+              const e2e = win.__e2e as {
+                textSpy?: { text: string; color: string; scale: number }[];
+              } | undefined;
+              if (!e2e?.textSpy) return;
+              for (const draw of e2e.textSpy) {
+                const bucket = classify(draw, e2e);
+                if (!bucket) continue;
+                if (!buckets[bucket]) buckets[bucket] = [];
+                if (buckets[bucket]!.length < limit) {
+                  buckets[bucket]!.push({ ...draw });
+                }
+              }
+            });
+        },
+        [filterBody, max] as [string, number],
+      );
+    },
+    /** Read the collected buckets from a prior `collect()` call. */
+    collected: (): Promise<
+      Record<string, { text: string; color: string; scale: number }[]>
+    > => {
+      return this.page.evaluate(() => {
+        const win = globalThis as unknown as Record<string, unknown>;
+        return (win.__spyCollector ?? {}) as Record<
+          string,
+          { text: string; color: string; scale: number }[]
+        >;
+      });
     },
   };
 

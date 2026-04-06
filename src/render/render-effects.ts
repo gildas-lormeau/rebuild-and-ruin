@@ -9,6 +9,7 @@ import { TILE_SIZE } from "../shared/grid.ts";
 import type { RenderOverlay } from "../shared/overlay-types.ts";
 import { getPlayerColor } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { recordTextDraw } from "../shared/render-spy.ts";
 import { facingToCardinal, isWater, unpackTile } from "../shared/spatial.ts";
 import type { RGB } from "../shared/theme.ts";
 import {
@@ -543,8 +544,10 @@ function drawPhaseTimer(
     overlayCtx.translate(jx, jy);
     overlayCtx.scale(pulse, pulse);
     drawShadowText(overlayCtx, text, 0, 0, SHADOW_COLOR, LOCKOUT_AMBER);
+    recordTextDraw(text, LOCKOUT_AMBER, jx, jy, pulse);
   } else {
     drawShadowText(overlayCtx, text, jx, jy, SHADOW_COLOR, TEXT_WHITE);
+    recordTextDraw(text, TEXT_WHITE, jx, jy, 1);
   }
   overlayCtx.restore();
 }

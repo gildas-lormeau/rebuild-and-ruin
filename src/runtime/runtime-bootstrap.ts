@@ -186,6 +186,7 @@ export async function bootstrapNewGameFromSettings(
   log: (msg: string) => void,
   getUrlRoundsOverride: () => number,
   deps: BootstrapFromSettingsDeps,
+  getUrlModeOverride?: () => string,
 ): Promise<void> {
   const seed = runtimeState.lobby.seed;
   log(`[game] seed: ${seed}`);
@@ -196,6 +197,10 @@ export async function bootstrapNewGameFromSettings(
     roundsParam > 0
       ? roundsParam
       : ROUNDS_OPTIONS[runtimeState.settings.rounds]!.value;
+  const modeParam = getUrlModeOverride?.() ?? "";
+  if (modeParam === GAME_MODE_MODERN || modeParam === GAME_MODE_CLASSIC) {
+    runtimeState.settings.gameMode = modeParam;
+  }
   await bootstrapGame({
     seed,
     maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),

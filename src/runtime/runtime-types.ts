@@ -179,6 +179,8 @@ export interface RuntimeConfig {
   getLobbyRemaining: () => number;
   /** URL-based rounds override (e.g. ?rounds=3). 0 = no override. */
   getUrlRoundsOverride: () => number;
+  /** URL-based game mode override (e.g. ?mode=modern). Empty = no override. */
+  getUrlModeOverride?: () => string;
   /** Each mode provides its own. */
   showLobby: () => void;
   /** local: set joined; online: send select_slot. */
