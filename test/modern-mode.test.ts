@@ -267,10 +267,12 @@ Deno.test("Master Builder lockout: checkpoint round-trip preserves lockout", asy
   const deps: CheckpointDeps = {
     state: watcher.state,
     accum: { build: 0, cannon: 0, battle: 0, grunt: 0, select: 0, selectAnnouncement: 0 } as CheckpointAccums,
-    battleAnim: { impacts: [] } as CheckpointBattleAnim,
-    crosshairs: { clear() {} },
-    orbits: new Map() as Map<number, OrbitParams>,
-    orbitAngles: new Map(),
+    battleAnim: { impacts: [], territory: [], walls: [], flights: [] } as unknown as CheckpointBattleAnim,
+    remoteCrosshairs: new Map(),
+    watcherCrosshairPos: new Map(),
+    watcherOrbitParams: new Map() as Map<number, OrbitParams>,
+    watcherOrbitAngles: new Map(),
+    snapshotTerritory: () => [],
   };
   applyBuildStartCheckpoint(msg, deps);
 
