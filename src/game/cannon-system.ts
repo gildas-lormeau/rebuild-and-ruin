@@ -6,8 +6,6 @@ import {
   type BurningPit,
   type Cannon,
   CannonMode,
-  isBalloonMode,
-  isSuperMode,
 } from "../shared/battle-types.ts";
 import {
   assertInteriorFresh,
@@ -15,11 +13,10 @@ import {
   getInterior,
   hasWallAt,
 } from "../shared/board-occupancy.ts";
+import { cannonModeDef } from "../shared/cannon-mode-defs.ts";
 import {
-  BALLOON_COST,
   MAX_CANNON_LIMIT_ON_RESELECT,
   STARTING_LIVES,
-  SUPER_GUN_COST,
 } from "../shared/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
@@ -45,8 +42,6 @@ import type { GameViewState } from "../shared/system-interfaces.ts";
 
 /** Max search radius when snapping cannon placement to a valid tile. */
 const CANNON_SNAP_RADIUS = 2;
-/** Slot cost for a normal cannon. */
-const NORMAL_CANNON_COST = 1;
 
 /** Check whether all tiles of a cannon are inside enclosed territory.
  *
@@ -344,9 +339,7 @@ export function cannonSlotsUsed(player: Player): number {
 }
 
 export function cannonSlotCost(mode: CannonMode): number {
-  if (isBalloonMode(mode)) return BALLOON_COST;
-  if (isSuperMode(mode)) return SUPER_GUN_COST;
-  return NORMAL_CANNON_COST;
+  return cannonModeDef(mode).slotCost;
 }
 
 function overlapsExistingCannon(

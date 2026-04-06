@@ -1,0 +1,108 @@
+{
+  "_description": "Maps each battle event type to consumer files by role. Pre-commit verifies exhaustiveness.",
+  "_roles": {
+    "stateApply": "Mutates game state from the event (applyImpactEvent switch)",
+    "sound": "Plays audio feedback for the event",
+    "haptics": "Triggers vibration feedback for the event",
+    "networkHandle": "Receives event from server and applies on watcher",
+    "networkRelay": "Validates and relays event on the server",
+    "orchestrator": "Routes events to subsystems or tracks statistics",
+    "combo": "Scores combo bonus (called through stateApply, not direct)"
+  },
+  "events": {
+    "cannonFired": {
+      "messageKey": "CANNON_FIRED",
+      "union": "BattleEvent",
+      "consumers": {
+        "sound": "src/input/sound-system.ts",
+        "haptics": "src/input/haptics-system.ts",
+        "networkHandle": "src/online/online-server-events.ts",
+        "networkRelay": "server/game-room.ts"
+      }
+    },
+    "wallDestroyed": {
+      "messageKey": "WALL_DESTROYED",
+      "union": "ImpactEvent",
+      "consumers": {
+        "stateApply": "src/game/battle-system.ts",
+        "sound": "src/input/sound-system.ts",
+        "haptics": "src/input/haptics-system.ts",
+        "networkHandle": "src/online/online-server-events.ts",
+        "networkRelay": "server/game-room.ts",
+        "orchestrator": "src/runtime/runtime-phase-ticks.ts",
+        "combo": "src/game/combo-system.ts"
+      }
+    },
+    "cannonDamaged": {
+      "messageKey": "CANNON_DAMAGED",
+      "union": "ImpactEvent",
+      "consumers": {
+        "stateApply": "src/game/battle-system.ts",
+        "sound": "src/input/sound-system.ts",
+        "haptics": "src/input/haptics-system.ts",
+        "networkHandle": "src/online/online-server-events.ts",
+        "networkRelay": "server/game-room.ts",
+        "orchestrator": "src/runtime/runtime-phase-ticks.ts",
+        "combo": "src/game/combo-system.ts"
+      }
+    },
+    "gruntKilled": {
+      "messageKey": "GRUNT_KILLED",
+      "union": "ImpactEvent",
+      "consumers": {
+        "stateApply": "src/game/battle-system.ts",
+        "sound": "src/input/sound-system.ts",
+        "networkHandle": "src/online/online-server-events.ts",
+        "networkRelay": "server/game-room.ts",
+        "combo": "src/game/combo-system.ts"
+      }
+    },
+    "houseDestroyed": {
+      "messageKey": "HOUSE_DESTROYED",
+      "union": "ImpactEvent",
+      "consumers": {
+        "stateApply": "src/game/battle-system.ts",
+        "networkHandle": "src/online/online-server-events.ts",
+        "networkRelay": "server/game-room.ts"
+      }
+    },
+    "gruntSpawned": {
+      "messageKey": "GRUNT_SPAWNED",
+      "union": "ImpactEvent",
+      "consumers": {
+        "stateApply": "src/game/battle-system.ts",
+        "sound": "src/input/sound-system.ts",
+        "networkHandle": "src/online/online-server-events.ts",
+        "networkRelay": "server/game-room.ts"
+      }
+    },
+    "pitCreated": {
+      "messageKey": "PIT_CREATED",
+      "union": "ImpactEvent",
+      "consumers": {
+        "stateApply": "src/game/battle-system.ts",
+        "networkHandle": "src/online/online-server-events.ts",
+        "networkRelay": "server/game-room.ts"
+      }
+    },
+    "iceThawed": {
+      "messageKey": "ICE_THAWED",
+      "union": "ImpactEvent",
+      "consumers": {
+        "stateApply": "src/game/battle-system.ts",
+        "networkHandle": "src/online/online-server-events.ts",
+        "networkRelay": "server/game-room.ts"
+      }
+    },
+    "towerKilled": {
+      "messageKey": "TOWER_KILLED",
+      "union": "BattleEvent",
+      "consumers": {
+        "sound": "src/input/sound-system.ts",
+        "haptics": "src/input/haptics-system.ts",
+        "networkHandle": "src/online/online-server-events.ts",
+        "networkRelay": "server/game-room.ts"
+      }
+    }
+  }
+}

@@ -114,17 +114,6 @@ export interface BattleAnimState {
   impacts: Impact[];
 }
 
-export const CANNON_MODES: ReadonlySet<CannonMode> = new Set([
-  CannonMode.NORMAL,
-  CannonMode.SUPER,
-  CannonMode.BALLOON,
-]);
-
-/** True if the cannon mode is normal. */
-export function isNormalMode(mode: CannonMode): mode is CannonMode.NORMAL {
-  return mode === CannonMode.NORMAL;
-}
-
 /** True if the cannon mode is super gun. */
 export function isSuperMode(mode: CannonMode): mode is CannonMode.SUPER {
   return mode === CannonMode.SUPER;

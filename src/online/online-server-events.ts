@@ -44,8 +44,8 @@ import {
   canPlaceCannon,
 } from "../game/cannon-system.ts";
 import { highlightTowerSelection } from "../game/selection.ts";
-import { CANNON_MODES } from "../shared/battle-types.ts";
 import { getInterior } from "../shared/board-occupancy.ts";
+import { CANNON_MODE_IDS } from "../shared/cannon-mode-defs.ts";
 import { LifeLostChoice, type ResolvedChoice } from "../shared/dialog-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { inBoundsStrict, packTile } from "../shared/spatial.ts";
@@ -269,7 +269,7 @@ function handleCannonPlaced(
   if (!state || !validPid(msg.playerId, state)) return DROPPED;
   if (state.players[msg.playerId]!.eliminated) return DROPPED;
   if (!inBoundsStrict(msg.row, msg.col)) return DROPPED;
-  if (!CANNON_MODES.has(msg.mode)) return DROPPED;
+  if (!CANNON_MODE_IDS.has(msg.mode)) return DROPPED;
   if (!isRemoteHumanAction(msg.playerId, deps)) return DROPPED;
   if (isHostInContext(deps.session)) {
     const player = state.players[msg.playerId];

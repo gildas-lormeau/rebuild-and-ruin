@@ -23,16 +23,7 @@ export interface ModifierDiff {
   readonly gruntsSpawned: number;
 }
 
-/** Human-readable labels — MUST stay in sync with MODIFIER_ID.
- *  Adding a new modifier requires an entry in both objects. */
-const MODIFIER_LABELS: Record<ModifierId, string> = {
-  wildfire: "Wildfire",
-  crumbling_walls: "Crumbling Walls",
-  grunt_surge: "Grunt Surge",
-  frozen_river: "Frozen River",
-};
-/** String identifiers — MUST stay in sync with MODIFIER_LABELS above.
- *  Adding a new modifier requires an entry in both objects. */
+/** String identifiers for modifiers. Labels live in modifier-defs.ts (MODIFIER_POOL). */
 export const MODIFIER_ID = {
   WILDFIRE: "wildfire",
   CRUMBLING_WALLS: "crumbling_walls",
@@ -46,14 +37,6 @@ export const MODIFIER_FIRST_ROUND = 3;
 /** Probability that any modifier fires on an eligible round. */
 export const MODIFIER_ROLL_CHANCE = 0.65;
 export const CANNON_MAX_HP = 3;
-/** How many cannon slots a super gun costs. */
-export const SUPER_GUN_COST = 4;
-/** Size of a super gun in tiles. */
-export const SUPER_GUN_SIZE = 3;
-/** How many cannon slots a propaganda balloon costs. */
-export const BALLOON_COST = 3;
-/** Size of a balloon base in tiles. */
-export const BALLOON_SIZE = 2;
 /** Size of a normal cannon in tiles (2x2). */
 export const NORMAL_CANNON_SIZE = 2;
 /** Number of bonus squares per zone. */
@@ -201,8 +184,3 @@ export const HAPTICS_PHASE_ONLY = 1;
 export const HAPTICS_ALL = 2;
 export const SOUND_PHASE_ONLY = 1;
 export const SOUND_ALL = 2;
-
-/** Human-readable label for a modifier id. */
-export function modifierLabel(id: ModifierId): string {
-  return MODIFIER_LABELS[id];
-}

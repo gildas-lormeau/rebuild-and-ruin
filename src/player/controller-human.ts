@@ -11,13 +11,11 @@ import {
   hasAnyCannonPlacement,
   placeCannon,
 } from "../game/cannon-system.ts";
+import { CannonMode } from "../shared/battle-types.ts";
 import {
-  CannonMode,
-  isBalloonMode,
-  isNormalMode,
-  isSuperMode,
-} from "../shared/battle-types.ts";
-import { BALLOON_COST, SUPER_GUN_COST } from "../shared/game-constants.ts";
+  cannonModeDef,
+  IMPLEMENTED_CANNON_MODES,
+} from "../shared/cannon-mode-defs.ts";
 import {
   GRID_COLS,
   GRID_ROWS,
@@ -129,14 +127,11 @@ export class HumanController extends BaseController implements InputReceiver {
     );
   }
 
-  /** Downgrade cannon mode if its slot cost exceeds remaining slots (SUPER→NORMAL, BALLOON→NORMAL).
+  /** Downgrade cannon mode if its slot cost exceeds remaining slots.
    *  MUST be called before canPlaceCannon() in cannonTick() — otherwise the preview
    *  may show an impossible placement that confuses the player. */
   private downgradeCannonModeIfNeeded(remaining: number): void {
-    if (isSuperMode(this.cannonPlaceMode) && remaining < SUPER_GUN_COST) {
-      this.cannonPlaceMode = CannonMode.NORMAL;
-    }
-    if (isBalloonMode(this.cannonPlaceMode) && remaining < BALLOON_COST) {
+    if (remaining < cannonModeDef(this.cannonPlaceMode).slotCost) {
       this.cannonPlaceMode = CannonMode.NORMAL;
     }
   }
@@ -293,27 +288,26 @@ export class HumanController extends BaseController implements InputReceiver {
     }
   }
 
-  /** Cycle cannon placement mode: NORMAL → SUPER → BALLOON → NORMAL.
+  /** Cycle cannon placement mode through IMPLEMENTED_CANNON_MODES.
    *  Skips modes whose slot cost exceeds remaining slots.
    *  Also re-clamps the cursor so the new cannon size stays within the grid. */
   cycleCannonMode(state: CannonViewState, maxSlots: number): void {
     const player = state.players[this.playerId];
     if (!isPlayerAlive(player)) return;
     const used = cannonSlotsUsed(player);
-    if (
-      isNormalMode(this.cannonPlaceMode) &&
-      used + SUPER_GUN_COST <= maxSlots
-    ) {
-      this.cannonPlaceMode = CannonMode.SUPER;
-    } else if (
-      (isNormalMode(this.cannonPlaceMode) ||
-        isSuperMode(this.cannonPlaceMode)) &&
-      used + BALLOON_COST <= maxSlots
-    ) {
-      this.cannonPlaceMode = CannonMode.BALLOON;
-    } else {
-      this.cannonPlaceMode = CannonMode.NORMAL;
+    const modes = IMPLEMENTED_CANNON_MODES;
+    const currentIdx = modes.findIndex(
+      (def) => def.id === this.cannonPlaceMode,
+    );
+    for (let offset = 1; offset < modes.length; offset++) {
+      const next = modes[(currentIdx + offset) % modes.length]!;
+      if (used + next.slotCost <= maxSlots) {
+        this.cannonPlaceMode = next.id;
+        this.clampCannonCursorToMode();
+        return;
+      }
     }
+    this.cannonPlaceMode = CannonMode.NORMAL;
     this.clampCannonCursorToMode();
   }
 

@@ -19,8 +19,9 @@ import type {
   Impact,
 } from "../shared/battle-types.ts";
 import { snapshotAllWalls } from "../shared/board-occupancy.ts";
-import { type ModifierDiff, modifierLabel } from "../shared/game-constants.ts";
+import { type ModifierDiff } from "../shared/game-constants.ts";
 import type { TilePos } from "../shared/geometry-types.ts";
+import { modifierDef } from "../shared/modifier-defs.ts";
 import type {
   BattleController,
   ControllerIdentity,
@@ -282,7 +283,7 @@ export function startHostBattleLifecycle(
         // (runs while this banner animates) and picked up by the renderer.
         showModifierRevealBanner(
           showBanner,
-          modifierLabel(activeModifier),
+          modifierDef(activeModifier).label,
           () => {
             showBattlePhaseBanner(showBanner, BANNER_BATTLE, proceedToBattle);
           },

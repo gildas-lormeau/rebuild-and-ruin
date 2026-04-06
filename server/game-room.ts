@@ -15,7 +15,7 @@
  * there is a single source of truth — no dual-tracking desync risk.
  */
 
-import { CANNON_MODES } from "../src/shared/battle-types.ts";
+import { CANNON_MODE_IDS } from "../src/shared/cannon-mode-defs.ts";
 import { LifeLostChoice } from "../src/shared/dialog-types.ts";
 import { Phase } from "../src/shared/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/shared/grid.ts";
@@ -153,7 +153,7 @@ function hasValidOffsets(
 }
 
 function hasValidCannonMode(msg: Record<string, unknown>): boolean {
-  return (CANNON_MODES as ReadonlySet<string>).has(msg.mode as string);
+  return (CANNON_MODE_IDS as ReadonlySet<string>).has(msg.mode as string);
 }
 
 function validatePayload(msg: Record<string, unknown>): boolean {

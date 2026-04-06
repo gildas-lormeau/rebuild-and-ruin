@@ -23,10 +23,7 @@ import {
   type ResolvedChoice,
   type UpgradePickDialogState,
 } from "../shared/dialog-types.ts";
-import {
-  LIFE_LOST_MAX_TIMER,
-  modifierLabel,
-} from "../shared/game-constants.ts";
+import { LIFE_LOST_MAX_TIMER } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import {
   GRID_COLS,
@@ -36,6 +33,7 @@ import {
   SCALE,
   TILE_SIZE,
 } from "../shared/grid.ts";
+import { modifierDef } from "../shared/modifier-defs.ts";
 import {
   type CastleData,
   type GameOverOverlay,
@@ -308,7 +306,7 @@ export function createStatusBar(
 ) {
   // Modifier label (modern mode only)
   const modifier = state.modern?.activeModifier
-    ? modifierLabel(state.modern.activeModifier)
+    ? modifierDef(state.modern.activeModifier).label
     : undefined;
 
   // POV player's active upgrade labels (skip when no human is playing)

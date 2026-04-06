@@ -26,6 +26,8 @@
       "src/shared/battle-types.ts",
       "src/shared/dialog-types.ts",
       "src/shared/upgrade-defs.ts",
+      "src/shared/modifier-defs.ts",
+      "src/shared/cannon-mode-defs.ts",
       "src/shared/settings-defs.ts",
       "src/shared/settings-ui.ts",
       "src/shared/render-spy.ts",

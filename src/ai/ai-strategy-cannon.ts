@@ -6,6 +6,7 @@
  */
 
 import {
+  cannonSlotCost,
   cannonSlotsUsed,
   canPlaceCannon,
   isCannonEnclosed,
@@ -17,7 +18,6 @@ import {
   getInterior,
   hasTowerAt,
 } from "../shared/board-occupancy.ts";
-import { BALLOON_COST, SUPER_GUN_COST } from "../shared/game-constants.ts";
 import type { GameMap, TilePos, Tower } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
 import type { Player } from "../shared/player-types.ts";
@@ -251,7 +251,10 @@ function tryPlaceSuperGun(
     towerCenters,
   );
   const best = superCandidates[0];
-  if (best && count - cannonSlotsUsed(player) >= SUPER_GUN_COST) {
+  if (
+    best &&
+    count - cannonSlotsUsed(player) >= cannonSlotCost(CannonMode.SUPER)
+  ) {
     placeCannon(player, best.row, best.col, count, CannonMode.SUPER, state);
   }
 }
@@ -423,7 +426,7 @@ function tryPlaceBalloon(
     !shouldPlaceBalloon(state, player, defensiveness, normalCandidates.length)
   )
     return;
-  if (slotsLeft < BALLOON_COST) return;
+  if (slotsLeft < cannonSlotCost(CannonMode.BALLOON)) return;
   const position = normalCandidates[0];
   if (position) {
     placeCannon(

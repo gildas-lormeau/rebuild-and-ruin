@@ -1,6 +1,7 @@
 /** Shared types and utilities for online multiplayer sub-modules. */
 
-import { CANNON_MODES, CannonMode } from "../shared/battle-types.ts";
+import { CannonMode } from "../shared/battle-types.ts";
+import { CANNON_MODE_IDS } from "../shared/cannon-mode-defs.ts";
 import type { PixelPos } from "../shared/geometry-types.ts";
 import type { CannonPhantom, PiecePhantom } from "../shared/phantom-types.ts";
 import {
@@ -45,7 +46,7 @@ export function clearWatcherPhaseTimer(timing: WatcherTimingState): void {
 
 /** Parse a string as a CannonMode, defaulting to NORMAL if invalid. */
 export function toCannonMode(value: string | undefined): CannonMode {
-  if (value && (CANNON_MODES as ReadonlySet<string>).has(value))
+  if (value && (CANNON_MODE_IDS as ReadonlySet<string>).has(value))
     return value as CannonMode;
   return CannonMode.NORMAL;
 }

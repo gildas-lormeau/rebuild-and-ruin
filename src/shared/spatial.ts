@@ -19,12 +19,8 @@ import {
   isBalloonMode,
   isSuperMode,
 } from "./battle-types.ts";
-import {
-  BALLOON_SIZE,
-  NORMAL_CANNON_SIZE,
-  SUPER_GUN_SIZE,
-  TOWER_SIZE,
-} from "./game-constants.ts";
+import { cannonModeDef } from "./cannon-mode-defs.ts";
+import { TOWER_SIZE } from "./game-constants.ts";
 import type { PixelPos, TilePos, Tower } from "./geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
 import { Action } from "./input-action.ts";
@@ -211,9 +207,7 @@ export function towerReachesOutsideCardinal(
 
 /** Get the tile size of a cannon mode (2 for normal/balloon, 3 for super). */
 export function cannonSize(mode: CannonMode): number {
-  if (isSuperMode(mode)) return SUPER_GUN_SIZE;
-  if (isBalloonMode(mode)) return BALLOON_SIZE;
-  return NORMAL_CANNON_SIZE;
+  return cannonModeDef(mode).size;
 }
 
 /** True if a cannon still has hit points remaining. */

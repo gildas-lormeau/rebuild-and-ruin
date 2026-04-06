@@ -23,6 +23,7 @@ import {
   type ModifierId,
 } from "../shared/game-constants.ts";
 import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
+import { IMPLEMENTED_MODIFIERS } from "../shared/modifier-defs.ts";
 import { isPlayerSeated } from "../shared/player-types.ts";
 import {
   DIRS_4,
@@ -34,18 +35,6 @@ import {
 import type { GameState } from "../shared/types.ts";
 import { spawnGruntSurgeOnZone } from "./grunt-system.ts";
 
-interface ModifierDef {
-  readonly id: ModifierId;
-  readonly label: string;
-  readonly weight: number;
-}
-
-const MODIFIER_POOL: readonly ModifierDef[] = [
-  { id: "wildfire", label: "Wildfire", weight: 3 },
-  { id: "crumbling_walls", label: "Crumbling Walls", weight: 3 },
-  { id: "grunt_surge", label: "Grunt Surge", weight: 2 },
-  { id: "frozen_river", label: "Frozen River", weight: 2 },
-];
 /** Extra grunts per player during a grunt surge.
  *  Baseline is ~15 grunts per territory in a typical game,
  *  so 6-10 extra is a serious but not overwhelming spike. */
@@ -69,7 +58,7 @@ export function rollModifier(state: GameState): ModifierId | null {
   if (state.round < MODIFIER_FIRST_ROUND) return null;
   if (!state.rng.bool(MODIFIER_ROLL_CHANCE)) return null;
 
-  const candidates = MODIFIER_POOL.filter(
+  const candidates = IMPLEMENTED_MODIFIERS.filter(
     (mod) => mod.id !== state.modern?.lastModifierId,
   );
   if (candidates.length === 0) return null;
