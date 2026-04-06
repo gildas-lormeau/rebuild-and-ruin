@@ -12,6 +12,6 @@
 
 import { initOnlineRuntime } from "./online/online-runtime-game.ts";
 
-export { lobbyReady } from "./online/online-runtime-lobby";
+export { lobbyReady } from "./online/online-runtime-lobby.ts";
 
 initOnlineRuntime();

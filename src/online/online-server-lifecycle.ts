@@ -55,7 +55,7 @@ export interface HandleServerLifecycleDeps {
 
   game: {
     getState: () => GameState | undefined;
-    initFromServer: (msg: InitMessage) => void;
+    initFromServer: (msg: InitMessage) => Promise<void>;
     enterTowerSelection: () => void;
   };
 
@@ -70,15 +70,15 @@ export interface HandleServerLifecycleDeps {
 
   migration: {
     playerNames: readonly string[];
-    promoteToHost: () => void;
+    promoteToHost: () => Promise<void>;
     restoreFullState: (msg: FullStateMessage) => void;
   };
 }
 
-export function handleServerLifecycleMessage(
+export async function handleServerLifecycleMessage(
   msg: ServerMessage,
   deps: HandleServerLifecycleDeps,
-): boolean {
+): Promise<boolean> {
   /** Atomically update all three slot-tracking structures (clear).
    *  Invariant: occupiedSlots, remoteHumanSlots, and lobby.joined must always
    *  be mutated together to avoid phantom entries or orphaned lobby data. */
@@ -187,7 +187,7 @@ export function handleServerLifecycleMessage(
       return true;
 
     case MESSAGE.INIT:
-      deps.game.initFromServer(msg);
+      await deps.game.initFromServer(msg);
       return true;
 
     case MESSAGE.SELECT_START:
@@ -229,7 +229,7 @@ export function handleServerLifecycleMessage(
       );
       deps.session.hostMigrationSeq++;
       if (msg.newHostPlayerId === deps.session.myPlayerId) {
-        deps.migration.promoteToHost();
+        await deps.migration.promoteToHost();
         deps.ui.setAnnouncement("You are now the host");
       } else {
         const name =

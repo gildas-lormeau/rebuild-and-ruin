@@ -121,7 +121,7 @@ const runtime: GameRuntime = createGameRuntime({
       ctx.session.lobbyStartTime = performance.now();
     }
   },
-  onTickLobbyExpired: () => {
+  onTickLobbyExpired: async () => {
     if (!isHostInContext(ctx.session)) return;
     const diffParams =
       DIFFICULTY_PARAMS[runtime.runtimeState.settings.difficulty] ??
@@ -140,7 +140,7 @@ const runtime: GameRuntime = createGameRuntime({
       },
     };
     send(initMsg);
-    sessionHelpers.initFromServer(initMsg);
+    await sessionHelpers.initFromServer(initMsg);
     send({ type: MESSAGE.SELECT_START, timer: SELECT_TIMER });
   },
 

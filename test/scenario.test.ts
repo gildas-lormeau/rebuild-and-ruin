@@ -19,8 +19,8 @@ import { CannonMode } from "../src/shared/battle-types.ts";
 // Game-over overlay cleared on returnToLobby
 // ---------------------------------------------------------------------------
 
-Deno.test("frame.gameOver is undefined after game ends and lobby is requested", () => {
-  const s = createScenario();
+Deno.test("frame.gameOver is undefined after game ends and lobby is requested", async () => {
+  const s = await createScenario();
 
   // Simulate game ending: eliminate all but player 0
   for (let i = 1; i < s.state.players.length; i++) {
@@ -41,8 +41,8 @@ Deno.test("frame.gameOver is undefined after game ends and lobby is requested", 
 // Swept wall debris not visible in banner new scene
 // ---------------------------------------------------------------------------
 
-Deno.test("isolated walls are swept before battle banner captures newWalls", () => {
-  const s = createScenario();
+Deno.test("isolated walls are swept before battle banner captures newWalls", async () => {
+  const s = await createScenario();
 
   // Add isolated wall tiles (0-1 neighbors) that removeIsolatedWalls should remove
   const player = s.state.players[0]!;
@@ -91,8 +91,8 @@ Deno.test("isolated walls are swept before battle banner captures newWalls", () 
 // Settings screen overlay includes castles when in-game
 // ---------------------------------------------------------------------------
 
-Deno.test("options overlay has castle data when game state exists", () => {
-  const s = createScenario();
+Deno.test("options overlay has castle data when game state exists", async () => {
+  const s = await createScenario();
 
   // Verify the state has castles with walls
   const player = s.state.players[0]!;
@@ -121,8 +121,8 @@ Deno.test("options overlay has castle data when game state exists", () => {
 // Cannon phantom snaps after placement
 // ---------------------------------------------------------------------------
 
-Deno.test("cannon cursor needs snap after successful placement", () => {
-  const s = createScenario();
+Deno.test("cannon cursor needs snap after successful placement", async () => {
+  const s = await createScenario();
   assertPhase(s, Phase.CANNON_PLACE);
 
   // The fix: after tryPlaceCannon succeeds, cannonCursorSetByMouse = true.
@@ -146,8 +146,8 @@ Deno.test("cannon cursor needs snap after successful placement", () => {
 // Life-lost dialog: eliminated player shows no bottom label
 // ---------------------------------------------------------------------------
 
-Deno.test("eliminated player entry has lives=0 and ABANDON choice", () => {
-  const s = createScenario();
+Deno.test("eliminated player entry has lives=0 and ABANDON choice", async () => {
+  const s = await createScenario();
 
   // Set player 2 to 0 lives (will be auto-eliminated)
   s.setLives(2 as ValidPlayerSlot, 0);
@@ -168,8 +168,8 @@ Deno.test("eliminated player entry has lives=0 and ABANDON choice", () => {
   assertLifeLostLabel(entry!, "none");
 });
 
-Deno.test("continuing player entry shows Continuing label", () => {
-  const s = createScenario();
+Deno.test("continuing player entry shows Continuing label", async () => {
+  const s = await createScenario();
 
   const dialog = s.createLifeLostDialog([0 as ValidPlayerSlot, 1 as ValidPlayerSlot]);
 
@@ -261,9 +261,9 @@ Deno.test("demo timer not started when human is playing", () => {
 // Super gun can fire immediately after placement
 // ---------------------------------------------------------------------------
 
-Deno.test("super gun placed during cannon phase can fire in battle", () => {
+Deno.test("super gun placed during cannon phase can fire in battle", async () => {
   // Seed 14: P0 has enough interior for a 3x3 super gun after 1 round
-  const s = createScenario(14);
+  const s = await createScenario(14);
   s.playRounds(1);
   let placed = false;
   const p = s.state.players[0]!;
@@ -302,10 +302,10 @@ Deno.test("super gun placed during cannon phase can fire in battle", () => {
 // Castle wall ring must not overlap other towers
 // ---------------------------------------------------------------------------
 
-Deno.test("prebuilt castle walls never land on another tower's tiles", () => {
+Deno.test("prebuilt castle walls never land on another tower's tiles", async () => {
   // Try multiple seeds to exercise different tower layouts
   for (const seed of [1, 7, 42, 99, 123, 256, 500, 777]) {
-    const s = createScenario(seed);
+    const s = await createScenario(seed);
     const { state } = s;
 
     // Collect all tower tiles (2×2 each)

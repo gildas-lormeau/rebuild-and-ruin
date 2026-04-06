@@ -408,9 +408,9 @@ Deno.test("breaking a wall loses territory", () => {
 import { computeCastleWallTiles } from "../src/game/castle-generation.ts";
 import { createScenario } from "./scenario-helpers.ts";
 
-Deno.test("reselection preserves clumsy walls from castle build", () => {
+Deno.test("reselection preserves clumsy walls from castle build", async () => {
   for (let seed = 1; seed < 200; seed++) {
-    const sc = createScenario(seed);
+    const sc = await createScenario(seed);
 
     for (let round = 0; round < 20; round++) {
       const { needsReselect } = sc.playRound();

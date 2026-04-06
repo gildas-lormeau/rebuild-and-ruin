@@ -186,7 +186,7 @@ export interface RuntimeConfig {
   /** Optional extra action on close (e.g., reset timer). */
   onCloseOptions?: () => void;
   /** local: startGame; online: host sends init. */
-  onTickLobbyExpired: () => void;
+  onTickLobbyExpired: () => void | Promise<void>;
 
   /** Online networking deps — presence implies online mode (replaces isOnline boolean). */
   onlineConfig?: OnlineRuntimeConfig;
@@ -332,7 +332,7 @@ export interface RuntimeLobby {
 }
 
 export interface RuntimeLifecycle {
-  startGame: () => void;
+  startGame: () => Promise<void>;
   resetUIState: () => void;
 }
 

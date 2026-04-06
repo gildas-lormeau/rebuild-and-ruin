@@ -144,8 +144,8 @@ export interface CameraTestHandle {
   setCtx: (overrides: Partial<CameraTestDeps>) => void;
 }
 
-export function createScenario(seed = 42): Scenario {
-  const runtime = createHeadlessRuntime(seed);
+export async function createScenario(seed = 42): Promise<Scenario> {
+  const runtime = await createHeadlessRuntime(seed);
   const { state, controllers } = runtime;
   const playerCount = runtime.playerCount;
 

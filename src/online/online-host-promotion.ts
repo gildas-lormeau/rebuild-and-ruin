@@ -26,36 +26,45 @@ export function rebuildControllersForPhase(
   state: GameState,
   controllers: readonly PlayerController[],
   myPlayerId: PlayerSlotId,
-  createAiController: (id: ValidPlayerSlot, seed: number) => PlayerController,
-): PlayerController[] {
-  return controllers.map((existing, i) => {
-    if (i === myPlayerId) return existing;
-    const player = state.players[i];
-    if (!isPlayerAlive(player)) return existing;
+  createAiController: (
+    id: ValidPlayerSlot,
+    seed: number,
+  ) => Promise<PlayerController>,
+): Promise<PlayerController[]> {
+  return Promise.all(
+    controllers.map(async (existing, i) => {
+      if (i === myPlayerId) return existing;
+      const player = state.players[i];
+      if (!isPlayerAlive(player)) return existing;
 
-    const pid = i as ValidPlayerSlot;
-    const strategySeed = deriveAiStrategySeed(state.rng.seed, state.round, pid);
-    const ctrl = createAiController(pid, strategySeed);
+      const pid = i as ValidPlayerSlot;
+      const strategySeed = deriveAiStrategySeed(
+        state.rng.seed,
+        state.round,
+        pid,
+      );
+      const ctrl = await createAiController(pid, strategySeed);
 
-    // Initialize AI for the current phase
-    if (state.phase === Phase.WALL_BUILD) {
-      ctrl.startBuildPhase(state);
-    } else if (state.phase === Phase.CANNON_PLACE) {
-      const max = state.cannonLimits[i] ?? 0;
-      ctrl.placeCannons(state, max);
-      if (player.homeTower) {
-        ctrl.cannonCursor = {
-          row: player.homeTower.row,
-          col: player.homeTower.col,
-        };
+      // Initialize AI for the current phase
+      if (state.phase === Phase.WALL_BUILD) {
+        ctrl.startBuildPhase(state);
+      } else if (state.phase === Phase.CANNON_PLACE) {
+        const max = state.cannonLimits[i] ?? 0;
+        ctrl.placeCannons(state, max);
+        if (player.homeTower) {
+          ctrl.cannonCursor = {
+            row: player.homeTower.row,
+            col: player.homeTower.col,
+          };
+        }
+        ctrl.startCannonPhase(state);
+      } else if (state.phase === Phase.BATTLE) {
+        ctrl.initBattleState(state);
       }
-      ctrl.startCannonPhase(state);
-    } else if (state.phase === Phase.BATTLE) {
-      ctrl.initBattleState(state);
-    }
-    // SELECTION, CASTLE_RESELECT — AI will be driven by selection system
-    return ctrl;
-  });
+      // SELECTION, CASTLE_RESELECT — AI will be driven by selection system
+      return ctrl;
+    }),
+  );
 }
 
 /**

@@ -251,8 +251,8 @@ function validateCrossRound(
 // Tests — one per seed
 // ---------------------------------------------------------------------------
 
-function runGame(seed: number): void {
-  const s = createScenario(seed);
+async function runGame(seed: number): Promise<void> {
+  const s = await createScenario(seed);
   const tracker: GameTracker = {
     prevScores: s.state.players.map((p) => p.score),
     prevRound: s.state.round,
@@ -283,7 +283,7 @@ function runGame(seed: number): void {
 }
 
 for (const seed of [3, 7, 25, 40, 55]) {
-  Deno.test(`headless game invariants (seed=${seed})`, () => {
-    runGame(seed);
+  Deno.test(`headless game invariants (seed=${seed})`, async () => {
+    await runGame(seed);
   });
 }

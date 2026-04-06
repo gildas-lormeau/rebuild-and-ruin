@@ -52,7 +52,7 @@ import type { OnlineClient } from "./online-stores.ts";
 // ── Types ──────────────────────────────────────────────────────────
 interface DepsInit {
   readonly runtime: GameRuntime;
-  readonly initFromServer: (msg: InitMessage) => void;
+  readonly initFromServer: (msg: InitMessage) => Promise<void>;
   readonly restoreFullState: (msg: FullStateMessage) => void;
   readonly showWaitingRoom: (code: string, seed: number) => void;
   readonly transitionCtx: TransitionContext;
@@ -80,10 +80,10 @@ export function initDeps(init: DepsInit): void {
   _incrementalDeps = buildIncrementalDeps();
 }
 
-export function handleServerMessage(msg: ServerMessage): void {
+export async function handleServerMessage(msg: ServerMessage): Promise<void> {
   if (!_g) throw new Error("handleServerMessage() called before initDeps()");
   _client.devLog(`received: ${msg.type}`);
-  if (handleServerLifecycleMessage(msg, _lifecycleDeps)) return;
+  if (await handleServerLifecycleMessage(msg, _lifecycleDeps)) return;
   const result = handleServerIncrementalMessage(msg, _incrementalDeps);
   if (!result) _client.devLog(`unhandled incremental message: ${msg.type}`);
 }

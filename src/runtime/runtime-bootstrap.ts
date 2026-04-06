@@ -1,6 +1,9 @@
 import { createGameFromSeed } from "../game/game-engine.ts";
 import { generateMap } from "../game/map-generation.ts";
-import { createController } from "../player/controller-factory.ts";
+import {
+  createController,
+  ensureAiModulesLoaded,
+} from "../player/controller-factory.ts";
 import {
   DIFFICULTY_PARAMS,
   GAME_MODE_CLASSIC,
@@ -172,18 +175,18 @@ export function createAiController(
   id: ValidPlayerSlot,
   seed: number,
   difficulty?: number,
-): PlayerController {
+): Promise<PlayerController> {
   return createController(id, true, undefined, seed, difficulty);
 }
 
 /** High-level bootstrap: resolves settings → params, then calls bootstrapGame.
  *  Used by the composition root (runtime.ts) for local startGame. */
-export function bootstrapNewGameFromSettings(
+export async function bootstrapNewGameFromSettings(
   runtimeState: RuntimeState,
   log: (msg: string) => void,
   getUrlRoundsOverride: () => number,
   deps: BootstrapFromSettingsDeps,
-): void {
+): Promise<void> {
   const seed = runtimeState.lobby.seed;
   log(`[game] seed: ${seed}`);
   const { buildTimer, cannonPlaceTimer, firstRoundCannons } =
@@ -193,7 +196,7 @@ export function bootstrapNewGameFromSettings(
     roundsParam > 0
       ? roundsParam
       : ROUNDS_OPTIONS[runtimeState.settings.rounds]!.value;
-  bootstrapGame({
+  await bootstrapGame({
     seed,
     maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),
     existingMap: runtimeState.lobby.map ?? undefined,
@@ -221,7 +224,7 @@ export function bootstrapNewGameFromSettings(
 
 /** Shared game init — used by both local startGame and online initFromServer.
  *  Generates map from seed, creates state, creates controllers, enters selection. */
-export function bootstrapGame(deps: InitGameDeps): void {
+export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
   deps.resetUIState();
   deps.clearFrameData();
 
@@ -244,20 +247,24 @@ export function bootstrapGame(deps: InitGameDeps): void {
     `initGame: ${playerCount} players, seed=${deps.seed}, maxRounds=${state.maxRounds}`,
   );
 
-  const nextControllers: PlayerController[] = [];
-  for (let i = 0; i < playerCount; i++) {
-    const isAi = !deps.humanSlots[i];
-    const strategySeed = isAi ? state.rng.int(0, MAX_UINT32) : undefined;
-    nextControllers.push(
-      createController(
+  const hasAi = deps.humanSlots.some(
+    (joined, idx) => idx < playerCount && !joined,
+  );
+  if (hasAi) await ensureAiModulesLoaded();
+
+  const nextControllers = await Promise.all(
+    Array.from({ length: playerCount }, (_, i) => {
+      const isAi = !deps.humanSlots[i];
+      const strategySeed = isAi ? state.rng.int(0, MAX_UINT32) : undefined;
+      return createController(
         i as ValidPlayerSlot,
         isAi,
         deps.keyBindings[i],
         strategySeed,
         isAi ? deps.difficulty : undefined,
-      ),
-    );
-  }
+      );
+    }),
+  );
 
   deps.setState(state);
   deps.setControllers(nextControllers);

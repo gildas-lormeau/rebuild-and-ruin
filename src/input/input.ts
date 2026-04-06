@@ -82,7 +82,7 @@ export interface RegisterOnlineInputDeps {
 
   // --- Navigation ---
   showLobby: () => void;
-  rematch: () => void;
+  rematch: () => void | Promise<void>;
 
   // --- Options overlay ---
   options: {

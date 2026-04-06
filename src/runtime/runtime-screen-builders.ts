@@ -3,15 +3,15 @@
  * Used by both main.ts and online-client.ts.
  */
 
-import type { ControlsState } from "../shared/dialog-types";
+import type { ControlsState } from "../shared/dialog-types.ts";
 import {
   GAME_MODE_MODERN,
   LOBBY_SKIP_LOCKOUT,
   LOBBY_SKIP_STEP,
-} from "../shared/game-constants";
-import type { GameMap } from "../shared/geometry-types";
-import type { OptionEntry, RenderOverlay } from "../shared/overlay-types";
-import { IS_TOUCH_DEVICE, KEY_UP } from "../shared/platform";
+} from "../shared/game-constants.ts";
+import type { GameMap } from "../shared/geometry-types.ts";
+import type { OptionEntry, RenderOverlay } from "../shared/overlay-types.ts";
+import { IS_TOUCH_DEVICE, KEY_UP } from "../shared/platform.ts";
 import {
   ACTION_KEYS,
   type GameSettings,
@@ -20,8 +20,8 @@ import {
   PLAYER_NAMES,
   SEED_CUSTOM,
   saveSettings,
-} from "../shared/player-config";
-import type { ValidPlayerSlot } from "../shared/player-slot";
+} from "../shared/player-config.ts";
+import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
   CANNON_HP_OPTIONS,
   DIFFICULTY_LABELS,
@@ -40,10 +40,10 @@ import {
   OPTION_NAMES,
   ROUNDS_OPTIONS,
   SOUND_LABELS,
-} from "../shared/settings-defs";
-import { formatKeyName } from "../shared/settings-ui";
-import { type GameState, type LobbyState } from "../shared/types";
-import { isInteractiveMode, Mode } from "../shared/ui-mode";
+} from "../shared/settings-defs.ts";
+import { formatKeyName } from "../shared/settings-ui.ts";
+import { type GameState, type LobbyState } from "../shared/types.ts";
+import { isInteractiveMode, Mode } from "../shared/ui-mode.ts";
 
 export interface UIContext {
   getState: () => GameState | undefined;
@@ -95,12 +95,15 @@ export type CreateLobbyOverlayFn = (ctx: UIContext) => {
 export type LobbyKeyJoinFn = (
   ctx: UIContext,
   key: string,
-  onJoin: (pid: ValidPlayerSlot) => void,
+  onJoin: (pid: ValidPlayerSlot) => void | Promise<void>,
 ) => boolean;
 
 export type LobbySkipStepFn = (ctx: UIContext) => boolean;
 
-export type TickLobbyFn = (ctx: UIContext, onExpired: () => void) => void;
+export type TickLobbyFn = (
+  ctx: UIContext,
+  onExpired: () => void | Promise<void>,
+) => void;
 
 const CONTROL_ACTION_NAMES: readonly string[] = [
   "Up",
@@ -255,12 +258,15 @@ export function togglePause(frameCtx: UIContext): boolean {
 }
 
 /** Tick the lobby — check expiry. Calls `onExpired` when timer runs out or all slots are filled. */
-export function tickLobby(frameCtx: UIContext, onExpired: () => void): void {
+export function tickLobby(
+  frameCtx: UIContext,
+  onExpired: () => void | Promise<void>,
+): void {
   if (!frameCtx.lobby.active) return;
   const allJoined = frameCtx.lobby.joined.every(Boolean);
   if (frameCtx.getLobbyRemaining() <= 0 || allJoined) {
     frameCtx.lobby.active = false;
-    onExpired();
+    void onExpired();
   }
 }
 

@@ -43,13 +43,13 @@ export function initPromote(rt: GameRuntime, client: OnlineClient): void {
  *  4. Skip pending UI animations (banner/balloon left over from old host)
  *  5. Broadcast full state (must be last — state must be coherent first)
  */
-export function promoteToHost(): void {
+export async function promoteToHost(): Promise<void> {
   if (!_runtime) throw new Error("promoteToHost() called before initPromote()");
   _client.devLog("PROMOTING TO HOST");
   _client.ctx.session.isHost = true; // eslint-disable-line no-restricted-syntax -- host promotion
 
   _client.resetNetworking(RESET_SCOPE_HOST_PROMOTION);
-  _runtime.runtimeState.controllers = rebuildControllersForPhase(
+  _runtime.runtimeState.controllers = await rebuildControllersForPhase(
     _runtime.runtimeState.state,
     _runtime.runtimeState.controllers,
     _client.ctx.session.myPlayerId,

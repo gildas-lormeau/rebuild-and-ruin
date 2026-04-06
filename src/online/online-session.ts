@@ -74,7 +74,7 @@ export interface DedupMaps {
 }
 
 interface ConnectHandlers {
-  onMessage: (msg: ServerMessage) => void;
+  onMessage: (msg: ServerMessage) => void | Promise<void>;
   onClose: () => void;
   onError: () => void;
 }
@@ -164,7 +164,7 @@ export function connectWebSocket(
   session.socket = new WebSocket(wsUrl);
   session.socket.onmessage = (e) => {
     try {
-      handlers.onMessage(JSON.parse(e.data as string) as ServerMessage);
+      void handlers.onMessage(JSON.parse(e.data as string) as ServerMessage);
     } catch (err) {
       console.warn("[ws] malformed message:", err);
     }

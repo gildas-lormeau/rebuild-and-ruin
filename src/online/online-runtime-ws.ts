@@ -46,14 +46,14 @@ export function connect(onConnectError?: () => void): void {
   if (!_rt) throw new Error("connect() called before initWs()");
   if (onConnectError) _onConnectError = onConnectError;
   connectWebSocket(_client.ctx.session, computeWsUrl(), {
-    onMessage: (msg) => {
+    onMessage: async (msg) => {
       if (_client.isReconnecting()) {
         _client.devLog(
           `reconnected after ${_client.ctx.reconnect.count} attempt(s)`,
         );
         _client.clearReconnect();
       }
-      handleServerMessage(msg);
+      await handleServerMessage(msg);
     },
     onClose: () => {
       const mode = _rt.getMode();

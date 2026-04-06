@@ -103,7 +103,9 @@ if (autoJoinCode) {
 }
 
 if (params.has("record-inputs")) {
-  void import("./input/input-recorder").then((module) => module.initRecorder());
+  void import("./input/input-recorder.ts").then((module) =>
+    module.initRecorder(),
+  );
 }
 
 /** Hide the game container and notify game modules to clean up. */

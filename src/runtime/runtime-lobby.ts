@@ -33,7 +33,7 @@ interface LobbySystemDeps {
   refreshLobbySeed: () => void;
   showOptions: () => void;
   isOnline: boolean;
-  onTickLobbyExpired: () => void;
+  onTickLobbyExpired: () => void | Promise<void>;
   onLobbySlotJoined: (pid: ValidPlayerSlot) => void;
 
   // Render-domain functions (injected from composition root)
@@ -65,18 +65,16 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
   function tickLobby(dt: number): void {
     runtimeState.lobby.timerAccum = (runtimeState.lobby.timerAccum ?? 0) + dt;
     renderLobby();
-    deps.tickLobby(uiCtx, () => {
-      deps.onTickLobbyExpired();
-    });
+    deps.tickLobby(uiCtx, () => deps.onTickLobbyExpired());
   }
 
-  function onLobbyJoin(pid: ValidPlayerSlot): void {
+  async function onLobbyJoin(pid: ValidPlayerSlot): Promise<void> {
     deps.onLobbySlotJoined(pid);
     renderLobby();
     // On touch devices in local mode, start immediately after joining
     if (IS_TOUCH_DEVICE && !deps.isOnline) {
       runtimeState.lobby.active = false;
-      deps.onTickLobbyExpired();
+      await deps.onTickLobbyExpired();
     }
   }
 
@@ -111,7 +109,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     }
     if (!runtimeState.lobby.joined[hit.slotId]) {
       runtimeState.inputTracking.mouseJoinedSlot = hit.slotId;
-      onLobbyJoin(hit.slotId);
+      void onLobbyJoin(hit.slotId);
     }
     return true;
   }

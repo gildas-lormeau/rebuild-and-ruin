@@ -37,7 +37,7 @@ interface GameLifecycleDeps {
   readonly log: (msg: string) => void;
 
   // Game start — composition root resolves settings and calls bootstrapGame
-  readonly bootstrapNewGame: () => void;
+  readonly bootstrapNewGame: () => void | Promise<void>;
 
   // Game end
   readonly setGameOverFrame: (winner: { id: number }) => void;
@@ -77,11 +77,11 @@ interface GameLifecycleDeps {
 
 interface GameLifecycleSystem {
   resetUIState: () => void;
-  startGame: () => void;
+  startGame: () => Promise<void>;
   endGame: (winner: { id: number }) => void;
-  rematch: () => void;
+  rematch: () => void | Promise<void>;
   returnToLobby: () => void;
-  gameOverClick: (canvasX: number, canvasY: number) => void;
+  gameOverClick: (canvasX: number, canvasY: number) => void | Promise<void>;
 }
 
 interface LifecycleWiringDeps {
@@ -89,7 +89,7 @@ interface LifecycleWiringDeps {
   readonly config: Pick<RuntimeConfig, "log" | "showLobby" | "onlineConfig">;
   readonly render: () => void;
   readonly requestMainLoop: () => void;
-  readonly bootstrapNewGame: () => void;
+  readonly bootstrapNewGame: () => void | Promise<void>;
 
   // Subsystems needed for reset/cleanup
   readonly selection: Pick<RuntimeSelection, "reset">;
@@ -139,8 +139,8 @@ export function createGameLifecycle(
     deps.resetAll();
   }
 
-  function startGame(): void {
-    deps.bootstrapNewGame();
+  async function startGame(): Promise<void> {
+    await deps.bootstrapNewGame();
   }
 
   function endGame(winner: { id: number }): void {
@@ -165,10 +165,10 @@ export function createGameLifecycle(
     }
   }
 
-  function rematch(): void {
+  async function rematch(): Promise<void> {
     clearDemoTimer();
     deps.clearGameOver();
-    startGame();
+    await startGame();
     // startGame() → enterTowerSelection() already sets mode=SELECTION and
     // lastTime, but its requestFrame guard skips rAF when mode ≠ STOPPED.
     deps.requestMainLoop();
@@ -183,14 +183,23 @@ export function createGameLifecycle(
     deps.showLobby();
   }
 
-  function gameOverClick(canvasX: number, canvasY: number): void {
+  async function gameOverClick(
+    canvasX: number,
+    canvasY: number,
+  ): Promise<void> {
     const hit = deps.hitTestGameOver(canvasX, canvasY);
-    if (hit === FOCUS_REMATCH) return rematch();
-    if (hit === FOCUS_MENU) return returnToLobby();
+    if (hit === FOCUS_REMATCH) {
+      await rematch();
+      return;
+    }
+    if (hit === FOCUS_MENU) {
+      returnToLobby();
+      return;
+    }
     // Touch: tap-anywhere confirms the focused button (no hover cursor).
     // Mouse: miss is ignored so accidental clicks don't trigger actions.
     if (deps.isTouchDevice) {
-      if (deps.getGameOverFocused() === FOCUS_REMATCH) rematch();
+      if (deps.getGameOverFocused() === FOCUS_REMATCH) await rematch();
       else returnToLobby();
     }
   }

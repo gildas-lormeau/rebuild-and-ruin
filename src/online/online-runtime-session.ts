@@ -77,7 +77,7 @@ export function createOnlineRuntimeSessionHelpers(
     precomputeTerrainCache(runtime.runtimeState.lobby.map!);
   }
 
-  function initFromServer(msg: InitMessage): void {
+  async function initFromServer(msg: InitMessage): Promise<void> {
     const runtime = deps.getRuntime();
     hideRoomCodeOverlay(roomCodeOverlay);
     runtime.runtimeState.lobby.active = false;
@@ -90,7 +90,7 @@ export function createOnlineRuntimeSessionHelpers(
     const keyBindings = Array.from({ length: playerCount }, (_, index) =>
       index === deps.session.myPlayerId ? settings.keyBindings[0] : undefined,
     );
-    bootstrapGame({
+    await bootstrapGame({
       seed: msg.seed,
       maxPlayers: playerCount,
       existingMap: runtime.runtimeState.lobby.map ?? undefined,

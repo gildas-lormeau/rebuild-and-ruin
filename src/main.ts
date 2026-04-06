@@ -58,8 +58,8 @@ const runtime = createGameRuntime({
   onCloseOptions: () => {
     runtime.runtimeState.lobby.timerAccum = 0; // reset countdown after settings
   },
-  onTickLobbyExpired: () => {
-    runtime.lifecycle.startGame();
+  onTickLobbyExpired: async () => {
+    await runtime.lifecycle.startGame();
     setMode(runtime.runtimeState, Mode.SELECTION);
   },
 });

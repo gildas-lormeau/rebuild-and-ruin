@@ -43,23 +43,23 @@ interface GameExpectation {
 const EXPECTED: readonly GameExpectation[] = [
   {
     seed: 52,
-    totalRounds: 9,
+    totalRounds: 12,
     winner: 0,
     checkpoints: [
       {
         round: 5,
         players: [
-          { lives: 3, score: 7424, walls: 117, cannons: 13, interior: 131, eliminated: false },
+          { lives: 3, score: 7392, walls: 120, cannons: 13, interior: 131, eliminated: false },
           { lives: 2, score: 4888, walls: 86, cannons: 6, interior: 96, eliminated: false },
           { lives: 1, score: 2682, walls: 29, cannons: 0, interior: 35, eliminated: false },
         ],
       },
       {
-        round: 9,
+        round: 12,
         players: [
-          { lives: 3, score: 16770, walls: 139, cannons: 28, interior: 144, eliminated: false },
-          { lives: 0, score: 9600, walls: 0, cannons: 0, interior: 0, eliminated: true },
-          { lives: 0, score: 4008, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 3, score: 22786, walls: 153, cannons: 22, interior: 188, eliminated: false },
+          { lives: 0, score: 15510, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 0, score: 2696, walls: 0, cannons: 0, interior: 0, eliminated: true },
         ],
       },
     ],
@@ -80,39 +80,39 @@ const EXPECTED: readonly GameExpectation[] = [
       {
         round: 23,
         players: [
-          { lives: 0, score: 13946, walls: 0, cannons: 0, interior: 0, eliminated: true },
-          { lives: 2, score: 34852, walls: 110, cannons: 7, interior: 77, eliminated: false },
-          { lives: 0, score: 30438, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 0, score: 17484, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 2, score: 39174, walls: 156, cannons: 18, interior: 47, eliminated: false },
+          { lives: 0, score: 26484, walls: 0, cannons: 0, interior: 0, eliminated: true },
         ],
       },
     ],
   },
   {
     seed: 65,
-    totalRounds: 9,
-    winner: 0,
+    totalRounds: 31,
+    winner: 1,
     checkpoints: [
       {
         round: 5,
         players: [
-          { lives: 3, score: 5672, walls: 96, cannons: 8, interior: 64, eliminated: false },
-          { lives: 3, score: 6512, walls: 77, cannons: 8, interior: 71, eliminated: false },
-          { lives: 3, score: 5096, walls: 74, cannons: 3, interior: 57, eliminated: false },
+          { lives: 3, score: 5718, walls: 79, cannons: 9, interior: 65, eliminated: false },
+          { lives: 3, score: 6674, walls: 82, cannons: 8, interior: 97, eliminated: false },
+          { lives: 2, score: 3774, walls: 50, cannons: 4, interior: 36, eliminated: false },
         ],
       },
       {
-        round: 9,
+        round: 31,
         players: [
-          { lives: 3, score: 13232, walls: 153, cannons: 14, interior: 134, eliminated: false },
-          { lives: 0, score: 8590, walls: 0, cannons: 0, interior: 0, eliminated: true },
-          { lives: 0, score: 6876, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 0, score: 43422, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 2, score: 46826, walls: 146, cannons: 17, interior: 60, eliminated: false },
+          { lives: 0, score: 20024, walls: 0, cannons: 0, interior: 0, eliminated: true },
         ],
       },
     ],
   },
   {
     seed: 56,
-    totalRounds: 25,
+    totalRounds: 19,
     winner: 0,
     checkpoints: [
       {
@@ -124,18 +124,18 @@ const EXPECTED: readonly GameExpectation[] = [
         ],
       },
       {
-        round: 25,
+        round: 19,
         players: [
-          { lives: 1, score: 35048, walls: 52, cannons: 5, interior: 39, eliminated: false },
-          { lives: 0, score: 13768, walls: 0, cannons: 0, interior: 0, eliminated: true },
-          { lives: 0, score: 37402, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 2, score: 27766, walls: 88, cannons: 9, interior: 95, eliminated: false },
+          { lives: 0, score: 11414, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 0, score: 22048, walls: 0, cannons: 0, interior: 0, eliminated: true },
         ],
       },
     ],
   },
   {
     seed: 2,
-    totalRounds: 10,
+    totalRounds: 25,
     winner: 1,
     checkpoints: [
       {
@@ -147,11 +147,11 @@ const EXPECTED: readonly GameExpectation[] = [
         ],
       },
       {
-        round: 10,
+        round: 25,
         players: [
-          { lives: 0, score: 7822, walls: 0, cannons: 0, interior: 0, eliminated: true },
-          { lives: 3, score: 15396, walls: 146, cannons: 17, interior: 77, eliminated: false },
-          { lives: 0, score: 8276, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 0, score: 20178, walls: 0, cannons: 0, interior: 0, eliminated: true },
+          { lives: 2, score: 44102, walls: 148, cannons: 18, interior: 49, eliminated: false },
+          { lives: 0, score: 37924, walls: 0, cannons: 0, interior: 0, eliminated: true },
         ],
       },
     ],
@@ -162,7 +162,7 @@ const EXPECTED: readonly GameExpectation[] = [
 // Snapshot helper
 // ---------------------------------------------------------------------------
 
-function snapshotPlayers(s: ReturnType<typeof createScenario>): PlayerSnapshot[] {
+function snapshotPlayers(s: Awaited<ReturnType<typeof createScenario>>): PlayerSnapshot[] {
   return s.state.players.map((p) => ({
     lives: p.lives,
     score: p.score,
@@ -193,8 +193,8 @@ function snapshotEqual(actual: PlayerSnapshot[], expected: readonly PlayerSnapsh
 const MAX_ROUNDS = 50;
 
 for (const expected of EXPECTED) {
-  Deno.test(`seed ${expected.seed}: deterministic outcome`, () => {
-    const s = createScenario(expected.seed);
+  Deno.test(`seed ${expected.seed}: deterministic outcome`, async () => {
+    const s = await createScenario(expected.seed);
     const checkpointsByRound = new Map(expected.checkpoints.map((cp) => [cp.round, cp]));
     let finalRound = 0;
     let winner: number | undefined;

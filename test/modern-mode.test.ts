@@ -91,9 +91,9 @@ function makeDeps(runtime: HeadlessRuntime): CheckpointDeps {
 // Environmental modifiers — local flow
 // ---------------------------------------------------------------------------
 
-Deno.test("modifier no-repeat rule: same modifier never appears twice in a row", () => {
+Deno.test("modifier no-repeat rule: same modifier never appears twice in a row", async () => {
   // Seed 4 rolls all 4 modifier types within 10 rounds
-  const s = createScenario(4);
+  const s = await createScenario(4);
   s.state.gameMode = GAME_MODE_MODERN;
   s.state.modern = createModernState();
   let prev: string | undefined;
@@ -112,8 +112,8 @@ Deno.test("modifier no-repeat rule: same modifier never appears twice in a row",
   }
 });
 
-Deno.test("Master Builder adds +5s to build timer", () => {
-  const s = createScenario(42);
+Deno.test("Master Builder adds +5s to build timer", async () => {
+  const s = await createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   s.state.modern = createModernState();
   const baseBuildTimer = s.state.buildTimer;
@@ -130,8 +130,8 @@ Deno.test("Master Builder adds +5s to build timer", () => {
   );
 });
 
-Deno.test("Master Builder ignores eliminated players", () => {
-  const s = createScenario(42);
+Deno.test("Master Builder ignores eliminated players", async () => {
+  const s = await createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   s.state.modern = createModernState();
   const baseBuildTimer = s.state.buildTimer;
@@ -149,8 +149,8 @@ Deno.test("Master Builder ignores eliminated players", () => {
   );
 });
 
-Deno.test("Reinforced Walls: first hit absorbed, second destroys", () => {
-  const s = createScenario(42);
+Deno.test("Reinforced Walls: first hit absorbed, second destroys", async () => {
+  const s = await createScenario(42);
   const player = s.state.players[0]!;
   player.upgrades.set(UID.REINFORCED_WALLS as UpgradeId, 1);
 
@@ -165,8 +165,8 @@ Deno.test("Reinforced Walls: first hit absorbed, second destroys", () => {
   assert(player.damagedWalls.has(wallKey!), "wall should be in damagedWalls");
 });
 
-Deno.test("damagedWalls cleared at build phase start", () => {
-  const s = createScenario(42);
+Deno.test("damagedWalls cleared at build phase start", async () => {
+  const s = await createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   s.state.modern = createModernState();
   const player = s.state.players[0]!;
@@ -194,8 +194,8 @@ Deno.test("damagedWalls cleared at build phase start", () => {
 // Online checkpoint round-trips
 // ---------------------------------------------------------------------------
 
-Deno.test("BUILD_START checkpoint preserves modern mode fields", () => {
-  const host = createHeadlessRuntime(42);
+Deno.test("BUILD_START checkpoint preserves modern mode fields", async () => {
+  const host = await createHeadlessRuntime(42);
   setModern(host);
 
   // Set modern-mode specific state
@@ -211,7 +211,7 @@ Deno.test("BUILD_START checkpoint preserves modern mode fields", () => {
   const msg = createBuildStartMessage(host.state);
 
   // Apply on watcher
-  const watcher = createHeadlessRuntime(42);
+  const watcher = await createHeadlessRuntime(42);
   setModern(watcher);
   const deps = makeDeps(watcher);
   applyBuildStartCheckpoint(msg, deps);
@@ -254,8 +254,8 @@ Deno.test("BUILD_START checkpoint preserves modern mode fields", () => {
   );
 });
 
-Deno.test("FULL_STATE checkpoint preserves modern mode fields", () => {
-  const host = createHeadlessRuntime(77);
+Deno.test("FULL_STATE checkpoint preserves modern mode fields", async () => {
+  const host = await createHeadlessRuntime(77);
   setModern(host);
   host.state.modern!.activeModifier = "crumbling_walls";
   host.state.modern!.lastModifierId = "wildfire";
@@ -269,7 +269,7 @@ Deno.test("FULL_STATE checkpoint preserves modern mode fields", () => {
 
   const msg = createFullStateMessage(host.state, 1);
 
-  const watcher = createHeadlessRuntime(77);
+  const watcher = await createHeadlessRuntime(77);
   setModern(watcher);
   const result = restoreFullStateSnapshot(watcher.state, msg);
   assert(result !== null, "full state restore should succeed");
@@ -292,9 +292,9 @@ Deno.test("FULL_STATE checkpoint preserves modern mode fields", () => {
   );
 });
 
-Deno.test("modern headless game runs to completion without violations", () => {
+Deno.test("modern headless game runs to completion without violations", async () => {
   for (let seed = 1; seed <= 5; seed++) {
-    const s = createScenario(seed);
+    const s = await createScenario(seed);
     s.state.gameMode = GAME_MODE_MODERN;
     s.state.modern = createModernState();
     // Play 8 rounds — exercises modifiers, offers, and potentially all 3 upgrade effects
@@ -314,8 +314,8 @@ Deno.test("modern headless game runs to completion without violations", () => {
 // Modifier effects — direct application
 // ---------------------------------------------------------------------------
 
-Deno.test("applyWildfire creates burning pits", () => {
-  const s = createScenario(42);
+Deno.test("applyWildfire creates burning pits", async () => {
+  const s = await createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   s.state.modern = createModernState();
   const pitsBefore = s.state.burningPits.length;
@@ -328,8 +328,8 @@ Deno.test("applyWildfire creates burning pits", () => {
   );
 });
 
-Deno.test("applyCrumblingWalls destroys outer walls but protects castle walls", () => {
-  const s = createScenario(42);
+Deno.test("applyCrumblingWalls destroys outer walls but protects castle walls", async () => {
+  const s = await createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   s.state.modern = createModernState();
   // Play a round so players have built walls beyond their castle
@@ -358,8 +358,8 @@ Deno.test("applyCrumblingWalls destroys outer walls but protects castle walls", 
   );
 });
 
-Deno.test("applyGruntSurge spawns extra grunts", () => {
-  const s = createScenario(42);
+Deno.test("applyGruntSurge spawns extra grunts", async () => {
+  const s = await createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   s.state.modern = createModernState();
   s.state.round = 3; // past FIRST_GRUNT_SPAWN_ROUND
@@ -386,8 +386,8 @@ Deno.test("applyGruntSurge spawns extra grunts", () => {
 // Rapid Fire — ball speed
 // ---------------------------------------------------------------------------
 
-Deno.test("Rapid Fire multiplies cannonball speed", () => {
-  const s = createScenario(42);
+Deno.test("Rapid Fire multiplies cannonball speed", async () => {
+  const s = await createScenario(42);
   // Run cannon phase so AI places cannons, then enter battle
   s.runCannon();
   s.runBattle(0.1);
@@ -426,14 +426,14 @@ Deno.test("Rapid Fire multiplies cannonball speed", () => {
 // Modern mode determinism
 // ---------------------------------------------------------------------------
 
-Deno.test("two modern games with same seed produce identical state", () => {
+Deno.test("two modern games with same seed produce identical state", async () => {
   for (let seed = 1; seed <= 3; seed++) {
-    const s1 = createScenario(seed);
+    const s1 = await createScenario(seed);
     s1.state.gameMode = GAME_MODE_MODERN;
     s1.state.modern = createModernState();
     s1.playRounds(6);
 
-    const s2 = createScenario(seed);
+    const s2 = await createScenario(seed);
     s2.state.gameMode = GAME_MODE_MODERN;
     s2.state.modern = createModernState();
     s2.playRounds(6);
@@ -611,8 +611,8 @@ Deno.test("host ignores UPGRADE_PICK for already-resolved entry", () => {
 // ---------------------------------------------------------------------------
 
 
-Deno.test("upgrade pick banner is shown before upgrade pick dialog", () => {
-  const s = createScenario(42);
+Deno.test("upgrade pick banner is shown before upgrade pick dialog", async () => {
+  const s = await createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   s.state.modern = createModernState();
   s.state.round = 3;
@@ -664,8 +664,8 @@ Deno.test("upgrade pick banner is shown before upgrade pick dialog", () => {
   assert(log[2] === "buildBanner", `third should be build banner, got ${log[2]}`);
 });
 
-Deno.test("createUpgradePickDialog returns dialog from pending offers", () => {
-  const s = createScenario(42);
+Deno.test("createUpgradePickDialog returns dialog from pending offers", async () => {
+  const s = await createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   s.state.modern = createModernState();
   s.state.round = 3;
@@ -739,8 +739,8 @@ Deno.test("demolition bonus for 5+ walls in a round", () => {
   assert(bonuses[2] === 0, `P2 (no hits) should not get bonus, got ${bonuses[2]}`);
 });
 
-Deno.test("combo tracker is created at battle start in modern mode", () => {
-  const s = createScenario(42);
+Deno.test("combo tracker is created at battle start in modern mode", async () => {
+  const s = await createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   s.state.modern = createModernState();
   assert(s.state.modern!.comboTracker === null, "no tracker before battle");
@@ -749,7 +749,7 @@ Deno.test("combo tracker is created at battle start in modern mode", () => {
   // After runBattle calls nextPhase(CANNON→BATTLE), comboTracker should exist
   // But runBattle also calls nextPhase(BATTLE→BUILD) at the end, clearing it
   // So we check during a shorter flow: just enter battle
-  const s2 = createScenario(42);
+  const s2 = await createScenario(42);
   s2.state.gameMode = GAME_MODE_MODERN;
   s2.state.modern = createModernState();
   s2.runCannon();
@@ -783,8 +783,8 @@ Deno.test("combos are per-player independent", () => {
 // Frozen river modifier
 // ---------------------------------------------------------------------------
 
-Deno.test("applyFrozenRiver freezes all water tiles", () => {
-  const s = createScenario(42);
+Deno.test("applyFrozenRiver freezes all water tiles", async () => {
+  const s = await createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   s.state.modern = createModernState();
   applyFrozenRiver(s.state);
@@ -811,8 +811,8 @@ Deno.test("applyFrozenRiver freezes all water tiles", () => {
   );
 });
 
-Deno.test("isGruntBlocked allows frozen water tiles", () => {
-  const s = createScenario(42);
+Deno.test("isGruntBlocked allows frozen water tiles", async () => {
+  const s = await createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   s.state.modern = createModernState();
   applyFrozenRiver(s.state);
@@ -827,8 +827,8 @@ Deno.test("isGruntBlocked allows frozen water tiles", () => {
   assert(isGruntBlocked(s.state, r, c), `unfrozen water (${r},${c}) should be blocked`);
 });
 
-Deno.test("frozen river: grunts retarget cross-zone and walk onto ice", () => {
-  const runtime = createHeadlessRuntime(42);
+Deno.test("frozen river: grunts retarget cross-zone and walk onto ice", async () => {
+  const runtime = await createHeadlessRuntime(42);
   const state = runtime.state;
   state.gameMode = GAME_MODE_MODERN;
   state.modern = createModernState();
@@ -888,8 +888,8 @@ Deno.test("frozen river: grunts retarget cross-zone and walk onto ice", () => {
   assert(onIce, "at least one grunt should move onto frozen water within 20 ticks");
 });
 
-Deno.test("clearFrozenRiver kills grunts stranded on water", () => {
-  const s = createScenario(42);
+Deno.test("clearFrozenRiver kills grunts stranded on water", async () => {
+  const s = await createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   s.state.modern = createModernState();
   applyFrozenRiver(s.state);
@@ -915,8 +915,8 @@ Deno.test("clearFrozenRiver kills grunts stranded on water", () => {
   );
 });
 
-Deno.test("frozen river persists through build phase, thaws at next battle", () => {
-  const s = createScenario(42);
+Deno.test("frozen river persists through build phase, thaws at next battle", async () => {
+  const s = await createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   s.state.modern = createModernState();
   s.state.modern!.activeModifier = "frozen_river";
@@ -928,14 +928,14 @@ Deno.test("frozen river persists through build phase, thaws at next battle", () 
   assert(s.state.modern!.frozenTiles === null, "clearFrozenRiver should null frozenTiles");
 });
 
-Deno.test("online checkpoint round-trip preserves frozen state", () => {
-  const runtime = createHeadlessRuntime(42);
+Deno.test("online checkpoint round-trip preserves frozen state", async () => {
+  const runtime = await createHeadlessRuntime(42);
   setModern(runtime);
   applyFrozenRiver(runtime.state);
   assert(runtime.state.modern!.frozenTiles !== null, "host should have frozen tiles");
 
   const msg = createBattleStartMessage(runtime.state);
-  const watcher = createHeadlessRuntime(42);
+  const watcher = await createHeadlessRuntime(42);
   setModern(watcher);
   const deps = makeDeps(watcher);
 
@@ -947,15 +947,15 @@ Deno.test("online checkpoint round-trip preserves frozen state", () => {
   );
 });
 
-Deno.test("FULL_STATE checkpoint preserves frozen state", () => {
-  const runtime = createHeadlessRuntime(42);
+Deno.test("FULL_STATE checkpoint preserves frozen state", async () => {
+  const runtime = await createHeadlessRuntime(42);
   setModern(runtime);
   runtime.state.cannonLimits = runtime.state.players.map(() => 3);
   runtime.state.playerZones = runtime.state.players.map((_, idx) => idx);
   applyFrozenRiver(runtime.state);
 
   const msg = createFullStateMessage(runtime.state, 1);
-  const runtime2 = createHeadlessRuntime(42);
+  const runtime2 = await createHeadlessRuntime(42);
   setModern(runtime2);
   restoreFullStateSnapshot(runtime2.state, msg);
 
@@ -966,8 +966,8 @@ Deno.test("FULL_STATE checkpoint preserves frozen state", () => {
   );
 });
 
-Deno.test("modifier no-repeat applies to frozen_river", () => {
-  const s = createScenario(42);
+Deno.test("modifier no-repeat applies to frozen_river", async () => {
+  const s = await createScenario(42);
   s.state.gameMode = GAME_MODE_MODERN;
   s.state.modern = createModernState();
   s.state.modern!.lastModifierId = "frozen_river";

@@ -43,7 +43,7 @@ export function registerKeyboardHandlers(deps: RegisterOnlineInputDeps): void {
 
     if (handleKeyF1(e, mode, deps)) return;
     if (mode === Mode.STOPPED) {
-      handleKeyStopped(e, deps);
+      void handleKeyStopped(e, deps);
       return;
     }
     if (handleKeyEscape(e, mode, deps)) return;
@@ -107,10 +107,10 @@ function handleKeyF1(
   return true;
 }
 
-function handleKeyStopped(
+async function handleKeyStopped(
   e: KeyboardEvent,
   deps: RegisterOnlineInputDeps,
-): void {
+): Promise<void> {
   const { gameOver, rematch, showLobby } = deps;
   if (
     e.key === KEY_LEFT ||
@@ -127,7 +127,7 @@ function handleKeyStopped(
     e.key === "n" ||
     e.key === "f"
   ) {
-    if (gameOver.getFocused() === FOCUS_REMATCH) rematch();
+    if (gameOver.getFocused() === FOCUS_REMATCH) await rematch();
     else showLobby();
   } else if (e.key === KEY_ESCAPE) {
     showLobby();

@@ -79,7 +79,7 @@ export interface TransitionContext {
       prevCastles?: CastleData[];
       prevTerritory?: Set<number>[];
       prevWalls?: Set<number>[];
-      prevEntities?: import("../shared/overlay-types").EntityOverlay;
+      prevEntities?: import("../shared/overlay-types.ts").EntityOverlay;
       wallsBeforeSweep?: Set<number>[];
       modifierDiff?: import("../shared/game-constants.ts").ModifierDiff;
     };

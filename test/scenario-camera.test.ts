@@ -11,8 +11,8 @@ import { Mode } from "../src/shared/ui-mode.ts";
 // Camera does NOT zoom to human zone during AI-only reselection
 // ---------------------------------------------------------------------------
 
-Deno.test("camera stays unzoomed during AI-only reselection", () => {
-  const s = createScenario();
+Deno.test("camera stays unzoomed during AI-only reselection", async () => {
+  const s = await createScenario();
 
   // Play a round so the camera has seen a real phase
   s.playRound();
@@ -44,8 +44,8 @@ Deno.test("camera stays unzoomed during AI-only reselection", () => {
 // Camera zooms to human zone when human IS reselecting
 // ---------------------------------------------------------------------------
 
-Deno.test("camera zooms to human zone when human IS reselecting", () => {
-  const s = createScenario();
+Deno.test("camera zooms to human zone when human IS reselecting", async () => {
+  const s = await createScenario();
   s.playRound();
 
   // Human (player 0) needs reselection
@@ -75,8 +75,8 @@ Deno.test("camera zooms to human zone when human IS reselecting", () => {
 // No auto-zoom without a human player (demo / spectator)
 // ---------------------------------------------------------------------------
 
-Deno.test("camera stays unzoomed when no human player exists", () => {
-  const s = createScenario();
+Deno.test("camera stays unzoomed when no human player exists", async () => {
+  const s = await createScenario();
   s.state.phase = Phase.WALL_BUILD;
 
   const handle = s.createCamera({

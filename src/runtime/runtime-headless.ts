@@ -25,19 +25,23 @@ export interface HeadlessRuntime {
 }
 
 /** Build a full headless runtime from a seed and advance to CANNON_PLACE. */
-export function createHeadlessRuntime(seed: number): HeadlessRuntime {
+export async function createHeadlessRuntime(
+  seed: number,
+): Promise<HeadlessRuntime> {
   const map = generateMap(seed);
   const zones = [...new Set(map.towers.map((tower) => tower.zone))].slice(0, 3);
   const playerCount = zones.length;
 
   const state = createGameState(map, playerCount, seed);
   state.playerZones = zones;
-  const controllers = Array.from({ length: playerCount }, (_, i) =>
-    createController(
-      i as ValidPlayerSlot,
-      true,
-      undefined,
-      state.rng.int(0, MAX_UINT32),
+  const controllers = await Promise.all(
+    Array.from({ length: playerCount }, (_, i) =>
+      createController(
+        i as ValidPlayerSlot,
+        true,
+        undefined,
+        state.rng.int(0, MAX_UINT32),
+      ),
     ),
   );
 
@@ -59,10 +63,10 @@ export function createHeadlessRuntime(seed: number): HeadlessRuntime {
  * Auto-selects towers for AI players only (humans need server-driven selection or
  * can be auto-selected by the server for V2 simplicity).
  */
-export function createMixedRuntime(
+export async function createMixedRuntime(
   seed: number,
   humanSlots: readonly number[],
-): HeadlessRuntime {
+): Promise<HeadlessRuntime> {
   const map = generateMap(seed);
   const zones = [...new Set(map.towers.map((tower) => tower.zone))].slice(0, 3);
   const playerCount = zones.length;
@@ -71,13 +75,20 @@ export function createMixedRuntime(
   state.playerZones = zones;
 
   const humanSet = new Set(humanSlots);
-  const controllers = Array.from({ length: playerCount }, (_, i) => {
-    const pid = i as ValidPlayerSlot;
-    if (humanSet.has(i)) {
-      return createController(pid, false, PLAYER_KEY_BINDINGS[0]);
-    }
-    return createController(pid, true, undefined, state.rng.int(0, MAX_UINT32));
-  });
+  const controllers = await Promise.all(
+    Array.from({ length: playerCount }, (_, i) => {
+      const pid = i as ValidPlayerSlot;
+      if (humanSet.has(i)) {
+        return createController(pid, false, PLAYER_KEY_BINDINGS[0]);
+      }
+      return createController(
+        pid,
+        true,
+        undefined,
+        state.rng.int(0, MAX_UINT32),
+      );
+    }),
+  );
 
   return { state, controllers, zones, playerCount };
 }

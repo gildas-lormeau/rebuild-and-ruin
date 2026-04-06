@@ -20,7 +20,7 @@ const CHECKPOINT_ROUNDS = new Map([
 console.log("const EXPECTED: readonly GameExpectation[] = [");
 
 for (const seed of SEEDS) {
-  const s = createScenario(seed);
+  const s = await createScenario(seed);
   const cpRounds = CHECKPOINT_ROUNDS.get(seed) ?? [];
   const checkpoints: {
     round: number;

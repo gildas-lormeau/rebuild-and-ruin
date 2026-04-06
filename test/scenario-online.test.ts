@@ -34,10 +34,10 @@ import { Phase } from "../src/shared/game-phase.ts";
 // Online watcher: cannon banner missing preservePrevScene
 // ---------------------------------------------------------------------------
 
-Deno.test("online cannon banner uses preservePrevScene=true for progressive scene transition", () => {
+Deno.test("online cannon banner uses preservePrevScene=true for progressive scene transition", async () => {
   // Both local and online paths should use preservePrevScene=true for the cannon banner.
   // The fix added preservePrevScene=true to handleCannonStartTransition.
-  const s = createScenario();
+  const s = await createScenario();
   s.runCannon();
   s.runBattle();
   s.runBuild();
@@ -65,8 +65,8 @@ Deno.test("online cannon banner uses preservePrevScene=true for progressive scen
 // Online transition: cannon start stashes pre-sweep walls
 // ---------------------------------------------------------------------------
 
-Deno.test("online handleCannonStartTransition stashes pre-checkpoint walls on banner", () => {
-  const s = createScenario();
+Deno.test("online handleCannonStartTransition stashes pre-checkpoint walls on banner", async () => {
+  const s = await createScenario();
 
   // Play a round to get into a realistic state, then advance to CANNON_PLACE
   s.runCannon();
@@ -119,8 +119,8 @@ Deno.test("online handleCannonStartTransition stashes pre-checkpoint walls on ba
 // Online transition: battle start sets banner.newWalls post-checkpoint
 // ---------------------------------------------------------------------------
 
-Deno.test("online handleBattleStartTransition sets banner.newWalls after checkpoint", () => {
-  const s = createScenario();
+Deno.test("online handleBattleStartTransition sets banner.newWalls after checkpoint", async () => {
+  const s = await createScenario();
 
   // Advance to cannon phase and serialize battle start message
   s.runCannon();
@@ -144,8 +144,8 @@ Deno.test("online handleBattleStartTransition sets banner.newWalls after checkpo
 // Cannon-start: host and watcher init controller the same way
 // ---------------------------------------------------------------------------
 
-Deno.test("cannon-start: watcher uses same initControllerForCannonPhase as host", () => {
-  const s = createScenario();
+Deno.test("cannon-start: watcher uses same initControllerForCannonPhase as host", async () => {
+  const s = await createScenario();
   s.runCannon();
   s.runBattle();
   s.runBuild();
@@ -180,8 +180,8 @@ Deno.test("cannon-start: watcher uses same initControllerForCannonPhase as host"
 // Build-start: watcher calls startBuildPhase on local controller
 // ---------------------------------------------------------------------------
 
-Deno.test("build-start: watcher calls startBuildPhase on local controller", () => {
-  const s = createScenario();
+Deno.test("build-start: watcher calls startBuildPhase on local controller", async () => {
+  const s = await createScenario();
   s.runCannon();
   s.runBattle();
 
@@ -207,8 +207,8 @@ Deno.test("build-start: watcher calls startBuildPhase on local controller", () =
 // Build-start parity: host initControllers does real work
 // ---------------------------------------------------------------------------
 
-Deno.test("build-start: host initControllers runs startBuildPhase (not a no-op)", () => {
-  const s = createScenario();
+Deno.test("build-start: host initControllers runs startBuildPhase (not a no-op)", async () => {
+  const s = await createScenario();
   s.runCannon();
   s.runBattle();
 
@@ -234,8 +234,8 @@ Deno.test("build-start: host initControllers runs startBuildPhase (not a no-op)"
 // Battle-start parity: host and watcher reach same post-sweep state
 // ---------------------------------------------------------------------------
 
-Deno.test("battle-start: host and watcher produce same phase and territory snapshot", () => {
-  const s = createScenario();
+Deno.test("battle-start: host and watcher produce same phase and territory snapshot", async () => {
+  const s = await createScenario();
   s.runCannon();
 
   // --- Host path: nextPhase + snapshot territory ---
@@ -251,7 +251,7 @@ Deno.test("battle-start: host and watcher produce same phase and territory snaps
   // We test that handleBattleStartTransition sets the same phase.
   const msg = createBattleStartMessage(hostState, hostFlights);
   // Create a fresh scenario for the watcher so states don't share
-  const w = createScenario();
+  const w = await createScenario();
   w.runCannon();
   const wCtx = w.createTransitionContext();
   let watcherTerritory: Set<number>[] | undefined;
@@ -296,9 +296,9 @@ Deno.test("battle-start: host and watcher produce same phase and territory snaps
 // Watcher: wall debris visible after WALL_DESTROYED events
 // ---------------------------------------------------------------------------
 
-Deno.test("watcher: wall debris visible in render overlay after WALL_DESTROYED", () => {
+Deno.test("watcher: wall debris visible in render overlay after WALL_DESTROYED", async () => {
   // Simulate the full watcher flow: checkpoint → wall destruction → overlay build
-  const s = createScenario();
+  const s = await createScenario();
   s.runCannon();
 
   // Host side: create the BATTLE_START message
@@ -307,7 +307,7 @@ Deno.test("watcher: wall debris visible in render overlay after WALL_DESTROYED",
   const msg = createBattleStartMessage(s.state, hostFlights);
 
   // --- Watcher side ---
-  const w = createScenario();
+  const w = await createScenario();
   w.runCannon();
 
   // Replicate what online-client-runtime does: shared battleAnim object
@@ -427,8 +427,8 @@ Deno.test("watcher: wall debris visible in render overlay after WALL_DESTROYED",
 // Burning pits must survive visually through cannon→battle banner transition
 // ---------------------------------------------------------------------------
 
-Deno.test("burning pits visible in overlay during cannon-to-battle banner", () => {
-  const s = createScenario();
+Deno.test("burning pits visible in overlay during cannon-to-battle banner", async () => {
+  const s = await createScenario();
 
   // Inject a burning pit with roundsLeft=1 so enterBattleFromCannon will expire it
   const wallTile = s.findEnemyWallTile(0 as ValidPlayerSlot);

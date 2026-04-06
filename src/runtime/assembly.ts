@@ -105,7 +105,7 @@ interface RuntimeLobbyDeps {
   refreshLobbySeed: () => void;
   showOptions: () => void;
   isOnline: boolean;
-  onTickLobbyExpired: () => void;
+  onTickLobbyExpired: () => void | Promise<void>;
   onLobbySlotJoined: (pid: ValidPlayerSlot) => void;
   createLobbyOverlay: CreateLobbyOverlayFn;
   lobbyKeyJoin: LobbyKeyJoinFn;

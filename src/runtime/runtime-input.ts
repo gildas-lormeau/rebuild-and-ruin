@@ -162,7 +162,7 @@ interface InputSystemDeps {
   // Lifecycle / navigation callbacks
   readonly lifecycle: {
     readonly render: () => void;
-    readonly rematch: () => void;
+    readonly rematch: () => void | Promise<void>;
     readonly returnToLobby: () => void;
     readonly gameOverClick: (canvasX: number, canvasY: number) => void;
   };
@@ -602,9 +602,10 @@ function buildOverlayActionDeps(
             : FOCUS_REMATCH;
         render();
       },
-      confirm: () => {
+      confirm: async () => {
         if (!runtimeState.frame.gameOver) return;
-        if (runtimeState.frame.gameOver.focused === FOCUS_REMATCH) rematch();
+        if (runtimeState.frame.gameOver.focused === FOCUS_REMATCH)
+          await rematch();
         else returnToLobby();
       },
     },
