@@ -402,6 +402,43 @@ Deno.test("breaking a wall loses territory", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Run
+// Reselection — clumsy walls survive castle rebuild
 // ---------------------------------------------------------------------------
+
+import { computeCastleWallTiles } from "../src/game/castle-generation.ts";
+import { createScenario } from "./scenario-helpers.ts";
+
+Deno.test("reselection preserves clumsy walls from castle build", () => {
+  for (let seed = 1; seed < 200; seed++) {
+    const sc = createScenario(seed);
+
+    for (let round = 0; round < 20; round++) {
+      const { needsReselect } = sc.playRound();
+      if (needsReselect.length === 0) continue;
+
+      const pid = needsReselect[0]!;
+      sc.processReselection(needsReselect);
+
+      const player = sc.state.players[pid]!;
+      if (!player.homeTower || !player.castle) continue;
+
+      const cleanTiles = computeCastleWallTiles(
+        player.castle,
+        sc.state.map.tiles,
+      );
+      const cleanCount = cleanTiles.length;
+      const actualCount = player.walls.size;
+
+      if (actualCount > cleanCount) {
+        console.log(
+          `seed=${seed} round=${sc.state.round} pid=${pid}: ` +
+            `actual=${actualCount} clean=${cleanCount} (${actualCount - cleanCount} clumsy extras)`,
+        );
+        return;
+      }
+      break;
+    }
+  }
+  assert(false, "Could not find a seed where clumsy builders add extra walls during reselection");
+});
 
