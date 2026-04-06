@@ -161,11 +161,11 @@ CASTLE_SELECT
 [Round loop begins]
 
 WALL_BUILD
-  System → Generates piece bag for current round
-  [Modern: System → Rolls modifier (round 3+, 65% chance), applies effect]
   [Modern: If upgrade round → UPGRADE_PICK first]
+  System → Generates piece bag for current round
   Each player → Places tetromino wall pieces before timer expires
   [Modern: Master Builder → opponents locked out for first 5s if single owner]
+  System → Sweeps isolated walls (batch collect-then-delete, one layer per player)
   System → Recomputes territory (flood-fill)
   System → Scores territory (tiered points + castle bonus)
   System → Checks tower enclosure:
@@ -185,6 +185,13 @@ CANNON_PLACE
   → BATTLE
 
 BATTLE
+  [Pre-battle setup (cannon → battle transition)]:
+    System → Decays burning pits (remove expired)
+    System → Sweeps isolated walls (second sweep per cycle)
+    System → Recomputes territory
+    System → Spawns inter-battle grunts (round 2+)
+    [Modern: System → Rolls modifier (round 3+, 65% chance), applies effect]
+    System → Rolls grunt wall attacks for blocked grunts
   System → Plays countdown (Ready / Aim / Fire! — 6s)
   [10s battle timer]
   Each player → Aims crosshair, fires cannons (round-robin through cannon list)
@@ -199,12 +206,15 @@ BATTLE
   Grunts → move toward target towers, attack when adjacent (3s countdown)
   [Blocked grunts may attack walls after 2+ rounds blocked]
   Timer expires →
-    System → Wall sweep (batch collect-then-delete, one layer, twice)
-    System → Resolves balloon captures
-    System → Ages burning pits (remove expired)
-    System → Spawns inter-battle grunts (round 2+)
+    [Post-battle cleanup (battle → build transition)]:
+    [Modern: System → Awards combo bonuses]
     System → Updates grunt blocked counts
-    System → Clears one-use upgrades (reinforced walls)
+    System → Resolves balloon captures, clears captured cannons
+    System → Removes balloon launchers from cannon lists
+    [Round 1: spawns punishment grunts if no shots were fired]
+    System → Increments round counter
+    [Modern: System → Generates upgrade offers (round 3+)]
+    System → Resets one-round upgrades (reinforced walls, damaged walls)
   → WALL_BUILD (next round) or GAME_OVER (if max rounds reached)
 
 CASTLE_RESELECT (after life loss)
@@ -262,3 +272,5 @@ Round N+1 build end:
 8. **Delayed tower revival**: Requires enclosure for two consecutive build phases.
 9. **No grunt retargeting**: Once a grunt's target tower is killed, it stays put.
 10. **Modern mode atomicity**: gameMode and modernState are always set together.
+11. **Pool pattern exhaustiveness**: Extension point registries (upgrades, cannon modes, modifiers) enforce compile-time exhaustiveness — every ID in the type union must have a pool entry.
+12. **Balloon hit accumulation**: Balloon hit counts persist across battles (cumulative toward capture threshold). Captured cannons and capturerIds are cleared each battle.

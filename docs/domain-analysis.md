@@ -159,7 +159,7 @@ The `game/` domain contains BC2 (fortification), BC3 (artillery), BC4 (ground fo
 **Verdict**: `game/` is the right *layer* (game logic), but it doesn't reflect domain boundaries internally.
 
 **3. The layer system compensates for flat domain structure.**
-The 19-layer import hierarchy does what subdomain boundaries would normally do — it prevents cannons from depending on build logic, grunts from depending on cannon logic, etc. The layering is *mechanically enforcing* what bounded contexts would *architecturally express*.
+The 18-layer import hierarchy does what subdomain boundaries would normally do — it prevents cannons from depending on build logic, grunts from depending on cannon logic, etc. The layering is *mechanically enforcing* what bounded contexts would *architecturally express*.
 
 **Verdict**: The layer system is doing the job of subdomain isolation through import rules rather than directory boundaries. This works — but it means the architecture is encoded in tooling config (`.import-layers.json`) rather than visible in the file tree.
 
@@ -178,6 +178,13 @@ The spec clusters them with Presentation (BC10), but the implementation puts the
 
 **Verdict**: Naming is slightly misleading, but the grouping is defensible as "human interface."
 
+**7. Extension point registries and the battle event catalog add mechanical exhaustiveness.**
+Three extension points (upgrades in `upgrade-defs.ts`, cannon modes in `cannon-mode-defs.ts`, modifiers in `modifier-defs.ts`) use a pool pattern: a type union defines valid IDs, a pool array maps each ID to metadata, and a compile-time `PoolComplete` check ensures every union member has a pool entry. Adding a new ID without a matching entry is a type error.
+
+The battle event catalog (`.battle-event-catalog.json`) maps each `BattleEvent`/`ImpactEvent` union member to its consumer files by role (stateApply, sound, haptics, networkHandle, networkRelay, orchestrator, combo). A pre-commit linter verifies exhaustiveness — adding a new event type without updating the catalog fails the commit.
+
+**Verdict**: These are mechanical guardrails that the spec-derived analysis wouldn't produce — they enforce cross-cutting consistency (every new game concept must declare its handlers) without relying on directory boundaries or import layers. They narrow the gap between the flat `game/` structure and what bounded contexts would provide.
+
 ---
 
 ## Summary
@@ -194,6 +201,7 @@ The spec clusters them with Presentation (BC10), but the implementation puts the
 | Presentation | 1 BC | render/ + sound in input/ | **Actual is practical** — I/O grouping is defensible |
 | Shared kernel | Small type vocabulary | Large `shared/` directory | **Spec is leaner** — actual shared/ carries domain logic |
 | Isolation mechanism | Directory boundaries | Layer rules + domain config | **Different but equivalent** — layers are mechanically enforced |
+| Cross-cutting consistency | Bounded context contracts | Pool registries + battle event catalog + pre-commit linters | **Actual adds mechanical exhaustiveness** — compile-time and commit-time checks catch incomplete additions |
 
 ### Bottom line
 
@@ -205,4 +213,4 @@ The architecture you have is not what a from-scratch DDD analysis would produce 
 
 3. **runtime/ split is better than the spec**: The pure-rules vs. effectful-orchestration split is an engineering insight that domain analysis alone wouldn't produce. This is where implementation experience adds value over theoretical analysis.
 
-**The implementation's architecture is a pragmatic, mechanically-enforced equivalent of what DDD would prescribe.** The layer system is doing the heavy lifting that bounded context boundaries would normally do. The main thing missing is visibility — someone reading the file tree doesn't see "fortification" and "artillery" as concepts, they see "game" and "shared."
+**The implementation's architecture is a pragmatic, mechanically-enforced equivalent of what DDD would prescribe.** The layer system is doing the heavy lifting that bounded context boundaries would normally do. Extension point registries (pool pattern with compile-time exhaustiveness) and the battle event catalog (with pre-commit linting) add a second layer of mechanical enforcement — ensuring that new domain concepts declare their cross-cutting handlers. The main thing missing is visibility — someone reading the file tree doesn't see "fortification" and "artillery" as concepts, they see "game" and "shared."
