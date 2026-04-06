@@ -284,7 +284,7 @@ Deno.test("lifecycle drops stale full_state after host migration", () => {
     },
     game: {
       getState: () => ({}) as unknown as GameState,
-      initFromServer: () => {},
+      initFromServer: async () => {},
       enterTowerSelection: () => {},
     },
     transitions: {
@@ -297,7 +297,7 @@ Deno.test("lifecycle drops stale full_state after host migration", () => {
     },
     migration: {
       playerNames: ["P1", "P2", "P3"],
-      promoteToHost: () => {},
+      promoteToHost: async () => {},
       restoreFullState: () => {
         applyCalls++;
       },
