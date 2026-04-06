@@ -992,8 +992,8 @@ test("battle-start: host and watcher produce same phase and territory snapshot",
 
   // --- Host path: nextPhase + snapshot territory ---
   const hostState = s.state;
-  const hostFlights = resolveBalloons(hostState);
   nextPhase(hostState);
+  const hostFlights = resolveBalloons(hostState);
   const hostTerritory = hostState.players.map((p) => new Set(p.interior));
   const hostPhase = hostState.phase;
 
@@ -1054,8 +1054,8 @@ test("watcher: wall debris visible in render overlay after WALL_DESTROYED", () =
   s.runCannon();
 
   // Host side: create the BATTLE_START message
-  const hostFlights = resolveBalloons(s.state);
   nextPhase(s.state);
+  const hostFlights = resolveBalloons(s.state);
   const msg = createBattleStartMessage(s.state, hostFlights);
 
   // --- Watcher side ---

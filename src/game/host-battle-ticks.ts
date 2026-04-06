@@ -260,7 +260,7 @@ export function startHostBattleLifecycle(
   } = deps;
   const sendBattleStart = deps.net?.sendBattleStart;
 
-  const flights = resolveBalloons(state);
+  let flights: BalloonFlight[] = [];
   const activeModifier = state.modern?.activeModifier ?? null;
 
   const proceedToBattle = () => {
@@ -294,6 +294,9 @@ export function startHostBattleLifecycle(
     applyCheckpoint: () => {
       const diff = nextPhase(state);
       if (diff) deps.banner.modifierDiff = diff;
+      // Resolve balloons AFTER nextPhase so modifiers (crumbling walls, etc.)
+      // are applied before the enclosure check picks targets.
+      flights = resolveBalloons(state);
       battleAnim.impacts = [];
       if (isHostInContext(deps.net) && sendBattleStart)
         sendBattleStart(flights, diff);

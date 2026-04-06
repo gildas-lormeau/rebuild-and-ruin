@@ -172,8 +172,8 @@ export function createScenario(seed = 42): Scenario {
   }
 
   function runBattle(durationSec = BATTLE_TIMER): void {
-    resolveBalloons(state);
     nextPhase(state);
+    resolveBalloons(state);
     for (const ctrl of controllers) ctrl.initBattleState(state);
 
     let t = 0;
