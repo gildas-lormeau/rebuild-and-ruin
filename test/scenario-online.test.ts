@@ -1,4 +1,4 @@
-import { MESSAGE } from "../server/protocol.ts";
+import { MESSAGE, type ServerMessage } from "../server/protocol.ts";
 import { applyImpactEvent, resolveBalloons } from "../src/game/battle-system.ts";
 import { snapshotAllWalls } from "../src/shared/board-occupancy.ts";
 import { createOnlineOverlay } from "../src/render/render-composition.ts";
@@ -197,7 +197,7 @@ Deno.test("build-start: watcher calls startBuildPhase on local controller", () =
   };
 
   const ctx = s.createTransitionContext();
-  handleBuildStartTransition(msg as any, ctx);
+  handleBuildStartTransition(msg as ServerMessage, ctx);
 
   assert(buildPhaseStartCalled, "Watcher should call startBuildPhase on local controller");
   assertPhase(s, Phase.WALL_BUILD);
@@ -219,7 +219,7 @@ Deno.test("build-start: host initControllers runs startBuildPhase (not a no-op)"
   // Trigger the watcher build-start path
   const msg = createBuildStartMessage(s.state);
   const ctx = s.createTransitionContext();
-  handleBuildStartTransition(msg as any, ctx);
+  handleBuildStartTransition(msg as ServerMessage, ctx);
 
   // Watcher inits the controller — it should have a piece now
   const hasPieceAfter = ctrl.getCurrentPiece() !== undefined;
@@ -255,7 +255,7 @@ Deno.test("battle-start: host and watcher produce same phase and territory snaps
   w.runCannon();
   const wCtx = w.createTransitionContext();
   let watcherTerritory: Set<number>[] | undefined;
-  let bannerNewTerritory: Set<number>[] | undefined;
+  let bannerNewTerritory: Set<number>[] | undefined = undefined;
   // Intercept snapshotTerritory and banner to capture what the watcher produces
   const origSnapshot = wCtx.battleLifecycle.snapshotTerritory;
   wCtx.battleLifecycle.snapshotTerritory = () => {
@@ -264,7 +264,7 @@ Deno.test("battle-start: host and watcher produce same phase and territory snaps
   };
   const origBanner = wCtx.ui.banner;
   // banner.newTerritory is set by the recipe's snapshotForBanner step
-  handleBattleStartTransition(msg as any, wCtx);
+  handleBattleStartTransition(msg as ServerMessage, wCtx);
   bannerNewTerritory = origBanner.newTerritory;
 
   // Both should be in BATTLE phase
@@ -325,7 +325,7 @@ Deno.test("watcher: wall debris visible in render overlay after WALL_DESTROYED",
     battleAnim.territory = w.state.players.map((p) => new Set(p.interior));
   };
 
-  handleBattleStartTransition(msg as any, wCtx);
+  handleBattleStartTransition(msg as ServerMessage, wCtx);
   assertPhase(w, Phase.BATTLE);
 
   // Verify battleAnim.walls was populated
