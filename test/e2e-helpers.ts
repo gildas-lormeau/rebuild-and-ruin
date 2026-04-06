@@ -28,6 +28,17 @@ import { mkdirSync, writeFileSync } from "node:fs";
 const TILE_SIZE = 16;
 const BASE_URL = "http://localhost:5173";
 
+// ---------------------------------------------------------------------------
+// Render constants — use these in spy.collect filters and assertions
+// instead of hardcoding color strings. Mirrors values from src/shared/theme.ts
+// and src/render/render-effects.ts.
+// ---------------------------------------------------------------------------
+
+/** Timer text color during Master Builder lockout (amber pulse). */
+export const COLOR_LOCKOUT_AMBER = "rgba(255,180,50,1)";
+/** Default timer / announcement text color (white). */
+export const COLOR_TEXT_WHITE = "#fff";
+
 /** Known phase durations (seconds). Used to compute advanceTo timeouts. */
 const PHASE_DURATIONS: Record<string, number> = {
   LOBBY: 15,
@@ -55,6 +66,45 @@ function maxSecondsToPhase(target: string): number {
     total += (PHASE_DURATIONS[order[i]!] ?? 10) + PHASE_DURATIONS.BANNER!;
   }
   return total + 5; // extra margin
+}
+
+// ---------------------------------------------------------------------------
+// Test assertions — lightweight check/summary with auto-exit
+// ---------------------------------------------------------------------------
+
+/** Lightweight assertion tracker for e2e tests. Prints PASS/FAIL per check,
+ *  prints a summary, and calls Deno.exit(1) on failure from done(). */
+export class E2ETest {
+  private passed = 0;
+  private failed = 0;
+  private readonly label: string;
+
+  constructor(label: string) {
+    this.label = label;
+    console.log(`Starting ${label}...\n`);
+  }
+
+  /** Assert a condition. Prints PASS or FAIL immediately. */
+  check(name: string, ok: boolean, detail?: string): void {
+    if (ok) {
+      console.log(`  PASS: ${name}`);
+      this.passed++;
+    } else {
+      console.log(`  FAIL: ${name}${detail ? ` — ${detail}` : ""}`);
+      this.failed++;
+    }
+  }
+
+  /** Print summary and exit with code 1 if any checks failed. */
+  done(): void {
+    console.log(`\n--- ${this.label} ---`);
+    console.log(`${this.passed} passed, ${this.failed} failed\n`);
+    if (this.failed > 0) Deno.exit(1);
+  }
+
+  get failures(): number {
+    return this.failed;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -295,6 +345,19 @@ export class E2EGame {
     );
   }
 
+  /** Wait until the game reaches STOPPED mode (game over). */
+  async waitForGameOver(opts?: { timeout?: number }): Promise<void> {
+    const timeout = opts?.timeout ?? 60_000;
+    await this.page.waitForFunction(
+      () => {
+        const e2e = (globalThis as unknown as Record<string, unknown>)
+          .__e2e as { mode?: string } | undefined;
+        return e2e?.mode === "STOPPED";
+      },
+      { timeout },
+    ).catch(() => {});
+  }
+
   /** Wait until a predicate on the bridge snapshot returns true. */
   async waitUntil(
     predicate: string,
@@ -419,6 +482,14 @@ export class E2EGame {
   // --- Render spy ---
 
   readonly spy = {
+    /** Wait until the sprite spy has data (at least one draw this frame). */
+    waitForSpriteData: (opts?: { timeout?: number }): Promise<void> => {
+      return this.page.waitForFunction(() => {
+        const e2e = (globalThis as unknown as Record<string, unknown>)
+          .__e2e as { renderSpy?: unknown[] | null } | undefined;
+        return e2e?.renderSpy && e2e.renderSpy.length > 0;
+      }, { timeout: opts?.timeout ?? 5000 }).then(() => {});
+    },
     /** Get the current frame's text draws from the bridge. */
     textDraws: (): Promise<
       { text: string; color: string; x: number; y: number; scale: number }[]
@@ -447,26 +518,35 @@ export class E2EGame {
     },
     /**
      * Install a per-frame collector that accumulates draws matching a filter.
-     * The filter runs in page context — pass a JS expression string that
-     * receives `draw` (text draw) and `e2e` (bridge) and returns a bucket
-     * name string, or null to skip.
+     * The filter runs in page context — pass a JS function body that
+     * receives `draw` and `e2e` (bridge) and returns a bucket name, or null.
      *
-     * Example:
+     * `source` selects which spy to read: `"text"` (default) or `"sprite"`.
+     *
+     * Example (text draws):
      *   await game.spy.collect(`
-     *     if (draw.color === "rgba(255,180,50,1)" && draw.scale > 1) return "lockout";
-     *     if (draw.color === "rgb(255,255,255)" && draw.scale === 1) return "normal";
+     *     if (draw.color === "${COLOR_LOCKOUT_AMBER}" && draw.scale > 1) return "lockout";
+     *     if (draw.color === "${COLOR_TEXT_WHITE}" && draw.scale === 1) return "normal";
      *     return null;
-     *   `, { maxPerBucket: 5 });
-     *   // ... wait for game to finish ...
+     *   `);
+     *
+     * Example (sprite draws):
+     *   await game.spy.collect(`
+     *     if (draw.name.startsWith("tower_")) return "towers";
+     *     if (draw.name.startsWith("house")) return "houses";
+     *     return null;
+     *   `, { source: "sprite" });
+     *
      *   const results = await game.spy.collected();
      */
     collect: async (
       filterBody: string,
-      opts?: { maxPerBucket?: number },
+      opts?: { source?: "text" | "sprite"; maxPerBucket?: number },
     ): Promise<void> => {
       const max = opts?.maxPerBucket ?? 10;
+      const source = opts?.source ?? "text";
       await this.page.evaluate(
-        ([body, limit]: [string, number]) => {
+        ([body, limit, src]: [string, number, string]) => {
           const win = globalThis as unknown as Record<string, unknown>;
           const buckets: Record<string, unknown[]> = {};
           win.__spyCollector = buckets;
@@ -474,37 +554,37 @@ export class E2EGame {
             draw: unknown,
             e2e: unknown,
           ) => string | null;
+          const spyKey = src === "sprite" ? "renderSpy" : "textSpy";
 
           const prevRAF = globalThis.requestAnimationFrame;
           globalThis.requestAnimationFrame = (cb: FrameRequestCallback) =>
             prevRAF((time: number) => {
               cb(time);
-              const e2e = win.__e2e as {
-                textSpy?: { text: string; color: string; scale: number }[];
-              } | undefined;
-              if (!e2e?.textSpy) return;
-              for (const draw of e2e.textSpy) {
+              const e2e = win.__e2e as Record<string, unknown> | undefined;
+              const draws = e2e?.[spyKey] as unknown[] | undefined;
+              if (!draws) return;
+              for (const draw of draws) {
                 const bucket = classify(draw, e2e);
                 if (!bucket) continue;
                 if (!buckets[bucket]) buckets[bucket] = [];
                 if (buckets[bucket]!.length < limit) {
-                  buckets[bucket]!.push({ ...draw });
+                  buckets[bucket]!.push(
+                    typeof draw === "object" && draw ? { ...draw } : draw,
+                  );
                 }
               }
             });
         },
-        [filterBody, max] as [string, number],
+        [filterBody, max, source] as [string, number, string],
       );
     },
     /** Read the collected buckets from a prior `collect()` call. */
-    collected: (): Promise<
-      Record<string, { text: string; color: string; scale: number }[]>
-    > => {
+    collected: (): Promise<Record<string, unknown[]>> => {
       return this.page.evaluate(() => {
         const win = globalThis as unknown as Record<string, unknown>;
         return (win.__spyCollector ?? {}) as Record<
           string,
-          { text: string; color: string; scale: number }[]
+          unknown[]
         >;
       });
     },

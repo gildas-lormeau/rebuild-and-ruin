@@ -81,32 +81,79 @@ import { createScenario } from "./scenario-helpers.ts";
 
 **For input/rendering/browser bugs** — use the E2E helpers:
 ```typescript
-import { E2EGame } from "./e2e-helpers.ts";
+import { E2EGame, E2ETest, COLOR_TEXT_WHITE } from "./e2e-helpers.ts";
+const test = new E2ETest("my test");
 const game = await E2EGame.create({ seed: 42, humans: 1, headless: true });
+// ... assertions ...
+test.check("label", condition);
+await game.close();
+test.done(); // prints summary, exits with code 1 on failure
 ```
+
+Create options: `{ seed?, humans?, headless?, rounds?, mode? }`.
+`mode: "modern"` passes `?mode=modern` URL param for modern-mode games.
 
 The E2E bridge (`window.__e2e`) exposes:
 - **Game state**: `mode`, `phase`, `round`, `timer`, `players`
-- **Render overlay**: `overlay.entities` (houses, grunts, towers), `overlay.phantoms`, `overlay.banner`, `overlay.battle`
+- **Render overlay**: `overlay.entities` (houses, grunts, towers), `overlay.phantoms`, `overlay.banner`, `overlay.battle`, `overlay.ui.masterBuilderLockout`
 - **Banner prev entities**: `overlay.bannerPrevEntities` (old scene during banner sweep)
 - **Controller**: `controller.cannonCursor`, `controller.buildCursor`, `controller.crosshair`
 - **Camera**: `camera.viewport`
 - **Coord conversion**: `worldToClient(wx, wy)`, `tileToClient(row, col)` — callable from page.evaluate
-- **Render spy**: call `enableRenderSpy()` on the bridge, then read `renderSpy` — array of `{name, x, y}` recording every `drawSprite` call per frame
+- **Render spy**: auto-enabled on create. `renderSpy` = sprite draws `{name, x, y}`, `textSpy` = text draws `{text, color, x, y, scale}` — both snapshot per frame
 - **Targeting**: `targeting.enemyCannons`, `targeting.enemyTargets` — pixel positions of enemy entities
 - **Pause/step**: set `paused = true` to freeze, `step = true` to advance one frame
 
-E2EGame helpers:
-- `game.advanceTo("CANNON_PLACE")` — waits for phase (timeout derived from game constants)
-- `game.setFastMode(false)` — disable fast mode for precise mouse interaction
-- `game.mouse.moveToWorld(wx, wy)` / `game.mouse.moveToTile(row, col)` — world-coordinate mouse input
-- `game.mouse.clickTile(row, col)` / `game.mouse.rightClickWorld(wx, wy)`
-- `game.mouse.sweep(from, to, { stepPx })` — pixel-by-pixel mouse sweep
-- `game.query.state()` / `game.query.controller()` / `game.query.overlay()` — read bridge data
-- `game.keyboard.press("n")` / `game.dom.clickButton("confirm")`
+**Lifecycle & phase control:**
+- `game.advanceTo("CANNON_PLACE")` — waits for phase (timeout from game constants)
+- `game.waitForGameOver()` — waits for mode === "STOPPED"
+- `game.waitUntil(predicateString)` — custom bridge predicate
+- `game.setFastMode(false)` — disable fast mode for precise mouse/timing
 - `game.pause()` / `game.resume()` / `game.step()`
 
-Fast mode is ON by default (accelerates lobby + phase timers). Disable with
+**Input:**
+- `game.mouse.moveToWorld(wx, wy)` / `game.mouse.moveToTile(row, col)`
+- `game.mouse.clickTile(row, col)` / `game.mouse.rightClickWorld(wx, wy)`
+- `game.mouse.sweep(from, to, { stepPx })` — pixel-by-pixel sweep
+- `game.keyboard.press("n")` / `game.dom.clickButton("confirm")`
+
+**Query:**
+- `game.query.state()` / `game.query.phase()` / `game.query.timer()`
+- `game.query.controller()` / `game.query.overlay()` / `game.query.players()`
+
+**Render spy** (preferred for verifying visual output):
+- `game.spy.spriteDraws()` — current frame's sprite draws
+- `game.spy.textDraws()` — current frame's text draws
+- `game.spy.waitForSpriteData()` — wait until sprites are drawn this frame
+- `game.spy.collect(filterBody, { source?, maxPerBucket? })` — install per-frame collector with bucketing. The filter is a JS function body receiving `draw` and `e2e`, returning a bucket name or null. `source: "text"` (default) or `"sprite"`.
+- `game.spy.collected()` — read accumulated buckets
+
+**Render spy collect examples:**
+```typescript
+// Collect text draws by color
+await game.spy.collect(`
+  if (draw.color === "${COLOR_LOCKOUT_AMBER}" && draw.scale > 1) return "lockout";
+  if (draw.color === "${COLOR_TEXT_WHITE}" && draw.scale === 1) return "normal";
+  return null;
+`);
+
+// Collect sprite draws during banners
+await game.spy.collect(`
+  if (!e2e?.overlay?.banner) return null;
+  if (draw.name.startsWith("tower_")) return "towers";
+  return null;
+`, { source: "sprite", maxPerBucket: 50 });
+
+await game.waitForGameOver();
+const results = await game.spy.collected();
+test.check("towers drawn", results.towers?.length > 0);
+```
+
+**Color constants** (exported from e2e-helpers):
+`COLOR_LOCKOUT_AMBER`, `COLOR_TEXT_WHITE`
+
+Fast mode is ON by default (accelerates lobby + phase timers). The render spy
+is auto-enabled from the first frame. Disable fast mode with
 `game.setFastMode(false)` when you need precise mouse/timing interaction.
 
 Run with: `deno run -A test/your-file.ts`
@@ -137,7 +184,8 @@ Return:
 
 ```sh
 npm run test:e2e:cannon-cursor     # cannon phantom stability (9s)
-npm run test:e2e:banner            # banner entity rendering (21s)
+npm run test:e2e:banner            # banner entity rendering (5s)
+npm run test:e2e:lockout           # Master Builder lockout timer (15s)
 npm run test:e2e:all               # all focused e2e tests
 npm run test:e2e:local:quick       # legacy full simulation (headless, 1 round)
 ```
