@@ -579,14 +579,11 @@ export class E2EGame {
       );
     },
     /** Read the collected buckets from a prior `collect()` call. */
-    collected: (): Promise<Record<string, unknown[]>> => {
+    collected: <T = Record<string, unknown>>(): Promise<Record<string, T[]>> => {
       return this.page.evaluate(() => {
         const win = globalThis as unknown as Record<string, unknown>;
-        return (win.__spyCollector ?? {}) as Record<
-          string,
-          unknown[]
-        >;
-      });
+        return (win.__spyCollector ?? {}) as Record<string, unknown[]>;
+      }) as Promise<Record<string, T[]>>;
     },
   };
 

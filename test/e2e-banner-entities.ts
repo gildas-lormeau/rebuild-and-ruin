@@ -32,7 +32,7 @@ async function run() {
 
   try {
     await game.waitForGameOver();
-    const results = await game.spy.collected();
+    const results = await game.spy.collected<{ name: string }>();
 
     const towers = results.towers ?? [];
     const houses = results.houses ?? [];

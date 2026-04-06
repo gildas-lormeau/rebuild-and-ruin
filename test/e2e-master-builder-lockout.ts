@@ -37,7 +37,7 @@ async function run() {
 
   try {
     await game.waitForGameOver();
-    const results = await game.spy.collected();
+    const results = await game.spy.collected<{ text: string; color: string; scale: number }>();
 
     // Verify lockout frames
     if (results.lockout && results.lockout.length > 0) {
