@@ -19,7 +19,8 @@ import {
 } from "../src/game/build-system.ts";
 import { addPlayerWall, deletePlayerWallBattle, markWallsDirty } from "../src/shared/board-occupancy.ts";
 import { packTile } from "../src/shared/spatial.ts";
-import { parseBoard, assert, test, runTests } from "./test-helpers.ts";
+import { assert } from "jsr:@std/assert";
+import { parseBoard } from "./test-helpers.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -46,7 +47,7 @@ function isInterior(
 // Interior computation
 // ---------------------------------------------------------------------------
 
-test("fully enclosed ring has correct interior", () => {
+Deno.test("fully enclosed ring has correct interior", () => {
   const { state, offsetR, offsetC } = parseBoard(`
 ########
 #      #
@@ -71,7 +72,7 @@ test("fully enclosed ring has correct interior", () => {
   assert(!state.players[0]!.interior.has(packTile(0, 0)), "edge tile should not be interior");
 });
 
-test("open ring (gap in walls) has no interior", () => {
+Deno.test("open ring (gap in walls) has no interior", () => {
   const { state } = parseBoard(`
 ### ###
 #     #
@@ -84,7 +85,7 @@ test("open ring (gap in walls) has no interior", () => {
   assert(player.interior.size === 0, `expected 0 interior tiles, got ${player.interior.size}`);
 });
 
-test("ring with water inside excludes water from interior", () => {
+Deno.test("ring with water inside excludes water from interior", () => {
   const { state, offsetR, offsetC } = parseBoard(`
 ########
 #~     #
@@ -98,7 +99,7 @@ test("ring with water inside excludes water from interior", () => {
   assert(isInterior(state, offsetR, offsetC, 1, 2), "grass next to water should be interior");
 });
 
-test("single-tile gap prevents enclosure", () => {
+Deno.test("single-tile gap prevents enclosure", () => {
   const { state } = parseBoard(`
 ########
 #      #
@@ -110,7 +111,7 @@ test("single-tile gap prevents enclosure", () => {
   assert(player.interior.size === 0, `expected 0 interior, got ${player.interior.size}`);
 });
 
-test("walls touching map edge form valid enclosure", () => {
+Deno.test("walls touching map edge form valid enclosure", () => {
   // Walls at the edge of the parse area — the flood fill from grid edges
   // still works because parseBoard places the block at offset (2,2)
   const { state } = parseBoard(`
@@ -128,7 +129,7 @@ test("walls touching map edge form valid enclosure", () => {
 // Tower ownership
 // ---------------------------------------------------------------------------
 
-test("fully enclosed tower is owned", () => {
+Deno.test("fully enclosed tower is owned", () => {
   const { state } = parseBoard(`
 ########
 #      #
@@ -140,7 +141,7 @@ test("fully enclosed tower is owned", () => {
   assert(player.ownedTowers.length === 1, "tower should be owned");
 });
 
-test("partially enclosed tower is not owned", () => {
+Deno.test("partially enclosed tower is not owned", () => {
   const { state } = parseBoard(`
 ### ####
 #      #
@@ -157,7 +158,7 @@ test("partially enclosed tower is not owned", () => {
 // Grunt enclosure
 // ---------------------------------------------------------------------------
 
-test("grunt inside enclosed territory is removed", () => {
+Deno.test("grunt inside enclosed territory is removed", () => {
   const { state } = parseBoard(`
 ########
 #     G#
@@ -169,7 +170,7 @@ test("grunt inside enclosed territory is removed", () => {
   assert(state.grunts.length === 0, `expected 0 grunts, got ${state.grunts.length}`);
 });
 
-test("grunt outside territory is kept", () => {
+Deno.test("grunt outside territory is kept", () => {
   const { state } = parseBoard(`
 ########
 #      #
@@ -180,7 +181,7 @@ test("grunt outside territory is kept", () => {
   assert(state.grunts.length === 1, `expected 1 grunt, got ${state.grunts.length}`);
 });
 
-test("grunt on wall is kept (walls are not interior)", () => {
+Deno.test("grunt on wall is kept (walls are not interior)", () => {
   // Place grunt at a position, then add a wall over it — but parseBoard
   // doesn't support overlapping. Instead: grunt adjacent to but outside walls
   const { state } = parseBoard(`
@@ -194,7 +195,7 @@ G`);
   assert(state.grunts.length === 1, `grunt outside ring should be kept`);
 });
 
-test("enclosed grunt awards score points", () => {
+Deno.test("enclosed grunt awards score points", () => {
   const { state } = parseBoard(`
 ########
 # G    #
@@ -211,7 +212,7 @@ test("enclosed grunt awards score points", () => {
 // Bonus square capture
 // ---------------------------------------------------------------------------
 
-test("bonus square inside territory is captured", () => {
+Deno.test("bonus square inside territory is captured", () => {
   const { state, offsetR, offsetC } = parseBoard(`
 ########
 #      #
@@ -227,7 +228,7 @@ test("bonus square inside territory is captured", () => {
   assert(state.players[0]!.score > 0, "should award score for bonus");
 });
 
-test("bonus square outside territory is kept", () => {
+Deno.test("bonus square outside territory is kept", () => {
   const { state } = parseBoard(`
 ########
 #      #
@@ -244,7 +245,7 @@ test("bonus square outside territory is kept", () => {
 // Tower revival (end-of-build only)
 // ---------------------------------------------------------------------------
 
-test("dead tower with pending revive is revived at end of build", () => {
+Deno.test("dead tower with pending revive is revived at end of build", () => {
   const { state } = parseBoard(`
 ########
 #      #
@@ -262,7 +263,7 @@ test("dead tower with pending revive is revived at end of build", () => {
   assert(!state.towerPendingRevive.has(towerIdx), "pending flag should be cleared");
 });
 
-test("dead tower enclosed for first time gets pending flag only", () => {
+Deno.test("dead tower enclosed for first time gets pending flag only", () => {
   const { state } = parseBoard(`
 ########
 #      #
@@ -279,7 +280,7 @@ test("dead tower enclosed for first time gets pending flag only", () => {
   assert(state.towerPendingRevive.has(towerIdx), "pending flag should be set");
 });
 
-test("dead tower not enclosed stays dead and not pending", () => {
+Deno.test("dead tower not enclosed stays dead and not pending", () => {
   const { state } = parseBoard(`
 ### ####
 #      #
@@ -295,7 +296,7 @@ test("dead tower not enclosed stays dead and not pending", () => {
   assert(!state.towerPendingRevive.has(towerIdx), "no pending flag for unenclosed tower");
 });
 
-test("pending revive cleared when tower becomes unenclosed", () => {
+Deno.test("pending revive cleared when tower becomes unenclosed", () => {
   const { state } = parseBoard(`
 ########
 #      #
@@ -318,7 +319,7 @@ test("pending revive cleared when tower becomes unenclosed", () => {
 // End-of-build scoring
 // ---------------------------------------------------------------------------
 
-test("end-of-build awards territory points", () => {
+Deno.test("end-of-build awards territory points", () => {
   const { state } = parseBoard(`
 ########
 #      #
@@ -336,7 +337,7 @@ test("end-of-build awards territory points", () => {
 // Sweep misplaced grunts
 // ---------------------------------------------------------------------------
 
-test("grunt on owned tile (interior) is swept", () => {
+Deno.test("grunt on owned tile (interior) is swept", () => {
   const { state, offsetR, offsetC } = parseBoard(`
 ########
 #      #
@@ -363,7 +364,7 @@ test("grunt on owned tile (interior) is swept", () => {
 // Multiple operations in sequence
 // ---------------------------------------------------------------------------
 
-test("closing a gap reclaims territory", () => {
+Deno.test("closing a gap reclaims territory", () => {
   const { state, offsetR, offsetC } = parseBoard(`
 ### ####
 #      #
@@ -381,7 +382,7 @@ test("closing a gap reclaims territory", () => {
   assert(player.ownedTowers.length === 1, "tower should now be owned");
 });
 
-test("breaking a wall loses territory", () => {
+Deno.test("breaking a wall loses territory", () => {
   const { state, offsetR, offsetC } = parseBoard(`
 ########
 #      #
@@ -404,4 +405,3 @@ test("breaking a wall loses territory", () => {
 // Run
 // ---------------------------------------------------------------------------
 
-runTests("Territory claiming");

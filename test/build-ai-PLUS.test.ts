@@ -1,20 +1,18 @@
 /**
  * AI build-phase placement tests — + piece.
  *
- * Run with: deno run test/build-ai-PLUS.test.ts
+ * Run with: deno test --no-check test/build-ai-PLUS.test.ts
  */
 
+import { assert } from "jsr:@std/assert";
 import {
   parseBoard,
   assertPlacement,
   assertNotPlacedAt,
-  knownFailureTest,
-  test,
-  runTests,
 } from "./test-helpers.ts";
 import { PIECE_PLUS } from "../src/shared/pieces.ts";
 
-knownFailureTest("AI fills gap between wall segments", () => {
+Deno.test({ name: "AI fills gap between wall segments", ignore: true, fn: () => {
   const parsed = parseBoard(
     `
          
@@ -37,9 +35,9 @@ knownFailureTest("AI fills gap between wall segments", () => {
          
 `,
   );
-});
+} });
 
-test("AI does not create fat walls (vertical)", () => {
+Deno.test("AI does not create fat walls (vertical)", () => {
   const parsed = parseBoard(
     `
        
@@ -124,7 +122,7 @@ test("AI does not create fat walls (vertical)", () => {
   );
 });
 
-test("AI does not create fat walls (horizontal)", () => {
+Deno.test("AI does not create fat walls (horizontal)", () => {
   const parsed = parseBoard(
     `
          
@@ -198,7 +196,7 @@ test("AI does not create fat walls (horizontal)", () => {
   );
 });
 
-test("AI does not create 1 square enclosure", () => {
+Deno.test("AI does not create 1 square enclosure", () => {
   let parsed = parseBoard(
     `
          
@@ -325,4 +323,3 @@ test("AI does not create 1 square enclosure", () => {
   );
 });
 
-await runTests("Build AI — + piece");

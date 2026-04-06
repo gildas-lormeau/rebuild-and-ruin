@@ -1,6 +1,6 @@
 {
   "entry": ["src/main.ts", "src/runtime/runtime-headless.ts", "src/online-client.ts", "src/input/input-recorder.ts", "test/**/*.ts", "scripts/**/*.ts"],
   "project": ["src/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"],
-  "ignore": ["test/online-relay.test.ts", "test/online-game-over.test.ts"],
+  "ignore": ["test/**"],
   "bun": false
 }

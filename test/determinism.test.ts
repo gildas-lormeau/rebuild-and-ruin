@@ -5,11 +5,11 @@
  * deterministic. This test records expected outcomes at key checkpoints and
  * will break whenever game logic changes — intentionally.
  *
- * Run with: deno run test/determinism.test.ts
+ * Run with: deno test --no-check test/determinism.test.ts
  */
 
 import { createScenario } from "./scenario-helpers.ts";
-import { assert, test, runTests } from "./test-helpers.ts";
+import { assert } from "jsr:@std/assert";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -193,7 +193,7 @@ function snapshotEqual(actual: PlayerSnapshot[], expected: readonly PlayerSnapsh
 const MAX_ROUNDS = 50;
 
 for (const expected of EXPECTED) {
-  test(`seed ${expected.seed}: deterministic outcome`, () => {
+  Deno.test(`seed ${expected.seed}: deterministic outcome`, () => {
     const s = createScenario(expected.seed);
     const checkpointsByRound = new Map(expected.checkpoints.map((cp) => [cp.round, cp]));
     let finalRound = 0;
@@ -232,4 +232,3 @@ for (const expected of EXPECTED) {
   });
 }
 
-await runTests("Determinism regression tests");

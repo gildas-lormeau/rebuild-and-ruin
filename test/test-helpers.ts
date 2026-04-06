@@ -4,11 +4,11 @@ import { pickPlacementStandalone as pickPlacement } from "../src/ai/ai-strategy.
 import { placePiece, recheckTerritoryOnly } from "../src/game/build-system.ts";
 import type { PieceShape } from "../src/shared/pieces.ts";
 import { Rng } from "../src/shared/rng.ts";
-import process from "node:process";
 import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { emptyFreshInterior, type Player } from "../src/shared/player-types.ts";
 import type { GameState } from "../src/shared/types.ts";
 import { Phase } from "../src/shared/game-phase.ts";
+import { assert } from "jsr:@std/assert";
 
 // ---------------------------------------------------------------------------
 // ASCII helpers
@@ -381,60 +381,3 @@ export function assertNotPlacedAt(
     `AI placed a wall at forbidden position.\nForbidden map:\n${lines.join("\n")}\nActual:\n${serializeBoard(state, parsed, newWalls)}`);
 }
 
-// ---------------------------------------------------------------------------
-// Test runner
-// ---------------------------------------------------------------------------
-
-interface TestCase {
-  name: string;
-  fn: () => void | Promise<void>;
-  expected: "pass" | "known-failure";
-}
-
-const tests: TestCase[] = [];
-
-export function test(name: string, fn: () => void | Promise<void>) {
-  tests.push({ name, fn, expected: "pass" });
-}
-
-export function knownFailureTest(name: string, fn: () => void | Promise<void>) {
-  tests.push({ name, fn, expected: "known-failure" });
-}
-
-export function assert(condition: boolean, message: string) {
-  if (!condition) throw new Error(`Assertion failed: ${message}`);
-}
-
-export async function runTests(label?: string) {
-  if (label) console.log(`${label}\n`);
-  const suite = tests.splice(0, tests.length);
-  let passed = 0;
-  let failed = 0;
-  let knownFailures = 0;
-  let unexpectedPasses = 0;
-  for (const t of suite) {
-    try {
-      await t.fn();
-      if (t.expected === "known-failure") {
-        console.log(`  ! ${t.name} (unexpected pass)`);
-        unexpectedPasses++;
-      } else {
-        console.log(`  ✓ ${t.name}`);
-        passed++;
-      }
-    // deno-lint-ignore no-explicit-any
-    } catch (e: any) {
-      if (t.expected === "known-failure") {
-        console.log(`  ~ ${t.name} (known limitation)`);
-        console.log(`    ${e.message}`);
-        knownFailures++;
-      } else {
-        console.log(`  ✗ ${t.name}`);
-        console.log(`    ${e.message}`);
-        failed++;
-      }
-    }
-  }
-  console.log(`\n${passed} passed, ${failed} failed, ${knownFailures} known limitations, ${unexpectedPasses} unexpected passes`);
-  if (failed > 0 || unexpectedPasses > 0) process.exit(1);
-}

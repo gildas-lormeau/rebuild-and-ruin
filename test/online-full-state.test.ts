@@ -7,7 +7,7 @@ import {
   type HeadlessRuntime,
 } from "../src/runtime/runtime-headless.ts";
 import { emptyFreshInterior } from "../src/shared/player-types.ts";
-import { assert, runTests, test } from "./test-helpers.ts";
+import { assert } from "jsr:@std/assert";
 import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { Phase } from "../src/shared/game-phase.ts";
 import { CannonMode } from "../src/shared/battle-types.ts";
@@ -46,7 +46,7 @@ function createPair(seed: number): { host: HeadlessRuntime; watcher: HeadlessRun
 // Basic round-trip
 // ---------------------------------------------------------------------------
 
-test("full-state round-trip preserves phase, round, timer, maxRounds", () => {
+Deno.test("full-state round-trip preserves phase, round, timer, maxRounds", () => {
   const { host, watcher } = createPair(42);
   host.state.round = 4;
   host.state.timer = 8.5;
@@ -69,7 +69,7 @@ test("full-state round-trip preserves phase, round, timer, maxRounds", () => {
   assert(watcher.state.shotsFired === 12, `shotsFired: expected 12, got ${watcher.state.shotsFired}`);
 });
 
-test("full-state round-trip preserves player walls, interior, lives, score", () => {
+Deno.test("full-state round-trip preserves player walls, interior, lives, score", () => {
   const { host, watcher } = createPair(42);
   host.state.players[0]!.score = 500;
   host.state.players[0]!.lives = 2;
@@ -91,7 +91,7 @@ test("full-state round-trip preserves player walls, interior, lives, score", () 
   }
 });
 
-test("full-state round-trip preserves cannons with modes and facings", () => {
+Deno.test("full-state round-trip preserves cannons with modes and facings", () => {
   const { host, watcher } = createPair(42);
   const p = host.state.players[0]!;
   p.cannons = [
@@ -114,7 +114,7 @@ test("full-state round-trip preserves cannons with modes and facings", () => {
   }
 });
 
-test("full-state round-trip preserves grunts", () => {
+Deno.test("full-state round-trip preserves grunts", () => {
   const { host, watcher } = createPair(42);
   host.state.grunts = [
     { row: 10, col: 15, victimPlayerId: 0 as ValidPlayerSlot, targetTowerIdx: 1, attackCountdown: 0.5, blockedRounds: 1, attackingWall: true, facing: 2 },
@@ -136,7 +136,7 @@ test("full-state round-trip preserves grunts", () => {
 // RNG state
 // ---------------------------------------------------------------------------
 
-test("full-state round-trip preserves RNG state", () => {
+Deno.test("full-state round-trip preserves RNG state", () => {
   const { host, watcher } = createPair(42);
   // Advance RNG a few times so state diverges from initial seed
   for (let i = 0; i < 10; i++) host.state.rng.int(0, 100);
@@ -159,7 +159,7 @@ test("full-state round-trip preserves RNG state", () => {
 // cannonLimits, playerZones, towerPendingRevive
 // ---------------------------------------------------------------------------
 
-test("full-state round-trip preserves cannonLimits and playerZones", () => {
+Deno.test("full-state round-trip preserves cannonLimits and playerZones", () => {
   const { host, watcher } = createPair(42);
   host.state.cannonLimits = [5, 3, 7];
   host.state.playerZones = [1, 2, 3];
@@ -174,7 +174,7 @@ test("full-state round-trip preserves cannonLimits and playerZones", () => {
   }
 });
 
-test("full-state round-trip preserves towerPendingRevive", () => {
+Deno.test("full-state round-trip preserves towerPendingRevive", () => {
   const { host, watcher } = createPair(42);
   const towerCount = host.state.map.towers.length;
   if (towerCount >= 2) {
@@ -193,7 +193,7 @@ test("full-state round-trip preserves towerPendingRevive", () => {
 // towerAlive, burningPits, bonusSquares, houses
 // ---------------------------------------------------------------------------
 
-test("full-state round-trip preserves towerAlive", () => {
+Deno.test("full-state round-trip preserves towerAlive", () => {
   const { host, watcher } = createPair(42);
   if (host.state.towerAlive.length > 1) {
     host.state.towerAlive[1] = false;
@@ -208,7 +208,7 @@ test("full-state round-trip preserves towerAlive", () => {
   }
 });
 
-test("full-state round-trip preserves burningPits and bonusSquares", () => {
+Deno.test("full-state round-trip preserves burningPits and bonusSquares", () => {
   const { host, watcher } = createPair(42);
   host.state.burningPits = [{ row: 3, col: 4, roundsLeft: 2 }];
   host.state.bonusSquares = [{ row: 8, col: 9, zone: 1 }];
@@ -226,7 +226,7 @@ test("full-state round-trip preserves burningPits and bonusSquares", () => {
   assert(watcher.state.bonusSquares[0]!.zone === 1, "bonusSquare zone");
 });
 
-test("full-state round-trip preserves house alive status", () => {
+Deno.test("full-state round-trip preserves house alive status", () => {
   const { host, watcher } = createPair(42);
   // Kill some houses
   for (let i = 0; i < host.state.map.houses.length && i < 2; i++) {
@@ -246,7 +246,7 @@ test("full-state round-trip preserves house alive status", () => {
 // Cannonballs
 // ---------------------------------------------------------------------------
 
-test("full-state round-trip preserves cannonballs", () => {
+Deno.test("full-state round-trip preserves cannonballs", () => {
   const { host, watcher } = createPair(42);
   const p0 = host.state.players[0]!;
   if (p0.cannons.length > 0) {
@@ -286,7 +286,7 @@ test("full-state round-trip preserves cannonballs", () => {
   }
 });
 
-test("full-state drops cannonballs with stale cannon references", () => {
+Deno.test("full-state drops cannonballs with stale cannon references", () => {
   const { host, watcher } = createPair(42);
   // Add a cannonball referencing a non-existent cannon index
   host.state.cannonballs = [{
@@ -307,7 +307,7 @@ test("full-state drops cannonballs with stale cannon references", () => {
 // Captured cannons
 // ---------------------------------------------------------------------------
 
-test("full-state round-trip preserves captured cannons", () => {
+Deno.test("full-state round-trip preserves captured cannons", () => {
   const { host, watcher } = createPair(42);
   const victim = host.state.players[1]!;
   if (victim.cannons.length > 0) {
@@ -334,7 +334,7 @@ test("full-state round-trip preserves captured cannons", () => {
 // Balloon hits
 // ---------------------------------------------------------------------------
 
-test("full-state round-trip preserves balloon hits", () => {
+Deno.test("full-state round-trip preserves balloon hits", () => {
   const { host, watcher } = createPair(42);
   const p1 = host.state.players[1]!;
   if (p1.cannons.length > 0) {
@@ -359,7 +359,7 @@ test("full-state round-trip preserves balloon hits", () => {
 // Balloon flights
 // ---------------------------------------------------------------------------
 
-test("full-state round-trip preserves balloon flights", () => {
+Deno.test("full-state round-trip preserves balloon flights", () => {
   const { host, watcher } = createPair(42);
   const flights = [
     { flight: { startX: 10, startY: 20, endX: 100, endY: 200 }, progress: 0.5 },
@@ -378,7 +378,7 @@ test("full-state round-trip preserves balloon flights", () => {
   assert(result!.balloonFlights![1]!.progress === 0.25, "flight 1 progress");
 });
 
-test("full-state without flights returns undefined balloonFlights", () => {
+Deno.test("full-state without flights returns undefined balloonFlights", () => {
   const { host, watcher } = createPair(42);
   const msg = createFullStateMessage(host.state, 1);
   const result = restoreFullStateSnapshot(watcher.state, msg);
@@ -391,7 +391,7 @@ test("full-state without flights returns undefined balloonFlights", () => {
 // Validation — rejected messages (use createPair for valid base, then corrupt)
 // ---------------------------------------------------------------------------
 
-test("full-state rejects invalid phase string", () => {
+Deno.test("full-state rejects invalid phase string", () => {
   const { host, watcher } = createPair(42);
   const msg = createFullStateMessage(host.state, 1);
   msg.phase = "INVALID_PHASE";
@@ -400,7 +400,7 @@ test("full-state rejects invalid phase string", () => {
   assert(result === null, "should reject invalid phase");
 });
 
-test("full-state rejects mismatched player count", () => {
+Deno.test("full-state rejects mismatched player count", () => {
   const { host, watcher } = createPair(42);
   const msg = createFullStateMessage(host.state, 1);
   msg.players = msg.players.slice(0, 1);
@@ -409,7 +409,7 @@ test("full-state rejects mismatched player count", () => {
   assert(result === null, "should reject mismatched player count");
 });
 
-test("full-state rejects non-finite rngState", () => {
+Deno.test("full-state rejects non-finite rngState", () => {
   const { host, watcher } = createPair(42);
   const msg = createFullStateMessage(host.state, 1);
   msg.rngState = NaN;
@@ -418,7 +418,7 @@ test("full-state rejects non-finite rngState", () => {
   assert(result === null, "should reject NaN rngState");
 });
 
-test("full-state rejects out-of-bounds grunt position", () => {
+Deno.test("full-state rejects out-of-bounds grunt position", () => {
   const { host, watcher } = createPair(42);
   const msg = createFullStateMessage(host.state, 1);
   msg.grunts.push({ row: -1, col: 0, victimPlayerId: 0 as ValidPlayerSlot });
@@ -427,7 +427,7 @@ test("full-state rejects out-of-bounds grunt position", () => {
   assert(result === null, "should reject negative grunt row");
 });
 
-test("full-state rejects mismatched towerAlive length", () => {
+Deno.test("full-state rejects mismatched towerAlive length", () => {
   const { host, watcher } = createPair(42);
   const msg = createFullStateMessage(host.state, 1);
   msg.towerAlive = [true]; // wrong length
@@ -440,7 +440,7 @@ test("full-state rejects mismatched towerAlive length", () => {
 // Eliminated player edge case
 // ---------------------------------------------------------------------------
 
-test("full-state round-trip preserves eliminated player state", () => {
+Deno.test("full-state round-trip preserves eliminated player state", () => {
   const { host, watcher } = createPair(42);
   host.state.players[1]!.eliminated = true;
   host.state.players[1]!.lives = 0;
@@ -459,4 +459,3 @@ test("full-state round-trip preserves eliminated player state", () => {
   assert(wp.cannons.length === 0, "cannons should be empty");
 });
 
-await runTests("Online full-state round-trip");

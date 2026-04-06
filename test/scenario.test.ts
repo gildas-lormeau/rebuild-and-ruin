@@ -37,7 +37,7 @@ import {
   assertPhase,
   createScenario,
 } from "./scenario-helpers.ts";
-import { assert, test, runTests } from "./test-helpers.ts";
+import { assert, assertEquals } from "jsr:@std/assert";
 import { enterCannonPlacePhase, nextPhase } from "../src/game/game-engine.ts";
 import { SPECTATOR_SLOT, type PlayerSlotId, type ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { Phase } from "../src/shared/game-phase.ts";
@@ -49,7 +49,7 @@ import { CannonMode } from "../src/shared/battle-types.ts";
 // 1. Game-over overlay cleared on returnToLobby
 // ---------------------------------------------------------------------------
 
-test("frame.gameOver is undefined after game ends and lobby is requested", () => {
+Deno.test("frame.gameOver is undefined after game ends and lobby is requested", () => {
   const s = createScenario();
 
   // Simulate game ending: eliminate all but player 0
@@ -71,7 +71,7 @@ test("frame.gameOver is undefined after game ends and lobby is requested", () =>
 // 2. Swept wall debris not visible in banner new scene
 // ---------------------------------------------------------------------------
 
-test("isolated walls are swept before battle banner captures newWalls", () => {
+Deno.test("isolated walls are swept before battle banner captures newWalls", () => {
   const s = createScenario();
 
   // Add isolated wall tiles (0-1 neighbors) that removeIsolatedWalls should remove
@@ -121,7 +121,7 @@ test("isolated walls are swept before battle banner captures newWalls", () => {
 // 3. Settings screen overlay includes castles when in-game
 // ---------------------------------------------------------------------------
 
-test("options overlay has castle data when game state exists", () => {
+Deno.test("options overlay has castle data when game state exists", () => {
   const s = createScenario();
 
   // Verify the state has castles with walls
@@ -151,7 +151,7 @@ test("options overlay has castle data when game state exists", () => {
 // 4. Cannon phantom snaps after placement
 // ---------------------------------------------------------------------------
 
-test("cannon cursor needs snap after successful placement", () => {
+Deno.test("cannon cursor needs snap after successful placement", () => {
   const s = createScenario();
   assertPhase(s, Phase.CANNON_PLACE);
 
@@ -176,7 +176,7 @@ test("cannon cursor needs snap after successful placement", () => {
 // 5. Camera does NOT zoom to human zone during AI-only reselection
 // ---------------------------------------------------------------------------
 
-test("camera stays unzoomed during AI-only reselection", () => {
+Deno.test("camera stays unzoomed during AI-only reselection", () => {
   const s = createScenario();
 
   // Play a round so the camera has seen a real phase
@@ -209,7 +209,7 @@ test("camera stays unzoomed during AI-only reselection", () => {
 // 6. Life-lost dialog: eliminated player shows no bottom label
 // ---------------------------------------------------------------------------
 
-test("eliminated player entry has lives=0 and ABANDON choice", () => {
+Deno.test("eliminated player entry has lives=0 and ABANDON choice", () => {
   const s = createScenario();
 
   // Set player 2 to 0 lives (will be auto-eliminated)
@@ -231,7 +231,7 @@ test("eliminated player entry has lives=0 and ABANDON choice", () => {
   assertLifeLostLabel(entry!, "none");
 });
 
-test("continuing player entry shows Continuing label", () => {
+Deno.test("continuing player entry shows Continuing label", () => {
   const s = createScenario();
 
   const dialog = s.createLifeLostDialog([0 as ValidPlayerSlot, 1 as ValidPlayerSlot]);
@@ -256,7 +256,7 @@ test("continuing player entry shows Continuing label", () => {
 // 8. Online watcher: cannon banner missing preservePrevScene
 // ---------------------------------------------------------------------------
 
-test("online cannon banner uses preservePrevScene=true for progressive scene transition", () => {
+Deno.test("online cannon banner uses preservePrevScene=true for progressive scene transition", () => {
   // Both local and online paths should use preservePrevScene=true for the cannon banner.
   // The fix added preservePrevScene=true to handleCannonStartTransition.
   const s = createScenario();
@@ -287,7 +287,7 @@ test("online cannon banner uses preservePrevScene=true for progressive scene tra
 // 9. Camera: human reselecting gets no initial zone zoom
 // ---------------------------------------------------------------------------
 
-test("camera zooms to human zone when human IS reselecting", () => {
+Deno.test("camera zooms to human zone when human IS reselecting", () => {
   const s = createScenario();
   s.playRound();
 
@@ -318,7 +318,7 @@ test("camera zooms to human zone when human IS reselecting", () => {
 // 7b. No auto-zoom without a human player (demo / spectator)
 // ---------------------------------------------------------------------------
 
-test("camera stays unzoomed when no human player exists", () => {
+Deno.test("camera stays unzoomed when no human player exists", () => {
   const s = createScenario();
   s.state.phase = Phase.WALL_BUILD;
 
@@ -346,7 +346,7 @@ test("camera stays unzoomed when no human player exists", () => {
 // 10. Scripted player actions work
 // ---------------------------------------------------------------------------
 
-test("placeCannonAt places a cannon at the given position", () => {
+Deno.test("placeCannonAt places a cannon at the given position", () => {
   const s = createScenario();
   assertPhase(s, Phase.CANNON_PLACE);
 
@@ -371,7 +371,7 @@ test("placeCannonAt places a cannon at the given position", () => {
   assert(player.cannons.length === cannonsBefore + 1, "Cannon count should increase by 1");
 });
 
-test("fireAt launches a cannonball at the target", () => {
+Deno.test("fireAt launches a cannonball at the target", () => {
   const s = createScenario();
 
   // Place cannons and advance to battle
@@ -393,7 +393,7 @@ test("fireAt launches a cannonball at the target", () => {
 // 12. Online transition: cannon start stashes pre-sweep walls
 // ---------------------------------------------------------------------------
 
-test("online handleCannonStartTransition stashes pre-checkpoint walls on banner", () => {
+Deno.test("online handleCannonStartTransition stashes pre-checkpoint walls on banner", () => {
   const s = createScenario();
 
   // Play a round to get into a realistic state, then advance to CANNON_PLACE
@@ -447,7 +447,7 @@ test("online handleCannonStartTransition stashes pre-checkpoint walls on banner"
 // 13. Online transition: battle start sets banner.newWalls post-checkpoint
 // ---------------------------------------------------------------------------
 
-test("online handleBattleStartTransition sets banner.newWalls after checkpoint", () => {
+Deno.test("online handleBattleStartTransition sets banner.newWalls after checkpoint", () => {
   const s = createScenario();
 
   // Advance to cannon phase and serialize battle start message
@@ -472,7 +472,7 @@ test("online handleBattleStartTransition sets banner.newWalls after checkpoint",
 // 14. State summary
 // ---------------------------------------------------------------------------
 
-test("describe() returns a compact state summary", () => {
+Deno.test("describe() returns a compact state summary", () => {
   const s = createScenario();
   const desc = s.describe();
 
@@ -493,7 +493,7 @@ test("describe() returns a compact state summary", () => {
 // 15. Damage helpers
 // ---------------------------------------------------------------------------
 
-test("destroyWalls removes walls and reclaims territory", () => {
+Deno.test("destroyWalls removes walls and reclaims territory", () => {
   const s = createScenario();
   const player = s.state.players[0]!;
   const wallsBefore = player.walls.size;
@@ -504,7 +504,7 @@ test("destroyWalls removes walls and reclaims territory", () => {
   assert(player.walls.size === wallsBefore - removed, "Wall count should decrease");
 });
 
-test("destroyCannon sets cannon HP to 0", () => {
+Deno.test("destroyCannon sets cannon HP to 0", () => {
   const s = createScenario();
   s.runCannon();
   const player = s.state.players[0]!;
@@ -521,7 +521,7 @@ test("destroyCannon sets cannon HP to 0", () => {
 // 16. Multi-round shortcut
 // ---------------------------------------------------------------------------
 
-test("playRounds advances multiple rounds with reselection handling", () => {
+Deno.test("playRounds advances multiple rounds with reselection handling", () => {
   const s = createScenario();
   const roundBefore = s.state.round;
 
@@ -544,7 +544,7 @@ test("playRounds advances multiple rounds with reselection handling", () => {
 // 17. Tile finders return valid results
 // ---------------------------------------------------------------------------
 
-test("tile finders return valid positions", () => {
+Deno.test("tile finders return valid positions", () => {
   const s = createScenario();
 
   const grass = s.findGrassTile(0 as ValidPlayerSlot);
@@ -576,7 +576,7 @@ test("tile finders return valid positions", () => {
 // 18. Online session cleanup on disconnect
 // ---------------------------------------------------------------------------
 
-test("resetSessionState closes WebSocket and resets all fields", () => {
+Deno.test("resetSessionState closes WebSocket and resets all fields", () => {
   const session = createSession();
   let closeCalled = false;
   session.socket = { close: () => { closeCalled = true; } } as unknown as WebSocket;
@@ -603,7 +603,7 @@ test("resetSessionState closes WebSocket and resets all fields", () => {
 // 19. Demo mode auto-returns to lobby after game over
 // ---------------------------------------------------------------------------
 
-test("demo mode auto-returns to lobby after game ends (all-AI)", async () => {
+Deno.test("demo mode auto-returns to lobby after game ends (all-AI)", async () => {
   // Simulate the demo timer logic from endGame
   let returnCalled = false;
   const mode = { current: Mode.STOPPED };
@@ -621,7 +621,7 @@ test("demo mode auto-returns to lobby after game ends (all-AI)", async () => {
   clearTimeout(timer);
 });
 
-test("demo timer does not fire if user clicks rematch first", async () => {
+Deno.test("demo timer does not fire if user clicks rematch first", async () => {
   let returnCalled = false;
   const mode = { current: Mode.STOPPED };
 
@@ -636,7 +636,7 @@ test("demo timer does not fire if user clicks rematch first", async () => {
   clearTimeout(timer);
 });
 
-test("demo timer not started when human is playing", () => {
+Deno.test("demo timer not started when human is playing", () => {
   const joined = [true, false, false];
   const allAi = joined.every((j) => !j);
   assert(!allAi, "Should not be all-AI when a human joined");
@@ -646,7 +646,7 @@ test("demo timer not started when human is playing", () => {
 // 20. Super gun can fire immediately after placement
 // ---------------------------------------------------------------------------
 
-test("super gun placed during cannon phase can fire in battle", () => {
+Deno.test("super gun placed during cannon phase can fire in battle", () => {
   // Seed 14: P0 has enough interior for a 3x3 super gun after 1 round
   const s = createScenario(14);
   s.playRounds(1);
@@ -687,7 +687,7 @@ test("super gun placed during cannon phase can fire in battle", () => {
 // 22. runBuildEndSequence notifies all affected players
 // ---------------------------------------------------------------------------
 
-test("runBuildEndSequence notifies all affected players", () => {
+Deno.test("runBuildEndSequence notifies all affected players", () => {
   const notified: number[] = [];
   let dialogShown = false;
   runBuildEndSequence({
@@ -704,7 +704,7 @@ test("runBuildEndSequence notifies all affected players", () => {
   assert(dialogShown, "Should show life-lost dialog");
 });
 
-test("runBuildEndSequence calls onLifeLostResolved when no affected players", () => {
+Deno.test("runBuildEndSequence calls onLifeLostResolved when no affected players", () => {
   let resolved = false;
   runBuildEndSequence({
     needsReselect: [],
@@ -721,7 +721,7 @@ test("runBuildEndSequence calls onLifeLostResolved when no affected players", ()
 // 23. Host and watcher build-end paths both notify the local player
 // ---------------------------------------------------------------------------
 
-test("host and watcher build-end both notify affected controller via shared sequence", () => {
+Deno.test("host and watcher build-end both notify affected controller via shared sequence", () => {
   const s = createScenario();
   s.playRounds(2);
 
@@ -771,7 +771,7 @@ test("host and watcher build-end both notify affected controller via shared sequ
 // 24. Banner shared helpers pass subtitle
 // ---------------------------------------------------------------------------
 
-test("showCannonPhaseBanner passes subtitle to showBanner", () => {
+Deno.test("showCannonPhaseBanner passes subtitle to showBanner", () => {
   let capturedSubtitle: string | undefined;
   const mockShow = (_t: string, _cb: () => void, _r?: boolean, _nb?: any, sub?: string) => {
     capturedSubtitle = sub;
@@ -781,7 +781,7 @@ test("showCannonPhaseBanner passes subtitle to showBanner", () => {
   assert(capturedSubtitle!.length > 0, "Subtitle should be non-empty");
 });
 
-test("showBattlePhaseBanner passes subtitle to showBanner", () => {
+Deno.test("showBattlePhaseBanner passes subtitle to showBanner", () => {
   let capturedSubtitle: string | undefined;
   const mockShow = (_t: string, _cb: () => void, _r?: boolean, _nb?: any, sub?: string) => {
     capturedSubtitle = sub;
@@ -791,7 +791,7 @@ test("showBattlePhaseBanner passes subtitle to showBanner", () => {
   assert(capturedSubtitle!.length > 0, "Subtitle should be non-empty");
 });
 
-test("showBuildPhaseBanner passes subtitle to showBanner", () => {
+Deno.test("showBuildPhaseBanner passes subtitle to showBanner", () => {
   let capturedSubtitle: string | undefined;
   const mockShow = (_t: string, _cb: () => void, _r?: boolean, _nb?: any, sub?: string) => {
     capturedSubtitle = sub;
@@ -801,7 +801,7 @@ test("showBuildPhaseBanner passes subtitle to showBanner", () => {
   assert(capturedSubtitle!.length > 0, "Subtitle should be non-empty");
 });
 
-test("showUpgradePickBanner passes text and subtitle to showBanner", () => {
+Deno.test("showUpgradePickBanner passes text and subtitle to showBanner", () => {
   let capturedText: string | undefined;
   let capturedSubtitle: string | undefined;
   let capturedPreserve: boolean | undefined;
@@ -817,7 +817,7 @@ test("showUpgradePickBanner passes text and subtitle to showBanner", () => {
   assert(capturedPreserve === true, "Should preserve prev scene");
 });
 
-test("showUpgradePickBanner fires onDone callback", () => {
+Deno.test("showUpgradePickBanner fires onDone callback", () => {
   let doneFired = false;
   const mockShow = (_t: string, onDone: () => void) => {
     onDone();
@@ -834,7 +834,7 @@ test("showUpgradePickBanner fires onDone callback", () => {
 // 25. Cannon-start: host and watcher init controller the same way
 // ---------------------------------------------------------------------------
 
-test("cannon-start: watcher uses same initControllerForCannonPhase as host", () => {
+Deno.test("cannon-start: watcher uses same initControllerForCannonPhase as host", () => {
   const s = createScenario();
   s.runCannon();
   s.runBattle();
@@ -870,7 +870,7 @@ test("cannon-start: watcher uses same initControllerForCannonPhase as host", () 
 // 26. Build-start: watcher calls startBuildPhase on local controller
 // ---------------------------------------------------------------------------
 
-test("build-start: watcher calls startBuildPhase on local controller", () => {
+Deno.test("build-start: watcher calls startBuildPhase on local controller", () => {
   const s = createScenario();
   s.runCannon();
   s.runBattle();
@@ -897,7 +897,7 @@ test("build-start: watcher calls startBuildPhase on local controller", () => {
 // 27. executeTransition runs steps in declared order
 // ---------------------------------------------------------------------------
 
-test("executeTransition runs steps in declared order for all recipes", () => {
+Deno.test("executeTransition runs steps in declared order for all recipes", () => {
   const log: string[] = [];
 
   // BUILD_START: showBanner → applyCheckpoint → initControllers
@@ -931,14 +931,14 @@ test("executeTransition runs steps in declared order for all recipes", () => {
   });
   assert(log[0] === "showBanner", `BATTLE step 0: ${log[0]}`);
   assert(log[1] === "applyCheckpoint", `BATTLE step 1: ${log[1]}`);
-  assert(log[2] === "snapshotForBanner", `BATTLE step 2: ${log[2]}`);
+  assertEquals(log[2], "snapshotForBanner", `BATTLE step 2: ${log[2]}`);
 });
 
 // ---------------------------------------------------------------------------
 // 28. All three recipes are structurally distinct (no accidental reuse)
 // ---------------------------------------------------------------------------
 
-test("recipe step arrays are distinct and have expected lengths", () => {
+Deno.test("recipe step arrays are distinct and have expected lengths", () => {
   // Each recipe is 3 steps
   assert(CANNON_START_STEPS.length === 3, "CANNON_START_STEPS should have 3 steps");
   assert(BATTLE_START_STEPS.length === 3, "BATTLE_START_STEPS should have 3 steps");
@@ -959,7 +959,7 @@ test("recipe step arrays are distinct and have expected lengths", () => {
 // 29. Build-start parity: host initControllers does real work
 // ---------------------------------------------------------------------------
 
-test("build-start: host initControllers runs startBuildPhase (not a no-op)", () => {
+Deno.test("build-start: host initControllers runs startBuildPhase (not a no-op)", () => {
   const s = createScenario();
   s.runCannon();
   s.runBattle();
@@ -986,7 +986,7 @@ test("build-start: host initControllers runs startBuildPhase (not a no-op)", () 
 // 30. Battle-start parity: host and watcher reach same post-sweep state
 // ---------------------------------------------------------------------------
 
-test("battle-start: host and watcher produce same phase and territory snapshot", () => {
+Deno.test("battle-start: host and watcher produce same phase and territory snapshot", () => {
   const s = createScenario();
   s.runCannon();
 
@@ -1048,7 +1048,7 @@ test("battle-start: host and watcher produce same phase and territory snapshot",
 // Watcher: wall debris visible after WALL_DESTROYED events
 // ---------------------------------------------------------------------------
 
-test("watcher: wall debris visible in render overlay after WALL_DESTROYED", () => {
+Deno.test("watcher: wall debris visible in render overlay after WALL_DESTROYED", () => {
   // Simulate the full watcher flow: checkpoint → wall destruction → overlay build
   const s = createScenario();
   s.runCannon();
@@ -1179,7 +1179,7 @@ test("watcher: wall debris visible in render overlay after WALL_DESTROYED", () =
 // Castle wall ring must not overlap other towers
 // ---------------------------------------------------------------------------
 
-test("prebuilt castle walls never land on another tower's tiles", () => {
+Deno.test("prebuilt castle walls never land on another tower's tiles", () => {
   // Try multiple seeds to exercise different tower layouts
   for (const seed of [1, 7, 42, 99, 123, 256, 500, 777]) {
     const s = createScenario(seed);
@@ -1216,7 +1216,7 @@ test("prebuilt castle walls never land on another tower's tiles", () => {
 // Burning pits must survive visually through cannon→battle banner transition
 // ---------------------------------------------------------------------------
 
-test("burning pits visible in overlay during cannon-to-battle banner", () => {
+Deno.test("burning pits visible in overlay during cannon-to-battle banner", () => {
   const s = createScenario();
 
   // Inject a burning pit with roundsLeft=1 so enterBattleFromCannon will expire it
@@ -1307,4 +1307,3 @@ test("burning pits visible in overlay during cannon-to-battle banner", () => {
 
 // ---------------------------------------------------------------------------
 
-await runTests("Scenario Tests");

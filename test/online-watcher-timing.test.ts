@@ -4,14 +4,14 @@
  * Verifies that watcher-side phase timer reconstruction from wall-clock
  * produces correct values and handles edge cases.
  *
- * Run with: deno run test/online-watcher-timing.test.ts
+ * Run with: deno test --no-check test/online-watcher-timing.test.ts
  */
 
 import {
   clearWatcherPhaseTimer,
   setWatcherPhaseTimer
 } from "../src/online/online-types.ts";
-import { assert, runTests, test } from "./test-helpers.ts";
+import { assert } from "jsr:@std/assert";
 import type { WatcherTimingState } from "../src/shared/tick-context.ts";
 
 // ---------------------------------------------------------------------------
@@ -38,7 +38,7 @@ function reconstructTimer(timing: WatcherTimingState, now: number): number {
 // setWatcherPhaseTimer
 // ---------------------------------------------------------------------------
 
-test("setWatcherPhaseTimer sets phaseStartTime and phaseDuration", () => {
+Deno.test("setWatcherPhaseTimer sets phaseStartTime and phaseDuration", () => {
   const timing = freshTiming();
   setWatcherPhaseTimer(timing, 1000, 30000);
 
@@ -46,7 +46,7 @@ test("setWatcherPhaseTimer sets phaseStartTime and phaseDuration", () => {
   assert(timing.phaseDuration === 30000, `expected phaseDuration=30000, got ${timing.phaseDuration}`);
 });
 
-test("watcher timer reconstruction at various elapsed times", () => {
+Deno.test("watcher timer reconstruction at various elapsed times", () => {
   const timing = freshTiming();
   setWatcherPhaseTimer(timing, 1000, 30000);
 
@@ -67,7 +67,7 @@ test("watcher timer reconstruction at various elapsed times", () => {
   assert(t30 === 0, `at 30s: expected 0, got ${t30}`);
 });
 
-test("watcher timer does not go negative past phase end", () => {
+Deno.test("watcher timer does not go negative past phase end", () => {
   const timing = freshTiming();
   setWatcherPhaseTimer(timing, 1000, 15000);
 
@@ -76,7 +76,7 @@ test("watcher timer does not go negative past phase end", () => {
   assert(t === 0, `expected 0 (clamped), got ${t}`);
 });
 
-test("setWatcherPhaseTimer overwrites previous phase", () => {
+Deno.test("setWatcherPhaseTimer overwrites previous phase", () => {
   const timing = freshTiming();
   setWatcherPhaseTimer(timing, 1000, 30000);
   setWatcherPhaseTimer(timing, 5000, 15000);
@@ -93,7 +93,7 @@ test("setWatcherPhaseTimer overwrites previous phase", () => {
 // clearWatcherPhaseTimer
 // ---------------------------------------------------------------------------
 
-test("clearWatcherPhaseTimer zeros out phase timing", () => {
+Deno.test("clearWatcherPhaseTimer zeros out phase timing", () => {
   const timing = freshTiming();
   setWatcherPhaseTimer(timing, 5000, 30000);
   clearWatcherPhaseTimer(timing);
@@ -102,7 +102,7 @@ test("clearWatcherPhaseTimer zeros out phase timing", () => {
   assert(timing.phaseDuration === 0, `expected phaseDuration=0, got ${timing.phaseDuration}`);
 });
 
-test("clearWatcherPhaseTimer leaves countdown fields untouched", () => {
+Deno.test("clearWatcherPhaseTimer leaves countdown fields untouched", () => {
   const timing = freshTiming();
   timing.countdownStartTime = 2000;
   timing.countdownDuration = 5000;
@@ -113,7 +113,7 @@ test("clearWatcherPhaseTimer leaves countdown fields untouched", () => {
   assert(timing.countdownDuration === 5000, `countdown duration should be preserved, got ${timing.countdownDuration}`);
 });
 
-test("reconstructTimer returns 0 after reset", () => {
+Deno.test("reconstructTimer returns 0 after reset", () => {
   const timing = freshTiming();
   setWatcherPhaseTimer(timing, 1000, 30000);
   clearWatcherPhaseTimer(timing);
@@ -126,7 +126,7 @@ test("reconstructTimer returns 0 after reset", () => {
 // Edge cases
 // ---------------------------------------------------------------------------
 
-test("zero-duration phase timer reads as 0 immediately", () => {
+Deno.test("zero-duration phase timer reads as 0 immediately", () => {
   const timing = freshTiming();
   setWatcherPhaseTimer(timing, 1000, 0);
 
@@ -134,7 +134,7 @@ test("zero-duration phase timer reads as 0 immediately", () => {
   assert(t === 0, `zero-duration phase should have timer=0, got ${t}`);
 });
 
-test("very large phase duration works correctly", () => {
+Deno.test("very large phase duration works correctly", () => {
   const timing = freshTiming();
   const duration = 600000; // 10 minutes
   setWatcherPhaseTimer(timing, 0, duration);
@@ -143,4 +143,3 @@ test("very large phase duration works correctly", () => {
   assert(t === 300000, `expected 300000, got ${t}`);
 });
 
-await runTests("Online watcher timing");

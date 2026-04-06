@@ -4,7 +4,7 @@
  * These tests catch serialization drift between host and watcher — the #1
  * source of subtle online bugs.
  *
- * Run with: deno run test/online-checkpoints.test.ts
+ * Run with: deno test --no-check test/online-checkpoints.test.ts
  */
 
 import type { OrbitParams } from "../src/shared/system-interfaces.ts";
@@ -27,7 +27,7 @@ import {
   type HeadlessRuntime,
 } from "../src/runtime/runtime-headless.ts";
 import { emptyFreshInterior } from "../src/shared/player-types.ts";
-import { assert, runTests, test } from "./test-helpers.ts";
+import { assert } from "jsr:@std/assert";
 import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { CannonMode } from "../src/shared/battle-types.ts";
 
@@ -68,7 +68,7 @@ function setsEqual(a: ReadonlySet<number>, b: ReadonlySet<number>): boolean {
 // Cannon-start checkpoint round-trip
 // ---------------------------------------------------------------------------
 
-test("cannon-start checkpoint round-trip preserves player state", () => {
+Deno.test("cannon-start checkpoint round-trip preserves player state", () => {
   const host = createHeadlessRuntime(42);
   // Host is at CANNON_PLACE — serialize cannon-start message
   const msg = createCannonStartMessage(host.state);
@@ -101,7 +101,7 @@ test("cannon-start checkpoint round-trip preserves player state", () => {
   }
 });
 
-test("cannon-start checkpoint preserves timer and limits", () => {
+Deno.test("cannon-start checkpoint preserves timer and limits", () => {
   const host = createHeadlessRuntime(42);
   host.state.timer = 12.5;
   host.state.cannonLimits = [3, 5, 2];
@@ -119,7 +119,7 @@ test("cannon-start checkpoint preserves timer and limits", () => {
   assert(watcher.state.cannonLimits[2] === 2, `limits[2] mismatch`);
 });
 
-test("cannon-start checkpoint preserves grunts", () => {
+Deno.test("cannon-start checkpoint preserves grunts", () => {
   const host = createHeadlessRuntime(42);
   // Add a grunt manually
   host.state.grunts.push({ row: 5, col: 10, victimPlayerId: 0 as ValidPlayerSlot, blockedRounds: 0 });
@@ -137,7 +137,7 @@ test("cannon-start checkpoint preserves grunts", () => {
   assert(last.victimPlayerId === 0, "injected grunt victimPlayerId lost");
 });
 
-test("cannon-start checkpoint preserves bonus squares and burning pits", () => {
+Deno.test("cannon-start checkpoint preserves bonus squares and burning pits", () => {
   const host = createHeadlessRuntime(42);
   host.state.bonusSquares = [{ row: 3, col: 4, zone: 1 }];
   host.state.burningPits = [{ row: 7, col: 8, roundsLeft: 2 }];
@@ -155,7 +155,7 @@ test("cannon-start checkpoint preserves bonus squares and burning pits", () => {
   assert(watcher.state.burningPits[0]!.roundsLeft === 2, "burning pit roundsLeft wrong");
 });
 
-test("cannon-start checkpoint clears watcher crosshairs", () => {
+Deno.test("cannon-start checkpoint clears watcher crosshairs", () => {
   const watcher = createHeadlessRuntime(42);
   const deps = makeDeps(watcher);
   deps.remoteCrosshairs.set(0, { x: 100, y: 200 });
@@ -172,7 +172,7 @@ test("cannon-start checkpoint clears watcher crosshairs", () => {
   assert(deps.watcherOrbitAngles.size === 0, "watcherOrbitAngles not cleared");
 });
 
-test("cannon-start checkpoint clears cannonballs and impacts", () => {
+Deno.test("cannon-start checkpoint clears cannonballs and impacts", () => {
   const watcher = createHeadlessRuntime(42);
   const deps = makeDeps(watcher);
   // Pollute state
@@ -190,7 +190,7 @@ test("cannon-start checkpoint clears cannonballs and impacts", () => {
 // Battle-start checkpoint round-trip
 // ---------------------------------------------------------------------------
 
-test("battle-start checkpoint round-trip preserves player state", () => {
+Deno.test("battle-start checkpoint round-trip preserves player state", () => {
   const host = createHeadlessRuntime(99);
   const msg = createBattleStartMessage(host.state);
 
@@ -208,7 +208,7 @@ test("battle-start checkpoint round-trip preserves player state", () => {
   }
 });
 
-test("battle-start checkpoint snapshots territory and walls for banner", () => {
+Deno.test("battle-start checkpoint snapshots territory and walls for banner", () => {
   const watcher = createHeadlessRuntime(99);
   const deps = makeDeps(watcher);
   deps.battleAnim.territory = [];
@@ -222,7 +222,7 @@ test("battle-start checkpoint snapshots territory and walls for banner", () => {
   assert(deps.battleAnim.walls.length > 0, "walls snapshot not taken");
 });
 
-test("battle-start checkpoint preserves captured cannons", () => {
+Deno.test("battle-start checkpoint preserves captured cannons", () => {
   const host = createHeadlessRuntime(99);
   // Manually set up a captured cannon
   const victim = host.state.players[1]!;
@@ -249,7 +249,7 @@ test("battle-start checkpoint preserves captured cannons", () => {
   }
 });
 
-test("battle-start checkpoint sets crosshairs to home tower positions", () => {
+Deno.test("battle-start checkpoint sets crosshairs to home tower positions", () => {
   const watcher = createHeadlessRuntime(99);
   const deps = makeDeps(watcher);
 
@@ -268,7 +268,7 @@ test("battle-start checkpoint sets crosshairs to home tower positions", () => {
 // Build-start checkpoint round-trip
 // ---------------------------------------------------------------------------
 
-test("build-start checkpoint round-trip preserves round and timer", () => {
+Deno.test("build-start checkpoint round-trip preserves round and timer", () => {
   const host = createHeadlessRuntime(77);
   host.state.round = 5;
   host.state.timer = 20;
@@ -284,7 +284,7 @@ test("build-start checkpoint round-trip preserves round and timer", () => {
   assert(watcher.state.timer === 20, `timer: expected 20, got ${watcher.state.timer}`);
 });
 
-test("build-start checkpoint resets grunt accumulator", () => {
+Deno.test("build-start checkpoint resets grunt accumulator", () => {
   const watcher = createHeadlessRuntime(77);
   const deps = makeDeps(watcher);
   deps.accum.grunt = 99;
@@ -295,7 +295,7 @@ test("build-start checkpoint resets grunt accumulator", () => {
   assert(deps.accum.grunt === 0, `grunt accum should be reset to 0, got ${deps.accum.grunt}`);
 });
 
-test("build-start checkpoint preserves house alive status", () => {
+Deno.test("build-start checkpoint preserves house alive status", () => {
   const host = createHeadlessRuntime(77);
   // Kill some houses on host
   host.state.map.houses[0]!.alive = false;
@@ -316,7 +316,7 @@ test("build-start checkpoint preserves house alive status", () => {
 // Edge cases
 // ---------------------------------------------------------------------------
 
-test("checkpoint handles eliminated players correctly", () => {
+Deno.test("checkpoint handles eliminated players correctly", () => {
   const host = createHeadlessRuntime(42);
   host.state.players[1]!.eliminated = true;
   host.state.players[1]!.lives = 0;
@@ -333,7 +333,7 @@ test("checkpoint handles eliminated players correctly", () => {
   assert(watcher.state.players[1]!.walls.size === 0, "eliminated player walls should be empty");
 });
 
-test("checkpoint preserves cannon modes (normal, super, balloon)", () => {
+Deno.test("checkpoint preserves cannon modes (normal, super, balloon)", () => {
   const host = createHeadlessRuntime(42);
   const p = host.state.players[0]!;
   // Replace cannons with known modes
@@ -355,7 +355,7 @@ test("checkpoint preserves cannon modes (normal, super, balloon)", () => {
   assert(wp.cannons[2]!.mode === CannonMode.BALLOON, `cannon 2 mode: expected BALLOON, got ${wp.cannons[2]!.mode}`);
 });
 
-test("checkpoint preserves towerAlive array", () => {
+Deno.test("checkpoint preserves towerAlive array", () => {
   const host = createHeadlessRuntime(42);
   // Kill a tower
   if (host.state.towerAlive.length > 1) {
@@ -373,4 +373,3 @@ test("checkpoint preserves towerAlive array", () => {
   }
 });
 
-await runTests("Online checkpoint round-trip");

@@ -9,7 +9,7 @@ import { MESSAGE, type FullStateMessage, type ServerMessage } from "../server/pr
 import type { GameMode } from "../src/shared/game-constants.ts";
 import type { GameState } from "../src/shared/types.ts";
 import { handleServerLifecycleMessage } from "../src/online/online-server-lifecycle.ts";
-import { assert, runTests, test } from "./test-helpers.ts";
+import { assert, assertEquals } from "jsr:@std/assert";
 import type { PlayerSlotId } from "../src/shared/player-slot.ts";
 
 function makeFullState(migrationSeq: number): FullStateMessage {
@@ -42,7 +42,7 @@ function makeFullState(migrationSeq: number): FullStateMessage {
   };
 }
 
-test("lifecycle drops stale full_state after host migration", () => {
+Deno.test("lifecycle drops stale full_state after host migration", () => {
   let migrationSeq = 0;
   let applyCalls = 0;
 
@@ -113,16 +113,15 @@ test("lifecycle drops stale full_state after host migration", () => {
 
   // Stale full state (seq 0) must be ignored.
   handleServerLifecycleMessage(makeFullState(0), deps);
-  assert(applyCalls === 0, `expected stale full_state to be ignored, calls=${applyCalls}`);
+  assertEquals(applyCalls, 0, `expected stale full_state to be ignored, calls=${applyCalls}`);
 
   // Current sequence should apply.
   handleServerLifecycleMessage(makeFullState(1), deps);
-  assert(applyCalls === 1, `expected current full_state to apply once, calls=${applyCalls}`);
+  assertEquals(applyCalls, 1, `expected current full_state to apply once, calls=${applyCalls}`);
 
   // Newer sequence should apply and advance sequence.
   handleServerLifecycleMessage(makeFullState(2), deps);
-  assert(applyCalls === 2, `expected newer full_state to apply, calls=${applyCalls}`);
-  assert(migrationSeq === 2, `expected migrationSeq to advance to 2, got ${migrationSeq}`);
+  assertEquals(applyCalls, 2, `expected newer full_state to apply, calls=${applyCalls}`);
+  assertEquals(migrationSeq, 2, `expected migrationSeq to advance to 2, got ${migrationSeq}`);
 });
 
-await runTests("Online lifecycle migration sequence");

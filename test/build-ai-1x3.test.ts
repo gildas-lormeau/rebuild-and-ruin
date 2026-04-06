@@ -1,21 +1,19 @@
 /**
  * AI build-phase placement tests — 1x3 piece.
  *
- * Run with: deno run test/build-ai-1x3.test.ts
+ * Run with: deno test --no-check test/build-ai-1x3.test.ts
  */
 
+import { assert } from "jsr:@std/assert";
 import {
   parseBoard,
   assertPlacement,
   assertPlacementOneOf,
   assertNotPlacedAt,
-  knownFailureTest,
-  test,
-  runTests,
 } from "./test-helpers.ts";
 import { PIECE_1x3 } from "../src/shared/pieces.ts";
 
-test("AI closes a 3-tile gap in the wall ring", () => {
+Deno.test("AI closes a 3-tile gap in the wall ring", () => {
   const parsed = parseBoard(
     `
 ########
@@ -52,7 +50,7 @@ test("AI closes a 3-tile gap in the wall ring", () => {
   );
 });
 
-test("AI closes a 2-tile gap in the wall ring (inner)", () => {
+Deno.test("AI closes a 2-tile gap in the wall ring (inner)", () => {
   const parsed = parseBoard(
     `
 ########
@@ -103,7 +101,7 @@ test("AI closes a 2-tile gap in the wall ring (inner)", () => {
   );
 });
 
-test("AI closes a 2-tile gap in the wall ring (outer)", () => {
+Deno.test("AI closes a 2-tile gap in the wall ring (outer)", () => {
   const parsed = parseBoard(
     `
 ########
@@ -140,7 +138,7 @@ test("AI closes a 2-tile gap in the wall ring (outer)", () => {
   );
 });
 
-test("AI closes a 1-tile gap in the wall ring", () => {
+Deno.test("AI closes a 1-tile gap in the wall ring", () => {
   const parsed = parseBoard(
     `
 ########
@@ -191,7 +189,7 @@ test("AI closes a 1-tile gap in the wall ring", () => {
   );
 });
 
-test("AI closes a 1-tile gap in the wall ring (obstacle blocks horizontal and vertical)", () => {
+Deno.test("AI closes a 1-tile gap in the wall ring (obstacle blocks horizontal and vertical)", () => {
   const parsed = parseBoard(
     `
 ########
@@ -228,7 +226,7 @@ test("AI closes a 1-tile gap in the wall ring (obstacle blocks horizontal and ve
   );
 });
 
-test("AI closes a 1-tile gap in the wall ring (obstacle in the hole)", () => {
+Deno.test("AI closes a 1-tile gap in the wall ring (obstacle in the hole)", () => {
   const parsed = parseBoard(
     `
 ########
@@ -277,7 +275,7 @@ test("AI closes a 1-tile gap in the wall ring (obstacle in the hole)", () => {
   );
 });
 
-test("AI closes a 1-tile gap in the wall ring (obstacle 1 tile away blocks vertical)", () => {
+Deno.test("AI closes a 1-tile gap in the wall ring (obstacle 1 tile away blocks vertical)", () => {
   const parsed = parseBoard(
     `
 ########
@@ -327,7 +325,7 @@ test("AI closes a 1-tile gap in the wall ring (obstacle 1 tile away blocks verti
   );
 });
 
-test("AI closes a 1-tile gap in the wall ring (obstacle 2 tiles away blocks vertical)", () => {
+Deno.test("AI closes a 1-tile gap in the wall ring (obstacle 2 tiles away blocks vertical)", () => {
   const parsed = parseBoard(
     `
 ########
@@ -364,7 +362,7 @@ test("AI closes a 1-tile gap in the wall ring (obstacle 2 tiles away blocks vert
   );
 });
 
-test("AI closes a 1-tile gap in the wall ring (2 obstacles blocks outer)", () => {
+Deno.test("AI closes a 1-tile gap in the wall ring (2 obstacles blocks outer)", () => {
   const parsed = parseBoard(
     `
 ########
@@ -401,7 +399,7 @@ test("AI closes a 1-tile gap in the wall ring (2 obstacles blocks outer)", () =>
   );
 });
 
-knownFailureTest("AI prefers vertical closure near bank obstacle", () => {
+Deno.test({ name: "AI prefers vertical closure near bank obstacle", ignore: true, fn: () => {
   const parsed = parseBoard(
     `
 ########
@@ -434,9 +432,9 @@ knownFailureTest("AI prefers vertical closure near bank obstacle", () => {
         
 `,
   );
-});
+} });
 
-test("AI fills gap between wall segments (vertical)", () => {
+Deno.test("AI fills gap between wall segments (vertical)", () => {
   const parsed = parseBoard(
     `
        
@@ -473,7 +471,7 @@ test("AI fills gap between wall segments (vertical)", () => {
   );
 });
 
-test("AI does not create fat walls (vertical)", () => {
+Deno.test("AI does not create fat walls (vertical)", () => {
   const parsed = parseBoard(
     `
        
@@ -595,7 +593,7 @@ test("AI does not create fat walls (vertical)", () => {
   );
 });
 
-test("AI does not create fat walls (horizontal)", () => {
+Deno.test("AI does not create fat walls (horizontal)", () => {
   const parsed = parseBoard(
     `
          
@@ -699,4 +697,3 @@ test("AI does not create fat walls (horizontal)", () => {
   );
 });
 
-await runTests("Build AI — 1x3 piece");

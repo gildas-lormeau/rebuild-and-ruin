@@ -1,9 +1,9 @@
 import { restoreFullStateUiRecovery } from "../src/online/online-full-state-recovery.ts";
-import { assert, runTests, test } from "./test-helpers.ts";
+import { assert } from "jsr:@std/assert";
 import { Phase } from "../src/shared/game-phase.ts";
 import { Mode } from "../src/shared/ui-mode.ts";
 
-test("full_state recovery clears stale banner mode into game mode", () => {
+Deno.test("full_state recovery clears stale banner mode into game mode", () => {
   const target = {
     mode: Mode.BANNER,
     castleBuilds: [1],
@@ -40,7 +40,7 @@ test("full_state recovery clears stale banner mode into game mode", () => {
   assert(target.battleFlights.length === 0, "expected stale balloon flights to be cleared");
 });
 
-test("full_state recovery restores balloon animation mode when flights are present", () => {
+Deno.test("full_state recovery restores balloon animation mode when flights are present", () => {
   const target = {
     mode: Mode.GAME,
     battleFlights: [] as { flight: { startX: number; startY: number; endX: number; endY: number }; progress: number }[],
@@ -68,4 +68,3 @@ test("full_state recovery restores balloon animation mode when flights are prese
   assert(target.battleFlights[0]!.progress === 0.25, "expected recovered flight progress to be preserved");
 });
 
-await runTests("Online full_state migration mode recovery");

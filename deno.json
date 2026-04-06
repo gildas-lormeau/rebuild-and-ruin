@@ -1,9 +1,6 @@
 {
-  "tasks": {
-    "server": "deno run --allow-net --allow-env server/server.ts"
-  },
+  "unstable": ["sloppy-imports"],
   "compilerOptions": {
-    "strict": true,
-    "lib": ["deno.window", "dom"]
+    "lib": ["esnext", "dom", "dom.iterable", "deno.ns"]
   }
 }

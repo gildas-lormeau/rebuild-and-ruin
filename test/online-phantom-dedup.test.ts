@@ -7,7 +7,7 @@ import {
   piecePhantomKey,
   type PiecePhantom,
 } from "../src/shared/phantom-types.ts";
-import { assert, runTests, test } from "./test-helpers.ts";
+import { assert } from "jsr:@std/assert";
 import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { CannonMode } from "../src/shared/battle-types.ts";
 
@@ -15,13 +15,13 @@ import { CannonMode } from "../src/shared/battle-types.ts";
 // cannonPhantomKey
 // ---------------------------------------------------------------------------
 
-test("cannonPhantomKey produces row,col,mode,valid format", () => {
+Deno.test("cannonPhantomKey produces row,col,mode,valid format", () => {
   const phantom: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 as ValidPlayerSlot };
   const key = cannonPhantomKey(phantom);
   assert(key === "5,3,normal,1", `expected "5,3,normal,1", got "${key}"`);
 });
 
-test("cannonPhantomKey differs by mode", () => {
+Deno.test("cannonPhantomKey differs by mode", () => {
   const base: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 as ValidPlayerSlot };
   const superP: CannonPhantom = { ...base, mode: CannonMode.SUPER };
   const balloonP: CannonPhantom = { ...base, mode: CannonMode.BALLOON };
@@ -30,7 +30,7 @@ test("cannonPhantomKey differs by mode", () => {
   assert(cannonPhantomKey(superP) !== cannonPhantomKey(balloonP), "SUPER and BALLOON should produce different keys");
 });
 
-test("cannonPhantomKey differs by position", () => {
+Deno.test("cannonPhantomKey differs by position", () => {
   const a: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 as ValidPlayerSlot };
   const b: CannonPhantom = { ...a, row: 6 };
   const c: CannonPhantom = { ...a, col: 4 };
@@ -38,13 +38,13 @@ test("cannonPhantomKey differs by position", () => {
   assert(cannonPhantomKey(a) !== cannonPhantomKey(c), "different col should produce different key");
 });
 
-test("cannonPhantomKey differs by valid flag", () => {
+Deno.test("cannonPhantomKey differs by valid flag", () => {
   const a: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 as ValidPlayerSlot };
   const b: CannonPhantom = { ...a, valid: false };
   assert(cannonPhantomKey(a) !== cannonPhantomKey(b), "different valid should produce different key");
 });
 
-test("cannonPhantomKey ignores playerId", () => {
+Deno.test("cannonPhantomKey ignores playerId", () => {
   const a: CannonPhantom = { row: 5, col: 3, valid: true, mode: CannonMode.NORMAL, playerId: 0 as ValidPlayerSlot };
   const b: CannonPhantom = { ...a, playerId: 2 as ValidPlayerSlot };
   assert(cannonPhantomKey(a) === cannonPhantomKey(b), "playerId should not affect key");
@@ -54,25 +54,25 @@ test("cannonPhantomKey ignores playerId", () => {
 // piecePhantomKey
 // ---------------------------------------------------------------------------
 
-test("piecePhantomKey encodes position and offsets", () => {
+Deno.test("piecePhantomKey encodes position and offsets", () => {
   const phantom: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0], [1, 0], [0, 1]], playerId: 0 as ValidPlayerSlot, valid: true };
   const key = piecePhantomKey(phantom);
   assert(key === "10,20,1,0:0;1:0;0:1", `expected "10,20,1,0:0;1:0;0:1", got "${key}"`);
 });
 
-test("piecePhantomKey differs by offset shape", () => {
+Deno.test("piecePhantomKey differs by offset shape", () => {
   const a: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0], [1, 0]], playerId: 0 as ValidPlayerSlot, valid: true };
   const b: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0], [0, 1]], playerId: 0 as ValidPlayerSlot, valid: true };
   assert(piecePhantomKey(a) !== piecePhantomKey(b), "different offsets should produce different keys");
 });
 
-test("piecePhantomKey differs by position", () => {
+Deno.test("piecePhantomKey differs by position", () => {
   const a: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0]], playerId: 0 as ValidPlayerSlot, valid: true };
   const b: PiecePhantom = { row: 11, col: 20, offsets: [[0, 0]], playerId: 0 as ValidPlayerSlot, valid: true };
   assert(piecePhantomKey(a) !== piecePhantomKey(b), "different position should produce different key");
 });
 
-test("piecePhantomKey differs by valid flag", () => {
+Deno.test("piecePhantomKey differs by valid flag", () => {
   const a: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0]], playerId: 0 as ValidPlayerSlot, valid: true };
   const b: PiecePhantom = { row: 10, col: 20, offsets: [[0, 0]], playerId: 0 as ValidPlayerSlot, valid: false };
   assert(piecePhantomKey(a) !== piecePhantomKey(b), "different valid flag should produce different key");
@@ -82,31 +82,31 @@ test("piecePhantomKey differs by valid flag", () => {
 // DedupChannel
 // ---------------------------------------------------------------------------
 
-test("DedupChannel.shouldSend returns true on first send", () => {
+Deno.test("DedupChannel.shouldSend returns true on first send", () => {
   const ch = createDedupChannel();
   assert(ch.shouldSend(0 as ValidPlayerSlot, "5,3,normal") === true, "first send should return true");
 });
 
-test("DedupChannel.shouldSend returns false on duplicate", () => {
+Deno.test("DedupChannel.shouldSend returns false on duplicate", () => {
   const ch = createDedupChannel();
   ch.shouldSend(0 as ValidPlayerSlot, "5,3,normal");
   assert(ch.shouldSend(0 as ValidPlayerSlot, "5,3,normal") === false, "duplicate should return false");
 });
 
-test("DedupChannel.shouldSend returns true when key changes", () => {
+Deno.test("DedupChannel.shouldSend returns true when key changes", () => {
   const ch = createDedupChannel();
   ch.shouldSend(0 as ValidPlayerSlot, "5,3,normal");
   assert(ch.shouldSend(0 as ValidPlayerSlot, "6,3,normal") === true, "changed key should return true");
 });
 
-test("DedupChannel.shouldSend tracks players independently", () => {
+Deno.test("DedupChannel.shouldSend tracks players independently", () => {
   const ch = createDedupChannel();
   ch.shouldSend(0 as ValidPlayerSlot, "5,3,normal");
   assert(ch.shouldSend(1 as ValidPlayerSlot, "5,3,normal") === true, "different player same key should return true");
   assert(ch.shouldSend(0 as ValidPlayerSlot, "5,3,normal") === false, "player 0 unchanged should return false");
 });
 
-test("DedupChannel.shouldSend updates stored key on change", () => {
+Deno.test("DedupChannel.shouldSend updates stored key on change", () => {
   const ch = createDedupChannel();
   ch.shouldSend(0 as ValidPlayerSlot, "first");
   ch.shouldSend(0 as ValidPlayerSlot, "second");
@@ -116,7 +116,7 @@ test("DedupChannel.shouldSend updates stored key on change", () => {
   assert(ch.shouldSend(0 as ValidPlayerSlot, "first") === true, "reverting to 'first' should be a change");
 });
 
-test("DedupChannel.clear resets all tracked state", () => {
+Deno.test("DedupChannel.clear resets all tracked state", () => {
   const ch = createDedupChannel();
   ch.shouldSend(0 as ValidPlayerSlot, "key-a");
   ch.shouldSend(1 as ValidPlayerSlot, "key-b");
@@ -129,13 +129,13 @@ test("DedupChannel.clear resets all tracked state", () => {
 // toCannonMode
 // ---------------------------------------------------------------------------
 
-test("toCannonMode parses valid modes", () => {
+Deno.test("toCannonMode parses valid modes", () => {
   assert(toCannonMode("normal") === CannonMode.NORMAL, "should parse normal");
   assert(toCannonMode("super") === CannonMode.SUPER, "should parse super");
   assert(toCannonMode("balloon") === CannonMode.BALLOON, "should parse balloon");
 });
 
-test("toCannonMode defaults to NORMAL for invalid input", () => {
+Deno.test("toCannonMode defaults to NORMAL for invalid input", () => {
   assert(toCannonMode("invalid") === CannonMode.NORMAL, "invalid should default to NORMAL");
   assert(toCannonMode(undefined) === CannonMode.NORMAL, "undefined should default to NORMAL");
   assert(toCannonMode("") === CannonMode.NORMAL, "empty string should default to NORMAL");
@@ -145,7 +145,7 @@ test("toCannonMode defaults to NORMAL for invalid input", () => {
 // filterAlivePhantoms
 // ---------------------------------------------------------------------------
 
-test("filterAlivePhantoms removes eliminated player phantoms", () => {
+Deno.test("filterAlivePhantoms removes eliminated player phantoms", () => {
   const phantoms = [
     { playerId: 0 as ValidPlayerSlot, row: 1, col: 1 },
     { playerId: 1 as ValidPlayerSlot, row: 2, col: 2 },
@@ -162,7 +162,7 @@ test("filterAlivePhantoms removes eliminated player phantoms", () => {
   assert(result[1]!.playerId === 2, "second should be player 2");
 });
 
-test("filterAlivePhantoms keeps all when none eliminated", () => {
+Deno.test("filterAlivePhantoms keeps all when none eliminated", () => {
   const phantoms = [{ playerId: 0 as ValidPlayerSlot, row: 1, col: 1 }, { playerId: 1 as ValidPlayerSlot, row: 2, col: 2 }];
   const players = [{ eliminated: false }, { eliminated: false }];
   const result = filterAlivePhantoms(phantoms, players);
@@ -173,23 +173,22 @@ test("filterAlivePhantoms keeps all when none eliminated", () => {
 // interpolateToward
 // ---------------------------------------------------------------------------
 
-test("interpolateToward snaps when close enough", () => {
+Deno.test("interpolateToward snaps when close enough", () => {
   const pos = { x: 99, y: 99 };
   interpolateToward(pos, 100, 100, 500, 1);
   assert(pos.x === 100 && pos.y === 100, `expected (100,100), got (${pos.x},${pos.y})`);
 });
 
-test("interpolateToward moves partially when far away", () => {
+Deno.test("interpolateToward moves partially when far away", () => {
   const pos = { x: 0, y: 0 };
   interpolateToward(pos, 100, 0, 10, 1); // speed=10, dt=1 → move 10px
   assert(pos.x === 10, `expected x=10, got ${pos.x}`);
   assert(pos.y === 0, `expected y=0, got ${pos.y}`);
 });
 
-test("interpolateToward does nothing when already at target", () => {
+Deno.test("interpolateToward does nothing when already at target", () => {
   const pos = { x: 50, y: 50 };
   interpolateToward(pos, 50, 50, 100, 1);
   assert(pos.x === 50 && pos.y === 50, "should not move when at target");
 });
 
-await runTests("Online phantom dedup & helpers");

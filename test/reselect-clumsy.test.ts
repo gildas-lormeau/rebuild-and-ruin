@@ -5,14 +5,14 @@
  * extras (same path as the animated castle build). Previously it used
  * computeCastleWallTiles (no clumsy), erasing the extra walls.
  *
- * Run with: deno run test/reselect-clumsy.test.ts
+ * Run with: deno test --no-check test/reselect-clumsy.test.ts
  */
 
 import { computeCastleWallTiles } from "../src/game/castle-generation.ts";
 import { createScenario } from "./scenario-helpers.ts";
-import { assert, test, runTests } from "./test-helpers.ts";
+import { assert } from "jsr:@std/assert";
 
-test("reselection preserves clumsy walls from castle build", () => {
+Deno.test("reselection preserves clumsy walls from castle build", () => {
   // Find a seed where clumsy builders add extra walls during reselection
   for (let seed = 1; seed < 200; seed++) {
     const s = createScenario(seed);
@@ -49,4 +49,3 @@ test("reselection preserves clumsy walls from castle build", () => {
   assert(false, "Could not find a seed where clumsy builders add extra walls during reselection");
 });
 
-await runTests("Reselection clumsy walls");

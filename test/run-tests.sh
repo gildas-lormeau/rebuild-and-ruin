@@ -63,7 +63,7 @@ append_rounds_by_game() {
 run_suite() {
 	local file="$1"
 	local output
-	output="$(deno run "$file" 2>&1)"
+	output="$(deno test --no-check "$file" 2>&1)"
 	local status=$?
 
 	printf "%s\n" "$output"

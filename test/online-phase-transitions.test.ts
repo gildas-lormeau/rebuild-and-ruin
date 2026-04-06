@@ -5,14 +5,14 @@ import {
   executeTransition,
   runBuildEndSequence,
 } from "../src/game/phase-transition-steps.ts";
-import { assert, runTests, test } from "./test-helpers.ts";
+import { assert } from "jsr:@std/assert";
 import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
 
 // ---------------------------------------------------------------------------
 // executeTransition step ordering
 // ---------------------------------------------------------------------------
 
-test("CANNON_START_STEPS executes in order: banner, checkpoint, controllers", () => {
+Deno.test("CANNON_START_STEPS executes in order: banner, checkpoint, controllers", () => {
   const order: string[] = [];
   executeTransition(CANNON_START_STEPS, {
     showBanner: () => order.push("banner"),
@@ -25,7 +25,7 @@ test("CANNON_START_STEPS executes in order: banner, checkpoint, controllers", ()
   assert(order[2] === "controllers", `step 2: expected controllers, got ${order[2]}`);
 });
 
-test("BATTLE_START_STEPS executes in order: banner, checkpoint, snapshot", () => {
+Deno.test("BATTLE_START_STEPS executes in order: banner, checkpoint, snapshot", () => {
   const order: string[] = [];
   executeTransition(BATTLE_START_STEPS, {
     showBanner: () => order.push("banner"),
@@ -38,7 +38,7 @@ test("BATTLE_START_STEPS executes in order: banner, checkpoint, snapshot", () =>
   assert(order[2] === "snapshot", `step 2: expected snapshot, got ${order[2]}`);
 });
 
-test("BUILD_START_STEPS executes in order: banner, checkpoint, controllers", () => {
+Deno.test("BUILD_START_STEPS executes in order: banner, checkpoint, controllers", () => {
   const order: string[] = [];
   executeTransition(BUILD_START_STEPS, {
     showBanner: () => order.push("banner"),
@@ -55,7 +55,7 @@ test("BUILD_START_STEPS executes in order: banner, checkpoint, controllers", () 
 // runBuildEndSequence
 // ---------------------------------------------------------------------------
 
-test("runBuildEndSequence calls onLifeLostResolved when no players need action", () => {
+Deno.test("runBuildEndSequence calls onLifeLostResolved when no players need action", () => {
   let resolved = false;
   let scoresDone = false;
 
@@ -81,7 +81,7 @@ test("runBuildEndSequence calls onLifeLostResolved when no players need action",
   assert(resolved, "onLifeLostResolved should have been called");
 });
 
-test("runBuildEndSequence notifies life-lost for each affected player", () => {
+Deno.test("runBuildEndSequence notifies life-lost for each affected player", () => {
   const notified: number[] = [];
   let dialogShown = false;
 
@@ -102,7 +102,7 @@ test("runBuildEndSequence notifies life-lost for each affected player", () => {
   assert(dialogShown, "life-lost dialog should have been shown");
 });
 
-test("runBuildEndSequence does not call onLifeLostResolved when dialog is shown", () => {
+Deno.test("runBuildEndSequence does not call onLifeLostResolved when dialog is shown", () => {
   let resolved = false;
 
   runBuildEndSequence({
@@ -119,7 +119,7 @@ test("runBuildEndSequence does not call onLifeLostResolved when dialog is shown"
   assert(!resolved, "onLifeLostResolved should NOT be called when dialog is shown");
 });
 
-test("runBuildEndSequence shows dialog for eliminated-only (no reselect)", () => {
+Deno.test("runBuildEndSequence shows dialog for eliminated-only (no reselect)", () => {
   let dialogShown = false;
   const notified: ValidPlayerSlot[] = [];
 
@@ -140,7 +140,7 @@ test("runBuildEndSequence shows dialog for eliminated-only (no reselect)", () =>
   assert(dialogShown, "dialog should be shown for elimination");
 });
 
-test("runBuildEndSequence works without onLifeLostResolved (watcher mode)", () => {
+Deno.test("runBuildEndSequence works without onLifeLostResolved (watcher mode)", () => {
   // Watchers omit onLifeLostResolved — should not throw
   runBuildEndSequence({
     needsReselect: [],
@@ -153,4 +153,3 @@ test("runBuildEndSequence works without onLifeLostResolved (watcher mode)", () =
   // If we reach here without error, the test passes
 });
 
-await runTests("Online phase transition recipes");
