@@ -11,7 +11,7 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 - Layer linter: `deno run -A scripts/generate-import-layers.ts --check --server`; use `/import-hygiene` skill for full audit
 - Export index: `npm run export-search -- <term>` before writing new code; `npm run export-index` to regenerate; `npm run export-map` for compact layer→file→symbols view
 - Literals baseline: `.readonly-literals-baseline.json`; `--update-baseline` to refresh; `--all --files <globs>` for scoped reviews
-- Pre-commit hook (.git/hooks/pre-commit, plain git): reorder, tsc, biome format, biome check, eslint, knip, madge, jscpd, layers, domains, literals, architecture, entry-placement, restricted-imports, phase-transitions, typeof, null-init, battle-events, deno-lint, test:territory, export-index, hot-exports, readonly-params
+- Pre-commit hook (.git/hooks/pre-commit, plain git): reorder, tsc, biome format, biome check, eslint, knip, madge, jscpd, layers, domains, literals, architecture, entry-placement, restricted-imports, phase-transitions, typeof, null-init, battle-events, features, deno-lint, test:territory, export-index, hot-exports, readonly-params
 - Server: `deno task server` (port 8001); type-check with `deno check server/server.ts` (NOT tsc)
 - Test: `deno run test/headless.test.ts`, `deno run test/determinism.test.ts`, `deno run test/scenario.test.ts`, `deno run test/online-*.test.ts`
 - Debug: use `/debug-e2e` skill — spawns a sub-agent that adds logs, runs tests, reports root cause. Never guess at bugs.
@@ -40,15 +40,24 @@ Groups are named by abstraction level, not by domain — files from any domain l
 CASTLE_SELECT → WALL_BUILD → CANNON_PLACE → BATTLE → loop (+ CASTLE_RESELECT when a player loses lives)
 Modern mode inserts UPGRADE_PICK between battle end and build banner (from round 3).
 
-### Game modes
-- Classic: original Rampart rules, no modifiers or upgrades
-- Modern: environmental modifiers (wildfire, crumbling walls, grunt surge, frozen river) + upgrade draft/pick each round
+### Game modes and feature capabilities
+- Classic: original Rampart rules, empty feature set
+- Modern: all three feature capabilities active (modifiers + upgrades + combos)
 - `gameMode` setting flows through GameSettings → InitMessage → GameState (immutable per match)
+- `setGameMode()` atomically sets `gameMode`, `activeFeatures`, and `modern` — always use it, never assign fields directly
+- Feature gates use `hasFeature(state, "featureId")` instead of `state.modern !== null`
+- `activeFeatures: ReadonlySet<FeatureId>` on GameState determines which subsystems are active
+- Three feature capabilities (`FeatureId` in `feature-defs.ts`):
+  - **modifiers** — environmental effects (wildfire, crumbling walls, grunt surge, frozen river). Roll + apply in phase-setup.ts. State: activeModifier, lastModifierId, frozenTiles.
+  - **upgrades** — draft/pick system. Offer generation in enterBuildFromBattle, pick UI in upgrade-pick.ts. State: pendingUpgradeOffers, masterBuilderLockout, masterBuilderOwners.
+  - **combos** — scoring streaks during battle. Init/clear in phase-setup.ts, scoring in combo-system.ts. State: comboTracker.
 - Modifier roll and upgrade offer generation happen in `enterBuildFromBattle()` using synced RNG (before BUILD_START checkpoint)
 - Upgrade effects (all reset after one round): Master Builder (+5s exclusive build time — locks opponents when 1 owner, no lockout when 2+), Rapid Fire (2x ball speed), Reinforced Walls (2-hit walls via damagedWalls set)
+- Future features (tech tree, commanders) add new FeatureId values without forking existing if chains
 
 ### Extension point registries (pool pattern)
-Three extension points use the same pool pattern (id type + pool array + compile-time exhaustiveness check + `implemented` flag):
+Four extension points use the same pool pattern (id type + pool array + compile-time exhaustiveness check + `implemented` flag):
+- **Features**: `feature-defs.ts` — `FeatureId` + `FEATURE_POOL`. `MODERN_FEATURES` derived from `IMPLEMENTED_FEATURES`. `featureDef()` lookup used by `lint-features.ts`. Guards use `hasFeature(state, id)`.
 - **Upgrades**: `upgrade-defs.ts` — `UpgradeId` + `UPGRADE_POOL`. Draft-eligible filtered by `IMPLEMENTED_UPGRADES`.
 - **Cannon modes**: `cannon-mode-defs.ts` — `CannonMode` + pool. Centralizes size/slotCost (used by `cannonModeDef()`, `cannonSize()`, `cannonSlotCost()`). `CANNON_MODE_IDS` replaces the old manual `CANNON_MODES` set. `IMPLEMENTED_CANNON_MODES` drives the human controller cycle.
 - **Modifiers**: `modifier-defs.ts` — `ModifierId` + pool. Centralizes labels/weights (used by `modifierDef()`, `IMPLEMENTED_MODIFIERS`). Labels moved here from game-constants.ts.
@@ -61,6 +70,15 @@ Maps every BattleEvent/ImpactEvent union member to its consumer files by role (s
 3. Add a catalog entry listing all consumer files
 4. Implement handlers in each declared consumer
 The `lint-battle-events` pre-commit check verifies exhaustiveness.
+
+### Feature catalog (`.feature-catalog.json`)
+Maps every FeatureId to its consumer files by role (gate, stateAccess, serialize, checkpoint, render, ai). When adding a new feature capability:
+1. Add the string literal to `FeatureId` union in `feature-defs.ts`
+2. Add a pool entry with `implemented: false`
+3. Add a catalog entry listing all consumer files
+4. Add `hasFeature(state, "id")` guards in gate consumer files
+5. Implement feature logic in each declared consumer
+The `lint-features` pre-commit check verifies exhaustiveness (pool ↔ catalog ↔ consumer files).
 
 ### Game rules (non-obvious, guide correctness)
 - Territory: flood-fill from edges, interior = not-outside, not-wall

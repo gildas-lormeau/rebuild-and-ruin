@@ -20,6 +20,7 @@
       "src/shared/rng.ts",
       "src/shared/settings-defs.ts",
       "src/shared/ui-mode.ts",
+      "src/shared/feature-defs.ts",
       "src/shared/upgrade-defs.ts",
       "src/shared/utils.ts"
     ]

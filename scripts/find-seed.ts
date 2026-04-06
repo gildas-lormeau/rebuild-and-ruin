@@ -34,7 +34,7 @@
 
 import { createScenario } from "../test/scenario-helpers.ts";
 import { GAME_MODE_MODERN } from "../src/shared/game-constants.ts";
-import { createModernState, type GameState } from "../src/shared/types.ts";
+import { setGameMode, type GameState } from "../src/shared/types.ts";
 
 // ---------------------------------------------------------------------------
 // Condition registry
@@ -132,8 +132,7 @@ async function run() {
     try {
       const scenario = await createScenario(seed);
       if (config.mode === "modern") {
-        scenario.state.gameMode = GAME_MODE_MODERN;
-        scenario.state.modern = createModernState();
+        setGameMode(scenario.state, GAME_MODE_MODERN);
       }
 
       let found = false;

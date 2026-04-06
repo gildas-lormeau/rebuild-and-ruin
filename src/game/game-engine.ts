@@ -14,6 +14,7 @@
  */
 
 import type { Impact } from "../shared/battle-types.ts";
+import { EMPTY_FEATURES } from "../shared/feature-defs.ts";
 import type { ModifierDiff } from "../shared/game-constants.ts";
 import {
   BUILD_TIMER,
@@ -105,6 +106,7 @@ export function createGameState(
     playerZones: [],
     cannonLimits: [],
     gameMode: GAME_MODE_CLASSIC,
+    activeFeatures: EMPTY_FEATURES,
     modern: null,
   };
 }

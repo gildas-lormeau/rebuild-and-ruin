@@ -14,10 +14,10 @@ import {
   hasTowerAt,
   removeWallFromAllPlayers,
 } from "../shared/board-occupancy.ts";
+import { FID } from "../shared/feature-defs.ts";
 import {
   BURNING_PIT_DURATION,
   FIRST_GRUNT_SPAWN_ROUND,
-  GAME_MODE_MODERN,
   MODIFIER_FIRST_ROUND,
   MODIFIER_ROLL_CHANCE,
   type ModifierId,
@@ -32,7 +32,7 @@ import {
   packTile,
   unpackTile,
 } from "../shared/spatial.ts";
-import type { GameState } from "../shared/types.ts";
+import { type GameState, hasFeature } from "../shared/types.ts";
 import { spawnGruntSurgeOnZone } from "./grunt-system.ts";
 
 /** Extra grunts per player during a grunt surge.
@@ -54,7 +54,7 @@ const CRUMBLE_MAX = 12;
 /** Roll a modifier for the current round. Returns null if no modifier fires.
  *  Must be called at a deterministic point using state.rng for online sync. */
 export function rollModifier(state: GameState): ModifierId | null {
-  if (state.gameMode !== GAME_MODE_MODERN) return null;
+  if (!hasFeature(state, FID.MODIFIERS)) return null;
   if (state.round < MODIFIER_FIRST_ROUND) return null;
   if (!state.rng.bool(MODIFIER_ROLL_CHANCE)) return null;
 
@@ -173,13 +173,13 @@ export function applyFrozenRiver(state: GameState): ReadonlySet<number> {
 
 /** Thaw frozen river: kill grunts stranded on water, clear frozen state. */
 export function clearFrozenRiver(state: GameState): void {
-  if (!state.modern) return;
-  if (state.modern.frozenTiles) {
+  if (!hasFeature(state, FID.MODIFIERS)) return;
+  if (state.modern!.frozenTiles) {
     state.grunts = state.grunts.filter(
       (gr) => !state.modern!.frozenTiles!.has(packTile(gr.row, gr.col)),
     );
   }
-  state.modern.frozenTiles = null;
+  state.modern!.frozenTiles = null;
 }
 
 /** Generate the scar shape: random-walk a cardinal spine, then fatten it.

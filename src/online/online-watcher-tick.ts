@@ -9,6 +9,7 @@ import { MESSAGE } from "../../server/protocol.ts";
 import { aimCannons, nextReadyCombined } from "../game/battle-system.ts";
 import { tickGrunts } from "../game/grunt-movement.ts";
 import type { BattleAnimState } from "../shared/battle-types.ts";
+import { FID } from "../shared/feature-defs.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { PixelPos } from "../shared/geometry-types.ts";
 import type { FrameData } from "../shared/overlay-types.ts";
@@ -19,7 +20,11 @@ import {
   tickGruntsIfDue,
   type WatcherTimingState,
 } from "../shared/tick-context.ts";
-import { type GameState, isMasterBuilderLocked } from "../shared/types.ts";
+import {
+  type GameState,
+  hasFeature,
+  isMasterBuilderLocked,
+} from "../shared/types.ts";
 import type { DedupMaps, OnlineSession } from "./online-session.ts";
 import {
   clearWatcherPhaseTimer,
@@ -182,10 +187,13 @@ export function tickWatcher(
     });
   } else if (state.phase === Phase.WALL_BUILD) {
     // Decrement Master Builder lockout (mirrors host-phase-ticks.ts)
-    if (state.modern && state.modern.masterBuilderLockout > 0) {
-      state.modern.masterBuilderLockout = Math.max(
+    if (
+      hasFeature(state, FID.UPGRADES) &&
+      state.modern!.masterBuilderLockout > 0
+    ) {
+      state.modern!.masterBuilderLockout = Math.max(
         0,
-        state.modern.masterBuilderLockout - dt,
+        state.modern!.masterBuilderLockout - dt,
       );
     }
     // Gate local controller during lockout — pass null so buildTick is skipped

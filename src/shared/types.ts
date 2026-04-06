@@ -10,6 +10,12 @@ import type {
   Grunt,
 } from "./battle-types.ts";
 import {
+  EMPTY_FEATURES,
+  type FeatureId,
+  FID,
+  MODERN_FEATURES,
+} from "./feature-defs.ts";
+import {
   GAME_MODE_MODERN,
   type GameMode,
   type ModifierId,
@@ -90,9 +96,13 @@ export interface GameState {
   cannonLimits: number[];
   /** Game mode: classic (original rules) or modern (environmental modifiers). Immutable for the match. */
   gameMode: GameMode;
+  /** Active feature capabilities for this match. Empty in classic mode.
+   *  Determines which game subsystems are active (modifiers, upgrades, combos).
+   *  Derived from gameMode by setGameMode(). Guard with hasFeature(state, "featureId"). */
+  activeFeatures: ReadonlySet<FeatureId>;
   /** Modern-mode state (modifiers, combos, upgrades, terrain effects).
-   *  null in classic mode — guard with `if (state.modern)` at entry points.
-   *  Inner fields carry phase-specific nullability (e.g. frozenTiles is null between battles). */
+   *  null in classic mode — inner fields carry phase-specific nullability
+   *  (e.g. frozenTiles is null between battles). */
   modern: ModernState | null;
 }
 
@@ -198,15 +208,37 @@ export interface FrameContext {
   readonly isTransition: boolean;
 }
 
-/** Set gameMode and modern atomically — prevents divergence between the two fields. */
+/** Set gameMode, activeFeatures, and modern atomically — prevents divergence. */
 export function setGameMode(state: GameState, mode: GameMode): void {
   state.gameMode = mode;
+  state.activeFeatures =
+    mode === GAME_MODE_MODERN ? MODERN_FEATURES : EMPTY_FEATURES;
   state.modern =
     mode === GAME_MODE_MODERN ? (state.modern ?? createModernState()) : null;
 }
 
+/** Whether a player is locked out of building by the Master Builder upgrade.
+ *  True when exactly one player owns MB and this player is not the owner. */
+export function isMasterBuilderLocked(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+): boolean {
+  if (!hasFeature(state, FID.UPGRADES)) return false;
+  const modern = state.modern!;
+  if (modern.masterBuilderLockout <= 0) return false;
+  return (
+    modern.masterBuilderOwners !== null &&
+    !modern.masterBuilderOwners.has(playerId)
+  );
+}
+
+/** Check if a feature capability is active for this match. */
+export function hasFeature(state: GameState, feature: FeatureId): boolean {
+  return state.activeFeatures.has(feature);
+}
+
 /** Create a fresh ModernState with all fields at their initial null values. */
-export function createModernState(): ModernState {
+function createModernState(): ModernState {
   return {
     activeModifier: null,
     lastModifierId: null,
@@ -216,18 +248,4 @@ export function createModernState(): ModernState {
     pendingUpgradeOffers: null,
     frozenTiles: null,
   };
-}
-
-/** Whether a player is locked out of building by the Master Builder upgrade.
- *  True when exactly one player owns MB and this player is not the owner. */
-export function isMasterBuilderLocked(
-  state: GameState,
-  playerId: ValidPlayerSlot,
-): boolean {
-  const modern = state.modern;
-  if (!modern || modern.masterBuilderLockout <= 0) return false;
-  return (
-    modern.masterBuilderOwners !== null &&
-    !modern.masterBuilderOwners.has(playerId)
-  );
 }

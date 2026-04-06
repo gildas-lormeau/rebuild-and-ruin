@@ -1,6 +1,11 @@
+import { FID } from "../shared/feature-defs.ts";
 import { BATTLE_TIMER } from "../shared/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { GameState, ModernState } from "../shared/types.ts";
+import {
+  type GameState,
+  hasFeature,
+  type ModernState,
+} from "../shared/types.ts";
 
 /** Inferred from ModernState.comboTracker — defined inline in types.ts to avoid circular deps. */
 type ComboTracker = NonNullable<ModernState["comboTracker"]>;
@@ -56,7 +61,7 @@ export function comboDemolitionBonus(tracker: ComboTracker): number[] {
 
 /** Check if combo scoring is active for this game. */
 export function isCombosEnabled(state: GameState): boolean {
-  return state.modern !== null;
+  return hasFeature(state, FID.COMBOS);
 }
 
 /** Facade: score combo bonus for an impact event. Returns bonus points (0 in classic mode). */

@@ -7,12 +7,17 @@ import type {
   CannonStartData,
   SerializedPlayer,
 } from "../shared/checkpoint-data.ts";
+import { FID } from "../shared/feature-defs.ts";
 import { BATTLE_TIMER } from "../shared/game-constants.ts";
 import type { PixelPos } from "../shared/geometry-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { towerCenterPx } from "../shared/spatial.ts";
 import type { OrbitParams } from "../shared/system-interfaces.ts";
-import type { GameState, UpgradeOfferTuple } from "../shared/types.ts";
+import {
+  type GameState,
+  hasFeature,
+  type UpgradeOfferTuple,
+} from "../shared/types.ts";
 import {
   applyCapturedCannons,
   applyGruntsCheckpoint,
@@ -96,8 +101,8 @@ export function applyBattleStartCheckpoint(
   applyCapturedCannons(deps.state, data.capturedCannons);
 
   // Restore frozen river state (matches host's applyFrozenRiver in enterBattleFromCannon)
-  if (deps.state.modern) {
-    deps.state.modern.frozenTiles = data.frozenTiles
+  if (hasFeature(deps.state, FID.MODIFIERS)) {
+    deps.state.modern!.frozenTiles = data.frozenTiles
       ? new Set(data.frozenTiles)
       : null;
   }
@@ -105,8 +110,8 @@ export function applyBattleStartCheckpoint(
   clearBattleProjectiles(deps);
   deps.state.timer = BATTLE_TIMER;
   // Create combo tracker on watcher (matches host's enterBattleFromCannon)
-  if (deps.state.modern) {
-    deps.state.modern.comboTracker = isCombosEnabled(deps.state)
+  if (hasFeature(deps.state, FID.COMBOS)) {
+    deps.state.modern!.comboTracker = isCombosEnabled(deps.state)
       ? createComboTracker(deps.state.players.length)
       : null;
   }
@@ -127,10 +132,16 @@ export function applyBuildStartCheckpoint(
   applyCommonCheckpoint(data, deps);
   deps.state.round = data.round;
   deps.state.timer = data.timer;
-  if (deps.state.modern) {
+  if (hasFeature(deps.state, FID.MODIFIERS)) {
     // Modifier is rolled at battle start now — clear it for the build phase
-    deps.state.modern.activeModifier = null;
-    deps.state.modern.pendingUpgradeOffers = data.pendingUpgradeOffers
+    deps.state.modern!.activeModifier = null;
+    // Frozen river persists through build phase (thawed at next battle start)
+    deps.state.modern!.frozenTiles = data.frozenTiles
+      ? new Set(data.frozenTiles)
+      : null;
+  }
+  if (hasFeature(deps.state, FID.UPGRADES)) {
+    deps.state.modern!.pendingUpgradeOffers = data.pendingUpgradeOffers
       ? new Map(
           data.pendingUpgradeOffers.map(([pid, offers]) => [
             pid as ValidPlayerSlot,
@@ -139,13 +150,9 @@ export function applyBuildStartCheckpoint(
         )
       : null;
     // Master Builder lockout (exclusive build window)
-    deps.state.modern.masterBuilderLockout = data.masterBuilderLockout ?? 0;
-    deps.state.modern.masterBuilderOwners = data.masterBuilderOwners
+    deps.state.modern!.masterBuilderLockout = data.masterBuilderLockout ?? 0;
+    deps.state.modern!.masterBuilderOwners = data.masterBuilderOwners
       ? new Set(data.masterBuilderOwners as ValidPlayerSlot[])
-      : null;
-    // Frozen river persists through build phase (thawed at next battle start)
-    deps.state.modern.frozenTiles = data.frozenTiles
-      ? new Set(data.frozenTiles)
       : null;
   }
   clearBattleProjectiles(deps);

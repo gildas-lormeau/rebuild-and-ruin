@@ -22,6 +22,7 @@
 import { CannonMode } from "../shared/battle-types.ts";
 import { getInterior, snapshotAllWalls } from "../shared/board-occupancy.ts";
 import type { SerializedPlayer } from "../shared/checkpoint-data.ts";
+import { FID } from "../shared/feature-defs.ts";
 import { MASTER_BUILDER_BONUS_SECONDS } from "../shared/game-constants.ts";
 import type { EntityOverlay } from "../shared/overlay-types.ts";
 import {
@@ -47,7 +48,11 @@ import {
   localControllers,
   tickGruntsIfDue,
 } from "../shared/tick-context.ts";
-import { type GameState, isMasterBuilderLocked } from "../shared/types.ts";
+import {
+  type GameState,
+  hasFeature,
+  isMasterBuilderLocked,
+} from "../shared/types.ts";
 import { snapshotEntities } from "./phase-banner.ts";
 import { runBuildEndSequence } from "./phase-transition-steps.ts";
 
@@ -302,10 +307,13 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
     state.buildTimer + (hasMB ? MASTER_BUILDER_BONUS_SECONDS : 0);
   advancePhaseTimer(accum, "build", state, dt, buildMax);
   // Decrement Master Builder lockout (non-owners can't build until it reaches 0)
-  if (state.modern && state.modern.masterBuilderLockout > 0) {
-    state.modern.masterBuilderLockout = Math.max(
+  if (
+    hasFeature(state, FID.UPGRADES) &&
+    state.modern!.masterBuilderLockout > 0
+  ) {
+    state.modern!.masterBuilderLockout = Math.max(
       0,
-      state.modern.masterBuilderLockout - dt,
+      state.modern!.masterBuilderLockout - dt,
     );
   }
   tickGruntsIfDue(accum, dt, state, deps.tickGrunts);

@@ -197,6 +197,7 @@ export function parseBoard(ascii: string, playerId = 0 as ValidPlayerSlot): Pars
     cannonPlaceTimer: 15,
     firstRoundCannons: 3,
     gameMode: "classic",
+    activeFeatures: new Set(),
     modern: null,
   };
 

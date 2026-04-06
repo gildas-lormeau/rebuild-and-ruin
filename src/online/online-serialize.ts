@@ -22,6 +22,7 @@ import type {
   SerializedHouse,
   SerializedPlayer,
 } from "../shared/checkpoint-data.ts";
+import { FID } from "../shared/feature-defs.ts";
 import {
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
@@ -32,6 +33,7 @@ import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { Rng } from "../shared/rng.ts";
 import {
   type GameState,
+  hasFeature,
   setGameMode,
   type UpgradeOfferTuple,
 } from "../shared/types.ts";
@@ -254,16 +256,21 @@ export function restoreFullStateSnapshot(
     state,
     msg.gameMode === GAME_MODE_MODERN ? GAME_MODE_MODERN : GAME_MODE_CLASSIC,
   );
-  if (state.modern) {
-    state.modern.activeModifier =
+  if (hasFeature(state, FID.MODIFIERS)) {
+    state.modern!.activeModifier =
       (msg.activeModifier as NonNullable<
         GameState["modern"]
       >["activeModifier"]) ?? null;
-    state.modern.lastModifierId =
+    state.modern!.lastModifierId =
       (msg.lastModifierId as NonNullable<
         GameState["modern"]
       >["lastModifierId"]) ?? null;
-    state.modern.pendingUpgradeOffers = msg.pendingUpgradeOffers
+    state.modern!.frozenTiles = msg.frozenTiles
+      ? new Set(msg.frozenTiles)
+      : null;
+  }
+  if (hasFeature(state, FID.UPGRADES)) {
+    state.modern!.pendingUpgradeOffers = msg.pendingUpgradeOffers
       ? new Map(
           msg.pendingUpgradeOffers.map(([pid, offers]) => [
             pid as ValidPlayerSlot,
@@ -271,12 +278,9 @@ export function restoreFullStateSnapshot(
           ]),
         )
       : null;
-    state.modern.masterBuilderLockout = msg.masterBuilderLockout ?? 0;
-    state.modern.masterBuilderOwners = msg.masterBuilderOwners
+    state.modern!.masterBuilderLockout = msg.masterBuilderLockout ?? 0;
+    state.modern!.masterBuilderOwners = msg.masterBuilderOwners
       ? new Set(msg.masterBuilderOwners as ValidPlayerSlot[])
-      : null;
-    state.modern.frozenTiles = msg.frozenTiles
-      ? new Set(msg.frozenTiles)
       : null;
   }
   state.burningPits = msg.burningPits.map((pit) => ({

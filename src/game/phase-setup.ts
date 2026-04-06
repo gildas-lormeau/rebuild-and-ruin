@@ -17,10 +17,10 @@ import {
   filterAliveOwnedTowers,
   sweepIsolatedWalls,
 } from "../shared/board-occupancy.ts";
+import { FID } from "../shared/feature-defs.ts";
 import {
   BATTLE_TIMER,
   FIRST_GRUNT_SPAWN_ROUND,
-  GAME_MODE_MODERN,
   INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
   INTERBATTLE_GRUNT_SPAWN_CHANCE,
   MASTER_BUILDER_BONUS_SECONDS,
@@ -41,7 +41,11 @@ import type {
   PlayerController,
   SelectionController,
 } from "../shared/system-interfaces.ts";
-import { type GameState, type UpgradeOfferTuple } from "../shared/types.ts";
+import {
+  type GameState,
+  hasFeature,
+  type UpgradeOfferTuple,
+} from "../shared/types.ts";
 import {
   IMPLEMENTED_UPGRADES,
   UID,
@@ -233,9 +237,9 @@ export function enterBuildFromSelect(state: GameState): void {
 /** Enter build from reselection — castles already exist, just set phase.
  *  Callers must call initBuildPhaseControllers() afterwards to init controllers. */
 export function enterBuildFromReselect(state: GameState): void {
-  if (state.modern) {
-    state.modern.masterBuilderLockout = 0;
-    state.modern.masterBuilderOwners = null;
+  if (hasFeature(state, FID.UPGRADES)) {
+    state.modern!.masterBuilderLockout = 0;
+    state.modern!.masterBuilderOwners = null;
   }
   setPhase(state, Phase.WALL_BUILD);
   state.timer = 0;
@@ -251,9 +255,9 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   // Roll modifier at battle start so it isn't spoiled in the status bar during build.
   // Assignment order matters: save current modifier BEFORE rolling, because
   // rollModifier filters out lastModifierId to prevent back-to-back repeats.
-  if (state.modern) {
-    state.modern.lastModifierId = state.modern.activeModifier;
-    state.modern.activeModifier = rollModifier(state);
+  if (hasFeature(state, FID.MODIFIERS)) {
+    state.modern!.lastModifierId = state.modern!.activeModifier;
+    state.modern!.activeModifier = rollModifier(state);
   }
   const diff = applyBattleStartModifiers(state);
   rollGruntWallAttacks(state);
@@ -261,8 +265,8 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   state.timer = BATTLE_TIMER;
   state.cannonballs = [];
   state.shotsFired = 0;
-  if (state.modern) {
-    state.modern.comboTracker = isCombosEnabled(state)
+  if (hasFeature(state, FID.COMBOS)) {
+    state.modern!.comboTracker = isCombosEnabled(state)
       ? createComboTracker(state.players.length)
       : null;
   }
@@ -281,8 +285,8 @@ export function enterBuildFromBattle(state: GameState): void {
   // ── RNG consumption (BEFORE checkpoint — order is load-bearing for online sync) ──
   // host/watcher/headless must consume RNG identically before BUILD_START checkpoint
   // is created. Do NOT insert RNG calls after this block or move these after setPhase.
-  if (state.modern) {
-    state.modern.pendingUpgradeOffers = generateUpgradeOffers(state);
+  if (hasFeature(state, FID.UPGRADES)) {
+    state.modern!.pendingUpgradeOffers = generateUpgradeOffers(state);
   }
 
   replenishBonusSquares(state);
@@ -292,15 +296,15 @@ export function enterBuildFromBattle(state: GameState): void {
   // - 1 owner → exclusive 5s head start, others locked out
   // - 2+ owners → everyone gets +5s (cancels out competitively), no lockout
   // - 0 owners → normal timer
-  if (state.modern) {
+  if (hasFeature(state, FID.UPGRADES)) {
     const mbPlayers = state.players.filter(
       (player) => !player.eliminated && player.upgrades.get(UID.MASTER_BUILDER),
     );
     const hasMasterBuilder = mbPlayers.length > 0;
-    state.modern.masterBuilderOwners = hasMasterBuilder
+    state.modern!.masterBuilderOwners = hasMasterBuilder
       ? new Set(mbPlayers.map((player) => player.id))
       : null;
-    state.modern.masterBuilderLockout =
+    state.modern!.masterBuilderLockout =
       mbPlayers.length === 1 ? MASTER_BUILDER_BONUS_SECONDS : 0;
     state.timer =
       state.buildTimer + (hasMasterBuilder ? MASTER_BUILDER_BONUS_SECONDS : 0);
@@ -327,7 +331,7 @@ export function setPhase(state: GameState, phase: Phase): void {
 export function generateUpgradeOffers(
   state: GameState,
 ): Map<ValidPlayerSlot, UpgradeOfferTuple> | null {
-  if (state.gameMode !== GAME_MODE_MODERN) return null;
+  if (!hasFeature(state, FID.UPGRADES)) return null;
   if (state.round < UPGRADE_FIRST_ROUND) return null;
 
   const offers = new Map<ValidPlayerSlot, UpgradeOfferTuple>();
