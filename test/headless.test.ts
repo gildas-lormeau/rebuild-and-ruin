@@ -1,8 +1,6 @@
 /**
- * Headless game simulation — runs N full games validating invariants
+ * Headless game simulation — runs full games validating invariants
  * at phase boundaries. Uses the scenario test DSL.
- *
- * Run with: deno run test/headless.test.ts
  */
 
 import {
@@ -13,14 +11,13 @@ import {
 import { GRID_COLS, GRID_ROWS } from "../src/shared/grid.ts";
 import type { GameState } from "../src/shared/types.ts";
 import { createScenario } from "./scenario-helpers.ts";
-import process from "node:process";
+import { assert } from "@std/assert";
 import { cannonSize, computeOutside, forEachTowerTile, isCannonAlive, isGrass, packTile, unpackTile, waterKeys } from "../src/shared/spatial.ts";
 
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 
-const SEEDS = [3, 7, 25, 40, 55];
 const MAX_ROUNDS = 12;
 
 // ---------------------------------------------------------------------------
@@ -28,7 +25,6 @@ const MAX_ROUNDS = 12;
 // ---------------------------------------------------------------------------
 
 interface Violation {
-  game: number;
   round: number;
   phase: string;
   message: string;
@@ -36,10 +32,9 @@ interface Violation {
 
 function validateGameState(
   state: GameState,
-  gameNum: number,
   violations: Violation[],
 ): void {
-  const ctx = { game: gameNum, round: state.round, phase: state.phase };
+  const ctx = { round: state.round, phase: state.phase };
 
   function fail(msg: string) {
     violations.push({ ...ctx, message: msg });
@@ -223,10 +218,9 @@ interface GameTracker {
 function validateCrossRound(
   state: GameState,
   tracker: GameTracker,
-  gameNum: number,
   violations: Violation[],
 ): void {
-  const ctx = { game: gameNum, round: state.round, phase: state.phase };
+  const ctx = { round: state.round, phase: state.phase };
 
   // Round must advance
   if (state.round < tracker.prevRound) {
@@ -254,76 +248,42 @@ function validateCrossRound(
 }
 
 // ---------------------------------------------------------------------------
-// Run games
+// Tests — one per seed
 // ---------------------------------------------------------------------------
 
-console.log(`Running ${SEEDS.length} headless games...\n`);
-
-const violations: Violation[] = [];
-
-for (let i = 0; i < SEEDS.length; i++) {
-  const seed = SEEDS[i]!;
+function runGame(seed: number): void {
   const s = createScenario(seed);
   const tracker: GameTracker = {
     prevScores: s.state.players.map((p) => p.score),
     prevRound: s.state.round,
   };
-
-  let rounds = 0;
-  let winner: number | undefined;
+  const violations: Violation[] = [];
 
   while (s.state.round <= MAX_ROUNDS) {
     const { needsReselect } = s.playRound();
 
-    validateGameState(s.state, i, violations);
-    validateCrossRound(s.state, tracker, i, violations);
+    validateGameState(s.state, violations);
+    validateCrossRound(s.state, tracker, violations);
 
     s.processReselection(needsReselect);
 
-    validateGameState(s.state, i, violations);
+    validateGameState(s.state, violations);
 
     const alive = s.state.players.filter((p) => !p.eliminated);
-    if (alive.length <= 1) {
-      winner = alive[0]?.id;
-      break;
-    }
-    rounds = s.state.round;
+    if (alive.length <= 1) break;
   }
 
-  rounds = s.state.round;
-  const status =
-    violations.length > 0 ? `⚠ ${violations.length} violations` : "OK";
-  console.log(
-    `  Game ${i + 1} (seed=${seed}): ${rounds} rounds, winner=${winner ?? "draw"} [${status}]`,
-  );
+  if (violations.length > 0) {
+    const summary = violations
+      .slice(0, 10)
+      .map((v) => `  round=${v.round} phase=${v.phase}: ${v.message}`)
+      .join("\n");
+    assert(false, `${violations.length} violation(s) in seed=${seed}:\n${summary}`);
+  }
 }
 
-// ---------------------------------------------------------------------------
-// Results
-// ---------------------------------------------------------------------------
-
-console.log(`\n=== RESULTS ===`);
-console.log(`Games: ${SEEDS.length}`);
-console.log(`Total violations: ${violations.length}`);
-
-if (violations.length > 0) {
-  const grouped = new Map<string, Violation[]>();
-  for (const v of violations) {
-    const list = grouped.get(v.message) ?? [];
-    list.push(v);
-    grouped.set(v.message, list);
-  }
-
-  console.log(`\nViolation types (${grouped.size}):`);
-  for (const [msg, list] of [...grouped.entries()].sort(
-    (a, b) => b[1].length - a[1].length,
-  )) {
-    console.log(`  [${list.length}x] ${msg}`);
-    for (const v of list.slice(0, 3)) {
-      console.log(`       game=${v.game} round=${v.round} phase=${v.phase}`);
-    }
-  }
-  Deno.exit(1);
-} else {
-  console.log("\nNo violations found! All invariants hold.");
+for (const seed of [3, 7, 25, 40, 55]) {
+  Deno.test(`headless game invariants (seed=${seed})`, () => {
+    runGame(seed);
+  });
 }

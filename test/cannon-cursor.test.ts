@@ -2,8 +2,6 @@
  * Cannon cursor stability test — verifies the phantom does NOT move
  * while the mouse is inside its footprint, and only moves when the
  * mouse exits.
- *
- * Run with: deno run test/cannon-cursor.test.ts 2>&1 | grep -E '✓|✗|passed|failed'
  */
 
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/shared/grid.ts";
@@ -11,28 +9,7 @@ import { CannonMode } from "../src/shared/battle-types.ts";
 import { cannonSize } from "../src/shared/spatial.ts";
 import { HumanController } from "../src/player/controller-human.ts";
 import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
-
-let passed = 0;
-let failed = 0;
-
-function test(name: string, fn: () => void) {
-  try {
-    fn();
-    console.log(`  ✓ ${name}`);
-    passed++;
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`  ✗ ${name}`);
-    console.error(`    ${msg}`);
-    failed++;
-  }
-}
-
-function assert(condition: boolean, message: string): asserts condition {
-  if (!condition) throw new Error(message);
-}
-
-console.log("\nCannon cursor stability\n");
+import { assert } from "@std/assert";
 
 function createHuman(playerId: ValidPlayerSlot): HumanController {
   return new HumanController(playerId, {
@@ -49,7 +26,7 @@ function createHuman(playerId: ValidPlayerSlot): HumanController {
 // Core invariant: phantom must not move while mouse is inside its footprint
 // ---------------------------------------------------------------------------
 
-test("2x2: phantom stable for every pixel inside its footprint", () => {
+Deno.test("2x2: phantom stable for every pixel inside its footprint", () => {
   const human = createHuman(0 as ValidPlayerSlot);
   const sz = cannonSize(CannonMode.NORMAL); // 2
   const szPx = sz * TILE_SIZE; // 32
@@ -83,7 +60,7 @@ test("2x2: phantom stable for every pixel inside its footprint", () => {
   assert(violations.length === 0, `Phantom moved while mouse inside:\n${violations.join("\n")}`);
 });
 
-test("2x2: phantom moves when mouse exits right edge", () => {
+Deno.test("2x2: phantom moves when mouse exits right edge", () => {
   const human = createHuman(0 as ValidPlayerSlot);
   const sz = cannonSize(CannonMode.NORMAL);
 
@@ -101,7 +78,7 @@ test("2x2: phantom moves when mouse exits right edge", () => {
   assert(human.cannonCursor.col !== anchorCol, "should move after exiting right");
 });
 
-test("2x2: phantom moves when mouse exits bottom edge", () => {
+Deno.test("2x2: phantom moves when mouse exits bottom edge", () => {
   const human = createHuman(0 as ValidPlayerSlot);
   const sz = cannonSize(CannonMode.NORMAL);
 
@@ -116,7 +93,7 @@ test("2x2: phantom moves when mouse exits bottom edge", () => {
   assert(human.cannonCursor.row !== anchorRow, "should move after exiting bottom");
 });
 
-test("2x2: horizontal sweep — no jumps > 1 tile", () => {
+Deno.test("2x2: horizontal sweep — no jumps > 1 tile", () => {
   const human = createHuman(0 as ValidPlayerSlot);
   const fixedY = 10 * TILE_SIZE + 8;
   let prevCol = -1;
@@ -135,7 +112,7 @@ test("2x2: horizontal sweep — no jumps > 1 tile", () => {
   assert(jumps.length === 0, `Jumps > 1 tile:\n${jumps.join("\n")}`);
 });
 
-test("2x2: vertical sweep — no jumps > 1 tile", () => {
+Deno.test("2x2: vertical sweep — no jumps > 1 tile", () => {
   const human = createHuman(0 as ValidPlayerSlot);
   const fixedX = 20 * TILE_SIZE + 8;
   let prevRow = -1;
@@ -154,7 +131,7 @@ test("2x2: vertical sweep — no jumps > 1 tile", () => {
   assert(jumps.length === 0, `Jumps > 1 tile:\n${jumps.join("\n")}`);
 });
 
-test("3x3: phantom stable for every pixel inside its footprint", () => {
+Deno.test("3x3: phantom stable for every pixel inside its footprint", () => {
   const human = createHuman(0 as ValidPlayerSlot);
   (human as unknown as { cannonPlaceMode: CannonMode }).cannonPlaceMode = CannonMode.SUPER;
   const sz = cannonSize(CannonMode.SUPER); // 3
@@ -181,11 +158,4 @@ test("3x3: phantom stable for every pixel inside its footprint", () => {
   }
 
   assert(violations.length === 0, `3x3 phantom moved while mouse inside:\n${violations.join("\n")}`);
-});
-
-// ---------------------------------------------------------------------------
-
-globalThis.addEventListener("unload", () => {
-  console.log(`\n${passed} passed, ${failed} failed\n`);
-  if (failed > 0) Deno.exitCode = 1;
 });
