@@ -105,6 +105,10 @@ export interface BuildStartData {
   burningPits: SerializedBurningPit[];
   rngSeed: number;
   pendingUpgradeOffers?: [number, [string, string, string]][] | null;
+  /** Master Builder lockout seconds remaining (0 = no lockout). */
+  masterBuilderLockout?: number;
+  /** Player slots who own Master Builder this round. null = nobody. */
+  masterBuilderOwners?: number[] | null;
   /** Frozen river tiles persisting from previous battle (packed keys). null = no frozen river. */
   frozenTiles: number[] | null;
 }

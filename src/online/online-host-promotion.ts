@@ -5,7 +5,10 @@
 
 import { enterCannonPlacePhase } from "../game/game-engine.ts";
 import { finalizeCastleConstruction } from "../game/phase-setup.ts";
-import { BATTLE_TIMER } from "../shared/game-constants.ts";
+import {
+  BATTLE_TIMER,
+  MASTER_BUILDER_BONUS_SECONDS,
+} from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isPlayerAlive } from "../shared/player-types.ts";
@@ -99,7 +102,10 @@ export function syncAccumulatorsFromTimer(
   accum.selectAnnouncement = 0;
 
   if (state.phase === Phase.WALL_BUILD) {
-    accum.build = state.buildTimer - state.timer;
+    const hasMB = (state.modern?.masterBuilderOwners?.size ?? 0) > 0;
+    const buildMax =
+      state.buildTimer + (hasMB ? MASTER_BUILDER_BONUS_SECONDS : 0);
+    accum.build = buildMax - state.timer;
   } else if (state.phase === Phase.CANNON_PLACE) {
     accum.cannon = state.cannonPlaceTimer - state.timer;
   } else if (state.phase === Phase.BATTLE) {

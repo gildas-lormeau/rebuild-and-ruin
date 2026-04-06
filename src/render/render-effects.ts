@@ -96,6 +96,8 @@ const CROSSHAIR_COLORS: RGB[] = [
   [60, 130, 255], // P2 blue
   [255, 200, 30], // P3 gold
 ];
+/** Amber color for the Master Builder lockout pulse. */
+const LOCKOUT_AMBER = "rgba(255,180,50,1)";
 
 /** Draw phantom piece/cannon previews.
  *  Draw order: cannon phantoms (behind), then piece phantoms (on top).
@@ -238,7 +240,7 @@ export function drawBattleEffects(
   drawCannonballs(overlayCtx, overlay);
   drawBalloons(overlayCtx, overlay);
   drawCrosshairs(overlayCtx, overlay, now);
-  drawPhaseTimer(overlayCtx, map, overlay);
+  drawPhaseTimer(overlayCtx, map, overlay, now);
 }
 
 /** Draw burning pit ember glows.
@@ -522,18 +524,28 @@ function drawCrosshairs(
 function drawPhaseTimer(
   overlayCtx: CanvasRenderingContext2D,
   map: GameMap,
-  overlay?: RenderOverlay,
+  overlay: RenderOverlay | undefined,
+  now: number,
 ): void {
   if (overlay?.ui?.timer == null || overlay.ui.timer < 0) return;
   const secs = Math.max(0, Math.ceil(overlay.ui.timer) - 1);
   const text = `${secs}`;
   const jx = map.junction.x * TILE_SIZE + TILE_SIZE / 2;
   const jy = map.junction.y * TILE_SIZE + TILE_SIZE / 2;
+  const lockout = overlay.ui.masterBuilderLockout ?? 0;
   overlayCtx.save();
   overlayCtx.font = FONT_TIMER;
   overlayCtx.textAlign = TEXT_ALIGN_CENTER;
   overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
-  drawShadowText(overlayCtx, text, jx, jy, SHADOW_COLOR, TEXT_WHITE);
+  if (lockout > 0) {
+    // Pulse: time-based scale oscillation matching other render effects
+    const pulse = 1.0 + 0.15 * Math.abs(Math.sin(now / 300));
+    overlayCtx.translate(jx, jy);
+    overlayCtx.scale(pulse, pulse);
+    drawShadowText(overlayCtx, text, 0, 0, SHADOW_COLOR, LOCKOUT_AMBER);
+  } else {
+    drawShadowText(overlayCtx, text, jx, jy, SHADOW_COLOR, TEXT_WHITE);
+  }
   overlayCtx.restore();
 }
 

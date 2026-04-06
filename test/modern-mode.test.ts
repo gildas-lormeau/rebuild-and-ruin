@@ -7,7 +7,7 @@
 
 import { clearPlayerWalls } from "../src/shared/board-occupancy.ts";
 import { recheckTerritoryOnly } from "../src/game/build-system.ts";
-import { BALL_SPEED, GAME_MODE_MODERN, MODIFIER_FIRST_ROUND } from "../src/shared/game-constants.ts";
+import { BALL_SPEED, GAME_MODE_MODERN, MASTER_BUILDER_BONUS_SECONDS, MODIFIER_FIRST_ROUND } from "../src/shared/game-constants.ts";
 import {
   comboDemolitionBonus,
   comboOnCannonKill,
@@ -47,7 +47,7 @@ import {
 import { MESSAGE } from "../server/protocol.ts";
 import { handleServerIncrementalMessage } from "../src/online/online-server-events.ts";
 import type { WatcherNetworkState } from "../src/online/online-types.ts";
-import { createModernState, type SelectionState } from "../src/shared/types.ts";
+import { createModernState, isMasterBuilderLocked, type SelectionState } from "../src/shared/types.ts";
 import { type UpgradeId, UID } from "../src/shared/upgrade-defs.ts";
 import { generateUpgradeOffers } from "../src/game/phase-setup.ts";
 import { showUpgradePickBanner } from "../src/game/phase-transition-steps.ts";
@@ -146,6 +146,142 @@ Deno.test("Master Builder ignores eliminated players", async () => {
   assert(
     s.state.timer === baseBuildTimer + 5,
     `should only count alive player, expected ${baseBuildTimer + 5}s, got ${s.state.timer}`,
+  );
+});
+
+Deno.test("Master Builder lockout: single owner locks opponent", async () => {
+  const s = await createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  s.state.modern = createModernState();
+
+  // Only P0 gets Master Builder
+  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
+
+  const result = s.playRound();
+  if (result.needsReselect.length > 0) s.processReselection(result.needsReselect);
+
+  // Lockout should be set (test helpers don't decrement it)
+  assert(
+    s.state.modern!.masterBuilderLockout === MASTER_BUILDER_BONUS_SECONDS,
+    `lockout should be ${MASTER_BUILDER_BONUS_SECONDS}, got ${s.state.modern!.masterBuilderLockout}`,
+  );
+  assert(
+    s.state.modern!.masterBuilderOwners !== null,
+    "owners should be set",
+  );
+  assert(
+    s.state.modern!.masterBuilderOwners!.has(0 as ValidPlayerSlot),
+    "P0 should be an owner",
+  );
+  assert(
+    !s.state.modern!.masterBuilderOwners!.has(1 as ValidPlayerSlot),
+    "P1 should not be an owner",
+  );
+  assert(
+    isMasterBuilderLocked(s.state, 1 as ValidPlayerSlot),
+    "P1 should be locked",
+  );
+  assert(
+    !isMasterBuilderLocked(s.state, 0 as ValidPlayerSlot),
+    "P0 should not be locked",
+  );
+});
+
+Deno.test("Master Builder lockout: multiple owners cancel lockout", async () => {
+  const s = await createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  s.state.modern = createModernState();
+
+  // Both players get Master Builder
+  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
+  s.state.players[1]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
+
+  const baseBuildTimer = s.state.buildTimer;
+  const result = s.playRound();
+  if (result.needsReselect.length > 0) s.processReselection(result.needsReselect);
+
+  // Timer should still have the bonus
+  assert(
+    s.state.timer === baseBuildTimer + MASTER_BUILDER_BONUS_SECONDS,
+    `timer should be ${baseBuildTimer + MASTER_BUILDER_BONUS_SECONDS}, got ${s.state.timer}`,
+  );
+  // But lockout should be 0 (no exclusive window)
+  assert(
+    s.state.modern!.masterBuilderLockout === 0,
+    `lockout should be 0 when 2+ owners, got ${s.state.modern!.masterBuilderLockout}`,
+  );
+  // Neither player should be locked
+  assert(
+    !isMasterBuilderLocked(s.state, 0 as ValidPlayerSlot),
+    "P0 should not be locked",
+  );
+  assert(
+    !isMasterBuilderLocked(s.state, 1 as ValidPlayerSlot),
+    "P1 should not be locked",
+  );
+});
+
+Deno.test("Master Builder lockout: eliminated owner does not trigger lockout", async () => {
+  const s = await createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  s.state.modern = createModernState();
+
+  // P0 gets MB but is eliminated — only P0's upgrade should be ignored
+  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
+  s.eliminatePlayer(0 as ValidPlayerSlot);
+
+  const baseBuildTimer = s.state.buildTimer;
+  const result = s.playRound();
+  if (result.needsReselect.length > 0) s.processReselection(result.needsReselect);
+
+  // No alive owner → no lockout, no bonus
+  assert(
+    s.state.timer === baseBuildTimer,
+    `timer should be base ${baseBuildTimer}, got ${s.state.timer}`,
+  );
+  assert(
+    s.state.modern!.masterBuilderLockout === 0,
+    "lockout should be 0 when no alive owner",
+  );
+  assert(
+    s.state.modern!.masterBuilderOwners === null,
+    "owners should be null when no alive owner",
+  );
+});
+
+Deno.test("Master Builder lockout: checkpoint round-trip preserves lockout", async () => {
+  const s = await createScenario(42);
+  s.state.gameMode = GAME_MODE_MODERN;
+  s.state.modern = createModernState();
+
+  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
+
+  const result = s.playRound();
+  if (result.needsReselect.length > 0) s.processReselection(result.needsReselect);
+
+  // Serialize → deserialize round-trip
+  const msg = createBuildStartMessage(s.state);
+  const watcher = await createScenario(42);
+  watcher.state.gameMode = GAME_MODE_MODERN;
+  watcher.state.modern = createModernState();
+  const deps: CheckpointDeps = {
+    state: watcher.state,
+    accum: { build: 0, cannon: 0, battle: 0, grunt: 0, select: 0, selectAnnouncement: 0 } as CheckpointAccums,
+    battleAnim: { impacts: [] } as CheckpointBattleAnim,
+    crosshairs: { clear() {} },
+    orbits: new Map() as Map<number, OrbitParams>,
+    orbitAngles: new Map(),
+  };
+  applyBuildStartCheckpoint(msg, deps);
+
+  assert(
+    watcher.state.modern!.masterBuilderLockout === MASTER_BUILDER_BONUS_SECONDS,
+    `lockout should survive round-trip, got ${watcher.state.modern!.masterBuilderLockout}`,
+  );
+  assert(
+    watcher.state.modern!.masterBuilderOwners !== null &&
+    watcher.state.modern!.masterBuilderOwners.has(0 as ValidPlayerSlot),
+    "owners should survive round-trip",
   );
 });
 

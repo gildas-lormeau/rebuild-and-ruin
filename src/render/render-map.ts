@@ -32,8 +32,12 @@ import {
   pxToTile,
   unpackTile,
 } from "../shared/spatial.ts";
-import type { RGB } from "../shared/theme.ts";
-import { BANNER_HEIGHT_RATIO, rgb, STATUSBAR_HEIGHT } from "../shared/theme.ts";
+import {
+  BANNER_HEIGHT_RATIO,
+  type RGB,
+  rgb,
+  STATUSBAR_HEIGHT,
+} from "../shared/theme.ts";
 import {
   drawBattleEffects,
   drawBonusSquares,

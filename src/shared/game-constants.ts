@@ -193,6 +193,8 @@ export const DIFFICULTY_PARAMS = [
   { buildTimer: 20, cannonPlaceTimer: 12, firstRoundCannons: 2 }, // DIFFICULTY_HARD
   { buildTimer: 15, cannonPlaceTimer: 10, firstRoundCannons: 1 }, // DIFFICULTY_VERY_HARD
 ];
+/** Extra build seconds granted by the Master Builder upgrade. */
+export const MASTER_BUILDER_BONUS_SECONDS = 5;
 /** Haptics/sound level encoding shared across settings UI and subsystems.
  *  0=off (implicit — handled by >= checks), 1=phase changes only, 2=all. */
 export const HAPTICS_PHASE_ONLY = 1;

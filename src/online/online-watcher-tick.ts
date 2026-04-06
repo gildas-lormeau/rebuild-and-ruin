@@ -19,7 +19,7 @@ import {
   tickGruntsIfDue,
   type WatcherTimingState,
 } from "../shared/tick-context.ts";
-import { type GameState } from "../shared/types.ts";
+import { type GameState, isMasterBuilderLocked } from "../shared/types.ts";
 import type { DedupMaps, OnlineSession } from "./online-session.ts";
 import {
   clearWatcherPhaseTimer,
@@ -181,11 +181,23 @@ export function tickWatcher(
       },
     });
   } else if (state.phase === Phase.WALL_BUILD) {
+    // Decrement Master Builder lockout (mirrors host-phase-ticks.ts)
+    if (state.modern && state.modern.masterBuilderLockout > 0) {
+      state.modern.masterBuilderLockout = Math.max(
+        0,
+        state.modern.masterBuilderLockout - dt,
+      );
+    }
+    // Gate local controller during lockout — pass null so buildTick is skipped
+    const effectiveLocal =
+      localController && isMasterBuilderLocked(state, localController.playerId)
+        ? null
+        : localController;
     tickWatcherBuildPhantomsPhase({
       state,
       frame,
       dt,
-      localController,
+      localController: effectiveLocal,
       remotePiecePhantoms: watcherState.remotePiecePhantoms,
       lastSentPiecePhantom: transitionCtx.dedup.piecePhantom,
       sendOpponentPiecePhantom: (msg) => {

@@ -126,7 +126,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
   {
     id: "master_builder",
     label: "Master Builder",
-    description: "+5 seconds build timer",
+    description: "+5s exclusive build time",
     category: BUILD,
     weight: WEIGHT_COMMON,
     oneUse: false,

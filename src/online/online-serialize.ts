@@ -65,12 +65,7 @@ export function createBuildStartMessage(state: GameState) {
     towerAlive: [...state.towerAlive],
     burningPits: serializeBurningPits(state),
     rngSeed: state.rng.seed,
-    pendingUpgradeOffers: state.modern?.pendingUpgradeOffers
-      ? [...state.modern.pendingUpgradeOffers.entries()]
-      : null,
-    frozenTiles: state.modern?.frozenTiles
-      ? [...state.modern.frozenTiles]
-      : null,
+    ...serializeModernFields(state),
   };
 }
 
@@ -166,12 +161,7 @@ export function createFullStateMessage(
     gameMode: state.gameMode,
     activeModifier: state.modern?.activeModifier ?? null,
     lastModifierId: state.modern?.lastModifierId ?? null,
-    pendingUpgradeOffers: state.modern?.pendingUpgradeOffers
-      ? [...state.modern.pendingUpgradeOffers.entries()]
-      : null,
-    frozenTiles: state.modern?.frozenTiles
-      ? [...state.modern.frozenTiles]
-      : null,
+    ...serializeModernFields(state),
     towerPendingRevive: [...state.towerPendingRevive],
     capturedCannons: state.capturedCannons.map((captured) => ({
       victimId: captured.victimId,
@@ -280,6 +270,10 @@ export function restoreFullStateSnapshot(
             offers as UpgradeOfferTuple,
           ]),
         )
+      : null;
+    state.modern.masterBuilderLockout = msg.masterBuilderLockout ?? 0;
+    state.modern.masterBuilderOwners = msg.masterBuilderOwners
+      ? new Set(msg.masterBuilderOwners as ValidPlayerSlot[])
       : null;
     state.modern.frozenTiles = msg.frozenTiles
       ? new Set(msg.frozenTiles)
@@ -426,6 +420,22 @@ export function applyCapturedCannons(
       capturerId: captured.capturerId as ValidPlayerSlot,
     });
   }
+}
+
+/** Serialize modern-mode fields shared by build-start and full-state messages. */
+function serializeModernFields(state: GameState) {
+  return {
+    pendingUpgradeOffers: state.modern?.pendingUpgradeOffers
+      ? [...state.modern.pendingUpgradeOffers.entries()]
+      : null,
+    masterBuilderLockout: state.modern?.masterBuilderLockout ?? 0,
+    masterBuilderOwners: state.modern?.masterBuilderOwners
+      ? [...state.modern.masterBuilderOwners]
+      : null,
+    frozenTiles: state.modern?.frozenTiles
+      ? [...state.modern.frozenTiles]
+      : null,
+  };
 }
 
 /**

@@ -280,6 +280,8 @@ export interface FullStateMessage {
   activeModifier: string | null;
   lastModifierId: string | null;
   pendingUpgradeOffers?: [number, [string, string, string]][] | null;
+  masterBuilderLockout?: number;
+  masterBuilderOwners?: number[] | null;
   frozenTiles: number[] | null;
   towerPendingRevive: number[];
   capturedCannons: {

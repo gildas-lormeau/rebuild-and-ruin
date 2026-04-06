@@ -138,6 +138,11 @@ export function applyBuildStartCheckpoint(
           ]),
         )
       : null;
+    // Master Builder lockout (exclusive build window)
+    deps.state.modern.masterBuilderLockout = data.masterBuilderLockout ?? 0;
+    deps.state.modern.masterBuilderOwners = data.masterBuilderOwners
+      ? new Set(data.masterBuilderOwners as ValidPlayerSlot[])
+      : null;
     // Frozen river persists through build phase (thawed at next battle start)
     deps.state.modern.frozenTiles = data.frozenTiles
       ? new Set(data.frozenTiles)

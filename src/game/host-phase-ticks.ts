@@ -22,6 +22,7 @@
 import { CannonMode } from "../shared/battle-types.ts";
 import { getInterior, snapshotAllWalls } from "../shared/board-occupancy.ts";
 import type { SerializedPlayer } from "../shared/checkpoint-data.ts";
+import { MASTER_BUILDER_BONUS_SECONDS } from "../shared/game-constants.ts";
 import type { EntityOverlay } from "../shared/overlay-types.ts";
 import {
   type CannonPhantom,
@@ -46,7 +47,7 @@ import {
   localControllers,
   tickGruntsIfDue,
 } from "../shared/tick-context.ts";
-import { type GameState } from "../shared/types.ts";
+import { type GameState, isMasterBuilderLocked } from "../shared/types.ts";
 import { snapshotEntities } from "./phase-banner.ts";
 import { runBuildEndSequence } from "./phase-transition-steps.ts";
 
@@ -296,7 +297,17 @@ export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
   const remoteHumanSlots = getRemoteSlots(deps.net);
 
   // --- Timer + grunt tick ---
-  advancePhaseTimer(accum, "build", state, dt, state.buildTimer);
+  const hasMB = (state.modern?.masterBuilderOwners?.size ?? 0) > 0;
+  const buildMax =
+    state.buildTimer + (hasMB ? MASTER_BUILDER_BONUS_SECONDS : 0);
+  advancePhaseTimer(accum, "build", state, dt, buildMax);
+  // Decrement Master Builder lockout (non-owners can't build until it reaches 0)
+  if (state.modern && state.modern.masterBuilderLockout > 0) {
+    state.modern.masterBuilderLockout = Math.max(
+      0,
+      state.modern.masterBuilderLockout - dt,
+    );
+  }
   tickGruntsIfDue(accum, dt, state, deps.tickGrunts);
 
   // --- Process each controller's build actions, collect phantoms ---
@@ -327,6 +338,8 @@ function processControllerBuildActions(
 
   // ── PASS 1: Tick local controllers (process input & AI decisions) ──
   for (const ctrl of localControllers(controllers, remoteHumanSlots)) {
+    // Master Builder lockout: skip non-owners during the exclusive window
+    if (isMasterBuilderLocked(state, ctrl.playerId)) continue;
     const player = state.players[ctrl.playerId];
     if (!player) continue;
     const hadInterior = getInterior(player).size > 0;

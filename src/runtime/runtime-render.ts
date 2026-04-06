@@ -144,6 +144,11 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
         runtimeState.frameMeta.povPlayerId,
         runtimeState.frameMeta.hasPointerPlayer,
       );
+      // Master Builder lockout effect — visible to everyone during exclusive window
+      const lockout = runtimeState.state.modern?.masterBuilderLockout ?? 0;
+      if (lockout > 0) {
+        runtimeState.overlay.ui.masterBuilderLockout = lockout;
+      }
     }
 
     // Add score deltas to overlay (shown briefly before Place Cannons banner)

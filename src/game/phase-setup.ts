@@ -23,6 +23,7 @@ import {
   GAME_MODE_MODERN,
   INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
   INTERBATTLE_GRUNT_SPAWN_CHANCE,
+  MASTER_BUILDER_BONUS_SECONDS,
   MODIFIER_ID,
   type ModifierDiff,
 } from "../shared/game-constants.ts";
@@ -89,8 +90,6 @@ import {
 
 /** Grunts spawned per player on first battle when nobody fires. */
 const IDLE_FIRST_BATTLE_GRUNTS = 2;
-/** Extra build seconds per Master Builder upgrade stack. */
-const MASTER_BUILDER_BONUS_SECONDS = 5;
 /** Number of upgrade choices offered per pick. */
 const OFFER_COUNT = 3;
 /** First round that triggers upgrade picks (modern mode). */
@@ -234,6 +233,10 @@ export function enterBuildFromSelect(state: GameState): void {
 /** Enter build from reselection — castles already exist, just set phase.
  *  Callers must call initBuildPhaseControllers() afterwards to init controllers. */
 export function enterBuildFromReselect(state: GameState): void {
+  if (state.modern) {
+    state.modern.masterBuilderLockout = 0;
+    state.modern.masterBuilderOwners = null;
+  }
   setPhase(state, Phase.WALL_BUILD);
   state.timer = 0;
 }
@@ -284,12 +287,27 @@ export function enterBuildFromBattle(state: GameState): void {
 
   replenishBonusSquares(state);
   setPhase(state, Phase.WALL_BUILD);
-  // Master Builder: +5s if any alive player has it (check before clearing upgrades)
-  const hasMasterBuilder = state.players.some(
-    (player) => !player.eliminated && player.upgrades.get(UID.MASTER_BUILDER),
-  );
-  state.timer =
-    state.buildTimer + (hasMasterBuilder ? MASTER_BUILDER_BONUS_SECONDS : 0);
+
+  // Master Builder lockout: check before clearing upgrades.
+  // - 1 owner → exclusive 5s head start, others locked out
+  // - 2+ owners → everyone gets +5s (cancels out competitively), no lockout
+  // - 0 owners → normal timer
+  if (state.modern) {
+    const mbPlayers = state.players.filter(
+      (player) => !player.eliminated && player.upgrades.get(UID.MASTER_BUILDER),
+    );
+    const hasMasterBuilder = mbPlayers.length > 0;
+    state.modern.masterBuilderOwners = hasMasterBuilder
+      ? new Set(mbPlayers.map((player) => player.id))
+      : null;
+    state.modern.masterBuilderLockout =
+      mbPlayers.length === 1 ? MASTER_BUILDER_BONUS_SECONDS : 0;
+    state.timer =
+      state.buildTimer + (hasMasterBuilder ? MASTER_BUILDER_BONUS_SECONDS : 0);
+  } else {
+    state.timer = state.buildTimer;
+  }
+
   resetPlayerUpgrades(state);
   startOfBuildPhaseHousekeeping(state);
 }

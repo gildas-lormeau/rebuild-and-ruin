@@ -112,6 +112,13 @@ export interface ModernState {
   activeModifier: ModifierId | null;
   /** Previous round's modifier id (for no-repeat rule). null = none. */
   lastModifierId: ModifierId | null;
+  /** Master Builder lockout countdown (seconds remaining). 0 = no lockout.
+   *  When exactly one player owns Master Builder, non-owners are locked out
+   *  of building for this many seconds at the start of the build phase. */
+  masterBuilderLockout: number;
+  /** Players who picked Master Builder this round. null = nobody.
+   *  Persists through the build phase (needed to compute buildMax for advancePhaseTimer). */
+  masterBuilderOwners: ReadonlySet<ValidPlayerSlot> | null;
   /** Combo scoring tracker (transient during battle, not serialized).
    *  Created at battle start, cleared at battle end. */
   comboTracker: {
@@ -203,8 +210,24 @@ export function createModernState(): ModernState {
   return {
     activeModifier: null,
     lastModifierId: null,
+    masterBuilderLockout: 0,
+    masterBuilderOwners: null,
     comboTracker: null,
     pendingUpgradeOffers: null,
     frozenTiles: null,
   };
+}
+
+/** Whether a player is locked out of building by the Master Builder upgrade.
+ *  True when exactly one player owns MB and this player is not the owner. */
+export function isMasterBuilderLocked(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+): boolean {
+  const modern = state.modern;
+  if (!modern || modern.masterBuilderLockout <= 0) return false;
+  return (
+    modern.masterBuilderOwners !== null &&
+    !modern.masterBuilderOwners.has(playerId)
+  );
 }

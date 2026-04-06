@@ -50,7 +50,11 @@ import {
   isMovementAction,
   type PlayerController,
 } from "../shared/system-interfaces.ts";
-import { type GameState, type SelectionState } from "../shared/types.ts";
+import {
+  type GameState,
+  isMasterBuilderLocked,
+  type SelectionState,
+} from "../shared/types.ts";
 import { Mode } from "../shared/ui-mode.ts";
 
 export interface OverlayActionDeps {
@@ -472,10 +476,15 @@ function dispatchPlacementAction(
     onPieceRotated?: () => void;
   },
 ): boolean {
+  // Master Builder lockout: allow cursor movement but block placement + rotation
+  const locked =
+    state.phase === Phase.WALL_BUILD &&
+    isMasterBuilderLocked(state, ctrl.playerId);
   if (isMovementAction(action)) {
     dispatchMoveForCtrl(ctrl, action, state);
     return true;
   }
+  if (locked) return false;
   if (action === Action.ROTATE) {
     rotatePlacement(ctrl, state, deps.onPieceRotated);
     return true;
@@ -504,6 +513,7 @@ export function dispatchPlacementConfirm(
   },
 ): void {
   if (state.phase === Phase.WALL_BUILD) {
+    if (isMasterBuilderLocked(state, ctrl.playerId)) return;
     deps.tryPlacePieceAndSend(ctrl, state);
   } else if (state.phase === Phase.CANNON_PLACE) {
     const max = state.cannonLimits[ctrl.playerId] ?? 0;

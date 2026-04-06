@@ -171,6 +171,9 @@ export interface BattleOverlay {
 /** UI overlays — banners, announcements, game over, player select. */
 export interface UIOverlay {
   announcement?: string;
+  /** Master Builder lockout countdown (seconds remaining) shown center-screen.
+   *  Set when the POV player is locked out; undefined/0 when inactive. */
+  masterBuilderLockout?: number;
   banner?: {
     text: string;
     subtitle?: string;
