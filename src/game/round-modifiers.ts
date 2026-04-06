@@ -48,9 +48,9 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
 ];
 /** Extra grunts per player during a grunt surge.
  *  Baseline is ~15 grunts per territory in a typical game,
- *  so 8-12 extra is a serious but not overwhelming spike. */
-const GRUNT_SURGE_COUNT_MIN = 8;
-const GRUNT_SURGE_COUNT_MAX = 12;
+ *  so 6-10 extra is a serious but not overwhelming spike. */
+const GRUNT_SURGE_COUNT_MIN = 6;
+const GRUNT_SURGE_COUNT_MAX = 10;
 /** Spine length for wildfire scar (fattened neighbors bring total to ~10). */
 const WILDFIRE_SPINE_LENGTH = 4;
 /** Wildfire: probability the fire continues in its main direction (vs random). */

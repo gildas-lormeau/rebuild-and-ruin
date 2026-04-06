@@ -371,13 +371,13 @@ test("applyGruntSurge spawns extra grunts", () => {
     s.state.grunts.length > gruntsBefore,
     `grunt surge should add grunts: before=${gruntsBefore} after=${s.state.grunts.length}`,
   );
-  // Should add at least 8 per alive player (GRUNT_SURGE_COUNT_MIN=8, 3 players)
+  // Should add at least 6 per alive player (GRUNT_SURGE_COUNT_MIN=6, 3 players)
   const added = s.state.grunts.length - gruntsBefore;
   const aliveCount = s.state.players.filter(
     (pl) => !pl.eliminated && pl.homeTower,
   ).length;
   assert(
-    added >= 8 * aliveCount,
+    added >= 6 * aliveCount,
     `should add at least ${8 * aliveCount} grunts, added ${added}`,
   );
 });
