@@ -4,7 +4,7 @@
  *
  * Activated via `?record-inputs` query parameter. Records all user input
  * with timestamps, then offers the recording as a JSON download when stopped.
- * The JSON can be replayed via `npx tsx test/online-e2e.ts local --replay <file>`.
+ * The JSON can be replayed via `npx tsx scripts/online-e2e.ts local --replay <file>`.
  */
 
 // ---------------------------------------------------------------------------

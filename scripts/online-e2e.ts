@@ -2,23 +2,23 @@
  * E2E test for both local and online play.
  *
  * Usage:
- *   npx tsx test/online-e2e.ts local             # local mode: 3 AI, no server needed
- *   npx tsx test/online-e2e.ts local 1           # local mode: 1 human + 2 AI
- *   npx tsx test/online-e2e.ts local 0 "" 1      # local, 1 round (any positive integer)
- *   npx tsx test/online-e2e.ts online            # online mode: 2 humans, local server (default)
- *   npx tsx test/online-e2e.ts online 0          # online mode: 0 humans (3 AI demo)
- *   npx tsx test/online-e2e.ts online 1          # online mode: 1 human + 2 AI + watcher
- *   npx tsx test/online-e2e.ts online 3          # online mode: 3 humans + watcher
- *   npx tsx test/online-e2e.ts online 1 https://example.deno.dev  # remote server
- *   npx tsx test/online-e2e.ts local 0 --screenshot  # capture screenshots at phase transitions
- *   npx tsx test/online-e2e.ts local 0 --mobile     # emulate mobile (Pixel 7, landscape)
- *   npx tsx test/online-e2e.ts local 0 --mobile --screenshot  # both
- *   npx tsx test/online-e2e.ts local 0 --mobile --action "phase:BATTLE click:zoom screenshot:zoomed exit"
- *   npx tsx test/online-e2e.ts local 0 --headless          # run without browser window
- *   npx tsx test/online-e2e.ts local 0 --seed 12345        # force specific map seed
- *   npx tsx test/online-e2e.ts local 0 --assert "phase:BATTLE button:quit visible"  # assert UI state
- *   npx tsx test/online-e2e.ts local --replay recordings/bug-repro.json  # replay Chrome DevTools recording
- *   npx tsx test/online-e2e.ts local --replay recordings/bug-repro.json --screenshot --headless
+ *   npx tsx scripts/online-e2e.ts local             # local mode: 3 AI, no server needed
+ *   npx tsx scripts/online-e2e.ts local 1           # local mode: 1 human + 2 AI
+ *   npx tsx scripts/online-e2e.ts local 0 "" 1      # local, 1 round (any positive integer)
+ *   npx tsx scripts/online-e2e.ts online            # online mode: 2 humans, local server (default)
+ *   npx tsx scripts/online-e2e.ts online 0          # online mode: 0 humans (3 AI demo)
+ *   npx tsx scripts/online-e2e.ts online 1          # online mode: 1 human + 2 AI + watcher
+ *   npx tsx scripts/online-e2e.ts online 3          # online mode: 3 humans + watcher
+ *   npx tsx scripts/online-e2e.ts online 1 https://example.deno.dev  # remote server
+ *   npx tsx scripts/online-e2e.ts local 0 --screenshot  # capture screenshots at phase transitions
+ *   npx tsx scripts/online-e2e.ts local 0 --mobile     # emulate mobile (Pixel 7, landscape)
+ *   npx tsx scripts/online-e2e.ts local 0 --mobile --screenshot  # both
+ *   npx tsx scripts/online-e2e.ts local 0 --mobile --action "phase:BATTLE click:zoom screenshot:zoomed exit"
+ *   npx tsx scripts/online-e2e.ts local 0 --headless          # run without browser window
+ *   npx tsx scripts/online-e2e.ts local 0 --seed 12345        # force specific map seed
+ *   npx tsx scripts/online-e2e.ts local 0 --assert "phase:BATTLE button:quit visible"  # assert UI state
+ *   npx tsx scripts/online-e2e.ts local --replay recordings/bug-repro.json  # replay Chrome DevTools recording
+ *   npx tsx scripts/online-e2e.ts local --replay recordings/bug-repro.json --screenshot --headless
  *
  * Chrome DevTools Recorder:
  *   1. Open DevTools → Recorder panel → Start recording
@@ -34,7 +34,7 @@
  */
 
 import { chromium, devices, type Page, type Browser } from "playwright";
-import { MESSAGE } from "../server/protocol.ts";
+import { MESSAGE } from "../server/protocol";
 import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import process from "node:process";
 import { Buffer } from "node:buffer";

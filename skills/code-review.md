@@ -146,4 +146,4 @@ the codebase, not theoretical purity issues.
 - **Commit after each pass** — if something breaks, you know which pass caused it
 - **Skip passes that don't apply** — if there's no dead code, go straight to pass 2
 - **Don't fix everything** — low-value fixes that risk regressions can be deferred
-- **Always run E2E after UI changes** — use `timeout 45 npx tsx test/online-e2e.ts local 1 --mobile --headless --action "mode:GAME screenshot:check exit" "" 3`
+- **Always run E2E after UI changes** — use `timeout 45 npx tsx scripts/online-e2e.ts local 1 --mobile --headless --action "mode:GAME screenshot:check exit" "" 3`
