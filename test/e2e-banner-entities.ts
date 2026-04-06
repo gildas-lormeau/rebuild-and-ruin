@@ -23,7 +23,7 @@ function check(label: string, ok: boolean, detail?: string) {
   }
 }
 
-async function getSpyLog(
+function getSpyLog(
   game: E2EGame,
 ): Promise<{ name: string; x: number; y: number }[]> {
   return game.page.evaluate(() => {
@@ -53,7 +53,7 @@ function spriteSummary(log: { name: string }[]): string {
 }
 
 /** Poll bridge state. Returns null if page is closed. */
-async function safeQuery(game: E2EGame): Promise<{
+function safeQuery(game: E2EGame): Promise<{
   mode: string;
   phase: string;
   round: number;
@@ -82,7 +82,7 @@ async function safeQuery(game: E2EGame): Promise<{
 }
 
 /** Wait for a condition on the bridge. Returns false if timed out or page closed. */
-async function waitFor(
+function waitFor(
   game: E2EGame,
   predicate: string,
   timeoutMs = 15_000,
@@ -206,14 +206,14 @@ async function run() {
     await game.close();
   }
 
-  if (failures > 0) process.exit(1);
+  if (failures > 0) Deno.exit(1);
   if (bannersCaught === 0) {
     console.log("FAIL: no banners caught");
-    process.exit(1);
+    Deno.exit(1);
   }
 }
 
 run().catch((err) => {
   console.error(err);
-  process.exit(1);
+  Deno.exit(1);
 });

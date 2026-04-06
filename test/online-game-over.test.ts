@@ -9,7 +9,7 @@
  * Run with: deno test --allow-all test/online-game-over.test.ts
  */
 
-import { assert } from "jsr:@std/assert";
+import { assert } from "@std/assert";
 import { chromium, type Page } from "playwright";
 import { MESSAGE } from "../server/protocol.ts";
 

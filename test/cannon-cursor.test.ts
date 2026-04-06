@@ -185,7 +185,7 @@ test("3x3: phantom stable for every pixel inside its footprint", () => {
 
 // ---------------------------------------------------------------------------
 
-process.on("exit", () => {
+globalThis.addEventListener("unload", () => {
   console.log(`\n${passed} passed, ${failed} failed\n`);
-  if (failed > 0) process.exitCode = 1;
+  if (failed > 0) Deno.exitCode = 1;
 });

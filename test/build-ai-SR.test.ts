@@ -4,7 +4,6 @@
  * Run with: deno test --no-check test/build-ai-SR.test.ts
  */
 
-import { assert } from "jsr:@std/assert";
 import {
   parseBoard,
   assertPlacement,

@@ -352,7 +352,7 @@ export class E2EGame {
 
   readonly query = {
     /** Full bridge snapshot. */
-    state: async (): Promise<E2EBridgeSnapshot> => {
+    state: (): Promise<E2EBridgeSnapshot> => {
       return this.page.evaluate(() => {
         const e2e = (globalThis as unknown as Record<string, unknown>)
           .__e2e as E2EBridgeSnapshot | undefined;
@@ -364,21 +364,21 @@ export class E2EGame {
         }));
       }) as Promise<E2EBridgeSnapshot>;
     },
-    phase: async (): Promise<string> => {
+    phase: (): Promise<string> => {
       return this.page.evaluate(() => {
         const e2e = (globalThis as unknown as Record<string, unknown>)
           .__e2e as { phase?: string } | undefined;
         return e2e?.phase ?? "";
       });
     },
-    mode: async (): Promise<string> => {
+    mode: (): Promise<string> => {
       return this.page.evaluate(() => {
         const e2e = (globalThis as unknown as Record<string, unknown>)
           .__e2e as { mode?: string } | undefined;
         return e2e?.mode ?? "";
       });
     },
-    timer: async (): Promise<number> => {
+    timer: (): Promise<number> => {
       return this.page.evaluate(() => {
         const e2e = (globalThis as unknown as Record<string, unknown>)
           .__e2e as { timer?: number } | undefined;
@@ -491,7 +491,7 @@ export class E2EGame {
     /** Check if a button is visible. */
     isVisible: async (action: string): Promise<boolean> => {
       const el = this.page.locator(`[data-action="${action}"]`).first();
-      return el.isVisible();
+      return await el.isVisible();
     },
     dpad: {
       press: async (
@@ -511,7 +511,7 @@ export class E2EGame {
   // --- Network ---
 
   readonly network = {
-    getMessages: async (): Promise<
+    getMessages: (): Promise<
       { dir: "in" | "out"; type: string; time: number }[]
     > => {
       return this.page.evaluate(() => {
@@ -532,7 +532,7 @@ export class E2EGame {
     wx: number,
     wy: number,
   ): Promise<{ cx: number; cy: number }> {
-    return this.page.evaluate(
+    return await this.page.evaluate(
       ([worldX, worldY]: [number, number]) => {
         const e2e = (globalThis as unknown as Record<string, unknown>)
           .__e2e as {
@@ -557,7 +557,7 @@ export class E2EGame {
     row: number,
     col: number,
   ): Promise<{ cx: number; cy: number }> {
-    return this.worldToClient(
+    return await this.worldToClient(
       (col + 0.5) * TILE_SIZE,
       (row + 0.5) * TILE_SIZE,
     );

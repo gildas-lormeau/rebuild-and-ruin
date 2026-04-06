@@ -19,7 +19,7 @@ import {
 } from "../src/game/build-system.ts";
 import { addPlayerWall, deletePlayerWallBattle, markWallsDirty } from "../src/shared/board-occupancy.ts";
 import { packTile } from "../src/shared/spatial.ts";
-import { assert } from "jsr:@std/assert";
+import { assert } from "@std/assert";
 import { parseBoard } from "./test-helpers.ts";
 
 // ---------------------------------------------------------------------------

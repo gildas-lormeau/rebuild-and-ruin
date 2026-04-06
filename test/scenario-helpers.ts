@@ -59,7 +59,7 @@ import { type CameraSystem, type FrameContext } from "../src/runtime/runtime-typ
 import { emptyFreshInterior } from "../src/shared/player-types.ts";
 import type { GameState } from "../src/shared/types.ts";
 import { isGrass, packTile } from "../src/shared/spatial.ts";
-import { assert } from "jsr:@std/assert";
+import { assert } from "@std/assert";
 import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { applyBattleStartCheckpoint, applyBuildEndCheckpoint, applyBuildStartCheckpoint, applyCannonStartCheckpoint, type CheckpointDeps } from "../src/online/online-checkpoints.ts";
 import { Phase } from "../src/shared/game-phase.ts";

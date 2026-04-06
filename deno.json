@@ -2,5 +2,8 @@
   "unstable": ["sloppy-imports"],
   "compilerOptions": {
     "lib": ["esnext", "dom", "dom.iterable", "deno.ns"]
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert"
   }
 }

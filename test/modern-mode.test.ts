@@ -53,7 +53,7 @@ import { generateUpgradeOffers } from "../src/game/phase-setup.ts";
 import { showUpgradePickBanner } from "../src/game/phase-transition-steps.ts";
 import { createUpgradePickDialog } from "../src/game/upgrade-pick.ts";
 import { createScenario } from "./scenario-helpers.ts";
-import { assert } from "jsr:@std/assert";
+import { assert } from "@std/assert";
 import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/player-slot.ts";
 
 // ---------------------------------------------------------------------------

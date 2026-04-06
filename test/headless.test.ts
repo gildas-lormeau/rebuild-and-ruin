@@ -323,7 +323,7 @@ if (violations.length > 0) {
       console.log(`       game=${v.game} round=${v.round} phase=${v.phase}`);
     }
   }
-  process.exit(1);
+  Deno.exit(1);
 } else {
   console.log("\nNo violations found! All invariants hold.");
 }

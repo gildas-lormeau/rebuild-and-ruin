@@ -9,7 +9,7 @@
  */
 
 import { createScenario } from "./scenario-helpers.ts";
-import { assert } from "jsr:@std/assert";
+import { assert } from "@std/assert";
 
 // ---------------------------------------------------------------------------
 // Types

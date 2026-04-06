@@ -8,7 +8,7 @@ import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { emptyFreshInterior, type Player } from "../src/shared/player-types.ts";
 import type { GameState } from "../src/shared/types.ts";
 import { Phase } from "../src/shared/game-phase.ts";
-import { assert } from "jsr:@std/assert";
+import { assert } from "@std/assert";
 
 // ---------------------------------------------------------------------------
 // ASCII helpers

@@ -16,6 +16,9 @@
     }
   },
   "workspace": {
+    "dependencies": [
+      "jsr:@std/assert@*"
+    ],
     "packageJson": {
       "dependencies": [
         "npm:@biomejs/biome@2.4.8",

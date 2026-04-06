@@ -7,7 +7,7 @@
  * Run with: deno test --no-check test/online-unit.test.ts
  */
 
-import { assert, assertEquals } from "jsr:@std/assert";
+import { assert, assertEquals } from "@std/assert";
 import { MESSAGE, type FullStateMessage, type ServerMessage } from "../server/protocol.ts";
 import { createDedupChannel } from "../src/shared/phantom-types.ts";
 import { runBuildEndSequence } from "../src/game/phase-transition-steps.ts";
