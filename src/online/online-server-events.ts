@@ -101,44 +101,41 @@ export interface HandleServerIncrementalDeps {
 
 type TowerSelectedMsg = Extract<
   ServerMessage,
-  { type: "opponent_tower_selected" }
+  { type: "opponentTowerSelected" }
 >;
 
-type PiecePlacedMsg = Extract<ServerMessage, { type: "opponent_piece_placed" }>;
+type PiecePlacedMsg = Extract<ServerMessage, { type: "opponentPiecePlaced" }>;
 
-type CannonPlacedMsg = Extract<
-  ServerMessage,
-  { type: "opponent_cannon_placed" }
->;
+type CannonPlacedMsg = Extract<ServerMessage, { type: "opponentCannonPlaced" }>;
 
-type CannonFiredMsg = Extract<ServerMessage, { type: "cannon_fired" }>;
+type CannonFiredMsg = Extract<ServerMessage, { type: "cannonFired" }>;
 
 type ImpactMsg = Extract<
   ServerMessage,
   {
     type:
-      | "wall_destroyed"
-      | "cannon_damaged"
-      | "house_destroyed"
-      | "grunt_killed"
-      | "grunt_spawned"
-      | "pit_created"
-      | "ice_thawed";
+      | "wallDestroyed"
+      | "cannonDamaged"
+      | "houseDestroyed"
+      | "gruntKilled"
+      | "gruntSpawned"
+      | "pitCreated"
+      | "iceThawed";
   }
 >;
 
-type AimUpdateMsg = Extract<ServerMessage, { type: "aim_update" }>;
+type AimUpdateMsg = Extract<ServerMessage, { type: "aimUpdate" }>;
 
-type TowerKilledMsg = Extract<ServerMessage, { type: "tower_killed" }>;
+type TowerKilledMsg = Extract<ServerMessage, { type: "towerKilled" }>;
 
-type PiecePhantomMsg = Extract<ServerMessage, { type: "opponent_phantom" }>;
+type PiecePhantomMsg = Extract<ServerMessage, { type: "opponentPhantom" }>;
 
 type CannonPhantomMsg = Extract<
   ServerMessage,
-  { type: "opponent_cannon_phantom" }
+  { type: "opponentCannonPhantom" }
 >;
 
-type LifeLostChoiceMsg = Extract<ServerMessage, { type: "life_lost_choice" }>;
+type LifeLostChoiceMsg = Extract<ServerMessage, { type: "lifeLostChoice" }>;
 
 /** Result of handling a server message.
  *  `applied` = true when the message mutated game state.
@@ -148,7 +145,7 @@ interface HandleResult {
   applied: boolean;
 }
 
-type UpgradePickMsg = Extract<ServerMessage, { type: "upgrade_pick" }>;
+type UpgradePickMsg = Extract<ServerMessage, { type: "upgradePick" }>;
 
 const APPLIED: HandleResult = { applied: true };
 const DROPPED: HandleResult = { applied: false };

@@ -491,7 +491,7 @@ function serializeGrunts(state: GameState) {
 function deserializeGrunt(grunt: SerializedGrunt): GameState["grunts"][number] {
   return {
     ...gruntWireFields(grunt),
-    blockedBattles: grunt.blockedBattles ?? 0,
+    blockedRounds: grunt.blockedRounds ?? 0,
   };
 }
 
@@ -504,9 +504,9 @@ function gruntWireFields(grunt: SerializedGrunt): SerializedGrunt {
     col: grunt.col,
     victimPlayerId: grunt.victimPlayerId,
     targetTowerIdx: grunt.targetTowerIdx,
-    attackTimer: grunt.attackTimer,
-    blockedBattles: grunt.blockedBattles,
-    wallAttack: grunt.wallAttack,
+    attackCountdown: grunt.attackCountdown,
+    blockedRounds: grunt.blockedRounds,
+    attackingWall: grunt.attackingWall,
     facing: grunt.facing,
   };
 }

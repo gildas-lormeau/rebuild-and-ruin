@@ -48,7 +48,7 @@ import {
  * Called each battle tick with dt in seconds.
  */
 interface GruntAttackEvent {
-  type: "tower_killed";
+  type: "towerKilled";
   towerIdx: number;
 }
 
@@ -212,7 +212,7 @@ export function gruntAttackTowers(
   const events: GruntAttackEvent[] = [];
   for (const grunt of state.grunts) {
     // Wall attack: executing decision made by rollGruntWallAttacks() at battle start
-    if (grunt.wallAttack) {
+    if (grunt.attackingWall) {
       const target = getGruntTargetTower(state, grunt);
       const bestWallKey = pickAdjacentWallKeyForAttack(
         state,
@@ -225,12 +225,12 @@ export function gruntAttackTowers(
           // Destroy wall but stay in place
           // Interior intentionally stale during battle; recheckTerritoryOnly() runs at next build phase.
           removeWallFromAllPlayers(state, bestWallKey);
-          grunt.wallAttack = false;
+          grunt.attackingWall = false;
         }
         continue;
       }
       // No wall found — stop wall attack
-      grunt.wallAttack = false;
+      grunt.attackingWall = false;
     }
 
     // Check if adjacent to an alive tower (skip eliminated players)
@@ -250,14 +250,14 @@ export function gruntAttackTowers(
       }
     } else {
       // Reset timer if no longer adjacent to a tower
-      grunt.attackTimer = undefined;
+      grunt.attackCountdown = undefined;
     }
   }
   return events;
 }
 
 /**
- * Called at end of battle: update blockedBattles counter for each grunt.
+ * Called at end of battle: update blockedRounds counter for each grunt.
  * A grunt is "blocked" if it has an alive target tower but is not adjacent to it.
  */
 export function updateGruntBlockedBattles(state: GameState): void {
@@ -273,12 +273,12 @@ export function updateGruntBlockedBattles(state: GameState): void {
     );
 
     if (adjacent) {
-      grunt.blockedBattles = 0;
+      grunt.blockedRounds = 0;
     } else {
-      grunt.blockedBattles += 1;
+      grunt.blockedRounds += 1;
     }
     // Clear wall attack state (decision does not persist across rounds)
-    grunt.wallAttack = false;
+    grunt.attackingWall = false;
   }
 }
 
@@ -286,14 +286,14 @@ export function updateGruntBlockedBattles(state: GameState): void {
  * Called at start of battle: blocked grunts (≥2 battles) with alive target
  * have 1/4 chance to attack an adjacent wall.
  */
-/** wallAttack lifecycle: rollGruntWallAttacks (set) → gruntAttackTowers (execute) →
+/** attackingWall lifecycle: rollGruntWallAttacks (set) → gruntAttackTowers (execute) →
  *  updateGruntBlockedBattles (clear). All three run during BATTLE phase only. */
 export function rollGruntWallAttacks(state: GameState): void {
   for (const grunt of state.grunts) {
     if (!canAttemptWallAttack(state, grunt)) continue;
 
     if (state.rng.bool(GRUNT_WALL_ATTACK_CHANCE)) {
-      grunt.wallAttack = true;
+      grunt.attackingWall = true;
     }
   }
 }
@@ -308,7 +308,7 @@ function addGrunt(state: GameState, row: number, col: number): void {
     row,
     col,
     victimPlayerId: zoneOwnerIdAt(state, row, col),
-    blockedBattles: 0,
+    blockedRounds: 0,
   });
 }
 
@@ -433,9 +433,9 @@ function canAttemptWallAttack(state: GameState, grunt: Grunt): boolean {
 }
 
 function hasBlockedBattlesForWallAttack(
-  grunt: Pick<Grunt, "blockedBattles">,
+  grunt: Pick<Grunt, "blockedRounds">,
 ): boolean {
-  return grunt.blockedBattles >= GRUNT_WALL_ATTACK_MIN_BATTLES;
+  return grunt.blockedRounds >= GRUNT_WALL_ATTACK_MIN_BATTLES;
 }
 
 function hasAdjacentWall(state: GameState, row: number, col: number): boolean {
@@ -443,12 +443,12 @@ function hasAdjacentWall(state: GameState, row: number, col: number): boolean {
 }
 
 function tickGruntAttackTimer(grunt: Grunt, dt: number): boolean {
-  if (grunt.attackTimer === undefined) {
-    grunt.attackTimer = GRUNT_ATTACK_DURATION;
+  if (grunt.attackCountdown === undefined) {
+    grunt.attackCountdown = GRUNT_ATTACK_DURATION;
   }
-  grunt.attackTimer -= dt;
-  if (grunt.attackTimer <= 0) {
-    grunt.attackTimer = undefined;
+  grunt.attackCountdown -= dt;
+  if (grunt.attackCountdown <= 0) {
+    grunt.attackCountdown = undefined;
     return true;
   }
   return false;

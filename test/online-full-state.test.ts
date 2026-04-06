@@ -117,8 +117,8 @@ test("full-state round-trip preserves cannons with modes and facings", () => {
 test("full-state round-trip preserves grunts", () => {
   const { host, watcher } = createPair(42);
   host.state.grunts = [
-    { row: 10, col: 15, victimPlayerId: 0 as ValidPlayerSlot, targetTowerIdx: 1, attackTimer: 0.5, blockedBattles: 1, wallAttack: true, facing: 2 },
-    { row: 20, col: 25, victimPlayerId: 1 as ValidPlayerSlot, blockedBattles: 0 },
+    { row: 10, col: 15, victimPlayerId: 0 as ValidPlayerSlot, targetTowerIdx: 1, attackCountdown: 0.5, blockedRounds: 1, attackingWall: true, facing: 2 },
+    { row: 20, col: 25, victimPlayerId: 1 as ValidPlayerSlot, blockedRounds: 0 },
   ];
 
   const msg = createFullStateMessage(host.state, 1);
@@ -128,7 +128,7 @@ test("full-state round-trip preserves grunts", () => {
   assert(watcher.state.grunts.length === 2, `expected 2 grunts, got ${watcher.state.grunts.length}`);
   assert(watcher.state.grunts[0]!.row === 10, "grunt 0 row");
   assert(watcher.state.grunts[0]!.targetTowerIdx === 1, "grunt 0 targetTowerIdx");
-  assert(watcher.state.grunts[0]!.wallAttack === true, "grunt 0 wallAttack");
+  assert(watcher.state.grunts[0]!.attackingWall === true, "grunt 0 attackingWall");
   assert(watcher.state.grunts[1]!.victimPlayerId === 1, "grunt 1 victimPlayerId");
 });
 

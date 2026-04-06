@@ -206,7 +206,7 @@ Grunts move 1 tile per second during the build phase:
 
 #### Wall Attacks (Battle Phase, blocked grunts)
 
-- At each battle's end, grunts that were blocked (not adjacent to their alive target tower) increment a `blockedBattles` counter.
+- At each battle's end, grunts that were blocked (not adjacent to their alive target tower) increment a `blockedRounds` counter.
 - At the start of the next battle, grunts blocked for **≥2 battles** with an adjacent wall have a **25% chance** to attack that wall.
 - Wall attack uses the same 3-second timer; destroys one wall tile closest to the target tower.
 

@@ -4,49 +4,49 @@
 
 export const MESSAGE = {
   // Client → Server
-  CREATE_ROOM: "create_room",
-  JOIN_ROOM: "join_room",
-  SELECT_SLOT: "select_slot",
-  LIFE_LOST_CHOICE: "life_lost_choice",
-  UPGRADE_PICK: "upgrade_pick",
+  CREATE_ROOM: "createRoom",
+  JOIN_ROOM: "joinRoom",
+  SELECT_SLOT: "selectSlot",
+  LIFE_LOST_CHOICE: "lifeLostChoice",
+  UPGRADE_PICK: "upgradePick",
   PING: "ping",
   // Lobby
-  ROOM_CREATED: "room_created",
-  ROOM_JOINED: "room_joined",
-  ROOM_ERROR: "room_error",
+  ROOM_CREATED: "roomCreated",
+  ROOM_JOINED: "roomJoined",
+  ROOM_ERROR: "roomError",
   JOINED: "joined",
-  PLAYER_JOINED: "player_joined",
-  PLAYER_LEFT: "player_left",
+  PLAYER_JOINED: "playerJoined",
+  PLAYER_LEFT: "playerLeft",
   // Checkpoints
   INIT: "init",
-  SELECT_START: "select_start",
-  BUILD_START: "build_start",
-  CANNON_START: "cannon_start",
-  BATTLE_START: "battle_start",
-  BUILD_END: "build_end",
-  GAME_OVER: "game_over",
-  FULL_STATE: "full_state",
+  SELECT_START: "selectStart",
+  BUILD_START: "buildStart",
+  CANNON_START: "cannonStart",
+  BATTLE_START: "battleStart",
+  BUILD_END: "buildEnd",
+  GAME_OVER: "gameOver",
+  FULL_STATE: "fullState",
   // Build/Cannon events
-  OPPONENT_PIECE_PLACED: "opponent_piece_placed",
-  OPPONENT_PHANTOM: "opponent_phantom",
-  OPPONENT_CANNON_PLACED: "opponent_cannon_placed",
-  OPPONENT_CANNON_PHANTOM: "opponent_cannon_phantom",
-  OPPONENT_TOWER_SELECTED: "opponent_tower_selected",
+  OPPONENT_PIECE_PLACED: "opponentPiecePlaced",
+  OPPONENT_PHANTOM: "opponentPhantom",
+  OPPONENT_CANNON_PLACED: "opponentCannonPlaced",
+  OPPONENT_CANNON_PHANTOM: "opponentCannonPhantom",
+  OPPONENT_TOWER_SELECTED: "opponentTowerSelected",
   // Animation
-  CASTLE_WALLS: "castle_walls",
+  CASTLE_WALLS: "castleWalls",
   // Battle events
-  CANNON_FIRED: "cannon_fired",
-  WALL_DESTROYED: "wall_destroyed",
-  CANNON_DAMAGED: "cannon_damaged",
-  GRUNT_KILLED: "grunt_killed",
-  HOUSE_DESTROYED: "house_destroyed",
-  GRUNT_SPAWNED: "grunt_spawned",
-  PIT_CREATED: "pit_created",
-  ICE_THAWED: "ice_thawed",
-  TOWER_KILLED: "tower_killed",
-  AIM_UPDATE: "aim_update",
+  CANNON_FIRED: "cannonFired",
+  WALL_DESTROYED: "wallDestroyed",
+  CANNON_DAMAGED: "cannonDamaged",
+  GRUNT_KILLED: "gruntKilled",
+  HOUSE_DESTROYED: "houseDestroyed",
+  GRUNT_SPAWNED: "gruntSpawned",
+  PIT_CREATED: "pitCreated",
+  ICE_THAWED: "iceThawed",
+  TOWER_KILLED: "towerKilled",
+  AIM_UPDATE: "aimUpdate",
   // Host migration
-  HOST_LEFT: "host_left",
+  HOST_LEFT: "hostLeft",
 } as const;
 
 import type { CannonMode } from "../src/shared/battle-types.ts";
@@ -110,13 +110,13 @@ export function sanitizeRoomSettings(raw: Partial<RoomSettings>): RoomSettings {
 
 export type ClientMessage =
   // Lobby (pre-game)
-  | { type: "create_room"; settings: RoomSettings }
-  | { type: "join_room"; code: string }
+  | { type: "createRoom"; settings: RoomSettings }
+  | { type: "joinRoom"; code: string }
   // Lobby (in room)
-  | { type: "select_slot"; playerId: ValidPlayerSlot }
+  | { type: "selectSlot"; playerId: ValidPlayerSlot }
   // In-game
-  | { type: "life_lost_choice"; choice: ResolvedChoice; playerId?: number }
-  | { type: "upgrade_pick"; playerId: ValidPlayerSlot; choice: string }
+  | { type: "lifeLostChoice"; choice: ResolvedChoice; playerId?: number }
+  | { type: "upgradePick"; playerId: ValidPlayerSlot; choice: string }
   | { type: "ping" };
 
 // ---------------------------------------------------------------------------
@@ -154,7 +154,7 @@ export interface JoinedMessage {
 
 /** Room was created successfully. */
 export interface RoomCreatedMessage {
-  type: "room_created";
+  type: "roomCreated";
   code: string;
   settings: RoomSettings;
   seed: number;
@@ -162,7 +162,7 @@ export interface RoomCreatedMessage {
 
 /** Player successfully joined a room. */
 export interface RoomJoinedMessage {
-  type: "room_joined";
+  type: "roomJoined";
   code: string;
   players: { playerId: ValidPlayerSlot; name: string }[];
   settings: RoomSettings;
@@ -175,7 +175,7 @@ export interface RoomJoinedMessage {
 
 /** Another player joined the room. */
 export interface PlayerJoinedMessage {
-  type: "player_joined";
+  type: "playerJoined";
   playerId: ValidPlayerSlot;
   name: string;
   /** Slot the player occupied before this selection, or undefined if this is
@@ -185,13 +185,13 @@ export interface PlayerJoinedMessage {
 
 /** A player left the room. */
 export interface PlayerLeftMessage {
-  type: "player_left";
+  type: "playerLeft";
   playerId: ValidPlayerSlot;
 }
 
 /** Lobby error (room not found, full, etc.). */
 export interface RoomErrorMessage {
-  type: "room_error";
+  type: "roomError";
   message: string;
 }
 
@@ -201,7 +201,7 @@ export interface RoomErrorMessage {
 
 /** Start tower selection (first round or reselection after life loss). */
 export interface SelectStartMessage {
-  type: "select_start";
+  type: "selectStart";
   timer: number;
 }
 
@@ -212,22 +212,22 @@ export interface SelectStartMessage {
 
 /** Start of cannon placement phase. */
 export interface CannonStartMessage extends CannonStartData {
-  type: "cannon_start";
+  type: "cannonStart";
 }
 
 /** Start of battle (after balloon resolution, grunt spawning, wall sweep). */
 export interface BattleStartMessage extends BattleStartData {
-  type: "battle_start";
+  type: "battleStart";
 }
 
 /** Start of build phase — full reconciliation point. */
 export interface BuildStartMessage extends BuildStartData {
-  type: "build_start";
+  type: "buildStart";
 }
 
 /** End of build phase — results of wall sweep, territory claim, life check. */
 export interface BuildEndMessage {
-  type: "build_end";
+  type: "buildEnd";
   needsReselect: ValidPlayerSlot[];
   eliminated: ValidPlayerSlot[];
   scores: number[];
@@ -236,7 +236,7 @@ export interface BuildEndMessage {
 
 /** Game over. */
 export interface GameOverMessage {
-  type: "game_over";
+  type: "gameOver";
   winner: string;
   scores: { name: string; score: number; eliminated: boolean }[];
 }
@@ -247,7 +247,7 @@ export interface GameOverMessage {
 
 /** Host disconnected — server tells all clients who the new host is. */
 export interface HostLeftMessage {
-  type: "host_left";
+  type: "hostLeft";
   /** PlayerId of the promoted player, or null if no human available (watcher fallback). */
   newHostPlayerId: ValidPlayerSlot | null;
   /** PlayerId of the departed host, or null if the host never selected a slot. */
@@ -256,7 +256,7 @@ export interface HostLeftMessage {
 
 /** Full game state snapshot sent by new host after promotion for watcher reconciliation. */
 export interface FullStateMessage {
-  type: "full_state";
+  type: "fullState";
   /** Monotonic host-migration sequence used to reject stale snapshots. */
   migrationSeq?: number;
   phase: string;
@@ -320,7 +320,7 @@ export interface FullStateMessage {
 
 /** An opponent (AI) placed a wall piece. */
 export interface OpponentPiecePlacedMessage {
-  type: "opponent_piece_placed";
+  type: "opponentPiecePlaced";
   playerId: ValidPlayerSlot;
   row: number;
   col: number;
@@ -329,7 +329,7 @@ export interface OpponentPiecePlacedMessage {
 
 /** An opponent's phantom piece position (for rendering ghost). */
 export interface OpponentPhantomMessage {
-  type: "opponent_phantom";
+  type: "opponentPhantom";
   playerId: ValidPlayerSlot;
   row: number;
   col: number;
@@ -339,7 +339,7 @@ export interface OpponentPhantomMessage {
 
 /** An opponent (AI) placed a cannon. */
 export interface OpponentCannonPlacedMessage {
-  type: "opponent_cannon_placed";
+  type: "opponentCannonPlaced";
   playerId: ValidPlayerSlot;
   row: number;
   col: number;
@@ -348,7 +348,7 @@ export interface OpponentCannonPlacedMessage {
 
 /** An opponent's phantom cannon position (for rendering ghost). */
 export interface OpponentCannonPhantomMessage {
-  type: "opponent_cannon_phantom";
+  type: "opponentCannonPhantom";
   playerId: ValidPlayerSlot;
   row: number;
   col: number;
@@ -358,7 +358,7 @@ export interface OpponentCannonPhantomMessage {
 
 /** An opponent confirmed their tower selection. */
 export interface OpponentTowerSelectedMessage {
-  type: "opponent_tower_selected";
+  type: "opponentTowerSelected";
   playerId: ValidPlayerSlot;
   towerIdx: number;
   confirmed?: boolean;
@@ -370,7 +370,7 @@ export interface OpponentTowerSelectedMessage {
 
 /** Ordered wall tiles for castle construction animation (round 1 / reselection). */
 export interface CastleWallsMessage {
-  type: "castle_walls";
+  type: "castleWalls";
   plans: { playerId: ValidPlayerSlot; tiles: number[] }[];
 }
 
@@ -380,7 +380,7 @@ export interface CastleWallsMessage {
 
 /** A cannon was fired (own or opponent). Client creates local cannonball. */
 export interface CannonFiredMessage {
-  type: "cannon_fired";
+  type: "cannonFired";
   playerId: ValidPlayerSlot;
   cannonIdx: number;
   startX: number;
@@ -393,7 +393,7 @@ export interface CannonFiredMessage {
 
 /** A wall tile was destroyed by impact. */
 export interface WallDestroyedMessage {
-  type: "wall_destroyed";
+  type: "wallDestroyed";
   row: number;
   col: number;
   playerId: ValidPlayerSlot;
@@ -402,7 +402,7 @@ export interface WallDestroyedMessage {
 
 /** A cannon took damage (destroyed when newHp <= 0). */
 export interface CannonDamagedMessage {
-  type: "cannon_damaged";
+  type: "cannonDamaged";
   playerId: ValidPlayerSlot;
   cannonIdx: number;
   newHp: number;
@@ -411,7 +411,7 @@ export interface CannonDamagedMessage {
 
 /** A grunt was killed by a cannonball. */
 export interface GruntKilledMessage {
-  type: "grunt_killed";
+  type: "gruntKilled";
   row: number;
   col: number;
   shooterId?: number;
@@ -419,7 +419,7 @@ export interface GruntKilledMessage {
 
 /** A house was destroyed by a cannonball. */
 export interface HouseDestroyedMessage {
-  type: "house_destroyed";
+  type: "houseDestroyed";
   row: number;
   col: number;
 }
@@ -427,7 +427,7 @@ export interface HouseDestroyedMessage {
 /** A grunt was spawned (from house destruction or inter-battle).
  *  victimPlayerId = the zone owner where the grunt spawned. */
 export interface GruntSpawnedMessage {
-  type: "grunt_spawned";
+  type: "gruntSpawned";
   row: number;
   col: number;
   victimPlayerId: ValidPlayerSlot;
@@ -435,7 +435,7 @@ export interface GruntSpawnedMessage {
 
 /** A burning pit was created by an incendiary cannonball. */
 export interface PitCreatedMessage {
-  type: "pit_created";
+  type: "pitCreated";
   row: number;
   col: number;
   roundsLeft: number;
@@ -443,34 +443,34 @@ export interface PitCreatedMessage {
 
 /** A frozen water tile was thawed by a cannonball impact. */
 export interface IceThawedMessage {
-  type: "ice_thawed";
+  type: "iceThawed";
   row: number;
   col: number;
 }
 
 /** A tower was destroyed by a grunt. */
 export interface TowerKilledMessage {
-  type: "tower_killed";
+  type: "towerKilled";
   towerIdx: number;
 }
 
 /** Life-lost choice forwarded from a non-host client to the host. */
 export interface LifeLostChoiceForwardedMessage {
-  type: "life_lost_choice";
+  type: "lifeLostChoice";
   playerId: ValidPlayerSlot;
   choice: ResolvedChoice;
 }
 
 /** Upgrade pick choice forwarded from a non-host client to the host. */
 export interface UpgradePickForwardedMessage {
-  type: "upgrade_pick";
+  type: "upgradePick";
   playerId: ValidPlayerSlot;
   choice: string;
 }
 
 /** Crosshair position update (for spectator rendering, not validated). */
 export interface AimUpdateMessage {
-  type: "aim_update";
+  type: "aimUpdate";
   playerId: ValidPlayerSlot;
   x: number;
   y: number;

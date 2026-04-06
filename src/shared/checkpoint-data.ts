@@ -21,9 +21,9 @@ export interface SerializedGrunt {
   col: number;
   victimPlayerId: ValidPlayerSlot;
   targetTowerIdx?: number;
-  attackTimer?: number;
-  blockedBattles?: number;
-  wallAttack?: boolean;
+  attackCountdown?: number;
+  blockedRounds?: number;
+  attackingWall?: boolean;
   facing?: number;
 }
 

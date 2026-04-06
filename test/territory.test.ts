@@ -351,9 +351,9 @@ test("grunt on owned tile (interior) is swept", () => {
     victimPlayerId: 0,
     targetTowerIdx: 0,
     facing: 0,
-    blockedBattles: 0,
-    wallAttack: false,
-    attackTimer: 0,
+    blockedRounds: 0,
+    attackingWall: false,
+    attackCountdown: 0,
   } as typeof state.grunts[0]);
   reclaimTerritory(state);
   assert(state.grunts.length === 0, "grunt on interior should be swept");

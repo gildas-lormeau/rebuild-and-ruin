@@ -34,6 +34,7 @@
  */
 
 import { chromium, devices, type Page, type Browser } from "playwright";
+import { MESSAGE } from "../server/protocol.ts";
 import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import process from "node:process";
 import { Buffer } from "node:buffer";
@@ -1061,7 +1062,7 @@ async function runOnline() {
   analyzeResults(allActions, clientLogs, actionLabels, clientLabels, `online-${NUM_HUMANS}h`);
 
   // Online-specific: critical messages check
-  const critical = ["castle_walls", "cannon_start", "battle_start", "build_start"];
+  const critical = [MESSAGE.CASTLE_WALLS, MESSAGE.CANNON_START, MESSAGE.BATTLE_START, MESSAGE.BUILD_START];
   for (let i = 1; i < clientLabels.length; i++) {
     const counts = countMessageTypes(clientLogs[i]!);
     const missing = critical.filter(t => !counts[t]);
@@ -1300,8 +1301,8 @@ function analyzeResults(
   // Game over
   log(`\n=== GAME OVER ===`);
   for (let i = 0; i < clientLabels.length; i++) {
-    const saw = clientLogs[i]!.some(l => l.includes("game_over") || l.includes("endGame"));
-    log(`  ${clientLabels[i]} saw game_over: ${saw}`);
+    const saw = clientLogs[i]!.some(l => l.includes(MESSAGE.GAME_OVER) || l.includes("endGame"));
+    log(`  ${clientLabels[i]} saw ${MESSAGE.GAME_OVER}: ${saw}`);
   }
 
   // Life-lost
@@ -1309,7 +1310,7 @@ function analyzeResults(
   for (let i = 0; i < clientLabels.length; i++) {
     for (const l of clientLogs[i]!) {
       if (l.includes("showLifeLostDialog") || l.includes("lifeLostDialog resolved") ||
-          l.includes("life_lost_choice") || l.includes("dismissing stale")) {
+          l.includes(MESSAGE.LIFE_LOST_CHOICE) || l.includes("dismissing stale")) {
         log(`  ${clientLabels[i]}: ${l}`);
       }
     }

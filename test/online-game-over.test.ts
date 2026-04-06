@@ -1,0 +1,88 @@
+/**
+ * E2E test: full 1-round online game through the browser + WebSocket relay.
+ *
+ * Launches a Playwright browser with a host (0 humans, 3 AI) and a watcher.
+ * The host creates a 1-round room, the watcher joins. The game runs to
+ * completion and the test verifies the watcher received gameOver.
+ *
+ * Requires: vite dev server (port 5173) + deno task server (port 8001)
+ * Run with: bun test test/online-game-over.test.ts
+ */
+
+import { expect, test } from "bun:test";
+import { chromium, type Page } from "playwright";
+import { MESSAGE } from "../server/protocol.ts";
+
+const PAGE_URL = "http://localhost:5173/?server=localhost:8001";
+
+function collectLogs(page: Page, logs: string[]): void {
+  page.on("console", (msg) => logs.push(msg.text()));
+}
+
+async function createRoom(page: Page): Promise<string> {
+  await page.goto(PAGE_URL);
+  await page.click("#btn-online");
+  await page.waitForSelector("#page-online[data-ready]", { timeout: 10000 });
+  await page.selectOption("#create-wait", "2");
+  await page.selectOption("#create-rounds", "1");
+  await page.click("#btn-create-confirm");
+  await page.waitForFunction(
+    () => document.getElementById("page-online")?.hidden === true,
+    { timeout: 30000 },
+  );
+  await page.waitForTimeout(300);
+  const code = await page.evaluate(() => {
+    const el = document.getElementById("room-code-overlay");
+    return el?.innerText?.trim()?.match(/[A-Z]{4}/)?.[0] ?? "";
+  });
+  if (code.length !== 4) throw new Error("Failed to extract room code");
+  return code;
+}
+
+async function joinRoom(page: Page, code: string): Promise<void> {
+  await page.goto(PAGE_URL);
+  await page.click("#btn-online");
+  await page.waitForSelector("#page-online[data-ready]", { timeout: 10000 });
+  await page.fill("#join-code", code);
+  await page.click("#btn-join-confirm");
+  await page.waitForFunction(
+    () => document.getElementById("page-online")?.hidden === true,
+    { timeout: 30000 },
+  );
+}
+
+test("1-round online game delivers gameOver to watcher via browser", async () => {
+  const browser = await chromium.launch({ headless: true });
+  const watcherLogs: string[] = [];
+
+  try {
+    const hostPage = await (await browser.newContext()).newPage();
+    const watcherPage = await (await browser.newContext()).newPage();
+    collectLogs(watcherPage, watcherLogs);
+
+    const code = await createRoom(hostPage);
+    await joinRoom(watcherPage, code);
+
+    // Poll host __e2e.mode until STOPPED (game over)
+    const deadline = Date.now() + 120_000;
+    let stopped = false;
+    while (Date.now() < deadline) {
+      const mode = await hostPage
+        .evaluate(() => (globalThis as any).__e2e?.mode ?? "")
+        .catch(() => "");
+      if (mode === "STOPPED") {
+        stopped = true;
+        break;
+      }
+      await hostPage.waitForTimeout(500);
+    }
+    expect(stopped).toBe(true);
+
+    const sawGameOver = watcherLogs.some((log) =>
+      log.includes(MESSAGE.GAME_OVER),
+    );
+    expect(sawGameOver).toBe(true);
+  } finally {
+    await browser.close();
+  }
+}, 150_000);

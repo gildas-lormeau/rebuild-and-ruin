@@ -311,7 +311,7 @@ export function applyImpactEvent(
         row: event.row,
         col: event.col,
         victimPlayerId: event.victimPlayerId,
-        blockedBattles: 0,
+        blockedRounds: 0,
       });
       break;
     case MESSAGE.GRUNT_KILLED: {

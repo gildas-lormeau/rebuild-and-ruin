@@ -7,12 +7,12 @@ export interface Grunt extends TilePos {
   /** Locked target tower index. Stays until the tower is destroyed. */
   targetTowerIdx?: number;
   /** Countdown (seconds) before killing an adjacent tower or wall. Starts at 3 when adjacent. */
-  attackTimer?: number;
+  attackCountdown?: number;
   /** Number of consecutive battles the grunt has been blocked (not adjacent to target tower).
    *  Initialized to 0 at spawn; incremented by updateGruntBlockedBattles at end of each battle. */
-  blockedBattles: number;
+  blockedRounds: number;
   /** If true, this grunt is attacking a wall tile during battle (decided at battle start). */
-  wallAttack?: boolean;
+  attackingWall?: boolean;
   /** Facing angle in radians (snapped to 90°). 0 = up. */
   facing?: number;
 }
