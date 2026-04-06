@@ -86,13 +86,13 @@ export interface RegisterOnlineInputDeps {
 
   // --- Options overlay ---
   options: {
-    show: () => Promise<void>;
-    click: (x: number, y: number) => void | Promise<void>;
+    show: () => void;
+    click: (x: number, y: number) => void;
     clickControls: (x: number, y: number) => void;
     cursorAt: (x: number, y: number) => string;
     controlsCursorAt: (x: number, y: number) => string;
     close: () => void;
-    showControls: () => Promise<void>;
+    showControls: () => void;
     closeControls: () => void;
     getCursor: () => number;
     setCursor: (cursor: number) => void;

@@ -60,7 +60,9 @@ import {
   type SoundSystem,
 } from "../shared/system-interfaces.ts";
 import {
+  ACCUM_BUILD,
   ACCUM_CANNON,
+  ACCUM_GRUNT,
   isRemoteHuman,
   resetAccum,
   type WatcherTimingState,
@@ -292,8 +294,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         !!runtimeState.state.players[pid]?.eliminated,
     );
     runtimeState.battleAnim.impacts = [];
-    resetAccum(runtimeState.accum, "grunt");
-    resetAccum(runtimeState.accum, "build");
+    resetAccum(runtimeState.accum, ACCUM_GRUNT);
+    resetAccum(runtimeState.accum, ACCUM_BUILD);
   }
 
   // -------------------------------------------------------------------------

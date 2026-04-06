@@ -92,13 +92,13 @@ interface InputSystemDeps {
     cursorAt: (x: number, y: number) => string;
   };
   readonly options: {
-    showOptions: () => Promise<void>;
-    clickOptions: (canvasX: number, canvasY: number) => void | Promise<void>;
+    showOptions: () => void;
+    clickOptions: (canvasX: number, canvasY: number) => void;
     clickControls: (canvasX: number, canvasY: number) => void;
     cursorAt: (canvasX: number, canvasY: number) => string;
     controlsCursorAt: (canvasX: number, canvasY: number) => string;
     closeOptions: () => void;
-    showControls: () => Promise<void>;
+    showControls: () => void;
     closeControls: () => void;
     changeOption: (dir: number) => void;
     visibleToActualOptionIdx: () => number;
@@ -364,9 +364,9 @@ function buildOptionsDeps(
     },
     getCount: visibleOptionCount,
     getRealIdx: options.visibleToActualOptionIdx,
-    confirmOption: async () => {
+    confirmOption: () => {
       if (options.visibleToActualOptionIdx() === OPT_CONTROLS)
-        await options.showControls();
+        options.showControls();
       else options.closeOptions();
     },
     getReturnMode: () => runtimeState.optionsUI.returnMode,
@@ -582,9 +582,9 @@ function buildOverlayActionDeps(
           (runtimeState.optionsUI.cursor + dir + count) % count;
       },
       changeValue: (dir: -1 | 1) => options.changeOption(dir),
-      confirm: async () => {
+      confirm: () => {
         if (options.visibleToActualOptionIdx() === OPT_CONTROLS)
-          await options.showControls();
+          options.showControls();
         else options.closeOptions();
       },
     },

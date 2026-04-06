@@ -18,7 +18,7 @@
  *   0  No new findings (or baseline updated)
  *   1  New findings detected (not in baseline)
  *
- * Baseline: .literals-baseline.json — committed to repo, tracks known duplicates.
+ * Baseline: .readonly-literals-baseline.json — committed to repo, tracks known duplicates.
  * Default behavior compares against baseline and only reports/fails on NEW entries.
  */
 
@@ -56,7 +56,7 @@ const filesFilter: string[] = (() => {
 const NUMERIC_EXCLUDED_FILES = new Set(["sprites.ts"]);
 
 const root = path.resolve(import.meta.dirname!, "..");
-const BASELINE_PATH = path.join(root, ".literals-baseline.json");
+const BASELINE_PATH = path.join(root, ".readonly-literals-baseline.json");
 
 const files = [
   ...globSync("src/**/*.ts", { cwd: root }),
@@ -349,7 +349,7 @@ const numberResults = applyFileScope([...numberCounts.entries()]
 if (updateBaseline) {
   saveBaseline(stringResults, numberResults);
   const total = stringResults.length + numberResults.length;
-  console.log(`Baseline updated: ${total} entries saved to .literals-baseline.json`);
+  console.log(`Baseline updated: ${total} entries saved to .readonly-literals-baseline.json`);
   process.exit(0);
 }
 

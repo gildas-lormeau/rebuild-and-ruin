@@ -9,19 +9,11 @@
   },
   {
     "type": "number",
-    "key": "110"
-  },
-  {
-    "type": "number",
     "key": "150"
   },
   {
     "type": "number",
     "key": "16"
-  },
-  {
-    "type": "number",
-    "key": "170"
   },
   {
     "type": "number",
@@ -82,9 +74,5 @@
   {
     "type": "number",
     "key": "50"
-  },
-  {
-    "type": "number",
-    "key": "90"
   }
 ]

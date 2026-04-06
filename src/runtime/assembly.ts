@@ -103,7 +103,7 @@ interface RuntimeLobbyDeps {
   uiCtx: UIContext;
   renderFrame: RenderFrameFn;
   refreshLobbySeed: () => void;
-  showOptions: () => Promise<void>;
+  showOptions: () => void;
   isOnline: boolean;
   onTickLobbyExpired: () => void | Promise<void>;
   onLobbySlotJoined: (pid: ValidPlayerSlot) => void;

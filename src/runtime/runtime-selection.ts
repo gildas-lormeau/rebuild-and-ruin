@@ -48,7 +48,11 @@ import {
   type PlayerController,
   type SoundSystem,
 } from "../shared/system-interfaces.ts";
-import { isRemoteHuman, resetAccum } from "../shared/tick-context.ts";
+import {
+  ACCUM_SELECT,
+  isRemoteHuman,
+  resetAccum,
+} from "../shared/tick-context.ts";
 import type { SelectionState } from "../shared/types.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { fireOnce } from "../shared/utils.ts";
@@ -425,7 +429,7 @@ export function createSelectionSystem(
 
     if (needsUI) {
       syncSelectionOverlay();
-      resetAccum(runtimeState.accum, "select");
+      resetAccum(runtimeState.accum, ACCUM_SELECT);
       runtimeState.state.timer = SELECT_TIMER;
       setMode(runtimeState, Mode.SELECTION);
       deps.sound.drumsStart();

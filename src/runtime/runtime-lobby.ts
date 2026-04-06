@@ -31,7 +31,7 @@ interface LobbySystemDeps {
     viewport?: Viewport | null,
   ) => void;
   refreshLobbySeed: () => void;
-  showOptions: () => Promise<void>;
+  showOptions: () => void;
   isOnline: boolean;
   onTickLobbyExpired: () => void | Promise<void>;
   onLobbySlotJoined: (pid: ValidPlayerSlot) => void;

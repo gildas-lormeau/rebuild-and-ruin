@@ -7,6 +7,9 @@ type ComboTracker = NonNullable<ModernState["comboTracker"]>;
 
 type ComboPlayerState = ComboTracker["players"][number];
 
+/** Combo impact kinds — used by battle-system callers. */
+type ComboKind = "wall" | "cannon" | "grunt";
+
 /** Time window (seconds) for consecutive hits to count as a streak. */
 const STREAK_WINDOW = 1.5;
 /** Minimum wall hits in a streak to trigger a wall combo. */
@@ -24,6 +27,9 @@ const DEMOLITION_THRESHOLD = 5;
 const DEMOLITION_BONUS = 150;
 /** Lifetime of a combo floating text in seconds. */
 const COMBO_EVENT_LIFETIME = 2;
+export const COMBO_WALL = "wall" as const;
+export const COMBO_CANNON = "cannon" as const;
+export const COMBO_GRUNT = "grunt" as const;
 
 export function createComboTracker(playerCount: number): ComboTracker {
   const players: ComboPlayerState[] = [];
@@ -56,7 +62,7 @@ export function isCombosEnabled(state: GameState): boolean {
 /** Facade: score combo bonus for an impact event. Returns bonus points (0 in classic mode). */
 export function scoreImpactCombo(
   state: GameState,
-  kind: "wall" | "cannon" | "grunt",
+  kind: ComboKind,
   sid: ValidPlayerSlot | undefined,
 ): number {
   if (sid === undefined) return 0;
@@ -64,11 +70,11 @@ export function scoreImpactCombo(
   if (!tracker) return 0;
   const battleTime = BATTLE_TIMER - state.timer;
   switch (kind) {
-    case "wall":
+    case COMBO_WALL:
       return comboOnWallDestroyed(tracker, sid, battleTime);
-    case "cannon":
+    case COMBO_CANNON:
       return comboOnCannonKill(tracker, sid);
-    case "grunt":
+    case COMBO_GRUNT:
       return comboOnGruntKill(tracker, sid, battleTime);
   }
 }

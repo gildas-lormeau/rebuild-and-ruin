@@ -76,7 +76,7 @@ Or run everything at once: `npm run lint:all`
 
 ### Duplicate literals tool
 
-`scripts/find-duplicate-literals.ts` uses the TypeScript compiler API to find repeated string and numeric literals. It maintains a baseline (`.literals-baseline.json`) so `lint:all` only fails on NEW duplicates.
+`scripts/find-duplicate-literals.ts` uses the TypeScript compiler API to find repeated string and numeric literals. It maintains a baseline (`.readonly-literals-baseline.json`) so `lint:all` only fails on NEW duplicates.
 
 ```bash
 npm run lint:literals                          # Default: exit 0 if all findings are baselined

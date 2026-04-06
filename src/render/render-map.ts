@@ -10,7 +10,6 @@
  *   - W/H: canvas dimensions in tile-space pixels (MAP_PX_W, MAP_PX_H)
  */
 
-import { tryGetSettingsMod } from "../runtime/runtime-screen-builders.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import {
   CANVAS_H,
@@ -59,6 +58,7 @@ import {
   drawStatusBar,
   drawUpgradePick,
 } from "./render-ui.ts";
+import { drawControlsScreen, drawOptionsScreen } from "./render-ui-settings.ts";
 
 interface TerrainImageCache {
   width: number;
@@ -149,6 +149,7 @@ const bannerSceneCtx = bannerSceneCanvas.getContext("2d", {
  *  because the banner scene combines data from multiple sources (castles, territory, walls)
  *  that aren't keyed by a single object. */
 const terrainImageCache = new WeakMap<GameMap, TerrainImageCache>();
+const SPRITE_CANNON = "cannon";
 
 /** Cached main-canvas context — avoids per-frame getContext overhead on Chrome mobile. */
 let mainCtxCache:
@@ -240,8 +241,8 @@ export function drawMap(
 
   // Full-screen modal screens (opaque — drawn last, on top of everything)
   drawPlayerSelect(overlayCtx, W, H, overlay, now);
-  tryGetSettingsMod()?.drawOptionsScreen(overlayCtx, W, H, overlay, now);
-  tryGetSettingsMod()?.drawControlsScreen(overlayCtx, W, H, overlay, now);
+  drawOptionsScreen(overlayCtx, W, H, overlay, now);
+  drawControlsScreen(overlayCtx, W, H, overlay, now);
 
   // Scale up to display canvas (with optional zoom viewport)
   canvasCtx.imageSmoothingEnabled = false;
@@ -946,7 +947,7 @@ function drawCastleCannons(
     if (isBalloonCannon(cannon)) {
       drawSprite(overlayCtx, "balloon_base", cx, cy);
     } else {
-      const prefix = isSuperCannon(cannon) ? "super" : "cannon";
+      const prefix = isSuperCannon(cannon) ? "super" : SPRITE_CANNON;
       const dir = facingToDir8(cannon.facing ?? 0);
       drawSprite(overlayCtx, `${prefix}_${dir}`, cx, cy);
     }

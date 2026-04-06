@@ -10,8 +10,8 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 - Lint: `npm run lint:all` — format:check, biome, knip, madge, jscpd (min-lines 15), lint:literals (baseline-aware), lint:typeof
 - Layer linter: `deno run -A scripts/generate-import-layers.ts --check --server`; use `/import-hygiene` skill for full audit
 - Export index: `npm run export-search -- <term>` before writing new code; `npm run export-index` to regenerate; `npm run export-map` for compact layer→file→symbols view
-- Literals baseline: `.literals-baseline.json`; `--update-baseline` to refresh; `--all --files <globs>` for scoped reviews
-- Pre-commit hook (.git/hooks/pre-commit, plain git): reorder, tsc, biome format, biome check, eslint, knip, madge, jscpd, layers, typeof, export-index, hot-exports, readonly-params
+- Literals baseline: `.readonly-literals-baseline.json`; `--update-baseline` to refresh; `--all --files <globs>` for scoped reviews
+- Pre-commit hook (.git/hooks/pre-commit, plain git): reorder, tsc, biome format, biome check, eslint, knip, madge, jscpd, layers, domains, literals, architecture, entry-placement, restricted-imports, phase-transitions, typeof, null-init, deno-lint, test:territory, export-index, hot-exports, readonly-params
 - Server: `deno task server` (port 8001); type-check with `deno check server/server.ts` (NOT tsc)
 - Test: `deno run test/headless.test.ts`, `deno run test/determinism.test.ts`, `deno run test/scenario.test.ts`, `deno run test/online-*.test.ts`
 - Debug: use `/debug-e2e` skill — spawns a sub-agent that adds logs, runs tests, reports root cause. Never guess at bugs.

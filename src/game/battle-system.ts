@@ -63,7 +63,13 @@ import {
   filterActiveFiringCannons,
   isCannonEnclosed,
 } from "./cannon-system.ts";
-import { scoreImpactCombo, tickComboTracking } from "./combo-system.ts";
+import {
+  COMBO_CANNON,
+  COMBO_GRUNT,
+  COMBO_WALL,
+  scoreImpactCombo,
+  tickComboTracking,
+} from "./combo-system.ts";
 import { findGruntSpawnNear } from "./grunt-system.ts";
 
 /** Result of tickCannonballs: impact positions (for VFX) + detailed events (for network). */
@@ -256,7 +262,7 @@ export function applyImpactEvent(
         const shooter = sid !== undefined ? state.players[sid] : undefined;
         if (shooter && event.playerId !== sid) {
           shooter.score +=
-            DESTROY_WALL_POINTS + scoreImpactCombo(state, "wall", sid);
+            DESTROY_WALL_POINTS + scoreImpactCombo(state, COMBO_WALL, sid);
         }
       }
       break;
@@ -269,7 +275,8 @@ export function applyImpactEvent(
           const shooter = sid !== undefined ? state.players[sid] : undefined;
           if (shooter && event.playerId !== sid) {
             shooter.score +=
-              DESTROY_CANNON_POINTS + scoreImpactCombo(state, "cannon", sid);
+              DESTROY_CANNON_POINTS +
+              scoreImpactCombo(state, COMBO_CANNON, sid);
           }
         }
       }
@@ -304,7 +311,7 @@ export function applyImpactEvent(
       );
       if (shooter) {
         shooter.score +=
-          DESTROY_GRUNT_POINTS + scoreImpactCombo(state, "grunt", sid);
+          DESTROY_GRUNT_POINTS + scoreImpactCombo(state, COMBO_GRUNT, sid);
       }
       break;
     }
