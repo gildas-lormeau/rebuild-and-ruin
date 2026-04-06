@@ -36,6 +36,9 @@ Groups are named by abstraction level, not by domain — files from any domain l
 - `types.ts` (L4) — GameState, ModernState, LobbyState, SelectionState, FrameContext, and state helpers
 - `system-interfaces.ts` (L4) — Controller interfaces and per-phase state slices: `GameViewState` (base: phase + players + map), `BuildViewState` (10 fields), `CannonViewState` (7), `BattleViewState` (15). Decouples controllers, AI strategy, and input/online modules from types.ts. Controllers return intent objects (`FireIntent`, `PlacePieceIntent`) instead of mutating state directly — the orchestrator (runtime, online, AI tick) executes mutations against the real mutable GameState.
 
+### Spatial algorithms (`docs/spatial-algorithms.md`)
+Read this before implementing features involving flood-fill, wall gaps, grunt movement, or territory detection. Key: `computeOutside` uses 8-dir (any 1-tile gap breaks enclosure); grunts move 4-dir only. Don't use `computeOutside` for chokepoint/gap detection — test cardinal barrier adjacency directly.
+
 ### Phase flow
 CASTLE_SELECT → WALL_BUILD → CANNON_PLACE → BATTLE → loop (+ CASTLE_RESELECT when a player loses lives)
 Modern mode inserts UPGRADE_PICK between battle end and build banner (from round 3).
