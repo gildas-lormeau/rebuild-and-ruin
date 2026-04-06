@@ -2,7 +2,7 @@
  * Headless game simulation — runs N full games validating invariants
  * at phase boundaries. Uses the scenario test DSL.
  *
- * Run with: bun test/headless.test.ts
+ * Run with: deno run test/headless.test.ts
  */
 
 import {

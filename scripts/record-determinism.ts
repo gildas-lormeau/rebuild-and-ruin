@@ -1,6 +1,6 @@
 /**
  * Re-record determinism test expectations after a game logic change.
- * Run with: bun scripts/record-determinism.ts
+ * Run with: deno run scripts/record-determinism.ts
  *
  * Outputs the EXPECTED array to paste into test/determinism.test.ts.
  */

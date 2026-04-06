@@ -4,7 +4,7 @@
  * Verifies that watcher-side phase timer reconstruction from wall-clock
  * produces correct values and handles edge cases.
  *
- * Run with: bun test/online-watcher-timing.test.ts
+ * Run with: deno run test/online-watcher-timing.test.ts
  */
 
 import {

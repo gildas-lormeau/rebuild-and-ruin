@@ -63,7 +63,7 @@ append_rounds_by_game() {
 run_suite() {
 	local file="$1"
 	local output
-	output="$(bun "$file" 2>&1)"
+	output="$(deno run "$file" 2>&1)"
 	local status=$?
 
 	printf "%s\n" "$output"
@@ -78,7 +78,7 @@ for file in "${TEST_FILES[@]}"; do
 	run_suite "$file"
 done
 
-headless_output="$(cd "$PROJECT_DIR" && bun test/headless.test.ts 2>&1)"
+headless_output="$(cd "$PROJECT_DIR" && deno run test/headless.test.ts 2>&1)"
 headless_status=$?
 printf "%s\n" "$headless_output"
 

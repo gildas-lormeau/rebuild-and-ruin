@@ -5,7 +5,7 @@
  * extras (same path as the animated castle build). Previously it used
  * computeCastleWallTiles (no clumsy), erasing the extra walls.
  *
- * Run with: bun test/reselect-clumsy.test.ts
+ * Run with: deno run test/reselect-clumsy.test.ts
  */
 
 import { computeCastleWallTiles } from "../src/game/castle-generation.ts";

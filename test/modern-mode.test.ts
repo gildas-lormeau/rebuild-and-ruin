@@ -2,7 +2,7 @@
  * Modern mode tests — environmental modifiers, upgrade draft/pick, gameplay hooks.
  * Covers both local headless flow and online checkpoint round-trips.
  *
- * Run with: bun test/modern-mode.test.ts
+ * Run with: deno run test/modern-mode.test.ts
  */
 
 import { clearPlayerWalls } from "../src/shared/board-occupancy.ts";

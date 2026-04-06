@@ -40,7 +40,7 @@ See [game-rules.md](game-rules.md) for the complete rules: phases, scoring, AI p
 ## Test
 
 ```
-bun src/headless-test.ts                          # game logic invariants
+deno run src/headless-test.ts                          # game logic invariants
 npx tsx test/online-e2e.ts local                  # local play, 3 AI
 npx tsx test/online-e2e.ts online 2               # online, 2 humans + watcher (needs server + dev)
 npx tsx test/online-e2e.ts online 1 https://...   # online with remote server

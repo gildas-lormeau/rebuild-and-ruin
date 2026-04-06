@@ -1,7 +1,7 @@
 /**
  * AI build-phase placement tests — 1x2 piece.
  *
- * Run with: bun test/build-ai-1x2.test.ts
+ * Run with: deno run test/build-ai-1x2.test.ts
  */
 
 import {

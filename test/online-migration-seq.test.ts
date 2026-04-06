@@ -2,7 +2,7 @@
  * Host-migration sequence regression checks.
  *
  * Run with:
- *   bun test/online-migration-seq.test.ts
+ *   deno run test/online-migration-seq.test.ts
  */
 
 import { MESSAGE, type FullStateMessage, type ServerMessage } from "../server/protocol.ts";

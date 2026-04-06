@@ -1,0 +1,38 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@std/assert@*": "1.0.16",
+    "jsr:@std/internal@^1.0.12": "1.0.12"
+  },
+  "jsr": {
+    "@std/assert@1.0.16": {
+      "integrity": "6a7272ed1eaa77defe76e5ff63ca705d9c495077e2d5fd0126d2b53fc5bd6532",
+      "dependencies": [
+        "jsr:@std/internal"
+      ]
+    },
+    "@std/internal@1.0.12": {
+      "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
+    }
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@biomejs/biome@2.4.8",
+        "npm:@types/node@^25.5.2",
+        "npm:@typescript-eslint/eslint-plugin@^8.57.2",
+        "npm:@typescript-eslint/parser@^8.57.2",
+        "npm:eslint@^10.1.0",
+        "npm:jscpd@4.0.8",
+        "npm:jsfxr@^1.4.0",
+        "npm:knip@6.0.3",
+        "npm:madge@8.0.0",
+        "npm:playwright@^1.58.2",
+        "npm:ts-morph@^27.0.2",
+        "npm:tsx@^4.21.0",
+        "npm:typescript@5",
+        "npm:vite@^7.3.1"
+      ]
+    }
+  }
+}

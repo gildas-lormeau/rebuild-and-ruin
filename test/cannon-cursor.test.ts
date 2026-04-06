@@ -3,7 +3,7 @@
  * while the mouse is inside its footprint, and only moves when the
  * mouse exits.
  *
- * Run with: bun test/cannon-cursor.test.ts 2>&1 | grep -E '✓|✗|passed|failed'
+ * Run with: deno run test/cannon-cursor.test.ts 2>&1 | grep -E '✓|✗|passed|failed'
  */
 
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/shared/grid.ts";

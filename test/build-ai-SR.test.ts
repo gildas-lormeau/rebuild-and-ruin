@@ -1,7 +1,7 @@
 /**
  * AI build-phase placement tests — SR piece.
  *
- * Run with: bun test/build-ai-SR.test.ts
+ * Run with: deno run test/build-ai-SR.test.ts
  */
 
 import {

@@ -6,10 +6,10 @@
  * completion and the test verifies the watcher received gameOver.
  *
  * Requires: vite dev server (port 5173) + deno task server (port 8001)
- * Run with: bun test test/online-game-over.test.ts
+ * Run with: deno test --allow-all test/online-game-over.test.ts
  */
 
-import { expect, test } from "bun:test";
+import { assert } from "jsr:@std/assert";
 import { chromium, type Page } from "playwright";
 import { MESSAGE } from "../server/protocol.ts";
 
@@ -51,7 +51,7 @@ async function joinRoom(page: Page, code: string): Promise<void> {
   );
 }
 
-test("1-round online game delivers gameOver to watcher via browser", async () => {
+Deno.test("1-round online game delivers gameOver to watcher via browser", async () => {
   const browser = await chromium.launch({ headless: true });
   const watcherLogs: string[] = [];
 
@@ -76,13 +76,13 @@ test("1-round online game delivers gameOver to watcher via browser", async () =>
       }
       await hostPage.waitForTimeout(500);
     }
-    expect(stopped).toBe(true);
+    assert(stopped, "game did not reach STOPPED mode");
 
     const sawGameOver = watcherLogs.some((log) =>
       log.includes(MESSAGE.GAME_OVER),
     );
-    expect(sawGameOver).toBe(true);
+    assert(sawGameOver, "watcher did not receive gameOver");
   } finally {
     await browser.close();
   }
-}, 150_000);
+});

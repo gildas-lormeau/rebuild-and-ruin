@@ -2,7 +2,9 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "type": "bun",
+      "type": "node",
+      "runtimeExecutable": "deno",
+      "runtimeArgs": ["run", "--allow-all"],
       "request": "launch",
       "name": "Debug Current Test File",
       "program": "${file}",

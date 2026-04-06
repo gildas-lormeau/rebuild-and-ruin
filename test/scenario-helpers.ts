@@ -5,7 +5,7 @@
  * manipulating state, and asserting game/camera/UI conditions. Designed for
  * agents to quickly reproduce bugs described in plain language.
  *
- * Run with: bun test/scenario.test.ts
+ * Run with: deno run test/scenario.test.ts
  */
 
 import { fireCannon, resolveBalloons, tickCannonballs } from "../src/game/battle-system.ts";

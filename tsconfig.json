@@ -26,5 +26,5 @@
     "noUnusedParameters": true,
     "noPropertyAccessFromIndexSignature": false
   },
-  "exclude": ["server", "scripts"]
+  "exclude": ["server", "scripts", "test/online-relay.test.ts", "test/online-game-over.test.ts"]
 }

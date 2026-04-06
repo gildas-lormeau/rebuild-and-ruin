@@ -4,7 +4,7 @@
  * These tests catch serialization drift between host and watcher — the #1
  * source of subtle online bugs.
  *
- * Run with: bun test/online-checkpoints.test.ts
+ * Run with: deno run test/online-checkpoints.test.ts
  */
 
 import type { OrbitParams } from "../src/shared/system-interfaces.ts";

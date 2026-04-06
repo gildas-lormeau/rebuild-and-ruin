@@ -1,7 +1,7 @@
 /**
  * AI build-phase placement tests — C piece.
  *
- * Run with: bun test/build-ai-C.test.ts
+ * Run with: deno run test/build-ai-C.test.ts
  */
 
 import {

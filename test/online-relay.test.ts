@@ -1,5 +1,4 @@
-import { expect, test } from "bun:test";
-
+import { assertEquals } from "jsr:@std/assert";
 import { MESSAGE } from "../server/protocol.ts";
 
 const SERVER_URL = "ws://localhost:8001/ws/play";
@@ -86,7 +85,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-test("relay matches current lobby, checkpoint, and migration protocol", async () => {
+Deno.test("relay matches current lobby, checkpoint, and migration protocol", async () => {
   const host = await connectClient("HOST");
   const player = await connectClient("PLAYER");
   const watcher = await connectClient("WATCHER");
@@ -98,27 +97,27 @@ test("relay matches current lobby, checkpoint, and migration protocol", async ()
     });
     const roomCreated = await host.waitFor(MESSAGE.ROOM_CREATED);
     const code = roomCreated.code as string;
-    expect(typeof code).toBe("string");
+    assertEquals(typeof code, "string");
 
     send(host.ws, { type: MESSAGE.SELECT_SLOT, playerId: 0 });
     const hostJoined = await host.waitFor(MESSAGE.JOINED);
-    expect(hostJoined.playerId).toBe(0);
+    assertEquals(hostJoined.playerId, 0);
 
     send(player.ws, { type: MESSAGE.JOIN_ROOM, code });
     const playerRoomJoined = await player.waitFor(MESSAGE.ROOM_JOINED);
-    expect(playerRoomJoined.code).toBe(code);
+    assertEquals(playerRoomJoined.code, code);
 
     send(player.ws, { type: MESSAGE.SELECT_SLOT, playerId: 1 });
     const playerJoined = await player.waitFor(MESSAGE.JOINED);
-    expect(playerJoined.playerId).toBe(1);
+    assertEquals(playerJoined.playerId, 1);
     const hostSawPlayer = await host.waitFor(
       (msg) => msg.type === MESSAGE.PLAYER_JOINED && msg.playerId === 1,
     );
-    expect(hostSawPlayer.playerId).toBe(1);
+    assertEquals(hostSawPlayer.playerId, 1);
 
     send(watcher.ws, { type: MESSAGE.JOIN_ROOM, code });
     const watcherRoomJoined = await watcher.waitFor(MESSAGE.ROOM_JOINED);
-    expect(watcherRoomJoined.code).toBe(code);
+    assertEquals(watcherRoomJoined.code, code);
 
     await sleep(1100);
 
@@ -135,20 +134,20 @@ test("relay matches current lobby, checkpoint, and migration protocol", async ()
     });
     const playerInit = await player.waitFor(MESSAGE.INIT);
     const watcherInit = await watcher.waitFor(MESSAGE.INIT);
-    expect(playerInit.seed).toBe(123);
-    expect(watcherInit.seed).toBe(123);
+    assertEquals(playerInit.seed, 123);
+    assertEquals(watcherInit.seed, 123);
 
     send(host.ws, { type: MESSAGE.SELECT_START, timer: 10 });
     const playerSelect = await player.waitFor(MESSAGE.SELECT_START);
     const watcherSelect = await watcher.waitFor(MESSAGE.SELECT_START);
-    expect(playerSelect.timer).toBe(10);
-    expect(watcherSelect.timer).toBe(10);
+    assertEquals(playerSelect.timer, 10);
+    assertEquals(watcherSelect.timer, 10);
 
     send(player.ws, { type: MESSAGE.OPPONENT_TOWER_SELECTED, playerId: 1, towerIdx: 4, confirmed: false });
     const watcherTower = await watcher.waitFor(
       (msg) => msg.type === MESSAGE.OPPONENT_TOWER_SELECTED && msg.playerId === 1,
     );
-    expect(watcherTower.towerIdx).toBe(4);
+    assertEquals(watcherTower.towerIdx, 4);
 
     send(host.ws, {
       type: MESSAGE.CASTLE_WALLS,
@@ -159,7 +158,7 @@ test("relay matches current lobby, checkpoint, and migration protocol", async ()
       ],
     });
     const castleWalls = await watcher.waitFor(MESSAGE.CASTLE_WALLS);
-    expect((castleWalls.plans as unknown[]).length).toBe(3);
+    assertEquals((castleWalls.plans as unknown[]).length, 3);
 
     send(host.ws, {
       type: MESSAGE.CANNON_START,
@@ -173,19 +172,19 @@ test("relay matches current lobby, checkpoint, and migration protocol", async ()
       houses: [],
     });
     const cannonStart = await watcher.waitFor(MESSAGE.CANNON_START);
-    expect(cannonStart.timer).toBe(15);
+    assertEquals(cannonStart.timer, 15);
 
     host.ws.close();
 
     const playerHostLeft = await player.waitFor(MESSAGE.HOST_LEFT);
     const watcherHostLeft = await watcher.waitFor(MESSAGE.HOST_LEFT);
-    expect(playerHostLeft.newHostPlayerId).toBe(1);
-    expect(playerHostLeft.previousHostPlayerId).toBe(0);
-    expect(watcherHostLeft.newHostPlayerId).toBe(1);
+    assertEquals(playerHostLeft.newHostPlayerId, 1);
+    assertEquals(playerHostLeft.disconnectedPlayerId, 0);
+    assertEquals(watcherHostLeft.newHostPlayerId, 1);
   } finally {
     if (host.ws.readyState === WebSocket.OPEN) host.ws.close();
     if (player.ws.readyState === WebSocket.OPEN) player.ws.close();
     if (watcher.ws.readyState === WebSocket.OPEN) watcher.ws.close();
     await sleep(25);
   }
-}, 15000);
+});

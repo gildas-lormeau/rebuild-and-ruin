@@ -5,7 +5,7 @@
  * deterministic. This test records expected outcomes at key checkpoints and
  * will break whenever game logic changes — intentionally.
  *
- * Run with: bun test/determinism.test.ts
+ * Run with: deno run test/determinism.test.ts
  */
 
 import { createScenario } from "./scenario-helpers.ts";
