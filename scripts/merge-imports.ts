@@ -8,7 +8,7 @@
  *   import { type X, Y } from "./foo.ts";
  *
  * Usage:
- *   npx tsx scripts/merge-imports.ts [--check] [--write] [files...]
+ *   deno run -A scripts/merge-imports.ts [--check] [--write] [files...]
  *
  * --check  Exit 1 if any file has mergeable imports (CI mode)
  * --write  Apply merges in-place (default: dry-run, prints what would change)
@@ -16,8 +16,8 @@
  * With no file args, processes all .ts files in src/ and server/.
  */
 
-import { readdirSync, readFileSync, writeFileSync } from "fs";
-import { join } from "path";
+import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import process from "node:process";
 
 interface ParsedImport {

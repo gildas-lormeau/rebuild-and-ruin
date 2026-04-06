@@ -30,7 +30,7 @@ Implications for this workflow:
 ## Step 1 — Generate the collapsed graph
 
 ```bash
-npx tsx scripts/layer-graph.ts
+deno run -A scripts/layer-graph.ts
 ```
 
 This emits a dot graph where each **node = one layer group**, and each **edge = at least one file in group A imports a file in group B**. Paste the output at https://dreampuf.github.io/GraphvizOnline/ or render with `dot`.
@@ -116,8 +116,8 @@ createControllerForSlot: makeXFactory(myId, keyBinding)
 
 ```bash
 npx tsc --noEmit
-npx tsx scripts/generate-import-layers.ts --check --server
-npx tsx scripts/layer-graph.ts   # regenerate to confirm the edge is gone
+deno run -A scripts/generate-import-layers.ts --check --server
+deno run -A scripts/layer-graph.ts   # regenerate to confirm the edge is gone
 ```
 
 Re-read the graph. Fixes often cascade — removing one edge may reveal another that was hidden.
@@ -137,7 +137,7 @@ Rename groups in `.import-layers.json` to match reality. **Naming is the analysi
 ## Step 7 — Find single-consumer exports crossing domains
 
 ```bash
-npx tsx scripts/report-hot-exports.ts --threshold 1 --max 1 --kinds function,const --summary
+deno run -A scripts/report-hot-exports.ts --threshold 1 --max 1 --kinds function,const --summary
 ```
 
 This shows every exported function/const imported by exactly one file, with **From/To domain** and **Src/Dst layer** columns. Entries marked with `←` cross a domain boundary.
@@ -156,7 +156,7 @@ Use `--max 2` to also catch two-consumer exports that might be overexposed.
 The layer graph catches vertical problems. The health report catches horizontal ones.
 
 ```bash
-npx tsx scripts/architecture-health.ts
+deno run -A scripts/architecture-health.ts
 ```
 
 Three analyses, zero hand-written rules:
@@ -175,7 +175,7 @@ For each file: Ca (dependents), Ce (dependencies), Instability = Ce/(Ca+Ce), Pai
 ### Domain boundary lint
 
 ```bash
-npx tsx scripts/lint-domain-boundaries.ts
+deno run -A scripts/lint-domain-boundaries.ts
 ```
 
 Checks that imports stay within allowed domain boundaries defined in `.domain-boundaries.json`. 9 domains: shared, game, ai, player, input, render, online, runtime, entry. Directories under `src/` match domains 1:1.
@@ -201,11 +201,11 @@ The health report discovers "natural" domains from actual coupling using communi
 
 The systematic workflow for a clean architecture session:
 
-1. `npx tsx scripts/generate-import-layers.ts --check --server` — fix any formal violations first
-2. `npx tsx scripts/layer-graph.ts` — read the collapsed graph, fix suspicious edges (Steps 1–6)
-3. `npx tsx scripts/architecture-health.ts` — read the health report:
+1. `deno run -A scripts/generate-import-layers.ts --check --server` — fix any formal violations first
+2. `deno run -A scripts/layer-graph.ts` — read the collapsed graph, fix suspicious edges (Steps 1–6)
+3. `deno run -A scripts/architecture-health.ts` — read the health report:
    - Fix the highest Pain points by extracting widely-used exports into dedicated modules
-   - Run `npx tsx scripts/lint-domain-boundaries.ts` — fix cross-domain violations
+   - Run `deno run -A scripts/lint-domain-boundaries.ts` — fix cross-domain violations
    - Compare natural clusters vs declared domains — investigate mismatches
 4. Re-run the health report after each fix to measure improvement (Pain should decrease)
 5. Stop when: no formal violations, no domain violations, no Pain points that represent misplaced code (high Pain on abstract type files is acceptable)

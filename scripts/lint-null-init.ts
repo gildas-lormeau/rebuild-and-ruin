@@ -15,13 +15,13 @@
  *   - `= null` assignments (only declarations)
  *
  * Usage:
- *   npx tsx scripts/lint-null-init.ts
+ *   deno run -A scripts/lint-null-init.ts
  *
  * Exits 1 if violations found.
  */
 
-import { readdirSync, readFileSync, statSync } from "fs";
-import { join, relative } from "path";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 import process from "node:process";
 
 const SCAN_DIRS = [

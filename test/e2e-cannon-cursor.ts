@@ -4,7 +4,7 @@
  * Verifies the phantom does not move while the mouse is inside its footprint,
  * and that the phantom center stays within half a tile of the mouse.
  *
- * Run: npx tsx test/e2e-cannon-cursor.ts
+ * Run: deno run -A test/e2e-cannon-cursor.ts
  * Requires: npm run dev (vite on port 5173)
  */
 

@@ -8,7 +8,7 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 - Build: `npm run build` (runs `tsc --noEmit && vite build` — always use this, never `npx vite build` alone)
 - Format: `npm run format` (biome on src/ and server/); `npm run format:check` for CI; 2-space indent
 - Lint: `npm run lint:all` — format:check, biome, knip, madge, jscpd (min-lines 15), lint:literals (baseline-aware), lint:typeof
-- Layer linter: `npx tsx scripts/generate-import-layers.ts --check --server`; use `/import-hygiene` skill for full audit
+- Layer linter: `deno run -A scripts/generate-import-layers.ts --check --server`; use `/import-hygiene` skill for full audit
 - Export index: `npm run export-search -- <term>` before writing new code; `npm run export-index` to regenerate; `npm run export-map` for compact layer→file→symbols view
 - Literals baseline: `.literals-baseline.json`; `--update-baseline` to refresh; `--all --files <globs>` for scoped reviews
 - Pre-commit hook (.git/hooks/pre-commit, plain git): reorder, tsc, biome format, biome check, eslint, knip, madge, jscpd, layers, typeof, export-index, hot-exports, readonly-params

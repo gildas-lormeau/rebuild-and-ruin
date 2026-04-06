@@ -2,23 +2,23 @@
  * E2E test for both local and online play.
  *
  * Usage:
- *   npx tsx scripts/online-e2e.ts local             # local mode: 3 AI, no server needed
- *   npx tsx scripts/online-e2e.ts local 1           # local mode: 1 human + 2 AI
- *   npx tsx scripts/online-e2e.ts local 0 "" 1      # local, 1 round (any positive integer)
- *   npx tsx scripts/online-e2e.ts online            # online mode: 2 humans, local server (default)
- *   npx tsx scripts/online-e2e.ts online 0          # online mode: 0 humans (3 AI demo)
- *   npx tsx scripts/online-e2e.ts online 1          # online mode: 1 human + 2 AI + watcher
- *   npx tsx scripts/online-e2e.ts online 3          # online mode: 3 humans + watcher
- *   npx tsx scripts/online-e2e.ts online 1 https://example.deno.dev  # remote server
- *   npx tsx scripts/online-e2e.ts local 0 --screenshot  # capture screenshots at phase transitions
- *   npx tsx scripts/online-e2e.ts local 0 --mobile     # emulate mobile (Pixel 7, landscape)
- *   npx tsx scripts/online-e2e.ts local 0 --mobile --screenshot  # both
- *   npx tsx scripts/online-e2e.ts local 0 --mobile --action "phase:BATTLE click:zoom screenshot:zoomed exit"
- *   npx tsx scripts/online-e2e.ts local 0 --headless          # run without browser window
- *   npx tsx scripts/online-e2e.ts local 0 --seed 12345        # force specific map seed
- *   npx tsx scripts/online-e2e.ts local 0 --assert "phase:BATTLE button:quit visible"  # assert UI state
- *   npx tsx scripts/online-e2e.ts local --replay recordings/bug-repro.json  # replay Chrome DevTools recording
- *   npx tsx scripts/online-e2e.ts local --replay recordings/bug-repro.json --screenshot --headless
+ *   deno run -A scripts/online-e2e.ts local             # local mode: 3 AI, no server needed
+ *   deno run -A scripts/online-e2e.ts local 1           # local mode: 1 human + 2 AI
+ *   deno run -A scripts/online-e2e.ts local 0 "" 1      # local, 1 round (any positive integer)
+ *   deno run -A scripts/online-e2e.ts online            # online mode: 2 humans, local server (default)
+ *   deno run -A scripts/online-e2e.ts online 0          # online mode: 0 humans (3 AI demo)
+ *   deno run -A scripts/online-e2e.ts online 1          # online mode: 1 human + 2 AI + watcher
+ *   deno run -A scripts/online-e2e.ts online 3          # online mode: 3 humans + watcher
+ *   deno run -A scripts/online-e2e.ts online 1 https://example.deno.dev  # remote server
+ *   deno run -A scripts/online-e2e.ts local 0 --screenshot  # capture screenshots at phase transitions
+ *   deno run -A scripts/online-e2e.ts local 0 --mobile     # emulate mobile (Pixel 7, landscape)
+ *   deno run -A scripts/online-e2e.ts local 0 --mobile --screenshot  # both
+ *   deno run -A scripts/online-e2e.ts local 0 --mobile --action "phase:BATTLE click:zoom screenshot:zoomed exit"
+ *   deno run -A scripts/online-e2e.ts local 0 --headless          # run without browser window
+ *   deno run -A scripts/online-e2e.ts local 0 --seed 12345        # force specific map seed
+ *   deno run -A scripts/online-e2e.ts local 0 --assert "phase:BATTLE button:quit visible"  # assert UI state
+ *   deno run -A scripts/online-e2e.ts local --replay recordings/bug-repro.json  # replay Chrome DevTools recording
+ *   deno run -A scripts/online-e2e.ts local --replay recordings/bug-repro.json --screenshot --headless
  *
  * Chrome DevTools Recorder:
  *   1. Open DevTools → Recorder panel → Start recording
@@ -34,8 +34,8 @@
  */
 
 import { chromium, devices, type Page, type Browser } from "playwright";
-import { MESSAGE } from "../server/protocol";
-import { readFileSync, writeFileSync, mkdirSync } from "fs";
+import { MESSAGE } from "../server/protocol.ts";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import process from "node:process";
 import { Buffer } from "node:buffer";
 
@@ -855,7 +855,8 @@ async function runLocal() {
   await page.waitForFunction(
     () => {
       const w = window as unknown as Record<string, unknown>;
-      return (w.__e2e as any)?.mode !== undefined && (w.__e2e as any)?.mode !== "LOBBY";
+      const e2e = w.__e2e as unknown as { mode?: string };
+      return e2e?.mode !== undefined && e2e?.mode !== "LOBBY";
     },
     { timeout: 90_000 },
   );
@@ -872,10 +873,11 @@ async function runLocal() {
     while (Date.now() < deadline) {
       const info = await page.evaluate(() => {
         const w = window as unknown as Record<string, unknown>;
+        const e2e = w.__e2e as unknown as { mode?: string; phase?: string; timer?: number };
         return {
-          mode: (w.__e2e as any)?.mode as string ?? "",
-          phase: (w.__e2e as any)?.phase as string ?? "",
-          timer: (w.__e2e as any)?.timer as number ?? 0,
+          mode: e2e?.mode ?? "",
+          phase: e2e?.phase ?? "",
+          timer: e2e?.timer ?? 0,
         };
       }).catch(() => ({ mode: "", phase: "", timer: 0 }));
       if (info.mode === "STOPPED") {
@@ -897,9 +899,11 @@ async function runLocal() {
   }
 
   // Check final game state
-  const finalMode = await page.evaluate(() =>
-    ((window as unknown as Record<string, unknown>).__e2e as any)?.mode as string
-  ).catch(() => "unknown");
+  const finalMode = await page.evaluate(() => {
+    const w = window as unknown as Record<string, unknown>;
+    const e2e = w.__e2e as unknown as { mode?: string; phase?: string; timer?: number };
+    return e2e?.mode as string;
+  }).catch(() => "unknown");
   if (finalMode === "STOPPED") {
     logs.push(`[LOCAL] gameOver — game ended normally`);
   } else {
@@ -1033,10 +1037,11 @@ async function runOnline() {
     while (Date.now() < deadline) {
       const info = await hostPage.evaluate(() => {
         const w = window as unknown as Record<string, unknown>;
+        const e2e = w.__e2e as Record<string, unknown>;
         return {
-          mode: (w.__e2e as any)?.mode as string ?? "",
-          phase: (w.__e2e as any)?.phase as string ?? "",
-          timer: (w.__e2e as any)?.timer as number ?? 0,
+          mode: e2e?.mode as string ?? "",
+          phase: e2e?.phase as string ?? "",
+          timer: e2e?.timer as number ?? 0,
         };
       }).catch(() => ({ mode: "", phase: "", timer: 0 }));
       if (info.mode === "STOPPED") {
@@ -1108,14 +1113,14 @@ async function simulateHumanPlayLoop(page: Page, label: string, durationMs: numb
 
     const { mode, phase } = await page.evaluate(() => {
       const w = window as unknown as Record<string, unknown>;
-      const testMode = (w.__e2e as any)?.mode as string | undefined;
+      const testMode = (w.__e2e as Record<string, unknown> | undefined)?.mode as string | undefined;
       if (!testMode) {
         const lobby = document.getElementById("lobby");
         if (lobby && lobby.style.display !== "none") return { mode: "DOM_LOBBY", phase: "" };
       }
       return {
         mode: testMode ?? "unknown",
-        phase: ((w.__e2e as any)?.phase as string) ?? "",
+        phase: ((w.__e2e as Record<string, unknown> | undefined)?.phase as string) ?? "",
       };
     }).catch(() => ({ mode: "unknown", phase: "" }));
 
@@ -1160,7 +1165,7 @@ async function simulateHumanPlayLoop(page: Page, label: string, durationMs: numb
 
     if (mode === "SELECTION") {
       const timer = await page.evaluate(() => {
-        return ((window as unknown as Record<string, unknown>).__e2e as any)?.timer as number ?? 10;
+        return ((window as unknown as Record<string, unknown>).__e2e as Record<string, unknown>)?.timer as number ?? 10;
       }).catch(() => 10);
 
       if (timer > 4) {
@@ -1214,8 +1219,9 @@ async function simulateHumanPlayLoop(page: Page, label: string, durationMs: numb
     if (phase === "BATTLE") {
       const aim = await page.evaluate(() => {
         const w = window as unknown as Record<string, unknown>;
-        const targets = (w.__e2e as any)?.targeting?.enemyTargets as { x: number; y: number }[] | undefined;
-        const ch = (w.__e2e as any)?.controller?.crosshair as { x: number; y: number } | undefined;
+        const e2e = w.__e2e as Record<string, Record<string, unknown>> | undefined;
+        const targets = e2e?.targeting?.enemyTargets as { x: number; y: number }[] | undefined;
+        const ch = e2e?.controller?.crosshair as { x: number; y: number } | undefined;
         if (!targets || targets.length === 0 || !ch) return null;
         let best = targets[0]!, bestDist = Infinity;
         for (const t of targets) {

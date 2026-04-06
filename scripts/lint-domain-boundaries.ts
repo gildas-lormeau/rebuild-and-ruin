@@ -5,15 +5,16 @@
  * Domains enforce horizontal cohesion (files in domain X only import from allowed domains).
  *
  * Usage:
- *   npx tsx scripts/lint-domain-boundaries.ts          # lint mode
- *   npx tsx scripts/lint-domain-boundaries.ts --verbose # show all imports, not just violations
+ *   deno run -A scripts/lint-domain-boundaries.ts          # lint mode
+ *   deno run -A scripts/lint-domain-boundaries.ts --verbose # show all imports, not just violations
  */
 
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Project, type SourceFile } from "ts-morph";
+import process from "node:process";
 
-const ROOT = path.resolve(import.meta.dirname, "..");
+const ROOT = path.resolve(import.meta.dirname!, "..");
 const CONFIG_PATH = path.join(ROOT, ".domain-boundaries.json");
 
 interface Config {
@@ -26,7 +27,6 @@ interface Config {
 }
 
 const config: Config = JSON.parse(readFileSync(CONFIG_PATH, "utf-8"));
-const verbose = process.argv.includes("--verbose");
 
 // Build reverse map: file → domain
 const fileToDomain = new Map<string, string>();

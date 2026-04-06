@@ -10,11 +10,11 @@
  *    go through showCannonPhaseBanner / showBattlePhaseBanner / showBuildPhaseBanner.
  *
  * Usage:
- *   npx tsx scripts/lint-phase-transitions.ts
+ *   deno run -A scripts/lint-phase-transitions.ts
  */
 
-import { readdirSync, readFileSync, statSync } from "fs";
-import { join, basename, relative } from "path";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, basename, relative } from "node:path";
 import process from "node:process";
 
 const SRC = join(process.cwd(), "src");

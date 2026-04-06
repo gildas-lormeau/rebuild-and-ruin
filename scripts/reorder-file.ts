@@ -12,7 +12,7 @@
  * `function` declarations are hoisted so callers-first is safe and gives
  * a top-down reading experience.
  *
- * Usage: npx tsx scripts/reorder-file.ts <path> [--dry-run] [--debug]
+ * Usage: deno run -A scripts/reorder-file.ts <path> [--dry-run] [--debug]
  */
 
 import {
@@ -35,7 +35,7 @@ const debug = cliArgs.includes("--debug");
 const filePath = cliArgs.find((a) => !a.startsWith("--"));
 
 if (!filePath) {
-  console.error("Usage: npx tsx scripts/reorder-file.ts <path> [--dry-run] [--debug]");
+  console.error("Usage: deno run -A scripts/reorder-file.ts <path> [--dry-run] [--debug]");
   process.exit(1);
 }
 

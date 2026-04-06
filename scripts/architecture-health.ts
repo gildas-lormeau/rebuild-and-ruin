@@ -11,18 +11,19 @@
  *    coupling. Diff against declared domains to find misplaced files.
  *
  * Usage:
- *   npx tsx scripts/architecture-health.ts              # full report
- *   npx tsx scripts/architecture-health.ts --dsm        # DSM only
- *   npx tsx scripts/architecture-health.ts --coupling    # coupling only
- *   npx tsx scripts/architecture-health.ts --clusters    # clustering only
- *   npx tsx scripts/architecture-health.ts --json        # machine-readable output
+ *   deno run -A scripts/architecture-health.ts              # full report
+ *   deno run -A scripts/architecture-health.ts --dsm        # DSM only
+ *   deno run -A scripts/architecture-health.ts --coupling    # coupling only
+ *   deno run -A scripts/architecture-health.ts --clusters    # clustering only
+ *   deno run -A scripts/architecture-health.ts --json        # machine-readable output
  */
 
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 import { Project } from "ts-morph";
+import process from "node:process";
 
-const ROOT = path.resolve(import.meta.dirname, "..");
+const ROOT = path.resolve(import.meta.dirname!, "..");
 const LAYERS_PATH = path.join(ROOT, ".import-layers.json");
 const DOMAINS_PATH = path.join(ROOT, ".domain-boundaries.json");
 

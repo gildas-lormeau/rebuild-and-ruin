@@ -10,14 +10,14 @@
  * 4. Only runtime.ts may import from sub-system files.
  *
  * Usage:
- *   npx tsx scripts/lint-architecture.ts [--check]
+ *   deno run -A scripts/lint-architecture.ts [--check]
  *
  * --check  Exit 1 if violations found (CI mode, default)
  * (no flags) Same as --check
  */
 
-import { readdirSync, readFileSync, statSync } from "fs";
-import { join, basename, relative } from "path";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, basename, relative } from "node:path";
 import process from "node:process";
 
 const SRC = join(process.cwd(), "src");

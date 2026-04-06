@@ -15,7 +15,7 @@
  *   - doc: first line of JSDoc if present
  *
  * Usage:
- *   npx tsx scripts/generate-export-index.ts [options]
+ *   deno run -A scripts/generate-export-index.ts [options]
  *
  * Options:
  *   --print         Print to stdout instead of writing file

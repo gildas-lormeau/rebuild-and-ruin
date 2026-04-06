@@ -6,7 +6,7 @@
  * Skips: const/enum definitions, imports, type annotations, exports, object keys.
  *
  * Usage:
- *   npx tsx scripts/find-duplicate-literals.ts [options]
+ *   deno run -A scripts/find-duplicate-literals.ts [options]
  *
  * Options:
  *   --threshold N          Minimum occurrences to report (default: 3)
@@ -270,6 +270,28 @@ function isSkippedNumber(node: ts.NumericLiteral, sourceFile: ts.SourceFile): bo
 // Walk all files
 // ---------------------------------------------------------------------------
 
+function record(map: Map<string | number, { count: number; locations: string[] }>, key: string | number, filePath: string, node: ts.Node, sourceFile: ts.SourceFile) {
+  const rel = path.relative(root, filePath);
+  const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
+  const loc = `${rel}:${line}`;
+  let entry = map.get(key);
+  if (!entry) {
+    entry = { count: 0, locations: [] };
+    map.set(key, entry);
+  }
+  entry.count++;
+  entry.locations.push(loc);
+}
+
+function visit(node: ts.Node, filePath: string, sourceFile: ts.SourceFile): void {
+  if (ts.isStringLiteral(node) && !isSkippedString(node, sourceFile)) {
+    record(stringCounts as Map<string | number, { count: number; locations: string[] }>, node.text, filePath, node, sourceFile);
+  } else if (ts.isNumericLiteral(node) && !NUMERIC_EXCLUDED_FILES.has(path.basename(filePath)) && !isSkippedNumber(node, sourceFile)) {
+    record(numberCounts as Map<string | number, { count: number; locations: string[] }>, Number(node.text), filePath, node, sourceFile);
+  }
+  ts.forEachChild(node, (child) => visit(child, filePath, sourceFile));
+}
+
 for (const filePath of files) {
   const sourceFile = ts.createSourceFile(
     filePath,
@@ -278,29 +300,7 @@ for (const filePath of files) {
     true,
   );
 
-  function record(map: Map<string | number, { count: number; locations: string[] }>, key: string | number, node: ts.Node) {
-    const rel = path.relative(root, filePath);
-    const line = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
-    const loc = `${rel}:${line}`;
-    let entry = map.get(key);
-    if (!entry) {
-      entry = { count: 0, locations: [] };
-      map.set(key, entry);
-    }
-    entry.count++;
-    entry.locations.push(loc);
-  }
-
-  function visit(node: ts.Node): void {
-    if (ts.isStringLiteral(node) && !isSkippedString(node, sourceFile)) {
-      record(stringCounts as Map<string | number, { count: number; locations: string[] }>, node.text, node);
-    } else if (ts.isNumericLiteral(node) && !NUMERIC_EXCLUDED_FILES.has(path.basename(filePath)) && !isSkippedNumber(node, sourceFile)) {
-      record(numberCounts as Map<string | number, { count: number; locations: string[] }>, Number(node.text), node);
-    }
-    ts.forEachChild(node, visit);
-  }
-
-  visit(sourceFile);
+  visit(sourceFile, filePath, sourceFile);
 }
 
 // ---------------------------------------------------------------------------

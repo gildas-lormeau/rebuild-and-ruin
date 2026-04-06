@@ -19,7 +19,7 @@ import {
   type Locator,
   type Page,
 } from "playwright";
-import { mkdirSync, writeFileSync } from "fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 
 // ---------------------------------------------------------------------------
 // Game constants (mirrored from src/shared — avoid importing game code)

@@ -2,16 +2,16 @@
  * Dump bounding boxes and take a screenshot of new_index.html.
  *
  * Usage:
- *   npx tsx test/layout-debug.ts                # desktop 1024x600
- *   npx tsx test/layout-debug.ts --mobile       # Pixel 7 landscape (839x412)
- *   npx tsx test/layout-debug.ts --portrait     # Pixel 7 portrait (412x839)
- *   npx tsx test/layout-debug.ts --left-handed  # toggle left-handed layout
- *   npx tsx test/layout-debug.ts --size 1200x450
- *   npx tsx test/layout-debug.ts --all          # run all standard viewports
+ *   deno run -A scripts/layout-debug.ts                # desktop 1024x600
+ *   deno run -A scripts/layout-debug.ts --mobile       # Pixel 7 landscape (839x412)
+ *   deno run -A scripts/layout-debug.ts --portrait     # Pixel 7 portrait (412x839)
+ *   deno run -A scripts/layout-debug.ts --left-handed  # toggle left-handed layout
+ *   deno run -A scripts/layout-debug.ts --size 1200x450
+ *   deno run -A scripts/layout-debug.ts --all          # run all standard viewports
  */
 
 import { chromium, type Browser, type Page } from "playwright";
-import { writeFileSync, mkdirSync } from "fs";
+import { writeFileSync, mkdirSync } from "node:fs";
 import process from "node:process";
 
 const ALL = process.argv.includes("--all");

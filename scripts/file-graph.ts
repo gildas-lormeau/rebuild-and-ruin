@@ -5,10 +5,10 @@
  * Each edge = an import from one file to another (cross-layer only by default).
  *
  * Usage:
- *   npx tsx scripts/file-graph.ts                  # cross-layer edges only
- *   npx tsx scripts/file-graph.ts --lateral         # include same-layer edges
- *   npx tsx scripts/file-graph.ts --layout fdp      # set layout engine hint
- *   npx tsx scripts/file-graph.ts > file-graph.dot  # pipe to file
+ *   deno run -A scripts/file-graph.ts                  # cross-layer edges only
+ *   deno run -A scripts/file-graph.ts --lateral         # include same-layer edges
+ *   deno run -A scripts/file-graph.ts --layout fdp      # set layout engine hint
+ *   deno run -A scripts/file-graph.ts > file-graph.dot  # pipe to file
  *
  * Render:
  *   dot  -Tsvg file-graph.dot > file-graph.svg   # hierarchical (default)

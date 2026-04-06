@@ -22,10 +22,10 @@ AST-based tool (ts-morph) that parses every `.ts` file, builds the full import g
 
 ```bash
 # Generate — compute layers from import graph, write .import-layers.json
-npx tsx scripts/generate-import-layers.ts
+deno run -A scripts/generate-import-layers.ts
 
 # Lint — check actual imports against intended layers in .import-layers.json
-npx tsx scripts/generate-import-layers.ts --check
+deno run -A scripts/generate-import-layers.ts --check
 ```
 
 | Flag | Description |
@@ -132,7 +132,7 @@ The workflow has two phases: first make the layer map match reality (compute →
 #### Step A1 — Generate computed layers
 
 ```bash
-npx tsx scripts/generate-import-layers.ts
+deno run -A scripts/generate-import-layers.ts
 ```
 
 This gives fine-grained layers (one per depth level, typically 15–17 groups). It always passes `--check` because the layers are computed from the actual imports.
@@ -154,7 +154,7 @@ Merge the fine-grained computed layers into coarser domain-based groups. Key pri
 #### Step A4 — Validate
 
 ```bash
-npx tsx scripts/generate-import-layers.ts --check
+deno run -A scripts/generate-import-layers.ts --check
 ```
 
 The domain-based grouping will likely surface violations — these are the real architectural issues to fix.
@@ -191,7 +191,7 @@ For each violation, trace the import and classify:
 npx tsc --noEmit                                       # type-check browser code
 deno check server/server.ts                            # type-check server code
 npm run lint:all                                       # biome + knip + madge + jscpd + literals + layers + imports
-npx tsx scripts/audit-imports.ts --check               # re-exports, duplicate names, layer misuse
+deno run -A scripts/audit-imports.ts --check               # re-exports, duplicate names, layer misuse
 timeout 60 deno run test/headless.test.ts                   # headless game test
 ```
 

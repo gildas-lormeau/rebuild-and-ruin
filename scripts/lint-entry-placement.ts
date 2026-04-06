@@ -7,7 +7,7 @@
  * classified too high and should be reclassified to a lower group.
  *
  * Usage:
- *   npx tsx scripts/lint-entry-placement.ts
+ *   deno run -A scripts/lint-entry-placement.ts
  */
 
 import { Project } from "ts-morph";

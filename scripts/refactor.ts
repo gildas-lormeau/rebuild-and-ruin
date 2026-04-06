@@ -9,7 +9,7 @@
  *   rename-file    <oldPath> <newPath>        — Rename/move a file and update all imports
  *   merge-imports  <file...> | --all         — Merge duplicate imports from same module specifier
  *
- * Usage: npx tsx scripts/refactor.ts <command> [...args] [--dry-run]
+ * Usage: deno run -A scripts/refactor.ts <command> [...args] [--dry-run]
  */
 
 import {
@@ -414,7 +414,7 @@ function collectDeclImports(decl: ExportedDeclarations, sourceFile: SourceFile):
   for (const imp of sourceFile.getImportDeclarations()) {
     const moduleSpec = imp.getModuleSpecifierValue();
     const matchingImports: string[] = [];
-    let isTypeOnly = imp.isTypeOnly();
+    const isTypeOnly = imp.isTypeOnly();
 
     for (const named of imp.getNamedImports()) {
       const importName = named.getAliasNode()?.getText() ?? named.getName();
@@ -1108,17 +1108,17 @@ Options:
   --dry-run    Show what would change without writing
 
 Examples:
-  npx tsx scripts/refactor.ts rename-symbol src/types.ts Phase GamePhase
-  npx tsx scripts/refactor.ts move-export src/types.ts src/spatial.ts TILE_SIZE
-  npx tsx scripts/refactor.ts move-export --from src/types.ts --to src/spatial.ts --symbol TILE_SIZE --symbol FOO
-  npx tsx scripts/refactor.ts rename-prop Player score totalScore
-  npx tsx scripts/refactor.ts rename-file src/old-name.ts src/new-name.ts
-  npx tsx scripts/refactor.ts find-symbol GameState
-  npx tsx scripts/refactor.ts list-exports src/types.ts
-  npx tsx scripts/refactor.ts list-references src/types.ts GameState
-  npx tsx scripts/refactor.ts rename-symbol src/render-effects.ts overlayCtx canvasCtx --dry-run
-  npx tsx scripts/refactor.ts merge-imports src/game-state.ts src/types.ts
-  npx tsx scripts/refactor.ts merge-imports --all --dry-run`);
+  deno run -A scripts/refactor.ts rename-symbol src/types.ts Phase GamePhase
+  deno run -A scripts/refactor.ts move-export src/types.ts src/spatial.ts TILE_SIZE
+  deno run -A scripts/refactor.ts move-export --from src/types.ts --to src/spatial.ts --symbol TILE_SIZE --symbol FOO
+  deno run -A scripts/refactor.ts rename-prop Player score totalScore
+  deno run -A scripts/refactor.ts rename-file src/old-name.ts src/new-name.ts
+  deno run -A scripts/refactor.ts find-symbol GameState
+  deno run -A scripts/refactor.ts list-exports src/types.ts
+  deno run -A scripts/refactor.ts list-references src/types.ts GameState
+  deno run -A scripts/refactor.ts rename-symbol src/render-effects.ts overlayCtx canvasCtx --dry-run
+  deno run -A scripts/refactor.ts merge-imports src/game-state.ts src/types.ts
+  deno run -A scripts/refactor.ts merge-imports --all --dry-run`);
 }
 
 switch (command) {
@@ -1188,7 +1188,7 @@ switch (command) {
     // Smart reorder: if first arg looks like a file path, assume user passed <file...> <name> <newName>
     if (name && (name.includes("/") || name.endsWith(".ts")) && !flagMap.has("name") && !flagMap.has("symbol") && !flagMap.has("old")) {
       // Find where file paths end and identifiers begin
-      let firstNonFile = commandArgs.findIndex((a) => !a.includes("/") && !a.endsWith(".ts"));
+      const firstNonFile = commandArgs.findIndex((a) => !a.includes("/") && !a.endsWith(".ts"));
       if (firstNonFile >= 0 && firstNonFile + 1 < commandArgs.length) {
         files = commandArgs.slice(0, firstNonFile);
         name = commandArgs[firstNonFile];

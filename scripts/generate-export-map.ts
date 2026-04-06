@@ -12,11 +12,12 @@
  * Agents scan this to spot misplaced exports (e.g. "RGB" in geometry-types).
  * Use .export-index.json for full signatures/docs.
  *
- * Usage: npx tsx scripts/generate-export-map.ts [--print]
+ * Usage: deno run -A scripts/generate-export-map.ts [--print]
  */
 
 import fs from "node:fs";
 import path from "node:path";
+import process from "node:process";
 
 const ROOT = path.resolve(import.meta.dirname!, "..");
 const INDEX_PATH = path.join(ROOT, ".export-index.json");

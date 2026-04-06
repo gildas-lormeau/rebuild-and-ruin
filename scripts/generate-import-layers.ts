@@ -13,7 +13,7 @@
  * groups. Then use --check to lint actual imports against your intent.
  *
  * Usage:
- *   npx tsx scripts/generate-import-layers.ts [options]
+ *   deno run -A scripts/generate-import-layers.ts [options]
  *
  * Modes:
  *   (default)       Compute layers from import graph, write .import-layers.json

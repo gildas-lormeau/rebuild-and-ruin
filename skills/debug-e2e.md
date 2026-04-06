@@ -109,7 +109,7 @@ E2EGame helpers:
 Fast mode is ON by default (accelerates lobby + phase timers). Disable with
 `game.setFastMode(false)` when you need precise mouse/timing interaction.
 
-Run with: `npx tsx test/your-file.ts`
+Run with: `deno run -A test/your-file.ts`
 No external `timeout` command needed — tests handle their own lifecycle.
 
 ### Step 4: Read the log output — NOW you can analyze

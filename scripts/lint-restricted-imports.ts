@@ -7,13 +7,13 @@
  *    (isWater, isGrass, waterKeys, etc.) instead.
  *
  * Usage:
- *   npx tsx scripts/lint-restricted-imports.ts
+ *   deno run -A scripts/lint-restricted-imports.ts
  *
  * Exits 1 if violations found.
  */
 
-import { readdirSync, readFileSync, statSync } from "fs";
-import { join, basename, relative } from "path";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, basename, relative } from "node:path";
 import process from "node:process";
 
 const SRC = join(process.cwd(), "src");

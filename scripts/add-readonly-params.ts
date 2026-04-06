@@ -1,6 +1,6 @@
 /**
  * Adds `readonly` to all array-typed function parameters across src/*.ts.
- * Run with: npx tsx scripts/add-readonly-params.ts
+ * Run with: deno run -A scripts/add-readonly-params.ts
  *
  * Parameters listed in .readonly-params-baseline.json are skipped because
  * they genuinely mutate their array argument. Add new entries there when tsc

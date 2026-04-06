@@ -4,7 +4,7 @@
  * Uses the render spy (drawSprite call log) to verify the rendering layer
  * actually draws houses, grunts, towers at every phase transition banner.
  *
- * Run: npx tsx test/e2e-banner-entities.ts
+ * Run: deno run -A test/e2e-banner-entities.ts
  * Requires: npm run dev (vite on port 5173)
  */
 

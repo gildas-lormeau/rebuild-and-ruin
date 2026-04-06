@@ -9,7 +9,7 @@
  * don't create runtime coupling.
  *
  * Usage:
- *   npx tsx scripts/report-hot-exports.ts [options]
+ *   deno run -A scripts/report-hot-exports.ts [options]
  *
  * Options:
  *   --threshold <n>   Min file count to include (default: 5)

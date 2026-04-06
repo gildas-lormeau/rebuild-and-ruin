@@ -9,12 +9,12 @@
  *   5. Phantom files listed in layers but missing from disk
  *
  * Usage:
- *   npx tsx scripts/audit-imports.ts          # report
- *   npx tsx scripts/audit-imports.ts --check  # exit 1 on issues
+ *   deno run -A scripts/audit-imports.ts          # report
+ *   deno run -A scripts/audit-imports.ts --check  # exit 1 on issues
  */
 
-import { existsSync, readdirSync, readFileSync } from "fs";
-import { join } from "path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import process from "node:process";
 
 interface LayerGroup {

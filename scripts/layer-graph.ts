@@ -5,8 +5,8 @@
  * Each edge = at least one file in layer A imports a file in layer B
  *
  * Usage:
- *   npx tsx scripts/layer-graph.ts | dot -T svg > layer-graph.svg
- *   npx tsx scripts/layer-graph.ts --server | dot -T svg > layer-graph.svg
+ *   deno run -A scripts/layer-graph.ts | dot -T svg > layer-graph.svg
+ *   deno run -A scripts/layer-graph.ts --server | dot -T svg > layer-graph.svg
  *
  * Requires Graphviz: brew install graphviz
  */
