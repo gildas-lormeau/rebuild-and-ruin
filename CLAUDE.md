@@ -25,16 +25,16 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 `shared/` (types, constants, config) · `game/` (systems, phase logic) · `ai/` (strategy, AI controllers) · `player/` (human controller, factory) · `input/` (input, sound, haptics) · `render/` (canvas, sprites, UI) · `online/` (multiplayer, checkpoints, online runtime) · `runtime/` (game loop, state, lifecycle).
 Entry points (`entry.ts`, `main.ts`, `online-client.ts`) stay at `src/` root. `server/` is separate (Deno Deploy target).
 
-### Module layers (19 groups, `.import-layers.json`)
-L0 leaf modules → L1 geometry & config → L2 pieces → L3 core game types → L4 game state & orchestration → L5 online infrastructure → L6 runtime primitives → L7 game logic → L8 phase orchestration → L9 AI strategy → L10 controllers → L11 game bootstrap → L12 input & sound → L13 render → L14 runtime sub-systems → L15 online logic → L16 local runtime → L17 online runtime → L18 entry points (client & server). Imports must flow downward.
-L18 is reserved for true entry points (e.g., `entry.ts`, `main.ts`, `server.ts`). Orchestration modules belong in L16/L17 — don't add files to L18 unless they have no in-project importers or use dynamic imports for code splitting.
+### Module layers (18 groups, `.import-layers.json`)
+L0 leaf modules → L1 foundational definitions → L2 derived types → L3 core game types → L4 core state & interfaces → L5 first logic → L6 deep logic → L7 handlers → L8 runtime modules → L9 assembly → L10 controllers → L11 orchestration → L12 wiring → L13 composition roots → L14 app roots → L15 online logic → L16 online app → L17 online entry. Imports must flow downward (higher layer imports lower).
+Groups are named by abstraction level, not by domain — files from any domain land at the layer dictated by their deepest import. Entry points sit at their minimum import-depth layer (`entry.ts` at L1, `main.ts` at L14, `online-client.ts` at L17).
 
-### Type file organization (L3)
-- `player-types.ts` — Player, FreshInterior, and player helpers (isPlayerAlive, isPlayerSeated, emptyFreshInterior, brandFreshInterior)
-- `battle-types.ts` — Cannon, Cannonball, Grunt, BurningPit, CapturedCannon, CannonMode, BattleAnimState
-- `geometry-types.ts` — TilePos, GameMap, Tower, Castle, House, BonusSquare, Viewport
-- `types.ts` — GameState, ModernState, LobbyState, SelectionState, FrameContext, and state helpers
-- `system-interfaces.ts` — Controller interfaces and per-phase state slices: `GameViewState` (base: phase + players + map), `BuildViewState` (10 fields), `CannonViewState` (7), `BattleViewState` (15). Decouples controllers, AI strategy, and input/online modules from types.ts. Controllers return intent objects (`FireIntent`, `PlacePieceIntent`) instead of mutating state directly — the orchestrator (runtime, online, AI tick) executes mutations against the real mutable GameState.
+### Type file organization (L1–L4)
+- `geometry-types.ts` (L1) — TilePos, GameMap, Tower, Castle, House, BonusSquare, Viewport
+- `battle-types.ts` (L2) — Cannon, Cannonball, Grunt, BurningPit, CapturedCannon, CannonMode, BattleAnimState
+- `player-types.ts` (L3) — Player, FreshInterior, and player helpers (isPlayerAlive, isPlayerSeated, emptyFreshInterior, brandFreshInterior)
+- `types.ts` (L4) — GameState, ModernState, LobbyState, SelectionState, FrameContext, and state helpers
+- `system-interfaces.ts` (L4) — Controller interfaces and per-phase state slices: `GameViewState` (base: phase + players + map), `BuildViewState` (10 fields), `CannonViewState` (7), `BattleViewState` (15). Decouples controllers, AI strategy, and input/online modules from types.ts. Controllers return intent objects (`FireIntent`, `PlacePieceIntent`) instead of mutating state directly — the orchestrator (runtime, online, AI tick) executes mutations against the real mutable GameState.
 
 ### Phase flow
 CASTLE_SELECT → WALL_BUILD → CANNON_PLACE → BATTLE → loop (+ CASTLE_RESELECT when a player loses lives)

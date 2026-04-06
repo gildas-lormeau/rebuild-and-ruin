@@ -43,10 +43,10 @@ Formal violations (upward edges) are already caught by `--check`. Look instead f
 
 | Smell | Example | Why it matters |
 |---|---|---|
-| High layer → low layer (unexpected) | Online logic (L15) → render (L13) | Networking code shouldn't know about canvas types |
-| Entry point bypassing runtime | `online-client` → `ai-strategy` directly | Should go through the runtime layer |
-| Cross-domain edges | Input layer imports game UI layer | Input should be usable independently of UI |
-| File group name doesn't match files inside | `render-theme.ts` in "config & interfaces" | Name drift signals a misclassified file |
+| High layer → low layer (unexpected) | Online logic (L15) → handlers (L7) | Networking code shouldn't know about input handlers |
+| Entry point bypassing runtime | `online-client` → `assembly` directly | Should go through the composition/wiring layers |
+| Cross-domain edges | Input files import render files at same layer | Input should be usable independently of rendering |
+| File group name doesn't match files inside | `server.ts` in "deep logic" | Name drift signals a misclassified file |
 
 Ask for each edge: **"Should this layer need to know about that layer?"** If the answer is no, there's work to do.
 
@@ -245,7 +245,7 @@ In the April 2025 audit, 8 files were moved out of L4 (dialog-types→L0, checkp
 
 ### When NOT to move
 
-A file that *could* be at a lower layer but is semantically part of a higher group should stay. Example: online-types.ts could be L3 by imports, but belongs in "online infrastructure" (L4) because it defines online-specific state. Layer numbers enforce import direction; semantic grouping is also valuable.
+A file that *could* be at a lower layer but is semantically part of a higher group should stay. Example: online-types.ts could be L3 by imports, but belongs in "deep logic" (L6) because it defines online-specific state. Layer numbers enforce import direction; semantic grouping is also valuable.
 
 ## Patterns from this codebase
 

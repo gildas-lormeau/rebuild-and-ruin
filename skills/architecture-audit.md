@@ -23,141 +23,130 @@ Audit with that in mind:
 ## Domain clusters
 
 Each domain is a group of tightly related files that share responsibility for a subsystem.
-Domains map to the 19 layer groups in `.import-layers.json` (L0–L18), with small layers
-combined and large layers (>10 files) split into sub-domains at audit time.
+Domains map to the 18 layer groups in `.import-layers.json` (L0–L17). Groups are named by
+role/abstraction level, not by domain — files from any domain land at their minimum import-depth layer.
 
-### 1. Leaf utilities — L0 (21 files)
+### 1. Leaf modules — L0 (20 files)
 ```
-src/ai/ai-constants.ts, src/shared/canvas-layout.ts, src/shared/game-constants.ts,
-src/shared/grid.ts, src/shared/jsfxr.d.ts, src/shared/platform.ts, src/shared/rng.ts,
-src/runtime/router.ts, src/online/online-dom.ts, src/shared/upgrade-defs.ts,
-src/shared/settings-defs.ts, src/shared/player-slot.ts, src/shared/game-phase.ts,
-src/shared/ui-mode.ts, src/shared/input-action.ts, src/shared/render-spy.ts,
-src/shared/utils.ts, src/online/online-config.ts, src/shared/dialog-types.ts,
-src/shared/checkpoint-data.ts, server/send-utils.ts
+server/send-utils, ai/ai-constants, input/input-recorder, online/online-config,
+online/online-dom, runtime/router, shared/canvas-layout, shared/game-constants,
+shared/game-phase, shared/grid, shared/input-action, shared/jsfxr.d, shared/platform,
+shared/player-slot, shared/render-spy, shared/rng, shared/settings-defs, shared/ui-mode,
+shared/upgrade-defs, shared/utils
 ```
 
-### 2. Derived constants + geometry + pieces — L1 + L2 (5 files)
+### 2. Foundational definitions — L1 (9 files)
 ```
-src/shared/geometry-types.ts, src/shared/theme.ts, src/shared/player-config.ts,
-src/shared/settings-ui.ts, src/shared/pieces.ts
-```
-
-### 3. Core game types — L3 (5 files)
-```
-src/shared/battle-types.ts, src/shared/types.ts, src/shared/player-types.ts,
-src/shared/phantom-types.ts, server/protocol.ts
+entry, online/online-full-state-recovery, render/render-sprites,
+shared/checkpoint-data, shared/dialog-types, shared/geometry-types,
+shared/modifier-defs, shared/pieces, shared/theme
 ```
 
-### 4. Game state & orchestration — L4 (11 files)
+### 3. Derived types — L2 (4 files)
 ```
-src/shared/spatial.ts, src/shared/board-occupancy.ts, src/shared/system-interfaces.ts,
-src/shared/overlay-types.ts, src/shared/tick-context.ts, src/game/life-lost.ts,
-src/game/upgrade-pick.ts, src/game/castle-build.ts, src/game/phase-banner.ts,
-src/game/phase-transition-steps.ts
+ai/ai-build-types, render/render-ui-theme, shared/battle-types, shared/player-config
 ```
 
-### 5. Online infrastructure — L5 (5 files)
+### 4. Core game types — L3 (5 files)
 ```
-src/online/online-types.ts, src/online/online-lobby-ui.ts,
-src/online/online-server-lifecycle.ts, src/online/online-session.ts,
-server/game-room.ts
-```
-
-### 6. Runtime primitives — L6 (11 files)
-```
-src/input/input-touch-update.ts, src/runtime/runtime-state.ts,
-src/runtime/runtime-banner.ts, src/runtime/runtime-human.ts,
-src/runtime/runtime-types.ts, src/runtime/runtime-camera.ts,
-src/runtime/runtime-score-deltas.ts, src/runtime/runtime-upgrade-pick.ts,
-src/runtime/runtime-game-lifecycle.ts, src/runtime/runtime-e2e-bridge.ts,
-src/runtime/runtime-screen-builders.ts
+server/protocol, shared/cannon-mode-defs, shared/phantom-types,
+shared/player-types, shared/settings-ui
 ```
 
-### 7. Game logic — L7 (14 files)
+### 5. Core state & interfaces — L4 (7 files)
 ```
-src/game/cannon-system.ts, src/game/grunt-movement.ts,
-src/game/grunt-system.ts, src/game/battle-system.ts, src/game/build-system.ts,
-src/game/castle-generation.ts, src/game/map-generation.ts, src/game/phase-setup.ts,
-src/game/combo-system.ts, src/game/round-modifiers.ts, src/game/game-engine.ts,
-src/game/selection.ts, src/game/host-phase-ticks.ts, src/game/host-battle-ticks.ts
+server/game-room, online/online-lobby-ui, online/online-session,
+shared/overlay-types, shared/spatial, shared/system-interfaces, shared/types
 ```
 
-### 8. Phase orchestration — L8 (3 files)
+### 6. First logic — L5 (17 files)
 ```
-src/runtime/runtime-phase-ticks.ts, src/runtime/runtime-life-lost.ts,
-src/runtime/runtime-selection.ts
-```
-
-### 9. AI strategy — L9 (9 files)
-```
-src/ai/ai-build-types.ts, src/ai/ai-castle-rect.ts, src/ai/ai-build-score.ts,
-src/ai/ai-build-fallback.ts, src/ai/ai-build-target.ts,
-src/ai/ai-strategy-battle.ts, src/ai/ai-strategy-build.ts,
-src/ai/ai-strategy-cannon.ts, src/ai/ai-strategy.ts
+server/room-manager, game/combo-system, game/life-lost, game/map-generation,
+game/phase-banner, game/upgrade-pick, input/haptics-system, input/input-dispatch,
+input/input-touch-update, input/sound-system, render/render-effects,
+render/render-loupe, render/render-towers, render/render-ui-settings,
+runtime/runtime-screen-builders, shared/board-occupancy, shared/tick-context
 ```
 
-### 10. Controllers — L10 (8 files)
+### 7. Deep logic — L6 (11 files)
 ```
-src/ai/ai-phase-select.ts, src/ai/ai-phase-build.ts,
-src/ai/ai-phase-cannon.ts, src/ai/ai-phase-battle.ts,
-src/ai/controller-ai.ts, src/player/controller-types.ts,
-src/player/controller-human.ts, src/player/controller-factory.ts
-```
-
-### 11. Game bootstrap — L11 (2 files)
-```
-src/runtime/runtime-bootstrap.ts, src/runtime/runtime-headless.ts
+server/server, ai/ai-castle-rect, game/cannon-system, game/castle-build,
+game/castle-generation, game/grunt-movement, game/phase-transition-steps,
+input/input, online/online-server-lifecycle, online/online-types,
+render/render-composition
 ```
 
-### 12. Input & sound — L12 (9 files)
+### 8. Handlers — L7 (10 files)
 ```
-src/input/haptics-system.ts, src/input/input-recorder.ts, src/input/input-dispatch.ts,
-src/input/input-touch-ui.ts, src/input/input-touch-canvas.ts, src/input/input-mouse.ts,
-src/input/input-keyboard.ts, src/input/input.ts, src/input/sound-system.ts
-```
-
-### 13. Render — L13 (10 files)
-```
-src/render/render-sprites.ts, src/render/render-loupe.ts, src/render/render-effects.ts,
-src/render/render-towers.ts, src/render/render-composition.ts, src/render/render-ui-theme.ts,
-src/render/render-ui.ts, src/render/render-ui-settings.ts, src/render/render-map.ts,
-src/render/render-canvas.ts
+ai/ai-build-score, ai/ai-strategy-cannon, game/grunt-system,
+game/host-phase-ticks, input/input-keyboard, input/input-mouse,
+input/input-touch-canvas, input/input-touch-ui, render/render-ui,
+runtime/runtime-state
 ```
 
-### 14. Runtime sub-systems — L14 (4 files)
+### 9. Runtime modules — L8 (13 files)
 ```
-src/runtime/runtime-input.ts, src/runtime/runtime-lobby.ts,
-src/runtime/runtime-options.ts, src/runtime/runtime-render.ts
-```
-
-### 15. Online logic — L15 (12 files)
-```
-src/online/online-serialize.ts, src/online/online-full-state-recovery.ts,
-src/online/online-send-actions.ts, src/online/online-checkpoints.ts,
-src/online/online-watcher-battle.ts, src/online/online-watcher-tick.ts,
-src/online/online-phase-transitions.ts, src/online/online-server-events.ts,
-src/online/online-host-crosshairs.ts, src/online/online-host-promotion.ts,
-src/online/online-stores.ts, server/room-manager.ts
+ai/ai-build-fallback, game/battle-system, game/build-system, game/round-modifiers,
+render/render-map, runtime/runtime-banner, runtime/runtime-human,
+runtime/runtime-lobby, runtime/runtime-options, runtime/runtime-render,
+runtime/runtime-score-deltas, runtime/runtime-types, runtime/runtime-upgrade-pick
 ```
 
-### 16. Local runtime — L16 (2 files)
+### 10. Assembly — L9 (14 files)
 ```
-src/runtime/assembly.ts, src/runtime/runtime.ts
-```
-
-### 17. Online runtime — L17 (7 files)
-```
-src/online/online-runtime-game.ts, src/online/online-runtime-deps.ts,
-src/online/online-runtime-session.ts, src/online/online-runtime-transition.ts,
-src/online/online-runtime-promote.ts, src/online/online-runtime-ws.ts,
-src/online/online-runtime-lobby.ts
+ai/ai-build-target, ai/ai-strategy-battle, game/host-battle-ticks,
+game/phase-setup, online/online-host-crosshairs, online/online-send-actions,
+online/online-watcher-battle, player/controller-types, render/render-canvas,
+runtime/assembly, runtime/runtime-camera, runtime/runtime-e2e-bridge,
+runtime/runtime-game-lifecycle, runtime/runtime-input
 ```
 
-### 18. Entry points & server — L18 (4 files)
+### 11. Controllers — L10 (7 files)
 ```
-src/entry.ts, src/main.ts, src/online-client.ts,
-server/server.ts
+ai/ai-strategy-build, game/game-engine, online/online-phase-transitions,
+online/online-serialize, online/online-watcher-tick, player/controller-human,
+runtime/runtime-life-lost
+```
+
+### 12. Orchestration — L11 (7 files)
+```
+ai/ai-strategy, game/selection, online/online-checkpoints,
+online/online-host-promotion, online/online-stores,
+player/controller-factory, runtime/runtime-phase-ticks
+```
+
+### 13. Wiring — L12 (9 files)
+```
+ai/ai-phase-battle, ai/ai-phase-build, ai/ai-phase-cannon,
+ai/ai-phase-select, online/online-runtime-transition,
+online/online-server-events, runtime/runtime-bootstrap,
+runtime/runtime-headless, runtime/runtime-selection
+```
+
+### 14. Composition roots — L13 (4 files)
+```
+ai/controller-ai, online/online-runtime-promote,
+online/online-runtime-session, runtime/runtime
+```
+
+### 15. App roots — L14 (2 files)
+```
+main, online/online-runtime-deps
+```
+
+### 16. Online logic — L15 (1 file)
+```
+online/online-runtime-ws
+```
+
+### 17. Online app — L16 (2 files)
+```
+online/online-runtime-game, online/online-runtime-lobby
+```
+
+### 18. Online entry — L17 (1 file)
+```
+online-client
 ```
 
 ## Execution
@@ -435,8 +424,10 @@ sufficient for LLM agents to follow correctly.
     (game/phase-setup.ts:289). Both sites are in the same file. The `| null` type enforces
     null checks at all access sites. Do not report the lifecycle as undocumented.
 
-36. **MODIFIER_LABELS and MODIFIER_ID must stay in sync** — shared/game-constants.ts:30-37
-    documents the invariant on both objects. Adding a modifier requires entries in both.
+36. **Modifier and cannon mode registries use compile-time exhaustiveness checks** —
+    shared/modifier-defs.ts and shared/cannon-mode-defs.ts follow the same PoolComplete
+    pattern as upgrade-defs.ts. Adding a ModifierId or CannonMode value without a pool
+    entry is a compile error. Labels, weights, sizes, and costs live in the pool entries.
 
 37. **Interior exclusion set in AI pickPlacement is intentional** —
     ai/ai-strategy-build.ts:485 documents why gaps and castle-rect tiles are excluded

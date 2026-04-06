@@ -25,7 +25,7 @@
     ]
   },
   {
-    "name": "geometry & config",
+    "name": "foundational definitions",
     "files": [
       "src/entry.ts",
       "src/online/online-full-state-recovery.ts",
@@ -39,7 +39,7 @@
     ]
   },
   {
-    "name": "pieces",
+    "name": "derived types",
     "files": [
       "src/ai/ai-build-types.ts",
       "src/render/render-ui-theme.ts",
@@ -58,7 +58,7 @@
     ]
   },
   {
-    "name": "game state & orchestration",
+    "name": "core state & interfaces",
     "files": [
       "server/game-room.ts",
       "src/online/online-lobby-ui.ts",
@@ -70,7 +70,7 @@
     ]
   },
   {
-    "name": "online infrastructure",
+    "name": "first logic",
     "files": [
       "server/room-manager.ts",
       "src/game/combo-system.ts",
@@ -92,7 +92,7 @@
     ]
   },
   {
-    "name": "runtime primitives",
+    "name": "deep logic",
     "files": [
       "server/server.ts",
       "src/ai/ai-castle-rect.ts",
@@ -108,7 +108,7 @@
     ]
   },
   {
-    "name": "game logic",
+    "name": "handlers",
     "files": [
       "src/ai/ai-build-score.ts",
       "src/ai/ai-strategy-cannon.ts",
@@ -123,7 +123,7 @@
     ]
   },
   {
-    "name": "phase orchestration",
+    "name": "runtime modules",
     "files": [
       "src/ai/ai-build-fallback.ts",
       "src/game/battle-system.ts",
@@ -141,7 +141,7 @@
     ]
   },
   {
-    "name": "AI strategy",
+    "name": "assembly",
     "files": [
       "src/ai/ai-build-target.ts",
       "src/ai/ai-strategy-battle.ts",
@@ -172,7 +172,7 @@
     ]
   },
   {
-    "name": "game bootstrap",
+    "name": "orchestration",
     "files": [
       "src/ai/ai-strategy.ts",
       "src/game/selection.ts",
@@ -184,7 +184,7 @@
     ]
   },
   {
-    "name": "input & sound",
+    "name": "wiring",
     "files": [
       "src/ai/ai-phase-battle.ts",
       "src/ai/ai-phase-build.ts",
@@ -198,7 +198,7 @@
     ]
   },
   {
-    "name": "render",
+    "name": "composition roots",
     "files": [
       "src/ai/controller-ai.ts",
       "src/online/online-runtime-promote.ts",
@@ -207,7 +207,7 @@
     ]
   },
   {
-    "name": "runtime sub-systems",
+    "name": "app roots",
     "files": [
       "src/main.ts",
       "src/online/online-runtime-deps.ts"
@@ -220,14 +220,14 @@
     ]
   },
   {
-    "name": "local runtime",
+    "name": "online app",
     "files": [
       "src/online/online-runtime-game.ts",
       "src/online/online-runtime-lobby.ts"
     ]
   },
   {
-    "name": "online runtime",
+    "name": "online entry",
     "files": [
       "src/online-client.ts"
     ]
