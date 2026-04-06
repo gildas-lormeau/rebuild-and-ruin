@@ -365,9 +365,9 @@ function findGruntSpawnPositions(
     }
   }
 
-  // Prefer tiles near map borders first, then closest to water (bank)
+  // Prefer tiles near water (bank) first, then map borders as tiebreaker
   candidates.sort(
-    (a, b) => a.borderDist - b.borderDist || a.waterDist - b.waterDist,
+    (a, b) => a.waterDist - b.waterDist || a.borderDist - b.borderDist,
   );
 
   const result: TilePos[] = [];
