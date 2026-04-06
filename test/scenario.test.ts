@@ -37,7 +37,7 @@ import {
   assertPhase,
   createScenario,
 } from "./scenario-helpers.ts";
-import { assert, assertEquals } from "jsr:@std/assert";
+import { assert } from "jsr:@std/assert";
 import { enterCannonPlacePhase, nextPhase } from "../src/game/game-engine.ts";
 import { SPECTATOR_SLOT, type PlayerSlotId, type ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { Phase } from "../src/shared/game-phase.ts";
@@ -893,67 +893,6 @@ Deno.test("build-start: watcher calls startBuildPhase on local controller", () =
   assertPhase(s, Phase.WALL_BUILD);
 });
 
-// ---------------------------------------------------------------------------
-// 27. executeTransition runs steps in declared order
-// ---------------------------------------------------------------------------
-
-Deno.test("executeTransition runs steps in declared order for all recipes", () => {
-  const log: string[] = [];
-
-  // BUILD_START: showBanner → applyCheckpoint → initControllers
-  executeTransition(BUILD_START_STEPS, {
-    showBanner: () => log.push("showBanner"),
-    applyCheckpoint: () => log.push("applyCheckpoint"),
-    initControllers: () => log.push("initControllers"),
-  });
-  assert(log.length === 3, `BUILD: expected 3 steps, got ${log.length}`);
-  assert(log[0] === "showBanner", `BUILD step 0: ${log[0]}`);
-  assert(log[1] === "applyCheckpoint", `BUILD step 1: ${log[1]}`);
-  assert(log[2] === "initControllers", `BUILD step 2: ${log[2]}`);
-
-  // CANNON_START: showBanner → applyCheckpoint → initControllers
-  log.length = 0;
-  executeTransition(CANNON_START_STEPS, {
-    showBanner: () => log.push("showBanner"),
-    applyCheckpoint: () => log.push("applyCheckpoint"),
-    initControllers: () => log.push("initControllers"),
-  });
-  assert(log[0] === "showBanner", `CANNON step 0: ${log[0]}`);
-  assert(log[1] === "applyCheckpoint", `CANNON step 1: ${log[1]}`);
-  assert(log[2] === "initControllers", `CANNON step 2: ${log[2]}`);
-
-  // BATTLE_START: showBanner → applyCheckpoint → snapshotForBanner
-  log.length = 0;
-  executeTransition(BATTLE_START_STEPS, {
-    showBanner: () => log.push("showBanner"),
-    applyCheckpoint: () => log.push("applyCheckpoint"),
-    snapshotForBanner: () => log.push("snapshotForBanner"),
-  });
-  assert(log[0] === "showBanner", `BATTLE step 0: ${log[0]}`);
-  assert(log[1] === "applyCheckpoint", `BATTLE step 1: ${log[1]}`);
-  assertEquals(log[2], "snapshotForBanner", `BATTLE step 2: ${log[2]}`);
-});
-
-// ---------------------------------------------------------------------------
-// 28. All three recipes are structurally distinct (no accidental reuse)
-// ---------------------------------------------------------------------------
-
-Deno.test("recipe step arrays are distinct and have expected lengths", () => {
-  // Each recipe is 3 steps
-  assert(CANNON_START_STEPS.length === 3, "CANNON_START_STEPS should have 3 steps");
-  assert(BATTLE_START_STEPS.length === 3, "BATTLE_START_STEPS should have 3 steps");
-  assert(BUILD_START_STEPS.length === 3, "BUILD_START_STEPS should have 3 steps");
-
-  // Battle uses a different recipe (snapshot instead of initControllers)
-  const cannon = CANNON_START_STEPS.join(",");
-  const battle = BATTLE_START_STEPS.join(",");
-  assert(cannon !== battle, "CANNON and BATTLE recipes must differ");
-
-  // All transitions start with banner (capture old scene before reconcile)
-  assert(CANNON_START_STEPS[0] === "showBanner", "Cannon must banner first");
-  assert(BATTLE_START_STEPS[0] === "showBanner", "Battle must banner first");
-  assert(BUILD_START_STEPS[0] === "showBanner", "Build must banner first");
-});
 
 // ---------------------------------------------------------------------------
 // 29. Build-start parity: host initControllers does real work

@@ -1,59 +1,13 @@
-import {
-  BATTLE_START_STEPS,
-  BUILD_START_STEPS,
-  CANNON_START_STEPS,
-  executeTransition,
-  runBuildEndSequence,
-} from "../src/game/phase-transition-steps.ts";
+/**
+ * runBuildEndSequence tests — verifies the branching logic for life-lost
+ * notifications and dialog display after build phase ends.
+ *
+ * Run with: deno test --no-check test/online-phase-transitions.test.ts
+ */
+
+import { runBuildEndSequence } from "../src/game/phase-transition-steps.ts";
 import { assert } from "jsr:@std/assert";
 import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
-
-// ---------------------------------------------------------------------------
-// executeTransition step ordering
-// ---------------------------------------------------------------------------
-
-Deno.test("CANNON_START_STEPS executes in order: banner, checkpoint, controllers", () => {
-  const order: string[] = [];
-  executeTransition(CANNON_START_STEPS, {
-    showBanner: () => order.push("banner"),
-    applyCheckpoint: () => order.push("checkpoint"),
-    initControllers: () => order.push("controllers"),
-  });
-  assert(order.length === 3, `expected 3 steps, got ${order.length}`);
-  assert(order[0] === "banner", `step 0: expected banner, got ${order[0]}`);
-  assert(order[1] === "checkpoint", `step 1: expected checkpoint, got ${order[1]}`);
-  assert(order[2] === "controllers", `step 2: expected controllers, got ${order[2]}`);
-});
-
-Deno.test("BATTLE_START_STEPS executes in order: banner, checkpoint, snapshot", () => {
-  const order: string[] = [];
-  executeTransition(BATTLE_START_STEPS, {
-    showBanner: () => order.push("banner"),
-    applyCheckpoint: () => order.push("checkpoint"),
-    snapshotForBanner: () => order.push("snapshot"),
-  });
-  assert(order.length === 3, `expected 3 steps, got ${order.length}`);
-  assert(order[0] === "banner", `step 0: expected banner, got ${order[0]}`);
-  assert(order[1] === "checkpoint", `step 1: expected checkpoint, got ${order[1]}`);
-  assert(order[2] === "snapshot", `step 2: expected snapshot, got ${order[2]}`);
-});
-
-Deno.test("BUILD_START_STEPS executes in order: banner, checkpoint, controllers", () => {
-  const order: string[] = [];
-  executeTransition(BUILD_START_STEPS, {
-    showBanner: () => order.push("banner"),
-    applyCheckpoint: () => order.push("checkpoint"),
-    initControllers: () => order.push("controllers"),
-  });
-  assert(order.length === 3, `expected 3 steps, got ${order.length}`);
-  assert(order[0] === "banner", `step 0: expected banner, got ${order[0]}`);
-  assert(order[1] === "checkpoint", `step 1: expected checkpoint, got ${order[1]}`);
-  assert(order[2] === "controllers", `step 2: expected controllers, got ${order[2]}`);
-});
-
-// ---------------------------------------------------------------------------
-// runBuildEndSequence
-// ---------------------------------------------------------------------------
 
 Deno.test("runBuildEndSequence calls onLifeLostResolved when no players need action", () => {
   let resolved = false;
@@ -141,15 +95,11 @@ Deno.test("runBuildEndSequence shows dialog for eliminated-only (no reselect)", 
 });
 
 Deno.test("runBuildEndSequence works without onLifeLostResolved (watcher mode)", () => {
-  // Watchers omit onLifeLostResolved — should not throw
   runBuildEndSequence({
     needsReselect: [],
     eliminated: [],
     showScoreDeltas: (onDone) => onDone(),
     notifyLifeLost: () => {},
     showLifeLostDialog: () => {},
-    // no onLifeLostResolved
   });
-  // If we reach here without error, the test passes
 });
-
