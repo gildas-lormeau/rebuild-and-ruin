@@ -901,7 +901,7 @@ async function runLocal() {
     ((window as unknown as Record<string, unknown>).__e2e as any)?.mode as string
   ).catch(() => "unknown");
   if (finalMode === "STOPPED") {
-    logs.push(`[LOCAL] game_over — game ended normally`);
+    logs.push(`[LOCAL] gameOver — game ended normally`);
   } else {
     logs.push(`[LOCAL] game still running (mode=${finalMode})`);
   }
