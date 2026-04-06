@@ -65,6 +65,8 @@ export interface CannonStartData {
   towerAlive: boolean[];
   burningPits: SerializedBurningPit[];
   houses: SerializedHouse[];
+  /** Grunts queued to spawn through wall breaches (persists across phases). */
+  gruntSpawnQueue?: SerializedBreachSpawnEntry[];
 }
 
 /** Data needed to sync state at battle start. */
@@ -91,6 +93,15 @@ export interface BattleStartData {
     changedTiles: readonly number[];
     gruntsSpawned: number;
   } | null;
+  /** Grunts queued to spawn through wall breaches (persists across phases). */
+  gruntSpawnQueue?: SerializedBreachSpawnEntry[];
+}
+
+/** Serialized breach spawn queue entry. */
+export interface SerializedBreachSpawnEntry {
+  row: number;
+  col: number;
+  victimPlayerId: ValidPlayerSlot;
 }
 
 /** Data needed to sync state at build phase start. */
@@ -111,4 +122,6 @@ export interface BuildStartData {
   masterBuilderOwners?: number[] | null;
   /** Frozen river tiles persisting from previous battle (packed keys). null = no frozen river. */
   frozenTiles: number[] | null;
+  /** Grunts queued to spawn through wall breaches during build phase. */
+  gruntSpawnQueue?: SerializedBreachSpawnEntry[];
 }

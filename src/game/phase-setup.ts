@@ -20,9 +20,6 @@ import {
 import { FID } from "../shared/feature-defs.ts";
 import {
   BATTLE_TIMER,
-  FIRST_GRUNT_SPAWN_ROUND,
-  INTERBATTLE_GRUNT_SPAWN_ATTEMPTS,
-  INTERBATTLE_GRUNT_SPAWN_CHANCE,
   MASTER_BUILDER_BONUS_SECONDS,
   MODIFIER_ID,
   type ModifierDiff,
@@ -78,9 +75,9 @@ import {
   isCombosEnabled,
 } from "./combo-system.ts";
 import {
+  queueInterbattleGrunts,
   rollGruntWallAttacks,
   spawnGruntGroupOnZone,
-  spawnGruntOnZone,
   updateGruntBlockedBattles,
 } from "./grunt-system.ts";
 import {
@@ -249,7 +246,6 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   decayBurningPits(state);
   sweepAllPlayersWalls(state);
   recheckTerritoryOnly(state);
-  spawnInterbattleGrunts(state);
   removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
   clearFrozenRiver(state);
   // Roll modifier at battle start so it isn't spoiled in the status bar during build.
@@ -285,6 +281,7 @@ export function enterBuildFromBattle(state: GameState): void {
   // ── RNG consumption (BEFORE checkpoint — order is load-bearing for online sync) ──
   // host/watcher/headless must consume RNG identically before BUILD_START checkpoint
   // is created. Do NOT insert RNG calls after this block or move these after setPhase.
+  queueInterbattleGrunts(state);
   if (hasFeature(state, FID.UPGRADES)) {
     state.modern!.pendingUpgradeOffers = generateUpgradeOffers(state);
   }
@@ -458,6 +455,10 @@ export function resetZoneState(state: GameState, zone: number): void {
     }
     return true;
   });
+  // Clear breach-queued grunts targeting this zone's player
+  state.gruntSpawnQueue = state.gruntSpawnQueue.filter(
+    (entry) => state.playerZones[entry.victimPlayerId] !== zone,
+  );
   state.map.houses = state.map.houses.filter((house) => house.zone !== zone);
   state.bonusSquares = state.bonusSquares.filter(
     (bonus) => bonus.zone !== zone,
@@ -562,18 +563,6 @@ export function prepareCastleWallsForPlayer(
 function decayBurningPits(state: GameState): void {
   for (const pit of state.burningPits) pit.roundsLeft--;
   state.burningPits = state.burningPits.filter((pit) => pit.roundsLeft > 0);
-}
-
-/** From round 2+, each seated player has a chance to get grunts spawned on their zone. */
-function spawnInterbattleGrunts(state: GameState): void {
-  if (state.round < FIRST_GRUNT_SPAWN_ROUND) return;
-  for (const player of state.players.filter(isPlayerSeated)) {
-    for (let i = 0; i < INTERBATTLE_GRUNT_SPAWN_ATTEMPTS; i++) {
-      if (state.rng.bool(INTERBATTLE_GRUNT_SPAWN_CHANCE)) {
-        spawnGruntOnZone(state, player.id);
-      }
-    }
-  }
 }
 
 /** Modern mode: apply environmental modifiers at battle start.

@@ -75,6 +75,11 @@ export function applyCannonStartCheckpoint(
   applyCommonCheckpoint(data, deps, capturePreState);
   deps.state.cannonLimits = data.limits;
   deps.state.timer = data.timer;
+  deps.state.gruntSpawnQueue = (data.gruntSpawnQueue ?? []).map((entry) => ({
+    row: entry.row,
+    col: entry.col,
+    victimPlayerId: entry.victimPlayerId,
+  }));
   clearBattleProjectiles(deps);
   resetWatcherCrosshairs(deps);
   resetCannonFacings(deps.state);
@@ -99,6 +104,11 @@ export function applyBattleStartCheckpoint(
   deps.battleAnim.walls = snapshotAllWalls(deps.state);
 
   applyCapturedCannons(deps.state, data.capturedCannons);
+  deps.state.gruntSpawnQueue = (data.gruntSpawnQueue ?? []).map((entry) => ({
+    row: entry.row,
+    col: entry.col,
+    victimPlayerId: entry.victimPlayerId,
+  }));
 
   // Restore frozen river state (matches host's applyFrozenRiver in enterBattleFromCannon)
   if (hasFeature(deps.state, FID.MODIFIERS)) {
@@ -155,6 +165,11 @@ export function applyBuildStartCheckpoint(
       ? new Set(data.masterBuilderOwners as ValidPlayerSlot[])
       : null;
   }
+  deps.state.gruntSpawnQueue = (data.gruntSpawnQueue ?? []).map((entry) => ({
+    row: entry.row,
+    col: entry.col,
+    victimPlayerId: entry.victimPlayerId,
+  }));
   clearBattleProjectiles(deps);
   deps.accum.grunt = 0;
   resetCannonFacings(deps.state);

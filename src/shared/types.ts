@@ -3,6 +3,7 @@
  */
 
 import type {
+  BreachSpawnEntry,
   BurningPit,
   Cannon,
   Cannonball,
@@ -94,6 +95,10 @@ export interface GameState {
    *  Phase-dependent: only meaningful when `state.phase === Phase.CANNON_PLACE`.
    *  Always guard: `if (state.phase === Phase.CANNON_PLACE) { ... state.cannonLimits ... }` */
   cannonLimits: number[];
+  /** Grunts waiting to spawn through wall breaches during build phase.
+   *  Queued in enterBuildFromBattle, drained one-per-tick by tickBreachSpawnQueue.
+   *  Empty when no breach spawning is pending. */
+  gruntSpawnQueue: BreachSpawnEntry[];
   /** Game mode: classic (original rules) or modern (environmental modifiers). Immutable for the match. */
   gameMode: GameMode;
   /** Active feature capabilities for this match. Empty in classic mode.

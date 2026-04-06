@@ -114,6 +114,14 @@ export interface BattleAnimState {
   impacts: Impact[];
 }
 
+/** A grunt waiting to spawn through a wall breach during build phase.
+ *  Queued in enterBuildFromBattle, drained one-per-tick by tickBreachSpawnQueue. */
+export interface BreachSpawnEntry {
+  row: number;
+  col: number;
+  victimPlayerId: ValidPlayerSlot;
+}
+
 /** True if the cannon mode is super gun. */
 export function isSuperMode(mode: CannonMode): mode is CannonMode.SUPER {
   return mode === CannonMode.SUPER;

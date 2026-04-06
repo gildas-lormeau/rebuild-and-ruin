@@ -17,8 +17,11 @@ import {
 } from "../game/battle-system.ts";
 import { applyDefaultFacings } from "../game/cannon-system.ts";
 import { nextPhase, tickGameCore } from "../game/game-engine.ts";
-import { tickGrunts } from "../game/grunt-movement.ts";
-import { gruntAttackTowers } from "../game/grunt-system.ts";
+import { tickGrunts as moveGrunts } from "../game/grunt-movement.ts";
+import {
+  gruntAttackTowers,
+  tickBreachSpawnQueue,
+} from "../game/grunt-system.ts";
 import {
   beginHostBattle,
   LOCAL_BATTLE_START_NET,
@@ -67,6 +70,7 @@ import {
   resetAccum,
   type WatcherTimingState,
 } from "../shared/tick-context.ts";
+import type { GameState } from "../shared/types.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import {
   assertStateReady,
@@ -429,7 +433,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       frame: runtimeState.frame,
       controllers: runtimeState.controllers,
       render: deps.render,
-      tickGrunts,
+      tickGrunts: (gameState: GameState) => {
+        tickBreachSpawnQueue(gameState);
+        moveGrunts(gameState);
+      },
       isHuman,
       finalizeBuildPhase,
       showLifeLostDialog: (needsReselect, eliminated) => {
