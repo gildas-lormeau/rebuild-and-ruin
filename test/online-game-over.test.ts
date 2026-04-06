@@ -63,20 +63,11 @@ Deno.test("1-round online game delivers gameOver to watcher via browser", async 
     const code = await createRoom(hostPage);
     await joinRoom(watcherPage, code);
 
-    // Poll host __e2e.mode until STOPPED (game over)
-    const deadline = Date.now() + 120_000;
-    let stopped = false;
-    while (Date.now() < deadline) {
-      const mode = await hostPage
-        .evaluate(() => (globalThis as any).__e2e?.mode ?? "")
-        .catch(() => "");
-      if (mode === "STOPPED") {
-        stopped = true;
-        break;
-      }
-      await hostPage.waitForTimeout(500);
-    }
-    assert(stopped, "game did not reach STOPPED mode");
+    // Wait for host to reach STOPPED (game over)
+    await hostPage.waitForFunction(
+      () => (globalThis as unknown as Record<string, Record<string, unknown>>).__e2e?.mode === "STOPPED",
+      { timeout: 120_000 },
+    );
 
     const sawGameOver = watcherLogs.some((log) =>
       log.includes(MESSAGE.GAME_OVER),
