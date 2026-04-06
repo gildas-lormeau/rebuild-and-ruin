@@ -9,11 +9,7 @@
  * Used by both main.ts (local play) and online-runtime-game.ts (online).
  */
 
-import {
-  fireNextReadyCannon,
-  snapshotTerritory,
-} from "../game/battle-system.ts";
-import { placePiece } from "../game/build-system.ts";
+import { snapshotTerritory } from "../game/battle-system.ts";
 import { generateMap } from "../game/map-generation.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
 import { dispatchPointerMove } from "../input/input-dispatch.ts";
@@ -46,10 +42,7 @@ import {
   controlsScreenHitTest,
   optionsScreenHitTest,
 } from "../render/render-ui-settings.ts";
-import {
-  MAX_FRAME_DT,
-  SELECT_ANNOUNCEMENT_DURATION,
-} from "../shared/game-constants.ts";
+import { SELECT_ANNOUNCEMENT_DURATION } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
@@ -58,6 +51,13 @@ import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform.ts";
 import { type GameSettings, SEED_CUSTOM } from "../shared/player-config.ts";
 import { cycleOption } from "../shared/settings-ui.ts";
 import { Mode } from "../shared/ui-mode.ts";
+import {
+  createRuntimeInputAdapters,
+  createRuntimeLobbyDeps,
+  createRuntimeLoop,
+  createRuntimeOptionsDeps,
+  createRuntimeUiContext,
+} from "./assembly.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
 import {
   bootstrapNewGameFromSettings,
@@ -95,25 +95,15 @@ import {
   showOptions,
   tickLobby,
   togglePause,
-  type UIContext,
   visibleOptions,
 } from "./runtime-screen-builders.ts";
 import { createSelectionSystem } from "./runtime-selection.ts";
-import {
-  computeFrameContext,
-  createRuntimeState,
-  isStateReady,
-  safeState,
-  setMode,
-  tickMainLoop,
-} from "./runtime-state.ts";
+import { createRuntimeState, safeState } from "./runtime-state.ts";
 import { type GameRuntime, type RuntimeConfig } from "./runtime-types.ts";
 import {
   createUpgradePickSystem,
   type UpgradePickSystem,
 } from "./runtime-upgrade-pick.ts";
-
-export type { GameRuntime } from "./runtime-types.ts";
 
 export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   const { renderer } = config;
@@ -156,21 +146,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // Frame/timing helpers
   // -------------------------------------------------------------------------
 
-  function clearFrameData(): void {
-    // gameOver persists until the player acts (rematch/menu), so it
-    // survives per-frame resets — everything else is transient.
-    const { gameOver } = runtimeState.frame;
-    runtimeState.frame = { crosshairs: [], phantoms: {} };
-    if (gameOver) runtimeState.frame.gameOver = gameOver;
-    clearHumanCache();
-  }
-
-  function clampedFrameDt(now: number): number {
-    const dt = Math.min((now - runtimeState.lastTime) / 1000, MAX_FRAME_DT);
-    runtimeState.lastTime = now;
-    return dt;
-  }
-
   // -------------------------------------------------------------------------
   // Main loop
   // -------------------------------------------------------------------------
@@ -191,59 +166,23 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     [Mode.UPGRADE_PICK]: (dt: number) => upgradePick.tick(dt),
     [Mode.GAME]: (dt: number) => phaseTicks.tickGame(dt),
   } satisfies Record<Exclude<Mode, Mode.STOPPED>, (dt: number) => void>;
-
-  function mainLoop(now: number): void {
-    const dt = clampedFrameDt(now);
-    runtimeState.frameDt = dt;
-    clearFrameData();
-
-    const pointer = pointerPlayer();
-
-    runtimeState.frameMeta = computeFrameContext({
-      mode: runtimeState.mode,
-      phase: isStateReady(runtimeState)
-        ? runtimeState.state.phase
-        : Phase.CASTLE_SELECT,
-      timer: isStateReady(runtimeState) ? runtimeState.state.timer : 0,
-      paused: runtimeState.paused,
-      quitPending: runtimeState.quit.pending,
-      hasLifeLostDialog: runtimeState.lifeLostDialog !== null,
-      isSelectionReady: isSelectionReady(),
-      humanIsReselecting:
-        pointer !== null &&
-        runtimeState.reselectQueue.includes(pointer.playerId),
-      hasPointerPlayer: pointer !== null,
-      myPlayerId: config.getMyPlayerId(),
-      hostAtFrameStart: config.getIsHost(),
-      remoteHumanSlots: config.getRemoteHumanSlots(),
-      mobileAutoZoom: camera.isMobileAutoZoom(),
-    });
-
-    tickCamera();
-    scoreDelta.tick(dt);
-
-    const shouldContinue = tickMainLoop({
-      dt,
-      mode: runtimeState.mode,
-      paused: runtimeState.paused,
-      quitPending: runtimeState.quit.pending,
-      quitTimer: runtimeState.quit.timer,
-      quitMessage: runtimeState.quit.message,
-      frame: runtimeState.frame,
-      setQuitPending: (quitPending: boolean) => {
-        runtimeState.quit.pending = quitPending;
-      },
-      setQuitTimer: (quitTimer: number) => {
-        runtimeState.quit.timer = quitTimer;
-      },
-      render,
-      ticks: modeTickers,
-    });
-
-    if (IS_DEV) exposeE2EBridge({ runtimeState, config, camera, renderer });
-    if (shouldContinue && runtimeState.mode !== Mode.STOPPED)
-      requestAnimationFrame(mainLoop);
-  }
+  const { clearFrameData, mainLoop } = createRuntimeLoop({
+    runtimeState,
+    getMyPlayerId: config.getMyPlayerId,
+    getIsHost: config.getIsHost,
+    getRemoteHumanSlots: config.getRemoteHumanSlots,
+    getPointerPlayer: () => pointerPlayer(),
+    clearHumanCache: () => clearHumanCache(),
+    isSelectionReady,
+    isMobileAutoZoom: () => camera.isMobileAutoZoom(),
+    tickCamera: () => tickCamera(),
+    tickScoreDelta: (dt: number) => scoreDelta.tick(dt),
+    render: () => render(),
+    ticks: modeTickers,
+    onAfterFrame: () => {
+      if (IS_DEV) exposeE2EBridge({ runtimeState, config, camera, renderer });
+    },
+  });
 
   // -------------------------------------------------------------------------
   // Rendering / frame helpers
@@ -476,43 +415,20 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // UIContext — bridges internal state to game-ui-screens.ts functions
   // -------------------------------------------------------------------------
 
-  const uiCtx: UIContext = {
-    getState: () => safeState(runtimeState),
-    getOverlay: () => runtimeState.overlay,
-    settings: runtimeState.settings,
-    getMode: () => runtimeState.mode,
-    setMode: (mode) => {
-      setMode(runtimeState, mode);
-    },
-    getPaused: () => runtimeState.paused,
-    setPaused: (paused) => {
-      runtimeState.paused = paused;
-    },
-    optionsCursor: {
-      get value() {
-        return runtimeState.optionsUI.cursor;
-      },
-      set value(value) {
-        runtimeState.optionsUI.cursor = value;
-      },
-    },
-    controlsState: runtimeState.controlsState,
-    getOptionsReturnMode: () => runtimeState.optionsUI.returnMode,
-    setOptionsReturnMode: (mode) => {
-      runtimeState.optionsUI.returnMode = mode;
-    },
-    lobby: runtimeState.lobby,
-    getFrame: () => runtimeState.frame,
+  const uiCtx = createRuntimeUiContext({
+    runtimeState,
     getLobbyRemaining: config.getLobbyRemaining,
     isOnline,
-  };
-
-  // Initialize options system first (lobby depends on showOptions)
-  const options = createOptionsSystem({
+  });
+  const inputAdapters = createRuntimeInputAdapters({
+    config,
+    runtimeState,
+    isOnline,
+  });
+  const optionsDeps = createRuntimeOptionsDeps({
     runtimeState,
     uiCtx,
     renderFrame,
-    // Bridge boolean enable to dpad's Phase|null API (WALL_BUILD = any non-selection phase)
     updateDpad: (enabled) =>
       touchHandles.dpad?.update(enabled ? Phase.WALL_BUILD : null),
     setDpadLeftHanded: (left) => touchHandles.dpad?.setLeftHanded(left),
@@ -535,8 +451,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     cycleOption,
   });
 
-  // Initialize lobby system (needs options.showOptions)
-  const lobby = createLobbySystem({
+  // Initialize options system first (lobby depends on showOptions)
+  const options = createOptionsSystem(optionsDeps);
+  const lobbyDeps = createRuntimeLobbyDeps({
     runtimeState,
     uiCtx,
     renderFrame,
@@ -552,6 +469,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     computeLobbyLayout,
     lobbyClickHitTest,
   });
+
+  // Initialize lobby system (needs options.showOptions)
+  const lobby = createLobbySystem(lobbyDeps);
 
   // -------------------------------------------------------------------------
   // Input sub-system (all deps now available — standard factory pattern)
@@ -584,44 +504,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       },
       visibleOptionCount: () => visibleOptions(uiCtx).length,
     },
-    network: {
-      isOnline,
-      maybeSendAimUpdate: config.onlineConfig?.maybeSendAimUpdate,
-      tryPlaceCannonAndSend: config.onlineConfig?.tryPlaceCannonAndSend,
-      tryPlacePieceAndSend:
-        config.onlineConfig?.tryPlacePieceAndSend ??
-        ((ctrl, gs) => {
-          const intent = ctrl.tryPlacePiece(gs);
-          if (!intent) return false;
-          const placed = placePiece(
-            runtimeState.state,
-            intent.playerId,
-            intent.piece,
-            intent.row,
-            intent.col,
-          );
-          if (placed) {
-            ctrl.advanceBag(true);
-            ctrl.clampBuildCursor(intent.piece);
-          }
-          return placed;
-        }),
-      fireAndSend:
-        config.onlineConfig?.fireAndSend ??
-        ((ctrl, gs) => {
-          const intent = ctrl.fire(gs);
-          if (!intent) return;
-          const fired = fireNextReadyCannon(
-            runtimeState.state,
-            intent.playerId,
-            ctrl.cannonRotationIdx,
-            intent.targetRow,
-            intent.targetCol,
-          );
-          if (fired) ctrl.cannonRotationIdx = fired.rotationIdx;
-        }),
-      getIsHost: config.getIsHost,
-    },
+    network: inputAdapters.network,
     lobby,
     options,
     lifeLost,

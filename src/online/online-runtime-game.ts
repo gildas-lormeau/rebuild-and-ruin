@@ -1,5 +1,4 @@
 import {
-  type FullStateMessage,
   type GameMessage,
   type InitMessage,
   MESSAGE,
@@ -7,54 +6,28 @@ import {
 import { fireNextReadyCannon } from "../game/battle-system.ts";
 import { placePiece } from "../game/build-system.ts";
 import { createCanvasRenderer } from "../render/render-canvas.ts";
-import { precomputeTerrainCache } from "../render/render-map.ts";
-import {
-  GAME_CONTAINER_ACTIVE,
-  GAME_EXIT_EVENT,
-  navigateTo,
-} from "../runtime/router.ts";
-import { createGameRuntime, type GameRuntime } from "../runtime/runtime.ts";
-import {
-  bootstrapGame,
-  initWaitingRoom,
-} from "../runtime/runtime-bootstrap.ts";
+import { GAME_EXIT_EVENT } from "../runtime/router.ts";
+import { createGameRuntime } from "../runtime/runtime.ts";
 import { setMode } from "../runtime/runtime-state.ts";
-import { LifeLostChoice } from "../shared/dialog-types.ts";
+import type { GameRuntime } from "../runtime/runtime-types.ts";
 import {
-  BANNER_DURATION,
   DIFFICULTY_NORMAL,
   DIFFICULTY_PARAMS,
   SELECT_TIMER,
 } from "../shared/game-constants.ts";
-import {
-  MAX_PLAYERS,
-  PLAYER_COLORS,
-  PLAYER_NAMES,
-} from "../shared/player-config.ts";
+import { MAX_PLAYERS, PLAYER_NAMES } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isHostInContext } from "../shared/tick-context.ts";
 import { Mode } from "../shared/ui-mode.ts";
-import type { UpgradeId } from "../shared/upgrade-defs.ts";
-import {
-  applyBattleStartCheckpoint,
-  applyBuildEndCheckpoint,
-  applyBuildStartCheckpoint,
-  applyCannonStartCheckpoint,
-  type CheckpointDeps,
-} from "./online-checkpoints.ts";
-import { canvas, pageOnline, roomCodeOverlay } from "./online-dom.ts";
-import { restoreFullStateUiRecovery } from "./online-full-state-recovery.ts";
+import { canvas } from "./online-dom.ts";
 import {
   broadcastLocalCrosshair,
   extendWithRemoteCrosshairs,
 } from "./online-host-crosshairs.ts";
-import {
-  buildRoomCodeOverlay,
-  hideRoomCodeOverlay,
-} from "./online-lobby-ui.ts";
-import type { TransitionContext } from "./online-phase-transitions.ts";
 import { initDeps } from "./online-runtime-deps.ts";
 import { initPromote } from "./online-runtime-promote.ts";
+import { createOnlineRuntimeSessionHelpers } from "./online-runtime-session.ts";
+import { createOnlineTransitionContext } from "./online-runtime-transition.ts";
 import { initWs } from "./online-runtime-ws.ts";
 import {
   fireAndSend,
@@ -66,11 +39,9 @@ import {
   createBuildStartMessage,
   createCannonStartMessage,
   createGameOverPayload,
-  restoreFullStateSnapshot,
   serializePlayers,
 } from "./online-serialize.ts";
 import { defaultClient, RESET_SCOPE_NEW_GAME } from "./online-stores.ts";
-import { setWatcherPhaseTimer } from "./online-types.ts";
 import {
   tickMigrationAnnouncement,
   tickWatcher,
@@ -84,43 +55,24 @@ const { ctx, send, devLog, devLogThrottled, maybeSendAimUpdate } =
   defaultClient;
 // ── DOM singletons (from centralized boundary) ─────────────────────
 const renderer = createCanvasRenderer(canvas);
-// ── Assemble transition context ─────────────────────────────────────
-const transitionCtx: TransitionContext = {
-  getState: () => runtime.runtimeState.state,
+const sessionHelpers = createOnlineRuntimeSessionHelpers({
+  getRuntime: () => runtime,
   session: ctx.session,
-  getControllers: () => runtime.runtimeState.controllers,
-  setMode: (mode: Mode) => {
-    setMode(runtime.runtimeState, mode);
+  watcher: ctx.watcher,
+  resetNetworkingForNewGame: () => {
+    defaultClient.resetNetworking(RESET_SCOPE_NEW_GAME);
   },
-  ui: buildTransitionUiCtx(),
-  checkpoint: buildTransitionCheckpointCtx(),
-  selection: buildTransitionSelectionCtx(),
-  battleLifecycle: buildTransitionBattleCtx(),
-  endPhase: buildTransitionEndPhaseCtx(),
-  upgradePick: {
-    prepare: () => runtime.upgradePick.prepare(),
-    tryShow: (onDone) => {
-      const shown = runtime.upgradePick.tryShow(onDone);
-      // Drain early picks (race: watcher sent pick before host created dialog)
-      if (shown) {
-        const dialog = runtime.upgradePick.get();
-        if (dialog) {
-          for (const [pid, choice] of ctx.session.earlyUpgradePickChoices) {
-            const entry = dialog.entries.find(
-              (en) =>
-                en.playerId === pid &&
-                en.choice === null &&
-                en.offers.includes(choice as UpgradeId),
-            );
-            if (entry) entry.choice = choice as UpgradeId;
-          }
-          ctx.session.earlyUpgradePickChoices.clear();
-        }
-      }
-      return shown;
-    },
+  destroyClient: () => {
+    defaultClient.destroy();
   },
-};
+  log: devLog,
+  container: renderer.container,
+});
+const transitionCtx = createOnlineTransitionContext({
+  getRuntime: () => runtime,
+  session: ctx.session,
+  watcher: ctx.watcher,
+});
 // ── Watcher tick context ────────────────────────────────────────────
 const watcherTickCtx: WatcherTickContext = {
   getState: () => runtime.runtimeState.state,
@@ -160,7 +112,7 @@ const runtime: GameRuntime = createGameRuntime({
     const param = new URL(location.href).searchParams.get("rounds");
     return param ? Number(param) : 0;
   },
-  showLobby,
+  showLobby: sessionHelpers.showLobby,
   onLobbySlotJoined: (pid: ValidPlayerSlot) => {
     send({ type: MESSAGE.SELECT_SLOT, playerId: pid });
   },
@@ -188,7 +140,7 @@ const runtime: GameRuntime = createGameRuntime({
       },
     };
     send(initMsg);
-    initFromServer(initMsg);
+    sessionHelpers.initFromServer(initMsg);
     send({ type: MESSAGE.SELECT_START, timer: SELECT_TIMER });
   },
 
@@ -296,9 +248,9 @@ export function initOnlineRuntime(): void {
 
   initDeps({
     runtime,
-    initFromServer,
-    restoreFullState,
-    showWaitingRoom,
+    initFromServer: sessionHelpers.initFromServer,
+    restoreFullState: sessionHelpers.restoreFullState,
+    showWaitingRoom: sessionHelpers.showWaitingRoom,
     transitionCtx,
     client: defaultClient,
   });
@@ -306,230 +258,6 @@ export function initOnlineRuntime(): void {
   document.addEventListener(GAME_EXIT_EVENT, () => {
     setMode(runtime.runtimeState, Mode.STOPPED);
     runtime.runtimeState.lobby.active = false;
-    hideRoomCodeOverlay(roomCodeOverlay);
-    resetSession();
+    sessionHelpers.resetSession();
   });
-}
-
-function buildTransitionUiCtx(): TransitionContext["ui"] {
-  return {
-    showBanner: (text, onDone, preservePrevScene?, newBattle?, subtitle?) =>
-      runtime.showBanner(text, onDone, preservePrevScene, newBattle, subtitle),
-    get banner() {
-      return runtime.runtimeState.banner;
-    },
-    render: () => runtime.render(),
-    watcherTiming: ctx.watcher.timing,
-    bannerDuration: BANNER_DURATION,
-  };
-}
-
-function buildTransitionCheckpointCtx(): TransitionContext["checkpoint"] {
-  return {
-    applyCannonStart: (data, capturePreState) =>
-      applyCannonStartCheckpoint(data, buildCheckpointDeps(), capturePreState),
-    applyBattleStart: (data, capturePreState) =>
-      applyBattleStartCheckpoint(data, buildCheckpointDeps(), capturePreState),
-    applyBuildStart: (data) =>
-      applyBuildStartCheckpoint(data, buildCheckpointDeps()),
-    applyBuildEnd: applyBuildEndCheckpoint,
-  };
-}
-
-function buildTransitionSelectionCtx(): TransitionContext["selection"] {
-  return {
-    clearSelectionOverlay: () => {
-      const overlay = runtime.runtimeState.overlay;
-      if (overlay.selection) {
-        overlay.selection.highlights = undefined;
-        overlay.selection.highlighted = null;
-        overlay.selection.selected = null;
-      }
-    },
-    getStates: () => runtime.selection.getStates(),
-    setCastleBuildFromPlans: (plans, maxTiles, onDone) => {
-      runtime.runtimeState.castleBuilds.push({
-        wallPlans: plans,
-        maxTiles,
-        tileIdx: 0,
-        accum: 0,
-      });
-      runtime.runtimeState.castleBuildOnDone = onDone;
-    },
-    setCastleBuildViewport: (plans) =>
-      runtime.selection.setCastleBuildViewport(plans),
-  };
-}
-
-function buildTransitionBattleCtx(): TransitionContext["battleLifecycle"] {
-  return {
-    setFlights: (flights) => {
-      runtime.runtimeState.battleAnim.flights = flights;
-    },
-    snapshotTerritory: () => runtime.snapshotTerritory(),
-    getTerritory: () => runtime.runtimeState.battleAnim.territory,
-    getWalls: () => runtime.runtimeState.battleAnim.walls,
-    beginBattle: () => runtime.phaseTicks.beginBattle(),
-  };
-}
-
-function buildTransitionEndPhaseCtx(): TransitionContext["endPhase"] {
-  return {
-    showLifeLostDialog: (needsReselect, eliminated) => {
-      runtime.lifeLost.tryShow(needsReselect, eliminated);
-      const dialog = runtime.lifeLost.get();
-      if (dialog) {
-        for (const [pid, choice] of ctx.session.earlyLifeLostChoices) {
-          const entry = dialog.entries.find((e) => e.playerId === pid);
-          if (entry && entry.choice === LifeLostChoice.PENDING)
-            entry.choice = choice;
-        }
-      }
-      ctx.session.earlyLifeLostChoices.clear();
-    },
-    showScoreDeltas: (preScores, onDone) => {
-      runtime.scoreDelta.setPreScores(preScores);
-      runtime.scoreDelta.show(onDone);
-    },
-    setGameOverFrame: (gameOver) => {
-      runtime.runtimeState.frame.gameOver = gameOver;
-    },
-    playerColors: PLAYER_COLORS,
-  };
-}
-
-/** Build the deps object shared by all three checkpoint functions. */
-function buildCheckpointDeps(): CheckpointDeps {
-  return {
-    state: runtime.runtimeState.state,
-    battleAnim: runtime.runtimeState.battleAnim,
-    accum: runtime.runtimeState.accum,
-    remoteCrosshairs: ctx.watcher.remoteCrosshairs,
-    watcherCrosshairPos: ctx.watcher.watcherCrosshairPos,
-    watcherOrbitParams: ctx.watcher.watcherOrbitParams,
-    watcherOrbitAngles: ctx.watcher.watcherOrbitAngles,
-    snapshotTerritory: () => runtime.snapshotTerritory(),
-  };
-}
-
-// ── Functions that close over runtime ───────────────────────────────
-function showLobby(): void {
-  setMode(runtime.runtimeState, Mode.STOPPED);
-  runtime.runtimeState.lobby.active = false;
-  renderer.container.classList.remove(GAME_CONTAINER_ACTIVE);
-  hideRoomCodeOverlay(roomCodeOverlay);
-  navigateTo("/online");
-  resetSession();
-}
-
-function showWaitingRoom(code: string, seed: number): void {
-  ctx.session.roomSeed = seed;
-  runtime.runtimeState.settings.seed = String(seed);
-  const joinUrl = `${location.origin}${location.pathname}?server=${location.host}&join=${code}`;
-  buildRoomCodeOverlay(roomCodeOverlay, code, joinUrl);
-  initWaitingRoom({
-    seed,
-    lobbyEl: pageOnline,
-    container: renderer.container,
-    lobby: runtime.runtimeState.lobby,
-    maxPlayers: MAX_PLAYERS,
-    log: devLog,
-    setLobbyStartTime: (timestamp: number) => {
-      ctx.session.lobbyStartTime = timestamp;
-    },
-    setModeLobby: () => {
-      setMode(runtime.runtimeState, Mode.LOBBY);
-    },
-    setLastTime: (timestamp: number) => {
-      runtime.runtimeState.lastTime = timestamp;
-    },
-    requestFrame: () => {
-      requestAnimationFrame(runtime.mainLoop);
-    },
-  });
-  precomputeTerrainCache(runtime.runtimeState.lobby.map!);
-}
-
-function initFromServer(msg: InitMessage): void {
-  hideRoomCodeOverlay(roomCodeOverlay);
-  runtime.runtimeState.lobby.active = false;
-  const settings = runtime.runtimeState.settings;
-  const playerCount = Math.min(Math.max(1, msg.playerCount), MAX_PLAYERS);
-  const humanSlots = Array.from(
-    { length: playerCount },
-    (_, i) => i === ctx.session.myPlayerId,
-  );
-  const keyBindings = Array.from({ length: playerCount }, (_, i) =>
-    i === ctx.session.myPlayerId ? settings.keyBindings[0] : undefined,
-  );
-  bootstrapGame({
-    seed: msg.seed,
-    maxPlayers: playerCount,
-    existingMap: runtime.runtimeState.lobby.map ?? undefined,
-    maxRounds: msg.settings.maxRounds,
-    cannonMaxHp: msg.settings.cannonMaxHp,
-    buildTimer: msg.settings.buildTimer,
-    cannonPlaceTimer: msg.settings.cannonPlaceTimer,
-    firstRoundCannons: msg.settings.firstRoundCannons,
-    gameMode: msg.settings.gameMode,
-    humanSlots,
-    keyBindings,
-    difficulty: settings.difficulty,
-    log: devLog,
-    clearFrameData: () => runtime.clearFrameData(),
-    setState: (state) => {
-      runtime.runtimeState.state = state;
-    },
-    setControllers: (controllers) => {
-      runtime.runtimeState.controllers = [...controllers];
-    },
-    resetUIState: () => {
-      runtime.lifecycle.resetUIState();
-      defaultClient.resetNetworking(RESET_SCOPE_NEW_GAME);
-    },
-    enterSelection: () => runtime.selection.enter(),
-  });
-}
-
-function restoreFullState(msg: FullStateMessage): void {
-  const state = runtime.runtimeState.state;
-  const result = restoreFullStateSnapshot(state, msg);
-  if (!result) return; // Validation failed — no state was mutated
-
-  restoreFullStateUiRecovery(
-    {
-      setMode: (mode) => {
-        setMode(runtime.runtimeState, mode);
-      },
-      onModeSet: (mode) => {
-        if (mode === Mode.SELECTION) runtime.sound.drumsStart();
-        else runtime.sound.drumsStop();
-      },
-      clearCastleBuilds: () => {
-        runtime.runtimeState.castleBuilds = [];
-      },
-      clearLifeLostDialog: () => {
-        runtime.lifeLost.set(null);
-      },
-      clearAnnouncement: () => {
-        runtime.runtimeState.frame.announcement = undefined;
-      },
-      setBattleFlights: (flights) => {
-        runtime.runtimeState.battleAnim.flights = flights;
-      },
-    },
-    state.phase,
-    result.balloonFlights,
-  );
-
-  setWatcherPhaseTimer(ctx.watcher.timing, performance.now(), state.timer);
-  if (state.battleCountdown > 0) {
-    ctx.watcher.timing.countdownStartTime = performance.now();
-    ctx.watcher.timing.countdownDuration = state.battleCountdown;
-  }
-}
-
-function resetSession(): void {
-  defaultClient.destroy();
-  runtime.runtimeState.settings.seed = "";
 }

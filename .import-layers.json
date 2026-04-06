@@ -210,6 +210,7 @@
   {
     "name": "local runtime",
     "files": [
+      "src/runtime/assembly.ts",
       "src/runtime/runtime.ts"
     ]
   },
@@ -218,6 +219,8 @@
     "files": [
       "src/online/online-runtime-game.ts",
       "src/online/online-runtime-deps.ts",
+      "src/online/online-runtime-session.ts",
+      "src/online/online-runtime-transition.ts",
       "src/online/online-runtime-promote.ts",
       "src/online/online-runtime-ws.ts",
       "src/online/online-runtime-lobby.ts"

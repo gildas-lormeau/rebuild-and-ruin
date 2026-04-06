@@ -120,6 +120,8 @@
       "src/online/online-stores.ts",
       "src/online/online-runtime-game.ts",
       "src/online/online-runtime-deps.ts",
+      "src/online/online-runtime-session.ts",
+      "src/online/online-runtime-transition.ts",
       "src/online/online-runtime-promote.ts",
       "src/online/online-runtime-ws.ts",
       "src/online/online-runtime-lobby.ts"
@@ -150,6 +152,7 @@
       "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-selection.ts",
       "src/runtime/runtime-screen-builders.ts",
+      "src/runtime/assembly.ts",
       "src/runtime/runtime.ts"
     ],
     "entry": [
