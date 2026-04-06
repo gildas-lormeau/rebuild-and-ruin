@@ -1,3 +1,4 @@
+import { BATTLE_TIMER } from "../shared/game-constants.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { GameState, ModernState } from "../shared/types.ts";
 
@@ -36,6 +37,38 @@ export function createComboTracker(playerCount: number): ComboTracker {
     });
   }
   return { players, events: [] };
+}
+
+/** Called at end of battle to award demolition bonuses. Returns total bonus per player. */
+export function comboDemolitionBonus(tracker: ComboTracker): number[] {
+  return tracker.players.map((ps) =>
+    ps.wallsDestroyedThisRound >= DEMOLITION_THRESHOLD ? DEMOLITION_BONUS : 0,
+  );
+}
+
+/** Check if combo scoring is active for this game. */
+export function isCombosEnabled(state: GameState): boolean {
+  return state.modern !== null;
+}
+
+/** Facade: score combo bonus for an impact event. Returns bonus points (0 in classic mode). */
+export function scoreImpactCombo(
+  state: GameState,
+  kind: "wall" | "cannon" | "grunt",
+  sid: ValidPlayerSlot | undefined,
+): number {
+  if (sid === undefined) return 0;
+  const tracker = state.modern?.comboTracker;
+  if (!tracker) return 0;
+  const battleTime = BATTLE_TIMER - state.timer;
+  switch (kind) {
+    case "wall":
+      return comboOnWallDestroyed(tracker, sid, battleTime);
+    case "cannon":
+      return comboOnCannonKill(tracker, sid);
+    case "grunt":
+      return comboOnGruntKill(tracker, sid, battleTime);
+  }
 }
 
 /** Process an impact event for combo tracking. Returns bonus score to add.
@@ -110,20 +143,13 @@ export function comboOnGruntKill(
   return 0;
 }
 
-/** Called at end of battle to award demolition bonuses. Returns total bonus per player. */
-export function comboDemolitionBonus(tracker: ComboTracker): number[] {
-  return tracker.players.map((ps) =>
-    ps.wallsDestroyedThisRound >= DEMOLITION_THRESHOLD ? DEMOLITION_BONUS : 0,
-  );
+/** Facade: age combo events by dt seconds. No-op in classic mode. */
+export function tickComboTracking(state: GameState, dt: number): void {
+  if (state.modern?.comboTracker) ageComboEvents(state.modern.comboTracker, dt);
 }
 
 /** Age combo events by dt seconds, remove expired ones (> 2s). */
-export function ageComboEvents(tracker: ComboTracker, dt: number): void {
+function ageComboEvents(tracker: ComboTracker, dt: number): void {
   for (const ev of tracker.events) ev.age += dt;
   tracker.events = tracker.events.filter((ev) => ev.age < COMBO_EVENT_LIFETIME);
-}
-
-/** Check if combo scoring is active for this game. */
-export function isCombosEnabled(state: GameState): boolean {
-  return state.modern !== null;
 }

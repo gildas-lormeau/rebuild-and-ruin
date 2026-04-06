@@ -24,7 +24,6 @@ import {
 import {
   BALL_SPEED,
   BALLOON_HITS_NEEDED,
-  BATTLE_TIMER,
   BURNING_PIT_DURATION,
   DESTROY_CANNON_POINTS,
   DESTROY_GRUNT_POINTS,
@@ -64,12 +63,7 @@ import {
   filterActiveFiringCannons,
   isCannonEnclosed,
 } from "./cannon-system.ts";
-import {
-  ageComboEvents,
-  comboOnCannonKill,
-  comboOnGruntKill,
-  comboOnWallDestroyed,
-} from "./combo-system.ts";
+import { scoreImpactCombo, tickComboTracking } from "./combo-system.ts";
 import { findGruntSpawnNear } from "./grunt-system.ts";
 
 /** Result of tickCannonballs: impact positions (for VFX) + detailed events (for network). */
@@ -196,7 +190,7 @@ export function tickCannonballs(
   }
 
   state.cannonballs = remaining;
-  if (state.modern?.comboTracker) ageComboEvents(state.modern.comboTracker, dt);
+  tickComboTracking(state, dt);
   return { impacts, events };
 }
 
@@ -261,14 +255,8 @@ export function applyImpactEvent(
         deletePlayerWallBattle(player, packTile(event.row, event.col));
         const shooter = sid !== undefined ? state.players[sid] : undefined;
         if (shooter && event.playerId !== sid) {
-          shooter.score += DESTROY_WALL_POINTS;
-          if (state.modern?.comboTracker && sid !== undefined) {
-            shooter.score += comboOnWallDestroyed(
-              state.modern!.comboTracker,
-              sid,
-              BATTLE_TIMER - state.timer,
-            );
-          }
+          shooter.score +=
+            DESTROY_WALL_POINTS + scoreImpactCombo(state, "wall", sid);
         }
       }
       break;
@@ -280,13 +268,8 @@ export function applyImpactEvent(
         if (!isCannonAlive(cannon)) {
           const shooter = sid !== undefined ? state.players[sid] : undefined;
           if (shooter && event.playerId !== sid) {
-            shooter.score += DESTROY_CANNON_POINTS;
-            if (state.modern?.comboTracker && sid !== undefined) {
-              shooter.score += comboOnCannonKill(
-                state.modern!.comboTracker,
-                sid,
-              );
-            }
+            shooter.score +=
+              DESTROY_CANNON_POINTS + scoreImpactCombo(state, "cannon", sid);
           }
         }
       }
@@ -320,14 +303,8 @@ export function applyImpactEvent(
         (grunt) => !isAtTile(grunt, event.row, event.col),
       );
       if (shooter) {
-        shooter.score += DESTROY_GRUNT_POINTS;
-        if (state.modern?.comboTracker && sid !== undefined) {
-          shooter.score += comboOnGruntKill(
-            state.modern!.comboTracker,
-            sid,
-            BATTLE_TIMER - state.timer,
-          );
-        }
+        shooter.score +=
+          DESTROY_GRUNT_POINTS + scoreImpactCombo(state, "grunt", sid);
       }
       break;
     }
