@@ -28,7 +28,6 @@
       "src/shared/upgrade-defs.ts",
       "src/shared/settings-defs.ts",
       "src/shared/settings-ui.ts",
-
       "src/shared/render-spy.ts",
       "src/shared/ui-mode.ts",
       "src/shared/input-action.ts",
@@ -132,7 +131,6 @@
     ],
     "runtime": [
       "src/runtime/router.ts",
-
       "src/runtime/runtime-state.ts",
       "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-human.ts",
@@ -146,8 +144,8 @@
       "src/runtime/runtime-lobby.ts",
       "src/runtime/runtime-options.ts",
       "src/runtime/runtime-game-lifecycle.ts",
-
-      "src/runtime/runtime-phase-ticks.ts",      "src/runtime/runtime-input.ts",
+      "src/runtime/runtime-phase-ticks.ts",
+      "src/runtime/runtime-input.ts",
       "src/runtime/runtime-render.ts",
       "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-selection.ts",
@@ -162,19 +160,65 @@
     ]
   },
   "allowed": {
-    "shared":   ["shared"],
-    "game":     ["shared"],
-    "ai":       ["shared", "game", "player"],
-    "player":   ["shared", "game", "ai"],
-    "input":    ["shared", "game"],
-    "render":   ["shared", "game"],
-    "online":   ["shared", "game", "render", "runtime"],
-    "server":   ["shared", "server"],
-    "runtime":  ["shared", "game", "player", "input", "render", "online"],
-    "entry":    ["shared", "game", "player", "input", "render", "online", "server", "runtime", "entry"]
+    "shared": [
+      "shared"
+    ],
+    "game": [
+      "shared"
+    ],
+    "ai": [
+      "shared",
+      "game",
+      "player"
+    ],
+    "player": [
+      "shared",
+      "game",
+      "ai"
+    ],
+    "input": [
+      "shared",
+      "game"
+    ],
+    "render": [
+      "shared",
+      "game"
+    ],
+    "online": [
+      "shared",
+      "game",
+      "render",
+      "runtime"
+    ],
+    "server": [
+      "shared",
+      "server"
+    ],
+    "runtime": [
+      "shared",
+      "game",
+      "player",
+      "input",
+      "render",
+      "online"
+    ],
+    "entry": [
+      "shared",
+      "game",
+      "player",
+      "input",
+      "render",
+      "online",
+      "server",
+      "runtime",
+      "entry"
+    ]
   },
   "typeOnlyFrom": {
-    "runtime": ["input", "render"]
+    "runtime": [
+      "input",
+      "render"
+    ]
   },
   "typeOnlyExempt": [
     "src/runtime/runtime.ts",
