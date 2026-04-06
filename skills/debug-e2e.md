@@ -192,3 +192,20 @@ npm run test:e2e:local:quick       # legacy full simulation (headless, 1 round)
 
 Flags for legacy e2e: `--headless`, `--fast`, `--seed N`, `--mobile`, `--screenshot`,
 `--action "phase:X click:Y screenshot:label"`, `--assert "phase:X button:Y visible"`
+
+## Finding seeds for e2e tests
+
+Use `npm run find-seed` to find seeds that produce specific game conditions:
+
+```sh
+npm run find-seed -- --condition wildfire --tries 50
+npm run find-seed -- --condition frozenRiver --rounds 5
+npm run find-seed -- --expr "state.grunts.length > 10" --rounds 4
+```
+
+Built-in conditions: `wildfire`, `crumblingWalls`, `gruntSurge`, `frozenRiver`, `anyModifier`, `manyGrunts`.
+
+The tool runs headless scenarios (no browser) and checks state at every phase boundary.
+Upgrade-dependent conditions (masterBuilderLockout, reinforcedWalls) cannot be found
+this way because scenario helpers skip the upgrade pick dialog — use the e2e path with
+`mode: "modern"` and enough rounds instead.
