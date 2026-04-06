@@ -10,6 +10,16 @@ Parallel multi-domain review focused on making the codebase easy for LLM-based c
 
 Complements `/code-review` which works per-pass on a scoped file set.
 
+## Repo reality
+
+This repository has, so far, been authored and heavily refactored by LLM-based agents. There is little or no reliable "human team folklore" to fall back on. The practical source of truth is the combination of code comments, architectural config files, lint scripts, tests, and skills like this one.
+
+Audit with that in mind:
+- Prioritize places where an agent would have to infer behavior from scattered examples instead of from one explicit contract.
+- Treat drift between docs, scripts, and code as a high-value finding, because future agents will optimize against whichever source looks most authoritative.
+- Favor fixes that make intent machine-legible: narrower types, better names, extracted helpers, stronger comments, and executable checks.
+- Do not assume a divergence is intentional just because it has existed for a while; agent-written code can preserve accidental patterns very effectively.
+
 ## Domain clusters
 
 Each domain is a group of tightly related files that share responsibility for a subsystem.
@@ -131,14 +141,15 @@ src/online/online-host-crosshairs.ts, src/online/online-host-promotion.ts,
 src/online/online-stores.ts, server/room-manager.ts
 ```
 
-### 16. Local runtime — L16 (1 file)
+### 16. Local runtime — L16 (2 files)
 ```
-src/runtime/runtime.ts
+src/runtime/assembly.ts, src/runtime/runtime.ts
 ```
 
-### 17. Online runtime — L17 (5 files)
+### 17. Online runtime — L17 (7 files)
 ```
 src/online/online-runtime-game.ts, src/online/online-runtime-deps.ts,
+src/online/online-runtime-session.ts, src/online/online-runtime-transition.ts,
 src/online/online-runtime-promote.ts, src/online/online-runtime-ws.ts,
 src/online/online-runtime-lobby.ts
 ```
@@ -192,6 +203,11 @@ Report findings in these categories:
    without named constants, making it hard for an LLM to know what
    they represent.
 
+6. SOURCE-OF-TRUTH DRIFT — docs, comments, scripts, and code disagree
+    about the same rule. In an agent-maintained repo, this is more
+    dangerous than a normal style inconsistency because later agents
+    will confidently follow the wrong authority.
+
 For each finding: file, line number, what the issue is,
 severity (high/medium/low), and a concrete suggestion.
 Do NOT make any edits. Only flag things where fixing them would
@@ -230,6 +246,11 @@ Now check for CROSS-DOMAIN issues that would trip up an LLM agent:
    type signatures (e.g., one domain uses `boolean`, another uses
    `boolean | undefined` for the same concept).
 
+5. SOURCE-OF-TRUTH DRIFT across domains — one domain's comments,
+    skills, or scripts describe a contract differently from another
+    domain's actual code. Future agents will usually trust the more
+    explicit artifact, not necessarily the correct one.
+
 For each finding: which domains are involved, what the issue is,
 severity, suggested fix. Do NOT make any edits.
 ```
@@ -241,6 +262,8 @@ Present all findings (domain + cross-domain) to the user, ranked by severity. Fo
 - How it would cause an LLM agent to produce incorrect code
 - Estimated fix effort (low/medium/high)
 - Recommended action (fix now, defer, or ignore)
+
+When two findings have similar severity, rank explicit source-of-truth drift above local style issues. In this repo, bad documentation or stale scripts mislead every later agent pass.
 
 Ask the user which findings to fix. Then fix them one domain at a time, running `npm run build` and tests after each.
 

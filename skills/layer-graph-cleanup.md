@@ -10,6 +10,16 @@ Two complementary analyses:
 1. **Layer graph** (vertical) — spot undesirable cross-layer edges
 2. **Architecture health** (horizontal) — coupling pain points, domain boundary violations, natural clustering mismatches
 
+## Repo reality
+
+This codebase has been written and repeatedly refactored by LLM-based agents rather than by a stable human team with shared tacit knowledge. Treat the architecture files, lint scripts, comments, and skills as the project's primary memory.
+
+Implications for this workflow:
+- Prefer **executable rules** over inferred style. If a convention matters, encode it in scripts, types, or comments rather than assuming future agents will rediscover it.
+- Treat `.import-layers.json`, `.domain-boundaries.json`, and the audit scripts as the canonical source of architectural intent.
+- When you find a real pattern that agents must follow, update the relevant skill or in-code documentation in the same session when practical.
+- Be skeptical of "organic" clustering alone: in an agent-maintained repo, some structure exists because the tooling taught it, not because humans would naturally name it that way.
+
 ## When to use
 
 - After a round of `import-hygiene` (no violations, but the graph still has unexpected edges)
@@ -56,6 +66,7 @@ Then classify:
 | File has no deps above layer N but is classified higher | Reclassify the file in `.import-layers.json` — no code change needed |
 | Injected dependency passed from entry point | Import directly in the consuming layer (hoist) |
 | Factory logic inlined at entry point | Extract a factory helper into a lower module |
+| Agent-only convention lives only in examples | Add or tighten docs/comments/scripts so later agents don't have to infer it |
 
 ## Step 4 — Apply the fix
 
@@ -110,6 +121,8 @@ npx tsx scripts/layer-graph.ts   # regenerate to confirm the edge is gone
 ```
 
 Re-read the graph. Fixes often cascade — removing one edge may reveal another that was hidden.
+
+If the fix introduced a new architectural convention or clarified an old one, update the relevant skill/doc immediately. In this repo, documentation is part of the architecture, not an afterthought.
 
 ## Step 6 — Update group names
 
@@ -238,6 +251,8 @@ A file that *could* be at a lower layer but is semantically part of a higher gro
 
 Historical log of past refactoring decisions. Filenames refer to what files were called
 at the time of each change (some have since been renamed or moved into domain directories).
+
+Most entries below were discovered and executed by LLM-based agents under script-enforced constraints. Read them as "previously verified transformations" rather than as informal historical anecdotes.
 
 | Edge removed | How |
 |---|---|
