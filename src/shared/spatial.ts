@@ -423,6 +423,11 @@ export function isGrass(
   return tiles[r]?.[c] === Tile.Grass;
 }
 
+/** Mutate a tile to water. Used by sinkhole modifier for permanent terrain changes. */
+export function setWater(tiles: Tile[][], r: number, c: number): void {
+  tiles[r]![c] = Tile.Water;
+}
+
 /** Build a set of all water tile keys — use as extra barriers for computeOutside. */
 export function waterKeys(tiles: readonly (readonly Tile[])[]): Set<number> {
   const water = new Set<number>();

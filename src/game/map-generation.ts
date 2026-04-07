@@ -127,7 +127,7 @@ export function generateMap(seed?: number): GameMap {
     const towers = placeTowers(zones, regionSizes, riverDist);
     if (towers.length < TOWERS_PER_ZONE * 3) continue;
 
-    return { tiles, towers, houses: [], zones, junction, exits };
+    return { tiles, towers, houses: [], zones, junction, exits, mapVersion: 0 };
   } while (true);
 
   // Fallback: retry with relaxed ratio (1.35) but still require 12 towers
@@ -148,13 +148,13 @@ export function generateMap(seed?: number): GameMap {
     const towers = placeTowers(zones, regionSizes, riverDist);
     if (towers.length < TOWERS_PER_ZONE * 3) continue;
 
-    return { tiles, towers, houses: [], zones, junction, exits };
+    return { tiles, towers, houses: [], zones, junction, exits, mapVersion: 0 };
   }
 
   // Last resort — should virtually never happen
   const riverDist = buildRiverDistanceGrid(tiles);
   const towers = placeTowers(zones, regionSizes, riverDist);
-  return { tiles, towers, houses: [], zones, junction, exits };
+  return { tiles, towers, houses: [], zones, junction, exits, mapVersion: 0 };
 }
 
 /**

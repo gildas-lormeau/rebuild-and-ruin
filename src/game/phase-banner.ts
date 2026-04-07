@@ -167,6 +167,9 @@ export function snapshotEntities(state: GameState): EntityOverlay {
     frozenTiles: state.modern?.frozenTiles
       ? new Set(state.modern.frozenTiles)
       : undefined,
+    sinkholeTiles: state.modern?.sinkholeTiles
+      ? new Set(state.modern.sinkholeTiles)
+      : undefined,
   };
 }
 

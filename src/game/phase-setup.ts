@@ -86,6 +86,7 @@ import {
   applyCrumblingWalls,
   applyFrozenRiver,
   applyGruntSurge,
+  applySinkhole,
   applyWildfire,
   clearFrozenRiver,
   rollModifier,
@@ -627,6 +628,16 @@ function applyBattleStartModifiers(state: GameState): ModifierDiff | null {
       id: mod,
       label: "Frozen River",
       changedTiles: [...frozen],
+      gruntsSpawned: 0,
+    };
+  }
+  if (mod === MODIFIER_ID.SINKHOLE) {
+    const sunk = applySinkhole(state);
+    recheckTerritoryOnly(state);
+    return {
+      id: mod,
+      label: "Sinkhole",
+      changedTiles: [...sunk],
       gruntsSpawned: 0,
     };
   }

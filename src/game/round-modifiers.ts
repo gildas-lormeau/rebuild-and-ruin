@@ -30,6 +30,7 @@ import {
   isGrass,
   isWater,
   packTile,
+  setWater,
   unpackTile,
 } from "../shared/spatial.ts";
 import { type GameState, hasFeature } from "../shared/types.ts";
@@ -50,6 +51,13 @@ const WILDFIRE_FATTEN_CHANCE = 0.35;
 const CRUMBLE_FRACTION = 0.18;
 const CRUMBLE_MIN = 3;
 const CRUMBLE_MAX = 12;
+/** Sinkhole: BFS cluster size range. */
+const SINKHOLE_MIN_SIZE = 2;
+const SINKHOLE_MAX_SIZE = 3;
+/** Sinkhole: probability each BFS neighbor joins the cluster. */
+const SINKHOLE_FATTEN_CHANCE = 0.4;
+/** Sinkhole: cumulative cap across all rounds (prevents excessive map destruction). */
+const SINKHOLE_MAX_TOTAL = 24;
 
 /** Roll a modifier for the current round. Returns null if no modifier fires.
  *  Must be called at a deterministic point using state.rng for online sync. */
@@ -180,6 +188,150 @@ export function clearFrozenRiver(state: GameState): void {
     );
   }
   state.modern!.frozenTiles = null;
+}
+
+/** Apply sinkhole: one cluster per active zone, permanently converting grass to water.
+ *  Destroys walls, houses, grunts, bonus squares, and burning pits on affected tiles.
+ *  Returns the set of all sinkhole tile keys for the reveal banner. */
+export function applySinkhole(state: GameState): ReadonlySet<number> {
+  const modern = state.modern!;
+  const existing = modern.sinkholeTiles?.size ?? 0;
+  if (existing >= SINKHOLE_MAX_TOTAL) return new Set();
+
+  // One cluster per active zone — same tile count for fairness
+  const activeZones = state.players
+    .filter(isPlayerSeated)
+    .map((player) => player.homeTower.zone);
+  const budget = Math.min(
+    state.rng.int(SINKHOLE_MIN_SIZE, SINKHOLE_MAX_SIZE),
+    Math.floor((SINKHOLE_MAX_TOTAL - existing) / activeZones.length),
+  );
+  if (budget <= 0) return new Set();
+  const allSunk = new Set<number>();
+
+  for (const zone of activeZones) {
+    const cluster = generateSinkholeCluster(state, budget, zone);
+    for (const key of cluster) allSunk.add(key);
+  }
+  if (allSunk.size === 0) return allSunk;
+
+  // Mutate tiles to water
+  const tiles = state.map.tiles;
+  for (const key of allSunk) {
+    const { r, c } = unpackTile(key);
+    setWater(tiles, r, c);
+  }
+
+  // Destroy structures on sinkhole tiles (reuses wildfire's pattern)
+  for (const key of allSunk) {
+    const { r, c } = unpackTile(key);
+    removeWallFromAllPlayers(state, key);
+    for (const house of state.map.houses) {
+      if (house.alive && house.row === r && house.col === c) {
+        house.alive = false;
+      }
+    }
+  }
+  state.grunts = state.grunts.filter(
+    (gr) => !allSunk.has(packTile(gr.row, gr.col)),
+  );
+  state.bonusSquares = state.bonusSquares.filter(
+    (bonus) => !allSunk.has(packTile(bonus.row, bonus.col)),
+  );
+  state.burningPits = state.burningPits.filter(
+    (pit) => !allSunk.has(packTile(pit.row, pit.col)),
+  );
+
+  // Track cumulative sinkhole tiles
+  if (!modern.sinkholeTiles) modern.sinkholeTiles = new Set();
+  for (const key of allSunk) modern.sinkholeTiles.add(key);
+
+  state.map.mapVersion++;
+  return allSunk;
+}
+
+/** Re-apply sinkhole tile mutations on a map regenerated from seed.
+ *  Called during checkpoint restore and full-state recovery. Idempotent. */
+export function reapplySinkholeTiles(state: GameState): void {
+  const sinkhole = state.modern?.sinkholeTiles;
+  if (!sinkhole || sinkhole.size === 0) return;
+  const tiles = state.map.tiles;
+  for (const key of sinkhole) {
+    const { r, c } = unpackTile(key);
+    setWater(tiles, r, c);
+  }
+  state.map.mapVersion++;
+}
+
+/** Generate a sinkhole cluster via BFS flood-fill from a random seed tile.
+ *  Each neighbor has SINKHOLE_FATTEN_CHANCE probability of joining. */
+function generateSinkholeCluster(
+  state: GameState,
+  budget: number,
+  zone: number,
+): Set<number> {
+  const canSink = buildCanSinkPredicate(state, zone);
+
+  // Collect candidates (interior tiles only — skip map border)
+  const candidates: { row: number; col: number }[] = [];
+  for (let r = 1; r < GRID_ROWS - 1; r++) {
+    for (let c = 1; c < GRID_COLS - 1; c++) {
+      if (canSink(r, c)) candidates.push({ row: r, col: c });
+    }
+  }
+  if (candidates.length === 0) return new Set();
+
+  const seed = state.rng.pick(candidates);
+  const cluster = new Set<number>();
+  cluster.add(packTile(seed.row, seed.col));
+
+  // BFS frontier — each neighbor has a probability of joining
+  const frontier = [seed];
+  while (cluster.size < budget && frontier.length > 0) {
+    const idx = state.rng.int(0, frontier.length - 1);
+    const tile = frontier[idx]!;
+    frontier[idx] = frontier[frontier.length - 1]!;
+    frontier.pop();
+
+    for (const [dr, dc] of DIRS_4) {
+      const nr = tile.row + dr;
+      const nc = tile.col + dc;
+      const key = packTile(nr, nc);
+      if (cluster.has(key)) continue;
+      if (!canSink(nr, nc)) continue;
+      if (!state.rng.bool(SINKHOLE_FATTEN_CHANCE)) continue;
+      cluster.add(key);
+      frontier.push({ row: nr, col: nc });
+      if (cluster.size >= budget) break;
+    }
+  }
+
+  return cluster;
+}
+
+/** Build a predicate for whether a tile can become a sinkhole in a specific zone. */
+function buildCanSinkPredicate(
+  state: GameState,
+  targetZone: number,
+): (row: number, col: number) => boolean {
+  const tiles = state.map.tiles;
+  const zones = state.map.zones;
+  const existingSinkhole = state.modern?.sinkholeTiles ?? new Set<number>();
+  return (row: number, col: number): boolean => {
+    if (!isGrass(tiles, row, col)) return false;
+    if (zones[row]?.[col] !== targetZone) return false;
+    if (existingSinkhole.has(packTile(row, col))) return false;
+    if (hasTowerAt(state, row, col)) return false;
+    if (hasCannonAt(state, row, col)) return false;
+    // 1-tile gap from map edges, towers, and water so players can wall around
+    if (row <= 1 || row >= GRID_ROWS - 2 || col <= 1 || col >= GRID_COLS - 2)
+      return false;
+    for (const [dr, dc] of DIRS_4) {
+      if (isWater(tiles, row + dr, col + dc)) return false;
+      if (hasTowerAt(state, row + dr, col + dc)) return false;
+    }
+    return true;
+  };
 }
 
 /** Generate the scar shape: random-walk a cardinal spine, then fatten it.

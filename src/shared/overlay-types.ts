@@ -125,6 +125,8 @@ export interface EntityOverlay {
   homeTowers?: Map<number, number>;
   /** Frozen river tiles for rendering ice overlay. */
   frozenTiles?: ReadonlySet<number>;
+  /** Sinkhole tiles for rendering dark pool overlay. */
+  sinkholeTiles?: ReadonlySet<number>;
 }
 
 /** Build/cannon phase — piece and cannon placement previews.

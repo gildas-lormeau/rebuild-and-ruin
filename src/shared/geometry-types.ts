@@ -51,6 +51,9 @@ export interface GameMap {
   zones: number[][];
   junction: PixelPos;
   exits: PixelPos[];
+  /** Bumped when tiles are mutated in place (e.g., sinkhole).
+   *  Render terrain cache uses this to detect stale ImageData. */
+  mapVersion: number;
 }
 
 /** Viewport rect in tile-pixel coordinates (before SCALE). null = full map. */

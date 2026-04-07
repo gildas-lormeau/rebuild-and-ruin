@@ -46,6 +46,7 @@ import {
   drawGrunts,
   drawHouses,
   drawPhantoms,
+  drawSinkholeTiles,
   drawWaterAnimation,
 } from "./render-effects.ts";
 import { drawSprite } from "./render-sprites.ts";
@@ -67,6 +68,7 @@ import { drawControlsScreen, drawOptionsScreen } from "./render-ui-settings.ts";
 interface TerrainImageCache {
   width: number;
   height: number;
+  mapVersion: number;
   normal?: ImageData;
   battle?: ImageData;
 }
@@ -222,6 +224,7 @@ export function drawMap(
   // Draw the new (target) scene — layers that change between phases
   drawTerrain(overlayCtx, W, H, map, overlay);
   drawWaterAnimation(overlayCtx, map, overlay, now);
+  drawSinkholeTiles(overlayCtx, overlay, now);
   drawFrozenTiles(overlayCtx, overlay, now);
   drawCastles(overlayCtx, overlay);
   drawBonusSquares(overlayCtx, overlay, now);
@@ -416,6 +419,7 @@ function drawBannerPrevScene(
     drawTerrain(tmpCtx, W, H, map, prevOverlay);
     drawWaterAnimation(tmpCtx, map, prevOverlay, now);
     drawFrozenTiles(tmpCtx, prevOverlay, now);
+    drawSinkholeTiles(tmpCtx, prevOverlay, now);
     drawCastles(tmpCtx, prevOverlay);
     drawBonusSquares(tmpCtx, prevOverlay, now);
     drawHouses(tmpCtx, prevOverlay);
@@ -738,10 +742,19 @@ function getTerrainCache(
   height: number,
 ): TerrainImageCache {
   const existing = terrainImageCache.get(map);
-  if (existing && existing.width === width && existing.height === height) {
+  if (
+    existing &&
+    existing.width === width &&
+    existing.height === height &&
+    existing.mapVersion === map.mapVersion
+  ) {
     return existing;
   }
-  const next: TerrainImageCache = { width, height };
+  const next: TerrainImageCache = {
+    width,
+    height,
+    mapVersion: map.mapVersion,
+  };
   terrainImageCache.set(map, next);
   return next;
 }

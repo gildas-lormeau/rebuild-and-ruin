@@ -19,6 +19,7 @@
         "stateAccess:detectIceThaw": "src/game/battle-system.ts",
         "stateAccess:activeModifier": "src/game/host-battle-ticks.ts",
         "serialize:fullState": "src/online/online-serialize.ts",
+        "checkpoint:cannonStart": "src/online/online-checkpoints.ts",
         "checkpoint:battleStart": "src/online/online-checkpoints.ts",
         "checkpoint:buildStart": "src/online/online-checkpoints.ts",
         "render:modifierLabel": "src/render/render-composition.ts",

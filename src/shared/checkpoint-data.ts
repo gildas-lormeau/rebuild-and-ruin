@@ -70,6 +70,8 @@ export interface CannonStartData {
   gruntSpawnQueue?: SerializedBreachSpawnEntry[];
   /** Bonus cannon slots from Salvage upgrade (cannon kills). */
   salvageSlots?: number[];
+  /** Sinkhole tiles (packed keys) — permanent grass→water mutations. null = none. */
+  sinkholeTiles?: number[] | null;
 }
 
 /** Data needed to sync state at battle start. */
@@ -89,6 +91,8 @@ export interface BattleStartData {
     | null;
   /** Frozen river tiles (packed keys) for cross-zone grunt movement. null = no frozen river. */
   frozenTiles: number[] | null;
+  /** Sinkhole tiles (packed keys) — permanent grass→water mutations. null = none. */
+  sinkholeTiles?: number[] | null;
   /** Modifier visual diff for the reveal banner. null = no modifier this round. */
   modifierDiff: {
     id: ModifierId;
@@ -125,6 +129,8 @@ export interface BuildStartData {
   masterBuilderOwners?: number[] | null;
   /** Frozen river tiles persisting from previous battle (packed keys). null = no frozen river. */
   frozenTiles: number[] | null;
+  /** Sinkhole tiles (packed keys) — permanent grass→water mutations. null = none. */
+  sinkholeTiles?: number[] | null;
   /** Grunts queued to spawn through wall breaches during build phase. */
   gruntSpawnQueue?: SerializedBreachSpawnEntry[];
 }

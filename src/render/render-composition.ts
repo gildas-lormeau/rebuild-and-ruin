@@ -541,6 +541,7 @@ export function createOnlineOverlay(
       bonusSquares: state.bonusSquares,
       homeTowers: homeTowers.size > 0 ? homeTowers : undefined,
       frozenTiles: state.modern?.frozenTiles ?? undefined,
+      sinkholeTiles: state.modern?.sinkholeTiles ?? undefined,
     },
     battle: {
       inBattle: !!battleTerritory,

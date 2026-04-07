@@ -156,6 +156,9 @@ export interface ModernState {
   /** Frozen river tiles (packed tile keys) — water tiles that grunts can cross.
    *  Set during battle when frozen_river modifier is active, null otherwise. */
   frozenTiles: Set<number> | null;
+  /** Sinkhole tiles (packed tile keys) — grass tiles permanently converted to water.
+   *  Cumulative across rounds. null = no sinkholes yet. */
+  sinkholeTiles: Set<number> | null;
 }
 
 /** Player selection lobby state. */
@@ -255,5 +258,6 @@ function createModernState(): ModernState {
     comboTracker: null,
     pendingUpgradeOffers: null,
     frozenTiles: null,
+    sinkholeTiles: null,
   };
 }

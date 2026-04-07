@@ -1,5 +1,6 @@
 import { resetCannonFacings } from "../game/cannon-system.ts";
 import { createComboTracker, isCombosEnabled } from "../game/combo-system.ts";
+import { reapplySinkholeTiles } from "../game/round-modifiers.ts";
 import { snapshotAllWalls } from "../shared/board-occupancy.ts";
 import type {
   BattleStartData,
@@ -82,6 +83,13 @@ export function applyCannonStartCheckpoint(
     col: entry.col,
     victimPlayerId: entry.victimPlayerId,
   }));
+  // Restore sinkhole tiles (permanent map mutations from prior rounds)
+  if (hasFeature(deps.state, FID.MODIFIERS)) {
+    deps.state.modern!.sinkholeTiles = data.sinkholeTiles
+      ? new Set(data.sinkholeTiles)
+      : null;
+    reapplySinkholeTiles(deps.state);
+  }
   clearBattleProjectiles(deps);
   resetWatcherCrosshairs(deps);
   resetCannonFacings(deps.state);
@@ -117,6 +125,10 @@ export function applyBattleStartCheckpoint(
     deps.state.modern!.frozenTiles = data.frozenTiles
       ? new Set(data.frozenTiles)
       : null;
+    deps.state.modern!.sinkholeTiles = data.sinkholeTiles
+      ? new Set(data.sinkholeTiles)
+      : null;
+    reapplySinkholeTiles(deps.state);
   }
 
   clearBattleProjectiles(deps);
@@ -151,6 +163,10 @@ export function applyBuildStartCheckpoint(
     deps.state.modern!.frozenTiles = data.frozenTiles
       ? new Set(data.frozenTiles)
       : null;
+    deps.state.modern!.sinkholeTiles = data.sinkholeTiles
+      ? new Set(data.sinkholeTiles)
+      : null;
+    reapplySinkholeTiles(deps.state);
   }
   if (hasFeature(deps.state, FID.UPGRADES)) {
     deps.state.modern!.pendingUpgradeOffers = data.pendingUpgradeOffers

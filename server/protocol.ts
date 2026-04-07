@@ -284,6 +284,7 @@ export interface FullStateMessage {
   masterBuilderLockout?: number;
   masterBuilderOwners?: number[] | null;
   frozenTiles: number[] | null;
+  sinkholeTiles?: number[] | null;
   towerPendingRevive: number[];
   capturedCannons: {
     victimId: ValidPlayerSlot;

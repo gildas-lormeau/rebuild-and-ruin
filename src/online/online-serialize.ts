@@ -15,6 +15,7 @@ import { type FullStateMessage, MESSAGE } from "../../server/protocol.ts";
 import { recomputeTerritoryFromWalls } from "../game/build-system.ts";
 import { createCastle } from "../game/castle-generation.ts";
 import { setPhase } from "../game/phase-setup.ts";
+import { reapplySinkholeTiles } from "../game/round-modifiers.ts";
 import type { BalloonFlight, Cannonball } from "../shared/battle-types.ts";
 import type {
   BattleStartData,
@@ -92,6 +93,9 @@ export function createCannonStartMessage(state: GameState) {
       alive: h.alive,
     })),
     gruntSpawnQueue: serializeSpawnQueue(state),
+    sinkholeTiles: state.modern?.sinkholeTiles
+      ? [...state.modern.sinkholeTiles]
+      : null,
   };
 }
 
@@ -122,6 +126,9 @@ export function createBattleStartMessage(
         : null,
     frozenTiles: state.modern?.frozenTiles
       ? [...state.modern.frozenTiles]
+      : null,
+    sinkholeTiles: state.modern?.sinkholeTiles
+      ? [...state.modern.sinkholeTiles]
       : null,
     gruntSpawnQueue: serializeSpawnQueue(state),
     modifierDiff: modifierDiff
@@ -285,6 +292,10 @@ export function restoreFullStateSnapshot(
     state.modern!.frozenTiles = msg.frozenTiles
       ? new Set(msg.frozenTiles)
       : null;
+    state.modern!.sinkholeTiles = msg.sinkholeTiles
+      ? new Set(msg.sinkholeTiles)
+      : null;
+    reapplySinkholeTiles(state);
   }
   if (hasFeature(state, FID.UPGRADES)) {
     state.modern!.pendingUpgradeOffers = msg.pendingUpgradeOffers
@@ -456,6 +467,9 @@ function serializeModernFields(state: GameState) {
       : null,
     frozenTiles: state.modern?.frozenTiles
       ? [...state.modern.frozenTiles]
+      : null,
+    sinkholeTiles: state.modern?.sinkholeTiles
+      ? [...state.modern.sinkholeTiles]
       : null,
   };
 }

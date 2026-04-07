@@ -2,6 +2,7 @@
   "mutableArrayParams": [
     "src/game/grunt-system.ts:queue",
     "src/shared/rng.ts:arr",
-    "src/input/sound-system.ts:nodes"
+    "src/input/sound-system.ts:nodes",
+    "src/shared/spatial.ts:tiles"
   ]
 }

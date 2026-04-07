@@ -72,6 +72,14 @@ const MODIFIER_POOL: readonly ModifierDef[] = [
     weight: 2,
     implemented: true,
   },
+  {
+    id: "sinkhole",
+    label: "Sinkhole",
+    description:
+      "Cluster of grass tiles permanently collapses into water, destroying structures",
+    weight: 2,
+    implemented: true,
+  },
 ];
 /** Modifiers with gameplay code — used for random selection. */
 export const IMPLEMENTED_MODIFIERS: readonly ModifierDef[] =

@@ -169,6 +169,7 @@ export function parseBoard(ascii: string, playerId = 0 as ValidPlayerSlot): Pars
     zones,
     junction: { x: 0, y: 0 },
     exits: [],
+    mapVersion: 0,
   };
 
   const state: GameState = {
