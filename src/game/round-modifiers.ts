@@ -296,7 +296,9 @@ function generateSinkholeCluster(
   return best;
 }
 
-/** BFS-grow a sinkhole cluster from a random seed tile. */
+/** BFS-grow a sinkhole cluster from a random seed tile.
+ *  Uses probabilistic neighbor selection for shape variety, then force-fills
+ *  any remaining budget so every zone gets exactly the same tile count. */
 function growSinkholeFromSeed(
   state: GameState,
   canSink: (row: number, col: number) => boolean,
@@ -307,7 +309,9 @@ function growSinkholeFromSeed(
   const cluster = new Set<number>();
   cluster.add(packTile(seed.row, seed.col));
 
+  // Phase 1: probabilistic BFS for organic shape
   const frontier = [seed];
+  const skipped: { row: number; col: number }[] = [];
   while (cluster.size < budget && frontier.length > 0) {
     const idx = state.rng.int(0, frontier.length - 1);
     const tile = frontier[idx]!;
@@ -320,12 +324,28 @@ function growSinkholeFromSeed(
       const key = packTile(nr, nc);
       if (cluster.has(key)) continue;
       if (!canSink(nr, nc)) continue;
-      if (!state.rng.bool(SINKHOLE_FATTEN_CHANCE)) continue;
+      if (!state.rng.bool(SINKHOLE_FATTEN_CHANCE)) {
+        skipped.push({ row: nr, col: nc });
+        continue;
+      }
       cluster.add(key);
       frontier.push({ row: nr, col: nc });
       if (cluster.size >= budget) break;
     }
   }
+
+  // Phase 2: force-fill from skipped neighbors to guarantee budget is met
+  if (cluster.size < budget && skipped.length > 0) {
+    state.rng.shuffle(skipped);
+    for (const tile of skipped) {
+      const key = packTile(tile.row, tile.col);
+      if (cluster.has(key)) continue;
+      if (!canSink(tile.row, tile.col)) continue;
+      cluster.add(key);
+      if (cluster.size >= budget) break;
+    }
+  }
+
   return cluster;
 }
 
