@@ -58,7 +58,7 @@ import type {
   GameViewState,
 } from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
-import { UID } from "../shared/upgrade-defs.ts";
+import { isGlobalUpgradeActive, UID } from "../shared/upgrade-defs.ts";
 import {
   filterActiveFiringCannons,
   isCannonEnclosed,
@@ -990,7 +990,5 @@ function balloonHitThreshold(cannon: Cannon): number {
 }
 
 function isSalvageActive(state: GameState): boolean {
-  return state.players.some(
-    (player) => !player.eliminated && player.upgrades.get(UID.SALVAGE),
-  );
+  return isGlobalUpgradeActive(state.players, UID.SALVAGE);
 }

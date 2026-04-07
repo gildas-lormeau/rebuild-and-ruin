@@ -29,6 +29,9 @@ interface UpgradeDef {
   readonly weight: number;
   /** Whether this upgrade is consumed after one use. */
   readonly oneUse: boolean;
+  /** Whether the effect applies to all players when any single player picks it.
+   *  When false, only the player who picked it benefits. */
+  readonly global: boolean;
   /** Whether gameplay code exists for this upgrade.
    *  Unimplemented upgrades are kept in the pool type system but excluded
    *  from draft offers so players never pick a no-op upgrade. */
@@ -54,7 +57,10 @@ const STRATEGIC: UpgradeCategory = "strategic";
 const ONE_USE: UpgradeCategory = "one_use";
 const poolComplete: PoolComplete = true;
 /** Named constants for upgrade IDs — use these instead of raw string literals. */
-export const UID = {
+export const UID: { readonly [K in string]: UpgradeId } & Record<
+  Uppercase<UpgradeId>,
+  UpgradeId
+> = {
   MORTAR: "mortar",
   RAPID_FIRE: "rapid_fire",
   REINFORCED_WALLS: "reinforced_walls",
@@ -66,7 +72,7 @@ export const UID = {
   SUPPLY_DROP: "supply_drop",
   SECOND_WIND: "second_wind",
   CLEAR_THE_FIELD: "clear_the_field",
-} as const satisfies Record<string, UpgradeId>;
+};
 export const UPGRADE_POOL: readonly UpgradeDef[] = [
   // Battle
   {
@@ -76,6 +82,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: BATTLE,
     weight: WEIGHT_UNCOMMON,
     oneUse: false,
+    global: false,
     implemented: false,
   },
   {
@@ -85,6 +92,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: BATTLE,
     weight: WEIGHT_COMMON,
     oneUse: false,
+    global: false,
     implemented: true,
   },
   // Build
@@ -95,6 +103,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: BUILD,
     weight: WEIGHT_COMMON,
     oneUse: true,
+    global: false,
     implemented: true,
   },
   {
@@ -104,6 +113,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: BUILD,
     weight: WEIGHT_COMMON,
     oneUse: false,
+    global: false,
     implemented: true,
   },
   {
@@ -113,6 +123,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: BUILD,
     weight: WEIGHT_UNCOMMON,
     oneUse: false,
+    global: false,
     implemented: true,
   },
   {
@@ -122,6 +133,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: BUILD,
     weight: WEIGHT_UNCOMMON,
     oneUse: false,
+    global: false,
     implemented: true,
   },
   // Strategic
@@ -132,6 +144,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: STRATEGIC,
     weight: WEIGHT_UNCOMMON,
     oneUse: false,
+    global: true,
     implemented: true,
   },
   // One-use
@@ -142,6 +155,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: ONE_USE,
     weight: WEIGHT_RARE,
     oneUse: true,
+    global: true,
     implemented: true,
   },
   {
@@ -151,6 +165,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: ONE_USE,
     weight: WEIGHT_RARE,
     oneUse: true,
+    global: false,
     implemented: true,
   },
   {
@@ -160,6 +175,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: ONE_USE,
     weight: WEIGHT_RARE,
     oneUse: true,
+    global: true,
     implemented: true,
   },
   {
@@ -169,6 +185,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: ONE_USE,
     weight: WEIGHT_RARE,
     oneUse: true,
+    global: true,
     implemented: true,
   },
 ];
@@ -176,5 +193,18 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
 export const IMPLEMENTED_UPGRADES: readonly UpgradeDef[] = UPGRADE_POOL.filter(
   (def) => def.implemented,
 );
+
+/** Check if a global upgrade is active (any non-eliminated player has it). */
+export function isGlobalUpgradeActive(
+  players: readonly {
+    readonly eliminated: boolean;
+    readonly upgrades: ReadonlyMap<UpgradeId, number>;
+  }[],
+  id: UpgradeId,
+): boolean {
+  return players.some(
+    (player) => !player.eliminated && player.upgrades.get(id),
+  );
+}
 
 void poolComplete;

@@ -48,7 +48,7 @@ import { MESSAGE } from "../server/protocol.ts";
 import { handleServerIncrementalMessage } from "../src/online/online-server-events.ts";
 import type { WatcherNetworkState } from "../src/online/online-types.ts";
 import { isMasterBuilderLocked, setGameMode, type SelectionState } from "../src/shared/types.ts";
-import { type UpgradeId, UID } from "../src/shared/upgrade-defs.ts";
+import { UID } from "../src/shared/upgrade-defs.ts";
 import { generateUpgradeOffers } from "../src/game/phase-setup.ts";
 import { showUpgradePickBanner } from "../src/game/phase-transition-steps.ts";
 import { createUpgradePickDialog } from "../src/game/upgrade-pick.ts";
@@ -115,7 +115,7 @@ Deno.test("Master Builder adds +5s to build timer", async () => {
   setGameMode(s.state, GAME_MODE_MODERN);
   const baseBuildTimer = s.state.buildTimer;
 
-  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
+  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER, 1);
 
   // Run a full round — playRound ends in WALL_BUILD after enterBuildFromBattle
   const result = s.playRound();
@@ -132,9 +132,9 @@ Deno.test("Master Builder ignores eliminated players", async () => {
   setGameMode(s.state, GAME_MODE_MODERN);
   const baseBuildTimer = s.state.buildTimer;
 
-  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
+  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER, 1);
   s.eliminatePlayer(1 as ValidPlayerSlot);
-  s.state.players[1]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
+  s.state.players[1]!.upgrades.set(UID.MASTER_BUILDER, 1);
 
   const result = s.playRound();
   if (result.needsReselect.length > 0) s.processReselection(result.needsReselect);
@@ -150,7 +150,7 @@ Deno.test("Master Builder lockout: single owner locks opponent", async () => {
   setGameMode(s.state, GAME_MODE_MODERN);
 
   // Only P0 gets Master Builder
-  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
+  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER, 1);
 
   const result = s.playRound();
   if (result.needsReselect.length > 0) s.processReselection(result.needsReselect);
@@ -187,8 +187,8 @@ Deno.test("Master Builder lockout: multiple owners cancel lockout", async () => 
   setGameMode(s.state, GAME_MODE_MODERN);
 
   // Both players get Master Builder
-  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
-  s.state.players[1]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
+  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER, 1);
+  s.state.players[1]!.upgrades.set(UID.MASTER_BUILDER, 1);
 
   const baseBuildTimer = s.state.buildTimer;
   const result = s.playRound();
@@ -220,7 +220,7 @@ Deno.test("Master Builder lockout: eliminated owner does not trigger lockout", a
   setGameMode(s.state, GAME_MODE_MODERN);
 
   // P0 gets MB but is eliminated — only P0's upgrade should be ignored
-  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
+  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER, 1);
   s.eliminatePlayer(0 as ValidPlayerSlot);
 
   const baseBuildTimer = s.state.buildTimer;
@@ -246,7 +246,7 @@ Deno.test("Master Builder lockout: checkpoint round-trip preserves lockout", asy
   const s = await createScenario(42);
   setGameMode(s.state, GAME_MODE_MODERN);
 
-  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 1);
+  s.state.players[0]!.upgrades.set(UID.MASTER_BUILDER, 1);
 
   const result = s.playRound();
   if (result.needsReselect.length > 0) s.processReselection(result.needsReselect);
@@ -281,7 +281,7 @@ Deno.test("Master Builder lockout: checkpoint round-trip preserves lockout", asy
 Deno.test("Reinforced Walls: first hit absorbed, second destroys", async () => {
   const s = await createScenario(42);
   const player = s.state.players[0]!;
-  player.upgrades.set(UID.REINFORCED_WALLS as UpgradeId, 1);
+  player.upgrades.set(UID.REINFORCED_WALLS, 1);
 
   const wallKey = [...player.walls][0];
   assert(wallKey !== undefined, "player should have walls");
@@ -298,7 +298,7 @@ Deno.test("damagedWalls cleared at build phase start", async () => {
   const s = await createScenario(42);
   setGameMode(s.state, GAME_MODE_MODERN);
   const player = s.state.players[0]!;
-  player.upgrades.set(UID.REINFORCED_WALLS as UpgradeId, 1);
+  player.upgrades.set(UID.REINFORCED_WALLS, 1);
 
   // Add some damaged walls
   const wallKey = [...player.walls][0];
@@ -327,8 +327,8 @@ Deno.test("BUILD_START checkpoint preserves modern mode fields", async () => {
   setModern(host);
 
   // Set modern-mode specific state
-  host.state.players[0]!.upgrades.set(UID.REINFORCED_WALLS as UpgradeId, 2);
-  host.state.players[1]!.upgrades.set(UID.RAPID_FIRE as UpgradeId, 1);
+  host.state.players[0]!.upgrades.set(UID.REINFORCED_WALLS, 2);
+  host.state.players[1]!.upgrades.set(UID.RAPID_FIRE, 1);
   host.state.players[0]!.damagedWalls.add(100);
   host.state.players[0]!.damagedWalls.add(200);
 
@@ -352,11 +352,11 @@ Deno.test("BUILD_START checkpoint preserves modern mode fields", async () => {
 
   // Verify upgrades
   assert(
-    watcher.state.players[0]!.upgrades.get(UID.REINFORCED_WALLS as UpgradeId) === 2,
+    watcher.state.players[0]!.upgrades.get(UID.REINFORCED_WALLS) === 2,
     "P0 reinforced_walls should be 2",
   );
   assert(
-    watcher.state.players[1]!.upgrades.get(UID.RAPID_FIRE as UpgradeId) === 1,
+    watcher.state.players[1]!.upgrades.get(UID.RAPID_FIRE) === 1,
     "P1 rapid_fire should be 1",
   );
 
@@ -387,7 +387,7 @@ Deno.test("FULL_STATE checkpoint preserves modern mode fields", async () => {
   setModern(host);
   host.state.modern!.activeModifier = "crumbling_walls";
   host.state.modern!.lastModifierId = "wildfire";
-  host.state.players[0]!.upgrades.set(UID.MASTER_BUILDER as UpgradeId, 3);
+  host.state.players[0]!.upgrades.set(UID.MASTER_BUILDER, 3);
   // cannonLimits + playerZones must be populated for full-state validation
   host.state.cannonLimits = host.state.players.map(() => 3);
   host.state.playerZones = host.state.players.map((_, idx) => idx);
@@ -411,7 +411,7 @@ Deno.test("FULL_STATE checkpoint preserves modern mode fields", async () => {
     "lastModifierId should survive full-state round-trip",
   );
   assert(
-    watcher.state.players[0]!.upgrades.get(UID.MASTER_BUILDER as UpgradeId) === 3,
+    watcher.state.players[0]!.upgrades.get(UID.MASTER_BUILDER) === 3,
     "upgrades should survive full-state round-trip",
   );
   assert(
@@ -537,7 +537,7 @@ Deno.test("Rapid Fire multiplies cannonball speed", async () => {
 
     // Clear and fire with Rapid Fire
     s.state.cannonballs = [];
-    player.upgrades.set(UID.RAPID_FIRE as UpgradeId, 1);
+    player.upgrades.set(UID.RAPID_FIRE, 1);
     s.fireAt(0 as ValidPlayerSlot, 0, target.row, target.col);
     assert(
       s.state.cannonballs[0]!.speed === BALL_SPEED * 2,

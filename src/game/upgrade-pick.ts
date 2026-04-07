@@ -129,28 +129,28 @@ function aiPickUpgrade(
   playerId: ValidPlayerSlot,
 ): UpgradeId {
   const hasDeadTowers = playerHasDeadTowers(state, playerId);
-  if (hasDeadTowers && offers.includes(UID.SECOND_WIND as UpgradeId)) {
-    return UID.SECOND_WIND as UpgradeId;
+  if (hasDeadTowers && offers.includes(UID.SECOND_WIND)) {
+    return UID.SECOND_WIND;
   }
   const hasGruntsInZone = playerHasGruntsInZone(state, playerId);
-  if (hasGruntsInZone && offers.includes(UID.CLEAR_THE_FIELD as UpgradeId)) {
-    return UID.CLEAR_THE_FIELD as UpgradeId;
+  if (hasGruntsInZone && offers.includes(UID.CLEAR_THE_FIELD)) {
+    return UID.CLEAR_THE_FIELD;
   }
   const hasPits = playerHasBurningPitsInZone(state, playerId);
-  if (hasPits && offers.includes(UID.FOUNDATIONS as UpgradeId)) {
-    return UID.FOUNDATIONS as UpgradeId;
+  if (hasPits && offers.includes(UID.FOUNDATIONS)) {
+    return UID.FOUNDATIONS;
   }
   const largeTerritory =
     playerTerritoryRatio(state, playerId) >= SMALL_PIECES_TERRITORY_RATIO;
-  if (largeTerritory && offers.includes(UID.SMALL_PIECES as UpgradeId)) {
-    return UID.SMALL_PIECES as UpgradeId;
+  if (largeTerritory && offers.includes(UID.SMALL_PIECES)) {
+    return UID.SMALL_PIECES;
   }
   // Exclude contextual upgrades when conditions aren't met
   const excluded = new Set<UpgradeId>();
-  if (!hasDeadTowers) excluded.add(UID.SECOND_WIND as UpgradeId);
-  if (!hasGruntsInZone) excluded.add(UID.CLEAR_THE_FIELD as UpgradeId);
-  if (!hasPits) excluded.add(UID.FOUNDATIONS as UpgradeId);
-  if (!largeTerritory) excluded.add(UID.SMALL_PIECES as UpgradeId);
+  if (!hasDeadTowers) excluded.add(UID.SECOND_WIND);
+  if (!hasGruntsInZone) excluded.add(UID.CLEAR_THE_FIELD);
+  if (!hasPits) excluded.add(UID.FOUNDATIONS);
+  if (!largeTerritory) excluded.add(UID.SMALL_PIECES);
   const viable = offers.filter((id) => !excluded.has(id));
   const pool = viable.length > 0 ? viable : offers;
   return pool[Math.floor(state.rng.next() * pool.length)]!;

@@ -30,7 +30,7 @@ import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { emptyFreshInterior, type Player } from "../shared/player-types.ts";
 import { Rng } from "../shared/rng.ts";
 import type { GameState } from "../shared/types.ts";
-import { UID } from "../shared/upgrade-defs.ts";
+import { isGlobalUpgradeActive, UID } from "../shared/upgrade-defs.ts";
 import { assertNever } from "../shared/utils.ts";
 import { generateMap, topZonesBySize } from "./map-generation.ts";
 import {
@@ -43,7 +43,7 @@ import {
 
 /** Check if any player has the Ceasefire upgrade active. */
 export function isCeasefireActive(state: GameState): boolean {
-  return state.players.some((player) => player.upgrades.get(UID.CEASEFIRE));
+  return isGlobalUpgradeActive(state.players, UID.CEASEFIRE);
 }
 
 /** Create a game from a seed: generate map, pick zones, create state.
