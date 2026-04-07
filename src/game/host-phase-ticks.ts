@@ -574,8 +574,10 @@ function snapshotThenFinalize(
   // Re-snapshot zone-dependent entities after finalize — resetZoneState
   // removes grunts/houses/pits/bonuses from eliminated/reselect zones,
   // and the player already sees them gone during the life-lost dialog.
-  // Walls and towerAlive keep their pre-finalize snapshots (wall sweep
-  // and tower revival are the changes the banner should visualize).
+  // towerAlive is also re-snapshotted: resetZoneState revives all zone
+  // towers, and during CASTLE_RESELECT no banner plays to reveal the
+  // change — so the snapshot must match the post-reset state.
+  // Walls keep their pre-finalize snapshot (wall sweep is banner-visualized).
   if (needsReselect.length > 0 || eliminated.length > 0) {
     prevEntities.grunts = state.grunts.map((grunt) => ({ ...grunt }));
     prevEntities.houses = state.map.houses.map((house) => ({ ...house }));
@@ -583,6 +585,7 @@ function snapshotThenFinalize(
     prevEntities.bonusSquares = state.bonusSquares.map((bonus) => ({
       ...bonus,
     }));
+    prevEntities.towerAlive = [...state.towerAlive];
   }
 
   return { wallsBeforeSweep, prevEntities, needsReselect, eliminated };
