@@ -14,6 +14,7 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 - Pre-commit hook (.git/hooks/pre-commit, plain git): reorder, tsc, biome format, biome check, eslint, knip, madge, jscpd, layers, domains, literals, architecture, entry-placement, restricted-imports, phase-transitions, typeof, null-init, battle-events, features, deno-lint, test:territory, export-index, hot-exports, readonly-params
 - Server: `deno task server` (port 8001); type-check with `deno check server/server.ts` (NOT tsc)
 - Test: `deno run test/headless.test.ts`, `deno run test/determinism.test.ts`, `deno run test/scenario.test.ts`, `deno run test/online-*.test.ts`
+- E2E: `deno run -A test/e2e-<name>.ts` (requires `npm run dev`); Playwright + E2EGame + render spy
 - Debug: use `/debug-e2e` skill — spawns a sub-agent that adds logs, runs tests, reports root cause. Never guess at bugs.
 - Refactor: `npm run refactor` — AST CLI (rename-symbol, move-export, rename-prop, rename-in-file, rename-file)
 - Skills live in `skills/` (not ~/.claude/skills/)
