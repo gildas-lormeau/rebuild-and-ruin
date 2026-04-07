@@ -80,14 +80,20 @@ export function rollModifier(state: GameState): ModifierId | null {
   return candidates[candidates.length - 1]!.id;
 }
 
-/** Apply wildfire: burn an elongated scar of ~10 tiles via random walk.
- *  Only targets zones owned by alive players, avoids towers and cannons.
- *  Returns the set of scar tile keys for the reveal banner. */
+/** Apply wildfire: one scar per active zone, ~10 tiles each.
+ *  Avoids towers, cannons, and water. Returns all scar tile keys for the reveal banner. */
 export function applyWildfire(state: GameState): ReadonlySet<number> {
-  const scar = generateWildfireScar(state);
-  if (scar.size === 0) return scar;
-  applyWildfireScar(state, scar);
-  return scar;
+  const activeZones = state.players
+    .filter(isPlayerSeated)
+    .map((player) => player.homeTower.zone);
+  const allScar = new Set<number>();
+  for (const zone of activeZones) {
+    const scar = generateWildfireScar(state, zone);
+    for (const key of scar) allScar.add(key);
+  }
+  if (allScar.size === 0) return allScar;
+  applyWildfireScar(state, allScar);
+  return allScar;
 }
 
 /** Apply crumbling walls: destroy a fraction of each player's outermost walls.
@@ -336,8 +342,8 @@ function buildCanSinkPredicate(
 
 /** Generate the scar shape: random-walk a cardinal spine, then fatten it.
  *  Returns the set of tile keys to burn (empty if no valid seed found). */
-function generateWildfireScar(state: GameState): Set<number> {
-  const canBurn = buildCanBurnPredicate(state);
+function generateWildfireScar(state: GameState, zone: number): Set<number> {
+  const canBurn = buildCanBurnPredicate(state, zone);
 
   // Collect seed candidates (interior tiles only — skip map border)
   const candidates: { row: number; col: number }[] = [];
@@ -393,15 +399,13 @@ function generateWildfireScar(state: GameState): Set<number> {
   return scar;
 }
 
-/** Build a predicate for whether a tile can burn (grass, active zone, not occupied). */
+/** Build a predicate for whether a tile can burn in a specific zone. */
 function buildCanBurnPredicate(
   state: GameState,
+  targetZone: number,
 ): (row: number, col: number) => boolean {
   const tiles = state.map.tiles;
   const zones = state.map.zones;
-  const activeZones = new Set(
-    state.players.filter(isPlayerSeated).map((player) => player.homeTower.zone),
-  );
   const burningSet = new Set(
     state.burningPits.map((pit) => packTile(pit.row, pit.col)),
   );
@@ -409,8 +413,7 @@ function buildCanBurnPredicate(
   const cols = tiles[0]!.length;
   return (row: number, col: number): boolean => {
     if (!isGrass(tiles, row, col)) return false;
-    const zone = zones[row]?.[col];
-    if (zone === undefined || !activeZones.has(zone)) return false;
+    if (zones[row]?.[col] !== targetZone) return false;
     if (burningSet.has(packTile(row, col))) return false;
     if (hasTowerAt(state, row, col)) return false;
     if (hasCannonAt(state, row, col)) return false;
