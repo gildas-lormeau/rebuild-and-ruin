@@ -334,3 +334,4 @@ Deno.test("prebuilt castle walls never land on another tower's tiles", async () 
     }
   }
 });
+

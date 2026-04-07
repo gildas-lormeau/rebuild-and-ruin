@@ -179,12 +179,14 @@ export function applyPiecePlacement(
  *  Call after each piece placement or wall change during build phase.
  *  Do NOT use at end-of-build — use finalizeTerritoryWithScoring() instead (adds tower revival + scoring). */
 export function recheckTerritoryOnly(state: GameState): void {
+  // Pass 1: recompute ALL interiors before any grunt/house operations.
+  // Grunt respawn (pass 2) calls hasInteriorAt which asserts freshness for
+  // every player — all interiors must be fresh before any cross-player reads.
   for (const player of state.players) {
-    // Order is load-bearing — each step depends on the previous:
-    // 1. recomputeInterior: flood-fill determines which tiles are enclosed
-    // 2. updateOwnedTowers: claims towers inside fresh interior
-    // 3–5. grunt/house/bonus operations use ownedTowers + interior
     recomputeInterior(state, player);
+  }
+  // Pass 2: territory-dependent operations (safe — all interiors are fresh).
+  for (const player of state.players) {
     const interior = getInterior(player);
     updateOwnedTowers(state, player);
     removeEnclosedGruntsAndRespawn(state, player, interior);
@@ -200,9 +202,12 @@ export function recheckTerritoryOnly(state: GameState): void {
  *  - Clears unenclosed pending revives
  *  Called exactly once at end of build phase from finalizeBuildPhase(). */
 export function finalizeTerritoryWithScoring(state: GameState): void {
-  // ── Per-player territory claims (loop above) ──
+  // Pass 1: recompute ALL interiors (same rationale as recheckTerritoryOnly).
   for (const player of state.players) {
     recomputeInterior(state, player);
+  }
+  // Pass 2: territory-dependent operations + scoring.
+  for (const player of state.players) {
     const interior = getInterior(player);
     updateOwnedTowers(state, player);
     reviveEnclosedTowers(state, player);
