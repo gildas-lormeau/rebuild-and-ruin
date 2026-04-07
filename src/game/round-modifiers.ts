@@ -253,6 +253,8 @@ function buildCanBurnPredicate(
   const burningSet = new Set(
     state.burningPits.map((pit) => packTile(pit.row, pit.col)),
   );
+  const rows = tiles.length;
+  const cols = tiles[0]!.length;
   return (row: number, col: number): boolean => {
     if (!isGrass(tiles, row, col)) return false;
     const zone = zones[row]?.[col];
@@ -260,6 +262,12 @@ function buildCanBurnPredicate(
     if (burningSet.has(packTile(row, col))) return false;
     if (hasTowerAt(state, row, col)) return false;
     if (hasCannonAt(state, row, col)) return false;
+    // 1-tile gap from map edges and water so players can enclose the scar
+    if (row <= 1 || row >= rows - 2 || col <= 1 || col >= cols - 2)
+      return false;
+    for (const [dr, dc] of DIRS_4) {
+      if (isWater(tiles, row + dr, col + dc)) return false;
+    }
     return true;
   };
 }

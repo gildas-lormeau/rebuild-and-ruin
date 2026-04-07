@@ -522,10 +522,31 @@ export function pickTarget(
 
   // Prefer priority targets (cannons we already shot at) to finish them off
   const priorityTargets = filtered.filter((target) => target.priority);
-  const basePool = priorityTargets.length > 0 ? priorityTargets : filtered;
+  if (priorityTargets.length > 0) {
+    const target = pickSweetSpotTarget(
+      priorityTargets,
+      currentRow,
+      currentCol,
+      rand,
+    );
+    return jitterWithinTile(target.row, target.col, rand);
+  }
 
-  // Prefer targets 3–8 tiles from crosshair to spread damage across the enemy.
-  const target = pickSweetSpotTarget(basePool, currentRow, currentCol, rand);
+  // Pick a random enclosure of the enemy, then target a wall bordering it.
+  // This distributes fire across the enemy's fortress instead of clustering
+  // near the AI's crosshair (which starts at the AI's own home tower).
+  const enclosureWall = pickEnclosureWallTarget(
+    state,
+    playerId,
+    focusFirePlayerId,
+    switchTarget,
+    rand,
+  );
+  if (enclosureWall)
+    return jitterWithinTile(enclosureWall.row, enclosureWall.col, rand);
+
+  // Fallback: sweet-spot pick from the flat candidate pool.
+  const target = pickSweetSpotTarget(filtered, currentRow, currentCol, rand);
   // Jitter within the target tile (never spill into adjacent tiles)
   return jitterWithinTile(target.row, target.col, rand);
 }
@@ -630,24 +651,6 @@ function collectGruntBlockingWallTargets(
   return gruntWalls;
 }
 
-/** True if any cannonball in flight is targeting (row, col). */
-function isTileTargetedByInFlightBall(
-  state: BattleViewState,
-  row: number,
-  col: number,
-): boolean {
-  return state.cannonballs.some((b) => ballTargeting(b, row, col));
-}
-
-/** True if a cannonball in flight is targeting (row, col). */
-function ballTargeting(
-  b: Pick<Cannonball, "targetY" | "targetX">,
-  row: number,
-  col: number,
-): boolean {
-  return pxToTile(b.targetY) === row && pxToTile(b.targetX) === col;
-}
-
 function collectEnemyTargets(
   state: BattleViewState,
   playerId: ValidPlayerSlot,
@@ -692,6 +695,75 @@ function collectEnemyTargets(
   }
 
   return targets;
+}
+
+/** Pick a random enclosure of an eligible enemy, then return a random wall
+ *  bordering it (skipping tiles already targeted by in-flight cannonballs).
+ *  Returns null when no enclosure has untargeted border walls. */
+function pickEnclosureWallTarget(
+  state: BattleViewState,
+  playerId: ValidPlayerSlot,
+  focusFirePlayerId: ValidPlayerSlot | undefined,
+  switchTarget: boolean,
+  rand: () => number,
+): TilePos | null {
+  // Collect all enclosures across eligible enemies
+  const allEnclosures: { walls: ReadonlySet<number>; tiles: number[] }[] = [];
+  for (const other of filterActiveEnemies(state, playerId)) {
+    if (!isEnemyEligibleForFocus(other.id, focusFirePlayerId, switchTarget))
+      continue;
+    const interior = getBattleInterior(other);
+    if (interior.size === 0) continue;
+    const components = findEnclosureComponents(interior);
+    for (const comp of components) {
+      allEnclosures.push({ walls: other.walls, tiles: comp });
+    }
+  }
+  if (allEnclosures.length === 0) return null;
+
+  // Pick a random enclosure (uniform — every enclosure equally likely)
+  const enclosure = allEnclosures[Math.floor(rand() * allEnclosures.length)]!;
+
+  // Find walls bordering this enclosure (4-dir adjacent to an enclosure tile)
+  const enclosureTileSet = new Set(enclosure.tiles);
+  const seen = new Set<number>();
+  const borderWalls: TilePos[] = [];
+  for (const key of enclosureTileSet) {
+    const { r, c } = unpackTile(key);
+    for (const [dr, dc] of DIRS_4) {
+      const nr = r + dr;
+      const nc = c + dc;
+      const neighborKey = packTile(nr, nc);
+      if (
+        !seen.has(neighborKey) &&
+        enclosure.walls.has(neighborKey) &&
+        !isTileTargetedByInFlightBall(state, nr, nc)
+      ) {
+        seen.add(neighborKey);
+        borderWalls.push({ row: nr, col: nc });
+      }
+    }
+  }
+  if (borderWalls.length === 0) return null;
+  return borderWalls[Math.floor(rand() * borderWalls.length)]!;
+}
+
+/** True if any cannonball in flight is targeting (row, col). */
+function isTileTargetedByInFlightBall(
+  state: BattleViewState,
+  row: number,
+  col: number,
+): boolean {
+  return state.cannonballs.some((b) => ballTargeting(b, row, col));
+}
+
+/** True if a cannonball in flight is targeting (row, col). */
+function ballTargeting(
+  b: Pick<Cannonball, "targetY" | "targetX">,
+  row: number,
+  col: number,
+): boolean {
+  return pxToTile(b.targetY) === row && pxToTile(b.targetX) === col;
 }
 
 function isEnemyEligibleForFocus(

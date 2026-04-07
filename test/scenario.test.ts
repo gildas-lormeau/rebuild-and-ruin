@@ -262,8 +262,8 @@ Deno.test("demo timer not started when human is playing", () => {
 // ---------------------------------------------------------------------------
 
 Deno.test("super gun placed during cannon phase can fire in battle", async () => {
-  // Seed 14: P0 has enough interior for a 3x3 super gun after 1 round
-  const s = await createScenario(14);
+  // Seed 39: P0 has enough interior for a 3x3 super gun after 1 round
+  const s = await createScenario(39);
   s.playRounds(1);
   let placed = false;
   const p = s.state.players[0]!;
@@ -276,7 +276,7 @@ Deno.test("super gun placed during cannon phase can fire in battle", async () =>
       break;
     }
   }
-  assert(placed, "Should place a super gun with seed 14");
+  assert(placed, "Should place a super gun with seed 39");
   const player = s.state.players[0]!;
 
   const superIdx = player.cannons.length - 1;
