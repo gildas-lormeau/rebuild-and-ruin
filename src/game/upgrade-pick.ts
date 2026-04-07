@@ -92,18 +92,23 @@ export function applyUpgradePicks(
   dialog: UpgradePickDialogState,
 ): void {
   let secondWind = false;
+  let clearTheField = false;
   for (const entry of dialog.entries) {
     if (entry.choice === null) continue;
     const player = state.players[entry.playerId];
     if (!player) continue;
     player.upgrades.set(entry.choice, 1);
     if (entry.choice === UID.SECOND_WIND) secondWind = true;
+    if (entry.choice === UID.CLEAR_THE_FIELD) clearTheField = true;
   }
   if (secondWind) {
     for (let idx = 0; idx < state.towerAlive.length; idx++) {
       state.towerAlive[idx] = true;
     }
     state.towerPendingRevive.clear();
+  }
+  if (clearTheField) {
+    state.grunts.length = 0;
   }
 }
 
@@ -126,6 +131,10 @@ function aiPickUpgrade(
   if (hasDeadTowers && offers.includes(UID.SECOND_WIND as UpgradeId)) {
     return UID.SECOND_WIND as UpgradeId;
   }
+  const hasGruntsInZone = playerHasGruntsInZone(state, playerId);
+  if (hasGruntsInZone && offers.includes(UID.CLEAR_THE_FIELD as UpgradeId)) {
+    return UID.CLEAR_THE_FIELD as UpgradeId;
+  }
   const hasPits = playerHasBurningPitsInZone(state, playerId);
   if (hasPits && offers.includes(UID.FOUNDATIONS as UpgradeId)) {
     return UID.FOUNDATIONS as UpgradeId;
@@ -138,6 +147,7 @@ function aiPickUpgrade(
   // Exclude contextual upgrades when conditions aren't met
   const excluded = new Set<UpgradeId>();
   if (!hasDeadTowers) excluded.add(UID.SECOND_WIND as UpgradeId);
+  if (!hasGruntsInZone) excluded.add(UID.CLEAR_THE_FIELD as UpgradeId);
   if (!hasPits) excluded.add(UID.FOUNDATIONS as UpgradeId);
   if (!largeTerritory) excluded.add(UID.SMALL_PIECES as UpgradeId);
   const viable = offers.filter((id) => !excluded.has(id));
@@ -173,6 +183,18 @@ function playerHasDeadTowers(
   const player = state.players[playerId];
   if (!player) return false;
   return player.ownedTowers.some((tower) => !state.towerAlive[tower.index]);
+}
+
+function playerHasGruntsInZone(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+): boolean {
+  const player = state.players[playerId];
+  if (!player?.homeTower) return false;
+  const zone = player.homeTower.zone;
+  return state.grunts.some(
+    (grunt) => state.map.zones[grunt.row]?.[grunt.col] === zone,
+  );
 }
 
 function playerHasBurningPitsInZone(

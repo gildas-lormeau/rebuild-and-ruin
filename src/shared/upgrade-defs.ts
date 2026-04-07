@@ -21,7 +21,8 @@ export type UpgradeId =
   | "earthquake"
   | "ceasefire"
   | "supply_drop"
-  | "second_wind";
+  | "second_wind"
+  | "clear_the_field";
 
 type UpgradeCategory = "battle" | "build" | "strategic" | "one_use";
 
@@ -76,6 +77,7 @@ export const UID = {
   CEASEFIRE: "ceasefire",
   SUPPLY_DROP: "supply_drop",
   SECOND_WIND: "second_wind",
+  CLEAR_THE_FIELD: "clear_the_field",
 } as const satisfies Record<string, UpgradeId>;
 export const UPGRADE_POOL: readonly UpgradeDef[] = [
   // Battle
@@ -221,6 +223,15 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     id: "second_wind",
     label: "Second Wind",
     description: "Revive all towers for all players",
+    category: ONE_USE,
+    weight: WEIGHT_RARE,
+    oneUse: true,
+    implemented: true,
+  },
+  {
+    id: "clear_the_field",
+    label: "Clear the Field",
+    description: "Remove all grunts from the map",
     category: ONE_USE,
     weight: WEIGHT_RARE,
     oneUse: true,
