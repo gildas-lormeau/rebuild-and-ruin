@@ -679,12 +679,7 @@ function collectEnemyTargets(
         const size = cannonSize(cannon.mode);
         const targetRow = cannon.row + (size - 1) / 2;
         const targetCol = cannon.col + (size - 1) / 2;
-        // Mortar cannons are high-priority targets (area denial threat)
-        targets.push({
-          row: targetRow,
-          col: targetCol,
-          priority: shots > 0 || !!cannon.mortar,
-        });
+        targets.push({ row: targetRow, col: targetCol, priority: shots > 0 });
       }
     }
 
