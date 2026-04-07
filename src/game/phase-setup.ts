@@ -32,7 +32,12 @@ import {
   isPlayerSeated,
   type Player,
 } from "../shared/player-types.ts";
-import { isBalloonCannon, packTile } from "../shared/spatial.ts";
+import {
+  isBalloonCannon,
+  packTile,
+  setGrass,
+  unpackTile,
+} from "../shared/spatial.ts";
 import type {
   ControllerIdentity,
   PlayerController,
@@ -489,6 +494,19 @@ export function resetZoneState(state: GameState, zone: number): void {
   state.burningPits = state.burningPits.filter(
     (pit) => state.map.zones[pit.row]?.[pit.col] !== zone,
   );
+  // Revert sinkhole tiles on this zone back to grass
+  const sinkhole = state.modern?.sinkholeTiles;
+  if (sinkhole) {
+    for (const key of sinkhole) {
+      const { r, c } = unpackTile(key);
+      if (state.map.zones[r]?.[c] === zone) {
+        setGrass(state.map.tiles, r, c);
+        sinkhole.delete(key);
+      }
+    }
+    if (sinkhole.size === 0) state.modern!.sinkholeTiles = null;
+    state.map.mapVersion++;
+  }
   for (let towerIndex = 0; towerIndex < state.map.towers.length; towerIndex++) {
     if (state.map.towers[towerIndex]!.zone === zone) {
       state.towerAlive[towerIndex] = true;

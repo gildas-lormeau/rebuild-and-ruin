@@ -428,6 +428,11 @@ export function setWater(tiles: Tile[][], r: number, c: number): void {
   tiles[r]![c] = Tile.Water;
 }
 
+/** Mutate a tile to grass. Used to revert sinkholes on dead player zones. */
+export function setGrass(tiles: Tile[][], r: number, c: number): void {
+  tiles[r]![c] = Tile.Grass;
+}
+
 /** Build a set of all water tile keys — use as extra barriers for computeOutside. */
 export function waterKeys(tiles: readonly (readonly Tile[])[]): Set<number> {
   const water = new Set<number>();
