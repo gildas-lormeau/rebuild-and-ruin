@@ -23,7 +23,6 @@ import {
   computeOutside,
   DIRS_4,
   DIRS_8,
-  distanceToTower,
   inBounds,
   isBalloonCannon,
   isCannonTile,
@@ -303,19 +302,21 @@ export function planIceTrench(
   if (player.ownedTowers.length === 0) return null;
   const playerZone = state.playerZones[playerId];
 
-  // Precondition: grunts on the river bank in an enemy zone.
-  // At battle start, victimPlayerId is stale (pre-retarget), so we check
-  // location only.  "On the bank" = 4-dir adjacent to a frozen tile.
-  const hasIncomingGrunts = state.grunts.some((grunt) => {
+  // Precondition: collect grunts on the opposite bank (enemy zone, 4-dir
+  // adjacent to frozen water).  At battle start, victimPlayerId is stale
+  // (pre-retarget), so we check location only.
+  const bankGrunts: TilePos[] = [];
+  for (const grunt of state.grunts) {
     const gruntZone = state.map.zones[grunt.row]?.[grunt.col];
-    if (gruntZone === undefined || gruntZone === playerZone) return false;
+    if (gruntZone === undefined || gruntZone === playerZone) continue;
     for (const [dr, dc] of DIRS_4) {
-      if (frozenTiles.has(packTile(grunt.row + dr, grunt.col + dc)))
-        return true;
+      if (frozenTiles.has(packTile(grunt.row + dr, grunt.col + dc))) {
+        bankGrunts.push({ row: grunt.row, col: grunt.col });
+        break;
+      }
     }
-    return false;
-  });
-  if (!hasIncomingGrunts) return null;
+  }
+  if (bankGrunts.length === 0) return null;
 
   // 1. Find shoreline: frozen tiles 4-dir adjacent to AI-zone grass
   const shoreline: number[] = [];
@@ -336,13 +337,14 @@ export function planIceTrench(
   }
   if (shoreline.length === 0) return null;
 
-  // 2. Pick tower closest to shoreline → anchor point
+  // 2. Anchor = shoreline tile closest to an incoming bank grunt,
+  //    so the trench faces where grunts will actually cross.
   let bestAnchorKey = shoreline[0]!;
   let bestDist = Infinity;
-  for (const tower of player.ownedTowers) {
+  for (const grunt of bankGrunts) {
     for (const shoreKey of shoreline) {
       const { r, c } = unpackTile(shoreKey);
-      const dist = distanceToTower(tower, r, c);
+      const dist = manhattanDistance(grunt.row, grunt.col, r, c);
       if (dist < bestDist) {
         bestDist = dist;
         bestAnchorKey = shoreKey;
