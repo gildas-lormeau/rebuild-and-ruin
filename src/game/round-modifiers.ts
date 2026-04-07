@@ -270,7 +270,7 @@ export function reapplySinkholeTiles(state: GameState): void {
 }
 
 /** Generate a sinkhole cluster via BFS flood-fill from a random seed tile.
- *  Each neighbor has SINKHOLE_FATTEN_CHANCE probability of joining. */
+ *  Retries with a new seed if the cluster is undersized (e.g., boxed in by obstacles). */
 function generateSinkholeCluster(
   state: GameState,
   budget: number,
@@ -287,11 +287,26 @@ function generateSinkholeCluster(
   }
   if (candidates.length === 0) return new Set();
 
+  let best = new Set<number>();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const cluster = growSinkholeFromSeed(state, canSink, candidates, budget);
+    if (cluster.size >= budget) return cluster;
+    if (cluster.size > best.size) best = cluster;
+  }
+  return best;
+}
+
+/** BFS-grow a sinkhole cluster from a random seed tile. */
+function growSinkholeFromSeed(
+  state: GameState,
+  canSink: (row: number, col: number) => boolean,
+  candidates: readonly { row: number; col: number }[],
+  budget: number,
+): Set<number> {
   const seed = state.rng.pick(candidates);
   const cluster = new Set<number>();
   cluster.add(packTile(seed.row, seed.col));
 
-  // BFS frontier — each neighbor has a probability of joining
   const frontier = [seed];
   while (cluster.size < budget && frontier.length > 0) {
     const idx = state.rng.int(0, frontier.length - 1);
@@ -311,7 +326,6 @@ function generateSinkholeCluster(
       if (cluster.size >= budget) break;
     }
   }
-
   return cluster;
 }
 
