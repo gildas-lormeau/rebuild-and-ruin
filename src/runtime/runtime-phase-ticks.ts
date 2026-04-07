@@ -16,7 +16,11 @@ import {
   tickCannonballs,
 } from "../game/battle-system.ts";
 import { applyDefaultFacings } from "../game/cannon-system.ts";
-import { nextPhase, tickGameCore } from "../game/game-engine.ts";
+import {
+  isCeasefireActive,
+  nextPhase,
+  tickGameCore,
+} from "../game/game-engine.ts";
 import { tickGrunts as moveGrunts } from "../game/grunt-movement.ts";
 import {
   gruntAttackTowers,
@@ -36,6 +40,7 @@ import {
 } from "../game/host-phase-ticks.ts";
 import { BANNER_BUILD, capturePrevBattleScene } from "../game/phase-banner.ts";
 import {
+  enterBuildSkippingBattle,
   finalizeBuildPhase,
   initBuildPhaseControllers,
   initControllerForCannonPhase,
@@ -220,10 +225,47 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // Battle
   // -------------------------------------------------------------------------
 
+  function sendBuildCheckpointIfHost(): void {
+    if (runtimeState.frameMeta.hostAtFrameStart && deps.hostNetworking) {
+      deps.send(
+        deps.hostNetworking.createBuildStartMessage(runtimeState.state),
+      );
+    }
+  }
+
+  function enterBuildViaUpgradePick(): void {
+    const showBannerAndEnterBuild = () => {
+      executeTransition(BUILD_START_STEPS, {
+        showBanner: () =>
+          showBuildPhaseBanner(deps.showBanner, BANNER_BUILD, () => {
+            setMode(runtimeState, Mode.GAME);
+          }),
+        applyCheckpoint: NOOP_STEP,
+        initControllers: () => startBuildPhase(),
+      });
+    };
+    gateUpgradePick(
+      deps.showBanner,
+      deps.tryShowUpgradePick,
+      !!runtimeState.state.modern?.pendingUpgradeOffers,
+      showBannerAndEnterBuild,
+      deps.prepareUpgradePick,
+    );
+  }
+
   function startBattle() {
     deps.sound.drumsStop();
     deps.log(`startBattle (round=${runtimeState.state.round})`);
     deps.scoreDelta.reset();
+
+    if (isCeasefireActive(runtimeState.state)) {
+      deps.log("ceasefire: skipping battle");
+      enterBuildSkippingBattle(runtimeState.state);
+      sendBuildCheckpointIfHost();
+      enterBuildViaUpgradePick();
+      return;
+    }
+
     startHostBattleLifecycle({
       state: runtimeState.state,
       battleAnim: runtimeState.battleAnim,
@@ -384,33 +426,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
           runtimeState.battleAnim.walls,
         );
 
-        // Step 1: apply checkpoint (nextPhase generates offers + modifier)
         nextPhase(runtimeState.state);
-        if (runtimeState.frameMeta.hostAtFrameStart && deps.hostNetworking) {
-          deps.send(
-            deps.hostNetworking.createBuildStartMessage(runtimeState.state),
-          );
-        }
-
-        // Step 2→3→4: upgrade pick banner + dialog (if any) → build banner �� game
-        const showBannerAndEnterBuild = () => {
-          executeTransition(BUILD_START_STEPS, {
-            showBanner: () =>
-              showBuildPhaseBanner(deps.showBanner, BANNER_BUILD, () => {
-                setMode(runtimeState, Mode.GAME);
-              }),
-            applyCheckpoint: NOOP_STEP,
-            initControllers: () => startBuildPhase(),
-          });
-        };
-
-        gateUpgradePick(
-          deps.showBanner,
-          deps.tryShowUpgradePick,
-          !!runtimeState.state.modern?.pendingUpgradeOffers,
-          showBannerAndEnterBuild,
-          deps.prepareUpgradePick,
-        );
+        sendBuildCheckpointIfHost();
+        enterBuildViaUpgradePick();
       },
       net: {
         remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,

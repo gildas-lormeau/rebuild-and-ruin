@@ -208,7 +208,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: ONE_USE,
     weight: WEIGHT_RARE,
     oneUse: true,
-    implemented: false,
+    implemented: true,
   },
   {
     id: "supply_drop",

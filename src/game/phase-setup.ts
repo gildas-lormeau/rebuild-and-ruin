@@ -273,6 +273,18 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   return diff;
 }
 
+/** Ceasefire: skip battle entirely — do pre-battle housekeeping then go straight to build.
+ *  Performs the same cleanup as enterBattleFromCannon (decay pits, sweep walls)
+ *  but skips modifiers, grunt attacks, and battle setup. */
+export function enterBuildSkippingBattle(state: GameState): void {
+  decayBurningPits(state);
+  sweepAllPlayersWalls(state);
+  recheckTerritoryOnly(state);
+  removeBonusSquaresCoveredByWalls(state, collectAllWalls(state));
+  clearFrozenRiver(state);
+  enterBuildFromBattle(state);
+}
+
 /** Enter build from battle — cleans up battle state (balloons, captured cannons, grunts).
  *  Callers must call initBuildPhaseControllers() afterwards to init controllers. */
 export function enterBuildFromBattle(state: GameState): void {
