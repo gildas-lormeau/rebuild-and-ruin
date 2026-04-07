@@ -334,6 +334,7 @@ function handleCannonFired(
     speed: msg.speed,
     playerId: msg.playerId,
     incendiary: msg.incendiary,
+    mortar: msg.mortar,
   });
   return APPLIED;
 }

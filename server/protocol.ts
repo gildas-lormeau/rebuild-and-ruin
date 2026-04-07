@@ -400,6 +400,7 @@ export interface CannonFiredMessage {
   targetY: number;
   speed: number;
   incendiary?: true;
+  mortar?: true;
 }
 
 /** A wall tile was destroyed by impact. */

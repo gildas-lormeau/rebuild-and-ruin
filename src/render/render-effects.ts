@@ -391,8 +391,12 @@ function drawCannonballs(
   for (const ball of overlay.battle.cannonballs) {
     // progress: normalized 0→1 linear interpolation from launch position to target
     const height = Math.sin(ball.progress * Math.PI);
-    const radius = 3 + height * 2; // 3px base + up to 2px from arc
-    overlayCtx.fillStyle = ball.incendiary ? "#c22" : DARK_METAL;
+    // Mortar balls are larger and reddish (incendiary splash creates burning pits)
+    const baseRadius = ball.mortar ? 4.5 : 3;
+    const arcBonus = ball.mortar ? 3 : 2;
+    const radius = baseRadius + height * arcBonus;
+    const color = ball.mortar ? "#b33" : ball.incendiary ? "#c22" : DARK_METAL;
+    overlayCtx.fillStyle = color;
     overlayCtx.beginPath();
     overlayCtx.arc(ball.x, ball.y, radius, 0, Math.PI * 2);
     overlayCtx.fill();

@@ -58,7 +58,9 @@ import {
 import {
   cannonSlotsForRound,
   computeDefaultFacings,
+  filterActiveFiringCannons,
   findNearestValidCannonPlacement,
+  isCannonEnclosed,
   resetCannonFacings,
 } from "./cannon-system.ts";
 import {
@@ -268,6 +270,7 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   state.timer = BATTLE_TIMER;
   state.cannonballs = [];
   state.shotsFired = 0;
+  electMortarCannons(state);
   if (hasFeature(state, FID.COMBOS)) {
     state.modern!.comboTracker = isCombosEnabled(state)
       ? createComboTracker(state.players.length)
@@ -643,7 +646,7 @@ function awardComboBonuses(state: GameState): void {
   state.modern!.comboTracker = null;
 }
 
-/** Clean up transient battle state: grunts, balloons, captured cannons. */
+/** Clean up transient battle state: grunts, balloons, captured cannons, mortar flags. */
 function cleanupBattleArtifacts(state: GameState): void {
   updateGruntBlockedBattles(state);
   cleanupBalloonHitTrackingAfterBattle(state);
@@ -652,6 +655,30 @@ function cleanupBattleArtifacts(state: GameState): void {
     player.cannons = player.cannons.filter(
       (cannon) => !isBalloonCannon(cannon),
     );
+    // Clear mortar election (lasts one battle round)
+    for (const cannon of player.cannons) {
+      cannon.mortar = undefined;
+    }
+  }
+}
+
+/** Elect one mortar cannon per player who has the Mortar upgrade.
+ *  Only standard (normal) cannons are eligible — super guns and balloons are excluded.
+ *  If a player has no normal cannons, the upgrade is silently skipped.
+ *  Uses synced RNG so election is deterministic for online play.
+ *  Must be called after setPhase(BATTLE) and before any RNG-consuming
+ *  code that follows in the battle-start sequence. */
+function electMortarCannons(state: GameState): void {
+  for (const player of state.players) {
+    if (player.eliminated) continue;
+    if (!player.upgrades.get(UID.MORTAR)) continue;
+    const normalCannons = filterActiveFiringCannons(player).filter(
+      (cannon) =>
+        cannon.mode === CannonMode.NORMAL && isCannonEnclosed(cannon, player),
+    );
+    if (normalCannons.length === 0) continue;
+    const elected = state.rng.pick(normalCannons);
+    elected.mortar = true;
   }
 }
 

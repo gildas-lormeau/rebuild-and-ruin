@@ -88,6 +88,8 @@ const COUNTDOWN_READY_SEC = 3;
 const COUNTDOWN_AIM_SEC = 1;
 /** Cannonball speed multiplier when the Rapid Fire upgrade is active. */
 const RAPID_FIRE_SPEED_MULT = 2;
+/** Mortar cannonball speed multiplier (half speed). */
+const MORTAR_SPEED_MULT = 0.5;
 const SALVAGE_CAP = 2;
 /** Sentinel: no target found (used for victimId lookups). */
 const VICTIM_ID_UNKNOWN = -1;
@@ -179,16 +181,39 @@ export function tickCannonballs(
     if (hit) {
       // Ball has arrived — compute and apply impact
       const shooterId = getCannonballScorer(ball);
-      const impactEvents = computeImpact(
-        state,
-        hit.row,
-        hit.col,
-        shooterId,
-        ball.incendiary,
-      );
-      for (const evt of impactEvents) {
-        applyImpactEvent(state, evt, shooterId);
-        events.push(evt);
+      if (ball.mortar) {
+        // Mortar: 3×3 splash damage + burning pit at center
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            const splashRow = hit.row + dr;
+            const splashCol = hit.col + dc;
+            const isCenter = dr === 0 && dc === 0;
+            // Center tile gets incendiary (pit), surrounding tiles get normal damage
+            const splashEvents = computeImpact(
+              state,
+              splashRow,
+              splashCol,
+              shooterId,
+              isCenter,
+            );
+            for (const evt of splashEvents) {
+              applyImpactEvent(state, evt, shooterId);
+              events.push(evt);
+            }
+          }
+        }
+      } else {
+        const impactEvents = computeImpact(
+          state,
+          hit.row,
+          hit.col,
+          shooterId,
+          ball.incendiary,
+        );
+        for (const evt of impactEvents) {
+          applyImpactEvent(state, evt, shooterId);
+          events.push(evt);
+        }
       }
       impacts.push(hit);
     } else {
@@ -436,6 +461,7 @@ export function createCannonFiredMsg(ball: {
   targetY: number;
   speed: number;
   incendiary?: boolean;
+  mortar?: boolean;
 }): CannonFiredMessage {
   return {
     type: MESSAGE.CANNON_FIRED,
@@ -447,6 +473,7 @@ export function createCannonFiredMsg(ball: {
     targetY: ball.targetY,
     speed: ball.speed,
     incendiary: ball.incendiary ? true : undefined,
+    mortar: ball.mortar ? true : undefined,
   };
 }
 
@@ -678,6 +705,13 @@ function launchCannonball(
   const targetX = (targetCol + TILE_CENTER_OFFSET) * TILE_SIZE;
   const targetY = (targetRow + TILE_CENTER_OFFSET) * TILE_SIZE;
   cannon.facing = computeFacing45(startX, startY, targetX, targetY);
+  const hasRapidFire = !!state.players[playerId]?.upgrades.get(UID.RAPID_FIRE);
+  const isMortar = !!cannon.mortar;
+  // Rapid Fire + Mortar cancel out on speed (normal speed mortar shots)
+  let speedMult = 1;
+  if (isMortar && hasRapidFire) speedMult = 1;
+  else if (isMortar) speedMult = MORTAR_SPEED_MULT;
+  else if (hasRapidFire) speedMult = RAPID_FIRE_SPEED_MULT;
   state.cannonballs.push({
     cannonIdx,
     startX,
@@ -686,14 +720,11 @@ function launchCannonball(
     y: startY,
     targetX,
     targetY,
-    speed:
-      BALL_SPEED *
-      (state.players[playerId]?.upgrades.get(UID.RAPID_FIRE)
-        ? RAPID_FIRE_SPEED_MULT
-        : 1),
+    speed: BALL_SPEED * speedMult,
     playerId,
     scoringPlayerId,
     incendiary: isSuperCannon(cannon) ? true : undefined,
+    mortar: isMortar || undefined,
   });
 }
 

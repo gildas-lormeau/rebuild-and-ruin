@@ -31,6 +31,8 @@ export interface Cannon extends TilePos {
   mode: CannonMode;
   /** Facing angle in radians (snapped to 45° increments). 0 = up. */
   facing?: number;
+  /** True when this cannon is the elected mortar for the current battle round. */
+  mortar?: boolean;
 }
 
 export interface Cannonball {
@@ -61,6 +63,8 @@ export interface Cannonball {
   scoringPlayerId?: number;
   /** If true, leaves a burning pit on impact (fired from super gun). */
   incendiary?: boolean;
+  /** If true, this is a mortar round — 3×3 splash damage + burning pit at center. */
+  mortar?: boolean;
 }
 
 export interface CapturedCannon {

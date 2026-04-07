@@ -83,7 +83,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: WEIGHT_UNCOMMON,
     oneUse: false,
     global: false,
-    implemented: false,
+    implemented: true,
   },
   {
     id: "rapid_fire",

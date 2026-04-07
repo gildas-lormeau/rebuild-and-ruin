@@ -823,9 +823,16 @@ function buildBattleCannonballsPayload(
     targetX: number;
     targetY: number;
     incendiary?: boolean;
+    mortar?: boolean;
   }>,
 ):
-  | Array<{ x: number; y: number; progress: number; incendiary?: boolean }>
+  | Array<{
+      x: number;
+      y: number;
+      progress: number;
+      incendiary?: boolean;
+      mortar?: boolean;
+    }>
   | undefined {
   if (!inBattle) return undefined;
 
@@ -838,6 +845,7 @@ function buildBattleCannonballsPayload(
       y: b.y,
       progress,
       incendiary: b.incendiary,
+      mortar: b.mortar,
     };
   });
 }

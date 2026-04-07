@@ -149,6 +149,7 @@ export interface BattleOverlay {
     y: number;
     progress: number;
     incendiary?: boolean;
+    mortar?: boolean;
   }[];
   crosshairs?: {
     x: number;

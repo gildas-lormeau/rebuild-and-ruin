@@ -140,6 +140,10 @@ function aiPickUpgrade(
   if (hasPits && offers.includes(UID.FOUNDATIONS)) {
     return UID.FOUNDATIONS;
   }
+  // Mortar is strong when player has few cannons (catch-up mechanic)
+  if (offers.includes(UID.MORTAR) && playerCannonCount(state, playerId) <= 3) {
+    return UID.MORTAR;
+  }
   const largeTerritory =
     playerTerritoryRatio(state, playerId) >= SMALL_PIECES_TERRITORY_RATIO;
   if (largeTerritory && offers.includes(UID.SMALL_PIECES)) {
@@ -208,4 +212,15 @@ function playerHasBurningPitsInZone(
   return state.burningPits.some(
     (pit) => state.map.zones[pit.row]?.[pit.col] === zone,
   );
+}
+
+function playerCannonCount(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+): number {
+  const player = state.players[playerId];
+  if (!player) return 0;
+  return player.cannons.filter(
+    (cannon) => cannon.hp > 0 && cannon.mode !== "balloon",
+  ).length;
 }

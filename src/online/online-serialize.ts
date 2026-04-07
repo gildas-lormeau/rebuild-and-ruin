@@ -228,6 +228,7 @@ export function serializePlayers(state: GameState) {
       hp: c.hp,
       mode: c.mode,
       facing: c.facing ?? 0,
+      mortar: c.mortar || undefined,
     })),
     homeTowerIdx: player.homeTower?.index ?? null,
     castleWallTiles: [...player.castleWallTiles],
@@ -366,6 +367,7 @@ export function applyPlayersCheckpoint(
       hp: c.hp,
       mode: toCannonMode(c.mode),
       facing: c.facing ?? 0,
+      mortar: c.mortar || undefined,
     }));
     player.homeTower =
       entry.homeTowerIdx !== null &&

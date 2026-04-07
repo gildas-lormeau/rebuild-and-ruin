@@ -7,6 +7,7 @@ export interface SerializedCannon {
   hp: number;
   mode: string;
   facing?: number;
+  mortar?: true;
 }
 
 export interface SerializedHouse {
