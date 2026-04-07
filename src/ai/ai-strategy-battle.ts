@@ -303,13 +303,17 @@ export function planIceTrench(
   if (player.ownedTowers.length === 0) return null;
   const playerZone = state.playerZones[playerId];
 
-  // Precondition: grunts on the opposite side that will cross to attack us.
-  // At battle start, applyFrozenRiver resets targetTowerIdx but grunts haven't
-  // retargeted yet — victimPlayerId still points to the old same-zone victim.
-  // Treat any grunt in an enemy zone as an incoming threat.
+  // Precondition: grunts on the river bank in an enemy zone.
+  // At battle start, victimPlayerId is stale (pre-retarget), so we check
+  // location only.  "On the bank" = 4-dir adjacent to a frozen tile.
   const hasIncomingGrunts = state.grunts.some((grunt) => {
     const gruntZone = state.map.zones[grunt.row]?.[grunt.col];
-    return gruntZone !== playerZone;
+    if (gruntZone === undefined || gruntZone === playerZone) return false;
+    for (const [dr, dc] of DIRS_4) {
+      if (frozenTiles.has(packTile(grunt.row + dr, grunt.col + dc)))
+        return true;
+    }
+    return false;
   });
   if (!hasIncomingGrunts) return null;
 
