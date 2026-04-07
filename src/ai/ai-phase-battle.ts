@@ -302,21 +302,29 @@ function tickChainMoving(
     return;
   }
   const target = phase.chainTargets[phase.chainIdx]!;
-  // For wall/pocket attacks, skip already-destroyed wall tiles
-  if (phase.chainType === CHAIN.WALL || phase.chainType === CHAIN.POCKET) {
+  // For wall/pocket/structural/ice attacks, skip already-destroyed targets
+  if (
+    phase.chainType === CHAIN.WALL ||
+    phase.chainType === CHAIN.POCKET ||
+    phase.chainType === CHAIN.STRUCTURAL ||
+    phase.chainType === CHAIN.ICE_TRENCH
+  ) {
     const targetKey = packTile(target.row, target.col);
-    let wallExists = false;
+    let targetExists = false;
     if (phase.chainType === CHAIN.POCKET) {
-      wallExists = state.players[host.playerId]?.walls.has(targetKey) ?? false;
+      targetExists =
+        state.players[host.playerId]?.walls.has(targetKey) ?? false;
+    } else if (phase.chainType === CHAIN.ICE_TRENCH) {
+      targetExists = state.modern?.frozenTiles?.has(targetKey) ?? false;
     } else {
       for (const other of state.players) {
         if (other.id !== host.playerId && other.walls.has(targetKey)) {
-          wallExists = true;
+          targetExists = true;
           break;
         }
       }
     }
-    if (!wallExists) {
+    if (!targetExists) {
       phase.chainIdx++;
       if (phase.chainIdx >= phase.chainTargets.length) {
         phase.chainTargets = undefined;

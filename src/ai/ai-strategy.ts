@@ -48,7 +48,9 @@ import {
   pickTarget,
   planCharitySweep,
   planGruntSweep,
+  planIceTrench,
   planPocketDestruction,
+  planStructuralHit,
   planSuperAttack,
   planWallDemolition,
   trackShot,
@@ -163,6 +165,10 @@ const CHARITY_SWEEP_PROBABILITY = 1 / 10;
 const WALL_DEMOLITION_PROBABILITY = 1 / 3;
 /** Chance to launch a strided (every-other-tile) wall demolition attack. */
 const SUPER_ATTACK_PROBABILITY = 1 / 8;
+/** Chance to attempt a structural hit (break 2+ enclosures in 1–2 shots). */
+const STRUCTURAL_HIT_PROBABILITY = 1 / 2;
+/** Minimum usable cannons to attempt an ice trench (lower than general chain threshold). */
+const ICE_TRENCH_MIN_CANNONS = 4;
 /** AI personality archetype. Determines correlated base trait values. */
 const Archetype = {
   BUILDER: "builder",
@@ -260,6 +266,8 @@ export const CHAIN = {
   WALL: "wall",
   GRUNT: "grunt",
   POCKET: "pocket",
+  STRUCTURAL: "structural",
+  ICE_TRENCH: "ice_trench",
 } as const;
 
 export class DefaultStrategy implements AiStrategy {
@@ -436,6 +444,19 @@ export class DefaultStrategy implements AiStrategy {
 
     const usableCannonCount = countUsableCannons(state, playerId);
 
+    // Ice trench — highest priority: block grunts crossing frozen river early
+    const iceTrenchProb = traitLookup(this.battleTactics, [0, 1 / 3, 2 / 3]);
+    if (
+      usableCannonCount >= ICE_TRENCH_MIN_CANNONS &&
+      this.rng.bool(iceTrenchProb)
+    ) {
+      const iceTrenchTargets = planIceTrench(state, playerId);
+      if (iceTrenchTargets) {
+        chainTargets = iceTrenchTargets;
+        chainType = CHAIN.ICE_TRENCH;
+      }
+    }
+
     // Grunt sweep: enough grunts targeting us and enough usable cannons
     if (usableCannonCount > CHAIN_ATTACK_MIN_CANNONS) {
       const gruntTargets = planGruntSweep(
@@ -470,6 +491,29 @@ export class DefaultStrategy implements AiStrategy {
       if (charityTargets) {
         chainTargets = charityTargets;
         chainType = CHAIN.GRUNT;
+      }
+    }
+
+    // Structural hit — surgical 1–2 shot attack that breaks 2+ large enclosures
+    const structuralProb = traitLookup(this.battleTactics, [
+      0,
+      STRUCTURAL_HIT_PROBABILITY,
+      3 / 4,
+    ]);
+    const structuralMaxHits = traitLookup(this.battleTactics, [0, 1, 3]);
+    if (
+      !chainTargets &&
+      structuralMaxHits > 0 &&
+      this.rng.bool(structuralProb)
+    ) {
+      const structuralTargets = planStructuralHit(
+        state,
+        playerId,
+        structuralMaxHits,
+      );
+      if (structuralTargets) {
+        chainTargets = structuralTargets;
+        chainType = CHAIN.STRUCTURAL;
       }
     }
 
