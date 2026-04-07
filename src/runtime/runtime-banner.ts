@@ -12,7 +12,11 @@ import {
 } from "../game/phase-banner.ts";
 import { BANNER_DURATION } from "../shared/game-constants.ts";
 import { Mode } from "../shared/ui-mode.ts";
-import { type RuntimeState, setMode } from "./runtime-state.ts";
+import {
+  assertStateReady,
+  type RuntimeState,
+  setMode,
+} from "./runtime-state.ts";
 
 interface BannerSystemDeps {
   readonly runtimeState: RuntimeState;
@@ -56,6 +60,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     subtitle?: string,
   ) {
     // Unzoom before banner so the full map is visible during transition
+    assertStateReady(runtimeState);
     clearPhaseZoom();
     if (runtimeState.banner.active) {
       log(

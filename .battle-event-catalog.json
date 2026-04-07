@@ -29,7 +29,7 @@
         "haptics": "src/input/haptics-system.ts",
         "networkHandle": "src/online/online-server-events.ts",
         "networkRelay": "server/game-room.ts",
-        "orchestrator": "src/runtime/runtime-phase-ticks.ts",
+        "orchestrator": "src/game/battle-system.ts",
         "combo": "src/game/combo-system.ts"
       }
     },
@@ -42,7 +42,7 @@
         "haptics": "src/input/haptics-system.ts",
         "networkHandle": "src/online/online-server-events.ts",
         "networkRelay": "server/game-room.ts",
-        "orchestrator": "src/runtime/runtime-phase-ticks.ts",
+        "orchestrator": "src/game/battle-system.ts",
         "combo": "src/game/combo-system.ts"
       }
     },

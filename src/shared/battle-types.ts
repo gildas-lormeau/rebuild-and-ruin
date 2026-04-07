@@ -139,3 +139,15 @@ export function isBalloonMode(mode: CannonMode): mode is CannonMode.BALLOON {
 export function createBattleAnimState(): BattleAnimState {
   return { territory: [], walls: [], flights: [], impacts: [] };
 }
+
+/** Age impact flashes by `dt` seconds and remove expired ones. */
+export function ageImpacts(
+  battleAnim: { impacts: Impact[] },
+  dt: number,
+  flashDuration: number,
+): void {
+  for (const imp of battleAnim.impacts) imp.age += dt;
+  battleAnim.impacts = battleAnim.impacts.filter(
+    (imp) => imp.age < flashDuration,
+  );
+}

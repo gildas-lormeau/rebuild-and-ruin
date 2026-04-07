@@ -297,7 +297,9 @@ export function createSelectionSystem(
             getInterior(player).size > 0 ||
             player.eliminated,
         ),
-      tickActiveBuilds: tickAllCastleBuilds,
+      tickActiveBuilds: (dt: number) => {
+        if (tickAllCastleBuilds(dt)) recheckTerritoryOnly(runtimeState.state);
+      },
       announcementDuration: SELECT_ANNOUNCEMENT_DURATION,
       setFrameAnnouncement: (text) => {
         runtimeState.frame.announcement = text;
@@ -349,7 +351,9 @@ export function createSelectionSystem(
     }
   }
 
-  function tickAllCastleBuilds(dt: number): void {
+  /** Tick castle build animations. Returns true if any wall tiles were placed
+   *  this frame (caller is responsible for territory recheck). */
+  function tickAllCastleBuilds(dt: number): boolean {
     let anyPlaced = false;
     const humanPid = deps.pointerPlayer()?.playerId ?? -1;
     let humanBuildDone = false;
@@ -374,12 +378,12 @@ export function createSelectionSystem(
         runtimeState.castleBuilds[i] = result.next;
       }
     }
-    if (anyPlaced) recheckTerritoryOnly(runtimeState.state);
     // Unzoom once human player's castle build animation finishes
     if (humanBuildDone) {
       deps.camera.clearCastleBuildViewport();
       deps.camera.clearPhaseZoom();
     }
+    return anyPlaced;
   }
 
   function advanceToCannonPhase(): void {
@@ -390,7 +394,7 @@ export function createSelectionSystem(
   }
 
   function tickCastleBuild(dt: number): void {
-    tickAllCastleBuilds(dt);
+    if (tickAllCastleBuilds(dt)) recheckTerritoryOnly(runtimeState.state);
     deps.render();
     if (runtimeState.castleBuilds.length === 0) {
       fireOnce(runtimeState, "castleBuildOnDone");

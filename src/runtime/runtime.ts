@@ -26,6 +26,7 @@ import {
 } from "../input/input-touch-ui.ts";
 import { createSoundSystem } from "../input/sound-system.ts";
 import {
+  buildGameOverOverlay,
   computeLobbyLayout,
   createBannerUi,
   createOnlineOverlay,
@@ -151,7 +152,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // a corresponding ticker entry here is a compile error.
   // Hoisted outside mainLoop — closures are stable, avoids per-frame allocation.
   const modeTickers = {
-    [Mode.LOBBY]: (dt: number) => lobby.tickLobby(dt),
+    [Mode.LOBBY]: (dt: number) => {
+      lobby.tickLobby(dt);
+      lobby.renderLobby();
+    },
     [Mode.OPTIONS]: () => options.renderOptions(),
     [Mode.CONTROLS]: () => options.renderControls(),
     [Mode.SELECTION]: (dt: number) => selection.tick(dt),
@@ -353,6 +357,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
         );
       },
       isTouchDevice: IS_TOUCH_DEVICE,
+      buildGameOverOverlay,
     }),
   );
 

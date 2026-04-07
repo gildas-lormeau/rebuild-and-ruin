@@ -13,7 +13,7 @@
  * Phase transition recipes live in phase-setup.ts.
  */
 
-import type { Impact } from "../shared/battle-types.ts";
+import { ageImpacts, type Impact } from "../shared/battle-types.ts";
 import { EMPTY_FEATURES } from "../shared/feature-defs.ts";
 import type { ModifierDiff } from "../shared/game-constants.ts";
 import {
@@ -199,10 +199,7 @@ export function tickGameCore(params: {
   } = params;
 
   // Age and filter impact flashes regardless of phase
-  for (const imp of battleAnim.impacts) imp.age += dt;
-  battleAnim.impacts = battleAnim.impacts.filter(
-    (imp) => imp.age < impactFlashDuration,
-  );
+  ageImpacts(battleAnim, dt, impactFlashDuration);
 
   if (state.phase === Phase.CANNON_PLACE) {
     tickCannonPhase(dt);

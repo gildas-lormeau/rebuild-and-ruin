@@ -45,6 +45,7 @@ import {
   type BannerShow,
   type BannerState,
 } from "./phase-banner.ts";
+import { enterBuildSkippingBattle } from "./phase-setup.ts";
 import {
   BATTLE_START_STEPS,
   executeTransition,
@@ -116,6 +117,12 @@ interface StartHostBattleLifecycleDeps {
   beginBattle: () => void;
   /** Network context. Pass LOCAL_BATTLE_START_NET for local play. */
   net: BattleStartNet;
+  /** When true, battle is skipped: game state is updated (enterBuildSkippingBattle)
+   *  and onCeasefire is called instead of proceeding to battle. */
+  ceasefireActive?: boolean;
+  /** Called after game state is updated for ceasefire skip.
+   *  Runtime uses this for checkpointing and entering the build phase. */
+  onCeasefire?: () => void;
 }
 
 interface TickHostBalloonAnimDeps {
@@ -249,6 +256,13 @@ export function tickHostBattlePhase(deps: TickHostBattlePhaseDeps): boolean {
 export function startHostBattleLifecycle(
   deps: StartHostBattleLifecycleDeps,
 ): void {
+  // Ceasefire: skip battle entirely and proceed to build phase
+  if (deps.ceasefireActive) {
+    enterBuildSkippingBattle(deps.state);
+    deps.onCeasefire?.();
+    return;
+  }
+
   const {
     state,
     battleAnim,

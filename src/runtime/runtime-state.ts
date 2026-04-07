@@ -133,6 +133,10 @@ export interface RuntimeState {
   // Input tracking
   inputTracking: InputTrackingState;
 
+  // Lifecycle
+  /** setTimeout handle for demo auto-return to lobby. undefined = not pending. */
+  demoReturnTimer: number | undefined;
+
   // Dev tools
   /** Game speed multiplier (dev-only). 1 = normal, 2 = double, 0.5 = half. */
   speedMultiplier: number;
@@ -242,6 +246,7 @@ export function createRuntimeState(): RuntimeState {
 
     inputTracking: { mouseJoinedSlot: null, directTouchActive: false },
 
+    demoReturnTimer: undefined,
     speedMultiplier: 1,
   };
 }

@@ -38,10 +38,12 @@ import {
   type CastleData,
   type GameOverOverlay,
   type LifeLostDialogOverlay,
+  type PlayerStats,
   type RenderOverlay,
   type UpgradePickOverlay,
 } from "../shared/overlay-types.ts";
 import { IS_TOUCH_DEVICE } from "../shared/platform.ts";
+import { getPlayerColor, PLAYER_NAMES } from "../shared/player-config.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { RGB } from "../shared/theme.ts";
 import {
@@ -588,6 +590,31 @@ export function createOnlineOverlay(
         playerColors,
       ),
     },
+  };
+}
+
+/** Build the game-over overlay from game state + per-player stats. */
+export function buildGameOverOverlay(
+  winnerId: number,
+  players: readonly {
+    id: ValidPlayerSlot;
+    score: number;
+    eliminated: boolean;
+    interior: ReadonlySet<number>;
+  }[],
+  gameStats: readonly PlayerStats[],
+): GameOverOverlay {
+  return {
+    winner: PLAYER_NAMES[winnerId] ?? `Player ${winnerId + 1}`,
+    scores: players.map((player) => ({
+      name: PLAYER_NAMES[player.id] ?? `P${player.id + 1}`,
+      score: player.score,
+      color: getPlayerColor(player.id).wall,
+      eliminated: player.eliminated,
+      territory: player.interior.size,
+      stats: gameStats[player.id],
+    })),
+    focused: FOCUS_REMATCH,
   };
 }
 

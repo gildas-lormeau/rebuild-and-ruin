@@ -26,7 +26,11 @@ import type {
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isHuman } from "../shared/system-interfaces.ts";
 import { Mode } from "../shared/ui-mode.ts";
-import { type RuntimeState, setMode } from "./runtime-state.ts";
+import {
+  assertStateReady,
+  type RuntimeState,
+  setMode,
+} from "./runtime-state.ts";
 
 interface UpgradePickSystemDeps {
   readonly runtimeState: RuntimeState;
@@ -80,6 +84,7 @@ export function createUpgradePickSystem(
   }
 
   function prepare(): boolean {
+    assertStateReady(runtimeState);
     const dialog = ensureDialog();
     if (!dialog) return false;
     deps.log(
@@ -89,6 +94,7 @@ export function createUpgradePickSystem(
   }
 
   function tryShow(onDone: () => void): boolean {
+    assertStateReady(runtimeState);
     const dialog = ensureDialog();
     if (!dialog) return false;
 

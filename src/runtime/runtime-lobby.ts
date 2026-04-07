@@ -62,7 +62,6 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
 
   function tickLobby(dt: number): void {
     runtimeState.lobby.timerAccum = (runtimeState.lobby.timerAccum ?? 0) + dt;
-    renderLobby();
     if (!uiCtx.lobby.active) return;
     const allJoined = uiCtx.lobby.joined.every(Boolean);
     if (uiCtx.getLobbyRemaining() <= 0 || allJoined) {

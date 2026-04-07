@@ -3,6 +3,7 @@
  */
 
 import {
+  type BattleEvent,
   type CannonFiredMessage,
   type ImpactEvent,
   MESSAGE,
@@ -34,6 +35,7 @@ import {
 } from "../shared/game-constants.ts";
 import type { TilePos } from "../shared/geometry-types.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
+import type { PlayerStats } from "../shared/overlay-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { Player } from "../shared/player-types.ts";
 import {
@@ -709,6 +711,24 @@ export function canFireOwnCannon(
   return !state.cannonballs.some(
     (b) => b.playerId === playerId && b.cannonIdx === cannonIdx,
   );
+}
+
+/** Accumulate per-player battle stats (walls destroyed, cannons killed) from battle events. */
+export function accumulateBattleStats(
+  events: ReadonlyArray<BattleEvent>,
+  gameStats: readonly PlayerStats[],
+): void {
+  for (const evt of events) {
+    if (evt.type === MESSAGE.WALL_DESTROYED) {
+      const stats =
+        evt.shooterId !== undefined ? gameStats[evt.shooterId] : undefined;
+      if (stats) stats.wallsDestroyed++;
+    } else if (evt.type === MESSAGE.CANNON_DAMAGED && evt.newHp === 0) {
+      const stats =
+        evt.shooterId !== undefined ? gameStats[evt.shooterId] : undefined;
+      if (stats) stats.cannonsKilled++;
+    }
+  }
 }
 
 /**

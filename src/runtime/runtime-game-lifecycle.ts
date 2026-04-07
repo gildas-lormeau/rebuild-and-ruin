@@ -13,11 +13,9 @@ import {
   FOCUS_REMATCH,
   type GameOverFocus,
 } from "../shared/dialog-types.ts";
-import {
-  getPlayerColor,
-  MAX_PLAYERS,
-  PLAYER_NAMES,
-} from "../shared/player-config.ts";
+import type { GameOverOverlay } from "../shared/overlay-types.ts";
+import { MAX_PLAYERS } from "../shared/player-config.ts";
+import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { SoundSystem } from "../shared/system-interfaces.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import {
@@ -56,6 +54,10 @@ interface GameLifecycleDeps {
   readonly resetLifeLostDialog: () => void;
   readonly clearAllZoomState: () => void;
   readonly resetInputForLobby: () => void;
+
+  // Demo timer (all-AI auto-return to lobby)
+  readonly clearDemoTimer: () => void;
+  readonly setDemoTimer: (callback: () => void, delay: number) => void;
 
   // Sound
   readonly soundReset: () => void;
@@ -110,6 +112,18 @@ interface LifecycleWiringDeps {
     canvasY: number,
   ) => GameOverFocus | null;
   readonly isTouchDevice: boolean;
+
+  // Render-domain (injected from composition root)
+  readonly buildGameOverOverlay: (
+    winnerId: number,
+    players: readonly {
+      id: ValidPlayerSlot;
+      score: number;
+      eliminated: boolean;
+      interior: ReadonlySet<number>;
+    }[],
+    gameStats: readonly { wallsDestroyed: number; cannonsKilled: number }[],
+  ) => GameOverOverlay;
 }
 
 const DEMO_RETURN_DELAY_MS = 10_000;
@@ -117,25 +131,8 @@ const DEMO_RETURN_DELAY_MS = 10_000;
 export function createGameLifecycle(
   deps: GameLifecycleDeps,
 ): GameLifecycleSystem {
-  // -------------------------------------------------------------------------
-  // Demo timer (lifecycle-local state — not runtimeState)
-  // -------------------------------------------------------------------------
-
-  let demoReturnTimer: number | undefined;
-
-  function clearDemoTimer(): void {
-    if (demoReturnTimer !== undefined) {
-      globalThis.clearTimeout(demoReturnTimer);
-      demoReturnTimer = undefined;
-    }
-  }
-
-  // -------------------------------------------------------------------------
-  // Lifecycle operations
-  // -------------------------------------------------------------------------
-
   function resetUIState(): void {
-    clearDemoTimer();
+    deps.clearDemoTimer();
     deps.resetAll();
   }
 
@@ -154,19 +151,16 @@ export function createGameLifecycle(
     deps.render();
     deps.setModeStopped();
 
-    clearDemoTimer();
+    deps.clearDemoTimer();
     if (deps.isAllAi()) {
-      demoReturnTimer = Number(
-        globalThis.setTimeout(() => {
-          demoReturnTimer = undefined;
-          if (deps.isModeStopped()) returnToLobby();
-        }, DEMO_RETURN_DELAY_MS),
-      );
+      deps.setDemoTimer(() => {
+        if (deps.isModeStopped()) returnToLobby();
+      }, DEMO_RETURN_DELAY_MS);
     }
   }
 
   async function rematch(): Promise<void> {
-    clearDemoTimer();
+    deps.clearDemoTimer();
     deps.clearGameOver();
     await startGame();
     // startGame() → enterTowerSelection() already sets mode=SELECTION and
@@ -175,7 +169,7 @@ export function createGameLifecycle(
   }
 
   function returnToLobby(): void {
-    clearDemoTimer();
+    deps.clearDemoTimer();
     deps.resetScoreDeltas();
     deps.clearAllZoomState();
     deps.clearGameOver();
@@ -224,19 +218,11 @@ export function buildLifecycleDeps(
 
     setGameOverFrame: (winner) => {
       runtimeState.frame.phantoms = {};
-      const name = PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`;
-      runtimeState.frame.gameOver = {
-        winner: name,
-        scores: runtimeState.state.players.map((player) => ({
-          name: PLAYER_NAMES[player.id] ?? `P${player.id + 1}`,
-          score: player.score,
-          color: getPlayerColor(player.id).wall,
-          eliminated: player.eliminated,
-          territory: player.interior.size,
-          stats: runtimeState.scoreDisplay.gameStats[player.id],
-        })),
-        focused: FOCUS_REMATCH,
-      };
+      runtimeState.frame.gameOver = wiringDeps.buildGameOverOverlay(
+        winner.id,
+        runtimeState.state.players,
+        runtimeState.scoreDisplay.gameStats,
+      );
     },
     onEndGame: config.onlineConfig?.onEndGame
       ? (winner) => config.onlineConfig!.onEndGame(winner, runtimeState.state)
@@ -275,6 +261,21 @@ export function buildLifecycleDeps(
     clearAllZoomState: wiringDeps.camera.clearAllZoomState,
     resetInputForLobby: () =>
       wiringDeps.input.resetForLobby(wiringDeps.runtimeState),
+
+    clearDemoTimer: () => {
+      if (runtimeState.demoReturnTimer !== undefined) {
+        globalThis.clearTimeout(runtimeState.demoReturnTimer);
+        runtimeState.demoReturnTimer = undefined;
+      }
+    },
+    setDemoTimer: (callback, delay) => {
+      runtimeState.demoReturnTimer = Number(
+        globalThis.setTimeout(() => {
+          runtimeState.demoReturnTimer = undefined;
+          callback();
+        }, delay),
+      );
+    },
 
     soundReset: wiringDeps.sound.reset,
     soundGameOver: wiringDeps.sound.gameOver,

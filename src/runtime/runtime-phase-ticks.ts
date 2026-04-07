@@ -11,6 +11,7 @@
 
 import { type BattleEvent, MESSAGE } from "../../server/protocol.ts";
 import {
+  accumulateBattleStats,
   collectLocalCrosshairs,
   resolveBalloons,
   tickCannonballs,
@@ -40,7 +41,6 @@ import {
 } from "../game/host-phase-ticks.ts";
 import { BANNER_BUILD, capturePrevBattleScene } from "../game/phase-banner.ts";
 import {
-  enterBuildSkippingBattle,
   finalizeBuildPhase,
   initBuildPhaseControllers,
   initControllerForCannonPhase,
@@ -55,6 +55,7 @@ import {
   showBuildPhaseBanner,
   showCannonPhaseBanner,
 } from "../game/phase-transition-steps.ts";
+import { ageImpacts } from "../shared/battle-types.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,
@@ -258,14 +259,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     deps.log(`startBattle (round=${runtimeState.state.round})`);
     deps.scoreDelta.reset();
 
-    if (isCeasefireActive(runtimeState.state)) {
-      deps.log("ceasefire: skipping battle");
-      enterBuildSkippingBattle(runtimeState.state);
-      sendBuildCheckpointIfHost();
-      enterBuildViaUpgradePick();
-      return;
-    }
-
     startHostBattleLifecycle({
       state: runtimeState.state,
       battleAnim: runtimeState.battleAnim,
@@ -292,6 +285,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
             },
           }
         : LOCAL_BATTLE_START_NET,
+      ceasefireActive: isCeasefireActive(runtimeState.state),
+      onCeasefire: () => {
+        deps.log("ceasefire: skipping battle");
+        sendBuildCheckpointIfHost();
+        enterBuildViaUpgradePick();
+      },
     });
   }
 
@@ -399,21 +398,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         const pov = runtimeState.frameMeta.povPlayerId;
         deps.haptics.battleEvents(events, pov);
         deps.sound.battleEvents(events, pov);
-        for (const evt of events) {
-          if (evt.type === MESSAGE.WALL_DESTROYED) {
-            const stats =
-              evt.shooterId !== undefined
-                ? runtimeState.scoreDisplay.gameStats[evt.shooterId]
-                : undefined;
-            if (stats) stats.wallsDestroyed++;
-          } else if (evt.type === MESSAGE.CANNON_DAMAGED && evt.newHp === 0) {
-            const stats =
-              evt.shooterId !== undefined
-                ? runtimeState.scoreDisplay.gameStats[evt.shooterId]
-                : undefined;
-            if (stats) stats.cannonsKilled++;
-          }
-        }
+        accumulateBattleStats(events, runtimeState.scoreDisplay.gameStats);
       },
       onBattlePhaseEnded: () => {
         deps.saveBattleCrosshair?.();
@@ -500,10 +485,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         tickBuildPhase,
       });
     } else {
-      for (const imp of runtimeState.battleAnim.impacts) imp.age += dt;
-      runtimeState.battleAnim.impacts = runtimeState.battleAnim.impacts.filter(
-        (imp) => imp.age < IMPACT_FLASH_DURATION,
-      );
+      ageImpacts(runtimeState.battleAnim, dt, IMPACT_FLASH_DURATION);
       deps.tickNonHost?.(dt);
       deps.render();
     }
