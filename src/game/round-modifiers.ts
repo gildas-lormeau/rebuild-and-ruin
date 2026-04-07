@@ -48,9 +48,9 @@ const WILDFIRE_MAIN_DIR_BIAS = 0.7;
 /** Wildfire: probability each spine-neighbor tile catches fire during fattening. */
 const WILDFIRE_FATTEN_CHANCE = 0.35;
 /** Crumbling walls: fraction of outer walls destroyed. */
-const CRUMBLE_FRACTION = 0.18;
-const CRUMBLE_MIN = 3;
-const CRUMBLE_MAX = 12;
+const CRUMBLE_FRACTION = 0.09;
+const CRUMBLE_MIN = 2;
+const CRUMBLE_MAX = 6;
 /** Sinkhole: BFS cluster size range. */
 const SINKHOLE_MIN_SIZE = 2;
 const SINKHOLE_MAX_SIZE = 3;
