@@ -4,7 +4,9 @@ import {
   type UpgradePickDialogState,
   type UpgradePickEntry,
 } from "../shared/dialog-types.ts";
+import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isGrass } from "../shared/spatial.ts";
 import type { GameState } from "../shared/types.ts";
 import { UID, type UpgradeId } from "../shared/upgrade-defs.ts";
 
@@ -12,6 +14,7 @@ interface CreateUpgradePickDeps extends AutoResolveDeps {
   readonly state: GameState;
 }
 
+const SMALL_PIECES_TERRITORY_RATIO = 0.8;
 /** Auto-resolve delay before auto-picking (seconds). */
 export const UPGRADE_PICK_AUTO_DELAY = 1.5;
 /** Max time before force-picking for pending players (seconds). */
@@ -115,10 +118,39 @@ function aiPickUpgrade(
   if (hasPits && offers.includes(UID.FOUNDATIONS as UpgradeId)) {
     return UID.FOUNDATIONS as UpgradeId;
   }
-  // Exclude Foundations when no burning pits (useless for this player)
-  const viable = offers.filter((id) => id !== UID.FOUNDATIONS);
+  const largeTerritory =
+    playerTerritoryRatio(state, playerId) >= SMALL_PIECES_TERRITORY_RATIO;
+  if (largeTerritory && offers.includes(UID.SMALL_PIECES as UpgradeId)) {
+    return UID.SMALL_PIECES as UpgradeId;
+  }
+  // Exclude contextual upgrades when conditions aren't met
+  const excluded = new Set<UpgradeId>();
+  if (!hasPits) excluded.add(UID.FOUNDATIONS as UpgradeId);
+  if (!largeTerritory) excluded.add(UID.SMALL_PIECES as UpgradeId);
+  const viable = offers.filter((id) => !excluded.has(id));
   const pool = viable.length > 0 ? viable : offers;
   return pool[Math.floor(state.rng.next() * pool.length)]!;
+}
+
+function playerTerritoryRatio(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+): number {
+  const player = state.players[playerId];
+  if (!player?.homeTower || player.interior.size === 0) return 0;
+  const zone = player.homeTower.zone;
+  let zoneGrassCount = 0;
+  for (let row = 0; row < GRID_ROWS; row++) {
+    for (let col = 0; col < GRID_COLS; col++) {
+      if (
+        isGrass(state.map.tiles, row, col) &&
+        state.map.zones[row]![col] === zone
+      ) {
+        zoneGrassCount++;
+      }
+    }
+  }
+  return zoneGrassCount > 0 ? player.interior.size / zoneGrassCount : 0;
 }
 
 function playerHasBurningPitsInZone(
