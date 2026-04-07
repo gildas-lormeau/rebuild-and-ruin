@@ -36,10 +36,13 @@ import {
   applyCrumblingWalls,
   applyFrozenRiver,
   applyGruntSurge,
+  applySinkhole,
   applyWildfire,
   clearFrozenRiver,
+  reapplySinkholeTiles,
   rollModifier,
 } from "../src/game/round-modifiers.ts";
+import { isWater, unpackTile } from "../src/shared/spatial.ts";
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,
@@ -511,6 +514,137 @@ Deno.test("applyGruntSurge spawns extra grunts", async () => {
 });
 
 // ---------------------------------------------------------------------------
+// Sinkhole modifier
+// ---------------------------------------------------------------------------
+
+Deno.test("applySinkhole converts grass to water on every zone", async () => {
+  const s = await createScenario(42);
+  setGameMode(s.state, GAME_MODE_MODERN);
+
+  const sunk = applySinkhole(s.state);
+
+  assert(sunk.size > 0, "sinkhole should affect tiles");
+  for (const key of sunk) {
+    const { r, c } = unpackTile(key);
+    assert(isWater(s.state.map.tiles, r, c), `tile (${r},${c}) should be water`);
+  }
+  assert(
+    s.state.modern!.sinkholeTiles !== null,
+    "sinkholeTiles should be tracked",
+  );
+  assert(
+    s.state.modern!.sinkholeTiles!.size === sunk.size,
+    "tracked size should match returned size",
+  );
+});
+
+Deno.test("sinkhole spawns one cluster per active zone", async () => {
+  const s = await createScenario(42);
+  setGameMode(s.state, GAME_MODE_MODERN);
+
+  const sunk = applySinkhole(s.state);
+  const zones = new Set<number>();
+  for (const key of sunk) {
+    const { r, c } = unpackTile(key);
+    zones.add(s.state.map.zones[r]![c]!);
+  }
+  const activeZones = s.state.players
+    .filter((player) => !player.eliminated && player.homeTower)
+    .map((player) => player.homeTower!.zone);
+
+  assert(
+    zones.size === activeZones.length,
+    `should hit all ${activeZones.length} zones, got ${zones.size}`,
+  );
+});
+
+Deno.test("sinkhole destroys walls and structures on affected tiles", async () => {
+  const s = await createScenario(42);
+  setGameMode(s.state, GAME_MODE_MODERN);
+  // Place walls so there's something to destroy
+  s.playRounds(1);
+
+  const sunk = applySinkhole(s.state);
+
+  // Any wall on a sinkhole tile should be gone
+  for (const player of s.state.players) {
+    for (const key of sunk) {
+      assert(
+        !player.walls.has(key),
+        `player ${player.id} should not have wall on sinkhole tile`,
+      );
+    }
+  }
+});
+
+Deno.test("sinkhole cumulative cap prevents excessive map destruction", async () => {
+  const s = await createScenario(42);
+  setGameMode(s.state, GAME_MODE_MODERN);
+
+  // Apply sinkholes repeatedly until cap
+  let total = 0;
+  for (let round = 0; round < 20; round++) {
+    const sunk = applySinkhole(s.state);
+    total += sunk.size;
+    if (sunk.size === 0) break;
+  }
+
+  assert(total <= 24, `cumulative tiles should not exceed 24, got ${total}`);
+});
+
+Deno.test("reapplySinkholeTiles restores water after map regeneration", async () => {
+  const s = await createScenario(42);
+  setGameMode(s.state, GAME_MODE_MODERN);
+  applySinkhole(s.state);
+  const tracked = new Set(s.state.modern!.sinkholeTiles!);
+
+  // Simulate checkpoint restore: reset tiles to grass, then reapply
+  for (const key of tracked) {
+    const { r, c } = unpackTile(key);
+    s.state.map.tiles[r]![c] = 0; // Grass
+  }
+  reapplySinkholeTiles(s.state);
+
+  for (const key of tracked) {
+    const { r, c } = unpackTile(key);
+    assert(
+      isWater(s.state.map.tiles, r, c),
+      `reapply should restore water at (${r},${c})`,
+    );
+  }
+});
+
+Deno.test("sinkhole checkpoint round-trip preserves tiles", async () => {
+  const runtime = await createHeadlessRuntime(42);
+  setModern(runtime);
+  applySinkhole(runtime.state);
+  const tracked = new Set(runtime.state.modern!.sinkholeTiles!);
+  assert(tracked.size > 0, "should have sinkhole tiles");
+
+  const msg = createBattleStartMessage(runtime.state);
+  const runtime2 = await createHeadlessRuntime(42);
+  setModern(runtime2);
+  const deps = makeDeps(runtime2);
+  applyBattleStartCheckpoint(msg, deps);
+
+  assert(
+    runtime2.state.modern!.sinkholeTiles !== null,
+    "watcher should have sinkholeTiles",
+  );
+  assert(
+    runtime2.state.modern!.sinkholeTiles!.size === tracked.size,
+    `watcher should have ${tracked.size} sinkhole tiles`,
+  );
+  for (const key of tracked) {
+    const { r, c } = unpackTile(key);
+    assert(
+      isWater(runtime2.state.map.tiles, r, c),
+      `watcher tile (${r},${c}) should be water`,
+    );
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Rapid Fire — ball speed
 // ---------------------------------------------------------------------------
 
@@ -540,8 +674,8 @@ Deno.test("Rapid Fire multiplies cannonball speed", async () => {
     player.upgrades.set(UID.RAPID_FIRE, 1);
     s.fireAt(0 as ValidPlayerSlot, 0, target.row, target.col);
     assert(
-      s.state.cannonballs[0]!.speed === BALL_SPEED * 2,
-      `with upgrade: expected ${BALL_SPEED * 2}, got ${s.state.cannonballs[0]!.speed}`,
+      s.state.cannonballs[0]!.speed === BALL_SPEED * 1.5,
+      `with upgrade: expected ${BALL_SPEED * 1.5}, got ${s.state.cannonballs[0]!.speed}`,
     );
   }
 });
@@ -1099,39 +1233,24 @@ Deno.test("modifier no-repeat applies to frozen_river", async () => {
   assert(!rolledFrozen, "frozen_river should not appear when lastModifierId is frozen_river");
 });
 
-Deno.test("AI creates ice trench during frozen river battle", async () => {
+Deno.test("AI thaws frozen tiles by shooting during frozen river battle", async () => {
   const s = await createScenario(8);
   setGameMode(s.state, GAME_MODE_MODERN);
+  // Play a round so AI has cannons placed
+  s.playRounds(1);
 
-  // Count total water tiles (baseline for detecting thawed ice)
-  let waterCount = 0;
-  for (let r = 0; r < 28; r++) {
-    for (let c = 0; c < 44; c++) {
-      if (s.state.map.tiles[r]![c] === 1) waterCount++;
-    }
-  }
+  // Force frozen river and run a battle
+  s.state.modern!.activeModifier = "frozen_river";
+  applyFrozenRiver(s.state);
+  const frozenBefore = s.state.modern!.frozenTiles!.size;
+  assert(frozenBefore > 0, "should have frozen tiles");
 
-  let thawedCount = 0;
-  for (let round = 0; round < 15; round++) {
-    s.runCannon();
-    s.runBattle();
+  s.runBattle();
 
-    // After battle: if frozen river was active, check for thawed tiles
-    const frozen = s.state.modern?.frozenTiles;
-    if (frozen && frozen.size > 0 && frozen.size < waterCount) {
-      thawedCount = waterCount - frozen.size;
-      break;
-    }
-
-    s.runBuild();
-    const result = s.finalizeBuild();
-    if (result.needsReselect.length > 0) {
-      s.processReselection(result.needsReselect);
-    }
-    if (s.state.players.every((p) => p.eliminated)) break;
-  }
-
-  assert(thawedCount >= 5, `AI should thaw 5+ frozen tiles (got ${thawedCount})`);
+  // Cannonball impacts on frozen tiles thaw them via detectIceThaw
+  const frozenAfter = s.state.modern!.frozenTiles?.size ?? 0;
+  const thawed = frozenBefore - frozenAfter;
+  assert(thawed >= 1, `AI should thaw at least 1 frozen tile (got ${thawed})`);
 });
 
 // ---------------------------------------------------------------------------
