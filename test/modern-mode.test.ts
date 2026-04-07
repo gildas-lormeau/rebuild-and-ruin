@@ -1095,5 +1095,40 @@ Deno.test("modifier no-repeat applies to frozen_river", async () => {
   assert(!rolledFrozen, "frozen_river should not appear when lastModifierId is frozen_river");
 });
 
+Deno.test("AI creates ice trench during frozen river battle", async () => {
+  const s = await createScenario(8);
+  setGameMode(s.state, GAME_MODE_MODERN);
+
+  // Count total water tiles (baseline for detecting thawed ice)
+  let waterCount = 0;
+  for (let r = 0; r < 28; r++) {
+    for (let c = 0; c < 44; c++) {
+      if (s.state.map.tiles[r]![c] === 1) waterCount++;
+    }
+  }
+
+  let thawedCount = 0;
+  for (let round = 0; round < 15; round++) {
+    s.runCannon();
+    s.runBattle();
+
+    // After battle: if frozen river was active, check for thawed tiles
+    const frozen = s.state.modern?.frozenTiles;
+    if (frozen && frozen.size > 0 && frozen.size < waterCount) {
+      thawedCount = waterCount - frozen.size;
+      break;
+    }
+
+    s.runBuild();
+    const result = s.finalizeBuild();
+    if (result.needsReselect.length > 0) {
+      s.processReselection(result.needsReselect);
+    }
+    if (s.state.players.every((p) => p.eliminated)) break;
+  }
+
+  assert(thawedCount >= 5, `AI should thaw 5+ frozen tiles (got ${thawedCount})`);
+});
+
 // ---------------------------------------------------------------------------
 
