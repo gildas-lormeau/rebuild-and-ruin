@@ -20,7 +20,8 @@ export type UpgradeId =
   | "salvage"
   | "earthquake"
   | "ceasefire"
-  | "supply_drop";
+  | "supply_drop"
+  | "second_wind";
 
 type UpgradeCategory = "battle" | "build" | "strategic" | "one_use";
 
@@ -74,6 +75,7 @@ export const UID = {
   EARTHQUAKE: "earthquake",
   CEASEFIRE: "ceasefire",
   SUPPLY_DROP: "supply_drop",
+  SECOND_WIND: "second_wind",
 } as const satisfies Record<string, UpgradeId>;
 export const UPGRADE_POOL: readonly UpgradeDef[] = [
   // Battle
@@ -210,6 +212,15 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     id: "supply_drop",
     label: "Supply Drop",
     description: "2 free cannons bypassing slot limit",
+    category: ONE_USE,
+    weight: WEIGHT_RARE,
+    oneUse: true,
+    implemented: true,
+  },
+  {
+    id: "second_wind",
+    label: "Second Wind",
+    description: "Revive all towers for all players",
     category: ONE_USE,
     weight: WEIGHT_RARE,
     oneUse: true,
