@@ -82,8 +82,10 @@ const TARGET_TILE_MARGIN = 1;
 const SWEET_SPOT_MIN_DISTANCE = 0;
 /** Width of the preferred distance band (sweet spot = min .. min + range). */
 const SWEET_SPOT_DISTANCE_RANGE = 5;
-/** Tiles per wing of the trench (V/U/diagonal — adapts to ice geometry). */
-const ICE_TRENCH_WING_LENGTH = 4;
+/** Tiles per side of the base (lateral from anchor). */
+const ICE_TRENCH_BASE_HALF = 2;
+/** Tiles per arm extending from each end of the base toward the enemy. */
+const ICE_TRENCH_ARM_LENGTH = 2;
 
 /** Count cannons that are alive and enclosed (usable for firing). */
 export function countUsableCannons(
@@ -352,52 +354,71 @@ export function planIceTrench(
     }
   }
 
-  // 3. Determine inward direction (from shore into frozen river)
+  // 3. Determine inward direction (from shore into frozen river).
+  //    The anchor is adjacent to AI-zone grass — inward is the opposite
+  //    of that adjacency (points across the river toward the enemy).
   const anchor = unpackTile(bestAnchorKey);
   let inward: readonly [number, number] | undefined;
-  let bestDepth = 0;
-  for (const dir of DIRS_4) {
-    let depth = 0;
-    let cr = anchor.r + dir[0];
-    let cc = anchor.c + dir[1];
-    while (inBounds(cr, cc) && frozenTiles.has(packTile(cr, cc))) {
-      depth++;
-      cr += dir[0];
-      cc += dir[1];
-    }
-    if (depth > bestDepth) {
-      bestDepth = depth;
-      inward = dir;
+  for (const [dr, dc] of DIRS_4) {
+    const nr = anchor.r + dr;
+    const nc = anchor.c + dc;
+    if (!inBounds(nr, nc)) continue;
+    if (
+      isGrass(state.map.tiles, nr, nc) &&
+      state.map.zones[nr]?.[nc] === playerZone
+    ) {
+      inward = [-dr, -dc] as const;
+      break;
     }
   }
   if (!inward) return null;
 
-  // 4. Build two wings from anchor, each extending diagonally toward enemy.
-  //    Preferred step = inward + lateral (diagonal V).
-  //    Falls back to straight inward (U arms) or straight lateral (base).
+  // 4. Build U shape: base along shore, arms from ends toward enemy.
   const lateral1: [number, number] = inward[0] === 0 ? [1, 0] : [0, 1];
   const lateral2: [number, number] = inward[0] === 0 ? [-1, 0] : [0, -1];
 
   const trenchKeys = new Set<number>();
   trenchKeys.add(bestAnchorKey);
 
+  // Base: walk laterally from anchor along the shoreline
+  const armStarts: [number, number][] = [];
   for (const lateral of [lateral1, lateral2]) {
     let cr = anchor.r;
     let cc = anchor.c;
-    for (let step = 0; step < ICE_TRENCH_WING_LENGTH; step++) {
-      // Try diagonal (V shape), then inward (U arm), then lateral (base)
-      const next = pickNextIceTile(
-        cr,
-        cc,
-        inward,
-        lateral,
-        frozenTiles,
-        trenchKeys,
-      );
-      if (!next) break;
-      trenchKeys.add(next.key);
-      cr = next.r;
-      cc = next.c;
+    for (let step = 0; step < ICE_TRENCH_BASE_HALF; step++) {
+      const nr = cr + lateral[0];
+      const nc = cc + lateral[1];
+      if (!inBounds(nr, nc)) break;
+      const tileKey = packTile(nr, nc);
+      if (!frozenTiles.has(tileKey)) break;
+      trenchKeys.add(tileKey);
+      cr = nr;
+      cc = nc;
+    }
+    armStarts.push([cr, cc]);
+  }
+
+  // Arms: from each end of the base, extend diagonally toward the enemy
+  // (inward + lateral = smooth curve, no 90° corners)
+  for (let idx = 0; idx < armStarts.length; idx++) {
+    const [startR, startC] = armStarts[idx]!;
+    const lateral = idx === 0 ? lateral1 : lateral2;
+    let cr = startR;
+    let cc = startC;
+    for (let step = 0; step < ICE_TRENCH_ARM_LENGTH; step++) {
+      // Prefer diagonal, fall back to straight inward
+      let nr = cr + inward[0] + lateral[0];
+      let nc = cc + inward[1] + lateral[1];
+      if (!inBounds(nr, nc) || !frozenTiles.has(packTile(nr, nc))) {
+        nr = cr + inward[0];
+        nc = cc + inward[1];
+      }
+      if (!inBounds(nr, nc)) break;
+      const tileKey = packTile(nr, nc);
+      if (!frozenTiles.has(tileKey)) break;
+      trenchKeys.add(tileKey);
+      cr = nr;
+      cc = nc;
     }
   }
 
@@ -947,31 +968,6 @@ function countBrokenEnclosures(
 }
 
 /** Find connected components of a tile set using 4-dir connectivity. */
-/** Pick the next frozen tile for a trench wing.
- *  Prefers lateral (base along shore), then diagonal, then inward (arm).
- *  This builds the wide base first, then curves arms toward the enemy. */
-function pickNextIceTile(
-  cr: number,
-  cc: number,
-  inward: readonly [number, number],
-  lateral: readonly [number, number],
-  frozenTiles: ReadonlySet<number>,
-  taken: ReadonlySet<number>,
-): { r: number; c: number; key: number } | null {
-  const candidates: [number, number][] = [
-    [cr + lateral[0], cc + lateral[1]], // lateral (base along shore)
-    [cr + inward[0] + lateral[0], cc + inward[1] + lateral[1]], // diagonal
-    [cr + inward[0], cc + inward[1]], // straight inward (arm)
-  ];
-  for (const [nr, nc] of candidates) {
-    if (!inBounds(nr, nc)) continue;
-    const tileKey = packTile(nr, nc);
-    if (frozenTiles.has(tileKey) && !taken.has(tileKey))
-      return { r: nr, c: nc, key: tileKey };
-  }
-  return null;
-}
-
 function findEnclosureComponents(tileSet: ReadonlySet<number>): number[][] {
   const visited = new Set<number>();
   const components: number[][] = [];
