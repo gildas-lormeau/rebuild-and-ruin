@@ -193,6 +193,7 @@ export function parseBoard(ascii: string, playerId = 0 as ValidPlayerSlot): Pars
     reselectedPlayers: new Set(),
     playerZones: [0],
     cannonLimits: [0],
+    salvageSlots: [0],
     buildTimer: 25,
     cannonPlaceTimer: 15,
     firstRoundCannons: 3,

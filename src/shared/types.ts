@@ -95,6 +95,9 @@ export interface GameState {
    *  Phase-dependent: only meaningful when `state.phase === Phase.CANNON_PLACE`.
    *  Always guard: `if (state.phase === Phase.CANNON_PLACE) { ... state.cannonLimits ... }` */
   cannonLimits: number[];
+  /** Bonus cannon slots earned via Salvage upgrade (cannon kills during battle).
+   *  Consumed by computeCannonLimitsForPhase at cannon phase start, then zeroed. */
+  salvageSlots: number[];
   /** Grunts waiting to spawn through wall breaches during build phase.
    *  Queued in enterBuildFromBattle, drained one-per-tick by tickBreachSpawnQueue.
    *  Empty when no breach spawning is pending. */

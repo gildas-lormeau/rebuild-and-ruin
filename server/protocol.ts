@@ -275,6 +275,7 @@ export interface FullStateMessage {
   towerAlive: boolean[];
   burningPits: SerializedBurningPit[];
   cannonLimits: number[];
+  salvageSlots?: number[];
   playerZones: number[];
   gameMode: string;
   activeModifier: string | null;

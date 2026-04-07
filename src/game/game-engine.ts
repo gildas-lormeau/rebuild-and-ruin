@@ -111,6 +111,7 @@ export function createGameState(
     reselectedPlayers: new Set(),
     playerZones: [],
     cannonLimits: [],
+    salvageSlots: [],
     gruntSpawnQueue: [],
     gameMode: GAME_MODE_CLASSIC,
     activeFeatures: EMPTY_FEATURES,

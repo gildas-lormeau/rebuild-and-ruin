@@ -196,12 +196,15 @@ export function initControllerForCannonPhase(
 
 /** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
 export function computeCannonLimitsForPhase(state: GameState): void {
-  state.cannonLimits = state.players.map((player) => {
+  state.cannonLimits = state.players.map((player, idx) => {
     const base = cannonSlotsForRound(player, state);
-    return (
-      base + (player.upgrades.get(UID.SUPPLY_DROP) ? SUPPLY_DROP_BONUS : 0)
-    );
+    const supplyDrop = player.upgrades.get(UID.SUPPLY_DROP)
+      ? SUPPLY_DROP_BONUS
+      : 0;
+    const salvage = state.salvageSlots[idx] ?? 0;
+    return base + supplyDrop + salvage;
   });
+  state.salvageSlots = state.players.map(() => 0);
   state.reselectedPlayers.clear();
 }
 

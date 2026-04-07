@@ -128,11 +128,11 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
   {
     id: "salvage",
     label: "Salvage",
-    description: "Destroying enemy cannons gives +1 slot",
+    description: "Destroying enemy cannons gives +1 slot (max +2)",
     category: STRATEGIC,
     weight: WEIGHT_UNCOMMON,
     oneUse: false,
-    implemented: false,
+    implemented: true,
   },
   // One-use
   {

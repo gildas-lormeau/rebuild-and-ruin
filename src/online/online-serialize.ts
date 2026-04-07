@@ -77,6 +77,9 @@ export function createCannonStartMessage(state: GameState) {
     type: MESSAGE.CANNON_START,
     timer: state.timer,
     limits: [...state.cannonLimits],
+    salvageSlots: state.salvageSlots.some((slot) => slot > 0)
+      ? [...state.salvageSlots]
+      : undefined,
     players: serializePlayers(state),
     grunts: serializeGrunts(state),
     bonusSquares: serializeBonusSquares(state),
@@ -162,6 +165,9 @@ export function createFullStateMessage(
     towerAlive: [...state.towerAlive],
     burningPits: serializeBurningPits(state),
     cannonLimits: [...state.cannonLimits],
+    salvageSlots: state.salvageSlots.some((slot) => slot > 0)
+      ? [...state.salvageSlots]
+      : undefined,
     playerZones: [...state.playerZones],
     gameMode: state.gameMode,
     activeModifier: state.modern?.activeModifier ?? null,
@@ -253,6 +259,7 @@ export function restoreFullStateSnapshot(
   state.maxRounds = msg.maxRounds;
   state.shotsFired = msg.shotsFired;
   state.cannonLimits = msg.cannonLimits;
+  state.salvageSlots = msg.salvageSlots ?? state.players.map(() => 0);
   state.playerZones = msg.playerZones;
   state.towerPendingRevive = new Set(msg.towerPendingRevive);
   state.towerAlive = msg.towerAlive;

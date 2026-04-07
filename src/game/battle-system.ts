@@ -88,6 +88,7 @@ const COUNTDOWN_READY_SEC = 3;
 const COUNTDOWN_AIM_SEC = 1;
 /** Cannonball speed multiplier when the Rapid Fire upgrade is active. */
 const RAPID_FIRE_SPEED_MULT = 2;
+const SALVAGE_CAP = 2;
 /** Sentinel: no target found (used for victimId lookups). */
 const VICTIM_ID_UNKNOWN = -1;
 /** Sentinel: cannon index not found in victim's array. */
@@ -277,6 +278,12 @@ export function applyImpactEvent(
             shooter.score +=
               DESTROY_CANNON_POINTS +
               scoreImpactCombo(state, COMBO_CANNON, sid);
+            if (sid !== undefined && isSalvageActive(state)) {
+              state.salvageSlots[sid] = Math.min(
+                (state.salvageSlots[sid] ?? 0) + 1,
+                SALVAGE_CAP,
+              );
+            }
           }
         }
       }
@@ -980,4 +987,10 @@ function balloonHitThreshold(cannon: Cannon): number {
   return isSuperCannon(cannon)
     ? SUPER_BALLOON_HITS_NEEDED
     : BALLOON_HITS_NEEDED;
+}
+
+function isSalvageActive(state: GameState): boolean {
+  return state.players.some(
+    (player) => !player.eliminated && player.upgrades.get(UID.SALVAGE),
+  );
 }

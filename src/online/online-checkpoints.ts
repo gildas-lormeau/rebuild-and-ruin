@@ -74,6 +74,8 @@ export function applyCannonStartCheckpoint(
 ): void {
   applyCommonCheckpoint(data, deps, capturePreState);
   deps.state.cannonLimits = data.limits;
+  deps.state.salvageSlots =
+    data.salvageSlots ?? deps.state.players.map(() => 0);
   deps.state.timer = data.timer;
   deps.state.gruntSpawnQueue = (data.gruntSpawnQueue ?? []).map((entry) => ({
     row: entry.row,

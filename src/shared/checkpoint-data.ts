@@ -67,6 +67,8 @@ export interface CannonStartData {
   houses: SerializedHouse[];
   /** Grunts queued to spawn through wall breaches (persists across phases). */
   gruntSpawnQueue?: SerializedBreachSpawnEntry[];
+  /** Bonus cannon slots from Salvage upgrade (cannon kills). */
+  salvageSlots?: number[];
 }
 
 /** Data needed to sync state at battle start. */
