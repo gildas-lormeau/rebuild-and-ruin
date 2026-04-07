@@ -83,9 +83,9 @@ const SWEET_SPOT_MIN_DISTANCE = 0;
 /** Width of the preferred distance band (sweet spot = min .. min + range). */
 const SWEET_SPOT_DISTANCE_RANGE = 5;
 /** Tiles per side of the base (lateral from anchor). */
-const ICE_TRENCH_BASE_HALF = 2;
+const ICE_TRENCH_BASE_HALF = 3;
 /** Tiles per arm extending from each end of the base toward the enemy. */
-const ICE_TRENCH_ARM_LENGTH = 2;
+const ICE_TRENCH_ARM_LENGTH = 1;
 
 /** Count cannons that are alive and enclosed (usable for firing). */
 export function countUsableCannons(
