@@ -105,7 +105,8 @@ export function findGruntSpawnNear(
   return null;
 }
 
-/** Spawn a group of grunts on a player's zone, clustered together so they naturally target the same tower. */
+/** Spawn a group of grunts on a player's zone, clustered together so they naturally target the same tower.
+ *  Uses breach queue when wall breaches exist. */
 export function spawnGruntGroupOnZone(
   state: GameState,
   playerId: ValidPlayerSlot,
@@ -113,6 +114,8 @@ export function spawnGruntGroupOnZone(
 ): void {
   const player = state.players[playerId];
   if (!isPlayerSeated(player)) return;
+  if (tryQueueAtBreach(state, player, count)) return;
+
   const zone = player.homeTower.zone;
 
   // Find one anchor position, then cluster remaining grunts on adjacent tiles
@@ -151,7 +154,8 @@ export function spawnGruntGroupOnZone(
 
 /** Spawn grunts distributed evenly across alive towers in a player's zone.
  *  Uses the same bank/edge spawn logic as regular grunt spawning, then
- *  round-robin assigns each position to the nearest alive tower. */
+ *  round-robin assigns each position to the nearest alive tower.
+ *  Uses breach queue when wall breaches exist. */
 export function spawnGruntSurgeOnZone(
   state: GameState,
   playerId: ValidPlayerSlot,
@@ -159,6 +163,8 @@ export function spawnGruntSurgeOnZone(
 ): void {
   const player = state.players[playerId];
   if (!isPlayerSeated(player)) return;
+  if (tryQueueAtBreach(state, player, totalCount)) return;
+
   const zone = player.homeTower.zone;
 
   // Collect alive towers in this zone
@@ -303,22 +309,8 @@ export function queueInterbattleGrunts(state: GameState): void {
     }
     if (spawnCount === 0) continue;
 
-    // Detect breach tiles — gaps in walls where outside meets pseudo-interior
-    const breaches =
-      player.walls.size > 0 ? findBreachTiles(state, player) : [];
-
-    if (breaches.length > 0) {
-      // Queue grunts at breach positions, round-robin across breaches
-      for (let spawnIdx = 0; spawnIdx < spawnCount; spawnIdx++) {
-        const breach = breaches[spawnIdx % breaches.length]!;
-        state.gruntSpawnQueue.push({
-          row: breach.row,
-          col: breach.col,
-          victimPlayerId: player.id,
-        });
-      }
-    } else {
-      // No breaches — instant spawn at water bank (current behavior)
+    // tryQueueAtBreach handles breach detection + queuing; falls back to instant
+    if (!tryQueueAtBreach(state, player, spawnCount)) {
       for (let spawnIdx = 0; spawnIdx < spawnCount; spawnIdx++) {
         spawnGruntOnZone(state, player.id);
       }
@@ -326,13 +318,15 @@ export function queueInterbattleGrunts(state: GameState): void {
   }
 }
 
-/** Spawn a single grunt immediately on the given player's zone. */
+/** Spawn a single grunt on the given player's zone.
+ *  Uses breach queue when wall breaches exist. */
 export function spawnGruntOnZone(
   state: GameState,
   playerId: ValidPlayerSlot,
 ): void {
   const player = state.players[playerId];
   if (!isPlayerSeated(player)) return;
+  if (tryQueueAtBreach(state, player, 1)) return;
   const spawnPos = findGruntSpawnPositions(state, player, 1);
   for (const pos of spawnPos) {
     addGrunt(state, pos.row, pos.col);
@@ -559,6 +553,28 @@ function adjacentWallKeys(
     walls.push(packTile(nr, nc));
   }
   return walls;
+}
+
+/** Try to queue `count` grunts at the player's wall breaches.
+ *  Returns true if breaches were found and grunts were queued.
+ *  Returns false if no breaches exist (caller should fall back to instant spawn). */
+function tryQueueAtBreach(
+  state: GameState,
+  player: Player,
+  count: number = 1,
+): boolean {
+  if (player.walls.size === 0) return false;
+  const breaches = findBreachTiles(state, player);
+  if (breaches.length === 0) return false;
+  for (let idx = 0; idx < count; idx++) {
+    const breach = breaches[idx % breaches.length]!;
+    state.gruntSpawnQueue.push({
+      row: breach.row,
+      col: breach.col,
+      victimPlayerId: player.id,
+    });
+  }
+  return true;
 }
 
 /** Find breach spawn tiles — the outside entry point of gaps in a player's walls.
