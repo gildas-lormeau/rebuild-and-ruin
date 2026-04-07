@@ -223,6 +223,7 @@ export function buildLifecycleDeps(
     bootstrapNewGame: wiringDeps.bootstrapNewGame,
 
     setGameOverFrame: (winner) => {
+      runtimeState.frame.phantoms = {};
       const name = PLAYER_NAMES[winner.id] ?? `Player ${winner.id + 1}`;
       runtimeState.frame.gameOver = {
         winner: name,
