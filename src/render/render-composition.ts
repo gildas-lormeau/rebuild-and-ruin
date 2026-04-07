@@ -533,7 +533,10 @@ export function createOnlineOverlay(
     entities: {
       houses: state.map.houses,
       grunts: state.grunts,
-      towerAlive: state.towerAlive,
+      towerAlive:
+        !banner.active && banner.prevEntities
+          ? banner.prevEntities.towerAlive
+          : state.towerAlive,
       burningPits: state.burningPits,
       bonusSquares: state.bonusSquares,
       homeTowers: homeTowers.size > 0 ? homeTowers : undefined,
