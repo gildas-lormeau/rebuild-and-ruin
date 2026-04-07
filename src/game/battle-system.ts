@@ -182,13 +182,22 @@ export function tickCannonballs(
       // Ball has arrived — compute and apply impact
       const shooterId = getCannonballScorer(ball);
       if (ball.mortar) {
-        // Mortar: 3×3 splash damage + burning pit at center
+        // Mortar: 3×3 splash damage + burning pit at center.
+        // Deduplicate cannon hits — a multi-tile cannon overlapping several
+        // splash tiles must only take one hit per mortar shot.
+        // Suppress combo scoring for non-center tiles so a single mortar
+        // shot can't inflate wall/grunt streaks from splash alone.
+        const hitCannons = new Set<string>();
+        const savedTracker = state.modern?.comboTracker ?? null;
         for (let dr = -1; dr <= 1; dr++) {
           for (let dc = -1; dc <= 1; dc++) {
             const splashRow = hit.row + dr;
             const splashCol = hit.col + dc;
             const isCenter = dr === 0 && dc === 0;
-            // Center tile gets incendiary (pit), surrounding tiles get normal damage
+            // Only center tile feeds into combo tracker
+            if (!isCenter && state.modern) {
+              state.modern.comboTracker = null;
+            }
             const splashEvents = computeImpact(
               state,
               splashRow,
@@ -197,8 +206,16 @@ export function tickCannonballs(
               isCenter,
             );
             for (const evt of splashEvents) {
+              if (evt.type === MESSAGE.CANNON_DAMAGED) {
+                const key = `${evt.playerId}:${evt.cannonIdx}`;
+                if (hitCannons.has(key)) continue;
+                hitCannons.add(key);
+              }
               applyImpactEvent(state, evt, shooterId);
               events.push(evt);
+            }
+            if (!isCenter && state.modern) {
+              state.modern.comboTracker = savedTracker;
             }
           }
         }
