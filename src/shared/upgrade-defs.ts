@@ -12,7 +12,7 @@ export type UpgradeId =
   | "flaming_walls"
   | "reinforced_walls"
   | "master_builder"
-  | "large_pieces"
+  | "small_pieces"
   | "foundations"
   | "scout_tower"
   | "mercenaries"
@@ -65,7 +65,7 @@ export const UID = {
   FLAMING_WALLS: "flaming_walls",
   REINFORCED_WALLS: "reinforced_walls",
   MASTER_BUILDER: "master_builder",
-  LARGE_PIECES: "large_pieces",
+  SMALL_PIECES: "small_pieces",
   FOUNDATIONS: "foundations",
   SCOUT_TOWER: "scout_tower",
   MERCENARIES: "mercenaries",
@@ -133,13 +133,13 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     implemented: true,
   },
   {
-    id: "large_pieces",
-    label: "Large Pieces",
-    description: "Unlock extra large tetromino shapes",
+    id: "small_pieces",
+    label: "Small Pieces",
+    description: "Only simple pieces (1×1, 1×2, 1×3, corner)",
     category: BUILD,
     weight: WEIGHT_UNCOMMON,
     oneUse: false,
-    implemented: false,
+    implemented: true,
   },
   {
     id: "foundations",

@@ -27,6 +27,7 @@ export interface BagState {
   round: number;
   queue: PieceShape[];
   rng: Rng;
+  smallPieces: boolean;
 }
 
 const PIECE_Z: PieceShape = {
@@ -224,8 +225,17 @@ export const ALL_PIECE_SHAPES: readonly PieceShape[] = [
   PIECE_PLUS,
 ];
 
-export function createBag(round: number, rng?: Rng): BagState {
-  return { round, queue: [], rng: rng ?? new Rng() };
+export function createBag(
+  round: number,
+  rng?: Rng,
+  smallPieces?: boolean,
+): BagState {
+  return {
+    round,
+    queue: [],
+    rng: rng ?? new Rng(),
+    smallPieces: !!smallPieces,
+  };
 }
 
 /** Draw the next piece from the bag. Refills queue when empty. */
@@ -282,11 +292,22 @@ function refillBagQueueIfNeeded(bag: BagState): void {
   if (bag.queue.length === 0) {
     // piecePool returns pieces ordered: hard at front, simple at back.
     // pop() draws from the back -> simple pieces come first.
-    bag.queue = piecePool(bag.round, bag.rng);
+    bag.queue = piecePool(bag.round, bag.rng, bag.smallPieces);
   }
 }
 
-function piecePool(round: number, rng: Rng): PieceShape[] {
+function piecePool(
+  round: number,
+  rng: Rng,
+  smallPieces?: boolean,
+): PieceShape[] {
+  if (smallPieces) {
+    const pool = PIECE_WEIGHTS.filter((pw) => pw.tier === 1).flatMap((pw) =>
+      Array.from<PieceShape>({ length: 3 }).fill(pw.piece),
+    );
+    rng.shuffle(pool);
+    return pool;
+  }
   // t goes from 0 (round 2) to 1 (round 8+)
   const interpolationFactor = Math.min(
     1,

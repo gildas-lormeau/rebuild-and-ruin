@@ -31,6 +31,7 @@ import type {
   PiecePlacementPreview,
   PlayerController,
 } from "../shared/system-interfaces.ts";
+import { UID } from "../shared/upgrade-defs.ts";
 
 const DEFAULT_CURSOR_ROW = Math.floor(GRID_ROWS / 2);
 const DEFAULT_CURSOR_COL = Math.floor(GRID_COLS / 2);
@@ -68,8 +69,8 @@ export abstract class BaseController implements PlayerController {
   }
 
   /** Create a new piece bag and draw the first piece. */
-  protected initBag(round: number, rng?: Rng): void {
-    this.bag = createBag(round, rng);
+  protected initBag(round: number, rng?: Rng, smallPieces?: boolean): void {
+    this.bag = createBag(round, rng, smallPieces);
     this.currentPiece = nextPiece(this.bag);
   }
 
@@ -119,8 +120,9 @@ export abstract class BaseController implements PlayerController {
    *  Private — only called as an internal step of the startBuildPhase() template method.
    *  Contrast with initCannons() which is public for remote-controller use. */
   private initBuildPhase(state: BuildViewState): void {
-    this.initBag(state.round, state.rng);
     const player = state.players[this.playerId];
+    const smallPieces = !!player?.upgrades.get(UID.SMALL_PIECES);
+    this.initBag(state.round, state.rng, smallPieces);
     if (player?.homeTower) {
       this.buildCursor = towerCenterTile(player.homeTower);
     }
