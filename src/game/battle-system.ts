@@ -33,7 +33,7 @@ import {
   SUPER_GUN_THREAT_WEIGHT,
 } from "../shared/game-constants.ts";
 import type { TilePos } from "../shared/geometry-types.ts";
-import { TILE_SIZE } from "../shared/grid.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { Player } from "../shared/player-types.ts";
 import {
@@ -90,6 +90,10 @@ const COUNTDOWN_AIM_SEC = 1;
 const RAPID_FIRE_SPEED_MULT = 2;
 /** Mortar cannonball speed multiplier (half speed). */
 const MORTAR_SPEED_MULT = 0.5;
+/** Number of random bounces after a ricochet impact. */
+const RICOCHET_BOUNCES = 2;
+/** Max Chebyshev distance for each successive bounce (decays to simulate energy loss). */
+const RICOCHET_RADII: readonly number[] = [5, 3];
 const SALVAGE_CAP = 2;
 /** Sentinel: no target found (used for victimId lookups). */
 const VICTIM_ID_UNKNOWN = -1;
@@ -230,6 +234,49 @@ export function tickCannonballs(
         for (const evt of impactEvents) {
           applyImpactEvent(state, evt, shooterId);
           events.push(evt);
+        }
+        // Ricochet: 2 additional bounces at random nearby positions
+        if (state.players[shooterId]?.upgrades.get(UID.RICOCHET)) {
+          const hitCannons = new Set<string>();
+          for (const evt of impactEvents) {
+            if (evt.type === MESSAGE.CANNON_DAMAGED) {
+              hitCannons.add(`${evt.playerId}:${evt.cannonIdx}`);
+            }
+          }
+          const savedTracker = state.modern?.comboTracker ?? null;
+          let bounceRow = hit.row;
+          let bounceCol = hit.col;
+          for (let bounce = 0; bounce < RICOCHET_BOUNCES; bounce++) {
+            const radius = RICOCHET_RADII[bounce]!;
+            const span = radius * 2 + 1;
+            let dr: number;
+            let dc: number;
+            do {
+              dr = Math.floor(state.rng.next() * span) - radius;
+              dc = Math.floor(state.rng.next() * span) - radius;
+            } while (dr === 0 && dc === 0);
+            bounceRow = Math.max(0, Math.min(bounceRow + dr, GRID_ROWS - 1));
+            bounceCol = Math.max(0, Math.min(bounceCol + dc, GRID_COLS - 1));
+            if (state.modern) state.modern.comboTracker = null;
+            const bounceEvents = computeImpact(
+              state,
+              bounceRow,
+              bounceCol,
+              shooterId,
+              false,
+            );
+            for (const evt of bounceEvents) {
+              if (evt.type === MESSAGE.CANNON_DAMAGED) {
+                const key = `${evt.playerId}:${evt.cannonIdx}`;
+                if (hitCannons.has(key)) continue;
+                hitCannons.add(key);
+              }
+              applyImpactEvent(state, evt, shooterId);
+              events.push(evt);
+            }
+            if (state.modern) state.modern.comboTracker = savedTracker;
+            impacts.push({ row: bounceRow, col: bounceCol });
+          }
         }
       }
       impacts.push(hit);

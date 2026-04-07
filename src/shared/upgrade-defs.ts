@@ -16,7 +16,8 @@ export type UpgradeId =
   | "ceasefire"
   | "supply_drop"
   | "second_wind"
-  | "clear_the_field";
+  | "clear_the_field"
+  | "ricochet";
 
 type UpgradeCategory = "battle" | "build" | "strategic" | "one_use";
 
@@ -72,6 +73,7 @@ export const UID: { readonly [K in string]: UpgradeId } & Record<
   SUPPLY_DROP: "supply_drop",
   SECOND_WIND: "second_wind",
   CLEAR_THE_FIELD: "clear_the_field",
+  RICOCHET: "ricochet",
 };
 export const UPGRADE_POOL: readonly UpgradeDef[] = [
   // Battle
@@ -90,7 +92,17 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     label: "Rapid Fire",
     description: "Cannonballs travel 2× faster",
     category: BATTLE,
-    weight: WEIGHT_COMMON,
+    weight: WEIGHT_UNCOMMON,
+    oneUse: false,
+    global: false,
+    implemented: true,
+  },
+  {
+    id: "ricochet",
+    label: "Ricochet",
+    description: "Cannonballs bounce twice after impact",
+    category: BATTLE,
+    weight: WEIGHT_UNCOMMON,
     oneUse: false,
     global: false,
     implemented: true,
