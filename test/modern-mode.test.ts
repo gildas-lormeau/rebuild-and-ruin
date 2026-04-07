@@ -670,7 +670,7 @@ Deno.test("host rejects UPGRADE_PICK with invalid choice (not in offers)", () =>
   const deps = makeIncrementalDeps({ isHost: true, upgradePickDialog: dialog });
 
   const result = handleServerIncrementalMessage(
-    { type: MESSAGE.UPGRADE_PICK, playerId: 1 as ValidPlayerSlot, choice: UID.SCATTER_SHOT } as Parameters<typeof handleServerIncrementalMessage>[0],
+    { type: MESSAGE.UPGRADE_PICK, playerId: 1 as ValidPlayerSlot, choice: UID.MORTAR } as Parameters<typeof handleServerIncrementalMessage>[0],
     deps,
   );
 
