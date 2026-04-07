@@ -948,7 +948,8 @@ function countBrokenEnclosures(
 
 /** Find connected components of a tile set using 4-dir connectivity. */
 /** Pick the next frozen tile for a trench wing.
- *  Prefers diagonal (V), falls back to inward (U arm), then lateral (base). */
+ *  Prefers lateral (base along shore), then diagonal, then inward (arm).
+ *  This builds the wide base first, then curves arms toward the enemy. */
 function pickNextIceTile(
   cr: number,
   cc: number,
@@ -958,9 +959,9 @@ function pickNextIceTile(
   taken: ReadonlySet<number>,
 ): { r: number; c: number; key: number } | null {
   const candidates: [number, number][] = [
+    [cr + lateral[0], cc + lateral[1]], // lateral (base along shore)
     [cr + inward[0] + lateral[0], cc + inward[1] + lateral[1]], // diagonal
-    [cr + inward[0], cc + inward[1]], // straight inward
-    [cr + lateral[0], cc + lateral[1]], // straight lateral
+    [cr + inward[0], cc + inward[1]], // straight inward (arm)
   ];
   for (const [nr, nc] of candidates) {
     if (!inBounds(nr, nc)) continue;
