@@ -355,7 +355,7 @@ function buildCanSinkPredicate(
 }
 
 /** Generate the scar shape: random-walk a cardinal spine, then fatten it.
- *  Returns the set of tile keys to burn (empty if no valid seed found). */
+ *  Retries with a new seed if the walk gets stuck (e.g., boxed in by water/towers). */
 function generateWildfireScar(state: GameState, zone: number): Set<number> {
   const canBurn = buildCanBurnPredicate(state, zone);
 
@@ -368,7 +368,21 @@ function generateWildfireScar(state: GameState, zone: number): Set<number> {
   }
   if (candidates.length === 0) return new Set();
 
-  // Walk a cardinal-only spine (~4 tiles, biased in one direction)
+  let best = new Set<number>();
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const scar = growWildfireFromSeed(state, canBurn, candidates);
+    if (scar.size > best.size) best = scar;
+    if (best.size >= WILDFIRE_SPINE_LENGTH) break;
+  }
+  return best;
+}
+
+/** Grow a single wildfire scar from a random seed via cardinal walk + fatten. */
+function growWildfireFromSeed(
+  state: GameState,
+  canBurn: (row: number, col: number) => boolean,
+  candidates: readonly { row: number; col: number }[],
+): Set<number> {
   const seed = state.rng.pick(candidates);
   const spine: { row: number; col: number }[] = [seed];
   const scar = new Set<number>();
