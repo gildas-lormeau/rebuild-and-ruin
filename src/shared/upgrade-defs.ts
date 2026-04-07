@@ -148,7 +148,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: BUILD,
     weight: WEIGHT_UNCOMMON,
     oneUse: false,
-    implemented: false,
+    implemented: true,
   },
   // Strategic
   {

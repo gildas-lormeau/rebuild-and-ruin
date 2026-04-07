@@ -4,8 +4,9 @@ import {
   type UpgradePickDialogState,
   type UpgradePickEntry,
 } from "../shared/dialog-types.ts";
+import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { GameState } from "../shared/types.ts";
-import type { UpgradeId } from "../shared/upgrade-defs.ts";
+import { UID, type UpgradeId } from "../shared/upgrade-defs.ts";
 
 interface CreateUpgradePickDeps extends AutoResolveDeps {
   readonly state: GameState;
@@ -63,7 +64,9 @@ export function tickUpgradePickDialog(
     if (entry.autoResolve) {
       entry.autoTimer += dt;
       if (entry.autoTimer >= autoDelay) {
-        entry.choice = randomPickUpgrade(entry.offers, state);
+        entry.choice = state
+          ? aiPickUpgrade(entry.offers, state, entry.playerId)
+          : randomPickUpgrade(entry.offers);
       }
     }
   }
@@ -100,4 +103,32 @@ function randomPickUpgrade(
 ): UpgradeId {
   if (!state) return offers[0];
   return offers[Math.floor(state.rng.next() * offers.length)]!;
+}
+
+/** AI-aware pick: contextual upgrade selection based on game state. */
+function aiPickUpgrade(
+  offers: readonly [UpgradeId, UpgradeId, UpgradeId],
+  state: GameState,
+  playerId: ValidPlayerSlot,
+): UpgradeId {
+  const hasPits = playerHasBurningPitsInZone(state, playerId);
+  if (hasPits && offers.includes(UID.FOUNDATIONS as UpgradeId)) {
+    return UID.FOUNDATIONS as UpgradeId;
+  }
+  // Exclude Foundations when no burning pits (useless for this player)
+  const viable = offers.filter((id) => id !== UID.FOUNDATIONS);
+  const pool = viable.length > 0 ? viable : offers;
+  return pool[Math.floor(state.rng.next() * pool.length)]!;
+}
+
+function playerHasBurningPitsInZone(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+): boolean {
+  const player = state.players[playerId];
+  if (!player?.homeTower) return false;
+  const zone = player.homeTower.zone;
+  return state.burningPits.some(
+    (pit) => state.map.zones[pit.row]?.[pit.col] === zone,
+  );
 }

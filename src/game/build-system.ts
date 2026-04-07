@@ -48,6 +48,7 @@ import {
 } from "../shared/spatial.ts";
 import type { GameViewState } from "../shared/system-interfaces.ts";
 import type { GameState } from "../shared/types.ts";
+import { UID } from "../shared/upgrade-defs.ts";
 import { spawnGruntNearPos, spawnGruntOnZone } from "./grunt-system.ts";
 import { topZonesBySize } from "./map-generation.ts";
 
@@ -130,8 +131,12 @@ export function canPlacePieceOffsets(
     if (hasCannonAt(state, r, c)) return false;
     if (hasGruntAt(state.grunts, r, c)) return false;
 
-    // Check burning pits
-    if (hasPitAt(state.burningPits, r, c)) return false;
+    // Check burning pits (Foundations upgrade bypasses this)
+    if (
+      hasPitAt(state.burningPits, r, c) &&
+      !state.players[playerId]?.upgrades.get(UID.FOUNDATIONS)
+    )
+      return false;
 
     // Bonus squares CAN be covered (you lose the bonus) — no block here
   }
