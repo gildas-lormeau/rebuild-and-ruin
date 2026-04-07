@@ -1,44 +1,17 @@
 import { fireNextReadyCannon } from "../game/battle-system.ts";
 import { placePiece } from "../game/build-system.ts";
-import type {
-  ComputeLobbyLayoutFn,
-  LobbyClickHitTestFn,
-} from "../render/render-composition.ts";
-import type {
-  ControlsScreenHitTestFn,
-  OptionsScreenHitTestFn,
-} from "../render/render-ui-settings.ts";
+import type { UIContext } from "../render/render-ui-screens.ts";
 import { MAX_FRAME_DT } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
-import type { GameMap, Viewport } from "../shared/geometry-types.ts";
-import type { RenderOverlay } from "../shared/overlay-types.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { CycleOptionFn } from "../shared/settings-ui.ts";
 import type {
   BattleViewState,
   BuildViewState,
   CannonViewState,
-  HapticsSystem,
   InputReceiver,
   PlayerController,
-  SoundSystem,
 } from "../shared/system-interfaces.ts";
 import { Mode } from "../shared/ui-mode.ts";
-import type {
-  CloseControlsFn,
-  CloseOptionsFn,
-  CreateControlsOverlayFn,
-  CreateLobbyOverlayFn,
-  CreateOptionsOverlayFn,
-  LobbyKeyJoinFn,
-  LobbySkipStepFn,
-  ShowControlsFn,
-  ShowOptionsFn,
-  TickLobbyFn,
-  TogglePauseFn,
-  UIContext,
-  VisibleOptionsFn,
-} from "./runtime-screen-builders.ts";
 import {
   computeFrameContext,
   isStateReady,
@@ -65,54 +38,6 @@ interface RuntimeInputAdapters {
     fireAndSend: (ctrl: PlayerController, gameState: BattleViewState) => void;
     getIsHost: () => boolean;
   };
-}
-
-type RenderFrameFn = (
-  map: GameMap,
-  overlay: RenderOverlay | undefined,
-  viewport?: Viewport | null,
-) => void;
-
-interface RuntimeOptionsDeps {
-  runtimeState: RuntimeState;
-  uiCtx: UIContext;
-  renderFrame: RenderFrameFn;
-  updateDpad: (enabled: boolean) => void;
-  setDpadLeftHanded: (left: boolean) => void;
-  refreshLobbySeed: () => void;
-  sound: Pick<SoundSystem, "setLevel">;
-  haptics: Pick<HapticsSystem, "setLevel">;
-  isOnline: boolean;
-  getRemoteHumanSlots: () => ReadonlySet<number>;
-  onCloseOptions?: () => void;
-  controlsScreenHitTest: ControlsScreenHitTestFn;
-  optionsScreenHitTest: OptionsScreenHitTestFn;
-  closeControlsShared: CloseControlsFn;
-  closeOptionsShared: CloseOptionsFn;
-  createControlsOverlay: CreateControlsOverlayFn;
-  createOptionsOverlay: CreateOptionsOverlayFn;
-  showControlsShared: ShowControlsFn;
-  showOptionsShared: ShowOptionsFn;
-  togglePauseShared: TogglePauseFn;
-  visibleOptions: VisibleOptionsFn;
-  cycleOption: CycleOptionFn;
-}
-
-interface RuntimeLobbyDeps {
-  runtimeState: RuntimeState;
-  uiCtx: UIContext;
-  renderFrame: RenderFrameFn;
-  refreshLobbySeed: () => void;
-  showOptions: () => void;
-  isOnline: boolean;
-  onTickLobbyExpired: () => void | Promise<void>;
-  onLobbySlotJoined: (pid: ValidPlayerSlot) => void;
-  createLobbyOverlay: CreateLobbyOverlayFn;
-  lobbyKeyJoin: LobbyKeyJoinFn;
-  lobbySkipStep: LobbySkipStepFn;
-  tickLobby: TickLobbyFn;
-  computeLobbyLayout: ComputeLobbyLayoutFn;
-  lobbyClickHitTest: LobbyClickHitTestFn;
 }
 
 interface RuntimeLoopDeps {
@@ -246,18 +171,6 @@ export function createRuntimeUiContext(params: {
     getLobbyRemaining,
     isOnline,
   };
-}
-
-export function createRuntimeOptionsDeps(
-  params: RuntimeOptionsDeps,
-): RuntimeOptionsDeps {
-  return params;
-}
-
-export function createRuntimeLobbyDeps(
-  params: RuntimeLobbyDeps,
-): RuntimeLobbyDeps {
-  return params;
 }
 
 export function createRuntimeInputAdapters(params: {

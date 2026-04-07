@@ -3,6 +3,14 @@ import type {
   LobbyClickHitTestFn,
   LobbyHit,
 } from "../render/render-composition.ts";
+import type {
+  CreateLobbyOverlayFn,
+  UIContext,
+} from "../render/render-ui-screens.ts";
+import {
+  LOBBY_SKIP_LOCKOUT,
+  LOBBY_SKIP_STEP,
+} from "../shared/game-constants.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import { CANVAS_H, CANVAS_W, TILE_SIZE } from "../shared/grid.ts";
 import type { RenderOverlay } from "../shared/overlay-types.ts";
@@ -11,15 +19,8 @@ import {
   CURSOR_POINTER,
   IS_TOUCH_DEVICE,
 } from "../shared/platform.ts";
-import { MAX_PLAYERS } from "../shared/player-config.ts";
+import { type KeyBindings, MAX_PLAYERS } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type {
-  CreateLobbyOverlayFn,
-  LobbyKeyJoinFn,
-  LobbySkipStepFn,
-  TickLobbyFn,
-  UIContext,
-} from "./runtime-screen-builders.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
 interface LobbySystemDeps {
@@ -38,9 +39,6 @@ interface LobbySystemDeps {
 
   // Render-domain functions (injected from composition root)
   createLobbyOverlay: CreateLobbyOverlayFn;
-  lobbyKeyJoin: LobbyKeyJoinFn;
-  lobbySkipStep: LobbySkipStepFn;
-  tickLobby: TickLobbyFn;
   computeLobbyLayout: ComputeLobbyLayoutFn;
   lobbyClickHitTest: LobbyClickHitTestFn;
 }
@@ -65,7 +63,12 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
   function tickLobby(dt: number): void {
     runtimeState.lobby.timerAccum = (runtimeState.lobby.timerAccum ?? 0) + dt;
     renderLobby();
-    deps.tickLobby(uiCtx, () => deps.onTickLobbyExpired());
+    if (!uiCtx.lobby.active) return;
+    const allJoined = uiCtx.lobby.joined.every(Boolean);
+    if (uiCtx.getLobbyRemaining() <= 0 || allJoined) {
+      uiCtx.lobby.active = false;
+      void deps.onTickLobbyExpired();
+    }
   }
 
   async function onLobbyJoin(pid: ValidPlayerSlot): Promise<void> {
@@ -79,7 +82,16 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
   }
 
   function lobbyKeyJoin(key: string): boolean {
-    return deps.lobbyKeyJoin(uiCtx, key, onLobbyJoin);
+    if (!uiCtx.lobby.active) return false;
+    const confirmKeys = buildLobbyConfirmKeys(uiCtx.settings.keyBindings);
+    const pid = confirmKeys.get(key);
+    if (pid === undefined) return false;
+    if (uiCtx.lobby.joined[pid]) {
+      lobbySkipStep();
+      return true;
+    }
+    void onLobbyJoin(pid as ValidPlayerSlot);
+    return true;
   }
 
   // Coordinate space: canvasX/canvasY are CSS pixels passed directly to lobbyClickHitTest.
@@ -104,7 +116,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     }
     // Mouse/trackpad can only join one slot (keyboard can join additional slots)
     if (runtimeState.inputTracking.mouseJoinedSlot !== null) {
-      deps.lobbySkipStep(uiCtx);
+      lobbySkipStep();
       return true;
     }
     if (!runtimeState.lobby.joined[hit.slotId]) {
@@ -128,6 +140,14 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     return hit ? CURSOR_POINTER : CURSOR_DEFAULT;
   }
 
+  /** Speed up lobby timer by one step if allowed. */
+  function lobbySkipStep(): boolean {
+    if (uiCtx.lobby.timerAccum === undefined) return false;
+    if (uiCtx.getLobbyRemaining() <= LOBBY_SKIP_LOCKOUT) return false;
+    uiCtx.lobby.timerAccum += LOBBY_SKIP_STEP;
+    return true;
+  }
+
   return {
     renderLobby,
     tickLobby,
@@ -135,4 +155,17 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
     lobbyClick,
     cursorAt,
   };
+}
+
+/** Build a map from confirm key → player slot index for lobby joining. */
+function buildLobbyConfirmKeys(
+  keyBindings: readonly KeyBindings[],
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (let idx = 0; idx < keyBindings.length; idx++) {
+    const keyBinding = keyBindings[idx]!;
+    map.set(keyBinding.confirm, idx);
+    map.set(keyBinding.confirm.toUpperCase(), idx);
+  }
+  return map;
 }

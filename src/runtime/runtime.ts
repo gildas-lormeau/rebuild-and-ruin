@@ -15,6 +15,7 @@ import { createHapticsSystem } from "../input/haptics-system.ts";
 import { dispatchPointerMove } from "../input/input-dispatch.ts";
 import { registerKeyboardHandlers } from "../input/input-keyboard.ts";
 import { registerMouseHandlers } from "../input/input-mouse.ts";
+import { createSeedField } from "../input/input-seed-field.ts";
 import { registerTouchHandlers } from "../input/input-touch-canvas.ts";
 import {
   createDpad,
@@ -39,6 +40,12 @@ import {
 } from "../render/render-composition.ts";
 import { precomputeTerrainCache } from "../render/render-map.ts";
 import {
+  createControlsOverlay,
+  createLobbyOverlay,
+  createOptionsOverlay,
+  visibleOptions,
+} from "../render/render-ui-screens.ts";
+import {
   controlsScreenHitTest,
   optionsScreenHitTest,
 } from "../render/render-ui-settings.ts";
@@ -48,14 +55,16 @@ import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
 import type { RenderOverlay } from "../shared/overlay-types.ts";
 import { IS_DEV, IS_TOUCH_DEVICE } from "../shared/platform.ts";
-import { type GameSettings, SEED_CUSTOM } from "../shared/player-config.ts";
+import {
+  type GameSettings,
+  MAX_SEED_LENGTH,
+  SEED_CUSTOM,
+} from "../shared/player-config.ts";
 import { cycleOption } from "../shared/settings-ui.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import {
   createRuntimeInputAdapters,
-  createRuntimeLobbyDeps,
   createRuntimeLoop,
-  createRuntimeOptionsDeps,
   createRuntimeUiContext,
 } from "./assembly.ts";
 import { exposeDevConsole } from "./dev-console.ts";
@@ -84,20 +93,6 @@ import {
 } from "./runtime-phase-ticks.ts";
 import { createRenderSystem } from "./runtime-render.ts";
 import { createScoreDeltaSystem } from "./runtime-score-deltas.ts";
-import {
-  closeControls,
-  closeOptions,
-  createControlsOverlay,
-  createLobbyOverlay,
-  createOptionsOverlay,
-  lobbyKeyJoin,
-  lobbySkipStep,
-  showControls,
-  showOptions,
-  tickLobby,
-  togglePause,
-  visibleOptions,
-} from "./runtime-screen-builders.ts";
 import { createSelectionSystem } from "./runtime-selection.ts";
 import { createRuntimeState, safeState } from "./runtime-state.ts";
 import { type GameRuntime, type RuntimeConfig } from "./runtime-types.ts";
@@ -430,35 +425,35 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     isOnline,
   });
-  const optionsDeps = createRuntimeOptionsDeps({
+  const optionsDeps = {
     runtimeState,
     uiCtx,
     renderFrame,
-    updateDpad: (enabled) =>
+    updateDpad: (enabled: boolean) =>
       touchHandles.dpad?.update(enabled ? Phase.WALL_BUILD : null),
-    setDpadLeftHanded: (left) => touchHandles.dpad?.setLeftHanded(left),
+    setDpadLeftHanded: (left: boolean) =>
+      touchHandles.dpad?.setLeftHanded(left),
     refreshLobbySeed,
     sound,
     haptics,
     isOnline,
     getRemoteHumanSlots: config.getRemoteHumanSlots,
     onCloseOptions: config.onCloseOptions,
+    seedField: createSeedField(MAX_SEED_LENGTH, (digits) => {
+      runtimeState.settings.seedMode = SEED_CUSTOM;
+      runtimeState.settings.seed = digits;
+    }),
     controlsScreenHitTest,
     optionsScreenHitTest,
-    closeControlsShared: closeControls,
-    closeOptionsShared: closeOptions,
     createControlsOverlay,
     createOptionsOverlay,
-    showControlsShared: showControls,
-    showOptionsShared: showOptions,
-    togglePauseShared: togglePause,
     visibleOptions,
     cycleOption,
-  });
+  };
 
   // Initialize options system first (lobby depends on showOptions)
   const options = createOptionsSystem(optionsDeps);
-  const lobbyDeps = createRuntimeLobbyDeps({
+  const lobbyDeps = {
     runtimeState,
     uiCtx,
     renderFrame,
@@ -468,12 +463,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     onTickLobbyExpired: config.onTickLobbyExpired,
     onLobbySlotJoined: config.onLobbySlotJoined,
     createLobbyOverlay,
-    lobbyKeyJoin,
-    lobbySkipStep,
-    tickLobby,
     computeLobbyLayout,
     lobbyClickHitTest,
-  });
+  };
 
   // Initialize lobby system (needs options.showOptions)
   const lobby = createLobbySystem(lobbyDeps);
@@ -523,6 +515,11 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       registerKeyboard: registerKeyboardHandlers,
       registerMouse: registerMouseHandlers,
       registerTouch: registerTouchHandlers,
+    },
+    floatingActionsEl:
+      gameContainer.querySelector<HTMLElement>("#floating-actions"),
+    markTouchPanels: () => {
+      gameContainer.classList.add("has-touch-panels");
     },
     touchFactories: {
       createDpad,

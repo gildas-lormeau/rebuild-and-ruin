@@ -56,8 +56,12 @@ export function createOnlineRuntimeSessionHelpers(
     buildRoomCodeOverlay(roomCodeOverlay, code, joinUrl);
     initWaitingRoom({
       seed,
-      lobbyEl: pageOnline,
-      container: deps.container,
+      hideLobbyPage: () => {
+        pageOnline.hidden = true;
+      },
+      activateGameContainer: () => {
+        deps.container.classList.add(GAME_CONTAINER_ACTIVE);
+      },
       lobby: runtime.runtimeState.lobby,
       maxPlayers: MAX_PLAYERS,
       log: deps.log,

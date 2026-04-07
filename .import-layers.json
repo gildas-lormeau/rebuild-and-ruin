@@ -5,10 +5,12 @@
       "server/send-utils.ts",
       "src/ai/ai-constants.ts",
       "src/input/input-recorder.ts",
+      "src/input/input-seed-field.ts",
       "src/online/online-config.ts",
       "src/online/online-dom.ts",
       "src/runtime/router.ts",
       "src/shared/canvas-layout.ts",
+      "src/shared/feature-defs.ts",
       "src/shared/game-constants.ts",
       "src/shared/game-phase.ts",
       "src/shared/grid.ts",
@@ -20,7 +22,6 @@
       "src/shared/rng.ts",
       "src/shared/settings-defs.ts",
       "src/shared/ui-mode.ts",
-      "src/shared/feature-defs.ts",
       "src/shared/upgrade-defs.ts",
       "src/shared/utils.ts"
     ]
@@ -86,8 +87,8 @@
       "src/render/render-effects.ts",
       "src/render/render-loupe.ts",
       "src/render/render-towers.ts",
+      "src/render/render-ui-screens.ts",
       "src/render/render-ui-settings.ts",
-      "src/runtime/runtime-screen-builders.ts",
       "src/shared/board-occupancy.ts",
       "src/shared/tick-context.ts"
     ]
@@ -131,6 +132,7 @@
       "src/game/build-system.ts",
       "src/game/round-modifiers.ts",
       "src/render/render-map.ts",
+      "src/runtime/dev-console.ts",
       "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-human.ts",
       "src/runtime/runtime-lobby.ts",
@@ -154,7 +156,6 @@
       "src/player/controller-types.ts",
       "src/render/render-canvas.ts",
       "src/runtime/assembly.ts",
-      "src/runtime/dev-console.ts",
       "src/runtime/runtime-camera.ts",
       "src/runtime/runtime-e2e-bridge.ts",
       "src/runtime/runtime-game-lifecycle.ts",

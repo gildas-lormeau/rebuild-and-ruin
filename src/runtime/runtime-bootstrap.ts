@@ -27,14 +27,13 @@ import {
   type LobbyState,
   setGameMode,
 } from "../shared/types.ts";
-import { GAME_CONTAINER_ACTIVE } from "./router.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 import type { EnterTowerSelectionDeps } from "./runtime-types.ts";
 
 interface InitWaitingRoomDeps {
   seed: number;
-  lobbyEl: HTMLElement;
-  container: HTMLElement;
+  hideLobbyPage: () => void;
+  activateGameContainer: () => void;
   lobby: LobbyState;
   maxPlayers: number;
   log: (msg: string) => void;
@@ -81,8 +80,8 @@ interface BootstrapFromSettingsDeps {
 export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
   const {
     seed,
-    lobbyEl,
-    container,
+    hideLobbyPage,
+    activateGameContainer,
     lobby,
     maxPlayers,
     setLobbyStartTime,
@@ -92,8 +91,8 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
     requestFrame,
   } = deps;
 
-  lobbyEl.hidden = true;
-  container.classList.add(GAME_CONTAINER_ACTIVE);
+  hideLobbyPage();
+  activateGameContainer();
 
   lobby.seed = seed;
   log(`[online] seed: ${seed}`);

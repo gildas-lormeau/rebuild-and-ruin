@@ -65,7 +65,7 @@ server/room-manager, game/combo-system, game/life-lost, game/map-generation,
 game/phase-banner, game/upgrade-pick, input/haptics-system, input/input-dispatch,
 input/input-touch-update, input/sound-system, render/render-effects,
 render/render-loupe, render/render-towers, render/render-ui-settings,
-runtime/runtime-screen-builders, shared/board-occupancy, shared/tick-context
+render/render-ui-screens, shared/board-occupancy, shared/tick-context
 ```
 
 ### 7. Deep logic — L6 (11 files)

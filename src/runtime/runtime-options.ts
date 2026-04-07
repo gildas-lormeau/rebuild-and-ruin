@@ -5,6 +5,13 @@
  * pattern as runtime-camera.ts and runtime-lobby.ts.
  */
 
+import type { SeedField } from "../input/input-seed-field.ts";
+import type {
+  CreateControlsOverlayFn,
+  CreateOptionsOverlayFn,
+  UIContext,
+  VisibleOptionsFn,
+} from "../render/render-ui-screens.ts";
 import type {
   ControlsScreenHitTestFn,
   OptionsScreenHitTestFn,
@@ -20,8 +27,8 @@ import {
 import {
   ACTION_KEYS,
   MAX_PLAYERS,
-  MAX_SEED_LENGTH,
   SEED_CUSTOM,
+  saveSettings,
 } from "../shared/player-config.ts";
 import {
   HIT_ARROW,
@@ -34,17 +41,7 @@ import type {
   HapticsSystem,
   SoundSystem,
 } from "../shared/system-interfaces.ts";
-import type {
-  CloseControlsFn,
-  CloseOptionsFn,
-  CreateControlsOverlayFn,
-  CreateOptionsOverlayFn,
-  ShowControlsFn,
-  ShowOptionsFn,
-  TogglePauseFn,
-  UIContext,
-  VisibleOptionsFn,
-} from "./runtime-screen-builders.ts";
+import { isInteractiveMode, Mode } from "../shared/ui-mode.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
 
 interface OptionsSystemDeps {
@@ -64,17 +61,13 @@ interface OptionsSystemDeps {
   isOnline: boolean;
   getRemoteHumanSlots: () => ReadonlySet<number>;
   onCloseOptions?: () => void;
+  seedField: SeedField;
 
   // Render-domain functions (injected from composition root)
   controlsScreenHitTest: ControlsScreenHitTestFn;
   optionsScreenHitTest: OptionsScreenHitTestFn;
-  closeControlsShared: CloseControlsFn;
-  closeOptionsShared: CloseOptionsFn;
   createControlsOverlay: CreateControlsOverlayFn;
   createOptionsOverlay: CreateOptionsOverlayFn;
-  showControlsShared: ShowControlsFn;
-  showOptionsShared: ShowOptionsFn;
-  togglePauseShared: TogglePauseFn;
   visibleOptions: VisibleOptionsFn;
   cycleOption: CycleOptionFn;
 }
@@ -97,56 +90,18 @@ interface OptionsSystem {
   togglePause: () => boolean;
 }
 
-const HIDDEN_INPUT_STYLE: Partial<CSSStyleDeclaration> = {
-  position: "fixed",
-  top: "0",
-  left: "0",
-  opacity: "0",
-  width: "1px",
-  height: "1px",
-  border: "none",
-  padding: "0",
-  pointerEvents: "none",
-};
-
 export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   const { runtimeState, uiCtx } = deps;
-
-  // ── Hidden input for mobile virtual keyboard (seed entry) ──
-  let seedInput: HTMLInputElement | undefined;
-
-  function ensureSeedInput(): HTMLInputElement {
-    if (seedInput) return seedInput;
-    const element = document.createElement("input");
-    element.type = "text";
-    element.inputMode = "numeric";
-    element.pattern = "[0-9]*";
-    element.maxLength = MAX_SEED_LENGTH;
-    element.autocomplete = "off";
-    Object.assign(element.style, HIDDEN_INPUT_STYLE);
-    element.addEventListener("input", () => {
-      // Sync input value → settings.seed (strip non-digits, cap length)
-      const digits = element.value.replace(/\D/g, "").slice(0, MAX_SEED_LENGTH);
-      element.value = digits;
-      runtimeState.settings.seedMode = SEED_CUSTOM;
-      runtimeState.settings.seed = digits;
-    });
-    document.body.appendChild(element);
-    seedInput = element;
-    return element;
-  }
 
   function focusSeedInput(): void {
     if (!IS_TOUCH_DEVICE || deps.isOnline) return;
     if (runtimeState.optionsUI.returnMode !== null) return; // read-only in-game
-    const element = ensureSeedInput();
-    element.value = runtimeState.settings.seed;
     runtimeState.settings.seedMode = SEED_CUSTOM;
-    element.focus({ preventScroll: true });
+    deps.seedField.focus(runtimeState.settings.seed);
   }
 
   function blurSeedInput(): void {
-    seedInput?.blur();
+    deps.seedField.blur();
   }
 
   function visibleOptionsForCtx(): number[] {
@@ -181,17 +136,21 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function showOptions(): void {
-    deps.showOptionsShared(uiCtx);
+    uiCtx.optionsCursor.value = 0;
+    uiCtx.setMode(Mode.OPTIONS);
     deps.updateDpad(true);
   }
 
   function closeOptions(): void {
     blurSeedInput();
-    const wasInGame = runtimeState.optionsUI.returnMode !== null;
-    deps.closeOptionsShared(uiCtx);
-    if (wasInGame) {
+    const returnMode = uiCtx.getOptionsReturnMode();
+    if (returnMode !== null) {
+      uiCtx.setMode(returnMode);
+      uiCtx.setOptionsReturnMode(null);
       runtimeState.lastTime = performance.now(); // avoid huge dt on first frame back
     } else {
+      uiCtx.setMode(Mode.LOBBY);
+      saveSettings(uiCtx.settings);
       deps.refreshLobbySeed(); // regenerate map preview with (possibly changed) seed
       deps.updateDpad(false); // back to lobby — disable d-pad
     }
@@ -204,7 +163,10 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   }
 
   function showControls(): void {
-    deps.showControlsShared(uiCtx);
+    uiCtx.controlsState.playerIdx = 0;
+    uiCtx.controlsState.actionIdx = 0;
+    uiCtx.controlsState.rebinding = false;
+    uiCtx.setMode(Mode.CONTROLS);
     deps.updateDpad(true);
   }
 
@@ -215,7 +177,8 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
         if (keyBindings) ctrl.updateBindings(keyBindings);
       }
     }
-    deps.closeControlsShared(uiCtx);
+    saveSettings(uiCtx.settings);
+    uiCtx.setMode(Mode.OPTIONS);
   }
 
   // Coordinate space: canvasX/canvasY are CSS pixels (from getBoundingClientRect).
@@ -294,7 +257,11 @@ export function createOptionsSystem(deps: OptionsSystemDeps): OptionsSystem {
   function togglePause(): boolean {
     // Disable pause when other human players are connected
     if (deps.getRemoteHumanSlots().size > 0) return false;
-    return deps.togglePauseShared(uiCtx);
+    if (!isInteractiveMode(uiCtx.getMode())) return false;
+    const next = !uiCtx.getPaused();
+    uiCtx.setPaused(next);
+    uiCtx.getFrame().announcement = next ? "PAUSED" : undefined;
+    return true;
   }
 
   return {

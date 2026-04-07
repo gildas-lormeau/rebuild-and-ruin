@@ -1,14 +1,12 @@
 /**
- * Shared options/controls/lobby screen rendering.
- * Used by both main.ts and online-client.ts.
+ * Screen overlay builders — options, controls, lobby.
+ *
+ * Pure functions that take a UIContext and return RenderOverlay data.
+ * Consumed by runtime subsystems via DI (composition root injects these).
  */
 
 import type { ControlsState } from "../shared/dialog-types.ts";
-import {
-  GAME_MODE_MODERN,
-  LOBBY_SKIP_LOCKOUT,
-  LOBBY_SKIP_STEP,
-} from "../shared/game-constants.ts";
+import { GAME_MODE_MODERN } from "../shared/game-constants.ts";
 import type { GameMap } from "../shared/geometry-types.ts";
 import type { OptionEntry, RenderOverlay } from "../shared/overlay-types.ts";
 import { IS_TOUCH_DEVICE, KEY_UP } from "../shared/platform.ts";
@@ -19,7 +17,6 @@ import {
   type KeyBindings,
   PLAYER_NAMES,
   SEED_CUSTOM,
-  saveSettings,
 } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
@@ -43,7 +40,7 @@ import {
 } from "../shared/settings-defs.ts";
 import { formatKeyName } from "../shared/settings-ui.ts";
 import type { GameState, LobbyState } from "../shared/types.ts";
-import { isInteractiveMode, Mode } from "../shared/ui-mode.ts";
+import type { Mode } from "../shared/ui-mode.ts";
 
 export interface UIContext {
   getState: () => GameState | undefined;
@@ -70,20 +67,10 @@ export type CreateOptionsOverlayFn = (ctx: UIContext) => {
   overlay: RenderOverlay;
 };
 
-export type ShowOptionsFn = (ctx: UIContext) => void;
-
-export type CloseOptionsFn = (ctx: UIContext) => void;
-
 export type CreateControlsOverlayFn = (ctx: UIContext) => {
   map: GameMap;
   overlay: RenderOverlay;
 };
-
-export type ShowControlsFn = (ctx: UIContext) => void;
-
-export type CloseControlsFn = (ctx: UIContext) => void;
-
-export type TogglePauseFn = (ctx: UIContext) => boolean;
 
 export type VisibleOptionsFn = (ctx: UIContext) => number[];
 
@@ -91,19 +78,6 @@ export type CreateLobbyOverlayFn = (ctx: UIContext) => {
   map: GameMap;
   overlay: RenderOverlay;
 };
-
-export type LobbyKeyJoinFn = (
-  ctx: UIContext,
-  key: string,
-  onJoin: (pid: ValidPlayerSlot) => void | Promise<void>,
-) => boolean;
-
-export type LobbySkipStepFn = (ctx: UIContext) => boolean;
-
-export type TickLobbyFn = (
-  ctx: UIContext,
-  onExpired: () => void | Promise<void>,
-) => void;
 
 const CONTROL_ACTION_NAMES: readonly string[] = [
   "Up",
@@ -187,23 +161,6 @@ export function createOptionsOverlay(frameCtx: UIContext): {
   return { map: state?.map ?? lobbyMap, overlay };
 }
 
-export function showOptions(frameCtx: UIContext): void {
-  frameCtx.optionsCursor.value = 0;
-  frameCtx.setMode(Mode.OPTIONS);
-}
-
-export function closeOptions(frameCtx: UIContext): void {
-  const returnMode = frameCtx.getOptionsReturnMode();
-  if (returnMode !== null) {
-    // Returning to game — read-only view, don't save settings
-    frameCtx.setMode(returnMode);
-    frameCtx.setOptionsReturnMode(null);
-  } else {
-    frameCtx.setMode(Mode.LOBBY);
-    saveSettings(frameCtx.settings);
-  }
-}
-
 export function createControlsOverlay(frameCtx: UIContext): {
   map: GameMap;
   overlay: RenderOverlay;
@@ -236,40 +193,6 @@ export function createControlsOverlay(frameCtx: UIContext): {
   return { map: frameCtx.getState()?.map ?? lobbyMap, overlay };
 }
 
-export function showControls(frameCtx: UIContext): void {
-  frameCtx.controlsState.playerIdx = 0;
-  frameCtx.controlsState.actionIdx = 0;
-  frameCtx.controlsState.rebinding = false;
-  frameCtx.setMode(Mode.CONTROLS);
-}
-
-export function closeControls(frameCtx: UIContext): void {
-  saveSettings(frameCtx.settings);
-  frameCtx.setMode(Mode.OPTIONS);
-}
-
-export function togglePause(frameCtx: UIContext): boolean {
-  const mode = frameCtx.getMode();
-  if (!isInteractiveMode(mode)) return false;
-  const next = !frameCtx.getPaused();
-  frameCtx.setPaused(next);
-  frameCtx.getFrame().announcement = next ? "PAUSED" : undefined;
-  return true;
-}
-
-/** Tick the lobby — check expiry. Calls `onExpired` when timer runs out or all slots are filled. */
-export function tickLobby(
-  frameCtx: UIContext,
-  onExpired: () => void | Promise<void>,
-): void {
-  if (!frameCtx.lobby.active) return;
-  const allJoined = frameCtx.lobby.joined.every(Boolean);
-  if (frameCtx.getLobbyRemaining() <= 0 || allJoined) {
-    frameCtx.lobby.active = false;
-    void onExpired();
-  }
-}
-
 export function createLobbyOverlay(frameCtx: UIContext): {
   map: GameMap;
   overlay: RenderOverlay;
@@ -292,32 +215,6 @@ export function createLobbyOverlay(frameCtx: UIContext): {
     },
   };
   return { map: frameCtx.getState()?.map ?? frameCtx.lobby.map!, overlay };
-}
-
-/** Handle a lobby key press — resolve slot from key bindings, call `onJoin` if valid. */
-export function lobbyKeyJoin(
-  frameCtx: UIContext,
-  key: string,
-  onJoin: (pid: ValidPlayerSlot) => void,
-): boolean {
-  if (!frameCtx.lobby.active) return false;
-  const map = createLobbyConfirmKeys(frameCtx.settings.keyBindings);
-  const pid = map.get(key);
-  if (pid === undefined) return false;
-  if (frameCtx.lobby.joined[pid]) {
-    lobbySkipStep(frameCtx);
-    return true;
-  }
-  onJoin(pid as ValidPlayerSlot);
-  return true;
-}
-
-/** Speed up lobby timer by one step if allowed. Returns true if timer was advanced. */
-export function lobbySkipStep(frameCtx: UIContext): boolean {
-  if (frameCtx.lobby.timerAccum === undefined) return false;
-  if (frameCtx.getLobbyRemaining() <= LOBBY_SKIP_LOCKOUT) return false;
-  frameCtx.lobby.timerAccum += LOBBY_SKIP_STEP;
-  return true;
 }
 
 export function visibleOptions(frameCtx: UIContext): number[] {
@@ -401,17 +298,4 @@ function formatKeyHint(keyBindings: KeyBindings): string {
         keyBindings.down.toUpperCase() +
         keyBindings.right.toUpperCase();
   return `${arrows} + ${keyBindings.confirm.toUpperCase()} (${keyBindings.rotate.toUpperCase()} rotate)`;
-}
-
-/** Build a map from confirm key → player slot index for lobby joining. */
-function createLobbyConfirmKeys(
-  keyBindings: readonly KeyBindings[],
-): Map<string, number> {
-  const map = new Map<string, number>();
-  for (let i = 0; i < keyBindings.length; i++) {
-    const keyBinding = keyBindings[i]!;
-    map.set(keyBinding.confirm, i);
-    map.set(keyBinding.confirm.toUpperCase(), i);
-  }
-  return map;
 }

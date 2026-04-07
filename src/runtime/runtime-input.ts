@@ -162,6 +162,11 @@ interface InputSystemDeps {
     readonly createFloatingActions: CreateFloatingActionsFn;
   };
 
+  /** The element for floating action buttons (pre-existing in the HTML). */
+  readonly floatingActionsEl: HTMLElement | null;
+  /** Mark the game container for touch panel CSS layout. */
+  readonly markTouchPanels: () => void;
+
   // Lifecycle / navigation callbacks
   readonly lifecycle: {
     readonly render: () => void;
@@ -274,7 +279,7 @@ function setupTouchControls(
 ): void {
   const { gameContainer, renderer, camera } = deps;
 
-  gameContainer.classList.add("has-touch-panels");
+  deps.markTouchPanels();
 
   setupDpadAndActions(inputDeps, touch, deps);
   setupZoomButtons(touch, deps);
@@ -679,21 +684,13 @@ function setupFloatingActions(
   touch: TouchHandles,
   deps: InputSystemDeps,
 ): void {
-  const {
-    runtimeState,
-    renderer,
-    gameContainer,
-    sound,
-    haptics,
-    withPointerPlayer,
-  } = deps;
+  const { runtimeState, renderer, sound, haptics, withPointerPlayer } = deps;
   const {
     tryPlacePieceAndSend: placePieceAction,
     tryPlaceCannonAndSend: placeCannonAction,
   } = inputDeps.gameAction;
 
-  const floatingEl =
-    gameContainer.querySelector<HTMLElement>("#floating-actions");
+  const floatingEl = deps.floatingActionsEl;
   if (floatingEl) {
     touch.floatingActions = deps.touchFactories.createFloatingActions(
       {
