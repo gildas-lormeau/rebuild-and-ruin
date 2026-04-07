@@ -87,7 +87,7 @@ const CANNON_ROTATE_SPEED = Math.PI * 3;
 const COUNTDOWN_READY_SEC = 3;
 const COUNTDOWN_AIM_SEC = 1;
 /** Cannonball speed multiplier when the Rapid Fire upgrade is active. */
-const RAPID_FIRE_SPEED_MULT = 2;
+const RAPID_FIRE_SPEED_MULT = 1.5;
 /** Mortar cannonball speed multiplier (half speed). */
 const MORTAR_SPEED_MULT = 0.5;
 /** Number of random bounces after a ricochet impact. */
