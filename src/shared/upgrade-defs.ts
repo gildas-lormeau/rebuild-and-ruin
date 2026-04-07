@@ -213,7 +213,7 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: ONE_USE,
     weight: WEIGHT_RARE,
     oneUse: true,
-    implemented: false,
+    implemented: true,
   },
 ];
 /** Draft-eligible upgrades — only those with gameplay code. */

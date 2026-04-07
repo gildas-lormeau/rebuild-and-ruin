@@ -95,6 +95,7 @@ const IDLE_FIRST_BATTLE_GRUNTS = 2;
 const OFFER_COUNT = 3;
 /** First round that triggers upgrade picks (modern mode). */
 const UPGRADE_FIRST_ROUND = 3;
+const SUPPLY_DROP_BONUS = 2;
 
 /** Rebuild a player's home castle from scratch (used when continuing after losing a life). */
 export function rebuildHomeCastle(state: GameState, player: Player): void {
@@ -195,9 +196,12 @@ export function initControllerForCannonPhase(
 
 /** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
 export function computeCannonLimitsForPhase(state: GameState): void {
-  state.cannonLimits = state.players.map((player) =>
-    cannonSlotsForRound(player, state),
-  );
+  state.cannonLimits = state.players.map((player) => {
+    const base = cannonSlotsForRound(player, state);
+    return (
+      base + (player.upgrades.get(UID.SUPPLY_DROP) ? SUPPLY_DROP_BONUS : 0)
+    );
+  });
   state.reselectedPlayers.clear();
 }
 
