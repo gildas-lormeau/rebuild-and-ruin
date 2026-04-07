@@ -145,6 +145,8 @@ export const MAX_FRAME_DT = 0.1;
 export const SCORE_DELTA_DISPLAY_TIME = 2;
 /** Duration of host-migration announcement overlay (seconds). */
 export const MIGRATION_ANNOUNCEMENT_DURATION = 3;
+/** Delay before all-AI demo auto-returns to lobby (ms). */
+export const DEMO_RETURN_DELAY_MS = 10_000;
 /** Minimum zoom width as fraction of full map width. */
 export const MIN_ZOOM_RATIO = 0.15;
 /** Zoom viewport interpolation speed (higher = faster). */

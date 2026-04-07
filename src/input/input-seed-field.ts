@@ -1,14 +1,4 @@
-/**
- * Hidden input element for mobile seed entry via virtual keyboard.
- *
- * Creates a visually hidden <input> that captures numeric input on
- * touch devices, syncing the typed value back to the caller via onInput.
- */
-
-export interface SeedField {
-  focus: (currentValue: string) => void;
-  blur: () => void;
-}
+import type { SeedField } from "../shared/ui-contracts.ts";
 
 export function createSeedField(
   maxLength: number,

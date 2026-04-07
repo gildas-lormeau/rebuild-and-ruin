@@ -24,6 +24,7 @@ import {
   createHomeZoomButton,
   createQuitButton,
 } from "../input/input-touch-ui.ts";
+import { updateTouchControls } from "../input/input-touch-update.ts";
 import { createSoundSystem } from "../input/sound-system.ts";
 import {
   buildGameOverOverlay,
@@ -62,12 +63,9 @@ import {
   SEED_CUSTOM,
 } from "../shared/player-config.ts";
 import { cycleOption } from "../shared/settings-ui.ts";
+import type { UIContext } from "../shared/ui-contracts.ts";
 import { Mode } from "../shared/ui-mode.ts";
-import {
-  createRuntimeInputAdapters,
-  createRuntimeLoop,
-  createRuntimeUiContext,
-} from "./assembly.ts";
+import { createRuntimeInputAdapters, createRuntimeLoop } from "./assembly.ts";
 import { exposeDevConsole } from "./dev-console.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
 import {
@@ -95,7 +93,7 @@ import {
 import { createRenderSystem } from "./runtime-render.ts";
 import { createScoreDeltaSystem } from "./runtime-score-deltas.ts";
 import { createSelectionSystem } from "./runtime-selection.ts";
-import { createRuntimeState, safeState } from "./runtime-state.ts";
+import { createRuntimeState, safeState, setMode } from "./runtime-state.ts";
 import { type GameRuntime, type RuntimeConfig } from "./runtime-types.ts";
 import {
   createUpgradePickSystem,
@@ -234,10 +232,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       const ch = h.getCrosshair();
       return { x: ch.x, y: ch.y };
     },
-    setPointerPlayerCrosshair: (x, y) => {
-      const h = pointerPlayer();
-      if (h) h.setCrosshair(x, y);
-    },
   });
 
   const { tickCamera, updateViewport } = camera;
@@ -311,6 +305,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     worldToScreen: camera.worldToScreen,
     screenToContainerCSS: renderer.screenToContainerCSS,
     getContainerHeight: () => gameContainer.clientHeight,
+    updateTouchControls,
   });
 
   // -------------------------------------------------------------------------
@@ -388,6 +383,17 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   });
 
   // -------------------------------------------------------------------------
+  // Touch battle targeting (shared by phase-ticks onBeginBattle + GameRuntime)
+  // -------------------------------------------------------------------------
+
+  function applyBattleTarget(): void {
+    const target = camera.computeBattleTarget();
+    if (!target) return;
+    const h = pointerPlayer();
+    if (h) h.setCrosshair(target.x, target.y);
+  }
+
+  // -------------------------------------------------------------------------
   // Phase ticks sub-system (delegated to runtime-phase-ticks.ts)
   // -------------------------------------------------------------------------
 
@@ -407,9 +413,14 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     scoreDelta,
     snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
     saveBattleCrosshair: IS_TOUCH_DEVICE
-      ? camera.saveBattleCrosshair
+      ? () => {
+          const h = pointerPlayer();
+          if (!h) return;
+          const ch = h.getCrosshair();
+          camera.saveBattleCrosshair({ x: ch.x, y: ch.y });
+        }
       : undefined,
-    onBeginBattle: IS_TOUCH_DEVICE ? camera.aimAtEnemyCastle : undefined,
+    onBeginBattle: IS_TOUCH_DEVICE ? applyBattleTarget : undefined,
     sound,
     haptics,
     tryShowUpgradePick: (onDone) => upgradePick.tryShow(onDone),
@@ -420,11 +431,36 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
   // UIContext — bridges internal state to game-ui-screens.ts functions
   // -------------------------------------------------------------------------
 
-  const uiCtx = createRuntimeUiContext({
-    runtimeState,
+  const uiCtx: UIContext = {
+    getState: () => safeState(runtimeState),
+    getOverlay: () => runtimeState.overlay,
+    settings: runtimeState.settings,
+    getMode: () => runtimeState.mode,
+    setMode: (mode) => {
+      setMode(runtimeState, mode);
+    },
+    getPaused: () => runtimeState.paused,
+    setPaused: (paused) => {
+      runtimeState.paused = paused;
+    },
+    optionsCursor: {
+      get value() {
+        return runtimeState.optionsUI.cursor;
+      },
+      set value(value) {
+        runtimeState.optionsUI.cursor = value;
+      },
+    },
+    controlsState: runtimeState.controlsState,
+    getOptionsReturnMode: () => runtimeState.optionsUI.returnMode,
+    setOptionsReturnMode: (mode) => {
+      runtimeState.optionsUI.returnMode = mode;
+    },
+    lobby: runtimeState.lobby,
+    getFrame: () => runtimeState.frame,
     getLobbyRemaining: config.getLobbyRemaining,
     isOnline,
-  });
+  };
   const inputAdapters = createRuntimeInputAdapters({
     config,
     runtimeState,
@@ -577,7 +613,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render,
     showBanner,
     snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
-    aimAtEnemyCastle: camera.aimAtEnemyCastle,
+    aimAtEnemyCastle: applyBattleTarget,
   };
 }
 

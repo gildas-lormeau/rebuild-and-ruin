@@ -13,6 +13,7 @@ import {
   FOCUS_REMATCH,
   type GameOverFocus,
 } from "../shared/dialog-types.ts";
+import { DEMO_RETURN_DELAY_MS } from "../shared/game-constants.ts";
 import type { GameOverOverlay } from "../shared/overlay-types.ts";
 import { MAX_PLAYERS } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -125,8 +126,6 @@ interface LifecycleWiringDeps {
     gameStats: readonly { wallsDestroyed: number; cannonsKilled: number }[],
   ) => GameOverOverlay;
 }
-
-const DEMO_RETURN_DELAY_MS = 10_000;
 
 export function createGameLifecycle(
   deps: GameLifecycleDeps,

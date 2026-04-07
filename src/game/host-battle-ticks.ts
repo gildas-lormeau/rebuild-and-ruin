@@ -36,15 +36,12 @@ import {
   type WatcherTimingState,
 } from "../shared/tick-context.ts";
 import type { GameState } from "../shared/types.ts";
+import type { BannerState } from "../shared/ui-contracts.ts";
 import {
   createCannonFiredMsg,
   getCountdownAnnouncement,
 } from "./battle-system.ts";
-import {
-  BANNER_BATTLE,
-  type BannerShow,
-  type BannerState,
-} from "./phase-banner.ts";
+import { BANNER_BATTLE, type BannerShow } from "./phase-banner.ts";
 import { enterBuildSkippingBattle } from "./phase-setup.ts";
 import {
   BATTLE_START_STEPS,

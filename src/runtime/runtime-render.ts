@@ -5,19 +5,6 @@
  * Extracted from runtime.ts to reduce composition-root fan-out.
  */
 
-import {
-  type Dpad,
-  type FloatingActions,
-  type QuitButton,
-  updateTouchControls,
-  type ZoomButton,
-} from "../input/input-touch-update.ts";
-import type {
-  CreateBannerUiFn,
-  CreateOnlineOverlayFn,
-  CreateRenderSummaryMessageFn,
-  CreateStatusBarFn,
-} from "../render/render-composition.ts";
 import type { UpgradePickDialogState } from "../shared/dialog-types.ts";
 import { SCORE_DELTA_DISPLAY_TIME } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
@@ -33,6 +20,17 @@ import type {
   InputReceiver,
   PlayerController,
 } from "../shared/system-interfaces.ts";
+import type {
+  CreateBannerUiFn,
+  CreateOnlineOverlayFn,
+  CreateRenderSummaryMessageFn,
+  CreateStatusBarFn,
+  Dpad,
+  FloatingActions,
+  QuitButton,
+  TouchControlsDeps,
+  ZoomButton,
+} from "../shared/ui-contracts.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
 
 interface RenderSystemDeps {
@@ -75,6 +73,7 @@ interface RenderSystemDeps {
     sy: number,
   ) => { x: number; y: number };
   readonly getContainerHeight: () => number;
+  readonly updateTouchControls: (deps: TouchControlsDeps) => void;
 }
 
 export function createRenderSystem(deps: RenderSystemDeps): () => void {
@@ -170,7 +169,7 @@ export function createRenderSystem(deps: RenderSystemDeps): () => void {
 
     // Update touch controls (loupe, d-pad, zoom, quit, floating actions)
     const touch = deps.getTouch();
-    updateTouchControls({
+    deps.updateTouchControls({
       mode: runtimeState.mode,
       state: runtimeState.state,
       phantoms: runtimeState.frame.phantoms,

@@ -19,7 +19,7 @@ import {
   executeTransition,
   showBattlePhaseBanner,
 } from "../src/game/phase-transition-steps.ts";
-import { type BannerState, showBannerTransition } from "../src/game/phase-banner.ts";
+import { showBannerTransition } from "../src/game/phase-banner.ts";
 import {
   assertPhase,
   createScenario,
@@ -29,6 +29,7 @@ import { enterCannonPlacePhase, nextPhase } from "../src/game/game-engine.ts";
 import { initControllerForCannonPhase, prepareCannonPhase } from "../src/game/phase-setup.ts";
 import { SPECTATOR_SLOT, type ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { Phase } from "../src/shared/game-phase.ts";
+import type { BannerState } from "../src/shared/ui-contracts.ts";
 
 // ---------------------------------------------------------------------------
 // Online watcher: cannon banner missing preservePrevScene

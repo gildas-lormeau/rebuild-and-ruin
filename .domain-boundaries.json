@@ -33,6 +33,7 @@
       "src/shared/render-spy.ts",
       "src/shared/ui-mode.ts",
       "src/shared/input-action.ts",
+      "src/shared/ui-contracts.ts",
       "server/protocol.ts"
     ],
     "game": [
@@ -42,6 +43,7 @@
       "src/game/battle-system.ts",
       "src/game/build-system.ts",
       "src/game/castle-generation.ts",
+      "src/game/game-actions.ts",
       "src/game/map-generation.ts",
       "src/game/phase-setup.ts",
       "src/game/combo-system.ts",

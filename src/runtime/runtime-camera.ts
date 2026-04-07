@@ -41,8 +41,6 @@ interface CameraDeps {
   getFrameDt: () => number;
   setFrameAnnouncement: (text: string) => void;
   getPointerPlayerCrosshair?: () => { x: number; y: number } | null;
-  /** Set the pointer player's crosshair position (for battle targeting). */
-  setPointerPlayerCrosshair?: (x: number, y: number) => void;
 }
 
 // Note: unlike other sub-systems, CameraDeps is all getters — no runtimeState to destructure.
@@ -687,16 +685,16 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   let lastBattleCrosshair: { x: number; y: number } | undefined;
 
   /**
-   * Position the human crosshair at the start of battle (touch devices).
+   * Compute the target position for the human crosshair at battle start (touch devices).
    * - First battle: aim at best enemy's home tower.
    * - Subsequent battles: restore last position (unless that opponent died).
-   * - Without auto-zoom: don't move the cursor (first tap positions it).
-   */
-  function aimAtEnemyCastle(): void {
+   * - Without auto-zoom: returns null (first tap positions it).
+   *
+   * Pure computation — the caller applies the result to the controller. */
+  function computeBattleTarget(): { x: number; y: number } | null {
     const state = deps.getState();
-    if (!state) return;
-    if (!deps.setPointerPlayerCrosshair) return;
-    if (!(mobileZoomEnabled && zoomActivated)) return;
+    if (!state) return null;
+    if (!(mobileZoomEnabled && zoomActivated)) return null;
 
     // Subsequent battle: restore last position if targeted opponent is alive
     if (lastBattleCrosshair) {
@@ -710,11 +708,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
           pid !== povPlayerId() &&
           !state.players[pid]?.eliminated
         ) {
-          deps.setPointerPlayerCrosshair(
-            lastBattleCrosshair.x,
-            lastBattleCrosshair.y,
-          );
-          return;
+          return { x: lastBattleCrosshair.x, y: lastBattleCrosshair.y };
         }
       }
       // Targeted opponent died or invalid — fall through to best enemy
@@ -722,18 +716,18 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
 
     // First battle or opponent died: aim at best enemy's home tower
     const zone = getBestEnemyZone();
-    if (zone === null) return;
+    if (zone === null) return null;
     const pid = state.playerZones.indexOf(zone);
     const tower = pid >= 0 ? state.players[pid]?.homeTower : null;
-    if (!tower) return;
+    if (!tower) return null;
     const px = towerCenterPx(tower);
-    deps.setPointerPlayerCrosshair(px.x, px.y);
     lastBattleCrosshair = { x: px.x, y: px.y };
+    return { x: px.x, y: px.y };
   }
 
-  function saveBattleCrosshair(): void {
-    const ch = deps.getPointerPlayerCrosshair?.();
-    if (ch) lastBattleCrosshair = { x: ch.x, y: ch.y };
+  /** Store a crosshair position for restoration at the next battle start. */
+  function saveBattleCrosshair(pos: { x: number; y: number }): void {
+    lastBattleCrosshair = { x: pos.x, y: pos.y };
   }
 
   function resetBattleCrosshair(): void {
@@ -767,7 +761,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     clearCastleBuildViewport,
     enableMobileZoom,
     isMobileAutoZoom: () => mobileZoomEnabled && zoomActivated,
-    aimAtEnemyCastle,
+    computeBattleTarget,
     saveBattleCrosshair,
     resetBattleCrosshair,
   };

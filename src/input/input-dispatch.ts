@@ -40,65 +40,19 @@ import {
 } from "../shared/game-phase.ts";
 import type { WorldPos } from "../shared/geometry-types.ts";
 import { Action } from "../shared/input-action.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { findNearestTower, towerAtPixel } from "../shared/spatial.ts";
 import {
-  type BattleViewState,
-  type BuildViewState,
-  type CannonViewState,
   type InputReceiver,
   isMovementAction,
   type PlayerController,
 } from "../shared/system-interfaces.ts";
-import {
-  type GameState,
-  isMasterBuilderLocked,
-  type SelectionState,
-} from "../shared/types.ts";
+import { type GameState, isMasterBuilderLocked } from "../shared/types.ts";
+import type {
+  GameActionDeps,
+  OverlayActionDeps,
+  PointerMoveDeps,
+} from "../shared/ui-contracts.ts";
 import { Mode } from "../shared/ui-mode.ts";
-
-export interface OverlayActionDeps {
-  options?: {
-    isActive: () => boolean;
-    moveCursor: (dir: -1 | 1) => void;
-    changeValue: (dir: -1 | 1) => void;
-    confirm: () => void;
-  };
-  /** Centralized per-player dialog action (life-lost, upgrade pick).
-   *  The caller resolves the playerId upstream (pointer player for touch,
-   *  matched controller for keyboard). Returns true if consumed. */
-  dialogAction?: (action: Action) => boolean;
-  gameOver?: {
-    isActive: () => boolean;
-    toggleFocus: () => void;
-    confirm: () => void;
-  };
-}
-
-export interface GameActionDeps {
-  getSelectionStates: () => Map<number, SelectionState>;
-  highlightTowerForPlayer: (
-    idx: number,
-    zone: number,
-    pid: ValidPlayerSlot,
-  ) => void;
-  confirmSelectionAndStartBuild: (
-    pid: ValidPlayerSlot,
-    isReselect?: boolean,
-  ) => boolean;
-  isSelectionReady?: () => boolean;
-  tryPlacePieceAndSend: (
-    ctrl: PlayerController & InputReceiver,
-    state: BuildViewState,
-  ) => void;
-  tryPlaceCannonAndSend: (
-    ctrl: PlayerController & InputReceiver,
-    state: CannonViewState,
-    max: number,
-  ) => void;
-  onPieceRotated?: () => void;
-  fireAndSend: (ctrl: PlayerController, state: BattleViewState) => void;
-}
 
 interface QuitFlowDeps {
   getPending: () => boolean;
@@ -109,28 +63,6 @@ interface QuitFlowDeps {
   getControllers: () => PlayerController[];
   isHuman: (ctrl: PlayerController) => boolean;
 }
-
-export interface PointerMoveDeps {
-  withPointerPlayer: (
-    action: (human: PlayerController & InputReceiver) => void,
-  ) => void;
-  coords: {
-    screenToWorld: (x: number, y: number) => WorldPos;
-    pixelToTile: (x: number, y: number) => { row: number; col: number };
-  };
-  gameAction: Pick<
-    GameActionDeps,
-    "getSelectionStates" | "highlightTowerForPlayer" | "isSelectionReady"
-  >;
-  maybeSendAimUpdate: (x: number, y: number) => void;
-}
-
-export type DispatchPointerMoveFn = (
-  x: number,
-  y: number,
-  state: GameState,
-  deps: PointerMoveDeps,
-) => void;
 
 const TOUCH_CLICK_SUPPRESS_MS = 500;
 /** Seconds to wait before second ESC/✕ actually quits.
@@ -274,7 +206,11 @@ export function dispatchPlacement(
     ) => void;
     gameAction: Pick<
       GameActionDeps,
-      "tryPlacePieceAndSend" | "tryPlaceCannonAndSend"
+      | "tryPlacePieceAndSend"
+      | "tryPlaceCannonAndSend"
+      | "onPiecePlaced"
+      | "onPieceFailed"
+      | "onCannonPlaced"
     >;
   },
 ): void {
@@ -463,18 +399,15 @@ function dispatchPlacementAction(
   ctrl: PlayerController & InputReceiver,
   action: Action,
   state: GameState,
-  deps: {
-    tryPlacePieceAndSend: (
-      human: PlayerController & InputReceiver,
-      state: GameState,
-    ) => void;
-    tryPlaceCannonAndSend: (
-      human: PlayerController & InputReceiver,
-      state: GameState,
-      max: number,
-    ) => void;
-    onPieceRotated?: () => void;
-  },
+  deps: Pick<
+    GameActionDeps,
+    | "tryPlacePieceAndSend"
+    | "tryPlaceCannonAndSend"
+    | "onPieceRotated"
+    | "onPiecePlaced"
+    | "onPieceFailed"
+    | "onCannonPlaced"
+  >,
 ): boolean {
   // Master Builder lockout: allow cursor movement but block placement + rotation
   const locked =
@@ -500,24 +433,24 @@ function dispatchPlacementAction(
 export function dispatchPlacementConfirm(
   ctrl: PlayerController & InputReceiver,
   state: GameState,
-  deps: {
-    tryPlacePieceAndSend: (
-      human: PlayerController & InputReceiver,
-      state: GameState,
-    ) => void;
-    tryPlaceCannonAndSend: (
-      human: PlayerController & InputReceiver,
-      state: GameState,
-      max: number,
-    ) => void;
-  },
+  deps: Pick<
+    GameActionDeps,
+    | "tryPlacePieceAndSend"
+    | "tryPlaceCannonAndSend"
+    | "onPiecePlaced"
+    | "onPieceFailed"
+    | "onCannonPlaced"
+  >,
 ): void {
   if (state.phase === Phase.WALL_BUILD) {
     if (isMasterBuilderLocked(state, ctrl.playerId)) return;
-    deps.tryPlacePieceAndSend(ctrl, state);
+    const placed = deps.tryPlacePieceAndSend(ctrl, state);
+    if (placed) deps.onPiecePlaced?.();
+    else deps.onPieceFailed?.();
   } else if (state.phase === Phase.CANNON_PLACE) {
     const max = state.cannonLimits[ctrl.playerId] ?? 0;
-    deps.tryPlaceCannonAndSend(ctrl, state, max);
+    const placed = deps.tryPlaceCannonAndSend(ctrl, state, max);
+    if (placed) deps.onCannonPlaced?.();
   }
 }
 

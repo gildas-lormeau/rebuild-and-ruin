@@ -6,12 +6,9 @@
 
 import { isPlacementPhase, Phase } from "../shared/game-phase.ts";
 import { TILE_SIZE } from "../shared/grid.ts";
-import type { LoupeHandle } from "../shared/overlay-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type {
-  InputReceiver,
-  PlayerController,
-} from "../shared/system-interfaces.ts";
+import type { PlayerController } from "../shared/system-interfaces.ts";
+import type { TouchControlsDeps } from "../shared/ui-contracts.ts";
 import { Mode } from "../shared/ui-mode.ts";
 
 type TouchBtnRule = boolean | "interactive";
@@ -23,52 +20,6 @@ interface TouchButtonState {
   placementValidity: TouchBtnRule;
   zoom: TouchBtnRule;
   quit: boolean;
-}
-
-export interface Dpad {
-  update(phase: Phase | null, disableRotate?: boolean): void;
-  setConfirmValid(valid: boolean): void;
-}
-
-export interface FloatingActions {
-  update(
-    visible: boolean,
-    x: number,
-    y: number,
-    nearTop: boolean,
-    leftHanded: boolean,
-  ): void;
-  setConfirmValid(valid: boolean): void;
-}
-
-export interface ZoomButton {
-  update(active: boolean): void;
-}
-
-export interface QuitButton {
-  update(phase: Phase | null): void;
-}
-
-interface TouchControlsDeps {
-  mode: Mode;
-  state: { phase: Phase };
-  phantoms: {
-    piecePhantoms?: { playerId: ValidPlayerSlot; valid: boolean }[];
-    cannonPhantoms?: { playerId: ValidPlayerSlot; valid: boolean }[];
-  };
-  directTouchActive: boolean;
-  clearDirectTouch: () => void;
-  leftHanded: boolean;
-  pointerPlayer: () => (PlayerController & InputReceiver) | null;
-  dpad: Dpad | null;
-  floatingActions: FloatingActions | null;
-  homeZoomButton: ZoomButton | null;
-  enemyZoomButton: ZoomButton | null;
-  quitButton: QuitButton | null;
-  loupeHandle: LoupeHandle | null;
-  worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
-  screenToContainerCSS: (sx: number, sy: number) => { x: number; y: number };
-  containerHeight: number;
 }
 
 const NEAR_TOP_THRESHOLD = 0.15;

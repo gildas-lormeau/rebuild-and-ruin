@@ -243,10 +243,11 @@ export interface CameraSystem {
   isMobileAutoZoom: () => boolean;
 
   // Touch battle targeting
-  /** Aim at enemy castle at battle start (touch devices). */
-  aimAtEnemyCastle: () => void;
-  /** Save human crosshair position for restoration next battle. */
-  saveBattleCrosshair: () => void;
+  /** Compute target position for human crosshair at battle start (touch devices).
+   *  Returns null when no target is applicable. Caller applies to controller. */
+  computeBattleTarget: () => { x: number; y: number } | null;
+  /** Store a crosshair position for restoration at the next battle start. */
+  saveBattleCrosshair: (pos: { x: number; y: number }) => void;
   /** Clear saved crosshair (called on resetUIState). */
   resetBattleCrosshair: () => void;
 }

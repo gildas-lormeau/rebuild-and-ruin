@@ -26,6 +26,7 @@ import {
   TEXT_ALIGN_RIGHT,
   TEXT_WHITE,
 } from "../shared/theme.ts";
+import type { ControlsHit, OptionsHit } from "../shared/ui-contracts.ts";
 import {
   beginModalScreen,
   INSET,
@@ -40,36 +41,6 @@ import {
   TEXT_DISABLED,
   TEXT_MUTED,
 } from "./render-ui-theme.ts";
-
-/** Hit-test result for a tap/click on the options screen. */
-export type OptionsHit =
-  | { type: "close" }
-  | { type: "row"; index: number }
-  | { type: "arrow"; index: number; dir: -1 | 1 }
-  | null;
-
-/** Hit-test result for a tap/click on the controls screen. */
-export type ControlsHit =
-  | { type: "close" }
-  | { type: "cell"; playerIdx: number; actionIdx: number }
-  | null;
-
-export type OptionsScreenHitTestFn = (
-  x: number,
-  y: number,
-  W: number,
-  H: number,
-  optionCount: number,
-) => OptionsHit;
-
-export type ControlsScreenHitTestFn = (
-  x: number,
-  y: number,
-  W: number,
-  H: number,
-  colCount: number,
-  rowCount: number,
-) => ControlsHit;
 
 const HIT_ROW = "row";
 const HIT_CELL = "cell";

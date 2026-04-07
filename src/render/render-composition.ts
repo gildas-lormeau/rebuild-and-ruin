@@ -1,19 +1,4 @@
-/**
- * Overlay composition, layout, and hit-test utilities.
- *
- * Parameter convention: functions with ≤3 closely-related args use positional
- * parameters; functions with >3 args or heterogeneous config use a `params`
- * object for readability at the call site.
- *
- * Coordinate spaces (parameter naming convention across all render-* files):
- *   - screenX / screenY — raw canvas pixels (CSS × devicePixelRatio)
- *   - tileX / tileY    — game-grid tile indices (after ÷ TILE_SIZE)
- *   - overlayCtx       — canvas 2D context for overlay drawing
- */
-
-import type { BannerState } from "../game/phase-banner.ts";
 import { UPGRADE_PICK_MAX_TIMER } from "../game/upgrade-pick.ts";
-import type { Impact } from "../shared/battle-types.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
@@ -58,12 +43,12 @@ import {
   LIFE_LOST_PANEL_W as PANEL_W,
 } from "../shared/theme.ts";
 import { type GameState, type SelectionState } from "../shared/types.ts";
+import type {
+  LobbyHit,
+  OnlineOverlayParams,
+  RenderSummaryParams,
+} from "../shared/ui-contracts.ts";
 import { UPGRADE_POOL } from "../shared/upgrade-defs.ts";
-
-/** Result of a lobby click hit-test. */
-export type LobbyHit =
-  | { type: "gear" }
-  | { type: "slot"; slotId: ValidPlayerSlot };
 
 interface GameOverLayout {
   panelW: number;
@@ -75,142 +60,6 @@ interface GameOverLayout {
   rematchX: number;
   menuX: number;
 }
-
-export type CreateBannerUiFn = (
-  active: boolean,
-  text: string,
-  progress: number,
-  subtitle?: string,
-  modifierDiff?: {
-    id: string;
-    changedTiles: readonly number[];
-    gruntsSpawned: number;
-  },
-) =>
-  | {
-      text: string;
-      subtitle?: string;
-      y: number;
-      modifierDiff?: {
-        id: string;
-        changedTiles: readonly number[];
-        gruntsSpawned: number;
-      };
-    }
-  | undefined;
-
-export type CreateOnlineOverlayFn = (
-  params: OnlineOverlayParams,
-) => RenderOverlay;
-
-/** Parameter object for createOnlineOverlay — extracted so consumers can import the type. */
-export interface OnlineOverlayParams {
-  previousSelection: RenderOverlay["selection"];
-  state: GameState;
-  banner: Pick<
-    BannerState,
-    | "active"
-    | "prevCastles"
-    | "prevTerritory"
-    | "prevWalls"
-    | "prevEntities"
-    | "newTerritory"
-    | "newWalls"
-    | "wallsBeforeSweep"
-  >;
-  battleAnim: {
-    territory: Set<number>[];
-    walls: Set<number>[];
-    flights: ReadonlyArray<{
-      flight: { startX: number; startY: number; endX: number; endY: number };
-      progress: number;
-    }>;
-    impacts: Impact[];
-  };
-  frame: {
-    crosshairs: Array<{
-      x: number;
-      y: number;
-      playerId: ValidPlayerSlot;
-      cannonReady?: boolean;
-    }>;
-    phantoms: RenderOverlay["phantoms"];
-    announcement?: string;
-    gameOver?: GameOverOverlay;
-  };
-  bannerUi?: { text: string; subtitle?: string; y: number };
-  lifeLostDialog: LifeLostDialogState | null;
-  upgradePickDialog: UpgradePickDialogState | null;
-  inBattle: boolean;
-  povPlayerId: ValidPlayerSlot;
-  hasPointerPlayer: boolean;
-  upgradePickInteractiveId: PlayerSlotId;
-  playerNames: ReadonlyArray<string>;
-  playerColors: ReadonlyArray<{ wall: RGB }>;
-  getLifeLostPanelPos: (playerId: ValidPlayerSlot) => {
-    px: number;
-    py: number;
-  };
-}
-
-export interface RenderSummaryParams {
-  phaseName: string;
-  timer: number;
-  crosshairs: Array<{ x: number; y: number; playerId: ValidPlayerSlot }>;
-  piecePhantomsCount: number;
-  cannonPhantomsCount: number;
-  impactsCount: number;
-  cannonballsCount: number;
-  selectionHighlights?: Array<{
-    playerId: ValidPlayerSlot;
-    towerIdx: number;
-    confirmed?: boolean;
-  }>;
-}
-
-export type CreateRenderSummaryMessageFn = (
-  params: RenderSummaryParams,
-) => string;
-
-export type CreateStatusBarFn = (
-  state: GameState,
-  playerColors: readonly { interiorLight: RGB }[],
-  povPlayerId?: number,
-  hasPointerPlayer?: boolean,
-) => {
-  round: string;
-  phase: string;
-  timer: string;
-  modifier: string | undefined;
-  upgrades: string[] | undefined;
-  players: {
-    score: number;
-    cannons: number;
-    lives: number;
-    color: RGB;
-    eliminated: boolean;
-  }[];
-};
-
-export type ComputeLobbyLayoutFn = (
-  W: number,
-  H: number,
-  count: number,
-) => { gap: number; rectW: number; rectH: number; rectY: number };
-
-export type LobbyClickHitTestFn = (params: {
-  canvasX: number;
-  canvasY: number;
-  canvasW: number;
-  canvasH: number;
-  tileSize: number;
-  slotCount: number;
-  computeLayout: (
-    W: number,
-    H: number,
-    count: number,
-  ) => { gap: number; rectW: number; rectH: number; rectY: number };
-}) => LobbyHit | null;
 
 const PHASE_LABELS = new Map<Phase, string>([
   [Phase.CASTLE_SELECT, "Select"],

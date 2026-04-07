@@ -11,19 +11,19 @@
 import { isSelectionPhase, Phase } from "../shared/game-phase.ts";
 import { Action } from "../shared/input-action.ts";
 import { PLAYER_COLORS } from "../shared/player-config.ts";
-import type {
-  BuildViewState,
-  CannonViewState,
-  InputReceiver,
-  PlayerController,
-} from "../shared/system-interfaces.ts";
 import {
   rgb,
   TOUCH_ZOOM_ENEMY_BG,
   TOUCH_ZOOM_HOME_BG,
   ZOOM_BUTTON_ALPHA,
 } from "../shared/theme.ts";
-import { type GameState } from "../shared/types.ts";
+import type {
+  DpadDeps,
+  FloatingActionsDeps,
+  FloatingActionsHandle,
+  QuitButtonDeps,
+  ZoomButtonDeps,
+} from "../shared/ui-contracts.ts";
 import { isInteractiveMode, Mode } from "../shared/ui-mode.ts";
 import { TAP_MAX_DIST } from "./input.ts";
 import {
@@ -31,113 +31,7 @@ import {
   dispatchOverlayAction,
   dispatchPlacementConfirm,
   dispatchQuit,
-  type GameActionDeps,
-  type OverlayActionDeps,
 } from "./input-dispatch.ts";
-
-export interface DpadDeps {
-  getState: () => GameState | undefined;
-  getMode: () => Mode;
-  withPointerPlayer: (
-    action: (human: PlayerController & InputReceiver) => void,
-  ) => void;
-  onHapticTap?: () => void;
-  isHost: () => boolean;
-  /** Join P1 in lobby (or skip if already joined). */
-  lobbyAction: () => void;
-  getLeftHanded: () => boolean;
-  /** Clear direct-touch mode (equivalent to setDirectTouchActive(false)).
-   *  Named differently for brevity in the d-pad context where only clearing is needed.
-   *  See setDirectTouchActive in input.ts for the full setter. */
-  clearDirectTouch?: () => void;
-  /** Shared game action deps (selection, placement, battle). */
-  gameAction: GameActionDeps;
-  /** Shared overlay action deps (options, life-lost, game-over). */
-  overlay: OverlayActionDeps;
-}
-
-export interface QuitButtonDeps {
-  getQuitPending: () => boolean;
-  setQuitPending: (quitPending: boolean) => void;
-  setQuitTimer: (quitTimer: number) => void;
-  setQuitMessage: (msg: string) => void;
-  showLobby: () => void;
-  getControllers: () => PlayerController[];
-  isHuman: (ctrl: PlayerController) => boolean;
-}
-
-export interface ZoomButtonDeps {
-  getState: () => GameState | undefined;
-  getCameraZone: () => number | undefined;
-  setCameraZone: (zone: number | undefined) => void;
-  povPlayerId: () => number;
-  getEnemyZones: () => number[];
-  /** Move the human crosshair to a zone's home tower (battle auto-zoom). */
-  aimAtZone?: (zone: number) => void;
-}
-
-export interface FloatingActionsDeps {
-  getState: () => GameState | undefined;
-  getMode: () => Mode;
-  withPointerPlayer: (
-    action: (human: PlayerController & InputReceiver) => void,
-  ) => void;
-  tryPlacePieceAndSend: (
-    human: PlayerController & InputReceiver,
-    state: BuildViewState,
-  ) => void;
-  tryPlaceCannonAndSend: (
-    human: PlayerController & InputReceiver,
-    state: CannonViewState,
-    max: number,
-  ) => void;
-  onPieceRotated?: () => void;
-  onHapticTap?: () => void;
-  /** Forward a drag touch to the canvas pointer-move logic. */
-  onDrag?: (clientX: number, clientY: number) => void;
-}
-
-export interface FloatingActionsHandle {
-  /** Reposition + show/hide based on current phantom screen coords. */
-  update: (
-    visible: boolean,
-    x: number,
-    y: number,
-    nearTop: boolean,
-    leftHanded: boolean,
-  ) => void;
-  /** Toggle the confirm button's disabled look based on placement validity. */
-  setConfirmValid: (valid: boolean) => void;
-}
-
-export type CreateDpadFn = (
-  deps: DpadDeps,
-  container: HTMLElement,
-) => {
-  update: (phase: Phase | null, disableRotate?: boolean) => void;
-  setLeftHanded: (lh: boolean) => void;
-  setConfirmValid: (valid: boolean) => void;
-};
-
-export type CreateQuitButtonFn = (
-  deps: QuitButtonDeps,
-  container: HTMLElement,
-) => { update: (phase?: Phase | null) => void };
-
-export type CreateHomeZoomButtonFn = (
-  deps: ZoomButtonDeps,
-  container: HTMLElement,
-) => { update: (active?: boolean) => void };
-
-export type CreateEnemyZoomButtonFn = (
-  deps: ZoomButtonDeps,
-  container: HTMLElement,
-) => { update: (active?: boolean) => void };
-
-export type CreateFloatingActionsFn = (
-  deps: FloatingActionsDeps,
-  element: HTMLElement,
-) => FloatingActionsHandle;
 
 const CLS_DISABLED = "disabled";
 const CLS_HIDDEN = "hidden";

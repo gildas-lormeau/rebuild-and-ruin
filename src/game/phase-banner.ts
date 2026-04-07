@@ -1,31 +1,8 @@
-import type { ModifierDiff } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { CastleData, EntityOverlay } from "../shared/overlay-types.ts";
-import { type GameState } from "../shared/types.ts";
+import type { GameState } from "../shared/types.ts";
+import type { BannerState } from "../shared/ui-contracts.ts";
 import { fireOnce } from "../shared/utils.ts";
-
-export interface BannerState {
-  active: boolean;
-  progress: number;
-  text: string;
-  subtitle?: string;
-  callback: (() => void) | null;
-  /** Scene snapshots for banner crossfade animation:
-   *  prev* = frozen before checkpoint applies, new* = revealed after banner lifts. */
-  prevCastles?: CastleData[];
-  prevTerritory?: Set<number>[];
-  prevWalls?: Set<number>[];
-  /** Snapshot of all map entities at banner start — used to keep the scene
-   *  stable while applyCheckpoint mutates live state behind the banner. */
-  prevEntities?: EntityOverlay;
-  newTerritory?: Set<number>[];
-  newWalls?: Set<number>[];
-  /** Pre-sweep wall snapshot; consumed by showBannerTransition for the old scene. */
-  wallsBeforeSweep?: Set<number>[];
-  /** Modifier reveal diff — set when showing a modifier reveal banner.
-   *  Consumed by the renderer to progressively show map changes. */
-  modifierDiff?: ModifierDiff;
-}
 
 interface ShowBannerDeps {
   banner: BannerState;

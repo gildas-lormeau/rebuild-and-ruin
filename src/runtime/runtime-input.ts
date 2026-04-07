@@ -1,16 +1,3 @@
-import type { RegisterOnlineInputDeps } from "../input/input.ts";
-import type { DispatchPointerMoveFn } from "../input/input-dispatch.ts";
-import type { RegisterKeyboardHandlersFn } from "../input/input-keyboard.ts";
-import type { RegisterMouseHandlersFn } from "../input/input-mouse.ts";
-import type { RegisterTouchHandlersFn } from "../input/input-touch-canvas.ts";
-import type {
-  CreateDpadFn,
-  CreateEnemyZoomButtonFn,
-  CreateFloatingActionsFn,
-  CreateHomeZoomButtonFn,
-  CreateQuitButtonFn,
-  FloatingActionsHandle,
-} from "../input/input-touch-ui.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
@@ -36,6 +23,19 @@ import {
   type PlayerController,
   type SoundSystem,
 } from "../shared/system-interfaces.ts";
+import type {
+  CreateDpadFn,
+  CreateEnemyZoomButtonFn,
+  CreateFloatingActionsFn,
+  CreateHomeZoomButtonFn,
+  CreateQuitButtonFn,
+  DispatchPointerMoveFn,
+  FloatingActionsHandle,
+  RegisterKeyboardHandlersFn,
+  RegisterMouseHandlersFn,
+  RegisterOnlineInputDeps,
+  RegisterTouchHandlersFn,
+} from "../shared/ui-contracts.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { type RuntimeState, safeState, setMode } from "./runtime-state.ts";
 import type { CameraSystem } from "./runtime-types.ts";
@@ -213,16 +213,15 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
   const runtimeState = deps.runtimeState;
   const { camera, sound, lobby, selection } = deps;
 
-  // ── Wrapped placement handlers ──
-  const placeCannon = wrapCannonPlace(
+  // ── Placement handlers (raw — sound feedback via dispatch callbacks) ──
+  const placeCannon =
     deps.network.tryPlaceCannonAndSend ??
-      ((ctrl, gameState, max) => ctrl.tryPlaceCannon(gameState, max)),
-    sound,
-  );
-  const placePieceWrapped = wrapPiecePlace(
-    deps.network.tryPlacePieceAndSend,
-    sound,
-  );
+    ((
+      ctrl: PlayerController & InputReceiver,
+      gameState: CannonViewState,
+      max: number,
+    ) => ctrl.tryPlaceCannon(gameState, max));
+  const placePieceRaw = deps.network.tryPlacePieceAndSend;
 
   const coordsDeps: RegisterOnlineInputDeps["coords"] = {
     pixelToTile: camera.pixelToTile,
@@ -241,7 +240,7 @@ export function createInputSystem(deps: InputSystemDeps): InputSystem {
     runtimeState,
     selection,
     placeCannon,
-    placePieceWrapped,
+    placePieceRaw,
     sound,
     deps.network.fireAndSend,
   );
@@ -513,6 +512,9 @@ function buildGameActionDeps(
     tryPlaceCannonAndSend: placeCannon,
     tryPlacePieceAndSend: placePiece,
     onPieceRotated: sound.pieceRotated,
+    onPiecePlaced: sound.piecePlaced,
+    onPieceFailed: sound.pieceFailed,
+    onCannonPlaced: sound.cannonPlaced,
     fireAndSend,
   };
 }
@@ -700,6 +702,9 @@ function setupFloatingActions(
         tryPlacePieceAndSend: placePieceAction,
         tryPlaceCannonAndSend: placeCannonAction,
         onPieceRotated: sound.pieceRotated,
+        onPiecePlaced: sound.piecePlaced,
+        onPieceFailed: sound.pieceFailed,
+        onCannonPlaced: sound.cannonPlaced,
         onHapticTap: haptics.tap,
         onDrag: (clientX, clientY) => {
           const state = safeState(runtimeState);
@@ -711,27 +716,4 @@ function setupFloatingActions(
       floatingEl,
     );
   }
-}
-
-function wrapPiecePlace(
-  inner: PlacePieceFn,
-  sound: Pick<SoundSystem, "piecePlaced" | "pieceFailed">,
-): PlacePieceFn {
-  return (ctrl, gameState) => {
-    const ok = inner(ctrl, gameState);
-    if (ok) sound.piecePlaced();
-    else sound.pieceFailed();
-    return ok;
-  };
-}
-
-function wrapCannonPlace(
-  inner: PlaceCannonFn,
-  sound: Pick<SoundSystem, "cannonPlaced">,
-): PlaceCannonFn {
-  return (ctrl, gameState, max) => {
-    const ok = inner(ctrl, gameState, max);
-    if (ok) sound.cannonPlaced();
-    return ok;
-  };
 }

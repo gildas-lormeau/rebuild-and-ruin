@@ -1,12 +1,3 @@
-import type {
-  ComputeLobbyLayoutFn,
-  LobbyClickHitTestFn,
-  LobbyHit,
-} from "../render/render-composition.ts";
-import type {
-  CreateLobbyOverlayFn,
-  UIContext,
-} from "../render/render-ui-screens.ts";
 import {
   LOBBY_SKIP_LOCKOUT,
   LOBBY_SKIP_STEP,
@@ -21,6 +12,13 @@ import {
 } from "../shared/platform.ts";
 import { type KeyBindings, MAX_PLAYERS } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import type {
+  ComputeLobbyLayoutFn,
+  CreateLobbyOverlayFn,
+  LobbyClickHitTestFn,
+  LobbyHit,
+  UIContext,
+} from "../shared/ui-contracts.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
 interface LobbySystemDeps {

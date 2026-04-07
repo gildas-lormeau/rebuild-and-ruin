@@ -1,0 +1,628 @@
+import type { Impact } from "./battle-types.ts";
+import type {
+  ControlsState,
+  GameOverFocus,
+  LifeLostDialogState,
+  UpgradePickDialogState,
+} from "./dialog-types.ts";
+import type { ModifierDiff } from "./game-constants.ts";
+import { Phase } from "./game-phase.ts";
+import type { GameMap, WorldPos } from "./geometry-types.ts";
+import type { Action } from "./input-action.ts";
+import type {
+  CastleData,
+  EntityOverlay,
+  GameOverOverlay,
+  LoupeHandle,
+  RendererInterface,
+  RenderOverlay,
+} from "./overlay-types.ts";
+import type { GameSettings, KeyBindings, SeedMode } from "./player-config.ts";
+import type { PlayerSlotId, ValidPlayerSlot } from "./player-slot.ts";
+import type {
+  BattleViewState,
+  BuildViewState,
+  CannonViewState,
+  InputReceiver,
+  PlayerController,
+} from "./system-interfaces.ts";
+import type { RGB } from "./theme.ts";
+import type { GameState, LobbyState, SelectionState } from "./types.ts";
+import type { Mode } from "./ui-mode.ts";
+
+export interface UIContext {
+  getState: () => GameState | undefined;
+  getOverlay: () => RenderOverlay;
+  settings: GameSettings;
+  getMode: () => Mode;
+  /** Raw field write — assigns runtimeState.mode. Callers (showOptions, closeOptions, etc.)
+   *  are responsible for any state-machine side effects around the transition. */
+  setMode: (mode: Mode) => void;
+  getPaused: () => boolean;
+  setPaused: (paused: boolean) => void;
+  optionsCursor: { value: number };
+  controlsState: ControlsState;
+  getOptionsReturnMode: () => Mode | null;
+  setOptionsReturnMode: (mode: Mode | null) => void;
+  lobby: LobbyState;
+  getFrame: () => { announcement?: string };
+  getLobbyRemaining: () => number;
+  isOnline?: boolean;
+}
+
+export type CreateOptionsOverlayFn = (ctx: UIContext) => {
+  map: GameMap;
+  overlay: RenderOverlay;
+};
+
+export type CreateControlsOverlayFn = (ctx: UIContext) => {
+  map: GameMap;
+  overlay: RenderOverlay;
+};
+
+export type CreateLobbyOverlayFn = (ctx: UIContext) => {
+  map: GameMap;
+  overlay: RenderOverlay;
+};
+
+export type VisibleOptionsFn = (ctx: UIContext) => number[];
+
+export type OptionsScreenHitTestFn = (
+  x: number,
+  y: number,
+  W: number,
+  H: number,
+  optionCount: number,
+) => OptionsHit;
+
+export type ControlsScreenHitTestFn = (
+  x: number,
+  y: number,
+  W: number,
+  H: number,
+  colCount: number,
+  rowCount: number,
+) => ControlsHit;
+
+/** Hit-test result for a tap/click on the options screen. */
+export type OptionsHit =
+  | { type: "close" }
+  | { type: "row"; index: number }
+  | { type: "arrow"; index: number; dir: -1 | 1 }
+  | null;
+
+/** Hit-test result for a tap/click on the controls screen. */
+export type ControlsHit =
+  | { type: "close" }
+  | { type: "cell"; playerIdx: number; actionIdx: number }
+  | null;
+
+export type CreateBannerUiFn = (
+  active: boolean,
+  text: string,
+  progress: number,
+  subtitle?: string,
+  modifierDiff?: {
+    id: string;
+    changedTiles: readonly number[];
+    gruntsSpawned: number;
+  },
+) =>
+  | {
+      text: string;
+      subtitle?: string;
+      y: number;
+      modifierDiff?: {
+        id: string;
+        changedTiles: readonly number[];
+        gruntsSpawned: number;
+      };
+    }
+  | undefined;
+
+export type CreateRenderSummaryMessageFn = (
+  params: RenderSummaryParams,
+) => string;
+
+export interface RenderSummaryParams {
+  phaseName: string;
+  timer: number;
+  crosshairs: Array<{ x: number; y: number; playerId: ValidPlayerSlot }>;
+  piecePhantomsCount: number;
+  cannonPhantomsCount: number;
+  impactsCount: number;
+  cannonballsCount: number;
+  selectionHighlights?: Array<{
+    playerId: ValidPlayerSlot;
+    towerIdx: number;
+    confirmed?: boolean;
+  }>;
+}
+
+export type CreateStatusBarFn = (
+  state: GameState,
+  playerColors: readonly { interiorLight: RGB }[],
+  povPlayerId?: number,
+  hasPointerPlayer?: boolean,
+) => {
+  round: string;
+  phase: string;
+  timer: string;
+  modifier: string | undefined;
+  upgrades: string[] | undefined;
+  players: {
+    score: number;
+    cannons: number;
+    lives: number;
+    color: RGB;
+    eliminated: boolean;
+  }[];
+};
+
+export type ComputeLobbyLayoutFn = (
+  W: number,
+  H: number,
+  count: number,
+) => { gap: number; rectW: number; rectH: number; rectY: number };
+
+export type LobbyClickHitTestFn = (params: {
+  canvasX: number;
+  canvasY: number;
+  canvasW: number;
+  canvasH: number;
+  tileSize: number;
+  slotCount: number;
+  computeLayout: (
+    W: number,
+    H: number,
+    count: number,
+  ) => { gap: number; rectW: number; rectH: number; rectY: number };
+}) => LobbyHit | null;
+
+/** Result of a lobby click hit-test. */
+export type LobbyHit =
+  | { type: "gear" }
+  | { type: "slot"; slotId: ValidPlayerSlot };
+
+export type CreateOnlineOverlayFn = (
+  params: OnlineOverlayParams,
+) => RenderOverlay;
+
+/** Parameter object for createOnlineOverlay — extracted so consumers can import the type. */
+export interface OnlineOverlayParams {
+  previousSelection: RenderOverlay["selection"];
+  state: GameState;
+  banner: Pick<
+    BannerState,
+    | "active"
+    | "prevCastles"
+    | "prevTerritory"
+    | "prevWalls"
+    | "prevEntities"
+    | "newTerritory"
+    | "newWalls"
+    | "wallsBeforeSweep"
+  >;
+  battleAnim: {
+    territory: Set<number>[];
+    walls: Set<number>[];
+    flights: ReadonlyArray<{
+      flight: { startX: number; startY: number; endX: number; endY: number };
+      progress: number;
+    }>;
+    impacts: Impact[];
+  };
+  frame: {
+    crosshairs: Array<{
+      x: number;
+      y: number;
+      playerId: ValidPlayerSlot;
+      cannonReady?: boolean;
+    }>;
+    phantoms: RenderOverlay["phantoms"];
+    announcement?: string;
+    gameOver?: GameOverOverlay;
+  };
+  bannerUi?: { text: string; subtitle?: string; y: number };
+  lifeLostDialog: LifeLostDialogState | null;
+  upgradePickDialog: UpgradePickDialogState | null;
+  inBattle: boolean;
+  povPlayerId: ValidPlayerSlot;
+  hasPointerPlayer: boolean;
+  upgradePickInteractiveId: PlayerSlotId;
+  playerNames: ReadonlyArray<string>;
+  playerColors: ReadonlyArray<{ wall: RGB }>;
+  getLifeLostPanelPos: (playerId: ValidPlayerSlot) => {
+    px: number;
+    py: number;
+  };
+}
+
+export interface BannerState {
+  active: boolean;
+  progress: number;
+  text: string;
+  subtitle?: string;
+  callback: (() => void) | null;
+  /** Scene snapshots for banner crossfade animation:
+   *  prev* = frozen before checkpoint applies, new* = revealed after banner lifts. */
+  prevCastles?: CastleData[];
+  prevTerritory?: Set<number>[];
+  prevWalls?: Set<number>[];
+  /** Snapshot of all map entities at banner start — used to keep the scene
+   *  stable while applyCheckpoint mutates live state behind the banner. */
+  prevEntities?: EntityOverlay;
+  newTerritory?: Set<number>[];
+  newWalls?: Set<number>[];
+  /** Pre-sweep wall snapshot; consumed by showBannerTransition for the old scene. */
+  wallsBeforeSweep?: Set<number>[];
+  /** Modifier reveal diff — set when showing a modifier reveal banner.
+   *  Consumed by the renderer to progressively show map changes. */
+  modifierDiff?: ModifierDiff;
+}
+
+export interface SeedField {
+  focus: (currentValue: string) => void;
+  blur: () => void;
+}
+
+export interface Dpad {
+  update(phase: Phase | null, disableRotate?: boolean): void;
+  setConfirmValid(valid: boolean): void;
+}
+
+export interface FloatingActions {
+  update(
+    visible: boolean,
+    x: number,
+    y: number,
+    nearTop: boolean,
+    leftHanded: boolean,
+  ): void;
+  setConfirmValid(valid: boolean): void;
+}
+
+export interface ZoomButton {
+  update(active: boolean): void;
+}
+
+export interface QuitButton {
+  update(phase: Phase | null): void;
+}
+
+export type DispatchPointerMoveFn = (
+  x: number,
+  y: number,
+  state: GameState,
+  deps: PointerMoveDeps,
+) => void;
+
+// Function type export — consumed as type-only import by runtime/
+export type RegisterKeyboardHandlersFn = (
+  deps: RegisterOnlineInputDeps,
+) => void;
+
+// Function type export — consumed as type-only import by runtime/
+export type RegisterMouseHandlersFn = (deps: RegisterOnlineInputDeps) => void;
+
+// Function type export — consumed as type-only import by runtime/
+export type RegisterTouchHandlersFn = (deps: RegisterOnlineInputDeps) => void;
+
+export interface OverlayActionDeps {
+  options?: {
+    isActive: () => boolean;
+    moveCursor: (dir: -1 | 1) => void;
+    changeValue: (dir: -1 | 1) => void;
+    confirm: () => void;
+  };
+  /** Centralized per-player dialog action (life-lost, upgrade pick).
+   *  The caller resolves the playerId upstream (pointer player for touch,
+   *  matched controller for keyboard). Returns true if consumed. */
+  dialogAction?: (action: Action) => boolean;
+  gameOver?: {
+    isActive: () => boolean;
+    toggleFocus: () => void;
+    confirm: () => void;
+  };
+}
+
+export interface DpadDeps {
+  getState: () => GameState | undefined;
+  getMode: () => Mode;
+  withPointerPlayer: (
+    action: (human: PlayerController & InputReceiver) => void,
+  ) => void;
+  onHapticTap?: () => void;
+  isHost: () => boolean;
+  /** Join P1 in lobby (or skip if already joined). */
+  lobbyAction: () => void;
+  getLeftHanded: () => boolean;
+  /** Clear direct-touch mode (equivalent to setDirectTouchActive(false)).
+   *  Named differently for brevity in the d-pad context where only clearing is needed.
+   *  See setDirectTouchActive in input.ts for the full setter. */
+  clearDirectTouch?: () => void;
+  /** Shared game action deps (selection, placement, battle). */
+  gameAction: GameActionDeps;
+  /** Shared overlay action deps (options, life-lost, game-over). */
+  overlay: OverlayActionDeps;
+}
+
+export interface QuitButtonDeps {
+  getQuitPending: () => boolean;
+  setQuitPending: (quitPending: boolean) => void;
+  setQuitTimer: (quitTimer: number) => void;
+  setQuitMessage: (msg: string) => void;
+  showLobby: () => void;
+  getControllers: () => PlayerController[];
+  isHuman: (ctrl: PlayerController) => boolean;
+}
+
+export interface ZoomButtonDeps {
+  getState: () => GameState | undefined;
+  getCameraZone: () => number | undefined;
+  setCameraZone: (zone: number | undefined) => void;
+  povPlayerId: () => number;
+  getEnemyZones: () => number[];
+  /** Move the human crosshair to a zone's home tower (battle auto-zoom). */
+  aimAtZone?: (zone: number) => void;
+}
+
+export interface FloatingActionsDeps {
+  getState: () => GameState | undefined;
+  getMode: () => Mode;
+  withPointerPlayer: (
+    action: (human: PlayerController & InputReceiver) => void,
+  ) => void;
+  tryPlacePieceAndSend: (
+    human: PlayerController & InputReceiver,
+    state: BuildViewState,
+  ) => boolean;
+  tryPlaceCannonAndSend: (
+    human: PlayerController & InputReceiver,
+    state: CannonViewState,
+    max: number,
+  ) => boolean;
+  onPieceRotated?: () => void;
+  onPiecePlaced?: () => void;
+  onPieceFailed?: () => void;
+  onCannonPlaced?: () => void;
+  onHapticTap?: () => void;
+  /** Forward a drag touch to the canvas pointer-move logic. */
+  onDrag?: (clientX: number, clientY: number) => void;
+}
+
+export type CreateDpadFn = (
+  deps: DpadDeps,
+  container: HTMLElement,
+) => {
+  update: (phase: Phase | null, disableRotate?: boolean) => void;
+  setLeftHanded: (lh: boolean) => void;
+  setConfirmValid: (valid: boolean) => void;
+};
+
+export type CreateEnemyZoomButtonFn = (
+  deps: ZoomButtonDeps,
+  container: HTMLElement,
+) => { update: (active?: boolean) => void };
+
+export type CreateFloatingActionsFn = (
+  deps: FloatingActionsDeps,
+  element: HTMLElement,
+) => FloatingActionsHandle;
+
+export type CreateHomeZoomButtonFn = (
+  deps: ZoomButtonDeps,
+  container: HTMLElement,
+) => { update: (active?: boolean) => void };
+
+export type CreateQuitButtonFn = (
+  deps: QuitButtonDeps,
+  container: HTMLElement,
+) => { update: (phase?: Phase | null) => void };
+
+export interface FloatingActionsHandle {
+  /** Reposition + show/hide based on current phantom screen coords. */
+  update: (
+    visible: boolean,
+    x: number,
+    y: number,
+    nearTop: boolean,
+    leftHanded: boolean,
+  ) => void;
+  /** Toggle the confirm button's disabled look based on placement validity. */
+  setConfirmValid: (valid: boolean) => void;
+}
+
+export interface RegisterOnlineInputDeps {
+  // --- Core (used by all handlers) ---
+  renderer: RendererInterface;
+  getState: () => GameState | undefined;
+  getMode: () => Mode;
+  setMode: (mode: Mode) => void;
+  isOnline?: boolean;
+  settings: {
+    keyBindings: KeyBindings[];
+    seedMode: SeedMode;
+    seed: string;
+  };
+
+  // --- Controllers ---
+  getControllers: () => PlayerController[];
+  isHuman: (ctrl: PlayerController) => ctrl is PlayerController & InputReceiver;
+  /** Execute an action with the pointer player (mouse/touch target).
+   *  IMPORTANT: The callback is NOT invoked if no human players exist
+   *  (e.g., all-AI game or spectator mode). Callers must not rely on
+   *  side effects — the action may silently not run. */
+  withPointerPlayer: (
+    action: (human: PlayerController & InputReceiver) => void,
+  ) => void;
+
+  // --- Coordinate conversion + pinch ---
+  coords: {
+    pixelToTile: (x: number, y: number) => { row: number; col: number };
+    screenToWorld: (x: number, y: number) => WorldPos;
+    onPinchStart?: (midX: number, midY: number) => void;
+    onPinchUpdate?: (midX: number, midY: number, scale: number) => void;
+    onPinchEnd?: () => void;
+  };
+
+  // --- Lobby ---
+  lobby: {
+    isActive: () => boolean;
+    keyJoin?: (key: string) => boolean;
+    click: (x: number, y: number) => boolean;
+    cursorAt: (x: number, y: number) => string;
+  };
+
+  // --- Navigation ---
+  showLobby: () => void;
+  rematch: () => void | Promise<void>;
+
+  // --- Options overlay ---
+  options: {
+    show: () => void;
+    click: (x: number, y: number) => void;
+    clickControls: (x: number, y: number) => void;
+    cursorAt: (x: number, y: number) => string;
+    controlsCursorAt: (x: number, y: number) => string;
+    close: () => void;
+    showControls: () => void;
+    closeControls: () => void;
+    getCursor: () => number;
+    setCursor: (cursor: number) => void;
+    getCount: () => number;
+    getRealIdx: () => number;
+    /** Confirm the current option: shows controls if on that row, else closes. */
+    confirmOption: () => void;
+    getReturnMode: () => number | null;
+    setReturnMode: (mode: number | null) => void;
+    changeValue: (dir: number) => void;
+    togglePause: () => boolean;
+    getControlsState: () => ControlsState;
+  };
+
+  // --- Per-player dialogs (life-lost, upgrade pick) ---
+  /** Dispatch a player action to whichever per-player dialog is active.
+   *  Returns true if consumed. Input handlers resolve the playerId upstream
+   *  (keyboard: match key → controller, mouse/touch: pointer player). */
+  dialogAction: (playerId: ValidPlayerSlot, action: Action) => boolean;
+
+  // --- Life-lost dialog (click + get) ---
+  lifeLost: {
+    get: () => LifeLostDialogState | null;
+    click: (x: number, y: number) => void;
+  };
+
+  // --- Upgrade pick dialog (click + get) ---
+  upgradePick: {
+    get: () => UpgradePickDialogState | null;
+    click: (x: number, y: number) => void;
+  };
+
+  // --- Game over ---
+  gameOver: {
+    getFocused: () => GameOverFocus;
+    setFocused: (focused: GameOverFocus) => void;
+    click: (x: number, y: number) => void;
+  };
+
+  // --- Game actions (selection, placement, firing) ---
+  gameAction: GameActionDeps;
+
+  // --- Battle networking ---
+  maybeSendAimUpdate: (x: number, y: number) => void;
+
+  // --- Direct touch state ---
+  /**
+   * Direct-touch state lifecycle:
+   *   - Enabled by: touch canvas on phantom tap (input-touch-canvas.ts)
+   *   - Disabled by: d-pad arrow press (input-touch-ui.ts), keyboard placement (input-keyboard.ts)
+   *   - Checked by: touch canvas to suppress tap-to-place when using d-pad
+   *
+   * When directTouchActive is true, floating action buttons are hidden and
+   * taps on the canvas directly confirm placement.
+   */
+  /** Enable or disable direct-touch mode (finger on screen = cursor follows touch).
+   *  Keyboard disables this when entering placement phase.
+   *  Touch canvas enables it when user touches during placement.
+   *  D-pad uses clearDirectTouch() (a shorthand for setDirectTouchActive(false)). */
+  setDirectTouchActive?: (active: boolean) => void;
+  /** Whether the user is currently in direct-touch mode (floating buttons visible).
+   *  When true, tap-to-place on the canvas is suppressed (the floating confirm
+   *  button handles placement instead). Optional — absent on desktop. */
+  isDirectTouchActive?: () => boolean;
+
+  // --- Quit flow ---
+  quit: {
+    getPending: () => boolean;
+    setPending: (value: boolean) => void;
+    setTimer: (seconds: number) => void;
+    setMessage: (text: string) => void;
+  };
+}
+
+export interface GameActionDeps {
+  getSelectionStates: () => Map<number, SelectionState>;
+  highlightTowerForPlayer: (
+    idx: number,
+    zone: number,
+    pid: ValidPlayerSlot,
+  ) => void;
+  confirmSelectionAndStartBuild: (
+    pid: ValidPlayerSlot,
+    isReselect?: boolean,
+  ) => boolean;
+  isSelectionReady?: () => boolean;
+  tryPlacePieceAndSend: (
+    ctrl: PlayerController & InputReceiver,
+    state: BuildViewState,
+  ) => boolean;
+  tryPlaceCannonAndSend: (
+    ctrl: PlayerController & InputReceiver,
+    state: CannonViewState,
+    max: number,
+  ) => boolean;
+  onPieceRotated?: () => void;
+  onPiecePlaced?: () => void;
+  onPieceFailed?: () => void;
+  onCannonPlaced?: () => void;
+  fireAndSend: (ctrl: PlayerController, state: BattleViewState) => void;
+}
+
+export interface PointerMoveDeps {
+  withPointerPlayer: (
+    action: (human: PlayerController & InputReceiver) => void,
+  ) => void;
+  coords: {
+    screenToWorld: (x: number, y: number) => WorldPos;
+    pixelToTile: (x: number, y: number) => { row: number; col: number };
+  };
+  gameAction: Pick<
+    GameActionDeps,
+    "getSelectionStates" | "highlightTowerForPlayer" | "isSelectionReady"
+  >;
+  maybeSendAimUpdate: (x: number, y: number) => void;
+}
+
+/** Deps for the per-frame touch controls update (loupe, d-pad, zoom, quit, floating actions). */
+export interface TouchControlsDeps {
+  mode: Mode;
+  state: { phase: Phase };
+  phantoms: {
+    piecePhantoms?: { playerId: ValidPlayerSlot; valid: boolean }[];
+    cannonPhantoms?: { playerId: ValidPlayerSlot; valid: boolean }[];
+  };
+  directTouchActive: boolean;
+  clearDirectTouch: () => void;
+  leftHanded: boolean;
+  pointerPlayer: () => (PlayerController & InputReceiver) | null;
+  dpad: Dpad | null;
+  floatingActions: FloatingActions | null;
+  homeZoomButton: ZoomButton | null;
+  enemyZoomButton: ZoomButton | null;
+  quitButton: QuitButton | null;
+  loupeHandle: LoupeHandle | null;
+  worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
+  screenToContainerCSS: (sx: number, sy: number) => { x: number; y: number };
+  containerHeight: number;
+}

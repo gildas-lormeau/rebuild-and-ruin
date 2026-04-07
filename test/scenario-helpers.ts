@@ -39,7 +39,6 @@ import type {
 } from "../src/shared/checkpoint-data.ts";
 import type { TransitionContext } from "../src/online/online-phase-transitions.ts";
 import {
-  type BannerState,
   createBannerState,
   showBannerTransition,
 } from "../src/game/phase-banner.ts";
@@ -67,6 +66,7 @@ import { Mode } from "../src/shared/ui-mode.ts";
 import { LifeLostChoice, type LifeLostDialogState } from "../src/shared/dialog-types.ts";
 import { CannonMode, type BattleAnimState } from "../src/shared/battle-types.ts";
 import type { WatcherTimingState } from "../src/shared/tick-context.ts";
+import type { BannerState } from "../src/shared/ui-contracts.ts";
 
 // ---------------------------------------------------------------------------
 // Scenario factory

@@ -28,12 +28,9 @@ import type {
   InputReceiver,
   PlayerController,
 } from "../shared/system-interfaces.ts";
+import type { RegisterOnlineInputDeps } from "../shared/ui-contracts.ts";
 import { isInteractiveMode } from "../shared/ui-mode.ts";
-import {
-  type RegisterOnlineInputDeps,
-  TAP_MAX_DIST,
-  TAP_MAX_TIME,
-} from "./input.ts";
+import { TAP_MAX_DIST, TAP_MAX_TIME } from "./input.ts";
 import {
   dispatchBattleFire,
   dispatchGameAction,
@@ -60,8 +57,6 @@ interface GestureState {
 }
 
 // Function type export — consumed as type-only import by runtime/
-export type RegisterTouchHandlersFn = (deps: RegisterOnlineInputDeps) => void;
-
 /** Minimum finger-distance change (px) to count as a real pinch vs a two-finger tap. */
 const PINCH_MOVE_THRESHOLD = 10;
 

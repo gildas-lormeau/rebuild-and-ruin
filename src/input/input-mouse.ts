@@ -6,8 +6,8 @@ import {
 } from "../shared/game-phase.ts";
 import { Action } from "../shared/input-action.ts";
 import { CURSOR_DEFAULT, CURSOR_POINTER } from "../shared/platform.ts";
+import type { RegisterOnlineInputDeps } from "../shared/ui-contracts.ts";
 import { isInteractiveMode, Mode } from "../shared/ui-mode.ts";
-import type { RegisterOnlineInputDeps } from "./input.ts";
 import {
   dispatchBattleFire,
   dispatchGameAction,
@@ -19,8 +19,6 @@ import {
 } from "./input-dispatch.ts";
 
 // Function type export — consumed as type-only import by runtime/
-export type RegisterMouseHandlersFn = (deps: RegisterOnlineInputDeps) => void;
-
 const CLICK_EVENT = "click";
 
 // Note: keyboard checks mode in per-handler switches (different keys per mode).

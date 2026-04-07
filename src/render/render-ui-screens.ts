@@ -5,14 +5,12 @@
  * Consumed by runtime subsystems via DI (composition root injects these).
  */
 
-import type { ControlsState } from "../shared/dialog-types.ts";
 import { GAME_MODE_MODERN } from "../shared/game-constants.ts";
 import type { GameMap } from "../shared/geometry-types.ts";
 import type { OptionEntry, RenderOverlay } from "../shared/overlay-types.ts";
 import { IS_TOUCH_DEVICE, KEY_UP } from "../shared/platform.ts";
 import {
   ACTION_KEYS,
-  type GameSettings,
   getPlayerColor,
   type KeyBindings,
   PLAYER_NAMES,
@@ -39,45 +37,7 @@ import {
   SOUND_LABELS,
 } from "../shared/settings-defs.ts";
 import { formatKeyName } from "../shared/settings-ui.ts";
-import type { GameState, LobbyState } from "../shared/types.ts";
-import type { Mode } from "../shared/ui-mode.ts";
-
-export interface UIContext {
-  getState: () => GameState | undefined;
-  getOverlay: () => RenderOverlay;
-  settings: GameSettings;
-  getMode: () => Mode;
-  /** Raw field write — assigns runtimeState.mode. Callers (showOptions, closeOptions, etc.)
-   *  are responsible for any state-machine side effects around the transition. */
-  setMode: (mode: Mode) => void;
-  getPaused: () => boolean;
-  setPaused: (paused: boolean) => void;
-  optionsCursor: { value: number };
-  controlsState: ControlsState;
-  getOptionsReturnMode: () => Mode | null;
-  setOptionsReturnMode: (mode: Mode | null) => void;
-  lobby: LobbyState;
-  getFrame: () => { announcement?: string };
-  getLobbyRemaining: () => number;
-  isOnline?: boolean;
-}
-
-export type CreateOptionsOverlayFn = (ctx: UIContext) => {
-  map: GameMap;
-  overlay: RenderOverlay;
-};
-
-export type CreateControlsOverlayFn = (ctx: UIContext) => {
-  map: GameMap;
-  overlay: RenderOverlay;
-};
-
-export type VisibleOptionsFn = (ctx: UIContext) => number[];
-
-export type CreateLobbyOverlayFn = (ctx: UIContext) => {
-  map: GameMap;
-  overlay: RenderOverlay;
-};
+import type { UIContext } from "../shared/ui-contracts.ts";
 
 const CONTROL_ACTION_NAMES: readonly string[] = [
   "Up",

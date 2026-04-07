@@ -1,21 +1,3 @@
-/**
- * Options / Controls / Pause sub-system factory.
- *
- * Extracted from runtime.ts. Follows the same factory-with-deps
- * pattern as runtime-camera.ts and runtime-lobby.ts.
- */
-
-import type { SeedField } from "../input/input-seed-field.ts";
-import type {
-  CreateControlsOverlayFn,
-  CreateOptionsOverlayFn,
-  UIContext,
-  VisibleOptionsFn,
-} from "../render/render-ui-screens.ts";
-import type {
-  ControlsScreenHitTestFn,
-  OptionsScreenHitTestFn,
-} from "../render/render-ui-settings.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
 import { MAP_PX_H, MAP_PX_W, SCALE } from "../shared/grid.ts";
 import type { RenderOverlay } from "../shared/overlay-types.ts";
@@ -41,6 +23,15 @@ import type {
   HapticsSystem,
   SoundSystem,
 } from "../shared/system-interfaces.ts";
+import type {
+  ControlsScreenHitTestFn,
+  CreateControlsOverlayFn,
+  CreateOptionsOverlayFn,
+  OptionsScreenHitTestFn,
+  SeedField,
+  UIContext,
+  VisibleOptionsFn,
+} from "../shared/ui-contracts.ts";
 import { isInteractiveMode, Mode } from "../shared/ui-mode.ts";
 import { type RuntimeState, safeState } from "./runtime-state.ts";
 

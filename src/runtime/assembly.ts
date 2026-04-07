@@ -1,6 +1,4 @@
-import { fireNextReadyCannon } from "../game/battle-system.ts";
-import { placePiece } from "../game/build-system.ts";
-import type { UIContext } from "../render/render-ui-screens.ts";
+import { executeCannonFire, executePlacePiece } from "../game/game-actions.ts";
 import { MAX_FRAME_DT } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { PlayerSlotId, ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -16,8 +14,6 @@ import {
   computeFrameContext,
   isStateReady,
   type RuntimeState,
-  safeState,
-  setMode,
   tickMainLoop,
 } from "./runtime-state.ts";
 import type { RuntimeConfig } from "./runtime-types.ts";
@@ -135,44 +131,6 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
   return { clearFrameData, mainLoop };
 }
 
-export function createRuntimeUiContext(params: {
-  runtimeState: RuntimeState;
-  getLobbyRemaining: () => number;
-  isOnline: boolean;
-}): UIContext {
-  const { runtimeState, getLobbyRemaining, isOnline } = params;
-  return {
-    getState: () => safeState(runtimeState),
-    getOverlay: () => runtimeState.overlay,
-    settings: runtimeState.settings,
-    getMode: () => runtimeState.mode,
-    setMode: (mode) => {
-      setMode(runtimeState, mode);
-    },
-    getPaused: () => runtimeState.paused,
-    setPaused: (paused) => {
-      runtimeState.paused = paused;
-    },
-    optionsCursor: {
-      get value() {
-        return runtimeState.optionsUI.cursor;
-      },
-      set value(value) {
-        runtimeState.optionsUI.cursor = value;
-      },
-    },
-    controlsState: runtimeState.controlsState,
-    getOptionsReturnMode: () => runtimeState.optionsUI.returnMode,
-    setOptionsReturnMode: (mode) => {
-      runtimeState.optionsUI.returnMode = mode;
-    },
-    lobby: runtimeState.lobby,
-    getFrame: () => runtimeState.frame,
-    getLobbyRemaining,
-    isOnline,
-  };
-}
-
 export function createRuntimeInputAdapters(params: {
   config: RuntimeConfig;
   runtimeState: RuntimeState;
@@ -189,32 +147,14 @@ export function createRuntimeInputAdapters(params: {
         ((ctrl, gameState) => {
           const intent = ctrl.tryPlacePiece(gameState);
           if (!intent) return false;
-          const placed = placePiece(
-            runtimeState.state,
-            intent.playerId,
-            intent.piece,
-            intent.row,
-            intent.col,
-          );
-          if (placed) {
-            ctrl.advanceBag(true);
-            ctrl.clampBuildCursor(intent.piece);
-          }
-          return placed;
+          return executePlacePiece(runtimeState.state, intent, ctrl);
         }),
       fireAndSend:
         config.onlineConfig?.fireAndSend ??
         ((ctrl, gameState) => {
           const intent = ctrl.fire(gameState);
           if (!intent) return;
-          const fired = fireNextReadyCannon(
-            runtimeState.state,
-            intent.playerId,
-            ctrl.cannonRotationIdx,
-            intent.targetRow,
-            intent.targetCol,
-          );
-          if (fired) ctrl.cannonRotationIdx = fired.rotationIdx;
+          executeCannonFire(runtimeState.state, intent, ctrl);
         }),
       getIsHost: config.getIsHost,
     },

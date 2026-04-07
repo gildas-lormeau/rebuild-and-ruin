@@ -3,8 +3,7 @@ import {
   type InitMessage,
   MESSAGE,
 } from "../../server/protocol.ts";
-import { fireNextReadyCannon } from "../game/battle-system.ts";
-import { placePiece } from "../game/build-system.ts";
+import { executeCannonFire, executePlacePiece } from "../game/game-actions.ts";
 import { createCanvasRenderer } from "../render/render-canvas.ts";
 import { GAME_EXIT_EVENT } from "../runtime/router.ts";
 import { createGameRuntime } from "../runtime/runtime.ts";
@@ -180,40 +179,14 @@ const runtime: GameRuntime = createGameRuntime({
       tryPlacePieceAndSend(
         ctrl,
         state,
-        (intent) => {
-          const gameState = runtime.runtimeState.state;
-          const placed = placePiece(
-            gameState,
-            intent.playerId,
-            intent.piece,
-            intent.row,
-            intent.col,
-          );
-          if (placed) {
-            ctrl.advanceBag(true);
-            ctrl.clampBuildCursor(intent.piece);
-          }
-          return placed;
-        },
+        (intent) => executePlacePiece(runtime.runtimeState.state, intent, ctrl),
         send,
       ),
     fireAndSend: (ctrl, state) =>
       fireAndSend(
         ctrl,
         state,
-        (intent) => {
-          const gameState = runtime.runtimeState.state;
-          const fired = fireNextReadyCannon(
-            gameState,
-            intent.playerId,
-            ctrl.cannonRotationIdx,
-            intent.targetRow,
-            intent.targetCol,
-          );
-          if (!fired) return null;
-          ctrl.cannonRotationIdx = fired.rotationIdx;
-          return gameState.cannonballs[gameState.cannonballs.length - 1]!;
-        },
+        (intent) => executeCannonFire(runtime.runtimeState.state, intent, ctrl),
         send,
       ),
     onEndGame: (winner, gameState) => {

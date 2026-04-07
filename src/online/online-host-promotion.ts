@@ -3,8 +3,7 @@
  * accumulator sync during host migration.
  */
 
-import { enterCannonPlacePhase } from "../game/game-engine.ts";
-import { finalizeCastleConstruction } from "../game/phase-setup.ts";
+import { finalizeAndEnterCannonPhase } from "../game/game-engine.ts";
 import {
   BATTLE_TIMER,
   MASTER_BUILDER_BONUS_SECONDS,
@@ -76,8 +75,7 @@ export function rebuildControllersForPhase(
  * can immediately resume gameplay.
  */
 export function skipCastleBuildAnimation(state: GameState): void {
-  finalizeCastleConstruction(state);
-  enterCannonPlacePhase(state);
+  finalizeAndEnterCannonPhase(state);
 }
 
 /**

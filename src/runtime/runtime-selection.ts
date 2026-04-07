@@ -15,14 +15,12 @@ import {
 import {
   enterCannonPlacePhase,
   enterCastleReselectPhase,
+  finalizeAndEnterCannonPhase,
   markPlayerReselected,
-  nextPhase,
 } from "../game/game-engine.ts";
 import { snapshotEntities } from "../game/phase-banner.ts";
 import {
-  advanceToCannonPlacePhase,
   completeReselection,
-  finalizeCastleConstruction,
   prepareCastleWallsForPlayer,
   processReselectionQueue,
 } from "../game/phase-setup.ts";
@@ -325,10 +323,11 @@ export function createSelectionSystem(
 
   function finalizeAndAdvance(): void {
     runtimeState.banner.prevEntities = snapshotEntities(runtimeState.state);
-    finalizeCastleConstruction(runtimeState.state);
-    enterCannonPlacePhase(runtimeState.state);
+    finalizeAndEnterCannonPhase(runtimeState.state);
     deps.camera.clearCastleBuildViewport();
-    advanceToCannonPhase();
+    deps.startCannonPhase(() => {
+      setMode(runtimeState, Mode.GAME);
+    });
   }
 
   function finishSelection() {
@@ -384,13 +383,6 @@ export function createSelectionSystem(
       deps.camera.clearPhaseZoom();
     }
     return anyPlaced;
-  }
-
-  function advanceToCannonPhase(): void {
-    advanceToCannonPlacePhase(runtimeState.state, nextPhase);
-    deps.startCannonPhase(() => {
-      setMode(runtimeState, Mode.GAME);
-    });
   }
 
   function tickCastleBuild(dt: number): void {
@@ -481,7 +473,12 @@ export function createSelectionSystem(
     allConfirmed: allSelectionsConfirmed,
     tick: tickSelection,
     finish: finishSelection,
-    advanceToCannonPhase,
+    advanceToCannonPhase: () => {
+      enterCannonPlacePhase(runtimeState.state);
+      deps.startCannonPhase(() => {
+        setMode(runtimeState, Mode.GAME);
+      });
+    },
     tickCastleBuild,
     setCastleBuildViewport: (
       plans: readonly { playerId: ValidPlayerSlot; tiles: number[] }[],

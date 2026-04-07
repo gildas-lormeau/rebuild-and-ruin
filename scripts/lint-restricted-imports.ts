@@ -103,6 +103,56 @@ function checkTileImports(
 }
 
 // ---------------------------------------------------------------------------
+// Rule 2: Runtime subsystems must only import from shared/ and runtime/
+// ---------------------------------------------------------------------------
+
+/** Runtime subsystem files (architecture-linter list). */
+const RUNTIME_SUBSYSTEMS = new Set([
+  "runtime-banner.ts",
+  "runtime-camera.ts",
+  "runtime-game-lifecycle.ts",
+  "runtime-human.ts",
+  "runtime-input.ts",
+  "runtime-life-lost.ts",
+  "runtime-lobby.ts",
+  "runtime-options.ts",
+  "runtime-phase-ticks.ts",
+  "runtime-render.ts",
+  "runtime-score-deltas.ts",
+  "runtime-selection.ts",
+  "runtime-upgrade-pick.ts",
+]);
+
+/** Domains that runtime subsystems are allowed to import from.
+ *  game/ is allowed for now (value imports — subsystems call game functions
+ *  directly). A future refactor will inject these through deps. */
+const ALLOWED_SUBSYSTEM_DOMAINS = new Set(["shared", "runtime", "game"]);
+
+function checkRuntimeSubsystemImports(
+  file: string,
+  content: string,
+  violations: Violation[],
+): void {
+  const base = basename(file);
+  if (!RUNTIME_SUBSYSTEMS.has(base)) return;
+
+  const lines = content.split("\n");
+  for (let idx = 0; idx < lines.length; idx++) {
+    const ln = lines[idx]!;
+    const sourceMatch = ln.match(/from\s+"(\.\.\/(\w+)\/[^"]+)"/);
+    if (!sourceMatch) continue;
+    const domain = sourceMatch[2]!;
+    if (!ALLOWED_SUBSYSTEM_DOMAINS.has(domain)) {
+      violations.push({
+        file: relative(process.cwd(), file),
+        line: idx + 1,
+        message: `Runtime subsystem imports from ${domain}/ — only shared/ and runtime/ allowed. Move the type to shared/ui-contracts.ts or inject the value from the composition root.`,
+      });
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // File scanning
 // ---------------------------------------------------------------------------
 
@@ -130,6 +180,7 @@ function main(): void {
   for (const filePath of srcFiles) {
     const content = readFileSync(filePath, "utf-8");
     checkTileImports(filePath, content, violations);
+    checkRuntimeSubsystemImports(filePath, content, violations);
   }
 
   if (violations.length === 0) {

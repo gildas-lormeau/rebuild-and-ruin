@@ -18,15 +18,11 @@ import {
   SEED_RANDOM,
 } from "../shared/player-config.ts";
 import { type GameState } from "../shared/types.ts";
+import type { RegisterOnlineInputDeps } from "../shared/ui-contracts.ts";
 import { isGameplayMode, isInteractiveMode, Mode } from "../shared/ui-mode.ts";
-import type { RegisterOnlineInputDeps } from "./input.ts";
 import { dispatchGameAction, dispatchQuit } from "./input-dispatch.ts";
 
 // Function type export — consumed as type-only import by runtime/
-export type RegisterKeyboardHandlersFn = (
-  deps: RegisterOnlineInputDeps,
-) => void;
-
 // Note: keyboard uses per-handler mode checks because different keys are valid
 // in different modes (e.g., arrows in lobby vs game, ESC always available).
 // Mouse handlers check mode at event-handler level instead (see input-mouse.ts).

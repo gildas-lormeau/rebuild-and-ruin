@@ -1,5 +1,5 @@
 import type { CastleBuildState } from "../game/castle-build.ts";
-import { type BannerState, createBannerState } from "../game/phase-banner.ts";
+import { createBannerState } from "../game/phase-banner.ts";
 import {
   type BattleAnimState,
   createBattleAnimState,
@@ -35,6 +35,7 @@ import {
   type LobbyState,
   type SelectionState,
 } from "../shared/types.ts";
+import type { BannerState } from "../shared/ui-contracts.ts";
 import { isGameplayMode, isTransitionMode, Mode } from "../shared/ui-mode.ts";
 
 export interface ScoreDisplayState {

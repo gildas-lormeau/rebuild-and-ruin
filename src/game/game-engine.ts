@@ -38,6 +38,7 @@ import {
   enterBuildFromBattle,
   enterBuildFromReselect,
   enterBuildFromSelect,
+  finalizeCastleConstruction,
   setPhase,
 } from "./phase-setup.ts";
 
@@ -158,6 +159,15 @@ export function nextPhase(state: GameState): ModifierDiff | null {
     default:
       assertNever(phase);
   }
+}
+
+/** Finalize castle construction and enter cannon placement phase.
+ *  Always called together — bundled to prevent partial transitions.
+ *  Used after castle selection + build completes (both initial and reselection),
+ *  and during host promotion to skip the castle build animation. */
+export function finalizeAndEnterCannonPhase(state: GameState): void {
+  finalizeCastleConstruction(state);
+  enterCannonPlacePhase(state);
 }
 
 /** Transition game state to CANNON_PLACE. This only sets the phase flag and timer.
