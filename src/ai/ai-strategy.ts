@@ -445,7 +445,7 @@ export class DefaultStrategy implements AiStrategy {
     const usableCannonCount = countUsableCannons(state, playerId);
 
     // Ice trench — highest priority: block grunts crossing frozen river early
-    const iceTrenchProb = traitLookup(this.battleTactics, [0, 1 / 3, 2 / 3]);
+    const iceTrenchProb = traitLookup(this.battleTactics, [1 / 3, 2 / 3, 1]);
     if (
       usableCannonCount >= ICE_TRENCH_MIN_CANNONS &&
       this.rng.bool(iceTrenchProb)
