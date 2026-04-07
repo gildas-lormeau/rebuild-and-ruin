@@ -15,6 +15,7 @@ import {
   type KeyBindings,
   MAX_PLAYERS,
   PLAYER_KEY_BINDINGS,
+  SEED_RANDOM,
 } from "../shared/player-config.ts";
 import { isActivePlayer, type ValidPlayerSlot } from "../shared/player-slot.ts";
 import { MAX_UINT32 } from "../shared/rng.ts";
@@ -190,6 +191,9 @@ export async function bootstrapNewGameFromSettings(
 ): Promise<void> {
   const seed = runtimeState.lobby.seed;
   log(`[game] seed: ${seed}`);
+  // Clear custom seed so it's only used for this game
+  runtimeState.settings.seed = "";
+  runtimeState.settings.seedMode = SEED_RANDOM;
   const { buildTimer, cannonPlaceTimer, firstRoundCannons } =
     DIFFICULTY_PARAMS[runtimeState.settings.difficulty]!;
   const roundsParam = getUrlRoundsOverride();

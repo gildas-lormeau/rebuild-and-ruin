@@ -181,7 +181,8 @@ export function loadSettings(): GameSettings {
 
 export function saveSettings(settings: GameSettings): void {
   try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    const { seed: _seed, seedMode: _seedMode, ...rest } = settings;
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(rest));
   } catch {
     /* storage full or unavailable */
   }
