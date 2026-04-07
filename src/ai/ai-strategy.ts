@@ -450,7 +450,7 @@ export class DefaultStrategy implements AiStrategy {
       usableCannonCount >= ICE_TRENCH_MIN_CANNONS &&
       this.rng.bool(iceTrenchProb)
     ) {
-      const iceTrenchTargets = planIceTrench(state, playerId);
+      const iceTrenchTargets = planIceTrench(state, playerId, this.rng);
       if (iceTrenchTargets) {
         chainTargets = iceTrenchTargets;
         chainType = CHAIN.ICE_TRENCH;

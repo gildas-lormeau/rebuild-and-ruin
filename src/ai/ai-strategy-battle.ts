@@ -296,6 +296,7 @@ export function planStructuralHit(
 export function planIceTrench(
   state: BattleViewState,
   playerId: ValidPlayerSlot,
+  rng: Rng,
 ): TilePos[] | null {
   const frozenTiles = state.modern?.frozenTiles;
   if (!frozenTiles || frozenTiles.size === 0) return null;
@@ -339,20 +340,20 @@ export function planIceTrench(
   }
   if (shoreline.length === 0) return null;
 
-  // 2. Anchor = shoreline tile closest to an incoming bank grunt,
-  //    so the trench faces where grunts will actually cross.
-  let bestAnchorKey = shoreline[0]!;
-  let bestDist = Infinity;
-  for (const grunt of bankGrunts) {
-    for (const shoreKey of shoreline) {
-      const { r, c } = unpackTile(shoreKey);
+  // 2. Score each shoreline tile by distance to the nearest bank grunt,
+  //    then pick randomly among the top candidates for variety.
+  const scored = shoreline.map((shoreKey) => {
+    const { r, c } = unpackTile(shoreKey);
+    let minDist = Infinity;
+    for (const grunt of bankGrunts) {
       const dist = manhattanDistance(grunt.row, grunt.col, r, c);
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestAnchorKey = shoreKey;
-      }
+      if (dist < minDist) minDist = dist;
     }
-  }
+    return { key: shoreKey, dist: minDist };
+  });
+  scored.sort((a, b) => a.dist - b.dist);
+  const topCount = Math.min(scored.length, 5);
+  const bestAnchorKey = scored[rng.int(0, topCount - 1)]!.key;
 
   // 3. Determine inward direction (from shore into frozen river).
   //    The anchor is adjacent to AI-zone grass — inward is the opposite
