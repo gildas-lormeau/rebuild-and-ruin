@@ -143,12 +143,12 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
   }
 
   function clampedFrameDt(now: number): number {
-    const dt = Math.min(
+    const raw = Math.min(
       (now - deps.runtimeState.lastTime) / 1000,
       MAX_FRAME_DT,
     );
     deps.runtimeState.lastTime = now;
-    return dt;
+    return raw * deps.runtimeState.speedMultiplier;
   }
 
   function mainLoop(now: number): void {

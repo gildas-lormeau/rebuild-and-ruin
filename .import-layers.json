@@ -154,6 +154,7 @@
       "src/player/controller-types.ts",
       "src/render/render-canvas.ts",
       "src/runtime/assembly.ts",
+      "src/runtime/dev-console.ts",
       "src/runtime/runtime-camera.ts",
       "src/runtime/runtime-e2e-bridge.ts",
       "src/runtime/runtime-game-lifecycle.ts",

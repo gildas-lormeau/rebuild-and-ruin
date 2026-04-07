@@ -58,6 +58,7 @@ import {
   createRuntimeOptionsDeps,
   createRuntimeUiContext,
 } from "./assembly.ts";
+import { exposeDevConsole } from "./dev-console.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
 import {
   bootstrapNewGameFromSettings,
@@ -180,7 +181,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render: () => render(),
     ticks: modeTickers,
     onAfterFrame: () => {
-      if (IS_DEV) exposeE2EBridge({ runtimeState, config, camera, renderer });
+      if (IS_DEV) {
+        exposeE2EBridge({ runtimeState, config, camera, renderer });
+        exposeDevConsole(runtimeState);
+      }
     },
   });
 

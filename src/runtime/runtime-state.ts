@@ -132,6 +132,10 @@ export interface RuntimeState {
 
   // Input tracking
   inputTracking: InputTrackingState;
+
+  // Dev tools
+  /** Game speed multiplier (dev-only). 1 = normal, 2 = double, 0.5 = half. */
+  speedMultiplier: number;
 }
 
 /** Modes that have tick handlers. STOPPED is handled by early-return. */
@@ -181,6 +185,7 @@ export function resetTransientState(runtimeState: RuntimeState): void {
   runtimeState.battleAnim = createBattleAnimState();
   runtimeState.accum = createTimerAccums();
   runtimeState.paused = false;
+  runtimeState.speedMultiplier = 1;
   runtimeState.quit.pending = false;
   runtimeState.optionsUI.returnMode = null;
   runtimeState.inputTracking.directTouchActive = false;
@@ -236,6 +241,8 @@ export function createRuntimeState(): RuntimeState {
     },
 
     inputTracking: { mouseJoinedSlot: null, directTouchActive: false },
+
+    speedMultiplier: 1,
   };
 }
 
