@@ -172,6 +172,11 @@ export function applyPiecePlacement(
   state.bonusSquares = state.bonusSquares.filter(
     (b) => !pieceKeys.has(packTile(b.row, b.col)),
   );
+  if (player.upgrades.get(UID.FOUNDATIONS)) {
+    state.burningPits = state.burningPits.filter(
+      (pit) => !pieceKeys.has(packTile(pit.row, pit.col)),
+    );
+  }
   recheckTerritoryOnly(state);
   for (const pos of destroyedHousePositions) {
     spawnGruntNearPos(state, playerId, pos.row, pos.col);
