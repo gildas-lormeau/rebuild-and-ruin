@@ -11,6 +11,7 @@ import {
   accumulateBattleStats,
   collectLocalCrosshairs,
   resolveBalloons,
+  snapshotTerritory,
   tickCannonballs,
 } from "./battle-system.ts";
 import { applyDefaultFacings } from "./cannon-system.ts";
@@ -49,6 +50,7 @@ export const phaseTickFacade = {
   accumulateBattleStats,
   collectLocalCrosshairs,
   resolveBalloons,
+  snapshotTerritory,
   tickCannonballs,
   applyDefaultFacings,
   isCeasefireActive,

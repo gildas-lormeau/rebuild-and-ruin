@@ -18,8 +18,6 @@ import {
   LIFE_LOST_MAX_TIMER,
 } from "../shared/game-constants.ts";
 import {
-  LIFE_LOST_FOCUS_ABANDON,
-  LIFE_LOST_FOCUS_CONTINUE,
   LifeLostChoice,
   type LifeLostDialogState,
   type ResolvedChoice,
@@ -159,21 +157,14 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
 
   function toggleFocus(playerId: ValidPlayerSlot): void {
     const entry = findPendingEntry(playerId);
-    if (entry)
-      entry.focusedButton =
-        entry.focusedButton === LIFE_LOST_FOCUS_CONTINUE
-          ? LIFE_LOST_FOCUS_ABANDON
-          : LIFE_LOST_FOCUS_CONTINUE;
+    if (entry) dialogFacade.toggleLifeLostFocus(entry);
   }
 
   function confirmChoice(playerId: ValidPlayerSlot): void {
     const entry = findPendingEntry(playerId);
     if (!entry) return;
-    entry.choice =
-      entry.focusedButton === LIFE_LOST_FOCUS_CONTINUE
-        ? LifeLostChoice.CONTINUE
-        : LifeLostChoice.ABANDON;
-    deps.sendLifeLostChoice(entry.choice, entry.playerId);
+    const choice = dialogFacade.confirmLifeLostFocusedChoice(entry);
+    deps.sendLifeLostChoice(choice, entry.playerId);
   }
 
   /** Apply a direct choice (e.g. from a mouse click on a specific button).
@@ -184,7 +175,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
   ): void {
     const entry = findPendingEntry(playerId);
     if (!entry) return;
-    entry.choice = choice;
+    dialogFacade.applyLifeLostChoice(entry, choice);
     deps.sendLifeLostChoice(choice, playerId);
   }
 

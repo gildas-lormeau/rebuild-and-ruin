@@ -63,6 +63,10 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
     deps.clearHumanCache();
   }
 
+  /** Compute clamped frame delta time, scaled by the dev speed multiplier.
+   *  Note: speedMultiplier affects ALL modes (lobby, banner, score deltas),
+   *  not just gameplay ticks. This is intentional for dev testing but means
+   *  lobby timers and UI transitions also run at the modified speed. */
   function clampedFrameDt(now: number): number {
     const raw = Math.min(
       (now - deps.runtimeState.lastTime) / 1000,

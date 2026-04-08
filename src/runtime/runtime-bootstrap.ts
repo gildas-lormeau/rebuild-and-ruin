@@ -1,5 +1,4 @@
 import { applyGameConfig, createGameFromSeed } from "../game/game-engine.ts";
-import { generateMap } from "../game/map-generation.ts";
 import { selectionFacade } from "../game/selection-facade.ts";
 import {
   createController,
@@ -11,7 +10,6 @@ import {
   GAME_MODE_MODERN,
   type GameMode,
 } from "../shared/game-constants.ts";
-import { isReselectPhase, Phase } from "../shared/game-phase.ts";
 import type { GameMap } from "../shared/geometry-types.ts";
 import {
   type GameSettings,
@@ -20,14 +18,12 @@ import {
   PLAYER_KEY_BINDINGS,
   SEED_RANDOM,
 } from "../shared/player-config.ts";
-import { isActivePlayer, type ValidPlayerSlot } from "../shared/player-slot.ts";
+import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { MAX_UINT32 } from "../shared/rng.ts";
 import { CANNON_HP_OPTIONS, ROUNDS_OPTIONS } from "../shared/settings-defs.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
-import { isRemoteHuman } from "../shared/tick-context.ts";
 import type { GameState, LobbyState } from "../shared/types.ts";
 import type { RuntimeState } from "./runtime-state.ts";
-import type { EnterTowerSelectionDeps } from "./runtime-types.ts";
 
 interface InitWaitingRoomDeps {
   seed: number;
@@ -106,75 +102,13 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
 
   lobby.seed = seed;
   log(`[online] seed: ${seed}`);
-  lobby.map = generateMap(seed);
+  lobby.map = selectionFacade.generateMap(seed);
   lobby.joined = new Array(maxPlayers).fill(false);
   lobby.active = true;
   const time = performance.now();
   setLobbyStartTime(time);
   setModeLobby();
   setLastTime(time);
-  requestFrame();
-}
-
-export function enterTowerSelection(deps: EnterTowerSelectionDeps): void {
-  const {
-    state,
-    isHost,
-    myPlayerId,
-    remoteHumanSlots,
-    controllers,
-    selectionStates,
-    initTowerSelection,
-    syncSelectionOverlay,
-    setOverlaySelection,
-    accum,
-    enterCastleReselectPhase,
-    setModeSelection,
-    setLastTime,
-    requestFrame,
-    log,
-  } = deps;
-
-  log(
-    `enterTowerSelection (phase=${Phase[state.phase]}, round=${state.round})`,
-  );
-
-  const isWatcher = !isHost && !isActivePlayer(myPlayerId);
-
-  // Non-host active player joining mid-game needs reselect phase
-  if (!isHost && isActivePlayer(myPlayerId)) {
-    const needsCastleReselect = state.phase !== Phase.CASTLE_SELECT;
-    if (needsCastleReselect && !isReselectPhase(state.phase)) {
-      enterCastleReselectPhase(state);
-    }
-  }
-
-  // Determine which players need selectInitialTower:
-  //   Watcher: nobody — just observing
-  //   Non-host player: only myPlayerId — remote players handled by host
-  //   Host: all non-remote-humans — host drives AI + local player
-  const shouldSelect = (pid: ValidPlayerSlot): boolean => {
-    if (isWatcher) return false;
-    if (!isHost) return pid === myPlayerId;
-    return !isRemoteHuman(pid, remoteHumanSlots);
-  };
-
-  selectionStates.clear();
-  for (let i = 0; i < state.players.length; i++) {
-    const pid = i as ValidPlayerSlot;
-    const zone = state.playerZones[i]!;
-    if (shouldSelect(pid)) {
-      controllers[i]!.selectInitialTower(state, zone);
-    }
-    initTowerSelection(pid, zone);
-  }
-
-  setOverlaySelection();
-  syncSelectionOverlay();
-  accum.select = 0;
-  selectionFacade.initSelectionTimer(state);
-  setModeSelection();
-  setLastTime(performance.now());
   requestFrame();
 }
 

@@ -140,28 +140,24 @@ export function createUpgradePickSystem(
 
   function moveFocus(playerId: ValidPlayerSlot, dir: number): void {
     const entry = findPendingEntry(playerId);
-    if (!entry) return;
-    entry.focusedCard =
-      (entry.focusedCard + dir + entry.offers.length) % entry.offers.length;
+    if (entry) dialogFacade.moveUpgradePickFocus(entry, dir);
   }
 
-  function resolveEntry(entry: UpgradePickEntry, cardIdx: number): void {
-    entry.focusedCard = cardIdx;
-    const choice = entry.offers[cardIdx]!;
-    entry.choice = choice;
+  function resolveAndSend(entry: UpgradePickEntry, cardIdx: number): void {
+    const choice = dialogFacade.resolveUpgradePickEntry(entry, cardIdx);
     deps.sendUpgradePick?.(entry.playerId, choice);
   }
 
   function confirmChoice(playerId: ValidPlayerSlot): void {
     const entry = findPendingEntry(playerId);
-    if (entry) resolveEntry(entry, entry.focusedCard);
+    if (entry) resolveAndSend(entry, entry.focusedCard);
   }
 
   /** Pick a specific card directly (e.g. from a click on a card). */
   function pickDirect(playerId: ValidPlayerSlot, cardIdx: number): void {
     const entry = findPendingEntry(playerId);
     if (!entry || cardIdx < 0 || cardIdx >= entry.offers.length) return;
-    resolveEntry(entry, cardIdx);
+    resolveAndSend(entry, cardIdx);
   }
 
   function findPendingEntry(playerId: ValidPlayerSlot) {

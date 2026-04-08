@@ -9,7 +9,7 @@
  *   This prevents accidental omission — the compiler enforces the choice.
  */
 
-import type { BattleEvent, GameMessage } from "../../server/protocol.ts";
+import type { BattleEvent, MsgPayload } from "../../server/protocol.ts";
 import { phaseTickFacade } from "../game/phase-tick-facade.ts";
 import {
   BALLOON_FLIGHT_DURATION,
@@ -43,12 +43,6 @@ import type {
   RuntimeConfig,
   RuntimeLifeLost,
 } from "./runtime-types.ts";
-
-/** Extract the payload (all fields except `type`) from a discriminated GameMessage variant. */
-type MsgPayload<T extends GameMessage["type"]> = Omit<
-  Extract<GameMessage, { type: T }>,
-  "type"
->;
 
 interface PhaseTicksDeps
   extends Pick<RuntimeConfig, "send" | "log">,

@@ -558,3 +558,9 @@ export type ServerMessage =
 
 /** Any message sent over the wire (client or server). */
 export type GameMessage = ClientMessage | ServerMessage;
+
+/** Extract the payload (all fields except `type`) from a discriminated GameMessage variant. */
+export type MsgPayload<T extends GameMessage["type"]> = Omit<
+  Extract<GameMessage, { type: T }>,
+  "type"
+>;

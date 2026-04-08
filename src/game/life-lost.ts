@@ -1,8 +1,11 @@
 import {
   type AutoResolveDeps,
+  LIFE_LOST_FOCUS_ABANDON,
+  LIFE_LOST_FOCUS_CONTINUE,
   LifeLostChoice,
   type LifeLostDialogState,
   type LifeLostEntry,
+  type ResolvedChoice,
   shouldAutoResolve,
 } from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -101,6 +104,34 @@ export function eliminateAbandoned(
     const player = players[entry.playerId];
     if (player) eliminatePlayer(player);
   }
+}
+
+/** Toggle the focused button between CONTINUE and ABANDON. */
+export function toggleLifeLostFocus(entry: LifeLostEntry): void {
+  entry.focusedButton =
+    entry.focusedButton === LIFE_LOST_FOCUS_CONTINUE
+      ? LIFE_LOST_FOCUS_ABANDON
+      : LIFE_LOST_FOCUS_CONTINUE;
+}
+
+/** Confirm the currently focused choice. Returns the resolved choice. */
+export function confirmLifeLostFocusedChoice(
+  entry: LifeLostEntry,
+): ResolvedChoice {
+  const choice =
+    entry.focusedButton === LIFE_LOST_FOCUS_CONTINUE
+      ? LifeLostChoice.CONTINUE
+      : LifeLostChoice.ABANDON;
+  entry.choice = choice;
+  return choice;
+}
+
+/** Apply a direct choice (e.g. from a spatial click on a specific button). */
+export function applyLifeLostChoice(
+  entry: LifeLostEntry,
+  choice: ResolvedChoice,
+): void {
+  entry.choice = choice;
 }
 
 /** Determine the game outcome after the life-lost dialog resolves.

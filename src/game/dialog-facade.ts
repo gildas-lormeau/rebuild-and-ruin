@@ -8,16 +8,21 @@
 
 import { createBannerState } from "../shared/ui-contracts.ts";
 import {
+  applyLifeLostChoice,
+  confirmLifeLostFocusedChoice,
   continuingPlayers,
   createLifeLostDialogState,
   eliminateAbandoned,
   resolveAfterLifeLost,
   tickLifeLostDialog,
+  toggleLifeLostFocus,
 } from "./life-lost.ts";
 import { showBannerTransition, tickBannerTransition } from "./phase-banner.ts";
 import {
   applyUpgradePicks,
   createUpgradePickDialog,
+  moveUpgradePickFocus,
+  resolveUpgradePickEntry,
   tickUpgradePickDialog,
   UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
@@ -29,9 +34,14 @@ export const dialogFacade = {
   continuingPlayers,
   resolveAfterLifeLost,
   eliminateAbandoned,
+  toggleLifeLostFocus,
+  confirmLifeLostFocusedChoice,
+  applyLifeLostChoice,
   createUpgradePickDialog,
   tickUpgradePickDialog,
   applyUpgradePicks,
+  moveUpgradePickFocus,
+  resolveUpgradePickEntry,
   UPGRADE_PICK_AUTO_DELAY,
   UPGRADE_PICK_MAX_TIMER,
   createBannerState,

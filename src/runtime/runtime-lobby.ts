@@ -73,10 +73,10 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
 
   function tickLobby(dt: number): void {
     runtimeState.lobby.timerAccum = (runtimeState.lobby.timerAccum ?? 0) + dt;
-    if (!uiCtx.lobby.active) return;
-    const allJoined = uiCtx.lobby.joined.every(Boolean);
+    if (!runtimeState.lobby.active) return;
+    const allJoined = runtimeState.lobby.joined.every(Boolean);
     if (uiCtx.getLobbyRemaining() <= 0 || allJoined) {
-      uiCtx.lobby.active = false;
+      runtimeState.lobby.active = false;
       void deps.onTickLobbyExpired();
     }
   }
@@ -92,10 +92,10 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
   }
 
   function lobbyKeyJoin(key: string): boolean {
-    if (!uiCtx.lobby.active) return false;
+    if (!runtimeState.lobby.active) return false;
     const pid = getConfirmKeys().get(key);
     if (pid === undefined) return false;
-    if (uiCtx.lobby.joined[pid]) {
+    if (runtimeState.lobby.joined[pid]) {
       lobbySkipStep();
       return true;
     }
@@ -122,15 +122,17 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
       void deps.showOptions();
       return true;
     }
-    // Mouse/trackpad can only join one slot (keyboard can join additional slots)
-    if (runtimeState.inputTracking.mouseJoinedSlot !== null) {
+    // Mouse/trackpad can only join one slot (keyboard can join additional slots).
+    // If already joined or slot taken, treat click as a "hurry up" timer skip.
+    if (
+      runtimeState.inputTracking.mouseJoinedSlot !== null ||
+      runtimeState.lobby.joined[hit.slotId]
+    ) {
       lobbySkipStep();
       return true;
     }
-    if (!runtimeState.lobby.joined[hit.slotId]) {
-      runtimeState.inputTracking.mouseJoinedSlot = hit.slotId;
-      void onLobbyJoin(hit.slotId);
-    }
+    runtimeState.inputTracking.mouseJoinedSlot = hit.slotId;
+    void onLobbyJoin(hit.slotId);
     return true;
   }
 
@@ -150,9 +152,9 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
 
   /** Speed up lobby timer by one step if allowed. */
   function lobbySkipStep(): void {
-    if (uiCtx.lobby.timerAccum === undefined) return;
     if (uiCtx.getLobbyRemaining() <= LOBBY_SKIP_LOCKOUT) return;
-    uiCtx.lobby.timerAccum += LOBBY_SKIP_STEP;
+    runtimeState.lobby.timerAccum =
+      (runtimeState.lobby.timerAccum ?? 0) + LOBBY_SKIP_STEP;
   }
 
   return {

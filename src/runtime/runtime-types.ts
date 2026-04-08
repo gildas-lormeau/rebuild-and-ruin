@@ -86,7 +86,6 @@ import type {
   ControllerIdentity,
   HapticsSystem,
   InputReceiver,
-  PlayerController,
   SoundSystem,
 } from "../shared/system-interfaces.ts";
 import type { WatcherTimingState } from "../shared/tick-context.ts";
@@ -250,27 +249,6 @@ export interface CameraSystem {
   saveBattleCrosshair: (pos: { x: number; y: number }) => void;
   /** Clear saved crosshair (called on resetUIState). */
   resetBattleCrosshair: () => void;
-}
-
-/** Deps bag for the tower-selection entry procedure.
- *  Shared between runtime-bootstrap (implementation) and
- *  runtime-selection (caller via injected dep). */
-export interface EnterTowerSelectionDeps {
-  state: GameState;
-  isHost: boolean;
-  myPlayerId: PlayerSlotId;
-  remoteHumanSlots: ReadonlySet<number>;
-  controllers: PlayerController[];
-  selectionStates: Map<number, SelectionState>;
-  initTowerSelection: (playerId: ValidPlayerSlot, zone: number) => void;
-  syncSelectionOverlay: () => void;
-  setOverlaySelection: () => void;
-  accum: { select: number };
-  enterCastleReselectPhase: (state: GameState) => void;
-  setModeSelection: () => void;
-  setLastTime: (timeMs: number) => void;
-  requestFrame: () => void;
-  log: (msg: string) => void;
 }
 
 export interface RuntimeSelection {

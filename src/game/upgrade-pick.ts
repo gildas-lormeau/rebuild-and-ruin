@@ -86,6 +86,26 @@ export function tickUpgradePickDialog(
   return dialog.entries.every((entry) => entry.choice !== null);
 }
 
+/** Navigate focus left/right within a pending entry's offers. */
+export function moveUpgradePickFocus(
+  entry: UpgradePickEntry,
+  dir: number,
+): void {
+  entry.focusedCard =
+    (entry.focusedCard + dir + entry.offers.length) % entry.offers.length;
+}
+
+/** Resolve a pending entry by picking a specific card. Returns the chosen upgrade. */
+export function resolveUpgradePickEntry(
+  entry: UpgradePickEntry,
+  cardIdx: number,
+): UpgradeId {
+  entry.focusedCard = cardIdx;
+  const choice = entry.offers[cardIdx]!;
+  entry.choice = choice;
+  return choice;
+}
+
 /** Apply all picked upgrades to player state. */
 export function applyUpgradePicks(
   state: GameState,

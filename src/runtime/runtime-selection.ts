@@ -12,9 +12,10 @@ import {
   SELECT_TIMER,
   WALL_BUILD_INTERVAL,
 } from "../shared/game-constants.ts";
+import { isReselectPhase, Phase } from "../shared/game-phase.ts";
 import type { CastleWallPlan } from "../shared/interaction-types.ts";
 import type { EntityOverlay, RenderOverlay } from "../shared/overlay-types.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { isActivePlayer, type ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
   type InputReceiver,
   isHuman,
@@ -30,11 +31,7 @@ import type { SelectionState } from "../shared/types.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { fireOnce } from "../shared/utils.ts";
 import { type RuntimeState, setMode } from "./runtime-state.ts";
-import type {
-  CameraSystem,
-  EnterTowerSelectionDeps,
-  RuntimeSelection,
-} from "./runtime-types.ts";
+import type { CameraSystem, RuntimeSelection } from "./runtime-types.ts";
 
 interface SelectionSystemDeps {
   runtimeState: RuntimeState;
@@ -68,8 +65,6 @@ interface SelectionSystemDeps {
   render: () => void;
   pointerPlayer: () => (PlayerController & InputReceiver) | null;
   startCannonPhase: (onBannerDone?: () => void) => void;
-  /** Tower-selection entry procedure (injected from runtime-bootstrap). */
-  enterTowerSelectionImpl: (deps: EnterTowerSelectionDeps) => void;
   /** Clear stale banner snapshots when selection state is reset (e.g. after life lost). */
   clearBannerSnapshots: () => void;
   /** Store entity snapshot for banner before/after comparison. */
@@ -122,32 +117,58 @@ export function createSelectionSystem(
 
   function enterTowerSelection(): void {
     resetSelectionState();
-    deps.enterTowerSelectionImpl({
-      state: runtimeState.state,
-      isHost: runtimeState.frameMeta.hostAtFrameStart,
-      myPlayerId: runtimeState.frameMeta.myPlayerId,
-      remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,
-      controllers: runtimeState.controllers,
-      selectionStates: runtimeState.selection.states,
-      initTowerSelection: initPlayerTowerSelection,
-      syncSelectionOverlay,
-      setOverlaySelection: () => {
-        runtimeState.overlay = {
-          selection: { highlighted: null, selected: null },
-        };
-      },
-      accum: runtimeState.accum,
-      enterCastleReselectPhase: selectionFacade.enterCastleReselectPhase,
-      setModeSelection: () => {
-        setMode(runtimeState, Mode.SELECTION);
-        deps.sound.drumsStart();
-      },
-      setLastTime: (timestamp) => {
-        runtimeState.lastTime = timestamp;
-      },
-      requestFrame: deps.requestFrame,
-      log: deps.log,
-    });
+
+    const { state } = runtimeState;
+    const {
+      hostAtFrameStart: isHost,
+      myPlayerId,
+      remoteHumanSlots,
+    } = runtimeState.frameMeta;
+
+    deps.log(
+      `enterTowerSelection (phase=${Phase[state.phase]}, round=${state.round})`,
+    );
+
+    const isWatcher = !isHost && !isActivePlayer(myPlayerId);
+
+    // Non-host active player joining mid-game needs reselect phase
+    if (!isHost && isActivePlayer(myPlayerId)) {
+      const needsCastleReselect = state.phase !== Phase.CASTLE_SELECT;
+      if (needsCastleReselect && !isReselectPhase(state.phase)) {
+        selectionFacade.enterCastleReselectPhase(state);
+      }
+    }
+
+    // Determine which players need selectInitialTower:
+    //   Watcher: nobody — just observing
+    //   Non-host player: only myPlayerId — remote players handled by host
+    //   Host: all non-remote-humans — host drives AI + local player
+    const shouldSelect = (pid: ValidPlayerSlot): boolean => {
+      if (isWatcher) return false;
+      if (!isHost) return pid === myPlayerId;
+      return !isRemoteHuman(pid, remoteHumanSlots);
+    };
+
+    runtimeState.selection.states.clear();
+    for (let i = 0; i < state.players.length; i++) {
+      const pid = i as ValidPlayerSlot;
+      const zone = state.playerZones[i]!;
+      if (shouldSelect(pid)) {
+        runtimeState.controllers[i]!.selectInitialTower(state, zone);
+      }
+      initPlayerTowerSelection(pid, zone);
+    }
+
+    runtimeState.overlay = {
+      selection: { highlighted: null, selected: null },
+    };
+    syncSelectionOverlay();
+    resetAccum(runtimeState.accum, ACCUM_SELECT);
+    selectionFacade.initSelectionTimer(state);
+    setMode(runtimeState, Mode.SELECTION);
+    deps.sound.drumsStart();
+    runtimeState.lastTime = performance.now();
+    deps.requestFrame();
   }
 
   function syncSelectionOverlay(): void {

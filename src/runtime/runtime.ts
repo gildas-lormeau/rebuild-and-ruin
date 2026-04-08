@@ -10,8 +10,8 @@
  */
 
 import { MESSAGE } from "../../server/protocol.ts";
-import { snapshotTerritory } from "../game/battle-system.ts";
-import { generateMap } from "../game/map-generation.ts";
+import { phaseTickFacade } from "../game/phase-tick-facade.ts";
+import { selectionFacade } from "../game/selection-facade.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
 import { dispatchPointerMove } from "../input/input-dispatch.ts";
 import { registerKeyboardHandlers } from "../input/input-keyboard.ts";
@@ -68,10 +68,7 @@ import { Mode } from "../shared/ui-mode.ts";
 import { createRuntimeInputAdapters, createRuntimeLoop } from "./assembly.ts";
 import { exposeDevConsole } from "./dev-console.ts";
 import { createBannerSystem } from "./runtime-banner.ts";
-import {
-  bootstrapNewGameFromSettings,
-  enterTowerSelection,
-} from "./runtime-bootstrap.ts";
+import { bootstrapNewGameFromSettings } from "./runtime-bootstrap.ts";
 import { createCameraSystem } from "./runtime-camera.ts";
 import { exposeE2EBridge } from "./runtime-e2e-bridge.ts";
 import {
@@ -132,8 +129,9 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     if (newSeed !== runtimeState.lobby.seed) {
       runtimeState.lobby.seed = newSeed;
       config.log(`[lobby] seed: ${newSeed}`);
-      runtimeState.lobby.map = generateMap(newSeed);
-      renderer.warmMapCache(runtimeState.lobby.map);
+      const map = selectionFacade.generateMap(newSeed);
+      runtimeState.lobby.map = map;
+      renderer.warmMapCache(map);
     }
   }
 
@@ -288,7 +286,6 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     render: () => render(),
     pointerPlayer,
     startCannonPhase: (onDone) => phaseTicks.startCannonPhase(onDone),
-    enterTowerSelectionImpl: enterTowerSelection,
     clearBannerSnapshots,
     setPrevEntities: setBannerPrevEntities,
     requestFrame: () => {
@@ -438,7 +435,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     showBanner,
     lifeLost,
     scoreDelta,
-    snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
+    snapshotTerritory: () =>
+      phaseTickFacade.snapshotTerritory(runtimeState.state.players),
     saveBattleCrosshair: IS_TOUCH_DEVICE
       ? () => {
           const h = pointerPlayer();
@@ -643,7 +641,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     clearFrameData,
     render,
     showBanner,
-    snapshotTerritory: () => snapshotTerritory(runtimeState.state.players),
+    snapshotTerritory: () =>
+      phaseTickFacade.snapshotTerritory(runtimeState.state.players),
     aimAtEnemyCastle: applyBattleTarget,
     warmMapCache: (map) => renderer.warmMapCache(map),
   };

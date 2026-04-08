@@ -371,11 +371,7 @@ function buildOptionsDeps(
     },
     getCount: visibleOptionCount,
     getRealIdx: options.visibleToActualOptionIdx,
-    confirmOption: () => {
-      if (options.visibleToActualOptionIdx() === OPT_CONTROLS)
-        options.showControls();
-      else options.closeOptions();
-    },
+    confirmOption: () => confirmCurrentOption(options),
     getReturnMode: () => runtimeState.optionsUI.returnMode,
     setReturnMode: (mode: number | null) => {
       runtimeState.optionsUI.returnMode = mode as Mode | null;
@@ -527,19 +523,8 @@ function setupDpadAndActions(
   touch: MutableTouchHandles,
   deps: InputSystemDeps,
 ): void {
-  const {
-    runtimeState,
-    gameContainer,
-    sound,
-    haptics,
-    lobby,
-    selection,
-    withPointerPlayer,
-  } = deps;
-  const {
-    tryPlacePieceAndSend: placePieceAction,
-    tryPlaceCannonAndSend: placeCannonAction,
-  } = inputDeps.gameAction;
+  const { runtimeState, gameContainer, haptics, lobby, withPointerPlayer } =
+    deps;
 
   const overlayActionDeps = buildOverlayActionDeps(deps, inputDeps);
 
@@ -556,16 +541,7 @@ function setupDpadAndActions(
       clearDirectTouch: () => {
         runtimeState.inputTracking.directTouchActive = false;
       },
-      gameAction: {
-        getSelectionStates: () => runtimeState.selection.states,
-        highlightTowerForPlayer: selection.highlight,
-        confirmSelectionAndStartBuild: selection.confirmAndStartBuild,
-        isSelectionReady: selection.isReady,
-        tryPlacePieceAndSend: placePieceAction,
-        tryPlaceCannonAndSend: placeCannonAction,
-        onPieceRotated: sound.pieceRotated,
-        fireAndSend: inputDeps.gameAction.fireAndSend,
-      },
+      gameAction: inputDeps.gameAction,
       overlay: overlayActionDeps,
     },
     gameContainer,
@@ -592,11 +568,7 @@ function buildOverlayActionDeps(
           (runtimeState.optionsUI.cursor + dir + count) % count;
       },
       changeValue: (dir: -1 | 1) => options.changeOption(dir),
-      confirm: () => {
-        if (options.visibleToActualOptionIdx() === OPT_CONTROLS)
-          options.showControls();
-        else options.closeOptions();
-      },
+      confirm: () => confirmCurrentOption(options),
     },
     dialogAction: (action: Action) => {
       const active = pointerPlayer();
@@ -623,6 +595,13 @@ function buildOverlayActionDeps(
       },
     },
   };
+}
+
+/** Confirm the currently focused option (open controls or close options). */
+function confirmCurrentOption(options: InputSystemDeps["options"]): void {
+  if (options.visibleToActualOptionIdx() === OPT_CONTROLS)
+    options.showControls();
+  else options.closeOptions();
 }
 
 function setupZoomButtons(
