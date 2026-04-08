@@ -8,12 +8,12 @@
  * the composition root (runtime.ts) lean.
  */
 
+import { DEMO_RETURN_DELAY_MS } from "../shared/game-constants.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
   type GameOverFocus,
-} from "../shared/dialog-types.ts";
-import { DEMO_RETURN_DELAY_MS } from "../shared/game-constants.ts";
+} from "../shared/interaction-types.ts";
 import type { GameOverOverlay } from "../shared/overlay-types.ts";
 import { MAX_PLAYERS } from "../shared/player-config.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";

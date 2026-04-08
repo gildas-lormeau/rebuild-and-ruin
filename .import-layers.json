@@ -33,7 +33,7 @@
       "src/online/online-full-state-recovery.ts",
       "src/render/render-sprites.ts",
       "src/shared/checkpoint-data.ts",
-      "src/shared/dialog-types.ts",
+      "src/shared/interaction-types.ts",
       "src/shared/geometry-types.ts",
       "src/shared/modifier-defs.ts",
       "src/shared/pieces.ts",
@@ -106,7 +106,8 @@
       "src/online/online-types.ts",
       "src/render/render-composition.ts",
       "src/render/render-ui-screens.ts",
-      "src/render/render-ui-settings.ts"
+      "src/render/render-ui-settings.ts",
+      "src/runtime/runtime-state.ts"
     ]
   },
   {
@@ -120,19 +121,12 @@
       "src/input/input-mouse.ts",
       "src/input/input-touch-canvas.ts",
       "src/input/input-touch-ui.ts",
-      "src/render/render-ui.ts",
-      "src/runtime/runtime-state.ts"
+      "src/render/render-ui.ts"
     ]
   },
   {
-    "name": "runtime modules",
+    "name": "runtime subsystems",
     "files": [
-      "src/ai/ai-build-fallback.ts",
-      "src/game/battle-system.ts",
-      "src/game/build-system.ts",
-      "src/game/host-phase-ticks.ts",
-      "src/game/round-modifiers.ts",
-      "src/render/render-map.ts",
       "src/runtime/dev-console.ts",
       "src/runtime/runtime-human.ts",
       "src/runtime/runtime-lobby.ts",
@@ -140,6 +134,21 @@
       "src/runtime/runtime-render.ts",
       "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-types.ts"
+    ]
+  },
+  {
+    "name": "system implementations",
+    "files": [
+      "src/ai/ai-build-fallback.ts",
+      "src/game/battle-system.ts",
+      "src/game/build-system.ts",
+      "src/game/host-phase-ticks.ts",
+      "src/game/round-modifiers.ts",
+      "src/render/render-map.ts",
+      "src/runtime/runtime-camera.ts",
+      "src/runtime/runtime-e2e-bridge.ts",
+      "src/runtime/runtime-game-lifecycle.ts",
+      "src/runtime/runtime-input.ts"
     ]
   },
   {
@@ -153,11 +162,7 @@
       "src/online/online-send-actions.ts",
       "src/online/online-watcher-battle.ts",
       "src/player/controller-types.ts",
-      "src/render/render-canvas.ts",
-      "src/runtime/runtime-camera.ts",
-      "src/runtime/runtime-e2e-bridge.ts",
-      "src/runtime/runtime-game-lifecycle.ts",
-      "src/runtime/runtime-input.ts"
+      "src/render/render-canvas.ts"
     ]
   },
   {
@@ -221,7 +226,7 @@
     ]
   },
   {
-    "name": "online logic",
+    "name": "app entry",
     "files": [
       "src/main.ts",
       "src/online/online-runtime-ws.ts"

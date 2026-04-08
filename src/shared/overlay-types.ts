@@ -5,8 +5,8 @@ import type {
   Grunt,
   Impact,
 } from "./battle-types.ts";
-import type { GameOverFocus, LifeLostChoice } from "./dialog-types.ts";
 import type { GameMap, House, TilePos, Viewport } from "./geometry-types.ts";
+import type { GameOverFocus, LifeLostChoice } from "./interaction-types.ts";
 import type {
   CannonPhantom as RenderCannonPhantom,
   PiecePhantom as RenderPiecePhantom,

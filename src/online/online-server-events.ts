@@ -46,7 +46,10 @@ import {
 import { highlightTowerSelection } from "../game/selection.ts";
 import { getInterior } from "../shared/board-occupancy.ts";
 import { CANNON_MODE_IDS } from "../shared/cannon-mode-defs.ts";
-import { LifeLostChoice, type ResolvedChoice } from "../shared/dialog-types.ts";
+import {
+  LifeLostChoice,
+  type ResolvedChoice,
+} from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { inBoundsStrict, packTile } from "../shared/spatial.ts";
 import { isHostInContext, isRemoteHuman } from "../shared/tick-context.ts";

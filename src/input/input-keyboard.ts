@@ -1,5 +1,5 @@
-import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/dialog-types.ts";
 import { isPlacementPhase } from "../shared/game-phase.ts";
+import { FOCUS_MENU, FOCUS_REMATCH } from "../shared/interaction-types.ts";
 import {
   IS_TOUCH_DEVICE,
   KEY_DOWN,

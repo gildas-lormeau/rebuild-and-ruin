@@ -1,17 +1,16 @@
-import type { CastleBuildState } from "../game/castle-build.ts";
-import { createBannerState } from "../game/phase-banner.ts";
 import {
   type BattleAnimState,
   createBattleAnimState,
 } from "../shared/battle-types.ts";
+import { PHASE_ENDING_THRESHOLD } from "../shared/game-constants.ts";
+import { isPlacementPhase, Phase } from "../shared/game-phase.ts";
 import {
+  type CastleBuildState,
   type ControlsState,
   createControlsState,
   type LifeLostDialogState,
   type UpgradePickDialogState,
-} from "../shared/dialog-types.ts";
-import { PHASE_ENDING_THRESHOLD } from "../shared/game-constants.ts";
-import { isPlacementPhase, Phase } from "../shared/game-phase.ts";
+} from "../shared/interaction-types.ts";
 import type {
   FrameData,
   PlayerStats,
@@ -35,7 +34,7 @@ import {
   type LobbyState,
   type SelectionState,
 } from "../shared/types.ts";
-import type { BannerState } from "../shared/ui-contracts.ts";
+import { type BannerState, createBannerState } from "../shared/ui-contracts.ts";
 import { isGameplayMode, isTransitionMode, Mode } from "../shared/ui-mode.ts";
 
 export interface ScoreDisplayState {

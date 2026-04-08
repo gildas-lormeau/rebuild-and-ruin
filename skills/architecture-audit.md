@@ -23,22 +23,23 @@ Audit with that in mind:
 ## Domain clusters
 
 Each domain is a group of tightly related files that share responsibility for a subsystem.
-Domains map to the 18 layer groups in `.import-layers.json` (L0–L17). Groups are named by
+Domains map to the 19 layer groups in `.import-layers.json` (L0–L18). Groups are named by
 role/abstraction level, not by domain — files from any domain land at their minimum import-depth layer.
 
-### 1. Leaf modules — L0 (20 files)
+### 1. Leaf modules — L0 (22 files)
 ```
-server/send-utils, ai/ai-constants, input/input-recorder, online/online-config,
-online/online-dom, runtime/router, shared/canvas-layout, shared/game-constants,
-shared/game-phase, shared/grid, shared/input-action, shared/jsfxr.d, shared/platform,
-shared/player-slot, shared/render-spy, shared/rng, shared/settings-defs, shared/ui-mode,
+server/send-utils, ai/ai-constants, input/input-recorder, input/input,
+online/online-config, online/online-dom, runtime/router, shared/canvas-layout,
+shared/feature-defs, shared/game-constants, shared/game-phase, shared/grid,
+shared/input-action, shared/jsfxr.d, shared/platform, shared/player-slot,
+shared/render-spy, shared/rng, shared/settings-defs, shared/ui-mode,
 shared/upgrade-defs, shared/utils
 ```
 
 ### 2. Foundational definitions — L1 (9 files)
 ```
 entry, online/online-full-state-recovery, render/render-sprites,
-shared/checkpoint-data, shared/dialog-types, shared/geometry-types,
+shared/checkpoint-data, shared/interaction-types, shared/geometry-types,
 shared/modifier-defs, shared/pieces, shared/theme
 ```
 
@@ -59,92 +60,97 @@ server/game-room, online/online-lobby-ui, online/online-session,
 shared/overlay-types, shared/spatial, shared/system-interfaces, shared/types
 ```
 
-### 6. First logic — L5 (17 files)
+### 6. First logic — L5 (13 files)
 ```
 server/room-manager, game/combo-system, game/life-lost, game/map-generation,
-game/phase-banner, game/upgrade-pick, input/haptics-system, input/input-dispatch,
-input/input-touch-update, input/sound-system, render/render-effects,
-render/render-loupe, render/render-towers, render/render-ui-settings,
-render/render-ui-screens, shared/board-occupancy, shared/tick-context
+game/upgrade-pick, input/haptics-system, input/sound-system, render/render-effects,
+render/render-loupe, render/render-towers, shared/board-occupancy,
+shared/tick-context, shared/ui-contracts
 ```
 
-### 7. Deep logic — L6 (11 files)
+### 7. Deep logic — L6 (16 files)
 ```
 server/server, ai/ai-castle-rect, game/cannon-system, game/castle-build,
-game/castle-generation, game/grunt-movement, game/phase-transition-steps,
-input/input, online/online-server-lifecycle, online/online-types,
-render/render-composition
+game/castle-generation, game/grunt-movement, game/phase-banner, input/input-dispatch,
+input/input-seed-field, input/input-touch-update, online/online-server-lifecycle,
+online/online-types, render/render-composition, render/render-ui-screens,
+render/render-ui-settings, runtime/runtime-state
 ```
 
-### 8. Handlers — L7 (10 files)
+### 8. Handlers — L7 (9 files)
 ```
 ai/ai-build-score, ai/ai-strategy-cannon, game/grunt-system,
-game/host-phase-ticks, input/input-keyboard, input/input-mouse,
-input/input-touch-canvas, input/input-touch-ui, render/render-ui,
-runtime/runtime-state
+game/phase-transition-steps, input/input-keyboard, input/input-mouse,
+input/input-touch-canvas, input/input-touch-ui, render/render-ui
 ```
 
-### 9. Runtime modules — L8 (13 files)
+### 9. Runtime subsystems — L8 (7 files)
 ```
-ai/ai-build-fallback, game/battle-system, game/build-system, game/round-modifiers,
-render/render-map, runtime/runtime-banner, runtime/runtime-human,
-runtime/runtime-lobby, runtime/runtime-options, runtime/runtime-render,
-runtime/runtime-score-deltas, runtime/runtime-types, runtime/runtime-upgrade-pick
+runtime/dev-console, runtime/runtime-human, runtime/runtime-lobby,
+runtime/runtime-options, runtime/runtime-render, runtime/runtime-score-deltas,
+runtime/runtime-types
 ```
 
-### 10. Assembly — L9 (14 files)
+### 10. System implementations — L9 (10 files)
 ```
-ai/ai-build-target, ai/ai-strategy-battle, game/host-battle-ticks,
-game/phase-setup, online/online-host-crosshairs, online/online-send-actions,
-online/online-watcher-battle, player/controller-types, render/render-canvas,
-runtime/assembly, runtime/runtime-camera, runtime/runtime-e2e-bridge,
+ai/ai-build-fallback, game/battle-system, game/build-system,
+game/host-phase-ticks, game/round-modifiers, render/render-map,
+runtime/runtime-camera, runtime/runtime-e2e-bridge,
 runtime/runtime-game-lifecycle, runtime/runtime-input
 ```
 
-### 11. Controllers — L10 (7 files)
+### 11. Assembly — L10 (9 files)
 ```
-ai/ai-strategy-build, game/game-engine, online/online-phase-transitions,
-online/online-serialize, online/online-watcher-tick, player/controller-human,
-runtime/runtime-life-lost
-```
-
-### 12. Orchestration — L11 (7 files)
-```
-ai/ai-strategy, game/selection, online/online-checkpoints,
-online/online-host-promotion, online/online-stores,
-player/controller-factory, runtime/runtime-phase-ticks
+ai/ai-build-target, ai/ai-strategy-battle, game/game-actions, game/phase-setup,
+online/online-host-crosshairs, online/online-send-actions,
+online/online-watcher-battle, player/controller-types, render/render-canvas
 ```
 
-### 13. Wiring — L12 (9 files)
+### 12. Controllers — L11 (9 files)
+```
+ai/ai-strategy-build, game/dialog-facade, game/game-engine,
+game/host-battle-ticks, online/online-phase-transitions, online/online-serialize,
+online/online-watcher-tick, player/controller-human, runtime/assembly
+```
+
+### 13. Orchestration — L12 (10 files)
+```
+ai/ai-strategy, game/phase-tick-facade, game/selection,
+online/online-checkpoints, online/online-host-promotion, online/online-stores,
+player/controller-factory, runtime/runtime-banner, runtime/runtime-life-lost,
+runtime/runtime-upgrade-pick
+```
+
+### 14. Wiring — L13 (10 files)
 ```
 ai/ai-phase-battle, ai/ai-phase-build, ai/ai-phase-cannon,
-ai/ai-phase-select, online/online-runtime-transition,
-online/online-server-events, runtime/runtime-bootstrap,
-runtime/runtime-headless, runtime/runtime-selection
+ai/ai-phase-select, game/selection-facade, online/online-runtime-transition,
+online/online-server-events, runtime/runtime-bootstrap, runtime/runtime-headless,
+runtime/runtime-phase-ticks
 ```
 
-### 14. Composition roots — L13 (4 files)
+### 15. Composition roots — L14 (4 files)
 ```
 ai/controller-ai, online/online-runtime-promote,
-online/online-runtime-session, runtime/runtime
+online/online-runtime-session, runtime/runtime-selection
 ```
 
-### 15. App roots — L14 (2 files)
+### 16. App roots — L15 (2 files)
 ```
-main, online/online-runtime-deps
-```
-
-### 16. Online logic — L15 (1 file)
-```
-online/online-runtime-ws
+online/online-runtime-deps, runtime/runtime
 ```
 
-### 17. Online app — L16 (2 files)
+### 17. App entry — L16 (2 files)
+```
+main, online/online-runtime-ws
+```
+
+### 18. Online app — L17 (2 files)
 ```
 online/online-runtime-game, online/online-runtime-lobby
 ```
 
-### 18. Online entry — L17 (1 file)
+### 19. Online entry — L18 (1 file)
 ```
 online-client
 ```
@@ -206,7 +212,7 @@ genuinely help an LLM agent write better code.
 ### Phase 2: Cross-domain audit
 
 After all domain agents complete, spawn one Explore agent with all domain reports combined.
-Domains 4 (11 files), 7 (14 files), 6 (10 files), 15 (12 files), and 13 (10 files) should be split into sub-domains at audit time to keep each agent under 10 files:
+Domains 6 (16 files), 7+8 (16 files), 9+10 (19 files), 12+13 (20 files), and 17+18 (5 files) should be split into sub-domains at audit time to keep each agent under 10 files:
 
 ```
 Given these domain audit findings:

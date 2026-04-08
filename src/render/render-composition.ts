@@ -1,13 +1,4 @@
 import { UPGRADE_PICK_MAX_TIMER } from "../game/upgrade-pick.ts";
-import {
-  FOCUS_MENU,
-  FOCUS_REMATCH,
-  type GameOverFocus,
-  LifeLostChoice,
-  type LifeLostDialogState,
-  type ResolvedChoice,
-  type UpgradePickDialogState,
-} from "../shared/dialog-types.ts";
 import { LIFE_LOST_MAX_TIMER } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import {
@@ -18,6 +9,15 @@ import {
   SCALE,
   TILE_SIZE,
 } from "../shared/grid.ts";
+import {
+  FOCUS_MENU,
+  FOCUS_REMATCH,
+  type GameOverFocus,
+  LifeLostChoice,
+  type LifeLostDialogState,
+  type ResolvedChoice,
+  type UpgradePickDialogState,
+} from "../shared/interaction-types.ts";
 import { modifierDef } from "../shared/modifier-defs.ts";
 import {
   type CastleData,

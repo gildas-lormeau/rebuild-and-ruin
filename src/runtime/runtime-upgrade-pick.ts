@@ -16,7 +16,7 @@ import { dialogFacade } from "../game/dialog-facade.ts";
 import type {
   UpgradePickDialogState,
   UpgradePickEntry,
-} from "../shared/dialog-types.ts";
+} from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isHuman } from "../shared/system-interfaces.ts";
 import { Mode } from "../shared/ui-mode.ts";

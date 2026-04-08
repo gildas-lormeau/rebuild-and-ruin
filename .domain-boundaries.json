@@ -24,7 +24,7 @@
       "src/shared/player-slot.ts",
       "src/shared/game-phase.ts",
       "src/shared/battle-types.ts",
-      "src/shared/dialog-types.ts",
+      "src/shared/interaction-types.ts",
       "src/shared/upgrade-defs.ts",
       "src/shared/modifier-defs.ts",
       "src/shared/cannon-mode-defs.ts",
@@ -34,7 +34,8 @@
       "src/shared/ui-mode.ts",
       "src/shared/input-action.ts",
       "src/shared/ui-contracts.ts",
-      "server/protocol.ts"
+      "server/protocol.ts",
+      "src/shared/feature-defs.ts"
     ],
     "game": [
       "src/game/cannon-system.ts",
@@ -161,7 +162,8 @@
       "src/runtime/runtime-score-deltas.ts",
       "src/runtime/runtime-selection.ts",
       "src/runtime/assembly.ts",
-      "src/runtime/runtime.ts"
+      "src/runtime/runtime.ts",
+      "src/runtime/dev-console.ts"
     ],
     "entry": [
       "src/entry.ts",

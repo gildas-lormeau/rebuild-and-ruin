@@ -1,10 +1,10 @@
+import { Action } from "../shared/input-action.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
   type GameOverFocus,
   type ResolvedChoice,
-} from "../shared/dialog-types.ts";
-import { Action } from "../shared/input-action.ts";
+} from "../shared/interaction-types.ts";
 import type {
   LoupeHandle,
   RendererInterface,

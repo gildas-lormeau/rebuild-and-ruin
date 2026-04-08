@@ -62,7 +62,7 @@ import type {
   SerializedHouse,
   SerializedPlayer,
 } from "../src/shared/checkpoint-data.ts";
-import type { ResolvedChoice } from "../src/shared/dialog-types.ts";
+import type { ResolvedChoice } from "../src/shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
 
 // ---------------------------------------------------------------------------

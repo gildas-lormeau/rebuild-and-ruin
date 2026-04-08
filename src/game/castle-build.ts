@@ -4,20 +4,11 @@
  */
 
 import { addPlayerWall } from "../shared/board-occupancy.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import type {
+  CastleBuildState,
+  CastleWallPlan,
+} from "../shared/interaction-types.ts";
 import type { GameState } from "../shared/types.ts";
-
-export interface CastleWallPlan {
-  playerId: ValidPlayerSlot;
-  tiles: number[];
-}
-
-export interface CastleBuildState {
-  wallPlans: readonly CastleWallPlan[];
-  maxTiles: number;
-  tileIdx: number;
-  accum: number;
-}
 
 /** Create the initial animation state for a castle-build sequence. */
 export function createCastleBuildState(

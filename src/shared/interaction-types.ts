@@ -79,3 +79,15 @@ export function shouldAutoResolve(
     ? !deps.isHumanController(playerId) && !deps.remoteHumanSlots.has(playerId)
     : playerId !== deps.myPlayerId;
 }
+
+export interface CastleBuildState {
+  wallPlans: readonly CastleWallPlan[];
+  maxTiles: number;
+  tileIdx: number;
+  accum: number;
+}
+
+export interface CastleWallPlan {
+  playerId: ValidPlayerSlot;
+  tiles: number[];
+}

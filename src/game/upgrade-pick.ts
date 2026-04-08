@@ -1,10 +1,10 @@
+import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
 import {
   type AutoResolveDeps,
   shouldAutoResolve,
   type UpgradePickDialogState,
   type UpgradePickEntry,
-} from "../shared/dialog-types.ts";
-import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
+} from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isGrass } from "../shared/spatial.ts";
 import type { GameState } from "../shared/types.ts";

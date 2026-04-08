@@ -1,7 +1,7 @@
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
-import { LifeLostChoice } from "../shared/dialog-types.ts";
 import { BANNER_DURATION } from "../shared/game-constants.ts";
+import { LifeLostChoice } from "../shared/interaction-types.ts";
 import { PLAYER_COLORS } from "../shared/player-config.ts";
 import type { UpgradeId } from "../shared/upgrade-defs.ts";
 import {

@@ -5,10 +5,10 @@
  * Extracted from runtime.ts to reduce composition-root fan-out.
  */
 
-import type { UpgradePickDialogState } from "../shared/dialog-types.ts";
 import { SCORE_DELTA_DISPLAY_TIME } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { GameMap, Viewport } from "../shared/geometry-types.ts";
+import type { UpgradePickDialogState } from "../shared/interaction-types.ts";
 import type { LoupeHandle, RenderOverlay } from "../shared/overlay-types.ts";
 import { PLAYER_COLORS, PLAYER_NAMES } from "../shared/player-config.ts";
 import {

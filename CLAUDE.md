@@ -26,11 +26,12 @@ Online multiplayer via Deno Deploy + WebSocket (checkpoint-based sync, host migr
 `shared/` (types, constants, config) · `game/` (systems, phase logic) · `ai/` (strategy, AI controllers) · `player/` (human controller, factory) · `input/` (input, sound, haptics) · `render/` (canvas, sprites, UI) · `online/` (multiplayer, checkpoints, online runtime) · `runtime/` (game loop, state, lifecycle).
 Entry points (`entry.ts`, `main.ts`, `online-client.ts`) stay at `src/` root. `server/` is separate (Deno Deploy target).
 
-### Module layers (18 groups, `.import-layers.json`)
-L0 leaf modules → L1 foundational definitions → L2 derived types → L3 core game types → L4 core state & interfaces → L5 first logic → L6 deep logic → L7 handlers → L8 runtime modules → L9 assembly → L10 controllers → L11 orchestration → L12 wiring → L13 composition roots → L14 app roots → L15 online logic → L16 online app → L17 online entry. Imports must flow downward (higher layer imports lower).
-Groups are named by abstraction level, not by domain — files from any domain land at the layer dictated by their deepest import. Entry points sit at their minimum import-depth layer (`entry.ts` at L1, `main.ts` at L14, `online-client.ts` at L17).
+### Module layers (19 groups, `.import-layers.json`)
+L0 leaf modules → L1 foundational definitions → L2 derived types → L3 core game types → L4 core state & interfaces → L5 first logic → L6 deep logic → L7 handlers → L8 runtime subsystems → L9 system implementations → L10 assembly → L11 controllers → L12 orchestration → L13 wiring → L14 composition roots → L15 app roots → L16 app entry → L17 online app → L18 online entry. Imports must flow downward (higher layer imports lower).
+Groups are named by abstraction level, not by domain — files from any domain land at the layer dictated by their deepest import. Entry points sit at their minimum import-depth layer (`entry.ts` at L1, `main.ts` at L16, `online-client.ts` at L18).
 
 ### Type file organization (L1–L4)
+- `interaction-types.ts` (L1) — LifeLostDialogState, UpgradePickDialogState, ControlsState, CastleBuildState, CastleWallPlan, GameOverFocus
 - `geometry-types.ts` (L1) — TilePos, GameMap, Tower, Castle, House, BonusSquare, Viewport
 - `battle-types.ts` (L2) — Cannon, Cannonball, Grunt, BurningPit, CapturedCannon, CannonMode, BattleAnimState
 - `player-types.ts` (L3) — Player, FreshInterior, and player helpers (isPlayerAlive, isPlayerSeated, emptyFreshInterior, brandFreshInterior)

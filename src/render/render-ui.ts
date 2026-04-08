@@ -5,15 +5,15 @@
  * threaded from drawMap. See render-effects.ts for the full convention.
  */
 
+import { MODIFIER_ID } from "../shared/game-constants.ts";
+import { GRID_COLS, TILE_SIZE } from "../shared/grid.ts";
 import {
   FOCUS_MENU,
   FOCUS_REMATCH,
   LIFE_LOST_FOCUS_ABANDON,
   LIFE_LOST_FOCUS_CONTINUE,
   LifeLostChoice,
-} from "../shared/dialog-types.ts";
-import { MODIFIER_ID } from "../shared/game-constants.ts";
-import { GRID_COLS, TILE_SIZE } from "../shared/grid.ts";
+} from "../shared/interaction-types.ts";
 import {
   type GameOverOverlay,
   type RenderOverlay,

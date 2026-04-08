@@ -12,12 +12,12 @@ import {
   MESSAGE,
   type ServerMessage,
 } from "../../server/protocol.ts";
-import type { LifeLostChoice } from "../shared/dialog-types.ts";
 import {
   GAME_MODE_CLASSIC,
   type GameMode,
   LOBBY_TIMER,
 } from "../shared/game-constants.ts";
+import type { LifeLostChoice } from "../shared/interaction-types.ts";
 import {
   createDedupChannel,
   type DedupChannel,

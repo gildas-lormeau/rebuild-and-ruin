@@ -27,11 +27,6 @@
  * mouse handler without the suppression check causes ghost clicks.
  */
 
-import type {
-  ControlsState,
-  LifeLostDialogState,
-  UpgradePickDialogState,
-} from "../shared/dialog-types.ts";
 import {
   isPlacementPhase,
   isReselectPhase,
@@ -40,6 +35,11 @@ import {
 } from "../shared/game-phase.ts";
 import type { WorldPos } from "../shared/geometry-types.ts";
 import { Action } from "../shared/input-action.ts";
+import type {
+  ControlsState,
+  LifeLostDialogState,
+  UpgradePickDialogState,
+} from "../shared/interaction-types.ts";
 import { findNearestTower, towerAtPixel } from "../shared/spatial.ts";
 import {
   type InputReceiver,

@@ -14,16 +14,16 @@
 import { type GameMessage, MESSAGE } from "../../server/protocol.ts";
 import { dialogFacade } from "../game/dialog-facade.ts";
 import {
+  LIFE_LOST_AUTO_DELAY,
+  LIFE_LOST_MAX_TIMER,
+} from "../shared/game-constants.ts";
+import {
   LIFE_LOST_FOCUS_ABANDON,
   LIFE_LOST_FOCUS_CONTINUE,
   LifeLostChoice,
   type LifeLostDialogState,
   type ResolvedChoice,
-} from "../shared/dialog-types.ts";
-import {
-  LIFE_LOST_AUTO_DELAY,
-  LIFE_LOST_MAX_TIMER,
-} from "../shared/game-constants.ts";
+} from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { isHuman } from "../shared/system-interfaces.ts";
 import { Mode } from "../shared/ui-mode.ts";

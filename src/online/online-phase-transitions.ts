@@ -33,9 +33,12 @@ import type {
   CannonStartData,
   SerializedPlayer,
 } from "../shared/checkpoint-data.ts";
-import { FOCUS_REMATCH, type GameOverFocus } from "../shared/dialog-types.ts";
 import { Phase } from "../shared/game-phase.ts";
 import { TILE_COUNT } from "../shared/grid.ts";
+import {
+  FOCUS_REMATCH,
+  type GameOverFocus,
+} from "../shared/interaction-types.ts";
 import type { CastleData } from "../shared/overlay-types.ts";
 import { isActivePlayer, type ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";

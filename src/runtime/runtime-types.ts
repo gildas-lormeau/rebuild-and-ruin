@@ -64,11 +64,11 @@ import type {
   BattleStartData,
   SerializedPlayer,
 } from "../shared/checkpoint-data.ts";
+import type { Viewport, WorldPos } from "../shared/geometry-types.ts";
 import type {
   LifeLostDialogState,
   UpgradePickDialogState,
-} from "../shared/dialog-types.ts";
-import type { Viewport, WorldPos } from "../shared/geometry-types.ts";
+} from "../shared/interaction-types.ts";
 import type { RendererInterface } from "../shared/overlay-types.ts";
 import type {
   CannonPhantom,

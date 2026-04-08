@@ -39,15 +39,6 @@ export const BANNER_SELECT = "Select your home castle";
 export const BANNER_BATTLE_ONLINE = "Battle!";
 export const BANNER_REPAIR_ONLINE = "Repair!";
 
-export function createBannerState(): BannerState {
-  return {
-    active: false,
-    progress: 0,
-    text: "",
-    callback: null,
-  };
-}
-
 export function showBannerTransition(deps: ShowBannerDeps): void {
   const {
     banner,

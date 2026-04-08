@@ -4,7 +4,7 @@ import {
   type LifeLostDialogState,
   type LifeLostEntry,
   shouldAutoResolve,
-} from "../shared/dialog-types.ts";
+} from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { type GameState } from "../shared/types.ts";
 

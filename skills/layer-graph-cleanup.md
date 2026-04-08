@@ -342,3 +342,13 @@ Most entries below were discovered and executed by LLM-based agents under script
 | `aimCannons`, `nextReadyCombined`, `canPlayerFire` typed `GameState` | Widened to structural `GameViewState & { capturedCannons, cannonballs }` intersections — compatible with `BattleViewState`; freed `online-host-crosshairs.ts` |
 | `online-send-actions.ts` typed `GameState` on all functions | Narrowed per-function: `tryPlacePieceAndSend` → `BuildViewState`, `tryPlaceCannonAndSend` → `CannonViewState`, `fireAndSend` → `BattleViewState` |
 | `phase` missing from `GameViewState` | Added `readonly phase: Phase` to `GameViewState` — universal field needed by input, runtime, and online domains; freed `runtime-e2e-bridge.ts` |
+| L15 "online logic" naming mismatch | Renamed to "app entry" — `main.ts` (local) + `online-runtime-ws.ts` (online) |
+| L8 "runtime modules" naming collision | Renamed to "system implementations" — 6/13 files were game/ai/render, not runtime domain |
+| `feature-defs.ts`, `dev-console.ts` missing from domains | Added to shared and runtime domains respectively in `.domain-boundaries.json` |
+| `createBannerState` trapped in L6 `phase-banner.ts` | Moved to `ui-contracts.ts` (L5) — trivial factory, `BannerState` type already there |
+| `CastleBuildState` + `CastleWallPlan` trapped in L6 `castle-build.ts` | Moved types to `interaction-types.ts` (L1, was dialog-types.ts) — pure structs, fits alongside `LifeLostDialogState` |
+| `dialog-types.ts` name too narrow after adding castle-build types | Renamed to `interaction-types.ts` — holds all transient UI/interaction state types |
+| L7 "handlers" mixed 16 files from 5 domains | Split into L7 "handlers" (9 domain-specific files) + L8 "runtime subsystems" (7 runtime files); zero cross-imports between the groups |
+| `runtime-state.ts` over-classified in L7 "handlers" | After `createBannerState` + `CastleBuildState` moves, max dep dropped to L5; reclassified to L6 "deep logic" |
+| 7 runtime files over-classified in L8 | After `runtime-state.ts` dropped to L6, max dep for `dev-console`, `runtime-human`, `runtime-lobby`, `runtime-options`, `runtime-render`, `runtime-score-deltas`, `runtime-types` dropped to L6; reclassified to L7 "handlers" |
+| 4 runtime files over-classified in L9 | After `runtime-types.ts` dropped to L7, max dep for `runtime-camera`, `runtime-e2e-bridge`, `runtime-game-lifecycle`, `runtime-input` dropped to L7; reclassified to L8 "system implementations" |

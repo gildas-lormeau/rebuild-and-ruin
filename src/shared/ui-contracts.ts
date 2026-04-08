@@ -1,14 +1,14 @@
 import type { Impact } from "./battle-types.ts";
+import type { ModifierDiff } from "./game-constants.ts";
+import { Phase } from "./game-phase.ts";
+import type { GameMap, WorldPos } from "./geometry-types.ts";
+import type { Action } from "./input-action.ts";
 import type {
   ControlsState,
   GameOverFocus,
   LifeLostDialogState,
   UpgradePickDialogState,
-} from "./dialog-types.ts";
-import type { ModifierDiff } from "./game-constants.ts";
-import { Phase } from "./game-phase.ts";
-import type { GameMap, WorldPos } from "./geometry-types.ts";
-import type { Action } from "./input-action.ts";
+} from "./interaction-types.ts";
 import type {
   CastleData,
   EntityOverlay,
@@ -625,4 +625,13 @@ export interface TouchControlsDeps {
   worldToScreen: (wx: number, wy: number) => { sx: number; sy: number };
   screenToContainerCSS: (sx: number, sy: number) => { x: number; y: number };
   containerHeight: number;
+}
+
+export function createBannerState(): BannerState {
+  return {
+    active: false,
+    progress: 0,
+    text: "",
+    callback: null,
+  };
 }

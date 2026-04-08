@@ -16,9 +16,9 @@
  */
 
 import { CANNON_MODE_IDS } from "../src/shared/cannon-mode-defs.ts";
-import { LifeLostChoice } from "../src/shared/dialog-types.ts";
 import { Phase } from "../src/shared/game-phase.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../src/shared/grid.ts";
+import { LifeLostChoice } from "../src/shared/interaction-types.ts";
 import { MAX_PLAYERS } from "../src/shared/player-config.ts";
 import {
   MESSAGE,

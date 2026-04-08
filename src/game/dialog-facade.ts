@@ -6,17 +6,14 @@
  * individual game/ files.
  */
 
+import { createBannerState } from "../shared/ui-contracts.ts";
 import {
   continuingPlayers,
   createLifeLostDialogState,
   resolveAfterLifeLost,
   tickLifeLostDialog,
 } from "./life-lost.ts";
-import {
-  createBannerState,
-  showBannerTransition,
-  tickBannerTransition,
-} from "./phase-banner.ts";
+import { showBannerTransition, tickBannerTransition } from "./phase-banner.ts";
 import { eliminatePlayer } from "./phase-setup.ts";
 import {
   applyUpgradePicks,
