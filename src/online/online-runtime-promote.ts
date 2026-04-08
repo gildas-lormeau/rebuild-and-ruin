@@ -74,41 +74,42 @@ export async function promoteToHost(): Promise<void> {
 
 /**
  * Skip any animations or dialogs that depend on the old host's state.
- * Exhaustive switch ensures adding a new Mode is a compile error until handled.
+ * Delegates mode-specific cleanup to clearAnimationState, then sets Mode.GAME.
  */
 function skipPendingAnimations(): void {
-  const state = _runtime.runtimeState.state;
-  const mode = _runtime.runtimeState.mode;
+  const description = clearAnimationState(_runtime.runtimeState.mode);
+  if (description) {
+    setMode(_runtime.runtimeState, Mode.GAME);
+    _client.devLog(description);
+  }
+}
+
+/** Clear mode-specific animation/dialog state left over from the old host.
+ *  Returns a log description if state was cleared, null if no action was needed.
+ *  Exhaustive switch ensures adding a new Mode is a compile error until handled. */
+function clearAnimationState(mode: Mode): string | null {
   switch (mode) {
     case Mode.CASTLE_BUILD:
       _runtime.runtimeState.selection.castleBuilds = [];
-      skipCastleBuildAnimation(state);
+      skipCastleBuildAnimation(_runtime.runtimeState.state);
       _runtime.phaseTicks.startCannonPhase();
-      setMode(_runtime.runtimeState, Mode.GAME);
-      _client.devLog("Skipped castle build animation → cannon phase");
-      break;
+      return "Skipped castle build animation → cannon phase";
     case Mode.LIFE_LOST:
       _runtime.lifeLost.set(null);
-      setMode(_runtime.runtimeState, Mode.GAME);
-      _client.devLog("Cleared life-lost dialog → game mode");
-      break;
+      return "Cleared life-lost dialog → game mode";
     case Mode.BANNER:
     case Mode.BALLOON_ANIM:
-      setMode(_runtime.runtimeState, Mode.GAME);
-      _client.devLog("Skipped banner/animation → game mode");
-      break;
+      return "Skipped banner/animation → game mode";
     case Mode.UPGRADE_PICK:
       _runtime.runtimeState.dialogs.upgradePick = null;
-      setMode(_runtime.runtimeState, Mode.GAME);
-      _client.devLog("Cleared upgrade pick dialog → game mode");
-      break;
+      return "Cleared upgrade pick dialog → game mode";
     case Mode.GAME:
     case Mode.LOBBY:
     case Mode.OPTIONS:
     case Mode.CONTROLS:
     case Mode.SELECTION:
     case Mode.STOPPED:
-      break; // no action needed
+      return null;
     default:
       assertNever(mode);
   }

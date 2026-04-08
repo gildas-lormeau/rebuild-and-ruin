@@ -199,7 +199,7 @@ Deno.test("resetSessionState closes WebSocket and resets all fields", () => {
   session.myPlayerId = 2 as PlayerSlotId;
   session.hostMigrationSeq = 3;
   session.occupiedSlots = new Set([0, 1, 2]);
-  session.remoteHumanSlots.add(1);
+  session.remotePlayerSlots.add(1);
   session.earlyLifeLostChoices.set(0, LifeLostChoice.CONTINUE);
 
   resetSessionState(session);
@@ -210,7 +210,7 @@ Deno.test("resetSessionState closes WebSocket and resets all fields", () => {
   assert(session.myPlayerId === -1, "myPlayerId should be -1");
   assert(session.hostMigrationSeq === 0, "hostMigrationSeq should be 0");
   assert(session.occupiedSlots.size === 0, "occupiedSlots should be empty");
-  assert(session.remoteHumanSlots.size === 0, "remoteHumanSlots should be empty");
+  assert(session.remotePlayerSlots.size === 0, "remotePlayerSlots should be empty");
   assert(session.earlyLifeLostChoices.size === 0, "earlyLifeLostChoices should be empty");
 });
 

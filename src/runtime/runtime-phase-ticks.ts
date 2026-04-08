@@ -54,7 +54,7 @@ import {
   ACCUM_CANNON,
   ACCUM_GRUNT,
   advancePhaseTimer,
-  isRemoteHuman,
+  isRemotePlayer,
   localControllers,
   resetAccum,
   tickGruntsIfDue,
@@ -165,12 +165,12 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function syncCrosshairs(weaponsActive: boolean, dt = 0): void {
-    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
+    const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     const { state, controllers } = runtimeState;
     const crosshairs: Crosshair[] = [];
 
     for (const ctrl of controllers) {
-      if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) continue;
+      if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
       const readyCannon = phaseTickFacade.nextReadyCombined(
         state,
         ctrl.playerId,
@@ -208,7 +208,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   function startCannonPhase(onBannerDone?: () => void) {
     deps.sound.drumsQuiet();
-    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
+    const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     deps.log(`startCannonPhase (round=${runtimeState.state.round})`);
     executeTransition(CANNON_START_STEPS, {
       showBanner: () => {
@@ -231,7 +231,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       },
       initControllers: () => {
         for (const ctrl of runtimeState.controllers) {
-          if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) continue;
+          if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
           const prep = phaseTickFacade.prepareControllerCannonPhase(
             ctrl.playerId,
             runtimeState.state,
@@ -377,10 +377,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function beginBattle() {
-    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
+    const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     for (const ctrl of localControllers(
       runtimeState.controllers,
-      remoteHumanSlots,
+      remotePlayerSlots,
     )) {
       ctrl.initBattleState(runtimeState.state);
     }
@@ -400,7 +400,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function startBuildPhase() {
-    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
+    const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     deps.log(`startBuildPhase (round=${runtimeState.state.round})`);
     deps.scoreDelta.reset();
     deps.scoreDelta.capturePreScores();
@@ -410,7 +410,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     );
     phaseTickFacade.resetCannonFacings(runtimeState.state);
     for (const ctrl of runtimeState.controllers) {
-      if (isRemoteHuman(ctrl.playerId, remoteHumanSlots)) continue;
+      if (isRemotePlayer(ctrl.playerId, remotePlayerSlots)) continue;
       if (runtimeState.state.players[ctrl.playerId]?.eliminated) continue;
       ctrl.startBuildPhase(runtimeState.state);
     }
@@ -424,10 +424,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // -------------------------------------------------------------------------
 
   function tickCannonPhase(dt: number): boolean {
-    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
+    const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     const isHost = runtimeState.frameMeta.hostAtFrameStart;
     const { state, frame } = runtimeState;
-    const local = localControllers(runtimeState.controllers, remoteHumanSlots);
+    const local = localControllers(runtimeState.controllers, remotePlayerSlots);
     const lastSentCannonPhantom =
       deps.hostNetworking?.lastSentCannonPhantom() ?? NOOP_DEDUP_CHANNEL;
 
@@ -511,7 +511,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
     // PASS 2: finalize controllers for phase transition
     const remote = runtimeState.controllers.filter((ctrl) =>
-      isRemoteHuman(ctrl.playerId, remoteHumanSlots),
+      isRemotePlayer(ctrl.playerId, remotePlayerSlots),
     );
     // LOAD-BEARING SPLIT (do not merge local/remote):
     //   Remote humans: call initCannons() only (their cannons were flushed client-side).
@@ -530,14 +530,14 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function tickBattleCountdown(dt: number): void {
-    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
+    const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     runtimeState.frame.announcement = phaseTickFacade.advanceBattleCountdown(
       runtimeState.state,
       dt,
     );
     for (const ctrl of localControllers(
       runtimeState.controllers,
-      remoteHumanSlots,
+      remotePlayerSlots,
     )) {
       ctrl.battleTick(runtimeState.state, dt);
     }
@@ -546,9 +546,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function tickBattlePhase(dt: number): boolean {
-    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
+    const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     const isHost = runtimeState.frameMeta.hostAtFrameStart;
-    const local = localControllers(runtimeState.controllers, remoteHumanSlots);
+    const local = localControllers(runtimeState.controllers, remotePlayerSlots);
     const { state, battleAnim } = runtimeState;
     const broadcast = isHost ? deps.send : undefined;
 
@@ -634,10 +634,10 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       deps.render();
       return false;
     }
-    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
+    const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     const isHost = runtimeState.frameMeta.hostAtFrameStart;
     const { state, accum, frame, banner } = runtimeState;
-    const local = localControllers(runtimeState.controllers, remoteHumanSlots);
+    const local = localControllers(runtimeState.controllers, remotePlayerSlots);
     const lastSentPiecePhantom =
       deps.hostNetworking?.lastSentPiecePhantom() ?? NOOP_DEDUP_CHANNEL;
 
@@ -763,7 +763,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       eliminated,
       showScoreDeltas: deps.scoreDelta.show,
       notifyLifeLost: (pid) => {
-        if (!isRemoteHuman(pid, remoteHumanSlots)) {
+        if (!isRemotePlayer(pid, remotePlayerSlots)) {
           runtimeState.controllers[pid]!.onLifeLost();
         }
       },

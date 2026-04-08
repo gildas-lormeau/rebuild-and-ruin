@@ -496,8 +496,8 @@ sufficient for LLM agents to follow correctly.
     (ms since page load). Sentinel: 0 = not yet started." Each field has inline JSDoc
     specifying units (ms for timestamps, seconds for durations) and the 0-sentinel meaning.
 
-79. **`occupiedSlots` ⊇ `remoteHumanSlots` invariant is documented** —
-    online/online-session.ts:41-46 INVARIANT JSDoc documents the subset relationship and
+79. **`occupiedSlots` ⊇ `remotePlayerSlots` invariant is documented** —
+    online/online-session.ts:45-48 INVARIANT JSDoc documents the subset relationship and
     points to clearLobbySlot/occupyLobbySlot as the only mutation sites.
 
 80. **`roomGameMode` is typed as `GameMode` (not string)** —
@@ -541,3 +541,49 @@ sufficient for LLM agents to follow correctly.
 
 87. **`TileKey` branded type lives in `spatial.ts`, not `types.ts`** —
     Moved alongside its constructor `packTile()`. Only `spatial.ts` produces TileKey values.
+
+88. **Interior freshness epoch tracking contract is documented at module level** —
+    shared/board-occupancy.ts:22-35 documents the lazy-init pattern, call sequence
+    (markWallsDirty → recomputeInterior → assertInteriorFresh), and battle exception.
+
+89. **Dialog callback patterns documented with decision table** —
+    runtime/runtime-types.ts:284-296 documents three intentionally different callback
+    storage patterns (ScoreDelta on state, LifeLost as method, UpgradePick as closure)
+    with a table and guidance for new dialogs.
+
+90. **Camera system uses all-getters deps (exception to standard destructuring)** —
+    runtime/runtime-camera.ts:1-11 file header documents the exception: all-getters
+    because camera state can change during host migration. Other subsystems destructure.
+
+91. **Mode classification table in ui-mode.ts** —
+    shared/ui-mode.ts:1-15 documents which modes are gameplay/interactive/transition
+    in a table. Do not report overlap between isGameplayMode/isInteractiveMode/isTransitionMode.
+
+92. **`dt` parameters are in seconds (not ms)** —
+    game/life-lost.ts, game/upgrade-pick.ts both have @param JSDoc specifying seconds.
+    game/combo-system.ts has a header comment. game/castle-build.ts:37 documents the same.
+
+93. **`resetZoneState` is destructive teardown, not a simple reset** —
+    game/phase-setup.ts:360-363 JSDoc documents it removes grunts, houses, pits, bonuses,
+    reverts sinkholes, and revives towers for an eliminated zone.
+
+94. **Late-binding init order in online-runtime-game.ts is documented** —
+    online/online-runtime-game.ts:207-215 ORDERING INVARIANT comment documents the
+    required call order: initWs → initPromote → initDeps.
+
+95. **Mode transition timing convention has per-handler cross-references** —
+    online/online-phase-transitions.ts: each handler has a one-line JSDoc noting when
+    setMode is called (immediately vs inside banner callback). TransitionContext JSDoc
+    at line 47-55 is the canonical source.
+
+96. **Serialization contract documented in checkpoint-data.ts header** —
+    shared/checkpoint-data.ts:1-12 documents intentionally loose typing (strings vs enums),
+    tile key encoding, and points to online-serialize.ts for deserialization.
+
+97. **`UPGRADE_ROW_W` is the canonical source for upgrade card row width** —
+    render/render-composition.ts exports UPGRADE_ROW_W; render-ui.ts imports it.
+    Do not redefine card layout constants locally.
+
+98. **`PHASE_ONLY_VOL` and wave shape constants are named in sound-system.ts** —
+    input/sound-system.ts:23-28 defines WAVE_SQUARE/SAWTOOTH/NOISE and PHASE_ONLY_VOL.
+    Do not use magic numbers 0/1/3 or 0.5 for these.

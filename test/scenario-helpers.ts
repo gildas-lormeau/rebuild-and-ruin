@@ -33,6 +33,7 @@ import {
 } from "../src/game/life-lost.ts";
 import type {
   BattleStartData,
+  BuildEndData,
   BuildStartData,
   CannonStartData,
 } from "../src/shared/checkpoint-data.ts";
@@ -417,7 +418,7 @@ export async function createScenario(seed = 42): Promise<Scenario> {
         hasPointerPlayer: deps.hasPointerPlayer,
         myPlayerId: deps.myPlayerId,
         hostAtFrameStart: true,
-        remoteHumanSlots: new Set(),
+        remotePlayerSlots: new Set(),
         mobileAutoZoom: deps.mobileAutoZoom,
       };
       return computeFrameContext(inputs);
@@ -467,7 +468,7 @@ export async function createScenario(seed = 42): Promise<Scenario> {
       state,
       hostAtFrameStart: true,
       myPlayerId: 0 as ValidPlayerSlot,
-      remoteHumanSlots: new Set(),
+      remotePlayerSlots: new Set(),
       isHumanController: () => false,
     });
   }
@@ -538,9 +539,10 @@ export async function createScenario(seed = 42): Promise<Scenario> {
           applyCannonStartCheckpoint(data, checkpointDeps, capturePreState),
         applyBattleStart: (data: BattleStartData, capturePreState?: () => void) =>
           applyBattleStartCheckpoint(data, checkpointDeps, capturePreState),
-        applyBuildStart: (data: BuildStartData) =>
-          applyBuildStartCheckpoint(data, checkpointDeps),
-        applyBuildEnd: applyBuildEndCheckpoint,
+        applyBuildStart: (data: BuildStartData, capturePreState?: () => void) =>
+          applyBuildStartCheckpoint(data, checkpointDeps, capturePreState),
+        applyBuildEnd: (data: BuildEndData, capturePreState?: () => void) =>
+          applyBuildEndCheckpoint(data, checkpointDeps, capturePreState),
       },
       selection: {
         clearSelectionOverlay: () => {},

@@ -96,7 +96,7 @@ const runtime: GameRuntime = createGameRuntime({
   // eslint-disable-next-line no-restricted-syntax -- bridge to runtime layer
   getIsHost: () => ctx.session.isHost,
   getMyPlayerId: () => ctx.session.myPlayerId,
-  getRemoteHumanSlots: () => ctx.session.remoteHumanSlots,
+  getRemotePlayerSlots: () => ctx.session.remotePlayerSlots,
   log: devLog,
   logThrottled: devLogThrottled,
   // -1 grace: server fires setTimeout(waitSec * 1000) exactly at waitSec.
@@ -160,7 +160,7 @@ const runtime: GameRuntime = createGameRuntime({
       extendWithRemoteCrosshairs(crosshairs, runtime.runtimeState.state, dt, {
         remoteCrosshairs: ctx.watcher.remoteCrosshairs,
         watcherCrosshairPos: ctx.watcher.watcherCrosshairPos,
-        remoteHumanSlots: ctx.session.remoteHumanSlots,
+        remotePlayerSlots: ctx.session.remotePlayerSlots,
         logThrottled: devLogThrottled,
       }),
     hostNetworking: {

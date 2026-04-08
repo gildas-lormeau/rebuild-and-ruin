@@ -106,9 +106,14 @@ function buildTransitionCheckpointCtx(
         buildCheckpointDeps(deps),
         capturePreState,
       ),
-    applyBuildStart: (data) =>
-      applyBuildStartCheckpoint(data, buildCheckpointDeps(deps)),
-    applyBuildEnd: applyBuildEndCheckpoint,
+    applyBuildStart: (data, capturePreState) =>
+      applyBuildStartCheckpoint(
+        data,
+        buildCheckpointDeps(deps),
+        capturePreState,
+      ),
+    applyBuildEnd: (data, capturePreState) =>
+      applyBuildEndCheckpoint(data, buildCheckpointDeps(deps), capturePreState),
   };
 }
 
@@ -130,7 +135,7 @@ function buildTransitionSelectionCtx(
       runtime.runtimeState.selection.castleBuilds.push({
         wallPlans: plans,
         maxTiles,
-        tileIdx: 0,
+        wallTimelineIdx: 0,
         accum: 0,
       });
       runtime.runtimeState.selection.castleBuildOnDone = onDone;

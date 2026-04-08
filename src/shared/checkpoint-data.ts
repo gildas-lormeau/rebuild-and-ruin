@@ -148,3 +148,9 @@ export interface BuildStartData {
   /** Grunts queued to spawn through wall breaches during build phase. */
   gruntSpawnQueue?: SerializedBreachSpawnEntry[];
 }
+
+/** Data needed to sync state at build phase end. */
+export interface BuildEndData {
+  players: readonly SerializedPlayer[];
+  scores: readonly number[];
+}

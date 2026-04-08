@@ -20,6 +20,7 @@
       "src/shared/player-slot.ts",
       "src/shared/render-spy.ts",
       "src/shared/rng.ts",
+      "src/shared/routes.ts",
       "src/shared/router.ts",
       "src/shared/settings-defs.ts",
       "src/shared/ui-mode.ts",

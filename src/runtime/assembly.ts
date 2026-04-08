@@ -40,7 +40,7 @@ interface RuntimeLoopDeps {
   runtimeState: RuntimeState;
   getMyPlayerId: () => PlayerSlotId;
   getIsHost: () => boolean;
-  getRemoteHumanSlots: () => Set<number>;
+  getRemotePlayerSlots: () => Set<number>;
   getPointerPlayer: () => { playerId: ValidPlayerSlot } | null;
   clearHumanCache: () => void;
   isSelectionReady: () => boolean;
@@ -99,7 +99,7 @@ export function createRuntimeLoop(deps: RuntimeLoopDeps): {
       hasPointerPlayer: pointer !== null,
       myPlayerId: deps.getMyPlayerId(),
       hostAtFrameStart: deps.getIsHost(),
-      remoteHumanSlots: deps.getRemoteHumanSlots(),
+      remotePlayerSlots: deps.getRemotePlayerSlots(),
       mobileAutoZoom: deps.isMobileAutoZoom(),
     });
 

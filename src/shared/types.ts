@@ -192,8 +192,8 @@ export interface FrameContext {
    *  Online: myPlayerId. Local: pointer player slot. Demo: 0. */
   readonly povPlayerId: ValidPlayerSlot;
   readonly hostAtFrameStart: boolean;
-  /** Non-local player slots. See OnlineSession.remoteHumanSlots for full docs. */
-  readonly remoteHumanSlots: ReadonlySet<number>;
+  /** Non-local player slots. See OnlineSession.remotePlayerSlots for full docs. */
+  readonly remotePlayerSlots: ReadonlySet<number>;
 
   // Mode / Phase
   readonly mode: Mode;

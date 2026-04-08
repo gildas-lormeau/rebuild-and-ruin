@@ -1,6 +1,11 @@
 import { PLAYER_NAMES } from "../src/shared/player-config.ts";
 import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { MESSAGE, type RoomSettings } from "../src/shared/protocol.ts";
+import {
+  API_ROOMS_PATH,
+  HEALTH_PATH,
+  WS_PLAY_PATH,
+} from "../src/shared/routes.ts";
 import { RoomManager } from "./room-manager.ts";
 
 const rooms = new RoomManager();
@@ -24,7 +29,7 @@ Deno.serve({ port: PORT }, (req) => {
     });
   }
 
-  if (url.pathname === "/api/rooms") {
+  if (url.pathname === API_ROOMS_PATH) {
     return new Response(JSON.stringify(rooms.listRooms()), {
       headers: {
         "Content-Type": "application/json",
@@ -33,7 +38,7 @@ Deno.serve({ port: PORT }, (req) => {
     });
   }
 
-  if (url.pathname === "/ws/play") {
+  if (url.pathname === WS_PLAY_PATH) {
     const upgrade = req.headers.get("upgrade") ?? "";
     if (upgrade.toLowerCase() !== "websocket") {
       return new Response("Expected WebSocket upgrade", { status: 426 });
@@ -64,7 +69,7 @@ Deno.serve({ port: PORT }, (req) => {
     return response;
   }
 
-  if (url.pathname === "/health") {
+  if (url.pathname === HEALTH_PATH) {
     return new Response("ok");
   }
 

@@ -8,6 +8,7 @@ import type { GameMode } from "../shared/game-constants.ts";
 import { MAX_PLAYERS } from "../shared/player-config.ts";
 import type { FullStateMessage, InitMessage } from "../shared/protocol.ts";
 import { GAME_CONTAINER_ACTIVE, navigateTo } from "../shared/router.ts";
+import { ROUTE_ONLINE } from "../shared/routes.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { pageOnline, roomCodeOverlay } from "./online-dom.ts";
 import { restoreFullStateUiRecovery } from "./online-full-state-recovery.ts";
@@ -44,7 +45,7 @@ export function createOnlineRuntimeSessionHelpers(
     runtime.runtimeState.lobby.active = false;
     deps.container.classList.remove(GAME_CONTAINER_ACTIVE);
     hideRoomCodeOverlay(roomCodeOverlay);
-    navigateTo("/online");
+    navigateTo(ROUTE_ONLINE);
     resetSession();
   }
 

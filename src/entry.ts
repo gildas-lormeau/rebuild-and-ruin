@@ -15,11 +15,10 @@ import {
   navigateTo,
   onRoute,
 } from "./shared/router.ts";
+import { ROUTE_HOME, ROUTE_ONLINE, ROUTE_PLAY } from "./shared/routes.ts";
 
 const DEFAULT_SERVER = "rebuild-and-ruin.gildas-lormeau.deno.net";
 const SERVER_STORAGE_KEY = "castles99_server";
-const ROUTE_ONLINE = "/online";
-const ROUTE_PLAY = "/play";
 const CLICK_EVENT = "click";
 const gameContainer = document.getElementById("game-container")!;
 const serverHostInput = document.getElementById(
@@ -59,7 +58,7 @@ onRoute(ROUTE_PLAY, () => {
   void import("./main.ts").then((module) => module.enterLocalLobby());
 });
 
-onRoute("/", () => {
+onRoute(ROUTE_HOME, () => {
   exitGameIfActive();
 });
 

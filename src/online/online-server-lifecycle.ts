@@ -32,7 +32,7 @@ export interface HandleServerLifecycleDeps {
     | "roomGameMode"
     | "lobbyStartTime"
     | "occupiedSlots"
-    | "remoteHumanSlots"
+    | "remotePlayerSlots"
   >;
 
   lobby: {
@@ -80,24 +80,24 @@ export async function handleServerLifecycleMessage(
   deps: HandleServerLifecycleDeps,
 ): Promise<boolean> {
   /** Atomically update all three slot-tracking structures (clear).
-   *  Invariant: occupiedSlots, remoteHumanSlots, and lobby.joined must always
+   *  Invariant: occupiedSlots, remotePlayerSlots, and lobby.joined must always
    *  be mutated together to avoid phantom entries or orphaned lobby data. */
   const clearLobbySlot = (playerId: ValidPlayerSlot) => {
     deps.lobby.joined[playerId] = false;
     deps.session.occupiedSlots.delete(playerId);
-    deps.session.remoteHumanSlots.delete(playerId);
+    deps.session.remotePlayerSlots.delete(playerId);
   };
 
   /** Atomically update all three slot-tracking structures (occupy).
-   *  Invariant: occupiedSlots, remoteHumanSlots, and lobby.joined must always
+   *  Invariant: occupiedSlots, remotePlayerSlots, and lobby.joined must always
    *  be mutated together to avoid phantom entries or orphaned lobby data. */
   const occupyLobbySlot = (playerId: ValidPlayerSlot) => {
     deps.lobby.joined[playerId] = true;
     deps.session.occupiedSlots.add(playerId);
     if (playerId !== deps.session.myPlayerId) {
-      deps.session.remoteHumanSlots.add(playerId);
+      deps.session.remotePlayerSlots.add(playerId);
     } else {
-      deps.session.remoteHumanSlots.delete(playerId);
+      deps.session.remotePlayerSlots.delete(playerId);
     }
   };
 

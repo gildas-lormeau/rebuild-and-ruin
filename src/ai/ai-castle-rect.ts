@@ -348,54 +348,14 @@ export function castleRect(
   // maxMarginForSide only samples the tower's columns/rows, missing diagonal
   // corners where two ring edges meet a stepped bank.
   if (shrinkCorners) {
-    for (let pass = 0; pass < 3; pass++) {
-      const rTop = tower.row - growthTop - 1;
-      const rBot = tower.row + 1 + growthBottom + 1;
-      const rLeft = tower.col - growthLeft - 1;
-      const rRight = tower.col + 1 + growthRight + 1;
-      let shrunk = false;
-      if (rTop >= 0 && rLeft >= 0 && isWater(tiles, rTop, rLeft)) {
-        if (growthTop >= growthLeft && growthTop > 0) {
-          growthTop--;
-          shrunk = true;
-        } else if (growthLeft > 0) {
-          growthLeft--;
-          shrunk = true;
-        }
-      }
-      if (rTop >= 0 && rRight < GRID_COLS && isWater(tiles, rTop, rRight)) {
-        if (growthTop >= growthRight && growthTop > 0) {
-          growthTop--;
-          shrunk = true;
-        } else if (growthRight > 0) {
-          growthRight--;
-          shrunk = true;
-        }
-      }
-      if (rBot < GRID_ROWS && rLeft >= 0 && isWater(tiles, rBot, rLeft)) {
-        if (growthBottom >= growthLeft && growthBottom > 0) {
-          growthBottom--;
-          shrunk = true;
-        } else if (growthLeft > 0) {
-          growthLeft--;
-          shrunk = true;
-        }
-      }
-      if (
-        rBot < GRID_ROWS &&
-        rRight < GRID_COLS &&
-        isWater(tiles, rBot, rRight)
-      ) {
-        if (growthBottom >= growthRight && growthBottom > 0) {
-          growthBottom--;
-          shrunk = true;
-        } else if (growthRight > 0) {
-          growthRight--;
-          shrunk = true;
-        }
-      }
-      if (!shrunk) break;
-    }
+    [growthTop, growthBottom, growthLeft, growthRight] = shrinkCornersForWater(
+      tower,
+      growthTop,
+      growthBottom,
+      growthLeft,
+      growthRight,
+      tiles,
+    );
   }
 
   // Return interior bounds — wall ring is one tile outside these bounds.
@@ -405,6 +365,68 @@ export function castleRect(
     left: tower.col - growthLeft,
     right: tower.col + 1 + growthRight,
   };
+}
+
+/** Shrink growth values when ring corners land on water tiles.
+ *  Iterates up to 3 passes; each pass shrinks whichever side is longer
+ *  (preferring to keep the rect balanced). Returns updated growths. */
+function shrinkCornersForWater(
+  tower: Tower,
+  growthTop: number,
+  growthBottom: number,
+  growthLeft: number,
+  growthRight: number,
+  tiles: readonly (readonly Tile[])[],
+): [number, number, number, number] {
+  for (let pass = 0; pass < 3; pass++) {
+    const rTop = tower.row - growthTop - 1;
+    const rBot = tower.row + 1 + growthBottom + 1;
+    const rLeft = tower.col - growthLeft - 1;
+    const rRight = tower.col + 1 + growthRight + 1;
+    let shrunk = false;
+    if (rTop >= 0 && rLeft >= 0 && isWater(tiles, rTop, rLeft)) {
+      if (growthTop >= growthLeft && growthTop > 0) {
+        growthTop--;
+        shrunk = true;
+      } else if (growthLeft > 0) {
+        growthLeft--;
+        shrunk = true;
+      }
+    }
+    if (rTop >= 0 && rRight < GRID_COLS && isWater(tiles, rTop, rRight)) {
+      if (growthTop >= growthRight && growthTop > 0) {
+        growthTop--;
+        shrunk = true;
+      } else if (growthRight > 0) {
+        growthRight--;
+        shrunk = true;
+      }
+    }
+    if (rBot < GRID_ROWS && rLeft >= 0 && isWater(tiles, rBot, rLeft)) {
+      if (growthBottom >= growthLeft && growthBottom > 0) {
+        growthBottom--;
+        shrunk = true;
+      } else if (growthLeft > 0) {
+        growthLeft--;
+        shrunk = true;
+      }
+    }
+    if (
+      rBot < GRID_ROWS &&
+      rRight < GRID_COLS &&
+      isWater(tiles, rBot, rRight)
+    ) {
+      if (growthBottom >= growthRight && growthBottom > 0) {
+        growthBottom--;
+        shrunk = true;
+      } else if (growthRight > 0) {
+        growthRight--;
+        shrunk = true;
+      }
+    }
+    if (!shrunk) break;
+  }
+  return [growthTop, growthBottom, growthLeft, growthRight];
 }
 
 /**

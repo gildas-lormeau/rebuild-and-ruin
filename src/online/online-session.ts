@@ -42,16 +42,15 @@ export interface OnlineSession {
    *  WRITE only in session init/reset/promotion (with eslint-disable). */
   isHost: boolean;
   hostMigrationSeq: number;
-  /** All player slots with a connected client (includes self + remote humans + AI slots).
-   *  INVARIANT: remoteHumanSlots ⊆ occupiedSlots (every remote human is also occupied).
+  /** All player slots with a connected client (includes self + remote players).
+   *  INVARIANT: remotePlayerSlots ⊆ occupiedSlots.
    *  Both sets are maintained atomically by clearLobbySlot/occupyLobbySlot in
    *  online-server-lifecycle.ts — never mutate one without the other. */
   occupiedSlots: Set<number>;
-  /** Non-local player slots (excludes self; includes remote humans and
-   *  AI-controlled remote players despite the "human" name — kept for
-   *  backward compatibility). Used for auto-resolve logic and POV.
-   *  INVARIANT: remoteHumanSlots ⊆ occupiedSlots. */
-  remoteHumanSlots: Set<number>;
+  /** Non-local player slots (excludes self; includes both remote humans and
+   *  AI-controlled remote players). Used for auto-resolve logic and POV.
+   *  INVARIANT: remotePlayerSlots ⊆ occupiedSlots. */
+  remotePlayerSlots: Set<number>;
   roomWaitTimerSec: number;
   roomSeed: number;
   roomMaxRounds: number;
@@ -90,7 +89,7 @@ export function createSession(): OnlineSession {
     isHost: false,
     hostMigrationSeq: 0,
     occupiedSlots: new Set(),
-    remoteHumanSlots: new Set(),
+    remotePlayerSlots: new Set(),
     roomWaitTimerSec: LOBBY_TIMER,
     roomSeed: 0,
     roomMaxRounds: 0,
@@ -124,7 +123,7 @@ export function resetSessionState(session: OnlineSession): void {
   session.hostMigrationSeq = 0;
   session.myPlayerId = SPECTATOR_SLOT;
   session.occupiedSlots.clear();
-  session.remoteHumanSlots.clear();
+  session.remotePlayerSlots.clear();
   session.earlyLifeLostChoices.clear();
   session.earlyUpgradePickChoices.clear();
 }

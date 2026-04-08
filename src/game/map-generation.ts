@@ -367,32 +367,13 @@ function placeTowers(
 
     // Remaining towers: farthest from existing zone towers
     const zoneTowerStart = towers.length - 1; // index of first tower in this zone
-    for (let tower = 1; tower < TOWERS_PER_ZONE; tower++) {
-      let bestPos: [number, number] | undefined;
-      let bestMinDist = -1;
-
-      for (const [c, r] of validPositions) {
-        if (!isValidTowerPos(c, r, riverDist, towers)) continue;
-
-        let minDist = Infinity;
-        for (
-          let towerIdx = zoneTowerStart;
-          towerIdx < towers.length;
-          towerIdx++
-        ) {
-          const tower = towers[towerIdx]!;
-          minDist = Math.min(
-            minDist,
-            towerRectDistance(c, r, tower.col, tower.row),
-          );
-        }
-
-        if (minDist > bestMinDist) {
-          bestMinDist = minDist;
-          bestPos = [c, r];
-        }
-      }
-
+    for (let towerNum = 1; towerNum < TOWERS_PER_ZONE; towerNum++) {
+      const bestPos = findFarthestPosition(
+        validPositions,
+        riverDist,
+        towers,
+        zoneTowerStart,
+      );
       if (bestPos) {
         towers.push({
           col: bestPos[0],
@@ -405,6 +386,33 @@ function placeTowers(
   }
 
   return towers;
+}
+
+/** Pick the valid position farthest from all existing zone towers (greedy farthest-point). */
+function findFarthestPosition(
+  validPositions: readonly [number, number][],
+  riverDist: readonly number[][],
+  towers: readonly Tower[],
+  zoneTowerStart: number,
+): [number, number] | undefined {
+  let bestPos: [number, number] | undefined;
+  let bestMinDist = -1;
+  for (const [col, row] of validPositions) {
+    if (!isValidTowerPos(col, row, riverDist, towers)) continue;
+    let minDist = Infinity;
+    for (let idx = zoneTowerStart; idx < towers.length; idx++) {
+      const existing = towers[idx]!;
+      minDist = Math.min(
+        minDist,
+        towerRectDistance(col, row, existing.col, existing.row),
+      );
+    }
+    if (minDist > bestMinDist) {
+      bestMinDist = minDist;
+      bestPos = [col, row];
+    }
+  }
+  return bestPos;
 }
 
 function topZoneIds(regionSizes: Map<number, number>, count: number): number[] {

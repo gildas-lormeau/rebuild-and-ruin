@@ -24,7 +24,7 @@ import {
 } from "../shared/system-interfaces.ts";
 import {
   ACCUM_SELECT,
-  isRemoteHuman,
+  isRemotePlayer,
   type MutableAccums,
   resetAccum,
 } from "../shared/tick-context.ts";
@@ -127,7 +127,7 @@ export function createSelectionSystem(
 
     const { state } = runtimeState;
     const isHost = deps.hostAtFrameStart();
-    const { myPlayerId, remoteHumanSlots } = runtimeState.frameMeta;
+    const { myPlayerId, remotePlayerSlots } = runtimeState.frameMeta;
 
     deps.log(
       `enterTowerSelection (phase=${Phase[state.phase]}, round=${state.round})`,
@@ -150,7 +150,7 @@ export function createSelectionSystem(
     const shouldSelect = (pid: ValidPlayerSlot): boolean => {
       if (isWatcher) return false;
       if (!isHost) return pid === myPlayerId;
-      return !isRemoteHuman(pid, remoteHumanSlots);
+      return !isRemotePlayer(pid, remotePlayerSlots);
     };
 
     runtimeState.selection.states.clear();
@@ -274,7 +274,7 @@ export function createSelectionSystem(
 
   function tickSelection(dt: number) {
     const { state, accum, selection } = runtimeState;
-    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
+    const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     const isHost = deps.hostAtFrameStart();
     const myPlayerId = runtimeState.frameMeta.myPlayerId;
 
@@ -319,7 +319,7 @@ export function createSelectionSystem(
     for (const [rawPid, selectionState] of selection.states) {
       const pid = rawPid as ValidPlayerSlot;
       if (selectionState.confirmed) continue;
-      if (isRemoteHuman(pid, remoteHumanSlots)) continue;
+      if (isRemotePlayer(pid, remotePlayerSlots)) continue;
 
       const towerBefore = state.players[pid]!.homeTower;
       if (runtimeState.controllers[pid]!.selectionTick(dt, state)) {
@@ -459,7 +459,7 @@ export function createSelectionSystem(
   // -------------------------------------------------------------------------
 
   function startReselection() {
-    const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
+    const remotePlayerSlots = runtimeState.frameMeta.remotePlayerSlots;
     selectionFacade.enterCastleReselectPhase(runtimeState.state);
     resetSelectionState();
 
@@ -469,7 +469,7 @@ export function createSelectionSystem(
       controllers: runtimeState.controllers,
       initTowerSelection: initPlayerTowerSelection,
       processPlayer: (pid, ctrl, zone) => {
-        if (isRemoteHuman(pid, remoteHumanSlots)) return "pending" as const;
+        if (isRemotePlayer(pid, remotePlayerSlots)) return "pending" as const;
         ctrl.selectReplacementTower(runtimeState.state, zone);
         // AI confirms via selectionTick(); humans need UI interaction
         return "pending" as const;

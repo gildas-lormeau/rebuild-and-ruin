@@ -99,6 +99,51 @@ const CROSSHAIR_COLORS: RGB[] = [
 ];
 /** Amber color for the Master Builder lockout pulse. */
 const LOCKOUT_AMBER = "rgba(255,180,50,1)";
+// Lockout pulse timing (ms per half-cycle of the sin wave)
+const LOCKOUT_PULSE_MS = 300;
+// Impact core flash: initial size ratio and shrink speed
+const IMPACT_CORE_SIZE_RATIO = 0.6;
+const IMPACT_CORE_SHRINK_RATE = 1.2;
+// Impact shockwave ring initial radius ratio (fraction of TILE_SIZE)
+const IMPACT_RING_INITIAL_RATIO = 0.5;
+// Impact smoke parameters
+const SMOKE_BASE_RADIUS_RATIO = 0.4;
+const SMOKE_EXPAND_RATIO = 0.3;
+const SMOKE_RISE_PX = 4;
+// Debris spark parameters
+const SPARK_COUNT = 5;
+const SPARK_ANGLE_STEP = 1.3;
+const SPARK_BASE_SPEED_RATIO = 0.8;
+const SPARK_SPEED_PER_PARTICLE = 3;
+const SPARK_DROP_SPEED = 3;
+const SPARK_ALPHA_SCALE = 0.9;
+// Cannonball radii (px) — mortar balls are larger (incendiary splash)
+const BALL_RADIUS_NORMAL = 3;
+const BALL_RADIUS_MORTAR = 4.5;
+const BALL_ARC_BONUS_NORMAL = 2;
+const BALL_ARC_BONUS_MORTAR = 3;
+// Balloon geometry (px)
+const BALLOON_RADIUS = 8;
+const BALLOON_BASKET_OFFSET = 9;
+const BALLOON_ARC_HEIGHT = 40;
+const BALLOON_HIGHLIGHT_DX = -2;
+const BALLOON_HIGHLIGHT_DY = -4;
+const BALLOON_HIGHLIGHT_RX = 3;
+const BALLOON_HIGHLIGHT_RY = 4;
+const BALLOON_HIGHLIGHT_TILT = -0.3;
+const BALLOON_ROPE_INSET = 3;
+const BALLOON_ROPE_BOTTOM_INSET = 2;
+const BALLOON_ROPE_LENGTH = 7;
+const BALLOON_BASKET_HALF_W = 3;
+const BALLOON_BASKET_H = 4;
+// Crosshair geometry helpers
+const CROSSHAIR_DIAG_RATIO = 0.7;
+const CROSSHAIR_ALPHA_READY_BASE = 0.7;
+const CROSSHAIR_ALPHA_READY_AMP = 0.3;
+const CROSSHAIR_ALPHA_IDLE_BASE = 0.35;
+const CROSSHAIR_ALPHA_IDLE_AMP = 0.15;
+const CROSSHAIR_GAP_READY = 5;
+const CROSSHAIR_GAP_IDLE = 3;
 
 /** Draw phantom piece/cannon previews.
  *  Draw order: cannon phantoms (behind), then piece phantoms (on top).
@@ -367,7 +412,8 @@ function drawImpacts(
     // ── Phase 1 (0.0–0.25): Core flash — brief bright spot, shrinks quickly ──
     if (time < IMPACT_CORE_END) {
       const coreAlpha = (1 - time / IMPACT_CORE_END) * 0.6;
-      const coreSize = TILE_SIZE * (0.6 - time * 1.2);
+      const coreSize =
+        TILE_SIZE * (IMPACT_CORE_SIZE_RATIO - time * IMPACT_CORE_SHRINK_RATE);
       overlayCtx.globalAlpha = coreAlpha;
       overlayCtx.fillStyle = "#ffe0a0";
       overlayCtx.beginPath();
@@ -377,7 +423,7 @@ function drawImpacts(
 
     // ── Phase 2 (0.0–0.6): Shockwave ring — expands outward ──
     if (time < IMPACT_RING_END) {
-      const ringR = TILE_SIZE * 0.5 + time * TILE_SIZE;
+      const ringR = TILE_SIZE * IMPACT_RING_INITIAL_RATIO + time * TILE_SIZE;
       overlayCtx.globalAlpha = (1 - time / IMPACT_RING_END) * 0.7;
       overlayCtx.strokeStyle = "#ffcc44";
       overlayCtx.lineWidth = 2;
@@ -389,13 +435,16 @@ function drawImpacts(
     // ── Phase 3 (0.0–0.8): Debris sparks — 5 particles flying outward ──
     if (time < IMPACT_DEBRIS_END) {
       const sparkAlpha = 1 - time / IMPACT_DEBRIS_END;
-      for (let i = 0; i < 5; i++) {
-        const angle = (seed + i * 1.3) % (Math.PI * 2);
-        const dist = time * (TILE_SIZE * 0.8 + i * 3);
+      for (let spark = 0; spark < SPARK_COUNT; spark++) {
+        const angle = (seed + spark * SPARK_ANGLE_STEP) % (Math.PI * 2);
+        const dist =
+          time *
+          (TILE_SIZE * SPARK_BASE_SPEED_RATIO +
+            spark * SPARK_SPEED_PER_PARTICLE);
         const sx = cx + Math.cos(angle) * dist;
-        const sy = cy + Math.sin(angle) * dist - time * 3;
-        overlayCtx.globalAlpha = sparkAlpha * 0.9;
-        overlayCtx.fillStyle = i % 2 === 0 ? "#ffaa30" : "#ff6600";
+        const sy = cy + Math.sin(angle) * dist - time * SPARK_DROP_SPEED;
+        overlayCtx.globalAlpha = sparkAlpha * SPARK_ALPHA_SCALE;
+        overlayCtx.fillStyle = spark % 2 === 0 ? "#ffaa30" : "#ff6600";
         overlayCtx.fillRect(sx - 1, sy - 1, 2, 2);
       }
     }
@@ -403,11 +452,13 @@ function drawImpacts(
     // ── Phase 4 (0.2–1.0): Smoke — dark puff rising, lingers in second half ──
     if (time > IMPACT_SMOKE_START) {
       const smokeT = (time - IMPACT_SMOKE_START) / (1 - IMPACT_SMOKE_START);
-      const smokeR = TILE_SIZE * 0.4 + smokeT * TILE_SIZE * 0.3;
+      const smokeR =
+        TILE_SIZE * SMOKE_BASE_RADIUS_RATIO +
+        smokeT * TILE_SIZE * SMOKE_EXPAND_RATIO;
       overlayCtx.globalAlpha = (1 - smokeT) * 0.35;
       overlayCtx.fillStyle = "#3a3028";
       overlayCtx.beginPath();
-      overlayCtx.arc(cx, cy - smokeT * 4, smokeR, 0, Math.PI * 2);
+      overlayCtx.arc(cx, cy - smokeT * SMOKE_RISE_PX, smokeR, 0, Math.PI * 2);
       overlayCtx.fill();
     }
 
@@ -425,8 +476,10 @@ function drawCannonballs(
     // progress: normalized 0→1 linear interpolation from launch position to target
     const height = Math.sin(ball.progress * Math.PI);
     // Mortar balls are larger and reddish (incendiary splash creates burning pits)
-    const baseRadius = ball.mortar ? 4.5 : 3;
-    const arcBonus = ball.mortar ? 3 : 2;
+    const baseRadius = ball.mortar ? BALL_RADIUS_MORTAR : BALL_RADIUS_NORMAL;
+    const arcBonus = ball.mortar
+      ? BALL_ARC_BONUS_MORTAR
+      : BALL_ARC_BONUS_NORMAL;
     const radius = baseRadius + height * arcBonus;
     const color = ball.mortar ? "#b33" : ball.incendiary ? "#c22" : DARK_METAL;
     overlayCtx.fillStyle = color;
@@ -446,14 +499,14 @@ function drawBalloons(
   for (const b of overlay.battle.balloons) {
     // progress: normalized 0→1 arc trajectory (basket follows parabolic path to target)
     const progress = b.progress;
-    const radius = 8;
-    const basketOffset = radius + 9; // envelope center to basket center
+    const radius = BALLOON_RADIUS;
+    const basketOffset = radius + BALLOON_BASKET_OFFSET; // envelope center to basket center
     // Interpolate so the basket (not envelope) arrives at the target center
     const cx = b.x + (b.targetX - b.x) * progress;
     const cy =
       b.y +
       (b.targetY - basketOffset - b.y) * progress -
-      Math.sin(progress * Math.PI) * 40;
+      Math.sin(progress * Math.PI) * BALLOON_ARC_HEIGHT;
     // Balloon envelope (main body — red)
     overlayCtx.fillStyle = "#b03030";
     overlayCtx.beginPath();
@@ -462,7 +515,15 @@ function drawBalloons(
     // Highlight (specular)
     overlayCtx.fillStyle = "rgba(220, 120, 120, 0.5)";
     overlayCtx.beginPath();
-    overlayCtx.ellipse(cx - 2, cy - 4, 3, 4, -0.3, 0, Math.PI * 2);
+    overlayCtx.ellipse(
+      cx + BALLOON_HIGHLIGHT_DX,
+      cy + BALLOON_HIGHLIGHT_DY,
+      BALLOON_HIGHLIGHT_RX,
+      BALLOON_HIGHLIGHT_RY,
+      BALLOON_HIGHLIGHT_TILT,
+      0,
+      Math.PI * 2,
+    );
     overlayCtx.fill();
     // Panel seams
     overlayCtx.strokeStyle = "#802020";
@@ -485,21 +546,42 @@ function drawBalloons(
     overlayCtx.strokeStyle = "#6a5a3a";
     overlayCtx.lineWidth = 0.7;
     overlayCtx.beginPath();
-    overlayCtx.moveTo(cx - 3, cy + radius + 1);
-    overlayCtx.lineTo(cx - 2, cy + radius + 7);
+    overlayCtx.moveTo(cx - BALLOON_ROPE_INSET, cy + radius + 1);
+    overlayCtx.lineTo(
+      cx - BALLOON_ROPE_BOTTOM_INSET,
+      cy + radius + BALLOON_ROPE_LENGTH,
+    );
     overlayCtx.stroke();
     overlayCtx.beginPath();
-    overlayCtx.moveTo(cx + 3, cy + radius + 1);
-    overlayCtx.lineTo(cx + 2, cy + radius + 7);
+    overlayCtx.moveTo(cx + BALLOON_ROPE_INSET, cy + radius + 1);
+    overlayCtx.lineTo(
+      cx + BALLOON_ROPE_BOTTOM_INSET,
+      cy + radius + BALLOON_ROPE_LENGTH,
+    );
     overlayCtx.stroke();
     // Basket (wicker)
     overlayCtx.fillStyle = "#8b6914";
-    overlayCtx.fillRect(cx - 3, cy + radius + 7, 6, 4);
+    overlayCtx.fillRect(
+      cx - BALLOON_BASKET_HALF_W,
+      cy + radius + BALLOON_ROPE_LENGTH,
+      BALLOON_BASKET_HALF_W * 2,
+      BALLOON_BASKET_H,
+    );
     overlayCtx.fillStyle = "#a07a1a";
-    overlayCtx.fillRect(cx - 2, cy + radius + 8, 4, 2);
+    overlayCtx.fillRect(
+      cx - BALLOON_ROPE_BOTTOM_INSET,
+      cy + radius + BALLOON_ROPE_LENGTH + 1,
+      BALLOON_ROPE_BOTTOM_INSET * 2,
+      2,
+    );
     // Basket rim
     overlayCtx.fillStyle = "#6a4a0a";
-    overlayCtx.fillRect(cx - 3, cy + radius + 7, 6, 1);
+    overlayCtx.fillRect(
+      cx - BALLOON_BASKET_HALF_W,
+      cy + radius + BALLOON_ROPE_LENGTH,
+      BALLOON_BASKET_HALF_W * 2,
+      1,
+    );
   }
   overlayCtx.restore();
 }
@@ -577,7 +659,7 @@ function drawPhaseTimer(
   overlayCtx.textBaseline = TEXT_BASELINE_MIDDLE;
   if (lockout > 0) {
     // Pulse: time-based scale oscillation matching other render effects
-    const pulse = 1.0 + 0.15 * Math.abs(Math.sin(now / 300));
+    const pulse = 1.0 + 0.15 * Math.abs(Math.sin(now / LOCKOUT_PULSE_MS));
     overlayCtx.translate(jx, jy);
     overlayCtx.scale(pulse, pulse);
     drawShadowText(overlayCtx, text, 0, 0, SHADOW_COLOR, LOCKOUT_AMBER);
@@ -597,14 +679,16 @@ function crosshairGeometry(
   time: number,
 ): { alpha: number; arm: number; diag: number; gap: number } {
   const alpha = ready
-    ? 0.7 + 0.3 * Math.sin(time * CROSSHAIR_READY_CYCLE_MS)
-    : 0.35 + 0.15 * Math.sin(time * CROSSHAIR_IDLE_CYCLE_MS);
+    ? CROSSHAIR_ALPHA_READY_BASE +
+      CROSSHAIR_ALPHA_READY_AMP * Math.sin(time * CROSSHAIR_READY_CYCLE_MS)
+    : CROSSHAIR_ALPHA_IDLE_BASE +
+      CROSSHAIR_ALPHA_IDLE_AMP * Math.sin(time * CROSSHAIR_IDLE_CYCLE_MS);
   const arm = ready
     ? CROSSHAIR_ARM_READY +
       Math.sin(time * CROSSHAIR_READY_CYCLE_MS) * CROSSHAIR_ARM_PULSE
     : CROSSHAIR_ARM_IDLE;
-  const diag = Math.round(arm * 0.7);
-  const gap = ready ? 5 : 3;
+  const diag = Math.round(arm * CROSSHAIR_DIAG_RATIO);
+  const gap = ready ? CROSSHAIR_GAP_READY : CROSSHAIR_GAP_IDLE;
   return { alpha, arm, diag, gap };
 }
 

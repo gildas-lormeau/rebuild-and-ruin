@@ -51,8 +51,8 @@ import type { GameState } from "./types.ts";
  *  VOLATILE: `isHost` can flip mid-session during host promotion.
  *  Always read inline — never cache in a local variable across ticks. */
 interface HostNetContext {
-  /** Non-local player slots. See OnlineSession.remoteHumanSlots for full docs. */
-  remoteHumanSlots: ReadonlySet<number>;
+  /** Non-local player slots. See OnlineSession.remotePlayerSlots for full docs. */
+  remotePlayerSlots: ReadonlySet<number>;
   isHost: boolean;
 }
 
@@ -150,19 +150,19 @@ export function tickGruntsIfDue(
  *  self-guard against eliminated players at the mutation boundary. */
 export function localControllers<
   T extends ControllerIdentity = ControllerIdentity,
->(controllers: readonly T[], remoteHumanSlots: ReadonlySet<number>): T[] {
+>(controllers: readonly T[], remotePlayerSlots: ReadonlySet<number>): T[] {
   return controllers.filter(
-    (ctrl) => !isRemoteHuman(ctrl.playerId, remoteHumanSlots),
+    (ctrl) => !isRemotePlayer(ctrl.playerId, remotePlayerSlots),
   );
 }
 
 /** True if this player slot is controlled by a remote human (not local).
- *  Use this instead of inline `remoteHumanSlots.has(pid)` to make intent explicit. */
-export function isRemoteHuman(
+ *  Use this instead of inline `remotePlayerSlots.has(pid)` to make intent explicit. */
+export function isRemotePlayer(
   playerId: ValidPlayerSlot,
-  remoteHumanSlots: ReadonlySet<number>,
+  remotePlayerSlots: ReadonlySet<number>,
 ): boolean {
-  return remoteHumanSlots.has(playerId);
+  return remotePlayerSlots.has(playerId);
 }
 
 export function createTimerAccums(): TimerAccums {

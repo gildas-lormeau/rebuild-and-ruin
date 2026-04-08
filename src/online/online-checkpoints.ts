@@ -4,9 +4,9 @@ import { reapplySinkholeTiles } from "../game/round-modifiers.ts";
 import { snapshotAllWalls } from "../shared/board-occupancy.ts";
 import type {
   BattleStartData,
+  BuildEndData,
   BuildStartData,
   CannonStartData,
-  SerializedPlayer,
 } from "../shared/checkpoint-data.ts";
 import { FID } from "../shared/feature-defs.ts";
 import { BATTLE_TIMER } from "../shared/game-constants.ts";
@@ -46,12 +46,10 @@ export interface CheckpointAccums {
 
 /** Shared deps for all checkpoint apply functions.
  *
- *  capturePreState callback pattern (two variants, both call BEFORE player state is overwritten):
- *    1. Delegated: applyCannonStart / applyBuildStart pass capturePreState into
- *       applyCommonCheckpoint, which calls it before applyPlayersCheckpoint.
- *    2. Direct: applyBattleStart / applyBuildEnd call capturePreState?.() inline
- *       because they have custom post-player-apply logic (territory snapshots, scores).
- *  Both guarantee: capturePreState runs before any player mutation. */
+ *  All four apply functions share the signature (data, deps, capturePreState?).
+ *  capturePreState always runs BEFORE applyPlayersCheckpoint overwrites player state.
+ *  Delegated variant (cannon/build-start) passes it through applyCommonCheckpoint;
+ *  direct variant (battle-start/build-end) calls it inline before player mutation. */
 export interface CheckpointDeps {
   state: GameState;
   battleAnim: CheckpointBattleAnim;
@@ -147,13 +145,16 @@ export function applyBattleStartCheckpoint(
 }
 
 /** Apply a build-start checkpoint received from the host.
+ *  @param capturePreState — Runs BEFORE applyPlayersCheckpoint overwrites player state.
+ *    Use this to capture pre-state for banner animations.
  *  @sideeffect Clears in-flight cannonballs and impacts. Resets grunt accumulator
  *  and cannon facings. Does NOT reset watcher crosshairs (build phase has no crosshairs). */
 export function applyBuildStartCheckpoint(
   data: BuildStartData,
   deps: CheckpointDeps,
+  capturePreState?: () => void,
 ): void {
-  applyCommonCheckpoint(data, deps);
+  applyCommonCheckpoint(data, deps, capturePreState);
   deps.state.round = data.round;
   deps.state.timer = data.timer;
   if (hasFeature(deps.state, FID.MODIFIERS)) {
@@ -197,15 +198,15 @@ export function applyBuildStartCheckpoint(
  *  @param capturePreState — Runs BEFORE applyPlayersCheckpoint overwrites player state.
  *    Use this to capture pre-state (walls, scores, castles) for banner animations. */
 export function applyBuildEndCheckpoint(
-  state: GameState,
-  players: readonly SerializedPlayer[],
-  scores: readonly number[],
+  data: BuildEndData,
+  deps: CheckpointDeps,
   capturePreState?: () => void,
 ): void {
   capturePreState?.();
-  applyPlayersCheckpoint(state, players);
-  for (let i = 0; i < state.players.length; i++) {
-    state.players[i]!.score = scores[i] ?? state.players[i]!.score;
+  applyPlayersCheckpoint(deps.state, data.players);
+  for (let idx = 0; idx < deps.state.players.length; idx++) {
+    deps.state.players[idx]!.score =
+      data.scores[idx] ?? deps.state.players[idx]!.score;
   }
 }
 

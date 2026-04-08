@@ -26,7 +26,7 @@ const runtime = createGameRuntime({
   aiPick: aiPickUpgrade,
   getIsHost: () => true,
   getMyPlayerId: () => SPECTATOR_SLOT,
-  getRemoteHumanSlots: () => emptySet,
+  getRemotePlayerSlots: () => emptySet,
   // @ts-ignore — import.meta.env is Vite-specific
   log: import.meta.env?.DEV
     ? (msg: string) => console.log(`[local] ${msg}`)

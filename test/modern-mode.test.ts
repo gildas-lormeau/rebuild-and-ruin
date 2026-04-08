@@ -756,7 +756,7 @@ function makeIncrementalDeps(overrides: {
     log: () => {},
     session: {
       isHost: overrides.isHost,
-      remoteHumanSlots: new Set<number>([1]),
+      remotePlayerSlots: new Set<number>([1]),
       earlyLifeLostChoices: new Map(),
       earlyUpgradePickChoices: overrides.earlyUpgradePickChoices ?? new Map<number, string>(),
     },
@@ -894,7 +894,7 @@ Deno.test("upgrade pick banner is shown before upgrade pick dialog", async () =>
       state: s.state,
       hostAtFrameStart: true,
       myPlayerId: 0 as PlayerSlotId,
-      remoteHumanSlots: new Set(),
+      remotePlayerSlots: new Set(),
       isHumanController: () => false,
     });
     if (!dialog) return false;
@@ -932,7 +932,7 @@ Deno.test("createUpgradePickDialog returns dialog from pending offers", async ()
     state: s.state,
     hostAtFrameStart: true,
     myPlayerId: 0 as PlayerSlotId,
-    remoteHumanSlots: new Set(),
+    remotePlayerSlots: new Set(),
     isHumanController: () => false,
   });
 

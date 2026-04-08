@@ -22,9 +22,9 @@ import {
 import { snapshotAllWalls } from "../shared/board-occupancy.ts";
 import type {
   BattleStartData,
+  BuildEndData,
   BuildStartData,
   CannonStartData,
-  SerializedPlayer,
 } from "../shared/checkpoint-data.ts";
 import { Phase } from "../shared/game-phase.ts";
 import { TILE_COUNT } from "../shared/grid.ts";
@@ -99,13 +99,11 @@ export interface TransitionContext {
       data: BattleStartData,
       capturePreState?: () => void,
     ) => void;
-    applyBuildStart: (data: BuildStartData) => void;
-    applyBuildEnd: (
-      state: GameState,
-      players: readonly SerializedPlayer[],
-      scores: readonly number[],
+    applyBuildStart: (
+      data: BuildStartData,
       capturePreState?: () => void,
     ) => void;
+    applyBuildEnd: (data: BuildEndData, capturePreState?: () => void) => void;
   };
 
   // ── Selection & castle build ──
@@ -420,7 +418,7 @@ export function handleBuildEndTransition(
   const state = transitionCtx.getState();
 
   let preScores: number[] = [];
-  transitionCtx.checkpoint.applyBuildEnd(state, msg.players, msg.scores, () => {
+  transitionCtx.checkpoint.applyBuildEnd(msg, () => {
     // Pre-capture old scene before checkpoint applies the wall sweep.
     // The host stashes wallsBeforeSweep before sweeping; the watcher must
     // do the same so walls stay visible until the cannon-start banner.

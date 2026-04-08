@@ -170,7 +170,7 @@ export interface RuntimeConfig {
    *  Only meaningful for online play — local consumers should use povPlayerId instead. */
   getMyPlayerId: () => PlayerSlotId;
   /** () => emptySet for local. */
-  getRemoteHumanSlots: () => Set<number>;
+  getRemotePlayerSlots: () => Set<number>;
   /** noop for local. */
   log: (msg: string) => void;
   /** noop for local. */

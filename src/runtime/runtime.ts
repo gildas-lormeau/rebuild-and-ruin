@@ -166,7 +166,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     getMyPlayerId: config.getMyPlayerId,
     getIsHost: config.getIsHost,
-    getRemoteHumanSlots: config.getRemoteHumanSlots,
+    getRemotePlayerSlots: config.getRemotePlayerSlots,
     getPointerPlayer: () => pointerPlayer(),
     clearHumanCache: () => clearHumanCache(),
     isSelectionReady,
@@ -509,7 +509,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     sound,
     haptics,
     isOnline,
-    getRemoteHumanSlots: config.getRemoteHumanSlots,
+    getRemotePlayerSlots: config.getRemotePlayerSlots,
     onCloseOptions: config.onCloseOptions,
     seedField: createSeedField(MAX_SEED_LENGTH, (digits) => {
       runtimeState.settings.seedMode = SEED_CUSTOM;

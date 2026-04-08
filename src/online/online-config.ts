@@ -1,5 +1,7 @@
 /** Default server host for online play (Deno Deploy). */
 
+import { WS_PLAY_PATH } from "../shared/routes.ts";
+
 const DEFAULT_SERVER_HOST = "rebuild-and-ruin.gildas-lormeau.deno.net";
 /** Hosts that should use plain ws:/http: instead of wss:/https:. */
 const LOCAL_HOST_PATTERN = /^(?:localhost|127\.|192\.|10\.|0\.0\.0\.0)/;
@@ -8,7 +10,7 @@ const LOCAL_HOST_PATTERN = /^(?:localhost|127\.|192\.|10\.|0\.0\.0\.0)/;
 export function computeWsUrl(): string {
   const host = getServerHost();
   const proto = LOCAL_HOST_PATTERN.test(host) ? "ws:" : "wss:";
-  return `${proto}//${host}/ws/play`;
+  return `${proto}//${host}${WS_PLAY_PATH}`;
 }
 
 /** Get the HTTP base URL for the game server API. */

@@ -110,6 +110,12 @@ import {
 
 type ScoreEntry = GameOverOverlay["scores"][number];
 
+// Modifier banner pulse timing (ms per full cycle)
+const MODIFIER_PULSE_MS = 400;
+// Modifier banner pulse: base alpha and amplitude
+const MODIFIER_PULSE_BASE = 0.25;
+const MODIFIER_PULSE_AMP = 0.3;
+
 /** Draw announcement text centered on screen. */
 export function drawAnnouncement(
   overlayCtx: CanvasRenderingContext2D,
@@ -192,7 +198,10 @@ export function drawModifierRevealHighlight(
   const revealY = bannerY - bannerH / 2;
 
   // Pulse alpha: 0.25–0.55 over 400ms
-  const pulse = 0.25 + 0.3 * (0.5 + 0.5 * Math.sin((now / 400) * Math.PI * 2));
+  const pulse =
+    MODIFIER_PULSE_BASE +
+    MODIFIER_PULSE_AMP *
+      (0.5 + 0.5 * Math.sin((now / MODIFIER_PULSE_MS) * Math.PI * 2));
 
   const color =
     diff.id === MODIFIER_ID.WILDFIRE

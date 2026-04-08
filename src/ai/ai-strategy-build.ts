@@ -552,38 +552,7 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
   const homeRect = castle;
   let { top, bottom, left, right } = homeRect;
 
-  let totalInterior = 0;
-  let occupiedInterior = 0;
-  for (let r = homeRect.top; r <= homeRect.bottom; r++) {
-    for (let c = homeRect.left; c <= homeRect.right; c++) {
-      totalInterior++;
-      const key = packTile(r, c);
-      if (player.walls.has(key)) {
-        occupiedInterior++;
-        continue;
-      }
-      if (!isGrass(state.map.tiles, r, c)) {
-        occupiedInterior++;
-        continue;
-      }
-      for (const tower of state.map.towers) {
-        if (isTowerTile(tower, r, c)) {
-          occupiedInterior++;
-          break;
-        }
-      }
-      for (const other of state.players) {
-        for (const cannon of other.cannons) {
-          if (isCannonTile(cannon, r, c)) {
-            occupiedInterior++;
-            break;
-          }
-        }
-      }
-    }
-  }
-  const freeRatio =
-    totalInterior > 0 ? 1 - occupiedInterior / totalInterior : 1;
+  const freeRatio = computeInteriorFreeRatio(homeRect, player, state);
   const MAX_EXPAND =
     EXPANSION_TIERS.find((tier) => freeRatio > tier.minFreeRatio)?.maxExpand ??
     EXPANSION_DEFAULT_MAX;
@@ -658,6 +627,45 @@ function tryRepairHomeCastle(ctx: TargetContext): TargetResult {
     return NO_TARGET;
   }
   return { targetGaps, targetRect };
+}
+
+/** Fraction of interior tiles that are unoccupied (no wall, tower, cannon, or water). */
+function computeInteriorFreeRatio(
+  rect: TileRect,
+  player: Player,
+  state: BuildViewState,
+): number {
+  let total = 0;
+  let occupied = 0;
+  for (let row = rect.top; row <= rect.bottom; row++) {
+    for (let col = rect.left; col <= rect.right; col++) {
+      total++;
+      const key = packTile(row, col);
+      if (player.walls.has(key)) {
+        occupied++;
+        continue;
+      }
+      if (!isGrass(state.map.tiles, row, col)) {
+        occupied++;
+        continue;
+      }
+      for (const tower of state.map.towers) {
+        if (isTowerTile(tower, row, col)) {
+          occupied++;
+          break;
+        }
+      }
+      for (const other of state.players) {
+        for (const cannon of other.cannons) {
+          if (isCannonTile(cannon, row, col)) {
+            occupied++;
+            break;
+          }
+        }
+      }
+    }
+  }
+  return total > 0 ? 1 - occupied / total : 1;
 }
 
 /** Phase 2: score unenclosed towers and pick the best one the current piece can fill. */

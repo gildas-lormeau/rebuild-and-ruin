@@ -375,27 +375,7 @@ function wireDpadArrows(
   const btnsLeft = queryAll(container, "left");
   const btnsRight = queryAll(container, "right");
 
-  // Key-repeat: short initial delay for responsiveness, fast repeat for
-  // holding to slide across the grid.
-  const REPEAT_DELAY = 120;
-  const REPEAT_RATE = 50;
-  let repeatTimer: ReturnType<typeof setTimeout> | undefined;
-
-  function stopRepeat() {
-    if (repeatTimer !== undefined) {
-      clearTimeout(repeatTimer);
-      repeatTimer = undefined;
-    }
-  }
-
-  function startRepeat(action: Action) {
-    stopRepeat();
-    fireDirection(action);
-    repeatTimer = setTimeout(function tick() {
-      fireDirection(action);
-      repeatTimer = setTimeout(tick, REPEAT_RATE);
-    }, REPEAT_DELAY);
-  }
+  const { startRepeat, stopRepeat } = createKeyRepeatController(fireDirection);
 
   function fireDirection(action: Action) {
     deps.onHapticTap?.();
@@ -457,6 +437,35 @@ function wireDpadArrows(
   for (const btn of btnsRight) wireArrow(btn, Action.RIGHT);
 
   return { stopRepeat, isBattlePhase, battleKeyDown, battleKeyUp };
+}
+
+/** Encapsulate key-repeat timing: short initial delay for responsiveness,
+ *  fast repeat for holding to slide across the grid. */
+function createKeyRepeatController(fireDirection: (action: Action) => void): {
+  startRepeat: (action: Action) => void;
+  stopRepeat: () => void;
+} {
+  const REPEAT_DELAY = 120;
+  const REPEAT_RATE = 50;
+  let repeatTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function stopRepeat() {
+    if (repeatTimer !== undefined) {
+      clearTimeout(repeatTimer);
+      repeatTimer = undefined;
+    }
+  }
+
+  function startRepeat(action: Action) {
+    stopRepeat();
+    fireDirection(action);
+    repeatTimer = setTimeout(function tick() {
+      fireDirection(action);
+      repeatTimer = setTimeout(tick, REPEAT_RATE);
+    }, REPEAT_DELAY);
+  }
+
+  return { startRepeat, stopRepeat };
 }
 
 /** Wire action (confirm) buttons — single-tap, no repeat. */

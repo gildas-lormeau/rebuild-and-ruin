@@ -170,7 +170,7 @@ export interface FrameContextInputs {
   hasPointerPlayer: boolean;
   myPlayerId: PlayerSlotId;
   hostAtFrameStart: boolean;
-  remoteHumanSlots: ReadonlySet<number>;
+  remotePlayerSlots: ReadonlySet<number>;
   mobileAutoZoom: boolean;
 }
 
@@ -356,7 +356,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     hasPointerPlayer,
     myPlayerId,
     hostAtFrameStart,
-    remoteHumanSlots,
+    remotePlayerSlots,
     mobileAutoZoom,
   } = inputs;
 
@@ -380,7 +380,7 @@ export function computeFrameContext(inputs: FrameContextInputs): FrameContext {
     myPlayerId,
     povPlayerId,
     hostAtFrameStart,
-    remoteHumanSlots,
+    remotePlayerSlots,
     mode,
     phase,
     inBattle,

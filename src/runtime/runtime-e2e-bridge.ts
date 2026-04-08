@@ -183,7 +183,6 @@ let bridge: E2EBridge | undefined;
 export function exposeE2EBridge(deps: E2EBridgeDeps): void {
   if (typeof window === "undefined") return;
 
-  const { runtimeState, config } = deps;
   const win = globalThis as unknown as Record<string, unknown>;
 
   if (bridge === undefined) {
@@ -234,6 +233,13 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
       return; // frozen
     }
   }
+
+  updateBridgeSnapshots(ref, deps);
+}
+
+/** Snapshot all bridge fields from the current frame's runtime state. */
+function updateBridgeSnapshots(ref: E2EBridge, deps: E2EBridgeDeps): void {
+  const { runtimeState, config } = deps;
 
   // --- Core ---
   ref.mode = Mode[runtimeState.mode];

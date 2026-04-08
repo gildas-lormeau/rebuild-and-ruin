@@ -55,14 +55,14 @@ export type GameOverFocus = "rematch" | "menu";
 export interface AutoResolveDeps {
   readonly hostAtFrameStart: boolean;
   readonly myPlayerId: PlayerSlotId;
-  readonly remoteHumanSlots: ReadonlySet<number>;
+  readonly remotePlayerSlots: ReadonlySet<number>;
   readonly isHumanController: (playerId: ValidPlayerSlot) => boolean;
 }
 
 export interface CastleBuildState {
   wallPlans: readonly CastleWallPlan[];
   maxTiles: number;
-  tileIdx: number;
+  wallTimelineIdx: number;
   accum: number;
 }
 
@@ -91,6 +91,6 @@ export function shouldAutoResolve(
   deps: AutoResolveDeps,
 ): boolean {
   return deps.hostAtFrameStart
-    ? !deps.isHumanController(playerId) && !deps.remoteHumanSlots.has(playerId)
+    ? !deps.isHumanController(playerId) && !deps.remotePlayerSlots.has(playerId)
     : playerId !== deps.myPlayerId;
 }

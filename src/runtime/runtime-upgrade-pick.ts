@@ -86,7 +86,7 @@ export function createUpgradePickSystem(
       state: runtimeState.state,
       hostAtFrameStart: runtimeState.frameMeta.hostAtFrameStart,
       myPlayerId: runtimeState.frameMeta.myPlayerId,
-      remoteHumanSlots: runtimeState.frameMeta.remoteHumanSlots,
+      remotePlayerSlots: runtimeState.frameMeta.remotePlayerSlots,
       isHumanController: (playerId) =>
         isHuman(runtimeState.controllers[playerId]!),
     });

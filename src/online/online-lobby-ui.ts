@@ -1,5 +1,6 @@
 import { MAX_PLAYERS } from "../shared/player-config.ts";
 import { type ClientMessage, MESSAGE } from "../shared/protocol.ts";
+import { API_ROOMS_PATH } from "../shared/routes.ts";
 import { GOLD, PANEL_BG } from "../shared/theme.ts";
 import { computeApiUrl } from "./online-config.ts";
 
@@ -173,7 +174,7 @@ export function initLobbyUi({
     };
 
     const fetchRooms = () => {
-      fetch(computeApiUrl("/api/rooms"))
+      fetch(computeApiUrl(API_ROOMS_PATH))
         .then((r) => r.json())
         .then(renderRoomList)
         .catch(() => {

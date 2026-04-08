@@ -286,13 +286,13 @@ function compareByFallbackRingDistance(
   ringDistanceCache: Map<Candidate, { distance: number; tooClose: boolean }>,
 ): number {
   return (
-    ringDistanceForFallbackTowers(
+    centerDistanceForFallbackTowers(
       a,
       fallbackTowers,
       castleMargin,
       ringDistanceCache,
     ).distance -
-    ringDistanceForFallbackTowers(
+    centerDistanceForFallbackTowers(
       b,
       fallbackTowers,
       castleMargin,
@@ -309,7 +309,7 @@ function isExtensionCandidateForFallback(
   createsSmallEnclosureCached: (candidate: Candidate) => boolean,
   isInsideOrFatCandidate: (candidate: Candidate) => boolean,
 ): boolean {
-  const ringDistance = ringDistanceForFallbackTowers(
+  const ringDistance = centerDistanceForFallbackTowers(
     candidate,
     fallbackTowers,
     castleMargin,
@@ -321,7 +321,7 @@ function isExtensionCandidateForFallback(
   return true;
 }
 
-function ringDistanceForFallbackTowers(
+function centerDistanceForFallbackTowers(
   candidate: Candidate,
   fallbackTowers: readonly Tower[],
   castleMargin: number,

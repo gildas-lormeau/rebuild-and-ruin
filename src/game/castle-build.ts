@@ -17,7 +17,7 @@ export function createCastleBuildState(
   return {
     wallPlans,
     maxTiles: Math.max(...wallPlans.map((plan) => plan.tiles.length), 0),
-    tileIdx: 0,
+    wallTimelineIdx: 0,
     accum: 0,
   };
 }
@@ -49,24 +49,24 @@ export function tickCastleBuildAnimation(params: {
   let placed = false;
   while (
     castleBuild.accum >= wallBuildIntervalMs &&
-    castleBuild.tileIdx < castleBuild.maxTiles
+    castleBuild.wallTimelineIdx < castleBuild.maxTiles
   ) {
     castleBuild.accum -= wallBuildIntervalMs;
     for (const plan of castleBuild.wallPlans) {
-      if (castleBuild.tileIdx < plan.tiles.length) {
-        const key = plan.tiles[castleBuild.tileIdx]!;
+      if (castleBuild.wallTimelineIdx < plan.tiles.length) {
+        const key = plan.tiles[castleBuild.wallTimelineIdx]!;
         const owner = state.players[plan.playerId]!;
         addPlayerWall(owner, key);
         placed = true;
       }
     }
-    castleBuild.tileIdx++;
+    castleBuild.wallTimelineIdx++;
   }
 
   if (placed) onWallsPlaced?.();
   onProgress?.();
 
-  if (castleBuild.tileIdx < castleBuild.maxTiles) {
+  if (castleBuild.wallTimelineIdx < castleBuild.maxTiles) {
     return { next: castleBuild };
   }
 

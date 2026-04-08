@@ -37,7 +37,8 @@
       "src/shared/ui-contracts.ts",
       "src/shared/protocol.ts",
       "src/shared/feature-defs.ts",
-      "src/shared/router.ts"
+      "src/shared/router.ts",
+      "src/shared/routes.ts"
     ],
     "game": [
       "src/game/cannon-system.ts",

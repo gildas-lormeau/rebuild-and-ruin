@@ -25,7 +25,7 @@ import {
   type ControllerIdentity,
   isAiAnimatable,
 } from "../shared/system-interfaces.ts";
-import { isRemoteHuman } from "../shared/tick-context.ts";
+import { isRemotePlayer } from "../shared/tick-context.ts";
 import { interpolateToward, REMOTE_CROSSHAIR_SPEED } from "./online-types.ts";
 
 interface BroadcastDeps {
@@ -36,7 +36,7 @@ interface BroadcastDeps {
 interface ExtendDeps {
   remoteCrosshairs: Map<number, PixelPos>;
   watcherCrosshairPos: Map<number, PixelPos>;
-  remoteHumanSlots: ReadonlySet<number>;
+  remotePlayerSlots: ReadonlySet<number>;
   logThrottled: (key: string, msg: string) => void;
 }
 
@@ -74,7 +74,7 @@ export function extendWithRemoteCrosshairs(
   const remote: Crosshair[] = [];
   for (const [rawPid, target] of deps.remoteCrosshairs) {
     const pid = rawPid as ValidPlayerSlot;
-    if (!isRemoteHuman(pid, deps.remoteHumanSlots)) continue;
+    if (!isRemotePlayer(pid, deps.remotePlayerSlots)) continue;
     const player = state.players[pid];
     if (!isPlayerAlive(player)) continue;
     if (!canPlayerFire(state, pid)) continue;
