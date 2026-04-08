@@ -1,18 +1,14 @@
 import { MESSAGE, type ServerMessage } from "../../server/protocol.ts";
+import { prepareControllerCannonPhase } from "../game/cannon-system.ts";
 import { createCastle } from "../game/castle-generation.ts";
 import {
   BANNER_BATTLE_ONLINE,
   BANNER_REPAIR_ONLINE,
-  type BannerShow,
   capturePrevBattleScene,
   snapshotCastles,
   snapshotEntities,
 } from "../game/phase-banner.ts";
-import {
-  prepareControllerCannonPhase,
-  resetZoneState,
-  setPhase,
-} from "../game/phase-setup.ts";
+import { resetZoneState, setPhase } from "../game/phase-setup.ts";
 import {
   BATTLE_START_STEPS,
   BUILD_START_STEPS,
@@ -45,6 +41,7 @@ import type { PlayerController } from "../shared/system-interfaces.ts";
 import type { RGB } from "../shared/theme.ts";
 import type { WatcherTimingState } from "../shared/tick-context.ts";
 import { type GameState } from "../shared/types.ts";
+import type { BannerShow } from "../shared/ui-contracts.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import type { OnlineSession } from "./online-session.ts";
 import { setWatcherPhaseTimer } from "./online-types.ts";

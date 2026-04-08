@@ -26,10 +26,11 @@ import {
 } from "./scenario-helpers.ts";
 import { assert } from "@std/assert";
 import { enterCannonPlacePhase } from "../src/game/game-engine.ts";
-import { enterBattleFromCannon, prepareCannonPhase, prepareControllerCannonPhase } from "../src/game/phase-setup.ts";
+import { enterBattleFromCannon } from "../src/game/phase-setup.ts";
 import { SPECTATOR_SLOT, type ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { Phase } from "../src/shared/game-phase.ts";
 import type { BannerState } from "../src/shared/ui-contracts.ts";
+import { prepareCannonPhase, prepareControllerCannonPhase } from "../src/game/cannon-system.ts";
 
 // ---------------------------------------------------------------------------
 // Online watcher: cannon banner missing preservePrevScene

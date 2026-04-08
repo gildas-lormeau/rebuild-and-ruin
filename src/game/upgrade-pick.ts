@@ -1,3 +1,4 @@
+import { FID } from "../shared/feature-defs.ts";
 import {
   type AutoResolveDeps,
   shouldAutoResolve,
@@ -5,13 +6,25 @@ import {
   type UpgradePickEntry,
 } from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import type { GameState } from "../shared/types.ts";
-import { UID, type UpgradeId } from "../shared/upgrade-defs.ts";
+import {
+  type GameState,
+  hasFeature,
+  type UpgradeOfferTuple,
+} from "../shared/types.ts";
+import {
+  IMPLEMENTED_UPGRADES,
+  UID,
+  type UpgradeId,
+} from "../shared/upgrade-defs.ts";
 
 interface CreateUpgradePickDeps extends AutoResolveDeps {
   readonly state: GameState;
 }
 
+/** First round that triggers upgrade picks (modern mode). */
+const UPGRADE_FIRST_ROUND = 3;
+/** Number of upgrade choices offered per pick. */
+const OFFER_COUNT = 3;
 /** Auto-resolve delay before auto-picking (seconds). */
 export const UPGRADE_PICK_AUTO_DELAY = 1.5;
 /** Max time before force-picking for pending players (seconds). */
@@ -136,6 +149,31 @@ export function applyUpgradePicks(
   }
 }
 
+/** Generate upgrade offers for all alive players. Uses state.rng for determinism.
+ *  Called from enterBuildFromBattle so the RNG is consumed before the
+ *  BUILD_START checkpoint is sent. Returns null if not applicable. */
+export function generateUpgradeOffers(
+  state: GameState,
+): Map<ValidPlayerSlot, UpgradeOfferTuple> | null {
+  if (!hasFeature(state, FID.UPGRADES)) return null;
+  if (state.round < UPGRADE_FIRST_ROUND) return null;
+
+  const offers = new Map<ValidPlayerSlot, UpgradeOfferTuple>();
+  for (const player of state.players) {
+    if (player.eliminated || !player.homeTower) continue;
+    offers.set(player.id, drawOffers(state));
+  }
+  return offers.size > 0 ? offers : null;
+}
+
+/** All upgrades last one round — clear damaged-wall markers and upgrade maps. */
+export function resetPlayerUpgrades(state: GameState): void {
+  for (const player of state.players) {
+    player.damagedWalls.clear();
+    player.upgrades.clear();
+  }
+}
+
 /** Pick a random offer using the synced RNG. */
 function randomPickUpgrade(
   offers: readonly [UpgradeId, UpgradeId, UpgradeId],
@@ -143,4 +181,27 @@ function randomPickUpgrade(
 ): UpgradeId {
   if (!state) return offers[0];
   return offers[Math.floor(state.rng.next() * offers.length)]!;
+}
+
+/** Draw N unique upgrades from the implemented pool using state.rng. */
+function drawOffers(state: GameState): [UpgradeId, UpgradeId, UpgradeId] {
+  const pool = [...IMPLEMENTED_UPGRADES];
+  const picked: UpgradeId[] = [];
+
+  for (let i = 0; i < OFFER_COUNT && pool.length > 0; i++) {
+    const totalWeight = pool.reduce((sum, def) => sum + def.weight, 0);
+    let roll = state.rng.next() * totalWeight;
+    let chosenIdx = pool.length - 1;
+    for (let poolIdx = 0; poolIdx < pool.length; poolIdx++) {
+      roll -= pool[poolIdx]!.weight;
+      if (roll <= 0) {
+        chosenIdx = poolIdx;
+        break;
+      }
+    }
+    picked.push(pool[chosenIdx]!.id);
+    pool.splice(chosenIdx, 1);
+  }
+
+  return picked as [UpgradeId, UpgradeId, UpgradeId];
 }

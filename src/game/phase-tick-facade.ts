@@ -20,7 +20,12 @@ import {
   snapshotThenFinalize,
   tickMasterBuilderLockout,
 } from "./build-phase-helpers.ts";
-import { applyDefaultFacings, resetCannonFacings } from "./cannon-system.ts";
+import {
+  applyDefaultFacings,
+  prepareCannonPhase,
+  prepareControllerCannonPhase,
+  resetCannonFacings,
+} from "./cannon-system.ts";
 import { localFire, localPlacePiece } from "./game-actions.ts";
 import { isCeasefireActive, nextPhase } from "./game-engine.ts";
 import { tickGrunts } from "./grunt-movement.ts";
@@ -35,8 +40,6 @@ import {
   enterBattleFromCannon,
   enterBuildSkippingBattle,
   finalizeBuildPhase,
-  prepareCannonPhase,
-  prepareControllerCannonPhase,
 } from "./phase-setup.ts";
 import {
   BATTLE_START_STEPS,

@@ -629,6 +629,16 @@ export interface TouchControlsDeps {
   containerHeight: number;
 }
 
+/** Callback signature for showing phase-transition banners.
+ *  Defined alongside BannerState as part of the banner UI contract. */
+export type BannerShow = (
+  text: string,
+  onDone: () => void,
+  preservePrevScene?: boolean,
+  newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
+  subtitle?: string,
+) => void;
+
 export function createBannerState(): BannerState {
   return {
     active: false,

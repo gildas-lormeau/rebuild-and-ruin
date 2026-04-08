@@ -1,14 +1,6 @@
 import type { CastleData, EntityOverlay } from "../shared/overlay-types.ts";
 import type { GameState } from "../shared/types.ts";
 
-export type BannerShow = (
-  text: string,
-  onDone: () => void,
-  preservePrevScene?: boolean,
-  newBattle?: { territory: Set<number>[]; walls: Set<number>[] },
-  subtitle?: string,
-) => void;
-
 export const BANNER_PLACE_CANNONS = "Place Cannons";
 export const BANNER_PLACE_CANNONS_SUB = "Position inside fort walls";
 export const BANNER_BATTLE = "Prepare for Battle";

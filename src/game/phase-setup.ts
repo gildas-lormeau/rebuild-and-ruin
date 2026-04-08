@@ -9,7 +9,6 @@
  * it imports the enter* functions from here.
  */
 
-import { CannonMode } from "../shared/battle-types.ts";
 import {
   addPlayerWalls,
   clearPlayerWalls,
@@ -30,7 +29,6 @@ import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
   eliminatePlayer,
   emptyFreshInterior,
-  isPlayerAlive,
   isPlayerSeated,
   type Player,
 } from "../shared/player-types.ts";
@@ -44,16 +42,8 @@ import type {
   ControllerIdentity,
   SelectionController,
 } from "../shared/system-interfaces.ts";
-import {
-  type GameState,
-  hasFeature,
-  type UpgradeOfferTuple,
-} from "../shared/types.ts";
-import {
-  IMPLEMENTED_UPGRADES,
-  UID,
-  type UpgradeId,
-} from "../shared/upgrade-defs.ts";
+import { type GameState, hasFeature } from "../shared/types.ts";
+import { UID } from "../shared/upgrade-defs.ts";
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import {
   finalizeTerritoryWithScoring,
@@ -61,13 +51,7 @@ import {
   removeBonusSquaresCoveredByWalls,
   replenishBonusSquares,
 } from "./build-system.ts";
-import {
-  cannonSlotsForRound,
-  computeDefaultFacings,
-  filterActiveFiringCannons,
-  findNearestValidCannonPlacement,
-  isCannonEnclosed,
-} from "./cannon-system.ts";
+import { electMortarCannons } from "./cannon-system.ts";
 import {
   applyClumsyBuilders,
   computeCastleWallTiles,
@@ -96,6 +80,7 @@ import {
   clearFrozenRiver,
   rollModifier,
 } from "./round-modifiers.ts";
+import { generateUpgradeOffers, resetPlayerUpgrades } from "./upgrade-pick.ts";
 
 interface ScoreDelta {
   playerId: ValidPlayerSlot;
@@ -105,11 +90,6 @@ interface ScoreDelta {
 
 /** Grunts spawned per player on first battle when nobody fires. */
 const IDLE_FIRST_BATTLE_GRUNTS = 2;
-/** Number of upgrade choices offered per pick. */
-const OFFER_COUNT = 3;
-/** First round that triggers upgrade picks (modern mode). */
-const UPGRADE_FIRST_ROUND = 3;
-const SUPPLY_DROP_BONUS = 2;
 
 /** Rebuild a player's home castle from scratch (used when continuing after losing a life). */
 export function rebuildHomeCastle(state: GameState, player: Player): void {
@@ -149,64 +129,6 @@ export function finalizeCastleConstruction(state: GameState): void {
   recheckTerritoryOnly(state);
   startOfBuildPhaseHousekeeping(state);
   replenishBonusSquares(state);
-}
-
-/** Prepare state for cannon phase: compute limits and default facings.
- *  Does NOT apply facings to existing cannons (the banner captures old
- *  facings first, then applyDefaultFacings runs after the snapshot).
- *  Does NOT init controllers — call prepareControllerCannonPhase separately. */
-export function prepareCannonPhase(state: GameState): void {
-  computeCannonLimitsForPhase(state);
-  computeDefaultFacings(state);
-  state.timer = state.cannonPlaceTimer;
-}
-
-/** Compute cannon-phase init data for a single player.
- *  Pure computation — no controller interaction.
- *  Used by both host (startCannonPhase loop) and watcher (handleCannonStartTransition).
- *  PRECONDITION: phase must already be CANNON_PLACE (set by enterCannonPlacePhase).
- *  Returns null for eliminated players (no init needed). */
-export function prepareControllerCannonPhase(
-  playerId: ValidPlayerSlot,
-  state: GameState,
-): { maxSlots: number; cursorPos: { row: number; col: number } } | null {
-  if (state.phase !== Phase.CANNON_PLACE) {
-    throw new Error(
-      `prepareControllerCannonPhase called in ${Phase[state.phase]} — must be CANNON_PLACE`,
-    );
-  }
-  const player = state.players[playerId];
-  if (!isPlayerAlive(player)) return null;
-  const maxSlots = state.cannonLimits[player.id] ?? 0;
-  let cursorPos = {
-    row: player.homeTower?.row ?? 0,
-    col: player.homeTower?.col ?? 0,
-  };
-  if (player.homeTower) {
-    const snapped = findNearestValidCannonPlacement(
-      player,
-      player.homeTower.row,
-      player.homeTower.col,
-      CannonMode.NORMAL,
-      state,
-    );
-    if (snapped) cursorPos = snapped;
-  }
-  return { maxSlots, cursorPos };
-}
-
-/** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
-export function computeCannonLimitsForPhase(state: GameState): void {
-  state.cannonLimits = state.players.map((player, idx) => {
-    const base = cannonSlotsForRound(player, state);
-    const supplyDrop = player.upgrades.get(UID.SUPPLY_DROP)
-      ? SUPPLY_DROP_BONUS
-      : 0;
-    const salvage = state.salvageSlots[idx] ?? 0;
-    return base + supplyDrop + salvage;
-  });
-  state.salvageSlots = state.players.map(() => 0);
-  state.reselectedPlayers.clear();
 }
 
 /** Enter build from initial castle selection — builds castles first.
@@ -320,23 +242,6 @@ export function enterBuildFromBattle(state: GameState): void {
  */
 export function setPhase(state: GameState, phase: Phase): void {
   state.phase = phase;
-}
-
-/** Generate upgrade offers for all alive players. Uses state.rng for determinism.
- *  Called from enterBuildFromBattle so the RNG is consumed before the
- *  BUILD_START checkpoint is sent. Returns null if not applicable. */
-export function generateUpgradeOffers(
-  state: GameState,
-): Map<ValidPlayerSlot, UpgradeOfferTuple> | null {
-  if (!hasFeature(state, FID.UPGRADES)) return null;
-  if (state.round < UPGRADE_FIRST_ROUND) return null;
-
-  const offers = new Map<ValidPlayerSlot, UpgradeOfferTuple>();
-  for (const player of state.players) {
-    if (player.eliminated || !player.homeTower) continue;
-    offers.set(player.id, drawOffers(state));
-  }
-  return offers.size > 0 ? offers : null;
 }
 
 /** Process the reselection queue. Returns players still needing UI interaction.
@@ -647,61 +552,10 @@ function cleanupBattleArtifacts(state: GameState): void {
   }
 }
 
-/** Elect one mortar cannon per player who has the Mortar upgrade.
- *  Only standard (normal) cannons are eligible — super guns and balloons are excluded.
- *  If a player has no normal cannons, the upgrade is silently skipped.
- *  Uses synced RNG so election is deterministic for online play.
- *  Must be called after setPhase(BATTLE) and before any RNG-consuming
- *  code that follows in the battle-start sequence. */
-function electMortarCannons(state: GameState): void {
-  for (const player of state.players) {
-    if (player.eliminated) continue;
-    if (!player.upgrades.get(UID.MORTAR)) continue;
-    const normalCannons = filterActiveFiringCannons(player).filter(
-      (cannon) =>
-        cannon.mode === CannonMode.NORMAL && isCannonEnclosed(cannon, player),
-    );
-    if (normalCannons.length === 0) continue;
-    const elected = state.rng.pick(normalCannons);
-    elected.mortar = true;
-  }
-}
-
 /** First battle with no shots fired: spawn grouped grunts as punishment. */
 function spawnIdleFirstBattleGrunts(state: GameState): void {
   if (state.round !== 1 || state.shotsFired !== 0) return;
   for (const player of state.players.filter(isPlayerSeated)) {
     spawnGruntGroupOnZone(state, player.id, IDLE_FIRST_BATTLE_GRUNTS);
   }
-}
-
-/** All upgrades last one round — clear damaged-wall markers and upgrade maps. */
-function resetPlayerUpgrades(state: GameState): void {
-  for (const player of state.players) {
-    player.damagedWalls.clear();
-    player.upgrades.clear();
-  }
-}
-
-/** Draw N unique upgrades from the implemented pool using state.rng. */
-function drawOffers(state: GameState): [UpgradeId, UpgradeId, UpgradeId] {
-  const pool = [...IMPLEMENTED_UPGRADES];
-  const picked: UpgradeId[] = [];
-
-  for (let i = 0; i < OFFER_COUNT && pool.length > 0; i++) {
-    const totalWeight = pool.reduce((sum, def) => sum + def.weight, 0);
-    let roll = state.rng.next() * totalWeight;
-    let chosenIdx = pool.length - 1;
-    for (let poolIdx = 0; poolIdx < pool.length; poolIdx++) {
-      roll -= pool[poolIdx]!.weight;
-      if (roll <= 0) {
-        chosenIdx = poolIdx;
-        break;
-      }
-    }
-    picked.push(pool[chosenIdx]!.id);
-    pool.splice(chosenIdx, 1);
-  }
-
-  return picked as [UpgradeId, UpgradeId, UpgradeId];
 }

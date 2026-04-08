@@ -11,7 +11,7 @@
 import { fireCannon, resolveBalloons, tickCannonballs } from "../src/game/battle-system.ts";
 import { clearPlayerWalls, deletePlayerWallBattle } from "../src/shared/board-occupancy.ts";
 import { recheckTerritoryOnly, placePiece } from "../src/game/build-system.ts";
-import { placeCannon, resetCannonFacings } from "../src/game/cannon-system.ts";
+import { placeCannon, resetCannonFacings, computeCannonLimitsForPhase } from "../src/game/cannon-system.ts";
 import { GRID_COLS, GRID_ROWS } from "../src/shared/grid.ts";
 import type { PlayerController } from "../src/shared/system-interfaces.ts";
 import {
@@ -22,7 +22,6 @@ import {
 } from "../src/shared/game-constants.ts";
 import { nextPhase } from "../src/game/game-engine.ts";
 import {
-  computeCannonLimitsForPhase,
   finalizeBuildPhase,
 } from "../src/game/phase-setup.ts";
 import { eliminatePlayer } from "../src/shared/player-types.ts";

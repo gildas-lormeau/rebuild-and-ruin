@@ -18,6 +18,7 @@ import {
   MAX_CANNON_LIMIT_ON_RESELECT,
   STARTING_LIVES,
 } from "../shared/game-constants.ts";
+import { Phase } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
   isPlayerAlive,
@@ -39,31 +40,12 @@ import {
   unpackTile,
 } from "../shared/spatial.ts";
 import type { GameViewState } from "../shared/system-interfaces.ts";
+import { type GameState } from "../shared/types.ts";
+import { UID } from "../shared/upgrade-defs.ts";
 
 /** Max search radius when snapping cannon placement to a valid tile. */
 const CANNON_SNAP_RADIUS = 2;
-
-/** Check whether all tiles of a cannon are inside enclosed territory.
- *
- *  FRESHNESS INVARIANT: `player.interior` must be recomputed via
- *  recheckTerritoryOnly() after any wall change. The required call order is:
- *    1. Place/destroy walls  (+ markWallsDirty)
- *    2. recheckTerritoryOnly()   — recomputes player.interior via flood fill
- *    3. isCannonEnclosed()   — reads the freshly computed interior
- *  Skipping step 2 is caught by assertInteriorFresh() at runtime when
- *  epoch tracking is active (all production code paths call markWallsDirty). */
-export function isCannonEnclosed(cannon: Cannon, player: Player): boolean {
-  assertInteriorFresh(player);
-  const { interior } = player;
-  const sz = cannonSize(cannon.mode);
-  for (let dr = 0; dr < sz; dr++) {
-    for (let dc = 0; dc < sz; dc++) {
-      if (!interior.has(packTile(cannon.row + dr, cannon.col + dc)))
-        return false;
-    }
-  }
-  return true;
-}
+const SUPPLY_DROP_BONUS = 2;
 
 /** Whether any valid placement exists for the given cannon mode in the player's territory. */
 export function hasAnyCannonPlacement(
@@ -80,73 +62,6 @@ export function hasAnyCannonPlacement(
 }
 
 /**
- * Find the nearest valid cannon placement within `maxRadius` tiles of (row, col).
- * Returns the snapped position, or undefined if nothing valid is nearby.
- */
-export function findNearestValidCannonPlacement(
-  player: Player,
-  row: number,
-  col: number,
-  mode: CannonMode,
-  state: GameViewState & { readonly burningPits: readonly BurningPit[] },
-  maxRadius = CANNON_SNAP_RADIUS,
-): { row: number; col: number } | undefined {
-  // Check origin first — if valid, no snapping needed
-  if (canPlaceCannon(player, row, col, mode, state)) {
-    return { row, col };
-  }
-  let bestDist = Infinity;
-  let best: { row: number; col: number } | undefined;
-  for (let dr = -maxRadius; dr <= maxRadius; dr++) {
-    for (let dc = -maxRadius; dc <= maxRadius; dc++) {
-      if (dr === 0 && dc === 0) continue;
-      const dist = dr * dr + dc * dc;
-      if (dist >= bestDist) continue;
-      if (canPlaceCannon(player, row + dr, col + dc, mode, state)) {
-        bestDist = dist;
-        best = { row: row + dr, col: col + dc };
-      }
-    }
-  }
-  return best;
-}
-
-/**
- * Compute the total cannon slot limit for a player this round.
- * Three paths: reselection (fixed budget based on lives lost),
- * round 1 (firstRoundCannons), or normal (tower-based: 2 for home + 1 per other).
- */
-export function cannonSlotsForRound(
-  player: Player,
-  state: {
-    readonly reselectedPlayers: ReadonlySet<number>;
-    readonly firstRoundCannons: number;
-    readonly round: number;
-    readonly towerAlive: readonly boolean[];
-  },
-): number {
-  const existingSlots = cannonSlotsUsed(player);
-  let newSlots: number;
-  if (state.reselectedPlayers.has(player.id)) {
-    // Reselection: compensate for lives lost, capped at MAX_CANNON_LIMIT_ON_RESELECT
-    newSlots = Math.min(
-      state.firstRoundCannons + (STARTING_LIVES - player.lives),
-      MAX_CANNON_LIMIT_ON_RESELECT,
-    );
-  } else if (state.round === 1) {
-    newSlots = state.firstRoundCannons;
-  } else {
-    const aliveTowers = filterAliveOwnedTowers(player, state);
-    const ownsHome =
-      player.homeTower &&
-      aliveTowers.some((tower) => tower === player.homeTower);
-    const otherCount = aliveTowers.length - (ownsHome ? 1 : 0);
-    newSlots = (ownsHome ? 2 : 0) + otherCount;
-  }
-  return existingSlots + newSlots;
-}
-
-/**
  * Reset cannon facings to point toward the average enemy position.
  * Convenience wrapper: computes defaultFacing + applies to all cannons.
  * Call at the start of the build phase and in online checkpoints.
@@ -154,39 +69,6 @@ export function cannonSlotsForRound(
 export function resetCannonFacings(state: GameViewState): void {
   computeDefaultFacings(state);
   applyDefaultFacings(state);
-}
-
-/**
- * Compute each player's defaultFacing toward the average enemy position.
- * Does NOT update existing cannon facings — call resetCannonFacings or
- * applyDefaultFacings for that.  Separated so that new cannons placed by
- * AI controllers pick up the right defaultFacing before the banner
- * captures old cannon facings for the old-scene overlay.
- */
-export function computeDefaultFacings(state: GameViewState): void {
-  for (const player of state.players) {
-    if (!isPlayerSeated(player)) continue;
-    const playerCenter = towerCenter(player.homeTower);
-    let ex = 0,
-      ey = 0,
-      count = 0;
-    for (const other of state.players) {
-      if (other.id === player.id || !isPlayerSeated(other)) continue;
-      const otherCenter = towerCenter(other.homeTower);
-      ex += otherCenter.col;
-      ey += otherCenter.row;
-      count++;
-    }
-    if (count > 0) {
-      const avgEx = ex / count;
-      const avgEy = ey / count;
-      const dx = avgEx - playerCenter.col;
-      const dy = avgEy - playerCenter.row;
-      player.defaultFacing = snapAngle(Math.atan2(dx, -dy), FACING_90_STEP);
-    } else {
-      player.defaultFacing = 0;
-    }
-  }
 }
 
 /** Apply each player's defaultFacing to all their existing cannons. */
@@ -197,11 +79,6 @@ export function applyDefaultFacings(state: GameViewState): void {
       cannon.facing = player.defaultFacing;
     }
   }
-}
-
-/** Return a player's alive cannons that can fire (excludes balloons and dead cannons). */
-export function filterActiveFiringCannons(player: Player): Cannon[] {
-  return player.cannons.filter((c) => isCannonAlive(c) && !isBalloonCannon(c));
 }
 
 /** Auto-place normal cannons for round-1 if none were placed.
@@ -276,6 +153,161 @@ export function placeCannon(
   return true;
 }
 
+/** Apply cannon placement (no validation). Used by host and watcher. */
+export function applyCannonPlacement(
+  player: Player,
+  row: number,
+  col: number,
+  mode: CannonMode,
+  state: { readonly cannonMaxHp: number },
+): void {
+  if (player.eliminated) return;
+  player.cannons.push({
+    row,
+    col,
+    hp: state.cannonMaxHp,
+    mode,
+    facing: player.defaultFacing,
+  });
+}
+
+/** Prepare state for cannon phase: compute limits and default facings.
+ *  Does NOT apply facings to existing cannons (the banner captures old
+ *  facings first, then applyDefaultFacings runs after the snapshot).
+ *  Does NOT init controllers — call prepareControllerCannonPhase separately. */
+export function prepareCannonPhase(state: GameState): void {
+  computeCannonLimitsForPhase(state);
+  computeDefaultFacings(state);
+  state.timer = state.cannonPlaceTimer;
+}
+
+/** Compute cannon-phase init data for a single player.
+ *  Pure computation — no controller interaction.
+ *  Used by both host (startCannonPhase loop) and watcher (handleCannonStartTransition).
+ *  PRECONDITION: phase must already be CANNON_PLACE (set by enterCannonPlacePhase).
+ *  Returns null for eliminated players (no init needed). */
+export function prepareControllerCannonPhase(
+  playerId: ValidPlayerSlot,
+  state: GameState,
+): { maxSlots: number; cursorPos: { row: number; col: number } } | null {
+  if (state.phase !== Phase.CANNON_PLACE) {
+    throw new Error(
+      `prepareControllerCannonPhase called in ${Phase[state.phase]} — must be CANNON_PLACE`,
+    );
+  }
+  const player = state.players[playerId];
+  if (!isPlayerAlive(player)) return null;
+  const maxSlots = state.cannonLimits[player.id] ?? 0;
+  let cursorPos = {
+    row: player.homeTower?.row ?? 0,
+    col: player.homeTower?.col ?? 0,
+  };
+  if (player.homeTower) {
+    const snapped = findNearestValidCannonPlacement(
+      player,
+      player.homeTower.row,
+      player.homeTower.col,
+      CannonMode.NORMAL,
+      state,
+    );
+    if (snapped) cursorPos = snapped;
+  }
+  return { maxSlots, cursorPos };
+}
+
+/** Compute cannon limits for the upcoming cannon phase, store in state, and consume reselection markers. */
+export function computeCannonLimitsForPhase(state: GameState): void {
+  state.cannonLimits = state.players.map((player, idx) => {
+    const base = cannonSlotsForRound(player, state);
+    const supplyDrop = player.upgrades.get(UID.SUPPLY_DROP)
+      ? SUPPLY_DROP_BONUS
+      : 0;
+    const salvage = state.salvageSlots[idx] ?? 0;
+    return base + supplyDrop + salvage;
+  });
+  state.salvageSlots = state.players.map(() => 0);
+  state.reselectedPlayers.clear();
+}
+
+/** Elect one mortar cannon per player who has the Mortar upgrade.
+ *  Only standard (normal) cannons are eligible — super guns and balloons are excluded.
+ *  If a player has no normal cannons, the upgrade is silently skipped.
+ *  Uses synced RNG so election is deterministic for online play.
+ *  Must be called after setPhase(BATTLE) and before any RNG-consuming
+ *  code that follows in the battle-start sequence. */
+export function electMortarCannons(state: GameState): void {
+  for (const player of state.players) {
+    if (player.eliminated) continue;
+    if (!player.upgrades.get(UID.MORTAR)) continue;
+    const normalCannons = filterActiveFiringCannons(player).filter(
+      (cannon) =>
+        cannon.mode === CannonMode.NORMAL && isCannonEnclosed(cannon, player),
+    );
+    if (normalCannons.length === 0) continue;
+    const elected = state.rng.pick(normalCannons);
+    elected.mortar = true;
+  }
+}
+
+/** Check whether all tiles of a cannon are inside enclosed territory.
+ *
+ *  FRESHNESS INVARIANT: `player.interior` must be recomputed via
+ *  recheckTerritoryOnly() after any wall change. The required call order is:
+ *    1. Place/destroy walls  (+ markWallsDirty)
+ *    2. recheckTerritoryOnly()   — recomputes player.interior via flood fill
+ *    3. isCannonEnclosed()   — reads the freshly computed interior
+ *  Skipping step 2 is caught by assertInteriorFresh() at runtime when
+ *  epoch tracking is active (all production code paths call markWallsDirty). */
+export function isCannonEnclosed(cannon: Cannon, player: Player): boolean {
+  assertInteriorFresh(player);
+  const { interior } = player;
+  const sz = cannonSize(cannon.mode);
+  for (let dr = 0; dr < sz; dr++) {
+    for (let dc = 0; dc < sz; dc++) {
+      if (!interior.has(packTile(cannon.row + dr, cannon.col + dc)))
+        return false;
+    }
+  }
+  return true;
+}
+
+/** Return a player's alive cannons that can fire (excludes balloons and dead cannons). */
+export function filterActiveFiringCannons(player: Player): Cannon[] {
+  return player.cannons.filter((c) => isCannonAlive(c) && !isBalloonCannon(c));
+}
+
+/**
+ * Find the nearest valid cannon placement within `maxRadius` tiles of (row, col).
+ * Returns the snapped position, or undefined if nothing valid is nearby.
+ */
+function findNearestValidCannonPlacement(
+  player: Player,
+  row: number,
+  col: number,
+  mode: CannonMode,
+  state: GameViewState & { readonly burningPits: readonly BurningPit[] },
+  maxRadius = CANNON_SNAP_RADIUS,
+): { row: number; col: number } | undefined {
+  // Check origin first — if valid, no snapping needed
+  if (canPlaceCannon(player, row, col, mode, state)) {
+    return { row, col };
+  }
+  let bestDist = Infinity;
+  let best: { row: number; col: number } | undefined;
+  for (let dr = -maxRadius; dr <= maxRadius; dr++) {
+    for (let dc = -maxRadius; dc <= maxRadius; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const dist = dr * dr + dc * dc;
+      if (dist >= bestDist) continue;
+      if (canPlaceCannon(player, row + dr, col + dc, mode, state)) {
+        bestDist = dist;
+        best = { row: row + dr, col: col + dc };
+      }
+    }
+  }
+  return best;
+}
+
 /** Validate cannon placement on the grid.
  *  Checks: interior (enclosed territory), walls, owned towers (not ALL), cannons, burning pits.
  *  Does NOT check grass or playerZone — cannon placement requires enclosed territory.
@@ -311,22 +343,39 @@ export function canPlaceCannon(
   return true;
 }
 
-/** Apply cannon placement (no validation). Used by host and watcher. */
-export function applyCannonPlacement(
+/**
+ * Compute the total cannon slot limit for a player this round.
+ * Three paths: reselection (fixed budget based on lives lost),
+ * round 1 (firstRoundCannons), or normal (tower-based: 2 for home + 1 per other).
+ */
+function cannonSlotsForRound(
   player: Player,
-  row: number,
-  col: number,
-  mode: CannonMode,
-  state: { readonly cannonMaxHp: number },
-): void {
-  if (player.eliminated) return;
-  player.cannons.push({
-    row,
-    col,
-    hp: state.cannonMaxHp,
-    mode,
-    facing: player.defaultFacing,
-  });
+  state: {
+    readonly reselectedPlayers: ReadonlySet<number>;
+    readonly firstRoundCannons: number;
+    readonly round: number;
+    readonly towerAlive: readonly boolean[];
+  },
+): number {
+  const existingSlots = cannonSlotsUsed(player);
+  let newSlots: number;
+  if (state.reselectedPlayers.has(player.id)) {
+    // Reselection: compensate for lives lost, capped at MAX_CANNON_LIMIT_ON_RESELECT
+    newSlots = Math.min(
+      state.firstRoundCannons + (STARTING_LIVES - player.lives),
+      MAX_CANNON_LIMIT_ON_RESELECT,
+    );
+  } else if (state.round === 1) {
+    newSlots = state.firstRoundCannons;
+  } else {
+    const aliveTowers = filterAliveOwnedTowers(player, state);
+    const ownsHome =
+      player.homeTower &&
+      aliveTowers.some((tower) => tower === player.homeTower);
+    const otherCount = aliveTowers.length - (ownsHome ? 1 : 0);
+    newSlots = (ownsHome ? 2 : 0) + otherCount;
+  }
+  return existingSlots + newSlots;
 }
 
 /** Count how many cannon slots are used by a player. Normal = 1, super = SUPER_GUN_COST, balloon = BALLOON_COST. */
@@ -341,6 +390,39 @@ export function cannonSlotsUsed(player: Player): number {
 
 export function cannonSlotCost(mode: CannonMode): number {
   return cannonModeDef(mode).slotCost;
+}
+
+/**
+ * Compute each player's defaultFacing toward the average enemy position.
+ * Does NOT update existing cannon facings — call resetCannonFacings or
+ * applyDefaultFacings for that.  Separated so that new cannons placed by
+ * AI controllers pick up the right defaultFacing before the banner
+ * captures old cannon facings for the old-scene overlay.
+ */
+function computeDefaultFacings(state: GameViewState): void {
+  for (const player of state.players) {
+    if (!isPlayerSeated(player)) continue;
+    const playerCenter = towerCenter(player.homeTower);
+    let ex = 0,
+      ey = 0,
+      count = 0;
+    for (const other of state.players) {
+      if (other.id === player.id || !isPlayerSeated(other)) continue;
+      const otherCenter = towerCenter(other.homeTower);
+      ex += otherCenter.col;
+      ey += otherCenter.row;
+      count++;
+    }
+    if (count > 0) {
+      const avgEx = ex / count;
+      const avgEy = ey / count;
+      const dx = avgEx - playerCenter.col;
+      const dy = avgEy - playerCenter.row;
+      player.defaultFacing = snapAngle(Math.atan2(dx, -dy), FACING_90_STEP);
+    } else {
+      player.defaultFacing = 0;
+    }
+  }
 }
 
 function overlapsExistingCannon(

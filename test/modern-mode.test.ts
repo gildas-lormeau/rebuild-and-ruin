@@ -52,9 +52,8 @@ import { handleServerIncrementalMessage } from "../src/online/online-server-even
 import type { WatcherNetworkState } from "../src/online/online-types.ts";
 import { isMasterBuilderLocked, setGameMode, type SelectionState } from "../src/shared/types.ts";
 import { UID } from "../src/shared/upgrade-defs.ts";
-import { generateUpgradeOffers } from "../src/game/phase-setup.ts";
 import { showUpgradePickBanner } from "../src/game/phase-transition-steps.ts";
-import { createUpgradePickDialog } from "../src/game/upgrade-pick.ts";
+import { createUpgradePickDialog, generateUpgradeOffers } from "../src/game/upgrade-pick.ts";
 import { createScenario } from "./scenario-helpers.ts";
 import { assert } from "@std/assert";
 import type { PlayerSlotId, ValidPlayerSlot } from "../src/shared/player-slot.ts";
