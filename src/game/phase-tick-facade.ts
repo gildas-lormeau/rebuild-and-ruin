@@ -7,6 +7,8 @@
  */
 
 import { clearImpacts } from "../shared/battle-types.ts";
+import { snapshotAllWalls } from "../shared/board-occupancy.ts";
+import { modifierDef } from "../shared/modifier-defs.ts";
 import {
   collectLocalCrosshairs,
   resolveBalloons,
@@ -20,27 +22,38 @@ import { tickGrunts } from "./grunt-movement.ts";
 import { gruntAttackTowers, tickBreachSpawnQueue } from "./grunt-system.ts";
 import {
   advanceBattleCountdown,
+  collectBattleFrameEvents,
   initBattleControllers,
-  startHostBattleLifecycle,
-  tickHostBattlePhase,
 } from "./host-battle-ticks.ts";
-import { tickHostBuildPhase, tickHostCannonPhase } from "./host-phase-ticks.ts";
-import { BANNER_BUILD, capturePrevBattleScene } from "./phase-banner.ts";
+import {
+  finalizeCannonControllers,
+  tickHostBuildPhase,
+} from "./host-phase-ticks.ts";
+import {
+  BANNER_BATTLE,
+  BANNER_BUILD,
+  capturePrevBattleScene,
+} from "./phase-banner.ts";
 import {
   computeScoreDeltas,
+  enterBattleFromCannon,
+  enterBuildSkippingBattle,
   finalizeBuildPhase,
   initBuildPhaseControllers,
   initControllerForCannonPhase,
   prepareCannonPhase,
 } from "./phase-setup.ts";
 import {
+  BATTLE_START_STEPS,
   BUILD_START_STEPS,
   CANNON_START_STEPS,
   executeTransition,
   gateUpgradePick,
   NOOP_STEP,
+  showBattlePhaseBanner,
   showBuildPhaseBanner,
   showCannonPhaseBanner,
+  showModifierRevealBanner,
 } from "./phase-transition-steps.ts";
 
 export type {
@@ -66,11 +79,15 @@ export const phaseTickFacade = {
   gruntAttackTowers,
   tickBreachSpawnQueue,
   advanceBattleCountdown,
+  collectBattleFrameEvents,
   initBattleControllers,
-  startHostBattleLifecycle,
-  tickHostBattlePhase,
+  snapshotAllWalls,
+  modifierDef,
+  enterBattleFromCannon,
+  enterBuildSkippingBattle,
+  finalizeCannonControllers,
   tickHostBuildPhase,
-  tickHostCannonPhase,
+  BANNER_BATTLE,
   BANNER_BUILD,
   capturePrevBattleScene,
   computeScoreDeltas,
@@ -78,11 +95,14 @@ export const phaseTickFacade = {
   initBuildPhaseControllers,
   initControllerForCannonPhase,
   prepareCannonPhase,
+  BATTLE_START_STEPS,
   BUILD_START_STEPS,
   CANNON_START_STEPS,
   executeTransition,
   gateUpgradePick,
   NOOP_STEP,
+  showBattlePhaseBanner,
   showBuildPhaseBanner,
   showCannonPhaseBanner,
+  showModifierRevealBanner,
 };

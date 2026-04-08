@@ -23,25 +23,17 @@ import type { EntityOverlay } from "../shared/overlay-types.ts";
 import {
   type BuildEndPayload,
   type CannonPhantom,
-  type CannonPhantomPayload,
-  type CannonPlacedPayload,
-  cannonPhantomKey,
   type DedupChannel,
   NOOP_DEDUP_CHANNEL,
   type PiecePhantom,
   type PiecePhantomPayload,
   type PiecePlacedPayload,
-  phantomWireMode,
   piecePhantomKey,
 } from "../shared/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { unpackTile } from "../shared/spatial.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
-import {
-  ACCUM_CANNON,
-  advancePhaseTimer,
-  tickGruntsIfDue,
-} from "../shared/tick-context.ts";
+import { advancePhaseTimer, tickGruntsIfDue } from "../shared/tick-context.ts";
 import {
   type GameState,
   hasFeature,
@@ -56,28 +48,6 @@ interface HostFrame {
     piecePhantoms?: PiecePhantom[];
     defaultFacings?: ReadonlyMap<number, number>;
   };
-}
-
-interface TickHostCannonPhaseDeps {
-  dt: number;
-  state: GameState;
-  accum: { cannon: number };
-  frame: HostFrame;
-  /** Pre-filtered to local controllers only (PASS 1: per-frame tick). */
-  localControllers: PlayerController[];
-  /** Remote controllers that get initCannons-only finalization (PASS 2). */
-  remoteControllers: PlayerController[];
-  render: () => void;
-  startBattle: () => void;
-  /** Optional: called when a local controller places a cannon. */
-  onCannonPlaced?: (msg: CannonPlacedPayload) => void;
-  /** Optional: called when a local controller produces a phantom.
-   *  Dedup is handled internally via lastSentCannonPhantom. */
-  onCannonPhantom?: (msg: CannonPhantomPayload) => void;
-  /** Remote cannon phantoms to merge into the frame (pre-filtered by caller). */
-  remoteCannonPhantoms?: readonly CannonPhantom[];
-  /** Dedup channel for phantom broadcasts. Defaults to no-op. */
-  lastSentCannonPhantom?: DedupChannel;
 }
 
 interface TickHostBuildPhaseDeps {
@@ -130,118 +100,24 @@ const LOCAL_CHANNEL = NOOP_DEDUP_CHANNEL;
  *  so `row`/`col` are unused. This constant documents the intent. */
 const PLACEHOLDER_ORIGIN = { row: 0, col: 0 } as const;
 
-/** Tick the cannon phase. Returns true when the phase ends (all controllers
- *  done or timer expired → transitions to battle), false while still ticking.
+/** Finalize cannon controllers at end of cannon placement phase.
  *
- * Controller cannon lifecycle per frame:
- *   cannonTick(state, dt) — called each frame (AI places, Human updates cursor)
- *   isCannonPhaseDone(state, max) — check if controller is finished
- *   flushCannons(state, max) — finalize remaining placements (called once at phase end)
- *   initCannons(state, max) — auto-place round-1 cannons if none placed (called once after flush)
- * flush + init are combined in finalizeCannonPhase() which guarantees correct ordering.
+ *  LOAD-BEARING SPLIT (do not merge local/remote):
+ *    Remote humans: call initCannons() only (their cannons were flushed client-side).
+ *    Local controllers: call finalizeCannonPhase() which flushes then inits.
+ *    Using the wrong method corrupts cannon state — finalizeCannonPhase on a remote
+ *    double-flushes; initCannons on a local skips the flush entirely.
  *
- * Remote vs local dispatch:
- *   Pass 1 (per-frame): ticks LOCAL controllers only (remoteHumanSlots are skipped).
- *   Pass 2 (phase end): calls flushCannons on LOCAL only, initCannons on ALL
- *     (remote humans get initCannons only — their placements arrive via network).
+ *  CONTRAST with build finalization: build skips remote humans entirely because bag
+ *  state is re-initialized via startBuildPhase. Cannon has no equivalent re-init step.
  *
- * Remote human finalization — CONTRAST with tickHostBuildPhase:
- *   Cannon: remote humans call initCannons() because cannon state must be ready
- *     for the immediate battle transition — there is no "startCannonPhase" re-init.
- *   Build: remote humans are SKIPPED entirely because bag state is re-initialized
- *     at the start of the next build phase via startBuildPhase().
- *   Using the wrong method corrupts state. Do NOT unify these two approaches.
- */
-export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
-  const {
-    dt,
-    state,
-    accum,
-    frame,
-    localControllers,
-    remoteControllers,
-    render,
-    startBattle,
-  } = deps;
-  const lastSentCannonPhantom = deps.lastSentCannonPhantom ?? LOCAL_CHANNEL;
-
-  advancePhaseTimer(accum, ACCUM_CANNON, state, dt, state.cannonPlaceTimer);
-
-  const defaultFacings = new Map<number, number>();
-  for (const player of state.players) {
-    defaultFacings.set(player.id, player.defaultFacing);
-  }
-  frame.phantoms = { cannonPhantoms: [], defaultFacings };
-  // ── PASS 1: Tick local controllers (process input & AI decisions) ──
-  for (const ctrl of localControllers) {
-    const cannonsBefore = state.players[ctrl.playerId]!.cannons.length;
-    const phantom = ctrl.cannonTick(state, dt);
-
-    if (deps.onCannonPlaced) {
-      const cannonsAfter = state.players[ctrl.playerId]!.cannons.length;
-      for (
-        let cannonIdx = cannonsBefore;
-        cannonIdx < cannonsAfter;
-        cannonIdx++
-      ) {
-        const cannon = state.players[ctrl.playerId]!.cannons[cannonIdx]!;
-        deps.onCannonPlaced({
-          playerId: ctrl.playerId,
-          row: cannon.row,
-          col: cannon.col,
-          mode: cannon.mode,
-        });
-      }
-    }
-
-    if (!phantom) continue;
-
-    frame.phantoms.cannonPhantoms!.push(phantom);
-    if (!deps.onCannonPhantom) continue;
-
-    if (
-      !lastSentCannonPhantom.shouldSend(
-        ctrl.playerId,
-        cannonPhantomKey(phantom),
-      )
-    )
-      continue;
-    deps.onCannonPhantom({
-      playerId: ctrl.playerId,
-      row: phantom.row,
-      col: phantom.col,
-      mode: phantomWireMode(phantom),
-      valid: phantom.valid,
-    });
-  }
-
-  // Merge remote phantoms (pre-filtered by caller)
-  const remoteCannonPhantoms = deps.remoteCannonPhantoms ?? [];
-  if (remoteCannonPhantoms.length > 0) {
-    frame.phantoms.cannonPhantoms!.push(...remoteCannonPhantoms);
-  }
-
-  render();
-
-  const allDone = localControllers.every((ctrl) => {
-    const player = state.players[ctrl.playerId]!;
-    if (player.eliminated) return true;
-    const max = state.cannonLimits[player.id] ?? 0;
-    return ctrl.isCannonPhaseDone(state, max);
-  });
-
-  if (state.timer > 0 && !allDone) return false;
-
-  // ── PASS 2: Finalize all controllers for phase transition ──
-  // LOAD-BEARING SPLIT (do not merge):
-  // Remote humans: call initCannons() only (their cannons were flushed client-side).
-  // Local controllers (AI + local human): call finalizeCannonPhase() which flushes then inits.
-  // Using the wrong method corrupts cannon state — finalizeCannonPhase on a remote
-  // double-flushes; initCannons on a local skips the flush entirely.
-  // CONTRAST with build finalization: build skips remote humans entirely because bag
-  // state is re-initialized via startBuildPhase. Cannon has no equivalent re-init step.
-  // NOTE: Intentionally includes eliminated players — they need cannon state
-  // cleanup (flush + round-1 init) for potential castle reselection.
+ *  NOTE: Intentionally includes eliminated players — they need cannon state
+ *  cleanup (flush + round-1 init) for potential castle reselection. */
+export function finalizeCannonControllers(
+  state: GameState,
+  localControllers: readonly PlayerController[],
+  remoteControllers: readonly PlayerController[],
+): void {
   for (const ctrl of remoteControllers) {
     const max = state.cannonLimits[ctrl.playerId] ?? 0;
     ctrl.initCannons(state, max);
@@ -250,9 +126,6 @@ export function tickHostCannonPhase(deps: TickHostCannonPhaseDeps): boolean {
     const max = state.cannonLimits[ctrl.playerId] ?? 0;
     ctrl.finalizeCannonPhase(state, max);
   }
-
-  startBattle();
-  return true;
 }
 
 /** Tick the build phase. Returns true when the phase ends (timer expired,

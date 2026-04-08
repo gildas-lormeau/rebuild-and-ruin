@@ -17,7 +17,7 @@ import type {
   PiecePlacedPayload,
 } from "../game/phase-tick-facade.ts";
 import { phaseTickFacade } from "../game/phase-tick-facade.ts";
-import { ageImpacts } from "../shared/battle-types.ts";
+import { ageImpacts, type BalloonFlight } from "../shared/battle-types.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,
@@ -27,8 +27,10 @@ import {
 import { Phase } from "../shared/game-phase.ts";
 import type { PlayerStats } from "../shared/overlay-types.ts";
 import {
+  cannonPhantomKey,
   filterAlivePhantoms,
   NOOP_DEDUP_CHANNEL,
+  phantomWireMode,
 } from "../shared/phantom-types.ts";
 import {
   type HapticsSystem,
@@ -40,6 +42,7 @@ import {
   ACCUM_BUILD,
   ACCUM_CANNON,
   ACCUM_GRUNT,
+  advancePhaseTimer,
   isRemoteHuman,
   localControllers,
   resetAccum,
@@ -230,37 +233,76 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function startBattle() {
+    const { state, battleAnim, banner } = runtimeState;
     deps.sound.drumsStop();
-    deps.log(`startBattle (round=${runtimeState.state.round})`);
+    deps.log(`startBattle (round=${state.round})`);
     deps.scoreDelta.reset();
 
-    phaseTickFacade.startHostBattleLifecycle({
-      state: runtimeState.state,
-      battleAnim: runtimeState.battleAnim,
-      banner: runtimeState.banner,
-      resolveBalloons: phaseTickFacade.resolveBalloons,
-      snapshotTerritory: deps.snapshotTerritory,
-      showBanner: deps.showBanner,
-      setModeBalloonAnim: () => {
+    // Ceasefire: skip battle entirely and proceed to build phase
+    if (phaseTickFacade.isCeasefireActive(state)) {
+      phaseTickFacade.enterBuildSkippingBattle(state);
+      deps.log("ceasefire: skipping battle");
+      enterBuildViaUpgradePick();
+      return;
+    }
+
+    let flights: BalloonFlight[] = [];
+    const activeModifier = state.modern?.activeModifier ?? null;
+
+    const proceedToBattle = () => {
+      if (flights.length > 0) {
+        battleAnim.flights = flights.map((flight) => ({
+          flight,
+          progress: 0,
+        }));
         setMode(runtimeState, Mode.BALLOON_ANIM);
-      },
-      beginBattle,
-      sendBattleStart:
-        deps.hostNetworking && runtimeState.frameMeta.hostAtFrameStart
-          ? (flights, diff) => {
-              deps.send(
-                deps.hostNetworking!.createBattleStartMessage(
-                  runtimeState.state,
-                  flights,
-                  diff,
-                ),
+      } else {
+        beginBattle();
+      }
+    };
+
+    phaseTickFacade.executeTransition(phaseTickFacade.BATTLE_START_STEPS, {
+      showBanner: () => {
+        if (activeModifier) {
+          phaseTickFacade.showModifierRevealBanner(
+            deps.showBanner,
+            phaseTickFacade.modifierDef(activeModifier).label,
+            () => {
+              phaseTickFacade.showBattlePhaseBanner(
+                deps.showBanner,
+                phaseTickFacade.BANNER_BATTLE,
+                proceedToBattle,
               );
-            }
-          : undefined,
-      ceasefireActive: phaseTickFacade.isCeasefireActive(runtimeState.state),
-      onCeasefire: () => {
-        deps.log("ceasefire: skipping battle");
-        enterBuildViaUpgradePick();
+            },
+          );
+        } else {
+          phaseTickFacade.showBattlePhaseBanner(
+            deps.showBanner,
+            phaseTickFacade.BANNER_BATTLE,
+            proceedToBattle,
+          );
+        }
+      },
+      applyCheckpoint: () => {
+        const diff = phaseTickFacade.enterBattleFromCannon(state);
+        if (diff) banner.modifierDiff = diff;
+        // Resolve balloons AFTER enterBattleFromCannon so modifiers
+        // (crumbling walls, etc.) are applied before the enclosure check picks targets.
+        flights = phaseTickFacade.resolveBalloons(state);
+        battleAnim.impacts = [];
+        if (deps.hostNetworking && runtimeState.frameMeta.hostAtFrameStart) {
+          deps.send(
+            deps.hostNetworking.createBattleStartMessage(state, flights, diff),
+          );
+        }
+      },
+      snapshotForBanner: () => {
+        const postTerritory = deps.snapshotTerritory();
+        const postWalls = phaseTickFacade.snapshotAllWalls(state);
+        battleAnim.territory = postTerritory;
+        battleAnim.walls = postWalls;
+        banner.newTerritory = postTerritory;
+        banner.newWalls = postWalls;
       },
     });
   }
@@ -327,29 +369,95 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   function tickCannonPhase(dt: number): boolean {
     const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
     const isHost = runtimeState.frameMeta.hostAtFrameStart;
-    return phaseTickFacade.tickHostCannonPhase({
+    const { state, frame } = runtimeState;
+    const local = localControllers(runtimeState.controllers, remoteHumanSlots);
+    const lastSentCannonPhantom =
+      deps.hostNetworking?.lastSentCannonPhantom() ?? NOOP_DEDUP_CHANNEL;
+
+    advancePhaseTimer(
+      runtimeState.accum,
+      ACCUM_CANNON,
+      state,
       dt,
-      state: runtimeState.state,
-      accum: runtimeState.accum,
-      frame: runtimeState.frame,
-      localControllers: localControllers(
-        runtimeState.controllers,
-        remoteHumanSlots,
-      ),
-      remoteControllers: runtimeState.controllers.filter((ctrl) =>
-        isRemoteHuman(ctrl.playerId, remoteHumanSlots),
-      ),
-      render: deps.render,
-      startBattle,
-      onCannonPlaced: isHost ? deps.sendOpponentCannonPlaced : undefined,
-      onCannonPhantom: isHost ? deps.sendOpponentCannonPhantom : undefined,
-      remoteCannonPhantoms: filterAlivePhantoms(
-        deps.hostNetworking?.remoteCannonPhantoms() ?? [],
-        runtimeState.state.players,
-      ),
-      lastSentCannonPhantom:
-        deps.hostNetworking?.lastSentCannonPhantom() ?? NOOP_DEDUP_CHANNEL,
+      state.cannonPlaceTimer,
+    );
+
+    // Collect default facings for phantom rendering
+    const defaultFacings = new Map<number, number>();
+    for (const player of state.players) {
+      defaultFacings.set(player.id, player.defaultFacing);
+    }
+    frame.phantoms = { cannonPhantoms: [], defaultFacings };
+
+    // PASS 1: tick local controllers, collect placements + phantoms
+    for (const ctrl of local) {
+      const cannonsBefore = state.players[ctrl.playerId]!.cannons.length;
+      const phantom = ctrl.cannonTick(state, dt);
+
+      if (isHost) {
+        const cannonsAfter = state.players[ctrl.playerId]!.cannons.length;
+        for (
+          let cannonIdx = cannonsBefore;
+          cannonIdx < cannonsAfter;
+          cannonIdx++
+        ) {
+          const cannon = state.players[ctrl.playerId]!.cannons[cannonIdx]!;
+          deps.sendOpponentCannonPlaced({
+            playerId: ctrl.playerId,
+            row: cannon.row,
+            col: cannon.col,
+            mode: cannon.mode,
+          });
+        }
+      }
+
+      if (!phantom) continue;
+      frame.phantoms.cannonPhantoms!.push(phantom);
+
+      if (
+        isHost &&
+        lastSentCannonPhantom.shouldSend(
+          ctrl.playerId,
+          cannonPhantomKey(phantom),
+        )
+      ) {
+        deps.sendOpponentCannonPhantom({
+          playerId: ctrl.playerId,
+          row: phantom.row,
+          col: phantom.col,
+          mode: phantomWireMode(phantom),
+          valid: phantom.valid,
+        });
+      }
+    }
+
+    // Merge remote phantoms
+    const remoteCannonPhantoms = filterAlivePhantoms(
+      deps.hostNetworking?.remoteCannonPhantoms() ?? [],
+      state.players,
+    );
+    if (remoteCannonPhantoms.length > 0) {
+      frame.phantoms.cannonPhantoms!.push(...remoteCannonPhantoms);
+    }
+
+    deps.render();
+
+    const allDone = local.every((ctrl) => {
+      const player = state.players[ctrl.playerId]!;
+      if (player.eliminated) return true;
+      const max = state.cannonLimits[player.id] ?? 0;
+      return ctrl.isCannonPhaseDone(state, max);
     });
+
+    if (state.timer > 0 && !allDone) return false;
+
+    // PASS 2: finalize controllers for phase transition
+    const remote = runtimeState.controllers.filter((ctrl) =>
+      isRemoteHuman(ctrl.playerId, remoteHumanSlots),
+    );
+    phaseTickFacade.finalizeCannonControllers(state, local, remote);
+    startBattle();
+    return true;
   }
 
   function tickBattleCountdown(dt: number): void {
@@ -372,40 +480,66 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
     const isHost = runtimeState.frameMeta.hostAtFrameStart;
     const local = localControllers(runtimeState.controllers, remoteHumanSlots);
-    return phaseTickFacade.tickHostBattlePhase({
+    const { state, battleAnim } = runtimeState;
+    const broadcast = isHost ? deps.send : undefined;
+
+    advancePhaseTimer(runtimeState.accum, "battle", state, dt, BATTLE_TIMER);
+
+    // Collect events (pure game logic — load-bearing order preserved inside)
+    const result = phaseTickFacade.collectBattleFrameEvents({
+      state,
       dt,
-      state: runtimeState.state,
-      battleTimer: BATTLE_TIMER,
-      accum: runtimeState.accum,
       localControllers: local,
-      controllersToFinalize: local,
-      battleAnim: runtimeState.battleAnim,
-      render: deps.render,
-      syncCrosshairs,
       collectTowerEvents: phaseTickFacade.gruntAttackTowers,
       tickCannonballsWithEvents: phaseTickFacade.tickCannonballs,
-      onBattleEvents: (events) => {
-        const pov = runtimeState.frameMeta.povPlayerId;
-        deps.haptics.battleEvents(events, pov);
-        deps.sound.battleEvents(events, pov);
-        accumulateBattleStats(events, runtimeState.scoreDisplay.gameStats);
-      },
-      onBattlePhaseEnded: () => {
-        deps.saveBattleCrosshair?.();
-
-        // Pre-capture old battle scene before nextPhase mutates state
-        phaseTickFacade.capturePrevBattleScene(
-          runtimeState.banner,
-          runtimeState.state,
-          runtimeState.battleAnim.territory,
-          runtimeState.battleAnim.walls,
-        );
-
-        phaseTickFacade.nextPhase(runtimeState.state);
-        enterBuildViaUpgradePick();
-      },
-      broadcastEvent: isHost ? deps.send : undefined,
     });
+
+    // Broadcast events to network
+    if (broadcast) {
+      for (const evt of result.fireEvents) broadcast(evt);
+      for (const evt of result.towerEvents) broadcast(evt);
+      for (const evt of result.impactEvents) broadcast(evt);
+    }
+
+    // Record visual impacts
+    for (const imp of result.newImpacts) {
+      battleAnim.impacts.push({ ...imp, age: 0 });
+    }
+
+    // Notify sound/haptics
+    const allEvents = [
+      ...result.fireEvents,
+      ...result.towerEvents,
+      ...result.impactEvents,
+    ];
+    if (allEvents.length > 0) {
+      const pov = runtimeState.frameMeta.povPlayerId;
+      deps.haptics.battleEvents(allEvents, pov);
+      deps.sound.battleEvents(allEvents, pov);
+      accumulateBattleStats(allEvents, runtimeState.scoreDisplay.gameStats);
+    }
+
+    syncCrosshairs(/* weaponsActive */ true, dt);
+    deps.render();
+
+    if (state.timer > 0 || state.cannonballs.length > 0) return false;
+
+    // Battle ended — finalize controllers and transition
+    // NOTE: Intentionally includes eliminated players — they need battle state
+    // cleanup (clear fire targets, etc.) for potential castle reselection.
+    for (const ctrl of local) {
+      ctrl.endBattle();
+    }
+    deps.saveBattleCrosshair?.();
+    phaseTickFacade.capturePrevBattleScene(
+      runtimeState.banner,
+      state,
+      battleAnim.territory,
+      battleAnim.walls,
+    );
+    phaseTickFacade.nextPhase(state);
+    enterBuildViaUpgradePick();
+    return true;
   }
 
   function tickBuildPhase(dt: number): boolean {
