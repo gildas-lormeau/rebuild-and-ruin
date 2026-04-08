@@ -878,6 +878,7 @@ function collectCannonImpacts(
     for (let cannonIdx = 0; cannonIdx < player.cannons.length; cannonIdx++) {
       const cannon = player.cannons[cannonIdx]!;
       if (!isCannonAlive(cannon) || isBalloonCannon(cannon)) continue;
+      if (cannon.shielded) continue;
       if (isCannonTile(cannon, row, col)) {
         events.push({
           type: BATTLE_MESSAGE.CANNON_DAMAGED,

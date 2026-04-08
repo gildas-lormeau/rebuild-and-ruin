@@ -17,6 +17,7 @@ import { cannonModeDef } from "../shared/cannon-mode-defs.ts";
 import {
   MAX_CANNON_LIMIT_ON_RESELECT,
   STARTING_LIVES,
+  TOWER_SIZE,
 } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
@@ -27,6 +28,7 @@ import {
 } from "../shared/player-types.ts";
 import {
   cannonSize,
+  DIRS_4,
   FACING_90_STEP,
   hasPitAt,
   inBounds,
@@ -249,6 +251,32 @@ export function electMortarCannons(state: GameState): void {
   }
 }
 
+/** Mark all cannons in the same enclosed region as the home tower as shielded.
+ *  BFS from home tower tiles through interior (+ tower tiles) to find the
+ *  connected region, then shield every cannon whose tiles are all inside it.
+ *  Must be called after setPhase(BATTLE) alongside electMortarCannons. */
+export function electShieldedCannons(state: GameState): void {
+  for (const player of state.players) {
+    if (player.eliminated) continue;
+    if (!player.upgrades.get(UID.SHIELD_BATTERY)) continue;
+    if (!player.homeTower) continue;
+    const region = homeEnclosedRegion(player);
+    for (const cannon of player.cannons) {
+      if (!isCannonAlive(cannon) || isBalloonCannon(cannon)) continue;
+      const sz = cannonSize(cannon.mode);
+      let allInside = true;
+      for (let dr = 0; dr < sz && allInside; dr++) {
+        for (let dc = 0; dc < sz && allInside; dc++) {
+          if (!region.has(packTile(cannon.row + dr, cannon.col + dc))) {
+            allInside = false;
+          }
+        }
+      }
+      if (allInside) cannon.shielded = true;
+    }
+  }
+}
+
 /** Check whether all tiles of a cannon are inside enclosed territory.
  *
  *  FRESHNESS INVARIANT: `player.interior` must be recomputed via
@@ -274,6 +302,48 @@ export function isCannonEnclosed(cannon: Cannon, player: Player): boolean {
 /** Return a player's alive cannons that can fire (excludes balloons and dead cannons). */
 export function filterActiveFiringCannons(player: Player): Cannon[] {
   return player.cannons.filter((c) => isCannonAlive(c) && !isBalloonCannon(c));
+}
+
+/** BFS from home tower tiles through interior + owned tower tiles.
+ *  Returns the set of tile keys in the connected enclosed region. */
+function homeEnclosedRegion(player: Player): Set<number> {
+  assertInteriorFresh(player);
+  const interior = getInterior(player);
+  // Build traversable set: interior tiles + all owned tower tiles
+  const traversable = new Set(interior);
+  for (const tower of player.ownedTowers) {
+    for (let dr = 0; dr < TOWER_SIZE; dr++) {
+      for (let dc = 0; dc < TOWER_SIZE; dc++) {
+        traversable.add(packTile(tower.row + dr, tower.col + dc));
+      }
+    }
+  }
+  // Seed BFS from home tower tiles
+  const home = player.homeTower!;
+  const visited = new Set<number>();
+  const queue: number[] = [];
+  for (let dr = 0; dr < TOWER_SIZE; dr++) {
+    for (let dc = 0; dc < TOWER_SIZE; dc++) {
+      const key = packTile(home.row + dr, home.col + dc);
+      if (traversable.has(key)) {
+        visited.add(key);
+        queue.push(key);
+      }
+    }
+  }
+  // Flood through traversable tiles using 4-dir connectivity
+  while (queue.length > 0) {
+    const key = queue.pop()!;
+    const { r, c } = unpackTile(key);
+    for (const [dr, dc] of DIRS_4) {
+      const neighborKey = packTile(r + dr, c + dc);
+      if (!visited.has(neighborKey) && traversable.has(neighborKey)) {
+        visited.add(neighborKey);
+        queue.push(neighborKey);
+      }
+    }
+  }
+  return visited;
 }
 
 /**

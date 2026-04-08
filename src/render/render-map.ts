@@ -967,6 +967,18 @@ function drawCastleCannons(
       const prefix = isSuperCannon(cannon) ? "super" : SPRITE_CANNON;
       const dir = facingToDir8(cannon.facing ?? 0);
       drawSprite(overlayCtx, `${prefix}_${dir}`, cx, cy);
+      // Shield overlay: cyan circle outline so both owner and opponents can identify it
+      if (cannon.shielded) {
+        const size = isSuperCannon(cannon) ? TILE_SIZE * 3 : TILE_SIZE * 2;
+        const mid = size / 2;
+        overlayCtx.save();
+        overlayCtx.strokeStyle = "#00ccff";
+        overlayCtx.lineWidth = 2;
+        overlayCtx.beginPath();
+        overlayCtx.arc(cx + mid, cy + mid, mid - 2, 0, Math.PI * 2);
+        overlayCtx.stroke();
+        overlayCtx.restore();
+      }
       // Mortar overlay: orange diamond outline so both owner and opponents can identify it
       if (cannon.mortar) {
         const size = isSuperCannon(cannon) ? TILE_SIZE * 3 : TILE_SIZE * 2;

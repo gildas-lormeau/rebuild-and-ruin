@@ -17,7 +17,8 @@ export type UpgradeId =
   | "supply_drop"
   | "second_wind"
   | "clear_the_field"
-  | "ricochet";
+  | "ricochet"
+  | "shield_battery";
 
 type UpgradeCategory = "battle" | "build" | "strategic" | "one_use";
 
@@ -74,6 +75,7 @@ export const UID: { readonly [K in string]: UpgradeId } & Record<
   SECOND_WIND: "second_wind",
   CLEAR_THE_FIELD: "clear_the_field",
   RICOCHET: "ricochet",
+  SHIELD_BATTERY: "shield_battery",
 };
 export const UPGRADE_POOL: readonly UpgradeDef[] = [
   // Battle
@@ -104,6 +106,16 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     category: BATTLE,
     weight: WEIGHT_UNCOMMON,
     oneUse: false,
+    global: false,
+    implemented: true,
+  },
+  {
+    id: "shield_battery",
+    label: "Shield Battery",
+    description: "Cannons in home castle region are immune for one battle",
+    category: BATTLE,
+    weight: WEIGHT_RARE,
+    oneUse: true,
     global: false,
     implemented: true,
   },

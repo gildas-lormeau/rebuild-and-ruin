@@ -51,7 +51,7 @@ import {
   removeBonusSquaresCoveredByWalls,
   replenishBonusSquares,
 } from "./build-system.ts";
-import { electMortarCannons } from "./cannon-system.ts";
+import { electMortarCannons, electShieldedCannons } from "./cannon-system.ts";
 import {
   applyClumsyBuilders,
   computeCastleWallTiles,
@@ -171,6 +171,7 @@ export function enterBattleFromCannon(state: GameState): ModifierDiff | null {
   state.cannonballs = [];
   state.shotsFired = 0;
   electMortarCannons(state);
+  electShieldedCannons(state);
   if (hasFeature(state, FID.COMBOS)) {
     state.modern!.comboTracker = isCombosEnabled(state)
       ? createComboTracker(state.players.length)
@@ -539,9 +540,10 @@ function cleanupBattleArtifacts(state: GameState): void {
     player.cannons = player.cannons.filter(
       (cannon) => !isBalloonCannon(cannon),
     );
-    // Clear mortar election (lasts one battle round)
+    // Clear mortar/shield election (lasts one battle round)
     for (const cannon of player.cannons) {
       cannon.mortar = undefined;
+      cannon.shielded = undefined;
     }
   }
 }

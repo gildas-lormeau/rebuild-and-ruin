@@ -22,6 +22,7 @@ export interface SerializedCannon {
   mode: string;
   facing?: number;
   mortar?: true;
+  shielded?: true;
 }
 
 export interface SerializedHouse {

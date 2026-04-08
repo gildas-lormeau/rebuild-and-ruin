@@ -33,6 +33,8 @@ export interface Cannon extends TilePos {
   facing?: number;
   /** True when this cannon is the elected mortar for the current battle round. */
   mortar?: boolean;
+  /** True when this cannon is shielded (immune to damage) for the current battle round. */
+  shielded?: boolean;
 }
 
 export interface Cannonball {
