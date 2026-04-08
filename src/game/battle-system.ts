@@ -408,6 +408,11 @@ export function applyImpactEvent(
     case MESSAGE.ICE_THAWED:
       state.modern?.frozenTiles?.delete(packTile(event.row, event.col));
       break;
+    case MESSAGE.WALL_ABSORBED: {
+      const player = state.players[event.playerId];
+      if (player) player.damagedWalls.add(event.tileKey);
+      break;
+    }
   }
 }
 
@@ -805,8 +810,9 @@ function canFireCapturedCannon(
 }
 
 /**
- * Compute impact events at a tile position (pure — no state mutation).
- * Returns events describing what should happen: wall destroyed, cannon damaged, etc.
+ * Compute impact events at a tile position (pure — reads state, no mutation).
+ * Returns events describing what should happen: wall destroyed, wall absorbed,
+ * cannon damaged, etc. All state mutations happen in applyImpactEvent.
  *
  * Collector order matters — adding a new impact type:
  *   1. collectWallImpacts must run first (its `hitWall` return gates incendiary pit creation)
@@ -879,12 +885,17 @@ function collectWallImpacts(
   let hitWall = false;
   for (const player of state.players) {
     if (player.walls.has(key)) {
-      // Reinforced Walls: first hit is absorbed, wall survives (no pit either)
+      // Reinforced Walls: first hit is absorbed, wall survives (no pit either).
+      // hitWall intentionally NOT set — absorbed hits must not trigger incendiary pits.
       if (
         player.upgrades.get(UID.REINFORCED_WALLS) &&
         !player.damagedWalls.has(key)
       ) {
-        player.damagedWalls.add(key);
+        events.push({
+          type: MESSAGE.WALL_ABSORBED,
+          playerId: player.id,
+          tileKey: key,
+        });
         continue;
       }
       hitWall = true;

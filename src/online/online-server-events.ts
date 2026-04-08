@@ -118,6 +118,7 @@ type ImpactMsg = Extract<
   {
     type:
       | "wallDestroyed"
+      | "wallAbsorbed"
       | "cannonDamaged"
       | "houseDestroyed"
       | "gruntKilled"
@@ -172,6 +173,7 @@ export function handleServerIncrementalMessage(
     case MESSAGE.CANNON_FIRED:
       return handleCannonFired(msg, state, deps);
     case MESSAGE.WALL_DESTROYED:
+    case MESSAGE.WALL_ABSORBED:
     case MESSAGE.CANNON_DAMAGED:
     case MESSAGE.HOUSE_DESTROYED:
     case MESSAGE.GRUNT_KILLED:

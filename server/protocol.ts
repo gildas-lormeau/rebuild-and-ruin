@@ -44,6 +44,7 @@ export const MESSAGE = {
   PIT_CREATED: "pitCreated",
   ICE_THAWED: "iceThawed",
   TOWER_KILLED: "towerKilled",
+  WALL_ABSORBED: "wallAbsorbed",
   AIM_UPDATE: "aimUpdate",
   // Host migration
   HOST_LEFT: "hostLeft",
@@ -461,6 +462,13 @@ export interface IceThawedMessage {
   col: number;
 }
 
+/** A reinforced wall absorbed a hit (first hit only — wall survives, marked as damaged). */
+export interface WallAbsorbedMessage {
+  type: "wallAbsorbed";
+  playerId: ValidPlayerSlot;
+  tileKey: number;
+}
+
 /** A tower was destroyed by a grunt. */
 export interface TowerKilledMessage {
   type: "towerKilled";
@@ -498,6 +506,7 @@ export interface AimUpdateMessage {
 /** Impact events — effects from cannonball/grunt interactions. */
 export type ImpactEvent =
   | WallDestroyedMessage
+  | WallAbsorbedMessage
   | CannonDamagedMessage
   | HouseDestroyedMessage
   | GruntKilledMessage
@@ -547,6 +556,7 @@ export type ServerMessage =
   | GruntSpawnedMessage
   | PitCreatedMessage
   | IceThawedMessage
+  | WallAbsorbedMessage
   | TowerKilledMessage
   | AimUpdateMessage
   // Forwarded client messages

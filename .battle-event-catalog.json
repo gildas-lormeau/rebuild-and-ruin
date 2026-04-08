@@ -94,6 +94,15 @@
         "networkRelay": "server/game-room.ts"
       }
     },
+    "wallAbsorbed": {
+      "messageKey": "WALL_ABSORBED",
+      "union": "ImpactEvent",
+      "consumers": {
+        "stateApply": "src/game/battle-system.ts",
+        "networkHandle": "src/online/online-server-events.ts",
+        "networkRelay": "server/game-room.ts"
+      }
+    },
     "towerKilled": {
       "messageKey": "TOWER_KILLED",
       "union": "BattleEvent",
