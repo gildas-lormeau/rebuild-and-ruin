@@ -66,6 +66,7 @@
     ],
     "ai": [
       "src/ai/ai-constants.ts",
+      "src/ai/ai-upgrade-pick.ts",
       "src/ai/ai-build-types.ts",
       "src/ai/ai-castle-rect.ts",
       "src/ai/ai-build-score.ts",
