@@ -181,7 +181,7 @@
     "files": [
       "src/ai/ai-strategy.ts",
       "src/game/bootstrap-facade.ts",
-      "src/game/phase-tick-facade.ts",
+      "src/game/phase-ticks-facade.ts",
       "src/game/selection.ts",
       "src/online/online-checkpoints.ts",
       "src/online/online-host-promotion.ts",

@@ -13,7 +13,7 @@
  * Colocated here for clarity.
  */
 
-import { phaseTickFacade } from "../game/phase-tick-facade.ts";
+import { phaseTickFacade } from "../game/phase-ticks-facade.ts";
 import { SCORE_DELTA_DISPLAY_TIME } from "../shared/game-constants.ts";
 import { TILE_SIZE } from "../shared/grid.ts";
 import { towerCenterPx } from "../shared/spatial.ts";

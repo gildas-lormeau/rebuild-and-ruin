@@ -112,7 +112,7 @@ online/online-watcher-tick, player/controller-human
 
 ### 12. Controllers — L11 (8 files)
 ```
-ai/ai-strategy, game/bootstrap-facade, game/phase-tick-facade, game/selection,
+ai/ai-strategy, game/bootstrap-facade, game/phase-ticks-facade, game/selection,
 online/online-checkpoints, online/online-host-promotion, online/online-stores,
 player/controller-factory
 ```

@@ -130,7 +130,7 @@ const ALLOWED_SUBSYSTEM_DOMAINS = new Set(["shared", "runtime"]);
 const ALLOWED_GAME_FACADES = new Set([
   "dialog-facade.ts",
   "selection-facade.ts",
-  "phase-tick-facade.ts",
+  "phase-ticks-facade.ts",
 ]);
 
 function checkRuntimeSubsystemImports(

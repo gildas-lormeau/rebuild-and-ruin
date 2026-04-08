@@ -61,7 +61,7 @@
       "src/game/bootstrap-facade.ts",
       "src/game/dialog-facade.ts",
       "src/game/selection-facade.ts",
-      "src/game/phase-tick-facade.ts"
+      "src/game/phase-ticks-facade.ts"
     ],
     "ai": [
       "src/ai/ai-constants.ts",

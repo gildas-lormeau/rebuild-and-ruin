@@ -11,7 +11,7 @@
 
 import { MESSAGE } from "../../server/protocol.ts";
 import { bootstrapFacade } from "../game/bootstrap-facade.ts";
-import { phaseTickFacade } from "../game/phase-tick-facade.ts";
+import { phaseTickFacade } from "../game/phase-ticks-facade.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
 import { dispatchPointerMove } from "../input/input-dispatch.ts";
 import { registerKeyboardHandlers } from "../input/input-keyboard.ts";

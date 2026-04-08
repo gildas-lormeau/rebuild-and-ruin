@@ -13,7 +13,7 @@ import {
   type CannonFiredMessage,
   MESSAGE,
 } from "../../server/protocol.ts";
-import { phaseTickFacade } from "../game/phase-tick-facade.ts";
+import { phaseTickFacade } from "../game/phase-ticks-facade.ts";
 import {
   ageImpacts,
   type BalloonFlight,

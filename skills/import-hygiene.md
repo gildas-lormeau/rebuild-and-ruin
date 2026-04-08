@@ -113,7 +113,7 @@ layer dictated by their deepest import.
 10  assembly                  ai/ai-strategy-build, game/game-engine, game/host-battle-ticks,
                                 online/online-phase-transitions, online/online-serialize,
                                 online/online-watcher-tick, player/controller-human
-11  controllers               ai/ai-strategy, game/bootstrap-facade, game/phase-tick-facade,
+11  controllers               ai/ai-strategy, game/bootstrap-facade, game/phase-ticks-facade,
                                 game/selection, online/online-checkpoints,
                                 online/online-host-promotion, online/online-stores,
                                 player/controller-factory
