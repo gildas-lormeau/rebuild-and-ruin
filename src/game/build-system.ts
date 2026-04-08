@@ -112,7 +112,10 @@ export function canPlacePieceOffsets(
   col: number,
   excludeInterior?: ReadonlySet<number>,
 ): boolean {
-  const playerZone = state.players[playerId]?.homeTower?.zone;
+  const player = state.players[playerId];
+  const playerZone = player?.homeTower?.zone;
+  const architectAllowance = player?.upgrades.get(UID.ARCHITECT) ? 1 : 0;
+  let wallOverlaps = 0;
   for (const [dr, dc] of offsets) {
     const r = row + dr;
     const c = col + dc;
@@ -126,7 +129,14 @@ export function canPlacePieceOffsets(
     // AI callers pass excludeInterior to prevent placing inside enclosed zones
     if (excludeInterior && excludeInterior.has(key)) return false;
 
-    if (hasWallAt(state, r, c)) return false;
+    if (hasWallAt(state, r, c)) {
+      // Architect allows overlapping up to 1 own wall tile
+      if (player!.walls.has(key) && wallOverlaps < architectAllowance) {
+        wallOverlaps++;
+      } else {
+        return false;
+      }
+    }
     if (hasTowerAt(state, r, c)) return false;
     if (hasCannonAt(state, r, c)) return false;
     if (hasGruntAt(state.grunts, r, c)) return false;

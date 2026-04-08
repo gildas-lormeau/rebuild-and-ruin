@@ -18,7 +18,8 @@ export type UpgradeId =
   | "second_wind"
   | "clear_the_field"
   | "ricochet"
-  | "shield_battery";
+  | "shield_battery"
+  | "architect";
 
 type UpgradeCategory = "battle" | "build" | "strategic" | "one_use";
 
@@ -76,6 +77,7 @@ export const UID: { readonly [K in string]: UpgradeId } & Record<
   CLEAR_THE_FIELD: "clear_the_field",
   RICOCHET: "ricochet",
   SHIELD_BATTERY: "shield_battery",
+  ARCHITECT: "architect",
 };
 export const UPGRADE_POOL: readonly UpgradeDef[] = [
   // Battle
@@ -144,6 +146,16 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     id: "small_pieces",
     label: "Small Pieces",
     description: "Only simple pieces (1×1, 1×2, 1×3, corner)",
+    category: BUILD,
+    weight: WEIGHT_UNCOMMON,
+    oneUse: false,
+    global: false,
+    implemented: true,
+  },
+  {
+    id: "architect",
+    label: "Architect",
+    description: "Pieces can overlap 1 own wall tile",
     category: BUILD,
     weight: WEIGHT_UNCOMMON,
     oneUse: false,
