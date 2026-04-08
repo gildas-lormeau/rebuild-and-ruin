@@ -9,9 +9,9 @@
  *   deno run -A scripts/lint-domain-boundaries.ts --verbose # show all imports, not just violations
  */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
-import { Project, type SourceFile } from "ts-morph";
+import { Project, SyntaxKind, type SourceFile } from "ts-morph";
 import process from "node:process";
 
 const ROOT = path.resolve(import.meta.dirname!, "..");
@@ -195,22 +195,85 @@ for (const sf of project.getSourceFiles()) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Dynamic import() check: catch boundary violations via import() expressions
+// ---------------------------------------------------------------------------
+
+interface DynamicImportViolation {
+  file: string;
+  fileDomain: string;
+  specifier: string;
+  depDomain: string;
+}
+
+const dynamicImportViolations: DynamicImportViolation[] = [];
+
+for (const sf of project.getSourceFiles()) {
+  const absFile = sf.getFilePath();
+  const relFile = path.relative(ROOT, absFile);
+  const fileDomain = fileToDomain.get(relFile);
+
+  if (!fileDomain) continue;
+
+  const allowed = allowedDeps.get(fileDomain);
+  if (!allowed) continue;
+
+  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    if (call.getExpression().getKind() !== SyntaxKind.ImportKeyword) continue;
+
+    const args = call.getArguments();
+    if (args.length === 0) continue;
+    const specifier = args[0].asKind(SyntaxKind.StringLiteral)?.getLiteralValue();
+    if (!specifier || !specifier.startsWith(".")) continue;
+
+    const resolved = path.normalize(
+      path.join(path.dirname(absFile), specifier),
+    );
+    const depRel = path.relative(ROOT, resolved);
+    const depDomain = fileToDomain.get(depRel);
+
+    if (!depDomain || depDomain === fileDomain) continue;
+    checkedImports++;
+
+    if (!allowed.has(depDomain)) {
+      dynamicImportViolations.push({
+        file: relFile,
+        fileDomain,
+        specifier,
+        depDomain,
+      });
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Unassigned files: fail if any src/ or server/ .ts file is not in a domain
+// ---------------------------------------------------------------------------
+
+const diskFiles: string[] = [];
+for (const dir of ["src", "server"]) {
+  const dirPath = path.join(ROOT, dir);
+  try {
+    for (const entry of readdirSync(dirPath, { recursive: true })) {
+      const rel = path.join(dir, String(entry));
+      if (rel.endsWith(".ts") && !rel.endsWith(".d.ts")) {
+        diskFiles.push(rel);
+      }
+    }
+  } catch {
+    // directory may not exist
+  }
+}
+const unassigned = diskFiles.filter((f) => !fileToDomain.has(f));
+
 // Report
-if (violations.length === 0 && typeOnlyViolations.length === 0) {
+const totalViolations =
+  violations.length + typeOnlyViolations.length + dynamicImportViolations.length;
+
+if (totalViolations === 0 && unassigned.length === 0) {
   console.log(
     `\n✔ No domain boundary violations (${checkedFiles} files, ${checkedImports} imports checked)\n`,
   );
-  // Check for unassigned files
-  const allSources = project.getSourceFiles().map((sf) =>
-    path.relative(ROOT, sf.getFilePath()),
-  );
-  const unassigned = allSources.filter(
-    (f) => !fileToDomain.has(f) && !f.startsWith("node_modules"),
-  );
-  if (unassigned.length > 0) {
-    console.log(`⚠ ${unassigned.length} file(s) not assigned to any domain:`);
-    for (const f of unassigned) console.log(`  ${f}`);
-  }
 } else {
   if (violations.length > 0) {
     const grouped = new Map<string, Violation[]>();
@@ -253,6 +316,35 @@ if (violations.length === 0 && typeOnlyViolations.length === 0) {
       }
       console.log();
     }
+  }
+
+  if (dynamicImportViolations.length > 0) {
+    const grouped = new Map<string, DynamicImportViolation[]>();
+    for (const violation of dynamicImportViolations) {
+      const key = `${violation.fileDomain} → ${violation.depDomain}`;
+      const list = grouped.get(key) ?? [];
+      list.push(violation);
+      grouped.set(key, list);
+    }
+
+    console.log(
+      `\n✘ ${dynamicImportViolations.length} dynamic import() boundary violation(s):\n`,
+    );
+    for (const [edge, items] of [...grouped.entries()].sort()) {
+      console.log(`  ${edge}:`);
+      for (const item of items) {
+        console.log(`    ${item.file} → import("${item.specifier}")`);
+      }
+      console.log();
+    }
+  }
+
+  if (unassigned.length > 0) {
+    console.log(
+      `\n✘ ${unassigned.length} file(s) not assigned to any domain in .domain-boundaries.json:\n`,
+    );
+    for (const f of unassigned) console.log(`  ${f}`);
+    console.log();
   }
 
   console.log(
