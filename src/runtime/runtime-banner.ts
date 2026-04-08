@@ -12,6 +12,7 @@ import type { EntityOverlay } from "../shared/overlay-types.ts";
 import type { GameState } from "../shared/types.ts";
 import type { BannerState } from "../shared/ui-contracts.ts";
 import { Mode } from "../shared/ui-mode.ts";
+import { fireOnce } from "../shared/utils.ts";
 import {
   assertStateReady,
   type RuntimeState,
@@ -101,12 +102,21 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
   }
 
   function tickBanner(dt: number) {
-    dialogFacade.tickBannerTransition(
-      runtimeState.banner,
-      dt,
-      BANNER_DURATION,
-      render,
-    );
+    const banner = runtimeState.banner;
+    banner.progress = Math.min(1, banner.progress + dt / BANNER_DURATION);
+    render();
+
+    if (banner.progress < 1) return;
+
+    banner.prevCastles = undefined;
+    banner.prevTerritory = undefined;
+    banner.prevWalls = undefined;
+    banner.prevEntities = undefined;
+    banner.newTerritory = undefined;
+    banner.newWalls = undefined;
+    banner.modifierDiff = undefined;
+    banner.active = false;
+    fireOnce(banner, "callback", "banner.callback");
   }
 
   function clearSnapshots(): void {

@@ -1,7 +1,5 @@
 import type { CastleData, EntityOverlay } from "../shared/overlay-types.ts";
 import type { GameState } from "../shared/types.ts";
-import type { BannerState } from "../shared/ui-contracts.ts";
-import { fireOnce } from "../shared/utils.ts";
 
 export type BannerShow = (
   text: string,
@@ -79,29 +77,4 @@ export function snapshotEntities(state: GameState): EntityOverlay {
       ? new Set(state.modern.sinkholeTiles)
       : undefined,
   };
-}
-
-/** Advance banner animation progress and trigger render.
- *  @param dt — delta time in SECONDS
- *  @param bannerDuration — total animation duration in SECONDS */
-export function tickBannerTransition(
-  banner: BannerState,
-  dt: number,
-  bannerDuration: number,
-  render: () => void,
-): void {
-  banner.progress = Math.min(1, banner.progress + dt / bannerDuration);
-  render();
-
-  if (banner.progress < 1) return;
-
-  banner.prevCastles = undefined;
-  banner.prevTerritory = undefined;
-  banner.prevWalls = undefined;
-  banner.prevEntities = undefined;
-  banner.newTerritory = undefined;
-  banner.newWalls = undefined;
-  banner.modifierDiff = undefined;
-  banner.active = false;
-  fireOnce(banner, "callback", "banner.callback");
 }

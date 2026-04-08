@@ -18,11 +18,7 @@ import {
   tickLifeLostDialog,
   toggleLifeLostFocus,
 } from "./life-lost.ts";
-import {
-  snapshotCastles,
-  snapshotEntities,
-  tickBannerTransition,
-} from "./phase-banner.ts";
+import { snapshotCastles, snapshotEntities } from "./phase-banner.ts";
 import {
   applyUpgradePicks,
   createUpgradePickDialog,
@@ -53,5 +49,4 @@ export const dialogFacade = {
   createBannerState,
   snapshotCastles,
   snapshotEntities,
-  tickBannerTransition,
 };

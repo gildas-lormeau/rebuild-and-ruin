@@ -99,8 +99,6 @@ export function applyWildfire(state: GameState): ReadonlySet<number> {
 /** Apply crumbling walls: destroy a fraction of each player's outermost walls.
  *  Returns the array of destroyed wall tile keys for the reveal banner. */
 export function applyCrumblingWalls(state: GameState): readonly number[] {
-  const tiles = state.map.tiles;
-  const cols = tiles[0]!.length;
   const destroyed: number[] = [];
 
   for (const player of state.players) {
@@ -110,16 +108,9 @@ export function applyCrumblingWalls(state: GameState): readonly number[] {
     const interior = getInterior(player);
     const outerWalls: number[] = [];
     for (const key of player.walls) {
-      const r = Math.floor(key / cols);
-      const c = key % cols;
-      const neighbors = [
-        [r - 1, c],
-        [r + 1, c],
-        [r, c - 1],
-        [r, c + 1],
-      ];
-      const isOuter = neighbors.some(([nr, nc]) => {
-        const neighborKey = nr! * cols + nc!;
+      const { r, c } = unpackTile(key);
+      const isOuter = DIRS_4.some(([dr, dc]) => {
+        const neighborKey = packTile(r + dr, c + dc);
         return !player.walls.has(neighborKey) && !interior.has(neighborKey);
       });
       if (isOuter) outerWalls.push(key);
@@ -167,6 +158,8 @@ export function applyGruntSurge(state: GameState): number {
  *  across zones and target any tower. Lasts through battle + build phase.
  *  Returns the set of frozen tile keys for the reveal banner. */
 export function applyFrozenRiver(state: GameState): ReadonlySet<number> {
+  const modern = state.modern;
+  if (!modern) return new Set();
   const frozen = new Set<number>();
   const tiles = state.map.tiles;
   for (let r = 0; r < GRID_ROWS; r++) {
@@ -175,7 +168,7 @@ export function applyFrozenRiver(state: GameState): ReadonlySet<number> {
     }
   }
   if (frozen.size === 0) return frozen;
-  state.modern!.frozenTiles = frozen;
+  modern.frozenTiles = frozen;
 
   // Force all grunts to re-lock targets with zones open — grunts near the
   // river will pick cross-zone towers, grunts far away keep same-zone targets.
@@ -187,20 +180,22 @@ export function applyFrozenRiver(state: GameState): ReadonlySet<number> {
 
 /** Thaw frozen river: kill grunts stranded on water, clear frozen state. */
 export function clearFrozenRiver(state: GameState): void {
-  if (!hasFeature(state, FID.MODIFIERS)) return;
-  if (state.modern!.frozenTiles) {
+  const modern = state.modern;
+  if (!modern || !hasFeature(state, FID.MODIFIERS)) return;
+  if (modern.frozenTiles) {
     state.grunts = state.grunts.filter(
-      (gr) => !state.modern!.frozenTiles!.has(packTile(gr.row, gr.col)),
+      (gr) => !modern.frozenTiles!.has(packTile(gr.row, gr.col)),
     );
   }
-  state.modern!.frozenTiles = null;
+  modern.frozenTiles = null;
 }
 
 /** Apply sinkhole: one cluster per active zone, permanently converting grass to water.
  *  Destroys walls, houses, grunts, bonus squares, and burning pits on affected tiles.
  *  Returns the set of all sinkhole tile keys for the reveal banner. */
 export function applySinkhole(state: GameState): ReadonlySet<number> {
-  const modern = state.modern!;
+  const modern = state.modern;
+  if (!modern) return new Set();
   const existing = modern.sinkholeTiles?.size ?? 0;
   if (existing >= SINKHOLE_MAX_TOTAL) return new Set();
 
@@ -381,8 +376,8 @@ function generateWildfireScar(state: GameState, zone: number): Set<number> {
 
   // Collect seed candidates (interior tiles only — skip map border)
   const candidates: { row: number; col: number }[] = [];
-  for (let r = 1; r < state.map.tiles.length - 1; r++) {
-    for (let c = 1; c < state.map.tiles[0]!.length - 1; c++) {
+  for (let r = 1; r < GRID_ROWS - 1; r++) {
+    for (let c = 1; c < GRID_COLS - 1; c++) {
       if (canBurn(r, c)) candidates.push({ row: r, col: c });
     }
   }
@@ -457,8 +452,6 @@ function buildCanBurnPredicate(
   const burningSet = new Set(
     state.burningPits.map((pit) => packTile(pit.row, pit.col)),
   );
-  const rows = tiles.length;
-  const cols = tiles[0]!.length;
   return (row: number, col: number): boolean => {
     if (!isGrass(tiles, row, col)) return false;
     if (zones[row]?.[col] !== targetZone) return false;
@@ -466,7 +459,7 @@ function buildCanBurnPredicate(
     if (hasTowerAt(state, row, col)) return false;
     if (hasCannonAt(state, row, col)) return false;
     // 1-tile gap from map edges and water so players can enclose the scar
-    if (row <= 1 || row >= rows - 2 || col <= 1 || col >= cols - 2)
+    if (row <= 1 || row >= GRID_ROWS - 2 || col <= 1 || col >= GRID_COLS - 2)
       return false;
     for (const [dr, dc] of DIRS_4) {
       if (isWater(tiles, row + dr, col + dc)) return false;

@@ -4,7 +4,7 @@
  * Movement and pathfinding live in grunt-movement.ts.
  */
 
-import { MESSAGE } from "../../server/protocol.ts";
+import { MESSAGE, type TowerKilledMessage } from "../../server/protocol.ts";
 import type { Grunt } from "../shared/battle-types.ts";
 import {
   hasGruntAt,
@@ -44,16 +44,6 @@ import {
   isAdjacentToLivingTower,
   isGruntPassableTile,
 } from "./grunt-movement.ts";
-
-/**
- * Grunts adjacent to an alive tower start a 3-second attack timer.
- * When the timer reaches 0, the tower is killed.
- * Called each battle tick with dt in seconds.
- */
-interface GruntAttackEvent {
-  type: "towerKilled";
-  towerIdx: number;
-}
 
 /** Search radius for finding nearest water tile. */
 const WATER_SEARCH_RADIUS = 5;
@@ -205,9 +195,9 @@ export function spawnGruntSurgeOnZone(
 export function gruntAttackTowers(
   state: GameState,
   dt: number,
-): GruntAttackEvent[] {
+): TowerKilledMessage[] {
   const deadZones = getDeadZones(state);
-  const events: GruntAttackEvent[] = [];
+  const events: TowerKilledMessage[] = [];
   for (const grunt of state.grunts) {
     // Wall attack: executing decision made by rollGruntWallAttacks() at battle start
     if (grunt.attackingWall) {

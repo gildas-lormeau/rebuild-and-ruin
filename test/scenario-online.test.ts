@@ -25,8 +25,8 @@ import {
   createScenario,
 } from "./scenario-helpers.ts";
 import { assert } from "@std/assert";
-import { enterCannonPlacePhase, nextPhase } from "../src/game/game-engine.ts";
-import { initControllerForCannonPhase, prepareCannonPhase } from "../src/game/phase-setup.ts";
+import { enterCannonPlacePhase } from "../src/game/game-engine.ts";
+import { enterBattleFromCannon, initControllerForCannonPhase, prepareCannonPhase } from "../src/game/phase-setup.ts";
 import { SPECTATOR_SLOT, type ValidPlayerSlot } from "../src/shared/player-slot.ts";
 import { Phase } from "../src/shared/game-phase.ts";
 import type { BannerState } from "../src/shared/ui-contracts.ts";
@@ -239,9 +239,9 @@ Deno.test("battle-start: host and watcher produce same phase and territory snaps
   const s = await createScenario();
   s.runCannon();
 
-  // --- Host path: nextPhase + snapshot territory ---
+  // --- Host path: enterBattleFromCannon + snapshot territory ---
   const hostState = s.state;
-  nextPhase(hostState);
+  enterBattleFromCannon(hostState);
   const hostFlights = resolveBalloons(hostState);
   const hostTerritory = hostState.players.map((p) => new Set(p.interior));
   const hostPhase = hostState.phase;
@@ -303,7 +303,7 @@ Deno.test("watcher: wall debris visible in render overlay after WALL_DESTROYED",
   s.runCannon();
 
   // Host side: create the BATTLE_START message
-  nextPhase(s.state);
+  enterBattleFromCannon(s.state);
   const hostFlights = resolveBalloons(s.state);
   const msg = createBattleStartMessage(s.state, hostFlights);
 
@@ -464,7 +464,7 @@ Deno.test("burning pits visible in overlay during cannon-to-battle banner", asyn
         () => {},
       ),
     applyCheckpoint: () => {
-      nextPhase(s.state);
+      enterBattleFromCannon(s.state);
       battleAnim.impacts = [];
     },
     snapshotForBanner: () => {

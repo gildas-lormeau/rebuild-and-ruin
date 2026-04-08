@@ -145,9 +145,9 @@ export interface TransitionContext {
     getTerritory: () => Set<number>[];
     /** Battle-start wall snapshot (for banner old-scene rendering). */
     getWalls: () => Set<number>[];
-    /** Initiate the battle countdown.  Goes through beginHostBattle which
-     *  handles initBattleState, countdown, watcher timing, aimAtEnemyCastle, and
-     *  Mode.GAME — so the banner callback doesn't need to duplicate any of it. */
+    /** Initiate the battle countdown.  Handles initBattleState, countdown,
+     *  watcher timing, aimAtEnemyCastle, and Mode.GAME — so the banner
+     *  callback doesn't need to duplicate any of it. */
     beginBattle: () => void;
   };
 

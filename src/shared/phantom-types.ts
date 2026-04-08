@@ -1,4 +1,5 @@
 import { CannonMode } from "./battle-types.ts";
+import type { SerializedPlayer } from "./checkpoint-data.ts";
 import type { ValidPlayerSlot } from "./player-slot.ts";
 
 /** Cannon phantom sent over the network. `valid` controls placement coloring (green/red). */
@@ -18,6 +19,40 @@ export type PiecePhantom = {
   playerId: ValidPlayerSlot;
   valid: boolean;
 };
+
+/** Network payload for a cannon placement event. */
+export interface CannonPlacedPayload {
+  playerId: ValidPlayerSlot;
+  row: number;
+  col: number;
+  mode: CannonMode;
+}
+
+/** Network payload for a cannon phantom (includes validity for coloring). */
+export interface CannonPhantomPayload extends CannonPlacedPayload {
+  valid: boolean;
+}
+
+/** Network payload for a piece placement event. */
+export interface PiecePlacedPayload {
+  playerId: ValidPlayerSlot;
+  row: number;
+  col: number;
+  offsets: [number, number][];
+}
+
+/** Network payload for a piece phantom (includes validity for coloring). */
+export interface PiecePhantomPayload extends PiecePlacedPayload {
+  valid: boolean;
+}
+
+/** Network payload for build phase end (checkpoint data). */
+export interface BuildEndPayload {
+  needsReselect: ValidPlayerSlot[];
+  eliminated: ValidPlayerSlot[];
+  scores: number[];
+  players: SerializedPlayer[];
+}
 
 /** Opaque dedup tracker — wraps a per-player map of last-sent serialized keys.
  *  Use `shouldSend()` to check + update atomically; `clear()` on reset. */

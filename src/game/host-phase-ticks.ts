@@ -15,18 +15,22 @@
  *     by phase — see CONTRAST comments inside each function.
  */
 
-import { CannonMode } from "../shared/battle-types.ts";
 import { getInterior, snapshotAllWalls } from "../shared/board-occupancy.ts";
 import type { SerializedPlayer } from "../shared/checkpoint-data.ts";
 import { FID } from "../shared/feature-defs.ts";
 import { MASTER_BUILDER_BONUS_SECONDS } from "../shared/game-constants.ts";
 import type { EntityOverlay } from "../shared/overlay-types.ts";
 import {
+  type BuildEndPayload,
   type CannonPhantom,
+  type CannonPhantomPayload,
+  type CannonPlacedPayload,
   cannonPhantomKey,
   type DedupChannel,
   NOOP_DEDUP_CHANNEL,
   type PiecePhantom,
+  type PiecePhantomPayload,
+  type PiecePlacedPayload,
   phantomWireMode,
   piecePhantomKey,
 } from "../shared/phantom-types.ts";
@@ -45,35 +49,6 @@ import {
 } from "../shared/types.ts";
 import { snapshotEntities } from "./phase-banner.ts";
 import { runBuildEndSequence } from "./phase-transition-steps.ts";
-
-export interface CannonPlacedPayload {
-  playerId: ValidPlayerSlot;
-  row: number;
-  col: number;
-  mode: CannonMode;
-}
-
-export interface CannonPhantomPayload extends CannonPlacedPayload {
-  valid: boolean;
-}
-
-export interface PiecePlacedPayload {
-  playerId: ValidPlayerSlot;
-  row: number;
-  col: number;
-  offsets: [number, number][];
-}
-
-export interface PiecePhantomPayload extends PiecePlacedPayload {
-  valid: boolean;
-}
-
-export interface BuildEndPayload {
-  needsReselect: ValidPlayerSlot[];
-  eliminated: ValidPlayerSlot[];
-  scores: number[];
-  players: SerializedPlayer[];
-}
 
 interface HostFrame {
   phantoms: {

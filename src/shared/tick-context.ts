@@ -97,6 +97,7 @@ export interface WatcherTimingState {
 }
 
 /** Timer accumulator key constants. */
+export const ACCUM_BATTLE = "battle" satisfies keyof TimerAccums;
 export const ACCUM_CANNON = "cannon" satisfies keyof TimerAccums;
 export const ACCUM_GRUNT = "grunt" satisfies keyof TimerAccums;
 export const ACCUM_BUILD = "build" satisfies keyof TimerAccums;

@@ -8,6 +8,7 @@
  *   For local play the callbacks are omitted; for online they send to the wire.
  */
 
+import { type BattleEvent, MESSAGE } from "../../server/protocol.ts";
 import type {
   BuildEndPayload,
   CannonPhantomPayload,
@@ -24,6 +25,7 @@ import {
   IMPACT_FLASH_DURATION,
 } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
+import type { PlayerStats } from "../shared/overlay-types.ts";
 import {
   filterAlivePhantoms,
   NOOP_DEDUP_CHANNEL,
@@ -34,6 +36,7 @@ import {
   type SoundSystem,
 } from "../shared/system-interfaces.ts";
 import {
+  ACCUM_BATTLE,
   ACCUM_BUILD,
   ACCUM_CANNON,
   ACCUM_GRUNT,
@@ -238,7 +241,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       resolveBalloons: phaseTickFacade.resolveBalloons,
       snapshotTerritory: deps.snapshotTerritory,
       showBanner: deps.showBanner,
-      nextPhase: phaseTickFacade.nextPhase,
       setModeBalloonAnim: () => {
         setMode(runtimeState, Mode.BALLOON_ANIM);
       },
@@ -264,26 +266,31 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   }
 
   function tickBalloonAnim(dt: number) {
-    phaseTickFacade.tickHostBalloonAnim({
-      dt,
-      balloonFlightDuration: BALLOON_FLIGHT_DURATION,
-      battleAnim: runtimeState.battleAnim,
-      render: deps.render,
-      beginBattle,
-    });
+    const { battleAnim } = runtimeState;
+    let allDone = true;
+    for (const flight of battleAnim.flights) {
+      flight.progress = Math.min(
+        1,
+        flight.progress + dt / BALLOON_FLIGHT_DURATION,
+      );
+      if (flight.progress < 1) allDone = false;
+    }
+    deps.render();
+    if (allDone) {
+      battleAnim.flights = [];
+      beginBattle();
+    }
   }
 
   function beginBattle() {
     const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
-    phaseTickFacade.beginHostBattle({
-      state: runtimeState.state,
-      controllers: localControllers(runtimeState.controllers, remoteHumanSlots),
-      accum: runtimeState.accum,
-      battleCountdown: BATTLE_COUNTDOWN,
-      setModeGame: () => {
-        setMode(runtimeState, Mode.GAME);
-      },
-    });
+    phaseTickFacade.initBattleControllers(
+      localControllers(runtimeState.controllers, remoteHumanSlots),
+      runtimeState.state,
+    );
+    runtimeState.state.battleCountdown = BATTLE_COUNTDOWN;
+    resetAccum(runtimeState.accum, ACCUM_BATTLE);
+    setMode(runtimeState, Mode.GAME);
     // Watcher timing: record countdown start for non-host clients
     if (!runtimeState.frameMeta.hostAtFrameStart && deps.watcherTiming) {
       deps.watcherTiming.countdownStartTime = performance.now();
@@ -347,14 +354,18 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
 
   function tickBattleCountdown(dt: number): void {
     const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
-    phaseTickFacade.tickHostBattleCountdown({
+    runtimeState.frame.announcement = phaseTickFacade.advanceBattleCountdown(
+      runtimeState.state,
       dt,
-      state: runtimeState.state,
-      frame: runtimeState.frame,
-      controllers: localControllers(runtimeState.controllers, remoteHumanSlots),
-      syncCrosshairs,
-      render: deps.render,
-    });
+    );
+    for (const ctrl of localControllers(
+      runtimeState.controllers,
+      remoteHumanSlots,
+    )) {
+      ctrl.battleTick(runtimeState.state, dt);
+    }
+    syncCrosshairs(/* weaponsActive */ false, dt);
+    deps.render();
   }
 
   function tickBattlePhase(dt: number): boolean {
@@ -377,10 +388,7 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         const pov = runtimeState.frameMeta.povPlayerId;
         deps.haptics.battleEvents(events, pov);
         deps.sound.battleEvents(events, pov);
-        phaseTickFacade.accumulateBattleStats(
-          events,
-          runtimeState.scoreDisplay.gameStats,
-        );
+        accumulateBattleStats(events, runtimeState.scoreDisplay.gameStats);
       },
       onBattlePhaseEnded: () => {
         deps.saveBattleCrosshair?.();
@@ -477,6 +485,25 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       deps.render();
     }
     deps.everyTick?.(dt);
+  }
+
+  /** Accumulate per-player battle stats (walls destroyed, cannons killed) from battle events.
+   *  UI/stats concern — lives in runtime, not game domain. */
+  function accumulateBattleStats(
+    events: ReadonlyArray<BattleEvent>,
+    gameStats: readonly PlayerStats[],
+  ): void {
+    for (const evt of events) {
+      if (evt.type === MESSAGE.WALL_DESTROYED) {
+        const stats =
+          evt.shooterId !== undefined ? gameStats[evt.shooterId] : undefined;
+        if (stats) stats.wallsDestroyed++;
+      } else if (evt.type === MESSAGE.CANNON_DAMAGED && evt.newHp === 0) {
+        const stats =
+          evt.shooterId !== undefined ? gameStats[evt.shooterId] : undefined;
+        if (stats) stats.cannonsKilled++;
+      }
+    }
   }
 
   return {

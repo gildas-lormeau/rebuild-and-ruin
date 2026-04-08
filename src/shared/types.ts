@@ -118,9 +118,12 @@ export interface GameState {
 export type UpgradeOfferTuple = [UpgradeId, UpgradeId, UpgradeId];
 
 /** State exclusive to modern mode. null on GameState in classic mode. */
-/** Floating combo text event — aged by the renderer, removed when expired. */
+/** Floating combo event — structured data aged by the renderer, removed when expired.
+ *  The render layer formats the display text from `kind`, `streak`, and `bonus`. */
 export interface ComboEvent {
-  text: string;
+  kind: "wall" | "cannon" | "grunt";
+  streak: number;
+  bonus: number;
   age: number;
   playerId: ValidPlayerSlot;
 }

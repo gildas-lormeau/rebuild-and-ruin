@@ -107,7 +107,9 @@ export function comboOnWallDestroyed(
   // Wall streak bonus
   if (playerState.wallStreak >= WALL_STREAK_MIN) {
     tracker.events.push({
-      text: `Wall Streak x${playerState.wallStreak}! +${WALL_STREAK_BONUS}`,
+      kind: COMBO_WALL,
+      streak: playerState.wallStreak,
+      bonus: WALL_STREAK_BONUS,
       age: 0,
       playerId: shooterId,
     });
@@ -123,7 +125,9 @@ export function comboOnCannonKill(
   const playerState = tracker.players[shooterId];
   if (!playerState) return 0;
   tracker.events.push({
-    text: `Cannon Kill! +${CANNON_KILL_BONUS}`,
+    kind: COMBO_CANNON,
+    streak: 1,
+    bonus: CANNON_KILL_BONUS,
     age: 0,
     playerId: shooterId,
   });
@@ -147,7 +151,9 @@ export function comboOnGruntKill(
 
   if (playerState.gruntStreak >= GRUNT_STREAK_MIN) {
     tracker.events.push({
-      text: `Grunt Sniper x${playerState.gruntStreak}! +${GRUNT_STREAK_BONUS}`,
+      kind: COMBO_GRUNT,
+      streak: playerState.gruntStreak,
+      bonus: GRUNT_STREAK_BONUS,
       age: 0,
       playerId: shooterId,
     });

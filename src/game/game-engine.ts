@@ -14,7 +14,7 @@
  */
 
 import { EMPTY_FEATURES } from "../shared/feature-defs.ts";
-import type { GameMode, ModifierDiff } from "../shared/game-constants.ts";
+import type { GameMode } from "../shared/game-constants.ts";
 import {
   BUILD_TIMER,
   CANNON_MAX_HP,
@@ -164,23 +164,24 @@ export function markPlayerReselected(
   state.reselectedPlayers.add(playerId);
 }
 
-export function nextPhase(state: GameState): ModifierDiff | null {
+export function nextPhase(state: GameState): void {
   const { phase } = state;
   switch (phase) {
     case Phase.CASTLE_SELECT:
       enterBuildFromSelect(state);
-      return null;
+      break;
     case Phase.CASTLE_RESELECT:
       enterBuildFromReselect(state);
-      return null;
+      break;
     case Phase.WALL_BUILD:
       enterCannonPlacePhase(state);
-      return null;
+      break;
     case Phase.CANNON_PLACE:
-      return enterBattleFromCannon(state);
+      enterBattleFromCannon(state);
+      break;
     case Phase.BATTLE:
       enterBuildFromBattle(state);
-      return null;
+      break;
     default:
       assertNever(phase);
   }

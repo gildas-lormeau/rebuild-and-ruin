@@ -94,6 +94,10 @@ export function findNearestValidCannonPlacement(
   state: GameViewState & { readonly burningPits: readonly BurningPit[] },
   maxRadius = CANNON_SNAP_RADIUS,
 ): { row: number; col: number } | undefined {
+  // Check origin first — if valid, no snapping needed
+  if (canPlaceCannon(player, row, col, mode, state)) {
+    return { row, col };
+  }
   let bestDist = Infinity;
   let best: { row: number; col: number } | undefined;
   for (let dr = -maxRadius; dr <= maxRadius; dr++) {

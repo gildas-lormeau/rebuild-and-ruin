@@ -19,7 +19,6 @@ import {
   finalizeAndEnterCannonPhase,
   markPlayerReselected,
 } from "./game-engine.ts";
-import { generateMap } from "./map-generation.ts";
 import { snapshotEntities } from "./phase-banner.ts";
 import {
   completeReselection,
@@ -38,7 +37,6 @@ import {
 } from "./selection.ts";
 
 export const selectionFacade = {
-  generateMap,
   allPlayersHaveTerritory,
   initSelectionTimer,
   recheckTerritoryOnly,

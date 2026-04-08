@@ -11,8 +11,8 @@
 
 import { MESSAGE } from "../../server/protocol.ts";
 import { aiPickUpgrade } from "../ai/ai-upgrade-pick.ts";
+import { bootstrapFacade } from "../game/bootstrap-facade.ts";
 import { phaseTickFacade } from "../game/phase-tick-facade.ts";
-import { selectionFacade } from "../game/selection-facade.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
 import { dispatchPointerMove } from "../input/input-dispatch.ts";
 import { registerKeyboardHandlers } from "../input/input-keyboard.ts";
@@ -130,7 +130,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     if (newSeed !== runtimeState.lobby.seed) {
       runtimeState.lobby.seed = newSeed;
       config.log(`[lobby] seed: ${newSeed}`);
-      const map = selectionFacade.generateMap(newSeed);
+      const map = bootstrapFacade.generateMap(newSeed);
       runtimeState.lobby.map = map;
       renderer.warmMapCache(map);
     }

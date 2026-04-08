@@ -1,5 +1,4 @@
 import { bootstrapFacade } from "../game/bootstrap-facade.ts";
-import { selectionFacade } from "../game/selection-facade.ts";
 import {
   createController,
   ensureAiModulesLoaded,
@@ -102,7 +101,7 @@ export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
 
   lobby.seed = seed;
   log(`[online] seed: ${seed}`);
-  lobby.map = selectionFacade.generateMap(seed);
+  lobby.map = bootstrapFacade.generateMap(seed);
   lobby.joined = new Array(maxPlayers).fill(false);
   lobby.active = true;
   const time = performance.now();

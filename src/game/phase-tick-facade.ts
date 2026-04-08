@@ -8,7 +8,6 @@
 
 import { clearImpacts } from "../shared/battle-types.ts";
 import {
-  accumulateBattleStats,
   collectLocalCrosshairs,
   resolveBalloons,
   snapshotTerritory,
@@ -20,10 +19,9 @@ import { isCeasefireActive, nextPhase } from "./game-engine.ts";
 import { tickGrunts } from "./grunt-movement.ts";
 import { gruntAttackTowers, tickBreachSpawnQueue } from "./grunt-system.ts";
 import {
-  beginHostBattle,
+  advanceBattleCountdown,
+  initBattleControllers,
   startHostBattleLifecycle,
-  tickHostBalloonAnim,
-  tickHostBattleCountdown,
   tickHostBattlePhase,
 } from "./host-battle-ticks.ts";
 import { tickHostBuildPhase, tickHostCannonPhase } from "./host-phase-ticks.ts";
@@ -51,11 +49,10 @@ export type {
   CannonPlacedPayload,
   PiecePhantomPayload,
   PiecePlacedPayload,
-} from "./host-phase-ticks.ts";
+} from "../shared/phantom-types.ts";
 
 export const phaseTickFacade = {
   clearImpacts,
-  accumulateBattleStats,
   collectLocalCrosshairs,
   resolveBalloons,
   snapshotTerritory,
@@ -68,10 +65,9 @@ export const phaseTickFacade = {
   tickGrunts,
   gruntAttackTowers,
   tickBreachSpawnQueue,
-  beginHostBattle,
+  advanceBattleCountdown,
+  initBattleControllers,
   startHostBattleLifecycle,
-  tickHostBalloonAnim,
-  tickHostBattleCountdown,
   tickHostBattlePhase,
   tickHostBuildPhase,
   tickHostCannonPhase,

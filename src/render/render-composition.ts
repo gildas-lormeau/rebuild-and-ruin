@@ -42,7 +42,11 @@ import {
   LIFE_LOST_PANEL_H as PANEL_H,
   LIFE_LOST_PANEL_W as PANEL_W,
 } from "../shared/theme.ts";
-import { type GameState, type SelectionState } from "../shared/types.ts";
+import {
+  type ComboEvent,
+  type GameState,
+  type SelectionState,
+} from "../shared/types.ts";
 import type {
   LobbyHit,
   OnlineOverlayParams,
@@ -74,6 +78,11 @@ const SETTINGS_GEAR_Y = 4;
 const SETTINGS_GEAR_SIZE = 28;
 const UPGRADE_CARDS_PER_ROW = 3;
 const UPGRADE_NAME_H = 18;
+const COMBO_LABELS: Record<ComboEvent["kind"], string> = {
+  wall: "Wall Streak",
+  cannon: "Cannon Kill",
+  grunt: "Grunt Sniper",
+};
 export const UPGRADE_ROW_GAP = 8;
 /** Per-player snapshot of previous interior, used to detect newly enclosed tiles. */
 export const GAMEOVER_ROW_H = 14;
@@ -427,11 +436,7 @@ export function createOnlineOverlay(
         getLifeLostPanelPos,
       ),
       comboFloats: hasPointerPlayer
-        ? povPlayerId < 0
-          ? state.modern?.comboTracker?.events
-          : state.modern?.comboTracker?.events.filter(
-              (event) => event.playerId === povPlayerId,
-            )
+        ? formatComboFloats(state.modern?.comboTracker?.events, povPlayerId)
         : undefined,
       upgradePick: buildUpgradePickUi(
         upgradePickDialog,
@@ -755,4 +760,26 @@ function buildBattleBalloonsPayload(
     targetY: b.flight.endY,
     progress: b.progress,
   }));
+}
+
+function formatComboFloats(
+  events: readonly ComboEvent[] | undefined,
+  povPlayerId: number,
+): { text: string; age: number }[] | undefined {
+  if (!events || events.length === 0) return undefined;
+  const filtered =
+    povPlayerId < 0
+      ? events
+      : events.filter((event) => event.playerId === povPlayerId);
+  if (filtered.length === 0) return undefined;
+  return filtered.map((event) => ({
+    text: formatComboText(event),
+    age: event.age,
+  }));
+}
+
+function formatComboText(event: ComboEvent): string {
+  const label = COMBO_LABELS[event.kind];
+  const streak = event.streak > 1 ? ` x${event.streak}` : "";
+  return `${label}${streak}! +${event.bonus}`;
 }

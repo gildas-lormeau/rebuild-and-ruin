@@ -1,8 +1,8 @@
 /**
  * Host-side tick functions for the battle phase.
  *
- * Contains the pure tick logic (tickHostBattleCountdown, tickHostBattlePhase,
- * startHostBattleLifecycle, tickHostBalloonAnim, beginHostBattle) consumed by
+ * Contains the pure tick logic (advanceBattleCountdown, tickHostBattlePhase,
+ * startHostBattleLifecycle, initBattleControllers) consumed by
  * runtime-phase-ticks.ts.
  *
  * Network-agnostic: callers pre-filter controllers and provide optional
@@ -36,7 +36,10 @@ import {
   getCountdownAnnouncement,
 } from "./battle-system.ts";
 import { BANNER_BATTLE, type BannerShow } from "./phase-banner.ts";
-import { enterBuildSkippingBattle } from "./phase-setup.ts";
+import {
+  enterBattleFromCannon,
+  enterBuildSkippingBattle,
+} from "./phase-setup.ts";
 import {
   BATTLE_START_STEPS,
   executeTransition,
@@ -45,16 +48,6 @@ import {
 } from "./phase-transition-steps.ts";
 
 type BattleCapable = ControllerIdentity & BattleController;
-
-interface TickHostBattleCountdownDeps {
-  dt: number;
-  state: GameState;
-  frame: { announcement?: string };
-  /** Pre-filtered to local controllers only. Remote controllers are not ticked. */
-  controllers: BattleCapable[];
-  syncCrosshairs: (weaponsActive: boolean, dt: number) => void;
-  render: () => void;
-}
 
 interface TickHostBattlePhaseDeps {
   dt: number;
@@ -92,7 +85,6 @@ interface StartHostBattleLifecycleDeps {
   resolveBalloons: (state: GameState) => BalloonFlight[];
   snapshotTerritory: () => Set<number>[];
   showBanner: BannerShow;
-  nextPhase: (state: GameState) => ModifierDiff | null;
   setModeBalloonAnim: () => void;
   beginBattle: () => void;
   /** Optional: broadcast battle start to network peers. Omit for local play. */
@@ -108,38 +100,14 @@ interface StartHostBattleLifecycleDeps {
   onCeasefire?: () => void;
 }
 
-interface TickHostBalloonAnimDeps {
-  dt: number;
-  balloonFlightDuration: number;
-  battleAnim: BattleAnimState;
-  render: () => void;
-  beginBattle: () => void;
-}
-
-interface BeginHostBattleDeps {
-  state: GameState;
-  /** Pre-filtered to local controllers only. */
-  controllers: BattleCapable[];
-  accum: { battle: number };
-  battleCountdown: number;
-  setModeGame: () => void;
-}
-
-export function tickHostBattleCountdown(
-  deps: TickHostBattleCountdownDeps,
-): void {
-  const { dt, state, frame, controllers, syncCrosshairs, render } = deps;
-
+/** Decrement the battle countdown timer and return announcement text.
+ *  Pure game logic — no rendering or crosshair sync. */
+export function advanceBattleCountdown(
+  state: GameState,
+  dt: number,
+): string | undefined {
   state.battleCountdown = Math.max(0, state.battleCountdown - dt);
-  for (const ctrl of controllers) {
-    ctrl.battleTick(state, dt);
-  }
-
-  frame.announcement = getCountdownAnnouncement(state.battleCountdown);
-
-  const weaponsActive = false; // countdown — weapons not yet active
-  syncCrosshairs(weaponsActive, dt);
-  render();
+  return getCountdownAnnouncement(state.battleCountdown);
 }
 
 /** Tick the battle phase. Returns true when battle ends.
@@ -234,7 +202,6 @@ export function startHostBattleLifecycle(
     resolveBalloons,
     snapshotTerritory,
     showBanner,
-    nextPhase,
     setModeBalloonAnim,
     beginBattle,
   } = deps;
@@ -270,10 +237,10 @@ export function startHostBattleLifecycle(
       }
     },
     applyCheckpoint: () => {
-      const diff = nextPhase(state);
+      const diff = enterBattleFromCannon(state);
       if (diff) deps.banner.modifierDiff = diff;
-      // Resolve balloons AFTER nextPhase so modifiers (crumbling walls, etc.)
-      // are applied before the enclosure check picks targets.
+      // Resolve balloons AFTER enterBattleFromCannon so modifiers
+      // (crumbling walls, etc.) are applied before the enclosure check picks targets.
       flights = resolveBalloons(state);
       battleAnim.impacts = [];
       deps.sendBattleStart?.(flights, diff);
@@ -289,33 +256,15 @@ export function startHostBattleLifecycle(
   });
 }
 
-export function tickHostBalloonAnim(deps: TickHostBalloonAnimDeps): void {
-  const { dt, balloonFlightDuration, battleAnim, render, beginBattle } = deps;
-  let allDone = true;
-  for (const b of battleAnim.flights) {
-    // Clamp to 1.0 — progress is normalized [0,1] and must not overshoot
-    b.progress = Math.min(1, b.progress + dt / balloonFlightDuration);
-    if (b.progress < 1) allDone = false;
-  }
-
-  render();
-
-  if (allDone) {
-    battleAnim.flights = [];
-    beginBattle();
-  }
-}
-
-export function beginHostBattle(deps: BeginHostBattleDeps): void {
-  const { state, controllers, accum, battleCountdown, setModeGame } = deps;
-
+/** Initialize battle state on all provided controllers.
+ *  Pure game logic — no UI mode switches or timer setup. */
+export function initBattleControllers(
+  controllers: readonly BattleCapable[],
+  state: GameState,
+): void {
   for (const ctrl of controllers) {
     ctrl.initBattleState(state);
   }
-
-  state.battleCountdown = battleCountdown;
-  accum.battle = 0;
-  setModeGame();
 }
 
 /** Tick local controllers and collect fire events from newly created cannonballs. */
