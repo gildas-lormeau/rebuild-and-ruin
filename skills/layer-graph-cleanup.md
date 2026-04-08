@@ -16,7 +16,7 @@ This codebase has been written and repeatedly refactored by LLM-based agents rat
 
 Implications for this workflow:
 - Prefer **executable rules** over inferred style. If a convention matters, encode it in scripts, types, or comments rather than assuming future agents will rediscover it.
-- Treat `.import-layers.json`, `.domain-boundaries.json`, and the audit scripts as the canonical source of architectural intent.
+- Treat `.import-layers.json` (layer groups with `tier` field), `.domain-boundaries.json`, and the audit scripts as the canonical source of architectural intent.
 - When you find a real pattern that agents must follow, update the relevant skill or in-code documentation in the same session when practical.
 - Be skeptical of "organic" clustering alone: in an agent-maintained repo, some structure exists because the tooling taught it, not because humans would naturally name it that way.
 
@@ -35,7 +35,7 @@ deno run -A scripts/layer-graph.ts
 
 This emits a dot graph where each **node = one layer group**, and each **edge = at least one file in group A imports a file in group B**. Paste the output at https://dreampuf.github.io/GraphvizOnline/ or render with `dot`.
 
-The graph is far more readable than a file-level graph: ~15 nodes instead of ~90.
+The graph is far more readable than a file-level graph: ~19 nodes instead of ~150. Nodes cluster into 5 tiers: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L18).
 
 ## Step 2 — Read the graph for smells
 
@@ -124,15 +124,16 @@ Re-read the graph. Fixes often cascade — removing one edge may reveal another 
 
 If the fix introduced a new architectural convention or clarified an old one, update the relevant skill/doc immediately. In this repo, documentation is part of the architecture, not an afterthought.
 
-## Step 6 — Update group names
+## Step 6 — Update group names and tiers
 
-After moving files, check that group names still describe their contents:
+After moving files, check that group names and tiers still describe their contents:
 
 - Files with a `render-` prefix but no canvas deps → belong in a shared types group, not "render"
 - Logic files (game rules, phase transitions) mixed into "controllers" → move to "game systems"
 - A file whose only reason for being in group G is a single type → move the type, then move the file
+- If a group moved across a tier boundary (e.g., from logic to systems), update its `tier` field
 
-Rename groups in `.import-layers.json` to match reality. **Naming is the analysis** — a mismatch is always a signal.
+Rename groups in `.import-layers.json` to match reality. **Naming is the analysis** — a mismatch is always a signal. Tier assignments: **types** (L0–L4), **logic** (L5–L6), **systems** (L7–L9), **assembly** (L10–L13), **roots** (L14–L18).
 
 ## Step 7 — Find single-consumer exports crossing domains
 
@@ -178,11 +179,12 @@ For each file: Ca (dependents), Ce (dependencies), Instability = Ce/(Ca+Ce), Pai
 deno run -A scripts/lint-domain-boundaries.ts
 ```
 
-Checks that imports stay within allowed domain boundaries defined in `.domain-boundaries.json`. 9 domains: shared, game, ai, player, input, render, online, runtime, entry. Directories under `src/` match domains 1:1.
+Checks that imports stay within allowed domain boundaries defined in `.domain-boundaries.json`. 9 domains: shared, game, ai, player, input, render, online, runtime, entry. Directories under `src/` match domains 1:1. Checks static imports, re-exports, dynamic `import()` expressions, `typeOnlyFrom` constraints, and fails on unassigned files.
 
 **What to look for:**
-- Violations mean a file imports from a domain it shouldn't know about.
+- Violations mean a file imports from a domain it shouldn't know about (including via dynamic `import()`).
 - A blanket permission (e.g., `online → render`) that only 3 of 26 online files actually need — the rule is too permissive.
+- Unassigned files — any `.ts` file in `src/` or `server/` not registered in `.domain-boundaries.json` escapes all boundary checks.
 
 **Fix pattern:** Move the shared type/interface to a lower domain, or tighten the allowed rules with per-file exceptions.
 
@@ -210,7 +212,7 @@ The systematic workflow for a clean architecture session:
 4. Re-run the health report after each fix to measure improvement (Pain should decrease)
 5. Stop when: no formal violations, no domain violations, no Pain points that represent misplaced code (high Pain on abstract type files is acceptable)
 
-Rename groups in `.import-layers.json` to match reality. **Naming is the analysis** — a mismatch is always a signal.
+Rename groups and update tiers in `.import-layers.json` to match reality. **Naming is the analysis** — a mismatch is always a signal.
 
 ## Step 10 — Bottom-up placement audit
 

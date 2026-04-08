@@ -48,6 +48,7 @@ const LAYER_FILE = ".import-layers.json";
 
 interface LayerGroup {
   name: string;
+  tier?: string;
   files: string[];
 }
 
@@ -118,22 +119,24 @@ for (const sf of project.getSourceFiles()) {
 // Read layer file → file-to-layer map
 // ---------------------------------------------------------------------------
 
-function readLayerFile(): { groups: LayerGroup[]; fileToLayer: Map<string, number>; layerNames: Map<number, string> } {
+function readLayerFile(): { groups: LayerGroup[]; fileToLayer: Map<string, number>; layerNames: Map<number, string>; layerTiers: Map<number, string> } {
   const raw = fs.readFileSync(LAYER_FILE, "utf-8");
   const groups: LayerGroup[] = JSON.parse(raw);
 
   const fileToLayer = new Map<string, number>();
   const layerNames = new Map<number, string>();
+  const layerTiers = new Map<number, string>();
 
   for (let i = 0; i < groups.length; i++) {
     const g = groups[i]!;
     layerNames.set(i, g.name);
+    if (g.tier) layerTiers.set(i, g.tier);
     for (const file of g.files) {
       fileToLayer.set(file, i);
     }
   }
 
-  return { groups, fileToLayer, layerNames };
+  return { groups, fileToLayer, layerNames, layerTiers };
 }
 
 // ---------------------------------------------------------------------------
@@ -146,7 +149,12 @@ if (checkMode) {
     process.exit(1);
   }
 
-  const { fileToLayer, layerNames } = readLayerFile();
+  const { fileToLayer, layerNames, layerTiers } = readLayerFile();
+
+  function tierTag(layer: number): string {
+    const tier = layerTiers.get(layer);
+    return tier ? ` (${tier})` : "";
+  }
 
   // Warn about files missing from the layer map
   const missing: string[] = [];
@@ -198,8 +206,10 @@ if (checkMode) {
   console.log(`\n✘ ${violations.length} layer violation(s) found:\n`);
   for (const v of violations) {
     const tag = v.typeOnly ? " (type-only)" : "";
+    const fromTier = tierTag(v.fromLayer);
+    const toTier = tierTag(v.toLayer);
     console.log(
-      `  ${v.from} [${v.fromGroup}] → ${v.to} [${v.toGroup}]${tag}`,
+      `  ${v.from} [${v.fromGroup}${fromTier}] → ${v.to} [${v.toGroup}${toTier}]${tag}`,
     );
   }
   console.log("");
@@ -251,14 +261,16 @@ for (const files of groupMap.values()) {
 const maxLayer = Math.max(...layers.values());
 const pad = String(maxLayer).length;
 
-// If a layer file already exists, preserve group names for layers that
-// still exist at the same index
+// If a layer file already exists, preserve group names and tiers for layers
+// that still exist at the same index
 const existingNames = new Map<number, string>();
+const existingTiers = new Map<number, string>();
 if (fs.existsSync(LAYER_FILE)) {
   try {
     const existing: LayerGroup[] = JSON.parse(fs.readFileSync(LAYER_FILE, "utf-8"));
     for (let i = 0; i < existing.length; i++) {
       existingNames.set(i, existing[i]!.name);
+      if (existing[i]!.tier) existingTiers.set(i, existing[i]!.tier!);
     }
   } catch { /* ignore parse errors */ }
 }
@@ -267,14 +279,16 @@ const outputGroups: LayerGroup[] = [];
 for (let l = 0; l <= maxLayer; l++) {
   const files = groupMap.get(l) ?? [];
   const name = existingNames.get(l) ?? `layer ${l}`;
-  outputGroups.push({ name, files });
+  const tier = existingTiers.get(l);
+  outputGroups.push(tier ? { name, tier, files } : { name, files });
 }
 
 // Print
 console.log(`\nImport layer map (${allFiles.size} files, ${maxLayer + 1} layers)\n`);
 for (let l = 0; l <= maxLayer; l++) {
   const g = outputGroups[l]!;
-  console.log(`  ${String(l).padStart(pad)}: ${g.name}  (${g.files.length} files)`);
+  const tierLabel = g.tier ? ` [${g.tier}]` : "";
+  console.log(`  ${String(l).padStart(pad)}: ${g.name}${tierLabel}  (${g.files.length} files)`);
   for (const f of g.files) {
     console.log(`      ${f}`);
   }

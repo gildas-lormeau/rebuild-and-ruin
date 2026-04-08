@@ -20,14 +20,16 @@ Audit with that in mind:
 - Favor fixes that make intent machine-legible: narrower types, better names, extracted helpers, stronger comments, and executable checks.
 - Do not assume a divergence is intentional just because it has existed for a while; agent-written code can preserve accidental patterns very effectively.
 
-## Domain clusters
+## Domain clusters and tiers
 
 Each domain is a group of tightly related files that share responsibility for a subsystem.
-See `.import-layers.json` for the full layer map (group names, file assignments, layer numbers)
+See `.import-layers.json` for the full layer map (group names, tier assignments, file lists)
 and `.domain-boundaries.json` for domain membership and allowed cross-domain imports.
 
 Groups are named by role/abstraction level, not by domain — files from any domain land at their
-minimum import-depth layer.
+minimum import-depth layer. Each group has a `tier` field: **types** (L0–L4), **logic** (L5–L6),
+**systems** (L7–L9), **assembly** (L10–L13), **roots** (L14–L18). Phase 1 audits by domain
+(vertical coherence), Phase 2 audits by tier (horizontal consistency across domains).
 
 ## Execution
 
@@ -83,16 +85,24 @@ Do NOT make any edits. Only flag things where fixing them would
 genuinely help an LLM agent write better code.
 ```
 
-### Phase 2: Cross-domain audit
+### Phase 2: Cross-domain tier audits
 
-After all domain agents complete, spawn one Explore agent with all domain reports combined.
-Domains 6 (16 files), 7+8 (16 files), 9+10 (19 files), 12+13 (20 files), and 17+18 (5 files) should be split into sub-domains at audit time to keep each agent under 10 files:
+After all domain agents complete, spawn one Explore sub-agent per tier (up to 5 in parallel).
+Each tier groups files from different domains at the same abstraction level — this is where
+cross-domain divergence is most visible. Read `.import-layers.json` to get the tier assignments.
+
+Each tier agent receives domain audit findings for files in its tier, plus this prompt:
 
 ```
-Given these domain audit findings:
-[paste all domain reports]
+Read ALL files in this tier completely:
+[file list, grouped by domain]
 
-Now check for CROSS-DOMAIN issues that would trip up an LLM agent:
+Relevant domain audit findings for these files:
+[paste findings from Phase 1 that reference files in this tier]
+
+Tier: [types | logic | systems | assembly | roots]
+
+Compare files ACROSS domains at this abstraction level. Report:
 
 1. AMBIGUOUS NAMING across domains — same name used for different
    things in different files, or different names used for the same
@@ -101,8 +111,8 @@ Now check for CROSS-DOMAIN issues that would trip up an LLM agent:
 
 2. DIVERGENT PATTERNS across domains — same concern (guards, deps
    access, phase checks, error handling) handled differently in
-   different domains. An LLM copying a pattern from domain A would
-   produce wrong code in domain B.
+   different domains at this tier. An LLM copying a pattern from
+   domain A would produce wrong code in domain B.
 
 3. IMPLICIT CONVENTIONS spanning domains — rules an LLM must follow
    when code in one domain calls into another (e.g., "always check
@@ -116,17 +126,24 @@ Now check for CROSS-DOMAIN issues that would trip up an LLM agent:
    `boolean | undefined` for the same concept).
 
 5. SOURCE-OF-TRUTH DRIFT across domains — one domain's comments,
-    skills, or scripts describe a contract differently from another
-    domain's actual code. Future agents will usually trust the more
-    explicit artifact, not necessarily the correct one.
+   skills, or scripts describe a contract differently from another
+   domain's actual code at this tier. Future agents will usually
+   trust the more explicit artifact, not necessarily the correct one.
 
 For each finding: which domains are involved, what the issue is,
 severity, suggested fix. Do NOT make any edits.
 ```
 
+Tier focus guidance:
+- **types** (L0–L4): type consistency, field naming, enum/const drift between shared/ and consumer domains
+- **logic** (L5–L6): algorithm patterns, guard conventions, helper usage across game/, ai/, render/
+- **systems** (L7–L9): deps destructuring, lifecycle conventions, handler patterns across runtime/, input/, render/, online/
+- **assembly** (L10–L13): phase transition patterns, controller wiring, orchestration across ai/, game/, runtime/, online/
+- **roots** (L14–L18): local/online parity, bootstrap conventions, composition root patterns
+
 ### Phase 3: Triage
 
-Present all findings (domain + cross-domain) to the user, ranked by severity. For each:
+Present all findings (domain + tier) to the user, ranked by severity. For each:
 - What's wrong and where
 - How it would cause an LLM agent to produce incorrect code
 - Estimated fix effort (low/medium/high)
@@ -146,9 +163,10 @@ Ask the user which findings to fix. Then fix them one domain at a time, running 
 ## Tips
 
 - Skip domains that were recently audited and had no findings
-- The online domains (#5, #15) and runtime (#14, #16) are highest risk — they mirror local logic and drift silently
-- Cross-domain findings are often more impactful than within-domain ones
-- If a domain has >10 files, split it into sub-domains for the audit
+- The **roots** tier (online + runtime bootstrap) is highest risk — local/online parity drift is silent
+- The **systems** tier catches the most divergent-pattern findings — handler conventions vary across domains
+- Tier findings are often more impactful than within-domain ones
+- If a domain has >10 files, split it into sub-domains for the Phase 1 audit
 
 ## Known-documented patterns (do NOT report)
 

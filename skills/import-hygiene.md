@@ -50,13 +50,13 @@ Reads `.import-layers.json`, then for every import in the source, checks whether
 
 ### `.import-layers.json`
 
-The layer map file. Committed to the repo. An array of named groups — position in the array = layer number (0 = bottom, higher = closer to entry points).
+The layer map file. Committed to the repo. An array of named groups — position in the array = layer number (0 = bottom, higher = closer to entry points). Each group has `name`, `tier`, and `files` fields.
 
 **Rule: imports must flow downward.** A file in group N can import from any group 0..N. Importing from group N+1 or higher is a violation.
 
-**Current architecture:** See `.import-layers.json` for the full layer map (group names, file assignments, layer numbers). See `.domain-boundaries.json` for domain membership and allowed cross-domain imports.
+**Current architecture:** See `.import-layers.json` for the full layer map (group names, tier assignments, file lists). See `.domain-boundaries.json` for domain membership and allowed cross-domain imports.
 
-Groups are named by role/abstraction level, not by domain — files from any domain land at the layer dictated by their deepest import. Imports must flow downward (higher layer imports lower).
+Groups are named by role/abstraction level, not by domain — files from any domain land at the layer dictated by their deepest import. Each group has a `tier` field for quick orientation: **types** (L0–L4) → **logic** (L5–L6) → **systems** (L7–L9) → **assembly** (L10–L13) → **roots** (L14–L18).
 
 When a new file is added but not yet in `.import-layers.json`, `--check` warns and treats it as layer 0 (maximally strict). Regenerate to pick up new files, then move them to the right group.
 
@@ -74,9 +74,9 @@ deno run -A scripts/generate-import-layers.ts
 
 This gives fine-grained layers (one per depth level, typically 15–17 groups). It always passes `--check` because the layers are computed from the actual imports.
 
-#### Step A2 — Name the groups
+#### Step A2 — Name the groups and assign tiers
 
-Give every group a meaningful name in `.import-layers.json`. **Naming groups reveals misplacements.** When a file's domain doesn't match its group name, something is pulling it to the wrong depth.
+Give every group a meaningful name and a `tier` in `.import-layers.json`. **Naming groups reveals misplacements.** When a file's domain doesn't match its group name, something is pulling it to the wrong depth. Assign one of: `types`, `logic`, `systems`, `assembly`, `roots`.
 
 #### Step A3 — Reorganize by domain
 
@@ -148,7 +148,7 @@ After the main fixes, look for mechanical tightening:
 
 #### Step B6 — Finalize the layer map
 
-Regenerate to capture the new computed depths, then re-apply domain grouping and update group names. Verify `--check` passes.
+Regenerate to capture the new computed depths, then re-apply domain grouping and update group names and tiers. Verify `--check` passes. If a group moved across a tier boundary (e.g., from logic to systems), update its `tier` field.
 
 ## Tips
 
