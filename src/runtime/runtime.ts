@@ -268,6 +268,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const selection = createSelectionSystem({
     runtimeState,
+    hostAtFrameStart: config.getIsHost,
     sendTowerSelected: (pid, idx, confirmed) =>
       config.send({
         type: MESSAGE.OPPONENT_TOWER_SELECTED,

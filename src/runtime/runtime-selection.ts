@@ -39,6 +39,8 @@ import type { CameraSystem, RuntimeSelection } from "./runtime-types.ts";
 
 interface SelectionSystemDeps {
   runtimeState: RuntimeState;
+  /** True when this client is the host (drives castle wall generation + broadcasts). */
+  hostAtFrameStart: () => boolean;
 
   // Networking (named sends — protocol knowledge stays in composition root)
   sendTowerSelected: (
@@ -123,11 +125,8 @@ export function createSelectionSystem(
     resetSelectionState();
 
     const { state } = runtimeState;
-    const {
-      hostAtFrameStart: isHost,
-      myPlayerId,
-      remoteHumanSlots,
-    } = runtimeState.frameMeta;
+    const isHost = deps.hostAtFrameStart();
+    const { myPlayerId, remoteHumanSlots } = runtimeState.frameMeta;
 
     deps.log(
       `enterTowerSelection (phase=${Phase[state.phase]}, round=${state.round})`,
@@ -255,7 +254,7 @@ export function createSelectionSystem(
 
     syncSelectionOverlay();
     deps.render();
-    startPlayerCastleBuild(pid);
+    if (deps.hostAtFrameStart()) startPlayerCastleBuild(pid);
     return result.allDone;
   }
 
@@ -277,7 +276,7 @@ export function createSelectionSystem(
     selectionFacade.tickSelectionPhase({
       dt,
       state: runtimeState.state,
-      isHost: runtimeState.frameMeta.hostAtFrameStart,
+      isHost: deps.hostAtFrameStart(),
       myPlayerId: runtimeState.frameMeta.myPlayerId,
       accum: runtimeState.accum,
       selectionStates: runtimeState.selection.states,
@@ -333,8 +332,9 @@ export function createSelectionSystem(
     finalizeAndAdvance();
   }
 
+  /** Generate + broadcast castle walls for a confirmed player.
+   *  Caller must guard with isHost() — non-hosts receive walls via network. */
   function startPlayerCastleBuild(playerId: ValidPlayerSlot): void {
-    if (!runtimeState.frameMeta.hostAtFrameStart) return; // non-host builds via castle_walls message
     const plan = selectionFacade.prepareCastleWallsForPlayer(
       runtimeState.state,
       playerId,
@@ -432,7 +432,7 @@ export function createSelectionSystem(
       selectionFacade.initSelectionTimer(runtimeState.state);
       setMode(runtimeState, Mode.SELECTION);
       deps.sound.drumsStart();
-      if (runtimeState.frameMeta.hostAtFrameStart) {
+      if (deps.hostAtFrameStart()) {
         deps.sendSelectStart(SELECT_TIMER);
       }
     } else {

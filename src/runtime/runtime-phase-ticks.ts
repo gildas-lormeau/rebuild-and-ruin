@@ -198,15 +198,15 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   // Battle
   // -------------------------------------------------------------------------
 
-  function sendBuildCheckpointIfHost(): void {
+  /** Send build checkpoint + enter build phase (via upgrade pick gate).
+   *  Checkpoint is sent here — not in the transition steps — because it must
+   *  precede the upgrade pick dialog (which reads post-battle state). */
+  function enterBuildViaUpgradePick(): void {
     if (runtimeState.frameMeta.hostAtFrameStart && deps.hostNetworking) {
       deps.send(
         deps.hostNetworking.createBuildStartMessage(runtimeState.state),
       );
     }
-  }
-
-  function enterBuildViaUpgradePick(): void {
     const showBannerAndEnterBuild = () => {
       phaseTickFacade.executeTransition(phaseTickFacade.BUILD_START_STEPS, {
         showBanner: () =>
@@ -264,7 +264,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
       ceasefireActive: phaseTickFacade.isCeasefireActive(runtimeState.state),
       onCeasefire: () => {
         deps.log("ceasefire: skipping battle");
-        sendBuildCheckpointIfHost();
         enterBuildViaUpgradePick();
       },
     });
@@ -389,7 +388,6 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         );
 
         phaseTickFacade.nextPhase(runtimeState.state);
-        sendBuildCheckpointIfHost();
         enterBuildViaUpgradePick();
       },
       net: {

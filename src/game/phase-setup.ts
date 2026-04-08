@@ -25,6 +25,7 @@ import {
   type ModifierDiff,
 } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
+import { TILE_SIZE } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
   eliminatePlayer,
@@ -37,6 +38,7 @@ import {
   isBalloonCannon,
   packTile,
   setGrass,
+  towerCenterPx,
   unpackTile,
 } from "../shared/spatial.ts";
 import type {
@@ -100,6 +102,14 @@ import {
 
 // eliminatePlayer re-exported from player-types.ts for backward compat
 export { eliminatePlayer } from "../shared/player-types.ts";
+
+interface ScoreDelta {
+  playerId: ValidPlayerSlot;
+  delta: number;
+  total: number;
+  cx: number;
+  cy: number;
+}
 
 /** Grunts spawned per player on first battle when nobody fires. */
 const IDLE_FIRST_BATTLE_GRUNTS = 2;
@@ -425,6 +435,28 @@ export function completeReselection(params: {
   }
 
   params.finalizeAndAdvance();
+}
+
+/** Compute per-player score deltas from the build phase.
+ *  Returns only positive deltas for non-eliminated players,
+ *  positioned just above each player's home tower. */
+export function computeScoreDeltas(
+  players: GameState["players"],
+  preScores: readonly number[],
+): ScoreDelta[] {
+  return players
+    .map((player, idx) => {
+      const homeTower = player.homeTower;
+      const px = homeTower ? towerCenterPx(homeTower) : { x: 0, y: 0 };
+      return {
+        playerId: idx as ValidPlayerSlot,
+        delta: player.score - (preScores[idx] ?? 0),
+        total: player.score,
+        cx: px.x,
+        cy: px.y - TILE_SIZE,
+      };
+    })
+    .filter((entry) => entry.delta > 0 && !players[entry.playerId]!.eliminated);
 }
 
 function sweepAllPlayersWalls(state: GameState): void {

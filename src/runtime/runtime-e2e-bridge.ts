@@ -6,6 +6,7 @@
  * tests. Replaces the old runtime-test-globals.ts.
  */
 
+import { collectEnemyTargets } from "../game/debug-grid.ts";
 import { computeLetterboxLayout } from "../shared/canvas-layout.ts";
 import { Phase } from "../shared/game-phase.ts";
 import { TILE_SIZE } from "../shared/grid.ts";
@@ -16,7 +17,6 @@ import {
   getTextSpyLog,
   type TextDraw,
 } from "../shared/render-spy.ts";
-import { unpackTile } from "../shared/spatial.ts";
 import { type GameViewState, isHuman } from "../shared/system-interfaces.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
@@ -270,7 +270,9 @@ export function exposeE2EBridge(deps: E2EBridgeDeps): void {
 
   // --- Targeting (battle simulation) ---
   if (ready) {
-    populateTargeting(ref, runtimeState.state, myPid);
+    const targeting = collectEnemyTargets(runtimeState.state, myPid);
+    ref.targeting.enemyCannons = targeting.enemyCannons;
+    ref.targeting.enemyTargets = targeting.enemyTargets;
   }
 }
 
@@ -464,34 +466,4 @@ function snapshotController(
     cannonMode,
     crosshair: ch ? { x: ch.x, y: ch.y } : null,
   };
-}
-
-/** Populate targeting data for battle simulation (enemy cannons + walls). */
-function populateTargeting(
-  target: E2EBridge,
-  state: GameViewState,
-  myPid: number,
-): void {
-  const enemies: { x: number; y: number }[] = [];
-  for (const player of state.players) {
-    if (player.id === myPid || player.eliminated) continue;
-    for (const cannon of player.cannons) {
-      if (cannon.hp > 0)
-        enemies.push({
-          x: (cannon.col + 0.5) * TILE_SIZE,
-          y: (cannon.row + 0.5) * TILE_SIZE,
-        });
-    }
-  }
-  target.targeting.enemyCannons = enemies;
-
-  const targets: { x: number; y: number }[] = [...enemies];
-  for (const player of state.players) {
-    if (player.id === myPid || player.eliminated) continue;
-    for (const key of player.walls) {
-      const { r, c } = unpackTile(key);
-      targets.push({ x: (c + 0.5) * TILE_SIZE, y: (r + 0.5) * TILE_SIZE });
-    }
-  }
-  target.targeting.enemyTargets = targets;
 }

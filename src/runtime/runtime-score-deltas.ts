@@ -13,10 +13,8 @@
  * Colocated here for clarity.
  */
 
+import { phaseTickFacade } from "../game/phase-tick-facade.ts";
 import { SCORE_DELTA_DISPLAY_TIME } from "../shared/game-constants.ts";
-import { TILE_SIZE } from "../shared/grid.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { towerCenterPx } from "../shared/spatial.ts";
 import { fireOnce } from "../shared/utils.ts";
 import type { RuntimeState } from "./runtime-state.ts";
 
@@ -63,24 +61,10 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
       onDone();
       return;
     }
-    // Compute score deltas from the build phase (with display coordinates)
-    scoreDisplay.deltas = runtimeState.state.players
-      .map((player, i) => {
-        const homeTower = player.homeTower;
-        const px = homeTower ? towerCenterPx(homeTower) : { x: 0, y: 0 };
-        return {
-          playerId: i as ValidPlayerSlot,
-          delta: player.score - (scoreDisplay.preScores[i] ?? 0),
-          total: player.score,
-          cx: px.x,
-          cy: px.y - TILE_SIZE, // just above the tower
-        };
-      })
-      .filter(
-        (scoreDelta) =>
-          scoreDelta.delta > 0 &&
-          !runtimeState.state.players[scoreDelta.playerId]!.eliminated,
-      );
+    scoreDisplay.deltas = phaseTickFacade.computeScoreDeltas(
+      runtimeState.state.players,
+      scoreDisplay.preScores,
+    );
 
     if (scoreDisplay.deltas.length > 0) {
       deps.clearPhaseZoom();

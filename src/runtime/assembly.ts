@@ -1,4 +1,4 @@
-import { localFire, localPlacePiece } from "../game/game-actions.ts";
+import { phaseTickFacade } from "../game/phase-tick-facade.ts";
 import { MAX_FRAME_DT } from "../shared/game-constants.ts";
 import { Phase } from "../shared/game-phase.ts";
 import { createEmptyFrameData } from "../shared/overlay-types.ts";
@@ -148,10 +148,11 @@ export function createRuntimeInputAdapters(params: {
       tryPlacePieceAndSend:
         config.onlineConfig?.tryPlacePieceAndSend ??
         ((ctrl, gameState) =>
-          localPlacePiece(runtimeState.state, ctrl, gameState)),
+          phaseTickFacade.localPlacePiece(runtimeState.state, ctrl, gameState)),
       fireAndSend:
         config.onlineConfig?.fireAndSend ??
-        ((ctrl, gameState) => localFire(runtimeState.state, ctrl, gameState)),
+        ((ctrl, gameState) =>
+          phaseTickFacade.localFire(runtimeState.state, ctrl, gameState)),
       getIsHost: config.getIsHost,
     },
   };

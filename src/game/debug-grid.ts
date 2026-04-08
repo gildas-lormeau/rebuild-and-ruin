@@ -1,0 +1,227 @@
+/**
+ * Debug / diagnostic utilities — game-domain interpretation for dev tools.
+ *
+ * Lives in game/ because it interprets game-domain state (tower sizes, cannon HP,
+ * interior/wall ownership, grunt positions, etc.). The rendering/formatting
+ * layer stays in runtime/ (dev-console.ts, runtime-e2e-bridge.ts).
+ */
+
+import { TOWER_SIZE } from "../shared/game-constants.ts";
+import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
+import { PLAYER_NAMES } from "../shared/player-config.ts";
+import { isWater, tileCenterPx, unpackTile } from "../shared/spatial.ts";
+import type { GameState } from "../shared/types.ts";
+
+export type MapLayer = "all" | "terrain" | "walls";
+
+export const enum CellKind {
+  Grass,
+  Water,
+  Interior,
+  BonusSquare,
+  Wall,
+  BurningPit,
+  House,
+  Cannon,
+  Grunt,
+  TowerDead,
+  TowerAlive,
+  Cannonball,
+}
+
+export interface Cell {
+  kind: CellKind;
+  char: string;
+  playerId: number;
+}
+
+export interface Rect {
+  minRow: number;
+  maxRow: number;
+  minCol: number;
+  maxCol: number;
+}
+
+interface TargetingSnapshot {
+  enemyCannons: { x: number; y: number }[];
+  enemyTargets: { x: number; y: number }[];
+}
+
+export function buildGrid(
+  state: GameState,
+  layer: MapLayer,
+  playerFilter: number | undefined,
+): Cell[][] {
+  const grid: Cell[][] = [];
+
+  for (let row = 0; row < GRID_ROWS; row++) {
+    const rowCells: Cell[] = [];
+    for (let col = 0; col < GRID_COLS; col++) {
+      if (isWater(state.map.tiles, row, col)) {
+        rowCells.push({ kind: CellKind.Water, char: "~", playerId: -1 });
+      } else {
+        rowCells.push({ kind: CellKind.Grass, char: ".", playerId: -1 });
+      }
+    }
+    grid.push(rowCells);
+  }
+
+  if (layer === "terrain") return grid;
+
+  // Territory + walls
+  for (const player of state.players) {
+    if (player.eliminated) continue;
+    if (playerFilter !== undefined && player.id !== playerFilter) continue;
+    for (const key of player.interior) {
+      const { r, c } = unpackTile(key);
+      setCell(grid, r, c, CellKind.Interior, "░", player.id);
+    }
+    for (const key of player.walls) {
+      const { r, c } = unpackTile(key);
+      setCell(grid, r, c, CellKind.Wall, "#", player.id);
+    }
+  }
+
+  if (layer === "walls") return grid;
+
+  // Bonus squares
+  for (const bonus of state.bonusSquares) {
+    setCell(grid, bonus.row, bonus.col, CellKind.BonusSquare, "+", -1);
+  }
+
+  // Burning pits
+  for (const pit of state.burningPits) {
+    setCell(grid, pit.row, pit.col, CellKind.BurningPit, "*", -1);
+  }
+
+  // Houses
+  for (const house of state.map.houses) {
+    if (house.alive) {
+      setCell(grid, house.row, house.col, CellKind.House, "H", -1);
+    }
+  }
+
+  // Towers (2×2)
+  for (let tIdx = 0; tIdx < state.map.towers.length; tIdx++) {
+    const tower = state.map.towers[tIdx]!;
+    const alive = state.towerAlive[tIdx]!;
+    const kind = alive ? CellKind.TowerAlive : CellKind.TowerDead;
+    const char = alive ? "T" : "t";
+    for (let dr = 0; dr < TOWER_SIZE; dr++) {
+      for (let dc = 0; dc < TOWER_SIZE; dc++) {
+        setCell(grid, tower.row + dr, tower.col + dc, kind, char, -1);
+      }
+    }
+  }
+
+  // Cannons
+  for (const player of state.players) {
+    if (player.eliminated) continue;
+    if (playerFilter !== undefined && player.id !== playerFilter) continue;
+    for (const cannon of player.cannons) {
+      const char = cannon.hp <= 0 ? "x" : "C";
+      setCell(grid, cannon.row, cannon.col, CellKind.Cannon, char, player.id);
+    }
+  }
+
+  // Grunts
+  for (const grunt of state.grunts) {
+    setCell(grid, grunt.row, grunt.col, CellKind.Grunt, "!", -1);
+  }
+
+  // Cannonballs (snap to nearest tile)
+  for (const ball of state.cannonballs) {
+    const row = Math.round(ball.y / TILE_SIZE);
+    const col = Math.round(ball.x / TILE_SIZE);
+    if (row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS) {
+      setCell(grid, row, col, CellKind.Cannonball, "o", -1);
+    }
+  }
+
+  return grid;
+}
+
+export function zoneBounds(state: GameState, zone: number): Rect | undefined {
+  let minRow = GRID_ROWS;
+  let maxRow = 0;
+  let minCol = GRID_COLS;
+  let maxCol = 0;
+  for (let row = 0; row < GRID_ROWS; row++) {
+    for (let col = 0; col < GRID_COLS; col++) {
+      if (state.map.zones[row]![col] === zone) {
+        if (row < minRow) minRow = row;
+        if (row > maxRow) maxRow = row;
+        if (col < minCol) minCol = col;
+        if (col > maxCol) maxCol = col;
+      }
+    }
+  }
+  if (minRow > maxRow) {
+    console.log(`Zone ${zone} not found on this map.`);
+    return undefined;
+  }
+  // Pad by 1 tile for context, clamped to grid
+  return {
+    minRow: Math.max(0, minRow - 1),
+    maxRow: Math.min(GRID_ROWS - 1, maxRow + 1),
+    minCol: Math.max(0, minCol - 1),
+    maxCol: Math.min(GRID_COLS - 1, maxCol + 1),
+  };
+}
+
+export function buildLegend(state: GameState): string {
+  const playerInfo = state.players
+    .map(
+      (player) =>
+        `${PLAYER_NAMES[player.id] ?? `P${player.id}`}: ${player.eliminated ? "ELIMINATED" : `${player.lives}♥ ${player.score}pts ${player.walls.size}w ${player.cannons.length}c`}`,
+    )
+    .join("  |  ");
+
+  return [
+    `Round ${state.round}  |  ${playerInfo}`,
+    ". grass  ~ water  : territory  # wall  T tower  t dead tower",
+    "C cannon  x debris  ! grunt  * burning pit  + bonus  o cannonball",
+    "Walls: r=Red  b=Blue  g=Gold  |  Cannons: R=Red  B=Blue  G=Gold",
+  ].join("\n");
+}
+
+/** Collect enemy cannons and walls as pixel positions for E2E battle targeting. */
+export function collectEnemyTargets(
+  state: GameState,
+  myPid: number,
+): TargetingSnapshot {
+  const enemyCannons: { x: number; y: number }[] = [];
+  for (const player of state.players) {
+    if (player.id === myPid || player.eliminated) continue;
+    for (const cannon of player.cannons) {
+      if (cannon.hp > 0)
+        enemyCannons.push(tileCenterPx(cannon.row, cannon.col));
+    }
+  }
+
+  const enemyTargets: { x: number; y: number }[] = [...enemyCannons];
+  for (const player of state.players) {
+    if (player.id === myPid || player.eliminated) continue;
+    for (const key of player.walls) {
+      const { r, c } = unpackTile(key);
+      enemyTargets.push(tileCenterPx(r, c));
+    }
+  }
+
+  return { enemyCannons, enemyTargets };
+}
+
+function setCell(
+  grid: readonly Cell[][],
+  row: number,
+  col: number,
+  kind: CellKind,
+  char: string,
+  playerId: number,
+): void {
+  if (row < 0 || row >= GRID_ROWS || col < 0 || col >= GRID_COLS) return;
+  const existing = grid[row]![col]!;
+  if (kind >= existing.kind) {
+    grid[row]![col] = { kind, char, playerId };
+  }
+}
