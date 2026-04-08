@@ -26,8 +26,11 @@ import {
   initBattleControllers,
 } from "./host-battle-ticks.ts";
 import {
+  buildTimerMax,
+  diffNewWalls,
   finalizeCannonControllers,
-  tickHostBuildPhase,
+  snapshotThenFinalize,
+  tickMasterBuilderLockout,
 } from "./host-phase-ticks.ts";
 import {
   BANNER_BATTLE,
@@ -50,6 +53,7 @@ import {
   executeTransition,
   gateUpgradePick,
   NOOP_STEP,
+  runBuildEndSequence,
   showBattlePhaseBanner,
   showBuildPhaseBanner,
   showCannonPhaseBanner,
@@ -85,8 +89,11 @@ export const phaseTickFacade = {
   modifierDef,
   enterBattleFromCannon,
   enterBuildSkippingBattle,
+  buildTimerMax,
+  diffNewWalls,
   finalizeCannonControllers,
-  tickHostBuildPhase,
+  snapshotThenFinalize,
+  tickMasterBuilderLockout,
   BANNER_BATTLE,
   BANNER_BUILD,
   capturePrevBattleScene,
@@ -101,6 +108,7 @@ export const phaseTickFacade = {
   executeTransition,
   gateUpgradePick,
   NOOP_STEP,
+  runBuildEndSequence,
   showBattlePhaseBanner,
   showBuildPhaseBanner,
   showCannonPhaseBanner,

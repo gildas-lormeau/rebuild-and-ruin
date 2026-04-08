@@ -1,104 +1,18 @@
 /**
- * Host-side tick functions for the cannon placement and wall build phases.
+ * Pure game-domain helpers for cannon and build phase finalization.
  *
- * Contains the pure tick logic (tickHostCannonPhase, tickHostBuildPhase)
- * consumed by runtime-phase-ticks.ts.
- *
- * Network-agnostic: callers pre-filter controllers into local vs remote
- * arrays and provide optional callbacks for event broadcasting. The game
- * domain has zero knowledge of host/watcher topology or remote human slots.
- *
- * PASS 1 / PASS 2 pattern (tickHostCannonPhase & tickHostBuildPhase):
- *   PASS 1 (per-frame): tick `localControllers` only — remote human placements
- *     arrive via network messages and are applied by the server-event handler.
- *   PASS 2 (phase end): finalize controllers. The finalization method differs
- *     by phase — see CONTRAST comments inside each function.
+ * Consumed by runtime-phase-ticks.ts. All functions are network-agnostic.
  */
 
-import { getInterior, snapshotAllWalls } from "../shared/board-occupancy.ts";
-import type { SerializedPlayer } from "../shared/checkpoint-data.ts";
+import { snapshotAllWalls } from "../shared/board-occupancy.ts";
 import { FID } from "../shared/feature-defs.ts";
 import { MASTER_BUILDER_BONUS_SECONDS } from "../shared/game-constants.ts";
 import type { EntityOverlay } from "../shared/overlay-types.ts";
-import {
-  type BuildEndPayload,
-  type CannonPhantom,
-  type DedupChannel,
-  NOOP_DEDUP_CHANNEL,
-  type PiecePhantom,
-  type PiecePhantomPayload,
-  type PiecePlacedPayload,
-  piecePhantomKey,
-} from "../shared/phantom-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import { unpackTile } from "../shared/spatial.ts";
 import type { PlayerController } from "../shared/system-interfaces.ts";
-import { advancePhaseTimer, tickGruntsIfDue } from "../shared/tick-context.ts";
-import {
-  type GameState,
-  hasFeature,
-  isMasterBuilderLocked,
-} from "../shared/types.ts";
+import { type GameState, hasFeature } from "../shared/types.ts";
 import { snapshotEntities } from "./phase-banner.ts";
-import { runBuildEndSequence } from "./phase-transition-steps.ts";
-
-interface HostFrame {
-  phantoms: {
-    cannonPhantoms?: CannonPhantom[];
-    piecePhantoms?: PiecePhantom[];
-    defaultFacings?: ReadonlyMap<number, number>;
-  };
-}
-
-interface TickHostBuildPhaseDeps {
-  dt: number;
-  state: GameState;
-  banner: { wallsBeforeSweep?: Set<number>[]; prevEntities?: EntityOverlay };
-  accum: { build: number; grunt: number };
-  frame: HostFrame;
-  /** Pre-filtered to local controllers only (PASS 1: per-frame tick + PASS 2: finalize). */
-  localControllers: PlayerController[];
-  /** Full controller array indexed by player slot (for pid-keyed lookups like onLifeLost). */
-  allControllers: PlayerController[];
-  render: () => void;
-  tickGrunts: (state: GameState) => void;
-  isHuman: (controller: PlayerController) => boolean;
-  finalizeBuildPhase: (state: GameState) => {
-    needsReselect: ValidPlayerSlot[];
-    eliminated: ValidPlayerSlot[];
-  };
-  showLifeLostDialog: (
-    needsReselect: readonly ValidPlayerSlot[],
-    eliminated: readonly ValidPlayerSlot[],
-  ) => void;
-  onLifeLostResolved: () => boolean;
-  showScoreDeltas: (onDone: () => void) => void;
-  onFirstEnclosure?: (playerId: ValidPlayerSlot) => void;
-  /** Whether a controller should NOT receive onLifeLost notification
-   *  (e.g. remote humans whose notifications arrive via network). */
-  shouldSkipLifeLostNotify?: (pid: ValidPlayerSlot) => boolean;
-  /** Optional: called when a local AI controller places walls. */
-  onPiecePlaced?: (msg: PiecePlacedPayload) => void;
-  /** Optional: called when a local controller produces a phantom. */
-  onPhantom?: (msg: PiecePhantomPayload) => void;
-  /** Whether this client should broadcast AI wall diffs (host only). */
-  shouldBroadcastWalls?: boolean;
-  /** Remote piece phantoms to merge into the frame (pre-filtered by caller). */
-  remotePiecePhantoms?: readonly PiecePhantom[];
-  /** Dedup channel for phantom broadcasts. Defaults to no-op. */
-  lastSentPiecePhantom?: DedupChannel;
-  /** Serialize players for the build-end checkpoint. */
-  serializePlayers?: (state: GameState) => SerializedPlayer[];
-  /** Optional: called at end of build phase with the build-end payload. */
-  onBuildEnd?: (msg: BuildEndPayload) => void;
-}
-
-/** Sentinel channel for local play — never blocks sends.
- *  Used as fallback when networking deps are absent. */
-const LOCAL_CHANNEL = NOOP_DEDUP_CHANNEL;
-/** Protocol placeholder — broadcastNewWalls sends absolute tile positions in `offsets`,
- *  so `row`/`col` are unused. This constant documents the intent. */
-const PLACEHOLDER_ORIGIN = { row: 0, col: 0 } as const;
 
 /** Finalize cannon controllers at end of cannon placement phase.
  *
@@ -128,223 +42,6 @@ export function finalizeCannonControllers(
   }
 }
 
-/** Tick the build phase. Returns true when the phase ends (timer expired,
- *  controllers finalized, life-loss dialogs queued), false while still ticking.
- *
- *  Remote vs local dispatch:
- *    Per-frame: ticks LOCAL controllers only (remoteHumanSlots skipped — their
- *      placements arrive via network and are applied by the message handler).
- *    Phase end (finalizeBuildAndShowDialogs): calls finalizeBuildPhase on LOCAL only —
- *      remote clients finalize their own controllers independently.
- *
- *  Remote human finalization — CONTRAST with tickHostCannonPhase:
- *    Build: remote humans are SKIPPED (bag state is re-initialized via startBuildPhase).
- *    Cannon: remote humans call initCannons() (no equivalent re-init step exists).
- *    Using the wrong method corrupts state. Do NOT unify these two approaches. */
-export function tickHostBuildPhase(deps: TickHostBuildPhaseDeps): boolean {
-  const { dt, state, accum, frame, localControllers, render } = deps;
-
-  // --- Timer + grunt tick ---
-  const hasMB = (state.modern?.masterBuilderOwners?.size ?? 0) > 0;
-  const buildMax =
-    state.buildTimer + (hasMB ? MASTER_BUILDER_BONUS_SECONDS : 0);
-  advancePhaseTimer(accum, "build", state, dt, buildMax);
-  // Decrement Master Builder lockout (non-owners can't build until it reaches 0)
-  if (
-    hasFeature(state, FID.UPGRADES) &&
-    state.modern!.masterBuilderLockout > 0
-  ) {
-    state.modern!.masterBuilderLockout = Math.max(
-      0,
-      state.modern!.masterBuilderLockout - dt,
-    );
-  }
-  tickGruntsIfDue(accum, dt, state, deps.tickGrunts);
-
-  // --- Process each controller's build actions, collect phantoms ---
-  frame.phantoms = { piecePhantoms: [] };
-  processControllerBuildActions(deps, frame);
-
-  // --- Merge remote phantoms (pre-filtered by caller) ---
-  const remotePiecePhantoms = deps.remotePiecePhantoms ?? [];
-  if (remotePiecePhantoms.length > 0) {
-    frame.phantoms.piecePhantoms!.push(...remotePiecePhantoms);
-  }
-
-  render();
-  if (state.timer > 0) return false;
-
-  // --- End of phase: finalize and handle life loss ---
-  finalizeBuildAndShowDialogs(deps, localControllers);
-  return true;
-}
-
-/** Tick each local controller's build logic, detect new walls, collect phantoms. */
-function processControllerBuildActions(
-  deps: TickHostBuildPhaseDeps,
-  frame: HostFrame,
-): void {
-  const { state, dt, localControllers } = deps;
-  const lastSentPiecePhantom = deps.lastSentPiecePhantom ?? LOCAL_CHANNEL;
-
-  // ── PASS 1: Tick local controllers (process input & AI decisions) ──
-  for (const ctrl of localControllers) {
-    // Master Builder lockout: skip non-owners during the exclusive window
-    if (isMasterBuilderLocked(state, ctrl.playerId)) continue;
-    const player = state.players[ctrl.playerId];
-    if (!player) continue;
-    const hadInterior = getInterior(player).size > 0;
-
-    const phantoms = buildTickWithWallBroadcast(
-      ctrl,
-      player,
-      state,
-      dt,
-      !!deps.shouldBroadcastWalls && !deps.isHuman(ctrl),
-      deps.onPiecePlaced,
-    );
-
-    if (!hadInterior && getInterior(player).size > 0) {
-      deps.onFirstEnclosure?.(ctrl.playerId);
-    }
-
-    collectBuildPhantoms(phantoms, frame, lastSentPiecePhantom, deps.onPhantom);
-  }
-}
-
-/** Snapshot walls, run buildTick, and broadcast any new AI walls.
- *  Enforces the invariant that the snapshot is captured BEFORE the tick —
- *  reversing the order silently produces empty diffs with no compile error. */
-function buildTickWithWallBroadcast(
-  ctrl: PlayerController,
-  player: { readonly walls: ReadonlySet<number> },
-  state: GameState,
-  dt: number,
-  shouldSnapshot: boolean,
-  onPiecePlaced?: (msg: {
-    playerId: ValidPlayerSlot;
-    row: number;
-    col: number;
-    offsets: [number, number][];
-  }) => void,
-): readonly (PiecePhantom & { valid?: boolean })[] {
-  const wallSnapshot = shouldSnapshot ? new Set(player.walls) : null;
-  const phantoms = ctrl.buildTick(state, dt);
-  if (wallSnapshot && onPiecePlaced) {
-    emitNewWalls(state, ctrl.playerId, wallSnapshot, onPiecePlaced);
-  }
-  return phantoms;
-}
-
-/** Collect build-phase phantoms into the frame and emit new ones via callback. */
-function collectBuildPhantoms(
-  phantoms: readonly (PiecePhantom & { valid?: boolean })[],
-  frame: HostFrame,
-  lastSentPiecePhantom: DedupChannel,
-  onPhantom: ((msg: PiecePhantomPayload) => void) | undefined,
-): void {
-  for (const phantom of phantoms) {
-    frame.phantoms.piecePhantoms!.push({
-      offsets: phantom.offsets,
-      row: phantom.row,
-      col: phantom.col,
-      playerId: phantom.playerId,
-      valid: phantom.valid ?? true,
-    });
-
-    if (!onPhantom) continue;
-    if (
-      !lastSentPiecePhantom.shouldSend(
-        phantom.playerId,
-        piecePhantomKey(phantom),
-      )
-    )
-      continue;
-    onPhantom({
-      playerId: phantom.playerId,
-      row: phantom.row,
-      col: phantom.col,
-      offsets: phantom.offsets,
-      valid: phantom.valid ?? true,
-    });
-  }
-}
-
-/** Detect walls added by an AI controller tick and emit them via callback. */
-function emitNewWalls(
-  state: GameState,
-  playerId: ValidPlayerSlot,
-  wallSnapshot: ReadonlySet<number>,
-  onPiecePlaced: (msg: {
-    playerId: ValidPlayerSlot;
-    row: number;
-    col: number;
-    offsets: [number, number][];
-  }) => void,
-): void {
-  const player = state.players[playerId]!;
-  if (player.walls.size <= wallSnapshot.size) return;
-  const offsets: [number, number][] = [];
-  for (const key of player.walls) {
-    if (!wallSnapshot.has(key)) {
-      const { r, c } = unpackTile(key);
-      offsets.push([r, c]);
-    }
-  }
-  if (offsets.length > 0) {
-    onPiecePlaced({ playerId, ...PLACEHOLDER_ORIGIN, offsets });
-  }
-}
-
-/** End build phase: finalize, emit build-end, and show life-lost dialogs. */
-function finalizeBuildAndShowDialogs(
-  deps: TickHostBuildPhaseDeps,
-  localControllers: readonly PlayerController[],
-): void {
-  const { state } = deps;
-  const serializePlayers = deps.serializePlayers ?? (() => []);
-
-  // ── PASS 2: Finalize local controllers for phase transition ──
-  // Remote humans: skipped (their build was finalized client-side; bag state is
-  // re-initialized at the start of the next build phase via startBuildPhase).
-  // Local controllers (AI + local human): call finalizeBuildPhase().
-  // CONTRAST with cannon finalization: cannon calls initCannons() on remote
-  // humans because cannon state must be ready for the immediate battle transition.
-  // NOTE: Intentionally includes eliminated players — they need state cleanup
-  // (bag/piece nulling) for potential castle reselection.
-  for (const ctrl of localControllers) {
-    ctrl.finalizeBuildPhase(state);
-  }
-
-  // Snapshot MUST precede finalize — finalize calls sweepAllPlayersWalls
-  // (deletes isolated walls) and reviveEnclosedTowers (mutates towerAlive).
-  // The banner needs pre-finalize snapshots for both.
-  const { wallsBeforeSweep, prevEntities, needsReselect, eliminated } =
-    snapshotThenFinalize(state, deps.finalizeBuildPhase);
-  deps.banner.wallsBeforeSweep = wallsBeforeSweep;
-  deps.banner.prevEntities = prevEntities;
-  if (deps.onBuildEnd) {
-    deps.onBuildEnd({
-      needsReselect,
-      eliminated,
-      scores: state.players.map((player) => player.score),
-      players: serializePlayers(state),
-    });
-  }
-
-  const shouldSkipNotify = deps.shouldSkipLifeLostNotify ?? (() => false);
-  runBuildEndSequence({
-    needsReselect,
-    eliminated,
-    showScoreDeltas: deps.showScoreDeltas,
-    notifyLifeLost: (pid) => {
-      if (!shouldSkipNotify(pid)) deps.allControllers[pid]!.onLifeLost();
-    },
-    showLifeLostDialog: deps.showLifeLostDialog,
-    onLifeLostResolved: deps.onLifeLostResolved,
-  });
-}
-
 /** Snapshot all walls THEN finalize the build phase. Enforces the invariant
  *  that the snapshot is captured before sweepAllPlayersWalls deletes isolated walls.
  *
@@ -356,7 +53,7 @@ function finalizeBuildAndShowDialogs(
  *  AFTER finalize so that resetZoneState changes are reflected. Without this,
  *  the banner old-scene would flash stale grunts that were already removed
  *  before the life-lost dialog appeared. */
-function snapshotThenFinalize(
+export function snapshotThenFinalize(
   state: GameState,
   finalizeBuildPhase: (state: GameState) => {
     needsReselect: ValidPlayerSlot[];
@@ -390,4 +87,38 @@ function snapshotThenFinalize(
   }
 
   return { wallsBeforeSweep, prevEntities, needsReselect, eliminated };
+}
+
+/** Detect walls added by a controller tick and return them as offset pairs.
+ *  Used by the runtime to broadcast AI wall placements to network peers. */
+export function diffNewWalls(
+  state: GameState,
+  playerId: ValidPlayerSlot,
+  wallSnapshot: ReadonlySet<number>,
+): [number, number][] {
+  const player = state.players[playerId]!;
+  if (player.walls.size <= wallSnapshot.size) return [];
+  const offsets: [number, number][] = [];
+  for (const key of player.walls) {
+    if (!wallSnapshot.has(key)) {
+      const { r, c } = unpackTile(key);
+      offsets.push([r, c]);
+    }
+  }
+  return offsets;
+}
+
+/** Decrement the Master Builder lockout timer. No-op in classic mode. */
+export function tickMasterBuilderLockout(state: GameState, dt: number): void {
+  if (!hasFeature(state, FID.UPGRADES)) return;
+  const modern = state.modern;
+  if (modern && modern.masterBuilderLockout > 0) {
+    modern.masterBuilderLockout = Math.max(0, modern.masterBuilderLockout - dt);
+  }
+}
+
+/** Compute the effective build timer max (includes Master Builder bonus). */
+export function buildTimerMax(state: GameState): number {
+  const hasMB = (state.modern?.masterBuilderOwners?.size ?? 0) > 0;
+  return state.buildTimer + (hasMB ? MASTER_BUILDER_BONUS_SECONDS : 0);
 }

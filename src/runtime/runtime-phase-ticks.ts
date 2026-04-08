@@ -18,6 +18,7 @@ import type {
 } from "../game/phase-tick-facade.ts";
 import { phaseTickFacade } from "../game/phase-tick-facade.ts";
 import { ageImpacts, type BalloonFlight } from "../shared/battle-types.ts";
+import { getInterior } from "../shared/board-occupancy.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,
@@ -31,6 +32,7 @@ import {
   filterAlivePhantoms,
   NOOP_DEDUP_CHANNEL,
   phantomWireMode,
+  piecePhantomKey,
 } from "../shared/phantom-types.ts";
 import {
   type HapticsSystem,
@@ -46,8 +48,9 @@ import {
   isRemoteHuman,
   localControllers,
   resetAccum,
+  tickGruntsIfDue,
 } from "../shared/tick-context.ts";
-import type { GameState } from "../shared/types.ts";
+import { type GameState, isMasterBuilderLocked } from "../shared/types.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import {
   assertStateReady,
@@ -549,44 +552,144 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
     }
     const remoteHumanSlots = runtimeState.frameMeta.remoteHumanSlots;
     const isHost = runtimeState.frameMeta.hostAtFrameStart;
-    return phaseTickFacade.tickHostBuildPhase({
+    const { state, accum, frame, banner } = runtimeState;
+    const local = localControllers(runtimeState.controllers, remoteHumanSlots);
+    const lastSentPiecePhantom =
+      deps.hostNetworking?.lastSentPiecePhantom() ?? NOOP_DEDUP_CHANNEL;
+
+    // --- Timer + Master Builder lockout + grunt tick ---
+    advancePhaseTimer(
+      accum,
+      "build",
+      state,
       dt,
-      state: runtimeState.state,
-      banner: runtimeState.banner,
-      accum: runtimeState.accum,
-      frame: runtimeState.frame,
-      localControllers: localControllers(
-        runtimeState.controllers,
-        remoteHumanSlots,
-      ),
-      allControllers: runtimeState.controllers,
-      render: deps.render,
-      tickGrunts: (gameState: GameState) => {
-        phaseTickFacade.tickBreachSpawnQueue(gameState);
-        phaseTickFacade.tickGrunts(gameState);
+      phaseTickFacade.buildTimerMax(state),
+    );
+    phaseTickFacade.tickMasterBuilderLockout(state, dt);
+    tickGruntsIfDue(accum, dt, state, (gameState: GameState) => {
+      phaseTickFacade.tickBreachSpawnQueue(gameState);
+      phaseTickFacade.tickGrunts(gameState);
+    });
+
+    // --- PASS 1: Tick local controllers, detect new walls, collect phantoms ---
+    frame.phantoms = { piecePhantoms: [] };
+    for (const ctrl of local) {
+      if (isMasterBuilderLocked(state, ctrl.playerId)) continue;
+      const player = state.players[ctrl.playerId];
+      if (!player) continue;
+      const hadInterior = getInterior(player).size > 0;
+
+      // Snapshot walls BEFORE tick so we can diff new AI placements
+      const shouldSnapshot = isHost && !isHuman(ctrl);
+      const wallSnapshot = shouldSnapshot ? new Set(player.walls) : null;
+      const phantoms = ctrl.buildTick(state, dt);
+
+      // Broadcast new AI walls
+      if (wallSnapshot) {
+        const offsets = phaseTickFacade.diffNewWalls(
+          state,
+          ctrl.playerId,
+          wallSnapshot,
+        );
+        if (offsets.length > 0) {
+          deps.sendOpponentPiecePlaced({
+            playerId: ctrl.playerId,
+            row: 0,
+            col: 0,
+            offsets,
+          });
+        }
+      }
+
+      // First enclosure detection
+      if (!hadInterior && getInterior(player).size > 0) {
+        deps.sound.chargeFanfare(ctrl.playerId);
+      }
+
+      // Collect phantoms + dedup for network
+      for (const phantom of phantoms) {
+        frame.phantoms.piecePhantoms!.push({
+          offsets: phantom.offsets,
+          row: phantom.row,
+          col: phantom.col,
+          playerId: phantom.playerId,
+          valid: phantom.valid ?? true,
+        });
+        if (
+          isHost &&
+          lastSentPiecePhantom.shouldSend(
+            phantom.playerId,
+            piecePhantomKey(phantom),
+          )
+        ) {
+          deps.sendOpponentPhantom({
+            playerId: phantom.playerId,
+            row: phantom.row,
+            col: phantom.col,
+            offsets: phantom.offsets,
+            valid: phantom.valid ?? true,
+          });
+        }
+      }
+    }
+
+    // Merge remote phantoms
+    const remotePiecePhantoms = filterAlivePhantoms(
+      deps.hostNetworking?.remotePiecePhantoms() ?? [],
+      state.players,
+    );
+    if (remotePiecePhantoms.length > 0) {
+      frame.phantoms.piecePhantoms!.push(...remotePiecePhantoms);
+    }
+
+    deps.render();
+    if (state.timer > 0) return false;
+
+    // --- End of phase: finalize controllers + snapshot + life-lost ---
+
+    // PASS 2: Finalize local controllers (remote humans are SKIPPED —
+    // bag state is re-initialized via startBuildPhase at next round).
+    for (const ctrl of local) {
+      ctrl.finalizeBuildPhase(state);
+    }
+
+    // Snapshot THEN finalize territory (load-bearing order — see snapshotThenFinalize)
+    const { wallsBeforeSweep, prevEntities, needsReselect, eliminated } =
+      phaseTickFacade.snapshotThenFinalize(
+        state,
+        phaseTickFacade.finalizeBuildPhase,
+      );
+    banner.wallsBeforeSweep = wallsBeforeSweep;
+    banner.prevEntities = prevEntities;
+
+    // Build-end checkpoint (host only)
+    if (isHost) {
+      const serializePlayers = deps.hostNetworking?.serializePlayers;
+      deps.sendBuildEnd({
+        needsReselect,
+        eliminated,
+        scores: state.players.map((player) => player.score),
+        players: serializePlayers ? serializePlayers(state) : [],
+      });
+    }
+
+    // Life-lost dialog + score deltas
+    phaseTickFacade.runBuildEndSequence({
+      needsReselect,
+      eliminated,
+      showScoreDeltas: deps.scoreDelta.show,
+      notifyLifeLost: (pid) => {
+        if (!isRemoteHuman(pid, remoteHumanSlots)) {
+          runtimeState.controllers[pid]!.onLifeLost();
+        }
       },
-      isHuman,
-      finalizeBuildPhase: phaseTickFacade.finalizeBuildPhase,
-      showLifeLostDialog: (needsReselect, eliminated) => {
+      showLifeLostDialog: (reselect, elim) => {
         deps.sound.lifeLost();
-        deps.lifeLost.tryShow(needsReselect, eliminated);
+        deps.lifeLost.tryShow(reselect, elim);
       },
       onLifeLostResolved: deps.lifeLost.onResolved,
-      showScoreDeltas: deps.scoreDelta.show,
-      onFirstEnclosure: deps.sound.chargeFanfare,
-      shouldSkipLifeLostNotify: (pid) => isRemoteHuman(pid, remoteHumanSlots),
-      shouldBroadcastWalls: isHost,
-      onPiecePlaced: isHost ? deps.sendOpponentPiecePlaced : undefined,
-      onPhantom: isHost ? deps.sendOpponentPhantom : undefined,
-      remotePiecePhantoms: filterAlivePhantoms(
-        deps.hostNetworking?.remotePiecePhantoms() ?? [],
-        runtimeState.state.players,
-      ),
-      lastSentPiecePhantom:
-        deps.hostNetworking?.lastSentPiecePhantom() ?? NOOP_DEDUP_CHANNEL,
-      serializePlayers: deps.hostNetworking?.serializePlayers,
-      onBuildEnd: isHost ? deps.sendBuildEnd : undefined,
     });
+    return true;
   }
 
   // -------------------------------------------------------------------------
