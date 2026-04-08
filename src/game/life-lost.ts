@@ -6,6 +6,7 @@ import {
   shouldAutoResolve,
 } from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
+import { eliminatePlayer, type Player } from "../shared/player-types.ts";
 import { type GameState } from "../shared/types.ts";
 
 interface CreateLifeLostDialogDeps extends AutoResolveDeps {
@@ -87,6 +88,19 @@ export function createLifeLostDialogState(
   }
 
   return { entries, timer: 0 };
+}
+
+/** Eliminate all players who chose ABANDON in a resolved life-lost dialog.
+ *  Game rule: iterates entries, marks each ABANDON player as eliminated. */
+export function eliminateAbandoned(
+  dialog: LifeLostDialogState,
+  players: readonly Player[],
+): void {
+  for (const entry of dialog.entries) {
+    if (entry.choice !== LifeLostChoice.ABANDON) continue;
+    const player = players[entry.playerId];
+    if (player) eliminatePlayer(player);
+  }
 }
 
 /** Determine the game outcome after the life-lost dialog resolves.

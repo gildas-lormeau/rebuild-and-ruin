@@ -5,6 +5,7 @@ import {
 } from "../runtime/runtime-bootstrap.ts";
 import { setMode } from "../runtime/runtime-state.ts";
 import type { GameRuntime } from "../runtime/runtime-types.ts";
+import type { GameMode } from "../shared/game-constants.ts";
 import { MAX_PLAYERS } from "../shared/player-config.ts";
 import { GAME_CONTAINER_ACTIVE, navigateTo } from "../shared/router.ts";
 import { Mode } from "../shared/ui-mode.ts";
@@ -102,7 +103,7 @@ export function createOnlineRuntimeSessionHelpers(
       buildTimer: msg.settings.buildTimer,
       cannonPlaceTimer: msg.settings.cannonPlaceTimer,
       firstRoundCannons: msg.settings.firstRoundCannons,
-      gameMode: msg.settings.gameMode,
+      gameMode: msg.settings.gameMode as GameMode,
       humanSlots,
       keyBindings,
       difficulty: settings.difficulty,

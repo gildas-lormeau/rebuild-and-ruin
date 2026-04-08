@@ -6,6 +6,8 @@
  * individual game/ files.
  */
 
+import type { EntityOverlay } from "../shared/overlay-types.ts";
+import type { GameState } from "../shared/types.ts";
 import { recheckTerritoryOnly } from "./build-system.ts";
 import {
   createCastleBuildState,
@@ -42,9 +44,8 @@ export const selectionFacade = {
   tickCastleBuildAnimation,
   enterCannonPlacePhase,
   enterCastleReselectPhase,
-  finalizeAndEnterCannonPhase,
+  snapshotAndFinalizeForCannonPhase,
   markPlayerReselected,
-  snapshotEntities,
   completeReselection,
   prepareCastleWallsForPlayer,
   processReselectionQueue,
@@ -55,3 +56,12 @@ export const selectionFacade = {
   initTowerSelection,
   tickSelectionPhase,
 };
+
+/** Snapshot entities THEN finalize castle construction and enter cannon phase.
+ *  Ordering invariant: snapshot must capture state BEFORE finalize mutates it.
+ *  Combined here so callers cannot accidentally reverse the steps. */
+function snapshotAndFinalizeForCannonPhase(state: GameState): EntityOverlay {
+  const entities = snapshotEntities(state);
+  finalizeAndEnterCannonPhase(state);
+  return entities;
+}

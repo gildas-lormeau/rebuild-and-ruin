@@ -77,6 +77,12 @@ export function isPlayerAlive(
   return !!player && !player.eliminated;
 }
 
+/** Mark a player as eliminated (lives = 0, eliminated = true). */
+export function eliminatePlayer(player: Player): void {
+  player.eliminated = true;
+  player.lives = 0;
+}
+
 /** True when a player has selected a castle and can actively participate. */
 export function isPlayerSeated(
   player: Player | null | undefined,

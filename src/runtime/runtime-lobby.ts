@@ -52,6 +52,19 @@ interface LobbySystem {
 export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
   const { runtimeState, uiCtx } = deps;
 
+  // Cache the confirm-key map — rebuilt lazily when keyBindings change
+  let cachedConfirmKeys: Map<string, number> | undefined;
+  let cachedKeyBindings: readonly KeyBindings[] | undefined;
+
+  function getConfirmKeys(): Map<string, number> {
+    if (cachedConfirmKeys && cachedKeyBindings === uiCtx.settings.keyBindings) {
+      return cachedConfirmKeys;
+    }
+    cachedKeyBindings = uiCtx.settings.keyBindings;
+    cachedConfirmKeys = buildLobbyConfirmKeys(cachedKeyBindings);
+    return cachedConfirmKeys;
+  }
+
   function renderLobby(): void {
     if (!runtimeState.lobby.map) deps.refreshLobbySeed();
     const { map, overlay } = deps.createLobbyOverlay(uiCtx);
@@ -80,8 +93,7 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
 
   function lobbyKeyJoin(key: string): boolean {
     if (!uiCtx.lobby.active) return false;
-    const confirmKeys = buildLobbyConfirmKeys(uiCtx.settings.keyBindings);
-    const pid = confirmKeys.get(key);
+    const pid = getConfirmKeys().get(key);
     if (pid === undefined) return false;
     if (uiCtx.lobby.joined[pid]) {
       lobbySkipStep();
@@ -137,11 +149,10 @@ export function createLobbySystem(deps: LobbySystemDeps): LobbySystem {
   }
 
   /** Speed up lobby timer by one step if allowed. */
-  function lobbySkipStep(): boolean {
-    if (uiCtx.lobby.timerAccum === undefined) return false;
-    if (uiCtx.getLobbyRemaining() <= LOBBY_SKIP_LOCKOUT) return false;
+  function lobbySkipStep(): void {
+    if (uiCtx.lobby.timerAccum === undefined) return;
+    if (uiCtx.getLobbyRemaining() <= LOBBY_SKIP_LOCKOUT) return;
     uiCtx.lobby.timerAccum += LOBBY_SKIP_STEP;
-    return true;
   }
 
   return {

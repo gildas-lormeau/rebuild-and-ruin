@@ -9,10 +9,12 @@ import {
   DIFFICULTY_PARAMS,
   GAME_MODE_CLASSIC,
   GAME_MODE_MODERN,
+  type GameMode,
 } from "../shared/game-constants.ts";
 import { isReselectPhase, Phase } from "../shared/game-phase.ts";
 import type { GameMap } from "../shared/geometry-types.ts";
 import {
+  type GameSettings,
   type KeyBindings,
   MAX_PLAYERS,
   PLAYER_KEY_BINDINGS,
@@ -52,7 +54,7 @@ interface InitGameDeps {
   cannonPlaceTimer: number;
   firstRoundCannons: number;
   /** Game mode: "classic" or "modern". */
-  gameMode: string;
+  gameMode: GameMode;
   /** Which slots are human (true = human, false/missing = AI). */
   humanSlots: readonly boolean[];
   /** Per-slot key bindings (only used for human slots). */
@@ -72,6 +74,17 @@ interface BootstrapFromSettingsDeps {
   readonly clearFrameData: () => void;
   readonly resetUIState: () => void;
   readonly enterSelection: () => void;
+}
+
+/** Resolved game configuration from settings + URL overrides.
+ *  Pure output — no side effects, no RuntimeState access. */
+interface ResolvedGameConfig {
+  maxRounds: number;
+  cannonMaxHp: number;
+  buildTimer: number;
+  cannonPlaceTimer: number;
+  firstRoundCannons: number;
+  gameMode: GameMode;
 }
 
 export function initWaitingRoom(deps: InitWaitingRoomDeps): void {
@@ -186,30 +199,23 @@ export async function bootstrapNewGameFromSettings(
 ): Promise<void> {
   const seed = runtimeState.lobby.seed;
   log(`[game] seed: ${seed}`);
-  // Clear custom seed so it's only used for this game
+
+  const config = resolveGameConfig(
+    runtimeState.settings,
+    getUrlRoundsOverride(),
+    getUrlModeOverride?.() ?? "",
+  );
+
+  // Apply side effects: clear one-shot seed, persist URL mode override
   runtimeState.settings.seed = "";
   runtimeState.settings.seedMode = SEED_RANDOM;
-  const { buildTimer, cannonPlaceTimer, firstRoundCannons } =
-    DIFFICULTY_PARAMS[runtimeState.settings.difficulty]!;
-  const roundsParam = getUrlRoundsOverride();
-  const roundsVal =
-    roundsParam > 0
-      ? roundsParam
-      : ROUNDS_OPTIONS[runtimeState.settings.rounds]!.value;
-  const modeParam = getUrlModeOverride?.() ?? "";
-  if (modeParam === GAME_MODE_MODERN || modeParam === GAME_MODE_CLASSIC) {
-    runtimeState.settings.gameMode = modeParam;
-  }
+  runtimeState.settings.gameMode = config.gameMode;
+
   await bootstrapGame({
     seed,
     maxPlayers: Math.min(MAX_PLAYERS, PLAYER_KEY_BINDINGS.length),
     existingMap: runtimeState.lobby.map ?? undefined,
-    maxRounds: roundsVal,
-    cannonMaxHp: CANNON_HP_OPTIONS[runtimeState.settings.cannonHp]!.value,
-    buildTimer,
-    cannonPlaceTimer,
-    firstRoundCannons,
-    gameMode: runtimeState.settings.gameMode,
+    ...config,
     log,
     clearFrameData: deps.clearFrameData,
     setState: (state) => {
@@ -272,4 +278,32 @@ export async function bootstrapGame(deps: InitGameDeps): Promise<void> {
   deps.setState(state);
   deps.setControllers(nextControllers);
   deps.enterSelection();
+}
+
+/** Resolve settings + URL overrides into game configuration params.
+ *  Pure function — reads settings but does not mutate anything. */
+function resolveGameConfig(
+  settings: GameSettings,
+  urlRoundsOverride: number,
+  urlModeOverride: string,
+): ResolvedGameConfig {
+  const { buildTimer, cannonPlaceTimer, firstRoundCannons } =
+    DIFFICULTY_PARAMS[settings.difficulty]!;
+  const maxRounds =
+    urlRoundsOverride > 0
+      ? urlRoundsOverride
+      : ROUNDS_OPTIONS[settings.rounds]!.value;
+  const gameMode =
+    urlModeOverride === GAME_MODE_MODERN ||
+    urlModeOverride === GAME_MODE_CLASSIC
+      ? urlModeOverride
+      : settings.gameMode;
+  return {
+    maxRounds,
+    cannonMaxHp: CANNON_HP_OPTIONS[settings.cannonHp]!.value,
+    buildTimer,
+    cannonPlaceTimer,
+    firstRoundCannons,
+    gameMode,
+  };
 }

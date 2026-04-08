@@ -27,6 +27,7 @@ import {
 import { Phase } from "../shared/game-phase.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
+  eliminatePlayer,
   emptyFreshInterior,
   isPlayerAlive,
   isPlayerSeated,
@@ -96,6 +97,9 @@ import {
   clearFrozenRiver,
   rollModifier,
 } from "./round-modifiers.ts";
+
+// eliminatePlayer re-exported from player-types.ts for backward compat
+export { eliminatePlayer } from "../shared/player-types.ts";
 
 /** Grunts spawned per player on first battle when nobody fires. */
 const IDLE_FIRST_BATTLE_GRUNTS = 2;
@@ -496,14 +500,6 @@ export function resetZoneState(state: GameState, zone: number): void {
       state.towerAlive[towerIndex] = true;
     }
   }
-}
-
-/** Mark a player as permanently eliminated (sets eliminated flag + zeroes lives).
- *  Used when the player abandons in the life-lost dialog.
- *  Contrast with resetPlayerBoardState which resets board state but keeps the player alive. */
-export function eliminatePlayer(player: Player): void {
-  player.eliminated = true;
-  player.lives = 0;
 }
 
 /** Reset a player's board state (walls, interior, cannons, towers, castle) for a new round.

@@ -286,8 +286,10 @@ export function createSelectionSystem(
   }
 
   function finalizeAndAdvance(): void {
-    deps.setPrevEntities(selectionFacade.snapshotEntities(runtimeState.state));
-    selectionFacade.finalizeAndEnterCannonPhase(runtimeState.state);
+    const prevEntities = selectionFacade.snapshotAndFinalizeForCannonPhase(
+      runtimeState.state,
+    );
+    deps.setPrevEntities(prevEntities);
     deps.camera.clearCastleBuildViewport();
     deps.startCannonPhase(() => {
       setMode(runtimeState, Mode.GAME);

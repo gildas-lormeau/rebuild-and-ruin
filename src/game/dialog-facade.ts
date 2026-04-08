@@ -10,11 +10,11 @@ import { createBannerState } from "../shared/ui-contracts.ts";
 import {
   continuingPlayers,
   createLifeLostDialogState,
+  eliminateAbandoned,
   resolveAfterLifeLost,
   tickLifeLostDialog,
 } from "./life-lost.ts";
 import { showBannerTransition, tickBannerTransition } from "./phase-banner.ts";
-import { eliminatePlayer } from "./phase-setup.ts";
 import {
   applyUpgradePicks,
   createUpgradePickDialog,
@@ -28,7 +28,7 @@ export const dialogFacade = {
   tickLifeLostDialog,
   continuingPlayers,
   resolveAfterLifeLost,
-  eliminatePlayer,
+  eliminateAbandoned,
   createUpgradePickDialog,
   tickUpgradePickDialog,
   applyUpgradePicks,

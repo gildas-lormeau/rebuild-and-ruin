@@ -6,7 +6,6 @@
  */
 
 import {
-  MAX_ZOOM_VIEWPORT_RATIO,
   MIN_ZOOM_RATIO,
   PINCH_FULL_MAP_SNAP,
   VIEWPORT_SNAP_THRESHOLD,
@@ -25,10 +24,17 @@ import {
   MAP_PX_H,
   MAP_PX_W,
   SCALE,
-  TILE_SIZE,
 } from "../shared/grid.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { pxToTile, towerCenterPx, unpackTile } from "../shared/spatial.ts";
+import {
+  battleTargetPosition,
+  bestEnemyZone,
+  enemyZones,
+  pxToTile,
+  tileBoundsToViewport,
+  unpackTile,
+  zoneTileBounds,
+} from "../shared/spatial.ts";
 import { type GameState } from "../shared/types.ts";
 import { isInteractiveMode, Mode } from "../shared/ui-mode.ts";
 import type { CameraSystem, FrameContext } from "./runtime-types.ts";
@@ -119,80 +125,13 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   function getBestEnemyZone(): number | null {
     const state = deps.getState();
     if (!state) return null;
-    const myPid = povPlayerId();
-    let bestPid = -1,
-      bestScore = -1;
-    for (let i = 0; i < state.players.length; i++) {
-      if (i === myPid || state.players[i]!.eliminated) continue;
-      if (state.players[i]!.score > bestScore) {
-        bestScore = state.players[i]!.score;
-        bestPid = i;
-      }
-    }
-    if (bestPid < 0) return null;
-    return state.playerZones[bestPid] ?? null;
+    return bestEnemyZone(state.players, state.playerZones, povPlayerId());
   }
 
   function getEnemyZones(): number[] {
     const state = deps.getState();
     if (!state) return [];
-    const myPid = povPlayerId();
-    const zones: number[] = [];
-    for (let i = 0; i < state.players.length; i++) {
-      if (i === myPid || state.players[i]!.eliminated) continue;
-      const zone = state.playerZones[i];
-      if (zone !== undefined && !zones.includes(zone)) zones.push(zone);
-    }
-    return zones;
-  }
-
-  function boundsToViewport(
-    minR: number,
-    maxR: number,
-    minC: number,
-    maxC: number,
-    pad: number,
-  ): Viewport {
-    minR = Math.max(0, minR - pad);
-    maxR = Math.min(GRID_ROWS - 1, maxR + pad);
-    minC = Math.max(0, minC - pad);
-    maxC = Math.min(GRID_COLS - 1, maxC + pad);
-    const fullW = MAP_PX_W,
-      fullH = MAP_PX_H;
-    const maxW = fullW * MAX_ZOOM_VIEWPORT_RATIO,
-      maxH = fullH * MAX_ZOOM_VIEWPORT_RATIO;
-    const targetAspect = GRID_COLS / GRID_ROWS;
-    const w = (maxC - minC + 1) * TILE_SIZE,
-      h = (maxR - minR + 1) * TILE_SIZE;
-    const vpAspect = w / h;
-    const newW =
-      vpAspect < targetAspect
-        ? Math.min(maxW, h * targetAspect)
-        : Math.min(maxW, Math.min(maxH, w / targetAspect) * targetAspect);
-    const newH = newW / targetAspect;
-    const cx = ((minC + maxC + 1) * TILE_SIZE) / 2,
-      cy = ((minR + maxR + 1) * TILE_SIZE) / 2;
-    const x = Math.max(0, Math.min(fullW - newW, cx - newW / 2));
-    const y = Math.max(0, Math.min(fullH - newH, cy - newH / 2));
-    return { x, y, w: newW, h: newH };
-  }
-
-  interface Bounds {
-    minR: number;
-    maxR: number;
-    minC: number;
-    maxC: number;
-  }
-
-  function newBounds(): Bounds {
-    return { minR: GRID_ROWS, maxR: 0, minC: GRID_COLS, maxC: 0 };
-  }
-
-  function expandBounds(b: Bounds, r: number, c: number): void {
-    if (r < b.minR) b.minR = r;
-    if (r > b.maxR) b.maxR = r;
-    if (c < b.minC) b.minC = c;
-    if (c > b.maxC) b.maxC = c;
+    return enemyZones(state.players, state.playerZones, povPlayerId());
   }
 
   function computeZoneBounds(zoneId: number): Viewport {
@@ -204,27 +143,21 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
     if (cached && cached.wallCount === (player?.walls.size ?? 0))
       return cached.viewport;
 
-    const b = newBounds();
-
-    if (player && player.walls.size > 0) {
-      for (const key of player.walls) {
-        const { r, c } = unpackTile(key);
-        expandBounds(b, r, c);
-      }
-      if (player.homeTower)
-        expandBounds(b, player.homeTower.row, player.homeTower.col);
-    } else {
-      const zones = state.map.zones;
-      for (let r = 0; r < GRID_ROWS; r++) {
-        for (let c = 0; c < GRID_COLS; c++) {
-          if (zones[r]![c] === zoneId) expandBounds(b, r, c);
-        }
-      }
-    }
-
-    const pad =
-      player && player.walls.size > 0 ? ZONE_PAD_WITH_WALLS : ZONE_PAD_NO_WALLS;
-    const result = boundsToViewport(b.minR, b.maxR, b.minC, b.maxC, pad);
+    const { bounds, pad } = zoneTileBounds(
+      zoneId,
+      state.playerZones,
+      state.players,
+      state.map.zones,
+      ZONE_PAD_WITH_WALLS,
+      ZONE_PAD_NO_WALLS,
+    );
+    const result = tileBoundsToViewport(
+      bounds.minR,
+      bounds.maxR,
+      bounds.minC,
+      bounds.maxC,
+      pad,
+    );
     cachedZoneBounds.set(zoneId, {
       viewport: result,
       wallCount: player?.walls.size ?? 0,
@@ -241,20 +174,25 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       wallPlans.find((plan) => plan.playerId === myPid) ?? wallPlans[0];
     if (!plan || plan.tiles.length === 0) return fullMapVp;
     const player = state.players[plan.playerId];
-    const b = newBounds();
+    let minR = GRID_ROWS,
+      maxR = 0,
+      minC = GRID_COLS,
+      maxC = 0;
     for (const key of plan.tiles) {
       const { r, c } = unpackTile(key);
-      expandBounds(b, r, c);
+      if (r < minR) minR = r;
+      if (r > maxR) maxR = r;
+      if (c < minC) minC = c;
+      if (c > maxC) maxC = c;
     }
-    if (player?.homeTower)
-      expandBounds(b, player.homeTower.row, player.homeTower.col);
-    return boundsToViewport(
-      b.minR,
-      b.maxR,
-      b.minC,
-      b.maxC,
-      ZONE_PAD_WITH_WALLS,
-    );
+    if (player?.homeTower) {
+      const { row, col } = player.homeTower;
+      if (row < minR) minR = row;
+      if (row > maxR) maxR = row;
+      if (col < minC) minC = col;
+      if (col > maxC) maxC = col;
+    }
+    return tileBoundsToViewport(minR, maxR, minC, maxC, ZONE_PAD_WITH_WALLS);
   }
 
   // --- Auto-zoom ---
@@ -398,7 +336,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       autoZoom(state.phase);
     }
     if (selectionZoom.pendingVp) {
-      castleBuildVp = boundsToViewport(
+      castleBuildVp = tileBoundsToViewport(
         selectionZoom.pendingVp.row,
         selectionZoom.pendingVp.row + 1,
         selectionZoom.pendingVp.col,
@@ -655,7 +593,7 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
       return;
     }
     selectionZoom.pendingVp = undefined;
-    castleBuildVp = boundsToViewport(
+    castleBuildVp = tileBoundsToViewport(
       towerRow,
       towerRow + 1,
       towerCol,
@@ -684,45 +622,23 @@ export function createCameraSystem(deps: CameraDeps): CameraSystem {
   /** Crosshair position from the previous battle (null = first battle). */
   let lastBattleCrosshair: { x: number; y: number } | undefined;
 
-  /**
-   * Compute the target position for the human crosshair at battle start (touch devices).
-   * - First battle: aim at best enemy's home tower.
-   * - Subsequent battles: restore last position (unless that opponent died).
-   * - Without auto-zoom: returns null (first tap positions it).
-   *
-   * Pure computation — the caller applies the result to the controller. */
+  /** Compute target position for the human crosshair at battle start (touch devices).
+   *  Delegates targeting logic to battleTargetPosition(); camera owns only the
+   *  mobile-zoom guard and lastBattleCrosshair state. */
   function computeBattleTarget(): { x: number; y: number } | null {
     const state = deps.getState();
     if (!state) return null;
     if (!(mobileZoomEnabled && zoomActivated)) return null;
 
-    // Subsequent battle: restore last position if targeted opponent is alive
-    if (lastBattleCrosshair) {
-      const row = pxToTile(lastBattleCrosshair.y);
-      const col = pxToTile(lastBattleCrosshair.x);
-      const zone = state.map.zones[row]?.[col];
-      if (zone !== undefined) {
-        const pid = state.playerZones.indexOf(zone);
-        if (
-          pid >= 0 &&
-          pid !== povPlayerId() &&
-          !state.players[pid]?.eliminated
-        ) {
-          return { x: lastBattleCrosshair.x, y: lastBattleCrosshair.y };
-        }
-      }
-      // Targeted opponent died or invalid — fall through to best enemy
-    }
-
-    // First battle or opponent died: aim at best enemy's home tower
-    const zone = getBestEnemyZone();
-    if (zone === null) return null;
-    const pid = state.playerZones.indexOf(zone);
-    const tower = pid >= 0 ? state.players[pid]?.homeTower : null;
-    if (!tower) return null;
-    const px = towerCenterPx(tower);
-    lastBattleCrosshair = { x: px.x, y: px.y };
-    return { x: px.x, y: px.y };
+    const target = battleTargetPosition(
+      state.players,
+      state.playerZones,
+      state.map.zones,
+      povPlayerId(),
+      lastBattleCrosshair,
+    );
+    if (target) lastBattleCrosshair = { x: target.x, y: target.y };
+    return target;
   }
 
   /** Store a crosshair position for restoration at the next battle start. */

@@ -140,6 +140,17 @@ export const SEED_CUSTOM = "custom";
 /** Maximum character length for user-entered seeds. */
 export const MAX_SEED_LENGTH = 9;
 
+/** Compute the game seed from current settings (custom seed or random). */
+export function computeGameSeed(
+  settings: Pick<GameSettings, "seedMode" | "seed">,
+): number {
+  if (settings.seedMode === SEED_CUSTOM && settings.seed) {
+    const parsed = parseInt(settings.seed, 10);
+    if (!isNaN(parsed)) return parsed;
+  }
+  return Math.floor(Math.random() * 1000000);
+}
+
 /** Get player color with safe modulo wrapping. */
 export function getPlayerColor(playerId: ValidPlayerSlot): PlayerColor {
   return PLAYER_COLORS[playerId % PLAYER_COLORS.length]!;

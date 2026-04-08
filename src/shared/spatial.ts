@@ -20,10 +20,25 @@ import {
   isSuperMode,
 } from "./battle-types.ts";
 import { cannonModeDef } from "./cannon-mode-defs.ts";
-import { TOWER_SIZE } from "./game-constants.ts";
-import type { PixelPos, TilePos, Tower } from "./geometry-types.ts";
-import { GRID_COLS, GRID_ROWS, TILE_SIZE, Tile } from "./grid.ts";
+import { MAX_ZOOM_VIEWPORT_RATIO, TOWER_SIZE } from "./game-constants.ts";
+import type { PixelPos, TilePos, Tower, Viewport } from "./geometry-types.ts";
+import {
+  GRID_COLS,
+  GRID_ROWS,
+  MAP_PX_H,
+  MAP_PX_W,
+  TILE_SIZE,
+  Tile,
+} from "./grid.ts";
 import { Action } from "./input-action.ts";
+
+/** Tile bounding rect (row/col extremes). */
+interface TileBounds {
+  minR: number;
+  maxR: number;
+  minC: number;
+  maxC: number;
+}
 
 /** 45° angle step (π/4 radians) — used for 8-direction snapping. */
 const FACING_45_STEP = Math.PI / 4;
@@ -153,15 +168,6 @@ export function zoneTowerCenterPx(
   const pid = playerZones.indexOf(zone);
   const tower = pid >= 0 ? players[pid]?.homeTower : null;
   return tower ? towerCenterPx(tower) : null;
-}
-
-/** Pixel center of a tower footprint. */
-export function towerCenterPx(tilePos: TilePos): PixelPos {
-  const half = TOWER_SIZE / 2;
-  return {
-    x: (tilePos.col + half) * TILE_SIZE,
-    y: (tilePos.row + half) * TILE_SIZE,
-  };
 }
 
 /** Pixel position at the center of the tile at (row, col). */
@@ -342,11 +348,6 @@ export function towerAtPixel(
   return bestIdx;
 }
 
-/** Convert a world-pixel coordinate to a tile index (floor division by TILE_SIZE). */
-export function pxToTile(px: number): number {
-  return Math.floor(px / TILE_SIZE);
-}
-
 /** Find the nearest tower to a given tower in a direction (for spatial navigation). */
 export function findNearestTower(
   towers: readonly { row: number; col: number; zone: number }[],
@@ -491,11 +492,6 @@ export function computeOutside(
   return outside;
 }
 
-/** Convert a packed tile key back to row/column coordinates. */
-export function unpackTile(key: number): { r: number; c: number } {
-  return { r: Math.floor(key / GRID_COLS), c: key % GRID_COLS };
-}
-
 /** True if (r,c) is within bounds and both values are integers (for validating untrusted input). */
 export function inBoundsStrict(r: number, c: number): boolean {
   return (
@@ -516,6 +512,170 @@ export function inBounds(r: number, c: number): boolean {
 /** True if an object's row/col matches the given position. */
 export function isAtTile(obj: TilePos, row: number, col: number): boolean {
   return obj.row === row && obj.col === col;
+}
+
+/** Return the distinct zones of all non-eliminated enemies. */
+export function enemyZones(
+  players: readonly { eliminated: boolean }[],
+  playerZones: readonly number[],
+  myPid: number,
+): number[] {
+  const zones: number[] = [];
+  for (let i = 0; i < players.length; i++) {
+    if (i === myPid || players[i]!.eliminated) continue;
+    const zone = playerZones[i];
+    if (zone !== undefined && !zones.includes(zone)) zones.push(zone);
+  }
+  return zones;
+}
+
+/** Compute the tile bounding rect for a zone, derived from player walls
+ *  (if present) or the raw zone grid. Returns bounds + appropriate padding. */
+export function zoneTileBounds(
+  zoneId: number,
+  playerZones: readonly number[],
+  players: readonly {
+    walls: ReadonlySet<number>;
+    homeTower: TilePos | null;
+  }[],
+  zones: readonly (readonly number[])[],
+  padWithWalls: number,
+  padNoWalls: number,
+): { bounds: TileBounds; pad: number } {
+  const pid = playerZones.indexOf(zoneId);
+  const player = pid >= 0 ? players[pid] : undefined;
+  const bounds: TileBounds = {
+    minR: GRID_ROWS,
+    maxR: 0,
+    minC: GRID_COLS,
+    maxC: 0,
+  };
+
+  if (player && player.walls.size > 0) {
+    for (const key of player.walls) {
+      const { r, c } = unpackTile(key);
+      expandTileBounds(bounds, r, c);
+    }
+    if (player.homeTower)
+      expandTileBounds(bounds, player.homeTower.row, player.homeTower.col);
+  } else {
+    for (let r = 0; r < GRID_ROWS; r++) {
+      for (let c = 0; c < GRID_COLS; c++) {
+        if (zones[r]![c] === zoneId) expandTileBounds(bounds, r, c);
+      }
+    }
+  }
+
+  const pad = player && player.walls.size > 0 ? padWithWalls : padNoWalls;
+  return { bounds, pad };
+}
+
+/** Convert a packed tile key back to row/column coordinates. */
+export function unpackTile(key: number): { r: number; c: number } {
+  return { r: Math.floor(key / GRID_COLS), c: key % GRID_COLS };
+}
+
+/** Convert tile bounds + padding into a viewport that fits the map's
+ *  aspect ratio and respects the maximum zoom ratio. */
+export function tileBoundsToViewport(
+  minR: number,
+  maxR: number,
+  minC: number,
+  maxC: number,
+  pad: number,
+): Viewport {
+  minR = Math.max(0, minR - pad);
+  maxR = Math.min(GRID_ROWS - 1, maxR + pad);
+  minC = Math.max(0, minC - pad);
+  maxC = Math.min(GRID_COLS - 1, maxC + pad);
+  const fullW = MAP_PX_W;
+  const fullH = MAP_PX_H;
+  const maxW = fullW * MAX_ZOOM_VIEWPORT_RATIO;
+  const maxH = fullH * MAX_ZOOM_VIEWPORT_RATIO;
+  const targetAspect = GRID_COLS / GRID_ROWS;
+  const tileW = (maxC - minC + 1) * TILE_SIZE;
+  const tileH = (maxR - minR + 1) * TILE_SIZE;
+  const vpAspect = tileW / tileH;
+  const newW =
+    vpAspect < targetAspect
+      ? Math.min(maxW, tileH * targetAspect)
+      : Math.min(maxW, Math.min(maxH, tileW / targetAspect) * targetAspect);
+  const newH = newW / targetAspect;
+  const cx = ((minC + maxC + 1) * TILE_SIZE) / 2;
+  const cy = ((minR + maxR + 1) * TILE_SIZE) / 2;
+  const x = Math.max(0, Math.min(fullW - newW, cx - newW / 2));
+  const y = Math.max(0, Math.min(fullH - newH, cy - newH / 2));
+  return { x, y, w: newW, h: newH };
+}
+
+/** Compute the crosshair target for battle start (touch devices).
+ *  - If `lastPos` targets a living enemy, return it.
+ *  - Otherwise aim at the best enemy's home tower.
+ *  Returns null when no valid target exists. */
+export function battleTargetPosition(
+  players: readonly {
+    eliminated: boolean;
+    score: number;
+    homeTower: TilePos | null;
+  }[],
+  playerZones: readonly number[],
+  zones: readonly (readonly number[])[],
+  myPid: number,
+  lastPos: { x: number; y: number } | undefined,
+): { x: number; y: number } | null {
+  // Restore last position if targeted opponent is alive
+  if (lastPos) {
+    const row = pxToTile(lastPos.y);
+    const col = pxToTile(lastPos.x);
+    const zone = zones[row]?.[col];
+    if (zone !== undefined) {
+      const pid = playerZones.indexOf(zone);
+      if (pid >= 0 && pid !== myPid && !players[pid]?.eliminated) {
+        return { x: lastPos.x, y: lastPos.y };
+      }
+    }
+  }
+
+  // First battle or opponent died: aim at best enemy's home tower
+  const zone = bestEnemyZone(players, playerZones, myPid);
+  if (zone === null) return null;
+  const pid = playerZones.indexOf(zone);
+  const tower = pid >= 0 ? players[pid]?.homeTower : null;
+  if (!tower) return null;
+  return towerCenterPx(tower);
+}
+
+/** Pixel center of a tower footprint. */
+export function towerCenterPx(tilePos: TilePos): PixelPos {
+  const half = TOWER_SIZE / 2;
+  return {
+    x: (tilePos.col + half) * TILE_SIZE,
+    y: (tilePos.row + half) * TILE_SIZE,
+  };
+}
+
+/** Convert a world-pixel coordinate to a tile index (floor division by TILE_SIZE). */
+export function pxToTile(px: number): number {
+  return Math.floor(px / TILE_SIZE);
+}
+
+/** Return the zone of the highest-scoring non-eliminated enemy, or null. */
+export function bestEnemyZone(
+  players: readonly { eliminated: boolean; score: number }[],
+  playerZones: readonly number[],
+  myPid: number,
+): number | null {
+  let bestPid = -1;
+  let bestScore = -1;
+  for (let i = 0; i < players.length; i++) {
+    if (i === myPid || players[i]!.eliminated) continue;
+    if (players[i]!.score > bestScore) {
+      bestScore = players[i]!.score;
+      bestPid = i;
+    }
+  }
+  if (bestPid < 0) return null;
+  return playerZones[bestPid] ?? null;
 }
 
 function isTileInRect(
@@ -603,4 +763,11 @@ export function manhattanDistance(
   c2: number,
 ): number {
   return Math.abs(r1 - r2) + Math.abs(c1 - c2);
+}
+
+function expandTileBounds(bounds: TileBounds, r: number, c: number): void {
+  if (r < bounds.minR) bounds.minR = r;
+  if (r > bounds.maxR) bounds.maxR = r;
+  if (c < bounds.minC) bounds.minC = c;
+  if (c > bounds.maxC) bounds.maxC = c;
 }

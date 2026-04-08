@@ -68,15 +68,6 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     return dialog.entries.every((e) => e.choice !== LifeLostChoice.PENDING);
   }
 
-  function eliminateAbandoned(dialog: LifeLostDialogState): void {
-    for (const entry of dialog.entries) {
-      if (entry.choice !== LifeLostChoice.ABANDON) continue;
-      const player = runtimeState.state.players[entry.playerId];
-      if (!player) continue;
-      dialogFacade.eliminatePlayer(player);
-    }
-  }
-
   function tryShow(
     needsReselect: readonly ValidPlayerSlot[],
     eliminated: readonly ValidPlayerSlot[],
@@ -98,7 +89,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     // Skip dialog if all entries are already resolved (e.g. only eliminations)
     if (allResolved(dialog)) {
       deps.log("tryShow lifeLost: all pre-resolved, skipping dialog");
-      eliminateAbandoned(dialog);
+      dialogFacade.eliminateAbandoned(dialog, runtimeState.state.players);
       afterLifeLostResolved();
       return false;
     }
@@ -134,7 +125,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       `lifeLostDialog resolved: ${dialog.entries.map((e) => `P${e.playerId}=${e.choice}(auto=${e.autoResolve})`).join(", ")} timer=${dialog.timer.toFixed(1)}s`,
     );
 
-    eliminateAbandoned(dialog);
+    dialogFacade.eliminateAbandoned(dialog, runtimeState.state.players);
 
     if (runtimeState.frameMeta.hostAtFrameStart) {
       afterLifeLostResolved(dialogFacade.continuingPlayers(dialog));
