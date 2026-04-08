@@ -12,7 +12,6 @@
  * pattern as runtime-camera.ts and runtime-selection.ts.
  */
 
-import { type GameMessage, MESSAGE } from "../../server/protocol.ts";
 import { dialogFacade } from "../game/dialog-facade.ts";
 import {
   LIFE_LOST_AUTO_DELAY,
@@ -34,7 +33,10 @@ import type { RuntimeLifeLost } from "./runtime-types.ts";
 interface LifeLostSystemDeps {
   runtimeState: RuntimeState;
 
-  send: (msg: GameMessage) => void;
+  sendLifeLostChoice: (
+    choice: ResolvedChoice,
+    playerId: ValidPlayerSlot,
+  ) => void;
   log: (msg: string) => void;
 
   render: () => void;
@@ -158,13 +160,6 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     });
   }
 
-  function sendLifeLostChoice(
-    choice: ResolvedChoice,
-    playerId: ValidPlayerSlot,
-  ) {
-    deps.send({ type: MESSAGE.LIFE_LOST_CHOICE, choice, playerId });
-  }
-
   function findPendingEntry(playerId: ValidPlayerSlot) {
     return runtimeState.dialogs.lifeLost?.entries.find(
       (e) => e.playerId === playerId && e.choice === LifeLostChoice.PENDING,
@@ -187,7 +182,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
       entry.focusedButton === LIFE_LOST_FOCUS_CONTINUE
         ? LifeLostChoice.CONTINUE
         : LifeLostChoice.ABANDON;
-    sendLifeLostChoice(entry.choice, entry.playerId);
+    deps.sendLifeLostChoice(entry.choice, entry.playerId);
   }
 
   /** Apply a direct choice (e.g. from a mouse click on a specific button).
@@ -199,7 +194,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     const entry = findPendingEntry(playerId);
     if (!entry) return;
     entry.choice = choice;
-    sendLifeLostChoice(choice, playerId);
+    deps.sendLifeLostChoice(choice, playerId);
   }
 
   return {
@@ -214,7 +209,7 @@ export function createLifeLostSystem(deps: LifeLostSystemDeps): LifeLostSystem {
     onResolved: afterLifeLostResolved,
     panelPos: deps.panelPos,
     // Extra — needed by game-runtime internals
-    sendLifeLostChoice,
+    sendLifeLostChoice: deps.sendLifeLostChoice,
     toggleFocus,
     confirmChoice,
     applyChoice,

@@ -46,7 +46,7 @@ import { isWater, unpackTile } from "../src/shared/spatial.ts";
 import {
   createHeadlessRuntime,
   type HeadlessRuntime,
-} from "../src/runtime/runtime-headless.ts";
+} from "./runtime-headless.ts";
 import { MESSAGE } from "../server/protocol.ts";
 import { handleServerIncrementalMessage } from "../src/online/online-server-events.ts";
 import type { WatcherNetworkState } from "../src/online/online-types.ts";

@@ -28,7 +28,7 @@ const EXEMPT = new Set([
   "runtime.ts",
   "runtime-types.ts",
   "runtime-state.ts",
-  "runtime-headless.ts",
+
   "runtime-bootstrap.ts",
   "runtime-host-phase-ticks.ts", // pure tick functions, not a factory sub-system
   "runtime-host-battle-ticks.ts", // pure tick functions, not a factory sub-system

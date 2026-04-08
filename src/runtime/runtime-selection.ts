@@ -6,14 +6,14 @@
  * factory-with-deps pattern as runtime-camera.ts.
  */
 
-import { type GameMessage, MESSAGE } from "../../server/protocol.ts";
 import { selectionFacade } from "../game/selection-facade.ts";
 import {
   SELECT_ANNOUNCEMENT_DURATION,
   SELECT_TIMER,
   WALL_BUILD_INTERVAL,
 } from "../shared/game-constants.ts";
-import type { RenderOverlay } from "../shared/overlay-types.ts";
+import type { CastleWallPlan } from "../shared/interaction-types.ts";
+import type { EntityOverlay, RenderOverlay } from "../shared/overlay-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import {
   type InputReceiver,
@@ -39,8 +39,14 @@ import type {
 interface SelectionSystemDeps {
   runtimeState: RuntimeState;
 
-  // Config / networking
-  send: (msg: GameMessage) => void;
+  // Networking (named sends — protocol knowledge stays in composition root)
+  sendTowerSelected: (
+    playerId: ValidPlayerSlot,
+    towerIdx: number,
+    confirmed: boolean,
+  ) => void;
+  sendCastleWalls: (plans: readonly CastleWallPlan[]) => void;
+  sendSelectStart: (timer: number) => void;
   log: (msg: string) => void;
 
   camera: Pick<
@@ -66,6 +72,8 @@ interface SelectionSystemDeps {
   enterTowerSelectionImpl: (deps: EnterTowerSelectionDeps) => void;
   /** Clear stale banner snapshots when selection state is reset (e.g. after life lost). */
   clearBannerSnapshots: () => void;
+  /** Store entity snapshot for banner before/after comparison. */
+  setPrevEntities: (entities: EntityOverlay) => void;
 
   /**
    * Called once during enterTowerSelection — kicks off the animation loop
@@ -173,12 +181,7 @@ export function createSelectionSystem(
     );
     if (!changed) return;
 
-    deps.send({
-      type: MESSAGE.OPPONENT_TOWER_SELECTED,
-      playerId: pid,
-      towerIdx: idx,
-      confirmed: false,
-    });
+    deps.sendTowerSelected(pid, idx, false);
     syncSelectionOverlay();
     deps.render();
 
@@ -218,12 +221,7 @@ export function createSelectionSystem(
         runtimeState.selection.states,
       );
 
-    deps.send({
-      type: MESSAGE.OPPONENT_TOWER_SELECTED,
-      playerId: pid,
-      towerIdx: result.towerIdx,
-      confirmed: true,
-    });
+    deps.sendTowerSelected(pid, result.towerIdx, true);
 
     if (result.isReselect) {
       selectionFacade.markPlayerReselected(runtimeState.state, pid);
@@ -278,14 +276,7 @@ export function createSelectionSystem(
       finishReselection,
       finishSelection,
       syncSelectionOverlay,
-      sendOpponentTowerSelected: (playerId, towerIdx, confirmed) => {
-        deps.send({
-          type: MESSAGE.OPPONENT_TOWER_SELECTED,
-          playerId,
-          towerIdx,
-          confirmed,
-        });
-      },
+      sendOpponentTowerSelected: deps.sendTowerSelected,
     });
   }
 
@@ -295,9 +286,7 @@ export function createSelectionSystem(
   }
 
   function finalizeAndAdvance(): void {
-    runtimeState.banner.prevEntities = selectionFacade.snapshotEntities(
-      runtimeState.state,
-    );
+    deps.setPrevEntities(selectionFacade.snapshotEntities(runtimeState.state));
     selectionFacade.finalizeAndEnterCannonPhase(runtimeState.state);
     deps.camera.clearCastleBuildViewport();
     deps.startCannonPhase(() => {
@@ -324,7 +313,7 @@ export function createSelectionSystem(
       playerId,
     );
     if (!plan) return;
-    deps.send({ type: MESSAGE.CASTLE_WALLS, plans: [plan] });
+    deps.sendCastleWalls([plan]);
     const human = deps.pointerPlayer();
     runtimeState.selection.castleBuilds.push(
       selectionFacade.createCastleBuildState([plan]),
@@ -417,7 +406,7 @@ export function createSelectionSystem(
       setMode(runtimeState, Mode.SELECTION);
       deps.sound.drumsStart();
       if (runtimeState.frameMeta.hostAtFrameStart) {
-        deps.send({ type: MESSAGE.SELECT_START, timer: SELECT_TIMER });
+        deps.sendSelectStart(SELECT_TIMER);
       }
     } else {
       finishReselection();

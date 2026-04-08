@@ -7,15 +7,15 @@ import {
   enterCastleReselectPhase,
   markPlayerReselected,
   nextPhase,
-} from "../game/game-engine.ts";
-import { generateMap } from "../game/map-generation.ts";
-import { rebuildHomeCastle } from "../game/phase-setup.ts";
-import { createController } from "../player/controller-factory.ts";
-import { PLAYER_KEY_BINDINGS } from "../shared/player-config.ts";
-import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { MAX_UINT32 } from "../shared/rng.ts";
-import type { PlayerController } from "../shared/system-interfaces.ts";
-import type { GameState } from "../shared/types.ts";
+} from "../src/game/game-engine.ts";
+import { generateMap } from "../src/game/map-generation.ts";
+import { rebuildHomeCastle } from "../src/game/phase-setup.ts";
+import { createController } from "../src/player/controller-factory.ts";
+import { PLAYER_KEY_BINDINGS } from "../src/shared/player-config.ts";
+import type { ValidPlayerSlot } from "../src/shared/player-slot.ts";
+import { MAX_UINT32 } from "../src/shared/rng.ts";
+import type { PlayerController } from "../src/shared/system-interfaces.ts";
+import type { GameState } from "../src/shared/types.ts";
 
 export interface HeadlessRuntime {
   state: GameState;

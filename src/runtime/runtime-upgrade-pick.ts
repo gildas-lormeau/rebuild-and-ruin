@@ -13,7 +13,6 @@
  * Input handling lives in runtime-input.ts (keyboard/touch dispatch).
  */
 
-import { type GameMessage, MESSAGE } from "../../server/protocol.ts";
 import { dialogFacade } from "../game/dialog-facade.ts";
 import type {
   UpgradePickDialogState,
@@ -26,6 +25,7 @@ import {
 } from "../shared/player-slot.ts";
 import { isHuman } from "../shared/system-interfaces.ts";
 import { Mode } from "../shared/ui-mode.ts";
+import type { UpgradeId } from "../shared/upgrade-defs.ts";
 import {
   assertStateReady,
   type RuntimeState,
@@ -36,7 +36,10 @@ interface UpgradePickSystemDeps {
   readonly runtimeState: RuntimeState;
   readonly log: (msg: string) => void;
   readonly render: () => void;
-  readonly send?: (msg: GameMessage) => void;
+  readonly sendUpgradePick?: (
+    playerId: ValidPlayerSlot,
+    choice: UpgradeId,
+  ) => void;
 }
 
 export interface UpgradePickSystem {
@@ -146,11 +149,7 @@ export function createUpgradePickSystem(
     entry.focusedCard = cardIdx;
     const choice = entry.offers[cardIdx]!;
     entry.choice = choice;
-    deps.send?.({
-      type: MESSAGE.UPGRADE_PICK,
-      playerId: entry.playerId,
-      choice,
-    });
+    deps.sendUpgradePick?.(entry.playerId, choice);
   }
 
   function confirmChoice(playerId: ValidPlayerSlot): void {

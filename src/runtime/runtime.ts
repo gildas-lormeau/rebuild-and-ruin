@@ -9,6 +9,7 @@
  * Used by both main.ts (local play) and online-runtime-game.ts (online).
  */
 
+import { MESSAGE } from "../../server/protocol.ts";
 import { snapshotTerritory } from "../game/battle-system.ts";
 import { generateMap } from "../game/map-generation.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
@@ -253,6 +254,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     tickBanner,
     clearSnapshots: clearBannerSnapshots,
     reset: resetBanner,
+    setPrevEntities: setBannerPrevEntities,
   } = createBannerSystem({
     runtimeState,
     clearPhaseZoom: camera.clearPhaseZoom,
@@ -268,7 +270,17 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const selection = createSelectionSystem({
     runtimeState,
-    send: config.send,
+    sendTowerSelected: (pid, idx, confirmed) =>
+      config.send({
+        type: MESSAGE.OPPONENT_TOWER_SELECTED,
+        playerId: pid,
+        towerIdx: idx,
+        confirmed,
+      }),
+    sendCastleWalls: (plans) =>
+      config.send({ type: MESSAGE.CASTLE_WALLS, plans: [...plans] }),
+    sendSelectStart: (timer) =>
+      config.send({ type: MESSAGE.SELECT_START, timer }),
     log: config.log,
     camera,
     sound,
@@ -278,6 +290,7 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     startCannonPhase: (onDone) => phaseTicks.startCannonPhase(onDone),
     enterTowerSelectionImpl: enterTowerSelection,
     clearBannerSnapshots,
+    setPrevEntities: setBannerPrevEntities,
     requestFrame: () => {
       if (runtimeState.mode === Mode.STOPPED) requestAnimationFrame(mainLoop);
     },
@@ -363,7 +376,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
 
   const lifeLost: LifeLostSystem = createLifeLostSystem({
     runtimeState,
-    send: config.send,
+    sendLifeLostChoice: (choice, playerId) =>
+      config.send({ type: MESSAGE.LIFE_LOST_CHOICE, choice, playerId }),
     log: config.log,
     render,
     panelPos: (pid) => lifeLostPanelPos(runtimeState.state, pid),
@@ -380,7 +394,10 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     log: config.log,
     render,
-    send: isOnline ? config.send : undefined,
+    sendUpgradePick: isOnline
+      ? (playerId, choice) =>
+          config.send({ type: MESSAGE.UPGRADE_PICK, playerId, choice })
+      : undefined,
   });
 
   // -------------------------------------------------------------------------
@@ -402,6 +419,15 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
     runtimeState,
     send: config.send,
     log: config.log,
+    sendOpponentCannonPlaced: (msg) =>
+      config.send({ type: MESSAGE.OPPONENT_CANNON_PLACED, ...msg }),
+    sendOpponentCannonPhantom: (msg) =>
+      config.send({ type: MESSAGE.OPPONENT_CANNON_PHANTOM, ...msg }),
+    sendOpponentPiecePlaced: (msg) =>
+      config.send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...msg }),
+    sendOpponentPhantom: (msg) =>
+      config.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg }),
+    sendBuildEnd: (msg) => config.send({ type: MESSAGE.BUILD_END, ...msg }),
     hostNetworking: config.onlineConfig?.hostNetworking,
     watcherTiming: config.onlineConfig?.watcherTiming,
     extendCrosshairs: config.onlineConfig?.extendCrosshairs,

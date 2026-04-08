@@ -7,6 +7,7 @@
 
 import { dialogFacade } from "../game/dialog-facade.ts";
 import { BANNER_DURATION } from "../shared/game-constants.ts";
+import type { EntityOverlay } from "../shared/overlay-types.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import {
   assertStateReady,
@@ -43,6 +44,8 @@ interface BannerSystem {
   clearSnapshots: () => void;
   /** Reset banner state for game restart / rematch. */
   reset: () => void;
+  /** Store entity snapshot for banner before/after comparison. */
+  setPrevEntities: (entities: EntityOverlay) => void;
 }
 
 export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
@@ -98,5 +101,11 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
     runtimeState.banner = dialogFacade.createBannerState();
   }
 
-  return { showBanner, tickBanner, clearSnapshots, reset };
+  /** Store an entity snapshot for the banner's before/after comparison.
+   *  Called by selection before finalizeAndEnterCannonPhase mutates state. */
+  function setPrevEntities(entities: EntityOverlay): void {
+    runtimeState.banner.prevEntities = entities;
+  }
+
+  return { showBanner, tickBanner, clearSnapshots, reset, setPrevEntities };
 }

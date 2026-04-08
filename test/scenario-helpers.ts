@@ -47,7 +47,7 @@ import {
   createHeadlessRuntime,
   type HeadlessRuntime,
   processHeadlessReselection,
-} from "../src/runtime/runtime-headless.ts";
+} from "./runtime-headless.ts";
 import type { PieceShape } from "../src/shared/pieces.ts";
 import {
   computeFrameContext,

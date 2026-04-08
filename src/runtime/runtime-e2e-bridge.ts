@@ -183,7 +183,7 @@ let bridge: E2EBridge | undefined;
 export function exposeE2EBridge(deps: E2EBridgeDeps): void {
   if (typeof window === "undefined") return;
 
-  const { runtimeState: runtimeState, config } = deps;
+  const { runtimeState, config } = deps;
   const win = globalThis as unknown as Record<string, unknown>;
 
   if (bridge === undefined) {

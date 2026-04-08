@@ -147,7 +147,7 @@
       "src/runtime/runtime-banner.ts",
       "src/runtime/runtime-human.ts",
       "src/runtime/runtime-bootstrap.ts",
-      "src/runtime/runtime-headless.ts",
+
       "src/runtime/runtime-types.ts",
       "src/runtime/runtime-camera.ts",
       "src/runtime/runtime-e2e-bridge.ts",

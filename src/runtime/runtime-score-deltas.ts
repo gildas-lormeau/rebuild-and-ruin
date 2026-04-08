@@ -115,7 +115,7 @@ export function createScoreDeltaSystem(deps: ScoreDeltaDeps): ScoreDeltaSystem {
   }
 
   function isActive(): boolean {
-    return runtimeState.scoreDisplay.deltaOnDone !== null;
+    return runtimeState.scoreDisplay.deltaTimer > 0;
   }
 
   function reset(): void {

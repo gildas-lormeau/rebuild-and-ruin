@@ -9,7 +9,7 @@
  *   This prevents accidental omission — the compiler enforces the choice.
  */
 
-import { type BattleEvent, MESSAGE } from "../../server/protocol.ts";
+import type { BattleEvent, GameMessage } from "../../server/protocol.ts";
 import { phaseTickFacade } from "../game/phase-tick-facade.ts";
 import {
   BALLOON_FLIGHT_DURATION,
@@ -44,6 +44,12 @@ import type {
   RuntimeLifeLost,
 } from "./runtime-types.ts";
 
+/** Extract the payload (all fields except `type`) from a discriminated GameMessage variant. */
+type MsgPayload<T extends GameMessage["type"]> = Omit<
+  Extract<GameMessage, { type: T }>,
+  "type"
+>;
+
 interface PhaseTicksDeps
   extends Pick<RuntimeConfig, "send" | "log">,
     Partial<
@@ -58,6 +64,15 @@ interface PhaseTicksDeps
       >
     > {
   runtimeState: RuntimeState;
+
+  // Pre-built message senders — protocol knowledge stays in composition root.
+  // For local play these close over the config no-op send; for online they
+  // construct the typed GameMessage and send it over the wire.
+  sendOpponentCannonPlaced: (msg: MsgPayload<"opponentCannonPlaced">) => void;
+  sendOpponentCannonPhantom: (msg: MsgPayload<"opponentCannonPhantom">) => void;
+  sendOpponentPiecePlaced: (msg: MsgPayload<"opponentPiecePlaced">) => void;
+  sendOpponentPhantom: (msg: MsgPayload<"opponentPhantom">) => void;
+  sendBuildEnd: (msg: MsgPayload<"buildEnd">) => void;
 
   // Sibling systems / parent callbacks
   render: () => void;
@@ -323,10 +338,8 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         remoteCannonPhantoms: deps.hostNetworking?.remoteCannonPhantoms() ?? [],
         lastSentCannonPhantom:
           deps.hostNetworking?.lastSentCannonPhantom() ?? NOOP_DEDUP_CHANNEL,
-        sendOpponentCannonPlaced: (msg) =>
-          deps.send({ type: MESSAGE.OPPONENT_CANNON_PLACED, ...msg }),
-        sendOpponentCannonPhantom: (msg) =>
-          deps.send({ type: MESSAGE.OPPONENT_CANNON_PHANTOM, ...msg }),
+        sendOpponentCannonPlaced: deps.sendOpponentCannonPlaced,
+        sendOpponentCannonPhantom: deps.sendOpponentCannonPhantom,
       },
     });
   }
@@ -420,11 +433,9 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
         lastSentPiecePhantom:
           deps.hostNetworking?.lastSentPiecePhantom() ?? NOOP_DEDUP_CHANNEL,
         serializePlayers: deps.hostNetworking?.serializePlayers,
-        sendOpponentPiecePlaced: (msg) =>
-          deps.send({ type: MESSAGE.OPPONENT_PIECE_PLACED, ...msg }),
-        sendOpponentPhantom: (msg) =>
-          deps.send({ type: MESSAGE.OPPONENT_PHANTOM, ...msg }),
-        sendBuildEnd: (msg) => deps.send({ type: MESSAGE.BUILD_END, ...msg }),
+        sendOpponentPiecePlaced: deps.sendOpponentPiecePlaced,
+        sendOpponentPhantom: deps.sendOpponentPhantom,
+        sendBuildEnd: deps.sendBuildEnd,
       },
     });
   }
