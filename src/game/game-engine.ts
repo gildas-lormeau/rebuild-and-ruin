@@ -13,7 +13,6 @@
  * Phase transition recipes live in phase-setup.ts.
  */
 
-import { ageImpacts, type Impact } from "../shared/battle-types.ts";
 import { EMPTY_FEATURES } from "../shared/feature-defs.ts";
 import type { GameMode, ModifierDiff } from "../shared/game-constants.ts";
 import {
@@ -210,42 +209,4 @@ export function finalizeAndEnterCannonPhase(state: GameState): void {
 export function enterCannonPlacePhase(state: GameState): void {
   setPhase(state, Phase.CANNON_PLACE);
   state.timer = 0;
-}
-
-/** Tick game core: age impacts, dispatch to phase handlers. */
-export function tickGameCore(params: {
-  dt: number;
-  state: GameState;
-  battleAnim: { impacts: Impact[] };
-  impactFlashDuration: number;
-  tickCannonPhase: (dt: number) => void;
-  tickBattleCountdown: (dt: number) => void;
-  tickBattlePhase: (dt: number) => void;
-  tickBuildPhase: (dt: number) => void;
-}): void {
-  const {
-    dt,
-    state,
-    battleAnim,
-    impactFlashDuration,
-    tickCannonPhase,
-    tickBattleCountdown,
-    tickBattlePhase,
-    tickBuildPhase,
-  } = params;
-
-  // Age and filter impact flashes regardless of phase
-  ageImpacts(battleAnim, dt, impactFlashDuration);
-
-  if (state.phase === Phase.CANNON_PLACE) {
-    tickCannonPhase(dt);
-  } else if (state.phase === Phase.BATTLE) {
-    if (state.battleCountdown > 0) {
-      tickBattleCountdown(dt);
-    } else {
-      tickBattlePhase(dt);
-    }
-  } else if (state.phase === Phase.WALL_BUILD) {
-    tickBuildPhase(dt);
-  }
 }

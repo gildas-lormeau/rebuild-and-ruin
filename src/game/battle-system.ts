@@ -194,16 +194,11 @@ export function tickCannonballs(
         // Suppress combo scoring for non-center tiles so a single mortar
         // shot can't inflate wall/grunt streaks from splash alone.
         const hitCannons = new Set<string>();
-        const savedTracker = state.modern?.comboTracker ?? null;
         for (let dr = -1; dr <= 1; dr++) {
           for (let dc = -1; dc <= 1; dc++) {
             const splashRow = hit.row + dr;
             const splashCol = hit.col + dc;
             const isCenter = dr === 0 && dc === 0;
-            // Only center tile feeds into combo tracker
-            if (!isCenter && state.modern) {
-              state.modern.comboTracker = null;
-            }
             const splashEvents = computeImpact(
               state,
               splashRow,
@@ -217,11 +212,9 @@ export function tickCannonballs(
                 if (hitCannons.has(key)) continue;
                 hitCannons.add(key);
               }
-              applyImpactEvent(state, evt, shooterId);
+              // Only center tile feeds into combo tracker
+              applyImpactEvent(state, evt, shooterId, !isCenter);
               events.push(evt);
-            }
-            if (!isCenter && state.modern) {
-              state.modern.comboTracker = savedTracker;
             }
           }
         }
@@ -245,7 +238,6 @@ export function tickCannonballs(
               hitCannons.add(`${evt.playerId}:${evt.cannonIdx}`);
             }
           }
-          const savedTracker = state.modern?.comboTracker ?? null;
           let bounceRow = hit.row;
           let bounceCol = hit.col;
           for (let bounce = 0; bounce < RICOCHET_BOUNCES; bounce++) {
@@ -259,7 +251,6 @@ export function tickCannonballs(
             } while (dr === 0 && dc === 0);
             bounceRow = Math.max(0, Math.min(bounceRow + dr, GRID_ROWS - 1));
             bounceCol = Math.max(0, Math.min(bounceCol + dc, GRID_COLS - 1));
-            if (state.modern) state.modern.comboTracker = null;
             const bounceEvents = computeImpact(
               state,
               bounceRow,
@@ -273,10 +264,10 @@ export function tickCannonballs(
                 if (hitCannons.has(key)) continue;
                 hitCannons.add(key);
               }
-              applyImpactEvent(state, evt, shooterId);
+              // Ricochet bounces don't feed into combo tracker
+              applyImpactEvent(state, evt, shooterId, true);
               events.push(evt);
             }
-            if (state.modern) state.modern.comboTracker = savedTracker;
             impacts.push({ row: bounceRow, col: bounceCol });
           }
         }
@@ -333,6 +324,7 @@ export function applyImpactEvent(
   state: GameState,
   event: ImpactEvent,
   shooterId?: number,
+  suppressCombo?: boolean,
 ): void {
   // Interior is intentionally left stale during battle — recomputed at the next
   // phase boundary (recheckTerritoryOnly / finalizeTerritoryWithScoring). This function does NOT
@@ -354,7 +346,8 @@ export function applyImpactEvent(
         const shooter = sid !== undefined ? state.players[sid] : undefined;
         if (shooter && event.playerId !== sid) {
           shooter.score +=
-            DESTROY_WALL_POINTS + scoreImpactCombo(state, COMBO_WALL, sid);
+            DESTROY_WALL_POINTS +
+            (suppressCombo ? 0 : scoreImpactCombo(state, COMBO_WALL, sid));
         }
       }
       break;
@@ -368,7 +361,7 @@ export function applyImpactEvent(
           if (shooter && event.playerId !== sid) {
             shooter.score +=
               DESTROY_CANNON_POINTS +
-              scoreImpactCombo(state, COMBO_CANNON, sid);
+              (suppressCombo ? 0 : scoreImpactCombo(state, COMBO_CANNON, sid));
             if (sid !== undefined && isSalvageActive(state)) {
               state.salvageSlots[sid] = Math.min(
                 (state.salvageSlots[sid] ?? 0) + 1,
@@ -409,7 +402,8 @@ export function applyImpactEvent(
       );
       if (shooter) {
         shooter.score +=
-          DESTROY_GRUNT_POINTS + scoreImpactCombo(state, COMBO_GRUNT, sid);
+          DESTROY_GRUNT_POINTS +
+          (suppressCombo ? 0 : scoreImpactCombo(state, COMBO_GRUNT, sid));
       }
       break;
     }

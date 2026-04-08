@@ -23,9 +23,9 @@ import {
 import { nextPhase } from "../src/game/game-engine.ts";
 import {
   computeCannonLimitsForPhase,
-  eliminatePlayer,
   finalizeBuildPhase,
 } from "../src/game/phase-setup.ts";
+import { eliminatePlayer } from "../src/shared/player-types.ts";
 import { tickGrunts } from "../src/game/grunt-movement.ts";
 import { gruntAttackTowers } from "../src/game/grunt-system.ts";
 import {
@@ -38,9 +38,7 @@ import type {
   CannonStartData,
 } from "../src/shared/checkpoint-data.ts";
 import type { TransitionContext } from "../src/online/online-phase-transitions.ts";
-import {
-  showBannerTransition,
-} from "../src/game/phase-banner.ts";
+import { showBannerTransition } from "../src/runtime/runtime-banner.ts";
 import { PLAYER_COLORS } from "../src/shared/player-config.ts";
 import { createCameraSystem } from "../src/runtime/runtime-camera.ts";
 import {

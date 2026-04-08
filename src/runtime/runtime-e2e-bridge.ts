@@ -6,7 +6,6 @@
  * tests. Replaces the old runtime-test-globals.ts.
  */
 
-import { collectEnemyTargets } from "../game/debug-grid.ts";
 import { computeLetterboxLayout } from "../shared/canvas-layout.ts";
 import { Phase } from "../shared/game-phase.ts";
 import { TILE_SIZE } from "../shared/grid.ts";
@@ -17,6 +16,7 @@ import {
   getTextSpyLog,
   type TextDraw,
 } from "../shared/render-spy.ts";
+import { tileCenterPx, unpackTile } from "../shared/spatial.ts";
 import { type GameViewState, isHuman } from "../shared/system-interfaces.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import { isStateReady, type RuntimeState } from "./runtime-state.ts";
@@ -466,4 +466,33 @@ function snapshotController(
     cannonMode,
     crosshair: ch ? { x: ch.x, y: ch.y } : null,
   };
+}
+
+/** Collect enemy cannons and walls as pixel positions for E2E battle targeting. */
+function collectEnemyTargets(
+  state: GameViewState,
+  myPid: number,
+): {
+  enemyCannons: { x: number; y: number }[];
+  enemyTargets: { x: number; y: number }[];
+} {
+  const enemyCannons: { x: number; y: number }[] = [];
+  for (const player of state.players) {
+    if (player.id === myPid || player.eliminated) continue;
+    for (const cannon of player.cannons) {
+      if (cannon.hp > 0)
+        enemyCannons.push(tileCenterPx(cannon.row, cannon.col));
+    }
+  }
+
+  const enemyTargets: { x: number; y: number }[] = [...enemyCannons];
+  for (const player of state.players) {
+    if (player.id === myPid || player.eliminated) continue;
+    for (const key of player.walls) {
+      const { r, c } = unpackTile(key);
+      enemyTargets.push(tileCenterPx(r, c));
+    }
+  }
+
+  return { enemyCannons, enemyTargets };
 }

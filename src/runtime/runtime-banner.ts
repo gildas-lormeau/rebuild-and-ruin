@@ -7,13 +7,30 @@
 
 import { dialogFacade } from "../game/dialog-facade.ts";
 import { BANNER_DURATION } from "../shared/game-constants.ts";
+import { Phase } from "../shared/game-phase.ts";
 import type { EntityOverlay } from "../shared/overlay-types.ts";
+import type { GameState } from "../shared/types.ts";
+import type { BannerState } from "../shared/ui-contracts.ts";
 import { Mode } from "../shared/ui-mode.ts";
 import {
   assertStateReady,
   type RuntimeState,
   setMode,
 } from "./runtime-state.ts";
+
+interface ShowBannerDeps {
+  banner: BannerState;
+  state: GameState;
+  battleAnim: { territory: Set<number>[]; walls: Set<number>[] };
+  text: string;
+  subtitle?: string;
+  onDone: () => void;
+  /** When true, snapshot old castles/territory/walls before transitioning
+   *  so the banner can show a before/after visual comparison. */
+  preservePrevScene?: boolean;
+  newBattle?: { territory: Set<number>[]; walls: Set<number>[] };
+  setModeBanner: () => void;
+}
 
 interface BannerSystemDeps {
   readonly runtimeState: RuntimeState;
@@ -66,7 +83,7 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
         `showBanner "${text}" while banner "${runtimeState.banner.text}" is still active`,
       );
     }
-    dialogFacade.showBannerTransition({
+    showBannerTransition({
       banner: runtimeState.banner,
       state: runtimeState.state,
       battleAnim: runtimeState.battleAnim,
@@ -108,4 +125,52 @@ export function createBannerSystem(deps: BannerSystemDeps): BannerSystem {
   }
 
   return { showBanner, tickBanner, clearSnapshots, reset, setPrevEntities };
+}
+
+/** Set up banner state for a phase transition.
+ *  Snapshots castles/territory/entities when preservePrevScene is true
+ *  so the banner can show a before/after visual comparison. */
+export function showBannerTransition(deps: ShowBannerDeps): void {
+  const {
+    banner,
+    state,
+    battleAnim,
+    text,
+    subtitle,
+    onDone,
+    preservePrevScene = false,
+    newBattle,
+    setModeBanner,
+  } = deps;
+
+  // Consume pre-sweep wall snapshot if stashed before finalizeBuildPhase
+  const pendingWalls = banner.wallsBeforeSweep;
+  banner.wallsBeforeSweep = undefined;
+
+  if (preservePrevScene) {
+    banner.prevCastles ??= dialogFacade.snapshotCastles(state, pendingWalls);
+    banner.prevTerritory ??=
+      state.phase === Phase.BATTLE
+        ? battleAnim.territory?.map((territory) => new Set(territory))
+        : undefined;
+    banner.prevWalls ??=
+      state.phase === Phase.BATTLE
+        ? battleAnim.walls?.map((wall) => new Set(wall))
+        : undefined;
+    banner.prevEntities ??= dialogFacade.snapshotEntities(state);
+  } else {
+    banner.prevCastles = undefined;
+    banner.prevTerritory = undefined;
+    banner.prevWalls = undefined;
+    banner.prevEntities = undefined;
+  }
+
+  banner.newTerritory = newBattle?.territory;
+  banner.newWalls = newBattle?.walls;
+  banner.active = true;
+  banner.progress = 0;
+  banner.text = text;
+  banner.subtitle = subtitle;
+  banner.callback = onDone;
+  setModeBanner();
 }

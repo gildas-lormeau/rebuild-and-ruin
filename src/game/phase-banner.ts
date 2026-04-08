@@ -1,22 +1,7 @@
-import { Phase } from "../shared/game-phase.ts";
 import type { CastleData, EntityOverlay } from "../shared/overlay-types.ts";
 import type { GameState } from "../shared/types.ts";
 import type { BannerState } from "../shared/ui-contracts.ts";
 import { fireOnce } from "../shared/utils.ts";
-
-interface ShowBannerDeps {
-  banner: BannerState;
-  state: GameState;
-  battleAnim: { territory: Set<number>[]; walls: Set<number>[] };
-  text: string;
-  subtitle?: string;
-  onDone: () => void;
-  /** When true, snapshot old castles/territory/walls before transitioning
-   *  so the banner can show a before/after visual comparison. */
-  preservePrevScene?: boolean;
-  newBattle?: { territory: Set<number>[]; walls: Set<number>[] };
-  setModeBanner: () => void;
-}
 
 export type BannerShow = (
   text: string,
@@ -39,54 +24,9 @@ export const BANNER_SELECT = "Select your home castle";
 export const BANNER_BATTLE_ONLINE = "Battle!";
 export const BANNER_REPAIR_ONLINE = "Repair!";
 
-export function showBannerTransition(deps: ShowBannerDeps): void {
-  const {
-    banner,
-    state,
-    battleAnim,
-    text,
-    subtitle,
-    onDone,
-    preservePrevScene = false,
-    newBattle,
-    setModeBanner,
-  } = deps;
-
-  // Consume pre-sweep wall snapshot if stashed before finalizeBuildPhase
-  const pendingWalls = banner.wallsBeforeSweep;
-  banner.wallsBeforeSweep = undefined;
-
-  if (preservePrevScene) {
-    banner.prevCastles ??= snapshotCastles(state, pendingWalls);
-    banner.prevTerritory ??=
-      state.phase === Phase.BATTLE
-        ? battleAnim.territory?.map((territory) => new Set(territory))
-        : undefined;
-    banner.prevWalls ??=
-      state.phase === Phase.BATTLE
-        ? battleAnim.walls?.map((wall) => new Set(wall))
-        : undefined;
-    banner.prevEntities ??= snapshotEntities(state);
-  } else {
-    banner.prevCastles = undefined;
-    banner.prevTerritory = undefined;
-    banner.prevWalls = undefined;
-    banner.prevEntities = undefined;
-  }
-
-  banner.newTerritory = newBattle?.territory;
-  banner.newWalls = newBattle?.walls;
-  banner.active = true;
-  banner.progress = 0;
-  banner.text = text;
-  banner.subtitle = subtitle;
-  banner.callback = onDone;
-  setModeBanner();
-}
-
 /** Pre-capture old battle scene into banner state before nextPhase/checkpoint
  *  mutates the game state.  Must be called while state.phase is still BATTLE.
- *  showBannerTransition uses ??= so these pre-set values survive intact. */
+ *  showBannerTransition (runtime-banner.ts) uses ??= so these pre-set values survive intact. */
 export function capturePrevBattleScene(
   banner: {
     prevCastles?: CastleData[];

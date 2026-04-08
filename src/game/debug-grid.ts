@@ -9,7 +9,7 @@
 import { TOWER_SIZE } from "../shared/game-constants.ts";
 import { GRID_COLS, GRID_ROWS, TILE_SIZE } from "../shared/grid.ts";
 import { PLAYER_NAMES } from "../shared/player-config.ts";
-import { isWater, tileCenterPx, unpackTile } from "../shared/spatial.ts";
+import { isWater, unpackTile } from "../shared/spatial.ts";
 import type { GameState } from "../shared/types.ts";
 
 export type MapLayer = "all" | "terrain" | "walls";
@@ -40,11 +40,6 @@ export interface Rect {
   maxRow: number;
   minCol: number;
   maxCol: number;
-}
-
-interface TargetingSnapshot {
-  enemyCannons: { x: number; y: number }[];
-  enemyTargets: { x: number; y: number }[];
 }
 
 export function buildGrid(
@@ -183,32 +178,6 @@ export function buildLegend(state: GameState): string {
     "C cannon  x debris  ! grunt  * burning pit  + bonus  o cannonball",
     "Walls: r=Red  b=Blue  g=Gold  |  Cannons: R=Red  B=Blue  G=Gold",
   ].join("\n");
-}
-
-/** Collect enemy cannons and walls as pixel positions for E2E battle targeting. */
-export function collectEnemyTargets(
-  state: GameState,
-  myPid: number,
-): TargetingSnapshot {
-  const enemyCannons: { x: number; y: number }[] = [];
-  for (const player of state.players) {
-    if (player.id === myPid || player.eliminated) continue;
-    for (const cannon of player.cannons) {
-      if (cannon.hp > 0)
-        enemyCannons.push(tileCenterPx(cannon.row, cannon.col));
-    }
-  }
-
-  const enemyTargets: { x: number; y: number }[] = [...enemyCannons];
-  for (const player of state.players) {
-    if (player.id === myPid || player.eliminated) continue;
-    for (const key of player.walls) {
-      const { r, c } = unpackTile(key);
-      enemyTargets.push(tileCenterPx(r, c));
-    }
-  }
-
-  return { enemyCannons, enemyTargets };
 }
 
 function setCell(

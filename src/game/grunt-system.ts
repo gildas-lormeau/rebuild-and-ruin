@@ -89,8 +89,9 @@ export function findGruntSpawnNear(
   const queue: TilePos[] = [{ row: posRow, col: posCol }];
   visited.add(packTile(posRow, posCol));
 
-  while (queue.length > 0) {
-    const { row: r, col: c } = queue.shift()!;
+  let head = 0;
+  while (head < queue.length) {
+    const { row: r, col: c } = queue[head++]!;
 
     if (isValidGruntSpawnTile(state, r, c)) {
       return { row: r, col: c };

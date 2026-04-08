@@ -75,6 +75,7 @@
     "name": "first logic",
     "files": [
       "server/room-manager.ts",
+      "src/ai/ai-upgrade-pick.ts",
       "src/game/combo-system.ts",
       "src/game/debug-grid.ts",
       "src/game/life-lost.ts",

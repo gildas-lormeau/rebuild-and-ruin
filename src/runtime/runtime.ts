@@ -10,6 +10,7 @@
  */
 
 import { MESSAGE } from "../../server/protocol.ts";
+import { aiPickUpgrade } from "../ai/ai-upgrade-pick.ts";
 import { phaseTickFacade } from "../game/phase-tick-facade.ts";
 import { selectionFacade } from "../game/selection-facade.ts";
 import { createHapticsSystem } from "../input/haptics-system.ts";
@@ -396,6 +397,8 @@ export function createGameRuntime(config: RuntimeConfig): GameRuntime {
       ? (playerId, choice) =>
           config.send({ type: MESSAGE.UPGRADE_PICK, playerId, choice })
       : undefined,
+    aiPick: (offers, playerId) =>
+      aiPickUpgrade(offers, runtimeState.state, playerId),
   });
 
   // -------------------------------------------------------------------------

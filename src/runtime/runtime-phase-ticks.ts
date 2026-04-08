@@ -16,12 +16,14 @@ import type {
   PiecePlacedPayload,
 } from "../game/phase-tick-facade.ts";
 import { phaseTickFacade } from "../game/phase-tick-facade.ts";
+import { ageImpacts } from "../shared/battle-types.ts";
 import {
   BALLOON_FLIGHT_DURATION,
   BATTLE_COUNTDOWN,
   BATTLE_TIMER,
   IMPACT_FLASH_DURATION,
 } from "../shared/game-constants.ts";
+import { Phase } from "../shared/game-phase.ts";
 import {
   filterAlivePhantoms,
   NOOP_DEDUP_CHANNEL,
@@ -454,22 +456,23 @@ export function createPhaseTicksSystem(deps: PhaseTicksDeps): PhaseTicksSystem {
   function tickGame(dt: number) {
     assertStateReady(runtimeState);
     if (runtimeState.frameMeta.hostAtFrameStart) {
-      phaseTickFacade.tickGameCore({
-        dt,
-        state: runtimeState.state,
-        battleAnim: runtimeState.battleAnim,
-        impactFlashDuration: IMPACT_FLASH_DURATION,
-        tickCannonPhase,
-        tickBattleCountdown,
-        tickBattlePhase,
-        tickBuildPhase,
-      });
+      // Age and filter impact flashes regardless of phase
+      ageImpacts(runtimeState.battleAnim, dt, IMPACT_FLASH_DURATION);
+
+      const { phase } = runtimeState.state;
+      if (phase === Phase.CANNON_PLACE) {
+        tickCannonPhase(dt);
+      } else if (phase === Phase.BATTLE) {
+        if (runtimeState.state.battleCountdown > 0) {
+          tickBattleCountdown(dt);
+        } else {
+          tickBattlePhase(dt);
+        }
+      } else if (phase === Phase.WALL_BUILD) {
+        tickBuildPhase(dt);
+      }
     } else {
-      phaseTickFacade.ageImpacts(
-        runtimeState.battleAnim,
-        dt,
-        IMPACT_FLASH_DURATION,
-      );
+      ageImpacts(runtimeState.battleAnim, dt, IMPACT_FLASH_DURATION);
       deps.tickNonHost?.(dt);
       deps.render();
     }

@@ -40,6 +40,12 @@ interface UpgradePickSystemDeps {
     playerId: ValidPlayerSlot,
     choice: UpgradeId,
   ) => void;
+  /** AI-aware upgrade pick callback. Injected from composition root so
+   *  this subsystem doesn't import from ai/ directly. */
+  readonly aiPick: (
+    offers: readonly [UpgradeId, UpgradeId, UpgradeId],
+    playerId: ValidPlayerSlot,
+  ) => UpgradeId;
 }
 
 export interface UpgradePickSystem {
@@ -122,6 +128,7 @@ export function createUpgradePickSystem(
       dialogFacade.UPGRADE_PICK_AUTO_DELAY,
       dialogFacade.UPGRADE_PICK_MAX_TIMER,
       runtimeState.state,
+      deps.aiPick,
     );
 
     deps.render();

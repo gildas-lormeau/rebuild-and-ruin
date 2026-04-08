@@ -6,7 +6,7 @@
  * individual game/ files.
  */
 
-import { ageImpacts, clearImpacts } from "../shared/battle-types.ts";
+import { clearImpacts } from "../shared/battle-types.ts";
 import {
   accumulateBattleStats,
   collectLocalCrosshairs,
@@ -16,7 +16,7 @@ import {
 } from "./battle-system.ts";
 import { applyDefaultFacings } from "./cannon-system.ts";
 import { localFire, localPlacePiece } from "./game-actions.ts";
-import { isCeasefireActive, nextPhase, tickGameCore } from "./game-engine.ts";
+import { isCeasefireActive, nextPhase } from "./game-engine.ts";
 import { tickGrunts } from "./grunt-movement.ts";
 import { gruntAttackTowers, tickBreachSpawnQueue } from "./grunt-system.ts";
 import {
@@ -54,7 +54,6 @@ export type {
 } from "./host-phase-ticks.ts";
 
 export const phaseTickFacade = {
-  ageImpacts,
   clearImpacts,
   accumulateBattleStats,
   collectLocalCrosshairs,
@@ -66,7 +65,6 @@ export const phaseTickFacade = {
   localFire,
   localPlacePiece,
   nextPhase,
-  tickGameCore,
   tickGrunts,
   gruntAttackTowers,
   tickBreachSpawnQueue,

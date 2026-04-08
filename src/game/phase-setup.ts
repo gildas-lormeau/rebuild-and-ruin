@@ -100,9 +100,6 @@ import {
   rollModifier,
 } from "./round-modifiers.ts";
 
-// eliminatePlayer re-exported from player-types.ts for backward compat
-export { eliminatePlayer } from "../shared/player-types.ts";
-
 interface ScoreDelta {
   playerId: ValidPlayerSlot;
   delta: number;

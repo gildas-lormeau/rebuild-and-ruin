@@ -1,4 +1,3 @@
-import { GRID_COLS, GRID_ROWS } from "../shared/grid.ts";
 import {
   type AutoResolveDeps,
   shouldAutoResolve,
@@ -6,7 +5,6 @@ import {
   type UpgradePickEntry,
 } from "../shared/interaction-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
-import { isGrass } from "../shared/spatial.ts";
 import type { GameState } from "../shared/types.ts";
 import { UID, type UpgradeId } from "../shared/upgrade-defs.ts";
 
@@ -14,7 +12,6 @@ interface CreateUpgradePickDeps extends AutoResolveDeps {
   readonly state: GameState;
 }
 
-const SMALL_PIECES_TERRITORY_RATIO = 0.8;
 /** Auto-resolve delay before auto-picking (seconds). */
 export const UPGRADE_PICK_AUTO_DELAY = 1.5;
 /** Max time before force-picking for pending players (seconds). */
@@ -50,7 +47,9 @@ export function createUpgradePickDialog(
 
 /** Tick the upgrade pick dialog. Auto-resolve entries pick after a delay;
  *  max timer force-picks for all remaining entries.
- *  Returns true when all entries are resolved. */
+ *  Returns true when all entries are resolved.
+ *  @param aiPick — Optional AI pick callback; when provided, auto-resolve
+ *    entries use contextual selection instead of random. */
 // Parallel structure with tickLifeLostDialog (life-lost.ts) — both loop entries for auto-resolve + force-resolve.
 export function tickUpgradePickDialog(
   dialog: UpgradePickDialogState,
@@ -58,6 +57,10 @@ export function tickUpgradePickDialog(
   autoDelay: number,
   maxTimer: number,
   state?: GameState,
+  aiPick?: (
+    offers: readonly [UpgradeId, UpgradeId, UpgradeId],
+    playerId: ValidPlayerSlot,
+  ) => UpgradeId,
 ): boolean {
   dialog.timer += dt;
 
@@ -67,8 +70,8 @@ export function tickUpgradePickDialog(
     if (entry.autoResolve) {
       entry.autoTimer += dt;
       if (entry.autoTimer >= autoDelay) {
-        entry.choice = state
-          ? aiPickUpgrade(entry.offers, state, entry.playerId)
+        entry.choice = aiPick
+          ? aiPick(entry.offers, entry.playerId)
           : randomPickUpgrade(entry.offers);
       }
     }
@@ -140,107 +143,4 @@ function randomPickUpgrade(
 ): UpgradeId {
   if (!state) return offers[0];
   return offers[Math.floor(state.rng.next() * offers.length)]!;
-}
-
-/** AI-aware pick: contextual upgrade selection based on game state. */
-function aiPickUpgrade(
-  offers: readonly [UpgradeId, UpgradeId, UpgradeId],
-  state: GameState,
-  playerId: ValidPlayerSlot,
-): UpgradeId {
-  const hasDeadTowers = playerHasDeadTowers(state, playerId);
-  if (hasDeadTowers && offers.includes(UID.SECOND_WIND)) {
-    return UID.SECOND_WIND;
-  }
-  const hasGruntsInZone = playerHasGruntsInZone(state, playerId);
-  if (hasGruntsInZone && offers.includes(UID.CLEAR_THE_FIELD)) {
-    return UID.CLEAR_THE_FIELD;
-  }
-  const hasPits = playerHasBurningPitsInZone(state, playerId);
-  if (hasPits && offers.includes(UID.FOUNDATIONS)) {
-    return UID.FOUNDATIONS;
-  }
-  // Mortar is strong when player has few cannons (catch-up mechanic)
-  if (offers.includes(UID.MORTAR) && playerCannonCount(state, playerId) <= 3) {
-    return UID.MORTAR;
-  }
-  const largeTerritory =
-    playerTerritoryRatio(state, playerId) >= SMALL_PIECES_TERRITORY_RATIO;
-  if (largeTerritory && offers.includes(UID.SMALL_PIECES)) {
-    return UID.SMALL_PIECES;
-  }
-  // Exclude contextual upgrades when conditions aren't met
-  const excluded = new Set<UpgradeId>();
-  if (!hasDeadTowers) excluded.add(UID.SECOND_WIND);
-  if (!hasGruntsInZone) excluded.add(UID.CLEAR_THE_FIELD);
-  if (!hasPits) excluded.add(UID.FOUNDATIONS);
-  if (!largeTerritory) excluded.add(UID.SMALL_PIECES);
-  const viable = offers.filter((id) => !excluded.has(id));
-  const pool = viable.length > 0 ? viable : offers;
-  return pool[Math.floor(state.rng.next() * pool.length)]!;
-}
-
-function playerTerritoryRatio(
-  state: GameState,
-  playerId: ValidPlayerSlot,
-): number {
-  const player = state.players[playerId];
-  if (!player?.homeTower || player.interior.size === 0) return 0;
-  const zone = player.homeTower.zone;
-  let zoneGrassCount = 0;
-  for (let row = 0; row < GRID_ROWS; row++) {
-    for (let col = 0; col < GRID_COLS; col++) {
-      if (
-        isGrass(state.map.tiles, row, col) &&
-        state.map.zones[row]![col] === zone
-      ) {
-        zoneGrassCount++;
-      }
-    }
-  }
-  return zoneGrassCount > 0 ? player.interior.size / zoneGrassCount : 0;
-}
-
-function playerHasDeadTowers(
-  state: GameState,
-  playerId: ValidPlayerSlot,
-): boolean {
-  const player = state.players[playerId];
-  if (!player) return false;
-  return player.ownedTowers.some((tower) => !state.towerAlive[tower.index]);
-}
-
-function playerHasGruntsInZone(
-  state: GameState,
-  playerId: ValidPlayerSlot,
-): boolean {
-  const player = state.players[playerId];
-  if (!player?.homeTower) return false;
-  const zone = player.homeTower.zone;
-  return state.grunts.some(
-    (grunt) => state.map.zones[grunt.row]?.[grunt.col] === zone,
-  );
-}
-
-function playerHasBurningPitsInZone(
-  state: GameState,
-  playerId: ValidPlayerSlot,
-): boolean {
-  const player = state.players[playerId];
-  if (!player?.homeTower) return false;
-  const zone = player.homeTower.zone;
-  return state.burningPits.some(
-    (pit) => state.map.zones[pit.row]?.[pit.col] === zone,
-  );
-}
-
-function playerCannonCount(
-  state: GameState,
-  playerId: ValidPlayerSlot,
-): number {
-  const player = state.players[playerId];
-  if (!player) return 0;
-  return player.cannons.filter(
-    (cannon) => cannon.hp > 0 && cannon.mode !== "balloon",
-  ).length;
 }

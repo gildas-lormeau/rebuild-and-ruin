@@ -19,7 +19,7 @@ import {
   executeTransition,
   showBattlePhaseBanner,
 } from "../src/game/phase-transition-steps.ts";
-import { showBannerTransition } from "../src/game/phase-banner.ts";
+import { showBannerTransition } from "../src/runtime/runtime-banner.ts";
 import {
   assertPhase,
   createScenario,
