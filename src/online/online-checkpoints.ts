@@ -195,11 +195,12 @@ export function applyBuildStartCheckpoint(
 }
 
 /** Apply a build-end checkpoint: players + host-computed scores.
+ *  Only needs state from deps (no crosshairs/battleAnim/territory to reset).
  *  @param capturePreState — Runs BEFORE applyPlayersCheckpoint overwrites player state.
  *    Use this to capture pre-state (walls, scores, castles) for banner animations. */
 export function applyBuildEndCheckpoint(
   data: BuildEndData,
-  deps: CheckpointDeps,
+  deps: Pick<CheckpointDeps, "state">,
   capturePreState?: () => void,
 ): void {
   capturePreState?.();
