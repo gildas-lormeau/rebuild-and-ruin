@@ -29,23 +29,24 @@ role/abstraction level, not by domain — files from any domain land at their mi
 ### 1. Leaf modules — L0 (22 files)
 ```
 server/send-utils, ai/ai-constants, input/input-recorder, input/input,
-online/online-config, online/online-dom, runtime/router, shared/canvas-layout,
-shared/feature-defs, shared/game-constants, shared/game-phase, shared/grid,
-shared/input-action, shared/jsfxr.d, shared/platform, shared/player-slot,
-shared/render-spy, shared/rng, shared/settings-defs, shared/ui-mode,
+online/online-config, online/online-dom, shared/canvas-layout, shared/feature-defs,
+shared/game-constants, shared/game-phase, shared/grid, shared/input-action,
+shared/jsfxr.d, shared/platform, shared/player-slot, shared/render-spy,
+shared/rng, shared/router, shared/settings-defs, shared/ui-mode,
 shared/upgrade-defs, shared/utils
 ```
 
 ### 2. Foundational definitions — L1 (9 files)
 ```
 entry, online/online-full-state-recovery, render/render-sprites,
-shared/checkpoint-data, shared/interaction-types, shared/geometry-types,
+shared/checkpoint-data, shared/geometry-types, shared/interaction-types,
 shared/modifier-defs, shared/pieces, shared/theme
 ```
 
 ### 3. Derived types — L2 (4 files)
 ```
-ai/ai-build-types, render/render-ui-theme, shared/battle-types, shared/player-config
+ai/ai-build-types, render/render-ui-theme, shared/battle-types,
+shared/player-config
 ```
 
 ### 4. Core game types — L3 (5 files)
@@ -60,89 +61,88 @@ server/game-room, online/online-lobby-ui, online/online-session,
 shared/overlay-types, shared/spatial, shared/system-interfaces, shared/types
 ```
 
-### 6. First logic — L5 (13 files)
+### 6. First logic — L5 (14 files)
 ```
-server/room-manager, game/combo-system, game/life-lost, game/map-generation,
-game/upgrade-pick, input/haptics-system, input/sound-system, render/render-effects,
-render/render-loupe, render/render-towers, shared/board-occupancy,
-shared/tick-context, shared/ui-contracts
+server/room-manager, game/combo-system, game/debug-grid, game/life-lost,
+game/map-generation, game/upgrade-pick, input/haptics-system, input/sound-system,
+render/render-effects, render/render-loupe, render/render-towers,
+shared/board-occupancy, shared/tick-context, shared/ui-contracts
 ```
 
 ### 7. Deep logic — L6 (16 files)
 ```
 server/server, ai/ai-castle-rect, game/cannon-system, game/castle-build,
-game/castle-generation, game/grunt-movement, game/phase-banner, input/input-dispatch,
-input/input-seed-field, input/input-touch-update, online/online-server-lifecycle,
-online/online-types, render/render-composition, render/render-ui-screens,
-render/render-ui-settings, runtime/runtime-state
+game/castle-generation, game/grunt-movement, game/phase-banner,
+input/input-dispatch, input/input-seed-field, input/input-touch-update,
+online/online-server-lifecycle, online/online-types, render/render-composition,
+render/render-ui-screens, render/render-ui-settings, runtime/runtime-state
 ```
 
-### 8. Handlers — L7 (9 files)
+### 8. Handlers — L7 (16 files)
 ```
-ai/ai-build-score, ai/ai-strategy-cannon, game/grunt-system,
+ai/ai-build-score, ai/ai-strategy-cannon, game/dialog-facade, game/grunt-system,
 game/phase-transition-steps, input/input-keyboard, input/input-mouse,
-input/input-touch-canvas, input/input-touch-ui, render/render-ui
-```
-
-### 9. Runtime subsystems — L8 (7 files)
-```
+input/input-touch-canvas, input/input-touch-ui, render/render-ui,
 runtime/dev-console, runtime/runtime-human, runtime/runtime-lobby,
-runtime/runtime-options, runtime/runtime-render, runtime/runtime-score-deltas,
-runtime/runtime-types
+runtime/runtime-options, runtime/runtime-render, runtime/runtime-types
 ```
 
-### 10. System implementations — L9 (10 files)
+### 9. Subsystems — L8 (13 files)
 ```
 ai/ai-build-fallback, game/battle-system, game/build-system,
 game/host-phase-ticks, game/round-modifiers, render/render-map,
-runtime/runtime-camera, runtime/runtime-e2e-bridge,
-runtime/runtime-game-lifecycle, runtime/runtime-input
+runtime/runtime-banner, runtime/runtime-camera, runtime/runtime-e2e-bridge,
+runtime/runtime-game-lifecycle, runtime/runtime-input, runtime/runtime-life-lost,
+runtime/runtime-upgrade-pick
 ```
 
-### 11. Assembly — L10 (9 files)
+### 10. System implementations — L9 (9 files)
 ```
 ai/ai-build-target, ai/ai-strategy-battle, game/game-actions, game/phase-setup,
 online/online-host-crosshairs, online/online-send-actions,
 online/online-watcher-battle, player/controller-types, render/render-canvas
 ```
 
-### 12. Controllers — L11 (9 files)
+### 11. Assembly — L10 (7 files)
 ```
-ai/ai-strategy-build, game/dialog-facade, game/game-engine,
-game/host-battle-ticks, online/online-phase-transitions, online/online-serialize,
-online/online-watcher-tick, player/controller-human, runtime/assembly
+ai/ai-strategy-build, game/game-engine, game/host-battle-ticks,
+online/online-phase-transitions, online/online-serialize,
+online/online-watcher-tick, player/controller-human
+```
+
+### 12. Controllers — L11 (8 files)
+```
+ai/ai-strategy, game/bootstrap-facade, game/phase-tick-facade, game/selection,
+online/online-checkpoints, online/online-host-promotion, online/online-stores,
+player/controller-factory
 ```
 
 ### 13. Orchestration — L12 (10 files)
 ```
-ai/ai-strategy, game/phase-tick-facade, game/selection,
-online/online-checkpoints, online/online-host-promotion, online/online-stores,
-player/controller-factory, runtime/runtime-banner, runtime/runtime-life-lost,
-runtime/runtime-upgrade-pick
+ai/ai-phase-battle, ai/ai-phase-build, ai/ai-phase-cannon, ai/ai-phase-select,
+game/selection-facade, online/online-runtime-transition,
+online/online-server-events, runtime/assembly, runtime/runtime-phase-ticks,
+runtime/runtime-score-deltas
 ```
 
-### 14. Wiring — L13 (10 files)
+### 14. Wiring — L13 (3 files)
 ```
-ai/ai-phase-battle, ai/ai-phase-build, ai/ai-phase-cannon,
-ai/ai-phase-select, game/selection-facade, online/online-runtime-transition,
-online/online-server-events, runtime/runtime-bootstrap, runtime/runtime-headless,
-runtime/runtime-phase-ticks
+ai/controller-ai, runtime/runtime-bootstrap, runtime/runtime-selection
 ```
 
-### 15. Composition roots — L14 (4 files)
+### 15. Composition roots — L14 (3 files)
 ```
-ai/controller-ai, online/online-runtime-promote,
-online/online-runtime-session, runtime/runtime-selection
+online/online-runtime-promote, online/online-runtime-session, runtime/runtime
 ```
 
 ### 16. App roots — L15 (2 files)
 ```
-online/online-runtime-deps, runtime/runtime
+main, online/online-runtime-deps
 ```
 
-### 17. App entry — L16 (2 files)
+### 17. App entry — L16 (1 file)
 ```
-main, online/online-runtime-ws
+online/online-runtime-ws
 ```
 
 ### 18. Online app — L17 (2 files)

@@ -54,7 +54,7 @@ The layer map file. Committed to the repo. An array of named groups — position
 
 **Rule: imports must flow downward.** A file in group N can import from any group 0..N. Importing from group N+1 or higher is a violation.
 
-**Current architecture (19 groups, 0 violations, 151 files incl. server):**
+**Current architecture (19 groups, 0 violations, 152 files incl. server):**
 
 Files are organized into domain directories under `src/`: `shared/`, `game/`, `ai/`, `player/`,
 `input/`, `render/`, `online/`, `runtime/`, with entry points at `src/` root.
@@ -64,15 +64,15 @@ layer dictated by their deepest import.
 ```
  0  leaf modules              server/send-utils, ai/ai-constants, input/input-recorder,
                                 input/input, online/online-config, online/online-dom,
-                                runtime/router, shared/canvas-layout, shared/feature-defs,
+                                shared/canvas-layout, shared/feature-defs,
                                 shared/game-constants, shared/game-phase, shared/grid,
                                 shared/input-action, shared/jsfxr.d, shared/platform,
                                 shared/player-slot, shared/render-spy, shared/rng,
-                                shared/settings-defs, shared/ui-mode, shared/upgrade-defs,
-                                shared/utils
+                                shared/router, shared/settings-defs, shared/ui-mode,
+                                shared/upgrade-defs, shared/utils
  1  foundational definitions  entry, online/online-full-state-recovery, render/render-sprites,
-                                shared/checkpoint-data, shared/interaction-types,
-                                shared/geometry-types, shared/modifier-defs, shared/pieces,
+                                shared/checkpoint-data, shared/geometry-types,
+                                shared/interaction-types, shared/modifier-defs, shared/pieces,
                                 shared/theme
  2  derived types             ai/ai-build-types, render/render-ui-theme, shared/battle-types,
                                 shared/player-config
@@ -81,11 +81,11 @@ layer dictated by their deepest import.
  4  core state & interfaces   server/game-room, online/online-lobby-ui, online/online-session,
                                 shared/overlay-types, shared/spatial, shared/system-interfaces,
                                 shared/types
- 5  first logic               server/room-manager, game/combo-system, game/life-lost,
-                                game/map-generation, game/upgrade-pick, input/haptics-system,
-                                input/sound-system, render/render-effects, render/render-loupe,
-                                render/render-towers, shared/board-occupancy, shared/tick-context,
-                                shared/ui-contracts
+ 5  first logic               server/room-manager, game/combo-system, game/debug-grid,
+                                game/life-lost, game/map-generation, game/upgrade-pick,
+                                input/haptics-system, input/sound-system, render/render-effects,
+                                render/render-loupe, render/render-towers,
+                                shared/board-occupancy, shared/tick-context, shared/ui-contracts
  6  deep logic                server/server, ai/ai-castle-rect, game/cannon-system,
                                 game/castle-build, game/castle-generation, game/grunt-movement,
                                 game/phase-banner, input/input-dispatch, input/input-seed-field,
@@ -93,39 +93,41 @@ layer dictated by their deepest import.
                                 online/online-types, render/render-composition,
                                 render/render-ui-screens, render/render-ui-settings,
                                 runtime/runtime-state
- 7  handlers                  ai/ai-build-score, ai/ai-strategy-cannon, game/grunt-system,
-                                game/phase-transition-steps, input/input-keyboard,
-                                input/input-mouse, input/input-touch-canvas, input/input-touch-ui,
-                                render/render-ui
- 8  runtime subsystems        runtime/dev-console, runtime/runtime-human, runtime/runtime-lobby,
-                                runtime/runtime-options, runtime/runtime-render,
-                                runtime/runtime-score-deltas, runtime/runtime-types
- 9  system implementations    ai/ai-build-fallback, game/battle-system, game/build-system,
+ 7  handlers                  ai/ai-build-score, ai/ai-strategy-cannon, game/dialog-facade,
+                                game/grunt-system, game/phase-transition-steps,
+                                input/input-keyboard, input/input-mouse,
+                                input/input-touch-canvas, input/input-touch-ui, render/render-ui,
+                                runtime/dev-console, runtime/runtime-human,
+                                runtime/runtime-lobby, runtime/runtime-options,
+                                runtime/runtime-render, runtime/runtime-types
+ 8  subsystems                ai/ai-build-fallback, game/battle-system, game/build-system,
                                 game/host-phase-ticks, game/round-modifiers, render/render-map,
-                                runtime/runtime-camera, runtime/runtime-e2e-bridge,
-                                runtime/runtime-game-lifecycle, runtime/runtime-input
-10  assembly                  ai/ai-build-target, ai/ai-strategy-battle, game/game-actions,
+                                runtime/runtime-banner, runtime/runtime-camera,
+                                runtime/runtime-e2e-bridge, runtime/runtime-game-lifecycle,
+                                runtime/runtime-input, runtime/runtime-life-lost,
+                                runtime/runtime-upgrade-pick
+ 9  system implementations    ai/ai-build-target, ai/ai-strategy-battle, game/game-actions,
                                 game/phase-setup, online/online-host-crosshairs,
                                 online/online-send-actions, online/online-watcher-battle,
                                 player/controller-types, render/render-canvas
-11  controllers               ai/ai-strategy-build, game/dialog-facade, game/game-engine,
-                                game/host-battle-ticks, online/online-phase-transitions,
-                                online/online-serialize, online/online-watcher-tick,
-                                player/controller-human, runtime/assembly
-12  orchestration             ai/ai-strategy, game/phase-tick-facade, game/selection,
-                                online/online-checkpoints, online/online-host-promotion,
-                                online/online-stores, player/controller-factory,
-                                runtime/runtime-banner, runtime/runtime-life-lost,
-                                runtime/runtime-upgrade-pick
-13  wiring                    ai/ai-phase-battle, ai/ai-phase-build, ai/ai-phase-cannon,
+10  assembly                  ai/ai-strategy-build, game/game-engine, game/host-battle-ticks,
+                                online/online-phase-transitions, online/online-serialize,
+                                online/online-watcher-tick, player/controller-human
+11  controllers               ai/ai-strategy, game/bootstrap-facade, game/phase-tick-facade,
+                                game/selection, online/online-checkpoints,
+                                online/online-host-promotion, online/online-stores,
+                                player/controller-factory
+12  orchestration             ai/ai-phase-battle, ai/ai-phase-build, ai/ai-phase-cannon,
                                 ai/ai-phase-select, game/selection-facade,
                                 online/online-runtime-transition, online/online-server-events,
-                                runtime/runtime-bootstrap, runtime/runtime-headless,
-                                runtime/runtime-phase-ticks
-14  composition roots         ai/controller-ai, online/online-runtime-promote,
-                                online/online-runtime-session, runtime/runtime-selection
-15  app roots                 online/online-runtime-deps, runtime/runtime
-16  app entry                 main, online/online-runtime-ws
+                                runtime/assembly, runtime/runtime-phase-ticks,
+                                runtime/runtime-score-deltas
+13  wiring                    ai/controller-ai, runtime/runtime-bootstrap,
+                                runtime/runtime-selection
+14  composition roots         online/online-runtime-promote, online/online-runtime-session,
+                                runtime/runtime
+15  app roots                 main, online/online-runtime-deps
+16  app entry                 online/online-runtime-ws
 17  online app                online/online-runtime-game, online/online-runtime-lobby
 18  online entry              online-client
 ```

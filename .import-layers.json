@@ -133,7 +133,7 @@
     ]
   },
   {
-    "name": "runtime subsystems",
+    "name": "subsystems",
     "files": [
       "src/ai/ai-build-fallback.ts",
       "src/game/battle-system.ts",

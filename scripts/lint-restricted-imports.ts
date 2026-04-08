@@ -123,10 +123,10 @@ const RUNTIME_SUBSYSTEMS = new Set([
   "runtime-upgrade-pick.ts",
 ]);
 
-/** Domains that runtime subsystems are allowed to import from. */
+/** Domains that runtime subsystems (L8) are allowed to import from. */
 const ALLOWED_SUBSYSTEM_DOMAINS = new Set(["shared", "runtime"]);
 
-/** game/ facade files that runtime subsystems may import. */
+/** game/ facade files that runtime subsystems (L8) may import. */
 const ALLOWED_GAME_FACADES = new Set([
   "dialog-facade.ts",
   "selection-facade.ts",

@@ -348,8 +348,9 @@ Most entries below were discovered and executed by LLM-based agents under script
 | `createBannerState` trapped in L6 `phase-banner.ts` | Moved to `ui-contracts.ts` (L5) — trivial factory, `BannerState` type already there |
 | `CastleBuildState` + `CastleWallPlan` trapped in L6 `castle-build.ts` | Moved types to `interaction-types.ts` (L1, was dialog-types.ts) — pure structs, fits alongside `LifeLostDialogState` |
 | `dialog-types.ts` name too narrow after adding castle-build types | Renamed to `interaction-types.ts` — holds all transient UI/interaction state types |
-| L7 "handlers" mixed 16 files from 5 domains | Split into L7 "handlers" (9 domain-specific files) + L8 "runtime subsystems" (7 runtime files); zero cross-imports between the groups |
+| L7 "handlers" mixed 16 files from 5 domains | Split into L7 "handlers" (9 domain-specific files) + L8 "subsystems" (7 runtime files); zero cross-imports between the groups |
 | `runtime-state.ts` over-classified in L7 "handlers" | After `createBannerState` + `CastleBuildState` moves, max dep dropped to L5; reclassified to L6 "deep logic" |
 | 7 runtime files over-classified in L8 | After `runtime-state.ts` dropped to L6, max dep for `dev-console`, `runtime-human`, `runtime-lobby`, `runtime-options`, `runtime-render`, `runtime-score-deltas`, `runtime-types` dropped to L6; reclassified to L7 "handlers" |
 | 4 runtime files over-classified in L9 | After `runtime-types.ts` dropped to L7, max dep for `runtime-camera`, `runtime-e2e-bridge`, `runtime-game-lifecycle`, `runtime-input` dropped to L7; reclassified to L8 "system implementations" |
 | `router.ts` misplaced in runtime domain | Moved to `shared/router.ts` — zero deps, used by entry + online; clusters with online in Louvain; pure coordination primitive |
+| L8 "runtime subsystems" naming mismatch | Renamed to "subsystems" — 6/13 files are game/ai/render domain, not runtime |

@@ -2,7 +2,7 @@
  * Screen overlay builders — options, controls, lobby.
  *
  * Pure functions that take a UIContext and return RenderOverlay data.
- * Consumed by runtime subsystems via DI (composition root injects these).
+ * Consumed by subsystems via DI (composition root injects these).
  */
 
 import { GAME_MODE_MODERN } from "../shared/game-constants.ts";
