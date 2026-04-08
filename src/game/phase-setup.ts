@@ -19,6 +19,7 @@ import {
 import { FID } from "../shared/feature-defs.ts";
 import {
   BATTLE_TIMER,
+  DOUBLE_TIME_BONUS_SECONDS,
   MASTER_BUILDER_BONUS_SECONDS,
   MODIFIER_ID,
   type ModifierDiff,
@@ -43,7 +44,7 @@ import type {
   SelectionController,
 } from "../shared/system-interfaces.ts";
 import { type GameState, hasFeature } from "../shared/types.ts";
-import { UID } from "../shared/upgrade-defs.ts";
+import { isGlobalUpgradeActive, UID } from "../shared/upgrade-defs.ts";
 import { cleanupBalloonHitTrackingAfterBattle } from "./battle-system.ts";
 import {
   finalizeTerritoryWithScoring,
@@ -226,8 +227,13 @@ export function enterBuildFromBattle(state: GameState): void {
       : null;
     state.modern!.masterBuilderLockout =
       mbPlayers.length === 1 ? MASTER_BUILDER_BONUS_SECONDS : 0;
+    const doubleTime = isGlobalUpgradeActive(state.players, UID.DOUBLE_TIME)
+      ? DOUBLE_TIME_BONUS_SECONDS
+      : 0;
     state.timer =
-      state.buildTimer + (hasMasterBuilder ? MASTER_BUILDER_BONUS_SECONDS : 0);
+      state.buildTimer +
+      (hasMasterBuilder ? MASTER_BUILDER_BONUS_SECONDS : 0) +
+      doubleTime;
   } else {
     state.timer = state.buildTimer;
   }

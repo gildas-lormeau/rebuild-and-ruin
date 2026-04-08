@@ -19,7 +19,8 @@ export type UpgradeId =
   | "clear_the_field"
   | "ricochet"
   | "shield_battery"
-  | "architect";
+  | "architect"
+  | "double_time";
 
 type UpgradeCategory = "battle" | "build" | "strategic" | "one_use";
 
@@ -78,6 +79,7 @@ export const UID: { readonly [K in string]: UpgradeId } & Record<
   RICOCHET: "ricochet",
   SHIELD_BATTERY: "shield_battery",
   ARCHITECT: "architect",
+  DOUBLE_TIME: "double_time",
 };
 export const UPGRADE_POOL: readonly UpgradeDef[] = [
   // Battle
@@ -150,6 +152,16 @@ export const UPGRADE_POOL: readonly UpgradeDef[] = [
     weight: WEIGHT_UNCOMMON,
     oneUse: false,
     global: false,
+    implemented: true,
+  },
+  {
+    id: "double_time",
+    label: "Double Time",
+    description: "+10s build time for all players",
+    category: BUILD,
+    weight: WEIGHT_COMMON,
+    oneUse: false,
+    global: true,
     implemented: true,
   },
   {
