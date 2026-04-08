@@ -180,6 +180,7 @@ const BANNER_BATTLE_ONLINE = "Battle!";
 const BANNER_REPAIR_ONLINE = "Repair!";
 
 /** Watcher-only: processes CASTLE_WALLS from host (triggers castle build animation). */
+/** Mode timing: setMode(CASTLE_BUILD) immediately. See TransitionContext JSDoc. */
 export function handleCastleWallsTransition(
   msg: ServerMessage,
   transitionCtx: TransitionContext,
@@ -217,6 +218,7 @@ export function handleCastleWallsTransition(
 }
 
 /** Watcher-only: processes CANNON_START checkpoint and transitions to cannon phase. */
+/** Mode timing: setMode(GAME) inside banner onComplete. See TransitionContext JSDoc. */
 export function handleCannonStartTransition(
   msg: ServerMessage,
   transitionCtx: TransitionContext,
@@ -272,6 +274,7 @@ export function handleCannonStartTransition(
 }
 
 /** Watcher-only: processes BATTLE_START checkpoint and transitions to battle phase. */
+/** Mode timing: setMode via BALLOON_ANIM or beginBattle() inside banner callback. See TransitionContext JSDoc. */
 export function handleBattleStartTransition(
   msg: ServerMessage,
   transitionCtx: TransitionContext,
@@ -339,7 +342,8 @@ export function handleBattleStartTransition(
   });
 }
 
-/** Watcher-only: processes BUILD_START checkpoint and transitions to build phase. */
+/** Watcher-only: processes BUILD_START checkpoint and transitions to build phase.
+ *  Mode timing: setMode(GAME) inside banner onComplete. See TransitionContext JSDoc. */
 export function handleBuildStartTransition(
   msg: ServerMessage,
   transitionCtx: TransitionContext,
@@ -447,6 +451,7 @@ export function handleBuildEndTransition(
   });
 }
 
+/** Mode timing: setMode(STOPPED) immediately. See TransitionContext JSDoc. */
 export function handleGameOverTransition(
   msg: ServerMessage,
   transitionCtx: TransitionContext,

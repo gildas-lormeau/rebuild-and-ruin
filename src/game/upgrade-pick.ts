@@ -61,6 +61,9 @@ export function createUpgradePickDialog(
 /** Tick the upgrade pick dialog. Auto-resolve entries pick after a delay;
  *  max timer force-picks for all remaining entries.
  *  Returns true when all entries are resolved.
+ *  @param dt — Delta time in seconds (not ms).
+ *  @param autoDelay — Per-entry auto-resolve delay in seconds.
+ *  @param maxTimer — Global force-resolve deadline in seconds.
  *  @param aiPick — Optional AI pick callback; when provided, auto-resolve
  *    entries use contextual selection instead of random. */
 // Parallel structure with tickLifeLostDialog (life-lost.ts) — both loop entries for auto-resolve + force-resolve.

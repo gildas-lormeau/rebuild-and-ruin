@@ -143,7 +143,9 @@ export interface BuildStartMessage extends BuildStartData {
 /** End of build phase — results of wall sweep, territory claim, life check. */
 export interface BuildEndMessage {
   type: "buildEnd";
+  /** Players who lost lives and must reselect a home tower (enters CASTLE_RESELECT). */
   needsReselect: ValidPlayerSlot[];
+  /** Players who were eliminated this phase (lives reached 0, chose abandon). */
   eliminated: ValidPlayerSlot[];
   scores: number[];
   players: SerializedPlayer[];

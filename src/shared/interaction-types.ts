@@ -59,6 +59,21 @@ export interface AutoResolveDeps {
   readonly isHumanController: (playerId: ValidPlayerSlot) => boolean;
 }
 
+export interface CastleBuildState {
+  wallPlans: readonly CastleWallPlan[];
+  maxTiles: number;
+  tileIdx: number;
+  accum: number;
+}
+
+export interface CastleWallPlan {
+  playerId: ValidPlayerSlot;
+  /** Ordered wall tiles for castle construction animation.
+   *  Encoded as packed tile keys: row * GRID_COLS + col.
+   *  Use unpackTile() from spatial.ts to convert to (row, col). */
+  tiles: number[];
+}
+
 /** Which button is focused in the life-lost dialog. */
 export const LIFE_LOST_FOCUS_CONTINUE = 0;
 export const LIFE_LOST_FOCUS_ABANDON = 1;
@@ -78,16 +93,4 @@ export function shouldAutoResolve(
   return deps.hostAtFrameStart
     ? !deps.isHumanController(playerId) && !deps.remoteHumanSlots.has(playerId)
     : playerId !== deps.myPlayerId;
-}
-
-export interface CastleBuildState {
-  wallPlans: readonly CastleWallPlan[];
-  maxTiles: number;
-  tileIdx: number;
-  accum: number;
-}
-
-export interface CastleWallPlan {
-  playerId: ValidPlayerSlot;
-  tiles: number[];
 }

@@ -203,8 +203,15 @@ const runtime: GameRuntime = createGameRuntime({
 
 // ── Initialize dependent modules and register handlers ─────────────
 /** Wire runtime into ws/promote/deps modules and register input + exit
- *  handlers. Called once from online-client.ts after module evaluation. */
+ *  handlers. Called once from online-client.ts after module evaluation.
+ *
+ *  ORDERING INVARIANT — the three init calls must execute in this order:
+ *    1. initWs   — sets up WebSocket lifecycle (reconnect, mode reset)
+ *    2. initPromote — sets up host promotion (requires runtime)
+ *    3. initDeps — sets up server message dispatch (requires all of the above)
+ *  Calling out of order will cause "called before init()" runtime errors. */
 export function initOnlineRuntime(): void {
+  // Step 1: WebSocket lifecycle
   initWs(
     {
       getMode: () => runtime.runtimeState.mode,
@@ -219,8 +226,10 @@ export function initOnlineRuntime(): void {
     defaultClient,
   );
 
+  // Step 2: Host promotion
   initPromote(runtime, defaultClient);
 
+  // Step 3: Server message dispatch
   initDeps({
     runtime,
     initFromServer: sessionHelpers.initFromServer,

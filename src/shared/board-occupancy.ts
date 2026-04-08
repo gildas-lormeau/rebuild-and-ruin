@@ -19,8 +19,21 @@ import {
 } from "./spatial.ts";
 import type { GameViewState } from "./system-interfaces.ts";
 
-/** Epoch tracking is lazy: undefined = not active for this player.
- *  Initialized on first markWallsDirty() call. */
+/**
+ * Interior freshness tracking — lazy epoch pairs (wallsEpoch, interiorEpoch).
+ *
+ * CONTRACT:
+ *   1. markWallsDirty(player) after any wall mutation (bumps wallsEpoch).
+ *   2. recomputeInterior(player) to recompute interior (syncs interiorEpoch).
+ *   3. assertInteriorFresh(player) before reading interior (checks epochs match).
+ *
+ * Epochs are undefined until the first markWallsDirty() call — this is safe:
+ * assertInteriorFresh() returns early (no-op) when epochs are uninitialized,
+ * allowing tests and code that never mutates walls to skip the overhead.
+ *
+ * BATTLE EXCEPTION: Interior is intentionally stale while walls are destroyed
+ * frame-by-frame. It is rebuilt at the next build phase via recheckTerritoryOnly().
+ */
 const wallsEpoch = new WeakMap<Player, number>();
 const interiorEpoch = new WeakMap<Player, number>();
 /** Preset: tiles that block bonus square placement.

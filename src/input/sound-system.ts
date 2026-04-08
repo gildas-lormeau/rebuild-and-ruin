@@ -20,12 +20,18 @@ interface StoppableNode {
   stop(when?: number): void;
 }
 
-// Wave shapes: SQUARE=0, SAWTOOTH=1, SINE=2, NOISE=3
+// Wave shapes for jsfxr SFX definitions.
+const WAVE_SQUARE = 0;
+const WAVE_SAWTOOTH = 1;
+// WAVE_SINE = 2 — not used by current SFX defs but documented for reference.
+const WAVE_NOISE = 3;
+/** Volume scale when sound is set to "phase changes only" (half volume). */
+const PHASE_ONLY_VOL = 0.5;
 const RATE = 44100;
 const SFX_DEFS = {
   // Battle
   cannonKilled: {
-    wave_type: 3,
+    wave_type: WAVE_NOISE,
     p_env_attack: 0,
     p_env_sustain: 0.25,
     p_env_punch: 0.5,
@@ -38,7 +44,7 @@ const SFX_DEFS = {
     sample_size: 8,
   },
   gruntSpawned: {
-    wave_type: 0,
+    wave_type: WAVE_SQUARE,
     p_env_attack: 0,
     p_env_sustain: 0.08,
     p_env_decay: 0.15,
@@ -50,7 +56,7 @@ const SFX_DEFS = {
     sample_size: 8,
   },
   gruntKilled: {
-    wave_type: 3,
+    wave_type: WAVE_NOISE,
     p_env_attack: 0,
     p_env_sustain: 0.05,
     p_env_decay: 0.1,
@@ -61,7 +67,7 @@ const SFX_DEFS = {
     sample_size: 8,
   },
   towerKilled: {
-    wave_type: 3,
+    wave_type: WAVE_NOISE,
     p_env_attack: 0,
     p_env_sustain: 0.3,
     p_env_punch: 0.6,
@@ -76,7 +82,7 @@ const SFX_DEFS = {
 
   // Build / Cannon
   piecePlaced: {
-    wave_type: 0,
+    wave_type: WAVE_SQUARE,
     p_env_attack: 0,
     p_env_sustain: 0.04,
     p_env_decay: 0.08,
@@ -87,7 +93,7 @@ const SFX_DEFS = {
     sample_size: 8,
   },
   pieceRotated: {
-    wave_type: 1,
+    wave_type: WAVE_SAWTOOTH,
     p_env_attack: 0,
     p_env_sustain: 0.02,
     p_env_decay: 0.05,
@@ -98,7 +104,7 @@ const SFX_DEFS = {
     sample_size: 8,
   },
   pieceFailed: {
-    wave_type: 3,
+    wave_type: WAVE_NOISE,
     p_env_attack: 0,
     p_env_sustain: 0.06,
     p_env_decay: 0.1,
@@ -109,7 +115,7 @@ const SFX_DEFS = {
     sample_size: 8,
   },
   cannonPlaced: {
-    wave_type: 0,
+    wave_type: WAVE_SQUARE,
     p_env_attack: 0,
     p_env_sustain: 0.06,
     p_env_decay: 0.12,
@@ -123,7 +129,7 @@ const SFX_DEFS = {
 
   // Phase / UI
   phaseStart: {
-    wave_type: 1,
+    wave_type: WAVE_SAWTOOTH,
     p_env_attack: 0.02,
     p_env_sustain: 0.2,
     p_env_decay: 0.3,
@@ -136,7 +142,7 @@ const SFX_DEFS = {
     sample_size: 8,
   },
   lifeLost: {
-    wave_type: 1,
+    wave_type: WAVE_SAWTOOTH,
     p_env_attack: 0.05,
     p_env_sustain: 0.3,
     p_env_decay: 0.5,
@@ -149,7 +155,7 @@ const SFX_DEFS = {
     sample_size: 8,
   },
   gameOver: {
-    wave_type: 1,
+    wave_type: WAVE_SAWTOOTH,
     p_env_attack: 0.1,
     p_env_sustain: 0.4,
     p_env_decay: 0.6,
@@ -289,7 +295,7 @@ export function createSoundSystem(): SoundSystem {
     if (now - last < COOLDOWN_MS) return;
     lastPlayTime.set(key, now);
     const audio = getPooledAudio(key);
-    audio.volume = soundLevel === SOUND_PHASE_ONLY ? 0.5 : 1;
+    audio.volume = soundLevel === SOUND_PHASE_ONLY ? PHASE_ONLY_VOL : 1;
     audio.play().catch(() => {});
   }
 
@@ -301,7 +307,7 @@ export function createSoundSystem(): SoundSystem {
     audioCtx.resume().catch(() => {});
     const time = audioCtx.currentTime + 0.01;
     const volume =
-      CANNON_BOOM_VOL * (soundLevel === SOUND_PHASE_ONLY ? 0.5 : 1);
+      CANNON_BOOM_VOL * (soundLevel === SOUND_PHASE_ONLY ? PHASE_ONLY_VOL : 1);
 
     const blastLen = Math.ceil(audioCtx.sampleRate * CANNON_BLAST_DURATION);
     const blastBuf = audioCtx.createBuffer(1, blastLen, audioCtx.sampleRate);
@@ -425,7 +431,7 @@ export function createSoundSystem(): SoundSystem {
 
     const attack = dur * WHISTLE_ATTACK_FRACTION;
     const release = dur * WHISTLE_RELEASE_FRACTION;
-    const volScale = soundLevel === SOUND_PHASE_ONLY ? 0.5 : 1;
+    const volScale = soundLevel === SOUND_PHASE_ONLY ? PHASE_ONLY_VOL : 1;
     const peakVol = WHISTLE_PEAK_VOL * volScale;
 
     const time = audioCtx.currentTime + 0.02;
@@ -476,7 +482,7 @@ export function createSoundSystem(): SoundSystem {
     const audioCtx = getCtx();
     audioCtx.resume().catch(() => {});
     const time = audioCtx.currentTime + 0.01;
-    const volume = soundLevel === SOUND_PHASE_ONLY ? 0.5 : 1;
+    const volume = soundLevel === SOUND_PHASE_ONLY ? PHASE_ONLY_VOL : 1;
 
     const thud = audioCtx.createOscillator();
     thud.type = SINE;
@@ -622,7 +628,7 @@ export function createSoundSystem(): SoundSystem {
       const E5 = 659 * pitch;
       const G5 = 784 * pitch;
       const noteStep = FANFARE_NOTE_STEP;
-      const volScale = soundLevel === SOUND_PHASE_ONLY ? 0.5 : 1;
+      const volScale = soundLevel === SOUND_PHASE_ONLY ? PHASE_ONLY_VOL : 1;
 
       const score: [number, number, number, boolean][] = [
         [G4, noteStep, 0.28, false],
@@ -657,7 +663,7 @@ export function createSoundSystem(): SoundSystem {
       drumGainNode.gain.setValueAtTime(1, audioCtx.currentTime);
       drumGainNode.connect(audioCtx.destination);
 
-      const maxVol = soundLevel === SOUND_PHASE_ONLY ? 0.5 : 1;
+      const maxVol = soundLevel === SOUND_PHASE_ONLY ? PHASE_ONLY_VOL : 1;
       const t0 = audioCtx.currentTime + 0.05;
       let time = t0;
       const end = time + DRUM_MAX_DURATION;

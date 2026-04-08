@@ -156,10 +156,11 @@ export function createOnlineRuntimeSessionHelpers(
     );
 
     setWatcherPhaseTimer(deps.watcher.timing, performance.now(), state.timer);
-    if (state.battleCountdown > 0) {
-      deps.watcher.timing.countdownStartTime = performance.now();
-      deps.watcher.timing.countdownDuration = state.battleCountdown;
-    }
+    // Always sync watcher countdown timing — even if battleCountdown is 0
+    // (e.g. full-state recovery mid-battle). Omitting leaves stale values
+    // in countdownStartTime/countdownDuration from a prior phase.
+    deps.watcher.timing.countdownStartTime = performance.now();
+    deps.watcher.timing.countdownDuration = state.battleCountdown;
   }
 
   return {

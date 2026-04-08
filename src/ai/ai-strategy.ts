@@ -371,6 +371,9 @@ export class DefaultStrategy implements AiStrategy {
     });
   }
 
+  /** Assess home tower enclosure at END of build phase. The result is stale
+   *  by design — `_homeWasBroken` is consumed during the NEXT build phase's
+   *  pickPlacement(), reflecting last round's outcome, not real-time state. */
   assessBuildEnd(state: GameViewState, playerId: ValidPlayerSlot): void {
     const player = state.players[playerId]!;
     this._homeWasBroken = false;

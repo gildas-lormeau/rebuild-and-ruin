@@ -28,7 +28,10 @@ interface ResolveAfterLifeLostDeps {
 
 /** Tick the life-lost dialog. Auto-resolve entries tick their timers;
  *  max timer force-resolves all pending entries.
- *  Returns true when all entries are resolved. */
+ *  Returns true when all entries are resolved.
+ *  @param dt — Delta time in seconds (not ms).
+ *  @param autoDelay — Per-entry auto-resolve delay in seconds.
+ *  @param maxTimer — Global force-resolve deadline in seconds. */
 // Parallel structure with tickUpgradePickDialog (upgrade-pick.ts) — both loop entries for auto-resolve + force-resolve.
 export function tickLifeLostDialog(
   dialog: LifeLostDialogState,

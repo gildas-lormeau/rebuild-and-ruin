@@ -12,6 +12,9 @@ export enum Tile {
   Water = 1,
 }
 
+/** Grid width in tiles. All packed tile indices across the codebase use:
+ *    key = row * GRID_COLS + col
+ *  Use packTile(r,c) / unpackTile(key) from spatial.ts — never encode manually. */
 export const GRID_COLS = 44;
 export const GRID_ROWS = 28;
 /** Total tile count — upper bound for packed tile indices (row * GRID_COLS + col). */

@@ -77,6 +77,7 @@ import {
   UPGRADE_CARD_H,
   UPGRADE_CARD_W,
   UPGRADE_ROW_GAP,
+  UPGRADE_ROW_W,
 } from "./render-composition.ts";
 import {
   BG_BANNER,
@@ -460,8 +461,7 @@ export function drawUpgradePick(
   const cardH = UPGRADE_CARD_H;
   const cardGap = UPGRADE_CARD_GAP;
   const rowGap = UPGRADE_ROW_GAP;
-  const cardsPerRow = 3;
-  const rowW = cardsPerRow * cardW + (cardsPerRow - 1) * cardGap;
+  const rowW = UPGRADE_ROW_W;
   const nameH = 18;
   const entryH = nameH + cardH + rowGap;
 

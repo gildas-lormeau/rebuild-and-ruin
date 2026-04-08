@@ -11,7 +11,7 @@ export type CannonPhantom = {
   playerId: ValidPlayerSlot;
 };
 
-/** Remote AI piece phantom (no `valid` — always drawn as neutral; no local validation). */
+/** Remote piece phantom. `valid` controls placement coloring (green = valid, dark gray = invalid). */
 export type PiecePhantom = {
   offsets: [number, number][];
   row: number;

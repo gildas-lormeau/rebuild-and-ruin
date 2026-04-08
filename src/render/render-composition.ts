@@ -90,11 +90,11 @@ export const GAMEOVER_HEADER_H = 36;
 export const GAMEOVER_BTN_H = 20;
 /** Scoreboard column X positions as ratios of panel width: Score, Walls, Cannons, Territory. */
 export const SCOREBOARD_COL_RATIOS = [0.38, 0.56, 0.74, 0.92] as const;
-/** Card layout constants — must match drawUpgradePick in render-ui.ts. */
+/** Card layout constants — canonical source; render-ui.ts imports these. */
 export const UPGRADE_CARD_W = 120;
 export const UPGRADE_CARD_H = 100;
 export const UPGRADE_CARD_GAP = 10;
-const UPGRADE_ROW_W =
+export const UPGRADE_ROW_W =
   UPGRADE_CARDS_PER_ROW * UPGRADE_CARD_W +
   (UPGRADE_CARDS_PER_ROW - 1) * UPGRADE_CARD_GAP;
 

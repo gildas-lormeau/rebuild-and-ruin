@@ -2,6 +2,10 @@
  * Settings option labels, arrays, and index constants.
  */
 
+/** Display labels for difficulty levels. Index must match DIFFICULTY_* constants
+ *  in game-constants.ts: 0=Easy, 1=Normal, 2=Hard, 3=Very Hard.
+ *  Length must equal DIFFICULTY_PARAMS.length in game-constants.ts. */
+
 export const DIFFICULTY_LABELS = ["Easy", "Normal", "Hard", "Very Hard"];
 export const ROUNDS_OPTIONS = [
   { value: 3, label: "3" },

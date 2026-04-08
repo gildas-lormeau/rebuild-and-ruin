@@ -56,9 +56,11 @@ export const selectionFacade = {
   initTowerSelection,
 };
 
-/** Snapshot entities THEN finalize castle construction and enter cannon phase.
- *  Ordering invariant: snapshot must capture state BEFORE finalize mutates it.
- *  Combined here so callers cannot accidentally reverse the steps. */
+/** INVARIANT: Snapshot entities THEN finalize castle construction and enter
+ *  cannon phase. Snapshot must capture state BEFORE finalize mutates it
+ *  (finalize recomputes territory, sweeps walls, modifies players).
+ *  Combined here so callers cannot accidentally reverse the steps.
+ *  Mirrors snapshotThenFinalize() in build-phase-helpers.ts. */
 function snapshotAndFinalizeForCannonPhase(state: GameState): EntityOverlay {
   const entities = snapshotEntities(state);
   finalizeAndEnterCannonPhase(state);

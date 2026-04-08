@@ -357,6 +357,10 @@ function applyLifePenalties(state: GameState): {
   return { needsReselect, eliminated };
 }
 
+/** Destructive teardown of a zone after player elimination: removes all grunts,
+ *  houses, burning pits, and bonus squares in the zone; reverts sinkhole tiles
+ *  back to grass; revives all towers in the zone. Not a simple "reset" — it
+ *  permanently modifies game state for the eliminated zone. */
 export function resetZoneState(state: GameState, zone: number): void {
   state.grunts = state.grunts.filter((grunt) => {
     if (state.map.zones[grunt.row]?.[grunt.col] === zone) return false;

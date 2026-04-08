@@ -12,8 +12,10 @@ import type { ValidPlayerSlot } from "./player-slot.ts";
 import type { UpgradeId } from "./upgrade-defs.ts";
 
 /** Branded ReadonlySet<number> proving that interior was recomputed after the
- *  last wall mutation. Only produced by `markInteriorFresh` (board-occupancy)
- *  and `emptyFreshInterior` (initial construction / deserialization).
+ *  last wall mutation. Only produced by:
+ *  - `recomputeInterior()` in board-occupancy.ts (after wall mutations)
+ *  - `emptyFreshInterior()` below (initial player creation)
+ *  - `brandFreshInterior()` below (checkpoint deserialization of trusted data)
  *  Consumers can read `.has()` / `.size` / iterate freely — the brand carries
  *  through because FreshInterior extends ReadonlySet<number>. */
 export type FreshInterior = ReadonlySet<number> & {
