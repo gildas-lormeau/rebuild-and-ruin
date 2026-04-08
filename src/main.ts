@@ -9,7 +9,7 @@
 import { createCanvasRenderer } from "./render/render-canvas.ts";
 import { loadAtlas } from "./render/render-sprites.ts";
 import { createGameRuntime } from "./runtime/runtime.ts";
-import { setMode } from "./runtime/runtime-state.ts";
+import { resetFrameTiming, setMode } from "./runtime/runtime-state.ts";
 import { LOBBY_TIMER } from "./shared/game-constants.ts";
 import { MAX_PLAYERS } from "./shared/player-config.ts";
 import { SPECTATOR_SLOT } from "./shared/player-slot.ts";
@@ -89,6 +89,6 @@ function showLobby(): void {
   runtime.runtimeState.optionsUI.returnMode = null;
   runtime.lobby.renderLobby();
   setMode(runtime.runtimeState, Mode.LOBBY);
-  runtime.runtimeState.lastTime = performance.now();
+  resetFrameTiming(runtime.runtimeState);
   requestAnimationFrame(runtime.mainLoop);
 }

@@ -14,7 +14,7 @@ import {
   FOCUS_REMATCH,
   type GameOverFocus,
 } from "../shared/interaction-types.ts";
-import type { GameOverOverlay } from "../shared/overlay-types.ts";
+import type { GameOverOverlay, PlayerStats } from "../shared/overlay-types.ts";
 import type { ValidPlayerSlot } from "../shared/player-slot.ts";
 import type { SoundSystem } from "../shared/system-interfaces.ts";
 import { Mode } from "../shared/ui-mode.ts";
@@ -122,7 +122,7 @@ interface LifecycleWiringDeps {
       eliminated: boolean;
       interior: ReadonlySet<number>;
     }[],
-    gameStats: readonly { wallsDestroyed: number; cannonsKilled: number }[],
+    gameStats: readonly PlayerStats[],
   ) => GameOverOverlay;
 }
 
